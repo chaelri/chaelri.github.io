@@ -1,6 +1,6 @@
 const apiKey = "AIzaSyC_i8UR1fhAR4j7Jby4Ygl54boXkt8gtaE"; // Replace with your API Key
 const spreadsheetId = "1j0XDgYXpxc0SHVY99GBkLdEB4ngfLDqZKRNvK259j7o";
-const range = "Sheet1!A1"; // Cell to update (e.g., A1)
+const range = "Chalee's 💸!A1"; // Cell to update (e.g., A1)
 
 const button = document.getElementById("counterButton");
 const responseElement = document.getElementById("response");
