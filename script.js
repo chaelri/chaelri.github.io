@@ -28,7 +28,7 @@ const counterRef = ref(db, "counter");
 
 // Function to update counter from database
 // Get the image element
-const clickableImage = document.querySelector(".clickable-image");
+const clickableImage = document.getElementById('clickableImage');
 
 async function increment() {
   const snapshot = await get(counterRef);
@@ -54,6 +54,9 @@ async function updateCounter() {
   // Show the counter container after loading
   document.getElementById("counter-container").style.display = "block";
 }
+
+// Add click event listener
+clickableImage.addEventListener('click', increment);
 
 // Listen for real-time updates
 onValue(counterRef, (snapshot) => {

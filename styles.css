@@ -71,7 +71,6 @@ body {
   height: 200px;
   object-fit: cover;
   cursor: pointer;
-  border-radius: 50%; /* Makes the image circular */
   transition: transform 0.3s ease;
 }
 
