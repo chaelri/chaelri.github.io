@@ -37,6 +37,13 @@ async function updateCounter() {
   document.getElementById("counter-container").style.display = "block";
 }
 
+// Listen for real-time updates
+onValue(counterRef, (snapshot) => {
+  const count = snapshot.exists() ? snapshot.val() : 0;
+  document.getElementById("counter").innerText = count;
+  document.getElementById("counter-container").style.display = "block"; // Show UI when data is loaded
+});
+
 // Function to increment counter and save to database
 window.increment = async function () {
   const snapshot = await get(counterRef);
