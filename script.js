@@ -28,7 +28,43 @@ const counterRef = ref(db, "counter");
 
 // Function to update counter from database
 // Get the image element
-const clickableImage = document.getElementById('clickableImage');
+const clickableImage = document.getElementById("clickableImage");
+const apaSound = document.getElementById("apaSound");
+const ilySound = document.getElementById("ilySound");
+const whoAmIToYouSound = document.getElementById("whoAmIToYouSound");
+const hmmmpSound = document.getElementById("hmmmpSound");
+
+// Function to play random sound
+function playRandomSound(count) {
+  // Check if count is divisible by 100
+  if (count % 100 === 0 && count !== 0) {
+    // Play ilySound for milestones
+    ilySound.currentTime = 0;
+    return ilySound.play().catch((error) => {
+      console.log("Audio play failed:", error);
+    });
+  }
+
+  // Regular weighted random distribution for other counts
+  const randomNum = Math.random() * 100;
+
+  let soundToPlay;
+
+  if (randomNum < 55) {
+    soundToPlay = apaSound; // 55% chance
+  } else if (randomNum < 80) {
+    soundToPlay = hmmmpSound; // 25% chance
+  } else if (randomNum < 95) {
+    soundToPlay = whoAmIToYouSound; // 15% chance
+  } else {
+    soundToPlay = ilySound; // 5% chance
+  }
+
+  soundToPlay.currentTime = 0;
+  soundToPlay.play().catch((error) => {
+    console.log("Audio play failed:", error);
+  });
+}
 
 async function increment() {
   const snapshot = await get(counterRef);
@@ -37,6 +73,9 @@ async function increment() {
 
   // Update Firebase
   await set(counterRef, newCount);
+
+  // Play sound
+  playRandomSound(newCount);
 
   // Trigger animation
   clickableImage.classList.remove("heart-beat");
@@ -56,7 +95,7 @@ async function updateCounter() {
 }
 
 // Add click event listener
-clickableImage.addEventListener('click', increment);
+clickableImage.addEventListener("click", increment);
 
 // Listen for real-time updates
 onValue(counterRef, (snapshot) => {
@@ -66,3 +105,46 @@ onValue(counterRef, (snapshot) => {
 
 // Initial load
 updateCounter();
+
+// Initialize sounds on first user interaction
+document.addEventListener(
+  "click",
+  function initializeAudio() {
+    // Play and immediately pause to initialize audio
+    apaSound
+      .play()
+      .then(() => {
+        apaSound.pause();
+        apaSound.currentTime = 0;
+      })
+      .catch(console.error);
+
+    ilySound
+      .play()
+      .then(() => {
+        ilySound.pause();
+        ilySound.currentTime = 0;
+      })
+      .catch(console.error);
+
+    whoAmIToYouSound
+      .play()
+      .then(() => {
+        whoAmIToYouSound.pause();
+        whoAmIToYouSound.currentTime = 0;
+      })
+      .catch(console.error);
+
+    hmmmpSound
+      .play()
+      .then(() => {
+        hmmmpSound.pause();
+        hmmmpSound.currentTime = 0;
+      })
+      .catch(console.error);
+
+    // Remove this listener after initialization
+    document.removeEventListener("click", initializeAudio);
+  },
+  { once: true }
+);
