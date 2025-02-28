@@ -3,7 +3,7 @@ import { initializeApp } from "https://www.gstatic.com/firebasejs/9.6.1/firebase
 import {
   getDatabase,
   ref,
-  get,
+  onValue,
   set,
 } from "https://www.gstatic.com/firebasejs/9.6.1/firebase-database.js";
 
