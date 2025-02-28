@@ -1,25 +1,24 @@
+/* Prevent zoom on double tap for mobile devices */
+* {
+  touch-action: manipulation;
+}
+
 /* Hide the counter initially */
 #counter-container {
   display: none;
   text-align: center;
-  margin-top: 50px;
+  margin-top: 20px;
   font-family: Arial, sans-serif;
+  flex-direction: column;
+  align-items: center;
 }
 
-/* Button styling */
-button {
-  padding: 10px 20px;
-  font-size: 16px;
-  cursor: pointer;
-  background-color: #007bff;
+/* Counter text styling */
+#counter-text {
   color: white;
-  border: none;
-  border-radius: 5px;
-  margin-top: 10px;
-}
-
-button:hover {
-  background-color: #0056b3;
+  font-size: 1.5rem;
+  margin-top: 15px;
+  font-family: "Pacifico", serif;
 }
 
 section {
@@ -67,11 +66,13 @@ body {
 }
 
 .clickable-image {
-  width: 200px; /* Adjust size as needed */
-  height: 200px;
+  width: 300px;
+  height: 300px;
   object-fit: cover;
   cursor: pointer;
   transition: transform 0.3s ease;
+  -webkit-tap-highlight-color: transparent; /* Remove tap highlight on mobile */
+  user-select: none; /* Prevent text selection */
 }
 
 .clickable-image:hover {
@@ -81,23 +82,39 @@ body {
 /* Animation for the click effect */
 @keyframes heartBeat {
   0% {
-      transform: scale(1);
+    transform: scale(1);
   }
   14% {
-      transform: scale(1.3);
+    transform: scale(1.3);
   }
   28% {
-      transform: scale(1);
+    transform: scale(1);
   }
   42% {
-      transform: scale(1.3);
+    transform: scale(1.3);
   }
   70% {
-      transform: scale(1);
+    transform: scale(1);
   }
 }
 
 /* Class to apply the animation */
 .heart-beat {
   animation: heartBeat 1s ease-in-out;
+}
+
+/* Mobile-specific adjustments */
+@media (max-width: 768px) {
+  .clickable-image {
+    width: 250px;
+    height: 250px;
+  }
+
+  .monthsary {
+    font-size: 1.5rem;
+  }
+
+  .missmoko {
+    font-size: 1.5rem;
+  }
 }
