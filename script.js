@@ -29,12 +29,16 @@ const counterRef = ref(db, "counter");
 async function updateCounter() {
   const snapshot = await get(counterRef);
   let count = snapshot.exists() ? snapshot.val() : 0;
+
+  // Update UI
   document.getElementById("counter").innerText = count;
+
+  // Show the counter container after loading
+  document.getElementById("counter-container").style.display = "block";
 }
 
 // Function to increment counter and save to database
 window.increment = async function () {
-  // Attach function to `window`
   const snapshot = await get(counterRef);
   let count = snapshot.exists() ? snapshot.val() : 0;
 

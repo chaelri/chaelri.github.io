@@ -4,10 +4,13 @@
     <meta charset="UTF-8" />
     <meta name="viewport" content="width=device-width, initial-scale=1.0" />
     <title>Firebase Counter</title>
+    <link rel="stylesheet" href="styles.css" />
   </head>
   <body>
-    <h1>Counter: <span id="counter">0</span></h1>
-    <button onclick="increment()">Increase</button>
+    <div id="counter-container">
+      <h1>Counter: <span id="counter"></span></h1>
+      <button onclick="increment()">Increase</button>
+    </div>
 
     <!-- Link to JavaScript File -->
     <script type="module" src="script.js"></script>
