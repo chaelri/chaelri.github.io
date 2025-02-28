@@ -5,7 +5,7 @@ import {
   ref,
   onValue,
   set,
-  get
+  get,
 } from "https://www.gstatic.com/firebasejs/9.6.1/firebase-database.js";
 
 // 🔥 Replace with your Firebase config
@@ -27,6 +27,23 @@ const db = getDatabase(app);
 const counterRef = ref(db, "counter");
 
 // Function to update counter from database
+// Get the image element
+const clickableImage = document.querySelector(".clickable-image");
+
+async function increment() {
+  const snapshot = await get(counterRef);
+  const currentCount = snapshot.exists() ? snapshot.val() : 0;
+  const newCount = currentCount + 1;
+
+  // Update Firebase
+  await set(counterRef, newCount);
+
+  // Trigger animation
+  clickableImage.classList.remove("heart-beat");
+  void clickableImage.offsetWidth; // Trigger reflow
+  clickableImage.classList.add("heart-beat");
+}
+
 async function updateCounter() {
   const snapshot = await get(counterRef);
   let count = snapshot.exists() ? snapshot.val() : 0;
@@ -42,18 +59,7 @@ async function updateCounter() {
 onValue(counterRef, (snapshot) => {
   const count = snapshot.exists() ? snapshot.val() : 0;
   document.getElementById("counter").innerText = count;
-  document.getElementById("counter-container").style.display = "block"; // Show UI when data is loaded
 });
 
-// Function to increment counter and save to database
-window.increment = async function () {
-  const snapshot = await get(counterRef);
-  let count = snapshot.exists() ? snapshot.val() : 0;
-
-  count++;
-  await set(counterRef, count);
-  document.getElementById("counter").innerText = count;
-};
-
-// Load counter when page loads
+// Initial load
 updateCounter();

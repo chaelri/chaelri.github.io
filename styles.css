@@ -21,3 +21,84 @@ button {
 button:hover {
   background-color: #0056b3;
 }
+
+section {
+  max-width: 1280px;
+  width: 100%;
+  margin: 0 auto;
+}
+
+.container {
+  display: flex;
+  flex-direction: column;
+  text-align: center;
+}
+
+.pacifico-regular {
+  font-family: "Pacifico", serif;
+  font-weight: 400;
+  font-style: normal;
+}
+
+.open-sans-regular {
+  font-family: "Open Sans", serif;
+  font-weight: 400;
+  font-style: normal;
+}
+
+.zain-bold {
+  font-family: "Funnel Sans", serif;
+  font-weight: bold;
+  font-style: normal;
+}
+
+.monthsary {
+  color: white;
+  font-size: 2rem;
+}
+
+.missmoko {
+  font-size: 2rem;
+  color: white;
+}
+
+body {
+  background: #958a73;
+}
+
+.clickable-image {
+  width: 200px; /* Adjust size as needed */
+  height: 200px;
+  object-fit: cover;
+  cursor: pointer;
+  border-radius: 50%; /* Makes the image circular */
+  transition: transform 0.3s ease;
+}
+
+.clickable-image:hover {
+  transform: scale(1.1);
+}
+
+/* Animation for the click effect */
+@keyframes heartBeat {
+  0% {
+      transform: scale(1);
+  }
+  14% {
+      transform: scale(1.3);
+  }
+  28% {
+      transform: scale(1);
+  }
+  42% {
+      transform: scale(1.3);
+  }
+  70% {
+      transform: scale(1);
+  }
+}
+
+/* Class to apply the animation */
+.heart-beat {
+  animation: heartBeat 1s ease-in-out;
+}
