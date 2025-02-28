@@ -1,84 +1,40 @@
-const CLIENT_ID =
-  "592377088765-u37g75l0vf6p0747cn1mk8s58j2l1m3j.apps.googleusercontent.com"; // Replace with your OAuth 2.0 Client ID
-const API_KEY = "AIzaSyC_i8UR1fhAR4j7Jby4Ygl54boXkt8gtaE";
-const DISCOVERY_DOC =
-  "https://sheets.googleapis.com/$discovery/rest?version=v4";
-const SCOPES = "https://www.googleapis.com/auth/spreadsheets";
+// Import Firebase modules
+import { initializeApp } from "https://www.gstatic.com/firebasejs/9.6.1/firebase-app.js";
+import { getDatabase, ref, get, set } from "https://www.gstatic.com/firebasejs/9.6.1/firebase-database.js";
 
-const spreadsheetId = "1j0XDgYXpxc0SHVY99GBkLdEB4ngfLDqZKRNvK259j7o";
-const range = "Chalee's 💸!A1"; // Cell to update
-const button = document.getElementById("counterButton");
-const responseElement = document.getElementById("response");
+// 🔥 Replace with your Firebase config
+const firebaseConfig = {
+  apiKey: "AIzaSyB8ahT56WbEUaGAymsRNNA-DrfZnUnWIwk",
+  authDomain: "test-database-55379.firebaseapp.com",
+  databaseURL: "https://test-database-55379-default-rtdb.asia-southeast1.firebasedatabase.app",
+  projectId: "test-database-55379",
+  storageBucket: "test-database-55379.firebasestorage.app",
+  messagingSenderId: "933688602756",
+  appId: "1:933688602756:web:392a3a4ce040cb9d4452d1",
+  measurementId: "G-1LSTC0N3NJ"
+};
 
-let gapiInitialized = false;
-let authInstance;
+// Initialize Firebase
+const app = initializeApp(firebaseConfig);
+const db = getDatabase(app);
+const counterRef = ref(db, "counter");
 
-// Load GAPI and initialize the client
-function loadGapiClient() {
-  gapi.load("client:auth2", async () => {
-    await gapi.client.init({
-      apiKey: API_KEY,
-      clientId: CLIENT_ID,
-      discoveryDocs: [DISCOVERY_DOC],
-      scope: SCOPES,
-    });
-
-    gapiInitialized = true;
-    authInstance = gapi.auth2.getAuthInstance();
-  });
+// Function to update counter from database
+async function updateCounter() {
+    const snapshot = await get(counterRef);
+    let count = snapshot.exists() ? snapshot.val() : 0;
+    document.getElementById("counter").innerText = count;
 }
 
-// Authenticate the user
-async function authenticate() {
-  if (!gapiInitialized) {
-    responseElement.textContent = "GAPI not initialized. Please refresh.";
-    return;
-  }
+// Function to increment counter and save to database
+async function increment() {
+    const snapshot = await get(counterRef);
+    let count = snapshot.exists() ? snapshot.val() : 0;
 
-  if (!authInstance.isSignedIn.get()) {
-    await authInstance.signIn();
-  }
+    count++;
+    await set(counterRef, count);
+    document.getElementById("counter").innerText = count;
 }
 
-// Function to get the current value
-async function getCurrentValue() {
-  const response = await gapi.client.sheets.spreadsheets.values.get({
-    spreadsheetId: spreadsheetId,
-    range: range,
-  });
-
-  return parseInt(response.result.values?.[0]?.[0] || "0", 10);
-}
-
-// Function to update the cell value
-async function updateValue(newValue) {
-  const response = await gapi.client.sheets.spreadsheets.values.update({
-    spreadsheetId: spreadsheetId,
-    range: range,
-    valueInputOption: "RAW",
-    resource: {
-      values: [[newValue]],
-    },
-  });
-
-  if (response.status === 200) {
-    responseElement.textContent = `Updated to ${newValue}`;
-  } else {
-    responseElement.textContent = "Error updating the value";
-  }
-}
-
-// Button click handler
-button.addEventListener("click", async () => {
-  try {
-    await authenticate(); // Ensure the user is authenticated
-    const currentValue = await getCurrentValue();
-    const newValue = currentValue + 1;
-    await updateValue(newValue);
-  } catch (error) {
-    responseElement.textContent = `Error: ${error.message}`;
-  }
-});
-
-// Initialize GAPI on page load
-loadGapiClient();
+// Load counter when page loads
+updateCounter();
