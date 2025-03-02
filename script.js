@@ -25,6 +25,7 @@ const firebaseConfig = {
 const app = initializeApp(firebaseConfig);
 const db = getDatabase(app);
 const counterRef = ref(db, "counter");
+const clickHistoryRef = ref(db, "clickHistory");
 
 // Function to update counter from database
 // Get the image element
@@ -82,10 +83,29 @@ async function increment() {
   void clickableImage.offsetWidth; // Trigger reflow
   clickableImage.classList.add("heart-beat");
 
+  // Get current timestamp
+  const timestamp = new Date().toLocaleString(); // Format: "MM/DD/YYYY, HH:MM:SS AM/PM"
+
+  // Update Firebase (counter & timestamp log)
+  await set(counterRef, newCount);
+  push(clickHistoryRef, timestamp); // Add new timestamp to Firebase
+
   // 📳 Vibrate on phone (200ms)
   if ("vibrate" in navigator) {
     navigator.vibrate([100, 50, 200]);
   }
+}
+
+// Function to update click history UI
+function updateClickHistory(snapshot) {
+  clickHistoryList.innerHTML = ""; // Clear list before updating
+
+  snapshot.forEach((childSnapshot) => {
+    const timestamp = childSnapshot.val();
+    const listItem = document.createElement("li");
+    listItem.textContent = timestamp;
+    clickHistoryList.appendChild(listItem);
+  });
 }
 
 async function updateCounter() {
@@ -106,6 +126,11 @@ clickableImage.addEventListener("click", increment);
 onValue(counterRef, (snapshot) => {
   const count = snapshot.exists() ? snapshot.val() : 0;
   document.getElementById("counter").innerText = count;
+});
+
+// Listen for real-time updates on click history
+onValue(clickHistoryRef, (snapshot) => {
+  updateClickHistory(snapshot);
 });
 
 // Initial load
