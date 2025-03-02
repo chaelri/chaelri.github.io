@@ -68,7 +68,7 @@ function showFloatingText() {
   // Calculate shoulder positions relative to image
   const offsetX = isLeft
     ? rect.left + window.scrollX + rect.width * -0.1
-    : rect.left + window.scrollX + rect.width * 0.35;
+    : rect.left + window.scrollX + rect.width * 0.65;
 
   const offsetY = rect.top + window.scrollY - rect.height * 0.95;
 
