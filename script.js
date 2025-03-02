@@ -64,10 +64,16 @@ function showFloatingText() {
 
   // Randomly decide left or right shoulder
   const isLeft = Math.random() < 0.5;
-  const offsetX = isLeft ? rect.left - 50 : rect.right - 100; // Adjust position
 
-  floatingText.style.left = `${offsetX}px`; // Position horizontally
-  floatingText.style.top = `${rect.top + window.scrollY + 50}px`; // Adjust vertical position
+  // Calculate shoulder positions relative to image
+  const offsetX = isLeft
+    ? rect.left + window.scrollX + rect.width * 0.2 // Left shoulder (20% from left)
+    : rect.left + window.scrollX + rect.width * 0.75; // Right shoulder (75% from left)
+
+  const offsetY = rect.top + window.scrollY + rect.height * 0.2; // Adjust height above shoulder
+
+  floatingText.style.left = `${offsetX}px`;
+  floatingText.style.top = `${offsetY}px`;
 
   floatingTextContainer.appendChild(floatingText);
 

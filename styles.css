@@ -166,7 +166,7 @@ body {
 #floating-text-container {
   position: absolute;
   width: 100%;
-  pointer-events: none; /* Prevent clicks */
+  pointer-events: none; /* Prevents clicks */
 }
 
 /* Floating text effect */
