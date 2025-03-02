@@ -128,6 +128,13 @@ function playRandomSound(count) {
   });
 }
 
+// Function to trigger image animation
+function triggerImageAnimation() {
+  clickableImage.classList.remove("heart-beat");
+  void clickableImage.offsetWidth; // Force reflow
+  clickableImage.classList.add("heart-beat");
+}
+
 async function increment() {
   const snapshot = await get(counterRef);
   const currentCount = snapshot.exists() ? snapshot.val() : 0;
@@ -140,9 +147,7 @@ async function increment() {
   playRandomSound(newCount);
 
   // Trigger animation
-  clickableImage.classList.remove("heart-beat");
-  void clickableImage.offsetWidth; // Trigger reflow
-  clickableImage.classList.add("heart-beat");
+  triggerImageAnimation();
 
   // Get current timestamp
   const timestamp = new Date().toISOString(); // Store in UTC format
@@ -226,6 +231,8 @@ clickableImage.addEventListener("click", () => {
 onValue(counterRef, (snapshot) => {
   const count = snapshot.exists() ? snapshot.val() : 0;
   document.getElementById("counter").innerText = count;
+
+  triggerImageAnimation();
 });
 
 // Listen for real-time updates on click history
