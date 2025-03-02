@@ -67,10 +67,10 @@ function showFloatingText() {
 
   // Calculate shoulder positions relative to image
   const offsetX = isLeft
-    ? rect.left + window.scrollX + rect.width * 0.15 // Left shoulder (15% from left)
-    : rect.left + window.scrollX + rect.width * 0.85; // Right shoulder (85% from left)
+    ? rect.left + window.scrollX + rect.width
+    : rect.left + window.scrollX + rect.width * 0.65;
 
-  const offsetY = rect.top + window.scrollY - rect.height * 0.15; // Move higher (15% above the top)
+  const offsetY = rect.top + window.scrollY - rect.height * 0.55;
 
   floatingText.style.left = `${offsetX}px`;
   floatingText.style.top = `${offsetY}px`;
