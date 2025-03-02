@@ -45,8 +45,9 @@ function formatDateTime(timestamp) {
     day: "numeric",
     hour: "numeric",
     minute: "numeric",
+    second: "numeric",
     hour12: true,
-  }); // Example: "Mar 3, 6:24 AM"
+  }); // Example: "Mar 3, 6:24:10 AM"
 }
 
 // Function to play random sound
@@ -102,7 +103,10 @@ async function increment() {
 
   // Update Firebase (counter & timestamp log)
   await set(counterRef, newCount);
-  push(clickHistoryRef, timestamp); // Add new timestamp to Firebase
+  await push(clickHistoryRef, timestamp); // Add new timestamp to Firebase
+
+  // Keep only recent 5 in Firebase
+  await updateClickHistoryInFirebase();
 
   // 📳 Vibrate on phone (200ms)
   if ("vibrate" in navigator) {
@@ -110,8 +114,30 @@ async function increment() {
   }
 }
 
+// Function to update click history in Firebase (only store last 5)
+async function updateClickHistoryInFirebase() {
+  const snapshot = await get(clickHistoryRef);
+  let clicks = [];
+
+  // Collect all timestamps
+  snapshot.forEach((childSnapshot) => {
+    clicks.push({ key: childSnapshot.key, value: childSnapshot.val() });
+  });
+
+  // Sort by newest first
+  clicks.sort((a, b) => new Date(b.value) - new Date(a.value));
+
+  // Keep only the latest 5
+  if (clicks.length > 5) {
+    const excess = clicks.slice(5); // Get older ones to delete
+    for (let item of excess) {
+      await remove(ref(db, `clickHistory/${item.key}`)); // Remove from Firebase
+    }
+  }
+}
+
 // Function to update click history UI
-function updateClickHistory(snapshot) {
+function updateClickHistoryUI(snapshot) {
   let clicks = [];
 
   snapshot.forEach((childSnapshot) => {
@@ -155,7 +181,7 @@ onValue(counterRef, (snapshot) => {
 
 // Listen for real-time updates on click history
 onValue(clickHistoryRef, (snapshot) => {
-  updateClickHistory(snapshot);
+  updateClickHistoryUI(snapshot);
 });
 
 // Initial load
