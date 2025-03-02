@@ -158,7 +158,7 @@ body {
 #click-history li:nth-child(5) {
   opacity: 0.3;
 }
-#click-history li:nth-child(n+6) {
+#click-history li:nth-child(n + 6) {
   display: none; /* Hide items beyond the 5th */
 }
 
@@ -166,30 +166,28 @@ body {
 #floating-text-container {
   position: absolute;
   width: 100%;
-  text-align: center;
-  pointer-events: none; /* Prevent interaction */
+  pointer-events: none; /* Prevent clicks */
 }
 
 /* Floating text effect */
 .floating-text {
   position: absolute;
-  left: 50%;
-  transform: translateX(-50%);
   font-size: 1.5rem;
   font-family: "Pacifico", cursive;
   color: white;
   opacity: 1;
   animation: floatUp 2s ease-out forwards;
+  white-space: nowrap; /* Prevents text from wrapping */
 }
 
 /* Animation for floating effect */
 @keyframes floatUp {
   0% {
-      transform: translateX(-50%) translateY(0);
-      opacity: 1;
+    transform: translateY(0);
+    opacity: 1;
   }
   100% {
-      transform: translateX(-50%) translateY(-50px);
-      opacity: 0;
+    transform: translateY(-50px);
+    opacity: 0;
   }
 }

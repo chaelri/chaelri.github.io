@@ -7,7 +7,7 @@ import {
   set,
   get,
   push,
-  remove
+  remove,
 } from "https://www.gstatic.com/firebasejs/9.6.1/firebase-database.js";
 
 // 🔥 Replace with your Firebase config
@@ -32,8 +32,16 @@ const clickHistoryRef = ref(db, "clickHistory");
 // Function to update counter from database
 // Get the image element
 // Messages for floating text
-const floatingMessages = ["I miss you too!", "apa!", "mehehehe", "si lovee", "I love you!"];
-const floatingTextContainer = document.getElementById("floating-text-container");
+const floatingMessages = [
+  "I miss you too!",
+  "apa!",
+  "mehehehe",
+  "si lovee",
+  "I love you!",
+];
+const floatingTextContainer = document.getElementById(
+  "floating-text-container"
+);
 const clickableImage = document.getElementById("clickableImage");
 const clickHistoryList = document.getElementById("click-history");
 const apaSound = document.getElementById("apaSound");
@@ -43,22 +51,29 @@ const hmmmpSound = document.getElementById("hmmmpSound");
 
 // Function to show floating text
 function showFloatingText() {
-  const message = floatingMessages[Math.floor(Math.random() * floatingMessages.length)]; // Pick random message
+  const message =
+    floatingMessages[Math.floor(Math.random() * floatingMessages.length)]; // Pick random message
 
   const floatingText = document.createElement("div");
   floatingText.classList.add("floating-text");
   floatingText.innerText = message;
 
-  // Set position relative to the image
+  // Get image position
   const image = document.getElementById("clickableImage");
   const rect = image.getBoundingClientRect();
-  floatingText.style.top = `${rect.top + window.scrollY - 30}px`; // Adjust position above image
+
+  // Randomly decide left or right shoulder
+  const isLeft = Math.random() < 0.5;
+  const offsetX = isLeft ? rect.left - 50 : rect.right - 100; // Adjust position
+
+  floatingText.style.left = `${offsetX}px`; // Position horizontally
+  floatingText.style.top = `${rect.top + window.scrollY + 50}px`; // Adjust vertical position
 
   floatingTextContainer.appendChild(floatingText);
 
   // Remove text after 2s
   setTimeout(() => {
-      floatingText.remove();
+    floatingText.remove();
   }, 2000);
 }
 
