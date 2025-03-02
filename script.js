@@ -30,6 +30,7 @@ const clickHistoryRef = ref(db, "clickHistory");
 // Function to update counter from database
 // Get the image element
 const clickableImage = document.getElementById("clickableImage");
+const clickHistoryList = document.getElementById("click-history");
 const apaSound = document.getElementById("apaSound");
 const ilySound = document.getElementById("ilySound");
 const whoAmIToYouSound = document.getElementById("whoAmIToYouSound");
