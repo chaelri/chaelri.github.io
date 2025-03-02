@@ -70,7 +70,7 @@ function showFloatingText() {
     ? rect.left + window.scrollX + rect.width * 0.5
     : rect.left + window.scrollX + rect.width * 0.35;
 
-  const offsetY = rect.top + window.scrollY - rect.height * 0.55;
+  const offsetY = rect.top + window.scrollY - rect.height * 0.75;
 
   floatingText.style.left = `${offsetX}px`;
   floatingText.style.top = `${offsetY}px`;
