@@ -7,6 +7,7 @@ import {
   set,
   get,
   push,
+  remove
 } from "https://www.gstatic.com/firebasejs/9.6.1/firebase-database.js";
 
 // 🔥 Replace with your Firebase config
