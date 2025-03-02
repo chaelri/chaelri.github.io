@@ -6,7 +6,7 @@ import {
   onValue,
   set,
   get,
-  push
+  push,
 } from "https://www.gstatic.com/firebasejs/9.6.1/firebase-database.js";
 
 // 🔥 Replace with your Firebase config
@@ -36,6 +36,27 @@ const apaSound = document.getElementById("apaSound");
 const ilySound = document.getElementById("ilySound");
 const whoAmIToYouSound = document.getElementById("whoAmIToYouSound");
 const hmmmpSound = document.getElementById("hmmmpSound");
+
+// Function to format time dynamically
+function timeAgo(timestamp) {
+  const now = new Date();
+  const clickTime = new Date(timestamp);
+  const diffMs = now - clickTime;
+  const diffSecs = Math.floor(diffMs / 1000);
+  const diffMins = Math.floor(diffSecs / 60);
+  const diffHrs = Math.floor(diffMins / 60);
+  const diffDays = Math.floor(diffHrs / 24);
+
+  if (diffSecs < 60) return `${diffSecs} secs ago`;
+  if (diffMins < 60) return `${diffMins} mins ago`;
+  if (diffHrs < 24) return `${diffHrs} hrs ago`;
+  if (diffDays === 1) return "Yesterday";
+  if (diffDays === 2) return "The day before yesterday";
+  return clickTime.toLocaleDateString("en-US", {
+    month: "short",
+    day: "numeric",
+  }); // e.g., "Mar 3"
+}
 
 // Function to play random sound
 function playRandomSound(count) {
@@ -86,7 +107,7 @@ async function increment() {
   clickableImage.classList.add("heart-beat");
 
   // Get current timestamp
-  const timestamp = new Date().toLocaleString(); // Format: "MM/DD/YYYY, HH:MM:SS AM/PM"
+  const timestamp = new Date().toISOString(); // Store in UTC format
 
   // Update Firebase (counter & timestamp log)
   await set(counterRef, newCount);
@@ -100,12 +121,23 @@ async function increment() {
 
 // Function to update click history UI
 function updateClickHistory(snapshot) {
-  clickHistoryList.innerHTML = ""; // Clear list before updating
+  let clicks = [];
 
   snapshot.forEach((childSnapshot) => {
-    const timestamp = childSnapshot.val();
+    clicks.push(childSnapshot.val());
+  });
+
+  // Sort newest to oldest
+  clicks.reverse();
+
+  // Keep only the 5 most recent clicks
+  clicks = clicks.slice(0, 5);
+
+  // Clear and update UI
+  clickHistoryList.innerHTML = "";
+  clicks.forEach((timestamp) => {
     const listItem = document.createElement("li");
-    listItem.textContent = timestamp;
+    listItem.textContent = `${timeAgo(timestamp)} - Clicked!`;
     clickHistoryList.appendChild(listItem);
   });
 }

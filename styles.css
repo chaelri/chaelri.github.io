@@ -118,3 +118,46 @@ body {
     font-size: 1.5rem;
   }
 }
+
+/* Click History Container */
+#click-history-container {
+  margin-top: 20px;
+  text-align: center;
+}
+
+/* Click History Title */
+#click-history-container h3 {
+  font-size: 1.3rem;
+  font-family: "Pacifico", serif;
+  color: white;
+  margin-bottom: 10px;
+}
+
+/* Click History List */
+#click-history {
+  list-style: none;
+  padding: 0;
+  max-height: 150px; /* Prevents overflow */
+  overflow: hidden;
+}
+
+/* Individual Click History Item */
+#click-history li {
+  font-size: 1rem;
+  font-family: "Open Sans", sans-serif;
+  color: white;
+  opacity: 1;
+  transition: opacity 1s ease-in-out;
+  margin-bottom: 5px;
+}
+
+/* Gradual Fade Effect (for older items) */
+#click-history li:nth-child(4) {
+  opacity: 0.6;
+}
+#click-history li:nth-child(5) {
+  opacity: 0.3;
+}
+#click-history li:nth-child(n+6) {
+  display: none; /* Hide items beyond the 5th */
+}
