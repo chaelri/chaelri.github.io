@@ -233,6 +233,10 @@ onValue(counterRef, (snapshot) => {
   document.getElementById("counter").innerText = count;
 
   triggerImageAnimation();
+
+  if ("vibrate" in navigator) {
+    navigator.vibrate([100, 50, 200]);
+  }
 });
 
 // Listen for real-time updates on click history
