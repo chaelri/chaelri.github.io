@@ -38,24 +38,15 @@ const whoAmIToYouSound = document.getElementById("whoAmIToYouSound");
 const hmmmpSound = document.getElementById("hmmmpSound");
 
 // Function to format time dynamically
-function timeAgo(timestamp) {
-  const now = new Date();
-  const clickTime = new Date(timestamp);
-  const diffMs = now - clickTime;
-  const diffSecs = Math.floor(diffMs / 1000);
-  const diffMins = Math.floor(diffSecs / 60);
-  const diffHrs = Math.floor(diffMins / 60);
-  const diffDays = Math.floor(diffHrs / 24);
-
-  if (diffSecs < 60) return `${diffSecs} secs ago`;
-  if (diffMins < 60) return `${diffMins} mins ago`;
-  if (diffHrs < 24) return `${diffHrs} hrs ago`;
-  if (diffDays === 1) return "Yesterday";
-  if (diffDays === 2) return "The day before yesterday";
-  return clickTime.toLocaleDateString("en-US", {
+function formatDateTime(timestamp) {
+  const date = new Date(timestamp);
+  return date.toLocaleDateString("en-US", {
     month: "short",
     day: "numeric",
-  }); // e.g., "Mar 3"
+    hour: "numeric",
+    minute: "numeric",
+    hour12: true,
+  }); // Example: "Mar 3, 6:24 AM"
 }
 
 // Function to play random sound
@@ -137,7 +128,7 @@ function updateClickHistory(snapshot) {
   clickHistoryList.innerHTML = "";
   clicks.forEach((timestamp) => {
     const listItem = document.createElement("li");
-    listItem.textContent = `${timeAgo(timestamp)} - Clicked!`;
+    listItem.textContent = `${formatDateTime(timestamp)} - Clicked!`;
     clickHistoryList.appendChild(listItem);
   });
 }
