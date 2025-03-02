@@ -81,6 +81,11 @@ async function increment() {
   clickableImage.classList.remove("heart-beat");
   void clickableImage.offsetWidth; // Trigger reflow
   clickableImage.classList.add("heart-beat");
+
+  // 📳 Vibrate on phone (200ms)
+  if ("vibrate" in navigator) {
+    navigator.vibrate([100, 50, 200]);
+  }
 }
 
 async function updateCounter() {
