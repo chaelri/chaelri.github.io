@@ -28,6 +28,7 @@ const app = initializeApp(firebaseConfig);
 const db = getDatabase(app);
 const counterRef = ref(db, "counter");
 const clickHistoryRef = ref(db, "clickHistory");
+let lastCount = 0; // Stores the last known counter value
 
 // Function to update counter from database
 // Get the image element
@@ -135,6 +136,19 @@ function triggerImageAnimation() {
   clickableImage.classList.add("heart-beat");
 }
 
+// Function to send a browser notification
+function sendNotification(count) {
+  if (document.visibilityState === "hidden") {
+    // Only notify if user is not on the page
+    if (Notification.permission === "granted") {
+      new Notification("New Click!", {
+        body: `Someone clicked! Miss counter: ${count}`,
+        icon: "Chalee1.png", // Change this to your preferred icon
+      });
+    }
+  }
+}
+
 async function increment() {
   const snapshot = await get(counterRef);
   const currentCount = snapshot.exists() ? snapshot.val() : 0;
@@ -237,6 +251,13 @@ onValue(counterRef, (snapshot) => {
   if ("vibrate" in navigator) {
     navigator.vibrate([100, 50, 200]);
   }
+
+  // 🔔 Send notification if counter increases
+  if (count > lastCount) {
+    sendNotification(count);
+  }
+
+  lastCount = count; // Update last known count
 });
 
 // Listen for real-time updates on click history
@@ -289,3 +310,10 @@ document.addEventListener(
   },
   { once: true }
 );
+
+// Request notification permission when the page loads
+document.addEventListener("DOMContentLoaded", () => {
+  if (Notification.permission !== "granted") {
+    Notification.requestPermission();
+  }
+});
