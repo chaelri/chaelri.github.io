@@ -31,12 +31,36 @@ const clickHistoryRef = ref(db, "clickHistory");
 
 // Function to update counter from database
 // Get the image element
+// Messages for floating text
+const floatingMessages = ["I miss you too!", "apa!", "mehehehe", "si lovee", "I love you!"];
+const floatingTextContainer = document.getElementById("floating-text-container");
 const clickableImage = document.getElementById("clickableImage");
 const clickHistoryList = document.getElementById("click-history");
 const apaSound = document.getElementById("apaSound");
 const ilySound = document.getElementById("ilySound");
 const whoAmIToYouSound = document.getElementById("whoAmIToYouSound");
 const hmmmpSound = document.getElementById("hmmmpSound");
+
+// Function to show floating text
+function showFloatingText() {
+  const message = floatingMessages[Math.floor(Math.random() * floatingMessages.length)]; // Pick random message
+
+  const floatingText = document.createElement("div");
+  floatingText.classList.add("floating-text");
+  floatingText.innerText = message;
+
+  // Set position relative to the image
+  const image = document.getElementById("clickableImage");
+  const rect = image.getBoundingClientRect();
+  floatingText.style.top = `${rect.top + window.scrollY - 30}px`; // Adjust position above image
+
+  floatingTextContainer.appendChild(floatingText);
+
+  // Remove text after 2s
+  setTimeout(() => {
+      floatingText.remove();
+  }, 2000);
+}
 
 // Function to format time dynamically
 function formatDateTime(timestamp) {
@@ -172,7 +196,10 @@ async function updateCounter() {
 }
 
 // Add click event listener
-clickableImage.addEventListener("click", increment);
+clickableImage.addEventListener("click", () => {
+  increment(); // Increase counter
+  showFloatingText(); // Show floating text
+});
 
 // Listen for real-time updates
 onValue(counterRef, (snapshot) => {
