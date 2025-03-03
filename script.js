@@ -391,3 +391,85 @@ function createParticles(x, y) {
     }, 1000);
   }
 }
+
+// Firebase References for Chat
+const chatRef = ref(db, "chat");
+const typingRef = ref(db, "typing");
+
+// Chat Modal Elements
+const chatModal = document.getElementById("chatModal");
+const openChatBtn = document.getElementById("openChat");
+const closeChatBtn = document.querySelector(".close-chat");
+const messageInput = document.getElementById("messageInput");
+const sendMessageBtn = document.getElementById("sendMessage");
+const chatBox = document.getElementById("chatBox");
+const typingIndicator = document.getElementById("typingIndicator");
+
+// User Selection Toggle
+let selectedUser = "charlie";
+document.querySelectorAll('input[name="user"]').forEach((radio) => {
+    radio.addEventListener("change", (e) => {
+        selectedUser = e.target.value;
+        updateTypingStatus("");
+    });
+});
+
+// Open & Close Modal
+openChatBtn.addEventListener("click", () => (chatModal.style.display = "flex"));
+closeChatBtn.addEventListener("click", () => (chatModal.style.display = "none"));
+
+// Send Message
+sendMessageBtn.addEventListener("click", async () => {
+    const message = messageInput.value.trim();
+    if (!message) return;
+
+    const timestamp = new Date().toISOString();
+    await push(chatRef, { user: selectedUser, message, timestamp });
+
+    // Clear input & remove typing indicator
+    messageInput.value = "";
+    updateTypingStatus("");
+});
+
+// Listen for New Messages in Firebase
+onValue(chatRef, (snapshot) => {
+    chatBox.innerHTML = ""; // Clear chat
+
+    let messages = [];
+    snapshot.forEach((child) => {
+        messages.push(child.val());
+    });
+
+    messages.sort((a, b) => new Date(a.timestamp) - new Date(b.timestamp));
+
+    messages.forEach(({ user, message, timestamp }) => {
+        const chatBubble = document.createElement("div");
+        chatBubble.classList.add("chat-bubble", user);
+        chatBubble.innerHTML = `<strong>${user === "charlie" ? "Charlie" : "Karla"}</strong>: ${message} <br><small>${formatTime(timestamp)}</small>`;
+        chatBox.appendChild(chatBubble);
+    });
+
+    chatBox.scrollTop = chatBox.scrollHeight; // Auto-scroll
+});
+
+// Real-Time Typing Indicator
+messageInput.addEventListener("input", () => {
+    updateTypingStatus(messageInput.value ? `${selectedUser} is typing...` : "");
+});
+
+// Listen for Typing Updates
+onValue(typingRef, (snapshot) => {
+    typingIndicator.innerText = snapshot.exists() ? snapshot.val() : "";
+});
+
+// Update Typing Status in Firebase
+async function updateTypingStatus(status) {
+    await set(typingRef, status);
+}
+
+// Format Time for Messages
+function formatTime(timestamp) {
+    const date = new Date(timestamp);
+    return date.toLocaleTimeString("en-US", { hour: "numeric", minute: "2-digit", hour12: true });
+}
+
