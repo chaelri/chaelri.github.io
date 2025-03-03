@@ -244,6 +244,7 @@ clickableImage.addEventListener("click", () => {
 onValue(counterRef, (snapshot) => {
   const count = snapshot.exists() ? snapshot.val() : 0;
   document.getElementById("counter").innerText = count;
+  console.log('issue')
 
   triggerImageAnimation();
   showFloatingText();
