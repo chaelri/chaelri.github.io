@@ -392,9 +392,10 @@ function createParticles(x, y) {
   }
 }
 
-// Firebase References for Chat
+// Firebase References for Chat & Typing
 const chatRef = ref(db, "chat");
 const typingRef = ref(db, "typing");
+const liveTypingRef = ref(db, "liveTyping");
 
 // Chat Modal Elements
 const chatModal = document.getElementById("chatModal");
@@ -404,72 +405,107 @@ const messageInput = document.getElementById("messageInput");
 const sendMessageBtn = document.getElementById("sendMessage");
 const chatBox = document.getElementById("chatBox");
 const typingIndicator = document.getElementById("typingIndicator");
+const liveTypingBox = document.getElementById("liveTypingBox");
 
 // User Selection Toggle
 let selectedUser = "charlie";
 document.querySelectorAll('input[name="user"]').forEach((radio) => {
-    radio.addEventListener("change", (e) => {
-        selectedUser = e.target.value;
-        updateTypingStatus("");
-    });
+  radio.addEventListener("change", (e) => {
+    selectedUser = e.target.value;
+    updateTypingStatus("");
+  });
 });
 
 // Open & Close Modal
 openChatBtn.addEventListener("click", () => (chatModal.style.display = "flex"));
-closeChatBtn.addEventListener("click", () => (chatModal.style.display = "none"));
+closeChatBtn.addEventListener(
+  "click",
+  () => (chatModal.style.display = "none")
+);
 
 // Send Message
 sendMessageBtn.addEventListener("click", async () => {
-    const message = messageInput.value.trim();
-    if (!message) return;
+  const message = messageInput.value.trim();
+  if (!message) return;
 
-    const timestamp = new Date().toISOString();
-    await push(chatRef, { user: selectedUser, message, timestamp });
+  const timestamp = new Date().toISOString();
+  await push(chatRef, { user: selectedUser, message, timestamp });
 
-    // Clear input & remove typing indicator
-    messageInput.value = "";
-    updateTypingStatus("");
+  // Clear input & remove typing indicator
+  messageInput.value = "";
+  updateTypingStatus("");
+  updateLiveTyping(""); // Clear live preview
 });
 
 // Listen for New Messages in Firebase
 onValue(chatRef, (snapshot) => {
-    chatBox.innerHTML = ""; // Clear chat
+  chatBox.innerHTML = ""; // Clear chat
 
-    let messages = [];
-    snapshot.forEach((child) => {
-        messages.push(child.val());
-    });
+  let messages = [];
+  snapshot.forEach((child) => {
+    messages.push(child.val());
+  });
 
-    messages.sort((a, b) => new Date(a.timestamp) - new Date(b.timestamp));
+  messages.sort((a, b) => new Date(a.timestamp) - new Date(b.timestamp));
 
-    messages.forEach(({ user, message, timestamp }) => {
-        const chatBubble = document.createElement("div");
-        chatBubble.classList.add("chat-bubble", user);
-        chatBubble.innerHTML = `<strong>${user === "charlie" ? "Charlie" : "Karla"}</strong>: ${message} <br><small>${formatTime(timestamp)}</small>`;
-        chatBox.appendChild(chatBubble);
-    });
+  messages.forEach(({ user, message, timestamp }) => {
+    const chatBubble = document.createElement("div");
+    chatBubble.classList.add("chat-bubble", user);
+    chatBubble.innerHTML = `<strong>${
+      user === "charlie" ? "Charlie" : "Karla"
+    }</strong>: ${message} <br><small>${formatTime(timestamp)}</small>`;
+    chatBox.appendChild(chatBubble);
+  });
 
-    chatBox.scrollTop = chatBox.scrollHeight; // Auto-scroll
+  chatBox.scrollTop = chatBox.scrollHeight; // Auto-scroll
 });
 
 // Real-Time Typing Indicator
 messageInput.addEventListener("input", () => {
-    updateTypingStatus(messageInput.value ? `${selectedUser} is typing...` : "");
+  updateTypingStatus(messageInput.value ? `${selectedUser} is typing...` : "");
+  updateLiveTyping(messageInput.value); // Update real-time preview
 });
 
 // Listen for Typing Updates
 onValue(typingRef, (snapshot) => {
-    typingIndicator.innerText = snapshot.exists() ? snapshot.val() : "";
+  typingIndicator.innerText = snapshot.exists() ? snapshot.val() : "";
+});
+
+// Listen for Live Typing Updates (Preview Messages)
+onValue(liveTypingRef, (snapshot) => {
+  if (snapshot.exists()) {
+    const data = snapshot.val();
+    const otherUser = selectedUser === "charlie" ? "karla" : "charlie";
+
+    // Show the preview only if the other person is typing
+    if (data.user === otherUser) {
+      liveTypingBox.innerText = `${data.message} ✍️`;
+    } else {
+      liveTypingBox.innerText = ""; // Clear preview when other person is not typing
+    }
+  }
 });
 
 // Update Typing Status in Firebase
 async function updateTypingStatus(status) {
-    await set(typingRef, status);
+  await set(typingRef, status);
+}
+
+// Update Live Typing Preview in Firebase
+async function updateLiveTyping(message) {
+  if (message.trim() === "") {
+    await remove(liveTypingRef);
+  } else {
+    await set(liveTypingRef, { user: selectedUser, message });
+  }
 }
 
 // Format Time for Messages
 function formatTime(timestamp) {
-    const date = new Date(timestamp);
-    return date.toLocaleTimeString("en-US", { hour: "numeric", minute: "2-digit", hour12: true });
+  const date = new Date(timestamp);
+  return date.toLocaleTimeString("en-US", {
+    hour: "numeric",
+    minute: "2-digit",
+    hour12: true,
+  });
 }
-
