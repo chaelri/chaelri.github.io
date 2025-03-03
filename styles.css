@@ -203,3 +203,15 @@ body {
   transition: transform 0.8s ease-out, opacity 0.8s ease-out;
   pointer-events: none;
 }
+
+/* Add this CSS to your styles.css file */
+.click-history li {
+  transition: opacity 0.5s ease-in-out, transform 0.5s ease-in-out;
+  opacity: 0;
+  transform: translateY(10px);
+}
+
+.click-history li.visible {
+  opacity: 1;
+  transform: translateY(0);
+}

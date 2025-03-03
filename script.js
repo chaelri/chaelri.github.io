@@ -202,6 +202,7 @@ async function updateClickHistoryInFirebase() {
 }
 
 // Function to update click history UI
+// Function to update click history UI with time ago
 function updateClickHistoryUI(snapshot) {
   let clicks = [];
 
@@ -221,7 +222,13 @@ function updateClickHistoryUI(snapshot) {
     const listItem = document.createElement("li");
     const timeAgo = getTimeAgo(new Date(timestamp));
     listItem.textContent = `${formatDateTime(timestamp)} | ${timeAgo}`;
+    listItem.classList.add("visible"); // Add the visible class for transition
     clickHistoryList.appendChild(listItem);
+
+    // Delay adding the visible class to trigger transition
+    setTimeout(() => {
+      listItem.classList.add("visible");
+    }, 100);
   });
 }
 
