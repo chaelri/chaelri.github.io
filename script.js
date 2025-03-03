@@ -236,7 +236,7 @@ async function updateCounter() {
 }
 
 // Add click event listener
-clickableImage.addEventListener("click", () => {
+clickableImage.addEventListener("click", (event) => {
   increment(); // Increase counter
   const rect = clickableImage.getBoundingClientRect();
   const x = event.clientX - rect.left + window.scrollX;
