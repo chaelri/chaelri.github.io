@@ -471,6 +471,14 @@ onValue(chatRef, (snapshot) => {
   messages.forEach(({ user, message, timestamp }) => {
     const chatBubble = document.createElement("div");
     chatBubble.classList.add("chat-bubble", user);
+
+    // Align messages dynamically based on the selected user
+    if (user === selectedUser) {
+      chatBubble.classList.add("sent-message"); // Right side
+    } else {
+      chatBubble.classList.add("received-message"); // Left side
+    }
+
     chatBubble.innerHTML = `<strong>${
       user === "charlie" ? "Charlie" : "Karla"
     }</strong>: ${message} <br><small>${formatTime(timestamp)}</small>`;

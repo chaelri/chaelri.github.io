@@ -340,18 +340,20 @@ input[type="radio"]:checked + .radio-label {
   font-family: "Open Sans", sans-serif !important;
 }
 
-/* Charlie's Chat */
-.chat-bubble.charlie {
+/* Sent Messages (Current User) */
+.sent-message {
   align-self: flex-end;
-  background: #add8e6;
+  background: #ffb6c1; /* Pastel Pink for sender */
   color: white;
+  text-align: right;
 }
 
-/* Karla's Chat */
-.chat-bubble.karla {
+/* Received Messages (Other User) */
+.received-message {
   align-self: flex-start;
-  background: #ffb6c1;
+  background: #add8e6; /* Light Blue for receiver */
   color: white;
+  text-align: left;
 }
 
 /* Typing Indicator */
