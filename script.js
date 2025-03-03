@@ -238,7 +238,6 @@ async function updateCounter() {
 // Add click event listener
 clickableImage.addEventListener("click", () => {
   increment(); // Increase counter
-  showFloatingText(); // Show floating text
 });
 
 // Listen for real-time updates
