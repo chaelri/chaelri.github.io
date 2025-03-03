@@ -420,7 +420,10 @@ document.querySelectorAll('input[name="user"]').forEach((radio) => {
 });
 
 // **Open & Close Modal**
-openChatBtn.addEventListener("click", () => (chatModal.style.display = "flex"));
+openChatBtn.addEventListener("click", () => {
+  chatModal.style.display = "flex";
+  setTimeout(scrollToBottom, 100);
+});
 closeChatBtn.addEventListener(
   "click",
   () => (chatModal.style.display = "none")
@@ -449,6 +452,11 @@ sendMessageBtn.addEventListener("click", async () => {
   updateTypingStatus("");
 });
 
+// Function to scroll chat to the latest message
+function scrollToBottom() {
+  chatBox.scrollTop = chatBox.scrollHeight;
+}
+
 // **Listen for New Messages & Display in Chat**
 onValue(chatRef, (snapshot) => {
   chatBox.innerHTML = ""; // Clear chat before updating
@@ -469,7 +477,8 @@ onValue(chatRef, (snapshot) => {
     chatBox.appendChild(chatBubble);
   });
 
-  chatBox.scrollTop = chatBox.scrollHeight; // Auto-scroll to latest message
+  // Auto-scroll to the latest message after rendering
+  setTimeout(scrollToBottom, 100);
 });
 
 // **Real-Time Typing Updates**
