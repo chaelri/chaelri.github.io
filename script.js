@@ -247,6 +247,7 @@ onValue(counterRef, (snapshot) => {
   document.getElementById("counter").innerText = count;
 
   triggerImageAnimation();
+  showFloatingText();
 
   if ("vibrate" in navigator) {
     navigator.vibrate([100, 50, 200]);
