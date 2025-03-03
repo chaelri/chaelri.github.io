@@ -318,7 +318,7 @@ input[type="radio"]:checked + .radio-label {
 
 /* Chat Box */
 .chat-box {
-  height: 400px;
+  height: 300px;
   overflow-y: auto;
   padding: 10px;
   background: white;
@@ -366,7 +366,7 @@ input[type="radio"]:checked + .radio-label {
 /* Message Input */
 #messageInput {
   width: 100%;
-  height: 200px;
+  height: 100px;
   padding: 16px;
   margin-top: 10px;
   border-radius: 5px;
