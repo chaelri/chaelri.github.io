@@ -46,7 +46,7 @@
           </div>
         </div>
       </div>
-      <!-- Chat Button to Open Modal -->
+      <!-- Open Chat Button -->
       <button id="openChat" class="chat-button">💬 Open Chat</button>
 
       <!-- Chat Modal -->
@@ -57,24 +57,19 @@
 
           <!-- User Selection Toggle -->
           <div class="user-toggle">
-            <label
-              ><input type="radio" name="user" value="charlie" checked /> I am
-              Charlie</label
-            >
-            <label
-              ><input type="radio" name="user" value="karla" /> I am
-              Karla</label
-            >
+            <input type="radio" id="charlie" name="user" value="charlie" />
+            <label for="charlie" class="radio-label">I am Charlie</label>
+
+            <input type="radio" id="karla" name="user" value="karla" />
+            <label for="karla" class="radio-label">I am Karla</label>
           </div>
 
           <!-- Chat Display -->
           <div id="chatBox" class="chat-box"></div>
 
           <!-- Real-time Typing Display -->
-          <div id="typingIndicator" class="typing-indicator"></div>
-
-          <!-- Live Typing Display -->
-          <div id="liveTypingBox" class="live-typing-box"></div>
+          <div id="typingCharlie" class="typing-indicator"></div>
+          <div id="typingKarla" class="typing-indicator"></div>
 
           <!-- Input Box -->
           <textarea
