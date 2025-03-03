@@ -272,6 +272,7 @@ h2 {
   max-width: 400px;
   position: relative;
   box-shadow: 0 5px 15px rgba(0, 0, 0, 0.2);
+  box-sizing: border-box; /* Prevents padding from increasing size */
 }
 
 .chat-modal-content h2 {
@@ -324,6 +325,7 @@ input[type="radio"]:checked + .radio-label {
   border-radius: 10px;
   display: flex;
   flex-direction: column;
+  box-sizing: border-box;
 }
 
 /* Chat Bubbles */
@@ -355,6 +357,7 @@ input[type="radio"]:checked + .radio-label {
 /* Typing Indicator */
 .typing-indicator {
   font-size: 12px;
+  padding-left: 10px;
   font-style: italic;
   color: gray;
   margin-top: 5px;
@@ -369,18 +372,20 @@ input[type="radio"]:checked + .radio-label {
   border-radius: 5px;
   border: 1px solid #ccc;
   resize: none;
+  box-sizing: border-box;
   font-family: "Open Sans", sans-serif !important;
 }
 
 /* Send Button */
 #sendMessage {
   width: 100%;
-  padding: 10px;
+  padding: 12px;
+  margin-top: 10px;
   background: #ff8ea3;
   color: white;
   border: none;
-  border-radius: 12px;
-  margin-top: 5px;
+  border-radius: 8px;
+  font-size: 16px;
   cursor: pointer;
   font-family: "Pacifico", cursive !important;
 }
