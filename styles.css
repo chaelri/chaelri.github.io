@@ -191,34 +191,3 @@ body {
     opacity: 0;
   }
 }
-
-/* Progress Bar Container */
-#progress-container {
-  width: 200px;
-  height: 20px;
-  background-color: #ddd; /* Light gray background */
-  border-radius: 10px;
-  overflow: hidden;
-  position: relative;
-  margin: 10px auto;
-}
-
-/* Progress Fill */
-#progress-bar {
-  height: 100%;
-  width: 100%;
-  background-color: green; /* Default full is green */
-  transition: width 0.5s ease-in-out, background-color 0.5s ease-in-out;
-}
-
-/* Progress Label */
-#progress-label {
-  text-align: center;
-  font-weight: bold;
-  position: absolute;
-  top: 50%;
-  left: 50%;
-  transform: translate(-50%, -50%);
-  font-size: 14px;
-  color: white;
-}
