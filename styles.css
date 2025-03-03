@@ -191,3 +191,15 @@ body {
     opacity: 0;
   }
 }
+
+/* Particle Effect */
+.particle {
+  position: absolute;
+  width: 10px;
+  height: 10px;
+  background-image: url('heart.png'); /* Replace with spark/heart particle */
+  background-size: cover;
+  opacity: 1;
+  transition: transform 0.8s ease-out, opacity 0.8s ease-out;
+  pointer-events: none;
+}
