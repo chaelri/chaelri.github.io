@@ -236,7 +236,7 @@ async function updateCounter() {
 }
 
 // Add click event listener
-clickableImage.addEventListener("click", (event) => {
+clickableImage.addEventListener("click", () => {
   increment(); // Increase counter
   const rect = clickableImage.getBoundingClientRect();
   const x = event.clientX - rect.left + window.scrollX;
@@ -334,30 +334,28 @@ function createParticles(x, y) {
   const numParticles = 15; // Number of particles per click
 
   for (let i = 0; i < numParticles; i++) {
-    const particle = document.createElement("div");
-    particle.classList.add("particle");
+      const particle = document.createElement("div");
+      particle.classList.add("particle");
 
-    // Set random position & direction
-    const angle = Math.random() * 2 * Math.PI; // Random angle (0 to 360 degrees)
-    const speed = Math.random() * 5 + 2; // Random speed
-    const velocityX = Math.cos(angle) * speed;
-    const velocityY = Math.sin(angle) * speed;
+      // Set random position & direction
+      const angle = Math.random() * 2 * Math.PI; // Random angle (0 to 360 degrees)
+      const speed = Math.random() * 5 + 2; // Random speed
+      const velocityX = Math.cos(angle) * speed;
+      const velocityY = Math.sin(angle) * speed;
 
-    particle.style.left = `${x}px`;
-    particle.style.top = `${y}px`;
-    document.body.appendChild(particle);
+      particle.style.left = `${x}px`;
+      particle.style.top = `${y}px`;
+      document.body.appendChild(particle);
 
-    // Animate particle movement
-    setTimeout(() => {
-      particle.style.transform = `translate(${velocityX * 15}px, ${
-        velocityY * 15
-      }px)`;
-      particle.style.opacity = "0";
-    }, 10);
+      // Animate particle movement
+      setTimeout(() => {
+          particle.style.transform = `translate(${velocityX * 15}px, ${velocityY * 15}px)`;
+          particle.style.opacity = "0";
+      }, 10);
 
-    // Remove particle after animation
-    setTimeout(() => {
-      particle.remove();
-    }, 1000);
+      // Remove particle after animation
+      setTimeout(() => {
+          particle.remove();
+      }, 1000);
   }
 }
