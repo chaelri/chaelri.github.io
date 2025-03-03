@@ -240,16 +240,22 @@ clickableImage.addEventListener("click", () => {
   increment(); // Increase counter
 });
 
+let userInteracted = false;
+
+// Set the flag when the user interacts with the page
+document.addEventListener("click", () => {
+  userInteracted = true;
+});
+
 // Listen for real-time updates
 onValue(counterRef, (snapshot) => {
   const count = snapshot.exists() ? snapshot.val() : 0;
   document.getElementById("counter").innerText = count;
-  console.log('issue')
 
   triggerImageAnimation();
   showFloatingText();
 
-  if ("vibrate" in navigator) {
+  if (userInteracted && "vibrate" in navigator) {
     navigator.vibrate([100, 50, 200]);
   }
 
