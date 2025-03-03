@@ -346,10 +346,18 @@ function spawnHeart() {
   const randomX = Math.random() * window.innerWidth * 0.8; // Keep within bounds
   heart.style.left = `${randomX}px`;
 
+  // Apply falling animation with inline styles
+  heart.style.animation = `fall ${heartFallDuration / 1000}s linear forwards`;
+
   // Add click event to pop the heart
   heart.addEventListener("click", () => {
+    heart.style.animation = "none"; // Stop falling
     heart.classList.add("popped"); // Play pop animation
-    setTimeout(() => heart.remove(), 500); // Remove after animation
+
+    setTimeout(() => {
+      heart.remove(); // Remove after popping animation
+    }, 500);
+
     heartsPopped++;
     set(heartsPoppedRef, heartsPopped); // Update Firebase
     updateHeartsPopped();
