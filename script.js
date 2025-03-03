@@ -329,8 +329,9 @@ const heartsPoppedText = document.getElementById("heartsPopped");
 
 // Variables
 let heartsPopped = 0;
-const heartSpawnInterval = 3000; // Spawn heart every 3 seconds
-const heartFallDuration = 5000; // Heart falls for 5 seconds
+const minSpawnInterval = 500; // Minimum time between heart spawns (0.5 sec)
+const maxSpawnInterval = 2000; // Maximum time between heart spawns (2 sec)
+const heartFallDuration = 4000; // Faster falling hearts (4 seconds)
 
 // Function to Update Hearts Popped UI
 function updateHeartsPopped() {
@@ -371,11 +372,17 @@ function spawnHeart() {
   }, heartFallDuration);
 
   fallingHeartsContainer.appendChild(heart);
+
+  // Randomize next heart spawn time
+  setTimeout(
+    spawnHeart,
+    Math.random() * (maxSpawnInterval - minSpawnInterval) + minSpawnInterval
+  );
 }
 
-// Function to Start Spawning Hearts
+// Function to Start Spawning Hearts Immediately
 function startFallingHearts() {
-  setInterval(spawnHeart, heartSpawnInterval);
+  spawnHeart(); // Start the first heart manually
 }
 
 // Listen for Firebase updates (sync hearts popped)
