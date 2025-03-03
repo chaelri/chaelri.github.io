@@ -358,8 +358,15 @@ function spawnHeart() {
   heart.style.animation = `fall ${heartFallDuration / 1000}s linear forwards`;
 
   // Add click event to pop the heart
-  heart.addEventListener("click", () => {
-    heart.style.animation = "none"; // Stop falling
+  heart.addEventListener("click", (event) => {
+    // Stop heart from falling
+    heart.style.animation = "none";
+
+    // Set exact position where it was clicked
+    const rect = heart.getBoundingClientRect();
+    heart.style.left = `${rect.left}px`;
+    heart.style.top = `${rect.top}px`;
+
     heart.classList.add("popped"); // Play pop animation
 
     setTimeout(() => {
