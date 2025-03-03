@@ -216,6 +216,20 @@ body {
   transform: translateY(0);
 }
 
+body,
+button,
+input,
+textarea,
+.chat-bubble,
+.radio-label,
+h2 {
+  font-family: "Pacifico", cursive, "Open Sans", sans-serif !important;
+}
+
+h2 {
+  margin-top: 0 !important;
+}
+
 /* Chat Button */
 .chat-button {
   position: fixed;
@@ -258,6 +272,11 @@ body {
   max-width: 400px;
   position: relative;
   box-shadow: 0 5px 15px rgba(0, 0, 0, 0.2);
+}
+
+.chat-modal-content h2 {
+  font-size: 20px;
+  font-family: "Pacifico", cursive !important;
 }
 
 /* Close Button */
@@ -316,6 +335,7 @@ input[type="radio"]:checked + .radio-label {
   font-size: 14px;
   word-wrap: break-word;
   white-space: pre-wrap;
+  font-family: "Open Sans", sans-serif !important;
 }
 
 /* Charlie's Chat */
@@ -344,12 +364,12 @@ input[type="radio"]:checked + .radio-label {
 #messageInput {
   width: 100%;
   height: 50px;
-  padding: 10px;
+  padding: 16px;
   margin-top: 10px;
   border-radius: 5px;
   border: 1px solid #ccc;
   resize: none;
-  font-family: "Open Sans", sans-serif;
+  font-family: "Open Sans", sans-serif !important;
 }
 
 /* Send Button */
@@ -359,9 +379,10 @@ input[type="radio"]:checked + .radio-label {
   background: #ff8ea3;
   color: white;
   border: none;
-  border-radius: 5px;
+  border-radius: 12px;
   margin-top: 5px;
   cursor: pointer;
+  font-family: "Pacifico", cursive !important;
 }
 
 #sendMessage:hover {
