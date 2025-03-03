@@ -343,7 +343,7 @@ input[type="radio"]:checked + .radio-label {
 /* Sent Messages (Current User) */
 .sent-message {
   align-self: flex-end;
-  background: #ffb6c1; /* Pastel Pink for sender */
+  background: #ff8ea3; /* Pastel Pink for sender */
   color: white;
   text-align: right;
 }
@@ -351,7 +351,7 @@ input[type="radio"]:checked + .radio-label {
 /* Received Messages (Other User) */
 .received-message {
   align-self: flex-start;
-  background: #add8e6; /* Light Blue for receiver */
+  background: #4c4c4c; /* Light Blue for receiver */
   color: white;
   text-align: left;
 }

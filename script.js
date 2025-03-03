@@ -480,7 +480,7 @@ onValue(chatRef, (snapshot) => {
     }
 
     chatBubble.innerHTML = `<strong>${
-      user === "charlie" ? "Charlie" : "Karla"
+      user === "charlie" ? "Chalee" : "Karlyy"
     }</strong>: ${message} <br><small>${formatTime(timestamp)}</small>`;
     chatBox.appendChild(chatBubble);
   });
