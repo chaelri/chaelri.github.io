@@ -28,7 +28,13 @@ const app = initializeApp(firebaseConfig);
 const db = getDatabase(app);
 const counterRef = ref(db, "counter");
 const clickHistoryRef = ref(db, "clickHistory");
+const progressRef = ref(db, "progress");
+const lastClickRef = ref(db, "lastClickTime");
 let lastCount = 0; // Stores the last known counter value
+// Progress Variables
+const MAX_PROGRESS = 10;
+const DECAY_TIME = 5 * 60 * 1000; // 5 minutes in milliseconds
+let progress = MAX_PROGRESS; // Start at max
 
 // Function to update counter from database
 // Get the image element
@@ -49,6 +55,53 @@ const apaSound = document.getElementById("apaSound");
 const ilySound = document.getElementById("ilySound");
 const whoAmIToYouSound = document.getElementById("whoAmIToYouSound");
 const hmmmpSound = document.getElementById("hmmmpSound");
+
+// Function to Update Progress Bar UI
+function updateProgressBar() {
+  const progressBar = document.getElementById("progress-bar");
+  const progressLabel = document.getElementById("progress-label");
+
+  // Calculate width percentage
+  const progressPercentage = (progress / MAX_PROGRESS) * 100;
+  progressBar.style.width = `${progressPercentage}%`;
+  progressLabel.innerText = `${progress}/${MAX_PROGRESS}`;
+
+  // Change color based on progress level
+  if (progress >= 7) {
+    progressBar.style.backgroundColor = "green"; // High = Green
+  } else if (progress >= 4) {
+    progressBar.style.backgroundColor = "yellow"; // Medium = Yellow
+  } else {
+    progressBar.style.backgroundColor = "red"; // Low = Red
+  }
+}
+
+// Function to Reduce Progress Every 5 Minutes
+async function decayProgress(lastClickTime) {
+  const now = Date.now();
+  const elapsed = now - lastClickTime; // Time since last click
+
+  // Reduce progress based on time elapsed
+  const pointsLost = Math.floor(elapsed / DECAY_TIME);
+  if (pointsLost > 0) {
+    progress = Math.max(0, progress - pointsLost); // Deduct but keep min 0
+    await set(progressRef, progress); // Save new progress
+    await set(lastClickRef, now); // Save new last click time
+  }
+
+  updateProgressBar();
+}
+
+// Function to Increase Progress When Clicked
+async function increaseProgress() {
+  progress = Math.min(MAX_PROGRESS, progress + 1); // Max limit
+  const now = Date.now(); // Current time
+
+  await set(progressRef, progress); // Save new progress
+  await set(lastClickRef, now); // Save last click time
+
+  updateProgressBar();
+}
 
 // Function to show floating text
 function showFloatingText() {
@@ -239,6 +292,25 @@ async function updateCounter() {
 clickableImage.addEventListener("click", () => {
   increment(); // Increase counter
   showFloatingText(); // Show floating text
+  increaseProgress(); // Increase progress
+});
+
+// Load Progress from Firebase and Apply Decay
+onValue(progressRef, (snapshot) => {
+  if (snapshot.exists()) {
+    progress = snapshot.val();
+  }
+  updateProgressBar();
+});
+
+// Load Last Click Time and Apply Decay
+onValue(lastClickRef, async (snapshot) => {
+  if (snapshot.exists()) {
+    const lastClickTime = snapshot.val();
+    await decayProgress(lastClickTime); // Deduct points based on elapsed time
+  } else {
+    await set(lastClickRef, Date.now()); // Set initial last click time if not exists
+  }
 });
 
 // Listen for real-time updates
