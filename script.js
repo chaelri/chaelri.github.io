@@ -239,12 +239,8 @@ async function updateCounter() {
 clickableImage.addEventListener("click", (event) => {
   increment(); // Increase counter
   const rect = clickableImage.getBoundingClientRect();
-  const x = event.clientX - rect.left + window.scrollX;
-  const y = event.clientY - rect.top + window.scrollY;
-  console.log('event.clientX', event.clientX)
-  console.log('rect.left', rect.left)
-  console.log('window.scrollX', window.scrollX)
-  console.log('x', x)
+  const x = event.clientX + window.scrollX;
+  const y = event.clientY + window.scrollY;
   createParticles(x, y);
 });
 
