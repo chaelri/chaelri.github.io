@@ -317,3 +317,68 @@ document.addEventListener("DOMContentLoaded", () => {
     Notification.requestPermission();
   }
 });
+
+// Firebase References
+const heartsPoppedRef = ref(db, "heartsPopped"); // Store "Hearts Popped" count
+
+// Get UI elements
+const fallingHeartsContainer = document.getElementById(
+  "falling-hearts-container"
+);
+const heartsPoppedText = document.getElementById("heartsPopped");
+
+// Variables
+let heartsPopped = 0;
+const heartSpawnInterval = 3000; // Spawn heart every 3 seconds
+const heartFallDuration = 5000; // Heart falls for 5 seconds
+
+// Function to Update Hearts Popped UI
+function updateHeartsPopped() {
+  heartsPoppedText.innerText = heartsPopped;
+}
+
+// Function to Spawn a Falling Heart
+function spawnHeart() {
+  const heart = document.createElement("div");
+  heart.classList.add("falling-heart");
+
+  // Set random position (within screen width)
+  const randomX = Math.random() * window.innerWidth * 0.8; // Keep within bounds
+  heart.style.left = `${randomX}px`;
+
+  // Add click event to pop the heart
+  heart.addEventListener("click", () => {
+    heart.classList.add("popped"); // Play pop animation
+    setTimeout(() => heart.remove(), 500); // Remove after animation
+    heartsPopped++;
+    set(heartsPoppedRef, heartsPopped); // Update Firebase
+    updateHeartsPopped();
+  });
+
+  // Remove heart if it falls off the screen
+  setTimeout(() => {
+    if (heart.parentElement) {
+      heart.remove();
+    }
+  }, heartFallDuration);
+
+  fallingHeartsContainer.appendChild(heart);
+}
+
+// Function to Start Spawning Hearts
+function startFallingHearts() {
+  setInterval(spawnHeart, heartSpawnInterval);
+}
+
+// Listen for Firebase updates (sync hearts popped)
+onValue(heartsPoppedRef, (snapshot) => {
+  if (snapshot.exists()) {
+    heartsPopped = snapshot.val();
+    updateHeartsPopped();
+  }
+});
+
+// Start the game when the page loads
+document.addEventListener("DOMContentLoaded", () => {
+  startFallingHearts();
+});
