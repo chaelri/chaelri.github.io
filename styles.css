@@ -343,14 +343,14 @@ input[type="radio"]:checked + .radio-label {
 /* Charlie's Chat */
 .chat-bubble.charlie {
   align-self: flex-end;
-  background: #ffb6c1;
+  background: #add8e6;
   color: white;
 }
 
 /* Karla's Chat */
 .chat-bubble.karla {
   align-self: flex-start;
-  background: #add8e6;
+  background: #ffb6c1;
   color: white;
 }
 
