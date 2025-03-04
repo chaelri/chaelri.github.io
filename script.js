@@ -602,7 +602,7 @@ onAuthStateChanged(auth, (user) => {
 
 // 🔹 Listen for Karla's Online Status
 function trackOnlineStatus() {
-  onValue(ref(db, "onlineUsers/kasromantico_gmail_com"), (snapshot) => {
+  onValue(ref(db, "onlineUsers/kasromantico@gmail.com"), (snapshot) => {
     if (snapshot.exists() && snapshot.val().online) {
       onlineStatus.innerHTML = "Karla is 🟢 Online";
     } else {
