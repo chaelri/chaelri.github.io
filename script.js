@@ -512,8 +512,6 @@ onAuthStateChanged(auth, (user) => {
     currentUserEmail = user.email;
     updateUI(user.email);
     updateOnlineStatus(user.email, true);
-  } else {
-    signOut();
   }
 });
 
