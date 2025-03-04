@@ -540,12 +540,12 @@ function trackOnlineStatus() {
     const onlineStatusElement = document.getElementById("online-status");
 
     if (snapshot.exists() && snapshot.val().online) {
-      onlineStatusElement.innerHTML = `${otherUserName} is 🟢 Online`;
+      onlineStatusElement.innerHTML = `${otherUserName} 🟢`;
     } else {
       const lastSeen = snapshot.exists() ? snapshot.val().timestamp : null;
       onlineStatusElement.innerHTML = lastSeen
-        ? `${otherUserName} is 🔴 Offline (Last seen ${timeAgo(lastSeen)})`
-        : `${otherUserName} is 🔴 Offline`;
+        ? `${otherUserName} 🔴 (Last seen ${timeAgo(lastSeen)})`
+        : `${otherUserName} 🔴`;
     }
   });
 }
