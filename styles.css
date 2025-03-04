@@ -401,6 +401,10 @@ input[type="radio"]:checked + .radio-label {
   width: 100%;
 }
 
+.online-wrapper {
+  color: white;
+}
+
 .online-wrapper button {
   margin-left: auto;
   border-radius: 32px;
