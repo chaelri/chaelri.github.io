@@ -75,11 +75,11 @@ const floatingMessages = [
 const allowedEmails = ["charliecayno@gmail.com", "kasromantico@gmail.com"];
 let lastCount = 0;
 let userInteracted = false;
-let currentUserEmail = "";
-const formattedUser =
+let currentUserEmail = localStorage.getItem("currentUserEmail");
+let formattedUser =
   currentUserEmail === "charliecayno@gmail.com" ? "charlie" : "karla";
-console.log('formattedUser', formattedUser)
-console.log('currentUserEmail', currentUserEmail)
+console.log("formattedUser", formattedUser);
+console.log("currentUserEmail", currentUserEmail);
 
 // Function to show floating text
 function showFloatingText() {
@@ -458,7 +458,10 @@ document.getElementById("googleSignIn").addEventListener("click", async () => {
     }
 
     currentUserEmail = user.email;
-    console.log(currentUserEmail)
+    localStorage.setItem("currentUserEmail", currentUserEmail);
+    formattedUser =
+      currentUserEmail === "charliecayno@gmail.com" ? "charlie" : "karla";
+
     loginContainer.style.display = "none";
     protectedContent.style.display = "block";
     updateOnlineStatus(user.email, true);
