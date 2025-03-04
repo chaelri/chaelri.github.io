@@ -623,11 +623,14 @@ onAuthStateChanged(auth, (user) => {
 function trackOnlineStatus() {
   const userEmail = currentUserEmail; // The logged-in user
   let otherUserEmailKey = ""; // The person to track
+  let otherUserName = ""; // The display name
 
   if (userEmail === "charliecayno@gmail.com") {
     otherUserEmailKey = "kasromantico@gmail_com"; // Karla
+    otherUserName = "Karla";
   } else if (userEmail === "kasromantico@gmail.com") {
     otherUserEmailKey = "charliecayno@gmail_com"; // Charlie
+    otherUserName = "Charlie";
   } else {
     console.error("User email not recognized for tracking.");
     return;
@@ -637,16 +640,17 @@ function trackOnlineStatus() {
     const onlineStatusElement = document.getElementById("online-status");
 
     if (snapshot.exists() && snapshot.val().online) {
-      onlineStatusElement.innerHTML = "🟢 Online";
+      onlineStatusElement.innerHTML = `${otherUserName} is 🟢 Online`;
     } else {
       // If offline, show last seen time
       const lastSeen = snapshot.exists() ? snapshot.val().timestamp : null;
       onlineStatusElement.innerHTML = lastSeen
-        ? `🔴 Offline (Last seen ${timeAgo(lastSeen)})`
-        : "🔴 Offline";
+        ? `${otherUserName} is 🔴 Offline (Last seen ${timeAgo(lastSeen)})`
+        : `${otherUserName} is 🔴 Offline`;
     }
   });
 }
+
 function timeAgo(timestamp) {
   const now = Date.now();
   const diffInSeconds = Math.floor((now - timestamp) / 1000);
