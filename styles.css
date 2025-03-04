@@ -278,6 +278,7 @@ h2 {
 .chat-modal-content h2 {
   font-size: 28px;
   font-family: "Pacifico", cursive !important;
+  margin-bottom: 20px;
 }
 
 /* Close Button */
