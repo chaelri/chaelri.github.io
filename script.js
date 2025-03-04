@@ -368,7 +368,7 @@ sendMessageBtn.addEventListener("click", async () => {
   if (!message) return;
 
   await push(chatRef, {
-    user: selectedUser,
+    user: currentUserEmail,
     message,
     timestamp: new Date().toISOString(),
   });
@@ -397,7 +397,7 @@ onValue(chatRef, (snapshot) => {
     const chatBubble = document.createElement("div");
     chatBubble.classList.add("chat-bubble", user);
 
-    if (user === selectedUser) {
+    if (user === currentUserEmail) {
       chatBubble.classList.add("sent-message");
     } else {
       chatBubble.classList.add("received-message");
@@ -430,7 +430,7 @@ onValue(typingRef, (snapshot) => {
 
 // Update typing status in Firebase
 async function updateTypingStatus(text) {
-  await set(ref(db, `typing/${selectedUser}`), text);
+  await set(ref(db, `typing/${currentUserEmail.replace(/\./g, "_")}`), text);
 }
 
 // Format timestamp for chat messages
