@@ -344,18 +344,6 @@ function createParticles(x, y) {
   }
 }
 
-// User selection & local storage
-let selectedUser = localStorage.getItem("chatUser") || "charlie";
-document.getElementById(selectedUser).checked = true;
-
-document.querySelectorAll('input[name="user"]').forEach((radio) => {
-  radio.addEventListener("change", (e) => {
-    selectedUser = e.target.value;
-    localStorage.setItem("chatUser", selectedUser);
-    updateTypingStatus("");
-  });
-});
-
 // Open & close chat modal
 openChatBtn.addEventListener("click", () => {
   chatModal.style.display = "flex";
@@ -470,14 +458,7 @@ document.getElementById("googleSignIn").addEventListener("click", async () => {
     currentUserEmail = user.email;
     loginContainer.style.display = "none";
     protectedContent.style.display = "block";
-
-    await set(ref(db, `onlineUsers/${user.email.replace(".", "_")}`), {
-      online: true,
-      timestamp: Date.now(),
-    });
-
-    console.log("User logged in:", user.email);
-    trackOnlineStatus();
+    updateOnlineStatus(user.email, true);
   } catch (error) {
     console.error("Google Sign-In Failed:", error);
   }
