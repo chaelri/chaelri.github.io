@@ -76,6 +76,8 @@ const allowedEmails = ["charliecayno@gmail.com", "kasromantico@gmail.com"];
 let lastCount = 0;
 let userInteracted = false;
 let currentUserEmail = "";
+const formattedUser =
+  currentUserEmail === "charliecayno@gmail.com" ? "charlie" : "karla";
 
 // Function to show floating text
 function showFloatingText() {
@@ -368,7 +370,7 @@ sendMessageBtn.addEventListener("click", async () => {
   if (!message) return;
 
   await push(chatRef, {
-    user: currentUserEmail,
+    user: formattedUser,
     message,
     timestamp: new Date().toISOString(),
   });
@@ -397,15 +399,13 @@ onValue(chatRef, (snapshot) => {
     const chatBubble = document.createElement("div");
     chatBubble.classList.add("chat-bubble", user);
 
-    if (user === currentUserEmail) {
-      chatBubble.classList.add("sent-message");
-    } else {
-      chatBubble.classList.add("received-message");
-    }
-
-    chatBubble.innerHTML = `<strong>${
-      user === "charlie" ? "Chalee" : "Karlyy"
-    }</strong>: ${message} <br><small>${formatTime(timestamp)}</small>`;
+    const displayName = user === "charlie" ? "Chalee" : "Karlyy";
+    chatBubble.classList.add(
+      user === formattedUser ? "sent-message" : "received-message"
+    );
+    chatBubble.innerHTML = `<strong>${displayName}</strong>: ${message} <br><small>${formatTime(
+      timestamp
+    )}</small>`;
     chatBox.appendChild(chatBubble);
   });
 
@@ -430,7 +430,7 @@ onValue(typingRef, (snapshot) => {
 
 // Update typing status in Firebase
 async function updateTypingStatus(text) {
-  await set(ref(db, `typing/${currentUserEmail.replace(/\./g, "_")}`), text);
+  await set(ref(db, `typing/${formattedUser}`), text);
 }
 
 // Format timestamp for chat messages
