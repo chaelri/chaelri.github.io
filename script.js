@@ -1,6 +1,13 @@
 // Import Firebase modules
 import { initializeApp } from "https://www.gstatic.com/firebasejs/9.6.1/firebase-app.js";
 import {
+  getAuth,
+  GoogleAuthProvider,
+  signInWithPopup,
+  signOut as firebaseSignOut,
+  onAuthStateChanged,
+} from "https://www.gstatic.com/firebasejs/9.6.1/firebase-auth.js";
+import {
   getDatabase,
   ref,
   onValue,
@@ -26,6 +33,9 @@ const firebaseConfig = {
 // Initialize Firebase
 const app = initializeApp(firebaseConfig);
 const db = getDatabase(app);
+const auth = getAuth();
+const provider = new GoogleAuthProvider();
+
 const counterRef = ref(db, "counter");
 const clickHistoryRef = ref(db, "clickHistory");
 let lastCount = 0; // Stores the last known counter value
@@ -520,77 +530,81 @@ function formatTime(timestamp) {
   });
 }
 
-const allowedEmails = ["charliecayno@gmail.com", "kasromantico@gmail.com"]; // Add authorized emails here
+// UI Elements
+const loginContainer = document.getElementById("login-container");
+const protectedContent = document.getElementById("protected-content");
+const onlineStatus = document.getElementById("online-status");
+
+// Allowed Emails
+const allowedEmails = ["charliecayno@gmail.com", "kasromantico@gmail.com"];
 let currentUserEmail = "";
 
-// Handle Google Sign-In
-// Handle Google Sign-In
-function onSignIn(response) {
-  const credential = response.credential;
-  const payload = decodeJwt(credential);
+// 🔹 Google Sign-In Function
+document.getElementById("googleSignIn").addEventListener("click", async () => {
+  try {
+    const result = await signInWithPopup(auth, provider);
+    const user = result.user;
 
-  if (!payload || !payload.email) {
-    console.error("Google Sign-In Failed: Invalid JWT");
-    return;
+    if (!allowedEmails.includes(user.email)) {
+      alert("Access Denied: Your email is not authorized.");
+      await firebaseSignOut(auth);
+      return;
+    }
+
+    currentUserEmail = user.email;
+    updateUI(user.email);
+    updateOnlineStatus(user.email, true);
+  } catch (error) {
+    console.error("Google Sign-In Failed:", error);
   }
+});
 
-  if (allowedEmails.includes(payload.email)) {
-    currentUserEmail = payload.email;
-    document.getElementById("login-container").style.display = "none";
-    document.getElementById("protected-content").style.display = "block";
-    console.log("User logged in:", payload.email);
+// 🔹 Handle UI After Login
+function updateUI(email) {
+  loginContainer.style.display = "none";
+  protectedContent.style.display = "block";
+  trackOnlineStatus();
+}
 
-    // Update Firebase Online Status
-    set(ref(db, `onlineUsers/${payload.email.replace(".", "_")}`), {
+// 🔹 Sign Out Function
+async function signOut() {
+  await firebaseSignOut(auth);
+  loginContainer.style.display = "block";
+  protectedContent.style.display = "none";
+  updateOnlineStatus(currentUserEmail, false);
+}
+
+// 🔹 Track Online Status in Firebase
+function updateOnlineStatus(email, isOnline) {
+  const emailKey = email.replace(/\./g, "_");
+  if (isOnline) {
+    set(ref(db, `onlineUsers/${emailKey}`), {
       online: true,
       timestamp: Date.now(),
     });
-
-    trackOnlineStatus();
   } else {
-    alert("Access Denied: Your email is not authorized.");
+    remove(ref(db, `onlineUsers/${emailKey}`));
+  }
+}
+
+// 🔹 Detect Auth State Change
+onAuthStateChanged(auth, (user) => {
+  if (user && allowedEmails.includes(user.email)) {
+    currentUserEmail = user.email;
+    updateUI(user.email);
+    updateOnlineStatus(user.email, true);
+  } else {
     signOut();
   }
-}
+});
 
-// Decode JWT token
-function decodeJwt(token) {
-  const base64Url = token.split(".")[1];
-  const base64 = base64Url.replace(/-/g, "+").replace(/_/g, "/");
-  return JSON.parse(atob(base64));
-}
-
-// Sign Out Function
-function signOut() {
-  google.accounts.id.disableAutoSelect();
-  document.getElementById("login-container").style.display = "block";
-  document.getElementById("protected-content").style.display = "none";
-
-  if (currentUserEmail) {
-    remove(ref(db, `onlineUsers/${currentUserEmail.replace(".", "_")}`));
-  }
-}
-
-// Track if Karla is online
+// 🔹 Listen for Karla's Online Status
 function trackOnlineStatus() {
-  onValue(ref(db, "onlineUsers/karla@gmail_com"), (snapshot) => {
-    const onlineStatusElement = document.getElementById("online-status");
-
+  onValue(ref(db, "onlineUsers/kasromantico_gmail_com"), (snapshot) => {
     if (snapshot.exists() && snapshot.val().online) {
-      onlineStatusElement.innerHTML = "Karla is 🟢 Online";
+      onlineStatus.innerHTML = "Karla is 🟢 Online";
     } else {
-      onlineStatusElement.innerHTML = "Karla is 🔴 Offline";
+      onlineStatus.innerHTML = "Karla is 🔴 Offline";
     }
   });
 }
-
-// Call permission request on page load
-document.addEventListener("DOMContentLoaded", () => {
-  google.accounts.id.initialize({
-    client_id:
-      "927484435118-joeo8a6mgn3gppj79dejlesjmk6jtbn4.apps.googleusercontent.com",
-    callback: onSignIn,
-  });
-
-  google.accounts.id.prompt();
-});
