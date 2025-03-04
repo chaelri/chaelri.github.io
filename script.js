@@ -17,7 +17,7 @@ import {
   remove,
 } from "https://www.gstatic.com/firebasejs/9.6.1/firebase-database.js";
 
-// 🔥 Replace with your Firebase config
+// Firebase configuration
 const firebaseConfig = {
   apiKey: "AIzaSyB8ahT56WbEUaGAymsRNNA-DrfZnUnWIwk",
   authDomain: "test-database-55379.firebaseapp.com",
@@ -36,20 +36,13 @@ const db = getDatabase(app);
 const auth = getAuth();
 const provider = new GoogleAuthProvider();
 
+// Firebase references
 const counterRef = ref(db, "counter");
 const clickHistoryRef = ref(db, "clickHistory");
-let lastCount = 0; // Stores the last known counter value
+const chatRef = ref(db, "chat");
+const typingRef = ref(db, "typing");
 
-// Function to update counter from database
-// Get the image element
-// Messages for floating text
-const floatingMessages = [
-  "I miss you too!",
-  "apa!",
-  "mehehehe",
-  "si lovee",
-  "I love you!",
-];
+// UI elements
 const floatingTextContainer = document.getElementById(
   "floating-text-container"
 );
@@ -59,39 +52,51 @@ const apaSound = document.getElementById("apaSound");
 const ilySound = document.getElementById("ilySound");
 const whoAmIToYouSound = document.getElementById("whoAmIToYouSound");
 const hmmmpSound = document.getElementById("hmmmpSound");
+const chatModal = document.getElementById("chatModal");
+const openChatBtn = document.getElementById("openChat");
+const closeChatBtn = document.querySelector(".close-chat");
+const messageInput = document.getElementById("messageInput");
+const sendMessageBtn = document.getElementById("sendMessage");
+const chatBox = document.getElementById("chatBox");
+const typingCharlie = document.getElementById("typingCharlie");
+const typingKarla = document.getElementById("typingKarla");
+const loginContainer = document.getElementById("login-container");
+const protectedContent = document.getElementById("protected-content");
+const onlineStatus = document.getElementById("online-status");
+
+// Constants
+const floatingMessages = [
+  "I miss you too!",
+  "apa!",
+  "mehehehe",
+  "si lovee",
+  "I love you!",
+];
+const allowedEmails = ["charliecayno@gmail.com", "kasromantico@gmail.com"];
+let lastCount = 0;
+let userInteracted = false;
+let currentUserEmail = "";
 
 // Function to show floating text
 function showFloatingText() {
   const message =
-    floatingMessages[Math.floor(Math.random() * floatingMessages.length)]; // Pick random message
-
+    floatingMessages[Math.floor(Math.random() * floatingMessages.length)];
   const floatingText = document.createElement("div");
   floatingText.classList.add("floating-text");
   floatingText.innerText = message;
 
-  // Get image position
-  const image = document.getElementById("clickableImage");
-  const rect = image.getBoundingClientRect();
-
-  // Randomly decide left or right shoulder
+  const rect = clickableImage.getBoundingClientRect();
   const isLeft = Math.random() < 0.5;
-
-  // Calculate shoulder positions relative to image
   const offsetX = isLeft
     ? rect.left + window.scrollX + rect.width * -0.1
     : rect.left + window.scrollX + rect.width * 0.65;
-
   const offsetY = rect.top + window.scrollY - rect.height * 0.95;
 
   floatingText.style.left = `${offsetX}px`;
   floatingText.style.top = `${offsetY}px`;
-
   floatingTextContainer.appendChild(floatingText);
 
-  // Remove text after 2s
-  setTimeout(() => {
-    floatingText.remove();
-  }, 2000);
+  setTimeout(() => floatingText.remove(), 2000);
 }
 
 // Function to format time dynamically
@@ -104,115 +109,95 @@ function formatDateTime(timestamp) {
     minute: "numeric",
     second: "numeric",
     hour12: true,
-  }); // Example: "Mar 3, 6:24:10 AM"
+  });
 }
 
 // Function to play random sound
 function playRandomSound(count) {
-  // Check if count is divisible by 100
   if (count % 100 === 0 && count !== 0) {
-    // Play ilySound for milestones
     ilySound.currentTime = 0;
-    return ilySound.play().catch((error) => {
-      console.log("Audio play failed:", error);
-    });
+    return ilySound
+      .play()
+      .catch((error) => console.log("Audio play failed:", error));
   }
 
-  // Regular weighted random distribution for other counts
   const randomNum = Math.random() * 100;
-
   let soundToPlay;
 
   if (randomNum < 55) {
-    soundToPlay = apaSound; // 55% chance
+    soundToPlay = apaSound;
   } else if (randomNum < 80) {
-    soundToPlay = hmmmpSound; // 25% chance
+    soundToPlay = hmmmpSound;
   } else if (randomNum < 95) {
-    soundToPlay = whoAmIToYouSound; // 15% chance
+    soundToPlay = whoAmIToYouSound;
   } else {
-    soundToPlay = ilySound; // 5% chance
+    soundToPlay = ilySound;
   }
 
   soundToPlay.currentTime = 0;
-  soundToPlay.play().catch((error) => {
-    console.log("Audio play failed:", error);
-  });
+  soundToPlay.play().catch((error) => console.log("Audio play failed:", error));
 }
 
 // Function to trigger image animation
 function triggerImageAnimation() {
   clickableImage.classList.remove("heart-beat");
-  void clickableImage.offsetWidth; // Force reflow
+  void clickableImage.offsetWidth;
   clickableImage.classList.add("heart-beat");
 }
 
 // Function to send a browser notification
 function sendNotification(count) {
-  if (document.visibilityState === "hidden") {
-    // Only notify if user is not on the page
-    if (Notification.permission === "granted") {
-      new Notification("New Click!", {
-        body: `Someone clicked! Miss counter: ${count}`,
-        icon: "Chalee1.png", // Change this to your preferred icon
-      });
-    }
+  if (
+    document.visibilityState === "hidden" &&
+    Notification.permission === "granted"
+  ) {
+    new Notification("New Click!", {
+      body: `Someone clicked! Miss counter: ${count}`,
+      icon: "Chalee1.png",
+    });
   }
 }
 
+// Function to increment counter
 async function increment() {
   const snapshot = await get(counterRef);
   const currentCount = snapshot.exists() ? snapshot.val() : 0;
   const newCount = currentCount + 1;
 
-  // Update Firebase
   await set(counterRef, newCount);
-
-  // Play sound
   playRandomSound(newCount);
-
-  // Trigger animation
   triggerImageAnimation();
 
-  // Get current timestamp
-  const timestamp = new Date().toISOString(); // Store in UTC format
-
-  // Update Firebase (counter & timestamp log)
+  const timestamp = new Date().toISOString();
   await set(counterRef, newCount);
-  await push(clickHistoryRef, timestamp); // Add new timestamp to Firebase
-
-  // Keep only recent 5 in Firebase
+  await push(clickHistoryRef, timestamp);
   await updateClickHistoryInFirebase();
 
-  // 📳 Vibrate on phone (200ms)
   if ("vibrate" in navigator) {
     navigator.vibrate([100, 50, 200]);
   }
 }
 
-// Function to update click history in Firebase (only store last 5)
+// Function to update click history in Firebase
 async function updateClickHistoryInFirebase() {
   const snapshot = await get(clickHistoryRef);
   let clicks = [];
 
-  // Collect all timestamps
   snapshot.forEach((childSnapshot) => {
     clicks.push({ key: childSnapshot.key, value: childSnapshot.val() });
   });
 
-  // Sort by newest first
   clicks.sort((a, b) => new Date(b.value) - new Date(a.value));
 
-  // Keep only the latest 5
   if (clicks.length > 5) {
-    const excess = clicks.slice(5); // Get older ones to delete
+    const excess = clicks.slice(5);
     for (let item of excess) {
-      await remove(ref(db, `clickHistory/${item.key}`)); // Remove from Firebase
+      await remove(ref(db, `clickHistory/${item.key}`));
     }
   }
 }
 
 // Function to update click history UI
-// Function to update click history UI with time ago
 function updateClickHistoryUI(snapshot) {
   let clicks = [];
 
@@ -220,25 +205,18 @@ function updateClickHistoryUI(snapshot) {
     clicks.push(childSnapshot.val());
   });
 
-  // Sort newest to oldest
   clicks.reverse();
-
-  // Keep only the 5 most recent clicks
   clicks = clicks.slice(0, 5);
 
-  // Clear and update UI
   clickHistoryList.innerHTML = "";
   clicks.forEach((timestamp) => {
     const listItem = document.createElement("li");
     const timeAgo = getTimeAgo(new Date(timestamp));
     listItem.textContent = `${formatDateTime(timestamp)} | ${timeAgo}`;
-    listItem.classList.add("visible"); // Add the visible class for transition
+    listItem.classList.add("visible");
     clickHistoryList.appendChild(listItem);
 
-    // Delay adding the visible class to trigger transition
-    setTimeout(() => {
-      listItem.classList.add("visible");
-    }, 100);
+    setTimeout(() => listItem.classList.add("visible"), 100);
   });
 }
 
@@ -250,34 +228,28 @@ function getTimeAgo(date) {
   if (diffInSeconds < 60) {
     return `${diffInSeconds} sec ago`;
   } else if (diffInSeconds < 3600) {
-    const minutes = Math.floor(diffInSeconds / 60);
-    return `${minutes} min ago`;
+    return `${Math.floor(diffInSeconds / 60)} min ago`;
   } else {
-    const hours = Math.floor(diffInSeconds / 3600);
-    return `${hours} hr ago`;
+    return `${Math.floor(diffInSeconds / 3600)} hr ago`;
   }
 }
 
+// Function to update counter
 async function updateCounter() {
   const snapshot = await get(counterRef);
-  let count = snapshot.exists() ? snapshot.val() : 0;
+  const count = snapshot.exists() ? snapshot.val() : 0;
 
-  // Update UI
   document.getElementById("counter").innerText = count;
-
-  // Show the counter container after loading
   document.getElementById("counter-container").style.display = "block";
 }
 
 // Add click event listener
 clickableImage.addEventListener("click", (event) => {
-  increment(); // Increase counter
+  increment();
   const x = event.clientX + window.scrollX;
   const y = event.clientY + window.scrollY;
   createParticles(x, y);
 });
-
-let userInteracted = false;
 
 // Set the flag when the user interacts with the page
 document.addEventListener("click", () => {
@@ -296,12 +268,11 @@ onValue(counterRef, (snapshot) => {
     navigator.vibrate([100, 50, 200]);
   }
 
-  // 🔔 Send notification if counter increases
   if (count > lastCount) {
     sendNotification(count);
   }
 
-  lastCount = count; // Update last known count
+  lastCount = count;
 });
 
 // Listen for real-time updates on click history
@@ -323,40 +294,16 @@ updateCounter();
 document.addEventListener(
   "click",
   function initializeAudio() {
-    // Play and immediately pause to initialize audio
-    apaSound
-      .play()
-      .then(() => {
-        apaSound.pause();
-        apaSound.currentTime = 0;
-      })
-      .catch(console.error);
+    [apaSound, ilySound, whoAmIToYouSound, hmmmpSound].forEach((sound) => {
+      sound
+        .play()
+        .then(() => {
+          sound.pause();
+          sound.currentTime = 0;
+        })
+        .catch(console.error);
+    });
 
-    ilySound
-      .play()
-      .then(() => {
-        ilySound.pause();
-        ilySound.currentTime = 0;
-      })
-      .catch(console.error);
-
-    whoAmIToYouSound
-      .play()
-      .then(() => {
-        whoAmIToYouSound.pause();
-        whoAmIToYouSound.currentTime = 0;
-      })
-      .catch(console.error);
-
-    hmmmpSound
-      .play()
-      .then(() => {
-        hmmmpSound.pause();
-        hmmmpSound.currentTime = 0;
-      })
-      .catch(console.error);
-
-    // Remove this listener after initialization
     document.removeEventListener("click", initializeAudio);
   },
   { once: true }
@@ -369,17 +316,16 @@ document.addEventListener("DOMContentLoaded", () => {
   }
 });
 
-// Function to Create Particle Effects
+// Function to create particle effects
 function createParticles(x, y) {
-  const numParticles = 15; // Number of particles per click
+  const numParticles = 15;
 
   for (let i = 0; i < numParticles; i++) {
     const particle = document.createElement("div");
     particle.classList.add("particle");
 
-    // Set random position & direction
-    const angle = Math.random() * 2 * Math.PI; // Random angle (0 to 360 degrees)
-    const speed = Math.random() * 5 + 2; // Random speed
+    const angle = Math.random() * 2 * Math.PI;
+    const speed = Math.random() * 5 + 2;
     const velocityX = Math.cos(angle) * speed;
     const velocityY = Math.sin(angle) * speed;
 
@@ -387,7 +333,6 @@ function createParticles(x, y) {
     particle.style.top = `${y}px`;
     document.body.appendChild(particle);
 
-    // Animate particle movement
     setTimeout(() => {
       particle.style.transform = `translate(${velocityX * 15}px, ${
         velocityY * 15
@@ -395,41 +340,23 @@ function createParticles(x, y) {
       particle.style.opacity = "0";
     }, 10);
 
-    // Remove particle after animation
-    setTimeout(() => {
-      particle.remove();
-    }, 1000);
+    setTimeout(() => particle.remove(), 1000);
   }
 }
 
-// Firebase References
-const chatRef = ref(db, "chat");
-const typingRef = ref(db, "typing");
-
-// Chat Elements
-const chatModal = document.getElementById("chatModal");
-const openChatBtn = document.getElementById("openChat");
-const closeChatBtn = document.querySelector(".close-chat");
-const messageInput = document.getElementById("messageInput");
-const sendMessageBtn = document.getElementById("sendMessage");
-const chatBox = document.getElementById("chatBox");
-const typingCharlie = document.getElementById("typingCharlie");
-const typingKarla = document.getElementById("typingKarla");
-
-// **User Selection & Local Storage**
+// User selection & local storage
 let selectedUser = localStorage.getItem("chatUser") || "charlie";
 document.getElementById(selectedUser).checked = true;
 
-// Store User Selection in Local Storage
 document.querySelectorAll('input[name="user"]').forEach((radio) => {
   radio.addEventListener("change", (e) => {
     selectedUser = e.target.value;
     localStorage.setItem("chatUser", selectedUser);
-    updateTypingStatus(""); // Reset typing when switching users
+    updateTypingStatus("");
   });
 });
 
-// **Open & Close Modal**
+// Open & close chat modal
 openChatBtn.addEventListener("click", () => {
   chatModal.style.display = "flex";
   setTimeout(scrollToBottom, 100);
@@ -439,7 +366,7 @@ closeChatBtn.addEventListener(
   () => (chatModal.style.display = "none")
 );
 
-// **Send Message (Enter to Send, Shift + Enter for New Line)**
+// Send message (Enter to send, Shift + Enter for new line)
 messageInput.addEventListener("keydown", (e) => {
   if (e.key === "Enter" && !e.shiftKey) {
     e.preventDefault();
@@ -447,7 +374,7 @@ messageInput.addEventListener("keydown", (e) => {
   }
 });
 
-// **Send Message to Firebase**
+// Send message to Firebase
 sendMessageBtn.addEventListener("click", async () => {
   const message = messageInput.value.trim();
   if (!message) return;
@@ -467,9 +394,9 @@ function scrollToBottom() {
   chatBox.scrollTop = chatBox.scrollHeight;
 }
 
-// **Listen for New Messages & Display in Chat**
+// Listen for new messages & display in chat
 onValue(chatRef, (snapshot) => {
-  chatBox.innerHTML = ""; // Clear chat before updating
+  chatBox.innerHTML = "";
 
   let messages = [];
   snapshot.forEach((child) => {
@@ -482,11 +409,10 @@ onValue(chatRef, (snapshot) => {
     const chatBubble = document.createElement("div");
     chatBubble.classList.add("chat-bubble", user);
 
-    // Align messages dynamically based on the selected user
     if (user === selectedUser) {
-      chatBubble.classList.add("sent-message"); // Right side
+      chatBubble.classList.add("sent-message");
     } else {
-      chatBubble.classList.add("received-message"); // Left side
+      chatBubble.classList.add("received-message");
     }
 
     chatBubble.innerHTML = `<strong>${
@@ -495,16 +421,15 @@ onValue(chatRef, (snapshot) => {
     chatBox.appendChild(chatBubble);
   });
 
-  // Auto-scroll to the latest message after rendering
   setTimeout(scrollToBottom, 100);
 });
 
-// **Real-Time Typing Updates**
+// Real-time typing updates
 messageInput.addEventListener("input", () => {
   updateTypingStatus(messageInput.value);
 });
 
-// **Listen for Typing Updates & Show Real-Time Typing**
+// Listen for typing updates & show real-time typing
 onValue(typingRef, (snapshot) => {
   const data = snapshot.val();
   typingCharlie.innerText = data?.karla
@@ -515,12 +440,12 @@ onValue(typingRef, (snapshot) => {
     : "";
 });
 
-// **Update Typing Status in Firebase**
+// Update typing status in Firebase
 async function updateTypingStatus(text) {
   await set(ref(db, `typing/${selectedUser}`), text);
 }
 
-// **Format Timestamp for Chat Messages**
+// Format timestamp for chat messages
 function formatTime(timestamp) {
   const date = new Date(timestamp);
   return date.toLocaleTimeString("en-US", {
@@ -530,16 +455,7 @@ function formatTime(timestamp) {
   });
 }
 
-// UI Elements
-const loginContainer = document.getElementById("login-container");
-const protectedContent = document.getElementById("protected-content");
-const onlineStatus = document.getElementById("online-status");
-
-// Allowed Emails
-const allowedEmails = ["charliecayno@gmail.com", "kasromantico@gmail.com"];
-let currentUserEmail = "";
-
-// 🔹 Google Sign-In Function
+// Google Sign-In function
 document.getElementById("googleSignIn").addEventListener("click", async () => {
   try {
     const result = await signInWithPopup(auth, provider);
@@ -552,10 +468,9 @@ document.getElementById("googleSignIn").addEventListener("click", async () => {
     }
 
     currentUserEmail = user.email;
-    document.getElementById("login-container").style.display = "none";
-    document.getElementById("protected-content").style.display = "block";
+    loginContainer.style.display = "none";
+    protectedContent.style.display = "block";
 
-    // ✅ Mark user as online in Firebase
     await set(ref(db, `onlineUsers/${user.email.replace(".", "_")}`), {
       online: true,
       timestamp: Date.now(),
@@ -568,25 +483,25 @@ document.getElementById("googleSignIn").addEventListener("click", async () => {
   }
 });
 
-// 🔹 Handle UI After Login
+// Handle UI after login
 function updateUI(email) {
   loginContainer.style.display = "none";
   protectedContent.style.display = "block";
   trackOnlineStatus();
 }
 
-// 🔹 Sign Out Function
+// Sign out function
 document
   .getElementById("sign-out-button")
   .addEventListener("click", async () => {
     try {
       await firebaseSignOut(auth);
-      document.getElementById("login-container").style.display = "block";
-      document.getElementById("protected-content").style.display = "none";
+      loginContainer.style.display = "block";
+      protectedContent.style.display = "none";
 
       if (currentUserEmail) {
         remove(ref(db, `onlineUsers/${currentUserEmail.replace(".", "_")}`));
-        currentUserEmail = ""; // Reset email
+        currentUserEmail = "";
       }
 
       console.log("User signed out.");
@@ -595,7 +510,7 @@ document
     }
   });
 
-// 🔹 Track Online Status in Firebase
+// Track online status in Firebase
 function updateOnlineStatus(email, isOnline) {
   const emailKey = email.replace(/\./g, "_");
   if (isOnline) {
@@ -608,7 +523,7 @@ function updateOnlineStatus(email, isOnline) {
   }
 }
 
-// 🔹 Detect Auth State Change
+// Detect auth state change
 onAuthStateChanged(auth, (user) => {
   if (user && allowedEmails.includes(user.email)) {
     currentUserEmail = user.email;
@@ -619,17 +534,17 @@ onAuthStateChanged(auth, (user) => {
   }
 });
 
-// 🔹 Listen for Karla's Online Status
+// Listen for Karla's online status
 function trackOnlineStatus() {
-  const userEmail = currentUserEmail; // The logged-in user
-  let otherUserEmailKey = ""; // The person to track
-  let otherUserName = ""; // The display name
+  const userEmail = currentUserEmail;
+  let otherUserEmailKey = "";
+  let otherUserName = "";
 
   if (userEmail === "charliecayno@gmail.com") {
-    otherUserEmailKey = "kasromantico@gmail_com"; // Karla
+    otherUserEmailKey = "kasromantico@gmail_com";
     otherUserName = "Karla";
   } else if (userEmail === "kasromantico@gmail.com") {
-    otherUserEmailKey = "charliecayno@gmail_com"; // Charlie
+    otherUserEmailKey = "charliecayno@gmail_com";
     otherUserName = "Charlie";
   } else {
     console.error("User email not recognized for tracking.");
@@ -642,7 +557,6 @@ function trackOnlineStatus() {
     if (snapshot.exists() && snapshot.val().online) {
       onlineStatusElement.innerHTML = `${otherUserName} is 🟢 Online`;
     } else {
-      // If offline, show last seen time
       const lastSeen = snapshot.exists() ? snapshot.val().timestamp : null;
       onlineStatusElement.innerHTML = lastSeen
         ? `${otherUserName} is 🔴 Offline (Last seen ${timeAgo(lastSeen)})`
@@ -651,6 +565,7 @@ function trackOnlineStatus() {
   });
 }
 
+// Function to calculate time ago
 function timeAgo(timestamp) {
   const now = Date.now();
   const diffInSeconds = Math.floor((now - timestamp) / 1000);
@@ -667,6 +582,7 @@ function timeAgo(timestamp) {
   }
 }
 
+// Handle window unload event
 window.addEventListener("beforeunload", () => {
   if (currentUserEmail) {
     set(ref(db, `onlineUsers/${currentUserEmail.replace(".", "_")}`), {
