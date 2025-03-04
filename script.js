@@ -432,6 +432,7 @@ document.querySelectorAll('input[name="user"]').forEach((radio) => {
 // **Open & Close Modal**
 openChatBtn.addEventListener("click", () => {
   chatModal.style.display = "flex";
+  markMessagesAsSeen();
   setTimeout(scrollToBottom, 100);
 });
 closeChatBtn.addEventListener(
@@ -452,15 +453,42 @@ sendMessageBtn.addEventListener("click", async () => {
   const message = messageInput.value.trim();
   if (!message) return;
 
-  await push(chatRef, {
-    user: selectedUser,
-    message,
+  const newMessageRef = push(ref(db, "messages"));
+  await set(newMessageRef, {
+    text: message,
+    sender: currentUser, // The logged-in user
+    receiver: currentUser === "charlie" ? "karla" : "charlie",
     timestamp: new Date().toISOString(),
+    status: "sent", // Default to "sent"
   });
 
   messageInput.value = "";
   updateTypingStatus("");
 });
+
+function markMessagesAsSeen() {
+  const messagesRef = ref(db, "messages");
+  const oppositeUser = currentUser === "charlie" ? "karla" : "charlie";
+
+  get(messagesRef).then((snapshot) => {
+    if (snapshot.exists()) {
+      snapshot.forEach((childSnapshot) => {
+        const msg = childSnapshot.val();
+
+        // Update only unread messages from the opposite user
+        if (
+          msg.sender === oppositeUser &&
+          msg.receiver === currentUser &&
+          msg.status === "sent"
+        ) {
+          update(ref(db, "messages/" + childSnapshot.key), {
+            status: "seen",
+          });
+        }
+      });
+    }
+  });
+}
 
 // Function to scroll chat to the latest message
 function scrollToBottom() {
@@ -469,33 +497,36 @@ function scrollToBottom() {
 
 // **Listen for New Messages & Display in Chat**
 onValue(chatRef, (snapshot) => {
-  chatBox.innerHTML = ""; // Clear chat before updating
+  chatBox.innerHTML = "";
 
   let messages = [];
-  snapshot.forEach((child) => {
-    messages.push(child.val());
+  snapshot.forEach((childSnapshot) => {
+    messages.push(childSnapshot.val());
   });
 
   messages.sort((a, b) => new Date(a.timestamp) - new Date(b.timestamp));
 
-  messages.forEach(({ user, message, timestamp }) => {
+  messages.forEach(({ sender, text, timestamp, status }) => {
     const chatBubble = document.createElement("div");
-    chatBubble.classList.add("chat-bubble", user);
+    chatBubble.classList.add("chat-bubble", sender);
 
-    // Align messages dynamically based on the selected user
-    if (user === selectedUser) {
-      chatBubble.classList.add("sent-message"); // Right side
+    // Align messages dynamically
+    if (sender === currentUser) {
+      chatBubble.classList.add("sent-message"); // Align right
     } else {
-      chatBubble.classList.add("received-message"); // Left side
+      chatBubble.classList.add("received-message"); // Align left
     }
 
-    chatBubble.innerHTML = `<strong>${
-      user === "charlie" ? "Chalee" : "Karlyy"
-    }</strong>: ${message} <br><small>${formatTime(timestamp)}</small>`;
+    chatBubble.innerHTML = `
+            <p>${text}</p>
+            <small class="message-status">${
+              status === "seen" ? "👀 Seen" : "📤 Sent"
+            }</small>
+        `;
+
     chatBox.appendChild(chatBubble);
   });
 
-  // Auto-scroll to the latest message after rendering
   setTimeout(scrollToBottom, 100);
 });
 

@@ -412,3 +412,11 @@ input[type="radio"]:checked + .radio-label {
   border: 0;
   padding: 10px 20px;
 }
+
+.message-status {
+  font-size: 0.75rem;
+  color: #ccc;
+  display: block;
+  text-align: right;
+  margin-top: 3px;
+}
