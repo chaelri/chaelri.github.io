@@ -108,19 +108,31 @@ function formatDateTime(timestamp) {
 }
 
 // Function to play random sound
+// Initialize Audio Context for iOS Compatibility
+const audioContext = new (window.AudioContext || window.webkitAudioContext)();
+
+// Function to play a sound safely
+function playSound(audioElement) {
+  if (audioContext.state === "suspended") {
+    audioContext.resume(); // Ensure the audio context is active
+  }
+
+  const soundClone = audioElement.cloneNode(); // Clone the sound to avoid overlap issues
+  soundClone.play().catch((error) => {
+    console.log("Audio play failed:", error);
+  });
+}
+
+// Modify your playRandomSound function
 function playRandomSound(count) {
   // Check if count is divisible by 100
   if (count % 100 === 0 && count !== 0) {
-    // Play ilySound for milestones
-    ilySound.currentTime = 0;
-    return ilySound.play().catch((error) => {
-      console.log("Audio play failed:", error);
-    });
+    playSound(ilySound); // Play ilySound for milestones
+    return;
   }
 
-  // Regular weighted random distribution for other counts
+  // Regular weighted random distribution
   const randomNum = Math.random() * 100;
-
   let soundToPlay;
 
   if (randomNum < 55) {
@@ -133,10 +145,7 @@ function playRandomSound(count) {
     soundToPlay = ilySound; // 5% chance
   }
 
-  soundToPlay.currentTime = 0;
-  soundToPlay.play().catch((error) => {
-    console.log("Audio play failed:", error);
-  });
+  playSound(soundToPlay);
 }
 
 // Function to trigger image animation
