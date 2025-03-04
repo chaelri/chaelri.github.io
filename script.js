@@ -671,6 +671,7 @@ window.addEventListener("beforeunload", () => {
   if (currentUserEmail) {
     set(ref(db, `onlineUsers/${currentUserEmail.replace(".", "_")}`), {
       online: false,
+      timestamp: Date.now(),
     });
   }
 });
