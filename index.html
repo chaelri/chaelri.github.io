@@ -33,8 +33,21 @@
     />
   </head>
   <body>
-    <section>
+    <script src="https://accounts.google.com/gsi/client" async defer></script>
+
+    <div id="login-container">
+      <div
+        id="g_id_onload"
+        data-client_id="927484435118-joeo8a6mgn3gppj79dejlesjmk6jtbn4.apps.googleusercontent.com"
+        data-callback="onSignIn"
+        data-auto_prompt="false"
+      ></div>
+      <div class="g_id_signin" data-type="standard"></div>
+    </div>
+    <section id="protected-content" style="display: none">
       <div class="container">
+        <p id="online-status"></p>
+        <button onclick="signOut()">Sign Out</button>
         <h1 class="pacifico-regular monthsary">Happy 4th monthsary, love!</h1>
         <div class="zain-bold missmoko">Miss mo ko love? 🥹</div>
 

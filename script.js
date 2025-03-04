@@ -519,3 +519,71 @@ function formatTime(timestamp) {
     hour12: true,
   });
 }
+
+const allowedEmails = ["charliecayno@gmail.com", "kasromantico@gmail.com"]; // Add authorized emails here
+let currentUserEmail = "";
+
+// Handle Google Sign-In
+function onSignIn(response) {
+    const credential = response.credential;
+    const payload = decodeJwt(credential);
+
+    if (allowedEmails.includes(payload.email)) {
+        currentUserEmail = payload.email;
+        document.getElementById("login-container").style.display = "none";
+        document.getElementById("protected-content").style.display = "block";
+        console.log("User logged in:", payload.email);
+
+        // Update online status in Firebase
+        set(ref(db, `onlineUsers/${payload.email.replace(".", "_")}`), {
+            online: true,
+            timestamp: Date.now()
+        });
+
+        trackOnlineStatus(payload.email);
+    } else {
+        alert("Access Denied: Your email is not authorized.");
+        signOut();
+    }
+}
+
+// Decode JWT token
+function decodeJwt(token) {
+    const base64Url = token.split('.')[1];
+    const base64 = base64Url.replace(/-/g, '+').replace(/_/g, '/');
+    return JSON.parse(atob(base64));
+}
+
+// Sign Out Function
+function signOut() {
+    google.accounts.id.disableAutoSelect();
+    document.getElementById("login-container").style.display = "block";
+    document.getElementById("protected-content").style.display = "none";
+
+    if (currentUserEmail) {
+        remove(ref(db, `onlineUsers/${currentUserEmail.replace(".", "_")}`));
+    }
+}
+
+// Track if Karla is online
+function trackOnlineStatus() {
+    onValue(ref(db, `onlineUsers/karla@gmail_com`), (snapshot) => {
+        const onlineStatusElement = document.getElementById("online-status");
+
+        if (snapshot.exists()) {
+            onlineStatusElement.innerHTML = "Karla is 🟢 Online";
+        } else {
+            onlineStatusElement.innerHTML = "Karla is 🔴 Offline";
+        }
+    });
+}
+
+// Call permission request on page load
+document.addEventListener("DOMContentLoaded", () => {
+    google.accounts.id.initialize({
+        client_id: "927484435118-joeo8a6mgn3gppj79dejlesjmk6jtbn4.apps.googleusercontent.com",
+        callback: onSignIn
+    });
+
+    google.accounts.id.prompt();
+});
