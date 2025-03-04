@@ -567,12 +567,14 @@ function updateUI(email) {
 }
 
 // 🔹 Sign Out Function
-async function signOut() {
-  await firebaseSignOut(auth);
-  loginContainer.style.display = "block";
-  protectedContent.style.display = "none";
-  updateOnlineStatus(currentUserEmail, false);
-}
+document
+  .getElementById("sign-out-button")
+  .addEventListener("click", async () => {
+    await firebaseSignOut(auth);
+    loginContainer.style.display = "block";
+    protectedContent.style.display = "none";
+    updateOnlineStatus(currentUserEmail, false);
+  });
 
 // 🔹 Track Online Status in Firebase
 function updateOnlineStatus(email, isOnline) {
