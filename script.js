@@ -552,8 +552,17 @@ document.getElementById("googleSignIn").addEventListener("click", async () => {
     }
 
     currentUserEmail = user.email;
-    updateUI(user.email);
-    updateOnlineStatus(user.email, true);
+    document.getElementById("login-container").style.display = "none";
+    document.getElementById("protected-content").style.display = "block";
+
+    // ✅ Mark user as online in Firebase
+    await set(ref(db, `onlineUsers/${user.email.replace(".", "_")}`), {
+      online: true,
+      timestamp: Date.now(),
+    });
+
+    console.log("User logged in:", user.email);
+    trackOnlineStatus();
   } catch (error) {
     console.error("Google Sign-In Failed:", error);
   }
@@ -570,10 +579,20 @@ function updateUI(email) {
 document
   .getElementById("sign-out-button")
   .addEventListener("click", async () => {
-    await firebaseSignOut(auth);
-    loginContainer.style.display = "block";
-    protectedContent.style.display = "none";
-    updateOnlineStatus(currentUserEmail, false);
+    try {
+      await firebaseSignOut(auth);
+      document.getElementById("login-container").style.display = "block";
+      document.getElementById("protected-content").style.display = "none";
+
+      if (currentUserEmail) {
+        remove(ref(db, `onlineUsers/${currentUserEmail.replace(".", "_")}`));
+        currentUserEmail = ""; // Reset email
+      }
+
+      console.log("User signed out.");
+    } catch (error) {
+      console.error("Sign-out error:", error);
+    }
   });
 
 // 🔹 Track Online Status in Firebase
@@ -602,11 +621,23 @@ onAuthStateChanged(auth, (user) => {
 
 // 🔹 Listen for Karla's Online Status
 function trackOnlineStatus() {
-  onValue(ref(db, "onlineUsers/kasromantico@gmail.com"), (snapshot) => {
+  const karlaEmailKey = "kasromantico@gmail_com"; // Firebase key-safe version of her email
+
+  onValue(ref(db, `onlineUsers/${karlaEmailKey}`), (snapshot) => {
+    const onlineStatusElement = document.getElementById("online-status");
+
     if (snapshot.exists() && snapshot.val().online) {
-      onlineStatus.innerHTML = "Karla is 🟢 Online";
+      onlineStatusElement.innerHTML = "Karla is 🟢 Online";
     } else {
-      onlineStatus.innerHTML = "Karla is 🔴 Offline";
+      onlineStatusElement.innerHTML = "Karla is 🔴 Offline";
     }
   });
 }
+
+window.addEventListener("beforeunload", () => {
+  if (currentUserEmail) {
+    set(ref(db, `onlineUsers/${currentUserEmail.replace(".", "_")}`), {
+      online: false,
+    });
+  }
+});
