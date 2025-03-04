@@ -395,3 +395,12 @@ input[type="radio"]:checked + .radio-label {
 #sendMessage:hover {
   background: #ff6582;
 }
+
+.online-wrapper {
+  display: flex;
+  width: 100%;
+}
+
+.online-wrapper button {
+  margin-left: auto;
+}
