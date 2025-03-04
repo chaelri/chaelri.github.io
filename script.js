@@ -621,17 +621,46 @@ onAuthStateChanged(auth, (user) => {
 
 // 🔹 Listen for Karla's Online Status
 function trackOnlineStatus() {
-  const karlaEmailKey = "kasromantico@gmail_com"; // Firebase key-safe version of her email
+  const userEmail = currentUserEmail; // The logged-in user
+  let otherUserEmailKey = ""; // The person to track
 
-  onValue(ref(db, `onlineUsers/${karlaEmailKey}`), (snapshot) => {
+  if (userEmail === "charliecayno@gmail.com") {
+    otherUserEmailKey = "kasromantico@gmail_com"; // Karla
+  } else if (userEmail === "kasromantico@gmail.com") {
+    otherUserEmailKey = "charliecayno@gmail_com"; // Charlie
+  } else {
+    console.error("User email not recognized for tracking.");
+    return;
+  }
+
+  onValue(ref(db, `onlineUsers/${otherUserEmailKey}`), (snapshot) => {
     const onlineStatusElement = document.getElementById("online-status");
 
     if (snapshot.exists() && snapshot.val().online) {
-      onlineStatusElement.innerHTML = "Karla is 🟢 Online";
+      onlineStatusElement.innerHTML = "🟢 Online";
     } else {
-      onlineStatusElement.innerHTML = "Karla is 🔴 Offline";
+      // If offline, show last seen time
+      const lastSeen = snapshot.exists() ? snapshot.val().timestamp : null;
+      onlineStatusElement.innerHTML = lastSeen
+        ? `🔴 Offline (Last seen ${timeAgo(lastSeen)})`
+        : "🔴 Offline";
     }
   });
+}
+function timeAgo(timestamp) {
+  const now = Date.now();
+  const diffInSeconds = Math.floor((now - timestamp) / 1000);
+
+  if (diffInSeconds < 60) {
+    return `${diffInSeconds} sec ago`;
+  } else if (diffInSeconds < 3600) {
+    return `${Math.floor(diffInSeconds / 60)} min ago`;
+  } else if (diffInSeconds < 86400) {
+    return `${Math.floor(diffInSeconds / 3600)} hr ago`;
+  } else {
+    const date = new Date(timestamp);
+    return date.toLocaleDateString("en-US", { month: "short", day: "numeric" });
+  }
 }
 
 window.addEventListener("beforeunload", () => {
