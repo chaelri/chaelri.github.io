@@ -458,6 +458,7 @@ document.getElementById("googleSignIn").addEventListener("click", async () => {
     }
 
     currentUserEmail = user.email;
+    console.log(currentUserEmail)
     loginContainer.style.display = "none";
     protectedContent.style.display = "block";
     updateOnlineStatus(user.email, true);
