@@ -77,7 +77,7 @@ let lastCount = 0;
 let userInteracted = false;
 let currentUserEmail = "";
 const formattedUser =
-  currentUserEmail === "charliecayno@gmail.com" ? "charlie" : "karla";\
+  currentUserEmail === "charliecayno@gmail.com" ? "charlie" : "karla";
 console.log('formattedUser', formattedUser)
 console.log('currentUserEmail', currentUserEmail)
 
