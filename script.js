@@ -576,3 +576,14 @@ window.addEventListener("beforeunload", () => {
     });
   }
 });
+
+// Handle visibility change event
+document.addEventListener("visibilitychange", () => {
+  if (currentUserEmail) {
+    const isOnline = document.visibilityState === "visible";
+    set(ref(db, `onlineUsers/${currentUserEmail.replace(".", "_")}`), {
+      online: isOnline,
+      timestamp: Date.now(),
+    });
+  }
+});
