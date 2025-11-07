@@ -36,6 +36,34 @@ const db = getDatabase(app);
 const auth = getAuth();
 const provider = new GoogleAuthProvider();
 
+//Dynamic redirect function
+async function redirectToTunnel(serviceName) {
+  const tunnelRef = ref(db, `tunnel/${serviceName}URL`);
+
+  try {
+    const snapshot = await get(tunnelRef);
+    const tunnelURL = snapshot.val();
+
+    if (tunnelURL) {
+      window.location.href = tunnelURL;
+    } else {
+      document.body.innerHTML = `<h2>No active tunnel found for ${serviceName} 😴</h2>`;
+    }
+  } catch (error) {
+    console.error("Error loading tunnel URL:", error);
+    document.body.innerHTML = `<h2>Failed to connect to Firebase.</h2>`;
+  }
+}
+
+//Check for redirect param
+const params = new URLSearchParams(window.location.search);
+const serviceName = params.get("redirect");
+
+if (serviceName) {
+  redirectToTunnel(serviceName);
+}
+
+
 // Firebase references
 const counterRef = ref(db, "counter");
 const clickHistoryRef = ref(db, "clickHistory");
