@@ -36,7 +36,7 @@ const db = getDatabase(app);
 const auth = getAuth();
 const provider = new GoogleAuthProvider();
 
-//Dynamic redirect function
+// Dynamic redirect function with countdown
 async function redirectToTunnel(serviceName) {
   const tunnelRef = ref(db, `tunnel/${serviceName}URL`);
 
@@ -45,7 +45,23 @@ async function redirectToTunnel(serviceName) {
     const tunnelURL = snapshot.val();
 
     if (tunnelURL) {
-      window.location.href = tunnelURL;
+      // Create countdown UI
+      let countdown = 5;
+      const countdownEl = document.createElement("h2");
+      countdownEl.style.textAlign = "center";
+      countdownEl.style.fontSize = "2em";
+      document.body.innerHTML = ""; // clear page
+      document.body.appendChild(countdownEl);
+
+      const interval = setInterval(() => {
+        countdownEl.textContent = `Redirecting in ${countdown}...`;
+        countdown--;
+        if (countdown < 0) {
+          clearInterval(interval);
+          window.location.href = tunnelURL; // finally redirect
+        }
+      }, 1000);
+
     } else {
       document.body.innerHTML = `<h2>No active tunnel found for ${serviceName} 😴</h2>`;
     }
@@ -55,7 +71,7 @@ async function redirectToTunnel(serviceName) {
   }
 }
 
-//Check for redirect param
+// Check for redirect param
 const params = new URLSearchParams(window.location.search);
 const serviceName = params.get("redirect");
 
