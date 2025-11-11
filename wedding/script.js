@@ -1,5 +1,5 @@
 const APPSCRIPT_WEBHOOK =
-  "https://script.google.com/macros/s/AKfycbxOjkNuPpGXjMXYug2HdeF8Tr1HvPwQHIfB5vtfH9f-B2i97ItuDkJ0Hvromv59AD_y/exec";
+  "https://script.google.com/macros/s/AKfycbxK4kSQGTBLaXIKjmpULpaqC6by2QFdE-JUt4Pz87wrWscBRnY7Dg453ssSgUPMSrp-/exec";
 
 /***** State & DOM refs *****/
 
@@ -472,24 +472,23 @@ window.saveChanges = function (category, subcategory, task) {
   showLoading(true);
   fetch(APPSCRIPT_WEBHOOK, {
     method: "POST",
+    mode: "no-cors",
     headers: { "Content-Type": "application/json" },
     body: JSON.stringify({
       action: "updateItem",
-      category: category,
-      subcategory: subcategory,
-      task: task,
-      status: status,
-      estimated: estimated,
-      actual: actual,
+      category,
+      subcategory,
+      task,
+      status,
+      estimated,
+      actual,
     }),
-  })
-    .then((res) => res.json())
-    .then(() => {
-      showLoading(false);
-      showToast("Updated successfully!", "success");
-      // refresh data and keep view
-      setTimeout(fetchData, 600);
-    });
+  });
+
+  // Immediately show confirmation
+  showLoading(false);
+  showToast("Update sent!", "success");
+  setTimeout(fetchData, 600);
 };
 
 /***** Filter chips logic *****/
