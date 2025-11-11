@@ -1,5 +1,5 @@
 const APPSCRIPT_WEBHOOK =
-  "https://script.google.com/macros/s/AKfycbzNP7CS5dBIXJ1DXIWc-L0YQIQ1BmYqxuQ6_j8deYvWRwoudMDNiXwhzwimKYGd-SS5/exec";
+  "https://script.google.com/macros/s/AKfycbxnflodM9ZIkOPOHForoKVhFMofbQ1TxWXvFGIWCCe4-lhbDkOoJ4uXn5Z2eoWLWZ_1/exec";
 
 /***** State & DOM refs *****/
 
