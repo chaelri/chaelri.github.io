@@ -80,27 +80,31 @@ function showLoading(show = true) {
 /***** Data fetching & refresh *****/
 function fetchData() {
   // Use Apps Script server-side function getSheetData
-  fetch(APPSCRIPT_WEBHOOK + "?action=getData").then((res) => {
-    console.log(res);
-    data = JSON.parse(res || "{}");
-    // If no data, show message
-    if (!data || Object.keys(data).length === 0) {
-      bubbleContainer.innerHTML =
-        '<div style="padding:12px;color:var(--muted)">No data found in the sheet.</div>';
-      totalDisplay.innerHTML = "No data";
-      return;
-    }
-    // Update totals and render current view (preserve state/search)
-    const grand = calculateGrandTotal(data);
-    totalDisplay.innerHTML = `<div style="font-weight:700">Grand Total</div><div class="small">Estimated: <strong>₱${grand.totalEst.toLocaleString()}</strong> · Actual: <strong>₱${grand.totalAct.toLocaleString()}</strong></div>`;
-    renderUpcomingDeadlines();
-    renderCalendar();
-    if (currentLevel === "search" && searchInput.value.trim()) {
-      renderSearchResults(searchInput.value.trim());
-    } else {
-      renderBubbles(currentLevel, currentKey);
-    }
-  });
+  fetch(APPSCRIPT_WEBHOOK + "?action=getData")
+    .then((res) => res.json())
+    .then((resultData) => {
+      {
+        console.log(resultData);
+        data = JSON.parse(resultData || "{}");
+        // If no data, show message
+        if (!data || Object.keys(data).length === 0) {
+          bubbleContainer.innerHTML =
+            '<div style="padding:12px;color:var(--muted)">No data found in the sheet.</div>';
+          totalDisplay.innerHTML = "No data";
+          return;
+        }
+        // Update totals and render current view (preserve state/search)
+        const grand = calculateGrandTotal(data);
+        totalDisplay.innerHTML = `<div style="font-weight:700">Grand Total</div><div class="small">Estimated: <strong>₱${grand.totalEst.toLocaleString()}</strong> · Actual: <strong>₱${grand.totalAct.toLocaleString()}</strong></div>`;
+        renderUpcomingDeadlines();
+        renderCalendar();
+        if (currentLevel === "search" && searchInput.value.trim()) {
+          renderSearchResults(searchInput.value.trim());
+        } else {
+          renderBubbles(currentLevel, currentKey);
+        }
+      }
+    });
 }
 
 // initial fetch + periodic
@@ -482,12 +486,14 @@ window.saveChanges = function (category, subcategory, task) {
       estimated: estimated,
       actual: actual,
     }),
-  }).then(() => {
-    showLoading(false);
-    showToast("Updated successfully!", "success");
-    // refresh data and keep view
-    setTimeout(fetchData, 600);
-  });
+  })
+    .then((res) => res.json())
+    .then(() => {
+      showLoading(false);
+      showToast("Updated successfully!", "success");
+      // refresh data and keep view
+      setTimeout(fetchData, 600);
+    });
 };
 
 /***** Filter chips logic *****/
@@ -1052,13 +1058,15 @@ addTaskForm.addEventListener("submit", (e) => {
       action: "addNewTask",
       taskObj: newTask,
     }),
-  }).then(() => {
-    loading.classList.remove("show");
-    showToast("Task added successfully!", "success");
-    addModal.style.display = "none";
-    addTaskForm.reset();
-    fetchData();
-  });
+  })
+    .then((res) => res.json())
+    .then(() => {
+      loading.classList.remove("show");
+      showToast("Task added successfully!", "success");
+      addModal.style.display = "none";
+      addTaskForm.reset();
+      fetchData();
+    });
 });
 
 /***** Expose small debug helpers (optional) *****/
