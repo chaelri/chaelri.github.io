@@ -1,5 +1,5 @@
 const APPSCRIPT_WEBHOOK =
-  "https://script.google.com/macros/s/AKfycbxK4kSQGTBLaXIKjmpULpaqC6by2QFdE-JUt4Pz87wrWscBRnY7Dg453ssSgUPMSrp-/exec";
+  "https://script.google.com/macros/s/AKfycbxIv-me-H5ux-kG-tPKQk2sUHkQRV4ZnfpyHH1XdoWmTPDXkD9g405EBuqeWwRsCypq/exec";
 
 /***** State & DOM refs *****/
 
@@ -483,12 +483,12 @@ window.saveChanges = function (category, subcategory, task) {
       estimated,
       actual,
     }),
+  }).then(() => {
+    // Immediately show confirmation
+    showLoading(false);
+    showToast("Update sent!", "success");
+    setTimeout(fetchData, 600);
   });
-
-  // Immediately show confirmation
-  showLoading(false);
-  showToast("Update sent!", "success");
-  setTimeout(fetchData, 600);
 };
 
 /***** Filter chips logic *****/
@@ -1048,20 +1048,19 @@ addTaskForm.addEventListener("submit", (e) => {
   loading.classList.add("show");
   fetch(APPSCRIPT_WEBHOOK, {
     method: "POST",
+    mode: "no-cors",
     headers: { "Content-Type": "application/json" },
     body: JSON.stringify({
       action: "addNewTask",
       taskObj: newTask,
     }),
-  })
-    .then((res) => res.json())
-    .then(() => {
-      loading.classList.remove("show");
-      showToast("Task added successfully!", "success");
-      addModal.style.display = "none";
-      addTaskForm.reset();
-      fetchData();
-    });
+  }).then(() => {
+    loading.classList.remove("show");
+    showToast("Task added successfully!", "success");
+    addModal.style.display = "none";
+    addTaskForm.reset();
+    fetchData();
+  });
 });
 
 /***** Expose small debug helpers (optional) *****/
