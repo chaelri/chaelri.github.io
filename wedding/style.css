@@ -872,12 +872,35 @@ button {
 
 /* cute floating animation */
 @keyframes floatHeartsMini {
-  0%, 100% {
+  0%,
+  100% {
     transform: translateX(-50%) scale(1.1);
     opacity: 1;
   }
   50% {
     transform: translateX(-50%) scale(1.4);
     opacity: 0.8;
+  }
+}
+
+/* Default: mobile-friendly, full width */
+.wrapper {
+  width: 100%;
+  margin: 0 auto;
+  padding: 1rem;
+}
+
+/* Centered for larger screens */
+@media (min-width: 768px) {
+  .wrapper {
+    max-width: 900px; /* adjust as you like */
+    margin: 0 auto;
+  }
+}
+
+/* Optional: for even larger screens */
+@media (min-width: 1200px) {
+  .wrapper {
+    max-width: 1100px;
   }
 }
