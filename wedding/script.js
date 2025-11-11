@@ -80,40 +80,27 @@ function showLoading(show = true) {
 /***** Data fetching & refresh *****/
 function fetchData() {
   // Use Apps Script server-side function getSheetData
-  fetch(APPSCRIPT_WEBHOOK + "?action=getData")
-    .then((res) => res.json())
-    .then((data) => console.log(data));
-  //   google.script.run
-  //     .withSuccessHandler((res) => {
-  //       try {
-  //         data = JSON.parse(res || "{}");
-  //       } catch (e) {
-  //         console.error("Failed to parse sheet data", e);
-  //         data = {};
-  //       }
-  //       // If no data, show message
-  //       if (!data || Object.keys(data).length === 0) {
-  //         bubbleContainer.innerHTML =
-  //           '<div style="padding:12px;color:var(--muted)">No data found in the sheet.</div>';
-  //         totalDisplay.innerHTML = "No data";
-  //         return;
-  //       }
-  //       // Update totals and render current view (preserve state/search)
-  //       const grand = calculateGrandTotal(data);
-  //       totalDisplay.innerHTML = `<div style="font-weight:700">Grand Total</div><div class="small">Estimated: <strong>₱${grand.totalEst.toLocaleString()}</strong> · Actual: <strong>₱${grand.totalAct.toLocaleString()}</strong></div>`;
-  //       renderUpcomingDeadlines();
-  //       renderCalendar();
-  //       if (currentLevel === "search" && searchInput.value.trim()) {
-  //         renderSearchResults(searchInput.value.trim());
-  //       } else {
-  //         renderBubbles(currentLevel, currentKey);
-  //       }
-  //     })
-  //     .withFailureHandler((err) => {
-  //       console.error(err);
-  //       showToast("Error loading data: " + JSON.stringify(err), "error");
-  //     })
-  //     .getSheetData();
+  fetch(APPSCRIPT_WEBHOOK + "?action=getData").then((res) => {
+    console.log(res);
+    data = JSON.parse(res || "{}");
+    // If no data, show message
+    if (!data || Object.keys(data).length === 0) {
+      bubbleContainer.innerHTML =
+        '<div style="padding:12px;color:var(--muted)">No data found in the sheet.</div>';
+      totalDisplay.innerHTML = "No data";
+      return;
+    }
+    // Update totals and render current view (preserve state/search)
+    const grand = calculateGrandTotal(data);
+    totalDisplay.innerHTML = `<div style="font-weight:700">Grand Total</div><div class="small">Estimated: <strong>₱${grand.totalEst.toLocaleString()}</strong> · Actual: <strong>₱${grand.totalAct.toLocaleString()}</strong></div>`;
+    renderUpcomingDeadlines();
+    renderCalendar();
+    if (currentLevel === "search" && searchInput.value.trim()) {
+      renderSearchResults(searchInput.value.trim());
+    } else {
+      renderBubbles(currentLevel, currentKey);
+    }
+  });
 }
 
 // initial fetch + periodic
@@ -495,22 +482,12 @@ window.saveChanges = function (category, subcategory, task) {
       estimated: estimated,
       actual: actual,
     }),
-  })
-    .then((res) => res.json())
-    .then((result) => console.log(result));
-
-  //   google.script.run
-  //     .withSuccessHandler(() => {
-  //       showLoading(false);
-  //       showToast("Updated successfully!", "success");
-  //       // refresh data and keep view
-  //       setTimeout(fetchData, 600);
-  //     })
-  //     .withFailureHandler((err) => {
-  //       showLoading(false);
-  //       showToast("Error updating: " + JSON.stringify(err), "error");
-  //     })
-  //     .updateItem(category, subcategory, task, status, estimated, actual);
+  }).then(() => {
+    showLoading(false);
+    showToast("Updated successfully!", "success");
+    // refresh data and keep view
+    setTimeout(fetchData, 600);
+  });
 };
 
 /***** Filter chips logic *****/
@@ -1068,19 +1045,6 @@ addTaskForm.addEventListener("submit", (e) => {
   };
 
   loading.classList.add("show");
-  //   google.script.run
-  //     .withSuccessHandler(() => {
-  //       loading.classList.remove("show");
-  //       showToast("Task added successfully!", "success");
-  //       addModal.style.display = "none";
-  //       addTaskForm.reset();
-  //       fetchData();
-  //     })
-  //     .withFailureHandler((err) => {
-  //       loading.classList.remove("show");
-  //       showToast("Error adding task: " + JSON.stringify(err), "error");
-  //     })
-  //     .addNewTask(newTask);
   fetch(APPSCRIPT_WEBHOOK, {
     method: "POST",
     headers: { "Content-Type": "application/json" },
@@ -1088,9 +1052,13 @@ addTaskForm.addEventListener("submit", (e) => {
       action: "addNewTask",
       taskObj: newTask,
     }),
-  })
-    .then((res) => res.json())
-    .then((result) => console.log(result));
+  }).then(() => {
+    loading.classList.remove("show");
+    showToast("Task added successfully!", "success");
+    addModal.style.display = "none";
+    addTaskForm.reset();
+    fetchData();
+  });
 });
 
 /***** Expose small debug helpers (optional) *****/
