@@ -796,3 +796,46 @@ button.toggle {
   background: #fff;
   font-family: inherit;
 }
+
+/* 🩷 Mobile Bubble Fix */
+@media (max-width: 600px) {
+  .bubble-container {
+    display: grid;
+    grid-template-columns: repeat(auto-fill, minmax(130px, 1fr));
+    justify-items: center;
+    align-items: center;
+    gap: 18px;
+    padding: 0 10px;
+    width: 100%;
+  }
+
+  .bubble {
+    width: 130px;
+    height: 130px;
+    padding: 10px;
+    border-radius: 16px;
+    margin: 0 auto;
+  }
+
+  .title {
+    font-size: 13px;
+  }
+
+  .amount {
+    font-size: 11px;
+  }
+}
+
+/* 📱 For very small phones */
+@media (max-width: 400px) {
+  .bubble-container {
+    grid-template-columns: repeat(2, 1fr);
+    gap: 14px;
+    padding: 0 12px;
+  }
+
+  .bubble {
+    width: 120px;
+    height: 120px;
+  }
+}
