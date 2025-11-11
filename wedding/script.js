@@ -2,10 +2,6 @@ const APPSCRIPT_WEBHOOK =
   "https://script.google.com/macros/s/AKfycbw24p4A6s5hzRCGP3_t-dZdtkD-bwNAu7xv1oUTHmrnj1Uz0g1rZfLlrdZh2oz1T8av/exec";
 
 /***** State & DOM refs *****/
-if (window.innerWidth < 700) {
-  document.querySelector("body").style.transform = "scale(1.4)";
-  document.querySelector("body").style.transformOrigin = "top left";
-}
 
 let data = {};
 let history = []; // breadcrumb / navigation history
