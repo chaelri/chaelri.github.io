@@ -1,61 +1,38 @@
-// 💗 Wedding Bubble Planner - Smarter Pull-to-Refresh
+// 💐 Wedding Bubble Planner - Scroll Up to Refresh (with heart spinner)
 let startY = 0;
-let distance = 0;
-let isTouching = false;
 let isRefreshing = false;
 const indicator = document.getElementById("refreshIndicator");
 
-// Configure thresholds
-const TRIGGER_DISTANCE = 130; // how far to pull before refresh
-const MAX_DISTANCE = 180; // visual limit for heart pull
-
-// touch start
-window.addEventListener("touchstart", (e) => {
-  if (window.scrollY <= 2) {
-    isTouching = true;
+window.addEventListener("touchstart", e => {
+  if (window.scrollY === 0) {
     startY = e.touches[0].pageY;
-    distance = 0;
   }
 });
 
-// touch move
-window.addEventListener("touchmove", (e) => {
-  if (!isTouching || isRefreshing) return;
+window.addEventListener("touchmove", e => {
   const currentY = e.touches[0].pageY;
-  distance = Math.min(currentY - startY, MAX_DISTANCE);
+  if (window.scrollY === 0 && currentY - startY > 100 && !isRefreshing) {
+    isRefreshing = true;
 
-  if (distance > 0 && window.scrollY <= 2) {
-    // Prevent native pull-to-refresh
-    e.preventDefault();
-    // Show heart proportional to pull distance
-    indicator.style.top = Math.min(distance / 3, 50) + "px";
-    indicator.style.opacity = Math.min(distance / TRIGGER_DISTANCE, 1);
-  }
+    // 💗 show heart spinner
+    indicator.classList.add("show");
 
-  if (distance > TRIGGER_DISTANCE && !isRefreshing) {
-    triggerRefresh();
+    if (window.navigator.vibrate) window.navigator.vibrate(40);
+    showToast("🔄 Refreshing Wedding Planner...");
+
+    // reload after a short animation delay
+    setTimeout(() => {
+      indicator.classList.remove("show");
+      window.location.reload(true);
+    }, 1000);
   }
 });
 
-// touch end
 window.addEventListener("touchend", () => {
-  isTouching = false;
-  indicator.style.top = "-60px";
-  indicator.style.opacity = "0";
+  isRefreshing = false;
 });
 
-function triggerRefresh() {
-  isRefreshing = true;
-  indicator.classList.add("show");
-  if (window.navigator.vibrate) window.navigator.vibrate(40);
-  showToast("🔄 Refreshing Wedding Planner...");
-  setTimeout(() => {
-    indicator.classList.remove("show");
-    isRefreshing = false;
-    window.location.reload(true);
-  }, 1000);
-}
-
+// optional mini-toast (uses your existing #toast)
 function showToast(msg) {
   const toast = document.getElementById("toast");
   if (!toast) return;
