@@ -329,7 +329,65 @@ button.toggle {
   }
 }
 
-/* responsive */
+/* responsive (improved & expanded) */
+@media (max-width: 768px) {
+  header {
+    flex-direction: column;
+    align-items: flex-start;
+  }
+
+  .controls {
+    width: 100%;
+    justify-content: space-between;
+    flex-wrap: wrap;
+  }
+
+  input[type="search"] {
+    width: 100%;
+    min-width: unset;
+  }
+
+  .chips {
+    justify-content: center;
+  }
+
+  .bubble-container {
+    display: grid;
+    grid-template-columns: repeat(auto-fill, minmax(130px, 1fr));
+    gap: 14px;
+    justify-items: center;
+  }
+
+  .bubble {
+    width: 130px;
+    height: 130px;
+    font-size: 12px;
+  }
+
+  .title {
+    font-size: 13px;
+  }
+
+  #countdownContainer {
+    padding: 16px;
+    font-size: 15px;
+  }
+
+  #totalDisplay,
+  #breadcrumbs {
+    font-size: 13px;
+  }
+
+  .contentPane {
+    padding: 12px;
+  }
+
+  .calendar-grid {
+    grid-template-columns: repeat(7, 1fr);
+    gap: 3px;
+  }
+}
+
 @media (max-width: 500px) {
   .bubble-container {
     display: grid;
@@ -351,6 +409,89 @@ button.toggle {
   }
   #breadcrumbs {
     font-size: 12px;
+  }
+
+  h1 {
+    font-size: 18px;
+  }
+
+  #countdownContainer {
+    padding: 14px;
+  }
+
+  #weddingCountdownTitle {
+    font-size: 18px;
+  }
+
+  #countdownTimer {
+    font-size: 20px;
+  }
+
+  .modal-content,
+  .modal-add-content {
+    width: 92%;
+    padding: 16px;
+    max-height: 85vh;
+  }
+
+  .calendar-grid {
+    grid-template-columns: repeat(7, 1fr);
+    gap: 2px;
+  }
+
+  .calendar-cell {
+    height: 70px;
+    font-size: 10px;
+  }
+
+  .upcoming-item {
+    font-size: 12px;
+  }
+}
+
+/* extra tiny screen (375px ↓) */
+@media (max-width: 375px) {
+  body {
+    padding: 10px;
+  }
+
+  header {
+    gap: 6px;
+  }
+
+  .bubble-container {
+    grid-template-columns: repeat(2, 1fr);
+    gap: 10px;
+  }
+
+  .bubble {
+    width: 110px;
+    height: 110px;
+  }
+
+  input[type="search"] {
+    font-size: 12px;
+    padding: 6px 8px;
+  }
+
+  .toggle {
+    font-size: 12px;
+    padding: 6px 8px;
+  }
+
+  .chip {
+    font-size: 12px;
+    padding: 5px 10px;
+  }
+
+  #countdownContainer {
+    font-size: 14px;
+  }
+
+  .modal-add-content input,
+  .modal-add-content textarea,
+  .modal-add-content select {
+    font-size: 13px;
   }
 }
 
