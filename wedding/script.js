@@ -85,7 +85,7 @@ function fetchData() {
     .then((resultData) => {
       {
         console.log(resultData);
-        data = JSON.parse(resultData || "{}");
+        data = resultData;
         // If no data, show message
         if (!data || Object.keys(data).length === 0) {
           bubbleContainer.innerHTML =
