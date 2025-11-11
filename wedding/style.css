@@ -675,13 +675,13 @@ button.toggle {
 #countdownTimer {
   font-size: 26px;
   font-weight: bold;
-  letter-spacing: 1px;
   color: #8a2c4e;
-  background: #fff0f3;
   border-radius: 10px;
   display: inline-block;
   padding: 8px 14px;
-  box-shadow: inset 0 0 5px rgba(0, 0, 0, 0.05);
+  box-shadow: none;
+  font-family: "Playwrite HU", cursive;
+  letter-spacing: 8px;
 }
 
 /* cute sparkle animation */
