@@ -483,12 +483,12 @@ window.saveChanges = function (category, subcategory, task) {
       estimated,
       actual,
     }),
-  }).then(() => {
-    // Immediately show confirmation
+  });
+  setTimeout(() => {
     showLoading(false);
     showToast("Update sent!", "success");
-    setTimeout(fetchData, 600);
-  });
+    setTimeout(fetchData, 800);
+  }, 1200);
 };
 
 /***** Filter chips logic *****/
@@ -1054,13 +1054,14 @@ addTaskForm.addEventListener("submit", (e) => {
       action: "addNewTask",
       taskObj: newTask,
     }),
-  }).then(() => {
+  });
+  setTimeout(() => {
     loading.classList.remove("show");
     showToast("Task added successfully!", "success");
     addModal.style.display = "none";
     addTaskForm.reset();
     fetchData();
-  });
+  }, 1200);
 });
 
 /***** Expose small debug helpers (optional) *****/
