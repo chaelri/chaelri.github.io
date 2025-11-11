@@ -839,3 +839,11 @@ button.toggle {
     height: 120px;
   }
 }
+
+input,
+select,
+textarea,
+button {
+  font-size: 16px !important;
+  -webkit-text-size-adjust: 100%;
+}
