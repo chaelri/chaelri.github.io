@@ -487,8 +487,8 @@ window.saveChanges = function (category, subcategory, task) {
   setTimeout(() => {
     showLoading(false);
     showToast("Update sent!", "success");
-    setTimeout(fetchData, 800);
-  }, 1200);
+    fetchData()
+  }, 2000);
 };
 
 /***** Filter chips logic *****/
