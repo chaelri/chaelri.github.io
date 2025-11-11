@@ -75,7 +75,7 @@ function showLoading(show = true) {
 /***** Data fetching & refresh *****/
 function fetchData() {
   // Use Apps Script server-side function getSheetData
-  fetch(APPSCRIPT_WEBHOOK + "?action=getData",{ cache: 'no-store' })
+  fetch(APPSCRIPT_WEBHOOK + "?action=getData&r=" + new Date(),)
     .then((res) => res.json())
     .then((resultData) => {
       {
