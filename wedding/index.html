@@ -1,0 +1,122 @@
+<!DOCTYPE html>
+<html lang="en">
+  <head>
+    <base target="_top" />
+    <meta charset="utf-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <title>Wedding Bubble Planner</title>
+    <link rel="stylesheet" href="style.css">
+  </head>
+  <body>
+    <header>
+      <div class="left">
+        <h1>Wedding Planner Bubbles</h1>
+        <div class="small">organize · track · budget</div>
+      </div>
+
+      <div class="controls">
+        <input
+          id="searchInput"
+          type="search"
+          placeholder="🔎 Search tasks, notes, responsible..."
+          aria-label="Search tasks"
+        />
+        <button id="clearSearch" class="toggle small">Clear</button>
+        <button id="darkToggle" class="toggle small">🌙</button>
+      </div>
+    </header>
+    <!-- 💍 Wedding Countdown -->
+    <div id="countdownContainer">
+      <h2 id="weddingCountdownTitle">💍 Loading countdown...</h2>
+      <div id="countdownTimer">--d --h --m --s</div>
+    </div>
+
+    <div class="chips" id="filterChips">
+      <div class="chip active" data-filter="all">All</div>
+      <div class="chip" data-filter="karla">Assigned: Karla</div>
+      <div class="chip" data-filter="c">Assigned: Dudu (C)</div>
+      <div class="chip" data-filter="progress">Status: In Progress</div>
+      <div class="chip" data-filter="done">Status: Done</div>
+    </div>
+
+    <div id="totalDisplay">Loading totals...</div>
+
+    <!-- Upcoming deadlines section -->
+    <div id="upcomingDeadlines" class="upcoming-box"></div>
+    <a href="#" id="viewAllDeadlines">📆 View more</a>
+
+    <!-- Modal -->
+    <div id="deadlineModal" class="modal">
+      <div class="modal-content">
+        <span class="close">&times;</span>
+        <h3>All Deadlines</h3>
+        <div id="deadlineList"></div>
+      </div>
+    </div>
+
+    <div id="breadcrumbs"></div>
+
+    <div class="bubble-container" id="bubbleContainer"></div>
+
+    <div class="contentPane" id="contentDisplay" style="display: none"></div>
+
+    <!-- Calendar View -->
+    <div id="calendarContainer" class="calendar-box">
+      <div class="calendar-header">
+        <button id="prevMonth" class="cal-btn">◀</button>
+        <h3 id="calendarMonth"></h3>
+        <button id="nextMonth" class="cal-btn">▶</button>
+      </div>
+      <div class="calendar-grid" id="calendarGrid"></div>
+      <div style="text-align: right; margin-top: 8px"></div>
+    </div>
+
+    <!-- Floating Add Task Button -->
+    <button id="addTaskBtn" title="Add new task">➕</button>
+
+    <!-- Add Task Modal (distinct IDs!) -->
+    <div id="addTaskModalWrapper" class="modal-add">
+      <div class="modal-add-content">
+        <span class="close-add">&times;</span>
+        <h3>Add New Task</h3>
+        <form id="addTaskForm">
+          <label>Phase (Category):</label>
+          <select id="newCategory" required>
+            <option value="" disabled selected>Select a phase</option>
+            <option value="Pre-Wedding">Pre-Wedding</option>
+            <option value="Wedding Day">Wedding Day</option>
+            <option value="Post-Wedding">Post-Wedding</option></select
+          ><br />
+          <label>Section (Subcategory):</label>
+          <input type="text" id="newSubcategory" required /><br />
+          <label>Task Name:</label>
+          <input type="text" id="newTask" required /><br />
+          <label>Responsible:</label>
+          <select id="newResponsible" required>
+            <option value="" disabled selected>Select who's responsible</option>
+            <option value="Charlie">Charlie</option>
+            <option value="Karla">Karla</option>
+            <option value="Charlie & Karla">Charlie & Karla</option></select
+          ><br />
+          <label>Deadline:</label>
+          <input type="date" id="newDeadline" /><br />
+          <label>Estimated Cost (₱):</label>
+          <input type="number" id="newEstimated" step="0.01" /><br />
+          <label>Notes:</label>
+          <textarea id="newNotes" rows="2"></textarea><br />
+          <button type="submit">Add Task</button>
+        </form>
+      </div>
+    </div>
+
+    <div id="toast"></div>
+
+    <div id="loading">
+      <div style="text-align: center; color: #fff">
+        <div class="spinner"></div>
+        <p style="margin-top: 8px">Saving...</p>
+      </div>
+    </div>
+    <script src="script.js"></script>
+  </body>
+</html>
