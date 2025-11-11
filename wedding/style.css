@@ -881,3 +881,17 @@ button {
     opacity: 0.8;
   }
 }
+
+/* Prevent Safari rubber-band scrolling on the body */
+html, body {
+  overscroll-behavior-y: contain; /* modern */
+  -webkit-overflow-scrolling: auto;
+  height: 100%;
+}
+
+/* Optional: if body scrolls, wrap main content in a scrollable container */
+.scrollable {
+  overflow-y: auto;
+  -webkit-overflow-scrolling: touch;
+  height: 100%;
+}
