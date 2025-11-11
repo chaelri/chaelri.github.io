@@ -1,5 +1,5 @@
 const APPSCRIPT_WEBHOOK =
-  "https://script.google.com/macros/s/AKfycbzoGzNJD6rLGUy7MMDqCjF1q2PeQyaJNv6wrcZuEfr2zHYj2zPWYz4wDqse7W-eLAlr/exec";
+  "https://script.google.com/macros/s/AKfycby2fbchJ1NxvfItEaJkSq80pTDGpt7FhWyfZ6xQC0gJolNVR2tANs0u9zxsjdU7k74/exec";
 
 /***** State & DOM refs *****/
 
@@ -75,30 +75,29 @@ function showLoading(show = true) {
 
 /***** Data fetching & refresh *****/
 function fetchData() {
-  // Use Apps Script server-side function getSheetData
-  fetch(APPSCRIPT_WEBHOOK + "?action=getData")
+  fetch(`${APPSCRIPT_WEBHOOK}?action=getData&t=${Date.now()}`, {
+    cache: "no-store",
+  })
     .then((res) => res.json())
     .then((resultData) => {
-      {
-        console.log(resultData);
-        data = resultData;
-        // If no data, show message
-        if (!data || Object.keys(data).length === 0) {
-          bubbleContainer.innerHTML =
-            '<div style="padding:12px;color:var(--muted)">No data found in the sheet.</div>';
-          totalDisplay.innerHTML = "No data";
-          return;
-        }
-        // Update totals and render current view (preserve state/search)
-        const grand = calculateGrandTotal(data);
-        totalDisplay.innerHTML = `<div style="font-weight:700">Grand Total</div><div class="small">Estimated: <strong>₱${grand.totalEst.toLocaleString()}</strong> · Actual: <strong>₱${grand.totalAct.toLocaleString()}</strong></div>`;
-        renderUpcomingDeadlines();
-        renderCalendar();
-        if (currentLevel === "search" && searchInput.value.trim()) {
-          renderSearchResults(searchInput.value.trim());
-        } else {
-          renderBubbles(currentLevel, currentKey);
-        }
+      console.log(resultData);
+      data = resultData;
+      if (!data || Object.keys(data).length === 0) {
+        bubbleContainer.innerHTML =
+          '<div style="padding:12px;color:var(--muted)">No data found in the sheet.</div>';
+        totalDisplay.innerHTML = "No data";
+        return;
+      }
+
+      const grand = calculateGrandTotal(data);
+      totalDisplay.innerHTML = `<div style="font-weight:700">Grand Total</div><div class="small">Estimated: <strong>₱${grand.totalEst.toLocaleString()}</strong> · Actual: <strong>₱${grand.totalAct.toLocaleString()}</strong></div>`;
+      renderUpcomingDeadlines();
+      renderCalendar();
+
+      if (currentLevel === "search" && searchInput.value.trim()) {
+        renderSearchResults(searchInput.value.trim());
+      } else {
+        renderBubbles(currentLevel, currentKey);
       }
     });
 }
@@ -487,7 +486,7 @@ window.saveChanges = function (category, subcategory, task) {
   setTimeout(() => {
     showLoading(false);
     showToast("Update sent!", "success");
-    fetchData()
+    fetchData();
   }, 2000);
 };
 
