@@ -1,5 +1,5 @@
 const APPSCRIPT_WEBHOOK =
-"https://script.google.com/macros/s/AKfycbyIR4qaJGZyjTxF4ydWcSWnJcFZx7oz1H8F07mBlop6OXK0SmLkuKA22mwTKI_SE84Z/exec"
+  "https://script.google.com/macros/s/AKfycbyIR4qaJGZyjTxF4ydWcSWnJcFZx7oz1H8F07mBlop6OXK0SmLkuKA22mwTKI_SE84Z/exec";
 /***** State & DOM refs *****/
 
 let data = {};
@@ -75,7 +75,7 @@ function showLoading(show = true) {
 /***** Data fetching & refresh *****/
 function fetchData() {
   // Use Apps Script server-side function getSheetData
-  fetch(APPSCRIPT_WEBHOOK + "?action=getData&r=" + new Date(),)
+  fetch(APPSCRIPT_WEBHOOK + "?action=getData&r=" + new Date())
     .then((res) => res.json())
     .then((resultData) => {
       {
@@ -127,8 +127,12 @@ function updateCountdown() {
   const seconds = Math.floor((diff % (1000 * 60)) / 1000);
 
   document.getElementById(
+    "weddingDaysCountdown"
+  ).textContent = days
+
+  document.getElementById(
     "weddingCountdownTitle"
-  ).textContent = `💍 ${days} days until July 2, 2026`;
+  ).textContent = `days until July 2, 2026`;
 
   document.getElementById(
     "countdownTimer"
@@ -486,7 +490,7 @@ window.saveChanges = function (category, subcategory, task) {
   setTimeout(() => {
     showLoading(false);
     showToast("Update sent!", "success");
-    fetchData()
+    fetchData();
   }, 2000);
 };
 
