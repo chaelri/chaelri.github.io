@@ -1,5 +1,5 @@
 const APPSCRIPT_WEBHOOK =
-"https://script.google.com/macros/s/AKfycbx2SPPdxPKKShoAXNBM7T0W93vc5mv1C7MfVqyyA0QtaZdH3ItLIH-L_coM3eQ3V6NU/exec"
+"https://script.google.com/macros/s/AKfycbyIR4qaJGZyjTxF4ydWcSWnJcFZx7oz1H8F07mBlop6OXK0SmLkuKA22mwTKI_SE84Z/exec"
 /***** State & DOM refs *****/
 
 let data = {};
@@ -973,7 +973,7 @@ function renderUpcomingDeadlines() {
     })
     .join("");
 
-  box.innerHTML = `<h3 style="margin-top:0;">📅 Upcoming Deadlines</h3>${html}`;
+  box.innerHTML = `<h3 style="margin-top:0;padding:0 16px">📅 Upcoming Deadlines</h3>${html}`;
 }
 
 /***** Add deadline badge helper used by createContentBubble *****/
