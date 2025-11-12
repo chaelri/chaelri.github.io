@@ -149,7 +149,7 @@ setInterval(() => {
   heart.className = "heart";
   heart.textContent = "💗";
   heart.style.left = Math.random() * 90 + "%";
-  heart.style.animationDuration = 4 + Math.random() * 3 + "s";
+  heart.style.animationDuration = 4 + Math.random() * 5 + "s";
   document.getElementById("countdownContainer").appendChild(heart);
   setTimeout(() => heart.remove(), 7000);
 }, 2000);
