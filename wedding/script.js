@@ -1038,6 +1038,7 @@ addTaskForm.addEventListener("submit", (e) => {
     category: document.getElementById("newCategory").value.trim(),
     subcategory: document.getElementById("newSubcategory").value.trim(),
     task: document.getElementById("newTask").value.trim(),
+    duration: document.getElementById("duration").value,
     responsible: document.getElementById("newResponsible").value.trim(),
     deadline: document.getElementById("newDeadline").value,
     estimated: parseFloat(document.getElementById("newEstimated").value) || 0,
