@@ -903,3 +903,10 @@ button {
   padding: 5px 20px;
   border-radius: 5px;
 }
+
+#weddingDaysCountdown {
+  font-family: avenir;
+  font-size: 5rem;
+  line-height: 1em;
+  margin: 0;
+}
