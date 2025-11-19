@@ -1166,48 +1166,61 @@ darkToggle.addEventListener("click", () => {
     return { summary, grand };
   }
 
-  // Draw tilted 3D donut on canvas
   function drawTiltedDonut(canvas, dataArr, grandTotal) {
     if (!canvas) return;
     const ctx = canvas.getContext("2d");
+
+    // Use client size (CSS size) so we don't accumulate width scaling
+    const cssW = Math.max(200, canvas.clientWidth || 360);
+    const cssH = Math.max(140, canvas.clientHeight || 240);
+
+    // DPR handling (reset everything first)
     const DPR = window.devicePixelRatio || 1;
-    const w = canvas.width;
-    const h = canvas.height;
-    canvas.width = w * DPR;
-    canvas.height = h * DPR;
-    canvas.style.width = w + "px";
-    canvas.style.height = h + "px";
+    ctx.setTransform(1, 0, 0, 1, 0, 0); // reset any transforms
+    canvas.width = Math.round(cssW * DPR);
+    canvas.height = Math.round(cssH * DPR);
+    canvas.style.width = cssW + "px";
+    canvas.style.height = cssH + "px";
     ctx.scale(DPR, DPR);
-    ctx.clearRect(0, 0, w, h);
+    ctx.clearRect(0, 0, cssW, cssH);
 
-    // center and radii (elliptical tilt)
-    const cx = w / 2;
-    const cy = h / 2 + 8; // slightly lower to emphasize tilt
-    const outerR = Math.min(w, h) * 0.36;
-    const innerR = outerR * 0.56;
+    // center and radii for ellipse donut (tilt simulated by squashing y radius)
+    const cx = cssW / 2;
+    const cy = cssH / 2 + 6; // slightly lower for tilt illusion
+    const outerR = Math.min(cssW, cssH) * 0.38;
+    const innerR = outerR * 0.52;
 
-    // shadow/back plate
+    // draw soft plate shadow under donut slices
     ctx.save();
-    ctx.fillStyle = "rgba(60,20,30,0.06)";
     ctx.beginPath();
-    ctx.ellipse(cx, cy + 8, outerR + 12, outerR * 0.48 + 8, 0, 0, Math.PI * 2);
+    ctx.ellipse(
+      cx,
+      cy + 8,
+      outerR + 14,
+      (outerR + 14) * 0.42,
+      0,
+      0,
+      Math.PI * 2
+    );
+    ctx.fillStyle = "rgba(100,40,60,0.06)";
     ctx.fill();
     ctx.restore();
 
-    // angle sweep
-    let start = -Math.PI / 2; // start at top
+    // border stroke settings for clearer edges
+    const edgeColor = "rgba(255,255,255,0.65)";
+
+    // start angle
+    let start = -Math.PI / 2;
+
+    // draw segments
     for (let i = 0; i < dataArr.length; i++) {
       const seg = dataArr[i];
-      const angle = (seg.total / grandTotal) * Math.PI * 2;
+      const angle = Math.max(0.001, (seg.total / grandTotal) * Math.PI * 2);
       const end = start + angle;
 
-      // create gradient for 3D feel
+      // gradient for candy look (slightly stronger contrast)
       const colA = COLORS[seg.colorIndex][0];
       const colB = COLORS[seg.colorIndex][1];
-
-      // draw top arc (slightly lifted)
-      ctx.save();
-      // top ring (outer)
       const grad = ctx.createLinearGradient(
         cx - outerR,
         cy - outerR,
@@ -1216,38 +1229,29 @@ darkToggle.addEventListener("click", () => {
       );
       grad.addColorStop(0, colA);
       grad.addColorStop(1, colB);
-      ctx.fillStyle = grad;
+
+      // draw segment (elliptical arc)
+      ctx.save();
       ctx.beginPath();
-      // draw arc path - we use ellipse to simulate tilt (y scale smaller)
-      ctx.ellipse(cx, cy, outerR, outerR * 0.56, 0, start, end, false);
-      ctx.ellipse(cx, cy, innerR, innerR * 0.56, 0, end, start, true);
+      ctx.ellipse(cx, cy, outerR, outerR * 0.54, 0, start, end, false);
+      ctx.ellipse(cx, cy, innerR, innerR * 0.54, 0, end, start, true);
       ctx.closePath();
+      ctx.fillStyle = grad;
       ctx.fill();
 
-      // subtle inner shading for 3D ring depth
-      ctx.globalCompositeOperation = "multiply";
-      ctx.fillStyle = "rgba(0,0,0,0.05)";
+      // draw thin slice border for separation
+      ctx.strokeStyle = "rgba(255,255,255,0.45)";
+      ctx.lineWidth = 1.5;
+      ctx.stroke();
+
+      // create glossy highlight overlay (small)
+      ctx.globalCompositeOperation = "lighter";
+      ctx.fillStyle = "rgba(255,255,255,0.06)";
       ctx.beginPath();
-      ctx.ellipse(
-        cx,
-        cy,
-        outerR,
-        outerR * 0.56,
-        0,
-        start,
-        start + angle * 0.25,
-        false
-      );
-      ctx.ellipse(
-        cx,
-        cy,
-        innerR,
-        innerR * 0.56,
-        0,
-        start + angle * 0.25,
-        start,
-        true
-      );
+      const midA = start + angle * 0.12;
+      const midB = start + angle * 0.35;
+      ctx.ellipse(cx, cy - 6, outerR, outerR * 0.54, 0, midA, midB, false);
+      ctx.ellipse(cx, cy - 6, innerR, innerR * 0.54, 0, midB, midA, true);
       ctx.closePath();
       ctx.fill();
       ctx.globalCompositeOperation = "source-over";
@@ -1256,30 +1260,30 @@ darkToggle.addEventListener("click", () => {
       ctx.restore();
     }
 
-    // inner bevel / hole to complete 3D appearance
+    // inner hole (clean white center)
     ctx.save();
-    // inner shadow
     ctx.beginPath();
-    ctx.ellipse(cx, cy, innerR - 1.5, (innerR - 1.5) * 0.56, 0, 0, Math.PI * 2);
+    ctx.ellipse(cx, cy, innerR - 1, (innerR - 1) * 0.54, 0, 0, Math.PI * 2);
     ctx.fillStyle = "#fff";
     ctx.fill();
 
-    // soft inner shadow ring
-    ctx.globalCompositeOperation = "overlay";
-    const sgrad = ctx.createRadialGradient(
+    // small inner shadow for depth
+    const innerGrad = ctx.createRadialGradient(
       cx,
-      cy - 6,
+      cy - 4,
       innerR * 0.1,
       cx,
       cy + 6,
-      innerR * 1.2
+      innerR * 1.1
     );
-    sgrad.addColorStop(0, "rgba(0,0,0,0.02)");
-    sgrad.addColorStop(1, "rgba(0,0,0,0.06)");
-    ctx.fillStyle = sgrad;
+    innerGrad.addColorStop(0, "rgba(0,0,0,0.02)");
+    innerGrad.addColorStop(1, "rgba(0,0,0,0.06)");
+    ctx.fillStyle = innerGrad;
+    ctx.globalCompositeOperation = "multiply";
     ctx.beginPath();
-    ctx.ellipse(cx, cy, innerR - 1.5, (innerR - 1.5) * 0.56, 0, 0, Math.PI * 2);
+    ctx.ellipse(cx, cy, innerR - 1, (innerR - 1) * 0.54, 0, 0, Math.PI * 2);
     ctx.fill();
+    ctx.globalCompositeOperation = "source-over";
     ctx.restore();
   }
 
@@ -1379,6 +1383,7 @@ darkToggle.addEventListener("click", () => {
   }
 
   // Show modal and render
+  // Show modal and render
   function showBudgetModal() {
     const { summary, grand } = computeBudgetSummary();
     if (grand === 0) {
@@ -1390,12 +1395,19 @@ darkToggle.addEventListener("click", () => {
       donutTotalAmt.textContent = `₱${grand.toLocaleString()}`;
       renderLegend(summary);
       renderPillBars(summary, grand);
-      drawTiltedDonut(canvas, summary.slice(0, 7), grand); // top 7 slices for clarity
     }
+
+    // display modal first
     modal.style.display = "flex";
     modal.setAttribute("aria-hidden", "false");
-    // lock body scroll (simple)
     document.body.style.overflow = "hidden";
+
+    // small delay so layout & CSS sizing settle (prevents hidden canvas sizing bug)
+    setTimeout(() => {
+      const { summary: s2, grand: g2 } = computeBudgetSummary();
+      // draw top slices but use up to first 7 slices (others will be in legend)
+      drawTiltedDonut(canvas, s2.slice(0, 7), g2);
+    }, 60);
   }
 
   function hideBudgetModal() {

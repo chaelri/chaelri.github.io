@@ -84,10 +84,14 @@
         <button class="budget-close" id="budgetCloseBtn">✕</button>
 
         <div class="budget-top">
-          <div class="donut-wrap">
-            <canvas id="budgetDonut" width="360" height="240"></canvas>
-            <div class="donut-center">
-              <div id="donutTotalLabel">Total</div>
+          <div class="donut-card">
+            <div class="donut-wrap">
+              <canvas id="budgetDonut" aria-hidden="true"></canvas>
+            </div>
+
+            <!-- Total text BELOW the donut (clean, readable) -->
+            <div class="donut-total">
+              <div id="donutTotalLabel">Total Budget</div>
               <div id="donutTotalAmt">₱0</div>
             </div>
           </div>
