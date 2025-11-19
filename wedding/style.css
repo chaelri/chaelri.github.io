@@ -910,3 +910,16 @@ button {
   line-height: 1em;
   margin: 0;
 }
+
+.calendar-cell.weekday {
+  background: transparent;
+  border: none;
+  font-weight: 700;
+  height: auto;
+}
+
+.calendar-cell.empty {
+  background: transparent;
+  border: none;
+}
+

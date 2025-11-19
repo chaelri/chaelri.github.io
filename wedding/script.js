@@ -126,9 +126,7 @@ function updateCountdown() {
   const minutes = Math.floor((diff % (1000 * 60 * 60)) / (1000 * 60));
   const seconds = Math.floor((diff % (1000 * 60)) / 1000);
 
-  document.getElementById(
-    "weddingDaysCountdown"
-  ).textContent = days
+  document.getElementById("weddingDaysCountdown").textContent = days;
 
   document.getElementById(
     "weddingCountdownTitle"
@@ -761,6 +759,11 @@ function renderCalendar() {
 
   const year = calendarDate.getFullYear();
   const month = calendarDate.getMonth();
+  const weekdays = ["Sun", "Mon", "Tue", "Wed", "Thu", "Fri", "Sat"];
+  grid.innerHTML = weekdays
+    .map((d) => `<div class="calendar-cell weekday">${d}</div>`)
+    .join("");
+
   const firstDay = new Date(year, month, 1);
   const startDay = firstDay.getDay();
   const daysInMonth = new Date(year, month + 1, 0).getDate();
@@ -784,11 +787,8 @@ function renderCalendar() {
     }
   }
 
-  // Render blank cells before start
   for (let i = 0; i < startDay; i++) {
-    const cell = document.createElement("div");
-    cell.className = "calendar-cell";
-    grid.appendChild(cell);
+    grid.innerHTML += `<div class="calendar-cell empty"></div>`;
   }
 
   // Render each day
@@ -796,11 +796,14 @@ function renderCalendar() {
     const cell = document.createElement("div");
     cell.className = "calendar-cell";
     cell.innerHTML = `<div class="date">${day}</div>`;
-    if (
-      day === new Date().getDate() &&
-      month === new Date().getMonth() &&
-      year === new Date().getFullYear()
-    ) {
+    const local = new Date();
+    const today = new Date(
+      local.getFullYear(),
+      local.getMonth(),
+      local.getDate()
+    );
+
+    if (new Date(year, month, day).getTime() === today.getTime()) {
       cell.classList.add("today");
     }
 
@@ -808,15 +811,36 @@ function renderCalendar() {
     todayTasks.forEach((t) => {
       const dot = document.createElement("div");
       dot.className = "deadline-dot";
+      dot.style.marginTop = "2px";
+
       dot.textContent = t.task.slice(0, 10) + (t.task.length > 10 ? "…" : "");
       dot.title = `${t.task}\n${t.category} › ${t.subcategory}`;
+      dot.addEventListener("click", () => {
+        currentLevel = "content";
+        currentKey = { category: t.category, subcategory: t.subcategory };
+        contentDisplay.style.display = "block";
+        contentDisplay.innerHTML = renderTaskDetails(
+          t.category,
+          t.subcategory,
+          t
+        );
+      });
       cell.appendChild(dot);
+
       if (t.status === "Done") dot.style.background = "#4caf50";
       else if (t.status === "In Progress") dot.style.background = "#f59e0b";
       else dot.style.background = "#9ca3af";
     });
 
     grid.appendChild(cell);
+  }
+  const totalCells = startDay + daysInMonth;
+  const remaining = 7 - (totalCells % 7);
+
+  if (remaining < 7) {
+    for (let i = 0; i < remaining; i++) {
+      grid.innerHTML += `<div class="calendar-cell empty"></div>`;
+    }
   }
 }
 
