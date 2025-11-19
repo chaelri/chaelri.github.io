@@ -48,7 +48,7 @@
     </header>
     <!-- 💍 Wedding Countdown -->
     <div id="countdownContainer">
-      <div style="font-size:5rem">💍</div>
+      <div style="font-size: 5rem">💍</div>
       <h2 id="weddingDaysCountdown"></h2>
       <h2 id="weddingCountdownTitle">💍 Loading countdown...</h2>
       <div id="countdownTimer">--d --h --m --s</div>
@@ -63,6 +63,47 @@
     </div>
 
     <div id="totalDisplay">Loading totals...</div>
+    <!-- Budget Overview Button -->
+    <div
+      style="
+        width: 100%;
+        max-width: 1100px;
+        margin: 8px 0;
+        display: flex;
+        justify-content: center;
+      "
+    >
+      <button id="budgetOverviewBtn" class="budget-btn">
+        📊 Where Our Money Goes
+      </button>
+    </div>
+
+    <!-- Budget Modal (hybrid: tilted 3D donut + pill bars) -->
+    <div id="budgetModal" class="budget-modal" aria-hidden="true">
+      <div class="budget-modal-content">
+        <button class="budget-close" id="budgetCloseBtn">✕</button>
+
+        <div class="budget-top">
+          <div class="donut-wrap">
+            <canvas id="budgetDonut" width="360" height="240"></canvas>
+            <div class="donut-center">
+              <div id="donutTotalLabel">Total</div>
+              <div id="donutTotalAmt">₱0</div>
+            </div>
+          </div>
+
+          <div class="donut-legend" id="donutLegend">
+            <!-- generated legend items -->
+          </div>
+        </div>
+
+        <div class="budget-divider"></div>
+
+        <div class="budget-list" id="budgetList">
+          <!-- pill bars generated here -->
+        </div>
+      </div>
+    </div>
 
     <!-- Upcoming deadlines section -->
     <div id="upcomingDeadlines" class="upcoming-box"></div>
@@ -72,7 +113,7 @@
     <div id="deadlineModal" class="modal">
       <div class="modal-content">
         <span class="close">&times;</span>
-        <h3 style="margin: 0 0 1em;">All Deadlines</h3>
+        <h3 style="margin: 0 0 1em">All Deadlines</h3>
         <div id="deadlineList"></div>
       </div>
     </div>

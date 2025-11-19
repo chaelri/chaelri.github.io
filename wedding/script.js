@@ -1105,3 +1105,316 @@ darkToggle.addEventListener("click", () => {
   darkToggle.textContent = isDark ? "☀️" : "🌙";
   localStorage.setItem("wb_dark", isDark ? "1" : "0");
 });
+
+/* ===== Budget Overview: Hybrid 3D Donut + Pill Bars ===== */
+(function () {
+  const btn = document.getElementById("budgetOverviewBtn");
+  const modal = document.getElementById("budgetModal");
+  const closeBtn = document.getElementById("budgetCloseBtn");
+  const canvas = document.getElementById("budgetDonut");
+  const legendEl = document.getElementById("donutLegend");
+  const listEl = document.getElementById("budgetList");
+  const donutTotalAmt = document.getElementById("donutTotalAmt");
+
+  // pastel palette (keeps consistent)
+  const COLORS = [
+    ["#F7B7C2", "#FFECF0"],
+    ["#FACBAA", "#FFF4E9"],
+    ["#BDEAD2", "#E9FFF4"],
+    ["#A8D8F0", "#E9F8FF"],
+    ["#CAB8F2", "#F4EEFF"],
+    ["#D9A7C7", "#FFF0F6"],
+    ["#F8DE8A", "#FFFBE6"],
+  ];
+
+  function computeBudgetSummary() {
+    const summary = []; // {category, total, subitems: [{name,total}], colorIndex}
+    const catTotals = {};
+    let grand = 0;
+
+    // build totals using your existing data structure: data[category][sub] -> items[]
+    for (const category in data) {
+      let catTotal = 0;
+      const subs = [];
+      for (const sub in data[category]) {
+        const items = data[category][sub];
+        let subTotal = 0;
+        for (const it of items) {
+          const e = parseFloat(it.estimated || 0) || 0;
+          subTotal += e;
+        }
+        if (subTotal > 0) subs.push({ name: sub, total: subTotal });
+        catTotal += subTotal;
+      }
+      if (catTotal > 0) {
+        catTotals[category] = { total: catTotal, subs };
+        grand += catTotal;
+      }
+    }
+
+    // convert to array and sort by total desc
+    let idx = 0;
+    for (const cat in catTotals) {
+      summary.push({
+        category: cat,
+        total: catTotals[cat].total,
+        subitems: catTotals[cat].subs,
+        colorIndex: idx++ % COLORS.length,
+      });
+    }
+    summary.sort((a, b) => b.total - a.total);
+    return { summary, grand };
+  }
+
+  // Draw tilted 3D donut on canvas
+  function drawTiltedDonut(canvas, dataArr, grandTotal) {
+    if (!canvas) return;
+    const ctx = canvas.getContext("2d");
+    const DPR = window.devicePixelRatio || 1;
+    const w = canvas.width;
+    const h = canvas.height;
+    canvas.width = w * DPR;
+    canvas.height = h * DPR;
+    canvas.style.width = w + "px";
+    canvas.style.height = h + "px";
+    ctx.scale(DPR, DPR);
+    ctx.clearRect(0, 0, w, h);
+
+    // center and radii (elliptical tilt)
+    const cx = w / 2;
+    const cy = h / 2 + 8; // slightly lower to emphasize tilt
+    const outerR = Math.min(w, h) * 0.36;
+    const innerR = outerR * 0.56;
+
+    // shadow/back plate
+    ctx.save();
+    ctx.fillStyle = "rgba(60,20,30,0.06)";
+    ctx.beginPath();
+    ctx.ellipse(cx, cy + 8, outerR + 12, outerR * 0.48 + 8, 0, 0, Math.PI * 2);
+    ctx.fill();
+    ctx.restore();
+
+    // angle sweep
+    let start = -Math.PI / 2; // start at top
+    for (let i = 0; i < dataArr.length; i++) {
+      const seg = dataArr[i];
+      const angle = (seg.total / grandTotal) * Math.PI * 2;
+      const end = start + angle;
+
+      // create gradient for 3D feel
+      const colA = COLORS[seg.colorIndex][0];
+      const colB = COLORS[seg.colorIndex][1];
+
+      // draw top arc (slightly lifted)
+      ctx.save();
+      // top ring (outer)
+      const grad = ctx.createLinearGradient(
+        cx - outerR,
+        cy - outerR,
+        cx + outerR,
+        cy + outerR
+      );
+      grad.addColorStop(0, colA);
+      grad.addColorStop(1, colB);
+      ctx.fillStyle = grad;
+      ctx.beginPath();
+      // draw arc path - we use ellipse to simulate tilt (y scale smaller)
+      ctx.ellipse(cx, cy, outerR, outerR * 0.56, 0, start, end, false);
+      ctx.ellipse(cx, cy, innerR, innerR * 0.56, 0, end, start, true);
+      ctx.closePath();
+      ctx.fill();
+
+      // subtle inner shading for 3D ring depth
+      ctx.globalCompositeOperation = "multiply";
+      ctx.fillStyle = "rgba(0,0,0,0.05)";
+      ctx.beginPath();
+      ctx.ellipse(
+        cx,
+        cy,
+        outerR,
+        outerR * 0.56,
+        0,
+        start,
+        start + angle * 0.25,
+        false
+      );
+      ctx.ellipse(
+        cx,
+        cy,
+        innerR,
+        innerR * 0.56,
+        0,
+        start + angle * 0.25,
+        start,
+        true
+      );
+      ctx.closePath();
+      ctx.fill();
+      ctx.globalCompositeOperation = "source-over";
+
+      start = end;
+      ctx.restore();
+    }
+
+    // inner bevel / hole to complete 3D appearance
+    ctx.save();
+    // inner shadow
+    ctx.beginPath();
+    ctx.ellipse(cx, cy, innerR - 1.5, (innerR - 1.5) * 0.56, 0, 0, Math.PI * 2);
+    ctx.fillStyle = "#fff";
+    ctx.fill();
+
+    // soft inner shadow ring
+    ctx.globalCompositeOperation = "overlay";
+    const sgrad = ctx.createRadialGradient(
+      cx,
+      cy - 6,
+      innerR * 0.1,
+      cx,
+      cy + 6,
+      innerR * 1.2
+    );
+    sgrad.addColorStop(0, "rgba(0,0,0,0.02)");
+    sgrad.addColorStop(1, "rgba(0,0,0,0.06)");
+    ctx.fillStyle = sgrad;
+    ctx.beginPath();
+    ctx.ellipse(cx, cy, innerR - 1.5, (innerR - 1.5) * 0.56, 0, 0, Math.PI * 2);
+    ctx.fill();
+    ctx.restore();
+  }
+
+  function renderLegend(summary) {
+    legendEl.innerHTML = "";
+    summary.forEach((s) => {
+      const idx = s.colorIndex;
+      const sw = document.createElement("div");
+      sw.className = "legend-item";
+      const swatch = document.createElement("div");
+      swatch.className = "legend-swatch";
+      swatch.style.background = `linear-gradient(180deg, ${COLORS[idx][0]}, ${COLORS[idx][1]})`;
+      sw.appendChild(swatch);
+
+      const txt = document.createElement("div");
+      txt.innerHTML = `<div style="font-weight:900">${escapeHtml(
+        s.category
+      )}</div><div style="font-size:12px;color:#8a6a72">₱${s.total.toLocaleString()}</div>`;
+      sw.appendChild(txt);
+
+      legendEl.appendChild(sw);
+    });
+  }
+
+  function renderPillBars(summary, grand) {
+    listEl.innerHTML = "";
+    summary.forEach((s, i) => {
+      const percent = grand > 0 ? Math.round((s.total / grand) * 100) : 0;
+      const row = document.createElement("div");
+      row.className = "pill-row";
+
+      const info = document.createElement("div");
+      info.className = "pill-info";
+      const label = document.createElement("div");
+      label.innerHTML = `<div class="pill-label">${escapeHtml(
+        s.category
+      )}</div><div class="subitems">${s.subitems
+        .slice(0, 2)
+        .map((si) => `${escapeHtml(si.name)} — ₱${si.total.toLocaleString()}`)
+        .join("<br>")}${
+        s.subitems.length > 2
+          ? `<div style="font-size:12px;color:#a17b84;margin-top:6px">+ ${
+              s.subitems.length - 2
+            } more</div>`
+          : ""
+      }</div>`;
+      info.appendChild(label);
+
+      const barWrap = document.createElement("div");
+      barWrap.style.display = "flex";
+      barWrap.style.alignItems = "center";
+      barWrap.style.gap = "12px";
+
+      const pill = document.createElement("div");
+      pill.className = "pill-bar";
+      pill.style.minWidth = "220px";
+
+      const fill = document.createElement("div");
+      fill.className = "pill-fill";
+      const cidx = s.colorIndex;
+      fill.style.background = `linear-gradient(90deg, ${COLORS[cidx][0]}, ${COLORS[cidx][1]})`;
+      fill.style.width = "0%"; // will animate
+
+      const percentBadge = document.createElement("div");
+      percentBadge.className = "pill-percent";
+      percentBadge.innerHTML = `<div class="pill-amt">₱${s.total.toLocaleString()}</div><div style="font-size:12px;color:#8a6a72">${percent}%</div>`;
+
+      pill.appendChild(fill);
+      barWrap.appendChild(pill);
+      barWrap.appendChild(percentBadge);
+
+      row.appendChild(info);
+      row.appendChild(barWrap);
+
+      // subitems area (hidden by default)
+      const details = document.createElement("div");
+      details.className = "subitems";
+      details.style.display = "none";
+      details.innerHTML = s.subitems
+        .map((si) => `${escapeHtml(si.name)} — ₱${si.total.toLocaleString()}`)
+        .join("<br>");
+
+      // toggle expand on label click
+      label.addEventListener("click", () => {
+        details.style.display =
+          details.style.display === "none" ? "block" : "none";
+      });
+
+      listEl.appendChild(row);
+      listEl.appendChild(details);
+
+      // animate fill after insertion
+      setTimeout(() => {
+        fill.style.width = `${percent}%`;
+      }, 80 + i * 80);
+    });
+  }
+
+  // Show modal and render
+  function showBudgetModal() {
+    const { summary, grand } = computeBudgetSummary();
+    if (grand === 0) {
+      donutTotalAmt.textContent = "₱0";
+      legendEl.innerHTML =
+        "<div style='color:var(--muted)'>No estimated costs yet.</div>";
+      listEl.innerHTML = "";
+    } else {
+      donutTotalAmt.textContent = `₱${grand.toLocaleString()}`;
+      renderLegend(summary);
+      renderPillBars(summary, grand);
+      drawTiltedDonut(canvas, summary.slice(0, 7), grand); // top 7 slices for clarity
+    }
+    modal.style.display = "flex";
+    modal.setAttribute("aria-hidden", "false");
+    // lock body scroll (simple)
+    document.body.style.overflow = "hidden";
+  }
+
+  function hideBudgetModal() {
+    modal.style.display = "none";
+    modal.setAttribute("aria-hidden", "true");
+    document.body.style.overflow = "";
+  }
+
+  // Wire events
+  btn && btn.addEventListener("click", showBudgetModal);
+  closeBtn && closeBtn.addEventListener("click", hideBudgetModal);
+  // close when clicking backdrop
+  modal &&
+    modal.addEventListener("click", (e) => {
+      if (e.target === modal) hideBudgetModal();
+    });
+
+  // Re-render when data updates (if you call fetchData)
+  // attach to global helper, so existing code can call window.showBudgetModal()
+  window.showBudgetModal = showBudgetModal;
+  window.hideBudgetModal = hideBudgetModal;
+})();
