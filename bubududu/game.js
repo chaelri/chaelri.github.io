@@ -4,57 +4,45 @@
 const canvas = document.getElementById("gameCanvas");
 const ctx = canvas.getContext("2d");
 
-const FRAME = 256;
-const PADDING = 0; // your sheets have no padding
+const FRAME_W = 251;
+const FRAME_H = 298;
+
+const DRAW_W = 120; // how big Bubu appears in game
+const DRAW_H = 140;
+
+const GROUND_Y = 230;
 
 const GRAVITY = 0.6;
-const JUMP_FORCE = -11;
-
-let gameRunning = true;
+const JUMP_FORCE = -12;
 
 // =============================
-// LOAD SPRITES
+// LOAD FRAMES
 // =============================
-const bubu = new Image();
-bubu.src = "assets/bubu_spritesheet.png";
+let bubuFrames = [];
+let duduFrames = [];
 
-const dudu = new Image();
-dudu.src = "assets/dudu_spritesheet.png";
+for (let i = 1; i <= 6; i++) {
+  let img = new Image();
+  img.src = `assets/bubu/${i}.png`;
+  bubuFrames.push(img);
+}
 
-// =============================
-// SPRITE FRAME COORDINATES
-// =============================
-
-// BUBU frames:
-const bubuFrames = [
-  { x: 0, y: 0 }, // idle
-  { x: 256, y: 0 }, // run1
-  { x: 512, y: 0 }, // run2
-  { x: 0, y: 256 }, // run3
-  { x: 256, y: 256 }, // jump
-  { x: 512, y: 256 }, // victory
-];
-
-// DUDU frames (same pattern):
-const duduFrames = [
-  { x: 0, y: 0 },
-  { x: 256, y: 0 },
-  { x: 512, y: 0 },
-  { x: 0, y: 256 },
-  { x: 256, y: 256 },
-  { x: 512, y: 256 },
-];
+for (let i = 1; i <= 6; i++) {
+  let img = new Image();
+  img.src = `assets/dudu/${i}.png`;
+  duduFrames.push(img);
+}
 
 // =============================
 // GAME STATE
 // =============================
 let bubuX = 80;
-let bubuY = 200;
+let bubuY = GROUND_Y;
 
 let velY = 0;
 let onGround = true;
 
-let bubuAnim = 0;
+let animIndex = 0;
 let animTimer = 0;
 
 let obstacleX = 800;
@@ -63,6 +51,21 @@ let obstacleH = 60;
 
 let showDudu = false;
 
+let assetsLoaded = 0;
+
+// Wait until all frames load
+bubuFrames.forEach((img) => (img.onload = () => assetsLoaded++));
+duduFrames.forEach((img) => (img.onload = () => assetsLoaded++));
+
+function waitForLoad() {
+  if (assetsLoaded === 12) {
+    update();
+  } else {
+    requestAnimationFrame(waitForLoad);
+  }
+}
+waitForLoad();
+
 // =============================
 // INPUT
 // =============================
@@ -70,54 +73,54 @@ window.addEventListener("keydown", jump);
 window.addEventListener("touchstart", jump);
 
 function jump() {
-  if (!gameRunning) return;
-  if (onGround) {
-    velY = JUMP_FORCE;
-    onGround = false;
-  }
+  if (!onGround) return;
+  velY = JUMP_FORCE;
+  onGround = false;
 }
 
 // =============================
 // MAIN LOOP
 // =============================
 function update() {
-  if (!gameRunning) return;
-
-  // --- gravity ---
+  // gravity
   velY += GRAVITY;
   bubuY += velY;
 
   // floor
-  if (bubuY >= 200) {
-    bubuY = 200;
+  if (bubuY >= GROUND_Y) {
+    bubuY = GROUND_Y;
     velY = 0;
     onGround = true;
   }
 
-  // --- animate Bubu ---
+  // animation
   animTimer++;
   if (onGround) {
     if (animTimer % 8 === 0) {
-      bubuAnim++;
-      if (bubuAnim > 3) bubuAnim = 1; // loop run frames
+      animIndex++;
+      if (animIndex > 3) animIndex = 1;
     }
   } else {
-    bubuAnim = 4; // jump frame
+    animIndex = 4; // jump frame
   }
 
-  // --- move obstacle ---
+  // obstacle movement
   obstacleX -= 7;
 
   if (obstacleX < -50 && !showDudu) {
-    // when obstacle finishes, show dudu
     showDudu = true;
   }
 
-  // --- collision ---
-  if (!showDudu && obstacleX < bubuX + FRAME - 20) {
-    if (bubuY + FRAME > 200) {
-      gameRunning = false;
-      bubuAnim = 4; // freeze at jump
+  // collision
+  if (!showDudu) {
+    let hit =
+      bubuX + DRAW_W - 20 > obstacleX &&
+      bubuX + 20 < obstacleX + obstacleW &&
+      bubuY + DRAW_H > GROUND_Y - obstacleH;
+
+    if (hit) {
+      animIndex = 4;
+      return; // stop game
     }
   }
 
@@ -126,37 +129,57 @@ function update() {
 }
 
 // =============================
-// DRAW EVERYTHING
+// DRAW
 // =============================
 function draw() {
   ctx.clearRect(0, 0, canvas.width, canvas.height);
 
   // ground
   ctx.fillStyle = "#deb5c7";
-  ctx.fillRect(0, 264, canvas.width, 4);
+  ctx.fillRect(0, GROUND_Y + DRAW_H - 10, canvas.width, 5);
 
-  // obstacle (temporary placeholder)
+  // obstacle (temp)
   if (!showDudu) {
     ctx.fillStyle = "#ff8fb1";
-    ctx.fillRect(obstacleX, 240, obstacleW, obstacleH);
+    ctx.fillRect(
+      obstacleX,
+      GROUND_Y + DRAW_H - obstacleH,
+      obstacleW,
+      obstacleH
+    );
   }
 
-  // draw Bubu
-  const f = bubuFrames[bubuAnim];
-  ctx.drawImage(bubu, f.x, f.y, FRAME, FRAME, bubuX, bubuY, 128, 128);
+  // Draw BUBU
+  let bubuFrame = bubuFrames[animIndex];
+  ctx.drawImage(
+    bubuFrame,
+    0,
+    0,
+    FRAME_W,
+    FRAME_H,
+    bubuX,
+    bubuY - DRAW_H,
+    DRAW_W,
+    DRAW_H
+  );
 
-  // Dudu appears at end
+  // Draw DUDU at finish
   if (showDudu) {
-    const df = duduFrames[5]; // happy pose
-    ctx.drawImage(dudu, df.x, df.y, FRAME, FRAME, 500, 200, 128, 128);
+    let df = duduFrames[5];
+    ctx.drawImage(
+      df,
+      0,
+      0,
+      FRAME_W,
+      FRAME_H,
+      520,
+      GROUND_Y - 60,
+      DRAW_W,
+      DRAW_H
+    );
 
-    // if Bubu reaches Dudu → happy ending
-    if (bubuX + FRAME > 500) {
-      bubuAnim = 5; // victory pose
-      gameRunning = false;
+    if (bubuX + DRAW_W > 520) {
+      animIndex = 5; // victory pose
     }
   }
 }
-
-// START GAME
-update();
