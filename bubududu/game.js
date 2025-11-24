@@ -267,7 +267,11 @@ function spawnObstacle() {
 
   if (def.isHeart) {
     // Hearts → jump zone
-    finalY = 120;
+    // Reachable jump zone (relative to Bubu's jump height)
+    const maxReach = GROUND_Y - BUBU_H - 80; // highest reachable
+    const minReach = GROUND_Y - BUBU_H - 40; // slightly above head
+
+    finalY = Math.random() < 0.5 ? maxReach : minReach; // slightly random but always reachable
   } else {
     // Non-hearts → ground zone
     finalY = GROUND_Y - obstacleH;
