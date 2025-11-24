@@ -1,0 +1,14 @@
+body {
+  margin: 0;
+  background: #fdf2f5;
+  display: flex;
+  justify-content: center;
+  padding-top: 20px;
+  font-family: sans-serif;
+}
+
+#game-container {
+  border-radius: 16px;
+  overflow: hidden;
+  box-shadow: 0 10px 30px rgba(0, 0, 0, 0.15);
+}
