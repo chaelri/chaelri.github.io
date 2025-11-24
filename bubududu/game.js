@@ -4,8 +4,13 @@
 const canvas = document.getElementById("gameCanvas");
 const ctx = canvas.getContext("2d");
 
-canvas.width = 800;
-canvas.height = 300;
+function resizeCanvas() {
+  const scale = window.innerWidth / 800;
+  canvas.style.transform = `scale(${scale})`;
+  canvas.style.transformOrigin = "top left";
+}
+resizeCanvas();
+window.addEventListener("resize", resizeCanvas);
 
 // ========================================
 // GAME CONSTANTS
@@ -198,16 +203,28 @@ function update() {
 
   // collision
   if (!showDudu) {
-    const oW = obstacle.w;
-    const oH = obstacle.h;
+    const bubuHit = {
+      x: bubuX + 20,
+      y: bubuY - 80,
+      w: 60,
+      h: 80,
+    };
 
-    let hit =
-      bubuX + DRAW_W - 20 > obstacleX &&
-      bubuX + 20 < obstacleX + oW &&
-      bubuY + DRAW_H > GROUND_Y + DRAW_H - oH;
+    const obsHit = {
+      x: obstacleX,
+      y: GROUND_Y + DRAW_H - obstacle.h,
+      w: obstacle.w,
+      h: obstacle.h,
+    };
+
+    const hit =
+      bubuHit.x < obsHit.x + obsHit.w &&
+      bubuHit.x + bubuHit.w > obsHit.x &&
+      bubuHit.y < obsHit.y + obsHit.h &&
+      bubuHit.y + bubuHit.h > obsHit.y;
 
     if (hit) {
-      animIndex = 4;
+      animIndex = 4; // jump frame
       gameState = "end";
       drawEndingScreen();
       return;
