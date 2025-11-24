@@ -381,7 +381,7 @@ function loop(timestamp) {
         // 💗 trigger soft bloom
         const bloom = document.getElementById("heartBloom");
         bloom.style.opacity = "1";
-        setTimeout(() => (bloom.style.opacity = "0"), 50);
+        setTimeout(() => (bloom.style.opacity = "0"), 250);
 
         // existing +100 floating text
         floatingTexts.push({
