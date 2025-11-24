@@ -53,7 +53,6 @@ const MAX_SPAWN = 150;
 let floatingTexts = [];
 let duduAnim = 0;
 let duduAnimTimer = 0;
-let heartBursts = [];
 
 // --------------------- ASSET LIST --------------------------
 const ASSETS = {
@@ -377,9 +376,10 @@ function loop(timestamp) {
 
     if (overlap(bHit, oHit)) {
       if (currentObstacle.isHeart) {
+        // Add score
         score += 100;
 
-        // 💗 Floating +100 text
+        // Add floating cute text
         floatingTexts.push({
           x: bubu.x + 20,
           y: bubu.y - 10,
@@ -387,20 +387,6 @@ function loop(timestamp) {
           alpha: 1,
           vy: -0.6,
         });
-
-        // 💗 Heart Burst Particles
-        for (let i = 0; i < 8; i++) {
-          heartBursts.push({
-            x: bubu.x + BUBU_W * 0.5,
-            y: bubu.y + BUBU_H * 0.4,
-            alpha: 1,
-            size: 6 + Math.random() * 4,
-            vx: (Math.random() - 0.5) * 2, // random spread
-            vy: (Math.random() - 0.5) * 2,
-            rot: Math.random() * Math.PI * 2,
-            vr: (Math.random() - 0.5) * 0.2,
-          });
-        }
 
         currentObstacle = null;
       } else {
@@ -435,17 +421,6 @@ function loop(timestamp) {
   floatingTexts.forEach((ft) => {
     ft.y += ft.vy;
     ft.alpha -= 0.02;
-  });
-
-  // 💗 Update heart burst particles
-  heartBursts = heartBursts.filter((h) => h.alpha > 0);
-  heartBursts.forEach((h) => {
-    h.x += h.vx;
-    h.y += h.vy;
-    h.vy += 0.03; // slight gravity
-    h.alpha -= 0.02;
-    h.size *= 0.98;
-    h.rot += h.vr;
   });
 
   draw();
@@ -523,28 +498,6 @@ function drawObstacle() {
 }
 
 function drawBubu() {
-  // 🌸 Aura Glow Under Bubu
-  ctx.save();
-  ctx.globalAlpha = 0.25;
-
-  // gentle glow color
-  ctx.fillStyle = "#ffb6d9";
-
-  // elliptical glow under character
-  ctx.beginPath();
-  ctx.ellipse(
-    bubu.x + BUBU_W * 0.5,
-    bubu.y + BUBU_H * 0.9,
-    28, // width
-    10, // height
-    0,
-    0,
-    Math.PI * 2
-  );
-  ctx.fill();
-
-  ctx.restore();
-
   const frameImg =
     bubuFrames[Math.max(0, Math.min(bubu.anim, bubuFrames.length - 1))];
   if (!frameImg) return;
@@ -590,31 +543,6 @@ function drawUI() {
 }
 
 function draw() {
-  // 💗 Draw heart burst particles
-  heartBursts.forEach((h) => {
-    ctx.save();
-    ctx.globalAlpha = h.alpha;
-    ctx.translate(h.x, h.y);
-    ctx.rotate(h.rot);
-    ctx.fillStyle = "#ff8acb";
-
-    // draw heart shape
-    ctx.beginPath();
-    ctx.moveTo(0, -h.size / 2);
-    ctx.bezierCurveTo(h.size / 2, -h.size, h.size, -h.size / 4, 0, h.size);
-    ctx.bezierCurveTo(
-      -h.size,
-      -h.size / 4,
-      -h.size / 2,
-      -h.size,
-      0,
-      -h.size / 2
-    );
-    ctx.fill();
-
-    ctx.restore();
-  });
-
   ctx.clearRect(0, 0, CANVAS_W, CANVAS_H);
   drawBackground();
   drawGround();
