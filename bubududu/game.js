@@ -261,13 +261,25 @@ function spawnObstacle() {
   if (def.src.includes("bell")) scale = 0.42;
   if (def.src.includes("boquet")) scale = 0.48;
 
+  // HEIGHT LOGIC
+  let obstacleH = Math.round(def.h * scale);
+  let finalY;
+
+  if (def.isHeart) {
+    // Hearts → jump zone
+    finalY = 120;
+  } else {
+    // Non-hearts → ground zone
+    finalY = GROUND_Y - obstacleH;
+  }
+
   currentObstacle = {
     img: imgObj.img,
     isHeart: def.isHeart,
     w: Math.round(def.w * scale),
-    h: Math.round(def.h * scale),
+    h: obstacleH,
     x: CANVAS_W + 20,
-    y: GROUND_Y - Math.round(def.h * scale),
+    y: finalY,
   };
 
   spawnTimer = MIN_SPAWN + Math.floor(Math.random() * (MAX_SPAWN - MIN_SPAWN));
