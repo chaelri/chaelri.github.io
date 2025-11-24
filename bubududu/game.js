@@ -20,6 +20,8 @@ const dpr = window.devicePixelRatio || 1;
 canvas.width = CANVAS_W * dpr;
 canvas.height = CANVAS_H * dpr;
 ctx.scale(dpr, dpr);
+ctx.imageSmoothingEnabled = true;
+ctx.imageSmoothingQuality = "high";
 
 // --------------------- CONSTANTS ---------------------------
 const FRAME_W = 251;
@@ -49,6 +51,8 @@ const MIN_SPAWN = 80;
 const MAX_SPAWN = 150;
 
 let floatingTexts = [];
+let duduAnim = 0;
+let duduAnimTimer = 0;
 
 // --------------------- ASSET LIST --------------------------
 const ASSETS = {
@@ -362,6 +366,15 @@ function loop() {
     }
   }
 
+  // Dudu walking animation
+  if (showDudu) {
+    duduAnimTimer += dt;
+    if (duduAnimTimer >= 0.12) {
+      duduAnimTimer = 0;
+      duduAnim = (duduAnim + 1) % 4; // frames 0,1,2,3 for walk
+    }
+  }
+
   // Dudu moves in
   if (showDudu) {
     duduX -= SCROLL_GROUND * 0.8;
@@ -473,19 +486,25 @@ function drawBubu() {
 
 function drawDudu() {
   if (!showDudu) return;
-  const frameImg = duduFrames[0];
-  if (!frameImg) return;
+
+  const frame = duduFrames[duduAnim]; // walking frame
+
+  ctx.save();
+  ctx.scale(-1, 1); // flip horizontally
+
   ctx.drawImage(
-    frameImg,
+    frame,
     0,
     0,
-    frameImg.naturalWidth,
-    frameImg.naturalHeight,
-    duduX,
+    frame.naturalWidth,
+    frame.naturalHeight,
+    -(duduX + DUDU_W), // flipped x formula
     DUDU_Y,
     DUDU_W,
     DUDU_H
   );
+
+  ctx.restore();
 }
 
 function drawUI() {
