@@ -558,7 +558,7 @@ function draw() {
   floatingTexts.forEach((ft) => {
     ctx.globalAlpha = ft.alpha;
     ctx.fillStyle = "#ff8acb"; // cute pink
-    ctx.font = "20px Arial";
+    ctx.font = "700 20px monospace";
     ctx.fillText(ft.text, ft.x, ft.y);
     ctx.globalAlpha = 1;
   });
