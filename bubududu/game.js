@@ -253,13 +253,21 @@ function spawnObstacle() {
   const def = ASSETS.obstacleDefs[i];
   const imgObj = obstacles[i];
 
+  // Per-obstacle scaling
+  let scale = 0.5; // default
+
+  if (def.isHeart) scale = 0.45;
+  if (def.src.includes("cake")) scale = 0.4;
+  if (def.src.includes("bell")) scale = 0.42;
+  if (def.src.includes("boquet")) scale = 0.48;
+
   currentObstacle = {
     img: imgObj.img,
     isHeart: def.isHeart,
-    w: Math.round(def.w * OBSTACLE_SCALE),
-    h: Math.round(def.h * OBSTACLE_SCALE),
+    w: Math.round(def.w * scale),
+    h: Math.round(def.h * scale),
     x: CANVAS_W + 20,
-    y: GROUND_Y - Math.round(def.h * OBSTACLE_SCALE),
+    y: GROUND_Y - Math.round(def.h * scale),
   };
 
   spawnTimer = MIN_SPAWN + Math.floor(Math.random() * (MAX_SPAWN - MIN_SPAWN));
