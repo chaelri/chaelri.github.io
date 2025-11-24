@@ -249,18 +249,19 @@ function resetGame() {
 
 // --------------------- SPAWN OBSTACLES ----------------------
 function spawnObstacle() {
-  const odef =
-    ASSETS.obstacleDefs[Math.floor(Math.random() * ASSETS.obstacleDefs.length)];
-  const imgObj = obstacles[Math.floor(Math.random() * obstacles.length)];
-  const o = {
+  const i = Math.floor(Math.random() * ASSETS.obstacleDefs.length);
+  const def = ASSETS.obstacleDefs[i];
+  const imgObj = obstacles[i];
+
+  currentObstacle = {
     img: imgObj.img,
-    isHeart: imgObj.isHeart,
-    w: Math.round(imgObj.w * OBSTACLE_SCALE),
-    h: Math.round(imgObj.h * OBSTACLE_SCALE),
+    isHeart: def.isHeart,
+    w: Math.round(def.w * OBSTACLE_SCALE),
+    h: Math.round(def.h * OBSTACLE_SCALE),
     x: CANVAS_W + 20,
-    y: GROUND_Y - Math.round(imgObj.h * OBSTACLE_SCALE),
+    y: GROUND_Y - Math.round(def.h * OBSTACLE_SCALE),
   };
-  currentObstacle = o;
+
   spawnTimer = MIN_SPAWN + Math.floor(Math.random() * (MAX_SPAWN - MIN_SPAWN));
 }
 
@@ -272,7 +273,12 @@ function overlap(a, b) {
 }
 
 // --------------------- MAIN LOOP ----------------------------
-function loop() {
+let lastTime = 0;
+function loop(timestamp) {
+  if (!lastTime) lastTime = timestamp;
+  const dt = (timestamp - lastTime) / 16.666; // normalize to 60fps
+  lastTime = timestamp;
+
   if (state !== "running") return;
 
   score += 0.15;
@@ -369,9 +375,10 @@ function loop() {
   // Dudu walking animation
   if (showDudu) {
     duduAnimTimer += dt;
-    if (duduAnimTimer >= 0.12) {
+    if (duduAnimTimer >= 8) {
+      // about .12s at 60fps
       duduAnimTimer = 0;
-      duduAnim = (duduAnim + 1) % 4; // frames 0,1,2,3 for walk
+      duduAnim = (duduAnim + 1) % 4;
     }
   }
 
@@ -487,7 +494,7 @@ function drawBubu() {
 function drawDudu() {
   if (!showDudu) return;
 
-  const frame = duduFrames[duduAnim]; // walking frame
+  const frame = duduFrames[duduAnim];
 
   ctx.save();
   ctx.scale(-1, 1); // flip horizontally
@@ -498,7 +505,7 @@ function drawDudu() {
     0,
     frame.naturalWidth,
     frame.naturalHeight,
-    -(duduX + DUDU_W), // flipped x formula
+    -(duduX + DUDU_W),
     DUDU_Y,
     DUDU_W,
     DUDU_H
