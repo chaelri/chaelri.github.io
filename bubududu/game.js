@@ -2,6 +2,12 @@
 // FINAL CLEAN WORKING GAME.JS — BUBU RUNNER (PORTRAIT MODE)
 // ==========================================================
 
+/* Notes:
+ - Canvas internal resolution is 400x700 (kept)
+ - Visual scaling is handled by CSS. All coordinates assume 400x700 internal units.
+ - Place your assets inside ./assets/... as referenced below.
+*/
+
 // --------------------- CANVAS ------------------------------
 const canvas = document.getElementById("gameCanvas");
 const ctx = canvas.getContext("2d");
@@ -21,12 +27,11 @@ const BUBU_H = 70;
 const DUDU_W = 60;
 const DUDU_H = 70;
 
-const GROUND_TILE_W = 457;
-const GROUND_TILE_H = 64;
-const GROUND_H = 90;
+const GROUND_TILE_H = 64; // natural tile height (source art)
+const GROUND_H = 90; // visual ground height on canvas
 
 const GROUND_Y = CANVAS_H - GROUND_H;
-const DUDU_Y = GROUND_Y - DUDU_H; // FIXED
+const DUDU_Y = GROUND_Y - DUDU_H;
 
 const GRAVITY = 0.75;
 const JUMP_FORCE = -15;
@@ -39,56 +44,95 @@ const OBSTACLE_SCALE = 0.5;
 const MIN_SPAWN = 80;
 const MAX_SPAWN = 150;
 
-// --------------------- ASSETS ------------------------------
-const bg = new Image();
-bg.src = "assets/background.png";
+// --------------------- ASSET LIST --------------------------
+const ASSETS = {
+  bg: "assets/background.png",
+  ground: "assets/groundtile.png",
+  startCard: "assets/taptostartwithhearts.png",
+  endCard: "assets/happilyeverafter.png",
+  bubuFrames: [
+    "assets/bubu/1.png",
+    "assets/bubu/2.png",
+    "assets/bubu/3.png",
+    "assets/bubu/4.png",
+    "assets/bubu/5.png",
+    "assets/bubu/6.png",
+  ],
+  duduFrames: [
+    "assets/dudu/1.png",
+    "assets/dudu/2.png",
+    "assets/dudu/3.png",
+    "assets/dudu/4.png",
+    "assets/dudu/5.png",
+    "assets/dudu/6.png",
+  ],
+  obstacleDefs: [
+    { src: "assets/heart.png", w: 111, h: 96, isHeart: true },
+    { src: "assets/boquet.png", w: 110, h: 112, isHeart: false },
+    { src: "assets/bell.png", w: 97, h: 97, isHeart: false },
+    { src: "assets/cake.png", w: 103, h: 106, isHeart: false },
+  ],
+};
 
-const ground = new Image();
-ground.src = "assets/groundtile.png";
-
-const startCard = new Image();
-startCard.src = "assets/taptostartwithhearts.png";
-
-const endCard = new Image();
-endCard.src = "assets/happilyeverafter.png";
-
-// obstacles info (from your dimensions)
-const obstacleDefs = [
-  { src: "assets/heart.png", w: 111, h: 96, isHeart: true },
-  { src: "assets/boquet.png", w: 110, h: 112, isHeart: false },
-  { src: "assets/bell.png", w: 97, h: 97, isHeart: false },
-  { src: "assets/cake.png", w: 103, h: 106, isHeart: false },
-];
-
-// preload obstacles
-let obstacles = [];
-obstacleDefs.forEach((o) => {
-  const img = new Image();
-  img.src = o.src;
-  obstacles.push({
-    img,
-    isHeart: o.isHeart,
-    w: Math.round(o.w * OBSTACLE_SCALE),
-    h: Math.round(o.h * OBSTACLE_SCALE),
+// --------------------- PRELOADERS --------------------------
+function loadImage(src) {
+  return new Promise((res, rej) => {
+    const img = new Image();
+    img.onload = () => res(img);
+    img.onerror = (e) => rej(new Error("Failed load: " + src));
+    img.src = src;
   });
-});
+}
 
-// preload bubu/dudu frames
-let bubuFrames = [];
-let duduFrames = [];
+async function preloadAll() {
+  const p = [];
+  // bg, ground, start/end
+  p.push(loadImage(ASSETS.bg));
+  p.push(loadImage(ASSETS.ground));
+  p.push(loadImage(ASSETS.startCard));
+  p.push(loadImage(ASSETS.endCard));
 
-for (let i = 1; i <= 6; i++) {
-  let b = new Image();
-  b.src = `assets/bubu/${i}.png`;
-  bubuFrames.push(b);
+  // frames
+  ASSETS.bubuFrames.forEach((s) => p.push(loadImage(s)));
+  ASSETS.duduFrames.forEach((s) => p.push(loadImage(s)));
 
-  let d = new Image();
-  d.src = `assets/dudu/${i}.png`;
-  duduFrames.push(d);
+  // obstacles
+  ASSETS.obstacleDefs.forEach((o) => p.push(loadImage(o.src)));
+
+  const imgs = await Promise.all(p);
+  // Map back to objects
+  let idx = 0;
+  const bgImg = imgs[idx++]; // bg
+  const groundImg = imgs[idx++]; // ground
+  const startCardImg = imgs[idx++]; // start
+  const endCardImg = imgs[idx++]; // end
+
+  // frames (bubu)
+  const bubuImgs = [];
+  for (let i = 0; i < ASSETS.bubuFrames.length; i++) bubuImgs.push(imgs[idx++]);
+  const duduImgs = [];
+  for (let i = 0; i < ASSETS.duduFrames.length; i++) duduImgs.push(imgs[idx++]);
+
+  // obstacles
+  const obstacleImgs = [];
+  for (let i = 0; i < ASSETS.obstacleDefs.length; i++) {
+    obstacleImgs.push(imgs[idx++]);
+  }
+
+  // return nicely structured
+  return {
+    bgImg,
+    groundImg,
+    startCardImg,
+    endCardImg,
+    bubuImgs,
+    duduImgs,
+    obstacleImgs,
+  };
 }
 
 // --------------------- GAME STATE --------------------------
-let state = "start"; // start | running | ended
+let state = "loading"; // loading | start | running | ended
 let score = 0;
 
 let bgOffset = 0;
@@ -104,11 +148,24 @@ let bubu = {
 };
 
 let currentObstacle = null;
-let obstacleX = CANVAS_W + 40;
 let spawnTimer = 100;
 
 let showDudu = false;
 let duduX = CANVAS_W + 120;
+
+let rafId = null;
+
+// assets placeholders (populated after preload)
+let IMG = {};
+
+// scaled tile widths (computed after images load)
+let bgTileW = 0;
+let groundTileW = 0;
+
+// obstacles array structured
+let obstacles = [];
+let bubuFrames = [];
+let duduFrames = [];
 
 // --------------------- INPUT -------------------------------
 function handleTap() {
@@ -116,7 +173,6 @@ function handleTap() {
     startGame();
     return;
   }
-
   if (state === "running") {
     if (bubu.onGround) {
       bubu.vy = JUMP_FORCE;
@@ -124,20 +180,37 @@ function handleTap() {
     }
     return;
   }
-
   if (state === "ended") {
     resetGame();
+    return;
   }
 }
 
+// keyboard + mouse + touch
 window.addEventListener("keydown", (e) => {
   if (e.code === "Space") handleTap();
 });
-canvas.addEventListener("mousedown", handleTap);
-canvas.addEventListener("touchstart", (e) => {
+canvas.addEventListener("mousedown", (e) => {
   e.preventDefault();
   handleTap();
 });
+canvas.addEventListener(
+  "touchstart",
+  (e) => {
+    e.preventDefault();
+    handleTap();
+  },
+  { passive: false }
+);
+
+// disable touchmove scrolling while touching canvas
+window.addEventListener(
+  "touchmove",
+  (e) => {
+    if (state === "running") e.preventDefault();
+  },
+  { passive: false }
+);
 
 // --------------------- START / RESET ------------------------
 function startGame() {
@@ -152,27 +225,32 @@ function startGame() {
   bubu.vy = 0;
   bubu.anim = 0;
 
-  requestAnimationFrame(loop);
+  if (rafId) cancelAnimationFrame(rafId);
+  rafId = requestAnimationFrame(loop);
 }
 
 function resetGame() {
   state = "start";
+  showDudu = false;
+  currentObstacle = null;
+  spawnTimer = MIN_SPAWN + Math.floor(Math.random() * (MAX_SPAWN - MIN_SPAWN));
   drawStartScreen();
 }
 
 // --------------------- SPAWN OBSTACLES ----------------------
 function spawnObstacle() {
-  const o = obstacles[Math.floor(Math.random() * obstacles.length)];
-
-  currentObstacle = {
-    img: o.img,
-    isHeart: o.isHeart,
-    w: o.w,
-    h: o.h,
+  const odef =
+    ASSETS.obstacleDefs[Math.floor(Math.random() * ASSETS.obstacleDefs.length)];
+  const imgObj = obstacles[Math.floor(Math.random() * obstacles.length)];
+  const o = {
+    img: imgObj.img,
+    isHeart: imgObj.isHeart,
+    w: Math.round(imgObj.w * OBSTACLE_SCALE),
+    h: Math.round(imgObj.h * OBSTACLE_SCALE),
     x: CANVAS_W + 20,
-    y: GROUND_Y - o.h,
+    y: GROUND_Y - Math.round(imgObj.h * OBSTACLE_SCALE),
   };
-
+  currentObstacle = o;
   spawnTimer = MIN_SPAWN + Math.floor(Math.random() * (MAX_SPAWN - MIN_SPAWN));
 }
 
@@ -189,13 +267,15 @@ function loop() {
 
   score += 0.15;
 
-  // background scroll
-  bgOffset -= SCROLL_BG;
-  if (bgOffset <= -1024) bgOffset += 1024;
+  // background scroll (using actual scaled bgTileW)
+  bgOffset = (bgOffset - SCROLL_BG) % bgTileW;
+  if (bgOffset < -bgTileW) bgOffset += bgTileW;
+  if (bgOffset > bgTileW) bgOffset -= bgTileW;
 
   // ground scroll
-  groundOffset -= SCROLL_GROUND;
-  if (groundOffset <= -GROUND_TILE_W) groundOffset += GROUND_TILE_W;
+  groundOffset = (groundOffset - SCROLL_GROUND) % groundTileW;
+  if (groundOffset < -groundTileW) groundOffset += groundTileW;
+  if (groundOffset > groundTileW) groundOffset -= groundTileW;
 
   // physics
   bubu.vy += GRAVITY;
@@ -232,7 +312,7 @@ function loop() {
 
     if (currentObstacle.x + currentObstacle.w < 0) {
       currentObstacle = null;
-      if (Math.random() < 0.25) showDudu = true; // after some obstacles, Dudu walks in
+      if (Math.random() < 0.25) showDudu = true;
     }
   }
 
@@ -274,37 +354,72 @@ function loop() {
   }
 
   draw();
-  requestAnimationFrame(loop);
+  rafId = requestAnimationFrame(loop);
 }
 
-// --------------------- DRAW -------------------------------
+// --------------------- DRAW HELPERS ------------------------
 function drawBackground() {
-  const scale = CANVAS_H / 1024;
-  const w = 1024 * scale;
-  const h = CANVAS_H;
+  const img = IMG.bg;
+  if (!img) return;
 
-  let x = bgOffset;
+  // compute scale that fits height (cover vertically)
+  const scale = CANVAS_H / img.naturalHeight;
+  const w = Math.round(img.naturalWidth * scale);
 
-  ctx.drawImage(bg, 0, 0, 1024, 1024, x, 0, w, h);
-  ctx.drawImage(bg, 0, 0, 1024, 1024, x + w, 0, w, h);
+  // draw enough tiles to cover canvas width with seamless offset
+  // offset normalized to [-w, 0)
+  const offset = ((bgOffset % w) + w) % w;
+  let x = -offset;
+  while (x < CANVAS_W) {
+    ctx.drawImage(
+      img,
+      0,
+      0,
+      img.naturalWidth,
+      img.naturalHeight,
+      x,
+      0,
+      w,
+      CANVAS_H
+    );
+    x += w;
+  }
 }
 
 function drawGround() {
-  const scale = GROUND_H / GROUND_TILE_H;
-  const w = GROUND_TILE_W * scale;
+  const img = IMG.ground;
+  if (!img) return;
+  // scale ground tile to desired GROUND_H
+  const scale = GROUND_H / img.naturalHeight;
+  const w = Math.round(img.naturalWidth * scale);
   const h = GROUND_H;
-
-  const x = groundOffset;
-
-  ctx.drawImage(ground, x, GROUND_Y, w, h);
-  ctx.drawImage(ground, x + w, GROUND_Y, w, h);
-  ctx.drawImage(ground, x + w * 2, GROUND_Y, w, h);
+  const offset = ((groundOffset % w) + w) % w;
+  let x = -offset;
+  // draw 1 extra tile on each side to avoid gaps
+  while (x < CANVAS_W) {
+    ctx.drawImage(
+      img,
+      0,
+      0,
+      img.naturalWidth,
+      img.naturalHeight,
+      x,
+      GROUND_Y,
+      w,
+      h
+    );
+    x += w;
+  }
 }
 
 function drawObstacle() {
   if (!currentObstacle || showDudu) return;
   ctx.drawImage(
     currentObstacle.img,
+    0,
+    0,
+    currentObstacle.img.naturalWidth,
+    currentObstacle.img.naturalHeight,
     currentObstacle.x,
     currentObstacle.y,
     currentObstacle.w,
@@ -313,14 +428,37 @@ function drawObstacle() {
 }
 
 function drawBubu() {
-  const frame = bubuFrames[bubu.anim];
-  ctx.drawImage(frame, 0, 0, FRAME_W, FRAME_H, bubu.x, bubu.y, BUBU_W, BUBU_H);
+  const frameImg =
+    bubuFrames[Math.max(0, Math.min(bubu.anim, bubuFrames.length - 1))];
+  if (!frameImg) return;
+  ctx.drawImage(
+    frameImg,
+    0,
+    0,
+    frameImg.naturalWidth,
+    frameImg.naturalHeight,
+    bubu.x,
+    bubu.y,
+    BUBU_W,
+    BUBU_H
+  );
 }
 
 function drawDudu() {
   if (!showDudu) return;
-  const frame = duduFrames[0];
-  ctx.drawImage(frame, 0, 0, FRAME_W, FRAME_H, duduX, DUDU_Y, DUDU_W, DUDU_H);
+  const frameImg = duduFrames[0];
+  if (!frameImg) return;
+  ctx.drawImage(
+    frameImg,
+    0,
+    0,
+    frameImg.naturalWidth,
+    frameImg.naturalHeight,
+    duduX,
+    DUDU_Y,
+    DUDU_W,
+    DUDU_H
+  );
 }
 
 function drawUI() {
@@ -344,7 +482,23 @@ function drawStartScreen() {
   drawBackground();
   drawGround();
 
-  ctx.drawImage(startCard, (CANVAS_W - 245) / 2, 100, 245, 298);
+  // center the start card
+  const w = Math.min(
+    300,
+    IMG.startCard.naturalWidth * (300 / IMG.startCard.naturalWidth)
+  );
+  const h = w * (IMG.startCard.naturalHeight / IMG.startCard.naturalWidth);
+  ctx.drawImage(
+    IMG.startCard,
+    0,
+    0,
+    IMG.startCard.naturalWidth,
+    IMG.startCard.naturalHeight,
+    (CANVAS_W - w) / 2,
+    80,
+    w,
+    h
+  );
 
   ctx.fillStyle = "#6b2630";
   ctx.font = "16px sans-serif";
@@ -364,33 +518,52 @@ function drawEndScreen() {
   drawBackground();
   drawGround();
 
-  // Bubu + Dudu hugging pose
+  // hugging pose (center)
+  const dImg = duduFrames[5] || duduFrames[0];
+  const bImg = bubuFrames[5] || bubuFrames[0];
+
+  const px = CANVAS_W / 2;
   ctx.drawImage(
-    duduFrames[5],
+    dImg,
     0,
     0,
-    FRAME_W,
-    FRAME_H,
-    CANVAS_W / 2 + 5,
+    dImg.naturalWidth,
+    dImg.naturalHeight,
+    px + 5,
     DUDU_Y,
     DUDU_W,
     DUDU_H
   );
   ctx.drawImage(
-    bubuFrames[5],
+    bImg,
     0,
     0,
-    FRAME_W,
-    FRAME_H,
-    CANVAS_W / 2 - 75,
+    bImg.naturalWidth,
+    bImg.naturalHeight,
+    px - 75,
     DUDU_Y,
     BUBU_W,
     BUBU_H
   );
 
+  // translucent overlay + end card
   ctx.fillStyle = "rgba(255,255,255,0.94)";
   ctx.fillRect((CANVAS_W - 360) / 2 - 8, 70 - 8, 360 + 16, 200 + 16);
-  ctx.drawImage(endCard, (CANVAS_W - 360) / 2, 70, 360, 200);
+
+  const ec = IMG.endCard;
+  const ecW = 360;
+  const ecH = Math.round(ec.naturalHeight * (ecW / ec.naturalWidth));
+  ctx.drawImage(
+    ec,
+    0,
+    0,
+    ec.naturalWidth,
+    ec.naturalHeight,
+    (CANVAS_W - ecW) / 2,
+    70,
+    ecW,
+    ecH
+  );
 
   ctx.fillStyle = "#6b2630";
   ctx.font = "18px sans-serif";
@@ -399,7 +572,60 @@ function drawEndScreen() {
   ctx.fillText("Tap to play again", CANVAS_W / 2, CANVAS_H - 40);
 }
 
-// -----------------------------------------------------------
-// FIRST LOAD
-// -----------------------------------------------------------
-drawStartScreen();
+// --------------------- BOOT / INIT -------------------------
+(async function boot() {
+  try {
+    const loaded = await preloadAll();
+    // map images
+    IMG.bg = loaded.bgImg;
+    IMG.ground = loaded.groundImg;
+    IMG.startCard = loaded.startCardImg;
+    IMG.endCard = loaded.endCardImg;
+
+    bubuFrames = loaded.bubuImgs;
+    duduFrames = loaded.duduImgs;
+
+    // obstacles mapping using obstacleDefs order
+    obstacles = ASSETS.obstacleDefs.map((def, i) => ({
+      img: loaded.obstacleImgs[i],
+      isHeart: def.isHeart,
+      w: Math.round(def.w * OBSTACLE_SCALE),
+      h: Math.round(def.h * OBSTACLE_SCALE),
+    }));
+
+    // compute tile widths for bg and ground using natural dimensions scaled to canvas height / ground height
+    const bgScale = CANVAS_H / IMG.bg.naturalHeight;
+    bgTileW = Math.round(IMG.bg.naturalWidth * bgScale);
+
+    const groundScale = GROUND_H / IMG.ground.naturalHeight;
+    groundTileW = Math.round(IMG.ground.naturalWidth * groundScale);
+
+    // ensure non-zero
+    if (!bgTileW) bgTileW = 1024;
+    if (!groundTileW) groundTileW = 457;
+
+    // set initial spawn timer
+    spawnTimer =
+      MIN_SPAWN + Math.floor(Math.random() * (MAX_SPAWN - MIN_SPAWN));
+
+    // initial state -> start
+    state = "start";
+
+    // draw start screen now that everything is loaded
+    drawStartScreen();
+  } catch (err) {
+    console.error("Asset preload failed:", err);
+    ctx.fillStyle = "#000";
+    ctx.font = "16px sans-serif";
+    ctx.fillText("Failed to load assets. Check console.", 20, 60);
+  }
+})();
+
+// Export for debugging (optional)
+window.__bubu = {
+  startGame,
+  resetGame,
+  drawStartScreen,
+  drawEndScreen,
+  draw,
+};
