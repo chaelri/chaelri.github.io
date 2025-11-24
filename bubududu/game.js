@@ -1,3 +1,42 @@
+document.getElementById("duduMessage").innerHTML =
+  `My love Karla, I've been running after you not to catch you… but to run with you forever. 💗
+  
+  Hello fiancè ko,
+  
+  I just want to appreciate you love
+  for being so loving Bubu for me. 
+  You might be feeling down from yourself
+  pero know na I appreciate you not just
+  from what you are showing me, but because
+  of who you really are. Blessing ka sakin, love.
+
+  I want you to know na di ako lugi sayo.
+  I want to assure you na di magbabago love ko sayo
+  I want to assure you na sure ako sayo
+  I want you to know that Dudu loves you so much.
+  
+  You might not want medtech anymore, 
+  but know that proud na proud pa rin ako sayo
+  I appreciate how dedicated you are sa work.
+  I appreciate you being early na lagi para di ma-late
+  I love how you always pray for me in the morning.
+  I love how you update me kahit na natutulog me.
+
+  I appreciate the food blessings na binibigay mo sakin
+  Mapa-small man or malaki, lagi me nasusurprise and
+  I'm really glad sa mga gifts ni Bubu sakin.
+
+  I want you to know how special you are for me.
+  
+  I'm sorry for being bad Dudu
+  and not prioritizing my Bubu.
+
+  Know that di man ako sawa sayo
+  and I love you always. 
+
+  I miss you love ko, and I always want to bond with you.
+  - your fiance, Dudu Chalee`;
+
 // ==========================================================
 // FINAL CLEAN WORKING GAME.JS — BUBU RUNNER (PORTRAIT MODE)
 // ==========================================================
@@ -411,8 +450,7 @@ function loop(timestamp) {
     duduX -= SCROLL_GROUND * 0.8;
 
     if (duduX < bubu.x + BUBU_W) {
-      bubu.anim = 5;
-      endGame();
+      triggerDuduEnding();
       return;
     }
   }
@@ -655,6 +693,27 @@ function drawEndScreen() {
   ctx.textAlign = "center";
   ctx.fillText(`Final Score: ${Math.floor(score)}`, CANVAS_W / 2, 290);
   ctx.fillText("Tap to play again", CANVAS_W / 2, CANVAS_H - 40);
+}
+
+function triggerDuduEnding() {
+  state = "duduEnding";
+
+  // hide canvas UI
+  document.getElementById("ui").style.display = "none";
+
+  // show romantic ending screen
+  const screen = document.getElementById("duduEnding");
+  screen.style.display = "flex";
+
+  // OPTIONAL: spawn floating hearts
+  for (let i = 0; i < 12; i++) {
+    const h = document.createElement("div");
+    h.className = "dudu-heart";
+    h.style.left = Math.random() * 100 + "%";
+    h.style.animationDelay = Math.random() * 3 + "s";
+    h.textContent = "💗";
+    screen.appendChild(h);
+  }
 }
 
 // --------------------- BOOT / INIT -------------------------
