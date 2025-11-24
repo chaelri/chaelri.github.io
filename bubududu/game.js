@@ -337,7 +337,7 @@ function loop() {
 
     if (overlap(bHit, oHit)) {
       if (currentObstacle.isHeart) {
-        score += 10;
+        score += 100;
         currentObstacle = null;
       } else {
         endGame();
