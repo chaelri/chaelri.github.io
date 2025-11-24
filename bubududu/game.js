@@ -1,42 +1,3 @@
-document.getElementById("duduMessage").innerHTML =
-  `My love Karla, I've been running after you not to catch you… but to run with you forever. 💗
-  
-  Hello fiancè ko,
-  
-  I just want to appreciate you love
-  for being so loving Bubu for me. 
-  You might be feeling down from yourself
-  pero know na I appreciate you not just
-  from what you are showing me, but because
-  of who you really are. Blessing ka sakin, love.
-
-  I want you to know na di ako lugi sayo.
-  I want to assure you na di magbabago love ko sayo
-  I want to assure you na sure ako sayo
-  I want you to know that Dudu loves you so much.
-  
-  You might not want medtech anymore, 
-  but know that proud na proud pa rin ako sayo
-  I appreciate how dedicated you are sa work.
-  I appreciate you being early na lagi para di ma-late
-  I love how you always pray for me in the morning.
-  I love how you update me kahit na natutulog me.
-
-  I appreciate the food blessings na binibigay mo sakin
-  Mapa-small man or malaki, lagi me nasusurprise and
-  I'm really glad sa mga gifts ni Bubu sakin.
-
-  I want you to know how special you are for me.
-  
-  I'm sorry for being bad Dudu
-  and not prioritizing my Bubu.
-
-  Know that di man ako sawa sayo
-  and I love you always. 
-
-  I miss you love ko, and I always want to bond with you.
-  - your fiance, Dudu Chalee`;
-
 // ==========================================================
 // FINAL CLEAN WORKING GAME.JS — BUBU RUNNER (PORTRAIT MODE)
 // ==========================================================
@@ -773,3 +734,43 @@ window.__bubu = {
   drawEndScreen,
   draw,
 };
+
+document.getElementById(
+  "duduMessage"
+).innerHTML = `My love Karla, I've been running after you not to catch you… but to run with you forever. 💗
+  
+  Hello fiancè ko,
+  
+  I just want to appreciate you love
+  for being so loving Bubu for me. 
+  You might be feeling down from yourself
+  pero know na I appreciate you not just
+  from what you are showing me, but because
+  of who you really are. Blessing ka sakin, love.
+
+  I want you to know na di ako lugi sayo.
+  I want to assure you na di magbabago love ko sayo
+  I want to assure you na sure ako sayo
+  I want you to know that Dudu loves you so much.
+  
+  You might not want medtech anymore, 
+  but know that proud na proud pa rin ako sayo
+  I appreciate how dedicated you are sa work.
+  I appreciate you being early na lagi para di ma-late
+  I love how you always pray for me in the morning.
+  I love how you update me kahit na natutulog me.
+
+  I appreciate the food blessings na binibigay mo sakin
+  Mapa-small man or malaki, lagi me nasusurprise and
+  I'm really glad sa mga gifts ni Bubu sakin.
+
+  I want you to know how special you are for me.
+  
+  I'm sorry for being bad Dudu
+  and not prioritizing my Bubu.
+
+  Know that di man ako sawa sayo
+  and I love you always. 
+
+  I miss you love ko, and I always want to bond with you.
+  - your fiance, Dudu Chalee`;
