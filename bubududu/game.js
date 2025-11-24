@@ -4,7 +4,7 @@
 const canvas = document.getElementById("gameCanvas");
 const ctx = canvas.getContext("2d");
 
-const FRAME = 64;
+const FRAME = 256;
 const PADDING = 0; // your sheets have no padding
 
 const GRAVITY = 0.6;
@@ -27,22 +27,22 @@ dudu.src = "assets/dudu_spritesheet.png";
 
 // BUBU frames:
 const bubuFrames = [
-  { x: 0 * FRAME, y: 0 * FRAME }, // idle
-  { x: 1 * FRAME, y: 0 * FRAME }, // run1
-  { x: 2 * FRAME, y: 0 * FRAME }, // run2
-  { x: 0 * FRAME, y: 1 * FRAME }, // run3
-  { x: 1 * FRAME, y: 1 * FRAME }, // jump
-  { x: 2 * FRAME, y: 1 * FRAME }, // victory
+  { x: 0, y: 0 }, // idle
+  { x: 256, y: 0 }, // run1
+  { x: 512, y: 0 }, // run2
+  { x: 0, y: 256 }, // run3
+  { x: 256, y: 256 }, // jump
+  { x: 512, y: 256 }, // victory
 ];
 
 // DUDU frames (same pattern):
 const duduFrames = [
-  { x: 0 * FRAME, y: 0 * FRAME }, // idle
-  { x: 1 * FRAME, y: 0 * FRAME }, // walk1
-  { x: 2 * FRAME, y: 0 * FRAME }, // walk2
-  { x: 0 * FRAME, y: 1 * FRAME }, // walk3
-  { x: 1 * FRAME, y: 1 * FRAME }, // jump
-  { x: 2 * FRAME, y: 1 * FRAME }, // happy
+  { x: 0, y: 0 },
+  { x: 256, y: 0 },
+  { x: 512, y: 0 },
+  { x: 0, y: 256 },
+  { x: 256, y: 256 },
+  { x: 512, y: 256 },
 ];
 
 // =============================
@@ -143,12 +143,12 @@ function draw() {
 
   // draw Bubu
   const f = bubuFrames[bubuAnim];
-  ctx.drawImage(bubu, f.x, f.y, FRAME, FRAME, bubuX, bubuY, FRAME, FRAME);
+  ctx.drawImage(bubu, f.x, f.y, FRAME, FRAME, bubuX, bubuY, 128, 128);
 
   // Dudu appears at end
   if (showDudu) {
     const df = duduFrames[5]; // happy pose
-    ctx.drawImage(dudu, df.x, df.y, FRAME, FRAME, 500, 200, FRAME, FRAME);
+    ctx.drawImage(dudu, df.x, df.y, FRAME, FRAME, 500, 200, 128, 128);
 
     // if Bubu reaches Dudu → happy ending
     if (bubuX + FRAME > 500) {
