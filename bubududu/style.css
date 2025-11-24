@@ -13,9 +13,12 @@ body {
   box-shadow: 0 10px 30px rgba(0, 0, 0, 0.15);
 }
 
+/* make the canvas scale to device width while preserving internal resolution */
 #gameCanvas {
   width: 100%;
+  max-width: 420px;
   height: auto;
-  max-width: 800px;
   display: block;
+  margin: 6px auto;
+  image-rendering: pixelated; /* keeps pixel art crisp when scaled */
 }
