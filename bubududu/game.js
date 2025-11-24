@@ -376,10 +376,14 @@ function loop(timestamp) {
 
     if (overlap(bHit, oHit)) {
       if (currentObstacle.isHeart) {
-        // Add score
         score += 100;
 
-        // Add floating cute text
+        // 💗 trigger soft bloom
+        const bloom = document.getElementById("heartBloom");
+        bloom.style.opacity = "1";
+        setTimeout(() => (bloom.style.opacity = "0"), 50);
+
+        // existing +100 floating text
         floatingTexts.push({
           x: bubu.x + 20,
           y: bubu.y - 10,

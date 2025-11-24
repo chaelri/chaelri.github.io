@@ -132,3 +132,18 @@ body {
   margin-top: 20px;
   white-space: pre-line;
 }
+
+/* 💗 Soft bloom overlay */
+#heartBloom {
+  position: fixed;
+  inset: 0;
+  background: radial-gradient(
+    circle at center,
+    rgba(255, 174, 201, 0.6),
+    rgba(255, 174, 201, 0) 70%
+  );
+  pointer-events: none;
+  opacity: 0;
+  transition: opacity 0.35s ease-out;
+  z-index: 999;
+}
