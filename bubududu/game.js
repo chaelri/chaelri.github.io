@@ -48,6 +48,8 @@ const OBSTACLE_SCALE = 0.8;
 const MIN_SPAWN = 80;
 const MAX_SPAWN = 150;
 
+let floatingTexts = [];
+
 // --------------------- ASSET LIST --------------------------
 const ASSETS = {
   bg: "assets/background.png",
@@ -316,7 +318,10 @@ function loop() {
 
     if (currentObstacle.x + currentObstacle.w < 0) {
       currentObstacle = null;
-      if (Math.random() < 0.25) showDudu = true;
+
+      if (score >= 1000 && Math.random() < 0.25) {
+        showDudu = true;
+      }
     }
   }
 
@@ -337,7 +342,18 @@ function loop() {
 
     if (overlap(bHit, oHit)) {
       if (currentObstacle.isHeart) {
+        // Add score
         score += 100;
+
+        // Add floating cute text
+        floatingTexts.push({
+          x: bubu.x + 20,
+          y: bubu.y - 10,
+          text: "+100",
+          alpha: 1,
+          vy: -0.6,
+        });
+
         currentObstacle = null;
       } else {
         endGame();
@@ -356,6 +372,13 @@ function loop() {
       return;
     }
   }
+
+  // Update floating texts
+  floatingTexts = floatingTexts.filter((ft) => ft.alpha > 0);
+  floatingTexts.forEach((ft) => {
+    ft.y += ft.vy;
+    ft.alpha -= 0.02;
+  });
 
   draw();
   rafId = requestAnimationFrame(loop);
@@ -478,6 +501,14 @@ function draw() {
   drawBubu();
   drawDudu();
   drawUI();
+  // Draw floating score texts
+  floatingTexts.forEach((ft) => {
+    ctx.globalAlpha = ft.alpha;
+    ctx.fillStyle = "#ff8acb"; // cute pink
+    ctx.font = "20px Arial";
+    ctx.fillText(ft.text, ft.x, ft.y);
+    ctx.globalAlpha = 1;
+  });
 }
 
 // --------------------- START / END SCREENS -----------------
