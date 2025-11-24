@@ -1,14 +1,20 @@
 <!DOCTYPE html>
 <html>
   <head>
-    <meta charset="UTF-8" />
+    <meta charset="utf-8" />
+    <meta name="viewport" content="width=device-width,initial-scale=1" />
     <title>Bubu & Dudu Runner</title>
     <link rel="stylesheet" href="style.css" />
   </head>
   <body>
-    <div id="game-container">
-      <canvas id="gameCanvas" width="800" height="300"></canvas>
-    </div>
+    <main class="page">
+      <div id="game-shell">
+        <canvas id="gameCanvas" width="400" height="700"></canvas>
+        <div id="ui">
+          <div id="score">Score: 0</div>
+        </div>
+      </div>
+    </main>
 
     <script src="game.js"></script>
   </body>
