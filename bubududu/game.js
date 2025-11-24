@@ -14,8 +14,12 @@ const ctx = canvas.getContext("2d");
 
 const CANVAS_W = 400;
 const CANVAS_H = 700;
-canvas.width = CANVAS_W;
-canvas.height = CANVAS_H;
+
+// High-res canvas for crisp text
+const dpr = window.devicePixelRatio || 1;
+canvas.width = CANVAS_W * dpr;
+canvas.height = CANVAS_H * dpr;
+ctx.scale(dpr, dpr);
 
 // --------------------- CONSTANTS ---------------------------
 const FRAME_W = 251;
@@ -39,7 +43,7 @@ const JUMP_FORCE = -15;
 const SCROLL_BG = 1.2;
 const SCROLL_GROUND = 3;
 
-const OBSTACLE_SCALE = 0.5;
+const OBSTACLE_SCALE = 0.8;
 
 const MIN_SPAWN = 80;
 const MAX_SPAWN = 150;
@@ -268,12 +272,12 @@ function loop() {
   score += 0.15;
 
   // background scroll (using actual scaled bgTileW)
-  bgOffset = (bgOffset - SCROLL_BG) % bgTileW;
+  bgOffset = (bgOffset + SCROLL_BG) % bgTileW;
   if (bgOffset < -bgTileW) bgOffset += bgTileW;
   if (bgOffset > bgTileW) bgOffset -= bgTileW;
 
   // ground scroll
-  groundOffset = (groundOffset - SCROLL_GROUND) % groundTileW;
+  groundOffset = (groundOffset + SCROLL_GROUND) % groundTileW;
   if (groundOffset < -groundTileW) groundOffset += groundTileW;
   if (groundOffset > groundTileW) groundOffset -= groundTileW;
 
