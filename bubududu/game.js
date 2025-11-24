@@ -634,10 +634,6 @@ function drawEndScreen() {
     BUBU_H
   );
 
-  // translucent overlay + end card
-  ctx.fillStyle = "rgba(255,255,255,0.94)";
-  ctx.fillRect((CANVAS_W - 360) / 2 - 8, 70 - 8, 360 + 16, 200 + 16);
-
   const ec = IMG.endCard;
   const ecW = 360;
   const ecH = Math.round(ec.naturalHeight * (ecW / ec.naturalWidth));
