@@ -353,7 +353,7 @@ function loop(timestamp) {
     if (currentObstacle.x + currentObstacle.w < 0) {
       currentObstacle = null;
 
-      if (score >= 1000 && Math.random() < 0.25) {
+      if (score >= 1000 && Math.random() < 0.75) {
         showDudu = true;
       }
     }
