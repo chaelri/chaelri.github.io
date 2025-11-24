@@ -53,6 +53,7 @@ const MAX_SPAWN = 150;
 let floatingTexts = [];
 let duduAnim = 0;
 let duduAnimTimer = 0;
+let bubuTrail = [];
 
 // --------------------- ASSET LIST --------------------------
 const ASSETS = {
@@ -339,6 +340,33 @@ function loop(timestamp) {
     bubu.anim = 4; // jump frame
   }
 
+  // Emit bubu trail
+  if (bubu.onGround) {
+    // walking: subtle trail
+    if (Math.random() < 0.3) {
+      bubuTrail.push({
+        x: bubu.x + BUBU_W * 0.4,
+        y: bubu.y + BUBU_H * 0.7,
+        alpha: 0.8,
+        size: 10 + Math.random() * 4,
+        vy: 0.3,
+        type: "walk",
+      });
+    }
+  } else {
+    // jumping: cute floaty hearts
+    if (Math.random() < 0.4) {
+      bubuTrail.push({
+        x: bubu.x + BUBU_W * 0.4,
+        y: bubu.y + BUBU_H * 0.5,
+        alpha: 0.9,
+        size: 12 + Math.random() * 6,
+        vy: -0.4,
+        type: "jump",
+      });
+    }
+  }
+
   // obstacle logic
   if (!currentObstacle && !showDudu) {
     spawnTimer--;
@@ -421,6 +449,14 @@ function loop(timestamp) {
   floatingTexts.forEach((ft) => {
     ft.y += ft.vy;
     ft.alpha -= 0.02;
+  });
+
+  // Update trail
+  bubuTrail = bubuTrail.filter((t) => t.alpha > 0);
+  bubuTrail.forEach((t) => {
+    t.y += t.vy;
+    t.alpha -= 0.02;
+    t.size *= 0.98; // shrink over time
   });
 
   draw();
@@ -556,6 +592,22 @@ function draw() {
     ctx.fillStyle = "#ff8acb"; // cute pink
     ctx.font = "20px Arial";
     ctx.fillText(ft.text, ft.x, ft.y);
+    ctx.globalAlpha = 1;
+  });
+  // Draw Bubu Trail
+  bubuTrail.forEach((t) => {
+    ctx.globalAlpha = t.alpha;
+
+    if (t.type === "walk") {
+      ctx.fillStyle = "#ffb6d9"; // soft pink
+    } else {
+      ctx.fillStyle = "#ff8acb"; // brighter for jump
+    }
+
+    ctx.beginPath();
+    ctx.arc(t.x, t.y, t.size, 0, Math.PI * 2);
+    ctx.fill();
+
     ctx.globalAlpha = 1;
   });
 }
