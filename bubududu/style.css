@@ -125,7 +125,7 @@ body {
 /* message text */
 .dudu-message {
   font-family: "Playfair Display", serif;
-  font-size: 26px;
+  font-size: 1em;
   color: #6b2630;
   text-align: center;
   max-width: 320px;
