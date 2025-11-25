@@ -147,28 +147,3 @@ body {
   transition: opacity 0.35s ease-out;
   z-index: 999;
 }
-
-.scratch-btn {
-  position: fixed;
-  bottom: 40px;
-  right: 25px;
-  width: 60px;
-  height: 60px;
-  font-size: 30px;
-  border-radius: 50%;
-  background: rgba(255, 255, 255, 0.25);
-  backdrop-filter: blur(10px);
-  border: 2px solid rgba(255, 255, 255, 0.35);
-  color: #ff8acb;
-  box-shadow: 0 8px 18px rgba(0, 0, 0, 0.08);
-  display: flex;
-  align-items: center;
-  justify-content: center;
-  cursor: pointer;
-  z-index: 9999;
-  transition: transform 0.2s ease, opacity 0.2s ease;
-}
-
-.scratch-btn:active {
-  transform: scale(0.9);
-}
