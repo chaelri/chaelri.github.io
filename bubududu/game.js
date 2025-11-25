@@ -388,24 +388,38 @@ function loop(timestamp) {
       // ❤️ Hearts ALWAYS safe
       if (currentObstacle.isHeart) {
         score += 100;
-        // your floating text logic here...
+
+        // 💗 trigger soft bloom
+        const bloom = document.getElementById("heartBloom");
+        bloom.style.opacity = "1";
+        setTimeout(() => (bloom.style.opacity = "0"), 50);
+
+        // 💗 floating +100 text
+        floatingTexts.push({
+          x: bubu.x + 20,
+          y: bubu.y - 10,
+          text: "+100",
+          alpha: 1,
+          vy: -0.6,
+        });
+
         currentObstacle = null;
         return;
       }
 
-      // 🧸 Dudu ALWAYS safe (should be blocked before anyway)
+      // 🧸 DUDU collision → special ending
       if (showDudu) {
-        endGame();
+        triggerDuduEnding();
         return;
       }
 
-      // 🐾 SCRATCH DESTROYS OBSTACLE
+      // 🐾 SCRATCH ATTACK → destroy obstacle (but NOT hearts/dudu)
       if (scratching) {
         currentObstacle = null;
         return;
       }
 
-      // ❌ NOT scratching → deadly
+      // ❌ If it's a danger obstacle and not scratching → game over
       endGame();
       return;
     }
