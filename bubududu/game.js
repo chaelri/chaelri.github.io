@@ -575,20 +575,34 @@ function draw() {
   });
   if (scratching) {
     ctx.save();
-    ctx.globalAlpha = 0.6;
-    ctx.fillStyle = "#ff8acb";
 
-    ctx.beginPath();
-    ctx.ellipse(
-      bubu.x + BUBU_W + 10,
-      bubu.y + BUBU_H * 0.5,
-      20,
-      12,
-      0,
-      0,
-      Math.PI * 2
-    );
-    ctx.fill();
+    // Fade with timer (more fade near end)
+    let fade = scratchTimer / 15;
+    ctx.globalAlpha = 0.6 * fade;
+
+    // Scratch position (just to the right of Bubu)
+    const sx = bubu.x + BUBU_W + 5;
+    const sy = bubu.y + BUBU_H * 0.4;
+
+    // slight rotation for realism
+    ctx.translate(sx, sy);
+    ctx.rotate(-0.25); // tilt claw slashes
+
+    // Draw 3 slash lines
+    for (let i = -8; i <= 8; i += 8) {
+      const grad = ctx.createLinearGradient(0, -20, 40, 20);
+      grad.addColorStop(0, "rgba(255,138,203,0)");
+      grad.addColorStop(0.3, "rgba(255,138,203,0.8)");
+      grad.addColorStop(1, "rgba(255,138,203,0)");
+
+      ctx.strokeStyle = grad;
+      ctx.lineWidth = 5;
+
+      ctx.beginPath();
+      ctx.moveTo(0, i);
+      ctx.lineTo(45, i + 5); // diagonal motion
+      ctx.stroke();
+    }
 
     ctx.restore();
   }
