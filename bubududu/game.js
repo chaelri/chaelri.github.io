@@ -54,6 +54,9 @@ let floatingTexts = [];
 let duduAnim = 0;
 let duduAnimTimer = 0;
 
+let scratching = false;
+let scratchTimer = 0;
+
 // --------------------- ASSET LIST --------------------------
 const ASSETS = {
   bg: "assets/background.png",
@@ -359,6 +362,13 @@ function loop(timestamp) {
     }
   }
 
+  if (scratching) {
+    scratchTimer--;
+    if (scratchTimer <= 0) {
+      scratching = false;
+    }
+  }
+
   // collision
   if (currentObstacle && !showDudu) {
     const bHit = {
@@ -375,28 +385,41 @@ function loop(timestamp) {
     };
 
     if (overlap(bHit, oHit)) {
+      // ❤️ Hearts ALWAYS safe
       if (currentObstacle.isHeart) {
         score += 100;
-
-        // 💗 trigger soft bloom
-        const bloom = document.getElementById("heartBloom");
-        bloom.style.opacity = "1";
-        setTimeout(() => (bloom.style.opacity = "0"), 250);
-
-        // existing +100 floating text
-        floatingTexts.push({
-          x: bubu.x + 20,
-          y: bubu.y - 10,
-          text: "+100",
-          alpha: 1,
-          vy: -0.6,
-        });
-
+        // your floating text logic here...
         currentObstacle = null;
-      } else {
+        return;
+      }
+
+      // 🧸 Dudu ALWAYS safe (should be blocked before anyway)
+      if (showDudu) {
         endGame();
         return;
       }
+
+      // 🐾 SCRATCH DESTROYS OBSTACLE
+      if (scratching) {
+        // Add burst effect for destroyed obstacle
+        heartBursts.push({
+          x: currentObstacle.x,
+          y: currentObstacle.y,
+          alpha: 1,
+          size: 14,
+          vx: 0,
+          vy: -1,
+          rot: 0,
+          vr: 0,
+        });
+
+        currentObstacle = null;
+        return;
+      }
+
+      // ❌ NOT scratching → deadly
+      endGame();
+      return;
     }
   }
 
@@ -562,6 +585,25 @@ function draw() {
     ctx.fillText(ft.text, ft.x, ft.y);
     ctx.globalAlpha = 1;
   });
+  if (scratching) {
+    ctx.save();
+    ctx.globalAlpha = 0.6;
+    ctx.fillStyle = "#ff8acb";
+
+    ctx.beginPath();
+    ctx.ellipse(
+      bubu.x + BUBU_W + 10,
+      bubu.y + BUBU_H * 0.5,
+      20,
+      12,
+      0,
+      0,
+      Math.PI * 2
+    );
+    ctx.fill();
+
+    ctx.restore();
+  }
 }
 
 // --------------------- START / END SCREENS -----------------
@@ -774,3 +816,10 @@ document.getElementById(
 
   I miss you love ko, and I always want to bond with you.
   - your fiance, Dudu Chalee`;
+
+document.getElementById("scratchBtn").addEventListener("click", () => {
+  if (scratchTimer <= 0 && state === "running") {
+    scratching = true;
+    scratchTimer = 15; // about 0.25s of active scratch
+  }
+});
