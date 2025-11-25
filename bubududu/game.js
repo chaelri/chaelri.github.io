@@ -401,18 +401,6 @@ function loop(timestamp) {
 
       // 🐾 SCRATCH DESTROYS OBSTACLE
       if (scratching) {
-        // Add burst effect for destroyed obstacle
-        heartBursts.push({
-          x: currentObstacle.x,
-          y: currentObstacle.y,
-          alpha: 1,
-          size: 14,
-          vx: 0,
-          vy: -1,
-          rot: 0,
-          vr: 0,
-        });
-
         currentObstacle = null;
         return;
       }
