@@ -171,12 +171,15 @@ body {
 }
 
 .bar-card {
+  color: white;
+  border: 0;
   display: flex;
   gap: 12px;
   align-items: center;
   padding: 12px;
   border-radius: 12px;
-  background: rgba(255, 255, 255, 0.02);
+  background: 0;
+  cursor: pointer;
 }
 
 .bar-thumb {
@@ -186,6 +189,7 @@ body {
   background: var(--glass);
   display: flex;
   overflow: hidden;
+  flex: 1;
 }
 
 .bar-fill {
@@ -205,7 +209,6 @@ body {
 
 /* Info */
 .bar-info {
-  flex: 1;
   display: flex;
   flex-direction: column;
   gap: 6px;
@@ -255,14 +258,13 @@ body {
   }
 
   .bar-thumb {
-    width: 50px;
+    width: fit-content;
     height: 260px; /* tall vertical bar */
     display: flex;
-    align-items: flex-end;
-    justify-content: center;
   }
 
   .bar-fill {
+    padding: 12px;
     width: 100%;
     height: 0%; /* vertical growth */
     background: linear-gradient(180deg, var(--accent-start), var(--accent-end));
