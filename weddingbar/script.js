@@ -9,6 +9,15 @@ import {
   remove,
 } from "https://www.gstatic.com/firebasejs/9.6.1/firebase-database.js";
 
+import {
+  getStorage,
+  ref as sRef,
+  uploadBytes,
+  getDownloadURL,
+} from "https://www.gstatic.com/firebasejs/9.6.1/firebase-storage.js";
+
+const storage = getStorage(app);
+
 // Firebase config (unchanged)
 const firebaseConfig = {
   apiKey: "AIzaSyB8ahT56WbEUaGAymsRNNA-DrfZnUnWIwk",
@@ -172,10 +181,22 @@ function showDetails(it) {
           Number(it.total) || 0
         }" />
       </div>
+      <div style="margin-top:16px;">
+        <label style="font-size:12px; color:var(--muted); display:block; margin-bottom:6px;">
+            Attachments
+        </label>
+
+        <!-- Existing images -->
+        <div id="attachmentList" style="display:flex; gap:8px; flex-wrap:wrap; margin-bottom:8px;">
+            <!-- Filled by JS -->
+        </div>
+
+        <!-- File input -->
+        <input type="file" id="attachInput" accept="image/*" style="margin-bottom:10px;" />
+
+        <button id="uploadAttachBtn" class="btn ghost">Upload Image</button>
     </div>
 
-    <div style="margin-top:10px;color:var(--muted);font-size:12px;">
-      Tip: change values then click Update to save to Firebase.
     </div>
   `;
 
@@ -237,6 +258,40 @@ function showDetails(it) {
     detailPanel.setAttribute("aria-hidden", "true");
   });
 
+  // Render existing attachments (if any)
+  const listBox = document.getElementById("attachmentList");
+  if (it.attachments && Array.isArray(it.attachments)) {
+    listBox.innerHTML = it.attachments
+      .map(
+        (url) => `
+      <img src="${url}" 
+           style="width:70px;height:70px;border-radius:6px;object-fit:cover;" />
+    `
+      )
+      .join("");
+  }
+
+  // Handle image upload
+  const uploadBtn = document.getElementById("uploadAttachBtn");
+  uploadBtn.onclick = async () => {
+    const fileInput = document.getElementById("attachInput");
+    const file = fileInput.files[0];
+
+    if (!file) return alert("Please select an image first.");
+
+    // Upload to storage
+    const url = await uploadAttachment(file, it.id);
+
+    // Save URL to DB
+    await addAttachmentToItem(it.id, url, it.attachments);
+
+    alert("Image uploaded!");
+
+    // Refresh UI
+    listenRealtime();
+    showDetails({ ...it, attachments: [...(it.attachments || []), url] });
+  };
+
   // make the checkbox visual toggle work in the detail panel as your helper does
   const detailCheckbox = document.getElementById("detailBooked");
   const detailBox = detailCheckbox ? detailCheckbox.nextElementSibling : null;
@@ -283,7 +338,19 @@ async function deleteEntry(id) {
   if (!id) throw new Error("Missing id for deleteEntry");
   await remove(ref(db, `${PATH}/${id}`));
 }
-// ----------------- END ADD -----------------
+
+// Uploads file to Firebase Storage and returns download URL
+async function uploadAttachment(file, itemId) {
+  const fileRef = sRef(storage, `weddingCosts/${itemId}/${file.name}`);
+  await uploadBytes(fileRef, file);
+  return await getDownloadURL(fileRef);
+}
+
+// Append attachment URL to item in Realtime DB
+async function addAttachmentToItem(itemId, url, existing) {
+  const finalList = Array.isArray(existing) ? [...existing, url] : [url];
+  await set(ref(db, `${PATH}/${itemId}/attachments`), finalList);
+}
 
 /* Controls */
 addBtn.addEventListener("click", async () => {
