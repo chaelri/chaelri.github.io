@@ -285,7 +285,7 @@ function showDetails(it) {
   const attachments = it.attachments || [];
 
   attachments.forEach((att, idx) => {
-    const url = att.url;
+    const url = att.url; // URL from Firebase Storage
 
     const wrap = document.createElement("div");
     wrap.style.position = "relative";
@@ -298,7 +298,11 @@ function showDetails(it) {
     img.style.borderRadius = "6px";
     img.style.cursor = "pointer";
 
-    img.onclick = () => openViewer(attachments, idx);
+    // FIXED — Viewer now receives URLs only
+    img.onclick = () => {
+      const urlList = attachments.map((a) => a.url); // convert object list → url list
+      openViewer(urlList, idx);
+    };
 
     const delBtn = document.createElement("button");
     delBtn.textContent = "×";
@@ -317,13 +321,16 @@ function showDetails(it) {
       e.stopPropagation();
 
       showDeleteConfirm(async () => {
-        // delete from storage
-        if (att.path) await deleteFromFirebaseStorage(att.path);
+        // DELETE from Firebase Storage
+        if (att.path) {
+          await deleteFromFirebaseStorage(att.path);
+        }
 
-        // remove from DB
+        // DELETE from Firebase Database
         const newList = attachments.filter((_, i) => i !== idx);
         await set(ref(db, `${PATH}/${it.id}/attachments`), newList);
 
+        // Refresh View
         showDetails({ ...it, attachments: newList });
       });
     };
