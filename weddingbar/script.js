@@ -214,7 +214,7 @@ function showDetails(it) {
             <!-- filled by JS -->
         </div>
 
-        <input type="file" id="attachInput" accept="image/*" style="margin-bottom:10px;" />
+        <input type="file" id="attachInput" accept="image/*" multiple style="margin-bottom:10px;" />
     </div>
 
     </div>
@@ -341,28 +341,38 @@ function showDetails(it) {
   });
 
   const fileInput = document.getElementById("attachInput");
+  fileInput.multiple = true; // ensure multi-file input
+
   fileInput.onchange = async () => {
     const files = Array.from(fileInput.files);
-    if (!files.length) return;
+    if (files.length === 0) return;
 
     showUploadLoader();
 
     try {
       let newList = [...(it.attachments || [])];
 
+      // Process each selected file
       for (const file of files) {
+        // Compress first (0.6 quality, 1280 max width)
         const compressed = await compressImage(file, 0.6, 1280);
+
+        // Upload to Firebase Storage
         const uploaded = await uploadToFirebaseStorage(it.id, compressed);
+
+        // Push into attachment list
         newList.push(uploaded);
       }
 
+      // Save updated attachments list to Firebase Database
       await set(ref(db, `${PATH}/${it.id}/attachments`), newList);
 
+      // Refresh UI
       showDetails({ ...it, attachments: newList });
       listenRealtime();
     } catch (err) {
       console.error(err);
-      alert("Upload failed.");
+      alert("Failed to upload images.");
     }
 
     hideUploadLoader();
@@ -592,14 +602,3 @@ async function deleteFromFirebaseStorage(path) {
   const fileRef = sRef(storage, path);
   await deleteObject(fileRef).catch(() => {});
 }
-
-document.getElementById("viewerDownloadBtn").onclick = () => {
-  const url = currentAttachList[currentAttachIndex]; // the image currently shown
-
-  const a = document.createElement("a");
-  a.href = url;
-  a.download = "attachment.jpg"; // browser will rename if needed
-  document.body.appendChild(a);
-  a.click();
-  a.remove();
-};
