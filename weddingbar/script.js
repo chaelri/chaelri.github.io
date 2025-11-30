@@ -24,7 +24,7 @@ const firebaseConfig = {
   databaseURL:
     "https://test-database-55379-default-rtdb.asia-southeast1.firebasedatabase.app",
   projectId: "test-database-55379",
-  storageBucket: "test-database-55379.appspot.com",
+  storageBucket: "test-database-55379.firebasestorage.app",
   messagingSenderId: "933688602756",
   appId: "1:933688602756:web:392a3a4ce040cb9d4452d1",
   measurementId: "G-1LSTC0N3NJ",
