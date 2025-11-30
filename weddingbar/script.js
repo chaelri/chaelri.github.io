@@ -511,14 +511,6 @@ function showImg(delta) {
 viewLeft.onclick = () => showImg(-1);
 viewRight.onclick = () => showImg(1);
 
-// Swipe gestures
-let sx = 0;
-viewer.addEventListener("touchstart", (e) => (sx = e.touches[0].clientX));
-viewer.addEventListener("touchend", (e) => {
-  const dx = e.changedTouches[0].clientX - sx;
-  if (Math.abs(dx) > 50) dx < 0 ? showImg(1) : showImg(-1);
-});
-
 // DELETE CONFIRMATION MODAL
 let confirmDeleteCallback = null;
 
