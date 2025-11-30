@@ -93,7 +93,6 @@ body {
   padding: 12px;
   border-radius: 10px;
   color: inherit;
-  min-width: 110px;
 }
 
 /* Checkbox */
@@ -122,12 +121,12 @@ body {
 }
 
 .chk input[type="checkbox"]:checked::after {
-  content: "✓"; /* FIXED — removes \2713 bug */
+  content: "✓";
   position: absolute;
-  left: 5px;
-  top: 1px;
+  left: 6px;
+  top: 3px;
   font-size: 14px;
-  color: #051226;
+  color: white;
   font-weight: 700;
 }
 
