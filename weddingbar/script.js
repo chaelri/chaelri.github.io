@@ -251,12 +251,55 @@ function showDetails(it) {
   listBox.innerHTML = "";
 
   if (it.attachments && Array.isArray(it.attachments)) {
-    listBox.innerHTML = it.attachments
-      .map(
-        (url) =>
-          `<img src="${url}" style="width:70px;height:70px;border-radius:6px;object-fit:cover;" />`
-      )
-      .join("");
+    it.attachments.forEach((url, idx) => {
+      const wrapper = document.createElement("div");
+      wrapper.style.position = "relative";
+
+      // Thumbnail
+      const thumb = document.createElement("img");
+      thumb.src = url;
+      thumb.style.width = "70px";
+      thumb.style.height = "70px";
+      thumb.style.borderRadius = "6px";
+      thumb.style.objectFit = "cover";
+      thumb.style.cursor = "pointer";
+
+      // Fullscreen preview
+      thumb.onclick = () => {
+        const overlay = document.getElementById("imgPreviewOverlay");
+        const fullImg = document.getElementById("imgPreviewFull");
+        fullImg.src = url;
+        overlay.style.display = "flex";
+      };
+
+      // Delete button
+      const del = document.createElement("button");
+      del.textContent = "×";
+      del.style.position = "absolute";
+      del.style.top = "-6px";
+      del.style.right = "-6px";
+      del.style.background = "rgba(0,0,0,0.6)";
+      del.style.border = "none";
+      del.style.color = "white";
+      del.style.borderRadius = "50%";
+      del.style.width = "20px";
+      del.style.height = "20px";
+      del.style.cursor = "pointer";
+      del.style.fontSize = "14px";
+      del.style.lineHeight = "20px";
+      del.style.padding = "0";
+
+      del.onclick = async (e) => {
+        e.stopPropagation(); // prevent triggering fullscreen
+        const newList = it.attachments.filter((_, i) => i !== idx);
+        await set(ref(db, `${PATH}/${it.id}/attachments`), newList);
+        showDetails({ ...it, attachments: newList }); // refresh panel
+      };
+
+      wrapper.appendChild(thumb);
+      wrapper.appendChild(del);
+      listBox.appendChild(wrapper);
+    });
   }
 
   // UPLOAD handler (base64)
