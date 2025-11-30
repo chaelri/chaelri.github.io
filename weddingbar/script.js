@@ -592,3 +592,14 @@ async function deleteFromFirebaseStorage(path) {
   const fileRef = sRef(storage, path);
   await deleteObject(fileRef).catch(() => {});
 }
+
+document.getElementById("viewerDownloadBtn").onclick = () => {
+  const url = currentAttachList[currentAttachIndex]; // the image currently shown
+
+  const a = document.createElement("a");
+  a.href = url;
+  a.download = "attachment.jpg"; // browser will rename if needed
+  document.body.appendChild(a);
+  a.click();
+  a.remove();
+};
