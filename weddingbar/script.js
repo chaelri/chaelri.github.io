@@ -310,7 +310,33 @@ function showDetails(it) {
     if (!file) return alert("Select an image first.");
 
     // convert to base64
-    const b64 = await fileToBase64(file);
+    const uploadBtn = document.getElementById("uploadAttachBtn");
+    uploadBtn.onclick = async () => {
+      const input = document.getElementById("attachInput");
+      const file = input.files[0];
+      if (!file) return alert("Select an image first.");
+
+      try {
+        // 1) Upload to ImgBB
+        const imageURL = await uploadToImgbb(file);
+
+        // 2) Save URL to Firebase
+        const updatedList = it.attachments
+          ? [...it.attachments, imageURL]
+          : [imageURL];
+
+        await set(ref(db, `${PATH}/${it.id}/attachments`), updatedList);
+
+        // 3) Refresh UI
+        showDetails({ ...it, attachments: updatedList });
+        listenRealtime();
+
+        alert("Image uploaded!");
+      } catch (err) {
+        console.error(err);
+        alert("Failed to upload image.");
+      }
+    };
 
     // add to DB
     const finalList = it.attachments ? [...it.attachments, b64] : [b64];
@@ -334,15 +360,6 @@ function showDetails(it) {
       detailCheckbox.focus();
     });
   }
-}
-
-function fileToBase64(file) {
-  return new Promise((resolve, reject) => {
-    const reader = new FileReader();
-    reader.onload = () => resolve(reader.result); // base64 string
-    reader.onerror = reject;
-    reader.readAsDataURL(file);
-  });
 }
 
 /* Listen from Firebase */
@@ -378,6 +395,23 @@ async function deleteEntry(id) {
   if (!id) throw new Error("Missing id for deleteEntry");
   await remove(ref(db, `${PATH}/${id}`));
 }
+
+async function uploadToImgbb(file) {
+  const apiKey = "8d4b7939a2d5c9f6b6366ce54305e3db";
+  const formData = new FormData();
+  formData.append("image", file);
+
+  const res = await fetch(`https://api.imgbb.com/1/upload?key=${apiKey}`, {
+    method: "POST",
+    body: formData,
+  });
+
+  const data = await res.json();
+  if (!data.success) throw new Error("ImgBB upload failed");
+
+  return data.data.url; // Direct HTTPS URL to stored image
+}
+
 // ----------------- END ADD -----------------
 
 /* Controls */
@@ -431,7 +465,6 @@ document.querySelectorAll('.chk input[type="checkbox"]').forEach((input) => {
 document.getElementById("imgPreviewOverlay").onclick = () => {
   document.getElementById("imgPreviewOverlay").style.display = "none";
 };
-
 
 listenRealtime();
 
