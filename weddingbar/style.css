@@ -304,3 +304,29 @@ body {
     transform: rotate(360deg);
   }
 }
+
+/* Desktop Scrollbar Styling */
+@media (min-width: 720px) {
+  .bars {
+    scrollbar-width: thin; /* Firefox */
+    scrollbar-color: rgba(255, 255, 255, 0.15) transparent;
+  }
+
+  .bars::-webkit-scrollbar {
+    height: 6px;
+  }
+
+  .bars::-webkit-scrollbar-track {
+    background: rgba(255, 255, 255, 0.05);
+    border-radius: 10px;
+  }
+
+  .bars::-webkit-scrollbar-thumb {
+    background: linear-gradient(90deg, var(--accent-start), var(--accent-end));
+    border-radius: 10px;
+  }
+
+  .bars::-webkit-scrollbar-thumb:hover {
+    background: linear-gradient(90deg, var(--accent-end), var(--accent-start));
+  }
+}
