@@ -327,7 +327,10 @@ function showDetails(it) {
 
     try {
       // Upload to ImgBB
-      const uploaded = await uploadToImgbb(file);
+      showUploadLoader();
+
+      const compressed = await compressImage(file, 0.6, 1280);
+      const uploaded = await uploadToImgbb(compressed);
 
       // Save in Firebase
       const newList = [...(it.attachments || []), uploaded];
@@ -548,4 +551,31 @@ function showUploadLoader() {
 
 function hideUploadLoader() {
   document.getElementById("uploadLoader").style.display = "none";
+}
+
+function compressImage(file, quality = 0.6, maxWidth = 1280) {
+  return new Promise((resolve, reject) => {
+    const img = new Image();
+    img.onload = () => {
+      const scale = Math.min(1, maxWidth / img.width);
+      const canvas = document.createElement("canvas");
+
+      canvas.width = img.width * scale;
+      canvas.height = img.height * scale;
+
+      const ctx = canvas.getContext("2d");
+      ctx.drawImage(img, 0, 0, canvas.width, canvas.height);
+
+      canvas.toBlob(
+        (blob) => {
+          resolve(blob);
+        },
+        "image/jpeg",
+        quality
+      );
+    };
+    img.onerror = reject;
+
+    img.src = URL.createObjectURL(file);
+  });
 }
