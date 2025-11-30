@@ -16,6 +16,7 @@ import {
   getDownloadURL,
 } from "https://www.gstatic.com/firebasejs/9.6.1/firebase-storage.js";
 
+const storage = getStorage(app);
 
 // Firebase config (unchanged)
 const firebaseConfig = {
@@ -32,7 +33,6 @@ const firebaseConfig = {
 
 const app = initializeApp(firebaseConfig);
 const db = getDatabase(app);
-const storage = getStorage(app);
 
 const barsRoot = document.getElementById("bars");
 const detailPanel = document.getElementById("detailPanel");
@@ -186,15 +186,12 @@ function showDetails(it) {
             Attachments
         </label>
 
-        <!-- Existing images -->
         <div id="attachmentList" style="display:flex; gap:8px; flex-wrap:wrap; margin-bottom:8px;">
-            <!-- Filled by JS -->
+            <!-- filled by JS -->
         </div>
 
-        <!-- File input -->
         <input type="file" id="attachInput" accept="image/*" style="margin-bottom:10px;" />
-
-        <button id="uploadAttachBtn" class="btn ghost">Upload Image</button>
+        <button id="uploadAttachBtn" class="btn ghost">Add Image</button>
     </div>
 
     </div>
@@ -258,38 +255,36 @@ function showDetails(it) {
     detailPanel.setAttribute("aria-hidden", "true");
   });
 
-  // Render existing attachments (if any)
+  // LOAD existing attachments
   const listBox = document.getElementById("attachmentList");
   if (it.attachments && Array.isArray(it.attachments)) {
     listBox.innerHTML = it.attachments
       .map(
-        (url) => `
-      <img src="${url}" 
-           style="width:70px;height:70px;border-radius:6px;object-fit:cover;" />
-    `
+        (url) =>
+          `<img src="${url}" style="width:70px;height:70px;border-radius:6px;object-fit:cover;" />`
       )
       .join("");
   }
 
-  // Handle image upload
+  // UPLOAD handler (base64)
   const uploadBtn = document.getElementById("uploadAttachBtn");
   uploadBtn.onclick = async () => {
-    const fileInput = document.getElementById("attachInput");
-    const file = fileInput.files[0];
+    const input = document.getElementById("attachInput");
+    const file = input.files[0];
+    if (!file) return alert("Select an image first.");
 
-    if (!file) return alert("Please select an image first.");
+    // convert to base64
+    const b64 = await fileToBase64(file);
 
-    // Upload to storage
-    const url = await uploadAttachment(file, it.id);
+    // add to DB
+    const finalList = it.attachments ? [...it.attachments, b64] : [b64];
+    await set(ref(db, `${PATH}/${it.id}/attachments`), finalList);
 
-    // Save URL to DB
-    await addAttachmentToItem(it.id, url, it.attachments);
+    alert("Image attached!");
 
-    alert("Image uploaded!");
-
-    // Refresh UI
+    // Update UI
     listenRealtime();
-    showDetails({ ...it, attachments: [...(it.attachments || []), url] });
+    showDetails({ ...it, attachments: finalList });
   };
 
   // make the checkbox visual toggle work in the detail panel as your helper does
@@ -303,6 +298,15 @@ function showDetails(it) {
       detailCheckbox.focus();
     });
   }
+}
+
+function fileToBase64(file) {
+  return new Promise((resolve, reject) => {
+    const reader = new FileReader();
+    reader.onload = () => resolve(reader.result); // base64 string
+    reader.onerror = reject;
+    reader.readAsDataURL(file);
+  });
 }
 
 /* Listen from Firebase */
@@ -338,19 +342,7 @@ async function deleteEntry(id) {
   if (!id) throw new Error("Missing id for deleteEntry");
   await remove(ref(db, `${PATH}/${id}`));
 }
-
-// Uploads file to Firebase Storage and returns download URL
-async function uploadAttachment(file, itemId) {
-  const fileRef = sRef(storage, `weddingCosts/${itemId}/${file.name}`);
-  await uploadBytes(fileRef, file);
-  return await getDownloadURL(fileRef);
-}
-
-// Append attachment URL to item in Realtime DB
-async function addAttachmentToItem(itemId, url, existing) {
-  const finalList = Array.isArray(existing) ? [...existing, url] : [url];
-  await set(ref(db, `${PATH}/${itemId}/attachments`), finalList);
-}
+// ----------------- END ADD -----------------
 
 /* Controls */
 addBtn.addEventListener("click", async () => {
