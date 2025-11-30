@@ -9,15 +9,6 @@ import {
   remove,
 } from "https://www.gstatic.com/firebasejs/9.6.1/firebase-database.js";
 
-import {
-  getStorage,
-  ref as sRef,
-  uploadBytes,
-  getDownloadURL,
-} from "https://www.gstatic.com/firebasejs/9.6.1/firebase-storage.js";
-
-const storage = getStorage(app);
-
 // Firebase config (unchanged)
 const firebaseConfig = {
   apiKey: "AIzaSyB8ahT56WbEUaGAymsRNNA-DrfZnUnWIwk",
