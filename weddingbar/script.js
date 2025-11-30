@@ -144,7 +144,7 @@ function showDetails(it) {
       </div>
     </div>
 
-    <div style="margin-top:12px;display:grid;grid-template-columns:1fr 1fr;gap:8px;">
+    <div style="margin-top:12px;display:grid;grid-template-columns:1fr 1fr;gap:8px;" class="detail-grid">
       <div>
         <label style="display:block;font-size:12px;margin-bottom:6px;">Name</label>
         <input id="detailName" type="text" value="${escapeHtml(it.name)}" />

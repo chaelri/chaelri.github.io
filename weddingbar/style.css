@@ -277,3 +277,14 @@ body {
     transform-origin: bottom;
   }
 }
+
+.detail-grid {
+  grid-template-columns: 1fr; /* mobile default */
+}
+
+/* Tablet & Desktop */
+@media (min-width: 480px) {
+  .detail-grid {
+    grid-template-columns: 1fr 1fr;
+  }
+}
