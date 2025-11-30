@@ -494,3 +494,7 @@ function showDeleteConfirm(cb) {
   confirmDeleteCallback = cb;
   delOverlay.style.display = "flex";
 }
+
+document.getElementById("viewerCloseBtn").onclick = () => {
+  viewer.style.display = "none";
+};
