@@ -16,7 +16,6 @@ import {
   getDownloadURL,
 } from "https://www.gstatic.com/firebasejs/9.6.1/firebase-storage.js";
 
-const storage = getStorage(app);
 
 // Firebase config (unchanged)
 const firebaseConfig = {
@@ -33,6 +32,7 @@ const firebaseConfig = {
 
 const app = initializeApp(firebaseConfig);
 const db = getDatabase(app);
+const storage = getStorage(app);
 
 const barsRoot = document.getElementById("bars");
 const detailPanel = document.getElementById("detailPanel");
