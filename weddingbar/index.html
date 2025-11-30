@@ -35,9 +35,11 @@
           <input id="name" type="text" placeholder="Item (e.g., Caterer)" />
           <input id="total" type="number" placeholder="Total (e.g., 30000)" />
           <input id="paid" type="number" placeholder="Paid (e.g., 5000)" />
-          <label class="chk"
-            ><input id="booked" type="checkbox" /> <span>Booked</span></label
-          >
+          <label class="chk">
+            <input id="booked" type="checkbox" />
+            <span class="box" aria-hidden="true"></span>
+            <span class="chk-label">Booked</span>
+          </label>
         </div>
         <div class="actions">
           <button id="addBtn" class="btn">Add / Save</button>

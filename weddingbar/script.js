@@ -190,6 +190,28 @@ clearBtn.onclick = () => {
 refreshBtn.onclick = listenRealtime;
 
 window.addEventListener("resize", listenRealtime);
+// Checkbox ripple helper (small, non-invasive)
+document.querySelectorAll('.chk input[type="checkbox"]').forEach((input) => {
+  input.addEventListener("change", (e) => {
+    const box = e.target.nextElementSibling; // assumes <input> + .box
+    if (!box) return;
+    // add ripple class which triggers ::before animation
+    box.classList.add("ripple");
+    // remove after animation time
+    setTimeout(() => box.classList.remove("ripple"), 420);
+  });
+
+  // make clicking the visual box toggle the input (for safety)
+  const box = input.nextElementSibling;
+  if (box && !box.dataset.hasBoxClick) {
+    box.dataset.hasBoxClick = "1";
+    box.addEventListener("click", () => {
+      input.checked = !input.checked;
+      input.dispatchEvent(new Event("change", { bubbles: true }));
+      input.focus();
+    });
+  }
+});
 
 listenRealtime();
 
