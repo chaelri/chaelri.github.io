@@ -30,7 +30,6 @@ const detailPanel = document.getElementById("detailPanel");
 
 const addBtn = document.getElementById("addBtn");
 const clearBtn = document.getElementById("clearBtn");
-const refreshBtn = document.getElementById("refreshBtn");
 
 const nameInput = document.getElementById("name");
 const totalInput = document.getElementById("total");
@@ -417,8 +416,6 @@ clearBtn.onclick = () => {
   paidInput.value = "";
   bookedInput.checked = false;
 };
-
-refreshBtn.onclick = listenRealtime;
 
 window.addEventListener("resize", listenRealtime);
 
