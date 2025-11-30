@@ -1,0 +1,72 @@
+<!DOCTYPE html>
+<html lang="en">
+  <head>
+    <meta charset="utf-8" />
+    <meta
+      name="viewport"
+      content="width=device-width,initial-scale=1,viewport-fit=cover"
+    />
+    <title>WeddingBar — Costs</title>
+
+    <!-- Link CSS -->
+    <link rel="stylesheet" href="style.css" />
+
+    <!-- PWA manifest -->
+    <link rel="manifest" href="manifest.json" />
+
+    <!-- Optional meta for theme color on mobile -->
+    <meta name="theme-color" content="#071025" />
+  </head>
+  <body>
+    <main class="app">
+      <header class="app-header">
+        <div class="hdr-left">
+          <h1 class="app-title">Wedding Costs</h1>
+          <p class="app-sub">
+            Mobile-first. Swipe / scroll to view vendor costs.
+          </p>
+        </div>
+        <div class="hdr-right">
+          <button id="refreshBtn" class="icon-btn" title="Refresh">⟳</button>
+        </div>
+      </header>
+
+      <section class="controls card" aria-label="Controls">
+        <div class="inputs">
+          <input id="name" type="text" placeholder="Item (e.g., Caterer)" />
+          <input id="total" type="number" placeholder="Total (e.g., 30000)" />
+          <input id="paid" type="number" placeholder="Paid (e.g., 5000)" />
+          <label class="chk"
+            ><input id="booked" type="checkbox" /> Booked</label
+          >
+        </div>
+        <div class="actions">
+          <button id="addBtn" class="btn">Add / Save</button>
+          <button id="clearBtn" class="btn ghost">Clear</button>
+        </div>
+      </section>
+
+      <!-- Chart container: layout is dynamic via CSS/JS -->
+      <section id="chartSection" class="chart card" aria-label="Cost chart">
+        <div id="bars" class="bars horizontal" role="list" aria-live="polite">
+          <!-- Bars injected here by script.js -->
+        </div>
+      </section>
+
+      <section id="detailPanel" class="detail card" aria-hidden="true">
+        <!-- Tapped bar details show here -->
+      </section>
+
+      <footer class="foot muted">
+        Tip: Install as PWA for offline access. Data syncs live with Firestore.
+      </footer>
+    </main>
+
+    <!-- Firebase compat (works for quick integration). Replace with modular SDK if preferred. -->
+    <script src="https://www.gstatic.com/firebasejs/9.22.2/firebase-app-compat.js"></script>
+    <script src="https://www.gstatic.com/firebasejs/9.22.2/firebase-firestore-compat.js"></script>
+
+    <!-- App script -->
+    <script src="script.js"></script>
+  </body>
+</html>
