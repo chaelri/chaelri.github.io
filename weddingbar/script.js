@@ -351,8 +351,13 @@ function showDetails(it) {
 function listenRealtime() {
   onValue(ref(db, PATH), (snapshot) => {
     const val = snapshot.val();
-    if (!val) return;
+    if (!val) {
+      render([]);
+      updateSummary([]);
+      return;
+    }
 
+    // Convert object to array
     const arr = Object.keys(val).map((k) => ({ id: k, ...val[k] }));
     const sortType = document.getElementById("sortSelect").value;
     render(arr, sortType);
