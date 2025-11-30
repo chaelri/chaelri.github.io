@@ -273,5 +273,6 @@ body {
     background: linear-gradient(180deg, var(--accent-start), var(--accent-end));
     padding-bottom: 6px;
     transition: height 0.6s;
+    transform-origin: bottom;
   }
 }
