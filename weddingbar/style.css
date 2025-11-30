@@ -279,12 +279,12 @@ body {
 }
 
 .detail-grid {
-  grid-template-columns: 1fr; /* mobile default */
+  grid-template-columns: 1fr !important; /* mobile default */
 }
 
 /* Tablet & Desktop */
 @media (min-width: 480px) {
   .detail-grid {
-    grid-template-columns: 1fr 1fr;
+    grid-template-columns: 1fr 1fr !important;
   }
 }
