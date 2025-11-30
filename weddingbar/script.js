@@ -9,6 +9,14 @@ import {
   remove,
 } from "https://www.gstatic.com/firebasejs/9.6.1/firebase-database.js";
 
+import {
+  getStorage,
+  ref as sRef,
+  uploadBytes,
+  deleteObject,
+  getDownloadURL,
+} from "https://www.gstatic.com/firebasejs/9.6.1/firebase-storage.js";
+
 // Firebase config (unchanged)
 const firebaseConfig = {
   apiKey: "AIzaSyB8ahT56WbEUaGAymsRNNA-DrfZnUnWIwk",
@@ -16,7 +24,7 @@ const firebaseConfig = {
   databaseURL:
     "https://test-database-55379-default-rtdb.asia-southeast1.firebasedatabase.app",
   projectId: "test-database-55379",
-  storageBucket: "test-database-55379.firebasestorage.app",
+  storageBucket: "test-database-55379.appspot.com",
   messagingSenderId: "933688602756",
   appId: "1:933688602756:web:392a3a4ce040cb9d4452d1",
   measurementId: "G-1LSTC0N3NJ",
@@ -24,6 +32,7 @@ const firebaseConfig = {
 
 const app = initializeApp(firebaseConfig);
 const db = getDatabase(app);
+const storage = getStorage(app);
 
 const barsRoot = document.getElementById("bars");
 const detailPanel = document.getElementById("detailPanel");
@@ -206,7 +215,6 @@ function showDetails(it) {
         </div>
 
         <input type="file" id="attachInput" accept="image/*" style="margin-bottom:10px;" />
-        <button id="uploadAttachBtn" class="btn ghost">Add Image</button>
     </div>
 
     </div>
@@ -276,7 +284,9 @@ function showDetails(it) {
 
   const attachments = it.attachments || [];
 
-  attachments.forEach((url, idx) => {
+  attachments.forEach((att, idx) => {
+    const url = att.url;
+
     const wrap = document.createElement("div");
     wrap.style.position = "relative";
 
@@ -305,9 +315,15 @@ function showDetails(it) {
 
     delBtn.onclick = (e) => {
       e.stopPropagation();
+
       showDeleteConfirm(async () => {
+        // delete from storage
+        if (att.path) await deleteFromFirebaseStorage(att.path);
+
+        // remove from DB
         const newList = attachments.filter((_, i) => i !== idx);
         await set(ref(db, `${PATH}/${it.id}/attachments`), newList);
+
         showDetails({ ...it, attachments: newList });
       });
     };
@@ -317,31 +333,29 @@ function showDetails(it) {
     listBox.appendChild(wrap);
   });
 
-  // UPLOAD NEW ATTACHMENT (IMGBB)
-  const uploadBtn = document.getElementById("uploadAttachBtn");
-  uploadBtn.onclick = async () => {
-    const file = document.getElementById("attachInput").files[0];
-    if (!file) return alert("Select an image first.");
+  const fileInput = document.getElementById("attachInput");
+  fileInput.onchange = async () => {
+    const files = Array.from(fileInput.files);
+    if (!files.length) return;
 
     showUploadLoader();
 
     try {
-      // Upload to ImgBB
-      showUploadLoader();
+      let newList = [...(it.attachments || [])];
 
-      const compressed = await compressImage(file, 0.6, 1280);
-      const uploaded = await uploadToImgbb(compressed);
+      for (const file of files) {
+        const compressed = await compressImage(file, 0.6, 1280);
+        const uploaded = await uploadToFirebaseStorage(it.id, compressed);
+        newList.push(uploaded);
+      }
 
-      // Save in Firebase
-      const newList = [...(it.attachments || []), uploaded];
       await set(ref(db, `${PATH}/${it.id}/attachments`), newList);
 
-      // Refresh UI
       showDetails({ ...it, attachments: newList });
       listenRealtime();
     } catch (err) {
       console.error(err);
-      alert("Failed to upload image.");
+      alert("Upload failed.");
     }
 
     hideUploadLoader();
@@ -399,22 +413,6 @@ async function updateEntry(id, obj) {
 async function deleteEntry(id) {
   if (!id) throw new Error("Missing id for deleteEntry");
   await remove(ref(db, `${PATH}/${id}`));
-}
-
-async function uploadToImgbb(file) {
-  const apiKey = "8d4b7939a2d5c9f6b6366ce54305e3db";
-  const formData = new FormData();
-  formData.append("image", file);
-
-  const res = await fetch(`https://api.imgbb.com/1/upload?key=${apiKey}`, {
-    method: "POST",
-    body: formData,
-  });
-
-  const data = await res.json();
-  if (!data.success) throw new Error("ImgBB upload failed");
-
-  return data.data.url; // Direct HTTPS URL to stored image
 }
 
 // ----------------- END ADD -----------------
@@ -570,4 +568,20 @@ function compressImage(file, quality = 0.6, maxWidth = 1280) {
 
     img.src = URL.createObjectURL(file);
   });
+}
+
+async function uploadToFirebaseStorage(itemId, fileBlob) {
+  const randomName = Math.random().toString(36).substring(2) + ".jpg";
+
+  const fileRef = sRef(storage, `weddingCosts/${itemId}/${randomName}`);
+
+  await uploadBytes(fileRef, fileBlob);
+  const url = await getDownloadURL(fileRef);
+
+  return { url, path: fileRef.fullPath };
+}
+
+async function deleteFromFirebaseStorage(path) {
+  const fileRef = sRef(storage, path);
+  await deleteObject(fileRef).catch(() => {});
 }
