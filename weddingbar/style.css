@@ -192,7 +192,6 @@ body {
   background: var(--glass);
   display: flex;
   overflow: hidden;
-  flex: 1;
 }
 
 .bar-fill {
@@ -215,6 +214,8 @@ body {
   display: flex;
   flex-direction: column;
   gap: 6px;
+  flex: 1;
+  align-items: flex-start;
 }
 
 /* Chips */
