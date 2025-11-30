@@ -40,6 +40,21 @@
             <span class="chk-label">Booked</span>
           </label>
         </div>
+        <select
+          id="sortSelect"
+          class="inputs"
+          style="
+            padding: 12px;
+            border-radius: 10px;
+            background: var(--card);
+            color: white;
+          "
+        >
+          <option value="none">Sort by…</option>
+          <option value="booked">Booked → Not booked</option>
+          <option value="totalHigh">Highest Total</option>
+          <option value="totalLow">Lowest Total</option>
+        </select>
         <div class="actions">
           <button id="addBtn" class="btn">Add / Save</button>
           <button id="clearBtn" class="btn ghost">Clear</button>

@@ -63,7 +63,19 @@ function escapeHtml(s) {
 /* =======================================================
    RENDER — FIXED percent clamp + horizontal/vertical bars
    ======================================================= */
-function render(items = []) {
+function render(items = [], sortType = "none") {
+  // Apply sorting
+  if (sortType === "booked") {
+    items.sort((a, b) => {
+      // booked first
+      return (b.booked === true) - (a.booked === true);
+    });
+  } else if (sortType === "totalHigh") {
+    items.sort((a, b) => b.total - a.total);
+  } else if (sortType === "totalLow") {
+    items.sort((a, b) => a.total - b.total);
+  }
+
   barsRoot.innerHTML = "";
 
   items.forEach((it) => {
@@ -330,7 +342,8 @@ function listenRealtime() {
     if (!val) return;
 
     const arr = Object.keys(val).map((k) => ({ id: k, ...val[k] }));
-    render(arr);
+    const sortType = document.getElementById("sortSelect").value;
+    render(arr, sortType);
   });
 }
 
@@ -498,3 +511,7 @@ function showDeleteConfirm(cb) {
 document.getElementById("viewerCloseBtn").onclick = () => {
   viewer.style.display = "none";
 };
+
+document.getElementById("sortSelect").addEventListener("change", () => {
+  listenRealtime();
+});
