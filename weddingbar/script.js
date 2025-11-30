@@ -246,8 +246,10 @@ function showDetails(it) {
     detailPanel.setAttribute("aria-hidden", "true");
   });
 
-  // LOAD existing attachments
+  // Render attachments with preview + delete
   const listBox = document.getElementById("attachmentList");
+  listBox.innerHTML = "";
+
   if (it.attachments && Array.isArray(it.attachments)) {
     listBox.innerHTML = it.attachments
       .map(
@@ -382,6 +384,11 @@ document.querySelectorAll('.chk input[type="checkbox"]').forEach((input) => {
     });
   }
 });
+
+document.getElementById("imgPreviewOverlay").onclick = () => {
+  document.getElementById("imgPreviewOverlay").style.display = "none";
+};
+
 
 listenRealtime();
 

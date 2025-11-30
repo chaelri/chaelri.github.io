@@ -57,6 +57,25 @@
         <!-- Tapped bar details show here -->
       </section>
     </main>
+    <!-- Fullscreen image preview -->
+    <div
+      id="imgPreviewOverlay"
+      style="
+        display: none;
+        position: fixed;
+        inset: 0;
+        background: rgba(0, 0, 0, 0.85);
+        z-index: 9999;
+        align-items: center;
+        justify-content: center;
+      "
+    >
+      <img
+        id="imgPreviewFull"
+        src=""
+        style="max-width: 90%; max-height: 90%; border-radius: 10px"
+      />
+    </div>
 
     <!-- Use module imports in script.js -->
     <script type="module" src="script.js"></script>
