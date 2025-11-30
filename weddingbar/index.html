@@ -77,6 +77,86 @@
       />
     </div>
 
+    <!-- Fullscreen Viewer -->
+    <div
+      id="imgViewerOverlay"
+      style="
+        display: none;
+        position: fixed;
+        inset: 0;
+        background: rgba(0, 0, 0, 0.9);
+        z-index: 9999;
+        align-items: center;
+        justify-content: center;
+      "
+    >
+      <div
+        id="viewerLeft"
+        style="
+          position: absolute;
+          left: 0;
+          top: 0;
+          bottom: 0;
+          width: 40%;
+          cursor: pointer;
+        "
+      ></div>
+
+      <div
+        id="viewerRight"
+        style="
+          position: absolute;
+          right: 0;
+          top: 0;
+          bottom: 0;
+          width: 40%;
+          cursor: pointer;
+        "
+      ></div>
+
+      <img
+        id="imgViewerFull"
+        style="
+          max-width: 90%;
+          max-height: 90%;
+          border-radius: 10px;
+          transition: transform 0.2s;
+        "
+      />
+    </div>
+
+    <!-- Delete Confirmation -->
+    <div
+      id="confirmDeleteOverlay"
+      style="
+        display: none;
+        position: fixed;
+        inset: 0;
+        background: rgba(0, 0, 0, 0.5);
+        z-index: 10000;
+        align-items: center;
+        justify-content: center;
+      "
+    >
+      <div
+        style="
+          background: #0b152b;
+          padding: 20px;
+          border-radius: 10px;
+          width: 260px;
+          text-align: center;
+        "
+      >
+        <div style="margin-bottom: 12px">
+          Are you sure you want to delete this image?
+        </div>
+        <div style="display: flex; gap: 10px; justify-content: center">
+          <button id="confirmDeleteYes" class="btn">Delete</button>
+          <button id="confirmDeleteNo" class="btn ghost">Cancel</button>
+        </div>
+      </div>
+    </div>
+
     <!-- Use module imports in script.js -->
     <script type="module" src="script.js"></script>
   </body>

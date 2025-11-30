@@ -246,103 +246,68 @@ function showDetails(it) {
     detailPanel.setAttribute("aria-hidden", "true");
   });
 
-  // Render attachments with preview + delete
+  // ATTACHMENTS LIST (with preview + delete)
   const listBox = document.getElementById("attachmentList");
   listBox.innerHTML = "";
 
-  if (it.attachments && Array.isArray(it.attachments)) {
-    it.attachments.forEach((url, idx) => {
-      const wrapper = document.createElement("div");
-      wrapper.style.position = "relative";
+  const attachments = it.attachments || [];
 
-      // Thumbnail
-      const thumb = document.createElement("img");
-      thumb.src = url;
-      thumb.style.width = "70px";
-      thumb.style.height = "70px";
-      thumb.style.borderRadius = "6px";
-      thumb.style.objectFit = "cover";
-      thumb.style.cursor = "pointer";
+  attachments.forEach((url, idx) => {
+    const wrap = document.createElement("div");
+    wrap.style.position = "relative";
 
-      // Fullscreen preview
-      thumb.onclick = () => {
-        const overlay = document.getElementById("imgPreviewOverlay");
-        const fullImg = document.getElementById("imgPreviewFull");
-        fullImg.src = url;
-        overlay.style.display = "flex";
-      };
+    const img = document.createElement("img");
+    img.src = url;
+    img.style.width = "70px";
+    img.style.height = "70px";
+    img.style.objectFit = "cover";
+    img.style.borderRadius = "6px";
+    img.style.cursor = "pointer";
 
-      // Delete button
-      const del = document.createElement("button");
-      del.textContent = "×";
-      del.style.position = "absolute";
-      del.style.top = "-6px";
-      del.style.right = "-6px";
-      del.style.background = "rgba(0,0,0,0.6)";
-      del.style.border = "none";
-      del.style.color = "white";
-      del.style.borderRadius = "50%";
-      del.style.width = "20px";
-      del.style.height = "20px";
-      del.style.cursor = "pointer";
-      del.style.fontSize = "14px";
-      del.style.lineHeight = "20px";
-      del.style.padding = "0";
+    img.onclick = () => openViewer(attachments, idx);
 
-      del.onclick = async (e) => {
-        e.stopPropagation(); // prevent triggering fullscreen
-        const newList = it.attachments.filter((_, i) => i !== idx);
+    const delBtn = document.createElement("button");
+    delBtn.textContent = "×";
+    delBtn.style.position = "absolute";
+    delBtn.style.top = "-6px";
+    delBtn.style.right = "-6px";
+    delBtn.style.width = "20px";
+    delBtn.style.height = "20px";
+    delBtn.style.borderRadius = "50%";
+    delBtn.style.border = "none";
+    delBtn.style.background = "rgba(0,0,0,0.7)";
+    delBtn.style.color = "#fff";
+    delBtn.style.cursor = "pointer";
+
+    delBtn.onclick = (e) => {
+      e.stopPropagation();
+      showDeleteConfirm(async () => {
+        const newList = attachments.filter((_, i) => i !== idx);
         await set(ref(db, `${PATH}/${it.id}/attachments`), newList);
-        showDetails({ ...it, attachments: newList }); // refresh panel
-      };
-
-      wrapper.appendChild(thumb);
-      wrapper.appendChild(del);
-      listBox.appendChild(wrapper);
-    });
-  }
-
-  // UPLOAD handler (base64)
-  const uploadBtn = document.getElementById("uploadAttachBtn");
-  uploadBtn.onclick = async () => {
-    const input = document.getElementById("attachInput");
-    const file = input.files[0];
-    if (!file) return alert("Select an image first.");
-
-    // convert to base64
-    const uploadBtn = document.getElementById("uploadAttachBtn");
-    uploadBtn.onclick = async () => {
-      const input = document.getElementById("attachInput");
-      const file = input.files[0];
-      if (!file) return alert("Select an image first.");
-
-      try {
-        // 1) Upload to ImgBB
-        const imageURL = await uploadToImgbb(file);
-
-        // 2) Save URL to Firebase
-        const updatedList = it.attachments
-          ? [...it.attachments, imageURL]
-          : [imageURL];
-
-        await set(ref(db, `${PATH}/${it.id}/attachments`), updatedList);
-
-        // 3) Refresh UI
-        showDetails({ ...it, attachments: updatedList });
-        listenRealtime();
-
-        alert("Image uploaded!");
-      } catch (err) {
-        console.error(err);
-        alert("Failed to upload image.");
-      }
+        showDetails({ ...it, attachments: newList });
+      });
     };
 
-    alert("Image attached!");
+    wrap.appendChild(img);
+    wrap.appendChild(delBtn);
+    listBox.appendChild(wrap);
+  });
 
-    // Update UI
-    listenRealtime();
-    showDetails({ ...it, attachments: finalList });
+  // UPLOAD NEW ATTACHMENT (IMGBB)
+  const uploadBtn = document.getElementById("uploadAttachBtn");
+  uploadBtn.onclick = async () => {
+    const file = document.getElementById("attachInput").files[0];
+    if (!file) return alert("Select an image first.");
+
+    try {
+      const url = await uploadToImgbb(file);
+      const newList = [...attachments, url];
+      await set(ref(db, `${PATH}/${it.id}/attachments`), newList);
+      showDetails({ ...it, attachments: newList });
+    } catch (err) {
+      console.error(err);
+      alert("Failed to upload image.");
+    }
   };
 
   // make the checkbox visual toggle work in the detail panel as your helper does
@@ -472,4 +437,60 @@ if ("serviceWorker" in navigator) {
       .then((reg) => console.log("SW OK:", reg.scope))
       .catch((err) => console.warn("SW FAIL", err));
   });
+}
+
+// FULLSCREEN VIEWER + SWIPE
+let currentAttachList = [];
+let currentAttachIndex = 0;
+
+const viewer = document.getElementById("imgViewerOverlay");
+const viewerImg = document.getElementById("imgViewerFull");
+const viewLeft = document.getElementById("viewerLeft");
+const viewRight = document.getElementById("viewerRight");
+
+function openViewer(list, index) {
+  currentAttachList = list;
+  currentAttachIndex = index;
+  viewerImg.src = list[index];
+  viewer.style.display = "flex";
+}
+
+viewer.onclick = (e) => {
+  if (e.target === viewer) viewer.style.display = "none";
+};
+
+function showImg(delta) {
+  currentAttachIndex =
+    (currentAttachIndex + delta + currentAttachList.length) %
+    currentAttachList.length;
+  viewerImg.src = currentAttachList[currentAttachIndex];
+}
+
+viewLeft.onclick = () => showImg(-1);
+viewRight.onclick = () => showImg(1);
+
+// Swipe gestures
+let sx = 0;
+viewer.addEventListener("touchstart", (e) => (sx = e.touches[0].clientX));
+viewer.addEventListener("touchend", (e) => {
+  const dx = e.changedTouches[0].clientX - sx;
+  if (Math.abs(dx) > 50) dx < 0 ? showImg(1) : showImg(-1);
+});
+
+// DELETE CONFIRMATION MODAL
+let confirmDeleteCallback = null;
+
+const delOverlay = document.getElementById("confirmDeleteOverlay");
+document.getElementById("confirmDeleteYes").onclick = () => {
+  if (confirmDeleteCallback) confirmDeleteCallback();
+  delOverlay.style.display = "none";
+};
+document.getElementById("confirmDeleteNo").onclick = () => {
+  confirmDeleteCallback = null;
+  delOverlay.style.display = "none";
+};
+
+function showDeleteConfirm(cb) {
+  confirmDeleteCallback = cb;
+  delOverlay.style.display = "flex";
 }
