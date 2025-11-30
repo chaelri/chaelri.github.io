@@ -1,13 +1,13 @@
-// Very small service worker: caches static assets for offline PWA behavior.
+// sw.js
 const CACHE = "weddingbar-static-v1";
 const FILES = [
-  "/",
-  "/weddingbar/", // ensure root path is covered by GitHub Pages routing
+  "/weddingbar/",
   "/weddingbar/index.html",
   "/weddingbar/style.css",
   "/weddingbar/script.js",
   "/weddingbar/manifest.json",
-  // add icons if you host them locally e.g. '/weddingbar/icons/icon-192.png'
+  "/weddingbar/icons/icon-192.png",
+  "/weddingbar/icons/icon-512.png",
 ];
 
 self.addEventListener("install", (event) => {
@@ -31,7 +31,7 @@ self.addEventListener("activate", (event) => {
 self.addEventListener("fetch", (event) => {
   const url = new URL(event.request.url);
 
-  // For static assets — cache-first
+  // Serve cached static assets first (cache-first strategy)
   if (
     FILES.includes(url.pathname) ||
     url.pathname.startsWith("/weddingbar/icons")
@@ -42,7 +42,7 @@ self.addEventListener("fetch", (event) => {
     return;
   }
 
-  // For other requests (like Firestore network calls) — use network first
+  // For other requests, try network then fallback to cache
   event.respondWith(
     fetch(event.request).catch(() => caches.match(event.request))
   );

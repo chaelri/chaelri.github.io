@@ -12,9 +12,8 @@
     <link rel="stylesheet" href="style.css" />
 
     <!-- PWA manifest -->
-    <link rel="manifest" href="manifest.json" />
+    <link rel="manifest" href="/weddingbar/manifest.json" />
 
-    <!-- Optional meta for theme color on mobile -->
     <meta name="theme-color" content="#071025" />
   </head>
   <body>
@@ -37,7 +36,7 @@
           <input id="total" type="number" placeholder="Total (e.g., 30000)" />
           <input id="paid" type="number" placeholder="Paid (e.g., 5000)" />
           <label class="chk"
-            ><input id="booked" type="checkbox" /> Booked</label
+            ><input id="booked" type="checkbox" /> <span>Booked</span></label
           >
         </div>
         <div class="actions">
@@ -56,12 +55,9 @@
       <section id="detailPanel" class="detail card" aria-hidden="true">
         <!-- Tapped bar details show here -->
       </section>
-
-      <footer class="foot muted">
-        Tip: Install as PWA for offline access. Data syncs live with Firestore.
-      </footer>
     </main>
 
+    <!-- Use module imports in script.js -->
     <script type="module" src="script.js"></script>
   </body>
 </html>
