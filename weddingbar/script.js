@@ -137,6 +137,19 @@ function render(items = [], sortType = "none") {
   });
 }
 
+function updateSummary(items = []) {
+  let totalPaid = 0;
+  let grandTotal = 0;
+
+  items.forEach((it) => {
+    totalPaid += Number(it.paid || 0);
+    grandTotal += Number(it.total || 0);
+  });
+
+  document.getElementById("summaryPaid").textContent = fmt(totalPaid);
+  document.getElementById("summaryTotal").textContent = fmt(grandTotal);
+}
+
 // SHOW DETAILS
 // ----------------- REPLACE showDetails(it) WITH THIS -----------------
 function showDetails(it) {
@@ -343,6 +356,7 @@ function listenRealtime() {
     const arr = Object.keys(val).map((k) => ({ id: k, ...val[k] }));
     const sortType = document.getElementById("sortSelect").value;
     render(arr, sortType);
+    updateSummary(arr);
   });
 }
 

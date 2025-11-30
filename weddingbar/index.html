@@ -59,6 +59,24 @@
       </section>
 
       <!-- Chart container: layout is dynamic via CSS/JS -->
+      <section id="summarySection" class="card" style="margin-bottom: 12px">
+        <div style="display: flex; justify-content: space-between">
+          <div>
+            <div class="muted" style="font-size: 12px">Total Paid</div>
+            <div id="summaryPaid" style="font-size: 18px; font-weight: 700">
+              ₱0
+            </div>
+          </div>
+
+          <div>
+            <div class="muted" style="font-size: 12px">Grand Total</div>
+            <div id="summaryTotal" style="font-size: 18px; font-weight: 700">
+              ₱0
+            </div>
+          </div>
+        </div>
+      </section>
+
       <section id="chartSection" class="chart card" aria-label="Cost chart">
         <div id="bars" class="bars horizontal" role="list" aria-live="polite">
           <!-- Bars injected here by script.js -->
