@@ -323,15 +323,25 @@ function showDetails(it) {
     const file = document.getElementById("attachInput").files[0];
     if (!file) return alert("Select an image first.");
 
+    showUploadLoader();
+
     try {
-      const url = await uploadToImgbb(file);
-      const newList = [...attachments, url];
+      // Upload to ImgBB
+      const uploaded = await uploadToImgbb(file);
+
+      // Save in Firebase
+      const newList = [...(it.attachments || []), uploaded];
       await set(ref(db, `${PATH}/${it.id}/attachments`), newList);
+
+      // Refresh UI
       showDetails({ ...it, attachments: newList });
+      listenRealtime();
     } catch (err) {
       console.error(err);
       alert("Failed to upload image.");
     }
+
+    hideUploadLoader();
   };
 
   // make the checkbox visual toggle work in the detail panel as your helper does
@@ -531,3 +541,11 @@ document.getElementById("viewerCloseBtn").onclick = () => {
 document.getElementById("sortSelect").addEventListener("change", () => {
   listenRealtime();
 });
+
+function showUploadLoader() {
+  document.getElementById("uploadLoader").style.display = "block";
+}
+
+function hideUploadLoader() {
+  document.getElementById("uploadLoader").style.display = "none";
+}
