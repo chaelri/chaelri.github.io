@@ -338,10 +338,6 @@ function showDetails(it) {
       }
     };
 
-    // add to DB
-    const finalList = it.attachments ? [...it.attachments, b64] : [b64];
-    await set(ref(db, `${PATH}/${it.id}/attachments`), finalList);
-
     alert("Image attached!");
 
     // Update UI
