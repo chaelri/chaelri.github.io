@@ -127,18 +127,127 @@ function render(items = []) {
 }
 
 // SHOW DETAILS
+// ----------------- REPLACE showDetails(it) WITH THIS -----------------
 function showDetails(it) {
+  // Render editable fields inside the existing detailPanel
   detailPanel.innerHTML = `
-    <div style="display:flex;justify-content:space-between;">
-      <strong>${escapeHtml(it.name)}</strong>
-      <span class="muted">${it.booked ? "Booked" : "Not yet booked"}</span>
+    <div style="display:flex;justify-content:space-between;gap:12px;align-items:center;">
+      <div>
+        <strong>${escapeHtml(it.name)}</strong>
+        <div class="muted" style="font-size:12px;margin-top:4px;">
+          Created: ${new Date(it.createdAt || 0).toLocaleString()}
+        </div>
+      </div>
+      <div style="display:flex;gap:8px;align-items:center;">
+        <button id="deleteBtn" class="btn ghost">Delete</button>
+        <button id="updateBtn" class="btn">Update</button>
+      </div>
     </div>
-    <div style="margin-top:8px">
-      Paid: <strong>${it.booked || it.paid > 0 ? fmt(it.paid) : "—"}</strong>
+
+    <div style="margin-top:12px;display:grid;grid-template-columns:1fr 1fr;gap:8px;">
+      <div>
+        <label style="display:block;font-size:12px;margin-bottom:6px;">Name</label>
+        <input id="detailName" type="text" value="${escapeHtml(it.name)}" />
+      </div>
+
+      <div>
+        <label style="display:block;font-size:12px;margin-bottom:6px;">Booked</label>
+        <label class="chk" style="display:inline-flex;align-items:center;">
+          <input id="detailBooked" type="checkbox" ${
+            it.booked ? "checked" : ""
+          } />
+          <span class="box" aria-hidden="true"></span>
+          <span class="chk-label" style="margin-left:6px;">Booked</span>
+        </label>
+      </div>
+
+      <div>
+        <label style="display:block;font-size:12px;margin-bottom:6px;">Paid</label>
+        <input id="detailPaid" type="number" value="${Number(it.paid) || 0}" />
+      </div>
+
+      <div>
+        <label style="display:block;font-size:12px;margin-bottom:6px;">Total</label>
+        <input id="detailTotal" type="number" value="${
+          Number(it.total) || 0
+        }" />
+      </div>
     </div>
-    <div>Total: <strong>${fmt(it.total)}</strong></div>
+
+    <div style="margin-top:10px;color:var(--muted);font-size:12px;">
+      Tip: change values then click Update to save to Firebase.
+    </div>
   `;
+
+  // show panel
   detailPanel.classList.add("show");
+  detailPanel.setAttribute("aria-hidden", "false");
+
+  // wire up buttons: update and delete
+  const updateBtn = document.getElementById("updateBtn");
+  const deleteBtn = document.getElementById("deleteBtn");
+
+  // remove any prior listeners by replacing node (safe)
+  updateBtn.replaceWith(updateBtn.cloneNode(true));
+  deleteBtn.replaceWith(deleteBtn.cloneNode(true));
+
+  // re-query (cloned nodes)
+  const updateBtn2 = document.getElementById("updateBtn");
+  const deleteBtn2 = document.getElementById("deleteBtn");
+
+  updateBtn2.addEventListener("click", async () => {
+    // gather edited values
+    const newName = document.getElementById("detailName").value.trim();
+    const newPaid = Number(document.getElementById("detailPaid").value) || 0;
+    const newTotal = Number(document.getElementById("detailTotal").value) || 0;
+    const newBooked = document.getElementById("detailBooked").checked;
+
+    if (!newName || !newTotal) {
+      return alert("Please provide a name and a total amount.");
+    }
+
+    // call update helper (keeps createdAt)
+    await updateEntry(it.id, {
+      name: newName,
+      paid: newPaid,
+      total: newTotal,
+      booked: newBooked,
+      createdAt: it.createdAt || Date.now(),
+    });
+
+    // refresh live view
+    listenRealtime();
+
+    // hide panel
+    detailPanel.classList.remove("show");
+    detailPanel.setAttribute("aria-hidden", "true");
+  });
+
+  deleteBtn2.addEventListener("click", async () => {
+    const ok = confirm(
+      `Delete "${it.name}"? This will remove the item from Firebase.`
+    );
+    if (!ok) return;
+
+    await deleteEntry(it.id);
+
+    // refresh and hide
+    listenRealtime();
+    detailPanel.classList.remove("show");
+    detailPanel.setAttribute("aria-hidden", "true");
+  });
+
+  // make the checkbox visual toggle work in the detail panel as your helper does
+  const detailCheckbox = document.getElementById("detailBooked");
+  const detailBox = detailCheckbox ? detailCheckbox.nextElementSibling : null;
+  if (detailBox && !detailBox.dataset.hasBoxClick) {
+    detailBox.dataset.hasBoxClick = "1";
+    detailBox.addEventListener("click", () => {
+      detailCheckbox.checked = !detailCheckbox.checked;
+      detailCheckbox.dispatchEvent(new Event("change", { bubbles: true }));
+      detailCheckbox.focus();
+    });
+  }
 }
 
 /* Listen from Firebase */
@@ -156,6 +265,25 @@ function listenRealtime() {
 async function saveEntry(obj) {
   await set(push(ref(db, PATH)), obj);
 }
+
+// ----------------- ADD AFTER saveEntry(...) -----------------
+/**
+ * Update an existing entry by id (overwrites values provided).
+ * We use set(ref(db, PATH + '/' + id), obj) to write exact fields.
+ */
+async function updateEntry(id, obj) {
+  if (!id) throw new Error("Missing id for updateEntry");
+  await set(ref(db, `${PATH}/${id}`), obj);
+}
+
+/**
+ * Delete an entry by id.
+ */
+async function deleteEntry(id) {
+  if (!id) throw new Error("Missing id for deleteEntry");
+  await remove(ref(db, `${PATH}/${id}`));
+}
+// ----------------- END ADD -----------------
 
 /* Controls */
 addBtn.addEventListener("click", async () => {
