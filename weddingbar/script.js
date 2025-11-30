@@ -205,8 +205,7 @@ function showDetails(it) {
             <!-- filled by JS -->
         </div>
 
-        <input type="file" id="attachInput" accept="image/*" style="margin-bottom:10px;" />
-        <button id="uploadAttachBtn" class="btn ghost">Add Image</button>
+        <input type="file" id="attachInput" accept="image/*" multiple style="margin-bottom:10px;" />
     </div>
 
     </div>
@@ -318,30 +317,36 @@ function showDetails(it) {
   });
 
   // UPLOAD NEW ATTACHMENT (IMGBB)
-  const uploadBtn = document.getElementById("uploadAttachBtn");
-  uploadBtn.onclick = async () => {
-    const file = document.getElementById("attachInput").files[0];
-    if (!file) return alert("Select an image first.");
+  // AUTO UPLOAD WHEN SELECTING FILE(S)
+  const fileInput = document.getElementById("attachInput");
+
+  fileInput.onchange = async () => {
+    const files = Array.from(fileInput.files);
+    if (files.length === 0) return;
 
     showUploadLoader();
 
     try {
-      // Upload to ImgBB
-      showUploadLoader();
+      let newList = [...(it.attachments || [])];
 
-      const compressed = await compressImage(file, 0.6, 1280);
-      const uploaded = await uploadToImgbb(compressed);
+      for (const file of files) {
+        // compress each file
+        const compressed = await compressImage(file, 0.6, 1280);
+        // upload to imgbb
+        const uploaded = await uploadToImgbb(compressed);
+        // push to attachments array
+        newList.push(uploaded);
+      }
 
-      // Save in Firebase
-      const newList = [...(it.attachments || []), uploaded];
+      // save updated list to firebase
       await set(ref(db, `${PATH}/${it.id}/attachments`), newList);
 
-      // Refresh UI
+      // refresh UI
       showDetails({ ...it, attachments: newList });
       listenRealtime();
     } catch (err) {
       console.error(err);
-      alert("Failed to upload image.");
+      alert("Failed to upload images.");
     }
 
     hideUploadLoader();
@@ -571,3 +576,14 @@ function compressImage(file, quality = 0.6, maxWidth = 1280) {
     img.src = URL.createObjectURL(file);
   });
 }
+
+document.getElementById("viewerDownloadBtn").onclick = () => {
+  const url = currentAttachList[currentAttachIndex];
+
+  const a = document.createElement("a");
+  a.href = url;
+  a.download = "image.jpg"; // browser will rename properly
+  document.body.appendChild(a);
+  a.click();
+  a.remove();
+};
