@@ -5,6 +5,8 @@ const FILES = [
   "/weddingbar/style.css",
   "/weddingbar/script.js",
   "/weddingbar/manifest.json",
+  "/weddingbar/icons/icon-192.png",
+  "/weddingbar/icons/icon-512.png",
 ];
 
 /* DEBUG missing files */
