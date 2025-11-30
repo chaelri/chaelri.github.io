@@ -1,17 +1,31 @@
-// sw.js
-const CACHE = "weddingbar-static-v1";
+const CACHE = "weddingbar-static-v3";
+
 const FILES = [
-  "/weddingbar/",
   "/weddingbar/index.html",
   "/weddingbar/style.css",
   "/weddingbar/script.js",
   "/weddingbar/manifest.json",
-  "/weddingbar/icons/icon-192.png",
-  "/weddingbar/icons/icon-512.png",
 ];
 
+/* DEBUG missing files */
+FILES.forEach((f) => {
+  fetch(f)
+    .then((r) => {
+      if (!r.ok) console.error("❌ Missing:", f);
+    })
+    .catch(() => {
+      console.error("❌ Failed to load:", f);
+    });
+});
+
 self.addEventListener("install", (event) => {
-  event.waitUntil(caches.open(CACHE).then((cache) => cache.addAll(FILES)));
+  event.waitUntil(
+    caches.open(CACHE).then((cache) =>
+      cache.addAll(FILES).catch((err) => {
+        console.error("❌ addAll failed", err);
+      })
+    )
+  );
   self.skipWaiting();
 });
 
@@ -29,20 +43,6 @@ self.addEventListener("activate", (event) => {
 });
 
 self.addEventListener("fetch", (event) => {
-  const url = new URL(event.request.url);
-
-  // Serve cached static assets first (cache-first strategy)
-  if (
-    FILES.includes(url.pathname) ||
-    url.pathname.startsWith("/weddingbar/icons")
-  ) {
-    event.respondWith(
-      caches.match(event.request).then((resp) => resp || fetch(event.request))
-    );
-    return;
-  }
-
-  // For other requests, try network then fallback to cache
   event.respondWith(
     fetch(event.request).catch(() => caches.match(event.request))
   );
