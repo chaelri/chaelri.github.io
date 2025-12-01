@@ -462,6 +462,8 @@ async function saveEntry(obj) {
 }
 
 async function sendNotification(title, body, extraData = {}) {
+  console.log(title)
+  console.log(body)
   await push(ref(db, "notifications/queue"), {
     title,
     body,
