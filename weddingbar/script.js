@@ -751,9 +751,9 @@ document.getElementById("addNextStepBtn").onclick = async () => {
   const deadline = document.getElementById("nextStepDeadline").value || null;
 
   if (deadline) {
-    sendNotification("New Step Added", `${stepName} — Deadline: ${deadline}`);
+    sendNotification("New Step Added", `${text} — Deadline: ${deadline}`);
   } else {
-    sendNotification("New Step Added", `${stepName}`);
+    sendNotification("New Step Added", `${text}`);
   }
 
   if (!text) return alert("Please type a task");
