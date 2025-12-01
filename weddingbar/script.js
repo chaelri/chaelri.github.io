@@ -684,6 +684,7 @@ viewerImg.onclick = (e) => e.stopPropagation();
 document.getElementById("nextStepsBtn").onclick = () => {
   // hide everything wedding-costs related
   document.getElementById("weddingCostsWrapper").style.display = "none";
+  document.getElementById("toggleControlsBtn").style.display = "none";
   detailPanel.style.display = "none";
 
   // show next steps panel
@@ -695,6 +696,7 @@ document.getElementById("nextStepsBtn").onclick = () => {
 document.getElementById("nextStepsBackBtn").onclick = () => {
   document.getElementById("nextStepsPanel").style.display = "none";
   document.getElementById("weddingCostsWrapper").style.display = "block";
+  document.getElementById("toggleControlsBtn").style.display = "block";
 };
 
 document.getElementById("addNextStepBtn").onclick = async () => {
