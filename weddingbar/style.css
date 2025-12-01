@@ -472,29 +472,41 @@ body {
   padding-bottom: 240px;
 }
 
+/* FULL FIX FOR iOS SAFARI DATE ICON */
 .next-date {
-  appearance: none;
-  -webkit-appearance: none;
   width: 100%;
   padding: 12px;
-  padding-right: 32px !important; /* space for icon */
+  padding-right: 40px; /* space for custom icon */
   box-sizing: border-box;
   border-radius: 10px;
   border: none;
   background: var(--card);
   color: white;
   position: relative;
+  appearance: none;
+  -webkit-appearance: none;
 }
 
-.next-date::-webkit-date-and-time-value {
-  text-align: left; /* fixes alignment issue on iOS */
-  padding-left: 4px;
-}
-
+/* hide built-in icon on iOS */
 .next-date::-webkit-calendar-picker-indicator {
-  position: absolute;
-  right: 12px; /* respect padding */
-  filter: invert(1) brightness(1.5);
-  cursor: pointer;
+  opacity: 0;
+  width: 0;
+  height: 0;
+  pointer-events: none;
 }
-p
+
+/* custom icon inside input */
+.next-date-wrapper {
+  position: relative;
+  width: 100%;
+}
+
+.next-date-wrapper::after {
+  content: "📅";
+  position: absolute;
+  right: 14px;
+  top: 50%;
+  transform: translateY(-50%);
+  pointer-events: none;
+  font-size: 18px;
+}
