@@ -22,4 +22,3 @@ jobs:
           repoToken: ${{ secrets.GITHUB_TOKEN }}
           firebaseServiceAccount: ${{ secrets.FIREBASE_SERVICE_ACCOUNT_TEST_DATABASE_55379 }}
           projectId: test-database-55379
-          entryPoint: weddingbar
