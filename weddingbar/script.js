@@ -603,15 +603,15 @@ async function deleteFromFirebaseStorage(path) {
   await deleteObject(fileRef).catch(() => {});
 }
 
-// Toggle Add Costs section
+// Toggle Add Costs section with arrow animation
 const toggleBtn = document.getElementById("toggleControlsBtn");
 const controlsSection = document.querySelector(".controls");
+const toggleArrow = toggleBtn.querySelector(".toggle-arrow");
 
-if (toggleBtn && controlsSection) {
+if (toggleBtn && controlsSection && toggleArrow) {
   // Start expanded
   controlsSection.classList.add("visible");
-
-  toggleBtn.style.cursor = "pointer";
+  toggleBtn.classList.add("toggle-expanded");
 
   toggleBtn.addEventListener("click", () => {
     const isVisible = controlsSection.classList.contains("visible");
@@ -619,11 +619,11 @@ if (toggleBtn && controlsSection) {
     if (isVisible) {
       controlsSection.classList.remove("visible");
       controlsSection.classList.add("hidden");
-      toggleBtn.textContent = "Add Costs";
+      toggleBtn.classList.remove("toggle-expanded");
     } else {
       controlsSection.classList.remove("hidden");
       controlsSection.classList.add("visible");
-      toggleBtn.textContent = "Hide";
+      toggleBtn.classList.add("toggle-expanded");
     }
   });
 }
