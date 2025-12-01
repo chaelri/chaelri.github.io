@@ -500,6 +500,7 @@ body {
 .next-date-wrapper {
   position: relative;
   width: 100%;
+  margin-bottom: 12px;
 }
 
 /* SVG icon positioned inside input */
