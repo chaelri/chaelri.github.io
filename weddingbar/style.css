@@ -459,3 +459,7 @@ body {
   font-size: 12px;
   font-weight: 700;
 }
+
+#nextStepsList {
+  padding-bottom: 200px; /* enough room above bottom bar */
+}

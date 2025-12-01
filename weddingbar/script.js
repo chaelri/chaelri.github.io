@@ -689,12 +689,14 @@ document.getElementById("nextStepsBtn").onclick = () => {
 
   // show next steps panel
   document.getElementById("nextStepsPanel").style.display = "block";
+  document.getElementById("nextStepsAddBar").style.display = "block";
 
   loadNextSteps();
 };
 
 document.getElementById("nextStepsBackBtn").onclick = () => {
   document.getElementById("nextStepsPanel").style.display = "none";
+  document.getElementById("nextStepsAddBar").style.display = "none";
   document.getElementById("weddingCostsWrapper").style.display = "block";
   document.getElementById("toggleControlsBtn").style.display = "block";
 };

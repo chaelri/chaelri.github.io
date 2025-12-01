@@ -74,57 +74,65 @@
         <div id="nextStepsList" style="margin-top: 20px">
           <!-- tasks injected here -->
         </div>
-        <div
-          id="nextStepsSticky"
-          style="
-            position: sticky;
-            bottom: 0;
-            padding: 12px;
-            background: rgba(7, 16, 37, 0.9);
-            backdrop-filter: blur(8px);
-            border-radius: 14px;
-            box-shadow: 0 -6px 20px rgba(0, 0, 0, 0.35);
-            margin-top: 20px;
-          "
-        >
-          <div style="font-size: 12px; color: var(--muted); margin-bottom: 6px">
-            Deadline (optional)
-          </div>
-
-          <input
-            id="nextStepDeadline"
-            type="date"
-            style="
-              width: 100%;
-              padding: 10px;
-              margin-bottom: 10px;
-              border-radius: 10px;
-              border: none;
-              background: var(--card);
-              color: white;
-            "
-          />
-
-          <input
-            id="nextStepInput"
-            type="text"
-            placeholder="Add next step…"
-            style="
-              width: 100%;
-              padding: 12px;
-              border-radius: 10px;
-              border: none;
-              background: var(--card);
-              color: white;
-              margin-bottom: 12px;
-            "
-          />
-
-          <button id="addNextStepBtn" class="btn" style="width: 100%">
-            Add Step
-          </button>
-        </div>
       </section>
+
+      <!-- BOTTOM ADD STEP BAR (GLOBAL, OUTSIDE PANEL) -->
+      <div
+        id="nextStepsAddBar"
+        style="
+          display: none;
+          position: fixed;
+          bottom: 0;
+          left: 0;
+          width: 100%;
+          padding: 14px;
+          background: rgba(7, 16, 37, 0.95);
+          backdrop-filter: blur(10px);
+          box-shadow: 0 -8px 25px rgba(0, 0, 0, 0.45);
+          z-index: 9999;
+        "
+      >
+        <div style="font-size: 12px; color: var(--muted); margin-bottom: 6px">
+          Deadline (optional)
+        </div>
+
+        <input
+          id="nextStepDeadline"
+          type="date"
+          style="
+            width: 100%;
+            padding: 12px;
+            margin-bottom: 10px;
+            border-radius: 10px;
+            border: none;
+            background: var(--card);
+            color: white;
+          "
+        />
+
+        <input
+          id="nextStepInput"
+          type="text"
+          placeholder="Add next step…"
+          style="
+            width: 100%;
+            padding: 12px;
+            margin-bottom: 12px;
+            border-radius: 10px;
+            border: none;
+            background: var(--card);
+            color: white;
+          "
+        />
+
+        <button
+          id="addNextStepBtn"
+          class="btn"
+          style="width: 100%; border-radius: 12px"
+        >
+          Add Step
+        </button>
+      </div>
 
       <div id="weddingCostsWrapper">
         <section class="controls card" aria-label="Controls">
