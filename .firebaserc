@@ -1,5 +1,14 @@
 {
   "projects": {
     "default": "test-database-55379"
+  },
+  "targets": {
+    "test-database-55379": {
+      "hosting": {
+        "weddingbar": [
+          "weddingbar"
+        ]
+      }
+    }
   }
 }
