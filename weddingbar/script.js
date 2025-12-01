@@ -679,10 +679,6 @@ document.getElementById("viewerNextBtn").onclick = () => {
   showImg(1);
 };
 
-document.getElementById("nextSteps").onclick = () => {
-  showImg(1);
-};
-
 viewerImg.onclick = (e) => e.stopPropagation();
 
 document.getElementById("nextStepsBtn").onclick = () => {
