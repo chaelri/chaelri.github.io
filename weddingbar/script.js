@@ -237,6 +237,7 @@ function showDetails(it) {
 
   // show panel
   detailPanel.classList.add("show");
+  detailPanel.style.display = "block";
   detailPanel.setAttribute("aria-hidden", "false");
 
   // wire up buttons: update and delete
