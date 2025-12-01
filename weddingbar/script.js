@@ -8,6 +8,8 @@ import {
   set,
   remove,
 } from "https://www.gstatic.com/firebasejs/9.6.1/firebase-database.js";
+import { getMessaging, getToken, onMessage } from "https://www.gstatic.com/firebasejs/9.6.1/firebase-messaging.js";
+
 
 import {
   getStorage,
@@ -33,6 +35,8 @@ const firebaseConfig = {
 const app = initializeApp(firebaseConfig);
 const db = getDatabase(app);
 const storage = getStorage(app);
+const messaging = getMessaging(app);
+
 
 const barsRoot = document.getElementById("bars");
 const detailPanel = document.getElementById("detailPanel");
@@ -473,6 +477,27 @@ async function deleteEntry(id) {
   await remove(ref(db, `${PATH}/${id}`));
 }
 
+async function enableNotifications() {
+  const permission = await Notification.requestPermission();
+
+  if (permission !== "granted") {
+    alert("Notifications blocked. Enable them in browser settings.");
+    return;
+  }
+
+  const vapidKey = "YOUR_PUBLIC_VAPID_KEY_HERE";
+
+  const token = await getToken(messaging, { vapidKey });
+
+  if (token) {
+    console.log("FCM Token:", token);
+    await set(ref(db, `fcmTokens/${token}`), true);
+  }
+}
+
+enableNotifications();
+
+
 // ----------------- END ADD -----------------
 
 /* Controls */
@@ -536,6 +561,12 @@ if ("serviceWorker" in navigator) {
       .catch((err) => console.warn("SW FAIL", err));
   });
 }
+navigator.serviceWorker.register("/firebase-messaging-sw.js")
+  .then(reg => {
+    console.log("Messaging SW registered", reg);
+  })
+  .catch(err => console.error("FCM SW failed", err));
+
 
 // FULLSCREEN VIEWER + SWIPE
 let currentAttachList = [];
