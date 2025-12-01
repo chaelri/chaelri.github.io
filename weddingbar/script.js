@@ -531,7 +531,7 @@ listenRealtime();
 if ("serviceWorker" in navigator) {
   window.addEventListener("load", () => {
     navigator.serviceWorker
-      .register("/weddingbar/sw.js")
+      .register("/sw.js")
       .then((reg) => console.log("SW OK:", reg.scope))
       .catch((err) => console.warn("SW FAIL", err));
   });
