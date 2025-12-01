@@ -488,7 +488,7 @@ async function enableNotifications() {
   }
 
   const vapidKey =
-    "BKtocEMkPnxxGYf9lUOGPF4fxTPmuhK43iBcHb_z_hfaKA3TpwsnG6QLrf6bYke6VDCdtL1iWxhkSzINuY642mBO";
+    "BOa8XHyFqlBP8Wn7BU4Z_Vut60wcGv4947ZwZeUN6TmPfhuHfnga1AaKG6jeZ2LjC8wUDnh9VcExWFNXaU3J0Y8";
 
   try {
     const token = await getToken(messaging, {
