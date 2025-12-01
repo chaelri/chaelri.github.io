@@ -489,11 +489,6 @@ async function deleteEntry(id) {
   await remove(ref(db, `${PATH}/${id}`));
 }
 
-import {
-  ref,
-  set,
-} from "https://www.gstatic.com/firebasejs/9.6.1/firebase-database.js";
-
 async function enableNotifications() {
   const permission = await Notification.requestPermission();
   if (permission !== "granted") return;
