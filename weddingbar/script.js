@@ -603,27 +603,34 @@ async function deleteFromFirebaseStorage(path) {
   await deleteObject(fileRef).catch(() => {});
 }
 
-// Toggle Add Costs section with arrow animation
+// Toggle Add Costs section with arrow animation (DEFAULT HIDDEN)
 const toggleBtn = document.getElementById("toggleControlsBtn");
 const controlsSection = document.querySelector(".controls");
-const toggleArrow = toggleBtn.querySelector(".toggle-arrow");
 
-if (toggleBtn && controlsSection && toggleArrow) {
-  // Start expanded
-  controlsSection.classList.add("visible");
-  toggleBtn.classList.add("toggle-expanded");
+if (toggleBtn && controlsSection) {
+  // 1. Default: hidden
+  controlsSection.classList.remove("visible");
+  controlsSection.classList.add("hidden");
+  toggleBtn.classList.remove("toggle-expanded"); // arrow DOWN (▼)
+  toggleBtn.querySelector(".toggle-arrow").textContent = "▼";
 
   toggleBtn.addEventListener("click", () => {
-    const isVisible = controlsSection.classList.contains("visible");
+    const isHidden = controlsSection.classList.contains("hidden");
 
-    if (isVisible) {
-      controlsSection.classList.remove("visible");
-      controlsSection.classList.add("hidden");
-      toggleBtn.classList.remove("toggle-expanded");
-    } else {
+    if (isHidden) {
+      // SHOW
       controlsSection.classList.remove("hidden");
       controlsSection.classList.add("visible");
-      toggleBtn.classList.add("toggle-expanded");
+
+      toggleBtn.classList.add("toggle-expanded"); // arrow UP (▲)
+      toggleBtn.querySelector(".toggle-arrow").textContent = "▲";
+    } else {
+      // HIDE
+      controlsSection.classList.remove("visible");
+      controlsSection.classList.add("hidden");
+
+      toggleBtn.classList.remove("toggle-expanded"); // arrow DOWN (▼)
+      toggleBtn.querySelector(".toggle-arrow").textContent = "▼";
     }
   });
 }
