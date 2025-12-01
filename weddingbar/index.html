@@ -92,46 +92,51 @@
           z-index: 9999;
         "
       >
-        <div style="font-size: 12px; color: var(--muted); margin-bottom: 6px">
-          Deadline (optional)
-        </div>
-
-        <input
-          id="nextStepDeadline"
-          type="date"
-          style="
-            width: 100%;
-            padding: 12px;
-            margin-bottom: 10px;
-            border-radius: 10px;
-            border: none;
-            background: var(--card);
-            color: white;
-          "
-        />
-
-        <input
-          id="nextStepInput"
-          type="text"
-          placeholder="Add next step…"
-          style="
-            width: 100%;
-            padding: 12px;
-            margin-bottom: 12px;
-            border-radius: 10px;
-            border: none;
-            background: var(--card);
-            color: white;
-          "
-        />
-
-        <button
-          id="addNextStepBtn"
-          class="btn"
-          style="width: 100%; border-radius: 12px"
+        <div
+          id="nextStepsAddInner"
+          style="max-width: 900px; margin: 0 auto; width: 100%"
         >
-          Add Step
-        </button>
+          <div style="font-size: 12px; color: var(--muted); margin-bottom: 6px">
+            Deadline (optional)
+          </div>
+
+          <input
+            id="nextStepDeadline"
+            type="date"
+            style="
+              width: 100%;
+              padding: 12px;
+              margin-bottom: 10px;
+              border-radius: 10px;
+              border: none;
+              background: var(--card);
+              color: white;
+            "
+          />
+
+          <input
+            id="nextStepInput"
+            type="text"
+            placeholder="Add next step…"
+            style="
+              width: 100%;
+              padding: 12px;
+              margin-bottom: 12px;
+              border-radius: 10px;
+              border: none;
+              background: var(--card);
+              color: white;
+            "
+          />
+
+          <button
+            id="addNextStepBtn"
+            class="btn"
+            style="width: 100%; border-radius: 12px"
+          >
+            Add Step
+          </button>
+        </div>
       </div>
 
       <div id="weddingCostsWrapper">
