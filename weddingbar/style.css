@@ -431,3 +431,31 @@ body {
   margin-bottom: 4px;
   display: block;
 }
+
+.next-checkbox {
+  appearance: none;
+  width: 20px;
+  height: 20px;
+  border-radius: 50%;
+  border: 2px solid rgba(255, 255, 255, 0.25);
+  background: transparent;
+  cursor: pointer;
+  display: inline-block;
+  position: relative;
+  flex-shrink: 0;
+}
+
+.next-checkbox:checked {
+  border-color: var(--accent-start);
+  background: var(--accent-start);
+}
+
+.next-checkbox:checked::after {
+  content: "✓";
+  position: absolute;
+  top: -1px;
+  left: 4px;
+  color: white;
+  font-size: 12px;
+  font-weight: 700;
+}

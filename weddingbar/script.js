@@ -757,6 +757,7 @@ function loadNextSteps() {
 
       const chk = document.createElement("input");
       chk.type = "checkbox";
+      chk.className = "next-checkbox";
       chk.checked = step.done;
       chk.onclick = () => {
         set(ref(db, `${NEXT_PATH}/${step.id}/done`), chk.checked);
