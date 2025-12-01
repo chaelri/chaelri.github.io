@@ -494,7 +494,7 @@ async function enableNotifications() {
   if (permission !== "granted") return;
 
   const token = await getToken(messaging, {
-    vapidKey: VAPID_KEY,
+    vapidKey: BOa8XHyFqlBP8Wn7BU4Z_Vut60wcGv4947ZwZeUN6TmPfhuHfnga1AaKG6jeZ2LjC8wUDnh9VcExWFNXaU3J0Y8,
   });
 
   console.log("FCM Token:", token);
