@@ -479,19 +479,6 @@ async function deleteEntry(id) {
   await remove(ref(db, `${PATH}/${id}`));
 }
 
-function urlBase64ToUint8Array(base64String) {
-  const padding = "=".repeat((4 - (base64String.length % 4)) % 4);
-  const base64 = (base64String + padding).replace(/-/g, "+").replace(/_/g, "/");
-
-  const rawData = atob(base64);
-  const outputArray = new Uint8Array(rawData.length);
-
-  for (let i = 0; i < rawData.length; ++i) {
-    outputArray[i] = rawData.charCodeAt(i);
-  }
-  return outputArray;
-}
-
 async function enableNotifications() {
   const permission = await Notification.requestPermission();
 
@@ -503,13 +490,15 @@ async function enableNotifications() {
   const vapidKey =
     "BKtocEMkPnxxGYf9lUOGPF4fxTPmuhK43iBcHb_z_hfaKA3TpwsnG6QLrf6bYke6VDCdtL1iWxhkSzINuY642mBO";
 
-  const convertedKey = urlBase64ToUint8Array(vapidKey);
+  try {
+    const token = await getToken(messaging, {
+      vapidKey: vapidKey,
+    });
 
-  const token = await getToken(messaging, {
-    vapidKey: vapidKey,
-    // OR depending on your SDK
-    applicationServerKey: convertedKey,
-  });
+    console.log("FCM Token:", token);
+  } catch (err) {
+    console.error("FCM error:", err);
+  }
 }
 
 enableNotifications();
