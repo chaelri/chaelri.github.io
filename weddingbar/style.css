@@ -472,22 +472,23 @@ body {
   padding-bottom: 240px;
 }
 
-/* FULL FIX FOR iOS SAFARI DATE ICON */
+/* DATE INPUT FIX FOR IOS SAFARI WITH CUSTOM SVG ICON */
 .next-date {
   width: 100%;
   padding: 12px;
-  padding-right: 40px; /* space for custom icon */
+  padding-right: 44px; /* room for icon */
   box-sizing: border-box;
   border-radius: 10px;
   border: none;
   background: var(--card);
   color: white;
-  position: relative;
+  font-size: 16px;
   appearance: none;
   -webkit-appearance: none;
+  margin-bottom: 12px;
 }
 
-/* hide built-in icon on iOS */
+/* Hide iOS native icon completely */
 .next-date::-webkit-calendar-picker-indicator {
   opacity: 0;
   width: 0;
@@ -495,18 +496,33 @@ body {
   pointer-events: none;
 }
 
-/* custom icon inside input */
+/* Wrap input so SVG can float inside */
 .next-date-wrapper {
   position: relative;
   width: 100%;
 }
 
+/* SVG icon positioned inside input */
 .next-date-wrapper::after {
-  content: "📅";
+  content: "";
   position: absolute;
   right: 14px;
   top: 50%;
   transform: translateY(-50%);
+  width: 20px;
+  height: 20px;
   pointer-events: none;
-  font-size: 18px;
+  background-repeat: no-repeat;
+  background-position: center;
+  background-size: 18px 18px;
+  filter: brightness(2); /* Make it white-ish */
+  
+  /* Inline SVG for calendar icon (white outline) */
+  background-image: url("data:image/svg+xml;utf8,\
+    <svg xmlns='http://www.w3.org/2000/svg' width='24' height='24' viewBox='0 0 24 24'>\
+      <rect x='3' y='5' width='18' height='16' rx='3' ry='3' fill='none' stroke='white' stroke-width='2'/>\
+      <line x1='3' y1='10' x2='21' y2='10' stroke='white' stroke-width='2'/>\
+      <line x1='8' y1='3' x2='8' y2='7' stroke='white' stroke-width='2'/>\
+      <line x1='16' y1='3' x2='16' y2='7' stroke='white' stroke-width='2'/>\
+    </svg>");
 }
