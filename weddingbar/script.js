@@ -167,14 +167,14 @@ function showDetails(it) {
     <div style="display:flex; justify-content:space-between; align-items:center; width:100%; margin-bottom:10px;">
     <button id="backBtn"
         style="
-        padding:6px 12px;
-        border-radius:8px;
-        border:none;
-        background:rgba(255,255,255,0.04);
-        color:var(--muted);
-        cursor:pointer;
-        font-size:14px;">
-        ← Back
+        padding: 12px 18px;
+        font-size: 14px;
+        border-radius: 8px;
+        border: none;
+        background: rgba(255, 255, 255, 0.08);
+        color: white;
+        cursor: pointer;">
+        Back
     </button>
 
     <div style="display:flex; gap:8px;">
