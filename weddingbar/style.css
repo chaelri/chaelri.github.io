@@ -330,3 +330,11 @@ body {
     background: linear-gradient(90deg, var(--accent-end), var(--accent-start));
   }
 }
+
+.inputs input {
+  font-size: 16px !important; /* Safari no-zoom fix */
+}
+
+.inputs input {
+  padding: 10px 12px;
+}
