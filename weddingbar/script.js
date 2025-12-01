@@ -462,8 +462,8 @@ async function saveEntry(obj) {
 }
 
 async function sendNotification(title, body, extraData = {}) {
-  console.log(title)
-  console.log(body)
+  console.log(title);
+  console.log(body);
   await push(ref(db, "notifications/queue"), {
     title,
     body,
@@ -489,26 +489,24 @@ async function deleteEntry(id) {
   await remove(ref(db, `${PATH}/${id}`));
 }
 
+import {
+  ref,
+  set,
+} from "https://www.gstatic.com/firebasejs/9.6.1/firebase-database.js";
+
 async function enableNotifications() {
   const permission = await Notification.requestPermission();
+  if (permission !== "granted") return;
 
-  if (permission !== "granted") {
-    alert("Notifications blocked. Enable them in browser settings.");
-    return;
-  }
+  const token = await getToken(messaging, {
+    vapidKey: VAPID_KEY,
+  });
 
-  const vapidKey =
-    "BOa8XHyFqlBP8Wn7BU4Z_Vut60wcGv4947ZwZeUN6TmPfhuHfnga1AaKG6jeZ2LjC8wUDnh9VcExWFNXaU3J0Y8";
+  console.log("FCM Token:", token);
 
-  try {
-    const token = await getToken(messaging, {
-      vapidKey: vapidKey,
-    });
-
-    console.log("FCM Token:", token);
-  } catch (err) {
-    console.error("FCM error:", err);
-  }
+  // 🔥 SAVE TOKEN TO DATABASE
+  await set(ref(db, "fcmTokens/" + token), true);
+  console.log("Token saved to DB.");
 }
 
 enableNotifications();
