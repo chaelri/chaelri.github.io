@@ -639,10 +639,6 @@ if (toggleBtn && controlsSection) {
   });
 }
 
-document.getElementById("viewerBgClose").onclick = () => {
-  viewer.style.display = "none";
-};
-
 document.getElementById("viewerPrevBtn").onclick = () => {
   showImg(-1);
 };
