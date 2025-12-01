@@ -511,8 +511,6 @@ let currentAttachIndex = 0;
 
 const viewer = document.getElementById("imgViewerOverlay");
 const viewerImg = document.getElementById("imgViewerFull");
-const viewLeft = document.getElementById("viewerLeft");
-const viewRight = document.getElementById("viewerRight");
 
 function openViewer(list, index) {
   currentAttachList = list;
@@ -531,9 +529,6 @@ function showImg(delta) {
     currentAttachList.length;
   viewerImg.src = currentAttachList[currentAttachIndex];
 }
-
-viewLeft.onclick = () => showImg(-1);
-viewRight.onclick = () => showImg(1);
 
 // DELETE CONFIRMATION MODAL
 let confirmDeleteCallback = null;
@@ -643,3 +638,17 @@ if (toggleBtn && controlsSection) {
     }
   });
 }
+
+document.getElementById("viewerBgClose").onclick = () => {
+  viewer.style.display = "none";
+};
+
+document.getElementById("viewerPrevBtn").onclick = () => {
+  showImg(-1);
+};
+
+document.getElementById("viewerNextBtn").onclick = () => {
+  showImg(1);
+};
+
+viewerImg.onclick = (e) => e.stopPropagation();

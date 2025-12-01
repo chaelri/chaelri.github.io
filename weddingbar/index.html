@@ -137,6 +137,10 @@
         justify-content: center;
       "
     >
+      <div
+        id="viewerBgClose"
+        style="position: absolute; inset: 0; z-index: 0; cursor: pointer"
+      ></div>
       <!-- Close Button -->
       <button
         id="viewerCloseBtn"
@@ -158,29 +162,51 @@
         ×
       </button>
 
-      <div
-        id="viewerLeft"
+      <!-- LEFT NAV -->
+      <button
+        id="viewerPrevBtn"
         style="
           position: absolute;
-          left: 0;
-          top: 0;
-          bottom: 0;
-          width: 40%;
+          left: 20px;
+          top: 50%;
+          transform: translateY(-50%);
+          width: 42px;
+          height: 42px;
+          border: none;
+          border-radius: 12px;
+          background: rgba(255, 255, 255, 0.18);
+          backdrop-filter: blur(6px);
+          color: white;
+          font-size: 22px;
           cursor: pointer;
+          z-index: 10;
         "
-      ></div>
+      >
+        ‹
+      </button>
 
-      <div
-        id="viewerRight"
+      <!-- RIGHT NAV -->
+      <button
+        id="viewerNextBtn"
         style="
           position: absolute;
-          right: 0;
-          top: 0;
-          bottom: 0;
-          width: 40%;
+          right: 20px;
+          top: 50%;
+          transform: translateY(-50%);
+          width: 42px;
+          height: 42px;
+          border: none;
+          border-radius: 12px;
+          background: rgba(255, 255, 255, 0.18);
+          backdrop-filter: blur(6px);
+          color: white;
+          font-size: 22px;
           cursor: pointer;
+          z-index: 10;
         "
-      ></div>
+      >
+        ›
+      </button>
 
       <img
         id="imgViewerFull"
