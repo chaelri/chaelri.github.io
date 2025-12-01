@@ -683,6 +683,7 @@ viewerImg.onclick = (e) => e.stopPropagation();
 
 document.getElementById("nextStepsBtn").onclick = () => {
   // hide everything wedding-costs related
+  document.getElementById("backBtn").click()
   document.getElementById("weddingCostsWrapper").style.display = "none";
   document.getElementById("toggleControlsBtn").style.display = "none";
   detailPanel.style.display = "none";
