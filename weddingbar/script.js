@@ -485,7 +485,7 @@ async function enableNotifications() {
     return;
   }
 
-  const vapidKey = "YOUR_PUBLIC_VAPID_KEY_HERE";
+  const vapidKey = "BKtocEMkPnxxGYf9lUOGPF4fxTPmuhK43iBcHb_z_hfaKA3TpwsnG6QLrf6bYke6VDCdtL1iWxhkSzINuY642mBO";
 
   const token = await getToken(messaging, { vapidKey });
 
