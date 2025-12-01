@@ -471,3 +471,30 @@ body {
 #nextStepsList {
   padding-bottom: 240px;
 }
+
+.next-date {
+  appearance: none;
+  -webkit-appearance: none;
+  width: 100%;
+  padding: 12px;
+  padding-right: 32px !important; /* space for icon */
+  box-sizing: border-box;
+  border-radius: 10px;
+  border: none;
+  background: var(--card);
+  color: white;
+  position: relative;
+}
+
+.next-date::-webkit-date-and-time-value {
+  text-align: left; /* fixes alignment issue on iOS */
+  padding-left: 4px;
+}
+
+.next-date::-webkit-calendar-picker-indicator {
+  position: absolute;
+  right: 12px; /* respect padding */
+  filter: invert(1) brightness(1.5);
+  cursor: pointer;
+}
+p
