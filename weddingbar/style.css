@@ -474,6 +474,7 @@ body {
 
 /* DATE INPUT FIX FOR IOS SAFARI WITH CUSTOM SVG ICON */
 .next-date {
+  height: 42.5px;
   width: 100%;
   padding: 12px;
   padding-right: 44px; /* room for icon */
@@ -508,7 +509,7 @@ body {
   content: "";
   position: absolute;
   right: 14px;
-  top: 50%;
+  top: 40%;
   transform: translateY(-50%);
   width: 20px;
   height: 20px;
@@ -517,7 +518,7 @@ body {
   background-position: center;
   background-size: 18px 18px;
   filter: brightness(2); /* Make it white-ish */
-  
+
   /* Inline SVG for calendar icon (white outline) */
   background-image: url("data:image/svg+xml;utf8,\
     <svg xmlns='http://www.w3.org/2000/svg' width='24' height='24' viewBox='0 0 24 24'>\
