@@ -1,12 +1,12 @@
 const CACHE = "weddingbar-static-v3";
 
 const FILES = [
-  "/weddingbar/index.html",
-  "/weddingbar/style.css",
-  "/weddingbar/script.js",
-  "/weddingbar/manifest.json",
-  "/weddingbar/icons/icon-192.png",
-  "/weddingbar/icons/icon-512.png",
+  "/index.html",
+  "/style.css",
+  "/script.js",
+  "/manifest.json",
+  "/icons/icon-192.png",
+  "/icons/icon-512.png",
 ];
 
 /* DEBUG missing files */
