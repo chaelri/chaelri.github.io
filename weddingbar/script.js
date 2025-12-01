@@ -165,6 +165,19 @@ function showDetails(it) {
   // Render editable fields inside the existing detailPanel
   detailPanel.innerHTML = `
     <div style="display:flex;justify-content:space-between;gap:12px;align-items:center;">
+        <button id="backBtn"
+            style="
+                margin-bottom:10px;
+                padding:8px 14px;
+                font-size:14px;
+                border-radius:8px;
+                border:none;
+                background:rgba(255,255,255,0.08);
+                color:white;
+                cursor:pointer;
+            ">
+            ← Back
+        </button>
       <div>
         <strong>${escapeHtml(it.name)}</strong>
         <div class="muted" style="font-size:12px;margin-top:4px;">
@@ -219,6 +232,8 @@ function showDetails(it) {
 
     </div>
   `;
+
+  document.getElementById("chartSection").style.display = "none";
 
   // show panel
   detailPanel.classList.add("show");
@@ -277,6 +292,17 @@ function showDetails(it) {
     detailPanel.classList.remove("show");
     detailPanel.setAttribute("aria-hidden", "true");
   });
+
+  const backBtn = document.getElementById("backBtn");
+
+  backBtn.onclick = () => {
+    // hide detail panel
+    detailPanel.classList.remove("show");
+    detailPanel.style.display = "none";
+
+    // show bars again
+    document.getElementById("chartSection").style.display = "block";
+  };
 
   // ATTACHMENTS LIST (with preview + delete)
   const listBox = document.getElementById("attachmentList");

@@ -168,7 +168,6 @@ body {
   display: flex;
   flex-direction: column;
   gap: 12px;
-  max-height: 25vh;
   overflow-y: auto;
   padding: 6px;
 }
