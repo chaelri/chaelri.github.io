@@ -461,6 +461,14 @@ async function saveEntry(obj) {
   await set(push(ref(db, PATH)), obj);
 }
 
+async function sendNotification(title, body, extraData = {}) {
+  await push(ref(db, "notifications/queue"), {
+    title,
+    body,
+    data: extraData,
+  });
+}
+
 // ----------------- ADD AFTER saveEntry(...) -----------------
 /**
  * Update an existing entry by id (overwrites values provided).
@@ -741,6 +749,12 @@ document.getElementById("nextStepsBackBtn").onclick = () => {
 document.getElementById("addNextStepBtn").onclick = async () => {
   const text = document.getElementById("nextStepInput").value.trim();
   const deadline = document.getElementById("nextStepDeadline").value || null;
+
+  if (deadline) {
+    sendNotification("New Step Added", `${stepName} — Deadline: ${deadline}`);
+  } else {
+    sendNotification("New Step Added", `${stepName}`);
+  }
 
   if (!text) return alert("Please type a task");
 
