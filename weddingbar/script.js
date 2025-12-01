@@ -292,6 +292,15 @@ function showDetails(it) {
 
     const img = document.createElement("img");
     img.src = url;
+
+    img.onload = () => {
+      // force Safari repaint
+      img.style.opacity = "1";
+    };
+
+    img.style.opacity = "0"; // start hidden
+    img.style.transition = "opacity 0.15s ease-out";
+
     img.style.width = "70px";
     img.style.height = "70px";
     img.style.objectFit = "cover";
