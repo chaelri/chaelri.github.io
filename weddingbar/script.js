@@ -164,31 +164,35 @@ function updateSummary(items = []) {
 function showDetails(it) {
   // Render editable fields inside the existing detailPanel
   detailPanel.innerHTML = `
-    <div style="display:flex;justify-content:space-between;gap:12px;align-items:center;">
-        <button id="backBtn"
-            style="
-                margin-bottom:10px;
-                padding:8px 14px;
-                font-size:14px;
-                border-radius:8px;
-                border:none;
-                background:rgba(255,255,255,0.08);
-                color:white;
-                cursor:pointer;
-            ">
-            ← Back
-        </button>
-      <div>
-        <strong>${escapeHtml(it.name)}</strong>
-        <div class="muted" style="font-size:12px;margin-top:4px;">
-          Created: ${new Date(it.createdAt || 0).toLocaleString()}
-        </div>
-      </div>
-      <div style="display:flex;gap:8px;align-items:center;">
+    <div style="display:flex; justify-content:space-between; align-items:center; width:100%; margin-bottom:10px;">
+    <button id="backBtn"
+        style="
+        padding:6px 12px;
+        border-radius:8px;
+        border:none;
+        background:rgba(255,255,255,0.04);
+        color:var(--muted);
+        cursor:pointer;
+        font-size:14px;">
+        ← Back
+    </button>
+
+    <div style="display:flex; gap:8px;">
         <button id="deleteBtn" class="btn ghost">Delete</button>
         <button id="updateBtn" class="btn">Update</button>
-      </div>
     </div>
+    </div>
+
+    <!-- ITEM TITLE + CREATED DATE IN OWN SECTION -->
+    <div style="margin-bottom:12px;">
+    <div style="font-size:18px; font-weight:700; margin-bottom:4px;">
+        ${escapeHtml(it.name)}
+    </div>
+    <div class="muted" style="font-size:12px;">
+        Created: ${new Date(it.createdAt || 0).toLocaleString()}
+    </div>
+    </div>
+
 
     <div style="margin-top:12px;display:grid;grid-template-columns:1fr 1fr;gap:8px;" class="detail-grid">
       <div>
