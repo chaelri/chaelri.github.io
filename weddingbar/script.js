@@ -8,8 +8,11 @@ import {
   set,
   remove,
 } from "https://www.gstatic.com/firebasejs/9.6.1/firebase-database.js";
-import { getMessaging, getToken, onMessage } from "https://www.gstatic.com/firebasejs/9.6.1/firebase-messaging.js";
-
+import {
+  getMessaging,
+  getToken,
+  onMessage,
+} from "https://www.gstatic.com/firebasejs/9.6.1/firebase-messaging.js";
 
 import {
   getStorage,
@@ -36,7 +39,6 @@ const app = initializeApp(firebaseConfig);
 const db = getDatabase(app);
 const storage = getStorage(app);
 const messaging = getMessaging(app);
-
 
 const barsRoot = document.getElementById("bars");
 const detailPanel = document.getElementById("detailPanel");
@@ -477,6 +479,19 @@ async function deleteEntry(id) {
   await remove(ref(db, `${PATH}/${id}`));
 }
 
+function urlBase64ToUint8Array(base64String) {
+  const padding = "=".repeat((4 - (base64String.length % 4)) % 4);
+  const base64 = (base64String + padding).replace(/-/g, "+").replace(/_/g, "/");
+
+  const rawData = atob(base64);
+  const outputArray = new Uint8Array(rawData.length);
+
+  for (let i = 0; i < rawData.length; ++i) {
+    outputArray[i] = rawData.charCodeAt(i);
+  }
+  return outputArray;
+}
+
 async function enableNotifications() {
   const permission = await Notification.requestPermission();
 
@@ -485,18 +500,19 @@ async function enableNotifications() {
     return;
   }
 
-  const vapidKey = "BKtocEMkPnxxGYf9lUOGPF4fxTPmuhK43iBcHb_z_hfaKA3TpwsnG6QLrf6bYke6VDCdtL1iWxhkSzINuY642mBO";
+  const vapidKey =
+    "BKtocEMkPnxxGYf9lUOGPF4fxTPmuhK43iBcHb_z_hfaKA3TpwsnG6QLrf6bYke6VDCdtL1iWxhkSzINuY642mBO";
 
-  const token = await getToken(messaging, { vapidKey });
+  const convertedKey = urlBase64ToUint8Array(vapidKey);
 
-  if (token) {
-    console.log("FCM Token:", token);
-    await set(ref(db, `fcmTokens/${token}`), true);
-  }
+  const token = await getToken(messaging, {
+    vapidKey: vapidKey,
+    // OR depending on your SDK
+    applicationServerKey: convertedKey,
+  });
 }
 
 enableNotifications();
-
 
 // ----------------- END ADD -----------------
 
@@ -561,12 +577,12 @@ if ("serviceWorker" in navigator) {
       .catch((err) => console.warn("SW FAIL", err));
   });
 }
-navigator.serviceWorker.register("/firebase-messaging-sw.js")
-  .then(reg => {
+navigator.serviceWorker
+  .register("/firebase-messaging-sw.js")
+  .then((reg) => {
     console.log("Messaging SW registered", reg);
   })
-  .catch(err => console.error("FCM SW failed", err));
-
+  .catch((err) => console.error("FCM SW failed", err));
 
 // FULLSCREEN VIEWER + SWIPE
 let currentAttachList = [];
@@ -714,7 +730,7 @@ viewerImg.onclick = (e) => e.stopPropagation();
 
 document.getElementById("nextStepsBtn").onclick = () => {
   // hide everything wedding-costs related
-  document.getElementById("backBtn")?.click()
+  document.getElementById("backBtn")?.click();
   document.getElementById("weddingCostsWrapper").style.display = "none";
   document.getElementById("toggleControlsBtn").style.display = "none";
   detailPanel.style.display = "none";
