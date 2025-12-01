@@ -338,3 +338,20 @@ body {
 .inputs input {
   padding: 10px 12px;
 }
+
+/* toggle section animation */
+.controls {
+  overflow: hidden;
+  transition: max-height 0.35s ease, opacity 0.25s ease;
+}
+
+.controls.hidden {
+  max-height: 0;
+  opacity: 0;
+  pointer-events: none;
+}
+
+.controls.visible {
+  max-height: 600px; /* enough for inputs */
+  opacity: 1;
+}

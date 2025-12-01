@@ -602,3 +602,28 @@ async function deleteFromFirebaseStorage(path) {
   const fileRef = sRef(storage, path);
   await deleteObject(fileRef).catch(() => {});
 }
+
+// Toggle Add Costs section
+const toggleBtn = document.getElementById("toggleControlsBtn");
+const controlsSection = document.querySelector(".controls");
+
+if (toggleBtn && controlsSection) {
+  // Start expanded
+  controlsSection.classList.add("visible");
+
+  toggleBtn.style.cursor = "pointer";
+
+  toggleBtn.addEventListener("click", () => {
+    const isVisible = controlsSection.classList.contains("visible");
+
+    if (isVisible) {
+      controlsSection.classList.remove("visible");
+      controlsSection.classList.add("hidden");
+      toggleBtn.textContent = "Add Costs";
+    } else {
+      controlsSection.classList.remove("hidden");
+      controlsSection.classList.add("visible");
+      toggleBtn.textContent = "Hide";
+    }
+  });
+}
