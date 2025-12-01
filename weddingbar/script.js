@@ -46,6 +46,7 @@ const paidInput = document.getElementById("paid");
 const bookedInput = document.getElementById("booked");
 
 const PATH = "weddingCosts";
+const NEXT_PATH = "weddingNextSteps";
 
 // Format money
 const fmt = (n) =>
@@ -678,4 +679,121 @@ document.getElementById("viewerNextBtn").onclick = () => {
   showImg(1);
 };
 
+document.getElementById("nextSteps").onclick = () => {
+  showImg(1);
+};
+
 viewerImg.onclick = (e) => e.stopPropagation();
+
+document.getElementById("nextStepsBtn").onclick = () => {
+  // hide everything wedding-costs related
+  document.getElementById("weddingCostsWrapper").style.display = "none";
+  detailPanel.style.display = "none";
+
+  // show next steps panel
+  document.getElementById("nextStepsPanel").style.display = "block";
+
+  loadNextSteps();
+};
+
+document.getElementById("nextStepsBackBtn").onclick = () => {
+  document.getElementById("nextStepsPanel").style.display = "none";
+  document.getElementById("weddingCostsWrapper").style.display = "block";
+};
+
+document.getElementById("addNextStepBtn").onclick = async () => {
+  const text = document.getElementById("nextStepInput").value.trim();
+  const deadline = document.getElementById("nextStepDeadline").value || null;
+
+  if (!text) return alert("Please type a task");
+
+  await set(push(ref(db, NEXT_PATH)), {
+    text,
+    deadline,
+    done: false,
+    createdAt: Date.now(),
+  });
+
+  document.getElementById("nextStepInput").value = "";
+  document.getElementById("nextStepDeadline").value = "";
+
+  loadNextSteps();
+};
+
+function loadNextSteps() {
+  const listBox = document.getElementById("nextStepsList");
+
+  onValue(ref(db, NEXT_PATH), (snap) => {
+    const val = snap.val();
+    if (!val) {
+      listBox.innerHTML = `<div class="muted">No tasks yet.</div>`;
+      return;
+    }
+
+    const arr = Object.keys(val).map((id) => ({
+      id,
+      ...val[id],
+    }));
+
+    // sort by deadline OR created date
+    arr.sort(
+      (a, b) => (a.deadline || a.createdAt) - (b.deadline || b.createdAt)
+    );
+
+    listBox.innerHTML = "";
+
+    arr.forEach((step) => {
+      const row = document.createElement("div");
+      row.style.cssText = `
+        display:flex;
+        justify-content:space-between;
+        align-items:center;
+        padding:10px 0;
+        border-bottom:1px solid rgba(255,255,255,0.05);
+      `;
+
+      const left = document.createElement("div");
+      left.style.display = "flex";
+      left.style.alignItems = "center";
+      left.style.gap = "10px";
+
+      const chk = document.createElement("input");
+      chk.type = "checkbox";
+      chk.checked = step.done;
+      chk.onclick = () => {
+        set(ref(db, `${NEXT_PATH}/${step.id}/done`), chk.checked);
+      };
+
+      const txt = document.createElement("div");
+      txt.innerHTML = `
+        <div style="font-size:15px; ${
+          step.done ? "text-decoration:line-through;color:var(--muted);" : ""
+        }">
+          ${escapeHtml(step.text)}
+        </div>
+        ${
+          step.deadline
+            ? `<div class="muted" style="font-size:12px;">Deadline: ${step.deadline}</div>`
+            : ""
+        }
+      `;
+
+      left.appendChild(chk);
+      left.appendChild(txt);
+
+      const delBtn = document.createElement("button");
+      delBtn.textContent = "×";
+      delBtn.style.cssText = `
+        width:26px;height:26px;border:none;border-radius:8px;
+        background:rgba(255,255,255,0.06);color:white;cursor:pointer;
+      `;
+      delBtn.onclick = () => {
+        remove(ref(db, `${NEXT_PATH}/${step.id}`));
+      };
+
+      row.appendChild(left);
+      row.appendChild(delBtn);
+      listBox.appendChild(row);
+    });
+  });
+}

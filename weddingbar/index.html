@@ -24,6 +24,17 @@
         <div class="hdr-left">
           <h1 class="app-title">Wedding Costs</h1>
         </div>
+        <div
+          id="nextSteps"
+          style="
+            margin-right: auto;
+            font-size: 18px;
+            color: #5ec293;
+            cursor: pointer;
+          "
+        >
+          Next Steps
+        </div>
         <div class="hdr-right">
           <h1 class="app-title toggle-controls" id="toggleControlsBtn">
             Add Costs
@@ -31,70 +42,141 @@
           </h1>
         </div>
       </header>
-
-      <section class="controls card" aria-label="Controls">
-        <div class="inputs">
-          <input id="name" type="text" placeholder="Item (e.g., Caterer)" />
-          <input id="paid" type="number" placeholder="Paid (e.g., 5000)" />
-          <input id="total" type="number" placeholder="Total (e.g., 30000)" />
-          <label class="chk">
-            <input id="booked" type="checkbox" />
-            <span class="box" aria-hidden="true"></span>
-            <span class="chk-label">Booked</span>
-          </label>
-        </div>
-        <div class="actions">
-          <button id="addBtn" class="btn">Add / Save</button>
-          <button id="clearBtn" class="btn ghost">Clear</button>
-        </div>
-      </section>
-
-      <!-- Chart container: layout is dynamic via CSS/JS -->
-      <section id="summarySection" class="card" style="margin-bottom: 12px">
-        <div style="display: flex; justify-content: space-between">
-          <div>
-            <div class="muted" style="font-size: 12px">Total Paid</div>
-            <div id="summaryPaid" style="font-size: 18px; font-weight: 700">
-              ₱0
-            </div>
-          </div>
-          <select
-            id="sortSelect"
-            class="inputs"
+      <section
+        id="nextStepsPanel"
+        class="card"
+        style="display: none; padding: 16px"
+      >
+        <div
+          style="
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+          "
+        >
+          <h2 style="margin: 0">Next Steps</h2>
+          <button
+            id="nextStepsBackBtn"
             style="
-              padding: 12px;
-              border-radius: 10px;
-              background: var(--card);
+              padding: 6px 12px;
+              background: rgba(255, 255, 255, 0.05);
               color: white;
-              border: 0;
-              margin-left: auto;
-              margin-right: 20px;
+              border: none;
+              border-radius: 8px;
+              cursor: pointer;
             "
           >
-            <option value="none">Sort by…</option>
-            <option value="booked" selected>Booked → Not booked</option>
-            <option value="totalHigh">Highest Total</option>
-            <option value="totalLow">Lowest Total</option>
-          </select>
-          <div>
-            <div class="muted" style="font-size: 12px">Grand Total</div>
-            <div id="summaryTotal" style="font-size: 18px; font-weight: 700">
-              ₱0
+            Back
+          </button>
+        </div>
+
+        <div style="margin-top: 12px">
+          <input
+            id="nextStepInput"
+            type="text"
+            placeholder="Add next step..."
+            style="
+              width: 100%;
+              padding: 10px;
+              border-radius: 8px;
+              border: none;
+              background: var(--card);
+              color: white;
+            "
+          />
+
+          <input
+            id="nextStepDeadline"
+            type="date"
+            style="
+              margin-top: 8px;
+              padding: 10px;
+              width: 100%;
+              border-radius: 8px;
+              border: none;
+              background: var(--card);
+              color: white;
+            "
+          />
+
+          <button
+            id="addNextStepBtn"
+            class="btn"
+            style="margin-top: 10px; width: 100%"
+          >
+            Add Step
+          </button>
+        </div>
+
+        <div id="nextStepsList" style="margin-top: 20px">
+          <!-- tasks injected here -->
+        </div>
+      </section>
+
+      <div id="weddingCostsWrapper">
+        <section class="controls card" aria-label="Controls">
+          <div class="inputs">
+            <input id="name" type="text" placeholder="Item (e.g., Caterer)" />
+            <input id="paid" type="number" placeholder="Paid (e.g., 5000)" />
+            <input id="total" type="number" placeholder="Total (e.g., 30000)" />
+            <label class="chk">
+              <input id="booked" type="checkbox" />
+              <span class="box" aria-hidden="true"></span>
+              <span class="chk-label">Booked</span>
+            </label>
+          </div>
+          <div class="actions">
+            <button id="addBtn" class="btn">Add / Save</button>
+            <button id="clearBtn" class="btn ghost">Clear</button>
+          </div>
+        </section>
+
+        <!-- Chart container: layout is dynamic via CSS/JS -->
+        <section id="summarySection" class="card" style="margin-bottom: 12px">
+          <div style="display: flex; justify-content: space-between">
+            <div>
+              <div class="muted" style="font-size: 12px">Total Paid</div>
+              <div id="summaryPaid" style="font-size: 18px; font-weight: 700">
+                ₱0
+              </div>
+            </div>
+            <select
+              id="sortSelect"
+              class="inputs"
+              style="
+                padding: 12px;
+                border-radius: 10px;
+                background: var(--card);
+                color: white;
+                border: 0;
+                margin-left: auto;
+                margin-right: 20px;
+              "
+            >
+              <option value="none">Sort by…</option>
+              <option value="booked" selected>Booked → Not booked</option>
+              <option value="totalHigh">Highest Total</option>
+              <option value="totalLow">Lowest Total</option>
+            </select>
+            <div>
+              <div class="muted" style="font-size: 12px">Grand Total</div>
+              <div id="summaryTotal" style="font-size: 18px; font-weight: 700">
+                ₱0
+              </div>
             </div>
           </div>
-        </div>
-      </section>
+        </section>
 
-      <section id="chartSection" class="chart card" aria-label="Cost chart">
-        <div id="bars" class="bars horizontal" role="list" aria-live="polite">
-          <!-- Bars injected here by script.js -->
-        </div>
-      </section>
+        <section id="chartSection" class="chart card" aria-label="Cost chart">
+          <div id="bars" class="bars horizontal" role="list" aria-live="polite">
+            <!-- Bars injected here by script.js -->
+          </div>
+        </section>
 
-      <section id="detailPanel" class="detail card" aria-hidden="true">
-        <!-- Tapped bar details show here -->
-      </section>
-
+        <section id="detailPanel" class="detail card" aria-hidden="true">
+          <!-- Tapped bar details show here -->
+        </section>
+      </div>
       <div
         id="uploadLoader"
         style="display: none; margin-top: 10px; text-align: center"
