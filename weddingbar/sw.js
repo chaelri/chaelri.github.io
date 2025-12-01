@@ -9,37 +9,33 @@ const FILES = [
   "/icons/icon-512.png",
 ];
 
-/* DEBUG missing files */
+/* Optional: log missing files */
 FILES.forEach((f) => {
   fetch(f)
     .then((r) => {
       if (!r.ok) console.error("❌ Missing:", f);
     })
-    .catch(() => {
-      console.error("❌ Failed to load:", f);
-    });
+    .catch(() => console.error("❌ Failed to fetch:", f));
 });
 
 self.addEventListener("install", (event) => {
   event.waitUntil(
-    caches.open(CACHE).then((cache) =>
-      cache.addAll(FILES).catch((err) => {
-        console.error("❌ addAll failed", err);
-      })
-    )
+    caches.open(CACHE).then((cache) => {
+      return cache.addAll(FILES).catch((err) => {
+        console.error("❌ Cache addAll failed:", err);
+      });
+    })
   );
   self.skipWaiting();
 });
 
 self.addEventListener("activate", (event) => {
   event.waitUntil(
-    caches
-      .keys()
-      .then((keys) =>
-        Promise.all(
-          keys.filter((k) => k !== CACHE).map((k) => caches.delete(k))
-        )
-      )
+    caches.keys().then((keys) => {
+      return Promise.all(
+        keys.filter((k) => k !== CACHE).map((k) => caches.delete(k))
+      );
+    })
   );
   self.clients.claim();
 });

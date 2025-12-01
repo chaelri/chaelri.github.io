@@ -1,8 +1,8 @@
 {
   "name": "WeddingBar",
   "short_name": "WeddingBar",
-  "start_url": "/",
-  "scope": "/",
+  "start_url": "./",
+  "scope": "./",
   "display": "standalone",
   "orientation": "portrait",
   "background_color": "#071025",
