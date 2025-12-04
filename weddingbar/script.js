@@ -63,6 +63,8 @@ const fmt = (n) =>
     maximumFractionDigits: 0,
   }).format(n);
 
+let lastItems = [];
+
 // HTML escape
 function escapeHtml(s) {
   return String(s).replace(/[&<>"']/g, (m) => {
@@ -467,18 +469,12 @@ function showDetails(it) {
 /* Listen from Firebase */
 function listenRealtime() {
   onValue(ref(db, PATH), (snapshot) => {
-    const val = snapshot.val();
-    if (!val) {
-      render([]);
-      updateSummary([]);
-      return;
-    }
+    const val = snapshot.val() || {};
+    lastItems = Object.keys(val).map((k) => ({ id: k, ...val[k] }));
 
-    // Convert object to array
-    const arr = Object.keys(val).map((k) => ({ id: k, ...val[k] }));
     const sortType = document.getElementById("sortSelect").value;
-    render(arr, sortType);
-    updateSummary(arr);
+    render(lastItems, sortType);
+    updateSummary(lastItems);
   });
 }
 
@@ -558,13 +554,17 @@ addBtn.addEventListener("click", async () => {
   bookedInput.checked = false;
 });
 
+window.addEventListener("resize", () => {
+  const sortType = document.getElementById("sortSelect").value;
+  lastItems && render(lastItems, sortType);
+});
+
 clearBtn.onclick = () => {
   nameInput.value = "";
   totalInput.value = "";
   paidInput.value = "";
   bookedInput.checked = false;
 };
-
 
 // Checkbox helper — keep click-to-toggle but remove ripple animation
 document.querySelectorAll('.chk input[type="checkbox"]').forEach((input) => {
