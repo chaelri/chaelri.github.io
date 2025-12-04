@@ -204,6 +204,28 @@ body {
   justify-content: flex-end;
   padding-right: 4px;
   transition: width 0.9s ease, height 0.9s ease;
+  position: relative;
+  overflow: hidden;
+}
+
+.bar-fill::after {
+  content: "";
+  position: absolute;
+  top: 0;
+  left: -40%; /* start before the bar */
+  width: 40%;
+  height: 100%;
+
+  /* bright bump */
+  background: linear-gradient(
+    90deg,
+    rgba(255,255,255,0) 0%,
+    rgba(255,255,255,0.45) 50%,
+    rgba(255,255,255,0) 100%
+  );
+
+  filter: blur(6px);  
+  animation: bumpMove 2.2s infinite ease-in-out;
 }
 
 .progress-text {
@@ -317,6 +339,19 @@ body {
     background-position: 0% 50%;
   }
 }
+
+@keyframes bumpMove {
+  0% {
+    left: -40%;
+  }
+  50% {
+    left: 100%;
+  }
+  100% {
+    left: 100%;
+  }
+}
+
 
 
 /* Desktop Scrollbar Styling */
