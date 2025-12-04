@@ -197,11 +197,13 @@ body {
   height: 100%;
   width: 0%; /* horizontal growth */
   background: linear-gradient(90deg, var(--accent-start), var(--accent-end));
+  background-size: 300% 300%;
+  animation: barGradient 8s cubic-bezier(0.4, 0.0, 0.2, 1) infinite;
   display: flex;
   align-items: center;
   justify-content: flex-end;
   padding-right: 4px;
-  transition: width 0.9s ease, height 0.9s ease; 
+  transition: width 0.9s ease, height 0.9s ease;
 }
 
 .progress-text {
@@ -304,6 +306,19 @@ body {
   }
 }
 
+@keyframes barGradient {
+  0% {
+    background-position: 0% 50%;
+  }
+  50% {
+    background-position: 100% 50%;
+  }
+  100% {
+    background-position: 0% 50%;
+  }
+}
+
+
 /* Desktop Scrollbar Styling */
 @media (min-width: 720px) {
   .bars {
@@ -322,6 +337,8 @@ body {
 
   .bars::-webkit-scrollbar-thumb {
     background: linear-gradient(90deg, var(--accent-start), var(--accent-end));
+    background-size: 300% 300%;
+    animation: barGradient 8s cubic-bezier(0.4, 0.0, 0.2, 1) infinite;
     border-radius: 10px;
   }
 
@@ -416,6 +433,8 @@ body {
 
 .card input[type="file"]::-webkit-file-upload-button {
   background: linear-gradient(90deg, var(--accent-start), var(--accent-end));
+  background-size: 300% 300%;
+  animation: barGradient 8s cubic-bezier(0.4, 0.0, 0.2, 1) infinite;
   border: none;
   padding: 8px 14px;
   border-radius: 8px;
