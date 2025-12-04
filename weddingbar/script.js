@@ -557,7 +557,6 @@ clearBtn.onclick = () => {
   bookedInput.checked = false;
 };
 
-window.addEventListener("resize", listenRealtime);
 
 // Checkbox helper — keep click-to-toggle but remove ripple animation
 document.querySelectorAll('.chk input[type="checkbox"]').forEach((input) => {
