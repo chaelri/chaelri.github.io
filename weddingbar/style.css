@@ -198,7 +198,7 @@ body {
   width: 0%; /* horizontal growth */
   background: linear-gradient(90deg, var(--accent-start), var(--accent-end));
   background-size: 300% 300%;
-  animation: barGradient 8s cubic-bezier(0.4, 0.0, 0.2, 1) infinite;
+  animation: barGradient 8s cubic-bezier(0.4, 0, 0.2, 1) infinite;
   display: flex;
   align-items: center;
   justify-content: flex-end;
@@ -219,13 +219,36 @@ body {
   /* bright bump */
   background: linear-gradient(
     90deg,
-    rgba(255,255,255,0) 0%,
-    rgba(255,255,255,0.45) 50%,
-    rgba(255,255,255,0) 100%
+    rgba(255, 255, 255, 0) 0%,
+    rgba(255, 255, 255, 0.45) 50%,
+    rgba(255, 255, 255, 0) 100%
   );
 
-  filter: blur(6px);  
+  filter: blur(6px);
   animation: bumpMove 2.2s infinite ease-in-out;
+}
+
+@keyframes barBounce {
+  0% {
+    transform: scaleX(1) scaleY(1);
+  }
+  70% {
+    transform: scaleX(1.02) scaleY(1.02);
+  }
+  100% {
+    transform: scaleX(1) scaleY(1);
+  }
+}
+
+.bar-fill.bounce {
+  animation: barBounce 0.25s ease-out 1;
+}
+
+@media (min-width: 720px) {
+  .bar-fill.bounce {
+    animation: barBounce 0.25s ease-out 1;
+    transform-origin: bottom;
+  }
 }
 
 .progress-text {
@@ -352,8 +375,6 @@ body {
   }
 }
 
-
-
 /* Desktop Scrollbar Styling */
 @media (min-width: 720px) {
   .bars {
@@ -373,7 +394,7 @@ body {
   .bars::-webkit-scrollbar-thumb {
     background: linear-gradient(90deg, var(--accent-start), var(--accent-end));
     background-size: 300% 300%;
-    animation: barGradient 8s cubic-bezier(0.4, 0.0, 0.2, 1) infinite;
+    animation: barGradient 8s cubic-bezier(0.4, 0, 0.2, 1) infinite;
     border-radius: 10px;
   }
 
@@ -469,7 +490,7 @@ body {
 .card input[type="file"]::-webkit-file-upload-button {
   background: linear-gradient(90deg, var(--accent-start), var(--accent-end));
   background-size: 300% 300%;
-  animation: barGradient 8s cubic-bezier(0.4, 0.0, 0.2, 1) infinite;
+  animation: barGradient 8s cubic-bezier(0.4, 0, 0.2, 1) infinite;
   border: none;
   padding: 8px 14px;
   border-radius: 8px;
@@ -581,4 +602,36 @@ body {
       <line x1='8' y1='3' x2='8' y2='7' stroke='white' stroke-width='2'/>\
       <line x1='16' y1='3' x2='16' y2='7' stroke='white' stroke-width='2'/>\
     </svg>");
+}
+
+.bar-card.flash {
+  animation: cardFlash 0.6s ease-out;
+}
+
+@keyframes cardFlash {
+  0% {
+    background: rgba(255, 255, 255, 0.18);
+  }
+  100% {
+    background: transparent;
+  }
+}
+
+#saveToast.show {
+  animation: toastPop 0.55s ease-out;
+}
+
+@keyframes toastPop {
+  0% {
+    transform: translateY(-10px);
+    opacity: 0;
+  }
+  40% {
+    transform: translateY(0);
+    opacity: 1;
+  }
+  100% {
+    transform: translateY(0);
+    opacity: 1;
+  }
 }

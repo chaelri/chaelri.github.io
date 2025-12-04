@@ -103,6 +103,7 @@ function render(items = [], sortType = "none") {
 
     const card = document.createElement("button");
     card.className = "bar-card";
+    card.dataset.id = it.id; // ADD THIS
     card.onclick = () => showDetails(it);
 
     // THUMB
@@ -127,6 +128,11 @@ function render(items = [], sortType = "none") {
       requestAnimationFrame(() => {
         requestAnimationFrame(() => {
           fill.style.width = pct + "%"; // animate to final
+          // Add bounce class AFTER animation completes
+          setTimeout(() => fill.classList.add("bounce"), 900);
+
+          // Remove bounce so it's reusable on the next render
+          setTimeout(() => fill.classList.remove("bounce"), 1200);
         });
       });
     } else {
@@ -135,6 +141,11 @@ function render(items = [], sortType = "none") {
       requestAnimationFrame(() => {
         requestAnimationFrame(() => {
           fill.style.height = pct + "%"; // animate to final
+          // Add bounce class AFTER animation completes
+          setTimeout(() => fill.classList.add("bounce"), 900);
+
+          // Remove bounce so it's reusable on the next render
+          setTimeout(() => fill.classList.remove("bounce"), 1200);
         });
       });
     }
@@ -303,6 +314,14 @@ function showDetails(it) {
     // refresh live view
     listenRealtime();
 
+    setTimeout(() => {
+      const card = document.querySelector(`[data-id="${it.id}"]`);
+      if (card) {
+        card.classList.add("flash");
+        setTimeout(() => card.classList.remove("flash"), 600);
+      }
+    }, 200);
+
     // hide panel
     detailPanel.classList.remove("show");
     detailPanel.setAttribute("aria-hidden", "true");
@@ -311,6 +330,7 @@ function showDetails(it) {
     // show bars again
     document.getElementById("chartSection").style.display = "block";
     listenRealtime();
+    showSaveToast();
   });
 
   deleteBtn2.addEventListener("click", async () => {
@@ -551,6 +571,8 @@ addBtn.addEventListener("click", async () => {
     booked,
     createdAt: Date.now(),
   });
+
+  showSaveToast();
 
   nameInput.value = "";
   totalInput.value = "";
@@ -881,4 +903,14 @@ function loadNextSteps() {
       listBox.appendChild(row);
     });
   });
+}
+
+function showSaveToast() {
+  const t = document.getElementById("saveToast");
+  t.style.display = "block";
+  t.classList.add("show");
+  setTimeout(() => {
+    t.classList.remove("show");
+    t.style.display = "none";
+  }, 1200);
 }
