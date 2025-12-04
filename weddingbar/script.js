@@ -6,6 +6,7 @@ import {
   onValue,
   push,
   set,
+  update,
   remove,
 } from "https://www.gstatic.com/firebasejs/9.6.1/firebase-database.js";
 import {
@@ -117,9 +118,11 @@ function render(items = [], sortType = "none") {
 
     // VIEWPORT RESPONSIVE BEHAVIOR
     if (window.innerWidth < 720) {
-      fill.style.width = pct + "%"; // MOBILE horizontal
+      fill.style.width = "0%";
+      requestAnimationFrame(() => (fill.style.width = pct + "%"));
     } else {
-      fill.style.height = pct + "%"; // DESKTOP vertical
+      fill.style.height = "0%";
+      requestAnimationFrame(() => (fill.style.height = pct + "%"));
     }
 
     // INFO
@@ -478,7 +481,7 @@ async function sendNotification(title, body, extraData = {}) {
  */
 async function updateEntry(id, obj) {
   if (!id) throw new Error("Missing id for updateEntry");
-  await set(ref(db, `${PATH}/${id}`), obj);
+  await update(ref(db, `${PATH}/${id}`), obj);
 }
 
 /**

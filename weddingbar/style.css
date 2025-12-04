@@ -201,7 +201,7 @@ body {
   align-items: center;
   justify-content: flex-end;
   padding-right: 4px;
-  transition: width 0.6s;
+  transition: width 0.9s ease, height 0.9s ease; 
 }
 
 .progress-text {
