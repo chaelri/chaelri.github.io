@@ -306,6 +306,11 @@ function showDetails(it) {
     // hide panel
     detailPanel.classList.remove("show");
     detailPanel.setAttribute("aria-hidden", "true");
+    detailPanel.style.display = "none";
+
+    // show bars again
+    document.getElementById("chartSection").style.display = "block";
+    listenRealtime();
   });
 
   deleteBtn2.addEventListener("click", async () => {
@@ -316,10 +321,13 @@ function showDetails(it) {
 
     await deleteEntry(it.id);
 
-    // refresh and hide
-    listenRealtime();
     detailPanel.classList.remove("show");
     detailPanel.setAttribute("aria-hidden", "true");
+    detailPanel.style.display = "none";
+
+    // show bars again
+    document.getElementById("chartSection").style.display = "block";
+    listenRealtime();
   });
 
   const backBtn = document.getElementById("backBtn");
