@@ -116,13 +116,24 @@ function render(items = [], sortType = "none") {
     fill.appendChild(text);
     thumb.appendChild(fill);
 
-    // VIEWPORT RESPONSIVE BEHAVIOR
+    // VIEWPORT RESPONSIVE BEHAVIOR — animate from 0%
     if (window.innerWidth < 720) {
-      fill.style.width = "0%";
-      requestAnimationFrame(() => (fill.style.width = pct + "%"));
+      fill.style.width = "0%"; // start empty
+
+      // allow DOM to apply 0% first
+      requestAnimationFrame(() => {
+        requestAnimationFrame(() => {
+          fill.style.width = pct + "%"; // animate to final
+        });
+      });
     } else {
-      fill.style.height = "0%";
-      requestAnimationFrame(() => (fill.style.height = pct + "%"));
+      fill.style.height = "0%"; // start empty
+
+      requestAnimationFrame(() => {
+        requestAnimationFrame(() => {
+          fill.style.height = pct + "%"; // animate to final
+        });
+      });
     }
 
     // INFO
