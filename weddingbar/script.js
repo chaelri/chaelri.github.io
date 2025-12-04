@@ -96,7 +96,10 @@ function render(items = [], sortType = "none") {
 
   items.forEach((it) => {
     const rawPct = it.total ? (it.paid / it.total) * 100 : 0;
-    const pct = Math.min(100, Math.max(0, Math.round(rawPct))); // FIXED
+    const pct =
+      it.total === 0 && it.paid === 0
+        ? 100
+        : Math.min(100, Math.max(0, Math.round((it.paid / it.total) * 100)));
 
     const card = document.createElement("button");
     card.className = "bar-card";
