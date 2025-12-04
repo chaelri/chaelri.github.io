@@ -328,6 +328,7 @@ function showDetails(it) {
 
     // show bars again
     document.getElementById("chartSection").style.display = "block";
+    listenRealtime();
   };
 
   // ATTACHMENTS LIST (with preview + delete)
@@ -754,6 +755,7 @@ document.getElementById("nextStepsBackBtn").onclick = () => {
   document.getElementById("nextStepsAddBar").style.display = "none";
   document.getElementById("weddingCostsWrapper").style.display = "block";
   document.getElementById("toggleControlsBtn").style.display = "block";
+  listenRealtime();
 };
 
 document.getElementById("addNextStepBtn").onclick = async () => {
