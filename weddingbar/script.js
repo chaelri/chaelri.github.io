@@ -284,8 +284,8 @@ function showDetails(it) {
     const newTotal = Number(document.getElementById("detailTotal").value) || 0;
     const newBooked = document.getElementById("detailBooked").checked;
 
-    if (!newName || !newTotal) {
-      return alert("Please provide a name and a total amount.");
+    if (!newName) {
+      return alert("Please provide a name.");
     }
 
     // call update helper (keeps createdAt)
@@ -531,7 +531,7 @@ addBtn.addEventListener("click", async () => {
   const paid = Number(paidInput.value) || 0;
   const booked = bookedInput.checked;
 
-  if (!name || !total) return alert("Missing fields.");
+  if (!name) return alert("Missing name.");
 
   await saveEntry({
     name,
