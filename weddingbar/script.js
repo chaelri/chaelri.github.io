@@ -560,13 +560,22 @@ addBtn.addEventListener("click", async () => {
 
 window.addEventListener("orientationchange", listenRealtime());
 
+let lastIsMobile = window.innerWidth < 720;
+window.addEventListener("resize", () => {
+  const isMobile = window.innerWidth < 720;
+
+  if (isMobile !== lastIsMobile) {
+    lastIsMobile = isMobile;
+    listenRealtime();
+  }
+});
+
 clearBtn.onclick = () => {
   nameInput.value = "";
   totalInput.value = "";
   paidInput.value = "";
   bookedInput.checked = false;
 };
-
 
 // Checkbox helper — keep click-to-toggle but remove ripple animation
 document.querySelectorAll('.chk input[type="checkbox"]').forEach((input) => {
