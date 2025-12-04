@@ -63,8 +63,6 @@ const fmt = (n) =>
     maximumFractionDigits: 0,
   }).format(n);
 
-let lastItems = [];
-
 // HTML escape
 function escapeHtml(s) {
   return String(s).replace(/[&<>"']/g, (m) => {
@@ -469,12 +467,18 @@ function showDetails(it) {
 /* Listen from Firebase */
 function listenRealtime() {
   onValue(ref(db, PATH), (snapshot) => {
-    const val = snapshot.val() || {};
-    lastItems = Object.keys(val).map((k) => ({ id: k, ...val[k] }));
+    const val = snapshot.val();
+    if (!val) {
+      render([]);
+      updateSummary([]);
+      return;
+    }
 
+    // Convert object to array
+    const arr = Object.keys(val).map((k) => ({ id: k, ...val[k] }));
     const sortType = document.getElementById("sortSelect").value;
-    render(lastItems, sortType);
-    updateSummary(lastItems);
+    render(arr, sortType);
+    updateSummary(arr);
   });
 }
 
@@ -554,10 +558,7 @@ addBtn.addEventListener("click", async () => {
   bookedInput.checked = false;
 });
 
-window.addEventListener("resize", () => {
-  const sortType = document.getElementById("sortSelect").value;
-  lastItems && render(lastItems, sortType);
-});
+window.addEventListener("orientationchange", listenRealtime());
 
 clearBtn.onclick = () => {
   nameInput.value = "";
@@ -565,6 +566,7 @@ clearBtn.onclick = () => {
   paidInput.value = "";
   bookedInput.checked = false;
 };
+
 
 // Checkbox helper — keep click-to-toggle but remove ripple animation
 document.querySelectorAll('.chk input[type="checkbox"]').forEach((input) => {
