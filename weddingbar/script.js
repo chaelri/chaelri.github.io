@@ -941,7 +941,7 @@ const closeTableView = document.getElementById("closeTableView");
    -------------------------- */
 
 let tableSort = JSON.parse(localStorage.getItem("tableSort")) || {
-  column: null,      // "name", "paid", "total", "booked"
+  column: null, // "name", "paid", "total", "booked"
   direction: "default", // "default" → "asc" → "desc"
 };
 
@@ -1005,7 +1005,11 @@ function renderTableView(items) {
         <td>${escapeHtml(it.name)}</td>
         <td>${fmt(it.paid)}</td>
         <td>${fmt(it.total)}</td>
-        <td>${it.booked ? "Booked" : "Not booked"}</td>
+        <td>
+          <span class="status-chip ${it.booked ? "status-booked" : "status-not"}">
+            ${it.booked ? "Booked" : "Not booked"}
+          </span>
+        </td>
       </tr>
     `;
   });
@@ -1032,7 +1036,8 @@ function renderTableView(items) {
         tableSort.direction = "asc";
       } else {
         if (tableSort.direction === "asc") tableSort.direction = "desc";
-        else if (tableSort.direction === "desc") tableSort.direction = "default";
+        else if (tableSort.direction === "desc")
+          tableSort.direction = "default";
         else tableSort.direction = "asc";
       }
 
