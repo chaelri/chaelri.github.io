@@ -1155,6 +1155,8 @@ document.addEventListener("touchend", (e) => {
     // 2. If table is NOT open → open table
     if (!tableOpen) {
       tableViewPanel.classList.add("open");
+      leftHandle.style.opacity = "0"; // hide left handle
+      rightHandle.style.opacity = "0"; // hide right handle
       lockBodyScroll();
       return;
     }
@@ -1162,6 +1164,8 @@ document.addEventListener("touchend", (e) => {
     // 3. If table *is* open → close table
     if (tableOpen) {
       tableViewPanel.classList.remove("open");
+      leftHandle.style.opacity = "0.5";
+      rightHandle.style.opacity = "0.5";
       unlockBodyScroll();
       return;
     }
@@ -1181,6 +1185,8 @@ document.addEventListener("touchend", (e) => {
     // 2. If gallery is NOT open → open gallery
     if (!galleryOpen) {
       galleryPanel.classList.add("open");
+      leftHandle.style.opacity = "0";
+      rightHandle.style.opacity = "0";
       lockBodyScroll();
       return;
     }
@@ -1188,6 +1194,8 @@ document.addEventListener("touchend", (e) => {
     // 3. If gallery *is* open → close gallery
     if (galleryOpen) {
       galleryPanel.classList.remove("open");
+      leftHandle.style.opacity = "0.5";
+      rightHandle.style.opacity = "0.5";
       unlockBodyScroll();
       return;
     }
@@ -1225,3 +1233,21 @@ function unlockBodyScroll() {
   document.documentElement.style.overflow = "";
 }
 
+const leftHandle = document.getElementById("leftHandle");
+const rightHandle = document.getElementById("rightHandle");
+
+/* OPEN TABLE (Left Handle) */
+leftHandle.onclick = () => {
+  if (!tableViewPanel.classList.contains("open")) {
+    tableViewPanel.classList.add("open");
+    lockBodyScroll();
+  }
+};
+
+/* OPEN GALLERY (Right Handle) */
+rightHandle.onclick = () => {
+  if (!galleryPanel.classList.contains("open")) {
+    galleryPanel.classList.add("open");
+    lockBodyScroll();
+  }
+};
