@@ -1002,5 +1002,5 @@ document.addEventListener("touchend", (e) => {
 
 closeTableView.onclick = () => {
   tableViewPanel.classList.remove("open");
-  document.querySelector("main").style.transform = "translateX(0)";
+  document.querySelector("weddingCostsWrapper").style.transform = "translateX(0)";
 };
