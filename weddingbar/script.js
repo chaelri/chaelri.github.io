@@ -174,13 +174,23 @@ function render(items = [], sortType = "none") {
     barsRoot.appendChild(card);
   });
 }
-// === Days Left Counter ===
-const targetDate = new Date("2025-07-02");
-const today = new Date();
-const diffTime = targetDate - today;
 
+// === Days Left Counter (NEXT July 2) ===
+const today = new Date();
+let targetYear = today.getFullYear();
+
+// Create July 2 of the current year
+let targetDate = new Date(`${targetYear}-07-02`);
+
+// If we already passed July 2 this year → use next year
+if (today > targetDate) {
+  targetYear++;
+  targetDate = new Date(`${targetYear}-07-02`);
+}
+
+// Calculate days left
+const diffTime = targetDate - today;
 let daysLeft = Math.ceil(diffTime / (1000 * 60 * 60 * 24));
-if (daysLeft < 0) daysLeft = 0;
 
 document.getElementById("daysLeftNumber").textContent = daysLeft;
 
