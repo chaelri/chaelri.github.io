@@ -1092,23 +1092,6 @@ document.addEventListener("touchstart", (e) => {
   touchStartX = e.changedTouches[0].screenX;
 });
 
-document.addEventListener("touchend", (e) => {
-  if (!isMobile()) return;
-
-  touchEndX = e.changedTouches[0].screenX;
-  const diff = touchEndX - touchStartX;
-
-  // 👈 Swipe left → OPEN
-  if (diff < -70) {
-    tableViewPanel.classList.add("open");
-  }
-
-  // 👉 Swipe right → CLOSE
-  if (diff > 70 && tableViewPanel.classList.contains("open")) {
-    tableViewPanel.classList.remove("open");
-  }
-});
-
 /* CLOSE BUTTON */
 closeTableView.onclick = () => {
   tableViewPanel.classList.remove("open");
@@ -1151,16 +1134,56 @@ function renderGallery(items) {
 document.addEventListener("touchend", (e) => {
   if (!isMobile()) return;
 
-  const diff = e.changedTouches[0].screenX - touchStartX;
+  touchEndX = e.changedTouches[0].screenX;
+  const diff = touchEndX - touchStartX;
 
-  // 👉 Swipe right → open gallery
-  if (diff > 70 && !galleryPanel.classList.contains("open")) {
-    galleryPanel.classList.add("open");
+  const tableOpen = tableViewPanel.classList.contains("open");
+  const galleryOpen = galleryPanel.classList.contains("open");
+
+  /* =============================
+       SWIPE LEFT  (→ direction)
+     ============================= */
+  if (diff < -70) {
+    // 1. If gallery is open → close gallery
+    if (galleryOpen) {
+      galleryPanel.classList.remove("open");
+      return;
+    }
+
+    // 2. If table is NOT open → open table
+    if (!tableOpen) {
+      tableViewPanel.classList.add("open");
+      return;
+    }
+
+    // 3. If table *is* open → close table
+    if (tableOpen) {
+      tableViewPanel.classList.remove("open");
+      return;
+    }
   }
 
-  // 👈 Swipe left → close gallery
-  if (diff < -70 && galleryPanel.classList.contains("open")) {
-    galleryPanel.classList.remove("open");
+  /* =============================
+       SWIPE RIGHT  (← direction)
+     ============================= */
+  if (diff > 70) {
+    // 1. If table is open → close table
+    if (tableOpen) {
+      tableViewPanel.classList.remove("open");
+      return;
+    }
+
+    // 2. If gallery is NOT open → open gallery
+    if (!galleryOpen) {
+      galleryPanel.classList.add("open");
+      return;
+    }
+
+    // 3. If gallery *is* open → close gallery
+    if (galleryOpen) {
+      galleryPanel.classList.remove("open");
+      return;
+    }
   }
 });
 
