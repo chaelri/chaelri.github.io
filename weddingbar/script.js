@@ -133,8 +133,8 @@ function render(items = [], sortType = "none") {
     text.className = "progress-text";
     text.textContent = it.booked || it.paid > 0 ? pct + "%" : "—";
 
+    fill.appendChild(text);
     thumb.appendChild(fill);
-    thumb.appendChild(text); // 🔥 text is now OUTSIDE the animated mask
 
     // VIEWPORT RESPONSIVE BEHAVIOR — animate from 0%
     if (window.innerWidth < 720) {
@@ -210,7 +210,9 @@ if (today > targetDate) {
 
 // Days difference without time component
 const diffTime = targetDate - today;
-const daysLeft = diffTime / (1000 * 60 * 60 * 24);
+
+// EXACT SAME RESULT AS THE COUNTDOWN WEBSITE
+const daysLeft = Math.floor(diffTime / (1000 * 60 * 60 * 24));
 
 document.getElementById("daysLeftNumber").textContent = daysLeft;
 
