@@ -234,7 +234,7 @@ function updateSummary(items = []) {
 
   const percent =
     grandTotal > 0 ? Math.round((totalPaid / grandTotal) * 100) : 0;
-  updateCircleProgress(percent);
+  animateCircleProgress(percent);
 }
 
 // SHOW DETAILS
@@ -1244,14 +1244,33 @@ function unlockBodyScroll() {
   document.documentElement.style.overflow = "";
 }
 
-function updateCircleProgress(pct) {
+function animateCircleProgress(targetPct) {
   const circle = document.getElementById("summaryProgressCircle");
   const text = document.getElementById("summaryPctText");
 
   const radius = 45;
   const circ = 2 * Math.PI * radius;
-  const offset = circ - (pct / 100) * circ;
 
-  circle.style.strokeDashoffset = offset;
-  text.textContent = pct + "%";
+  let current = 0;
+  const duration = 900; // ms
+  const startTime = performance.now();
+
+  function frame(now) {
+    const progress = Math.min((now - startTime) / duration, 1);
+    const eased = progress < 1 ? 1 - Math.pow(1 - progress, 3) : 1; // smooth ease-out
+    current = Math.round(targetPct * eased);
+
+    // update circle
+    const offset = circ - (current / 100) * circ;
+    circle.style.strokeDashoffset = offset;
+
+    // update text
+    text.textContent = current + "%";
+
+    if (progress < 1) {
+      requestAnimationFrame(frame);
+    }
+  }
+
+  requestAnimationFrame(frame);
 }
