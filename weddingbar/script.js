@@ -84,6 +84,28 @@ function render(items = [], sortType = "none") {
     items.sort((a, b) => b.total - a.total);
   } else if (sortType === "totalLow") {
     items.sort((a, b) => a.total - b.total);
+  } else if (sortType === "nameAZ") {
+    items.sort((a, b) => a.name.localeCompare(b.name));
+  } else if (sortType === "nameZA") {
+    items.sort((a, b) => b.name.localeCompare(a.name));
+  } else if (sortType === "notBooked") {
+    items.sort((a, b) => (a.booked === true) - (b.booked === true));
+  } else if (sortType === "paidLow") {
+    items.sort((a, b) => (a.paid || 0) - (b.paid || 0));
+  } else if (sortType === "paidHigh") {
+    items.sort((a, b) => (b.paid || 0) - (a.paid || 0));
+  } else if (sortType === "pctLow") {
+    items.sort((a, b) => {
+      const pA = a.total ? a.paid / a.total : 0;
+      const pB = b.total ? b.paid / b.total : 0;
+      return pA - pB;
+    });
+  } else if (sortType === "pctHigh") {
+    items.sort((a, b) => {
+      const pA = a.total ? a.paid / a.total : 0;
+      const pB = b.total ? b.paid / b.total : 0;
+      return pB - pA;
+    });
   }
 
   barsRoot.innerHTML = "";

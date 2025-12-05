@@ -247,9 +247,26 @@
               "
             >
               <option value="none">Sort by…</option>
-              <option value="booked" selected>Booked → Not booked</option>
-              <option value="totalHigh">Highest Total</option>
-              <option value="totalLow">Lowest Total</option>
+
+              <!-- Alphabetical -->
+              <option value="nameAZ">Alphabetical (A → Z)</option>
+              <option value="nameZA">Alphabetical (Z → A)</option>
+
+              <!-- Status -->
+              <option value="booked">Booked → Not booked</option>
+              <option value="notBooked">Not booked → Booked</option>
+
+              <!-- Paid -->
+              <option value="paidLow">Paid: Lowest → Highest</option>
+              <option value="paidHigh">Paid: Highest → Lowest</option>
+
+              <!-- Total -->
+              <option value="totalLow">Total: Lowest → Highest</option>
+              <option value="totalHigh">Total: Highest → Lowest</option>
+
+              <!-- Progress % -->
+              <option value="pctLow">Progress: Lowest %</option>
+              <option value="pctHigh">Progress: Highest %</option>
             </select>
             <div>
               <div class="muted" style="font-size: 12px">Grand Total</div>
