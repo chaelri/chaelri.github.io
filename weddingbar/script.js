@@ -197,25 +197,28 @@ function render(items = [], sortType = "none") {
   });
 }
 
-// === Days Left Counter (NEXT July 2, count FULL day) ===
-const today = new Date();
-today.setHours(0, 0, 0, 0); // normalize
+const weddingDate = new Date("July 2, 2026 00:00:00").getTime();
 
-let targetYear = today.getFullYear();
+function updateCountdown() {
+  const now = new Date().getTime();
+  const diff = weddingDate - now;
 
-// FULL DAY included → July 3, 00:00
-let targetDate = new Date(targetYear, 6, 3); // month index 6 = July
+  if (diff <= 0) {
+    document.getElementById("weddingCountdownTitle").textContent =
+      "💍 It’s Wedding Day!";
+    document.getElementById("countdownTimer").textContent =
+      "🎉 Happily ever after starts now!";
+    return;
+  }
 
-// If today already past July 3 → use next year
-if (today >= targetDate) {
-  targetDate = new Date(targetYear + 1, 6, 3);
+  const days = Math.floor(diff / (1000 * 60 * 60 * 24));
+  // const hours = Math.floor((diff % (1000 * 60 * 60 * 24)) / (1000 * 60 * 60));
+  // const minutes = Math.floor((diff % (1000 * 60 * 60)) / (1000 * 60));
+  // const seconds = Math.floor((diff % (1000 * 60)) / 1000);
+  document.getElementById("daysLeftNumber").textContent = days;
 }
 
-// difference in full days
-const diffTime = targetDate - today;
-const daysLeft = Math.floor(diffTime / (1000 * 60 * 60 * 24));
-
-document.getElementById("daysLeftNumber").textContent = daysLeft;
+updateCountdown();
 
 function updateSummary(items = []) {
   let totalPaid = 0;
