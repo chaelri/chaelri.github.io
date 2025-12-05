@@ -825,12 +825,3 @@ body {
   background: rgba(255, 255, 255, 0.05);
 }
 
-/* enable touch zoom within the fullscreen viewer only */
-#imgViewerFull {
-  touch-action: pinch-zoom; /* allow pinch-zoom */
-}
-
-/* prevent zoom anywhere else */
-body {
-  touch-action: manipulation;
-}
