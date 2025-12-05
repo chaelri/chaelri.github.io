@@ -1095,6 +1095,7 @@ document.addEventListener("touchstart", (e) => {
 /* CLOSE BUTTON */
 closeTableView.onclick = () => {
   tableViewPanel.classList.remove("open");
+  unlockBodyScroll();
 };
 
 function renderGallery(items) {
@@ -1147,18 +1148,21 @@ document.addEventListener("touchend", (e) => {
     // 1. If gallery is open → close gallery
     if (galleryOpen) {
       galleryPanel.classList.remove("open");
+      unlockBodyScroll();
       return;
     }
 
     // 2. If table is NOT open → open table
     if (!tableOpen) {
       tableViewPanel.classList.add("open");
+      lockBodyScroll();
       return;
     }
 
     // 3. If table *is* open → close table
     if (tableOpen) {
       tableViewPanel.classList.remove("open");
+      unlockBodyScroll();
       return;
     }
   }
@@ -1170,18 +1174,21 @@ document.addEventListener("touchend", (e) => {
     // 1. If table is open → close table
     if (tableOpen) {
       tableViewPanel.classList.remove("open");
+      unlockBodyScroll();
       return;
     }
 
     // 2. If gallery is NOT open → open gallery
     if (!galleryOpen) {
       galleryPanel.classList.add("open");
+      lockBodyScroll();
       return;
     }
 
     // 3. If gallery *is* open → close gallery
     if (galleryOpen) {
       galleryPanel.classList.remove("open");
+      unlockBodyScroll();
       return;
     }
   }
@@ -1189,6 +1196,7 @@ document.addEventListener("touchend", (e) => {
 
 closeGallery.onclick = () => {
   galleryPanel.classList.remove("open");
+  unlockBodyScroll();
 };
 
 /* =====================================================
@@ -1206,3 +1214,13 @@ function setupScrollReset(panel) {
 
 setupScrollReset(tableViewPanel);
 setupScrollReset(galleryPanel);
+
+function lockBodyScroll() {
+  document.body.style.overflow = "hidden";
+  document.documentElement.style.overflow = "hidden";
+}
+
+function unlockBodyScroll() {
+  document.body.style.overflow = "";
+  document.documentElement.style.overflow = "";
+}
