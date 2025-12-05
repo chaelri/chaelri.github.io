@@ -179,22 +179,67 @@
             </div>
 
             <!-- RIGHT: Circle -->
-            <div class="circle-wrapper">
-              <div class="circle">
-                <svg>
-                  <circle class="bg" cx="70" cy="70" r="70"></circle>
-                  <circle
-                    class="fg"
-                    id="progressCircle"
-                    cx="70"
-                    cy="70"
-                    r="70"
-                  ></circle>
-                </svg>
+            <!-- RIGHT: Circular Progress -->
+            <div
+              id="summaryCircleWrapper"
+              style="width: 105px; height: 105px; position: relative"
+            >
+              <svg id="summaryCircle" width="105" height="105">
+                <!-- Background circle -->
+                <circle
+                  cx="52.5"
+                  cy="52.5"
+                  r="45"
+                  stroke="#3a3f53"
+                  stroke-width="10"
+                  fill="none"
+                ></circle>
 
-                <div class="circle-number">
-                  <h2 id="progressDisplay">0%</h2>
-                </div>
+                <!-- Gradient definition -->
+                <defs>
+                  <linearGradient
+                    id="circleGradient"
+                    x1="0%"
+                    y1="0%"
+                    x2="100%"
+                    y2="100%"
+                  >
+                    <stop offset="0%" stop-color="var(--accent-start)" />
+                    <stop offset="100%" stop-color="var(--accent-end)" />
+                  </linearGradient>
+                </defs>
+
+                <!-- Progress circle -->
+                <circle
+                  id="summaryProgressCircle"
+                  cx="52.5"
+                  cy="52.5"
+                  r="45"
+                  stroke="url(#circleGradient)"
+                  stroke-width="10"
+                  fill="none"
+                  stroke-linecap="round"
+                  transform="rotate(-90 52.5 52.5)"
+                  stroke-dasharray="283"
+                  stroke-dashoffset="283"
+                  style="transition: stroke-dashoffset 0.8s ease"
+                ></circle>
+              </svg>
+
+              <!-- Center text -->
+              <div
+                id="summaryPctText"
+                style="
+                  position: absolute;
+                  inset: 0;
+                  display: flex;
+                  align-items: center;
+                  justify-content: center;
+                  font-size: 22px;
+                  font-weight: 700;
+                "
+              >
+                0%
               </div>
             </div>
           </div>

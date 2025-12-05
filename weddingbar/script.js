@@ -232,21 +232,9 @@ function updateSummary(items = []) {
   document.getElementById("summaryPaid").textContent = fmt(totalPaid);
   document.getElementById("summaryTotal").textContent = fmt(grandTotal);
 
-  const paid = fmt(totalPaid);
-  const total = fmt(grandTotal);
-
-  const pct = total > 0 ? Math.round((paid / total) * 100) : 0;
-
-  // update number
-  document.getElementById("progressDisplay").textContent = pct + "%";
-
-  // update circle fill
-  const circle = document.getElementById("progressCircle");
-  const radius = circle.r.baseVal.value; // 70
-  const circumference = 2 * Math.PI * radius; // 440 approx
-
-  circle.style.strokeDasharray = circumference;
-  circle.style.strokeDashoffset = circumference - (circumference * pct) / 100;
+  const percent =
+    grandTotal > 0 ? Math.round((totalPaid / grandTotal) * 100) : 0;
+  updateCircleProgress(percent);
 }
 
 // SHOW DETAILS
@@ -1254,4 +1242,16 @@ function lockBodyScroll() {
 function unlockBodyScroll() {
   document.body.style.overflow = "";
   document.documentElement.style.overflow = "";
+}
+
+function updateCircleProgress(pct) {
+  const circle = document.getElementById("summaryProgressCircle");
+  const text = document.getElementById("summaryPctText");
+
+  const radius = 45;
+  const circ = 2 * Math.PI * radius;
+  const offset = circ - (pct / 100) * circ;
+
+  circle.style.strokeDashoffset = offset;
+  text.textContent = pct + "%";
 }
