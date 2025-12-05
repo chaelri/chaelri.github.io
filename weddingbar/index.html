@@ -14,6 +14,9 @@
     <link rel="icon" href="icons/icon-192.png" type="image/png" />
     <link rel="apple-touch-icon" href="icons/icon-192.png" />
 
+    <!-- Circular Progress Bar Library -->
+    <script src="https://cdn.jsdelivr.net/npm/circular-progress-bar@1.2.0/dist/circular-progress-bar.min.js"></script>
+
     <meta name="theme-color" content="#071025" />
   </head>
   <body>
@@ -205,6 +208,20 @@
 
       <!-- TABLE VIEW (mobile swipe-right) -->
       <div id="tableViewPanel">
+        <!-- progress circle for Table View -->
+        <div
+          class="pie"
+          id="tableProgress"
+          style="margin: 14px auto 8px; width: 140px; height: 140px"
+          data-pie='{
+       "speed": 30,
+       "percent": 75,
+       "colorSlice": "var(--success)",
+       "colorCircle": "#1a2636",
+       "round": true
+     }'
+        ></div>
+
         <div class="table-header">
           <span>Table View</span>
           <button id="closeTableView">×</button>

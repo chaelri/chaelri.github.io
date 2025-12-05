@@ -186,6 +186,23 @@ function updateSummary(items = []) {
 
   document.getElementById("summaryPaid").textContent = fmt(totalPaid);
   document.getElementById("summaryTotal").textContent = fmt(grandTotal);
+  
+  // Update the table circular progress
+  try {
+    if (tableCircle) {
+      const pct =
+        grandTotal > 0 ? Math.round((totalPaid / grandTotal) * 100) : 0;
+
+      tableCircle.animationTo({
+        index: 1,
+        percent: pct,
+        colorSlice: "var(--success)",
+        fontColor: "var(--success)",
+      });
+    }
+  } catch (e) {
+    console.warn("Circle update issue:", e);
+  }
 }
 
 // SHOW DETAILS
@@ -595,6 +612,9 @@ document.getElementById("imgPreviewOverlay").onclick = () => {
   document.getElementById("imgPreviewOverlay").style.display = "none";
 };
 
+// --- Create circular progress bar for Table View ---
+let tableCircle = new CircularProgressBar("tableProgress");
+tableCircle.initial();
 listenRealtime();
 
 /* SW register */
