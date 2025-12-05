@@ -181,41 +181,44 @@
             <!-- RIGHT: Circle -->
             <div id="progress-bar--container" style="width: 120px">
               <svg viewBox="0 0 100 100">
-                <circle
-                  stroke="#2a364a"
-                  stroke-width="8"
-                  cx="50"
-                  cy="50"
-                  r="40"
-                  fill="none"
-                />
-                <circle
-                  id="progressCircle"
-                  stroke="var(--success)"
-                  stroke-width="8"
-                  cx="50"
-                  cy="50"
-                  r="40"
-                  fill="none"
-                  pathLength="100"
-                  style="
-                    stroke-dasharray: 100;
-                    stroke-dashoffset: 100;
-                    stroke-linecap: round;
-                  "
-                />
+                <!-- Rotate only the circles, NOT the text -->
+                <g transform="rotate(-90 50 50)">
+                  <circle
+                    stroke="#2a364a"
+                    stroke-width="8"
+                    cx="50"
+                    cy="50"
+                    r="40"
+                    fill="none"
+                  />
+
+                  <circle
+                    id="progressCircle"
+                    stroke="var(--success)"
+                    stroke-width="8"
+                    cx="50"
+                    cy="50"
+                    r="40"
+                    fill="none"
+                    pathLength="100"
+                    style="
+                      stroke-dasharray: 100;
+                      stroke-dashoffset: 100;
+                      stroke-linecap: round;
+                    "
+                  />
+                </g>
+
+                <!-- TEXT: do NOT rotate this -->
                 <text
                   id="progressText"
                   x="50"
                   y="55"
                   text-anchor="middle"
+                  dominant-baseline="middle"
                   fill="var(--success)"
                   font-size="14"
-                  style="
-                    font-weight: 700;
-                    transform: rotate(90deg);
-                    transform-origin: center;
-                  "
+                  font-weight="700"
                 >
                   0%
                 </text>
