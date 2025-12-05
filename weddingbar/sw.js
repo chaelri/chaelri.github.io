@@ -1,6 +1,11 @@
-const CACHE = "weddingbar-static-v3";
+// =======================================================
+// AUTO VERSIONING — cache busts on every new deployment
+// =======================================================
+const SW_VERSION = `v${Date.now()}`;
+const CACHE_NAME = `weddingbar-${SW_VERSION}`;
 
-const FILES = [
+// Files to cache
+const FILES_TO_CACHE = [
   "index.html",
   "style.css",
   "script.js",
@@ -9,37 +14,38 @@ const FILES = [
   "icons/icon-512.png",
 ];
 
-/* Optional: log missing files */
-FILES.forEach((f) => {
-  fetch(f)
-    .then((r) => {
-      if (!r.ok) console.error("❌ Missing:", f);
-    })
-    .catch(() => console.error("❌ Failed to fetch:", f));
-});
-
+// =======================================================
+// INSTALL — cache everything fresh
+// =======================================================
 self.addEventListener("install", (event) => {
   event.waitUntil(
-    caches.open(CACHE).then((cache) => {
-      return cache.addAll(FILES).catch((err) => {
-        console.error("❌ Cache addAll failed:", err);
-      });
+    caches.open(CACHE_NAME).then((cache) => {
+      return cache.addAll(FILES_TO_CACHE);
     })
   );
   self.skipWaiting();
 });
 
+// =======================================================
+// ACTIVATE — delete ALL old caches
+// =======================================================
 self.addEventListener("activate", (event) => {
   event.waitUntil(
     caches.keys().then((keys) => {
       return Promise.all(
-        keys.filter((k) => k !== CACHE).map((k) => caches.delete(k))
+        keys
+          .filter((key) => key !== CACHE_NAME)
+          .map((key) => caches.delete(key))
       );
     })
   );
   self.clients.claim();
 });
 
+// =======================================================
+// FETCH — network first, fallback to cache
+// Prevents stale manifest/icons
+// =======================================================
 self.addEventListener("fetch", (event) => {
   event.respondWith(
     fetch(event.request).catch(() => caches.match(event.request))
