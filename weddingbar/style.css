@@ -857,3 +857,8 @@ body {
   paint-order: stroke;
   stroke: transparent; /* prevents stroke blocking fill */
 }
+
+#progressText {
+  paint-order: stroke;
+  stroke: transparent;
+}
