@@ -499,6 +499,7 @@ function listenRealtime() {
     const sortType = document.getElementById("sortSelect").value;
     render(arr, sortType);
     updateSummary(arr);
+    renderTableView(arr);
   });
 }
 
@@ -926,3 +927,74 @@ document.addEventListener("keydown", (event) => {
     document.getElementById("viewerCloseBtn")?.click();
   }
 });
+
+const tableViewPanel = document.getElementById("tableViewPanel");
+const tableViewContent = document.getElementById("tableViewContent");
+const closeTableView = document.getElementById("closeTableView");
+
+function renderTableView(items) {
+  let html = `
+    <table>
+      <thead>
+        <tr>
+          <th>Item</th>
+          <th>Paid</th>
+          <th>Total</th>
+          <th>Status</th>
+        </tr>
+      </thead>
+      <tbody>
+  `;
+
+  items.forEach((it) => {
+    html += `
+      <tr>
+        <td>${escapeHtml(it.name)}</td>
+        <td>${fmt(it.paid)}</td>
+        <td>${fmt(it.total)}</td>
+        <td>${it.booked ? "Booked" : "Not booked"}</td>
+      </tr>
+    `;
+  });
+
+  html += `</tbody></table>`;
+
+  tableViewContent.innerHTML = html;
+}
+
+/* ============================= */
+/*   MOBILE SWIPE RIGHT ACTION   */
+/* ============================= */
+let touchStartX = 0;
+let touchEndX = 0;
+
+function shouldOpenTable() {
+  return window.innerWidth < 720; // mobile only
+}
+
+document.addEventListener("touchstart", (e) => {
+  if (!shouldOpenTable()) return;
+  touchStartX = e.changedTouches[0].screenX;
+});
+
+document.addEventListener("touchend", (e) => {
+  if (!shouldOpenTable()) return;
+
+  touchEndX = e.changedTouches[0].screenX;
+
+  const diff = touchEndX - touchStartX;
+
+  if (diff > 70) {
+    // swipe right → open table
+    tableViewPanel.classList.add("open");
+
+    // push whole app left visually
+    document.querySelector("main").style.transform = "translateX(-30%)";
+    document.querySelector("main").style.transition = "0.35s ease";
+  }
+});
+
+closeTableView.onclick = () => {
+  tableViewPanel.classList.remove("open");
+  document.querySelector("main").style.transform = "translateX(0)";
+};

@@ -635,3 +635,59 @@ body {
     opacity: 1;
   }
 }
+
+/* ============================= */
+/*   MOBILE SWIPE RIGHT PANEL    */
+/* ============================= */
+#tableViewPanel {
+  position: fixed;
+  top: 0;
+  right: -100%;
+  width: 100%;
+  height: 100%;
+  background: var(--card);
+  z-index: 99999;
+  transition: right 0.35s ease;
+  padding: 16px;
+  overflow-y: auto;
+}
+
+#tableViewPanel.open {
+  right: 0;
+}
+
+.table-header {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  font-size: 18px;
+  font-weight: 700;
+  margin-bottom: 14px;
+}
+
+#closeTableView {
+  background: rgba(255, 255, 255, 0.08);
+  border: none;
+  color: white;
+  padding: 8px 12px;
+  border-radius: 8px;
+  cursor: pointer;
+  font-size: 20px;
+}
+
+#tableViewContent table {
+  width: 100%;
+  border-collapse: collapse;
+  font-size: 14px;
+}
+
+#tableViewContent th,
+#tableViewContent td {
+  padding: 10px 6px;
+  border-bottom: 1px solid rgba(255, 255, 255, 0.08);
+}
+
+#tableViewContent th {
+  color: var(--muted);
+  text-align: left;
+}
