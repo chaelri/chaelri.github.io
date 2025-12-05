@@ -968,39 +968,33 @@ function renderTableView(items) {
 let touchStartX = 0;
 let touchEndX = 0;
 
-function shouldOpenTable() {
-  return window.innerWidth < 720; // mobile only
+function isMobile() {
+  return window.innerWidth < 720;
 }
 
 document.addEventListener("touchstart", (e) => {
-  if (!shouldOpenTable()) return;
+  if (!isMobile()) return;
   touchStartX = e.changedTouches[0].screenX;
 });
 
 document.addEventListener("touchend", (e) => {
-  if (!shouldOpenTable()) return;
+  if (!isMobile()) return;
 
   touchEndX = e.changedTouches[0].screenX;
   const diff = touchEndX - touchStartX;
 
-  // RIGHT SWIPE → OPEN
+  // 👉 SWIPE RIGHT — OPEN TABLE
   if (diff > 70) {
     tableViewPanel.classList.add("open");
-    document.getElementById("weddingCostsWrapper").style.transform =
-      "translateX(-100%)";
-    document.getElementById("weddingCostsWrapper").style.transition =
-      "0.35s ease";
   }
 
-  // LEFT SWIPE → CLOSE
+  // 👈 SWIPE LEFT — CLOSE TABLE
   if (diff < -70 && tableViewPanel.classList.contains("open")) {
     tableViewPanel.classList.remove("open");
-    document.querySelector("weddingCostsWrapper").style.transform =
-      "translateX(0)";
   }
 });
 
+// CLOSE BUTTON
 closeTableView.onclick = () => {
   tableViewPanel.classList.remove("open");
-  document.querySelector("weddingCostsWrapper").style.transform = "translateX(0)";
 };
