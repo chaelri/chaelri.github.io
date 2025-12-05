@@ -401,6 +401,13 @@ body {
   .bars::-webkit-scrollbar-thumb:hover {
     background: linear-gradient(90deg, var(--accent-end), var(--accent-start));
   }
+
+  #tableViewPanel {
+    right: -102%;
+  }
+  #galleryPanel {
+    left: -102%;
+  }
 }
 
 .inputs input {
