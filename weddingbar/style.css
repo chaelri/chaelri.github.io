@@ -205,7 +205,7 @@ body {
   padding-right: 4px;
   transition: width 0.9s ease, height 0.9s ease;
   position: relative;
-  overflow: hidden;
+  overflow: visible !important;
 }
 
 .bar-fill::after {
@@ -253,6 +253,9 @@ body {
 
 .progress-text {
   font-size: 12px;
+  position: relative;
+  z-index: 10;
+  mix-blend-mode: normal;
 }
 
 /* Info */
