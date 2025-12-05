@@ -186,7 +186,7 @@ function updateSummary(items = []) {
 
   document.getElementById("summaryPaid").textContent = fmt(totalPaid);
   document.getElementById("summaryTotal").textContent = fmt(grandTotal);
-  
+
   // Update the table circular progress
   try {
     if (tableCircle) {
@@ -614,7 +614,6 @@ document.getElementById("imgPreviewOverlay").onclick = () => {
 
 // --- Create circular progress bar for Table View ---
 let tableCircle = new CircularProgressBar("tableProgress");
-tableCircle.initial();
 listenRealtime();
 
 /* SW register */
@@ -1145,6 +1144,7 @@ document.addEventListener("touchend", (e) => {
     // 2. If table is NOT open → open table
     if (!tableOpen) {
       tableViewPanel.classList.add("open");
+      initTableProgressOnce();
       lockBodyScroll();
       return;
     }
@@ -1213,4 +1213,15 @@ function lockBodyScroll() {
 function unlockBodyScroll() {
   document.body.style.overflow = "";
   document.documentElement.style.overflow = "";
+}
+
+function initTableProgressOnce() {
+  if (!window.__tableCircleInitDone) {
+    try {
+      tableCircle.initial();
+      window.__tableCircleInitDone = true;
+    } catch (e) {
+      console.warn("Progress circle init failed:", e);
+    }
+  }
 }
