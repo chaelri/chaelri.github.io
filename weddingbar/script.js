@@ -914,3 +914,15 @@ function showSaveToast() {
     t.style.display = "none";
   }, 1200);
 }
+
+document.addEventListener("keydown", (event) => {
+  if (event.key === "ArrowRight") {
+    document.getElementById("viewerNextBtn")?.click();
+  }
+  if (event.key === "ArrowLeft") {
+    document.getElementById("viewerPrevBtn")?.click();
+  }
+  if (event.key === "Escape") {
+    document.getElementById("viewerCloseBtn")?.click();
+  }
+});
