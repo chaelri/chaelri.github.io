@@ -981,35 +981,22 @@ document.addEventListener("touchend", (e) => {
   if (!shouldOpenTable()) return;
 
   touchEndX = e.changedTouches[0].screenX;
-
-  const diff = touchEndX - touchStartX;
-
-  if (diff > 70) {
-    // swipe right → open table
-    tableViewPanel.classList.add("open");
-
-    // push whole app left visually
-    document.querySelector("main").style.transform = "translateX(-100%)";
-    document.querySelector("main").style.transition = "0.35s ease";
-  }
-});
-
-document.addEventListener("touchend", (e) => {
-  if (!shouldOpenTable()) return;
-
-  touchEndX = e.changedTouches[0].screenX;
   const diff = touchEndX - touchStartX;
 
   // RIGHT SWIPE → OPEN
   if (diff > 70) {
     tableViewPanel.classList.add("open");
-    document.querySelector("main").style.transform = "translateX(-100%)";
+    document.getElementById("weddingCostsWrapper").style.transform =
+      "translateX(-100%)";
+    document.getElementById("weddingCostsWrapper").style.transition =
+      "0.35s ease";
   }
 
   // LEFT SWIPE → CLOSE
   if (diff < -70 && tableViewPanel.classList.contains("open")) {
     tableViewPanel.classList.remove("open");
-    document.querySelector("main").style.transform = "translateX(0)";
+    document.querySelector("weddingCostsWrapper").style.transform =
+      "translateX(0)";
   }
 });
 
