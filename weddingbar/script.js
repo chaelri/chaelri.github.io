@@ -174,6 +174,15 @@ function render(items = [], sortType = "none") {
     barsRoot.appendChild(card);
   });
 }
+// === Days Left Counter ===
+const targetDate = new Date("2025-07-02");
+const today = new Date();
+const diffTime = targetDate - today;
+
+let daysLeft = Math.ceil(diffTime / (1000 * 60 * 60 * 24));
+if (daysLeft < 0) daysLeft = 0;
+
+document.getElementById("daysLeftNumber").textContent = daysLeft;
 
 function updateSummary(items = []) {
   let totalPaid = 0;

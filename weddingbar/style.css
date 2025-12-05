@@ -840,3 +840,12 @@ body {
   transform-origin: center;
   font-family: inherit;
 }
+
+#summaryProgressWrapper svg {
+  width: 110px;
+  transform: rotate(-90deg);
+}
+
+#progressCircle {
+  transition: stroke-dashoffset 0.6s ease;
+}
