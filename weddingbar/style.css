@@ -403,10 +403,10 @@ body {
   }
 
   #tableViewPanel {
-    right: -102%;
+    right: -102% !important;
   }
   #galleryPanel {
-    left: -102%;
+    left: -102% !important;
   }
 }
 
@@ -758,6 +758,7 @@ body {
   top: 0;
   background: var(--card);
   z-index: 50;
+  text-align: left;
 }
 
 /* ------------------------------------
