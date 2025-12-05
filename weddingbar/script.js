@@ -202,17 +202,20 @@ const today = new Date();
 today.setHours(0, 0, 0, 0);
 
 let targetYear = today.getFullYear();
-let targetDate = new Date(targetYear, 6, 2); // July is month index 6
+
+// July 3 at 00:00 ensures full July 2 is counted (matches countdown sites)
+let targetDate = new Date(targetYear, 6, 3);
 
 if (today > targetDate) {
-  targetDate = new Date(targetYear + 1, 6, 2);
+  targetDate = new Date(targetYear + 1, 6, 3);
 }
 
-// Days difference without time component
 const diffTime = targetDate - today;
 
-// EXACT SAME RESULT AS THE COUNTDOWN WEBSITE
+// floor = exclusive, matches countdown sites
 const daysLeft = Math.floor(diffTime / (1000 * 60 * 60 * 24));
+
+document.getElementById("daysLeftNumber").textContent = daysLeft;
 
 document.getElementById("daysLeftNumber").textContent = daysLeft;
 
