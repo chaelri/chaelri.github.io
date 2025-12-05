@@ -1190,3 +1190,19 @@ document.addEventListener("touchend", (e) => {
 closeGallery.onclick = () => {
   galleryPanel.classList.remove("open");
 };
+
+/* =====================================================
+   RESET SCROLL POSITION WHEN MODALS FINISH CLOSING
+   ===================================================== */
+
+function setupScrollReset(panel) {
+  panel.addEventListener("transitionend", () => {
+    if (!panel.classList.contains("open")) {
+      // reset silently (offscreen)
+      panel.scrollTop = 0;
+    }
+  });
+}
+
+setupScrollReset(tableViewPanel);
+setupScrollReset(galleryPanel);
