@@ -985,15 +985,16 @@ document.addEventListener("touchend", (e) => {
 
   // 👉 SWIPE RIGHT — OPEN TABLE
   if (diff > 70) {
-    tableViewPanel.classList.remove("open");
+    tableViewPanel.classList.add("open");
   }
 
   // 👈 SWIPE LEFT — CLOSE TABLE
   if (diff < -70 && tableViewPanel.classList.contains("open")) {
+    tableViewPanel.classList.remove("open");
   }
 });
 
 // CLOSE BUTTON
 closeTableView.onclick = () => {
-  tableViewPanel.classList.add("open");
+  tableViewPanel.classList.remove("open");
 };
