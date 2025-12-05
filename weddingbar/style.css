@@ -752,3 +752,67 @@ body {
   background: var(--card);
   z-index: 50;
 }
+
+/* ------------------------------------
+   ATTACHMENTS GALLERY MODAL
+-------------------------------------*/
+#galleryPanel {
+  position: fixed;
+  top: 0;
+  left: -100%;
+  width: 100vw;
+  height: 100vh;
+  background: var(--card);
+  z-index: 99999;
+  transition: left 0.35s ease;
+  padding: 16px;
+  overflow-y: auto;
+  box-sizing: border-box;
+}
+
+#galleryPanel.open {
+  left: 0;
+}
+
+.gallery-header {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  font-size: 18px;
+  font-weight: 700;
+  margin-bottom: 14px;
+}
+
+#closeGallery {
+  background: rgba(255, 255, 255, 0.08);
+  border: none;
+  color: white;
+  padding: 8px 12px;
+  border-radius: 8px;
+  font-size: 20px;
+  cursor: pointer;
+}
+
+/* Item section title */
+.gallery-item-title {
+  font-size: 16px;
+  font-weight: 700;
+  margin: 20px 0 8px;
+  opacity: 0.9;
+}
+
+/* Image grid */
+.gallery-grid {
+  display: grid;
+  grid-template-columns: repeat(3, 1fr);
+  gap: 8px;
+}
+
+.gallery-thumb {
+  width: 100%;
+  aspect-ratio: 1/1;
+  object-fit: cover;
+  border-radius: 8px;
+  cursor: pointer;
+  background: rgba(255, 255, 255, 0.05);
+}

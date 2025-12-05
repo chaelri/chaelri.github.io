@@ -500,6 +500,7 @@ function listenRealtime() {
     render(arr, sortType);
     updateSummary(arr);
     renderTableView(arr);
+    renderGallery(arr);
   });
 }
 
@@ -1006,8 +1007,10 @@ function renderTableView(items) {
         <td>${fmt(it.paid)}</td>
         <td>${fmt(it.total)}</td>
         <td>
-          <span class="status-chip ${it.booked ? "status-booked" : "status-not"}">
-            ${it.booked ? "Booked" : "Not booked"}
+          <span class="status-chip ${
+            it.booked ? "status-booked" : "status-not"
+          }">
+            ${it.booked ? "Booked" : "NB"}
           </span>
         </td>
       </tr>
@@ -1109,4 +1112,58 @@ document.addEventListener("touchend", (e) => {
 /* CLOSE BUTTON */
 closeTableView.onclick = () => {
   tableViewPanel.classList.remove("open");
+};
+
+function renderGallery(items) {
+  const box = document.getElementById("galleryContent");
+  box.innerHTML = "";
+
+  items.forEach((item) => {
+    const attachments = item.attachments || [];
+    if (attachments.length === 0) return;
+
+    // Item Title
+    const title = document.createElement("div");
+    title.className = "gallery-item-title";
+    title.textContent = item.name;
+    box.appendChild(title);
+
+    // Grid wrapper
+    const grid = document.createElement("div");
+    grid.className = "gallery-grid";
+
+    attachments.forEach((att, idx) => {
+      const img = document.createElement("img");
+      img.className = "gallery-thumb";
+      img.src = att.url;
+      img.onclick = () => {
+        // open viewer with its item-specific list
+        const list = attachments.map((a) => a.url);
+        openViewer(list, idx);
+      };
+      grid.appendChild(img);
+    });
+
+    box.appendChild(grid);
+  });
+}
+
+document.addEventListener("touchend", (e) => {
+  if (!isMobile()) return;
+
+  const diff = e.changedTouches[0].screenX - touchStartX;
+
+  // 👉 Swipe right → open gallery
+  if (diff > 70 && !galleryPanel.classList.contains("open")) {
+    galleryPanel.classList.add("open");
+  }
+
+  // 👈 Swipe left → close gallery
+  if (diff < -70 && galleryPanel.classList.contains("open")) {
+    galleryPanel.classList.remove("open");
+  }
+});
+
+closeGallery.onclick = () => {
+  galleryPanel.classList.remove("open");
 };
