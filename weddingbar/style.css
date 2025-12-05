@@ -825,40 +825,54 @@ body {
   background: rgba(255, 255, 255, 0.05);
 }
 
-#progress-bar--container svg {
-  width: 110px;
-  transform: rotate(-90deg);
+.circle-wrapper {
+  display: flex;
+  justify-content: center;
+  align-items: center;
 }
 
-#progressCircle {
-  stroke-linecap: round;
-  transition: stroke-dashoffset 0.6s ease;
+.circle {
+  position: relative;
+  width: 150px;
+  height: 150px;
 }
 
-#progressText {
-  transform: rotate(90deg);
-  transform-origin: center;
-  font-family: inherit;
+.circle-number {
+  position: absolute;
+  inset: 0;
+  display: flex;
+  justify-content: center;
+  align-items: center;
 }
 
-#summaryProgressWrapper svg {
-  width: 110px;
-  transform: rotate(-90deg);
-}
-
-#progressCircle {
-  transition: stroke-dashoffset 0.6s ease;
-}
-
-.progress-text-circle {
-  fill: #a7f5c9;
-  font-size: 26px;
+.circle-number h2 {
+  font-size: 40px;
   font-weight: 700;
+  color: var(--success);
   paint-order: stroke;
-  stroke: transparent; /* prevents stroke blocking fill */
+  stroke: transparent; /* Safari fix */
 }
 
-#progressText {
-  paint-order: stroke;
-  stroke: transparent;
+svg {
+  width: 150px;
+  height: 150px;
+  transform: rotate(-90deg);
+}
+
+svg circle {
+  fill: none;
+  stroke-width: 10;
+  stroke-linecap: round;
+  transform: translate(5px, 5px); /* aligns stroke nicely */
+}
+
+svg circle.bg {
+  stroke: #191919;
+}
+
+svg circle.fg {
+  stroke: var(--success);
+  stroke-dasharray: 440; /* fixed circumference for r=70 */
+  stroke-dashoffset: 440; /* start empty */
+  transition: stroke-dashoffset 0.5s ease;
 }

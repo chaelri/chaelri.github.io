@@ -229,27 +229,21 @@ function updateSummary(items = []) {
   document.getElementById("summaryPaid").textContent = fmt(totalPaid);
   document.getElementById("summaryTotal").textContent = fmt(grandTotal);
 
-  // Select elements
-  // --- PROGRESS CIRCLE UPDATE --- //
-  const circle = document.getElementById("progressCircle");
-  const label = document.getElementById("progressText");
+  const paid = fmt(totalPaid);
+  const total = fmt(grandTotal);
 
-  const radius = circle.r.baseVal.value;
-  const circumference = 2 * Math.PI * radius;
+  const pct = total > 0 ? Math.round((paid / total) * 100) : 0;
+
+  // update number
+  document.getElementById("progressDisplay").textContent = pct + "%";
+
+  // update circle fill
+  const circle = document.getElementById("progressCircle");
+  const radius = circle.r.baseVal.value; // 70
+  const circumference = 2 * Math.PI * radius; // 440 approx
 
   circle.style.strokeDasharray = circumference;
-
-  // compute percent
-  let pct = grandTotal > 0 ? Math.round((totalPaid / grandTotal) * 100) : 0;
-
-  // correct offset
-  const offset = circumference * (1 - pct / 100);
-
-  // apply offset
-  circle.style.strokeDashoffset = offset;
-
-  // update center text
-  label.textContent = pct + "%";
+  circle.style.strokeDashoffset = circumference - (circumference * pct) / 100;
 }
 
 // SHOW DETAILS

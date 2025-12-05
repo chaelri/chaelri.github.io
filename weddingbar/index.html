@@ -179,44 +179,23 @@
             </div>
 
             <!-- RIGHT: Circle -->
-            <div id="progress-bar--container" style="width: 120px">
-              <svg viewBox="0 0 100 100">
-                <!-- Rotate only the circles, NOT the text -->
-                <g transform="rotate(-90 50 50)">
+            <div class="circle-wrapper">
+              <div class="circle">
+                <svg>
+                  <circle class="bg" cx="70" cy="70" r="70"></circle>
                   <circle
-                    stroke="#2a364a"
-                    stroke-width="8"
-                    cx="50"
-                    cy="50"
-                    r="40"
-                    fill="none"
-                  />
-
-                  <circle
+                    class="fg"
                     id="progressCircle"
-                    stroke="var(--success)"
-                    stroke-width="8"
-                    cx="50"
-                    cy="50"
-                    r="40"
-                    fill="none"
-                  />
-                </g>
+                    cx="70"
+                    cy="70"
+                    r="70"
+                  ></circle>
+                </svg>
 
-                <!-- TEXT: do NOT rotate this -->
-                <text
-                  id="progressText"
-                  x="50"
-                  y="55"
-                  text-anchor="middle"
-                  dominant-baseline="middle"
-                  fill="var(--success)"
-                  font-size="14"
-                  font-weight="700"
-                >
-                  0%
-                </text>
-              </svg>
+                <div class="circle-number">
+                  <h2 id="progressDisplay">0%</h2>
+                </div>
+              </div>
             </div>
           </div>
 
