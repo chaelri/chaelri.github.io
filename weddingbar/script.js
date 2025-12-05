@@ -133,8 +133,8 @@ function render(items = [], sortType = "none") {
     text.className = "progress-text";
     text.textContent = it.booked || it.paid > 0 ? pct + "%" : "—";
 
-    fill.appendChild(text);
     thumb.appendChild(fill);
+    thumb.appendChild(text); // 🔥 text is now OUTSIDE the animated mask
 
     // VIEWPORT RESPONSIVE BEHAVIOR — animate from 0%
     if (window.innerWidth < 720) {
@@ -199,20 +199,18 @@ function render(items = [], sortType = "none") {
 
 // === Days Left Counter (NEXT July 2) ===
 const today = new Date();
+today.setHours(0, 0, 0, 0);
+
 let targetYear = today.getFullYear();
+let targetDate = new Date(targetYear, 6, 2); // July is month index 6
 
-// Create July 2 of the current year
-let targetDate = new Date(`${targetYear}-07-02`);
-
-// If we already passed July 2 this year → use next year
 if (today > targetDate) {
-  targetYear++;
-  targetDate = new Date(`${targetYear}-07-02`);
+  targetDate = new Date(targetYear + 1, 6, 2);
 }
 
-// Calculate days left
+// Days difference without time component
 const diffTime = targetDate - today;
-let daysLeft = Math.ceil(diffTime / (1000 * 60 * 60 * 24));
+const daysLeft = diffTime / (1000 * 60 * 60 * 24);
 
 document.getElementById("daysLeftNumber").textContent = daysLeft;
 
