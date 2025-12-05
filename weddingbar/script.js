@@ -983,13 +983,13 @@ document.addEventListener("touchend", (e) => {
   touchEndX = e.changedTouches[0].screenX;
   const diff = touchEndX - touchStartX;
 
-  // 👉 SWIPE RIGHT — OPEN TABLE
-  if (diff > 70) {
+  // 👈 SWIPE LEFT — OPEN TABLE
+  if (diff < -70) {
     tableViewPanel.classList.add("open");
   }
 
-  // 👈 SWIPE LEFT — CLOSE TABLE
-  if (diff < -70 && tableViewPanel.classList.contains("open")) {
+  // 👉 SWIPE RIGHT — CLOSE TABLE
+  if (diff > 70 && tableViewPanel.classList.contains("open")) {
     tableViewPanel.classList.remove("open");
   }
 });
