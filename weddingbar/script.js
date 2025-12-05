@@ -186,23 +186,17 @@ function updateSummary(items = []) {
 
   document.getElementById("summaryPaid").textContent = fmt(totalPaid);
   document.getElementById("summaryTotal").textContent = fmt(grandTotal);
+  // --- Update top summary progress circle --- //
+  const circle = document.getElementById("progressCircle");
+  const label = document.getElementById("progressText");
 
-  // Update the table circular progress
-  try {
-    if (tableCircle) {
-      const pct =
-        grandTotal > 0 ? Math.round((totalPaid / grandTotal) * 100) : 0;
+  let pct = grandTotal > 0 ? Math.round((totalPaid / grandTotal) * 100) : 0;
 
-      tableCircle.animationTo({
-        index: 1,
-        percent: pct,
-        colorSlice: "var(--success)",
-        fontColor: "var(--success)",
-      });
-    }
-  } catch (e) {
-    console.warn("Circle update issue:", e);
-  }
+  // dashoffset decreases as percentage increases
+  circle.style.strokeDashoffset = 100 - pct;
+
+  // update text
+  label.textContent = pct + "%";
 }
 
 // SHOW DETAILS
@@ -612,8 +606,6 @@ document.getElementById("imgPreviewOverlay").onclick = () => {
   document.getElementById("imgPreviewOverlay").style.display = "none";
 };
 
-// --- Create circular progress bar for Table View ---
-let tableCircle = new CircularProgressBar("tableProgress");
 listenRealtime();
 
 /* SW register */
@@ -1144,7 +1136,6 @@ document.addEventListener("touchend", (e) => {
     // 2. If table is NOT open → open table
     if (!tableOpen) {
       tableViewPanel.classList.add("open");
-      initTableProgressOnce();
       lockBodyScroll();
       return;
     }
@@ -1213,15 +1204,4 @@ function lockBodyScroll() {
 function unlockBodyScroll() {
   document.body.style.overflow = "";
   document.documentElement.style.overflow = "";
-}
-
-function initTableProgressOnce() {
-  if (!window.__tableCircleInitDone) {
-    try {
-      tableCircle.initial();
-      window.__tableCircleInitDone = true;
-    } catch (e) {
-      console.warn("Progress circle init failed:", e);
-    }
-  }
 }
