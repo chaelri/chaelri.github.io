@@ -197,25 +197,23 @@ function render(items = [], sortType = "none") {
   });
 }
 
-// === Days Left Counter (NEXT July 2) ===
+// === Days Left Counter (NEXT July 2, count FULL day) ===
 const today = new Date();
-today.setHours(0, 0, 0, 0);
+today.setHours(0, 0, 0, 0); // normalize
 
 let targetYear = today.getFullYear();
 
-// July 3 at 00:00 ensures full July 2 is counted (matches countdown sites)
-let targetDate = new Date(targetYear, 6, 3);
+// FULL DAY included → July 3, 00:00
+let targetDate = new Date(targetYear, 6, 3); // month index 6 = July
 
-if (today > targetDate) {
+// If today already past July 3 → use next year
+if (today >= targetDate) {
   targetDate = new Date(targetYear + 1, 6, 3);
 }
 
+// difference in full days
 const diffTime = targetDate - today;
-
-// floor = exclusive, matches countdown sites
 const daysLeft = Math.floor(diffTime / (1000 * 60 * 60 * 24));
-
-document.getElementById("daysLeftNumber").textContent = daysLeft;
 
 document.getElementById("daysLeftNumber").textContent = daysLeft;
 
@@ -232,25 +230,25 @@ function updateSummary(items = []) {
   document.getElementById("summaryTotal").textContent = fmt(grandTotal);
 
   // Select elements
+  // --- PROGRESS CIRCLE UPDATE --- //
   const circle = document.getElementById("progressCircle");
   const label = document.getElementById("progressText");
 
-  // get real circumference
   const radius = circle.r.baseVal.value;
   const circumference = 2 * Math.PI * radius;
 
-  // apply real dasharray
-  circle.style.strokeDasharray = `${circumference}`;
-  circle.style.strokeDashoffset = circumference;
+  circle.style.strokeDasharray = circumference;
 
-  // calculate percentage
+  // compute percent
   let pct = grandTotal > 0 ? Math.round((totalPaid / grandTotal) * 100) : 0;
 
-  // compute proper offset
+  // correct offset
   const offset = circumference * (1 - pct / 100);
+
+  // apply offset
   circle.style.strokeDashoffset = offset;
 
-  // update label
+  // update center text
   label.textContent = pct + "%";
 }
 
