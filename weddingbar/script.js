@@ -928,27 +928,80 @@ document.addEventListener("keydown", (event) => {
   }
 });
 
+/* ==============================================================
+   TABLE VIEW + SORTING + LOCAL STORAGE + ROW HIGHLIGHT
+   ============================================================== */
+
 const tableViewPanel = document.getElementById("tableViewPanel");
 const tableViewContent = document.getElementById("tableViewContent");
 const closeTableView = document.getElementById("closeTableView");
 
+/* --------------------------
+      SORT STATE (with restore)
+   -------------------------- */
+
+let tableSort = JSON.parse(localStorage.getItem("tableSort")) || {
+  column: null,      // "name", "paid", "total", "booked"
+  direction: "default", // "default" → "asc" → "desc"
+};
+
+function saveSortState() {
+  localStorage.setItem("tableSort", JSON.stringify(tableSort));
+}
+
+/* --------------------------
+      SORT LOGIC
+   -------------------------- */
+
+function sortItemsForTable(items) {
+  if (tableSort.direction === "default" || !tableSort.column) {
+    return items;
+  }
+
+  const col = tableSort.column;
+  const dir = tableSort.direction === "asc" ? 1 : -1;
+
+  return [...items].sort((a, b) => {
+    let A = a[col];
+    let B = b[col];
+
+    if (col === "name") {
+      A = A.toLowerCase();
+      B = B.toLowerCase();
+    }
+
+    if (col === "booked") {
+      A = a.booked ? 1 : 0;
+      B = b.booked ? 1 : 0;
+    }
+
+    return A > B ? dir : A < B ? -dir : 0;
+  });
+}
+
+/* --------------------------
+      RENDER TABLE VIEW
+   -------------------------- */
+
 function renderTableView(items) {
+  const sorted = sortItemsForTable(items);
+
   let html = `
     <table>
       <thead>
         <tr>
-          <th>Item</th>
-          <th>Paid</th>
-          <th>Total</th>
-          <th>Status</th>
+          <th data-col="name">Item</th>
+          <th data-col="paid">Paid</th>
+          <th data-col="total">Total</th>
+          <th data-col="booked">Status</th>
         </tr>
       </thead>
       <tbody>
   `;
 
-  items.forEach((it) => {
+  sorted.forEach((it) => {
     html += `
-      <tr>
+      <tr data-id="${it.id}">
         <td>${escapeHtml(it.name)}</td>
         <td>${fmt(it.paid)}</td>
         <td>${fmt(it.total)}</td>
@@ -960,11 +1013,65 @@ function renderTableView(items) {
   html += `</tbody></table>`;
 
   tableViewContent.innerHTML = html;
+
+  /* --------------------------
+       CLICK-TO-SORT HEADERS
+     -------------------------- */
+
+  const headers = document.querySelectorAll("#tableViewContent th");
+
+  headers.forEach((h) => {
+    h.classList.remove("sort-asc", "sort-desc");
+
+    h.onclick = () => {
+      const col = h.dataset.col;
+      if (!col) return;
+
+      if (tableSort.column !== col) {
+        tableSort.column = col;
+        tableSort.direction = "asc";
+      } else {
+        if (tableSort.direction === "asc") tableSort.direction = "desc";
+        else if (tableSort.direction === "desc") tableSort.direction = "default";
+        else tableSort.direction = "asc";
+      }
+
+      saveSortState();
+      renderTableView(items);
+    };
+  });
+
+  /* --------------------------
+       ADD ARROWS TO ACTIVE HEADER
+     -------------------------- */
+  if (tableSort.column) {
+    const active = document.querySelector(
+      `#tableViewContent th[data-col="${tableSort.column}"]`
+    );
+
+    if (active) {
+      if (tableSort.direction === "asc") active.classList.add("sort-asc");
+      if (tableSort.direction === "desc") active.classList.add("sort-desc");
+    }
+  }
+
+  /* --------------------------
+       ROW CLICK HIGHLIGHT
+     -------------------------- */
+  const rows = document.querySelectorAll("#tableViewContent tbody tr");
+
+  rows.forEach((row) => {
+    row.onclick = () => {
+      rows.forEach((r) => r.classList.remove("selected-row"));
+      row.classList.add("selected-row");
+    };
+  });
 }
 
-/* ============================= */
-/*   MOBILE SWIPE RIGHT ACTION   */
-/* ============================= */
+/* ==============================================================
+   MOBILE SWIPE TO OPEN/CLOSE PANEL
+   ============================================================== */
+
 let touchStartX = 0;
 let touchEndX = 0;
 
@@ -983,18 +1090,18 @@ document.addEventListener("touchend", (e) => {
   touchEndX = e.changedTouches[0].screenX;
   const diff = touchEndX - touchStartX;
 
-  // 👈 SWIPE LEFT — OPEN TABLE
+  // 👈 Swipe left → OPEN
   if (diff < -70) {
     tableViewPanel.classList.add("open");
   }
 
-  // 👉 SWIPE RIGHT — CLOSE TABLE
+  // 👉 Swipe right → CLOSE
   if (diff > 70 && tableViewPanel.classList.contains("open")) {
     tableViewPanel.classList.remove("open");
   }
 });
 
-// CLOSE BUTTON
+/* CLOSE BUTTON */
 closeTableView.onclick = () => {
   tableViewPanel.classList.remove("open");
 };
