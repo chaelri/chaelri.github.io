@@ -21,16 +21,52 @@
       <header class="app-header">
         <div class="hdr-left">
           <h1 class="app-title">
-            Wedding Costs<span
-              id="nextStepsBtn"
+            Wedding Costs
+            <!-- DROPDOWN: Checklist menu -->
+            <div
+              id="checklistMenu"
+              class="menu-inline"
               style="
-                font-size: 18px;
-                color: #5ec293;
-                cursor: pointer;
+                display: inline-block;
+                position: relative;
                 margin-left: 12px;
               "
-              >Next Steps</span
             >
+              <button
+                id="checklistBtn"
+                class="menu-toggle"
+                aria-haspopup="true"
+                aria-expanded="false"
+                style="
+                  font-size: 18px;
+                  color: #5ec293;
+                  background: transparent;
+                  border: none;
+                  cursor: pointer;
+                "
+              >
+                Checklist ▾
+              </button>
+
+              <div
+                id="checklistDropdown"
+                class="menu-dropdown"
+                style="
+                  display: none;
+                  position: absolute;
+                  right: 0;
+                  top: 110%;
+                  min-width: 160px;
+                  z-index: 999;
+                "
+              >
+                <button class="menu-item" id="openChecklist">Checklist</button>
+                <button class="menu-item" id="openGuests">Guests</button>
+                <button class="menu-item" id="openSeating">
+                  Seating Planner
+                </button>
+              </div>
+            </div>
           </h1>
         </div>
 
@@ -71,6 +107,56 @@
 
         <div id="nextStepsList" style="margin-top: 20px">
           <!-- tasks injected here -->
+        </div>
+      </section>
+      <!-- CHECKLIST PANEL (re-uses existing Next Steps area, but renamed) -->
+      <section
+        id="checklistPanel"
+        class="card"
+        style="display: none; padding: 16px; margin-top: 36px"
+      >
+        <div
+          style="
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+          "
+        >
+          <h2 style="margin: 0">Checklist</h2>
+          <button id="checklistBackBtn" class="btn ghost">Back</button>
+        </div>
+
+        <div id="checklistList" style="margin-top: 20px">
+          <!-- tasks will be injected by JS (re-uses loadNextSteps logic) -->
+        </div>
+      </section>
+
+      <!-- GUESTS PANEL -->
+      <section
+        id="guestsPanel"
+        class="card"
+        style="display: none; padding: 16px; margin-top: 36px"
+      >
+        <div
+          style="
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+          "
+        >
+          <h2 style="margin: 0">Guests</h2>
+          <button id="guestsBackBtn" class="btn ghost">Back</button>
+        </div>
+
+        <div
+          id="guestControls"
+          style="margin-top: 12px; display: flex; gap: 8px; flex-wrap: wrap"
+        >
+          <!-- add quick filters here later: All / RSVP Yes / Karla / Charlie / Family / Friends -->
+        </div>
+
+        <div id="guestList" style="margin-top: 12px">
+          <!-- guest rows injected by JS -->
         </div>
       </section>
 
@@ -125,6 +211,78 @@
             style="width: 100%; border-radius: 12px"
           >
             Add Step
+          </button>
+        </div>
+      </div>
+      <!-- GUESTS ADD BAR -->
+      <div
+        id="guestsAddBar"
+        style="
+          display: none;
+          position: fixed;
+          bottom: 0;
+          left: 0;
+          width: 100%;
+          padding: 14px;
+          background: rgba(7, 16, 37, 0.95);
+          backdrop-filter: blur(10px);
+          z-index: 9999;
+        "
+      >
+        <div
+          style="
+            max-width: 900px;
+            margin: 0 auto;
+            width: 100%;
+            display: flex;
+            gap: 8px;
+            align-items: center;
+          "
+        >
+          <input
+            id="guestNameInput"
+            type="text"
+            placeholder="Guest name…"
+            style="
+              flex: 2;
+              padding: 12px;
+              border-radius: 10px;
+              background: var(--card);
+              color: white;
+              border: none;
+            "
+          />
+          <select
+            id="guestGenderInput"
+            style="
+              padding: 12px;
+              border-radius: 10px;
+              background: var(--card);
+              color: white;
+              border: none;
+            "
+          >
+            <option value="">Gender</option>
+            <option value="male">Male</option>
+            <option value="female">Female</option>
+          </select>
+          <select
+            id="guestSideInput"
+            style="
+              padding: 12px;
+              border-radius: 10px;
+              background: var(--card);
+              color: white;
+              border: none;
+            "
+          >
+            <option value="">Side</option>
+            <option value="charlie">Charlie</option>
+            <option value="karla">Karla</option>
+            <option value="both">Both</option>
+          </select>
+          <button id="addGuestBtn" class="btn" style="min-width: 110px">
+            Add Guest
           </button>
         </div>
       </div>

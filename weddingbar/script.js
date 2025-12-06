@@ -872,18 +872,73 @@ document.getElementById("viewerNextBtn").onclick = () => {
 
 viewerImg.onclick = (e) => e.stopPropagation();
 
-document.getElementById("nextStepsBtn").onclick = () => {
-  // hide everything wedding-costs related
-  document.getElementById("backBtn")?.click();
+// DROPDOWN toggle
+const checklistBtn = document.getElementById("checklistBtn");
+const checklistDropdown = document.getElementById("checklistDropdown");
+
+checklistBtn.addEventListener("click", (e) => {
+  const expanded = checklistBtn.getAttribute("aria-expanded") === "true";
+  checklistBtn.setAttribute("aria-expanded", String(!expanded));
+  checklistDropdown.style.display = expanded ? "none" : "block";
+});
+
+// Close dropdown when clicking outside
+document.addEventListener("click", (e) => {
+  if (!document.getElementById("checklistMenu").contains(e.target)) {
+    checklistDropdown.style.display = "none";
+    checklistBtn.setAttribute("aria-expanded", "false");
+  }
+});
+
+// Panel openers
+document.getElementById("openChecklist").onclick = () => {
+  checklistDropdown.style.display = "none";
+  openChecklistPanel();
+};
+document.getElementById("openGuests").onclick = () => {
+  checklistDropdown.style.display = "none";
+  openGuestsPanel();
+};
+document.getElementById("openSeating").onclick = () => {
+  checklistDropdown.style.display = "none";
+  // future: openSeatingPanel();
+  alert("Seating Planner coming soon");
+};
+
+// Panel functions (show/hide)
+function openChecklistPanel() {
+  document.getElementById("weddingCostsWrapper").style.display = "none";
+  document.getElementById("nextStepsPanel").style.display = "none"; // ensure hidden
+  document.getElementById("toggleControlsBtn").style.display = "none";
+  document.getElementById("checklistPanel").style.display = "block";
+  document.getElementById("guestsPanel").style.display = "none";
+  document.getElementById("guestsAddBar").style.display = "none";
+  // call existing loader (reuse loadNextSteps)
+  loadNextSteps(); // existing function displays tasks into nextStepsList — we will reuse that container or modify it to use checklistList
+}
+
+function openGuestsPanel() {
   document.getElementById("weddingCostsWrapper").style.display = "none";
   document.getElementById("toggleControlsBtn").style.display = "none";
-  detailPanel.style.display = "none";
+  document.getElementById("checklistPanel").style.display = "none";
+  document.getElementById("guestsPanel").style.display = "block";
+  document.getElementById("guestsAddBar").style.display = "block";
+  // TODO: call loadGuests() to fetch and render guests
+}
 
-  // show next steps panel
-  document.getElementById("nextStepsPanel").style.display = "block";
-  document.getElementById("nextStepsAddBar").style.display = "block";
+document.getElementById("checklistBackBtn").onclick = () => {
+  document.getElementById("checklistPanel").style.display = "none";
+  document.getElementById("weddingCostsWrapper").style.display = "block";
+  document.getElementById("toggleControlsBtn").style.display = "block";
+  listenRealtime();
+};
 
-  loadNextSteps();
+document.getElementById("guestsBackBtn").onclick = () => {
+  document.getElementById("guestsPanel").style.display = "none";
+  document.getElementById("guestsAddBar").style.display = "none";
+  document.getElementById("weddingCostsWrapper").style.display = "block";
+  document.getElementById("toggleControlsBtn").style.display = "block";
+  listenRealtime();
 };
 
 document.getElementById("nextStepsBackBtn").onclick = () => {
