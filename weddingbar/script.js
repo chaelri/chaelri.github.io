@@ -203,7 +203,7 @@ function render(items = [], sortType = "none") {
     const chip = document.createElement("div");
     chip.className =
       "status-chip " + (it.booked ? "status-booked" : "status-not");
-    chip.textContent = it.booked ? "Booked" : "Not yet booked";
+    chip.textContent = it.booked ? "Booked" : "Not booked";
 
     card.appendChild(thumb);
     card.appendChild(info);
