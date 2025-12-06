@@ -49,6 +49,8 @@ const bookedInput = document.getElementById("booked");
 const PATH = "weddingCosts";
 const NEXT_PATH = "weddingNextSteps";
 
+let savedSort = localStorage.getItem("mainSort") || "none";
+
 // Format money
 const fmt = (n) =>
   new Intl.NumberFormat("en-PH", {
@@ -106,6 +108,16 @@ function render(items = [], sortType = "none") {
       const pB = b.total ? b.paid / b.total : 0;
       return pB - pA;
     });
+  } else if (sortType === "priorityHigh") {
+    const order = { high: 3, medium: 2, low: 1 };
+    items.sort(
+      (a, b) => order[b.priority || "low"] - order[a.priority || "low"]
+    );
+  } else if (sortType === "priorityLow") {
+    const order = { high: 3, medium: 2, low: 1 };
+    items.sort(
+      (a, b) => order[a.priority || "low"] - order[b.priority || "low"]
+    );
   }
 
   barsRoot.innerHTML = "";
@@ -595,6 +607,7 @@ function listenRealtime() {
 
     // Convert object to array
     const arr = Object.keys(val).map((k) => ({ id: k, ...val[k] }));
+    document.getElementById("sortSelect").value = savedSort;
     const sortType = document.getElementById("sortSelect").value;
     render(arr, sortType);
     updateSummary(arr);
@@ -760,6 +773,9 @@ document.getElementById("viewerCloseBtn").onclick = () => {
 };
 
 document.getElementById("sortSelect").addEventListener("change", () => {
+  const v = document.getElementById("sortSelect").value;
+  localStorage.setItem("mainSort", v);
+  savedSort = v; // update memory
   listenRealtime();
 });
 
