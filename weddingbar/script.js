@@ -1577,20 +1577,6 @@ document.body.addEventListener("click", async (e) => {
 // Improve Checklist Add Form — add Notes field if missing
 // =======================================================
 
-// Insert notes input if not present
-(function initChecklistNotes() {
-  const wrap = document.getElementById("nextStepsAddInner");
-  if (!wrap) return;
-
-  // Create textarea for notes
-  const notes = document.createElement("textarea");
-  notes.id = "nextStepNotes";
-  notes.placeholder = "Notes (optional)…";
-  notes.style.cssText =
-    "width:100%; padding:12px; border-radius:10px; background:var(--card); color:white; border:none; font-size:16px; margin-bottom:12px; min-height:70px;";
-  wrap.insertBefore(notes, document.getElementById("addNextStepBtn"));
-})();
-
 // =======================================================
 // Fix Add Checklist Button after notes insertion
 // =======================================================
