@@ -1160,56 +1160,44 @@ document.addEventListener("touchend", (e) => {
   const tableOpen = tableViewPanel.classList.contains("open");
   const galleryOpen = galleryPanel.classList.contains("open");
 
-  /* =============================
-       SWIPE LEFT  (→ direction)
-     ============================= */
+  /* ========== SWIPE LEFT (→ direction) ========== */
   if (diff < -70) {
-    // 1. If gallery is open → close gallery
+    // If GALLERY is open → close gallery only
     if (galleryOpen) {
       galleryPanel.classList.remove("open");
       unlockBodyScroll();
       return;
     }
 
-    // 2. If table is NOT open → open table
-    if (!tableOpen) {
-      tableViewPanel.classList.add("open");
-      lockBodyScroll();
+    // If TABLE is open → DO NOTHING (left swipe should not close it)
+    if (tableOpen) {
       return;
     }
 
-    // 3. If table *is* open → close table
-    if (tableOpen) {
-      tableViewPanel.classList.remove("open");
-      unlockBodyScroll();
-      return;
-    }
+    // From main → open TABLE
+    tableViewPanel.classList.add("open");
+    lockBodyScroll();
+    return;
   }
 
-  /* =============================
-       SWIPE RIGHT  (← direction)
-     ============================= */
+  /* ========== SWIPE RIGHT (← direction) ========== */
   if (diff > 70) {
-    // 1. If table is open → close table
+    // If TABLE is open → close table
     if (tableOpen) {
       tableViewPanel.classList.remove("open");
       unlockBodyScroll();
       return;
     }
 
-    // 2. If gallery is NOT open → open gallery
-    if (!galleryOpen) {
-      galleryPanel.classList.add("open");
-      lockBodyScroll();
+    // If GALLERY is open → DO NOTHING (right swipe should not close it)
+    if (galleryOpen) {
       return;
     }
 
-    // 3. If gallery *is* open → close gallery
-    if (galleryOpen) {
-      galleryPanel.classList.remove("open");
-      unlockBodyScroll();
-      return;
-    }
+    // From main → open GALLERY
+    galleryPanel.classList.add("open");
+    lockBodyScroll();
+    return;
   }
 });
 
