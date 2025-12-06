@@ -844,3 +844,7 @@ body {
 .priority-dot.low {
   background: #67e39b;
 }
+
+.bar-title {
+  font-weight: bold;
+}
