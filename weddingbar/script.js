@@ -195,8 +195,8 @@ function render(items = [], sortType = "none") {
 
     card.appendChild(thumb);
     card.appendChild(info);
-    card.appendChild(priorityDot);
     card.appendChild(chip);
+    card.appendChild(priorityDot);
     barsRoot.appendChild(card);
   });
 }
