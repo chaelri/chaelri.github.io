@@ -947,3 +947,33 @@ textarea {
     flex-direction: column;
   }
 }
+
+/* MINI DRAWER FOR ADD FORMS */
+.add-drawer {
+  position: fixed;
+  bottom: 0;
+  left: 0;
+  width: 100%;
+  max-height: 45vh;
+  background: rgba(7,16,37,0.95);
+  backdrop-filter: blur(12px);
+  border-radius: 18px 18px 0 0;
+  padding: 18px;
+  box-shadow: 0 -8px 30px rgba(0,0,0,0.55);
+  overflow-y: auto;
+  transition: transform 0.35s ease;
+  transform: translateY(110%);
+  z-index: 9999;
+}
+
+.add-drawer.open {
+  transform: translateY(0);
+}
+
+.add-drawer handle {
+  width: 60px;
+  height: 5px;
+  background: rgba(255,255,255,0.15);
+  border-radius: 999px;
+  margin: 0 auto 12px;
+}
