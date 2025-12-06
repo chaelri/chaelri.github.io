@@ -848,3 +848,10 @@ body {
 .bar-title {
   font-weight: bold;
 }
+
+#summaryStatsBox span {
+  font-weight: normal;
+}
+#summaryStatsBox div {
+  font-weight: bold;
+}
