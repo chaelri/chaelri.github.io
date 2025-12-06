@@ -1574,10 +1574,6 @@ document.body.addEventListener("click", async (e) => {
 });
 
 // =======================================================
-// Improve Checklist Add Form — add Notes field if missing
-// =======================================================
-
-// =======================================================
 // Fix Add Checklist Button after notes insertion
 // =======================================================
 document.getElementById("addNextStepBtn").onclick = async () => {
