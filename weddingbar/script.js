@@ -1270,7 +1270,6 @@ function openChecklistPanel() {
   document.getElementById("guestsPanel").style.display = "none";
 
   document.getElementById("nextStepsAddBar").style.display = "block";
-  document.getElementById("nextStepsAddBar").classList.add("open");
   document.getElementById("guestsAddBar").style.display = "none";
 
   loadNextSteps("checklistList");
@@ -1284,7 +1283,6 @@ function openGuestsPanel() {
   document.getElementById("guestsPanel").style.display = "block";
   document.getElementById("nextStepsAddBar").style.display = "none";
   document.getElementById("guestsAddBar").style.display = "block";
-  document.getElementById("guestsAddBar").classList.add("open");
 
   loadGuests();
 }
@@ -1313,6 +1311,14 @@ document.getElementById("nextStepsBackBtn").onclick = () => {
   document.getElementById("weddingCostsWrapper").style.display = "block";
   document.getElementById("toggleControlsBtn").style.display = "block";
   listenRealtime();
+};
+
+document.getElementById("openAddGuestBtn").onclick = () => {
+  document.getElementById("guestsAddBar").classList.add("open");
+};
+
+document.getElementById("openAddChecklistBtn").onclick = () => {
+  document.getElementById("nextStepsAddBar").classList.add("open");
 };
 
 // =======================================================
