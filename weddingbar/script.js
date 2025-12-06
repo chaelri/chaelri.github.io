@@ -1314,11 +1314,13 @@ document.getElementById("nextStepsBackBtn").onclick = () => {
 };
 
 document.getElementById("openAddGuestBtn").onclick = () => {
-  document.getElementById("guestsAddBar").classList.add("open");
+  const bar = document.getElementById("guestsAddBar");
+  bar.classList.toggle("open");
 };
 
 document.getElementById("openAddChecklistBtn").onclick = () => {
-  document.getElementById("nextStepsAddBar").classList.add("open");
+  const bar = document.getElementById("nextStepsAddBar");
+  bar.classList.toggle("open");
 };
 
 // =======================================================
