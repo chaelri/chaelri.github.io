@@ -954,11 +954,11 @@ textarea {
   left: 0;
   width: 100%;
   max-height: 45vh;
-  background: rgba(7,16,37,0.95);
+  background: rgba(7, 16, 37, 0.95);
   backdrop-filter: blur(12px);
   border-radius: 18px 18px 0 0;
   padding: 18px;
-  box-shadow: 0 -8px 30px rgba(0,0,0,0.55);
+  box-shadow: 0 -8px 30px rgba(0, 0, 0, 0.55);
   overflow-y: auto;
   transition: transform 0.35s ease;
   transform: translateY(110%);
@@ -972,7 +972,47 @@ textarea {
 .add-drawer handle {
   width: 60px;
   height: 5px;
-  background: rgba(255,255,255,0.15);
+  background: rgba(255, 255, 255, 0.15);
   border-radius: 999px;
   margin: 0 auto 12px;
+}
+
+.guest-dot {
+  width: 8px;
+  height: 8px;
+  border-radius: 50%;
+  display: inline-block;
+  margin-right: 6px;
+}
+
+.dot-charlie {
+  background: #4da3ff;
+}
+.dot-karla {
+  background: #ff8fbf;
+}
+.dot-both {
+  background: #b57cff;
+}
+
+.dot-rsvp-yes {
+  background: #67e39b;
+}
+.dot-rsvp-no {
+  background: #ff6b6b;
+}
+.dot-rsvp-pending {
+  background: #ffd56b;
+}
+
+.guest-grid {
+  display: grid;
+  grid-template-columns: 1fr 1fr;
+  gap: 12px;
+}
+
+.guest-grid-item {
+  padding: 12px;
+  border-radius: 12px;
+  background: rgba(255, 255, 255, 0.03);
 }

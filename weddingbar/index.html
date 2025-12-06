@@ -162,6 +162,59 @@
           style="margin-top: 12px; display: flex; gap: 8px; flex-wrap: wrap"
         ></div>
 
+        <!-- GUEST STATS -->
+        <div
+          id="guestStats"
+          style="margin-top: 12px; font-size: 14px; color: var(--muted)"
+        ></div>
+
+        <!-- SEARCH -->
+        <input
+          id="guestSearch"
+          type="text"
+          placeholder="Search guests…"
+          style="
+            width: 100%;
+            padding: 12px;
+            margin-top: 12px;
+            border-radius: 10px;
+            background: var(--card);
+            color: white;
+            border: none;
+            font-size: 16px;
+          "
+        />
+
+        <!-- FILTER CHIPS -->
+        <div
+          id="guestFilterChips"
+          style="margin-top: 12px; display: flex; gap: 8px; overflow-x: auto"
+        ></div>
+
+        <!-- VIEW MODE -->
+        <div style="margin-top: 10px; display: flex; gap: 10px">
+          <button id="guestViewList" class="btn" style="flex: 1">List</button>
+          <button id="guestViewGrid" class="btn ghost" style="flex: 1">
+            Grid
+          </button>
+        </div>
+
+        <!-- A–Z Jump -->
+        <div
+          id="guestAZ"
+          style="
+            position: absolute;
+            right: 4px;
+            top: 120px;
+            display: flex;
+            flex-direction: column;
+            gap: 4px;
+            font-size: 12px;
+            opacity: 0.7;
+            z-index: 10;
+          "
+        ></div>
+
         <div id="guestList" style="margin-top: 12px">
           <!-- guest rows injected by JS -->
         </div>

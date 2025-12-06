@@ -1160,69 +1160,112 @@ function loadGuests() {
       return;
     }
 
-    const arr = Object.keys(val).map((id) => ({ id, ...val[id] }));
-    arr.sort((a, b) => {
-      if ((a.side || "") !== (b.side || ""))
-        return (a.side || "").localeCompare(b.side || "");
-      if ((a.relation || "") !== (b.relation || ""))
-        return (a.relation || "").localeCompare(b.relation || "");
-      return (a.name || "").localeCompare(b.name || "");
+    let rawGuests = Object.keys(val).map((id) => ({ id, ...val[id] }));
+
+    // APPLY SEARCH
+    const q = (
+      document.getElementById("guestSearch")?.value || ""
+    ).toLowerCase();
+    if (q.trim() !== "") {
+      rawGuests = rawGuests.filter(
+        (g) =>
+          (g.name || "").toLowerCase().includes(q) ||
+          (g.role || "").toLowerCase().includes(q) ||
+          (g.side || "").toLowerCase().includes(q) ||
+          (g.relation || "").toLowerCase().includes(q) ||
+          (g.rsvp || "").toLowerCase().includes(q) ||
+          (g.notes || "").toLowerCase().includes(q)
+      );
+    }
+
+    // APPLY FILTER CHIPS
+    rawGuests = rawGuests.filter((g) => applyGuestFilters(g));
+
+    const statsBox = document.getElementById("guestStats");
+    if (statsBox) {
+      const total = rawGuests.length;
+      const charlie = rawGuests.filter((g) => g.side === "charlie").length;
+      const karla = rawGuests.filter((g) => g.side === "karla").length;
+      const both = rawGuests.filter((g) => g.side === "both").length;
+      const yes = rawGuests.filter((g) => g.rsvp === "yes").length;
+      const no = rawGuests.filter((g) => g.rsvp === "no").length;
+      const pending = rawGuests.filter((g) => g.rsvp === "pending").length;
+
+      statsBox.innerHTML = `
+    Total: <b>${total}</b> • 
+    Charlie: ${charlie} • 
+    Karla: ${karla} • 
+    Both: ${both} • 
+    Yes: ${yes} • No: ${no} • Pending: ${pending}
+  `;
+    }
+
+    const groups = {
+      charlie: [],
+      karla: [],
+      both: [],
+    };
+
+    rawGuests.forEach((g) => {
+      groups[g.side || "both"].push(g);
     });
 
+    // container for output
     box.innerHTML = "";
-    arr.forEach((g) => {
-      const row = document.createElement("div");
-      row.style.cssText = `
-        display:flex;
-        justify-content:space-between;
-        align-items:flex-start;
-        gap:12px;
-        padding:10px 0;
-        border-bottom:1px solid rgba(255,255,255,0.05);
-      `;
 
-      const left = document.createElement("div");
-      left.style.display = "flex";
-      left.style.flexDirection = "column";
-      left.style.gap = "6px";
+    // Render by group
+    ["charlie", "karla", "both"].forEach((side) => {
+      if (groups[side].length === 0) return;
 
-      const title = document.createElement("div");
-      title.style.fontWeight = "700";
-      title.textContent = g.name;
+      // header
+      const h = document.createElement("div");
+      h.textContent = side.toUpperCase() + ` (${groups[side].length})`;
+      h.style.margin = "12px 0 6px";
+      h.style.fontWeight = "700";
+      box.appendChild(h);
 
-      const meta = document.createElement("div");
-      meta.className = "muted";
-      meta.style.fontSize = "13px";
-      meta.textContent = `${g.side || "—"} • ${g.relation || "—"} • ${
-        g.role || "guest"
-      } • RSVP: ${g.rsvp || "pending"}`;
-
-      left.appendChild(title);
-      left.appendChild(meta);
-
-      if (g.notes) {
-        const note = document.createElement("div");
-        note.className = "muted";
-        note.style.fontSize = "13px";
-        note.textContent = g.notes;
-        left.appendChild(note);
+      // pick view type
+      if (guestViewMode === "grid") {
+        renderGuestGrid(groups[side], box);
+      } else {
+        renderGuestList(groups[side], box);
       }
-
-      const actions = document.createElement("div");
-      actions.style.display = "flex";
-      actions.style.gap = "8px";
-
-      const del = document.createElement("button");
-      del.textContent = "Delete";
-      del.className = "btn ghost";
-      del.onclick = () => remove(ref(db, `${GUESTS_PATH}/${g.id}`));
-
-      actions.appendChild(del);
-
-      row.appendChild(left);
-      row.appendChild(actions);
-      box.appendChild(row);
     });
+  });
+}
+
+function renderGuestChips() {
+  const box = document.getElementById("guestFilterChips");
+  if (!box) return;
+
+  const chips = [
+    { type: "side", value: "charlie" },
+    { type: "side", value: "karla" },
+    { type: "side", value: "both" },
+    { type: "relation", value: "family" },
+    { type: "relation", value: "friend" },
+    { type: "role", value: "guest" },
+    { type: "role", value: "bridesmaid" },
+    { type: "role", value: "groomsman" },
+    { type: "role", value: "principal" },
+    { type: "rsvp", value: "yes" },
+    { type: "rsvp", value: "pending" },
+    { type: "rsvp", value: "no" },
+  ];
+
+  box.innerHTML = "";
+
+  chips.forEach((c) => {
+    const btn = document.createElement("button");
+    btn.textContent = c.value;
+    btn.className = "btn ghost";
+    btn.style.padding = "6px 10px";
+
+    btn.onclick = () => {
+      guestFilters[c.type] = guestFilters[c.type] === c.value ? null : c.value;
+      loadGuests();
+    };
+    box.appendChild(btn);
   });
 }
 
@@ -1285,6 +1328,8 @@ function openGuestsPanel() {
   document.getElementById("guestsAddBar").style.display = "block";
 
   loadGuests();
+  renderGuestChips();
+  renderAZ();
 }
 
 document.getElementById("checklistBackBtn").onclick = () => {
@@ -1639,3 +1684,96 @@ window.addEventListener("resize", () => {
 
 // App start
 listenRealtime();
+
+const guestFilters = {
+  side: null,
+  relation: null,
+  role: null,
+  rsvp: null,
+};
+
+function applyGuestFilters(g) {
+  if (guestFilters.side && guestFilters.side !== g.side) return false;
+  if (guestFilters.relation && guestFilters.relation !== g.relation)
+    return false;
+  if (guestFilters.role && guestFilters.role !== g.role) return false;
+  if (guestFilters.rsvp && guestFilters.rsvp !== g.rsvp) return false;
+  return true;
+}
+
+let guestViewMode = "list";
+
+function renderGuestList(arr, box) {
+  arr.forEach((g) => {
+    const row = document.createElement("div");
+    row.style.padding = "10px 0";
+    row.style.borderBottom = "1px solid rgba(255,255,255,0.05)";
+
+    const sideDot = `<span class="guest-dot dot-${g.side}"></span>`;
+    const rsvpDot = `<span class="guest-dot dot-rsvp-${g.rsvp}"></span>`;
+
+    row.innerHTML = `
+      <div style="font-weight:700;">${sideDot}${g.name}</div>
+      <div class="muted" style="font-size:13px;">
+        ${g.relation || "—"} • ${g.role || "guest"} • ${rsvpDot}${g.rsvp}
+      </div>
+    `;
+
+    box.appendChild(row);
+  });
+}
+
+function renderGuestGrid(arr, box) {
+  const wrap = document.createElement("div");
+  wrap.className = "guest-grid";
+
+  arr.forEach((g) => {
+    const item = document.createElement("div");
+    item.className = "guest-grid-item";
+
+    const sideDot = `<span class="guest-dot dot-${g.side}"></span>`;
+
+    item.innerHTML = `
+      <div style="font-weight:700;">${sideDot}${g.name}</div>
+      <div class="muted" style="font-size:12px;">
+        ${g.relation || "—"} • ${g.role || "guest"} 
+      </div>
+    `;
+    wrap.appendChild(item);
+  });
+
+  box.appendChild(wrap);
+}
+
+document.getElementById("guestViewList").onclick = () => {
+  guestViewMode = "list";
+  loadGuests();
+};
+
+document.getElementById("guestViewGrid").onclick = () => {
+  guestViewMode = "grid";
+  loadGuests();
+};
+
+function renderAZ() {
+  const letters = "ABCDEFGHIJKLMNOPQRSTUVWXYZ".split("");
+  const box = document.getElementById("guestAZ");
+  box.innerHTML = "";
+
+  letters.forEach((l) => {
+    const btn = document.createElement("div");
+    btn.textContent = l;
+    btn.style.cursor = "pointer";
+
+    btn.onclick = () => {
+      const rows = document.querySelectorAll("#guestList div");
+      for (const r of rows) {
+        if (r.textContent.trim().toUpperCase().startsWith(l)) {
+          r.scrollIntoView({ behavior: "smooth", block: "start" });
+          break;
+        }
+      }
+    };
+    box.appendChild(btn);
+  });
+}
