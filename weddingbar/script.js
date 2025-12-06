@@ -1618,6 +1618,32 @@ document.getElementById("addNextStepBtn").onclick = async () => {
 };
 
 // =======================================================
+// DEVICE ORIENTATION + RESIZE HANDLING (RESTORED)
+// =======================================================
+
+// This variable remembers whether we were in mobile mode previously
+let lastIsMobile = window.innerWidth < 720;
+
+// Re-render when device rotates (portrait <-> landscape)
+window.addEventListener("orientationchange", () => {
+  // slight delay because iOS reports wrong sizes instantly
+  setTimeout(() => {
+    listenRealtime();
+  }, 150);
+});
+
+// Re-render when resizing (desktop or tablet)
+window.addEventListener("resize", () => {
+  const isMobile = window.innerWidth < 720;
+
+  // only re-render if breakpoint actually changed
+  if (isMobile !== lastIsMobile) {
+    lastIsMobile = isMobile;
+    listenRealtime();
+  }
+});
+
+// =======================================================
 // END OF FILE — all functionality preserved
 // =======================================================
 
