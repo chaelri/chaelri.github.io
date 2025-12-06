@@ -227,15 +227,20 @@ function updateCountdown() {
   }
 
   let value = 0;
+  let label;
   if (countdownMode === "days") {
     value = Math.floor(diff / (1000 * 60 * 60 * 24));
+    label = "DAYS LEFT"
   } else if (countdownMode === "weeks") {
     value = Math.ceil(diff / (1000 * 60 * 60 * 24 * 7));
+    label = "WEEKS LEFT"
   } else {
     value = Math.ceil(diff / (1000 * 60 * 60 * 24 * 30));
+    label = "MONTHS LEFT"
   }
 
   document.getElementById("daysLeftNumber").textContent = value;
+  document.getElementById("daysLeftLabel").textContent = label;
 }
 
 document.getElementById("daysLeftBox").onclick = () => {
@@ -570,6 +575,7 @@ function listenRealtime() {
       return;
     }
     const arr = Object.keys(val).map((id) => ({ id, ...val[id] }));
+    document.getElementById("sortSelect").value = savedSort;
     const sortType = savedSort;
     render(arr, sortType);
     updateSummary(arr);
