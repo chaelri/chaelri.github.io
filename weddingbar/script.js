@@ -1531,7 +1531,7 @@ document.querySelectorAll("input, select, button").forEach((el) => {
 
         <textarea id="guestNotesInput" placeholder="Notes (optional)…"
           style="width:100%; padding:14px; border-radius:10px; background:var(--card);
-          color:white; border:none; font-size:16px; min-height:70px;"></textarea>
+          color:white; border:none; font-size:16px; min-height:70px; box-sizing:border-box;"></textarea>
 
         <button id="addGuestBtn" type="button" class="btn" 
           style="padding:14px; font-size:16px; border-radius:12px;">
