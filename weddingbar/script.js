@@ -1535,11 +1535,7 @@ function ensureGuestFields() {
 
 ensureGuestFields();
 
-// =======================================================
-// Prevent iPhone zoom by enforcing min 16px font in all inputs/selects
-// =======================================================
-
-document.querySelectorAll("input, select, button").forEach((el) => {
+document.querySelectorAll("input").forEach((el) => {
   const s = window.getComputedStyle(el);
   const size = parseFloat(s.fontSize);
   if (size < 16) el.style.fontSize = "16px";
@@ -1614,7 +1610,7 @@ document.querySelectorAll("input, select, button").forEach((el) => {
           color:white; border:none; font-size:16px; min-height:70px; box-sizing:border-box;"></textarea>
 
         <button id="addGuestBtn" type="button" class="btn" 
-          style="padding:14px; font-size:16px; border-radius:12px;">
+          style="padding:14px; border-radius:12px;">
           Add Guest
         </button>
       </form>
