@@ -924,6 +924,16 @@ document.addEventListener("touchstart", (e) => {
 document.addEventListener("touchend", (e) => {
   if (!isMobile()) return;
 
+  // DISABLE SWIPE WHEN CHECKLIST OR GUESTS PANEL IS OPEN
+  const inChecklist =
+    document.getElementById("checklistPanel").style.display === "block";
+  const inGuests =
+    document.getElementById("guestsPanel").style.display === "block";
+
+  if (inChecklist || inGuests) {
+    return; // completely disables table/gallery swipe
+  }
+
   touchEndX = e.changedTouches[0].screenX;
   const diff = touchEndX - touchStartX;
 
@@ -1258,14 +1268,38 @@ function renderGuestChips() {
   chips.forEach((c) => {
     const btn = document.createElement("button");
     btn.textContent = c.value;
-    btn.className = "btn ghost";
+
+    // SHOW ACTIVE visual indicator
+    const isActive = guestFilters[c.type] === c.value;
+    btn.className = isActive ? "btn" : "btn ghost";
+
     btn.style.padding = "6px 10px";
+    btn.style.borderRadius = "999px"; // pill look
 
     btn.onclick = () => {
-      guestFilters[c.type] = guestFilters[c.type] === c.value ? null : c.value;
+      guestFilters[c.type] = isActive ? null : c.value;
+      renderGuestChips(); // refresh pills to show active state
+      loadGuests(); // apply filtering
+    };
+
+    box.appendChild(btn);
+
+    const clear = document.createElement("button");
+    clear.textContent = "Clear Filters";
+    clear.className = "btn ghost";
+    clear.style.padding = "6px 10px";
+    clear.style.marginLeft = "auto";
+
+    clear.onclick = () => {
+      guestFilters.side = null;
+      guestFilters.relation = null;
+      guestFilters.role = null;
+      guestFilters.rsvp = null;
+      renderGuestChips();
       loadGuests();
     };
-    box.appendChild(btn);
+
+    box.appendChild(clear);
   });
 }
 
@@ -1329,7 +1363,6 @@ function openGuestsPanel() {
 
   loadGuests();
   renderGuestChips();
-  renderAZ();
 }
 
 document.getElementById("checklistBackBtn").onclick = () => {
@@ -1754,26 +1787,3 @@ document.getElementById("guestViewGrid").onclick = () => {
   guestViewMode = "grid";
   loadGuests();
 };
-
-function renderAZ() {
-  const letters = "ABCDEFGHIJKLMNOPQRSTUVWXYZ".split("");
-  const box = document.getElementById("guestAZ");
-  box.innerHTML = "";
-
-  letters.forEach((l) => {
-    const btn = document.createElement("div");
-    btn.textContent = l;
-    btn.style.cursor = "pointer";
-
-    btn.onclick = () => {
-      const rows = document.querySelectorAll("#guestList div");
-      for (const r of rows) {
-        if (r.textContent.trim().toUpperCase().startsWith(l)) {
-          r.scrollIntoView({ behavior: "smooth", block: "start" });
-          break;
-        }
-      }
-    };
-    box.appendChild(btn);
-  });
-}
