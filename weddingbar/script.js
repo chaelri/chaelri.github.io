@@ -1371,6 +1371,74 @@ document.getElementById("clearGuestBtn").onclick = () => {
   document.getElementById("guestsForm").reset();
 };
 
+// ===============================
+// Import Guests from CSV
+// ===============================
+
+// Click → open hidden <input type="file">
+document.getElementById("importGuestsBtn").onclick = () => {
+  document.getElementById("guestCsvInput").click();
+};
+
+// When a CSV is selected
+document.getElementById("guestCsvInput").onchange = async (e) => {
+  const file = e.target.files[0];
+  if (!file) return;
+
+  const text = await file.text();
+
+  // Split CSV into rows
+  const rows = text
+    .split("\n")
+    .map((r) => r.trim())
+    .filter((r) => r.length > 0);
+
+  // Extract headers
+  const headers = rows
+    .shift()
+    .split(",")
+    .map((h) => h.trim().toLowerCase());
+
+  // Expected columns
+  const REQUIRED = ["name"];
+  const OPTIONAL = ["gender", "side", "relation", "role", "rsvp", "notes"];
+
+  // Validate name exists
+  if (!headers.includes("name")) {
+    alert("CSV missing required column: name");
+    return;
+  }
+
+  let imported = 0;
+
+  for (const row of rows) {
+    const cols = row.split(",").map((c) => c.trim());
+
+    const obj = {};
+    headers.forEach((h, i) => {
+      obj[h] = cols[i] || "";
+    });
+
+    // Save guest
+    await saveGuest({
+      name: obj.name,
+      gender: obj.gender || null,
+      side: obj.side || null,
+      relation: obj.relation || null,
+      role: obj.role || "guest",
+      rsvp: obj.rsvp || "pending",
+      notes: obj.notes || null,
+      createdAt: Date.now(),
+    });
+
+    imported++;
+  }
+
+  showSaveToast();
+  loadGuests();
+  alert(`Imported ${imported} guests.`);
+};
+
 // =======================================================
 // SORT SELECT
 // =======================================================

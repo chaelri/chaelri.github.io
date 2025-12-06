@@ -148,7 +148,10 @@
           "
         >
           <h2 style="margin: 0">Guests</h2>
-          <button id="guestsBackBtn" class="btn ghost">Back</button>
+          <div style="display: flex; gap: 8px">
+            <button id="importGuestsBtn" class="btn ghost">Import CSV</button>
+            <button id="guestsBackBtn" class="btn ghost">Back</button>
+          </div>
         </div>
 
         <div
@@ -212,7 +215,7 @@
               font-size: 16px;
               min-height: 72px;
               resize: vertical;
-              box-sizing:border-box;
+              box-sizing: border-box;
             "
           ></textarea>
 
@@ -265,7 +268,7 @@
                 background: var(--card);
                 color: white;
                 border: none;
-                box-sizing:border-box;
+                box-sizing: border-box;
               "
             />
             <select
@@ -389,6 +392,12 @@
           </form>
         </div>
       </div>
+      <input
+        type="file"
+        id="guestCsvInput"
+        accept=".csv"
+        style="display: none"
+      />
 
       <div id="weddingCostsWrapper">
         <section class="controls card" aria-label="Controls">
