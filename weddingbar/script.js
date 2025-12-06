@@ -185,6 +185,9 @@ function render(items = [], sortType = "none") {
     info.appendChild(title);
     info.appendChild(sub);
 
+    const priorityDot = document.createElement("div");
+    priorityDot.className = "priority-dot " + (it.priority || "low");
+
     const chip = document.createElement("div");
     chip.className =
       "status-chip " + (it.booked ? "status-booked" : "status-not");
@@ -192,6 +195,7 @@ function render(items = [], sortType = "none") {
 
     card.appendChild(thumb);
     card.appendChild(info);
+    card.appendChild(priorityDot);
     card.appendChild(chip);
     barsRoot.appendChild(card);
   });
@@ -204,19 +208,43 @@ function updateCountdown() {
   const diff = weddingDate - now;
 
   if (diff <= 0) {
-    document.getElementById("weddingCountdownTitle").textContent =
-      "💍 It’s Wedding Day!";
-    document.getElementById("countdownTimer").textContent =
-      "🎉 Happily ever after starts now!";
+    document.getElementById("daysLeftNumber").textContent = "0";
     return;
   }
 
-  const days = Math.floor(diff / (1000 * 60 * 60 * 24));
+  let value = 0;
+  let label = "";
+
+  if (countdownMode === "days") {
+    value = Math.floor(diff / (1000 * 60 * 60 * 24));
+    label = "DAYS LEFT";
+  } else if (countdownMode === "weeks") {
+    value = Math.ceil(diff / (1000 * 60 * 60 * 24 * 7));
+    label = "WEEKS LEFT";
+  } else {
+    value = Math.ceil(diff / (1000 * 60 * 60 * 24 * 30));
+    label = "MONTHS LEFT";
+  }
+
+  document.getElementById("daysLeftNumber").textContent = value;
+  document.querySelector("#daysLeftBox div:nth-child(2)").textContent = label;
   // const hours = Math.floor((diff % (1000 * 60 * 60 * 24)) / (1000 * 60 * 60));
   // const minutes = Math.floor((diff % (1000 * 60 * 60)) / (1000 * 60));
   // const seconds = Math.floor((diff % (1000 * 60)) / 1000);
-  document.getElementById("daysLeftNumber").textContent = days;
 }
+
+let countdownMode = "days"; // "days" → "weeks" → "months"
+
+document.getElementById("daysLeftBox").onclick = () => {
+  countdownMode =
+    countdownMode === "days"
+      ? "weeks"
+      : countdownMode === "weeks"
+      ? "months"
+      : "days";
+
+  updateCountdown();
+};
 
 updateCountdown();
 
@@ -234,6 +262,21 @@ function updateSummary(items = []) {
 
   const percent =
     grandTotal > 0 ? Math.round((totalPaid / grandTotal) * 100) : 0;
+
+  const bookedCount = items.filter((it) => it.booked).length;
+  const totalItems = items.length;
+  const remainingItems = totalItems - bookedCount;
+
+  const remainingCosts = grandTotal - totalPaid;
+
+  // update UI
+  document.getElementById(
+    "statsBooked"
+  ).textContent = `${bookedCount} / ${totalItems}`;
+  document.getElementById("statsRemainingItems").textContent = remainingItems;
+  document.getElementById("statsRemainingCosts").textContent =
+    fmt(remainingCosts);
+
   animateCircleProgress(percent);
 }
 
@@ -300,6 +343,17 @@ function showDetails(it) {
           Number(it.total) || 0
         }" />
       </div>
+
+      <div>
+        <label style="display:block;font-size:12px;margin-bottom:6px;">Priority</label>
+        <select id="detailPriority" 
+                style="width:100%; padding:10px; border-radius:10px; background:var(--card); color:white; border:1px solid rgba(255,255,255,0.06);">
+          <option value="high">High</option>
+          <option value="medium">Medium</option>
+          <option value="low">Low</option>
+        </select>
+      </div>
+
       <div style="margin-top:16px;">
         <label style="font-size:12px; color:var(--muted); display:block; margin-bottom:6px;">
             Attachments
@@ -316,6 +370,7 @@ function showDetails(it) {
   `;
 
   document.getElementById("chartSection").style.display = "none";
+  document.getElementById("detailPriority").value = it.priority || "low";
 
   // show panel
   detailPanel.classList.add("show");
@@ -340,18 +395,19 @@ function showDetails(it) {
     const newPaid = Number(document.getElementById("detailPaid").value) || 0;
     const newTotal = Number(document.getElementById("detailTotal").value) || 0;
     const newBooked = document.getElementById("detailBooked").checked;
+    const newPriority = document.getElementById("detailPriority").value;
 
     if (!newName) {
       return alert("Please provide a name.");
     }
 
-    // call update helper (keeps createdAt)
     await updateEntry(it.id, {
       name: newName,
       paid: newPaid,
       total: newTotal,
       booked: newBooked,
       createdAt: it.createdAt || Date.now(),
+      priority: newPriority,
     });
 
     // refresh live view

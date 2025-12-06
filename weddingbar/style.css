@@ -824,3 +824,23 @@ body {
   cursor: pointer;
   background: rgba(255, 255, 255, 0.05);
 }
+
+.priority-dot {
+  width: 10px;
+  height: 10px;
+  border-radius: 50%;
+  margin-left: auto;
+  margin-right: 8px;
+}
+
+.priority-dot.high {
+  background: #ff6b6b;
+}
+
+.priority-dot.medium {
+  background: #ffd56b;
+}
+
+.priority-dot.low {
+  background: #67e39b;
+}
