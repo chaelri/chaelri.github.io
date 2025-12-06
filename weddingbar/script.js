@@ -230,13 +230,13 @@ function updateCountdown() {
   let label;
   if (countdownMode === "days") {
     value = Math.floor(diff / (1000 * 60 * 60 * 24));
-    label = "DAYS LEFT"
+    label = "DAYS LEFT";
   } else if (countdownMode === "weeks") {
     value = Math.ceil(diff / (1000 * 60 * 60 * 24 * 7));
-    label = "WEEKS LEFT"
+    label = "WEEKS LEFT";
   } else {
     value = Math.ceil(diff / (1000 * 60 * 60 * 24 * 30));
-    label = "MONTHS LEFT"
+    label = "MONTHS LEFT";
   }
 
   document.getElementById("daysLeftNumber").textContent = value;
@@ -626,6 +626,41 @@ addBtn.onclick = async () => {
 
   showSaveToast();
 };
+
+// =======================================================
+// ADD COSTS PANEL TOGGLE (RESTORED ORIGINAL BEHAVIOR)
+// =======================================================
+
+const toggleBtn = document.getElementById("toggleControlsBtn");
+const controlsSection = document.querySelector(".controls");
+
+if (toggleBtn && controlsSection) {
+  // DEFAULT: hidden when app starts
+  controlsSection.classList.remove("visible");
+  controlsSection.classList.add("hidden");
+  toggleBtn.classList.remove("toggle-expanded");
+  toggleBtn.querySelector(".toggle-arrow").textContent = "▼";
+
+  toggleBtn.addEventListener("click", () => {
+    const isHidden = controlsSection.classList.contains("hidden");
+
+    if (isHidden) {
+      // SHOW
+      controlsSection.classList.remove("hidden");
+      controlsSection.classList.add("visible");
+
+      toggleBtn.classList.add("toggle-expanded");
+      toggleBtn.querySelector(".toggle-arrow").textContent = "▲";
+    } else {
+      // HIDE
+      controlsSection.classList.remove("visible");
+      controlsSection.classList.add("hidden");
+
+      toggleBtn.classList.remove("toggle-expanded");
+      toggleBtn.querySelector(".toggle-arrow").textContent = "▼";
+    }
+  });
+}
 
 clearBtn.onclick = () => {
   nameInput.value = "";
