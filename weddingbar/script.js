@@ -262,8 +262,7 @@ function updateSummary(items = []) {
   document.getElementById("summaryPaid").textContent = fmt(totalPaid);
   document.getElementById("summaryTotal").textContent = fmt(grandTotal);
 
-  const pct =
-    grandTotal > 0 ? Math.round((totalPaid / grandTotal) * 100) : 0;
+  const pct = grandTotal > 0 ? Math.round((totalPaid / grandTotal) * 100) : 0;
 
   const bookedCount = items.filter((it) => it.booked).length;
   const remainingItems = items.length - bookedCount;
@@ -271,8 +270,7 @@ function updateSummary(items = []) {
 
   document.getElementById("statsBooked").textContent =
     bookedCount + " / " + items.length;
-  document.getElementById("statsRemainingItems").textContent =
-    remainingItems;
+  document.getElementById("statsRemainingItems").textContent = remainingItems;
   document.getElementById("statsRemainingCosts").textContent =
     fmt(remainingCosts);
 
@@ -460,7 +458,7 @@ function showDetails(it) {
     detailPanel.style.display = "none";
     detailPanel.classList.remove("show");
     detailPanel.setAttribute("aria-hidden", "true");
-   .document.getElementById("chartSection").style.display = "block";
+    document.getElementById("chartSection").style.display = "block";
     listenRealtime();
   };
 
@@ -676,8 +674,7 @@ document.getElementById("viewerPrevBtn").onclick = () => {
 };
 
 document.getElementById("viewerNextBtn").onclick = () => {
-  currentAttachIndex =
-    (currentAttachIndex + 1) % currentAttachList.length;
+  currentAttachIndex = (currentAttachIndex + 1) % currentAttachList.length;
   viewerImg.src = currentAttachList[currentAttachIndex];
 };
 
@@ -957,11 +954,7 @@ function compressImage(file, quality = 0.6, maxWidth = 1280) {
       const ctx = canvas.getContext("2d");
       ctx.drawImage(img, 0, 0, canvas.width, canvas.height);
 
-      canvas.toBlob(
-        (blob) => resolve(blob),
-        "image/jpeg",
-        quality
-      );
+      canvas.toBlob((blob) => resolve(blob), "image/jpeg", quality);
     };
     img.onerror = reject;
     img.src = URL.createObjectURL(file);
@@ -1036,7 +1029,8 @@ function loadNextSteps(targetId = "nextStepsList") {
 
     const arr = Object.keys(val).map((id) => ({ id, ...val[id] }));
     arr.sort(
-      (a, b) => (a.deadline || a.createdAt || 0) - (b.deadline || b.createdAt || 0)
+      (a, b) =>
+        (a.deadline || a.createdAt || 0) - (b.deadline || b.createdAt || 0)
     );
 
     listEl.innerHTML = "";
@@ -1074,7 +1068,9 @@ function loadNextSteps(targetId = "nextStepsList") {
         </div>
         ${
           step.notes
-            ? `<div class="muted" style="font-size:13px; margin-top:6px;">${escapeHtml(step.notes)}</div>`
+            ? `<div class="muted" style="font-size:13px; margin-top:6px;">${escapeHtml(
+                step.notes
+              )}</div>`
             : ""
         }
         ${
@@ -1197,8 +1193,7 @@ const checklistDropdown = document.getElementById("checklistDropdown");
 const checklistMenu = document.getElementById("checklistMenu");
 
 checklistBtn.onclick = () => {
-  const open =
-    checklistBtn.getAttribute("aria-expanded") === "true";
+  const open = checklistBtn.getAttribute("aria-expanded") === "true";
   checklistBtn.setAttribute("aria-expanded", !open);
   checklistDropdown.style.display = open ? "none" : "block";
 };
