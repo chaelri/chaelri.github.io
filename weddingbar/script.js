@@ -1556,7 +1556,7 @@ document.querySelectorAll("input").forEach((el) => {
         
         <input id="guestNameInput" type="text" placeholder="Guest name…" 
           style="width:100%; padding:14px; border-radius:10px; background:var(--card); 
-          color:white; border:none; font-size:16px;" />
+          color:white; border:none; font-size:16px; box-sizing: border-box" />
 
         <select id="guestGenderInput"
           style="width:100%; padding:14px; border-radius:10px; background:var(--card);
