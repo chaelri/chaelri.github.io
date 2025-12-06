@@ -1265,6 +1265,23 @@ function renderGuestChips() {
 
   box.innerHTML = "";
 
+  const clear = document.createElement("button");
+  clear.textContent = "Clear Filters";
+  clear.className = "btn ghost";
+  clear.style.padding = "6px 10px";
+  clear.style.marginLeft = "auto";
+
+  clear.onclick = () => {
+    guestFilters.side = null;
+    guestFilters.relation = null;
+    guestFilters.role = null;
+    guestFilters.rsvp = null;
+    renderGuestChips();
+    loadGuests();
+  };
+
+  box.appendChild(clear);
+
   chips.forEach((c) => {
     const btn = document.createElement("button");
     btn.textContent = c.value;
@@ -1283,23 +1300,6 @@ function renderGuestChips() {
     };
 
     box.appendChild(btn);
-
-    const clear = document.createElement("button");
-    clear.textContent = "Clear Filters";
-    clear.className = "btn ghost";
-    clear.style.padding = "6px 10px";
-    clear.style.marginLeft = "auto";
-
-    clear.onclick = () => {
-      guestFilters.side = null;
-      guestFilters.relation = null;
-      guestFilters.role = null;
-      guestFilters.rsvp = null;
-      renderGuestChips();
-      loadGuests();
-    };
-
-    box.appendChild(clear);
   });
 }
 
