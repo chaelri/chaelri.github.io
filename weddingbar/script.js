@@ -1760,10 +1760,6 @@ async function loadGuestsKanban() {
             <span style="width:10px;height:10px;border-radius:50%;background:${rsvpColor};"></span>
           </div>
         `;
-        // Prevent child elements from becoming drag targets
-        card.querySelectorAll("*").forEach((el) => {
-          el.draggable = false;
-        });
 
         card.querySelectorAll("*").forEach((el) => {
           el.addEventListener("mousedown", () => {
@@ -1806,8 +1802,10 @@ async function loadGuestsKanban() {
           parentList.insertBefore(placeholder, card.nextSibling);
 
           // IMPORTANT: attach card id properly
-          e.dataTransfer.setData("text/plain", g.id);
-          e.dataTransfer.effectAllowed = "move";
+          if (e.dataTransfer) {
+            e.dataTransfer.setData("text/plain", g.id);
+            e.dataTransfer.effectAllowed = "move";
+          }
         });
 
         card.addEventListener("dragend", () => {
