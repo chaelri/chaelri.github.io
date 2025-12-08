@@ -1583,13 +1583,20 @@ document.getElementById("openGuests").onclick = async () => {
    - uses existing Firebase refs (db, GUESTS_PATH)
    ======================================================= */
 
+/* =======================================================
+   KANBAN: Guests by ROLE (FULL DRAG & DROP VERSION)
+   - Non-destructive: does not delete any existing functions
+   - Desktop drag & drop
+   - Mobile long-press drag
+   - Updates role + sortIndex in Firebase
+   ======================================================= */
 async function loadGuestsKanban() {
   const board = document.getElementById("kanbanBoard");
   const loading = document.getElementById("kanbanLoading");
   if (!board) return;
   if (loading) loading.style.display = "block";
 
-  // Option 2 role set (always show)
+  // Always-show role columns
   const roleOrder = [
     "bride",
     "groom",
@@ -1601,10 +1608,8 @@ async function loadGuestsKanban() {
     "guest",
   ];
 
-  // clear board
+  // Build fresh empty columns
   board.innerHTML = "";
-
-  // render empty columns first
   roleOrder.forEach((role) => {
     const col = document.createElement("div");
     col.className = "kanban-column";
@@ -1619,17 +1624,13 @@ async function loadGuestsKanban() {
     list.dataset.role = role;
     col.appendChild(list);
 
-    // --- KANBAN COLUMN DRAG TARGETS ---
+    // --- DESKTOP COLUMN DROP TARGETS ---
     col.addEventListener("dragover", (e) => {
       e.preventDefault();
       col.classList.add("drag-over");
-
       const listEl = col.querySelector(".kanban-list");
       const ph = document.querySelector(".kanban-placeholder");
-
-      if (ph && ph.parentElement !== listEl) {
-        listEl.appendChild(ph);
-      }
+      if (ph && ph.parentElement !== listEl) listEl.appendChild(ph);
     });
 
     col.addEventListener("dragleave", () => {
@@ -1640,7 +1641,7 @@ async function loadGuestsKanban() {
       e.preventDefault();
       col.classList.remove("drag-over");
 
-      const droppedId = e.dataTransfer?.getData("text/plain");
+      const droppedId = e.dataTransfer.getData("text/plain");
       if (!droppedId) return;
 
       const cardEl = document.querySelector(
@@ -1652,138 +1653,189 @@ async function loadGuestsKanban() {
       if (cardEl && ph && listEl) {
         listEl.replaceChild(cardEl, ph);
 
-        // update role in Firebase
+        // Update role
         await update(ref(db, `${GUESTS_PATH}/${droppedId}`), {
           role: col.dataset.role,
         });
 
-        // persist order for this column
+        // Persist order
         await persistColumnOrder(listEl);
 
-        loadGuestsKanban(); // refresh
+        loadGuestsKanban();
       }
     });
 
     board.appendChild(col);
   });
 
-  // subscribe once to guests snapshot (lightweight passive render)
-  // using onValue ensures live updates; we attach a one-time listener for initial render
-  onValue(
-    ref(db, GUESTS_PATH),
-    (snap) => {
-      const val = snap.val() || {};
-      const arr = Object.keys(val).map((id) => ({ id, ...val[id] }));
+  // --- FETCH GUESTS LIVE ---
+  onValue(ref(db, GUESTS_PATH), (snap) => {
+    const raw = snap.val() || {};
+    const guests = Object.keys(raw).map((id) => ({ id, ...raw[id] }));
 
-      // optional: apply search filter
-      const q = (
-        document.getElementById("guestSearch")?.value || ""
-      ).toLowerCase();
-      let filtered = arr;
-      if (q.trim() !== "") {
-        filtered = arr.filter(
+    // Normalize sortIndex (optional)
+    guests.sort((a, b) => (a.sortIndex ?? 0) - (b.sortIndex ?? 0));
+
+    // Apply search filter
+    const q = (
+      document.getElementById("guestSearch")?.value || ""
+    ).toLowerCase();
+    const filtered = q
+      ? guests.filter(
           (g) =>
             (g.name || "").toLowerCase().includes(q) ||
             (g.role || "").toLowerCase().includes(q) ||
             (g.side || "").toLowerCase().includes(q)
-        );
-      }
+        )
+      : guests;
 
-      // group by role (normalize simple variants)
-      const groups = {};
-      roleOrder.forEach((r) => (groups[r] = []));
-      filtered.forEach((g) => {
-        const key = (g.role || "guest").toString().toLowerCase();
-        const map = {
-          principal: "principal sponsors",
-          "principal sponsor": "principal sponsors",
-          groomsman: "groomsmen",
-          secondary: "secondary sponsors",
-          "secondary sponsor": "secondary sponsors",
-        };
-        const finalKey = roleOrder.includes(key) ? key : map[key] || "guest";
-        groups[finalKey].push(g);
-      });
+    // Group guests into columns
+    const groups = {};
+    roleOrder.forEach((r) => (groups[r] = []));
 
-      // populate columns
-      roleOrder.forEach((role) => {
-        const col = board.querySelector(`.kanban-column[data-role="${role}"]`);
-        if (!col) return;
-        const list = col.querySelector(".kanban-list");
-        list.innerHTML = "";
-        groups[role].forEach((g) => {
-          const card = document.createElement("div");
-          card.className = "kanban-card";
-          // Enable desktop drag
-          card.draggable = true;
+    const mapping = {
+      principal: "principal sponsors",
+      "principal sponsor": "principal sponsors",
+      groomsman: "groomsmen",
+      secondary: "secondary sponsors",
+      "secondary sponsor": "secondary sponsors",
+    };
 
-          card.dataset.id = g.id;
-          card.dataset.role = role;
+    filtered.forEach((g) => {
+      const r = (g.role || "guest").toLowerCase();
+      const key = roleOrder.includes(r) ? r : mapping[r] || "guest";
+      groups[key].push(g);
+    });
 
-          card.innerHTML = `
+    // Render each column’s cards
+    roleOrder.forEach((role) => {
+      const col = board.querySelector(`.kanban-column[data-role="${role}"]`);
+      const list = col.querySelector(".kanban-list");
+      list.innerHTML = "";
+
+      groups[role].forEach((g) => {
+        const card = document.createElement("div");
+        card.className = "kanban-card";
+        card.dataset.id = g.id;
+        card.dataset.role = role;
+        card.draggable = true;
+
+        const sideColor =
+          g.side === "charlie"
+            ? "#4da3ff"
+            : g.side === "karla"
+            ? "#ff8fbf"
+            : "#b57cff";
+
+        const rsvpColor =
+          g.rsvp === "yes"
+            ? "#67e39b"
+            : g.rsvp === "no"
+            ? "#ff6b6b"
+            : "#ffd56b";
+
+        card.innerHTML = `
           <div style="min-width:0;">
             <div class="name">${escapeHtml(g.name || "—")}</div>
             <div class="meta-row">${g.relation || "—"} • ${g.side || ""}</div>
           </div>
           <div style="display:flex;flex-direction:column;gap:6px;align-items:center;">
-            <span style="width:10px;height:10px;border-radius:50%;display:inline-block;${
-              g.side === "charlie"
-                ? "background:#4da3ff"
-                : g.side === "karla"
-                ? "background:#ff8fbf"
-                : "background:#b57cff"
-            }"></span>
-            <span style="width:10px;height:10px;border-radius:50%;display:inline-block;${
-              g.rsvp === "yes"
-                ? "background:#67e39b"
-                : g.rsvp === "no"
-                ? "background:#ff6b6b"
-                : "background:#ffd56b"
-            }"></span>
+            <span style="width:10px;height:10px;border-radius:50%;background:${sideColor};"></span>
+            <span style="width:10px;height:10px;border-radius:50%;background:${rsvpColor};"></span>
           </div>
         `;
 
-          // click to open inline editor (existing function)
-          card.addEventListener("click", (e) => {
-            e.stopPropagation();
-            try {
-              // prefer toggleInlineGuestEditor if available
-              if (typeof toggleInlineGuestEditor === "function") {
-                toggleInlineGuestEditor(g, card);
-              } else if (typeof openGuestEditor === "function") {
-                openGuestEditor(g);
-              }
-            } catch (err) {}
-          });
-          // --- DESKTOP DRAG & DROP ---
-          let placeholder;
-
-          card.addEventListener("dragstart", (e) => {
-            card.classList.add("dragging");
-            placeholder = document.createElement("div");
-            placeholder.className = "kanban-placeholder";
-            e.dataTransfer.setData("text/plain", g.id);
-            e.dataTransfer.effectAllowed = "move";
-          });
-
-          card.addEventListener("dragend", (e) => {
-            card.classList.remove("dragging");
-            const ph = document.querySelector(".kanban-placeholder");
-            if (ph && ph.parentElement) ph.remove();
-          });
-
-          list.appendChild(card);
+        // Click → inline editor
+        card.addEventListener("click", (e) => {
+          if (card.classList.contains("dragging")) return;
+          if (typeof toggleInlineGuestEditor === "function")
+            toggleInlineGuestEditor(g, card);
         });
 
-        // update count in header
-        const countEl = col.querySelector(".col-count");
-        if (countEl) countEl.textContent = `(${groups[role].length})`;
+        // ========== DESKTOP DRAG ==========
+        let placeholder;
+
+        card.addEventListener("dragstart", (e) => {
+          card.classList.add("dragging");
+          placeholder = document.createElement("div");
+          placeholder.className = "kanban-placeholder";
+
+          const parentList = card.closest(".kanban-list");
+          parentList.insertBefore(placeholder, card.nextSibling);
+
+          e.dataTransfer.setData("text/plain", g.id);
+          e.dataTransfer.effectAllowed = "move";
+        });
+
+        card.addEventListener("dragend", () => {
+          card.classList.remove("dragging");
+          const ph = document.querySelector(".kanban-placeholder");
+          if (ph && ph.parentElement) ph.remove();
+        });
+
+        // ========== MOBILE LONG PRESS DRAG ==========
+        let longPressTimer;
+
+        card.addEventListener(
+          "touchstart",
+          (e) => {
+            longPressTimer = setTimeout(() => {
+              card.classList.add("dragging");
+              placeholder = document.createElement("div");
+              placeholder.className = "kanban-placeholder";
+              const parentList = card.closest(".kanban-list");
+              parentList.insertBefore(placeholder, card.nextSibling);
+            }, 140);
+          },
+          { passive: true }
+        );
+
+        card.addEventListener(
+          "touchmove",
+          (e) => {
+            if (!card.classList.contains("dragging")) return;
+            const t = e.touches[0];
+            const target = document.elementFromPoint(t.clientX, t.clientY);
+            const col = target?.closest?.(".kanban-column");
+            if (col) {
+              const listEl = col.querySelector(".kanban-list");
+              const ph = document.querySelector(".kanban-placeholder");
+              if (ph && ph.parentElement !== listEl) listEl.appendChild(ph);
+            }
+          },
+          { passive: true }
+        );
+
+        card.addEventListener("touchend", async (e) => {
+          clearTimeout(longPressTimer);
+
+          if (!card.classList.contains("dragging")) return;
+          card.classList.remove("dragging");
+
+          const ph = document.querySelector(".kanban-placeholder");
+          const col = ph?.closest(".kanban-column");
+
+          if (ph && col) {
+            ph.replaceWith(card);
+
+            await update(ref(db, `${GUESTS_PATH}/${g.id}`), {
+              role: col.dataset.role,
+            });
+
+            await persistColumnOrder(col.querySelector(".kanban-list"));
+            loadGuestsKanban();
+          }
+        });
+
+        list.appendChild(card);
       });
 
-      if (loading) loading.style.display = "none";
-    },
-    { onlyOnce: false }
-  );
+      // Update count in header
+      col.querySelector(".col-count").textContent = `(${groups[role].length})`;
+    });
+
+    if (loading) loading.style.display = "none";
+  });
 }
 
 // keep search input triggering kanban render

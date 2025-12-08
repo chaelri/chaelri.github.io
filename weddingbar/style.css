@@ -1105,6 +1105,27 @@ textarea {
   display: none !important;
 }
 
+/* Kanban drag/drop additions */
+.kanban-card.dragging {
+  opacity: 0.6;
+  transform: scale(1.05);
+  cursor: grabbing;
+  box-shadow: 0 10px 24px rgba(0, 0, 0, 0.3);
+}
+
+.kanban-placeholder {
+  height: 52px;
+  border-radius: 10px;
+  margin-bottom: 8px;
+  background: rgba(255, 255, 255, 0.05);
+  border: 2px dashed rgba(255, 255, 255, 0.15);
+}
+
+.kanban-column.drag-over {
+  border-color: rgba(160, 140, 255, 0.4);
+  box-shadow: 0 0 14px rgba(160, 140, 255, 0.25);
+}
+
 /* Basic Kanban styles (initial, non-destructive) */
 .kanban-board {
   display: flex;
