@@ -1215,32 +1215,6 @@ function saveGuest(obj) {
   return set(push(ref(db, GUESTS_PATH)), obj);
 }
 
-let editingGuestId = null;
-
-function openGuestEditor(g) {
-  editingGuestId = g.id;
-  document.getElementById("editGuestName").value = g.name || "";
-  document.getElementById("editGuestGender").value = g.gender || "";
-  document.getElementById("editGuestSide").value = g.side || "";
-  document.getElementById("editGuestRelation").value = g.relation || "";
-  document.getElementById("editGuestRole").value = g.role || "guest";
-  document.getElementById("editGuestRsvp").value = g.rsvp || "pending";
-  document.getElementById("editGuestNotes").value = g.notes || "";
-
-  const bar = document.getElementById("guestEditBar");
-  bar.style.display = "block";
-  requestAnimationFrame(() => bar.classList.add("open"));
-}
-
-// :contentReference[oaicite:4]{index=4}
-/***********************
-  KANBAN: Guests by ROLE (ENHANCED)
-  - Option 2 roles (always visible)
-  - Desktop drag/drop + Mobile long-press drag
-  - Tap to open inline editor (disabled while dragging)
-  - Persistent sortIndex per guest (Option 1)
-  - Column highlight + smooth animations
-************************/
 function loadGuests() {
   if (typeof guestsUnsub === "function") {
     guestsUnsub();
@@ -1770,76 +1744,6 @@ window.deleteInlineGuest = async function (id) {
   loadGuests();
 };
 
-function renderGuestChips() {
-  const box = document.getElementById("guestFilterChips");
-  if (!box) return;
-
-  const chips = [
-    { type: "side", value: "charlie" },
-    { type: "side", value: "karla" },
-    { type: "side", value: "both" },
-    { type: "relation", value: "family" },
-    { type: "relation", value: "friend" },
-    { type: "role", value: "bride" },
-    { type: "role", value: "groom" },
-    { type: "role", value: "parent" },
-    { type: "role", value: "guest" },
-    { type: "role", value: "bridesmaid" },
-    { type: "role", value: "groomsman" },
-    { type: "role", value: "principal" },
-    { type: "rsvp", value: "yes" },
-    { type: "rsvp", value: "pending" },
-    { type: "rsvp", value: "no" },
-  ];
-
-  box.innerHTML = "";
-
-  const clear = document.createElement("button");
-  clear.textContent = "Clear Filters";
-  clear.className = "btn ghost";
-  clear.style.padding = "6px 10px";
-  clear.style.marginLeft = "auto";
-
-  clear.onclick = () => {
-    guestFilters.side = [];
-    guestFilters.relation = [];
-    guestFilters.role = [];
-    guestFilters.rsvp = [];
-    renderGuestChips();
-    loadGuests();
-  };
-
-  box.appendChild(clear);
-
-  chips.forEach((c) => {
-    const btn = document.createElement("button");
-    btn.textContent = c.value;
-
-    // SHOW ACTIVE visual indicator
-    const isActive = guestFilters[c.type].includes(c.value);
-
-    btn.className = isActive ? "btn" : "btn ghost";
-
-    btn.style.padding = "6px 10px";
-    btn.style.borderRadius = "999px"; // pill look
-
-    btn.onclick = () => {
-      if (guestFilters[c.type].includes(c.value)) {
-        guestFilters[c.type] = guestFilters[c.type].filter(
-          (v) => v !== c.value
-        );
-      } else {
-        guestFilters[c.type].push(c.value);
-      }
-
-      renderGuestChips(); // refresh pills to show active state
-      loadGuests(); // apply filtering
-    };
-
-    box.appendChild(btn);
-  });
-}
-
 // =======================================================
 // PANEL OPENERS
 // =======================================================
@@ -2169,37 +2073,6 @@ document.querySelectorAll("input").forEach((el) => {
   `;
 })();
 
-// =======================================================
-// Fix Add Guest Button after dynamic rebuild
-// =======================================================
-document.body.addEventListener("click", async (e) => {
-  if (e.target && e.target.id === "addGuestBtn") {
-    const name = document.getElementById("guestNameInput").value.trim();
-    const gender = document.getElementById("guestGenderInput").value.trim();
-    const side = document.getElementById("guestSideInput").value.trim();
-    const relation = document.getElementById("guestRelationInput").value.trim();
-    const role = document.getElementById("guestRoleInput").value.trim();
-    const rsvp = document.getElementById("guestRsvpInput").value.trim();
-    const notes = document.getElementById("guestNotesInput").value.trim();
-
-    if (!name) return alert("Guest name required.");
-
-    await saveGuest({
-      name,
-      gender: gender || null,
-      side: side || null,
-      relation: relation || null,
-      role: role || "guest",
-      rsvp: rsvp || "pending",
-      notes: notes || null,
-      createdAt: Date.now(),
-    });
-
-    document.getElementById("guestsForm").reset();
-    loadGuests();
-    showSaveToast();
-  }
-});
 
 // =======================================================
 // Fix Add Checklist Button after notes insertion

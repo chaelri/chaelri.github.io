@@ -1063,18 +1063,6 @@ textarea {
   background: #ffd56b;
 }
 
-/* :contentReference[oaicite:1]{index=1}
-   CLEANUP: remove legacy guest-grid visual weight and introduce Kanban enhancements
-*/
-
-/* Legacy guest-grid removed — replaced by kanban layout (kept minimal fallback) */
-.guest-grid {
-  display: none; /* replaced by kanban */
-}
-.guest-grid-item {
-  display: none;
-}
-
 /* KANBAN — Guest Roles board (always show all roles) */
 .kanban-board {
   display: flex;
