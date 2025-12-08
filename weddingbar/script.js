@@ -1215,8 +1215,6 @@ function saveGuest(obj) {
   return set(push(ref(db, GUESTS_PATH)), obj);
 }
 
-let editingGuestId = null;
-
 function openGuestEditor(g) {
   editingGuestId = g.id;
   document.getElementById("editGuestName").value = g.name || "";
@@ -1579,6 +1577,20 @@ document.getElementById("openGuests").onclick = async () => {
 let kanbanDragLock = false; // prevents Firebase from re-rendering mid-drag
 let currentDraggingId = null;
 
+// more complete mapping to normalize roles from arbitrary strings
+  const mapping = {
+    principal: "principal sponsors",
+    "principal sponsor": "principal sponsors",
+    "principal sponsors": "principal sponsors",
+
+    groomsman: "groomsmen",
+    groomsmen: "groomsmen",
+
+    secondary: "secondary sponsors",
+    "secondary sponsor": "secondary sponsors",
+    "secondary sponsors": "secondary sponsors",
+  };
+
 async function loadGuestsKanban() {
   const board = document.getElementById("kanbanBoard");
   if (!board) {
@@ -1598,20 +1610,6 @@ async function loadGuestsKanban() {
     "secondary sponsors",
     "guest",
   ];
-
-  // more complete mapping to normalize roles from arbitrary strings
-  const mapping = {
-    principal: "principal sponsors",
-    "principal sponsor": "principal sponsors",
-    "principal sponsors": "principal sponsors",
-
-    groomsman: "groomsmen",
-    groomsmen: "groomsmen",
-
-    secondary: "secondary sponsors",
-    "secondary sponsor": "secondary sponsors",
-    "secondary sponsors": "secondary sponsors",
-  };
 
   // Build columns
   board.innerHTML = "";
