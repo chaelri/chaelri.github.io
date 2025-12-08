@@ -1764,15 +1764,6 @@ document.addEventListener("click", (e) => {
   }
 });
 
-document.getElementById("openChecklist").onclick = () => {
-  checklistDropdown.style.display = "none";
-  openChecklistPanel();
-};
-
-document.getElementById("openGuests").onclick = () => {
-  checklistDropdown.style.display = "none";
-  openGuestsPanel();
-};
 
 document.getElementById("openSeating").onclick = () => {
   checklistDropdown.style.display = "none";
@@ -2001,6 +1992,12 @@ document.querySelectorAll("input").forEach((el) => {
 // =======================================================
 
 // Build a better guests form (in place)
+// FIX: prevent any guest-panel auto-trigger during initial UI rebuild
+let _suppressGuestPanelAutoOpen = true;
+setTimeout(() => {
+  _suppressGuestPanelAutoOpen = false;
+}, 100);
+
 (function buildBetterGuestForm() {
   const bar = document.getElementById("guestsAddBar");
   if (!bar) return;
@@ -2073,7 +2070,6 @@ document.querySelectorAll("input").forEach((el) => {
   `;
 })();
 
-
 // =======================================================
 // Fix Add Checklist Button after notes insertion
 // =======================================================
@@ -2131,4 +2127,11 @@ window.addEventListener("resize", () => {
 // =======================================================
 
 // App start
+// App start
+// FIX: ensure only the main costs screen is visible on initial load
+document.getElementById("weddingCostsWrapper").style.display = "block";
+document.getElementById("guestsPanel").style.display = "none";
+document.getElementById("checklistPanel").style.display = "none";
+document.getElementById("nextStepsPanel").style.display = "none";
+
 listenRealtime();
