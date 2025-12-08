@@ -1578,6 +1578,7 @@ document.getElementById("openGuests").onclick = async () => {
 
 // Full working loadGuestsKanban with verbose console logs for debugging
 // Source: script.js :contentReference[oaicite:0]{index=0}
+let kanbanDragLock = false;
 async function loadGuestsKanban() {
   const board = document.getElementById("kanbanBoard");
   const loading = document.getElementById("kanbanLoading");
@@ -1728,7 +1729,13 @@ async function loadGuestsKanban() {
 
   // Listen to guest data
   onValue(ref(db, GUESTS_PATH), (snap) => {
+    if (kanbanDragLock) {
+      console.log("🛑 Firebase update skipped during drag");
+      return; // ← ← ← THE FIX
+    }
+
     console.log("loadGuestsKanban: fetched guests from DB");
+
     const raw = snap.val() || {};
     const guests = Object.keys(raw).map((id) => ({ id, ...raw[id] }));
     ensureSortIndexes(guests);
@@ -1819,45 +1826,32 @@ async function loadGuestsKanban() {
         // DESKTOP drag handlers
         let placeholder = null;
 
+        kanbanDragLock = true;
         card.addEventListener("dragstart", (e) => {
-          console.log(
-            "dragstart fired for",
-            card.dataset.id,
-            "dataTransfer?",
-            !!e.dataTransfer
-          );
-          // If there's no dataTransfer (some touch scenarios), bail — touch fallback will handle it
-          if (!e.dataTransfer) {
-            console.warn(
-              "dragstart: missing dataTransfer, aborting desktop dragstart for",
-              card.dataset.id
-            );
-            return;
-          }
+          kanbanDragLock = true;
+          console.log("dragstart: lock engaged");
 
-          // mark current dragging id (fallback for environments that lose dataTransfer)
+          if (!e.dataTransfer) return;
+
           currentDraggingId = card.dataset.id;
-
-          try {
-            e.dataTransfer.setData("text/plain", card.dataset.id);
-            e.dataTransfer.effectAllowed = "move";
-            console.log("dragstart: set dataTransfer id:", card.dataset.id);
-          } catch (err) {
-            console.warn("dragstart: dataTransfer.setData failed", err);
-          }
+          e.dataTransfer.setData("text/plain", currentDraggingId);
+          e.dataTransfer.effectAllowed = "move";
 
           card.classList.add("dragging");
+
           placeholder = createPlaceholder();
           const parentList = card.closest(".kanban-list");
           parentList.insertBefore(placeholder, card.nextSibling);
         });
 
-        card.addEventListener("dragend", (e) => {
-          console.log("dragend for", card.dataset.id);
-          card.classList.remove("dragging");
+        card.addEventListener("dragend", () => {
+          console.log("dragend: unlock");
+          kanbanDragLock = false;
           currentDraggingId = null;
+
+          card.classList.remove("dragging");
           const ph = document.querySelector(".kanban-placeholder");
-          if (ph && ph.parentElement) ph.parentElement.removeChild(ph);
+          if (ph && ph.parentElement) ph.remove();
         });
 
         // TOUCH fallback: long-press to pick up item, move placeholder with touchmove, drop on touchend
