@@ -1156,6 +1156,63 @@ function saveGuest(obj) {
   return set(push(ref(db, GUESTS_PATH)), obj);
 }
 
+let editingGuestId = null;
+
+function openGuestEditor(g) {
+  editingGuestId = g.id;
+  document.getElementById("editGuestName").value = g.name || "";
+  document.getElementById("editGuestGender").value = g.gender || "";
+  document.getElementById("editGuestSide").value = g.side || "";
+  document.getElementById("editGuestRelation").value = g.relation || "";
+  document.getElementById("editGuestRole").value = g.role || "guest";
+  document.getElementById("editGuestRsvp").value = g.rsvp || "pending";
+  document.getElementById("editGuestNotes").value = g.notes || "";
+
+  const bar = document.getElementById("guestEditBar");
+  bar.style.display = "block";
+  requestAnimationFrame(() => bar.classList.add("open"));
+}
+
+document.getElementById("saveGuestEditBtn").onclick = async () => {
+  if (!editingGuestId) return;
+
+  await update(ref(db, `${GUESTS_PATH}/${editingGuestId}`), {
+    name: document.getElementById("editGuestName").value.trim(),
+    gender: document.getElementById("editGuestGender").value || null,
+    side: document.getElementById("editGuestSide").value || null,
+    relation: document.getElementById("editGuestRelation").value || null,
+    role: document.getElementById("editGuestRole").value || "guest",
+    rsvp: document.getElementById("editGuestRsvp").value || "pending",
+    notes: document.getElementById("editGuestNotes").value.trim() || null,
+  });
+
+  closeGuestEditor();
+  loadGuests();
+  showSaveToast();
+};
+
+document.getElementById("deleteGuestBtn").onclick = async () => {
+  if (!editingGuestId) return;
+
+  const ok = confirm("Delete this guest?");
+  if (!ok) return;
+
+  await remove(ref(db, `${GUESTS_PATH}/${editingGuestId}`));
+  closeGuestEditor();
+  loadGuests();
+};
+
+function closeGuestEditor() {
+  const bar = document.getElementById("guestEditBar");
+  bar.classList.remove("open");
+  setTimeout(() => (bar.style.display = "none"), 300);
+  editingGuestId = null;
+}
+
+document.addEventListener("keydown", (e) => {
+  if (e.key === "Escape") closeGuestEditor();
+});
+
 function loadGuests() {
   if (typeof guestsUnsub === "function") {
     guestsUnsub();

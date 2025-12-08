@@ -188,7 +188,13 @@
         <!-- FILTER CHIPS -->
         <div
           id="guestFilterChips"
-          style="margin-top: 12px; display: flex; gap: 8px; overflow-x: visible"
+          style="
+            margin-top: 12px;
+            display: flex;
+            flex-wrap: wrap;
+            gap: 8px;
+            overflow: visible;
+          "
         ></div>
 
         <!-- VIEW MODE -->
@@ -661,6 +667,85 @@
         </div>
 
         <div id="galleryContent"></div>
+      </div>
+
+      <div
+        id="guestEditBar"
+        class="add-drawer"
+        style="
+          display: none;
+          position: fixed;
+          bottom: 0;
+          left: 0;
+          width: 100%;
+          padding: 18px;
+          background: rgba(7, 16, 37, 0.95);
+          backdrop-filter: blur(12px);
+          box-sizing: border-box;
+          z-index: 9999;
+        "
+      >
+        <form
+          id="guestEditForm"
+          style="display: flex; flex-direction: column; gap: 10px"
+        >
+          <input id="editGuestName" type="text" placeholder="Name…" />
+
+          <select id="editGuestGender">
+            <option value="">Gender</option>
+            <option value="male">Male</option>
+            <option value="female">Female</option>
+          </select>
+
+          <select id="editGuestSide">
+            <option value="">Side</option>
+            <option value="charlie">Charlie</option>
+            <option value="karla">Karla</option>
+            <option value="both">Both</option>
+          </select>
+
+          <select id="editGuestRelation">
+            <option value="">Relation</option>
+            <option value="family">Family</option>
+            <option value="friend">Friend</option>
+          </select>
+
+          <select id="editGuestRole">
+            <option value="">Role</option>
+            <option value="guest">Guest</option>
+            <option value="bridesmaid">Bridesmaid</option>
+            <option value="groomsman">Groomsman</option>
+            <option value="principal">Principal Sponsor</option>
+            <option value="secondary">Secondary Sponsor</option>
+          </select>
+
+          <select id="editGuestRsvp">
+            <option value="pending">RSVP: Pending</option>
+            <option value="yes">RSVP: Yes</option>
+            <option value="no">RSVP: No</option>
+          </select>
+
+          <textarea id="editGuestNotes" placeholder="Notes…"></textarea>
+
+          <div style="display: flex; gap: 10px">
+            <button
+              id="saveGuestEditBtn"
+              type="button"
+              class="btn"
+              style="flex: 1"
+            >
+              Save
+            </button>
+            <button
+              id="deleteGuestBtn"
+              type="button"
+              class="btn ghost"
+              style="flex: 1"
+            >
+              Delete
+            </button>
+          </div>
+        </form>
       </div>
     </main>
 
