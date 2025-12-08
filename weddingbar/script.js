@@ -1565,10 +1565,171 @@ document.getElementById("openChecklist").onclick = () => {
   openChecklistPanel();
 };
 
-document.getElementById("openGuests").onclick = () => {
+document.getElementById("openGuests").onclick = async () => {
   checklistDropdown.style.display = "none";
   openGuestsPanel();
+  // ensure Kanban renders when guests panel is opened
+  try {
+    loadGuestsKanban();
+  } catch (e) {
+    /* graceful */
+  }
 };
+
+/* =======================================================
+   KANBAN: lightweight initial renderer (step 1)
+   - non-destructive: only renders columns + cards (no deletion)
+   - will be progressively enhanced with drag/reorder later
+   - uses existing Firebase refs (db, GUESTS_PATH)
+   ======================================================= */
+
+async function loadGuestsKanban() {
+  const board = document.getElementById("kanbanBoard");
+  const loading = document.getElementById("kanbanLoading");
+  if (!board) return;
+  if (loading) loading.style.display = "block";
+
+  // Option 2 role set (always show)
+  const roleOrder = [
+    "bride",
+    "groom",
+    "principal sponsors",
+    "parent",
+    "bridesmaid",
+    "groomsmen",
+    "secondary sponsors",
+    "guest",
+  ];
+
+  // clear board
+  board.innerHTML = "";
+
+  // render empty columns first
+  roleOrder.forEach((role) => {
+    const col = document.createElement("div");
+    col.className = "kanban-column";
+    col.dataset.role = role;
+
+    const header = document.createElement("h3");
+    header.innerHTML = `${role} <span class="col-count">(0)</span>`;
+    col.appendChild(header);
+
+    const list = document.createElement("div");
+    list.className = "kanban-list";
+    list.dataset.role = role;
+    col.appendChild(list);
+
+    board.appendChild(col);
+  });
+
+  // subscribe once to guests snapshot (lightweight passive render)
+  // using onValue ensures live updates; we attach a one-time listener for initial render
+  onValue(
+    ref(db, GUESTS_PATH),
+    (snap) => {
+      const val = snap.val() || {};
+      const arr = Object.keys(val).map((id) => ({ id, ...val[id] }));
+
+      // optional: apply search filter
+      const q = (
+        document.getElementById("guestSearch")?.value || ""
+      ).toLowerCase();
+      let filtered = arr;
+      if (q.trim() !== "") {
+        filtered = arr.filter(
+          (g) =>
+            (g.name || "").toLowerCase().includes(q) ||
+            (g.role || "").toLowerCase().includes(q) ||
+            (g.side || "").toLowerCase().includes(q)
+        );
+      }
+
+      // group by role (normalize simple variants)
+      const groups = {};
+      roleOrder.forEach((r) => (groups[r] = []));
+      filtered.forEach((g) => {
+        const key = (g.role || "guest").toString().toLowerCase();
+        const map = {
+          principal: "principal sponsors",
+          "principal sponsor": "principal sponsors",
+          groomsman: "groomsmen",
+          secondary: "secondary sponsors",
+          "secondary sponsor": "secondary sponsors",
+        };
+        const finalKey = roleOrder.includes(key) ? key : map[key] || "guest";
+        groups[finalKey].push(g);
+      });
+
+      // populate columns
+      roleOrder.forEach((role) => {
+        const col = board.querySelector(`.kanban-column[data-role="${role}"]`);
+        if (!col) return;
+        const list = col.querySelector(".kanban-list");
+        list.innerHTML = "";
+        groups[role].forEach((g) => {
+          const card = document.createElement("div");
+          card.className = "kanban-card";
+          card.dataset.id = g.id;
+          card.dataset.role = role;
+
+          card.innerHTML = `
+          <div style="min-width:0;">
+            <div class="name">${escapeHtml(g.name || "—")}</div>
+            <div class="meta-row">${g.relation || "—"} • ${g.side || ""}</div>
+          </div>
+          <div style="display:flex;flex-direction:column;gap:6px;align-items:center;">
+            <span style="width:10px;height:10px;border-radius:50%;display:inline-block;${
+              g.side === "charlie"
+                ? "background:#4da3ff"
+                : g.side === "karla"
+                ? "background:#ff8fbf"
+                : "background:#b57cff"
+            }"></span>
+            <span style="width:10px;height:10px;border-radius:50%;display:inline-block;${
+              g.rsvp === "yes"
+                ? "background:#67e39b"
+                : g.rsvp === "no"
+                ? "background:#ff6b6b"
+                : "background:#ffd56b"
+            }"></span>
+          </div>
+        `;
+
+          // click to open inline editor (existing function)
+          card.addEventListener("click", (e) => {
+            e.stopPropagation();
+            try {
+              // prefer toggleInlineGuestEditor if available
+              if (typeof toggleInlineGuestEditor === "function") {
+                toggleInlineGuestEditor(g, card);
+              } else if (typeof openGuestEditor === "function") {
+                openGuestEditor(g);
+              }
+            } catch (err) {}
+          });
+
+          list.appendChild(card);
+        });
+
+        // update count in header
+        const countEl = col.querySelector(".col-count");
+        if (countEl) countEl.textContent = `(${groups[role].length})`;
+      });
+
+      if (loading) loading.style.display = "none";
+    },
+    { onlyOnce: false }
+  );
+}
+
+// keep search input triggering kanban render
+if (document.getElementById("guestSearch")) {
+  document.getElementById("guestSearch").oninput = () => {
+    try {
+      loadGuestsKanban();
+    } catch (e) {}
+  };
+}
 
 document.getElementById("openSeating").onclick = () => {
   checklistDropdown.style.display = "none";

@@ -1080,3 +1080,92 @@ textarea {
     display: none !important;
   }
 }
+
+/* TEMP: Hide all old guest list UI while Kanban replaces it */
+#guestControls,
+#guestFilterChips,
+.guest-grid,
+.guest-grid-item,
+.guest-list,
+.view-toggle,
+.list-mode-btn,
+.grid-mode-btn {
+  display: none !important;
+}
+
+/* TEMP: hide legacy guest list/grid UI while Kanban is enabled (no deletions) */
+#guestControls,
+#guestFilterChips,
+.guest-grid,
+.guest-grid-item,
+.guest-list,
+.view-toggle,
+#guestViewList,
+#guestViewGrid {
+  display: none !important;
+}
+
+/* Basic Kanban styles (initial, non-destructive) */
+.kanban-board {
+  display: flex;
+  gap: 12px;
+  overflow-x: auto;
+  padding: 8px 4px;
+  align-items: flex-start;
+  -webkit-overflow-scrolling: touch;
+}
+
+.kanban-column {
+  min-width: 220px;
+  max-width: 300px;
+  background: rgba(255,255,255,0.02);
+  border-radius: 12px;
+  padding: 10px;
+  box-sizing: border-box;
+  flex-shrink: 0;
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+  border: 1px solid rgba(255,255,255,0.03);
+}
+
+.kanban-column h3 {
+  margin: 0 0 6px 0;
+  font-size: 13px;
+  font-weight: 800;
+  text-transform: capitalize;
+  display:flex;
+  justify-content:space-between;
+  align-items:center;
+}
+
+.kanban-list {
+  display:flex;
+  flex-direction:column;
+  gap:8px;
+  min-height: 48px;
+}
+
+.kanban-card {
+  background: rgba(255,255,255,0.03);
+  padding: 10px;
+  border-radius: 10px;
+  cursor: default;
+  user-select: none;
+  font-weight: 700;
+  display: flex;
+  gap: 8px;
+  align-items: center;
+  justify-content: space-between;
+}
+
+.kanban-card .name { font-weight:800; white-space:nowrap; overflow:hidden; text-overflow:ellipsis; }
+.kanban-card .meta-row { font-size:12px; color:var(--muted); }
+
+.kanban-placeholder {
+  height: 54px;
+  border-radius: 10px;
+  background: rgba(255,255,255,0.02);
+  border: 2px dashed rgba(255,255,255,0.06);
+  margin-bottom: 8px;
+}

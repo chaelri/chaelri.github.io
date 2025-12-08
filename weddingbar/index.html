@@ -185,6 +185,31 @@
           "
         />
 
+        <!-- KANBAN BOARD (placeholder for future Kanban render) -->
+        <div id="guestKanbanWrap" style="margin-top: 14px">
+          <div
+            class="kanban-board"
+            id="kanbanBoard"
+            role="list"
+            aria-live="polite"
+          >
+            <!-- Columns will be injected by script.js -->
+          </div>
+
+          <!-- simple placeholder shown while loading -->
+          <div
+            id="kanbanLoading"
+            style="
+              margin-top: 8px;
+              color: var(--muted);
+              font-size: 13px;
+              display: none;
+            "
+          >
+            Loading guests…
+          </div>
+        </div>
+
         <!-- FILTER CHIPS -->
         <div
           id="guestFilterChips"
@@ -621,7 +646,12 @@
             </select>
             <div
               id="viewIcons"
-              style="display: flex; gap: 10px; align-items: center; margin-right: 10px"
+              style="
+                display: flex;
+                gap: 10px;
+                align-items: center;
+                margin-right: 10px;
+              "
             >
               <button
                 id="openTableIcon"
