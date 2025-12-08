@@ -453,10 +453,10 @@ body {
   }
 
   #tableViewPanel {
-    right: -102% !important;
+    right: -100%;
   }
   #galleryPanel {
-    left: -102% !important;
+    left: -100%;
   }
 }
 
