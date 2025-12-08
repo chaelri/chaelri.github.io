@@ -1287,7 +1287,9 @@ function toggleInlineGuestEditor(g, container) {
     <input id="inlineName-${g.id}" type="text" value="${
     g.name || ""
   }" style="width:100%;margin-bottom:6px;">
-    <select id="inlineGender-${g.id}" style="width:100%;margin-bottom:6px;padding:12px;border-radius:10px;background: var(--card);color: white;">
+    <select id="inlineGender-${
+      g.id
+    }" style="width:100%;margin-bottom:6px;padding:12px;border-radius:10px;background: var(--card);color: white;border:0;">
       <option value="">Gender</option>
       <option value="male" ${
         g.gender === "male" ? "selected" : ""
@@ -1296,7 +1298,9 @@ function toggleInlineGuestEditor(g, container) {
         g.gender === "female" ? "selected" : ""
       }>Female</option>
     </select>
-    <select id="inlineSide-${g.id}" style="width:100%;margin-bottom:6px;padding:12px;border-radius:10px;background: var(--card);color: white;">
+    <select id="inlineSide-${
+      g.id
+    }" style="width:100%;margin-bottom:6px;padding:12px;border-radius:10px;background: var(--card);color: white;border:0;">
       <option value="">Side</option>
       <option value="charlie" ${
         g.side === "charlie" ? "selected" : ""
@@ -1306,7 +1310,9 @@ function toggleInlineGuestEditor(g, container) {
       }>Karla</option>
       <option value="both" ${g.side === "both" ? "selected" : ""}>Both</option>
     </select>
-    <select id="inlineRelation-${g.id}" style="width:100%;margin-bottom:6px;padding:12px;border-radius:10px;background: var(--card);color: white;">
+    <select id="inlineRelation-${
+      g.id
+    }" style="width:100%;margin-bottom:6px;padding:12px;border-radius:10px;background: var(--card);color: white;border:0;">
       <option value="">Relation</option>
       <option value="family" ${
         g.relation === "family" ? "selected" : ""
@@ -1315,7 +1321,9 @@ function toggleInlineGuestEditor(g, container) {
         g.relation === "friend" ? "selected" : ""
       }>Friend</option>
     </select>
-    <select id="inlineRole-${g.id}" style="width:100%;margin-bottom:6px;padding:12px;border-radius:10px;background: var(--card);color: white;">
+    <select id="inlineRole-${
+      g.id
+    }" style="width:100%;margin-bottom:6px;padding:12px;border-radius:10px;background: var(--card);color: white;border:0;">
       <option value="">Role</option>
       <option value="bride" ${
         g.role === "bride" ? "selected" : ""
@@ -1332,6 +1340,9 @@ function toggleInlineGuestEditor(g, container) {
       <option value="principal" ${
         g.role === "principal" ? "selected" : ""
       }>Principal Sponsor</option>
+      <option value="parent" ${
+        g.role === "parent" ? "selected" : ""
+      }>Parent</option>
       <option value="secondary" ${
         g.role === "secondary" ? "selected" : ""
       }>Secondary Sponsor</option>
@@ -1339,7 +1350,9 @@ function toggleInlineGuestEditor(g, container) {
         g.role === "guest" ? "selected" : ""
       }>Guest</option>
     </select>
-    <select id="inlineRsvp-${g.id}" style="width:100%;margin-bottom:6px;padding:12px;border-radius:10px;background: var(--card);color: white;">
+    <select id="inlineRsvp-${
+      g.id
+    }" style="width:100%;margin-bottom:6px;padding:12px;border-radius:10px;background: var(--card);color: white;border:0;">
       <option value="pending" ${
         g.rsvp === "pending" ? "selected" : ""
       }>RSVP: Pending</option>
@@ -1348,7 +1361,9 @@ function toggleInlineGuestEditor(g, container) {
       }>RSVP: Yes</option>
       <option value="no" ${g.rsvp === "no" ? "selected" : ""}>RSVP: No</option>
     </select>
-    <textarea id="inlineNotes-${g.id}" style="width:100%;margin-bottom:8px;padding:12px;border-radius:10px;background: var(--card);color: white;box-sizing:border-box">${
+    <textarea id="inlineNotes-${
+      g.id
+    }" style="width:100%;margin-bottom:8px;padding:12px;border-radius:10px;background: var(--card);color: white;box-sizing:border-box;border:0;">${
     g.notes || ""
   }</textarea>
 
@@ -1401,6 +1416,7 @@ function renderGuestChips() {
     { type: "relation", value: "friend" },
     { type: "role", value: "bride" },
     { type: "role", value: "groom" },
+    { type: "role", value: "parent" },
     { type: "role", value: "guest" },
     { type: "role", value: "bridesmaid" },
     { type: "role", value: "groomsman" },
@@ -1756,6 +1772,7 @@ document.querySelectorAll("input").forEach((el) => {
           <option value="bride">Bride</option>
           <option value="groom">Groom</option>
           <option value="principal sponsors">Principal Sponsors</option>
+          <option value="parent">Parent</option>
           <option value="bridesmaid">Bridesmaid</option>
           <option value="groomsmen">Groomsmen</option>
           <option value="secondary sponsors">Secondary Sponsors</option>
