@@ -1581,7 +1581,10 @@ let currentDraggingId = null;
 
 async function loadGuestsKanban() {
   const board = document.getElementById("kanbanBoard");
-  if (!board) return;
+  if (!board) {
+    console.warn("loadGuestsKanban: kanbanBoard not found");
+    return;
+  }
 
   console.log("KANBAN: render start");
 
@@ -1595,6 +1598,20 @@ async function loadGuestsKanban() {
     "secondary sponsors",
     "guest",
   ];
+
+  // more complete mapping to normalize roles from arbitrary strings
+  const mapping = {
+    principal: "principal sponsors",
+    "principal sponsor": "principal sponsors",
+    "principal sponsors": "principal sponsors",
+
+    groomsman: "groomsmen",
+    groomsmen: "groomsmen",
+
+    secondary: "secondary sponsors",
+    "secondary sponsor": "secondary sponsors",
+    "secondary sponsors": "secondary sponsors",
+  };
 
   // Build columns
   board.innerHTML = "";
@@ -1611,62 +1628,110 @@ async function loadGuestsKanban() {
     const list = col.querySelector(".kanban-list");
 
     // DESKTOP DRAGOVER → ALWAYS INSERT PLACEHOLDER
-    col.addEventListener("dragover", (e) => {
-      e.preventDefault();
+    col.addEventListener(
+      "dragover",
+      (e) => {
+        e.preventDefault();
 
-      const ph = document.querySelector(".kanban-placeholder");
-      if (!ph) return;
+        const ph = document.querySelector(".kanban-placeholder");
+        if (!ph) return;
 
-      const children = Array.from(list.children).filter((c) => c !== ph);
+        const children = Array.from(list.children).filter((c) => c !== ph);
 
-      let inserted = false;
-      for (const child of children) {
-        const rect = child.getBoundingClientRect();
-        const mid = rect.top + rect.height / 2;
-        if (e.clientY < mid) {
-          list.insertBefore(ph, child);
-          inserted = true;
-          break;
+        let inserted = false;
+        for (const child of children) {
+          const rect = child.getBoundingClientRect();
+          const mid = rect.top + rect.height / 2;
+          if (e.clientY < mid) {
+            list.insertBefore(ph, child);
+            inserted = true;
+            break;
+          }
         }
-      }
-      if (!inserted) list.appendChild(ph);
+        if (!inserted) list.appendChild(ph);
 
-      console.log("dragover → placeholder moved to:", role);
+        // visual highlight
+        list.closest(".kanban-column").classList.add("drag-over");
+        console.log(
+          "dragover → placeholder moved to:",
+          role,
+          "inserted:",
+          inserted
+        );
+      },
+      { passive: false }
+    );
+
+    // dragleave: clear highlight when leaving column
+    col.addEventListener("dragleave", (e) => {
+      const to = e.relatedTarget;
+      if (!to || !col.contains(to)) {
+        col.classList.remove("drag-over");
+        console.log("dragleave column:", role);
+      }
     });
 
     // DESKTOP DROP
     col.addEventListener("drop", async (e) => {
       e.preventDefault();
+      col.classList.remove("drag-over");
 
       const droppedId =
-        e.dataTransfer?.getData("text/plain") || currentDraggingId;
+        (e.dataTransfer &&
+          e.dataTransfer.getData &&
+          e.dataTransfer.getData("text/plain")) ||
+        currentDraggingId;
 
       console.log("DROP fired!", { droppedId, role });
 
-      if (!droppedId) return;
+      if (!droppedId) {
+        console.warn("drop: no id found", { currentDraggingId });
+        const ph = document.querySelector(".kanban-placeholder");
+        if (ph && ph.parentElement) ph.parentElement.removeChild(ph);
+        return;
+      }
 
       const card = document.querySelector(
         `.kanban-card[data-id="${droppedId}"]`
       );
       const ph = document.querySelector(".kanban-placeholder");
 
-      if (!card || !ph) return;
+      if (!card || !ph) {
+        console.warn("drop: missing card or placeholder", !!card, !!ph);
+        if (ph && ph.parentElement) ph.parentElement.removeChild(ph);
+        return;
+      }
 
       list.replaceChild(card, ph);
       console.log("DROP → card inserted:", droppedId);
 
-      await update(ref(db, `${GUESTS_PATH}/${droppedId}`), {
-        role,
-      });
-      await persistColumnOrder(list);
-
-      kanbanDragLock = false;
-      currentDraggingId = null;
-      loadGuestsKanban();
+      try {
+        await update(ref(db, `${GUESTS_PATH}/${droppedId}`), { role });
+        await persistColumnOrder(list);
+        console.log("DROP → db updated and order persisted for", droppedId);
+      } catch (err) {
+        console.error("DROP → db update/persist failed:", err);
+      } finally {
+        kanbanDragLock = false;
+        currentDraggingId = null;
+        // re-render to sync with DB
+        loadGuestsKanban();
+      }
     });
 
     board.appendChild(col);
   });
+
+  // helper to create placeholder element
+  function createPlaceholder() {
+    const ph = document.createElement("div");
+    ph.className = "kanban-placeholder";
+    ph.style.height = "54px";
+    ph.style.border = "2px dashed rgba(255,255,255,0.08)";
+    ph.style.borderRadius = "10px";
+    ph.style.marginBottom = "8px";
+    return ph;
+  }
 
   // LIVE DATA
   onValue(ref(db, GUESTS_PATH), (snap) => {
@@ -1675,23 +1740,37 @@ async function loadGuestsKanban() {
       return;
     }
 
+    console.log("loadGuestsKanban: fetched guests from DB");
     const raw = snap.val() || {};
     const guests = Object.keys(raw).map((id) => ({ id, ...raw[id] }));
 
     ensureSortIndexes(guests);
     guests.sort((a, b) => (a.sortIndex ?? 0) - (b.sortIndex ?? 0));
 
-    // Group guests
+    // Apply search filter if present
+    const q = (
+      document.getElementById("guestSearch")?.value || ""
+    ).toLowerCase();
+    const filtered = q
+      ? guests.filter(
+          (g) =>
+            (g.name || "").toLowerCase().includes(q) ||
+            (g.role || "").toLowerCase().includes(q) ||
+            (g.side || "").toLowerCase().includes(q)
+        )
+      : guests;
+
+    // Group guests into normalized roles
     const groups = {};
     roleOrder.forEach((r) => (groups[r] = []));
 
-    guests.forEach((g) => {
-      const role = (g.role || "guest").toLowerCase();
-      groups[role] = groups[role] || [];
-      groups[role].push(g);
+    filtered.forEach((g) => {
+      const r = (g.role || "guest").toLowerCase();
+      const normalized = roleOrder.includes(r) ? r : mapping[r] || "guest";
+      groups[normalized].push(g);
     });
 
-    // Render cards
+    // Render cards in each column
     roleOrder.forEach((role) => {
       const col = board.querySelector(`.kanban-column[data-role="${role}"]`);
       const list = col.querySelector(".kanban-list");
@@ -1707,115 +1786,207 @@ async function loadGuestsKanban() {
         card.dataset.role = role;
         card.draggable = true;
 
+        // build inner HTML preserving dots and meta
+        const sideColor =
+          g.side === "charlie"
+            ? "#4da3ff"
+            : g.side === "karla"
+            ? "#ff8fbf"
+            : "#b57cff";
+        const rsvpColor =
+          g.rsvp === "yes"
+            ? "#67e39b"
+            : g.rsvp === "no"
+            ? "#ff6b6b"
+            : "#ffd56b";
+
         card.innerHTML = `
-          <div>
-            <div class="name">${g.name}</div>
-            <div class="meta-row">${g.relation || "—"} • ${g.side || ""}</div>
+          <div style="min-width:0;">
+            <div class="name">${escapeHtml(g.name || "—")}</div>
+            <div class="meta-row">${escapeHtml(
+              g.relation || "—"
+            )} • ${escapeHtml(g.side || "")}</div>
+          </div>
+          <div style="display:flex;flex-direction:column;gap:6px;align-items:center;">
+            <span style="width:10px;height:10px;border-radius:50%;background:${sideColor};"></span>
+            <span style="width:10px;height:10px;border-radius:50%;background:${rsvpColor};"></span>
           </div>
         `;
 
-        // CHILDREN SHOULD NOT BLOCK DRAG
+        // Prevent children from initiating their own drag but allow events to bubble
         card.querySelectorAll("*").forEach((el) => {
           el.addEventListener("dragstart", (ev) => ev.stopPropagation());
         });
 
-        // DESKTOP DRAGSTART
+        // Click opens inline editor unless dragging
+        card.addEventListener("click", (e) => {
+          if (card.classList.contains("dragging")) return;
+          if (typeof toggleInlineGuestEditor === "function")
+            toggleInlineGuestEditor(g, card);
+        });
+
+        // DESKTOP drag handlers
+        let placeholder = null;
+
         card.addEventListener("dragstart", (e) => {
+          console.log(
+            "dragstart fired for",
+            card.dataset.id,
+            "dataTransfer?",
+            !!e.dataTransfer
+          );
+          // If no dataTransfer, bail — touch fallback handles touch
+          if (!e.dataTransfer) {
+            console.warn("dragstart: no dataTransfer for", card.dataset.id);
+            return;
+          }
+
           kanbanDragLock = true;
           currentDraggingId = g.id;
 
-          console.log("dragstart fired →", g.id);
-
-          const ph = document.createElement("div");
-          ph.className = "kanban-placeholder";
-          ph.style.height = "48px";
-          const parentList = card.closest(".kanban-list");
-          parentList.insertBefore(ph, card.nextSibling);
-
           try {
             e.dataTransfer.setData("text/plain", g.id);
-          } catch {}
-        });
-
-        // DESKTOP DRAGEND
-        card.addEventListener("dragend", () => {
-          console.log("dragend → unlock");
-          kanbanDragLock = false;
-          currentDraggingId = null;
-
-          const ph = document.querySelector(".kanban-placeholder");
-          if (ph) ph.remove();
-        });
-
-        // MOBILE – LONG PRESS DRAG
-        let touchDragging = false;
-        let timer = null;
-
-        card.addEventListener("touchstart", () => {
-          timer = setTimeout(() => {
-            touchDragging = true;
-            kanbanDragLock = true;
-            currentDraggingId = g.id;
-
-            const ph = document.createElement("div");
-            ph.className = "kanban-placeholder";
-            ph.style.height = "48px";
-            const parentList = card.closest(".kanban-list");
-            parentList.insertBefore(ph, card.nextSibling);
-          }, 150);
-        });
-
-        card.addEventListener("touchmove", (e) => {
-          if (!touchDragging) return;
-          const t = e.touches[0];
-          const target = document.elementFromPoint(t.clientX, t.clientY);
-          const col = target?.closest?.(".kanban-column");
-
-          if (!col) return;
-
-          const list = col.querySelector(".kanban-list");
-          const ph = document.querySelector(".kanban-placeholder");
-
-          const children = Array.from(list.children).filter((c) => c !== ph);
-
-          let inserted = false;
-          for (const child of children) {
-            const rect = child.getBoundingClientRect();
-            if (t.clientY < rect.top + rect.height / 2) {
-              list.insertBefore(ph, child);
-              inserted = true;
-              break;
-            }
+            e.dataTransfer.effectAllowed = "move";
+            console.log("dragstart: set dataTransfer id:", g.id);
+          } catch (err) {
+            console.warn("dragstart: dataTransfer.setData failed", err);
           }
-          if (!inserted) list.appendChild(ph);
+
+          card.classList.add("dragging");
+          placeholder = createPlaceholder();
+          const parentList = card.closest(".kanban-list");
+          parentList.insertBefore(placeholder, card.nextSibling);
         });
 
-        card.addEventListener("touchend", async () => {
-          clearTimeout(timer);
-          if (!touchDragging) return;
-
-          touchDragging = false;
-
-          const ph = document.querySelector(".kanban-placeholder");
-          const col = ph?.closest(".kanban-column");
-          if (!col) return;
-
-          const list = col.querySelector(".kanban-list");
-          list.replaceChild(card, ph);
-
-          await update(ref(db, `${GUESTS_PATH}/${g.id}`), {
-            role: col.dataset.role,
-          });
-          await persistColumnOrder(list);
-
+        card.addEventListener("dragend", () => {
+          console.log("dragend for", card.dataset.id);
           kanbanDragLock = false;
           currentDraggingId = null;
-
-          loadGuestsKanban();
+          card.classList.remove("dragging");
+          const ph = document.querySelector(".kanban-placeholder");
+          if (ph && ph.parentElement) ph.parentElement.removeChild(ph);
         });
+
+        // TOUCH fallback: long-press then move placeholder with touch
+        let touchTimer = null;
+        let touchDragging = false;
+
+        card.addEventListener(
+          "touchstart",
+          (e) => {
+            if (e.touches.length > 1) return;
+            touchTimer = setTimeout(() => {
+              touchDragging = true;
+              kanbanDragLock = true;
+              currentDraggingId = g.id;
+              card.classList.add("dragging");
+              const parentList = card.closest(".kanban-list");
+              placeholder = createPlaceholder();
+              parentList.insertBefore(placeholder, card.nextSibling);
+              console.log("touchstart: began touch-drag for", g.id);
+            }, 160);
+          },
+          { passive: true }
+        );
+
+        card.addEventListener(
+          "touchmove",
+          (e) => {
+            if (!touchDragging) return;
+            const t = e.touches[0];
+            const target = document.elementFromPoint(t.clientX, t.clientY);
+            const colEl = target?.closest?.(".kanban-column");
+            if (!colEl) return;
+            const listEl = colEl.querySelector(".kanban-list");
+            const phExisting = document.querySelector(".kanban-placeholder");
+            if (!phExisting) return;
+
+            // Insert placeholder relative to vertical position
+            const children = Array.from(listEl.children).filter(
+              (c) => c !== phExisting
+            );
+            let inserted = false;
+            for (const child of children) {
+              const rect = child.getBoundingClientRect();
+              const mid = rect.top + rect.height / 2;
+              if (t.clientY < mid) {
+                listEl.insertBefore(phExisting, child);
+                inserted = true;
+                break;
+              }
+            }
+            if (!inserted) listEl.appendChild(phExisting);
+            console.log(
+              "touchmove: moved placeholder to column",
+              colEl.dataset.role
+            );
+          },
+          { passive: true }
+        );
+
+        card.addEventListener(
+          "touchend",
+          async (e) => {
+            clearTimeout(touchTimer);
+            if (!touchDragging) return;
+            touchDragging = false;
+            card.classList.remove("dragging");
+
+            const phExisting = document.querySelector(".kanban-placeholder");
+            const colEl = phExisting?.closest(".kanban-column");
+            console.log("touchend:", { id: g.id, col: colEl?.dataset?.role });
+
+            if (phExisting && colEl) {
+              phExisting.replaceWith(card);
+              try {
+                await update(ref(db, `${GUESTS_PATH}/${g.id}`), {
+                  role: colEl.dataset.role,
+                });
+                await persistColumnOrder(colEl.querySelector(".kanban-list"));
+                console.log(
+                  "touchend: updated role and persisted order for",
+                  g.id
+                );
+              } catch (err) {
+                console.error("touchend: update failed", err);
+              }
+              currentDraggingId = null;
+              kanbanDragLock = false;
+              loadGuestsKanban();
+            } else {
+              if (phExisting && phExisting.parentElement)
+                phExisting.parentElement.removeChild(phExisting);
+              currentDraggingId = null;
+              kanbanDragLock = false;
+              console.warn("touchend: no valid drop target for", g.id);
+            }
+          },
+          { passive: true }
+        );
+
+        card.addEventListener(
+          "touchcancel",
+          () => {
+            clearTimeout(touchTimer);
+            touchDragging = false;
+            card.classList.remove("dragging");
+            const existing = document.querySelector(".kanban-placeholder");
+            if (existing && existing.parentElement)
+              existing.parentElement.removeChild(existing);
+            currentDraggingId = null;
+            kanbanDragLock = false;
+            console.log("touchcancel for", g.id);
+          },
+          { passive: true }
+        );
 
         list.appendChild(card);
       });
+
+      // update count
+      col.querySelector(".col-count").textContent = `(${
+        (groups[role] || []).length
+      })`;
     });
 
     console.log("KANBAN: render complete");
