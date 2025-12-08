@@ -1672,6 +1672,7 @@ async function loadGuestsKanban() {
   onValue(ref(db, GUESTS_PATH), (snap) => {
     const raw = snap.val() || {};
     const guests = Object.keys(raw).map((id) => ({ id, ...raw[id] }));
+    ensureSortIndexes(guests);
 
     // Normalize sortIndex (optional)
     guests.sort((a, b) => (a.sortIndex ?? 0) - (b.sortIndex ?? 0));
@@ -2344,3 +2345,63 @@ gridBtn.onclick = () => {
 
 // run once on load
 updateGuestViewButtons();
+
+// ======================================================
+// Persist card order inside a single column (sortIndex)
+// ======================================================
+async function persistColumnOrder(listEl) {
+  if (!listEl) return;
+
+  const items = Array.from(listEl.querySelectorAll(".kanban-card"));
+  const updates = {};
+
+  items.forEach((card, i) => {
+    const id = card.dataset.id;
+    updates[`${GUESTS_PATH}/${id}/sortIndex`] = i;
+  });
+
+  if (Object.keys(updates).length > 0) {
+    await update(ref(db), updates);
+  }
+}
+
+// ======================================================
+// Ensure all guests have sequential sortIndex per role
+// ======================================================
+async function ensureSortIndexes(allGuests = []) {
+  if (!Array.isArray(allGuests) || allGuests.length === 0) return;
+
+  const groups = {};
+
+  // Group by role
+  allGuests.forEach((g) => {
+    const role = (g.role || "guest").toLowerCase();
+    if (!groups[role]) groups[role] = [];
+    groups[role].push(g);
+  });
+
+  const updates = {};
+
+  Object.keys(groups).forEach((role) => {
+    const list = groups[role];
+
+    // Sort current items by sortIndex (or fallback: createdAt)
+    list.sort((a, b) => {
+      const sA = Number(a.sortIndex ?? 0);
+      const sB = Number(b.sortIndex ?? 0);
+      if (sA !== sB) return sA - sB;
+      return (a.createdAt || 0) - (b.createdAt || 0);
+    });
+
+    // Reassign clean 0..n ordering
+    list.forEach((g, idx) => {
+      if (g.sortIndex !== idx) {
+        updates[`${GUESTS_PATH}/${g.id}/sortIndex`] = idx;
+      }
+    });
+  });
+
+  if (Object.keys(updates).length > 0) {
+    await update(ref(db), updates);
+  }
+}
