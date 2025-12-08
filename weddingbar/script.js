@@ -1576,25 +1576,20 @@ document.getElementById("openGuests").onclick = async () => {
   }
 };
 
-/* =======================================================
-   KANBAN: lightweight initial renderer (step 1)
-   - non-destructive: only renders columns + cards (no deletion)
-   - will be progressively enhanced with drag/reorder later
-   - uses existing Firebase refs (db, GUESTS_PATH)
-   ======================================================= */
-
-// Updated loadGuestsKanban — robust HTML5 drag/drop + touch fallback
-// Replacement for script.js :contentReference[oaicite:0]{index=0}
+// Full working loadGuestsKanban with verbose console logs for debugging
+// Source: script.js :contentReference[oaicite:0]{index=0}
 async function loadGuestsKanban() {
   const board = document.getElementById("kanbanBoard");
   const loading = document.getElementById("kanbanLoading");
-  if (!board) return;
+  if (!board) {
+    console.warn("loadGuestsKanban: kanbanBoard not found");
+    return;
+  }
   if (loading) loading.style.display = "block";
 
-  // debugging / fallback drag id holder (used when dataTransfer is missing)
-  let currentDraggingId = null;
+  console.log("loadGuestsKanban: starting render");
 
-  // Column names (always shown)
+  // Column names
   const roleOrder = [
     "bride",
     "groom",
@@ -1605,6 +1600,9 @@ async function loadGuestsKanban() {
     "secondary sponsors",
     "guest",
   ];
+
+  // Fallback holder when dataTransfer is missing
+  let currentDraggingId = null;
 
   // Build fresh columns
   board.innerHTML = "";
@@ -1622,51 +1620,58 @@ async function loadGuestsKanban() {
     list.dataset.role = role;
     col.appendChild(list);
 
-    // Make column a valid drop target
-    col.addEventListener("dragover", (e) => {
-      e.preventDefault();
-      col.classList.add("drag-over");
+    // dragover: insert placeholder at correct position
+    col.addEventListener(
+      "dragover",
+      (e) => {
+        e.preventDefault();
+        col.classList.add("drag-over");
+        const listEl = col.querySelector(".kanban-list");
+        const ph = document.querySelector(".kanban-placeholder");
+        if (!ph) return;
 
-      const listEl = col.querySelector(".kanban-list");
-      const ph = document.querySelector(".kanban-placeholder");
-      if (!ph) return;
-
-      // Find insertion point among children (excluding placeholder)
-      const children = Array.from(listEl.children).filter((c) => c !== ph);
-      let inserted = false;
-      for (const child of children) {
-        const rect = child.getBoundingClientRect();
-        const mid = rect.top + rect.height / 2;
-        if (e.clientY < mid) {
-          listEl.insertBefore(ph, child);
-          inserted = true;
-          break;
+        // Find insertion point
+        const children = Array.from(listEl.children).filter((c) => c !== ph);
+        let inserted = false;
+        for (const child of children) {
+          const rect = child.getBoundingClientRect();
+          const mid = rect.top + rect.height / 2;
+          if (e.clientY < mid) {
+            listEl.insertBefore(ph, child);
+            inserted = true;
+            break;
+          }
         }
-      }
-      if (!inserted) listEl.appendChild(ph);
-    });
+        if (!inserted) listEl.appendChild(ph);
 
+        console.log("dragover:", {
+          role: col.dataset.role,
+          placeholderInserted: inserted,
+        });
+      },
+      { passive: false }
+    );
+
+    // dragleave: remove visual only if leaving column
     col.addEventListener("dragleave", (e) => {
-      // Only remove visual when leaving the whole column
       const to = e.relatedTarget;
       if (!to || !col.contains(to)) {
         col.classList.remove("drag-over");
+        console.log("dragleave column:", col.dataset.role);
       }
     });
 
+    // drop: prefer dataTransfer, fallback to currentDraggingId
     col.addEventListener("drop", async (e) => {
       e.preventDefault();
       col.classList.remove("drag-over");
 
-      // primary: dataTransfer; fallback: currentDraggingId (set on dragstart / touch long-press)
       const droppedId =
         e.dataTransfer?.getData("text/plain") || currentDraggingId || "";
+      console.log("drop event:", { droppedId, role: col.dataset.role });
 
       if (!droppedId) {
-        console.warn(
-          "Drop received no id. Fallback/currentDraggingId:",
-          currentDraggingId
-        );
+        console.warn("drop: no id. currentDraggingId:", currentDraggingId);
         const ph = document.querySelector(".kanban-placeholder");
         if (ph && ph.parentElement) ph.remove();
         return;
@@ -1679,24 +1684,33 @@ async function loadGuestsKanban() {
       const listEl = col.querySelector(".kanban-list");
 
       if (cardEl && ph && listEl) {
-        listEl.replaceChild(cardEl, ph);
-
-        // Update role and persist order
         try {
+          listEl.replaceChild(cardEl, ph);
+          console.log("drop: placed card into column", col.dataset.role);
+
+          // Update role in DB
           await update(ref(db, `${GUESTS_PATH}/${droppedId}`), {
             role: col.dataset.role,
           });
+          console.log("drop: updated role in firebase for", droppedId);
+
+          // Persist order
           await persistColumnOrder(listEl);
+          console.log("drop: persisted order for", col.dataset.role);
         } catch (err) {
-          console.error("Failed to update role/order on drop:", err);
+          console.error("drop: error updating DB/order", err);
+        } finally {
+          currentDraggingId = null;
+          // re-render to sync UI with DB
+          loadGuestsKanban();
         }
-
-        // clear fallback
-        currentDraggingId = null;
-
-        loadGuestsKanban();
       } else {
-        // cleanup placeholder if something went wrong
+        console.warn(
+          "drop: missing cardEl/ph/listEl",
+          !!cardEl,
+          !!ph,
+          !!listEl
+        );
         if (ph && ph.parentElement) ph.parentElement.removeChild(ph);
       }
     });
@@ -1704,19 +1718,22 @@ async function loadGuestsKanban() {
     board.appendChild(col);
   });
 
-  // Helper: create a placeholder
+  // helper: create placeholder
   function createPlaceholder() {
     const ph = document.createElement("div");
     ph.className = "kanban-placeholder";
+    ph.style.height = "54px";
     return ph;
   }
 
-  // --- Fetch and render guests live ---
+  // Listen to guest data
   onValue(ref(db, GUESTS_PATH), (snap) => {
+    console.log("loadGuestsKanban: fetched guests from DB");
     const raw = snap.val() || {};
     const guests = Object.keys(raw).map((id) => ({ id, ...raw[id] }));
     ensureSortIndexes(guests);
 
+    // Sort by sortIndex then createdAt
     guests.sort((a, b) => (a.sortIndex ?? 0) - (b.sortIndex ?? 0));
 
     const q = (
@@ -1731,7 +1748,7 @@ async function loadGuestsKanban() {
         )
       : guests;
 
-    // Group into role columns
+    // prepare groups
     const groups = {};
     roleOrder.forEach((r) => (groups[r] = []));
     const mapping = {
@@ -1787,65 +1804,63 @@ async function loadGuestsKanban() {
           </div>
         `;
 
-        // Prevent child elements from starting their own drag operation but allow events to bubble.
+        // Prevent children from initiating their own drag but allow events to bubble
         card.querySelectorAll("*").forEach((el) => {
           el.addEventListener("dragstart", (ev) => ev.stopPropagation());
         });
 
-        // Click opens inline editor unless currently dragging
+        // Click opens inline editor unless dragging
         card.addEventListener("click", (e) => {
           if (card.classList.contains("dragging")) return;
           if (typeof toggleInlineGuestEditor === "function")
             toggleInlineGuestEditor(g, card);
         });
 
-        // DESKTOP: native dragstart / dragend
-        let ph = null;
+        // DESKTOP drag handlers
+        let placeholder = null;
+
         card.addEventListener("dragstart", (e) => {
-          // Some browsers may call dragstart in touch scenarios with no dataTransfer; defend here
+          console.log(
+            "dragstart fired for",
+            card.dataset.id,
+            "dataTransfer?",
+            !!e.dataTransfer
+          );
+          // If there's no dataTransfer (some touch scenarios), bail — touch fallback will handle it
           if (!e.dataTransfer) {
             console.warn(
-              "dragstart without dataTransfer fired for",
+              "dragstart: missing dataTransfer, aborting desktop dragstart for",
               card.dataset.id
             );
             return;
           }
 
-          // If mobile long-press drag is active, skip desktop dragstart logic
-          if (card.dataset.touchDragging === "1") return;
-
-          e.stopPropagation();
-
-          // mark fallback id for cases where dataTransfer gets lost
+          // mark current dragging id (fallback for environments that lose dataTransfer)
           currentDraggingId = card.dataset.id;
 
-          // Store id in dataTransfer (defensive try/catch)
           try {
             e.dataTransfer.setData("text/plain", card.dataset.id);
             e.dataTransfer.effectAllowed = "move";
+            console.log("dragstart: set dataTransfer id:", card.dataset.id);
           } catch (err) {
-            console.warn("dataTransfer.setData failed during dragstart:", err);
+            console.warn("dragstart: dataTransfer.setData failed", err);
           }
 
           card.classList.add("dragging");
-
-          // create placeholder
-          placeholder = document.createElement("div");
-          placeholder.className = "kanban-placeholder";
-
-          // insert placeholder right after the card
+          placeholder = createPlaceholder();
           const parentList = card.closest(".kanban-list");
           parentList.insertBefore(placeholder, card.nextSibling);
         });
 
-        card.addEventListener("dragend", () => {
+        card.addEventListener("dragend", (e) => {
+          console.log("dragend for", card.dataset.id);
           card.classList.remove("dragging");
           currentDraggingId = null;
           const ph = document.querySelector(".kanban-placeholder");
-          if (ph && ph.parentElement) ph.remove();
+          if (ph && ph.parentElement) ph.parentElement.removeChild(ph);
         });
 
-        // MOBILE TOUCH-DRAG fallback: long-press then move placeholder with touch
+        // TOUCH fallback: long-press to pick up item, move placeholder with touchmove, drop on touchend
         let touchTimer = null;
         let touchDragging = false;
 
@@ -1855,10 +1870,12 @@ async function loadGuestsKanban() {
             if (e.touches.length > 1) return;
             touchTimer = setTimeout(() => {
               touchDragging = true;
+              currentDraggingId = g.id;
               card.classList.add("dragging");
-              ph = createPlaceholder();
+              placeholder = createPlaceholder();
               const parentList = card.closest(".kanban-list");
-              parentList.insertBefore(ph, card.nextSibling);
+              parentList.insertBefore(placeholder, card.nextSibling);
+              console.log("touchstart: began touch-drag for", g.id);
             }, 160);
           },
           { passive: true }
@@ -1876,7 +1893,7 @@ async function loadGuestsKanban() {
             const phExisting = document.querySelector(".kanban-placeholder");
             if (!phExisting) return;
 
-            // Insert placeholder relative to vertical position
+            // Insert placeholder relative to touch Y position
             const children = Array.from(listEl.children).filter(
               (c) => c !== phExisting
             );
@@ -1891,38 +1908,52 @@ async function loadGuestsKanban() {
               }
             }
             if (!inserted) listEl.appendChild(phExisting);
+            console.log(
+              "touchmove: moved placeholder to column",
+              col.dataset.role
+            );
           },
           { passive: true }
         );
 
-        card.addEventListener("touchend", async (e) => {
-          clearTimeout(touchTimer);
-          if (!touchDragging) return;
-          touchDragging = false;
-          card.classList.remove("dragging");
+        card.addEventListener(
+          "touchend",
+          async (e) => {
+            clearTimeout(touchTimer);
+            if (!touchDragging) return;
+            touchDragging = false;
+            card.classList.remove("dragging");
 
-          const phExisting = document.querySelector(".kanban-placeholder");
-          const col = phExisting?.closest(".kanban-column");
-          if (phExisting && col) {
-            phExisting.replaceWith(card);
+            const phExisting = document.querySelector(".kanban-placeholder");
+            const col = phExisting?.closest(".kanban-column");
+            console.log("touchend:", { id: g.id, col: col?.dataset?.role });
 
-            try {
-              await update(ref(db, `${GUESTS_PATH}/${g.id}`), {
-                role: col.dataset.role,
-              });
-              await persistColumnOrder(col.querySelector(".kanban-list"));
-            } catch (err) {
-              console.error("Touch-drag update failed:", err);
+            if (phExisting && col) {
+              phExisting.replaceWith(card);
+              try {
+                await update(ref(db, `${GUESTS_PATH}/${g.id}`), {
+                  role: col.dataset.role,
+                });
+                await persistColumnOrder(col.querySelector(".kanban-list"));
+                console.log(
+                  "touchend: updated role and persisted order for",
+                  g.id
+                );
+              } catch (err) {
+                console.error("touchend: update failed", err);
+              }
+              currentDraggingId = null;
+              loadGuestsKanban();
+            } else {
+              if (phExisting && phExisting.parentElement)
+                phExisting.parentElement.removeChild(phExisting);
+              currentDraggingId = null;
+              console.warn("touchend: no valid drop target for", g.id);
             }
+          },
+          { passive: true }
+        );
 
-            loadGuestsKanban();
-          } else {
-            if (phExisting && phExisting.parentElement)
-              phExisting.parentElement.removeChild(phExisting);
-          }
-        });
-
-        // ensure timer cleared if touch canceled
         card.addEventListener(
           "touchcancel",
           () => {
@@ -1932,6 +1963,8 @@ async function loadGuestsKanban() {
             const existing = document.querySelector(".kanban-placeholder");
             if (existing && existing.parentElement)
               existing.parentElement.removeChild(existing);
+            currentDraggingId = null;
+            console.log("touchcancel for", g.id);
           },
           { passive: true }
         );
@@ -1946,6 +1979,7 @@ async function loadGuestsKanban() {
     });
 
     if (loading) loading.style.display = "none";
+    console.log("loadGuestsKanban: render complete");
   });
 }
 
