@@ -309,8 +309,9 @@ body {
 
   .bar-thumb {
     width: fit-content;
-    height: 260px; /* tall vertical bar */
+    height: 260px;
     display: flex;
+    align-items: flex-end; /* anchor fill to bottom */
   }
 
   .bar-fill {
