@@ -1784,6 +1784,12 @@ async function loadGuestsKanban() {
         let placeholder;
 
         card.addEventListener("dragstart", (e) => {
+          // Ignore synthetic or touch-triggered dragstart (dataTransfer = null)
+          if (!e.dataTransfer) return;
+
+          // If mobile long-press drag is active, skip desktop dragstart logic
+          if (card.dataset.touchDragging === "1") return;
+
           e.stopPropagation();
 
           // ALWAYS attach card ID, even if child triggered dragstart
@@ -1821,6 +1827,9 @@ async function loadGuestsKanban() {
           "touchstart",
           (e) => {
             longPressTimer = setTimeout(() => {
+              // Prevent desktop dragstart from firing during long press
+              card.dataset.touchDragging = "1";
+
               card.classList.add("dragging");
               placeholder = document.createElement("div");
               placeholder.className = "kanban-placeholder";
@@ -1852,6 +1861,8 @@ async function loadGuestsKanban() {
 
           if (!card.classList.contains("dragging")) return;
           card.classList.remove("dragging");
+          // Re-enable real desktop drag
+          delete card.dataset.touchDragging;
 
           const ph = document.querySelector(".kanban-placeholder");
           const col = ph?.closest(".kanban-column");
