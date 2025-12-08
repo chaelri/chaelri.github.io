@@ -1272,10 +1272,10 @@ function renderGuestChips() {
   clear.style.marginLeft = "auto";
 
   clear.onclick = () => {
-    guestFilters.side = null;
-    guestFilters.relation = null;
-    guestFilters.role = null;
-    guestFilters.rsvp = null;
+    guestFilters.side = [];
+    guestFilters.relation = [];
+    guestFilters.role = [];
+    guestFilters.rsvp = [];
     renderGuestChips();
     loadGuests();
   };
@@ -1287,14 +1287,22 @@ function renderGuestChips() {
     btn.textContent = c.value;
 
     // SHOW ACTIVE visual indicator
-    const isActive = guestFilters[c.type] === c.value;
+    const isActive = guestFilters[c.type].includes(c.value);
+
     btn.className = isActive ? "btn" : "btn ghost";
 
     btn.style.padding = "6px 10px";
     btn.style.borderRadius = "999px"; // pill look
 
     btn.onclick = () => {
-      guestFilters[c.type] = isActive ? null : c.value;
+      if (guestFilters[c.type].includes(c.value)) {
+        guestFilters[c.type] = guestFilters[c.type].filter(
+          (v) => v !== c.value
+        );
+      } else {
+        guestFilters[c.type].push(c.value);
+      }
+
       renderGuestChips(); // refresh pills to show active state
       loadGuests(); // apply filtering
     };
@@ -1363,6 +1371,7 @@ function openGuestsPanel() {
 
   loadGuests();
   renderGuestChips();
+  document.getElementById("guestSearch").oninput = () => loadGuests();
 }
 
 document.getElementById("checklistBackBtn").onclick = () => {
@@ -1719,18 +1728,32 @@ window.addEventListener("resize", () => {
 listenRealtime();
 
 const guestFilters = {
-  side: null,
-  relation: null,
-  role: null,
-  rsvp: null,
+  side: [],
+  relation: [],
+  role: [],
+  rsvp: [],
 };
 
 function applyGuestFilters(g) {
-  if (guestFilters.side && guestFilters.side !== g.side) return false;
-  if (guestFilters.relation && guestFilters.relation !== g.relation)
+  // SIDE
+  if (guestFilters.side.length > 0 && !guestFilters.side.includes(g.side))
     return false;
-  if (guestFilters.role && guestFilters.role !== g.role) return false;
-  if (guestFilters.rsvp && guestFilters.rsvp !== g.rsvp) return false;
+
+  // RELATION
+  if (
+    guestFilters.relation.length > 0 &&
+    !guestFilters.relation.includes(g.relation)
+  )
+    return false;
+
+  // ROLE
+  if (guestFilters.role.length > 0 && !guestFilters.role.includes(g.role))
+    return false;
+
+  // RSVP
+  if (guestFilters.rsvp.length > 0 && !guestFilters.rsvp.includes(g.rsvp))
+    return false;
+
   return true;
 }
 
@@ -1746,12 +1769,12 @@ function renderGuestList(arr, box) {
     const rsvpDot = `<span class="guest-dot dot-rsvp-${g.rsvp}"></span>`;
 
     row.innerHTML = `
-      <div style="font-weight:700;">${sideDot}${g.name}</div>
-      <div class="muted" style="font-size:13px;">
-        ${g.relation || "—"} • ${g.role || "guest"} • ${rsvpDot}${g.rsvp}
-      </div>
-    `;
-
+  <div style="font-weight:700;">${sideDot}${g.name}</div>
+  <div class="muted" style="font-size:13px;">
+    ${g.relation || "—"} • ${g.role || "guest"} • ${rsvpDot}${g.rsvp}
+  </div>
+`;
+    row.onclick = () => openGuestEditor(g);
     box.appendChild(row);
   });
 }
@@ -1772,18 +1795,50 @@ function renderGuestGrid(arr, box) {
         ${g.relation || "—"} • ${g.role || "guest"} 
       </div>
     `;
+    item.onclick = () => openGuestEditor(g);
     wrap.appendChild(item);
   });
 
   box.appendChild(wrap);
 }
 
-document.getElementById("guestViewList").onclick = () => {
+const listBtn = document.getElementById("guestViewList");
+const gridBtn = document.getElementById("guestViewGrid");
+
+function updateGuestViewButtons() {
+  if (guestViewMode === "list") {
+    listBtn.className = "btn";
+    gridBtn.className = "btn ghost";
+  } else {
+    listBtn.className = "btn ghost";
+    gridBtn.className = "btn";
+  }
+}
+
+listBtn.onclick = () => {
   guestViewMode = "list";
+  updateGuestViewButtons();
   loadGuests();
 };
 
-document.getElementById("guestViewGrid").onclick = () => {
+gridBtn.onclick = () => {
   guestViewMode = "grid";
+  updateGuestViewButtons();
   loadGuests();
 };
+
+// run once on load
+updateGuestViewButtons();
+
+function openGuestEditor(g) {
+  const name = prompt("Edit guest name:", g.name);
+  if (name === null) return; // cancel
+
+  if (name === "") {
+    const del = confirm("Empty name means delete. Continue?");
+    if (del) remove(ref(db, `${GUESTS_PATH}/${g.id}`));
+    return;
+  }
+
+  update(ref(db, `${GUESTS_PATH}/${g.id}`), { name }).then(() => loadGuests());
+}
