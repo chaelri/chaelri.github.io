@@ -1578,18 +1578,28 @@ let kanbanDragLock = false; // prevents Firebase from re-rendering mid-drag
 let currentDraggingId = null;
 
 // more complete mapping to normalize roles from arbitrary strings
-  const mapping = {
-    principal: "principal sponsors",
-    "principal sponsor": "principal sponsors",
-    "principal sponsors": "principal sponsors",
+const mapping = {
+  principal: "principal sponsors",
+  "principal sponsor": "principal sponsors",
+  "principal sponsors": "principal sponsors",
 
-    groomsman: "groomsmen",
-    groomsmen: "groomsmen",
+  groomsman: "groomsmen",
+  groomsmen: "groomsmen",
 
-    secondary: "secondary sponsors",
-    "secondary sponsor": "secondary sponsors",
-    "secondary sponsors": "secondary sponsors",
-  };
+  secondary: "secondary sponsors",
+  "secondary sponsor": "secondary sponsors",
+  "secondary sponsors": "secondary sponsors",
+};
+const roleOrder = [
+  "bride",
+  "groom",
+  "principal sponsors",
+  "parent",
+  "bridesmaid",
+  "groomsmen",
+  "secondary sponsors",
+  "guest",
+];
 
 async function loadGuestsKanban() {
   const board = document.getElementById("kanbanBoard");
@@ -1599,17 +1609,6 @@ async function loadGuestsKanban() {
   }
 
   console.log("KANBAN: render start");
-
-  const roleOrder = [
-    "bride",
-    "groom",
-    "principal sponsors",
-    "parent",
-    "bridesmaid",
-    "groomsmen",
-    "secondary sponsors",
-    "guest",
-  ];
 
   // Build columns
   board.innerHTML = "";
