@@ -1786,6 +1786,11 @@ async function loadGuestsKanban() {
         card.dataset.role = role;
         card.draggable = true;
 
+        // ensure only the card—not children—is draggable
+        card.querySelectorAll("*").forEach((el) => {
+          el.style.pointerEvents = "none";
+        });
+
         // build inner HTML preserving dots and meta
         const sideColor =
           g.side === "charlie"
@@ -1820,7 +1825,7 @@ async function loadGuestsKanban() {
 
         // Click opens inline editor unless dragging
         card.addEventListener("click", (e) => {
-          if (card.classList.contains("dragging")) return;
+          if (card.classList.contains("dragging")) return; // prevents opening editor after drag
           if (typeof toggleInlineGuestEditor === "function")
             toggleInlineGuestEditor(g, card);
         });
@@ -2529,8 +2534,9 @@ async function ensureSortIndexes(allGuests = []) {
 
   // Group by role
   allGuests.forEach((g) => {
-    const role = (g.role || "guest").toLowerCase();
-    if (!groups[role]) groups[role] = [];
+    let role = (g.role || "guest").toLowerCase();
+    role = mapping[role] || role;
+    if (!roleOrder.includes(role)) role = "guest";
     groups[role].push(g);
   });
 
