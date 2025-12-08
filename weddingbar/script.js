@@ -778,6 +778,16 @@ const tableViewPanel = document.getElementById("tableViewPanel");
 const tableViewContent = document.getElementById("tableViewContent");
 const closeTableView = document.getElementById("closeTableView");
 
+document.getElementById("openTableIcon").onclick = () => {
+  tableViewPanel.classList.add("open");
+  lockBodyScroll();
+};
+
+document.getElementById("openGalleryIcon").onclick = () => {
+  galleryPanel.classList.add("open");
+  lockBodyScroll();
+};
+
 let tableSort = JSON.parse(localStorage.getItem("tableSort")) || {
   column: null,
   direction: "default",
