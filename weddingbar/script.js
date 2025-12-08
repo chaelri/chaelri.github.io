@@ -1642,6 +1642,11 @@ async function loadGuestsKanban() {
       col.classList.remove("drag-over");
 
       const droppedId = e.dataTransfer.getData("text/plain");
+      if (!droppedId || droppedId.trim() === "") {
+        console.warn("EMPTY DROPPED ID — dragstart did not attach data");
+        return;
+      }
+
       if (!droppedId) return;
 
       const cardEl = document.querySelector(
@@ -1745,6 +1750,10 @@ async function loadGuestsKanban() {
             <span style="width:10px;height:10px;border-radius:50%;background:${rsvpColor};"></span>
           </div>
         `;
+        // Prevent child elements from becoming drag targets
+        card.querySelectorAll("*").forEach((el) => {
+          el.draggable = false;
+        });
 
         // Click → inline editor
         card.addEventListener("click", (e) => {
@@ -1757,13 +1766,21 @@ async function loadGuestsKanban() {
         let placeholder;
 
         card.addEventListener("dragstart", (e) => {
+          // Ensure drag originates from the card itself
+          e.stopPropagation();
+          if (e.target !== card) return;
+
           card.classList.add("dragging");
+
+          // create placeholder
           placeholder = document.createElement("div");
           placeholder.className = "kanban-placeholder";
 
+          // insert placeholder right after the card
           const parentList = card.closest(".kanban-list");
           parentList.insertBefore(placeholder, card.nextSibling);
 
+          // IMPORTANT: attach card id properly
           e.dataTransfer.setData("text/plain", g.id);
           e.dataTransfer.effectAllowed = "move";
         });
