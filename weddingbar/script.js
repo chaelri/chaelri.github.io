@@ -1765,6 +1765,13 @@ async function loadGuestsKanban() {
           el.draggable = false;
         });
 
+        card.querySelectorAll("*").forEach((el) => {
+          el.addEventListener("mousedown", () => {
+            // Force drag to start on card, not the child
+            card.dispatchEvent(new DragEvent("dragstart", { bubbles: true }));
+          });
+        });
+
         // Also stop children from interfering with drag events
         card.querySelectorAll("*").forEach((el) => {
           el.addEventListener("dragstart", (ev) => ev.stopPropagation());
@@ -1783,8 +1790,9 @@ async function loadGuestsKanban() {
         card.addEventListener("dragstart", (e) => {
           e.stopPropagation();
 
-          // ALWAYS attach real ID to dataTransfer
-          e.dataTransfer.setData("text/plain", g.id);
+          // ALWAYS attach card ID, even if child triggered dragstart
+          e.dataTransfer.setData("text/plain", card.dataset.id);
+
           e.dataTransfer.effectAllowed = "move";
 
           card.classList.add("dragging");
