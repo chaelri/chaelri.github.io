@@ -1628,9 +1628,19 @@ async function loadGuestsKanban() {
     col.addEventListener("dragover", (e) => {
       e.preventDefault();
       col.classList.add("drag-over");
+
       const listEl = col.querySelector(".kanban-list");
       const ph = document.querySelector(".kanban-placeholder");
-      if (ph && ph.parentElement !== listEl) listEl.appendChild(ph);
+      const after = Array.from(listEl.children).find(
+        (el) =>
+          el !== ph &&
+          e.clientY <= el.getBoundingClientRect().top + el.offsetHeight / 2
+      );
+
+      if (!ph) return;
+
+      if (after) listEl.insertBefore(ph, after);
+      else listEl.appendChild(ph);
     });
 
     col.addEventListener("dragleave", () => {
@@ -1755,6 +1765,11 @@ async function loadGuestsKanban() {
           el.draggable = false;
         });
 
+        // Also stop children from interfering with drag events
+        card.querySelectorAll("*").forEach((el) => {
+          el.addEventListener("dragstart", (ev) => ev.stopPropagation());
+        });
+
         // Click → inline editor
         card.addEventListener("click", (e) => {
           if (card.classList.contains("dragging")) return;
@@ -1766,9 +1781,11 @@ async function loadGuestsKanban() {
         let placeholder;
 
         card.addEventListener("dragstart", (e) => {
-          // Ensure drag originates from the card itself
           e.stopPropagation();
-          if (e.target !== card) return;
+
+          // ALWAYS attach real ID to dataTransfer
+          e.dataTransfer.setData("text/plain", g.id);
+          e.dataTransfer.effectAllowed = "move";
 
           card.classList.add("dragging");
 
