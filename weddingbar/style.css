@@ -364,6 +364,26 @@ body {
   }
 }
 
+/* Desktop vertical gradient animation */
+@media (min-width: 720px) {
+  .bar-fill {
+    background-size: 300% 300%;
+    animation: barGradientVertical 8s cubic-bezier(0.4, 0, 0.2, 1) infinite;
+  }
+
+  @keyframes barGradientVertical {
+    0% {
+      background-position: 50% 100%;
+    }
+    50% {
+      background-position: 50% 0%;
+    }
+    100% {
+      background-position: 50% 100%;
+    }
+  }
+}
+
 @keyframes bumpMove {
   0% {
     left: -40%;
