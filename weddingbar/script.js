@@ -1287,7 +1287,7 @@ function toggleInlineGuestEditor(g, container) {
     <input id="inlineName-${g.id}" type="text" value="${
     g.name || ""
   }" style="width:100%;margin-bottom:6px;">
-    <select id="inlineGender-${g.id}" style="width:100%;margin-bottom:6px;">
+    <select id="inlineGender-${g.id}" style="width:100%;margin-bottom:6px;padding:12px;border-radius:10px;background: var(--card);color: white;">
       <option value="">Gender</option>
       <option value="male" ${
         g.gender === "male" ? "selected" : ""
@@ -1296,7 +1296,7 @@ function toggleInlineGuestEditor(g, container) {
         g.gender === "female" ? "selected" : ""
       }>Female</option>
     </select>
-    <select id="inlineSide-${g.id}" style="width:100%;margin-bottom:6px;">
+    <select id="inlineSide-${g.id}" style="width:100%;margin-bottom:6px;padding:12px;border-radius:10px;background: var(--card);color: white;">
       <option value="">Side</option>
       <option value="charlie" ${
         g.side === "charlie" ? "selected" : ""
@@ -1306,7 +1306,7 @@ function toggleInlineGuestEditor(g, container) {
       }>Karla</option>
       <option value="both" ${g.side === "both" ? "selected" : ""}>Both</option>
     </select>
-    <select id="inlineRelation-${g.id}" style="width:100%;margin-bottom:6px;">
+    <select id="inlineRelation-${g.id}" style="width:100%;margin-bottom:6px;padding:12px;border-radius:10px;background: var(--card);color: white;">
       <option value="">Relation</option>
       <option value="family" ${
         g.relation === "family" ? "selected" : ""
@@ -1315,7 +1315,7 @@ function toggleInlineGuestEditor(g, container) {
         g.relation === "friend" ? "selected" : ""
       }>Friend</option>
     </select>
-    <select id="inlineRole-${g.id}" style="width:100%;margin-bottom:6px;">
+    <select id="inlineRole-${g.id}" style="width:100%;margin-bottom:6px;padding:12px;border-radius:10px;background: var(--card);color: white;">
       <option value="">Role</option>
       <option value="bride" ${
         g.role === "bride" ? "selected" : ""
@@ -1339,7 +1339,7 @@ function toggleInlineGuestEditor(g, container) {
         g.role === "guest" ? "selected" : ""
       }>Guest</option>
     </select>
-    <select id="inlineRsvp-${g.id}" style="width:100%;margin-bottom:6px;">
+    <select id="inlineRsvp-${g.id}" style="width:100%;margin-bottom:6px;padding:12px;border-radius:10px;background: var(--card);color: white;">
       <option value="pending" ${
         g.rsvp === "pending" ? "selected" : ""
       }>RSVP: Pending</option>
@@ -1348,19 +1348,21 @@ function toggleInlineGuestEditor(g, container) {
       }>RSVP: Yes</option>
       <option value="no" ${g.rsvp === "no" ? "selected" : ""}>RSVP: No</option>
     </select>
-    <textarea id="inlineNotes-${g.id}" style="width:100%;margin-bottom:8px;">${
+    <textarea id="inlineNotes-${g.id}" style="width:100%;margin-bottom:8px;padding:12px;border-radius:10px;background: var(--card);color: white;box-sizing:border-box">${
     g.notes || ""
   }</textarea>
 
     <div style="display:flex;gap:8px;">
-      <button class="btn" style="flex:1;" onclick="saveInlineGuest('${
+      <button class="btn" style="flex:1;" onclick="event.stopPropagation(); saveInlineGuest('${
         g.id
       }')">Save</button>
-      <button class="btn ghost" style="flex:1;" onclick="deleteInlineGuest('${
-        g.id
-      }')">Delete</button>
+<button class="btn ghost" style="flex:1;" onclick="event.stopPropagation(); deleteInlineGuest('${
+    g.id
+  }')">Delete</button>
     </div>
   `;
+  // prevent click inside editor from triggering row toggle
+  wrap.addEventListener("click", (e) => e.stopPropagation());
 
   container.appendChild(wrap);
   openInlineEditor = container;
@@ -1919,7 +1921,11 @@ function renderGuestList(arr, box) {
     ${g.relation || "—"} • ${g.role || "guest"} • ${rsvpDot}${g.rsvp}
   </div>
 `;
-    row.onclick = () => toggleInlineGuestEditor(g, row);
+    row.addEventListener("click", () => toggleInlineGuestEditor(g, row));
+    row.addEventListener("click", (e) => {
+      if (e.target.closest(".guest-inline-editor")) e.stopPropagation();
+    });
+
     box.appendChild(row);
   });
 }
@@ -1940,7 +1946,11 @@ function renderGuestGrid(arr, box) {
         ${g.relation || "—"} • ${g.role || "guest"} 
       </div>
     `;
-    item.onclick = () => toggleInlineGuestEditor(g, item);
+    item.addEventListener("click", () => toggleInlineGuestEditor(g, item));
+    item.addEventListener("click", (e) => {
+      if (e.target.closest(".guest-inline-editor")) e.stopPropagation();
+    });
+
     wrap.appendChild(item);
   });
 
