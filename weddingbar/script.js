@@ -1886,16 +1886,3 @@ gridBtn.onclick = () => {
 
 // run once on load
 updateGuestViewButtons();
-
-function openGuestEditor(g) {
-  const name = prompt("Edit guest name:", g.name);
-  if (name === null) return; // cancel
-
-  if (name === "") {
-    const del = confirm("Empty name means delete. Continue?");
-    if (del) remove(ref(db, `${GUESTS_PATH}/${g.id}`));
-    return;
-  }
-
-  update(ref(db, `${GUESTS_PATH}/${g.id}`), { name }).then(() => loadGuests());
-}
