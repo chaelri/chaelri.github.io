@@ -458,6 +458,12 @@ body {
   #galleryPanel {
     left: -100%;
   }
+  #tableViewPanel.open {
+    right: 0;
+  }
+  #galleryPanel.open {
+    left: 0;
+  }
 }
 
 .inputs input {
