@@ -1284,12 +1284,13 @@ function toggleInlineGuestEditor(g, container) {
   wrap.style.borderRadius = "12px";
   wrap.style.background = "rgba(255,255,255,0.04)";
   wrap.innerHTML = `
-    <input id="inlineName-${g.id}" type="text" value="${
-    g.name || ""
-  }" style="width:100%;margin-bottom:6px;">
-    <select id="inlineGender-${
-      g.id
-    }" style="width:100%;margin-bottom:6px;padding:12px;border-radius:10px;background: var(--card);color: white;border:0;">
+    <label style="font-size:13px;opacity:0.7;display:block;margin-bottom:4px;">Name</label>
+    <input id="inlineName-${g.id}" type="text" value="${g.name || ""}"
+      style="width:100%;margin-bottom:12px;padding:12px;border-radius:10px;background:var(--card);color:white;border:0;">
+
+    <label style="font-size:13px;opacity:0.7;display:block;margin-bottom:4px;">Gender</label>
+    <select id="inlineGender-${g.id}"
+      style="width:100%;margin-bottom:12px;padding:12px;border-radius:10px;background: var(--card);color: white;border:0;">
       <option value="">Gender</option>
       <option value="male" ${
         g.gender === "male" ? "selected" : ""
@@ -1298,9 +1299,10 @@ function toggleInlineGuestEditor(g, container) {
         g.gender === "female" ? "selected" : ""
       }>Female</option>
     </select>
-    <select id="inlineSide-${
-      g.id
-    }" style="width:100%;margin-bottom:6px;padding:12px;border-radius:10px;background: var(--card);color: white;border:0;">
+
+    <label style="font-size:13px;opacity:0.7;display:block;margin-bottom:4px;">Side</label>
+    <select id="inlineSide-${g.id}"
+      style="width:100%;margin-bottom:12px;padding:12px;border-radius:10px;background: var(--card);color: white;border:0;">
       <option value="">Side</option>
       <option value="charlie" ${
         g.side === "charlie" ? "selected" : ""
@@ -1310,9 +1312,10 @@ function toggleInlineGuestEditor(g, container) {
       }>Karla</option>
       <option value="both" ${g.side === "both" ? "selected" : ""}>Both</option>
     </select>
-    <select id="inlineRelation-${
-      g.id
-    }" style="width:100%;margin-bottom:6px;padding:12px;border-radius:10px;background: var(--card);color: white;border:0;">
+
+    <label style="font-size:13px;opacity:0.7;display:block;margin-bottom:4px;">Relation</label>
+    <select id="inlineRelation-${g.id}"
+      style="width:100%;margin-bottom:12px;padding:12px;border-radius:10px;background: var(--card);color: white;border:0;">
       <option value="">Relation</option>
       <option value="family" ${
         g.relation === "family" ? "selected" : ""
@@ -1321,9 +1324,10 @@ function toggleInlineGuestEditor(g, container) {
         g.relation === "friend" ? "selected" : ""
       }>Friend</option>
     </select>
-    <select id="inlineRole-${
-      g.id
-    }" style="width:100%;margin-bottom:6px;padding:12px;border-radius:10px;background: var(--card);color: white;border:0;">
+
+    <label style="font-size:13px;opacity:0.7;display:block;margin-bottom:4px;">Role</label>
+    <select id="inlineRole-${g.id}"
+      style="width:100%;margin-bottom:12px;padding:12px;border-radius:10px;background: var(--card);color: white;border:0;">
       <option value="">Role</option>
       <option value="bride" ${
         g.role === "bride" ? "selected" : ""
@@ -1331,6 +1335,9 @@ function toggleInlineGuestEditor(g, container) {
       <option value="groom" ${
         g.role === "groom" ? "selected" : ""
       }>Groom</option>
+      <option value="parent" ${
+        g.role === "parent" ? "selected" : ""
+      }>Parent</option>
       <option value="bridesmaid" ${
         g.role === "bridesmaid" ? "selected" : ""
       }>Bridesmaid</option>
@@ -1340,9 +1347,6 @@ function toggleInlineGuestEditor(g, container) {
       <option value="principal" ${
         g.role === "principal" ? "selected" : ""
       }>Principal Sponsor</option>
-      <option value="parent" ${
-        g.role === "parent" ? "selected" : ""
-      }>Parent</option>
       <option value="secondary" ${
         g.role === "secondary" ? "selected" : ""
       }>Secondary Sponsor</option>
@@ -1350,9 +1354,10 @@ function toggleInlineGuestEditor(g, container) {
         g.role === "guest" ? "selected" : ""
       }>Guest</option>
     </select>
-    <select id="inlineRsvp-${
-      g.id
-    }" style="width:100%;margin-bottom:6px;padding:12px;border-radius:10px;background: var(--card);color: white;border:0;">
+
+    <label style="font-size:13px;opacity:0.7;display:block;margin-bottom:4px;">RSVP Status</label>
+    <select id="inlineRsvp-${g.id}"
+      style="width:100%;margin-bottom:12px;padding:12px;border-radius:10px;background: var(--card);color: white;border:0;">
       <option value="pending" ${
         g.rsvp === "pending" ? "selected" : ""
       }>RSVP: Pending</option>
@@ -1361,21 +1366,23 @@ function toggleInlineGuestEditor(g, container) {
       }>RSVP: Yes</option>
       <option value="no" ${g.rsvp === "no" ? "selected" : ""}>RSVP: No</option>
     </select>
-    <textarea id="inlineNotes-${
-      g.id
-    }" style="width:100%;margin-bottom:8px;padding:12px;border-radius:10px;background: var(--card);color: white;box-sizing:border-box;border:0;">${
-    g.notes || ""
-  }</textarea>
+
+    <label style="font-size:13px;opacity:0.7;display:block;margin-bottom:4px;">Notes</label>
+    <textarea id="inlineNotes-${g.id}"
+      style="width:100%;margin-bottom:14px;padding:12px;border-radius:10px;background: var(--card);color:white;box-sizing:border-box;border:0;">${
+        g.notes || ""
+      }</textarea>
 
     <div style="display:flex;gap:8px;">
       <button class="btn" style="flex:1;" onclick="event.stopPropagation(); saveInlineGuest('${
         g.id
       }')">Save</button>
-<button class="btn ghost" style="flex:1;" onclick="event.stopPropagation(); deleteInlineGuest('${
-    g.id
-  }')">Delete</button>
+      <button class="btn ghost" style="flex:1;" onclick="event.stopPropagation(); deleteInlineGuest('${
+        g.id
+      }')">Delete</button>
     </div>
-  `;
+`;
+
   // prevent click inside editor from triggering row toggle
   wrap.addEventListener("click", (e) => e.stopPropagation());
 
