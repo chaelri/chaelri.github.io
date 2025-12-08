@@ -1215,34 +1215,45 @@ function saveGuest(obj) {
   return set(push(ref(db, GUESTS_PATH)), obj);
 }
 
+let editingGuestId = null;
+
+function openGuestEditor(g) {
+  editingGuestId = g.id;
+  document.getElementById("editGuestName").value = g.name || "";
+  document.getElementById("editGuestGender").value = g.gender || "";
+  document.getElementById("editGuestSide").value = g.side || "";
+  document.getElementById("editGuestRelation").value = g.relation || "";
+  document.getElementById("editGuestRole").value = g.role || "guest";
+  document.getElementById("editGuestRsvp").value = g.rsvp || "pending";
+  document.getElementById("editGuestNotes").value = g.notes || "";
+
+  const bar = document.getElementById("guestEditBar");
+  bar.style.display = "block";
+  requestAnimationFrame(() => bar.classList.add("open"));
+}
+
 function loadGuests() {
   if (typeof guestsUnsub === "function") {
     guestsUnsub();
     guestsUnsub = null;
   }
 
-  const kanbanRoot = document.getElementById("kanbanBoard");
-  guestsUnsub = onValue(ref(db, GUESTS_PATH), async (snap) => {
-    const val = snap.val() || {};
-    const rawGuests = Object.keys(val).map((id) => ({ id, ...val[id] }));
+  const box = document.getElementById("guestList");
+  guestsUnsub = onValue(ref(db, GUESTS_PATH), (snap) => {
+    const val = snap.val();
+    if (!val) {
+      box.innerHTML = `<div class="muted">No guests yet.</div>`;
+      return;
+    }
 
-    // Ensure every guest has a sortIndex (normalize once)
-    await ensureSortIndexes(rawGuests);
+    let rawGuests = Object.keys(val).map((id) => ({ id, ...val[id] }));
 
-    // Re-read rawGuests (since ensureSortIndexes may have updated)
-    const fresh = Object.keys(
-      (await (await ref(db, GUESTS_PATH)).get?.()) || val
-    ).length
-      ? Object.keys(val).map((id) => ({ id, ...val[id] }))
-      : rawGuests;
-
-    // SEARCH (kept)
+    // APPLY SEARCH
     const q = (
       document.getElementById("guestSearch")?.value || ""
     ).toLowerCase();
-    let filtered = fresh;
     if (q.trim() !== "") {
-      filtered = fresh.filter(
+      rawGuests = rawGuests.filter(
         (g) =>
           (g.name || "").toLowerCase().includes(q) ||
           (g.role || "").toLowerCase().includes(q) ||
@@ -1253,346 +1264,61 @@ function loadGuests() {
       );
     }
 
-    // Update guest stats
+    // APPLY FILTER CHIPS
+    rawGuests = rawGuests.filter((g) => applyGuestFilters(g));
+
     const statsBox = document.getElementById("guestStats");
     if (statsBox) {
-      const total = filtered.length;
-      const charlie = filtered.filter((g) => g.side === "charlie").length;
-      const karla = filtered.filter((g) => g.side === "karla").length;
-      const both = filtered.filter((g) => g.side === "both").length;
-      const yes = filtered.filter((g) => g.rsvp === "yes").length;
-      const no = filtered.filter((g) => g.rsvp === "no").length;
-      const pending = filtered.filter((g) => g.rsvp === "pending").length;
+      const total = rawGuests.length;
+      const charlie = rawGuests.filter((g) => g.side === "charlie").length;
+      const karla = rawGuests.filter((g) => g.side === "karla").length;
+      const both = rawGuests.filter((g) => g.side === "both").length;
+      const yes = rawGuests.filter((g) => g.rsvp === "yes").length;
+      const no = rawGuests.filter((g) => g.rsvp === "no").length;
+      const pending = rawGuests.filter((g) => g.rsvp === "pending").length;
 
       statsBox.innerHTML = `
-        Total: <b>${total}</b> • 
-        Charlie: ${charlie} • 
-        Karla: ${karla} • 
-        Both: ${both} • 
-        Yes: ${yes} • No: ${no} • Pending: ${pending}
-      `;
+    Total: <b>${total}</b> • 
+    Charlie: ${charlie} • 
+    Karla: ${karla} • 
+    Both: ${both} • 
+    Yes: ${yes} • No: ${no} • Pending: ${pending}
+  `;
     }
 
-    // OPTION 2 ROLE ORDER (always shown)
-    const roleOrder = [
-      "bride",
-      "groom",
-      "principal sponsors",
-      "parent",
-      "bridesmaid",
-      "groomsmen",
-      "secondary sponsors",
-      "guest",
-    ];
+    const groups = {
+      charlie: [],
+      karla: [],
+      both: [],
+    };
 
-    // Group by role (ensure roles exist even if empty), and sort by sortIndex
-    const groups = {};
-    roleOrder.forEach((r) => (groups[r] = []));
-    filtered.forEach((g) => {
-      const r = (g.role || "guest").toString().toLowerCase();
-      const map = {
-        principal: "principal sponsors",
-        "principal sponsor": "principal sponsors",
-        groomsman: "groomsmen",
-        groomsmen: "groomsmen",
-        secondary: "secondary sponsors",
-        "secondary sponsor": "secondary sponsors",
-      };
-      const key = roleOrder.includes(r) ? r : map[r] || "guest";
-      groups[key].push(g);
+    rawGuests.forEach((g) => {
+      groups[g.side || "both"].push(g);
     });
 
-    // Sort each group by sortIndex (numeric)
-    roleOrder.forEach((r) => {
-      groups[r].sort(
-        (a, b) =>
-          Number(a.sortIndex || 0) - Number(b.sortIndex || 0) ||
-          a.createdAt - b.createdAt
-      );
-    });
+    // container for output
+    box.innerHTML = "";
 
-    // Render the kanban board
-    kanbanRoot.innerHTML = "";
-    roleOrder.forEach((role) => {
-      const col = document.createElement("div");
-      col.className = "kanban-column";
-      col.dataset.role = role;
+    // Render by group
+    ["charlie", "karla", "both"].forEach((side) => {
+      if (groups[side].length === 0) return;
 
-      const header = document.createElement("h3");
-      header.innerHTML = `${role} <span class="col-count">(${groups[role].length})</span>`;
-      col.appendChild(header);
+      // header
+      const h = document.createElement("div");
+      h.textContent = side.toUpperCase() + ` (${groups[side].length})`;
+      h.style.margin = "12px 0 6px";
+      h.style.fontWeight = "700";
+      box.appendChild(h);
 
-      const list = document.createElement("div");
-      list.className = "kanban-list";
-      list.dataset.role = role;
-
-      // render cards
-      groups[role].forEach((g) => {
-        const card = document.createElement("div");
-        card.className = "kanban-card";
-        card.draggable = true;
-        card.dataset.id = g.id;
-        card.dataset.role = role;
-
-        // build card html (Option A style)
-        const sideClass =
-          g.side === "charlie"
-            ? "side-charlie"
-            : g.side === "karla"
-            ? "side-karla"
-            : "side-both";
-        const rsvpClass =
-          g.rsvp === "yes"
-            ? "rsvp-yes"
-            : g.rsvp === "no"
-            ? "rsvp-no"
-            : "rsvp-pending";
-
-        card.innerHTML = `
-          <div>
-            <div class="name">${escapeHtml(g.name || "—")}</div>
-            <div class="meta-row">${g.relation || "—"} • ${
-          g.role || "guest"
-        }</div>
-          </div>
-          <div class="dots">
-            <span class="side-dot ${sideClass}" title="${g.side || ""}"></span>
-            <span class="rsvp-dot ${rsvpClass}" title="${g.rsvp || ""}"></span>
-          </div>
-        `;
-
-        // click opens inline editor when not dragging
-        card.addEventListener("click", (e) => {
-          if (card.classList.contains("dragging")) return;
-          toggleInlineGuestEditor(g, card);
-        });
-
-        // Desktop drag events
-        card.addEventListener("dragstart", (e) => {
-          currentCard = g;
-          card.classList.add("dragging");
-          placeholder = document.getElementById("kanbanPlaceholder");
-          placeholder.style.display = "block";
-          list.insertBefore(placeholder, card.nextSibling);
-          e.dataTransfer?.setData("text/plain", g.id);
-          // add aria
-          card.setAttribute("aria-grabbed", "true");
-        });
-
-        card.addEventListener("dragend", async () => {
-          card.classList.remove("dragging");
-          card.removeAttribute("aria-grabbed");
-          const ph = document.getElementById("kanbanPlaceholder");
-          if (ph && ph.parentElement) {
-            ph.replaceWith(card);
-            ph.style.display = "none";
-          }
-          currentCard = null;
-        });
-
-        // Mobile long-press + touch drag
-        let pressTimer = null;
-        card.addEventListener(
-          "touchstart",
-          (ev) => {
-            if (!ev.touches || ev.touches.length === 0) return;
-            pressTimer = setTimeout(() => {
-              // begin dragging
-              currentCard = g;
-              card.classList.add("dragging");
-              placeholder = document.getElementById("kanbanPlaceholder");
-              placeholder.style.display = "block";
-              list.insertBefore(placeholder, card.nextSibling);
-            }, 140); // long-press threshold
-          },
-          { passive: true }
-        );
-
-        card.addEventListener(
-          "touchmove",
-          (ev) => {
-            if (!currentCard) return;
-            const t = ev.touches[0];
-            const target = document.elementFromPoint(t.clientX, t.clientY);
-            const colEl = target?.closest?.(".kanban-column");
-            if (colEl) {
-              // highlight column
-              document
-                .querySelectorAll(".kanban-column")
-                .forEach((c) => c.classList.remove("drag-over"));
-              colEl.classList.add("drag-over");
-              const dropList = colEl.querySelector(".kanban-list");
-              dropList.appendChild(placeholder);
-            }
-          },
-          { passive: true }
-        );
-
-        card.addEventListener("touchend", async (ev) => {
-          clearTimeout(pressTimer);
-          if (!currentCard) return;
-          const ph = document.getElementById("kanbanPlaceholder");
-          if (ph && ph.parentElement) {
-            ph.replaceWith(card);
-            ph.style.display = "none";
-            // determine new role
-            const newCol = card.closest(".kanban-column");
-            const newRole = newCol?.dataset?.role;
-            if (newRole && newRole !== (g.role || "guest")) {
-              // persist to firebase
-              await update(ref(db, `${GUESTS_PATH}/${g.id}`), {
-                role: newRole,
-              });
-            }
-            // persist new order for target column
-            await persistColumnOrder(newCol.querySelector(".kanban-list"));
-          }
-          document
-            .querySelectorAll(".kanban-column")
-            .forEach((c) => c.classList.remove("drag-over"));
-          card.classList.remove("dragging");
-          currentCard = null;
-        });
-
-        list.appendChild(card);
-      });
-
-      // Column dragover/drop handlers
-      col.addEventListener("dragover", (e) => {
-        e.preventDefault();
-        const ph = document.getElementById("kanbanPlaceholder");
-        const listEl = col.querySelector(".kanban-list");
-        if (ph && listEl && ph.parentElement !== listEl) {
-          listEl.appendChild(ph);
-        }
-        document
-          .querySelectorAll(".kanban-column")
-          .forEach((c) => c.classList.remove("drag-over"));
-        col.classList.add("drag-over");
-      });
-
-      col.addEventListener("dragleave", (e) => {
-        col.classList.remove("drag-over");
-      });
-
-      col.addEventListener("drop", async (e) => {
-        e.preventDefault();
-        col.classList.remove("drag-over");
-        const droppedId = e.dataTransfer?.getData("text/plain");
-        const ph = document.getElementById("kanbanPlaceholder");
-        const listEl = col.querySelector(".kanban-list");
-        if (ph && ph.parentElement === listEl) {
-          // find card element
-          const cardEl = document.querySelector(
-            `.kanban-card[data-id="${droppedId}"]`
-          );
-          if (cardEl) {
-            listEl.replaceChild(cardEl, ph);
-            // update role in firebase if changed
-            const newRole = col.dataset.role;
-            const guestObj = fresh.find((x) => x.id === droppedId);
-            if (guestObj && newRole && (guestObj.role || "guest") !== newRole) {
-              await update(ref(db, `${GUESTS_PATH}/${droppedId}`), {
-                role: newRole,
-              });
-            }
-            // persist new sort order for the column
-            await persistColumnOrder(listEl);
-          }
-        } else if (droppedId && listEl) {
-          // if placeholder not used, append card to end and update role
-          const cardEl = document.querySelector(
-            `.kanban-card[data-id="${droppedId}"]`
-          );
-          if (cardEl) {
-            listEl.appendChild(cardEl);
-            const newRole = col.dataset.role;
-            const guestObj = fresh.find((x) => x.id === droppedId);
-            if (guestObj && newRole && (guestObj.role || "guest") !== newRole) {
-              await update(ref(db, `${GUESTS_PATH}/${droppedId}`), {
-                role: newRole,
-              });
-            }
-            await persistColumnOrder(listEl);
-          }
-        }
-        // cleanup
-        const phCleanup = document.getElementById("kanbanPlaceholder");
-        if (phCleanup) phCleanup.style.display = "none";
-        currentCard = null;
-        loadGuests();
-      });
-
-      col.appendChild(list);
-      kanbanRoot.appendChild(col);
-    });
-  });
-}
-
-/* ============================
-   SORT INDEX HELPERS
-   ============================ */
-
-/**
- * Ensure every guest has a numeric sortIndex within their role.
- * When missing or duplicated, assign sequential indexes grouped by role.
- */
-async function ensureSortIndexes(allGuests = []) {
-  if (!Array.isArray(allGuests) || allGuests.length === 0) return;
-  // group
-  const byRole = {};
-  allGuests.forEach((g) => {
-    const role = (g.role || "guest").toString().toLowerCase();
-    if (!byRole[role]) byRole[role] = [];
-    byRole[role].push(g);
-  });
-
-  const updates = {};
-  let changed = false;
-
-  Object.keys(byRole).forEach((role) => {
-    // sort by existing sortIndex OR createdAt
-    const arr = byRole[role].slice().sort((a, b) => {
-      const sa = Number(a.sortIndex || 0);
-      const sb = Number(b.sortIndex || 0);
-      if (sa !== sb) return sa - sb;
-      return (a.createdAt || 0) - (b.createdAt || 0);
-    });
-    // assign compact sequential indexes
-    for (let i = 0; i < arr.length; i++) {
-      const g = arr[i];
-      if (Number(g.sortIndex || 0) !== i) {
-        updates[`${GUESTS_PATH}/${g.id}/sortIndex`] = i;
-        changed = true;
+      // pick view type
+      if (guestViewMode === "grid") {
+        renderGuestGrid(groups[side], box);
+      } else {
+        renderGuestList(groups[side], box);
       }
-    }
+    });
   });
-
-  if (changed) {
-    // bulk update at root
-    await update(ref(db), updates);
-  }
 }
-
-/**
- * Persist order of a given .kanban-list element by writing sortIndex
- */
-async function persistColumnOrder(listEl) {
-  if (!listEl) return;
-  const updates = {};
-  const role = listEl.dataset.role;
-  const items = Array.from(listEl.querySelectorAll(".kanban-card"));
-  items.forEach((el, idx) => {
-    const id = el.dataset.id;
-    updates[`${GUESTS_PATH}/${id}/sortIndex`] = idx;
-    updates[`${GUESTS_PATH}/${id}/role`] = role; // ensure role consistent
-  });
-  if (Object.keys(updates).length) {
-    await update(ref(db), updates);
-  }
-}
-
-document.getElementById("guestSearch").oninput = () => loadGuests();
 
 let openInlineEditor = null;
 
@@ -1744,6 +1470,76 @@ window.deleteInlineGuest = async function (id) {
   loadGuests();
 };
 
+function renderGuestChips() {
+  const box = document.getElementById("guestFilterChips");
+  if (!box) return;
+
+  const chips = [
+    { type: "side", value: "charlie" },
+    { type: "side", value: "karla" },
+    { type: "side", value: "both" },
+    { type: "relation", value: "family" },
+    { type: "relation", value: "friend" },
+    { type: "role", value: "bride" },
+    { type: "role", value: "groom" },
+    { type: "role", value: "parent" },
+    { type: "role", value: "guest" },
+    { type: "role", value: "bridesmaid" },
+    { type: "role", value: "groomsman" },
+    { type: "role", value: "principal" },
+    { type: "rsvp", value: "yes" },
+    { type: "rsvp", value: "pending" },
+    { type: "rsvp", value: "no" },
+  ];
+
+  box.innerHTML = "";
+
+  const clear = document.createElement("button");
+  clear.textContent = "Clear Filters";
+  clear.className = "btn ghost";
+  clear.style.padding = "6px 10px";
+  clear.style.marginLeft = "auto";
+
+  clear.onclick = () => {
+    guestFilters.side = [];
+    guestFilters.relation = [];
+    guestFilters.role = [];
+    guestFilters.rsvp = [];
+    renderGuestChips();
+    loadGuests();
+  };
+
+  box.appendChild(clear);
+
+  chips.forEach((c) => {
+    const btn = document.createElement("button");
+    btn.textContent = c.value;
+
+    // SHOW ACTIVE visual indicator
+    const isActive = guestFilters[c.type].includes(c.value);
+
+    btn.className = isActive ? "btn" : "btn ghost";
+
+    btn.style.padding = "6px 10px";
+    btn.style.borderRadius = "999px"; // pill look
+
+    btn.onclick = () => {
+      if (guestFilters[c.type].includes(c.value)) {
+        guestFilters[c.type] = guestFilters[c.type].filter(
+          (v) => v !== c.value
+        );
+      } else {
+        guestFilters[c.type].push(c.value);
+      }
+
+      renderGuestChips(); // refresh pills to show active state
+      loadGuests(); // apply filtering
+    };
+
+    box.appendChild(btn);
+  });
+}
+
 // =======================================================
 // PANEL OPENERS
 // =======================================================
@@ -1764,6 +1560,15 @@ document.addEventListener("click", (e) => {
   }
 });
 
+document.getElementById("openChecklist").onclick = () => {
+  checklistDropdown.style.display = "none";
+  openChecklistPanel();
+};
+
+document.getElementById("openGuests").onclick = () => {
+  checklistDropdown.style.display = "none";
+  openGuestsPanel();
+};
 
 document.getElementById("openSeating").onclick = () => {
   checklistDropdown.style.display = "none";
@@ -1863,29 +1668,26 @@ document.getElementById("addNextStepBtn").onclick = async () => {
 // =======================================================
 // ADD GUEST
 // =======================================================
-// :contentReference[oaicite:2]{index=2}
 document.getElementById("addGuestBtn").onclick = async () => {
   const name = document.getElementById("guestNameInput").value.trim();
   const gender = document.getElementById("guestGenderInput").value;
   const side = document.getElementById("guestSideInput").value;
   const relation = document.getElementById("guestRelationInput").value;
-  const role = document.getElementById("guestRoleInput").value || "guest";
+  const role = document.getElementById("guestRoleInput").value;
   const rsvp = document.getElementById("guestRsvpInput").value;
   const notes = document.getElementById("guestNotesInput").value.trim();
 
   if (!name) return alert("Please enter guest name");
 
-  // create initial guest with a temporary sortIndex (will be normalized on load)
   await saveGuest({
     name,
     gender: gender || null,
     side: side || null,
     relation: relation || null,
-    role: role,
+    role: role || "guest",
     rsvp: rsvp || "pending",
     notes: notes || null,
     createdAt: Date.now(),
-    sortIndex: 0,
   });
 
   document.getElementById("guestsForm").reset();
@@ -1992,12 +1794,6 @@ document.querySelectorAll("input").forEach((el) => {
 // =======================================================
 
 // Build a better guests form (in place)
-// FIX: prevent any guest-panel auto-trigger during initial UI rebuild
-let _suppressGuestPanelAutoOpen = true;
-setTimeout(() => {
-  _suppressGuestPanelAutoOpen = false;
-}, 100);
-
 (function buildBetterGuestForm() {
   const bar = document.getElementById("guestsAddBar");
   if (!bar) return;
@@ -2071,6 +1867,38 @@ setTimeout(() => {
 })();
 
 // =======================================================
+// Fix Add Guest Button after dynamic rebuild
+// =======================================================
+document.body.addEventListener("click", async (e) => {
+  if (e.target && e.target.id === "addGuestBtn") {
+    const name = document.getElementById("guestNameInput").value.trim();
+    const gender = document.getElementById("guestGenderInput").value.trim();
+    const side = document.getElementById("guestSideInput").value.trim();
+    const relation = document.getElementById("guestRelationInput").value.trim();
+    const role = document.getElementById("guestRoleInput").value.trim();
+    const rsvp = document.getElementById("guestRsvpInput").value.trim();
+    const notes = document.getElementById("guestNotesInput").value.trim();
+
+    if (!name) return alert("Guest name required.");
+
+    await saveGuest({
+      name,
+      gender: gender || null,
+      side: side || null,
+      relation: relation || null,
+      role: role || "guest",
+      rsvp: rsvp || "pending",
+      notes: notes || null,
+      createdAt: Date.now(),
+    });
+
+    document.getElementById("guestsForm").reset();
+    loadGuests();
+    showSaveToast();
+  }
+});
+
+// =======================================================
 // Fix Add Checklist Button after notes insertion
 // =======================================================
 document.getElementById("addNextStepBtn").onclick = async () => {
@@ -2127,11 +1955,115 @@ window.addEventListener("resize", () => {
 // =======================================================
 
 // App start
-// App start
-// FIX: ensure only the main costs screen is visible on initial load
-document.getElementById("weddingCostsWrapper").style.display = "block";
-document.getElementById("guestsPanel").style.display = "none";
-document.getElementById("checklistPanel").style.display = "none";
-document.getElementById("nextStepsPanel").style.display = "none";
-
 listenRealtime();
+
+const guestFilters = {
+  side: [],
+  relation: [],
+  role: [],
+  rsvp: [],
+};
+
+function applyGuestFilters(g) {
+  // SIDE
+  if (guestFilters.side.length > 0 && !guestFilters.side.includes(g.side))
+    return false;
+
+  // RELATION
+  if (
+    guestFilters.relation.length > 0 &&
+    !guestFilters.relation.includes(g.relation)
+  )
+    return false;
+
+  // ROLE
+  if (guestFilters.role.length > 0 && !guestFilters.role.includes(g.role))
+    return false;
+
+  // RSVP
+  if (guestFilters.rsvp.length > 0 && !guestFilters.rsvp.includes(g.rsvp))
+    return false;
+
+  return true;
+}
+
+let guestViewMode = "list";
+
+function renderGuestList(arr, box) {
+  arr.forEach((g) => {
+    const row = document.createElement("div");
+    row.style.padding = "10px 0";
+    row.style.borderBottom = "1px solid rgba(255,255,255,0.05)";
+
+    const sideDot = `<span class="guest-dot dot-${g.side}"></span>`;
+    const rsvpDot = `<span class="guest-dot dot-rsvp-${g.rsvp}"></span>`;
+
+    row.innerHTML = `
+  <div style="font-weight:700;">${sideDot}${g.name}</div>
+  <div class="muted" style="font-size:13px;">
+    ${g.relation || "—"} • ${g.role || "guest"} • ${rsvpDot}${g.rsvp}
+  </div>
+`;
+    row.addEventListener("click", () => toggleInlineGuestEditor(g, row));
+    row.addEventListener("click", (e) => {
+      if (e.target.closest(".guest-inline-editor")) e.stopPropagation();
+    });
+
+    box.appendChild(row);
+  });
+}
+
+function renderGuestGrid(arr, box) {
+  const wrap = document.createElement("div");
+  wrap.className = "guest-grid";
+
+  arr.forEach((g) => {
+    const item = document.createElement("div");
+    item.className = "guest-grid-item";
+
+    const sideDot = `<span class="guest-dot dot-${g.side}"></span>`;
+
+    item.innerHTML = `
+      <div style="font-weight:700;">${sideDot}${g.name}</div>
+      <div class="muted" style="font-size:12px;">
+        ${g.relation || "—"} • ${g.role || "guest"} 
+      </div>
+    `;
+    item.addEventListener("click", () => toggleInlineGuestEditor(g, item));
+    item.addEventListener("click", (e) => {
+      if (e.target.closest(".guest-inline-editor")) e.stopPropagation();
+    });
+
+    wrap.appendChild(item);
+  });
+
+  box.appendChild(wrap);
+}
+
+const listBtn = document.getElementById("guestViewList");
+const gridBtn = document.getElementById("guestViewGrid");
+
+function updateGuestViewButtons() {
+  if (guestViewMode === "list") {
+    listBtn.className = "btn";
+    gridBtn.className = "btn ghost";
+  } else {
+    listBtn.className = "btn ghost";
+    gridBtn.className = "btn";
+  }
+}
+
+listBtn.onclick = () => {
+  guestViewMode = "list";
+  updateGuestViewButtons();
+  loadGuests();
+};
+
+gridBtn.onclick = () => {
+  guestViewMode = "grid";
+  updateGuestViewButtons();
+  loadGuests();
+};
+
+// run once on load
+updateGuestViewButtons();

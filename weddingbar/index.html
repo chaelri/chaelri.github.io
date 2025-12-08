@@ -157,7 +157,6 @@
           </div>
         </div>
 
-               <!-- :contentReference[oaicite:0]{index=0} -->
         <div
           id="guestControls"
           style="margin-top: 12px; display: flex; gap: 8px; flex-wrap: wrap"
@@ -169,7 +168,7 @@
           style="margin-top: 12px; font-size: 14px; color: var(--muted)"
         ></div>
 
-        <!-- SEARCH (kept) -->
+        <!-- SEARCH -->
         <input
           id="guestSearch"
           type="text"
@@ -186,69 +185,30 @@
           "
         />
 
-                <!-- :contentReference[oaicite:0]{index=0} -->
-        <!-- KANBAN BOARD (Roles always visible) -->
-        <div id="guestKanbanWrap" style="margin-top: 14px;">
-          <div class="kanban-board" id="kanbanBoard" role="list" aria-live="polite">
-            <!-- Columns injected by JS for: 
-                 Option 2 roles (always shown):
-                 bride, groom, principal sponsors, parent,
-                 bridesmaid, groomsmen, secondary sponsors, guest
-            -->
-          </div>
+        <!-- FILTER CHIPS -->
+        <div
+          id="guestFilterChips"
+          style="
+            margin-top: 12px;
+            display: flex;
+            flex-wrap: wrap;
+            gap: 8px;
+            overflow: visible;
+          "
+        ></div>
 
-          <!-- draggable placeholder -->
-          <div id="kanbanPlaceholder" class="kanban-placeholder" style="display:none;"></div>
+        <!-- VIEW MODE -->
+        <div style="margin-top: 10px; display: flex; gap: 10px">
+          <button id="guestViewList" class="btn" style="flex: 1">List</button>
+          <button id="guestViewGrid" class="btn ghost" style="flex: 1">
+            Grid
+          </button>
         </div>
 
-        <!-- INLINE GUEST EDIT DRAWER (used by toggleInlineGuestEditor) -->
-        <div id="guestEditBar" class="add-drawer" style="display:none; max-height:70vh;">
-          <div style="max-width:900px;margin:0 auto;width:100%;">
-            <form id="guestEditForm" style="display:flex;flex-direction:column;gap:10px;">
-              <input id="editGuestName" type="text" placeholder="Guest full name..." style="padding:12px;border-radius:10px;background:var(--card);color:white;border:none;"/>
-              <select id="editGuestGender" style="padding:12px;border-radius:10px;background:var(--card);color:white;border:none;">
-                <option value="">Gender</option>
-                <option value="male">Male</option>
-                <option value="female">Female</option>
-              </select>
-              <select id="editGuestSide" style="padding:12px;border-radius:10px;background:var(--card);color:white;border:none;">
-                <option value="">Side</option>
-                <option value="charlie">Charlie</option>
-                <option value="karla">Karla</option>
-                <option value="both">Both</option>
-              </select>
-              <select id="editGuestRelation" style="padding:12px;border-radius:10px;background:var(--card);color:white;border:none;">
-                <option value="">Relation</option>
-                <option value="family">Family</option>
-                <option value="friend">Friend</option>
-              </select>
-              <select id="editGuestRole" style="padding:12px;border-radius:10px;background:var(--card);color:white;border:none;">
-                <option value="">Role</option>
-                <option value="bride">Bride</option>
-                <option value="groom">Groom</option>
-                <option value="principal sponsors">Principal Sponsors</option>
-                <option value="parent">Parent</option>
-                <option value="bridesmaid">Bridesmaid</option>
-                <option value="groomsmen">Groomsmen</option>
-                <option value="secondary sponsors">Secondary Sponsors</option>
-                <option value="guest">Guest</option>
-              </select>
-              <select id="editGuestRsvp" style="padding:12px;border-radius:10px;background:var(--card);color:white;border:none;">
-                <option value="pending">RSVP: Pending</option>
-                <option value="yes">RSVP: Yes</option>
-                <option value="no">RSVP: No</option>
-              </select>
-              <textarea id="editGuestNotes" placeholder="Notes (optional)" style="padding:12px;border-radius:10px;background:var(--card);color:white;border:none;min-height:70px;"></textarea>
-
-              <div style="display:flex;gap:8px;">
-                <button id="saveGuestEditBtn" type="button" class="btn" style="flex:1;">Save</button>
-                <button id="cancelGuestEditBtn" type="button" class="btn ghost" style="flex:1;">Cancel</button>
-                <button id="deleteGuestEditBtn" type="button" class="btn ghost" style="flex:1;">Delete</button>
-              </div>
-            </form>
-          </div>
+        <div id="guestList" style="margin-top: 12px">
+          <!-- guest rows injected by JS -->
         </div>
-
+      </section>
 
       <!-- BOTTOM ADD STEP BAR (reused for Checklist & Next Steps) -->
       <div
