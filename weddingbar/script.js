@@ -1232,28 +1232,43 @@ function openGuestEditor(g) {
   requestAnimationFrame(() => bar.classList.add("open"));
 }
 
+// :contentReference[oaicite:4]{index=4}
+/***********************
+  KANBAN: Guests by ROLE (ENHANCED)
+  - Option 2 roles (always visible)
+  - Desktop drag/drop + Mobile long-press drag
+  - Tap to open inline editor (disabled while dragging)
+  - Persistent sortIndex per guest (Option 1)
+  - Column highlight + smooth animations
+************************/
 function loadGuests() {
   if (typeof guestsUnsub === "function") {
     guestsUnsub();
     guestsUnsub = null;
   }
 
-  const box = document.getElementById("guestList");
-  guestsUnsub = onValue(ref(db, GUESTS_PATH), (snap) => {
-    const val = snap.val();
-    if (!val) {
-      box.innerHTML = `<div class="muted">No guests yet.</div>`;
-      return;
-    }
+  const kanbanRoot = document.getElementById("kanbanBoard");
+  guestsUnsub = onValue(ref(db, GUESTS_PATH), async (snap) => {
+    const val = snap.val() || {};
+    const rawGuests = Object.keys(val).map((id) => ({ id, ...val[id] }));
 
-    let rawGuests = Object.keys(val).map((id) => ({ id, ...val[id] }));
+    // Ensure every guest has a sortIndex (normalize once)
+    await ensureSortIndexes(rawGuests);
 
-    // APPLY SEARCH
+    // Re-read rawGuests (since ensureSortIndexes may have updated)
+    const fresh = Object.keys(
+      (await (await ref(db, GUESTS_PATH)).get?.()) || val
+    ).length
+      ? Object.keys(val).map((id) => ({ id, ...val[id] }))
+      : rawGuests;
+
+    // SEARCH (kept)
     const q = (
       document.getElementById("guestSearch")?.value || ""
     ).toLowerCase();
+    let filtered = fresh;
     if (q.trim() !== "") {
-      rawGuests = rawGuests.filter(
+      filtered = fresh.filter(
         (g) =>
           (g.name || "").toLowerCase().includes(q) ||
           (g.role || "").toLowerCase().includes(q) ||
@@ -1264,61 +1279,352 @@ function loadGuests() {
       );
     }
 
-    // APPLY FILTER CHIPS
-    rawGuests = rawGuests.filter((g) => applyGuestFilters(g));
-
+    // Update guest stats
     const statsBox = document.getElementById("guestStats");
     if (statsBox) {
-      const total = rawGuests.length;
-      const charlie = rawGuests.filter((g) => g.side === "charlie").length;
-      const karla = rawGuests.filter((g) => g.side === "karla").length;
-      const both = rawGuests.filter((g) => g.side === "both").length;
-      const yes = rawGuests.filter((g) => g.rsvp === "yes").length;
-      const no = rawGuests.filter((g) => g.rsvp === "no").length;
-      const pending = rawGuests.filter((g) => g.rsvp === "pending").length;
+      const total = filtered.length;
+      const charlie = filtered.filter((g) => g.side === "charlie").length;
+      const karla = filtered.filter((g) => g.side === "karla").length;
+      const both = filtered.filter((g) => g.side === "both").length;
+      const yes = filtered.filter((g) => g.rsvp === "yes").length;
+      const no = filtered.filter((g) => g.rsvp === "no").length;
+      const pending = filtered.filter((g) => g.rsvp === "pending").length;
 
       statsBox.innerHTML = `
-    Total: <b>${total}</b> • 
-    Charlie: ${charlie} • 
-    Karla: ${karla} • 
-    Both: ${both} • 
-    Yes: ${yes} • No: ${no} • Pending: ${pending}
-  `;
+        Total: <b>${total}</b> • 
+        Charlie: ${charlie} • 
+        Karla: ${karla} • 
+        Both: ${both} • 
+        Yes: ${yes} • No: ${no} • Pending: ${pending}
+      `;
     }
 
-    const groups = {
-      charlie: [],
-      karla: [],
-      both: [],
-    };
+    // OPTION 2 ROLE ORDER (always shown)
+    const roleOrder = [
+      "bride",
+      "groom",
+      "principal sponsors",
+      "parent",
+      "bridesmaid",
+      "groomsmen",
+      "secondary sponsors",
+      "guest",
+    ];
 
-    rawGuests.forEach((g) => {
-      groups[g.side || "both"].push(g);
+    // Group by role (ensure roles exist even if empty), and sort by sortIndex
+    const groups = {};
+    roleOrder.forEach((r) => (groups[r] = []));
+    filtered.forEach((g) => {
+      const r = (g.role || "guest").toString().toLowerCase();
+      const map = {
+        principal: "principal sponsors",
+        "principal sponsor": "principal sponsors",
+        groomsman: "groomsmen",
+        groomsmen: "groomsmen",
+        secondary: "secondary sponsors",
+        "secondary sponsor": "secondary sponsors",
+      };
+      const key = roleOrder.includes(r) ? r : map[r] || "guest";
+      groups[key].push(g);
     });
 
-    // container for output
-    box.innerHTML = "";
+    // Sort each group by sortIndex (numeric)
+    roleOrder.forEach((r) => {
+      groups[r].sort(
+        (a, b) =>
+          Number(a.sortIndex || 0) - Number(b.sortIndex || 0) ||
+          a.createdAt - b.createdAt
+      );
+    });
 
-    // Render by group
-    ["charlie", "karla", "both"].forEach((side) => {
-      if (groups[side].length === 0) return;
+    // Render the kanban board
+    kanbanRoot.innerHTML = "";
+    roleOrder.forEach((role) => {
+      const col = document.createElement("div");
+      col.className = "kanban-column";
+      col.dataset.role = role;
 
-      // header
-      const h = document.createElement("div");
-      h.textContent = side.toUpperCase() + ` (${groups[side].length})`;
-      h.style.margin = "12px 0 6px";
-      h.style.fontWeight = "700";
-      box.appendChild(h);
+      const header = document.createElement("h3");
+      header.innerHTML = `${role} <span class="col-count">(${groups[role].length})</span>`;
+      col.appendChild(header);
 
-      // pick view type
-      if (guestViewMode === "grid") {
-        renderGuestGrid(groups[side], box);
-      } else {
-        renderGuestList(groups[side], box);
-      }
+      const list = document.createElement("div");
+      list.className = "kanban-list";
+      list.dataset.role = role;
+
+      // render cards
+      groups[role].forEach((g) => {
+        const card = document.createElement("div");
+        card.className = "kanban-card";
+        card.draggable = true;
+        card.dataset.id = g.id;
+        card.dataset.role = role;
+
+        // build card html (Option A style)
+        const sideClass =
+          g.side === "charlie"
+            ? "side-charlie"
+            : g.side === "karla"
+            ? "side-karla"
+            : "side-both";
+        const rsvpClass =
+          g.rsvp === "yes"
+            ? "rsvp-yes"
+            : g.rsvp === "no"
+            ? "rsvp-no"
+            : "rsvp-pending";
+
+        card.innerHTML = `
+          <div>
+            <div class="name">${escapeHtml(g.name || "—")}</div>
+            <div class="meta-row">${g.relation || "—"} • ${
+          g.role || "guest"
+        }</div>
+          </div>
+          <div class="dots">
+            <span class="side-dot ${sideClass}" title="${g.side || ""}"></span>
+            <span class="rsvp-dot ${rsvpClass}" title="${g.rsvp || ""}"></span>
+          </div>
+        `;
+
+        // click opens inline editor when not dragging
+        card.addEventListener("click", (e) => {
+          if (card.classList.contains("dragging")) return;
+          toggleInlineGuestEditor(g, card);
+        });
+
+        // Desktop drag events
+        card.addEventListener("dragstart", (e) => {
+          currentCard = g;
+          card.classList.add("dragging");
+          placeholder = document.getElementById("kanbanPlaceholder");
+          placeholder.style.display = "block";
+          list.insertBefore(placeholder, card.nextSibling);
+          e.dataTransfer?.setData("text/plain", g.id);
+          // add aria
+          card.setAttribute("aria-grabbed", "true");
+        });
+
+        card.addEventListener("dragend", async () => {
+          card.classList.remove("dragging");
+          card.removeAttribute("aria-grabbed");
+          const ph = document.getElementById("kanbanPlaceholder");
+          if (ph && ph.parentElement) {
+            ph.replaceWith(card);
+            ph.style.display = "none";
+          }
+          currentCard = null;
+        });
+
+        // Mobile long-press + touch drag
+        let pressTimer = null;
+        card.addEventListener(
+          "touchstart",
+          (ev) => {
+            if (!ev.touches || ev.touches.length === 0) return;
+            pressTimer = setTimeout(() => {
+              // begin dragging
+              currentCard = g;
+              card.classList.add("dragging");
+              placeholder = document.getElementById("kanbanPlaceholder");
+              placeholder.style.display = "block";
+              list.insertBefore(placeholder, card.nextSibling);
+            }, 140); // long-press threshold
+          },
+          { passive: true }
+        );
+
+        card.addEventListener(
+          "touchmove",
+          (ev) => {
+            if (!currentCard) return;
+            const t = ev.touches[0];
+            const target = document.elementFromPoint(t.clientX, t.clientY);
+            const colEl = target?.closest?.(".kanban-column");
+            if (colEl) {
+              // highlight column
+              document
+                .querySelectorAll(".kanban-column")
+                .forEach((c) => c.classList.remove("drag-over"));
+              colEl.classList.add("drag-over");
+              const dropList = colEl.querySelector(".kanban-list");
+              dropList.appendChild(placeholder);
+            }
+          },
+          { passive: true }
+        );
+
+        card.addEventListener("touchend", async (ev) => {
+          clearTimeout(pressTimer);
+          if (!currentCard) return;
+          const ph = document.getElementById("kanbanPlaceholder");
+          if (ph && ph.parentElement) {
+            ph.replaceWith(card);
+            ph.style.display = "none";
+            // determine new role
+            const newCol = card.closest(".kanban-column");
+            const newRole = newCol?.dataset?.role;
+            if (newRole && newRole !== (g.role || "guest")) {
+              // persist to firebase
+              await update(ref(db, `${GUESTS_PATH}/${g.id}`), {
+                role: newRole,
+              });
+            }
+            // persist new order for target column
+            await persistColumnOrder(newCol.querySelector(".kanban-list"));
+          }
+          document
+            .querySelectorAll(".kanban-column")
+            .forEach((c) => c.classList.remove("drag-over"));
+          card.classList.remove("dragging");
+          currentCard = null;
+        });
+
+        list.appendChild(card);
+      });
+
+      // Column dragover/drop handlers
+      col.addEventListener("dragover", (e) => {
+        e.preventDefault();
+        const ph = document.getElementById("kanbanPlaceholder");
+        const listEl = col.querySelector(".kanban-list");
+        if (ph && listEl && ph.parentElement !== listEl) {
+          listEl.appendChild(ph);
+        }
+        document
+          .querySelectorAll(".kanban-column")
+          .forEach((c) => c.classList.remove("drag-over"));
+        col.classList.add("drag-over");
+      });
+
+      col.addEventListener("dragleave", (e) => {
+        col.classList.remove("drag-over");
+      });
+
+      col.addEventListener("drop", async (e) => {
+        e.preventDefault();
+        col.classList.remove("drag-over");
+        const droppedId = e.dataTransfer?.getData("text/plain");
+        const ph = document.getElementById("kanbanPlaceholder");
+        const listEl = col.querySelector(".kanban-list");
+        if (ph && ph.parentElement === listEl) {
+          // find card element
+          const cardEl = document.querySelector(
+            `.kanban-card[data-id="${droppedId}"]`
+          );
+          if (cardEl) {
+            listEl.replaceChild(cardEl, ph);
+            // update role in firebase if changed
+            const newRole = col.dataset.role;
+            const guestObj = fresh.find((x) => x.id === droppedId);
+            if (guestObj && newRole && (guestObj.role || "guest") !== newRole) {
+              await update(ref(db, `${GUESTS_PATH}/${droppedId}`), {
+                role: newRole,
+              });
+            }
+            // persist new sort order for the column
+            await persistColumnOrder(listEl);
+          }
+        } else if (droppedId && listEl) {
+          // if placeholder not used, append card to end and update role
+          const cardEl = document.querySelector(
+            `.kanban-card[data-id="${droppedId}"]`
+          );
+          if (cardEl) {
+            listEl.appendChild(cardEl);
+            const newRole = col.dataset.role;
+            const guestObj = fresh.find((x) => x.id === droppedId);
+            if (guestObj && newRole && (guestObj.role || "guest") !== newRole) {
+              await update(ref(db, `${GUESTS_PATH}/${droppedId}`), {
+                role: newRole,
+              });
+            }
+            await persistColumnOrder(listEl);
+          }
+        }
+        // cleanup
+        const phCleanup = document.getElementById("kanbanPlaceholder");
+        if (phCleanup) phCleanup.style.display = "none";
+        currentCard = null;
+        loadGuests();
+      });
+
+      col.appendChild(list);
+      kanbanRoot.appendChild(col);
     });
   });
 }
+
+/* ============================
+   SORT INDEX HELPERS
+   ============================ */
+
+/**
+ * Ensure every guest has a numeric sortIndex within their role.
+ * When missing or duplicated, assign sequential indexes grouped by role.
+ */
+async function ensureSortIndexes(allGuests = []) {
+  if (!Array.isArray(allGuests) || allGuests.length === 0) return;
+  // group
+  const byRole = {};
+  allGuests.forEach((g) => {
+    const role = (g.role || "guest").toString().toLowerCase();
+    if (!byRole[role]) byRole[role] = [];
+    byRole[role].push(g);
+  });
+
+  const updates = {};
+  let changed = false;
+
+  Object.keys(byRole).forEach((role) => {
+    // sort by existing sortIndex OR createdAt
+    const arr = byRole[role].slice().sort((a, b) => {
+      const sa = Number(a.sortIndex || 0);
+      const sb = Number(b.sortIndex || 0);
+      if (sa !== sb) return sa - sb;
+      return (a.createdAt || 0) - (b.createdAt || 0);
+    });
+    // assign compact sequential indexes
+    for (let i = 0; i < arr.length; i++) {
+      const g = arr[i];
+      if (Number(g.sortIndex || 0) !== i) {
+        updates[`${GUESTS_PATH}/${g.id}/sortIndex`] = i;
+        changed = true;
+      }
+    }
+  });
+
+  if (changed) {
+    // bulk update at root
+    await update(ref(db), updates);
+  }
+}
+
+/**
+ * Persist order of a given .kanban-list element by writing sortIndex
+ */
+async function persistColumnOrder(listEl) {
+  if (!listEl) return;
+  const updates = {};
+  const role = listEl.dataset.role;
+  const items = Array.from(listEl.querySelectorAll(".kanban-card"));
+  items.forEach((el, idx) => {
+    const id = el.dataset.id;
+    updates[`${GUESTS_PATH}/${id}/sortIndex`] = idx;
+    updates[`${GUESTS_PATH}/${id}/role`] = role; // ensure role consistent
+  });
+  if (Object.keys(updates).length) {
+    await update(ref(db), updates);
+  }
+}
+
+// remove view buttons behavior since kanban is always used
+try {
+  document.getElementById("guestViewList")?.remove();
+  document.getElementById("guestViewGrid")?.remove();
+} catch (e) {}
+// ensure search triggers re-render
+document.getElementById("guestSearch").oninput = () => loadGuests();
 
 let openInlineEditor = null;
 
@@ -1668,26 +1974,29 @@ document.getElementById("addNextStepBtn").onclick = async () => {
 // =======================================================
 // ADD GUEST
 // =======================================================
+// :contentReference[oaicite:2]{index=2}
 document.getElementById("addGuestBtn").onclick = async () => {
   const name = document.getElementById("guestNameInput").value.trim();
   const gender = document.getElementById("guestGenderInput").value;
   const side = document.getElementById("guestSideInput").value;
   const relation = document.getElementById("guestRelationInput").value;
-  const role = document.getElementById("guestRoleInput").value;
+  const role = document.getElementById("guestRoleInput").value || "guest";
   const rsvp = document.getElementById("guestRsvpInput").value;
   const notes = document.getElementById("guestNotesInput").value.trim();
 
   if (!name) return alert("Please enter guest name");
 
+  // create initial guest with a temporary sortIndex (will be normalized on load)
   await saveGuest({
     name,
     gender: gender || null,
     side: side || null,
     relation: relation || null,
-    role: role || "guest",
+    role: role,
     rsvp: rsvp || "pending",
     notes: notes || null,
     createdAt: Date.now(),
+    sortIndex: 0,
   });
 
   document.getElementById("guestsForm").reset();

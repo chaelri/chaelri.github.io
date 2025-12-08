@@ -1063,20 +1063,204 @@ textarea {
   background: #ffd56b;
 }
 
+/* :contentReference[oaicite:1]{index=1}
+   CLEANUP: remove legacy guest-grid visual weight and introduce Kanban enhancements
+*/
+
+/* Legacy guest-grid removed — replaced by kanban layout (kept minimal fallback) */
 .guest-grid {
-  display: grid;
-  grid-template-columns: 1fr 1fr;
-  gap: 12px;
+  display: none; /* replaced by kanban */
 }
-
 .guest-grid-item {
-  padding: 12px;
-  border-radius: 12px;
-  background: rgba(255, 255, 255, 0.03);
+  display: none;
 }
 
-@media (max-width: 720px) {
-  #viewIcons {
-    display: none !important;
-  }
+/* KANBAN — Guest Roles board (always show all roles) */
+.kanban-board {
+  display: flex;
+  gap: 12px;
+  overflow-x: auto;
+  padding: 8px 4px;
+  align-items: flex-start;
+  -webkit-overflow-scrolling: touch;
 }
+
+/* Column */
+.kanban-column {
+  min-width: 220px;
+  max-width: 300px;
+  background: rgba(255, 255, 255, 0.02);
+  border-radius: 12px;
+  padding: 10px;
+  box-sizing: border-box;
+  flex-shrink: 0;
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+  border: 1px solid rgba(255, 255, 255, 0.03);
+  transition: box-shadow 0.18s ease, transform 0.12s ease;
+}
+
+/* Highlight on dragover */
+.kanban-column.drag-over {
+  box-shadow: 0 12px 30px rgba(155, 140, 255, 0.12);
+  transform: translateY(-4px);
+  border-color: rgba(155, 140, 255, 0.18);
+}
+
+/* Column header */
+.kanban-column h3 {
+  margin: 0;
+  font-size: 13px;
+  font-weight: 800;
+  text-transform: capitalize;
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  gap: 8px;
+}
+
+/* small count */
+.kanban-column .col-count {
+  font-size: 12px;
+  color: var(--muted);
+  font-weight: 700;
+}
+
+/* list inside column */
+.kanban-list {
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+  min-height: 40px;
+}
+
+/* card */
+.kanban-card {
+  background: rgba(255, 255, 255, 0.03);
+  padding: 10px;
+  border-radius: 10px;
+  cursor: grab;
+  user-select: none;
+  font-weight: 700;
+  display: flex;
+  gap: 8px;
+  align-items: center;
+  justify-content: space-between;
+  transition: transform 0.12s ease, opacity 0.12s ease, box-shadow 0.12s ease;
+  touch-action: none;
+  position: relative;
+}
+
+/* Card contents for Option A — two dots + name + metadata row */
+.kanban-card > div:first-child {
+  display: flex;
+  flex-direction: column;
+  gap: 4px;
+  align-items: flex-start;
+  min-width: 0;
+}
+.kanban-card .name {
+  font-weight: 800;
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+.kanban-card .meta-row {
+  font-size: 12px;
+  color: var(--muted);
+  display: flex;
+  gap: 8px;
+  align-items: center;
+}
+
+/* Dots container on left */
+.kanban-card .dots {
+  display: flex;
+  flex-direction: column;
+  gap: 6px;
+  align-items: center;
+  margin-right: 8px;
+  flex-shrink: 0;
+}
+
+/* Side dot (charlie/karla/both) */
+.side-dot {
+  width: 12px;
+  height: 12px;
+  border-radius: 50%;
+  display: inline-block;
+  box-shadow: 0 1px 4px rgba(0, 0, 0, 0.25);
+}
+.side-charlie {
+  background: #4da3ff;
+}
+.side-karla {
+  background: #ff8fbf;
+}
+.side-both {
+  background: #b57cff;
+}
+
+/* RSVP dot */
+.rsvp-dot {
+  width: 10px;
+  height: 10px;
+  border-radius: 50%;
+  display: inline-block;
+  box-shadow: 0 1px 3px rgba(0, 0, 0, 0.2);
+}
+.rsvp-yes {
+  background: #67e39b;
+}
+.rsvp-no {
+  background: #ff6b6b;
+}
+.rsvp-pending {
+  background: #ffd56b;
+}
+
+/* dragging visual */
+.kanban-card.dragging {
+  opacity: 0.75;
+  transform: scale(1.02);
+  box-shadow: 0 18px 40px rgba(0, 0, 0, 0.35);
+  z-index: 9999;
+}
+
+/* placeholder */
+.kanban-placeholder {
+  height: 54px;
+  border-radius: 10px;
+  background: rgba(255, 255, 255, 0.02);
+  border: 2px dashed rgba(255, 255, 255, 0.06);
+  margin-bottom: 8px;
+  min-width: 160px;
+}
+
+/* Smooth transition for list re-order */
+.kanban-list,
+.kanban-card {
+  transition: transform 0.18s cubic-bezier(0.2, 0.8, 0.2, 1), opacity 120ms;
+}
+
+/* Mobile tweaks */
+@media (max-width: 520px) {
+  .kanban-column {
+    min-width: 180px;
+  }
+  .kanban-card {
+    padding: 8px;
+    font-size: 14px;
+  }
+  .kanban-card .meta-row {
+    display: none;
+  } /* keep cards compact on tiny screens */
+}
+
+/* small helper for hidden elements used by old UI */
+.guest-inline-editor {
+  display: none;
+}
+
+/* END KANBAN CSS */
