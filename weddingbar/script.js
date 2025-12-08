@@ -1301,6 +1301,132 @@ function loadGuests() {
   });
 }
 
+let openInlineEditor = null;
+
+function toggleInlineGuestEditor(g, container) {
+  // auto-close previously open editor
+  if (openInlineEditor && openInlineEditor !== container) {
+    const prev = openInlineEditor.querySelector(".guest-inline-editor");
+    if (prev) prev.remove();
+  }
+  const existing = container.querySelector(".guest-inline-editor");
+
+  if (existing) {
+    existing.remove();
+    openInlineEditor = null;
+    return;
+  }
+
+  const wrap = document.createElement("div");
+  wrap.className = "guest-inline-editor";
+  wrap.style.marginTop = "10px";
+  wrap.style.padding = "12px";
+  wrap.style.borderRadius = "12px";
+  wrap.style.background = "rgba(255,255,255,0.04)";
+  wrap.innerHTML = `
+    <input id="inlineName-${g.id}" type="text" value="${
+    g.name || ""
+  }" style="width:100%;margin-bottom:6px;">
+    <select id="inlineGender-${g.id}" style="width:100%;margin-bottom:6px;">
+      <option value="">Gender</option>
+      <option value="male" ${
+        g.gender === "male" ? "selected" : ""
+      }>Male</option>
+      <option value="female" ${
+        g.gender === "female" ? "selected" : ""
+      }>Female</option>
+    </select>
+    <select id="inlineSide-${g.id}" style="width:100%;margin-bottom:6px;">
+      <option value="">Side</option>
+      <option value="charlie" ${
+        g.side === "charlie" ? "selected" : ""
+      }>Charlie</option>
+      <option value="karla" ${
+        g.side === "karla" ? "selected" : ""
+      }>Karla</option>
+      <option value="both" ${g.side === "both" ? "selected" : ""}>Both</option>
+    </select>
+    <select id="inlineRelation-${g.id}" style="width:100%;margin-bottom:6px;">
+      <option value="">Relation</option>
+      <option value="family" ${
+        g.relation === "family" ? "selected" : ""
+      }>Family</option>
+      <option value="friend" ${
+        g.relation === "friend" ? "selected" : ""
+      }>Friend</option>
+    </select>
+    <select id="inlineRole-${g.id}" style="width:100%;margin-bottom:6px;">
+      <option value="">Role</option>
+      <option value="bride" ${
+        g.role === "bride" ? "selected" : ""
+      }>Bride</option>
+      <option value="groom" ${
+        g.role === "groom" ? "selected" : ""
+      }>Groom</option>
+      <option value="bridesmaid" ${
+        g.role === "bridesmaid" ? "selected" : ""
+      }>Bridesmaid</option>
+      <option value="groomsman" ${
+        g.role === "groomsman" ? "selected" : ""
+      }>Groomsman</option>
+      <option value="principal" ${
+        g.role === "principal" ? "selected" : ""
+      }>Principal Sponsor</option>
+      <option value="secondary" ${
+        g.role === "secondary" ? "selected" : ""
+      }>Secondary Sponsor</option>
+      <option value="guest" ${
+        g.role === "guest" ? "selected" : ""
+      }>Guest</option>
+    </select>
+    <select id="inlineRsvp-${g.id}" style="width:100%;margin-bottom:6px;">
+      <option value="pending" ${
+        g.rsvp === "pending" ? "selected" : ""
+      }>RSVP: Pending</option>
+      <option value="yes" ${
+        g.rsvp === "yes" ? "selected" : ""
+      }>RSVP: Yes</option>
+      <option value="no" ${g.rsvp === "no" ? "selected" : ""}>RSVP: No</option>
+    </select>
+    <textarea id="inlineNotes-${g.id}" style="width:100%;margin-bottom:8px;">${
+    g.notes || ""
+  }</textarea>
+
+    <div style="display:flex;gap:8px;">
+      <button class="btn" style="flex:1;" onclick="saveInlineGuest('${
+        g.id
+      }')">Save</button>
+      <button class="btn ghost" style="flex:1;" onclick="deleteInlineGuest('${
+        g.id
+      }')">Delete</button>
+    </div>
+  `;
+
+  container.appendChild(wrap);
+  openInlineEditor = container;
+}
+
+window.saveInlineGuest = async function (id) {
+  await update(ref(db, `${GUESTS_PATH}/${id}`), {
+    name: document.getElementById(`inlineName-${id}`).value.trim(),
+    gender: document.getElementById(`inlineGender-${id}`).value,
+    side: document.getElementById(`inlineSide-${id}`).value,
+    relation: document.getElementById(`inlineRelation-${id}`).value,
+    role: document.getElementById(`inlineRole-${id}`).value,
+    rsvp: document.getElementById(`inlineRsvp-${id}`).value,
+    notes: document.getElementById(`inlineNotes-${id}`).value.trim(),
+  });
+  loadGuests();
+  showSaveToast();
+};
+
+window.deleteInlineGuest = async function (id) {
+  const ok = confirm("Delete this guest?");
+  if (!ok) return;
+  await remove(ref(db, `${GUESTS_PATH}/${id}`));
+  loadGuests();
+};
+
 function renderGuestChips() {
   const box = document.getElementById("guestFilterChips");
   if (!box) return;
@@ -1311,6 +1437,8 @@ function renderGuestChips() {
     { type: "side", value: "both" },
     { type: "relation", value: "family" },
     { type: "relation", value: "friend" },
+    { type: "role", value: "bride" },
+    { type: "role", value: "groom" },
     { type: "role", value: "guest" },
     { type: "role", value: "bridesmaid" },
     { type: "role", value: "groomsman" },
@@ -1831,7 +1959,7 @@ function renderGuestList(arr, box) {
     ${g.relation || "—"} • ${g.role || "guest"} • ${rsvpDot}${g.rsvp}
   </div>
 `;
-    row.onclick = () => openGuestEditor(g);
+    row.onclick = () => toggleInlineGuestEditor(g, row);
     box.appendChild(row);
   });
 }
@@ -1852,7 +1980,7 @@ function renderGuestGrid(arr, box) {
         ${g.relation || "—"} • ${g.role || "guest"} 
       </div>
     `;
-    item.onclick = () => openGuestEditor(g);
+    item.onclick = () => toggleInlineGuestEditor(g, item);
     wrap.appendChild(item);
   });
 
