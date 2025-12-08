@@ -543,7 +543,10 @@ function showDetails(it) {
         newList.push(up);
       }
       await set(ref(db, `${PATH}/${it.id}/attachments`), newList);
-      showDetails({ ...it, attachments: newList });
+
+      // refresh ONLY attachments, not the whole detail panel
+      updateAttachmentList(newList);
+
       listenRealtime();
     } catch (e) {
       console.error(e);
@@ -551,6 +554,52 @@ function showDetails(it) {
     }
     hideUploadLoader();
   };
+
+  function updateAttachmentList(list) {
+    const box = document.getElementById("attachmentList");
+    box.innerHTML = "";
+
+    list.forEach((att, idx) => {
+      const wrap = document.createElement("div");
+      wrap.style.position = "relative";
+
+      const img = document.createElement("img");
+      img.src = att.url;
+      img.style.opacity = "0";
+      img.onload = () => (img.style.opacity = "1");
+      img.style.transition = "opacity 0.15s";
+      img.style.width = "70px";
+      img.style.height = "70px";
+      img.style.objectFit = "cover";
+      img.style.borderRadius = "6px";
+      img.style.cursor = "pointer";
+
+      img.onclick = () => {
+        const listUrls = list.map((x) => x.url);
+        openViewer(listUrls, idx);
+      };
+
+      const delBtn = document.createElement("button");
+      delBtn.textContent = "×";
+      delBtn.style.cssText = `
+      position:absolute;top:-6px;right:-6px;width:20px;height:20px;border:none;
+      border-radius:50%;background:rgba(0,0,0,0.7);color:#fff;cursor:pointer;
+    `;
+      delBtn.onclick = (e) => {
+        e.stopPropagation();
+        showDeleteConfirm(async () => {
+          if (att.path) await deleteFromFirebaseStorage(att.path);
+          const newList = list.filter((_, i) => i !== idx);
+          await set(ref(db, `${PATH}/${it.id}/attachments`), newList);
+          updateAttachmentList(newList);
+        });
+      };
+
+      wrap.appendChild(img);
+      wrap.appendChild(delBtn);
+      box.appendChild(wrap);
+    });
+  }
 
   // Checkbox visual toggle
   const detailCheckbox = document.getElementById("detailBooked");
