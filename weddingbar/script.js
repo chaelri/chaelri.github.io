@@ -1619,6 +1619,51 @@ async function loadGuestsKanban() {
     list.dataset.role = role;
     col.appendChild(list);
 
+    // --- KANBAN COLUMN DRAG TARGETS ---
+    col.addEventListener("dragover", (e) => {
+      e.preventDefault();
+      col.classList.add("drag-over");
+
+      const listEl = col.querySelector(".kanban-list");
+      const ph = document.querySelector(".kanban-placeholder");
+
+      if (ph && ph.parentElement !== listEl) {
+        listEl.appendChild(ph);
+      }
+    });
+
+    col.addEventListener("dragleave", () => {
+      col.classList.remove("drag-over");
+    });
+
+    col.addEventListener("drop", async (e) => {
+      e.preventDefault();
+      col.classList.remove("drag-over");
+
+      const droppedId = e.dataTransfer?.getData("text/plain");
+      if (!droppedId) return;
+
+      const cardEl = document.querySelector(
+        `.kanban-card[data-id="${droppedId}"]`
+      );
+      const ph = document.querySelector(".kanban-placeholder");
+      const listEl = col.querySelector(".kanban-list");
+
+      if (cardEl && ph && listEl) {
+        listEl.replaceChild(cardEl, ph);
+
+        // update role in Firebase
+        await update(ref(db, `${GUESTS_PATH}/${droppedId}`), {
+          role: col.dataset.role,
+        });
+
+        // persist order for this column
+        await persistColumnOrder(listEl);
+
+        loadGuestsKanban(); // refresh
+      }
+    });
+
     board.appendChild(col);
   });
 
@@ -1669,6 +1714,9 @@ async function loadGuestsKanban() {
         groups[role].forEach((g) => {
           const card = document.createElement("div");
           card.className = "kanban-card";
+          // Enable desktop drag
+          card.draggable = true;
+
           card.dataset.id = g.id;
           card.dataset.role = role;
 
@@ -1706,6 +1754,22 @@ async function loadGuestsKanban() {
                 openGuestEditor(g);
               }
             } catch (err) {}
+          });
+          // --- DESKTOP DRAG & DROP ---
+          let placeholder;
+
+          card.addEventListener("dragstart", (e) => {
+            card.classList.add("dragging");
+            placeholder = document.createElement("div");
+            placeholder.className = "kanban-placeholder";
+            e.dataTransfer.setData("text/plain", g.id);
+            e.dataTransfer.effectAllowed = "move";
+          });
+
+          card.addEventListener("dragend", (e) => {
+            card.classList.remove("dragging");
+            const ph = document.querySelector(".kanban-placeholder");
+            if (ph && ph.parentElement) ph.remove();
           });
 
           list.appendChild(card);
