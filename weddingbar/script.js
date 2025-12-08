@@ -1591,6 +1591,9 @@ async function loadGuestsKanban() {
   if (!board) return;
   if (loading) loading.style.display = "block";
 
+  // debugging / fallback drag id holder (used when dataTransfer is missing)
+  let currentDraggingId = null;
+
   // Column names (always shown)
   const roleOrder = [
     "bride",
@@ -1654,10 +1657,16 @@ async function loadGuestsKanban() {
     col.addEventListener("drop", async (e) => {
       e.preventDefault();
       col.classList.remove("drag-over");
-      const droppedId = e.dataTransfer?.getData("text/plain") || "";
+
+      // primary: dataTransfer; fallback: currentDraggingId (set on dragstart / touch long-press)
+      const droppedId =
+        e.dataTransfer?.getData("text/plain") || currentDraggingId || "";
 
       if (!droppedId) {
-        console.warn("Drop received no id.");
+        console.warn(
+          "Drop received no id. Fallback/currentDraggingId:",
+          currentDraggingId
+        );
         const ph = document.querySelector(".kanban-placeholder");
         if (ph && ph.parentElement) ph.remove();
         return;
@@ -1670,21 +1679,25 @@ async function loadGuestsKanban() {
       const listEl = col.querySelector(".kanban-list");
 
       if (cardEl && ph && listEl) {
-        // place card at placeholder
         listEl.replaceChild(cardEl, ph);
 
-        // update role and then persist ordering
+        // Update role and persist order
         try {
           await update(ref(db, `${GUESTS_PATH}/${droppedId}`), {
             role: col.dataset.role,
           });
           await persistColumnOrder(listEl);
         } catch (err) {
-          console.error("Failed to update guest role/order:", err);
+          console.error("Failed to update role/order on drop:", err);
         }
 
-        // refresh view
+        // clear fallback
+        currentDraggingId = null;
+
         loadGuestsKanban();
+      } else {
+        // cleanup placeholder if something went wrong
+        if (ph && ph.parentElement) ph.parentElement.removeChild(ph);
       }
     });
 
@@ -1789,32 +1802,47 @@ async function loadGuestsKanban() {
         // DESKTOP: native dragstart / dragend
         let ph = null;
         card.addEventListener("dragstart", (e) => {
-          // Some browsers may fire dragstart without dataTransfer during certain touch scenarios
-          if (!e.dataTransfer) return;
+          // Some browsers may call dragstart in touch scenarios with no dataTransfer; defend here
+          if (!e.dataTransfer) {
+            console.warn(
+              "dragstart without dataTransfer fired for",
+              card.dataset.id
+            );
+            return;
+          }
 
-          // mark dragging
-          card.classList.add("dragging");
+          // If mobile long-press drag is active, skip desktop dragstart logic
+          if (card.dataset.touchDragging === "1") return;
 
-          // Create and insert placeholder
-          ph = createPlaceholder();
-          const parentList = card.closest(".kanban-list");
-          parentList.insertBefore(ph, card.nextSibling);
+          e.stopPropagation();
 
-          // Store id in dataTransfer
+          // mark fallback id for cases where dataTransfer gets lost
+          currentDraggingId = card.dataset.id;
+
+          // Store id in dataTransfer (defensive try/catch)
           try {
             e.dataTransfer.setData("text/plain", card.dataset.id);
             e.dataTransfer.effectAllowed = "move";
           } catch (err) {
-            // defensive
-            console.warn("dataTransfer.setData failed:", err);
+            console.warn("dataTransfer.setData failed during dragstart:", err);
           }
+
+          card.classList.add("dragging");
+
+          // create placeholder
+          placeholder = document.createElement("div");
+          placeholder.className = "kanban-placeholder";
+
+          // insert placeholder right after the card
+          const parentList = card.closest(".kanban-list");
+          parentList.insertBefore(placeholder, card.nextSibling);
         });
 
         card.addEventListener("dragend", () => {
           card.classList.remove("dragging");
-          const existing = document.querySelector(".kanban-placeholder");
-          if (existing && existing.parentElement)
-            existing.parentElement.removeChild(existing);
+          currentDraggingId = null;
+          const ph = document.querySelector(".kanban-placeholder");
+          if (ph && ph.parentElement) ph.remove();
         });
 
         // MOBILE TOUCH-DRAG fallback: long-press then move placeholder with touch
