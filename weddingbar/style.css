@@ -453,16 +453,18 @@ body {
   }
 
   #tableViewPanel {
-    right: -102%;
+    right: -102% !important;
   }
   #galleryPanel {
-    left: -102%;
+    left: -102% !important;
   }
   #tableViewPanel.open {
-    right: 0;
+    right: 0 !important;
+    padding: 2rem 20rem;
   }
   #galleryPanel.open {
-    left: 0;
+    left: 0 !important;
+    padding: 2rem 20rem;
   }
 }
 
