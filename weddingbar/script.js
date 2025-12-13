@@ -1174,6 +1174,7 @@ function loadNextSteps(targetId = "nextStepsList") {
       chk.checked = !!step.done;
       chk.onclick = (e) => {
         e.stopPropagation();
+        txt.classList.toggle("cl-done", chk.checked);
         set(ref(db, `${NEXT_PATH}/${step.id}/done`), chk.checked);
       };
 
@@ -1273,8 +1274,16 @@ function openChecklistModal(step = null) {
 }
 
 function closeChecklistModal() {
-  modalOverlay.style.display = "none";
-  editingChecklistId = null;
+  const modal = document.getElementById("checklistModal");
+  modal.style.animation = "none";
+  modal.offsetHeight; // reset
+  modal.style.animation = "modalPop 0.18s reverse";
+
+  setTimeout(() => {
+    modalOverlay.style.display = "none";
+    modal.style.animation = "";
+    editingChecklistId = null;
+  }, 160);
 }
 
 document.getElementById("clCancel").onclick = closeChecklistModal;

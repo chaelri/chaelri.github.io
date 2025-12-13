@@ -1321,7 +1321,7 @@ textarea {
   height: 32px;
   border-radius: 8px;
   border: none;
-  background: rgba(255,255,255,0.06);
+  background: rgba(255, 255, 255, 0.06);
   color: white;
   cursor: pointer;
   display: inline-flex;
@@ -1330,5 +1330,87 @@ textarea {
 }
 
 .cl-icon-btn:hover {
-  background: rgba(255,255,255,0.12);
+  background: rgba(255, 255, 255, 0.12);
+}
+
+/* Checklist row hover */
+#checklistList > div:hover {
+  background: rgba(255, 255, 255, 0.03);
+  transform: translateY(-1px);
+  transition: background 0.18s ease, transform 0.18s ease;
+}
+
+/* Icon hover micro-bounce */
+.cl-icon-btn {
+  transition: transform 0.15s ease, background 0.15s ease;
+}
+
+.cl-icon-btn:hover {
+  transform: scale(1.08);
+  background: rgba(255, 255, 255, 0.14);
+}
+
+/* Checkbox pop */
+.next-checkbox {
+  transition: transform 0.15s ease;
+}
+
+.next-checkbox:checked {
+  animation: checkboxPop 0.18s ease-out;
+}
+
+@keyframes checkboxPop {
+  0% {
+    transform: scale(0.85);
+  }
+  60% {
+    transform: scale(1.15);
+  }
+  100% {
+    transform: scale(1);
+  }
+}
+
+/* Text strike-through glide */
+.cl-done {
+  animation: strikeIn 0.22s ease forwards;
+}
+
+@keyframes strikeIn {
+  from {
+    opacity: 1;
+  }
+  to {
+    opacity: 0.55;
+  }
+}
+
+.cl-icon-btn:active {
+  transform: scale(0.92);
+}
+
+/* Modal entrance animation */
+#checklistModal {
+  animation: modalPop 0.22s cubic-bezier(.2,.8,.2,1);
+}
+
+@keyframes modalPop {
+  from {
+    opacity: 0;
+    transform: scale(0.94) translateY(6px);
+  }
+  to {
+    opacity: 1;
+    transform: scale(1) translateY(0);
+  }
+}
+
+/* Overlay fade */
+#checklistModalOverlay {
+  animation: overlayFade 0.18s ease;
+}
+
+@keyframes overlayFade {
+  from { opacity: 0; }
+  to { opacity: 1; }
 }
