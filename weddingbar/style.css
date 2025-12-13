@@ -1418,9 +1418,8 @@ textarea {
     opacity: 1;
   }
 }
-
 /* ============================= */
-/* CHECKLIST PROGRESS FLOW FX    */
+/* CHECKLIST FLOW (ROW-LOCAL)    */
 /* ============================= */
 
 .cl-row {
@@ -1428,62 +1427,64 @@ textarea {
   overflow: hidden;
 }
 
-/* flow overlay */
-.cl-row::after {
-  content: "";
+/* actual flow element */
+.cl-flow {
   position: absolute;
   inset: 0;
   pointer-events: none;
-  opacity: 0;
-  transform: translateX(-120%);
+  z-index: 0;
+
   background: linear-gradient(
     120deg,
     transparent 20%,
-    rgba(255, 255, 255, 0.35),
+    rgba(255, 255, 255, 0.85),
     transparent 80%
   );
-}
 
-/* trigger animation */
-.cl-row.cl-completing::after {
-  opacity: 1;
-  animation: clFlow 0.9s cubic-bezier(0.2, 0.8, 0.2, 1);
+  transform: translateX(-120%);
+  filter: blur(2px);
 }
 
 /* priority colors */
-.cl-row.prio-low::after {
+.cl-flow.low {
   background: linear-gradient(
     120deg,
     transparent 20%,
-    rgba(103, 227, 155, 0.55),
+    rgba(103, 227, 155, 0.85),
     transparent 80%
   );
 }
 
-.cl-row.prio-medium::after {
+.cl-flow.medium {
   background: linear-gradient(
     120deg,
     transparent 20%,
-    rgba(255, 213, 107, 0.55),
+    rgba(255, 213, 107, 0.85),
     transparent 80%
   );
 }
 
-.cl-row.prio-high::after {
+.cl-flow.high {
   background: linear-gradient(
     120deg,
     transparent 20%,
-    rgba(255, 107, 107, 0.6),
+    rgba(255, 107, 107, 0.9),
     transparent 80%
   );
 }
 
-@keyframes clFlow {
+/* animation */
+.cl-flow.animate {
+  animation: clFlowRow 0.9s cubic-bezier(0.2, 0.8, 0.2, 1);
+}
+
+@keyframes clFlowRow {
   0% {
     transform: translateX(-120%);
+    opacity: 0.2;
   }
-  60% {
-    transform: translateX(0%);
+  30% {
+    opacity: 1;
   }
   100% {
     transform: translateX(120%);

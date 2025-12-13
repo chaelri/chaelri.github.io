@@ -1177,13 +1177,12 @@ function loadNextSteps(targetId = "nextStepsList") {
         e.stopPropagation();
 
         if (chk.checked) {
-          row.classList.remove("cl-completing");
-          row.offsetHeight; // force reflow so animation can replay
-          row.classList.add("cl-completing");
+          flow.classList.remove("animate");
+          flow.offsetHeight; // reset animation
+          flow.classList.add("animate");
         }
 
         txt.classList.toggle("cl-done", chk.checked);
-
         set(ref(db, `${NEXT_PATH}/${step.id}/done`), chk.checked);
       };
 
@@ -1251,6 +1250,11 @@ function loadNextSteps(targetId = "nextStepsList") {
 
       actions.appendChild(editBtn);
       actions.appendChild(delBtn);
+
+      // flow layer (ONE per row)
+      const flow = document.createElement("div");
+      flow.className = `cl-flow ${step.priority || "low"}`;
+      row.appendChild(flow);
 
       row.appendChild(left);
       row.appendChild(actions);
@@ -2546,6 +2550,8 @@ let guestViewMode = "list";
 function renderGuestList(arr, box) {
   arr.forEach((g) => {
     const row = document.createElement("div");
+    row.className = "cl-row";
+
     row.style.padding = "10px 0";
     row.style.borderBottom = "1px solid rgba(255,255,255,0.05)";
 
