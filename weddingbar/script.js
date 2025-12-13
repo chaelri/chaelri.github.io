@@ -1180,6 +1180,8 @@ function loadNextSteps(targetId = "nextStepsList") {
           flow.classList.remove("animate");
           flow.offsetHeight; // reset animation
           flow.classList.add("animate");
+          // celebratory confetti/sparkle
+          triggerCelebration(row, chk);
         }
 
         txt.classList.toggle("cl-done", chk.checked);
@@ -1262,6 +1264,41 @@ function loadNextSteps(targetId = "nextStepsList") {
       listEl.appendChild(row);
     });
   });
+}
+
+function triggerCelebration(rowEl, anchorEl) {
+  try {
+    const rectRow = rowEl.getBoundingClientRect();
+    const rect = anchorEl.getBoundingClientRect();
+
+    const container = document.createElement("div");
+    container.className = "celebrate";
+    container.style.left = rect.left - rectRow.left + rect.width / 2 + "px";
+    container.style.top = rect.top - rectRow.top + rect.height / 2 + "px";
+
+    const colors = ["#ff8fbf", "#ffd56b", "#67e39b", "#9b8cff", "#4da3ff"];
+    for (let i = 0; i < 14; i++) {
+      const piece = document.createElement("span");
+      piece.className = "confetti";
+      piece.style.setProperty("--dx", (Math.random() * 80 - 40).toFixed(0) + "px");
+      piece.style.setProperty("--dy", (-Math.random() * 80 - 20).toFixed(0) + "px");
+      piece.style.background = colors[i % colors.length];
+      piece.style.transform = `rotate(${Math.floor(Math.random() * 360)}deg)`;
+      container.appendChild(piece);
+    }
+
+    const sparkle = document.createElement("span");
+    sparkle.className = "sparkle";
+    container.appendChild(sparkle);
+
+    rowEl.appendChild(container);
+
+    setTimeout(() => {
+      container.remove();
+    }, 900);
+  } catch (e) {
+    // no-op
+  }
 }
 
 let editingChecklistId = null;
