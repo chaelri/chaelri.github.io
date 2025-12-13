@@ -1164,6 +1164,10 @@ function loadNextSteps(targetId = "nextStepsList") {
       left.style.alignItems = "flex-start";
       left.style.gap = "12px";
 
+      left.onclick = (e) => {
+        e.stopPropagation();
+      };
+
       const chk = document.createElement("input");
       chk.type = "checkbox";
       chk.className = "next-checkbox";
@@ -1175,6 +1179,10 @@ function loadNextSteps(targetId = "nextStepsList") {
 
       const txt = document.createElement("div");
       txt.style.maxWidth = "100%";
+      txt.onclick = (e) => {
+        e.stopPropagation();
+      };
+
       txt.innerHTML = `
         <div style="display:flex; align-items:center; gap:8px;">
           <span class="cl-priority ${step.priority || "low"}">
