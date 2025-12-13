@@ -1394,7 +1394,8 @@ textarea {
   width: 0;
   height: 0;
   pointer-events: none;
-  z-index: 5;
+  z-index: 50; /* above row contents and cl-flow */
+  transform: translate(-50%, -50%); /* center on anchor point */
 }
 .confetti {
   position: absolute;
@@ -1404,6 +1405,7 @@ textarea {
   top: 0;
   left: 0;
   transform-origin: center;
+  will-change: transform, opacity; /* smoother */
   animation: confettiPop 0.85s ease-out forwards;
 }
 .sparkle {
