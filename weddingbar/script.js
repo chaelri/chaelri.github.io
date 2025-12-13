@@ -1168,18 +1168,23 @@ function loadNextSteps(targetId = "nextStepsList") {
       chk.type = "checkbox";
       chk.className = "next-checkbox";
       chk.checked = !!step.done;
-      chk.onclick = () =>
+      chk.onclick = (e) => {
+        e.stopPropagation();
         set(ref(db, `${NEXT_PATH}/${step.id}/done`), chk.checked);
+      };
 
       const txt = document.createElement("div");
       txt.style.maxWidth = "100%";
       txt.innerHTML = `
-        <div style="font-size:15px; ${
-          step.done ? "text-decoration:line-through;color:var(--muted);" : ""
-        } font-weight:700;">
-          <span>${escapeHtml(step.text)}</span>
-          <span class="status-chip status-not">
+        <div style="display:flex; align-items:center; gap:8px;">
+          <span class="cl-priority ${step.priority || "low"}">
             ${(step.priority || "low").toUpperCase()}
+          </span>
+
+          <span style="font-size:15px; ${
+            step.done ? "text-decoration:line-through;color:var(--muted);" : ""
+          } font-weight:700;">
+            ${escapeHtml(step.text)}
           </span>
         </div>
         ${
@@ -1199,16 +1204,39 @@ function loadNextSteps(targetId = "nextStepsList") {
       left.appendChild(chk);
       left.appendChild(txt);
 
-      const delBtn = document.createElement("button");
-      delBtn.textContent = "×";
-      delBtn.style.cssText = `
-        width:32px;height:32px;border:none;border-radius:8px;
-        background:rgba(255,255,255,0.06);color:white;cursor:pointer;
+      const actions = document.createElement("div");
+      actions.className = "cl-actions-row";
+
+      /* EDIT (pencil icon via SVG) */
+      const editBtn = document.createElement("button");
+      editBtn.className = "cl-icon-btn";
+      editBtn.innerHTML = `
+        <svg width="16" height="16" viewBox="0 0 24 24" fill="none"
+          xmlns="http://www.w3.org/2000/svg">
+          <path d="M4 20h4l10.5-10.5a2.12 2.12 0 0 0-3-3L5 17v3z"
+            stroke="white" stroke-width="2" fill="none"/>
+        </svg>
       `;
-      delBtn.onclick = () => remove(ref(db, `${NEXT_PATH}/${step.id}`));
+      editBtn.onclick = (e) => {
+        e.stopPropagation();
+        openChecklistModal(step);
+      };
+
+      /* DELETE */
+      const delBtn = document.createElement("button");
+      delBtn.className = "cl-icon-btn";
+      delBtn.textContent = "×";
+      delBtn.onclick = (e) => {
+        e.stopPropagation();
+        remove(ref(db, `${NEXT_PATH}/${step.id}`));
+      };
+
+      actions.appendChild(editBtn);
+      actions.appendChild(delBtn);
 
       row.appendChild(left);
-      row.appendChild(delBtn);
+      row.appendChild(actions);
+
       listEl.appendChild(row);
     });
   });

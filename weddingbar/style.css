@@ -1284,3 +1284,51 @@ textarea {
   gap: 10px;
   margin-top: 6px;
 }
+
+/* Checklist priority badges */
+.cl-priority {
+  font-size: 11px;
+  font-weight: 800;
+  padding: 4px 8px;
+  border-radius: 999px;
+  letter-spacing: 0.4px;
+}
+
+.cl-priority.low {
+  background: rgba(103, 227, 155, 0.15);
+  color: #67e39b;
+}
+
+.cl-priority.medium {
+  background: rgba(255, 213, 107, 0.18);
+  color: #ffd56b;
+}
+
+.cl-priority.high {
+  background: rgba(255, 107, 107, 0.18);
+  color: #ff6b6b;
+}
+
+/* Checklist action icons */
+.cl-actions-row {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+}
+
+.cl-icon-btn {
+  width: 32px;
+  height: 32px;
+  border-radius: 8px;
+  border: none;
+  background: rgba(255,255,255,0.06);
+  color: white;
+  cursor: pointer;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+}
+
+.cl-icon-btn:hover {
+  background: rgba(255,255,255,0.12);
+}
