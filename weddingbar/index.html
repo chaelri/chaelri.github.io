@@ -899,6 +899,31 @@
     >
       ✓ Saved!
     </div>
+    <!-- CHECKLIST MODAL -->
+    <div id="checklistModalOverlay" style="display: none">
+      <div id="checklistModal">
+        <h3 id="checklistModalTitle">Add Task</h3>
+
+        <input id="clTitle" type="text" placeholder="Task title" />
+
+        <textarea id="clNotes" placeholder="Notes (optional)"></textarea>
+
+        <label class="cl-label">Deadline</label>
+        <input id="clDeadline" type="date" />
+
+        <label class="cl-label">Priority</label>
+        <select id="clPriority">
+          <option value="low">Low</option>
+          <option value="medium">Medium</option>
+          <option value="high">High</option>
+        </select>
+
+        <div class="cl-actions">
+          <button id="clCancel" class="btn ghost">Cancel</button>
+          <button id="clSave" class="btn">Save</button>
+        </div>
+      </div>
+    </div>
 
     <!-- Use module imports in script.js -->
     <script type="module" src="script.js"></script>

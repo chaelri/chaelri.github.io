@@ -1221,3 +1221,66 @@ textarea {
   border: 2px dashed rgba(255, 255, 255, 0.06);
   margin-bottom: 8px;
 }
+
+/* ============================= */
+/* CHECKLIST MODAL (Akiflow-ish) */
+/* ============================= */
+
+#checklistModalOverlay {
+  position: fixed;
+  inset: 0;
+  background: rgba(0, 0, 0, 0.55);
+  backdrop-filter: blur(6px);
+  z-index: 100000;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+}
+
+#checklistModal {
+  width: 100%;
+  max-width: 420px;
+  background: var(--card);
+  border-radius: 16px;
+  padding: 18px;
+  box-shadow: 0 20px 60px rgba(0, 0, 0, 0.6);
+  display: flex;
+  flex-direction: column;
+  gap: 12px;
+}
+
+#checklistModal h3 {
+  margin: 0;
+  font-size: 18px;
+  font-weight: 800;
+}
+
+#checklistModal input,
+#checklistModal textarea,
+#checklistModal select {
+  width: 100%;
+  padding: 12px;
+  border-radius: 10px;
+  background: var(--card);
+  border: 1px solid rgba(255, 255, 255, 0.06);
+  color: white;
+  font-size: 16px;
+  box-sizing: border-box;
+}
+
+#checklistModal textarea {
+  min-height: 80px;
+  resize: vertical;
+}
+
+.cl-label {
+  font-size: 12px;
+  color: var(--muted);
+  margin-top: 4px;
+}
+
+.cl-actions {
+  display: flex;
+  gap: 10px;
+  margin-top: 6px;
+}

@@ -1147,6 +1147,9 @@ function loadNextSteps(targetId = "nextStepsList") {
 
     arr.forEach((step) => {
       const row = document.createElement("div");
+      row.style.cursor = "pointer";
+      row.onclick = () => openChecklistModal(step);
+
       row.style.cssText = `
         display:flex;
         justify-content:space-between;
@@ -1174,7 +1177,10 @@ function loadNextSteps(targetId = "nextStepsList") {
         <div style="font-size:15px; ${
           step.done ? "text-decoration:line-through;color:var(--muted);" : ""
         } font-weight:700;">
-          ${escapeHtml(step.text)}
+          <span>${escapeHtml(step.text)}</span>
+          <span class="status-chip status-not">
+            ${(step.priority || "low").toUpperCase()}
+          </span>
         </div>
         ${
           step.notes
@@ -1207,6 +1213,67 @@ function loadNextSteps(targetId = "nextStepsList") {
     });
   });
 }
+
+let editingChecklistId = null;
+
+const modalOverlay = document.getElementById("checklistModalOverlay");
+const modalTitle = document.getElementById("checklistModalTitle");
+const clTitle = document.getElementById("clTitle");
+const clNotes = document.getElementById("clNotes");
+const clDeadline = document.getElementById("clDeadline");
+const clPriority = document.getElementById("clPriority");
+
+function openChecklistModal(step = null) {
+  editingChecklistId = step?.id || null;
+
+  modalTitle.textContent = step ? "Edit Task" : "Add Task";
+  clTitle.value = step?.text || "";
+  clNotes.value = step?.notes || "";
+  clDeadline.value = step?.deadline || "";
+  clPriority.value = step?.priority || "low";
+
+  modalOverlay.style.display = "flex";
+  setTimeout(() => clTitle.focus(), 50);
+}
+
+function closeChecklistModal() {
+  modalOverlay.style.display = "none";
+  editingChecklistId = null;
+}
+
+document.getElementById("clCancel").onclick = closeChecklistModal;
+
+modalOverlay.addEventListener("click", (e) => {
+  if (e.target === modalOverlay) closeChecklistModal();
+});
+
+document.addEventListener("keydown", (e) => {
+  if (e.key === "Escape") closeChecklistModal();
+});
+
+document.getElementById("clSave").onclick = async () => {
+  const text = clTitle.value.trim();
+  if (!text) return alert("Task title required");
+
+  const payload = {
+    text,
+    notes: clNotes.value.trim() || null,
+    deadline: clDeadline.value || null,
+    priority: clPriority.value,
+    done: false,
+    createdAt: Date.now(),
+  };
+
+  if (editingChecklistId) {
+    await update(ref(db, `${NEXT_PATH}/${editingChecklistId}`), payload);
+  } else {
+    await set(push(ref(db, NEXT_PATH)), payload);
+  }
+
+  closeChecklistModal();
+  loadNextSteps(currentChecklistTarget);
+  showSaveToast();
+};
 
 // Guests listener
 let guestsUnsub = null;
@@ -2069,8 +2136,7 @@ document.getElementById("openAddGuestBtn").onclick = () => {
 };
 
 document.getElementById("openAddChecklistBtn").onclick = () => {
-  const bar = document.getElementById("nextStepsAddBar");
-  bar.classList.toggle("open");
+  openChecklistModal();
 };
 
 // =======================================================
