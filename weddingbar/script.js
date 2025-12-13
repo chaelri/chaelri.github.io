@@ -1149,11 +1149,12 @@ function loadNextSteps(targetId = "nextStepsList") {
       const row = document.createElement("div");
       row.style.cursor = "pointer";
       row.onclick = () => openChecklistModal(step);
+      row.className = `cl-row prio-${step.priority || "low"}`;
 
       row.style.cssText = `
         display:flex;
         justify-content:space-between;
-        align-items:flex-start;
+        align-items:flex-end;
         gap:12px;
         padding:12px 0;
         border-bottom:1px solid rgba(255,255,255,0.05);
@@ -1174,7 +1175,15 @@ function loadNextSteps(targetId = "nextStepsList") {
       chk.checked = !!step.done;
       chk.onclick = (e) => {
         e.stopPropagation();
+
+        if (chk.checked) {
+          row.classList.remove("cl-completing");
+          row.offsetHeight; // force reflow so animation can replay
+          row.classList.add("cl-completing");
+        }
+
         txt.classList.toggle("cl-done", chk.checked);
+
         set(ref(db, `${NEXT_PATH}/${step.id}/done`), chk.checked);
       };
 

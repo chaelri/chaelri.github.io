@@ -1391,7 +1391,7 @@ textarea {
 
 /* Modal entrance animation */
 #checklistModal {
-  animation: modalPop 0.22s cubic-bezier(.2,.8,.2,1);
+  animation: modalPop 0.22s cubic-bezier(0.2, 0.8, 0.2, 1);
 }
 
 @keyframes modalPop {
@@ -1411,6 +1411,82 @@ textarea {
 }
 
 @keyframes overlayFade {
-  from { opacity: 0; }
-  to { opacity: 1; }
+  from {
+    opacity: 0;
+  }
+  to {
+    opacity: 1;
+  }
+}
+
+/* ============================= */
+/* CHECKLIST PROGRESS FLOW FX    */
+/* ============================= */
+
+.cl-row {
+  position: relative;
+  overflow: hidden;
+}
+
+/* flow overlay */
+.cl-row::after {
+  content: "";
+  position: absolute;
+  inset: 0;
+  pointer-events: none;
+  opacity: 0;
+  transform: translateX(-120%);
+  background: linear-gradient(
+    120deg,
+    transparent 20%,
+    rgba(255, 255, 255, 0.35),
+    transparent 80%
+  );
+}
+
+/* trigger animation */
+.cl-row.cl-completing::after {
+  opacity: 1;
+  animation: clFlow 0.9s cubic-bezier(0.2, 0.8, 0.2, 1);
+}
+
+/* priority colors */
+.cl-row.prio-low::after {
+  background: linear-gradient(
+    120deg,
+    transparent 20%,
+    rgba(103, 227, 155, 0.55),
+    transparent 80%
+  );
+}
+
+.cl-row.prio-medium::after {
+  background: linear-gradient(
+    120deg,
+    transparent 20%,
+    rgba(255, 213, 107, 0.55),
+    transparent 80%
+  );
+}
+
+.cl-row.prio-high::after {
+  background: linear-gradient(
+    120deg,
+    transparent 20%,
+    rgba(255, 107, 107, 0.6),
+    transparent 80%
+  );
+}
+
+@keyframes clFlow {
+  0% {
+    transform: translateX(-120%);
+  }
+  60% {
+    transform: translateX(0%);
+  }
+  100% {
+    transform: translateX(120%);
+    opacity: 0;
+  }
 }
