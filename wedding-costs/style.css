@@ -1,3 +1,1432 @@
 @import "./styles/base.css";
 @import "./styles/buttons.css";
 @import "./styles/forms.css";
+
+/* ======================================================= */
+/*    MOBILE (DEFAULT) — Horizontal bars (left → right)     */
+/* ======================================================= */
+
+.bars {
+  display: flex;
+  flex-direction: column;
+  gap: 12px;
+  overflow-y: auto;
+  padding: 6px;
+}
+
+.bar-card {
+  color: white;
+  border: 0;
+  display: flex;
+  gap: 12px;
+  align-items: center;
+  padding: 12px;
+  border-radius: 12px;
+  background: 0;
+  cursor: pointer;
+}
+
+.bar-thumb {
+  width: 110px; /* horizontal bar */
+  height: 22px;
+  border-radius: 10px;
+  background: var(--glass);
+  display: flex;
+  overflow: hidden;
+}
+
+.bar-fill {
+  height: 100%;
+  width: 0%; /* horizontal growth */
+  background: linear-gradient(90deg, var(--accent-start), var(--accent-end));
+  background-size: 300% 300%;
+  animation: barGradient 8s cubic-bezier(0.4, 0, 0.2, 1) infinite;
+  display: flex;
+  align-items: center;
+  justify-content: flex-end;
+  padding-right: 4px;
+  transition: width 0.9s ease, height 0.9s ease;
+  position: relative;
+  overflow: hidden;
+}
+
+.bar-fill::after {
+  content: "";
+  position: absolute;
+  top: 0;
+  left: -40%; /* start before the bar */
+  width: 100%;
+  height: 100%;
+
+  /* bright bump */
+  background: linear-gradient(
+    90deg,
+    rgba(255, 255, 255, 0) 0%,
+    rgba(255, 255, 255, 0.45) 50%,
+    rgba(255, 255, 255, 0) 100%
+  );
+
+  filter: blur(6px);
+  animation: bumpMove 3s infinite ease-in-out;
+}
+
+@keyframes barBounce {
+  0% {
+    transform: scaleX(1) scaleY(1);
+  }
+  70% {
+    transform: scaleX(1.02) scaleY(1.02);
+  }
+  100% {
+    transform: scaleX(1) scaleY(1);
+  }
+}
+
+.bar-fill.bounce {
+  animation: barBounce 0.25s ease-out 1;
+}
+
+@media (min-width: 720px) {
+  .bar-fill.bounce {
+    animation: barBounce 0.25s ease-out 1;
+    transform-origin: bottom;
+  }
+}
+
+.progress-text {
+  font-size: 12px;
+}
+
+/* Info */
+.bar-info {
+  display: flex;
+  flex-direction: column;
+  gap: 6px;
+  flex: 1;
+  align-items: flex-start;
+}
+
+/* Chips */
+.status-chip {
+  padding: 6px 8px;
+  border-radius: 999px;
+  font-size: 12px;
+}
+
+.status-booked {
+  background: rgba(125, 255, 183, 0.08);
+  color: var(--success);
+}
+
+.status-not {
+  background: rgba(255, 255, 255, 0.02);
+  color: var(--muted);
+}
+
+/* Detail panel */
+.detail {
+  margin-top: 12px;
+  display: none;
+}
+.detail.show {
+  display: block;
+}
+
+/* ======================================================= */
+/*    DESKTOP (≥ 720px) — Vertical bars (bottom → top)      */
+/* ======================================================= */
+
+@media (min-width: 720px) {
+  .bars {
+    flex-direction: row;
+    overflow-x: auto;
+    height: 360px;
+  }
+
+  .bar-card {
+    flex-direction: column;
+    align-items: center;
+    min-width: 160px;
+  }
+
+  .bar-thumb {
+    width: fit-content;
+    height: 260px;
+    display: flex;
+    align-items: flex-end; /* anchor fill to bottom */
+  }
+
+  .bar-fill {
+    padding: 12px;
+    width: 100%;
+    height: 0%; /* vertical growth */
+    background: linear-gradient(180deg, var(--accent-start), var(--accent-end));
+    padding-bottom: 6px;
+    transition: height 0.6s;
+    transform-origin: bottom;
+  }
+}
+
+.detail-grid {
+  grid-template-columns: 1fr !important; /* mobile default */
+}
+
+/* Tablet & Desktop */
+@media (min-width: 480px) {
+  .detail-grid {
+    grid-template-columns: 1fr 1fr !important;
+  }
+}
+
+.loader-spinner {
+  width: 28px;
+  height: 28px;
+  border-radius: 50%;
+  border: 3px solid rgba(255, 255, 255, 0.2);
+  border-top-color: var(--accent-start);
+  animation: spin 0.7s linear infinite;
+  margin: 0 auto;
+}
+
+@keyframes spin {
+  to {
+    transform: rotate(360deg);
+  }
+}
+
+@keyframes barGradient {
+  0% {
+    background-position: 0% 50%;
+  }
+  50% {
+    background-position: 100% 50%;
+  }
+  100% {
+    background-position: 0% 50%;
+  }
+}
+
+/* Desktop vertical gradient animation */
+@media (min-width: 720px) {
+  .bar-fill {
+    background-size: 300% 300%;
+    animation: barGradientVertical 8s cubic-bezier(0.4, 0, 0.2, 1) infinite;
+  }
+
+  @keyframes barGradientVertical {
+    0% {
+      background-position: 50% 100%;
+    }
+    50% {
+      background-position: 50% 0%;
+    }
+    100% {
+      background-position: 50% 100%;
+    }
+  }
+}
+
+@keyframes bumpMove {
+  0% {
+    left: -40%;
+  }
+  50% {
+    left: 100%;
+  }
+  100% {
+    left: 100%;
+  }
+}
+
+/* Desktop bump: bottom → top */
+@media (min-width: 720px) {
+  .bar-fill::after {
+    left: 0 !important;
+    top: 100%;
+    width: 100%;
+    height: 100%;
+    background: linear-gradient(
+      0deg,
+      rgba(255, 255, 255, 0) 0%,
+      rgba(255, 255, 255, 0.45) 50%,
+      rgba(255, 255, 255, 0) 100%
+    );
+    animation: bumpMoveVertical 3s infinite ease-in-out;
+  }
+
+  @keyframes bumpMoveVertical {
+    0% {
+      top: 100%;
+    }
+    50% {
+      top: -40%;
+    }
+    100% {
+      top: -40%;
+    }
+  }
+}
+
+/* Desktop Scrollbar Styling */
+@media (min-width: 720px) {
+  .bars {
+    scrollbar-width: thin; /* Firefox */
+    scrollbar-color: rgba(255, 255, 255, 0.15) transparent;
+  }
+
+  .bars::-webkit-scrollbar {
+    height: 6px;
+  }
+
+  .bars::-webkit-scrollbar-track {
+    background: rgba(255, 255, 255, 0.05);
+    border-radius: 10px;
+  }
+
+  .bars::-webkit-scrollbar-thumb {
+    background: linear-gradient(90deg, var(--accent-start), var(--accent-end));
+    background-size: 300% 300%;
+    animation: barGradient 8s cubic-bezier(0.4, 0, 0.2, 1) infinite;
+    border-radius: 10px;
+  }
+
+  .bars::-webkit-scrollbar-thumb:hover {
+    background: linear-gradient(90deg, var(--accent-end), var(--accent-start));
+  }
+
+  #tableViewPanel {
+    right: -102% !important;
+  }
+  #galleryPanel {
+    left: -102% !important;
+  }
+  #tableViewPanel.open {
+    right: 0 !important;
+    padding: 2rem 20rem;
+  }
+  #galleryPanel.open {
+    left: 0 !important;
+    padding: 2rem 20rem;
+  }
+}
+
+.inputs input {
+  font-size: 16px !important; /* Safari no-zoom fix */
+}
+
+.inputs input {
+  padding: 10px 12px;
+}
+
+/* toggle section animation */
+.controls {
+  overflow: hidden;
+  transition: max-height 0.35s ease, opacity 0.25s ease;
+}
+
+.controls.hidden {
+  max-height: 0;
+  opacity: 0;
+  pointer-events: none;
+}
+
+.controls.visible {
+  max-height: 600px; /* enough for inputs */
+  opacity: 1;
+}
+
+/* Arrow inside Add Costs toggle */
+.toggle-controls {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  cursor: pointer;
+  user-select: none;
+}
+
+.toggle-arrow {
+  display: inline-block;
+  font-size: 16px;
+  transition: transform 0.35s ease;
+  opacity: 0.85;
+}
+
+/* arrow rotated when expanded */
+.toggle-expanded .toggle-arrow {
+  transform: rotate(180deg);
+}
+
+/* Make all standalone inputs match the UI */
+.edit-panel input[type="text"],
+.edit-panel input[type="number"],
+.edit-panel input[type="file"],
+.edit-panel input:not([type]),
+.card input[type="text"],
+.card input[type="number"],
+.card input[type="file"] {
+  background: var(--card);
+  border: 1px solid rgba(255, 255, 255, 0.06);
+  padding: 12px;
+  border-radius: 10px;
+  color: #eaf3ff;
+  font-size: 16px;
+  box-shadow: inset 0 1px 0 rgba(255, 255, 255, 0.02);
+  width: 100%;
+  box-sizing: border-box;
+}
+
+.edit-panel input[type="text"]:focus,
+.edit-panel input[type="number"]:focus,
+.card input[type="text"]:focus,
+.card input[type="number"]:focus {
+  outline: none;
+  border-color: rgba(155, 140, 255, 0.35);
+  box-shadow: 0 0 12px rgba(155, 140, 255, 0.25),
+    inset 0 0 0 1px rgba(155, 140, 255, 0.4);
+}
+
+/* File input aesthetic */
+.card input[type="file"] {
+  padding: 10px;
+  background: var(--card);
+  color: var(--muted);
+  border-radius: 10px;
+  border: 1px solid rgba(255, 255, 255, 0.06);
+}
+
+.card input[type="file"]::-webkit-file-upload-button {
+  background: linear-gradient(90deg, var(--accent-start), var(--accent-end));
+  background-size: 300% 300%;
+  animation: barGradient 8s cubic-bezier(0.4, 0, 0.2, 1) infinite;
+  border: none;
+  padding: 8px 14px;
+  border-radius: 8px;
+  color: #051226;
+  font-weight: 700;
+  margin-right: 12px;
+  cursor: pointer;
+}
+
+.edit-panel label {
+  color: var(--muted);
+  font-size: 14px;
+  margin-bottom: 4px;
+  display: block;
+}
+
+.next-checkbox {
+  appearance: none;
+  width: 20px;
+  height: 20px;
+  border-radius: 50%;
+  border: 2px solid rgba(255, 255, 255, 0.25);
+  background: transparent;
+  cursor: pointer;
+  display: inline-block;
+  position: relative;
+  flex-shrink: 0;
+}
+
+.next-checkbox:checked {
+  border-color: var(--accent-start);
+  background: var(--accent-start);
+}
+
+.next-checkbox:checked::after {
+  content: "✓";
+  position: absolute;
+  left: 3px;
+  top: 1px;
+  color: white;
+  font-size: 12px;
+  font-weight: 700;
+}
+
+#nextStepsList {
+  padding-bottom: 200px; /* enough room above bottom bar */
+}
+
+#nextStepsAddBar input {
+  box-sizing: border-box;
+}
+
+#nextStepsList {
+  padding-bottom: 240px;
+}
+
+/* DATE INPUT FIX FOR IOS SAFARI WITH CUSTOM SVG ICON */
+.next-date {
+  height: 42.5px;
+  width: 100%;
+  padding: 12px;
+  padding-right: 44px; /* room for icon */
+  box-sizing: border-box;
+  border-radius: 10px;
+  border: none;
+  background: var(--card);
+  color: white;
+  font-size: 16px;
+  appearance: none;
+  -webkit-appearance: none;
+  margin-bottom: 12px;
+}
+
+/* Hide iOS native icon completely */
+.next-date::-webkit-calendar-picker-indicator {
+  opacity: 0;
+  width: 0;
+  height: 0;
+  pointer-events: none;
+}
+
+/* Wrap input so SVG can float inside */
+.next-date-wrapper {
+  position: relative;
+  width: 100%;
+  margin-bottom: 12px;
+}
+
+/* SVG icon positioned inside input */
+.next-date-wrapper::after {
+  content: "";
+  position: absolute;
+  right: 14px;
+  top: 40%;
+  transform: translateY(-50%);
+  width: 20px;
+  height: 20px;
+  pointer-events: none;
+  background-repeat: no-repeat;
+  background-position: center;
+  background-size: 18px 18px;
+  filter: brightness(2); /* Make it white-ish */
+
+  /* Inline SVG for calendar icon (white outline) */
+  background-image: url("data:image/svg+xml;utf8,\
+    <svg xmlns='http://www.w3.org/2000/svg' width='24' height='24' viewBox='0 0 24 24'>\
+      <rect x='3' y='5' width='18' height='16' rx='3' ry='3' fill='none' stroke='white' stroke-width='2'/>\
+      <line x1='3' y1='10' x2='21' y2='10' stroke='white' stroke-width='2'/>\
+      <line x1='8' y1='3' x2='8' y2='7' stroke='white' stroke-width='2'/>\
+      <line x1='16' y1='3' x2='16' y2='7' stroke='white' stroke-width='2'/>\
+    </svg>");
+}
+
+.bar-card.flash {
+  animation: cardFlash 0.6s ease-out;
+}
+
+@keyframes cardFlash {
+  0% {
+    background: rgba(255, 255, 255, 0.18);
+  }
+  100% {
+    background: transparent;
+  }
+}
+
+#saveToast.show {
+  animation: toastPop 0.55s ease-out;
+}
+
+@keyframes toastPop {
+  0% {
+    transform: translateY(-10px);
+    opacity: 0;
+  }
+  40% {
+    transform: translateY(0);
+    opacity: 1;
+  }
+  100% {
+    transform: translateY(0);
+    opacity: 1;
+  }
+}
+
+/* ============================= */
+/*   MOBILE SWIPE RIGHT PANEL    */
+/* ============================= */
+#tableViewPanel {
+  position: fixed;
+  top: 0;
+  right: -100%;
+  width: 100vw;
+  height: 100vh;
+  background: var(--card);
+  z-index: 99999;
+  transition: right 0.35s ease;
+  padding: 16px;
+  overflow-y: scroll; /* allow full scrolling */
+  box-sizing: border-box;
+}
+
+#tableViewPanel.open {
+  right: 0;
+}
+
+.table-header {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  font-size: 18px;
+  font-weight: 700;
+  margin-bottom: 14px;
+}
+
+#closeTableView {
+  background: rgba(255, 255, 255, 0.08);
+  border: none;
+  color: white;
+  padding: 8px 12px;
+  border-radius: 8px;
+  cursor: pointer;
+  font-size: 20px;
+}
+
+#tableViewContent table {
+  width: 100%;
+  border-collapse: collapse;
+  font-size: 14px;
+}
+
+#tableViewContent th,
+#tableViewContent td {
+  padding: 10px 6px;
+  border-bottom: 1px solid rgba(255, 255, 255, 0.08);
+}
+
+/* Sort arrows */
+#tableViewContent th {
+  cursor: pointer;
+  position: relative;
+  user-select: none;
+}
+
+#tableViewContent th.sort-asc::after {
+  content: "▲";
+  position: absolute;
+  right: 6px;
+  font-size: 10px;
+  opacity: 0.7;
+}
+
+#tableViewContent th.sort-desc::after {
+  content: "▼";
+  position: absolute;
+  right: 6px;
+  font-size: 10px;
+  opacity: 0.7;
+}
+
+#tableViewContent tr.selected-row {
+  background: rgba(155, 140, 255, 0.28) !important;
+  box-shadow: inset 0 0 0 1px rgba(155, 140, 255, 0.45);
+}
+
+/* Zebra striping for better reading */
+#tableViewContent tbody tr:nth-child(odd) {
+  background: rgba(255, 255, 255, 0.03);
+}
+
+#tableViewContent tbody tr:nth-child(even) {
+  background: rgba(255, 255, 255, 0.06);
+}
+
+#tableViewContent td,
+#tableViewContent th {
+  padding: 12px 10px;
+  font-size: 14px;
+}
+
+#tableViewContent th {
+  font-weight: 600;
+  letter-spacing: 0.3px;
+}
+
+/* Left align text, right align money */
+#tableViewContent td:nth-child(1) {
+  text-align: left;
+}
+
+#tableViewContent td:nth-child(2),
+#tableViewContent td:nth-child(3) {
+  text-align: right;
+}
+
+#tableViewContent thead th {
+  position: sticky;
+  top: 0;
+  background: var(--card);
+  z-index: 50;
+  text-align: left;
+}
+
+/* ------------------------------------
+   ATTACHMENTS GALLERY MODAL
+-------------------------------------*/
+#galleryPanel {
+  position: fixed;
+  top: 0;
+  left: -100%;
+  width: 100vw;
+  height: 100vh;
+  background: var(--card);
+  z-index: 99999;
+  transition: left 0.35s ease;
+  padding: 16px;
+  overflow-y: auto;
+  box-sizing: border-box;
+}
+
+#galleryPanel.open {
+  left: 0;
+}
+
+.gallery-header {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  font-size: 18px;
+  font-weight: 700;
+  margin-bottom: 14px;
+}
+
+#closeGallery {
+  background: rgba(255, 255, 255, 0.08);
+  border: none;
+  color: white;
+  padding: 8px 12px;
+  border-radius: 8px;
+  font-size: 20px;
+  cursor: pointer;
+}
+
+/* Item section title */
+.gallery-item-title {
+  font-size: 16px;
+  font-weight: 700;
+  margin: 20px 0 8px;
+  opacity: 0.9;
+}
+
+/* Image grid */
+.gallery-grid {
+  display: grid;
+  grid-template-columns: repeat(3, 1fr);
+  gap: 8px;
+}
+
+.gallery-thumb {
+  width: 100%;
+  aspect-ratio: 1/1;
+  object-fit: cover;
+  border-radius: 8px;
+  cursor: pointer;
+  background: rgba(255, 255, 255, 0.05);
+}
+
+.priority-dot {
+  width: 10px;
+  height: 10px;
+  border-radius: 50%;
+  margin-left: auto;
+  margin-right: 8px;
+}
+
+.priority-dot.high {
+  background: #ff6b6b;
+}
+
+.priority-dot.medium {
+  background: #ffd56b;
+}
+
+.priority-dot.low {
+  background: #67e39b;
+}
+
+.bar-title {
+  font-weight: bold;
+}
+
+#summaryStatsBox span {
+  font-weight: normal;
+}
+#summaryStatsBox div {
+  font-weight: bold;
+}
+
+/* Dropdown menu inline (header) */
+.menu-inline .menu-toggle {
+  background: transparent;
+  border: none;
+  color: inherit;
+  cursor: pointer;
+  font-weight: 700;
+}
+
+.menu-dropdown {
+  background: var(--card);
+  border-radius: 10px;
+  box-shadow: 0 8px 30px rgba(0, 0, 0, 0.6);
+  padding: 6px;
+  display: flex;
+  flex-direction: column;
+}
+
+.menu-item {
+  background: transparent;
+  border: none;
+  text-align: left;
+  padding: 10px 12px;
+  color: #eaf3ff;
+  cursor: pointer;
+  font-size: 14px;
+  border-radius: 8px;
+}
+
+.menu-item:hover {
+  background: rgba(255, 255, 255, 0.03);
+}
+
+/* On wider screens show full menu as usual */
+@media (min-width: 720px) {
+  .menu-inline .menu-dropdown {
+    right: auto;
+    left: 0;
+  }
+}
+
+input,
+textarea {
+  font-size: 16px !important;
+}
+
+.menu-inline .menu-toggle {
+  background: transparent;
+  border: none;
+  color: inherit;
+  cursor: pointer;
+  font-weight: 700;
+}
+
+.menu-dropdown {
+  background: var(--card);
+  border-radius: 10px;
+  box-shadow: 0 8px 30px rgba(0, 0, 0, 0.6);
+  padding: 6px;
+  display: flex;
+  flex-direction: column;
+}
+
+.menu-item {
+  background: transparent;
+  border: none;
+  text-align: left;
+  padding: 10px 12px;
+  color: #eaf3ff;
+  cursor: pointer;
+  font-size: 15px;
+  border-radius: 8px;
+}
+
+.menu-item:hover {
+  background: rgba(255, 255, 255, 0.03);
+}
+
+#guestsAddBar .guests-form {
+  display: flex;
+  gap: 8px;
+  flex-wrap: wrap;
+  align-items: stretch;
+}
+
+@media (max-width: 720px) {
+  #guestsAddBar .guests-form {
+    flex-direction: column;
+  }
+}
+
+/* MINI DRAWER FOR ADD FORMS */
+.add-drawer {
+  position: fixed;
+  bottom: 0;
+  left: 0;
+  width: 100%;
+  max-height: 45vh;
+  background: rgba(7, 16, 37, 0.95);
+  backdrop-filter: blur(12px);
+  border-radius: 18px 18px 0 0;
+  padding: 18px;
+  box-shadow: 0 -8px 30px rgba(0, 0, 0, 0.55);
+  overflow-y: auto;
+  transition: transform 0.35s ease;
+  transform: translateY(110%);
+  z-index: 9999;
+}
+
+.add-drawer.open {
+  transform: translateY(0);
+}
+
+.add-drawer handle {
+  width: 60px;
+  height: 5px;
+  background: rgba(255, 255, 255, 0.15);
+  border-radius: 999px;
+  margin: 0 auto 12px;
+}
+
+.guest-dot {
+  width: 8px;
+  height: 8px;
+  border-radius: 50%;
+  display: inline-block;
+  margin-right: 6px;
+}
+
+.dot-charlie {
+  background: #4da3ff;
+}
+.dot-karla {
+  background: #ff8fbf;
+}
+.dot-both {
+  background: #b57cff;
+}
+
+.dot-rsvp-yes {
+  background: #67e39b;
+}
+.dot-rsvp-no {
+  background: #ff6b6b;
+}
+.dot-rsvp-pending {
+  background: #ffd56b;
+}
+
+.guest-grid {
+  display: grid;
+  grid-template-columns: 1fr 1fr;
+  gap: 12px;
+}
+
+.guest-grid-item {
+  padding: 12px;
+  border-radius: 12px;
+  background: rgba(255, 255, 255, 0.03);
+}
+
+@media (max-width: 720px) {
+  #viewIcons {
+    display: none !important;
+  }
+}
+
+/* TEMP: Hide all old guest list UI while Kanban replaces it */
+#guestControls,
+#guestFilterChips,
+.guest-grid,
+.guest-grid-item,
+.guest-list,
+.view-toggle,
+.list-mode-btn,
+.grid-mode-btn {
+  display: none !important;
+}
+
+/* TEMP: hide legacy guest list/grid UI while Kanban is enabled (no deletions) */
+#guestControls,
+#guestFilterChips,
+.guest-grid,
+.guest-grid-item,
+.guest-list,
+.view-toggle,
+#guestViewList,
+#guestViewGrid {
+  display: none !important;
+}
+
+/* Kanban drag/drop additions */
+.kanban-card.dragging {
+  opacity: 0.6;
+  transform: scale(1.05);
+  cursor: grabbing;
+  box-shadow: 0 10px 24px rgba(0, 0, 0, 0.3);
+}
+
+.kanban-placeholder {
+  height: 52px;
+  border-radius: 10px;
+  margin-bottom: 8px;
+  background: rgba(255, 255, 255, 0.05);
+  border: 2px dashed rgba(255, 255, 255, 0.15);
+}
+
+.kanban-column.drag-over {
+  border-color: rgba(160, 140, 255, 0.4);
+  box-shadow: 0 0 14px rgba(160, 140, 255, 0.25);
+}
+
+/* Basic Kanban styles (initial, non-destructive) */
+.kanban-board {
+  display: flex;
+  gap: 12px;
+  overflow-x: auto;
+  padding: 8px 4px;
+  align-items: flex-start;
+  -webkit-overflow-scrolling: touch;
+}
+
+.kanban-column {
+  min-width: 220px;
+  max-width: 300px;
+  background: rgba(255, 255, 255, 0.02);
+  border-radius: 12px;
+  padding: 10px;
+  box-sizing: border-box;
+  flex-shrink: 0;
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+  border: 1px solid rgba(255, 255, 255, 0.03);
+}
+
+.kanban-column h3 {
+  margin: 0 0 6px 0;
+  font-size: 13px;
+  font-weight: 800;
+  text-transform: capitalize;
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+}
+
+.kanban-list {
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+  min-height: 48px;
+}
+
+/* Dragging visual */
+.kanban-card.dragging {
+  opacity: 0.6;
+  transform: scale(1.05);
+  box-shadow: 0 8px 20px rgba(0, 0, 0, 0.25);
+  cursor: grabbing;
+}
+
+/* Column highlight when dragging over */
+.kanban-column.drag-over {
+  border-color: rgba(140, 120, 255, 0.4);
+  box-shadow: 0 0 14px rgba(140, 120, 255, 0.2);
+}
+
+/* Placeholder during drag */
+.kanban-placeholder {
+  height: 50px;
+  border-radius: 10px;
+  border: 2px dashed rgba(255, 255, 255, 0.12);
+  background: rgba(255, 255, 255, 0.03);
+  margin-bottom: 8px;
+}
+
+.kanban-card {
+  background: rgba(255, 255, 255, 0.03);
+  padding: 10px;
+  border-radius: 10px;
+  cursor: default;
+  user-select: none;
+  font-weight: 700;
+  display: flex;
+  gap: 8px;
+  align-items: center;
+  justify-content: space-between;
+}
+
+.kanban-card .name {
+  font-weight: 800;
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+.kanban-card .meta-row {
+  font-size: 12px;
+  color: var(--muted);
+}
+
+.kanban-placeholder {
+  height: 54px;
+  border-radius: 10px;
+  background: rgba(255, 255, 255, 0.02);
+  border: 2px dashed rgba(255, 255, 255, 0.06);
+  margin-bottom: 8px;
+}
+
+/* ============================= */
+/* CHECKLIST MODAL (Akiflow-ish) */
+/* ============================= */
+
+#checklistModalOverlay {
+  position: fixed;
+  inset: 0;
+  background: rgba(0, 0, 0, 0.55);
+  backdrop-filter: blur(6px);
+  z-index: 100000;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+}
+
+#checklistModal {
+  width: 100%;
+  max-width: 420px;
+  background: var(--card);
+  border-radius: 16px;
+  padding: 18px;
+  box-shadow: 0 20px 60px rgba(0, 0, 0, 0.6);
+  display: flex;
+  flex-direction: column;
+  gap: 12px;
+}
+
+#checklistModal h3 {
+  margin: 0;
+  font-size: 18px;
+  font-weight: 800;
+}
+
+#checklistModal input,
+#checklistModal textarea,
+#checklistModal select {
+  width: 100%;
+  padding: 12px;
+  border-radius: 10px;
+  background: var(--card);
+  border: 1px solid rgba(255, 255, 255, 0.06);
+  color: white;
+  font-size: 16px;
+  box-sizing: border-box;
+}
+
+#checklistModal textarea {
+  min-height: 80px;
+  resize: vertical;
+}
+
+.cl-label {
+  font-size: 12px;
+  color: var(--muted);
+  margin-top: 4px;
+}
+
+.cl-actions {
+  display: flex;
+  gap: 10px;
+  margin-top: 6px;
+}
+
+/* Checklist priority badges */
+.cl-priority {
+  font-size: 11px;
+  font-weight: 800;
+  padding: 4px 8px;
+  border-radius: 999px;
+  letter-spacing: 0.4px;
+}
+
+.cl-priority.low {
+  background: rgba(103, 227, 155, 0.15);
+  color: #67e39b;
+}
+
+.cl-priority.medium {
+  background: rgba(255, 213, 107, 0.18);
+  color: #ffd56b;
+}
+
+.cl-priority.high {
+  background: rgba(255, 107, 107, 0.18);
+  color: #ff6b6b;
+}
+
+/* Checklist action icons */
+.cl-actions-row {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+}
+
+.cl-icon-btn {
+  width: 32px;
+  height: 32px;
+  border-radius: 8px;
+  border: none;
+  background: rgba(255, 255, 255, 0.06);
+  color: white;
+  cursor: pointer;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+}
+
+.cl-icon-btn:hover {
+  background: rgba(255, 255, 255, 0.12);
+}
+
+/* Checklist row hover */
+#checklistList > div:hover {
+  background: rgba(255, 255, 255, 0.03);
+  transform: translateY(-1px);
+  transition: background 0.18s ease, transform 0.18s ease;
+}
+
+/* Icon hover micro-bounce */
+.cl-icon-btn {
+  transition: transform 0.15s ease, background 0.15s ease;
+}
+
+.cl-icon-btn:hover {
+  transform: scale(1.08);
+  background: rgba(255, 255, 255, 0.14);
+}
+
+/* Checkbox pop */
+.next-checkbox {
+  transition: transform 0.15s ease;
+}
+
+.next-checkbox:checked {
+  animation: checkboxPop 0.18s ease-out;
+}
+
+@keyframes checkboxPop {
+  0% {
+    transform: scale(0.85);
+  }
+  60% {
+    transform: scale(1.15);
+  }
+  100% {
+    transform: scale(1);
+  }
+}
+
+/* Text strike-through glide */
+.cl-done {
+  animation: strikeIn 0.22s ease forwards;
+}
+
+@keyframes strikeIn {
+  from {
+    opacity: 1;
+  }
+  to {
+    opacity: 0.55;
+  }
+}
+
+/* Dramatic cute celebration on check */
+.cl-row {
+  position: relative;
+}
+.celebrate {
+  position: absolute;
+  width: 0;
+  height: 0;
+  pointer-events: none;
+  z-index: 50; /* above row contents and cl-flow */
+  transform: translate(-50%, -50%); /* center on anchor point */
+}
+.confetti {
+  position: absolute;
+  width: 6px;
+  height: 10px;
+  border-radius: 2px;
+  top: 0;
+  left: 0;
+  transform-origin: center;
+  will-change: transform, opacity; /* smoother */
+  animation: confettiPop 0.85s ease-out forwards;
+}
+.sparkle {
+  position: absolute;
+  width: 10px;
+  height: 10px;
+  border-radius: 50%;
+  left: -5px;
+  top: -5px;
+  box-shadow: 0 0 0 0 rgba(255, 255, 255, 0.35),
+    0 0 20px 6px rgba(255, 255, 255, 0.18);
+  animation: sparklePulse 0.85s ease-out forwards;
+}
+@keyframes confettiPop {
+  0% {
+    opacity: 0;
+    transform: translate(0, 0) scale(0.6) rotate(0deg);
+  }
+  20% {
+    opacity: 1;
+  }
+  100% {
+    opacity: 0;
+    transform: translate(var(--dx), var(--dy)) scale(1) rotate(360deg);
+  }
+}
+@keyframes sparklePulse {
+  0% {
+    transform: scale(0.4);
+    opacity: 0;
+  }
+  40% {
+    transform: scale(1.1);
+    opacity: 1;
+  }
+  100% {
+    transform: scale(1);
+    opacity: 0;
+  }
+}
+
+.cl-icon-btn:active {
+  transform: scale(0.92);
+}
+
+/* Modal entrance animation */
+#checklistModal {
+  animation: modalPop 0.22s cubic-bezier(0.2, 0.8, 0.2, 1);
+}
+
+@keyframes modalPop {
+  from {
+    opacity: 0;
+    transform: scale(0.94) translateY(6px);
+  }
+  to {
+    opacity: 1;
+    transform: scale(1) translateY(0);
+  }
+}
+
+/* Overlay fade */
+#checklistModalOverlay {
+  animation: overlayFade 0.18s ease;
+}
+
+@keyframes overlayFade {
+  from {
+    opacity: 0;
+  }
+  to {
+    opacity: 1;
+  }
+}
+/* ============================= */
+/* CHECKLIST FLOW (ROW-LOCAL)    */
+/* ============================= */
+
+.cl-row {
+  position: relative;
+  overflow: hidden;
+}
+
+/* actual flow element */
+.cl-flow {
+  position: absolute;
+  inset: 0;
+  pointer-events: none;
+  z-index: 0;
+
+  background: linear-gradient(
+    120deg,
+    transparent 20%,
+    rgba(255, 255, 255, 0.85),
+    transparent 80%
+  );
+
+  transform: translateX(-120%);
+  filter: blur(2px);
+}
+
+/* priority colors */
+.cl-flow.low {
+  background: linear-gradient(
+    120deg,
+    transparent 20%,
+    rgba(103, 227, 155, 0.85),
+    transparent 80%
+  );
+}
+
+.cl-flow.medium {
+  background: linear-gradient(
+    120deg,
+    transparent 20%,
+    rgba(255, 213, 107, 0.85),
+    transparent 80%
+  );
+}
+
+.cl-flow.high {
+  background: linear-gradient(
+    120deg,
+    transparent 20%,
+    rgba(255, 107, 107, 0.9),
+    transparent 80%
+  );
+}
+
+/* animation */
+.cl-flow.animate {
+  animation: clFlowRow 0.9s cubic-bezier(0.2, 0.8, 0.2, 1);
+}
+
+@keyframes clFlowRow {
+  0% {
+    transform: translateX(-120%);
+    opacity: 0.2;
+  }
+  30% {
+    opacity: 1;
+  }
+  100% {
+    transform: translateX(120%);
+    opacity: 0;
+  }
+}
+
+/* Checklist priority buttons */
+#clPriorityRow {
+  display: flex;
+  gap: 8px;
+}
+
+.cl-prio-btn {
+  flex: 1;
+  padding: 10px 0;
+  border-radius: 999px;
+  border: 1px solid rgba(255, 255, 255, 0.12);
+  background: transparent;
+  color: var(--muted);
+  font-weight: 800;
+  cursor: pointer;
+  transition: transform 0.15s ease, background 0.15s ease;
+}
+
+.cl-prio-btn.active {
+  color: white;
+  transform: scale(1.05);
+}
+
+.cl-prio-btn.low.active {
+  background: rgba(103, 227, 155, 0.25);
+}
+
+.cl-prio-btn.medium.active {
+  background: rgba(255, 213, 107, 0.3);
+}
+
+.cl-prio-btn.high.active {
+  background: rgba(255, 107, 107, 0.3);
+}
