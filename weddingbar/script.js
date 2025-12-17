@@ -630,6 +630,7 @@ function listenRealtime() {
     updateSummary(arr);
     renderTableView(arr);
     renderGallery(arr);
+    renderChecklistKanban(arr);
   });
 }
 
@@ -1118,6 +1119,25 @@ document.addEventListener("keydown", (event) => {
 let nextStepsUnsub = null;
 let currentChecklistTarget = "checklistList";
 
+// =======================================================
+// CHECKLIST KANBAN DATA PREP (ONE-TIME SAFE MIGRATION)
+// =======================================================
+function migrateChecklistItem(id, item) {
+  const updates = {};
+
+  if (!item.status) {
+    updates.status = item.done ? "done" : "todo";
+  }
+
+  if (item.sortIndex === undefined) {
+    updates.sortIndex = item.createdAt || Date.now();
+  }
+
+  if (Object.keys(updates).length > 0) {
+    update(ref(db, `${NEXT_PATH}/${id}`), updates);
+  }
+}
+
 // Load checklist OR next steps
 function loadNextSteps(targetId = "nextStepsList") {
   currentChecklistTarget = targetId;
@@ -1137,11 +1157,12 @@ function loadNextSteps(targetId = "nextStepsList") {
       return;
     }
 
-    const arr = Object.keys(val).map((id) => ({ id, ...val[id] }));
-    arr.sort(
-      (a, b) =>
-        (a.deadline || a.createdAt || 0) - (b.deadline || b.createdAt || 0)
-    );
+    const arr = Object.keys(val).map((id) => {
+      migrateChecklistItem(id, val[id]);
+      return { id, ...val[id] };
+    });
+
+    arr.sort((a, b) => (a.sortIndex ?? 0) - (b.sortIndex ?? 0));
 
     listEl.innerHTML = "";
 
@@ -2187,6 +2208,156 @@ document.getElementById("openSeating").onclick = () => {
   alert("Seating Planner coming soon");
 };
 
+function renderChecklistKanban(items = []) {
+  const todo = document.getElementById("clTodo");
+  const doing = document.getElementById("clDoing");
+  const done = document.getElementById("clDone");
+
+  todo.innerHTML = "";
+  doing.innerHTML = "";
+  done.innerHTML = "";
+
+  const empty = (msg) => {
+    const d = document.createElement("div");
+    d.className = "cl-empty";
+    d.textContent = msg;
+    return d;
+  };
+
+  items.forEach((step) => {
+    const card = document.createElement("div");
+    card.className = "cl-card";
+    card.draggable = true;
+
+    card.dataset.id = step.id;
+    card.dataset.status = step.status || "todo";
+
+    card.innerHTML = `
+      <div class="title">${escapeHtml(step.text)}</div>
+      <div class="prio ${step.priority || "low"}">
+        ${(step.priority || "low").toUpperCase()}
+      </div>
+    `;
+
+    let placeholder = null;
+
+    card.addEventListener("dragstart", (e) => {
+      clDraggingId = step.id;
+      card.classList.add("dragging");
+      e.dataTransfer.effectAllowed = "move";
+      try {
+        e.dataTransfer.setData("text/plain", step.id);
+      } catch {}
+      placeholder = createClPlaceholder();
+      card.parentElement.insertBefore(placeholder, card.nextSibling);
+    });
+
+    card.addEventListener("dragend", () => {
+      card.classList.remove("dragging");
+      clDraggingId = null;
+      if (placeholder && placeholder.parentElement) {
+        placeholder.parentElement.removeChild(placeholder);
+      }
+    });
+
+    if (step.status === "doing") doing.appendChild(card);
+    else if (step.status === "done") done.appendChild(card);
+    else todo.appendChild(card);
+  });
+  if (!todo.children.length) todo.appendChild(empty("Drop tasks here"));
+  if (!doing.children.length) doing.appendChild(empty("Work in progress"));
+  if (!done.children.length) done.appendChild(empty("All done 🎉"));
+}
+
+["clTodo", "clDoing", "clDone"].forEach((colId) => {
+  const col = document.getElementById(colId);
+  if (!col) return;
+
+  col.addEventListener("dragover", (e) => {
+    e.preventDefault();
+    col.closest(".cl-col")?.classList.add("drag-over");
+
+    const ph = document.querySelector(".cl-placeholder");
+    if (!ph) return;
+
+    const cards = Array.from(col.querySelectorAll(".cl-card")).filter(
+      (c) => !c.classList.contains("dragging")
+    );
+
+    let inserted = false;
+    for (const c of cards) {
+      const r = c.getBoundingClientRect();
+      if (e.clientY < r.top + r.height / 2) {
+        col.insertBefore(ph, c);
+        inserted = true;
+        break;
+      }
+    }
+    if (!inserted) col.appendChild(ph);
+  });
+
+  col.addEventListener("dragleave", (e) => {
+    const to = e.relatedTarget;
+    if (!to || !col.contains(to)) {
+      col.closest(".cl-col")?.classList.remove("drag-over");
+    }
+  });
+
+  col.addEventListener("drop", async (e) => {
+    e.preventDefault();
+    col.closest(".cl-col")?.classList.remove("drag-over");
+
+    const id =
+      (e.dataTransfer && e.dataTransfer.getData("text/plain")) || clDraggingId;
+    if (!id) return;
+
+    const card = document.querySelector(`.cl-card[data-id="${id}"]`);
+    const ph = document.querySelector(".cl-placeholder");
+    if (!card || !ph) return;
+
+    col.replaceChild(card, ph);
+    card.classList.remove("just-dropped");
+    card.offsetHeight;
+    card.classList.add("just-dropped");
+
+    const status =
+      col.id === "clDone" ? "done" : col.id === "clDoing" ? "doing" : "todo";
+
+    await update(ref(db, `${NEXT_PATH}/${id}`), {
+      status,
+      done: status === "done",
+    });
+    const flow = card.querySelector(".cl-flow");
+    if (flow) {
+      flow.classList.remove("animate");
+      flow.offsetHeight;
+      flow.classList.add("animate");
+    }
+
+    await persistChecklistOrder(col);
+  });
+});
+
+let clDraggingId = null;
+
+function createClPlaceholder() {
+  const ph = document.createElement("div");
+  ph.className = "cl-placeholder";
+  return ph;
+}
+
+async function persistChecklistOrder(listEl) {
+  if (!listEl) return;
+  const cards = Array.from(listEl.querySelectorAll(".cl-card"));
+  const updates = {};
+  cards.forEach((c, i) => {
+    updates[`${NEXT_PATH}/${c.dataset.id}/sortIndex`] = i;
+  });
+  if (Object.keys(updates).length) {
+    await update(ref(db), updates);
+  }
+}
+
 function openChecklistPanel() {
   document.getElementById("weddingCostsWrapper").style.display = "none";
   document.getElementById("nextStepsPanel").style.display = "none";
@@ -2197,6 +2368,9 @@ function openChecklistPanel() {
 
   document.getElementById("nextStepsAddBar").style.display = "block";
   document.getElementById("guestsAddBar").style.display = "none";
+
+  document.getElementById("checklistKanban").style.display = "block";
+  document.getElementById("checklistList").style.display = "none";
 
   loadNextSteps("checklistList");
 }
