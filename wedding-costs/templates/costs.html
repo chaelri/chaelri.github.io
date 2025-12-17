@@ -1,0 +1,226 @@
+<div id="weddingCostsWrapper">
+  <section class="controls card" aria-label="Controls">
+    <div class="inputs">
+      <input id="name" type="text" placeholder="Item (e.g., Caterer)" />
+      <input id="paid" type="number" placeholder="Paid (e.g., 5000)" />
+      <input id="total" type="number" placeholder="Total (e.g., 30000)" />
+      <label class="chk">
+        <input id="booked" type="checkbox" />
+        <span class="box" aria-hidden="true"></span>
+        <span class="chk-label">Booked</span>
+      </label>
+    </div>
+    <div class="actions">
+      <button id="addBtn" class="btn">Add / Save</button>
+      <button id="clearBtn" class="btn ghost">Clear</button>
+    </div>
+  </section>
+
+  <!-- Chart container: layout is dynamic via CSS/JS -->
+  <section id="summarySection" class="card" style="margin-bottom: 12px">
+    <div
+      id="summaryProgressWrapper"
+      style="
+        display: flex;
+        justify-content: center;
+        align-items: center;
+        gap: 18px;
+        margin: 10px auto;
+      "
+    >
+      <!-- LEFT: Days Left -->
+      <div id="daysLeftBox" style="text-align: center">
+        <div
+          id="daysLeftNumber"
+          style="font-size: 22px; font-weight: 700; color: var(--success)"
+        >
+          0
+        </div>
+        <div
+          id="daysLeftLabel"
+          style="font-size: 12px; color: var(--muted); letter-spacing: 0.5px"
+        >
+          DAYS LEFT
+        </div>
+      </div>
+
+      <!-- RIGHT: Circle -->
+      <!-- RIGHT: Circular Progress -->
+      <div
+        id="summaryCircleWrapper"
+        style="width: 105px; height: 105px; position: relative"
+      >
+        <svg id="summaryCircle" width="105" height="105">
+          <!-- Background circle -->
+          <circle
+            cx="52.5"
+            cy="52.5"
+            r="45"
+            stroke="#3a3f53"
+            stroke-width="10"
+            fill="none"
+          ></circle>
+
+          <!-- Gradient definition -->
+          <defs>
+            <linearGradient
+              id="circleGradient"
+              x1="0%"
+              y1="0%"
+              x2="100%"
+              y2="100%"
+            >
+              <stop offset="0%" stop-color="var(--accent-start)" />
+              <stop offset="100%" stop-color="var(--accent-end)" />
+            </linearGradient>
+          </defs>
+
+          <!-- Progress circle -->
+          <circle
+            id="summaryProgressCircle"
+            cx="52.5"
+            cy="52.5"
+            r="45"
+            stroke="url(#circleGradient)"
+            stroke-width="10"
+            fill="none"
+            stroke-linecap="round"
+            transform="rotate(-90 52.5 52.5)"
+            stroke-dasharray="283"
+            stroke-dashoffset="283"
+            style="transition: stroke-dashoffset 0.8s ease"
+          ></circle>
+        </svg>
+
+        <!-- Center text -->
+        <div
+          id="summaryPctText"
+          style="
+            position: absolute;
+            inset: 0;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            font-size: 22px;
+            font-weight: 700;
+          "
+        >
+          0%
+        </div>
+      </div>
+
+      <div
+        id="summaryStatsBox"
+        style="text-align: left; font-size: 13px; line-height: 1.4"
+      >
+        <div>Booked: <span id="statsBooked"></span></div>
+        <div>Remaining Items: <span id="statsRemainingItems"></span></div>
+        <div>Remaining Costs: <span id="statsRemainingCosts"></span></div>
+      </div>
+    </div>
+
+    <div style="display: flex; justify-content: space-between">
+      <div>
+        <div class="muted" style="font-size: 12px">Total Paid</div>
+        <div id="summaryPaid" style="font-size: 18px; font-weight: 700">₱0</div>
+      </div>
+      <select
+        id="sortSelect"
+        class="inputs"
+        style="
+          padding: 12px;
+          border-radius: 10px;
+          background: var(--card);
+          color: white;
+          border: 0;
+          margin-left: auto;
+          margin-right: 20px;
+        "
+      >
+        <option value="none">Sort by…</option>
+
+        <!-- Alphabetical -->
+        <option value="nameAZ">Alphabetical (A → Z)</option>
+        <option value="nameZA">Alphabetical (Z → A)</option>
+
+        <!-- Status -->
+        <option value="booked">Booked → Not booked</option>
+        <option value="notBooked">Not booked → Booked</option>
+
+        <!-- Paid -->
+        <option value="paidLow">Paid: Lowest → Highest</option>
+        <option value="paidHigh">Paid: Highest → Lowest</option>
+
+        <!-- Total -->
+        <option value="totalLow">Total: Lowest → Highest</option>
+        <option value="totalHigh">Total: Highest → Lowest</option>
+
+        <!-- Progress % -->
+        <option value="pctLow">Progress: Lowest %</option>
+        <option value="pctHigh">Progress: Highest %</option>
+
+        <!-- Priority % -->
+        <option value="priorityHigh">Priority: High → Low</option>
+        <option value="priorityLow">Priority: Low → High</option>
+      </select>
+      <div
+        id="viewIcons"
+        style="
+          display: flex;
+          gap: 10px;
+          align-items: center;
+          margin-right: 10px;
+        "
+      >
+        <button
+          id="openTableIcon"
+          style="
+            background: rgba(255, 255, 255, 0.08);
+            border: none;
+            width: 34px;
+            height: 34px;
+            border-radius: 8px;
+            color: white;
+            font-size: 18px;
+            cursor: pointer;
+          "
+        >
+          📊
+        </button>
+
+        <button
+          id="openGalleryIcon"
+          style="
+            background: rgba(255, 255, 255, 0.08);
+            border: none;
+            width: 34px;
+            height: 34px;
+            border-radius: 8px;
+            color: white;
+            font-size: 18px;
+            cursor: pointer;
+          "
+        >
+          🖼️
+        </button>
+      </div>
+
+      <div>
+        <div class="muted" style="font-size: 12px">Grand Total</div>
+        <div id="summaryTotal" style="font-size: 18px; font-weight: 700">
+          ₱0
+        </div>
+      </div>
+    </div>
+  </section>
+
+  <section id="chartSection" class="chart card" aria-label="Cost chart">
+    <div id="bars" class="bars horizontal" role="list" aria-live="polite">
+      <!-- Bars injected here by script.js -->
+    </div>
+  </section>
+
+  <section id="detailPanel" class="detail card" aria-hidden="true">
+    <!-- Tapped bar details show here -->
+  </section>
+</div>
