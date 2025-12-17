@@ -1,0 +1,937 @@
+<!DOCTYPE html>
+<html lang="en">
+  <head>
+    <meta charset="utf-8" />
+    <meta
+      name="viewport"
+      content="width=device-width,initial-scale=1,viewport-fit=cover"
+    />
+    <title>Wedding Costs</title>
+
+    <!-- Link CSS -->
+    <link rel="stylesheet" href="style.css" />
+    <link rel="manifest" href="manifest.json" />
+    <link rel="icon" href="icons/icon-192.png" type="image/png" />
+    <link rel="apple-touch-icon" href="icons/icon-192.png" />
+
+    <meta name="theme-color" content="#071025" />
+  </head>
+  <body>
+    <main class="app">
+      <header class="app-header">
+        <div class="hdr-left">
+          <h1 class="app-title">
+            Wedding Costs
+            <!-- DROPDOWN: Checklist menu -->
+            <div
+              id="checklistMenu"
+              class="menu-inline"
+              style="
+                display: inline-block;
+                position: relative;
+                margin-left: 12px;
+              "
+            >
+              <button
+                id="checklistBtn"
+                class="menu-toggle"
+                aria-haspopup="true"
+                aria-expanded="false"
+                style="
+                  font-size: 18px;
+                  color: #5ec293;
+                  background: transparent;
+                  border: none;
+                  cursor: pointer;
+                "
+              >
+                Menu ▾
+              </button>
+
+              <div
+                id="checklistDropdown"
+                class="menu-dropdown"
+                style="
+                  display: none;
+                  position: absolute;
+                  right: 0;
+                  top: 110%;
+                  min-width: 160px;
+                  z-index: 999;
+                "
+              >
+                <button class="menu-item" id="openChecklist">Checklist</button>
+                <button class="menu-item" id="openGuests">Guests</button>
+                <button class="menu-item" id="openSeating">
+                  Seating Planner
+                </button>
+              </div>
+            </div>
+          </h1>
+        </div>
+
+        <div class="hdr-right">
+          <h1 class="app-title toggle-controls" id="toggleControlsBtn">
+            Add Costs
+            <span class="toggle-arrow">▲</span>
+          </h1>
+        </div>
+      </header>
+
+      <!-- Next Steps (legacy panel kept for backward compatibility) -->
+      <section
+        id="nextStepsPanel"
+        class="card"
+        style="display: none; padding: 16px; margin-top: 36px"
+      >
+        <div
+          style="
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+          "
+        >
+          <h2 style="margin: 0">Next Steps</h2>
+          <button
+            id="nextStepsBackBtn"
+            style="
+              padding: 6px 12px;
+              background: rgba(255, 255, 255, 0.05);
+              color: white;
+              border: none;
+              border-radius: 8px;
+              cursor: pointer;
+            "
+          >
+            Back
+          </button>
+        </div>
+
+        <div id="nextStepsList" style="margin-top: 20px">
+          <!-- tasks injected here -->
+        </div>
+      </section>
+
+      <!-- CHECKLIST PANEL -->
+      <section
+        id="checklistPanel"
+        class="card"
+        style="display: none; padding: 16px; margin-top: 36px"
+      >
+        <div
+          style="
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+          "
+        >
+          <h2 style="margin: 0">Checklist</h2>
+          <div style="display: flex; gap: 8px">
+            <button id="openAddChecklistBtn" class="btn">Add Item</button>
+            <button id="checklistBackBtn" class="btn ghost">Back</button>
+          </div>
+        </div>
+
+        <div id="checklistList" style="margin-top: 20px">
+          <!-- tasks will be injected by JS -->
+        </div>
+      </section>
+
+      <!-- GUESTS PANEL -->
+      <section
+        id="guestsPanel"
+        class="card"
+        style="display: none; padding: 16px; margin-top: 36px"
+      >
+        <div
+          style="
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+          "
+        >
+          <h2 style="margin: 0">Guests</h2>
+          <div style="display: flex; gap: 8px">
+            <button id="openAddGuestBtn" class="btn">Add Guest</button>
+            <button id="guestsBackBtn" class="btn ghost">Back</button>
+          </div>
+        </div>
+
+        <div
+          id="guestControls"
+          style="margin-top: 12px; display: flex; gap: 8px; flex-wrap: wrap"
+        ></div>
+
+        <!-- GUEST STATS -->
+        <div
+          id="guestStats"
+          style="margin-top: 12px; font-size: 14px; color: var(--muted)"
+        ></div>
+
+        <!-- SEARCH -->
+        <input
+          id="guestSearch"
+          type="text"
+          placeholder="Search guests…"
+          style="
+            width: 100%;
+            padding: 12px;
+            margin-top: 12px;
+            border-radius: 10px;
+            background: var(--card);
+            color: white;
+            border: none;
+            font-size: 16px;
+          "
+        />
+
+        <!-- KANBAN BOARD (placeholder for future Kanban render) -->
+        <div id="guestKanbanWrap" style="margin-top: 14px">
+          <div
+            class="kanban-board"
+            id="kanbanBoard"
+            role="list"
+            aria-live="polite"
+          >
+            <!-- Columns will be injected by script.js -->
+          </div>
+
+          <!-- simple placeholder shown while loading -->
+          <div
+            id="kanbanLoading"
+            style="
+              margin-top: 8px;
+              color: var(--muted);
+              font-size: 13px;
+              display: none;
+            "
+          >
+            Loading guests…
+          </div>
+        </div>
+
+        <!-- FILTER CHIPS -->
+        <div
+          id="guestFilterChips"
+          style="
+            margin-top: 12px;
+            display: flex;
+            flex-wrap: wrap;
+            gap: 8px;
+            overflow: visible;
+          "
+        ></div>
+
+        <!-- VIEW MODE -->
+        <div style="margin-top: 10px; display: flex; gap: 10px">
+          <button id="guestViewList" class="btn" style="flex: 1">List</button>
+          <button id="guestViewGrid" class="btn ghost" style="flex: 1">
+            Grid
+          </button>
+        </div>
+
+        <div id="guestList" style="margin-top: 12px">
+          <!-- guest rows injected by JS -->
+        </div>
+      </section>
+
+      <!-- BOTTOM ADD STEP BAR (reused for Checklist & Next Steps) -->
+      <div
+        id="nextStepsAddBar"
+        class="add-drawer"
+        style="
+          display: none;
+          position: fixed;
+          bottom: 0;
+          left: 0;
+          width: 100%;
+          padding: 14px;
+          background: rgba(7, 16, 37, 0.95);
+          backdrop-filter: blur(10px);
+          box-shadow: 0 -8px 25px rgba(0, 0, 0, 0.45);
+          box-sizing: border-box;
+          z-index: 9999;
+        "
+      >
+        <div
+          id="nextStepsAddInner"
+          style="max-width: 900px; margin: 0 auto; width: 100%"
+        >
+          <input
+            id="nextStepInput"
+            type="text"
+            placeholder="Add checklist item…"
+            style="
+              width: 100%;
+              padding: 12px;
+              margin-bottom: 8px;
+              border-radius: 10px;
+              border: none;
+              background: var(--card);
+              color: white;
+              font-size: 16px;
+            "
+          />
+
+          <textarea
+            id="nextStepNotes"
+            placeholder="Notes (optional)"
+            style="
+              width: 100%;
+              padding: 12px;
+              margin-bottom: 8px;
+              border-radius: 10px;
+              border: none;
+              background: var(--card);
+              color: white;
+              font-size: 16px;
+              min-height: 72px;
+              resize: vertical;
+              box-sizing: border-box;
+            "
+          ></textarea>
+
+          <div style="font-size: 12px; color: var(--muted); margin-bottom: 6px">
+            Deadline (optional)
+          </div>
+
+          <div class="next-date-wrapper" style="margin-bottom: 8px">
+            <input id="nextStepDeadline" type="date" class="next-date" />
+          </div>
+
+          <button
+            id="addNextStepBtn"
+            class="btn"
+            style="width: 100%; border-radius: 12px"
+          >
+            Add Item
+          </button>
+        </div>
+      </div>
+
+      <!-- GUESTS ADD BAR (vertical, mobile-friendly) -->
+      <div
+        id="guestsAddBar"
+        class="add-drawer"
+        style="
+          display: none;
+          position: fixed;
+          bottom: 0;
+          left: 0;
+          width: 100%;
+          padding: 14px;
+          background: rgba(7, 16, 37, 0.95);
+          backdrop-filter: blur(10px);
+          z-index: 9999;
+          box-sizing: border-box;
+        "
+      >
+        <div style="max-width: 900px; margin: 0 auto; width: 100%">
+          <form id="guestsForm" class="guests-form" style="margin-bottom: 8px">
+            <input
+              id="guestNameInput"
+              name="name"
+              type="text"
+              placeholder="Guest full name..."
+              required
+              style="
+                flex: 1;
+                padding: 12px;
+                border-radius: 10px;
+                background: var(--card);
+                color: white;
+                border: none;
+                box-sizing: border-box;
+              "
+            />
+            <select
+              id="guestGenderInput"
+              name="gender"
+              style="
+                padding: 12px;
+                border-radius: 10px;
+                background: var(--card);
+                color: white;
+                border: none;
+              "
+            >
+              <option value="">Gender</option>
+              <option value="male">Male</option>
+              <option value="female">Female</option>
+            </select>
+            <select
+              id="guestSideInput"
+              name="side"
+              style="
+                padding: 12px;
+                border-radius: 10px;
+                background: var(--card);
+                color: white;
+                border: none;
+              "
+            >
+              <option value="">Side</option>
+              <option value="charlie">Charlie</option>
+              <option value="karla">Karla</option>
+              <option value="both">Both</option>
+            </select>
+            <select
+              id="guestRelationInput"
+              name="relation"
+              style="
+                padding: 12px;
+                border-radius: 10px;
+                background: var(--card);
+                color: white;
+                border: none;
+              "
+            >
+              <option value="">Relation</option>
+              <option value="family">Family</option>
+              <option value="friend">Friend</option>
+            </select>
+
+            <select
+              id="guestRoleInput"
+              name="role"
+              style="
+                padding: 12px;
+                border-radius: 10px;
+                background: var(--card);
+                color: white;
+                border: none;
+              "
+            >
+              <option value="">Role</option>
+              <option value="guest">Guest</option>
+              <option value="bride">Bride</option>
+              <option value="groom">Groom</option>
+              <option value="parent">Parent</option>
+              <option value="bridesmaid">Bridesmaid</option>
+              <option value="groomsman">Groomsman</option>
+              <option value="principal">Principal Sponsor</option>
+              <option value="secondary">Secondary Sponsor</option>
+            </select>
+
+            <select
+              id="guestRsvpInput"
+              name="rsvp"
+              style="
+                padding: 12px;
+                border-radius: 10px;
+                background: var(--card);
+                color: white;
+                border: none;
+              "
+            >
+              <option value="pending">RSVP: Pending</option>
+              <option value="yes">RSVP: Yes</option>
+              <option value="no">RSVP: No</option>
+            </select>
+
+            <textarea
+              id="guestNotesInput"
+              name="notes"
+              placeholder="Notes (optional)"
+              style="
+                width: 100%;
+                padding: 12px;
+                border-radius: 10px;
+                background: var(--card);
+                color: white;
+                border: none;
+                min-height: 64px;
+                resize: vertical;
+              "
+            ></textarea>
+
+            <div style="display: flex; gap: 8px">
+              <button
+                id="addGuestBtn"
+                type="button"
+                class="btn"
+                style="flex: 1"
+              >
+                Add Guest
+              </button>
+              <button
+                id="clearGuestBtn"
+                type="button"
+                class="btn ghost"
+                style="flex: 1"
+              >
+                Clear
+              </button>
+            </div>
+          </form>
+        </div>
+      </div>
+      <input
+        type="file"
+        id="guestCsvInput"
+        accept=".csv"
+        style="display: none"
+      />
+
+      <div id="weddingCostsWrapper">
+        <section class="controls card" aria-label="Controls">
+          <div class="inputs">
+            <input id="name" type="text" placeholder="Item (e.g., Caterer)" />
+            <input id="paid" type="number" placeholder="Paid (e.g., 5000)" />
+            <input id="total" type="number" placeholder="Total (e.g., 30000)" />
+            <label class="chk">
+              <input id="booked" type="checkbox" />
+              <span class="box" aria-hidden="true"></span>
+              <span class="chk-label">Booked</span>
+            </label>
+          </div>
+          <div class="actions">
+            <button id="addBtn" class="btn">Add / Save</button>
+            <button id="clearBtn" class="btn ghost">Clear</button>
+          </div>
+        </section>
+
+        <!-- Chart container: layout is dynamic via CSS/JS -->
+        <section id="summarySection" class="card" style="margin-bottom: 12px">
+          <div
+            id="summaryProgressWrapper"
+            style="
+              display: flex;
+              justify-content: center;
+              align-items: center;
+              gap: 18px;
+              margin: 10px auto;
+            "
+          >
+            <!-- LEFT: Days Left -->
+            <div id="daysLeftBox" style="text-align: center">
+              <div
+                id="daysLeftNumber"
+                style="font-size: 22px; font-weight: 700; color: var(--success)"
+              >
+                0
+              </div>
+              <div
+                id="daysLeftLabel"
+                style="
+                  font-size: 12px;
+                  color: var(--muted);
+                  letter-spacing: 0.5px;
+                "
+              >
+                DAYS LEFT
+              </div>
+            </div>
+
+            <!-- RIGHT: Circle -->
+            <!-- RIGHT: Circular Progress -->
+            <div
+              id="summaryCircleWrapper"
+              style="width: 105px; height: 105px; position: relative"
+            >
+              <svg id="summaryCircle" width="105" height="105">
+                <!-- Background circle -->
+                <circle
+                  cx="52.5"
+                  cy="52.5"
+                  r="45"
+                  stroke="#3a3f53"
+                  stroke-width="10"
+                  fill="none"
+                ></circle>
+
+                <!-- Gradient definition -->
+                <defs>
+                  <linearGradient
+                    id="circleGradient"
+                    x1="0%"
+                    y1="0%"
+                    x2="100%"
+                    y2="100%"
+                  >
+                    <stop offset="0%" stop-color="var(--accent-start)" />
+                    <stop offset="100%" stop-color="var(--accent-end)" />
+                  </linearGradient>
+                </defs>
+
+                <!-- Progress circle -->
+                <circle
+                  id="summaryProgressCircle"
+                  cx="52.5"
+                  cy="52.5"
+                  r="45"
+                  stroke="url(#circleGradient)"
+                  stroke-width="10"
+                  fill="none"
+                  stroke-linecap="round"
+                  transform="rotate(-90 52.5 52.5)"
+                  stroke-dasharray="283"
+                  stroke-dashoffset="283"
+                  style="transition: stroke-dashoffset 0.8s ease"
+                ></circle>
+              </svg>
+
+              <!-- Center text -->
+              <div
+                id="summaryPctText"
+                style="
+                  position: absolute;
+                  inset: 0;
+                  display: flex;
+                  align-items: center;
+                  justify-content: center;
+                  font-size: 22px;
+                  font-weight: 700;
+                "
+              >
+                0%
+              </div>
+            </div>
+
+            <div
+              id="summaryStatsBox"
+              style="text-align: left; font-size: 13px; line-height: 1.4"
+            >
+              <div>Booked: <span id="statsBooked"></span></div>
+              <div>Remaining Items: <span id="statsRemainingItems"></span></div>
+              <div>Remaining Costs: <span id="statsRemainingCosts"></span></div>
+            </div>
+          </div>
+
+          <div style="display: flex; justify-content: space-between">
+            <div>
+              <div class="muted" style="font-size: 12px">Total Paid</div>
+              <div id="summaryPaid" style="font-size: 18px; font-weight: 700">
+                ₱0
+              </div>
+            </div>
+            <select
+              id="sortSelect"
+              class="inputs"
+              style="
+                padding: 12px;
+                border-radius: 10px;
+                background: var(--card);
+                color: white;
+                border: 0;
+                margin-left: auto;
+                margin-right: 20px;
+              "
+            >
+              <option value="none">Sort by…</option>
+
+              <!-- Alphabetical -->
+              <option value="nameAZ">Alphabetical (A → Z)</option>
+              <option value="nameZA">Alphabetical (Z → A)</option>
+
+              <!-- Status -->
+              <option value="booked">Booked → Not booked</option>
+              <option value="notBooked">Not booked → Booked</option>
+
+              <!-- Paid -->
+              <option value="paidLow">Paid: Lowest → Highest</option>
+              <option value="paidHigh">Paid: Highest → Lowest</option>
+
+              <!-- Total -->
+              <option value="totalLow">Total: Lowest → Highest</option>
+              <option value="totalHigh">Total: Highest → Lowest</option>
+
+              <!-- Progress % -->
+              <option value="pctLow">Progress: Lowest %</option>
+              <option value="pctHigh">Progress: Highest %</option>
+
+              <!-- Priority % -->
+              <option value="priorityHigh">Priority: High → Low</option>
+              <option value="priorityLow">Priority: Low → High</option>
+            </select>
+            <div
+              id="viewIcons"
+              style="
+                display: flex;
+                gap: 10px;
+                align-items: center;
+                margin-right: 10px;
+              "
+            >
+              <button
+                id="openTableIcon"
+                style="
+                  background: rgba(255, 255, 255, 0.08);
+                  border: none;
+                  width: 34px;
+                  height: 34px;
+                  border-radius: 8px;
+                  color: white;
+                  font-size: 18px;
+                  cursor: pointer;
+                "
+              >
+                📊
+              </button>
+
+              <button
+                id="openGalleryIcon"
+                style="
+                  background: rgba(255, 255, 255, 0.08);
+                  border: none;
+                  width: 34px;
+                  height: 34px;
+                  border-radius: 8px;
+                  color: white;
+                  font-size: 18px;
+                  cursor: pointer;
+                "
+              >
+                🖼️
+              </button>
+            </div>
+
+            <div>
+              <div class="muted" style="font-size: 12px">Grand Total</div>
+              <div id="summaryTotal" style="font-size: 18px; font-weight: 700">
+                ₱0
+              </div>
+            </div>
+          </div>
+        </section>
+
+        <section id="chartSection" class="chart card" aria-label="Cost chart">
+          <div id="bars" class="bars horizontal" role="list" aria-live="polite">
+            <!-- Bars injected here by script.js -->
+          </div>
+        </section>
+
+        <section id="detailPanel" class="detail card" aria-hidden="true">
+          <!-- Tapped bar details show here -->
+        </section>
+      </div>
+
+      <div
+        id="uploadLoader"
+        style="display: none; margin-top: 10px; text-align: center"
+      >
+        <div class="loader-spinner"></div>
+        <div style="font-size: 12px; margin-top: 6px; color: var(--muted)">
+          Uploading…
+        </div>
+      </div>
+
+      <!-- TABLE VIEW (mobile swipe-right) -->
+      <div id="tableViewPanel">
+        <div class="table-header">
+          <span>Table View</span>
+          <button id="closeTableView">×</button>
+        </div>
+
+        <div id="tableViewContent"></div>
+      </div>
+
+      <!-- ATTACHMENTS GALLERY MODAL -->
+      <div id="galleryPanel">
+        <div class="gallery-header">
+          <span>Attachments Gallery</span>
+          <button id="closeGallery">×</button>
+        </div>
+
+        <div id="galleryContent"></div>
+      </div>
+    </main>
+
+    <!-- Fullscreen image preview -->
+    <div
+      id="imgPreviewOverlay"
+      style="
+        display: none;
+        position: fixed;
+        inset: 0;
+        background: rgba(0, 0, 0, 0.85);
+        z-index: 100000;
+        align-items: center;
+        justify-content: center;
+      "
+    >
+      <img
+        id="imgPreviewFull"
+        src=""
+        style="max-width: 90%; max-height: 90%; border-radius: 10px"
+      />
+    </div>
+
+    <!-- Fullscreen Viewer -->
+    <div
+      id="imgViewerOverlay"
+      style="
+        display: none;
+        position: fixed;
+        inset: 0;
+        background: rgba(0, 0, 0, 0.9);
+        z-index: 100000;
+        align-items: center;
+        justify-content: center;
+      "
+    >
+      <!-- Close Button -->
+      <button
+        id="viewerCloseBtn"
+        style="
+          position: absolute;
+          top: 20px;
+          right: 20px;
+          width: 36px;
+          height: 36px;
+          border-radius: 8px;
+          border: none;
+          background: rgba(255, 255, 255, 0.2);
+          color: white;
+          font-size: 20px;
+          cursor: pointer;
+          z-index: 1;
+        "
+      >
+        ×
+      </button>
+
+      <!-- LEFT NAV -->
+      <button
+        id="viewerPrevBtn"
+        style="
+          position: absolute;
+          right: 70px;
+          top: 95%;
+          transform: translateY(-50%);
+          width: 42px;
+          height: 42px;
+          border: none;
+          border-radius: 12px;
+          background: rgba(255, 255, 255, 0.18);
+          backdrop-filter: blur(6px);
+          color: white;
+          font-size: 22px;
+          cursor: pointer;
+          z-index: 10;
+        "
+      >
+        ‹
+      </button>
+
+      <!-- RIGHT NAV -->
+      <button
+        id="viewerNextBtn"
+        style="
+          position: absolute;
+          right: 20px;
+          top: 95%;
+          transform: translateY(-50%);
+          width: 42px;
+          height: 42px;
+          border: none;
+          border-radius: 12px;
+          background: rgba(255, 255, 255, 0.18);
+          backdrop-filter: blur(6px);
+          color: white;
+          font-size: 22px;
+          cursor: pointer;
+          z-index: 10;
+        "
+      >
+        ›
+      </button>
+
+      <img
+        id="imgViewerFull"
+        style="
+          max-width: 90%;
+          max-height: 90%;
+          border-radius: 10px;
+          transition: transform 0.2s;
+        "
+      />
+    </div>
+
+    <!-- Delete Confirmation -->
+    <div
+      id="confirmDeleteOverlay"
+      style="
+        display: none;
+        position: fixed;
+        inset: 0;
+        background: rgba(0, 0, 0, 0.5);
+        z-index: 10000;
+        align-items: center;
+        justify-content: center;
+      "
+    >
+      <div
+        style="
+          background: #0b152b;
+          padding: 20px;
+          border-radius: 10px;
+          width: 260px;
+          text-align: center;
+        "
+      >
+        <div style="margin-bottom: 12px">
+          Are you sure you want to delete this image?
+        </div>
+        <div style="display: flex; gap: 10px; justify-content: center">
+          <button id="confirmDeleteYes" class="btn">Delete</button>
+          <button id="confirmDeleteNo" class="btn ghost">Cancel</button>
+        </div>
+      </div>
+    </div>
+
+    <div
+      id="saveToast"
+      style="
+        position: fixed;
+        top: 20px;
+        right: 20px;
+        padding: 10px 14px;
+        background: rgb(21 38 53);
+        border-radius: 12px;
+        color: #70e6a9;
+        font-weight: 700;
+        backdrop-filter: blur(6px);
+        display: none;
+        z-index: 9999;
+        font-size: 15px;
+      "
+    >
+      ✓ Saved!
+    </div>
+    <!-- CHECKLIST MODAL -->
+    <div id="checklistModalOverlay" style="display: none">
+      <div id="checklistModal">
+        <h3 id="checklistModalTitle">Add Task</h3>
+
+        <input id="clTitle" type="text" placeholder="Task title" />
+
+        <textarea id="clNotes" placeholder="Notes (optional)"></textarea>
+
+        <label class="cl-label">Deadline</label>
+        <input id="clDeadline" type="date" />
+
+        <label class="cl-label">Priority</label>
+        <div id="clPriorityRow">
+          <button type="button" data-prio="low" class="cl-prio-btn low">
+            Low
+          </button>
+          <button type="button" data-prio="medium" class="cl-prio-btn medium">
+            Medium
+          </button>
+          <button type="button" data-prio="high" class="cl-prio-btn high">
+            High
+          </button>
+        </div>
+
+        <div class="cl-actions">
+          <button id="clCancel" class="btn ghost">Cancel</button>
+          <button id="clSave" class="btn">Save</button>
+        </div>
+      </div>
+    </div>
+
+    <!-- Use module imports in script.js -->
+    <script type="module" src="script.js"></script>
+  </body>
+</html>
