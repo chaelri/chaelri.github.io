@@ -612,6 +612,8 @@ function showDetails(it) {
   }
 }
 
+let currentChecklistView = "kanban";
+
 // =======================================================
 // Firebase realtime: cost listener
 // =======================================================
@@ -626,7 +628,10 @@ function listenRealtime() {
     const arr = Object.keys(val).map((id) => ({ id, ...val[id] }));
     document.getElementById("sortSelect").value = savedSort;
     const sortType = savedSort;
-    render(arr, sortType);
+    if (currentChecklistView === "list") {
+      render(arr, sortType);
+    }
+
     updateSummary(arr);
     renderTableView(arr);
     renderGallery(arr);
@@ -2243,14 +2248,18 @@ function renderChecklistKanban(items = []) {
 
   items.forEach((step) => {
     const card = document.createElement("div");
-    card.className = "cl-card";
     card.draggable = true;
 
+    card.className = "cl-card";
     card.dataset.id = step.id;
     card.dataset.status = step.status || "todo";
+    card.dataset.text = step.text || "";
 
     card.innerHTML = `
-      <div class="title">${escapeHtml(step.text || "Untitled task")}</div>
+      <div class="title">${escapeHtml(
+        card.dataset.text || "Untitled task"
+      )}</div>
+
 
       <div class="prio ${step.priority || "low"}">
         ${(step.priority || "low").toUpperCase()}
