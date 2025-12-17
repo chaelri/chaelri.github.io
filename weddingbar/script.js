@@ -1125,12 +1125,23 @@ let currentChecklistTarget = "checklistList";
 function migrateChecklistItem(id, item) {
   const updates = {};
 
+  // status migration
   if (!item.status) {
     updates.status = item.done ? "done" : "todo";
   }
 
+  // order migration
   if (item.sortIndex === undefined) {
     updates.sortIndex = item.createdAt || Date.now();
+  }
+
+  // 🚑 title recovery (CRITICAL)
+  if (!item.text && item.title) {
+    updates.text = item.title;
+  }
+
+  if (!item.text && !item.title) {
+    updates.text = "Untitled task";
   }
 
   if (Object.keys(updates).length > 0) {
@@ -1397,7 +1408,13 @@ document.getElementById("clSave").onclick = async () => {
   };
 
   if (editingChecklistId) {
-    await update(ref(db, `${NEXT_PATH}/${editingChecklistId}`), payload);
+    const existing =
+      (await get(ref(db, `${NEXT_PATH}/${editingChecklistId}`))).val() || {};
+
+    await update(ref(db, `${NEXT_PATH}/${editingChecklistId}`), {
+      ...existing,
+      ...payload,
+    });
   } else {
     await set(push(ref(db, NEXT_PATH)), payload);
   }
@@ -2233,7 +2250,8 @@ function renderChecklistKanban(items = []) {
     card.dataset.status = step.status || "todo";
 
     card.innerHTML = `
-      <div class="title">${escapeHtml(step.text)}</div>
+      <div class="title">${escapeHtml(step.text || "Untitled task")}</div>
+
       <div class="prio ${step.priority || "low"}">
         ${(step.priority || "low").toUpperCase()}
       </div>
