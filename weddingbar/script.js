@@ -1280,8 +1280,14 @@ function triggerCelebration(rowEl, anchorEl) {
     for (let i = 0; i < 14; i++) {
       const piece = document.createElement("span");
       piece.className = "confetti";
-      piece.style.setProperty("--dx", (Math.random() * 80 - 40).toFixed(0) + "px");
-      piece.style.setProperty("--dy", (-Math.random() * 80 - 20).toFixed(0) + "px");
+      piece.style.setProperty(
+        "--dx",
+        (Math.random() * 80 - 40).toFixed(0) + "px"
+      );
+      piece.style.setProperty(
+        "--dy",
+        (-Math.random() * 80 - 20).toFixed(0) + "px"
+      );
       piece.style.background = colors[i % colors.length];
       piece.style.transform = `rotate(${Math.floor(Math.random() * 360)}deg)`;
       container.appendChild(piece);
@@ -1308,7 +1314,8 @@ const modalTitle = document.getElementById("checklistModalTitle");
 const clTitle = document.getElementById("clTitle");
 const clNotes = document.getElementById("clNotes");
 const clDeadline = document.getElementById("clDeadline");
-const clPriority = document.getElementById("clPriority");
+let selectedPriority = "low";
+const prioButtons = document.querySelectorAll("#clPriorityRow .cl-prio-btn");
 
 function openChecklistModal(step = null) {
   editingChecklistId = step?.id || null;
@@ -1317,7 +1324,18 @@ function openChecklistModal(step = null) {
   clTitle.value = step?.text || "";
   clNotes.value = step?.notes || "";
   clDeadline.value = step?.deadline || "";
-  clPriority.value = step?.priority || "low";
+  selectedPriority = step?.priority || "low";
+  prioButtons.forEach((b) =>
+    b.classList.toggle("active", b.dataset.prio === selectedPriority)
+  );
+
+  prioButtons.forEach((btn) => {
+    btn.onclick = () => {
+      selectedPriority = btn.dataset.prio;
+      prioButtons.forEach((b) => b.classList.remove("active"));
+      btn.classList.add("active");
+    };
+  });
 
   modalOverlay.style.display = "flex";
   setTimeout(() => clTitle.focus(), 50);
@@ -1354,9 +1372,7 @@ document.getElementById("clSave").onclick = async () => {
     text,
     notes: clNotes.value.trim() || null,
     deadline: clDeadline.value || null,
-    priority: clPriority.value,
-    done: false,
-    createdAt: Date.now(),
+    priority: selectedPriority,
   };
 
   if (editingChecklistId) {

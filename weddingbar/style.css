@@ -1553,3 +1553,38 @@ textarea {
     opacity: 0;
   }
 }
+
+/* Checklist priority buttons */
+#clPriorityRow {
+  display: flex;
+  gap: 8px;
+}
+
+.cl-prio-btn {
+  flex: 1;
+  padding: 10px 0;
+  border-radius: 999px;
+  border: 1px solid rgba(255, 255, 255, 0.12);
+  background: transparent;
+  color: var(--muted);
+  font-weight: 800;
+  cursor: pointer;
+  transition: transform 0.15s ease, background 0.15s ease;
+}
+
+.cl-prio-btn.active {
+  color: white;
+  transform: scale(1.05);
+}
+
+.cl-prio-btn.low.active {
+  background: rgba(103, 227, 155, 0.25);
+}
+
+.cl-prio-btn.medium.active {
+  background: rgba(255, 213, 107, 0.3);
+}
+
+.cl-prio-btn.high.active {
+  background: rgba(255, 107, 107, 0.3);
+}
