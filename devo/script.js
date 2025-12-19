@@ -149,7 +149,7 @@ async function loadPassage() {
   console.log('bookEl.value')
   console.log(bookEl.value)
   const book = bookEl.options[bookEl.selectedIndex]?.text || "";
-  console(book)
+  console.log(book)
   console.log('chapterEl.value')
   console.log(chapterEl.value)
   const verse = verseEl.value;
