@@ -44,7 +44,7 @@ function updatePassageTitle() {
   if (verse) title += `:${verse}`;
   else if (from && to) title += `:${from}–${to}`;
 
-  console.log(title)
+  console.log(title);
   passageTitleEl.textContent = title;
   summaryTitleEl.textContent = title;
 }
@@ -140,10 +140,56 @@ async function loadPassage() {
   else if (from && to)
     verses = verses.filter((v) => v.verse >= from && v.verse <= to);
 
-  console.log('verses')
-  console.log(verses)
-  console.log('im inside verses and the whole summary verse that needs to be search is: ', passageTitleEl)
+  console.log("verses");
+  console.log(verses);
+  console.log(
+    "im inside verses and the whole summary verse that needs to be search is: ",
+    passageTitleEl.textContent
+  );
+
+  const API_KEY = "AIzaSyAZsOkUSvWUCB14gXJQyNrCzCJtgW_JH7c"; // TEMP ONLY
+  let testText = `Send ${passageTitleEl.textContent} NASB2020 ver in this JSON list format [{book: "John", book_id: "JHN", chapter: 1, text: "In the beginning was the Word, and the Word was with God, and the Word was God.\n", verse: 1},{book: "John", book_id: "JHN", chapter: 1, text: "The same was in the beginning with God.\n", verse: 2}]. Send only the actual JSON [{}], no other words.`;
+  const gemini = await fetch(
+    "https://generativelanguage.googleapis.com/v1beta/models/gemini-2.5-flash:generateContent?key=" +
+      API_KEY,
+    {
+      method: "POST",
+      headers: {
+        "Content-Type": "application/json",
+      },
+      body: JSON.stringify({
+        contents: [
+          {
+            parts: [
+              {
+                text: testText,
+              },
+            ],
+          },
+        ],
+      }),
+    }
+  );
+
+  const gemData = await gemini.json();
+  console.log(
+    JSON.parse(
+      data.candidates?.[0]?.content?.parts?.[0]?.text
+        .replace("```json\n", "")
+        .replace("```", "")
+    ) || JSON.stringify(gemData, null, 2)
+  );
   output.innerHTML = "";
+
+  console.log("verses before");
+  console.log(verses);
+  verses = JSON.parse(
+    data.candidates?.[0]?.content?.parts?.[0]?.text
+      .replace("```json\n", "")
+      .replace("```", "")
+  );
+  console.log("verses after");
+  console.log(verses);
 
   verses.forEach((v) => {
     const key = keyOf(v.book_id, v.chapter, v.verse);
@@ -248,8 +294,8 @@ function renderSummary() {
       block.appendChild(note);
     });
 
-    console.log('items')
-    console.log(items)
+    console.log("items");
+    console.log(items);
 
     summaryEl.appendChild(block);
   });
