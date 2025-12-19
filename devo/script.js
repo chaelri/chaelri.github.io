@@ -44,6 +44,7 @@ function updatePassageTitle() {
   if (verse) title += `:${verse}`;
   else if (from && to) title += `:${from}–${to}`;
 
+  console.log(title)
   passageTitleEl.textContent = title;
   summaryTitleEl.textContent = title;
 }
