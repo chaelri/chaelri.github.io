@@ -139,6 +139,7 @@ async function loadPassage() {
   else if (from && to)
     verses = verses.filter((v) => v.verse >= from && v.verse <= to);
 
+  console.log('verses')
   console.log(verses)
   output.innerHTML = "";
 
@@ -245,6 +246,7 @@ function renderSummary() {
       block.appendChild(note);
     });
 
+    console.log('items')
     console.log(items)
 
     summaryEl.appendChild(block);
