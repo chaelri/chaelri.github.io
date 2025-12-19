@@ -139,6 +139,7 @@ async function loadPassage() {
   else if (from && to)
     verses = verses.filter((v) => v.verse >= from && v.verse <= to);
 
+  console.log(verses)
   output.innerHTML = "";
 
   verses.forEach((v) => {
