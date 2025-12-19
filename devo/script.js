@@ -241,7 +241,7 @@ function showLoading() {
   overlay.appendChild(card);
   document.body.appendChild(overlay);
 
-  // playful keep-alive
+  // smoother, readable keep-alive (does NOT block completion)
   let seconds = 15;
   const messages = [
     "Reading ancient scrolls 📜",
@@ -249,14 +249,28 @@ function showLoading() {
     "Consulting apostles 🕊️",
     "Almost there 🙏",
   ];
-  let i = 0;
+
+  let msgIndex = 0;
+  let dots = 0;
 
   window.__aiLoadingInterval = setInterval(() => {
-    seconds--;
-    text.textContent = `${messages[i % messages.length]} (${seconds}s)`;
-    i++;
+    seconds = Math.max(0, seconds - 1);
+
+    // animate dots smoothly
+    dots = (dots + 1) % 4;
+    const dotStr = ".".repeat(dots);
+
+    // change message every 4s (not every second)
+    if (seconds % 4 === 3 && msgIndex < messages.length - 1) {
+      msgIndex++;
+    }
+
+    text.textContent = `${messages[msgIndex]}${dotStr} (${seconds}s)`;
+
     if (seconds <= 0) clearInterval(window.__aiLoadingInterval);
   }, 1000);
+  // subtle pulse so user "feels" loading
+  card.style.animation = "aiPulse 1.6s ease-in-out infinite";
 }
 
 function hideLoading() {
