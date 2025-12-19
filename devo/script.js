@@ -157,7 +157,7 @@ async function loadPassage() {
   console.log(title);
   titleForGemini = title;
 
-  let testText = `Send ${titleForGemini} NASB2020 ver in this JSON list format [{book: "John", book_id: "JHN", chapter: 1, text: "In the beginning was the Word, and the Word was with God, and the Word was God.\n", verse: 1},{book: "John", book_id: "JHN", chapter: 1, text: "The same was in the beginning with God.\n", verse: 2}]. Send only the actual JSON [{}], no other words.`;
+  let testText = `Send ${titleForGemini} in the New American Standard Bible (NASB) 2020 edition in this JSON list format [{book: "John", book_id: "JHN", chapter: 1, text: "In the beginning was the Word, and the Word was with God, and the Word was God.\n", verse: 1},{book: "John", book_id: "JHN", chapter: 1, text: "The same was in the beginning with God.\n", verse: 2}]. Send only the actual JSON [{}], no other words.`;
   const gemini = await fetch(
     "https://gemini-proxy-668755364170.asia-southeast1.run.app",
     {
