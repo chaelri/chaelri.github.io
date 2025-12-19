@@ -240,17 +240,38 @@ function showLoading() {
   spinner.className = "ai-spinner";
 
   const text = document.createElement("span");
-  text.textContent = "Generating context…";
+  text.id = "ai-loading-text";
+  text.textContent = "Generating context… (up to 15s) ⏳";
 
   card.appendChild(spinner);
   card.appendChild(text);
   overlay.appendChild(card);
   document.body.appendChild(overlay);
+
+  // playful keep-alive
+  let seconds = 15;
+  const messages = [
+    "Reading ancient scrolls 📜",
+    "Aligning verses ✨",
+    "Consulting apostles 🕊️",
+    "Almost there 🙏",
+  ];
+  let i = 0;
+
+  window.__aiLoadingInterval = setInterval(() => {
+    seconds--;
+    text.textContent = `${messages[i % messages.length]} (${seconds}s)`;
+    i++;
+    if (seconds <= 0) clearInterval(window.__aiLoadingInterval);
+  }, 1000);
 }
 
 function hideLoading() {
   const overlay = document.getElementById("ai-loading-overlay");
-  if (overlay) overlay.remove();
+  if (overlay) {
+    overlay.remove();
+    clearInterval(window.__aiLoadingInterval);
+  }
 }
 
 async function renderAIContextSummary() {
