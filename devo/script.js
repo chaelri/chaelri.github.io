@@ -15,6 +15,8 @@ const summaryEl = document.getElementById("summaryContent");
 const loadBtn = document.getElementById("load");
 const toggleAllBtn = document.getElementById("toggleAll");
 
+let titleForGemini = ''
+
 let showAllComments = true;
 let comments = JSON.parse(localStorage.getItem("bibleComments") || "{}");
 
@@ -145,15 +147,16 @@ async function loadPassage() {
   const verseFrom = verseFromEl.value;
   const verseTo = verseToEl.value;
 
-  let title = `${book} chapter ${chapterEl.value} verse`;
+  let title = `${book} chapter ${chapterEl.value}`;
 
-  if (verse) title += `${verse} only.`;
-  else if (verseFrom && verseTo) title += `${verseFrom}–${verseTo} only.`;
+  if (verse) title += ` verse ${verse} only.`;
+  else if (verseFrom && verseTo) title += ` verse ${verseFrom}–${verseTo} only.`;
 
   console.log(title);
+  titleForGemini = title
 
   const API_KEY = "AIzaSyAZsOkUSvWUCB14gXJQyNrCzCJtgW_JH7c"; // TEMP ONLY
-  let testText = `Send ${title} NASB2020 ver in this JSON list format [{book: "John", book_id: "JHN", chapter: 1, text: "In the beginning was the Word, and the Word was with God, and the Word was God.\n", verse: 1},{book: "John", book_id: "JHN", chapter: 1, text: "The same was in the beginning with God.\n", verse: 2}]. Send only the actual JSON [{}], no other words.`;
+  let testText = `Send ${titleForGemini} NASB2020 ver in this JSON list format [{book: "John", book_id: "JHN", chapter: 1, text: "In the beginning was the Word, and the Word was with God, and the Word was God.\n", verse: 1},{book: "John", book_id: "JHN", chapter: 1, text: "The same was in the beginning with God.\n", verse: 2}]. Send only the actual JSON [{}], no other words.`;
   const gemini = await fetch(
     "https://generativelanguage.googleapis.com/v1beta/models/gemini-2.5-flash:generateContent?key=" +
       API_KEY,
@@ -185,6 +188,7 @@ async function loadPassage() {
     ) || JSON.stringify(gemData, null, 2)
   );
   output.innerHTML = "";
+  aiContextSummaryEl.innerHTML = ""
 
   verses = JSON.parse(
     gemData.candidates?.[0]?.content?.parts?.[0]?.text
@@ -277,7 +281,7 @@ No modern application
 No verse quotations
 
 TASK:
-Create a compact background context for 1 Peter chapter 1.
+Create a compact background context for ${titleForGemini}.
 `;
 
   const gemini = await fetch(
