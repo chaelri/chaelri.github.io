@@ -279,7 +279,7 @@ STYLING RULES (MUST MATCH EXACTLY):
 
 Use ONE outer div with THIS EXACT inline style and DO NOT MODIFY IT:
 
-background: linear-gradient(135deg, #ec4899, #db2777);
+background: linear-gradient(135deg, #486bec, #db2777);
 padding: 1rem;
 border-radius: 12px;
 box-shadow: 0 12px 30px rgba(236, 72, 153, 0.45);
