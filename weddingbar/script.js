@@ -2250,6 +2250,60 @@ document.getElementById("openAddChecklistBtn").onclick = () => {
   openChecklistModal();
 };
 
+document.getElementById("aiSuggestChecklistBtn").onclick = async () => {
+  try {
+    showSaveToast();
+
+    const snap = await new Promise((resolve) =>
+      onValue(ref(db, NEXT_PATH), resolve, { onlyOnce: true })
+    );
+
+    const existing = snap.val()
+      ? Object.values(snap.val())
+          .map((i) => i.text)
+          .join(", ")
+      : "No items yet";
+
+    const res = await fetch("https://us-central1-test-database-55379.cloudfunctions.net/gemini", {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({
+        contents: [
+          {
+            role: "user",
+            parts: [
+              {
+                text: `We are planning a wedding. Our current checklist items are: ${existing}.
+Suggest 5 missing checklist tasks with priority (low, medium, high) and optional deadline.
+Return JSON array only: [{ text, priority, deadline }]`,
+              },
+            ],
+          },
+        ],
+      }),
+    });
+
+    const data = await res.json();
+    const raw = data.candidates?.[0]?.content?.parts?.[0]?.text || "[]";
+    const suggestions = JSON.parse(raw);
+
+    for (const s of suggestions) {
+      await set(push(ref(db, NEXT_PATH)), {
+        text: s.text,
+        priority: s.priority || "low",
+        deadline: s.deadline || null,
+        done: false,
+        createdAt: Date.now(),
+      });
+    }
+
+    loadNextSteps("checklistList");
+  } catch (e) {
+    alert("AI suggestions failed.");
+    console.error(e);
+  }
+};
+
 // =======================================================
 // ADD CHECKLIST ITEM
 // =======================================================

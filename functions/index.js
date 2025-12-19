@@ -1,5 +1,6 @@
 const functions = require("firebase-functions");
 const admin = require("firebase-admin");
+const fetch = require("node-fetch");
 
 // Load your service account key
 const serviceAccount = require("./service-account.json");
@@ -8,6 +9,31 @@ admin.initializeApp({
   credential: admin.credential.cert(serviceAccount),
   databaseURL:
     "https://test-database-55379-default-rtdb.asia-southeast1.firebasedatabase.app",
+});
+
+exports.gemini = functions.https.onRequest(async (req, res) => {
+  if (req.method !== "POST") {
+    return res.status(405).send("Method not allowed");
+  }
+
+  try {
+    const apiKey = functions.config().gemini.key;
+
+    const response = await fetch(
+      `https://generativelanguage.googleapis.com/v1/models/gemini-1.5-flash:generateContent?key=${apiKey}`,
+      {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify(req.body),
+      }
+    );
+
+    const data = await response.json();
+    res.json(data);
+  } catch (err) {
+    console.error(err);
+    res.status(500).json({ error: "Gemini failed" });
+  }
 });
 
 exports.pushNotificationForwarder = functions.database
