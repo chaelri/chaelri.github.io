@@ -148,14 +148,20 @@ async function loadPassage() {
 
   console.log('bookEl.value')
   console.log(bookEl.value)
+  const book = bookEl.options[bookEl.selectedIndex]?.text || "";
+  console(book)
   console.log('chapterEl.value')
   console.log(chapterEl.value)
-  console.log('verseEl.value')
-  console.log(verseEl.value)
-  console.log('verseFromEl.value')
-  console.log(verseFromEl.value)
-  console.log('verseToEl.value')
-  console.log(verseToEl.value)
+  const verse = verseEl.value;
+  const verseFrom = verseFromEl.value;
+  const verseTo = verseToEl.value;
+
+  let title = `${book} chapter ${chapterEl.value} `
+
+  if (verse) title += `:${verse}`;
+  else if (verseFrom && verseTo) title += `:${verseFrom}–${verseTo}`;
+
+  console.log(title)
 
   const API_KEY = "AIzaSyAZsOkUSvWUCB14gXJQyNrCzCJtgW_JH7c"; // TEMP ONLY
   let testText = `Send ${passageTitleEl.textContent} NASB2020 ver in this JSON list format [{book: "John", book_id: "JHN", chapter: 1, text: "In the beginning was the Word, and the Word was with God, and the Word was God.\n", verse: 1},{book: "John", book_id: "JHN", chapter: 1, text: "The same was in the beginning with God.\n", verse: 2}]. Send only the actual JSON [{}], no other words.`;
