@@ -143,19 +143,7 @@ async function loadPassage() {
   else if (from && to)
     verses = verses.filter((v) => v.verse >= from && v.verse <= to);
 
-  const book = bookEl.options[bookEl.selectedIndex]?.text || "";
-  const verse = verseEl.value;
-  const verseFrom = verseFromEl.value;
-  const verseTo = verseToEl.value;
-
-  let title = `${book} chapter ${chapterEl.value}`;
-
-  if (verse) title += ` verse ${verse} only.`;
-  else if (verseFrom && verseTo)
-    title += ` verse ${verseFrom}–${verseTo} only.`;
-
-  console.log(title);
-  titleForGemini = title;
+  titleForGemini = passageTitleEl.textContent;
 
   let testText = `Send ${titleForGemini} in the New American Standard Bible (NASB) 2020 edition in this JSON list format [{book: "John", book_id: "JHN", chapter: 1, text: "In the beginning was the Word, and the Word was with God, and the Word was God.\n", verse: 1},{book: "John", book_id: "JHN", chapter: 1, text: "The same was in the beginning with God.\n", verse: 2}]. Send only the actual JSON [{}], no other words.`;
   const gemini = await fetch(
