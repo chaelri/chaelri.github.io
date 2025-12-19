@@ -174,7 +174,7 @@ async function loadPassage() {
   const gemData = await gemini.json();
   console.log(
     JSON.parse(
-      data.candidates?.[0]?.content?.parts?.[0]?.text
+      gemData.candidates?.[0]?.content?.parts?.[0]?.text
         .replace("```json\n", "")
         .replace("```", "")
     ) || JSON.stringify(gemData, null, 2)
@@ -184,7 +184,7 @@ async function loadPassage() {
   console.log("verses before");
   console.log(verses);
   verses = JSON.parse(
-    data.candidates?.[0]?.content?.parts?.[0]?.text
+    gemData.candidates?.[0]?.content?.parts?.[0]?.text
       .replace("```json\n", "")
       .replace("```", "")
   );
