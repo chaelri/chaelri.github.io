@@ -15,7 +15,7 @@ const summaryEl = document.getElementById("summaryContent");
 const loadBtn = document.getElementById("load");
 const toggleAllBtn = document.getElementById("toggleAll");
 
-let titleForGemini = ''
+let titleForGemini = "";
 
 let showAllComments = true;
 let comments = JSON.parse(localStorage.getItem("bibleComments") || "{}");
@@ -130,6 +130,7 @@ async function loadVerses() {
 
 /* ---------- LOAD PASSAGE ---------- */
 async function loadPassage() {
+  showLoading();
   const res = await fetch(`${API_WEB}/${bookEl.value}/${chapterEl.value}`);
   const data = await res.json();
 
@@ -150,10 +151,11 @@ async function loadPassage() {
   let title = `${book} chapter ${chapterEl.value}`;
 
   if (verse) title += ` verse ${verse} only.`;
-  else if (verseFrom && verseTo) title += ` verse ${verseFrom}–${verseTo} only.`;
+  else if (verseFrom && verseTo)
+    title += ` verse ${verseFrom}–${verseTo} only.`;
 
   console.log(title);
-  titleForGemini = title
+  titleForGemini = title;
 
   const API_KEY = "AIzaSyAZsOkUSvWUCB14gXJQyNrCzCJtgW_JH7c"; // TEMP ONLY
   let testText = `Send ${titleForGemini} NASB2020 ver in this JSON list format [{book: "John", book_id: "JHN", chapter: 1, text: "In the beginning was the Word, and the Word was with God, and the Word was God.\n", verse: 1},{book: "John", book_id: "JHN", chapter: 1, text: "The same was in the beginning with God.\n", verse: 2}]. Send only the actual JSON [{}], no other words.`;
@@ -188,7 +190,7 @@ async function loadPassage() {
     ) || JSON.stringify(gemData, null, 2)
   );
   output.innerHTML = "";
-  aiContextSummaryEl.innerHTML = ""
+  aiContextSummaryEl.innerHTML = "";
 
   verses = JSON.parse(
     gemData.candidates?.[0]?.content?.parts?.[0]?.text
@@ -221,6 +223,34 @@ async function loadPassage() {
 
   renderAIContextSummary();
   renderSummary();
+}
+
+function showLoading() {
+  // Prevent duplicates
+  if (document.getElementById("ai-loading-overlay")) return;
+
+  const overlay = document.createElement("div");
+  overlay.id = "ai-loading-overlay";
+  overlay.className = "ai-loading-overlay";
+
+  const card = document.createElement("div");
+  card.className = "ai-loading-card";
+
+  const spinner = document.createElement("div");
+  spinner.className = "ai-spinner";
+
+  const text = document.createElement("span");
+  text.textContent = "Generating context…";
+
+  card.appendChild(spinner);
+  card.appendChild(text);
+  overlay.appendChild(card);
+  document.body.appendChild(overlay);
+}
+
+function hideLoading() {
+  const overlay = document.getElementById("ai-loading-overlay");
+  if (overlay) overlay.remove();
 }
 
 async function renderAIContextSummary() {
@@ -283,36 +313,42 @@ No verse quotations
 TASK:
 Create a compact background context for ${titleForGemini}.
 `;
+  try {
+    const gemini = await fetch(
+      "https://generativelanguage.googleapis.com/v1beta/models/gemini-2.5-flash-lite:generateContent?key=" +
+        API_KEY,
+      {
+        method: "POST",
+        headers: {
+          "Content-Type": "application/json",
+        },
+        body: JSON.stringify({
+          contents: [
+            {
+              parts: [
+                {
+                  text: testText,
+                },
+              ],
+            },
+          ],
+        }),
+      }
+    );
 
-  const gemini = await fetch(
-    "https://generativelanguage.googleapis.com/v1beta/models/gemini-2.5-flash-lite:generateContent?key=" +
-      API_KEY,
-    {
-      method: "POST",
-      headers: {
-        "Content-Type": "application/json",
-      },
-      body: JSON.stringify({
-        contents: [
-          {
-            parts: [
-              {
-                text: testText,
-              },
-            ],
-          },
-        ],
-      }),
-    }
-  );
-
-  const gemData = await gemini.json();
-  console.log(
-    gemData.candidates?.[0]?.content?.parts?.[0]?.text ||
-      JSON.stringify(gemData, null, 2)
-  );
-  aiContextSummaryEl.innerHTML =
-    gemData.candidates?.[0]?.content?.parts?.[0]?.text;
+    const gemData = await gemini.json();
+    console.log(
+      gemData.candidates?.[0]?.content?.parts?.[0]?.text ||
+        JSON.stringify(gemData, null, 2)
+    );
+    aiContextSummaryEl.innerHTML =
+      gemData.candidates?.[0]?.content?.parts?.[0]?.text;
+  } catch (err) {
+    console.error(err);
+    alert("Failed to generate context.");
+  } finally {
+    hideLoading(); // ✅ ALWAYS runs (success or error)
+  }
 }
 
 /* ---------- COMMENTS ---------- */
