@@ -1,0 +1,46 @@
+<!DOCTYPE html>
+<html lang="en">
+  <head>
+    <base target="_top" />
+    <meta charset="utf-8" />
+    <meta
+      name="viewport"
+      content="width=device-width, initial-scale=1, maximum-scale=1, user-scalable=no"
+    />
+    <title>Dudu Devotion</title>
+    <link rel="stylesheet" href="style.css" />
+  </head>
+  <body>
+    <div class="layout">
+      <div class="main">
+        <div class="controls">
+          <select id="book"></select>
+          <select id="chapter"></select>
+
+          <select id="verse">
+            <option value="">All verses</option>
+          </select>
+
+          <input id="verseFrom" type="number" placeholder="From" min="1" />
+          <input id="verseTo" type="number" placeholder="To" min="1" />
+
+          <button id="load">Search</button>
+          <button id="toggleAll">Hide comments</button>
+        </div>
+
+        <div id="passageTitle" class="passage-title"></div>
+
+        <div id="output" class="bible"></div>
+      </div>
+
+      <aside class="summary">
+        <div id="summaryTitle" class="summary-title"></div>
+        <div id="summaryContent">
+          Select a verse, range, or chapter to see notes.
+        </div>
+      </aside>
+    </div>
+
+    <script src="script.js"></script>
+  </body>
+</html>
