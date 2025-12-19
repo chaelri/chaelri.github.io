@@ -142,6 +142,7 @@ async function loadPassage() {
 
   console.log('verses')
   console.log(verses)
+  console.log('im inside verses and the whole summary verse that needs to be search is: ', passageTitleEl)
   output.innerHTML = "";
 
   verses.forEach((v) => {
