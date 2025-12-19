@@ -244,6 +244,8 @@ function renderSummary() {
       block.appendChild(note);
     });
 
+    console.log(items)
+
     summaryEl.appendChild(block);
   });
 }
