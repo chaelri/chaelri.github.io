@@ -5,6 +5,7 @@ const chapterEl = document.getElementById("chapter");
 const verseEl = document.getElementById("verse");
 const verseFromEl = document.getElementById("verseFrom");
 const verseToEl = document.getElementById("verseTo");
+const aiContextSummaryEl = document.getElementById("aiContextSummary");
 
 const output = document.getElementById("output");
 const passageTitleEl = document.getElementById("passageTitle");
@@ -214,7 +215,100 @@ async function loadPassage() {
     output.appendChild(wrap);
   });
 
+  renderAIContextSummary();
   renderSummary();
+}
+
+async function renderAIContextSummary() {
+  const API_KEY = "AIzaSyAZsOkUSvWUCB14gXJQyNrCzCJtgW_JH7c"; // TEMP ONLY
+  let testText = `You are a Bible study assistant.
+
+IMPORTANT:
+Your response will be assigned directly to element.innerHTML.
+Because of this, you must follow the rules below exactly.
+
+OUTPUT RULES (MANDATORY):
+
+Respond with RAW HTML ONLY
+Do NOT use any code block formatting
+Do NOT wrap the response in backticks
+Do NOT label the response as code
+Do NOT explain anything
+Do NOT include the word html anywhere
+The first character of your response must be the less-than symbol
+Start immediately with a div tag
+
+ALLOWED TAGS ONLY:
+div, p, ul, li, strong, em
+
+STYLING RULES (MUST MATCH EXACTLY):
+
+Use ONE outer div with THIS EXACT inline style and DO NOT MODIFY IT:
+
+background: linear-gradient(135deg, #ec4899, #db2777);
+padding: 4px 0;
+border-radius: 12px;
+box-shadow: 0 12px 30px rgba(236, 72, 153, 0.45);
+font-family: system-ui, -apple-system, BlinkMacSystemFont, sans-serif;
+font-size: 16px;
+line-height: 1.4;
+color: #ffffff;
+max-width: 360px;
+margin-bottom: 2rem;
+
+Title rules:
+- The FIRST element inside the div must be a p tag
+- The title format must be:
+  "{BOOK} {CHAPTER} AI-Generated Context ✨"
+- Use the actual book name and chapter from the task
+- Title should feel calm and clear (slightly stronger than body text)
+
+List rules:
+- Use a ul directly under the title
+- 3 to 5 short bullet points only
+- Short, clean sentences
+- No extra spacing or decoration
+
+CONTENT RULES:
+
+Very concise
+Neutral, study-focused tone
+No modern application
+No verse quotations
+
+TASK:
+Create a compact background context for 1 Peter chapter 1.
+`;
+
+  const gemini = await fetch(
+    "https://generativelanguage.googleapis.com/v1beta/models/gemini-2.5-flash-lite:generateContent?key=" +
+      API_KEY,
+    {
+      method: "POST",
+      headers: {
+        "Content-Type": "application/json",
+      },
+      body: JSON.stringify({
+        contents: [
+          {
+            parts: [
+              {
+                text: testText,
+              },
+            ],
+          },
+        ],
+      }),
+    }
+  );
+
+  const gemData = await gemini.json();
+  console.log(
+    gemData.candidates?.[0]?.content?.parts?.[0]?.text ||
+      JSON.stringify(gemData, null, 2)
+  );
+  aiContextSummaryEl.innerHTML =
+    gemData.candidates?.[0]?.content?.parts?.[0]?.text;
 }
 
 /* ---------- COMMENTS ---------- */
