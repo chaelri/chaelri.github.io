@@ -15,6 +15,8 @@ const summaryEl = document.getElementById("summaryContent");
 const loadBtn = document.getElementById("load");
 const toggleAllBtn = document.getElementById("toggleAll");
 const summarizeNotesBtn = document.getElementById("summarizeNotesBtn");
+summarizeNotesBtn.style.display = "none";
+
 const aiNotesSummaryEl = document.getElementById("aiNotesSummary");
 
 summarizeNotesBtn.onclick = async () => {
@@ -53,12 +55,25 @@ margin-bottom: 2rem;
 
 Allowed tags only: div, p, ul, li, strong, em
 
-Task:
-Summarize the following personal Bible notes into 3–5 clear study-focused insights.
-Do NOT quote verses.
-Do NOT add applications.
+STRUCTURE:
+1) A <strong>title line</strong>:
+   "${passageTitleEl.textContent} Notes Summary by AI ✨"
 
-NOTES:
+2) A short paragraph (1–2 sentences) that sounds like MY OWN REFLECTION,
+   preserving my tone, language (Taglish if present), and emphasis.
+
+3) A <ul> of 3–5 bullets that:
+   - paraphrase my exact thoughts
+   - reuse key phrases I wrote (not generic theology)
+   - make me feel: "oo nga, sinabi ko nga yan"
+
+RULES:
+- DO NOT sound academic
+- DO NOT rewrite into sermon language
+- DO NOT remove emotion, prayers, or personal reactions
+- You may lightly clean grammar but KEEP MY VOICE
+
+NOTES (verbatim, do not reinterpret):
 ${notesText}
 `;
 
@@ -78,7 +93,6 @@ ${notesText}
     const data = await res.json();
     aiNotesSummaryEl.innerHTML =
       data.candidates?.[0]?.content?.parts?.[0]?.text || "";
-    aiNotesSummaryEl.className = "ai-notes-summary";
   } catch (e) {
     console.error(e);
     alert("Failed to summarize notes.");
@@ -469,6 +483,8 @@ function renderComments(key, container) {
 /* ---------- SUMMARY ---------- */
 function renderSummary() {
   summaryEl.innerHTML = "";
+  aiNotesSummaryEl.innerHTML = "";
+  summarizeNotesBtn.style.display = "none";
 
   const single = verseEl.value;
   window.__currentSummaryItems = [];
@@ -488,6 +504,7 @@ function renderSummary() {
 
     items.push({ verseNum, list });
     window.__currentSummaryItems.push({ verseNum, list });
+    summarizeNotesBtn.style.display = "block";
   });
 
   if (!items.length) {
