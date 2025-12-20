@@ -313,8 +313,10 @@ FORMAT RULES (MANDATORY):
 - One verse per line
 - Format EXACTLY:
   BOOK_ID|CHAPTER|VERSE|VERSE_TEXT
-- BOOK_ID must be JHN
-- CHAPTER must be 1
+- BOOK_ID must be ONE OF THE FOLLOWING VALID IDS ONLY:
+  ${Object.keys(BIBLE_META).join(", ")}
+- Use ONLY the correct BOOK_ID for ${titleForGemini}
+- CHAPTER must match the chapter in ${titleForGemini}
 - NO quotes
 - NO JSON
 - NO markdown
