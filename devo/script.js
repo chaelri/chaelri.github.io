@@ -18,6 +18,25 @@ const summarizeNotesBtn = document.getElementById("summarizeNotesBtn");
 summarizeNotesBtn.style.display = "none";
 
 const aiNotesSummaryEl = document.getElementById("aiNotesSummary");
+const toggleReflectionBtn = document.getElementById("toggleReflectionBtn");
+let reflectionVisible =
+  JSON.parse(localStorage.getItem("reflectionVisible")) ?? false;
+
+function applyReflectionVisibility() {
+  const el = document.getElementById("aiReflection");
+  if (!el) return;
+
+  el.style.display = reflectionVisible ? "block" : "none";
+  toggleReflectionBtn.textContent = reflectionVisible
+    ? "🙏 Hide Guided Reflection"
+    : "🙏 Show Guided Reflection";
+}
+
+toggleReflectionBtn.onclick = () => {
+  reflectionVisible = !reflectionVisible;
+  localStorage.setItem("reflectionVisible", JSON.stringify(reflectionVisible));
+  applyReflectionVisibility();
+};
 
 summarizeNotesBtn.onclick = async () => {
   if (!window.__currentSummaryItems?.length) {
@@ -150,6 +169,42 @@ let titleForGemini = "";
 
 let showAllComments = true;
 let comments = JSON.parse(localStorage.getItem("bibleComments") || "{}");
+let globalNotes = JSON.parse(localStorage.getItem("globalNotes") || "[]");
+
+function saveGlobalNotes() {
+  localStorage.setItem("globalNotes", JSON.stringify(globalNotes));
+}
+
+function renderGlobalNotes() {
+  const el = document.getElementById("globalNotes");
+  if (!el) return;
+
+  el.innerHTML = "";
+
+  globalNotes.forEach((n, i) => {
+    const div = document.createElement("div");
+    div.className = "summary-note";
+    div.innerHTML = `
+      ${n.text}
+      <time>${new Date(n.time).toLocaleString()}</time>
+    `;
+    el.appendChild(div);
+  });
+
+  const input = document.createElement("div");
+  input.className = "comment-input";
+  input.innerHTML = `<textarea rows="1" placeholder="Write a global note…"></textarea><button>Add</button>`;
+
+  input.querySelector("button").onclick = () => {
+    const val = input.querySelector("textarea").value.trim();
+    if (!val) return;
+    globalNotes.push({ text: val, time: Date.now() });
+    saveGlobalNotes();
+    renderGlobalNotes();
+  };
+
+  el.appendChild(input);
+}
 
 /* migrate old notes */
 Object.keys(comments).forEach((k) => {
@@ -304,7 +359,10 @@ function showLanding() {
 
   aiContextSummaryEl.innerHTML = "";
   const reflection = document.getElementById("aiReflection");
-  if (reflection) reflection.innerHTML = "";
+  if (reflection) {
+    reflection.innerHTML = "";
+    reflection.style.display = "none";
+  }
 
   summaryEl.innerHTML = "";
   summarizeNotesBtn.style.display = "none";
@@ -732,6 +790,7 @@ ${versesText}
     mount.innerHTML = data.candidates?.[0]?.content?.parts?.[0]?.text || "";
     if (mount.firstElementChild) {
       mount.firstElementChild.classList.add("ai-reflection", "ai-fade-in");
+      applyReflectionVisibility();
     }
   } catch (e) {
     console.error(e);
@@ -775,9 +834,11 @@ function renderComments(key, container) {
 /* ---------- SUMMARY ---------- */
 function renderSummary() {
   summaryEl.innerHTML = "";
+  renderGlobalNotes();
   aiNotesSummaryEl.innerHTML = "";
   aiNotesSummaryEl.style.position = "";
   summarizeNotesBtn.style.display = "none";
+  applyReflectionVisibility();
 
   const single = verseEl.value;
   window.__currentSummaryItems = [];
