@@ -269,14 +269,21 @@ function updatePassageTitle() {
 }
 
 /* ---------- UX MODE ---------- */
+const verseCtrl = verseEl.closest(".control");
+const fromCtrl = verseFromEl.closest(".control");
+const toCtrl = verseToEl.closest(".control");
+
 verseEl.onchange = () => {
   if (verseEl.value) {
     verseFromEl.value = "";
     verseToEl.value = "";
-    verseFromEl.disabled = verseToEl.disabled = true;
+    fromCtrl.classList.add("collapsed");
+    toCtrl.classList.add("collapsed");
   } else {
-    verseFromEl.disabled = verseToEl.disabled = false;
+    fromCtrl.classList.remove("collapsed");
+    toCtrl.classList.remove("collapsed");
   }
+  updateControlStates();
   updatePassageTitle();
   renderSummary();
 };
@@ -286,14 +293,22 @@ verseEl.onchange = () => {
     (el.oninput = () => {
       if (verseFromEl.value || verseToEl.value) {
         verseEl.value = "";
-        verseEl.disabled = true;
+        verseCtrl.classList.add("collapsed");
       } else {
-        verseEl.disabled = false;
+        verseCtrl.classList.remove("collapsed");
       }
+      updateControlStates();
       updatePassageTitle();
       renderSummary();
     })
 );
+
+function updateControlStates() {
+  document.querySelectorAll(".control").forEach((c) => {
+    const field = c.querySelector("input, select");
+    c.classList.toggle("has-value", !!field?.value);
+  });
+}
 
 /* ---------- BOOKS ---------- */
 function loadBooks() {
@@ -859,6 +874,7 @@ loadBtn.onclick = () => {
 /* ---------- INIT ---------- */
 loadBooks();
 showLanding();
+updateControlStates();
 
 if ("serviceWorker" in navigator) {
   window.addEventListener("load", () => {

@@ -24,17 +24,34 @@
     <div class="layout">
       <div class="main">
         <div class="controls">
-          <select id="book"></select>
-          <select id="chapter"></select>
+          <div class="control">
+            <div class="control-label">Book</div>
+            <select id="book"></select>
+          </div>
 
-          <select id="verse">
-            <option value="">All verses</option>
-          </select>
+          <div class="control">
+            <div class="control-label">Chapter</div>
+            <select id="chapter"></select>
+          </div>
 
-          <input id="verseFrom" type="number" placeholder="From" min="1" />
-          <input id="verseTo" type="number" placeholder="To" min="1" />
+          <div class="control">
+            <div class="control-label">Verse</div>
+            <select id="verse">
+              <option value="">All verses</option>
+            </select>
+          </div>
 
-          <button id="load">Search</button>
+          <div class="control">
+            <div class="control-label">From</div>
+            <input id="verseFrom" type="number" min="1" />
+          </div>
+
+          <div class="control">
+            <div class="control-label">To</div>
+            <input id="verseTo" type="number" min="1" />
+          </div>
+
+          <button id="load" class="primary">Search</button>
         </div>
 
         <div id="passageTitle" class="passage-title"></div>
