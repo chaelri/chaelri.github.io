@@ -671,10 +671,6 @@ Create a compact background context for ${titleForGemini}.
     );
 
     const gemData = await gemini.json();
-    console.log(
-      gemData.candidates?.[0]?.content?.parts?.[0]?.text ||
-        JSON.stringify(gemData, null, 2)
-    );
     aiContextSummaryEl.innerHTML =
       gemData.candidates?.[0]?.content?.parts?.[0]?.text;
 
