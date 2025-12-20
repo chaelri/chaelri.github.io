@@ -320,21 +320,43 @@ function loadVerses() {
 /* ---------- LOAD PASSAGE ---------- */
 async function loadPassage() {
   showLoading();
-  const res = await fetch(`${API_WEB}/${bookEl.value}/${chapterEl.value}`);
-  const data = await res.json();
 
-  let verses = data.verses;
-  const single = verseEl.value;
-  const from = +verseFromEl.value;
-  const to = +verseToEl.value;
+  try {
+    // ---------- BASIC CONTEXT (AVAILABLE IMMEDIATELY) ----------
+    titleForGemini = passageTitleEl.textContent;
+    const bookName = BIBLE_META[bookEl.value].name;
+    const chapterNum = chapterEl.value;
 
-  if (single) verses = verses.filter((v) => v.verse == single);
-  else if (from && to)
-    verses = verses.filter((v) => v.verse >= from && v.verse <= to);
+    // ---------- FETCH RAW VERSES (FAST, NON-AI) ----------
+    const baseRes = await fetch(
+      `${API_WEB}/${bookEl.value}/${chapterEl.value}`
+    );
+    const baseData = await baseRes.json();
 
-  titleForGemini = passageTitleEl.textContent;
+    let baseVerses = baseData.verses;
+    const single = verseEl.value;
+    const from = +verseFromEl.value;
+    const to = +verseToEl.value;
 
-  let testText = `Send ${titleForGemini} in NASB 2020.
+    if (single) baseVerses = baseVerses.filter((v) => v.verse == single);
+    else if (from && to)
+      baseVerses = baseVerses.filter((v) => v.verse >= from && v.verse <= to);
+
+    // versesText for reflection (DOES NOT need AI formatting)
+    const versesText = baseVerses
+      .map((v) => `${v.verse}. ${v.text}`)
+      .join("\n");
+
+    // ---------- EARLY AI KICKOFF (PARALLEL) ----------
+    const contextPromise = renderAIContextSummary();
+    const reflectionPromise = renderAIReflectionQuestions({
+      book: bookName,
+      chapter: chapterNum,
+      versesText,
+    });
+
+    // ---------- AI VERSE FORMATTING (PIPE FORMAT) ----------
+    const versePrompt = `Send ${titleForGemini} in NASB 2020.
 FORMAT RULES (MANDATORY):
 - One verse per line
 - Format EXACTLY:
@@ -352,106 +374,103 @@ FORMAT RULES (MANDATORY):
 Example:
 JHN|1|1|In the beginning was the Word, and the Word was with God, and the Word was God.
 JHN|1|2|He was in the beginning with God.`;
-  const gemini = await fetch(
-    "https://gemini-proxy-668755364170.asia-southeast1.run.app",
-    {
-      method: "POST",
-      headers: { "Content-Type": "application/json" },
-      body: JSON.stringify({
-        task: "text",
-        contents: [
-          {
-            parts: [{ text: testText }],
-          },
-        ],
-      }),
-    }
-  );
 
-  const gemData = await gemini.json();
-  const aiText = gemData.candidates?.[0]?.content?.parts?.[0]?.text || "";
-
-  output.innerHTML = "";
-  aiContextSummaryEl.innerHTML = "";
-
-  if (!aiText.includes("|")) {
-    throw new Error("Invalid AI verse format");
-  }
-
-  const lines = aiText.trim().split("\n");
-
-  verses = lines.map((line) => {
-    const [book_id, chapter, verse, ...rest] = line.split("|");
-
-    return {
-      book_id,
-      chapter: Number(chapter),
-      verse: Number(verse),
-      text: rest.join("|").trim(),
-    };
-  });
-
-  verses.forEach((v) => {
-    const key = keyOf(v.book_id, v.chapter, v.verse);
-    const count = comments[key]?.length || 0;
-
-    const wrap = document.createElement("div");
-    wrap.className = "verse";
-    wrap.innerHTML = `
-    <div class="verse-header">
-        <div>
-        <span class="verse-num">${v.verse}</span>${v.text.trim()}
-        </div>
-        <div style="display:flex;align-items:center;gap:8px">
-        <button class="inline-ai-btn" title="Quick verse context">✨</button>
-        ${count ? `<div class="comment-indicator">💬 ${count}</div>` : ""}
-        </div>
-    </div>
-    <div class="inline-ai-mount"></div>
-    <div class="comments" hidden></div>
-    `;
-
-    const commentsEl = wrap.querySelector(".comments");
-    wrap.querySelector(".verse-header").onclick = () => {
-      commentsEl.hidden = !commentsEl.hidden;
-      if (!commentsEl.hidden) renderComments(key, commentsEl);
-    };
-
-    wrap.querySelector(".inline-ai-btn").onclick = (e) => {
-      e.stopPropagation();
-
-      const mount = wrap.querySelector(".inline-ai-mount");
-
-      if (mount.innerHTML.trim()) {
-        mount.innerHTML = "";
-        return;
+    const verseGeminiPromise = fetch(
+      "https://gemini-proxy-668755364170.asia-southeast1.run.app",
+      {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({
+          task: "text",
+          contents: [{ parts: [{ text: versePrompt }] }],
+        }),
       }
+    ).then((r) => r.json());
 
-      fetchInlineQuickContext(
-        {
-          book: BIBLE_META[v.book_id].name,
-          chapter: v.chapter,
-          verse: v.verse,
-          text: v.text.trim(),
-        },
-        mount
-      );
-    };
+    // ---------- WAIT FOR VERSE AI (UI-BLOCKING ONLY) ----------
+    const verseGemData = await verseGeminiPromise;
+    const aiText =
+      verseGemData.candidates?.[0]?.content?.parts?.[0]?.text || "";
 
-    output.appendChild(wrap);
-  });
+    if (!aiText.includes("|")) {
+      throw new Error("Invalid AI verse format");
+    }
 
-  renderAIContextSummary();
+    const lines = aiText.trim().split("\n");
+    const verses = lines.map((line) => {
+      const [book_id, chapter, verse, ...rest] = line.split("|");
+      return {
+        book_id,
+        chapter: Number(chapter),
+        verse: Number(verse),
+        text: rest.join("|").trim(),
+      };
+    });
 
-  const versesText = verses.map((v) => `${v.verse}. ${v.text}`).join("\n");
+    // ---------- RENDER VERSES ASAP ----------
+    output.innerHTML = "";
+    aiContextSummaryEl.innerHTML = "";
 
-  renderAIReflectionQuestions({
-    book: BIBLE_META[bookEl.value].name,
-    chapter: chapterEl.value,
-    versesText,
-  });
+    verses.forEach((v) => {
+      const key = keyOf(v.book_id, v.chapter, v.verse);
+      const count = comments[key]?.length || 0;
 
-  renderSummary();
+      const wrap = document.createElement("div");
+      wrap.className = "verse";
+      wrap.innerHTML = `
+        <div class="verse-header">
+          <div>
+            <span class="verse-num">${v.verse}</span>${v.text}
+          </div>
+          <div style="display:flex;align-items:center;gap:8px">
+            <button class="inline-ai-btn" title="Quick verse context">✨</button>
+            ${count ? `<div class="comment-indicator">💬 ${count}</div>` : ""}
+          </div>
+        </div>
+        <div class="inline-ai-mount"></div>
+        <div class="comments" hidden></div>
+      `;
+
+      const commentsEl = wrap.querySelector(".comments");
+      wrap.querySelector(".verse-header").onclick = () => {
+        commentsEl.hidden = !commentsEl.hidden;
+        if (!commentsEl.hidden) renderComments(key, commentsEl);
+      };
+
+      wrap.querySelector(".inline-ai-btn").onclick = (e) => {
+        e.stopPropagation();
+        const mount = wrap.querySelector(".inline-ai-mount");
+
+        if (mount.innerHTML.trim()) {
+          mount.innerHTML = "";
+          return;
+        }
+
+        fetchInlineQuickContext(
+          {
+            book: BIBLE_META[v.book_id].name,
+            chapter: v.chapter,
+            verse: v.verse,
+            text: v.text,
+          },
+          mount
+        );
+      };
+
+      output.appendChild(wrap);
+    });
+
+    // ---------- WAIT FOR ALL AI (NON-BLOCKING UI) ----------
+    await Promise.all([contextPromise, reflectionPromise]);
+
+    // ---------- SUMMARY ----------
+    renderSummary();
+  } catch (err) {
+    console.error(err);
+    alert("Failed to load passage.");
+  } finally {
+    hideLoading(); // ✅ SINGLE OWNER
+  }
 }
 
 function showLoading() {
@@ -602,9 +621,6 @@ Create a compact background context for ${titleForGemini}.
       gemData.candidates?.[0]?.content?.parts?.[0]?.text;
   } catch (err) {
     console.error(err);
-    alert("Failed to generate context.");
-  } finally {
-    hideLoading(); // ✅ ALWAYS runs (success or error)
   }
 }
 
@@ -671,6 +687,7 @@ ${versesText}
   } catch (e) {
     console.error(e);
   }
+  return true;
 }
 
 /* ---------- COMMENTS ---------- */
