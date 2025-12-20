@@ -475,7 +475,7 @@ JHN|1|2|He was in the beginning with God.`;
           </div>
         </div>
         <div class="inline-ai-mount"></div>
-        <div class="comments" hidden></div>
+        <div class="comments ai-fade-in" hidden></div>
       `;
 
       const commentsEl = wrap.querySelector(".comments");

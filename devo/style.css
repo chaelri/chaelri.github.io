@@ -360,7 +360,7 @@ select:disabled {
 /* ---------- AI FADE IN ---------- */
 .ai-fade-in {
   opacity: 0;
-  transform: translateY(6px);
+  transform: translateY(-6px);
   animation: aiFadeIn 0.35s ease-out forwards;
 }
 
