@@ -308,14 +308,29 @@ async function loadPassage() {
 
   titleForGemini = passageTitleEl.textContent;
 
-  let testText = `Send ${titleForGemini} in the New American Standard Bible (NASB) 2020 edition in this JSON list format [{book: "John", book_id: "JHN", chapter: 1, text: "In the beginning was the Word, and the Word was with God, and the Word was God.\n", verse: 1},{book: "John", book_id: "JHN", chapter: 1, text: "The same was in the beginning with God.\n", verse: 2}]. Send only the actual JSON [{}], no other words.`;
+  let testText = `Send John 1 in NASB 2020.
+FORMAT RULES (MANDATORY):
+- One verse per line
+- Format EXACTLY:
+  BOOK_ID|CHAPTER|VERSE|VERSE_TEXT
+- BOOK_ID must be JHN
+- CHAPTER must be 1
+- NO quotes
+- NO JSON
+- NO markdown
+- NO commentary
+- NO blank lines
+
+Example:
+JHN|1|1|In the beginning was the Word, and the Word was with God, and the Word was God.
+JHN|1|2|He was in the beginning with God.`;
   const gemini = await fetch(
     "https://gemini-proxy-668755364170.asia-southeast1.run.app",
     {
       method: "POST",
       headers: { "Content-Type": "application/json" },
       body: JSON.stringify({
-        task: "json",
+        task: "text",
         contents: [
           {
             parts: [{ text: testText }],
@@ -326,21 +341,27 @@ async function loadPassage() {
   );
 
   const gemData = await gemini.json();
-  console.log(
-    JSON.parse(
-      gemData.candidates?.[0]?.content?.parts?.[0]?.text
-        .replace("```json\n", "")
-        .replace("```", "")
-    ) || JSON.stringify(gemData, null, 2)
-  );
+  const aiText = gemData.candidates?.[0]?.content?.parts?.[0]?.text || "";
+
   output.innerHTML = "";
   aiContextSummaryEl.innerHTML = "";
 
-  verses = JSON.parse(
-    gemData.candidates?.[0]?.content?.parts?.[0]?.text
-      .replace("```json\n", "")
-      .replace("```", "")
-  );
+  if (!aiText.includes("|")) {
+    throw new Error("Invalid AI verse format");
+  }
+
+  const lines = aiText.trim().split("\n");
+
+  verses = lines.map((line) => {
+    const [book_id, chapter, verse, ...rest] = line.split("|");
+
+    return {
+      book_id,
+      chapter: Number(chapter),
+      verse: Number(verse),
+      text: rest.join("|").trim(),
+    };
+  });
 
   verses.forEach((v) => {
     const key = keyOf(v.book_id, v.chapter, v.verse);
