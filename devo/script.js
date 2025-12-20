@@ -620,7 +620,7 @@ STYLING RULES (MUST MATCH EXACTLY):
 Use ONE outer div with THIS EXACT inline style and DO NOT MODIFY IT:
 
 background: linear-gradient(135deg, #486bec, #db2777);
-padding: 0.05rem 1rem;
+padding: 1rem 1.5rem;
 border-radius: 12px;
 box-shadow: 0 12px 30px rgba(236, 72, 153, 0.45);
 font-family: system-ui, -apple-system, BlinkMacSystemFont, sans-serif;
@@ -629,6 +629,7 @@ line-height: 1.4;
 color: #ffffff;
 max-width: 360px;
 margin-bottom: 2rem;
+box-sizing: border-box;
 
 Title rules:
 - The FIRST element inside the div must be a p tag
@@ -639,6 +640,10 @@ Title rules:
 
 List rules:
 - Use a ul directly under the title
+- The ul MUST include inline styles:
+  margin-top: 1rem;
+  margin-bottom: 0;
+  padding-left: 1.25rem;
 - 3 to 5 short bullet points only
 - Short, clean sentences
 - No extra spacing or decoration
