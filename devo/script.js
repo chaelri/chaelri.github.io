@@ -91,8 +91,34 @@ ${notesText}
     );
 
     const data = await res.json();
-    aiNotesSummaryEl.innerHTML =
-      data.candidates?.[0]?.content?.parts?.[0]?.text || "";
+    const html = data.candidates?.[0]?.content?.parts?.[0]?.text || "";
+    aiNotesSummaryEl.innerHTML = html;
+
+    const shareBtn = document.createElement("button");
+    shareBtn.className = "ai-notes-share";
+    shareBtn.innerHTML = "🔗";
+    shareBtn.title = "Share notes summary";
+
+    shareBtn.onclick = async () => {
+      const temp = document.createElement("div");
+      temp.innerHTML = aiNotesSummaryEl.innerHTML;
+
+      const text = temp.innerText.trim();
+
+      if (navigator.share) {
+        await navigator.share({
+          title: `${passageTitleEl.textContent} Notes Summary`,
+          text,
+        });
+      } else {
+        await navigator.clipboard.writeText(text);
+        alert("Notes summary copied to clipboard.");
+      }
+    };
+
+    aiNotesSummaryEl.appendChild(shareBtn);
+
+    aiNotesSummaryEl.style.position = "relative";
   } catch (e) {
     console.error(e);
     alert("Failed to summarize notes.");
@@ -481,6 +507,7 @@ function renderComments(key, container) {
 function renderSummary() {
   summaryEl.innerHTML = "";
   aiNotesSummaryEl.innerHTML = "";
+  aiNotesSummaryEl.style.position = "";
   summarizeNotesBtn.style.display = "none";
 
   const single = verseEl.value;
