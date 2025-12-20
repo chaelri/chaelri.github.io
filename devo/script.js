@@ -320,6 +320,7 @@ function loadVerses() {
 /* ---------- LOAD PASSAGE ---------- */
 async function loadPassage() {
   showLoading();
+  aiContextSummaryEl.innerHTML = "";
 
   try {
     // ---------- BASIC CONTEXT (AVAILABLE IMMEDIATELY) ----------
@@ -409,7 +410,6 @@ JHN|1|2|He was in the beginning with God.`;
 
     // ---------- RENDER VERSES ASAP ----------
     output.innerHTML = "";
-    aiContextSummaryEl.innerHTML = "";
 
     verses.forEach((v) => {
       const key = keyOf(v.book_id, v.chapter, v.verse);
@@ -619,6 +619,10 @@ Create a compact background context for ${titleForGemini}.
     );
     aiContextSummaryEl.innerHTML =
       gemData.candidates?.[0]?.content?.parts?.[0]?.text;
+
+    if (aiContextSummaryEl.firstElementChild) {
+      aiContextSummaryEl.firstElementChild.classList.add("ai-fade-in");
+    }
   } catch (err) {
     console.error(err);
   }
@@ -682,7 +686,7 @@ ${versesText}
     const data = await res.json();
     mount.innerHTML = data.candidates?.[0]?.content?.parts?.[0]?.text || "";
     if (mount.firstElementChild) {
-      mount.firstElementChild.classList.add("ai-reflection");
+      mount.firstElementChild.classList.add("ai-reflection", "ai-fade-in");
     }
   } catch (e) {
     console.error(e);
