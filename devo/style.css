@@ -313,13 +313,34 @@ select:disabled {
 }
 
 .ai-reflection ul {
-  padding-left: 18px;
+  list-style: none;
+  padding: 0;
   margin: 0;
 }
 
 .ai-reflection li {
-  margin-bottom: 10px;
+  padding: 0;
+  margin-bottom: 26px;
+}
+
+.ai-reflection li:not(:last-child)::after {
+  content: "";
+  display: block;
+  height: 1px;
+  margin-top: 22px;
+  background: linear-gradient(
+    to right,
+    transparent,
+    rgba(255, 255, 255, 0.12),
+    transparent
+  );
+}
+
+.ai-reflection li p {
+  margin: 0;
+  font-size: 16px;
   line-height: 1.5;
+  font-weight: 500;
 }
 
 .ai-reflection textarea {
@@ -416,4 +437,3 @@ select:disabled {
   opacity: 0.8;
   line-height: 1.5;
 }
-
