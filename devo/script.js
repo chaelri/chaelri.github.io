@@ -51,7 +51,7 @@ font-size: 16px;
 line-height: 1.4;
 color: #ffffff;
 max-width: 360px;
-margin-bottom: 2rem;
+margin: 2rem 0;
 
 Allowed tags only: div, p, ul, li, strong, em
 
@@ -165,50 +165,47 @@ verseEl.onchange = () => {
 );
 
 /* ---------- BOOKS ---------- */
-async function loadBooks() {
-  const res = await fetch(API_WEB);
-  const data = await res.json();
-
+function loadBooks() {
   bookEl.innerHTML = "";
-  data.books.forEach((b) => {
+
+  Object.entries(BIBLE_META).forEach(([id, book]) => {
     const o = document.createElement("option");
-    o.value = b.id;
-    o.textContent = b.name;
+    o.value = id;
+    o.textContent = book.name;
     bookEl.appendChild(o);
   });
 
   bookEl.value = "JHN";
-  await loadChapters();
+  loadChapters();
 }
 
 /* ---------- CHAPTERS ---------- */
-async function loadChapters() {
-  const res = await fetch(`${API_WEB}/${bookEl.value}`);
-  const data = await res.json();
-
+function loadChapters() {
   chapterEl.innerHTML = "";
-  data.chapters.forEach((c) => {
+
+  const chapters = BIBLE_META[bookEl.value].chapters;
+  chapters.forEach((_, i) => {
     const o = document.createElement("option");
-    o.value = c.chapter;
-    o.textContent = c.chapter;
+    o.value = i + 1;
+    o.textContent = i + 1;
     chapterEl.appendChild(o);
   });
 
-  await loadVerses();
+  loadVerses();
 }
 
 /* ---------- VERSES ---------- */
-async function loadVerses() {
+function loadVerses() {
   verseEl.innerHTML = `<option value="">All verses</option>`;
-  const res = await fetch(`${API_WEB}/${bookEl.value}/${chapterEl.value}`);
-  const data = await res.json();
 
-  data.verses.forEach((v) => {
+  const count = BIBLE_META[bookEl.value].chapters[chapterEl.value - 1];
+
+  for (let i = 1; i <= count; i++) {
     const o = document.createElement("option");
-    o.value = v.verse;
-    o.textContent = v.verse;
+    o.value = i;
+    o.textContent = i;
     verseEl.appendChild(o);
-  });
+  }
 
   updatePassageTitle();
   renderSummary();
