@@ -31,40 +31,10 @@ function applyReflectionVisibility() {
     : "🙏 Show Guided Reflection";
 }
 
-toggleReflectionBtn.onclick = async () => {
+toggleReflectionBtn.onclick = () => {
   reflectionVisible = !reflectionVisible;
   localStorage.setItem("reflectionVisible", JSON.stringify(reflectionVisible));
   applyReflectionVisibility();
-
-  if (!reflectionVisible) return;
-
-  // run BOTH only on first open
-  const reflectionMount = document.getElementById("aiReflection");
-  const hasReflection = reflectionMount && reflectionMount.innerHTML.trim();
-  const hasContext = aiContextSummaryEl.innerHTML.trim();
-
-  if (hasReflection && hasContext) return;
-
-  // local shimmer only (NO global showLoading / hideLoading)
-  if (!hasContext) {
-    aiContextSummaryEl.innerHTML = `
-      <div class="ai-shimmer">
-        <div class="ai-shimmer-block"></div>
-        <div class="ai-shimmer-block short"></div>
-      </div>
-    `;
-    await renderAIContextSummary();
-  }
-
-  if (!hasReflection) {
-    await renderAIReflectionQuestions({
-      book: BIBLE_META[bookEl.value].name,
-      chapter: chapterEl.value,
-      versesText: Array.from(document.querySelectorAll(".verse .verse-header"))
-        .map((v) => v.innerText)
-        .join("\n"),
-    });
-  }
 };
 
 summarizeNotesBtn.onclick = async () => {
@@ -340,6 +310,7 @@ function updateControlStates() {
   });
 }
 
+
 /* ---------- BOOKS ---------- */
 function loadBooks() {
   bookEl.innerHTML = "";
@@ -438,9 +409,13 @@ async function loadPassage() {
       .map((v) => `${v.verse}. ${v.text}`)
       .join("\n");
 
-    // ---------- AI CONTEXT & REFLECTION (DEFERRED; USER-TRIGGERED) ----------
-    let contextPromise = Promise.resolve();
-    let reflectionPromise = Promise.resolve();
+    // ---------- EARLY AI KICKOFF (PARALLEL) ----------
+    const contextPromise = renderAIContextSummary();
+    const reflectionPromise = renderAIReflectionQuestions({
+      book: bookName,
+      chapter: chapterNum,
+      versesText,
+    });
 
     // ---------- AI VERSE FORMATTING (PIPE FORMAT) ----------
     const versePrompt = `Send ${titleForGemini} in NASB 2020.
@@ -545,6 +520,9 @@ JHN|1|2|He was in the beginning with God.`;
 
       output.appendChild(wrap);
     });
+
+    // ---------- WAIT FOR ALL AI (NON-BLOCKING UI) ----------
+    await Promise.all([contextPromise, reflectionPromise]);
 
     // ---------- SUMMARY ----------
     renderSummary();
