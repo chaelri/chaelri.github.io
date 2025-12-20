@@ -431,6 +431,15 @@ JHN|1|2|He was in the beginning with God.`;
   });
 
   renderAIContextSummary();
+
+  const versesText = verses.map((v) => `${v.verse}. ${v.text}`).join("\n");
+
+  renderAIReflectionQuestions({
+    book: BIBLE_META[bookEl.value].name,
+    chapter: chapterEl.value,
+    versesText,
+  });
+
   renderSummary();
 }
 
@@ -498,7 +507,6 @@ function hideLoading() {
 }
 
 async function renderAIContextSummary() {
-  const API_KEY = "AIzaSyAZsOkUSvWUCB14gXJQyNrCzCJtgW_JH7c"; // TEMP ONLY
   let testText = `You are a Bible study assistant.
 
 IMPORTANT:
@@ -586,6 +594,63 @@ Create a compact background context for ${titleForGemini}.
     alert("Failed to generate context.");
   } finally {
     hideLoading(); // ✅ ALWAYS runs (success or error)
+  }
+}
+
+async function renderAIReflectionQuestions({ book, chapter, versesText }) {
+  const mount = document.getElementById("aiReflection");
+  mount.innerHTML = "";
+
+  const prompt = `
+IMPORTANT OUTPUT RULES (STRICT):
+- Respond with RAW HTML ONLY
+- DO NOT use code blocks
+- DO NOT use backticks
+- DO NOT write the word html
+- The FIRST character must be "<"
+- Use ONE outer div only
+
+ALLOWED TAGS:
+div, p, ul, li, strong, em
+
+ROLE:
+You generate reflection QUESTIONS ONLY.
+You must NOT give advice.
+You must NOT suggest actions.
+You must NOT speak as God.
+You must NOT include answers.
+
+TASK:
+Based on the passage below, generate 4–6 reflection questions that help personal processing.
+The questions must be shaped by the themes of the passage, not generic.
+
+STRUCTURE:
+- One short intro sentence
+- A <ul> of reflection questions
+
+PASSAGE:
+${book} ${chapter}
+
+${versesText}
+`;
+
+  try {
+    const res = await fetch(
+      "https://gemini-proxy-668755364170.asia-southeast1.run.app",
+      {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({
+          task: "summary",
+          contents: [{ parts: [{ text: prompt }] }],
+        }),
+      }
+    );
+
+    const data = await res.json();
+    mount.innerHTML = data.candidates?.[0]?.content?.parts?.[0]?.text || "";
+  } catch (e) {
+    console.error(e);
   }
 }
 
