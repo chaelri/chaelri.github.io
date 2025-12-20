@@ -35,6 +35,16 @@ summarizeNotesBtn.onclick = async () => {
         item.list.map((n) => `- ${n.text}`).join("\n")
     )
     .join("\n\n");
+  const reflectionAnswers = Array.from(
+    document.querySelectorAll(".ai-reflection textarea")
+  )
+    .map((t, i) => `Reflection ${i + 1}: ${t.value.trim()}`)
+    .filter(Boolean)
+    .join("\n");
+
+  const fullNotesText =
+    notesText +
+    (reflectionAnswers ? `\n\nGUIDED REFLECTION:\n${reflectionAnswers}` : "");
 
   const prompt = `
 IMPORTANT:
@@ -74,7 +84,8 @@ RULES:
 - You may lightly clean grammar but KEEP MY VOICE
 
 NOTES (verbatim, do not reinterpret):
-${notesText}
+${fullNotesText}
+
 `;
 
   try {
@@ -609,9 +620,13 @@ IMPORTANT OUTPUT RULES (STRICT):
 - DO NOT write the word html
 - The FIRST character must be "<"
 - Use ONE outer div only
+- EACH question must be followed by a <textarea> for the user's answer
+- Textareas must be empty and user-editable
+
 
 ALLOWED TAGS:
-div, p, ul, li, strong, em
+div, p, ul, li, strong, em, textarea
+
 
 ROLE:
 You generate reflection QUESTIONS ONLY.
@@ -621,12 +636,13 @@ You must NOT speak as God.
 You must NOT include answers.
 
 TASK:
-Based on the passage below, generate 4–6 reflection questions that help personal processing.
-The questions must be shaped by the themes of the passage, not generic.
+Generate EXACTLY 3 reflection questions based on the themes of the passage.
+The questions must help personal processing without giving advice or conclusions.
 
 STRUCTURE:
-- One short intro sentence
-- A <ul> of reflection questions
+- Title: "Guided Reflection 🙏🏼"
+- NO intro sentence
+- A <ul> with EXACTLY 3 questions
 
 PASSAGE:
 ${book} ${chapter}
@@ -649,6 +665,9 @@ ${versesText}
 
     const data = await res.json();
     mount.innerHTML = data.candidates?.[0]?.content?.parts?.[0]?.text || "";
+    if (mount.firstElementChild) {
+      mount.firstElementChild.classList.add("ai-reflection");
+    }
   } catch (e) {
     console.error(e);
   }
