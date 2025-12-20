@@ -26,6 +26,14 @@ summarizeNotesBtn.onclick = async () => {
   }
 
   showLoading();
+  aiContextSummaryEl.innerHTML = `
+  <div class="ai-shimmer">
+    <div class="ai-shimmer-block"></div>
+    <div class="ai-shimmer-block short"></div>
+    <div class="ai-shimmer-block"></div>
+  </div>
+`;
+
   aiNotesSummaryEl.innerHTML = "";
 
   const notesText = window.__currentSummaryItems
@@ -630,7 +638,13 @@ Create a compact background context for ${titleForGemini}.
 
 async function renderAIReflectionQuestions({ book, chapter, versesText }) {
   const mount = document.getElementById("aiReflection");
-  mount.innerHTML = "";
+  mount.innerHTML = `
+  <div class="ai-shimmer">
+    <div class="ai-shimmer-block"></div>
+    <div class="ai-shimmer-block"></div>
+    <div class="ai-shimmer-block short"></div>
+  </div>
+`;
 
   const prompt = `
 IMPORTANT OUTPUT RULES (STRICT):
