@@ -158,18 +158,33 @@ async function fetchInlineQuickContext(
   `;
 
   const prompt = `
-Respond with RAW HTML ONLY.
-Allowed tags: div, p, strong, em
+    IMPORTANT OUTPUT RULES (STRICT):
+    - Respond with RAW HTML ONLY
+    - DO NOT use code blocks
+    - DO NOT use backticks
+    - DO NOT write the word html
+    - DO NOT explain anything outside the HTML
+    - The FIRST character of your response MUST be "<"
+    - The LAST character of your response MUST be ">"
 
-Use ONE div only.
-Keep it VERY SHORT (1–2 sentences).
-Explain in simple words what this verse means.
-No preaching. No applications.
+    HTML RULES:
+    - Use ONE div only
+    - Allowed tags ONLY: div, p, strong, em
 
-Verse:
-${book} ${chapter}:${verse}
-"${text}"
-`;
+    CONTENT RULES:
+    - VERY SHORT (1–2 sentences)
+    - Simple explanation of meaning
+    - No preaching
+    - No applications
+    - No titles
+    - No verse quotation
+
+    TASK:
+    Explain this verse briefly:
+
+    ${book} ${chapter}:${verse}
+    ${text}
+    `;
 
   try {
     const res = await fetch(
