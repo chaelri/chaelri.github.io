@@ -43,7 +43,7 @@ No markdown. No explanations.
 
 Use ONE outer div with EXACT style:
 background: linear-gradient(135deg, #001358, #020103);
-padding: 0.05rem 1rem;
+padding: 1rem;
 border-radius: 12px;
 box-shadow: 0 12px 30px #18234a;
 font-family: system-ui, -apple-system, BlinkMacSystemFont, sans-serif;
