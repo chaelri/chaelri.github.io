@@ -233,3 +233,50 @@ select:disabled {
 .ai-notes-share:hover {
   background: rgba(255, 255, 255, 0.22);
 }
+
+/* ---------- INLINE AI QUICK CONTEXT ---------- */
+.inline-ai-btn {
+  width: 28px;
+  height: 28px;
+  border-radius: 50%;
+  border: none;
+  background: rgba(255, 255, 255, 0.14);
+  color: #fff;
+  cursor: pointer;
+  font-size: 14px;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+}
+
+.inline-ai-btn:hover {
+  background: rgba(255, 255, 255, 0.25);
+}
+
+.inline-ai-loading {
+  margin: 10px 0 0 28px;
+  display: inline-flex;
+  align-items: center;
+  gap: 8px;
+  font-size: 13px;
+  opacity: 0.85;
+}
+
+.inline-ai-spinner {
+  width: 14px;
+  height: 14px;
+  border-radius: 50%;
+  border: 2px solid rgba(255, 255, 255, 0.4);
+  border-top-color: #fff;
+  animation: ai-spin 0.8s linear infinite;
+}
+
+.inline-ai-result {
+  margin: 10px 0 0 28px;
+  background: linear-gradient(135deg, #486bec, #db2777);
+  padding: 10px 12px;
+  border-radius: 12px;
+  font-size: 14px;
+  line-height: 1.4;
+  color: #ffffff;
+}

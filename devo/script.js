@@ -146,6 +146,55 @@ function saveComments() {
 
 const keyOf = (b, c, v) => `${b}-${c}-${v}`;
 
+async function fetchInlineQuickContext(
+  { book, chapter, verse, text },
+  mountEl
+) {
+  mountEl.innerHTML = `
+    <div class="inline-ai-loading">
+      <div class="inline-ai-spinner"></div>
+      <span>Quick context…</span>
+    </div>
+  `;
+
+  const prompt = `
+Respond with RAW HTML ONLY.
+Allowed tags: div, p, strong, em
+
+Use ONE div only.
+Keep it VERY SHORT (1–2 sentences).
+Explain in simple words what this verse means.
+No preaching. No applications.
+
+Verse:
+${book} ${chapter}:${verse}
+"${text}"
+`;
+
+  try {
+    const res = await fetch(
+      "https://gemini-proxy-668755364170.asia-southeast1.run.app",
+      {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({
+          task: "summary",
+          contents: [{ parts: [{ text: prompt }] }],
+        }),
+      }
+    );
+
+    const data = await res.json();
+    mountEl.innerHTML = `
+      <div class="inline-ai-result">
+        ${data.candidates?.[0]?.content?.parts?.[0]?.text || ""}
+      </div>
+    `;
+  } catch {
+    mountEl.innerHTML = "";
+  }
+}
+
 /* ---------- PASSAGE TITLE ---------- */
 function updatePassageTitle() {
   const book = bookEl.options[bookEl.selectedIndex]?.text || "";
@@ -295,17 +344,44 @@ async function loadPassage() {
     const wrap = document.createElement("div");
     wrap.className = "verse";
     wrap.innerHTML = `
-      <div class="verse-header">
-        <div><span class="verse-num">${v.verse}</span>${v.text.trim()}</div>
+    <div class="verse-header">
+        <div>
+        <span class="verse-num">${v.verse}</span>${v.text.trim()}
+        </div>
+        <div style="display:flex;align-items:center;gap:8px">
+        <button class="inline-ai-btn" title="Quick verse context">✨</button>
         ${count ? `<div class="comment-indicator">💬 ${count}</div>` : ""}
-      </div>
-      <div class="comments" hidden></div>
+        </div>
+    </div>
+    <div class="inline-ai-mount"></div>
+    <div class="comments" hidden></div>
     `;
 
     const commentsEl = wrap.querySelector(".comments");
     wrap.querySelector(".verse-header").onclick = () => {
       commentsEl.hidden = !commentsEl.hidden;
       if (!commentsEl.hidden) renderComments(key, commentsEl);
+    };
+
+    wrap.querySelector(".inline-ai-btn").onclick = (e) => {
+      e.stopPropagation();
+
+      const mount = wrap.querySelector(".inline-ai-mount");
+
+      if (mount.innerHTML.trim()) {
+        mount.innerHTML = "";
+        return;
+      }
+
+      fetchInlineQuickContext(
+        {
+          book: BIBLE_META[v.book_id].name,
+          chapter: v.chapter,
+          verse: v.verse,
+          text: v.text.trim(),
+        },
+        mount
+      );
     };
 
     output.appendChild(wrap);
