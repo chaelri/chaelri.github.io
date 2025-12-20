@@ -14,6 +14,78 @@ const summaryEl = document.getElementById("summaryContent");
 
 const loadBtn = document.getElementById("load");
 const toggleAllBtn = document.getElementById("toggleAll");
+const summarizeNotesBtn = document.getElementById("summarizeNotesBtn");
+const aiNotesSummaryEl = document.getElementById("aiNotesSummary");
+
+summarizeNotesBtn.onclick = async () => {
+  if (!window.__currentSummaryItems?.length) {
+    alert("No notes to summarize for this passage.");
+    return;
+  }
+
+  showLoading();
+  aiNotesSummaryEl.innerHTML = "";
+
+  const notesText = window.__currentSummaryItems
+    .map(
+      (item) =>
+        `Verse ${item.verseNum}:\n` +
+        item.list.map((n) => `- ${n.text}`).join("\n")
+    )
+    .join("\n\n");
+
+  const prompt = `
+IMPORTANT:
+Respond with RAW HTML ONLY.
+No markdown. No explanations.
+
+Use ONE outer div with EXACT style:
+background: linear-gradient(135deg, #001358, #020103);
+padding: 0.05rem 1rem;
+border-radius: 12px;
+box-shadow: 0 12px 30px #18234a;
+font-family: system-ui, -apple-system, BlinkMacSystemFont, sans-serif;
+font-size: 16px;
+line-height: 1.4;
+color: #ffffff;
+max-width: 360px;
+margin-bottom: 2rem;
+
+Allowed tags only: div, p, ul, li, strong, em
+
+Task:
+Summarize the following personal Bible notes into 3–5 clear study-focused insights.
+Do NOT quote verses.
+Do NOT add applications.
+
+NOTES:
+${notesText}
+`;
+
+  try {
+    const res = await fetch(
+      "https://gemini-proxy-668755364170.asia-southeast1.run.app",
+      {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({
+          task: "summary",
+          contents: [{ parts: [{ text: prompt }] }],
+        }),
+      }
+    );
+
+    const data = await res.json();
+    aiNotesSummaryEl.innerHTML =
+      data.candidates?.[0]?.content?.parts?.[0]?.text || "";
+    aiNotesSummaryEl.className = "ai-notes-summary";
+  } catch (e) {
+    console.error(e);
+    alert("Failed to summarize notes.");
+  } finally {
+    hideLoading();
+  }
+};
 
 let titleForGemini = "";
 
@@ -296,7 +368,7 @@ STYLING RULES (MUST MATCH EXACTLY):
 Use ONE outer div with THIS EXACT inline style and DO NOT MODIFY IT:
 
 background: linear-gradient(135deg, #486bec, #db2777);
-padding: 1rem;
+padding: 0.05rem 1rem;
 border-radius: 12px;
 box-shadow: 0 12px 30px rgba(236, 72, 153, 0.45);
 font-family: system-ui, -apple-system, BlinkMacSystemFont, sans-serif;
@@ -399,6 +471,7 @@ function renderSummary() {
   summaryEl.innerHTML = "";
 
   const single = verseEl.value;
+  window.__currentSummaryItems = [];
   const from = +verseFromEl.value;
   const to = +verseToEl.value;
 
@@ -414,6 +487,7 @@ function renderSummary() {
     if (!list.length) return;
 
     items.push({ verseNum, list });
+    window.__currentSummaryItems.push({ verseNum, list });
   });
 
   if (!items.length) {
