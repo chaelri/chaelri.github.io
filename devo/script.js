@@ -293,22 +293,14 @@ function loadBooks() {
   loadChapters();
 }
 function showLanding() {
-  output.innerHTML = "";
-
-  const landing = document.createElement("div");
-  landing.className = "landing";
-
-  const card = document.createElement("div");
-  card.className = "landing-card";
-
-  card.innerHTML = `
-    <h2>Open the Word 📖</h2>
-    <p>Select a passage to begin reading.</p>
+  output.innerHTML = `
+    <div class="landing">
+      <div class="landing-card">
+        <h2>Open the Word 📖</h2>
+        <p>Select a book and chapter, then press <strong>Search</strong>.</p>
+      </div>
+    </div>
   `;
-
-  card.appendChild(cloneControlsForLanding());
-  landing.appendChild(card);
-  output.appendChild(landing);
 
   aiContextSummaryEl.innerHTML = "";
   const reflection = document.getElementById("aiReflection");
@@ -316,25 +308,6 @@ function showLanding() {
 
   summaryEl.innerHTML = "";
   summarizeNotesBtn.style.display = "none";
-}
-
-function cloneControlsForLanding() {
-  const wrapper = document.createElement("div");
-  wrapper.className = "landing-controls";
-
-  [bookEl, chapterEl, verseEl, verseFromEl, verseToEl, loadBtn].forEach(
-    (el) => {
-      const clone = el.cloneNode(true);
-      clone.id = el.id + "-landing";
-      wrapper.appendChild(clone);
-
-      // keep values in sync
-      clone.onchange = () => (el.value = clone.value);
-      clone.onclick = () => el.click?.();
-    }
-  );
-
-  return wrapper;
 }
 
 /* ---------- CHAPTERS ---------- */
