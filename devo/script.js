@@ -13,7 +13,6 @@ const summaryTitleEl = document.getElementById("summaryTitle");
 const summaryEl = document.getElementById("summaryContent");
 
 const loadBtn = document.getElementById("load");
-const toggleAllBtn = document.getElementById("toggleAll");
 const summarizeNotesBtn = document.getElementById("summarizeNotesBtn");
 summarizeNotesBtn.style.display = "none";
 
@@ -167,7 +166,6 @@ ${fullNotesText}
 
 let titleForGemini = "";
 
-let showAllComments = true;
 let comments = JSON.parse(localStorage.getItem("bibleComments") || "{}");
 
 /* migrate old notes */
@@ -856,16 +854,6 @@ chapterEl.onchange = loadVerses;
 loadBtn.onclick = () => {
   output.innerHTML = "";
   loadPassage();
-};
-
-toggleAllBtn.onclick = () => {
-  showAllComments = !showAllComments;
-  toggleAllBtn.textContent = showAllComments
-    ? "Hide comments"
-    : "Show comments";
-  document
-    .querySelectorAll(".comments")
-    .forEach((c) => (c.hidden = !showAllComments));
 };
 
 /* ---------- INIT ---------- */
