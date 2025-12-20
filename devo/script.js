@@ -186,10 +186,15 @@ ${book} ${chapter}:${verse}
 
     const data = await res.json();
     mountEl.innerHTML = `
-      <div class="inline-ai-result">
+    <div class="inline-ai-result">
+        <button class="inline-ai-close" title="Close">✕</button>
         ${data.candidates?.[0]?.content?.parts?.[0]?.text || ""}
-      </div>
+    </div>
     `;
+
+    mountEl.querySelector(".inline-ai-close").onclick = () => {
+      mountEl.innerHTML = "";
+    };
   } catch {
     mountEl.innerHTML = "";
   }
