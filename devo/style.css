@@ -416,3 +416,17 @@ select:disabled {
   opacity: 0.8;
   line-height: 1.5;
 }
+
+/* ---------- LANDING CONTROLS ---------- */
+.landing-controls {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 10px;
+  justify-content: center;
+  margin-top: 16px;
+}
+
+.landing-controls select,
+.landing-controls button {
+  min-width: 110px;
+}
