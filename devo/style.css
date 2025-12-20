@@ -48,8 +48,10 @@ textarea:focus {
   transform: scale(1.02);
 }
 
-input {
-  width: 80px;
+.control {
+  display: flex;
+  flex-direction: column;
+  justify-content: flex-end;
 }
 
 button {
@@ -135,7 +137,7 @@ select:disabled {
 .passage-title {
   font-size: 28px;
   font-weight: 800;
-  margin: 8px 0 18px;
+  margin: 12px 0 16px;
 }
 
 .summary-title {
@@ -159,14 +161,24 @@ select:disabled {
   display: grid;
   grid-template-columns: repeat(2, minmax(0, 1fr));
   gap: 12px 14px;
-  margin-bottom: 18px;
+
+  padding: 16px;
+  border-radius: 18px;
+
+  background: linear-gradient(180deg, #0f172a, #0c1425);
+  box-shadow: 0 12px 30px rgba(0, 0, 0, 0.35);
+
+  margin-bottom: 16px;
 }
 
 @media (min-width: 900px) {
   .controls {
-    grid-template-columns: repeat(6, minmax(0, 1fr));
+    grid-template-columns: 2.2fr 1fr 1.3fr 0.9fr 0.9fr auto;
     align-items: end;
   }
+}
+.controls > button.primary {
+  align-self: end;
 }
 
 .verse-header {
@@ -213,6 +225,10 @@ select:disabled {
   margin-top: 10px;
   display: flex;
   gap: 8px;
+
+  padding: 10px;
+  border-radius: 14px;
+  background: rgba(17, 26, 47, 0.6);
 }
 
 /* ---------- SUMMARY ---------- */
