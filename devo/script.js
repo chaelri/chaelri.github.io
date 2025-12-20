@@ -308,7 +308,7 @@ async function loadPassage() {
 
   titleForGemini = passageTitleEl.textContent;
 
-  let testText = `Send John 1 in NASB 2020.
+  let testText = `Send ${titleForGemini} in NASB 2020.
 FORMAT RULES (MANDATORY):
 - One verse per line
 - Format EXACTLY:
@@ -520,7 +520,7 @@ margin-bottom: 2rem;
 Title rules:
 - The FIRST element inside the div must be a p tag
 - The title format must be:
-  "{BOOK} {CHAPTER} AI-Generated Context ✨"
+  "{BOOK} {CHAPTER} {VERSE (if it exists)} AI-Generated Context ✨"
 - Use the actual book name and chapter from the task
 - Title should feel calm and clear (slightly stronger than body text)
 
