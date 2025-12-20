@@ -388,3 +388,31 @@ select:disabled {
 .ai-shimmer-block.short {
   width: 60%;
 }
+
+/* ---------- LANDING ---------- */
+.landing {
+  min-height: 60vh;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+}
+
+.landing-card {
+  text-align: center;
+  padding: 28px 32px;
+  border-radius: 20px;
+  background: linear-gradient(135deg, #0f172a, #020617);
+  box-shadow: 0 20px 60px rgba(0, 0, 0, 0.5);
+  max-width: 360px;
+}
+
+.landing-card h2 {
+  margin: 0 0 10px;
+  font-size: 22px;
+}
+
+.landing-card p {
+  margin: 0;
+  opacity: 0.8;
+  line-height: 1.5;
+}

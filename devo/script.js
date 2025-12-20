@@ -292,6 +292,23 @@ function loadBooks() {
   bookEl.value = "JHN";
   loadChapters();
 }
+function showLanding() {
+  output.innerHTML = `
+    <div class="landing">
+      <div class="landing-card">
+        <h2>Open the Word 📖</h2>
+        <p>Select a book and chapter, then press <strong>Search</strong>.</p>
+      </div>
+    </div>
+  `;
+
+  aiContextSummaryEl.innerHTML = "";
+  const reflection = document.getElementById("aiReflection");
+  if (reflection) reflection.innerHTML = "";
+
+  summaryEl.innerHTML = "";
+  summarizeNotesBtn.style.display = "none";
+}
 
 /* ---------- CHAPTERS ---------- */
 function loadChapters() {
@@ -798,7 +815,10 @@ function renderSummary() {
 /* ---------- EVENTS ---------- */
 bookEl.onchange = loadChapters;
 chapterEl.onchange = loadVerses;
-loadBtn.onclick = loadPassage;
+loadBtn.onclick = () => {
+  output.innerHTML = "";
+  loadPassage();
+};
 
 toggleAllBtn.onclick = () => {
   showAllComments = !showAllComments;
@@ -812,6 +832,7 @@ toggleAllBtn.onclick = () => {
 
 /* ---------- INIT ---------- */
 loadBooks();
+showLanding();
 
 if ("serviceWorker" in navigator) {
   window.addEventListener("load", () => {
