@@ -687,8 +687,22 @@ You must NOT speak as God.
 You must NOT include answers.
 
 TASK:
-Generate EXACTLY 3 reflection questions based on the themes of the passage.
-The questions must help personal processing without giving advice or conclusions.
+Generate EXACTLY 3 reflection questions.
+
+VERY IMPORTANT RULES:
+- Each question MUST reuse a clear word or phrase found directly in the passage
+  (examples: "light", "darkness", "receive", "beginning", "Word", etc.)
+- If a question could exist without this passage, it is INVALID.
+- Use simple, everyday English.
+- Avoid abstract, academic, or theological language.
+- The questions should sound like personal journaling thoughts, not Bible study analysis.
+- Do NOT explain the passage.
+- Do NOT define concepts.
+- Do NOT summarize meaning.
+
+Goal:
+Turn the passage’s own words into gentle, personal reflection questions.
+
 
 STRUCTURE:
 - Title: "Guided Reflection 🙏🏼"
