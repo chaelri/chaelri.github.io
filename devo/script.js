@@ -322,7 +322,11 @@ async function loadPassage() {
     });
 
     /* ---------- FAST VERSE LOAD (BibleHub NASB) ---------- */
-    const bookSlug = bookName.toLowerCase().replace(/\s+/g, "_");
+    const bookSlug = bookName
+      .toLowerCase()
+      .replace(/^(\d+)\s+/, "$1_")
+      .replace(/\s+/g, "_");
+
     const hubUrl = `https://biblehub.com/nasb_/${bookSlug}/${chapterNum}.htm`;
 
     const res = await fetch(
@@ -345,7 +349,7 @@ async function loadPassage() {
       .trim();
 
     let verses = cleaned
-      .replace('New American Standard Bible►►','')
+      .replace("New American Standard Bible►►", "")
       .replace(/(^|\s)[A-Z][A-Za-z’\s;]+(?=\d+)/g, "")
       .replace(/(\d)([A-Za-z“])/g, "$1 $2")
       .replace(/\s(?=\d+\s)/g, "\n")
