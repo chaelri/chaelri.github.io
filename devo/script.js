@@ -579,9 +579,12 @@ margin-bottom: 2rem;
 box-sizing: border-box;
 
 Title rules:
-- The FIRST element inside the div must be a p tag
+- The FIRST element inside the div must be a p tag WITH inline styles:
+  font-size: 20px;
+  font-weight: 700;
+  margin: 0 0 0.8rem;
 - The title format must be:
-  "{BOOK} {CHAPTER} {VERSE (if it exists)} AI-Generated Context ✨"
+  "{BOOK} {CHAPTER} {VERSE (if it exists)} Context ✨"
 - Use the actual book name and chapter from the task
 - Title should feel calm and clear (slightly stronger than body text)
 
