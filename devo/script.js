@@ -328,6 +328,7 @@ async function loadPassage() {
       .replace(/\s+/g, "_");
 
     const hubUrl = `https://biblehub.com/nasb_/${bookSlug}/${chapterNum}.htm`;
+    console.log(hubUrl)
 
     const res = await fetch(
       `https://api.allorigins.win/get?url=${encodeURIComponent(hubUrl)}`
@@ -347,6 +348,8 @@ async function loadPassage() {
       .replace(/\[[^\]]*\]/g, "")
       .replace(/\s+/g, " ")
       .trim();
+
+    console.log(cleaned)
 
     let verses = cleaned
       .replace("New American Standard Bible►►", "")
