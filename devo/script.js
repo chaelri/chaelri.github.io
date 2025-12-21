@@ -13,10 +13,10 @@ const summaryTitleEl = document.getElementById("summaryTitle");
 const summaryEl = document.getElementById("summaryContent");
 
 const loadBtn = document.getElementById("load");
-const summarizeNotesBtn = document.getElementById("summarizeNotesBtn");
-summarizeNotesBtn.style.display = "none";
+const copyNotesBtn = document.getElementById("copyNotesBtn");
+copyNotesBtn.style.display = "none";
 
-const aiNotesSummaryEl = document.getElementById("aiNotesSummary");
+const notesCopyStatusEl = document.getElementById("notesCopyStatus");
 const toggleReflectionBtn = document.getElementById("toggleReflectionBtn");
 let reflectionVisible =
   JSON.parse(localStorage.getItem("reflectionVisible")) ?? false;
@@ -37,131 +37,38 @@ toggleReflectionBtn.onclick = () => {
   applyReflectionVisibility();
 };
 
-summarizeNotesBtn.onclick = async () => {
+function saveComments() {
+  localStorage.setItem("bibleComments", JSON.stringify(comments));
+}
+
+copyNotesBtn.onclick = async () => {
   if (!window.__currentSummaryItems?.length) {
-    alert("No notes to summarize for this passage.");
+    alert("No notes to copy.");
     return;
   }
 
-  showLoading();
-  aiContextSummaryEl.innerHTML = `
-  <div class="ai-shimmer">
-    <div class="ai-shimmer-block"></div>
-    <div class="ai-shimmer-block short"></div>
-    <div class="ai-shimmer-block"></div>
-  </div>
-`;
+  const bookName = bookEl.options[bookEl.selectedIndex]?.text;
+  const chapter = chapterEl.value;
+  const single = verseEl.value;
+  const from = verseFromEl.value;
+  const to = verseToEl.value;
 
-  aiNotesSummaryEl.innerHTML = "";
+  let title = `${bookName} ${chapter} Notes`;
+  if (single) title = `${bookName} ${chapter}:${single} Notes`;
+  else if (from && to) title = `${bookName} ${chapter}:${from}-${to} Notes`;
 
-  const notesText = window.__currentSummaryItems
-    .map(
-      (item) =>
-        `Verse ${item.verseNum}:\n` +
-        item.list.map((n) => `- ${n.text}`).join("\n")
-    )
-    .join("\n\n");
-  const reflectionAnswers = Array.from(
-    document.querySelectorAll(".ai-reflection textarea")
-  )
-    .map((t, i) => `Reflection ${i + 1}: ${t.value.trim()}`)
-    .filter(Boolean)
-    .join("\n");
+  const lines = [title, ""];
 
-  const fullNotesText =
-    notesText +
-    (reflectionAnswers ? `\n\nGUIDED REFLECTION:\n${reflectionAnswers}` : "");
+  window.__currentSummaryItems
+    .sort((a, b) => a.verseNum - b.verseNum)
+    .forEach((item) => {
+      const joined = item.list.map((n) => n.text).join("; ");
+      lines.push(`v${item.verseNum}: ${joined}`);
+    });
 
-  const prompt = `
-IMPORTANT:
-Respond with RAW HTML ONLY.
-No markdown. No explanations.
-
-Use ONE outer div with EXACT style:
-background: linear-gradient(135deg, #001358, #020103);
-padding: 1rem;
-border-radius: 12px;
-box-shadow: 0 12px 30px #18234a;
-font-family: system-ui, -apple-system, BlinkMacSystemFont, sans-serif;
-font-size: 16px;
-line-height: 1.4;
-color: #ffffff;
-max-width: 360px;
-margin: 2rem 0;
-
-Allowed tags only: div, p, ul, li, strong, em
-
-STRUCTURE:
-1) A <strong>title line</strong>:
-   "${passageTitleEl.textContent} Notes Summary by AI ✨"
-
-2) A short paragraph (1–2 sentences) that sounds like MY OWN REFLECTION,
-   preserving my tone, language (Taglish if present), and emphasis.
-
-3) A <ul> of 3–5 bullets that:
-   - paraphrase my exact thoughts
-   - reuse key phrases I wrote (not generic theology)
-   - make me feel: "oo nga, sinabi ko nga yan"
-
-RULES:
-- DO NOT sound academic
-- DO NOT rewrite into sermon language
-- DO NOT remove emotion, prayers, or personal reactions
-- You may lightly clean grammar but KEEP MY VOICE
-
-NOTES (verbatim, do not reinterpret):
-${fullNotesText}
-
-`;
-
-  try {
-    const res = await fetch(
-      "https://gemini-proxy-668755364170.asia-southeast1.run.app",
-      {
-        method: "POST",
-        headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({
-          task: "summary",
-          contents: [{ parts: [{ text: prompt }] }],
-        }),
-      }
-    );
-
-    const data = await res.json();
-    const html = data.candidates?.[0]?.content?.parts?.[0]?.text || "";
-    aiNotesSummaryEl.innerHTML = html;
-
-    const shareBtn = document.createElement("button");
-    shareBtn.className = "ai-notes-share";
-    shareBtn.innerHTML = "🔗";
-    shareBtn.title = "Share notes summary";
-
-    shareBtn.onclick = async () => {
-      const temp = document.createElement("div");
-      temp.innerHTML = aiNotesSummaryEl.innerHTML;
-
-      const text = temp.innerText.trim();
-
-      if (navigator.share) {
-        await navigator.share({
-          title: `${passageTitleEl.textContent} Notes Summary`,
-          text,
-        });
-      } else {
-        await navigator.clipboard.writeText(text);
-        alert("Notes summary copied to clipboard.");
-      }
-    };
-
-    aiNotesSummaryEl.appendChild(shareBtn);
-
-    aiNotesSummaryEl.style.position = "relative";
-  } catch (e) {
-    console.error(e);
-    alert("Failed to summarize notes.");
-  } finally {
-    hideLoading();
-  }
+  await navigator.clipboard.writeText(lines.join("\n"));
+  notesCopyStatusEl.textContent = "✅ Notes copied to clipboard";
+  setTimeout(() => (notesCopyStatusEl.textContent = ""), 2000);
 };
 
 let titleForGemini = "";
@@ -810,9 +717,9 @@ function renderComments(key, container) {
 /* ---------- SUMMARY ---------- */
 function renderSummary() {
   summaryEl.innerHTML = "";
-  aiNotesSummaryEl.innerHTML = "";
-  aiNotesSummaryEl.style.position = "";
-  summarizeNotesBtn.style.display = "none";
+  notesCopyStatusEl.textContent = "";
+  copyNotesBtn.style.display = "none";
+
   applyReflectionVisibility();
 
   const single = verseEl.value;
@@ -833,7 +740,7 @@ function renderSummary() {
 
     items.push({ verseNum, list });
     window.__currentSummaryItems.push({ verseNum, list });
-    summarizeNotesBtn.style.display = "block";
+    copyNotesBtn.style.display = "block";
   });
 
   if (!items.length) {
