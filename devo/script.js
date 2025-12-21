@@ -322,7 +322,11 @@ async function loadPassage() {
     });
 
     /* ---------- NASB LITERALWORD (FAST VERSES) ---------- */
-    const query = `${bookName} ${chapterNum}`;
+    const query =
+      (bookName === "Song of Solomon" ? "Song of Songs" : bookName) +
+      " " +
+      chapterNum;
+
     const res = await fetch(
       `https://api.allorigins.win/get?url=${encodeURIComponent(
         `https://nasb.literalword.com/?q=${query}`
