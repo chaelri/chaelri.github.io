@@ -553,7 +553,11 @@ List rules:
   padding-left: 1.25rem;
 - 3 to 5 short bullet points only
 - Short, clean sentences
+- Use <strong> to highlight key theological identities (e.g. Jesus, Word, Light, Lamb of God)
+- Use <em> to highlight important actions or roles (e.g. became flesh, witnessing, calling disciples)
+- Do NOT overuse emphasis — only 1–2 emphasized phrases per bullet
 - No extra spacing or decoration
+
 
 CONTENT RULES:
 
