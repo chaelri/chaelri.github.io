@@ -426,8 +426,35 @@ async function loadPassage() {
   } catch (err) {
     console.error(err);
     hideLoading();
-    alert("Failed to load passage.");
+    showLoadError("Failed to load passage.");
   }
+}
+
+function showLoadError(message) {
+  output.innerHTML = `
+    <div style="
+      background: linear-gradient(180deg, #1f2937, #111827);
+      border-radius: 16px;
+      padding: 20px;
+      text-align: center;
+    ">
+      <p style="margin:0 0 12px; font-weight:600;">
+        ⚠️ ${message}
+      </p>
+      <div style="display:flex; gap:10px; justify-content:center;">
+        <button id="retryLoadBtn" class="primary">Retry</button>
+        <button id="closeLoadBtn" class="secondary">✕ Close</button>
+      </div>
+    </div>
+  `;
+
+  document.getElementById("retryLoadBtn").onclick = () => {
+    loadPassage();
+  };
+
+  document.getElementById("closeLoadBtn").onclick = () => {
+    output.innerHTML = "";
+  };
 }
 
 function showLoading() {
