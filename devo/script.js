@@ -291,12 +291,13 @@ async function loadPassage() {
 
   try {
     titleForGemini = passageTitleEl.textContent;
-    const bookName = BIBLE_META[bookEl.value].name;
+
+    const bookId = bookEl.value;
+    const bookName = BIBLE_META[bookId].name;
     const chapterNum = chapterEl.value;
 
-    const baseRes = await fetch(
-      `${API_WEB}/${bookEl.value}/${chapterEl.value}`
-    );
+    /* ---------- BASE TEXT (for AI context + reflection ONLY) ---------- */
+    const baseRes = await fetch(`${API_WEB}/${bookId}/${chapterNum}`);
     const baseData = await baseRes.json();
 
     let baseVerses = baseData.verses;
@@ -312,7 +313,7 @@ async function loadPassage() {
       .map((v) => `${v.verse}. ${v.text}`)
       .join("\n");
 
-    // 🔥 FIRE EVERYTHING AT ONCE (NO ORDER)
+    // fire AI stuff in parallel (unchanged)
     renderAIContextSummary();
     renderAIReflectionQuestions({
       book: bookName,
@@ -320,117 +321,100 @@ async function loadPassage() {
       versesText,
     });
 
-    const versePrompt = `Send ${titleForGemini} in NASB 2020.
-FORMAT RULES (MANDATORY):
-- One verse per line
-- Format EXACTLY:
-  BOOK_ID|CHAPTER|VERSE|VERSE_TEXT
-- BOOK_ID must be ONE OF THE FOLLOWING VALID IDS ONLY:
-  ${Object.keys(BIBLE_META).join(", ")}
-- Use ONLY the correct BOOK_ID for ${titleForGemini}
-- CHAPTER must match the chapter in ${titleForGemini}
-- NO quotes
-- NO JSON
-- NO markdown
-- NO commentary
-- NO blank lines`;
+    /* ---------- FAST VERSE LOAD (BibleHub NASB) ---------- */
+    const bookSlug = bookName.toLowerCase().replace(/\s+/g, "_");
+    const hubUrl = `https://biblehub.com/nasb_/${bookSlug}/${chapterNum}.htm`;
 
-    const verseGeminiPromise = fetch(
-      "https://gemini-proxy-668755364170.asia-southeast1.run.app",
-      {
-        method: "POST",
-        headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({
-          task: "text",
-          contents: [{ parts: [{ text: versePrompt }] }],
-        }),
-      }
-    ).then((r) => r.json());
+    const res = await fetch(
+      `https://api.allorigins.win/get?url=${encodeURIComponent(hubUrl)}`
+    );
+    if (!res.ok) throw new Error("BibleHub fetch failed");
 
-    verseGeminiPromise
-      .then((verseGemData) => {
-        const aiText =
-          verseGemData.candidates?.[0]?.content?.parts?.[0]?.text || "";
+    const { contents } = await res.json();
 
-        if (!aiText.includes("|")) {
-          throw new Error("Invalid AI verse format");
-        }
+    const start = contents.indexOf(`class="padleft"`);
+    const end = contents.indexOf(`class="footnotesbot"`);
+    const slice = contents.slice(start - 5, end);
 
-        const verses = aiText
-          .trim()
-          .split("\n")
-          .map((line) => {
-            const [book_id, chapter, verse, ...rest] = line.split("|");
-            return {
-              book_id,
-              chapter: Number(chapter),
-              verse: Number(verse),
-              text: rest.join("|").trim(),
-            };
-          });
+    const temp = document.createElement("div");
+    temp.innerHTML = slice;
 
-        output.innerHTML = "";
+    const cleaned = temp.innerText
+      .replace(/\[[^\]]*\]/g, "")
+      .replace(/\s+/g, " ")
+      .trim();
 
-        verses.forEach((v) => {
-          const key = keyOf(v.book_id, v.chapter, v.verse);
-          const count = comments[key]?.length || 0;
-
-          const wrap = document.createElement("div");
-          wrap.className = "verse";
-          wrap.innerHTML = `
-            <div class="verse-header">
-              <div>
-                <span class="verse-num">${v.verse}</span>${v.text}
-              </div>
-              <div style="display:flex;align-items:center;gap:8px">
-                <button class="inline-ai-btn" title="Quick verse context">✨</button>
-                ${
-                  count
-                    ? `<div class="comment-indicator">💬 ${count}</div>`
-                    : ""
-                }
-              </div>
-            </div>
-            <div class="inline-ai-mount"></div>
-            <div class="comments ai-fade-in" hidden></div>
-          `;
-
-          const commentsEl = wrap.querySelector(".comments");
-          wrap.querySelector(".verse-header").onclick = () => {
-            commentsEl.hidden = !commentsEl.hidden;
-            if (!commentsEl.hidden) renderComments(key, commentsEl);
-          };
-
-          wrap.querySelector(".inline-ai-btn").onclick = (e) => {
-            e.stopPropagation();
-            const mount = wrap.querySelector(".inline-ai-mount");
-            if (mount.innerHTML.trim()) {
-              mount.innerHTML = "";
-              return;
-            }
-            fetchInlineQuickContext(
-              {
-                book: BIBLE_META[v.book_id].name,
-                chapter: v.chapter,
-                verse: v.verse,
-                text: v.text,
-              },
-              mount
-            );
-          };
-
-          output.appendChild(wrap);
-        });
-
-        renderSummary();
-      })
-      .catch((err) => {
-        console.error(err);
-        alert("Failed to load passage.");
-      })
-      .finally(() => {
-        hideLoading();
+    let verses = cleaned
+      .replace(/(^|\s)[A-Z][A-Za-z’\s;]+(?=\d+)/g, "")
+      .replace(/(\d)([A-Za-z“])/g, "$1 $2")
+      .replace(/\s(?=\d+\s)/g, "\n")
+      .split("\n")
+      .map((line) => {
+        const i = line.indexOf(" ");
+        return {
+          book_id: bookId,
+          chapter: Number(chapterNum),
+          verse: Number(line.slice(0, i)),
+          text: line.slice(i + 1),
+        };
       });
+
+    if (single) verses = verses.filter((v) => v.verse === +single);
+    else if (from && to)
+      verses = verses.filter((v) => v.verse >= from && v.verse <= to);
+
+    /* ---------- RENDER (UNCHANGED) ---------- */
+    output.innerHTML = "";
+
+    verses.forEach((v) => {
+      const key = keyOf(v.book_id, v.chapter, v.verse);
+      const count = comments[key]?.length || 0;
+
+      const wrap = document.createElement("div");
+      wrap.className = "verse";
+      wrap.innerHTML = `
+        <div class="verse-header">
+          <div>
+            <span class="verse-num">${v.verse}</span>${v.text}
+          </div>
+          <div style="display:flex;align-items:center;gap:8px">
+            <button class="inline-ai-btn" title="Quick verse context">✨</button>
+            ${count ? `<div class="comment-indicator">💬 ${count}</div>` : ""}
+          </div>
+        </div>
+        <div class="inline-ai-mount"></div>
+        <div class="comments ai-fade-in" hidden></div>
+      `;
+
+      const commentsEl = wrap.querySelector(".comments");
+      wrap.querySelector(".verse-header").onclick = () => {
+        commentsEl.hidden = !commentsEl.hidden;
+        if (!commentsEl.hidden) renderComments(key, commentsEl);
+      };
+
+      wrap.querySelector(".inline-ai-btn").onclick = (e) => {
+        e.stopPropagation();
+        const mount = wrap.querySelector(".inline-ai-mount");
+        if (mount.innerHTML.trim()) {
+          mount.innerHTML = "";
+          return;
+        }
+        fetchInlineQuickContext(
+          {
+            book: BIBLE_META[v.book_id].name,
+            chapter: v.chapter,
+            verse: v.verse,
+            text: v.text,
+          },
+          mount
+        );
+      };
+
+      output.appendChild(wrap);
+    });
+
+    renderSummary();
+    hideLoading();
   } catch (err) {
     console.error(err);
     hideLoading();
