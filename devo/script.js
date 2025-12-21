@@ -816,9 +816,25 @@ function renderSummary() {
   });
 }
 
+document.getElementById("scrollTopBtn").onclick = () => {
+  window.scrollTo({ top: 0, behavior: "smooth" });
+};
+
 document.getElementById("runAI").onclick = async () => {
   await runAIForCurrentPassage();
+  const scrollBtn = document.getElementById("scrollTopBtn");
 
+  const observer = new IntersectionObserver(
+    ([entry]) => {
+      scrollBtn.style.display =
+        entry.isIntersecting && window.innerWidth <= 900
+          ? "flex"
+          : "none";
+    },
+    { threshold: 0.2 }
+  );
+
+  observer.observe(aiContextSummaryEl);
   // mobile-friendly focus / scroll to AI context
   if (window.innerWidth <= 900 && aiContextSummaryEl) {
     aiContextSummaryEl.scrollIntoView({
