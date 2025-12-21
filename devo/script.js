@@ -813,8 +813,20 @@ function renderSummary() {
   });
 }
 
-document.getElementById("runAI").onclick = () => {
-  runAIForCurrentPassage();
+document.getElementById("runAI").onclick = async () => {
+  await runAIForCurrentPassage();
+
+  // mobile-friendly focus / scroll to AI context
+  if (window.innerWidth <= 900 && aiContextSummaryEl) {
+    aiContextSummaryEl.scrollIntoView({
+      behavior: "smooth",
+      block: "start",
+    });
+
+    // accessibility focus (no visible outline)
+    aiContextSummaryEl.setAttribute("tabindex", "-1");
+    aiContextSummaryEl.focus({ preventScroll: true });
+  }
 };
 
 /* ---------- EVENTS ---------- */
