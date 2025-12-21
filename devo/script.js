@@ -287,7 +287,6 @@ function loadVerses() {
 /* ---------- LOAD PASSAGE ---------- */
 async function loadPassage() {
   showLoading();
-  aiContextSummaryEl.innerHTML = "";
 
   try {
     titleForGemini = passageTitleEl.textContent;
@@ -313,13 +312,12 @@ async function loadPassage() {
       .map((v) => `${v.verse}. ${v.text}`)
       .join("\n");
 
-    // 🔥 FIRE AI IN PARALLEL (UNCHANGED)
-    renderAIContextSummary();
-    renderAIReflectionQuestions({
+    // store AI payload for later, but DO NOT render yet
+    window.__aiPayload = {
       book: bookName,
       chapter: chapterNum,
       versesText,
-    });
+    };
 
     /* ---------- NASB LITERALWORD (FAST VERSES) ---------- */
     const query =
@@ -428,6 +426,21 @@ async function loadPassage() {
     hideLoading();
     showLoadError("Failed to load passage.");
   }
+}
+
+async function runAIForCurrentPassage() {
+  if (!window.__aiPayload) return;
+
+  const { book, chapter, versesText } = window.__aiPayload;
+
+  titleForGemini = `${book} ${chapter}`;
+
+  renderAIContextSummary();
+  renderAIReflectionQuestions({
+    book,
+    chapter,
+    versesText,
+  });
 }
 
 function showLoadError(message) {
@@ -800,12 +813,17 @@ function renderSummary() {
   });
 }
 
+document.getElementById("runAI").onclick = () => {
+  runAIForCurrentPassage();
+};
+
 /* ---------- EVENTS ---------- */
 bookEl.onchange = loadChapters;
 chapterEl.onchange = loadVerses;
-loadBtn.onclick = () => {
+loadBtn.onclick = async () => {
   output.innerHTML = "";
-  loadPassage();
+  await loadPassage();
+  // AI is now opt-in and runs only after successful passage load
 };
 
 /* ---------- INIT ---------- */
