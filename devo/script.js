@@ -345,6 +345,7 @@ async function loadPassage() {
       .trim();
 
     let verses = cleaned
+      .replace('New American Standard Bible►►','')
       .replace(/(^|\s)[A-Z][A-Za-z’\s;]+(?=\d+)/g, "")
       .replace(/(\d)([A-Za-z“])/g, "$1 $2")
       .replace(/\s(?=\d+\s)/g, "\n")
