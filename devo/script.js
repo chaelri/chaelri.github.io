@@ -502,6 +502,14 @@ function hideLoading() {
 }
 
 async function renderAIContextSummary() {
+  aiContextSummaryEl.innerHTML = `
+    <div class="ai-shimmer" style="margin-bottom:2rem;max-width:360px;">
+      <div class="ai-shimmer-block"></div>
+      <div class="ai-shimmer-block"></div>
+      <div class="ai-shimmer-block short"></div>
+    </div>
+  `;
+
   let testText = `You are a Bible study assistant.
 
 IMPORTANT:
@@ -588,7 +596,7 @@ Create a compact background context for ${titleForGemini}.
 
     const gemData = await gemini.json();
     aiContextSummaryEl.innerHTML =
-      gemData.candidates?.[0]?.content?.parts?.[0]?.text;
+      gemData.candidates?.[0]?.content?.parts?.[0]?.text || "";
 
     if (aiContextSummaryEl.firstElementChild) {
       aiContextSummaryEl.firstElementChild.classList.add("ai-fade-in");
