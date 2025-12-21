@@ -249,7 +249,7 @@ function showLanding() {
   }
 
   summaryEl.innerHTML = "";
-  summarizeNotesBtn.style.display = "none";
+  copyNotesBtn.style.display = "none";
 }
 
 /* ---------- CHAPTERS ---------- */
