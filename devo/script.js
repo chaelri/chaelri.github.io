@@ -862,15 +862,8 @@ ${versesText}
       let shown = false;
 
       ta.addEventListener("input", () => {
-        console.log("[REFLECTION] input fired", ta.value);
-
-        if (!shown) {
-          console.log("[REFLECTION] first keystroke → showSavedIndicator()");
-          showSavedIndicator(ta);
-          shown = true;
-        }
-
-        persistReflectionAnswers(ta);
+        showSavedIndicator(ta); // immediate UI feedback
+        persistReflectionSave(); // debounced DB write
       });
     });
 
@@ -890,7 +883,7 @@ async function restoreReflectionAnswers() {
   });
 }
 
-const persistReflectionAnswers = debounce(async (el) => {
+const persistReflectionSave = debounce(async () => {
   console.log("[REFLECTION] debounced persist START", el?.value);
 
   const cached = await loadAIFromStorage();
@@ -902,12 +895,8 @@ const persistReflectionAnswers = debounce(async (el) => {
   });
 
   cached.answers = answers;
-  console.log("[REFLECTION] saving answers to IndexedDB", cached.answers);
-
   await saveAIToStorage(cached);
-
-  if (el) showSavedIndicator(el);
-}, 500);
+}, 600);
 
 window.addEventListener("beforeunload", async () => {
   const cached = await loadAIFromStorage();
