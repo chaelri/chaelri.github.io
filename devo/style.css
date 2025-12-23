@@ -20,8 +20,6 @@ body {
   display: grid;
   grid-template-columns: minmax(0, 1fr) minmax(320px, 380px);
   gap: 20px;
-
-  min-height: 100svh;
   padding: calc(28px + env(safe-area-inset-top)) 20px
     calc(24px + env(safe-area-inset-bottom));
 
