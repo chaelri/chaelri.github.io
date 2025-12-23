@@ -319,6 +319,7 @@ function showLanding() {
   passageTitleEl.hidden = true;
   document.getElementById("runAI").hidden = true;
   toggleReflectionBtn.hidden = true;
+  summaryTitleEl.hidden = true;
 
   aiContextSummaryEl.innerHTML = "";
   const reflection = document.getElementById("aiReflection");
@@ -359,7 +360,10 @@ function loadVerses() {
     verseEl.appendChild(o);
   }
 
-  updatePassageTitle();
+  if (!output.querySelector(".landing")) {
+    updatePassageTitle();
+  }
+
   renderSummary();
 }
 
@@ -369,6 +373,7 @@ async function loadPassage() {
   passageTitleEl.hidden = false;
   document.getElementById("runAI").hidden = false;
   toggleReflectionBtn.hidden = false;
+  summaryTitleEl.hidden = false;
 
   try {
     titleForGemini = passageTitleEl.textContent;
