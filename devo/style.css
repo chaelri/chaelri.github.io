@@ -54,6 +54,7 @@ select,
 input,
 button,
 textarea {
+  font-family: Arial;
   flex: 1;
   font-size: 16px;
   padding: 12px 14px;
