@@ -417,11 +417,15 @@ select:disabled {
   position: relative;
   margin: 10px 0 0 0px;
   background: linear-gradient(135deg, #486bec, #db2777);
-  padding: 10px 36px 10px 12px;
+  padding: 10px 44px 10px 12px;
   border-radius: 12px;
   font-size: 14px;
   line-height: 1.4;
   color: #ffffff;
+}
+
+.inline-ai-result p{
+    font-size: 1rem;
 }
 
 .inline-ai-close {
