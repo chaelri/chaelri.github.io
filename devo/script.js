@@ -185,14 +185,17 @@ function showSavedIndicator(el) {
     badge.className = "saved-indicator";
     badge.textContent = "Saved ✓";
     badge.style.cssText = `
-      position: absolute;
-      right: 8px;
-      bottom: 6px;
-      font-size: 12px;
-      color: #86efac;
-      opacity: 0;
-      pointer-events: none;
-      transition: opacity 0.25s ease;
+        position: absolute;
+        right: 8px;
+        bottom: 6px;
+        font-size: 12px;
+        color: #86efac;
+        background: rgba(15, 23, 42, 0.85);
+        padding: 2px 6px;
+        border-radius: 6px;
+        opacity: 0;
+        pointer-events: none;
+        transition: opacity 0.25s ease;
     `;
     li.appendChild(badge);
   }
@@ -850,7 +853,15 @@ ${versesText}
       applyReflectionVisibility();
     }
     mount.querySelectorAll("textarea").forEach((ta) => {
-      ta.addEventListener("input", () => persistReflectionAnswers(ta));
+      let shown = false;
+
+      ta.addEventListener("input", () => {
+        if (!shown) {
+          showSavedIndicator(ta);
+          shown = true;
+        }
+        persistReflectionAnswers(ta);
+      });
     });
 
     await restoreReflectionAnswers();
