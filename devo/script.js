@@ -1020,35 +1020,38 @@ function renderSummary() {
   });
 }
 
-document.getElementById("scrollTopBtn").onclick = () => {
-  document.querySelector(".layout").scrollTo({ top: 0, behavior: "smooth" });
+const scrollTopBtn = document.getElementById("scrollTopBtn");
+const layoutEl = document.querySelector(".layout");
+
+scrollTopBtn.style.display = "none";
+
+scrollTopBtn.onclick = () => {
+  layoutEl.scrollTo({ top: 0, behavior: "smooth" });
 };
 
+layoutEl.addEventListener("scroll", () => {
+  scrollTopBtn.style.display =
+    layoutEl.scrollTop > 120 && window.innerWidth <= 900 ? "flex" : "none";
+});
+
 document.getElementById("runAI").onclick = async () => {
-  lockAppScroll(false); // 🔑 ensure scroll before AI rendering
+  lockAppScroll(false);
 
-  const scrollBtn = document.getElementById("scrollTopBtn");
+  if (window.innerWidth <= 900) {
+    requestAnimationFrame(() => {
+      const y =
+        aiContextSummaryEl.getBoundingClientRect().top +
+        layoutEl.scrollTop -
+        16;
 
-  if (window.innerWidth <= 900 && aiContextSummaryEl) {
-    const y =
-      aiContextSummaryEl.getBoundingClientRect().top +
-      document.querySelector(".layout").scrollTop -
-      16; // gentle offset so top is never clipped
-
-    document.querySelector(".layout").scrollTo({
-      top: y,
-      behavior: "smooth",
+      layoutEl.scrollTo({
+        top: y,
+        behavior: "smooth",
+      });
     });
   }
 
-  await runAIForCurrentPassage();
-
-  const layout = document.querySelector(".layout");
-
-  layout.addEventListener("scroll", () => {
-    scrollBtn.style.display =
-      layout.scrollTop > 120 && window.innerWidth <= 900 ? "flex" : "none";
-  });
+  runAIForCurrentPassage(); // 🔥 DO NOT await — let scrolling happen immediately
 };
 
 /* ---------- EVENTS ---------- */
