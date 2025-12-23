@@ -155,11 +155,22 @@ const devotionId = () =>
     verseFromEl.value || ""
   }-${verseToEl.value || ""}`;
 
-function debounce(fn, delay = 400) {
-  let t;
+function throttle(fn, delay = 1000) {
+  let last = 0;
+  let trailing = null;
+
   return (...args) => {
-    clearTimeout(t);
-    t = setTimeout(() => fn(...args), delay);
+    const now = Date.now();
+    if (now - last >= delay) {
+      last = now;
+      fn(...args);
+    } else {
+      clearTimeout(trailing);
+      trailing = setTimeout(() => {
+        last = Date.now();
+        fn(...args);
+      }, delay - (now - last));
+    }
   };
 }
 
@@ -209,6 +220,51 @@ function showSavedIndicator(el) {
   requestAnimationFrame(() => {
     badge.style.opacity = "1";
     setTimeout(() => (badge.style.opacity = "0"), 1200);
+  });
+}
+
+function markQuestionSaved(el) {
+  let mark = el.parentElement.querySelector(".question-saved");
+  if (!mark) {
+    mark = document.createElement("span");
+    mark.className = "question-saved";
+    mark.textContent = "✓";
+    mark.style.cssText = `
+      position: absolute;
+      right: 10px;
+      top: 10px;
+      color: #86efac;
+      font-size: 14px;
+      opacity: 0.9;
+    `;
+    el.parentElement.style.position = "relative";
+    el.parentElement.appendChild(mark);
+  }
+}
+
+function showAllSavedBanner() {
+  let banner = document.getElementById("allSavedBanner");
+  if (!banner) {
+    banner = document.createElement("div");
+    banner.id = "allSavedBanner";
+    banner.textContent = "All reflections saved ✓";
+    banner.style.cssText = `
+      margin-top: 12px;
+      padding: 8px 12px;
+      font-size: 13px;
+      color: #86efac;
+      background: rgba(15,23,42,0.85);
+      border-radius: 10px;
+      text-align: center;
+      opacity: 0;
+      transition: opacity 0.3s ease;
+    `;
+    document.getElementById("aiReflection").appendChild(banner);
+  }
+
+  requestAnimationFrame(() => {
+    banner.style.opacity = "1";
+    setTimeout(() => (banner.style.opacity = "0"), 1800);
   });
 }
 
@@ -862,8 +918,9 @@ ${versesText}
       let shown = false;
 
       ta.addEventListener("input", () => {
-        showSavedIndicator(ta); // immediate UI feedback
-        persistReflectionSave(); // debounced DB write
+        showSavedIndicator(ta); // immediate feedback
+        markQuestionSaved(ta); // per-question state
+        persistReflectionSave(); // throttled DB write
       });
     });
 
@@ -883,7 +940,7 @@ async function restoreReflectionAnswers() {
   });
 }
 
-const persistReflectionSave = debounce(async () => {
+const persistReflectionSave = throttle(async () => {
   console.log("[REFLECTION] debounced persist START", el?.value);
 
   const cached = await loadAIFromStorage();
@@ -896,6 +953,7 @@ const persistReflectionSave = debounce(async () => {
 
   cached.answers = answers;
   await saveAIToStorage(cached);
+  showAllSavedBanner();
 }, 600);
 
 window.addEventListener("beforeunload", async () => {
