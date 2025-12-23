@@ -847,6 +847,7 @@ ${versesText}
     setTimeout(restoreSavedReflectionAnswers, 0);
 
     mount.querySelectorAll("textarea").forEach((ta, i) => {
+      console.log("ta", ta);
       const id = `reflection-${devotionId()}-${i}`;
       ta.id = id;
 
@@ -867,7 +868,6 @@ ${versesText}
 
       ta.after(btn);
     });
-
   } catch (e) {
     console.error(e);
   }
