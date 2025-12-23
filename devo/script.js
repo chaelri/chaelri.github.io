@@ -1043,15 +1043,12 @@ document.getElementById("runAI").onclick = async () => {
 
   await runAIForCurrentPassage();
 
-  const observer = new IntersectionObserver(
-    ([entry]) => {
-      scrollBtn.style.display =
-        entry.isIntersecting && window.innerWidth <= 900 ? "flex" : "none";
-    },
-    { threshold: 0.2 }
-  );
+  const layout = document.querySelector(".layout");
 
-  observer.observe(aiContextSummaryEl);
+  layout.addEventListener("scroll", () => {
+    scrollBtn.style.display =
+      layout.scrollTop > 120 && window.innerWidth <= 900 ? "flex" : "none";
+  });
 };
 
 /* ---------- EVENTS ---------- */
