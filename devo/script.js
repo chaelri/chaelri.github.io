@@ -374,6 +374,31 @@ function loadVerses() {
 
   renderSummary();
 }
+async function fetchWithTimeout(url, timeout = 4000) {
+  const controller = new AbortController();
+  const id = setTimeout(() => controller.abort(), timeout);
+
+  try {
+    return await fetch(url, { signal: controller.signal });
+  } finally {
+    clearTimeout(id);
+  }
+}
+
+async function fetchAllOriginsUnli(url) {
+  while (true) {
+    try {
+      const res = await fetchWithTimeout(url, 4000);
+      if (!res.ok) throw new Error("allorigins failed");
+      return await res.json();
+    } catch (err) {
+      if (err.name !== "AbortError") {
+        console.warn("allorigins retrying due to error:", err);
+      }
+      // retry immediately, unli
+    }
+  }
+}
 
 /* ---------- LOAD PASSAGE ---------- */
 async function loadPassage() {
@@ -422,15 +447,11 @@ async function loadPassage() {
       " " +
       chapterNum;
 
-    const res = await fetch(
+    const { contents } = await fetchAllOriginsUnli(
       `https://api.allorigins.win/get?url=${encodeURIComponent(
         `https://nasb.literalword.com/?q=${query}`
       )}`
     );
-    console.log(`https://nasb.literalword.com/?q=${query}`);
-    if (!res.ok) throw new Error("nasb.literalword.com fetch failed");
-
-    const { contents } = await res.json();
 
     const a = document.createElement("div");
     a.innerHTML = contents;
