@@ -104,12 +104,15 @@ function loadAIFromStorage() {
   }
 }
 
+let comments = JSON.parse(localStorage.getItem("bibleComments") || "{}");
+
 /* migrate old notes */
 Object.keys(comments).forEach((k) => {
   comments[k] = comments[k].map((n) =>
     typeof n === "string" ? { text: n, time: Date.now() } : n
   );
 });
+
 saveComments();
 
 function saveComments() {
