@@ -2,7 +2,7 @@ const API_WEB = "https://bible-api.com/data/web";
 
 /* ---------- INDEXEDDB (DEVOTION DATA) ---------- */
 const DB_NAME = "dudu-devotion-db";
-const DB_VERSION = 1;
+const DB_VERSION = 2;
 const STORE = "devotions";
 
 function openDB() {
