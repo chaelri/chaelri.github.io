@@ -25,7 +25,7 @@ body {
   padding: 20px;
 
   overflow-x: hidden;
-  overflow-y: auto;   /* ✅ single vertical scroll */
+  overflow-y: auto; /* ✅ single vertical scroll */
 }
 
 .layout > * {
@@ -441,7 +441,7 @@ select:disabled {
 .ai-reflection {
   background: linear-gradient(180deg, #0f172a, #0c1425);
   border-radius: 18px;
-  padding: 18px;
+  padding-right: 38px;
   margin-bottom: 20px;
 }
 
@@ -491,9 +491,9 @@ select:disabled {
   background: #111a2f;
   border: 1px solid #1f2a44;
   border-radius: 12px;
-  padding: 10px 12px;
   color: #e6edf7;
   font-family: system-ui, -apple-system, BlinkMacSystemFont, sans-serif;
+  box-sizing: border-box;
 }
 
 /* ---------- AI FADE IN ---------- */
