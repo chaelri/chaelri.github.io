@@ -280,7 +280,8 @@ function updatePassageTitle() {
   const chapter = chapterEl.value;
   const verse = verseEl.value;
 
-  let title = `${book} ${chapter}:${verse}`;
+  let title = `${book} ${chapter}`;
+  if (verse) title += `:${verse}`;
 
   passageTitleEl.textContent = title;
   summaryTitleEl.textContent = title;
@@ -566,7 +567,6 @@ async function runAIForCurrentPassage() {
     reflectionHTML: document.getElementById("aiReflection").innerHTML,
     answers: {},
   });
-
 }
 
 function showLoadError(message) {
@@ -980,7 +980,6 @@ layoutEl.addEventListener("scroll", () => {
 scrollTopBtn.onclick = () => {
   layoutEl.scrollTo({ top: 0, behavior: "smooth" });
 };
-
 
 /* ---------- EVENTS ---------- */
 bookEl.onchange = loadChapters;
