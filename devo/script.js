@@ -850,6 +850,7 @@ ${versesText}
     }
     mount.querySelectorAll("textarea").forEach((ta) => {
       ta.addEventListener("input", persistReflectionAnswers);
+      ta.addEventListener("blur", persistReflectionAnswers);
     });
 
     restoreReflectionAnswers();
@@ -864,7 +865,9 @@ async function restoreReflectionAnswers() {
   if (!cached?.answers) return;
 
   document.querySelectorAll("#aiReflection textarea").forEach((ta, i) => {
-    if (cached.answers[i]) ta.value = cached.answers[i];
+    if (cached.answers[i] !== undefined) {
+      ta.value = cached.answers[i];
+    }
   });
 }
 
@@ -874,7 +877,7 @@ async function persistReflectionAnswers() {
 
   const answers = {};
   document.querySelectorAll("#aiReflection textarea").forEach((ta, i) => {
-    if (ta.value.trim()) answers[i] = ta.value.trim();
+    answers[i] = ta.value; // save EVERYTHING, even empty
   });
 
   cached.answers = answers;
