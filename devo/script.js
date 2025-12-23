@@ -86,8 +86,6 @@ async function dbGet(id) {
 const bookEl = document.getElementById("book");
 const chapterEl = document.getElementById("chapter");
 const verseEl = document.getElementById("verse");
-const verseFromEl = document.getElementById("verseFrom");
-const verseToEl = document.getElementById("verseTo");
 const aiContextSummaryEl = document.getElementById("aiContextSummary");
 
 const output = document.getElementById("output");
@@ -133,12 +131,9 @@ copyNotesBtn.onclick = async () => {
   const bookName = bookEl.options[bookEl.selectedIndex]?.text;
   const chapter = chapterEl.value;
   const single = verseEl.value;
-  const from = verseFromEl.value;
-  const to = verseToEl.value;
 
   let title = `${bookName} ${chapter} Notes`;
   if (single) title = `${bookName} ${chapter}:${single} Notes`;
-  else if (from && to) title = `${bookName} ${chapter}:${from}-${to} Notes`;
 
   const lines = [title, ""];
 
@@ -199,9 +194,7 @@ function saveComments() {
 
 const keyOf = (b, c, v) => `${b}-${c}-${v}`;
 const devotionId = () =>
-  `${bookEl.value}-${chapterEl.value}-${verseEl.value || ""}-${
-    verseFromEl.value || ""
-  }-${verseToEl.value || ""}`;
+  `${bookEl.value}-${chapterEl.value}-${verseEl.value || ""}`;
 
 function resetAISections() {
   aiContextSummaryEl.innerHTML = "";
@@ -287,13 +280,8 @@ function updatePassageTitle() {
   const book = bookEl.options[bookEl.selectedIndex]?.text || "";
   const chapter = chapterEl.value;
   const verse = verseEl.value;
-  const from = verseFromEl.value;
-  const to = verseToEl.value;
 
-  let title = `${book} ${chapter}`;
-
-  if (verse) title += `:${verse}`;
-  else if (from && to) title += `:${from}–${to}`;
+  let title = `${book} ${chapter}:${verse}`;
 
   passageTitleEl.textContent = title;
   summaryTitleEl.textContent = title;
@@ -301,38 +289,12 @@ function updatePassageTitle() {
 
 /* ---------- UX MODE ---------- */
 const verseCtrl = verseEl.closest(".control");
-const fromCtrl = verseFromEl.closest(".control");
-const toCtrl = verseToEl.closest(".control");
 
 verseEl.onchange = () => {
-  if (verseEl.value) {
-    verseFromEl.value = "";
-    verseToEl.value = "";
-    fromCtrl.classList.add("collapsed");
-    toCtrl.classList.add("collapsed");
-  } else {
-    fromCtrl.classList.remove("collapsed");
-    toCtrl.classList.remove("collapsed");
-  }
   updateControlStates();
   updatePassageTitle();
   renderSummary();
 };
-
-[verseFromEl, verseToEl].forEach(
-  (el) =>
-    (el.oninput = () => {
-      if (verseFromEl.value || verseToEl.value) {
-        verseEl.value = "";
-        verseCtrl.classList.add("collapsed");
-      } else {
-        verseCtrl.classList.remove("collapsed");
-      }
-      updateControlStates();
-      updatePassageTitle();
-      renderSummary();
-    })
-);
 
 function updateControlStates() {
   document.querySelectorAll(".control").forEach((c) => {
@@ -460,8 +422,6 @@ async function loadPassage() {
     const chapterNum = chapterEl.value;
 
     const single = verseEl.value;
-    const from = +verseFromEl.value;
-    const to = +verseToEl.value;
 
     /* ---------- BASE TEXT (AI CONTEXT / REFLECTION ONLY) ---------- */
     const baseRes = await fetch(`${API_WEB}/${bookId}/${chapterNum}`);
@@ -469,8 +429,6 @@ async function loadPassage() {
 
     let baseVerses = baseData.verses;
     if (single) baseVerses = baseVerses.filter((v) => v.verse == single);
-    else if (from && to)
-      baseVerses = baseVerses.filter((v) => v.verse >= from && v.verse <= to);
 
     const versesText = baseVerses
       .map((v) => `${v.verse}. ${v.text}`)
@@ -526,8 +484,6 @@ async function loadPassage() {
     }
 
     if (single) verses = verses.filter((v) => v.verse === +single);
-    else if (from && to)
-      verses = verses.filter((v) => v.verse >= from && v.verse <= to);
 
     /* ---------- RENDER ---------- */
     output.innerHTML = "";
@@ -971,8 +927,6 @@ function renderSummary() {
 
   const single = verseEl.value;
   window.__currentSummaryItems = [];
-  const from = +verseFromEl.value;
-  const to = +verseToEl.value;
 
   let items = [];
 
@@ -982,7 +936,6 @@ function renderSummary() {
 
     if (b !== bookEl.value || c !== chapterEl.value) return;
     if (single && verseNum !== +single) return;
-    if (!single && from && to && (verseNum < from || verseNum > to)) return;
     if (!list.length) return;
 
     items.push({ verseNum, list });
