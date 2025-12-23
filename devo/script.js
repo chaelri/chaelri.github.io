@@ -151,9 +151,10 @@ copyNotesBtn.onclick = async () => {
       document.querySelectorAll("#aiReflection p")
     ).map((p) => p.textContent);
 
-    Object.entries(cached.answers).forEach(([i, answer]) => {
+    Object.entries(cached.answers).forEach(([id, answer]) => {
       if (!answer.trim()) return;
-      lines.push(`Q: ${questions[i]}`);
+      const idx = Number(id.split("-").pop());
+      lines.push(`Q: ${questions[idx]}`);
       lines.push(`A: ${answer}`, "");
     });
   }
@@ -844,15 +845,28 @@ ${versesText}
 
     const data = await res.json();
     mount.innerHTML = data.candidates?.[0]?.content?.parts?.[0]?.text || "";
-    if (mount.firstElementChild) {
-      mount.firstElementChild.classList.add("ai-reflection", "ai-fade-in");
-      applyReflectionVisibility();
-    }
+    setTimeout(restoreSavedReflectionAnswers, 0);
 
     mount.querySelectorAll("textarea").forEach((ta, i) => {
-      ta.id = `reflection-${devotionId()}-${i}`;
-      ta.addEventListener("input", persistReflectionAnswers);
-      ta.addEventListener("blur", persistReflectionAnswers);
+      const id = `reflection-${devotionId()}-${i}`;
+      ta.id = id;
+
+      const btn = document.createElement("button");
+      btn.textContent = "Save";
+      btn.style.marginTop = "8px";
+      btn.style.fontSize = "13px";
+
+      btn.onclick = async () => {
+        const cached = (await loadAIFromStorage()) || { id: devotionId() };
+        cached.answers = cached.answers || {};
+        cached.answers[id] = ta.value;
+        await saveAIToStorage(cached);
+
+        btn.textContent = "✅ Saved";
+        setTimeout(() => (btn.textContent = "Save"), 1200);
+      };
+
+      ta.after(btn);
     });
 
     setTimeout(restoreReflectionAnswers, 0);
@@ -862,28 +876,15 @@ ${versesText}
   return true;
 }
 
-async function restoreReflectionAnswers() {
+async function restoreSavedReflectionAnswers() {
   const cached = await loadAIFromStorage();
   if (!cached?.answers) return;
 
   document.querySelectorAll("#aiReflection textarea").forEach((ta) => {
-    if (cached.answers.hasOwnProperty(ta.id)) {
+    if (cached.answers[ta.id] !== undefined) {
       ta.value = cached.answers[ta.id];
     }
   });
-}
-
-async function persistReflectionAnswers() {
-  const cached = await loadAIFromStorage();
-  if (!cached) return;
-
-  const answers = {};
-  document.querySelectorAll("#aiReflection textarea").forEach((ta) => {
-    answers[ta.id] = ta.value;
-  });
-
-  cached.answers = answers;
-  await saveAIToStorage(cached);
 }
 
 /* ---------- COMMENTS ---------- */
