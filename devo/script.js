@@ -174,19 +174,19 @@ function resetAISections() {
 }
 
 function showSavedIndicator(el) {
-  let badge = el.parentElement.querySelector(".saved-indicator");
-  if (!badge) {
+  let badge = el.nextElementSibling;
+  if (!badge || !badge.classList.contains("saved-indicator")) {
     badge = document.createElement("div");
     badge.className = "saved-indicator";
     badge.textContent = "Saved ✓";
     badge.style.cssText = `
       font-size: 12px;
-      opacity: 0;
       margin-top: 4px;
       color: #86efac;
+      opacity: 0;
       transition: opacity 0.25s ease;
     `;
-    el.parentElement.appendChild(badge);
+    el.insertAdjacentElement("afterend", badge);
   }
 
   requestAnimationFrame(() => {
