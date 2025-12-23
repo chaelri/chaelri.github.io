@@ -47,6 +47,10 @@ body {
   }
 }
 
+.summaryContent {
+  padding-right: 38px;
+}
+
 select,
 input,
 button,
