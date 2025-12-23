@@ -85,6 +85,67 @@ async function dbGet(id) {
 
 const bookEl = document.getElementById("book");
 const chapterEl = document.getElementById("chapter");
+const chapterGrid = document.getElementById("chapterGrid");
+const verseGrid = document.getElementById("verseGrid");
+
+function renderChapterGrid() {
+  chapterGrid.innerHTML = "";
+  const chapters = BIBLE_META[bookEl.value].chapters.length;
+
+  for (let i = 1; i <= chapters; i++) {
+    const btn = document.createElement("button");
+    btn.className = "picker-btn";
+    btn.textContent = i;
+
+    if (+chapterEl.value === i) btn.classList.add("active");
+
+    btn.onclick = () => {
+      chapterEl.value = i;
+      loadVerses();
+      renderChapterGrid();
+      renderVerseGrid();
+    };
+
+    chapterGrid.appendChild(btn);
+  }
+}
+
+function renderVerseGrid() {
+  verseGrid.innerHTML = "";
+
+  const allBtn = document.createElement("button");
+  allBtn.className = "picker-btn all";
+  allBtn.textContent = "ALL";
+
+  if (!verseEl.value) allBtn.classList.add("active");
+
+  allBtn.onclick = () => {
+    verseEl.value = "";
+    renderVerseGrid();
+    renderSummary();
+  };
+
+  verseGrid.appendChild(allBtn);
+
+  const count = BIBLE_META[bookEl.value].chapters[chapterEl.value - 1];
+
+  for (let i = 1; i <= count; i++) {
+    const btn = document.createElement("button");
+    btn.className = "picker-btn";
+    btn.textContent = i;
+
+    if (+verseEl.value === i) btn.classList.add("active");
+
+    btn.onclick = () => {
+      verseEl.value = i;
+      renderVerseGrid();
+      renderSummary();
+    };
+
+    verseGrid.appendChild(btn);
+  }
+}
+
 const verseEl = document.getElementById("verse");
 const verseFromEl = document.getElementById("verseFrom");
 const verseToEl = document.getElementById("verseTo");
@@ -395,6 +456,8 @@ function loadChapters() {
   });
 
   loadVerses();
+  renderChapterGrid();
+  renderVerseGrid();
 }
 
 /* ---------- VERSES ---------- */
@@ -415,6 +478,7 @@ function loadVerses() {
   }
 
   renderSummary();
+  renderVerseGrid();
 }
 async function fetchWithTimeout(url, timeout = 4000) {
   const controller = new AbortController();
