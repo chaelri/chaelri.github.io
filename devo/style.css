@@ -26,7 +26,6 @@ body {
   overflow-x: hidden;
   overflow-y: auto;
   -webkit-overflow-scrolling: touch;
-  padding-top: calc(28px + env(safe-area-inset-top));
 }
 
 .layout > * {
