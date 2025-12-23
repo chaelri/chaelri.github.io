@@ -24,8 +24,8 @@ body {
   height: 100dvh;
   padding: 20px;
 
-  overflow-y: auto;
   overflow-x: hidden;
+  overflow-y: auto;   /* ✅ single vertical scroll */
 }
 
 .layout > * {
@@ -264,10 +264,10 @@ select:disabled {
   background: linear-gradient(180deg, #0f172a, #0c1425);
   border-radius: 18px;
   padding: 18px;
-  position: sticky;
-  top: 20px;
-  max-height: calc(100vh - 40px);
-  overflow-y: auto;
+
+  position: relative; /* 🔓 remove sticky trap */
+  max-height: none; /* 🔓 allow full height */
+  overflow-y: visible; /* 🔓 no clipping */
 }
 
 .summary-item {
