@@ -165,21 +165,6 @@ function resetAISections() {
   document.getElementById("runAI").style.display = "inline-block";
 }
 
-async function saveReflectionForId(id) {
-  if (!id) return;
-
-  const cached = await dbGet(id);
-  if (!cached) return;
-
-  const answers = {};
-  document.querySelectorAll("#aiReflection textarea").forEach((ta, i) => {
-    answers[i] = ta.value;
-  });
-
-  cached.answers = answers;
-  await dbPut(cached);
-}
-
 async function fetchInlineQuickContext(
   { book, chapter, verse, text },
   mountEl
@@ -528,7 +513,7 @@ async function runAIForCurrentPassage() {
     document.getElementById("aiReflection").innerHTML = cached.reflectionHTML;
     applyReflectionVisibility();
     document.getElementById("runAI").style.display = "none";
-    await restoreReflectionAnswers();
+    restoreReflectionAnswers();
     return;
   }
 
@@ -827,12 +812,10 @@ ${versesText}
       applyReflectionVisibility();
     }
     mount.querySelectorAll("textarea").forEach((ta) => {
-      ta.addEventListener("input", () => {
-        persistReflectionSave();
-      });
+      ta.addEventListener("input", persistReflectionAnswers);
     });
 
-    await restoreReflectionAnswers();
+    restoreReflectionAnswers();
   } catch (e) {
     console.error(e);
   }
@@ -848,22 +831,7 @@ async function restoreReflectionAnswers() {
   });
 }
 
-async function persistReflectionSave(forcedId = null) {
-  const id = forcedId || devotionId();
-
-  const cached = await dbGet(id);
-  if (!cached) return;
-
-  const answers = {};
-  document.querySelectorAll("#aiReflection textarea").forEach((ta, i) => {
-    answers[i] = ta.value; // yes, save everything
-  });
-
-  cached.answers = answers;
-  await dbPut(cached); // <-- THIS is the save. It stays.
-}
-
-window.addEventListener("beforeunload", async () => {
+async function persistReflectionAnswers() {
   const cached = await loadAIFromStorage();
   if (!cached) return;
 
@@ -874,7 +842,7 @@ window.addEventListener("beforeunload", async () => {
 
   cached.answers = answers;
   await saveAIToStorage(cached);
-});
+}
 
 /* ---------- COMMENTS ---------- */
 function renderComments(key, container) {
@@ -998,9 +966,6 @@ document.getElementById("runAI").onclick = async () => {
 bookEl.onchange = loadChapters;
 chapterEl.onchange = loadVerses;
 loadBtn.onclick = async () => {
-  const currentId = devotionId(); // lock John 1
-  await persistReflectionSave(currentId);
-
   output.innerHTML = "";
   resetAISections();
   await loadPassage();
