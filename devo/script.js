@@ -848,12 +848,14 @@ ${versesText}
       mount.firstElementChild.classList.add("ai-reflection", "ai-fade-in");
       applyReflectionVisibility();
     }
-    mount.querySelectorAll("textarea").forEach((ta) => {
+
+    mount.querySelectorAll("textarea").forEach((ta, i) => {
+      ta.id = `reflection-${devotionId()}-${i}`;
       ta.addEventListener("input", persistReflectionAnswers);
       ta.addEventListener("blur", persistReflectionAnswers);
     });
 
-    restoreReflectionAnswers();
+    setTimeout(restoreReflectionAnswers, 0);
   } catch (e) {
     console.error(e);
   }
@@ -864,9 +866,9 @@ async function restoreReflectionAnswers() {
   const cached = await loadAIFromStorage();
   if (!cached?.answers) return;
 
-  document.querySelectorAll("#aiReflection textarea").forEach((ta, i) => {
-    if (cached.answers[i] !== undefined) {
-      ta.value = cached.answers[i];
+  document.querySelectorAll("#aiReflection textarea").forEach((ta) => {
+    if (cached.answers.hasOwnProperty(ta.id)) {
+      ta.value = cached.answers[ta.id];
     }
   });
 }
@@ -876,8 +878,8 @@ async function persistReflectionAnswers() {
   if (!cached) return;
 
   const answers = {};
-  document.querySelectorAll("#aiReflection textarea").forEach((ta, i) => {
-    answers[i] = ta.value; // save EVERYTHING, even empty
+  document.querySelectorAll("#aiReflection textarea").forEach((ta) => {
+    answers[ta.id] = ta.value;
   });
 
   cached.answers = answers;
