@@ -551,7 +551,6 @@ async function runAIForCurrentPassage() {
     aiContextSummaryEl.innerHTML = cached.contextHTML;
     document.getElementById("aiReflection").innerHTML = cached.reflectionHTML;
     applyReflectionVisibility();
-    restoreReflectionAnswers();
     return;
   }
 
@@ -869,7 +868,6 @@ ${versesText}
       ta.after(btn);
     });
 
-    setTimeout(restoreReflectionAnswers, 0);
   } catch (e) {
     console.error(e);
   }
