@@ -1,5 +1,40 @@
 const API_WEB = "https://bible-api.com/data/web";
 
+/* ---------- INDEXEDDB (DEVOTION DATA) ---------- */
+const DB_NAME = "dudu-devotion-db";
+const DB_VERSION = 1;
+const STORE = "devotions";
+
+function openDB() {
+  return new Promise((resolve, reject) => {
+    const req = indexedDB.open(DB_NAME, DB_VERSION);
+
+    req.onupgradeneeded = () => {
+      const db = req.result;
+      if (!db.objectStoreNames.contains(STORE)) {
+        db.createObjectStore(STORE, { keyPath: "id" });
+      }
+    };
+
+    req.onsuccess = () => resolve(req.result);
+    req.onerror = () => reject(req.error);
+  });
+}
+
+async function dbPut(entry) {
+  const db = await openDB();
+  const tx = db.transaction(STORE, "readwrite");
+  tx.objectStore(STORE).put(entry);
+}
+
+async function dbGet(id) {
+  const db = await openDB();
+  return new Promise((resolve) => {
+    const req = db.transaction(STORE, "readonly").objectStore(STORE).get(id);
+    req.onsuccess = () => resolve(req.result || null);
+  });
+}
+
 const bookEl = document.getElementById("book");
 const chapterEl = document.getElementById("chapter");
 const verseEl = document.getElementById("verse");
@@ -87,21 +122,16 @@ copyNotesBtn.onclick = async () => {
 
 let titleForGemini = "";
 
-const aiStorageKey = () =>
-  `ai-${bookEl.value}-${chapterEl.value}-${verseEl.value || ""}-${
-    verseFromEl.value || ""
-  }-${verseToEl.value || ""}`;
-
-function saveAIToStorage(data) {
-  localStorage.setItem(aiStorageKey(), JSON.stringify(data));
+async function saveAIToStorage(data) {
+  await dbPut({
+    id: devotionId(),
+    ...data,
+    updatedAt: Date.now(),
+  });
 }
 
-function loadAIFromStorage() {
-  try {
-    return JSON.parse(localStorage.getItem(aiStorageKey()));
-  } catch {
-    return null;
-  }
+async function loadAIFromStorage() {
+  return await dbGet(devotionId());
 }
 
 let comments = JSON.parse(localStorage.getItem("bibleComments") || "{}");
@@ -120,6 +150,10 @@ function saveComments() {
 }
 
 const keyOf = (b, c, v) => `${b}-${c}-${v}`;
+const devotionId = () =>
+  `${bookEl.value}-${chapterEl.value}-${verseEl.value || ""}-${
+    verseFromEl.value || ""
+  }-${verseToEl.value || ""}`;
 
 async function fetchInlineQuickContext(
   { book, chapter, verse, text },
@@ -463,7 +497,7 @@ async function loadPassage() {
 async function runAIForCurrentPassage() {
   if (!window.__aiPayload) return;
 
-  const cached = loadAIFromStorage();
+  const cached = await loadAIFromStorage();
   if (cached) {
     aiContextSummaryEl.innerHTML = cached.contextHTML;
     document.getElementById("aiReflection").innerHTML = cached.reflectionHTML;
@@ -479,7 +513,7 @@ async function runAIForCurrentPassage() {
   await renderAIContextSummary();
   await renderAIReflectionQuestions({ book, chapter, versesText });
 
-  saveAIToStorage({
+  await saveAIToStorage({
     contextHTML: aiContextSummaryEl.innerHTML,
     reflectionHTML: document.getElementById("aiReflection").innerHTML,
     answers: {},
@@ -778,8 +812,8 @@ ${versesText}
   return true;
 }
 
-function restoreReflectionAnswers() {
-  const cached = loadAIFromStorage();
+async function restoreReflectionAnswers() {
+  const cached = await loadAIFromStorage();
   if (!cached?.answers) return;
 
   document.querySelectorAll("#aiReflection textarea").forEach((ta, i) => {
@@ -787,8 +821,8 @@ function restoreReflectionAnswers() {
   });
 }
 
-function persistReflectionAnswers() {
-  const cached = loadAIFromStorage();
+async function persistReflectionAnswers() {
+  const cached = await loadAIFromStorage();
   if (!cached) return;
 
   const answers = {};
@@ -797,7 +831,7 @@ function persistReflectionAnswers() {
   });
 
   cached.answers = answers;
-  saveAIToStorage(cached);
+  await saveAIToStorage(cached);
 }
 
 /* ---------- COMMENTS ---------- */
@@ -925,9 +959,9 @@ loadBtn.onclick = async () => {
   output.innerHTML = "";
   await loadPassage();
 
-  if (loadAIFromStorage()) {
+  if (await loadAIFromStorage()) {
     document.getElementById("runAI").style.display = "none";
-    runAIForCurrentPassage();
+    await runAIForCurrentPassage();
   } else {
     document.getElementById("runAI").style.display = "inline-block";
   }
@@ -937,6 +971,27 @@ loadBtn.onclick = async () => {
 loadBooks();
 showLanding();
 updateControlStates();
+
+(async () => {
+  const legacy = localStorage.getItem("ai-legacy-migrated");
+  if (legacy) return;
+
+  Object.keys(localStorage)
+    .filter((k) => k.startsWith("ai-"))
+    .forEach(async (k) => {
+      try {
+        const data = JSON.parse(localStorage.getItem(k));
+        if (!data) return;
+        await dbPut({
+          id: k.replace("ai-", ""),
+          ...data,
+          migratedAt: Date.now(),
+        });
+      } catch {}
+    });
+
+  localStorage.setItem("ai-legacy-migrated", "1");
+})();
 
 if ("serviceWorker" in navigator) {
   window.addEventListener("load", () => {
