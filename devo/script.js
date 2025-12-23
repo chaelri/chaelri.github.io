@@ -155,6 +155,16 @@ const devotionId = () =>
     verseFromEl.value || ""
   }-${verseToEl.value || ""}`;
 
+function resetAISections() {
+  aiContextSummaryEl.innerHTML = "";
+  const reflection = document.getElementById("aiReflection");
+  if (reflection) {
+    reflection.innerHTML = "";
+    reflection.style.display = "none";
+  }
+  document.getElementById("runAI").style.display = "inline-block";
+}
+
 async function fetchInlineQuickContext(
   { book, chapter, verse, text },
   mountEl
@@ -957,13 +967,12 @@ bookEl.onchange = loadChapters;
 chapterEl.onchange = loadVerses;
 loadBtn.onclick = async () => {
   output.innerHTML = "";
+  resetAISections();
   await loadPassage();
 
   if (await loadAIFromStorage()) {
     document.getElementById("runAI").style.display = "none";
     await runAIForCurrentPassage();
-  } else {
-    document.getElementById("runAI").style.display = "inline-block";
   }
 };
 
