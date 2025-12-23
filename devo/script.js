@@ -174,19 +174,27 @@ function resetAISections() {
 }
 
 function showSavedIndicator(el) {
-  let badge = el.nextElementSibling;
-  if (!badge || !badge.classList.contains("saved-indicator")) {
+  const li = el.closest("li");
+  if (!li) return;
+
+  li.style.position = "relative";
+
+  let badge = li.querySelector(".saved-indicator");
+  if (!badge) {
     badge = document.createElement("div");
     badge.className = "saved-indicator";
     badge.textContent = "Saved ✓";
     badge.style.cssText = `
+      position: absolute;
+      right: 8px;
+      bottom: 6px;
       font-size: 12px;
-      margin-top: 4px;
       color: #86efac;
       opacity: 0;
+      pointer-events: none;
       transition: opacity 0.25s ease;
     `;
-    el.insertAdjacentElement("afterend", badge);
+    li.appendChild(badge);
   }
 
   requestAnimationFrame(() => {
