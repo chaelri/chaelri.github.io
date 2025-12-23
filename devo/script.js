@@ -174,36 +174,33 @@ function resetAISections() {
 }
 
 function showSavedIndicator(el) {
-  const li = el.closest("li");
-  if (!li) return;
+  console.log("[INDICATOR] showSavedIndicator CALLED", el);
 
-  li.style.position = "relative";
+  const li = el.closest("li");
+  if (!li) {
+    console.warn("[INDICATOR] textarea not inside li");
+    return;
+  }
 
   let badge = li.querySelector(".saved-indicator");
   if (!badge) {
     badge = document.createElement("div");
     badge.className = "saved-indicator";
-    badge.textContent = "Saved ✓";
+    badge.textContent = "SAVED ✓ (DEBUG)";
     badge.style.cssText = `
-        position: absolute;
-        right: 8px;
-        bottom: 6px;
-        font-size: 12px;
-        color: #86efac;
-        background: rgba(15, 23, 42, 0.85);
-        padding: 2px 6px;
-        border-radius: 6px;
-        opacity: 0;
-        pointer-events: none;
-        transition: opacity 0.25s ease;
+      margin-top: 6px;
+      padding: 6px 10px;
+      background: red;
+      color: white;
+      font-size: 14px;
+      font-weight: 700;
+      border-radius: 6px;
     `;
     li.appendChild(badge);
+    console.log("[INDICATOR] badge appended", badge);
+  } else {
+    console.log("[INDICATOR] badge already exists");
   }
-
-  requestAnimationFrame(() => {
-    badge.style.opacity = "1";
-    setTimeout(() => (badge.style.opacity = "0"), 1200);
-  });
 }
 
 async function fetchInlineQuickContext(
@@ -856,10 +853,14 @@ ${versesText}
       let shown = false;
 
       ta.addEventListener("input", () => {
+        console.log("[REFLECTION] input fired", ta.value);
+
         if (!shown) {
+          console.log("[REFLECTION] first keystroke → showSavedIndicator()");
           showSavedIndicator(ta);
           shown = true;
         }
+
         persistReflectionAnswers(ta);
       });
     });
@@ -881,6 +882,8 @@ async function restoreReflectionAnswers() {
 }
 
 const persistReflectionAnswers = debounce(async (el) => {
+  console.log("[REFLECTION] debounced persist START", el?.value);
+
   const cached = await loadAIFromStorage();
   if (!cached) return;
 
@@ -890,6 +893,8 @@ const persistReflectionAnswers = debounce(async (el) => {
   });
 
   cached.answers = answers;
+  console.log("[REFLECTION] saving answers to IndexedDB", cached.answers);
+
   await saveAIToStorage(cached);
 
   if (el) showSavedIndicator(el);
