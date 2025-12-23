@@ -21,6 +21,49 @@ function openDB() {
   });
 }
 
+/* ---------- VERSE CACHE (INDEXEDDB) ---------- */
+const VERSE_STORE = "verses";
+
+function openDBWithVerses() {
+  return new Promise((resolve, reject) => {
+    const req = indexedDB.open(DB_NAME, DB_VERSION + 1);
+
+    req.onupgradeneeded = () => {
+      const db = req.result;
+      if (!db.objectStoreNames.contains(STORE)) {
+        db.createObjectStore(STORE, { keyPath: "id" });
+      }
+      if (!db.objectStoreNames.contains(VERSE_STORE)) {
+        db.createObjectStore(VERSE_STORE, { keyPath: "id" });
+      }
+    };
+
+    req.onsuccess = () => resolve(req.result);
+    req.onerror = () => reject(req.error);
+  });
+}
+
+async function getCachedVerses(id) {
+  const db = await openDBWithVerses();
+  return new Promise((resolve) => {
+    const req = db
+      .transaction(VERSE_STORE, "readonly")
+      .objectStore(VERSE_STORE)
+      .get(id);
+    req.onsuccess = () => resolve(req.result?.verses || null);
+  });
+}
+
+async function saveCachedVerses(id, verses) {
+  const db = await openDBWithVerses();
+  const tx = db.transaction(VERSE_STORE, "readwrite");
+  tx.objectStore(VERSE_STORE).put({
+    id,
+    verses,
+    savedAt: Date.now(),
+  });
+}
+
 function lockAppScroll(lock) {
   const layout = document.querySelector(".layout");
   if (!layout) return;
@@ -417,15 +460,15 @@ async function loadPassage() {
     const bookName = BIBLE_META[bookId].name;
     const chapterNum = chapterEl.value;
 
+    const single = verseEl.value;
+    const from = +verseFromEl.value;
+    const to = +verseToEl.value;
+
     /* ---------- BASE TEXT (AI CONTEXT / REFLECTION ONLY) ---------- */
     const baseRes = await fetch(`${API_WEB}/${bookId}/${chapterNum}`);
     const baseData = await baseRes.json();
 
     let baseVerses = baseData.verses;
-    const single = verseEl.value;
-    const from = +verseFromEl.value;
-    const to = +verseToEl.value;
-
     if (single) baseVerses = baseVerses.filter((v) => v.verse == single);
     else if (from && to)
       baseVerses = baseVerses.filter((v) => v.verse >= from && v.verse <= to);
@@ -434,60 +477,60 @@ async function loadPassage() {
       .map((v) => `${v.verse}. ${v.text}`)
       .join("\n");
 
-    // store AI payload for later, but DO NOT render yet
     window.__aiPayload = {
       book: bookName,
       chapter: chapterNum,
       versesText,
     };
 
-    /* ---------- NASB LITERALWORD (FAST VERSES) ---------- */
+    /* ---------- NASB LITERALWORD (CACHE → FETCH UNLI) ---------- */
     const query =
       (bookName === "Song of Solomon" ? "Song of Songs" : bookName) +
       " " +
       chapterNum;
 
-    const { contents } = await fetchAllOriginsUnli(
-      `https://api.allorigins.win/get?url=${encodeURIComponent(
-        `https://nasb.literalword.com/?q=${query}`
-      )}`
-    );
+    const verseCacheId = `${bookId}-${chapterNum}`;
 
-    const a = document.createElement("div");
-    a.innerHTML = contents;
+    let verses = await getCachedVerses(verseCacheId);
 
-    const raw = a.querySelector(".passage").innerText;
+    if (!verses) {
+      const { contents } = await fetchAllOriginsUnli(
+        `https://api.allorigins.win/get?url=${encodeURIComponent(
+          `https://nasb.literalword.com/?q=${query}`
+        )}`
+      );
 
-    let verses = raw
-      // remove section titles glued to verse 1
-      .replace(/^[A-Z][A-Za-z\s]+(?=[A-Z])/g, "")
-      // ensure verse 1 exists
-      .replace(/^/, "1 ")
-      // normalize spacing
-      .replace(/\s+/g, " ")
-      // ensure space after verse numbers
-      .replace(/(\d)([A-Za-z“])/g, "$1 $2")
-      // one verse per line
-      .replace(/\s(?=\d+\s)/g, "\n")
-      .trim()
-      .split("\n")
-      .map((line) => {
-        const i = line.indexOf(" ");
-        return {
-          book_id: bookId,
-          chapter: Number(chapterNum),
-          verse: Number(line.slice(0, i)),
-          text: line.slice(i + 1),
-        };
-      });
+      const a = document.createElement("div");
+      a.innerHTML = contents;
 
-    console.log(verses);
+      const raw = a.querySelector(".passage").innerText;
+
+      verses = raw
+        .replace(/^[A-Z][A-Za-z\s]+(?=[A-Z])/g, "")
+        .replace(/^/, "1 ")
+        .replace(/\s+/g, " ")
+        .replace(/(\d)([A-Za-z“])/g, "$1 $2")
+        .replace(/\s(?=\d+\s)/g, "\n")
+        .trim()
+        .split("\n")
+        .map((line) => {
+          const i = line.indexOf(" ");
+          return {
+            book_id: bookId,
+            chapter: Number(chapterNum),
+            verse: Number(line.slice(0, i)),
+            text: line.slice(i + 1),
+          };
+        });
+
+      await saveCachedVerses(verseCacheId, verses);
+    }
 
     if (single) verses = verses.filter((v) => v.verse === +single);
     else if (from && to)
       verses = verses.filter((v) => v.verse >= from && v.verse <= to);
 
-    /* ---------- RENDER (UNCHANGED) ---------- */
+    /* ---------- RENDER ---------- */
     output.innerHTML = "";
 
     verses.forEach((v) => {
