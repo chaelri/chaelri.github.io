@@ -174,33 +174,42 @@ function resetAISections() {
 }
 
 function showSavedIndicator(el) {
-  console.log("[INDICATOR] showSavedIndicator CALLED", el);
+  console.log("[INDICATOR] called");
 
-  const li = el.closest("li");
-  if (!li) {
-    console.warn("[INDICATOR] textarea not inside li");
-    return;
+  let wrap = el.parentElement;
+
+  // ensure positioning context
+  if (!wrap.classList.contains("textarea-wrap")) {
+    wrap.classList.add("textarea-wrap");
+    wrap.style.position = "relative";
   }
 
-  let badge = li.querySelector(".saved-indicator");
+  let badge = wrap.querySelector(".saved-indicator");
   if (!badge) {
     badge = document.createElement("div");
     badge.className = "saved-indicator";
-    badge.textContent = "SAVED ✓ (DEBUG)";
+    badge.textContent = "Saved ✓";
     badge.style.cssText = `
-      margin-top: 6px;
-      padding: 6px 10px;
-      background: red;
-      color: white;
-      font-size: 14px;
-      font-weight: 700;
+      position: absolute;
+      right: 12px;
+      bottom: 10px;
+      font-size: 12px;
+      background: rgba(15,23,42,0.9);
+      color: #86efac;
+      padding: 2px 6px;
       border-radius: 6px;
+      opacity: 0;
+      pointer-events: none;
+      transition: opacity 0.25s ease;
     `;
-    li.appendChild(badge);
-    console.log("[INDICATOR] badge appended", badge);
-  } else {
-    console.log("[INDICATOR] badge already exists");
+    wrap.appendChild(badge);
+    console.log("[INDICATOR] badge created");
   }
+
+  requestAnimationFrame(() => {
+    badge.style.opacity = "1";
+    setTimeout(() => (badge.style.opacity = "0"), 1200);
+  });
 }
 
 async function fetchInlineQuickContext(
