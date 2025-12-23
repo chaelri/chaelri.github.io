@@ -28,9 +28,22 @@ body {
   min-width: 0; /* allows grid items to shrink instead of overflow */
 }
 
-@media (max-width: 900px) {
+/* Collapse to single column when viewport is narrow OR DevTools is open */
+@media (max-width: 1100px) {
   .layout {
     grid-template-columns: 1fr;
+  }
+
+  .summary {
+    position: relative;
+    top: auto;
+    max-height: none;
+  }
+}
+
+@media (max-width: 1100px) {
+  .summary {
+    margin-top: 20px;
   }
 }
 
