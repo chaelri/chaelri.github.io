@@ -155,25 +155,6 @@ const devotionId = () =>
     verseFromEl.value || ""
   }-${verseToEl.value || ""}`;
 
-function throttle(fn, delay = 1000) {
-  let last = 0;
-  let trailing = null;
-
-  return (...args) => {
-    const now = Date.now();
-    if (now - last >= delay) {
-      last = now;
-      fn(...args);
-    } else {
-      clearTimeout(trailing);
-      trailing = setTimeout(() => {
-        last = Date.now();
-        fn(...args);
-      }, delay - (now - last));
-    }
-  };
-}
-
 function resetAISections() {
   aiContextSummaryEl.innerHTML = "";
   const reflection = document.getElementById("aiReflection");
@@ -182,90 +163,6 @@ function resetAISections() {
     reflection.style.display = "none";
   }
   document.getElementById("runAI").style.display = "inline-block";
-}
-
-function showSavedIndicator(el) {
-  console.log("[INDICATOR] called");
-
-  let wrap = el.parentElement;
-
-  // ensure positioning context
-  if (!wrap.classList.contains("textarea-wrap")) {
-    wrap.classList.add("textarea-wrap");
-    wrap.style.position = "relative";
-  }
-
-  let badge = wrap.querySelector(".saved-indicator");
-  if (!badge) {
-    badge = document.createElement("div");
-    badge.className = "saved-indicator";
-    badge.textContent = "Saved ✓";
-    badge.style.cssText = `
-      position: absolute;
-      right: 12px;
-      bottom: 10px;
-      font-size: 12px;
-      background: rgba(15,23,42,0.9);
-      color: #86efac;
-      padding: 2px 6px;
-      border-radius: 6px;
-      opacity: 0;
-      pointer-events: none;
-      transition: opacity 0.25s ease;
-    `;
-    wrap.appendChild(badge);
-    console.log("[INDICATOR] badge created");
-  }
-
-  requestAnimationFrame(() => {
-    badge.style.opacity = "1";
-    setTimeout(() => (badge.style.opacity = "0"), 1200);
-  });
-}
-
-function markQuestionSaved(el) {
-  let mark = el.parentElement.querySelector(".question-saved");
-  if (!mark) {
-    mark = document.createElement("span");
-    mark.className = "question-saved";
-    mark.textContent = "✓";
-    mark.style.cssText = `
-      position: absolute;
-      right: 10px;
-      top: 10px;
-      color: #86efac;
-      font-size: 14px;
-      opacity: 0.9;
-    `;
-    el.parentElement.style.position = "relative";
-    el.parentElement.appendChild(mark);
-  }
-}
-
-function showAllSavedBanner() {
-  let banner = document.getElementById("allSavedBanner");
-  if (!banner) {
-    banner = document.createElement("div");
-    banner.id = "allSavedBanner";
-    banner.textContent = "All reflections saved ✓";
-    banner.style.cssText = `
-      margin-top: 12px;
-      padding: 8px 12px;
-      font-size: 13px;
-      color: #86efac;
-      background: rgba(15,23,42,0.85);
-      border-radius: 10px;
-      text-align: center;
-      opacity: 0;
-      transition: opacity 0.3s ease;
-    `;
-    document.getElementById("aiReflection").appendChild(banner);
-  }
-
-  requestAnimationFrame(() => {
-    banner.style.opacity = "1";
-    setTimeout(() => (banner.style.opacity = "0"), 1800);
-  });
 }
 
 async function fetchInlineQuickContext(
@@ -915,12 +812,8 @@ ${versesText}
       applyReflectionVisibility();
     }
     mount.querySelectorAll("textarea").forEach((ta) => {
-      let shown = false;
-
       ta.addEventListener("input", () => {
-        showSavedIndicator(ta); // immediate feedback
-        markQuestionSaved(ta); // per-question state
-        persistReflectionSave(); // throttled DB write
+        persistReflectionSave();
       });
     });
 
@@ -940,21 +833,18 @@ async function restoreReflectionAnswers() {
   });
 }
 
-const persistReflectionSave = throttle(async () => {
-  console.log("[REFLECTION] debounced persist START", el?.value);
-
+async function persistReflectionSave() {
   const cached = await loadAIFromStorage();
   if (!cached) return;
 
   const answers = {};
   document.querySelectorAll("#aiReflection textarea").forEach((ta, i) => {
-    if (ta.value.trim()) answers[i] = ta.value.trim();
+    answers[i] = ta.value; // SAVE EVERYTHING, even empty
   });
 
   cached.answers = answers;
   await saveAIToStorage(cached);
-  showAllSavedBanner();
-}, 600);
+}
 
 window.addEventListener("beforeunload", async () => {
   const cached = await loadAIFromStorage();
@@ -1091,6 +981,9 @@ document.getElementById("runAI").onclick = async () => {
 bookEl.onchange = loadChapters;
 chapterEl.onchange = loadVerses;
 loadBtn.onclick = async () => {
+  // 🔒 SAVE CURRENT REFLECTION BEFORE LEAVING PASSAGE
+  await persistReflectionSave();
+
   output.innerHTML = "";
   resetAISections();
   await loadPassage();
