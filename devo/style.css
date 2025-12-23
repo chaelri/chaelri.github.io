@@ -21,11 +21,13 @@ body {
   grid-template-columns: minmax(0, 1fr) minmax(320px, 380px);
   gap: 20px;
 
-  height: 100dvh;
-  padding: 20px;
+  min-height: 100svh;
+  padding: calc(28px + env(safe-area-inset-top)) 20px
+    calc(24px + env(safe-area-inset-bottom));
 
   overflow-x: hidden;
   overflow-y: auto; /* ✅ single vertical scroll */
+  padding-top: calc(28px + env(safe-area-inset-top));
 }
 
 .layout > * {
@@ -559,6 +561,7 @@ select:disabled {
   display: flex;
   align-items: center;
   justify-content: center;
+  padding-top: 6vh; /* subtle downward balance on mobile */
 }
 
 .landing-card {

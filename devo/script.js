@@ -1023,13 +1023,15 @@ document.getElementById("runAI").onclick = async () => {
   const scrollBtn = document.getElementById("scrollTopBtn");
 
   if (window.innerWidth <= 900 && aiContextSummaryEl) {
-    aiContextSummaryEl.scrollIntoView({
-      behavior: "smooth",
-      block: "start",
-    });
+    const y =
+      aiContextSummaryEl.getBoundingClientRect().top +
+      document.querySelector(".layout").scrollTop -
+      16; // gentle offset so top is never clipped
 
-    aiContextSummaryEl.setAttribute("tabindex", "-1");
-    aiContextSummaryEl.focus({ preventScroll: true });
+    document.querySelector(".layout").scrollTo({
+      top: y,
+      behavior: "smooth",
+    });
   }
 
   await runAIForCurrentPassage();
