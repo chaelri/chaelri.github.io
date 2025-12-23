@@ -66,11 +66,7 @@ function lockAppScroll(lock) {
   const layout = document.querySelector(".layout");
   if (!layout) return;
 
-  if (lock) {
-    layout.style.overflowY = "hidden";
-  } else {
-    layout.style.overflowY = ""; // 🔑 restore CSS default
-  }
+  layout.style.overflowY = lock ? "hidden" : "auto";
 }
 
 async function dbPut(entry) {
@@ -1025,33 +1021,32 @@ const layoutEl = document.querySelector(".layout");
 
 scrollTopBtn.style.display = "none";
 
+layoutEl.addEventListener("scroll", () => {
+  if (window.innerWidth > 900) return;
+
+  scrollTopBtn.style.display = layoutEl.scrollTop > 160 ? "flex" : "none";
+});
+
 scrollTopBtn.onclick = () => {
   layoutEl.scrollTo({ top: 0, behavior: "smooth" });
 };
 
-layoutEl.addEventListener("scroll", () => {
-  scrollTopBtn.style.display =
-    layoutEl.scrollTop > 120 && window.innerWidth <= 900 ? "flex" : "none";
-});
-
-document.getElementById("runAI").onclick = async () => {
+document.getElementById("runAI").onclick = () => {
   lockAppScroll(false);
 
   if (window.innerWidth <= 900) {
     requestAnimationFrame(() => {
-      const y =
-        aiContextSummaryEl.getBoundingClientRect().top +
-        layoutEl.scrollTop -
-        16;
+      const summary = document.querySelector(".summary");
+      const y = summary.offsetTop - 12;
 
-      layoutEl.scrollTo({
+      document.querySelector(".layout").scrollTo({
         top: y,
         behavior: "smooth",
       });
     });
   }
 
-  runAIForCurrentPassage(); // 🔥 DO NOT await — let scrolling happen immediately
+  runAIForCurrentPassage();
 };
 
 /* ---------- EVENTS ---------- */
