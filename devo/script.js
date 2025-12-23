@@ -958,8 +958,19 @@ document.getElementById("scrollTopBtn").onclick = () => {
 };
 
 document.getElementById("runAI").onclick = async () => {
-  await runAIForCurrentPassage();
   const scrollBtn = document.getElementById("scrollTopBtn");
+
+  if (window.innerWidth <= 900 && aiContextSummaryEl) {
+    aiContextSummaryEl.scrollIntoView({
+      behavior: "smooth",
+      block: "start",
+    });
+
+    aiContextSummaryEl.setAttribute("tabindex", "-1");
+    aiContextSummaryEl.focus({ preventScroll: true });
+  }
+
+  await runAIForCurrentPassage();
 
   const observer = new IntersectionObserver(
     ([entry]) => {
@@ -970,17 +981,6 @@ document.getElementById("runAI").onclick = async () => {
   );
 
   observer.observe(aiContextSummaryEl);
-  // mobile-friendly focus / scroll to AI context
-  if (window.innerWidth <= 900 && aiContextSummaryEl) {
-    aiContextSummaryEl.scrollIntoView({
-      behavior: "smooth",
-      block: "start",
-    });
-
-    // accessibility focus (no visible outline)
-    aiContextSummaryEl.setAttribute("tabindex", "-1");
-    aiContextSummaryEl.focus({ preventScroll: true });
-  }
 };
 
 /* ---------- EVENTS ---------- */
