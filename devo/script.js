@@ -21,6 +21,12 @@ function openDB() {
   });
 }
 
+function lockAppScroll(lock) {
+  const layout = document.querySelector(".layout");
+  if (!layout) return;
+  layout.style.overflowY = lock ? "hidden" : "auto";
+}
+
 async function dbPut(entry) {
   const db = await openDB();
   const tx = db.transaction(STORE, "readwrite");
@@ -308,6 +314,8 @@ function loadBooks() {
   loadChapters();
 }
 function showLanding() {
+  lockAppScroll(true);
+
   output.innerHTML = `
     <div class="landing">
       <div class="landing-card">
@@ -370,6 +378,8 @@ function loadVerses() {
 /* ---------- LOAD PASSAGE ---------- */
 async function loadPassage() {
   showLoading();
+  lockAppScroll(false);
+
   passageTitleEl.hidden = false;
   document.getElementById("runAI").hidden = false;
   toggleReflectionBtn.hidden = false;
