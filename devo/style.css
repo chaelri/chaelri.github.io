@@ -629,30 +629,3 @@ select:disabled {
   }
 }
 
-.picker-grid {
-  display: grid;
-  grid-template-columns: repeat(auto-fill, minmax(48px, 1fr));
-  gap: 8px;
-  margin: 10px 0 16px;
-}
-
-.picker-btn {
-  height: 44px;
-  border-radius: 12px;
-  border: 1px solid rgba(255, 255, 255, 0.12);
-  background: rgba(17, 26, 47, 0.9);
-  color: #e6edf7;
-  font-size: 14px;
-  font-weight: 600;
-  cursor: pointer;
-}
-
-.picker-btn.active {
-  background: linear-gradient(135deg, #486bec, #db2777);
-  border: none;
-}
-
-.picker-btn.all {
-  font-size: 12px;
-  letter-spacing: 0.5px;
-}
