@@ -65,7 +65,12 @@ async function saveCachedVerses(id, verses) {
 function lockAppScroll(lock) {
   const layout = document.querySelector(".layout");
   if (!layout) return;
-  layout.style.overflowY = lock ? "hidden" : "auto";
+
+  if (lock) {
+    layout.style.overflowY = "hidden";
+  } else {
+    layout.style.overflowY = ""; // 🔑 restore CSS default
+  }
 }
 
 async function dbPut(entry) {
@@ -1016,10 +1021,12 @@ function renderSummary() {
 }
 
 document.getElementById("scrollTopBtn").onclick = () => {
-  window.scrollTo({ top: 0, behavior: "smooth" });
+  document.querySelector(".layout").scrollTo({ top: 0, behavior: "smooth" });
 };
 
 document.getElementById("runAI").onclick = async () => {
+  lockAppScroll(false); // 🔑 ensure scroll before AI rendering
+
   const scrollBtn = document.getElementById("scrollTopBtn");
 
   if (window.innerWidth <= 900 && aiContextSummaryEl) {
