@@ -165,6 +165,21 @@ function resetAISections() {
   document.getElementById("runAI").style.display = "inline-block";
 }
 
+async function saveReflectionForId(id) {
+  if (!id) return;
+
+  const cached = await dbGet(id);
+  if (!cached) return;
+
+  const answers = {};
+  document.querySelectorAll("#aiReflection textarea").forEach((ta, i) => {
+    answers[i] = ta.value;
+  });
+
+  cached.answers = answers;
+  await dbPut(cached);
+}
+
 async function fetchInlineQuickContext(
   { book, chapter, verse, text },
   mountEl
@@ -833,17 +848,19 @@ async function restoreReflectionAnswers() {
   });
 }
 
-async function persistReflectionSave() {
-  const cached = await loadAIFromStorage();
+async function persistReflectionSave(forcedId = null) {
+  const id = forcedId || devotionId();
+
+  const cached = await dbGet(id);
   if (!cached) return;
 
   const answers = {};
   document.querySelectorAll("#aiReflection textarea").forEach((ta, i) => {
-    answers[i] = ta.value; // SAVE EVERYTHING, even empty
+    answers[i] = ta.value; // yes, save everything
   });
 
   cached.answers = answers;
-  await saveAIToStorage(cached);
+  await dbPut(cached); // <-- THIS is the save. It stays.
 }
 
 window.addEventListener("beforeunload", async () => {
@@ -981,8 +998,8 @@ document.getElementById("runAI").onclick = async () => {
 bookEl.onchange = loadChapters;
 chapterEl.onchange = loadVerses;
 loadBtn.onclick = async () => {
-  // 🔒 SAVE CURRENT REFLECTION BEFORE LEAVING PASSAGE
-  await persistReflectionSave();
+  const currentId = devotionId(); // lock John 1
+  await persistReflectionSave(currentId);
 
   output.innerHTML = "";
   resetAISections();
