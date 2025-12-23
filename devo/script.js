@@ -203,7 +203,6 @@ function resetAISections() {
     reflection.innerHTML = "";
     reflection.style.display = "none";
   }
-  document.getElementById("runAI").style.display = "inline-block";
 }
 
 async function fetchInlineQuickContext(
@@ -329,7 +328,6 @@ function showLanding() {
     </div>
   `;
   passageTitleEl.hidden = true;
-  document.getElementById("runAI").hidden = true;
   toggleReflectionBtn.hidden = true;
   summaryTitleEl.hidden = true;
 
@@ -410,7 +408,6 @@ async function loadPassage() {
   lockAppScroll(false);
 
   passageTitleEl.hidden = false;
-  document.getElementById("runAI").hidden = false;
   toggleReflectionBtn.hidden = false;
   summaryTitleEl.hidden = false;
 
@@ -552,7 +549,6 @@ async function runAIForCurrentPassage() {
     aiContextSummaryEl.innerHTML = cached.contextHTML;
     document.getElementById("aiReflection").innerHTML = cached.reflectionHTML;
     applyReflectionVisibility();
-    document.getElementById("runAI").style.display = "none";
     restoreReflectionAnswers();
     return;
   }
@@ -560,8 +556,10 @@ async function runAIForCurrentPassage() {
   const { book, chapter, versesText } = window.__aiPayload;
   titleForGemini = `${book} ${chapter}`;
 
-  await renderAIContextSummary();
-  await renderAIReflectionQuestions({ book, chapter, versesText });
+  await Promise.all([
+    renderAIContextSummary(),
+    renderAIReflectionQuestions({ book, chapter, versesText }),
+  ]);
 
   await saveAIToStorage({
     contextHTML: aiContextSummaryEl.innerHTML,
@@ -569,7 +567,6 @@ async function runAIForCurrentPassage() {
     answers: {},
   });
 
-  document.getElementById("runAI").style.display = "none";
 }
 
 function showLoadError(message) {
@@ -984,23 +981,6 @@ scrollTopBtn.onclick = () => {
   layoutEl.scrollTo({ top: 0, behavior: "smooth" });
 };
 
-document.getElementById("runAI").onclick = () => {
-  lockAppScroll(false);
-
-  if (window.innerWidth <= 900) {
-    setTimeout(() => {
-      const layout = document.querySelector(".layout");
-      const summary = document.querySelector(".summary");
-
-      layout.scrollTo({
-        top: summary.offsetTop,
-        behavior: "smooth",
-      });
-    }, 0);
-  }
-
-  runAIForCurrentPassage();
-};
 
 /* ---------- EVENTS ---------- */
 bookEl.onchange = loadChapters;
@@ -1008,14 +988,10 @@ chapterEl.onchange = loadVerses;
 loadBtn.onclick = async () => {
   output.innerHTML = "";
   resetAISections();
-  document.getElementById("runAI").hidden = false;
 
   await loadPassage();
 
-  if (await loadAIFromStorage()) {
-    document.getElementById("runAI").style.display = "none";
-    await runAIForCurrentPassage();
-  }
+  await runAIForCurrentPassage();
 };
 
 /* ---------- INIT ---------- */
