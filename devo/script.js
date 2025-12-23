@@ -66,6 +66,20 @@ copyNotesBtn.onclick = async () => {
       lines.push(`v${item.verseNum}: ${joined}`);
     });
 
+  const cached = loadAIFromStorage();
+  if (cached?.answers) {
+    lines.push("", "Guided Reflection:");
+    const questions = Array.from(
+      document.querySelectorAll("#aiReflection p")
+    ).map((p) => p.textContent);
+
+    Object.entries(cached.answers).forEach(([i, answer]) => {
+      if (!answer.trim()) return;
+      lines.push(`Q: ${questions[i]}`);
+      lines.push(`A: ${answer}`, "");
+    });
+  }
+
   await navigator.clipboard.writeText(lines.join("\n"));
   notesCopyStatusEl.textContent = "✅ Notes copied to clipboard";
   setTimeout(() => (notesCopyStatusEl.textContent = ""), 2000);
@@ -73,7 +87,22 @@ copyNotesBtn.onclick = async () => {
 
 let titleForGemini = "";
 
-let comments = JSON.parse(localStorage.getItem("bibleComments") || "{}");
+const aiStorageKey = () =>
+  `ai-${bookEl.value}-${chapterEl.value}-${verseEl.value || ""}-${
+    verseFromEl.value || ""
+  }-${verseToEl.value || ""}`;
+
+function saveAIToStorage(data) {
+  localStorage.setItem(aiStorageKey(), JSON.stringify(data));
+}
+
+function loadAIFromStorage() {
+  try {
+    return JSON.parse(localStorage.getItem(aiStorageKey()));
+  } catch {
+    return null;
+  }
+}
 
 /* migrate old notes */
 Object.keys(comments).forEach((k) => {
@@ -431,16 +460,29 @@ async function loadPassage() {
 async function runAIForCurrentPassage() {
   if (!window.__aiPayload) return;
 
-  const { book, chapter, versesText } = window.__aiPayload;
+  const cached = loadAIFromStorage();
+  if (cached) {
+    aiContextSummaryEl.innerHTML = cached.contextHTML;
+    document.getElementById("aiReflection").innerHTML = cached.reflectionHTML;
+    applyReflectionVisibility();
+    document.getElementById("runAI").style.display = "none";
+    restoreReflectionAnswers();
+    return;
+  }
 
+  const { book, chapter, versesText } = window.__aiPayload;
   titleForGemini = `${book} ${chapter}`;
 
-  renderAIContextSummary();
-  renderAIReflectionQuestions({
-    book,
-    chapter,
-    versesText,
+  await renderAIContextSummary();
+  await renderAIReflectionQuestions({ book, chapter, versesText });
+
+  saveAIToStorage({
+    contextHTML: aiContextSummaryEl.innerHTML,
+    reflectionHTML: document.getElementById("aiReflection").innerHTML,
+    answers: {},
   });
+
+  document.getElementById("runAI").style.display = "none";
 }
 
 function showLoadError(message) {
@@ -722,10 +764,37 @@ ${versesText}
       mount.firstElementChild.classList.add("ai-reflection", "ai-fade-in");
       applyReflectionVisibility();
     }
+    mount.querySelectorAll("textarea").forEach((ta) => {
+      ta.addEventListener("input", persistReflectionAnswers);
+    });
+
+    restoreReflectionAnswers();
   } catch (e) {
     console.error(e);
   }
   return true;
+}
+
+function restoreReflectionAnswers() {
+  const cached = loadAIFromStorage();
+  if (!cached?.answers) return;
+
+  document.querySelectorAll("#aiReflection textarea").forEach((ta, i) => {
+    if (cached.answers[i]) ta.value = cached.answers[i];
+  });
+}
+
+function persistReflectionAnswers() {
+  const cached = loadAIFromStorage();
+  if (!cached) return;
+
+  const answers = {};
+  document.querySelectorAll("#aiReflection textarea").forEach((ta, i) => {
+    if (ta.value.trim()) answers[i] = ta.value.trim();
+  });
+
+  cached.answers = answers;
+  saveAIToStorage(cached);
 }
 
 /* ---------- COMMENTS ---------- */
@@ -827,9 +896,7 @@ document.getElementById("runAI").onclick = async () => {
   const observer = new IntersectionObserver(
     ([entry]) => {
       scrollBtn.style.display =
-        entry.isIntersecting && window.innerWidth <= 900
-          ? "flex"
-          : "none";
+        entry.isIntersecting && window.innerWidth <= 900 ? "flex" : "none";
     },
     { threshold: 0.2 }
   );
@@ -854,7 +921,13 @@ chapterEl.onchange = loadVerses;
 loadBtn.onclick = async () => {
   output.innerHTML = "";
   await loadPassage();
-  // AI is now opt-in and runs only after successful passage load
+
+  if (loadAIFromStorage()) {
+    document.getElementById("runAI").style.display = "none";
+    runAIForCurrentPassage();
+  } else {
+    document.getElementById("runAI").style.display = "inline-block";
+  }
 };
 
 /* ---------- INIT ---------- */
