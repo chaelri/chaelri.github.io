@@ -21,7 +21,7 @@ body {
   gap: 20px;
   padding: calc(28px + env(safe-area-inset-top)) 20px
     calc(24px + env(safe-area-inset-bottom));
-
+  height: 100dvh; /* 🔑 REQUIRED */
   overflow-x: hidden;
   overflow-y: auto;
   -webkit-overflow-scrolling: touch;

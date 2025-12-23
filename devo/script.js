@@ -1035,15 +1035,15 @@ document.getElementById("runAI").onclick = () => {
   lockAppScroll(false);
 
   if (window.innerWidth <= 900) {
-    requestAnimationFrame(() => {
+    setTimeout(() => {
+      const layout = document.querySelector(".layout");
       const summary = document.querySelector(".summary");
-      const y = summary.offsetTop - 12;
 
-      document.querySelector(".layout").scrollTo({
-        top: y,
+      layout.scrollTo({
+        top: summary.offsetTop,
         behavior: "smooth",
       });
-    });
+    }, 0);
   }
 
   runAIForCurrentPassage();
