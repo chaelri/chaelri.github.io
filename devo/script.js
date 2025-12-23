@@ -1,13 +1,11 @@
 const API_WEB = "https://bible-api.com/data/web";
 
 /* ---------- INDEXEDDB (DEVOTION DATA) ---------- */
-const DB_NAME = "dudu-devotion-db";
-const DB_VERSION = 2;
 const STORE = "devotions";
 
 function openDB() {
   return new Promise((resolve, reject) => {
-    const req = indexedDB.open(DB_NAME, DB_VERSION);
+    const req = indexedDB.open("dudu-devotion-db", 1);
 
     req.onupgradeneeded = () => {
       const db = req.result;
@@ -26,7 +24,7 @@ const VERSE_STORE = "verses";
 
 function openDBWithVerses() {
   return new Promise((resolve, reject) => {
-    const req = indexedDB.open(DB_NAME, DB_VERSION + 1);
+    const req = indexedDB.open("dudu-verses-db", 1);
 
     req.onupgradeneeded = () => {
       const db = req.result;
