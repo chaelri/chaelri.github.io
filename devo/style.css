@@ -24,7 +24,7 @@ body {
     calc(24px + env(safe-area-inset-bottom));
 
   overflow-x: hidden;
-  overflow-y: auto; /* ✅ THIS restores scrolling */
+  overflow-y: auto;
   -webkit-overflow-scrolling: touch;
   padding-top: calc(28px + env(safe-area-inset-top));
 }
