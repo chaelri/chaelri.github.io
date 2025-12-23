@@ -597,3 +597,10 @@ select:disabled {
     display: none !important;
   }
 }
+
+@supports (-webkit-touch-callout: none) {
+  html,
+  body {
+    background-attachment: fixed;
+  }
+}

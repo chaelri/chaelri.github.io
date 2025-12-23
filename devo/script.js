@@ -316,6 +316,9 @@ function showLanding() {
       </div>
     </div>
   `;
+  passageTitleEl.hidden = true;
+  document.getElementById("runAI").hidden = true;
+  toggleReflectionBtn.hidden = true;
 
   aiContextSummaryEl.innerHTML = "";
   const reflection = document.getElementById("aiReflection");
@@ -363,6 +366,9 @@ function loadVerses() {
 /* ---------- LOAD PASSAGE ---------- */
 async function loadPassage() {
   showLoading();
+  passageTitleEl.hidden = false;
+  document.getElementById("runAI").hidden = false;
+  toggleReflectionBtn.hidden = false;
 
   try {
     titleForGemini = passageTitleEl.textContent;
@@ -968,6 +974,8 @@ chapterEl.onchange = loadVerses;
 loadBtn.onclick = async () => {
   output.innerHTML = "";
   resetAISections();
+  document.getElementById("runAI").hidden = false;
+
   await loadPassage();
 
   if (await loadAIFromStorage()) {
