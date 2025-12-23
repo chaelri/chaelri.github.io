@@ -155,6 +155,14 @@ const devotionId = () =>
     verseFromEl.value || ""
   }-${verseToEl.value || ""}`;
 
+function debounce(fn, delay = 400) {
+  let t;
+  return (...args) => {
+    clearTimeout(t);
+    t = setTimeout(() => fn(...args), delay);
+  };
+}
+
 function resetAISections() {
   aiContextSummaryEl.innerHTML = "";
   const reflection = document.getElementById("aiReflection");
@@ -163,6 +171,28 @@ function resetAISections() {
     reflection.style.display = "none";
   }
   document.getElementById("runAI").style.display = "inline-block";
+}
+
+function showSavedIndicator(el) {
+  let badge = el.parentElement.querySelector(".saved-indicator");
+  if (!badge) {
+    badge = document.createElement("div");
+    badge.className = "saved-indicator";
+    badge.textContent = "Saved ✓";
+    badge.style.cssText = `
+      font-size: 12px;
+      opacity: 0;
+      margin-top: 4px;
+      color: #86efac;
+      transition: opacity 0.25s ease;
+    `;
+    el.parentElement.appendChild(badge);
+  }
+
+  requestAnimationFrame(() => {
+    badge.style.opacity = "1";
+    setTimeout(() => (badge.style.opacity = "0"), 1200);
+  });
 }
 
 async function fetchInlineQuickContext(
@@ -513,7 +543,7 @@ async function runAIForCurrentPassage() {
     document.getElementById("aiReflection").innerHTML = cached.reflectionHTML;
     applyReflectionVisibility();
     document.getElementById("runAI").style.display = "none";
-    restoreReflectionAnswers();
+    await restoreReflectionAnswers();
     return;
   }
 
@@ -812,10 +842,10 @@ ${versesText}
       applyReflectionVisibility();
     }
     mount.querySelectorAll("textarea").forEach((ta) => {
-      ta.addEventListener("input", persistReflectionAnswers);
+      ta.addEventListener("input", () => persistReflectionAnswers(ta));
     });
 
-    restoreReflectionAnswers();
+    await restoreReflectionAnswers();
   } catch (e) {
     console.error(e);
   }
@@ -831,7 +861,7 @@ async function restoreReflectionAnswers() {
   });
 }
 
-async function persistReflectionAnswers() {
+const persistReflectionAnswers = debounce(async (el) => {
   const cached = await loadAIFromStorage();
   if (!cached) return;
 
@@ -842,7 +872,22 @@ async function persistReflectionAnswers() {
 
   cached.answers = answers;
   await saveAIToStorage(cached);
-}
+
+  if (el) showSavedIndicator(el);
+}, 500);
+
+window.addEventListener("beforeunload", async () => {
+  const cached = await loadAIFromStorage();
+  if (!cached) return;
+
+  const answers = {};
+  document.querySelectorAll("#aiReflection textarea").forEach((ta, i) => {
+    if (ta.value.trim()) answers[i] = ta.value.trim();
+  });
+
+  cached.answers = answers;
+  await saveAIToStorage(cached);
+});
 
 /* ---------- COMMENTS ---------- */
 function renderComments(key, container) {
