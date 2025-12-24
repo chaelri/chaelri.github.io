@@ -1,0 +1,44 @@
+* {
+  box-sizing: border-box;
+}
+
+html,
+body {
+  margin: 0;
+  padding: 0;
+  height: 100%;
+  background: radial-gradient(circle at top, #121b33, var(--bg-main));
+  font-family: var(--font-main);
+  color: var(--text-main);
+  overscroll-behavior: none;
+}
+
+#app {
+  height: 100dvh;
+  display: flex;
+  flex-direction: column;
+}
+
+/* Main content area */
+#view-root {
+  flex: 1;
+  padding: 16px;
+  padding-bottom: calc(var(--tab-bar-height) + env(safe-area-inset-bottom));
+  overflow-y: auto;
+  -webkit-overflow-scrolling: touch;
+}
+
+/* Glass surface utility (used later) */
+.glass {
+  background: var(--bg-surface);
+  backdrop-filter: var(--blur);
+  -webkit-backdrop-filter: var(--blur);
+  border-radius: var(--radius-lg);
+  box-shadow: var(--shadow-soft);
+}
+
+/* Prevent text selection for app-like feel */
+button,
+nav {
+  -webkit-tap-highlight-color: transparent;
+}

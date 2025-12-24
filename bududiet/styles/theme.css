@@ -1,0 +1,38 @@
+:root {
+  /* Font */
+  --font-main: "Inter", system-ui, -apple-system, BlinkMacSystemFont, sans-serif;
+
+  /* Colors */
+  --bg-main: #0b1220;
+  --bg-surface: rgba(255, 255, 255, 0.08);
+  --bg-surface-strong: rgba(255, 255, 255, 0.12);
+
+  --text-main: #e6edf7;
+  --text-muted: #9aa4bf;
+
+  --accent-start: #3b82f6;
+  --accent-end: #06b6d4;
+
+  /* Effects */
+  --blur: blur(14px);
+  --radius-lg: 18px;
+  --radius-xl: 24px;
+  --shadow-soft: 0 8px 30px rgba(0, 0, 0, 0.35);
+
+  /* Layout */
+  --tab-bar-height: 76px;
+}
+
+/* Light mode (future-ready) */
+@media (prefers-color-scheme: light) {
+  :root {
+    --bg-main: #f6f8fc;
+    --bg-surface: rgba(255, 255, 255, 0.7);
+    --bg-surface-strong: rgba(255, 255, 255, 0.9);
+
+    --text-main: #0b1220;
+    --text-muted: #5b6480;
+
+    --shadow-soft: 0 8px 24px rgba(0, 0, 0, 0.12);
+  }
+}
