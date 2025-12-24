@@ -37,6 +37,10 @@
   cursor: pointer;
 }
 
+.tab-center {
+  flex: 0 !important;
+}
+
 .tab .icon {
   font-size: 20px;
   line-height: 1;
@@ -50,7 +54,15 @@
   transform: translateY(-18px);
   width: 56px;
   height: 56px;
+  min-width: 56px;
+  min-height: 56px;
+  padding: 0;
+
   border-radius: 50%;
+
+  display: flex;
+  align-items: center;
+  justify-content: center;
 
   background: linear-gradient(135deg, var(--accent-start), var(--accent-end));
 
