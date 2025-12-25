@@ -3,6 +3,7 @@ import { getDB } from "./firebase.js";
 import {
   ref,
   onValue,
+  onChildRemoved,
 } from "https://www.gstatic.com/firebasejs/10.7.1/firebase-database.js";
 
 const PAIR = ["charliecayno@gmail.com", "kasromantico@gmail.com"];
@@ -59,5 +60,25 @@ function attachPartnerToday(uid) {
       logs,
       net,
     };
+  });
+
+  onChildRemoved(logsRef, (snap) => {
+    const removed = snap.val();
+    if (!removed) return;
+
+    const logs = state.partner.today.logs.filter((l) => l.ts !== removed.ts);
+
+    let net = 0;
+    for (const log of logs) {
+      if (log.kind === "food") net += log.kcal;
+      if (log.kind === "exercise") net -= log.kcal;
+    }
+
+    state.partner.today.logs = logs;
+    state.partner.today.net = net;
+
+    // force UI refresh if Logs or Home is visible
+    import("../logs.js").then((m) => m.bindLogs());
+    import("../today.js").then((m) => m.bindToday());
   });
 }

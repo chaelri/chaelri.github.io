@@ -61,9 +61,28 @@ document.addEventListener("click", (e) => {
   }
 });
 
-function deleteLog(index) {
+async function deleteLog(index) {
   const log = state.today.logs[index];
   if (!log) return;
+
+  // ---------- CLOUD DELETE (owner only) ----------
+  try {
+    const { getDB } = await import("./sync/firebase.js");
+    const { ref, query, orderByChild, equalTo, get, remove } = await import(
+      "https://www.gstatic.com/firebasejs/10.7.1/firebase-database.js"
+    );
+
+    const todayKey = new Date().toISOString().slice(0, 10);
+    const db = getDB();
+    const q = query(
+      ref(db, `users/${state.user.uid}/logs/${todayKey}`),
+      orderByChild("ts"),
+      equalTo(log.ts)
+    );
+
+    const snap = await get(q);
+    snap.forEach((child) => remove(child.ref));
+  } catch {}
 
   if (log.kind === "food") state.today.net -= log.kcal;
   if (log.kind === "exercise") state.today.net += log.kcal;
