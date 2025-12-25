@@ -101,14 +101,14 @@ async function deleteLog(index) {
     );
 
     const todayKey = new Date().toISOString().slice(0, 10);
-    const q = query(
-      ref(getDB(), `users/${state.user.uid}/logs/${todayKey}`),
-      orderByChild("ts"),
-      equalTo(log.ts)
-    );
+    const logsRef = ref(getDB(), `users/${state.user.uid}/logs/${todayKey}`);
+    const snap = await get(logsRef);
 
-    const snap = await get(q);
-    snap.forEach((child) => remove(child.ref));
+    snap.forEach((child) => {
+      if (child.val()?.ts === log.ts) {
+        remove(child.ref);
+      }
+    });
   } catch (e) {
     console.error(e);
   }
