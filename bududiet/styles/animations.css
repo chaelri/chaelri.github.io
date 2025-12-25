@@ -1,8 +1,6 @@
 .wheel {
   position: relative;
-  width: min(220px, 80vw);
-  height: min(220px, 80vw);
-  margin: 24px auto;
+  width: min(140px, 80vw);
 }
 
 svg {
