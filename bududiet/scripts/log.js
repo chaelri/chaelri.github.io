@@ -9,22 +9,40 @@ import {
 const ENDPOINT = "https://gemini-proxy-668755364170.asia-southeast1.run.app";
 const SYSTEM_PROMPT = `
 You are a calorie estimator.
-Return ONLY valid JSON, no markdown, no commentary.
+
+Analyze the food or exercise from the user input (text or image).
+
+Return ONLY valid JSON. No markdown. No commentary.
 
 Schema:
 {
   "kind": "food" | "exercise",
-  "kcal": number,          // positive integer
-  "confidence": 0.0-1.0,   // float
-  "notes": string          // short explanation
+  "items": [
+    {
+      "name": string,          // short, human-readable item name
+      "amount": string,        // quantity (e.g. "1 cup", "2 pcs", "1 bottle")
+      "kcal": number           // calories for this item
+    }
+  ],
+  "totalKcal": number,        // sum of all items
+  "confidence": 0.0-1.0,      // estimation confidence
+  "notes": string             // short clarification if needed
 }
 
 Rules:
-- Food adds calories (positive kcal)
-- Exercise burns calories (positive kcal)
-- If unsure, make best estimate
+- Food calories are positive
+- Exercise calories are positive (burned)
+- If image is unclear, make reasonable assumptions
+- Be concise and practical
+- Itemize clearly (like a food diary)
 - Never return text outside JSON
 `;
+
+function formatItems(items = []) {
+  return items
+    .map((i) => `${i.name} (${i.amount}) — ${i.kcal} kcal`)
+    .join("\n");
+}
 
 export function bindLog() {
   const btn = document.getElementById("sendLogBtn");
@@ -57,7 +75,7 @@ export function bindLog() {
 
     const parsed = parseGemini(data, text);
 
-    if (parsed.kcal === 0 && parsed.confidence === 0) {
+    if (!parsed || typeof parsed.kcal !== "number") {
       await saveLog({
         kind: "food",
         kcal: 0,
@@ -199,14 +217,20 @@ function parseGemini(raw, userText = "") {
   }
 
   try {
-    const parsed = JSON.parse(match[0]);
+    const rawParsed = JSON.parse(match[0]);
 
     // 🔑 User intent ALWAYS wins
     if (exerciseHint) {
-      parsed.kind = "exercise";
+      rawParsed.kind = "exercise";
     }
 
-    return parsed;
+    return {
+      kind: rawParsed.kind,
+      kcal: rawParsed.totalKcal ?? 0,
+      confidence: rawParsed.confidence ?? 0,
+      notes: formatItems(rawParsed.items) || rawParsed.notes || "",
+      items: rawParsed.items || [],
+    };
   } catch (err) {
     return {
       kind: exerciseHint ? "exercise" : "food",
