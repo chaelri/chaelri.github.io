@@ -3,7 +3,7 @@ import { state } from "./state.js";
 export function bindToday(animate = false) {
   const circle = document.getElementById("wheelProgress");
   const value = document.getElementById("wheelValue");
-  const emoji = document.getElementById("wheelEmoji");
+  const icon = document.getElementById("wheelIcon");
   if (!circle || !value || !emoji) return;
 
   const goal = getGoal();
@@ -27,11 +27,11 @@ export function bindToday(animate = false) {
   }
   value.textContent = `${net} kcal`;
 
-  if (net < 0) emoji.textContent = "🔥";
-  else if (net > goal) emoji.textContent = "😵";
-  else if (net > goal * 0.9) emoji.textContent = "😐";
-  else if (net > goal * 0.6) emoji.textContent = "😊";
-  else emoji.textContent = "🙂";
+  if (net < 0) icon.textContent = "local_fire_department";
+  else if (net > goal) icon.textContent = "sentiment_very_dissatisfied";
+  else if (net > goal * 0.9) icon.textContent = "sentiment_neutral";
+  else if (net > goal * 0.6) icon.textContent = "sentiment_satisfied";
+  else icon.textContent = "sentiment_satisfied_alt";
 }
 
 function getGoal() {

@@ -33,7 +33,10 @@ export function bindLog() {
     resultEl.innerHTML = `
     <div class="glass loading-card">
         <div class="loading-spinner"></div>
-        <div>Analyzing with Gemini… ✨</div>
+        <div style="display:flex;align-items:center;gap:8px;">
+            <span class="material-icon">auto_awesome</span>
+            Analyzing with Gemini…
+        </div>
     </div>
     `;
 

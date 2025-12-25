@@ -37,8 +37,16 @@
   cursor: pointer;
 }
 
+.tab .material-icon {
+  color: inherit;
+}
+
 .tab-center {
   flex: 0 !important;
+}
+
+.tab-center .material-icon {
+  font-size: 28px;
 }
 
 .tab .icon {
@@ -46,7 +54,7 @@
   line-height: 1;
 }
 
-.tab.active {
+.tab.active .material-icon {
   color: #ffffff;
 }
 
@@ -70,6 +78,11 @@
   box-shadow: 0 12px 30px rgba(59, 130, 246, 0.5);
 }
 
-.tab-center .icon {
-  font-size: 26px;
+.tab .material-icon {
+  font-size: 22px;
+  line-height: 1;
+}
+
+.tab .material-icon {
+  pointer-events: none;
 }

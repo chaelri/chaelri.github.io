@@ -15,13 +15,26 @@ export function bindLogs() {
 }
 
 function renderLog(log, index) {
-  const sign = log.kind === "food" ? "➕" : "🔥";
+  const sign =
+    log.kind === "food"
+      ? `<span class="material-icon">restaurant</span>`
+      : `<span class="material-icon">directions_run</span>`;
   return `
     <div class="glass log-item">
-      <strong>${sign} ${log.kcal} kcal</strong><br/>
+      <strong style="display:flex;align-items:center;gap:8px;">
+        ${sign}
+        ${log.kcal} kcal
+        </strong>
+        <br/>
       <small>${log.notes || ""}</small><br/>
-      <button data-index="${index}" class="editLogBtn" style="margin-top:8px;">Edit</button>
-      <button data-index="${index}" class="deleteLogBtn" style="margin-top:8px;">Delete</button>
+      <button data-index="${index}" class="editLogBtn">
+        <span class="material-icon">edit</span>
+        Edit
+        </button>
+        <button data-index="${index}" class="deleteLogBtn">
+        <span class="material-icon">delete</span>
+        Delete
+        </button>
     </div>
   `;
 }
