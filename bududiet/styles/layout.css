@@ -122,6 +122,13 @@ body {
   padding: 14px;
 }
 
+/* === EDIT MODAL: HARD RESET (NO GLASS) === */
+#editModal,
+#editModal * {
+  backdrop-filter: none !important;
+  -webkit-backdrop-filter: none !important;
+}
+
 /* 🔒 Edit modal must NOT be glass */
 #editModal .glass {
   background: #121830; /* solid */
@@ -206,23 +213,34 @@ input[type="file"] {
 }
 
 #editModal .auth-card {
-  background: #121830; /* SOLID */
+  background: #ffffff !important;
+  color: #0b1220 !important;
+
   border-radius: 20px;
   padding: 16px;
 
+  width: min(92vw, 420px);
   max-height: calc(100dvh - 160px);
   overflow-y: auto;
 
-  box-shadow: 0 24px 70px rgba(0, 0, 0, 0.75);
+  box-shadow: 0 24px 70px rgba(0, 0, 0, 0.7);
 }
 
 #editModal {
-  background: rgba(0, 0, 0, 0.85);
-  backdrop-filter: blur(6px);
+  position: fixed;
+  inset: 0;
+  z-index: 9999;
+
+  display: flex;
+  align-items: center;
+  justify-content: center;
+
+  background: rgba(0, 0, 0, 0.88); /* flat, readable */
 }
 
 #editModal button {
-  margin-top: 12px; /* md */
+  margin-top: 12px;
+  font-size: 16px;
 }
 
 #editModal:not(.hidden) ~ #app {
@@ -231,20 +249,20 @@ input[type="file"] {
 }
 
 #editModal textarea {
-  min-height: 80px;
-  background: #ffffff;
-  color: #0b1220;
+  background: #ffffff !important;
+  color: #0b1220 !important;
 
-  font-size: 16px; /* iOS zoom safe */
+  font-size: 16px;
   line-height: 1.5;
   padding: 12px;
+
+  border-radius: 12px;
+  border: 1px solid #d0d6e6;
 }
 
 #editModal input[type="file"] {
-  background: #1c2344;
-  color: #e6edf7;
-  padding: 12px;
-  border-radius: 12px;
+  color: #0b1220;
+  font-size: 16px;
 }
 
 .section-title {
