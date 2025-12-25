@@ -239,11 +239,15 @@ input[type="file"] {
   inset: 0;
   z-index: 9999;
 
-  display: flex;
+  display: none; /* CLOSED BY DEFAULT */
   align-items: center;
   justify-content: center;
 
-  background: rgba(0, 0, 0, 0.88); /* flat, readable */
+  background: rgba(0, 0, 0, 0.88);
+}
+
+#editModal:not(.hidden) {
+  display: flex;
 }
 
 #editModal button {
