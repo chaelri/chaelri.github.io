@@ -1,58 +1,65 @@
+// scripts/auth.js
 import { state } from "./state.js";
+import {
+  getAuth,
+  GoogleAuthProvider,
+  signInWithPopup,
+  onAuthStateChanged,
+  signOut,
+} from "https://www.gstatic.com/firebasejs/10.7.1/firebase-auth.js";
 
 const ALLOWED_EMAILS = ["charliecayno@gmail.com", "kasromantico@gmail.com"];
 
-/* ---------------------------
-   Restore existing session
----------------------------- */
-export function restoreUser() {
-  const raw = localStorage.getItem("bududiet:user");
-  if (!raw) return false;
-
-  try {
-    state.user = JSON.parse(raw);
-
-    // 🔴 CRITICAL: idToken must exist for Firebase Auth
-    if (!state.user.idToken) return false;
-
-    return true;
-  } catch {
-    return false;
-  }
-}
+let auth;
 
 /* ---------------------------
-   Init Google Sign-In
+   Init Firebase Auth
 ---------------------------- */
-export async function initAuth() {
-  // ✅ auto-login if already signed in
-  if (restoreUser()) {
-    if (window.google?.accounts?.id) {
-      google.accounts.id.disableAutoSelect();
-    }
-    return;
-  }
-
-  await waitForGoogle();
+export function initAuth(firebaseApp) {
+  auth = getAuth(firebaseApp);
+  const provider = new GoogleAuthProvider();
 
   return new Promise((resolve, reject) => {
-    google.accounts.id.initialize({
-      client_id:
-        "80406735414-5iphkeru9rm1ghm948kkd3dtnn0hajeb.apps.googleusercontent.com",
-      auto_select: false,
-      callback: (res) => {
-        try {
-          handleCredential(res);
-          resolve();
-        } catch (e) {
-          reject(e);
+    onAuthStateChanged(auth, async (user) => {
+      if (user) {
+        if (!ALLOWED_EMAILS.includes(user.email)) {
+          await signOut(auth);
+          reject(new Error("Unauthorized user"));
+          return;
         }
-      },
-    });
 
-    google.accounts.id.prompt((notification) => {
-      if (notification.isSkippedMoment()) {
+        state.user = {
+          uid: user.uid,
+          email: user.email,
+          name: user.displayName,
+          photo: user.photoURL,
+        };
+
         resolve();
+        return;
+      }
+
+      // No user → show Google popup
+      try {
+        const result = await signInWithPopup(auth, provider);
+        const user = result.user;
+
+        if (!ALLOWED_EMAILS.includes(user.email)) {
+          await signOut(auth);
+          reject(new Error("Unauthorized user"));
+          return;
+        }
+
+        state.user = {
+          uid: user.uid,
+          email: user.email,
+          name: user.displayName,
+          photo: user.photoURL,
+        };
+
+        resolve();
+      } catch (err) {
+        reject(err);
       }
     });
   });
@@ -61,53 +68,8 @@ export async function initAuth() {
 /* ---------------------------
    Logout
 ---------------------------- */
-export function logout() {
-  if (window.google?.accounts?.id) {
-    google.accounts.id.disableAutoSelect();
-  }
-
-  localStorage.clear();
-  sessionStorage.clear();
+export async function logout() {
+  if (!auth) return;
+  await signOut(auth);
   location.reload();
-}
-
-/* ---------------------------
-   Helpers
----------------------------- */
-function waitForGoogle() {
-  return new Promise((resolve) => {
-    if (window.google?.accounts?.id) return resolve();
-
-    const interval = setInterval(() => {
-      if (window.google?.accounts?.id) {
-        clearInterval(interval);
-        resolve();
-      }
-    }, 50);
-  });
-}
-
-function handleCredential(response) {
-  const idToken = response.credential; // 🔥 KEEP THIS
-  const payload = decodeJwt(idToken);
-
-  if (!ALLOWED_EMAILS.includes(payload.email)) {
-    document.body.innerHTML = "<h1>Access denied</h1>";
-    throw new Error("Unauthorized user");
-  }
-
-  state.user = {
-    email: payload.email,
-    name: payload.name,
-    photo: payload.picture,
-    idToken, // 🔥 REQUIRED for Firebase Auth
-  };
-
-  localStorage.setItem("bududiet:user", JSON.stringify(state.user));
-  state.authReady = true;
-}
-
-function decodeJwt(token) {
-  const base64 = token.split(".")[1];
-  return JSON.parse(atob(base64));
 }

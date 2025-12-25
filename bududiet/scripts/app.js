@@ -1,14 +1,12 @@
 import { initTabs, switchTab } from "./tabs.js";
-import { initAuth } from "./auth.js";
 import { state, restoreToday } from "./state.js";
-import { initFirebase, signInFirebaseWithGoogle } from "./sync/firebase.js";
+import { initFirebase, getFirebaseApp, getDB } from "./sync/firebase.js";
+import { initAuth } from "./auth.js";
 import {
   ref,
   set,
 } from "https://www.gstatic.com/firebasejs/10.7.1/firebase-database.js";
-import { getDB } from "./sync/firebase.js";
 
-// 🔐 Firebase config (CDN-safe)
 const firebaseConfig = {
   apiKey: "AIzaSyBdaiwTZH_dq8tP2XPSTEazOrgPacM1lYA",
   authDomain: "budu-diet.firebaseapp.com",
@@ -23,8 +21,11 @@ const firebaseConfig = {
 document.addEventListener("DOMContentLoaded", async () => {
   const loadingEl = document.getElementById("auth-loading");
 
+  // Init Firebase
+  initFirebase(firebaseConfig);
+
   try {
-    await initAuth();
+    await initAuth(getFirebaseApp());
   } catch (e) {
     loadingEl.classList.add("hidden");
     document.body.innerHTML = `
@@ -36,25 +37,16 @@ document.addEventListener("DOMContentLoaded", async () => {
     return;
   }
 
-  if (!state.user) return;
-
-  // Firebase init
-  initFirebase(firebaseConfig);
-
-  // 🔐 Bridge GIS → Firebase Auth
-  await signInFirebaseWithGoogle(state.user.idToken);
-
+  // 🔥 AUTH IS NOW GUARANTEED
   const db = getDB();
   await set(ref(db, `users/${state.user.uid}/meta`), {
     email: state.user.email,
     createdAt: Date.now(),
   });
 
-  // Restore local state
   restoreToday();
 
   loadingEl.classList.add("hidden");
-
   initTabs();
   await switchTab("home");
 });
