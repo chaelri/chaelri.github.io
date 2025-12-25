@@ -10,13 +10,12 @@ export function bindLogs() {
   // ---------- AVATARS ----------
   const avatarSelf = document.getElementById("avatarSelf");
   const avatarPartner = document.getElementById("avatarPartner");
+  const partnerNameEl = document.getElementById("partnerName");
 
   if (avatarSelf) avatarSelf.src = state.user.photo;
-  if (avatarPartner && state.partner?.email) {
-    avatarPartner.src =
-      state.partner.email === "charliecayno@gmail.com"
-        ? state.user.photo
-        : avatarPartner.src;
+  if (state.partner?.email && partnerNameEl) {
+    partnerNameEl.textContent =
+      state.partner.email === "charliecayno@gmail.com" ? "Charlie" : "Karla";
   }
 
   // ---------- TOTALS ----------
