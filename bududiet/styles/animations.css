@@ -80,6 +80,7 @@ button:active,
   margin-top: 8px;
   padding: 8px 12px;
   font-size: 13px;
+  margin-left: auto;
 }
 
 .loading-card {
