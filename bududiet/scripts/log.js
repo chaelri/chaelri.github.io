@@ -80,6 +80,8 @@ export function bindLog() {
 
     const payload = await buildPayload(text, file);
 
+    console.log("[Gemini] payload →", payload);
+
     const res = await fetch(ENDPOINT, {
       method: "POST",
       headers: { "Content-Type": "application/json" },
@@ -87,7 +89,14 @@ export function bindLog() {
     });
 
     const raw = await res.json();
+
+    console.log("[Gemini] RAW RESPONSE ↓↓↓");
+    console.log(raw);
+
     const parsed = parseGemini(raw, text);
+
+    console.log("[Gemini] PARSED RESULT ↓↓↓");
+    console.log(parsed);
 
     if (!parsed) {
       await saveLog({
@@ -100,9 +109,14 @@ export function bindLog() {
       resultEl.innerHTML = `
         <div class="glass pad-md">
           <strong>⚠️ Gemini parse failed</strong>
-          <pre style="margin-top:12px;font-size:12px;opacity:0.85;">
-${JSON.stringify(raw, null, 2)}
-          </pre>
+          <pre style="
+            margin-top:12px;
+            max-height:300px;
+            overflow:auto;
+            font-size:12px;
+            white-space:pre-wrap;
+            opacity:0.85;
+          ">${JSON.stringify(raw, null, 2)}</pre>
         </div>
       `;
       return;
@@ -161,12 +175,28 @@ function fileToBase64(file) {
 }
 
 function parseGemini(raw, userText = "") {
-  const text =
-    raw?.candidates?.[0]?.content?.parts?.map((p) => p.text || "").join("") ||
-    "";
+  const parts = raw?.candidates?.[0]?.content?.parts || [];
 
-  const match = text.match(/\{[\s\S]*\}/);
-  if (!match) return null;
+  const combinedText = parts
+    .map((p) => {
+      if (typeof p.text === "string") return p.text;
+      return "";
+    })
+    .join("");
+
+  console.log("[Gemini] COMBINED TEXT ↓↓↓");
+  console.log(combinedText);
+
+  // 🔎 Try to extract JSON block
+  const match = combinedText.match(/\{[\s\S]*\}/);
+
+  if (!match) {
+    console.warn("[Gemini] ❌ No JSON block found");
+    return null;
+  }
+
+  console.log("[Gemini] JSON STRING ↓↓↓");
+  console.log(match[0]);
 
   try {
     const data = JSON.parse(match[0]);
@@ -177,7 +207,12 @@ function parseGemini(raw, userText = "") {
       );
 
     const kind = exerciseHint ? "exercise" : data.kind || "food";
-    const kcal = Number(data.totalKcal) || 0;
+    const kcal = Number(data.totalKcal);
+
+    if (!Number.isFinite(kcal)) {
+      console.warn("[Gemini] ❌ totalKcal invalid:", data.totalKcal);
+      return null;
+    }
 
     return {
       kind,
@@ -186,13 +221,14 @@ function parseGemini(raw, userText = "") {
       notes: formatItems(data.items) || data.notes || "",
       items: data.items || [],
     };
-  } catch {
+  } catch (err) {
+    console.error("[Gemini] ❌ JSON.parse failed", err);
     return null;
   }
 }
 
 /* =============================
-   Save log (unchanged logic)
+   Save log
 ============================= */
 
 async function saveLog(entry) {
@@ -213,7 +249,6 @@ async function saveLog(entry) {
     ownerUid: state.user.uid,
   };
 
-  // optimistic local update
   state.today.logs.push(log);
   if (log.kind === "food") state.today.net += log.kcal;
   if (log.kind === "exercise") state.today.net -= log.kcal;
