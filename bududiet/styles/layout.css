@@ -258,13 +258,3 @@ button .material-icon {
 #logsGrid img {
   box-shadow: var(--shadow-soft);
 }
-
-.home-wheels {
-  grid-template-columns: 1fr 1fr;
-}
-
-@media (max-width: 600px) {
-  .home-wheels {
-    grid-template-columns: 1fr;
-  }
-}
