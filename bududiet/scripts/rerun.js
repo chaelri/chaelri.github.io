@@ -35,11 +35,23 @@ async function buildPayload(text, file) {
 }
 
 function parseGemini(raw) {
-  const text = raw?.candidates?.[0]?.content?.parts?.[0]?.text || "{}";
+  let text = raw?.candidates?.[0]?.content?.parts?.[0]?.text || "";
+
+  text = text
+    .replace(/```json/i, "")
+    .replace(/```/g, "")
+    .trim();
+
   try {
     return JSON.parse(text);
-  } catch {
-    return { kind: "food", kcal: 0, confidence: 0, notes: "Parse failed" };
+  } catch (err) {
+    return {
+      kind: "food",
+      kcal: 0,
+      confidence: 0,
+      notes: "Unable to parse Gemini response",
+      _raw: text, // keep for debugging
+    };
   }
 }
 
