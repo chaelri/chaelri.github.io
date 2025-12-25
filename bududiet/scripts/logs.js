@@ -66,7 +66,7 @@ function renderLog(log, index, canDelete) {
       ${
         canDelete
           ? `<button data-index="${index}" class="deleteLogBtn">
-              <span class="material-icon">delete</span> Delete
+              <span class="material-icon">delete</span>
             </button>`
           : `<div class="muted" style="margin-top:6px;font-size:12px">
               Partner log
