@@ -1,4 +1,5 @@
 export const state = {
-  user: null,
+  user: null, // { email, name, photo }
   activeTab: "home",
+  authReady: false,
 };
