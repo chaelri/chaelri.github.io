@@ -3,31 +3,55 @@ import { state } from "./state.js";
 import {
   getAuth,
   GoogleAuthProvider,
-  signInWithPopup,
+  signInWithRedirect,
+  getRedirectResult,
   onAuthStateChanged,
-  signOut
+  signOut,
 } from "https://www.gstatic.com/firebasejs/10.7.1/firebase-auth.js";
 
-const ALLOWED_EMAILS = [
-  "charliecayno@gmail.com",
-  "kasromantico@gmail.com"
-];
+const ALLOWED_EMAILS = ["charliecayno@gmail.com", "kasromantico@gmail.com"];
+
+const REDIRECT_KEY = "bududiet:auth-redirected";
 
 let auth;
+let provider;
 
-/* ---------------------------
-   Init Firebase Auth
----------------------------- */
 export function initAuth(firebaseApp) {
   auth = getAuth(firebaseApp);
-  const provider = new GoogleAuthProvider();
+  provider = new GoogleAuthProvider();
 
-  return new Promise((resolve, reject) => {
+  return new Promise(async (resolve, reject) => {
+    // 1️⃣ Handle redirect result FIRST
+    const redirectResult = await getRedirectResult(auth);
+    if (redirectResult?.user) {
+      const user = redirectResult.user;
+
+      if (!ALLOWED_EMAILS.includes(user.email)) {
+        await signOut(auth);
+        sessionStorage.removeItem(REDIRECT_KEY);
+        reject(new Error("UNAUTHORIZED"));
+        return;
+      }
+
+      state.user = {
+        uid: user.uid,
+        email: user.email,
+        name: user.displayName,
+        photo: user.photoURL,
+      };
+
+      sessionStorage.removeItem(REDIRECT_KEY);
+      resolve();
+      return;
+    }
+
+    // 2️⃣ Observe auth state
     onAuthStateChanged(auth, async (user) => {
       if (user) {
         if (!ALLOWED_EMAILS.includes(user.email)) {
           await signOut(auth);
-          reject(new Error("Unauthorized user"));
+          sessionStorage.removeItem(REDIRECT_KEY);
+          reject(new Error("UNAUTHORIZED"));
           return;
         }
 
@@ -35,44 +59,25 @@ export function initAuth(firebaseApp) {
           uid: user.uid,
           email: user.email,
           name: user.displayName,
-          photo: user.photoURL
+          photo: user.photoURL,
         };
 
+        sessionStorage.removeItem(REDIRECT_KEY);
         resolve();
         return;
       }
 
-      // No user → show Google popup
-      try {
-        const result = await signInWithPopup(auth, provider);
-        const user = result.user;
-
-        if (!ALLOWED_EMAILS.includes(user.email)) {
-          await signOut(auth);
-          reject(new Error("Unauthorized user"));
-          return;
-        }
-
-        state.user = {
-          uid: user.uid,
-          email: user.email,
-          name: user.displayName,
-          photo: user.photoURL
-        };
-
-        resolve();
-      } catch (err) {
-        reject(err);
+      // 3️⃣ No user → redirect ONCE
+      if (!sessionStorage.getItem(REDIRECT_KEY)) {
+        sessionStorage.setItem(REDIRECT_KEY, "1");
+        signInWithRedirect(auth, provider);
       }
     });
   });
 }
 
-/* ---------------------------
-   Logout
----------------------------- */
 export async function logout() {
-  if (!auth) return;
-  await signOut(auth);
+  sessionStorage.removeItem(REDIRECT_KEY);
+  if (auth) await signOut(auth);
   location.reload();
 }
