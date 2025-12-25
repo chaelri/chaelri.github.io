@@ -2,6 +2,11 @@ import { initTabs, switchTab } from "./tabs.js";
 import { initAuth } from "./auth.js";
 import { state, restoreToday } from "./state.js";
 import { initFirebase } from "./sync/firebase.js";
+import {
+  ref,
+  set,
+} from "https://www.gstatic.com/firebasejs/10.7.1/firebase-database.js";
+import { getDB } from "./sync/firebase.js";
 
 // 🔐 Firebase config (CDN-safe)
 const firebaseConfig = {
@@ -35,6 +40,12 @@ document.addEventListener("DOMContentLoaded", async () => {
 
   // ✅ Firebase init AFTER auth (correct)
   initFirebase(firebaseConfig);
+  // 🔴 TEMP: Firebase sanity write (remove after confirmation)
+  const db = getDB();
+  await set(ref(db, `users/${state.user.uid}/meta`), {
+    email: state.user.email,
+    createdAt: Date.now(),
+  });
 
   // Restore local state
   restoreToday();
