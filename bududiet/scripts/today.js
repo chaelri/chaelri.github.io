@@ -1,21 +1,26 @@
 import { state } from "./state.js";
 
+let idleInitialized = false;
+let idleTimer = null;
+
 export function bindToday(animate = false) {
   const circle = document.getElementById("wheelProgress");
   const value = document.getElementById("wheelValue");
   const icon = document.getElementById("wheelIcon");
+
   if (!circle || !value || !icon) return;
 
   const goal = getGoal();
   const net = state.today.net;
 
+  // ===== Progress ring =====
   const pct = Math.min(Math.abs(net) / goal, 1);
   const circumference = 565;
   const offset = circumference * (1 - pct);
 
   if (animate) {
     circle.style.transition = "none";
-    circle.style.strokeDashoffset = 565;
+    circle.style.strokeDashoffset = circumference;
 
     requestAnimationFrame(() => {
       circle.style.transition =
@@ -25,8 +30,10 @@ export function bindToday(animate = false) {
   } else {
     circle.style.strokeDashoffset = offset;
   }
+
   value.textContent = `${net} kcal`;
 
+  // ===== Icon state =====
   icon.classList.remove("wheel-ok", "wheel-warning", "wheel-over");
 
   if (net < 0) {
@@ -45,8 +52,48 @@ export function bindToday(animate = false) {
     icon.textContent = "sentiment_satisfied_alt";
     icon.classList.add("wheel-ok");
   }
+
+  // ===== Idle animation (init ONCE) =====
+  if (!idleInitialized) {
+    startIdleBehavior(icon);
+    idleInitialized = true;
+  }
 }
 
+// =============================
+// Idle animation system
+// =============================
+function startIdleBehavior(iconEl) {
+  if (!iconEl) return;
+
+  const idleAnimations = ["idle-wobble", "idle-pulse", "idle-shake"];
+
+  function triggerIdle() {
+    const anim =
+      idleAnimations[Math.floor(Math.random() * idleAnimations.length)];
+
+    iconEl.classList.add(anim);
+
+    iconEl.addEventListener(
+      "animationend",
+      () => iconEl.classList.remove(anim),
+      { once: true }
+    );
+
+    scheduleNext();
+  }
+
+  function scheduleNext() {
+    const delay = 8000 + Math.random() * 12000; // 8–20s
+    idleTimer = setTimeout(triggerIdle, delay);
+  }
+
+  scheduleNext();
+}
+
+// =============================
+// Goal logic
+// =============================
 function getGoal() {
-  return state.user.email === "charliecayno@gmail.com" ? 1100 : 1500;
+  return state.user?.email === "charliecayno@gmail.com" ? 1100 : 1500;
 }
