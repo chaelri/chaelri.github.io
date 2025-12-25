@@ -52,15 +52,22 @@ async function boot() {
 
 function showPicker() {
   document.body.innerHTML = `
-    <div style="min-height:100vh;display:flex;align-items:center;justify-content:center">
-      <div class="glass pad-lg" style="text-align:center">
-        <h2>Who are you?</h2>
-        <button id="charlie" class="glass pad-md">🟦 Charlie</button>
-        <div class="space-sm"></div>
-        <button id="karla" class="glass pad-md">🟪 Karla</button>
-      </div>
+  <div class="local-auth-root">
+    <div class="local-auth-card">
+      <h2>Who are you?</h2>
+
+      <button id="charlie" class="local-auth-btn charlie">
+        <span class="local-auth-avatar">C</span>
+        Charlie
+      </button>
+
+      <button id="karla" class="local-auth-btn karla">
+        <span class="local-auth-avatar">K</span>
+        Karla
+      </button>
     </div>
-  `;
+  </div>
+`;
 
   document.getElementById("charlie").onclick = () => {
     selectUser("Charlie");

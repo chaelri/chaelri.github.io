@@ -283,3 +283,103 @@ button .material-icon {
   margin-bottom: 8px;
   opacity: 0.85;
 }
+
+/* ============================
+   Local Login Picker
+============================ */
+
+.local-auth-root {
+  min-height: 100vh;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  background: radial-gradient(circle at top, #121b33, #0b1220 70%);
+}
+
+.local-auth-card {
+  background: rgba(28, 36, 64, 0.75);
+  backdrop-filter: blur(16px);
+  border-radius: 22px;
+  padding: 28px 26px 26px;
+  width: 260px;
+  box-shadow: 0 30px 80px rgba(0, 0, 0, 0.55),
+    inset 0 1px 0 rgba(255, 255, 255, 0.05);
+  text-align: center;
+}
+
+.local-auth-card h2 {
+  margin: 0 0 18px;
+  font-size: 20px;
+  font-weight: 600;
+  color: #eef3ff;
+}
+
+/* ============================
+   User Buttons
+============================ */
+
+.local-auth-btn {
+  width: 100%;
+  padding: 14px 16px;
+  margin-bottom: 12px;
+  border-radius: 16px;
+  border: none;
+  font-size: 16px;
+  font-weight: 600;
+  color: #ffffff;
+  cursor: pointer;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  gap: 10px;
+
+  background: rgba(255, 255, 255, 0.08);
+  box-shadow: inset 0 1px 0 rgba(255, 255, 255, 0.12),
+    0 10px 24px rgba(0, 0, 0, 0.35);
+
+  transition: transform 120ms ease, box-shadow 120ms ease, background 120ms ease;
+}
+
+.local-auth-btn:last-child {
+  margin-bottom: 0;
+}
+
+.local-auth-btn:hover {
+  transform: translateY(-1px);
+  box-shadow: inset 0 1px 0 rgba(255, 255, 255, 0.18),
+    0 14px 32px rgba(0, 0, 0, 0.45);
+}
+
+.local-auth-btn:active {
+  transform: translateY(0);
+  box-shadow: inset 0 1px 0 rgba(255, 255, 255, 0.1),
+    0 8px 18px rgba(0, 0, 0, 0.4);
+}
+
+/* ============================
+   Identity Colors
+============================ */
+
+.local-auth-btn.charlie {
+  background: linear-gradient(135deg, #4f7cff, #3b5bdb);
+}
+
+.local-auth-btn.karla {
+  background: linear-gradient(135deg, #b44cff, #7c3aed);
+}
+
+/* ============================
+   Icon Circle (C / K)
+============================ */
+
+.local-auth-avatar {
+  width: 22px;
+  height: 22px;
+  border-radius: 50%;
+  background: rgba(255, 255, 255, 0.18);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  font-weight: 700;
+  font-size: 14px;
+}
