@@ -11,6 +11,7 @@ const ALLOWED_EMAILS = ["charliecayno@gmail.com", "kasromantico@gmail.com"];
 
 let auth;
 let provider;
+let hasCheckedOnce = false; // 🔑 THE FIX
 
 export function initAuth(firebaseApp) {
   auth = getAuth(firebaseApp);
@@ -18,18 +19,26 @@ export function initAuth(firebaseApp) {
 
   return new Promise((resolve, reject) => {
     onAuthStateChanged(auth, async (user) => {
+      // ⏳ First null happens while Firebase is booting — IGNORE IT
+      if (!user && !hasCheckedOnce) {
+        hasCheckedOnce = true;
+        return;
+      }
+
+      // ❌ No user AFTER Firebase finished booting
       if (!user) {
-        // 🔴 IMPORTANT: do NOT redirect here
         reject(new Error("NO_AUTH"));
         return;
       }
 
+      // ❌ Signed in but not allowed
       if (!ALLOWED_EMAILS.includes(user.email)) {
         await signOut(auth);
         reject(new Error("UNAUTHORIZED"));
         return;
       }
 
+      // ✅ Auth OK
       state.user = {
         uid: user.uid,
         email: user.email,
@@ -42,7 +51,7 @@ export function initAuth(firebaseApp) {
   });
 }
 
-// 🔐 EXPLICIT login trigger (ONE TIME)
+// 🔐 Explicit login trigger (ONE TIME)
 export function startLogin() {
   if (!auth || !provider) return;
   signInWithRedirect(auth, provider);
