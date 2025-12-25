@@ -13,46 +13,37 @@ const ALLOWED_EMAILS = ["charliecayno@gmail.com", "kasromantico@gmail.com"];
 let auth;
 let provider;
 
-export function initAuth(firebaseApp) {
+export function initAuth(firebaseApp, onReady) {
   auth = getAuth(firebaseApp);
   provider = new GoogleAuthProvider();
 
-  return new Promise((resolve, reject) => {
-    onAuthStateChanged(auth, async (user) => {
-      if (!user) {
-        // 🔥 wait for Firebase to finish restoring session
-        setTimeout(() => {
-          reject(new Error("NO_AUTH"));
-        }, 0);
-        return;
-      }
+  onAuthStateChanged(auth, async (user) => {
+    if (!user) {
+      onReady(null);
+      return;
+    }
 
-      if (!ALLOWED_EMAILS.includes(user.email)) {
-        await signOut(auth);
-        reject(new Error("UNAUTHORIZED"));
-        return;
-      }
+    if (!ALLOWED_EMAILS.includes(user.email)) {
+      await signOut(auth);
+      onReady("unauthorized");
+      return;
+    }
 
-      state.user = {
-        uid: user.uid,
-        email: user.email,
-        name: user.displayName,
-        photo: user.photoURL,
-      };
+    state.user = {
+      uid: user.uid,
+      email: user.email,
+      name: user.displayName,
+      photo: user.photoURL,
+    };
 
-      // 🔥 HARD REBOOT AFTER AUTH
-      location.replace(location.pathname);
-    });
+    onReady(state.user);
   });
 }
 
-// 🔐 USER-TRIGGERED LOGIN (ONLY PLACE REDIRECT EXISTS)
 export function login() {
-  if (!auth) return;
   signInWithRedirect(auth, provider);
 }
 
-export async function logout() {
-  if (auth) await signOut(auth);
-  location.reload();
+export function logout() {
+  signOut(auth).then(() => location.reload());
 }
