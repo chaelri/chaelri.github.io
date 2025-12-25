@@ -21,6 +21,7 @@ export function initAuth(firebaseApp) {
 
   return new Promise((resolve, reject) => {
     onAuthStateChanged(auth, async (user) => {
+      console.log("AUTH STATE CHANGED:", user?.email);
       if (user) {
         if (!ALLOWED_EMAILS.includes(user.email)) {
           await signOut(auth);
@@ -43,6 +44,8 @@ export function initAuth(firebaseApp) {
       try {
         const result = await signInWithPopup(auth, provider);
         const user = result.user;
+
+        console.log("POPUP SIGNED IN AS:", user.email);
 
         if (!ALLOWED_EMAILS.includes(user.email)) {
           await signOut(auth);
