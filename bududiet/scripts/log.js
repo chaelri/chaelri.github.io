@@ -173,6 +173,8 @@ function parseGemini(raw, userText = "") {
 }
 
 function saveLog(entry) {
+  import("./sync/status.js").then((m) => m.setSyncing());
+
   const todayKey = getTodayKey();
 
   if (state.today.date !== todayKey) {
@@ -203,6 +205,7 @@ function saveLog(entry) {
   } catch (e) {
     // silent fail — local-first, offline-safe
   }
+  import("./sync/status.js").then((m) => m.setLive());
 }
 
 function persistToday() {

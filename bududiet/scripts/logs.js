@@ -1,6 +1,8 @@
 import { state } from "./state.js";
 
 export function bindLogs() {
+  import("./sync/status.js").then((m) => m.bindSyncStatus());
+
   const selfList = document.getElementById("logsListSelf");
   const partnerList = document.getElementById("logsListPartner");
   if (!selfList || !partnerList) return;
@@ -84,6 +86,9 @@ document.addEventListener("click", (e) => {
 });
 
 async function deleteLog(index) {
+  const { setSyncing, setLive } = await import("./sync/status.js");
+  setSyncing();
+
   const log = state.today.logs[index];
   if (!log) return;
 
@@ -118,4 +123,5 @@ async function deleteLog(index) {
 
   bindLogs();
   import("./today.js").then((m) => m.bindToday());
+  setLive();
 }
