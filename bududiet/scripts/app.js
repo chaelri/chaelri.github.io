@@ -2,7 +2,7 @@
 import { initTabs, switchTab } from "./tabs.js";
 import { state } from "./state.js";
 import { initFirebase, getDB } from "./sync/firebase.js";
-import { initAuth } from "./auth.js";
+import { initLocalAuth, selectUser } from "./localAuth.js";
 import {
   ref,
   set,
@@ -20,25 +20,51 @@ const firebaseConfig = {
 };
 
 document.addEventListener("DOMContentLoaded", async () => {
-  const loadingEl = document.getElementById("auth-loading");
-
   initFirebase(firebaseConfig);
 
-  // ⏳ WAIT — DO NOT DENY
-  await initAuth();
+  // 🔐 Local profile selection
+  if (!initLocalAuth()) {
+    showPicker();
+    return;
+  }
 
-  console.log("[BOOT] logged in as", state.user.email);
+  await boot();
+});
 
+async function boot() {
   const db = getDB();
+
   await set(ref(db, `users/${state.user.uid}/meta`), {
-    email: state.user.email,
+    name: state.user.name,
     createdAt: Date.now(),
   });
 
   const realtime = await import("./sync/realtime.js");
   realtime.initRealtimeSync();
 
-  loadingEl.classList.add("hidden");
   initTabs();
   await switchTab("home");
-});
+}
+
+function showPicker() {
+  document.body.innerHTML = `
+    <div style="min-height:100vh;display:flex;align-items:center;justify-content:center">
+      <div class="glass pad-lg" style="text-align:center">
+        <h2>Who are you?</h2>
+        <button id="charlie" class="glass pad-md">🟦 Charlie</button>
+        <div class="space-sm"></div>
+        <button id="karla" class="glass pad-md">🟪 Karla</button>
+      </div>
+    </div>
+  `;
+
+  document.getElementById("charlie").onclick = () => {
+    selectUser("Charlie");
+    location.reload();
+  };
+
+  document.getElementById("karla").onclick = () => {
+    selectUser("Karla");
+    location.reload();
+  };
+}

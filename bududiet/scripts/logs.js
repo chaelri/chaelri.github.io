@@ -1,3 +1,4 @@
+// scripts/logs.js
 import { state } from "./state.js";
 
 let syncBound = false;
@@ -8,7 +9,8 @@ export function bindLogs() {
     state.today.logs.length,
     state.today.logs
   );
-  // bind sync indicator ONCE
+
+  // ---------- Sync indicator (bind once) ----------
   if (!syncBound) {
     import("./sync/status.js").then((m) => m.bindSyncStatus());
     syncBound = true;
@@ -23,10 +25,23 @@ export function bindLogs() {
   const avatarPartner = document.getElementById("avatarPartner");
   const partnerNameEl = document.getElementById("partnerName");
 
-  if (avatarSelf) avatarSelf.src = state.user.photo;
-  if (state.partner?.email && partnerNameEl) {
+  // Self avatar
+  if (avatarSelf && state.user) {
+    avatarSelf.textContent = state.user.photo; // "C" or "K"
+    avatarSelf.classList.add("avatar-circle");
+  }
+
+  // Partner avatar
+  if (avatarPartner && state.partner?.email) {
+    avatarPartner.textContent =
+      state.partner.email === "charlie@local" ? "C" : "K";
+    avatarPartner.classList.add("avatar-circle");
+  }
+
+  // Partner name
+  if (partnerNameEl && state.partner?.email) {
     partnerNameEl.textContent =
-      state.partner.email === "charliecayno@gmail.com" ? "Charlie" : "Karla";
+      state.partner.email === "charlie@local" ? "Charlie" : "Karla";
   }
 
   // ---------- TOTALS ----------
@@ -38,12 +53,12 @@ export function bindLogs() {
     totalPartner.textContent = `${state.partner.today.net} kcal`;
   }
 
-  // ---------- SELF ----------
+  // ---------- SELF LOGS ----------
   selfList.innerHTML = state.today.logs.length
     ? state.today.logs.map((log, idx) => renderLog(log, idx, true)).join("")
     : `<div class="glass pad-md">No logs yet.</div>`;
 
-  // ---------- PARTNER ----------
+  // ---------- PARTNER LOGS ----------
   const pLogs = state.partner?.today?.logs || [];
   partnerList.innerHTML = pLogs.length
     ? pLogs.map((log) => renderLog(log, null, false)).join("")
@@ -76,6 +91,7 @@ function renderLog(log, index, canDelete) {
   `;
 }
 
+// ---------- DELETE HANDLER ----------
 document.addEventListener("click", (e) => {
   const del = e.target.closest(".deleteLogBtn");
   if (!del) return;
@@ -113,7 +129,7 @@ async function deleteLog(index) {
     const snap = await get(q);
     snap.forEach((child) => remove(child.ref));
   } catch (e) {
-    console.error(e);
+    console.error("[LOGS] delete failed", e);
   }
 
   // ❗ DO NOT mutate state here

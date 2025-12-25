@@ -258,3 +258,17 @@ button .material-icon {
 #logsGrid img {
   box-shadow: var(--shadow-soft);
 }
+
+.avatar-circle {
+  width: 40px;
+  height: 40px;
+  border-radius: 50%;
+  background: linear-gradient(135deg, #4f46e5, #ec4899);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  font-weight: 600;
+  font-size: 18px;
+  color: white;
+  user-select: none;
+}
