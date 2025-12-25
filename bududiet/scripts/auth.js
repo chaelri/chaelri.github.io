@@ -5,19 +5,34 @@ const ALLOWED_EMAILS = ["charliecayno@gmail.com", "kasromantico@gmail.com"];
 export async function initAuth() {
   await waitForGoogle();
 
-  return new Promise((resolve) => {
+  return new Promise((resolve, reject) => {
     google.accounts.id.initialize({
       client_id:
         "668755364170-3uiq2nrlmb4b91hf5o5junu217b4eeef.apps.googleusercontent.com",
       callback: (res) => {
-        handleCredential(res);
-        resolve();
+        try {
+          handleCredential(res);
+          resolve();
+        } catch (e) {
+          reject(e);
+        }
       },
       auto_select: true,
     });
 
     google.accounts.id.prompt();
   });
+}
+
+export function logout() {
+  if (window.google?.accounts?.id) {
+    google.accounts.id.disableAutoSelect();
+  }
+
+  localStorage.clear();
+  sessionStorage.clear();
+
+  location.reload();
 }
 
 function waitForGoogle() {
