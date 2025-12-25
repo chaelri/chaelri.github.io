@@ -84,6 +84,12 @@ document.addEventListener("click", (e) => {
   if (!Number.isNaN(index)) deleteLog(index);
 });
 
+function getLocalDateKey() {
+  const d = new Date();
+  d.setMinutes(d.getMinutes() - d.getTimezoneOffset());
+  return d.toISOString().slice(0, 10);
+}
+
 async function deleteLog(index) {
   const log = state.today.logs[index];
   if (!log) return;
@@ -97,7 +103,7 @@ async function deleteLog(index) {
       "https://www.gstatic.com/firebasejs/10.7.1/firebase-database.js"
     );
 
-    const todayKey = new Date().toISOString().slice(0, 10);
+    const todayKey = getLocalDateKey();
     const q = query(
       ref(getDB(), `users/${state.user.uid}/logs/${todayKey}`),
       orderByChild("ts"),

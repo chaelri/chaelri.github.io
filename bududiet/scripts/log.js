@@ -142,7 +142,13 @@ async function saveLog(entry) {
 }
 
 function getTodayKey() {
-  return new Date().toISOString().slice(0, 10);
+  return getLocalDateKey();
+}
+
+function getLocalDateKey() {
+  const d = new Date();
+  d.setMinutes(d.getMinutes() - d.getTimezoneOffset());
+  return d.toISOString().slice(0, 10);
 }
 
 async function buildPayload(text, file) {

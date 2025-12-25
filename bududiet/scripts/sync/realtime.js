@@ -14,6 +14,7 @@ function getPartnerEmail() {
 }
 
 export function initRealtimeSync() {
+  console.log("[RTDB] initRealtimeSync called");
   const db = getDB();
 
   // determine partner UID from users meta
@@ -35,11 +36,17 @@ export function initRealtimeSync() {
   });
 }
 
+function getLocalDateKey() {
+  const d = new Date();
+  d.setMinutes(d.getMinutes() - d.getTimezoneOffset());
+  return d.toISOString().slice(0, 10);
+}
+
 // =============================
 // PARTNER — FULL SYNC
 // =============================
 function attachPartnerToday(uid) {
-  const todayKey = new Date().toISOString().slice(0, 10);
+  const todayKey = getLocalDateKey();
   const logsRef = ref(getDB(), `users/${uid}/logs/${todayKey}`);
 
   onValue(logsRef, (snap) => {
@@ -84,12 +91,18 @@ function attachPartnerToday(uid) {
 }
 
 function attachSelfToday(uid) {
-  const todayKey = new Date().toISOString().slice(0, 10);
+  const todayKey = getLocalDateKey();
   const logsRef = ref(getDB(), `users/${uid}/logs/${todayKey}`);
 
   console.log("[RTDB] attachSelfToday → listening to", todayKey);
+  console.log("[RTDB] attachSelfToday");
+  console.log("[RTDB] uid =", uid);
+  console.log("[RTDB] todayKey =", todayKey);
 
   onValue(logsRef, (snap) => {
+    console.log("[RTDB] self logs snapshot exists =", snap.exists());
+    console.log("[RTDB] raw snapshot =", snap.val());
+
     const logsObj = snap.val() || {};
     const logs = Object.values(logsObj);
 
