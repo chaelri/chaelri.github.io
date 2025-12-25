@@ -40,12 +40,6 @@ document.addEventListener("DOMContentLoaded", async () => {
 
   // ✅ Firebase init AFTER auth (correct)
   initFirebase(firebaseConfig);
-  // 🔴 TEMP: Firebase sanity write (remove after confirmation)
-  const db = getDB();
-  await set(ref(db, `users/${state.user.uid}/meta`), {
-    email: state.user.email,
-    createdAt: Date.now(),
-  });
 
   // Restore local state
   restoreToday();
