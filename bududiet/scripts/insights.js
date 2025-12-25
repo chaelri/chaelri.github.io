@@ -14,82 +14,59 @@ export async function bindInsights() {
 
   if (!selfEl || !partnerEl) return;
 
+  document.getElementById("selfName").textContent = state.user.name;
+  document.getElementById("partnerName").textContent =
+    state.partner?.name || "";
+
   const days = lastNDays(7);
 
   const self = await sumForUser(state.user.uid, days);
-  render(selfEl, self, state.user.name);
+  render(selfEl, self);
   renderBars(selfBars, self);
 
   if (state.partner?.uid) {
     const partner = await sumForUser(state.partner.uid, days);
-    render(partnerEl, partner, state.partner.name);
+    render(partnerEl, partner);
     renderBars(partnerBars, partner);
-  } else {
-    partnerEl.innerHTML = `<div class="muted">No data</div>`;
   }
 }
 
-// =============================
-// Data aggregation
-// =============================
 async function sumForUser(uid, days) {
   const db = getDB();
-
   let food = 0;
   let exercise = 0;
   const perDay = [];
 
   for (const day of days) {
-    let dayFood = 0;
-    let dayExercise = 0;
+    let f = 0;
+    let e = 0;
 
     const snap = await get(ref(db, `users/${uid}/logs/${day}`));
     const logs = snap.val() || {};
 
     for (const k in logs) {
-      const log = logs[k];
-      const kcal = Number(log.kcal) || 0;
-
-      if (log.kind === "food") {
+      const kcal = Number(logs[k].kcal) || 0;
+      if (logs[k].kind === "food") {
         food += kcal;
-        dayFood += kcal;
+        f += kcal;
       }
-
-      if (log.kind === "exercise") {
+      if (logs[k].kind === "exercise") {
         exercise += kcal;
-        dayExercise += kcal;
+        e += kcal;
       }
     }
 
-    perDay.push({
-      date: day,
-      net: dayFood - dayExercise,
-    });
+    perDay.push({ date: day, net: f - e });
   }
 
-  return {
-    food,
-    exercise,
-    net: food - exercise,
-    perDay,
-  };
+  return { food, exercise, net: food - exercise, perDay };
 }
 
-// =============================
-// Render summary cards
-// =============================
-function render(el, data, name) {
-  if (!data.perDay.length) {
-    el.innerHTML = `<div class="muted">No data</div>`;
-    return;
-  }
-
-  const avg = Math.round(data.net / data.perDay.length);
+function render(el, data) {
+  const avg = Math.round(data.net / data.perDay.length || 1);
   const { best, worst } = bestWorst(data);
 
   el.innerHTML = `
-    <h3 style="margin-bottom:12px">${name}</h3>
-
     <div class="glass pad-md"><div class="muted">Food</div><strong>${
       data.food
     } kcal</strong></div>
@@ -102,19 +79,14 @@ function render(el, data, name) {
     <div class="glass pad-md"><div class="muted">Daily avg</div><strong>${avg} kcal</strong></div>
     <div class="glass pad-md"><div class="muted">Best day</div><strong>${formatDay(
       best.date
-    )} (${best.net} kcal)</strong></div>
+    )} (${best.net})</strong></div>
     <div class="glass pad-md"><div class="muted">Worst day</div><strong>${formatDay(
       worst.date
-    )} (${worst.net} kcal)</strong></div>
+    )} (${worst.net})</strong></div>
   `;
 }
 
-// =============================
-// Mini bars
-// =============================
 function renderBars(el, data) {
-  if (!el || !data.perDay.length) return;
-
   const max = Math.max(...data.perDay.map((d) => Math.abs(d.net)), 1);
 
   el.innerHTML = `
@@ -125,13 +97,12 @@ function renderBars(el, data) {
         .map(
           (d) => `
         <div style="flex:1;text-align:center">
-          <div
-            style="
-              height:${Math.max(6, (Math.abs(d.net) / max) * 48)}px;
-              background:${d.net > 0 ? "#ef4444" : "#22c55e"};
-              border-radius:6px;
-            "
-          ></div>
+          <div style="height:${Math.max(
+            6,
+            (Math.abs(d.net) / max) * 48
+          )}px;background:${
+            d.net > 0 ? "#ef4444" : "#22c55e"
+          };border-radius:6px"></div>
           <div class="muted" style="font-size:10px">${shortDay(d.date)}</div>
         </div>`
         )
@@ -140,30 +111,23 @@ function renderBars(el, data) {
   `;
 }
 
-// =============================
-// Helpers
-// =============================
 function bestWorst(data) {
   let best = data.perDay[0];
   let worst = data.perDay[0];
-
   for (const d of data.perDay) {
     if (d.net < best.net) best = d;
     if (d.net > worst.net) worst = d;
   }
-
   return { best, worst };
 }
 
 function lastNDays(n) {
   const out = [];
   const d = new Date();
-
   for (let i = 0; i < n; i++) {
     out.push(getLocalDateKey(d));
     d.setDate(d.getDate() - 1);
   }
-
   return out;
 }
 
@@ -174,13 +138,8 @@ function getLocalDateKey(date = new Date()) {
 }
 
 function formatDay(date) {
-  return new Date(date).toLocaleDateString(undefined, {
-    weekday: "long",
-  });
+  return new Date(date).toLocaleDateString(undefined, { weekday: "long" });
 }
-
 function shortDay(date) {
-  return new Date(date).toLocaleDateString(undefined, {
-    weekday: "short",
-  });
+  return new Date(date).toLocaleDateString(undefined, { weekday: "short" });
 }
