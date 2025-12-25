@@ -1,17 +1,50 @@
+// scripts/today.js
 import { state } from "./state.js";
 
 let idleInitialized = false;
 let idleTimer = null;
 
 export function bindToday(animate = false) {
-  const circle = document.getElementById("wheelProgress");
-  const value = document.getElementById("wheelValue");
-  const icon = document.getElementById("wheelIcon");
+  // ---------- SELF ----------
+  bindWheel(
+    {
+      circle: "wheelProgress",
+      value: "wheelValue",
+      icon: "wheelIcon",
+    },
+    state.today,
+    getGoal(),
+    animate,
+    true // idle enabled
+  );
+
+  // ---------- PARTNER ----------
+  if (state.partner?.today) {
+    bindWheel(
+      {
+        circle: "wheelProgressPartner",
+        value: "wheelValuePartner",
+        icon: "wheelIconPartner",
+      },
+      state.partner.today,
+      getPartnerGoal(),
+      false,
+      false // no idle for partner
+    );
+  }
+}
+
+// =============================
+// Wheel renderer
+// =============================
+function bindWheel(ids, source, goal, animate = false, enableIdle = false) {
+  const circle = document.getElementById(ids.circle);
+  const value = document.getElementById(ids.value);
+  const icon = document.getElementById(ids.icon);
 
   if (!circle || !value || !icon) return;
 
-  const goal = getGoal();
-  const net = state.today.net;
+  const net = source?.net || 0;
 
   // ===== Progress ring =====
   const pct = Math.min(Math.abs(net) / goal, 1);
@@ -53,15 +86,15 @@ export function bindToday(animate = false) {
     icon.classList.add("wheel-ok");
   }
 
-  // ===== Idle animation (init ONCE) =====
-  if (!idleInitialized) {
+  // ===== Idle animation (SELF ONLY) =====
+  if (enableIdle && !idleInitialized) {
     startIdleBehavior(icon);
     idleInitialized = true;
   }
 }
 
 // =============================
-// Idle animation system
+// Idle animation system (self)
 // =============================
 function startIdleBehavior(iconEl) {
   if (!iconEl) return;
@@ -90,7 +123,7 @@ function startIdleBehavior(iconEl) {
   }
 
   function scheduleNext() {
-    const delay = 3000 + Math.random() * 5000; // 🔥 3–5s
+    const delay = 3000 + Math.random() * 5000; // 3–8s
     idleTimer = setTimeout(triggerIdle, delay);
   }
 
@@ -102,4 +135,8 @@ function startIdleBehavior(iconEl) {
 // =============================
 function getGoal() {
   return state.user?.email === "charliecayno@gmail.com" ? 1100 : 1500;
+}
+
+function getPartnerGoal() {
+  return state.partner?.email === "charliecayno@gmail.com" ? 1100 : 1500;
 }
