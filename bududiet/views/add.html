@@ -3,9 +3,16 @@
   <p class="muted">Describe your meal or exercise</p>
 
   <textarea
+    id="logText"
     placeholder="e.g. Ate an apple 🍎 or ran 3km 🏃‍♂️"
     style="width: 100%; margin-top: 16px; min-height: 120px"
   ></textarea>
 
-  <button style="margin-top: 16px; width: 100%">Send to Gemini ✨</button>
+  <input id="logImage" type="file" accept="image/*" style="margin-top: 12px" />
+
+  <button id="sendLogBtn" style="margin-top: 16px; width: 100%">
+    Send to Gemini ✨
+  </button>
+
+  <div id="logResult" style="margin-top: 16px"></div>
 </section>
