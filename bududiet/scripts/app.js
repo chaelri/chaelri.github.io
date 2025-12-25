@@ -1,6 +1,6 @@
 import { initTabs, switchTab } from "./tabs.js";
 import { initAuth } from "./auth.js";
-import { state } from "./state.js";
+import { state, restoreToday } from "./state.js";
 
 document.addEventListener("DOMContentLoaded", async () => {
   const loadingEl = document.getElementById("auth-loading");
@@ -19,6 +19,9 @@ document.addEventListener("DOMContentLoaded", async () => {
   }
 
   if (!state.user) return;
+
+  // restore local state AFTER auth
+  restoreToday();
 
   loadingEl.classList.add("hidden");
 

@@ -1,8 +1,25 @@
 import { state } from "./state.js";
 
+export function restoreUser() {
+  const raw = localStorage.getItem("bududiet:user");
+  if (!raw) return false;
+
+  try {
+    state.user = JSON.parse(raw);
+    return true;
+  } catch {
+    return false;
+  }
+}
+
 const ALLOWED_EMAILS = ["charliecayno@gmail.com", "kasromantico@gmail.com"];
 
 export async function initAuth() {
+  // ✅ restore session first
+  if (restoreUser()) {
+    return;
+  }
+
   await waitForGoogle();
 
   return new Promise((resolve, reject) => {
@@ -20,7 +37,11 @@ export async function initAuth() {
       auto_select: true,
     });
 
-    google.accounts.id.prompt();
+    google.accounts.id.prompt((notification) => {
+      if (notification.isNotDisplayed()) {
+        resolve(); // silent fail, user already signed in
+      }
+    });
   });
 }
 
@@ -61,6 +82,8 @@ function handleCredential(response) {
     name: payload.name,
     photo: payload.picture,
   };
+
+  localStorage.setItem("bududiet:user", JSON.stringify(state.user));
 
   state.authReady = true;
 }
