@@ -43,7 +43,7 @@
     <div id="app">
       <div id="auth-loading" class="auth-loading">
         <div class="glass auth-card">
-          <div class="spinner"></div>
+          <div class="spinner" aria-hidden="true"></div>
           <p>Signing you in… ✨</p>
         </div>
       </div>
@@ -77,6 +77,10 @@
           <span>Profile</span>
         </button>
       </nav>
+      <div
+        id="google-login"
+        style="display: flex; justify-content: center"
+      ></div>
     </div>
 
     <!-- Scripts -->
@@ -90,6 +94,7 @@
       };
     </script>
 
+    <script src="https://accounts.google.com/gsi/client" async defer></script>
     <script type="module" src="./scripts/app.js"></script>
 
     <!-- Service Worker -->

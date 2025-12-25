@@ -1,6 +1,6 @@
 import { initTabs, switchTab } from "./tabs.js";
 import { state } from "./state.js";
-import { initFirebase, getFirebaseApp, getDB } from "./sync/firebase.js";
+import { initFirebase, getDB } from "./sync/firebase.js";
 import { initAuth } from "./auth.js";
 import {
   ref,
@@ -25,7 +25,7 @@ document.addEventListener("DOMContentLoaded", async () => {
   initFirebase(firebaseConfig);
 
   try {
-    await initAuth(getFirebaseApp());
+    await initAuth();
   } catch (e) {
     loadingEl.classList.add("hidden");
     document.body.innerHTML = `
