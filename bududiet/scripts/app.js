@@ -20,10 +20,12 @@ const firebaseConfig = {
 };
 
 document.addEventListener("DOMContentLoaded", async () => {
+  // Init Firebase FIRST
   initFirebase(firebaseConfig);
 
   // 🔐 Local profile selection
   if (!initLocalAuth()) {
+    hideLoading();
     showPicker();
     return;
   }
@@ -32,6 +34,8 @@ document.addEventListener("DOMContentLoaded", async () => {
 });
 
 async function boot() {
+  hideLoading();
+
   const db = getDB();
 
   await set(ref(db, `users/${state.user.uid}/meta`), {
@@ -67,4 +71,9 @@ function showPicker() {
     selectUser("Karla");
     location.reload();
   };
+}
+
+function hideLoading() {
+  const el = document.getElementById("auth-loading");
+  if (el) el.classList.add("hidden");
 }

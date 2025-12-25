@@ -272,3 +272,7 @@ button .material-icon {
   color: white;
   user-select: none;
 }
+
+.auth-loading.hidden {
+  display: none;
+}
