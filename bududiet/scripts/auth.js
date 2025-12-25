@@ -11,18 +11,20 @@ import {
 const ALLOWED_EMAILS = ["charliecayno@gmail.com", "kasromantico@gmail.com"];
 
 let auth;
-let provider;
 
+/* ---------------------------
+   Init Firebase Auth
+---------------------------- */
 export function initAuth(firebaseApp) {
   auth = getAuth(firebaseApp);
-  provider = new GoogleAuthProvider();
+  const provider = new GoogleAuthProvider();
 
   return new Promise((resolve, reject) => {
     onAuthStateChanged(auth, async (user) => {
       if (user) {
         if (!ALLOWED_EMAILS.includes(user.email)) {
           await signOut(auth);
-          reject(new Error("UNAUTHORIZED"));
+          reject(new Error("Unauthorized user"));
           return;
         }
 
@@ -34,39 +36,40 @@ export function initAuth(firebaseApp) {
         };
 
         resolve();
-      } else {
-        // ❗ do nothing here
-        // app.js will decide when to login
+        return;
+      }
+
+      // No user → show Google popup
+      try {
+        const result = await signInWithPopup(auth, provider);
+        const user = result.user;
+
+        if (!ALLOWED_EMAILS.includes(user.email)) {
+          await signOut(auth);
+          reject(new Error("Unauthorized user"));
+          return;
+        }
+
+        state.user = {
+          uid: user.uid,
+          email: user.email,
+          name: user.displayName,
+          photo: user.photoURL,
+        };
+
+        resolve();
+      } catch (err) {
+        reject(err);
       }
     });
   });
 }
 
-export async function login() {
-  try {
-    const result = await signInWithPopup(auth, provider);
-    const user = result.user;
-
-    if (!ALLOWED_EMAILS.includes(user.email)) {
-      await signOut(auth);
-      throw new Error("UNAUTHORIZED");
-    }
-
-    state.user = {
-      uid: user.uid,
-      email: user.email,
-      name: user.displayName,
-      photo: user.photoURL,
-    };
-
-    // 🔥 reload once after login
-    location.reload();
-  } catch (e) {
-    console.error("Login failed", e);
-  }
-}
-
+/* ---------------------------
+   Logout
+---------------------------- */
 export async function logout() {
-  if (auth) await signOut(auth);
+  if (!auth) return;
+  await signOut(auth);
   location.reload();
 }

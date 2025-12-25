@@ -1,8 +1,7 @@
-// scripts/app.js
 import { initTabs, switchTab } from "./tabs.js";
 import { state, restoreToday } from "./state.js";
 import { initFirebase, getFirebaseApp, getDB } from "./sync/firebase.js";
-import { initAuth, login } from "./auth.js";
+import { initAuth } from "./auth.js";
 import {
   ref,
   set,
@@ -22,51 +21,32 @@ const firebaseConfig = {
 document.addEventListener("DOMContentLoaded", async () => {
   const loadingEl = document.getElementById("auth-loading");
 
+  // Init Firebase
   initFirebase(firebaseConfig);
 
   try {
     await initAuth(getFirebaseApp());
-  } catch {
-    document.body.innerHTML = "<h2>🚫 Access denied</h2>";
-    return;
-  }
-
-  // 🔐 If NOT logged in → show login screen
-  if (!state.user) {
+  } catch (e) {
     loadingEl.classList.add("hidden");
-    showLogin();
+    document.body.innerHTML = `
+      <div style="padding:32px;text-align:center">
+        <h2>🚫 Access denied</h2>
+        <p>This app is private.</p>
+      </div>
+    `;
     return;
   }
 
-  // ✅ Logged in → boot app
+  // 🔥 AUTH IS NOW GUARANTEED
   const db = getDB();
   await set(ref(db, `users/${state.user.uid}/meta`), {
     email: state.user.email,
-    lastSeen: Date.now(),
+    createdAt: Date.now(),
   });
 
   restoreToday();
+
   loadingEl.classList.add("hidden");
   initTabs();
   await switchTab("home");
 });
-
-function showLogin() {
-  document.body.innerHTML = `
-    <div style="
-      height:100vh;
-      display:flex;
-      flex-direction:column;
-      justify-content:center;
-      align-items:center;
-      background:radial-gradient(circle at top,#121b33,#0b1220);
-    ">
-      <h1>Budu Diet</h1>
-      <button id="loginBtn" style="padding:14px 24px;font-size:16px">
-        Continue with Google
-      </button>
-    </div>
-  `;
-
-  document.getElementById("loginBtn").onclick = () => login();
-}
