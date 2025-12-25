@@ -29,6 +29,10 @@ export async function switchTab(tab) {
   if (tab === "profile") {
     import("./profile.js").then((m) => m.bindProfile());
   }
+  if (tab === "home") {
+    import("./today.js").then((m) => m.bindToday());
+  }
+
   if (tab === "add") {
     import("./log.js").then((m) => m.bindLog());
   }

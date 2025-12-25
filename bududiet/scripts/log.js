@@ -1,4 +1,5 @@
 import { haptic } from "./ui.js";
+import { state } from "./state.js";
 
 const ENDPOINT = "https://gemini-proxy-668755364170.asia-southeast1.run.app";
 const SYSTEM_PROMPT = `
@@ -42,6 +43,8 @@ export function bindLog() {
     const data = await res.json();
 
     const parsed = parseGemini(data);
+
+    saveLog(parsed);
 
     haptic("success");
 
@@ -95,3 +98,48 @@ function parseGemini(raw) {
     };
   }
 }
+
+function saveLog(entry) {
+  const todayKey = getTodayKey();
+
+  if (state.today.date !== todayKey) {
+    state.today.date = todayKey;
+    state.today.logs = [];
+    state.today.net = 0;
+  }
+
+  const log = {
+    ...entry,
+    ts: Date.now(),
+  };
+
+  state.today.logs.push(log);
+
+  if (entry.kind === "food") state.today.net += entry.kcal;
+  if (entry.kind === "exercise") state.today.net -= entry.kcal;
+
+  persistToday();
+}
+
+function persistToday() {
+  const key = getStorageKey();
+  localStorage.setItem(key, JSON.stringify(state.today));
+}
+
+function restoreToday() {
+  const key = getStorageKey();
+  const raw = localStorage.getItem(key);
+  if (!raw) return;
+
+  state.today = JSON.parse(raw);
+}
+
+function getTodayKey() {
+  return new Date().toISOString().slice(0, 10);
+}
+
+function getStorageKey() {
+  return `bududiet:${state.user.email}:today`;
+}
+
+restoreToday();
