@@ -87,23 +87,25 @@ function attachSelfToday(uid) {
   const todayKey = new Date().toISOString().slice(0, 10);
   const logsRef = ref(getDB(), `users/${uid}/logs/${todayKey}`);
 
-  state.today.logs = [];
-  state.today.net = 0;
-  state.today.date = todayKey;
+  // ---------- FULL SNAPSHOT (authoritative) ----------
+  onValue(logsRef, (snap) => {
+    const logsObj = snap.val() || {};
+    const logs = Object.values(logsObj);
 
-  onChildAdded(logsRef, (snap) => {
-    // ---------- UPDATE INSIGHTS ----------
-    import("../insights.js").then((m) => m.bindInsights());
+    let net = 0;
+    for (const log of logs) {
+      if (log.kind === "food") net += log.kcal;
+      if (log.kind === "exercise") net -= log.kcal;
+    }
 
-    const log = snap.val();
-    if (!log) return;
-
-    state.today.logs.push(log);
-
-    if (log.kind === "food") state.today.net += log.kcal;
-    if (log.kind === "exercise") state.today.net -= log.kcal;
+    state.today = {
+      date: todayKey,
+      logs,
+      net,
+    };
 
     import("../logs.js").then((m) => m.bindLogs());
     import("../today.js").then((m) => m.bindToday());
+    import("../insights.js").then((m) => m.bindInsights());
   });
 }
