@@ -1,13 +1,10 @@
+// scripts/insights.js
 import { state } from "./state.js";
 import { getDB } from "./sync/firebase.js";
 import {
   ref,
   get,
 } from "https://www.gstatic.com/firebasejs/10.7.1/firebase-database.js";
-
-/* =============================
-   Public API
-============================= */
 
 export async function bindInsights() {
   const selfEl = document.getElementById("weeklySelf");
@@ -20,22 +17,21 @@ export async function bindInsights() {
   const days = lastNDays(7);
 
   const self = await sumForUser(state.user.uid, days);
-  render(selfEl, self);
+  render(selfEl, self, state.user.name);
   renderBars(selfBars, self);
 
   if (state.partner?.uid) {
     const partner = await sumForUser(state.partner.uid, days);
-    render(partnerEl, partner);
+    render(partnerEl, partner, state.partner.name);
     renderBars(partnerBars, partner);
   } else {
     partnerEl.innerHTML = `<div class="muted">No data</div>`;
   }
 }
 
-/* =============================
-   Data aggregation
-============================= */
-
+// =============================
+// Data aggregation
+// =============================
 async function sumForUser(uid, days) {
   const db = getDB();
 
@@ -79,11 +75,10 @@ async function sumForUser(uid, days) {
   };
 }
 
-/* =============================
-   Render summary cards
-============================= */
-
-function render(el, data) {
+// =============================
+// Render summary cards
+// =============================
+function render(el, data, name) {
   if (!data.perDay.length) {
     el.innerHTML = `<div class="muted">No data</div>`;
     return;
@@ -93,42 +88,30 @@ function render(el, data) {
   const { best, worst } = bestWorst(data);
 
   el.innerHTML = `
-    <div class="glass pad-md">
-      <div class="muted">Food</div>
-      <strong>${data.food} kcal</strong>
-    </div>
+    <h3 style="margin-bottom:12px">${name}</h3>
 
-    <div class="glass pad-md">
-      <div class="muted">Exercise</div>
-      <strong>${data.exercise} kcal</strong>
-    </div>
-
-    <div class="glass pad-md">
-      <div class="muted">Net</div>
-      <strong>${data.net} kcal</strong>
-    </div>
-
-    <div class="glass pad-md">
-      <div class="muted">Daily avg</div>
-      <strong>${avg} kcal</strong>
-    </div>
-
-    <div class="glass pad-md">
-      <div class="muted">Best day</div>
-      <strong>${formatDay(best.date)} (${best.net} kcal)</strong>
-    </div>
-
-    <div class="glass pad-md">
-      <div class="muted">Worst day</div>
-      <strong>${formatDay(worst.date)} (${worst.net} kcal)</strong>
-    </div>
+    <div class="glass pad-md"><div class="muted">Food</div><strong>${
+      data.food
+    } kcal</strong></div>
+    <div class="glass pad-md"><div class="muted">Exercise</div><strong>${
+      data.exercise
+    } kcal</strong></div>
+    <div class="glass pad-md"><div class="muted">Net</div><strong>${
+      data.net
+    } kcal</strong></div>
+    <div class="glass pad-md"><div class="muted">Daily avg</div><strong>${avg} kcal</strong></div>
+    <div class="glass pad-md"><div class="muted">Best day</div><strong>${formatDay(
+      best.date
+    )} (${best.net} kcal)</strong></div>
+    <div class="glass pad-md"><div class="muted">Worst day</div><strong>${formatDay(
+      worst.date
+    )} (${worst.net} kcal)</strong></div>
   `;
 }
 
-/* =============================
-   Mini bars (Mon → Sun)
-============================= */
-
+// =============================
+// Mini bars
+// =============================
 function renderBars(el, data) {
   if (!el || !data.perDay.length) return;
 
@@ -147,24 +130,19 @@ function renderBars(el, data) {
               height:${Math.max(6, (Math.abs(d.net) / max) * 48)}px;
               background:${d.net > 0 ? "#ef4444" : "#22c55e"};
               border-radius:6px;
-              opacity:0.85;
             "
           ></div>
-          <div class="muted" style="font-size:10px;margin-top:4px">
-            ${shortDay(d.date)}
-          </div>
-        </div>
-      `
+          <div class="muted" style="font-size:10px">${shortDay(d.date)}</div>
+        </div>`
         )
         .join("")}
     </div>
   `;
 }
 
-/* =============================
-   Helpers
-============================= */
-
+// =============================
+// Helpers
+// =============================
 function bestWorst(data) {
   let best = data.perDay[0];
   let worst = data.perDay[0];

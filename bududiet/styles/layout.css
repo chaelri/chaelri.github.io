@@ -260,19 +260,26 @@ button .material-icon {
 }
 
 .avatar-circle {
-  width: 40px;
-  height: 40px;
+  width: 36px;
+  height: 36px;
   border-radius: 50%;
-  background: linear-gradient(135deg, #4f46e5, #ec4899);
   display: flex;
   align-items: center;
   justify-content: center;
-  font-weight: 600;
-  font-size: 18px;
+  font-weight: 700;
+  font-size: 16px;
   color: white;
-  user-select: none;
+  background: linear-gradient(135deg, #6366f1, #ec4899);
 }
 
 .auth-loading.hidden {
   display: none;
+}
+
+.wheel-label {
+  text-align: center;
+  font-weight: 600;
+  font-size: 14px;
+  margin-bottom: 8px;
+  opacity: 0.85;
 }

@@ -4,13 +4,6 @@ import { state } from "./state.js";
 let syncBound = false;
 
 export function bindLogs() {
-  console.log(
-    "[UI] bindLogs() called. state.today.logs =",
-    state.today.logs.length,
-    state.today.logs
-  );
-
-  // ---------- Sync indicator (bind once) ----------
   if (!syncBound) {
     import("./sync/status.js").then((m) => m.bindSyncStatus());
     syncBound = true;
@@ -25,23 +18,18 @@ export function bindLogs() {
   const avatarPartner = document.getElementById("avatarPartner");
   const partnerNameEl = document.getElementById("partnerName");
 
-  // Self avatar
-  if (avatarSelf && state.user) {
-    avatarSelf.textContent = state.user.photo; // "C" or "K"
-    avatarSelf.classList.add("avatar-circle");
+  if (avatarSelf) {
+    avatarSelf.innerHTML = state.user.photo; // "C" or "K"
+    avatarSelf.className = "avatar-circle";
   }
 
-  // Partner avatar
-  if (avatarPartner && state.partner?.email) {
-    avatarPartner.textContent =
-      state.partner.email === "charlie@local" ? "C" : "K";
-    avatarPartner.classList.add("avatar-circle");
+  if (avatarPartner && state.partner?.name) {
+    avatarPartner.innerHTML = state.partner.photo;
+    avatarPartner.className = "avatar-circle";
   }
 
-  // Partner name
-  if (partnerNameEl && state.partner?.email) {
-    partnerNameEl.textContent =
-      state.partner.email === "charlie@local" ? "Charlie" : "Karla";
+  if (partnerNameEl && state.partner?.name) {
+    partnerNameEl.textContent = state.partner.name;
   }
 
   // ---------- TOTALS ----------
@@ -53,12 +41,12 @@ export function bindLogs() {
     totalPartner.textContent = `${state.partner.today.net} kcal`;
   }
 
-  // ---------- SELF LOGS ----------
+  // ---------- SELF ----------
   selfList.innerHTML = state.today.logs.length
     ? state.today.logs.map((log, idx) => renderLog(log, idx, true)).join("")
     : `<div class="glass pad-md">No logs yet.</div>`;
 
-  // ---------- PARTNER LOGS ----------
+  // ---------- PARTNER ----------
   const pLogs = state.partner?.today?.logs || [];
   partnerList.innerHTML = pLogs.length
     ? pLogs.map((log) => renderLog(log, null, false)).join("")
@@ -84,14 +72,13 @@ function renderLog(log, index, canDelete) {
               <span class="material-icon">delete</span>
             </button>`
           : `<div class="muted" style="margin-top:6px;font-size:12px">
-              Partner log
+              ${state.partner.name} log
             </div>`
       }
     </div>
   `;
 }
 
-// ---------- DELETE HANDLER ----------
 document.addEventListener("click", (e) => {
   const del = e.target.closest(".deleteLogBtn");
   if (!del) return;
@@ -99,12 +86,6 @@ document.addEventListener("click", (e) => {
   const index = Number(del.dataset.index);
   if (!Number.isNaN(index)) deleteLog(index);
 });
-
-function getLocalDateKey() {
-  const d = new Date();
-  d.setMinutes(d.getMinutes() - d.getTimezoneOffset());
-  return d.toISOString().slice(0, 10);
-}
 
 async function deleteLog(index) {
   const log = state.today.logs[index];
@@ -119,7 +100,7 @@ async function deleteLog(index) {
       "https://www.gstatic.com/firebasejs/10.7.1/firebase-database.js"
     );
 
-    const todayKey = getLocalDateKey();
+    const todayKey = new Date().toISOString().slice(0, 10);
     const q = query(
       ref(getDB(), `users/${state.user.uid}/logs/${todayKey}`),
       orderByChild("ts"),
@@ -129,11 +110,8 @@ async function deleteLog(index) {
     const snap = await get(q);
     snap.forEach((child) => remove(child.ref));
   } catch (e) {
-    console.error("[LOGS] delete failed", e);
+    console.error(e);
   }
-
-  // ❗ DO NOT mutate state here
-  // realtime listener will update state + UI
 
   setLive();
 }

@@ -11,17 +11,19 @@ export function bindToday(animate = false) {
     "logs =",
     state.today.logs.length
   );
+
   // ---------- SELF ----------
   bindWheel(
     {
       circle: "wheelProgress",
       value: "wheelValue",
       icon: "wheelIcon",
+      label: "selfLabel",
     },
     state.today,
-    getGoal(),
+    getGoal(state.user),
     animate,
-    true // idle enabled
+    true
   );
 
   // ---------- PARTNER ----------
@@ -31,11 +33,12 @@ export function bindToday(animate = false) {
         circle: "wheelProgressPartner",
         value: "wheelValuePartner",
         icon: "wheelIconPartner",
+        label: "partnerLabel",
       },
       state.partner.today,
-      getPartnerGoal(),
+      getGoal(state.partner),
       false,
-      false // no idle for partner
+      false
     );
   }
 }
@@ -47,10 +50,19 @@ function bindWheel(ids, source, goal, animate = false, enableIdle = false) {
   const circle = document.getElementById(ids.circle);
   const value = document.getElementById(ids.value);
   const icon = document.getElementById(ids.icon);
+  const label = document.getElementById(ids.label);
 
   if (!circle || !value || !icon) return;
 
   const net = source?.net || 0;
+
+  // ===== Label (NAME) =====
+  if (label && source === state.partner?.today) {
+    label.textContent = state.partner.name;
+  }
+  if (label && source === state.today) {
+    label.textContent = state.user.name;
+  }
 
   // ===== Progress ring =====
   const pct = Math.min(Math.abs(net) / goal, 1);
@@ -100,7 +112,7 @@ function bindWheel(ids, source, goal, animate = false, enableIdle = false) {
 }
 
 // =============================
-// Idle animation system (self)
+// Idle animation system
 // =============================
 function startIdleBehavior(iconEl) {
   if (!iconEl) return;
@@ -118,7 +130,6 @@ function startIdleBehavior(iconEl) {
       idleAnimations[Math.floor(Math.random() * idleAnimations.length)];
 
     iconEl.classList.add(anim);
-
     iconEl.addEventListener(
       "animationend",
       () => iconEl.classList.remove(anim),
@@ -129,20 +140,16 @@ function startIdleBehavior(iconEl) {
   }
 
   function scheduleNext() {
-    const delay = 3000 + Math.random() * 5000; // 3–8s
-    idleTimer = setTimeout(triggerIdle, delay);
+    idleTimer = setTimeout(triggerIdle, 3000 + Math.random() * 5000);
   }
 
   scheduleNext();
 }
 
 // =============================
-// Goal logic
+// Goal logic (LOCAL USERS)
 // =============================
-function getGoal() {
-  return state.user?.email === "charliecayno@gmail.com" ? 1100 : 1500;
-}
-
-function getPartnerGoal() {
-  return state.partner?.email === "charliecayno@gmail.com" ? 1100 : 1500;
+function getGoal(user) {
+  if (!user) return 1500;
+  return user.name === "Charlie" ? 1100 : 1500;
 }
