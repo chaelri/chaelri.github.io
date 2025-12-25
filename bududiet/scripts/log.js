@@ -7,6 +7,7 @@ import {
 } from "https://www.gstatic.com/firebasejs/10.7.1/firebase-database.js";
 
 const ENDPOINT = "https://gemini-proxy-668755364170.asia-southeast1.run.app";
+
 const SYSTEM_PROMPT = `
 You are a calorie estimator.
 
@@ -19,14 +20,14 @@ Schema:
   "kind": "food" | "exercise",
   "items": [
     {
-      "name": string,          // short, human-readable item name
-      "amount": string,        // quantity (e.g. "1 cup", "2 pcs", "1 bottle")
-      "kcal": number           // calories for this item
+      "name": string,
+      "amount": string,
+      "kcal": number
     }
   ],
-  "totalKcal": number,        // sum of all items
-  "confidence": 0.0-1.0,      // estimation confidence
-  "notes": string             // short clarification if needed
+  "totalKcal": number,
+  "confidence": 0.0-1.0,
+  "notes": string
 }
 
 Rules:
@@ -38,11 +39,25 @@ Rules:
 - Never return text outside JSON
 `;
 
+/* =============================
+   Helpers
+============================= */
+
+function getLocalDateKey() {
+  const d = new Date();
+  d.setMinutes(d.getMinutes() - d.getTimezoneOffset());
+  return d.toISOString().slice(0, 10);
+}
+
 function formatItems(items = []) {
   return items
     .map((i) => `${i.name} (${i.amount}) — ${i.kcal} kcal`)
     .join("\n");
 }
+
+/* =============================
+   Bind UI
+============================= */
 
 export function bindLog() {
   const btn = document.getElementById("sendLogBtn");
@@ -54,13 +69,13 @@ export function bindLog() {
     const resultEl = document.getElementById("logResult");
 
     resultEl.innerHTML = `
-    <div class="glass loading-card">
+      <div class="glass loading-card">
         <div class="loading-spinner"></div>
         <div style="display:flex;align-items:center;gap:8px;">
-            <span class="material-icon">auto_awesome</span>
-            Analyzing with Gemini…
+          <span class="material-icon">auto_awesome</span>
+          Analyzing with Gemini…
         </div>
-    </div>
+      </div>
     `;
 
     const payload = await buildPayload(text, file);
@@ -71,33 +86,25 @@ export function bindLog() {
       body: JSON.stringify(payload),
     });
 
-    const data = await res.json();
+    const raw = await res.json();
+    const parsed = parseGemini(raw, text);
 
-    const parsed = parseGemini(data, text);
-
-    if (!parsed || typeof parsed.kcal !== "number") {
+    if (!parsed) {
       await saveLog({
         kind: "food",
         kcal: 0,
         confidence: 0,
         notes: "⚠️ Gemini parse failed",
-        raw: parsed._raw, // keep raw for inspection
       });
 
       resultEl.innerHTML = `
-    <div class="glass pad-md">
-      <strong>⚠️ Gemini parse failed (saved for debug)</strong>
-      <pre style="
-        margin-top:12px;
-        max-height:240px;
-        overflow:auto;
-        font-size:12px;
-        white-space:pre-wrap;
-        opacity:0.85;
-      ">${JSON.stringify(parsed._raw, null, 2)}</pre>
-    </div>
-  `;
-
+        <div class="glass pad-md">
+          <strong>⚠️ Gemini parse failed</strong>
+          <pre style="margin-top:12px;font-size:12px;opacity:0.85;">
+${JSON.stringify(raw, null, 2)}
+          </pre>
+        </div>
+      `;
       return;
     }
 
@@ -106,68 +113,26 @@ export function bindLog() {
     haptic("success");
 
     resultEl.innerHTML = `
-  <div class="glass" style="padding:12px">
-    Saved ✔ Redirecting to Home…
-  </div>
-`;
+      <div class="glass" style="padding:12px">
+        Saved ✔ Redirecting to Home…
+      </div>
+    `;
 
     setTimeout(async () => {
       const { switchTab } = await import("./tabs.js");
       await switchTab("home");
-      import("./insights.js").then((m) => m.bindInsights());
 
-      // force wheel animation AFTER DOM updates
       requestAnimationFrame(() => {
         import("./today.js").then((m) => m.bindToday(true));
+        import("./insights.js").then((m) => m.bindInsights());
       });
     }, 500);
   };
 }
 
-async function saveLog(entry) {
-  const { setSyncing, setLive } = await import("./sync/status.js");
-  setSyncing();
-
-  const todayKey = getTodayKey();
-
-  if (state.today.date !== todayKey) {
-    state.today.date = todayKey;
-    state.today.logs = [];
-    state.today.net = 0;
-  }
-
-  const log = {
-    ...entry,
-    ts: Date.now(),
-    ownerUid: state.user.uid,
-  };
-
-  // ---------- LOCAL OPTIMISTIC UPDATE (KEPT) ----------
-  state.today.logs.push(log);
-  if (entry.kind === "food") state.today.net += entry.kcal;
-  if (entry.kind === "exercise") state.today.net -= entry.kcal;
-
-  // ---------- CLOUD (AUTHORITATIVE) ----------
-  try {
-    const db = getDB();
-    const logsRef = ref(db, `users/${state.user.uid}/logs/${todayKey}`);
-    await push(logsRef, log);
-  } catch (e) {
-    console.error("RTDB write failed", e);
-  }
-
-  setLive();
-}
-
-function getTodayKey() {
-  return getLocalDateKey();
-}
-
-function getLocalDateKey() {
-  const d = new Date();
-  d.setMinutes(d.getMinutes() - d.getTimezoneOffset());
-  return d.toISOString().slice(0, 10);
-}
+/* =============================
+   Gemini handling
+============================= */
 
 async function buildPayload(text, file) {
   if (file) {
@@ -190,54 +155,76 @@ async function buildPayload(text, file) {
 function fileToBase64(file) {
   return new Promise((resolve) => {
     const reader = new FileReader();
-    reader.onload = () => resolve(reader.result.split(",")[1]); // strip data:image/*
+    reader.onload = () => resolve(reader.result.split(",")[1]);
     reader.readAsDataURL(file);
   });
 }
 
 function parseGemini(raw, userText = "") {
-  const text = raw?.candidates?.[0]?.content?.parts?.[0]?.text || "";
+  const text =
+    raw?.candidates?.[0]?.content?.parts?.map((p) => p.text || "").join("") ||
+    "";
 
-  const exerciseHint =
-    /walk|walking|run|ran|running|jog|jogging|exercise|workout|cardio|steps|km|mile|min/i.test(
-      userText
-    );
-
-  // 🔎 Extract first JSON object from Gemini output
-  const match = text.match(/\{[\s\S]*?\}/);
-
-  if (!match) {
-    return {
-      kind: exerciseHint ? "exercise" : "food",
-      kcal: 0,
-      confidence: 0,
-      notes: "Unable to locate JSON in Gemini response",
-      _raw: text || raw,
-    };
-  }
+  const match = text.match(/\{[\s\S]*\}/);
+  if (!match) return null;
 
   try {
-    const rawParsed = JSON.parse(match[0]);
+    const data = JSON.parse(match[0]);
 
-    // 🔑 User intent ALWAYS wins
-    if (exerciseHint) {
-      rawParsed.kind = "exercise";
-    }
+    const exerciseHint =
+      /walk|walking|run|ran|running|jog|exercise|workout|steps|km|min/i.test(
+        userText
+      );
+
+    const kind = exerciseHint ? "exercise" : data.kind || "food";
+    const kcal = Number(data.totalKcal) || 0;
 
     return {
-      kind: rawParsed.kind,
-      kcal: rawParsed.totalKcal ?? 0,
-      confidence: rawParsed.confidence ?? 0,
-      notes: formatItems(rawParsed.items) || rawParsed.notes || "",
-      items: rawParsed.items || [],
+      kind,
+      kcal,
+      confidence: data.confidence ?? 0,
+      notes: formatItems(data.items) || data.notes || "",
+      items: data.items || [],
     };
-  } catch (err) {
-    return {
-      kind: exerciseHint ? "exercise" : "food",
-      kcal: 0,
-      confidence: 0,
-      notes: "Invalid JSON returned by Gemini",
-      _raw: match[0],
-    };
+  } catch {
+    return null;
   }
+}
+
+/* =============================
+   Save log (unchanged logic)
+============================= */
+
+async function saveLog(entry) {
+  const { setSyncing, setLive } = await import("./sync/status.js");
+  setSyncing();
+
+  const todayKey = getLocalDateKey();
+
+  if (state.today.date !== todayKey) {
+    state.today.date = todayKey;
+    state.today.logs = [];
+    state.today.net = 0;
+  }
+
+  const log = {
+    ...entry,
+    ts: Date.now(),
+    ownerUid: state.user.uid,
+  };
+
+  // optimistic local update
+  state.today.logs.push(log);
+  if (log.kind === "food") state.today.net += log.kcal;
+  if (log.kind === "exercise") state.today.net -= log.kcal;
+
+  try {
+    const db = getDB();
+    const logsRef = ref(db, `users/${state.user.uid}/logs/${todayKey}`);
+    await push(logsRef, log);
+  } catch (e) {
+    console.error("RTDB write failed", e);
+  }
+
+  setLive();
 }
