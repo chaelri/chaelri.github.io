@@ -45,19 +45,24 @@ export function bindLog() {
     const parsed = parseGemini(data);
 
     saveLog(parsed);
-    import("./today.js").then((m) => m.bindToday());
 
     haptic("success");
-    document.getElementById("logText").value = "";
-    document.getElementById("logImage").value = "";
 
     resultEl.innerHTML = `
   <div class="glass" style="padding:12px">
-    <strong>${parsed.kind.toUpperCase()}</strong><br/>
-    ${parsed.kind === "food" ? "➕" : "🔥"} ${parsed.kcal} kcal<br/>
-    <small>${parsed.notes}</small>
+    Saved ✔ Redirecting to Home…
   </div>
 `;
+
+    setTimeout(async () => {
+      const { switchTab } = await import("./tabs.js");
+      await switchTab("home");
+
+      // force wheel animation AFTER DOM updates
+      requestAnimationFrame(() => {
+        import("./today.js").then((m) => m.bindToday(true));
+      });
+    }, 500);
   };
 }
 

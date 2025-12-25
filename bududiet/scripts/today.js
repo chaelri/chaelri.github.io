@@ -1,6 +1,6 @@
 import { state } from "./state.js";
 
-export function bindToday() {
+export function bindToday(animate = false) {
   const circle = document.getElementById("wheelProgress");
   const value = document.getElementById("wheelValue");
   const emoji = document.getElementById("wheelEmoji");
@@ -13,7 +13,18 @@ export function bindToday() {
   const circumference = 565;
   const offset = circumference * (1 - pct);
 
-  circle.style.strokeDashoffset = offset;
+  if (animate) {
+    circle.style.transition = "none";
+    circle.style.strokeDashoffset = 565;
+
+    requestAnimationFrame(() => {
+      circle.style.transition =
+        "stroke-dashoffset 700ms cubic-bezier(0.22, 1, 0.36, 1)";
+      circle.style.strokeDashoffset = offset;
+    });
+  } else {
+    circle.style.strokeDashoffset = offset;
+  }
   value.textContent = `${net} kcal`;
 
   if (net < 0) emoji.textContent = "🔥";

@@ -1,8 +1,13 @@
 .wheel {
   position: relative;
-  width: 200px;
-  height: 200px;
-  margin: 32px auto;
+  width: min(220px, 80vw);
+  height: min(220px, 80vw);
+  margin: 24px auto;
+}
+
+svg {
+  width: 100%;
+  height: 100%;
 }
 
 .wheel-center {
@@ -49,4 +54,30 @@ button:active,
 
 .glass:hover {
   box-shadow: var(--shadow-float);
+}
+
+.wheel-wrap {
+  margin-top: 12px;
+  padding: 16px 0;
+}
+
+.log-item {
+  margin-bottom: 10px;
+}
+
+.log-item strong {
+  font-size: 15px;
+}
+
+.log-item small {
+  display: block;
+  margin-top: 6px;
+  line-height: 1.4;
+  color: var(--text-muted);
+}
+
+.log-item button {
+  margin-top: 8px;
+  padding: 8px 12px;
+  font-size: 13px;
 }

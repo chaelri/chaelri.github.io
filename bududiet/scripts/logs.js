@@ -17,7 +17,7 @@ export function bindLogs() {
 function renderLog(log, index) {
   const sign = log.kind === "food" ? "➕" : "🔥";
   return `
-    <div class="glass" style="padding:12px; margin-bottom:12px;">
+    <div class="glass log-item">
       <strong>${sign} ${log.kcal} kcal</strong><br/>
       <small>${log.notes || ""}</small><br/>
       <button data-index="${index}" class="editLogBtn" style="margin-top:8px;">Edit</button>
@@ -57,7 +57,6 @@ function deleteLog(index) {
 
   bindLogs();
   import("./today.js").then((m) => m.bindToday());
-
 }
 
 import { rerunGemini } from "./rerun.js";
@@ -81,6 +80,8 @@ function openEdit(index) {
     replaceLog(index, updated);
     closeEdit();
     bindLogs();
+
+    import("./today.js").then((m) => m.bindToday(true));
   };
 }
 

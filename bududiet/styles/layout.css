@@ -1,6 +1,23 @@
 * {
   box-sizing: border-box;
 }
+body {
+  min-height: 100dvh;
+}
+html,
+body {
+  overflow-x: hidden;
+}
+
+@supports (padding: env(safe-area-inset-bottom)) {
+  #view-root {
+    padding-bottom: calc(80px + env(safe-area-inset-bottom));
+  }
+
+  nav.tabs {
+    padding-bottom: env(safe-area-inset-bottom);
+  }
+}
 
 html,
 body {
@@ -57,8 +74,9 @@ body {
 /* Main content area */
 #view-root {
   flex: 1;
-  padding: 16px;
-  padding-bottom: calc(var(--tab-bar-height) + env(safe-area-inset-bottom));
+  padding: 12px 14px;
+  padding-bottom: calc(12px + var(--tab-bar-height));
+  box-sizing: border-box;
   overflow-y: auto;
   -webkit-overflow-scrolling: touch;
 }
@@ -68,8 +86,9 @@ body {
   background: var(--bg-surface);
   backdrop-filter: var(--blur);
   -webkit-backdrop-filter: var(--blur);
-  border-radius: var(--radius-lg);
+  border-radius: 16px;
   box-shadow: var(--shadow-soft);
+  padding: 14px;
 }
 
 /* Prevent text selection for app-like feel */
@@ -85,4 +104,18 @@ button {
   background: linear-gradient(135deg, var(--accent-start), var(--accent-end));
   color: #fff;
   font-weight: 600;
+}
+
+input[type="file"] {
+  font-size: 13px;
+  margin-top: 8px;
+}
+
+#editModal .auth-card {
+  padding: 16px;
+  border-radius: 20px;
+}
+
+#editModal textarea {
+  min-height: 80px;
 }
