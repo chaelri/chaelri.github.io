@@ -1,6 +1,6 @@
 // scripts/app.js
 import { initTabs, switchTab } from "./tabs.js";
-import { restoreToday } from "./state.js";
+import { state, restoreToday } from "./state.js";
 import { initFirebase, getFirebaseApp, getDB } from "./sync/firebase.js";
 import { initAuth, login } from "./auth.js";
 import {
@@ -19,30 +19,36 @@ const firebaseConfig = {
   appId: "1:80406735414:web:98d96d87ea440d666ec697",
 };
 
-document.addEventListener("DOMContentLoaded", () => {
+document.addEventListener("DOMContentLoaded", async () => {
+  const loadingEl = document.getElementById("auth-loading");
+
   initFirebase(firebaseConfig);
 
-  initAuth(getFirebaseApp(), async (user) => {
-    if (user === null) {
-      showLogin();
-      return;
-    }
+  try {
+    await initAuth(getFirebaseApp());
+  } catch {
+    document.body.innerHTML = "<h2>🚫 Access denied</h2>";
+    return;
+  }
 
-    if (user === "unauthorized") {
-      document.body.innerHTML = "<h2>🚫 Access denied</h2>";
-      return;
-    }
+  // 🔐 If NOT logged in → show login screen
+  if (!state.user) {
+    loadingEl.classList.add("hidden");
+    showLogin();
+    return;
+  }
 
-    // ✅ USER EXISTS → BOOT APP
-    const db = getDB();
-    await set(ref(db, `users/${user.uid}/meta`), {
-      email: user.email,
-      lastSeen: Date.now(),
-    });
-
-    restoreToday();
-    bootApp();
+  // ✅ Logged in → boot app
+  const db = getDB();
+  await set(ref(db, `users/${state.user.uid}/meta`), {
+    email: state.user.email,
+    lastSeen: Date.now(),
   });
+
+  restoreToday();
+  loadingEl.classList.add("hidden");
+  initTabs();
+  await switchTab("home");
 });
 
 function showLogin() {
@@ -63,10 +69,4 @@ function showLogin() {
   `;
 
   document.getElementById("loginBtn").onclick = () => login();
-}
-
-function bootApp() {
-  document.body.innerHTML = ""; // clear login
-  initTabs();
-  switchTab("home");
 }
