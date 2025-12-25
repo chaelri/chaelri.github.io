@@ -340,3 +340,20 @@ button {
 button .material-icon {
   font-size: 20px;
 }
+
+/* Contextual colors for Home wheel icon */
+.wheel-ok {
+  color: #22c55e; /* green */
+}
+
+.wheel-warning {
+  color: #f59e0b; /* amber */
+}
+
+.wheel-over {
+  color: #ef4444; /* red */
+}
+
+#wheelIcon {
+  transition: color 220ms ease;
+}

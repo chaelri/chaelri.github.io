@@ -27,11 +27,24 @@ export function bindToday(animate = false) {
   }
   value.textContent = `${net} kcal`;
 
-  if (net < 0) icon.textContent = "local_fire_department";
-  else if (net > goal) icon.textContent = "sentiment_very_dissatisfied";
-  else if (net > goal * 0.9) icon.textContent = "sentiment_neutral";
-  else if (net > goal * 0.6) icon.textContent = "sentiment_satisfied";
-  else icon.textContent = "sentiment_satisfied_alt";
+  icon.classList.remove("wheel-ok", "wheel-warning", "wheel-over");
+
+  if (net < 0) {
+    icon.textContent = "local_fire_department";
+    icon.classList.add("wheel-ok");
+  } else if (net > goal) {
+    icon.textContent = "sentiment_very_dissatisfied";
+    icon.classList.add("wheel-over");
+  } else if (net > goal * 0.9) {
+    icon.textContent = "sentiment_neutral";
+    icon.classList.add("wheel-warning");
+  } else if (net > goal * 0.6) {
+    icon.textContent = "sentiment_satisfied";
+    icon.classList.add("wheel-ok");
+  } else {
+    icon.textContent = "sentiment_satisfied_alt";
+    icon.classList.add("wheel-ok");
+  }
 }
 
 function getGoal() {
