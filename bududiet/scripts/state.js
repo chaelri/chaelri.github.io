@@ -18,6 +18,18 @@ export function restoreToday() {
   if (!raw) return;
 
   try {
-    state.today = JSON.parse(raw);
+    const restored = JSON.parse(raw);
+
+    // 🔑 logs are source of truth
+    let net = 0;
+    for (const log of restored.logs || []) {
+      if (log.kind === "food") net += log.kcal;
+      if (log.kind === "exercise") net -= log.kcal;
+    }
+
+    state.today = {
+      ...restored,
+      net,
+    };
   } catch {}
 }
