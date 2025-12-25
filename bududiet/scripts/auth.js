@@ -3,60 +3,74 @@ import { state } from "./state.js";
 import {
   getAuth,
   GoogleAuthProvider,
-  signInWithRedirect,
+  signInWithPopup,
   onAuthStateChanged,
-  signOut,
+  signOut
 } from "https://www.gstatic.com/firebasejs/10.7.1/firebase-auth.js";
 
-const ALLOWED_EMAILS = ["charliecayno@gmail.com", "kasromantico@gmail.com"];
+const ALLOWED_EMAILS = [
+  "charliecayno@gmail.com",
+  "kasromantico@gmail.com"
+];
 
 let auth;
-let provider;
-let resolvedOnce = false;
 
+/* ---------------------------
+   Init Firebase Auth
+---------------------------- */
 export function initAuth(firebaseApp) {
   auth = getAuth(firebaseApp);
-  provider = new GoogleAuthProvider();
+  const provider = new GoogleAuthProvider();
 
   return new Promise((resolve, reject) => {
     onAuthStateChanged(auth, async (user) => {
-      // Ignore initial null while Firebase initializes
-      if (!resolvedOnce && !user) {
-        resolvedOnce = true;
+      if (user) {
+        if (!ALLOWED_EMAILS.includes(user.email)) {
+          await signOut(auth);
+          reject(new Error("Unauthorized user"));
+          return;
+        }
+
+        state.user = {
+          uid: user.uid,
+          email: user.email,
+          name: user.displayName,
+          photo: user.photoURL
+        };
+
+        resolve();
         return;
       }
 
-      // Still no user → need login
-      if (!user) {
-        reject(new Error("NO_AUTH"));
-        return;
+      // No user → show Google popup
+      try {
+        const result = await signInWithPopup(auth, provider);
+        const user = result.user;
+
+        if (!ALLOWED_EMAILS.includes(user.email)) {
+          await signOut(auth);
+          reject(new Error("Unauthorized user"));
+          return;
+        }
+
+        state.user = {
+          uid: user.uid,
+          email: user.email,
+          name: user.displayName,
+          photo: user.photoURL
+        };
+
+        resolve();
+      } catch (err) {
+        reject(err);
       }
-
-      // Whitelist check
-      if (!ALLOWED_EMAILS.includes(user.email)) {
-        await signOut(auth);
-        reject(new Error("UNAUTHORIZED"));
-        return;
-      }
-
-      // Auth success
-      state.user = {
-        uid: user.uid,
-        email: user.email,
-        name: user.displayName,
-        photo: user.photoURL,
-      };
-
-      resolve();
     });
   });
 }
 
-export function startLogin() {
-  if (!auth || !provider) return;
-  signInWithRedirect(auth, provider);
-}
-
+/* ---------------------------
+   Logout
+---------------------------- */
 export async function logout() {
   if (!auth) return;
   await signOut(auth);

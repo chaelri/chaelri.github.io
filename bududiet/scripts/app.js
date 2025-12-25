@@ -1,8 +1,7 @@
-// scripts/app.js
 import { initTabs, switchTab } from "./tabs.js";
 import { state, restoreToday } from "./state.js";
 import { initFirebase, getFirebaseApp, getDB } from "./sync/firebase.js";
-import { initAuth, startLogin } from "./auth.js";
+import { initAuth } from "./auth.js";
 import {
   ref,
   set,
@@ -22,19 +21,12 @@ const firebaseConfig = {
 document.addEventListener("DOMContentLoaded", async () => {
   const loadingEl = document.getElementById("auth-loading");
 
-  // Init Firebase ONCE
+  // Init Firebase
   initFirebase(firebaseConfig);
 
   try {
     await initAuth(getFirebaseApp());
   } catch (e) {
-    if (e.message === "NO_AUTH") {
-      // 🔐 THIS is what triggers login
-      startLogin();
-      return;
-    }
-
-    // Unauthorized
     loadingEl.classList.add("hidden");
     document.body.innerHTML = `
       <div style="padding:32px;text-align:center">
@@ -45,10 +37,8 @@ document.addEventListener("DOMContentLoaded", async () => {
     return;
   }
 
-  // ✅ AUTH OK
+  // 🔥 AUTH IS NOW GUARANTEED
   const db = getDB();
-
-  // TEMP sanity write (can remove later)
   await set(ref(db, `users/${state.user.uid}/meta`), {
     email: state.user.email,
     createdAt: Date.now(),
