@@ -12,20 +12,19 @@ import {
 const ALLOWED_EMAILS = ["charliecayno@gmail.com", "kasromantico@gmail.com"];
 
 let auth;
+const REDIRECT_FLAG = "bududiet:redirecting";
 
-/* ---------------------------
-   Init Firebase Auth
----------------------------- */
 export function initAuth(firebaseApp) {
   auth = getAuth(firebaseApp);
   const provider = new GoogleAuthProvider();
 
   return new Promise((resolve, reject) => {
     onAuthStateChanged(auth, async (user) => {
-      console.log("AUTH STATE CHANGED:", user?.email);
+      // ✅ Already signed in
       if (user) {
         if (!ALLOWED_EMAILS.includes(user.email)) {
           await signOut(auth);
+          sessionStorage.removeItem(REDIRECT_FLAG);
           reject(new Error("Unauthorized user"));
           return;
         }
@@ -37,45 +36,27 @@ export function initAuth(firebaseApp) {
           photo: user.photoURL,
         };
 
+        sessionStorage.removeItem(REDIRECT_FLAG);
         resolve();
         return;
       }
 
-      // No user → show Google popup
-      // Try redirect result first (after redirect)
-      const redirectResult = await getRedirectResult(auth);
-
-      if (redirectResult?.user) {
-        const user = redirectResult.user;
-
-        if (!ALLOWED_EMAILS.includes(user.email)) {
-          await signOut(auth);
-          reject(new Error("Unauthorized user"));
-          return;
-        }
-
-        state.user = {
-          uid: user.uid,
-          email: user.email,
-          name: user.displayName,
-          photo: user.photoURL,
-        };
-
-        resolve();
+      // ⛔ Prevent infinite redirect
+      if (sessionStorage.getItem(REDIRECT_FLAG)) {
+        // Waiting for redirect result, do NOTHING
         return;
       }
 
-      // No user yet → start redirect login
+      // 🔐 Start redirect login ONCE
+      sessionStorage.setItem(REDIRECT_FLAG, "1");
       await signInWithRedirect(auth, provider);
     });
   });
 }
 
-/* ---------------------------
-   Logout
----------------------------- */
 export async function logout() {
   if (!auth) return;
+  sessionStorage.removeItem(REDIRECT_FLAG);
   await signOut(auth);
   location.reload();
 }
