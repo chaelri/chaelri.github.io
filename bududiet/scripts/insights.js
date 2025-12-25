@@ -5,6 +5,10 @@ import {
   get,
 } from "https://www.gstatic.com/firebasejs/10.7.1/firebase-database.js";
 
+/* =============================
+   Public API
+============================= */
+
 export async function bindInsights() {
   const selfEl = document.getElementById("weeklySelf");
   const partnerEl = document.getElementById("weeklyPartner");
@@ -28,8 +32,13 @@ export async function bindInsights() {
   }
 }
 
+/* =============================
+   Data aggregation
+============================= */
+
 async function sumForUser(uid, days) {
   const db = getDB();
+
   let food = 0;
   let exercise = 0;
   const perDay = [];
@@ -43,17 +52,23 @@ async function sumForUser(uid, days) {
 
     for (const k in logs) {
       const log = logs[k];
+      const kcal = Number(log.kcal) || 0;
+
       if (log.kind === "food") {
-        food += log.kcal;
-        dayFood += log.kcal;
+        food += kcal;
+        dayFood += kcal;
       }
+
       if (log.kind === "exercise") {
-        exercise += log.kcal;
-        dayExercise += log.kcal;
+        exercise += kcal;
+        dayExercise += kcal;
       }
     }
 
-    perDay.push({ date: day, net: dayFood - dayExercise });
+    perDay.push({
+      date: day,
+      net: dayFood - dayExercise,
+    });
   }
 
   return {
@@ -63,6 +78,10 @@ async function sumForUser(uid, days) {
     perDay,
   };
 }
+
+/* =============================
+   Render summary cards
+============================= */
 
 function render(el, data) {
   if (!data.perDay.length) {
@@ -74,24 +93,41 @@ function render(el, data) {
   const { best, worst } = bestWorst(data);
 
   el.innerHTML = `
-    <div class="glass pad-md"><div class="muted">Food</div><strong>${
-      data.food
-    } kcal</strong></div>
-    <div class="glass pad-md"><div class="muted">Exercise</div><strong>${
-      data.exercise
-    } kcal</strong></div>
-    <div class="glass pad-md"><div class="muted">Net</div><strong>${
-      data.net
-    } kcal</strong></div>
-    <div class="glass pad-md"><div class="muted">Daily avg</div><strong>${avg} kcal</strong></div>
-    <div class="glass pad-md"><div class="muted">Best</div><strong>${formatDay(
-      best.date
-    )} (${best.net})</strong></div>
-    <div class="glass pad-md"><div class="muted">Worst</div><strong>${formatDay(
-      worst.date
-    )} (${worst.net})</strong></div>
+    <div class="glass pad-md">
+      <div class="muted">Food</div>
+      <strong>${data.food} kcal</strong>
+    </div>
+
+    <div class="glass pad-md">
+      <div class="muted">Exercise</div>
+      <strong>${data.exercise} kcal</strong>
+    </div>
+
+    <div class="glass pad-md">
+      <div class="muted">Net</div>
+      <strong>${data.net} kcal</strong>
+    </div>
+
+    <div class="glass pad-md">
+      <div class="muted">Daily avg</div>
+      <strong>${avg} kcal</strong>
+    </div>
+
+    <div class="glass pad-md">
+      <div class="muted">Best day</div>
+      <strong>${formatDay(best.date)} (${best.net} kcal)</strong>
+    </div>
+
+    <div class="glass pad-md">
+      <div class="muted">Worst day</div>
+      <strong>${formatDay(worst.date)} (${worst.net} kcal)</strong>
+    </div>
   `;
 }
+
+/* =============================
+   Mini bars (Mon → Sun)
+============================= */
 
 function renderBars(el, data) {
   if (!el || !data.perDay.length) return;
@@ -106,44 +142,67 @@ function renderBars(el, data) {
         .map(
           (d) => `
         <div style="flex:1;text-align:center">
-          <div style="height:${Math.max(
-            6,
-            (Math.abs(d.net) / max) * 48
-          )}px;background:${
-            d.net > 0 ? "#ef4444" : "#22c55e"
-          };border-radius:6px"></div>
-          <div class="muted" style="font-size:10px">${shortDay(d.date)}</div>
-        </div>`
+          <div
+            style="
+              height:${Math.max(6, (Math.abs(d.net) / max) * 48)}px;
+              background:${d.net > 0 ? "#ef4444" : "#22c55e"};
+              border-radius:6px;
+              opacity:0.85;
+            "
+          ></div>
+          <div class="muted" style="font-size:10px;margin-top:4px">
+            ${shortDay(d.date)}
+          </div>
+        </div>
+      `
         )
         .join("")}
     </div>
   `;
 }
 
+/* =============================
+   Helpers
+============================= */
+
 function bestWorst(data) {
   let best = data.perDay[0];
   let worst = data.perDay[0];
+
   for (const d of data.perDay) {
     if (d.net < best.net) best = d;
     if (d.net > worst.net) worst = d;
   }
+
   return { best, worst };
 }
 
 function lastNDays(n) {
   const out = [];
   const d = new Date();
+
   for (let i = 0; i < n; i++) {
-    out.push(d.toISOString().slice(0, 10));
+    out.push(getLocalDateKey(d));
     d.setDate(d.getDate() - 1);
   }
+
   return out;
 }
 
+function getLocalDateKey(date = new Date()) {
+  const d = new Date(date);
+  d.setMinutes(d.getMinutes() - d.getTimezoneOffset());
+  return d.toISOString().slice(0, 10);
+}
+
 function formatDay(date) {
-  return new Date(date).toLocaleDateString(undefined, { weekday: "long" });
+  return new Date(date).toLocaleDateString(undefined, {
+    weekday: "long",
+  });
 }
 
 function shortDay(date) {
-  return new Date(date).toLocaleDateString(undefined, { weekday: "short" });
+  return new Date(date).toLocaleDateString(undefined, {
+    weekday: "short",
+  });
 }
