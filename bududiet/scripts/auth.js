@@ -4,6 +4,8 @@ import {
   getAuth,
   GoogleAuthProvider,
   signInWithPopup,
+  signInWithRedirect,
+  getRedirectResult,
   onAuthStateChanged,
   signOut,
 } from "https://www.gstatic.com/firebasejs/10.7.1/firebase-auth.js";
@@ -12,12 +14,26 @@ const ALLOWED_EMAILS = ["charliecayno@gmail.com", "kasromantico@gmail.com"];
 
 let auth;
 
+function isPWA() {
+  return (
+    window.matchMedia("(display-mode: standalone)").matches ||
+    window.navigator.standalone === true
+  );
+}
+
 /* ---------------------------
    Init Firebase Auth
 ---------------------------- */
-export function initAuth(firebaseApp) {
+export async function initAuth(firebaseApp) {
   auth = getAuth(firebaseApp);
   const provider = new GoogleAuthProvider();
+
+  // 🔐 Handle redirect result (PWA only, safe to call always)
+  try {
+    await getRedirectResult(auth);
+  } catch (e) {
+    console.warn("[AUTH] Redirect result error", e);
+  }
 
   return new Promise((resolve, reject) => {
     onAuthStateChanged(auth, async (user) => {
@@ -41,6 +57,11 @@ export function initAuth(firebaseApp) {
 
       // No user → show Google popup
       try {
+        if (isPWA()) {
+          await signInWithRedirect(auth, provider);
+          return;
+        }
+
         const result = await signInWithPopup(auth, provider);
         const user = result.user;
 
