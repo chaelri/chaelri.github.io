@@ -4,7 +4,7 @@ import { state } from "./state.js";
 const ALLOWED_EMAILS = ["charliecayno@gmail.com", "kasromantico@gmail.com"];
 
 const GOOGLE_CLIENT_ID =
-  "668755364170-3uiq2nrimb4b91hf5o5junu217b4eeef.apps.googleusercontent.com";
+  "668755364170-3uiq2nrlmb4b91hf5o5junu217b4eeef.apps.googleusercontent.com";
 
 /* ---------------------------
    Init Google Identity Auth
