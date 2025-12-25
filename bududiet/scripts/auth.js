@@ -3,15 +3,31 @@ import { state } from "./state.js";
 const ALLOWED_EMAILS = ["charliecayno@gmail.com", "kasromantico@gmail.com"];
 
 export async function initAuth() {
+  await waitForGoogle();
+
   return new Promise((resolve) => {
     google.accounts.id.initialize({
-      client_id: "668755364170-3uiq2nrlmb4b91hf5o5junu217b4eeef.apps.googleusercontent.com",
+      client_id:
+        "668755364170-3uiq2nrlmb4b91hf5o5junu217b4eeef.apps.googleusercontent.com",
       callback: handleCredential,
       auto_select: true,
     });
 
     google.accounts.id.prompt();
     resolve();
+  });
+}
+
+function waitForGoogle() {
+  return new Promise((resolve) => {
+    if (window.google?.accounts?.id) return resolve();
+
+    const interval = setInterval(() => {
+      if (window.google?.accounts?.id) {
+        clearInterval(interval);
+        resolve();
+      }
+    }, 50);
   });
 }
 
