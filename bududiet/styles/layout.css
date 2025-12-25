@@ -122,6 +122,14 @@ body {
   padding: 14px;
 }
 
+/* 🔒 Edit modal must NOT be glass */
+#editModal .glass {
+  background: #121830; /* solid */
+  backdrop-filter: none;
+  -webkit-backdrop-filter: none;
+  box-shadow: 0 24px 70px rgba(0, 0, 0, 0.75);
+}
+
 /* Prevent text selection for app-like feel */
 button,
 nav {
@@ -198,17 +206,18 @@ input[type="file"] {
 }
 
 #editModal .auth-card {
-  background: rgba(20, 26, 46, 0.95); /* almost solid */
+  background: #121830; /* SOLID */
   border-radius: 20px;
-  padding: 12px;
-  box-shadow: 0 20px 60px rgba(0, 0, 0, 0.6);
+  padding: 16px;
 
   max-height: calc(100dvh - 160px);
   overflow-y: auto;
+
+  box-shadow: 0 24px 70px rgba(0, 0, 0, 0.75);
 }
 
 #editModal {
-  background: rgba(3, 6, 14, 0.72); /* STRONG dim */
+  background: rgba(0, 0, 0, 0.85);
   backdrop-filter: blur(6px);
 }
 
@@ -218,16 +227,24 @@ input[type="file"] {
 
 #editModal:not(.hidden) ~ #app {
   pointer-events: none;
+  filter: blur(2px) brightness(0.6);
 }
 
 #editModal textarea {
   min-height: 80px;
   background: #ffffff;
   color: #0b1220;
+
+  font-size: 16px; /* iOS zoom safe */
+  line-height: 1.5;
+  padding: 12px;
 }
 
 #editModal input[type="file"] {
+  background: #1c2344;
   color: #e6edf7;
+  padding: 12px;
+  border-radius: 12px;
 }
 
 .section-title {
