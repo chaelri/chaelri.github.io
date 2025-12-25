@@ -53,12 +53,56 @@ export function initAuth() {
       }
     });
 
-    // Safety timeout
-    setTimeout(() => {
-      if (!resolved) {
-        reject(new Error("Login required"));
+    window.google.accounts.id.prompt((notification) => {
+      if (notification.isNotDisplayed()) {
+        console.warn(
+          "[AUTH] One Tap not shown:",
+          notification.getNotDisplayedReason()
+        );
+
+        // Show manual button ONLY as fallback
+        showManualLogin(resolve, reject);
       }
-    }, 60_000);
+    });
+  });
+}
+
+function showManualLogin(resolve, reject) {
+  const btn = document.createElement("div");
+  btn.style.marginTop = "24px";
+
+  document.body.appendChild(btn);
+
+  window.google.accounts.id.renderButton(btn, {
+    theme: "outline",
+    size: "large",
+    shape: "pill",
+    text: "continue_with",
+  });
+
+  window.google.accounts.id.initialize({
+    client_id: GOOGLE_CLIENT_ID,
+    callback: (response) => {
+      try {
+        const payload = parseJwt(response.credential);
+
+        if (!ALLOWED_EMAILS.includes(payload.email)) {
+          reject(new Error("Unauthorized user"));
+          return;
+        }
+
+        state.user = {
+          uid: payload.sub,
+          email: payload.email,
+          name: payload.name,
+          photo: payload.picture,
+        };
+
+        resolve();
+      } catch (e) {
+        reject(e);
+      }
+    },
   });
 }
 
