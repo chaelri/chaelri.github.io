@@ -35,22 +35,30 @@ async function buildPayload(text, file) {
 }
 
 function parseGemini(raw) {
-  let text = raw?.candidates?.[0]?.content?.parts?.[0]?.text || "";
+  const text = raw?.candidates?.[0]?.content?.parts?.[0]?.text || "";
 
-  text = text
-    .replace(/```json/i, "")
-    .replace(/```/g, "")
-    .trim();
+  // 🔎 Extract FIRST JSON object from response
+  const match = text.match(/\{[\s\S]*?\}/);
+
+  if (!match) {
+    return {
+      kind: "food",
+      kcal: 0,
+      confidence: 0,
+      notes: "Unable to locate JSON in Gemini response",
+      _raw: text,
+    };
+  }
 
   try {
-    return JSON.parse(text);
+    return JSON.parse(match[0]);
   } catch (err) {
     return {
       kind: "food",
       kcal: 0,
       confidence: 0,
-      notes: "Unable to parse Gemini response",
-      _raw: text, // keep for debugging
+      notes: "Invalid JSON returned by Gemini",
+      _raw: match[0],
     };
   }
 }
