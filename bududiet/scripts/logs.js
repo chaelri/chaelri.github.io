@@ -5,6 +5,28 @@ export function bindLogs() {
   const partnerList = document.getElementById("logsListPartner");
   if (!selfList || !partnerList) return;
 
+  // ---------- AVATARS ----------
+  const avatarSelf = document.getElementById("avatarSelf");
+  const avatarPartner = document.getElementById("avatarPartner");
+
+  if (avatarSelf) avatarSelf.src = state.user.photo;
+  if (avatarPartner && state.partner?.email) {
+    avatarPartner.src =
+      state.partner.email === "charliecayno@gmail.com"
+        ? state.user.photo
+        : avatarPartner.src;
+  }
+
+  // ---------- TOTALS ----------
+  const totalSelf = document.getElementById("totalSelf");
+  const totalPartner = document.getElementById("totalPartner");
+
+  if (totalSelf) totalSelf.textContent = `${state.today.net} kcal`;
+
+  if (totalPartner && state.partner?.today) {
+    totalPartner.textContent = `${state.partner.today.net} kcal`;
+  }
+
   // ---------- SELF ----------
   if (!state.today.logs.length) {
     selfList.innerHTML = `<div class="glass pad-md">No logs yet.</div>`;

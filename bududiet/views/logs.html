@@ -16,12 +16,30 @@
     "
   >
     <div>
-      <h3 class="section-title">You</h3>
+      <div
+        style="display: flex; align-items: center; gap: 8px; margin-bottom: 6px"
+      >
+        <img
+          id="avatarSelf"
+          style="width: 28px; height: 28px; border-radius: 50%"
+        />
+        <strong>You</strong>
+        <span id="totalSelf" class="muted" style="margin-left: auto"></span>
+      </div>
       <div id="logsListSelf"></div>
     </div>
 
     <div>
-      <h3 class="section-title">Partner</h3>
+      <div
+        style="display: flex; align-items: center; gap: 8px; margin-bottom: 6px"
+      >
+        <img
+          id="avatarPartner"
+          style="width: 28px; height: 28px; border-radius: 50%"
+        />
+        <strong>Partner</strong>
+        <span id="totalPartner" class="muted" style="margin-left: auto"></span>
+      </div>
       <div id="logsListPartner"></div>
     </div>
   </div>
