@@ -117,5 +117,7 @@ async function deleteLog(index) {
 
   bindLogs();
   import("./today.js").then((m) => m.bindToday());
+  import("./insights.js").then((m) => m.bindInsights());
+
   setLive();
 }

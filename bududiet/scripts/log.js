@@ -96,6 +96,7 @@ export function bindLog() {
     setTimeout(async () => {
       const { switchTab } = await import("./tabs.js");
       await switchTab("home");
+      import("./insights.js").then((m) => m.bindInsights());
 
       // force wheel animation AFTER DOM updates
       requestAnimationFrame(() => {

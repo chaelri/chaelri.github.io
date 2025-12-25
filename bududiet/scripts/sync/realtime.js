@@ -65,6 +65,9 @@ function attachPartnerToday(uid) {
   });
 
   onChildRemoved(logsRef, (snap) => {
+    // ---------- UPDATE INSIGHTS ----------
+    import("../insights.js").then((m) => m.bindInsights());
+
     const removed = snap.val();
     if (!removed) return;
 
@@ -94,6 +97,9 @@ function attachSelfToday(uid) {
   state.today.date = todayKey;
 
   onChildAdded(logsRef, (snap) => {
+    // ---------- UPDATE INSIGHTS ----------
+    import("../insights.js").then((m) => m.bindInsights());
+
     const log = snap.val();
     if (!log) return;
 
