@@ -33,6 +33,10 @@ export async function switchTab(tab) {
     import("./today.js").then((m) => m.bindToday());
   }
 
+  if (tab === "logs") {
+    import("./logs.js").then((m) => m.bindLogs());
+  }
+
   if (tab === "add") {
     import("./log.js").then((m) => m.bindLog());
   }
