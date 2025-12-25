@@ -6,7 +6,24 @@
 
   <p class="muted">Trends & guidance</p>
 
-  <div class="glass" style="margin-top: 16px; padding: 16px">
-    <p>Weekly insights will appear here.</p>
+  <div
+    class="glass"
+    style="
+      margin-top: 16px;
+      padding: 16px;
+      display: grid;
+      grid-template-columns: 1fr 1fr;
+      gap: 12px;
+    "
+  >
+    <div>
+      <h3 class="section-title">You — Last 7 days</h3>
+      <div id="weeklySelf"></div>
+    </div>
+
+    <div>
+      <h3 class="section-title">Partner — Last 7 days</h3>
+      <div id="weeklyPartner"></div>
+    </div>
   </div>
 </section>

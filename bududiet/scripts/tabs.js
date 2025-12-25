@@ -32,11 +32,12 @@ export async function switchTab(tab) {
   if (tab === "home") {
     import("./today.js").then((m) => m.bindToday());
   }
-
   if (tab === "logs") {
     import("./logs.js").then((m) => m.bindLogs());
   }
-
+  if (tab === "insights") {
+    import("./insights.js").then((m) => m.bindInsights());
+  }
   if (tab === "add") {
     import("./log.js").then((m) => m.bindLog());
   }
