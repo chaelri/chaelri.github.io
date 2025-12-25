@@ -20,21 +20,25 @@ function renderLog(log, index) {
     <div class="glass" style="padding:12px; margin-bottom:12px;">
       <strong>${sign} ${log.kcal} kcal</strong><br/>
       <small>${log.notes || ""}</small><br/>
-      <button data-index="${index}" class="deleteLogBtn" style="margin-top:8px;">
-        Delete
-      </button>
+      <button data-index="${index}" class="editLogBtn" style="margin-top:8px;">Edit</button>
+      <button data-index="${index}" class="deleteLogBtn" style="margin-top:8px;">Delete</button>
     </div>
   `;
 }
 
 document.addEventListener("click", (e) => {
-  const btn = e.target.closest(".deleteLogBtn");
-  if (!btn) return;
+  const del = e.target.closest(".deleteLogBtn");
+  if (del) {
+    const index = Number(del.dataset.index);
+    if (!Number.isNaN(index)) deleteLog(index);
+    return;
+  }
 
-  const index = Number(btn.dataset.index);
-  if (Number.isNaN(index)) return;
-
-  deleteLog(index);
+  const edit = e.target.closest(".editLogBtn");
+  if (edit) {
+    const index = Number(edit.dataset.index);
+    if (!Number.isNaN(index)) openEdit(index);
+  }
 });
 
 function deleteLog(index) {
@@ -52,4 +56,50 @@ function deleteLog(index) {
   );
 
   bindLogs();
+}
+
+import { rerunGemini } from "./rerun.js";
+
+let editingIndex = null;
+
+function openEdit(index) {
+  editingIndex = index;
+  const modal = document.getElementById("editModal");
+  const ta = document.getElementById("editText");
+
+  ta.value = state.today.logs[index]?.notes || "";
+  modal.classList.remove("hidden");
+
+  document.getElementById("cancelEditBtn").onclick = closeEdit;
+  document.getElementById("reRunBtn").onclick = async () => {
+    const text = ta.value.trim();
+    const file = document.getElementById("editImage").files[0];
+
+    const updated = await rerunGemini(text, file);
+    replaceLog(index, updated);
+    closeEdit();
+    bindLogs();
+  };
+}
+
+function closeEdit() {
+  editingIndex = null;
+  document.getElementById("editModal").classList.add("hidden");
+}
+
+function replaceLog(index, updated) {
+  const old = state.today.logs[index];
+
+  if (old.kind === "food") state.today.net -= old.kcal;
+  if (old.kind === "exercise") state.today.net += old.kcal;
+
+  state.today.logs[index] = { ...updated, ts: Date.now() };
+
+  if (updated.kind === "food") state.today.net += updated.kcal;
+  if (updated.kind === "exercise") state.today.net -= updated.kcal;
+
+  localStorage.setItem(
+    `bududiet:${state.user.email}:today`,
+    JSON.stringify(state.today)
+  );
 }
