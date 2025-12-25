@@ -87,7 +87,8 @@ function attachSelfToday(uid) {
   const todayKey = new Date().toISOString().slice(0, 10);
   const logsRef = ref(getDB(), `users/${uid}/logs/${todayKey}`);
 
-  // ---------- FULL SNAPSHOT (authoritative) ----------
+  console.log("[RTDB] attachSelfToday → listening to", todayKey);
+
   onValue(logsRef, (snap) => {
     const logsObj = snap.val() || {};
     const logs = Object.values(logsObj);
@@ -103,5 +104,16 @@ function attachSelfToday(uid) {
       logs,
       net,
     };
+
+    console.log("[RTDB] SELF snapshot received");
+    console.log("[RTDB] logs count:", logs.length);
+    console.log("[RTDB] state.today =", JSON.stringify(state.today, null, 2));
+
+    // 🔥 FORCE UI UPDATE AFTER SNAPSHOT
+    requestAnimationFrame(() => {
+      import("../logs.js").then((m) => m.bindLogs());
+      import("../today.js").then((m) => m.bindToday());
+      import("../insights.js").then((m) => m.bindInsights());
+    });
   });
 }

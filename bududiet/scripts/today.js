@@ -5,6 +5,12 @@ let idleInitialized = false;
 let idleTimer = null;
 
 export function bindToday(animate = false) {
+  console.log(
+    "[UI] bindToday() called. net =",
+    state.today.net,
+    "logs =",
+    state.today.logs.length
+  );
   // ---------- SELF ----------
   bindWheel(
     {

@@ -3,6 +3,11 @@ import { state } from "./state.js";
 let syncBound = false;
 
 export function bindLogs() {
+  console.log(
+    "[UI] bindLogs() called. state.today.logs =",
+    state.today.logs.length,
+    state.today.logs
+  );
   // bind sync indicator ONCE
   if (!syncBound) {
     import("./sync/status.js").then((m) => m.bindSyncStatus());
