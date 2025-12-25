@@ -5,7 +5,14 @@ let idleInitialized = false;
 let idleTimer = null;
 
 export function bindToday(animate = false) {
-  // SELF
+  console.log(
+    "[UI] bindToday() called. net =",
+    state.today.net,
+    "logs =",
+    state.today.logs.length
+  );
+
+  // ---------- SELF ----------
   bindWheel(
     {
       circle: "wheelProgress",
@@ -19,7 +26,7 @@ export function bindToday(animate = false) {
     true
   );
 
-  // PARTNER
+  // ---------- PARTNER ----------
   if (state.partner?.today) {
     bindWheel(
       {
@@ -36,7 +43,10 @@ export function bindToday(animate = false) {
   }
 }
 
-function bindWheel(ids, source, goal, animate, enableIdle) {
+// =============================
+// Wheel renderer
+// =============================
+function bindWheel(ids, source, goal, animate = false, enableIdle = false) {
   const circle = document.getElementById(ids.circle);
   const value = document.getElementById(ids.value);
   const icon = document.getElementById(ids.icon);
@@ -44,12 +54,17 @@ function bindWheel(ids, source, goal, animate, enableIdle) {
 
   if (!circle || !value || !icon) return;
 
-  if (label) {
-    label.textContent =
-      ids.label === "selfLabel" ? state.user.name : state.partner?.name || "";
+  const net = source?.net || 0;
+
+  // ===== Label (NAME) =====
+  if (label && source === state.partner?.today) {
+    label.textContent = state.partner.name;
+  }
+  if (label && source === state.today) {
+    label.textContent = state.user.name;
   }
 
-  const net = source?.net || 0;
+  // ===== Progress ring =====
   const pct = Math.min(Math.abs(net) / goal, 1);
   const circumference = 565;
   const offset = circumference * (1 - pct);
@@ -57,6 +72,7 @@ function bindWheel(ids, source, goal, animate, enableIdle) {
   if (animate) {
     circle.style.transition = "none";
     circle.style.strokeDashoffset = circumference;
+
     requestAnimationFrame(() => {
       circle.style.transition =
         "stroke-dashoffset 700ms cubic-bezier(0.22, 1, 0.36, 1)";
@@ -68,6 +84,7 @@ function bindWheel(ids, source, goal, animate, enableIdle) {
 
   value.textContent = `${net} kcal`;
 
+  // ===== Icon state =====
   icon.classList.remove("wheel-ok", "wheel-warning", "wheel-over");
 
   if (net < 0) {
@@ -79,30 +96,60 @@ function bindWheel(ids, source, goal, animate, enableIdle) {
   } else if (net > goal * 0.9) {
     icon.textContent = "sentiment_neutral";
     icon.classList.add("wheel-warning");
+  } else if (net > goal * 0.6) {
+    icon.textContent = "sentiment_satisfied";
+    icon.classList.add("wheel-ok");
   } else {
     icon.textContent = "sentiment_satisfied_alt";
     icon.classList.add("wheel-ok");
   }
 
+  // ===== Idle animation (SELF ONLY) =====
   if (enableIdle && !idleInitialized) {
     startIdleBehavior(icon);
     idleInitialized = true;
   }
 }
 
+// =============================
+// Idle animation system
+// =============================
 function startIdleBehavior(iconEl) {
-  const anims = ["idle-pulse", "idle-wobble", "idle-shake"];
-  const run = () => {
-    const a = anims[Math.floor(Math.random() * anims.length)];
-    iconEl.classList.add(a);
-    iconEl.addEventListener("animationend", () => iconEl.classList.remove(a), {
-      once: true,
-    });
-    idleTimer = setTimeout(run, 4000 + Math.random() * 4000);
-  };
-  idleTimer = setTimeout(run, 4000);
+  if (!iconEl) return;
+
+  const idleAnimations = [
+    "idle-pulse",
+    "idle-pulse",
+    "idle-wobble",
+    "idle-pulse",
+    "idle-shake",
+  ];
+
+  function triggerIdle() {
+    const anim =
+      idleAnimations[Math.floor(Math.random() * idleAnimations.length)];
+
+    iconEl.classList.add(anim);
+    iconEl.addEventListener(
+      "animationend",
+      () => iconEl.classList.remove(anim),
+      { once: true }
+    );
+
+    scheduleNext();
+  }
+
+  function scheduleNext() {
+    idleTimer = setTimeout(triggerIdle, 3000 + Math.random() * 5000);
+  }
+
+  scheduleNext();
 }
 
+// =============================
+// Goal logic (LOCAL USERS)
+// =============================
 function getGoal(user) {
-  return user?.uid === "charlie" ? 1100 : 1500;
+  if (!user) return 1500;
+  return user.name === "Charlie" ? 1100 : 1500;
 }

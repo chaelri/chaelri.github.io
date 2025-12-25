@@ -67,22 +67,12 @@ function render(el, data) {
   const { best, worst } = bestWorst(data);
 
   el.innerHTML = `
-    <div class="glass pad-md"><div class="muted">Food</div><strong>${
-      data.food
-    } kcal</strong></div>
-    <div class="glass pad-md"><div class="muted">Exercise</div><strong>${
-      data.exercise
-    } kcal</strong></div>
-    <div class="glass pad-md"><div class="muted">Net</div><strong>${
-      data.net
-    } kcal</strong></div>
+    <div class="glass pad-md"><div class="muted">Food</div><strong>${data.food} kcal</strong></div>
+    <div class="glass pad-md"><div class="muted">Exercise</div><strong>${data.exercise} kcal</strong></div>
+    <div class="glass pad-md"><div class="muted">Net</div><strong>${data.net} kcal</strong></div>
     <div class="glass pad-md"><div class="muted">Daily avg</div><strong>${avg} kcal</strong></div>
-    <div class="glass pad-md"><div class="muted">Best day</div><strong>${formatDay(
-      best.date
-    )} (${best.net})</strong></div>
-    <div class="glass pad-md"><div class="muted">Worst day</div><strong>${formatDay(
-      worst.date
-    )} (${worst.net})</strong></div>
+    <div class="glass pad-md"><div class="muted">Best day</div><strong>${formatDay(best.date)} (${best.net})</strong></div>
+    <div class="glass pad-md"><div class="muted">Worst day</div><strong>${formatDay(worst.date)} (${worst.net})</strong></div>
   `;
 }
 
@@ -100,9 +90,7 @@ function renderBars(el, data) {
           <div style="height:${Math.max(
             6,
             (Math.abs(d.net) / max) * 48
-          )}px;background:${
-            d.net > 0 ? "#ef4444" : "#22c55e"
-          };border-radius:6px"></div>
+          )}px;background:${d.net > 0 ? "#ef4444" : "#22c55e"};border-radius:6px"></div>
           <div class="muted" style="font-size:10px">${shortDay(d.date)}</div>
         </div>`
         )
