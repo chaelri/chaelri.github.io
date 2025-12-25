@@ -3,9 +3,13 @@ import { initAuth } from "./auth.js";
 import { state } from "./state.js";
 
 document.addEventListener("DOMContentLoaded", async () => {
+  const loadingEl = document.getElementById("auth-loading");
+
   await initAuth();
 
-  if (!state.user) return; // HARD FAIL
+  if (!state.user) return;
+
+  loadingEl.classList.add("hidden");
 
   await switchTab("home");
   initTabs();

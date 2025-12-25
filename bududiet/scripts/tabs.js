@@ -26,6 +26,9 @@ export async function switchTab(tab) {
   const html = await res.text();
 
   viewRoot.innerHTML = html;
+  if (tab === "profile") {
+    import("./profile.js").then((m) => m.bindProfile());
+  }
 }
 
 function initSwipe() {
