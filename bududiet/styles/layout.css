@@ -71,6 +71,37 @@ body {
   }
 }
 
+/* ===============================
+   Spacing system (ONE-PASS)
+   xs = 8px
+   md = 12px
+   lg = 16px
+   =============================== */
+
+.space-xs {
+  margin-top: 8px;
+}
+
+.space-md {
+  margin-top: 12px;
+}
+
+.space-lg {
+  margin-top: 16px;
+}
+
+.pad-xs {
+  padding: 8px;
+}
+
+.pad-md {
+  padding: 12px;
+}
+
+.pad-lg {
+  padding: 16px;
+}
+
 /* Main content area */
 #view-root {
   flex: 1;
@@ -106,16 +137,95 @@ button {
   font-weight: 600;
 }
 
+input,
+textarea,
+select,
+button {
+  font-size: 16px; /* iOS zoom prevention */
+}
+
+textarea {
+  width: 100%;
+  min-height: 96px;
+  padding: 12px 14px; /* md horizontal comfort */
+  border-radius: 14px;
+
+  background: var(--bg-surface-strong);
+  color: var(--text-main);
+
+  border: none;
+  resize: vertical;
+
+  line-height: 1.4;
+}
+
+input[type="file"] {
+  width: 100%;
+  font-size: 14px;
+  color: var(--text-muted);
+}
+
+input[type="file"]::-webkit-file-upload-button {
+  appearance: none;
+  border: none;
+  border-radius: 12px;
+  padding: 8px 12px;
+
+  background: var(--bg-surface-strong);
+  color: var(--text-main);
+  font-size: 14px;
+  font-weight: 500;
+
+  margin-right: 8px;
+}
+
+input[type="file"]::file-selector-button {
+  border: none;
+  border-radius: 12px;
+  padding: 8px 12px;
+
+  background: var(--bg-surface-strong);
+  color: var(--text-main);
+  font-size: 14px;
+  font-weight: 500;
+
+  margin-right: 8px;
+}
+
 input[type="file"] {
   font-size: 13px;
   margin-top: 8px;
 }
 
 #editModal .auth-card {
-  padding: 16px;
+  padding: 12px;
   border-radius: 20px;
+}
+
+#editModal button {
+  margin-top: 8px; /* xs */
 }
 
 #editModal textarea {
   min-height: 80px;
+}
+
+.section-title {
+  font-size: 14px;
+  font-weight: 600;
+  color: var(--text-muted);
+  margin: 0;
+  margin-top: 16px; /* lg */
+}
+
+/* Prevent rogue margins */
+h1,
+h2,
+h3,
+p {
+  margin-bottom: 0;
+}
+
+button {
+  min-height: 44px; /* Apple HIG */
 }

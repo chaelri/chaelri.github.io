@@ -30,7 +30,12 @@ export function bindLog() {
     const file = document.getElementById("logImage").files[0];
     const resultEl = document.getElementById("logResult");
 
-    resultEl.innerHTML = "⏳ Sending to Gemini…";
+    resultEl.innerHTML = `
+    <div class="glass loading-card">
+        <div class="loading-spinner"></div>
+        <div>Analyzing with Gemini… ✨</div>
+    </div>
+    `;
 
     const payload = await buildPayload(text, file);
 
