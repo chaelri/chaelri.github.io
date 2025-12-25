@@ -3,7 +3,8 @@ import { state } from "./state.js";
 import {
   getAuth,
   GoogleAuthProvider,
-  signInWithPopup,
+  signInWithRedirect,
+  getRedirectResult,
   onAuthStateChanged,
   signOut,
 } from "https://www.gstatic.com/firebasejs/10.7.1/firebase-auth.js";
@@ -41,11 +42,11 @@ export function initAuth(firebaseApp) {
       }
 
       // No user → show Google popup
-      try {
-        const result = await signInWithPopup(auth, provider);
-        const user = result.user;
+      // Try redirect result first (after redirect)
+      const redirectResult = await getRedirectResult(auth);
 
-        console.log("POPUP SIGNED IN AS:", user.email);
+      if (redirectResult?.user) {
+        const user = redirectResult.user;
 
         if (!ALLOWED_EMAILS.includes(user.email)) {
           await signOut(auth);
@@ -61,9 +62,11 @@ export function initAuth(firebaseApp) {
         };
 
         resolve();
-      } catch (err) {
-        reject(err);
+        return;
       }
+
+      // No user yet → start redirect login
+      await signInWithRedirect(auth, provider);
     });
   });
 }
