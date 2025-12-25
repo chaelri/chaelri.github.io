@@ -1,4 +1,3 @@
-// scripts/auth.js
 import { state } from "./state.js";
 
 const ALLOWED_EMAILS = ["charliecayno@gmail.com", "kasromantico@gmail.com"];
@@ -6,19 +5,23 @@ const ALLOWED_EMAILS = ["charliecayno@gmail.com", "kasromantico@gmail.com"];
 const GOOGLE_CLIENT_ID =
   "668755364170-3uiq2nrlmb4b91hf5o5junu217b4eeef.apps.googleusercontent.com";
 
-/* ---------------------------
-   Init Google Identity Auth
----------------------------- */
-export function initAuth() {
-  let resolved = false;
+let resolved = false;
 
+export function initAuth() {
   return new Promise((resolve, reject) => {
+    if (!window.google?.accounts?.id) {
+      reject(new Error("Google Identity not loaded"));
+      return;
+    }
+
     window.google.accounts.id.initialize({
       client_id: GOOGLE_CLIENT_ID,
-      auto_select: false,
+      auto_select: true,
       callback: (response) => {
         try {
           const payload = parseJwt(response.credential);
+
+          console.log("[AUTH] One Tap payload:", payload);
 
           if (!ALLOWED_EMAILS.includes(payload.email)) {
             reject(new Error("Unauthorized user"));
@@ -40,24 +43,17 @@ export function initAuth() {
       },
     });
 
-    let container = document.getElementById("google-login");
-
-    if (!container) {
-      container = document.createElement("div");
-      container.id = "google-login";
-      container.style.marginTop = "24px";
-      document.body.appendChild(container);
-    }
-
-    window.google.accounts.id.renderButton(container, {
-      theme: "outline",
-      size: "large",
-      shape: "pill",
-      text: "continue_with",
+    // ✅ THIS shows the TOP One Tap
+    window.google.accounts.id.prompt((notification) => {
+      if (notification.isNotDisplayed()) {
+        console.warn(
+          "[AUTH] One Tap not displayed:",
+          notification.getNotDisplayedReason()
+        );
+      }
     });
 
-    window.google.accounts.id.prompt();
-
+    // Safety timeout
     setTimeout(() => {
       if (!resolved) {
         reject(new Error("Login required"));
@@ -66,18 +62,12 @@ export function initAuth() {
   });
 }
 
-/* ---------------------------
-   Logout
----------------------------- */
 export function logout() {
   state.user = null;
   window.google.accounts.id.disableAutoSelect();
   location.reload();
 }
 
-/* ---------------------------
-   JWT Decoder
----------------------------- */
 function parseJwt(token) {
   const base64 = token.split(".")[1];
   const json = atob(base64.replace(/-/g, "+").replace(/_/g, "/"));
