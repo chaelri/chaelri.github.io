@@ -1,7 +1,7 @@
 import { initTabs, switchTab } from "./tabs.js";
 import { initAuth } from "./auth.js";
 import { state, restoreToday } from "./state.js";
-import { initFirebase } from "./sync/firebase.js";
+import { initFirebase, signInFirebaseWithGoogle } from "./sync/firebase.js";
 import {
   ref,
   set,
@@ -38,8 +38,17 @@ document.addEventListener("DOMContentLoaded", async () => {
 
   if (!state.user) return;
 
-  // ✅ Firebase init AFTER auth (correct)
+  // Firebase init
   initFirebase(firebaseConfig);
+
+  // 🔐 Bridge GIS → Firebase Auth
+  await signInFirebaseWithGoogle(state.user.idToken);
+
+  const db = getDB();
+  await set(ref(db, `users/${state.user.uid}/meta`), {
+    email: state.user.email,
+    createdAt: Date.now(),
+  });
 
   // Restore local state
   restoreToday();
