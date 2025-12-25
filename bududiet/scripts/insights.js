@@ -13,9 +13,6 @@ export async function bindInsights() {
 
   if (!selfEl || !partnerEl) return;
 
-  selfEl.innerHTML = `<div class="muted">Loading…</div>`;
-  partnerEl.innerHTML = `<div class="muted">Loading…</div>`;
-
   const days = lastNDays(7);
 
   const self = await sumForUser(state.user.uid, days);
@@ -31,12 +28,8 @@ export async function bindInsights() {
   }
 }
 
-// =============================
-// Data aggregation
-// =============================
 async function sumForUser(uid, days) {
   const db = getDB();
-
   let food = 0;
   let exercise = 0;
   const perDay = [];
@@ -60,10 +53,7 @@ async function sumForUser(uid, days) {
       }
     }
 
-    perDay.push({
-      date: day,
-      net: dayFood - dayExercise,
-    });
+    perDay.push({ date: day, net: dayFood - dayExercise });
   }
 
   return {
@@ -74,60 +64,37 @@ async function sumForUser(uid, days) {
   };
 }
 
-// =============================
-// Render summary cards
-// =============================
 function render(el, data) {
-  const { best, worst } = bestWorst(data);
+  if (!data.perDay.length) {
+    el.innerHTML = `<div class="muted">No data</div>`;
+    return;
+  }
+
   const avg = Math.round(data.net / data.perDay.length);
+  const { best, worst } = bestWorst(data);
 
   el.innerHTML = `
-    <div class="glass pad-md">
-      <div class="muted">Food</div>
-      <strong>${data.food} kcal</strong>
-    </div>
-
-    <div class="space-xs"></div>
-    <div class="glass pad-md">
-      <div class="muted">Exercise</div>
-      <strong>${data.exercise} kcal</strong>
-    </div>
-
-    <div class="space-xs"></div>
-    <div class="glass pad-md">
-      <div class="muted">Net</div>
-      <strong>${data.net} kcal</strong>
-    </div>
-
-    <div class="space-xs"></div>
-    <div class="glass pad-md">
-      <div class="muted">Daily average</div>
-      <strong>${avg} kcal</strong>
-    </div>
-
-    <div class="space-xs"></div>
-    <div class="glass pad-md">
-      <div class="muted">Best day</div>
-      <strong>
-        ${formatDay(best.date)} (${best.net} kcal)
-      </strong>
-    </div>
-
-    <div class="space-xs"></div>
-    <div class="glass pad-md">
-      <div class="muted">Worst day</div>
-      <strong>
-        ${formatDay(worst.date)} (${worst.net} kcal)
-      </strong>
-    </div>
+    <div class="glass pad-md"><div class="muted">Food</div><strong>${
+      data.food
+    } kcal</strong></div>
+    <div class="glass pad-md"><div class="muted">Exercise</div><strong>${
+      data.exercise
+    } kcal</strong></div>
+    <div class="glass pad-md"><div class="muted">Net</div><strong>${
+      data.net
+    } kcal</strong></div>
+    <div class="glass pad-md"><div class="muted">Daily avg</div><strong>${avg} kcal</strong></div>
+    <div class="glass pad-md"><div class="muted">Best</div><strong>${formatDay(
+      best.date
+    )} (${best.net})</strong></div>
+    <div class="glass pad-md"><div class="muted">Worst</div><strong>${formatDay(
+      worst.date
+    )} (${worst.net})</strong></div>
   `;
 }
 
-// =============================
-// Mini bars (Mon → Sun)
-// =============================
 function renderBars(el, data) {
-  if (!el) return;
+  if (!el || !data.perDay.length) return;
 
   const max = Math.max(...data.perDay.map((d) => Math.abs(d.net)), 1);
 
@@ -139,37 +106,27 @@ function renderBars(el, data) {
         .map(
           (d) => `
         <div style="flex:1;text-align:center">
-          <div
-            style="
-              height:${Math.max(6, (Math.abs(d.net) / max) * 48)}px;
-              background:${d.net > 0 ? "#ef4444" : "#22c55e"};
-              border-radius:6px;
-              opacity:0.85;
-            "
-          ></div>
-          <div class="muted" style="font-size:10px;margin-top:4px">
-            ${shortDay(d.date)}
-          </div>
-        </div>
-      `
+          <div style="height:${Math.max(
+            6,
+            (Math.abs(d.net) / max) * 48
+          )}px;background:${
+            d.net > 0 ? "#ef4444" : "#22c55e"
+          };border-radius:6px"></div>
+          <div class="muted" style="font-size:10px">${shortDay(d.date)}</div>
+        </div>`
         )
         .join("")}
     </div>
   `;
 }
 
-// =============================
-// Helpers
-// =============================
 function bestWorst(data) {
   let best = data.perDay[0];
   let worst = data.perDay[0];
-
   for (const d of data.perDay) {
     if (d.net < best.net) best = d;
     if (d.net > worst.net) worst = d;
   }
-
   return { best, worst };
 }
 
@@ -184,13 +141,9 @@ function lastNDays(n) {
 }
 
 function formatDay(date) {
-  return new Date(date).toLocaleDateString(undefined, {
-    weekday: "long",
-  });
+  return new Date(date).toLocaleDateString(undefined, { weekday: "long" });
 }
 
 function shortDay(date) {
-  return new Date(date).toLocaleDateString(undefined, {
-    weekday: "short",
-  });
+  return new Date(date).toLocaleDateString(undefined, { weekday: "short" });
 }

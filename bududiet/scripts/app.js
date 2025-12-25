@@ -1,5 +1,5 @@
 import { initTabs, switchTab } from "./tabs.js";
-import { state, restoreToday } from "./state.js";
+import { state } from "./state.js";
 import { initFirebase, getFirebaseApp, getDB } from "./sync/firebase.js";
 import { initAuth } from "./auth.js";
 import {
@@ -45,8 +45,6 @@ document.addEventListener("DOMContentLoaded", async () => {
   });
 
   import("./sync/realtime.js").then((m) => m.initRealtimeSync());
-
-  restoreToday();
 
   loadingEl.classList.add("hidden");
   initTabs();

@@ -1,7 +1,13 @@
 import { state } from "./state.js";
 
+let syncBound = false;
+
 export function bindLogs() {
-  import("./sync/status.js").then((m) => m.bindSyncStatus());
+  // bind sync indicator ONCE
+  if (!syncBound) {
+    import("./sync/status.js").then((m) => m.bindSyncStatus());
+    syncBound = true;
+  }
 
   const selfList = document.getElementById("logsListSelf");
   const partnerList = document.getElementById("logsListPartner");
@@ -23,29 +29,20 @@ export function bindLogs() {
   const totalPartner = document.getElementById("totalPartner");
 
   if (totalSelf) totalSelf.textContent = `${state.today.net} kcal`;
-
   if (totalPartner && state.partner?.today) {
     totalPartner.textContent = `${state.partner.today.net} kcal`;
   }
 
   // ---------- SELF ----------
-  if (!state.today.logs.length) {
-    selfList.innerHTML = `<div class="glass pad-md">No logs yet.</div>`;
-  } else {
-    selfList.innerHTML = state.today.logs
-      .map((log, idx) => renderLog(log, idx, true))
-      .join("");
-  }
+  selfList.innerHTML = state.today.logs.length
+    ? state.today.logs.map((log, idx) => renderLog(log, idx, true)).join("")
+    : `<div class="glass pad-md">No logs yet.</div>`;
 
   // ---------- PARTNER ----------
   const pLogs = state.partner?.today?.logs || [];
-  if (!pLogs.length) {
-    partnerList.innerHTML = `<div class="glass pad-md">No logs yet.</div>`;
-  } else {
-    partnerList.innerHTML = pLogs
-      .map((log) => renderLog(log, null, false))
-      .join("");
-  }
+  partnerList.innerHTML = pLogs.length
+    ? pLogs.map((log) => renderLog(log, null, false)).join("")
+    : `<div class="glass pad-md">No logs yet.</div>`;
 }
 
 function renderLog(log, index, canDelete) {
@@ -53,45 +50,42 @@ function renderLog(log, index, canDelete) {
     log.kind === "food"
       ? `<span class="material-icon">restaurant</span>`
       : `<span class="material-icon">directions_run</span>`;
+
   return `
     <div class="glass log-item">
       <strong style="display:flex;align-items:center;gap:8px;">
         ${sign}
         ${log.kcal} kcal
-        </strong>
-        <br/>
-      <small>${log.notes || ""}</small><br/>
-        ${
-          canDelete
-            ? `<button data-index="${index}" class="deleteLogBtn">
-                <span class="material-icon">delete</span>
-                Delete
-              </button>`
-            : `<div class="muted" style="margin-top:6px;font-size:12px">
-                Partner log
-              </div>`
-        }
+      </strong>
+      <small>${log.notes || ""}</small>
+      ${
+        canDelete
+          ? `<button data-index="${index}" class="deleteLogBtn">
+              <span class="material-icon">delete</span> Delete
+            </button>`
+          : `<div class="muted" style="margin-top:6px;font-size:12px">
+              Partner log
+            </div>`
+      }
     </div>
   `;
 }
 
 document.addEventListener("click", (e) => {
   const del = e.target.closest(".deleteLogBtn");
-  if (del) {
-    const index = Number(del.dataset.index);
-    if (!Number.isNaN(index)) deleteLog(index);
-    return;
-  }
+  if (!del) return;
+
+  const index = Number(del.dataset.index);
+  if (!Number.isNaN(index)) deleteLog(index);
 });
 
 async function deleteLog(index) {
-  const { setSyncing, setLive } = await import("./sync/status.js");
-  setSyncing();
-
   const log = state.today.logs[index];
   if (!log) return;
 
-  // ---------- CLOUD DELETE (owner only) ----------
+  const { setSyncing, setLive } = await import("./sync/status.js");
+  setSyncing();
+
   try {
     const { getDB } = await import("./sync/firebase.js");
     const { ref, query, orderByChild, equalTo, get, remove } = await import(
@@ -99,25 +93,20 @@ async function deleteLog(index) {
     );
 
     const todayKey = new Date().toISOString().slice(0, 10);
-    const db = getDB();
     const q = query(
-      ref(db, `users/${state.user.uid}/logs/${todayKey}`),
+      ref(getDB(), `users/${state.user.uid}/logs/${todayKey}`),
       orderByChild("ts"),
       equalTo(log.ts)
     );
 
     const snap = await get(q);
     snap.forEach((child) => remove(child.ref));
-  } catch {}
+  } catch (e) {
+    console.error(e);
+  }
 
-  if (log.kind === "food") state.today.net -= log.kcal;
-  if (log.kind === "exercise") state.today.net += log.kcal;
-
-  state.today.logs.splice(index, 1);
-
-  bindLogs();
-  import("./today.js").then((m) => m.bindToday());
-  import("./insights.js").then((m) => m.bindInsights());
+  // ❗ DO NOT mutate state here
+  // realtime listener will update state + UI
 
   setLive();
 }

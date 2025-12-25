@@ -58,7 +58,7 @@ export function bindLog() {
     const parsed = parseGemini(data, text);
 
     if (parsed.kcal === 0 && parsed.confidence === 0) {
-      saveLog({
+      await saveLog({
         kind: "food",
         kcal: 0,
         confidence: 0,
@@ -83,7 +83,7 @@ export function bindLog() {
       return;
     }
 
-    saveLog(parsed);
+    await saveLog(parsed);
 
     haptic("success");
 
@@ -104,6 +104,45 @@ export function bindLog() {
       });
     }, 500);
   };
+}
+
+async function saveLog(entry) {
+  const { setSyncing, setLive } = await import("./sync/status.js");
+  setSyncing();
+
+  const todayKey = getTodayKey();
+
+  if (state.today.date !== todayKey) {
+    state.today.date = todayKey;
+    state.today.logs = [];
+    state.today.net = 0;
+  }
+
+  const log = {
+    ...entry,
+    ts: Date.now(),
+    ownerUid: state.user.uid,
+  };
+
+  // ---------- LOCAL OPTIMISTIC UPDATE (KEPT) ----------
+  state.today.logs.push(log);
+  if (entry.kind === "food") state.today.net += entry.kcal;
+  if (entry.kind === "exercise") state.today.net -= entry.kcal;
+
+  // ---------- CLOUD (AUTHORITATIVE) ----------
+  try {
+    const db = getDB();
+    const logsRef = ref(db, `users/${state.user.uid}/logs/${todayKey}`);
+    await push(logsRef, log);
+  } catch (e) {
+    console.error("RTDB write failed", e);
+  }
+
+  setLive();
+}
+
+function getTodayKey() {
+  return new Date().toISOString().slice(0, 10);
 }
 
 async function buildPayload(text, file) {
@@ -171,44 +210,4 @@ function parseGemini(raw, userText = "") {
       _raw: match[0],
     };
   }
-}
-
-function saveLog(entry) {
-  import("./sync/status.js").then((m) => m.setSyncing());
-
-  const todayKey = getTodayKey();
-
-  if (state.today.date !== todayKey) {
-    state.today.date = todayKey;
-    state.today.logs = [];
-    state.today.net = 0;
-  }
-
-  const log = {
-    ...entry,
-    ts: Date.now(),
-    ownerUid: state.user.uid,
-  };
-
-  // ---------- LOCAL (authoritative for self) ----------
-  state.today.logs.push(log);
-
-  if (entry.kind === "food") state.today.net += entry.kcal;
-  if (entry.kind === "exercise") state.today.net -= entry.kcal;
-
-  persistToday();
-
-  // ---------- CLOUD (mirror, append-only) ----------
-  try {
-    const db = getDB();
-    const logsRef = ref(db, `users/${state.user.uid}/logs/${todayKey}`);
-    push(logsRef, log);
-  } catch (e) {
-    // silent fail — local-first, offline-safe
-  }
-  import("./sync/status.js").then((m) => m.setLive());
-}
-
-function getTodayKey() {
-  return new Date().toISOString().slice(0, 10);
 }

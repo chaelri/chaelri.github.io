@@ -4,8 +4,8 @@ import {
   ref,
   onValue,
   onChildRemoved,
+  onChildAdded,
 } from "https://www.gstatic.com/firebasejs/10.7.1/firebase-database.js";
-import { onChildAdded } from "https://www.gstatic.com/firebasejs/10.7.1/firebase-database.js";
 
 const PAIR = ["charliecayno@gmail.com", "kasromantico@gmail.com"];
 
@@ -26,6 +26,7 @@ export function initRealtimeSync() {
       if (users[uid]?.meta?.email === partnerEmail) {
         state.partner.uid = uid;
         state.partner.email = partnerEmail;
+
         attachPartnerToday(uid);
         attachSelfToday(state.user.uid);
         return;
@@ -34,15 +35,9 @@ export function initRealtimeSync() {
   });
 }
 
-function attachPartnerToday(uid) {
-  const todayKey = new Date().toISOString().slice(0, 10);
-  const logsRef = ref(db(), `users/${uid}/logs/${todayKey}`);
-}
-
-function db() {
-  return getDB();
-}
-
+// =============================
+// PARTNER — FULL SYNC
+// =============================
 function attachPartnerToday(uid) {
   const todayKey = new Date().toISOString().slice(0, 10);
   const logsRef = ref(getDB(), `users/${uid}/logs/${todayKey}`);
@@ -69,7 +64,7 @@ function attachPartnerToday(uid) {
     import("../insights.js").then((m) => m.bindInsights());
 
     const removed = snap.val();
-    if (!removed) return;
+    if (!removed || !state.partner.today) return;
 
     const logs = state.partner.today.logs.filter((l) => l.ts !== removed.ts);
 
