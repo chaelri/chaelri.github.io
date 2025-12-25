@@ -4,7 +4,7 @@ export function bindToday(animate = false) {
   const circle = document.getElementById("wheelProgress");
   const value = document.getElementById("wheelValue");
   const icon = document.getElementById("wheelIcon");
-  if (!circle || !value || !emoji) return;
+  if (!circle || !value || !icon) return;
 
   const goal = getGoal();
   const net = state.today.net;
