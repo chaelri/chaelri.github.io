@@ -1,7 +1,7 @@
 export function haptic(type = "light") {
   if (!navigator.vibrate) return;
 
-  if (type === "success") navigator.vibrate([20, 30, 20]);
-  else if (type === "warning") navigator.vibrate([60]);
-  else navigator.vibrate(10);
+  if (type === "success") navigator.vibrate([12, 20, 12]);
+  else if (type === "warning") navigator.vibrate([40, 30, 40]);
+  else navigator.vibrate(8);
 }

@@ -48,6 +48,8 @@ export function bindLog() {
     import("./today.js").then((m) => m.bindToday());
 
     haptic("success");
+    document.getElementById("logText").value = "";
+    document.getElementById("logImage").value = "";
 
     resultEl.innerHTML = `
   <div class="glass" style="padding:12px">

@@ -77,3 +77,12 @@ button,
 nav {
   -webkit-tap-highlight-color: transparent;
 }
+
+button {
+  border: none;
+  border-radius: 14px;
+  padding: 12px 16px;
+  background: linear-gradient(135deg, var(--accent-start), var(--accent-end));
+  color: #fff;
+  font-weight: 600;
+}

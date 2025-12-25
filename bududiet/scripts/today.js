@@ -19,6 +19,7 @@ export function bindToday() {
   if (net < 0) emoji.textContent = "🔥";
   else if (net > goal) emoji.textContent = "😵";
   else if (net > goal * 0.9) emoji.textContent = "😐";
+  else if (net > goal * 0.6) emoji.textContent = "😊";
   else emoji.textContent = "🙂";
 }
 

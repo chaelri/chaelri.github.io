@@ -18,6 +18,8 @@
   --radius-lg: 18px;
   --radius-xl: 24px;
   --shadow-soft: 0 8px 30px rgba(0, 0, 0, 0.35);
+  --shadow-float: 0 14px 40px rgba(59, 130, 246, 0.35);
+  --ease-spring: cubic-bezier(0.22, 1, 0.36, 1);
 
   /* Layout */
   --tab-bar-height: 76px;
