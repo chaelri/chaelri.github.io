@@ -1,3 +1,4 @@
+// scripts/app.js
 import { initTabs, switchTab } from "./tabs.js";
 import { state } from "./state.js";
 import { initFirebase, getDB } from "./sync/firebase.js";
@@ -21,23 +22,13 @@ const firebaseConfig = {
 document.addEventListener("DOMContentLoaded", async () => {
   const loadingEl = document.getElementById("auth-loading");
 
-  // Init Firebase
   initFirebase(firebaseConfig);
 
-  try {
-    await initAuth();
-  } catch (e) {
-    loadingEl.classList.add("hidden");
-    document.body.innerHTML = `
-      <div style="padding:32px;text-align:center">
-        <h2>🚫 Access denied</h2>
-        <p>This app is private.</p>
-      </div>
-    `;
-    return;
-  }
+  // ⏳ WAIT — DO NOT DENY
+  await initAuth();
 
-  // 🔥 AUTH IS NOW GUARANTEED
+  console.log("[BOOT] logged in as", state.user.email);
+
   const db = getDB();
   await set(ref(db, `users/${state.user.uid}/meta`), {
     email: state.user.email,
@@ -45,9 +36,6 @@ document.addEventListener("DOMContentLoaded", async () => {
   });
 
   const realtime = await import("./sync/realtime.js");
-
-  console.log("[BOOT] realtime module =", realtime);
-
   realtime.initRealtimeSync();
 
   loadingEl.classList.add("hidden");
