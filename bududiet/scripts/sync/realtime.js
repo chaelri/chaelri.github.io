@@ -39,6 +39,8 @@ export function initRealtimeSync() {
 
   state.partner.uid = partner.uid;
   state.partner.email = partner.email;
+  state.partner.name = partner.name;
+  state.partner.photo = partner.name[0];
 
   attachToday(partner.uid, false);
 }
