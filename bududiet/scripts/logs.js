@@ -1,20 +1,31 @@
 import { state } from "./state.js";
 
 export function bindLogs() {
-  const list = document.getElementById("logsList");
-  if (!list) return;
+  const selfList = document.getElementById("logsListSelf");
+  const partnerList = document.getElementById("logsListPartner");
+  if (!selfList || !partnerList) return;
 
+  // ---------- SELF ----------
   if (!state.today.logs.length) {
-    list.innerHTML = `<div class="glass" style="padding:12px">No logs yet.</div>`;
-    return;
+    selfList.innerHTML = `<div class="glass pad-md">No logs yet.</div>`;
+  } else {
+    selfList.innerHTML = state.today.logs
+      .map((log, idx) => renderLog(log, idx, true))
+      .join("");
   }
 
-  list.innerHTML = state.today.logs
-    .map((log, idx) => renderLog(log, idx))
-    .join("");
+  // ---------- PARTNER ----------
+  const pLogs = state.partner?.today?.logs || [];
+  if (!pLogs.length) {
+    partnerList.innerHTML = `<div class="glass pad-md">No logs yet.</div>`;
+  } else {
+    partnerList.innerHTML = pLogs
+      .map((log) => renderLog(log, null, false))
+      .join("");
+  }
 }
 
-function renderLog(log, index) {
+function renderLog(log, index, canDelete) {
   const sign =
     log.kind === "food"
       ? `<span class="material-icon">restaurant</span>`
@@ -27,10 +38,16 @@ function renderLog(log, index) {
         </strong>
         <br/>
       <small>${log.notes || ""}</small><br/>
-        <button data-index="${index}" class="deleteLogBtn">
-        <span class="material-icon">delete</span>
-        Delete
-        </button>
+        ${
+          canDelete
+            ? `<button data-index="${index}" class="deleteLogBtn">
+                <span class="material-icon">delete</span>
+                Delete
+              </button>`
+            : `<div class="muted" style="margin-top:6px;font-size:12px">
+                Partner log
+              </div>`
+        }
     </div>
   `;
 }
