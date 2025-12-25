@@ -5,7 +5,7 @@ const ALLOWED_EMAILS = ["charliecayno@gmail.com", "kasromantico@gmail.com"];
 export async function initAuth() {
   return new Promise((resolve) => {
     google.accounts.id.initialize({
-      client_id: "YOUR_GOOGLE_CLIENT_ID",
+      client_id: "668755364170-3uiq2nrlmb4b91hf5o5junu217b4eeef.apps.googleusercontent.com",
       callback: handleCredential,
       auto_select: true,
     });
