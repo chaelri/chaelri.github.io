@@ -12,7 +12,7 @@ export function initTabs() {
     });
   });
 
-  initSwipe();
+  //initSwipe();
 }
 
 export async function switchTab(tab) {
