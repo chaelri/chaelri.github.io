@@ -202,6 +202,16 @@ input[type="file"]::-webkit-file-upload-button {
   margin-right: 8px;
 }
 
+#editModal input[type="file"]::-webkit-file-upload-button {
+  background: linear-gradient(135deg, var(--accent-start), var(--accent-end));
+
+  color: #ffffff;
+  border-radius: 10px;
+  padding: 8px 12px;
+  font-size: 14px;
+  font-weight: 600;
+}
+
 input[type="file"]::file-selector-button {
   border: none;
   border-radius: 12px;
@@ -213,6 +223,16 @@ input[type="file"]::file-selector-button {
   font-weight: 500;
 
   margin-right: 8px;
+}
+
+#editModal input[type="file"]::file-selector-button {
+  background: linear-gradient(135deg, var(--accent-start), var(--accent-end));
+
+  color: #ffffff;
+  border-radius: 10px;
+  padding: 8px 12px;
+  font-size: 14px;
+  font-weight: 600;
 }
 
 input[type="file"] {
@@ -273,8 +293,15 @@ input[type="file"] {
 }
 
 #editModal input[type="file"] {
-  color: #0b1220;
+  width: 100%;
+  margin-top: 12px;
+
   font-size: 16px;
+  color: #e6edf7;
+
+  background: #1c2344;
+  border-radius: 12px;
+  padding: 8px;
 }
 
 .section-title {
