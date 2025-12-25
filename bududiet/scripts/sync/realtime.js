@@ -1,3 +1,4 @@
+// scripts/sync/realtime.js
 import { state } from "../state.js";
 import { getDB } from "./firebase.js";
 import {
@@ -5,9 +6,42 @@ import {
   onValue,
 } from "https://www.gstatic.com/firebasejs/10.7.1/firebase-database.js";
 
-/* =============================
-   Helpers
-============================= */
+// deterministic pairing
+function resolvePartner() {
+  if (state.user.uid === "charlie") {
+    return {
+      uid: "karla",
+      email: "karla@local",
+      name: "Karla",
+    };
+  }
+
+  if (state.user.uid === "karla") {
+    return {
+      uid: "charlie",
+      email: "charlie@local",
+      name: "Charlie",
+    };
+  }
+
+  return null;
+}
+
+export function initRealtimeSync() {
+  console.log("[RTDB] initRealtimeSync", state.user.uid);
+
+  // ---------- SELF ----------
+  attachToday(state.user.uid, true);
+
+  // ---------- PARTNER ----------
+  const partner = resolvePartner();
+  if (!partner) return;
+
+  state.partner.uid = partner.uid;
+  state.partner.email = partner.email;
+
+  attachToday(partner.uid, false);
+}
 
 function getLocalDateKey() {
   const d = new Date();
@@ -15,88 +49,43 @@ function getLocalDateKey() {
   return d.toISOString().slice(0, 10);
 }
 
-function computeNet(logs) {
-  let net = 0;
-  for (const log of logs) {
-    if (log.kind === "food") net += log.kcal;
-    if (log.kind === "exercise") net -= log.kcal;
-  }
-  return net;
-}
-
-/* =============================
-   Realtime bootstrap
-============================= */
-
-export function initRealtimeSync() {
-  console.log("[RTDB] initRealtimeSync called");
-
-  const db = getDB();
+function attachToday(uid, isSelf) {
   const todayKey = getLocalDateKey();
+  const logsRef = ref(getDB(), `users/${uid}/logs/${todayKey}`);
 
-  /* ---------- SELF ---------- */
-  attachToday(db, state.user.uid, (today) => {
-    state.today = today;
-    console.log("[RTDB] SELF hydrated", today);
+  console.log(
+    `[RTDB] listening ${isSelf ? "SELF" : "PARTNER"} →`,
+    uid,
+    todayKey
+  );
 
+  onValue(logsRef, (snap) => {
+    const logsObj = snap.val() || {};
+    const logs = Object.values(logsObj);
+
+    let net = 0;
+    for (const log of logs) {
+      if (log.kind === "food") net += log.kcal;
+      if (log.kind === "exercise") net -= log.kcal;
+    }
+
+    const target = isSelf ? state.today : state.partner.today;
+
+    target.date = todayKey;
+    target.logs = logs;
+    target.net = net;
+
+    console.log(
+      `[RTDB] ${isSelf ? "SELF" : "PARTNER"} updated`,
+      logs.length,
+      "logs"
+    );
+
+    // force UI refresh
     requestAnimationFrame(() => {
       import("../logs.js").then((m) => m.bindLogs());
       import("../today.js").then((m) => m.bindToday());
       import("../insights.js").then((m) => m.bindInsights());
     });
-  });
-
-  /* ---------- PARTNER (AUTO DISCOVER) ---------- */
-  const usersRef = ref(db, "users");
-
-  onValue(usersRef, (snap) => {
-    const users = snap.val() || {};
-    const myEmail = state.user.email;
-
-    for (const uid in users) {
-      if (users[uid]?.meta?.email && users[uid].meta.email !== myEmail) {
-        state.partner.uid = uid;
-        state.partner.email = users[uid].meta.email;
-
-        console.log("[RTDB] Partner detected:", state.partner.email);
-
-        attachToday(db, uid, (today) => {
-          state.partner.today = today;
-
-          requestAnimationFrame(() => {
-            import("../logs.js").then((m) => m.bindLogs());
-            import("../today.js").then((m) => m.bindToday());
-          });
-        });
-
-        return;
-      }
-    }
-  });
-}
-
-/* =============================
-   Attach today logs (generic)
-============================= */
-
-function attachToday(db, uid, onUpdate) {
-  const todayKey = getLocalDateKey();
-  const logsRef = ref(db, `users/${uid}/logs/${todayKey}`);
-
-  console.log("[RTDB] attachToday →", uid, todayKey);
-
-  onValue(logsRef, (snap) => {
-    const obj = snap.val() || {};
-    const logs = Object.values(obj);
-
-    const today = {
-      date: todayKey,
-      logs,
-      net: computeNet(logs),
-    };
-
-    console.log("[RTDB] snapshot", uid, logs.length);
-
-    onUpdate(today);
   });
 }
