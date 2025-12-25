@@ -128,27 +128,41 @@ function fileToBase64(file) {
 
 function parseGemini(raw, userText = "") {
   const text = raw?.candidates?.[0]?.content?.parts?.[0]?.text || "";
+
   const exerciseHint =
     /walk|walking|run|ran|running|jog|jogging|exercise|workout|cardio|steps|km|mile|min/i.test(
       userText
     );
 
-  try {
-    const parsed = JSON.parse(text);
+  // 🔎 Extract first JSON object from Gemini output
+  const match = text.match(/\{[\s\S]*?\}/);
 
-    // 🔑 user intent wins over Gemini ambiguity
+  if (!match) {
+    return {
+      kind: exerciseHint ? "exercise" : "food",
+      kcal: 0,
+      confidence: 0,
+      notes: "Unable to locate JSON in Gemini response",
+      _raw: text || raw,
+    };
+  }
+
+  try {
+    const parsed = JSON.parse(match[0]);
+
+    // 🔑 User intent ALWAYS wins
     if (exerciseHint) {
       parsed.kind = "exercise";
     }
 
     return parsed;
-  } catch {
+  } catch (err) {
     return {
       kind: exerciseHint ? "exercise" : "food",
       kcal: 0,
       confidence: 0,
-      notes: "Unable to parse Gemini response",
-      _raw: text || raw,
+      notes: "Invalid JSON returned by Gemini",
+      _raw: match[0],
     };
   }
 }
