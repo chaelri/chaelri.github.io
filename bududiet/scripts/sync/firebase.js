@@ -6,12 +6,10 @@ let app = null;
 let db = null;
 
 export function initFirebase(firebaseConfig) {
-  if (app) return { app, db };
+  if (app) return;
 
   app = initializeApp(firebaseConfig);
   db = getDatabase(app);
-
-  return { app, db };
 }
 
 export function getFirebaseApp() {

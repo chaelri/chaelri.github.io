@@ -1,3 +1,4 @@
+// scripts/app.js
 import { initTabs, switchTab } from "./tabs.js";
 import { state, restoreToday } from "./state.js";
 import { initFirebase, getFirebaseApp, getDB } from "./sync/firebase.js";
@@ -7,7 +8,6 @@ import {
   set,
 } from "https://www.gstatic.com/firebasejs/10.7.1/firebase-database.js";
 
-// 🔐 Firebase config
 const firebaseConfig = {
   apiKey: "AIzaSyBdaiwTZH_dq8tP2XPSTEazOrgPacM1lYA",
   authDomain: "budu-diet.firebaseapp.com",
@@ -22,20 +22,19 @@ const firebaseConfig = {
 document.addEventListener("DOMContentLoaded", async () => {
   const loadingEl = document.getElementById("auth-loading");
 
-  // 1️⃣ Init Firebase (no auth yet)
+  // Init Firebase ONCE
   initFirebase(firebaseConfig);
 
-  // 2️⃣ Check auth state ONLY (no redirects here)
   try {
     await initAuth(getFirebaseApp());
   } catch (e) {
-    // 🔐 Not logged in yet → start redirect ONCE
     if (e.message === "NO_AUTH") {
+      // 🔐 THIS is what triggers login
       startLogin();
       return;
     }
 
-    // ❌ Logged in but not allowed
+    // Unauthorized
     loadingEl.classList.add("hidden");
     document.body.innerHTML = `
       <div style="padding:32px;text-align:center">
@@ -46,19 +45,17 @@ document.addEventListener("DOMContentLoaded", async () => {
     return;
   }
 
-  // ✅ AUTH CONFIRMED HERE (uid is guaranteed)
+  // ✅ AUTH OK
   const db = getDB();
 
-  // (TEMP sanity write – you may remove later)
+  // TEMP sanity write (can remove later)
   await set(ref(db, `users/${state.user.uid}/meta`), {
     email: state.user.email,
     createdAt: Date.now(),
   });
 
-  // Restore local state
   restoreToday();
 
-  // Boot UI
   loadingEl.classList.add("hidden");
   initTabs();
   await switchTab("home");
