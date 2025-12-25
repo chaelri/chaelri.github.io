@@ -5,7 +5,12 @@ import { state } from "./state.js";
 document.addEventListener("DOMContentLoaded", async () => {
   const loadingEl = document.getElementById("auth-loading");
 
-  await initAuth();
+  try {
+    await initAuth();
+  } catch (e) {
+    loadingEl.classList.add("hidden");
+    throw e;
+  }
 
   if (!state.user) return;
 

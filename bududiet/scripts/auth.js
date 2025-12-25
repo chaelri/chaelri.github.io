@@ -9,12 +9,14 @@ export async function initAuth() {
     google.accounts.id.initialize({
       client_id:
         "668755364170-3uiq2nrlmb4b91hf5o5junu217b4eeef.apps.googleusercontent.com",
-      callback: handleCredential,
+      callback: (res) => {
+        handleCredential(res);
+        resolve();
+      },
       auto_select: true,
     });
 
     google.accounts.id.prompt();
-    resolve();
   });
 }
 
@@ -36,7 +38,7 @@ function handleCredential(response) {
 
   if (!ALLOWED_EMAILS.includes(payload.email)) {
     document.body.innerHTML = "<h1>Access denied</h1>";
-    return;
+    throw new Error("Unauthorized user");
   }
 
   state.user = {
