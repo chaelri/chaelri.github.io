@@ -1,8 +1,7 @@
-// scripts/app.js
 import { initTabs, switchTab } from "./tabs.js";
 import { state, restoreToday } from "./state.js";
 import { initFirebase, getFirebaseApp, getDB } from "./sync/firebase.js";
-import { initAuth } from "./auth.js";
+import { initAuth, login } from "./auth.js";
 import {
   ref,
   set,
@@ -26,21 +25,30 @@ document.addEventListener("DOMContentLoaded", async () => {
 
   try {
     await initAuth(getFirebaseApp());
-  } catch {
-    loadingEl.classList.add("hidden");
-    document.body.innerHTML = `
-      <div style="padding:32px;text-align:center">
-        <h2>🚫 Access denied</h2>
-        <p>This app is private.</p>
-      </div>
-    `;
+  } catch (e) {
+    if (e.message === "NO_AUTH") {
+      loadingEl.classList.add("hidden");
+
+      // 🔥 SHOW LOGIN UI (NO AUTO REDIRECT)
+      document.body.innerHTML = `
+        <div style="padding:32px;text-align:center">
+          <h2>Budu Diet</h2>
+          <button id="loginBtn" style="padding:12px 20px;font-size:16px">
+            Continue with Google
+          </button>
+        </div>
+      `;
+
+      document.getElementById("loginBtn").onclick = () => login();
+      return;
+    }
+
+    document.body.innerHTML = "<h2>🚫 Access denied</h2>";
     return;
   }
 
-  // ✅ AUTH GUARANTEED HERE
+  // ✅ AUTH OK
   const db = getDB();
-
-  // (optional sanity write – remove later)
   await set(ref(db, `users/${state.user.uid}/meta`), {
     email: state.user.email,
     createdAt: Date.now(),
