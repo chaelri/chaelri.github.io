@@ -38,7 +38,7 @@ export async function initAuth() {
   return new Promise((resolve, reject) => {
     google.accounts.id.initialize({
       client_id:
-        "80406735414-a042rk0m53m65ue6rffragg5spjhorm5.apps.googleusercontent.com",
+        "80406735414-5iphkeru9rm1ghm948kkd3dtnn0hajeb.apps.googleusercontent.com",
       auto_select: false,
       callback: (res) => {
         try {
