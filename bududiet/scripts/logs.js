@@ -115,11 +115,6 @@ async function deleteLog(index) {
 
   state.today.logs.splice(index, 1);
 
-  localStorage.setItem(
-    `bududiet:${state.user.email}:today`,
-    JSON.stringify(state.today)
-  );
-
   bindLogs();
   import("./today.js").then((m) => m.bindToday());
   setLive();

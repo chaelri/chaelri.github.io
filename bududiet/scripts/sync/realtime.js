@@ -5,6 +5,7 @@ import {
   onValue,
   onChildRemoved,
 } from "https://www.gstatic.com/firebasejs/10.7.1/firebase-database.js";
+import { onChildAdded } from "https://www.gstatic.com/firebasejs/10.7.1/firebase-database.js";
 
 const PAIR = ["charliecayno@gmail.com", "kasromantico@gmail.com"];
 
@@ -26,6 +27,7 @@ export function initRealtimeSync() {
         state.partner.uid = uid;
         state.partner.email = partnerEmail;
         attachPartnerToday(uid);
+        attachSelfToday(state.user.uid);
         return;
       }
     }
@@ -78,6 +80,28 @@ function attachPartnerToday(uid) {
     state.partner.today.net = net;
 
     // force UI refresh if Logs or Home is visible
+    import("../logs.js").then((m) => m.bindLogs());
+    import("../today.js").then((m) => m.bindToday());
+  });
+}
+
+function attachSelfToday(uid) {
+  const todayKey = new Date().toISOString().slice(0, 10);
+  const logsRef = ref(getDB(), `users/${uid}/logs/${todayKey}`);
+
+  state.today.logs = [];
+  state.today.net = 0;
+  state.today.date = todayKey;
+
+  onChildAdded(logsRef, (snap) => {
+    const log = snap.val();
+    if (!log) return;
+
+    state.today.logs.push(log);
+
+    if (log.kind === "food") state.today.net += log.kcal;
+    if (log.kind === "exercise") state.today.net -= log.kcal;
+
     import("../logs.js").then((m) => m.bindLogs());
     import("../today.js").then((m) => m.bindToday());
   });
