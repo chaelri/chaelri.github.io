@@ -16,6 +16,6 @@ document.addEventListener("DOMContentLoaded", async () => {
 
   loadingEl.classList.add("hidden");
 
-  await switchTab("home");
   initTabs();
+  await switchTab("home");
 });

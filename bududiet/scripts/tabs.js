@@ -1,7 +1,7 @@
 const viewRoot = document.getElementById("view-root");
 const tabs = Array.from(document.querySelectorAll(".tab"));
 
-let currentTab = "home";
+let currentTab = null;
 let startX = null;
 
 export function initTabs() {
