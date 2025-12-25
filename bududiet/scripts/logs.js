@@ -27,10 +27,6 @@ function renderLog(log, index) {
         </strong>
         <br/>
       <small>${log.notes || ""}</small><br/>
-      <button data-index="${index}" class="editLogBtn">
-        <span class="material-icon">edit</span>
-        Edit
-        </button>
         <button data-index="${index}" class="deleteLogBtn">
         <span class="material-icon">delete</span>
         Delete
@@ -45,12 +41,6 @@ document.addEventListener("click", (e) => {
     const index = Number(del.dataset.index);
     if (!Number.isNaN(index)) deleteLog(index);
     return;
-  }
-
-  const edit = e.target.closest(".editLogBtn");
-  if (edit) {
-    const index = Number(edit.dataset.index);
-    if (!Number.isNaN(index)) openEdit(index);
   }
 });
 
@@ -70,52 +60,4 @@ function deleteLog(index) {
 
   bindLogs();
   import("./today.js").then((m) => m.bindToday());
-}
-
-import { rerunGemini } from "./rerun.js";
-
-let editingIndex = null;
-
-function openEdit(index) {
-  editingIndex = index;
-  const modal = document.getElementById("editModal");
-  const ta = document.getElementById("editText");
-
-  ta.value = state.today.logs[index]?.notes || "";
-  modal.classList.remove("hidden");
-
-  document.getElementById("cancelEditBtn").onclick = closeEdit;
-  document.getElementById("reRunBtn").onclick = async () => {
-    const text = ta.value.trim();
-    const file = document.getElementById("editImage").files[0];
-
-    const updated = await rerunGemini(text, file);
-    replaceLog(index, updated);
-    closeEdit();
-    bindLogs();
-
-    import("./today.js").then((m) => m.bindToday(true));
-  };
-}
-
-function closeEdit() {
-  editingIndex = null;
-  document.getElementById("editModal").classList.add("hidden");
-}
-
-function replaceLog(index, updated) {
-  const old = state.today.logs[index];
-
-  if (old.kind === "food") state.today.net -= old.kcal;
-  if (old.kind === "exercise") state.today.net += old.kcal;
-
-  state.today.logs[index] = { ...updated, ts: Date.now() };
-
-  if (updated.kind === "food") state.today.net += updated.kcal;
-  if (updated.kind === "exercise") state.today.net -= updated.kcal;
-
-  localStorage.setItem(
-    `bududiet:${state.user.email}:today`,
-    JSON.stringify(state.today)
-  );
 }

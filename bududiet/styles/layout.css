@@ -54,10 +54,6 @@ body {
   display: none !important;
 }
 
-#editModal.hidden {
-  display: none !important;
-}
-
 .auth-card {
   padding: 24px;
   text-align: center;
@@ -130,21 +126,6 @@ body {
   padding: 14px;
 }
 
-/* === EDIT MODAL: HARD RESET (NO GLASS) === */
-#editModal,
-#editModal * {
-  backdrop-filter: none !important;
-  -webkit-backdrop-filter: none !important;
-}
-
-/* 🔒 Edit modal must NOT be glass */
-#editModal .glass {
-  background: #121830; /* solid */
-  backdrop-filter: none;
-  -webkit-backdrop-filter: none;
-  box-shadow: 0 24px 70px rgba(0, 0, 0, 0.75);
-}
-
 /* Prevent text selection for app-like feel */
 button,
 nav {
@@ -202,16 +183,6 @@ input[type="file"]::-webkit-file-upload-button {
   margin-right: 8px;
 }
 
-#editModal input[type="file"]::-webkit-file-upload-button {
-  background: linear-gradient(135deg, var(--accent-start), var(--accent-end));
-
-  color: #ffffff;
-  border-radius: 10px;
-  padding: 8px 12px;
-  font-size: 14px;
-  font-weight: 600;
-}
-
 input[type="file"]::file-selector-button {
   border: none;
   border-radius: 12px;
@@ -225,83 +196,9 @@ input[type="file"]::file-selector-button {
   margin-right: 8px;
 }
 
-#editModal input[type="file"]::file-selector-button {
-  background: linear-gradient(135deg, var(--accent-start), var(--accent-end));
-
-  color: #ffffff;
-  border-radius: 10px;
-  padding: 8px 12px;
-  font-size: 14px;
-  font-weight: 600;
-}
-
 input[type="file"] {
   font-size: 13px;
   margin-top: 8px;
-}
-
-#editModal .auth-card {
-  background: #ffffff !important;
-  color: #0b1220 !important;
-
-  border-radius: 20px;
-  padding: 16px;
-
-  width: min(92vw, 420px);
-  max-height: calc(100dvh - 160px);
-  overflow-y: auto;
-
-  box-shadow: 0 24px 70px rgba(0, 0, 0, 0.7);
-}
-
-#editModal {
-  position: fixed;
-  inset: 0;
-  z-index: 9999;
-
-  display: none; /* CLOSED BY DEFAULT */
-  align-items: center;
-  justify-content: center;
-
-  background: rgba(0, 0, 0, 0.88);
-}
-
-#editModal:not(.hidden) {
-  display: flex;
-}
-
-#editModal button {
-  margin-top: 12px;
-  font-size: 16px;
-}
-
-#editModal:not(.hidden) ~ #app {
-  pointer-events: none;
-  filter: blur(2px) brightness(0.6);
-}
-
-#editModal textarea {
-  background: #ffffff !important;
-  color: #0b1220 !important;
-
-  font-size: 16px;
-  line-height: 1.5;
-  padding: 12px;
-
-  border-radius: 12px;
-  border: 1px solid #d0d6e6;
-}
-
-#editModal input[type="file"] {
-  width: 100%;
-  margin-top: 12px;
-
-  font-size: 16px;
-  color: #e6edf7;
-
-  background: #1c2344;
-  border-radius: 12px;
-  padding: 8px;
 }
 
 .section-title {
