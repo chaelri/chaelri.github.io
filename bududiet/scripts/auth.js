@@ -39,7 +39,8 @@ export function initAuth(firebaseApp) {
         photo: user.photoURL,
       };
 
-      resolve();
+      // 🔥 IMPORTANT: re-bootstrap app after redirect login
+      location.reload();
     });
   });
 }
