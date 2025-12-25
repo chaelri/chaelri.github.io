@@ -44,11 +44,11 @@ document.addEventListener("DOMContentLoaded", async () => {
     createdAt: Date.now(),
   });
 
-  const { initRealtimeSync } = await import("./sync/realtime.js");
+  const realtime = await import("./sync/realtime.js");
 
-  console.log("[BOOT] starting realtime, user =", state.user);
+  console.log("[BOOT] realtime module =", realtime);
 
-  initRealtimeSync();
+  realtime.initRealtimeSync();
 
   loadingEl.classList.add("hidden");
   initTabs();
