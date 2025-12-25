@@ -1,5 +1,10 @@
 import { haptic } from "./ui.js";
 import { state } from "./state.js";
+import { getDB } from "./sync/firebase.js";
+import {
+  ref,
+  push,
+} from "https://www.gstatic.com/firebasejs/10.7.1/firebase-database.js";
 
 const ENDPOINT = "https://gemini-proxy-668755364170.asia-southeast1.run.app";
 const SYSTEM_PROMPT = `
@@ -179,14 +184,25 @@ function saveLog(entry) {
   const log = {
     ...entry,
     ts: Date.now(),
+    ownerUid: state.user.uid,
   };
 
+  // ---------- LOCAL (authoritative for self) ----------
   state.today.logs.push(log);
 
   if (entry.kind === "food") state.today.net += entry.kcal;
   if (entry.kind === "exercise") state.today.net -= entry.kcal;
 
   persistToday();
+
+  // ---------- CLOUD (mirror, append-only) ----------
+  try {
+    const db = getDB();
+    const logsRef = ref(db, `users/${state.user.uid}/logs/${todayKey}`);
+    push(logsRef, log);
+  } catch (e) {
+    // silent fail — local-first, offline-safe
+  }
 }
 
 function persistToday() {
