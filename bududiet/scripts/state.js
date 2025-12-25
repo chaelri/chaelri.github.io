@@ -10,6 +10,17 @@ export const state = {
   },
 };
 
+state.partner = {
+  uid: null,
+  email: null,
+  today: {
+    date: null,
+    logs: [],
+    net: 0,
+  },
+};
+
+
 export function restoreToday() {
   if (!state.user) return;
 

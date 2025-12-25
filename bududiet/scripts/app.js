@@ -44,6 +44,8 @@ document.addEventListener("DOMContentLoaded", async () => {
     createdAt: Date.now(),
   });
 
+  import("./sync/realtime.js").then((m) => m.initRealtimeSync());
+
   restoreToday();
 
   loadingEl.classList.add("hidden");
