@@ -56,6 +56,8 @@ function deleteLog(index) {
   );
 
   bindLogs();
+  import("./today.js").then((m) => m.bindToday());
+
 }
 
 import { rerunGemini } from "./rerun.js";

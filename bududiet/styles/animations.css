@@ -1,0 +1,29 @@
+.wheel {
+  position: relative;
+  width: 200px;
+  height: 200px;
+  margin: 32px auto;
+}
+
+.wheel-center {
+  position: absolute;
+  inset: 0;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+}
+
+#wheelEmoji {
+  font-size: 28px;
+}
+
+#wheelValue {
+  font-size: 20px;
+  font-weight: 600;
+  margin-top: 4px;
+}
+
+#wheelProgress {
+  transition: stroke-dashoffset 600ms cubic-bezier(0.22, 1, 0.36, 1);
+}

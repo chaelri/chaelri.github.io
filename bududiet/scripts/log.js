@@ -45,6 +45,7 @@ export function bindLog() {
     const parsed = parseGemini(data);
 
     saveLog(parsed);
+    import("./today.js").then((m) => m.bindToday());
 
     haptic("success");
 

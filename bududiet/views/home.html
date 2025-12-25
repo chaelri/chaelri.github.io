@@ -4,6 +4,42 @@
 
   <div class="glass" style="margin-top: 16px; padding: 16px">
     <strong>Today</strong>
-    <p id="netCalories">Net calories: —</p>
+    <div id="calorieWheel" class="wheel">
+      <svg width="200" height="200" viewBox="0 0 200 200">
+        <circle
+          cx="100"
+          cy="100"
+          r="90"
+          stroke="rgba(255,255,255,0.15)"
+          stroke-width="16"
+          fill="none"
+        />
+        <circle
+          id="wheelProgress"
+          cx="100"
+          cy="100"
+          r="90"
+          stroke="url(#grad)"
+          stroke-width="16"
+          fill="none"
+          stroke-linecap="round"
+          stroke-dasharray="565"
+          stroke-dashoffset="565"
+          transform="rotate(-90 100 100)"
+        />
+        <defs>
+          <linearGradient id="grad" x1="0" y1="0" x2="1" y2="1">
+            <stop offset="0%" stop-color="#3b82f6" />
+            <stop offset="100%" stop-color="#06b6d4" />
+          </linearGradient>
+        </defs>
+      </svg>
+
+      <div class="wheel-center">
+        <div id="wheelEmoji">🙂</div>
+        <div id="wheelValue">0 kcal</div>
+        <div class="muted">net today</div>
+      </div>
+    </div>
   </div>
 </section>
