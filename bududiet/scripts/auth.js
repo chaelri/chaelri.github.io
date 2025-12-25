@@ -20,9 +20,10 @@ export function initAuth(firebaseApp) {
   return new Promise((resolve, reject) => {
     onAuthStateChanged(auth, async (user) => {
       if (!user) {
-        // 🔴 DO NOTHING
-        // App will decide when to login
-        reject(new Error("NO_AUTH"));
+        // 🔥 wait for Firebase to finish restoring session
+        setTimeout(() => {
+          reject(new Error("NO_AUTH"));
+        }, 0);
         return;
       }
 

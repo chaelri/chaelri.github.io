@@ -30,16 +30,20 @@ document.addEventListener("DOMContentLoaded", async () => {
       loadingEl.classList.add("hidden");
 
       // 🔥 SHOW LOGIN UI (NO AUTO REDIRECT)
-      document.body.innerHTML = `
+      loadingEl.classList.add("hidden");
+
+      const login = document.createElement("div");
+      login.innerHTML = `
         <div style="padding:32px;text-align:center">
-          <h2>Budu Diet</h2>
-          <button id="loginBtn" style="padding:12px 20px;font-size:16px">
-            Continue with Google
-          </button>
+            <h2>Budu Diet</h2>
+            <button id="loginBtn">Continue with Google</button>
         </div>
-      `;
+        `;
+
+      document.body.appendChild(login);
 
       document.getElementById("loginBtn").onclick = () => login();
+
       return;
     }
 
