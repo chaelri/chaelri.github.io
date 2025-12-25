@@ -15,8 +15,12 @@ export function restoreUser() {
 const ALLOWED_EMAILS = ["charliecayno@gmail.com", "kasromantico@gmail.com"];
 
 export async function initAuth() {
-  // ✅ restore session first
+  // ✅ auto-login if already signed in
   if (restoreUser()) {
+    // 🚫 absolutely stop GIS from doing anything
+    if (window.google?.accounts?.id) {
+      google.accounts.id.disableAutoSelect();
+    }
     return;
   }
 
@@ -26,6 +30,7 @@ export async function initAuth() {
     google.accounts.id.initialize({
       client_id:
         "668755364170-3uiq2nrlmb4b91hf5o5junu217b4eeef.apps.googleusercontent.com",
+      auto_select: false, // 🚫 must stay false
       callback: (res) => {
         try {
           handleCredential(res);
@@ -34,12 +39,11 @@ export async function initAuth() {
           reject(e);
         }
       },
-      auto_select: true,
     });
 
     google.accounts.id.prompt((notification) => {
-      if (notification.isNotDisplayed()) {
-        resolve(); // silent fail, user already signed in
+      if (notification.isSkippedMoment()) {
+        resolve();
       }
     });
   });
