@@ -100,7 +100,12 @@ async function deleteLog(index) {
       "https://www.gstatic.com/firebasejs/10.7.1/firebase-database.js"
     );
 
-    const todayKey = new Date().toISOString().slice(0, 10);
+    const todayKey = (() => {
+      const d = new Date();
+      d.setMinutes(d.getMinutes() - d.getTimezoneOffset());
+      return d.toISOString().slice(0, 10);
+    })();
+
     const logsRef = ref(getDB(), `users/${state.user.uid}/logs/${todayKey}`);
     const snap = await get(logsRef);
 
