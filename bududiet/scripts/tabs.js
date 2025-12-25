@@ -30,7 +30,7 @@ export async function switchTab(tab) {
     import("./profile.js").then((m) => m.bindProfile());
   }
   if (tab === "home") {
-    import("./today.js").then((m) => m.bindToday());
+    import("./today.js").then((m) => m.bindToday(true));
   }
   if (tab === "logs") {
     import("./logs.js").then((m) => m.bindLogs());

@@ -103,9 +103,5 @@ function attachSelfToday(uid) {
       logs,
       net,
     };
-
-    import("../logs.js").then((m) => m.bindLogs());
-    import("../today.js").then((m) => m.bindToday());
-    import("../insights.js").then((m) => m.bindInsights());
   });
 }
