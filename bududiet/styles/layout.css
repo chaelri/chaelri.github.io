@@ -50,6 +50,14 @@ body {
   display: none;
 }
 
+.hidden {
+  display: none !important;
+}
+
+#editModal.hidden {
+  display: none !important;
+}
+
 .auth-card {
   padding: 24px;
   text-align: center;
