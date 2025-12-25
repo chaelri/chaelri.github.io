@@ -66,7 +66,13 @@ export function bindToday(animate = false) {
 function startIdleBehavior(iconEl) {
   if (!iconEl) return;
 
-  const idleAnimations = ["idle-wobble", "idle-pulse", "idle-shake"];
+  const idleAnimations = [
+    "idle-pulse",
+    "idle-pulse",
+    "idle-wobble",
+    "idle-pulse",
+    "idle-shake",
+  ];
 
   function triggerIdle() {
     const anim =
@@ -84,7 +90,7 @@ function startIdleBehavior(iconEl) {
   }
 
   function scheduleNext() {
-    const delay = 8000 + Math.random() * 12000; // 8–20s
+    const delay = 3000 + Math.random() * 5000; // 🔥 3–5s
     idleTimer = setTimeout(triggerIdle, delay);
   }
 
