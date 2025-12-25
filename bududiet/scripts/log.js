@@ -50,7 +50,33 @@ export function bindLog() {
 
     const data = await res.json();
 
-    const parsed = parseGemini(data);
+    const parsed = parseGemini(data, text);
+
+    if (parsed.kcal === 0 && parsed.confidence === 0) {
+      saveLog({
+        kind: "food",
+        kcal: 0,
+        confidence: 0,
+        notes: "⚠️ Gemini parse failed",
+        raw: parsed._raw, // keep raw for inspection
+      });
+
+      resultEl.innerHTML = `
+    <div class="glass pad-md">
+      <strong>⚠️ Gemini parse failed (saved for debug)</strong>
+      <pre style="
+        margin-top:12px;
+        max-height:240px;
+        overflow:auto;
+        font-size:12px;
+        white-space:pre-wrap;
+        opacity:0.85;
+      ">${JSON.stringify(parsed._raw, null, 2)}</pre>
+    </div>
+  `;
+
+      return;
+    }
 
     saveLog(parsed);
 
@@ -100,17 +126,29 @@ function fileToBase64(file) {
   });
 }
 
-function parseGemini(raw) {
+function parseGemini(raw, userText = "") {
   const text = raw?.candidates?.[0]?.content?.parts?.[0]?.text || "";
+  const exerciseHint =
+    /walk|walking|run|ran|running|jog|jogging|exercise|workout|cardio|steps|km|mile|min/i.test(
+      userText
+    );
 
   try {
-    return JSON.parse(text);
+    const parsed = JSON.parse(text);
+
+    // 🔑 user intent wins over Gemini ambiguity
+    if (exerciseHint) {
+      parsed.kind = "exercise";
+    }
+
+    return parsed;
   } catch {
     return {
-      kind: "food",
+      kind: exerciseHint ? "exercise" : "food",
       kcal: 0,
       confidence: 0,
       notes: "Unable to parse Gemini response",
+      _raw: text || raw,
     };
   }
 }
