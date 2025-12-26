@@ -647,3 +647,7 @@ select:disabled {
 #aiContextSummary {
   margin-right: 3rem;
 }
+
+#aiContextSummary .ai-fade-in {
+  font-family: "Google Sans Flex", sans-serif !important;
+}
