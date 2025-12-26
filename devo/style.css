@@ -21,7 +21,7 @@ body {
   gap: 20px;
   padding: calc(28px + env(safe-area-inset-top)) 20px
     calc(24px + env(safe-area-inset-bottom));
-  height: 100dvh; /* 🔑 REQUIRED */
+  /* height: 100dvh; 🔑 REQUIRED */
   overflow-x: hidden;
   overflow-y: auto;
   -webkit-overflow-scrolling: touch;
@@ -231,6 +231,10 @@ select:disabled {
 }
 
 .comment-indicator {
+  display: inline-flex;
+  align-items: center;
+  white-space: nowrap;
+  gap: 4px;
   opacity: 0.7;
 }
 
@@ -632,13 +636,15 @@ select:disabled {
 }
 
 #aiReflection ul {
-  padding-left: 1rem;
+  padding-left: 0;
+  list-style: none;
 }
 
 #aiReflection textarea {
   width: 100%;
   box-sizing: border-box;
   margin: 1rem 0;
+  resize: none;
 }
 
 #aiReflection h1 {

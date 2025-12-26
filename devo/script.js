@@ -322,6 +322,7 @@ function loadBooks() {
 }
 function showLanding() {
   lockAppScroll(true);
+  document.querySelector('.summary').style.display = 'none'
 
   output.innerHTML = `
     <div class="landing">
@@ -411,6 +412,7 @@ async function loadPassage() {
   showLoading();
   lockAppScroll(false);
   updatePassageTitle()
+  document.querySelector('.summary').style.display = 'block'
 
   passageTitleEl.hidden = false;
   toggleReflectionBtn.hidden = false;
