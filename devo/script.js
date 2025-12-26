@@ -503,7 +503,7 @@ async function loadPassage() {
           <div>
             <span class="verse-num">${v.verse}</span>${v.text}
           </div>
-          <div style="display:flex;align-items:center;gap:8px">
+          <div style="display:flex;align-items:center;gap:8px;flex-direction: column;">
             <button class="inline-ai-btn" title="Quick verse context">✨</button>
             ${count ? `<div class="comment-indicator">💬 ${count}</div>` : ""}
           </div>
