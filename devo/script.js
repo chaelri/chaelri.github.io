@@ -410,6 +410,7 @@ async function fetchAllOriginsUnli(url) {
 async function loadPassage() {
   showLoading();
   lockAppScroll(false);
+  updatePassageTitle()
 
   passageTitleEl.hidden = false;
   toggleReflectionBtn.hidden = false;
@@ -458,28 +459,28 @@ async function loadPassage() {
         )}`
       );
 
-      const a = document.createElement("div");
-      a.innerHTML = contents;
+      const container = document.createElement("div");
+      container.innerHTML = contents;
 
-      const raw = a.querySelector(".passage").innerText;
+      const passage = container.querySelector(".passage");
+      if (!passage) return [];
 
-      verses = raw
-        .replace(/^[A-Z][A-Za-z\s]+(?=[A-Z])/g, "")
-        .replace(/^/, "1 ")
-        .replace(/\s+/g, " ")
-        .replace(/(\d)([A-Za-z“])/g, "$1 $2")
-        .replace(/\s(?=\d+\s)/g, "\n")
-        .trim()
-        .split("\n")
-        .map((line) => {
-          const i = line.indexOf(" ");
+      // We map directly from the NodeList of .prose elements
+      verses = Array.from(passage.querySelectorAll(".prose")).map(
+        (el, index) => {
+          const verseNum = index + 1; // Since it's verse by verse, index 0 is Verse 1
+
           return {
             book_id: bookId,
             chapter: Number(chapterNum),
-            verse: Number(line.slice(0, i)),
-            text: line.slice(i + 1),
+            verse: verseNum,
+            text: el.innerText.trim().replace(/\s+/g, " "), // Just basic whitespace cleanup
           };
-        });
+        }
+      );
+
+      // Optional: Filter out any empty blocks if the site has spacer .prose elements
+      verses = verses.filter((v) => v.text.length > 0);
 
       await saveCachedVerses(verseCacheId, verses);
     }
