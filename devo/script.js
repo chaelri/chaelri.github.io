@@ -1048,3 +1048,20 @@ const initializeReflections = () => {
 const observer = new MutationObserver(() => initializeReflections());
 observer.observe(document.body, { childList: true, subtree: true });
 initializeReflections();
+
+document.addEventListener('keydown', (e) => {
+    // 1. Check if the focus is in your specific comment textarea
+    const textArea = e.target.closest('.comment-input textarea');
+    if (!textArea) return;
+
+    // 2. Check for the Enter key (Key Code 13)
+    // We also check !e.shiftKey so users can still do a new line with Shift+Enter if they want
+    if (e.key === 'Enter' && !e.shiftKey) {
+        e.preventDefault(); // Prevents the actual new line from being added
+
+        const addButton = textArea.parentElement.querySelector('button');
+        if (addButton) {
+            addButton.click();
+        }
+    }
+});
