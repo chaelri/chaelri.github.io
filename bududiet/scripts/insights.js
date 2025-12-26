@@ -1,6 +1,7 @@
 // scripts/insights.js
 import { state } from "./state.js";
 import { getDB } from "./sync/firebase.js";
+import { getGoal } from "./today.js";
 import {
   ref,
   get,
@@ -16,14 +17,19 @@ export async function bindInsights() {
 
   const days = lastNDays(7);
 
-  const self = await sumForUser(state.user.uid, days);
-  render(selfEl, self, state.user.name);
-  renderBars(selfBars, self);
+  const selfPromise = sumForUser(state.user.uid, days);
+  const partnerPromise = state.partner?.uid
+    ? sumForUser(state.partner.uid, days)
+    : Promise.resolve(null);
 
-  if (state.partner?.uid) {
-    const partner = await sumForUser(state.partner.uid, days);
+  const [self, partner] = await Promise.all([selfPromise, partnerPromise]);
+
+  render(selfEl, self, state.user.name);
+  renderBars(selfBars, self, state.user);
+
+  if (partner) {
     render(partnerEl, partner, state.partner.name);
-    renderBars(partnerBars, partner);
+    renderBars(partnerBars, partner, state.partner);
   } else {
     partnerEl.innerHTML = `<div class="muted">No data</div>`;
   }
@@ -112,7 +118,7 @@ function render(el, data, name) {
 // =============================
 // Mini bars
 // =============================
-function renderBars(el, data) {
+function renderBars(el, data, user) {
   if (!el || !data.perDay.length) return;
 
   const max = Math.max(...data.perDay.map((d) => Math.abs(d.net)), 1);
@@ -128,7 +134,7 @@ function renderBars(el, data) {
           <div
             style="
               height:${Math.max(6, (Math.abs(d.net) / max) * 48)}px;
-              background:${d.net > 0 ? "#ef4444" : "#22c55e"};
+              background:${d.net > getGoal(user) ? "#ef4444" : "#22c55e"};
               border-radius:6px;
             "
           ></div>

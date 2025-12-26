@@ -110,11 +110,23 @@ body {
 /* Main content area */
 #view-root {
   flex: 1;
-  padding: 12px 14px;
+  padding: 64px 14px;
   padding-bottom: calc(12px + var(--tab-bar-height));
   box-sizing: border-box;
   overflow-y: auto;
   -webkit-overflow-scrolling: touch;
+}
+
+@media (min-width: 720px) {
+  #view-root {
+    max-width: 420px;
+    margin: auto;
+    scrollbar-width: none;
+  }
+  .tab-bar {
+    max-width: 420px;
+    margin: auto;
+  }
 }
 
 /* Glass surface utility (used later) */
@@ -383,4 +395,9 @@ button .material-icon {
   justify-content: center;
   font-weight: 700;
   font-size: 14px;
+}
+
+p#profile-name {
+  margin: auto 0;
+  font-weight: bold;
 }

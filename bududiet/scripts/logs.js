@@ -17,6 +17,7 @@ export function bindLogs() {
   const avatarSelf = document.getElementById("avatarSelf");
   const avatarPartner = document.getElementById("avatarPartner");
   const partnerNameEl = document.getElementById("partnerName");
+  const selfNameEl = document.getElementById("selfName");
 
   if (avatarSelf) {
     avatarSelf.innerHTML = state.user.photo; // "C" or "K"
@@ -27,6 +28,8 @@ export function bindLogs() {
     avatarPartner.innerHTML = state.partner.photo;
     avatarPartner.className = "avatar-circle";
   }
+
+  selfNameEl.textContent = state.user.name;
 
   if (partnerNameEl && state.partner?.name) {
     partnerNameEl.textContent = state.partner.name;

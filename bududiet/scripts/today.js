@@ -149,7 +149,7 @@ function startIdleBehavior(iconEl) {
 // =============================
 // Goal logic (LOCAL USERS)
 // =============================
-function getGoal(user) {
+export function getGoal(user) {
   if (!user) return 1500;
   return user.name === "Charlie" ? 1100 : 1500;
 }
