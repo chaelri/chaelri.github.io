@@ -260,7 +260,6 @@ select:disabled {
   display: flex;
   gap: 8px;
   width: 100%;
-  padding: 10px;
   border-radius: 14px;
   background: rgba(17, 26, 47, 0.6);
 }
