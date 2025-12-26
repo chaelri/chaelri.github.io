@@ -144,19 +144,21 @@ copyNotesBtn.onclick = async () => {
       lines.push(`v${item.verseNum}: ${joined}`);
     });
 
-  const cached = loadAIFromStorage();
-  if (cached?.answers) {
-    lines.push("", "Guided Reflection:");
-    const questions = Array.from(
-      document.querySelectorAll("#aiReflection p")
-    ).map((p) => p.textContent);
+  let hasReflections = false;
+  const reflectionLines = [];
 
-    Object.entries(cached.answers).forEach(([id, answer]) => {
-      if (!answer.trim()) return;
-      const idx = Number(id.split("-").pop());
-      lines.push(`Q: ${questions[idx]}`);
-      lines.push(`A: ${answer}`, "");
-    });
+  document.querySelectorAll('textarea[id^="reflection-"]').forEach((area) => {
+    const entry = localStorage.getItem(area.id);
+    if (entry && area.value.trim() !== "") {
+      reflectionLines.push(entry);
+      reflectionLines.push(""); // Spacer
+      hasReflections = true;
+    }
+  });
+
+  if (hasReflections) {
+    lines.push("\nGuided Reflection 🙏🏼\n");
+    lines.push(...reflectionLines);
   }
 
   await navigator.clipboard.writeText(lines.join("\n"));
@@ -847,26 +849,8 @@ ${versesText}
     setTimeout(restoreSavedReflectionAnswers, 0);
 
     mount.querySelectorAll("textarea").forEach((ta, i) => {
-      console.log("ta", ta);
       const id = `reflection-${devotionId()}-${i}`;
       ta.id = id;
-
-      const btn = document.createElement("button");
-      btn.textContent = "Save";
-      btn.style.marginTop = "8px";
-      btn.style.fontSize = "13px";
-
-      btn.onclick = async () => {
-        const cached = (await loadAIFromStorage()) || { id: devotionId() };
-        cached.answers = cached.answers || {};
-        cached.answers[id] = ta.value;
-        await saveAIToStorage(cached);
-
-        btn.textContent = "✅ Saved";
-        setTimeout(() => (btn.textContent = "Save"), 1200);
-      };
-
-      ta.after(btn);
     });
   } catch (e) {
     console.error(e);
@@ -1028,3 +1012,38 @@ if ("serviceWorker" in navigator) {
     navigator.serviceWorker.register("sw.js");
   });
 }
+
+const initializeReflections = () => {
+  const textAreas = document.querySelectorAll('textarea[id^="reflection-"]');
+
+  if (textAreas.length > 0) {
+    textAreas.forEach((area) => {
+      // 1. Find the question text (the <li> right before the textarea)
+      const questionText =
+        area.previousElementSibling?.textContent || "Question";
+
+      // 2. Load existing data from localStorage
+      const savedData = localStorage.getItem(area.id);
+      if (savedData) {
+        // We only want to put the "Answer" part back into the textarea UI
+        const answerOnly = savedData.split("A: ")[1] || "";
+        area.value = answerOnly;
+        area.dispatchEvent(new Event("input", { bubbles: true }));
+      }
+
+      // 3. Save logic on input
+      area.addEventListener("input", () => {
+        // Save in the specific format you requested
+        const formattedEntry = `Q: ${questionText}\nA: ${area.value}`;
+        localStorage.setItem(area.id, formattedEntry);
+      });
+    });
+
+    // Stop watching once initialized
+    observer.disconnect();
+  }
+};
+
+const observer = new MutationObserver(() => initializeReflections());
+observer.observe(document.body, { childList: true, subtree: true });
+initializeReflections();

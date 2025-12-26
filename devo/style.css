@@ -629,3 +629,21 @@ select:disabled {
   }
 }
 
+#aiReflection ul {
+  padding-left: 1rem;
+}
+
+#aiReflection textarea {
+  width: 100%;
+  box-sizing: border-box;
+  margin: 1rem 0;
+}
+
+#aiReflection h1 {
+  font-size: 1.5rem;
+}
+
+#aiReflection,
+#aiContextSummary {
+  margin-right: 3rem;
+}
