@@ -78,7 +78,6 @@ textarea:focus {
   border-color: rgba(124, 195, 255, 0.5);
   box-shadow: 0 0 0 1px rgba(124, 195, 255, 0.35),
     0 8px 24px rgba(72, 107, 236, 0.25);
-  transform: scale(1.02);
 }
 
 .control {
@@ -427,7 +426,9 @@ select:disabled {
 }
 
 .inline-ai-result p {
-  font-size: 1rem;
+  font-size: 14px;
+  margin: 0;
+  font-family: "Google Sans Flex", sans-serif;
 }
 
 .inline-ai-close {
