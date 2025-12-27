@@ -12,7 +12,7 @@
     <link rel="stylesheet" href="./style.css" />
   </head>
   <body class="bg-[#faf9f6] text-stone-800">
-    <!-- INTRO OVERLAY (Highest Layer) -->
+    <!-- INTRO OVERLAY -->
     <div
       id="floral-overlay"
       class="fixed inset-0 z-[200] overflow-hidden flex items-center justify-center bg-[#faf9f6]"
@@ -25,13 +25,43 @@
         <img src="./assets/monogram.png" class="w-64 md:w-96" alt="C&K" />
       </div>
 
-      <!-- Flowers (Glide In/Out) -->
-      <img src="./assets/5.png" id="fl-5" class="floral-element" />
-      <img src="./assets/6.png" id="fl-6" class="floral-element" />
-      <img src="./assets/7.png" id="fl-7" class="floral-element" />
-      <img src="./assets/8.png" id="fl-8" class="floral-element" />
-      <img src="./assets/9.png" id="fl-9" class="floral-element" />
-      <img src="./assets/10.png" id="fl-10" class="floral-element" />
+      <!-- Flowers with Custom CSS Variables for unique swaying -->
+      <img
+        src="./assets/5.png"
+        id="fl-5"
+        style="--r: -5deg; --t: -10s"
+        class="floral-element"
+      />
+      <img
+        src="./assets/6.png"
+        id="fl-6"
+        style="--r: 10deg; --t: -2s"
+        class="floral-element"
+      />
+      <img
+        src="./assets/7.png"
+        id="fl-7"
+        style="--r: 5deg; --t: -5s"
+        class="floral-element"
+      />
+      <img
+        src="./assets/8.png"
+        id="fl-8"
+        style="--r: -10deg; --t: -8s"
+        class="floral-element"
+      />
+      <img
+        src="./assets/9.png"
+        id="fl-9"
+        style="--r: 8deg; --t: -1s"
+        class="floral-element"
+      />
+      <img
+        src="./assets/10.png"
+        id="fl-10"
+        style="--r: -3deg; --t: -4s"
+        class="floral-element"
+      />
 
       <!-- WELCOME MODAL -->
       <div
@@ -81,7 +111,7 @@
       </div>
     </div>
 
-    <!-- STICKY NAVIGATION -->
+    <!-- MAIN SITE -->
     <nav
       class="p-4 flex justify-between items-center sticky top-0 bg-white/90 backdrop-blur-md z-40 border-b border-stone-100"
     >
@@ -155,7 +185,7 @@
     <!-- STORY SECTION -->
     <section
       id="story"
-      class="py-24 px-6 max-w-5xl mx-auto relative min-h-screen flex flex-col justify-center"
+      class="py-24 px-6 max-w-5xl mx-auto relative min-h-[70vh] flex flex-col justify-center"
     >
       <img
         src="./assets/monogram.png"
@@ -194,7 +224,7 @@
     <!-- SCHEDULE SECTION -->
     <section
       id="schedule"
-      class="py-24 bg-white/50 border-y border-stone-100 flex flex-col items-center justify-center min-h-screen"
+      class="py-24 bg-white/50 border-y border-stone-100 flex flex-col items-center justify-center min-h-[70vh]"
     >
       <div class="max-w-xl w-full px-8">
         <h2 class="text-4xl text-center serif italic text-[#7b8a5b] mb-20">

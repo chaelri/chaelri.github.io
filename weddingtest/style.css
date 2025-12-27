@@ -56,37 +56,58 @@ body {
   transform: rotate(-45deg) scale(1.5);
 }
 
-/* Center Formation */
+/* Center Formation (Uses the base rotation --r) */
 .floral-center {
   opacity: 1 !important;
 }
 #fl-5.floral-center {
   top: -5%;
   left: -5%;
-  transform: rotate(-5deg);
+  transform: rotate(var(--r));
 }
 #fl-7.floral-center {
   top: -5%;
   right: -5%;
-  transform: rotate(5deg);
+  transform: rotate(var(--r));
 }
 #fl-6.floral-center {
   top: 30%;
   left: -10%;
+  transform: rotate(var(--r));
 }
 #fl-8.floral-center {
   top: 30%;
   right: -10%;
+  transform: rotate(var(--r));
 }
 #fl-9.floral-center {
   bottom: -5%;
   left: -5%;
-  transform: rotate(5deg);
+  transform: rotate(var(--r));
 }
 #fl-10.floral-center {
   bottom: -5%;
   right: -5%;
-  transform: rotate(-5deg);
+  transform: rotate(var(--r));
+}
+
+/* ALIVE / BREATHING ANIMATION */
+.floral-alive {
+  animation: bloomBreathe 10s ease-in-out infinite alternate;
+  /* We use the variable --t to offset the start time so they don't move in sync */
+  animation-delay: var(--t);
+}
+
+@keyframes bloomBreathe {
+  0% {
+    transform: rotate(var(--r)) translate(0, 0) scale(1);
+  }
+  50% {
+    transform: rotate(calc(var(--r) + 3deg)) translate(15px, -10px) scale(1.05);
+  }
+  100% {
+    transform: rotate(calc(var(--r) - 2deg)) translate(-10px, 15px) scale(1.02);
+  }
 }
 
 /* AMPERSAND CYCLE */
@@ -146,12 +167,4 @@ body {
 }
 .border-error {
   border-bottom: 2px solid #ffb7c5 !important;
-}
-
-/* Section Refinements */
-#story img {
-  transition: transform 0.5s ease;
-}
-#story .rotate-2:hover {
-  transform: rotate(0deg) scale(1.05);
 }

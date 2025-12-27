@@ -23,8 +23,12 @@ const app = initializeApp(firebaseConfig);
 const db = getDatabase(app);
 let masterGuestList = [];
 
-// --- 1. INTRO ANIMATION & SMOOTH EXIT ---
+// --- 1. INTRO & FORCE TOP ---
 document.addEventListener("DOMContentLoaded", () => {
+  if (window.location.hash) {
+    window.history.replaceState(null, null, window.location.pathname);
+  }
+
   const overlay = document.getElementById("floral-overlay");
   const mono = document.getElementById("intro-monogram");
   const flowers = document.querySelectorAll(".floral-element");
@@ -33,18 +37,24 @@ document.addEventListener("DOMContentLoaded", () => {
 
   document.body.style.overflow = "hidden";
 
-  // A. Monogram In
+  // Step A: Monogram In
   setTimeout(() => {
     mono.style.opacity = "1";
   }, 500);
 
-  // B. Monogram Out, Flowers Glide In
+  // Step B: Flowers Glide In
   setTimeout(() => {
     mono.style.opacity = "0";
-    flowers.forEach((f) => f.classList.add("floral-center"));
+    flowers.forEach((f) => {
+      f.classList.add("floral-center");
+      // Wait for glide to finish, then start breathing
+      setTimeout(() => {
+        f.classList.add("floral-alive");
+      }, 2000);
+    });
   }, 2500);
 
-  // C. Show Modal
+  // Step C: Show Modal
   setTimeout(() => {
     modal.classList.remove("hidden");
     setTimeout(() => {
@@ -52,31 +62,28 @@ document.addEventListener("DOMContentLoaded", () => {
     }, 50);
   }, 4500);
 
-  // D. EXIT SEQUENCE (No Jumps)
+  // Step D: Exit Sequence
   closeBtn.addEventListener("click", () => {
-    // Unlock scrolling immediately for the user
     document.body.style.overflow = "auto";
-    // Make overlay ignore all mouse events so user can interact with site
     overlay.style.pointerEvents = "none";
-
-    modal.style.transition = "opacity 0.8s ease";
     modal.style.opacity = "0";
 
-    // Glide flowers back to the void
     setTimeout(() => {
-      flowers.forEach((f) => f.classList.remove("floral-center"));
+      flowers.forEach((f) => {
+        f.classList.remove("floral-alive"); // Stop breathing
+        f.classList.remove("floral-center"); // Glide out
+      });
     }, 200);
 
-    // Fade background color slowly
     overlay.style.transition = "background-color 2s ease, opacity 2.5s ease";
     overlay.style.backgroundColor = "transparent";
+    window.scrollTo(0, 0);
 
     setTimeout(() => {
       overlay.style.opacity = "0";
-      // Finally hide it from DOM after everything is invisible
       setTimeout(() => {
         overlay.style.display = "none";
-      }, 2000);
+      }, 2500);
     }, 500);
   });
 });
@@ -94,13 +101,10 @@ nameInput.addEventListener("input", function () {
   const val = this.value;
   listContainer.innerHTML = "";
   listContainer.classList.add("hidden");
-  nameInput.classList.remove("border-error", "shake");
-
   if (!val || val.length < 2) return;
   const matches = masterGuestList.filter((n) =>
     n.toLowerCase().includes(val.toLowerCase())
   );
-
   if (matches.length > 0) {
     listContainer.classList.remove("hidden");
     matches.forEach((name) => {
@@ -122,31 +126,19 @@ document.getElementById("rsvpForm").onsubmit = async (e) => {
   const isValid = masterGuestList.some(
     (n) => n.toLowerCase() === typedName.toLowerCase()
   );
-
   if (!isValid) {
     nameInput.classList.add("border-error", "shake");
     document.getElementById("nameErrorMsg").classList.remove("hidden");
     setTimeout(() => nameInput.classList.remove("shake"), 500);
     return;
   }
-
-  const submitBtn = e.target.querySelector("button");
-  submitBtn.innerText = "SAVING...";
-  submitBtn.disabled = true;
-
-  try {
-    await push(ref(db, "rsvps"), {
-      guestName: typedName,
-      attending: document.getElementById("attendance").value,
-      submittedAt: new Date().toISOString(),
-    });
-    document.getElementById("rsvpForm").classList.add("hidden");
-    document.getElementById("successMsg").classList.remove("hidden");
-  } catch (err) {
-    alert("Error saving RSVP.");
-    submitBtn.innerText = "SEND RSVP";
-    submitBtn.disabled = false;
-  }
+  await push(ref(db, "rsvps"), {
+    guestName: typedName,
+    attending: document.getElementById("attendance").value,
+    submittedAt: new Date().toISOString(),
+  });
+  document.getElementById("rsvpForm").classList.add("hidden");
+  document.getElementById("successMsg").classList.remove("hidden");
 };
 
 // --- 3. COUNTDOWN ---
