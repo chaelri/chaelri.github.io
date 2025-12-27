@@ -1,9 +1,10 @@
 // --- CONFIGURATION ---
-const CLIENT_ID = "668755364170-3uiq2nrlmb4b91hf5o5junu217b4eeef.apps.googleusercontent.com";
+const CLIENT_ID =
+  "668755364170-3uiq2nrlmb4b91hf5o5junu217b4eeef.apps.googleusercontent.com";
 const API_KEY = "AIzaSyD9Q5MJl6-SSd1Ye4rB8_HQVGMFoFhCg2g";
 const DISCOVERY_DOC =
   "https://www.googleapis.com/discovery/v1/apis/calendar/v3/rest";
-const SCOPES = "https://www.googleapis.com/auth/calendar.readonly";
+const SCOPES = "https://www.googleapis.com/auth/calendar.events";
 
 let tokenClient;
 let calendar;
@@ -93,9 +94,12 @@ function saveNote() {
   if (!title) return alert("Please enter a title");
 
   const newNote = { id: Date.now().toString(), title, body, date };
+
+  // 1. Save locally (as you did before)
   notes.push(newNote);
   localStorage.setItem("my-custom-notes", JSON.stringify(notes));
 
+  // 2. Add to local UI calendar
   calendar.addEvent({
     id: newNote.id,
     title: `📝 ${title}`,
@@ -104,8 +108,46 @@ function saveNote() {
     textColor: "#854d0e",
   });
 
+  // 3. SYNC TO GOOGLE (If logged in)
+  const shouldSync = document.getElementById("syncToGoogle").checked;
+
+  if (shouldSync && gapi.client.getToken()) {
+    createGoogleEvent(title, body, date);
+  }
+
   renderNotesSidebar();
   closeModal();
+}
+
+// NEW FUNCTION: Pushes note to your actual Google Calendar account
+async function createGoogleEvent(title, description, date) {
+  const event = {
+    summary: `Note: ${title}`,
+    description: description,
+    start: {
+      date: date, // All-day event
+    },
+    end: {
+      date: date,
+    },
+    reminders: {
+      useDefault: true,
+    },
+  };
+
+  try {
+    const request = gapi.client.calendar.events.insert({
+      calendarId: "primary",
+      resource: event,
+    });
+
+    request.execute(function (event) {
+      console.log("Event created in Google Calendar: " + event.htmlLink);
+      alert("Note synced to your Google Calendar!");
+    });
+  } catch (err) {
+    console.error("Error creating Google event", err);
+  }
 }
 
 function renderNotesSidebar() {
@@ -135,4 +177,19 @@ function getFormattedNotes() {
     backgroundColor: "#fef08a",
     textColor: "#854d0e",
   }));
+}
+
+function handleSignoutClick() {
+  const token = gapi.client.getToken();
+  if (token !== null) {
+    google.accounts.oauth2.revoke(token.access_token, () => {
+      gapi.client.setToken("");
+      calendar.getEventSources().forEach((source) => {
+        if (source.internalEventSource.ui.classNames.includes("google-event"))
+          source.remove();
+      });
+      document.getElementById("auth_button").innerHTML = "Sync Google Calendar";
+      document.getElementById("signout_button").classList.add("hidden");
+    });
+  }
 }
