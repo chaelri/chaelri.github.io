@@ -124,3 +124,30 @@ body {
   background: var(--sage);
   border-radius: 10px;
 }
+
+/* Story Image Frames */
+#story img {
+  display: block;
+  transition: transform 0.3s ease;
+}
+
+#story .rotate-2:hover,
+#story .-rotate-2:hover {
+  transform: rotate(0deg) scale(1.02);
+}
+
+/* TIMELINE FIX */
+#schedule .relative {
+  /* Ensures the line and dots are contained properly */
+}
+
+/* Optional: Add a subtle fade to the ends of the line */
+#schedule .absolute.left-\[7px\] {
+  background: linear-gradient(
+    to bottom,
+    transparent,
+    rgba(255, 183, 197, 0.4) 10%,
+    rgba(255, 183, 197, 0.4) 90%,
+    transparent
+  );
+}
