@@ -236,6 +236,9 @@ async function fetchInlineQuickContext(
     CONTENT RULES:
     - VERY SHORT (1–2 sentences)
     - Simple explanation of meaning
+    - Taglish (Filipino + English)
+    - Youth-friendly, casual, warm tone
+    - Early-believer level (easy to understand, not deep theology)
     - No preaching
     - No applications
     - No titles
