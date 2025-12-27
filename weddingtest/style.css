@@ -315,3 +315,54 @@ nav a:active {
     border: 1px solid var(--sage);
   }
 }
+
+/* Force Material Icons to render as text, not system emojis */
+.material-icons-outlined,
+.material-icons {
+  font-family: "Material Icons Outlined", "Material Icons" !important;
+  display: inline-block;
+  vertical-align: middle;
+  line-height: 1;
+  text-transform: none;
+  letter-spacing: normal;
+  word-wrap: normal;
+  white-space: nowrap;
+  direction: ltr;
+  -webkit-font-smoothing: antialiased;
+}
+
+/* Ensure the audio Progress Ring is visible on Safari */
+#audioProgressRing {
+  transition: stroke-dashoffset 0.3s linear;
+  stroke-render-auto: auto;
+}
+
+/* Styling for the QR interactives */
+.qr-trigger {
+  -webkit-tap-highlight-color: transparent; /* Removes the ugly blue box on iPhone tap */
+  transition: transform 0.2s ease;
+}
+
+.qr-trigger:active {
+  transform: scale(0.95); /* Tactile feedback on click */
+}
+
+/* Make the "Download" button in the lightbox stand out */
+#downloadQR {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  gap: 8px;
+  box-shadow: 0 4px 15px rgba(123, 138, 91, 0.3);
+}
+
+/* Ensure the Material Icons are centered in the zoom circle */
+.qr-trigger .material-icons-outlined {
+  font-size: 18px !important;
+}
+
+/* Lightbox title styling */
+#lightboxTitle {
+  color: var(--sage);
+  letter-spacing: -0.02em;
+}

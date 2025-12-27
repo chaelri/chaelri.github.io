@@ -153,19 +153,31 @@ setInterval(() => {
   if (el) el.innerHTML = `${days}d ${hrs}h ${mins}m ${secs}s`;
 }, 1000);
 
-// --- 4. AUDIO TOGGLE LOGIC ---
+// ... (Your Intro, Firebase, and Countdown logic remains the same) ...
+
 document.addEventListener("DOMContentLoaded", () => {
+  // --- FIX 1: IOS SMOOTH SCROLL HELPER ---
+  document.querySelectorAll('nav a[href^="#"]').forEach((anchor) => {
+    anchor.addEventListener("click", function (e) {
+      e.preventDefault();
+      const targetId = this.getAttribute("href");
+      const targetElement = document.querySelector(targetId);
+      if (targetElement) {
+        window.scrollTo({
+          top: targetElement.offsetTop - 80, // Adjust for sticky nav height
+          behavior: "smooth",
+        });
+      }
+    });
+  });
+
+  // --- FIX 2: AUDIO TOGGLE (DIRECT ATTACHMENT FOR IOS) ---
   const audio = document.getElementById("courtshipAudio");
   const audioBtn = document.getElementById("audioToggle");
   const audioIcon = document.getElementById("audioIcon");
-  const progressRing = document.getElementById("audioProgressRing");
-  const subtitleText = document.getElementById("audioSubtitles");
   const spinningFlower = document.getElementById("spinningFlower");
-
-  const radius = 45;
-  const circumference = 2 * Math.PI * radius;
-
-  // --- TRANSCRIPTION WITH SPEAKER COLORS ---
+  const subtitleText = document.getElementById("audioSubtitles");
+  // (Transcription array remains the same as before)
   const transcription = [
     {
       time: 0,
@@ -202,104 +214,76 @@ document.addEventListener("DOMContentLoaded", () => {
     audioBtn.addEventListener("click", () => {
       if (audio.paused) {
         audio.play();
-        audioIcon.innerText = "⏸";
+        audioIcon.innerText = "pause"; // Using Material Icon name
         spinningFlower.classList.add("animate-spin-slow");
       } else {
         audio.pause();
-        audioIcon.innerText = "▶";
+        audioIcon.innerText = "arrow_right"; // Using Material Icon name
         spinningFlower.classList.remove("animate-spin-slow");
       }
     });
 
     audio.addEventListener("timeupdate", () => {
-      // 1. Update Progress Ring
-      const percent = (audio.currentTime / audio.duration) * 100;
-      const offset = circumference - (percent / 100) * circumference;
-      progressRing.style.strokeDashoffset = offset;
-
-      // 2. Find Current Line
-      let currentLine = transcription[0];
-      for (let i = 0; i < transcription.length; i++) {
-        if (audio.currentTime >= transcription[i].time) {
-          currentLine = transcription[i];
-        }
+      // Progress ring logic...
+      const progressRing = document.getElementById("audioProgressRing");
+      if (progressRing) {
+        const percent = (audio.currentTime / audio.duration) * 100;
+        const offset = 282.7 - (percent / 100) * 282.7;
+        progressRing.style.strokeDashoffset = offset;
       }
 
-      // 3. Update Text and Color if changed
-      if (subtitleText.getAttribute("data-current") !== currentLine.text) {
-        subtitleText.style.opacity = 0;
+      // Subtitle logic...
+      let currentLine = transcription[0];
+      for (let i = 0; i < transcription.length; i++) {
+        if (audio.currentTime >= transcription[i].time)
+          currentLine = transcription[i];
+      }
 
+      if (
+        subtitleText &&
+        subtitleText.getAttribute("data-current") !== currentLine.text
+      ) {
+        subtitleText.style.opacity = 0;
         setTimeout(() => {
           subtitleText.innerText = `"${currentLine.text}"`;
           subtitleText.setAttribute("data-current", currentLine.text);
-
-          // APPLY SPEAKER COLOR
-          if (currentLine.speaker === "karla") {
-            subtitleText.style.color = "#FFB7C5"; // Spring Pink
-          } else {
-            subtitleText.style.color = "#7b8a5b"; // Sage Green
-          }
-
+          subtitleText.style.color =
+            currentLine.speaker === "karla" ? "#FFB7C5" : "#7b8a5b";
           subtitleText.style.opacity = 1;
         }, 200);
       }
     });
-
-    audio.onended = () => {
-      audioIcon.innerText = "▶";
-      spinningFlower.classList.remove("animate-spin-slow");
-      progressRing.style.strokeDashoffset = circumference;
-      subtitleText.innerText = "Click play to listen again...";
-      subtitleText.style.color = "#a8a29e"; // Reset to stone gray
-      subtitleText.setAttribute("data-current", "");
-    };
   }
-});
 
-// ... (Your existing Intro, Firebase, Countdown, and Audio logic remains exactly the same) ...
-
-// --- 5. QR LIGHTBOX LOGIC ---
-// --- 5. QR LIGHTBOX LOGIC (FIXED FOR MODULE SCOPE) ---
-window.openQRModal = function (imgSrc, bankName) {
+  // --- FIX 3: QR LIGHTBOX (MOVE FROM ONCLICK TO ADDEVENTLISTENER) ---
+  const qrTriggers = document.querySelectorAll(".qr-trigger");
   const lightbox = document.getElementById("qrLightbox");
-  const lightboxImg = document.getElementById("lightboxImg");
-  const lightboxTitle = document.getElementById("lightboxTitle");
-  const downloadBtn = document.getElementById("downloadQR");
 
-  if (!lightbox || !lightboxImg || !lightboxTitle || !downloadBtn) return;
+  qrTriggers.forEach((trigger) => {
+    trigger.addEventListener("click", () => {
+      const src = trigger.getAttribute("data-src");
+      const bank = trigger.getAttribute("data-bank");
 
-  // Set content
-  lightboxImg.src = imgSrc;
-  lightboxTitle.innerText = bankName;
-  downloadBtn.href = imgSrc;
+      document.getElementById("lightboxImg").src = src;
+      document.getElementById("lightboxTitle").innerText = bank;
+      document.getElementById("downloadQR").href = src;
 
-  // Show modal
-  lightbox.classList.remove("hidden");
-  lightbox.style.display = "flex"; // Force flex display
+      lightbox.classList.remove("hidden");
+      lightbox.style.display = "flex";
+      document.body.style.overflow = "hidden";
+      setTimeout(() => {
+        lightbox.style.opacity = "1";
+      }, 10);
+    });
+  });
 
-  // Prevent background scrolling
-  document.body.style.overflow = "hidden";
-
-  // Trigger animation
-  setTimeout(() => {
-    lightbox.style.opacity = "1";
-  }, 10);
-};
-
-window.closeQRModal = function () {
-  const lightbox = document.getElementById("qrLightbox");
-  if (!lightbox) return;
-
-  lightbox.style.opacity = "0";
-
-  setTimeout(() => {
-    lightbox.classList.add("hidden");
-    lightbox.style.display = "none";
-
-    // Only re-enable scroll if the floral overlay is already gone
-    const overlay = document.getElementById("floral-overlay");
-    if (!overlay || overlay.style.display === "none") {
+  // Global Close Function
+  window.closeQRModal = function () {
+    lightbox.style.opacity = "0";
+    setTimeout(() => {
+      lightbox.classList.add("hidden");
+      lightbox.style.display = "none";
       document.body.style.overflow = "auto";
-    }
-  }, 300);
-};
+    }, 300);
+  };
+});
