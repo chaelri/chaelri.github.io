@@ -24,14 +24,8 @@ const app = initializeApp(firebaseConfig);
 const db = getDatabase(app);
 
 // SIMPLE SECURITY: Only you and Karla know the password
-const pass = prompt("Enter Admin Password:");
-if (pass === "ck2026") {
-  // You can change 'ck2026' to whatever you want
-  document.getElementById("adminContent").classList.remove("hidden");
-} else {
-  alert("Unauthorized");
-  window.location.href = "index.html";
-}
+
+document.getElementById("adminContent").classList.remove("hidden");
 
 const tableBody = document.getElementById("guestTableBody");
 const addForm = document.getElementById("addGuestForm");
