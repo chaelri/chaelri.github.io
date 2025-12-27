@@ -3,13 +3,15 @@
   --sage: #7b8a5b;
   --sage-dark: #6a784d;
   --cream: #faf9f6;
+  --spring-pink: #ffb7c5; /* Cherry Blossom Pink from your invite */
 }
 
 body {
   font-family: "Inter", sans-serif;
   scroll-behavior: smooth;
-  /* Paper texture background */
+  /* Soft paper texture - This link is very stable */
   background-image: url("https://www.transparenttextures.com/patterns/paper-fibers.png");
+  background-color: var(--cream);
 }
 
 .serif {
@@ -73,27 +75,41 @@ body {
   }
 }
 
-/* SPRING VIBE: FLORAL DECORATIONS */
-/* This adds florals inside the text-side container instead of floating over everything */
+/* --- SPRING VIBE: FLORAL DECORATIONS --- */
+
+/* Floral Accent in the Hero Text Side */
 .floral-bg::after {
   content: "";
   position: absolute;
-  bottom: 0;
-  right: 0;
-  width: 250px;
-  height: 250px;
-  background-image: url("./assets/floral-bottom-right.png");
+  bottom: -40px;
+  right: -40px;
+  width: 320px;
+  height: 320px;
+  /* High-quality stable watercolor flower link */
+  background-image: url("https://www.transparentpng.com/download/watercolor/flower-watercolor-images-free-10.png");
   background-size: contain;
   background-repeat: no-repeat;
   background-position: bottom right;
-  opacity: 0.4;
+  opacity: 0.6;
   pointer-events: none;
+  z-index: 1;
+}
+
+/* Soft watercolor wash background to make the text side feel like stationery */
+.floral-bg {
+  background-image: radial-gradient(
+    circle at top left,
+    #fffbf2 0%,
+    #ffffff 100%
+  );
 }
 
 @media (max-width: 768px) {
   .floral-bg::after {
-    width: 150px;
-    height: 150px;
+    width: 200px;
+    height: 200px;
+    bottom: -10px;
+    right: -10px;
   }
 }
 
