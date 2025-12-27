@@ -1,0 +1,29 @@
+body {
+  font-family: "Inter", sans-serif;
+  background-image: url("https://www.transparenttextures.com/patterns/paper-fibers.png");
+}
+
+.serif {
+  font-family: "Playfair Display", serif;
+}
+
+/* Custom Scrollbar */
+::-webkit-scrollbar {
+  width: 5px;
+}
+::-webkit-scrollbar-thumb {
+  background: #7b8a5b;
+  border-radius: 10px;
+}
+
+table {
+  border-spacing: 0;
+  width: 100%;
+}
+
+th {
+  position: sticky;
+  top: 0;
+  background: #f9fbf9;
+  z-index: 10;
+}
