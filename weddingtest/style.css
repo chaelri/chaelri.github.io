@@ -3,6 +3,10 @@
   --cream: #faf9f6;
 }
 
+html {
+  scroll-behavior: smooth;
+}
+
 body {
   font-family: "Inter", sans-serif;
   scroll-behavior: smooth;
@@ -24,7 +28,6 @@ body {
   z-index: 205;
 }
 
-/* Off-screen START/END Positions */
 #fl-5 {
   top: -150%;
   left: -50%;
@@ -56,7 +59,6 @@ body {
   transform: rotate(-45deg) scale(1.5);
 }
 
-/* Center Formation (Uses the base rotation --r) */
 .floral-center {
   opacity: 1 !important;
 }
@@ -91,10 +93,8 @@ body {
   transform: rotate(var(--r));
 }
 
-/* ALIVE / BREATHING ANIMATION */
 .floral-alive {
   animation: bloomBreathe 10s ease-in-out infinite alternate;
-  /* We use the variable --t to offset the start time so they don't move in sync */
   animation-delay: var(--t);
 }
 
@@ -110,7 +110,6 @@ body {
   }
 }
 
-/* AMPERSAND CYCLE */
 .ampersand-animate {
   animation: springColorCycle 8s infinite;
   transition: color 0.5s ease-in-out;
@@ -137,7 +136,6 @@ body {
   }
 }
 
-/* UI UTILS */
 .shake {
   animation: shake 0.2s ease-in-out;
 }
@@ -155,6 +153,7 @@ body {
     transform: translateX(6px);
   }
 }
+
 .suggestion-item {
   padding: 12px;
   cursor: pointer;
@@ -165,6 +164,154 @@ body {
   background: #f9f9f9;
   color: var(--sage);
 }
+#story .rotate-2:hover,
+#story .-rotate-2:hover,
+#story .rotate-1:hover,
+#story .-rotate-1:hover {
+  transform: rotate(0deg) scale(1.05);
+}
+
 .border-error {
   border-bottom: 2px solid #ffb7c5 !important;
+}
+
+nav div::-webkit-scrollbar {
+  display: none;
+}
+nav div {
+  -ms-overflow-style: none;
+  scrollbar-width: none;
+}
+
+/* STORY SCRAPBOOK EFFECTS */
+#story img,
+#story video {
+  transition: all 0.5s ease;
+  filter: grayscale(100%) contrast(90%);
+}
+
+#story div:hover img,
+#story div:hover video {
+  filter: grayscale(0%) contrast(100%);
+}
+
+/* GIFTING QR STYLES */
+.qr-container {
+  transition: transform 0.3s ease;
+}
+.qr-container:hover {
+  transform: scale(1.05);
+}
+
+/* AUDIO BUTTON PULSE */
+#audioToggle:active {
+  transform: scale(0.95);
+}
+
+/* Custom spinning for the audio wheel */
+.animate-spin-slow {
+  animation: spin 8s linear infinite;
+}
+
+@keyframes spin {
+  from {
+    transform: rotate(0deg);
+  }
+  to {
+    transform: rotate(360deg);
+  }
+}
+
+#audioSubtitles {
+  transition: opacity 0.3s ease-in-out;
+  text-shadow: 0 0 1px rgba(255, 183, 197, 0.2);
+}
+
+/* Ensure the progress ring looks smooth */
+#audioProgressRing {
+  transition: stroke-dashoffset 0.1s linear;
+}
+
+/* Style for the QR codes and digital bank cards */
+.qr-card {
+  background: white;
+  padding: 1rem;
+  border-radius: 1rem;
+  border: 1px solid #f2f2f2;
+  transition: all 0.3s ease;
+}
+.qr-card:hover {
+  border-color: var(--sage);
+  transform: translateY(-5px);
+  box-shadow: 0 10px 20px -5px rgba(123, 138, 91, 0.1);
+}
+
+/* --- Add this to your style.css --- */
+
+/* Portrait Video Fix */
+.aspect-\[9\/16\] {
+  aspect-ratio: 9 / 16;
+}
+
+/* Ensure video fills the frame like a phone screen */
+video {
+  background: #000;
+  display: block;
+}
+
+/* Scrapbook Hover Effect for the Portrait Video */
+#story .aspect-\[9\/16\]:hover {
+  filter: grayscale(0%) contrast(100%);
+  transform: scale(1.02);
+}
+
+/* LIGHTBOX STYLING */
+#qrLightbox {
+  /* Ensure it is always above everything including flowers and nav */
+  z-index: 500;
+}
+
+#qrLightbox .max-w-sm {
+  /* Gentle entrance animation */
+  animation: modalSlideUp 0.4s cubic-bezier(0.16, 1, 0.3, 1);
+}
+
+@keyframes modalSlideUp {
+  from {
+    opacity: 0;
+    transform: translateY(30px) scale(0.95);
+  }
+  to {
+    opacity: 1;
+    transform: translateY(0) scale(1);
+  }
+}
+
+/* Make sure the "View Larger" hint is readable */
+.group:hover .tracking-tighter {
+  animation: hintPulse 2s infinite ease-in-out;
+}
+
+/* Navigation Polish */
+.material-icons-outlined {
+  /* Subtle touch of spring pink for icons on hover */
+  transition: color 0.3s ease;
+}
+
+/* Ensure navbar doesn't cause horizontal scroll on narrow phones */
+nav {
+  max-width: 100vw;
+  overflow-x: hidden;
+}
+
+/* Active link color hint */
+nav a:active {
+  transform: scale(0.9);
+}
+
+/* Priority for RSVP on mobile */
+@media (max-width: 768px) {
+  #rsvp-nav-link {
+    border: 1px solid var(--sage);
+  }
 }

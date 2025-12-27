@@ -9,23 +9,24 @@
       href="https://fonts.googleapis.com/css2?family=Playfair+Display:ital,wght@0,400;0,700;1,400&family=Inter:wght@300;400;600&display=swap"
       rel="stylesheet"
     />
+    <link
+      href="https://fonts.googleapis.com/icon?family=Material+Icons+Outlined"
+      rel="stylesheet"
+    />
     <link rel="stylesheet" href="./style.css" />
   </head>
-  <body class="bg-[#faf9f6] text-stone-800">
-    <!-- INTRO OVERLAY -->
+  <body id="start" class="bg-[#faf9f6] text-stone-800">
+    <!-- INTRO OVERLAY (PRESERVED) -->
     <div
       id="floral-overlay"
       class="fixed inset-0 z-[200] overflow-hidden flex items-center justify-center bg-[#faf9f6]"
     >
-      <!-- Monogram Intro -->
       <div
         id="intro-monogram"
         class="absolute inset-0 flex items-center justify-center opacity-0 z-[210] transition-opacity duration-1000"
       >
         <img src="./assets/monogram.png" class="w-64 md:w-96" alt="C&K" />
       </div>
-
-      <!-- Flowers with Custom CSS Variables for unique swaying -->
       <img
         src="./assets/5.png"
         id="fl-5"
@@ -63,7 +64,6 @@
         class="floral-element"
       />
 
-      <!-- WELCOME MODAL -->
       <div
         id="welcomeModal"
         class="relative z-[220] opacity-0 hidden transition-opacity duration-1000 w-full max-w-lg px-4"
@@ -83,8 +83,8 @@
             <div
               class="bg-[#f8f9f5] border border-[#e2e8d8] p-4 rounded-xl text-xs md:text-sm text-[#5f6b45] italic"
             >
-              "We humbly request <strong>NOT</strong> to share this link as our guests are
-              limited only. Thank you!"
+              "We humbly request <strong>NOT</strong> to share this link as our
+              guests are limited only. Thank you!"
             </div>
             <p class="text-sm md:text-base px-4">
               By God’s grace, we’re finally tying the knot! We can't wait to
@@ -111,34 +111,121 @@
       </div>
     </div>
 
-    <!-- MAIN SITE -->
+    <!-- NAVIGATION (PRESERVED) -->
     <nav
       class="p-4 flex justify-between items-center sticky top-0 bg-white/90 backdrop-blur-md z-40 border-b border-stone-100"
     >
       <div class="flex items-center gap-3">
-        <img
-          src="./assets/monogram.png"
-          alt="C&K"
-          class="h-10 w-auto object-contain"
-        />
-        <div
-          class="text-lg font-bold serif tracking-wide text-[#7b8a5b] hidden sm:block"
+        <a
+          href="#start"
+          class="group flex flex-col items-center gap-1 transition-all"
         >
-          Charlie & Karla
+          <img
+            src="./assets/monogram.png"
+            alt="C&K"
+            class="h-8 md:h-10 w-auto object-contain"
+          />
+        </a>
+
+        <div
+          class="text-base md:text-lg font-bold serif tracking-wide text-[#7b8a5b] hidden sm:block"
+        >
+          Charlie
+          <span class="ampersand-animate italic font-normal">&</span> Karla
         </div>
       </div>
-      <div
-        class="flex space-x-6 text-[10px] md:text-xs uppercase tracking-[0.2em] font-medium text-stone-500"
-      >
-        <a href="#story" class="hover:text-[#7b8a5b] transition">Story</a>
-        <a href="#schedule" class="hover:text-[#7b8a5b] transition">Schedule</a>
-        <a href="#rsvp" class="text-[#7b8a5b] font-bold tracking-widest"
-          >RSVP</a
+
+      <!-- Mobile-First Nav Links -->
+      <div class="flex items-center space-x-5 md:space-x-8 text-stone-500">
+        <!-- Story -->
+        <a
+          href="#story"
+          class="group flex flex-col items-center gap-1 transition-all"
         >
+          <span
+            class="material-icons-outlined md:hidden text-[22px] group-hover:text-[#7b8a5b]"
+            >auto_stories</span
+          >
+          <span
+            class="hidden md:block text-[10px] uppercase tracking-[0.2em] font-medium group-hover:text-[#7b8a5b]"
+            >Story</span
+          >
+        </a>
+
+        <!-- Entourage -->
+        <a
+          href="#entourage"
+          class="group flex flex-col items-center gap-1 transition-all"
+        >
+          <span
+            class="material-icons-outlined md:hidden text-[22px] group-hover:text-[#7b8a5b]"
+            >groups</span
+          >
+          <span
+            class="hidden md:block text-[10px] uppercase tracking-[0.2em] font-medium group-hover:text-[#7b8a5b]"
+            >Entourage</span
+          >
+        </a>
+
+        <!-- Attire -->
+        <a
+          href="#attire"
+          class="group flex flex-col items-center gap-1 transition-all"
+        >
+          <span
+            class="material-icons-outlined md:hidden text-[22px] group-hover:text-[#7b8a5b]"
+            >checkroom</span
+          >
+          <span
+            class="hidden md:block text-[10px] uppercase tracking-[0.2em] font-medium group-hover:text-[#7b8a5b]"
+            >Attire</span
+          >
+        </a>
+
+        <!-- Schedule -->
+        <a
+          href="#schedule"
+          class="group flex flex-col items-center gap-1 transition-all"
+        >
+          <span
+            class="material-icons-outlined md:hidden text-[22px] group-hover:text-[#7b8a5b]"
+            >calendar_today</span
+          >
+          <span
+            class="hidden md:block text-[10px] uppercase tracking-[0.2em] font-medium group-hover:text-[#7b8a5b]"
+            >Schedule</span
+          >
+        </a>
+
+        <!-- Gifting -->
+        <a
+          href="#gifting"
+          class="group flex flex-col items-center gap-1 transition-all"
+        >
+          <span
+            class="material-icons-outlined md:hidden text-[22px] group-hover:text-[#7b8a5b]"
+            >card_giftcard</span
+          >
+          <span
+            class="hidden md:block text-[10px] uppercase tracking-[0.2em] font-medium group-hover:text-[#7b8a5b]"
+            >Gifting</span
+          >
+        </a>
+
+        <!-- RSVP (Kept as text for priority) -->
+        <a
+          href="#rsvp"
+          class="bg-[#7b8a5b]/10 px-3 py-1.5 rounded-full md:bg-transparent md:p-0 transition-all"
+        >
+          <span
+            class="text-[11px] md:text-[10px] uppercase tracking-[0.2em] font-bold text-[#7b8a5b]"
+            >RSVP</span
+          >
+        </a>
       </div>
     </nav>
 
-    <!-- HERO SECTION -->
+    <!-- HERO SECTION (PRESERVED) -->
     <section
       class="min-h-screen flex flex-col md:flex-row overflow-hidden relative"
     >
@@ -182,46 +269,629 @@
       </div>
     </section>
 
-    <!-- STORY SECTION -->
+    <!-- STORY SECTION (THE JOURNEY) -->
     <section
       id="story"
-      class="py-24 px-6 max-w-5xl mx-auto relative min-h-[70vh] flex flex-col justify-center"
+      class="py-24 px-6 max-w-5xl mx-auto relative flex flex-col justify-center"
     >
       <img
         src="./assets/monogram.png"
         alt=""
         class="absolute inset-0 m-auto opacity-[0.03] w-96 pointer-events-none"
       />
-      <h2 class="text-4xl serif italic text-[#7b8a5b] mb-16 text-center">
+      <h2 class="text-4xl serif italic text-[#7b8a5b] mb-20 text-center">
         Our Journey
       </h2>
-      <div class="space-y-20 relative z-10">
+
+      <div class="space-y-32 relative z-10">
+        <!-- 1. How We Met -->
         <div class="flex flex-col md:flex-row items-center gap-12">
           <div class="md:w-1/2 text-center md:text-left">
             <h3 class="serif text-2xl text-stone-700 mb-4 italic">
-              How we met
+              How We Met
             </h3>
             <p class="text-stone-600 leading-relaxed text-base">
-              A story of faith, laughter, and God's perfect timing. [Your
-              meeting story goes here.]
+              Our story did not begin with romance, but with obedience. We first
+              met during the BMELS Retreat, where only three of us from our
+              satellite joined the Pink Team. The Lord slowly allowed moments
+              where it was just the two of us—serving together and growing
+              together. No rush, only gentle introductions orchestrated by God
+              Himself.
             </p>
           </div>
-          <div class="md:w-1/2">
+          <div class="md:w-1/2 border-[12px] border-white shadow-xl rotate-2">
+            <img
+              src="./assets/met.jpg"
+              class="w-full h-auto"
+              alt="Pink Team Group"
+            />
+          </div>
+        </div>
+
+        <!-- 2. Prayed Before It Was Known -->
+        <div class="flex flex-col md:flex-row-reverse items-center gap-12">
+          <div class="md:w-1/2 text-center md:text-left">
+            <h3 class="serif text-2xl text-stone-700 mb-4 italic">
+              Prayed Before It Was Known
+            </h3>
+            <p class="text-stone-600 leading-relaxed text-base">
+              Even before the retreat began, Charlie had already prayed for the
+              team—including Karla—without knowing what God was preparing. What
+              felt like a simple prayer of stewardship later revealed itself as
+              the beginning of something deeply personal and purposeful.
+            </p>
+          </div>
+          <div class="md:w-1/2 border-[12px] border-white shadow-xl -rotate-2">
+            <img
+              src="./assets/pre-retreat.jpg"
+              class="w-full h-auto"
+              alt="Pre-retreat Prayer"
+            />
+          </div>
+        </div>
+
+        <!-- 3. God’s Gentle Confirmations -->
+        <div class="flex flex-col md:flex-row items-center gap-12">
+          <div class="md:w-1/2 text-center md:text-left">
+            <h3 class="serif text-2xl text-stone-700 mb-4 italic">
+              God’s Gentle Confirmations
+            </h3>
+            <p class="text-stone-600 leading-relaxed text-base">
+              As time passed, the Lord continued to confirm His work in quiet
+              ways. During MOVE Conference 2023, we found ourselves choosing the
+              same workshop, not once, but for both days. These small moments
+              reminded us that God was weaving our paths together—without force,
+              without haste.
+            </p>
+          </div>
+          <div class="md:w-1/2 border-[12px] border-white shadow-xl rotate-1">
+            <img
+              src="./assets/move.jpg"
+              class="w-full h-auto"
+              alt="Move Conference"
+            />
+          </div>
+        </div>
+
+        <!-- 4. Serving Side by Side -->
+        <div class="flex flex-col md:flex-row-reverse items-center gap-12">
+          <div class="md:w-1/2 text-center md:text-left">
+            <h3 class="serif text-2xl text-stone-700 mb-4 italic">
+              Serving Side by Side
+            </h3>
+            <p class="text-stone-600 leading-relaxed text-base">
+              Our connection grew stronger as we served together. We were both
+              part of the B1G Ministry Core Team and the Marketing Ministry,
+              learning what it means to lead, to serve, and to put God at the
+              center. In ministry, we saw each other’s hearts—faithful,
+              diligent, and anchored in Him.
+            </p>
+          </div>
+          <div class="md:w-1/2 border-[12px] border-white shadow-xl -rotate-1">
+            <img
+              src="./assets/ministry.jpg"
+              class="w-full h-auto"
+              alt="Marketing Ministry"
+            />
+          </div>
+        </div>
+
+        <!-- 5. A Prayerful Beginning -->
+        <div
+          class="flex flex-col md:flex-row items-center gap-12 bg-white/40 p-8 md:p-12 rounded-[2rem] border border-white/60 shadow-inner relative overflow-hidden"
+        >
+          <div class="md:w-1/2 text-center md:text-left z-10">
+            <h3 class="serif text-2xl text-stone-700 mb-4 italic">
+              A Prayerful Beginning
+            </h3>
+            <p class="text-stone-500 text-sm leading-relaxed mb-8">
+              On May 17, 2024, at Burger King, Charlie asked to pursue Karla's
+              heart. This is that exact moment.
+            </p>
+
+            <div class="flex flex-col items-center md:items-start gap-6">
+              <div class="relative w-24 h-24 flex items-center justify-center">
+                <svg class="absolute inset-0 w-full h-full -rotate-90">
+                  <circle
+                    cx="48"
+                    cy="48"
+                    r="45"
+                    stroke="#e5e7eb"
+                    stroke-width="4"
+                    fill="transparent"
+                  />
+                  <circle
+                    id="audioProgressRing"
+                    cx="48"
+                    cy="48"
+                    r="45"
+                    stroke="#7b8a5b"
+                    stroke-width="4"
+                    fill="transparent"
+                    stroke-dasharray="282.7"
+                    stroke-dashoffset="282.7"
+                    stroke-linecap="round"
+                  />
+                </svg>
+                <button
+                  id="audioToggle"
+                  class="relative z-20 bg-white w-16 h-16 rounded-full shadow-md flex items-center justify-center text-[#7b8a5b] hover:scale-105 transition-transform"
+                >
+                  <span id="audioIcon" class="text-xl relative z-30">▶</span>
+                  <span
+                    id="spinningFlower"
+                    class="absolute inset-0 flex items-center justify-center text-3xl opacity-10 pointer-events-none"
+                    >✿</span
+                  >
+                </button>
+              </div>
+
+              <!-- Corrected Subtitle Container -->
+              <div class="min-h-[100px] flex items-center">
+                <p
+                  id="audioSubtitles"
+                  data-current=""
+                  class="serif italic font-bold text-2xl md:text-3xl transition-all duration-300 opacity-100 leading-tight"
+                >
+                  "Click play to listen..."
+                </p>
+              </div>
+            </div>
+            <audio id="courtshipAudio" src="./assets/courtship.m4a"></audio>
+          </div>
+          <div class="md:w-1/2 border-[12px] border-white shadow-xl rotate-2">
+            <img
+              src="./assets/bk-candid.jpg"
+              class="w-full h-auto"
+              alt="Burger King Candid"
+            />
+          </div>
+        </div>
+
+        <!-- 6. She Said Yes (VIDEO - PORTRAIT) -->
+        <div class="flex flex-col md:flex-row-reverse items-center gap-12">
+          <div class="md:w-1/2 text-center md:text-left">
+            <h3 class="serif text-2xl text-stone-700 mb-4 italic">
+              She Said Yes
+            </h3>
+            <p class="text-stone-600 leading-relaxed text-base">
+              On November 1, 2024, high above the lights at Sky Ranch, Karla
+              said “yes.” What began with prayer and patience was finally
+              named—a relationship grounded in faith, built with purpose, and
+              surrounded by God’s peace.
+            </p>
+          </div>
+
+          <!-- CONSTRAINED PORTRAIT VIDEO CONTAINER -->
+          <div class="md:w-1/2 flex justify-center">
             <div
-              class="border-[12px] border-white shadow-xl rotate-2 overflow-hidden"
+              class="max-w-[280px] md:max-w-[320px] w-full border-[10px] border-white shadow-xl -rotate-2 overflow-hidden bg-stone-100"
             >
-              <img
-                src="https://images.unsplash.com/photo-1515934751635-c81c6bc9a2d8?auto=format&fit=crop&q=80&w=800"
-                class="w-full h-auto grayscale-[10%]"
-                alt="Us"
-              />
+              <video
+                controls
+                class="w-full aspect-[9/16] object-cover grayscale-[10%] hover:grayscale-0 transition-all duration-500"
+              >
+                <source src="./assets/skyranch.mp4" type="video/mp4" />
+                Your browser does not support the video tag.
+              </video>
+            </div>
+          </div>
+        </div>
+
+        <!-- 7. Growing Together -->
+        <div class="flex flex-col md:flex-row items-center gap-12">
+          <div class="md:w-1/2 text-center md:text-left">
+            <h3 class="serif text-2xl text-stone-700 mb-4 italic">
+              Growing Together
+            </h3>
+            <p class="text-stone-600 leading-relaxed text-base">
+              From that day on, our journey was filled with dates, devotions,
+              laughter, and service. We learned that love grows best when it is
+              nurtured daily—through prayer and choosing God and each other
+              every single day.
+            </p>
+          </div>
+          <div class="md:w-1/2 border-[12px] border-white shadow-xl rotate-1">
+            <img
+              src="./assets/dates.jpg"
+              class="w-full h-auto"
+              alt="Dates & Devotion"
+            />
+          </div>
+        </div>
+
+        <!-- 8. The Big Question (VIDEO) -->
+        <div class="flex flex-col md:flex-row-reverse items-center gap-12">
+          <div class="md:w-1/2 text-center md:text-left">
+            <h3 class="serif text-2xl text-stone-700 mb-4 italic">
+              The Big Question
+            </h3>
+            <p class="text-stone-600 leading-relaxed text-base italic">
+              "October 31, 2025"
+            </p>
+            <p class="text-stone-600 leading-relaxed text-base mt-2">
+              We returned to where it all began. Through a VR experience at
+              Burger King, Charlie asked a question years in the making. What
+              started with a prayer and a simple “pwede ba?” became a promise
+              for a lifetime.
+            </p>
+          </div>
+          <div class="md:w-1/2 border-[12px] border-white shadow-xl -rotate-1">
+            <video controls class="w-full h-auto grayscale-[10%]">
+              <source src="./assets/proposal.mp4" type="video/mp4" />
+            </video>
+          </div>
+        </div>
+      </div>
+    </section>
+
+    <!-- ENTOURAGE SECTION (PRESERVED) -->
+    <section id="entourage" class="py-24 bg-white/40">
+      <div class="max-w-5xl mx-auto px-6 text-center">
+        <h2 class="text-4xl serif italic text-[#7b8a5b] mb-16 text-center">
+          The Wedding Party
+        </h2>
+
+        <div class="grid grid-cols-1 md:grid-cols-2 gap-16 mb-20">
+          <div class="space-y-8">
+            <h3
+              class="uppercase tracking-[0.2em] text-[10px] font-bold text-stone-400 mb-6"
+            >
+              Groom's Entourage
+            </h3>
+            <div>
+              <p class="serif italic text-2xl text-stone-800">
+                Charles Michael Cayno
+              </p>
+              <p
+                class="text-[10px] uppercase tracking-widest text-[#7b8a5b] font-bold"
+              >
+                Best Man
+              </p>
+            </div>
+            <div class="pt-4">
+              <p
+                class="text-[10px] uppercase tracking-[0.3em] text-stone-400 mb-6 font-bold underline underline-offset-8 decoration-[#FFB7C5]/30"
+              >
+                Groomsmen
+              </p>
+              <div class="grid grid-cols-2 gap-y-6 gap-x-4">
+                <p class="serif text-lg text-stone-700">King David Gomez</p>
+                <p class="serif text-lg text-stone-700">James Roel Patacsil</p>
+                <p class="serif text-lg text-stone-700">Albert Kobe Serrano</p>
+                <p class="serif text-lg text-stone-700">Matt Joshua Cabezas</p>
+                <p class="serif text-lg text-stone-700">Peter Carl Pardo</p>
+                <p class="serif text-lg text-stone-700">
+                  Eutemio Josef Romantico
+                </p>
+              </div>
+            </div>
+          </div>
+
+          <div
+            class="space-y-8 border-t md:border-t-0 md:border-l border-stone-100 pt-12 md:pt-0"
+          >
+            <h3
+              class="uppercase tracking-[0.2em] text-[10px] font-bold text-stone-400 mb-6"
+            >
+              Bride's Entourage
+            </h3>
+            <div>
+              <p class="serif italic text-2xl text-stone-800">
+                Heleaena Luv Romantico
+              </p>
+              <p
+                class="text-[10px] uppercase tracking-widest text-[#7b8a5b] font-bold"
+              >
+                Maid of Honor
+              </p>
+            </div>
+            <div class="pt-4">
+              <p
+                class="text-[10px] uppercase tracking-[0.3em] text-stone-400 mb-6 font-bold underline underline-offset-8 decoration-[#FFB7C5]/30"
+              >
+                Bridesmaids
+              </p>
+              <div class="grid grid-cols-2 gap-y-6 gap-x-4">
+                <p class="serif text-lg text-stone-700">Camille Cayabyab</p>
+                <p class="serif text-lg text-stone-700">Mitzi Marzan</p>
+                <p class="serif text-lg text-stone-700">Angelica Macalalad</p>
+                <p class="serif text-lg text-stone-700">Eeyah Bernardo</p>
+                <p class="serif text-lg text-stone-700">Diane Adviento</p>
+                <p class="serif text-lg text-stone-700">Bridesmaid Name</p>
+              </div>
+            </div>
+          </div>
+        </div>
+
+        <!-- SPONSORS GRID -->
+        <div class="py-16 border-y border-stone-100 mb-20">
+          <h3
+            class="uppercase tracking-[0.3em] text-[10px] font-bold text-stone-400 mb-10"
+          >
+            Principal Sponsors
+          </h3>
+          <div
+            class="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-y-8 gap-x-12"
+          >
+            <div class="space-y-1">
+              <p class="serif text-lg">Mary Grace Francisco</p>
+              <p class="serif text-lg">
+                Alvin
+                <span class="ampersand-animate italic font-normal">&</span> Mary
+                Fatima Francisco
+              </p>
+            </div>
+            <div class="space-y-1">
+              <p class="serif text-lg">
+                Amante
+                <span class="ampersand-animate italic font-normal">&</span>
+                Ailene Andal
+              </p>
+              <p class="serif text-lg">
+                Vanny
+                <span class="ampersand-animate italic font-normal">&</span>
+                Husband
+              </p>
+            </div>
+            <div class="space-y-1">
+              <p class="serif text-lg">
+                Christian
+                <span class="ampersand-animate italic font-normal">&</span> Maui
+                Ilao
+              </p>
+              <p class="serif text-lg">
+                Alexis
+                <span class="ampersand-animate italic font-normal">&</span>
+                Carmela Perez
+              </p>
+            </div>
+          </div>
+        </div>
+
+        <!-- SECONDARY SPONSORS -->
+        <div class="mb-20">
+          <h3
+            class="uppercase tracking-[0.3em] text-[10px] font-bold text-stone-400 mb-10"
+          >
+            Secondary Sponsors
+          </h3>
+          <div class="grid grid-cols-2 md:grid-cols-4 gap-8">
+            <div>
+              <p
+                class="text-[9px] uppercase tracking-widest text-[#7b8a5b] mb-2 font-bold"
+              >
+                Candle
+              </p>
+              <p class="serif text-base leading-tight">
+                Anika LastName<br />Rain Alabado
+              </p>
+            </div>
+            <div>
+              <p
+                class="text-[9px] uppercase tracking-widest text-[#7b8a5b] mb-2 font-bold"
+              >
+                Veil
+              </p>
+              <p class="serif text-base leading-tight">
+                Chloe Obillo<br />Carlo Miguel Nofiel
+              </p>
+            </div>
+            <div>
+              <p
+                class="text-[9px] uppercase tracking-widest text-[#7b8a5b] mb-2 font-bold"
+              >
+                Cord
+              </p>
+              <p class="serif text-base leading-tight">
+                Clettes Obillo<br />Cayla Ochoa
+              </p>
+            </div>
+            <div>
+              <p
+                class="text-[9px] uppercase tracking-widest text-[#7b8a5b] mb-2 font-bold"
+              >
+                Coin
+              </p>
+              <p class="serif text-base leading-tight">
+                Vince Gabriel Francisco<br />Cy Matthieu Cayno
+              </p>
+            </div>
+            <!-- Extra Secondary Sponsors (Requested niche list) -->
+          </div>
+          <div class="mt-12 pt-8 border-t border-stone-100/50">
+            <p
+              class="text-[9px] uppercase tracking-[0.2em] text-stone-300 mb-4 italic"
+            >
+              Special Secondary Sponsors
+            </p>
+            <div
+              class="flex flex-wrap justify-center gap-x-8 gap-y-2 text-stone-500 serif italic"
+            >
+              <span>Joshua Obillo</span>
+              <span>Extra Sponsor Name</span>
+              <span>Extra Sponsor Name</span>
+              <span>Extra Sponsor Name</span>
+            </div>
+          </div>
+        </div>
+        <!-- 4. BEARERS & FLOWER PARTY -->
+        <div class="max-w-3xl mx-auto">
+          <h3
+            class="uppercase tracking-[0.3em] text-[10px] font-bold text-stone-400 mb-10"
+          >
+            Bearers & Flower Party
+          </h3>
+          <div class="grid grid-cols-2 md:grid-cols-4 gap-8">
+            <div>
+              <p
+                class="text-[9px] uppercase tracking-widest text-[#7b8a5b] mb-2 font-bold"
+              >
+                Bible Bearer
+              </p>
+              <p class="serif text-base">Lance Ailen Grey Francisco</p>
+            </div>
+            <div>
+              <p
+                class="text-[9px] uppercase tracking-widest text-[#7b8a5b] mb-2 font-bold"
+              >
+                Ring Bearer
+              </p>
+              <p class="serif text-base">Pierce Raven Francisco</p>
+            </div>
+            <div>
+              <p
+                class="text-[9px] uppercase tracking-widest text-[#7b8a5b] mb-2 font-bold"
+              >
+                Flower Man
+              </p>
+              <p class="serif text-base">
+                <span class="text-[#7b8a5b] text-xl pr-1">✿</span>Miles
+                Francisco
+              </p>
+            </div>
+            <div>
+              <p
+                class="text-[9px] uppercase tracking-widest text-[#FFB7C5] mb-2 font-bold"
+              >
+                Flower Girl
+              </p>
+              <p class="serif text-base">
+                <span class="text-[#FFB7C5] text-xl pr-1">✿</span>Amryelle
+                Francisco
+              </p>
             </div>
           </div>
         </div>
       </div>
     </section>
 
-    <!-- SCHEDULE SECTION -->
+    <!-- ATTIRE SECTION (EXPANDED ROLE TEMPLATES) -->
+    <section id="attire" class="py-24 border-y border-stone-100 bg-[#fdfcf9]">
+      <div class="max-w-6xl mx-auto px-6">
+        <h2 class="text-4xl serif italic text-[#7b8a5b] mb-8 text-center">
+          Attire Guide
+        </h2>
+        <p class="text-stone-500 mb-16 italic text-center max-w-2xl mx-auto">
+          To help our guests prepare, here are the requested styles and color
+          palettes for each special role.
+        </p>
+
+        <div class="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-10">
+          <!-- Card: Best Man & Groomsmen -->
+          <div
+            class="bg-white p-6 rounded-2xl shadow-sm border border-stone-50 text-center"
+          >
+            <img
+              src="./assets/attire-groomsmen.jpg"
+              class="w-full h-48 object-cover rounded-xl mb-4 grayscale-[20%]"
+              alt="Groomsmen Style"
+            />
+            <h4 class="serif text-xl mb-2 italic">Best Man & Groomsmen</h4>
+            <p
+              class="text-[10px] text-stone-400 uppercase tracking-[0.2em] mb-4"
+            >
+              Suit / Barong Tagalog
+            </p>
+            <div class="flex justify-center gap-2">
+              <div class="w-4 h-4 rounded-full bg-[#B7B7A4]"></div>
+              <div class="w-4 h-4 rounded-full bg-[#7b8a5b]"></div>
+              <div
+                class="w-4 h-4 rounded-full bg-[#faf9f6] border border-stone-100"
+              ></div>
+            </div>
+          </div>
+
+          <!-- Card: Maid of Honor & Bridesmaids -->
+          <div
+            class="bg-white p-6 rounded-2xl shadow-sm border border-stone-50 text-center"
+          >
+            <img
+              src="./assets/attire-bridesmaids.jpg"
+              class="w-full h-48 object-cover rounded-xl mb-4 grayscale-[20%]"
+              alt="Bridesmaids Style"
+            />
+            <h4 class="serif text-xl mb-2 italic">MOH & Bridesmaids</h4>
+            <p
+              class="text-[10px] text-stone-400 uppercase tracking-[0.2em] mb-4"
+            >
+              Floor-Length Gowns
+            </p>
+            <div class="flex justify-center gap-2">
+              <div class="w-4 h-4 rounded-full bg-[#FFB7C5]"></div>
+              <div class="w-4 h-4 rounded-full bg-[#E5BAA1]"></div>
+              <div class="w-4 h-4 rounded-full bg-[#7b8a5b]"></div>
+            </div>
+          </div>
+
+          <!-- Card: Principal Sponsors -->
+          <div
+            class="bg-white p-6 rounded-2xl shadow-sm border border-stone-50 text-center"
+          >
+            <img
+              src="./assets/attire-sponsors.jpg"
+              class="w-full h-48 object-cover rounded-xl mb-4 grayscale-[20%]"
+              alt="Principal Sponsors Style"
+            />
+            <h4 class="serif text-xl mb-2 italic">Principal Sponsors</h4>
+            <p
+              class="text-[10px] text-stone-400 uppercase tracking-[0.2em] mb-4"
+            >
+              Formal Filipiniana / Suit
+            </p>
+            <div class="flex justify-center gap-2">
+              <div class="w-4 h-4 rounded-full bg-[#D4A373]"></div>
+              <div class="w-4 h-4 rounded-full bg-[#7b8a5b]"></div>
+            </div>
+          </div>
+
+          <!-- Card: Secondary Sponsors -->
+          <div
+            class="bg-white p-6 rounded-2xl shadow-sm border border-stone-50 text-center"
+          >
+            <img
+              src="./assets/attire-secondary.jpg"
+              class="w-full h-48 object-cover rounded-xl mb-4 grayscale-[20%]"
+              alt="Secondary Sponsors Style"
+            />
+            <h4 class="serif text-xl mb-2 italic">Secondary Sponsors</h4>
+            <p
+              class="text-[10px] text-stone-400 uppercase tracking-[0.2em] mb-4"
+            >
+              Semi-Formal Attire
+            </p>
+            <div class="flex justify-center gap-2">
+              <div class="w-4 h-4 rounded-full bg-[#7b8a5b]"></div>
+              <div class="w-4 h-4 rounded-full bg-[#E5BAA1]"></div>
+            </div>
+          </div>
+
+          <!-- Card: Guests -->
+          <div
+            class="bg-white p-6 rounded-2xl shadow-sm border border-stone-50 text-center sm:col-span-2 lg:col-span-1"
+          >
+            <div class="flex justify-center gap-2 mb-4">
+              <div class="w-8 h-8 rounded-full bg-[#7b8a5b]"></div>
+              <div class="w-8 h-8 rounded-full bg-[#E5BAA1]"></div>
+              <div class="w-8 h-8 rounded-full bg-[#D4A373]"></div>
+              <div class="w-8 h-8 rounded-full bg-[#B7B7A4]"></div>
+            </div>
+            <h4 class="serif text-xl mb-2 italic">Beloved Guests</h4>
+            <p
+              class="text-[10px] text-stone-400 uppercase tracking-[0.2em] mb-2"
+            >
+              Formal / Semi-Formal
+            </p>
+            <p class="text-xs text-stone-500 italic leading-relaxed">
+              Please wear earthy tones from our palette. We kindly ask to avoid
+              white, cream, or ivory.
+            </p>
+          </div>
+        </div>
+      </div>
+    </section>
+
+    <!-- SCHEDULE SECTION (UPDATED TIMES) -->
     <section
       id="schedule"
       class="py-24 bg-white/50 border-y border-stone-100 flex flex-col items-center justify-center min-h-[70vh]"
@@ -231,9 +901,31 @@
           The Day of Celebration
         </h2>
         <div class="relative">
+          <!-- The Connecting Line -->
           <div
             class="absolute left-[7px] top-2 bottom-2 w-[2px] bg-[#FFB7C5]/30"
           ></div>
+
+          <!-- 2:30 PM -->
+          <div class="mb-16 relative pl-12">
+            <div
+              class="absolute left-0 top-1.5 w-4 h-4 rounded-full bg-[#FFB7C5] border-4 border-white shadow-sm z-10"
+            ></div>
+            <div>
+              <span
+                class="text-[10px] uppercase tracking-[0.2em] text-[#7b8a5b] font-bold"
+                >2:30 PM</span
+              >
+              <h4 class="serif text-2xl text-stone-800 italic mt-1">
+                Guest Arrival
+              </h4>
+              <p class="text-stone-500 text-sm leading-relaxed mt-1">
+                We look forward to welcoming you as you find your seats.
+              </p>
+            </div>
+          </div>
+
+          <!-- 3:00 PM -->
           <div class="mb-16 relative pl-12">
             <div
               class="absolute left-0 top-1.5 w-4 h-4 rounded-full bg-[#FFB7C5] border-4 border-white shadow-sm z-10"
@@ -244,19 +936,45 @@
                 >3:00 PM</span
               >
               <h4 class="serif text-2xl text-stone-800 italic mt-1">
-                The Ceremony
+                Wedding Ceremony
               </h4>
               <p
                 class="text-xs text-stone-400 uppercase tracking-widest mt-1 mb-2"
               >
-                CCF East Ortigas
+                CCF East Ortigas Main Hall
               </p>
               <p class="text-stone-500 text-sm leading-relaxed">
-                Witness the exchange of vows as we commit our lives to one
-                another before God.
+                The exchange of vows and official start of our life together.
               </p>
             </div>
           </div>
+
+          <!-- 4:30 PM -->
+          <div class="mb-16 relative pl-12">
+            <div
+              class="absolute left-0 top-1.5 w-4 h-4 rounded-full bg-[#FFB7C5] border-4 border-white shadow-sm z-10"
+            ></div>
+            <div>
+              <span
+                class="text-[10px] uppercase tracking-[0.2em] text-[#7b8a5b] font-bold"
+                >4:30 PM</span
+              >
+              <h4 class="serif text-2xl text-stone-800 italic mt-1">
+                Cocktails & Photos
+              </h4>
+              <p
+                class="text-xs text-stone-400 uppercase tracking-widest mt-1 mb-2"
+              >
+                CCF East Ortigas Lobby
+              </p>
+              <p class="text-stone-500 text-sm leading-relaxed">
+                Enjoy light refreshments while we capture moments with our
+                family and entourage.
+              </p>
+            </div>
+          </div>
+
+          <!-- 5:30 PM -->
           <div class="relative pl-12">
             <div
               class="absolute left-0 top-1.5 w-4 h-4 rounded-full bg-[#FFB7C5] border-4 border-white shadow-sm z-10"
@@ -267,16 +985,15 @@
                 >5:30 PM</span
               >
               <h4 class="serif text-2xl text-stone-800 italic mt-1">
-                The Reception
+                Dinner & Reception
               </h4>
               <p
                 class="text-xs text-stone-400 uppercase tracking-widest mt-1 mb-2"
               >
-                CCF East Ortigas Hall
+                CCF East Ortigas Main Hall
               </p>
               <p class="text-stone-500 text-sm leading-relaxed">
-                Join us for a joyful celebration with dinner and dancing
-                immediately following the ceremony.
+                Time for food, heartfelt toasts, and a night of celebration!
               </p>
             </div>
           </div>
@@ -284,14 +1001,209 @@
       </div>
     </section>
 
-    <!-- RSVP SECTION -->
+    <!-- RULES & GIFTS -->
+    <section
+      id="gifting"
+      class="py-24 px-6 max-w-5xl mx-auto grid grid-cols-1 md:grid-cols-2 gap-16 relative z-10"
+    >
+      <div class="space-y-6">
+        <h2 class="text-3xl serif italic text-[#7b8a5b]">Wedding Notes</h2>
+        <ul class="space-y-6 text-sm text-stone-600 leading-relaxed">
+          <li class="flex items-start gap-4">
+            <span class="text-[#FFB7C5] text-xl">✿</span>
+            <span
+              ><strong>Unplugged Ceremony:</strong> We invite you to be fully
+              present with us. Please keep your phones and cameras away during
+              the ceremony.</span
+            >
+          </li>
+          <li class="flex items-start gap-4">
+            <span class="text-[#FFB7C5] text-xl">✿</span>
+            <span
+              ><strong>Strict RSVP:</strong> As we have limited seating, we can
+              only accommodate guests on the official guest list.</span
+            >
+          </li>
+          <li class="flex items-start gap-4">
+            <span class="text-[#FFB7C5] text-xl">✿</span>
+            <span
+              ><strong>RSVP Deadline:</strong> Kindly let us know if you can
+              make it by May 15, 2026.</span
+            >
+          </li>
+        </ul>
+      </div>
+
+      <div class="space-y-8">
+        <h2 class="text-3xl serif italic text-[#7b8a5b]">Gifting</h2>
+        <p class="text-sm text-stone-600 leading-relaxed italic">
+          Your presence is the greatest gift. However, should you wish to honor
+          us with a contribution towards our new home, you may do so below:
+        </p>
+
+        <div class="grid grid-cols-3 gap-4 text-center">
+          <!-- BPI -->
+          <div
+            class="group cursor-pointer"
+            onclick="window.openQRModal('./assets/qr-bpi.jpg', 'BPI')"
+          >
+            <div
+              class="relative overflow-hidden rounded-xl bg-white p-2 shadow-sm border border-stone-100 group-hover:border-[#7b8a5b] transition-all"
+            >
+              <img
+                src="./assets/qr-bpi.jpg"
+                class="w-full aspect-square object-cover"
+                alt="BPI QR"
+              />
+              <div
+                class="absolute inset-0 bg-[#7b8a5b]/10 opacity-0 group-hover:opacity-100 transition-opacity flex items-center justify-center"
+              >
+                <span
+                  class="text-[8px] font-bold text-[#7b8a5b] bg-white/90 px-2 py-1 rounded shadow-sm"
+                  >VIEW LARGER</span
+                >
+              </div>
+            </div>
+            <p
+              class="text-[9px] mt-3 uppercase font-bold tracking-widest text-stone-400 group-hover:text-[#7b8a5b]"
+            >
+              BPI
+            </p>
+          </div>
+
+          <!-- Maribank -->
+          <div
+            class="group cursor-pointer"
+            onclick="window.openQRModal('./assets/qr-maribank.jpg', 'Maribank')"
+          >
+            <div
+              class="relative overflow-hidden rounded-xl bg-white p-2 shadow-sm border border-stone-100 group-hover:border-[#7b8a5b] transition-all"
+            >
+              <img
+                src="./assets/qr-maribank.jpg"
+                class="w-full aspect-square object-cover"
+                alt="Maribank QR"
+              />
+              <div
+                class="absolute inset-0 bg-[#7b8a5b]/10 opacity-0 group-hover:opacity-100 transition-opacity flex items-center justify-center"
+              >
+                <span
+                  class="text-[8px] font-bold text-[#7b8a5b] bg-white/90 px-2 py-1 rounded shadow-sm"
+                  >VIEW LARGER</span
+                >
+              </div>
+            </div>
+            <p
+              class="text-[9px] mt-3 uppercase font-bold tracking-widest text-stone-400 group-hover:text-[#7b8a5b]"
+            >
+              Maribank
+            </p>
+          </div>
+
+          <!-- Gcash -->
+          <div
+            class="group cursor-pointer"
+            onclick="window.openQRModal('./assets/qr-gcash.jpg', 'Gcash')"
+          >
+            <div
+              class="relative overflow-hidden rounded-xl bg-white p-2 shadow-sm border border-stone-100 group-hover:border-[#7b8a5b] transition-all"
+            >
+              <img
+                src="./assets/qr-gcash.jpg"
+                class="w-full aspect-square object-cover"
+                alt="Gcash QR"
+              />
+              <div
+                class="absolute inset-0 bg-[#7b8a5b]/10 opacity-0 group-hover:opacity-100 transition-opacity flex items-center justify-center"
+              >
+                <span
+                  class="text-[8px] font-bold text-[#7b8a5b] bg-white/90 px-2 py-1 rounded shadow-sm"
+                  >VIEW LARGER</span
+                >
+              </div>
+            </div>
+            <p
+              class="text-[9px] mt-3 uppercase font-bold tracking-widest text-stone-400 group-hover:text-[#7b8a5b]"
+            >
+              Gcash
+            </p>
+          </div>
+        </div>
+      </div>
+    </section>
+
+    <!-- FULL SCREEN QR LIGHTBOX -->
+    <div
+      id="qrLightbox"
+      class="fixed inset-0 z-[500] hidden flex flex-col items-center justify-center p-6 bg-stone-900/60 backdrop-blur-md opacity-0 transition-opacity duration-300"
+      onclick="if(event.target === this) window.closeQRModal()"
+    >
+      <button
+        onclick="window.closeQRModal()"
+        class="absolute top-8 right-8 text-white hover:text-[#FFB7C5] text-3xl z-[510]"
+      >
+        ✕
+      </button>
+
+      <div
+        class="max-w-sm w-full bg-white p-8 rounded-[2.5rem] shadow-2xl text-center relative z-[510]"
+        onclick="event.stopPropagation()"
+      >
+        <p id="lightboxTitle" class="serif italic text-[#7b8a5b] text-3xl mb-6">
+          Bank Name
+        </p>
+        <div class="bg-stone-50 p-4 rounded-2xl mb-8">
+          <img
+            id="lightboxImg"
+            src=""
+            class="w-full aspect-square object-contain rounded-lg"
+            alt="QR Large"
+          />
+        </div>
+
+        <div class="space-y-4">
+          <a
+            id="downloadQR"
+            href=""
+            download
+            class="block w-full bg-[#7b8a5b] text-white py-4 rounded-full font-bold tracking-widest uppercase text-[10px] hover:bg-[#6a784d] transition-all shadow-lg shadow-[#7b8a5b]/20"
+          >
+            Download QR Code
+          </a>
+          <button
+            onclick="window.closeQRModal()"
+            class="text-[9px] uppercase tracking-[0.2em] text-stone-400 font-bold hover:text-stone-600 transition-all"
+          >
+            Close Preview
+          </button>
+        </div>
+      </div>
+    </div>
+
+    <!-- RSVP SECTION (WITH MINIMAL REMINDER) -->
     <section id="rsvp" class="py-24 px-6 bg-[#f9f7f2]">
       <div
         class="max-w-md mx-auto bg-white p-10 rounded-2xl shadow-xl border border-stone-100 relative overflow-hidden"
       >
+        <!-- Minimal Reminder Info-Bar -->
+        <div class="mb-10 text-center space-y-1">
+          <p
+            class="text-[9px] uppercase tracking-[0.3em] font-bold text-[#7b8a5b]"
+          >
+            Charlie <span class="italic font-normal">&</span> Karla
+          </p>
+          <p
+            class="text-[10px] uppercase tracking-widest text-stone-400 italic"
+          >
+            July 02, 2026 • CCF East Ortigas • 3:00 PM
+          </p>
+          <div class="w-12 h-[1px] bg-stone-100 mx-auto mt-4"></div>
+        </div>
+
         <h2 class="text-3xl text-center mb-10 serif text-stone-800 italic">
           Will You Join Us?
         </h2>
+
         <form id="rsvpForm" class="space-y-8 relative z-10">
           <div class="relative">
             <label
@@ -310,7 +1222,7 @@
               id="nameErrorMsg"
               class="hidden text-[#FFB7C5] text-[10px] mt-2 italic uppercase tracking-widest"
             >
-              Name not found. Please use the suggestions.
+              Name not found.
             </p>
             <div
               id="autocomplete-list"
@@ -337,11 +1249,8 @@
             SEND RSVP
           </button>
         </form>
-        <div id="successMsg" class="hidden text-center py-10">
+        <div id="successMsg" class="hidden text-center py-10 animate-fade-in">
           <p class="font-serif italic text-3xl text-[#7b8a5b]">Thank you!</p>
-          <p class="text-stone-400 text-xs uppercase tracking-widest mt-2">
-            Response received successfully.
-          </p>
         </div>
       </div>
     </section>
