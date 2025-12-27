@@ -1,0 +1,123 @@
+<!DOCTYPE html>
+<html lang="en">
+  <head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <title>Notes + Calendar</title>
+
+    <!-- External Libraries -->
+    <script src="https://cdn.tailwindcss.com"></script>
+    <script src="https://cdn.jsdelivr.net/npm/fullcalendar@6.1.10/index.global.min.js"></script>
+
+    <!-- Google Identity Services & API -->
+    <script src="https://accounts.google.com/gsi/client" async defer></script>
+    <script src="https://apis.google.com/js/api.js" async defer></script>
+
+    <link rel="stylesheet" href="style.css" />
+  </head>
+  <body class="bg-slate-50 text-slate-900">
+    <div class="flex h-screen">
+      <!-- SIDEBAR -->
+      <aside class="w-80 bg-white border-r flex flex-col shadow-lg z-10">
+        <div class="p-6 border-b flex justify-between items-center">
+          <h1 class="text-xl font-bold tracking-tight">My Notes</h1>
+          <button
+            onclick="openNoteModal()"
+            class="bg-blue-600 hover:bg-blue-700 text-white p-2 rounded-full transition shadow-md"
+          >
+            <svg
+              xmlns="http://www.w3.org/2000/svg"
+              width="20"
+              height="20"
+              viewBox="0 0 24 24"
+              fill="none"
+              stroke="currentColor"
+              stroke-width="2"
+              stroke-linecap="round"
+              stroke-linejoin="round"
+            >
+              <line x1="12" y1="5" x2="12" y2="19"></line>
+              <line x1="5" y1="12" x2="19" y2="12"></line>
+            </svg>
+          </button>
+        </div>
+
+        <div id="notesList" class="flex-1 overflow-y-auto p-4 space-y-3">
+          <!-- Notes will be injected here -->
+        </div>
+
+        <div class="p-4 border-t bg-gray-50">
+          <button
+            id="auth_button"
+            onclick="handleAuthClick()"
+            class="w-full py-2.5 bg-white border border-gray-300 rounded-lg hover:bg-gray-100 transition text-sm font-medium flex items-center justify-center gap-2"
+          >
+            <img
+              src="https://www.gstatic.com/images/branding/product/1x/calendar_2020q4_48dp.png"
+              class="w-4 h-4"
+            />
+            Sync Google Calendar
+          </button>
+          <button
+            id="signout_button"
+            onclick="handleSignoutClick()"
+            class="hidden w-full mt-2 py-1 text-xs text-gray-400 hover:text-red-500 transition"
+          >
+            Disconnect Google
+          </button>
+        </div>
+      </aside>
+
+      <!-- MAIN CALENDAR -->
+      <main class="flex-1 p-6 lg:p-10 overflow-y-auto">
+        <div id="calendar" class="h-full shadow-xl"></div>
+      </main>
+    </div>
+
+    <!-- NOTE MODAL -->
+    <div
+      id="noteModal"
+      class="hidden fixed inset-0 bg-slate-900/50 backdrop-blur-sm flex items-center justify-center p-4 z-50"
+    >
+      <div
+        class="bg-white rounded-2xl shadow-2xl p-6 w-full max-w-md transform transition-all"
+      >
+        <input
+          id="noteTitle"
+          type="text"
+          placeholder="Note Title"
+          class="w-full text-2xl font-bold mb-2 outline-none border-b border-transparent focus:border-blue-200 pb-2"
+        />
+        <textarea
+          id="noteBody"
+          rows="6"
+          placeholder="Start typing your note..."
+          class="w-full outline-none resize-none text-gray-600"
+        ></textarea>
+
+        <div class="mt-6 flex justify-between items-center">
+          <span
+            id="modalDateDisplay"
+            class="text-xs font-semibold uppercase tracking-wider text-gray-400"
+          ></span>
+          <div class="flex gap-2">
+            <button
+              onclick="closeModal()"
+              class="px-4 py-2 text-sm text-gray-500 hover:text-gray-700"
+            >
+              Cancel
+            </button>
+            <button
+              onclick="saveNote()"
+              class="px-6 py-2 bg-blue-600 text-white rounded-lg font-medium hover:shadow-lg transition"
+            >
+              Save
+            </button>
+          </div>
+        </div>
+      </div>
+    </div>
+
+    <script src="script.js"></script>
+  </body>
+</html>
