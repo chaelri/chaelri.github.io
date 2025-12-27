@@ -1,4 +1,3 @@
-// 1. IMPORT FIREBASE SDKS
 import { initializeApp } from "https://www.gstatic.com/firebasejs/10.7.1/firebase-app.js";
 import {
   getDatabase,
@@ -9,7 +8,6 @@ import {
   child,
 } from "https://www.gstatic.com/firebasejs/10.7.1/firebase-database.js";
 
-// YOUR FIREBASE CONFIG
 const firebaseConfig = {
   apiKey: "AIzaSyBNPdSYJXuzvmdEHIeHGkbPmFnZxUq1lAg",
   authDomain: "charlie-karla-wedding.firebaseapp.com",
@@ -21,151 +19,144 @@ const firebaseConfig = {
   appId: "1:954582649260:web:393fcc0fddafeb571f5209",
 };
 
-// INITIALIZE
 const app = initializeApp(firebaseConfig);
 const db = getDatabase(app);
 let masterGuestList = [];
 
-// DOM ELEMENTS
+// --- 1. INTRO ANIMATION & SMOOTH EXIT ---
+document.addEventListener("DOMContentLoaded", () => {
+  const overlay = document.getElementById("floral-overlay");
+  const mono = document.getElementById("intro-monogram");
+  const flowers = document.querySelectorAll(".floral-element");
+  const modal = document.getElementById("welcomeModal");
+  const closeBtn = document.getElementById("closeModalBtn");
+
+  document.body.style.overflow = "hidden";
+
+  // A. Monogram In
+  setTimeout(() => {
+    mono.style.opacity = "1";
+  }, 500);
+
+  // B. Monogram Out, Flowers Glide In
+  setTimeout(() => {
+    mono.style.opacity = "0";
+    flowers.forEach((f) => f.classList.add("floral-center"));
+  }, 2500);
+
+  // C. Show Modal
+  setTimeout(() => {
+    modal.classList.remove("hidden");
+    setTimeout(() => {
+      modal.style.opacity = "1";
+    }, 50);
+  }, 4500);
+
+  // D. EXIT SEQUENCE (No Jumps)
+  closeBtn.addEventListener("click", () => {
+    // Unlock scrolling immediately for the user
+    document.body.style.overflow = "auto";
+    // Make overlay ignore all mouse events so user can interact with site
+    overlay.style.pointerEvents = "none";
+
+    modal.style.transition = "opacity 0.8s ease";
+    modal.style.opacity = "0";
+
+    // Glide flowers back to the void
+    setTimeout(() => {
+      flowers.forEach((f) => f.classList.remove("floral-center"));
+    }, 200);
+
+    // Fade background color slowly
+    overlay.style.transition = "background-color 2s ease, opacity 2.5s ease";
+    overlay.style.backgroundColor = "transparent";
+
+    setTimeout(() => {
+      overlay.style.opacity = "0";
+      // Finally hide it from DOM after everything is invisible
+      setTimeout(() => {
+        overlay.style.display = "none";
+      }, 2000);
+    }, 500);
+  });
+});
+
+// --- 2. FIREBASE & RSVP ---
+get(child(ref(db), "guestList")).then((snapshot) => {
+  if (snapshot.exists())
+    masterGuestList = Object.values(snapshot.val()).map((g) => g.name);
+});
+
 const nameInput = document.getElementById("guestName");
 const listContainer = document.getElementById("autocomplete-list");
-const nameErrorMsg = document.getElementById("nameErrorMsg");
-const rsvpForm = document.getElementById("rsvpForm");
-const successMsg = document.getElementById("successMsg");
-const modal = document.getElementById("welcomeModal");
-const closeBtn = document.getElementById("closeModalBtn");
 
-// --- 1. FETCH GUEST LIST FOR TYPE-AHEAD ---
-const dbRef = ref(db);
-get(child(dbRef, "guestList"))
-  .then((snapshot) => {
-    if (snapshot.exists()) {
-      const data = snapshot.val();
-      // Map the names into our local array
-      masterGuestList = Object.values(data).map((guest) => guest.name);
-      console.log("Guest list loaded:", masterGuestList.length, "names found.");
-    }
-  })
-  .catch((error) => console.error("Error fetching guest list:", error));
-
-// --- 2. TYPE-AHEAD / AUTOCOMPLETE LOGIC ---
 nameInput.addEventListener("input", function () {
   const val = this.value;
-  closeAllLists();
-
-  // Reset visual error state as user types
+  listContainer.innerHTML = "";
+  listContainer.classList.add("hidden");
   nameInput.classList.remove("border-error", "shake");
-  if (nameErrorMsg) nameErrorMsg.classList.add("hidden");
 
-  if (!val || val.length < 2) return false;
-
-  const matches = masterGuestList.filter((name) =>
-    name.toLowerCase().includes(val.toLowerCase())
+  if (!val || val.length < 2) return;
+  const matches = masterGuestList.filter((n) =>
+    n.toLowerCase().includes(val.toLowerCase())
   );
 
   if (matches.length > 0) {
     listContainer.classList.remove("hidden");
     matches.forEach((name) => {
-      const item = document.createElement("div");
-      item.className = "suggestion-item";
-      item.innerHTML = name.replace(
-        new RegExp(val, "gi"),
-        (match) => `<strong>${match}</strong>`
-      );
-
-      item.addEventListener("click", function () {
+      const div = document.createElement("div");
+      div.className = "suggestion-item";
+      div.innerHTML = `<strong>${name}</strong>`;
+      div.onclick = () => {
         nameInput.value = name;
-        closeAllLists();
-        // Remove error if they select a valid name
-        nameInput.classList.remove("border-error");
-        if (nameErrorMsg) nameErrorMsg.classList.add("hidden");
-      });
-      listContainer.appendChild(item);
+        listContainer.classList.add("hidden");
+      };
+      listContainer.appendChild(div);
     });
   }
 });
 
-function closeAllLists() {
-  listContainer.innerHTML = "";
-  listContainer.classList.add("hidden");
-}
-
-document.addEventListener("click", (e) => {
-  if (e.target !== nameInput) closeAllLists();
-});
-
-// --- 3. RSVP SUBMISSION + VALIDATION ---
-if (rsvpForm) {
-  rsvpForm.addEventListener("submit", async (e) => {
-    e.preventDefault();
-
-    const typedName = nameInput.value.trim();
-    const submitBtn = rsvpForm.querySelector("button");
-
-    // VALIDATION: Check if name is in master list (Case Insensitive)
-    const isNameValid = masterGuestList.some(
-      (name) => name.toLowerCase() === typedName.toLowerCase()
-    );
-
-    if (!isNameValid) {
-      // Trigger Error UI
-      nameInput.classList.add("border-error", "shake");
-      if (nameErrorMsg) nameErrorMsg.classList.remove("hidden");
-
-      // Remove shake class after animation so it can trigger again
-      setTimeout(() => nameInput.classList.remove("shake"), 500);
-      return; // STOP HERE
-    }
-
-    // If valid, proceed to save
-    submitBtn.disabled = true;
-    submitBtn.innerText = "SAVING...";
-
-    try {
-      const rsvpRef = ref(db, "rsvps");
-      const newRsvpRef = push(rsvpRef);
-
-      await set(newRsvpRef, {
-        guestName: typedName,
-        attending: document.getElementById("attendance").value,
-        submittedAt: new Date().toISOString(),
-      });
-
-      rsvpForm.classList.add("hidden");
-      successMsg.classList.remove("hidden");
-    } catch (error) {
-      console.error("Firebase Error:", error);
-      alert("Error saving RSVP. Please try again.");
-      submitBtn.disabled = false;
-      submitBtn.innerText = "SEND RSVP";
-    }
-  });
-}
-
-// --- 4. MODAL LOGIC ---
-document.body.style.overflow = "hidden"; // Start locked
-if (closeBtn) {
-  closeBtn.addEventListener("click", () => {
-    modal.classList.add("hidden");
-    document.body.style.overflow = "auto";
-  });
-}
-
-// --- 5. COUNTDOWN LOGIC ---
-const weddingDate = new Date("July 2, 2026 16:00:00").getTime();
-setInterval(() => {
-  const now = new Date().getTime();
-  const distance = weddingDate - now;
-
-  const days = Math.floor(distance / (1000 * 60 * 60 * 24));
-  const hours = Math.floor(
-    (distance % (1000 * 60 * 60 * 24)) / (1000 * 60 * 60)
+document.getElementById("rsvpForm").onsubmit = async (e) => {
+  e.preventDefault();
+  const typedName = nameInput.value.trim();
+  const isValid = masterGuestList.some(
+    (n) => n.toLowerCase() === typedName.toLowerCase()
   );
-  const minutes = Math.floor((distance % (1000 * 60 * 60)) / (1000 * 60));
-  const seconds = Math.floor((distance % (1000 * 60)) / 1000);
 
-  const countdownEl = document.getElementById("countdown");
-  if (countdownEl) {
-    countdownEl.innerHTML = `${days}d ${hours}h ${minutes}m ${seconds}s`;
+  if (!isValid) {
+    nameInput.classList.add("border-error", "shake");
+    document.getElementById("nameErrorMsg").classList.remove("hidden");
+    setTimeout(() => nameInput.classList.remove("shake"), 500);
+    return;
   }
+
+  const submitBtn = e.target.querySelector("button");
+  submitBtn.innerText = "SAVING...";
+  submitBtn.disabled = true;
+
+  try {
+    await push(ref(db, "rsvps"), {
+      guestName: typedName,
+      attending: document.getElementById("attendance").value,
+      submittedAt: new Date().toISOString(),
+    });
+    document.getElementById("rsvpForm").classList.add("hidden");
+    document.getElementById("successMsg").classList.remove("hidden");
+  } catch (err) {
+    alert("Error saving RSVP.");
+    submitBtn.innerText = "SEND RSVP";
+    submitBtn.disabled = false;
+  }
+};
+
+// --- 3. COUNTDOWN ---
+setInterval(() => {
+  const dist =
+    new Date("July 2, 2026 16:00:00").getTime() - new Date().getTime();
+  const days = Math.floor(dist / (1000 * 60 * 60 * 24));
+  const hrs = Math.floor((dist % (1000 * 60 * 60 * 24)) / (1000 * 60 * 60));
+  const mins = Math.floor((dist % (1000 * 60 * 60)) / (1000 * 60));
+  const secs = Math.floor((dist % (1000 * 60)) / 1000);
+  const el = document.getElementById("countdown");
+  if (el) el.innerHTML = `${days}d ${hrs}h ${mins}m ${secs}s`;
 }, 1000);

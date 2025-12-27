@@ -9,21 +9,36 @@ body {
 
 /* Custom Scrollbar */
 ::-webkit-scrollbar {
-  width: 5px;
+  width: 4px;
 }
 ::-webkit-scrollbar-thumb {
   background: #7b8a5b;
   border-radius: 10px;
 }
 
-table {
-  border-spacing: 0;
-  width: 100%;
-}
-
+/* Sticky Header */
 th {
   position: sticky;
   top: 0;
+  z-index: 20;
   background: #f9fbf9;
-  z-index: 10;
+}
+
+/* Sort Icon Styling */
+.sort-icon {
+  font-size: 12px;
+  opacity: 0.3;
+}
+
+/* Specific Mobile Tweaks for the Table */
+@media (max-width: 640px) {
+  th,
+  td {
+    padding: 10px 8px !important;
+    font-size: 11px !important;
+  }
+
+  .status-select {
+    font-size: 10px !important;
+  }
 }

@@ -4,7 +4,6 @@
     <meta charset="UTF-8" />
     <meta name="viewport" content="width=device-width, initial-scale=1.0" />
     <title>Charlie & Karla | July 02, 2026</title>
-
     <script src="https://cdn.tailwindcss.com"></script>
     <link
       href="https://fonts.googleapis.com/css2?family=Playfair+Display:ital,wght@0,400;0,700;1,400&family=Inter:wght@300;400;600&display=swap"
@@ -13,52 +12,72 @@
     <link rel="stylesheet" href="./style.css" />
   </head>
   <body class="bg-[#faf9f6] text-stone-800">
-    <!-- WELCOME MODAL -->
+    <!-- INTRO OVERLAY (Highest Layer) -->
     <div
-      id="welcomeModal"
-      class="fixed inset-0 z-[100] flex items-center justify-center p-4 modal-overlay backdrop-blur-sm"
+      id="floral-overlay"
+      class="fixed inset-0 z-[200] overflow-hidden flex items-center justify-center bg-[#faf9f6]"
     >
+      <!-- Monogram Intro -->
       <div
-        class="bg-white rounded-3xl max-w-lg w-full p-8 md:p-10 shadow-2xl animate-fade-in border border-stone-100 relative overflow-hidden text-center"
+        id="intro-monogram"
+        class="absolute inset-0 flex items-center justify-center opacity-0 z-[210] transition-opacity duration-1000"
       >
-        <img
-          src="./assets/monogram.png"
-          alt="C&K"
-          class="h-12 w-auto mx-auto mb-4 opacity-80"
-        />
-        <h2 class="text-3xl serif italic text-[#7b8a5b] mb-6">
-          Message from the Couple
-        </h2>
+        <img src="./assets/monogram.png" class="w-64 md:w-96" alt="C&K" />
+      </div>
 
-        <div class="space-y-5 text-stone-600 leading-relaxed mb-8 text-center">
-          <div
-            class="bg-[#f8f9f5] border border-[#e2e8d8] p-4 rounded-xl text-xs md:text-sm text-[#5f6b45] italic"
-          >
-            "We humbly request NOT to share this link as our guests are limited
-            only. Thank you!"
-          </div>
-          <p class="text-sm md:text-base px-4">
-            By God’s grace, we’re finally tying the knot! We can't wait to
-            celebrate His faithfulness with food, dancing, and all of you.
-          </p>
-          <div class="pt-2">
-            <p class="serif italic text-lg text-stone-800">
-              With all our love,
-            </p>
-            <p
-              class="font-bold tracking-widest text-[#7b8a5b] text-sm uppercase"
-            >
-              Charlie & Karla
-            </p>
-          </div>
-        </div>
+      <!-- Flowers (Glide In/Out) -->
+      <img src="./assets/5.png" id="fl-5" class="floral-element" />
+      <img src="./assets/6.png" id="fl-6" class="floral-element" />
+      <img src="./assets/7.png" id="fl-7" class="floral-element" />
+      <img src="./assets/8.png" id="fl-8" class="floral-element" />
+      <img src="./assets/9.png" id="fl-9" class="floral-element" />
+      <img src="./assets/10.png" id="fl-10" class="floral-element" />
 
-        <button
-          id="closeModalBtn"
-          class="w-full bg-[#7b8a5b] text-white py-4 rounded-full font-bold tracking-[0.2em] hover:bg-[#6a784d] transition-all duration-300 text-sm"
+      <!-- WELCOME MODAL -->
+      <div
+        id="welcomeModal"
+        class="relative z-[220] opacity-0 hidden transition-opacity duration-1000 w-full max-w-lg px-4"
+      >
+        <div
+          class="bg-white/95 backdrop-blur-md rounded-3xl p-8 md:p-10 shadow-2xl border border-stone-100 text-center"
         >
-          CONTINUE
-        </button>
+          <img
+            src="./assets/monogram.png"
+            alt="C&K"
+            class="h-12 w-auto mx-auto mb-4 opacity-80"
+          />
+          <h2 class="text-3xl serif italic text-[#7b8a5b] mb-6">
+            Message from the Couple
+          </h2>
+          <div class="space-y-5 text-stone-600 leading-relaxed mb-8">
+            <div
+              class="bg-[#f8f9f5] border border-[#e2e8d8] p-4 rounded-xl text-xs md:text-sm text-[#5f6b45] italic"
+            >
+              "We humbly request NOT to share this link as our guests are
+              limited only. Thank you!"
+            </div>
+            <p class="text-sm md:text-base px-4">
+              By God’s grace, we’re finally tying the knot! We can't wait to
+              celebrate His faithfulness with food, dancing, and all of you.
+            </p>
+            <div class="pt-2">
+              <p class="serif italic text-lg text-stone-800">
+                With all our love,
+              </p>
+              <p
+                class="font-bold tracking-widest text-[#7b8a5b] text-sm uppercase"
+              >
+                Charlie & Karla
+              </p>
+            </div>
+          </div>
+          <button
+            id="closeModalBtn"
+            class="w-full bg-[#7b8a5b] text-white py-4 rounded-full font-bold tracking-[0.2em] hover:bg-[#6a784d] transition-all duration-300 text-sm"
+          >
+            CONTINUE
+          </button>
+        </div>
       </div>
     </div>
 
@@ -89,28 +108,26 @@
       </div>
     </nav>
 
-    <!-- HERO SECTION (50/50 Layout) -->
+    <!-- HERO SECTION -->
     <section
       class="min-h-screen flex flex-col md:flex-row overflow-hidden relative"
     >
       <div
-        class="md:w-1/2 h-[70vh] md:h-auto bg-cover bg-center"
+        class="md:w-1/2 h-[50vh] md:h-auto bg-cover bg-center"
         style="background-image: url('./assets/hero-portrait.jpg')"
       ></div>
-
       <div
-        class="md:w-1/2 flex flex-col justify-center items-center p-8 md:p-16 text-center bg-white relative floral-bg"
+        class="md:w-1/2 flex flex-col justify-center items-center p-8 md:p-16 text-center bg-white relative"
       >
         <p class="text-stone-400 uppercase tracking-[0.4em] text-[10px] mb-8">
           You are invited for the wedding of
         </p>
-
         <h1
           class="text-5xl md:text-7xl mb-4 serif tracking-tight text-stone-800"
         >
-          Charlie <span class="text-[#FFB7C5] italic font-normal">&</span> Karla
+          Charlie
+          <span class="ampersand-animate italic font-normal">&</span> Karla
         </h1>
-
         <div
           class="space-y-2 mb-8 py-6 border-y border-stone-100 w-full max-w-sm"
         >
@@ -121,14 +138,12 @@
             CCF East Ortigas • 3:00 PM
           </p>
         </div>
-
         <div
           id="countdown"
           class="text-xl font-mono mb-10 text-stone-300 tracking-widest"
         >
           00D 00H 00M 00S
         </div>
-
         <a
           href="#rsvp"
           class="px-12 py-4 bg-[#7b8a5b] text-white rounded-full hover:bg-[#6a784d] transition-all duration-300 shadow-lg tracking-widest text-xs font-bold uppercase"
@@ -140,143 +155,98 @@
     <!-- STORY SECTION -->
     <section
       id="story"
-      class="py-20 px-6 max-w-4xl mx-auto text-center relative"
+      class="py-24 px-6 max-w-5xl mx-auto relative min-h-screen flex flex-col justify-center"
     >
-      <!-- Subtle Monogram Watermark -->
       <img
         src="./assets/monogram.png"
         alt=""
         class="absolute inset-0 m-auto opacity-[0.03] w-96 pointer-events-none"
       />
-
-      <h2 class="text-4xl serif italic text-[#7b8a5b] mb-12">Our Journey</h2>
-
-      <div class="space-y-12 relative z-10">
-        <div class="flex flex-col md:flex-row items-center gap-8 text-left">
-          <div class="md:w-1/2">
-            <h3 class="serif text-xl text-stone-700 mb-2 italic">How we met</h3>
-            <p class="text-stone-600 leading-relaxed text-sm md:text-base">
-              It all started with a simple hello... [Insert a brief, sweet
-              detail about how Charlie & Karla met]. What began as a friendship
-              soon blossomed into something beautiful, guided by faith and
-              laughter.
-            </p>
-          </div>
-          <div class="md:w-1/2 border-8 border-white shadow-sm rotate-2">
-            <!-- Placeholder for a story image -->
-            <img
-              src="https://images.unsplash.com/photo-1515934751635-c81c6bc9a2d8?auto=format&fit=crop&q=80&w=600"
-              alt="Us"
-              class="w-full grayscale-[20%]"
-            />
-          </div>
-        </div>
-
-        <div
-          class="flex flex-col md:flex-row-reverse items-center gap-8 text-left"
-        >
-          <div class="md:w-1/2">
-            <h3 class="serif text-xl text-stone-700 mb-2 italic">
-              The Proposal
+      <h2 class="text-4xl serif italic text-[#7b8a5b] mb-16 text-center">
+        Our Journey
+      </h2>
+      <div class="space-y-20 relative z-10">
+        <div class="flex flex-col md:flex-row items-center gap-12">
+          <div class="md:w-1/2 text-center md:text-left">
+            <h3 class="serif text-2xl text-stone-700 mb-4 italic">
+              How we met
             </h3>
-            <p class="text-stone-600 leading-relaxed text-sm md:text-base">
-              Under the warmth of the sun and surrounded by the beauty of
-              nature, Charlie asked the biggest question of their lives. It was
-              an easy "Yes" for Karla, knowing they were walking into God's
-              perfect timing.
+            <p class="text-stone-600 leading-relaxed text-base">
+              A story of faith, laughter, and God's perfect timing. [Your
+              meeting story goes here.]
             </p>
           </div>
-          <div class="md:w-1/2 border-8 border-white shadow-sm -rotate-2">
-            <img
-              src="https://images.unsplash.com/photo-1522673607200-1648832cee77?auto=format&fit=crop&q=80&w=600"
-              alt="Proposal"
-              class="w-full grayscale-[20%]"
-            />
+          <div class="md:w-1/2">
+            <div
+              class="border-[12px] border-white shadow-xl rotate-2 overflow-hidden"
+            >
+              <img
+                src="https://images.unsplash.com/photo-1515934751635-c81c6bc9a2d8?auto=format&fit=crop&q=80&w=800"
+                class="w-full h-auto grayscale-[10%]"
+                alt="Us"
+              />
+            </div>
           </div>
         </div>
       </div>
     </section>
 
     <!-- SCHEDULE SECTION -->
-    <section id="schedule" class="py-20 bg-white/50 border-y border-stone-100">
-      <div class="max-w-xl mx-auto px-8">
-        <h2 class="text-4xl text-center serif italic text-[#7b8a5b] mb-16">
+    <section
+      id="schedule"
+      class="py-24 bg-white/50 border-y border-stone-100 flex flex-col items-center justify-center min-h-screen"
+    >
+      <div class="max-w-xl w-full px-8">
+        <h2 class="text-4xl text-center serif italic text-[#7b8a5b] mb-20">
           The Day of Celebration
         </h2>
-
-        <!-- Timeline Container -->
         <div class="relative">
-          <!-- THE LINE: Fixed position relative to the dots -->
           <div
             class="absolute left-[7px] top-2 bottom-2 w-[2px] bg-[#FFB7C5]/30"
           ></div>
-
-          <!-- Item 1 -->
-          <div class="mb-12 relative pl-10">
-            <!-- THE DOT -->
+          <div class="mb-16 relative pl-12">
             <div
               class="absolute left-0 top-1.5 w-4 h-4 rounded-full bg-[#FFB7C5] border-4 border-white shadow-sm z-10"
             ></div>
-
             <div>
               <span
                 class="text-[10px] uppercase tracking-[0.2em] text-[#7b8a5b] font-bold"
                 >3:00 PM</span
               >
-              <h4 class="serif text-xl text-stone-800 italic">The Ceremony</h4>
-              <p class="text-xs text-stone-400 uppercase tracking-widest mt-1">
+              <h4 class="serif text-2xl text-stone-800 italic mt-1">
+                The Ceremony
+              </h4>
+              <p
+                class="text-xs text-stone-400 uppercase tracking-widest mt-1 mb-2"
+              >
                 CCF East Ortigas
               </p>
-              <p class="text-stone-500 text-sm mt-3 leading-relaxed">
+              <p class="text-stone-500 text-sm leading-relaxed">
                 Witness the exchange of vows as we commit our lives to one
-                another before God and our loved ones.
+                another before God.
               </p>
             </div>
           </div>
-
-          <!-- Item 2 -->
-          <div class="mb-12 relative pl-10">
-            <!-- THE DOT -->
+          <div class="relative pl-12">
             <div
               class="absolute left-0 top-1.5 w-4 h-4 rounded-full bg-[#FFB7C5] border-4 border-white shadow-sm z-10"
             ></div>
-
             <div>
               <span
                 class="text-[10px] uppercase tracking-[0.2em] text-[#7b8a5b] font-bold"
                 >5:30 PM</span
               >
-              <h4 class="serif text-xl text-stone-800 italic">
-                Cocktails & Dinner
+              <h4 class="serif text-2xl text-stone-800 italic mt-1">
+                The Reception
               </h4>
-              <p class="text-xs text-stone-400 uppercase tracking-widest mt-1">
-                Reception Hall (Still at CCF EAST ORTIGAS)
-              </p>
-              <p class="text-stone-500 text-sm mt-3 leading-relaxed">
-                Time for food, heartfelt toasts, and the beginning of the
-                celebration!
-              </p>
-            </div>
-          </div>
-
-          <!-- Item 3 -->
-          <div class="relative pl-10">
-            <!-- THE DOT -->
-            <div
-              class="absolute left-0 top-1.5 w-4 h-4 rounded-full bg-[#FFB7C5] border-4 border-white shadow-sm z-10"
-            ></div>
-
-            <div>
-              <span
-                class="text-[10px] uppercase tracking-[0.2em] text-[#7b8a5b] font-bold"
-                >7:30 PM</span
+              <p
+                class="text-xs text-stone-400 uppercase tracking-widest mt-1 mb-2"
               >
-              <h4 class="serif text-xl text-stone-800 italic">
-                Dancing & Send-off
-              </h4>
-              <p class="text-stone-500 text-sm mt-3 leading-relaxed">
-                Put on your dancing shoes as we end the night with joy and a
-                festive farewell.
+                CCF East Ortigas Hall
+              </p>
+              <p class="text-stone-500 text-sm leading-relaxed">
+                Join us for a joyful celebration with dinner and dancing
+                immediately following the ceremony.
               </p>
             </div>
           </div>
@@ -292,7 +262,6 @@
         <h2 class="text-3xl text-center mb-10 serif text-stone-800 italic">
           Will You Join Us?
         </h2>
-
         <form id="rsvpForm" class="space-y-8 relative z-10">
           <div class="relative">
             <label
@@ -307,22 +276,17 @@
               placeholder="Start typing your name..."
               class="w-full p-3 border-b border-stone-200 focus:outline-none focus:border-[#7b8a5b] bg-transparent"
             />
-
-            <!-- THIS IS THE ERROR MESSAGE (Spring Pink) -->
             <p
               id="nameErrorMsg"
               class="hidden text-[#FFB7C5] text-[10px] mt-2 italic uppercase tracking-widest"
             >
-              Sorry, name not found. Please use the suggestions.
+              Name not found. Please use the suggestions.
             </p>
-
-            <!-- THIS IS THE SUGGESTION BOX -->
             <div
               id="autocomplete-list"
               class="absolute z-50 w-full bg-white shadow-2xl rounded-b-lg border border-stone-50 hidden max-h-60 overflow-y-auto"
             ></div>
           </div>
-
           <div>
             <label
               class="block text-[10px] uppercase tracking-widest mb-3 font-bold text-stone-400"
@@ -336,7 +300,6 @@
               <option value="no">Regretfully Declines</option>
             </select>
           </div>
-
           <button
             type="submit"
             class="w-full bg-[#7b8a5b] text-white py-4 rounded-full font-bold tracking-[0.2em] hover:bg-[#6a784d] transition-all shadow-lg uppercase text-xs"
@@ -344,20 +307,15 @@
             SEND RSVP
           </button>
         </form>
-
-        <!-- SUCCESS MESSAGE -->
-        <div id="successMsg" class="hidden text-center py-6 animate-fade-in">
-          <p class="font-serif italic text-2xl text-[#7b8a5b]">Thank you!</p>
-          <p
-            class="text-sm text-stone-400 mt-2 uppercase tracking-widest text-[10px]"
-          >
+        <div id="successMsg" class="hidden text-center py-10">
+          <p class="font-serif italic text-3xl text-[#7b8a5b]">Thank you!</p>
+          <p class="text-stone-400 text-xs uppercase tracking-widest mt-2">
             Response received successfully.
           </p>
         </div>
       </div>
     </section>
 
-    <!-- Your External JS -->
     <script type="module" src="./script.js"></script>
   </body>
 </html>

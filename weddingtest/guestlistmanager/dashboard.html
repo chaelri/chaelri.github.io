@@ -3,7 +3,7 @@
   <head>
     <meta charset="UTF-8" />
     <meta name="viewport" content="width=device-width, initial-scale=1.0" />
-    <title>C&K | Guest Management</title>
+    <title>C&K | Guest Manager Pro</title>
     <script src="https://cdn.tailwindcss.com"></script>
     <link
       href="https://fonts.googleapis.com/css2?family=Playfair+Display:ital,wght@0,700;1,700&family=Inter:wght@400;600&display=swap"
@@ -11,106 +11,144 @@
     />
     <link rel="stylesheet" href="./dashboard.css" />
   </head>
-  <body class="bg-[#faf9f6] hidden" id="adminContent">
-    <nav
-      class="p-6 bg-white border-b border-stone-200 flex justify-between items-center"
-    >
-      <h1 class="serif italic text-2xl text-[#7b8a5b]">Guest Management</h1>
-      <a
-        href="../index.html"
-        class="text-xs uppercase tracking-widest text-stone-400 hover:text-stone-800"
-        >Back to Site</a
-      >
+  <body class="bg-[#faf9f6]">
+    <nav class="p-4 bg-white border-b border-stone-200 sticky top-0 z-50">
+      <div class="max-w-6xl mx-auto flex justify-between items-center">
+        <h1 class="serif italic text-xl md:text-2xl text-[#7b8a5b]">
+          Guest Management
+        </h1>
+        <a
+          href="../index.html"
+          class="text-[10px] uppercase tracking-widest text-stone-400 hover:text-stone-800"
+          >Back to Site</a
+        >
+      </div>
     </nav>
 
-    <main class="max-w-6xl mx-auto p-6">
-      <!-- STATS OVERVIEW -->
-      <div class="grid grid-cols-1 md:grid-cols-4 gap-6 mb-10">
-        <div class="bg-white p-6 rounded-xl shadow-sm border border-stone-100">
-          <p class="text-[10px] uppercase tracking-widest text-stone-400">
-            Total Guest List
+    <main class="max-w-6xl mx-auto p-4 md:p-6">
+      <!-- STATS OVERVIEW (4 in a row on mobile) -->
+      <div class="grid grid-cols-4 gap-2 md:gap-6 mb-8">
+        <div
+          class="bg-white p-3 md:p-6 rounded-xl shadow-sm border border-stone-100 text-center md:text-left"
+        >
+          <p
+            class="text-[8px] md:text-[10px] uppercase tracking-tighter md:tracking-widest text-stone-400 font-bold"
+          >
+            Total
           </p>
-          <p id="stat-total" class="text-3xl serif text-stone-800">0</p>
-        </div>
-        <div class="bg-white p-6 rounded-xl shadow-sm border border-stone-100">
-          <p class="text-[10px] uppercase tracking-widest text-green-500">
-            Joyfully Accepts
+          <p id="stat-total" class="text-lg md:text-3xl serif text-stone-800">
+            0
           </p>
-          <p id="stat-yes" class="text-3xl serif text-green-600">0</p>
         </div>
-        <div class="bg-white p-6 rounded-xl shadow-sm border border-stone-100">
-          <p class="text-[10px] uppercase tracking-widest text-red-400">
-            Declined
+        <div
+          class="bg-white p-3 md:p-6 rounded-xl shadow-sm border border-stone-100 text-center md:text-left"
+        >
+          <p
+            class="text-[8px] md:text-[10px] uppercase tracking-tighter md:tracking-widest text-green-500 font-bold"
+          >
+            Yes
           </p>
-          <p id="stat-no" class="text-3xl serif text-red-500">0</p>
+          <p id="stat-yes" class="text-lg md:text-3xl serif text-green-600">
+            0
+          </p>
         </div>
-        <div class="bg-white p-6 rounded-xl shadow-sm border border-stone-100">
-          <p class="text-[10px] uppercase tracking-widest text-orange-400">
+        <div
+          class="bg-white p-3 md:p-6 rounded-xl shadow-sm border border-stone-100 text-center md:text-left"
+        >
+          <p
+            class="text-[8px] md:text-[10px] uppercase tracking-tighter md:tracking-widest text-red-400 font-bold"
+          >
+            No
+          </p>
+          <p id="stat-no" class="text-lg md:text-3xl serif text-red-500">0</p>
+        </div>
+        <div
+          class="bg-white p-3 md:p-6 rounded-xl shadow-sm border border-stone-100 text-center md:text-left"
+        >
+          <p
+            class="text-[8px] md:text-[10px] uppercase tracking-tighter md:tracking-widest text-orange-400 font-bold"
+          >
             Pending
           </p>
-          <p id="stat-pending" class="text-3xl serif text-orange-500">0</p>
+          <p
+            id="stat-pending"
+            class="text-lg md:text-3xl serif text-orange-500"
+          >
+            0
+          </p>
         </div>
       </div>
 
-      <div class="grid grid-cols-1 lg:grid-cols-3 gap-10">
-        <!-- ADD GUEST FORM -->
-        <div class="lg:col-span-1">
+      <div class="grid grid-cols-1 lg:grid-cols-4 gap-8">
+        <!-- LEFT COLUMN: ADD GUEST -->
+        <div class="lg:col-span-1 space-y-6">
           <div
-            class="bg-white p-8 rounded-2xl shadow-sm border border-stone-100 sticky top-24"
+            class="bg-white p-6 rounded-2xl shadow-sm border border-stone-100"
           >
-            <h2 class="serif text-xl mb-6 italic">Add New Guest</h2>
+            <h2 class="serif text-lg mb-4 italic">Add New Guest</h2>
             <form id="addGuestForm" class="space-y-4">
               <input
                 type="text"
                 id="newGuestName"
-                placeholder="Full Name (e.g. John Doe)"
-                class="w-full p-3 border-b border-stone-200 focus:outline-none focus:border-[#7b8a5b] bg-transparent"
+                placeholder="Full Name"
+                class="w-full p-2 border-b border-stone-200 focus:outline-none focus:border-[#7b8a5b] bg-transparent text-sm"
               />
               <button
                 type="submit"
-                class="w-full bg-[#7b8a5b] text-white py-3 rounded-lg font-bold text-xs uppercase tracking-widest hover:bg-[#6a784d] transition"
+                class="w-full bg-[#7b8a5b] text-white py-2 rounded-lg font-bold text-[10px] uppercase tracking-widest hover:bg-[#6a784d]"
               >
                 Add to List
               </button>
             </form>
-            <p
-              class="mt-6 text-[10px] text-stone-400 leading-relaxed uppercase"
-            >
-              Note: Guests added here will immediately appear in the RSVP
-              autocomplete search.
-            </p>
+          </div>
+
+          <!-- SEARCH/FILTER -->
+          <div
+            class="bg-white p-6 rounded-2xl shadow-sm border border-stone-100"
+          >
+            <h2 class="serif text-lg mb-4 italic">Quick Search</h2>
+            <input
+              type="text"
+              id="searchInput"
+              placeholder="Find a name..."
+              class="w-full p-2 border border-stone-100 rounded bg-stone-50 text-sm focus:outline-none focus:ring-1 focus:ring-[#7b8a5b]"
+            />
           </div>
         </div>
 
-        <!-- GUEST TABLE -->
-        <div class="lg:col-span-2">
+        <!-- RIGHT COLUMN: TABLE -->
+        <div class="lg:col-span-3">
           <div
             class="bg-white rounded-2xl shadow-sm border border-stone-100 overflow-hidden"
           >
-            <table class="w-full text-left border-collapse">
-              <thead>
-                <tr class="bg-stone-50 border-b border-stone-100">
-                  <th
-                    class="p-4 text-[10px] uppercase tracking-widest text-stone-500 font-bold"
-                  >
-                    Name
-                  </th>
-                  <th
-                    class="p-4 text-[10px] uppercase tracking-widest text-stone-500 font-bold"
-                  >
-                    Status
-                  </th>
-                  <th
-                    class="p-4 text-[10px] uppercase tracking-widest text-stone-500 font-bold text-right"
-                  >
-                    Action
-                  </th>
-                </tr>
-              </thead>
-              <tbody id="guestTableBody" class="text-sm text-stone-600">
-                <!-- Rows injected by JS -->
-              </tbody>
-            </table>
+            <div class="overflow-x-auto">
+              <table class="w-full text-left border-collapse min-w-[500px]">
+                <thead>
+                  <tr class="bg-stone-50 border-b border-stone-100">
+                    <th
+                      class="p-4 text-[10px] uppercase tracking-widest text-stone-500 font-bold cursor-pointer hover:text-[#7b8a5b]"
+                      id="sortName"
+                    >
+                      Name <span class="sort-icon">↕</span>
+                    </th>
+                    <th
+                      class="p-4 text-[10px] uppercase tracking-widest text-stone-500 font-bold cursor-pointer hover:text-[#7b8a5b]"
+                      id="sortStatus"
+                    >
+                      Status <span class="sort-icon">↕</span>
+                    </th>
+                    <th
+                      class="p-4 text-[10px] uppercase tracking-widest text-stone-500 font-bold"
+                    >
+                      Actions
+                    </th>
+                  </tr>
+                </thead>
+                <tbody id="guestTableBody" class="text-sm text-stone-600">
+                  <!-- JS Injected Rows -->
+                </tbody>
+              </table>
+            </div>
           </div>
         </div>
       </div>

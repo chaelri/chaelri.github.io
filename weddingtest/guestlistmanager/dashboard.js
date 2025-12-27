@@ -6,9 +6,11 @@ import {
   set,
   onValue,
   remove,
+  update,
+  query,
+  orderByChild,
 } from "https://www.gstatic.com/firebasejs/10.7.1/firebase-database.js";
 
-// REUSE YOUR CONFIG
 const firebaseConfig = {
   apiKey: "AIzaSyBNPdSYJXuzvmdEHIeHGkbPmFnZxUq1lAg",
   authDomain: "charlie-karla-wedding.firebaseapp.com",
@@ -23,106 +25,201 @@ const firebaseConfig = {
 const app = initializeApp(firebaseConfig);
 const db = getDatabase(app);
 
-// SIMPLE SECURITY: Only you and Karla know the password
+let allData = [];
+let sortConfig = { key: "name", direction: "asc" };
+let searchTerm = "";
 
-document.getElementById("adminContent").classList.remove("hidden");
-
-const tableBody = document.getElementById("guestTableBody");
-const addForm = document.getElementById("addGuestForm");
-
-// REAL-TIME LISTENER
-function loadData() {
+// LOAD DATA
+function init() {
   const guestListRef = ref(db, "guestList");
   const rsvpRef = ref(db, "rsvps");
 
-  onValue(guestListRef, (guestSnapshot) => {
-    onValue(rsvpRef, (rsvpSnapshot) => {
-      const guests = guestSnapshot.val() || {};
-      const rsvps = rsvpSnapshot.val() || {};
-      renderTable(guests, rsvps);
+  onValue(guestListRef, (guestSnap) => {
+    onValue(rsvpRef, (rsvpSnap) => {
+      const guests = guestSnap.val() || {};
+      const rsvps = Object.values(rsvpSnap.val() || {});
+
+      // Combine data
+      allData = Object.entries(guests).map(([id, guest]) => {
+        const response = rsvps.find(
+          (r) => r.guestName.toLowerCase() === guest.name.toLowerCase()
+        );
+        return {
+          id,
+          name: guest.name,
+          status: response ? response.attending : "pending",
+          submittedAt: response ? response.submittedAt : null,
+        };
+      });
+      render();
     });
   });
 }
 
-function renderTable(guests, rsvps) {
+function render() {
+  const tableBody = document.getElementById("guestTableBody");
   tableBody.innerHTML = "";
-  let stats = { total: 0, yes: 0, no: 0, pending: 0 };
 
-  // Convert RSVPs to a searchable map by Name (Case Insensitive)
-  const rsvpMap = {};
-  Object.values(rsvps).forEach((r) => {
-    rsvpMap[r.guestName.toLowerCase()] = r.attending;
+  // Filter by search
+  let displayData = allData.filter((item) =>
+    item.name.toLowerCase().includes(searchTerm.toLowerCase())
+  );
+
+  // Sort
+  displayData.sort((a, b) => {
+    let valA = a[sortConfig.key].toLowerCase();
+    let valB = b[sortConfig.key].toLowerCase();
+    if (valA < valB) return sortConfig.direction === "asc" ? -1 : 1;
+    if (valA > valB) return sortConfig.direction === "asc" ? 1 : -1;
+    return 0;
   });
 
-  Object.entries(guests).forEach(([id, guest]) => {
-    stats.total++;
-    const status = rsvpMap[guest.name.toLowerCase()] || "pending";
-    if (status === "yes") stats.yes++;
-    else if (status === "no") stats.no++;
-    else stats.pending++;
-
+  displayData.forEach((guest) => {
     const row = document.createElement("tr");
-    row.className = "border-b border-stone-50 hover:bg-stone-50/50 transition";
+    row.className = `border-b border-stone-50 hover:bg-stone-50 transition ${
+      guest.status === "no" ? "bg-red-50/30" : ""
+    }`;
+
     row.innerHTML = `
-            <td class="p-4 font-medium text-stone-800">${guest.name}</td>
             <td class="p-4">
-                <span class="px-3 py-1 rounded-full text-[10px] font-bold uppercase tracking-widest 
+                <div class="font-medium text-stone-800">${guest.name}</div>
                 ${
-                  status === "yes"
-                    ? "bg-green-100 text-green-700"
-                    : status === "no"
-                    ? "bg-red-100 text-red-700"
-                    : "bg-stone-100 text-stone-500"
-                }">
-                    ${status}
-                </span>
+                  guest.submittedAt
+                    ? `<div class="text-[9px] text-stone-400 italic">Replied: ${new Date(
+                        guest.submittedAt
+                      ).toLocaleDateString()}</div>`
+                    : ""
+                }
             </td>
-            <td class="p-4 text-right">
-                <button class="delete-btn text-stone-300 hover:text-red-500 transition" data-id="${id}">
-                    Delete
-                </button>
+            <td class="p-4">
+                <select class="status-select bg-transparent text-xs font-bold uppercase tracking-widest outline-none cursor-pointer p-1 rounded
+                    ${
+                      guest.status === "yes"
+                        ? "text-green-600"
+                        : guest.status === "no"
+                        ? "text-red-500"
+                        : "text-stone-400"
+                    }" 
+                    data-name="${guest.name}">
+                    <option value="pending" ${
+                      guest.status === "pending" ? "selected" : ""
+                    }>Pending</option>
+                    <option value="yes" ${
+                      guest.status === "yes" ? "selected" : ""
+                    }>Yes</option>
+                    <option value="no" ${
+                      guest.status === "no" ? "selected" : ""
+                    }>No</option>
+                </select>
+            </td>
+            <td class="p-4 space-x-3 text-right">
+                <button onclick="editGuestName('${guest.id}', '${
+      guest.name
+    }')" class="text-blue-400 hover:text-blue-600 text-xs font-bold uppercase">Edit</button>
+                <button onclick="deleteGuest('${
+                  guest.id
+                }')" class="text-stone-300 hover:text-red-500 text-xs font-bold uppercase">Del</button>
             </td>
         `;
     tableBody.appendChild(row);
   });
 
   // Update Stats
-  document.getElementById("stat-total").innerText = stats.total;
-  document.getElementById("stat-yes").innerText = stats.yes;
-  document.getElementById("stat-no").innerText = stats.no;
-  document.getElementById("stat-pending").innerText = stats.pending;
+  document.getElementById("stat-total").innerText = allData.length;
+  document.getElementById("stat-yes").innerText = allData.filter(
+    (g) => g.status === "yes"
+  ).length;
+  document.getElementById("stat-no").innerText = allData.filter(
+    (g) => g.status === "no"
+  ).length;
+  document.getElementById("stat-pending").innerText = allData.filter(
+    (g) => g.status === "pending"
+  ).length;
 
-  // Attach Delete Listeners
-  document.querySelectorAll(".delete-btn").forEach((btn) => {
-    btn.onclick = () => deleteGuest(btn.getAttribute("data-id"));
+  // Attach Select Listeners
+  document.querySelectorAll(".status-select").forEach((select) => {
+    select.onchange = (e) =>
+      updateManualStatus(e.target.dataset.name, e.target.value);
   });
 }
 
-// ADD GUEST
-addForm.onsubmit = async (e) => {
-  e.preventDefault();
-  const nameInput = document.getElementById("newGuestName");
-  const name = nameInput.value.trim();
-  if (!name) return;
+// --- ACTIONS ---
 
-  try {
-    const newListRef = push(ref(db, "guestList"));
-    await set(newListRef, { name: name });
-    nameInput.value = "";
-  } catch (e) {
-    console.error(e);
+window.updateManualStatus = async (guestName, newStatus) => {
+  const rsvpRef = ref(db, "rsvps");
+  // First, remove any existing RSVP for this person to avoid duplicates
+  onValue(
+    rsvpRef,
+    async (snap) => {
+      const data = snap.val();
+      if (data) {
+        Object.entries(data).forEach(([key, val]) => {
+          if (val.guestName.toLowerCase() === guestName.toLowerCase()) {
+            remove(ref(db, `rsvps/${key}`));
+          }
+        });
+      }
+    },
+    { onlyOnce: true }
+  );
+
+  if (newStatus !== "pending") {
+    const newRsvpRef = push(ref(db, "rsvps"));
+    await set(newRsvpRef, {
+      guestName: guestName,
+      attending: newStatus,
+      submittedAt: new Date().toISOString(),
+      manual: true,
+    });
   }
 };
 
-// DELETE GUEST
-async function deleteGuest(id) {
-  if (
-    confirm(
-      "Are you sure you want to remove this guest from the list? They will no longer be able to RSVP."
-    )
-  ) {
+window.editGuestName = async (id, oldName) => {
+  const newName = prompt("Edit Guest Name:", oldName);
+  if (newName && newName !== oldName) {
+    await update(ref(db, `guestList/${id}`), { name: newName });
+    // Optional: you could also search rsvps and update the name there to keep data synced
+  }
+};
+
+window.deleteGuest = async (id) => {
+  if (confirm("Delete this guest?")) {
     await remove(ref(db, `guestList/${id}`));
   }
-}
+};
 
-loadData();
+// SORTING LOGIC
+document.getElementById("sortName").onclick = () => {
+  sortConfig.direction =
+    sortConfig.key === "name" && sortConfig.direction === "asc"
+      ? "desc"
+      : "asc";
+  sortConfig.key = "name";
+  render();
+};
+
+document.getElementById("sortStatus").onclick = () => {
+  sortConfig.direction =
+    sortConfig.key === "status" && sortConfig.direction === "asc"
+      ? "desc"
+      : "asc";
+  sortConfig.key = "status";
+  render();
+};
+
+// SEARCH LOGIC
+document.getElementById("searchInput").oninput = (e) => {
+  searchTerm = e.target.value;
+  render();
+};
+
+// ADD GUEST
+document.getElementById("addGuestForm").onsubmit = async (e) => {
+  e.preventDefault();
+  const input = document.getElementById("newGuestName");
+  if (!input.value.trim()) return;
+  await push(ref(db, "guestList"), { name: input.value.trim() });
+  input.value = "";
+};
+
+init();

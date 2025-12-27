@@ -1,68 +1,125 @@
-/* Color & Texture Variables */
 :root {
   --sage: #7b8a5b;
-  --sage-dark: #6a784d;
   --cream: #faf9f6;
-  --spring-pink: #ffb7c5; /* Cherry Blossom Pink from your invite */
 }
 
 body {
   font-family: "Inter", sans-serif;
   scroll-behavior: smooth;
-  /* Soft paper texture - This link is very stable */
-  background-image: url("https://www.transparenttextures.com/patterns/paper-fibers.png");
   background-color: var(--cream);
+  background-image: url("https://www.transparenttextures.com/patterns/paper-fibers.png");
+  overflow-x: hidden;
 }
 
 .serif {
   font-family: "Playfair Display", serif;
 }
 
-/* MODAL STYLES */
-.modal-overlay {
-  background: rgba(44, 48, 36, 0.4);
+/* --- FLOWER TRANSITIONS --- */
+.floral-element {
+  transition: all 2.5s cubic-bezier(0.22, 1, 0.36, 1);
+  pointer-events: none;
+  position: absolute;
+  opacity: 0;
+  z-index: 205;
 }
 
-@keyframes modalFadeIn {
-  from {
-    opacity: 0;
-    transform: translateY(20px);
+/* Off-screen START/END Positions */
+#fl-5 {
+  top: -150%;
+  left: -50%;
+  transform: rotate(-45deg) scale(1.5);
+}
+#fl-6 {
+  top: 50%;
+  left: -150%;
+  transform: rotate(90deg) scale(1.5);
+}
+#fl-7 {
+  top: -150%;
+  right: -50%;
+  transform: rotate(45deg) scale(1.5);
+}
+#fl-8 {
+  bottom: -150%;
+  left: 0%;
+  transform: scale(1.5);
+}
+#fl-9 {
+  bottom: 50%;
+  right: -150%;
+  transform: rotate(-90deg) scale(1.5);
+}
+#fl-10 {
+  bottom: -150%;
+  right: -20%;
+  transform: rotate(-45deg) scale(1.5);
+}
+
+/* Center Formation */
+.floral-center {
+  opacity: 1 !important;
+}
+#fl-5.floral-center {
+  top: -5%;
+  left: -5%;
+  transform: rotate(-5deg);
+}
+#fl-7.floral-center {
+  top: -5%;
+  right: -5%;
+  transform: rotate(5deg);
+}
+#fl-6.floral-center {
+  top: 30%;
+  left: -10%;
+}
+#fl-8.floral-center {
+  top: 30%;
+  right: -10%;
+}
+#fl-9.floral-center {
+  bottom: -5%;
+  left: -5%;
+  transform: rotate(5deg);
+}
+#fl-10.floral-center {
+  bottom: -5%;
+  right: -5%;
+  transform: rotate(-5deg);
+}
+
+/* AMPERSAND CYCLE */
+.ampersand-animate {
+  animation: springColorCycle 8s infinite;
+  transition: color 0.5s ease-in-out;
+}
+@keyframes springColorCycle {
+  0%,
+  20% {
+    color: #ffb7c5;
   }
-  to {
-    opacity: 1;
-    transform: translateY(0);
+  25%,
+  45% {
+    color: #7b8a5b;
+  }
+  50%,
+  70% {
+    color: #d4a373;
+  }
+  75%,
+  95% {
+    color: #b07d88;
+  }
+  100% {
+    color: #ffb7c5;
   }
 }
 
-.animate-fade-in {
-  animation: modalFadeIn 0.4s ease-out forwards;
-}
-
-/* TYPE-AHEAD SUGGESTIONS */
-.suggestion-item {
-  padding: 12px 20px;
-  cursor: pointer;
-  font-size: 13px;
-  border-bottom: 1px solid #f9f7f2;
-}
-.suggestion-item:hover {
-  background-color: #f9f7f2;
-  color: var(--sage);
-}
-.suggestion-item strong {
-  color: var(--sage);
-}
-
-/* VALIDATION STATES */
-.border-error {
-  border-bottom: 2px solid #ef4444 !important;
-}
-
+/* UI UTILS */
 .shake {
-  /* Reduced from 0.5s to 0.2s for a snap effect */
   animation: shake 0.2s ease-in-out;
 }
-
 @keyframes shake {
   0%,
   100% {
@@ -77,77 +134,24 @@ body {
     transform: translateX(6px);
   }
 }
-
-/* --- SPRING VIBE: FLORAL DECORATIONS --- */
-
-/* Floral Accent in the Hero Text Side */
-.floral-bg::after {
-  content: "";
-  position: absolute;
-  bottom: -40px;
-  right: -40px;
-  width: 320px;
-  height: 320px;
-  /* High-quality stable watercolor flower link */
-  background-image: url("https://www.transparentpng.com/download/watercolor/flower-watercolor-images-free-10.png");
-  background-size: contain;
-  background-repeat: no-repeat;
-  background-position: bottom right;
-  opacity: 0.6;
-  pointer-events: none;
-  z-index: 1;
+.suggestion-item {
+  padding: 12px;
+  cursor: pointer;
+  border-bottom: 1px solid #f2f2f2;
+  font-size: 13px;
+}
+.suggestion-item:hover {
+  background: #f9f9f9;
+  color: var(--sage);
+}
+.border-error {
+  border-bottom: 2px solid #ffb7c5 !important;
 }
 
-/* Soft watercolor wash background to make the text side feel like stationery */
-.floral-bg {
-  background-image: radial-gradient(
-    circle at top left,
-    #fffbf2 0%,
-    #ffffff 100%
-  );
-}
-
-@media (max-width: 768px) {
-  .floral-bg::after {
-    width: 200px;
-    height: 200px;
-    bottom: -10px;
-    right: -10px;
-  }
-}
-
-/* CUSTOM SCROLLBAR */
-::-webkit-scrollbar {
-  width: 6px;
-}
-::-webkit-scrollbar-thumb {
-  background: var(--sage);
-  border-radius: 10px;
-}
-
-/* Story Image Frames */
+/* Section Refinements */
 #story img {
-  display: block;
-  transition: transform 0.3s ease;
+  transition: transform 0.5s ease;
 }
-
-#story .rotate-2:hover,
-#story .-rotate-2:hover {
-  transform: rotate(0deg) scale(1.02);
-}
-
-/* TIMELINE FIX */
-#schedule .relative {
-  /* Ensures the line and dots are contained properly */
-}
-
-/* Optional: Add a subtle fade to the ends of the line */
-#schedule .absolute.left-\[7px\] {
-  background: linear-gradient(
-    to bottom,
-    transparent,
-    rgba(255, 183, 197, 0.4) 10%,
-    rgba(255, 183, 197, 0.4) 90%,
-    transparent
-  );
+#story .rotate-2:hover {
+  transform: rotate(0deg) scale(1.05);
 }
