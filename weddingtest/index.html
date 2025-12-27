@@ -1,0 +1,134 @@
+<!DOCTYPE html>
+<html lang="en">
+  <head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <title>Charlie & Karla Wedding</title>
+
+    <!-- Tailwind CSS CDN -->
+    <script src="https://cdn.tailwindcss.com"></script>
+    <!-- Google Fonts -->
+    <link
+      href="https://fonts.googleapis.com/css2?family=Playfair+Display:ital,wght@0,400;0,700;1,400&family=Inter:wght@300;400;600&display=swap"
+      rel="stylesheet"
+    />
+    <!-- Your Custom CSS -->
+    <link rel="stylesheet" href="./style.css" />
+  </head>
+  <body class="bg-pastel text-gray-800">
+    <!-- WELCOME MODAL -->
+    <div
+      id="welcomeModal"
+      class="fixed inset-0 z-50 flex items-center justify-center p-4 modal-overlay"
+    >
+      <div
+        class="bg-white rounded-2xl max-w-2xl w-full p-8 shadow-2xl animate-fade-in"
+      >
+        <h2 class="text-3xl mb-6 text-center serif italic">
+          Message from the Couple
+        </h2>
+        <div
+          class="space-y-4 text-sm md:text-base leading-relaxed overflow-y-auto max-h-[50vh] pr-2"
+        >
+          <p>Dear Family & Friends,</p>
+          <p class="font-semibold text-red-700">
+            Welcome to our wedding website! We humbly request NOT to share this
+            link as our guests are limited only.
+          </p>
+          <p>
+            By God’s grace, we’re finally tying the knot! We can't wait to
+            celebrate His faithfulness with food, dancing, and all of you.
+          </p>
+          <p class="pt-4 italic">With all our love,<br />Charlie & Karla</p>
+        </div>
+        <button
+          id="closeModalBtn"
+          class="mt-8 w-full bg-stone-800 text-white py-3 rounded-full hover:bg-stone-700 transition"
+        >
+          Continue
+        </button>
+      </div>
+    </div>
+
+    <!-- HERO SECTION -->
+    <section class="min-h-screen flex flex-col md:flex-row">
+      <div class="md:w-1/2 h-80 md:h-auto bg-cover bg-center hero-img">
+        <!-- Background set in style.css -->
+      </div>
+      <div
+        class="md:w-1/2 flex flex-col justify-center items-center p-8 text-center bg-white"
+      >
+        <h1 class="text-5xl md:text-7xl mb-4 serif tracking-tight">
+          Charlie & Karla
+        </h1>
+        <p class="text-lg italic mb-8">
+          July 2, 2026 • CCF East Ortigas (SM East Ortigas)
+        </p>
+
+        <div
+          id="countdown"
+          class="text-2xl font-mono mb-8 p-4 border-y border-stone-200 w-full"
+        >
+          00d 00h 00m 00s
+        </div>
+
+        <a
+          href="#rsvp"
+          class="px-12 py-4 bg-stone-800 text-white rounded-full hover:scale-105 transition-transform duration-300"
+          >RSVP NOW</a
+        >
+      </div>
+    </section>
+
+    <!-- RSVP SECTION -->
+    <section id="rsvp" class="py-20 px-6 bg-stone-50">
+      <div
+        class="max-w-md mx-auto bg-white p-10 rounded-2xl shadow-lg border border-stone-100"
+      >
+        <h2 class="text-3xl text-center mb-8 serif">Will You Join Us?</h2>
+        <form id="rsvpForm" class="space-y-6">
+          <div>
+            <label
+              class="block text-xs uppercase tracking-widest mb-2 font-bold text-gray-500"
+              >Full Name</label
+            >
+            <input
+              type="text"
+              id="guestName"
+              required
+              class="w-full p-3 border-b border-stone-300 focus:outline-none focus:border-stone-800 transition"
+            />
+          </div>
+          <div>
+            <label
+              class="block text-xs uppercase tracking-widest mb-2 font-bold text-gray-500"
+              >Attendance</label
+            >
+            <select
+              id="attendance"
+              class="w-full p-3 border-b border-stone-300 focus:outline-none"
+            >
+              <option value="yes">Joyfully Accepts</option>
+              <option value="no">Regretfully Declines</option>
+            </select>
+          </div>
+          <button
+            type="submit"
+            class="w-full bg-stone-800 text-white py-4 rounded-lg font-bold tracking-widest hover:bg-stone-900 transition"
+          >
+            SEND RSVP
+          </button>
+        </form>
+        <div
+          id="successMsg"
+          class="hidden text-center p-4 bg-green-50 text-green-700 rounded-lg"
+        >
+          Thank you! We've received your RSVP.
+        </div>
+      </div>
+    </section>
+
+    <!-- Your External JS (Must be type="module" for Firebase) -->
+    <script type="module" src="./script.js"></script>
+  </body>
+</html>
