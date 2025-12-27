@@ -322,7 +322,7 @@ function loadBooks() {
 }
 function showLanding() {
   lockAppScroll(true);
-  document.querySelector('.summary').style.display = 'none'
+  document.querySelector(".summary").style.display = "none";
 
   output.innerHTML = `
     <div class="landing">
@@ -411,8 +411,8 @@ async function fetchAllOriginsUnli(url) {
 async function loadPassage() {
   showLoading();
   lockAppScroll(false);
-  updatePassageTitle()
-  document.querySelector('.summary').style.display = 'block'
+  updatePassageTitle();
+  document.querySelector(".summary").style.display = "block";
 
   passageTitleEl.hidden = false;
   toggleReflectionBtn.hidden = false;
@@ -556,6 +556,8 @@ async function runAIForCurrentPassage() {
     aiContextSummaryEl.innerHTML = cached.contextHTML;
     document.getElementById("aiReflection").innerHTML = cached.reflectionHTML;
     applyReflectionVisibility();
+
+    initializeReflections();
     return;
   }
 
@@ -855,6 +857,8 @@ ${versesText}
       const id = `reflection-${devotionId()}-${i}`;
       ta.id = id;
     });
+
+    initializeReflections();
   } catch (e) {
     console.error(e);
   }
@@ -1051,19 +1055,19 @@ const observer = new MutationObserver(() => initializeReflections());
 observer.observe(document.body, { childList: true, subtree: true });
 initializeReflections();
 
-document.addEventListener('keydown', (e) => {
-    // 1. Check if the focus is in your specific comment textarea
-    const textArea = e.target.closest('.comment-input textarea');
-    if (!textArea) return;
+document.addEventListener("keydown", (e) => {
+  // 1. Check if the focus is in your specific comment textarea
+  const textArea = e.target.closest(".comment-input textarea");
+  if (!textArea) return;
 
-    // 2. Check for the Enter key (Key Code 13)
-    // We also check !e.shiftKey so users can still do a new line with Shift+Enter if they want
-    if (e.key === 'Enter' && !e.shiftKey) {
-        e.preventDefault(); // Prevents the actual new line from being added
+  // 2. Check for the Enter key (Key Code 13)
+  // We also check !e.shiftKey so users can still do a new line with Shift+Enter if they want
+  if (e.key === "Enter" && !e.shiftKey) {
+    e.preventDefault(); // Prevents the actual new line from being added
 
-        const addButton = textArea.parentElement.querySelector('button');
-        if (addButton) {
-            addButton.click();
-        }
+    const addButton = textArea.parentElement.querySelector("button");
+    if (addButton) {
+      addButton.click();
     }
+  }
 });
