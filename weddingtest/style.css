@@ -35,7 +35,7 @@ body {
 }
 
 .animate-fade-in {
-  animation: modalFadeIn 0.8s ease-out forwards;
+  animation: modalFadeIn 0.4s ease-out forwards;
 }
 
 /* TYPE-AHEAD SUGGESTIONS */
@@ -59,7 +59,8 @@ body {
 }
 
 .shake {
-  animation: shake 0.5s ease-in-out;
+  /* Reduced from 0.5s to 0.2s for a snap effect */
+  animation: shake 0.2s ease-in-out;
 }
 
 @keyframes shake {
@@ -67,11 +68,13 @@ body {
   100% {
     transform: translateX(0);
   }
-  25% {
-    transform: translateX(-5px);
+  20%,
+  60% {
+    transform: translateX(-6px);
   }
-  75% {
-    transform: translateX(5px);
+  40%,
+  80% {
+    transform: translateX(6px);
   }
 }
 

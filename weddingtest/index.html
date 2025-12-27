@@ -30,14 +30,14 @@
           Message from the Couple
         </h2>
 
-        <div class="space-y-5 text-stone-600 leading-relaxed mb-8">
+        <div class="space-y-5 text-stone-600 leading-relaxed mb-8 text-center">
           <div
             class="bg-[#f8f9f5] border border-[#e2e8d8] p-4 rounded-xl text-xs md:text-sm text-[#5f6b45] italic"
           >
             "We humbly request NOT to share this link as our guests are limited
             only. Thank you!"
           </div>
-          <p class="text-sm md:text-base">
+          <p class="text-sm md:text-base px-4">
             By God’s grace, we’re finally tying the knot! We can't wait to
             celebrate His faithfulness with food, dancing, and all of you.
           </p>
@@ -131,7 +131,7 @@
 
         <a
           href="#rsvp"
-          class="px-12 py-4 bg-[#7b8a5b] text-white rounded-full hover:bg-[#6a784d] transition-all duration-300 shadow-lg tracking-widest text-xs font-bold"
+          class="px-12 py-4 bg-[#7b8a5b] text-white rounded-full hover:bg-[#6a784d] transition-all duration-300 shadow-lg tracking-widest text-xs font-bold uppercase"
           >RSVP NOW</a
         >
       </div>
@@ -160,6 +160,16 @@
               placeholder="Start typing your name..."
               class="w-full p-3 border-b border-stone-200 focus:outline-none focus:border-[#7b8a5b] bg-transparent"
             />
+
+            <!-- THIS IS THE ERROR MESSAGE (Spring Pink) -->
+            <p
+              id="nameErrorMsg"
+              class="hidden text-[#FFB7C5] text-[10px] mt-2 italic uppercase tracking-widest"
+            >
+              Sorry, name not found. Please use the suggestions.
+            </p>
+
+            <!-- THIS IS THE SUGGESTION BOX -->
             <div
               id="autocomplete-list"
               class="absolute z-50 w-full bg-white shadow-2xl rounded-b-lg border border-stone-50 hidden max-h-60 overflow-y-auto"
@@ -173,7 +183,7 @@
             >
             <select
               id="attendance"
-              class="w-full p-3 border-b border-stone-200 focus:outline-none bg-transparent"
+              class="w-full p-3 border-b border-stone-200 focus:outline-none bg-transparent text-stone-600"
             >
               <option value="yes">Joyfully Accepts</option>
               <option value="no">Regretfully Declines</option>
@@ -182,14 +192,25 @@
 
           <button
             type="submit"
-            class="w-full bg-[#7b8a5b] text-white py-4 rounded-full font-bold tracking-[0.2em] hover:bg-[#6a784d] transition-all shadow-lg"
+            class="w-full bg-[#7b8a5b] text-white py-4 rounded-full font-bold tracking-[0.2em] hover:bg-[#6a784d] transition-all shadow-lg uppercase text-xs"
           >
             SEND RSVP
           </button>
         </form>
+
+        <!-- SUCCESS MESSAGE -->
+        <div id="successMsg" class="hidden text-center py-6 animate-fade-in">
+          <p class="font-serif italic text-2xl text-[#7b8a5b]">Thank you!</p>
+          <p
+            class="text-sm text-stone-400 mt-2 uppercase tracking-widest text-[10px]"
+          >
+            Response received successfully.
+          </p>
+        </div>
       </div>
     </section>
 
+    <!-- Your External JS -->
     <script type="module" src="./script.js"></script>
   </body>
 </html>
