@@ -341,3 +341,78 @@ document.addEventListener("DOMContentLoaded", () => {
     if (el) scrollObserver.observe(el);
   });
 });
+
+// --- AUDIO ENDED RESET LOGIC ---
+document.addEventListener("DOMContentLoaded", () => {
+  const audio = document.getElementById("courtshipAudio");
+  const audioIcon = document.getElementById("audioIcon");
+  const spinningFlower = document.getElementById("spinningFlower");
+  const subtitleText = document.getElementById("audioSubtitles");
+  const progressRing = document.getElementById("audioProgressRing");
+
+  if (audio) {
+    audio.addEventListener("ended", () => {
+      // 1. Reset the Icon to "replay" or "play"
+      audioIcon.innerText = "replay";
+
+      // 2. Stop the flower spinning
+      spinningFlower.classList.remove("animate-spin-slow");
+
+      // 3. Update the text to prompt the user
+      subtitleText.style.opacity = 0;
+      setTimeout(() => {
+        subtitleText.innerText = '"Click to play again..."';
+        subtitleText.style.color = "#7b8a5b"; // Reset to sage color
+        subtitleText.style.opacity = 1;
+      }, 300);
+
+      // 4. Reset the Progress Ring visually
+      if (progressRing) {
+        progressRing.style.transition = "stroke-dashoffset 0.8s ease"; // Smooth reset
+        progressRing.style.strokeDashoffset = "282.7";
+      }
+
+      // 5. Reset audio time so the next click starts from the beginning
+      audio.currentTime = 0;
+    });
+  }
+});
+
+// --- 7. FINAL RSVP BOUQUET LOGIC ---
+document.addEventListener("DOMContentLoaded", () => {
+  const rsvpSection = document.getElementById("rsvp");
+  if (!rsvpSection) return;
+
+  const wrapper = document.createElement("div");
+  wrapper.className = "bouquet-wrapper";
+
+  for (let i = 5; i <= 10; i++) {
+    const img = document.createElement("img");
+    img.src = `./assets/${i}.png`;
+    img.id = `bq-${i}`;
+    img.className = "bq-flower";
+    wrapper.appendChild(img);
+  }
+
+  rsvpSection.prepend(wrapper);
+
+  const bqObserver = new IntersectionObserver(
+    (entries) => {
+      entries.forEach((entry) => {
+        const flowers = wrapper.querySelectorAll(".bq-flower");
+        if (entry.isIntersecting) {
+          flowers.forEach((f, idx) => {
+            setTimeout(() => {
+              f.classList.add("is-bloomed");
+            }, idx * 150); // Staggered pop-out
+          });
+        } else {
+          flowers.forEach((f) => f.classList.remove("is-bloomed"));
+        }
+      });
+    },
+    { threshold: 0.2 }
+  );
+
+  bqObserver.observe(rsvpSection);
+});

@@ -447,3 +447,109 @@ nav a:active {
     width: 120px;
   } /* Smaller on phones */
 }
+
+/* --- FIXED RSVP BOUQUET --- */
+#rsvp {
+  position: relative;
+  z-index: 1;
+}
+
+.bouquet-wrapper {
+  position: absolute;
+  top: 50%;
+  left: 50%;
+  transform: translate(-50%, -50%);
+  width: 100%;
+  max-width: 450px;
+  height: 500px;
+  pointer-events: none;
+  z-index: -1;
+}
+
+.bq-flower {
+  position: absolute;
+  width: 400px;
+  opacity: 0;
+  top: 50%;
+  left: 50%;
+  /* Use variables for position, default to center (0,0) */
+  --tx: 0%;
+  --ty: 0%;
+  --rot: 0deg;
+  /* Initial state: center and small */
+  transform: translate(-50%, -50%) scale(0.1);
+  transition: opacity 1.5s ease,
+    transform 1.5s cubic-bezier(0.34, 1.56, 0.64, 1);
+}
+
+.bq-flower.is-bloomed {
+  opacity: 1;
+  /* Apply a specific animation that respects our variables */
+  animation: bouquetBreathe 10s ease-in-out infinite alternate !important;
+}
+
+/* Set coordinates for each flower via variables */
+#bq-5 {
+  --tx: -118%;
+  --ty: -85%;
+  --rot: -29deg;
+}
+#bq-6 {
+  --tx: 24%;
+  --ty: -65%;
+  --rot: 25deg;
+}
+#bq-7 {
+  --tx: -109%;
+  --ty: -10%;
+  --rot: -15deg;
+}
+#bq-8 {
+  --tx: 6%;
+  --ty: -4%;
+  --rot: 20deg;
+}
+#bq-9 {
+  --tx: -50%;
+  --ty: -90%;
+  --rot: 67deg;
+}
+#bq-10 {
+  --tx: -59%;
+  --ty: 9%;
+  --rot: 0deg;
+}
+
+/* The New Bouquet-Specific Animation */
+@keyframes bouquetBreathe {
+  0% {
+    transform: translate(var(--tx), var(--ty)) rotate(var(--rot)) scale(1);
+  }
+  100% {
+    transform: translate(calc(var(--tx) + 5%), calc(var(--ty) - 5%))
+      rotate(calc(var(--rot) + 5deg)) scale(1.05);
+  }
+}
+
+@media (max-width: 768px) {
+  /* Allow the wrapper to be wider than the card to prevent clipping */
+  .bouquet-wrapper {
+    width: 100vw;
+    max-width: none;
+  }
+
+  .bq-flower {
+    width: 400px; /* Slightly smaller to fit better */
+  }
+
+  /* Adjust the breathe animation for mobile to be tighter */
+  @keyframes bouquetBreathe {
+    0% {
+      transform: translate(var(--tx), var(--ty)) rotate(var(--rot)) scale(1);
+    }
+    100% {
+      transform: translate(calc(var(--tx) + 3%), calc(var(--ty) - 3%))
+        rotate(calc(var(--rot) + 3deg)) scale(1.03);
+    }
+  }
+}
