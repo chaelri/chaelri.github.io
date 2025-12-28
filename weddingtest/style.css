@@ -452,7 +452,7 @@ nav a:active {
 #rsvp {
   position: relative;
   z-index: 1;
-  overflow: hidden;
+  overflow-x: clip;
 }
 
 .bouquet-wrapper {
