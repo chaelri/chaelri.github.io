@@ -452,6 +452,7 @@ nav a:active {
 #rsvp {
   position: relative;
   z-index: 1;
+  overflow: hidden;
 }
 
 .bouquet-wrapper {
@@ -532,11 +533,6 @@ nav a:active {
 }
 
 @media (max-width: 768px) {
-  /* Allow the wrapper to be wider than the card to prevent clipping */
-  .bouquet-wrapper {
-    width: 100vw;
-    max-width: none;
-  }
 
   .bq-flower {
     width: 400px; /* Slightly smaller to fit better */
@@ -551,5 +547,21 @@ nav a:active {
       transform: translate(calc(var(--tx) + 3%), calc(var(--ty) - 3%))
         rotate(calc(var(--rot) + 3deg)) scale(1.03);
     }
+  }
+}
+
+html,
+body {
+  max-width: 100%;
+  overflow-x: hidden;
+  position: relative;
+}
+
+@media (max-width: 768px) {
+  .bouquet-wrapper {
+    /* Change 100vw to 100% to keep it strictly inside the parent */
+    width: 100%;
+    left: 50%;
+    max-width: none;
   }
 }
