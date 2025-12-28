@@ -334,7 +334,6 @@ nav a:active {
 /* Ensure the audio Progress Ring is visible on Safari */
 #audioProgressRing {
   transition: stroke-dashoffset 0.3s linear;
-  stroke-render-auto: auto;
 }
 
 /* Styling for the QR interactives */

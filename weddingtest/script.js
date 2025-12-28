@@ -139,6 +139,9 @@ document.getElementById("rsvpForm").onsubmit = async (e) => {
   });
   document.getElementById("rsvpForm").classList.add("hidden");
   document.getElementById("successMsg").classList.remove("hidden");
+  setTimeout(() => {
+    window.scrollTo(0, 0);
+  }, 5000);
 };
 
 // --- 3. COUNTDOWN ---
