@@ -367,45 +367,83 @@ nav a:active {
   letter-spacing: -0.02em;
 }
 
-/* SCROLL FLOWER STYLES */
-.scroll-flower {
+/* Base style for all scroll flowers */
+.s-flower {
   position: absolute;
-  width: 150px; /* Adjust size as needed */
+  width: 180px;
   opacity: 0;
-  transition: all 1.2s cubic-bezier(0.33, 1, 0.68, 1);
-  filter: drop-shadow(0 10px 15px rgba(0,0,0,0.05));
+  transition: all 1s cubic-bezier(0.25, 1, 0.5, 1);
+  filter: drop-shadow(0 10px 20px rgba(0, 0, 0, 0.05));
+  pointer-events: none;
 }
 
-/* Initial Hidden States (Tucked in corners) */
-.scroll-flower-left {
+/* Hidden Positions (Tucked away) */
+.fl-left-top {
+  top: 5%;
   left: -200px;
   transform: rotate(-45deg);
 }
-
-.scroll-flower-right {
+.fl-right-top {
+  top: 5%;
   right: -200px;
   transform: rotate(45deg);
 }
+.fl-left-mid {
+  top: 40%;
+  left: -200px;
+  transform: rotate(-90deg);
+}
+.fl-right-mid {
+  top: 40%;
+  right: -200px;
+  transform: rotate(90deg);
+}
+.fl-left-bot {
+  bottom: 5%;
+  left: -200px;
+  transform: rotate(-20deg);
+}
+.fl-right-bot {
+  bottom: 5%;
+  right: -200px;
+  transform: rotate(20deg);
+}
 
-/* Active State (Triggered by JS) */
-.scroll-flower.is-visible {
+/* Active Class: Slides in and starts breathing */
+.s-flower.is-active {
   opacity: 1;
-  animation: bloomBreathe 10s ease-in-out infinite alternate;
+  animation: bloomBreathe 8s ease-in-out infinite alternate;
   animation-delay: var(--t);
 }
 
-.scroll-flower-left.is-visible {
-  left: -20px;
+/* Active Positions */
+.fl-left-top.is-active {
+  left: -30px;
+  transform: rotate(var(--r));
+}
+.fl-right-top.is-active {
+  right: -30px;
+  transform: rotate(var(--r));
+}
+.fl-left-mid.is-active {
+  left: -40px;
+  transform: rotate(var(--r));
+}
+.fl-right-mid.is-active {
+  right: -40px;
+  transform: rotate(var(--r));
+}
+.fl-left-bot.is-active {
+  left: -30px;
+  transform: rotate(var(--r));
+}
+.fl-right-bot.is-active {
+  right: -30px;
   transform: rotate(var(--r));
 }
 
-.scroll-flower-right.is-visible {
-  right: -20px;
-  transform: rotate(var(--r));
-}
-
-@media (min-width: 768px) {
-  .scroll-flower {
-    width: 250px; /* Larger on desktop */
-  }
+@media (max-width: 768px) {
+  .s-flower {
+    width: 120px;
+  } /* Smaller on phones */
 }

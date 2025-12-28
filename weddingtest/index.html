@@ -424,7 +424,7 @@
                   >
                   <span
                     id="spinningFlower"
-                    class="absolute inset-0 flex items-center justify-center text-3xl opacity-10 pointer-events-none"
+                    class="absolute inset-0 flex items-center justify-center text-5xl opacity-20 pointer-events-none"
                     >✿</span
                   >
                 </button>
@@ -1262,33 +1262,46 @@
         </div>
       </div>
     </section>
-    <!-- SCROLLING FLORAL OVERLAYS -->
+    <!-- GLOBAL SCROLL FLOWERS -->
     <div
-      class="fixed inset-0 pointer-events-none z-[30]"
-      style="overflow: hidden"
+      id="scroll-flower-overlay"
+      class="fixed inset-0 pointer-events-none z-[30] overflow-hidden"
     >
-      <!-- Left Side Flower -->
       <img
         src="./assets/5.png"
-        id="scroll-fl-5"
-        class="scroll-flower scroll-flower-left"
-        style="--r: -5deg; --t: -2s; top: 10%"
+        id="s-fl-5"
+        class="s-flower fl-left-top"
+        style="--r: -10deg; --t: 0s"
       />
-
-      <!-- Right Side Flower -->
+      <img
+        src="./assets/6.png"
+        id="s-fl-6"
+        class="s-flower fl-right-top"
+        style="--r: 15deg; --t: -2s"
+      />
       <img
         src="./assets/7.png"
-        id="scroll-fl-7"
-        class="scroll-flower scroll-flower-right"
-        style="--r: 15deg; --t: -5s; top: 40%"
+        id="s-fl-7"
+        class="s-flower fl-left-mid"
+        style="--r: 5deg; --t: -4s"
       />
-
-      <!-- Bottom Left Flower -->
+      <img
+        src="./assets/8.png"
+        id="s-fl-8"
+        class="s-flower fl-right-mid"
+        style="--r: -15deg; --t: -6s"
+      />
       <img
         src="./assets/9.png"
-        id="scroll-fl-10"
-        class="scroll-flower scroll-flower-left"
-        style="--r: 10deg; --t: -8s; bottom: 10%"
+        id="s-fl-9"
+        class="s-flower fl-left-bot"
+        style="--r: 12deg; --t: -1s"
+      />
+      <img
+        src="./assets/10.png"
+        id="s-fl-10"
+        class="s-flower fl-right-bot"
+        style="--r: -8deg; --t: -3s"
       />
     </div>
 
