@@ -183,18 +183,6 @@ nav div {
   scrollbar-width: none;
 }
 
-/* STORY SCRAPBOOK EFFECTS */
-#story img,
-#story video {
-  transition: all 0.5s ease;
-  filter: grayscale(100%) contrast(90%);
-}
-
-#story div:hover img,
-#story div:hover video {
-  filter: grayscale(0%) contrast(100%);
-}
-
 /* GIFTING QR STYLES */
 .qr-container {
   transition: transform 0.3s ease;
@@ -532,7 +520,6 @@ nav a:active {
 }
 
 @media (max-width: 768px) {
-
   .bq-flower {
     width: 400px; /* Slightly smaller to fit better */
   }
@@ -563,4 +550,24 @@ body {
     left: 50%;
     max-width: none;
   }
+}
+
+.animate-fade-in {
+  animation: fadeIn 0.8s ease forwards;
+}
+
+@keyframes fadeIn {
+  from {
+    opacity: 0;
+    transform: translateY(10px);
+  }
+  to {
+    opacity: 1;
+    transform: translateY(0);
+  }
+}
+
+/* This class will be toggled by JavaScript */
+.nav-hidden {
+  transform: translateY(-100%);
 }

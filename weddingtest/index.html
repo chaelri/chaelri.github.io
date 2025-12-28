@@ -113,7 +113,8 @@
 
     <!-- NAVIGATION (PRESERVED) -->
     <nav
-      class="p-4 flex justify-between items-center sticky top-0 bg-white/90 backdrop-blur-md z-40 border-b border-stone-100"
+      id="main-nav"
+      class="fixed top-0 left-0 w-full p-4 flex justify-between items-center bg-white/90 backdrop-blur-md z-[100] border-b border-stone-100 transition-transform duration-500"
     >
       <div class="flex items-center gap-3">
         <a
@@ -1003,6 +1004,27 @@
           </div>
         </div>
       </div>
+      <div class="flex flex-col sm:flex-row gap-4 justify-center mt-6">
+        <!-- Google Maps Link -->
+        <a
+          href="https://maps.app.goo.gl/KagcSfFCnvxmT2tH9"
+          target="_blank"
+          class="flex items-center justify-center gap-2 px-6 py-3 border border-stone-200 rounded-full text-[11px] uppercase tracking-widest font-bold hover:bg-stone-50 transition-all"
+        >
+          <span class="material-icons-outlined text-sm">location_on</span>
+          Open in Google Maps
+        </a>
+
+        <!-- Add to Calendar (Google/Apple) -->
+        <a
+          href="https://www.google.com/calendar/render?action=TEMPLATE&text=Charlie+%26+Karla+Wedding&dates=20260702T070000Z/20260702T130000Z&details=We+can%27t+wait+to+see+you!&location=CCF+East+Ortigas"
+          target="_blank"
+          class="flex items-center justify-center gap-2 px-6 py-3 border border-stone-200 rounded-full text-[11px] uppercase tracking-widest font-bold hover:bg-stone-50 transition-all"
+        >
+          <span class="material-icons-outlined text-sm">calendar_today</span>
+          Add to Calendar
+        </a>
+      </div>
     </section>
 
     <!-- RULES & GIFTS -->
@@ -1257,11 +1279,43 @@
             SEND RSVP
           </button>
         </form>
-        <div id="successMsg" class="hidden text-center py-10 animate-fade-in">
-          <p class="font-serif italic text-3xl text-[#7b8a5b]">Thank you!</p>
-          <p class="text-[9px] uppercase tracking-[0.3em] font-bold">
-            Response sent!
+        <!-- RSVP SUCCESS MESSAGE -->
+        <div
+          id="successMsg"
+          class="hidden text-center py-8 animate-fade-in space-y-4"
+        >
+          <!-- Dynamic Greeting -->
+          <p id="res-name" class="font-serif italic text-3xl text-[#7b8a5b]">
+            Thank you!
           </p>
+
+          <!-- Status Indicator -->
+          <div class="py-2">
+            <p
+              class="text-[9px] uppercase tracking-[0.3em] font-bold text-stone-400 mb-1"
+            >
+              You Answered:
+            </p>
+            <p
+              id="res-status"
+              class="serif text-xl italic text-stone-800 underline underline-offset-8 decoration-[#FFB7C5]/30"
+            ></p>
+          </div>
+
+          <!-- Personal Note -->
+          <p
+            id="res-note"
+            class="text-sm text-stone-500 leading-relaxed px-6 italic"
+          ></p>
+
+          <div class="pt-6">
+            <div class="w-12 h-[1px] bg-stone-100 mx-auto mb-4"></div>
+            <p
+              class="text-[9px] uppercase tracking-[0.2em] text-stone-400 font-bold"
+            >
+              Charlie & Karla
+            </p>
+          </div>
         </div>
       </div>
     </section>

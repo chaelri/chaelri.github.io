@@ -122,26 +122,57 @@ nameInput.addEventListener("input", function () {
 
 document.getElementById("rsvpForm").onsubmit = async (e) => {
   e.preventDefault();
+
   const typedName = nameInput.value.trim();
+  const attendanceVal = document.getElementById("attendance").value;
+
+  // Check if name is in master list
   const isValid = masterGuestList.some(
     (n) => n.toLowerCase() === typedName.toLowerCase()
   );
+
   if (!isValid) {
     nameInput.classList.add("border-error", "shake");
     document.getElementById("nameErrorMsg").classList.remove("hidden");
     setTimeout(() => nameInput.classList.remove("shake"), 500);
     return;
   }
+
+  // --- PERSONALIZATION LOGIC ---
+  // Get just the first name (e.g., "John" from "John Doe")
+  const firstName = typedName.split(" ")[0];
+
+  const nameEl = document.getElementById("res-name");
+  const statusEl = document.getElementById("res-status");
+  const noteEl = document.getElementById("res-note");
+
+  if (attendanceVal === "yes") {
+    nameEl.innerText = `Thank you, ${firstName}!`;
+    statusEl.innerText = "Joyfully Accepts";
+    statusEl.style.color = "#7b8a5b"; // Sage green
+    noteEl.innerText =
+      "We are so happy you're joining us! We can't wait to celebrate God's faithfulness with you this July.";
+  } else {
+    nameEl.innerText = `We'll miss you, ${firstName}.`;
+    statusEl.innerText = "Regretfully Declines";
+    statusEl.style.color = "#stone-500"; // Soft stone
+    noteEl.innerText =
+      "We're sad we won't see you there, but we are so grateful for your love and prayers from afar!";
+  }
+
+  // --- FIREBASE SUBMISSION ---
   await push(ref(db, "rsvps"), {
     guestName: typedName,
-    attending: document.getElementById("attendance").value,
+    attending: attendanceVal,
     submittedAt: new Date().toISOString(),
   });
+
+  // Hide form and show personalized message
   document.getElementById("rsvpForm").classList.add("hidden");
   document.getElementById("successMsg").classList.remove("hidden");
-  setTimeout(() => {
-    window.scrollTo(0, 0);
-  }, 5000);
+
+  // Optional: Scroll to the top of the RSVP box so they see the message
+  document.getElementById("rsvp").scrollIntoView({ behavior: "smooth" });
 };
 
 // --- 3. COUNTDOWN ---
@@ -419,3 +450,34 @@ document.addEventListener("DOMContentLoaded", () => {
 
   bqObserver.observe(rsvpSection);
 });
+
+// --- SMART NAVIGATION (Show on scroll up, hide on scroll down) ---
+let lastScrollTop = 0;
+const mainNav = document.getElementById("main-nav");
+const scrollThreshold = 50; // Minimum scroll before hiding
+
+window.addEventListener(
+  "scroll",
+  () => {
+    let currentScroll =
+      window.pageYOffset || document.documentElement.scrollTop;
+
+    // 1. Always show at the very top
+    if (currentScroll <= 10) {
+      mainNav.classList.remove("nav-hidden");
+      return;
+    }
+
+    // 2. Hide on scroll down, show on scroll up
+    if (currentScroll > lastScrollTop && currentScroll > scrollThreshold) {
+      // Scrolling Down
+      mainNav.classList.add("nav-hidden");
+    } else {
+      // Scrolling Up
+      mainNav.classList.remove("nav-hidden");
+    }
+
+    lastScrollTop = currentScroll <= 0 ? 0 : currentScroll;
+  },
+  { passive: true }
+);
