@@ -366,3 +366,46 @@ nav a:active {
   color: var(--sage);
   letter-spacing: -0.02em;
 }
+
+/* SCROLL FLOWER STYLES */
+.scroll-flower {
+  position: absolute;
+  width: 150px; /* Adjust size as needed */
+  opacity: 0;
+  transition: all 1.2s cubic-bezier(0.33, 1, 0.68, 1);
+  filter: drop-shadow(0 10px 15px rgba(0,0,0,0.05));
+}
+
+/* Initial Hidden States (Tucked in corners) */
+.scroll-flower-left {
+  left: -200px;
+  transform: rotate(-45deg);
+}
+
+.scroll-flower-right {
+  right: -200px;
+  transform: rotate(45deg);
+}
+
+/* Active State (Triggered by JS) */
+.scroll-flower.is-visible {
+  opacity: 1;
+  animation: bloomBreathe 10s ease-in-out infinite alternate;
+  animation-delay: var(--t);
+}
+
+.scroll-flower-left.is-visible {
+  left: -20px;
+  transform: rotate(var(--r));
+}
+
+.scroll-flower-right.is-visible {
+  right: -20px;
+  transform: rotate(var(--r));
+}
+
+@media (min-width: 768px) {
+  .scroll-flower {
+    width: 250px; /* Larger on desktop */
+  }
+}

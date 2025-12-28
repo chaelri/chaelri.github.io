@@ -287,3 +287,47 @@ document.addEventListener("DOMContentLoaded", () => {
     }, 300);
   };
 });
+
+// --- 4. SCROLL-TRIGGERED FLOWERS ---
+document.addEventListener("DOMContentLoaded", () => {
+  const flowerLeftTop = document.getElementById("scroll-fl-5");
+  const flowerRightMid = document.getElementById("scroll-fl-7");
+  const flowerLeftBot = document.getElementById("scroll-fl-10");
+
+  const scrollObserver = new IntersectionObserver(
+    (entries) => {
+      entries.forEach((entry) => {
+        // We trigger specific flowers based on which section is in view
+        if (entry.isIntersecting) {
+          if (entry.target.id === "story") {
+            flowerLeftTop.classList.add("is-visible");
+          }
+          if (entry.target.id === "entourage") {
+            flowerRightMid.classList.add("is-visible");
+          }
+          if (entry.target.id === "attire") {
+            flowerLeftBot.classList.add("is-visible");
+          }
+        } else {
+          // Smoothly hide them when the section is gone
+          if (entry.target.id === "story")
+            flowerLeftTop.classList.remove("is-visible");
+          if (entry.target.id === "entourage")
+            flowerRightMid.classList.remove("is-visible");
+          if (entry.target.id === "attire")
+            flowerLeftBot.classList.remove("is-visible");
+        }
+      });
+    },
+    {
+      threshold: 0.1, // Trigger when 10% of the section is visible
+    }
+  );
+
+  // Start watching these sections
+  const sectionsToWatch = ["story", "entourage", "attire"];
+  sectionsToWatch.forEach((id) => {
+    const el = document.getElementById(id);
+    if (el) scrollObserver.observe(el);
+  });
+});
