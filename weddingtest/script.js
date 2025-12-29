@@ -257,18 +257,11 @@ document.getElementById("rsvpForm").onsubmit = async (e) => {
     `;
   }
 
-  // 6. TACTILE "THUD" SHAKE EFFECT
-  // Targets the white card container inside the RSVP section
-  const rsvpCard = document.querySelector("#rsvp > div");
-  if (rsvpCard) {
-    rsvpCard.classList.add("stamp-shake");
-  }
-
   // 7. CELEBRATION BURST
   // Fire a confetti burst centered on the RSVP box
   if (typeof confetti === "function") {
     confetti({
-      particleCount: 150,
+      particleCount: 300,
       spread: 70,
       origin: { y: 0.8 },
       colors: ["#7b8a5b", "#ffb7c5", "#fdfcf9"],
@@ -276,7 +269,14 @@ document.getElementById("rsvpForm").onsubmit = async (e) => {
   }
 
   // 8. SCROLL TO TOP OF MESSAGE
-  document.getElementById("rsvp").scrollIntoView({ behavior: "smooth" });
+  // Wait 100ms for the form to hide and the message to render
+  setTimeout(() => {
+    const rsvpTop = document.getElementById("rsvp").offsetTop;
+    window.scrollTo({
+      top: rsvpTop - 50, // Scroll to the section with a little padding
+      behavior: "smooth",
+    });
+  }, 100);
 };
 
 // --- 3. COUNTDOWN ---
