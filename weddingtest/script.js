@@ -738,3 +738,33 @@ allVideos.forEach((video) => {
   video.addEventListener("pause", resumeBG);
   video.addEventListener("ended", resumeBG);
 });
+
+// --- TRIVIA NOTES LOGIC ---
+document.querySelectorAll(".trivia-note").forEach((note) => {
+  note.addEventListener("click", () => {
+    // Check if it's already open
+    const isOpen = note.classList.contains("is-active");
+
+    // Close all other notes first
+    document
+      .querySelectorAll(".trivia-note")
+      .forEach((n) => n.classList.remove("is-active"));
+
+    // Toggle current note
+    if (!isOpen) {
+      note.classList.add("is-active");
+
+      // Fun: Trigger a tiny sparkle/confetti only on this note!
+      confetti({
+        particleCount: 20,
+        spread: 30,
+        origin: {
+          x: note.getBoundingClientRect().left / window.innerWidth,
+          y: note.getBoundingClientRect().top / window.innerHeight,
+        },
+        colors: ["#7b8a5b", "#ffb7c5"],
+        scalar: 0.5,
+      });
+    }
+  });
+});

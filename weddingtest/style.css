@@ -732,3 +732,88 @@ body {
     transform: translateY(3px);
   }
 }
+
+/* TRIVIA NOTE STYLE */
+.trivia-note {
+  position: absolute;
+  width: 160px;
+  background: white;
+  padding: 15px;
+  box-shadow: 5px 5px 20px rgba(0, 0, 0, 0.05);
+  cursor: pointer;
+  z-index: 40;
+  transform: rotate(var(--r));
+  transition: all 0.6s cubic-bezier(0.34, 1.56, 0.64, 1);
+  border: 1px solid rgba(0, 0, 0, 0.03);
+}
+
+.trivia-inner {
+  display: flex;
+  flex-direction: column;
+}
+
+.trivia-q {
+  font-size: 11px;
+  font-weight: 700;
+  color: #7b8a5b;
+  line-height: 1.4;
+  text-transform: uppercase;
+  letter-spacing: 0.05em;
+}
+
+.trivia-a {
+  max-height: 0;
+  opacity: 0;
+  overflow: hidden;
+  transition: all 0.5s ease;
+}
+
+.ans-text {
+  font-family: "Dancing Script", cursive;
+  font-size: 18px;
+  color: #444;
+  line-height: 1;
+}
+
+.ans-desc {
+  font-size: 10px;
+  color: #888;
+  margin-top: 5px;
+  font-style: italic;
+}
+
+.tap-hint {
+  font-size: 8px;
+  text-transform: uppercase;
+  color: #ccc;
+  margin-top: 8px;
+  letter-spacing: 0.2em;
+  text-align: right;
+}
+
+/* Active State: When the guest clicks */
+.trivia-note.is-active {
+  width: 220px;
+  z-index: 100;
+  transform: rotate(0deg) scale(1.05);
+  box-shadow: 10px 20px 40px rgba(0, 0, 0, 0.1);
+}
+
+.trivia-note.is-active .trivia-a {
+  max-height: 150px;
+  opacity: 1;
+  margin-bottom: 5px;
+}
+
+.trivia-note.is-active .tap-hint {
+  display: none;
+}
+
+@media (max-width: 768px) {
+  .trivia-note {
+    width: 130px;
+  }
+  .trivia-note.is-active {
+    width: 190px;
+  }
+}
