@@ -482,12 +482,100 @@ window.addEventListener(
   { passive: true }
 );
 
-window.addEventListener("scroll", () => {
-  const scrolled = window.pageYOffset;
-  // Select the large background heading
-  const bgText = document.querySelector(".parallax-text");
-  if (bgText) {
-    // Moves the text slowly as you scroll
-    bgText.style.transform = `translateY(${scrolled * 0.1}px)`;
+// --- CONFETTI & SPRING DRIFT LOGIC ---
+let driftInterval;
+let hasBurst = false;
+
+const startSpringDrift = () => {
+  const end = Date.now() + 1000 * 60 * 5; // Drift for 5 minutes if they stay on section
+  const colors = ["#7b8a5b", "#ffb7c5", "#fdfcf9", "#e2e8d8"]; // Your wedding palette
+
+  (function frame() {
+    confetti({
+      particleCount: 1,
+      angle: 60,
+      spread: 55,
+      origin: { x: 0, y: 0.6 }, // Left side
+      colors: colors,
+      ticks: 200,
+      gravity: 0.5,
+      scalar: 0.7,
+      shapes: ["circle"],
+    });
+    confetti({
+      particleCount: 1,
+      angle: 120,
+      spread: 55,
+      origin: { x: 1, y: 0.6 }, // Right side
+      colors: colors,
+      ticks: 200,
+      gravity: 0.5,
+      scalar: 0.7,
+      shapes: ["circle"],
+    });
+
+    // Loop if the section is still in view
+    if (window.isForeverVisible) {
+      driftInterval = setTimeout(() => {
+        requestAnimationFrame(frame);
+      }, 400); // Frequency of drifting particles
+    }
+  })();
+};
+
+const triggerCelebration = () => {
+  // 1. The Big Burst
+  const count = 200;
+  const defaults = {
+    origin: { y: 0.7 },
+    colors: ["#7b8a5b", "#ffb7c5", "#d4a373"],
+    shapes: ["circle", "square"],
+    scalar: 1.2,
+  };
+
+  function fire(particleRatio, opts) {
+    confetti(
+      Object.assign({}, defaults, opts, {
+        particleCount: Math.floor(count * particleRatio),
+      })
+    );
   }
+
+  fire(0.25, { spread: 26, startVelocity: 55 });
+  fire(0.2, { spread: 60 });
+  fire(0.35, { spread: 100, decay: 0.91, scalar: 0.8 });
+  fire(0.1, { spread: 120, startVelocity: 25, decay: 0.92, scalar: 1.2 });
+  fire(0.1, { spread: 120, startVelocity: 45 });
+};
+
+// --- OBSERVER FOR THE TRANSITION SECTION ---
+const foreverSection = document.getElementById('forever-section');
+window.isForeverVisible = false;
+
+
+const foreverObserver = new IntersectionObserver((entries) => {
+  entries.forEach(entry => {
+    if (entry.isIntersecting) {
+      window.isForeverVisible = true;
+      
+      // Trigger burst if it hasn't fired for this "visit"
+      if (!hasBurst) {
+        triggerCelebration();
+        hasBurst = true; // Mark as fired so it doesn't loop infinitely while sitting there
+      }
+      
+      // Start the continuous soft drift
+      startSpringDrift();
+    } else {
+      // WHEN LEAVING THE VIEWPORT
+      window.isForeverVisible = false;
+      hasBurst = false; // RESET HERE: This allows it to fire again next time they scroll in
+      clearTimeout(driftInterval);
+    }
+  });
+}, { 
+  // Adjusted threshold: 0.5 means it fires when half the section is visible
+  threshold: 0.5 
 });
+
+if (foreverSection) foreverObserver.observe(foreverSection);
