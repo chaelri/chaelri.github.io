@@ -1067,176 +1067,436 @@
       </div>
     </section>
 
-    <!-- ATTIRE SECTION (EXPANDED ROLE TEMPLATES) -->
+    <!-- ATTIRE SECTION -->
     <section id="attire" class="py-24 border-y border-stone-100 bg-[#fdfcf9]">
-      <div class="max-w-6xl mx-auto px-6">
-        <h2 class="text-4xl serif italic text-[#7b8a5b] mb-8 text-center">
-          Attire Guide
-        </h2>
-        <p class="text-stone-500 mb-16 italic text-center max-w-2xl mx-auto">
-          To help our guests prepare, here are the requested styles and color
-          palettes for each special role.
-        </p>
-
-        <div class="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-10">
-          <!-- Card: Best Man -->
+      <div class="max-w-6xl mx-auto px-4">
+        <!-- Interaction Hint -->
+        <div class="text-center mb-12">
+          <h2 class="text-4xl serif italic text-[#7b8a5b] mb-6">
+            Attire Guide
+          </h2>
           <div
-            class="bg-white p-6 rounded-2xl shadow-sm border border-stone-50 text-center"
+            class="inline-flex items-center gap-3 bg-[#7b8a5b]/5 px-6 py-3 rounded-full border border-[#7b8a5b]/10 animate-pulse"
           >
-            <img
-              src="./assets/attire-groomsmen.jpg"
-              class="w-full h-48 object-cover rounded-xl mb-4 grayscale-[20%]"
-              alt="Groomsmen Style"
-            />
-            <h4 class="serif text-xl mb-2 italic">Best Man</h4>
-            <p
-              class="text-[10px] text-stone-400 uppercase tracking-[0.2em] mb-4"
+            <span class="material-icons-outlined text-[#7b8a5b] text-sm"
+              >touch_app</span
             >
-              Suit / Barong Tagalog
+            <p
+              class="text-[#7b8a5b] font-bold uppercase tracking-[0.2em] text-[10px]"
+            >
+              Tap an album to view inspirations
             </p>
-            <div class="flex justify-center gap-2">
-              <div class="w-4 h-4 rounded-full bg-[#B7B7A4]"></div>
-              <div class="w-4 h-4 rounded-full bg-[#7b8a5b]"></div>
-              <div
-                class="w-4 h-4 rounded-full bg-[#faf9f6] border border-stone-100"
-              ></div>
-            </div>
           </div>
+        </div>
 
-          <!-- Card: Groomsmen -->
-          <div
-            class="bg-white p-6 rounded-2xl shadow-sm border border-stone-50 text-center"
-          >
-            <img
-              src="./assets/attire-groomsmen.jpg"
-              class="w-full h-48 object-cover rounded-xl mb-4 grayscale-[20%]"
-              alt="Groomsmen Style"
-            />
-            <h4 class="serif text-xl mb-2 italic">Groomsmen</h4>
-            <p
-              class="text-[10px] text-stone-400 uppercase tracking-[0.2em] mb-4"
-            >
-              Suit / Barong Tagalog
-            </p>
-            <div class="flex justify-center gap-2">
-              <div class="w-4 h-4 rounded-full bg-[#B7B7A4]"></div>
-              <div class="w-4 h-4 rounded-full bg-[#7b8a5b]"></div>
-              <div
-                class="w-4 h-4 rounded-full bg-[#faf9f6] border border-stone-100"
-              ></div>
+        <!-- Centered Album Grid -->
+        <div class="flex flex-wrap justify-center gap-x-4 gap-y-12 md:gap-x-10">
+          <!-- Card: Best Man -->
+          <div class="attire-album-card group" data-role="Best Man">
+            <div class="fb-album-grid shadow-album">
+              <div class="grid-main">
+                <img src="./assets/attire/bestman-1.jpg" />
+              </div>
+              <div class="grid-side">
+                <div class="side-item">
+                  <img src="./assets/attire/bestman-2.jpg" />
+                </div>
+                <div class="side-item">
+                  <img src="./assets/attire/bestman-3.jpg" />
+                </div>
+              </div>
+              <div class="palette-pill">
+                <div
+                  class="w-4 h-4 rounded-full"
+                  style="background-color: #6f4e37"
+                ></div>
+              </div>
+            </div>
+            <div class="text-center mt-5">
+              <h4 class="serif text-lg italic text-stone-800">Best Man</h4>
+              <p
+                class="text-[9px] text-stone-400 uppercase tracking-widest mt-1"
+              >
+                Brown Vest & Trousers
+              </p>
             </div>
           </div>
 
           <!-- Card: Maid of Honor -->
-          <div
-            class="bg-white p-6 rounded-2xl shadow-sm border border-stone-50 text-center"
-          >
-            <img
-              src="./assets/attire-bridesmaids.jpg"
-              class="w-full h-48 object-cover rounded-xl mb-4 grayscale-[20%]"
-              alt="Bridesmaids Style"
-            />
-            <h4 class="serif text-xl mb-2 italic">Maid of Honor</h4>
-            <p
-              class="text-[10px] text-stone-400 uppercase tracking-[0.2em] mb-4"
-            >
-              Floor-Length Gowns
-            </p>
-            <div class="flex justify-center gap-2">
-              <div class="w-4 h-4 rounded-full bg-[#FFB7C5]"></div>
-              <div class="w-4 h-4 rounded-full bg-[#E5BAA1]"></div>
-              <div class="w-4 h-4 rounded-full bg-[#7b8a5b]"></div>
+          <div class="attire-album-card group" data-role="Maid of Honor">
+            <div class="fb-album-grid shadow-album">
+              <div class="grid-main">
+                <img src="./assets/attire/moh-1.jpg" />
+              </div>
+              <div class="grid-side">
+                <div class="side-item">
+                  <img src="./assets/attire/moh-2.jpg" />
+                </div>
+                <div class="side-item more-overlay">
+                  <img src="./assets/attire/moh-3.jpg" /><span
+                    class="plus-count"
+                    >+2</span
+                  >
+                </div>
+              </div>
+              <div class="palette-pill">
+                <div
+                  class="w-4 h-4 rounded-full"
+                  style="background-color: #ff8c42"
+                ></div>
+              </div>
+            </div>
+            <div class="text-center mt-5">
+              <h4 class="serif text-lg italic text-stone-800">Maid of Honor</h4>
+              <p
+                class="text-[9px] text-stone-400 uppercase tracking-widest mt-1"
+              >
+                Coral Orange Dress
+              </p>
             </div>
           </div>
 
-          <!-- Card: Bridesmaids -->
-          <div
-            class="bg-white p-6 rounded-2xl shadow-sm border border-stone-50 text-center"
-          >
-            <img
-              src="./assets/attire-bridesmaids.jpg"
-              class="w-full h-48 object-cover rounded-xl mb-4 grayscale-[20%]"
-              alt="Bridesmaids Style"
-            />
-            <h4 class="serif text-xl mb-2 italic">Bridesmaids</h4>
-            <p
-              class="text-[10px] text-stone-400 uppercase tracking-[0.2em] mb-4"
-            >
-              Floor-Length Gowns
-            </p>
-            <div class="flex justify-center gap-2">
-              <div class="w-4 h-4 rounded-full bg-[#FFB7C5]"></div>
-              <div class="w-4 h-4 rounded-full bg-[#E5BAA1]"></div>
-              <div class="w-4 h-4 rounded-full bg-[#7b8a5b]"></div>
+          <!-- Card: Bridesmaids & Secondary Female -->
+          <div class="attire-album-card group" data-role="Bridesmaids">
+            <div class="fb-album-grid shadow-album">
+              <div class="grid-main">
+                <img src="./assets/attire/bm-1.jpg" />
+              </div>
+              <div class="grid-side">
+                <div class="side-item">
+                  <img src="./assets/attire/bm-2.jpg" />
+                </div>
+                <div class="side-item more-overlay">
+                  <img src="./assets/attire/bm-3.jpg" /><span class="plus-count"
+                    >+2</span
+                  >
+                </div>
+              </div>
+              <div class="palette-pill">
+                <div
+                  class="w-4 h-4 rounded-full"
+                  style="background-color: #ffd1dc"
+                ></div>
+                <div
+                  class="w-4 h-4 rounded-full"
+                  style="background-color: #e6e6fa"
+                ></div>
+                <div
+                  class="w-4 h-4 rounded-full"
+                  style="background-color: #fff9a6"
+                ></div>
+              </div>
+            </div>
+            <div class="text-center mt-5">
+              <h4 class="serif text-lg italic text-stone-800 leading-tight">
+                Bridesmaids &<br />Secondary Sponsors
+              </h4>
+              <p
+                class="text-[9px] text-stone-400 uppercase tracking-widest mt-1"
+              >
+                Blush, Lavender, Pale Yellow
+              </p>
             </div>
           </div>
 
-          <!-- Card: Principal Sponsors -->
-          <div
-            class="bg-white p-6 rounded-2xl shadow-sm border border-stone-50 text-center"
-          >
-            <img
-              src="./assets/attire-sponsors.jpg"
-              class="w-full h-48 object-cover rounded-xl mb-4 grayscale-[20%]"
-              alt="Principal Sponsors Style"
-            />
-            <h4 class="serif text-xl mb-2 italic">Principal Sponsors</h4>
-            <p
-              class="text-[10px] text-stone-400 uppercase tracking-[0.2em] mb-4"
-            >
-              Formal Filipiniana / Suit
-            </p>
-            <div class="flex justify-center gap-2">
-              <div class="w-4 h-4 rounded-full bg-[#D4A373]"></div>
-              <div class="w-4 h-4 rounded-full bg-[#7b8a5b]"></div>
+          <!-- Card: Groomsmen & Secondary Male -->
+          <div class="attire-album-card group" data-role="Groomsmen">
+            <div class="fb-album-grid shadow-album">
+              <div class="grid-main">
+                <img src="./assets/attire/gm-1.jpg" />
+              </div>
+              <div class="grid-side">
+                <div class="side-item">
+                  <img src="./assets/attire/gm-2.jpg" />
+                </div>
+                <div class="side-item">
+                  <img src="./assets/attire/gm-3.jpg" />
+                </div>
+              </div>
+              <div class="palette-pill">
+                <div
+                  class="w-4 h-4 rounded-full border border-stone-100"
+                  style="background-color: #ffffff"
+                ></div>
+                <div
+                  class="w-4 h-4 rounded-full"
+                  style="background-color: #c3b091"
+                ></div>
+              </div>
+            </div>
+            <div class="text-center mt-5">
+              <h4 class="serif text-lg italic text-stone-800 leading-tight">
+                Groomsmen &<br />Secondary Sponsors
+              </h4>
+              <p
+                class="text-[9px] text-stone-400 uppercase tracking-widest mt-1"
+              >
+                White Polo & Khaki
+              </p>
             </div>
           </div>
 
-          <!-- Card: Secondary Sponsors -->
-          <div
-            class="bg-white p-6 rounded-2xl shadow-sm border border-stone-50 text-center"
-          >
-            <img
-              src="./assets/attire-secondary.jpg"
-              class="w-full h-48 object-cover rounded-xl mb-4 grayscale-[20%]"
-              alt="Secondary Sponsors Style"
-            />
-            <h4 class="serif text-xl mb-2 italic">Secondary Sponsors</h4>
-            <p
-              class="text-[10px] text-stone-400 uppercase tracking-[0.2em] mb-4"
-            >
-              Semi-Formal Attire
-            </p>
-            <div class="flex justify-center gap-2">
-              <div class="w-4 h-4 rounded-full bg-[#7b8a5b]"></div>
-              <div class="w-4 h-4 rounded-full bg-[#E5BAA1]"></div>
+          <!-- 5. Mothers -->
+          <div class="attire-album-card group" data-role="Mothers">
+            <div class="fb-album-grid shadow-album">
+              <div class="grid-main">
+                <img src="./assets/attire/mothers-1.jpg" />
+              </div>
+              <div class="grid-side">
+                <div class="side-item">
+                  <img src="./assets/attire/mothers-2.jpg" />
+                </div>
+                <div class="side-item more-overlay">
+                  <img src="./assets/attire/mothers-3.jpg" /><span
+                    class="plus-count"
+                    >+5</span
+                  >
+                </div>
+              </div>
+              <div class="palette-pill">
+                <div
+                  class="w-4 h-4 rounded-full"
+                  style="background-color: #4682b4"
+                ></div>
+              </div>
+            </div>
+            <div class="text-center mt-5">
+              <h4 class="serif text-lg italic text-stone-800">Mothers</h4>
+              <p
+                class="text-[9px] text-stone-400 uppercase tracking-widest mt-1"
+              >
+                Steel Blue Dress
+              </p>
             </div>
           </div>
 
-          <!-- Card: Guests -->
-          <div
-            class="bg-white p-6 rounded-2xl shadow-sm border border-stone-50 text-center sm:col-span-2 lg:col-span-1"
-          >
-            <div class="flex justify-center gap-2 mb-4">
-              <div class="w-8 h-8 rounded-full bg-[#7b8a5b]"></div>
-              <div class="w-8 h-8 rounded-full bg-[#E5BAA1]"></div>
-              <div class="w-8 h-8 rounded-full bg-[#D4A373]"></div>
-              <div class="w-8 h-8 rounded-full bg-[#B7B7A4]"></div>
+          <!-- 6. Fathers -->
+          <div class="attire-album-card group" data-role="Fathers">
+            <div class="fb-album-grid shadow-album">
+              <div class="grid-main">
+                <img src="./assets/attire/fathers-1.jpg" />
+              </div>
+              <div class="grid-side">
+                <div class="side-item">
+                  <img src="./assets/attire/fathers-2.jpg" />
+                </div>
+                <div class="side-item">
+                  <img src="./assets/attire/fathers-3.jpg" />
+                </div>
+              </div>
+              <div class="palette-pill">
+                <div
+                  class="w-4 h-4 rounded-full"
+                  style="background-color: #002366"
+                ></div>
+              </div>
             </div>
-            <h4 class="serif text-xl mb-2 italic">Beloved Guests</h4>
-            <p
-              class="text-[10px] text-stone-400 uppercase tracking-[0.2em] mb-2"
-            >
-              Formal / Semi-Formal
-            </p>
-            <p class="text-xs text-stone-500 italic leading-relaxed">
-              Please wear earthy tones from our palette. We kindly ask to avoid
-              white, cream, or ivory.
-            </p>
+            <div class="text-center mt-5">
+              <h4 class="serif text-lg italic text-stone-800">Fathers</h4>
+              <p
+                class="text-[9px] text-stone-400 uppercase tracking-widest mt-1"
+              >
+                Navy Blue Suit
+              </p>
+            </div>
+          </div>
+
+          <!-- 7. Ninangs -->
+          <div class="attire-album-card group" data-role="Ninangs">
+            <div class="fb-album-grid shadow-album">
+              <div class="grid-main">
+                <img src="./assets/attire/ninangs-1.jpg" />
+              </div>
+              <div class="grid-side">
+                <div class="side-item">
+                  <img src="./assets/attire/ninangs-2.jpg" />
+                </div>
+                <div class="side-item">
+                  <img src="./assets/attire/ninangs-3.jpg" />
+                </div>
+              </div>
+              <div class="palette-pill">
+                <div
+                  class="w-4 h-4 rounded-full"
+                  style="background-color: #77dd77"
+                ></div>
+              </div>
+            </div>
+            <div class="text-center mt-5">
+              <h4 class="serif text-lg italic text-stone-800">Ninangs</h4>
+              <p
+                class="text-[9px] text-stone-400 uppercase tracking-widest mt-1"
+              >
+                Pastel Green Dress
+              </p>
+            </div>
+          </div>
+
+          <!-- 8. Ninongs -->
+          <div class="attire-album-card group" data-role="Ninongs">
+            <div class="fb-album-grid shadow-album">
+              <div class="grid-main">
+                <img src="./assets/attire/ninongs-1.jpg" />
+              </div>
+              <div class="grid-side">
+                <div class="side-item">
+                  <img src="./assets/attire/ninongs-2.jpg" />
+                </div>
+                <div class="side-item">
+                  <img src="./assets/attire/ninongs-3.jpg" />
+                </div>
+              </div>
+              <div class="palette-pill">
+                <div
+                  class="w-4 h-4 rounded-full"
+                  style="background-color: #2b2b2b"
+                ></div>
+              </div>
+            </div>
+            <div class="text-center mt-5">
+              <h4 class="serif text-lg italic text-stone-800">Ninongs</h4>
+              <p
+                class="text-[9px] text-stone-400 uppercase tracking-widest mt-1"
+              >
+                Black Suit
+              </p>
+            </div>
+          </div>
+
+          <!-- 9. Lady Guests -->
+          <div class="attire-album-card group" data-role="Lady Guests">
+            <div class="fb-album-grid shadow-album">
+              <div class="grid-main">
+                <img src="./assets/attire/lady-1.jpg" />
+              </div>
+              <div class="grid-side">
+                <div class="side-item">
+                  <img src="./assets/attire/lady-2.jpg" />
+                </div>
+                <div class="side-item more-overlay">
+                  <img src="./assets/attire/lady-3.jpg" /><span
+                    class="plus-count"
+                    >+2</span
+                  >
+                </div>
+              </div>
+              <div class="palette-pill">
+                <div
+                  class="w-4 h-4 rounded-full"
+                  style="background-color: #fadadd"
+                ></div>
+                <div
+                  class="w-4 h-4 rounded-full"
+                  style="background-color: #fdfd96"
+                ></div>
+                <div
+                  class="w-4 h-4 rounded-full"
+                  style="background-color: #b2e2f2"
+                ></div>
+              </div>
+            </div>
+            <div class="text-center mt-5">
+              <h4 class="serif text-lg italic text-stone-800">Lady Guests</h4>
+              <p
+                class="text-[9px] text-stone-400 uppercase tracking-widest mt-1"
+              >
+                Spring Floral Dresses
+              </p>
+            </div>
+          </div>
+
+          <!-- 10. Gentleman Guests -->
+          <div class="attire-album-card group" data-role="Gentleman Guests">
+            <div class="fb-album-grid shadow-album">
+              <div class="grid-main">
+                <img src="./assets/attire/gent-1.jpg" />
+              </div>
+              <div class="grid-side">
+                <div class="side-item">
+                  <img src="./assets/attire/gent-2.jpg" />
+                </div>
+                <div class="side-item more-overlay">
+                  <img src="./assets/attire/gent-3.jpg" /><span
+                    class="plus-count"
+                    >+2</span
+                  >
+                </div>
+              </div>
+              <div class="palette-pill">
+                <div
+                  class="w-4 h-4 rounded-full"
+                  style="background-color: #f0fff0"
+                ></div>
+                <div
+                  class="w-4 h-4 rounded-full"
+                  style="background-color: #e0b0ff"
+                ></div>
+                <div
+                  class="w-4 h-4 rounded-full"
+                  style="background-color: #c3b091"
+                ></div>
+              </div>
+            </div>
+            <div class="text-center mt-5">
+              <h4 class="serif text-lg italic text-stone-800">
+                Gentleman Guests
+              </h4>
+              <p
+                class="text-[9px] text-stone-400 uppercase tracking-widest mt-1"
+              >
+                Pastel Polos & Khaki
+              </p>
+            </div>
           </div>
         </div>
       </div>
     </section>
+
+    <!-- MESSENGER STYLE MODAL: CONSTRICTED TO VIEWPORT -->
+    <div
+      id="attireModal"
+      class="fixed inset-0 z-[600] hidden flex flex-col items-center justify-between bg-black/70 backdrop-blur-xl opacity-0 transition-opacity duration-300"
+    >
+      <!-- Modal Header -->
+      <div class="w-full flex items-center justify-between p-6">
+        <div class="w-10"></div>
+        <!-- Spacer -->
+        <h3
+          id="attireModalTitle"
+          class="serif text-xl italic text-white tracking-wide"
+        >
+          Role Name
+        </h3>
+        <button
+          onclick="window.closeAttireModal()"
+          class="text-white/40 hover:text-white text-3xl"
+        >
+          ✕
+        </button>
+      </div>
+
+      <!-- Main View Area (Constrained) -->
+      <div
+        class="flex-1 w-full flex items-center justify-center p-4 overflow-hidden"
+      >
+        <img
+          id="mainAttireImg"
+          src=""
+          class="max-w-full max-h-full object-contain rounded-lg shadow-2xl transition-opacity duration-300"
+          alt="Full Preview"
+        />
+      </div>
+
+      <!-- Filmstrip Footer -->
+      <div class="w-full bg-black/40 p-6">
+        <div
+          id="attireThumbs"
+          class="flex justify-center gap-3 overflow-x-auto no-scrollbar max-w-2xl mx-auto"
+        >
+          <!-- Thumbs injected via JS -->
+        </div>
+      </div>
+    </div>
 
     <!-- SCHEDULE SECTION (UPDATED TIMES) -->
     <section

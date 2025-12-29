@@ -158,6 +158,134 @@ document.addEventListener("DOMContentLoaded", () => {
 
     frame();
   };
+
+  const attireCards = document.querySelectorAll(".attire-album-card");
+  const attireModal = document.getElementById("attireModal");
+  const mainImg = document.getElementById("mainAttireImg");
+  const thumbContainer = document.getElementById("attireThumbs");
+  const attireModalTitle = document.getElementById("attireModalTitle");
+
+  // DATA CONFIGURATION
+  const attireData = {
+    "Best Man": [
+      "./assets/attire/bestman-1.jpg",
+      "./assets/attire/bestman-2.jpg",
+      "./assets/attire/bestman-3.jpg",
+    ],
+    "Maid of Honor": [
+      "./assets/attire/moh-1.jpg",
+      "./assets/attire/moh-2.jpg",
+      "./assets/attire/moh-3.jpg",
+      "./assets/attire/moh-4.jpg",
+    ],
+    Bridesmaids: [
+      "./assets/attire/bm-1.jpg",
+      "./assets/attire/bm-2.jpg",
+      "./assets/attire/bm-3.jpg",
+      "./assets/attire/bm-4.jpg",
+    ],
+    Groomsmen: [
+      "./assets/attire/gm-1.jpg",
+      "./assets/attire/gm-2.jpg",
+      "./assets/attire/gm-3.jpg",
+    ],
+    Mothers: [
+      "./assets/attire/mothers-1.jpg",
+      "./assets/attire/mothers-2.jpg",
+      "./assets/attire/mothers-3.jpg",
+      "./assets/attire/mothers-4.jpg",
+      "./assets/attire/mothers-5.jpg",
+      "./assets/attire/mothers-6.jpg",
+      "./assets/attire/mothers-7.jpg",
+    ],
+    Fathers: [
+      "./assets/attire/fathers-1.jpg",
+      "./assets/attire/fathers-2.jpg",
+      "./assets/attire/fathers-3.jpg",
+    ],
+    Ninangs: [
+      "./assets/attire/ninangs-1.jpg",
+      "./assets/attire/ninangs-2.jpg",
+      "./assets/attire/ninangs-3.jpg",
+    ],
+    Ninongs: [
+      "./assets/attire/ninongs-1.jpg",
+      "./assets/attire/ninongs-2.jpg",
+      "./assets/attire/ninongs-3.jpg",
+    ],
+    "Lady Guests": [
+      "./assets/attire/lady-1.jpg",
+      "./assets/attire/lady-2.jpg",
+      "./assets/attire/lady-3.jpg",
+      "./assets/attire/lady-4.jpg",
+    ],
+    "Gentleman Guests": [
+      "./assets/attire/gent-1.jpg",
+      "./assets/attire/gent-2.jpg",
+      "./assets/attire/gent-3.jpg",
+      "./assets/attire/gent-4.jpg",
+    ],
+  };
+
+  attireCards.forEach((card) => {
+    card.addEventListener("click", () => {
+      const role = card.getAttribute("data-role");
+      const images = attireData[role] || [];
+      if (images.length === 0) return;
+
+      attireModalTitle.innerText = role;
+      mainImg.src = images[0];
+
+      // Generate Thumbnails
+      thumbContainer.innerHTML = images
+        .map(
+          (src, index) => `
+                <img src="${src}" 
+                     class="attire-thumb ${index === 0 ? "active" : ""}" 
+                     onclick="window.changeAttireView(this, '${src}')">
+            `
+        )
+        .join("");
+
+      // Open Modal
+      attireModal.classList.remove("hidden");
+      attireModal.style.display = "flex";
+      setTimeout(() => (attireModal.style.opacity = "1"), 10);
+      document.body.style.overflow = "hidden"; // Lock background
+    });
+  });
+
+  // Global Image Switcher
+  window.changeAttireView = (thumb, src) => {
+    mainImg.style.opacity = "0";
+    setTimeout(() => {
+      mainImg.src = src;
+      mainImg.style.opacity = "1";
+    }, 150);
+
+    document
+      .querySelectorAll(".attire-thumb")
+      .forEach((t) => t.classList.remove("active"));
+    thumb.classList.add("active");
+    thumb.scrollIntoView({
+      behavior: "smooth",
+      inline: "center",
+      block: "nearest",
+    });
+  };
+
+  window.closeAttireModal = () => {
+    attireModal.style.opacity = "0";
+    setTimeout(() => {
+      attireModal.classList.add("hidden");
+      attireModal.style.display = "none";
+      document.body.style.overflow = "auto";
+    }, 300);
+  };
+
+  attireModal.addEventListener("click", (e) => {
+    if (e.target === attireModal) window.closeAttireModal();
+  });
 });
 
 // --- 2. FIREBASE & RSVP ---

@@ -970,3 +970,132 @@ body {
     transform: translateY(4px);
   }
 }
+/* CONTAINER & GRID FIXES */
+.attire-album-card {
+  width: calc(50% - 10px);
+  max-width: 280px;
+  cursor: pointer;
+  padding: 1rem;
+  border-radius: 26px;
+  box-shadow: 0 4px 10px rgba(0, 0, 0, 0.1);
+  transition: all 0.2s ease;
+  transform: translateY(0);
+}
+
+.attire-album-card:hover {
+  transition: all 0.2s ease;
+  transform: translateY(-10px);
+}
+
+@media (min-width: 1024px) {
+  .attire-album-card {
+    width: calc(33% - 40px);
+  }
+}
+
+/* FIXED SQUARE ALBUM GRID */
+.fb-album-grid {
+  display: grid;
+  grid-template-columns: 1.5fr 1fr;
+  gap: 6px;
+  background: white;
+  padding-bottom: 6px;
+  border-radius: 20px;
+
+  aspect-ratio: 1 / 1; /* <--- THIS FORCES THE SQUARE */
+  width: 100%; /* Fills the card width */
+  overflow: hidden; /* Prevents images from leaking out */
+  position: relative;
+}
+
+.grid-main,
+.grid-side,
+.side-item {
+  height: 100% !important;
+  width: 100%;
+  overflow: hidden;
+  border-radius: 12px;
+}
+
+.fb-album-grid img {
+  width: 100% !important;
+  height: 100% !important;
+  object-fit: cover; /* <--- PREVENTS STRETCHING */
+  display: block;
+}
+
+.grid-side {
+  display: grid;
+  grid-template-rows: 1fr 1fr;
+  gap: 6px;
+  height: 100%;
+}
+
+.more-overlay {
+  position: relative;
+}
+.more-overlay::after {
+  content: "";
+  position: absolute;
+  inset: 0;
+  background: rgba(0, 0, 0, 0.45);
+}
+
+.plus-count {
+  position: absolute;
+  inset: 0;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  color: white;
+  font-weight: 600;
+  font-size: 1.2rem;
+  z-index: 10;
+}
+
+.palette-pill {
+  position: absolute;
+  bottom: 10px;
+  right: 10px;
+  display: flex;
+  gap: 4px;
+  background: rgba(255, 255, 255, 0.85);
+  backdrop-filter: blur(8px);
+  padding: 5px;
+  border-radius: 50px;
+  z-index: 20;
+  box-shadow: 0 4px 10px rgba(0, 0, 0, 0.1);
+}
+
+/* MESSENGER MODAL THUMBS */
+.attire-thumb {
+  width: 50px;
+  height: 50px;
+  flex-shrink: 0;
+  object-fit: cover;
+  border-radius: 8px;
+  cursor: pointer;
+  opacity: 0.3;
+  transition: all 0.2s ease;
+  border: 2px solid transparent;
+}
+.attire-thumb.active {
+  opacity: 1;
+  border-color: #7b8a5b;
+  transform: scale(1.1);
+}
+
+.no-scrollbar::-webkit-scrollbar {
+  display: none;
+}
+
+/* Prevent background scrolling when modal is open */
+.no-scroll {
+  overflow: hidden !important;
+  height: 100vh;
+}
+
+.no-scrollbar {
+  -ms-overflow-style: none;
+  scrollbar-width: none;
+}
