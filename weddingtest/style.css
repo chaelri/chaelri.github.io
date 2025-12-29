@@ -855,3 +855,98 @@ body {
   /* Prevent images from being 'dragged' by the thumb on mobile */
   -webkit-user-drag: none;
 }
+
+/* --- IMPROVED TYPEAHEAD UI --- */
+
+#autocomplete-list {
+  margin-top: 4px;
+  border-radius: 12px;
+  border: 1px solid rgba(123, 138, 91, 0.1);
+  box-shadow: 0 10px 25px -5px rgba(0, 0, 0, 0.1),
+    0 8px 10px -6px rgba(0, 0, 0, 0.05);
+  background: #ffffff;
+  overflow: hidden;
+  animation: listFadeIn 0.2s ease-out;
+}
+
+@keyframes listFadeIn {
+  from {
+    opacity: 0;
+    transform: translateY(-10px);
+  }
+  to {
+    opacity: 1;
+    transform: translateY(0);
+  }
+}
+
+.suggestion-item {
+  padding: 14px 18px;
+  display: flex;
+  align-items: center;
+  gap: 5px;
+  transition: all 0.2s ease;
+  border-bottom: 1px solid #f8f8f8;
+  color: #57534e; /* stone-600 */
+}
+
+.suggestion-item:last-child {
+  border-bottom: none;
+}
+
+/* Add a floral bullet point for each suggestion */
+.suggestion-item::before {
+  content: "✿";
+  color: #7b8a5b;
+  font-size: 10px;
+  opacity: 0.4;
+}
+
+.suggestion-item:hover,
+.suggestion-item.is-active {
+  background-color: #fcfbf8;
+  color: #7b8a5b;
+  padding-left: 24px; /* Slight slide effect */
+}
+
+.suggestion-item strong {
+  color: #7b8a5b; /* Highlighted part of name */
+  font-weight: 600;
+}
+
+/* Hint for the user */
+.typeahead-hint {
+  padding: 10px 18px;
+  font-size: 10px;
+  text-transform: uppercase;
+  letter-spacing: 0.1em;
+  color: #a8a29e;
+  background: #fafaf9;
+  border-bottom: 1px solid #f5f5f4;
+}
+
+@keyframes heartTick {
+  0% {
+    transform: scale(1);
+    opacity: 1;
+  }
+  50% {
+    transform: scale(1.05);
+    opacity: 0.8;
+  }
+  100% {
+    transform: scale(1);
+    opacity: 1;
+  }
+}
+
+.animate-tick {
+  display: inline-block;
+  animation: heartTick 1s infinite ease-in-out;
+  /* Prevent jittering on serif fonts */
+  font-variant-numeric: tabular-nums;
+}
+
+#countdown-container .serif {
+  min-width: 1.2ch; /* Prevents layout jump when numbers change */
+}

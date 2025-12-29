@@ -166,30 +166,96 @@ get(child(ref(db), "guestList")).then((snapshot) => {
     masterGuestList = Object.values(snapshot.val()).map((g) => g.name);
 });
 
+// --- SMART RSVP TYPEAHEAD ---
 const nameInput = document.getElementById("guestName");
 const listContainer = document.getElementById("autocomplete-list");
+let currentFocus = -1;
 
 nameInput.addEventListener("input", function () {
   const val = this.value;
-  listContainer.innerHTML = "";
-  listContainer.classList.add("hidden");
+  closeAllLists();
   if (!val || val.length < 2) return;
+
+  currentFocus = -1;
   const matches = masterGuestList.filter((n) =>
     n.toLowerCase().includes(val.toLowerCase())
   );
+
   if (matches.length > 0) {
     listContainer.classList.remove("hidden");
+
+    // Add a "header" hint
+    const hint = document.createElement("div");
+    hint.className = "typeahead-hint";
+    hint.innerText = "Please select your name";
+    listContainer.appendChild(hint);
+
     matches.forEach((name) => {
       const div = document.createElement("div");
       div.className = "suggestion-item";
-      div.innerHTML = `<strong>${name}</strong>`;
-      div.onclick = () => {
+
+      // Highlight the matching part
+      const matchIndex = name.toLowerCase().indexOf(val.toLowerCase());
+      const before = name.substr(0, matchIndex);
+      const middle = name.substr(matchIndex, val.length);
+      const after = name.substr(matchIndex + val.length);
+
+      div.innerHTML = `${before}<strong>${middle}</strong>${after}`;
+
+      div.addEventListener("click", () => {
         nameInput.value = name;
-        listContainer.classList.add("hidden");
-      };
+        closeAllLists();
+        // Optional: Automatically trigger focus on the next field
+        document.getElementById("attendance").focus();
+      });
       listContainer.appendChild(div);
     });
   }
+});
+
+// Support Arrow Keys and Enter
+nameInput.addEventListener("keydown", function (e) {
+  let items = listContainer.getElementsByClassName("suggestion-item");
+  if (e.keyCode == 40) {
+    // Down
+    currentFocus++;
+    addActive(items);
+  } else if (e.keyCode == 38) {
+    // Up
+    currentFocus--;
+    addActive(items);
+  } else if (e.keyCode == 13) {
+    // Enter
+    e.preventDefault();
+    if (currentFocus > -1 && items) items[currentFocus].click();
+  }
+});
+
+function addActive(items) {
+  if (!items) return false;
+  removeActive(items);
+  if (currentFocus >= items.length) currentFocus = 0;
+  if (currentFocus < 0) currentFocus = items.length - 1;
+  items[currentFocus].classList.add("is-active");
+  items[currentFocus].scrollIntoView({ block: "nearest" });
+}
+
+function removeActive(items) {
+  for (let i = 0; i < items.length; i++) {
+    items[i].classList.remove("is-active");
+  }
+}
+
+function closeAllLists() {
+  listContainer.innerHTML = "";
+  listContainer.classList.add("hidden");
+  document.getElementById("nameErrorMsg").classList.add("hidden");
+  nameInput.classList.remove("border-error");
+}
+
+// Close if user clicks away
+document.addEventListener("click", (e) => {
+  if (e.target !== nameInput) closeAllLists();
 });
 
 document.getElementById("rsvpForm").onsubmit = async (e) => {
@@ -768,3 +834,27 @@ document.querySelectorAll(".trivia-note").forEach((note) => {
     }
   });
 });
+
+// --- DRAMATIC COUNTDOWN LOGIC ---
+setInterval(() => {
+  const targetDate = new Date("July 2, 2026 15:00:00").getTime();
+  const now = new Date().getTime();
+  const dist = targetDate - now;
+
+  if (dist < 0) {
+    document.getElementById("countdown-container").innerHTML =
+      "<p class='serif italic text-2xl text-[#7b8a5b]'>Today is the Day!</p>";
+    return;
+  }
+
+  const d = Math.floor(dist / (1000 * 60 * 60 * 24));
+  const h = Math.floor((dist % (1000 * 60 * 60 * 24)) / (1000 * 60 * 60));
+  const m = Math.floor((dist % (1000 * 60 * 60)) / (1000 * 60));
+  const s = Math.floor((dist % (1000 * 60)) / 1000);
+
+  // Update elements with padding (e.g., 05 instead of 5)
+  document.getElementById("days").innerText = d.toString().padStart(2, "0");
+  document.getElementById("hours").innerText = h.toString().padStart(2, "0");
+  document.getElementById("minutes").innerText = m.toString().padStart(2, "0");
+  document.getElementById("seconds").innerText = s.toString().padStart(2, "0");
+}, 1000);

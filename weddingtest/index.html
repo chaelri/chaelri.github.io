@@ -108,11 +108,13 @@
               <p class="serif italic text-lg text-stone-800">
                 With all our love,
               </p>
-              <p
-                class="font-bold tracking-widest text-[#7b8a5b] text-sm uppercase"
+              <div
+                class="text-base md:text-lg font-bold serif tracking-wide sm:block"
               >
-                Charlie & Karla
-              </p>
+                Charlie
+                <span class="ampersand-animate italic font-normal">&</span>
+                Karla
+              </div>
             </div>
           </div>
           <button
@@ -252,7 +254,8 @@
         class="md:w-1/2 flex flex-col justify-center items-center p-8 md:p-16 text-center bg-white relative"
       >
         <p class="text-stone-400 uppercase tracking-[0.4em] text-[10px] mb-8">
-          You are invited to the wedding of
+          You are invited to the
+          <strong class="ampersand-animate">wedding</strong> of
         </p>
         <h1
           class="text-5xl md:text-7xl mb-4 serif tracking-tight text-stone-800"
@@ -261,7 +264,7 @@
           <span class="ampersand-animate italic font-normal">&</span> Karla
         </h1>
         <div
-          class="space-y-2 mb-8 py-6 border-y border-stone-100 w-full max-w-sm"
+          class="space-y-2 py-6 border-y border-stone-100 w-full max-w-sm"
         >
           <p class="text-xl md:text-2xl italic serif text-stone-600">
             Thursday, July 2, 2026
@@ -271,10 +274,74 @@
           </p>
         </div>
         <div
-          id="countdown"
-          class="text-xl font-mono mb-10 text-stone-300 tracking-widest"
+          id="countdown-container"
+          class="flex justify-center items-center gap-4 md:gap-8 my-10 select-none"
         >
-          00D 00H 00M 00S
+          <!-- Days -->
+          <div class="text-center">
+            <div
+              id="days"
+              class="text-4xl md:text-2xl serif text-[#7b8a5b] leading-none"
+            >
+              000
+            </div>
+            <div
+              class="text-[9px] uppercase tracking-[0.2em] text-stone-400 mt-2 font-bold"
+            >
+              Days
+            </div>
+          </div>
+
+          <div class="h-8 w-[1px] bg-stone-100 hidden md:block"></div>
+
+          <!-- Hours -->
+          <div class="text-center">
+            <div
+              id="hours"
+              class="text-4xl md:text-2xl serif text-[#7b8a5b] leading-none"
+            >
+              00
+            </div>
+            <div
+              class="text-[9px] uppercase tracking-[0.2em] text-stone-400 mt-2 font-bold"
+            >
+              Hours
+            </div>
+          </div>
+
+          <div class="h-8 w-[1px] bg-stone-100 hidden md:block"></div>
+
+          <!-- Minutes -->
+          <div class="text-center">
+            <div
+              id="minutes"
+              class="text-4xl md:text-2xl serif text-[#7b8a5b] leading-none"
+            >
+              00
+            </div>
+            <div
+              class="text-[9px] uppercase tracking-[0.2em] text-stone-400 mt-2 font-bold"
+            >
+              Mins
+            </div>
+          </div>
+
+          <div class="h-8 w-[1px] bg-stone-100 hidden md:block"></div>
+
+          <!-- Seconds -->
+          <div class="text-center">
+            <div
+              id="seconds"
+              class="text-4xl md:text-2xl serif text-[#ffb7c5] leading-none animate-tick"
+            >
+              00
+            </div>
+            <div
+              class="text-[9px] uppercase tracking-[0.2em] text-stone-400 mt-2 font-bold"
+            >
+              Secs
+            </div>
+          </div>
         </div>
         <a
           href="#rsvp"
@@ -1435,11 +1502,12 @@
       >
         <!-- Minimal Reminder Info-Bar -->
         <div class="mb-10 text-center space-y-1">
-          <p
-            class="text-[9px] uppercase tracking-[0.3em] font-bold text-[#7b8a5b]"
+          <div
+            class="text-base md:text-lg font-bold serif tracking-wide sm:block"
           >
-            Charlie <span class="italic font-normal">&</span> Karla
-          </p>
+            Charlie
+            <span class="ampersand-animate italic font-normal">&</span> Karla
+          </div>
           <p
             class="text-[10px] uppercase tracking-widest text-stone-400 italic"
           >
