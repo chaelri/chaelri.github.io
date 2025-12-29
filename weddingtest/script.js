@@ -86,7 +86,7 @@ document.addEventListener("DOMContentLoaded", () => {
       }, 2500);
     }, 500);
   });
-  
+
   const revealWrappers = document.querySelectorAll(".reveal-wrapper");
 
   revealWrappers.forEach((wrapper) => {
@@ -101,6 +101,31 @@ document.addEventListener("DOMContentLoaded", () => {
       }, 100);
     });
   });
+
+  const progressBar = document.getElementById("scroll-progress-bar");
+
+  window.addEventListener(
+    "scroll",
+    () => {
+      // Calculate how many pixels the user has scrolled
+      const windowScroll =
+        window.pageYOffset || document.documentElement.scrollTop;
+
+      // Calculate the total scrollable height of the document
+      const height =
+        document.documentElement.scrollHeight -
+        document.documentElement.clientHeight;
+
+      // Convert to percentage
+      const scrolled = (windowScroll / height) * 100;
+
+      // Apply width to the bar
+      if (progressBar) {
+        progressBar.style.width = scrolled + "%";
+      }
+    },
+    { passive: true }
+  );
 });
 
 // --- 2. FIREBASE & RSVP ---
