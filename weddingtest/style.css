@@ -686,3 +686,49 @@ body {
   z-index: 200; /* Above nav */
   transition: width 0.1s ease-out;
 }
+
+/* THE REAL WAX SEAL ANIMATION */
+.wax-seal-img {
+  width: 120px; /* Slightly larger for the real image */
+  height: auto;
+  pointer-events: none;
+  user-select: none;
+  filter: drop-shadow(0 6px 12px rgba(0, 0, 0, 0.15));
+
+  /* The Stamp Animation */
+  transform: scale(0);
+  opacity: 0;
+  animation: stamp-in 0.5s cubic-bezier(0.175, 0.885, 0.32, 1.275) forwards;
+  animation-delay: 0.2s; /* Tiny delay for better feel */
+}
+
+@keyframes stamp-in {
+  0% {
+    transform: scale(4);
+    opacity: 0;
+    filter: blur(15px) drop-shadow(0 20px 30px rgba(0, 0, 0, 0.2));
+  }
+  80% {
+    transform: scale(0.9); /* Slight squash on impact */
+  }
+  100% {
+    transform: scale(1);
+    opacity: 1;
+    filter: blur(0) drop-shadow(0 6px 12px rgba(0, 0, 0, 0.15));
+  }
+}
+
+/* The card shake (Keep this from before) */
+.stamp-shake {
+  animation: box-shake 0.1s ease-in-out 0.6s 2;
+}
+
+@keyframes box-shake {
+  0%,
+  100% {
+    transform: translateY(0);
+  }
+  50% {
+    transform: translateY(3px);
+  }
+}

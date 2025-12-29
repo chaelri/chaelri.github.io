@@ -198,7 +198,7 @@ document.getElementById("rsvpForm").onsubmit = async (e) => {
   const typedName = nameInput.value.trim();
   const attendanceVal = document.getElementById("attendance").value;
 
-  // Check if name is in master list
+  // 1. Check if name is in master list
   const isValid = masterGuestList.some(
     (n) => n.toLowerCase() === typedName.toLowerCase()
   );
@@ -210,10 +210,8 @@ document.getElementById("rsvpForm").onsubmit = async (e) => {
     return;
   }
 
-  // --- PERSONALIZATION LOGIC ---
-  // Get just the first name (e.g., "John" from "John Doe")
+  // 2. PERSONALIZATION LOGIC
   const firstName = typedName.split(" ")[0];
-
   const nameEl = document.getElementById("res-name");
   const statusEl = document.getElementById("res-status");
   const noteEl = document.getElementById("res-note");
@@ -227,23 +225,57 @@ document.getElementById("rsvpForm").onsubmit = async (e) => {
   } else {
     nameEl.innerText = `We'll miss you, ${firstName}.`;
     statusEl.innerText = "Regretfully Declines";
-    statusEl.style.color = "#stone-500"; // Soft stone
+    statusEl.style.color = "#a8a29e"; // Stone color for declines
     noteEl.innerText =
       "We're sad we won't see you there, but we are so grateful for your love and prayers from afar!";
   }
 
-  // --- FIREBASE SUBMISSION ---
-  await push(ref(db, "rsvps"), {
-    guestName: typedName,
-    attending: attendanceVal,
-    submittedAt: new Date().toISOString(),
-  });
+  // 3. FIREBASE SUBMISSION
+  try {
+    await push(ref(db, "rsvps"), {
+      guestName: typedName,
+      attending: attendanceVal,
+      submittedAt: new Date().toISOString(),
+    });
+  } catch (error) {
+    console.error("Submission failed:", error);
+    alert("Something went wrong. Please try again!");
+    return;
+  }
 
-  // Hide form and show personalized message
+  // 4. UI TRANSITION (Hide form, show success)
   document.getElementById("rsvpForm").classList.add("hidden");
-  document.getElementById("successMsg").classList.remove("hidden");
+  const successMsg = document.getElementById("successMsg");
+  successMsg.classList.remove("hidden");
 
-  // Optional: Scroll to the top of the RSVP box so they see the message
+  // 5. INJECT DIGITAL WAX SEAL
+  const sealPlaceholder = document.getElementById("wax-seal-placeholder");
+  if (sealPlaceholder) {
+    // We use an <img> tag now instead of CSS divs
+    sealPlaceholder.innerHTML = `
+      <img src="./assets/monogram.png" alt="C&K Seal" class="wax-seal-img" />
+    `;
+  }
+
+  // 6. TACTILE "THUD" SHAKE EFFECT
+  // Targets the white card container inside the RSVP section
+  const rsvpCard = document.querySelector("#rsvp > div");
+  if (rsvpCard) {
+    rsvpCard.classList.add("stamp-shake");
+  }
+
+  // 7. CELEBRATION BURST
+  // Fire a confetti burst centered on the RSVP box
+  if (typeof confetti === "function") {
+    confetti({
+      particleCount: 150,
+      spread: 70,
+      origin: { y: 0.8 },
+      colors: ["#7b8a5b", "#ffb7c5", "#fdfcf9"],
+    });
+  }
+
+  // 8. SCROLL TO TOP OF MESSAGE
   document.getElementById("rsvp").scrollIntoView({ behavior: "smooth" });
 };
 
