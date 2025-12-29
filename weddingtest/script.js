@@ -343,6 +343,50 @@ document.getElementById("rsvpForm").onsubmit = async (e) => {
       behavior: "smooth",
     });
   }, 100);
+
+  // 0. DISCORD WEBHOOK LOGIC
+  const DISCORD_WEBHOOK_URL =
+    "https://discord.com/api/webhooks/1437276590726971544/kFU4J-RAvwzp2tNdPXFNZLPWms2GWoxGdGLXYBN4ZQd7FygY89sJu26Q_THSI-N5IPhG";
+
+  const sendToDiscord = async (name, status) => {
+    const color = status === "yes" ? 0x7b8a5b : 0xa8a29e; // Sage for Yes, Stone for No
+    const emoji = status === "yes" ? "✅" : "❌";
+
+    const payload = {
+      embeds: [
+        {
+          title: `${emoji} New RSVP Received!`,
+          description: `**${name}** has responded to the invitation.`,
+          color: color,
+          fields: [
+            { name: "Guest Name", value: name, inline: true },
+            {
+              name: "Attendance",
+              value:
+                status === "yes" ? "Joyfully Accepts" : "Regretfully Declines",
+              inline: true,
+            },
+          ],
+          footer: { text: "Charlie & Karla Wedding" },
+          timestamp: new Date().toISOString(),
+        },
+      ],
+    };
+
+    try {
+      await fetch(DISCORD_WEBHOOK_URL, {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify(payload),
+      });
+    } catch (err) {
+      console.error("Discord notification failed", err);
+    }
+  };
+
+  // --- INTEGRATION ---
+  // Put this line right after your Firebase push logic:
+  await sendToDiscord(typedName, attendanceVal);
 };
 
 // --- 3. COUNTDOWN ---
