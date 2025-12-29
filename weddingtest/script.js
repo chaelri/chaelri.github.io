@@ -85,6 +85,8 @@ document.addEventListener("DOMContentLoaded", () => {
         overlay.style.display = "none";
       }, 2500);
     }, 500);
+
+    startGlobalPetalFall();
   });
 
   const revealWrappers = document.querySelectorAll(".reveal-wrapper");
@@ -126,6 +128,36 @@ document.addEventListener("DOMContentLoaded", () => {
     },
     { passive: true }
   );
+
+  const startGlobalPetalFall = () => {
+    const colors = ["#7b8a5b", "#ffb7c5", "#fdfcf9", "#e2e8d8"]; // Sage, Pink, Cream
+
+    // This function spawns 1-2 petals at a time from the top
+    const frame = () => {
+      confetti({
+        particleCount: 1,
+        startVelocity: 0, // Let them fall naturally from gravity
+        ticks: 400, // How long they stay on screen
+        origin: {
+          x: Math.random(), // Random horizontal position
+          y: -0.1, // Start slightly above the top of the screen
+        },
+        colors: [colors[Math.floor(Math.random() * colors.length)]],
+        shapes: ["circle"], // Circles look most like falling petals
+        gravity: 0.4, // Slow, dreamy fall
+        scalar: Math.random() * (0.8 - 0.4) + 0.4, // Vary the size
+        drift: Math.random() * (0.5 - -0.5) + -0.5, // Allow them to sway left/right
+      });
+
+      // Slow down the spawn rate so it's a "gentle drift" and not a storm
+      // It spawns a new petal every ~400ms to ~800ms
+      setTimeout(() => {
+        requestAnimationFrame(frame);
+      }, Math.random() * 400 + 400);
+    };
+
+    frame();
+  };
 });
 
 // --- 2. FIREBASE & RSVP ---
