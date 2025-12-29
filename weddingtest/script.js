@@ -86,6 +86,21 @@ document.addEventListener("DOMContentLoaded", () => {
       }, 2500);
     }, 500);
   });
+  
+  const revealWrappers = document.querySelectorAll(".reveal-wrapper");
+
+  revealWrappers.forEach((wrapper) => {
+    wrapper.addEventListener("click", function () {
+      // Add the class to trigger CSS transitions
+      this.classList.add("is-revealed");
+
+      // Optional: Add a subtle haptic-like scale effect on click
+      this.style.transform = "scale(0.98)";
+      setTimeout(() => {
+        this.style.transform = "";
+      }, 100);
+    });
+  });
 });
 
 // --- 2. FIREBASE & RSVP ---
