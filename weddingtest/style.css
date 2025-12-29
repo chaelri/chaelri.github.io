@@ -571,3 +571,14 @@ body {
 .nav-hidden {
   transform: translateY(-100%);
 }
+
+/* Real Depth Shadow for the cutout */
+.drop-shadow-wedding {
+  filter: drop-shadow(0 10px 10px rgba(0, 0, 0, 0.05))
+    drop-shadow(0 20px 30px rgba(123, 138, 91, 0.1));
+}
+
+/* Optional: Subtle Parallax for the Background Text */
+.parallax-text {
+  will-change: transform;
+}

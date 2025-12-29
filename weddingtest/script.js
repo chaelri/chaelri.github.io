@@ -481,3 +481,13 @@ window.addEventListener(
   },
   { passive: true }
 );
+
+window.addEventListener("scroll", () => {
+  const scrolled = window.pageYOffset;
+  // Select the large background heading
+  const bgText = document.querySelector(".parallax-text");
+  if (bgText) {
+    // Moves the text slowly as you scroll
+    bgText.style.transform = `translateY(${scrolled * 0.1}px)`;
+  }
+});
