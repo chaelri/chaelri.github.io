@@ -688,33 +688,55 @@ body {
 }
 
 /* THE REAL WAX SEAL ANIMATION */
+/* THE REAL WAX SEAL ANIMATION - FIXED FOR IPHONE */
 .wax-seal-img {
-  width: 120px; /* Slightly larger for the real image */
+  width: 120px;
   height: auto;
+  display: block; /* Ensure it's not inline */
+  margin: 0 auto;
   pointer-events: none;
   user-select: none;
-  filter: drop-shadow(0 6px 12px rgba(0, 0, 0, 0.15));
+
+  /* Safari Hardware Acceleration Hint */
+  will-change: transform, opacity;
+  -webkit-backface-visibility: hidden;
+  backface-visibility: hidden;
 
   /* The Stamp Animation */
-  transform: scale(0);
   opacity: 0;
+  transform: scale(0);
+
+  /* Prefixes for better Safari support */
+  -webkit-animation: stamp-in 0.5s cubic-bezier(0.175, 0.885, 0.32, 1.275)
+    forwards;
   animation: stamp-in 0.5s cubic-bezier(0.175, 0.885, 0.32, 1.275) forwards;
-  animation-delay: 0.2s; /* Tiny delay for better feel */
+  animation-delay: 0.2s;
+}
+
+/* We remove the 'blur' and the extra 'drop-shadow' from inside the keyframes 
+   to prevent Safari from getting confused during the calculation */
+@-webkit-keyframes stamp-in {
+  0% {
+    -webkit-transform: scale(4);
+    opacity: 0;
+  }
+  100% {
+    -webkit-transform: scale(1);
+    opacity: 1;
+  }
 }
 
 @keyframes stamp-in {
   0% {
     transform: scale(4);
     opacity: 0;
-    filter: blur(15px) drop-shadow(0 20px 30px rgba(0, 0, 0, 0.2));
   }
   80% {
-    transform: scale(0.9); /* Slight squash on impact */
+    transform: scale(0.9); /* The impact 'squash' */
   }
   100% {
     transform: scale(1);
     opacity: 1;
-    filter: blur(0) drop-shadow(0 6px 12px rgba(0, 0, 0, 0.15));
   }
 }
 
