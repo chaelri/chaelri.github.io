@@ -1415,6 +1415,17 @@
       />
     </div>
 
+    <!-- BACKGROUND MUSIC -->
+    <audio id="bgMusic" src="./assets/background-song.mp3" loop></audio>
+
+    <!-- STICKY MUSIC TOGGLE -->
+    <button
+      id="musicToggle"
+      class="fixed bottom-6 left-6 z-[100] w-12 h-12 bg-white/80 backdrop-blur-md border border-stone-200 rounded-full flex items-center justify-center shadow-lg text-[#7b8a5b] transition-all hover:scale-110 active:scale-95"
+    >
+      <span id="musicIcon" class="material-icons-outlined">volume_up</span>
+    </button>
+
     <script src="https://cdn.jsdelivr.net/npm/canvas-confetti@1.6.0/dist/confetti.browser.min.js"></script>
     <script type="module" src="./script.js"></script>
   </body>

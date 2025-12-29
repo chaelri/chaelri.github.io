@@ -549,33 +549,88 @@ const triggerCelebration = () => {
 };
 
 // --- OBSERVER FOR THE TRANSITION SECTION ---
-const foreverSection = document.getElementById('forever-section');
+const foreverSection = document.getElementById("forever-section");
 window.isForeverVisible = false;
 
+const foreverObserver = new IntersectionObserver(
+  (entries) => {
+    entries.forEach((entry) => {
+      if (entry.isIntersecting) {
+        window.isForeverVisible = true;
 
-const foreverObserver = new IntersectionObserver((entries) => {
-  entries.forEach(entry => {
-    if (entry.isIntersecting) {
-      window.isForeverVisible = true;
-      
-      // Trigger burst if it hasn't fired for this "visit"
-      if (!hasBurst) {
-        triggerCelebration();
-        hasBurst = true; // Mark as fired so it doesn't loop infinitely while sitting there
+        // Trigger burst if it hasn't fired for this "visit"
+        if (!hasBurst) {
+          triggerCelebration();
+          hasBurst = true; // Mark as fired so it doesn't loop infinitely while sitting there
+        }
+
+        // Start the continuous soft drift
+        startSpringDrift();
+      } else {
+        // WHEN LEAVING THE VIEWPORT
+        window.isForeverVisible = false;
+        hasBurst = false; // RESET HERE: This allows it to fire again next time they scroll in
+        clearTimeout(driftInterval);
       }
-      
-      // Start the continuous soft drift
-      startSpringDrift();
-    } else {
-      // WHEN LEAVING THE VIEWPORT
-      window.isForeverVisible = false;
-      hasBurst = false; // RESET HERE: This allows it to fire again next time they scroll in
-      clearTimeout(driftInterval);
-    }
-  });
-}, { 
-  // Adjusted threshold: 0.5 means it fires when half the section is visible
-  threshold: 0.5 
-});
+    });
+  },
+  {
+    // Adjusted threshold: 0.5 means it fires when half the section is visible
+    threshold: 0.5,
+  }
+);
 
 if (foreverSection) foreverObserver.observe(foreverSection);
+
+// --- SMART MEDIA CONTROLLER ---
+const bgMusic = document.getElementById("bgMusic");
+const musicToggle = document.getElementById("musicToggle");
+const musicIcon = document.getElementById("musicIcon");
+const courtshipAudio = document.getElementById("courtshipAudio");
+const allVideos = document.querySelectorAll("video");
+
+let isMusicMuted = false;
+
+// 1. Initial Start (Triggered by the "Continue" button in your overlay)
+const startBtn = document.getElementById("closeModalBtn");
+startBtn.addEventListener("click", () => {
+  bgMusic.volume = 0.4; // Set background music volume slightly lower
+  bgMusic
+    .play()
+    .catch((e) => console.log("Autoplay blocked until interaction"));
+});
+
+// 2. Toggle Logic
+musicToggle.addEventListener("click", () => {
+  if (bgMusic.paused) {
+    bgMusic.play();
+    isMusicMuted = false;
+    musicIcon.innerText = "volume_up";
+  } else {
+    bgMusic.pause();
+    isMusicMuted = true;
+    musicIcon.innerText = "volume_off";
+  }
+});
+
+// 3. Prevent Overlap Function
+const pauseBG = () => {
+  if (!isMusicMuted) bgMusic.pause();
+};
+const resumeBG = () => {
+  if (!isMusicMuted) bgMusic.play();
+};
+
+// Watch the Courtship Audio
+if (courtshipAudio) {
+  courtshipAudio.addEventListener("play", pauseBG);
+  courtshipAudio.addEventListener("pause", resumeBG);
+  courtshipAudio.addEventListener("ended", resumeBG);
+}
+
+// Watch all Videos (Proposal, SkyRanch, etc.)
+allVideos.forEach((video) => {
+  video.addEventListener("play", pauseBG);
+  video.addEventListener("pause", resumeBG);
+  video.addEventListener("ended", resumeBG);
+});

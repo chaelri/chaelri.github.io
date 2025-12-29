@@ -582,3 +582,30 @@ body {
 .parallax-text {
   will-change: transform;
 }
+
+#musicToggle {
+  /* Ensure it doesn't get in the way of the "RSVP" button on very small phones */
+  -webkit-tap-highlight-color: transparent;
+}
+
+#musicToggle span {
+  font-size: 20px;
+  transition: transform 0.3s ease;
+}
+
+/* Pulsing effect when music is playing so they know it's "live" */
+.music-playing-pulse {
+  animation: musicPulse 2s infinite ease-in-out;
+}
+
+@keyframes musicPulse {
+  0% {
+    box-shadow: 0 0 0 0 rgba(123, 138, 91, 0.4);
+  }
+  70% {
+    box-shadow: 0 0 0 10px rgba(123, 138, 91, 0);
+  }
+  100% {
+    box-shadow: 0 0 0 0 rgba(123, 138, 91, 0);
+  }
+}
