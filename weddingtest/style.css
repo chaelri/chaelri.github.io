@@ -818,7 +818,7 @@ body {
 
 @media (max-width: 768px) {
   .trivia-note {
-    width: 130px;
+    width: 240px;
   }
   .trivia-note.is-active {
     width: 190px;
@@ -1201,4 +1201,35 @@ body.modal-active {
   opacity: 1;
   transform: scale(1.1);
   box-shadow: 0 0 15px rgba(255, 255, 255, 0.3);
+}
+/* ACTIVE: Green and moving */
+.autoscroll-active {
+  background-color: #7b8a5b !important;
+  color: white !important;
+  border-color: #7b8a5b !important;
+  box-shadow: 0 4px 20px rgba(123, 138, 91, 0.4);
+}
+
+/* PAUSED: Dimmed green, waiting for 5s to finish */
+.autoscroll-paused {
+  background-color: #7b8a5b !important;
+  opacity: 0.6; /* Dimmed to show it's "waiting" */
+  transform: scale(0.9); /* Slightly smaller */
+}
+
+/* Only animate the icon when it's actually drifting */
+.autoscroll-active:not(.autoscroll-paused) span {
+  animation: pulse-down 2s infinite;
+}
+
+@keyframes pulse-down {
+  0% {
+    transform: translateY(-2px);
+  }
+  50% {
+    transform: translateY(2px);
+  }
+  100% {
+    transform: translateY(-2px);
+  }
 }

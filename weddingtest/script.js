@@ -63,21 +63,36 @@ document.addEventListener("DOMContentLoaded", () => {
   }, 4500);
 
   // Step D: Exit Sequence
+  // --- UPDATED INTRO EXIT LOGIC ---
   closeBtn.addEventListener("click", () => {
+    // 1. Tell the Auto-Scroll logic to "Pause" during this reset
+    window.isInitialReset = true;
+
     document.body.style.overflow = "auto";
     overlay.style.pointerEvents = "none";
     modal.style.opacity = "0";
 
     setTimeout(() => {
       flowers.forEach((f) => {
-        f.classList.remove("floral-alive"); // Stop breathing
-        f.classList.remove("floral-center"); // Glide out
+        f.classList.remove("floral-alive");
+        f.classList.remove("floral-center");
       });
     }, 200);
 
-    overlay.style.transition = "background-color 2s ease, opacity 2.5s ease";
+    overlay.style.transition = "background-color 2.5s ease, opacity 3s ease";
     overlay.style.backgroundColor = "transparent";
-    window.scrollTo(0, 0);
+
+    // 2. FORCE SCROLL TO TOP (Using a slight delay to ensure overflow:auto is ready)
+    setTimeout(() => {
+      window.scrollTo({ top: 0, behavior: "instant" });
+      // Reset our scroll tracker so auto-scroll doesn't think we just jumped
+      lastScrollTop = 0;
+
+      // 3. Allow Auto-Scroll to work again after 1 second
+      setTimeout(() => {
+        window.isInitialReset = false;
+      }, 1000);
+    }, 10);
 
     setTimeout(() => {
       overlay.style.opacity = "0";
@@ -137,7 +152,7 @@ document.addEventListener("DOMContentLoaded", () => {
       confetti({
         particleCount: 1,
         startVelocity: 0, // Let them fall naturally from gravity
-        ticks: 400, // How long they stay on screen
+        ticks: 1000, // How long they stay on screen
         origin: {
           x: Math.random(), // Random horizontal position
           y: -0.1, // Start slightly above the top of the screen
@@ -1137,3 +1152,103 @@ setInterval(() => {
   document.getElementById("minutes").innerText = m.toString().padStart(2, "0");
   document.getElementById("seconds").innerText = s.toString().padStart(2, "0");
 }, 1000);
+
+// --- JUMP-PROOF, NON-LOCKING AUTO-DRIFT (WITH UI FEEDBACK) ---
+let motorActive = false;
+let motorPaused = false;
+let driftTimeout;
+let scrollRequest;
+const driftSpeed = 0.6;
+let lastScrollTop2 = window.pageYOffset;
+
+const autoBtn = document.getElementById("autoScrollToggle");
+const autoIcon = document.getElementById("autoScrollIcon");
+
+function drift() {
+  if (motorActive && !motorPaused) {
+    window.scrollBy(0, driftSpeed);
+
+    if (
+      window.innerHeight + window.pageYOffset >=
+      document.body.offsetHeight - 2
+    ) {
+      stopMotor();
+      return;
+    }
+  }
+  scrollRequest = requestAnimationFrame(drift);
+}
+
+function startMotor() {
+  if (motorActive && !motorPaused) return;
+  motorActive = true;
+  motorPaused = false;
+
+  // UI: Active State (Solid Green, Pause Icon)
+  autoBtn.classList.remove("autoscroll-paused");
+  autoBtn.classList.add("autoscroll-active");
+  autoIcon.innerText = "pause_circle";
+
+  cancelAnimationFrame(scrollRequest);
+  drift();
+}
+
+function stopMotor() {
+  motorActive = false;
+  motorPaused = false;
+  clearTimeout(driftTimeout);
+
+  // UI: Off State (White, Down Arrow)
+  autoBtn.classList.remove("autoscroll-active", "autoscroll-paused");
+  autoIcon.innerText = "expand_circle_down";
+  cancelAnimationFrame(scrollRequest);
+}
+
+// 1. MANUAL TOGGLE
+autoBtn.addEventListener("click", (e) => {
+  e.stopPropagation();
+  if (motorActive) stopMotor();
+  else startMotor();
+});
+
+// 2. THE "YIELD TO USER" LOGIC WITH UI UPDATE
+function handleUserInteraction() {
+  if (!motorActive || window.isInitialReset) return; // Don't pause if it's just the page resetting
+
+  motorPaused = true;
+  autoBtn.classList.add("autoscroll-paused");
+  autoIcon.innerText = "play_circle";
+
+  clearTimeout(driftTimeout);
+  driftTimeout = setTimeout(() => {
+    if (motorActive) {
+      motorPaused = false;
+      autoBtn.classList.remove("autoscroll-paused");
+      autoIcon.innerText = "pause_circle";
+    }
+  }, 5000);
+}
+
+// Listen for movement
+window.addEventListener("wheel", handleUserInteraction, { passive: true });
+window.addEventListener("touchstart", handleUserInteraction, { passive: true });
+window.addEventListener("touchmove", handleUserInteraction, { passive: true });
+
+// 3. DIRECTIONAL / AUTO-START LOGIC
+window.addEventListener(
+  "scroll",
+  () => {
+    // NEW: If we are currently resetting to the top, do nothing!
+    if (window.isInitialReset) return;
+
+    const st = window.pageYOffset || document.documentElement.scrollTop;
+
+    // Auto-start motor if they scroll down past Hero
+    if (st > 800 && st > lastScrollTop && !motorActive) {
+      startMotor();
+    }
+
+    lastScrollTop = st <= 0 ? 0 : st;
+  },
+  { passive: true }
+);
