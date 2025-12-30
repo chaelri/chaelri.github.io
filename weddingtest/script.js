@@ -105,6 +105,10 @@ document.addEventListener("DOMContentLoaded", () => {
       }, 2500);
     }, 500);
 
+    document.querySelectorAll("video").forEach((v) => {
+      v.play(); // Start it
+      v.pause(); // Immediately pause it
+    });
     startGlobalPetalFall();
   });
 
@@ -1232,3 +1236,36 @@ window.addEventListener("scroll", () => {
     heroImg.style.backgroundPositionY = `${scrollVal * 0.5}px`;
   }
 });
+
+// --- SMART VIDEO OBSERVER (UNMUTED) ---
+const videoObserver = new IntersectionObserver(
+  (entries) => {
+    entries.forEach((entry) => {
+      const video = entry.target;
+
+      if (entry.isIntersecting) {
+        // 1. Try playing with sound
+        video.muted = false;
+
+        const playPromise = video.play();
+
+        if (playPromise !== undefined) {
+          playPromise.catch((error) => {
+            // 2. FALLBACK: If browser blocks unmuted autoplay, play muted
+            // This prevents the video from being "stuck"
+            console.log(
+              "Unmuted autoplay blocked by browser, falling back to muted."
+            );
+            video.muted = true;
+            video.play();
+          });
+        }
+      } else {
+        video.pause();
+      }
+    });
+  },
+  { threshold: 0.5 }
+);
+
+document.querySelectorAll("video").forEach((v) => videoObserver.observe(v));
