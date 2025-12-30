@@ -1224,3 +1224,8 @@ video {
 video::-webkit-media-controls-fullscreen-button {
   display: none;
 }
+
+.md\:w-1\/2 {
+  will-change: background-position;
+  transform: translateZ(0); /* Forces Hardware Acceleration */
+}

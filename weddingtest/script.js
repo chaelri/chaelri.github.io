@@ -926,7 +926,8 @@ document.addEventListener("DOMContentLoaded", () => {
 // --- SMART NAVIGATION (Show on scroll up, hide on scroll down) ---
 let lastScrollTop = 0;
 const mainNav = document.getElementById("main-nav");
-const scrollThreshold = 50; // Minimum scroll before hiding
+const rsvpSection = document.getElementById("rsvp"); // Target the RSVP section
+const scrollThreshold = 50;
 
 window.addEventListener(
   "scroll",
@@ -934,13 +935,19 @@ window.addEventListener(
     let currentScroll =
       window.pageYOffset || document.documentElement.scrollTop;
 
-    // 1. Always show at the very top
-    if (currentScroll <= 10) {
+    // 1. Check if user is in or near the RSVP section
+    const rsvpTop = rsvpSection ? rsvpSection.offsetTop : 0;
+    // We start showing it slightly before they hit the section (offset of 200px)
+    const isInRSVP = currentScroll >= rsvpTop - 200;
+
+    // 2. Always show at the very top OR when in the RSVP section
+    if (currentScroll <= 10 || isInRSVP) {
       mainNav.classList.remove("nav-hidden");
+      lastScrollTop = currentScroll;
       return;
     }
 
-    // 2. Hide on scroll down, show on scroll up
+    // 3. Normal Behavior for other sections: Hide on scroll down, show on scroll up
     if (currentScroll > lastScrollTop && currentScroll > scrollThreshold) {
       // Scrolling Down
       mainNav.classList.add("nav-hidden");
@@ -1233,14 +1240,41 @@ document.querySelectorAll("section").forEach((section) => {
   revealObserver.observe(section);
 });
 
-window.addEventListener("scroll", () => {
-  const heroImg = document.querySelector(".md\\:w-1\\/2.h-\\[50vh\\]"); // Targets your hero image div
+let currentScroll = 0;
+let targetScroll = 0;
+const ease = 0.5; // Lower = smoother/slower catch up. 0.1 is very silky.
+
+const heroImg = document.querySelector(".md\\:w-1\\/2.h-\\[50vh\\]");
+
+function updateParallax() {
   if (heroImg) {
-    let scrollVal = window.scrollY;
-    // Moves the background image slower than the scroll
-    heroImg.style.backgroundPositionY = `${scrollVal * 0.5}px`;
+    // 1. Get the actual scroll position
+    targetScroll = window.scrollY;
+
+    // 2. Smoothly interpolate currentScroll towards targetScroll
+    currentScroll += (targetScroll - currentScroll) * ease;
+
+    const width = window.innerWidth;
+
+    if (width >= 421 && width <= 767) {
+      // CENTERED logic for the "hectic" range
+      // We use .backgroundPosition (not Y) to keep the 'center' horizontal alignment
+      heroImg.style.backgroundPosition = `center calc(50% + ${
+        currentScroll * 0.1
+      }px)`;
+    } else {
+      // DESKTOP logic
+      // Still using calc(50%) ensures it starts from the center, not the top
+      heroImg.style.backgroundPosition = `center calc(50% + ${
+        currentScroll * 0.5
+      }px)`;
+    }
   }
-});
+
+  requestAnimationFrame(updateParallax);
+}
+
+requestAnimationFrame(updateParallax);
 
 // --- SMART VIDEO OBSERVER (UNMUTED) ---
 const videoObserver = new IntersectionObserver(
