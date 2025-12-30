@@ -1159,7 +1159,7 @@ let motorPaused = false;
 let driftTimeout;
 let scrollRequest;
 const driftSpeed = 0.8; // Safari prefers slightly higher values than 0.5 for smooth rendering
-let lastScrollTop = window.pageYOffset;
+let lastScrollTop2 = window.pageYOffset;
 let isProgrammaticScroll = false; // Guard to prevent motor from pausing itself
 
 const autoBtn = document.getElementById("autoScrollToggle");
@@ -1253,11 +1253,11 @@ window.addEventListener(
     const st = window.pageYOffset || document.documentElement.scrollTop;
 
     // If moving down past Hero and motor is totally OFF, turn it on
-    if (st > 800 && st > lastScrollTop && !motorActive) {
+    if (st > 800 && st > lastScrollTop2 && !motorActive) {
       startMotor();
     }
 
-    lastScrollTop = st <= 0 ? 0 : st;
+    lastScrollTop2 = st <= 0 ? 0 : st;
   },
   { passive: true }
 );
