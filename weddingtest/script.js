@@ -1153,21 +1153,26 @@ setInterval(() => {
   document.getElementById("seconds").innerText = s.toString().padStart(2, "0");
 }, 1000);
 
-// --- JUMP-PROOF, NON-LOCKING AUTO-DRIFT (WITH UI FEEDBACK) ---
+// --- iOS-OPTIMIZED AUTO-DRIFT ENGINE ---
 let motorActive = false;
 let motorPaused = false;
 let driftTimeout;
 let scrollRequest;
-const driftSpeed = 0.6;
-let lastScrollTop2 = window.pageYOffset;
+const driftSpeed = 0.8; // Safari prefers slightly higher values than 0.5 for smooth rendering
+let lastScrollTop = window.pageYOffset;
+let isProgrammaticScroll = false; // Guard to prevent motor from pausing itself
 
 const autoBtn = document.getElementById("autoScrollToggle");
 const autoIcon = document.getElementById("autoScrollIcon");
 
 function drift() {
   if (motorActive && !motorPaused) {
+    // Set guard so the scroll listener knows the MOTOR is moving the page, not the user
+    isProgrammaticScroll = true;
+
     window.scrollBy(0, driftSpeed);
 
+    // Check if we hit bottom
     if (
       window.innerHeight + window.pageYOffset >=
       document.body.offsetHeight - 2
@@ -1175,6 +1180,11 @@ function drift() {
       stopMotor();
       return;
     }
+
+    // Release guard shortly after scrollBy
+    requestAnimationFrame(() => {
+      isProgrammaticScroll = false;
+    });
   }
   scrollRequest = requestAnimationFrame(drift);
 }
@@ -1184,7 +1194,6 @@ function startMotor() {
   motorActive = true;
   motorPaused = false;
 
-  // UI: Active State (Solid Green, Pause Icon)
   autoBtn.classList.remove("autoscroll-paused");
   autoBtn.classList.add("autoscroll-active");
   autoIcon.innerText = "pause_circle";
@@ -1198,23 +1207,24 @@ function stopMotor() {
   motorPaused = false;
   clearTimeout(driftTimeout);
 
-  // UI: Off State (White, Down Arrow)
   autoBtn.classList.remove("autoscroll-active", "autoscroll-paused");
   autoIcon.innerText = "expand_circle_down";
   cancelAnimationFrame(scrollRequest);
 }
 
-// 1. MANUAL TOGGLE
+// TOGGLE
 autoBtn.addEventListener("click", (e) => {
   e.stopPropagation();
   if (motorActive) stopMotor();
   else startMotor();
 });
 
-// 2. THE "YIELD TO USER" LOGIC WITH UI UPDATE
-function handleUserInteraction() {
-  if (!motorActive || window.isInitialReset) return; // Don't pause if it's just the page resetting
+// INTERACTION HANDLING (Optimized for iOS Touch)
+function handleUserInteraction(e) {
+  // If the scroll was caused by the motor, IGNORE IT
+  if (isProgrammaticScroll || !motorActive) return;
 
+  // Otherwise, a human touched the screen
   motorPaused = true;
   autoBtn.classList.add("autoscroll-paused");
   autoIcon.innerText = "play_circle";
@@ -1229,21 +1239,20 @@ function handleUserInteraction() {
   }, 5000);
 }
 
-// Listen for movement
-window.addEventListener("wheel", handleUserInteraction, { passive: true });
+// Use 'touchstart' for immediate response on iPad
 window.addEventListener("touchstart", handleUserInteraction, { passive: true });
-window.addEventListener("touchmove", handleUserInteraction, { passive: true });
+// Use 'wheel' for mouse users
+window.addEventListener("wheel", handleUserInteraction, { passive: true });
 
-// 3. DIRECTIONAL / AUTO-START LOGIC
+// DIRECTIONAL / AUTO-START
 window.addEventListener(
   "scroll",
   () => {
-    // NEW: If we are currently resetting to the top, do nothing!
-    if (window.isInitialReset) return;
+    if (window.isInitialReset || isProgrammaticScroll) return;
 
     const st = window.pageYOffset || document.documentElement.scrollTop;
 
-    // Auto-start motor if they scroll down past Hero
+    // If moving down past Hero and motor is totally OFF, turn it on
     if (st > 800 && st > lastScrollTop && !motorActive) {
       startMotor();
     }
