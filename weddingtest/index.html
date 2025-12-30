@@ -132,20 +132,16 @@
     <!-- NAVIGATION (PRESERVED) -->
     <nav
       id="main-nav"
-      class="fixed top-0 left-0 w-full p-4 flex justify-between items-center bg-white/90 backdrop-blur-md z-[100] border-b border-stone-100 transition-transform duration-500"
+      class="fixed top-0 left-0 w-full p-4 flex justify-between items-center bg-white/90 backdrop-blur-md z-[100] border-b border-stone-100 transition-transform duration-500 !overflow-visible"
     >
       <div class="flex items-center gap-3">
-        <a
-          href="#start"
-          class="group flex flex-col items-center gap-1 transition-all"
-        >
+        <a href="#start" class="group flex flex-col items-center gap-1">
           <img
             src="./assets/monogram.png"
             alt="C&K"
             class="h-8 md:h-10 w-auto object-contain"
           />
         </a>
-
         <div
           class="text-base md:text-lg font-bold serif tracking-wide hidden sm:block"
         >
@@ -154,87 +150,107 @@
         </div>
       </div>
 
-      <!-- Mobile-First Nav Links -->
-      <div class="flex items-center space-x-5 md:space-x-8 text-stone-500">
-        <!-- Story -->
+      <!-- Links Container: Removed overflow-x-auto to fix scroll bar -->
+      <div
+        class="flex items-center space-x-5 md:space-x-8 text-stone-500 !overflow-visible"
+      >
         <a
           href="#story"
           class="group flex flex-col items-center gap-1 transition-all"
         >
-          <span
-            class="material-icons-outlined md:hidden text-[22px] group-hover:text-[#7b8a5b]"
+          <span class="material-icons-outlined md:hidden text-[22px]"
             >auto_stories</span
           >
           <span
-            class="hidden md:block text-[10px] uppercase tracking-[0.2em] font-medium group-hover:text-[#7b8a5b]"
+            class="hidden md:block text-[10px] uppercase tracking-[0.2em] font-medium"
             >Story</span
           >
         </a>
 
-        <!-- Entourage -->
         <a
           href="#entourage"
           class="group flex flex-col items-center gap-1 transition-all"
         >
-          <span
-            class="material-icons-outlined md:hidden text-[22px] group-hover:text-[#7b8a5b]"
+          <span class="material-icons-outlined md:hidden text-[22px]"
             >groups</span
           >
           <span
-            class="hidden md:block text-[10px] uppercase tracking-[0.2em] font-medium group-hover:text-[#7b8a5b]"
+            class="hidden md:block text-[10px] uppercase tracking-[0.2em] font-medium"
             >Entourage</span
           >
         </a>
 
-        <!-- Attire -->
         <a
           href="#attire"
           class="group flex flex-col items-center gap-1 transition-all"
         >
-          <span
-            class="material-icons-outlined md:hidden text-[22px] group-hover:text-[#7b8a5b]"
+          <span class="material-icons-outlined md:hidden text-[22px]"
             >checkroom</span
           >
           <span
-            class="hidden md:block text-[10px] uppercase tracking-[0.2em] font-medium group-hover:text-[#7b8a5b]"
+            class="hidden md:block text-[10px] uppercase tracking-[0.2em] font-medium"
             >Attire</span
           >
         </a>
 
-        <!-- Schedule -->
         <a
           href="#schedule"
           class="group flex flex-col items-center gap-1 transition-all"
         >
-          <span
-            class="material-icons-outlined md:hidden text-[22px] group-hover:text-[#7b8a5b]"
+          <span class="material-icons-outlined md:hidden text-[22px]"
             >calendar_today</span
           >
           <span
-            class="hidden md:block text-[10px] uppercase tracking-[0.2em] font-medium group-hover:text-[#7b8a5b]"
+            class="hidden md:block text-[10px] uppercase tracking-[0.2em] font-medium"
             >Schedule</span
           >
         </a>
 
-        <!-- Gifting -->
-        <a
-          href="#gifting"
-          class="group flex flex-col items-center gap-1 transition-all"
-        >
-          <span
-            class="material-icons-outlined md:hidden text-[22px] group-hover:text-[#7b8a5b]"
-            >card_giftcard</span
+        <!-- MORE MENU -->
+        <div class="relative !overflow-visible">
+          <button
+            id="more-trigger"
+            class="group flex flex-col items-center gap-1 outline-none"
           >
-          <span
-            class="hidden md:block text-[10px] uppercase tracking-[0.2em] font-medium group-hover:text-[#7b8a5b]"
-            >Gifting</span
-          >
-        </a>
+            <span
+              class="material-icons-outlined md:hidden text-[22px] group-hover:text-[#7b8a5b]"
+              >more_horiz</span
+            >
+            <span
+              class="hidden md:block text-[10px] uppercase tracking-[0.2em] font-medium group-hover:text-[#7b8a5b]"
+              >More</span
+            >
+          </button>
 
-        <!-- RSVP (Kept as text for priority) -->
+          <!-- Pop-out Menu -->
+          <div
+            id="more-menu"
+            class="absolute right-0 mt-4 w-48 bg-white/95 backdrop-blur-md rounded-2xl shadow-xl border border-stone-100 py-2 opacity-0 scale-95 pointer-events-none transition-all duration-300 z-[110]"
+          >
+            <a
+              href="#gifting"
+              class="flex items-center gap-3 px-6 py-3 text-stone-600 hover:bg-[#7b8a5b]/5 hover:text-[#7b8a5b]"
+            >
+              <span class="material-icons-outlined text-sm">card_giftcard</span>
+              <span class="text-[11px] uppercase tracking-widest font-bold"
+                >Gifting</span
+              >
+            </a>
+            <a
+              href="#qa"
+              class="flex items-center gap-3 px-6 py-3 text-stone-600 hover:bg-[#7b8a5b]/5 hover:text-[#7b8a5b]"
+            >
+              <span class="material-icons-outlined text-sm">quiz</span>
+              <span class="text-[11px] uppercase tracking-widest font-bold"
+                >Q&A</span
+              >
+            </a>
+          </div>
+        </div>
+
         <a
           href="#rsvp"
-          class="bg-[#7b8a5b]/10 px-3 py-1.5 rounded-full md:bg-transparent md:p-0 transition-all"
+          class="bg-[#7b8a5b]/10 px-3 py-1.5 rounded-full md:bg-transparent md:p-0"
         >
           <span
             class="text-[11px] md:text-[10px] uppercase tracking-[0.2em] font-bold text-[#7b8a5b]"
@@ -1550,12 +1566,18 @@
     <!-- SCHEDULE SECTION (UPDATED TIMES) -->
     <section
       id="schedule"
-      class="py-24 bg-white/50 border-y border-stone-100 flex flex-col items-center justify-center min-h-[70vh]"
+      class="py-24 bg-white/50 border-y border-stone-100 flex flex-col items-center justify-center min-h-[70vh] text-center"
     >
       <div class="max-w-xl w-full px-8">
-        <h2 class="text-4xl text-center serif italic text-[#7b8a5b] mb-20">
-          The Day of Celebration
-        </h2>
+        <div class="mb-20">
+          <h2 class="text-4xl text-center serif italic text-[#7b8a5b] mb-5">
+            The Day of Celebration
+          </h2>
+          <p class="text-xs uppercase tracking-widest text-stone-400">
+            July 02, 2026 • CCF East Ortigas
+          </p>
+        </div>
+
         <div class="relative">
           <!-- The Connecting Line -->
           <div
@@ -1861,6 +1883,408 @@
       </div>
     </div>
 
+    <!-- ENHANCED Q & A SECTION -->
+    <section id="qa" class="py-24 px-6 relative overflow-hidden">
+      <!-- Watermark Background -->
+      <img
+        src="./assets/monogram.png"
+        class="absolute top-1/2 left-1/2 -translate-x-1/2 -translate-y-1/2 w-96 opacity-[0.03] pointer-events-none"
+      />
+
+      <div
+        class="max-w-3xl mx-auto bg-white/60 backdrop-blur-sm p-8 md:p-16 rounded-[3rem] shadow-[0_20px_50px_rgba(123,138,91,0.08)] border border-white relative z-10"
+      >
+        <div class="text-center mb-16">
+          <h2 class="text-5xl md:text-6xl serif italic text-[#7b8a5b] mb-4">
+            Q & A
+          </h2>
+          <div class="flex items-center justify-center gap-4 mb-4">
+            <div class="h-[1px] w-8 bg-[#7b8a5b]/20"></div>
+            <span
+              class="text-[10px] uppercase tracking-[0.3em] text-stone-400 font-bold"
+              >Details for the day</span
+            >
+            <div class="h-[1px] w-8 bg-[#7b8a5b]/20"></div>
+          </div>
+          <p class="text-sm text-stone-500 italic">
+            For all our friends and family who have questions, please check here
+            first!
+          </p>
+        </div>
+
+        <div class="space-y-4">
+          <!-- 1. RSVP -->
+          <div
+            class="faq-item group bg-white/40 rounded-2xl border border-transparent hover:border-[#7b8a5b]/10 hover:bg-white/80 transition-all duration-300"
+          >
+            <button
+              class="faq-trigger w-full px-6 py-6 flex justify-between items-center text-left"
+            >
+              <span
+                class="serif text-lg md:text-xl text-stone-700 group-hover:text-[#7b8a5b] transition-colors"
+                >When is the RSVP deadline?</span
+              >
+              <div
+                class="w-8 h-8 rounded-full bg-stone-50 flex items-center justify-center group-hover:bg-[#7b8a5b]/10 transition-colors"
+              >
+                <span
+                  class="material-icons-outlined text-stone-300 text-sm transition-transform duration-300"
+                  >expand_more</span
+                >
+              </div>
+            </button>
+            <div
+              class="faq-content hidden px-6 pb-6 text-sm text-stone-500 leading-relaxed animate-fade-in"
+            >
+              <div class="h-[1px] w-full bg-stone-100 mb-4"></div>
+              Please RSVP by
+              <strong class="text-[#7b8a5b]">June 1, 2026</strong>, so we can
+              have an accurate headcount. 😊
+            </div>
+          </div>
+
+          <!-- 2. Date -->
+          <div
+            class="faq-item group bg-white/40 rounded-2xl border border-transparent hover:border-[#7b8a5b]/10 hover:bg-white/80 transition-all duration-300"
+          >
+            <button
+              class="faq-trigger w-full px-6 py-6 flex justify-between items-center text-left"
+            >
+              <span
+                class="serif text-lg md:text-xl text-stone-700 group-hover:text-[#7b8a5b] transition-colors"
+                >Can I bring a date?</span
+              >
+              <div
+                class="w-8 h-8 rounded-full bg-stone-50 flex items-center justify-center group-hover:bg-[#7b8a5b]/10 transition-colors"
+              >
+                <span
+                  class="material-icons-outlined text-stone-300 text-sm transition-transform duration-300"
+                  >expand_more</span
+                >
+              </div>
+            </button>
+            <div
+              class="faq-content hidden px-6 pb-6 text-sm text-stone-500 leading-relaxed animate-fade-in"
+            >
+              <div class="h-[1px] w-full bg-stone-100 mb-4"></div>
+              We're excited to celebrate with you! Due to limited space, we can
+              only accommodate the guests specifically listed on the invitation.
+            </div>
+          </div>
+
+          <!-- 3. Kids -->
+          <div
+            class="faq-item group bg-white/40 rounded-2xl border border-transparent hover:border-[#7b8a5b]/10 hover:bg-white/80 transition-all duration-300"
+          >
+            <button
+              class="faq-trigger w-full px-6 py-6 flex justify-between items-center text-left"
+            >
+              <span
+                class="serif text-lg md:text-xl text-stone-700 group-hover:text-[#7b8a5b] transition-colors"
+                >Are kids welcome?</span
+              >
+              <div
+                class="w-8 h-8 rounded-full bg-stone-50 flex items-center justify-center group-hover:bg-[#7b8a5b]/10 transition-colors"
+              >
+                <span
+                  class="material-icons-outlined text-stone-300 text-sm transition-transform duration-300"
+                  >expand_more</span
+                >
+              </div>
+            </button>
+            <div
+              class="faq-content hidden px-6 pb-6 text-sm text-stone-500 leading-relaxed animate-fade-in"
+            >
+              <div class="h-[1px] w-full bg-stone-100 mb-4"></div>
+              While we love your little ones, we have decided to keep our
+              wedding an
+              <strong class="uppercase text-stone-800">Adults-Only</strong>
+              event (with the exception of children in our entourage) due to
+              budget and space constraints. We hope you consider this a date
+              night and can still join us!
+            </div>
+          </div>
+
+          <!-- 4. Weather -->
+          <div
+            class="faq-item group bg-white/40 rounded-2xl border border-transparent hover:border-[#7b8a5b]/10 hover:bg-white/80 transition-all duration-300"
+          >
+            <button
+              class="faq-trigger w-full px-6 py-6 flex justify-between items-center text-left"
+            >
+              <span
+                class="serif text-lg md:text-xl text-stone-700 group-hover:text-[#7b8a5b] transition-colors"
+                >What will the weather be like?</span
+              >
+              <div
+                class="w-8 h-8 rounded-full bg-stone-50 flex items-center justify-center group-hover:bg-[#7b8a5b]/10 transition-colors"
+              >
+                <span
+                  class="material-icons-outlined text-stone-300 text-sm transition-transform duration-300"
+                  >expand_more</span
+                >
+              </div>
+            </button>
+            <div
+              class="faq-content hidden px-6 pb-6 text-sm text-stone-500 leading-relaxed animate-fade-in"
+            >
+              <div class="h-[1px] w-full bg-stone-100 mb-4"></div>
+              Since our wedding is in July, it could be bright and sunny or cold
+              and rainy! Our venue is indoors, but we recommend bringing a nice
+              shawl or jacket just in case.
+            </div>
+          </div>
+
+          <!-- 5. Parking -->
+          <div
+            class="faq-item group bg-white/40 rounded-2xl border border-transparent hover:border-[#7b8a5b]/10 hover:bg-white/80 transition-all duration-300"
+          >
+            <button
+              class="faq-trigger w-full px-6 py-6 flex justify-between items-center text-left"
+            >
+              <span
+                class="serif text-lg md:text-xl text-stone-700 group-hover:text-[#7b8a5b] transition-colors"
+                >Where should I park?</span
+              >
+              <div
+                class="w-8 h-8 rounded-full bg-stone-50 flex items-center justify-center group-hover:bg-[#7b8a5b]/10 transition-colors"
+              >
+                <span
+                  class="material-icons-outlined text-stone-300 text-sm transition-transform duration-300"
+                  >expand_more</span
+                >
+              </div>
+            </button>
+            <div
+              class="faq-content hidden px-6 pb-6 text-sm text-stone-500 leading-relaxed animate-fade-in"
+            >
+              <div class="h-[1px] w-full bg-stone-100 mb-4"></div>
+              We are located at SM East Ortigas. Since it is a weekday, there is
+              plenty of paid parking available near the entrance and at the
+              parking lot beside the venue.
+            </div>
+          </div>
+
+          <!-- 6. Attire -->
+          <div
+            class="faq-item group bg-white/40 rounded-2xl border border-transparent hover:border-[#7b8a5b]/10 hover:bg-white/80 transition-all duration-300"
+          >
+            <button
+              class="faq-trigger w-full px-6 py-6 flex justify-between items-center text-left"
+            >
+              <span
+                class="serif text-lg md:text-xl text-stone-700 group-hover:text-[#7b8a5b] transition-colors"
+                >What should I wear?</span
+              >
+              <div
+                class="w-8 h-8 rounded-full bg-stone-50 flex items-center justify-center group-hover:bg-[#7b8a5b]/10 transition-colors"
+              >
+                <span
+                  class="material-icons-outlined text-stone-300 text-sm transition-transform duration-300"
+                  >expand_more</span
+                >
+              </div>
+            </button>
+            <div
+              class="faq-content hidden px-6 pb-6 text-sm text-stone-500 leading-relaxed animate-fade-in"
+            >
+              <div class="h-[1px] w-full bg-stone-100 mb-4"></div>
+              Please refer to the
+              <a
+                href="#attire"
+                class="text-[#7b8a5b] font-bold underline underline-offset-4"
+                >Attire section</a
+              >
+              for our color palette and outfit inspirations!
+            </div>
+          </div>
+
+          <!-- 7. Indoors -->
+          <div
+            class="faq-item group bg-white/40 rounded-2xl border border-transparent hover:border-[#7b8a5b]/10 hover:bg-white/80 transition-all duration-300"
+          >
+            <button
+              class="faq-trigger w-full px-6 py-6 flex justify-between items-center text-left"
+            >
+              <span
+                class="serif text-lg md:text-xl text-stone-700 group-hover:text-[#7b8a5b] transition-colors"
+                >Is the wedding indoors or outdoors?</span
+              >
+              <div
+                class="w-8 h-8 rounded-full bg-stone-50 flex items-center justify-center group-hover:bg-[#7b8a5b]/10 transition-colors"
+              >
+                <span
+                  class="material-icons-outlined text-stone-300 text-sm transition-transform duration-300"
+                  >expand_more</span
+                >
+              </div>
+            </button>
+            <div
+              class="faq-content hidden px-6 pb-6 text-sm text-stone-500 leading-relaxed animate-fade-in"
+            >
+              <div class="h-[1px] w-full bg-stone-100 mb-4"></div>
+              Our wedding ceremony and reception will both be held
+              <strong class="text-stone-800">indoors</strong>.
+            </div>
+          </div>
+
+          <!-- 8. Photos -->
+          <div
+            class="faq-item group bg-white/40 rounded-2xl border border-transparent hover:border-[#7b8a5b]/10 hover:bg-white/80 transition-all duration-300"
+          >
+            <button
+              class="faq-trigger w-full px-6 py-6 flex justify-between items-center text-left"
+            >
+              <span
+                class="serif text-lg md:text-xl text-stone-700 group-hover:text-[#7b8a5b] transition-colors"
+                >Can we take photos with our phones?</span
+              >
+              <div
+                class="w-8 h-8 rounded-full bg-stone-50 flex items-center justify-center group-hover:bg-[#7b8a5b]/10 transition-colors"
+              >
+                <span
+                  class="material-icons-outlined text-stone-300 text-sm transition-transform duration-300"
+                  >expand_more</span
+                >
+              </div>
+            </button>
+            <div
+              class="faq-content hidden px-6 pb-6 text-sm text-stone-500 leading-relaxed animate-fade-in"
+            >
+              <div class="h-[1px] w-full bg-stone-100 mb-4"></div>
+              Yes! We would love for you to capture memories and tag us on
+              social media! However, we humbly request that you
+              <strong class="text-stone-800"
+                >refrain from taking photos during the ceremony</strong
+              >
+              so you can be fully present with us.
+            </div>
+          </div>
+
+          <!-- 9. Contact -->
+          <div
+            class="faq-item group bg-white/40 rounded-2xl border border-transparent hover:border-[#7b8a5b]/10 hover:bg-white/80 transition-all duration-300"
+          >
+            <button
+              class="faq-trigger w-full px-6 py-6 flex justify-between items-center text-left"
+            >
+              <span
+                class="serif text-lg md:text-xl text-stone-700 group-hover:text-[#7b8a5b] transition-colors"
+                >Whom should I call with questions?</span
+              >
+              <div
+                class="w-8 h-8 rounded-full bg-stone-50 flex items-center justify-center group-hover:bg-[#7b8a5b]/10 transition-colors"
+              >
+                <span
+                  class="material-icons-outlined text-stone-300 text-sm transition-transform duration-300"
+                  >expand_more</span
+                >
+              </div>
+            </button>
+            <div
+              class="faq-content hidden px-6 pb-6 text-sm text-stone-500 leading-relaxed animate-fade-in"
+            >
+              <div class="h-[1px] w-full bg-stone-100 mb-4"></div>
+              Should you have any further questions, please feel free to reach
+              out to either <strong class="text-stone-800">Charlie</strong> or
+              <strong class="text-stone-800">Karla</strong>.
+            </div>
+          </div>
+
+          <!-- 10. Arrival -->
+          <div
+            class="faq-item group bg-white/40 rounded-2xl border border-transparent hover:border-[#7b8a5b]/10 hover:bg-white/80 transition-all duration-300"
+          >
+            <button
+              class="faq-trigger w-full px-6 py-6 flex justify-between items-center text-left"
+            >
+              <span
+                class="serif text-lg md:text-xl text-stone-700 group-hover:text-[#7b8a5b] transition-colors"
+                >What time should I arrive?</span
+              >
+              <div
+                class="w-8 h-8 rounded-full bg-stone-50 flex items-center justify-center group-hover:bg-[#7b8a5b]/10 transition-colors"
+              >
+                <span
+                  class="material-icons-outlined text-stone-300 text-sm transition-transform duration-300"
+                  >expand_more</span
+                >
+              </div>
+            </button>
+            <div
+              class="faq-content hidden px-6 pb-6 text-sm text-stone-500 leading-relaxed animate-fade-in"
+            >
+              <div class="h-[1px] w-full bg-stone-100 mb-4"></div>
+              Join us, with a joyful spirit, 30 minutes prior to the
+              commencement of the ceremony. Please be there by
+              <strong class="text-[#7b8a5b]">2:30 PM</strong>!
+            </div>
+          </div>
+
+          <!-- 11. Theme -->
+          <div
+            class="faq-item group bg-white/40 rounded-2xl border border-transparent hover:border-[#7b8a5b]/10 hover:bg-white/80 transition-all duration-300"
+          >
+            <button
+              class="faq-trigger w-full px-6 py-6 flex justify-between items-center text-left"
+            >
+              <span
+                class="serif text-lg md:text-xl text-stone-700 group-hover:text-[#7b8a5b] transition-colors"
+                >Does your wedding have a theme?</span
+              >
+              <div
+                class="w-8 h-8 rounded-full bg-stone-50 flex items-center justify-center group-hover:bg-[#7b8a5b]/10 transition-colors"
+              >
+                <span
+                  class="material-icons-outlined text-stone-300 text-sm transition-transform duration-300"
+                  >expand_more</span
+                >
+              </div>
+            </button>
+            <div
+              class="faq-content hidden px-6 pb-6 text-sm text-stone-500 leading-relaxed animate-fade-in"
+            >
+              <div class="h-[1px] w-full bg-stone-100 mb-4"></div>
+              Yes! We are going for a
+              <strong class="text-[#7b8a5b]">Pastel Spring</strong> theme!
+            </div>
+          </div>
+
+          <!-- 12. Food -->
+          <div
+            class="faq-item group bg-white/40 rounded-2xl border border-transparent hover:border-[#7b8a5b]/10 hover:bg-white/80 transition-all duration-300"
+          >
+            <button
+              class="faq-trigger w-full px-6 py-6 flex justify-between items-center text-left"
+            >
+              <span
+                class="serif text-lg md:text-xl text-stone-700 group-hover:text-[#7b8a5b] transition-colors"
+                >Will food be served?</span
+              >
+              <div
+                class="w-8 h-8 rounded-full bg-stone-50 flex items-center justify-center group-hover:bg-[#7b8a5b]/10 transition-colors"
+              >
+                <span
+                  class="material-icons-outlined text-stone-300 text-sm transition-transform duration-300"
+                  >expand_more</span
+                >
+              </div>
+            </button>
+            <div
+              class="faq-content hidden px-6 pb-6 text-sm text-stone-500 leading-relaxed animate-fade-in"
+            >
+              <div class="h-[1px] w-full bg-stone-100 mb-4"></div>
+              Of course! Dinner will be served around 5:30 PM. However, we have
+              a grazing table prepared, as well as different activities
+              (Photobooth, Dedication booth, etc.) for you to enjoy during
+              cocktails. Be sure to have a good lunch before arriving so you
+              don't get <em class="font-bold text-[#7b8a5b]">hangry</em>! 😉
+            </div>
+          </div>
+        </div>
+      </div>
+    </section>
+
     <!-- RSVP SECTION (WITH MINIMAL REMINDER) -->
     <section id="rsvp" class="py-24 px-6 bg-[#f9f7f2]">
       <div
@@ -2028,6 +2452,36 @@
     >
       <span id="musicIcon" class="material-icons-outlined">volume_up</span>
     </button>
+
+    <!-- FOOTER -->
+    <footer
+      class="py-16 px-6 text-center bg-white/50 border-t border-stone-100"
+    >
+      <img
+        src="./assets/monogram.png"
+        class="h-12 mx-auto mb-8 opacity-40"
+        alt="C&K"
+      />
+
+      <p class="text-[10px] uppercase tracking-[0.4em] text-stone-400 mb-6">
+        Have more questions?
+      </p>
+      <a
+        href="#qa"
+        class="inline-flex items-center gap-2 px-8 py-3 bg-[#7b8a5b]/10 text-[#7b8a5b] rounded-full text-[11px] font-bold uppercase tracking-widest hover:bg-[#7b8a5b] hover:text-white transition-all"
+      >
+        Check out our Q&A Section
+      </a>
+
+      <div class="mt-20 pt-8 border-t border-stone-100">
+        <p class="serif italic text-stone-400 text-sm">
+          Made with love by Charlie & Karla
+        </p>
+        <p class="text-[8px] uppercase tracking-widest text-stone-300 mt-2">
+          © 2026 • July 02
+        </p>
+      </div>
+    </footer>
 
     <script src="https://cdn.jsdelivr.net/npm/canvas-confetti@1.6.0/dist/confetti.browser.min.js"></script>
     <script type="module" src="./script.js"></script>

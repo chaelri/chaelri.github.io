@@ -1098,3 +1098,51 @@ body {
   -ms-overflow-style: none;
   scrollbar-width: none;
 }
+
+/* FAQ Accordion Transitions */
+.faq-trigger.active span:last-child {
+  transform: rotate(180deg);
+  color: #7b8a5b;
+}
+
+.faq-trigger.active {
+  color: #7b8a5b;
+}
+
+.faq-content {
+  transition: all 0.3s ease-in-out;
+}
+
+/* Prevent horizontal scroll globally */
+html,
+body {
+  overflow-x: hidden;
+  width: 100%;
+  position: relative;
+}
+
+/* Ensure the dropdown menu doesn't push the screen on small devices */
+#more-menu {
+  right: 0;
+  transform-origin: top right;
+}
+
+/* Fix for mobile menu tapping */
+#more-trigger {
+  -webkit-tap-highlight-color: transparent;
+}
+
+#main-nav {
+  overflow: visible !important;
+}
+
+#more-menu {
+  top: 100%; /* Sits exactly at the bottom of the nav bar */
+  transform-origin: top right;
+}
+
+/* Prevent horizontal body scroll */
+html,
+body {
+  overflow-x: hidden;
+}

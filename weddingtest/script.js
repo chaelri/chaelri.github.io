@@ -287,6 +287,67 @@ document.addEventListener("DOMContentLoaded", () => {
   attireModal.addEventListener("click", (e) => {
     if (e.target === attireModal) window.closeAttireModal();
   });
+
+  // --- 1. NAV MORE MENU LOGIC ---
+  const moreTrigger = document.getElementById("more-trigger");
+  const moreMenu = document.getElementById("more-menu");
+
+  if (moreTrigger && moreMenu) {
+    moreTrigger.addEventListener("click", (e) => {
+      e.stopPropagation();
+      const isHidden = moreMenu.classList.contains("pointer-events-none");
+
+      if (isHidden) {
+        moreMenu.classList.remove(
+          "opacity-0",
+          "scale-95",
+          "pointer-events-none"
+        );
+      } else {
+        moreMenu.classList.add("opacity-0", "scale-95", "pointer-events-none");
+      }
+    });
+
+    // Close menu when clicking outside
+    document.addEventListener("click", (e) => {
+      if (!moreMenu.contains(e.target)) {
+        moreMenu.classList.add("opacity-0", "scale-95", "pointer-events-none");
+      }
+    });
+  }
+
+  // --- 2. FAQ ACCORDION LOGIC ---
+  const faqTriggers = document.querySelectorAll(".faq-trigger");
+
+  faqTriggers.forEach((trigger) => {
+    trigger.addEventListener("click", () => {
+      const content = trigger.nextElementSibling;
+      const icon = trigger.querySelector(".material-icons-outlined");
+      const item = trigger.closest(".faq-item");
+
+      const isOpen = !content.classList.contains("hidden");
+
+      // Close all others
+      document
+        .querySelectorAll(".faq-content")
+        .forEach((c) => c.classList.add("hidden"));
+      document
+        .querySelectorAll(".faq-trigger .material-icons-outlined")
+        .forEach((i) => {
+          i.style.transform = "rotate(0deg)";
+        });
+      document.querySelectorAll(".faq-item").forEach((i) => {
+        i.classList.remove("bg-white/80", "border-[#7b8a5b]/20");
+      });
+
+      // Toggle current
+      if (!isOpen) {
+        content.classList.remove("hidden");
+        icon.style.transform = "rotate(180deg)";
+        item.classList.add("bg-white/80", "border-[#7b8a5b]/20");
+      }
+    });
+  });
 });
 
 // --- 2. FIREBASE & RSVP ---
