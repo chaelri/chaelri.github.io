@@ -1165,15 +1165,13 @@ body.modal-active {
   flex-direction: column;
   opacity: 0;
   /* This stops the background from moving when you drag your finger on the modal */
-  touch-action: none; 
+  touch-action: none;
 }
 
 #mainAttireImg {
-  max-height: 70vh;
-  max-width: 95%;
   object-fit: contain;
   /* Allow swiping on the image itself */
-  touch-action: pan-y; 
+  touch-action: pan-y;
 }
 
 #attireThumbs {
@@ -1182,10 +1180,12 @@ body.modal-active {
   overflow-x: auto;
   padding: 15px;
   /* Allow thumbnail scrolling */
-  touch-action: pan-x; 
+  touch-action: pan-x;
   -webkit-overflow-scrolling: touch;
 }
-#attireThumbs::-webkit-scrollbar { display: none; }
+#attireThumbs::-webkit-scrollbar {
+  display: none;
+}
 
 .attire-thumb {
   width: 60px;
@@ -1200,5 +1200,5 @@ body.modal-active {
 .attire-thumb.active {
   opacity: 1;
   transform: scale(1.1);
-  box-shadow: 0 0 15px rgba(255,255,255,0.3);
+  box-shadow: 0 0 15px rgba(255, 255, 255, 0.3);
 }
