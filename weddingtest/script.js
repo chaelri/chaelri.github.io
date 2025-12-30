@@ -22,6 +22,10 @@ const firebaseConfig = {
 const app = initializeApp(firebaseConfig);
 const db = getDatabase(app);
 let masterGuestList = [];
+let scrollYMemory = 0; // Where we store your scroll position
+let currentImagesArray = [];
+let currentImgIndex = 0;
+let touchStartX = 0;
 
 // --- 1. INTRO & FORCE TOP ---
 document.addEventListener("DOMContentLoaded", () => {
@@ -175,11 +179,6 @@ document.addEventListener("DOMContentLoaded", () => {
   };
 
   // --- THE ULTIMATE GALLERY ENGINE (NO JUMP + SWIPE) ---
-
-  let scrollYMemory = 0; // Where we store your scroll position
-  let currentImagesArray = [];
-  let currentImgIndex = 0;
-  let touchStartX = 0;
 
   // (Your attireData object remains exactly as you had it)
   const attireData = {
@@ -1152,3 +1151,84 @@ setInterval(() => {
   document.getElementById("minutes").innerText = m.toString().padStart(2, "0");
   document.getElementById("seconds").innerText = s.toString().padStart(2, "0");
 }, 1000);
+
+const sections = document.querySelectorAll("section[id]");
+const navLinks = document.querySelectorAll("#main-nav a");
+
+window.addEventListener("scroll", () => {
+  let current = "";
+  sections.forEach((section) => {
+    const sectionTop = section.offsetTop;
+    if (pageYOffset >= sectionTop - 150) {
+      current = section.getAttribute("id");
+    }
+  });
+
+  navLinks.forEach((link) => {
+    link.classList.remove("text-[#7b8a5b]"); // Reset colors
+
+    if (link.getAttribute("href").includes(current)) {
+      link.classList.add("text-[#7b8a5b]"); // Highlight active
+    }
+  });
+});
+
+// --- STORY LIGHTBOX INTEGRATION ---
+document.querySelectorAll(".story-img").forEach((img) => {
+  img.style.cursor = "zoom-in";
+  img.addEventListener("click", () => {
+    // 1. SAVE SCROLL POSITION (Prevents getting "lost")
+    scrollYMemory = window.pageYOffset || document.documentElement.scrollTop;
+
+    const modal = document.getElementById("attireModal");
+    const mainImg = document.getElementById("mainAttireImg");
+
+    // 2. RESET GALLERY STATE (Prevents Attire photos from showing up here)
+    currentImagesArray = [img.src];
+    currentImgIndex = 0;
+
+    // 3. UPDATE UI
+    document.getElementById("attireThumbs").innerHTML = ""; // Clear thumbnails for story
+    const title = img.getAttribute("data-title");
+    document.getElementById("attireModalTitle").innerText = title;
+    const description = img.getAttribute("data-description");
+    document.getElementById("attireModalDescription").innerText = description;
+
+    mainImg.src = img.src;
+
+    // 4. OPEN MODAL & LOCK BACKGROUND
+    modal.classList.remove("hidden");
+    modal.style.display = "flex";
+
+    document.body.style.top = `-${scrollYMemory}px`;
+    document.body.classList.add("modal-active"); // Use the same class as Attire
+
+    setTimeout(() => (modal.style.opacity = "1"), 10);
+  });
+});
+
+const revealObserver = new IntersectionObserver(
+  (entries) => {
+    entries.forEach((entry) => {
+      if (entry.isIntersecting) {
+        entry.target.classList.add("is-visible");
+      }
+    });
+  },
+  { threshold: 0.05 }
+);
+
+// Apply this to all your main section containers
+document.querySelectorAll("section").forEach((section) => {
+  section.classList.add("reveal-on-scroll");
+  revealObserver.observe(section);
+});
+
+window.addEventListener("scroll", () => {
+  const heroImg = document.querySelector(".md\\:w-1\\/2.h-\\[50vh\\]"); // Targets your hero image div
+  if (heroImg) {
+    let scrollVal = window.scrollY;
+    // Moves the background image slower than the scroll
+    heroImg.style.backgroundPositionY = `${scrollVal * 0.5}px`;
+  }
+});
