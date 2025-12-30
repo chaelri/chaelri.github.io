@@ -164,6 +164,9 @@ document.addEventListener("DOMContentLoaded", () => {
   const mainImg = document.getElementById("mainAttireImg");
   const thumbContainer = document.getElementById("attireThumbs");
   const attireModalTitle = document.getElementById("attireModalTitle");
+  const attireModalDescription = document.getElementById(
+    "attireModalDescription"
+  );
 
   // DATA CONFIGURATION
   const attireData = {
@@ -230,10 +233,12 @@ document.addEventListener("DOMContentLoaded", () => {
   attireCards.forEach((card) => {
     card.addEventListener("click", () => {
       const role = card.getAttribute("data-role");
+      const description = card.getAttribute("data-description");
       const images = attireData[role] || [];
       if (images.length === 0) return;
 
       attireModalTitle.innerText = role;
+      attireModalDescription.innerText = description;
       mainImg.src = images[0];
 
       // Generate Thumbnails
@@ -257,11 +262,7 @@ document.addEventListener("DOMContentLoaded", () => {
 
   // Global Image Switcher
   window.changeAttireView = (thumb, src) => {
-    mainImg.style.opacity = "0";
-    setTimeout(() => {
-      mainImg.src = src;
-      mainImg.style.opacity = "1";
-    }, 150);
+    mainImg.src = src;
 
     document
       .querySelectorAll(".attire-thumb")

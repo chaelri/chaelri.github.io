@@ -1081,7 +1081,6 @@ body {
 }
 .attire-thumb.active {
   opacity: 1;
-  border-color: #7b8a5b;
   transform: scale(1.1);
 }
 

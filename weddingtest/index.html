@@ -1092,7 +1092,11 @@
         <!-- Centered Album Grid -->
         <div class="flex flex-wrap justify-center gap-x-4 gap-y-12 md:gap-x-10">
           <!-- Card: Best Man -->
-          <div class="attire-album-card group" data-role="Best Man">
+          <div
+            class="attire-album-card group"
+            data-role="Best Man"
+            data-description="Brown Vest & Trousers"
+          >
             <div class="fb-album-grid shadow-album">
               <div class="grid-main">
                 <img src="./assets/attire/bestman-1.jpg" />
@@ -1123,7 +1127,11 @@
           </div>
 
           <!-- Card: Maid of Honor -->
-          <div class="attire-album-card group" data-role="Maid of Honor">
+          <div
+            class="attire-album-card group"
+            data-role="Maid of Honor"
+            data-description="Coral Orange Dress"
+          >
             <div class="fb-album-grid shadow-album">
               <div class="grid-main">
                 <img src="./assets/attire/moh-1.jpg" />
@@ -1157,7 +1165,11 @@
           </div>
 
           <!-- Card: Bridesmaids & Secondary Female -->
-          <div class="attire-album-card group" data-role="Bridesmaids">
+          <div
+            class="attire-album-card group"
+            data-role="Bridesmaids"
+            data-description="Blush, Lavender, Pale Yellow"
+          >
             <div class="fb-album-grid shadow-album">
               <div class="grid-main">
                 <img src="./assets/attire/bm-1.jpg" />
@@ -1200,7 +1212,11 @@
           </div>
 
           <!-- Card: Groomsmen & Secondary Male -->
-          <div class="attire-album-card group" data-role="Groomsmen">
+          <div
+            class="attire-album-card group"
+            data-role="Groomsmen"
+            data-description="White Polo & Khaki"
+          >
             <div class="fb-album-grid shadow-album">
               <div class="grid-main">
                 <img src="./assets/attire/gm-1.jpg" />
@@ -1237,7 +1253,11 @@
           </div>
 
           <!-- 5. Mothers -->
-          <div class="attire-album-card group" data-role="Mothers">
+          <div
+            class="attire-album-card group"
+            data-role="Mothers"
+            data-description="Steel Blue Dress"
+          >
             <div class="fb-album-grid shadow-album">
               <div class="grid-main">
                 <img src="./assets/attire/mothers-1.jpg" />
@@ -1271,7 +1291,11 @@
           </div>
 
           <!-- 6. Fathers -->
-          <div class="attire-album-card group" data-role="Fathers">
+          <div
+            class="attire-album-card group"
+            data-role="Fathers"
+            data-description="Navy Blue Suit"
+          >
             <div class="fb-album-grid shadow-album">
               <div class="grid-main">
                 <img src="./assets/attire/fathers-1.jpg" />
@@ -1302,7 +1326,11 @@
           </div>
 
           <!-- 7. Ninangs -->
-          <div class="attire-album-card group" data-role="Ninangs">
+          <div
+            class="attire-album-card group"
+            data-role="Ninangs"
+            data-description="Pastel Green Dress"
+          >
             <div class="fb-album-grid shadow-album">
               <div class="grid-main">
                 <img src="./assets/attire/ninangs-1.jpg" />
@@ -1333,7 +1361,11 @@
           </div>
 
           <!-- 8. Ninongs -->
-          <div class="attire-album-card group" data-role="Ninongs">
+          <div
+            class="attire-album-card group"
+            data-role="Ninongs"
+            data-description="Black Suit"
+          >
             <div class="fb-album-grid shadow-album">
               <div class="grid-main">
                 <img src="./assets/attire/ninongs-1.jpg" />
@@ -1364,7 +1396,11 @@
           </div>
 
           <!-- 9. Lady Guests -->
-          <div class="attire-album-card group" data-role="Lady Guests">
+          <div
+            class="attire-album-card group"
+            data-role="Lady Guests"
+            data-description="Spring Floral Dresses"
+          >
             <div class="fb-album-grid shadow-album">
               <div class="grid-main">
                 <img src="./assets/attire/lady-1.jpg" />
@@ -1406,7 +1442,11 @@
           </div>
 
           <!-- 10. Gentleman Guests -->
-          <div class="attire-album-card group" data-role="Gentleman Guests">
+          <div
+            class="attire-album-card group"
+            data-role="Gentleman Guests"
+            data-description="Pastel Polos & Khaki"
+          >
             <div class="fb-album-grid shadow-album">
               <div class="grid-main">
                 <img src="./assets/attire/gent-1.jpg" />
@@ -1461,12 +1501,21 @@
       <div class="w-full flex items-center justify-between p-6">
         <div class="w-10"></div>
         <!-- Spacer -->
-        <h3
-          id="attireModalTitle"
-          class="serif text-xl italic text-white tracking-wide"
-        >
-          Role Name
-        </h3>
+        <div class="text-center">
+          <h3
+            id="attireModalTitle"
+            class="serif text-xl italic text-white tracking-wide"
+          >
+            Role Name
+          </h3>
+          <p
+            id="attireModalDescription"
+            class="text-xs uppercase tracking-widest text-stone-400"
+          >
+            Role Description
+          </p>
+        </div>
+
         <button
           onclick="window.closeAttireModal()"
           class="text-white/40 hover:text-white text-3xl"
@@ -1482,7 +1531,7 @@
         <img
           id="mainAttireImg"
           src=""
-          class="max-w-full max-h-full object-contain rounded-lg shadow-2xl transition-opacity duration-300"
+          class="max-w-full max-h-full object-contain rounded-lg"
           alt="Full Preview"
         />
       </div>
