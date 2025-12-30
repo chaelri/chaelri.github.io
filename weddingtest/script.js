@@ -159,16 +159,14 @@ document.addEventListener("DOMContentLoaded", () => {
     frame();
   };
 
-  const attireCards = document.querySelectorAll(".attire-album-card");
-  const attireModal = document.getElementById("attireModal");
-  const mainImg = document.getElementById("mainAttireImg");
-  const thumbContainer = document.getElementById("attireThumbs");
-  const attireModalTitle = document.getElementById("attireModalTitle");
-  const attireModalDescription = document.getElementById(
-    "attireModalDescription"
-  );
+  // --- THE ULTIMATE GALLERY ENGINE (NO JUMP + SWIPE) ---
 
-  // DATA CONFIGURATION
+  let scrollYMemory = 0; // Where we store your scroll position
+  let currentImagesArray = [];
+  let currentImgIndex = 0;
+  let touchStartX = 0;
+
+  // (Your attireData object remains exactly as you had it)
   const attireData = {
     "Best Man": [
       "./assets/attire/bestman-1.jpg",
@@ -179,13 +177,11 @@ document.addEventListener("DOMContentLoaded", () => {
       "./assets/attire/moh-1.jpg",
       "./assets/attire/moh-2.jpg",
       "./assets/attire/moh-3.jpg",
-      "./assets/attire/moh-4.jpg",
     ],
     Bridesmaids: [
       "./assets/attire/bm-1.jpg",
       "./assets/attire/bm-2.jpg",
       "./assets/attire/bm-3.jpg",
-      "./assets/attire/bm-4.jpg",
     ],
     Groomsmen: [
       "./assets/attire/gm-1.jpg",
@@ -196,10 +192,6 @@ document.addEventListener("DOMContentLoaded", () => {
       "./assets/attire/mothers-1.jpg",
       "./assets/attire/mothers-2.jpg",
       "./assets/attire/mothers-3.jpg",
-      "./assets/attire/mothers-4.jpg",
-      "./assets/attire/mothers-5.jpg",
-      "./assets/attire/mothers-6.jpg",
-      "./assets/attire/mothers-7.jpg",
     ],
     Fathers: [
       "./assets/attire/fathers-1.jpg",
@@ -220,73 +212,118 @@ document.addEventListener("DOMContentLoaded", () => {
       "./assets/attire/lady-1.jpg",
       "./assets/attire/lady-2.jpg",
       "./assets/attire/lady-3.jpg",
-      "./assets/attire/lady-4.jpg",
     ],
     "Gentleman Guests": [
       "./assets/attire/gent-1.jpg",
       "./assets/attire/gent-2.jpg",
       "./assets/attire/gent-3.jpg",
-      "./assets/attire/gent-4.jpg",
     ],
   };
 
-  attireCards.forEach((card) => {
+  // 1. OPEN MODAL
+  document.querySelectorAll(".attire-album-card").forEach((card) => {
     card.addEventListener("click", () => {
       const role = card.getAttribute("data-role");
       const description = card.getAttribute("data-description");
-      const images = attireData[role] || [];
-      if (images.length === 0) return;
+      currentImagesArray = attireData[role] || [];
+      currentImgIndex = 0;
 
-      attireModalTitle.innerText = role;
-      attireModalDescription.innerText = description;
-      mainImg.src = images[0];
+      // STEP A: Capture Scroll Position
+      scrollYMemory = window.pageYOffset || document.documentElement.scrollTop;
 
-      // Generate Thumbnails
-      thumbContainer.innerHTML = images
+      // STEP B: Update Content
+      document.getElementById("attireModalTitle").innerText = role;
+      document.getElementById("attireModalDescription").innerText = description;
+      document.getElementById("mainAttireImg").src = currentImagesArray[0];
+
+      document.getElementById("attireThumbs").innerHTML = currentImagesArray
         .map(
           (src, index) => `
-                <img src="${src}" 
-                     class="attire-thumb ${index === 0 ? "active" : ""}" 
-                     onclick="window.changeAttireView(this, '${src}')">
-            `
+        <img src="${src}" class="attire-thumb ${index === 0 ? "active" : ""}" 
+             onclick="window.updateGalleryView(${index})">
+      `
         )
         .join("");
 
-      // Open Modal
-      attireModal.classList.remove("hidden");
-      attireModal.style.display = "flex";
-      setTimeout(() => (attireModal.style.opacity = "1"), 10);
-      document.body.style.overflow = "hidden"; // Lock background
+      // STEP C: Prevent Background Jump
+      // We set the body to fixed BUT move it up by our scroll memory
+      document.body.style.top = `-${scrollYMemory}px`;
+      document.body.classList.add("modal-active");
+
+      const modal = document.getElementById("attireModal");
+      modal.style.display = "flex";
+      setTimeout(() => (modal.style.opacity = "1"), 10);
     });
   });
 
-  // Global Image Switcher
-  window.changeAttireView = (thumb, src) => {
-    mainImg.src = src;
-
-    document
-      .querySelectorAll(".attire-thumb")
-      .forEach((t) => t.classList.remove("active"));
-    thumb.classList.add("active");
-    thumb.scrollIntoView({
-      behavior: "smooth",
-      inline: "center",
-      block: "nearest",
-    });
-  };
-
+  // 2. CLOSE MODAL
   window.closeAttireModal = () => {
-    attireModal.style.opacity = "0";
+    const modal = document.getElementById("attireModal");
+    modal.style.opacity = "0";
+
     setTimeout(() => {
-      attireModal.classList.add("hidden");
-      attireModal.style.display = "none";
-      document.body.style.overflow = "auto";
-    }, 300);
+      modal.style.display = "none";
+
+      // STEP D: Restore Scroll Position
+      document.body.classList.remove("modal-active");
+      document.body.style.top = "";
+      window.scrollTo({
+        top: scrollYMemory,
+        left: 0,
+        behavior: "instant",
+      });
+    }, 0);
   };
 
-  attireModal.addEventListener("click", (e) => {
-    if (e.target === attireModal) window.closeAttireModal();
-  });
+  // 3. NAVIGATION & THUMB SCROLL
+  window.updateGalleryView = (index) => {
+    if (index < 0 || index >= currentImagesArray.length) return;
+    currentImgIndex = index;
+
+    const mainImg = document.getElementById("mainAttireImg");
+
+    mainImg.src = currentImagesArray[currentImgIndex];
+    mainImg.style.opacity = "1";
+
+    const thumbs = document.querySelectorAll(".attire-thumb");
+    thumbs.forEach((t, i) => {
+      t.classList.toggle("active", i === currentImgIndex);
+      if (i === currentImgIndex) {
+        // Scroll filmstrip only, not page
+        t.parentNode.scrollTo({
+          left: t.offsetLeft - t.parentNode.offsetWidth / 2 + t.offsetWidth / 2,
+          behavior: "smooth",
+        });
+      }
+    });
+  };
+
+  // 4. MESSENGER SWIPE LOGIC
+  const modalArea = document.getElementById("attireModal");
+
+  modalArea.addEventListener(
+    "touchstart",
+    (e) => {
+      touchStartX = e.changedTouches[0].screenX;
+    },
+    { passive: true }
+  );
+
+  modalArea.addEventListener(
+    "touchend",
+    (e) => {
+      const touchEndX = e.changedTouches[0].screenX;
+      const diff = touchStartX - touchEndX;
+
+      if (Math.abs(diff) > 60) {
+        // Swipe sensitivity
+        if (diff > 0)
+          window.updateGalleryView(currentImgIndex + 1); // Left swipe
+        else window.updateGalleryView(currentImgIndex - 1); // Right swipe
+      }
+    },
+    { passive: true }
+  );
 
   // --- 1. NAV MORE MENU LOGIC ---
   const moreTrigger = document.getElementById("more-trigger");

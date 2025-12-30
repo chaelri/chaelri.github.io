@@ -1076,8 +1076,6 @@ body {
   border-radius: 8px;
   cursor: pointer;
   opacity: 0.3;
-  transition: all 0.2s ease;
-  border: 2px solid transparent;
 }
 .attire-thumb.active {
   opacity: 1;
@@ -1145,4 +1143,62 @@ body {
 html,
 body {
   overflow-x: hidden;
+}
+/* --- JUMP-PROOF MODAL CSS --- */
+
+/* When modal is open, we fix the body so it can't move, 
+   but we will control the 'top' value via JS to prevent the jump to 0 */
+body.modal-active {
+  position: fixed;
+  width: 100%;
+  overflow: hidden;
+}
+
+#attireModal {
+  position: fixed;
+  inset: 0;
+  z-index: 1000; /* Ensure it's above everything */
+  background-color: rgba(0, 0, 0, 0.9);
+  backdrop-filter: blur(15px);
+  -webkit-backdrop-filter: blur(15px);
+  display: none; /* Controlled by JS */
+  flex-direction: column;
+  opacity: 0;
+  /* This stops the background from moving when you drag your finger on the modal */
+  touch-action: none; 
+}
+
+#mainAttireImg {
+  max-height: 70vh;
+  max-width: 95%;
+  object-fit: contain;
+  /* Allow swiping on the image itself */
+  touch-action: pan-y; 
+}
+
+#attireThumbs {
+  display: flex;
+  gap: 12px;
+  overflow-x: auto;
+  padding: 15px;
+  /* Allow thumbnail scrolling */
+  touch-action: pan-x; 
+  -webkit-overflow-scrolling: touch;
+}
+#attireThumbs::-webkit-scrollbar { display: none; }
+
+.attire-thumb {
+  width: 60px;
+  height: 60px;
+  object-fit: cover;
+  border-radius: 10px;
+  opacity: 0.4;
+  transition: all 0.3s ease;
+  flex-shrink: 0;
+  cursor: pointer;
+}
+.attire-thumb.active {
+  opacity: 1;
+  transform: scale(1.1);
+  box-shadow: 0 0 15px rgba(255,255,255,0.3);
 }
