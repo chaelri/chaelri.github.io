@@ -293,6 +293,7 @@ document.addEventListener("DOMContentLoaded", () => {
   const moreMenu = document.getElementById("more-menu");
 
   if (moreTrigger && moreMenu) {
+    // Toggle menu when "More" is clicked
     moreTrigger.addEventListener("click", (e) => {
       e.stopPropagation();
       const isHidden = moreMenu.classList.contains("pointer-events-none");
@@ -308,9 +309,16 @@ document.addEventListener("DOMContentLoaded", () => {
       }
     });
 
-    // Close menu when clicking outside
+    // NEW: Close menu when any option inside the dropdown is clicked
+    moreMenu.querySelectorAll("a").forEach((link) => {
+      link.addEventListener("click", () => {
+        moreMenu.classList.add("opacity-0", "scale-95", "pointer-events-none");
+      });
+    });
+
+    // Close menu when clicking anywhere else on the screen
     document.addEventListener("click", (e) => {
-      if (!moreMenu.contains(e.target)) {
+      if (!moreMenu.contains(e.target) && e.target !== moreTrigger) {
         moreMenu.classList.add("opacity-0", "scale-95", "pointer-events-none");
       }
     });
