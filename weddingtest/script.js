@@ -26,6 +26,7 @@ let scrollYMemory = 0; // Where we store your scroll position
 let currentImagesArray = [];
 let currentImgIndex = 0;
 let touchStartX = 0;
+let currentGuestName = "";
 
 // --- 1. INTRO & FORCE TOP ---
 document.addEventListener("DOMContentLoaded", () => {
@@ -33,30 +34,45 @@ document.addEventListener("DOMContentLoaded", () => {
     window.history.replaceState(null, null, window.location.pathname);
   }
 
-  const overlay = document.getElementById("floral-overlay");
-  const mono = document.getElementById("intro-monogram");
-  const flowers = document.querySelectorAll(".floral-element");
-  const modal = document.getElementById("welcomeModal");
   const closeBtn = document.getElementById("closeModalBtn");
-
   document.body.style.overflow = "hidden";
 
-  // Step A: Monogram In
+  // --- UPDATED INTRO LOGIC ---
+  const overlay = document.getElementById("floral-overlay");
+  const monoContainer = document.getElementById("intro-monogram");
+  const monoImg = monoContainer.querySelector("img");
+  const flowers = document.querySelectorAll(".floral-element");
+  const modal = document.getElementById("welcomeModal");
+
+  // Step A: Monogram Reveal
   setTimeout(() => {
-    mono.style.opacity = "1";
+    monoContainer.style.opacity = "1";
+    monoImg.classList.add("monogram-entrance");
+
+    // Start floating after the entrance is done
+    setTimeout(() => {
+      monoImg.classList.add("monogram-float");
+    }, 2500);
   }, 500);
 
-  // Step B: Flowers Glide In
+  // Step B: The "Flower Embrace"
+  // Instead of just disappearing, let's scale it down slightly
+  // so the flowers look like they are framing it before it fades.
   setTimeout(() => {
-    mono.style.opacity = "0";
+    // Shrink monogram slightly as flowers come in
+    monoImg.style.transition = "all 2s ease";
+    monoImg.style.transform = "scale(0.7)";
+    monoImg.style.filter = "blur(2px)";
+    monoContainer.style.opacity = "0.4"; // Keep it ghost-like in the background
+
     flowers.forEach((f) => {
       f.classList.add("floral-center");
-      // Wait for glide to finish, then start breathing
       setTimeout(() => {
         f.classList.add("floral-alive");
       }, 2000);
     });
-  }, 2500);
+  }, 3000); // Wait a bit longer so people see the logo
+
 
   // Step C: Show Modal
   setTimeout(() => {
@@ -521,6 +537,7 @@ document.getElementById("rsvpForm").onsubmit = async (e) => {
 
   const typedName = nameInput.value.trim();
   const attendanceVal = document.getElementById("attendance").value;
+  currentGuestName = typedName;
 
   // 1. Check if name is in master list
   const isValid = masterGuestList.some(
@@ -646,6 +663,56 @@ document.getElementById("rsvpForm").onsubmit = async (e) => {
   // Put this line right after your Firebase push logic:
   await sendToDiscord(typedName, attendanceVal);
 };
+
+document.getElementById("btnSubmitNote").addEventListener("click", async () => {
+  const noteContent = document.getElementById("secondaryNote").value.trim();
+  const noteContainer = document.getElementById("post-rsvp-container");
+  const noteSuccess = document.getElementById("note-thank-you");
+
+  if (!noteContent) return;
+
+  // Add a loading state to button
+  const btn = document.getElementById("btnSubmitNote");
+  btn.innerText = "SENDING...";
+  btn.disabled = true;
+
+  try {
+    // Save the note to a separate "notes" collection or update the existing one
+    // Let's push to a "wishes" collection linked by name
+    await push(ref(db, "wishes"), {
+      guestName: currentGuestName,
+      message: noteContent,
+      timestamp: new Date().toISOString(),
+    });
+
+    // Send a SECOND Discord ping just for the note
+    const DISCORD_WEBHOOK_URL =
+      "https://discord.com/api/webhooks/1455645074544263380/5VQ8ZN02-zYQz8o-bzPpsEEaLog_cqUQgrdwdJpjxMoO620eS78BM57kmt1xh-ckwsWV";
+
+    await fetch(DISCORD_WEBHOOK_URL, {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({
+        embeds: [
+          {
+            title: `💌 New Message from ${currentGuestName}`,
+            description: noteContent,
+            color: 0xffb7c5, // Pink for messages
+            timestamp: new Date().toISOString(),
+          },
+        ],
+      }),
+    });
+
+    // Final UI Transition
+    noteContainer.classList.add("hidden");
+    noteSuccess.classList.remove("hidden");
+  } catch (err) {
+    console.error("Note failed:", err);
+    btn.innerText = "ERROR - TRY AGAIN";
+    btn.disabled = false;
+  }
+});
 
 // --- 3. COUNTDOWN ---
 setInterval(() => {

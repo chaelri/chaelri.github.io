@@ -39,9 +39,16 @@
     >
       <div
         id="intro-monogram"
-        class="absolute inset-0 flex items-center justify-center opacity-0 z-[210] transition-opacity duration-1000"
+        class="absolute inset-0 flex items-center justify-center opacity-0 z-[210] transition-all duration-1000"
       >
-        <img src="./assets/monogram.png" class="w-64 md:w-96" alt="C&K" />
+        <div class="relative monogram-shimmer">
+          <!-- Added shimmer container -->
+          <img
+            src="./assets/monogram.png"
+            class="w-32 md:w-48 monogram-entrance"
+            alt="C&K"
+          />
+        </div>
       </div>
       <img
         src="./assets/5.png"
@@ -1709,7 +1716,7 @@
           </div>
 
           <!-- 5:30 PM -->
-          <div class="relative pl-12 text-left">
+          <div class="mb-16 relative pl-12 text-left">
             <div
               class="absolute left-0 top-1.5 w-4 h-4 rounded-full bg-[#FFB7C5] border-4 border-white shadow-sm z-10"
             ></div>
@@ -1728,6 +1735,26 @@
               </p>
               <p class="text-stone-500 text-sm leading-relaxed">
                 Time for food, heartfelt toasts, and a night of celebration!
+              </p>
+            </div>
+          </div>
+
+          <!-- 8:30 PM -->
+          <div class="relative pl-12 text-left">
+            <div
+              class="absolute left-0 top-1.5 w-4 h-4 rounded-full bg-[#FFB7C5] border-4 border-white shadow-sm z-10"
+            ></div>
+            <div>
+              <span
+                class="text-[10px] uppercase tracking-[0.2em] text-[#7b8a5b] font-bold"
+                >8:30 PM</span
+              >
+              <h4 class="serif text-2xl text-stone-800 italic mt-1">
+                Grand Send-Off
+              </h4>
+              <p class="text-stone-500 text-sm leading-relaxed mt-1">
+                Help us bid farewell to the newlyweds as they begin their
+                journey together!
               </p>
             </div>
           </div>
@@ -1783,7 +1810,8 @@
             <span class="text-[#FFB7C5] text-xl">✿</span>
             <span
               ><strong>RSVP Deadline:</strong> Kindly let us know if you can
-              make it by June 1, 2026.</span
+              make it by
+              <strong class="text-[#7b8a5b]"> June 1, 2026.</strong></span
             >
           </li>
         </ul>
@@ -2443,6 +2471,37 @@
             id="res-note"
             class="text-sm text-stone-500 leading-relaxed px-6 italic"
           ></p>
+
+          <div
+            id="post-rsvp-container"
+            class="mt-8 pt-8 border-t border-stone-100 animate-fade-in"
+          >
+            <label
+              class="block text-[10px] uppercase tracking-widest mb-3 font-bold text-stone-400"
+            >
+              Leave a message or wish for the couple
+            </label>
+            <textarea
+              id="secondaryNote"
+              placeholder="Write your wishes here..."
+              class="w-full p-4 border border-stone-100 rounded-2xl focus:outline-none focus:border-[#7b8a5b] bg-stone-50/50 text-sm text-stone-600 resize-none mb-4"
+              rows="3"
+            ></textarea>
+            <button
+              id="btnSubmitNote"
+              class="w-full bg-[#7b8a5b] text-white py-3 rounded-full font-bold tracking-widest uppercase text-[10px] hover:bg-[#6a784d] transition-all"
+            >
+              Send Message
+            </button>
+          </div>
+
+          <!-- A small success indicator for the note itself -->
+          <div
+            id="note-thank-you"
+            class="hidden mt-8 text-[#7b8a5b] italic serif text-lg animate-fade-in"
+          >
+            Your message has been sent. Thank you!
+          </div>
 
           <div class="pt-6">
             <div class="w-12 h-[1px] bg-stone-100 mx-auto mb-4"></div>

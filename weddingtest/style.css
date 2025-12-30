@@ -1229,3 +1229,101 @@ video::-webkit-media-controls-fullscreen-button {
   will-change: background-position;
   transform: translateZ(0); /* Forces Hardware Acceleration */
 }
+
+/* Note textarea styling */
+#secondaryNote {
+  border: 1px solid rgba(123, 138, 91, 0.1);
+  transition: all 0.3s ease;
+}
+
+#secondaryNote:focus {
+  background: white;
+  border-color: #7b8a5b;
+  box-shadow: 0 5px 15px rgba(123, 138, 91, 0.05);
+}
+
+/* Make the "Send Message" button slightly different than the main RSVP button */
+#btnSubmitNote {
+  box-shadow: 0 4px 10px rgba(123, 138, 91, 0.1);
+}
+
+#btnSubmitNote:active {
+  transform: scale(0.98);
+}
+
+/* Ensure the success indicator looks soft */
+#note-thank-you {
+  text-shadow: 0 0 1px rgba(123, 138, 91, 0.1);
+}
+
+/* 1. The Reveal Animation */
+.monogram-entrance {
+  animation: monogramReveal 2.5s cubic-bezier(0.22, 1, 0.36, 1) forwards;
+  filter: blur(10px);
+  transform: scale(0.8);
+  opacity: 0;
+}
+
+@keyframes monogramReveal {
+  0% {
+    filter: blur(15px);
+    transform: scale(0.85);
+    opacity: 0;
+  }
+  100% {
+    filter: blur(0px);
+    transform: scale(1);
+    opacity: 1;
+  }
+}
+
+/* 2. The Floating (Breathing) Effect */
+.monogram-float {
+  animation: monogramFloat 6s ease-in-out infinite alternate;
+}
+
+@keyframes monogramFloat {
+  0% {
+    transform: translateY(0px) rotate(0deg);
+  }
+  50% {
+    transform: translateY(-10px) rotate(1deg);
+  }
+  100% {
+    transform: translateY(0px) rotate(0deg);
+  }
+}
+
+/* 3. The Luxury Shimmer (Light sweep) */
+.monogram-shimmer {
+  position: relative;
+  overflow: hidden;
+}
+
+.monogram-shimmer::after {
+  content: "";
+  position: absolute;
+  top: -150%;
+  left: -150%;
+  width: 300%;
+  height: 300%;
+  background: linear-gradient(
+    45deg,
+    transparent 45%,
+    rgba(255, 255, 255, 0.1) 48%,
+    rgba(255, 255, 255, 0.4) 50%,
+    rgba(255, 255, 255, 0.1) 52%,
+    transparent 55%
+  );
+  transform: rotate(25deg);
+  animation: shimmerSweep 3.5s infinite;
+}
+
+@keyframes shimmerSweep {
+  0% {
+    transform: translate(-20%, -20%) rotate(25deg);
+  }
+  100% {
+    transform: translate(20%, 20%) rotate(25deg);
+  }
+}
