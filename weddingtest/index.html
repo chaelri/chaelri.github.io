@@ -734,11 +734,13 @@
               class="max-w-[280px] md:max-w-[320px] w-full border-[10px] border-white shadow-xl -rotate-2 overflow-hidden bg-stone-100"
             >
               <video
-                controls
-                class="w-full aspect-[9/16] object-cover grayscale-[10%] hover:grayscale-0 transition-all duration-500"
+                playsinline
+                webkit-playsinline
+                muted
+                loop
+                class="w-full aspect-[9/16] object-cover ..."
               >
                 <source src="./assets/skyranch.mp4" type="video/mp4" />
-                Your browser does not support the video tag.
               </video>
             </div>
           </div>
@@ -800,7 +802,13 @@
             </p>
           </div>
           <div class="md:w-1/2 border-[12px] border-white shadow-xl -rotate-1">
-            <video controls class="w-full h-auto grayscale-[10%]">
+            <video
+              playsinline
+              webkit-playsinline
+              muted
+              loop
+              class="w-full h-auto ..."
+            >
               <source src="./assets/proposal.mp4" type="video/mp4" />
             </video>
           </div>

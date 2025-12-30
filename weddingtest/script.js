@@ -106,8 +106,13 @@ document.addEventListener("DOMContentLoaded", () => {
     }, 500);
 
     document.querySelectorAll("video").forEach((v) => {
-      v.play(); // Start it
-      v.pause(); // Immediately pause it
+      v.muted = true; // Start muted to satisfy browser rules
+      v.play()
+        .then(() => {
+          v.pause(); // Pause immediately
+          v.currentTime = 0; // Reset to start
+        })
+        .catch((err) => console.log("Video priming skipped"));
     });
     startGlobalPetalFall();
   });

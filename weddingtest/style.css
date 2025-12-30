@@ -1213,3 +1213,14 @@ body.modal-active {
   opacity: 1;
   transform: translateY(0);
 }
+
+video {
+  /* Prevents iOS from showing the 'pinch to full screen' hint */
+  -webkit-transform: translateZ(0);
+  transform: translateZ(0);
+}
+
+/* Hide the native "Full Screen" button if it appears on some iOS versions */
+video::-webkit-media-controls-fullscreen-button {
+  display: none;
+}
