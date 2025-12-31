@@ -1,0 +1,163 @@
+body {
+  font-family: "Quicksand", sans-serif;
+  background: linear-gradient(-45deg, #fce4ec, #e1f5fe, #f3e5f5, #e8f5e9);
+  background-size: 400% 400%;
+  animation: gradientBG 15s ease infinite;
+}
+
+@keyframes gradientBG {
+  0% {
+    background-position: 0% 50%;
+  }
+  50% {
+    background-position: 100% 50%;
+  }
+  100% {
+    background-position: 0% 50%;
+  }
+}
+
+.glass-card {
+  background: rgba(255, 255, 255, 0.6);
+  backdrop-filter: blur(20px);
+  border: 1px solid rgba(255, 255, 255, 0.5);
+  box-shadow: 0 30px 60px -12px rgba(0, 0, 0, 0.08);
+  position: relative;
+  overflow: hidden;
+}
+
+/* Shimmer Sweep effect */
+.glass-card::before {
+  content: "";
+  position: absolute;
+  top: 0;
+  left: -100%;
+  width: 50%;
+  height: 100%;
+  background: linear-gradient(
+    to right,
+    transparent,
+    rgba(255, 255, 255, 0.2),
+    transparent
+  );
+  transform: skewX(-25deg);
+  transition: 0.75s;
+}
+.glass-card:hover::before {
+  left: 125%;
+}
+
+.progress-ring__circle {
+  transition: stroke-dashoffset 0.35s linear, stroke 0.5s ease;
+  transform: rotate(-90deg);
+  transform-origin: 50% 50%;
+  stroke-dasharray: 753.98;
+}
+
+.is-running #glow-circle {
+  animation: heartbeat 2.5s ease-in-out infinite;
+}
+@keyframes heartbeat {
+  0%,
+  100% {
+    transform: scale(1);
+    opacity: 0.2;
+  }
+  50% {
+    transform: scale(1.2);
+    opacity: 0.5;
+  }
+}
+
+.floating {
+  transition: transform 0.2s ease-out, opacity 1s ease, filter 1s ease;
+}
+.is-running-active .floating {
+  opacity: 0.3;
+  filter: blur(4px);
+}
+
+.dust {
+  position: absolute;
+  background: white;
+  border-radius: 50%;
+  opacity: 0.3;
+  pointer-events: none;
+  animation: drift linear infinite;
+}
+@keyframes drift {
+  from {
+    transform: translateY(100vh) translateX(0);
+  }
+  to {
+    transform: translateY(-10vh) translateX(100px);
+  }
+}
+
+.shake {
+  animation: shake 0.3s ease-in-out;
+}
+@keyframes shake {
+  0%,
+  100% {
+    transform: translateX(0);
+  }
+  25% {
+    transform: translateX(-5px);
+  }
+  75% {
+    transform: translateX(5px);
+  }
+}
+
+/* Modal activation classes */
+#times-up-modal.active {
+  opacity: 1;
+  pointer-events: auto;
+}
+#times-up-modal.active #modal-content {
+  transform: scale(1);
+}
+
+.pulse-animation {
+  animation: pulse 2s infinite;
+}
+@keyframes pulse {
+  0%,
+  100% {
+    transform: scale(1);
+  }
+  50% {
+    transform: scale(1.1);
+  }
+}
+
+/* Chrome/Safari cleanup for number inputs */
+input::-webkit-outer-spin-button,
+input::-webkit-inner-spin-button {
+  -webkit-appearance: none;
+  margin: 0;
+}
+input[type="number"] {
+  -moz-appearance: textfield;
+}
+
+/* Running UI enhancements */
+@keyframes urgent {
+  0%,
+  100% {
+    opacity: 1;
+  }
+  50% {
+    opacity: 0.5;
+  }
+}
+.urgent-timer {
+  animation: urgent 0.5s ease-in-out infinite;
+  color: #ff85a2;
+}
+
+.is-running #play-pause-btn {
+  box-shadow: 0 0 20px rgba(244, 114, 182, 0.8),
+    0 10px 15px -3px rgba(244, 114, 182, 0.4);
+}
