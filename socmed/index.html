@@ -1,0 +1,154 @@
+<!DOCTYPE html>
+<html lang="en">
+  <head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <title>Director's Cut | Studio</title>
+    <script src="https://cdn.tailwindcss.com"></script>
+    <link
+      href="https://fonts.googleapis.com/icon?family=Material+Icons"
+      rel="stylesheet"
+    />
+    <link rel="stylesheet" href="style.css" />
+  </head>
+  <body class="bg-[#0b0f1a] text-slate-300 font-sans antialiased">
+    <!-- Navigation -->
+    <header
+      class="h-20 border-b border-white/5 flex items-center justify-between px-10 bg-[#0b0f1a]/80 backdrop-blur-xl sticky top-0 z-50"
+    >
+      <div class="flex items-center gap-4">
+        <div class="bg-rose-600 p-2.5 rounded-xl shadow-lg shadow-rose-600/20">
+          <span class="material-icons text-white block">movie_filter</span>
+        </div>
+        <div>
+          <h1
+            class="font-black text-xl tracking-tighter text-white leading-none"
+          >
+            DIRECTOR'S <span class="text-rose-500">CUT</span>
+          </h1>
+          <p class="text-[10px] text-slate-500 font-bold tracking-[0.2em] mt-1">
+            CONTENT ARCHITECT v2.0
+          </p>
+        </div>
+      </div>
+
+      <div
+        class="flex items-center gap-4 bg-slate-900/80 p-1.5 rounded-2xl border border-white/5"
+      >
+        <button
+          id="sourceCCF"
+          class="source-toggle active px-6 py-2.5 rounded-xl text-xs font-black transition-all flex items-center gap-2"
+        >
+          <span class="material-icons text-xs">church</span> CCF MAIN
+        </button>
+        <button
+          id="sourceElevate"
+          class="source-toggle px-6 py-2.5 rounded-xl text-xs font-black transition-all flex items-center gap-2"
+        >
+          <span class="material-icons text-xs">bolt</span> ELEVATE
+        </button>
+        <div class="w-[1px] h-6 bg-white/10 mx-2"></div>
+        <button
+          id="generateBtn"
+          class="bg-rose-600 hover:bg-rose-500 text-white px-8 py-2.5 rounded-xl font-black text-xs shadow-xl shadow-rose-600/20 transition-all flex items-center gap-2 active:scale-95"
+        >
+          <span class="material-icons text-sm">auto_awesome</span> GENERATE
+          PRODUCTION SCRIPTS
+        </button>
+      </div>
+    </header>
+
+    <main class="flex h-[calc(100vh-80px)]">
+      <!-- Script Feed -->
+      <section
+        class="flex-1 overflow-y-auto p-10 custom-scrollbar bg-gradient-to-br from-[#0b0f1a] to-[#0f172a]"
+      >
+        <div class="max-w-4xl mx-auto">
+          <div class="flex items-end justify-between mb-10">
+            <div>
+              <h2
+                id="feedTitle"
+                class="text-3xl font-black text-white tracking-tight"
+              >
+                Production Queue
+              </h2>
+              <p class="text-slate-500 text-sm mt-1">
+                High-retention reel strategies for Gen-Z audience.
+              </p>
+            </div>
+            <span
+              id="counter"
+              class="bg-rose-500/10 border border-rose-500/20 px-4 py-1.5 rounded-full text-[10px] font-black text-rose-500 uppercase tracking-widest"
+              >0 Scripts Loaded</span
+            >
+          </div>
+
+          <div
+            id="loader"
+            class="hidden flex flex-col items-center justify-center py-32 border-2 border-dashed border-white/5 rounded-[40px] bg-white/5"
+          >
+            <div class="loader-circle mb-6"></div>
+            <p
+              class="text-white font-bold tracking-widest text-xs animate-pulse"
+            >
+              DIRECTING NEW CONTENT...
+            </p>
+          </div>
+
+          <div id="ideasGrid" class="space-y-8">
+            <!-- High-End Cards injected here -->
+          </div>
+        </div>
+      </section>
+
+      <!-- Refiner Chat -->
+      <aside
+        class="w-[420px] border-l border-white/5 bg-[#0b0f1a] flex flex-col"
+      >
+        <div class="p-8 border-b border-white/5">
+          <div class="flex items-center gap-3 mb-2">
+            <span class="material-icons text-blue-500">psychology</span>
+            <h3 class="font-black text-white text-sm tracking-widest uppercase">
+              AI Script Refiner
+            </h3>
+          </div>
+          <p class="text-xs text-slate-500 leading-relaxed">
+            Drop a script here to tweak the hook, change the aesthetic, or
+            shorten the breakdown.
+          </p>
+        </div>
+
+        <div
+          id="chatHistory"
+          class="flex-1 overflow-y-auto p-6 space-y-6 custom-scrollbar"
+        >
+          <div
+            class="bg-white/5 border border-white/5 p-5 rounded-[24px] text-xs leading-relaxed text-slate-400 italic"
+          >
+            Waiting for instructions, Director. Copy any script from the left to
+            begin refining.
+          </div>
+        </div>
+
+        <div class="p-8 border-t border-white/5">
+          <div class="relative group">
+            <textarea
+              id="chatInput"
+              rows="4"
+              class="w-full bg-slate-900/50 border border-white/10 rounded-[24px] p-5 text-sm focus:outline-none focus:border-rose-500/50 transition-all resize-none shadow-2xl"
+              placeholder="Ask me to rewrite or polish..."
+            ></textarea>
+            <button
+              id="sendChat"
+              class="absolute bottom-4 right-4 bg-rose-600 p-3 rounded-2xl text-white hover:bg-rose-500 transition-all shadow-lg hover:scale-105 active:scale-95"
+            >
+              <span class="material-icons">send</span>
+            </button>
+          </div>
+        </div>
+      </aside>
+    </main>
+
+    <script type="module" src="script.js"></script>
+  </body>
+</html>

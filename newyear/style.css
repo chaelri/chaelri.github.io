@@ -1,0 +1,77 @@
+body {
+  background: radial-gradient(circle at center, #1a0f00 0%, #050300 100%);
+  color: #fff;
+  margin: 0;
+}
+
+.gold-text {
+  background: linear-gradient(180deg, #ffedaf 0%, #bb852b 50%, #8b5b14 100%);
+  -webkit-background-clip: text;
+  -webkit-text-fill-color: transparent;
+  filter: drop-shadow(0 0 20px rgba(187, 133, 43, 0.5));
+}
+
+.glass {
+  background: rgba(20, 10, 0, 0.4);
+  border: 1px solid rgba(187, 133, 43, 0.2);
+  backdrop-filter: blur(15px);
+  box-shadow: 0 10px 40px rgba(0, 0, 0, 0.6);
+}
+
+#flash-overlay {
+  position: fixed;
+  inset: 0;
+  background: white;
+  z-index: 100;
+  pointer-events: none;
+  opacity: 0;
+}
+
+@keyframes celebration-shake {
+  0% {
+    transform: scale(1);
+    filter: brightness(1);
+  }
+  50% {
+    transform: scale(1.1);
+    filter: brightness(1.5);
+  }
+  100% {
+    transform: scale(1);
+    filter: brightness(1);
+  }
+}
+
+.animate-celebrate {
+  animation: celebration-shake 0.6s ease-in-out infinite;
+}
+
+.flash-active {
+  animation: flash-trigger 2s ease-out forwards;
+}
+
+@keyframes flash-trigger {
+  0% {
+    opacity: 0;
+  }
+  5% {
+    opacity: 1;
+  }
+  100% {
+    opacity: 0;
+  }
+}
+
+#particles-container {
+  position: fixed;
+  inset: 0;
+  pointer-events: none;
+  z-index: 5;
+}
+
+.particle {
+  position: absolute;
+  background: #ffedaf;
+  border-radius: 50%;
+  filter: blur(1px);
+}

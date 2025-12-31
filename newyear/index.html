@@ -1,0 +1,119 @@
+<!DOCTYPE html>
+<html lang="en">
+  <head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <title>2026 New Year | PH Time</title>
+    <script src="https://cdn.tailwindcss.com"></script>
+    <link
+      href="https://fonts.googleapis.com/icon?family=Material+Icons"
+      rel="stylesheet"
+    />
+    <link
+      href="https://fonts.googleapis.com/css2?family=Inter:wght@300;400;700&family=Playfair+Display:ital,wght@0,700;1,900&display=swap"
+      rel="stylesheet"
+    />
+    <link rel="stylesheet" href="style.css" />
+  </head>
+  <body
+    class="text-white min-h-screen flex items-center justify-center overflow-hidden"
+  >
+    <div id="flash-overlay"></div>
+    <div id="particles-container"></div>
+
+    <!-- Interaction Overlay -->
+    <div
+      id="overlay"
+      class="fixed inset-0 z-50 flex flex-col items-center justify-center bg-[#0a0500] transition-opacity duration-1000"
+    >
+      <h2
+        class="text-amber-500 font-['Playfair_Display'] italic text-3xl mb-8 tracking-widest uppercase"
+      >
+        New Year's Eve 2025
+      </h2>
+      <button
+        id="startBtn"
+        class="group flex items-center gap-4 px-12 py-5 border-2 border-amber-600/30 rounded-full hover:border-amber-500 hover:bg-amber-500/10 transition-all duration-500"
+      >
+        <span class="material-icons text-amber-500">celebration</span>
+        <span class="uppercase tracking-[0.3em] font-bold text-sm"
+          >Unlock 2026 Experience</span
+        >
+      </button>
+    </div>
+
+    <!-- Main Content -->
+    <main
+      id="main-content"
+      class="relative z-10 w-full max-w-5xl px-4 text-center transition-all duration-1000"
+    >
+      <header class="mb-16">
+        <div
+          id="subtitle"
+          class="text-amber-600/60 tracking-[0.5em] uppercase text-[10px] mb-4 font-bold"
+        >
+          Philippines Standard Time
+        </div>
+        <h1
+          id="main-title"
+          class="font-['Playfair_Display'] italic text-6xl md:text-8xl leading-tight"
+        >
+          Road to <span class="gold-text">2026</span>
+        </h1>
+      </header>
+
+      <div
+        id="countdown-grid"
+        class="grid grid-cols-2 md:grid-cols-4 gap-4 md:gap-8 mb-16 max-w-4xl mx-auto"
+      >
+        <div class="glass p-8 rounded-3xl">
+          <div id="h" class="text-5xl md:text-7xl font-bold gold-text">00</div>
+          <div
+            class="text-[10px] uppercase tracking-[0.3em] text-amber-700/80 mt-4 font-bold"
+          >
+            Hours
+          </div>
+        </div>
+        <div class="glass p-8 rounded-3xl">
+          <div id="m" class="text-5xl md:text-7xl font-bold gold-text">00</div>
+          <div
+            class="text-[10px] uppercase tracking-[0.3em] text-amber-700/80 mt-4 font-bold"
+          >
+            Minutes
+          </div>
+        </div>
+        <div class="glass p-8 rounded-3xl">
+          <div id="s" class="text-5xl md:text-7xl font-bold gold-text">00</div>
+          <div
+            class="text-[10px] uppercase tracking-[0.3em] text-amber-700/80 mt-4 font-bold"
+          >
+            Seconds
+          </div>
+        </div>
+        <div class="glass p-8 rounded-3xl opacity-40">
+          <div id="ms" class="text-5xl md:text-7xl font-bold">00</div>
+          <div
+            class="text-[10px] uppercase tracking-[0.3em] text-gray-500 mt-4 font-bold"
+          >
+            Millis
+          </div>
+        </div>
+      </div>
+
+      <div id="status" class="flex items-center justify-center gap-3">
+        <span class="material-icons text-amber-600 text-sm animate-pulse"
+          >sync_alt</span
+        >
+        <span
+          class="uppercase text-[10px] tracking-[0.4em] text-amber-700/60 font-medium"
+          >Atomic Clock Locked</span
+        >
+      </div>
+    </main>
+
+    <audio id="ny-audio" src="your-audio-file.mp3" preload="auto"></audio>
+    <audio id="ny-audio2" src="your-audio-file.mp3" preload="auto"></audio>
+
+    <script src="script.js"></script>
+  </body>
+</html>

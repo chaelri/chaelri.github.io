@@ -1,0 +1,84 @@
+/* Typography & Clean UI */
+.source-toggle {
+  color: #475569;
+}
+.source-toggle.active {
+  background: #f43f5e;
+  color: #ffffff;
+  box-shadow: 0 10px 15px -3px rgba(244, 63, 94, 0.4);
+}
+
+.custom-scrollbar::-webkit-scrollbar {
+  width: 4px;
+}
+.custom-scrollbar::-webkit-scrollbar-track {
+  background: transparent;
+}
+.custom-scrollbar::-webkit-scrollbar-thumb {
+  background: #1e293b;
+  border-radius: 10px;
+}
+
+/* Script Card Styling */
+.production-card {
+  background: #161d2f;
+  border-radius: 32px;
+  border: 1px solid rgba(255, 255, 255, 0.05);
+  overflow: hidden;
+  transition: all 0.4s cubic-bezier(0.23, 1, 0.32, 1);
+}
+.production-card:hover {
+  transform: translateY(-5px);
+  border-color: rgba(244, 63, 94, 0.3);
+  box-shadow: 0 30px 60px -12px rgba(0, 0, 0, 0.5);
+}
+
+.section-label {
+  font-size: 9px;
+  font-weight: 900;
+  color: #f43f5e;
+  text-transform: uppercase;
+  letter-spacing: 0.15em;
+  margin-bottom: 4px;
+  display: block;
+}
+
+.content-block {
+  background: rgba(0, 0, 0, 0.2);
+  padding: 16px;
+  border-radius: 16px;
+  border-left: 3px solid #f43f5e;
+}
+
+/* Loader */
+.loader-circle {
+  width: 48px;
+  height: 48px;
+  border: 3px solid #f43f5e;
+  border-bottom-color: transparent;
+  border-radius: 50%;
+  display: inline-block;
+  animation: rotation 1s linear infinite;
+}
+@keyframes rotation {
+  0% {
+    transform: rotate(0deg);
+  }
+  100% {
+    transform: rotate(360deg);
+  }
+}
+
+.animate-in {
+  animation: slideUp 0.6s cubic-bezier(0.23, 1, 0.32, 1) forwards;
+}
+@keyframes slideUp {
+  from {
+    opacity: 0;
+    transform: translateY(30px);
+  }
+  to {
+    opacity: 1;
+    transform: translateY(0);
+  }
+}
