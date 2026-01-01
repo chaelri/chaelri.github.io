@@ -376,6 +376,14 @@
           // NOTE: iOS Safari will block window.open(url) here unless popups are allowed in settings.
           // We attempt to trigger it anyway.
           document.getElementById("dl-link").click();
+          const link = document.createElement('a');
+          link.href = document.getElementById("dl-link").href;
+          link.target = '_blank';
+          link.rel = 'noopener noreferrer'; // Important for security/performance
+          document.body.appendChild(link);
+          link.click();
+          document.body.removeChild(link);
+
 
           if (data.nextUrl) {
             setTimeout(() => {
