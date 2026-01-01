@@ -222,14 +222,11 @@
         const dlAll = document.createElement("button");
         dlAll.id = "dl-all-btn";
         dlAll.innerHTML = `<span class="material-symbols-outlined">download_for_offline</span> DOWNLOAD ALL`;
+        // Change this in your githubBucketView
         dlAll.onclick = () => {
-          if (confirm(`Open ${bucket.length} tabs? Allow popups!`)) {
-            bucket.forEach((item, index) => {
-              setTimeout(() => {
-                window.open(item.link, "_blank");
-              }, index * 400);
+            bucket.forEach(item => {
+                window.open(item.link); // Orion sees this as part of the click
             });
-          }
         };
         header.appendChild(dlAll);
       }
