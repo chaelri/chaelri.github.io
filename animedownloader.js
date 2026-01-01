@@ -1,8 +1,8 @@
 // ==UserScript==
-// @name         Anime Infrastructure - Ultimate Bridge v3.2
+// @name         Anime Infrastructure - Ultimate Bridge v4.1
 // @namespace    http://tampermonkey.net/
-// @version      3.2
-// @description  Full Nuke UI, Auto-Scan, GitHub Bridge, and Download All
+// @version      4.1
+// @description  Full Nuke UI, Auto-Scan, GitHub Bridge, and Error-Free Navigation
 // @author       Chaelri
 // @match        *://*/*
 // @match        https://chaelri.github.io/anime*
@@ -16,19 +16,13 @@
 
   const HREF = window.location.href;
   const LOC = window.location.hostname;
+  let originalOrder = [];
+  let sortState = { rating: "none", title: "none", episodes: "none" };
 
-  // --- GLOBAL ACTIONS ---
-  window.startAuto = function () {
-    const sep = window.location.href.includes("?") ? "&" : "?";
-    window.location.href = window.location.href + sep + "auto=true";
-  };
+  // ========================================================================================
+  // ROUTING SYSTEM
+  // ========================================================================================
 
-  window.stopAuto = function () {
-    const cleanUrl = window.location.href.replace(/[&?]auto=true/, "");
-    window.location.href = cleanUrl;
-  };
-
-  // --- ROUTING ---
   if (LOC.includes("livechart.me")) {
     HREF.includes("/anime")
       ? liveChartAnimeOnlyView()
@@ -42,70 +36,13 @@
   else if (HREF.includes("chaelri.github.io/anime")) githubBucketView();
 
   // ========================================================================================
-  // GITHUB BUCKET: NEW DOWNLOAD ALL FEATURE
-  // ========================================================================================
-
-  function githubBucketView() {
-    const renderBucket = () => {
-      const bucket = JSON.parse(GM_getValue("anime_bucket", "[]"));
-      const container = document.getElementById("link-bucket");
-      const header = document.querySelector("header");
-      if (!container || !header) return;
-
-      // Inject Download All Button if it doesn't exist
-      if (!document.getElementById("dl-all-btn") && bucket.length > 0) {
-        const dlAll = document.createElement("button");
-        dlAll.id = "dl-all-btn";
-        dlAll.innerHTML = `<span class="material-symbols-outlined">download_for_offline</span> DOWNLOAD ALL`;
-        dlAll.onclick = () => {
-          if (
-            confirm(
-              `Open ${bucket.length} download tabs? Make sure popups are allowed!`
-            )
-          ) {
-            bucket.forEach((item, index) => {
-              setTimeout(() => {
-                window.open(item.link, "_blank");
-              }, index * 400);
-            });
-          }
-        };
-        header.appendChild(dlAll);
-      }
-
-      if (bucket.length === 0) {
-        container.innerHTML = `<div class="col-span-full py-20 text-center opacity-20 text-xl font-light tracking-widest">BUCKET IS EMPTY</div>`;
-        document.getElementById("dl-all-btn")?.remove();
-        return;
-      }
-
-      container.innerHTML = "";
-      [...bucket].reverse().forEach((item, index) => {
-        const card = document.createElement("div");
-        card.className = "anime-card-aesthetic";
-        card.innerHTML = `<div class="card-header"><div class="ep-badge">EP ${item.progress}</div><div class="quality-label">${item.quality}</div></div><div class="card-body"><h3 class="card-title">${item.title}</h3><p class="card-meta">Added ${item.date}</p><div class="card-actions"><a href="${item.link}" target="_blank" class="dl-btn">DOWNLOAD</a><button class="del-btn" data-index="${index}"><span class="material-symbols-outlined">delete</span></button></div></div>`;
-        container.appendChild(card);
-      });
-
-      container.querySelectorAll(".del-btn").forEach((btn) => {
-        btn.onclick = () => {
-          let cur = JSON.parse(GM_getValue("anime_bucket", "[]"));
-          cur.reverse().splice(btn.dataset.index, 1);
-          GM_setValue("anime_bucket", JSON.stringify(cur.reverse()));
-          renderBucket();
-        };
-      });
-    };
-    setTimeout(renderBucket, 300);
-  }
-
-  // ========================================================================================
-  // ANIMEPAHE PLAYER: THE NUKE DASHBOARD
+  // ANIMEPAHE: PLAYER, SCANNER, & NUKE UI
   // ========================================================================================
 
   function animePaheClicker() {
     const isAuto =
       new URLSearchParams(window.location.search).get("auto") === "true";
+
     let findData = setInterval(() => {
       const dlMenu = document.getElementById("pickDownload");
       const scrollArea = document.querySelector("#scrollArea");
@@ -114,6 +51,7 @@
 
       if (dlMenu && scrollArea && infoArea && episodeBtn) {
         clearInterval(findData);
+
         const dlLinks = Array.from(dlMenu.querySelectorAll("a.dropdown-item"))
           .filter(
             (a) =>
@@ -130,7 +68,6 @@
 
         const title =
           infoArea.querySelector("h1 a")?.getAttribute("title") || "Anime";
-        const poster = infoArea.querySelector("img")?.src;
         const currentEp = episodeBtn.innerText.match(/\d+/)[0];
         const allEpLinks = Array.from(
           scrollArea.querySelectorAll("a.dropdown-item")
@@ -155,17 +92,15 @@
             prevUrl: prevUrl,
             quality: dlLinks[0].innerText.split("(")[0].trim(),
             title: title,
-            poster: poster,
-            ep: currentEp,
             progress: `${currentEp} / ${actualTotal}`,
             auto: isAuto,
           };
 
+          // Save to Bucket
           let bucket = JSON.parse(GM_getValue("anime_bucket", "[]"));
           if (!bucket.find((i) => i.link === data.downloadUrl)) {
             bucket.push({
               title: data.title,
-              ep: data.ep,
               progress: data.progress,
               link: data.downloadUrl,
               quality: data.quality,
@@ -174,19 +109,20 @@
             GM_setValue("anime_bucket", JSON.stringify(bucket));
           }
 
-          renderNuke(data);
+          renderNukeUI(data);
+
           if (data.auto) {
             setTimeout(() => {
               if (data.nextUrl) window.location.href = data.nextUrl;
               else window.location.href = "https://chaelri.github.io/anime";
-            }, 1000);
+            }, 1200);
           }
         }
       }
     }, 100);
   }
 
-  function renderNuke(data) {
+  function renderNukeUI(data) {
     window.stop();
     let lastId = window.setTimeout(() => {}, 0);
     while (lastId--) {
@@ -201,26 +137,25 @@
             <style>
                 :root { --bg: #050505; --accent: #3B97FC; }
                 html, body { background: var(--bg) !important; margin: 0; padding: 0; width: 100%; height: 100%; overflow: hidden; pointer-events: none !important; }
-                #nuke-ui { pointer-events: auto !important; position: fixed; inset: 0; display: flex; flex-direction: column; align-items: center; justify-content: center; z-index: 2147483647; background: var(--bg); font-family: 'Inter', sans-serif; color: white; text-align: center; }
+                #nuke-body { pointer-events: auto !important; position: fixed; inset: 0; display: flex; flex-direction: column; align-items: center; justify-content: center; z-index: 2147483647; background: var(--bg); font-family: 'Inter', sans-serif; color: white; text-align: center; }
                 .title { font-weight: 800; font-size: 2.2rem; margin-bottom: 5px; letter-spacing: -1.5px; line-height: 1.1; padding: 0 20px; }
-                .ep { font-size: 0.9rem; color: var(--accent); margin-bottom: 40px; letter-spacing: 3px; display: flex; align-items: center; gap: 15px; text-transform: uppercase; font-weight: bold; }
+                .ep { font-size: 0.9rem; color: var(--accent); margin-bottom: 40px; letter-spacing: 3px; display: flex; align-items: center; gap: 15px; font-weight: bold; }
                 .ep::before, .ep::after { content: ""; height: 1px; width: 30px; background: #222; }
                 .btn-stack { display: flex; flex-direction: column; gap: 12px; width: 340px; }
                 .pill { padding: 20px 0; width: 100%; font-size: 1.1rem; font-weight: 600; border-radius: 100px; text-decoration: none; display: flex; align-items: center; justify-content: center; transition: 0.3s; cursor: pointer; border: none; }
                 .dl-pill { background: var(--accent); color: white; box-shadow: 0 10px 40px rgba(59,151,252,0.2); }
                 .dl-pill:hover { transform: translateY(-3px); background: #2563eb; }
-                .save-pill { background: #111; color: #555; font-size: 0.8rem; border: 1px solid #181818; }
+                .save-pill { background: #111; color: #555; font-size: 0.8rem; border: 1px solid #181818; pointer-events: none; }
                 .nav-row { display: flex; gap: 10px; }
                 .nav-pill { flex: 1; padding: 15px 0; background: #111; color: #666; border-radius: 100px; text-decoration: none; font-size: 0.8rem; border: 1px solid #181818; font-weight: bold; }
-                .nav-pill:hover:not(.disabled) { color: white; background: #181818; border-color: #333; }
+                .nav-pill:hover:not(.disabled) { color: white; background: #181818; }
                 .disabled { opacity: 0.1; pointer-events: none; }
-                .auto-status { margin-top: 30px; font-weight: 800; font-size: 0.7rem; letter-spacing: 2px; color: #ffab00; text-transform: uppercase; }
-                .stop-btn { background: none; border: 1px solid #222; color: #444; padding: 8px 15px; border-radius: 8px; margin-top: 15px; cursor: pointer; font-size: 0.6rem; font-weight: bold; transition: 0.2s; }
-                .stop-btn:hover { color: #ff4444; border-color: #ff4444; }
+                .auto-status { margin-top: 30px; font-weight: 800; font-size: 0.7rem; color: #ffab00; text-transform: uppercase; letter-spacing: 2px; }
+                .stop-btn { background: none; border: 1px solid #222; color: #444; padding: 8px 15px; border-radius: 8px; margin-top: 15px; cursor: pointer; font-size: 0.6rem; font-weight: bold; }
             </style>
         </head>
         <body>
-            <div id="nuke-ui">
+            <div id="nuke-body">
                 <div class="title">${data.title}</div>
                 <div class="ep">EPISODE ${data.progress}</div>
                 <div class="btn-stack">
@@ -240,26 +175,92 @@
       data.nextUrl ? "" : "disabled"
     }">NEXT</a>
                     </div>
-                    <div id="auto-ctrl">
+                    <div id="auto-area">
                         ${
                           data.auto
-                            ? `
-                            <div class="auto-status">AUTO-SCANNING...</div>
-                            <button class="stop-btn" onclick="window.stopAuto()">CANCEL AUTO-PILOT</button>
-                        `
-                            : `
-                            <button class="pill" style="background:none; color:var(--accent); font-size:0.7rem; font-weight:bold" onclick="window.startAuto()">ENABLE AUTO-PILOT</button>
-                        `
+                            ? `<div class="auto-status">AUTO-SCANNING...</div><button id="btn-stop-auto" class="stop-btn">CANCEL AUTO-PILOT</button>`
+                            : `<button id="btn-start-auto" class="pill" style="background:none; color:var(--accent); font-size:0.7rem">ENABLE AUTO-PILOT</button>`
                         }
                     </div>
                 </div>
             </div>
         </body>
         `;
+
+    // ATTACH JS EVENTS (Fixes ReferenceError)
+    const startBtn = document.getElementById("btn-start-auto");
+    const stopBtn = document.getElementById("btn-stop-auto");
+
+    if (startBtn) {
+      startBtn.onclick = () => {
+        const sep = window.location.href.includes("?") ? "&" : "?";
+        window.location.href = window.location.href + sep + "auto=true";
+      };
+    }
+    if (stopBtn) {
+      stopBtn.onclick = () => {
+        window.location.href = window.location.href.replace(
+          /[&?]auto=true/,
+          ""
+        );
+      };
+    }
   }
 
   // ========================================================================================
-  // LIVECHART: SORTING & MISC
+  // GITHUB BUCKET: VIEW & DOWNLOAD ALL
+  // ========================================================================================
+
+  function githubBucketView() {
+    const renderBucket = () => {
+      const bucket = JSON.parse(GM_getValue("anime_bucket", "[]"));
+      const container = document.getElementById("link-bucket");
+      const header = document.querySelector("header");
+      if (!container || !header) return;
+
+      if (!document.getElementById("dl-all-btn") && bucket.length > 0) {
+        const dlAll = document.createElement("button");
+        dlAll.id = "dl-all-btn";
+        dlAll.innerHTML = `<span class="material-symbols-outlined">download_for_offline</span> DOWNLOAD ALL`;
+        dlAll.onclick = () => {
+          if (confirm(`Open ${bucket.length} tabs? Allow popups!`)) {
+            bucket.forEach((item, index) => {
+              setTimeout(() => {
+                window.open(item.link, "_blank");
+              }, index * 400);
+            });
+          }
+        };
+        header.appendChild(dlAll);
+      }
+
+      if (bucket.length === 0) {
+        container.innerHTML = `<div class="col-span-full py-20 text-center opacity-20 tracking-widest text-xl">BUCKET IS EMPTY</div>`;
+        return;
+      }
+
+      container.innerHTML = "";
+      [...bucket].reverse().forEach((item, index) => {
+        const card = document.createElement("div");
+        card.className = "anime-card-aesthetic";
+        card.innerHTML = `<div class="card-header"><div class="ep-badge">EP ${item.progress}</div><div class="quality-label">${item.quality}</div></div><div class="card-body"><h3 class="card-title">${item.title}</h3><p class="card-meta">Added ${item.date}</p><div class="card-actions"><a href="${item.link}" target="_blank" class="dl-btn">DOWNLOAD</a><button class="del-btn" data-index="${index}"><span class="material-symbols-outlined">delete</span></button></div></div>`;
+        container.appendChild(card);
+      });
+
+      container.querySelectorAll(".del-btn").forEach((btn) => {
+        btn.onclick = () => {
+          let cur = JSON.parse(GM_getValue("anime_bucket", "[]"));
+          cur.reverse().splice(btn.dataset.index, 1);
+          GM_setValue("anime_bucket", JSON.stringify(cur.reverse()));
+          renderBucket();
+        };
+      });
+    };
+    setTimeout(renderBucket, 300);
+  }
+
+  // ========================================================================================
+  // LIVECHART: SORTING & REDESIGN
   // ========================================================================================
 
   function liveChartAnimeListView() {
@@ -267,6 +268,7 @@
     const animeCards = document.querySelectorAll(".anime-card");
     if (animeCards.length === 0) return;
     originalOrder = Array.from(animeCards).map((card) => card.parentElement);
+
     animeCards.forEach((card) => {
       const btn = createButton("Download Anime", false);
       const title =
@@ -279,6 +281,7 @@
           )}&auto=true`
         );
       card.appendChild(btn);
+
       const epInfo = card.querySelector(".anime-episodes");
       if (epInfo) {
         const badge = document.createElement("div");
@@ -295,6 +298,7 @@
     const tabs = document.querySelector(".ul-tabs");
     if (!tabs) return;
     const mainContainer = originalOrder[0].parentElement;
+
     const executeSort = (type, btn, label, compareFn) => {
       sortState[type] = sortState[type] === "desc" ? "asc" : "desc";
       document.querySelectorAll(".custom-sort-btn").forEach((b) => {
@@ -309,6 +313,7 @@
       btn.classList.add("active");
       btn.innerText = label + (isAsc ? " ↑" : " ↓");
     };
+
     const createSortBtn = (label, type, compareFn) => {
       const btn = document.createElement("button");
       btn.className = "custom-sort-btn";
@@ -317,6 +322,7 @@
       btn.onclick = () => executeSort(type, btn, label, compareFn);
       return btn;
     };
+
     const bRating = createSortBtn(
       "Rating",
       "rating",
@@ -344,6 +350,7 @@
           b.querySelector(".anime-episodes")?.innerText.match(/(\d+)/)?.[1] || 0
         )
     );
+
     const li = document.createElement("li");
     li.className = "custom-toolbar";
     const bReset = document.createElement("button");
@@ -354,10 +361,15 @@
       document
         .querySelectorAll(".custom-sort-btn")
         .forEach((b) => (b.innerText = b.getAttribute("data-label")));
+      sortState = { rating: "none", title: "none", episodes: "none" };
     };
     li.append(bRating, bTitle, bEps, bReset);
     tabs.appendChild(li);
   }
+
+  // ========================================================================================
+  // MISC: SEARCH & HELPERS
+  // ========================================================================================
 
   function animePaheSearchAutoClick() {
     const searchTerm = new URLSearchParams(window.location.search).get(
