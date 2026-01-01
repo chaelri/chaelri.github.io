@@ -38,6 +38,15 @@ const formatLocal = (d) =>
 window.addEventListener("DOMContentLoaded", () => {
   fetchTasks();
   setupDragSystem();
+  // Add this inside your window.addEventListener('DOMContentLoaded', ... block
+  const taskInput = document.getElementById("task-input");
+
+  taskInput.addEventListener("keydown", (e) => {
+    if (e.key === "Enter") {
+      e.preventDefault(); // Prevent accidental line breaks or form submits
+      addTaskFromInput();
+    }
+  });
 });
 
 function fetchTasks() {
@@ -353,8 +362,21 @@ window.goToToday = () => {
   selectedDate.setHours(0, 0, 0, 0);
   renderCalendar();
 };
-window.toggleSidebar = () =>
-  document.getElementById("sidebar").classList.toggle("-translate-x-full");
+window.toggleSidebar = () => {
+  const sidebar = document.getElementById("sidebar");
+
+  // 1. Handle Mobile (existing translate logic)
+  sidebar.classList.toggle("-translate-x-full");
+
+  // 2. Handle PC (new width logic)
+  sidebar.classList.toggle("sidebar-collapsed");
+
+  // 3. Optional: Trigger a window resize event so the calendar
+  // knows it has more space to re-align Saturday
+  setTimeout(() => {
+    window.dispatchEvent(new Event("resize"));
+  }, 300);
+};
 
 function getDynamicFocusText(date) {
   const today = new Date();

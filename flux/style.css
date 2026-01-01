@@ -286,3 +286,24 @@
     transform: scale(1);
   }
 }
+
+/* Ensure sidebar transitions smoothly */
+#sidebar {
+  transition: width 0.3s cubic-bezier(0.4, 0, 0.2, 1), transform 0.3s ease;
+  overflow-x: hidden; /* Prevents horizontal scroll during collapse */
+  white-space: nowrap; /* Keeps text from wrapping weirdly during collapse */
+}
+
+/* PC Collapsed State */
+.sidebar-collapsed {
+  width: 0 !important;
+  min-width: 0 !important;
+  border-right: none !important;
+}
+
+/* Hide the inner content when collapsing to prevent overlap */
+.sidebar-collapsed > * {
+  opacity: 0;
+  pointer-events: none;
+  transition: opacity 0.1s;
+}
