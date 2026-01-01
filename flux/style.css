@@ -1,0 +1,288 @@
+/* Core Styling */
+* {
+  box-sizing: border-box;
+  margin: 0;
+  padding: 0;
+  -webkit-tap-highlight-color: transparent;
+}
+::-webkit-scrollbar {
+  width: 4px;
+  height: 4px;
+}
+::-webkit-scrollbar-thumb {
+  background: #cbd5e1;
+  border-radius: 10px;
+}
+
+/* 1. MONTH VIEW STYLES */
+.view-month {
+  display: grid;
+  grid-template-columns: repeat(7, 1fr);
+  grid-auto-rows: minmax(120px, 1fr);
+  height: 100%;
+  overflow-y: auto;
+  background-color: #f1f5f9; /* Grid lines color */
+  gap: 1px;
+}
+
+.view-month .month-header {
+  background: white;
+  padding: 10px;
+  text-align: center;
+  font-size: 10px;
+  font-weight: 900;
+  color: #94a3b8;
+  text-transform: uppercase;
+  position: sticky;
+  top: 0;
+  z-index: 10;
+}
+
+.view-month .month-cell {
+  background: white;
+  display: flex;
+  flex-direction: column;
+}
+
+/* 2. WEEK VIEW STYLES (Vertical Lines Fix) */
+.view-week {
+  display: flex;
+  height: 100%;
+  width: 100%;
+}
+
+.week-column {
+  flex: 1;
+  display: flex;
+  flex-direction: column;
+  border-right: 1px solid #e2e8f0;
+  min-width: 0;
+}
+
+.week-column:last-child {
+  border-right: none;
+}
+
+.week-header {
+  padding: 15px 10px;
+  text-align: center;
+  border-bottom: 1px solid #f1f5f9;
+  background: white;
+}
+
+.week-header .day-name {
+  font-size: 10px;
+  font-weight: 800;
+  color: #94a3b8;
+  text-transform: uppercase;
+}
+.week-header .day-num {
+  font-size: 18px;
+  font-weight: 900;
+  color: #1e293b;
+}
+
+/* 3. DAY VIEW STYLES */
+.view-day {
+  padding: 40px;
+  height: 100%;
+  overflow-y: auto;
+}
+
+/* Shared Components */
+.cell-content {
+  flex: 1;
+  overflow-y: auto; /* SCROLL IF TOO MANY ITEMS */
+  padding: 8px;
+  display: flex;
+  flex-direction: column;
+  gap: 6px;
+}
+
+.task-pill {
+  user-select: none;
+  cursor: grab;
+  font-size: 11px;
+  padding: 8px 10px;
+  border-radius: 8px;
+  background: #f8fbff;
+  border-left: 4px solid #2563eb;
+  color: #1e40af;
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  touch-action: none;
+  box-shadow: 0 1px 3px rgba(37, 99, 235, 0.1);
+}
+
+.task-pill.dragging {
+  opacity: 0.3;
+  pointer-events: none;
+}
+
+.drop-target-active {
+  background-color: #f0f7ff !important;
+  outline: 2px dashed #3b82f6;
+  outline-offset: -4px;
+}
+
+@media (max-width: 768px) {
+  .view-month {
+    grid-auto-rows: 100px;
+  }
+  .task-pill span {
+    white-space: nowrap;
+    overflow: hidden;
+    text-overflow: ellipsis;
+  }
+}
+
+/* 1. MONTH HEADER FIX: Reduce excessive vertical padding */
+.view-month .month-header {
+  padding: 6px 2px !important;
+  font-size: 9px !important;
+  line-height: 1;
+}
+
+/* 2. SQUISHING & SATURDAY FIX: Force equal columns and prevent overflow */
+#calendar-view-container {
+  min-width: 0; /* Allows the calendar to shrink when sidebar is open */
+}
+
+.view-month {
+  /* minmax(0, 1fr) is the "Secret Sauce" to prevent columns from expanding */
+  grid-template-columns: repeat(7, minmax(0, 1fr)) !important;
+  width: 100%;
+}
+
+/* 3. TASK PILL FIX: Stop pills from "pushing" the column width */
+.task-pill {
+  min-width: 0 !important; /* Prevents long text from widening the day */
+  width: 100%;
+  overflow: hidden;
+}
+
+.task-pill span {
+  display: block;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap; /* Forces "..." instead of making the column wider */
+}
+
+/* 4. TIGHTEN CELL NUMBERS */
+.view-month .month-cell .p-2 {
+  padding: 4px 6px !important;
+}
+
+/* 1. THE GRID FIX: Explicitly define the first row as small */
+.view-month {
+  display: grid !important;
+  /* This makes the first row (headers) only 35px, and all others 120px+ */
+  grid-template-rows: 35px;
+  grid-auto-rows: minmax(120px, 1fr);
+
+  /* Ensure 7 equal columns that never push Saturday off-screen */
+  grid-template-columns: repeat(7, minmax(0, 1fr)) !important;
+  width: 100%;
+  gap: 1px;
+  background-color: #f1f5f9;
+}
+
+/* 2. THE HEADER ALIGNMENT: Center the text vertically in that slim row */
+.view-month .month-header {
+  height: 35px !important;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  background: white;
+  z-index: 20;
+  margin: 0;
+  padding: 0;
+  border-bottom: 1px solid #e2e8f0;
+}
+
+/* 3. PREVENT SQUISHING: Force text to truncate so Saturday stays visible */
+.task-pill {
+  min-width: 0 !important;
+  overflow: hidden;
+}
+
+.task-pill span {
+  display: block;
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+
+/* 4. TIGHTEN THE DATE CELL HEADER */
+.view-month .month-cell .p-2 {
+  padding: 4px 8px !important;
+  height: auto !important;
+}
+
+/* 1. OPTIMIZE PILL SPACING & TEXT */
+.task-pill {
+  padding: 4px 8px !important; /* Slimmer vertical, better horizontal */
+  min-height: 26px;
+  gap: 4px;
+  background: #f0f7ff !important; /* Slightly brighter for contrast */
+  border-left-width: 3px !important;
+  transition: all 0.2s ease;
+}
+
+.task-pill span {
+  font-size: 11px;
+  font-weight: 600; /* Bold text is easier to read when small */
+  color: #1e40af;
+  letter-spacing: -0.01em;
+  flex: 1; /* Forces text to take all available space */
+}
+
+/* 2. ICON OPTIMIZATION (The "Clean" Look) */
+.task-pill .flex.gap-2 {
+  gap: 4px !important; /* Tighten gap between edit/delete */
+  flex-shrink: 0; /* Prevents icons from squishing the text */
+}
+
+.task-pill .material-icons {
+  font-size: 13px !important; /* Smaller icons save horizontal space */
+  color: #64748b; /* Subtle color so they don't distract */
+  opacity: 0; /* Hide by default for a cleaner look */
+  transition: opacity 0.2s ease;
+}
+
+/* 3. SHOW ICONS ON HOVER (PC) */
+@media (hover: hover) {
+  .task-pill:hover .material-icons {
+    opacity: 1;
+  }
+}
+
+/* 4. ALWAYS SHOW ICONS ON MOBILE (Touch) but keep them small */
+@media (hover: none) {
+  .task-pill .material-icons {
+    opacity: 0.5;
+  }
+}
+
+/* 5. HOVER EFFECT FOR THE WHOLE PILL */
+.task-pill:hover {
+  background: #e0efff !important;
+  transform: translateY(-1px);
+  box-shadow: 0 2px 4px rgba(0, 0, 0, 0.05);
+}
+
+#delete-modal:not(.hidden) {
+  animation: modal-pop 0.2s ease-out;
+}
+
+@keyframes modal-pop {
+  0% {
+    opacity: 0;
+    transform: scale(0.95);
+  }
+  100% {
+    opacity: 1;
+    transform: scale(1);
+  }
+}
