@@ -1,52 +1,17 @@
-// chaelri.github.io/anime/app.js
-
 document.addEventListener("DOMContentLoaded", () => {
-  console.log("Bucket UI System Initialized...");
+  const bucket = document.getElementById("link-bucket");
+  const counter = document.getElementById("item-count");
 
-  // 1. Setup Search Logic
-  // This allows you to filter through your bucket instantly
-  const searchInput = document.querySelector("input"); // Make sure you have an input in index.html
-
-  if (searchInput) {
-    searchInput.addEventListener("input", (e) => {
-      const term = e.target.value.toLowerCase();
-      const cards = document.querySelectorAll("#link-bucket > div");
-
-      cards.forEach((card) => {
-        const title = card.querySelector("h3").innerText.toLowerCase();
-        // If search term matches title, show card, otherwise hide
-        if (title.includes(term)) {
-          card.style.display = "block";
-          card.style.opacity = "1";
-        } else {
-          card.style.display = "none";
-        }
-      });
-    });
-  }
-
-  // 2. UI Polish: Refresh the item count
-  const updateCount = () => {
-    const countLabel = document.querySelector("p.text-zinc-500");
-    const totalItems = document.querySelectorAll("#link-bucket > div").length;
-    if (countLabel && totalItems > 0) {
-      countLabel.innerText = `You have ${totalItems} captured items in your bucket.`;
+  const updateUI = () => {
+    const items = bucket.querySelectorAll(".anime-card-aesthetic");
+    if (items.length > 0) {
+      counter.innerText = `You have ${items.length} captured items in your bucket.`;
+    } else {
+      counter.innerText = "Bucket is empty.";
     }
   };
 
-  // Since Tampermonkey injects cards after the page loads,
-  // we check every second to update the counter
-  const countInterval = setInterval(() => {
-    const cards = document.querySelectorAll("#link-bucket > div");
-    if (cards.length > 0 && !cards[0].innerText.includes("Waiting")) {
-      updateCount();
-      clearInterval(countInterval);
-    }
-  }, 1000);
+  // Watch for Tampermonkey injection
+  const observer = new MutationObserver(updateUI);
+  if (bucket) observer.observe(bucket, { childList: true });
 });
-
-// 3. Global function for aesthetic feedback when downloading
-window.notifyDownload = (title) => {
-  console.log(`Starting download for: ${title}`);
-  // You could add a toast notification here if you wanted!
-};
