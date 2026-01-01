@@ -1,0 +1,42 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Chaelri Bucket</title>
+    <script src="https://cdn.tailwindcss.com"></script>
+    <link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Material+Symbols+Outlined:opsz,wght,FILL,GRAD@20,400,0,0" />
+    <style>
+        @import url('https://fonts.googleapis.com/css2?family=Inter:wght@400;700;900&display=swap');
+        body { font-family: 'Inter', sans-serif; background-color: #050505; }
+        .glass { background: rgba(15, 15, 15, 0.7); backdrop-filter: blur(20px); }
+    </style>
+</head>
+<body class="text-zinc-400 selection:bg-blue-500/30">
+
+    <nav class="glass border-b border-zinc-900 p-6 sticky top-0 z-50">
+        <div class="max-w-6xl mx-auto flex justify-between items-center">
+            <h1 class="text-white font-black text-2xl tracking-tighter flex items-center gap-2">
+                <span class="material-symbols-outlined text-blue-500">grid_view</span> BUCKET
+            </h1>
+            <div class="text-[10px] font-bold text-zinc-600 tracking-widest uppercase">System v1.5 Bridge</div>
+        </div>
+    </nav>
+
+    <main class="max-w-6xl mx-auto p-8 md:p-12">
+        <header class="mb-16">
+            <h2 class="text-5xl text-white font-black mb-4 tracking-tight">Saved Collection</h2>
+            <p class="text-lg text-zinc-500 font-medium">Your private database of captured anime links.</p>
+        </header>
+
+        <div id="link-bucket" class="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-8">
+            <!-- Tampermonkey injects cards here -->
+            <div class="col-span-full py-20 text-center animate-pulse">
+                <p class="text-zinc-800 text-sm font-bold uppercase tracking-widest">Waiting for Bridge Connection...</p>
+            </div>
+        </div>
+    </main>
+
+    <script src="app.js"></script>
+</body>
+</html>
