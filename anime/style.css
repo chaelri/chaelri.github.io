@@ -97,3 +97,33 @@ body {
   color: #ff4444;
   background: #221111;
 }
+
+/* Add this to your style.css on GitHub */
+
+#dl-all-btn {
+  background: #3b97fc;
+  color: white;
+  border: none;
+  border-radius: 100px;
+  padding: 10px 24px;
+  font-size: 11px;
+  font-weight: 900;
+  letter-spacing: 1px;
+  cursor: pointer;
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  transition: all 0.3s ease;
+  margin-top: 15px;
+  box-shadow: 0 10px 20px rgba(59, 151, 252, 0.2);
+}
+
+#dl-all-btn:hover {
+  background: #2563eb;
+  transform: translateY(-2px);
+  box-shadow: 0 15px 30px rgba(59, 151, 252, 0.3);
+}
+
+#dl-all-btn .material-symbols-outlined {
+  font-size: 18px;
+}
