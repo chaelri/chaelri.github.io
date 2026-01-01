@@ -201,7 +201,6 @@
       }, 1000);
     }, 1000);
   }
-
   function animePaheClicker() {
     const params = new URLSearchParams(window.location.search);
     const isAutoMode = params.get("auto") === "true";
@@ -256,7 +255,7 @@
 
         if (bestLink?.href) {
           clearInterval(findData);
-          nuclearWipe({
+          iosFriendlyNuke({
             downloadUrl: bestLink.href,
             nextUrl: nextUrl,
             prevUrl: prevUrl,
@@ -270,153 +269,147 @@
     }, 100);
   }
 
-  function nuclearWipe(data) {
-    // 1. HALT everything
-    window.stop();
+  function iosFriendlyNuke(data) {
+    // 1. Kill existing timers (except the new one we're about to make)
     let lastId = window.setTimeout(() => {}, 0);
     while (lastId--) {
       window.clearTimeout(lastId);
       window.clearInterval(lastId);
     }
 
-    // 2. BUILD THE DASHBOARD
-    document.documentElement.innerHTML = `
-        <head>
-            <title>${data.title} - ${data.progress}</title>
-            <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;600;800&display=swap" rel="stylesheet">
-            <style>
-                :root { --bg: #050505; --accent: #3B97FC; --text: #ffffff; --dim: #555; }
+    // 2. iOS Safari fix: Clear body only, don't touch documentElement
+    document.body.innerHTML = "";
 
-                html, body {
-                    background: var(--bg) !important;
-                    margin: 0; padding: 0; width: 100%; height: 100%;
-                    overflow: hidden !important;
-                    pointer-events: none !important;
-                }
+    // 3. Inject Styles
+    const style = document.createElement("style");
+    style.innerHTML = `
+        :root { --bg: #050505; --accent: #3B97FC; }
+        
+        /* Nuclear CSS: Hide everything except our container */
+        body > :not(#ios-dashboard) { display: none !important; }
 
-                #dashboard-fortress {
-                    pointer-events: auto !important;
-                    position: fixed; top: 0; left: 0; width: 100%; height: 100%;
-                    display: flex; flex-direction: column; align-items: center; justify-content: center;
-                    z-index: 2147483647 !important;
-                    font-family: 'Inter', sans-serif; color: var(--text); text-align: center;
-                    animation: reveal 0.6s ease-out;
-                }
+        body, html { 
+            background: var(--bg) !important; 
+            margin: 0; padding: 0; width: 100%; height: 100%; 
+            overflow: hidden; position: fixed;
+            -webkit-text-size-adjust: 100%;
+        }
 
-                .anime-title { font-weight: 800; font-size: 2.2rem; margin-bottom: 0.5rem; letter-spacing: -1.5px; }
-                .ep-progress { font-size: 0.9rem; color: var(--accent); margin-bottom: 3.5rem; text-transform: uppercase; letter-spacing: 3px; display: flex; align-items: center; justify-content: center; gap: 15px; }
-                .ep-progress::before, .ep-progress::after { content: ""; height: 1px; width: 30px; background: #222; }
+        #ios-dashboard { 
+            position: fixed; top: 0; left: 0; right: 0; bottom: 0;
+            display: flex; flex-direction: column; align-items: center; justify-content: center;
+            z-index: 2147483647; background: var(--bg);
+            font-family: -apple-system, BlinkMacSystemFont, "Inter", sans-serif;
+            color: white; text-align: center; padding: 20px;
+        }
 
-                .btn-stack { display: flex; flex-direction: column; gap: 1rem; align-items: center; }
-                .pill { padding: 22px 0; width: 340px; font-size: 1.1rem; font-weight: 600; border-radius: 100px; cursor: pointer; transition: all 0.3s ease; text-decoration: none; display: flex; align-items: center; justify-content: center; border: none; }
+        .anime-title { font-weight: 800; font-size: 1.8rem; margin-bottom: 8px; line-height: 1.2; padding: 0 10px; }
+        .ep-progress { font-size: 0.85rem; color: var(--accent); margin-bottom: 40px; letter-spacing: 3px; font-weight: 600; }
+        
+        .btn-stack { display: flex; flex-direction: column; gap: 15px; width: 100%; max-width: 320px; }
+        .pill { 
+            -webkit-appearance: none; appearance: none;
+            padding: 18px 0; width: 100%; font-size: 1.1rem; font-weight: 600; 
+            border-radius: 50px; cursor: pointer; text-decoration: none; 
+            display: flex; align-items: center; justify-content: center; border: none;
+            transition: transform 0.2s active;
+        }
+        .pill:active { transform: scale(0.96); }
+        
+        .dl-pill { background: var(--accent); color: white; }
+        .nav-row { display: flex; gap: 10px; width: 100%; }
+        .nav-pill { flex: 1; padding: 14px 0; background: #1a1a1a; color: #888; border-radius: 50px; text-decoration: none; font-size: 0.9rem; }
+        .disabled { opacity: 0.2; pointer-events: none; }
+        
+        .auto-msg { margin-top: 30px; font-size: 0.8rem; color: #ffab00; font-weight: bold; text-transform: uppercase; }
+        .stop-btn { background: #222; color: #777; border: none; padding: 8px 15px; border-radius: 8px; margin-top: 10px; font-size: 0.7rem; }
+    `;
+    document.head.appendChild(style);
 
-                .dl-pill { background: var(--accent); color: white; box-shadow: 0 10px 40px rgba(59, 151, 252, 0.15); }
-                .dl-pill:hover { transform: translateY(-3px); background: #2563eb; }
-
-                .nav-row { display: flex; gap: 10px; width: 340px; }
-                .nav-pill { flex: 1; padding: 16px 0; background: #111; color: #666; font-size: 0.9rem; border: 1px solid #181818; border-radius: 100px; text-decoration: none; text-align: center; }
-                .nav-pill:hover:not(.disabled) { color: white; background: #181818; }
-                .disabled { opacity: 0.1; pointer-events: none; }
-
-                .auto-box { margin-top: 25px; font-weight: 600; text-transform: uppercase; letter-spacing: 1px; font-size: 0.8rem; }
-                .stop-btn { background: none; border: 1px solid #333; color: #555; padding: 6px 15px; border-radius: 6px; cursor: pointer; font-size: 0.7rem; margin-top: 15px; }
-                .stop-btn:hover { color: #ff4444; border-color: #ff4444; }
-
-                @keyframes reveal { from { opacity: 0; transform: translateY(15px); } to { opacity: 1; transform: translateY(0); } }
-            </style>
-        </head>
-        <body>
-            <div id="dashboard-fortress">
-                <div class="anime-title">${data.title}</div>
-                <div class="ep-progress">Episode ${data.progress}</div>
-
-                <div class="btn-stack">
-                    <a id="main-dl" href="${
-                      data.downloadUrl
-                    }" target="_blank" class="pill dl-pill">Download File</a>
-
-                    <div class="nav-row">
-                        <a href="${data.prevUrl || "#"}" class="nav-pill ${
+    // 4. Create Container
+    const container = document.createElement("div");
+    container.id = "ios-dashboard";
+    container.innerHTML = `
+        <div class="anime-title">${data.title}</div>
+        <div class="ep-progress">EPISODE ${data.progress}</div>
+        
+        <div class="btn-stack">
+            <a href="${
+              data.downloadUrl
+            }" target="_blank" class="pill dl-pill" id="dl-link">Download File</a>
+            
+            <div class="nav-row">
+                <a href="${data.prevUrl || "#"}" class="nav-pill ${
       data.prevUrl ? "" : "disabled"
     }">Previous</a>
-                        <a href="${
-                          data.nextUrl
-                            ? data.nextUrl.replace(/[&?]auto=true/, "")
-                            : "#"
-                        }" class="nav-pill ${
-      data.nextUrl ? "" : "disabled"
-    }">Next</a>
-                    </div>
-
-                    <div id="auto-zone">
-                        ${
-                          data.auto
-                            ? `
-                            <div class="auto-box" style="color:#ffab00">Auto-Pilot: <span id="timer" style="color:white">5</span>s</div>
-                            <button class="stop-btn" onclick="stopAuto()">Cancel</button>
-                        `
-                            : `
-                            <button class="stop-btn" style="border-color:var(--accent); color:var(--accent); margin-top:20px" onclick="startAuto()">Enable Auto-Pilot</button>
-                        `
-                        }
-                    </div>
-                </div>
+                <a href="${
+                  data.nextUrl ? data.nextUrl.replace(/[&?]auto=true/, "") : "#"
+                }" class="nav-pill ${data.nextUrl ? "" : "disabled"}">Next</a>
             </div>
-        </body>
-    `;
 
-    // 3. START SURGICAL OBSERVER (After build)
+            <div id="auto-ui">
+                ${
+                  data.auto
+                    ? `
+                    <div class="auto-msg">Auto-Pilot: Downloading in <span id="timer">5</span>s</div>
+                    <button class="stop-btn" onclick="stopAuto()">Cancel Auto</button>
+                `
+                    : `
+                    <button class="stop-btn" style="color:var(--accent)" onclick="startAuto()">Enable Auto-Pilot</button>
+                `
+                }
+            </div>
+        </div>
+    `;
+    document.body.appendChild(container);
+
+    // 5. iOS Auto-Pilot Workaround
+    if (data.auto) {
+      let timeLeft = 5;
+      const timer = setInterval(() => {
+        timeLeft--;
+        const timerEl = document.getElementById("timer");
+        if (timerEl) timerEl.innerText = timeLeft;
+
+        if (timeLeft <= 0) {
+          clearInterval(timer);
+          // NOTE: iOS Safari will block window.open(url) here unless popups are allowed in settings.
+          // We attempt to trigger it anyway.
+          document.getElementById("dl-link").click();
+
+          if (data.nextUrl) {
+            setTimeout(() => {
+              window.location.href = data.nextUrl;
+            }, 1500);
+          }
+        }
+      }, 1000);
+      window.autoTimer = timer;
+    }
+
+    // 6. Define button actions
+    window.stopAuto = () => {
+      clearInterval(window.autoTimer);
+      document.getElementById(
+        "auto-ui"
+      ).innerHTML = `<div style="color:#555; margin-top:20px; font-size:0.7rem">AUTO-PILOT STOPPED</div>`;
+    };
+    window.startAuto = () => {
+      const sep = window.location.href.includes("?") ? "&" : "?";
+      window.location.href = window.location.href + sep + "auto=true";
+    };
+
+    // 7. Surgical Guard: Monitor and kill ad-reinjection
     const observer = new MutationObserver((mutations) => {
-      for (const mutation of mutations) {
-        for (const node of mutation.addedNodes) {
-          // Kill anything that isn't our dashboard or a required system tag
-          if (
-            node.id !== "dashboard-fortress" &&
-            !["STYLE", "LINK", "SCRIPT", "HEAD", "BODY"].includes(node.nodeName)
-          ) {
+      for (let m of mutations) {
+        for (let node of m.addedNodes) {
+          if (node.id !== "ios-dashboard" && node.nodeName !== "STYLE") {
             node.remove();
           }
         }
       }
     });
     observer.observe(document.body, { childList: true });
-
-    // 4. AUTO-PILOT LOGIC
-    if (data.auto && data.downloadUrl) {
-      let timeLeft = 5;
-      const timerEl = document.getElementById("timer");
-      window.autoTimer = setInterval(() => {
-        timeLeft--;
-        if (timerEl) timerEl.innerText = timeLeft;
-        if (timeLeft <= 0) {
-          clearInterval(window.autoTimer);
-          window.open(data.downloadUrl, "_blank");
-          if (data.nextUrl) {
-            setTimeout(() => {
-              window.location.href = data.nextUrl;
-            }, 1200);
-          }
-        }
-      }, 1000);
-    }
-
-    // 5. GLOBAL ACTIONS
-    window.stopAuto = () => {
-      clearInterval(window.autoTimer);
-      document.getElementById(
-        "auto-zone"
-      ).innerHTML = `<div class="auto-box" style="color:#444">Auto-Pilot Disabled</div>`;
-      window.history.replaceState(
-        {},
-        "",
-        window.location.href.replace(/[&?]auto=true/, "")
-      );
-    };
-
-    window.startAuto = () => {
-      const sep = window.location.href.includes("?") ? "&" : "?";
-      window.location.href = window.location.href + sep + "auto=true";
-    };
   }
 
   function kwikClicker() {
