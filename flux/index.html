@@ -8,6 +8,24 @@
     />
     <title>Flux Digital Planner</title>
     <script src="https://cdn.tailwindcss.com"></script>
+    <!-- PWA Meta Tags -->
+    <link rel="manifest" href="/flux/manifest.json" />
+    <meta name="apple-mobile-web-app-capable" content="yes" />
+    <meta
+      name="apple-mobile-web-app-status-bar-style"
+      content="black-translucent"
+    />
+    <meta name="theme-color" content="#2563eb" />
+    <!-- Inside <head> -->
+    <link
+      rel="icon"
+      type="image/png"
+      href="https://img.icons8.com/fluency/48/todo-list.png"
+    />
+    <link
+      rel="apple-touch-icon"
+      href="https://img.icons8.com/fluency/192/todo-list.png"
+    />
     <link
       href="https://fonts.googleapis.com/icon?family=Material+Icons"
       rel="stylesheet"
@@ -269,5 +287,16 @@
     </div>
 
     <script type="module" src="script.js"></script>
+    <script>
+      if ("serviceWorker" in navigator) {
+        window.addEventListener("load", () => {
+          // scope: '/flux/' is vital for GitHub Pages
+          navigator.serviceWorker
+            .register("/flux/sw.js", { scope: "/flux/" })
+            .then((reg) => console.log("SW Registered for Flux!"))
+            .catch((err) => console.log("SW Registration failed:", err));
+        });
+      }
+    </script>
   </body>
 </html>

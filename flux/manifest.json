@@ -1,0 +1,23 @@
+{
+  "name": "Flux Digital Planner",
+  "short_name": "Flux",
+  "description": "Minimalist drag-and-drop digital planner.",
+  "start_url": "/flux/",
+  "display": "standalone",
+  "background_color": "#f8fafc",
+  "theme_color": "#2563eb",
+  "orientation": "portrait-primary",
+  "icons": [
+    {
+      "src": "https://img.icons8.com/fluency/192/todo-list.png",
+      "type": "image/png",
+      "sizes": "192x192"
+    },
+    {
+      "src": "https://img.icons8.com/fluency/512/todo-list.png",
+      "type": "image/png",
+      "sizes": "512x512",
+      "purpose": "any maskable"
+    }
+  ]
+}
