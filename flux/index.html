@@ -15,13 +15,12 @@
     <link rel="stylesheet" href="style.css" />
   </head>
   <body
-    class="bg-slate-50 text-slate-900 h-screen flex flex-col overflow-hidden"
+    class="bg-slate-50 text-slate-900 h-screen flex flex-col overflow-hidden text-sm md:text-base"
   >
     <header
-      class="bg-white border-b px-6 py-3 flex flex-wrap justify-between items-center z-50"
+      class="bg-white border-b px-4 md:px-6 py-3 flex justify-between items-center z-50 shrink-0"
     >
-      <!-- Inside your <header>, before the logo div or inside it -->
-      <div class="flex items-center gap-4">
+      <div class="flex items-center gap-2 md:gap-4">
         <button
           onclick="toggleSidebar()"
           class="material-icons p-2 hover:bg-slate-100 rounded-full text-slate-500 transition-colors"
@@ -29,12 +28,15 @@
           menu
         </button>
         <div class="flex items-center gap-2">
-          <span class="material-icons text-blue-600 text-3xl">task_alt</span>
-          <h1 class="font-black text-xl tracking-tighter">FLUX</h1>
+          <span class="material-icons text-blue-600 text-2xl md:text-3xl"
+            >task_alt</span
+          >
+          <h1 class="font-black text-lg md:text-xl tracking-tighter">FLUX</h1>
         </div>
       </div>
 
-      <div class="flex bg-slate-100 p-1 rounded-xl">
+      <!-- View Switcher (Desktop Only) -->
+      <div class="hidden md:flex bg-slate-100 p-1 rounded-xl">
         <button
           onclick="changeView('day')"
           id="btn-day"
@@ -58,7 +60,7 @@
         </button>
       </div>
 
-      <div class="flex items-center gap-4">
+      <div class="flex items-center gap-2 md:gap-4">
         <div
           class="flex items-center bg-white border rounded-lg overflow-hidden shadow-sm"
         >
@@ -70,7 +72,7 @@
           </button>
           <h2
             id="current-range-text"
-            class="px-4 text-xs font-bold uppercase tracking-widest min-w-[180px] text-center"
+            class="px-2 md:px-4 text-[10px] md:text-xs font-bold uppercase tracking-widest min-w-[100px] md:min-w-[180px] text-center"
           >
             ...
           </h2>
@@ -83,15 +85,15 @@
         </div>
         <button
           onclick="goToToday()"
-          class="px-5 py-2 bg-blue-600 text-white text-[10px] font-black rounded-lg shadow-lg hover:bg-blue-700 uppercase"
+          class="px-4 md:px-5 py-2 bg-blue-600 text-white text-[10px] font-black rounded-lg shadow-lg hover:bg-blue-700 uppercase"
         >
           Today
         </button>
       </div>
     </header>
 
-    <main class="flex flex-1 overflow-hidden relative">
-      <!-- Task Dump Sidebar -->
+    <main class="flex-1 flex overflow-hidden relative">
+      <!-- SIDEBAR (PC and Mobile Slide-out) -->
       <aside
         id="sidebar"
         class="w-72 bg-white border-r flex flex-col transition-all duration-300 absolute md:relative inset-y-0 left-0 -translate-x-full md:translate-x-0 z-40 shadow-2xl md:shadow-none"
@@ -103,15 +105,12 @@
             Mind Dump
           </p>
           <div class="flex gap-2 items-center">
-            <!-- Added min-w-0 to the input -->
             <input
               type="text"
               id="task-input"
               placeholder="Pending task..."
               class="flex-1 min-w-0 bg-slate-50 border-none rounded-lg px-3 py-2 text-sm focus:ring-2 focus:ring-blue-500 outline-none"
             />
-
-            <!-- Added shrink-0 to the button to stop it from squishing -->
             <button
               onclick="addTaskFromInput()"
               class="shrink-0 bg-blue-600 text-white w-10 h-10 flex items-center justify-center rounded-lg shadow-md hover:bg-blue-700 transition-colors"
@@ -126,22 +125,74 @@
         ></div>
       </aside>
 
-      <!-- Dynamic Calendar Container -->
+      <!-- DESKTOP CONTAINER -->
       <div
-        id="calendar-view-container"
-        class="flex-1 bg-white overflow-hidden flex flex-col"
+        id="desktop-view-container"
+        class="hidden md:flex flex-1 flex-col overflow-hidden bg-white"
       >
-        <!-- JS will inject .view-month, .view-week, or .view-day here -->
+        <div
+          id="calendar-view-container"
+          class="flex-1 overflow-hidden flex flex-col"
+        ></div>
       </div>
 
-      <button
-        onclick="toggleSidebar()"
-        class="md:hidden absolute bottom-6 right-6 bg-blue-600 text-white w-14 h-14 rounded-full shadow-2xl z-50 flex items-center justify-center"
+      <!-- MOBILE 3-ROW CONTAINER -->
+      <div
+        id="mobile-view-container"
+        class="flex md:hidden flex-1 flex-col overflow-hidden bg-slate-50"
       >
-        <span class="material-icons">menu_open</span>
-      </button>
+        <!-- ROW 1: CALENDAR -->
+        <section
+          id="mobile-row-calendar"
+          class="h-1/3 bg-white border-b flex flex-col overflow-hidden"
+        >
+          <!-- Mini squares grid injected here -->
+        </section>
+        <!-- ROW 2: DAY DETAILS -->
+        <section id="mobile-row-details" class="flex-1 overflow-y-auto p-4">
+          <!-- Tasks injected here -->
+        </section>
+        <!-- ROW 3: MIND DUMP -->
+        <section
+          id="mobile-row-dump"
+          class="h-1/3 bg-white border-t flex flex-col transition-all duration-300 relative overflow-hidden"
+        >
+          <button
+            onclick="toggleMobileDump()"
+            class="w-full h-8 flex items-center justify-center bg-slate-50 shrink-0"
+          >
+            <span id="dump-arrow" class="material-icons text-slate-400"
+              >keyboard_arrow_down</span
+            >
+          </button>
+          <div
+            class="flex-1 flex flex-col overflow-hidden"
+            id="dump-drawer-content"
+          >
+            <div class="p-3 border-b flex gap-2 shrink-0">
+              <input
+                type="text"
+                id="mobile-dump-input"
+                placeholder="Quick add..."
+                class="flex-1 bg-slate-100 rounded-lg px-3 py-2 text-sm outline-none"
+              />
+              <button
+                onclick="addMobileTask()"
+                class="bg-blue-600 text-white w-10 h-10 rounded-lg flex items-center justify-center"
+              >
+                <span class="material-icons">add</span>
+              </button>
+            </div>
+            <div
+              id="mobile-pending-list"
+              class="flex-1 overflow-y-auto p-4 space-y-2"
+            ></div>
+          </div>
+        </section>
+      </div>
     </main>
 
+    <!-- Modals -->
     <div
       id="edit-modal"
       class="hidden fixed inset-0 bg-slate-900/60 z-[100] flex items-center justify-center p-4 backdrop-blur-md"
@@ -183,7 +234,7 @@
         </div>
       </div>
     </div>
-    <!-- Delete Confirmation Modal -->
+
     <div
       id="delete-modal"
       class="hidden fixed inset-0 bg-slate-900/60 z-[110] flex items-center justify-center p-4 backdrop-blur-md"
@@ -200,7 +251,6 @@
         <p class="text-slate-500 text-sm mb-8">
           Are you sure? You won't be able to recover this task once deleted.
         </p>
-
         <div class="flex flex-col gap-2">
           <button
             onclick="confirmDelete()"
