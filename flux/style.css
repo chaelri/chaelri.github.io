@@ -221,3 +221,29 @@ textarea,
   touch-action: none; /* Essential for custom drag logic */
   -webkit-user-drag: none; /* Prevents ghost image dragging on some browsers */
 }
+
+/* 1. Add overflow: hidden to the main sidebar */
+#sidebar {
+  transition: width 0.3s ease, transform 0.3s ease, opacity 0.2s ease;
+  white-space: nowrap;
+  overflow: hidden; /* THIS IS THE KEY FIX */
+  display: flex;
+  flex-direction: column;
+  flex-shrink: 0; /* Prevents the sidebar from being squished by other elements */
+}
+
+/* 2. Ensure the collapsed state kills all visibility */
+.sidebar-collapsed {
+  width: 0 !important;
+  min-width: 0 !important;
+  border-right: none !important;
+  opacity: 0; /* Makes the transition look cleaner */
+  pointer-events: none; /* Prevents clicking things while it's closing */
+}
+
+/* 3. Fix the internal padding issue */
+/* When the sidebar collapses, the padding in the "Mind Dump" 
+   section can sometimes keep it from closing "flat" */
+.sidebar-collapsed > div {
+  visibility: hidden;
+}
