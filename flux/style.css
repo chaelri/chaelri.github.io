@@ -199,3 +199,25 @@
     opacity: 1;
   }
 }
+
+/* 1. Disable selection globally for a native app feel */
+* {
+  -webkit-tap-highlight-color: transparent;
+  -webkit-touch-callout: none; /* Prevents iOS context menu (copy/paste) on long press */
+  -webkit-user-select: none; /* iOS Safari */
+  user-select: none; /* Standard */
+}
+
+/* 2. Re-enable selection for inputs and text fields so they remain functional */
+input,
+textarea,
+[contenteditable="true"] {
+  -webkit-user-select: text !important;
+  user-select: text !important;
+}
+
+/* 3. Specifically harden the task-pill for dragging */
+.task-pill {
+  touch-action: none; /* Essential for custom drag logic */
+  -webkit-user-drag: none; /* Prevents ghost image dragging on some browsers */
+}
