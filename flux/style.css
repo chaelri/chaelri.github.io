@@ -126,7 +126,6 @@
   text-overflow: ellipsis;
   white-space: nowrap;
   font-weight: 600;
-  flex: 1;
 }
 .task-pill .material-icons {
   font-size: 13px !important;
