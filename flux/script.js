@@ -39,6 +39,16 @@ const formatLocal = (d) =>
   ).padStart(2, "0")}`;
 
 window.addEventListener("DOMContentLoaded", () => {
+  const savedTheme = localStorage.getItem("theme");
+  if (savedTheme === "dark") {
+    document.documentElement.classList.add("dark");
+  } else if (
+    !savedTheme &&
+    window.matchMedia("(prefers-color-scheme: dark)").matches
+  ) {
+    // Optional: Follow system preference if user hasn't toggled yet
+    document.documentElement.classList.add("dark");
+  }
   fetchTasks();
   setupDragSystem();
   document
@@ -243,7 +253,10 @@ window.toggleTimeInput = (isAllDay) => {
   input.classList.toggle("pointer-events-none", isAllDay);
 };
 
-window.toggleDarkMode = () => document.documentElement.classList.toggle("dark");
+window.toggleDarkMode = () => {
+  const isDark = document.documentElement.classList.toggle("dark");
+  localStorage.setItem("theme", isDark ? "dark" : "light");
+};
 window.goToToday = () => {
   selectedDate = new Date();
   selectedDate.setHours(0, 0, 0, 0);

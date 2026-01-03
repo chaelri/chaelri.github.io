@@ -302,9 +302,6 @@ textarea,
   padding: 1px 4px;
   border-radius: 4px;
 }
-.dark .today-cell {
-  background-color: #0f172a;
-}
 
 .dark body {
   background-color: #020617;
@@ -323,6 +320,9 @@ textarea,
   background-color: #1e293b !important;
   box-shadow: inset 0 0 0 2px #3b82f6;
 }
+.dark .today-cell .text-blue-600 {
+  color: #60a5fa !important;
+}
 #edit-modal button:last-child:active {
   transform: scale(0.95);
 }
@@ -337,4 +337,37 @@ textarea,
 .dark .task-pill.color-purple {
   background: #581c8733 !important;
   color: #d8b4fe;
+}
+
+.dark .view-month {
+  background-color: #1e293b;
+}
+.dark .view-month .month-cell {
+  background: #0f172a;
+}
+.dark .view-month .month-header {
+  background: #0f172a;
+  border-bottom: 1px solid #1e293b;
+  color: #64748b;
+}
+.dark .bg-slate-50\/50 {
+  background-color: #020617 !important;
+}
+
+.dark #mobile-row-calendar .mobile-mini-grid {
+  background: #1e293b;
+}
+.dark .mini-day-square {
+  background: #0f172a;
+  border-color: #1e293b;
+  color: #94a3b8;
+}
+.dark .mobile-mini-grid > div.bg-white {
+  background-color: #0f172a !important;
+  color: #475569 !important;
+}
+.dark .mini-day-square.selected {
+  background: #1e293b;
+  color: #3b82f6;
+  box-shadow: inset 0 0 0 1px #3b82f6;
 }
