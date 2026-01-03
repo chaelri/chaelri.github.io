@@ -388,3 +388,44 @@ textarea,
   flex-direction: column;
   min-height: 100px;
 }
+
+/* 4. WEEK VIEW DARK MODE FIX */
+
+/* Background behind the columns */
+.dark .view-week {
+  background-color: #020617;
+}
+
+/* Vertical separators between columns */
+.dark .week-column {
+  border-right-color: #1e293b;
+}
+
+/* Header background (The Sun/Mon/Tue section) */
+.dark .week-header {
+  background-color: #0f172a;
+  border-bottom-color: #1e293b;
+}
+
+/* Day name text (e.g., "SUN") */
+.dark .week-header .day-name {
+  color: #64748b;
+}
+
+/* Day number text (e.g., "28") */
+.dark .week-header .day-num {
+  color: #f1f5f9;
+}
+
+/* Today highlight for Week View */
+.dark .week-column.today-column {
+  background-color: #0f172a;
+}
+
+.dark .week-column.today-column .week-header {
+  background-color: #1e293b;
+}
+
+.dark .week-column.today-column .day-num {
+  color: #3b82f6;
+}

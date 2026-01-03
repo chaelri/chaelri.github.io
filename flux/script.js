@@ -151,13 +151,25 @@ function renderWeekView(container, label) {
     const d = new Date(start);
     d.setDate(start.getDate() + i);
     const dateStr = formatLocal(d);
-    container.innerHTML += `<div class="week-column"><div class="week-header"><div class="day-name font-bold text-[10px] text-slate-400 uppercase">${d.toLocaleDateString(
-      undefined,
-      { weekday: "short" }
-    )}</div><div class="day-num font-black text-xl">${d.getDate()}</div></div><div class="cell-content" data-date="${dateStr}">${allTasks
-      .filter((t) => t.date === dateStr)
-      .map((t) => createTaskPill(t))
-      .join("")}</div></div>`;
+
+    const isToday = dateStr === formatLocal(new Date());
+    const columnClass = isToday ? "week-column today-column" : "week-column";
+
+    container.innerHTML += `
+    <div class="${columnClass}">
+      <div class="week-header">
+        <div class="day-name">${d.toLocaleDateString(undefined, {
+          weekday: "short",
+        })}</div>
+        <div class="day-num">${d.getDate()}</div>
+      </div>
+      <div class="cell-content" data-date="${dateStr}">
+        ${allTasks
+          .filter((t) => t.date === dateStr)
+          .map((t) => createTaskPill(t))
+          .join("")}
+      </div>
+    </div>`;
   }
 }
 
