@@ -379,7 +379,7 @@ textarea,
 }
 .dark #mobile-row-details.drop-target-active,
 .dark #mobile-row-dump.drop-target-active {
-  background-color: #1e293b !important;
+  background-color: #9aa4b5 !important;
   outline-color: #60a5fa;
 }
 #mobile-row-details {
@@ -427,4 +427,8 @@ textarea,
 
 .dark .week-column.today-column .day-num {
   color: #3b82f6;
+}
+
+.dark .today-cell::before {
+  background: #0e172a;
 }
