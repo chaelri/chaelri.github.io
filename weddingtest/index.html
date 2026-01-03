@@ -949,7 +949,9 @@
                 <p class="serif text-lg text-stone-700">Angelica Macalalad</p>
                 <p class="serif text-lg text-stone-700">Eeyah Bernardo</p>
                 <p class="serif text-lg text-stone-700">Diane Adviento</p>
-                <p class="serif text-lg text-stone-700">Bridesmaid Name</p>
+                <p class="serif text-lg text-stone-700">
+                  Alyssa Moira Mangubat
+                </p>
               </div>
             </div>
           </div>
@@ -1077,39 +1079,28 @@
                 Vince Gabriel Francisco<br />Cy Matthieu Cayno
               </p>
             </div>
-            <!-- Extra Secondary Sponsors (Requested niche list) -->
-          </div>
-          <div class="mt-12 pt-8 border-t border-stone-100/50">
-            <p
-              class="text-[9px] uppercase tracking-[0.2em] text-stone-300 mb-4 italic"
-            >
-              Special Secondary Sponsors
-            </p>
-            <div
-              class="flex flex-wrap justify-center gap-x-8 gap-y-2 text-stone-500 serif italic"
-            >
-              <span>Joshua Obillo</span>
-              <span>Xyruz Rei Allocod</span>
-              <span>Anakin Rei Luke Abareles </span>
-              <span>Extra Sponsor Name</span>
-            </div>
           </div>
         </div>
+
         <!-- 4. BEARERS & FLOWER PARTY -->
-        <div class="max-w-3xl mx-auto">
+        <div class="max-w-4xl mx-auto text-center">
           <h3
             class="uppercase tracking-[0.3em] text-[10px] font-bold text-stone-400 mb-10"
           >
             Bearers & Flower Party
           </h3>
-          <div class="grid grid-cols-2 md:grid-cols-4 gap-8">
+
+          <!-- Row 1: Bearers -->
+          <div class="grid grid-cols-2 gap-8 mb-16 max-w-2xl mx-auto">
             <div>
               <p
                 class="text-[9px] uppercase tracking-widest text-[#7b8a5b] mb-2 font-bold"
               >
                 Bible Bearer
               </p>
-              <p class="serif text-base">Lance Ailen Grey Francisco</p>
+              <p class="serif text-base leading-tight">
+                Lance Ailen Grey Francisco
+              </p>
             </div>
             <div>
               <p
@@ -1117,29 +1108,59 @@
               >
                 Ring Bearer
               </p>
-              <p class="serif text-base">Pierce Raven Francisco</p>
+              <p class="serif text-base leading-tight">
+                Pierce Raven Francisco
+              </p>
             </div>
+          </div>
+
+          <!-- Row 2: Flower Party (Separated to give more room) -->
+          <div class="grid grid-cols-1 md:grid-cols-2 gap-12 md:gap-24">
             <div>
               <p
-                class="text-[9px] uppercase tracking-widest text-[#7b8a5b] mb-2 font-bold"
+                class="text-[9px] uppercase tracking-widest text-[#7b8a5b] mb-6 font-bold"
               >
-                Flower Boy
+                Flower Boy / Man
               </p>
-              <p class="serif text-base">
-                <span class="text-[#7b8a5b] text-xl pr-1">✿</span>Miles
-                Francisco
-              </p>
+              <div class="space-y-4">
+                <p class="serif text-base">
+                  <span class="text-[#7b8a5b] text-xl pr-1">✿</span> Miles
+                  Francisco
+                </p>
+                <p class="serif text-base">
+                  <span class="text-[#7b8a5b] text-xl pr-1">✿</span> Joshua
+                  Obillo
+                </p>
+                <p class="serif text-base">
+                  <span class="text-[#7b8a5b] text-xl pr-1">✿</span> Xyruz Rei
+                  Allocod
+                </p>
+                <p class="serif text-base">
+                  <span class="text-[#7b8a5b] text-xl pr-1">✿</span> Anakin Rei
+                  Luke Abareles
+                </p>
+              </div>
             </div>
             <div>
               <p
-                class="text-[9px] uppercase tracking-widest text-[#FFB7C5] mb-2 font-bold"
+                class="text-[9px] uppercase tracking-widest text-[#FFB7C5] mb-6 font-bold"
               >
                 Flower Girl
               </p>
-              <p class="serif text-base">
-                <span class="text-[#FFB7C5] text-xl pr-1">✿</span>Amryelle
-                Francisco
-              </p>
+              <div class="space-y-4">
+                <p class="serif text-base">
+                  <span class="text-[#FFB7C5] text-xl pr-1">✿</span> Amryelle
+                  Francisco
+                </p>
+                <p class="serif text-base">
+                  <span class="text-[#FFB7C5] text-xl pr-1">✿</span> Minea
+                  Obillo
+                </p>
+                <p class="serif text-base">
+                  <span class="text-[#FFB7C5] text-xl pr-1">✿</span> Hiraya
+                  Gomez
+                </p>
+              </div>
             </div>
           </div>
         </div>
@@ -1786,37 +1807,102 @@
     <!-- RULES & GIFTS -->
     <section
       id="gifting"
-      class="py-24 px-6 max-w-5xl mx-auto grid grid-cols-1 md:grid-cols-2 gap-16 relative z-10"
+      class="py-24 px-6 max-w-6xl mx-auto grid grid-cols-1 lg:grid-cols-3 gap-16 relative z-10"
     >
-      <div class="space-y-6">
+      <!-- WEDDING NOTES (Taking up 2/3 of the width on desktop) -->
+      <div class="lg:col-span-2 space-y-8">
         <h2 class="text-3xl serif italic text-[#7b8a5b]">Wedding Notes</h2>
-        <ul class="space-y-6 text-sm text-stone-600 leading-relaxed">
-          <li class="flex items-start gap-4">
-            <span class="text-[#FFB7C5] text-xl">✿</span>
-            <span
-              ><strong>Unplugged Ceremony:</strong> We invite you to be fully
-              present with us. Please keep your phones and cameras away during
-              the ceremony.</span
-            >
+
+        <!-- We use a 2-column grid for the list on desktop to balance the height -->
+        <ul
+          class="grid grid-cols-1 md:grid-cols-2 gap-x-10 gap-y-8 text-sm text-stone-600 leading-relaxed"
+        >
+          <!-- 1. Unplugged -->
+          <li class="flex items-start gap-3">
+            <span class="text-[#FFB7C5] text-xl shrink-0">✿</span>
+            <span>
+              <strong>Unplugged Ceremony:</strong> We invite you to be fully
+              present. Please keep the ceremony area camera-free; feel free to
+              take snaps once we are pronounced husband and wife!
+            </span>
           </li>
-          <li class="flex items-start gap-4">
-            <span class="text-[#FFB7C5] text-xl">✿</span>
-            <span
-              ><strong>Strict RSVP:</strong> As we have limited seating, we can
-              only accommodate guests on the official guest list.</span
-            >
+
+          <!-- 2. Dress Code (Updated with Footwear) -->
+          <li class="flex items-start gap-3">
+            <span class="text-[#FFB7C5] text-xl shrink-0">✿</span>
+            <span>
+              <strong>Dress Code:</strong> Please follow the assigned colors.
+              Avoid white, casual wear (jeans/shorts), loud prints, and
+              <strong>casual footwear (flip-flops/rubber sandals)</strong>. A
+              light shawl is recommended for the cold.
+            </span>
           </li>
-          <li class="flex items-start gap-4">
-            <span class="text-[#FFB7C5] text-xl">✿</span>
-            <span
-              ><strong>RSVP Deadline:</strong> Kindly let us know if you can
-              make it by
-              <strong class="text-[#7b8a5b]"> June 1, 2026.</strong></span
-            >
+
+          <!-- 3. Arrival -->
+          <li class="flex items-start gap-3">
+            <span class="text-[#FFB7C5] text-xl shrink-0">✿</span>
+            <span>
+              <strong>Arrival:</strong> To ensure a smooth start, please be at
+              the venue <strong>30 to 60 minutes</strong> before the ceremony
+              begins.
+            </span>
+          </li>
+
+          <!-- 4. Adults-Only -->
+          <li class="flex items-start gap-3">
+            <span class="text-[#FFB7C5] text-xl shrink-0">✿</span>
+            <span>
+              <strong>Adults-Only:</strong> While we love your kids, this is an
+              adults-only event (except for the entourage) due to venue
+              constraints. Consider this a date night!
+            </span>
+          </li>
+
+          <!-- 5. RSVP Limit -->
+          <li class="flex items-start gap-3">
+            <span class="text-[#FFB7C5] text-xl shrink-0">✿</span>
+            <span>
+              <strong>Strict RSVP:</strong> Seating is limited. We can only
+              accommodate guests on the official list. Please no extra guests
+              unless your invite says "+1."
+            </span>
+          </li>
+
+          <!-- 6. RSVP Deadline -->
+          <li class="flex items-start gap-3">
+            <span class="text-[#FFB7C5] text-xl shrink-0">✿</span>
+            <span>
+              <strong>RSVP Deadline:</strong> Please let us know if you can make
+              it by <strong class="text-[#7b8a5b]">June 1, 2026</strong>.
+            </span>
+          </li>
+
+          <!-- 7. Respect the Space -->
+          <li class="flex items-start gap-3">
+            <span class="text-[#FFB7C5] text-xl shrink-0">✿</span>
+            <span>
+              <strong>Respect the Space:</strong> Please do not take home
+              decorations.
+              <em
+                >"Ang pwedeng i-sharon ay ngiti at memories na makukuha natin sa
+                wedding na ‘to!"</em
+              >
+            </span>
+          </li>
+
+          <!-- 8. Capture/Courtesy -->
+          <li class="flex items-start gap-3">
+            <span class="text-[#FFB7C5] text-xl shrink-0">✿</span>
+            <span>
+              <strong>Social Media:</strong> Tag your photos with
+              <strong>#OffiCHARLIEmarriedToKARLA</strong>. Above all, please be
+              courteous to staff and fellow guests!
+            </span>
           </li>
         </ul>
       </div>
 
+      <!-- GIFTING (Taking up 1/3 of the width on desktop) -->
       <div class="space-y-8">
         <h2 class="text-3xl serif italic text-[#7b8a5b]">Gifting</h2>
         <p class="text-sm text-stone-600 leading-relaxed italic">
@@ -1824,7 +1910,9 @@
           us with a contribution towards our new home, you may do so below:
         </p>
 
-        <div class="grid grid-cols-3 gap-3 md:gap-6 text-center">
+        <div
+          class="grid grid-cols-3 lg:grid-cols-1 xl:grid-cols-3 gap-4 text-center"
+        >
           <!-- BPI -->
           <div
             class="group cursor-pointer qr-trigger"
