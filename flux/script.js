@@ -351,6 +351,7 @@ function setupDragSystem() {
     draggingElement.classList.add("dragging");
     draggingElement.setPointerCapture(e.pointerId);
   };
+
   document.addEventListener("pointermove", (e) => {
     if (!draggingElement) return;
     draggingElement.style.position = "fixed";
@@ -358,30 +359,54 @@ function setupDragSystem() {
     draggingElement.style.zIndex = "1000";
     draggingElement.style.left = e.clientX - 100 + "px";
     draggingElement.style.top = e.clientY - 15 + "px";
-    const zone = document
-      .elementsFromPoint(e.clientX, e.clientY)
-      .find(
-        (el) =>
-          el.classList.contains("cell-content") ||
-          el.id === "pending-tasks-list"
-      );
+
+    // UPDATED: Look for more targets (Row 2 section and Row 3 drawer)
+    const zone = document.elementsFromPoint(e.clientX, e.clientY).find(
+      (el) =>
+        el.classList.contains("cell-content") ||
+        el.id === "pending-tasks-list" ||
+        el.id === "mobile-pending-list" ||
+        el.id === "mobile-row-dump" || // Allow dropping anywhere on Row 3
+        el.id === "mobile-row-details" // Allow dropping anywhere on Row 2
+    );
+
     document
       .querySelectorAll(".drop-target-active")
       .forEach((el) => el.classList.remove("drop-target-active"));
     if (zone) zone.classList.add("drop-target-active");
   });
+
   document.addEventListener("pointerup", async (e) => {
     if (!draggingElement) return;
     const id = draggingElement.dataset.id;
+
     const zone = document
       .elementsFromPoint(e.clientX, e.clientY)
       .find(
         (el) =>
           el.classList.contains("cell-content") ||
-          el.id === "pending-tasks-list"
+          el.id === "pending-tasks-list" ||
+          el.id === "mobile-pending-list" ||
+          el.id === "mobile-row-dump" ||
+          el.id === "mobile-row-details"
       );
-    if (zone)
-      await update(ref(db, `tasks/${id}`), { date: zone.dataset.date || "" });
+
+    if (zone) {
+      // Determine if dropping back into Mind Dump
+      const isDump =
+        zone.id === "pending-tasks-list" ||
+        zone.id === "mobile-pending-list" ||
+        zone.id === "mobile-row-dump";
+
+      // Determine date: either from the zone's dataset or the global selectedDate for mobile row 2
+      let newDate = "";
+      if (!isDump) {
+        newDate = zone.dataset.date || formatLocal(selectedDate);
+      }
+
+      await update(ref(db, `tasks/${id}`), { date: newDate });
+    }
+
     draggingElement.style = "";
     draggingElement.classList.remove("dragging");
     draggingElement = null;
@@ -450,6 +475,8 @@ function renderMobile3Row(label) {
   const currDateStr = formatLocal(selectedDate);
 
   // Restore dynamic Focus Text for mobile
+  r2.className = "flex-1 overflow-y-auto p-4 cell-content";
+  r2.dataset.date = currDateStr;
   r2.innerHTML = `<h3 class="text-blue-600 font-black text-[10px] uppercase tracking-widest mb-4 border-b pb-2">FOCUS FOR ${getDynamicFocusText(
     selectedDate
   )}</h3><div class="cell-content" data-date="${currDateStr}">${allTasks
