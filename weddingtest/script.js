@@ -216,11 +216,13 @@ document.addEventListener("DOMContentLoaded", () => {
       "./assets/attire/moh-1.jpg",
       "./assets/attire/moh-2.jpg",
       "./assets/attire/moh-3.jpg",
+      "./assets/attire/moh-4.jpg",
     ],
     Bridesmaids: [
       "./assets/attire/bm-1.jpg",
       "./assets/attire/bm-2.jpg",
       "./assets/attire/bm-3.jpg",
+      "./assets/attire/bm-4.jpg",
     ],
     Groomsmen: [
       "./assets/attire/gm-1.jpg",
@@ -231,6 +233,10 @@ document.addEventListener("DOMContentLoaded", () => {
       "./assets/attire/mothers-1.jpg",
       "./assets/attire/mothers-2.jpg",
       "./assets/attire/mothers-3.jpg",
+      "./assets/attire/mothers-4.jpg",
+      "./assets/attire/mothers-5.jpg",
+      "./assets/attire/mothers-6.jpg",
+      "./assets/attire/mothers-7.jpg",
     ],
     Fathers: [
       "./assets/attire/fathers-1.jpg",
@@ -251,11 +257,13 @@ document.addEventListener("DOMContentLoaded", () => {
       "./assets/attire/lady-1.jpg",
       "./assets/attire/lady-2.jpg",
       "./assets/attire/lady-3.jpg",
+      "./assets/attire/lady-4.jpg",
     ],
     "Gentleman Guests": [
       "./assets/attire/gent-1.jpg",
       "./assets/attire/gent-2.jpg",
       "./assets/attire/gent-3.jpg",
+      "./assets/attire/gent-4.jpg",
     ],
   };
 
