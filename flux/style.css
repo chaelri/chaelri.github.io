@@ -30,7 +30,7 @@
   display: flex;
   align-items: center;
   justify-content: center;
-  font-size: 10px;
+  font-size: 9px;
   font-weight: 900;
   color: #94a3b8;
   text-transform: uppercase;
@@ -89,17 +89,19 @@
 /* SHARED TASK PILLS */
 .cell-content {
   flex: 1;
-  overflow-y: auto;
+  overflow-y: auto; /* Allow vertical scroll within the date cell */
+  overflow-x: hidden;
   padding: 4px;
   display: flex;
   flex-direction: column;
   gap: 4px;
+  max-height: 100%; /* Prevent stretching the parent */
 }
 .task-pill {
   user-select: none;
   cursor: grab;
   font-size: 11px;
-  padding: 4px 8px !important;
+  padding: 6px 8px !important; /* Increased vertical padding */
   border-radius: 8px;
   background: #f0f7ff !important;
   border-left: 3px solid #2563eb;
@@ -108,12 +110,15 @@
   justify-content: space-between;
   align-items: center;
   touch-action: none;
-  min-height: 26px;
   gap: 4px;
   transition: all 0.2s ease;
   box-shadow: 0 1px 3px rgba(37, 99, 235, 0.1);
   overflow: hidden;
   min-width: 0 !important;
+  min-height: 32px; /* Set a comfortable minimum height */
+  height: auto; /* Allow growth if title wraps */
+  line-height: 1.2;
+  flex-shrink: 0; /* Prevents the pill itself from squishing */
 }
 .task-pill span {
   display: block;
@@ -142,8 +147,8 @@
 #mobile-row-calendar .mobile-mini-grid {
   display: grid;
   grid-template-columns: repeat(7, 1fr);
-  grid-auto-rows: 1fr; /* This makes rows stretch to fill the height */
-  height: 100%; /* Important: Takes exactly 1/3 height of container */
+  grid-auto-rows: 1fr;
+  height: 100%;
   background: #f1f5f9;
 }
 .mini-day-square {
@@ -163,13 +168,36 @@
   color: #2563eb;
   box-shadow: inset 0 0 0 1px #3b82f6;
 }
-.task-dot {
+/* REMOVE the old .task-dot and REPLACE with these */
+.dot-row {
+  display: flex;
+  gap: 2px;
+  position: absolute;
+  bottom: 4px;
+  left: 50%;
+  transform: translateX(-50%);
+  justify-content: center;
+}
+
+.mini-dot {
   width: 4px;
   height: 4px;
-  background: #3b82f6;
   border-radius: 50%;
-  position: absolute;
-  bottom: 2px;
+  flex-shrink: 0;
+}
+
+/* Specific Dot Colors matching your pills */
+.dot-blue {
+  background-color: #3b82f6;
+}
+.dot-green {
+  background-color: #10b981;
+}
+.dot-red {
+  background-color: #f43f5e;
+}
+.dot-purple {
+  background-color: #a855f7;
 }
 
 /* Collapsible Row 3 */
@@ -181,14 +209,26 @@
 }
 
 /* PC SIDEBAR LOGIC */
+/* UPDATE: Ensure sidebar transitions and hiding logic are solid */
 #sidebar {
-  transition: width 0.3s ease, transform 0.3s ease;
+  transition: width 0.3s cubic-bezier(0.4, 0, 0.2, 1),
+    transform 0.3s cubic-bezier(0.4, 0, 0.2, 1), opacity 0.2s ease;
   white-space: nowrap;
+  overflow: hidden; /* Vital to hide text during collapse */
 }
+
+/* Desktop collapse state */
 .sidebar-collapsed {
   width: 0 !important;
   min-width: 0 !important;
   border-right: none !important;
+  opacity: 0;
+  pointer-events: none;
+}
+
+/* Ensure internal padding doesn't keep the sidebar "open" visually */
+.sidebar-collapsed > div {
+  visibility: hidden;
 }
 
 @media (hover: hover) {
@@ -203,12 +243,10 @@
 /* 1. Disable selection globally for a native app feel */
 * {
   -webkit-tap-highlight-color: transparent;
-  -webkit-touch-callout: none; /* Prevents iOS context menu (copy/paste) on long press */
-  -webkit-user-select: none; /* iOS Safari */
-  user-select: none; /* Standard */
+  -webkit-touch-callout: none;
+  -webkit-user-select: none;
+  user-select: none;
 }
-
-/* 2. Re-enable selection for inputs and text fields so they remain functional */
 input,
 textarea,
 [contenteditable="true"] {
@@ -216,34 +254,87 @@ textarea,
   user-select: text !important;
 }
 
-/* 3. Specifically harden the task-pill for dragging */
-.task-pill {
-  touch-action: none; /* Essential for custom drag logic */
-  -webkit-user-drag: none; /* Prevents ghost image dragging on some browsers */
+/* Color Variants for Pills */
+.task-pill.color-blue {
+  border-left-color: #3b82f6;
+  background: #eff6ff !important;
+  color: #1e40af;
+}
+.task-pill.color-green {
+  border-left-color: #10b981;
+  background: #ecfdf5 !important;
+  color: #065f46;
+}
+.task-pill.color-red {
+  border-left-color: #f43f5e;
+  background: #fff1f2 !important;
+  color: #9f1239;
 }
 
-/* 1. Add overflow: hidden to the main sidebar */
-#sidebar {
-  transition: width 0.3s ease, transform 0.3s ease, opacity 0.2s ease;
-  white-space: nowrap;
-  overflow: hidden; /* THIS IS THE KEY FIX */
-  display: flex;
-  flex-direction: column;
-  flex-shrink: 0; /* Prevents the sidebar from being squished by other elements */
+/* Dark Mode Pill Overrides */
+.dark .task-pill.color-blue {
+  background: #1e3a8a33 !important;
+  color: #93c5fd;
+}
+.dark .task-pill.color-green {
+  background: #064e3b33 !important;
+  color: #6ee7b7;
+}
+.dark .task-pill.color-red {
+  background: #88133733 !important;
+  color: #fda4af;
 }
 
-/* 2. Ensure the collapsed state kills all visibility */
-.sidebar-collapsed {
-  width: 0 !important;
-  min-width: 0 !important;
-  border-right: none !important;
-  opacity: 0; /* Makes the transition look cleaner */
-  pointer-events: none; /* Prevents clicking things while it's closing */
+/* Today Highlighting */
+.today-cell {
+  background-color: #f8fafc;
+  position: relative;
+}
+.today-cell::before {
+  content: "TODAY";
+  position: absolute;
+  top: 4px;
+  left: 4px;
+  font-size: 8px;
+  font-weight: 900;
+  color: #3b82f6;
+  background: #dbeafe;
+  padding: 1px 4px;
+  border-radius: 4px;
+}
+.dark .today-cell {
+  background-color: #0f172a;
 }
 
-/* 3. Fix the internal padding issue */
-/* When the sidebar collapses, the padding in the "Mind Dump" 
-   section can sometimes keep it from closing "flat" */
-.sidebar-collapsed > div {
-  visibility: hidden;
+.dark body {
+  background-color: #020617;
+  color: #f1f5f9;
+}
+.dark .bg-white {
+  background-color: #0f172a !important;
+  border-color: #1e293b !important;
+}
+.today-cell {
+  background-color: #f0f7ff !important;
+  box-shadow: inset 0 0 0 2px #3b82f6;
+  z-index: 10;
+}
+.dark .today-cell {
+  background-color: #1e293b !important;
+  box-shadow: inset 0 0 0 2px #3b82f6;
+}
+#edit-modal button:last-child:active {
+  transform: scale(0.95);
+}
+/* ADDED: Purple Color Variant */
+.task-pill.color-purple {
+  border-left-color: #a855f7;
+  background: #faf5ff !important;
+  color: #6b21a8;
+}
+
+/* ADDED: Dark Mode Purple Override */
+.dark .task-pill.color-purple {
+  background: #581c8733 !important;
+  color: #d8b4fe;
 }

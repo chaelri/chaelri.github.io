@@ -31,6 +31,7 @@ let draggingElement = null;
 let editingTaskId = null;
 let deletingTaskId = null;
 let isDumpCollapsed = false;
+let selectedEditColor = "blue";
 
 const formatLocal = (d) =>
   `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, "0")}-${String(
@@ -40,9 +41,12 @@ const formatLocal = (d) =>
 window.addEventListener("DOMContentLoaded", () => {
   fetchTasks();
   setupDragSystem();
-  document.getElementById("task-input").addEventListener("keydown", (e) => {
-    if (e.key === "Enter") addTaskFromInput();
-  });
+  document
+    .getElementById("task-input")
+    .addEventListener(
+      "keydown",
+      (e) => e.key === "Enter" && addTaskFromInput()
+    );
 });
 
 function fetchTasks() {
@@ -60,7 +64,6 @@ function fetchTasks() {
 window.renderCalendar = () => {
   const isMobile = window.innerWidth < 768;
   const label = document.getElementById("current-range-text");
-
   if (isMobile) {
     document.getElementById("desktop-view-container").classList.add("hidden");
     document.getElementById("mobile-view-container").classList.remove("hidden");
@@ -74,55 +77,6 @@ window.renderCalendar = () => {
   }
 };
 
-// --- MOBILE 3-ROW RENDERER ---
-function renderMobile3Row(label) {
-  label.innerText = new Intl.DateTimeFormat("en-US", {
-    month: "short",
-    year: "numeric",
-  }).format(selectedDate);
-
-  // Row 1: Calendar Grid
-  const r1 = document.getElementById("mobile-row-calendar");
-  const year = selectedDate.getFullYear();
-  const month = selectedDate.getMonth();
-  const firstDay = new Date(year, month, 1).getDay();
-  const daysInMonth = new Date(year, month + 1, 0).getDate();
-
-  let html = `<div class="mobile-mini-grid">`;
-  ["S", "M", "T", "W", "T", "F", "S"].forEach(
-    (d) =>
-      (html += `<div class="text-[9px] font-black text-slate-400 text-center py-1 bg-white">${d}</div>`)
-  );
-  for (let i = 0; i < firstDay; i++)
-    html += `<div class="bg-slate-50 border-0.5 border-white"></div>`;
-  for (let d = 1; d <= daysInMonth; d++) {
-    const dateStr = formatLocal(new Date(year, month, d));
-    const isSelected = formatLocal(selectedDate) === dateStr;
-    const hasTasks = allTasks.some((t) => t.date === dateStr);
-    html += `<div class="mini-day-square cell-content ${
-      isSelected ? "selected" : ""
-    }" data-date="${dateStr}" onclick="selectDate('${dateStr}')">${d}${
-      hasTasks ? '<div class="task-dot"></div>' : ""
-    }</div>`;
-  }
-  r1.innerHTML = html + `</div>`;
-
-  // Row 2: Details
-  const r2 = document.getElementById("mobile-row-details");
-  const currDateStr = formatLocal(selectedDate);
-  r2.innerHTML = `
-        <h3 class="text-blue-600 font-black text-[10px] uppercase tracking-[0.2em] mb-4 border-b pb-2">${getDynamicFocusText(
-          selectedDate
-        )}</h3>
-        <div class="cell-content" data-date="${currDateStr}">
-            ${allTasks
-              .filter((t) => t.date === currDateStr)
-              .map((t) => createTaskPill(t))
-              .join("")}
-        </div>`;
-}
-
-// --- DESKTOP RENDERERS ---
 function renderDesktopView(label) {
   const container = document.getElementById("calendar-view-container");
   container.innerHTML = "";
@@ -130,8 +84,8 @@ function renderDesktopView(label) {
     const btn = document.getElementById(`btn-${v}`);
     btn.className =
       v === currentView
-        ? "px-4 py-1.5 rounded-lg text-sm bg-white shadow-sm font-bold text-blue-600"
-        : "px-4 py-1.5 rounded-lg text-sm text-slate-400 hover:text-slate-900";
+        ? "px-4 py-1.5 rounded-lg text-sm bg-white dark:bg-slate-700 shadow-sm font-bold text-blue-600 dark:text-blue-400"
+        : "px-4 py-1.5 rounded-lg text-sm text-slate-400 hover:text-slate-900 dark:hover:text-white";
   });
 
   if (currentView === "month") renderMonthView(container, label);
@@ -148,38 +102,49 @@ function renderMonthView(container, label) {
   ["Sun", "Mon", "Tue", "Wed", "Thu", "Fri", "Sat"].forEach(
     (d) => (container.innerHTML += `<div class="month-header">${d}</div>`)
   );
+
   const year = selectedDate.getFullYear(),
     month = selectedDate.getMonth();
   const firstDay = new Date(year, month, 1).getDay(),
     daysInMonth = new Date(year, month + 1, 0).getDate();
+  const todayStr = formatLocal(new Date());
+
   for (let i = 0; i < firstDay; i++)
-    container.innerHTML += `<div class="bg-slate-50/50"></div>`;
+    container.innerHTML += `<div class="bg-slate-50/50 dark:bg-slate-900/50"></div>`;
   for (let d = 1; d <= daysInMonth; d++) {
     const dateStr = formatLocal(new Date(year, month, d));
-    container.innerHTML += `<div class="month-cell"><div class="p-2 text-right text-[10px] font-black text-slate-300">${d}</div><div class="cell-content" data-date="${dateStr}">${allTasks
+    const isToday = dateStr === todayStr;
+    container.innerHTML += `
+            <div class="month-cell ${isToday ? "today-cell" : ""}">
+                <div class="p-2 text-right text-[10px] font-black ${
+                  isToday
+                    ? "text-blue-600"
+                    : "text-slate-300 dark:text-slate-600"
+                }">${d}</div>
+                <div class="cell-content" data-date="${dateStr}">${allTasks
       .filter((t) => t.date === dateStr)
       .map((t) => createTaskPill(t))
-      .join("")}</div></div>`;
+      .join("")}</div>
+            </div>`;
   }
 }
 
 function renderWeekView(container, label) {
-  container.className = "view-week flex-1 bg-white";
+  container.className = "view-week flex-1 bg-white dark:bg-slate-950";
   const start = new Date(selectedDate);
   start.setDate(selectedDate.getDate() - selectedDate.getDay());
   label.innerText = `Week of ${start.toLocaleDateString(undefined, {
     month: "short",
     day: "numeric",
   })}`;
-
   for (let i = 0; i < 7; i++) {
     const d = new Date(start);
     d.setDate(start.getDate() + i);
     const dateStr = formatLocal(d);
-    container.innerHTML += `<div class="week-column"><div class="week-header"><div class="day-name">${d.toLocaleDateString(
+    container.innerHTML += `<div class="week-column"><div class="week-header"><div class="day-name font-bold text-[10px] text-slate-400 uppercase">${d.toLocaleDateString(
       undefined,
       { weekday: "short" }
-    )}</div><div class="day-num">${d.getDate()}</div></div><div class="cell-content" data-date="${dateStr}">${allTasks
+    )}</div><div class="day-num font-black text-xl">${d.getDate()}</div></div><div class="cell-content" data-date="${dateStr}">${allTasks
       .filter((t) => t.date === dateStr)
       .map((t) => createTaskPill(t))
       .join("")}</div></div>`;
@@ -187,149 +152,185 @@ function renderWeekView(container, label) {
 }
 
 function renderDayView(container, label) {
-  container.className = "view-day flex-1 bg-white";
+  container.className = "view-day flex-1 bg-white dark:bg-slate-950";
   const dateStr = formatLocal(selectedDate);
   label.innerText = selectedDate.toLocaleDateString(undefined, {
     weekday: "long",
     month: "long",
     day: "numeric",
   });
-  container.innerHTML = `<div class="max-w-4xl"><h3 class="text-blue-600 font-black text-[10px] uppercase tracking-[0.2em] mb-8 border-b pb-4">FOCUS FOR ${getDynamicFocusText(
-    selectedDate
-  )}</h3><div class="cell-content" data-date="${dateStr}">${allTasks
+
+  // Restore dynamic Focus Text
+  const focusText = getDynamicFocusText(selectedDate);
+
+  container.innerHTML = `<div class="max-w-4xl mx-auto"><h3 class="text-blue-600 font-black text-[10px] uppercase tracking-widest mb-8 border-b pb-4">FOCUS FOR ${focusText}</h3><div class="cell-content" data-date="${dateStr}">${allTasks
     .filter((t) => t.date === dateStr)
     .map((t) => createTaskPill(t))
     .join("")}</div></div>`;
 }
 
-// INTERACTIVITY
-window.selectDate = (dateStr) => {
-  selectedDate = new Date(dateStr);
-  renderCalendar();
-};
-window.changeView = (view) => {
-  currentView = view;
-  renderCalendar();
-};
-window.toggleMobileDump = () => {
-  isDumpCollapsed = !isDumpCollapsed;
-  const row = document.getElementById("mobile-row-dump");
-  const arrow = document.getElementById("dump-arrow");
-  row.classList.toggle("dump-collapsed", isDumpCollapsed);
-  arrow.innerText = isDumpCollapsed
-    ? "keyboard_arrow_up"
-    : "keyboard_arrow_down";
+// UPDATE: Improved HTML structure for the pill to prevent stacking
+function createTaskPill(task) {
+  const time = task.allDay
+    ? `<span class="opacity-40 font-bold mr-1 text-[8px] shrink-0">ALL-DAY</span>`
+    : task.time
+    ? `<span class="opacity-30 font-bold mr-1 text-[9px] shrink-0">${task.time}</span>`
+    : "";
+
+  const colorClass = `color-${task.color || "blue"}`;
+  const descIcon = task.desc
+    ? `<span class="material-icons text-[10px] ml-1 opacity-40 shrink-0">notes</span>`
+    : "";
+
+  return `
+    <div class="task-pill ${colorClass}" data-id="${task.id}" onpointerdown="handlePillDown(event)">
+      <div class="flex items-center min-w-0 flex-1">
+        ${time}
+        <span class="truncate font-bold tracking-tight flex-1">${task.title}</span>
+        ${descIcon}
+      </div>
+      <div class="flex gap-1 ml-1 shrink-0">
+        <button onclick="openEditModal('${task.id}')" class="material-icons text-[14px] opacity-20 hover:opacity-100">edit</button>
+        <button onclick="deleteTask('${task.id}')" class="material-icons text-[14px] opacity-20 hover:opacity-100">delete</button>
+      </div>
+    </div>`;
+}
+
+// MODAL CONTROLS
+window.openEditModal = (id) => {
+  const t = allTasks.find((x) => x.id === id);
+  if (!t) return;
+  editingTaskId = id;
+  // FIXED: Removed the invalid "no-task-selected" line causing the error
+  document.getElementById("edit-task-name").value = t.title || "";
+  document.getElementById("edit-task-desc").value = t.desc || "";
+  document.getElementById("edit-task-date").value = t.date || "";
+  document.getElementById("edit-task-time").value = t.time || "";
+  document.getElementById("edit-task-allday").checked = t.allDay || false;
+  toggleTimeInput(t.allDay || false);
+  setEditColor(t.color || "blue");
+  document.getElementById("edit-modal").classList.remove("hidden");
 };
 
-window.prevPeriod = () => {
-  if (currentView === "month" || window.innerWidth < 768)
-    selectedDate.setMonth(selectedDate.getMonth() - 1);
-  else if (currentView === "week")
-    selectedDate.setDate(selectedDate.getDate() - 7);
-  else selectedDate.setDate(selectedDate.getDate() - 1);
-  renderCalendar();
+window.closeModal = () =>
+  document.getElementById("edit-modal").classList.add("hidden");
+
+window.saveTaskEdit = async () => {
+  if (!editingTaskId) return;
+  const isAllDay = document.getElementById("edit-task-allday").checked;
+  await update(ref(db, `tasks/${editingTaskId}`), {
+    title: document.getElementById("edit-task-name").value,
+    desc: document.getElementById("edit-task-desc").value,
+    date: document.getElementById("edit-task-date").value,
+    time: isAllDay ? "" : document.getElementById("edit-task-time").value,
+    allDay: isAllDay,
+    color: selectedEditColor,
+  });
+  closeModal();
 };
 
-window.nextPeriod = () => {
-  if (currentView === "month" || window.innerWidth < 768)
-    selectedDate.setMonth(selectedDate.getMonth() + 1);
-  else if (currentView === "week")
-    selectedDate.setDate(selectedDate.getDate() + 7);
-  else selectedDate.setDate(selectedDate.getDate() + 1);
-  renderCalendar();
+window.setEditColor = (color) => {
+  selectedEditColor = color;
+  ["blue", "green", "red", "purple"].forEach((c) => {
+    const btn = document.getElementById(`color-${c}`);
+    btn.style.boxShadow = c === color ? "0 0 0 2px #94a3b8" : "none";
+  });
 };
 
+window.toggleTimeInput = (isAllDay) => {
+  const input = document.getElementById("edit-task-time");
+  input.classList.toggle("opacity-30", isAllDay);
+  input.classList.toggle("pointer-events-none", isAllDay);
+};
+
+window.toggleDarkMode = () => document.documentElement.classList.toggle("dark");
 window.goToToday = () => {
   selectedDate = new Date();
   selectedDate.setHours(0, 0, 0, 0);
+  currentView = "month";
   renderCalendar();
 };
+window.prevPeriod = () => {
+  const isMobile = window.innerWidth < 768;
+  if (isMobile || currentView === "month") {
+    selectedDate.setMonth(selectedDate.getMonth() - 1);
+  } else if (currentView === "week") {
+    selectedDate.setDate(selectedDate.getDate() - 7);
+  } else {
+    selectedDate.setDate(selectedDate.getDate() - 1);
+  }
+  renderCalendar();
+};
+window.nextPeriod = () => {
+  const isMobile = window.innerWidth < 768;
+  if (isMobile || currentView === "month") {
+    selectedDate.setMonth(selectedDate.getMonth() + 1);
+  } else if (currentView === "week") {
+    selectedDate.setDate(selectedDate.getDate() + 7);
+  } else {
+    selectedDate.setDate(selectedDate.getDate() + 1);
+  }
+  renderCalendar();
+};
+window.changeView = (v) => {
+  currentView = v;
+  renderCalendar();
+};
+// UPDATE: Restore full sidebar toggle logic for both Mobile and Desktop
+window.toggleSidebar = () => {
+  const sidebar = document.getElementById("sidebar");
+  const isMobile = window.innerWidth < 768;
 
-function renderSidebars() {
-  const pills = allTasks
-    .filter((t) => !t.date)
-    .map((t) => createTaskPill(t))
-    .join("");
-  document.getElementById("pending-tasks-list").innerHTML = pills;
-  document.getElementById("mobile-pending-list").innerHTML = pills;
-}
-
-// PILL & MODAL LOGIC (Original)
-function createTaskPill(task) {
-  const time = task.time
-    ? `<span class="opacity-30 font-bold mr-2 text-[9px]">${task.time}</span>`
-    : "";
-  return `<div class="task-pill" data-id="${task.id}" onpointerdown="handlePillDown(event)"><div class="flex items-center truncate mr-2"><span class="truncate font-bold tracking-tight">${time}${task.title}</span></div><div class="flex gap-2"><button onclick="openEditModal('${task.id}')" class="material-icons text-[14px] opacity-20 hover:opacity-100">edit</button><button onclick="deleteTask('${task.id}')" class="material-icons text-[14px] opacity-20 hover:opacity-100">delete</button></div></div>`;
-}
+  if (isMobile) {
+    // Mobile uses translation
+    sidebar.classList.toggle("-translate-x-full");
+  } else {
+    // Desktop uses width collapse
+    sidebar.classList.toggle("sidebar-collapsed");
+  }
+};
 
 window.addTaskFromInput = () => {
   const input = document.getElementById("task-input");
   if (input.value.trim()) {
     push(ref(db, "tasks"), {
       title: input.value,
+      desc: "",
       date: "",
       time: "",
       allDay: true,
+      color: "blue",
     });
     input.value = "";
   }
 };
+
 window.addMobileTask = () => {
   const input = document.getElementById("mobile-dump-input");
   if (input.value.trim()) {
     push(ref(db, "tasks"), {
       title: input.value,
-      date: "",
+      desc: "",
+      date: formatLocal(selectedDate),
       time: "",
       allDay: true,
+      color: "blue",
     });
     input.value = "";
   }
 };
 
-window.toggleSidebar = () => {
-  const s = document.getElementById("sidebar");
-  s.classList.toggle("-translate-x-full");
-  s.classList.toggle("sidebar-collapsed");
-};
-
-// MODALS
-window.openEditModal = (id) => {
-  const t = allTasks.find((x) => x.id === id);
-  editingTaskId = id;
-  document.getElementById("edit-task-name").value = t.title;
-  document.getElementById("edit-task-date").value = t.date || "";
-  document.getElementById("edit-task-time").value = t.time || "";
-  document.getElementById("edit-modal").classList.remove("hidden");
-};
-window.saveTaskEdit = async () => {
-  await update(ref(db, `tasks/${editingTaskId}`), {
-    title: document.getElementById("edit-task-name").value,
-    date: document.getElementById("edit-task-date").value,
-    time: document.getElementById("edit-task-time").value,
-  });
-  closeModal();
-};
-window.closeModal = () => {
-  document.getElementById("edit-modal").classList.add("hidden");
-  editingTaskId = null;
-};
 window.deleteTask = (id) => {
   deletingTaskId = id;
   document.getElementById("delete-modal").classList.remove("hidden");
 };
-window.closeDeleteModal = () => {
+window.closeDeleteModal = () =>
   document.getElementById("delete-modal").classList.add("hidden");
-  deletingTaskId = null;
-};
 window.confirmDelete = async () => {
-  if (deletingTaskId) {
-    await remove(ref(db, `tasks/${deletingTaskId}`));
-    closeDeleteModal();
-  }
+  if (deletingTaskId) await remove(ref(db, `tasks/${deletingTaskId}`));
+  closeDeleteModal();
 };
 
-// DRAG SYSTEM
 function setupDragSystem() {
   window.handlePillDown = (e) => {
     if (e.target.closest("button")) return;
@@ -349,8 +350,7 @@ function setupDragSystem() {
       .find(
         (el) =>
           el.classList.contains("cell-content") ||
-          el.id === "pending-tasks-list" ||
-          el.id === "mobile-pending-list"
+          el.id === "pending-tasks-list"
       );
     document
       .querySelectorAll(".drop-target-active")
@@ -365,16 +365,10 @@ function setupDragSystem() {
       .find(
         (el) =>
           el.classList.contains("cell-content") ||
-          el.id === "pending-tasks-list" ||
-          el.id === "mobile-pending-list"
+          el.id === "pending-tasks-list"
       );
-    if (zone) {
-      const isDump =
-        zone.id === "pending-tasks-list" || zone.id === "mobile-pending-list";
-      await update(ref(db, `tasks/${id}`), {
-        date: isDump ? "" : zone.dataset.date || "",
-      });
-    }
+    if (zone)
+      await update(ref(db, `tasks/${id}`), { date: zone.dataset.date || "" });
     draggingElement.style = "";
     draggingElement.classList.remove("dragging");
     draggingElement = null;
@@ -383,6 +377,85 @@ function setupDragSystem() {
       .forEach((el) => el.classList.remove("drop-target-active"));
   });
 }
+
+function renderSidebars() {
+  const pills = allTasks
+    .filter((t) => !t.date)
+    .map((t) => createTaskPill(t))
+    .join("");
+  document.getElementById("pending-tasks-list").innerHTML = pills;
+  if (document.getElementById("mobile-pending-list"))
+    document.getElementById("mobile-pending-list").innerHTML = pills;
+}
+
+function renderMobile3Row(label) {
+  label.innerText = new Intl.DateTimeFormat("en-US", {
+    month: "short",
+    year: "numeric",
+  }).format(selectedDate);
+  const r1 = document.getElementById("mobile-row-calendar");
+  const year = selectedDate.getFullYear(),
+    month = selectedDate.getMonth();
+  const firstDay = new Date(year, month, 1).getDay(),
+    daysInMonth = new Date(year, month + 1, 0).getDate();
+  let html = `<div class="mobile-mini-grid">`;
+  ["S", "M", "T", "W", "T", "F", "S"].forEach(
+    (d) =>
+      (html += `<div class="text-[9px] font-black text-slate-400 text-center py-1 bg-white dark:bg-slate-900">${d}</div>`)
+  );
+  for (let i = 0; i < firstDay; i++)
+    html += `<div class="bg-slate-50 dark:bg-slate-900 border-0.5 border-white dark:border-slate-800"></div>`;
+  // UPDATE: Logic inside the for loop in renderMobile3Row
+  for (let d = 1; d <= daysInMonth; d++) {
+    const dateStr = formatLocal(new Date(year, month, d));
+    const isSelected = formatLocal(selectedDate) === dateStr;
+
+    // 1. Get all tasks for this specific day
+    const dayTasks = allTasks.filter((t) => t.date === dateStr);
+
+    // 2. Identify unique colors present on this day (default to blue if color is missing)
+    const uniqueColors = [...new Set(dayTasks.map((t) => t.color || "blue"))];
+
+    // 3. Generate the dots markup
+    const dotsMarkup =
+      uniqueColors.length > 0
+        ? `<div class="dot-row">${uniqueColors
+            .map((color) => `<div class="mini-dot dot-${color}"></div>`)
+            .join("")}</div>`
+        : "";
+
+    html += `<div class="mini-day-square cell-content ${
+      isSelected ? "selected" : ""
+    }" data-date="${dateStr}" onclick="selectDate('${dateStr}')">
+    ${d}
+    ${dotsMarkup}
+  </div>`;
+  }
+  r1.innerHTML = html + `</div>`;
+
+  const r2 = document.getElementById("mobile-row-details");
+  const currDateStr = formatLocal(selectedDate);
+
+  // Restore dynamic Focus Text for mobile
+  r2.innerHTML = `<h3 class="text-blue-600 font-black text-[10px] uppercase tracking-widest mb-4 border-b pb-2">FOCUS FOR ${getDynamicFocusText(
+    selectedDate
+  )}</h3><div class="cell-content" data-date="${currDateStr}">${allTasks
+    .filter((t) => t.date === currDateStr)
+    .map((t) => createTaskPill(t))
+    .join("")}</div>`;
+}
+
+window.selectDate = (d) => {
+  selectedDate = new Date(d);
+  renderCalendar();
+};
+window.toggleMobileDump = () => {
+  isDumpCollapsed = !isDumpCollapsed;
+  document
+    .getElementById("mobile-row-dump")
+    .classList.toggle("dump-collapsed", isDumpCollapsed);
+};
+window.addEventListener("resize", renderCalendar);
 
 function getDynamicFocusText(date) {
   const today = new Date();
@@ -397,5 +470,3 @@ function getDynamicFocusText(date) {
     .toLocaleDateString(undefined, { month: "short", day: "numeric" })
     .toUpperCase();
 }
-
-window.addEventListener("resize", renderCalendar);
