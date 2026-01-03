@@ -324,7 +324,7 @@ window.addMobileTask = () => {
     push(ref(db, "tasks"), {
       title: input.value,
       desc: "",
-      date: formatLocal(selectedDate),
+      date: "",
       time: "",
       allDay: true,
       color: "blue",

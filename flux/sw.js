@@ -1,4 +1,4 @@
-// Version 1.0.5
+// Version 1.0.6
 importScripts(
   "https://storage.googleapis.com/workbox-cdn/releases/7.0.0/workbox-sw.js"
 );
