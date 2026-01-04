@@ -54,6 +54,8 @@ function init() {
       render();
     });
   });
+  initVisitorLogs();
+  updateVenueWeather();
 }
 
 function render() {
@@ -141,6 +143,7 @@ function render() {
     select.onchange = (e) =>
       updateManualStatus(e.target.dataset.name, e.target.value);
   });
+  renderFinalList();
 }
 
 // --- ACTIONS ---
@@ -221,5 +224,193 @@ document.getElementById("addGuestForm").onsubmit = async (e) => {
   await push(ref(db, "guestList"), { name: input.value.trim() });
   input.value = "";
 };
+
+function initVisitorLogs() {
+  const visitorLogsRef = ref(db, "visitorLogs");
+
+  onValue(visitorLogsRef, (snapshot) => {
+    const data = snapshot.val() || {};
+    renderVisitorLogs(data);
+  });
+}
+
+function renderVisitorLogs(data) {
+  const tableBody = document.getElementById("visitorTableBody");
+  const badge = document.getElementById("unique-visitor-badge");
+  tableBody.innerHTML = "";
+
+  // Convert object to array and sort by latest activity
+  const entries = Object.entries(data).map(([id, val]) => ({ id, ...val }));
+  entries.sort((a, b) => (b.lastVisit || 0) - (a.lastVisit || 0));
+
+  badge.innerText = `${entries.length} Total Visitors`;
+
+  entries.forEach((visitor) => {
+    const row = document.createElement("tr");
+    row.className =
+      "border-b border-stone-50 hover:bg-stone-50/80 transition cursor-default";
+
+    const lastSeen = visitor.lastVisit
+      ? new Date(visitor.lastVisit).toLocaleString([], {
+          month: "short",
+          day: "numeric",
+          hour: "2-digit",
+          minute: "2-digit",
+        })
+      : "Just now";
+
+    row.innerHTML = `
+            <td class="p-4">
+                <div class="flex items-center gap-2">
+                    <span class="text-lg">📍</span>
+                    <div>
+                        <div class="font-semibold text-stone-800">${visitor.city}, ${visitor.country}</div>
+                        <div class="text-[10px] text-stone-400 uppercase tracking-tight">${visitor.region} • ${visitor.ip}</div>
+                    </div>
+                </div>
+            </td>
+            <td class="p-4">
+                <div class="inline-flex items-center px-2 py-1 rounded bg-orange-50 text-orange-600 text-[10px] font-bold uppercase tracking-tighter">
+                    ${visitor.visitCount} Views
+                </div>
+            </td>
+            <td class="p-4 text-xs text-stone-500 font-medium">
+                ${lastSeen}
+            </td>
+        `;
+    tableBody.appendChild(row);
+  });
+  updateMapMarkers(data);
+}
+
+let map;
+let markers = {}; // To keep track of markers and avoid duplicates
+
+function initMap() {
+  // 1. Initialize map (Centered on Philippines/Global view)
+  // [12.8797, 121.7740] is roughly Philippines, Zoom 5
+  map = L.map("map").setView([12.8797, 121.774], 5);
+
+  // 2. Add a beautiful "Clean/Light" map style that matches your stone/green theme
+  L.tileLayer(
+    "https://{s}.basemaps.cartocdn.com/light_all/{z}/{x}/{y}{r}.png",
+    {
+      attribution: "© OpenStreetMap",
+    }
+  ).addTo(map);
+}
+
+function updateMapMarkers(visitorData) {
+  if (!map) initMap();
+
+  Object.entries(visitorData).forEach(([id, visitor]) => {
+    // Only draw if we have coordinates
+    if (visitor.latitude && visitor.longitude) {
+      const pos = [visitor.latitude, visitor.longitude];
+
+      if (!markers[id]) {
+        // Create a new "Circle Marker" (more modern than default pins)
+        markers[id] = L.circleMarker(pos, {
+          radius: 8,
+          fillColor: "#7b8a5b", // Your wedding green
+          color: "#fff",
+          weight: 2,
+          opacity: 1,
+          fillOpacity: 0.8,
+        }).addTo(map);
+
+        markers[id].bindPopup(`
+                    <div class="text-center">
+                        <strong class="serif">${visitor.city}</strong><br>
+                        <span class="text-[10px] uppercase font-bold text-stone-400">${visitor.visitCount} visits</span>
+                    </div>
+                `);
+      } else {
+        // Update existing marker position and popup content
+        markers[id].setLatLng(pos);
+        markers[id].setPopupContent(
+          `<strong>${visitor.city}</strong><br>Visits: ${visitor.visitCount}`
+        );
+      }
+    }
+  });
+}
+
+async function updateVenueWeather() {
+  const city = "Pasig"; // <-- CHANGE THIS to your wedding city
+  try {
+    // Using a free no-auth weather API (wttr.in)
+    const res = await fetch(`https://wttr.in/${city}?format=j1`);
+    const data = await res.json();
+
+    const temp = data.current_condition[0].temp_C;
+    const desc = data.current_condition[0].weatherDesc[0].value;
+
+    document.getElementById("venue-temp").innerText = `${temp}°C`;
+    // Simple emoji based on description
+    const icon = desc.toLowerCase().includes("sun")
+      ? "☀️"
+      : desc.toLowerCase().includes("cloud")
+      ? "☁️"
+      : "🌧️";
+    document.getElementById("weather-icon").innerText = icon;
+  } catch (e) {
+    console.log("Weather error", e);
+  }
+}
+
+function renderFinalList() {
+  const finalListBody = document.getElementById("finalGuestTableBody");
+  const countBadge = document.getElementById("final-count-badge");
+  finalListBody.innerHTML = "";
+
+  // 1. Filter only those who said "Yes"
+  const confirmedGuests = allData.filter((guest) => guest.status === "yes");
+
+  // 2. Sort them by the date they responded (Newest first)
+  confirmedGuests.sort(
+    (a, b) => new Date(b.submittedAt) - new Date(a.submittedAt)
+  );
+
+  // 3. Update the Badge Count
+  countBadge.innerText = `${confirmedGuests.length} Confirmed Guests`;
+
+  // 4. If no one has said yes yet
+  if (confirmedGuests.length === 0) {
+    finalListBody.innerHTML = `<tr><td colspan="3" class="p-8 text-center text-stone-400 italic">No confirmed guests yet...</td></tr>`;
+    return;
+  }
+
+  // 5. Generate Rows
+  confirmedGuests.forEach((guest) => {
+    const row = document.createElement("tr");
+    row.className = "border-b border-stone-50 hover:bg-green-50/30 transition";
+
+    // Format the date nicely (e.g., Jan 12, 10:30 AM)
+    const responseDate = guest.submittedAt
+      ? new Date(guest.submittedAt).toLocaleString("en-US", {
+          month: "short",
+          day: "numeric",
+          hour: "2-digit",
+          minute: "2-digit",
+        })
+      : "Manual Entry";
+
+    row.innerHTML = `
+            <td class="p-4 font-semibold text-stone-800">
+                ${guest.name}
+            </td>
+            <td class="p-4 text-xs text-stone-500">
+                ${responseDate}
+            </td>
+            <td class="p-4 text-right">
+                <span class="bg-green-100 text-green-700 px-2 py-1 rounded text-[10px] font-bold uppercase tracking-widest">
+                    Attending
+                </span>
+            </td>
+        `;
+    finalListBody.appendChild(row);
+  });
+}
 
 init();

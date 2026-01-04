@@ -10,6 +10,12 @@
       rel="stylesheet"
     />
     <link rel="stylesheet" href="./dashboard.css" />
+    <!-- Leaflet Map CSS & JS -->
+    <link
+      rel="stylesheet"
+      href="https://unpkg.com/leaflet@1.9.4/dist/leaflet.css"
+    />
+    <script src="https://unpkg.com/leaflet@1.9.4/dist/leaflet.js"></script>
   </head>
   <body class="bg-[#faf9f6]">
     <nav class="p-4 bg-white border-b border-stone-200 sticky top-0 z-50">
@@ -150,6 +156,132 @@
               </table>
             </div>
           </div>
+        </div>
+      </div>
+
+      <!-- FINAL CONFIRMED LIST SECTION -->
+      <div class="mt-12 mb-12 lg:col-span-4">
+        <div
+          class="bg-[#7b8a5b] p-6 rounded-t-2xl shadow-sm border border-[#6a784d]"
+        >
+          <div class="flex justify-between items-center text-white">
+            <div>
+              <h2 class="serif text-xl italic">The Official Guest List</h2>
+              <p class="text-[10px] uppercase tracking-widest opacity-80 mt-1">
+                Confirmed & Expected Guests
+              </p>
+            </div>
+            <div
+              id="final-count-badge"
+              class="bg-white/20 px-4 py-2 rounded-full text-xs font-bold uppercase tracking-tighter"
+            >
+              0 Confirmed
+            </div>
+          </div>
+        </div>
+        <div
+          class="bg-white rounded-b-2xl shadow-sm border border-stone-100 overflow-hidden"
+        >
+          <div class="overflow-x-auto">
+            <table class="w-full text-left border-collapse">
+              <thead>
+                <tr class="bg-stone-50 border-b border-stone-100">
+                  <th
+                    class="p-4 text-[10px] uppercase tracking-widest text-stone-500 font-bold"
+                  >
+                    Confirmed Name
+                  </th>
+                  <th
+                    class="p-4 text-[10px] uppercase tracking-widest text-stone-500 font-bold"
+                  >
+                    Response Date
+                  </th>
+                  <th
+                    class="p-4 text-[10px] uppercase tracking-widest text-stone-500 font-bold text-right"
+                  >
+                    Status
+                  </th>
+                </tr>
+              </thead>
+              <tbody id="finalGuestTableBody" class="text-sm text-stone-600">
+                <!-- Final list will be injected here -->
+              </tbody>
+            </table>
+          </div>
+        </div>
+      </div>
+
+      <div id="map"></div>
+
+      <div class="mt-12">
+        <div
+          class="bg-white rounded-2xl shadow-sm border border-stone-100 overflow-hidden"
+        >
+          <div
+            class="p-6 border-b border-stone-100 flex justify-between items-center bg-stone-50/50"
+          >
+            <div>
+              <h2 class="serif text-xl italic text-[#7b8a5b]">
+                Website Activity Feed
+              </h2>
+              <p
+                class="text-[10px] text-stone-400 uppercase tracking-widest mt-1"
+              >
+                Live tracking of your invite visitors
+              </p>
+            </div>
+            <div
+              id="unique-visitor-badge"
+              class="bg-[#7b8a5b]/10 text-[#7b8a5b] px-3 py-1 rounded-full text-[10px] font-bold uppercase tracking-widest"
+            >
+              0 Total Visitors
+            </div>
+          </div>
+          <div class="overflow-x-auto">
+            <table class="w-full text-left border-collapse">
+              <thead>
+                <tr class="bg-stone-50/30 border-b border-stone-100">
+                  <th
+                    class="p-4 text-[10px] uppercase tracking-widest text-stone-500 font-bold"
+                  >
+                    Location
+                  </th>
+                  <th
+                    class="p-4 text-[10px] uppercase tracking-widest text-stone-500 font-bold"
+                  >
+                    Engagement
+                  </th>
+                  <th
+                    class="p-4 text-[10px] uppercase tracking-widest text-stone-500 font-bold"
+                  >
+                    Last Active
+                  </th>
+                </tr>
+              </thead>
+              <tbody id="visitorTableBody" class="text-sm text-stone-600">
+                <!-- JS Injected Visitor Logs -->
+              </tbody>
+            </table>
+          </div>
+        </div>
+      </div>
+
+      <div
+        class="bg-white p-3 mt-3 md:p-6 rounded-xl shadow-sm border border-stone-100 text-center md:text-left"
+      >
+        <p
+          class="text-[8px] md:text-[10px] uppercase tracking-widest text-sky-400 font-bold"
+        >
+          Venue Weather
+        </p>
+        <div
+          id="weather-display"
+          class="flex items-center justify-center md:justify-start gap-2"
+        >
+          <p id="venue-temp" class="text-lg md:text-3xl serif text-sky-600">
+            --°
+          </p>
+          <span id="weather-icon"></span>
         </div>
       </div>
     </main>

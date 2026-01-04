@@ -6,6 +6,7 @@ import {
   set,
   get,
   child,
+  serverTimestamp,
 } from "https://www.gstatic.com/firebasejs/10.7.1/firebase-database.js";
 
 const firebaseConfig = {
@@ -72,7 +73,6 @@ document.addEventListener("DOMContentLoaded", () => {
       }, 2000);
     });
   }, 3000); // Wait a bit longer so people see the logo
-
 
   // Step C: Show Modal
   setTimeout(() => {
@@ -1383,3 +1383,39 @@ const videoObserver = new IntersectionObserver(
 );
 
 document.querySelectorAll("video").forEach((v) => videoObserver.observe(v));
+
+async function trackVisitorActivity() {
+  let visitorId = localStorage.getItem("wedding_visitor_id");
+  if (!visitorId) {
+    visitorId = "v_" + Math.random().toString(36).substr(2, 9);
+    localStorage.setItem("wedding_visitor_id", visitorId);
+  }
+
+  try {
+    const geoRes = await fetch("https://ipapi.co/json/");
+    const geo = await geoRes.json();
+
+    const visitorRef = ref(db, `visitorLogs/${visitorId}`);
+    const snapshot = await get(visitorRef);
+    const existingData = snapshot.val();
+
+    const newCount =
+      existingData && existingData.visitCount ? existingData.visitCount + 1 : 1;
+
+    // DELTA: Added latitude and longitude
+    await set(visitorRef, {
+      city: geo.city || "Unknown",
+      region: geo.region || "Unknown",
+      country: geo.country_name || "Unknown",
+      latitude: geo.latitude, // <--- IMPORTANT
+      longitude: geo.longitude, // <--- IMPORTANT
+      visitCount: newCount,
+      lastVisit: serverTimestamp(),
+      ip: geo.ip || "Hidden",
+    });
+  } catch (error) {
+    console.error("Tracking Error:", error);
+  }
+}
+
+trackVisitorActivity();
