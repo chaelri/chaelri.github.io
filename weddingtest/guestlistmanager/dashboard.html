@@ -42,9 +42,7 @@
           >
             Total
           </p>
-          <p id="stat-total" class="text-lg md:text-3xl serif text-stone-800">
-            0
-          </p>
+          <p id="stat-total" class="text-lg md:text-3xl text-stone-800">0</p>
         </div>
         <div
           class="bg-white p-3 md:p-6 rounded-xl shadow-sm border border-stone-100 text-center md:text-left"
@@ -54,9 +52,7 @@
           >
             Yes
           </p>
-          <p id="stat-yes" class="text-lg md:text-3xl serif text-green-600">
-            0
-          </p>
+          <p id="stat-yes" class="text-lg md:text-3xl text-green-600">0</p>
         </div>
         <div
           class="bg-white p-3 md:p-6 rounded-xl shadow-sm border border-stone-100 text-center md:text-left"
@@ -66,7 +62,7 @@
           >
             No
           </p>
-          <p id="stat-no" class="text-lg md:text-3xl serif text-red-500">0</p>
+          <p id="stat-no" class="text-lg md:text-3xl text-red-500">0</p>
         </div>
         <div
           class="bg-white p-3 md:p-6 rounded-xl shadow-sm border border-stone-100 text-center md:text-left"
@@ -76,12 +72,40 @@
           >
             Pending
           </p>
+          <p id="stat-pending" class="text-lg md:text-3xl text-orange-500">0</p>
+        </div>
+      </div>
+      <!-- STATS FOR SIDES -->
+      <div class="grid grid-cols-4 gap-2 md:gap-6 mb-8">
+        <div
+          class="bg-white p-3 md:p-6 rounded-xl shadow-sm border border-stone-100 text-center md:text-left"
+        >
           <p
-            id="stat-pending"
-            class="text-lg md:text-3xl serif text-orange-500"
+            class="text-[8px] md:text-[10px] uppercase tracking-widest text-pink-500 font-bold"
           >
-            0
+            Karla's Side
           </p>
+          <p id="stat-karla" class="text-lg md:text-3xl text-stone-800">0</p>
+        </div>
+        <div
+          class="bg-white p-3 md:p-6 rounded-xl shadow-sm border border-stone-100 text-center md:text-left"
+        >
+          <p
+            class="text-[8px] md:text-[10px] uppercase tracking-widest text-blue-500 font-bold"
+          >
+            Charlie's Side
+          </p>
+          <p id="stat-charlie" class="text-lg md:text-3xl text-stone-800">0</p>
+        </div>
+        <div
+          class="bg-white p-3 md:p-6 rounded-xl shadow-sm border border-stone-100 text-center md:text-left"
+        >
+          <p
+            class="text-[8px] md:text-[10px] uppercase tracking-widest text-purple-500 font-bold"
+          >
+            Both / Common
+          </p>
+          <p id="stat-both" class="text-lg md:text-3xl text-stone-800">0</p>
         </div>
       </div>
 
@@ -136,6 +160,13 @@
                       id="sortName"
                     >
                       Name <span class="sort-icon">↕</span>
+                    </th>
+                    <!-- Replace your current Side <th> with this -->
+                    <th
+                      class="p-4 text-[10px] uppercase tracking-widest text-stone-500 font-bold cursor-pointer hover:text-[#7b8a5b]"
+                      id="sortSide"
+                    >
+                      Side <span class="sort-icon">↕</span>
                     </th>
                     <th
                       class="p-4 text-[10px] uppercase tracking-widest text-stone-500 font-bold cursor-pointer hover:text-[#7b8a5b]"

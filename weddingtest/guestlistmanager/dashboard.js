@@ -28,6 +28,12 @@ const db = getDatabase(app);
 let allData = [];
 let sortConfig = { key: "name", direction: "asc" };
 let searchTerm = "";
+let sideSortIndex = 0; // 0: Karla First, 1: Charlie First, 2: Both First
+const sideOrders = [
+  ["karla", "charlie", "both"], // Click 1
+  ["charlie", "karla", "both"], // Click 2
+  ["both", "charlie", "karla"], // Click 3
+];
 
 // LOAD DATA
 function init() {
@@ -47,6 +53,7 @@ function init() {
         return {
           id,
           name: guest.name,
+          side: guest.side || "both", // Default to 'both' if not set
           status: response ? response.attending : "pending",
           submittedAt: response ? response.submittedAt : null,
         };
@@ -69,8 +76,17 @@ function render() {
 
   // Sort
   displayData.sort((a, b) => {
-    let valA = a[sortConfig.key].toLowerCase();
-    let valB = b[sortConfig.key].toLowerCase();
+    if (sortConfig.key === "side") {
+      // Custom Priority Sorting
+      const currentOrder = sideOrders[sideSortIndex];
+      const indexA = currentOrder.indexOf(a.side);
+      const indexB = currentOrder.indexOf(b.side);
+      return indexA - indexB;
+    }
+
+    // Standard Sorting for Name and Status
+    let valA = (a[sortConfig.key] || "").toLowerCase();
+    let valB = (b[sortConfig.key] || "").toLowerCase();
     if (valA < valB) return sortConfig.direction === "asc" ? -1 : 1;
     if (valA > valB) return sortConfig.direction === "asc" ? 1 : -1;
     return 0;
@@ -78,6 +94,13 @@ function render() {
 
   displayData.forEach((guest) => {
     const row = document.createElement("tr");
+    const sideColor =
+      guest.side === "karla"
+        ? "text-red-600"
+        : guest.side === "charlie"
+        ? "text-blue-600"
+        : "text-purple-500";
+
     row.className = `border-b border-stone-50 hover:bg-stone-50 transition ${
       guest.status === "no" ? "bg-red-50/30" : ""
     }`;
@@ -92,6 +115,20 @@ function render() {
                       ).toLocaleDateString()}</div>`
                     : ""
                 }
+            </td>
+            <td class="p-4">
+              <select class="side-select bg-transparent text-[12px] font-bold uppercase tracking-widest outline-none cursor-pointer p-1 rounded ${sideColor}" 
+                  data-id="${guest.id}">
+                  <option value="karla" ${
+                    guest.side === "karla" ? "selected" : ""
+                  }>Karla</option>
+                  <option value="charlie" ${
+                    guest.side === "charlie" ? "selected" : ""
+                  }>Charlie</option>
+                  <option value="both" ${
+                    guest.side === "both" ? "selected" : ""
+                  }>Both</option>
+              </select>
             </td>
             <td class="p-4">
                 <select class="status-select bg-transparent text-xs font-bold uppercase tracking-widest outline-none cursor-pointer p-1 rounded
@@ -136,6 +173,15 @@ function render() {
   ).length;
   document.getElementById("stat-pending").innerText = allData.filter(
     (g) => g.status === "pending"
+  ).length;
+  document.getElementById("stat-karla").innerText = allData.filter(
+    (g) => g.side === "karla"
+  ).length;
+  document.getElementById("stat-charlie").innerText = allData.filter(
+    (g) => g.side === "charlie"
+  ).length;
+  document.getElementById("stat-both").innerText = allData.filter(
+    (g) => g.side === "both"
   ).length;
 
   // Attach Select Listeners
@@ -198,6 +244,24 @@ document.getElementById("sortName").onclick = () => {
       ? "desc"
       : "asc";
   sortConfig.key = "name";
+  render();
+};
+
+document.getElementById("sortSide").onclick = () => {
+  // If we were already sorting by side, move to the next priority mode
+  if (sortConfig.key === "side") {
+    sideSortIndex = (sideSortIndex + 1) % 3;
+  } else {
+    sortConfig.key = "side";
+    sideSortIndex = 0; // Start with Karla if coming from another column
+  }
+
+  // Visual feedback: Update the header text to show priority
+  const labels = ["Side (K)", "Side (C)", "Side (B)"];
+  document.getElementById(
+    "sortSide"
+  ).innerHTML = `${labels[sideSortIndex]} <span class="sort-icon">↕</span>`;
+
   render();
 };
 
@@ -412,5 +476,15 @@ function renderFinalList() {
     finalListBody.appendChild(row);
   });
 }
+
+// 1. Function to update the Side in Firebase
+window.updateGuestSide = async (id, newSide) => {
+  await update(ref(db, `guestList/${id}`), { side: newSide });
+};
+
+// 2. Add listeners for the side dropdowns (put this at the end of render())
+document.querySelectorAll(".side-select").forEach((select) => {
+  select.onchange = (e) => updateGuestSide(e.target.dataset.id, e.target.value);
+});
 
 init();
