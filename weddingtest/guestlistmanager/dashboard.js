@@ -74,17 +74,15 @@ function render() {
     item.name.toLowerCase().includes(searchTerm.toLowerCase())
   );
 
-  // Sort
+  // Sort Logic
   displayData.sort((a, b) => {
     if (sortConfig.key === "side") {
-      // Custom Priority Sorting
       const currentOrder = sideOrders[sideSortIndex];
       const indexA = currentOrder.indexOf(a.side);
       const indexB = currentOrder.indexOf(b.side);
       return indexA - indexB;
     }
 
-    // Standard Sorting for Name and Status
     let valA = (a[sortConfig.key] || "").toLowerCase();
     let valB = (b[sortConfig.key] || "").toLowerCase();
     if (valA < valB) return sortConfig.direction === "asc" ? -1 : 1;
@@ -94,6 +92,8 @@ function render() {
 
   displayData.forEach((guest) => {
     const row = document.createElement("tr");
+
+    // Dynamic color for Side
     const sideColor =
       guest.side === "karla"
         ? "text-red-600"
@@ -117,7 +117,7 @@ function render() {
                 }
             </td>
             <td class="p-4">
-              <select class="side-select bg-transparent text-[12px] font-bold uppercase tracking-widest outline-none cursor-pointer p-1 rounded ${sideColor}" 
+              <select class="side-select bg-transparent text-[10px] font-bold uppercase tracking-widest outline-none cursor-pointer p-1 rounded ${sideColor}" 
                   data-id="${guest.id}">
                   <option value="karla" ${
                     guest.side === "karla" ? "selected" : ""
@@ -131,7 +131,7 @@ function render() {
               </select>
             </td>
             <td class="p-4">
-                <select class="status-select bg-transparent text-xs font-bold uppercase tracking-widest outline-none cursor-pointer p-1 rounded
+                <select class="status-select bg-transparent text-[10px] font-bold uppercase tracking-widest outline-none cursor-pointer p-1 rounded
                     ${
                       guest.status === "yes"
                         ? "text-green-600"
@@ -154,16 +154,16 @@ function render() {
             <td class="p-4 space-x-3 text-right">
                 <button onclick="editGuestName('${guest.id}', '${
       guest.name
-    }')" class="text-blue-400 hover:text-blue-600 text-xs font-bold uppercase">Edit</button>
+    }')" class="text-blue-400 hover:text-blue-600 text-[10px] font-bold uppercase">Edit</button>
                 <button onclick="deleteGuest('${
                   guest.id
-                }')" class="text-stone-300 hover:text-red-500 text-xs font-bold uppercase">Del</button>
+                }')" class="text-stone-300 hover:text-red-500 text-[10px] font-bold uppercase">Del</button>
             </td>
         `;
     tableBody.appendChild(row);
   });
 
-  // Update Stats
+  // --- STATS UPDATE ---
   document.getElementById("stat-total").innerText = allData.length;
   document.getElementById("stat-yes").innerText = allData.filter(
     (g) => g.status === "yes"
@@ -184,11 +184,17 @@ function render() {
     (g) => g.side === "both"
   ).length;
 
-  // Attach Select Listeners
+  // --- RE-ATTACH LISTENERS (Crucial!) ---
   document.querySelectorAll(".status-select").forEach((select) => {
     select.onchange = (e) =>
       updateManualStatus(e.target.dataset.name, e.target.value);
   });
+
+  document.querySelectorAll(".side-select").forEach((select) => {
+    select.onchange = (e) =>
+      updateGuestSide(e.target.dataset.id, e.target.value);
+  });
+
   renderFinalList();
 }
 
