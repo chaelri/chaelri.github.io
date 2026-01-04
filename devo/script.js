@@ -1,5 +1,18 @@
 const API_WEB = "https://bible-api.com/data/web";
 
+/* ---------- LOCAL BIBLE DATA ---------- */
+let bibleData = null;
+
+async function fetchBibleData() {
+  try {
+    const response = await fetch("nasb2020.json"); // Ensure your filename matches this
+    bibleData = await response.json();
+    console.log("NASB 2020 Loaded");
+  } catch (err) {
+    console.error("Failed to load local Bible JSON:", err);
+  }
+}
+
 /* ---------- INDEXEDDB (DEVOTION DATA) ---------- */
 const STORE = "devotions";
 
@@ -425,72 +438,45 @@ async function loadPassage() {
     titleForGemini = passageTitleEl.textContent;
 
     const bookId = bookEl.value;
-    const bookName = BIBLE_META[bookId].name;
+    const bookName = BIBLE_META[bookId].name.toUpperCase();
     const chapterNum = chapterEl.value;
-
     const single = verseEl.value;
 
-    /* ---------- BASE TEXT (AI CONTEXT / REFLECTION ONLY) ---------- */
-    const baseRes = await fetch(`${API_WEB}/${bookId}/${chapterNum}`);
-    const baseData = await baseRes.json();
+    if (!bibleData) {
+      await fetchBibleData();
+    }
 
-    let baseVerses = baseData.verses;
-    if (single) baseVerses = baseVerses.filter((v) => v.verse == single);
+    /* ---------- GET LOCAL VERSES ---------- */
+    const bookContent = bibleData[bookName];
+    if (!bookContent) throw new Error(`Book ${bookName} not found in JSON.`);
 
-    const versesText = baseVerses
+    const chapterContent = bookContent[chapterNum];
+    if (!chapterContent)
+      throw new Error(`Chapter ${chapterNum} not found in ${bookName}.`);
+
+    let verses = Object.entries(chapterContent).map(([vNum, text]) => ({
+      book_id: bookId,
+      chapter: Number(chapterNum),
+      verse: Number(vNum),
+      text: text.trim().replace(/\s+/g, " "),
+    }));
+
+    // Generate Payload for AI before filtering for single verse
+    const fullVersesText = verses
       .map((v) => `${v.verse}. ${v.text}`)
       .join("\n");
+
+    if (single) {
+      verses = verses.filter((v) => v.verse === +single);
+    }
 
     window.__aiPayload = {
       book: bookName,
       chapter: chapterNum,
-      versesText,
+      versesText: single
+        ? verses.map((v) => `${v.verse}. ${v.text}`).join("\n")
+        : fullVersesText,
     };
-
-    /* ---------- NASB LITERALWORD (CACHE → FETCH UNLI) ---------- */
-    const query =
-      (bookName === "Song of Solomon" ? "Song of Songs" : bookName) +
-      " " +
-      chapterNum;
-
-    const verseCacheId = `${bookId}-${chapterNum}`;
-
-    let verses = await getCachedVerses(verseCacheId);
-
-    if (!verses) {
-      const { contents } = await fetchAllOriginsUnli(
-        `https://api.allorigins.win/get?url=${encodeURIComponent(
-          `https://nasb.literalword.com/?q=${query}`
-        )}`
-      );
-
-      const container = document.createElement("div");
-      container.innerHTML = contents;
-
-      const passage = container.querySelector(".passage");
-      if (!passage) return [];
-
-      // We map directly from the NodeList of .prose elements
-      verses = Array.from(passage.querySelectorAll(".prose")).map(
-        (el, index) => {
-          const verseNum = index + 1; // Since it's verse by verse, index 0 is Verse 1
-
-          return {
-            book_id: bookId,
-            chapter: Number(chapterNum),
-            verse: verseNum,
-            text: el.innerText.trim().replace(/\s+/g, " "), // Just basic whitespace cleanup
-          };
-        }
-      );
-
-      // Optional: Filter out any empty blocks if the site has spacer .prose elements
-      verses = verses.filter((v) => v.text.length > 0);
-
-      await saveCachedVerses(verseCacheId, verses);
-    }
-
-    if (single) verses = verses.filter((v) => v.verse === +single);
 
     /* ---------- RENDER ---------- */
     output.innerHTML = "";
@@ -547,7 +533,7 @@ async function loadPassage() {
   } catch (err) {
     console.error(err);
     hideLoading();
-    showLoadError("Failed to load passage.");
+    showLoadError("Failed to load passage. Check if nasb2020.json is present.");
   }
 }
 
@@ -992,6 +978,7 @@ loadBtn.onclick = async () => {
 };
 
 /* ---------- INIT ---------- */
+fetchBibleData(); // Load the JSON file on startup
 loadBooks();
 showLanding();
 updateControlStates();
