@@ -192,3 +192,23 @@ th {
 .leaflet-container {
   font-family: "Inter", sans-serif;
 }
+
+/* Modal Styling */
+#modalOverlay {
+  background: rgba(41, 37, 36, 0.4);
+  backdrop-filter: blur(4px);
+  z-index: 100;
+  display: none;
+}
+#modalOverlay.active {
+  display: flex;
+}
+#modalBox {
+  transform: translateY(20px);
+  opacity: 0;
+  transition: all 0.3s cubic-bezier(0.34, 1.56, 0.64, 1);
+}
+#modalOverlay.active #modalBox {
+  transform: translateY(0);
+  opacity: 1;
+}
