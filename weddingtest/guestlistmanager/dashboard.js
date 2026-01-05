@@ -184,7 +184,8 @@ function render(shouldScroll = false) {
     tableBody.appendChild(row);
   });
 
-  document.getElementById("stat-total").innerText = allData.length;
+  document.getElementById("stat-total").innerText =
+    allData.length - allData.filter((g) => g.status === "no").length;
   document.getElementById("stat-yes").innerText = allData.filter(
     (g) => g.status === "yes"
   ).length;
@@ -202,6 +203,9 @@ function render(shouldScroll = false) {
   ).length;
   document.getElementById("stat-both").innerText = allData.filter(
     (g) => g.side === "both"
+  ).length;
+  document.getElementById("stat-not-invited").innerText = allData.filter(
+    (g) => g.invited === "no"
   ).length;
 
   document
