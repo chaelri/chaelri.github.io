@@ -172,6 +172,13 @@ function render(shouldScroll = false) {
                     }>Yes</option>
                 </select>
             </td>
+            <td class="p-4" data-label="Invite">
+                <button onclick="copyInviteText('${
+                  guest.name
+                }')" class="bg-stone-100 hover:bg-[#7b8a5b] hover:text-white transition-colors p-2 rounded-lg flex items-center justify-center">
+                  <span class="material-icons text-sm">content_copy</span>
+                </button>
+            </td>
             <td class="p-4 space-x-3 text-right" data-label="Actions">
                 <button onclick="editGuestName('${guest.id}', '${
       guest.name
@@ -184,8 +191,7 @@ function render(shouldScroll = false) {
     tableBody.appendChild(row);
   });
 
-  document.getElementById("stat-total").innerText =
-    allData.length - allData.filter((g) => g.status === "no").length;
+  document.getElementById("stat-total").innerText = allData.length;
   document.getElementById("stat-yes").innerText = allData.filter(
     (g) => g.status === "yes"
   ).length;
@@ -335,6 +341,30 @@ const toggleSortName = () => {
   sortConfig.key = "name";
   currentPage = 1;
   render();
+};
+
+window.copyInviteText = (fullName) => {
+  const firstName = fullName.trim().split(" ")[0];
+  const inviteText = `Hi ${firstName}!
+
+Invited ka sa kasal namin ni Karla this coming July 2, 2026! 🤍
+
+Kindly RSVP sa website namin if you can go, preferably before JUNE 1 sana: https://charliekarlawedding.vercel.app
+
+Nandito na rin yung details ng wedding like kung ano susuotin, time and place.
+
+One quick request: Please refrain from sharing the wedding details to others as limited lang ang seats namin, and we especially chose you to be part of our big day! See youuu!
+
+If may other questions, chat nalang din. Thanks!`;
+
+  navigator.clipboard
+    .writeText(inviteText)
+    .then(() => {
+      alert(`Invite message for ${firstName} copied to clipboard!`);
+    })
+    .catch((err) => {
+      console.error("Error copying text: ", err);
+    });
 };
 
 document.getElementById("sortName").onclick = toggleSortName;
