@@ -138,15 +138,64 @@
             </form>
           </div>
           <div
-            class="bg-white p-6 rounded-2xl shadow-sm border border-stone-100"
+            class="bg-white p-6 rounded-2xl shadow-sm border border-stone-100 space-y-4"
           >
-            <h2 class="serif text-lg mb-4 italic">Quick Search</h2>
-            <input
-              type="text"
-              id="searchInput"
-              placeholder="Find a name..."
-              class="w-full p-2 border border-stone-100 rounded bg-stone-50 text-sm focus:outline-none focus:ring-1 focus:ring-[#7b8a5b]"
-            />
+            <div>
+              <h2 class="serif text-lg mb-2 italic">Search & Filters</h2>
+              <input
+                type="text"
+                id="searchInput"
+                placeholder="Find a name..."
+                class="w-full p-2 border border-stone-100 rounded bg-stone-50 text-sm focus:outline-none focus:ring-1 focus:ring-[#7b8a5b]"
+              />
+            </div>
+
+            <div class="space-y-2">
+              <label
+                class="text-[9px] uppercase tracking-widest text-stone-400 font-bold"
+                >Filter Side</label
+              >
+              <select
+                id="filterSide"
+                class="w-full p-2 border border-stone-100 rounded bg-stone-50 text-xs focus:outline-none"
+              >
+                <option value="all">All Sides</option>
+                <option value="karla">Karla</option>
+                <option value="charlie">Charlie</option>
+                <option value="both">Both</option>
+              </select>
+            </div>
+
+            <div class="space-y-2">
+              <label
+                class="text-[9px] uppercase tracking-widest text-stone-400 font-bold"
+                >Filter Status</label
+              >
+              <select
+                id="filterStatus"
+                class="w-full p-2 border border-stone-100 rounded bg-stone-50 text-xs focus:outline-none"
+              >
+                <option value="all">All Statuses</option>
+                <option value="pending">Pending</option>
+                <option value="yes">Yes (Attending)</option>
+                <option value="no">No</option>
+              </select>
+            </div>
+
+            <div class="space-y-2">
+              <label
+                class="text-[9px] uppercase tracking-widest text-stone-400 font-bold"
+                >Filter Invited</label
+              >
+              <select
+                id="filterInvited"
+                class="w-full p-2 border border-stone-100 rounded bg-stone-50 text-xs focus:outline-none"
+              >
+                <option value="all">All Invited Status</option>
+                <option value="yes">Yes</option>
+                <option value="no">No</option>
+              </select>
+            </div>
           </div>
         </div>
 
@@ -154,8 +203,6 @@
         <div class="lg:col-span-3">
           <div class="mobile-sort-controls">
             <button class="sort-chip active" id="mobSortName">Name</button>
-            <button class="sort-chip" id="mobSortSide">Side</button>
-            <button class="sort-chip" id="mobSortStatus">Status</button>
           </div>
           <!-- PAGINATION CONTROLS -->
           <div class="mt-6 mb-6 flex flex-col items-center gap-3">
@@ -187,16 +234,14 @@
                       Name <span class="sort-icon">↕</span>
                     </th>
                     <th
-                      class="p-4 text-[10px] uppercase tracking-widest text-stone-500 font-bold cursor-pointer hover:text-[#7b8a5b]"
-                      id="sortSide"
+                      class="p-4 text-[10px] uppercase tracking-widest text-stone-500 font-bold"
                     >
-                      Side <span class="sort-icon">↕</span>
+                      Side
                     </th>
                     <th
-                      class="p-4 text-[10px] uppercase tracking-widest text-stone-500 font-bold cursor-pointer hover:text-[#7b8a5b]"
-                      id="sortStatus"
+                      class="p-4 text-[10px] uppercase tracking-widest text-stone-500 font-bold"
                     >
-                      Status <span class="sort-icon">↕</span>
+                      Status
                     </th>
                     <th
                       class="p-4 text-[10px] uppercase tracking-widest text-stone-500 font-bold"

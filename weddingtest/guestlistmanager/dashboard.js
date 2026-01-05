@@ -26,13 +26,10 @@ const db = getDatabase(app);
 let allData = [];
 let sortConfig = { key: "name", direction: "asc" };
 let searchTerm = "";
-let sideSortIndex = 0;
+let filterSide = "all";
+let filterStatus = "all";
+let filterInvited = "all";
 let currentPage = 1;
-const sideOrders = [
-  ["karla", "charlie", "both"],
-  ["charlie", "karla", "both"],
-  ["both", "charlie", "karla"],
-];
 
 function init() {
   const guestListRef = ref(db, "guestList");
@@ -67,19 +64,21 @@ function render(shouldScroll = false) {
   const tableBody = document.getElementById("guestTableBody");
   tableBody.innerHTML = "";
 
-  let displayData = allData.filter((item) =>
-    item.name.toLowerCase().includes(searchTerm.toLowerCase())
-  );
+  let displayData = allData.filter((item) => {
+    const matchesSearch = item.name
+      .toLowerCase()
+      .includes(searchTerm.toLowerCase());
+    const matchesSide = filterSide === "all" || item.side === filterSide;
+    const matchesStatus =
+      filterStatus === "all" || item.status === filterStatus;
+    const matchesInvited =
+      filterInvited === "all" || item.invited === filterInvited;
+    return matchesSearch && matchesSide && matchesStatus && matchesInvited;
+  });
 
   displayData.sort((a, b) => {
-    if (sortConfig.key === "side") {
-      const currentOrder = sideOrders[sideSortIndex];
-      const indexA = currentOrder.indexOf(a.side);
-      const indexB = currentOrder.indexOf(b.side);
-      return indexA - indexB;
-    }
-    let valA = (a[sortConfig.key] || "").toLowerCase();
-    let valB = (b[sortConfig.key] || "").toLowerCase();
+    let valA = (a.name || "").toLowerCase();
+    let valB = (b.name || "").toLowerCase();
     if (valA < valB) return sortConfig.direction === "asc" ? -1 : 1;
     if (valA > valB) return sortConfig.direction === "asc" ? 1 : -1;
     return 0;
@@ -98,12 +97,7 @@ function render(shouldScroll = false) {
     chip.classList.remove("active");
     chip.innerText = chip.innerText.replace(" ↑", "").replace(" ↓", "");
   });
-  const activeChipMap = {
-    name: "mobSortName",
-    side: "mobSortSide",
-    status: "mobSortStatus",
-  };
-  const activeChip = document.getElementById(activeChipMap[sortConfig.key]);
+  const activeChip = document.getElementById("mobSortName");
   if (activeChip) {
     activeChip.classList.add("active");
     activeChip.innerText += sortConfig.direction === "asc" ? " ↑" : " ↓";
@@ -333,41 +327,35 @@ window.deleteGuest = async (id) => {
 };
 
 const toggleSortName = () => {
-  sortConfig.direction =
-    sortConfig.key === "name" && sortConfig.direction === "asc"
-      ? "desc"
-      : "asc";
+  sortConfig.direction = sortConfig.direction === "asc" ? "desc" : "asc";
   sortConfig.key = "name";
-  currentPage = 1;
-  render();
-};
-
-const toggleSortSide = () => {
-  if (sortConfig.key === "side") sideSortIndex = (sideSortIndex + 1) % 3;
-  else sortConfig.key = "side";
-  currentPage = 1;
-  render();
-};
-
-const toggleSortStatus = () => {
-  sortConfig.direction =
-    sortConfig.key === "status" && sortConfig.direction === "asc"
-      ? "desc"
-      : "asc";
-  sortConfig.key = "status";
   currentPage = 1;
   render();
 };
 
 document.getElementById("sortName").onclick = toggleSortName;
 document.getElementById("mobSortName").onclick = toggleSortName;
-document.getElementById("sortSide").onclick = toggleSortSide;
-document.getElementById("mobSortSide").onclick = toggleSortSide;
-document.getElementById("sortStatus").onclick = toggleSortStatus;
-document.getElementById("mobSortStatus").onclick = toggleSortStatus;
 
 document.getElementById("searchInput").oninput = (e) => {
   searchTerm = e.target.value;
+  currentPage = 1;
+  render();
+};
+
+document.getElementById("filterSide").onchange = (e) => {
+  filterSide = e.target.value;
+  currentPage = 1;
+  render();
+};
+
+document.getElementById("filterStatus").onchange = (e) => {
+  filterStatus = e.target.value;
+  currentPage = 1;
+  render();
+};
+
+document.getElementById("filterInvited").onchange = (e) => {
+  filterInvited = e.target.value;
   currentPage = 1;
   render();
 };
