@@ -1,25 +1,126 @@
-<section class="glass">
+<section class="glass chat-interface">
   <h1 style="display: flex; align-items: center; gap: 8px">
-    <span class="material-icon">add_circle</span>
-    Add
+    <span class="material-icon">auto_awesome</span>
+    Analyze with Gemini
   </h1>
 
-  <p class="muted">Describe your meal or exercise</p>
+  <!-- Chat History Container -->
+  <div
+    id="chatWindow"
+    style="
+      max-height: 300px;
+      overflow-y: auto;
+      margin-top: 16px;
+      display: flex;
+      flex-direction: column;
+      gap: 12px;
+      padding-bottom: 12px;
+      border-bottom: 1px solid rgba(255, 255, 255, 0.1);
+    "
+  >
+    <div class="ai-bubble-static">
+      Describe your meal or exercise, or upload a photo! I'll estimate the
+      calories for you.
+    </div>
+  </div>
 
-  <textarea
-    id="logText"
-    placeholder="e.g. Ate an apple 🍎 or ran 3km 🏃‍♂️"
-    style="width: 100%; margin-top: 16px; min-height: 88px"
-  ></textarea>
-  <div class="space-md"></div>
+  <!-- Preview Container for Image -->
+  <div
+    id="imagePreview"
+    style="
+      display: none;
+      margin-top: 10px;
+      position: relative;
+      width: fit-content;
+    "
+  >
+    <img
+      id="previewImg"
+      src=""
+      style="
+        max-width: 100px;
+        border-radius: 8px;
+        border: 2px solid var(--accent);
+      "
+    />
+    <button
+      id="removeImg"
+      style="
+        position: absolute;
+        top: -8px;
+        right: -8px;
+        background: red;
+        border-radius: 50%;
+        width: 20px;
+        height: 20px;
+        border: none;
+        color: white;
+        font-size: 12px;
+        cursor: pointer;
+      "
+    >
+      &times;
+    </button>
+  </div>
 
-  <input id="logImage" type="file" accept="image/*" style="margin-top: 12px" />
-  <div class="space-lg"></div>
+  <!-- Input Area -->
+  <div
+    style="margin-top: 16px; display: flex; flex-direction: column; gap: 8px"
+  >
+    <textarea
+      id="logText"
+      placeholder="e.g. Ate an apple 🍎"
+      style="width: 100%; min-height: 60px; transition: height 0.2s"
+    ></textarea>
 
-  <button id="sendLogBtn">
-    <span class="material-icon">auto_awesome</span>
-    Send to Gemini
-  </button>
+    <div style="display: flex; gap: 8px; align-items: center">
+      <input id="logImage" type="file" accept="image/*" style="display: none" />
+      <button id="attachBtn" class="secondary" style="padding: 8px 12px">
+        <span class="material-icon">add_a_photo</span>
+      </button>
+
+      <button id="sendLogBtn" style="flex-grow: 1">
+        <span class="material-icon">send</span>
+        Send
+      </button>
+    </div>
+  </div>
+
+  <!-- Confirmation Card (Hidden by default) -->
+  <div
+    id="confirmCard"
+    style="
+      display: none;
+      margin-top: 20px;
+      border-top: 2px dashed rgba(255, 255, 255, 0.2);
+      padding-top: 20px;
+    "
+  >
+    <div
+      class="glass"
+      style="
+        background: rgba(255, 255, 255, 0.05);
+        padding: 15px;
+        border-radius: 12px;
+      "
+    >
+      <h3 style="margin: 0 0 8px 0; font-size: 14px; opacity: 0.8">
+        Detected Estimate:
+      </h3>
+      <div
+        id="pendingLogDisplay"
+        style="font-size: 16px; font-weight: bold; margin-bottom: 12px"
+      ></div>
+      <button
+        id="saveConfirmedBtn"
+        class="primary"
+        style="width: 100%; background: #4caf50"
+      >
+        <span class="material-icon">check_circle</span>
+        Confirm & Save to Log
+      </button>
+    </div>
+  </div>
 
   <div id="logResult" style="margin-top: 16px"></div>
 </section>

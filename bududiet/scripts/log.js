@@ -6,18 +6,20 @@ import {
   push,
 } from "https://www.gstatic.com/firebasejs/10.7.1/firebase-database.js";
 
-const ENDPOINT = "https://gemini-proxy-668755364170.asia-southeast1.run.app";
+// Using the streaming endpoint from your first project
+const ENDPOINT =
+  "https://gemini-chat-156359566254.asia-southeast1.run.app/api/chat";
 
 const SYSTEM_PROMPT = `
-You are a calorie estimator.
+You are a calorie estimator chat bot. 
+When the user describes food or exercise, provide a helpful response.
 
-Respond with ONLY valid JSON.
-Do NOT include explanations, markdown, or extra text.
-Do NOT stream partial responses.
+CRITICAL RULE: At the END of EVERY response, you MUST include a JSON block with the estimation.
+If the conversation continues (e.g., user says "only half" or "add a soda"), RE-CALCULATE the total based on the WHOLE conversation so far and provide an updated JSON block reflecting the final state of the meal/activity.
 
-Keep the response SHORT.
-
-Schema (must be complete):
+Rules for JSON:
+- Respond with ONLY valid JSON inside a markdown code block.
+- Schema:
 {
   "kind": "food" | "exercise",
   "items": [
@@ -26,18 +28,18 @@ Schema (must be complete):
   "totalKcal": number,
   "confidence": number
 }
+- totalKcal MUST equal sum of item kcal.
 
-Rules:
-- Max 5 items
-- Use simple item names
-- Use integers for kcal
-- totalKcal MUST equal sum of item kcal
-- If unsure, estimate conservatively
+Maintain a conversational tone but never omit the JSON block.
 `;
 
 /* =============================
-   Helpers
+   State & Helpers
 ============================= */
+
+let chatHistory = [];
+let selectedImageData = null;
+let pendingLogEntry = null;
 
 function getLocalDateKey() {
   const d = new Date();
@@ -51,79 +53,168 @@ function formatItems(items = []) {
     .join("\n");
 }
 
+function createBubble(role, text) {
+  const window = document.getElementById("chatWindow");
+  const div = document.createElement("div");
+  // Delta: Use 'prose' class for better markdown styling and padding
+  div.className =
+    role === "user" ? "user-bubble-static" : "ai-bubble-static prose";
+
+  if (role === "ai") {
+    div.innerHTML = typeof marked !== "undefined" ? marked.parse(text) : text;
+  } else {
+    div.innerText = text;
+  }
+
+  window.appendChild(div);
+  window.scrollTop = window.scrollHeight;
+  return div;
+}
+
+/**
+ * Delta: Aggressive cleaner.
+ * Prevents "```json" or raw JSON blocks from appearing during streaming.
+ */
+function cleanTextForDisplay(text) {
+  const jsonMarkers = ["```json", "```", '{\n  "kind"'];
+  let clean = text;
+
+  for (const marker of jsonMarkers) {
+    const index = clean.indexOf(marker);
+    if (index !== -1) {
+      clean = clean.substring(0, index);
+    }
+  }
+  return clean.trim();
+}
+
 /* =============================
    Bind UI
 ============================= */
 
 export function bindLog() {
   const btn = document.getElementById("sendLogBtn");
+  const textInput = document.getElementById("logText");
+  const fileInput = document.getElementById("logImage");
+  const attachBtn = document.getElementById("attachBtn");
+  const saveBtn = document.getElementById("saveConfirmedBtn");
+  const previewContainer = document.getElementById("imagePreview");
+  const previewImg = document.getElementById("previewImg");
+  const removeImg = document.getElementById("removeImg");
+
   if (!btn) return;
 
+  // Handle Attachments
+  attachBtn.onclick = () => fileInput.click();
+
+  fileInput.onchange = (e) => {
+    const file = e.target.files[0];
+    if (!file) return;
+    const reader = new FileReader();
+    reader.onload = (event) => {
+      selectedImageData = {
+        mimeType: file.type,
+        data: event.target.result.split(",")[1],
+      };
+      previewImg.src = event.target.result;
+      previewContainer.style.display = "block";
+    };
+    reader.readAsDataURL(file);
+  };
+
+  removeImg.onclick = () => {
+    selectedImageData = null;
+    fileInput.value = "";
+    previewContainer.style.display = "none";
+  };
+
+  // Main Chat Send
   btn.onclick = async () => {
-    const text = document.getElementById("logText").value.trim();
-    const file = document.getElementById("logImage").files[0];
-    const resultEl = document.getElementById("logResult");
+    const text = textInput.value.trim();
+    if (!text && !selectedImageData) return;
 
-    resultEl.innerHTML = `
-      <div class="glass loading-card">
-        <div class="loading-spinner"></div>
-        <div style="display:flex;align-items:center;gap:8px;">
-          <span class="material-icon">auto_awesome</span>
-          Analyzing with Gemini…
-        </div>
-      </div>
-    `;
+    // UI Feedback
+    createBubble("user", text);
+    const aiBubble = createBubble("ai", "...");
 
-    const payload = await buildPayload(text, file);
+    const currentMessage = text;
+    const currentImage = selectedImageData;
 
-    console.log("[Gemini] payload →", payload);
+    // Reset Input
+    textInput.value = "";
+    selectedImageData = null;
+    fileInput.value = "";
+    previewContainer.style.display = "none";
+    document.getElementById("confirmCard").style.display = "none";
 
-    const res = await fetch(ENDPOINT, {
-      method: "POST",
-      headers: { "Content-Type": "application/json" },
-      body: JSON.stringify(payload),
-    });
+    // Delta: Always include the System Prompt context so Gemini remembers its JSON duties
+    const promptWithContext =
+      chatHistory.length === 0
+        ? `${SYSTEM_PROMPT}\n\nUser: ${currentMessage}`
+        : `Context: ${SYSTEM_PROMPT}\n\nUser Update: ${currentMessage}`;
 
-    const raw = await res.json();
-
-    console.log("[Gemini] RAW RESPONSE ↓↓↓");
-    console.log(raw);
-
-    const parsed = parseGemini(raw, text);
-
-    console.log("[Gemini] PARSED RESULT ↓↓↓");
-    console.log(parsed);
-
-    if (!parsed) {
-      await saveLog({
-        kind: "food",
-        kcal: 0,
-        confidence: 0,
-        notes: "⚠️ Gemini parse failed",
+    try {
+      const response = await fetch(ENDPOINT, {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({
+          message: promptWithContext,
+          history: chatHistory,
+          image: currentImage,
+        }),
       });
 
-      resultEl.innerHTML = `
-        <div class="glass pad-md">
-          <strong>⚠️ Gemini parse failed</strong>
-          <pre style="
-            margin-top:12px;
-            max-height:300px;
-            overflow:auto;
-            font-size:12px;
-            white-space:pre-wrap;
-            opacity:0.85;
-          ">${JSON.stringify(raw, null, 2)}</pre>
-        </div>
-      `;
-      return;
+      if (!response.ok) throw new Error("Connection lost");
+
+      const reader = response.body.getReader();
+      const decoder = new TextDecoder();
+      let fullAiResponse = "";
+      aiBubble.innerHTML = "";
+
+      while (true) {
+        const { done, value } = await reader.read();
+        if (done) break;
+
+        const chunk = decoder.decode(value, { stream: true });
+        fullAiResponse += chunk;
+
+        const displayText = cleanTextForDisplay(fullAiResponse);
+
+        if (typeof marked !== "undefined") {
+          aiBubble.innerHTML = marked.parse(displayText || "...");
+        } else {
+          aiBubble.innerText = displayText || "...";
+        }
+
+        document.getElementById("chatWindow").scrollTop =
+          document.getElementById("chatWindow").scrollHeight;
+      }
+
+      // Finalize history (store raw user message for history efficiency)
+      chatHistory.push({ role: "user", parts: [{ text: currentMessage }] });
+      chatHistory.push({ role: "model", parts: [{ text: fullAiResponse }] });
+
+      // Try to parse calories
+      const parsed = parseGemini(fullAiResponse, currentMessage);
+      if (parsed) {
+        pendingLogEntry = parsed;
+        showConfirmation(parsed);
+      }
+    } catch (err) {
+      aiBubble.innerText = "Error: " + err.message;
+      aiBubble.style.color = "#ff8888";
     }
+  };
 
-    await saveLog(parsed);
+  // Confirm and Save
+  saveBtn.onclick = async () => {
+    if (!pendingLogEntry) return;
 
+    await saveLog(pendingLogEntry);
     haptic("success");
 
-    resultEl.innerHTML = `
-      <div class="glass" style="padding:12px">
+    document.getElementById("logResult").innerHTML = `
+      <div class="glass" style="padding:12px; border-left: 4px solid #4CAF50;">
         Saved ✔ Redirecting to Home…
       </div>
     `;
@@ -131,84 +222,54 @@ export function bindLog() {
     setTimeout(async () => {
       const { switchTab } = await import("./tabs.js");
       await switchTab("home");
-
       requestAnimationFrame(() => {
         import("./today.js").then((m) => m.bindToday(true));
         import("./insights.js").then((m) => m.bindInsights());
       });
-    }, 500);
+    }, 800);
   };
+}
+
+function showConfirmation(data) {
+  const card = document.getElementById("confirmCard");
+  const display = document.getElementById("pendingLogDisplay");
+
+  const icon = data.kind === "food" ? "🍕" : "🏃‍♂️";
+  const color = data.kind === "food" ? "#ff9800" : "#03a9f4";
+
+  display.innerHTML = `
+    <div style="display:flex; justify-content: space-between; align-items: center;">
+      <span>${icon} ${data.kind.toUpperCase()}</span>
+      <span style="color: ${color}; font-size: 24px;">${data.kcal} kcal</span>
+    </div>
+    <div style="font-size: 12px; opacity: 0.7; font-weight: normal; margin-top: 4px;">
+      ${data.notes.replace(/\n/g, ", ")}
+    </div>
+  `;
+
+  card.style.display = "block";
+  document.getElementById("chatWindow").scrollTop =
+    document.getElementById("chatWindow").scrollHeight;
 }
 
 /* =============================
    Gemini handling
 ============================= */
 
-async function buildPayload(text, file) {
-  if (file) {
-    const base64 = await fileToBase64(file);
-    return {
-      prompt: `${SYSTEM_PROMPT}\n${text || ""}`,
-      image: base64,
-    };
-  }
-
-  return {
-    contents: [
-      {
-        parts: [{ text: `${SYSTEM_PROMPT}\n${text}` }],
-      },
-    ],
-  };
-}
-
-function fileToBase64(file) {
-  return new Promise((resolve) => {
-    const reader = new FileReader();
-    reader.onload = () => resolve(reader.result.split(",")[1]);
-    reader.readAsDataURL(file);
-  });
-}
-
-function parseGemini(raw, userText = "") {
-  const parts = raw?.candidates?.[0]?.content?.parts || [];
-
-  const combinedText = parts
-    .map((p) => {
-      if (typeof p.text === "string") return p.text;
-      return "";
-    })
-    .join("");
-
-  console.log("[Gemini] COMBINED TEXT ↓↓↓");
-  console.log(combinedText);
-
-  // 🔎 Try to extract JSON block
+function parseGemini(combinedText, userText = "") {
   const match = combinedText.match(/\{[\s\S]*\}/);
-
-  if (!match) {
-    console.warn("[Gemini] ❌ No JSON block found");
-    return null;
-  }
-
-  console.log("[Gemini] JSON STRING ↓↓↓");
-  console.log(match[0]);
+  if (!match) return null;
 
   try {
     const data = JSON.parse(match[0]);
-
     const exerciseHint =
       /walk|walking|run|ran|running|jog|exercise|workout|steps|km|min/i.test(
         userText
       );
-
     const kind = exerciseHint ? "exercise" : data.kind || "food";
     const kcal = Number(data.totalKcal);
 
-    if (!Number.isFinite(kcal)) {
-      console.warn("[Gemini] ❌ totalKcal invalid:", data.totalKcal);
-      return null;
-    }
+    if (!Number.isFinite(kcal)) return null;
 
     return {
       kind,
@@ -218,7 +279,7 @@ function parseGemini(raw, userText = "") {
       items: data.items || [],
     };
   } catch (err) {
-    console.error("[Gemini] ❌ JSON.parse failed", err);
+    console.error("[Gemini] JSON.parse failed", err);
     return null;
   }
 }
@@ -253,6 +314,10 @@ async function saveLog(entry) {
     const db = getDB();
     const logsRef = ref(db, `users/${state.user.uid}/logs/${todayKey}`);
     await push(logsRef, log);
+
+    // Reset local session history after save
+    chatHistory = [];
+    pendingLogEntry = null;
   } catch (e) {
     console.error("RTDB write failed", e);
   }

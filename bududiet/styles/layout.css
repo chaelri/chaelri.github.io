@@ -401,3 +401,52 @@ p#profile-name {
   margin: auto 0;
   font-weight: bold;
 }
+
+/* Better spacing for the chat */
+#chatWindow {
+  scrollbar-width: thin;
+  scrollbar-color: rgba(255, 255, 255, 0.2) transparent;
+}
+
+.user-bubble-static,
+.ai-bubble-static {
+  padding: 12px 16px;
+  border-radius: 12px;
+  line-height: 1.6;
+  font-size: 14px;
+  max-width: 90%;
+  word-wrap: break-word;
+}
+
+.user-bubble-static {
+  align-self: flex-end;
+  background: var(--accent);
+  color: white;
+}
+
+.ai-bubble-static {
+  align-self: flex-start;
+  background: rgba(255, 255, 255, 0.08);
+  border: 1px solid rgba(255, 255, 255, 0.1);
+  color: #e0e0e0;
+}
+
+/* Ensure markdown lists and bold text look good */
+.prose b,
+.prose strong {
+  font-weight: 700;
+  color: #fff;
+}
+.prose p {
+  margin-bottom: 8px;
+}
+.prose ul {
+  padding-left: 20px;
+  margin-bottom: 8px;
+}
+.prose li {
+  list-style: disc;
+  margin-bottom: 4px;
+}
+
+
