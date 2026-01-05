@@ -7,25 +7,29 @@ const CLOUD_RUN_URL =
 
 let chatHistory = [];
 
-// Delta: Auto-expand textarea logic
+const isTouchDevice = "ontouchstart" in window || navigator.maxTouchPoints > 0;
+
 userInput.addEventListener("input", function () {
   this.style.height = "auto";
   this.style.height = this.scrollHeight + "px";
-  if (this.scrollHeight > 200) {
-    this.style.overflowY = "scroll";
-    this.style.height = "200px";
-  } else {
-    this.style.overflowY = "hidden";
-  }
 });
 
-// Delta: Handle Enter to submit vs Shift+Enter for newline
 userInput.addEventListener("keydown", (e) => {
-  if (e.key === "Enter" && !e.shiftKey) {
+  if (e.key === "Enter" && !e.shiftKey && !isTouchDevice) {
     e.preventDefault();
     chatForm.dispatchEvent(new Event("submit"));
   }
 });
+
+function scrollToBottom() {
+  const threshold = 150;
+  const position = chatWindow.scrollTop + chatWindow.offsetHeight;
+  const height = chatWindow.scrollHeight;
+
+  if (height - position < threshold) {
+    chatWindow.scrollTo({ top: chatWindow.scrollHeight, behavior: "smooth" });
+  }
+}
 
 chatForm.addEventListener("submit", async (e) => {
   e.preventDefault();
@@ -33,12 +37,10 @@ chatForm.addEventListener("submit", async (e) => {
   if (!message) return;
 
   addMessage("user", message);
-
-  // Reset textarea height
   userInput.value = "";
   userInput.style.height = "auto";
 
-  const aiBubble = addMessage("ai", "Thinking...");
+  const aiBubble = addMessage("ai", "...");
   let fullAiResponse = "";
 
   try {
@@ -48,7 +50,7 @@ chatForm.addEventListener("submit", async (e) => {
       body: JSON.stringify({ message: message, history: chatHistory }),
     });
 
-    if (!response.ok) throw new Error("Connection failed");
+    if (!response.ok) throw new Error("Connection lost");
 
     const reader = response.body.getReader();
     const decoder = new TextDecoder();
@@ -61,10 +63,8 @@ chatForm.addEventListener("submit", async (e) => {
       const chunk = decoder.decode(value, { stream: true });
       fullAiResponse += chunk;
 
-      // Delta: Render Markdown into HTML as the chunks arrive
       aiBubble.innerHTML = marked.parse(fullAiResponse);
-
-      chatWindow.scrollTop = chatWindow.scrollHeight;
+      scrollToBottom();
     }
 
     chatHistory.push({ role: "user", parts: [{ text: message }] });
@@ -80,27 +80,26 @@ function addMessage(role, text) {
   wrapper.className =
     role === "user"
       ? "flex flex-col items-end w-full"
-      : "flex gap-3 self-start max-w-[85%] md:max-w-[70%]";
+      : "flex gap-4 self-start w-full chat-bubble";
 
   const iconHtml =
     role === "ai"
       ? `
-        <div class="w-8 h-8 rounded-full bg-blue-600 flex-shrink-0 flex items-center justify-center border border-blue-500 shadow-sm">
-            <span class="material-icons text-sm text-white">auto_awesome</span>
+        <div class="w-9 h-9 rounded-full bg-blue-600 flex-shrink-0 flex items-center justify-center border border-blue-500 shadow-md">
+            <span class="material-icons text-[18px] text-white">smart_toy</span>
         </div>`
       : "";
 
   const bubble = document.createElement("div");
   bubble.className =
     role === "user"
-      ? "bg-blue-600 text-white p-4 rounded-2xl rounded-tr-none max-w-[85%] md:max-w-[70%] shadow-lg"
-      : "bg-gray-800/50 border border-gray-700 p-4 rounded-2xl rounded-tl-none shadow-sm prose text-gray-200";
+      ? "user-bubble bg-blue-600 text-white p-4 md:p-5 rounded-2xl shadow-lg w-full md:w-auto md:max-w-[80%]"
+      : "ai-bubble bg-gray-900/50 border border-gray-800 p-5 md:p-6 rounded-2xl shadow-sm prose text-gray-200 w-full";
 
-  // Delta: Use innerHTML to allow Markdown to render
   if (role === "user") {
-    bubble.innerText = text; // User messages usually don't need markdown
+    bubble.innerText = text;
   } else {
-    bubble.innerHTML = marked.parse(text); // AI messages ALWAYS parsed
+    bubble.innerHTML = marked.parse(text);
   }
 
   if (role === "ai") {
