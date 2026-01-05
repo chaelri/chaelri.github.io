@@ -61,14 +61,14 @@ function init() {
   updateVenueWeather();
 }
 
-function render(shouldScroll = false) {
+function render() {
   const tableBody = document.getElementById("guestTableBody");
   tableBody.innerHTML = "";
 
   let displayData = allData.filter((item) => {
-    const matchesSearch = item.name
-      .toLowerCase()
-      .includes(searchTerm.toLowerCase());
+    const matchesSearch =
+      item.name.toLowerCase().includes(searchTerm.toLowerCase()) ||
+      item.nickname.toLowerCase().includes(searchTerm.toLowerCase());
     const matchesSide = filterSide === "all" || item.side === filterSide;
     const matchesStatus =
       filterStatus === "all" || item.status === filterStatus;
