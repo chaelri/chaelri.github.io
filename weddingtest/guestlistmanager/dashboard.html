@@ -157,6 +157,21 @@
             <button class="sort-chip" id="mobSortSide">Side</button>
             <button class="sort-chip" id="mobSortStatus">Status</button>
           </div>
+          <!-- PAGINATION CONTROLS -->
+          <div class="mt-6 mb-6 flex flex-col items-center gap-3">
+            <div
+              id="pagination-container"
+              class="flex justify-center items-center gap-1.5"
+            >
+              <!-- JS Injected Buttons -->
+            </div>
+            <div
+              id="page-indicator"
+              class="text-[10px] uppercase tracking-widest text-stone-400 font-bold"
+            >
+              Page 0 of 0
+            </div>
+          </div>
 
           <div
             class="bg-white rounded-2xl shadow-sm border border-stone-100 overflow-hidden"
@@ -186,6 +201,11 @@
                     <th
                       class="p-4 text-[10px] uppercase tracking-widest text-stone-500 font-bold"
                     >
+                      Invited
+                    </th>
+                    <th
+                      class="p-4 text-[10px] uppercase tracking-widest text-stone-500 font-bold"
+                    >
                       Actions
                     </th>
                   </tr>
@@ -195,22 +215,6 @@
                   class="text-sm text-stone-600"
                 ></tbody>
               </table>
-            </div>
-          </div>
-
-          <!-- PAGINATION CONTROLS -->
-          <div class="mt-6 flex flex-col items-center gap-3">
-            <div
-              id="pagination-container"
-              class="flex justify-center items-center gap-1.5"
-            >
-              <!-- JS Injected Buttons -->
-            </div>
-            <div
-              id="page-indicator"
-              class="text-[10px] uppercase tracking-widest text-stone-400 font-bold"
-            >
-              Page 0 of 0
             </div>
           </div>
         </div>

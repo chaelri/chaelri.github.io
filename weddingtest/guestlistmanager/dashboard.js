@@ -53,6 +53,7 @@ function init() {
           side: guest.side || "both",
           status: response ? response.attending : "pending",
           submittedAt: response ? response.submittedAt : null,
+          invited: guest.invited || "no",
         };
       });
       render();
@@ -165,6 +166,18 @@ function render(shouldScroll = false) {
                     }>No</option>
                 </select>
             </td>
+            <td class="p-4" data-label="Invited">
+                <select class="invited-select bg-transparent text-[10px] font-bold uppercase tracking-widest outline-none cursor-pointer p-1 rounded ${
+                  guest.invited === "yes" ? "text-sky-600" : "text-stone-400"
+                }" data-id="${guest.id}">
+                    <option value="no" ${
+                      guest.invited === "no" ? "selected" : ""
+                    }>No</option>
+                    <option value="yes" ${
+                      guest.invited === "yes" ? "selected" : ""
+                    }>Yes</option>
+                </select>
+            </td>
             <td class="p-4 space-x-3 text-right" data-label="Actions">
                 <button onclick="editGuestName('${guest.id}', '${
       guest.name
@@ -211,18 +224,16 @@ function render(shouldScroll = false) {
         (s.onchange = (e) =>
           updateGuestSide(e.target.dataset.id, e.target.value))
     );
+  document
+    .querySelectorAll(".invited-select")
+    .forEach(
+      (s) =>
+        (s.onchange = (e) =>
+          updateInvitedStatus(e.target.dataset.id, e.target.value))
+    );
 
   renderPagination(totalPages);
   renderFinalList();
-
-  // FIX: Scroll to top of the results column if page changed
-  if (shouldScroll) {
-    const target =
-      window.innerWidth < 640
-        ? document.getElementById("searchInput")
-        : document.querySelector(".lg\\:col-span-3");
-    target.scrollIntoView({ behavior: "instant", block: "start" });
-  }
 }
 
 function renderPagination(totalPages) {
@@ -503,6 +514,10 @@ function renderFinalList() {
 
 window.updateGuestSide = async (id, newSide) => {
   await update(ref(db, `guestList/${id}`), { side: newSide });
+};
+
+window.updateInvitedStatus = async (id, newInvited) => {
+  await update(ref(db, `guestList/${id}`), { invited: newInvited });
 };
 
 init();
