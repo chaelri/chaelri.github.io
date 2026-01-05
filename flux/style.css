@@ -89,52 +89,106 @@
 /* SHARED TASK PILLS */
 .cell-content {
   flex: 1;
-  overflow-y: auto; /* Allow vertical scroll within the date cell */
+  overflow-y: auto;
   overflow-x: hidden;
   padding: 4px;
   display: flex;
   flex-direction: column;
   gap: 4px;
-  max-height: 100%; /* Prevent stretching the parent */
+  max-height: 100%;
 }
 .task-pill {
   user-select: none;
-  cursor: grab;
+  cursor: pointer;
   font-size: 11px;
-  padding: 6px 8px !important; /* Increased vertical padding */
+  padding: 6px 8px !important;
   border-radius: 8px;
-  background: #f0f7ff !important;
+  background: white !important;
   border-left: 3px solid #2563eb;
   color: #1e40af;
   display: flex;
-  justify-content: space-between;
-  align-items: center;
-  touch-action: none;
-  gap: 4px;
+  flex-direction: column;
+  justify-content: center;
+  touch-action: pan-y; /* Allow scrolling */
+  gap: 2px;
   transition: all 0.2s ease;
-  box-shadow: 0 1px 3px rgba(37, 99, 235, 0.1);
+  box-shadow: 0 1px 3px rgba(0, 0, 0, 0.05);
   overflow: hidden;
   min-width: 0 !important;
-  min-height: 32px; /* Set a comfortable minimum height */
-  height: auto; /* Allow growth if title wraps */
+  min-height: 38px;
+  height: auto;
   line-height: 1.2;
-  flex-shrink: 0; /* Prevents the pill itself from squishing */
+  flex-shrink: 0;
+  position: relative;
 }
+
+/* NEW: Drag Handle Styling */
+.drag-handle {
+  cursor: grab;
+  touch-action: none; /* Block scrolling on handle */
+  background: #f8fafc;
+  border-radius: 4px;
+}
+.dark .drag-handle {
+  background: #020617;
+}
+
+/* Task Priority Strips */
+.task-pill::after {
+  content: "";
+  position: absolute;
+  right: 0;
+  top: 0;
+  bottom: 0;
+  width: 3px;
+  opacity: 0.8;
+}
+.priority-high::after {
+  background: #f43f5e;
+}
+.priority-medium::after {
+  background: #f59e0b;
+}
+.priority-low::after {
+  background: #3b82f6;
+}
+
+/* Subtask Progress Bar */
+.progress-bar-container {
+  width: 100%;
+  height: 2px;
+  background: #e2e8f0;
+  border-radius: 1px;
+  margin-top: 2px;
+  overflow: hidden;
+}
+.progress-bar-fill {
+  height: 100%;
+  background: currentColor;
+  transition: width 0.3s ease;
+}
+
+/* Done State */
+.is-done {
+  opacity: 0.5;
+  text-decoration: line-through;
+}
+
 .task-pill span {
   display: block;
   overflow: hidden;
   text-overflow: ellipsis;
   white-space: nowrap;
-  font-weight: 600;
+  font-weight: 700;
 }
-.task-pill .material-icons {
-  font-size: 13px !important;
-  color: #64748b;
-  opacity: 0.5;
-}
+
 .task-pill.dragging {
-  opacity: 0.3;
+  opacity: 0.8;
   pointer-events: none;
+  box-shadow: 0 20px 25px -5px rgb(0 0 0 / 0.1),
+    0 8px 10px -6px rgb(0 0 0 / 0.1);
+  transform: scale(1.05);
+  cursor: grabbing;
 }
 .drop-target-active {
   background-color: #f0f7ff !important;
@@ -167,7 +221,6 @@
   color: #2563eb;
   box-shadow: inset 0 0 0 1px #3b82f6;
 }
-/* REMOVE the old .task-dot and REPLACE with these */
 .dot-row {
   display: flex;
   gap: 2px;
@@ -185,7 +238,6 @@
   flex-shrink: 0;
 }
 
-/* Specific Dot Colors matching your pills */
 .dot-blue {
   background-color: #3b82f6;
 }
@@ -199,24 +251,39 @@
   background-color: #a855f7;
 }
 
-/* Collapsible Row 3 */
+/* Timeline UI for Row 2 */
+#mobile-row-details .task-pill {
+  flex-direction: row;
+  align-items: center;
+  padding: 12px !important;
+  gap: 12px;
+}
+.timeline-time {
+  font-size: 9px;
+  font-weight: 900;
+  color: #94a3b8;
+  min-width: 40px;
+}
+
+/* Collapsible Row 3 Logic */
+#mobile-row-dump {
+  transition: height 0.1s ease-out;
+}
 .dump-collapsed {
-  height: 32px !important;
+  height: 40px !important;
 }
 .dump-collapsed #dump-drawer-content {
   display: none !important;
 }
 
 /* PC SIDEBAR LOGIC */
-/* UPDATE: Ensure sidebar transitions and hiding logic are solid */
 #sidebar {
   transition: width 0.3s cubic-bezier(0.4, 0, 0.2, 1),
     transform 0.3s cubic-bezier(0.4, 0, 0.2, 1), opacity 0.2s ease;
   white-space: nowrap;
-  overflow: hidden; /* Vital to hide text during collapse */
+  overflow: hidden;
 }
 
-/* Desktop collapse state */
 .sidebar-collapsed {
   width: 0 !important;
   min-width: 0 !important;
@@ -225,21 +292,11 @@
   pointer-events: none;
 }
 
-/* Ensure internal padding doesn't keep the sidebar "open" visually */
 .sidebar-collapsed > div {
   visibility: hidden;
 }
 
-@media (hover: hover) {
-  .task-pill .material-icons {
-    opacity: 0;
-  }
-  .task-pill:hover .material-icons {
-    opacity: 1;
-  }
-}
-
-/* 1. Disable selection globally for a native app feel */
+/* Disable selection globally */
 * {
   -webkit-tap-highlight-color: transparent;
   -webkit-touch-callout: none;
@@ -253,35 +310,29 @@ textarea,
   user-select: text !important;
 }
 
-/* Color Variants for Pills */
+/* Mobile Scrollbar Tuning */
+@media (max-width: 768px) {
+  ::-webkit-scrollbar {
+    width: 8px;
+  }
+}
+
+/* Color Variants */
 .task-pill.color-blue {
   border-left-color: #3b82f6;
-  background: #eff6ff !important;
   color: #1e40af;
 }
 .task-pill.color-green {
   border-left-color: #10b981;
-  background: #ecfdf5 !important;
   color: #065f46;
 }
 .task-pill.color-red {
   border-left-color: #f43f5e;
-  background: #fff1f2 !important;
   color: #9f1239;
 }
-
-/* Dark Mode Pill Overrides */
-.dark .task-pill.color-blue {
-  background: #1e3a8a33 !important;
-  color: #93c5fd;
-}
-.dark .task-pill.color-green {
-  background: #064e3b33 !important;
-  color: #6ee7b7;
-}
-.dark .task-pill.color-red {
-  background: #88133733 !important;
-  color: #fda4af;
+.task-pill.color-purple {
+  border-left-color: #a855f7;
+  color: #6b21a8;
 }
 
 /* Today Highlighting */
@@ -302,6 +353,7 @@ textarea,
   border-radius: 4px;
 }
 
+/* Dark Mode Overrides */
 .dark body {
   background-color: #020617;
   color: #f1f5f9;
@@ -310,11 +362,6 @@ textarea,
   background-color: #0f172a !important;
   border-color: #1e293b !important;
 }
-.today-cell {
-  background-color: #f0f7ff !important;
-  box-shadow: inset 0 0 0 2px #3b82f6;
-  z-index: 10;
-}
 .dark .today-cell {
   background-color: #1e293b !important;
   box-shadow: inset 0 0 0 2px #3b82f6;
@@ -322,22 +369,6 @@ textarea,
 .dark .today-cell .text-blue-600 {
   color: #60a5fa !important;
 }
-#edit-modal button:last-child:active {
-  transform: scale(0.95);
-}
-/* ADDED: Purple Color Variant */
-.task-pill.color-purple {
-  border-left-color: #a855f7;
-  background: #faf5ff !important;
-  color: #6b21a8;
-}
-
-/* ADDED: Dark Mode Purple Override */
-.dark .task-pill.color-purple {
-  background: #581c8733 !important;
-  color: #d8b4fe;
-}
-
 .dark .view-month {
   background-color: #1e293b;
 }
@@ -352,7 +383,6 @@ textarea,
 .dark .bg-slate-50\/50 {
   background-color: #020617 !important;
 }
-
 .dark #mobile-row-calendar .mobile-mini-grid {
   background: #1e293b;
 }
@@ -361,74 +391,57 @@ textarea,
   border-color: #1e293b;
   color: #94a3b8;
 }
-.dark .mobile-mini-grid > div.bg-white {
-  background-color: #0f172a !important;
-  color: #475569 !important;
-}
 .dark .mini-day-square.selected {
   background: #1e293b;
   color: #3b82f6;
-  box-shadow: inset 0 0 0 1px #3b82f6;
+}
+.dark .task-pill {
+  background: #1e293b !important;
+}
+.dark .task-pill.color-blue {
+  color: #93c5fd;
+}
+.dark .task-pill.color-green {
+  color: #6ee7b7;
+}
+.dark .task-pill.color-red {
+  color: #fda4af;
+}
+.dark .task-pill.color-purple {
+  color: #d8b4fe;
 }
 
-#mobile-row-details.drop-target-active,
-#mobile-row-dump.drop-target-active {
-  background-color: #eff6ff !important;
-  outline: 2px dashed #3b82f6;
-  outline-offset: -8px;
-}
-.dark #mobile-row-details.drop-target-active,
-.dark #mobile-row-dump.drop-target-active {
-  background-color: #9aa4b5 !important;
-  outline-color: #60a5fa;
-}
-#mobile-row-details {
-  display: flex;
-  flex-direction: column;
-  min-height: 100px;
-}
-
-/* 4. WEEK VIEW DARK MODE FIX */
-
-/* Background behind the columns */
 .dark .view-week {
   background-color: #020617;
 }
-
-/* Vertical separators between columns */
 .dark .week-column {
   border-right-color: #1e293b;
 }
-
-/* Header background (The Sun/Mon/Tue section) */
 .dark .week-header {
   background-color: #0f172a;
   border-bottom-color: #1e293b;
 }
-
-/* Day name text (e.g., "SUN") */
 .dark .week-header .day-name {
   color: #64748b;
 }
-
-/* Day number text (e.g., "28") */
 .dark .week-header .day-num {
   color: #f1f5f9;
 }
-
-/* Today highlight for Week View */
 .dark .week-column.today-column {
   background-color: #0f172a;
 }
-
 .dark .week-column.today-column .week-header {
   background-color: #1e293b;
 }
-
 .dark .week-column.today-column .day-num {
   color: #3b82f6;
 }
-
 .dark .today-cell::before {
   background: #0e172a;
+}
+
+/* Trash Zone Activation */
+.trash-active {
+  height: 120px !important;
+  pointer-events: auto !important;
 }

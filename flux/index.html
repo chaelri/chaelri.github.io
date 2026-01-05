@@ -177,14 +177,15 @@
           id="mobile-row-dump"
           class="h-1/3 bg-white dark:bg-slate-900 border-t dark:border-slate-800 flex flex-col transition-all duration-300 relative overflow-hidden"
         >
-          <button
-            onclick="toggleMobileDump()"
-            class="w-full h-8 flex items-center justify-center bg-slate-50 dark:bg-slate-800 shrink-0"
+          <!-- UPDATED: MOBILE SLIDER HANDLE -->
+          <div
+            id="mobile-dump-resizer"
+            class="w-full h-10 flex items-center justify-center bg-slate-50 dark:bg-slate-800 shrink-0 cursor-ns-resize touch-none"
           >
-            <span id="dump-arrow" class="material-icons text-slate-400"
-              >keyboard_arrow_down</span
-            >
-          </button>
+            <div
+              class="h-1.5 w-14 bg-slate-300 dark:bg-slate-600 rounded-full"
+            ></div>
+          </div>
           <div
             class="flex-1 flex flex-col overflow-hidden"
             id="dump-drawer-content"
@@ -212,10 +213,109 @@
       </div>
     </main>
 
+    <!-- TRASH ZONE -->
+    <div
+      id="trash-zone"
+      class="fixed bottom-0 left-0 w-full h-0 bg-rose-600 z-[200] flex items-center justify-center text-white transition-all overflow-hidden pointer-events-none"
+    >
+      <div class="flex items-center gap-3 font-black uppercase tracking-widest">
+        <span class="material-icons text-3xl">delete_sweep</span>
+        <span>Drop here to delete</span>
+      </div>
+    </div>
+
+    <!-- PEEK MODAL (PREVIEW) -->
+    <div
+      id="peek-modal"
+      class="hidden fixed inset-0 bg-slate-900/60 z-[100] flex items-center justify-center p-4 backdrop-blur-md"
+    >
+      <div
+        class="bg-white dark:bg-slate-900 rounded-3xl shadow-2xl w-full max-w-sm overflow-hidden flex flex-col"
+      >
+        <div id="peek-header" class="p-6 pb-2">
+          <div class="flex justify-between items-start mb-4">
+            <span
+              id="peek-priority-tag"
+              class="text-[10px] font-black px-2 py-1 rounded bg-slate-100 dark:bg-slate-800 text-slate-400 uppercase tracking-widest"
+              >Priority</span
+            >
+            <button
+              onclick="closePeekModal()"
+              class="material-icons text-slate-300 hover:text-slate-500"
+            >
+              close
+            </button>
+          </div>
+          <h3
+            id="peek-title"
+            class="text-2xl font-black leading-tight mb-2 dark:text-white"
+          >
+            Task Title
+          </h3>
+          <div
+            id="peek-meta"
+            class="flex gap-4 text-xs font-bold text-slate-400"
+          >
+            <div class="flex items-center gap-1">
+              <span class="material-icons text-sm">event</span>
+              <span id="peek-date">Date</span>
+            </div>
+            <div class="flex items-center gap-1">
+              <span class="material-icons text-sm">schedule</span>
+              <span id="peek-time">Time</span>
+            </div>
+          </div>
+        </div>
+        <div class="p-6 pt-0 space-y-6 flex-1 overflow-y-auto max-h-[60vh]">
+          <div>
+            <p
+              class="text-[10px] font-black text-slate-400 uppercase tracking-widest mb-2"
+            >
+              Description
+            </p>
+            <p
+              id="peek-desc"
+              class="text-sm text-slate-600 dark:text-slate-300 leading-relaxed whitespace-pre-wrap"
+            >
+              No description added.
+            </p>
+          </div>
+          <div>
+            <p
+              class="text-[10px] font-black text-slate-400 uppercase tracking-widest mb-2"
+            >
+              Subtasks
+            </p>
+            <div id="peek-subtasks-list" class="space-y-2"></div>
+          </div>
+        </div>
+        <div class="p-6 bg-slate-50 dark:bg-slate-800/50 flex gap-2">
+          <button
+            id="peek-done-btn"
+            class="flex-1 py-3 bg-blue-600 text-white rounded-xl font-bold uppercase text-xs shadow-lg hover:bg-blue-700 transition"
+          >
+            Mark as Done
+          </button>
+          <button
+            id="peek-edit-btn"
+            class="w-12 h-12 bg-white dark:bg-slate-700 dark:text-white rounded-xl flex items-center justify-center shadow-md"
+          >
+            <span class="material-icons text-lg">edit</span>
+          </button>
+          <button
+            id="peek-del-btn"
+            class="w-12 h-12 bg-white dark:bg-slate-700 text-rose-500 rounded-xl flex items-center justify-center shadow-md"
+          >
+            <span class="material-icons text-lg">delete</span>
+          </button>
+        </div>
+      </div>
+    </div>
+
     <!-- EDIT MODAL -->
     <div
       id="edit-modal"
-      class="hidden fixed inset-0 bg-slate-900/60 z-[100] flex items-center justify-center p-4 backdrop-blur-md"
+      class="hidden fixed inset-0 bg-slate-900/60 z-[110] flex items-center justify-center p-4 backdrop-blur-md"
     >
       <div
         class="bg-white dark:bg-slate-900 rounded-2xl shadow-2xl w-full max-w-sm p-6 overflow-y-auto max-h-[90vh]"
@@ -281,6 +381,33 @@
                 class="w-full bg-slate-50 dark:bg-slate-800 dark:text-white rounded-xl p-3 border-none text-sm"
               />
             </div>
+          </div>
+          <div>
+            <label
+              class="text-[10px] font-black text-slate-400 uppercase tracking-widest ml-1"
+              >Priority</label
+            >
+            <select
+              id="edit-task-priority"
+              class="w-full bg-slate-50 dark:bg-slate-800 dark:text-white rounded-xl p-3 border-none text-sm outline-none"
+            >
+              <option value="none">None</option>
+              <option value="low">Low</option>
+              <option value="medium">Medium</option>
+              <option value="high">High</option>
+            </select>
+          </div>
+          <div>
+            <label
+              class="text-[10px] font-black text-slate-400 uppercase tracking-widest ml-1"
+              >Subtasks (one per line)</label
+            >
+            <textarea
+              id="edit-task-subtasks"
+              rows="3"
+              class="w-full bg-slate-50 dark:bg-slate-800 dark:text-white rounded-xl p-3 border-none outline-none text-sm"
+              placeholder="Step 1..."
+            ></textarea>
           </div>
           <div>
             <label
