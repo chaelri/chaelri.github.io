@@ -9,6 +9,11 @@
       href="https://fonts.googleapis.com/css2?family=Playfair+Display:ital,wght@0,700;1,700&family=Inter:wght@400;600&display=swap"
       rel="stylesheet"
     />
+    <!-- Material Icons for Pagination -->
+    <link
+      href="https://fonts.googleapis.com/icon?family=Material+Icons"
+      rel="stylesheet"
+    />
     <link rel="stylesheet" href="./dashboard.css" />
     <!-- Leaflet Map CSS & JS -->
     <link
@@ -32,7 +37,7 @@
     </nav>
 
     <main class="max-w-6xl mx-auto p-4 md:p-6">
-      <!-- STATS OVERVIEW (4 in a row on mobile) -->
+      <!-- STATS OVERVIEW -->
       <div class="grid grid-cols-4 gap-2 md:gap-6 mb-8">
         <div
           class="bg-white p-3 md:p-6 rounded-xl shadow-sm border border-stone-100 text-center md:text-left"
@@ -75,6 +80,7 @@
           <p id="stat-pending" class="text-lg md:text-3xl text-orange-500">0</p>
         </div>
       </div>
+
       <!-- STATS FOR SIDES -->
       <div class="grid grid-cols-4 gap-2 md:gap-6 mb-8">
         <div
@@ -83,7 +89,7 @@
           <p
             class="text-[8px] md:text-[10px] uppercase tracking-widest text-pink-500 font-bold"
           >
-            Karla's Side
+            Karla
           </p>
           <p id="stat-karla" class="text-lg md:text-3xl text-stone-800">0</p>
         </div>
@@ -93,7 +99,7 @@
           <p
             class="text-[8px] md:text-[10px] uppercase tracking-widest text-blue-500 font-bold"
           >
-            Charlie's Side
+            Charlie
           </p>
           <p id="stat-charlie" class="text-lg md:text-3xl text-stone-800">0</p>
         </div>
@@ -103,14 +109,14 @@
           <p
             class="text-[8px] md:text-[10px] uppercase tracking-widest text-purple-500 font-bold"
           >
-            Both / Common
+            Both
           </p>
           <p id="stat-both" class="text-lg md:text-3xl text-stone-800">0</p>
         </div>
       </div>
 
       <div class="grid grid-cols-1 lg:grid-cols-4 gap-8">
-        <!-- LEFT COLUMN: ADD GUEST -->
+        <!-- LEFT COLUMN -->
         <div class="lg:col-span-1 space-y-6">
           <div
             class="bg-white p-6 rounded-2xl shadow-sm border border-stone-100"
@@ -131,8 +137,6 @@
               </button>
             </form>
           </div>
-
-          <!-- SEARCH/FILTER -->
           <div
             class="bg-white p-6 rounded-2xl shadow-sm border border-stone-100"
           >
@@ -146,8 +150,14 @@
           </div>
         </div>
 
-        <!-- RIGHT COLUMN: TABLE -->
+        <!-- RIGHT COLUMN -->
         <div class="lg:col-span-3">
+          <div class="mobile-sort-controls">
+            <button class="sort-chip active" id="mobSortName">Name</button>
+            <button class="sort-chip" id="mobSortSide">Side</button>
+            <button class="sort-chip" id="mobSortStatus">Status</button>
+          </div>
+
           <div
             class="bg-white rounded-2xl shadow-sm border border-stone-100 overflow-hidden"
           >
@@ -161,7 +171,6 @@
                     >
                       Name <span class="sort-icon">↕</span>
                     </th>
-                    <!-- Replace your current Side <th> with this -->
                     <th
                       class="p-4 text-[10px] uppercase tracking-widest text-stone-500 font-bold cursor-pointer hover:text-[#7b8a5b]"
                       id="sortSide"
@@ -181,10 +190,27 @@
                     </th>
                   </tr>
                 </thead>
-                <tbody id="guestTableBody" class="text-sm text-stone-600">
-                  <!-- JS Injected Rows -->
-                </tbody>
+                <tbody
+                  id="guestTableBody"
+                  class="text-sm text-stone-600"
+                ></tbody>
               </table>
+            </div>
+          </div>
+
+          <!-- PAGINATION CONTROLS -->
+          <div class="mt-6 flex flex-col items-center gap-3">
+            <div
+              id="pagination-container"
+              class="flex justify-center items-center gap-1.5"
+            >
+              <!-- JS Injected Buttons -->
+            </div>
+            <div
+              id="page-indicator"
+              class="text-[10px] uppercase tracking-widest text-stone-400 font-bold"
+            >
+              Page 0 of 0
             </div>
           </div>
         </div>
@@ -234,9 +260,10 @@
                   </th>
                 </tr>
               </thead>
-              <tbody id="finalGuestTableBody" class="text-sm text-stone-600">
-                <!-- Final list will be injected here -->
-              </tbody>
+              <tbody
+                id="finalGuestTableBody"
+                class="text-sm text-stone-600"
+              ></tbody>
             </table>
           </div>
         </div>
@@ -289,9 +316,10 @@
                   </th>
                 </tr>
               </thead>
-              <tbody id="visitorTableBody" class="text-sm text-stone-600">
-                <!-- JS Injected Visitor Logs -->
-              </tbody>
+              <tbody
+                id="visitorTableBody"
+                class="text-sm text-stone-600"
+              ></tbody>
             </table>
           </div>
         </div>
