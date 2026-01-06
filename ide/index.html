@@ -1,0 +1,173 @@
+<!DOCTYPE html>
+<html lang="en">
+  <head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <title>FS DevTools IDE - Super Smart</title>
+    <!-- PWA Manifest -->
+    <link rel="manifest" href="manifest.json" />
+    <script src="https://cdn.tailwindcss.com"></script>
+    <link
+      href="https://fonts.googleapis.com/icon?family=Material+Icons"
+      rel="stylesheet"
+    />
+    <link rel="stylesheet" href="style.css" />
+  </head>
+  <body
+    class="bg-slate-950 text-slate-100 min-h-screen flex flex-col overflow-hidden"
+  >
+    <nav
+      class="bg-slate-900 border-b border-slate-800 px-4 flex justify-between items-center h-14 shrink-0 shadow-2xl z-20"
+    >
+      <div class="flex items-center gap-3">
+        <span
+          class="text-lg font-black text-emerald-500 tracking-tighter italic"
+          >DEV_IDE</span
+        >
+        <div class="h-6 w-[1px] bg-slate-800"></div>
+        <button
+          id="pickFile"
+          class="btn-sm bg-blue-600 hover:bg-blue-500 text-white shadow-lg"
+          title="Open File"
+        >
+          <span class="material-icons text-sm">file_open</span>
+        </button>
+        <button
+          id="pickFolder"
+          class="btn-sm bg-emerald-600 hover:bg-emerald-500 text-white shadow-lg"
+          title="Open Smart Folder"
+        >
+          <span class="material-icons text-sm">folder_zip</span>
+        </button>
+
+        <select
+          id="htmlPicker"
+          class="hidden bg-slate-950 text-[11px] border border-slate-800 rounded px-2 py-1 outline-none text-emerald-400 max-w-[180px]"
+        ></select>
+      </div>
+
+      <div
+        class="flex bg-slate-950 rounded-lg p-1 gap-1 border border-slate-800"
+      >
+        <button onclick="setViewport('100%')" class="v-btn active" id="v-full">
+          <span class="material-icons text-sm">desktop_windows</span>
+        </button>
+        <button onclick="setViewport('768px')" class="v-btn" id="v-tablet">
+          <span class="material-icons text-sm">tablet</span>
+        </button>
+        <button onclick="setViewport('375px')" class="v-btn" id="v-mobile">
+          <span class="material-icons text-sm">smartphone</span>
+        </button>
+      </div>
+
+      <button
+        id="toggleInspect"
+        class="bg-slate-800 border border-slate-700 hover:border-orange-500 px-4 py-1.5 rounded flex items-center gap-2 transition-all group"
+      >
+        <span
+          class="material-icons text-sm group-hover:rotate-12 transition-transform"
+          >insights</span
+        >
+        <span
+          class="text-[10px] font-bold uppercase tracking-widest text-slate-300"
+          >Inspect</span
+        >
+      </button>
+    </nav>
+
+    <main class="flex flex-grow overflow-hidden relative">
+      <div
+        class="flex-grow bg-slate-950 flex justify-center items-start overflow-auto p-8"
+        id="viewport-container"
+      >
+        <div
+          id="empty-state"
+          class="absolute inset-0 flex flex-col items-center justify-center text-slate-600 bg-slate-950 z-10 text-center"
+        >
+          <span class="material-icons text-7xl mb-4 opacity-10">layers</span>
+          <p class="text-xs font-bold uppercase tracking-[0.3em]">
+            Virtual Host Ready
+          </p>
+          <p class="text-[10px] opacity-40 mt-2">
+            Select a folder to resolve JSON, JS, CSS, and High-Res Images.
+          </p>
+        </div>
+        <iframe
+          id="viewer"
+          class="bg-white border-none opacity-0 shadow-[0_30px_60px_rgba(0,0,0,0.5)] transition-all w-full h-full"
+        ></iframe>
+      </div>
+
+      <aside
+        class="w-96 border-l border-slate-800 flex flex-col shrink-0 shadow-2xl z-30 bg-slate-900"
+      >
+        <div
+          class="flex bg-slate-950 text-[9px] font-bold uppercase tracking-widest text-slate-500 border-b border-slate-800"
+        >
+          <button
+            onclick="switchTab('inspect')"
+            id="tab-inspect"
+            class="flex-1 py-4 border-b-2 border-emerald-500 text-emerald-400"
+          >
+            Inspector
+          </button>
+          <button
+            onclick="switchTab('files')"
+            id="tab-files"
+            class="flex-1 py-4 border-b-2 border-transparent"
+          >
+            Project
+          </button>
+          <button
+            onclick="switchTab('console')"
+            id="tab-console"
+            class="flex-1 py-4 border-b-2 border-transparent"
+          >
+            Console
+          </button>
+        </div>
+
+        <div id="pane-inspect" class="flex-grow flex flex-col overflow-hidden">
+          <div id="inspector-data" class="flex-grow overflow-auto">
+            <div class="p-10 text-center text-slate-700">
+              <span class="material-icons text-4xl mb-4 opacity-20"
+                >touch_app</span
+              >
+              <p class="text-[10px] uppercase tracking-widest">
+                No Element Selected
+              </p>
+            </div>
+          </div>
+        </div>
+
+        <div
+          id="pane-files"
+          class="hidden flex-grow overflow-y-auto p-4 bg-slate-950"
+        >
+          <div id="file-list" class="flex flex-col gap-0.5"></div>
+        </div>
+
+        <div
+          id="pane-console"
+          class="hidden flex-grow flex flex-col overflow-hidden bg-black"
+        >
+          <div
+            id="console-logs"
+            class="flex-grow overflow-auto font-mono text-[10px] p-4 flex flex-col gap-1"
+          ></div>
+          <div class="p-3 bg-slate-900 border-t border-slate-800 flex gap-2">
+            <span class="text-emerald-500 font-bold text-xs">λ</span>
+            <textarea
+              id="consoleInput"
+              placeholder="Command..."
+              rows="1"
+              class="bg-transparent border-none outline-none text-xs w-full text-emerald-400 font-mono resize-none"
+            ></textarea>
+          </div>
+        </div>
+      </aside>
+    </main>
+
+    <script src="app.js"></script>
+  </body>
+</html>
