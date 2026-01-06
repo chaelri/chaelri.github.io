@@ -1,0 +1,81 @@
+body {
+  font-family: "Poppins", "Inter", sans-serif;
+  background-color: #020617; /* Darker slate for premium feel */
+}
+
+/* Slide Transition Logic */
+.slide {
+  position: absolute;
+  display: none;
+  opacity: 0;
+  transform: scale(0.95);
+  transition: all 0.7s cubic-bezier(0.19, 1, 0.22, 1);
+  width: 100%;
+  max-width: 1400px; /* Scaled up for presentation */
+  height: auto;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+}
+
+.slide.active {
+  display: flex;
+  opacity: 1;
+  transform: scale(1);
+  z-index: 10;
+}
+
+/* Glassmorphism Effect */
+.glass-card {
+  background: rgba(255, 255, 255, 0.02);
+  backdrop-filter: blur(15px);
+  transition: all 0.4s ease;
+}
+
+.glass-card:hover {
+  background: rgba(255, 255, 255, 0.05);
+  transform: translateY(-8px);
+  border-color: rgba(34, 211, 238, 0.3);
+}
+
+/* Navigation Buttons */
+.nav-button {
+  transition: all 0.3s ease;
+  background: rgba(255, 255, 255, 0.03);
+  border: 1px solid rgba(255, 255, 255, 0.05);
+  border-radius: 50%;
+  width: 90px; /* Scaled up */
+  height: 90px; /* Scaled up */
+  display: flex;
+  align-items: center;
+  justify-content: center;
+}
+
+.nav-button:not(:disabled):hover {
+  background: rgba(34, 211, 238, 0.1);
+  color: #22d3ee;
+  border-color: rgba(34, 211, 238, 0.4);
+  transform: translateY(-2px);
+}
+
+/* Fullscreen Mode Enhancements */
+:fullscreen main {
+  background-color: #020617;
+  width: 100vw;
+  height: 100vh;
+  padding: 2rem;
+}
+
+/* Mobile Responsiveness */
+@media (max-width: 768px) {
+  h1 {
+    font-size: 4rem !important;
+  }
+  h2 {
+    font-size: 2.8rem !important;
+  }
+  .nav-button {
+    width: 65px;
+    height: 65px;
+  }
+}

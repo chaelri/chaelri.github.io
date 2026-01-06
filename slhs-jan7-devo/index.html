@@ -1,0 +1,362 @@
+<!DOCTYPE html>
+<html lang="en">
+  <head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <title>New Year, New Me? | Youth Devotion 2026</title>
+    <!-- Tailwind CSS -->
+    <script src="https://cdn.tailwindcss.com"></script>
+    <!-- Google Fonts & Icons -->
+    <link
+      href="https://fonts.googleapis.com/css2?family=Poppins:wght@300;400;600;800&family=Inter:wght@400;700&display=swap"
+      rel="stylesheet"
+    />
+    <link
+      href="https://fonts.googleapis.com/icon?family=Material+Icons"
+      rel="stylesheet"
+    />
+    <link rel="stylesheet" href="style.css" />
+  </head>
+  <body
+    class="bg-slate-950 text-slate-50 min-h-screen flex flex-col overflow-hidden"
+  >
+    <!-- Progress Indicator -->
+    <div class="fixed top-0 left-0 w-full h-2 bg-slate-900 z-50">
+      <div
+        id="progress-bar"
+        class="h-full bg-gradient-to-r from-cyan-500 to-indigo-500 transition-all duration-500"
+        style="width: 12.5%"
+      ></div>
+    </div>
+
+    <!-- Fullscreen Toggle -->
+    <button
+      id="fullscreen-btn"
+      class="fixed top-8 right-8 z-50 p-4 bg-white/5 hover:bg-white/10 rounded-full border border-white/10 transition-all group"
+      title="Toggle Fullscreen (F)"
+    >
+      <span
+        class="material-icons text-slate-400 group-hover:text-cyan-400 text-3xl"
+        >fullscreen</span
+      >
+    </button>
+
+    <!-- Presentation Container -->
+    <main
+      id="presentation-area"
+      class="flex-grow flex items-center justify-center p-12 relative"
+    >
+      <!-- Slide 1: Title -->
+      <section class="slide active" id="slide-1">
+        <div class="text-center">
+          <span
+            class="inline-block px-6 py-2 rounded-full bg-cyan-500/10 text-cyan-400 text-xl font-bold tracking-widest mb-8 border border-cyan-500/20 uppercase"
+            >Jan 2026 Edition</span
+          >
+          <h1
+            class="text-7xl md:text-9xl font-extrabold tracking-tighter mb-6 leading-tight"
+          >
+            New Year,<br /><span
+              class="text-transparent bg-clip-text bg-gradient-to-r from-cyan-400 via-blue-500 to-indigo-500"
+              >New Me?</span
+            >
+          </h1>
+          <p class="text-slate-400 text-2xl md:text-4xl italic font-light">
+            "Bagong taon, bagong personality... o bagong filter lang sa TikTok?"
+          </p>
+        </div>
+      </section>
+
+      <!-- Slide 2: Icebreaker -->
+      <section class="slide" id="slide-2">
+        <div class="max-w-6xl w-full">
+          <h2 class="text-5xl font-extrabold mb-14 text-center">
+            Kamustahan muna! 👋
+          </h2>
+          <div class="grid grid-cols-1 md:grid-cols-3 gap-8">
+            <div
+              class="glass-card p-10 rounded-3xl border border-white/5 shadow-xl"
+            >
+              <span class="material-icons text-blue-400 text-6xl mb-6"
+                >family_restroom</span
+              >
+              <h3 class="font-bold text-3xl mb-4">The Relatives</h3>
+              <p class="text-slate-400 text-2xl">
+                "May BF/GF ka na ba?" "Bakit tumaba ka?" — Yung kamag-anak mong
+                walang preno ang bibig.
+              </p>
+            </div>
+            <div
+              class="glass-card p-10 rounded-3xl border border-white/5 shadow-xl"
+            >
+              <span class="material-icons text-orange-500 text-6xl mb-6"
+                >celebration</span
+              >
+              <h3 class="font-bold text-3xl mb-4">Goodbye PH</h3>
+              <p class="text-slate-400 text-2xl">
+                Survival mode sa paputok! Naka-survive ba ang 10 fingers o puro
+                sindi na lang ng sparkle?
+              </p>
+            </div>
+            <div
+              class="glass-card p-10 rounded-3xl border border-white/5 shadow-xl"
+            >
+              <span class="material-icons text-green-400 text-6xl mb-6"
+                >account_balance_wallet</span
+              >
+              <h3 class="font-bold text-3xl mb-4">Pamaskuhan</h3>
+              <p class="text-slate-400 text-2xl">
+                The biggest lie: "Anak, itatabi ni Mama yung aguinaldo mo."
+                Kumusta? Naging ulam na ba?
+              </p>
+            </div>
+          </div>
+        </div>
+      </section>
+
+      <!-- Slide 3: The Struggle -->
+      <section class="slide" id="slide-3">
+        <div class="text-center max-w-5xl">
+          <div
+            class="inline-flex items-center gap-4 px-5 py-2 bg-red-500/10 text-red-400 rounded-lg mb-8 border border-red-500/20"
+          >
+            <span class="material-icons text-2xl">warning</span>
+            <span class="font-bold text-lg uppercase tracking-widest"
+              >The Reality Check</span
+            >
+          </div>
+          <h2 class="text-6xl font-bold mb-10 italic leading-snug">
+            Yung Planner na naging Scratch Paper...
+          </h2>
+          <p class="text-slate-300 text-3xl leading-relaxed">
+            January 1, hype na hype tayo. Work out, read books, bawas screen
+            time. Pero bakit pagdating ng February, back to default settings na
+            tayo?
+            <br /><br />
+            <span class="text-cyan-400 font-bold"
+              >Why is real change so hard?</span
+            >
+          </p>
+        </div>
+      </section>
+
+      <!-- Slide 4: The Verse -->
+      <section class="slide" id="slide-4">
+        <div
+          class="text-center bg-white/5 p-16 md:p-24 rounded-[3rem] border border-white/10 shadow-2xl max-w-6xl"
+        >
+          <span class="material-icons text-cyan-500 text-8xl mb-10"
+            >auto_stories</span
+          >
+          <h2 class="text-5xl md:text-7xl font-extrabold leading-tight mb-12">
+            "Above all else,
+            <span class="text-cyan-400 italic">guard your heart</span>, for
+            everything you do flows from it."
+          </h2>
+          <p class="text-3xl text-slate-500 font-bold tracking-[0.4em]">
+            PROVERBS 4:23 (NIV)
+          </p>
+        </div>
+      </section>
+
+      <!-- Slide 5: The Reality -->
+      <section class="slide" id="slide-5">
+        <div
+          class="grid grid-cols-1 md:grid-cols-2 gap-16 items-center max-w-6xl"
+        >
+          <div>
+            <h2 class="text-6xl font-bold mb-8">
+              Ang "Control Center" ng Buhay.
+            </h2>
+            <p class="text-slate-300 text-2xl leading-relaxed mb-8">
+              Everything—your words, your grades, your attitude—flows from the
+              heart. Hindi sapat na baguhin yung "aesthetic" or yung Bio sa IG.
+            </p>
+            <ul class="space-y-6">
+              <li class="flex items-center gap-5 text-cyan-400 text-3xl">
+                <span class="material-icons text-2xl">circle</span> Heart =
+                Decisions
+              </li>
+              <li class="flex items-center gap-5 text-indigo-400 text-3xl">
+                <span class="material-icons text-2xl">circle</span> Heart =
+                Reactions
+              </li>
+              <li class="flex items-center gap-5 text-blue-400 text-3xl">
+                <span class="material-icons text-2xl">circle</span> Heart =
+                Desires
+              </li>
+            </ul>
+          </div>
+          <div class="flex justify-center">
+            <div class="relative group">
+              <div
+                class="absolute inset-0 bg-cyan-500 rounded-full blur-3xl opacity-20 group-hover:opacity-40 transition-opacity"
+              ></div>
+              <span
+                class="material-icons text-[18rem] text-cyan-500 relative z-10 animate-pulse"
+                >monitor_heart</span
+              >
+            </div>
+          </div>
+        </div>
+      </section>
+
+      <!-- Slide 6: Scenarios -->
+      <section class="slide" id="slide-6">
+        <div class="w-full max-w-5xl">
+          <h2
+            class="text-4xl font-bold mb-12 text-center uppercase tracking-widest text-slate-400"
+          >
+            2026 Scenarios
+          </h2>
+          <div class="grid gap-6">
+            <div
+              class="flex items-center gap-10 glass-card p-10 rounded-2xl border border-white/5"
+            >
+              <div class="bg-indigo-500/20 p-6 rounded-xl">
+                <span class="material-icons text-indigo-400 text-5xl"
+                  >smartphone</span
+                >
+              </div>
+              <p class="text-slate-300 text-3xl">
+                Classmate mong naka-<span class="font-bold text-white"
+                  >iPhone 17 Pro Max</span
+                >
+                (or base model 18) na agad. Biglang feeling mo "Napag-iiwanan"
+                ka na.
+              </p>
+            </div>
+            <div
+              class="flex items-center gap-10 glass-card p-10 rounded-2xl border border-white/5"
+            >
+              <div class="bg-purple-500/20 p-6 rounded-xl">
+                <span class="material-icons text-purple-400 text-5xl"
+                  >travel_explore</span
+                >
+              </div>
+              <p class="text-slate-300 text-3xl">
+                Social Media FOMO. Yung bakasyon nila aesthetic, yung sayo...
+                pader ng kapitbahay.
+              </p>
+            </div>
+            <div
+              class="flex items-center gap-10 glass-card p-10 rounded-2xl border border-white/5"
+            >
+              <div class="bg-red-500/20 p-6 rounded-xl">
+                <span class="material-icons text-red-400 text-5xl"
+                  >notifications_active</span
+                >
+              </div>
+              <p class="text-slate-300 text-3xl">
+                Toxic Validation. Pag walang "likes," biglang bad mood at down
+                ang self-esteem.
+              </p>
+            </div>
+          </div>
+        </div>
+      </section>
+
+      <!-- Slide 7: Practical Steps -->
+      <section class="slide" id="slide-7">
+        <div class="max-w-6xl w-full">
+          <h2 class="text-5xl font-extrabold mb-14 text-center">
+            How to
+            <span class="text-cyan-400 underline underline-offset-8"
+              >Guard</span
+            >
+            the Heart?
+          </h2>
+          <div class="grid grid-cols-1 md:grid-cols-3 gap-10">
+            <div
+              class="text-center p-10 glass-card rounded-[2rem] border border-cyan-500/20"
+            >
+              <span class="material-icons text-cyan-400 text-7xl mb-8"
+                >filter_alt</span
+              >
+              <h4 class="font-bold text-3xl mb-5">Filter Your Feed</h4>
+              <p class="text-xl text-slate-400">
+                Hindi lahat ng trend dapat sinasabayan. If it creates envy,
+                UNFOLLOW.
+              </p>
+            </div>
+            <div
+              class="text-center p-10 glass-card rounded-[2rem] border border-blue-500/20"
+            >
+              <span class="material-icons text-blue-400 text-7xl mb-8"
+                >lock_reset</span
+              >
+              <h4 class="font-bold text-3xl mb-5">Daily Reset</h4>
+              <p class="text-xl text-slate-400">
+                Start the day with prayer, not notifications. Talk to the
+                Designer (God) first.
+              </p>
+            </div>
+            <div
+              class="text-center p-10 glass-card rounded-[2rem] border border-indigo-500/20"
+            >
+              <span class="material-icons text-indigo-400 text-7xl mb-8"
+                >groups</span
+              >
+              <h4 class="font-bold text-3xl mb-5">Choose Your 5</h4>
+              <p class="text-xl text-slate-400">
+                You are the average of the 5 people you spend time with. Guard
+                your circle.
+              </p>
+            </div>
+          </div>
+        </div>
+      </section>
+
+      <!-- Slide 8: Conclusion -->
+      <section class="slide" id="slide-8">
+        <div class="text-center">
+          <h2 class="text-8xl font-extrabold mb-10">Heart Over Hype.</h2>
+          <p
+            class="max-w-4xl mx-auto text-slate-400 text-3xl mb-12 leading-relaxed"
+          >
+            This 2026, real transformation happens from the
+            <span class="text-white font-bold underline underline-offset-8"
+              >inside out</span
+            >. Protect your peace, guard your heart, and trust God's timing.
+          </p>
+          <div
+            class="bg-gradient-to-r from-cyan-500/10 to-indigo-500/10 border border-white/10 p-12 rounded-3xl mb-12"
+          >
+            <p class="text-4xl italic text-cyan-300 leading-relaxed font-light">
+              "Ingatan mo ang iyong puso higit sa lahat, sapagkat ito ang batis
+              ng buhay."
+            </p>
+          </div>
+          <button
+            onclick="restartPresentation()"
+            class="group flex items-center gap-5 mx-auto px-12 py-6 bg-white text-slate-950 rounded-full font-bold text-2xl transition-all hover:bg-cyan-400 hover:scale-105 active:scale-95"
+          >
+            <span class="material-icons text-3xl">refresh</span> RESTART STORY
+          </button>
+        </div>
+      </section>
+    </main>
+
+    <!-- Navigation Bar -->
+    <footer
+      class="p-10 flex justify-between items-center max-w-7xl mx-auto w-full z-10"
+    >
+      <button id="prev-btn" class="nav-button opacity-30 cursor-not-allowed">
+        <span class="material-icons text-5xl">west</span>
+      </button>
+      <div class="flex flex-col items-center gap-2">
+        <span class="text-slate-500 font-mono tracking-widest text-sm uppercase"
+          >Progress</span
+        >
+        <div class="text-slate-200 font-bold text-3xl">
+          <span id="current-slide-num">1</span> / 8
+        </div>
+      </div>
+      <button id="next-btn" class="nav-button">
+        <span class="material-icons text-5xl">east</span>
+      </button>
+    </footer>
+
+    <script src="script.js"></script>
+  </body>
+</html>
