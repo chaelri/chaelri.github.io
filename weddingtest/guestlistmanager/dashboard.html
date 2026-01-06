@@ -45,7 +45,7 @@
           <p
             class="text-[8px] md:text-[10px] uppercase tracking-tighter md:tracking-widest text-stone-400 font-bold"
           >
-            Total
+            Total Expected
           </p>
           <p id="stat-total" class="text-lg md:text-3xl text-stone-800">0</p>
         </div>
@@ -119,9 +119,12 @@
           <p
             class="text-[8px] md:text-[10px] uppercase tracking-widest text-stone-400 font-bold"
           >
-            Not Invited
+            Entourage
           </p>
-          <p id="stat-not-invited" class="text-lg md:text-3xl text-stone-800">
+          <p
+            id="stat-entourage-count"
+            class="text-lg md:text-3xl text-stone-800"
+          >
             0
           </p>
         </div>
@@ -243,7 +246,7 @@
                       class="p-4 text-[10px] uppercase tracking-widest text-stone-500 font-bold cursor-pointer hover:text-[#7b8a5b]"
                       id="sortName"
                     >
-                      Name <span class="sort-icon">↕</span>
+                      Guest Name <span class="sort-icon">↕</span>
                     </th>
                     <th
                       class="p-4 text-[10px] uppercase tracking-widest text-stone-500 font-bold"
@@ -278,6 +281,76 @@
                 ></tbody>
               </table>
             </div>
+          </div>
+        </div>
+      </div>
+
+      <!-- ENTOURAGE SECTION -->
+      <div class="mt-12 mb-12">
+        <div
+          class="bg-stone-800 p-6 rounded-t-2xl shadow-sm border border-stone-900"
+        >
+          <div class="flex justify-between items-center text-white">
+            <div>
+              <h2 class="serif text-xl italic text-[#7b8a5b]">
+                Wedding Entourage
+              </h2>
+              <p class="text-[10px] uppercase tracking-widest opacity-80 mt-1">
+                Marching Order & Special Assignments
+              </p>
+            </div>
+          </div>
+        </div>
+        <div class="bg-white p-8 md:p-12 border-x border-stone-100">
+          <div
+            id="entourage-container"
+            class="flex flex-col items-center space-y-12"
+          >
+            <!-- JS Injected Vertical March -->
+          </div>
+        </div>
+        <!-- ENTOURAGE MANAGEMENT TABLE -->
+        <div
+          class="bg-stone-50 rounded-b-2xl border border-stone-100 overflow-hidden"
+        >
+          <div class="p-4 border-b border-stone-200">
+            <h3
+              class="text-[10px] font-bold uppercase tracking-widest text-stone-400"
+            >
+              Manage Roles & Photos
+            </h3>
+          </div>
+          <div class="overflow-x-auto">
+            <table class="w-full text-left border-collapse">
+              <thead>
+                <tr class="bg-stone-100/50">
+                  <th
+                    class="p-4 text-[9px] uppercase tracking-widest text-stone-500 font-bold"
+                  >
+                    Person
+                  </th>
+                  <th
+                    class="p-4 text-[9px] uppercase tracking-widest text-stone-500 font-bold"
+                  >
+                    Role
+                  </th>
+                  <th
+                    class="p-4 text-[9px] uppercase tracking-widest text-stone-500 font-bold"
+                  >
+                    Details
+                  </th>
+                  <th
+                    class="p-4 text-right text-[9px] uppercase tracking-widest text-stone-500 font-bold"
+                  >
+                    Actions
+                  </th>
+                </tr>
+              </thead>
+              <tbody
+                id="entourageTableBody"
+                class="text-xs text-stone-600"
+              ></tbody>
+            </table>
           </div>
         </div>
       </div>
@@ -418,7 +491,7 @@
     >
       <div
         id="modalBox"
-        class="bg-white w-full max-w-sm rounded-2xl shadow-2xl overflow-hidden"
+        class="bg-white w-full max-w-md rounded-2xl shadow-2xl overflow-hidden"
       >
         <div id="modalContent"></div>
       </div>

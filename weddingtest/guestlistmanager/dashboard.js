@@ -8,6 +8,12 @@ import {
   remove,
   update,
 } from "https://www.gstatic.com/firebasejs/10.7.1/firebase-database.js";
+import {
+  getStorage,
+  ref as sRef,
+  uploadBytes,
+  getDownloadURL,
+} from "https://www.gstatic.com/firebasejs/10.7.1/firebase-storage.js";
 
 const firebaseConfig = {
   apiKey: "AIzaSyBNPdSYJXuzvmdEHIeHGkbPmFnZxUq1lAg",
@@ -22,6 +28,7 @@ const firebaseConfig = {
 
 const app = initializeApp(firebaseConfig);
 const db = getDatabase(app);
+const storage = getStorage(app);
 
 let allData = [];
 let sortConfig = { key: "name", direction: "asc" };
@@ -30,6 +37,51 @@ let filterSide = "all";
 let filterStatus = "all";
 let filterInvited = "all";
 let currentPage = 1;
+
+// "guest" is the identifier for regular guests
+const ENTOURAGE_ROLES = [
+  "guest",
+  "Bride",
+  "Groom",
+  "Parent of Bride",
+  "Parent of Groom",
+  "Officiant",
+  "Maid of Honor",
+  "Bridesmaid",
+  "Best Man",
+  "Groomsman",
+  "Principal Sponsor",
+  "Secondary Sponsor (Veil)",
+  "Secondary Sponsor (Coin)",
+  "Secondary Sponsor (Candle)",
+  "Bible Bearer",
+  "Ring Bearer",
+  "Flower Boy",
+  "Flower Girl",
+];
+
+// Marching order grouping for vertical display
+const MARCHING_ORDER = [
+  { label: "The Bride", roles: ["Bride"] },
+  { label: "The Groom", roles: ["Groom"] },
+  { label: "Parents", roles: ["Parent of Bride", "Parent of Groom"] },
+  { label: "The Officiant", roles: ["Officiant"] },
+  { label: "Major Attendants", roles: ["Maid of Honor", "Best Man"] },
+  { label: "The Wedding Party", roles: ["Bridesmaid", "Groomsman"] },
+  { label: "Principal Sponsors", roles: ["Principal Sponsor"] },
+  {
+    label: "Secondary Sponsors",
+    roles: [
+      "Secondary Sponsor (Veil)",
+      "Secondary Sponsor (Coin)",
+      "Secondary Sponsor (Candle)",
+    ],
+  },
+  {
+    label: "Young Bearers & Flowers",
+    roles: ["Bible Bearer", "Ring Bearer", "Flower Boy", "Flower Girl"],
+  },
+];
 
 function init() {
   const guestListRef = ref(db, "guestList");
@@ -52,6 +104,10 @@ function init() {
           status: response ? response.attending : "pending",
           submittedAt: response ? response.submittedAt : null,
           invited: guest.invited || "no",
+          role: guest.role || "guest",
+          gender: guest.gender || "",
+          age: guest.age || "",
+          photoUrl: guest.photoUrl || "",
         };
       });
       render();
@@ -65,7 +121,12 @@ function render() {
   const tableBody = document.getElementById("guestTableBody");
   tableBody.innerHTML = "";
 
+  // Regular Guest Logic: Role is "guest", "none", or empty/null
   let displayData = allData.filter((item) => {
+    const isRegularGuest =
+      !item.role ||
+      item.role.toLowerCase() === "guest" ||
+      item.role.toLowerCase() === "none";
     const matchesSearch =
       item.name.toLowerCase().includes(searchTerm.toLowerCase()) ||
       item.nickname.toLowerCase().includes(searchTerm.toLowerCase());
@@ -74,7 +135,13 @@ function render() {
       filterStatus === "all" || item.status === filterStatus;
     const matchesInvited =
       filterInvited === "all" || item.invited === filterInvited;
-    return matchesSearch && matchesSide && matchesStatus && matchesInvited;
+    return (
+      isRegularGuest &&
+      matchesSearch &&
+      matchesSide &&
+      matchesStatus &&
+      matchesInvited
+    );
   });
 
   displayData.sort((a, b) => {
@@ -201,28 +268,45 @@ function render() {
     tableBody.appendChild(row);
   });
 
-  document.getElementById("stat-total").innerText = allData.length;
+  // --- STATS LOGIC (Uses allData regardless of role) ---
+  const entourageOnly = allData.filter(
+    (g) =>
+      g.role &&
+      g.role.toLowerCase() !== "guest" &&
+      g.role.toLowerCase() !== "none"
+  );
+
+  // stat-total: Expected (Yes + Pending) across entire DB
+  document.getElementById("stat-total").innerText = allData.filter(
+    (g) => g.status === "yes" || g.status === "pending"
+  ).length;
+
   document.getElementById("stat-yes").innerText = allData.filter(
     (g) => g.status === "yes"
   ).length;
+
   document.getElementById("stat-no").innerText = allData.filter(
     (g) => g.status === "no"
   ).length;
+
   document.getElementById("stat-pending").innerText = allData.filter(
     (g) => g.status === "pending"
   ).length;
+
   document.getElementById("stat-karla").innerText = allData.filter(
     (g) => g.side === "karla"
   ).length;
+
   document.getElementById("stat-charlie").innerText = allData.filter(
     (g) => g.side === "charlie"
   ).length;
+
   document.getElementById("stat-both").innerText = allData.filter(
     (g) => g.side === "both"
   ).length;
-  document.getElementById("stat-not-invited").innerText = allData.filter(
-    (g) => g.invited === "no"
-  ).length;
+
+  document.getElementById("stat-entourage-count").innerText =
+    entourageOnly.length;
 
   document
     .querySelectorAll(".status-select")
@@ -248,6 +332,7 @@ function render() {
 
   renderPagination(totalPages);
   renderFinalList();
+  renderEntourage();
 }
 
 function renderPagination(totalPages) {
@@ -331,34 +416,155 @@ modalOverlay.onclick = (e) => {
 window.openEditModal = (id) => {
   const guest = allData.find((g) => g.id === id);
   showModal(`
-        <div class="p-6 space-y-4">
+        <div class="p-6 space-y-4 max-h-[80vh] overflow-y-auto">
             <div class="flex justify-between items-center">
-                <h3 class="serif text-xl italic text-stone-800">Edit Guest</h3>
+                <h3 class="serif text-xl italic text-stone-800">Edit Profile</h3>
                 <button onclick="closeModal()" class="text-stone-400 hover:text-stone-600"><span class="material-icons">close</span></button>
             </div>
-            <div class="space-y-4">
+            
+            <!-- Photo Upload -->
+            <div class="flex flex-col items-center gap-3 py-2">
+                <div class="w-24 h-24 rounded-full border-2 border-stone-100 overflow-hidden bg-stone-50">
+                    <img id="modalPhotoPreview" src="${
+                      guest.photoUrl ||
+                      "https://ui-avatars.com/api/?name=" +
+                        guest.name +
+                        "&background=7b8a5b&color=fff"
+                    }" class="w-full h-full object-cover">
+                </div>
+                <label class="cursor-pointer bg-stone-100 px-3 py-1.5 rounded-full text-[10px] font-bold uppercase tracking-widest hover:bg-stone-200 transition">
+                    Change Photo
+                    <input type="file" id="photoInput" class="hidden" accept="image/*">
+                </label>
+            </div>
+
+            <div class="grid grid-cols-1 md:grid-cols-2 gap-4">
                 <div class="space-y-1">
                     <label class="text-[9px] uppercase tracking-widest text-stone-400 font-bold">Full Name</label>
-                    <input type="text" id="editName" value="${guest.name}" class="w-full p-3 bg-stone-50 border border-stone-100 rounded-xl text-sm outline-none focus:ring-1 focus:ring-[#7b8a5b]">
+                    <input type="text" id="editName" value="${
+                      guest.name
+                    }" class="w-full p-3 bg-stone-50 border border-stone-100 rounded-xl text-sm outline-none focus:ring-1 focus:ring-[#7b8a5b]">
                 </div>
                 <div class="space-y-1">
-                    <label class="text-[9px] uppercase tracking-widest text-stone-400 font-bold">Nickname (Optional)</label>
-                    <input type="text" id="editNickname" value="${guest.nickname}" placeholder="e.g. Abby" class="w-full p-3 bg-stone-50 border border-stone-100 rounded-xl text-sm outline-none focus:ring-1 focus:ring-[#7b8a5b]">
-                    <p class="text-[8px] text-stone-400 mt-1 uppercase italic">Used as greeting in the invite message</p>
+                    <label class="text-[9px] uppercase tracking-widest text-stone-400 font-bold">Nickname</label>
+                    <input type="text" id="editNickname" value="${
+                      guest.nickname
+                    }" class="w-full p-3 bg-stone-50 border border-stone-100 rounded-xl text-sm outline-none focus:ring-1 focus:ring-[#7b8a5b]">
+                </div>
+                <div class="space-y-1">
+                    <label class="text-[9px] uppercase tracking-widest text-stone-400 font-bold">Role / Assignment</label>
+                    <select id="editRole" class="w-full p-3 bg-stone-50 border border-stone-100 rounded-xl text-sm outline-none focus:ring-1 focus:ring-[#7b8a5b]">
+                        ${ENTOURAGE_ROLES.map(
+                          (r) =>
+                            `<option value="${r}" ${
+                              guest.role.toLowerCase() === r.toLowerCase()
+                                ? "selected"
+                                : ""
+                            }>${r === "guest" ? "Regular Guest" : r}</option>`
+                        ).join("")}
+                    </select>
+                </div>
+                <div class="space-y-1">
+                    <label class="text-[9px] uppercase tracking-widest text-stone-400 font-bold">Gender</label>
+                    <select id="editGender" class="w-full p-3 bg-stone-50 border border-stone-100 rounded-xl text-sm outline-none focus:ring-1 focus:ring-[#7b8a5b]">
+                        <option value="">Select...</option>
+                        <option value="Male" ${
+                          guest.gender === "Male" ? "selected" : ""
+                        }>Male</option>
+                        <option value="Female" ${
+                          guest.gender === "Female" ? "selected" : ""
+                        }>Female</option>
+                    </select>
+                </div>
+                <div class="space-y-1">
+                    <label class="text-[9px] uppercase tracking-widest text-stone-400 font-bold">Age Category</label>
+                    <input type="text" id="editAge" placeholder="e.g. 25 or Child" value="${
+                      guest.age
+                    }" class="w-full p-3 bg-stone-50 border border-stone-100 rounded-xl text-sm outline-none focus:ring-1 focus:ring-[#7b8a5b]">
                 </div>
             </div>
+
             <div class="pt-2">
-                <button onclick="saveGuestEdit('${id}')" class="w-full bg-[#7b8a5b] text-white py-3 rounded-xl font-bold text-[10px] uppercase tracking-widest shadow-lg shadow-[#7b8a5b]/20">Save Changes</button>
+                <button id="saveGuestBtn" onclick="saveGuestEdit('${
+                  guest.id
+                }')" class="w-full bg-[#7b8a5b] text-white py-3 rounded-xl font-bold text-[10px] uppercase tracking-widest shadow-lg shadow-[#7b8a5b]/20 flex justify-center items-center">
+                    <span>Save Changes</span>
+                </button>
             </div>
         </div>
     `);
+
+  const photoInput = document.getElementById("photoInput");
+  photoInput.onchange = (e) => {
+    const file = e.target.files[0];
+    if (file) {
+      const reader = new FileReader();
+      reader.onload = (re) =>
+        (document.getElementById("modalPhotoPreview").src = re.target.result);
+      reader.readAsDataURL(file);
+    }
+  };
 };
 
+async function compressImage(file) {
+  return new Promise((resolve) => {
+    const reader = new FileReader();
+    reader.readAsDataURL(file);
+    reader.onload = (event) => {
+      const img = new Image();
+      img.src = event.target.result;
+      img.onload = () => {
+        const canvas = document.createElement("canvas");
+        const MAX_WIDTH = 400;
+        const MAX_HEIGHT = 400;
+        let width = img.width;
+        let height = img.height;
+
+        if (width > height) {
+          if (width > MAX_WIDTH) {
+            height *= MAX_WIDTH / width;
+            width = MAX_WIDTH;
+          }
+        } else {
+          if (height > MAX_HEIGHT) {
+            width *= MAX_HEIGHT / height;
+            height = MAX_HEIGHT;
+          }
+        }
+        canvas.width = width;
+        canvas.height = height;
+        const ctx = canvas.getContext("2d");
+        ctx.drawImage(img, 0, 0, width, height);
+        canvas.toBlob((blob) => resolve(blob), "image/jpeg", 0.7);
+      };
+    };
+  });
+}
+
 window.saveGuestEdit = async (id) => {
+  const btn = document.getElementById("saveGuestBtn");
   const name = document.getElementById("editName").value.trim();
   const nickname = document.getElementById("editNickname").value.trim();
+  const role = document.getElementById("editRole").value;
+  const gender = document.getElementById("editGender").value;
+  const age = document.getElementById("editAge").value.trim();
+  const photoInput = document.getElementById("photoInput");
+
   if (!name) return;
-  await update(ref(db, `guestList/${id}`), { name, nickname });
+  btn.disabled = true;
+  btn.innerHTML = `<span class="material-icons animate-spin text-sm">sync</span>`;
+
+  let updateData = { name, nickname, role, gender, age };
+
+  if (photoInput.files[0]) {
+    const compressedBlob = await compressImage(photoInput.files[0]);
+    const storageRef = sRef(storage, `entourage/${id}.jpg`);
+    await uploadBytes(storageRef, compressedBlob);
+    const downloadURL = await getDownloadURL(storageRef);
+    updateData.photoUrl = downloadURL;
+  }
+
+  await update(ref(db, `guestList/${id}`), updateData);
   closeModal();
 };
 
@@ -626,6 +832,119 @@ function renderFinalList() {
       minute: "2-digit",
     })}</td><td class="p-4 text-right" data-label="Status"><span class="bg-green-100 text-green-700 px-2 py-1 rounded text-[10px] font-bold uppercase tracking-widest">Attending</span></td>`;
     finalListBody.appendChild(row);
+  });
+}
+
+function renderEntourage() {
+  const gallery = document.getElementById("entourage-container");
+  const table = document.getElementById("entourageTableBody");
+  gallery.innerHTML = "";
+  table.innerHTML = "";
+
+  // Entourage logic: Role exists and is NOT "guest" or "none"
+  const entourageData = allData.filter(
+    (g) =>
+      g.role &&
+      g.role.toLowerCase() !== "guest" &&
+      g.role.toLowerCase() !== "none"
+  );
+
+  if (entourageData.length === 0) {
+    gallery.innerHTML = `<div class="col-span-full py-12 text-center text-stone-400 italic text-sm">Assign roles in the Guest List to populate the Entourage...</div>`;
+    table.innerHTML = `<tr><td colspan="4" class="p-8 text-center text-stone-400 italic">No entourage members assigned.</td></tr>`;
+    return;
+  }
+
+  // VERTICAL MARCH GALLERY RENDERING
+  MARCHING_ORDER.forEach((group) => {
+    const membersInGroup = entourageData.filter((p) =>
+      group.roles.includes(p.role)
+    );
+    if (membersInGroup.length === 0) return;
+
+    // Category Header
+    const rowHeader = document.createElement("div");
+    rowHeader.className = "w-full text-center";
+    rowHeader.innerHTML = `<p class="serif italic text-[#7b8a5b] text-sm uppercase tracking-widest mb-4 opacity-60">— ${group.label} —</p>`;
+    gallery.appendChild(rowHeader);
+
+    // Categories Row
+    const row = document.createElement("div");
+    row.className = "flex flex-wrap justify-center gap-8 md:gap-12 w-full";
+
+    membersInGroup.forEach((person) => {
+      const card = document.createElement("div");
+      card.className =
+        "flex flex-col items-center text-center space-y-3 group min-w-[120px] cursor-pointer hover:scale-105 transition-all duration-300";
+      card.onclick = () => openEditModal(person.id);
+      const avatar =
+        person.photoUrl ||
+        `https://ui-avatars.com/api/?name=${person.name}&background=7b8a5b&color=fff`;
+
+      card.innerHTML = `
+            <div class="relative">
+                <div class="w-20 h-20 md:w-24 md:h-24 rounded-full overflow-hidden border-2 border-stone-100 shadow-sm group-hover:border-[#7b8a5b] transition-all duration-300">
+                    <img src="${avatar}" class="w-full h-full object-cover">
+                </div>
+                ${
+                  person.gender
+                    ? `<span class="absolute -bottom-1 -right-1 bg-white shadow-md rounded-full w-6 h-6 flex items-center justify-center text-[10px]">${
+                        person.gender === "Male" ? "👔" : "👗"
+                      }</span>`
+                    : ""
+                }
+            </div>
+            <div>
+                <p class="text-[12px] font-bold text-stone-800 leading-tight">${
+                  person.name
+                }</p>
+                <p class="text-[9px] uppercase tracking-widest text-[#7b8a5b] font-bold mt-1">${
+                  person.role
+                }</p>
+            </div>
+        `;
+      row.appendChild(card);
+    });
+    gallery.appendChild(row);
+
+    // Decorative Separator
+    const divider = document.createElement("div");
+    divider.className = "w-12 h-px bg-stone-100 my-4";
+    gallery.appendChild(divider);
+  });
+
+  // MANAGEMENT TABLE RENDERING
+  const priority = ENTOURAGE_ROLES;
+  entourageData.sort(
+    (a, b) => priority.indexOf(a.role) - priority.indexOf(b.role)
+  );
+
+  entourageData.forEach((person) => {
+    const avatar =
+      person.photoUrl ||
+      `https://ui-avatars.com/api/?name=${person.name}&background=7b8a5b&color=fff`;
+    const row = document.createElement("tr");
+    row.className = "border-b border-stone-100 hover:bg-stone-50 transition";
+    row.innerHTML = `
+        <td class="p-4">
+            <div class="flex items-center gap-3">
+                <img src="${avatar}" class="w-8 h-8 rounded-full object-cover border border-stone-200">
+                <span class="font-bold text-stone-800">${person.name}</span>
+            </div>
+        </td>
+        <td class="p-4 font-bold text-[#7b8a5b] uppercase text-[9px] tracking-widest">${
+          person.role
+        }</td>
+        <td class="p-4 text-stone-400">${person.age || "--"} • ${
+      person.gender || "--"
+    }</td>
+        <td class="p-4 text-right">
+            <button onclick="openEditModal('${
+              person.id
+            }')" class="text-blue-500 hover:underline font-bold uppercase tracking-tighter">Edit</button>
+        </td>
+    `;
+    table.appendChild(row);
   });
 }
 
