@@ -46,6 +46,55 @@
       id="presentation-area"
       class="flex-grow flex items-center justify-center p-12 relative"
     >
+      <!-- Slide 0: NEW Landing Page -->
+      <section class="slide active" id="slide-0">
+        <div class="text-center">
+          <div class="relative inline-block mb-10">
+            <div
+              class="absolute inset-0 bg-cyan-500 blur-3xl opacity-20 animate-pulse"
+            ></div>
+            <span
+              class="material-icons text-[10rem] text-cyan-500 relative z-10"
+              >rocket_launch</span
+            >
+          </div>
+          <h2
+            class="text-3xl md:text-4xl font-mono tracking-[0.3em] text-slate-500 uppercase mb-4"
+          >
+            Elevate 2026
+          </h2>
+          <h1 class="text-6xl md:text-8xl font-black mb-12 tracking-tight">
+            The
+            <span
+              class="text-transparent bg-clip-text bg-gradient-to-r from-cyan-400 to-indigo-600"
+              >Upgrade</span
+            >
+            Session
+          </h1>
+          <button
+            onclick="nextSlide()"
+            class="group relative px-12 py-5 bg-cyan-600 rounded-full font-bold text-2xl transition-all hover:bg-cyan-400 hover:scale-110 active:scale-95 shadow-[0_0_30px_rgba(34,211,238,0.3)]"
+          >
+            START DEVOTION
+            <span
+              class="material-icons align-middle ml-2 group-hover:translate-x-2 transition-transform"
+              >play_arrow</span
+            >
+          </button>
+          <p class="mt-8 text-slate-500 font-medium">
+            Press
+            <kbd class="px-2 py-1 bg-slate-800 rounded text-sm text-slate-300"
+              >Space</kbd
+            >
+            or
+            <kbd class="px-2 py-1 bg-slate-800 rounded text-sm text-slate-300"
+              >→</kbd
+            >
+            to navigate
+          </p>
+        </div>
+      </section>
+
       <!-- Slide 1: Title -->
       <section class="slide active" id="slide-1">
         <div class="text-center">

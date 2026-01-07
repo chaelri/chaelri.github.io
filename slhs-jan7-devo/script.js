@@ -3,7 +3,7 @@
  */
 
 let currentSlide = 1;
-const totalSlides = 8;
+const totalSlides = 9;
 
 const slides = document.querySelectorAll(".slide");
 const nextBtn = document.getElementById("next-btn");
@@ -11,6 +11,7 @@ const prevBtn = document.getElementById("prev-btn");
 const progressBar = document.getElementById("progress-bar");
 const slideNumDisplay = document.getElementById("current-slide-num");
 const fsBtn = document.getElementById("fullscreen-btn");
+const navFooter = document.querySelector("footer");
 
 /**
  * Fullscreen Logic
@@ -41,15 +42,21 @@ function updatePresentation() {
     }
   });
 
+  // UI Visibility: Hide footer and progress bar on Slide 1 (Landing Page)
+  if (currentSlide === 1) {
+    navFooter.classList.add("opacity-0", "pointer-events-none");
+    progressBar.parentElement.classList.add("opacity-0");
+  } else {
+    navFooter.classList.remove("opacity-0", "pointer-events-none");
+    progressBar.parentElement.classList.remove("opacity-0");
+  }
+
   // Handle Button States
   prevBtn.disabled = currentSlide === 1;
-  prevBtn.classList.toggle("opacity-30", currentSlide === 1);
-  prevBtn.classList.toggle("cursor-not-allowed", currentSlide === 1);
-
   nextBtn.disabled = currentSlide === totalSlides;
   nextBtn.classList.toggle("opacity-0", currentSlide === totalSlides);
 
-  // Update Progress
+  // Update Progress (Calculation adjusted for 9 slides)
   const progressPercentage = (currentSlide / totalSlides) * 100;
   progressBar.style.width = `${progressPercentage}%`;
   slideNumDisplay.innerText = currentSlide;
@@ -124,3 +131,7 @@ document.addEventListener("touchend", (e) => {
 
 // Initial Init
 updatePresentation();
+
+if ("serviceWorker" in navigator) {
+  navigator.serviceWorker.register("./sw.js");
+}

@@ -79,3 +79,31 @@ body {
     height: 65px;
   }
 }
+
+/* Animation for the Landing Page icon */
+@keyframes float {
+  0% {
+    transform: translateY(0px);
+  }
+  50% {
+    transform: translateY(-20px);
+  }
+  100% {
+    transform: translateY(0px);
+  }
+}
+
+#slide-0 .material-icons {
+  animation: float 4s ease-in-out infinite;
+}
+
+/* Smooth UI Hiding */
+footer,
+.fixed.top-0 {
+  transition: opacity 0.8s ease;
+}
+
+kbd {
+  border: 1px solid rgba(255, 255, 255, 0.1);
+  box-shadow: 0 2px 0 rgba(0, 0, 0, 0.5);
+}
