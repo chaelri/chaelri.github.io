@@ -283,6 +283,7 @@ let weddingData = {
 let activeIndex = null;
 let guestDataMap = {};
 let currentTableId = null;
+let isDraggingBubble = false; // Guard for real-time sync during drag ops
 
 function autoResize(el) {
   if (!el) return;
@@ -292,6 +293,7 @@ function autoResize(el) {
 
 function initSync() {
   onValue(ref(db, "wedding_data"), (snapshot) => {
+    if (isDraggingBubble) return; // Prevent overwriting while seat is being moved
     const data = snapshot.val();
     if (data) {
       data.chapters = data.chapters.map((ch) => {
@@ -317,10 +319,12 @@ function initSync() {
     guestDataMap = list;
 
     const sortedGuests = Object.entries(list)
-      .filter(([id, g]) => (g.role || "").toLowerCase().trim() !== "")
+      .filter(([id, g]) => g && (g.role || "").toLowerCase().trim() !== "")
       .sort((a, b) => {
-        const idxA = ROLE_HIERARCHY.indexOf(a[1].role.toLowerCase().trim());
-        const idxB = ROLE_HIERARCHY.indexOf(b[1].role.toLowerCase().trim());
+        const roleA = (a[1].role || "").toLowerCase().trim();
+        const roleB = (b[1].role || "").toLowerCase().trim();
+        const idxA = ROLE_HIERARCHY.indexOf(roleA);
+        const idxB = ROLE_HIERARCHY.indexOf(roleB);
         const valA = idxA === -1 ? 99 : idxA;
         const valB = idxB === -1 ? 99 : idxB;
         if (valA !== valB) return valA - valB;
@@ -331,14 +335,15 @@ function initSync() {
     if (entChapter) {
       entChapter.content = sortedGuests
         .filter(
-          ([id, g]) => !["guest", "guests"].includes(g.role.toLowerCase())
+          ([id, g]) =>
+            !["guest", "guests"].includes((g.role || "").toLowerCase())
         )
         .map(([id, g]) => [g.name, g.role, g.notes || "", id]);
     }
 
     renderGallery();
     if (activeIndex === 6) refreshModal();
-    if (activeIndex === 13 && currentTableId) {
+    if (activeIndex === 13 && currentTableId && !isDraggingBubble) {
       renderTableContext();
       renderGuestPicker();
     }
@@ -454,6 +459,37 @@ function refreshModal() {
   );
 }
 
+window.addRow = function () {
+  const ch = weddingData.chapters[activeIndex];
+  if (!ch) return;
+
+  let selector = "";
+
+  if (ch.type === "list") {
+    if (!ch.content) ch.content = [];
+    ch.content.push({ text: "", checked: false });
+    // Target the last input in your list container
+    selector = ".modal-list-item:last-child input";
+  } else if (ch.type === "table") {
+    if (!ch.content) ch.content = [];
+    const newRow = ch.headers.map(() => "-");
+    ch.content.push(newRow);
+    // Target the first cell of the last row in your table
+    selector = ".modal-table tr:last-child td:first-child input";
+  }
+
+  pushToFirebase();
+  refreshModal();
+
+  // Wait for the DOM to render the new elements
+  const allEl = document.querySelectorAll("[class='check-item group']");
+  const newEl = allEl[allEl.length - 1];
+  if (newEl) {
+    newEl.scrollIntoView({ behavior: "smooth", block: "center" });
+    newEl.focus();
+  }
+};
+
 window.saveTable = (r, c, val, rowId) => {
   if (activeIndex === 6) {
     const fields = ["name", "role", "notes"];
@@ -476,7 +512,6 @@ function renderPlanner(container) {
 
   Object.entries(layout).forEach(([id, obj]) => {
     const el = document.createElement("div");
-    console.log(obj.type)
     el.className = `planner-object table-${obj.type}`;
     el.style.left = obj.x + "%";
     el.style.top = obj.y + "%";
@@ -552,18 +587,28 @@ function renderTableContext() {
     if (!guest) return;
 
     const nameItem = document.createElement("div");
-    nameItem.className = "flex items-center gap-2 py-0.5";
-    nameItem.innerHTML = `<span class="w-1.5 h-1.5 rounded-full bg-amber-500"></span> ${guest.name}`;
+    nameItem.className = "flex items-center justify-between group/name";
+    nameItem.innerHTML = `
+      <div class="flex items-center gap-2 py-0.5">
+        <span class="w-1.5 h-1.5 rounded-full bg-amber-500"></span>
+        <span class="truncate">${guest.name}</span>
+      </div>
+      <button onclick="window.toggleSeat('${guestId}')" class="opacity-0 group-hover/name:opacity-100 text-stone-600 hover:text-red-500 transition px-1">
+        <span class="material-icons-round text-xs">close</span>
+      </button>
+    `;
     namesList.appendChild(nameItem);
 
     const bubble = document.createElement("div");
     bubble.className = "seat-bubble";
     bubble.innerText = getInitials(guest.name);
     bubble.setAttribute("data-name", guest.name);
-    bubble.style.left = coords.x + "px";
-    bubble.style.top = coords.y + "px";
+    // Percentage logic ensures initials stay in relative place when viewport/table sizes shift
+    bubble.style.left = (coords.x || 50) + "%";
+    bubble.style.top = (coords.y || 50) + "%";
 
     const startDrag = (e) => {
+      isDraggingBubble = true; // Block incoming sync updates during movement
       const move = (ev) => {
         const moveX = ev.type?.includes("touch")
           ? ev.touches[0].clientX
@@ -572,14 +617,26 @@ function renderTableContext() {
           ? ev.touches[0].clientY
           : ev.clientY;
         const rect = container.getBoundingClientRect();
-        const posX = Math.round(moveX - rect.left - 24);
-        const posY = Math.round(moveY - rect.top - 24);
-        bubble.style.left = posX + "px";
-        bubble.style.top = posY + "px";
-        table.assigned[guestId] = { x: posX, y: posY };
+
+        let posX = ((moveX - rect.left) / rect.width) * 100;
+        let posY = ((moveY - rect.top) / rect.height) * 100;
+
+        posX = Math.max(5, Math.min(95, posX));
+        posY = Math.max(5, Math.min(95, posY));
+
+        bubble.style.left = posX + "%";
+        bubble.style.top = posY + "%";
+        table.assigned[guestId] = { x: Math.round(posX), y: Math.round(posY) };
       };
       const stop = () => {
-        pushToFirebase();
+        isDraggingBubble = false; // Release sync block
+        // Surgical path update avoids drag-jitter and sync-loss bugs
+        const updates = {};
+        updates[
+          `wedding_data/chapters/13/layout/${currentTableId}/assigned/${guestId}`
+        ] = table.assigned[guestId];
+        update(ref(db), updates);
+
         document.removeEventListener("mousemove", move);
         document.removeEventListener("mouseup", stop);
         document.removeEventListener("touchmove", move);
@@ -596,6 +653,16 @@ function renderTableContext() {
   });
 }
 
+function getGuestTableInfo(guestId) {
+  const layout = weddingData.chapters[13].layout;
+  for (const tableId in layout) {
+    if (layout[tableId].assigned && layout[tableId].assigned[guestId]) {
+      return { id: tableId, label: layout[tableId].label };
+    }
+  }
+  return null;
+}
+
 function renderGuestPicker() {
   const listEl = document.getElementById("guest-selection-list");
   const table = weddingData.chapters[13].layout[currentTableId];
@@ -603,16 +670,18 @@ function renderGuestPicker() {
   const query = (
     document.getElementById("guest-search").value || ""
   ).toLowerCase();
-  const allAssigned = Object.values(weddingData.chapters[13].layout).flatMap(
-    (t) => Object.keys(t.assigned || {})
-  );
 
   const sorted = Object.entries(guestDataMap)
-    .filter(([id, g]) => (g.name || "").toLowerCase().includes(query))
+    .filter(([id, g]) => g && (g.name || "").toLowerCase().includes(query))
     .sort((a, b) => {
-      const idxA = ROLE_HIERARCHY.indexOf(a[1].role.toLowerCase().trim());
-      const idxB = ROLE_HIERARCHY.indexOf(b[1].role.toLowerCase().trim());
-      return (idxA === -1 ? 99 : idxA) - (idxB === -1 ? 99 : idxB);
+      const roleA = (a[1].role || "").toLowerCase().trim();
+      const roleB = (b[1].role || "").toLowerCase().trim();
+      const idxA = ROLE_HIERARCHY.indexOf(roleA);
+      const idxB = ROLE_HIERARCHY.indexOf(roleB);
+      const valA = idxA === -1 ? 99 : idxA;
+      const valB = idxB === -1 ? 99 : idxB;
+      if (valA !== valB) return valA - valB;
+      return (a[1].name || "").localeCompare(b[1].name || "");
     });
 
   let currentRole = "";
@@ -624,21 +693,40 @@ function renderGuestPicker() {
         currentRole = role;
         html += `<div class="picker-role-header"><span class="w-1 h-1 rounded-full bg-stone-700"></span>${role}</div>`;
       }
+
+      const assignment = getGuestTableInfo(id);
       const isHere = assignedIds.includes(id);
-      const elsewhere = !isHere && allAssigned.includes(id);
+      const elsewhere = assignment && !isHere;
+
       html += `<div class="flex items-center justify-between bg-white/5 p-3 rounded-2xl border border-white/5 ${
-        elsewhere ? "opacity-20 pointer-events-none grayscale" : ""
+        elsewhere ? "opacity-50" : ""
       }">
-                <div class="flex flex-col"><span class="text-xs font-bold text-stone-200">${
-                  g.name
-                }</span><span class="text-[8px] uppercase text-stone-500 font-black">${
-        g.role
-      }</span></div>
-                <button onclick="window.toggleSeat('${id}')" class="w-8 h-8 rounded-full flex items-center justify-center transition ${
-        isHere ? "bg-amber-500 text-stone-900" : "bg-stone-800 text-stone-500"
+                <div class="flex flex-col">
+                  <span class="text-xs font-bold text-stone-200">${
+                    g.name
+                  }</span>
+                  <div class="flex items-center gap-2">
+                    <span class="text-[8px] uppercase text-stone-500 font-black">${
+                      g.role || "Guest"
+                    }</span>
+                    ${
+                      elsewhere
+                        ? `<span class="text-[7px] text-amber-500 font-bold uppercase tracking-tighter bg-amber-500/10 px-1 rounded">At ${assignment.label}</span>`
+                        : ""
+                    }
+                  </div>
+                </div>
+                <button onclick="${
+                  elsewhere ? "" : `window.toggleSeat('${id}')`
+                }" class="w-8 h-8 rounded-full flex items-center justify-center transition ${
+        isHere
+          ? "bg-amber-500 text-stone-900"
+          : elsewhere
+          ? "bg-stone-800/50 text-stone-700 cursor-not-allowed"
+          : "bg-stone-800 text-stone-500"
       }">
                     <span class="material-icons-round text-sm">${
-                      isHere ? "check" : "add"
+                      isHere ? "check" : elsewhere ? "lock" : "add"
                     }</span>
                 </button>
             </div>`;
@@ -651,7 +739,7 @@ window.toggleSeat = (id) => {
   const table = weddingData.chapters[13].layout[currentTableId];
   if (!table.assigned) table.assigned = {};
   if (table.assigned[id]) delete table.assigned[id];
-  else table.assigned[id] = { x: 100, y: 100 };
+  else table.assigned[id] = { x: 50, y: 50 }; // Default center position
   pushToFirebase();
   renderTableContext();
   renderGuestPicker();

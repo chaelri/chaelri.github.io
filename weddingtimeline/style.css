@@ -161,7 +161,8 @@ textarea.edit-input {
   height: 180px;
   border-radius: 12px;
   background: #3d3b38;
-  border: 2px solid #f59e0b;
+  background: #2d2b28;
+  border: 2px solid #444;
 } /* Vertical VIP */
 .table-couple {
   width: 140px;
@@ -171,8 +172,7 @@ textarea.edit-input {
   border: 2px solid #f59e0b;
 } /* Horizontal Couple */
 .table-special {
-  background: rgba(245, 158, 11, 0.1);
-  border: 1px solid #f59e0b;
+  background: #3d3b38;
   color: #f59e0b;
 }
 
@@ -196,7 +196,7 @@ textarea.edit-input {
   box-shadow: 0 0 50px rgba(0, 0, 0, 0.5);
   font-size: 14px;
   font-weight: 900;
-  color: #444;
+  color: white;
   text-transform: uppercase;
 }
 .zoom-circle {
@@ -208,7 +208,8 @@ textarea.edit-input {
   width: 220px;
   height: 500px;
   border-radius: 20px;
-  border-color: #f59e0b;
+  background: #2d2b28;
+  border: 2px solid #444;
 } /* Vertical VIP */
 .zoom-rect {
   width: 450px;
@@ -239,10 +240,11 @@ textarea.edit-input {
   box-shadow: 0 8px 16px rgba(0, 0, 0, 0.4);
   z-index: 100;
   user-select: none;
+  transform: translate(-50%, -50%); /* Crucial for relative placement */
 }
 .seat-bubble:active {
   cursor: grabbing;
-  transform: scale(1.15);
+  transform: translate(-50%, -50%) scale(1.15);
 }
 .seat-bubble::after {
   content: attr(data-name);
@@ -304,6 +306,81 @@ textarea.edit-input {
 .role-kids {
   border-color: rgba(244, 114, 182, 0.4) !important;
   color: #f9a8d4 !important;
+}
+
+/* Mobile Responsiveness & Adaptive Scaling Logic */
+@media (max-width: 768px) {
+  #seat-modal > div {
+    flex-direction: column;
+    height: 98vh;
+  }
+  #seat-modal .flex-1 {
+    height: 38%;
+    width: 100%;
+    border-right: none;
+    border-bottom: 1px solid rgba(255, 255, 255, 0.05);
+    padding: 10px;
+  }
+  #seat-modal .w-80 {
+    width: 100% !important;
+    height: 62%;
+  }
+
+  /* Zoomed Table Scaling for Mobile Viewport */
+  .zoom-table-base {
+    transform: scale(0.55);
+  }
+  .zoom-vip {
+    width: 150px;
+    height: 350px;
+  }
+  .zoom-circle {
+    width: 250px;
+    height: 250px;
+  }
+
+  /* Shrink seat bubbles for mobile precision */
+  .seat-bubble {
+    width: 38px;
+    height: 38px;
+    font-size: 11px;
+  }
+  .seat-bubble::after {
+    font-size: 8px;
+    bottom: -18px;
+  }
+
+  /* Table Manager (Chapter 13) Scale Optimization */
+  #planner-canvas {
+    height: 60vh;
+    background-size: 20px 20px;
+  }
+  /* Scale down objects to preserve original layout spacing on small screens */
+  .table-circle {
+    width: 45px;
+    height: 45px;
+  }
+  .table-rect {
+    width: 70px;
+    height: 35px;
+  }
+  .table-vip {
+    width: 45px;
+    height: 100px;
+  }
+  .table-couple {
+    width: 80px;
+    height: 35px;
+  }
+  .table-label {
+    font-size: 6px;
+  }
+  .seat-count {
+    font-size: 7px;
+    top: -5px;
+    right: -5px;
+    padding: 1px 4px;
+  }
 }
 
 /* Scroll Sync Styling */
