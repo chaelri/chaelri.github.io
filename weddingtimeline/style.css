@@ -281,6 +281,54 @@ textarea.edit-input {
   border: 2px solid #444;
 }
 
+/* Locking Logic */
+.planner-object.is-locked {
+  pointer-events: none !important;
+  border-style: dashed !important;
+  opacity: 0.6;
+}
+
+.planner-object .lock-btn {
+  position: absolute;
+  top: -12px;
+  right: 18px;
+  background: #1e3a8a;
+  color: white;
+  border-radius: 50%;
+  width: 24px;
+  height: 24px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  border: 3px solid #141311;
+  cursor: pointer;
+  z-index: 40;
+  pointer-events: auto !important;
+  opacity: 0;
+  transition: opacity 0.2s;
+}
+
+.planner-object:hover .lock-btn,
+.planner-object.is-locked .lock-btn {
+  opacity: 1;
+}
+
+.planner-object.is-locked .lock-btn {
+  background: #f59e0b;
+  color: #000;
+}
+
+.planner-object.is-locked .delete-table-btn,
+.planner-object.is-locked .resize-handle,
+.planner-object.is-locked .seat-count {
+  display: none !important;
+}
+
+.planner-object.is-locked .table-label-input {
+  pointer-events: none !important;
+  opacity: 0.8;
+}
+
 .table-circle {
   width: 100px;
   height: 100px;
@@ -310,7 +358,7 @@ textarea.edit-input {
   width: 50px;
   height: 50px;
   background: transparent !important;
-  z-index: 1;
+  z-index: 1 !important;
 }
 .table-h-line {
   width: 200px;
@@ -599,50 +647,4 @@ main::-webkit-scrollbar {
 main::-webkit-scrollbar-thumb {
   background: rgba(245, 158, 11, 0.3);
   border-radius: 10px;
-}
-
-/* Locking Logic */
-.planner-object.is-locked {
-  pointer-events: none !important;
-  border-style: dashed !important;
-  opacity: 0.6;
-}
-
-/* Ensure the lock button remains interactable even when the parent is transparent */
-.planner-object .lock-btn {
-  position: absolute;
-  top: -12px;
-  right: 18px; /* Positioned beside the delete button */
-  background: #1e3a8a;
-  color: white;
-  border-radius: 50%;
-  width: 24px;
-  height: 24px;
-  display: flex;
-  align-items: center;
-  justify-content: center;
-  border: 3px solid #141311;
-  cursor: pointer;
-  z-index: 40;
-  pointer-events: auto !important;
-  opacity: 0;
-  transition: opacity 0.2s;
-}
-
-.planner-object:hover .lock-btn,
-.planner-object.is-locked .lock-btn {
-  opacity: 1;
-}
-
-.planner-object.is-locked .lock-btn {
-  background: #f59e0b; /* Amber color when locked */
-  color: #000;
-}
-
-/* Hide other controls when locked to prevent accidental edits */
-.planner-object.is-locked .delete-table-btn,
-.planner-object.is-locked .resize-handle,
-.planner-object.is-locked .table-label-input,
-.planner-object.is-locked .seat-count {
-  display: none !important;
 }

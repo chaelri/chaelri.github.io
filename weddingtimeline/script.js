@@ -687,16 +687,6 @@ function renderPlanner(container) {
         <div class="resize-handle"></div>
     `;
 
-    // Add Lock Toggle Logic
-    const lockBtn = el.querySelector(".lock-btn");
-    lockBtn.onclick = (e) => {
-      e.stopPropagation();
-      update(ref(db), {
-        [`wedding_data/chapters/13/layout/${id}/locked`]: !isLocked,
-      });
-    };
-    lockBtn.addEventListener("touchstart", (e) => e.stopPropagation());
-
     // Inline Renaming Logic
     const labelInput = el.querySelector(".table-label-input");
     if (labelInput) {
@@ -713,6 +703,16 @@ function renderPlanner(container) {
       };
     }
 
+    // Lock Toggle Logic
+    const lockBtn = el.querySelector(".lock-btn");
+    lockBtn.onclick = (e) => {
+      e.stopPropagation();
+      update(ref(db), {
+        [`wedding_data/chapters/13/layout/${id}/locked`]: !isLocked,
+      });
+    };
+    lockBtn.addEventListener("touchstart", (e) => e.stopPropagation());
+
     // Delete Table logic
     const deleteBtn = el.querySelector(".delete-table-btn");
     deleteBtn.onclick = (e) => {
@@ -726,7 +726,13 @@ function renderPlanner(container) {
     });
 
     el.onclick = (e) => {
-      if (el.dataset.dragging === "true" || isResizing || isLayoutOnly) return;
+      if (
+        el.dataset.dragging === "true" ||
+        isResizing ||
+        isLayoutOnly ||
+        isLocked
+      )
+        return;
       if (
         e.target.classList.contains("table-label-input") ||
         e.target.classList.contains("resize-handle")
@@ -789,10 +795,11 @@ function renderPlanner(container) {
     // Table Dragging (Touch Support)
     let isDragging = false;
     const handleDragStart = (e) => {
-      if (isResizing) return;
+      if (isResizing || isLocked) return;
       if (e.touches && e.touches.length > 1) return; // Ignore drag if zooming
       if (
         e.target.closest(".delete-table-btn") ||
+        e.target.closest(".lock-btn") ||
         e.target.classList.contains("table-label-input") ||
         e.target.classList.contains("resize-handle")
       )
@@ -898,6 +905,7 @@ window.addTable = (type) => {
     assigned: {},
     w: w,
     h: h,
+    locked: false,
   };
   update(ref(db), { [`wedding_data/chapters/13/layout/${id}`]: newTable });
 };
