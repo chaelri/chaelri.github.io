@@ -283,7 +283,8 @@ let weddingData = {
 let activeIndex = null;
 let guestDataMap = {};
 let currentTableId = null;
-let isDraggingBubble = false; // Guard for real-time sync during drag ops
+let isDraggingBubble = false; // Guard for real-time sync during seat drag
+let isDraggingTable = false; // Guard for real-time sync during table drag
 
 function autoResize(el) {
   if (!el) return;
@@ -293,7 +294,7 @@ function autoResize(el) {
 
 function initSync() {
   onValue(ref(db, "wedding_data"), (snapshot) => {
-    if (isDraggingBubble) return; // Prevent overwriting while seat is being moved
+    if (isDraggingBubble || isDraggingTable) return; // Prevent overwriting while interacting
     const data = snapshot.val();
     if (data) {
       data.chapters = data.chapters.map((ch) => {
@@ -312,6 +313,8 @@ function initSync() {
       '<span class="material-icons-round text-xs text-emerald-500">cloud_done</span> Up to Date';
     renderGallery();
     if (activeIndex !== null && activeIndex !== 13) refreshModal();
+    if (activeIndex === 13)
+      renderPlanner(document.getElementById("modal-body"));
   });
 
   onValue(ref(db, "guestList"), (snapshot) => {
@@ -463,25 +466,18 @@ window.addRow = function () {
   const ch = weddingData.chapters[activeIndex];
   if (!ch) return;
 
-  let selector = "";
-
   if (ch.type === "list") {
     if (!ch.content) ch.content = [];
     ch.content.push({ text: "", checked: false });
-    // Target the last input in your list container
-    selector = ".modal-list-item:last-child input";
   } else if (ch.type === "table") {
     if (!ch.content) ch.content = [];
     const newRow = ch.headers.map(() => "-");
     ch.content.push(newRow);
-    // Target the first cell of the last row in your table
-    selector = ".modal-table tr:last-child td:first-child input";
   }
 
   pushToFirebase();
   refreshModal();
 
-  // Wait for the DOM to render the new elements
   const allEl = document.querySelectorAll("[class='check-item group']");
   const newEl = allEl[allEl.length - 1];
   if (newEl) {
@@ -506,9 +502,14 @@ window.saveTable = (r, c, val, rowId) => {
  * BOSS ROOM LAYOUT ENGINE
  */
 function renderPlanner(container) {
-  container.innerHTML = `<div id="planner-canvas"></div>`;
+  if (!container.querySelector("#planner-canvas")) {
+    container.innerHTML = `<div id="planner-canvas"></div>`;
+  }
   const canvas = document.getElementById("planner-canvas");
   const layout = weddingData.chapters[13].layout || {};
+
+  // Clear current UI to re-render fresh from weddingData
+  canvas.innerHTML = "";
 
   Object.entries(layout).forEach(([id, obj]) => {
     const el = document.createElement("div");
@@ -520,6 +521,7 @@ function renderPlanner(container) {
     el.innerHTML = `${
       assigned > 0 ? `<div class="seat-count">${assigned}</div>` : ""
     }<span class="table-label uppercase">${obj.label}</span>`;
+
     el.onclick = () => {
       if (el.dataset.dragging === "true") return;
       currentTableId = id;
@@ -529,7 +531,9 @@ function renderPlanner(container) {
     let isDragging = false;
     const startDrag = (e) => {
       isDragging = true;
+      isDraggingTable = true;
       el.dataset.dragging = "false";
+
       const move = (ev) => {
         if (!isDragging) return;
         el.dataset.dragging = "true";
@@ -549,19 +553,29 @@ function renderPlanner(container) {
         obj.x = xp;
         obj.y = yp;
       };
+
       const stop = () => {
+        if (isDragging) {
+          isDraggingTable = false;
+          // Real-time surgical update to Firebase on drop
+          const updates = {};
+          updates[`wedding_data/chapters/13/layout/${id}/x`] = obj.x;
+          updates[`wedding_data/chapters/13/layout/${id}/y`] = obj.y;
+          update(ref(db), updates);
+        }
         isDragging = false;
-        pushToFirebase();
         document.removeEventListener("mousemove", move);
         document.removeEventListener("mouseup", stop);
         document.removeEventListener("touchmove", move);
         document.removeEventListener("touchend", stop);
       };
+
       document.addEventListener("mousemove", move);
       document.addEventListener("mouseup", stop);
       document.addEventListener("touchmove", move, { passive: false });
       document.addEventListener("touchend", stop);
     };
+
     el.addEventListener("mousedown", startDrag);
     el.addEventListener("touchstart", startDrag);
     canvas.appendChild(el);
@@ -603,12 +617,11 @@ function renderTableContext() {
     bubble.className = "seat-bubble";
     bubble.innerText = getInitials(guest.name);
     bubble.setAttribute("data-name", guest.name);
-    // Percentage logic ensures initials stay in relative place when viewport/table sizes shift
     bubble.style.left = (coords.x || 50) + "%";
     bubble.style.top = (coords.y || 50) + "%";
 
     const startDrag = (e) => {
-      isDraggingBubble = true; // Block incoming sync updates during movement
+      isDraggingBubble = true;
       const move = (ev) => {
         const moveX = ev.type?.includes("touch")
           ? ev.touches[0].clientX
@@ -628,9 +641,10 @@ function renderTableContext() {
         bubble.style.top = posY + "%";
         table.assigned[guestId] = { x: Math.round(posX), y: Math.round(posY) };
       };
+
       const stop = () => {
-        isDraggingBubble = false; // Release sync block
-        // Surgical path update avoids drag-jitter and sync-loss bugs
+        isDraggingBubble = false;
+        // Real-time surgical update to Firebase on drop
         const updates = {};
         updates[
           `wedding_data/chapters/13/layout/${currentTableId}/assigned/${guestId}`
@@ -642,6 +656,7 @@ function renderTableContext() {
         document.removeEventListener("touchmove", move);
         document.removeEventListener("touchend", stop);
       };
+
       document.addEventListener("mousemove", move);
       document.addEventListener("mouseup", stop);
       document.addEventListener("touchmove", move, { passive: false });
@@ -739,7 +754,7 @@ window.toggleSeat = (id) => {
   const table = weddingData.chapters[13].layout[currentTableId];
   if (!table.assigned) table.assigned = {};
   if (table.assigned[id]) delete table.assigned[id];
-  else table.assigned[id] = { x: 50, y: 50 }; // Default center position
+  else table.assigned[id] = { x: 50, y: 50 };
   pushToFirebase();
   renderTableContext();
   renderGuestPicker();
