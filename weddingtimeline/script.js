@@ -524,7 +524,7 @@ function renderPlanner(container) {
     const canvas = document.getElementById("planner-canvas");
     const viewport = document.getElementById("planner-viewport");
 
-    // Zooming Logic
+    // Zooming Logic (Desktop)
     canvas.onwheel = (e) => {
       e.preventDefault();
       const zoomSpeed = 0.05;
@@ -533,11 +533,24 @@ function renderPlanner(container) {
       viewport.style.transform = `translate(calc(-50% + ${panX}px), calc(-50% + ${panY}px)) scale(${scale})`;
     };
 
-    // Panning Logic (Delta: Added Touch Support)
+    // Panning & Pinch-to-Zoom Logic (Delta Applied)
     let isPanning = false;
     let startX, startY;
+    let initialPinchDist = null;
+    let initialScale = 1;
 
     const startPanning = (e) => {
+      if (e.touches && e.touches.length === 2) {
+        // Start Pinch Zoom
+        initialPinchDist = Math.hypot(
+          e.touches[0].clientX - e.touches[1].clientX,
+          e.touches[0].clientY - e.touches[1].clientY
+        );
+        initialScale = scale;
+        isPanning = false; // Prevent panning jumps while zooming
+        return;
+      }
+
       const clientX = e.touches ? e.touches[0].clientX : e.clientX;
       const clientY = e.touches ? e.touches[0].clientY : e.clientY;
       if (e.target !== canvas && e.target !== viewport) return;
@@ -547,6 +560,18 @@ function renderPlanner(container) {
     };
 
     const movePanning = (e) => {
+      // Handle Pinch Zoom
+      if (e.touches && e.touches.length === 2 && initialPinchDist !== null) {
+        const currentDist = Math.hypot(
+          e.touches[0].clientX - e.touches[1].clientX,
+          e.touches[0].clientY - e.touches[1].clientY
+        );
+        const zoomFactor = currentDist / initialPinchDist;
+        scale = Math.max(0.2, Math.min(3, initialScale * zoomFactor));
+        viewport.style.transform = `translate(calc(-50% + ${panX}px), calc(-50% + ${panY}px)) scale(${scale})`;
+        return;
+      }
+
       if (!isPanning) return;
       const clientX = e.touches ? e.touches[0].clientX : e.clientX;
       const clientY = e.touches ? e.touches[0].clientY : e.clientY;
@@ -557,6 +582,7 @@ function renderPlanner(container) {
 
     const endPanning = () => {
       isPanning = false;
+      initialPinchDist = null;
     };
 
     canvas.onmousedown = startPanning;
@@ -629,9 +655,10 @@ function renderPlanner(container) {
       openSeatModal();
     };
 
-    // Table Dragging (Delta: Added Touch Support)
+    // Table Dragging (Touch Support)
     let isDragging = false;
     const handleDragStart = (e) => {
+      if (e.touches && e.touches.length > 1) return; // Ignore drag if zooming
       if (
         e.target.closest(".delete-table-btn") ||
         e.target.classList.contains("table-label-input")
