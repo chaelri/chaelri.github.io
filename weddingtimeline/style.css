@@ -150,7 +150,7 @@ textarea.edit-input {
   border: 2px solid #444;
 }
 .table-rect {
-  width: 120px;
+  width: 60px;
   height: 60px;
   border-radius: 12px;
   background: #2d2b28;
@@ -212,7 +212,7 @@ textarea.edit-input {
   border: 2px solid #444;
 } /* Vertical VIP */
 .zoom-rect {
-  width: 450px;
+  width: 250px;
   height: 250px;
   border-radius: 20px;
 }
