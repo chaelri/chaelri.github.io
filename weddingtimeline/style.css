@@ -13,18 +13,113 @@ body {
   touch-action: none;
 }
 
+/* HIGH FIDELITY ANIME STYLE CARDS */
 .chapter-card {
-  transition: all 0.5s cubic-bezier(0.175, 0.885, 0.32, 1.275);
-}
-.chapter-card:hover {
-  transform: translateY(-15px);
-  border-color: rgba(245, 158, 11, 0.4);
-  box-shadow: 0 25px 50px -12px rgba(0, 0, 0, 0.8);
+  min-width: 320px;
+  height: 480px;
+  background: #ffffff; /* This creates the thin white border from image */
+  padding: 5px; /* Border thickness */
+  border-radius: 4px;
+  cursor: pointer;
+  box-shadow: 0 10px 30px rgba(0, 0, 0, 0.5);
+  transition: all 0.4s cubic-bezier(0.165, 0.84, 0.44, 1);
+  snap-align: center;
 }
 
-.chapter-image-container {
-  clip-path: polygon(0 0, 100% 0, 100% 88%, 0 100%);
+.chapter-card:hover {
+  transform: scale(1.03) translateY(-10px);
+  box-shadow: 0 20px 45px rgba(0, 0, 0, 0.7);
+}
+
+.card-inner {
+  background: #1c1b19;
+  width: 100%;
+  height: 100%;
   position: relative;
+}
+
+/* Card Image with Dimmer overlay for text readability */
+.card-image-layer {
+  position: absolute;
+  inset: 0;
+  background-size: cover;
+  background-position: center;
+  transition: transform 0.8s ease;
+}
+
+.card-image-layer::after {
+  content: "";
+  position: absolute;
+  inset: 0;
+  background: linear-gradient(to top, rgba(0, 0, 0, 0.5) 0%, transparent 60%);
+}
+
+.chapter-card:hover .card-image-layer {
+  transform: scale(1.1);
+}
+
+/* Top-Right Number Display */
+.card-number-overlay {
+  position: absolute;
+  top: 10px;
+  right: 15px;
+  color: #fff;
+  display: flex;
+  flex-direction: column;
+  align-items: flex-end;
+  pointer-events: none;
+  z-index: 5;
+}
+
+.number-text {
+  font-size: 42px;
+  font-weight: 800;
+  line-height: 1;
+  text-shadow: 0 2px 8px rgba(0, 0, 0, 0.5);
+}
+
+/* Badge: "Chapter 01" */
+.chapter-badge {
+  background: #fff;
+  color: #000;
+  font-weight: 800;
+  font-size: 14px;
+  padding: 4px 12px;
+  border-radius: 4px;
+  width: fit-content;
+  margin-bottom: 8px;
+  box-shadow: 0 4px 10px rgba(0, 0, 0, 0.3);
+  z-index: 5;
+}
+
+/* Navy Blue Title Bar */
+.title-strip {
+  background: #1e3a8a; /* Correct Navy shade */
+  color: #fff;
+  padding: 8px 12px;
+  font-size: 18px;
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  width: 100%;
+  border-radius: 2px;
+  box-shadow: 0 4px 15px rgba(0, 0, 0, 0.4);
+  z-index: 5;
+}
+
+/* Bottom Subtitle White Label */
+.subtitle-badge {
+  background: #fff;
+  color: #1c1b19;
+  font-size: 12px;
+  font-weight: 700;
+  padding: 4px 14px;
+  border-radius: 2px;
+  width: fit-content;
+  margin-top: 6px;
+  align-self: flex-end;
+  box-shadow: 0 4px 10px rgba(0, 0, 0, 0.2);
+  z-index: 5;
 }
 
 /* Editable Input Styling */

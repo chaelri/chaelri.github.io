@@ -78,6 +78,7 @@ let weddingData = {
       title: "The Foundation",
       subtitle: "6 Months Out",
       period: "Jan 02 - Feb 01, 2026",
+      image: "/assets/1.JPG", // Add your image paths here
       color: "#8c6239",
       type: "list",
       content: [
@@ -92,6 +93,7 @@ let weddingData = {
       title: "The Basics",
       subtitle: "5 Months Out",
       period: "Feb 02 - Mar 01, 2026",
+      image: "img/chapter02.jpg",
       color: "#4a5d23",
       type: "list",
       content: [
@@ -106,6 +108,7 @@ let weddingData = {
       title: "Document Request",
       subtitle: "4 Months Out",
       period: "Mar 02 - Apr 01, 2026",
+      image: "",
       color: "#967e43",
       type: "list",
       content: [
@@ -118,6 +121,7 @@ let weddingData = {
       title: "The Seminars",
       subtitle: "3 Months Out",
       period: "Apr 02 - May 01, 2026",
+      image: "",
       color: "#5b6341",
       type: "list",
       content: [
@@ -132,6 +136,7 @@ let weddingData = {
       title: "The License",
       subtitle: "2 Months Out",
       period: "May 02 - Jun 22, 2026",
+      image: "",
       color: "#7a743a",
       type: "list",
       content: [
@@ -145,6 +150,7 @@ let weddingData = {
       title: "The Vendor Guild",
       subtitle: "Guild Roster",
       period: "Contacts",
+      image: "",
       color: "#2d3e50",
       type: "table",
       headers: ["Service", "Vendor", "Contact Person", "Phone"],
@@ -158,6 +164,7 @@ let weddingData = {
       title: "The Entourage",
       subtitle: "Party Roles",
       period: "Responsibilities",
+      image: "",
       color: "#6e2c2c",
       type: "table",
       headers: ["Name", "Role", "Responsibilities"],
@@ -168,6 +175,7 @@ let weddingData = {
       title: "Ceremony Inventory",
       subtitle: "Checklist",
       period: "Church Items",
+      image: "",
       color: "#4d5b6e",
       type: "list",
       content: [
@@ -183,6 +191,7 @@ let weddingData = {
       title: "Reception Inventory",
       subtitle: "Checklist",
       period: "Party Items",
+      image: "",
       color: "#5e4d6e",
       type: "list",
       content: [
@@ -196,6 +205,7 @@ let weddingData = {
       title: "Emergency Kit",
       subtitle: "Checklist",
       period: "Survival Gear",
+      image: "",
       color: "#6e4d4d",
       type: "list",
       content: [
@@ -210,6 +220,7 @@ let weddingData = {
       title: "Snapshot List",
       subtitle: "Media",
       period: "Shot List",
+      image: "",
       color: "#4d6e5e",
       type: "list",
       content: [
@@ -223,6 +234,7 @@ let weddingData = {
       title: "The Music Box",
       subtitle: "Audio",
       period: "Playlists",
+      image: "",
       color: "#543864",
       type: "list",
       content: [
@@ -236,6 +248,7 @@ let weddingData = {
       title: "Side Quests",
       subtitle: "Entertainment",
       period: "Games & Prizes",
+      image: "",
       color: "#5b4a23",
       type: "list",
       content: [
@@ -249,6 +262,7 @@ let weddingData = {
       title: "Boss Room Layout",
       subtitle: "Setup",
       period: "Floor Plan",
+      image: "",
       color: "#2d5a5a",
       type: "planner",
       layout: {
@@ -273,6 +287,7 @@ let weddingData = {
       title: "TikTok Trends",
       subtitle: "Social Media",
       period: "Reel Pegs",
+      image: "",
       color: "#8c395a",
       type: "list",
       content: [
@@ -361,20 +376,43 @@ function initSync() {
 function renderGallery() {
   const gallery = document.getElementById("chapter-gallery");
   if (!weddingData.chapters) return;
+
   gallery.innerHTML = weddingData.chapters
-    .map(
-      (ch, idx) => `
-        <div class="chapter-card min-w-[300px] h-[460px] bg-[#1c1b19] rounded-[2rem] border border-stone-800 cursor-pointer overflow-hidden flex flex-col snap-center shadow-2xl" onclick="window.openModal(${idx})">
-            <div class="chapter-image-container h-[55%] w-full" style="background-color: ${ch.color}">
-                <div class="absolute top-6 right-6 bg-black/40 backdrop-blur-md px-3 py-1 rounded text-[10px] font-bold text-white border border-white/10 uppercase tracking-widest">${ch.subtitle}</div>
-            </div>
-            <div class="p-8 flex-1 flex flex-col justify-between">
-                <div><h2 class="font-['Playfair_Display'] italic text-2xl text-stone-100">${ch.title}</h2></div>
-                <div class="bg-black/60 w-fit px-3 py-1.5 rounded-lg text-[9px] font-bold text-amber-500 border border-white/5 uppercase tracking-[0.15em] mt-4">${ch.period}</div>
+    .map((ch, idx) => {
+      const padNum = (idx + 1).toString().padStart(2, "0");
+      return `
+        <div class="chapter-card" onclick="window.openModal(${idx})">
+            <div class="card-inner relative overflow-hidden h-full">
+                <!-- Background Image Layer -->
+                <div class="card-image-layer" style="background-image: url('${
+                  ch.image || ""
+                }'); background-color: ${ch.color};"></div>
+
+                <!-- 01 Number Overlay -->
+                <div class="card-number-overlay">
+                    <span class="number-text">${padNum}</span>
+                    <span class="material-icons-round text-[10px] opacity-70">flare</span>
+                </div>
+
+                <!-- Floating Info UI Stack -->
+                <div class="absolute inset-0 flex flex-col justify-end p-2 pb-6">
+                    <div class="chapter-badge">Chapter ${padNum}</div>
+                    
+                    <div class="title-strip">
+                        <span class="material-icons-round text-[10px] text-sky-400">favorite</span>
+                        <span class="truncate font-bold tracking-tight">${
+                          ch.title
+                        }</span>
+                    </div>
+
+                    <div class="subtitle-badge">
+                        <span class="truncate">${ch.subtitle}</span>
+                    </div>
+                </div>
             </div>
         </div>
-    `
-    )
+    `;
+    })
     .join("");
 }
 
