@@ -1,0 +1,235 @@
+/* Custom Scrollbar Hiding */
+.no-scrollbar::-webkit-scrollbar {
+  display: none;
+}
+.no-scrollbar {
+  -ms-overflow-style: none;
+  scrollbar-width: none;
+}
+
+body {
+  background: radial-gradient(circle at center, #1e1e1e 0%, #0f0f0f 100%);
+  background-attachment: fixed;
+}
+
+.chapter-card {
+  transition: all 0.5s cubic-bezier(0.175, 0.885, 0.32, 1.275);
+}
+.chapter-card:hover {
+  transform: translateY(-15px);
+  border-color: rgba(245, 158, 11, 0.4);
+  box-shadow: 0 25px 50px -12px rgba(0, 0, 0, 0.8);
+}
+
+.chapter-image-container {
+  clip-path: polygon(0 0, 100% 0, 100% 88%, 0 100%);
+  position: relative;
+}
+
+/* Editable Input Styling */
+.edit-input {
+  background: rgba(255, 255, 255, 0.03);
+  border: 1px solid rgba(255, 255, 255, 0.05);
+  color: #e7e5e4;
+  padding: 12px 16px;
+  border-radius: 12px;
+  font-size: 14px;
+  width: 100%;
+  outline: none;
+  transition: all 0.2s;
+  box-sizing: border-box;
+  display: block;
+}
+
+textarea.edit-input {
+  resize: none;
+  min-height: unset;
+  line-height: 1.5;
+  overflow-y: hidden;
+}
+.edit-input:focus {
+  background: rgba(255, 255, 255, 0.06);
+  border-color: inherit;
+  box-shadow: 0 0 15px rgba(255, 255, 255, 0.1);
+}
+
+/* Custom Aesthetic Checkbox */
+.custom-checkbox {
+  appearance: none;
+  width: 20px;
+  height: 20px;
+  border: 2px solid rgba(245, 158, 11, 0.4);
+  border-radius: 6px;
+  background: rgba(0, 0, 0, 0.2);
+  cursor: pointer;
+  position: relative;
+  transition: all 0.3s cubic-bezier(0.4, 0, 0.2, 1);
+  flex-shrink: 0;
+}
+.custom-checkbox:checked {
+  background: #f59e0b;
+  border-color: #f59e0b;
+}
+.custom-checkbox:checked::after {
+  content: "\e5ca";
+  font-family: "Material Icons Round";
+  position: absolute;
+  color: #1c1b19;
+  font-size: 16px;
+  top: 50%;
+  left: 50%;
+  transform: translate(-50%, -50%);
+}
+
+.check-item {
+  display: flex;
+  align-items: flex-start;
+  gap: 12px;
+  background: rgba(255, 255, 255, 0.02);
+  padding: 8px 16px;
+  border-radius: 16px;
+  border: 1px solid rgba(255, 255, 255, 0.03);
+}
+.check-item .custom-checkbox {
+  margin-top: 12px;
+}
+.check-item:has(.custom-checkbox:checked) .edit-input {
+  color: #78716c;
+  text-decoration: line-through;
+  opacity: 0.6;
+}
+
+/* Table Design with enhanced UX spacing */
+.data-table {
+  width: 100%;
+  border-collapse: separate;
+  border-spacing: 0 14px;
+}
+.data-table th {
+  text-align: left;
+  font-size: 10px;
+  text-transform: uppercase;
+  letter-spacing: 0.25em;
+  color: #57534e;
+  padding: 0 18px;
+}
+.data-table td {
+  padding: 0 10px;
+  vertical-align: top;
+}
+
+/* Planner UI */
+#planner-canvas {
+  width: 100%;
+  height: 600px;
+  background: #141311;
+  border: 2px dashed #2a2926;
+  border-radius: 2rem;
+  position: relative;
+  overflow: hidden;
+  background-image: radial-gradient(#2a2926 1px, transparent 1px);
+  background-size: 30px 30px;
+}
+.planner-object {
+  position: absolute;
+  cursor: grab;
+  user-select: none;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  z-index: 10;
+}
+.table-circle {
+  width: 80px;
+  height: 80px;
+  border-radius: 50%;
+  background: #2d2b28;
+  border: 2px solid #444;
+}
+.table-rect {
+  width: 120px;
+  height: 60px;
+  border-radius: 12px;
+  background: #2d2b28;
+  border: 2px solid #444;
+}
+.table-vip {
+  width: 180px;
+  height: 70px;
+  border-radius: 8px;
+  background: #3d3b38;
+  border: 2px solid #f59e0b;
+}
+.table-special {
+  background: rgba(245, 158, 11, 0.1);
+  border: 1px solid #f59e0b;
+  color: #f59e0b;
+}
+.table-label {
+  font-size: 10px;
+  font-weight: 800;
+  color: #78716c;
+  margin-top: 4px;
+  pointer-events: none;
+}
+.seat-count {
+  background: #f59e0b;
+  color: #1c1b19;
+  font-size: 9px;
+  font-weight: 900;
+  padding: 2px 6px;
+  border-radius: 10px;
+  position: absolute;
+  top: -5px;
+  right: -5px;
+}
+
+/* Role Group Colors & Picker Header */
+.role-couple {
+  border-color: rgba(245, 158, 11, 0.5) !important;
+  color: #fbbf24 !important;
+}
+.role-family {
+  border-color: rgba(56, 189, 248, 0.4) !important;
+  color: #7dd3fc !important;
+}
+.role-officiant {
+  border-color: rgba(168, 162, 158, 0.4) !important;
+  color: #d6d3d1 !important;
+}
+.role-party {
+  border-color: rgba(16, 185, 129, 0.4) !important;
+  color: #6ee7b7 !important;
+}
+.role-sponsor {
+  border-color: rgba(251, 146, 60, 0.4) !important;
+  color: #fdba74 !important;
+}
+.role-kids {
+  border-color: rgba(244, 114, 182, 0.4) !important;
+  color: #f9a8d4 !important;
+}
+
+.picker-role-header {
+  font-size: 9px;
+  font-weight: 900;
+  letter-spacing: 0.3em;
+  text-transform: uppercase;
+  color: #444;
+  border-bottom: 1px solid rgba(255, 255, 255, 0.05);
+  padding-bottom: 8px;
+  margin-top: 24px;
+  display: flex;
+  align-items: center;
+  gap: 10px;
+}
+
+/* Scroll Sync Styling */
+main::-webkit-scrollbar {
+  height: 4px;
+}
+main::-webkit-scrollbar-thumb {
+  background: rgba(245, 158, 11, 0.3);
+  border-radius: 10px;
+}

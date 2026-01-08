@@ -1,0 +1,16 @@
+{
+  "name": "Charlie & Karla: The Main Story",
+  "short_name": "CK Wedding",
+  "start_url": "./index.html",
+  "display": "standalone",
+  "background_color": "#0f0f0f",
+  "theme_color": "#0f0f0f",
+  "description": "The Ultimate Wedding Binder & Timeline",
+  "icons": [
+    {
+      "src": "https://cdn-icons-png.flaticon.com/512/3656/3656830.png",
+      "sizes": "512x512",
+      "type": "image/png"
+    }
+  ]
+}
