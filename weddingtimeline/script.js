@@ -385,9 +385,11 @@ window.openModal = function (idx) {
 
   if (idx === 13) {
     modalCont.classList.add("planner-fullscreen");
+    document.getElementById("modal").classList.add("p-0");
     toolbar.classList.remove("hidden");
   } else {
     modalCont.classList.remove("planner-fullscreen");
+    document.getElementById("modal").classList.remove("p-0");
     toolbar.classList.add("hidden");
   }
 
