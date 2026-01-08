@@ -10,6 +10,7 @@
 body {
   background: radial-gradient(circle at center, #1e1e1e 0%, #0f0f0f 100%);
   background-attachment: fixed;
+  touch-action: none;
 }
 
 .chapter-card {
@@ -40,7 +41,6 @@ body {
   box-sizing: border-box;
   display: block;
 }
-
 textarea.edit-input {
   resize: none;
   min-height: unset;
@@ -118,17 +118,17 @@ textarea.edit-input {
   vertical-align: top;
 }
 
-/* Planner UI */
+/* Planner Main Room UI */
 #planner-canvas {
   width: 100%;
-  height: 600px;
+  height: 800px;
   background: #141311;
   border: 2px dashed #2a2926;
   border-radius: 2rem;
   position: relative;
   overflow: hidden;
-  background-image: radial-gradient(#2a2926 1px, transparent 1px);
-  background-size: 30px 30px;
+  background-image: radial-gradient(#2a2926 1.5px, transparent 1.5px);
+  background-size: 40px 40px;
 }
 .planner-object {
   position: absolute;
@@ -139,7 +139,9 @@ textarea.edit-input {
   align-items: center;
   justify-content: center;
   z-index: 10;
+  flex-shrink: 0;
 }
+
 .table-circle {
   width: 80px;
   height: 80px;
@@ -155,24 +157,103 @@ textarea.edit-input {
   border: 2px solid #444;
 }
 .table-vip {
-  width: 180px;
-  height: 70px;
-  border-radius: 8px;
+  width: 80px;
+  height: 180px;
+  border-radius: 12px;
   background: #3d3b38;
   border: 2px solid #f59e0b;
-}
+} /* Vertical VIP */
+.table-couple {
+  width: 140px;
+  height: 65px;
+  border-radius: 10px;
+  background: #3d3b38;
+  border: 2px solid #f59e0b;
+} /* Horizontal Couple */
 .table-special {
   background: rgba(245, 158, 11, 0.1);
   border: 1px solid #f59e0b;
   color: #f59e0b;
 }
+
 .table-label {
-  font-size: 10px;
-  font-weight: 800;
+  font-size: 9px;
+  font-weight: 900;
   color: #78716c;
   margin-top: 4px;
   pointer-events: none;
+  text-align: center;
 }
+
+/* Interactive Seat Planner (Zoom View) */
+.zoom-table-base {
+  position: absolute;
+  background: #2d2b28;
+  border: 4px solid #444;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  box-shadow: 0 0 50px rgba(0, 0, 0, 0.5);
+  font-size: 14px;
+  font-weight: 900;
+  color: #444;
+  text-transform: uppercase;
+}
+.zoom-circle {
+  width: 350px;
+  height: 350px;
+  border-radius: 50%;
+}
+.zoom-vip {
+  width: 220px;
+  height: 500px;
+  border-radius: 20px;
+  border-color: #f59e0b;
+} /* Vertical VIP */
+.zoom-rect {
+  width: 450px;
+  height: 250px;
+  border-radius: 20px;
+}
+.zoom-couple {
+  width: 450px;
+  height: 150px;
+  border-radius: 20px;
+  border-color: #f59e0b;
+} /* Horizontal Couple Zoom */
+
+.seat-bubble {
+  position: absolute;
+  width: 48px;
+  height: 48px;
+  border-radius: 50%;
+  background: #f59e0b;
+  color: #1c1b19;
+  font-weight: 900;
+  font-size: 14px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  cursor: grab;
+  border: 3px solid rgba(255, 255, 255, 0.2);
+  box-shadow: 0 8px 16px rgba(0, 0, 0, 0.4);
+  z-index: 100;
+  user-select: none;
+}
+.seat-bubble:active {
+  cursor: grabbing;
+  transform: scale(1.15);
+}
+.seat-bubble::after {
+  content: attr(data-name);
+  position: absolute;
+  bottom: -22px;
+  white-space: nowrap;
+  font-size: 10px;
+  color: #ffffff;
+  font-weight: 700;
+}
+
 .seat-count {
   background: #f59e0b;
   color: #1c1b19;
@@ -181,11 +262,25 @@ textarea.edit-input {
   padding: 2px 6px;
   border-radius: 10px;
   position: absolute;
-  top: -5px;
-  right: -5px;
+  top: -8px;
+  right: -8px;
+  border: 2px solid #141311;
 }
 
-/* Role Group Colors & Picker Header */
+/* Role Headers and Sorting */
+.picker-role-header {
+  font-size: 8px;
+  font-weight: 900;
+  letter-spacing: 0.25em;
+  text-transform: uppercase;
+  color: #4a4a47;
+  padding-bottom: 8px;
+  margin-top: 15px;
+  display: flex;
+  align-items: center;
+  gap: 8px;
+}
+
 .role-couple {
   border-color: rgba(245, 158, 11, 0.5) !important;
   color: #fbbf24 !important;
@@ -209,20 +304,6 @@ textarea.edit-input {
 .role-kids {
   border-color: rgba(244, 114, 182, 0.4) !important;
   color: #f9a8d4 !important;
-}
-
-.picker-role-header {
-  font-size: 9px;
-  font-weight: 900;
-  letter-spacing: 0.3em;
-  text-transform: uppercase;
-  color: #444;
-  border-bottom: 1px solid rgba(255, 255, 255, 0.05);
-  padding-bottom: 8px;
-  margin-top: 24px;
-  display: flex;
-  align-items: center;
-  gap: 10px;
 }
 
 /* Scroll Sync Styling */

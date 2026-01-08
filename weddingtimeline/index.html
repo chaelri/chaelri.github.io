@@ -124,7 +124,7 @@
           class="p-4 bg-black/20 border-t border-white/5 flex justify-between items-center px-8"
         >
           <p class="text-[10px] text-stone-500 font-medium italic">
-            Changes are saved automatically.
+            Edits save automatically to the cloud.
           </p>
           <button
             id="add-row-btn"
@@ -137,55 +137,79 @@
       </div>
     </div>
 
-    <!-- Seat Assignment Sub-Modal -->
+    <!-- Seat Assignment Interactive Canvas Modal -->
     <div
       id="seat-modal"
-      class="hidden fixed inset-0 z-[60] flex items-center justify-center p-4 bg-black/60 backdrop-blur-sm"
+      class="hidden fixed inset-0 z-[60] flex items-center justify-center p-4 bg-black/85 backdrop-blur-md"
     >
       <div
-        class="bg-[#1c1b19] w-full max-w-lg max-h-[85vh] rounded-[2.5rem] border border-stone-800 shadow-2xl p-8 flex flex-col"
+        class="bg-[#1c1b19] w-full max-w-5xl h-[85vh] rounded-[2.5rem] border border-stone-800 shadow-2xl flex overflow-hidden"
       >
-        <div class="flex justify-between items-center mb-6">
-          <h3
-            id="seat-modal-title"
-            class="font-['Playfair_Display'] text-3xl italic text-stone-100"
-          >
-            Assign Seats
-          </h3>
-          <span
-            class="text-[10px] font-black uppercase text-amber-500 bg-amber-500/10 px-3 py-1 rounded-full"
-            >Unit Selection</span
-          >
-        </div>
-
-        <div class="relative mb-6">
-          <span
-            class="material-icons-round absolute left-4 top-1/2 -translate-y-1/2 text-stone-600"
-            >search</span
-          >
-          <input
-            type="text"
-            id="guest-search"
-            class="edit-input !pl-12 !bg-black/20"
-            placeholder="Search unassigned guests..."
-            oninput="window.filterGuestList()"
-          />
-        </div>
-
+        <!-- Left Side: Table Layout Preview -->
         <div
-          id="guest-selection-list"
-          class="flex-1 overflow-y-auto no-scrollbar space-y-6 pr-1"
+          class="flex-1 relative bg-black/20 p-8 flex items-center justify-center border-r border-white/5"
         >
-          <!-- Sorted & Grouped Guests loaded via JS -->
+          <div
+            id="table-zoom-container"
+            class="w-full h-full relative flex items-center justify-center"
+          >
+            <!-- Zoomed table and bubbles -->
+          </div>
+          <div
+            class="absolute bottom-6 left-8 text-[10px] font-bold text-stone-500 uppercase tracking-widest"
+          >
+            Drag initials to set unit position
+          </div>
         </div>
 
-        <div class="flex justify-end pt-6 border-t border-white/5 mt-4">
-          <button
-            onclick="window.closeSeatModal()"
-            class="bg-stone-800 hover:bg-stone-700 text-stone-200 font-bold text-[10px] uppercase tracking-[0.2em] px-8 py-3 rounded-2xl transition"
+        <!-- Right Side: Guest Roster -->
+        <div class="w-80 flex flex-col bg-stone-900/50">
+          <div
+            class="p-6 border-b border-white/5 flex justify-between items-center"
           >
-            Finalize Quest
-          </button>
+            <h3
+              id="seat-modal-title"
+              class="font-['Playfair_Display'] text-2xl italic text-stone-100"
+            >
+              Assign Seats
+            </h3>
+            <button
+              onclick="window.closeSeatModal()"
+              class="text-stone-500 hover:text-white transition"
+            >
+              <span class="material-icons-round">close</span>
+            </button>
+          </div>
+
+          <!-- Inscribed Table List -->
+          <div class="p-4 bg-black/20 border-b border-white/5">
+            <span
+              class="text-[8px] font-black uppercase text-amber-500 tracking-[0.2em] mb-3 block"
+              >Inscribed in Table</span
+            >
+            <div
+              id="assigned-names-list"
+              class="space-y-1 text-xs font-medium text-stone-300"
+            >
+              <!-- Names appear here -->
+            </div>
+          </div>
+
+          <div class="p-4">
+            <input
+              type="text"
+              id="guest-search"
+              class="edit-input !bg-black/40 !text-xs"
+              placeholder="Search unassigned guests..."
+              oninput="window.filterGuestList()"
+            />
+          </div>
+          <div
+            id="guest-selection-list"
+            class="flex-1 overflow-y-auto no-scrollbar p-4 space-y-3"
+          >
+            <!-- Sorted units -->
+          </div>
         </div>
       </div>
     </div>

@@ -61,7 +61,225 @@ function getRoleColorClass(role) {
   return "";
 }
 
-let weddingData = { chapters: [] };
+function getInitials(name) {
+  if (!name) return "?";
+  const parts = name.trim().split(/\s+/);
+  if (parts.length < 2) return parts[0].substring(0, 2).toUpperCase();
+  return (parts[0][0] + parts[parts.length - 1][0]).toUpperCase();
+}
+
+/**
+ * DATABASE STRUCTURE - CHAPTERS 0 - 14
+ */
+let weddingData = {
+  chapters: [
+    {
+      id: 0,
+      title: "The Foundation",
+      subtitle: "6 Months Out",
+      period: "Jan 02 - Feb 01, 2026",
+      color: "#8c6239",
+      type: "list",
+      content: [
+        { text: "Check LCR Requirements", checked: false },
+        { text: "Check Church specific rules", checked: false },
+        { text: "Review PSA spelling errors", checked: false },
+        { text: "Fix late registration issues", checked: false },
+      ],
+    },
+    {
+      id: 1,
+      title: "The Basics",
+      subtitle: "5 Months Out",
+      period: "Feb 02 - Mar 01, 2026",
+      color: "#4a5d23",
+      type: "list",
+      content: [
+        { text: "Finalize wedding date", checked: false },
+        { text: "Prepare 2 Valid IDs", checked: false },
+        { text: "Get 2x2 Photos", checked: false },
+        { text: "Organize old PSA docs", checked: false },
+      ],
+    },
+    {
+      id: 2,
+      title: "Document Request",
+      subtitle: "4 Months Out",
+      period: "Mar 02 - Apr 01, 2026",
+      color: "#967e43",
+      type: "list",
+      content: [
+        { text: "Request fresh PSA Birth Certs", checked: false },
+        { text: "Request fresh PSA CENOMAR", checked: false },
+      ],
+    },
+    {
+      id: 3,
+      title: "The Seminars",
+      subtitle: "3 Months Out",
+      period: "Apr 02 - May 01, 2026",
+      color: "#5b6341",
+      type: "list",
+      content: [
+        { text: "Pre-marriage Counseling", checked: false },
+        { text: "Family Planning Seminar", checked: false },
+        { text: "Secure Cedula", checked: false },
+        { text: "Barangay Certificate", checked: false },
+      ],
+    },
+    {
+      id: 4,
+      title: "The License",
+      subtitle: "2 Months Out",
+      period: "May 02 - Jun 22, 2026",
+      color: "#7a743a",
+      type: "list",
+      content: [
+        { text: "Apply for License at City Hall", checked: false },
+        { text: "Mandatory 10-day Posting", checked: false },
+        { text: "Pick up License (Valid 120 days)", checked: false },
+      ],
+    },
+    {
+      id: 5,
+      title: "The Vendor Guild",
+      subtitle: "Guild Roster",
+      period: "Contacts",
+      color: "#2d3e50",
+      type: "table",
+      headers: ["Service", "Vendor", "Contact Person", "Phone"],
+      content: [
+        ["Venue", "-", "-", "-"],
+        ["Catering", "-", "-", "-"],
+      ],
+    },
+    {
+      id: 6,
+      title: "The Entourage",
+      subtitle: "Party Roles",
+      period: "Responsibilities",
+      color: "#6e2c2c",
+      type: "table",
+      headers: ["Name", "Role", "Responsibilities"],
+      content: [],
+    },
+    {
+      id: 7,
+      title: "Ceremony Inventory",
+      subtitle: "Checklist",
+      period: "Church Items",
+      color: "#4d5b6e",
+      type: "list",
+      content: [
+        { text: "Wedding Rings", checked: false },
+        { text: "Arrhae", checked: false },
+        { text: "Bible", checked: false },
+        { text: "Veil", checked: false },
+        { text: "Cord", checked: false },
+      ],
+    },
+    {
+      id: 8,
+      title: "Reception Inventory",
+      subtitle: "Checklist",
+      period: "Party Items",
+      color: "#5e4d6e",
+      type: "list",
+      content: [
+        { text: "Wine", checked: false },
+        { text: "Prizes for Games", checked: false },
+        { text: "Guestlist Chart", checked: false },
+      ],
+    },
+    {
+      id: 9,
+      title: "Emergency Kit",
+      subtitle: "Checklist",
+      period: "Survival Gear",
+      color: "#6e4d4d",
+      type: "list",
+      content: [
+        { text: "Bobby Pins", checked: false },
+        { text: "Safety Pins", checked: false },
+        { text: "Mints", checked: false },
+        { text: "Biogesic/Diatabs", checked: false },
+      ],
+    },
+    {
+      id: 10,
+      title: "Snapshot List",
+      subtitle: "Media",
+      period: "Shot List",
+      color: "#4d6e5e",
+      type: "list",
+      content: [
+        { text: "Bride with Mochi (Dog)", checked: false },
+        { text: "Groom with Andre (Dog)", checked: false },
+        { text: "First Kiss", checked: false },
+      ],
+    },
+    {
+      id: 11,
+      title: "The Music Box",
+      subtitle: "Audio",
+      period: "Playlists",
+      color: "#543864",
+      type: "list",
+      content: [
+        { text: "Bridal Walk: Goodness of God", checked: false },
+        { text: "Flower Men: Back in Black", checked: false },
+        { text: "First Dance: Palagi", checked: false },
+      ],
+    },
+    {
+      id: 12,
+      title: "Side Quests",
+      subtitle: "Entertainment",
+      period: "Games & Prizes",
+      color: "#5b4a23",
+      type: "list",
+      content: [
+        { text: "Guess The Tune", checked: false },
+        { text: "Trivia Game", checked: false },
+        { text: "Tumpakners", checked: false },
+      ],
+    },
+    {
+      id: 13,
+      title: "Boss Room Layout",
+      subtitle: "Setup",
+      period: "Floor Plan",
+      color: "#2d5a5a",
+      type: "planner",
+      layout: {
+        couple: {
+          x: 50,
+          y: 15,
+          type: "couple",
+          label: "COUPLE SEAT",
+          assigned: {},
+        },
+        stage: { x: 50, y: 5, type: "special", label: "STAGE", assigned: {} },
+        vip1: { x: 70, y: 35, type: "vip", label: "VIP 1", assigned: {} },
+        vip2: { x: 30, y: 35, type: "vip", label: "VIP 2", assigned: {} },
+      },
+    },
+    {
+      id: 14,
+      title: "TikTok Trends",
+      subtitle: "Social Media",
+      period: "Reel Pegs",
+      color: "#8c395a",
+      type: "list",
+      content: [
+        { text: "Bouquet Transition", checked: false },
+        { text: "Spin Phone Transition", checked: false },
+        { text: "Day in the Life Vlog", checked: false },
+      ],
+    },
+  ],
+};
+
 let activeIndex = null;
 let guestDataMap = {};
 let currentTableId = null;
@@ -74,26 +292,24 @@ function autoResize(el) {
 
 function initSync() {
   onValue(ref(db, "wedding_data"), (snapshot) => {
-    try {
-      const data = snapshot.val();
-      if (data) {
-        data.chapters = data.chapters.map((ch) => {
-          if (ch.type === "list") {
-            ch.content = (ch.content || []).map((item) =>
-              typeof item === "string" ? { text: item, checked: false } : item
-            );
-          }
-          return ch;
-        });
-        weddingData = data;
-      }
-      document.getElementById("sync-indicator").innerHTML =
-        '<span class="material-icons-round text-xs text-emerald-500">cloud_done</span> Up to Date';
-      renderGallery();
-      if (activeIndex !== null && activeIndex !== 13) refreshModal();
-    } catch (e) {
-      console.error(e);
+    const data = snapshot.val();
+    if (data) {
+      data.chapters = data.chapters.map((ch) => {
+        if (ch.type === "list") {
+          ch.content = (ch.content || []).map((item) =>
+            typeof item === "string" ? { text: item, checked: false } : item
+          );
+        }
+        return ch;
+      });
+      weddingData = data;
+    } else {
+      set(ref(db, "wedding_data"), weddingData);
     }
+    document.getElementById("sync-indicator").innerHTML =
+      '<span class="material-icons-round text-xs text-emerald-500">cloud_done</span> Up to Date';
+    renderGallery();
+    if (activeIndex !== null && activeIndex !== 13) refreshModal();
   });
 
   onValue(ref(db, "guestList"), (snapshot) => {
@@ -101,23 +317,13 @@ function initSync() {
     guestDataMap = list;
 
     const sortedGuests = Object.entries(list)
-      .filter(([id, g]) => {
-        const r = (g.role || "").toLowerCase().trim();
-        return r !== "";
-      })
+      .filter(([id, g]) => (g.role || "").toLowerCase().trim() !== "")
       .sort((a, b) => {
-        const roleA = (a[1].role || "guest").toLowerCase().trim();
-        const roleB = (b[1].role || "guest").toLowerCase().trim();
-        const idxA =
-          ROLE_HIERARCHY.indexOf(roleA) === -1
-            ? 99
-            : ROLE_HIERARCHY.indexOf(roleA);
-        const idxB =
-          ROLE_HIERARCHY.indexOf(roleB) === -1
-            ? 99
-            : ROLE_HIERARCHY.indexOf(roleB);
-
-        if (idxA !== idxB) return idxA - idxB;
+        const idxA = ROLE_HIERARCHY.indexOf(a[1].role.toLowerCase().trim());
+        const idxB = ROLE_HIERARCHY.indexOf(b[1].role.toLowerCase().trim());
+        const valA = idxA === -1 ? 99 : idxA;
+        const valB = idxB === -1 ? 99 : idxB;
+        if (valA !== valB) return valA - valB;
         return (a[1].name || "").localeCompare(b[1].name || "");
       });
 
@@ -132,7 +338,10 @@ function initSync() {
 
     renderGallery();
     if (activeIndex === 6) refreshModal();
-    if (activeIndex === 13) refreshModal();
+    if (activeIndex === 13 && currentTableId) {
+      renderTableContext();
+      renderGuestPicker();
+    }
   });
 }
 
@@ -147,13 +356,8 @@ function renderGallery() {
                 <div class="absolute top-6 right-6 bg-black/40 backdrop-blur-md px-3 py-1 rounded text-[10px] font-bold text-white border border-white/10 uppercase tracking-widest">${ch.subtitle}</div>
             </div>
             <div class="p-8 flex-1 flex flex-col justify-between">
-                <div>
-                    <h3 class="text-stone-500 font-bold text-[10px] uppercase tracking-widest mb-1">Quest Log</h3>
-                    <h2 class="font-['Playfair_Display'] italic text-2xl text-stone-100">${ch.title}</h2>
-                </div>
-                <div class="bg-black/60 w-fit px-3 py-1.5 rounded-lg text-[9px] font-bold text-amber-500 border border-white/5 uppercase tracking-[0.15em] mt-4">
-                    ${ch.period}
-                </div>
+                <div><h2 class="font-['Playfair_Display'] italic text-2xl text-stone-100">${ch.title}</h2></div>
+                <div class="bg-black/60 w-fit px-3 py-1.5 rounded-lg text-[9px] font-bold text-amber-500 border border-white/5 uppercase tracking-[0.15em] mt-4">${ch.period}</div>
             </div>
         </div>
     `
@@ -172,9 +376,7 @@ function refreshModal() {
   const body = document.getElementById("modal-body");
   const addBtn = document.getElementById("add-row-btn");
 
-  if (activeIndex === 6 || activeIndex === 13) addBtn.classList.add("hidden");
-  else addBtn.classList.remove("hidden");
-
+  addBtn.classList.toggle("hidden", activeIndex === 6 || activeIndex === 13);
   document.getElementById("modal-banner").style.backgroundColor = ch.color;
   document.getElementById("modal-badge").innerText = ch.subtitle;
   document.getElementById("modal-title-input").value = ch.title;
@@ -205,9 +407,7 @@ function refreshModal() {
                 <textarea rows="1" class="edit-input" oninput="window.autoResize(this)" onchange="window.saveContent(${i}, this.value)">${
           item.text
         }</textarea>
-                <button onclick="window.removeItem(${i})" class="opacity-0 group-hover:opacity-100 text-stone-600 hover:text-red-500 transition px-2 mt-2">
-                    <span class="material-icons-round text-sm">delete</span>
-                </button>
+                <button onclick="window.removeItem(${i})" class="opacity-0 group-hover:opacity-100 text-stone-600 hover:text-red-500 transition px-2 mt-2"><span class="material-icons-round text-sm">delete</span></button>
             </div>
         `
       )
@@ -266,6 +466,9 @@ window.saveTable = (r, c, val, rowId) => {
   }
 };
 
+/**
+ * BOSS ROOM LAYOUT ENGINE
+ */
 function renderPlanner(container) {
   container.innerHTML = `<div id="planner-canvas"></div>`;
   const canvas = document.getElementById("planner-canvas");
@@ -273,15 +476,16 @@ function renderPlanner(container) {
 
   Object.entries(layout).forEach(([id, obj]) => {
     const el = document.createElement("div");
+    console.log(obj.type)
     el.className = `planner-object table-${obj.type}`;
     el.style.left = obj.x + "%";
     el.style.top = obj.y + "%";
     el.style.transform = "translate(-50%, -50%)";
-    const count = (obj.assigned || []).length;
+    const assigned = Object.keys(obj.assigned || {}).length;
     el.innerHTML = `${
-      count > 0 ? `<div class="seat-count">${count}</div>` : ""
+      assigned > 0 ? `<div class="seat-count">${assigned}</div>` : ""
     }<span class="table-label uppercase">${obj.label}</span>`;
-    el.onclick = (e) => {
+    el.onclick = () => {
       if (el.dataset.dragging === "true") return;
       currentTableId = id;
       openSeatModal();
@@ -291,7 +495,7 @@ function renderPlanner(container) {
     const startDrag = (e) => {
       isDragging = true;
       el.dataset.dragging = "false";
-      const onDrag = (ev) => {
+      const move = (ev) => {
         if (!isDragging) return;
         el.dataset.dragging = "true";
         const moveX = ev.type?.includes("touch")
@@ -301,27 +505,27 @@ function renderPlanner(container) {
           ? ev.touches[0].clientY
           : ev.clientY;
         const rect = canvas.getBoundingClientRect();
-        let xp = ((moveX - rect.left) / rect.width) * 100;
-        let yp = ((moveY - rect.top) / rect.height) * 100;
+        let xp = Math.round(((moveX - rect.left) / rect.width) * 100);
+        let yp = Math.round(((moveY - rect.top) / rect.height) * 100);
         xp = Math.max(0, Math.min(100, xp));
         yp = Math.max(0, Math.min(100, yp));
         el.style.left = xp + "%";
         el.style.top = yp + "%";
-        obj.x = Math.round(xp);
-        obj.y = Math.round(yp);
+        obj.x = xp;
+        obj.y = yp;
       };
-      const endDrag = () => {
+      const stop = () => {
         isDragging = false;
         pushToFirebase();
-        document.removeEventListener("mousemove", onDrag);
-        document.removeEventListener("mouseup", endDrag);
-        document.removeEventListener("touchmove", onDrag);
-        document.removeEventListener("touchend", endDrag);
+        document.removeEventListener("mousemove", move);
+        document.removeEventListener("mouseup", stop);
+        document.removeEventListener("touchmove", move);
+        document.removeEventListener("touchend", stop);
       };
-      document.addEventListener("mousemove", onDrag);
-      document.addEventListener("mouseup", endDrag);
-      document.addEventListener("touchmove", onDrag, { passive: false });
-      document.addEventListener("touchend", endDrag);
+      document.addEventListener("mousemove", move);
+      document.addEventListener("mouseup", stop);
+      document.addEventListener("touchmove", move, { passive: false });
+      document.addEventListener("touchend", stop);
     };
     el.addEventListener("mousedown", startDrag);
     el.addEventListener("touchstart", startDrag);
@@ -330,75 +534,110 @@ function renderPlanner(container) {
 }
 
 function openSeatModal() {
-  document.getElementById(
-    "seat-modal-title"
-  ).innerText = `${weddingData.chapters[13].layout[currentTableId].label} Assignments`;
   document.getElementById("seat-modal").classList.remove("hidden");
+  renderTableContext();
   renderGuestPicker();
+}
+
+function renderTableContext() {
+  const container = document.getElementById("table-zoom-container");
+  const namesList = document.getElementById("assigned-names-list");
+  const table = weddingData.chapters[13].layout[currentTableId];
+
+  container.innerHTML = `<div id="zoom-table" class="zoom-table-base zoom-${table.type}">${table.label}</div>`;
+  namesList.innerHTML = "";
+
+  Object.entries(table.assigned || {}).forEach(([guestId, coords]) => {
+    const guest = guestDataMap[guestId];
+    if (!guest) return;
+
+    const nameItem = document.createElement("div");
+    nameItem.className = "flex items-center gap-2 py-0.5";
+    nameItem.innerHTML = `<span class="w-1.5 h-1.5 rounded-full bg-amber-500"></span> ${guest.name}`;
+    namesList.appendChild(nameItem);
+
+    const bubble = document.createElement("div");
+    bubble.className = "seat-bubble";
+    bubble.innerText = getInitials(guest.name);
+    bubble.setAttribute("data-name", guest.name);
+    bubble.style.left = coords.x + "px";
+    bubble.style.top = coords.y + "px";
+
+    const startDrag = (e) => {
+      const move = (ev) => {
+        const moveX = ev.type?.includes("touch")
+          ? ev.touches[0].clientX
+          : ev.clientX;
+        const moveY = ev.type?.includes("touch")
+          ? ev.touches[0].clientY
+          : ev.clientY;
+        const rect = container.getBoundingClientRect();
+        const posX = Math.round(moveX - rect.left - 24);
+        const posY = Math.round(moveY - rect.top - 24);
+        bubble.style.left = posX + "px";
+        bubble.style.top = posY + "px";
+        table.assigned[guestId] = { x: posX, y: posY };
+      };
+      const stop = () => {
+        pushToFirebase();
+        document.removeEventListener("mousemove", move);
+        document.removeEventListener("mouseup", stop);
+        document.removeEventListener("touchmove", move);
+        document.removeEventListener("touchend", stop);
+      };
+      document.addEventListener("mousemove", move);
+      document.addEventListener("mouseup", stop);
+      document.addEventListener("touchmove", move, { passive: false });
+      document.addEventListener("touchend", stop);
+    };
+    bubble.addEventListener("mousedown", startDrag);
+    bubble.addEventListener("touchstart", startDrag);
+    container.appendChild(bubble);
+  });
 }
 
 function renderGuestPicker() {
   const listEl = document.getElementById("guest-selection-list");
-  const tableObj = weddingData.chapters[13].layout[currentTableId];
-  const assignedIds = tableObj.assigned || [];
-  const query = document.getElementById("guest-search").value.toLowerCase();
+  const table = weddingData.chapters[13].layout[currentTableId];
+  const assignedIds = Object.keys(table.assigned || {});
+  const query = (
+    document.getElementById("guest-search").value || ""
+  ).toLowerCase();
   const allAssigned = Object.values(weddingData.chapters[13].layout).flatMap(
-    (t) => t.assigned || []
+    (t) => Object.keys(t.assigned || {})
   );
 
-  const filteredAndSorted = Object.entries(guestDataMap)
+  const sorted = Object.entries(guestDataMap)
     .filter(([id, g]) => (g.name || "").toLowerCase().includes(query))
     .sort((a, b) => {
-      const roleA = (a[1].role || "guest").toLowerCase().trim();
-      const roleB = (b[1].role || "guest").toLowerCase().trim();
-      const idxA =
-        ROLE_HIERARCHY.indexOf(roleA) === -1
-          ? 99
-          : ROLE_HIERARCHY.indexOf(roleA);
-      const idxB =
-        ROLE_HIERARCHY.indexOf(roleB) === -1
-          ? 99
-          : ROLE_HIERARCHY.indexOf(roleB);
-      if (idxA !== idxB) return idxA - idxB;
-      return (a[1].name || "").localeCompare(b[1].name || "");
+      const idxA = ROLE_HIERARCHY.indexOf(a[1].role.toLowerCase().trim());
+      const idxB = ROLE_HIERARCHY.indexOf(b[1].role.toLowerCase().trim());
+      return (idxA === -1 ? 99 : idxA) - (idxB === -1 ? 99 : idxB);
     });
 
-  let currentRoleGroup = "";
-  listEl.innerHTML = filteredAndSorted
+  let currentRole = "";
+  listEl.innerHTML = sorted
     .map(([id, g]) => {
       let html = "";
       const role = (g.role || "guest").toLowerCase().trim();
-      const colorClass = getRoleColorClass(role);
-
-      // Add Header if role changes
-      if (role !== currentRoleGroup) {
-        currentRoleGroup = role;
-        html += `<div class="picker-role-header">
-                        <span class="w-2 h-2 rounded-full bg-stone-700"></span>
-                        ${role}
-                     </div>`;
+      if (role !== currentRole) {
+        currentRole = role;
+        html += `<div class="picker-role-header"><span class="w-1 h-1 rounded-full bg-stone-700"></span>${role}</div>`;
       }
-
       const isHere = assignedIds.includes(id);
-      const isElsewhere = !isHere && allAssigned.includes(id);
-
-      html += `<div class="flex items-center justify-between bg-white/5 p-4 rounded-[1.5rem] border border-white/5 hover:border-white/10 transition group ${
-        isElsewhere ? "opacity-30 pointer-events-none grayscale" : ""
+      const elsewhere = !isHere && allAssigned.includes(id);
+      html += `<div class="flex items-center justify-between bg-white/5 p-3 rounded-2xl border border-white/5 ${
+        elsewhere ? "opacity-20 pointer-events-none grayscale" : ""
       }">
-                <div class="flex flex-col">
-                    <span class="text-sm font-bold text-stone-100 ${colorClass}">${
-        g.name
-      }</span>
-                    <span class="text-[9px] uppercase tracking-widest text-stone-500 font-black mt-1">${
-                      g.role
-                    }</span>
-                </div>
-                <button onclick="window.toggleSeat('${id}')" class="w-10 h-10 rounded-full flex items-center justify-center transition ${
-        isHere
-          ? "bg-amber-500 text-[#1c1b19]"
-          : "bg-stone-800 text-stone-500 group-hover:bg-amber-500/20 group-hover:text-amber-500"
+                <div class="flex flex-col"><span class="text-xs font-bold text-stone-200">${
+                  g.name
+                }</span><span class="text-[8px] uppercase text-stone-500 font-black">${
+        g.role
+      }</span></div>
+                <button onclick="window.toggleSeat('${id}')" class="w-8 h-8 rounded-full flex items-center justify-center transition ${
+        isHere ? "bg-amber-500 text-stone-900" : "bg-stone-800 text-stone-500"
       }">
-                    <span class="material-icons-round text-lg">${
+                    <span class="material-icons-round text-sm">${
                       isHere ? "check" : "add"
                     }</span>
                 </button>
@@ -409,43 +648,37 @@ function renderGuestPicker() {
 }
 
 window.toggleSeat = (id) => {
-  const assigned =
-    weddingData.chapters[13].layout[currentTableId].assigned || [];
-  const idx = assigned.indexOf(id);
-  if (idx > -1) assigned.splice(idx, 1);
-  else assigned.push(id);
-  weddingData.chapters[13].layout[currentTableId].assigned = assigned;
+  const table = weddingData.chapters[13].layout[currentTableId];
+  if (!table.assigned) table.assigned = {};
+  if (table.assigned[id]) delete table.assigned[id];
+  else table.assigned[id] = { x: 100, y: 100 };
   pushToFirebase();
+  renderTableContext();
   renderGuestPicker();
 };
 
-window.filterGuestList = () => renderGuestPicker();
-window.closeSeatModal = () =>
+window.closeSeatModal = () => {
   document.getElementById("seat-modal").classList.add("hidden");
+  refreshModal();
+};
+window.filterGuestList = () => renderGuestPicker();
 window.autoResize = autoResize;
-window.toggleCheck = (idx, isChecked) => {
-  weddingData.chapters[activeIndex].content[idx].checked = isChecked;
+window.toggleCheck = (i, v) => {
+  weddingData.chapters[activeIndex].content[i].checked = v;
   pushToFirebase();
 };
-window.saveContent = (idx, val) => {
-  weddingData.chapters[activeIndex].content[idx].text = val;
+window.saveContent = (i, v) => {
+  weddingData.chapters[activeIndex].content[i].text = v;
   pushToFirebase();
 };
-window.removeItem = (idx) => {
-  weddingData.chapters[activeIndex].content.splice(idx, 1);
+window.removeItem = (i) => {
+  weddingData.chapters[activeIndex].content.splice(i, 1);
   pushToFirebase();
 };
 window.closeModal = () => {
   document.getElementById("modal").classList.add("hidden");
   activeIndex = null;
-};
-
-document.getElementById("add-row-btn").onclick = () => {
-  const ch = weddingData.chapters[activeIndex];
-  if (ch.type === "list")
-    ch.content.push({ text: "New Item Entry...", checked: false });
-  else ch.content.push(new Array(ch.headers.length).fill("-"));
-  pushToFirebase();
+  currentTableId = null;
 };
 
 function pushToFirebase() {
