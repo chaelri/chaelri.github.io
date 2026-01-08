@@ -191,9 +191,16 @@ textarea.edit-input {
   background: #2d2b28;
   border: 2px solid #444;
 }
-.table-rect {
+.table-square {
   width: 90px;
   height: 90px;
+  border-radius: 12px;
+  background: #2d2b28;
+  border: 2px solid #444;
+}
+.table-rect {
+  width: 200px;
+  height: 100px;
   border-radius: 12px;
   background: #2d2b28;
   border: 2px solid #444;
@@ -224,13 +231,12 @@ textarea.edit-input {
   background: transparent;
   border: none;
   border-bottom: 1px solid transparent;
-  color: #a8a29e;
+  color: white;
   font-size: 10px;
   font-weight: 900;
   text-align: center;
   text-transform: uppercase;
   width: 140px;
-  margin-top: 8px;
   outline: none;
   cursor: text;
   transition: all 0.2s;
@@ -292,8 +298,13 @@ textarea.edit-input {
   height: 500px;
   border-radius: 20px;
 }
-.zoom-rect {
+.zoom-square {
   width: 250px;
+  height: 250px;
+  border-radius: 20px;
+}
+.zoom-rect {
+  width: 500px;
   height: 250px;
   border-radius: 20px;
 }
