@@ -152,6 +152,7 @@ textarea.edit-input {
   position: relative;
   overflow: hidden;
   cursor: grab;
+  touch-action: none; /* Delta: Prevent mobile scroll interference */
 }
 #planner-canvas:active {
   cursor: grabbing;
@@ -180,6 +181,7 @@ textarea.edit-input {
   justify-content: center;
   z-index: 10;
   pointer-events: auto;
+  touch-action: none; /* Delta: Allow touch drag */
 }
 
 .table-circle {
@@ -320,6 +322,7 @@ textarea.edit-input {
   z-index: 100;
   user-select: none;
   transform: translate(-50%, -50%);
+  touch-action: none; /* Delta: Allow touch drag */
 }
 .seat-bubble:active {
   cursor: grabbing;

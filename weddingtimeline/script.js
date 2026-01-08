@@ -533,28 +533,40 @@ function renderPlanner(container) {
       viewport.style.transform = `translate(calc(-50% + ${panX}px), calc(-50% + ${panY}px)) scale(${scale})`;
     };
 
-    // Panning Logic
+    // Panning Logic (Delta: Added Touch Support)
     let isPanning = false;
     let startX, startY;
 
-    canvas.onmousedown = (e) => {
+    const startPanning = (e) => {
+      const clientX = e.touches ? e.touches[0].clientX : e.clientX;
+      const clientY = e.touches ? e.touches[0].clientY : e.clientY;
       if (e.target !== canvas && e.target !== viewport) return;
       isPanning = true;
-      startX = e.clientX - panX;
-      startY = e.clientY - panY;
+      startX = clientX - panX;
+      startY = clientY - panY;
     };
 
-    window.onmousemove = (e) => {
-      if (isPanning) {
-        panX = e.clientX - startX;
-        panY = e.clientY - startY;
-        viewport.style.transform = `translate(calc(-50% + ${panX}px), calc(-50% + ${panY}px)) scale(${scale})`;
-      }
+    const movePanning = (e) => {
+      if (!isPanning) return;
+      const clientX = e.touches ? e.touches[0].clientX : e.clientX;
+      const clientY = e.touches ? e.touches[0].clientY : e.clientY;
+      panX = clientX - startX;
+      panY = clientY - startY;
+      viewport.style.transform = `translate(calc(-50% + ${panX}px), calc(-50% + ${panY}px)) scale(${scale})`;
     };
 
-    window.onmouseup = () => {
+    const endPanning = () => {
       isPanning = false;
     };
+
+    canvas.onmousedown = startPanning;
+    window.onmousemove = movePanning;
+    window.onmouseup = endPanning;
+
+    // Mobile Touch Listeners
+    canvas.addEventListener("touchstart", startPanning, { passive: false });
+    window.addEventListener("touchmove", movePanning, { passive: false });
+    window.addEventListener("touchend", endPanning);
   }
 
   const viewport = document.getElementById("planner-viewport");
@@ -586,7 +598,8 @@ function renderPlanner(container) {
 
     // Inline Renaming Logic
     const labelInput = el.querySelector(".table-label-input");
-    labelInput.onmousedown = (e) => e.stopPropagation(); // Prevent drag start when clicking input
+    labelInput.onmousedown = (e) => e.stopPropagation();
+    labelInput.addEventListener("touchstart", (e) => e.stopPropagation());
     labelInput.onchange = (e) => {
       const val = e.target.value.trim();
       if (val) {
@@ -605,45 +618,53 @@ function renderPlanner(container) {
         update(ref(db), { [`wedding_data/chapters/13/layout/${id}`]: null });
       }
     };
+    deleteBtn.addEventListener("touchstart", (e) => {
+      e.stopPropagation();
+    });
 
     el.onclick = (e) => {
       if (el.dataset.dragging === "true") return;
-      // Don't open seat modal if we are focusing the rename input
       if (e.target.classList.contains("table-label-input")) return;
       currentTableId = id;
       openSeatModal();
     };
 
+    // Table Dragging (Delta: Added Touch Support)
     let isDragging = false;
-    el.onmousedown = (e) => {
-      // Don't drag if clicking buttons or input
+    const handleDragStart = (e) => {
       if (
         e.target.closest(".delete-table-btn") ||
         e.target.classList.contains("table-label-input")
       )
         return;
 
+      const clientX = e.touches ? e.touches[0].clientX : e.clientX;
+      const clientY = e.touches ? e.touches[0].clientY : e.clientY;
+
       e.stopPropagation();
       isDragging = true;
       isDraggingTable = true;
       el.dataset.dragging = "false";
 
-      let shiftX = (e.clientX - el.getBoundingClientRect().left) / scale;
-      let shiftY = (e.clientY - el.getBoundingClientRect().top) / scale;
+      let shiftX = (clientX - el.getBoundingClientRect().left) / scale;
+      let shiftY = (clientY - el.getBoundingClientRect().top) / scale;
 
-      const move = (ev) => {
+      const handleDragMove = (ev) => {
+        const moveX = ev.touches ? ev.touches[0].clientX : ev.clientX;
+        const moveY = ev.touches ? ev.touches[0].clientY : ev.clientY;
+
         isDragging = true;
         el.dataset.dragging = "true";
         const rect = viewport.getBoundingClientRect();
-        let nx = (ev.clientX - rect.left) / scale - shiftX;
-        let ny = (ev.clientY - rect.top) / scale - shiftY;
+        let nx = (moveX - rect.left) / scale - shiftX;
+        let ny = (moveY - rect.top) / scale - shiftY;
         el.style.left = nx + "px";
         el.style.top = ny + "px";
         obj.x = Math.round(nx);
         obj.y = Math.round(ny);
       };
 
-      const stop = () => {
+      const handleDragEnd = () => {
         isDraggingTable = false;
         if (isDragging) {
           update(ref(db), {
@@ -651,12 +672,22 @@ function renderPlanner(container) {
             [`wedding_data/chapters/13/layout/${id}/y`]: obj.y,
           });
         }
-        document.removeEventListener("mousemove", move);
-        document.removeEventListener("mouseup", stop);
+        document.removeEventListener("mousemove", handleDragMove);
+        document.removeEventListener("mouseup", handleDragEnd);
+        document.removeEventListener("touchmove", handleDragMove);
+        document.removeEventListener("touchend", handleDragEnd);
       };
-      document.addEventListener("mousemove", move);
-      document.addEventListener("mouseup", stop);
+      document.addEventListener("mousemove", handleDragMove);
+      document.addEventListener("mouseup", handleDragEnd);
+      document.addEventListener("touchmove", handleDragMove, {
+        passive: false,
+      });
+      document.addEventListener("touchend", handleDragEnd);
     };
+
+    el.onmousedown = handleDragStart;
+    el.addEventListener("touchstart", handleDragStart, { passive: false });
+
     viewport.appendChild(el);
   });
 }
@@ -723,10 +754,13 @@ function renderTableContext() {
     bubble.style.top = (coords.y || 50) + "%";
 
     const startDrag = (e) => {
+      const clientX = e.touches ? e.touches[0].clientX : e.clientX;
+      const clientY = e.touches ? e.touches[0].clientY : e.clientY;
+
       isDraggingBubble = true;
       const move = (ev) => {
-        const moveX = ev.clientX;
-        const moveY = ev.clientY;
+        const moveX = ev.touches ? ev.touches[0].clientX : ev.clientX;
+        const moveY = ev.touches ? ev.touches[0].clientY : ev.clientY;
         const rect = container.getBoundingClientRect();
 
         let posX = ((moveX - rect.left) / rect.width) * 100;
@@ -747,11 +781,16 @@ function renderTableContext() {
         });
         document.removeEventListener("mousemove", move);
         document.removeEventListener("mouseup", stop);
+        document.removeEventListener("touchmove", move);
+        document.removeEventListener("touchend", stop);
       };
       document.addEventListener("mousemove", move);
       document.addEventListener("mouseup", stop);
+      document.addEventListener("touchmove", move, { passive: false });
+      document.addEventListener("touchend", stop);
     };
-    bubble.addEventListener("mousedown", startDrag);
+    bubble.onmousedown = startDrag;
+    bubble.addEventListener("touchstart", startDrag, { passive: false });
     container.appendChild(bubble);
   });
 }
