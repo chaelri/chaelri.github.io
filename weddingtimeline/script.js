@@ -304,6 +304,7 @@ let guestDataMap = {};
 let currentTableId = null;
 let isDraggingBubble = false;
 let isDraggingTable = false;
+let isResizing = false;
 let panX = 0,
   panY = 0,
   scale = 0.8;
@@ -316,7 +317,7 @@ function autoResize(el) {
 
 function initSync() {
   onValue(ref(db, "wedding_data"), (snapshot) => {
-    if (isDraggingBubble || isDraggingTable) return;
+    if (isDraggingBubble || isDraggingTable || isResizing) return;
     const data = snapshot.val();
     if (data) {
       data.chapters = data.chapters.map((ch) => {
@@ -650,39 +651,73 @@ function renderPlanner(container) {
       obj.y = 2500 + (obj.y - 50) * 35;
     }
 
+    const isLocked = obj.locked || false;
     const el = document.createElement("div");
-    el.className = `planner-object table-${obj.type}`;
+    el.className = `planner-object table-${obj.type} ${
+      isLocked ? "is-locked" : ""
+    }`;
     el.style.left = obj.x + "px";
     el.style.top = obj.y + "px";
 
+    if (obj.w) el.style.width = obj.w + "px";
+    if (obj.h) el.style.height = obj.h + "px";
+
     const assigned = Object.keys(obj.assigned || {}).length;
+    const isLayoutOnly = ["corner", "h-line", "v-line", "text"].includes(
+      obj.type
+    );
+
     el.innerHTML = `
         <button class="delete-table-btn"><span class="material-icons-round">cancel</span></button>
-        ${assigned > 0 ? `<div class="seat-count">${assigned}</div>` : ""}
-        <input type="text" class="table-label-input uppercase" value="${
-          obj.label
-        }" />
+        <button class="lock-btn"><span class="material-icons-round text-[14px]">${
+          isLocked ? "lock" : "lock_open"
+        }</span></button>
+        ${
+          assigned > 0 && !isLayoutOnly
+            ? `<div class="seat-count">${assigned}</div>`
+            : ""
+        }
+        ${
+          obj.type !== "corner"
+            ? `<input type="text" class="table-label-input uppercase ${
+                obj.type === "text" ? "!normal-case !text-lg !font-medium" : ""
+              }" value="${obj.label}" />`
+            : ""
+        }
+        <div class="resize-handle"></div>
     `;
+
+    // Add Lock Toggle Logic
+    const lockBtn = el.querySelector(".lock-btn");
+    lockBtn.onclick = (e) => {
+      e.stopPropagation();
+      update(ref(db), {
+        [`wedding_data/chapters/13/layout/${id}/locked`]: !isLocked,
+      });
+    };
+    lockBtn.addEventListener("touchstart", (e) => e.stopPropagation());
 
     // Inline Renaming Logic
     const labelInput = el.querySelector(".table-label-input");
-    labelInput.onmousedown = (e) => e.stopPropagation();
-    labelInput.addEventListener("touchstart", (e) => e.stopPropagation());
-    labelInput.onchange = (e) => {
-      const val = e.target.value.trim();
-      if (val) {
-        obj.label = val;
-        update(ref(db), {
-          [`wedding_data/chapters/13/layout/${id}/label`]: val,
-        });
-      }
-    };
+    if (labelInput) {
+      labelInput.onmousedown = (e) => e.stopPropagation();
+      labelInput.addEventListener("touchstart", (e) => e.stopPropagation());
+      labelInput.onchange = (e) => {
+        const val = e.target.value.trim();
+        if (val) {
+          obj.label = val;
+          update(ref(db), {
+            [`wedding_data/chapters/13/layout/${id}/label`]: val,
+          });
+        }
+      };
+    }
 
     // Delete Table logic
     const deleteBtn = el.querySelector(".delete-table-btn");
     deleteBtn.onclick = (e) => {
       e.stopPropagation();
-      if (confirm(`Remove ${obj.label} permanently?`)) {
+      if (confirm(`Remove ${obj.label || "this item"} permanently?`)) {
         update(ref(db), { [`wedding_data/chapters/13/layout/${id}`]: null });
       }
     };
@@ -691,19 +726,75 @@ function renderPlanner(container) {
     });
 
     el.onclick = (e) => {
-      if (el.dataset.dragging === "true") return;
-      if (e.target.classList.contains("table-label-input")) return;
+      if (el.dataset.dragging === "true" || isResizing || isLayoutOnly) return;
+      if (
+        e.target.classList.contains("table-label-input") ||
+        e.target.classList.contains("resize-handle")
+      )
+        return;
       currentTableId = id;
       openSeatModal();
     };
 
+    // Resize Logic
+    const handle = el.querySelector(".resize-handle");
+    const handleResizeStart = (e) => {
+      e.preventDefault();
+      e.stopPropagation();
+      isResizing = true;
+      const clientX = e.touches ? e.touches[0].clientX : e.clientX;
+      const clientY = e.touches ? e.touches[0].clientY : e.clientY;
+      const startW = el.offsetWidth;
+      const startH = el.offsetHeight;
+
+      const handleResizeMove = (ev) => {
+        const moveX = ev.touches ? ev.touches[0].clientX : ev.clientX;
+        const moveY = ev.touches ? ev.touches[0].clientY : ev.clientY;
+        const dw = (moveX - clientX) / scale;
+        const dh = (moveY - clientY) / scale;
+
+        const nw = Math.max(1, startW + dw);
+        const nh = Math.max(1, startH + dh);
+
+        el.style.width = nw + "px";
+        el.style.height = nh + "px";
+        obj.w = Math.round(nw);
+        obj.h = Math.round(nh);
+      };
+
+      const handleResizeEnd = () => {
+        isResizing = false;
+        update(ref(db), {
+          [`wedding_data/chapters/13/layout/${id}/w`]: obj.w,
+          [`wedding_data/chapters/13/layout/${id}/h`]: obj.h,
+        });
+        document.removeEventListener("mousemove", handleResizeMove);
+        document.removeEventListener("mouseup", handleResizeEnd);
+        document.removeEventListener("touchmove", handleResizeMove);
+        document.removeEventListener("touchend", handleResizeEnd);
+      };
+
+      document.addEventListener("mousemove", handleResizeMove);
+      document.addEventListener("mouseup", handleResizeEnd);
+      document.addEventListener("touchmove", handleResizeMove, {
+        passive: false,
+      });
+      document.addEventListener("touchend", handleResizeEnd);
+    };
+    handle.onmousedown = handleResizeStart;
+    handle.addEventListener("touchstart", handleResizeStart, {
+      passive: false,
+    });
+
     // Table Dragging (Touch Support)
     let isDragging = false;
     const handleDragStart = (e) => {
+      if (isResizing) return;
       if (e.touches && e.touches.length > 1) return; // Ignore drag if zooming
       if (
         e.target.closest(".delete-table-btn") ||
-        e.target.classList.contains("table-label-input")
+        e.target.classList.contains("table-label-input") ||
+        e.target.classList.contains("resize-handle")
       )
         return;
 
@@ -763,12 +854,50 @@ function renderPlanner(container) {
 
 window.addTable = (type) => {
   const id = "table_" + Date.now();
+
+  // Default dimensions based on Karla's requests
+  let w = 100,
+    h = 100;
+  if (type === "thin-rect") {
+    w = 200;
+    h = 40;
+  } else if (type === "thin-square") {
+    w = 40;
+    h = 40;
+  } else if (type === "rect") {
+    w = 200;
+    h = 100;
+  } else if (type === "vip") {
+    w = 100;
+    h = 220;
+  } else if (type === "corner") {
+    w = 50;
+    h = 50;
+  } else if (type === "h-line") {
+    w = 200;
+    h = 2;
+  } else if (type === "v-line") {
+    w = 2;
+    h = 200;
+  } else if (type === "text") {
+    w = 250;
+    h = 60;
+  }
+
+  const label = ["h-line", "v-line", "corner"].includes(type)
+    ? ""
+    : type === "text"
+    ? "Enter Text Here"
+    : type.toUpperCase();
+
   const newTable = {
     x: 2500 - panX / scale,
     y: 2500 - panY / scale,
     type: type,
-    label: type.toUpperCase(),
+    label: label,
     assigned: {},
+    w: w,
+    h: h,
   };
   update(ref(db), { [`wedding_data/chapters/13/layout/${id}`]: newTable });
 };
@@ -782,6 +911,23 @@ window.resetView = () => {
   const body = document.getElementById("modal-body");
   body.innerHTML = "";
   renderPlanner(body);
+};
+
+let hiddenToggle = false;
+
+window.toggleAddShapes = () => {
+  hiddenToggle = !hiddenToggle;
+
+  const toolbar = document.getElementById("planner-toolbar");
+  const toggleBtn = document.getElementById("toggleAddObjects");
+
+  if (hiddenToggle) {
+    toolbar.classList.add("hidden");
+    toggleBtn.classList.remove("hidden");
+  } else {
+    toolbar.classList.remove("hidden");
+    toggleBtn.classList.add("hidden");
+  }
 };
 
 function openSeatModal() {

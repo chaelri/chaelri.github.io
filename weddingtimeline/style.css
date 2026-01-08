@@ -277,41 +277,71 @@ textarea.edit-input {
   z-index: 10;
   pointer-events: auto;
   touch-action: none;
+  background: #2d2b28;
+  border: 2px solid #444;
 }
 
 .table-circle {
   width: 100px;
   height: 100px;
   border-radius: 50%;
-  background: #2d2b28;
-  border: 2px solid #444;
 }
 .table-square {
   width: 90px;
   height: 90px;
   border-radius: 12px;
-  background: #2d2b28;
-  border: 2px solid #444;
 }
 .table-rect {
   width: 200px;
   height: 100px;
   border-radius: 12px;
-  background: #2d2b28;
-  border: 2px solid #444;
+}
+.table-thin-rect {
+  width: 200px;
+  height: 40px;
+  border-radius: 8px;
+}
+.table-thin-square {
+  width: 40px;
+  height: 40px;
+  border-radius: 8px;
+}
+.table-corner {
+  width: 50px;
+  height: 50px;
+  background: transparent !important;
+  z-index: 1;
+}
+.table-h-line {
+  width: 200px;
+  height: 2px;
+  background: #444 !important;
+  border: none !important;
+}
+.table-v-line {
+  width: 2px;
+  height: 200px;
+  background: #444 !important;
+  border: none !important;
+}
+.table-text {
+  background: transparent !important;
+  border: 0;
+}
+.table-text:hover,
+.table-text:active,
+.table-text:focus {
+  border: 1px dashed rgba(255, 255, 255, 0.1) !important;
 }
 .table-vip {
   width: 100px;
   height: 220px;
   border-radius: 12px;
-  background: #2d2b28;
-  border: 2px solid #444;
 }
 .table-couple {
   width: 180px;
   height: 80px;
   border-radius: 10px;
-  background: #2d2b28;
   border: 2px solid #f59e0b;
 }
 .table-special {
@@ -320,6 +350,23 @@ textarea.edit-input {
   width: 120px;
   height: 40px;
   border-radius: 6px;
+}
+
+.resize-handle {
+  position: absolute;
+  bottom: -5px;
+  right: -5px;
+  width: 15px;
+  height: 15px;
+  background: #f59e0b;
+  border: 2px solid #141311;
+  border-radius: 2px;
+  cursor: nwse-resize;
+  opacity: 0;
+  transition: opacity 0.2s;
+}
+.planner-object:hover .resize-handle {
+  opacity: 1;
 }
 
 .table-label-input {
@@ -331,7 +378,8 @@ textarea.edit-input {
   font-weight: 900;
   text-align: center;
   text-transform: uppercase;
-  width: 140px;
+  width: 100%;
+  max-width: 90%;
   outline: none;
   cursor: text;
   transition: all 0.2s;
@@ -402,6 +450,33 @@ textarea.edit-input {
   width: 500px;
   height: 250px;
   border-radius: 20px;
+}
+.zoom-thin-rect {
+  width: 600px;
+  height: 120px;
+  border-radius: 12px;
+}
+.zoom-thin-square {
+  width: 150px;
+  height: 150px;
+  border-radius: 12px;
+}
+.zoom-corner {
+  width: 150px;
+  height: 150px;
+  background: transparent !important;
+}
+.zoom-h-line {
+  width: 600px;
+  height: 10px;
+  background: #444 !important;
+  border: none !important;
+}
+.zoom-v-line {
+  width: 10px;
+  height: 600px;
+  background: #444 !important;
+  border: none !important;
 }
 .zoom-couple {
   width: 450px;
@@ -524,4 +599,50 @@ main::-webkit-scrollbar {
 main::-webkit-scrollbar-thumb {
   background: rgba(245, 158, 11, 0.3);
   border-radius: 10px;
+}
+
+/* Locking Logic */
+.planner-object.is-locked {
+  pointer-events: none !important;
+  border-style: dashed !important;
+  opacity: 0.6;
+}
+
+/* Ensure the lock button remains interactable even when the parent is transparent */
+.planner-object .lock-btn {
+  position: absolute;
+  top: -12px;
+  right: 18px; /* Positioned beside the delete button */
+  background: #1e3a8a;
+  color: white;
+  border-radius: 50%;
+  width: 24px;
+  height: 24px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  border: 3px solid #141311;
+  cursor: pointer;
+  z-index: 40;
+  pointer-events: auto !important;
+  opacity: 0;
+  transition: opacity 0.2s;
+}
+
+.planner-object:hover .lock-btn,
+.planner-object.is-locked .lock-btn {
+  opacity: 1;
+}
+
+.planner-object.is-locked .lock-btn {
+  background: #f59e0b; /* Amber color when locked */
+  color: #000;
+}
+
+/* Hide other controls when locked to prevent accidental edits */
+.planner-object.is-locked .delete-table-btn,
+.planner-object.is-locked .resize-handle,
+.planner-object.is-locked .table-label-input,
+.planner-object.is-locked .seat-count {
+  display: none !important;
 }

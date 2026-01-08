@@ -128,6 +128,18 @@
               close
             </span>
           </button>
+          <button
+            id="toggleAddObjects"
+            onclick="window.toggleAddShapes()"
+            class="absolute top-4 right-16 flex items-center justify-center bg-black/40 backdrop-blur-md text-white rounded-full p-2 hover:bg-black/60 border border-white/10 z-[70] w-10 h-10 hidden"
+          >
+            <span
+              class="material-icons-round"
+              style="line-height: 1; display: block"
+            >
+              add
+            </span>
+          </button>
 
           <div
             id="modal-scroll-area"
@@ -185,6 +197,52 @@
               <span class="text-[8px] font-bold uppercase">Rect</span>
             </button>
             <button
+              onclick="window.addTable('thin-rect')"
+              class="p-3 hover:bg-white/10 rounded-xl transition text-stone-300 flex flex-col items-center gap-1"
+            >
+              <span class="material-icons-round">maximize</span>
+              <span class="text-[8px] font-bold uppercase">Thin Rect</span>
+            </button>
+            <button
+              onclick="window.addTable('thin-square')"
+              class="p-3 hover:bg-white/10 rounded-xl transition text-stone-300 flex flex-col items-center gap-1"
+            >
+              <span class="material-icons-round">crop_square</span>
+              <span class="text-[8px] font-bold uppercase">Thin Sq</span>
+            </button>
+            <button
+              onclick="window.addTable('corner')"
+              class="p-3 hover:bg-white/10 rounded-xl transition text-stone-300 flex flex-col items-center gap-1"
+            >
+              <span class="material-icons-round">border_style</span>
+              <span class="text-[8px] font-bold uppercase">Corner</span>
+            </button>
+            <button
+              onclick="window.addTable('h-line')"
+              class="p-3 hover:bg-white/10 rounded-xl transition text-stone-300 flex flex-col items-center gap-1"
+            >
+              <span class="material-icons-round">horizontal_rule</span>
+              <span class="text-[8px] font-bold uppercase">H-Line</span>
+            </button>
+            <button
+              onclick="window.addTable('v-line')"
+              class="p-3 hover:bg-white/10 rounded-xl transition text-stone-300 flex flex-col items-center gap-1"
+            >
+              <span
+                class="material-icons-round"
+                style="transform: rotate(90deg)"
+                >horizontal_rule</span
+              >
+              <span class="text-[8px] font-bold uppercase">V-Line</span>
+            </button>
+            <button
+              onclick="window.addTable('text')"
+              class="p-3 hover:bg-white/10 rounded-xl transition text-stone-300 flex flex-col items-center gap-1"
+            >
+              <span class="material-icons-round">text_fields</span>
+              <span class="text-[8px] font-bold uppercase">Text</span>
+            </button>
+            <button
               onclick="window.addTable('vip')"
               class="p-3 hover:bg-white/10 rounded-xl transition text-stone-300 flex flex-col items-center gap-1"
             >
@@ -198,6 +256,13 @@
             >
               <span class="material-icons-round">filter_center_focus</span>
               <span class="text-[8px] font-bold uppercase">Center</span>
+            </button>
+            <button
+              onclick="window.toggleAddShapes()"
+              class="p-3 hover:bg-white/10 rounded-xl transition text-stone-300 flex flex-col items-center gap-1"
+            >
+              <span class="material-icons-round">keyboard_arrow_down</span>
+              <span class="text-[8px] font-bold uppercase">HIDE MENU</span>
             </button>
           </div>
 
