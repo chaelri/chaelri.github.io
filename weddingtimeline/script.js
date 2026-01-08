@@ -252,16 +252,20 @@ let weddingData = {
       color: "#2d5a5a",
       type: "planner",
       layout: {
+        stage: {
+          x: 2500,
+          y: 2150,
+          type: "special",
+          label: "STAGE",
+          assigned: {},
+        },
         couple: {
-          x: 50,
-          y: 15,
+          x: 2500,
+          y: 2300,
           type: "couple",
           label: "COUPLE SEAT",
           assigned: {},
         },
-        stage: { x: 50, y: 5, type: "special", label: "STAGE", assigned: {} },
-        vip1: { x: 70, y: 35, type: "vip", label: "VIP 1", assigned: {} },
-        vip2: { x: 30, y: 35, type: "vip", label: "VIP 2", assigned: {} },
       },
     },
     {
@@ -283,8 +287,11 @@ let weddingData = {
 let activeIndex = null;
 let guestDataMap = {};
 let currentTableId = null;
-let isDraggingBubble = false; // Guard for real-time sync during seat drag
-let isDraggingTable = false; // Guard for real-time sync during table drag
+let isDraggingBubble = false;
+let isDraggingTable = false;
+let panX = 0,
+  panY = 0,
+  scale = 1;
 
 function autoResize(el) {
   if (!el) return;
@@ -294,7 +301,7 @@ function autoResize(el) {
 
 function initSync() {
   onValue(ref(db, "wedding_data"), (snapshot) => {
-    if (isDraggingBubble || isDraggingTable) return; // Prevent overwriting while interacting
+    if (isDraggingBubble || isDraggingTable) return;
     const data = snapshot.val();
     if (data) {
       data.chapters = data.chapters.map((ch) => {
@@ -312,9 +319,7 @@ function initSync() {
     document.getElementById("sync-indicator").innerHTML =
       '<span class="material-icons-round text-xs text-emerald-500">cloud_done</span> Up to Date';
     renderGallery();
-    if (activeIndex !== null && activeIndex !== 13) refreshModal();
-    if (activeIndex === 13)
-      renderPlanner(document.getElementById("modal-body"));
+    if (activeIndex !== null) refreshModal();
   });
 
   onValue(ref(db, "guestList"), (snapshot) => {
@@ -375,6 +380,17 @@ function renderGallery() {
 
 window.openModal = function (idx) {
   activeIndex = idx;
+  const modalCont = document.getElementById("modal-container");
+  const toolbar = document.getElementById("planner-toolbar");
+
+  if (idx === 13) {
+    modalCont.classList.add("planner-fullscreen");
+    toolbar.classList.remove("hidden");
+  } else {
+    modalCont.classList.remove("planner-fullscreen");
+    toolbar.classList.add("hidden");
+  }
+
   document.getElementById("modal").classList.remove("hidden");
   refreshModal();
 };
@@ -499,88 +515,174 @@ window.saveTable = (r, c, val, rowId) => {
 };
 
 /**
- * BOSS ROOM LAYOUT ENGINE
+ * BOSS ROOM LAYOUT ENGINE - MIRO STYLE
  */
 function renderPlanner(container) {
   if (!container.querySelector("#planner-canvas")) {
-    container.innerHTML = `<div id="planner-canvas"></div>`;
+    container.innerHTML = `<div id="planner-canvas"><div id="planner-viewport"></div></div>`;
+
+    const canvas = document.getElementById("planner-canvas");
+    const viewport = document.getElementById("planner-viewport");
+
+    // Zooming Logic
+    canvas.onwheel = (e) => {
+      e.preventDefault();
+      const zoomSpeed = 0.05;
+      const delta = e.deltaY > 0 ? -zoomSpeed : zoomSpeed;
+      scale = Math.max(0.2, Math.min(3, scale + delta));
+      viewport.style.transform = `translate(calc(-50% + ${panX}px), calc(-50% + ${panY}px)) scale(${scale})`;
+    };
+
+    // Panning Logic
+    let isPanning = false;
+    let startX, startY;
+
+    canvas.onmousedown = (e) => {
+      if (e.target !== canvas && e.target !== viewport) return;
+      isPanning = true;
+      startX = e.clientX - panX;
+      startY = e.clientY - panY;
+    };
+
+    window.onmousemove = (e) => {
+      if (isPanning) {
+        panX = e.clientX - startX;
+        panY = e.clientY - startY;
+        viewport.style.transform = `translate(calc(-50% + ${panX}px), calc(-50% + ${panY}px)) scale(${scale})`;
+      }
+    };
+
+    window.onmouseup = () => {
+      isPanning = false;
+    };
   }
-  const canvas = document.getElementById("planner-canvas");
+
+  const viewport = document.getElementById("planner-viewport");
   const layout = weddingData.chapters[13].layout || {};
 
-  // Clear current UI to re-render fresh from weddingData
-  canvas.innerHTML = "";
+  viewport.innerHTML = "";
+  viewport.style.transform = `translate(calc(-50% + ${panX}px), calc(-50% + ${panY}px)) scale(${scale})`;
 
   Object.entries(layout).forEach(([id, obj]) => {
+    // COORDINATE MIGRATION: If values are small (0-100), migrate to pixel space (2500 center)
+    if (obj.x <= 150 || obj.y <= 150) {
+      obj.x = 2500 + (obj.x - 50) * 35;
+      obj.y = 2500 + (obj.y - 50) * 35;
+    }
+
     const el = document.createElement("div");
     el.className = `planner-object table-${obj.type}`;
-    el.style.left = obj.x + "%";
-    el.style.top = obj.y + "%";
-    el.style.transform = "translate(-50%, -50%)";
-    const assigned = Object.keys(obj.assigned || {}).length;
-    el.innerHTML = `${
-      assigned > 0 ? `<div class="seat-count">${assigned}</div>` : ""
-    }<span class="table-label uppercase">${obj.label}</span>`;
+    el.style.left = obj.x + "px";
+    el.style.top = obj.y + "px";
 
-    el.onclick = () => {
+    const assigned = Object.keys(obj.assigned || {}).length;
+    el.innerHTML = `
+        <button class="delete-table-btn"><span class="material-icons-round">cancel</span></button>
+        ${assigned > 0 ? `<div class="seat-count">${assigned}</div>` : ""}
+        <input type="text" class="table-label-input uppercase" value="${
+          obj.label
+        }" />
+    `;
+
+    // Inline Renaming Logic
+    const labelInput = el.querySelector(".table-label-input");
+    labelInput.onmousedown = (e) => e.stopPropagation(); // Prevent drag start when clicking input
+    labelInput.onchange = (e) => {
+      const val = e.target.value.trim();
+      if (val) {
+        obj.label = val;
+        update(ref(db), {
+          [`wedding_data/chapters/13/layout/${id}/label`]: val,
+        });
+      }
+    };
+
+    // Delete Table logic
+    const deleteBtn = el.querySelector(".delete-table-btn");
+    deleteBtn.onclick = (e) => {
+      e.stopPropagation();
+      if (confirm(`Remove ${obj.label} permanently?`)) {
+        update(ref(db), { [`wedding_data/chapters/13/layout/${id}`]: null });
+      }
+    };
+
+    el.onclick = (e) => {
       if (el.dataset.dragging === "true") return;
+      // Don't open seat modal if we are focusing the rename input
+      if (e.target.classList.contains("table-label-input")) return;
       currentTableId = id;
       openSeatModal();
     };
 
     let isDragging = false;
-    const startDrag = (e) => {
+    el.onmousedown = (e) => {
+      // Don't drag if clicking buttons or input
+      if (
+        e.target.closest(".delete-table-btn") ||
+        e.target.classList.contains("table-label-input")
+      )
+        return;
+
+      e.stopPropagation();
       isDragging = true;
       isDraggingTable = true;
       el.dataset.dragging = "false";
 
+      let shiftX = (e.clientX - el.getBoundingClientRect().left) / scale;
+      let shiftY = (e.clientY - el.getBoundingClientRect().top) / scale;
+
       const move = (ev) => {
-        if (!isDragging) return;
+        isDragging = true;
         el.dataset.dragging = "true";
-        const moveX = ev.type?.includes("touch")
-          ? ev.touches[0].clientX
-          : ev.clientX;
-        const moveY = ev.type?.includes("touch")
-          ? ev.touches[0].clientY
-          : ev.clientY;
-        const rect = canvas.getBoundingClientRect();
-        let xp = Math.round(((moveX - rect.left) / rect.width) * 100);
-        let yp = Math.round(((moveY - rect.top) / rect.height) * 100);
-        xp = Math.max(0, Math.min(100, xp));
-        yp = Math.max(0, Math.min(100, yp));
-        el.style.left = xp + "%";
-        el.style.top = yp + "%";
-        obj.x = xp;
-        obj.y = yp;
+        const rect = viewport.getBoundingClientRect();
+        let nx = (ev.clientX - rect.left) / scale - shiftX;
+        let ny = (ev.clientY - rect.top) / scale - shiftY;
+        el.style.left = nx + "px";
+        el.style.top = ny + "px";
+        obj.x = Math.round(nx);
+        obj.y = Math.round(ny);
       };
 
       const stop = () => {
+        isDraggingTable = false;
         if (isDragging) {
-          isDraggingTable = false;
-          // Real-time surgical update to Firebase on drop
-          const updates = {};
-          updates[`wedding_data/chapters/13/layout/${id}/x`] = obj.x;
-          updates[`wedding_data/chapters/13/layout/${id}/y`] = obj.y;
-          update(ref(db), updates);
+          update(ref(db), {
+            [`wedding_data/chapters/13/layout/${id}/x`]: obj.x,
+            [`wedding_data/chapters/13/layout/${id}/y`]: obj.y,
+          });
         }
-        isDragging = false;
         document.removeEventListener("mousemove", move);
         document.removeEventListener("mouseup", stop);
-        document.removeEventListener("touchmove", move);
-        document.removeEventListener("touchend", stop);
       };
-
       document.addEventListener("mousemove", move);
       document.addEventListener("mouseup", stop);
-      document.addEventListener("touchmove", move, { passive: false });
-      document.addEventListener("touchend", stop);
     };
-
-    el.addEventListener("mousedown", startDrag);
-    el.addEventListener("touchstart", startDrag);
-    canvas.appendChild(el);
+    viewport.appendChild(el);
   });
 }
+
+window.addTable = (type) => {
+  const id = "table_" + Date.now();
+  const newTable = {
+    x: 2500 - panX / scale,
+    y: 2500 - panY / scale,
+    type: type,
+    label: type.toUpperCase(),
+    assigned: {},
+  };
+  update(ref(db), { [`wedding_data/chapters/13/layout/${id}`]: newTable });
+};
+
+window.resetView = () => {
+  panX = 0;
+  panY = 0;
+  scale = 1;
+  const viewport = document.getElementById("planner-viewport");
+  if (viewport) viewport.style.transform = `translate(-50%, -50%) scale(1)`;
+  const body = document.getElementById("modal-body");
+  body.innerHTML = "";
+  renderPlanner(body);
+};
 
 function openSeatModal() {
   document.getElementById("seat-modal").classList.remove("hidden");
@@ -623,12 +725,8 @@ function renderTableContext() {
     const startDrag = (e) => {
       isDraggingBubble = true;
       const move = (ev) => {
-        const moveX = ev.type?.includes("touch")
-          ? ev.touches[0].clientX
-          : ev.clientX;
-        const moveY = ev.type?.includes("touch")
-          ? ev.touches[0].clientY
-          : ev.clientY;
+        const moveX = ev.clientX;
+        const moveY = ev.clientY;
         const rect = container.getBoundingClientRect();
 
         let posX = ((moveX - rect.left) / rect.width) * 100;
@@ -641,29 +739,19 @@ function renderTableContext() {
         bubble.style.top = posY + "%";
         table.assigned[guestId] = { x: Math.round(posX), y: Math.round(posY) };
       };
-
       const stop = () => {
         isDraggingBubble = false;
-        // Real-time surgical update to Firebase on drop
-        const updates = {};
-        updates[
-          `wedding_data/chapters/13/layout/${currentTableId}/assigned/${guestId}`
-        ] = table.assigned[guestId];
-        update(ref(db), updates);
-
+        update(ref(db), {
+          [`wedding_data/chapters/13/layout/${currentTableId}/assigned/${guestId}`]:
+            table.assigned[guestId],
+        });
         document.removeEventListener("mousemove", move);
         document.removeEventListener("mouseup", stop);
-        document.removeEventListener("touchmove", move);
-        document.removeEventListener("touchend", stop);
       };
-
       document.addEventListener("mousemove", move);
       document.addEventListener("mouseup", stop);
-      document.addEventListener("touchmove", move, { passive: false });
-      document.addEventListener("touchend", stop);
     };
     bubble.addEventListener("mousedown", startDrag);
-    bubble.addEventListener("touchstart", startDrag);
     container.appendChild(bubble);
   });
 }
@@ -755,7 +843,10 @@ window.toggleSeat = (id) => {
   if (!table.assigned) table.assigned = {};
   if (table.assigned[id]) delete table.assigned[id];
   else table.assigned[id] = { x: 50, y: 50 };
-  pushToFirebase();
+  update(ref(db), {
+    [`wedding_data/chapters/13/layout/${currentTableId}/assigned`]:
+      table.assigned,
+  });
   renderTableContext();
   renderGuestPicker();
 };
