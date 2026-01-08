@@ -23,259 +23,282 @@
     <link rel="stylesheet" href="style.css" />
   </head>
   <body
-    class="bg-[#121212] font-['Quicksand'] text-stone-300 overflow-hidden h-screen flex flex-col"
+    class="bg-[#050914] font-['Quicksand'] text-stone-300 overflow-hidden h-screen flex flex-col relative"
   >
-    <!-- Header -->
-    <header class="p-6 flex items-center justify-between z-10">
-      <div class="flex flex-col">
-        <span
-          class="text-xs font-bold uppercase tracking-widest text-stone-500 flex items-center gap-1"
-        >
-          <span class="material-icons-round text-xs">history_edu</span> Wedding
-          Operations
-        </span>
-        <h1 class="font-['Playfair_Display'] text-2xl italic text-stone-100">
-          Charlie & Karla's Journey
-        </h1>
-      </div>
-      <div class="flex items-center gap-3">
-        <div
-          id="sync-indicator"
-          class="text-[10px] font-bold text-stone-500 uppercase tracking-widest flex items-center gap-1"
-        >
-          <span class="material-icons-round text-xs animate-spin">sync</span>
-          Syncing...
-        </div>
-        <div
-          class="bg-stone-800/50 px-4 py-2 rounded-2xl flex items-center gap-2 border border-stone-700 backdrop-blur-md"
-        >
-          <span class="material-icons-round text-amber-400 text-sm">event</span>
-          <span
-            class="text-sm font-semibold tracking-wide text-stone-100 uppercase"
-            >July 02, 2026</span
-          >
-        </div>
-      </div>
-    </header>
-
-    <!-- Main Scrollable Gallery -->
-    <main
-      id="chapter-gallery"
-      class="flex-1 flex items-center gap-8 px-12 overflow-x-auto pb-12 snap-x no-scrollbar z-10"
-    >
-      <!-- Chapters loaded from Firebase -->
-    </main>
-
-    <!-- Decorative Footer Detail -->
-    <div class="px-12 pb-8 flex items-center gap-4 opacity-30 z-10">
-      <span class="text-[10px] font-bold tracking-[0.5em] text-stone-500"
-        >わね.つれ.ひわ</span
-      >
-      <div
-        class="h-px flex-1 bg-gradient-to-r from-stone-500 to-transparent"
-      ></div>
-    </div>
-
-    <!-- Dynamic Modal with Edit Engine -->
     <div
-      id="modal"
-      class="hidden fixed inset-0 bg-black/90 backdrop-blur-xl z-50 flex items-center justify-center p-4"
-    >
+      class="absolute inset-0 bg-gradient-to-br from-[#121b33] via-[#050914] to-[#02040a]"
+    ></div>
+
+    <div
+      class="absolute -right-[10%] -bottom-[20%] w-[70%] h-[120%] rounded-full bg-[#1e3a8a] mix-blend-screen blur-[120px] opacity-20"
+    ></div>
+
+    <div
+      class="absolute -top-20 -left-20 w-[500px] h-[500px] rounded-full border border-blue-400/10 pointer-events-none"
+    ></div>
+    <div
+      class="absolute -top-10 -left-10 w-[400px] h-[400px] rounded-full border border-blue-500/5 pointer-events-none"
+    ></div>
+
+    <div
+      class="absolute right-[25%] top-0 h-full w-[1px] bg-gradient-to-b from-transparent via-blue-400/20 to-transparent rotate-[15deg] pointer-events-none"
+    ></div>
+
+    <div class="relative z-10 flex flex-col h-full">
+      <!-- Header -->
+      <header class="p-6 flex items-center justify-between z-10">
+        <div class="flex flex-col">
+          <span
+            class="text-xs font-bold uppercase tracking-widest text-stone-500 flex items-center gap-1"
+          >
+            <span class="material-icons-round text-xs">history_edu</span>
+            Wedding Operations
+          </span>
+          <h1 class="font-['Playfair_Display'] text-2xl italic text-stone-100">
+            Charlie & Karla's Journey
+          </h1>
+        </div>
+        <div class="flex items-center gap-3">
+          <div
+            id="sync-indicator"
+            class="text-[10px] font-bold text-stone-500 uppercase tracking-widest flex items-center gap-1"
+          >
+            <span class="material-icons-round text-xs animate-spin">sync</span>
+            Syncing...
+          </div>
+          <div
+            class="bg-stone-800/50 px-4 py-2 rounded-2xl flex items-center gap-2 border border-stone-700 backdrop-blur-md"
+          >
+            <span class="material-icons-round text-amber-400 text-sm"
+              >event</span
+            >
+            <span
+              class="text-sm font-semibold tracking-wide text-stone-100 uppercase"
+              >July 02, 2026</span
+            >
+          </div>
+        </div>
+      </header>
+
+      <!-- Main Scrollable Gallery -->
+      <main
+        id="chapter-gallery"
+        class="flex-1 flex items-center gap-8 px-12 overflow-x-auto pb-12 snap-x no-scrollbar z-10"
+      >
+        <!-- Chapters loaded from Firebase -->
+      </main>
+
+      <!-- Decorative Footer Detail -->
+      <div class="px-12 pb-8 flex items-center gap-4 opacity-30 z-10">
+        <span class="text-[10px] font-bold tracking-[0.5em] text-stone-500"
+          >わね.つれ.ひわ</span
+        >
+        <div
+          class="h-px flex-1 bg-gradient-to-r from-stone-500 to-transparent"
+        ></div>
+      </div>
+
+      <!-- Dynamic Modal with Edit Engine -->
       <div
-        id="modal-container"
-        class="bg-[#1c1b19] w-full max-w-4xl max-h-[90vh] rounded-[2rem] shadow-2xl overflow-hidden relative border border-stone-800 flex flex-col transition-all duration-500"
+        id="modal"
+        class="hidden fixed inset-0 bg-black/60 backdrop-blur-xl z-50 flex items-center justify-center p-4"
       >
         <div
-          id="modal-banner"
-          class="h-32 min-h-[128px] w-full relative transition-colors duration-500"
+          id="modal-container"
+          class="bg-[#1c1b19] w-full max-w-4xl max-h-[90vh] rounded-[2rem] shadow-2xl overflow-hidden relative border border-stone-800 flex flex-col transition-all duration-500"
         >
           <div
-            id="modal-badge"
-            class="absolute top-6 left-8 bg-black/40 backdrop-blur-md px-3 py-1 rounded text-[10px] font-bold text-white border border-white/10 uppercase tracking-widest"
-          ></div>
-        </div>
-
-        <button
-          onclick="closeModal()"
-          class="absolute top-4 right-4 flex items-center justify-center bg-black/40 backdrop-blur-md text-white rounded-full p-2 hover:bg-black/60 border border-white/10 z-[70] w-10 h-10"
-        >
-          <span
-            class="material-icons-round"
-            style="line-height: 1; display: block"
+            id="modal-banner"
+            class="h-32 min-h-[128px] w-full relative transition-colors duration-500"
           >
-            close
-          </span>
-        </button>
+            <div
+              id="modal-badge"
+              class="absolute top-6 left-8 bg-black/40 backdrop-blur-md px-3 py-1 rounded text-[10px] font-bold text-white border border-white/10 uppercase tracking-widest"
+            ></div>
+          </div>
 
-        <div
-          id="modal-scroll-area"
-          class="p-8 overflow-y-auto no-scrollbar flex-1 relative"
-        >
+          <button
+            onclick="closeModal()"
+            class="absolute top-4 right-4 flex items-center justify-center bg-black/40 backdrop-blur-md text-white rounded-full p-2 hover:bg-black/60 border border-white/10 z-[70] w-10 h-10"
+          >
+            <span
+              class="material-icons-round"
+              style="line-height: 1; display: block"
+            >
+              close
+            </span>
+          </button>
+
           <div
-            id="modal-header-content"
-            class="flex justify-between items-start mb-6"
+            id="modal-scroll-area"
+            class="p-8 overflow-y-auto no-scrollbar flex-1 relative"
           >
-            <div class="w-full">
-              <input
-                type="text"
-                id="modal-title-input"
-                class="bg-transparent font-['Playfair_Display'] text-4xl italic text-stone-50 w-full outline-none border-b border-transparent focus:border-amber-500/30 pb-1"
-                placeholder="Chapter Title"
-              />
-              <input
-                type="text"
-                id="modal-date-input"
-                class="bg-transparent text-stone-500 font-bold text-xs tracking-wider mt-2 uppercase w-full outline-none border-b border-transparent focus:border-white/10"
-                placeholder="Date Range/Period"
-              />
+            <div
+              id="modal-header-content"
+              class="flex justify-between items-start mb-6"
+            >
+              <div class="w-full">
+                <input
+                  type="text"
+                  id="modal-title-input"
+                  class="bg-transparent font-['Playfair_Display'] text-4xl italic text-stone-50 w-full outline-none border-b border-transparent focus:border-amber-500/30 pb-1"
+                  placeholder="Chapter Title"
+                />
+                <input
+                  type="text"
+                  id="modal-date-input"
+                  class="bg-transparent text-stone-500 font-bold text-xs tracking-wider mt-2 uppercase w-full outline-none border-b border-transparent focus:border-white/10"
+                  placeholder="Date Range/Period"
+                />
+              </div>
+            </div>
+
+            <div id="modal-body" class="space-y-4">
+              <!-- Managed via script.js -->
             </div>
           </div>
 
-          <div id="modal-body" class="space-y-4">
-            <!-- Managed via script.js -->
-          </div>
-        </div>
-
-        <!-- Planner Toolbar (Only visible when activeIndex is 13) -->
-        <div
-          id="planner-toolbar"
-          class="hidden absolute bottom-24 left-1/2 -translate-x-1/2 flex items-center gap-2 bg-black/60 backdrop-blur-xl p-2 rounded-2xl border border-white/10 z-[70]"
-        >
-          <button
-            onclick="window.addTable('circle')"
-            class="p-3 hover:bg-white/10 rounded-xl transition text-stone-300 flex flex-col items-center gap-1"
-          >
-            <span class="material-icons-round">circle</span>
-            <span class="text-[8px] font-bold uppercase">Circle</span>
-          </button>
-          <button
-            onclick="window.addTable('square')"
-            class="p-3 hover:bg-white/10 rounded-xl transition text-stone-300 flex flex-col items-center gap-1"
-          >
-            <span class="material-icons-round">check_box_outline_blank</span>
-            <span class="text-[8px] font-bold uppercase">Square</span>
-          </button>
-          <button
-            onclick="window.addTable('rect')"
-            class="p-3 hover:bg-white/10 rounded-xl transition text-stone-300 flex flex-col items-center gap-1"
-          >
-            <span class="material-icons-round">view_stream</span>
-            <span class="text-[8px] font-bold uppercase">Rect</span>
-          </button>
-          <button
-            onclick="window.addTable('vip')"
-            class="p-3 hover:bg-white/10 rounded-xl transition text-stone-300 flex flex-col items-center gap-1"
-          >
-            <span class="material-icons-round">reorder</span>
-            <span class="text-[8px] font-bold uppercase">VIP</span>
-          </button>
-          <div class="w-px h-8 bg-white/10 mx-2"></div>
-          <button
-            onclick="window.resetView()"
-            class="p-3 hover:bg-white/10 rounded-xl transition text-stone-300 flex flex-col items-center gap-1"
-          >
-            <span class="material-icons-round">filter_center_focus</span>
-            <span class="text-[8px] font-bold uppercase">Center</span>
-          </button>
-        </div>
-
-        <!-- Footer Toolbar -->
-        <div
-          id="modal-footer"
-          class="p-4 bg-black/20 border-t border-white/5 flex justify-between items-center px-8 z-[70]"
-        >
-          <p class="text-[10px] text-stone-500 font-medium italic">
-            Edits save automatically to the cloud.
-          </p>
-          <button
-            id="add-row-btn"
-            onclick="window.addRow()"
-            class="flex items-center gap-2 bg-amber-500/10 text-amber-500 px-4 py-2 rounded-xl text-xs font-bold hover:bg-amber-500/20 transition"
-          >
-            <span class="material-icons-round text-sm">add_circle</span> Add
-            Entry
-          </button>
-        </div>
-      </div>
-    </div>
-
-    <!-- Seat Assignment Interactive Canvas Modal -->
-    <div
-      id="seat-modal"
-      class="hidden fixed inset-0 z-[80] flex items-center justify-center p-4 bg-black/85 backdrop-blur-md"
-    >
-      <div
-        class="bg-[#1c1b19] w-full max-w-5xl h-[85vh] rounded-[2.5rem] border border-stone-800 shadow-2xl flex overflow-hidden"
-      >
-        <!-- Left Side: Table Layout Preview -->
-        <div
-          class="flex-1 relative bg-black/20 p-8 flex items-center justify-center border-r border-white/5"
-        >
+          <!-- Planner Toolbar (Only visible when activeIndex is 13) -->
           <div
-            id="table-zoom-container"
-            class="w-full h-full relative flex items-center justify-center"
+            id="planner-toolbar"
+            class="hidden absolute bottom-24 left-1/2 -translate-x-1/2 flex items-center gap-2 bg-black/60 backdrop-blur-xl p-2 rounded-2xl border border-white/10 z-[70]"
           >
-            <!-- Zoomed table and bubbles -->
-          </div>
-          <div
-            class="absolute bottom-6 left-8 text-[10px] font-bold text-stone-500 uppercase tracking-widest"
-          >
-            Drag initials to set unit position
-          </div>
-        </div>
-
-        <!-- Right Side: Guest Roster -->
-        <div class="w-80 flex flex-col bg-stone-900/50">
-          <div
-            class="p-6 border-b border-white/5 flex justify-between items-center"
-          >
-            <h3
-              id="seat-modal-title"
-              class="font-['Playfair_Display'] text-2xl italic text-stone-100"
-            >
-              Assign Seats
-            </h3>
             <button
-              onclick="window.closeSeatModal()"
-              class="text-stone-500 hover:text-white transition"
+              onclick="window.addTable('circle')"
+              class="p-3 hover:bg-white/10 rounded-xl transition text-stone-300 flex flex-col items-center gap-1"
             >
-              <span class="material-icons-round">close</span>
+              <span class="material-icons-round">circle</span>
+              <span class="text-[8px] font-bold uppercase">Circle</span>
+            </button>
+            <button
+              onclick="window.addTable('square')"
+              class="p-3 hover:bg-white/10 rounded-xl transition text-stone-300 flex flex-col items-center gap-1"
+            >
+              <span class="material-icons-round">check_box_outline_blank</span>
+              <span class="text-[8px] font-bold uppercase">Square</span>
+            </button>
+            <button
+              onclick="window.addTable('rect')"
+              class="p-3 hover:bg-white/10 rounded-xl transition text-stone-300 flex flex-col items-center gap-1"
+            >
+              <span class="material-icons-round">view_stream</span>
+              <span class="text-[8px] font-bold uppercase">Rect</span>
+            </button>
+            <button
+              onclick="window.addTable('vip')"
+              class="p-3 hover:bg-white/10 rounded-xl transition text-stone-300 flex flex-col items-center gap-1"
+            >
+              <span class="material-icons-round">reorder</span>
+              <span class="text-[8px] font-bold uppercase">VIP</span>
+            </button>
+            <div class="w-px h-8 bg-white/10 mx-2"></div>
+            <button
+              onclick="window.resetView()"
+              class="p-3 hover:bg-white/10 rounded-xl transition text-stone-300 flex flex-col items-center gap-1"
+            >
+              <span class="material-icons-round">filter_center_focus</span>
+              <span class="text-[8px] font-bold uppercase">Center</span>
             </button>
           </div>
 
-          <!-- Inscribed Table List -->
-          <div class="p-4 bg-black/20 border-b border-white/5">
-            <span
-              class="text-[8px] font-black uppercase text-amber-500 tracking-[0.2em] mb-3 block"
-              >Inscribed in Table</span
-            >
-            <div
-              id="assigned-names-list"
-              class="space-y-1 text-xs font-medium text-stone-300"
-            >
-              <!-- Names appear here -->
-            </div>
-          </div>
-
-          <div class="p-4">
-            <input
-              type="text"
-              id="guest-search"
-              class="edit-input !bg-black/40 !text-xs"
-              placeholder="Search unassigned guests..."
-              oninput="window.filterGuestList()"
-            />
-          </div>
+          <!-- Footer Toolbar -->
           <div
-            id="guest-selection-list"
-            class="flex-1 overflow-y-auto no-scrollbar p-4 space-y-3"
+            id="modal-footer"
+            class="p-4 bg-black/20 border-t border-white/5 flex justify-between items-center px-8 z-[70]"
           >
-            <!-- Sorted units -->
+            <p class="text-[10px] text-stone-500 font-medium italic">
+              Edits save automatically to the cloud.
+            </p>
+            <button
+              id="add-row-btn"
+              onclick="window.addRow()"
+              class="flex items-center gap-2 bg-amber-500/10 text-amber-500 px-4 py-2 rounded-xl text-xs font-bold hover:bg-amber-500/20 transition"
+            >
+              <span class="material-icons-round text-sm">add_circle</span> Add
+              Entry
+            </button>
           </div>
         </div>
       </div>
-    </div>
 
-    <script type="module" src="script.js"></script>
+      <!-- Seat Assignment Interactive Canvas Modal -->
+      <div
+        id="seat-modal"
+        class="hidden fixed inset-0 z-[80] flex items-center justify-center p-4 bg-black/85 backdrop-blur-md"
+      >
+        <div
+          class="bg-[#1c1b19] w-full max-w-5xl h-[85vh] rounded-[2.5rem] border border-stone-800 shadow-2xl flex overflow-hidden"
+        >
+          <!-- Left Side: Table Layout Preview -->
+          <div
+            class="flex-1 relative bg-black/20 p-8 flex items-center justify-center border-r border-white/5"
+          >
+            <div
+              id="table-zoom-container"
+              class="w-full h-full relative flex items-center justify-center"
+            >
+              <!-- Zoomed table and bubbles -->
+            </div>
+            <div
+              class="absolute bottom-6 left-8 text-[10px] font-bold text-stone-500 uppercase tracking-widest"
+            >
+              Drag initials to set unit position
+            </div>
+          </div>
+
+          <!-- Right Side: Guest Roster -->
+          <div class="w-80 flex flex-col bg-stone-900/50">
+            <div
+              class="p-6 border-b border-white/5 flex justify-between items-center"
+            >
+              <h3
+                id="seat-modal-title"
+                class="font-['Playfair_Display'] text-2xl italic text-stone-100"
+              >
+                Assign Seats
+              </h3>
+              <button
+                onclick="window.closeSeatModal()"
+                class="text-stone-500 hover:text-white transition"
+              >
+                <span class="material-icons-round">close</span>
+              </button>
+            </div>
+
+            <!-- Inscribed Table List -->
+            <div class="p-4 bg-black/20 border-b border-white/5">
+              <span
+                class="text-[8px] font-black uppercase text-amber-500 tracking-[0.2em] mb-3 block"
+                >Inscribed in Table</span
+              >
+              <div
+                id="assigned-names-list"
+                class="space-y-1 text-xs font-medium text-stone-300"
+              >
+                <!-- Names appear here -->
+              </div>
+            </div>
+
+            <div class="p-4">
+              <input
+                type="text"
+                id="guest-search"
+                class="edit-input !bg-black/40 !text-xs"
+                placeholder="Search unassigned guests..."
+                oninput="window.filterGuestList()"
+              />
+            </div>
+            <div
+              id="guest-selection-list"
+              class="flex-1 overflow-y-auto no-scrollbar p-4 space-y-3"
+            >
+              <!-- Sorted units -->
+            </div>
+          </div>
+        </div>
+      </div>
+
+      <script type="module" src="script.js"></script>
+    </div>
   </body>
 </html>
