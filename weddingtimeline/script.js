@@ -291,7 +291,7 @@ let isDraggingBubble = false;
 let isDraggingTable = false;
 let panX = 0,
   panY = 0,
-  scale = 1;
+  scale = 0.8;
 
 function autoResize(el) {
   if (!el) return;
@@ -386,10 +386,12 @@ window.openModal = function (idx) {
   if (idx === 13) {
     modalCont.classList.add("planner-fullscreen");
     document.getElementById("modal").classList.add("p-0");
+    document.getElementById("modal-footer").classList.add("hidden");
     toolbar.classList.remove("hidden");
   } else {
     modalCont.classList.remove("planner-fullscreen");
     document.getElementById("modal").classList.remove("p-0");
+    document.getElementById("modal-footer").classList.remove("hidden");
     toolbar.classList.add("hidden");
   }
 
@@ -539,7 +541,7 @@ function renderPlanner(container) {
     let isPanning = false;
     let startX, startY;
     let initialPinchDist = null;
-    let initialScale = 1;
+    let initialScale = 0.8;
 
     const startPanning = (e) => {
       if (e.touches && e.touches.length === 2) {
@@ -736,9 +738,9 @@ window.addTable = (type) => {
 window.resetView = () => {
   panX = 0;
   panY = 0;
-  scale = 1;
+  scale = 0.8;
   const viewport = document.getElementById("planner-viewport");
-  if (viewport) viewport.style.transform = `translate(-50%, -50%) scale(1)`;
+  if (viewport) viewport.style.transform = `translate(-50%, -50%) scale(0.8)`;
   const body = document.getElementById("modal-body");
   body.innerHTML = "";
   renderPlanner(body);
