@@ -1,4 +1,4 @@
-# Current File Tree: .github/workflows/deploy-pray.yml
+// Current File Tree: .github/workflows/deploy-pray.yml
 name: Deploy Prayer Trainer
 
 on:
@@ -14,6 +14,10 @@ permissions:
 
 jobs:
   build-and-deploy:
+    # Adding the environment block as requested by the error log
+    environment:
+      name: github-pages
+      url: ${{ steps.deployment.outputs.page_url }}
     runs-on: ubuntu-latest
     steps:
       - name: Checkout
@@ -23,7 +27,6 @@ jobs:
         uses: actions/setup-node@v4
         with:
           node-version: 20
-          # Cache removed because package-lock.json doesn't exist yet
 
       - name: Install dependencies
         run: |
