@@ -4,7 +4,6 @@ name: Deploy Prayer Trainer
 on:
   push:
     branches: [main]
-    # Removed paths filter so this runs as soon as you push this file
 
 permissions:
   contents: read
@@ -26,20 +25,30 @@ jobs:
         with:
           node-version: 20
 
-      - name: Install dependencies
+      - name: Install and Build
         run: |
           cd pray
           npm install
-
-      - name: Build
-        run: |
-          cd pray
           npm run build
+
+      - name: Prepare Staging Area
+        run: |
+          # 1. Create a staging folder
+          mkdir staging
+
+          # 2. Copy the Prayer Trainer build into a 'pray' subfolder
+          mkdir -p staging/pray
+          cp -r pray/dist/* staging/pray/
+
+          # 3. OPTIONAL: Copy your other existing project folders so they don't disappear
+          # If you want 'anime', 'budududu', etc to stay live, uncomment these:
+          # cp -r anime staging/ || true
+          # cp -r budududu staging/ || true
 
       - name: Upload artifact
         uses: actions/upload-pages-artifact@v3
         with:
-          path: pray/dist
+          path: staging
 
       - name: Deploy to GitHub Pages
         id: deployment
