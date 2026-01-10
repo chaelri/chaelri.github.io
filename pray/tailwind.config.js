@@ -9,16 +9,10 @@ export default {
           900: "#0f172a",
           800: "#1e293b",
         },
-        purple: {
-          950: "#1e1b4b",
-        },
         gold: {
           400: "#fbbf24",
           500: "#f59e0b",
         },
-      },
-      backdropBlur: {
-        xs: "2px",
       },
     },
   },

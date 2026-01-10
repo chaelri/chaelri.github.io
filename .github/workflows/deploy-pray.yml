@@ -25,25 +25,24 @@ jobs:
         with:
           node-version: 20
 
-      - name: Install and Build
+      - name: Build Pray App
         run: |
           cd pray
           npm install
           npm run build
 
-      - name: Prepare Staging Area
+      - name: Merge and Restore All Folders
         run: |
-          # 1. Create a staging folder
+          # 1. Create staging
           mkdir staging
 
-          # 2. Copy the Prayer Trainer build into a 'pray' subfolder
+          # 2. Copy EVERYTHING from your repo to staging first (Fixes your 404)
+          # We exclude 'pray' and '.git' to keep it clean
+          rsync -av . staging/ --exclude pray --exclude .git --exclude .github
+
+          # 3. Put the built Pray app into the staging/pray folder
           mkdir -p staging/pray
           cp -r pray/dist/* staging/pray/
-
-          # 3. OPTIONAL: Copy your other existing project folders so they don't disappear
-          # If you want 'anime', 'budududu', etc to stay live, uncomment these:
-          # cp -r anime staging/ || true
-          # cp -r budududu staging/ || true
 
       - name: Upload artifact
         uses: actions/upload-pages-artifact@v3
