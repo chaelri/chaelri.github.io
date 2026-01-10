@@ -30,7 +30,7 @@ const DEPLOYMENT = [
 const COUNTERS = [
     {id:'exalt', name:'Exalt'}, {id:'speaker', name:'Speaker'},
     {id:'ushering', name:'Ushering'}, {id:'hall_adult', name:'Hall (Adults)'}, {id:'hall_kids', name:'Hall (Kids)'},
-    {id:'right', name:'Right'}, {id:'tech', name:'Tech'}, {id:'toddlers', name:'Toddlers Area'},
+    {id:'tech', name:'Tech'}, {id:'toddlers', name:'Toddlers Area'},
     {id:'next_gen_adult', name:'Next Gen Adult'}, {id:'next_gen_kids', name:'Next Gen Kids'},
     {id:'admin', name:'Admin Office'}
 ];
@@ -152,32 +152,7 @@ function sync() {
     });
 
     onValue(ref(db, `sessions/${dateKey}/counters`), snap => {
-        const data = snap.val() || {};
-        let needsMigration = false;
-
-        // Migration: Change left to ushering, middle to hall_adult, kids to next_gen_kids while retaining values
-        if (data.hasOwnProperty('left')) {
-            data.ushering = data.left;
-            delete data.left;
-            needsMigration = true;
-        }
-        if (data.hasOwnProperty('middle')) {
-            data.hall_adult = data.middle;
-            delete data.middle;
-            needsMigration = true;
-        }
-        if (data.hasOwnProperty('kids')) {
-            data.next_gen_kids = data.kids;
-            delete data.kids;
-            needsMigration = true;
-        }
-
-        if (needsMigration) {
-            set(ref(db, `sessions/${dateKey}/counters`), data);
-            return;
-        }
-
-        currentCounts = data;
+        currentCounts = snap.val() || {};
         let total = 0;
         let adultSum = 0;
         let kidsSum = 0;
@@ -188,8 +163,7 @@ function sync() {
             if(el) el.innerText = val;
             total += val;
             
-            // Logic: kids are toddlers, next_gen_kids, and hall_kids. 
-            // adults include next_gen_adult and Hall (Adults).
+            // Logic: kids are toddlers, next_gen_kids, and hall_kids.
             if(['toddlers', 'next_gen_kids', 'hall_kids'].includes(c.id)) {
                 kidsSum += val;
             } else {
