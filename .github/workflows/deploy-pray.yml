@@ -1,10 +1,10 @@
+# Current File Tree: .github/workflows/deploy-pray.yml
 name: Deploy Prayer Trainer
 
 on:
   push:
     branches: [main]
-    paths:
-      - "pray/**"
+    # Removed paths filter so this runs as soon as you push this file
 
 permissions:
   contents: read
@@ -36,18 +36,10 @@ jobs:
           cd pray
           npm run build
 
-      - name: Prepare Staging
-        run: |
-          # This ensures your app lives at /pray/ on the website
-          mkdir -p staging/pray
-          cp -r pray/dist/* staging/pray/
-          # Optional: If you want to keep your other root folders alive, 
-          # you would copy them into 'staging/' here.
-
       - name: Upload artifact
         uses: actions/upload-pages-artifact@v3
         with:
-          path: staging
+          path: pray/dist
 
       - name: Deploy to GitHub Pages
         id: deployment
