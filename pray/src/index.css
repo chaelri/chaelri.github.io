@@ -5,7 +5,9 @@
 
 @layer base {
   body {
-    @apply bg-[#0f172a] text-slate-100 antialiased overflow-x-hidden;
+    /* Use hex code directly here as a fallback */
+    background-color: #0f172a;
+    @apply text-slate-100 antialiased overflow-x-hidden;
   }
 }
 
