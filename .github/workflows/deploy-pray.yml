@@ -13,7 +13,6 @@ permissions:
 
 jobs:
   build-and-deploy:
-    # Adding the environment block as requested by the error log
     environment:
       name: github-pages
       url: ${{ steps.deployment.outputs.page_url }}
@@ -37,10 +36,18 @@ jobs:
           cd pray
           npm run build
 
+      - name: Prepare Staging
+        run: |
+          # This ensures your app lives at /pray/ on the website
+          mkdir -p staging/pray
+          cp -r pray/dist/* staging/pray/
+          # Optional: If you want to keep your other root folders alive, 
+          # you would copy them into 'staging/' here.
+
       - name: Upload artifact
         uses: actions/upload-pages-artifact@v3
         with:
-          path: pray/dist
+          path: staging
 
       - name: Deploy to GitHub Pages
         id: deployment
