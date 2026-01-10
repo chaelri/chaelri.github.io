@@ -12,14 +12,14 @@ import WallOfFaithfulness from "./components/WallOfFaithfulness";
 const STAGES = Object.values(ACTS_STAGES);
 
 function App() {
-  const [view, setView] = useState("dashboard"); // dashboard | session | summary | wall
+  const [view, setView] = useState("dashboard");
   const [currentStageIdx, setCurrentStageIdx] = useState(0);
   const [timeLeft, setTimeLeft] = useState(0);
   const [requests, setRequests] = useState([]);
   const [history, setHistory] = useState([]);
   const [showAddModal, setShowAddModal] = useState(false);
 
-  // Sync Data (Requests + History)
+  // Sync Data
   useEffect(() => {
     const reqRef = ref(db, "requests");
     const histRef = ref(db, "history");
@@ -45,17 +45,32 @@ function App() {
     };
   }, []);
 
+  // Timer Engine
+  useEffect(() => {
+    let timer = null;
+    if (view === "session" && timeLeft > 0) {
+      timer = setInterval(() => {
+        setTimeLeft((prev) => prev - 1);
+      }, 1000);
+    }
+    return () => {
+      if (timer) clearInterval(timer);
+    };
+  }, [view, timeLeft]);
+
   const startSession = () => {
+    const firstStage = STAGES[0];
     setCurrentStageIdx(0);
-    setTimeLeft(STAGES[0].duration);
+    setTimeLeft(firstStage.duration);
     setView("session");
   };
 
   const nextStage = () => {
     if (currentStageIdx < STAGES.length - 1) {
       const nextIdx = currentStageIdx + 1;
+      const nextStageData = STAGES[nextIdx];
       setCurrentStageIdx(nextIdx);
-      setTimeLeft(STAGES[nextIdx].duration);
+      setTimeLeft(nextStageData.duration);
     } else {
       finishSession();
     }
@@ -64,20 +79,18 @@ function App() {
   const finishSession = async () => {
     const now = Date.now();
 
-    // 1. Log History (Breadcrumbs)
+    // Log History
     const historyRef = ref(db, "history");
     await push(historyRef, {
       timestamp: now,
       completedStages: STAGES.length,
     });
 
-    // 2. Update Request Timestamps
+    // Update Request Timestamps
     const updates = {};
-    requests
-      .filter((r) => !r.isAnswered)
-      .forEach((req) => {
-        updates[`requests/${req.id}/lastPrayed`] = now;
-      });
+    activeRequests.forEach((req) => {
+      updates[`requests/${req.id}/lastPrayed`] = now;
+    });
 
     if (Object.keys(updates).length > 0) {
       await update(ref(db), updates);
@@ -116,11 +129,10 @@ function App() {
     return (
       <Layout title="Prayer Trainer">
         <div className="p-6 flex-1 flex flex-col">
-          {/* Breadcrumbs Stat Card */}
           <div className="grid grid-cols-2 gap-4 mb-6">
             <div className="glass-panel p-4">
               <p className="text-[10px] uppercase text-slate-500 font-bold mb-1">
-                Total Sessions
+                Sessions
               </p>
               <p className="text-2xl font-bold text-gold-400">
                 {history.length}
@@ -143,9 +155,9 @@ function App() {
           </div>
 
           <div className="glass-panel p-8 text-center mb-8 bg-gradient-to-br from-white/10 to-transparent">
-            <h2 className="text-3xl font-bold mb-2">Ready to pray?</h2>
+            <h2 className="text-3xl font-bold mb-2">Ready?</h2>
             <p className="text-slate-400 mb-6 italic text-sm">
-              5 minutes to focus your heart.
+              Focus your heart for 5 minutes.
             </p>
             <button
               onClick={startSession}
@@ -173,7 +185,7 @@ function App() {
           <div className="space-y-3 pb-24">
             {activeRequests.length === 0 && (
               <p className="text-center text-slate-600 py-10 italic">
-                No active requests. Add some to begin.
+                No active requests.
               </p>
             )}
             {activeRequests.map((req) => (
@@ -183,16 +195,10 @@ function App() {
               >
                 <div className="flex-1 min-w-0">
                   <p className="truncate font-medium">{req.title}</p>
-                  <p className="text-[10px] text-slate-500 uppercase">
-                    {req.lastPrayed
-                      ? `Last: ${new Date(req.lastPrayed).toLocaleDateString()}`
-                      : "Not prayed for yet"}
-                  </p>
                 </div>
                 <button
                   onClick={() => markAsAnswered(req.id)}
                   className="p-2 text-slate-500 hover:text-green-400 transition-colors"
-                  title="Mark as Answered"
                 >
                   <span className="material-icons-outlined">
                     check_circle_outline
@@ -214,7 +220,7 @@ function App() {
         <ProgressBar timeLeft={timeLeft} totalDuration={stage.duration} />
 
         <div className="flex-1 flex flex-col">
-          <div className="p-8 text-center bg-gradient-to-b from-navy-900 via-navy-900 to-transparent z-10">
+          <div className="p-8 text-center bg-navy-900 z-10">
             <p className="text-gold-400 text-sm font-bold uppercase tracking-widest mb-2">
               {stage.title}
             </p>
@@ -228,11 +234,7 @@ function App() {
           ) : (
             <div className="flex-1 flex items-center justify-center">
               <span className="material-icons-outlined text-[120px] text-white/5 animate-pulse">
-                {stage.id === "adoration"
-                  ? "auto_awesome"
-                  : stage.id === "confession"
-                  ? "self_improvement"
-                  : "sentiment_satisfied_alt"}
+                {stage.icon}
               </span>
             </div>
           )}
@@ -263,17 +265,16 @@ function App() {
           </span>
         </div>
         <h2 className="text-3xl font-bold mb-4 text-gold-400">
-          Faithful Prayer
+          Session Complete
         </h2>
-        <p className="text-slate-300 mb-8 max-w-xs">
-          You have completed your guided ACTS session. Your faithfulness has
-          been recorded.
+        <p className="text-slate-300 mb-8">
+          Your faithfulness has been recorded.
         </p>
         <button
           onClick={() => setView("dashboard")}
-          className="w-full max-w-xs py-4 bg-white/5 hover:bg-white/10 text-slate-300 font-bold rounded-xl transition-colors"
+          className="w-full max-w-xs py-4 border border-gold-500 text-gold-400 font-bold rounded-xl"
         >
-          Return to Dashboard
+          Return Home
         </button>
       </div>
     </Layout>
