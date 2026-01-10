@@ -1,4 +1,3 @@
-// Current File Tree: .github/workflows/deploy-pray.yml
 name: Deploy Prayer Trainer
 
 on:
