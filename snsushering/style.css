@@ -1,0 +1,75 @@
+@import url("https://fonts.googleapis.com/css2?family=Plus+Jakarta+Sans:wght@400;600;800&display=swap");
+
+body {
+  font-family: "Plus Jakarta Sans", sans-serif;
+  -webkit-tap-highlight-color: transparent;
+}
+
+/* The "Main Story" image effect */
+.banner-image {
+  background: linear-gradient(rgba(0, 0, 0, 0) 20%, rgba(0, 0, 0, 0.4)),
+    url("assets/1.jpg");
+  background-size: cover;
+  background-position: center;
+}
+
+.counter-item {
+  background: #fcfdfe;
+  border: 1px solid #f1f5f9;
+  border-radius: 1.5rem;
+  padding: 1rem;
+  transition: all 0.2s;
+}
+
+.slot-card {
+  background: white;
+  border-radius: 2rem;
+  padding: 1.5rem;
+  box-shadow: 0 10px 25px -5px rgba(59, 130, 246, 0.05);
+}
+
+.slot-btn {
+  border: 2px dashed #e2e8f0;
+  margin-bottom: 0.75rem; /* Better spacing for "cramped" feel */
+  transition: all 0.2s cubic-bezier(0.4, 0, 0.2, 1);
+}
+
+.slot-btn.active {
+  border: 2px solid #3b82f6;
+  background: #f0f7ff;
+  color: #1d4ed8;
+  box-shadow: 0 4px 12px rgba(59, 130, 246, 0.1);
+}
+
+.vol-chip {
+  background: white;
+  padding: 0.5rem 0.75rem;
+  border-radius: 1rem;
+  border: 1px solid #e2e8f0;
+  box-shadow: 0 2px 4px rgba(0, 0, 0, 0.02);
+}
+
+@keyframes slide-up {
+  from {
+    transform: translateY(100%);
+  }
+  to {
+    transform: translateY(0);
+  }
+}
+
+.animate-slide-up {
+  animation: slide-up 0.4s cubic-bezier(0.16, 1, 0.3, 1);
+}
+
+/* Custom Checkbox */
+input[type="checkbox"] {
+  width: 1.25rem;
+  height: 1.25rem;
+  border-radius: 0.5rem;
+  accent-color: #3b82f6;
+}
+
+::-webkit-scrollbar {
+  width: 0px;
+}

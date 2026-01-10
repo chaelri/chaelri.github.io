@@ -1,0 +1,17 @@
+{
+  "name": "SNS Ushering Overseer",
+  "short_name": "Ushering",
+  "description": "Real-time Overseer tool for SNS Ushering Ministry",
+  "start_url": "./index.html",
+  "display": "standalone",
+  "background_color": "#f4f7fa",
+  "theme_color": "#3b82f6",
+  "icons": [
+    {
+      "src": "assets/icon-512.png",
+      "sizes": "512x512",
+      "type": "image/png",
+      "purpose": "any maskable"
+    }
+  ]
+}
