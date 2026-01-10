@@ -1,0 +1,274 @@
+/* --- CORE --- */
+.font-antonio {
+  font-family: "Antonio", sans-serif;
+}
+.font-outfit {
+  font-family: "Outfit", sans-serif;
+}
+
+body {
+  font-family: "Outfit", sans-serif;
+  background-color: #050505;
+  margin: 0;
+}
+
+.bg-mesh-gradient {
+  background-color: #050505;
+  background-image: radial-gradient(
+      at 0% 0%,
+      hsla(180, 80%, 40%, 0.3) 0,
+      transparent 60%
+    ),
+    radial-gradient(at 100% 100%, hsla(15, 80%, 30%, 0.2) 0, transparent 60%),
+    url("assets/1.jpg");
+  background-size: cover;
+  background-position: center;
+  background-blend-mode: normal, normal, luminosity;
+}
+
+.paper-texture {
+  position: absolute;
+  inset: 0;
+  z-index: 50;
+  pointer-events: none;
+  opacity: 0.7;
+  background-image: url("https://www.transparenttextures.com/patterns/felt.png");
+  mix-blend-mode: hard-light;
+}
+
+/* --- LOGO: FIXED 120PX --- */
+.logo-box {
+  width: auto;
+  max-width: 320px;
+  height: 120px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+}
+.logo-img {
+  height: 100%;
+  width: 100%;
+  object-fit: contain;
+  filter: brightness(3);
+}
+
+/* --- TYPOGRAPHY --- */
+.announcement-text {
+  font-family: "Outfit";
+  font-weight: 700;
+  font-size: 13px;
+  text-transform: uppercase;
+  letter-spacing: 0.6em;
+  color: white;
+  opacity: 0.9;
+}
+
+/* Portrait Text Sizes */
+.portrait-headline {
+  font-size: 165px;
+  font-family: "Antonio";
+  font-weight: 700;
+  line-height: 0.75;
+  color: white;
+}
+.earlier-text {
+  font-family: "Outfit";
+  font-weight: 700;
+  color: #2dd4bf;
+  text-transform: lowercase;
+  line-height: 0.8;
+}
+.portrait-rotation {
+  font-size: 7.2rem;
+  transform: rotate(-1deg);
+  margin-top: -10px;
+}
+.subline-text {
+  font-size: 19px;
+  text-transform: uppercase;
+  color: white;
+  opacity: 0.9;
+  letter-spacing: 0.1em;
+  line-height: 1.4;
+}
+
+/* Landscape Text Sizes */
+.landscape-headline {
+  font-size: 180px;
+  font-family: "Antonio";
+  font-weight: 700;
+  line-height: 0.75;
+  color: white;
+}
+.landscape-rotation {
+  font-size: 8.5rem;
+  transform: rotate(-1deg);
+  margin-top: -15px;
+  margin-left: 10px;
+}
+.subline-text-lg {
+  font-size: 24px;
+  text-transform: uppercase;
+  color: white;
+  opacity: 0.9;
+  letter-spacing: 0.1em;
+  line-height: 1.4;
+}
+
+/* Schedule Text */
+.big-time {
+  font-size: 150px;
+  font-family: "Antonio";
+  font-weight: 700;
+  line-height: 1;
+  color: white;
+  letter-spacing: -0.05em;
+}
+.big-time-lg {
+  font-size: 180px;
+  font-family: "Antonio";
+  font-weight: 700;
+  line-height: 1;
+  color: white;
+  letter-spacing: -0.05em;
+}
+.ampm-text {
+  font-size: 3rem;
+  font-family: "Antonio";
+  font-style: italic;
+  font-weight: 700;
+  color: #2dd4bf;
+}
+.ampm-text-lg {
+  font-size: 4rem;
+  font-family: "Antonio";
+  font-style: italic;
+  font-weight: 700;
+  color: #2dd4bf;
+}
+
+.date-bar {
+  background: white;
+  color: black;
+  font-weight: 900;
+  padding: 12px 48px;
+  letter-spacing: 0.25em;
+  text-transform: uppercase;
+  font-size: 16px;
+}
+
+/* Labels */
+.label-muted {
+  font-size: 10px;
+  font-weight: 900;
+  text-transform: uppercase;
+  color: white;
+  opacity: 0.4;
+  letter-spacing: 0.1em;
+}
+.time-strike {
+  font-size: 14px;
+  font-weight: 700;
+  color: white;
+  opacity: 0.5;
+  text-decoration: line-through;
+  text-decoration-color: #2dd4bf;
+  letter-spacing: 0.2em;
+}
+.label-teal {
+  font-size: 10px;
+  font-weight: 900;
+  text-transform: uppercase;
+  color: #2dd4bf;
+  opacity: 0.8;
+  letter-spacing: 0.1em;
+}
+.time-teal {
+  font-size: 14px;
+  font-weight: 700;
+  color: #2dd4bf;
+  letter-spacing: 0.2em;
+}
+.time-teal-lg {
+  font-size: 20px;
+  font-weight: 700;
+  color: #2dd4bf;
+  letter-spacing: 0.2em;
+}
+.footer-msg {
+  font-size: 12px;
+  font-weight: 900;
+  color: white;
+  opacity: 0.8;
+  letter-spacing: 0.5em;
+  text-transform: uppercase;
+}
+
+/* --- DECOR --- */
+.worship-stroke {
+  position: absolute;
+  border-radius: 100px;
+  opacity: 0.2;
+  pointer-events: none;
+  z-index: 10;
+  filter: blur(120px);
+}
+.stroke-1 {
+  width: 80%;
+  height: 400px;
+  background: #2dd4bf;
+  top: -10%;
+  left: -20%;
+  transform: rotate(-15deg);
+}
+.stroke-2 {
+  width: 60%;
+  height: 300px;
+  background: #ea580c;
+  bottom: 20%;
+  right: -10%;
+  transform: rotate(10deg);
+}
+.spiritual-glow {
+  position: absolute;
+  width: 1000px;
+  height: 1000px;
+  border-radius: 50%;
+  filter: blur(200px);
+  z-index: 5;
+  opacity: 0.15;
+  pointer-events: none;
+}
+.glow-bottom {
+  background: #ea580c;
+  bottom: -40%;
+  right: -20%;
+}
+.glow-top {
+  background: #2dd4bf;
+  top: -40%;
+  left: -20%;
+}
+
+/* --- PREVIEW SCALING --- */
+@media (max-width: 1920px) or (max-height: 1350px) {
+  body {
+    display: flex;
+    align-items: center;
+    justify-content: center;
+  }
+  .mode-portrait #capture-area {
+    transform: scale(calc(min(90vw / 1080, 90vh / 1350)));
+    transform-origin: center center;
+    flex-shrink: 0;
+  }
+  .mode-landscape #capture-area {
+    transform: scale(calc(min(90vw / 1920, 90vh / 1080)));
+    transform-origin: center center;
+    flex-shrink: 0;
+  }
+}
+
+::-webkit-scrollbar {
+  display: none;
+}
