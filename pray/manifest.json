@@ -1,0 +1,23 @@
+{
+  "name": "Pray",
+  "short_name": "Pray",
+  "start_url": ".",
+  "display": "standalone",
+  "background_color": "#0f172a",
+  "theme_color": "#0f172a",
+  "description": "Premium A.C.T.S Model Prayer App",
+  "icons": [
+    {
+      "src": "assets/pray.png",
+      "sizes": "192x192",
+      "type": "image/png",
+      "purpose": "any"
+    },
+    {
+      "src": "assets/pray.png",
+      "sizes": "512x512",
+      "type": "image/png",
+      "purpose": "maskable"
+    }
+  ]
+}
