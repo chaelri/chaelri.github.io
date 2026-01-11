@@ -595,10 +595,12 @@ window.saveModal = async () => {
 
   const itemId = id || generateId();
   const startIdx = monthIdx;
+
+  // Paid status should NOT be recurring (current month only)
+  // Other properties like Name and Amount should follow recurring rules
   const endIdx = isRecurring ? 11 : monthIdx;
 
   for (let i = startIdx; i <= endIdx; i++) {
-    // Guarantee the existence of the month object and the specific section list
     if (!appData.monthlyData[i]) {
       appData.monthlyData[i] = {
         incomeSources: [],
@@ -618,9 +620,18 @@ window.saveModal = async () => {
       const item = list[existingIndex];
       item.name = name;
       item.amount = amount;
-      item.isPaid = isPaid;
 
-      // Log the quick add transaction only for CC and only for the current month edit
+      // Apply paid status ONLY to the current month being edited
+      if (i === monthIdx) {
+        item.isPaid = isPaid;
+      } else if (!isRecurring) {
+        // If not recurring, we don't touch other months, loop usually breaks anyway
+      } else {
+        // If recurring and updating future months, we keep their own existing paid status
+        // item.isPaid = item.isPaid; // Implicit
+      }
+
+      // Log for CC current month only
       if (i === monthIdx && quickAddAmount > 0) {
         if (!item.logs) item.logs = [];
         item.logs.push({
@@ -630,9 +641,15 @@ window.saveModal = async () => {
         });
       }
     } else {
-      const newItem = { id: itemId, name, amount, isPaid, logs: [] };
-      // If adding new CC with a quick add value initially
-      if (quickAddAmount > 0) {
+      // New item creation
+      const newItem = {
+        id: itemId,
+        name,
+        amount,
+        isPaid: i === monthIdx ? isPaid : false, // Only paid in current month if set
+        logs: [],
+      };
+      if (i === monthIdx && quickAddAmount > 0) {
         newItem.logs.push({
           id: generateId(),
           amount: quickAddAmount,
