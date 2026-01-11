@@ -80,6 +80,24 @@ window.addEventListener("load", () => {
   setInterval(updateLastPrayedUI, 60000);
 });
 
+// Image Compression Tool
+function compressImage(file, quality = 0.6, maxWidth = 1024) {
+  return new Promise((resolve, reject) => {
+    const img = new Image();
+    img.onload = () => {
+      const scale = Math.min(1, maxWidth / img.width);
+      const canvas = document.createElement("canvas");
+      canvas.width = img.width * scale;
+      canvas.height = img.height * scale;
+      const ctx = canvas.getContext("2d");
+      ctx.drawImage(img, 0, 0, canvas.width, canvas.height);
+      canvas.toBlob((blob) => resolve(blob), "image/jpeg", quality);
+    };
+    img.onerror = reject;
+    img.src = URL.createObjectURL(file);
+  });
+}
+
 function formatDate(timestamp) {
   if (!timestamp) return "";
   return new Intl.DateTimeFormat("en-US", {
@@ -341,25 +359,28 @@ function syncViewerProgressBar(left, dur) {
 function runFireTransition(cb) {
   fireTransition.innerHTML = "";
   fireTransition.style.opacity = "1";
-  for (let i = 0; i < 35; i++) {
+  const fragment = document.createDocumentFragment();
+  const count = 15;
+  for (let i = 0; i < count; i++) {
     const p = document.createElement("div");
     p.className = "fire-particle animate-fire-blast";
-    const sz = Math.random() * 200 + 100;
+    const sz = Math.random() * 150 + 100;
     p.style.width = p.style.height = sz + "px";
     const ang = Math.random() * Math.PI * 2,
       dist = Math.random() * 80 + 50;
     p.style.setProperty("--tx", Math.cos(ang) * dist + "vw");
     p.style.setProperty("--ty", Math.sin(ang) * dist + "vh");
-    p.style.setProperty("--s", Math.random() * 5 + 3);
+    p.style.setProperty("--s", Math.random() * 4 + 2);
     p.style.setProperty("--r", Math.random() * 360 + "deg");
-    p.style.animationDelay = Math.random() * 0.4 + "s";
-    fireTransition.appendChild(p);
+    p.style.animationDelay = Math.random() * 0.3 + "s";
+    fragment.appendChild(p);
   }
-  setTimeout(cb, 700);
+  fireTransition.appendChild(fragment);
+  setTimeout(cb, 600);
   setTimeout(() => {
     fireTransition.style.opacity = "0";
     setTimeout(() => (fireTransition.innerHTML = ""), 300);
-  }, 1600);
+  }, 1400);
 }
 
 // Checklist Modal Logic
@@ -474,12 +495,11 @@ addRequestBtn.onclick = async () => {
   try {
     let imageUrl = null;
     if (pendingImage) {
-      const sRefObj = sRef(storage, `prayers/${Date.now()}`);
-      imageUrl = await getDownloadURL(
-        (
-          await uploadBytes(sRefObj, pendingImage)
-        ).ref
-      );
+      // Compress image before upload
+      const compressedBlob = await compressImage(pendingImage);
+      const sRefObj = sRef(storage, `prayers/${Date.now()}.jpg`);
+      const snapshot = await uploadBytes(sRefObj, compressedBlob);
+      imageUrl = await getDownloadURL(snapshot.ref);
     }
     await push(ref(db, "requests"), {
       text: val,
