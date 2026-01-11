@@ -138,6 +138,18 @@ window.addEventListener("DOMContentLoaded", async () => {
       if (!appData.monthlyData) appData.monthlyData = {};
       updateAllCalculations();
       if (activeView === "stats") renderStats();
+    } else if (!val) {
+      // Re-initialize if Firebase is wiped externally
+      appData = { startingBalance: 0, monthlyData: {} };
+      for (let i = 0; i < 12; i++) {
+        appData.monthlyData[i] = {
+          incomeSources: [],
+          fixedExpenses: [],
+          cc: [],
+          others: [],
+        };
+      }
+      updateAllCalculations();
     }
   });
 });
@@ -406,6 +418,17 @@ window.updateStartingBalance = async (val) => {
 
 // --- LOGIC ---
 window.openModal = (type, id, name, amount, monthIdx) => {
+  // Structural safety check for empty data states
+  if (!appData.monthlyData) appData.monthlyData = {};
+  if (!appData.monthlyData[monthIdx]) {
+    appData.monthlyData[monthIdx] = {
+      incomeSources: [],
+      fixedExpenses: [],
+      cc: [],
+      others: [],
+    };
+  }
+
   const list = appData.monthlyData[monthIdx][type] || [];
   const item = list.find((it) => it.id === id) || {};
 
