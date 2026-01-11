@@ -216,7 +216,6 @@ document.addEventListener("DOMContentLoaded", () => {
       "./assets/attire/moh-1.jpg",
       "./assets/attire/moh-2.jpg",
       "./assets/attire/moh-3.jpg",
-      "./assets/attire/moh-4.jpg",
     ],
     Bridesmaids: [
       "./assets/attire/bm-1.jpg",
@@ -233,10 +232,6 @@ document.addEventListener("DOMContentLoaded", () => {
       "./assets/attire/mothers-1.jpg",
       "./assets/attire/mothers-2.jpg",
       "./assets/attire/mothers-3.jpg",
-      "./assets/attire/mothers-4.jpg",
-      "./assets/attire/mothers-5.jpg",
-      "./assets/attire/mothers-6.jpg",
-      "./assets/attire/mothers-7.jpg",
     ],
     Fathers: [
       "./assets/attire/fathers-1.jpg",
