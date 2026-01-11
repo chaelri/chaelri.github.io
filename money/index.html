@@ -1,0 +1,240 @@
+<!DOCTYPE html>
+<html lang="en">
+  <head>
+    <meta charset="UTF-8" />
+    <meta
+      name="viewport"
+      content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no"
+    />
+    <title>CHALEE | Personal Budget</title>
+    <link rel="manifest" href="manifest.json" />
+    <meta name="theme-color" content="#0f172a" />
+    <script src="https://cdn.tailwindcss.com"></script>
+    <link
+      href="https://fonts.googleapis.com/icon?family=Material+Icons"
+      rel="stylesheet"
+    />
+    <link rel="stylesheet" href="style.css" />
+  </head>
+  <body
+    class="bg-slate-900 text-slate-100 overflow-hidden font-sans select-none"
+  >
+    <!-- INTRO ANIMATION -->
+    <div
+      id="intro-screen"
+      class="fixed inset-0 z-[100] bg-slate-900 flex items-center justify-center pointer-events-none overflow-hidden"
+    >
+      <div id="intro-particles" class="absolute inset-0"></div>
+      <img
+        src="assets/money-icon.png"
+        id="intro-logo"
+        class="w-24 h-24 object-contain scale-0 transition-transform duration-500 ease-out z-10"
+        alt="Logo"
+      />
+    </div>
+
+    <!-- MONEY FALLING CANVAS OVERLAY -->
+    <canvas
+      id="money-canvas"
+      class="fixed inset-0 pointer-events-none z-[60] opacity-0 transition-opacity duration-300"
+    ></canvas>
+
+    <!-- APP SHELL -->
+    <div
+      id="app"
+      class="h-screen flex flex-col opacity-0 transition-opacity duration-500 max-w-2xl mx-auto shadow-2xl bg-slate-900"
+    >
+      <!-- HEADER -->
+      <header
+        class="p-6 flex justify-between items-end bg-slate-900/80 backdrop-blur-md sticky top-0 z-40"
+      >
+        <div>
+          <h1
+            id="current-month-display"
+            class="text-3xl font-black tracking-tight text-white uppercase italic"
+          >
+            JANUARY
+          </h1>
+          <p
+            id="current-year-display"
+            class="text-slate-400 text-xs font-bold tracking-[0.3em]"
+          >
+            PROJECTED 2026
+          </p>
+        </div>
+        <button
+          onclick="toggleMonthPicker()"
+          class="w-12 h-12 flex items-center justify-center bg-slate-800 rounded-2xl active:scale-90 transition-transform shadow-lg"
+        >
+          <span class="material-icons text-blue-400">calendar_month</span>
+        </button>
+      </header>
+
+      <!-- VIEWS -->
+      <main id="view-container" class="flex-1 relative overflow-hidden">
+        <!-- BUDGET VIEW (SWIPER) -->
+        <div
+          id="budget-view"
+          class="absolute inset-0 flex overflow-x-auto scroll-smooth snap-x snap-mandatory transition-opacity duration-300"
+        >
+          <!-- Snap points for months -->
+        </div>
+
+        <!-- STATS VIEW -->
+        <div
+          id="stats-view"
+          class="absolute inset-0 overflow-y-auto px-6 pt-4 pb-32 space-y-8 opacity-0 pointer-events-none transition-opacity duration-300 bg-slate-900"
+        >
+          <section class="space-y-4">
+            <h3
+              class="text-xs font-black uppercase tracking-[0.2em] text-slate-500"
+            >
+              Annual Summary
+            </h3>
+            <div id="annual-chart" class="space-y-4">
+              <!-- Bars generated here -->
+            </div>
+          </section>
+
+          <section class="space-y-4">
+            <h3
+              class="text-xs font-black uppercase tracking-[0.2em] text-slate-500"
+            >
+              Savings Trend
+            </h3>
+            <div
+              id="savings-chart"
+              class="flex items-end justify-between h-32 gap-1 px-2 border-b border-slate-800"
+            >
+              <!-- Trend lines -->
+            </div>
+          </section>
+        </div>
+
+        <!-- SETUP VIEW -->
+        <div
+          id="setup-view"
+          class="absolute inset-0 overflow-y-auto px-6 pt-4 pb-32 opacity-0 pointer-events-none transition-opacity duration-300 bg-slate-900"
+        >
+          <section class="space-y-6">
+            <h3
+              class="text-xs font-black uppercase tracking-[0.2em] text-slate-500"
+            >
+              Application Settings
+            </h3>
+            <div class="glass-card p-6 rounded-[2.5rem] space-y-4">
+              <div class="space-y-1">
+                <label
+                  class="text-[10px] font-bold uppercase text-slate-500 ml-2"
+                  >Initial Starting Balance (₱)</label
+                >
+                <input
+                  type="number"
+                  id="setup-balance"
+                  onchange="updateStartingBalance(this.value)"
+                  class="w-full bg-slate-900 border-none rounded-2xl p-4 text-xl font-black text-white focus:ring-2 focus:ring-blue-500"
+                />
+              </div>
+            </div>
+          </section>
+        </div>
+      </main>
+
+      <!-- BOTTOM NAV BAR -->
+      <nav
+        class="fixed bottom-0 left-0 right-0 max-w-2xl mx-auto h-20 bg-slate-900/90 backdrop-blur-xl border-t border-slate-800 flex items-center justify-around px-8 pb-4 z-40"
+      >
+        <button
+          onclick="switchView('budget')"
+          id="nav-budget"
+          class="flex flex-col items-center gap-1 text-blue-400 transition-colors"
+        >
+          <span class="material-icons">account_balance_wallet</span>
+          <span class="text-[10px] font-bold uppercase">Budget</span>
+        </button>
+        <button
+          onclick="switchView('stats')"
+          id="nav-stats"
+          class="flex flex-col items-center gap-1 text-slate-500 transition-colors"
+        >
+          <span class="material-icons">insights</span>
+          <span class="text-[10px] font-bold uppercase">Stats</span>
+        </button>
+        <button
+          onclick="switchView('setup')"
+          id="nav-setup"
+          class="flex flex-col items-center gap-1 text-slate-500 transition-colors"
+        >
+          <span class="material-icons">manage_accounts</span>
+          <span class="text-[10px] font-bold uppercase">Setup</span>
+        </button>
+      </nav>
+    </div>
+
+    <!-- MODAL POPUP -->
+    <div
+      id="modal-overlay"
+      class="fixed inset-0 z-50 bg-black/60 backdrop-blur-sm opacity-0 pointer-events-none transition-opacity duration-300 flex items-end sm:items-center justify-center p-4"
+    >
+      <div
+        id="modal-content"
+        class="bg-slate-800 w-full max-w-md rounded-t-[2.5rem] sm:rounded-[2.5rem] p-8 translate-y-full transition-transform duration-500 ease-out shadow-2xl border border-white/5"
+      >
+        <div
+          class="w-12 h-1.5 bg-slate-700 rounded-full mx-auto mb-6 sm:hidden"
+        ></div>
+        <div class="flex justify-between items-start mb-6">
+          <h3
+            id="modal-title"
+            class="text-2xl font-black uppercase tracking-tight"
+          >
+            Edit Item
+          </h3>
+          <button
+            id="delete-btn"
+            class="text-rose-500 p-2 hidden active:scale-75 transition-transform"
+          >
+            <span class="material-icons">delete_outline</span>
+          </button>
+        </div>
+
+        <div id="modal-body" class="space-y-8">
+          <!-- Inputs injected dynamically by openModal -->
+        </div>
+
+        <div class="mt-10 flex gap-4">
+          <button
+            onclick="closeModal()"
+            class="flex-1 py-5 font-bold text-slate-400 bg-slate-700/50 rounded-2xl active:scale-95 transition-transform"
+          >
+            Cancel
+          </button>
+          <button
+            onclick="saveModal()"
+            class="flex-1 py-5 font-bold text-white bg-blue-600 rounded-2xl active:scale-95 transition-transform shadow-lg shadow-blue-900/40"
+          >
+            Update
+          </button>
+        </div>
+      </div>
+    </div>
+
+    <!-- MONTH PICKER -->
+    <div
+      id="month-picker"
+      class="fixed inset-0 z-[55] bg-slate-950/90 backdrop-blur-lg opacity-0 pointer-events-none transition-opacity duration-300 overflow-y-auto"
+    >
+      <div class="p-10 grid grid-cols-2 gap-4">
+        <!-- Dynamic Month Buttons -->
+      </div>
+      <button
+        onclick="toggleMonthPicker()"
+        class="fixed bottom-10 left-1/2 -translate-x-1/2 w-14 h-14 flex items-center justify-center bg-slate-800 rounded-full shadow-2xl active:scale-90 transition-transform aspect-square"
+      >
+        <span class="material-icons">close</span>
+      </button>
+    </div>
+
+    <script type="module" src="script.js"></script>
+  </body>
+</html>
