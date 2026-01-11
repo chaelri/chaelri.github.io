@@ -1,0 +1,1403 @@
+:root {
+  --sage: #7b8a5b;
+  --cream: #faf9f6;
+}
+
+html {
+  scroll-behavior: smooth;
+}
+
+body {
+  font-family: "Inter", sans-serif;
+  scroll-behavior: smooth;
+  background-color: var(--cream);
+  background-image: url("https://www.transparenttextures.com/patterns/paper-fibers.png");
+  overflow-x: hidden;
+}
+
+.serif {
+  font-family: "Playfair Display", serif;
+}
+
+/* --- FLOWER TRANSITIONS --- */
+.floral-element {
+  transition: all 2.5s cubic-bezier(0.22, 1, 0.36, 1);
+  pointer-events: none;
+  position: absolute;
+  opacity: 0;
+  z-index: 205;
+}
+
+#fl-5 {
+  top: -150%;
+  left: -50%;
+  transform: rotate(-45deg) scale(1.5);
+}
+#fl-6 {
+  top: 50%;
+  left: -150%;
+  transform: rotate(90deg) scale(1.5);
+}
+#fl-7 {
+  top: -150%;
+  right: -50%;
+  transform: rotate(45deg) scale(1.5);
+}
+#fl-8 {
+  bottom: -150%;
+  left: 0%;
+  transform: scale(1.5);
+}
+#fl-9 {
+  bottom: 50%;
+  right: -150%;
+  transform: rotate(-90deg) scale(1.5);
+}
+#fl-10 {
+  bottom: -150%;
+  right: -20%;
+  transform: rotate(-45deg) scale(1.5);
+}
+
+.floral-center {
+  opacity: 1 !important;
+}
+#fl-5.floral-center {
+  top: -5%;
+  left: -5%;
+  transform: rotate(var(--r));
+}
+#fl-7.floral-center {
+  top: -5%;
+  right: -5%;
+  transform: rotate(var(--r));
+}
+#fl-6.floral-center {
+  top: 30%;
+  left: -10%;
+  transform: rotate(var(--r));
+}
+#fl-8.floral-center {
+  top: 30%;
+  right: -10%;
+  transform: rotate(var(--r));
+}
+#fl-9.floral-center {
+  bottom: -5%;
+  left: -5%;
+  transform: rotate(var(--r));
+}
+#fl-10.floral-center {
+  bottom: -5%;
+  right: -5%;
+  transform: rotate(var(--r));
+}
+
+.floral-alive {
+  animation: bloomBreathe 10s ease-in-out infinite alternate;
+  animation-delay: var(--t);
+}
+
+@keyframes bloomBreathe {
+  0% {
+    transform: rotate(var(--r)) translate(0, 0) scale(1);
+  }
+  50% {
+    transform: rotate(calc(var(--r) + 3deg)) translate(15px, -10px) scale(1.05);
+  }
+  100% {
+    transform: rotate(calc(var(--r) - 2deg)) translate(-10px, 15px) scale(1.02);
+  }
+}
+
+.ampersand-animate {
+  animation: springColorCycle 8s infinite;
+  transition: color 0.5s ease-in-out;
+}
+@keyframes springColorCycle {
+  0%,
+  20% {
+    color: #ffb7c5;
+  }
+  25%,
+  45% {
+    color: #7b8a5b;
+  }
+  50%,
+  70% {
+    color: #d4a373;
+  }
+  75%,
+  95% {
+    color: #b07d88;
+  }
+  100% {
+    color: #ffb7c5;
+  }
+}
+
+.shake {
+  animation: shake 0.2s ease-in-out;
+}
+@keyframes shake {
+  0%,
+  100% {
+    transform: translateX(0);
+  }
+  20%,
+  60% {
+    transform: translateX(-6px);
+  }
+  40%,
+  80% {
+    transform: translateX(6px);
+  }
+}
+
+.suggestion-item {
+  padding: 12px;
+  cursor: pointer;
+  border-bottom: 1px solid #f2f2f2;
+  font-size: 13px;
+}
+.suggestion-item:hover {
+  background: #f9f9f9;
+  color: var(--sage);
+}
+#story .rotate-2:hover,
+#story .-rotate-2:hover,
+#story .rotate-1:hover,
+#story .-rotate-1:hover {
+  transform: rotate(0deg) scale(1.05);
+}
+
+.border-error {
+  border-bottom: 2px solid #ffb7c5 !important;
+}
+
+nav div::-webkit-scrollbar {
+  display: none;
+}
+nav div {
+  -ms-overflow-style: none;
+  scrollbar-width: none;
+}
+
+/* GIFTING QR STYLES */
+.qr-container {
+  transition: transform 0.3s ease;
+}
+.qr-container:hover {
+  transform: scale(1.05);
+}
+
+/* AUDIO BUTTON PULSE */
+#audioToggle:active {
+  transform: scale(0.95);
+}
+
+/* Custom spinning for the audio wheel */
+.animate-spin-slow {
+  animation: spin 8s linear infinite;
+}
+
+@keyframes spin {
+  from {
+    transform: rotate(0deg);
+  }
+  to {
+    transform: rotate(360deg);
+  }
+}
+
+#audioSubtitles {
+  transition: opacity 0.3s ease-in-out;
+  text-shadow: 0 0 1px rgba(255, 183, 197, 0.2);
+}
+
+/* Ensure the progress ring looks smooth */
+#audioProgressRing {
+  transition: stroke-dashoffset 0.1s linear;
+}
+
+/* Style for the QR codes and digital bank cards */
+.qr-card {
+  background: white;
+  padding: 1rem;
+  border-radius: 1rem;
+  border: 1px solid #f2f2f2;
+  transition: all 0.3s ease;
+}
+.qr-card:hover {
+  border-color: var(--sage);
+  transform: translateY(-5px);
+  box-shadow: 0 10px 20px -5px rgba(123, 138, 91, 0.1);
+}
+
+/* --- Add this to your style.css --- */
+
+/* Portrait Video Fix */
+.aspect-\[9\/16\] {
+  aspect-ratio: 9 / 16;
+}
+
+/* Ensure video fills the frame like a phone screen */
+video {
+  background: #000;
+  display: block;
+}
+
+/* Scrapbook Hover Effect for the Portrait Video */
+#story .aspect-\[9\/16\]:hover {
+  filter: grayscale(0%) contrast(100%);
+  transform: scale(1.02);
+}
+
+/* LIGHTBOX STYLING */
+#qrLightbox {
+  /* Ensure it is always above everything including flowers and nav */
+  z-index: 500;
+}
+
+#qrLightbox .max-w-sm {
+  /* Gentle entrance animation */
+  animation: modalSlideUp 0.4s cubic-bezier(0.16, 1, 0.3, 1);
+}
+
+@keyframes modalSlideUp {
+  from {
+    opacity: 0;
+    transform: translateY(30px) scale(0.95);
+  }
+  to {
+    opacity: 1;
+    transform: translateY(0) scale(1);
+  }
+}
+
+/* Make sure the "View Larger" hint is readable */
+.group:hover .tracking-tighter {
+  animation: hintPulse 2s infinite ease-in-out;
+}
+
+/* Navigation Polish */
+.material-icons-outlined {
+  /* Subtle touch of spring pink for icons on hover */
+  transition: color 0.3s ease;
+}
+
+/* Ensure navbar doesn't cause horizontal scroll on narrow phones */
+nav {
+  max-width: 100vw;
+  overflow-x: hidden;
+}
+
+/* Active link color hint */
+nav a:active {
+  transform: scale(0.9);
+}
+
+/* Priority for RSVP on mobile */
+@media (max-width: 768px) {
+  #rsvp-nav-link {
+    border: 1px solid var(--sage);
+  }
+}
+
+/* Force Material Icons to render as text, not system emojis */
+.material-icons-outlined,
+.material-icons {
+  font-family: "Material Icons Outlined", "Material Icons" !important;
+  display: inline-block;
+  vertical-align: middle;
+  line-height: 1;
+  text-transform: none;
+  letter-spacing: normal;
+  word-wrap: normal;
+  white-space: nowrap;
+  direction: ltr;
+  -webkit-font-smoothing: antialiased;
+}
+
+/* Ensure the audio Progress Ring is visible on Safari */
+#audioProgressRing {
+  transition: stroke-dashoffset 0.3s linear;
+}
+
+/* Styling for the QR interactives */
+.qr-trigger {
+  -webkit-tap-highlight-color: transparent; /* Removes the ugly blue box on iPhone tap */
+  transition: transform 0.2s ease;
+}
+
+.qr-trigger:active {
+  transform: scale(0.95); /* Tactile feedback on click */
+}
+
+/* Make the "Download" button in the lightbox stand out */
+#downloadQR {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  gap: 8px;
+  box-shadow: 0 4px 15px rgba(123, 138, 91, 0.3);
+}
+
+/* Ensure the Material Icons are centered in the zoom circle */
+.qr-trigger .material-icons-outlined {
+  font-size: 18px !important;
+}
+
+/* Lightbox title styling */
+#lightboxTitle {
+  color: var(--sage);
+  letter-spacing: -0.02em;
+}
+
+/* Base style for all scroll flowers */
+.s-flower {
+  position: absolute;
+  width: 180px;
+  opacity: 0;
+  transition: all 1s cubic-bezier(0.25, 1, 0.5, 1);
+  filter: drop-shadow(0 10px 20px rgba(0, 0, 0, 0.05));
+  pointer-events: none;
+}
+
+/* Hidden Positions (Tucked away) */
+.fl-left-top {
+  top: 5%;
+  left: -200px;
+  transform: rotate(-45deg);
+}
+.fl-right-top {
+  top: 5%;
+  right: -200px;
+  transform: rotate(45deg);
+}
+.fl-left-mid {
+  top: 40%;
+  left: -200px;
+  transform: rotate(-90deg);
+}
+.fl-right-mid {
+  top: 40%;
+  right: -200px;
+  transform: rotate(90deg);
+}
+.fl-left-bot {
+  bottom: 5%;
+  left: -200px;
+  transform: rotate(-20deg);
+}
+.fl-right-bot {
+  bottom: 5%;
+  right: -200px;
+  transform: rotate(20deg);
+}
+
+/* Active Class: Slides in and starts breathing */
+.s-flower.is-active {
+  opacity: 1;
+  animation: bloomBreathe 8s ease-in-out infinite alternate;
+  animation-delay: var(--t);
+}
+
+/* Active Positions */
+.fl-left-top.is-active {
+  left: -30px;
+  transform: rotate(var(--r));
+}
+.fl-right-top.is-active {
+  right: -30px;
+  transform: rotate(var(--r));
+}
+.fl-left-mid.is-active {
+  left: -40px;
+  transform: rotate(var(--r));
+}
+.fl-right-mid.is-active {
+  right: -40px;
+  transform: rotate(var(--r));
+}
+.fl-left-bot.is-active {
+  left: -30px;
+  transform: rotate(var(--r));
+}
+.fl-right-bot.is-active {
+  right: -30px;
+  transform: rotate(var(--r));
+}
+
+@media (max-width: 768px) {
+  .s-flower {
+    width: 120px;
+  } /* Smaller on phones */
+}
+
+/* --- FIXED RSVP BOUQUET --- */
+#rsvp {
+  position: relative;
+  z-index: 1;
+  overflow-x: clip;
+}
+
+.bouquet-wrapper {
+  position: absolute;
+  top: 50%;
+  left: 50%;
+  transform: translate(-50%, -50%);
+  width: 100%;
+  max-width: 450px;
+  height: 1000px;
+  pointer-events: none;
+  z-index: -1;
+}
+
+.bq-flower {
+  position: absolute;
+  width: 400px;
+  opacity: 0;
+  top: 50%;
+  left: 50%;
+  /* Use variables for position, default to center (0,0) */
+  --tx: 0%;
+  --ty: 0%;
+  --rot: 0deg;
+  /* Initial state: center and small */
+  transform: translate(-50%, -50%) scale(0.1);
+  transition: opacity 1.5s ease,
+    transform 1.5s cubic-bezier(0.34, 1.56, 0.64, 1);
+}
+
+.bq-flower.is-bloomed {
+  opacity: 1;
+  /* Apply a specific animation that respects our variables */
+  animation: bouquetBreathe 10s ease-in-out infinite alternate !important;
+}
+
+/* Set coordinates for each flower via variables */
+#bq-5 {
+  --tx: -118%;
+  --ty: -85%;
+  --rot: -29deg;
+}
+#bq-6 {
+  --tx: 24%;
+  --ty: -65%;
+  --rot: 25deg;
+}
+#bq-7 {
+  --tx: -109%;
+  --ty: -10%;
+  --rot: -15deg;
+}
+#bq-8 {
+  --tx: 6%;
+  --ty: -4%;
+  --rot: 20deg;
+}
+#bq-9 {
+  --tx: -50%;
+  --ty: -90%;
+  --rot: 67deg;
+}
+#bq-10 {
+  --tx: -59%;
+  --ty: 9%;
+  --rot: 0deg;
+}
+
+/* The New Bouquet-Specific Animation */
+@keyframes bouquetBreathe {
+  0% {
+    transform: translate(var(--tx), var(--ty)) rotate(var(--rot)) scale(1);
+  }
+  100% {
+    transform: translate(calc(var(--tx) + 5%), calc(var(--ty) - 5%))
+      rotate(calc(var(--rot) + 5deg)) scale(1.05);
+  }
+}
+
+@media (max-width: 768px) {
+  .bq-flower {
+    width: 400px; /* Slightly smaller to fit better */
+  }
+
+  /* Adjust the breathe animation for mobile to be tighter */
+  @keyframes bouquetBreathe {
+    0% {
+      transform: translate(var(--tx), var(--ty)) rotate(var(--rot)) scale(1);
+    }
+    100% {
+      transform: translate(calc(var(--tx) + 3%), calc(var(--ty) - 3%))
+        rotate(calc(var(--rot) + 3deg)) scale(1.03);
+    }
+  }
+}
+
+html,
+body {
+  max-width: 100%;
+  overflow-x: hidden;
+  position: relative;
+}
+
+@media (max-width: 768px) {
+  .bouquet-wrapper {
+    /* Change 100vw to 100% to keep it strictly inside the parent */
+    width: 100%;
+    left: 50%;
+    max-width: none;
+  }
+}
+
+.animate-fade-in {
+  animation: fadeIn 0.8s ease forwards;
+}
+
+@keyframes fadeIn {
+  from {
+    opacity: 0;
+    transform: translateY(10px);
+  }
+  to {
+    opacity: 1;
+    transform: translateY(0);
+  }
+}
+
+/* This class will be toggled by JavaScript */
+.nav-hidden {
+  transform: translateY(-100%);
+}
+
+/* Real Depth Shadow for the cutout */
+.drop-shadow-wedding {
+  filter: drop-shadow(0 10px 10px rgba(0, 0, 0, 0.05))
+    drop-shadow(0 20px 30px rgba(123, 138, 91, 0.1));
+}
+
+/* Optional: Subtle Parallax for the Background Text */
+.parallax-text {
+  will-change: transform;
+}
+
+#musicToggle {
+  /* Ensure it doesn't get in the way of the "RSVP" button on very small phones */
+  -webkit-tap-highlight-color: transparent;
+}
+
+#musicToggle span {
+  font-size: 20px;
+  transition: transform 0.3s ease;
+}
+
+/* Pulsing effect when music is playing so they know it's "live" */
+.music-playing-pulse {
+  animation: musicPulse 2s infinite ease-in-out;
+}
+
+@keyframes musicPulse {
+  0% {
+    box-shadow: 0 0 0 0 rgba(123, 138, 91, 0.4);
+  }
+  70% {
+    box-shadow: 0 0 0 10px rgba(123, 138, 91, 0);
+  }
+  100% {
+    box-shadow: 0 0 0 0 rgba(123, 138, 91, 0);
+  }
+}
+
+/* REVEAL INTERACTION STYLES */
+.reveal-wrapper {
+  position: relative;
+  cursor: pointer;
+  overflow: hidden;
+  background-color: #f3f2ee; /* Matches your cream background */
+}
+
+.reveal-overlay {
+  position: absolute;
+  inset: 0;
+  background-color: #fcfbf8;
+  z-index: 10;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  transition: all 0.8s cubic-bezier(0.4, 0, 0.2, 1);
+  /* Subtle paper texture on the overlay */
+  background-image: url("https://www.transparenttextures.com/patterns/natural-paper.png");
+}
+
+.reveal-content {
+  text-align: center;
+  transition: transform 0.5s ease;
+}
+
+.reveal-wrapper:hover .reveal-content {
+  transform: scale(1.1);
+}
+
+.story-img {
+  transition: filter 1.2s ease, transform 1.2s ease;
+  filter: blur(10px) brightness(0.9);
+}
+
+/* State when clicked */
+.reveal-wrapper.is-revealed .reveal-overlay {
+  opacity: 0;
+  pointer-events: none;
+  transform: translateY(-10px);
+}
+
+.reveal-wrapper.is-revealed .story-img {
+  filter: blur(0) brightness(1);
+}
+
+/* Wax Seal style pulse for the icon */
+.reveal-overlay span {
+  animation: pulseWax 2s infinite ease-in-out;
+}
+
+@keyframes pulseWax {
+  0% {
+    transform: scale(1);
+    opacity: 0.8;
+  }
+  50% {
+    transform: scale(1.1);
+    opacity: 1;
+  }
+  100% {
+    transform: scale(1);
+    opacity: 0.8;
+  }
+}
+
+#scroll-progress {
+  position: fixed;
+  top: 0;
+  left: 0;
+  width: 0%;
+  height: 3px;
+  background: var(--sage);
+  z-index: 200; /* Above nav */
+  transition: width 0.1s ease-out;
+}
+
+/* THE REAL WAX SEAL ANIMATION */
+/* THE REAL WAX SEAL ANIMATION - FIXED FOR IPHONE */
+.wax-seal-img {
+  width: 120px;
+  height: auto;
+  display: block; /* Ensure it's not inline */
+  margin: 0 auto;
+  pointer-events: none;
+  user-select: none;
+
+  /* Safari Hardware Acceleration Hint */
+  will-change: transform, opacity;
+  -webkit-backface-visibility: hidden;
+  backface-visibility: hidden;
+
+  /* The Stamp Animation */
+  opacity: 0;
+  transform: scale(0);
+
+  /* Prefixes for better Safari support */
+  -webkit-animation: stamp-in 0.5s cubic-bezier(0.175, 0.885, 0.32, 1.275)
+    forwards;
+  animation: stamp-in 0.5s cubic-bezier(0.175, 0.885, 0.32, 1.275) forwards;
+  animation-delay: 0.2s;
+}
+
+/* We remove the 'blur' and the extra 'drop-shadow' from inside the keyframes 
+   to prevent Safari from getting confused during the calculation */
+@-webkit-keyframes stamp-in {
+  0% {
+    -webkit-transform: scale(4);
+    opacity: 0;
+  }
+  100% {
+    -webkit-transform: scale(1);
+    opacity: 1;
+  }
+}
+
+@keyframes stamp-in {
+  0% {
+    transform: scale(4);
+    opacity: 0;
+  }
+  80% {
+    transform: scale(0.9); /* The impact 'squash' */
+  }
+  100% {
+    transform: scale(1);
+    opacity: 1;
+  }
+}
+
+/* TRIVIA NOTE STYLE */
+.trivia-note {
+  position: absolute;
+  width: 160px;
+  background: white;
+  padding: 15px;
+  box-shadow: 5px 5px 20px rgba(0, 0, 0, 0.05);
+  cursor: pointer;
+  z-index: 40;
+  transform: rotate(var(--r));
+  transition: all 0.6s cubic-bezier(0.34, 1.56, 0.64, 1);
+  border: 1px solid rgba(0, 0, 0, 0.03);
+}
+
+.trivia-inner {
+  display: flex;
+  flex-direction: column;
+}
+
+.trivia-q {
+  font-size: 11px;
+  font-weight: 700;
+  color: #7b8a5b;
+  line-height: 1.4;
+  text-transform: uppercase;
+  letter-spacing: 0.05em;
+}
+
+.trivia-a {
+  max-height: 0;
+  opacity: 0;
+  overflow: hidden;
+  transition: all 0.5s ease;
+}
+
+.ans-text {
+  font-family: "Dancing Script", cursive;
+  font-size: 18px;
+  color: #444;
+  line-height: 1;
+}
+
+.ans-desc {
+  font-size: 10px;
+  color: #888;
+  margin-top: 5px;
+  font-style: italic;
+}
+
+.tap-hint {
+  font-size: 8px;
+  text-transform: uppercase;
+  color: #ccc;
+  margin-top: 8px;
+  letter-spacing: 0.2em;
+  text-align: right;
+}
+
+/* Active State: When the guest clicks */
+.trivia-note.is-active {
+  width: 220px;
+  z-index: 100;
+  transform: rotate(0deg) scale(1.05);
+  box-shadow: 10px 20px 40px rgba(0, 0, 0, 0.1);
+}
+
+.trivia-note.is-active .trivia-a {
+  max-height: 150px;
+  opacity: 1;
+  margin-bottom: 5px;
+}
+
+.trivia-note.is-active .tap-hint {
+  display: none;
+}
+
+@media (max-width: 768px) {
+  .trivia-note {
+    width: 240px;
+  }
+  .trivia-note.is-active {
+    width: 190px;
+  }
+}
+
+/* FIX FOR MOBILE STICKY SCROLL */
+#rsvp {
+  /* Tells mobile browsers: 'Only allow vertical scrolling here, ignore everything else' */
+  touch-action: pan-y;
+
+  /* Prevents the 'jump' when the form disappears and the success message appears */
+  overflow-anchor: none;
+
+  /* Use hidden instead of clip for better mobile compatibility */
+  overflow: hidden !important;
+
+  position: relative;
+  -webkit-overflow-scrolling: touch;
+}
+
+.bouquet-wrapper {
+  /* Extra insurance that the flowers never block a finger touch */
+  pointer-events: none !important;
+  user-select: none;
+  touch-action: none;
+
+  /* Ensure it doesn't create 'ghost' scrollable area */
+  max-width: 100vw;
+  overflow: hidden;
+}
+
+.bq-flower {
+  /* Prevent images from being 'dragged' by the thumb on mobile */
+  -webkit-user-drag: none;
+}
+
+/* --- IMPROVED TYPEAHEAD UI --- */
+
+#autocomplete-list {
+  margin-top: 4px;
+  border-radius: 12px;
+  border: 1px solid rgba(123, 138, 91, 0.1);
+  box-shadow: 0 10px 25px -5px rgba(0, 0, 0, 0.1),
+    0 8px 10px -6px rgba(0, 0, 0, 0.05);
+  background: #ffffff;
+  overflow: hidden;
+  animation: listFadeIn 0.2s ease-out;
+}
+
+@keyframes listFadeIn {
+  from {
+    opacity: 0;
+    transform: translateY(-10px);
+  }
+  to {
+    opacity: 1;
+    transform: translateY(0);
+  }
+}
+
+.suggestion-item {
+  padding: 14px 18px;
+  display: flex;
+  align-items: center;
+  gap: 5px;
+  transition: all 0.2s ease;
+  border-bottom: 1px solid #f8f8f8;
+  color: #57534e; /* stone-600 */
+}
+
+.suggestion-item:last-child {
+  border-bottom: none;
+}
+
+/* Add a floral bullet point for each suggestion */
+.suggestion-item::before {
+  content: "✿";
+  color: #7b8a5b;
+  font-size: 10px;
+  opacity: 0.4;
+}
+
+.suggestion-item:hover,
+.suggestion-item.is-active {
+  background-color: #fcfbf8;
+  color: #7b8a5b;
+  padding-left: 24px; /* Slight slide effect */
+}
+
+.suggestion-item strong {
+  color: #7b8a5b; /* Highlighted part of name */
+  font-weight: 600;
+}
+
+/* Hint for the user */
+.typeahead-hint {
+  padding: 10px 18px;
+  font-size: 10px;
+  text-transform: uppercase;
+  letter-spacing: 0.1em;
+  color: #a8a29e;
+  background: #fafaf9;
+  border-bottom: 1px solid #f5f5f4;
+}
+
+@keyframes heartTick {
+  0% {
+    transform: scale(1);
+    opacity: 1;
+  }
+  50% {
+    transform: scale(1.05);
+    opacity: 0.8;
+  }
+  100% {
+    transform: scale(1);
+    opacity: 1;
+  }
+}
+
+.animate-tick {
+  display: inline-block;
+  animation: heartTick 1s infinite ease-in-out;
+  /* Prevent jittering on serif fonts */
+  font-variant-numeric: tabular-nums;
+}
+
+#countdown-container .serif {
+  min-width: 1.2ch; /* Prevents layout jump when numbers change */
+}
+
+.animate-bounce-slow {
+  animation: bounce-slow 2.5s infinite;
+}
+
+@keyframes bounce-slow {
+  0%,
+  20%,
+  50%,
+  80%,
+  100% {
+    transform: translateY(0);
+  }
+  40% {
+    transform: translateY(8px);
+  }
+  60% {
+    transform: translateY(4px);
+  }
+}
+/* CONTAINER & GRID FIXES */
+.attire-album-card {
+  width: calc(50% - 10px);
+  max-width: 280px;
+  cursor: pointer;
+  padding: 1rem;
+  border-radius: 26px;
+  box-shadow: 0 4px 10px rgba(0, 0, 0, 0.1);
+  transition: all 0.2s ease;
+  transform: translateY(0);
+}
+
+.attire-album-card:hover {
+  transition: all 0.2s ease;
+  transform: translateY(-10px);
+}
+
+@media (min-width: 1024px) {
+  .attire-album-card {
+    width: calc(33% - 40px);
+  }
+}
+
+/* FIXED SQUARE ALBUM GRID */
+.fb-album-grid {
+  display: grid;
+  grid-template-columns: 1.5fr 1fr;
+  gap: 6px;
+  background: white;
+  padding-bottom: 6px;
+  border-radius: 20px;
+
+  aspect-ratio: 1 / 1; /* <--- THIS FORCES THE SQUARE */
+  width: 100%; /* Fills the card width */
+  overflow: hidden; /* Prevents images from leaking out */
+  position: relative;
+}
+
+.grid-main,
+.grid-side,
+.side-item {
+  height: 100% !important;
+  width: 100%;
+  overflow: hidden;
+  border-radius: 12px;
+}
+
+.fb-album-grid img {
+  width: 100% !important;
+  height: 100% !important;
+  object-fit: cover; /* <--- PREVENTS STRETCHING */
+  display: block;
+}
+
+.grid-side {
+  display: grid;
+  grid-template-rows: 1fr 1fr;
+  gap: 6px;
+  height: 100%;
+}
+
+.more-overlay {
+  position: relative;
+}
+.more-overlay::after {
+  content: "";
+  position: absolute;
+  inset: 0;
+  background: rgba(0, 0, 0, 0.45);
+}
+
+.plus-count {
+  position: absolute;
+  inset: 0;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  color: white;
+  font-weight: 600;
+  font-size: 1.2rem;
+  z-index: 10;
+}
+
+.palette-pill {
+  position: absolute;
+  bottom: 10px;
+  right: 10px;
+  display: flex;
+  gap: 4px;
+  background: rgba(255, 255, 255, 0.85);
+  backdrop-filter: blur(8px);
+  padding: 5px;
+  border-radius: 50px;
+  z-index: 20;
+  box-shadow: 0 4px 10px rgba(0, 0, 0, 0.1);
+}
+
+/* MESSENGER MODAL THUMBS */
+.attire-thumb {
+  width: 50px;
+  height: 50px;
+  flex-shrink: 0;
+  object-fit: cover;
+  border-radius: 8px;
+  cursor: pointer;
+  opacity: 0.3;
+}
+.attire-thumb.active {
+  opacity: 1;
+  transform: scale(1.1);
+}
+
+.no-scrollbar::-webkit-scrollbar {
+  display: none;
+}
+
+/* Prevent background scrolling when modal is open */
+.no-scroll {
+  overflow: hidden !important;
+  height: 100vh;
+}
+
+.no-scrollbar {
+  -ms-overflow-style: none;
+  scrollbar-width: none;
+}
+
+/* FAQ Accordion Transitions */
+.faq-trigger.active span:last-child {
+  transform: rotate(180deg);
+  color: #7b8a5b;
+}
+
+.faq-trigger.active {
+  color: #7b8a5b;
+}
+
+.faq-content {
+  transition: all 0.3s ease-in-out;
+}
+
+/* Prevent horizontal scroll globally */
+html,
+body {
+  overflow-x: hidden;
+  width: 100%;
+  position: relative;
+}
+
+/* Ensure the dropdown menu doesn't push the screen on small devices */
+#more-menu {
+  right: 0;
+  transform-origin: top right;
+}
+
+/* Fix for mobile menu tapping */
+#more-trigger {
+  -webkit-tap-highlight-color: transparent;
+}
+
+#main-nav {
+  overflow: visible !important;
+}
+
+#more-menu {
+  top: 100%; /* Sits exactly at the bottom of the nav bar */
+  transform-origin: top right;
+}
+
+/* Prevent horizontal body scroll */
+html,
+body {
+  overflow-x: hidden;
+}
+/* --- JUMP-PROOF MODAL CSS --- */
+
+/* When modal is open, we fix the body so it can't move, 
+   but we will control the 'top' value via JS to prevent the jump to 0 */
+body.modal-active {
+  position: fixed;
+  width: 100%;
+  overflow: hidden;
+}
+
+#attireModal {
+  position: fixed;
+  inset: 0;
+  z-index: 1000; /* Ensure it's above everything */
+  background-color: rgba(0, 0, 0, 0.9);
+  backdrop-filter: blur(15px);
+  -webkit-backdrop-filter: blur(15px);
+  display: none; /* Controlled by JS */
+  flex-direction: column;
+  opacity: 0;
+  /* This stops the background from moving when you drag your finger on the modal */
+  touch-action: none;
+}
+
+#mainAttireImg {
+  object-fit: contain;
+  /* Allow swiping on the image itself */
+  touch-action: pan-y;
+}
+
+#attireThumbs {
+  display: flex;
+  gap: 12px;
+  overflow-x: auto;
+  padding: 15px;
+  /* Allow thumbnail scrolling */
+  touch-action: pan-x;
+  -webkit-overflow-scrolling: touch;
+}
+#attireThumbs::-webkit-scrollbar {
+  display: none;
+}
+
+.attire-thumb {
+  width: 60px;
+  height: 60px;
+  object-fit: cover;
+  border-radius: 10px;
+  opacity: 0.4;
+  transition: all 0.3s ease;
+  flex-shrink: 0;
+  cursor: pointer;
+}
+.attire-thumb.active {
+  opacity: 1;
+  transform: scale(1.1);
+  box-shadow: 0 0 15px rgba(255, 255, 255, 0.3);
+}
+
+.reveal-on-scroll {
+  opacity: 0;
+  transform: translateY(30px);
+  transition: all 1s cubic-bezier(0.22, 1, 0.36, 1);
+}
+
+.reveal-on-scroll.is-visible {
+  opacity: 1;
+  transform: translateY(0);
+}
+
+video {
+  /* Prevents iOS from showing the 'pinch to full screen' hint */
+  -webkit-transform: translateZ(0);
+  transform: translateZ(0);
+}
+
+/* Hide the native "Full Screen" button if it appears on some iOS versions */
+video::-webkit-media-controls-fullscreen-button {
+  display: none;
+}
+
+.md\:w-1\/2 {
+  will-change: background-position;
+  transform: translateZ(0); /* Forces Hardware Acceleration */
+}
+
+/* Note textarea styling */
+#secondaryNote {
+  border: 1px solid rgba(123, 138, 91, 0.1);
+  transition: all 0.3s ease;
+}
+
+#secondaryNote:focus {
+  background: white;
+  border-color: #7b8a5b;
+  box-shadow: 0 5px 15px rgba(123, 138, 91, 0.05);
+}
+
+/* Make the "Send Message" button slightly different than the main RSVP button */
+#btnSubmitNote {
+  box-shadow: 0 4px 10px rgba(123, 138, 91, 0.1);
+}
+
+#btnSubmitNote:active {
+  transform: scale(0.98);
+}
+
+/* Ensure the success indicator looks soft */
+#note-thank-you {
+  text-shadow: 0 0 1px rgba(123, 138, 91, 0.1);
+}
+
+/* 1. The Reveal Animation */
+.monogram-entrance {
+  animation: monogramReveal 2.5s cubic-bezier(0.22, 1, 0.36, 1) forwards;
+  filter: blur(10px);
+  transform: scale(0.8);
+  opacity: 0;
+}
+
+@keyframes monogramReveal {
+  0% {
+    filter: blur(15px);
+    transform: scale(0.85);
+    opacity: 0;
+  }
+  100% {
+    filter: blur(0px);
+    transform: scale(1);
+    opacity: 1;
+  }
+}
+
+/* 2. The Floating (Breathing) Effect */
+.monogram-float {
+  animation: monogramFloat 6s ease-in-out infinite alternate;
+}
+
+@keyframes monogramFloat {
+  0% {
+    transform: translateY(0px) rotate(0deg);
+  }
+  50% {
+    transform: translateY(-10px) rotate(1deg);
+  }
+  100% {
+    transform: translateY(0px) rotate(0deg);
+  }
+}
+
+/* 3. The Luxury Shimmer (Light sweep) */
+.monogram-shimmer {
+  position: relative;
+  overflow: hidden;
+}
+
+.monogram-shimmer::after {
+  content: "";
+  position: absolute;
+  top: -150%;
+  left: -150%;
+  width: 300%;
+  height: 300%;
+  background: linear-gradient(
+    45deg,
+    transparent 45%,
+    rgba(255, 255, 255, 0.1) 48%,
+    rgba(255, 255, 255, 0.4) 50%,
+    rgba(255, 255, 255, 0.1) 52%,
+    transparent 55%
+  );
+  transform: rotate(25deg);
+  animation: shimmerSweep 3.5s infinite;
+}
+
+@keyframes shimmerSweep {
+  0% {
+    transform: translate(-20%, -20%) rotate(25deg);
+  }
+  100% {
+    transform: translate(20%, 20%) rotate(25deg);
+  }
+}
+
+/* Swiper Container */
+.modal-swiper {
+  display: flex;
+  width: 100%;
+  height: 100%;
+  overflow-x: auto;
+  scroll-snap-type: x mandatory;
+  overscroll-behavior-x: contain;
+  -webkit-overflow-scrolling: touch;
+  scrollbar-width: none;
+  scroll-behavior: auto; /* Required for JS silent jumps */
+}
+.modal-swiper::-webkit-scrollbar {
+  display: none;
+}
+
+/* Snap Point Wrapper */
+.modal-snap-point {
+  flex: 0 0 100%;
+  display: flex;
+  justify-content: center;
+  align-items: center;
+  scroll-snap-align: center;
+}
+
+/* Card focus effect */
+.modal-card {
+  width: 85%;
+  height: 100%;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  transition: transform 0.5s cubic-bezier(0.2, 1, 0.3, 1), opacity 0.5s ease;
+  transform: scale(0.8);
+  opacity: 0.2;
+}
+
+.modal-card img {
+  max-width: 100%;
+  max-height: 80vh;
+  object-fit: contain;
+  border-radius: 1.5rem;
+  box-shadow: 0 25px 50px -12px rgba(0, 0, 0, 0.7);
+}
+
+/* Active State */
+.modal-snap-point.active .modal-card {
+  transform: scale(1);
+  opacity: 1;
+}
+
+/* Prevent flicker during jump */
+.no-transition .modal-card {
+  transition: none !important;
+}
+
+/* Thumbnails */
+.attire-thumb {
+  width: 60px;
+  height: 60px;
+  object-fit: cover;
+  border-radius: 8px;
+  opacity: 0.3;
+  transition: all 0.3s ease;
+  cursor: pointer;
+  flex-shrink: 0;
+  border: 2px solid transparent;
+}
+.attire-thumb.active {
+  opacity: 1;
+  border-color: white;
+  transform: scale(1.1);
+}

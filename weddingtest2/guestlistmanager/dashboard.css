@@ -1,0 +1,226 @@
+body {
+  font-family: "Inter", sans-serif;
+  background-image: url("https://www.transparenttextures.com/patterns/paper-fibers.png");
+}
+
+.serif {
+  font-family: "Playfair Display", serif;
+}
+
+/* Custom Scrollbar */
+::-webkit-scrollbar {
+  width: 4px;
+}
+::-webkit-scrollbar-thumb {
+  background: #7b8a5b;
+  border-radius: 10px;
+}
+
+/* Sticky Header */
+th {
+  position: sticky;
+  top: 0;
+  z-index: 20;
+  background: #f9fbf9;
+}
+
+.sort-icon {
+  font-size: 12px;
+  opacity: 0.3;
+}
+
+.mobile-sort-controls {
+  display: none;
+}
+
+/* Pagination Styling */
+.pag-btn {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  width: 32px;
+  height: 32px;
+  border-radius: 8px;
+  font-size: 11px;
+  font-weight: 700;
+  transition: all 0.2s;
+  background: white;
+  border: 1px solid #e7e5e4;
+  color: #78716c;
+}
+.pag-btn:hover:not(:disabled) {
+  border-color: #7b8a5b;
+  color: #7b8a5b;
+  background: #f9fbf9;
+}
+.pag-btn.active {
+  background: #7b8a5b;
+  color: white;
+  border-color: #7b8a5b;
+  box-shadow: 0 4px 6px -1px rgba(123, 138, 91, 0.2);
+}
+.pag-btn:disabled {
+  opacity: 0.3;
+  cursor: not-allowed;
+}
+.pag-dots {
+  color: #d6d3d1;
+  font-size: 14px;
+  padding: 0 4px;
+}
+
+/* Specific Mobile Tweaks */
+@media (max-width: 640px) {
+  .lg\:col-span-3 .bg-white {
+    background-color: transparent !important;
+    border: none !important;
+    box-shadow: none !important;
+  }
+
+  .mobile-sort-controls {
+    display: flex;
+    gap: 8px;
+    margin-bottom: 12px;
+    overflow-x: auto;
+    padding: 4px 0;
+    -webkit-overflow-scrolling: touch;
+  }
+
+  .sort-chip {
+    white-space: nowrap;
+    background: white;
+    padding: 6px 12px;
+    border-radius: 20px;
+    font-size: 10px;
+    font-weight: 700;
+    text-transform: uppercase;
+    letter-spacing: 0.05em;
+    color: #7b8a5b;
+    border: 1px solid #e7e5e4;
+  }
+
+  .sort-chip.active {
+    background: #7b8a5b;
+    color: white;
+    border-color: #7b8a5b;
+  }
+
+  thead {
+    display: none;
+  }
+
+  #guestTableBody tr {
+    display: grid;
+    grid-template-columns: 1fr 1fr;
+    margin-bottom: 1rem;
+    background: white;
+    border: 1px solid #e7e5e4 !important;
+    border-radius: 12px;
+    padding: 0;
+    overflow: hidden;
+    box-shadow: 0 1px 3px rgba(0, 0, 0, 0.05);
+  }
+
+  #guestTableBody td:nth-child(1) {
+    grid-column: span 2;
+    padding: 12px 16px !important;
+    border-bottom: 1px solid #f5f5f4;
+  }
+
+  #guestTableBody td:nth-child(2),
+  #guestTableBody td:nth-child(3),
+  #guestTableBody td:nth-child(4),
+  #guestTableBody td:nth-child(5) {
+    grid-column: span 1;
+    padding: 8px 12px !important;
+    display: flex;
+    flex-direction: column;
+    align-items: flex-start;
+    border-bottom: 1px solid #f5f5f4;
+  }
+
+  #guestTableBody td:nth-child(2),
+  #guestTableBody td:nth-child(4) {
+    border-right: 1px solid #f5f5f4;
+  }
+
+  #guestTableBody td::before {
+    content: attr(data-label);
+    font-size: 8px;
+    text-transform: uppercase;
+    letter-spacing: 0.05em;
+    color: #a8a29e;
+    margin-bottom: 2px;
+    font-weight: 700;
+  }
+
+  #guestTableBody td:nth-child(6) {
+    grid-column: span 2;
+    padding: 10px 16px !important;
+    background: #fafaf9;
+    display: flex;
+    justify-content: flex-end;
+    gap: 1.5rem;
+  }
+
+  .status-select,
+  .side-select,
+  .invited-select {
+    width: 100%;
+    font-size: 11px !important;
+    padding: 2px 0 !important;
+    border: none !important;
+    background: transparent !important;
+  }
+
+  .replied-date {
+    display: block;
+    font-size: 9px;
+    color: #a8a29e;
+    margin-top: 2px;
+  }
+}
+
+#map {
+  height: 400px;
+  width: 100%;
+  border-radius: 1.5rem;
+  margin-bottom: 2rem;
+  border: 1px solid #e5e7eb;
+  z-index: 1;
+}
+.leaflet-container {
+  font-family: "Inter", sans-serif;
+}
+
+/* Modal Styling */
+#modalOverlay {
+  background: rgba(41, 37, 36, 0.4);
+  backdrop-filter: blur(4px);
+  z-index: 100;
+  display: none;
+}
+#modalOverlay.active {
+  display: flex;
+}
+#modalBox {
+  transform: translateY(20px);
+  opacity: 0;
+  transition: all 0.3s cubic-bezier(0.34, 1.56, 0.64, 1);
+}
+#modalOverlay.active #modalBox {
+  transform: translateY(0);
+  opacity: 1;
+}
+
+.animate-spin {
+  animation: spin 1s linear infinite;
+}
+@keyframes spin {
+  from {
+    transform: rotate(0deg);
+  }
+  to {
+    transform: rotate(360deg);
+  }
+}

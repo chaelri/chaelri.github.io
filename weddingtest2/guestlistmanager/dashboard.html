@@ -1,0 +1,502 @@
+<!DOCTYPE html>
+<html lang="en">
+  <head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <title>C&K | Guest Manager Pro</title>
+    <script src="https://cdn.tailwindcss.com"></script>
+    <link
+      href="https://fonts.googleapis.com/css2?family=Playfair+Display:ital,wght@0,700;1,700&family=Inter:wght@400;600&display=swap"
+      rel="stylesheet"
+    />
+    <!-- Material Icons for Pagination -->
+    <link
+      href="https://fonts.googleapis.com/icon?family=Material+Icons"
+      rel="stylesheet"
+    />
+    <link rel="stylesheet" href="./dashboard.css" />
+    <!-- Leaflet Map CSS & JS -->
+    <link
+      rel="stylesheet"
+      href="https://unpkg.com/leaflet@1.9.4/dist/leaflet.css"
+    />
+    <script src="https://unpkg.com/leaflet@1.9.4/dist/leaflet.js"></script>
+  </head>
+  <body class="bg-[#faf9f6]">
+    <nav class="p-4 bg-white border-b border-stone-200 sticky top-0 z-50">
+      <div class="max-w-6xl mx-auto flex justify-between items-center">
+        <h1 class="serif italic text-xl md:text-2xl text-[#7b8a5b]">
+          Guest Management
+        </h1>
+        <a
+          href="../index.html"
+          class="text-[10px] uppercase tracking-widest text-stone-400 hover:text-stone-800"
+          >Back to Site</a
+        >
+      </div>
+    </nav>
+
+    <main class="max-w-6xl mx-auto p-4 md:p-6">
+      <!-- STATS OVERVIEW -->
+      <div class="grid grid-cols-4 gap-2 md:gap-6 mb-8">
+        <div
+          class="bg-white p-3 md:p-6 rounded-xl shadow-sm border border-stone-100 text-center md:text-left"
+        >
+          <p
+            class="text-[8px] md:text-[10px] uppercase tracking-tighter md:tracking-widest text-stone-400 font-bold"
+          >
+            Total Expected
+          </p>
+          <p id="stat-total" class="text-lg md:text-3xl text-stone-800">0</p>
+        </div>
+        <div
+          class="bg-white p-3 md:p-6 rounded-xl shadow-sm border border-stone-100 text-center md:text-left"
+        >
+          <p
+            class="text-[8px] md:text-[10px] uppercase tracking-tighter md:tracking-widest text-green-500 font-bold"
+          >
+            Yes
+          </p>
+          <p id="stat-yes" class="text-lg md:text-3xl text-green-600">0</p>
+        </div>
+        <div
+          class="bg-white p-3 md:p-6 rounded-xl shadow-sm border border-stone-100 text-center md:text-left"
+        >
+          <p
+            class="text-[8px] md:text-[10px] uppercase tracking-tighter md:tracking-widest text-red-400 font-bold"
+          >
+            No
+          </p>
+          <p id="stat-no" class="text-lg md:text-3xl text-red-500">0</p>
+        </div>
+        <div
+          class="bg-white p-3 md:p-6 rounded-xl shadow-sm border border-stone-100 text-center md:text-left"
+        >
+          <p
+            class="text-[8px] md:text-[10px] uppercase tracking-tighter md:tracking-widest text-orange-400 font-bold"
+          >
+            Pending
+          </p>
+          <p id="stat-pending" class="text-lg md:text-3xl text-orange-500">0</p>
+        </div>
+      </div>
+
+      <!-- STATS FOR SIDES / INVITED -->
+      <div class="grid grid-cols-4 gap-2 md:gap-6 mb-8">
+        <div
+          class="bg-white p-3 md:p-6 rounded-xl shadow-sm border border-stone-100 text-center md:text-left"
+        >
+          <p
+            class="text-[8px] md:text-[10px] uppercase tracking-widest text-pink-500 font-bold"
+          >
+            Karla
+          </p>
+          <p id="stat-karla" class="text-lg md:text-3xl text-stone-800">0</p>
+        </div>
+        <div
+          class="bg-white p-3 md:p-6 rounded-xl shadow-sm border border-stone-100 text-center md:text-left"
+        >
+          <p
+            class="text-[8px] md:text-[10px] uppercase tracking-widest text-blue-500 font-bold"
+          >
+            Charlie
+          </p>
+          <p id="stat-charlie" class="text-lg md:text-3xl text-stone-800">0</p>
+        </div>
+        <div
+          class="bg-white p-3 md:p-6 rounded-xl shadow-sm border border-stone-100 text-center md:text-left"
+        >
+          <p
+            class="text-[8px] md:text-[10px] uppercase tracking-widest text-purple-500 font-bold"
+          >
+            Both
+          </p>
+          <p id="stat-both" class="text-lg md:text-3xl text-stone-800">0</p>
+        </div>
+        <div
+          class="bg-white p-3 md:p-6 rounded-xl shadow-sm border border-stone-100 text-center md:text-left"
+        >
+          <p
+            class="text-[8px] md:text-[10px] uppercase tracking-widest text-stone-400 font-bold"
+          >
+            Entourage
+          </p>
+          <p
+            id="stat-entourage-count"
+            class="text-lg md:text-3xl text-stone-800"
+          >
+            0
+          </p>
+        </div>
+      </div>
+
+      <div class="grid grid-cols-1 lg:grid-cols-4 gap-8">
+        <!-- LEFT COLUMN -->
+        <div class="lg:col-span-1 space-y-6">
+          <div
+            class="bg-white p-6 rounded-2xl shadow-sm border border-stone-100"
+          >
+            <h2 class="serif text-lg mb-4 italic">Add New Guest</h2>
+            <form id="addGuestForm" class="space-y-4">
+              <input
+                type="text"
+                id="newGuestName"
+                placeholder="Full Name"
+                class="w-full p-2 border-b border-stone-200 focus:outline-none focus:border-[#7b8a5b] bg-transparent text-sm"
+              />
+              <button
+                type="submit"
+                class="w-full bg-[#7b8a5b] text-white py-2 rounded-lg font-bold text-[10px] uppercase tracking-widest hover:bg-[#6a784d]"
+              >
+                Add to List
+              </button>
+            </form>
+          </div>
+          <div
+            class="bg-white p-6 rounded-2xl shadow-sm border border-stone-100 space-y-4"
+          >
+            <div>
+              <h2 class="serif text-lg mb-2 italic">Search & Filters</h2>
+              <input
+                type="text"
+                id="searchInput"
+                placeholder="Find a name..."
+                class="w-full p-2 border border-stone-100 rounded bg-stone-50 text-sm focus:outline-none focus:ring-1 focus:ring-[#7b8a5b]"
+              />
+            </div>
+
+            <div class="space-y-2">
+              <label
+                class="text-[9px] uppercase tracking-widest text-stone-400 font-bold"
+                >Filter Side</label
+              >
+              <select
+                id="filterSide"
+                class="w-full p-2 border border-stone-100 rounded bg-stone-50 text-xs focus:outline-none"
+              >
+                <option value="all">All Sides</option>
+                <option value="karla">Karla</option>
+                <option value="charlie">Charlie</option>
+                <option value="both">Both</option>
+              </select>
+            </div>
+
+            <div class="space-y-2">
+              <label
+                class="text-[9px] uppercase tracking-widest text-stone-400 font-bold"
+                >Filter Status</label
+              >
+              <select
+                id="filterStatus"
+                class="w-full p-2 border border-stone-100 rounded bg-stone-50 text-xs focus:outline-none"
+              >
+                <option value="all">All Statuses</option>
+                <option value="pending">Pending</option>
+                <option value="yes">Yes (Attending)</option>
+                <option value="no">No</option>
+              </select>
+            </div>
+
+            <div class="space-y-2">
+              <label
+                class="text-[9px] uppercase tracking-widest text-stone-400 font-bold"
+                >Filter Invited</label
+              >
+              <select
+                id="filterInvited"
+                class="w-full p-2 border border-stone-100 rounded bg-stone-50 text-xs focus:outline-none"
+              >
+                <option value="all">All Invited Status</option>
+                <option value="yes">Yes</option>
+                <option value="no">No</option>
+              </select>
+            </div>
+          </div>
+        </div>
+
+        <!-- RIGHT COLUMN -->
+        <div class="lg:col-span-3">
+          <div class="mobile-sort-controls">
+            <button class="sort-chip active" id="mobSortName">Name</button>
+          </div>
+          <!-- PAGINATION CONTROLS -->
+          <div class="mt-6 mb-6 flex flex-col items-center gap-3">
+            <div
+              id="pagination-container"
+              class="flex justify-center items-center gap-1.5"
+            >
+              <!-- JS Injected Buttons -->
+            </div>
+            <div
+              id="page-indicator"
+              class="text-[10px] uppercase tracking-widest text-stone-400 font-bold"
+            >
+              Page 0 of 0
+            </div>
+          </div>
+
+          <div
+            class="bg-white rounded-2xl shadow-sm border border-stone-100 overflow-hidden"
+          >
+            <div class="overflow-x-auto">
+              <table class="w-full text-left border-collapse min-w-[200px]">
+                <thead>
+                  <tr class="bg-stone-50 border-b border-stone-100">
+                    <th
+                      class="p-4 text-[10px] uppercase tracking-widest text-stone-500 font-bold cursor-pointer hover:text-[#7b8a5b]"
+                      id="sortName"
+                    >
+                      Guest Name <span class="sort-icon">↕</span>
+                    </th>
+                    <th
+                      class="p-4 text-[10px] uppercase tracking-widest text-stone-500 font-bold"
+                    >
+                      Side
+                    </th>
+                    <th
+                      class="p-4 text-[10px] uppercase tracking-widest text-stone-500 font-bold"
+                    >
+                      Status
+                    </th>
+                    <th
+                      class="p-4 text-[10px] uppercase tracking-widest text-stone-500 font-bold"
+                    >
+                      Invited
+                    </th>
+                    <th
+                      class="p-4 text-[10px] uppercase tracking-widest text-stone-500 font-bold"
+                    >
+                      Invite
+                    </th>
+                    <th
+                      class="p-4 text-[10px] uppercase tracking-widest text-stone-500 font-bold"
+                    >
+                      Actions
+                    </th>
+                  </tr>
+                </thead>
+                <tbody
+                  id="guestTableBody"
+                  class="text-sm text-stone-600"
+                ></tbody>
+              </table>
+            </div>
+          </div>
+        </div>
+      </div>
+
+      <!-- ENTOURAGE SECTION -->
+      <div class="mt-12 mb-12">
+        <div
+          class="bg-stone-800 p-6 rounded-t-2xl shadow-sm border border-stone-900"
+        >
+          <div class="flex justify-between items-center text-white">
+            <div>
+              <h2 class="serif text-xl italic text-[#7b8a5b]">
+                Wedding Entourage
+              </h2>
+              <p class="text-[10px] uppercase tracking-widest opacity-80 mt-1">
+                Marching Order & Special Assignments
+              </p>
+            </div>
+          </div>
+        </div>
+        <div class="bg-white p-8 md:p-12 border-x border-stone-100">
+          <div
+            id="entourage-container"
+            class="flex flex-col items-center space-y-12"
+          >
+            <!-- JS Injected Vertical March -->
+          </div>
+        </div>
+        <!-- ENTOURAGE MANAGEMENT TABLE -->
+        <div
+          class="bg-stone-50 rounded-b-2xl border border-stone-100 overflow-hidden"
+        >
+          <div class="p-4 border-b border-stone-200">
+            <h3
+              class="text-[10px] font-bold uppercase tracking-widest text-stone-400"
+            >
+              Manage Roles & Photos
+            </h3>
+          </div>
+          <div class="overflow-x-auto">
+            <table class="w-full text-left border-collapse">
+              <thead>
+                <tr class="bg-stone-100/50">
+                  <th
+                    class="p-4 text-[9px] uppercase tracking-widest text-stone-500 font-bold"
+                  >
+                    Person
+                  </th>
+                  <th
+                    class="p-4 text-[9px] uppercase tracking-widest text-stone-500 font-bold"
+                  >
+                    Role
+                  </th>
+                  <th
+                    class="p-4 text-[9px] uppercase tracking-widest text-stone-500 font-bold"
+                  >
+                    Details
+                  </th>
+                  <th
+                    class="p-4 text-right text-[9px] uppercase tracking-widest text-stone-500 font-bold"
+                  >
+                    Actions
+                  </th>
+                </tr>
+              </thead>
+              <tbody
+                id="entourageTableBody"
+                class="text-xs text-stone-600"
+              ></tbody>
+            </table>
+          </div>
+        </div>
+      </div>
+
+      <!-- FINAL CONFIRMED LIST SECTION -->
+      <div class="mt-12 mb-12 lg:col-span-4">
+        <div
+          class="bg-[#7b8a5b] p-6 rounded-t-2xl shadow-sm border border-[#6a784d]"
+        >
+          <div class="flex justify-between items-center text-white">
+            <div>
+              <h2 class="serif text-xl italic">The Official Guest List</h2>
+              <p class="text-[10px] uppercase tracking-widest opacity-80 mt-1">
+                Confirmed & Expected Guests
+              </p>
+            </div>
+            <div
+              id="final-count-badge"
+              class="bg-white/20 px-4 py-2 rounded-full text-xs font-bold uppercase tracking-tighter"
+            >
+              0 Confirmed
+            </div>
+          </div>
+        </div>
+        <div
+          class="bg-white rounded-b-2xl shadow-sm border border-stone-100 overflow-hidden"
+        >
+          <div class="overflow-x-auto">
+            <table class="w-full text-left border-collapse">
+              <thead>
+                <tr class="bg-stone-50 border-b border-stone-100">
+                  <th
+                    class="p-4 text-[10px] uppercase tracking-widest text-stone-500 font-bold"
+                  >
+                    Confirmed Name
+                  </th>
+                  <th
+                    class="p-4 text-[10px] uppercase tracking-widest text-stone-500 font-bold"
+                  >
+                    Response Date
+                  </th>
+                  <th
+                    class="p-4 text-[10px] uppercase tracking-widest text-stone-500 font-bold text-right"
+                  >
+                    Status
+                  </th>
+                </tr>
+              </thead>
+              <tbody
+                id="finalGuestTableBody"
+                class="text-sm text-stone-600"
+              ></tbody>
+            </table>
+          </div>
+        </div>
+      </div>
+
+      <div id="map"></div>
+
+      <div class="mt-12">
+        <div
+          class="bg-white rounded-2xl shadow-sm border border-stone-100 overflow-hidden"
+        >
+          <div
+            class="p-6 border-b border-stone-100 flex justify-between items-center bg-stone-50/50"
+          >
+            <div>
+              <h2 class="serif text-xl italic text-[#7b8a5b]">
+                Website Activity Feed
+              </h2>
+              <p
+                class="text-[10px] text-stone-400 uppercase tracking-widest mt-1"
+              >
+                Live tracking of your invite visitors
+              </p>
+            </div>
+            <div
+              id="unique-visitor-badge"
+              class="bg-[#7b8a5b]/10 text-[#7b8a5b] px-3 py-1 rounded-full text-[10px] font-bold uppercase tracking-widest"
+            >
+              0 Total Visitors
+            </div>
+          </div>
+          <div class="overflow-x-auto">
+            <table class="w-full text-left border-collapse">
+              <thead>
+                <tr class="bg-stone-50/30 border-b border-stone-100">
+                  <th
+                    class="p-4 text-[10px] uppercase tracking-widest text-stone-500 font-bold"
+                  >
+                    Location
+                  </th>
+                  <th
+                    class="p-4 text-[10px] uppercase tracking-widest text-stone-500 font-bold"
+                  >
+                    Engagement
+                  </th>
+                  <th
+                    class="p-4 text-[10px] uppercase tracking-widest text-stone-500 font-bold"
+                  >
+                    Last Active
+                  </th>
+                </tr>
+              </thead>
+              <tbody
+                id="visitorTableBody"
+                class="text-sm text-stone-600"
+              ></tbody>
+            </table>
+          </div>
+        </div>
+      </div>
+
+      <div
+        class="bg-white p-3 mt-3 md:p-6 rounded-xl shadow-sm border border-stone-100 text-center md:text-left"
+      >
+        <p
+          class="text-[8px] md:text-[10px] uppercase tracking-widest text-sky-400 font-bold"
+        >
+          Venue Weather
+        </p>
+        <div
+          id="weather-display"
+          class="flex items-center justify-center md:justify-start gap-2"
+        >
+          <p id="venue-temp" class="text-lg md:text-3xl serif text-sky-600">
+            --°
+          </p>
+          <span id="weather-icon"></span>
+        </div>
+      </div>
+    </main>
+
+    <!-- CUSTOM MODAL CONTAINER -->
+    <div
+      id="modalOverlay"
+      class="fixed inset-0 flex items-center justify-center p-4"
+    >
+      <div
+        id="modalBox"
+        class="bg-white w-full max-w-md rounded-2xl shadow-2xl overflow-hidden"
+      >
+        <div id="modalContent"></div>
+      </div>
+    </div>
+
+    <script type="module" src="./dashboard.js"></script>
+  </body>
+</html>
