@@ -576,7 +576,7 @@ function renderPlanner(container) {
       viewport.style.transform = `translate(calc(-50% + ${panX}px), calc(-50% + ${panY}px)) scale(${scale})`;
     };
 
-    // Panning & Pinch-to-Zoom Logic (Delta Applied)
+    // Panning & Pinch-to-Zoom Logic
     let isPanning = false;
     let startX, startY;
     let initialPinchDist = null;
@@ -584,13 +584,12 @@ function renderPlanner(container) {
 
     const startPanning = (e) => {
       if (e.touches && e.touches.length === 2) {
-        // Start Pinch Zoom
         initialPinchDist = Math.hypot(
           e.touches[0].clientX - e.touches[1].clientX,
           e.touches[0].clientY - e.touches[1].clientY
         );
         initialScale = scale;
-        isPanning = false; // Prevent panning jumps while zooming
+        isPanning = false;
         return;
       }
 
@@ -603,7 +602,6 @@ function renderPlanner(container) {
     };
 
     const movePanning = (e) => {
-      // Handle Pinch Zoom
       if (e.touches && e.touches.length === 2 && initialPinchDist !== null) {
         const currentDist = Math.hypot(
           e.touches[0].clientX - e.touches[1].clientX,
@@ -632,7 +630,6 @@ function renderPlanner(container) {
     window.onmousemove = movePanning;
     window.onmouseup = endPanning;
 
-    // Mobile Touch Listeners
     canvas.addEventListener("touchstart", startPanning, { passive: false });
     window.addEventListener("touchmove", movePanning, { passive: false });
     window.addEventListener("touchend", endPanning);
@@ -645,7 +642,6 @@ function renderPlanner(container) {
   viewport.style.transform = `translate(calc(-50% + ${panX}px), calc(-50% + ${panY}px)) scale(${scale})`;
 
   Object.entries(layout).forEach(([id, obj]) => {
-    // COORDINATE MIGRATION: If values are small (0-100), migrate to pixel space (2500 center)
     if (obj.x <= 150 || obj.y <= 150) {
       obj.x = 2500 + (obj.x - 50) * 35;
       obj.y = 2500 + (obj.y - 50) * 35;
@@ -667,6 +663,7 @@ function renderPlanner(container) {
       obj.type
     );
 
+    // Delta Update: Changed <input> to <div> with pointer-events-none to prevent "harang" while moving
     el.innerHTML = `
         <button class="delete-table-btn"><span class="material-icons-round">cancel</span></button>
         <button class="lock-btn"><span class="material-icons-round text-[14px]">${
@@ -679,31 +676,14 @@ function renderPlanner(container) {
         }
         ${
           obj.type !== "corner"
-            ? `<input type="text" class="table-label-input uppercase ${
+            ? `<div class="table-label-input uppercase pointer-events-none select-none ${
                 obj.type === "text" ? "!normal-case !text-lg !font-medium" : ""
-              }" value="${obj.label}" />`
+              }">${obj.label}</div>`
             : ""
         }
         <div class="resize-handle"></div>
     `;
 
-    // Inline Renaming Logic
-    const labelInput = el.querySelector(".table-label-input");
-    if (labelInput) {
-      labelInput.onmousedown = (e) => e.stopPropagation();
-      labelInput.addEventListener("touchstart", (e) => e.stopPropagation());
-      labelInput.onchange = (e) => {
-        const val = e.target.value.trim();
-        if (val) {
-          obj.label = val;
-          update(ref(db), {
-            [`wedding_data/chapters/13/layout/${id}/label`]: val,
-          });
-        }
-      };
-    }
-
-    // Lock Toggle Logic
     const lockBtn = el.querySelector(".lock-btn");
     lockBtn.onclick = (e) => {
       e.stopPropagation();
@@ -713,7 +693,6 @@ function renderPlanner(container) {
     };
     lockBtn.addEventListener("touchstart", (e) => e.stopPropagation());
 
-    // Delete Table logic
     const deleteBtn = el.querySelector(".delete-table-btn");
     deleteBtn.onclick = (e) => {
       e.stopPropagation();
@@ -726,23 +705,12 @@ function renderPlanner(container) {
     });
 
     el.onclick = (e) => {
-      if (
-        el.dataset.dragging === "true" ||
-        isResizing ||
-        isLayoutOnly ||
-        isLocked
-      )
-        return;
-      if (
-        e.target.classList.contains("table-label-input") ||
-        e.target.classList.contains("resize-handle")
-      )
-        return;
+      if (el.dataset.dragging === "true" || isResizing || isLocked) return;
+      if (e.target.classList.contains("resize-handle")) return;
       currentTableId = id;
       openSeatModal();
     };
 
-    // Resize Logic
     const handle = el.querySelector(".resize-handle");
     const handleResizeStart = (e) => {
       e.preventDefault();
@@ -758,10 +726,8 @@ function renderPlanner(container) {
         const moveY = ev.touches ? ev.touches[0].clientY : ev.clientY;
         const dw = (moveX - clientX) / scale;
         const dh = (moveY - clientY) / scale;
-
         const nw = Math.max(1, startW + dw);
         const nh = Math.max(1, startH + dh);
-
         el.style.width = nw + "px";
         el.style.height = nh + "px";
         obj.w = Math.round(nw);
@@ -779,7 +745,6 @@ function renderPlanner(container) {
         document.removeEventListener("touchmove", handleResizeMove);
         document.removeEventListener("touchend", handleResizeEnd);
       };
-
       document.addEventListener("mousemove", handleResizeMove);
       document.addEventListener("mouseup", handleResizeEnd);
       document.addEventListener("touchmove", handleResizeMove, {
@@ -792,15 +757,13 @@ function renderPlanner(container) {
       passive: false,
     });
 
-    // Table Dragging (Touch Support)
     let isDragging = false;
     const handleDragStart = (e) => {
       if (isResizing || isLocked) return;
-      if (e.touches && e.touches.length > 1) return; // Ignore drag if zooming
+      if (e.touches && e.touches.length > 1) return;
       if (
         e.target.closest(".delete-table-btn") ||
         e.target.closest(".lock-btn") ||
-        e.target.classList.contains("table-label-input") ||
         e.target.classList.contains("resize-handle")
       )
         return;
@@ -819,7 +782,6 @@ function renderPlanner(container) {
       const handleDragMove = (ev) => {
         const moveX = ev.touches ? ev.touches[0].clientX : ev.clientX;
         const moveY = ev.touches ? ev.touches[0].clientY : ev.clientY;
-
         isDragging = true;
         el.dataset.dragging = "true";
         const rect = viewport.getBoundingClientRect();
@@ -854,15 +816,12 @@ function renderPlanner(container) {
 
     el.onmousedown = handleDragStart;
     el.addEventListener("touchstart", handleDragStart, { passive: false });
-
     viewport.appendChild(el);
   });
 }
 
 window.addTable = (type) => {
   const id = "table_" + Date.now();
-
-  // Default dimensions based on Karla's requests
   let w = 100,
     h = 100;
   if (type === "thin-rect") {
@@ -922,13 +881,10 @@ window.resetView = () => {
 };
 
 let hiddenToggle = false;
-
 window.toggleAddShapes = () => {
   hiddenToggle = !hiddenToggle;
-
   const toolbar = document.getElementById("planner-toolbar");
   const toggleBtn = document.getElementById("toggleAddObjects");
-
   if (hiddenToggle) {
     toolbar.classList.add("hidden");
     toggleBtn.classList.remove("hidden");
@@ -947,7 +903,11 @@ function openSeatModal() {
 function renderTableContext() {
   const container = document.getElementById("table-zoom-container");
   const namesList = document.getElementById("assigned-names-list");
+  const titleEl = document.getElementById("seat-modal-title");
   const table = weddingData.chapters[13].layout[currentTableId];
+
+  // Delta Update: Turn modal title into an input for renaming so it's only available when the table is selected
+  titleEl.innerHTML = `<input type="text" class="bg-transparent border-b border-white/10 outline-none w-full focus:border-amber-500 transition-colors" value="${table.label}" onchange="window.renameTable(this.value)">`;
 
   container.innerHTML = `<div id="zoom-table" class="zoom-table-base zoom-${table.type}">${table.label}</div>`;
   namesList.innerHTML = "";
@@ -979,19 +939,15 @@ function renderTableContext() {
     const startDrag = (e) => {
       const clientX = e.touches ? e.touches[0].clientX : e.clientX;
       const clientY = e.touches ? e.touches[0].clientY : e.clientY;
-
       isDraggingBubble = true;
       const move = (ev) => {
         const moveX = ev.touches ? ev.touches[0].clientX : ev.clientX;
         const moveY = ev.touches ? ev.touches[0].clientY : ev.clientY;
         const rect = container.getBoundingClientRect();
-
         let posX = ((moveX - rect.left) / rect.width) * 100;
         let posY = ((moveY - rect.top) / rect.height) * 100;
-
         posX = Math.max(5, Math.min(95, posX));
         posY = Math.max(5, Math.min(95, posY));
-
         bubble.style.left = posX + "%";
         bubble.style.top = posY + "%";
         table.assigned[guestId] = { x: Math.round(posX), y: Math.round(posY) };
@@ -1017,6 +973,14 @@ function renderTableContext() {
     container.appendChild(bubble);
   });
 }
+
+// Delta Update: Global helper to rename table from modal
+window.renameTable = (newLabel) => {
+  if (!currentTableId) return;
+  update(ref(db), {
+    [`wedding_data/chapters/13/layout/${currentTableId}/label`]: newLabel,
+  });
+};
 
 function getGuestTableInfo(guestId) {
   const layout = weddingData.chapters[13].layout;
@@ -1058,11 +1022,9 @@ function renderGuestPicker() {
         currentRole = role;
         html += `<div class="picker-role-header"><span class="w-1 h-1 rounded-full bg-stone-700"></span>${role}</div>`;
       }
-
       const assignment = getGuestTableInfo(id);
       const isHere = assignedIds.includes(id);
       const elsewhere = assignment && !isHere;
-
       html += `<div class="flex items-center justify-between bg-white/5 p-3 rounded-2xl border border-white/5 ${
         elsewhere ? "opacity-50" : ""
       }">
