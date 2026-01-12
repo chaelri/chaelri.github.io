@@ -442,8 +442,12 @@ window.openModal = (type, id, name, amount, monthIdx) => {
   const overlay = document.getElementById("modal-overlay");
   const body = document.getElementById("modal-body");
   const deleteBtn = document.getElementById("delete-btn");
-  const recurringWrapper = document.getElementById("recurring-wrapper");
-  if (!overlay || !body || !deleteBtn) return;
+  const saveBtn = document.getElementById("save-btn");
+  if (!overlay || !body || !deleteBtn || !saveBtn) return;
+
+  // Reset save button state
+  saveBtn.disabled = false;
+  saveBtn.innerText = id ? "Update" : "Add Item";
 
   const labelType = getSectionLabel(type);
   document.getElementById("modal-title").innerText = id
@@ -571,6 +575,9 @@ window.closeModal = () => {
 };
 
 window.saveModal = async () => {
+  const saveBtn = document.getElementById("save-btn");
+  if (!saveBtn || saveBtn.disabled) return;
+
   const nameInput = document.getElementById("edit-name");
   const amountInput = document.getElementById("edit-amount");
   const quickAddInput = document.getElementById("cc-quick-add");
@@ -595,73 +602,74 @@ window.saveModal = async () => {
 
   const itemId = id || generateId();
   const startIdx = monthIdx;
-
-  // Paid status should NOT be recurring (current month only)
-  // Other properties like Name and Amount should follow recurring rules
   const endIdx = isRecurring ? 11 : monthIdx;
 
-  for (let i = startIdx; i <= endIdx; i++) {
-    if (!appData.monthlyData[i]) {
-      appData.monthlyData[i] = {
-        incomeSources: [],
-        fixedExpenses: [],
-        cc: [],
-        others: [],
-      };
-    }
-    if (!appData.monthlyData[i][type]) {
-      appData.monthlyData[i][type] = [];
-    }
+  try {
+    saveBtn.disabled = true;
+    saveBtn.innerText = "Saving...";
 
-    const list = appData.monthlyData[i][type];
-    const existingIndex = list.findIndex((item) => item.id === itemId);
+    for (let i = startIdx; i <= endIdx; i++) {
+      if (!appData.monthlyData[i]) {
+        appData.monthlyData[i] = {
+          incomeSources: [],
+          fixedExpenses: [],
+          cc: [],
+          others: [],
+        };
+      }
+      if (!appData.monthlyData[i][type]) {
+        appData.monthlyData[i][type] = [];
+      }
 
-    if (existingIndex > -1) {
-      const item = list[existingIndex];
-      item.name = name;
-      item.amount = amount;
+      const list = appData.monthlyData[i][type];
+      const existingIndex = list.findIndex((item) => item.id === itemId);
 
-      // Apply paid status ONLY to the current month being edited
-      if (i === monthIdx) {
-        item.isPaid = isPaid;
-      } else if (!isRecurring) {
-        // If not recurring, we don't touch other months, loop usually breaks anyway
+      if (existingIndex > -1) {
+        const item = list[existingIndex];
+        item.name = name;
+        item.amount = amount;
+
+        // Apply paid status ONLY to the current month being edited
+        if (i === monthIdx) {
+          item.isPaid = isPaid;
+        }
+
+        // Log for CC current month only
+        if (i === monthIdx && quickAddAmount > 0) {
+          if (!item.logs) item.logs = [];
+          item.logs.push({
+            id: generateId(),
+            amount: quickAddAmount,
+            timestamp: Date.now(),
+          });
+        }
       } else {
-        // If recurring and updating future months, we keep their own existing paid status
-        // item.isPaid = item.isPaid; // Implicit
+        // New item creation
+        const newItem = {
+          id: itemId,
+          name,
+          amount,
+          isPaid: i === monthIdx ? isPaid : false,
+          logs: [],
+        };
+        if (i === monthIdx && quickAddAmount > 0) {
+          newItem.logs.push({
+            id: generateId(),
+            amount: quickAddAmount,
+            timestamp: Date.now(),
+          });
+        }
+        list.push(newItem);
       }
-
-      // Log for CC current month only
-      if (i === monthIdx && quickAddAmount > 0) {
-        if (!item.logs) item.logs = [];
-        item.logs.push({
-          id: generateId(),
-          amount: quickAddAmount,
-          timestamp: Date.now(),
-        });
-      }
-    } else {
-      // New item creation
-      const newItem = {
-        id: itemId,
-        name,
-        amount,
-        isPaid: i === monthIdx ? isPaid : false, // Only paid in current month if set
-        logs: [],
-      };
-      if (i === monthIdx && quickAddAmount > 0) {
-        newItem.logs.push({
-          id: generateId(),
-          amount: quickAddAmount,
-          timestamp: Date.now(),
-        });
-      }
-      list.push(newItem);
     }
-  }
 
-  await set(dbRef, appData);
-  closeModal();
+    await set(dbRef, appData);
+    closeModal();
+  } catch (e) {
+    console.error("Save failed:", e);
+    saveBtn.disabled = false;
+    saveBtn.innerText = "Retry";
+  }
 };
 
 async function deleteItem() {
