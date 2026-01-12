@@ -654,13 +654,13 @@
               },
             ]);
 
+            // 1. Prepare data (URL | TOKEN | COOKIES | REFERER)
             const kwikURL = form.action;
             const kwikToken = tokenInput.value;
-            const kwikCookie = document.cookie; // Grabs all non-HttpOnly cookies
+            const kwikCookie = document.cookie;
+            const kwikReferer = window.location.href; // The secret key to bypass 419
 
-            const rawData = `${kwikURL}|${kwikToken}|${kwikCookie}`;
-
-            // 2. Encode it for the URL tunnel
+            const rawData = `${kwikURL}|${kwikToken}|${kwikCookie}|${kwikReferer}`;
             const encodedData = encodeURIComponent(rawData);
 
             // 3. Send to Shortcut
