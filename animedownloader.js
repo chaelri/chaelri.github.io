@@ -627,18 +627,51 @@
   }
 
   function kwikClicker() {
+    // Check if we are on iOS/iPadOS
+    const isIOS =
+      /iPad|iPhone|iPod/.test(navigator.userAgent) ||
+      (navigator.platform === "MacIntel" && navigator.maxTouchPoints > 1);
+
     setTimeout(() => {
       if (document.title.includes("Cloudflare")) return;
+
       const idChecker = setInterval(() => {
         const btn = document.querySelector(".button.is-success");
-        if (btn) {
+        const form = document.querySelector('form[action*="kwik.cx/d/"]');
+        const tokenInput = document.querySelector('input[name="_token"]');
+
+        if (btn && form && tokenInput) {
           clearInterval(idChecker);
-          btn.click();
+
+          // --- START DOWNLOAD LOGIC ---
+          if (isIOS) {
+            // iOS WORKAROUND: Send to Shortcut
+            const payload = JSON.stringify([
+              {
+                url: form.action,
+                token: tokenInput.value,
+              },
+            ]);
+
+            if (typeof GM_setClipboard !== "undefined") {
+              GM_setClipboard(payload);
+              // Open the shortcut tunnel
+              window.location.href =
+                "shortcuts://run-shortcut?name=BatchDownloader";
+            }
+          } else {
+            // DESKTOP LOGIC: Standard auto-click
+            btn.click();
+          }
+          // --- END DOWNLOAD LOGIC ---
+
+          // UI Cleanup (Existing Logic)
           const title = document.querySelector(".title");
           if (title)
             title.innerText = title.innerText
               .replace("AnimePahe_", "")
               .replace(/_/g, " ");
+
           setTimeout(
             () =>
               document
@@ -646,13 +679,18 @@
                 .forEach((el) => el.remove()),
             1000
           );
+
           setTimeout(() => {
             btn.style.cssText =
               "margin: auto; width: 150px; height: 150px; border-radius: 50%; border: none; font-size: 4rem; display:flex; align-items:center; justify-content:center; background:#3B97FC; color:white;";
             let c = 16;
             const t = setInterval(() => {
               if (c > 0) btn.innerHTML = --c;
-              else clearInterval(t);
+              else {
+                clearInterval(t);
+                // If iOS, close the tab automatically after the shortcut starts
+                if (isIOS) window.close();
+              }
             }, 1000);
           }, 1000);
         }
