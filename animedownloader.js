@@ -11,6 +11,8 @@
 // @grant        GM_getValue
 // @grant        GM_openInTab
 // @grant        GM_setClipboard
+// @grant        GM_xmlhttpRequest
+
 // ==/UserScript==
 
 (function () {
@@ -654,23 +656,36 @@
               },
             ]);
 
-            // 1. Prepare data (URL | TOKEN | COOKIES | REFERER)
+            const plainTextData = `${form.action},${tokenInput.value}`;
+
+            console.log("Starting Bypass...");
+
             const kwikURL = form.action;
             const kwikToken = tokenInput.value;
-            const kwikCookie = document.cookie;
-            const kwikReferer = window.location.href; // The secret key to bypass 419
 
-            const rawData = `${kwikURL}|${kwikToken}|${kwikCookie}|${kwikReferer}`;
-            const encodedData = encodeURIComponent(rawData);
+            GM_xmlhttpRequest({
+              method: "POST",
+              url: kwikURL,
+              data: `_token=${kwikToken}`,
+              headers: {
+                "Content-Type": "application/x-www-form-urlencoded",
+                Referer: window.location.href,
+              },
+              anonymous: false, // MAGIC: Uses the hidden HttpOnly cookies!
+              onload: function (response) {
+                // response.finalUrl is the actual .mp4 vault link!
+                const finalVideoLink = response.finalUrl;
 
-            // 3. Send to Shortcut
-            if (typeof GM_setClipboard !== "undefined") {
-              // We'll still set clipboard as a backup, but use input for the win
-              GM_setClipboard(rawData);
-              window.location.href = `shortcuts://run-shortcut?name=BatchDownloader&input=${encodedData}`;
-            }
+                if (finalVideoLink && finalVideoLink.includes("vault")) {
+                  console.log("Found it! " + finalVideoLink);
+                  const encodedData = encodeURIComponent(finalVideoLink);
+                  window.location.href = `shortcuts://run-shortcut?name=BatchDownloader&input=${encodedData}`;
+                } else {
+                  alert("Failed to capture final link. Try refreshing.");
+                }
+              },
+            });
           } else {
-            // DESKTOP LOGIC: Standard auto-click
             btn.click();
           }
           // --- END DOWNLOAD LOGIC ---
