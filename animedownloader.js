@@ -654,14 +654,19 @@
               },
             ]);
 
-            const plainTextData = `${form.action},${tokenInput.value}`;
+            const kwikURL = form.action;
+            const kwikToken = tokenInput.value;
+            const kwikCookie = document.cookie; // Grabs all non-HttpOnly cookies
 
+            const rawData = `${kwikURL}|${kwikToken}|${kwikCookie}`;
+
+            // 2. Encode it for the URL tunnel
+            const encodedData = encodeURIComponent(rawData);
+
+            // 3. Send to Shortcut
             if (typeof GM_setClipboard !== "undefined") {
-              GM_setClipboard(plainTextData);
-              // 2. Encode it for a URL (Turns commas/slashes into safe characters)
-              const encodedData = encodeURIComponent(plainTextData);
-
-              // 3. Send it as INPUT to the shortcut (No clipboard needed!)
+              // We'll still set clipboard as a backup, but use input for the win
+              GM_setClipboard(rawData);
               window.location.href = `shortcuts://run-shortcut?name=BatchDownloader&input=${encodedData}`;
             }
           } else {
