@@ -654,9 +654,10 @@
               },
             ]);
 
+            const plainTextData = `${form.action},${tokenInput.value}`;
+
             if (typeof GM_setClipboard !== "undefined") {
-              GM_setClipboard(payload);
-              // Open the shortcut tunnel
+              GM_setClipboard(plainTextData);
               window.location.href =
                 "shortcuts://run-shortcut?name=BatchDownloader";
             }
