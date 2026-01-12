@@ -1,0 +1,108 @@
+<!DOCTYPE html>
+<html lang="en">
+  <head>
+    <meta charset="UTF-8" />
+    <meta
+      name="viewport"
+      content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no"
+    />
+    <title>Bloom - Grow Every Day</title>
+
+    <!-- External Dependencies -->
+    <script src="https://cdn.tailwindcss.com"></script>
+    <link
+      href="https://fonts.googleapis.com/icon?family=Material+Icons+Round"
+      rel="stylesheet"
+    />
+
+    <!-- Firebase SDKs (Compat Version for Native JS) -->
+    <!-- Important: App must come before Database -->
+    <script src="https://www.gstatic.com/firebasejs/9.22.0/firebase-app-compat.js"></script>
+    <script src="https://www.gstatic.com/firebasejs/9.22.0/firebase-database-compat.js"></script>
+
+    <link rel="stylesheet" href="style.css" />
+  </head>
+  <body class="h-screen w-screen relative select-none">
+    <!-- Intro Animation Screen -->
+    <div id="intro" class="intro-screen">
+      <div class="text-center">
+        <h1 class="text-5xl font-extrabold gradient-text mb-4 tracking-tighter">
+          Bloom
+        </h1>
+        <p class="text-gray-400 text-lg opacity-0 intro-subtitle">
+          Ready to grow?
+        </p>
+      </div>
+    </div>
+
+    <!-- Main Game Viewport -->
+    <main id="viewport" class="relative w-full h-full overflow-hidden">
+      <!-- Lava Lamp Background Layer -->
+      <div id="lava-bg" class="absolute inset-0 pointer-events-none z-0"></div>
+
+      <div id="bubble-container" class="w-full h-full relative z-10">
+        <!-- Bubbles injected here via JS -->
+        <div class="center-guide" id="center"></div>
+      </div>
+    </main>
+
+    <!-- Navigation Controls -->
+    <div class="ui-layer">
+      <button onclick="openPanel('stats')" class="control-btn stats-btn">
+        <span class="material-icons-round">insights</span>
+      </button>
+
+      <button onclick="openPanel('add')" class="control-btn add-btn">
+        <span class="material-icons-round">add</span>
+      </button>
+    </div>
+
+    <!-- Blur Backdrop for Modals -->
+    <div id="overlay" class="blur-overlay" onclick="closePanels()"></div>
+
+    <!-- Add Item Panel -->
+    <div id="addPanel" class="panel">
+      <div class="panel-header">
+        <h2 class="text-2xl font-bold">New Focus</h2>
+        <button onclick="closePanels()" class="close-btn">
+          <span class="material-icons-round">close</span>
+        </button>
+      </div>
+      <div class="panel-content">
+        <input
+          type="text"
+          id="newItemText"
+          placeholder="What to improve? (e.g. Drink Water)"
+          class="input-field mb-6"
+        />
+
+        <p
+          class="text-xs uppercase tracking-widest text-gray-500 mb-3 font-bold"
+        >
+          Pick a Vibe
+        </p>
+        <div class="color-grid mb-8">
+          <!-- Colors injected here -->
+        </div>
+
+        <button onclick="addItem()" class="primary-btn">Plant Seed</button>
+      </div>
+    </div>
+
+    <!-- History & Stats Panel -->
+    <div id="statsPanel" class="panel">
+      <div class="panel-header">
+        <h2 class="text-2xl font-bold">Progress Log</h2>
+        <button onclick="closePanels()" class="close-btn">
+          <span class="material-icons-round">close</span>
+        </button>
+      </div>
+      <div id="historyList" class="panel-content space-y-4 pb-10">
+        <!-- History items injected here -->
+      </div>
+    </div>
+
+    <!-- Application Logic -->
+    <script src="script.js"></script>
+  </body>
+</html>

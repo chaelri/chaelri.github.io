@@ -1,0 +1,381 @@
+@import url("https://fonts.googleapis.com/css2?family=Plus+Jakarta+Sans:wght@400;600;800&display=swap");
+
+:root {
+  --bg-color: #0c0c14;
+  --panel-bg: #1a1a24;
+  --accent: #ff5c8d;
+  --lava-dominant: rgba(99, 102, 241, 0.15);
+}
+
+body {
+  font-family: "Plus Jakarta Sans", sans-serif;
+  background-color: var(--bg-color);
+  color: white;
+  overflow: hidden;
+  touch-action: none;
+  -webkit-tap-highlight-color: transparent;
+}
+
+/* --- Lava Lamp Background --- */
+.lava-blob {
+  position: absolute;
+  width: 60vw;
+  height: 60vw;
+  background: var(--lava-dominant);
+  filter: blur(80px);
+  border-radius: 50%;
+  opacity: 0.6;
+  transition: background 2s ease;
+  animation: lavaMove var(--d, 20s) ease-in-out infinite alternate;
+}
+
+@keyframes lavaMove {
+  0% {
+    transform: translate(-10%, -10%) scale(1);
+  }
+  100% {
+    transform: translate(20%, 20%) scale(1.2);
+  }
+}
+
+/* --- Decorative Background Pollen --- */
+.pollen {
+  position: absolute;
+  background: white;
+  border-radius: 50%;
+  pointer-events: none;
+  opacity: 0.1;
+  z-index: 1;
+  animation: pollenDrift var(--d, 15s) linear infinite;
+}
+
+@keyframes pollenDrift {
+  from {
+    transform: translate(0, 0);
+  }
+  to {
+    transform: translate(var(--tx, 100px), var(--ty, 100px));
+  }
+}
+
+/* --- Intro Screen --- */
+.intro-screen {
+  position: fixed;
+  inset: 0;
+  z-index: 2000;
+  background: var(--bg-color);
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  transition: all 1s cubic-bezier(0.4, 0, 0.2, 1);
+}
+
+.intro-subtitle {
+  animation: fadeInUp 0.8s forwards 0.5s;
+}
+
+@keyframes fadeInUp {
+  from {
+    opacity: 0;
+    transform: translateY(20px);
+  }
+  to {
+    opacity: 1;
+    transform: translateY(0);
+  }
+}
+
+/* --- The Bubbles (Soft Jelly Gem Aesthetic) --- */
+.bubble {
+  position: absolute;
+  border-radius: 50%;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  text-align: center;
+  font-weight: 800;
+  padding: 15px;
+  cursor: pointer;
+  touch-action: none;
+  transition: width 0.4s cubic-bezier(0.175, 0.885, 0.32, 1.275),
+    height 0.4s cubic-bezier(0.175, 0.885, 0.32, 1.275), transform 0.1s ease-out,
+    opacity 0.5s ease;
+
+  border: 3px solid rgba(255, 255, 255, 0.15);
+  background: radial-gradient(
+    circle at 50% 40%,
+    rgba(255, 255, 255, 0.1) 0%,
+    rgba(0, 0, 0, 0.1) 100%
+  );
+  background-blend-mode: overlay;
+
+  box-shadow: inset 0 -10px 20px rgba(0, 0, 0, 0.3),
+    inset 0 0 25px rgba(255, 255, 255, 0.2), 0 15px 40px rgba(0, 0, 0, 0.6);
+
+  color: white;
+  user-select: none;
+  font-size: 1rem;
+  z-index: 10;
+  will-change: transform, left, top;
+
+  animation: bubbleFloat 4s ease-in-out infinite alternate;
+}
+
+/* Neon Plasma Ring */
+.plasma-ring {
+  position: absolute;
+  inset: -12px;
+  border-radius: 50%;
+  border: 3px solid currentColor;
+  opacity: 0.8;
+  filter: blur(2px);
+  pointer-events: none;
+  animation: plasmaVibrate 0.4s linear infinite;
+  box-shadow: 0 0 20px currentColor, inset 0 0 10px currentColor;
+}
+
+@keyframes plasmaVibrate {
+  0% {
+    transform: scale(1) rotate(0deg);
+    opacity: 0.8;
+  }
+  50% {
+    transform: scale(1.05) rotate(2deg);
+    opacity: 1;
+  }
+  100% {
+    transform: scale(1) rotate(-1deg);
+    opacity: 0.8;
+  }
+}
+
+@keyframes bubbleFloat {
+  0% {
+    border-radius: 50% 50% 52% 48% / 48% 52% 50% 50%;
+  }
+  100% {
+    border-radius: 48% 52% 50% 50% / 52% 48% 52% 48%;
+  }
+}
+
+.bubble-priority {
+  box-shadow: inset 0 -10px 20px rgba(0, 0, 0, 0.3),
+    inset 0 0 25px rgba(255, 255, 255, 0.3), 0 0 80px 5px currentColor !important;
+  border-color: rgba(255, 255, 255, 0.4);
+}
+
+.bubble:active {
+  transform: scale(0.8) !important;
+  filter: brightness(1.2);
+}
+
+.bubble-pop {
+  animation: bubbleTapEffect 0.5s cubic-bezier(0.175, 0.885, 0.32, 1.275);
+}
+
+.focus-hidden {
+  opacity: 0 !important;
+  pointer-events: none !important;
+  transform: scale(0.5) !important;
+}
+
+@keyframes bubbleTapEffect {
+  0% {
+    transform: scale(1);
+  }
+  20% {
+    transform: scale(1.15);
+  }
+  100% {
+    transform: scale(1);
+  }
+}
+
+/* Impact & Particle Effects */
+.impact-ring {
+  position: absolute;
+  border: 2px solid white;
+  border-radius: 50%;
+  pointer-events: none;
+  z-index: 100;
+  animation: rippleEffect 0.6s ease-out forwards;
+  transform: translate(-50%, -50%);
+}
+
+.sparkle {
+  position: absolute;
+  width: 6px;
+  height: 6px;
+  border-radius: 50%;
+  pointer-events: none;
+  z-index: 101;
+  animation: sparkleFly 0.7s ease-out forwards;
+}
+
+@keyframes rippleEffect {
+  0% {
+    width: 0;
+    height: 0;
+    opacity: 1;
+    border-width: 10px;
+  }
+  100% {
+    width: 400px;
+    height: 400px;
+    opacity: 0;
+    border-width: 1px;
+  }
+}
+
+@keyframes sparkleFly {
+  0% {
+    transform: translate(-50%, -50%) scale(1);
+    opacity: 1;
+  }
+  100% {
+    transform: translate(var(--sx), var(--sy)) scale(0);
+    opacity: 0;
+  }
+}
+
+/* --- UI Controls --- */
+.ui-layer {
+  position: fixed;
+  bottom: 30px;
+  left: 0;
+  right: 0;
+  display: flex;
+  justify-content: space-between;
+  padding: 0 30px;
+  pointer-events: none;
+  z-index: 500;
+}
+
+.control-btn {
+  pointer-events: auto;
+  width: 60px;
+  height: 60px;
+  border-radius: 22px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  transition: all 0.3s cubic-bezier(0.175, 0.885, 0.32, 1.275);
+  background: #1f1f2e;
+  box-shadow: 0 10px 20px rgba(0, 0, 0, 0.3);
+  color: white;
+}
+
+.control-btn:active {
+  transform: scale(0.85);
+}
+
+.add-btn {
+  background: linear-gradient(135deg, #ff5c8d, #ff9f43);
+  width: 70px;
+  height: 70px;
+  border-radius: 26px;
+}
+
+/* --- Panels --- */
+.panel {
+  position: fixed;
+  bottom: 0;
+  left: 0;
+  right: 0;
+  background: var(--panel-bg);
+  border-radius: 40px 40px 0 0;
+  transform: translateY(105%);
+  transition: transform 0.6s cubic-bezier(0.32, 0.72, 0, 1);
+  z-index: 1100;
+  max-height: 85vh;
+  display: flex;
+  flex-direction: column;
+}
+
+.panel.open {
+  transform: translateY(0);
+}
+
+.panel-header {
+  padding: 30px 30px 15px 30px;
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+}
+
+.panel-content {
+  padding: 0 30px 40px 30px;
+  overflow-y: auto;
+  flex-grow: 1;
+}
+
+.blur-overlay {
+  position: fixed;
+  inset: 0;
+  background: rgba(0, 0, 0, 0.7);
+  backdrop-filter: blur(8px);
+  opacity: 0;
+  pointer-events: none;
+  transition: opacity 0.5s ease;
+  z-index: 1000;
+}
+
+.blur-overlay.active {
+  opacity: 1;
+  pointer-events: auto;
+}
+
+/* --- Form --- */
+.input-field {
+  width: 100%;
+  background: #0c0c14;
+  border: 2px solid #2a2a3a;
+  border-radius: 20px;
+  padding: 20px;
+  color: white;
+  font-size: 1.1rem;
+  transition: all 0.3s ease;
+}
+
+.input-field:focus {
+  outline: none;
+  border-color: #ff5c8d;
+}
+
+.color-grid {
+  display: grid;
+  grid-template-columns: repeat(5, 1fr);
+  gap: 12px;
+}
+
+.color-dot {
+  height: 50px;
+  border-radius: 18px;
+  cursor: pointer;
+  transition: all 0.2s ease;
+  box-shadow: inset -4px -4px 10px rgba(0, 0, 0, 0.2),
+    inset 4px 4px 10px rgba(255, 255, 255, 0.2);
+}
+
+.color-dot.selected {
+  box-shadow: 0 0 0 4px white;
+  transform: scale(0.9);
+}
+
+.primary-btn {
+  width: 100%;
+  background: white;
+  color: #0c0c14;
+  font-weight: 800;
+  padding: 22px;
+  border-radius: 24px;
+  font-size: 1.1rem;
+}
+
+.gradient-text {
+  background: linear-gradient(45deg, #ff5c8d, #ff9f43);
+  -webkit-background-clip: text;
+  background-clip: text;
+  -webkit-text-fill-color: transparent;
+}
