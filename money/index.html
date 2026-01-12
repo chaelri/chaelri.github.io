@@ -22,7 +22,7 @@
     <!-- INTRO ANIMATION & USER SELECTION -->
     <div
       id="intro-screen"
-      class="fixed inset-0 z-[100] bg-slate-900 flex flex-col items-center justify-center pointer-events-auto overflow-hidden"
+      class="fixed inset-0 z-[100] bg-slate-900 flex flex-col items-center justify-center pointer-events-auto overflow-hidden transition-opacity duration-700"
     >
       <div id="intro-particles" class="absolute inset-0"></div>
 
@@ -33,7 +33,7 @@
         <img
           src="assets/money-icon.png"
           id="intro-logo"
-          class="w-24 h-24 object-contain scale-0 transition-transform duration-500 ease-out"
+          class="w-24 h-24 object-contain scale-0 transition-all duration-500 ease-out"
           alt="Logo"
         />
 
@@ -61,6 +61,23 @@
               Karla
             </button>
           </div>
+        </div>
+
+        <!-- Login Status (Hidden initially) -->
+        <div
+          id="login-status"
+          class="hidden flex flex-col items-center gap-4 animate-pulse"
+        >
+          <div
+            class="w-12 h-1 bg-blue-500 rounded-full overflow-hidden relative"
+          >
+            <div class="absolute inset-0 bg-white/40 animate-loading-bar"></div>
+          </div>
+          <p
+            class="text-[10px] font-black uppercase tracking-[0.4em] text-blue-400"
+          >
+            Synchronizing...
+          </p>
         </div>
       </div>
     </div>
@@ -164,7 +181,7 @@
                   type="number"
                   id="setup-balance"
                   onchange="updateStartingBalance(this.value)"
-                  class="w-full bg-slate-900 border-none rounded-2xl p-4 text-xl font-black text-white focus:ring-2 focus:ring-blue-500"
+                  class="w-full bg-slate-900 border-none rounded-2xl py-5 px-8 text-xl font-black text-white focus:ring-2 focus:ring-blue-500"
                 />
               </div>
             </div>
@@ -230,7 +247,7 @@
         <div class="flex justify-between items-start mb-6 flex-shrink-0">
           <h3
             id="modal-title"
-            class="text-2xl font-black uppercase tracking-tight"
+            class="text-2xl font-black uppercase tracking-tight text-white"
           >
             Edit Item
           </h3>

@@ -139,11 +139,46 @@ input[type="checkbox"]:checked::before {
   transition: height 1s cubic-bezier(0.4, 0, 0.2, 1);
 }
 
-/* Modal Input Adjustments */
-input[type="text"],
-input[type="number"] {
-  outline: none;
-  transition: box-shadow 0.2s;
+/* Modal Input Adjustments - Fixing Left Cropping Aggressively */
+#modal-body {
+  padding: 0 !important; /* Remove wrapper padding so inputs span full width of modal content */
+}
+
+#modal-body input[type="text"],
+#modal-body input[type="number"] {
+  outline: none !important;
+  appearance: none !important;
+  -webkit-appearance: none !important;
+  padding: 1.25rem 1.25rem !important; /* Match common container spacing */
+  box-sizing: border-box !important;
+  display: block !important;
+  width: 100% !important;
+  border: none !important;
+  margin: 0 !important;
+}
+
+/* focus ring using inset to prevent cropping/clipping */
+#modal-body input:focus {
+  box-shadow: inset 0 0 0 2px #3b82f6 !important;
+}
+
+/* Fix for Chrome/Safari number input inner padding */
+#modal-body input::-webkit-outer-spin-button,
+#modal-body input::-webkit-inner-spin-button {
+  margin-right: 0;
+}
+
+/* Loading Bar Animation */
+@keyframes loading-bar {
+  0% {
+    transform: translateX(-100%);
+  }
+  100% {
+    transform: translateX(100%);
+  }
+}
+.animate-loading-bar {
+  animation: loading-bar 1.5s infinite linear;
 }
 
 /* Scrollbar styling */

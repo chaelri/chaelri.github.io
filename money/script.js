@@ -119,8 +119,19 @@ window.addEventListener("DOMContentLoaded", async () => {
 window.selectUser = async (name) => {
   currentUser = name;
 
-  // Path Mapping: Charlie gets the legacy root path 'chalee_v1' to preserve his data.
-  // Karla gets a unique path 'karla_v1'.
+  const userSelection = document.getElementById("user-selection");
+  const loginStatus = document.getElementById("login-status");
+  const introLogo = document.getElementById("intro-logo");
+
+  // UI Login Transition: Hide buttons, show synchronizing state
+  userSelection.classList.add("opacity-0", "pointer-events-none");
+  setTimeout(() => {
+    userSelection.classList.add("hidden");
+    loginStatus.classList.remove("hidden");
+    introLogo.classList.add("animate-bounce"); // Visual feedback of "active" login
+  }, 400);
+
+  // Path Mapping: Charlie gets legacy 'chalee_v1', Karla gets 'karla_v1'
   const path = name === "Charlie" ? "chalee_v1" : "karla_v1";
   dbRef = ref(db, path);
 
@@ -131,51 +142,56 @@ window.selectUser = async (name) => {
     name === "Charlie" ? "text-blue-400" : "text-rose-400"
   }`;
 
-  const snapshot = await get(dbRef);
-  if (snapshot.exists() && snapshot.val()) {
-    appData = snapshot.val();
-    if (!appData.monthlyData) appData.monthlyData = {};
-    document.getElementById("setup-balance").value =
-      appData.startingBalance || 0;
-  } else {
-    // New user initialization
-    appData = { startingBalance: 0, monthlyData: {} };
-    for (let i = 0; i < 12; i++) {
-      appData.monthlyData[i] = {
-        incomeSources: [],
-        fixedExpenses: [],
-        cc: [],
-        others: [],
-      };
-    }
-    await set(dbRef, appData);
-  }
-
-  // Hide intro and show app
-  const intro = document.getElementById("intro-screen");
-  intro.classList.add("opacity-0", "pointer-events-none");
-  document.getElementById("app").classList.add("opacity-100");
-
-  initMonthPicker();
-  renderSwiper();
-  setupSwiperObserver();
-
-  // Live sync
-  onValue(dbRef, (snapshot) => {
-    const val = snapshot.val();
-    if (snapshot.exists() && val) {
-      appData = val;
+  try {
+    const snapshot = await get(dbRef);
+    if (snapshot.exists() && snapshot.val()) {
+      appData = snapshot.val();
       if (!appData.monthlyData) appData.monthlyData = {};
-      updateAllCalculations();
-      if (activeView === "stats") renderStats();
+      document.getElementById("setup-balance").value =
+        appData.startingBalance || 0;
+    } else {
+      appData = { startingBalance: 0, monthlyData: {} };
+      for (let i = 0; i < 12; i++) {
+        appData.monthlyData[i] = {
+          incomeSources: [],
+          fixedExpenses: [],
+          cc: [],
+          others: [],
+        };
+      }
+      await set(dbRef, appData);
     }
-  });
 
-  setTimeout(() => intro.remove(), 700);
+    // Hide intro and show app after minimal intentional delay for smoothness
+    setTimeout(() => {
+      const intro = document.getElementById("intro-screen");
+      intro.classList.add("opacity-0", "pointer-events-none");
+      document.getElementById("app").classList.add("opacity-100");
+
+      initMonthPicker();
+      renderSwiper();
+      setupSwiperObserver();
+
+      onValue(dbRef, (snapshot) => {
+        const val = snapshot.val();
+        if (snapshot.exists() && val) {
+          appData = val;
+          if (!appData.monthlyData) appData.monthlyData = {};
+          updateAllCalculations();
+          if (activeView === "stats") renderStats();
+        }
+      });
+
+      setTimeout(() => intro.remove(), 700);
+    }, 800);
+  } catch (e) {
+    console.error("Login failed", e);
+    logout();
+  }
 };
 
 window.logout = () => {
-  location.reload(); // Simplest way to clear state and listeners
+  location.reload();
 };
 
 // --- RENDER ---
@@ -265,9 +281,7 @@ function updateAllCalculations() {
       (s, i) => s + parseFloat(i.amount || 0),
       0
     );
-
     const filterPaid = (items) => (items || []).filter((item) => !item.isPaid);
-
     const expenses = [
       ...filterPaid(m.fixedExpenses),
       ...filterPaid(m.cc),
@@ -284,7 +298,6 @@ function updateAllCalculations() {
 
     const view = document.getElementById(`month-view-${idx}`);
     if (!view) return;
-
     view.querySelector(".total-funds-display").innerText = `₱ ${formatMoney(
       runningBalance
     )}`;
@@ -294,7 +307,6 @@ function updateAllCalculations() {
     view.querySelector(".total-expenses-display").innerText = `₱ ${formatMoney(
       expenses
     )}`;
-
     const savingsEl = view.querySelector(".monthly-savings-display");
     const sign = net >= 0 ? "+" : "-";
     savingsEl.innerText = `${sign} ₱ ${formatMoney(Math.abs(net))}`;
@@ -308,17 +320,14 @@ function renderRows(monthIdx, key, items, colorClass) {
   items.forEach((item) => {
     const div = document.createElement("div");
     const isPaid = item.isPaid === true;
-
     const cardStyle = isPaid
       ? "bg-emerald-500/10 border-emerald-500/20 shadow-[0_0_15px_rgba(16,185,129,0.1)]"
       : "glass-card";
     const textColor = isPaid ? "text-emerald-400 opacity-60" : "text-slate-300";
     const amountColor = isPaid ? "text-emerald-500" : colorClass;
-
     div.className = `${cardStyle} p-4 rounded-2xl flex justify-between items-center transition-all duration-300`;
     div.onclick = () =>
       openModal(key, item.id, item.name, item.amount, monthIdx);
-
     div.innerHTML = `
             <div class="flex items-center gap-3">
                 ${
@@ -338,7 +347,6 @@ function renderRows(monthIdx, key, items, colorClass) {
   });
 }
 
-// --- NAVIGATION ---
 window.switchView = (view) => {
   activeView = view;
   const views = ["budget", "stats", "setup"];
@@ -358,9 +366,7 @@ window.switchView = (view) => {
       nav.classList.add("text-slate-500");
     }
   });
-
   if (view === "stats") renderStats();
-
   const header = document.querySelector("header");
   if (header) header.style.display = view === "budget" ? "flex" : "none";
 };
@@ -370,10 +376,8 @@ function renderStats() {
   const annualChart = document.getElementById("annual-chart");
   const savingsChart = document.getElementById("savings-chart");
   if (!annualChart || !savingsChart) return;
-
   annualChart.innerHTML = "";
   savingsChart.innerHTML = "";
-
   const monthlyTotals = months.map((_, idx) => {
     const m = appData.monthlyData[idx] || {
       incomeSources: [],
@@ -393,30 +397,23 @@ function renderStats() {
     const savings = income - expenses;
     return { income, expenses, savings };
   });
-
   const categories = [
     { label: "Income", key: "income", color: "bg-emerald-500" },
     { label: "Expenses", key: "expenses", color: "bg-rose-500" },
   ];
-
   categories.forEach((cat) => {
     const total = monthlyTotals.reduce((s, m) => s + m[cat.key], 0);
     const div = document.createElement("div");
     div.className = "space-y-2";
-    div.innerHTML = `
-            <div class="flex justify-between text-[10px] font-black uppercase text-slate-500">
-                <span>Annual ${cat.label}</span>
-                <span>₱ ${formatMoney(total)}</span>
-            </div>
-            <div class="stat-bar">
-                <div class="stat-fill ${cat.color}" style="width: ${
-      total > 0 ? "100%" : "0%"
-    }"></div>
-            </div>
-        `;
+    div.innerHTML = `<div class="flex justify-between text-[10px] font-black uppercase text-slate-500"><span>Annual ${
+      cat.label
+    }</span><span>₱ ${formatMoney(
+      total
+    )}</span></div><div class="stat-bar"><div class="stat-fill ${
+      cat.color
+    }" style="width: ${total > 0 ? "100%" : "0%"}"></div></div>`;
     annualChart.appendChild(div);
   });
-
   let maxSavings = Math.max(
     ...monthlyTotals.map((m) => Math.abs(m.savings)),
     1
@@ -431,14 +428,12 @@ function renderStats() {
   });
 }
 
-// --- SETUP ---
 window.updateStartingBalance = async (val) => {
   if (!appData) appData = { startingBalance: 0, monthlyData: {} };
   appData.startingBalance = parseFloat(val) || 0;
   await set(dbRef, appData);
 };
 
-// --- LOGIC ---
 window.openModal = (type, id, name, amount, monthIdx) => {
   if (!appData.monthlyData) appData.monthlyData = {};
   if (!appData.monthlyData[monthIdx]) {
@@ -449,10 +444,8 @@ window.openModal = (type, id, name, amount, monthIdx) => {
       others: [],
     };
   }
-
   const list = appData.monthlyData[monthIdx][type] || [];
   const item = list.find((it) => it.id === id) || {};
-
   activeEdit = {
     type,
     id,
@@ -465,93 +458,66 @@ window.openModal = (type, id, name, amount, monthIdx) => {
   const deleteBtn = document.getElementById("delete-btn");
   const saveBtn = document.getElementById("save-btn");
   if (!overlay || !body || !deleteBtn || !saveBtn) return;
-
   saveBtn.disabled = false;
   saveBtn.innerText = id ? "Update" : "Add Item";
-
   const labelType = getSectionLabel(type);
   document.getElementById("modal-title").innerText = id
     ? `EDIT ${name}`
     : `ADD TO ${labelType}`;
 
+  // Explicit padding removal on modal-body to match header alignment
   let bodyHtml = `
-        <div class="space-y-2">
-            <label class="text-[10px] font-bold uppercase text-slate-500 ml-2">Label ${
-              item.isPaid ? "(PAID)" : ""
-            }</label>
-            <input type="text" id="edit-name" value="${
-              name || ""
-            }" class="w-full bg-slate-900 border-none rounded-2xl p-5 text-lg font-bold text-white focus:ring-2 focus:ring-blue-500">
-        </div>
-        <div class="space-y-2">
-            <label class="text-[10px] font-bold uppercase text-slate-500 ml-2">Total Amount (₱)</label>
-            <input type="number" id="edit-amount" value="${
-              amount || ""
-            }" class="w-full bg-slate-900 border-none rounded-2xl p-5 text-2xl font-black text-white focus:ring-2 focus:ring-blue-500">
+        <div class="space-y-4 px-1">
+            <div class="space-y-1">
+                <label class="text-[10px] font-black uppercase text-slate-500 ml-1">Label ${
+                  item.isPaid ? "(PAID)" : ""
+                }</label>
+                <input type="text" id="edit-name" value="${
+                  name || ""
+                }" class="w-full bg-slate-900 border-none rounded-2xl text-lg font-bold text-white focus:ring-2 focus:ring-blue-500">
+            </div>
+            <div class="space-y-1">
+                <label class="text-[10px] font-black uppercase text-slate-500 ml-1">Total Amount (₱)</label>
+                <input type="number" id="edit-amount" value="${
+                  amount || ""
+                }" class="w-full bg-slate-900 border-none rounded-2xl text-2xl font-black text-white focus:ring-2 focus:ring-blue-500">
+            </div>
         </div>
     `;
 
   if (type !== "incomeSources" && id) {
-    bodyHtml += `
-            <div class="flex flex-col gap-4 mt-4 pt-4 border-t border-white/5">
-                <button onclick="togglePaidStatus()" id="paid-btn" class="w-full py-4 rounded-2xl font-black flex items-center justify-center gap-2 transition-all duration-300 ${
-                  item.isPaid
-                    ? "bg-emerald-500 text-white"
-                    : "bg-slate-700/50 text-slate-400"
-                }">
-                    <span class="material-icons">${
-                      item.isPaid ? "check_circle" : "radio_button_unchecked"
-                    }</span>
-                    ${item.isPaid ? "PAID" : "MARK AS PAID"}
-                </button>
-            </div>
-        `;
+    bodyHtml += `<div class="flex flex-col gap-4 mt-6 pt-4 border-t border-white/5 mx-1"><button onclick="togglePaidStatus()" id="paid-btn" class="w-full py-4 rounded-2xl font-black flex items-center justify-center gap-2 transition-all duration-300 ${
+      item.isPaid
+        ? "bg-emerald-500 text-white"
+        : "bg-slate-700/50 text-slate-400"
+    }"><span class="material-icons">${
+      item.isPaid ? "check_circle" : "radio_button_unchecked"
+    }</span>${item.isPaid ? "PAID" : "MARK AS PAID"}</button></div>`;
   }
 
   if (type === "cc" && id) {
-    bodyHtml += `
-            <div class="space-y-2 mt-4 pt-4 border-t border-white/5">
-                <label class="text-[10px] font-bold uppercase text-emerald-400 ml-2">Quick Add Spent (₱)</label>
-                <input type="number" id="cc-quick-add" placeholder="e.g. 213" class="w-full bg-slate-900 border-none rounded-2xl p-5 text-xl font-bold text-emerald-400 focus:ring-2 focus:ring-emerald-500">
-            </div>
-            <div class="space-y-3 mt-4">
-                <label class="text-[10px] font-bold uppercase text-slate-500 ml-2">History Log</label>
-                <div class="max-h-40 overflow-y-auto space-y-2 pr-2 custom-scrollbar" id="cc-history-log">
-                    ${
-                      (item.logs || []).length > 0
-                        ? item.logs
-                            .map(
-                              (log) => `
-                            <div class="flex justify-between items-center bg-slate-900/40 p-3 rounded-xl border border-white/5">
-                                <span class="text-[10px] font-bold text-slate-500 uppercase">${new Date(
-                                  log.timestamp
-                                ).toLocaleDateString()}</span>
-                                <span class="text-sm font-black text-emerald-400">+₱${formatMoney(
-                                  log.amount
-                                )}</span>
-                            </div>
-                        `
-                            )
-                            .reverse()
-                            .join("")
-                        : '<div class="text-[10px] text-slate-600 italic text-center py-4">No recent history</div>'
-                    }
-                </div>
-            </div>
-        `;
+    bodyHtml += `<div class="space-y-2 mt-6 pt-4 border-t border-white/5 mx-1"><label class="text-[10px] font-bold uppercase text-emerald-400 ml-1">Quick Add Spent (₱)</label><input type="number" id="cc-quick-add" placeholder="e.g. 213" class="w-full bg-slate-900 border-none rounded-2xl py-5 px-6 text-xl font-bold text-emerald-400 focus:ring-2 focus:ring-emerald-500"></div><div class="space-y-3 mt-4 mx-1"><label class="text-[10px] font-bold uppercase text-slate-500 ml-1">History Log</label><div class="max-h-40 overflow-y-auto space-y-2 pr-2 custom-scrollbar" id="cc-history-log">${
+      (item.logs || []).length > 0
+        ? item.logs
+            .map(
+              (log) =>
+                `<div class="flex justify-between items-center bg-slate-900/40 p-3 rounded-xl border border-white/5"><span class="text-[10px] font-bold text-slate-500 uppercase">${new Date(
+                  log.timestamp
+                ).toLocaleDateString()}</span><span class="text-sm font-black text-emerald-400">+₱${formatMoney(
+                  log.amount
+                )}</span></div>`
+            )
+            .reverse()
+            .join("")
+        : '<div class="text-[10px] text-slate-600 italic text-center py-4">No recent history</div>'
+    }</div></div>`;
   }
 
-  bodyHtml += `
-        <div id="recurring-wrapper" class="flex items-center gap-3 px-3 py-5 bg-slate-900/50 rounded-2xl ${
-          type === "fixedExpenses" ? "hidden" : "flex"
-        }">
-            <input type="checkbox" id="edit-recurring" ${
-              type === "fixedExpenses" ? "checked" : ""
-            } class="w-5 h-5 rounded border-none bg-slate-900 text-blue-500 focus:ring-0">
-            <label for="edit-recurring" class="text-xs font-bold uppercase text-slate-400">Apply to all future months</label>
-        </div>
-    `;
-
+  bodyHtml += `<div id="recurring-wrapper" class="flex items-center gap-3 px-4 py-5 bg-slate-900/50 rounded-2xl mx-1 mt-6 ${
+    type === "fixedExpenses" ? "hidden" : "flex"
+  }"><input type="checkbox" id="edit-recurring" ${
+    type === "fixedExpenses" ? "checked" : ""
+  } class="w-5 h-5 rounded border-none bg-slate-900 text-blue-500 focus:ring-0"><label for="edit-recurring" class="text-[10px] font-black uppercase text-slate-400">Apply to all future months</label></div>`;
   body.innerHTML = bodyHtml;
 
   if (type === "cc" && id) {
@@ -562,10 +528,8 @@ window.openModal = (type, id, name, amount, monthIdx) => {
       amountInput.value = (amount || 0) + extra;
     });
   }
-
   deleteBtn.style.display = id ? "block" : "none";
   deleteBtn.onclick = () => deleteItem();
-
   overlay.classList.add("open");
   setTimeout(() => document.getElementById("edit-name").focus(), 300);
 };
@@ -593,28 +557,22 @@ window.closeModal = () => {
 window.saveModal = async () => {
   const saveBtn = document.getElementById("save-btn");
   if (!saveBtn || saveBtn.disabled) return;
-
   const nameInput = document.getElementById("edit-name");
   const amountInput = document.getElementById("edit-amount");
   const quickAddInput = document.getElementById("cc-quick-add");
   if (!nameInput || !amountInput) return;
-
   const name = nameInput.value.trim() || "Untitled";
   const amount = parseFloat(amountInput.value) || 0;
   const quickAddAmount = quickAddInput
     ? parseFloat(quickAddInput.value) || 0
     : 0;
-
   if (!activeEdit) return;
   const { type, id, monthIdx, isPaid } = activeEdit;
-
   if (!appData) appData = { startingBalance: 0, monthlyData: {} };
   if (!appData.monthlyData) appData.monthlyData = {};
-
   const isFixed = type === "fixedExpenses";
   const recurringInput = document.getElementById("edit-recurring");
   const isRecurring = isFixed || (recurringInput && recurringInput.checked);
-
   const itemId = id || generateId();
   const startIdx = monthIdx;
   const endIdx = isRecurring ? 11 : monthIdx;
@@ -622,29 +580,22 @@ window.saveModal = async () => {
   try {
     saveBtn.disabled = true;
     saveBtn.innerText = "Saving...";
-
     for (let i = startIdx; i <= endIdx; i++) {
-      if (!appData.monthlyData[i]) {
+      if (!appData.monthlyData[i])
         appData.monthlyData[i] = {
           incomeSources: [],
           fixedExpenses: [],
           cc: [],
           others: [],
         };
-      }
-      if (!appData.monthlyData[i][type]) {
-        appData.monthlyData[i][type] = [];
-      }
-
+      if (!appData.monthlyData[i][type]) appData.monthlyData[i][type] = [];
       const list = appData.monthlyData[i][type];
       const existingIndex = list.findIndex((item) => item.id === itemId);
-
       if (existingIndex > -1) {
         const item = list[existingIndex];
         item.name = name;
         item.amount = amount;
         if (i === monthIdx) item.isPaid = isPaid;
-
         if (i === monthIdx && quickAddAmount > 0) {
           if (!item.logs) item.logs = [];
           item.logs.push({
@@ -661,17 +612,15 @@ window.saveModal = async () => {
           isPaid: i === monthIdx ? isPaid : false,
           logs: [],
         };
-        if (i === monthIdx && quickAddAmount > 0) {
+        if (i === monthIdx && quickAddAmount > 0)
           newItem.logs.push({
             id: generateId(),
             amount: quickAddAmount,
             timestamp: Date.now(),
           });
-        }
         list.push(newItem);
       }
     }
-
     await set(dbRef, appData);
     closeModal();
   } catch (e) {
