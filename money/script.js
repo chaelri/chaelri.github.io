@@ -5,6 +5,7 @@ import {
   onValue,
   set,
   get,
+  off,
 } from "https://www.gstatic.com/firebasejs/10.7.1/firebase-database.js";
 
 // =============================
@@ -22,9 +23,8 @@ const firebaseConfig = {
   measurementId: "G-1LSTC0N3NJ",
 };
 
-const app = initializeApp(firebaseConfig);
-const db = getDatabase(app);
-const dbRef = ref(db, "chalee_v1");
+const firebaseApp = initializeApp(firebaseConfig);
+const db = getDatabase(firebaseApp);
 
 // --- APP STATE ---
 const months = [
@@ -56,10 +56,12 @@ const monthlyGradients = [
   "from-blue-800 to-indigo-900",
 ];
 
+let currentUser = null;
 let currentMonthIdx = 0;
 let appData = null;
 let activeEdit = null;
 let activeView = "budget";
+let dbRef = null;
 
 // --- HELPERS ---
 const generateId = () => Math.random().toString(36).substr(2, 9);
@@ -88,8 +90,9 @@ const getSectionLabel = (type) => {
 window.addEventListener("DOMContentLoaded", async () => {
   const logo = document.getElementById("intro-logo");
   const introContainer = document.getElementById("intro-particles");
+  const userSelection = document.getElementById("user-selection");
 
-  // Money Cash Emoji Particles (No Coins)
+  // Money Cash Emoji Particles
   const emojis = ["💵", "💸", "🤑", "💵"];
   for (let i = 0; i < 12; i++) {
     const span = document.createElement("span");
@@ -101,7 +104,32 @@ window.addEventListener("DOMContentLoaded", async () => {
     introContainer.appendChild(span);
   }
 
-  setTimeout(() => logo.classList.add("scale-100"), 50);
+  setTimeout(() => {
+    logo.classList.add("scale-100");
+    setTimeout(() => {
+      userSelection.classList.remove(
+        "opacity-0",
+        "translate-y-10",
+        "pointer-events-none"
+      );
+    }, 500);
+  }, 50);
+});
+
+window.selectUser = async (name) => {
+  currentUser = name;
+
+  // Path Mapping: Charlie gets the legacy root path 'chalee_v1' to preserve his data.
+  // Karla gets a unique path 'karla_v1'.
+  const path = name === "Charlie" ? "chalee_v1" : "karla_v1";
+  dbRef = ref(db, path);
+
+  document.getElementById("current-user-tag").innerText = name;
+  document.getElementById(
+    "current-user-tag"
+  ).className = `text-[10px] font-black tracking-[0.4em] uppercase ${
+    name === "Charlie" ? "text-blue-400" : "text-rose-400"
+  }`;
 
   const snapshot = await get(dbRef);
   if (snapshot.exists() && snapshot.val()) {
@@ -110,6 +138,7 @@ window.addEventListener("DOMContentLoaded", async () => {
     document.getElementById("setup-balance").value =
       appData.startingBalance || 0;
   } else {
+    // New user initialization
     appData = { startingBalance: 0, monthlyData: {} };
     for (let i = 0; i < 12; i++) {
       appData.monthlyData[i] = {
@@ -122,15 +151,16 @@ window.addEventListener("DOMContentLoaded", async () => {
     await set(dbRef, appData);
   }
 
-  setTimeout(() => {
-    document.getElementById("intro-screen").classList.add("opacity-0");
-    document.getElementById("app").classList.add("opacity-100");
-    initMonthPicker();
-    renderSwiper();
-    setupSwiperObserver();
-    setTimeout(() => document.getElementById("intro-screen").remove(), 500);
-  }, 650);
+  // Hide intro and show app
+  const intro = document.getElementById("intro-screen");
+  intro.classList.add("opacity-0", "pointer-events-none");
+  document.getElementById("app").classList.add("opacity-100");
 
+  initMonthPicker();
+  renderSwiper();
+  setupSwiperObserver();
+
+  // Live sync
   onValue(dbRef, (snapshot) => {
     const val = snapshot.val();
     if (snapshot.exists() && val) {
@@ -138,21 +168,15 @@ window.addEventListener("DOMContentLoaded", async () => {
       if (!appData.monthlyData) appData.monthlyData = {};
       updateAllCalculations();
       if (activeView === "stats") renderStats();
-    } else if (!val) {
-      // Re-initialize if Firebase is wiped externally
-      appData = { startingBalance: 0, monthlyData: {} };
-      for (let i = 0; i < 12; i++) {
-        appData.monthlyData[i] = {
-          incomeSources: [],
-          fixedExpenses: [],
-          cc: [],
-          others: [],
-        };
-      }
-      updateAllCalculations();
     }
   });
-});
+
+  setTimeout(() => intro.remove(), 700);
+};
+
+window.logout = () => {
+  location.reload(); // Simplest way to clear state and listeners
+};
 
 // --- RENDER ---
 function renderSwiper() {
@@ -216,8 +240,8 @@ function createSectionHtml(title, key, color, monthIdx) {
         <section class="space-y-4">
             <div class="flex justify-between items-center">
                 <h3 class="text-xs font-black uppercase tracking-[0.2em] text-slate-500">${title}</h3>
-                <button onclick="openModal('${key}', null, null, null, ${monthIdx})" class="active:scale-75 transition-transform">
-                    <span class="material-icons text-blue-400 text-xl">add</span>
+                <button onclick="openModal('${key}', null, null, null, ${monthIdx})" class="active:scale-75 transition-transform text-blue-400">
+                    <span class="material-icons text-xl">add</span>
                 </button>
             </div>
             <div id="${key}-list-${monthIdx}" class="space-y-3"></div>
@@ -242,7 +266,6 @@ function updateAllCalculations() {
       0
     );
 
-    // Exclude paid items from calculations
     const filterPaid = (items) => (items || []).filter((item) => !item.isPaid);
 
     const expenses = [
@@ -286,7 +309,6 @@ function renderRows(monthIdx, key, items, colorClass) {
     const div = document.createElement("div");
     const isPaid = item.isPaid === true;
 
-    // Dynamic styling based on paid status
     const cardStyle = isPaid
       ? "bg-emerald-500/10 border-emerald-500/20 shadow-[0_0_15px_rgba(16,185,129,0.1)]"
       : "glass-card";
@@ -418,7 +440,6 @@ window.updateStartingBalance = async (val) => {
 
 // --- LOGIC ---
 window.openModal = (type, id, name, amount, monthIdx) => {
-  // Structural safety check for empty data states
   if (!appData.monthlyData) appData.monthlyData = {};
   if (!appData.monthlyData[monthIdx]) {
     appData.monthlyData[monthIdx] = {
@@ -445,7 +466,6 @@ window.openModal = (type, id, name, amount, monthIdx) => {
   const saveBtn = document.getElementById("save-btn");
   if (!overlay || !body || !deleteBtn || !saveBtn) return;
 
-  // Reset save button state
   saveBtn.disabled = false;
   saveBtn.innerText = id ? "Update" : "Add Item";
 
@@ -454,7 +474,6 @@ window.openModal = (type, id, name, amount, monthIdx) => {
     ? `EDIT ${name}`
     : `ADD TO ${labelType}`;
 
-  // Dynamic Modal Body for Spacing and CC functionality
   let bodyHtml = `
         <div class="space-y-2">
             <label class="text-[10px] font-bold uppercase text-slate-500 ml-2">Label ${
@@ -472,7 +491,6 @@ window.openModal = (type, id, name, amount, monthIdx) => {
         </div>
     `;
 
-  // PAID BUTTON and CC Quick Add logic
   if (type !== "incomeSources" && id) {
     bodyHtml += `
             <div class="flex flex-col gap-4 mt-4 pt-4 border-t border-white/5">
@@ -496,7 +514,6 @@ window.openModal = (type, id, name, amount, monthIdx) => {
                 <label class="text-[10px] font-bold uppercase text-emerald-400 ml-2">Quick Add Spent (₱)</label>
                 <input type="number" id="cc-quick-add" placeholder="e.g. 213" class="w-full bg-slate-900 border-none rounded-2xl p-5 text-xl font-bold text-emerald-400 focus:ring-2 focus:ring-emerald-500">
             </div>
-            <!-- QUICK ADD HISTORY LOG -->
             <div class="space-y-3 mt-4">
                 <label class="text-[10px] font-bold uppercase text-slate-500 ml-2">History Log</label>
                 <div class="max-h-40 overflow-y-auto space-y-2 pr-2 custom-scrollbar" id="cc-history-log">
@@ -537,7 +554,6 @@ window.openModal = (type, id, name, amount, monthIdx) => {
 
   body.innerHTML = bodyHtml;
 
-  // CC Quick Add logic
   if (type === "cc" && id) {
     const quickAddInput = document.getElementById("cc-quick-add");
     const amountInput = document.getElementById("edit-amount");
@@ -592,7 +608,6 @@ window.saveModal = async () => {
   if (!activeEdit) return;
   const { type, id, monthIdx, isPaid } = activeEdit;
 
-  // Safety check to ensure appData and monthlyData exist
   if (!appData) appData = { startingBalance: 0, monthlyData: {} };
   if (!appData.monthlyData) appData.monthlyData = {};
 
@@ -628,13 +643,8 @@ window.saveModal = async () => {
         const item = list[existingIndex];
         item.name = name;
         item.amount = amount;
+        if (i === monthIdx) item.isPaid = isPaid;
 
-        // Apply paid status ONLY to the current month being edited
-        if (i === monthIdx) {
-          item.isPaid = isPaid;
-        }
-
-        // Log for CC current month only
         if (i === monthIdx && quickAddAmount > 0) {
           if (!item.logs) item.logs = [];
           item.logs.push({
@@ -644,7 +654,6 @@ window.saveModal = async () => {
           });
         }
       } else {
-        // New item creation
         const newItem = {
           id: itemId,
           name,
@@ -689,7 +698,6 @@ async function deleteItem() {
   closeModal();
 }
 
-// --- SWIPER OBSERVER ---
 function setupSwiperObserver() {
   const swiper = document.getElementById("budget-view");
   if (!swiper) return;
