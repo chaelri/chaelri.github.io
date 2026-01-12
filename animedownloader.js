@@ -9,6 +9,7 @@
 // @icon         https://www.google.com/s2/favicons?domain=livechart.me
 // @grant        GM_setValue
 // @grant        GM_getValue
+// @grant        GM_openInTab
 // ==/UserScript==
 
 (function () {
@@ -222,11 +223,11 @@
         const dlAll = document.createElement("button");
         dlAll.id = "dl-all-btn";
         dlAll.innerHTML = `<span class="material-symbols-outlined">download_for_offline</span> DOWNLOAD ALL`;
-        // Change this in your githubBucketView
         dlAll.onclick = () => {
-            bucket.forEach(item => {
-                window.open(item.link); // Orion sees this as part of the click
-            });
+          bucket.forEach((item) => {
+            //window.open(item.link);
+            GM_openInTab(item.link, { active: false, insert: true });
+          });
         };
         header.appendChild(dlAll);
       }
@@ -257,111 +258,293 @@
   }
 
   // ========================================================================================
-  // LIVECHART: SORTING & REDESIGN
+  // LIVECHART: INFRASTRUCTURE RECONSTRUCTION
   // ========================================================================================
 
   function liveChartAnimeListView() {
-    appendCustomCSS();
-    const animeCards = document.querySelectorAll(".anime-card");
-    if (animeCards.length === 0) return;
-    originalOrder = Array.from(animeCards).map((card) => card.parentElement);
+    const wait = setInterval(() => {
+      const animeCards = document.querySelectorAll(".anime-card");
+      const headerBox = document.querySelector(".page-header-box");
 
-    animeCards.forEach((card) => {
-      const btn = createButton("Download Anime", false);
-      const title =
-        card.querySelector("h3")?.innerText ||
-        card.querySelector(".main-title")?.innerText;
-      btn.onclick = () =>
-        window.open(
-          `https://animepahe.si/anime?searchFilter=${encodeURIComponent(
-            title.trim()
-          )}&auto=true`
-        );
-      card.appendChild(btn);
+      if (animeCards.length > 0 && headerBox) {
+        clearInterval(wait);
 
-      const epInfo = card.querySelector(".anime-episodes");
-      if (epInfo) {
-        const badge = document.createElement("div");
-        badge.className = "custom-ep-badge";
-        badge.innerText = epInfo.innerText.split("×")[0].trim();
-        card.querySelector(".poster-container")?.appendChild(badge);
+        const seasonTitle =
+          headerBox.querySelector("h1")?.innerText || "Anime List";
+        const seasonSub =
+          headerBox.querySelector(".page-header-box__sub-title")?.innerText ||
+          "";
+        const prevLink = headerBox.querySelector(".-previous a")?.href;
+        const nextLink = headerBox.querySelector(".-next a")?.href;
+
+        const scrapedData = Array.from(animeCards).map((card) => {
+          const title =
+            card.querySelector(".main-title a")?.innerText.trim() || "N/A";
+          const genres = Array.from(
+            card.querySelectorAll(".anime-tags li a")
+          ).map((g) => g.innerText.trim());
+
+          const img = card.querySelector(".poster-container img");
+          let thumbnail = "N/A";
+          if (img) {
+            const srcset = img.getAttribute("srcset");
+            thumbnail = srcset
+              ? srcset.split(",").pop().trim().split(" ")[0]
+              : img.src;
+          }
+
+          const rating =
+            card
+              .querySelector(".anime-avg-user-rating")
+              ?.innerText.trim()
+              .split(" ")[0] || "N/A";
+          const epMeta = card.querySelector(".anime-episodes")?.innerText || "";
+          const epParts = epMeta.split("×");
+          let totalEpisodes = epParts[0]?.match(/(\d+)/)?.[1] || "??";
+          let duration = epParts[1]?.trim() || "N/A";
+
+          const releaseInfo =
+            card.querySelector(".release-schedule-info")?.innerText || "";
+          const upcomingEpMatch = releaseInfo.match(/EP(\d+)/);
+          let currentEpisodes = "0";
+
+          if (upcomingEpMatch) {
+            currentEpisodes = Math.max(
+              0,
+              parseInt(upcomingEpMatch[1]) - 1
+            ).toString();
+          } else {
+            const countPart = epParts[0]?.trim() || "";
+            if (countPart.includes("of")) {
+              currentEpisodes = countPart.match(/(\d+)\s+of/)?.[1] || "0";
+            } else if (totalEpisodes !== "??") {
+              currentEpisodes = totalEpisodes;
+            }
+          }
+
+          // Capture Raw Timestamp for Dynamic Timer
+          const countdownEl = card.querySelector("time[data-timestamp]");
+          const timestamp = countdownEl
+            ? parseInt(countdownEl.getAttribute("data-timestamp"))
+            : null;
+          const countdownStatic = countdownEl
+            ? countdownEl.innerText.trim()
+            : "Finished";
+
+          const studio =
+            card.querySelector(".anime-studios li a")?.innerText.trim() ||
+            "N/A";
+          const description =
+            card.querySelector(".anime-synopsis")?.innerText.trim() ||
+            "No description available.";
+          const downloadLink = `https://animepahe.si/anime?searchFilter=${encodeURIComponent(
+            title
+          )}&auto=true`;
+
+          return {
+            title,
+            rating,
+            genres,
+            thumbnail,
+            currentEpisodes,
+            totalEpisodes,
+            duration,
+            countdown: countdownStatic,
+            timestamp,
+            studio,
+            description,
+            downloadLink,
+          };
+        });
+
+        reconstructLiveChartUI(scrapedData, {
+          seasonTitle,
+          seasonSub,
+          prevLink,
+          nextLink,
+        });
       }
-    });
-    addFilterElementsByTag(animeCards);
-    addSortingControls(animeCards);
+    }, 100);
   }
 
-  function addSortingControls(animeCards) {
-    const tabs = document.querySelector(".ul-tabs");
-    if (!tabs) return;
-    const mainContainer = originalOrder[0].parentElement;
+  function reconstructLiveChartUI(data, nav) {
+    window.stop();
+    const newHTML = `
+    <!DOCTYPE html>
+    <html lang="en">
+    <head>
+        <meta charset="UTF-8">
+        <title>INFRASTRUCTURE | ${nav.seasonTitle}</title>
+        <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;600;800&display=swap" rel="stylesheet">
+        <link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Material+Symbols+Outlined:opsz,wght,FILL,GRAD@24,400,0,0" />
+        <style>
+            :root { --bg: #050505; --card: #0e0e0e; --accent: #3B97FC; --text: #fff; --text-muted: #888; --border: #1a1a1a; }
+            * { box-sizing: border-box; }
+            body { background: var(--bg); color: var(--text); font-family: 'Inter', sans-serif; margin: 0; padding: 0; line-height: 1.5; overflow-x: hidden; }
+            header { background: #000; border-bottom: 1px solid var(--border); padding: 20px; position: sticky; top: 0; z-index: 1000; }
+            .nav-container { max-width: 1400px; margin: 0 auto; display: flex; justify-content: space-between; align-items: center; }
+            .season-nav { display: flex; align-items: center; gap: 20px; }
+            .season-info { text-align: center; }
+            .season-info h1 { margin: 0; font-size: 1.5rem; font-weight: 800; letter-spacing: -1px; }
+            .season-info span { font-size: 0.7rem; color: var(--accent); text-transform: uppercase; letter-spacing: 2px; font-weight: 800; }
+            .nav-btn { background: var(--card); border: 1px solid var(--border); color: white; padding: 8px; border-radius: 50%; cursor: pointer; display: flex; text-decoration: none; transition: 0.2s; }
+            .nav-btn:hover { background: var(--border); transform: scale(1.1); }
+            .toolbar { max-width: 1400px; margin: 20px auto; padding: 0 20px; display: flex; flex-wrap: wrap; gap: 15px; align-items: center; }
+            .search-box { flex: 1; min-width: 300px; position: relative; }
+            .search-box input { width: 100%; background: var(--card); border: 1px solid var(--border); padding: 14px 20px; border-radius: 12px; color: white; outline: none; font-weight: 600; font-size: 0.9rem; }
+            .filter-row { display: flex; gap: 10px; overflow-x: auto; padding-bottom: 5px; scrollbar-width: none; }
+            .sort-btn { background: var(--card); border: 1px solid var(--border); color: var(--text-muted); padding: 10px 20px; border-radius: 100px; cursor: pointer; font-size: 0.8rem; font-weight: 600; white-space: nowrap; transition: 0.2s; }
+            .sort-btn.active { color: var(--accent); border-color: var(--accent); background: rgba(59, 151, 252, 0.1); }
 
-    const executeSort = (type, btn, label, compareFn) => {
-      sortState[type] = sortState[type] === "desc" ? "asc" : "desc";
-      document.querySelectorAll(".custom-sort-btn").forEach((b) => {
-        b.innerText = b.getAttribute("data-label");
-        b.classList.remove("active");
-      });
-      const isAsc = sortState[type] === "asc";
-      const sorted = [...originalOrder].sort((a, b) =>
-        isAsc ? compareFn(a, b) : compareFn(b, a)
-      );
-      sorted.forEach((w) => mainContainer.appendChild(w));
-      btn.classList.add("active");
-      btn.innerText = label + (isAsc ? " ↑" : " ↓");
-    };
+            .main-grid { display: grid; grid-template-columns: repeat(auto-fill, minmax(210px, 1fr)); gap: 15px; max-width: 1400px; margin: 0 auto; padding: 20px; }
+            .infra-card { background: var(--card); border: 1px solid var(--border); border-radius: 15px; overflow: hidden; display: flex; flex-direction: column; transition: transform 0.3s, border-color 0.3s; position: relative; }
+            .infra-card:hover { transform: translateY(-5px); border-color: var(--accent); }
 
-    const createSortBtn = (label, type, compareFn) => {
-      const btn = document.createElement("button");
-      btn.className = "custom-sort-btn";
-      btn.setAttribute("data-label", label);
-      btn.innerText = label;
-      btn.onclick = () => executeSort(type, btn, label, compareFn);
-      return btn;
-    };
+            .poster-area { height: 310px; width: 100%; overflow: hidden; position: relative; background: #111; }
+            .poster-area img { width: 100%; height: 100%; object-fit: cover; transition: 0.5s; display: block; }
 
-    const bRating = createSortBtn(
-      "Rating",
-      "rating",
-      (a, b) =>
-        (parseFloat(
-          a.querySelector(".anime-avg-user-rating")?.textContent || 0
-        ) || -999) -
-        (parseFloat(
-          b.querySelector(".anime-avg-user-rating")?.textContent || 0
-        ) || -999)
-    );
-    const bTitle = createSortBtn("Title", "title", (a, b) =>
-      (a.querySelector("h3")?.innerText || "")
-        .toLowerCase()
-        .localeCompare((b.querySelector("h3")?.innerText || "").toLowerCase())
-    );
-    const bEps = createSortBtn(
-      "Episodes",
-      "episodes",
-      (a, b) =>
-        parseInt(
-          a.querySelector(".anime-episodes")?.innerText.match(/(\d+)/)?.[1] || 0
-        ) -
-        parseInt(
-          b.querySelector(".anime-episodes")?.innerText.match(/(\d+)/)?.[1] || 0
-        )
-    );
+            .rating-badge { position: absolute; top: 12px; right: 12px; background: rgba(0,0,0,0.85); padding: 4px 8px; border-radius: 6px; font-weight: 800; color: #ffab00; border: 1px solid #333; font-size: 0.75rem; backdrop-filter: blur(5px); }
+            .ep-status { position: absolute; bottom: 12px; left: 12px; background: var(--accent); color: white; padding: 4px 10px; border-radius: 100px; font-weight: 800; font-size: 0.65rem; box-shadow: 0 4px 15px rgba(59,151,252,0.3); }
 
-    const li = document.createElement("li");
-    li.className = "custom-toolbar";
-    const bReset = document.createElement("button");
-    bReset.innerText = "Reset";
-    bReset.className = "custom-sort-btn reset";
-    bReset.onclick = () => {
-      originalOrder.forEach((w) => mainContainer.appendChild(w));
-      document
-        .querySelectorAll(".custom-sort-btn")
-        .forEach((b) => (b.innerText = b.getAttribute("data-label")));
-      sortState = { rating: "none", title: "none", episodes: "none" };
-    };
-    li.append(bRating, bTitle, bEps, bReset);
-    tabs.appendChild(li);
+            .card-body { padding: 15px; flex: 1; display: flex; flex-direction: column; }
+            .card-title { font-size: 0.95rem; font-weight: 800; margin-bottom: 6px; display: -webkit-box; -webkit-line-clamp: 2; -webkit-box-orient: vertical; overflow: hidden; line-height: 1.2; letter-spacing: -0.3px; }
+            .studio-line { font-size: 0.65rem; color: var(--accent); font-weight: bold; margin-bottom: 8px; text-transform: uppercase; letter-spacing: 0.5px; }
+            .description { font-size: 0.75rem; color: var(--text-muted); margin-bottom: 12px; line-height: 1.5; display: -webkit-box; -webkit-line-clamp: 2; -webkit-box-orient: vertical; overflow: hidden; }
+
+            .tags { display: flex; gap: 4px; flex-wrap: wrap; margin-bottom: 15px; }
+            .tag { font-size: 0.6rem; background: #181818; padding: 3px 8px; border-radius: 4px; color: #888; font-weight: 600; border: 1px solid #222; }
+
+            .meta-footer { margin-top: auto; border-top: 1px solid var(--border); padding-top: 12px; display: flex; justify-content: space-between; align-items: center; }
+            .countdown-box { font-size: 0.7rem; color: #ffab00; font-weight: 800; }
+            .dl-btn { background: #fff; color: #000; text-decoration: none; padding: 8px 18px; border-radius: 10px; font-weight: 800; font-size: 0.75rem; transition: 0.2s; border: none; cursor: pointer; display: inline-block; }
+            .dl-btn:hover { background: var(--accent); color: white; }
+
+            @media (max-width: 1024px) {
+                .main-grid { grid-template-columns: repeat(auto-fill, minmax(180px, 1fr)); }
+                .poster-area { height: 270px; }
+            }
+            @media (max-width: 768px) {
+                .main-grid { grid-template-columns: 1fr; padding: 10px; }
+                .infra-card { flex-direction: row; height: 160px; }
+                .poster-area { width: 110px; height: 100%; flex-shrink: 0; }
+                .card-body { padding: 10px; }
+                .description, .tags, .rating-badge { display: none; }
+                .meta-footer { border: none; padding-top: 5px; }
+            }
+        </style>
+    </head>
+    <body>
+        <header>
+            <div class="nav-container">
+                <div class="season-nav">
+                    <a href="${
+                      nav.prevLink || "#"
+                    }" class="nav-btn"><span class="material-symbols-outlined">arrow_back_ios_new</span></a>
+                    <div class="season-info">
+                        <span>${nav.seasonSub}</span>
+                        <h1>${nav.seasonTitle}</h1>
+                    </div>
+                    <a href="${
+                      nav.nextLink || "#"
+                    }" class="nav-btn"><span class="material-symbols-outlined">arrow_forward_ios</span></a>
+                </div>
+                <div class="global-actions">
+                    <a href="https://chaelri.github.io/anime" class="sort-btn" style="text-decoration:none; color:var(--accent); border-color:var(--accent)">BUCKET</a>
+                </div>
+            </div>
+        </header>
+        <div class="toolbar">
+            <div class="search-box"><input type="text" id="infra-search" placeholder="Search title, studio, or genre..."></div>
+            <div class="filter-row">
+                <button class="sort-btn" data-sort="rating">Rating</button>
+                <button class="sort-btn" data-sort="title">Title</button>
+                <button class="sort-btn" data-sort="episodes">Progress</button>
+            </div>
+        </div>
+        <div id="infra-grid" class="main-grid"></div>
+        <script>
+            const fullData = ${JSON.stringify(data)};
+            let currentFilter = "";
+            let currentSort = { key: null, dir: 1 };
+
+            function updateCountdowns() {
+                const now = Math.floor(Date.now() / 1000);
+                document.querySelectorAll('[data-ts]').forEach(el => {
+                    const target = parseInt(el.dataset.ts);
+                    if (!target) return;
+
+                    const diff = target - now;
+                    if (diff <= 0) {
+                        el.innerText = "Releasing Now";
+                        return;
+                    }
+
+                    const d = Math.floor(diff / 86400);
+                    const h = Math.floor((diff % 86400) / 3600);
+                    const m = Math.floor((diff % 3600) / 60);
+                    const s = diff % 60;
+                    el.innerText = \`\${d}d \${h}h \${m}m \${s}s\`;
+                });
+            }
+
+            function render() {
+                const grid = document.getElementById("infra-grid");
+                let items = [...fullData];
+                if (currentFilter) {
+                    const q = currentFilter.toLowerCase();
+                    items = items.filter(i => i.title.toLowerCase().includes(q) || i.studio.toLowerCase().includes(q) || i.genres.some(g => g.toLowerCase().includes(q)));
+                }
+                if (currentSort.key) {
+                    items.sort((a, b) => {
+                        let valA = a[currentSort.key]; let valB = b[currentSort.key];
+                        if (currentSort.key === 'rating') { valA = valA === 'N/A' ? -1 : parseFloat(valA); valB = valB === 'N/A' ? -1 : parseFloat(valB); }
+                        else if (currentSort.key === 'episodes') { valA = parseInt(a.currentEpisodes) || 0; valB = parseInt(b.currentEpisodes) || 0; }
+                        else { valA = (valA || "").toLowerCase(); valB = (valB || "").toLowerCase(); }
+                        return valA < valB ? -1 * currentSort.dir : (valA > valB ? 1 * currentSort.dir : 0);
+                    });
+                }
+                grid.innerHTML = items.map(item => \`
+                    <div class="infra-card">
+                        <div class="poster-area">
+                            <img src="\${item.thumbnail}" loading="lazy" onerror="this.src='https://placehold.co/300x450/111/444?text=No+Poster'">
+                            <div class="rating-badge">\${item.rating}</div>
+                            <div class="ep-status">EP \${item.currentEpisodes} / \${item.totalEpisodes}</div>
+                        </div>
+                        <div class="card-body">
+                            <div class="studio-line">\${item.studio}</div>
+                            <div class="card-title" title="\${item.title}">\${item.title}</div>
+                            <div class="description">\${item.description}</div>
+                            <div class="tags">\${item.genres.map(g => \`<span class="tag">\${g}</span>\`).join('')}</div>
+                            <div class="meta-footer">
+                                <div class="countdown-box" data-ts="\${item.timestamp}">\${item.countdown}</div>
+                                <a href="\${item.downloadLink}" target="_blank" class="dl-btn">SCAN</a>
+                            </div>
+                        </div>
+                    </div>\`).join('');
+
+                updateCountdowns();
+            }
+
+            document.getElementById("infra-search").oninput = (e) => { currentFilter = e.target.value; render(); };
+            document.querySelectorAll(".sort-btn[data-sort]").forEach(btn => {
+                btn.onclick = () => {
+                    const key = btn.dataset.sort;
+                    if (currentSort.key === key) currentSort.dir *= -1;
+                    else { currentSort.key = key; currentSort.dir = (key === 'rating' || key === 'episodes') ? -1 : 1; }
+                    document.querySelectorAll(".sort-btn").forEach(b => b.classList.remove("active"));
+                    btn.classList.add("active");
+                    render();
+                };
+            });
+
+            render();
+            setInterval(updateCountdowns, 1000);
+        <\/script>
+    </body>
+    </html>`;
+    document.open();
+    document.write(newHTML);
+    document.close();
   }
 
   // ========================================================================================
@@ -494,27 +677,6 @@
     b.className = "aesthetic-download-btn";
     if (s) b.style.width = "fit-content";
     return b;
-  }
-
-  function addFilterElementsByTag(animeCards) {
-    const tabs = document.querySelector(".ul-tabs");
-    if (!tabs) return;
-    const i = document.createElement("input");
-    i.type = "text";
-    i.placeholder = "Search Anime...";
-    i.className = "aesthetic-search";
-    i.oninput = (e) => {
-      const v = e.target.value.toLowerCase();
-      animeCards.forEach(
-        (c) =>
-          (c.parentElement.style.display = c.innerText.toLowerCase().includes(v)
-            ? "inline-block"
-            : "none")
-      );
-    };
-    const li = document.createElement("li");
-    li.appendChild(i);
-    tabs.prepend(li);
   }
 
   function appendCustomCSS() {
