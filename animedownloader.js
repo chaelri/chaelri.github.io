@@ -658,8 +658,11 @@
 
             if (typeof GM_setClipboard !== "undefined") {
               GM_setClipboard(plainTextData);
-              window.location.href =
-                "shortcuts://run-shortcut?name=BatchDownloader";
+              // 2. Encode it for a URL (Turns commas/slashes into safe characters)
+              const encodedData = encodeURIComponent(plainTextData);
+
+              // 3. Send it as INPUT to the shortcut (No clipboard needed!)
+              window.location.href = `shortcuts://run-shortcut?name=BatchDownloader&input=${encodedData}`;
             }
           } else {
             // DESKTOP LOGIC: Standard auto-click
