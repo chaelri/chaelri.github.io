@@ -801,13 +801,12 @@ Generate EXACTLY 3 numbered questions based on the passage.
 
 CRITICAL LINKING RULE (MUST FOLLOW):
 - EVERY verse reference MUST be written as an <a> link
-- Link format:
-  <a href="#X" class="reflection-link">v. X</a>  or  <a href="#X" class="reflection-link">vv. X–Y</a>
+- Link format: <a href="#X" class="reflection-link">v. X</a> or <a href="#X" class="reflection-link">vv. X–Y</a>
 - The href MUST always point to the FIRST verse in the reference
 - DO NOT include any verse numbers outside of <a> tags
-- DO NOT add parentheses around links
+- STRICTOR RULE: DO NOT include parentheses around the link or the text inside the link (e.g., write "v. 5", NOT "(v. 5)" and NOT "<a>(v. 5)</a>")
 - If a question references multiple verses or ranges, EACH one must be linked
-- Final output must contain ZERO plain-text verse references
+- Final output must contain ZERO plain-text verse references and ZERO parentheses surrounding verse links
 
 
 QUESTION STYLE (MATCH THE SAMPLE):
