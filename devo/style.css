@@ -668,6 +668,9 @@ select:disabled {
   font-weight: bold;
   border-radius: 4px;
   text-decoration: none;
+  display: inline-block;
+  white-space: nowrap;
+  vertical-align: middle;
 }
 
 .reflection-link:hover {
