@@ -488,7 +488,7 @@ async function loadPassage() {
       const wrap = document.createElement("div");
       wrap.className = "verse";
       wrap.innerHTML = `
-        <div class="verse-header">
+        <div id="${v.verse}" class="verse-header">
           <div>
             <span class="verse-num">${v.verse}</span>${v.text}
           </div>
@@ -786,38 +786,59 @@ IMPORTANT OUTPUT RULES (STRICT):
 
 
 ALLOWED TAGS:
-div, p, ul, li, strong, em, textarea
+div, p, ol, li, strong, em, textarea, a
 
 
 ROLE:
-You generate reflection QUESTIONS ONLY.
-You must NOT give advice.
-You must NOT suggest actions.
+You generate DISCUSSION AND REFLECTION QUESTIONS.
+You must NOT give answers.
 You must NOT speak as God.
-You must NOT include answers.
+
 
 TASK:
-Generate EXACTLY 3 reflection questions.
+Generate EXACTLY 3 numbered questions based on the passage.
 
-VERY IMPORTANT RULES:
-- Each question MUST reuse a clear word or phrase found directly in the passage
-  (examples: "light", "darkness", "receive", "beginning", "Word", etc.)
-- If a question could exist without this passage, it is INVALID.
-- Use simple, everyday English.
-- Avoid abstract, academic, or theological language.
-- The questions should sound like personal journaling thoughts, not Bible study analysis.
-- Do NOT explain the passage.
-- Do NOT define concepts.
-- Do NOT summarize meaning.
 
-Goal:
-Turn the passage’s own words into gentle, personal reflection questions.
+CRITICAL LINKING RULE (MUST FOLLOW):
+- EVERY verse reference MUST be written as an <a> link
+- Link format:
+  <a href="#X" class="reflection-link">v. X</a>  or  <a href="#X" class="reflection-link">vv. X–Y</a>
+- The href MUST always point to the FIRST verse in the reference
+- DO NOT include any verse numbers outside of <a> tags
+- DO NOT add parentheses around links
+- If a question references multiple verses or ranges, EACH one must be linked
+- Final output must contain ZERO plain-text verse references
 
+
+QUESTION STYLE (MATCH THE SAMPLE):
+- Personally directed reflection tone (address the reader directly)
+- Questions MUST speak in second person ("you", "your")
+- Questions should invite personal meaning, conviction, or response
+- Questions may ask what the passage says to you, challenges you about, or calls you to consider
+- At least ONE question should ask about practical steps or responses you might take
+- Questions may connect the passage to present-day life or society as experienced by you
+- Do NOT provide answers
+- Do NOT preach
+- Do NOT explain theology beyond what the text directly supports
+
+PERSONALIZATION RULE (STRICT):
+- ALL questions MUST be directly addressed to the reader
+- Avoid third-person or general phrasing (e.g., "people today", "believers", "society")
+- Prefer phrasing like:
+  "What does this passage say to you…"
+  "How does this challenge you…"
+  "What might this mean for the way you respond…"
+  "What practical steps could you take…"
+- If a question could apply without being personal, rewrite it
 
 STRUCTURE:
-- Title: "Guided Reflection 🙏🏼"
+- NO title
 - NO intro sentence
-- A <ul> with EXACTLY 3 questions
+- An <ol> with EXACTLY 3 <li> items
+- Inside each <li>:
+  - A single <p> containing the full question text (including the verse link)
+  - A <textarea> immediately after the <p>
+
 
 PASSAGE:
 ${book} ${chapter}
@@ -1061,3 +1082,47 @@ document.addEventListener("keydown", (e) => {
     }
   }
 });
+
+document.addEventListener("click", (e) => {
+  const link = e.target.closest('a[href^="#"]:not([href="#"])');
+  if (!link) return;
+
+  const id = link.getAttribute("href").slice(1);
+  const target = document.getElementById(id);
+
+  if (!target) return;
+
+  e.preventDefault();
+
+  smoothScrollTo(target, 50);
+
+  // Highlight verse
+  target.classList.remove("verse-highlight"); // reset if clicked again
+  void target.offsetWidth; // force reflow
+  target.classList.add("verse-highlight");
+});
+
+function smoothScrollTo(target, duration = 700) {
+  const startY = window.scrollY;
+  const targetY = target.getBoundingClientRect().top + startY - 80;
+  const diff = targetY - startY;
+  let startTime = null;
+
+  function easeInOutCubic(t) {
+    return t < 0.5 ? 4 * t * t * t : 1 - Math.pow(-2 * t + 2, 3) / 2;
+  }
+
+  function step(timestamp) {
+    if (!startTime) startTime = timestamp;
+    const time = Math.min((timestamp - startTime) / duration, 1);
+    const eased = easeInOutCubic(time);
+
+    window.scrollTo(0, startY + diff * eased);
+
+    if (time < 1) {
+      requestAnimationFrame(step);
+    }
+  }
+
+  requestAnimationFrame(step);
+}

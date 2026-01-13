@@ -659,3 +659,51 @@ select:disabled {
 #aiContextSummary .ai-fade-in {
   font-family: "Google Sans Flex", sans-serif !important;
 }
+
+.reflection-link {
+  background: linear-gradient(135deg, #486bec, #db2777);
+  color: white;
+  padding: 3px;
+  font-size: x-small;
+  font-weight: bold;
+  border-radius: 4px;
+  text-decoration: none;
+}
+
+.reflection-link:hover {
+  box-shadow: 2px 2px 5px rgba(0, 0, 0, 0.3);
+  background: #ff59fe;
+}
+
+html {
+  scroll-behavior: smooth;
+}
+
+/* Verse highlight effect */
+.verse-highlight {
+  animation: verseGlow 5s cubic-bezier(0.16, 1, 0.3, 1) forwards;
+}
+
+@keyframes verseGlow {
+  0% {
+    padding-left: 0;
+    border-left: 0;
+  }
+  50% {
+    padding-left: 20px;
+    border-left: 6px solid #486bec;
+  }
+  80% {
+    padding-left: 20px;
+    border-left: 6px solid #486bec;
+  }
+  100% {
+    padding-left: 0;
+    border-left: 0;
+  }
+}
+
+/* Optional: spacing so scroll lands nicely */
+[id] {
+  scroll-margin-top: 90px;
+}
