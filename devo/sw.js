@@ -1,6 +1,6 @@
 // sw.js — AGGRESSIVE cache refresh on new deployments (GitHub-safe)
 
-const DEPLOYMENT_ID = self.registration.scope + "-" + Date.now();
+const DEPLOYMENT_ID = "v1.1.0-" + Date.now(); // Date.now() ensures a new cache on every SW update
 const CACHE_NAME = "dudu-devotion-" + DEPLOYMENT_ID;
 
 // Core app shell files (always refreshed)
@@ -37,11 +37,9 @@ self.addEventListener("activate", (event) => {
 
       await self.clients.claim();
 
-      // 🔥 FORCE ALL OPEN TABS TO HARD RELOAD
-      const clients = await self.clients.matchAll({ type: "window" });
-      clients.forEach((client) => {
-        client.navigate(client.url);
-      });
+      // ⚠️ We removed the infinite reload loop.
+      // Since we use a "Network First" strategy below, your changes are ALWAYS enforced
+      // for online users without needing to force a page reload.
     })()
   );
 });
