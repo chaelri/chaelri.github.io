@@ -1,5 +1,89 @@
 const API_WEB = "https://bible-api.com/data/web";
 
+/* ---------- MODAL HANDLING ---------- */
+const modalOverlay = document.getElementById("modalOverlay");
+const modalClose = document.getElementById("modalClose");
+const modalContent = document.getElementById("modalContent");
+
+if (modalClose) {
+  modalClose.onclick = () => {
+    modalOverlay.hidden = true;
+  };
+}
+
+if (modalOverlay) {
+  modalOverlay.onclick = (e) => {
+    if (e.target === modalOverlay) modalOverlay.hidden = true;
+  };
+}
+
+async function openStrongModal(strongNum, contextText) {
+  if (!modalOverlay || !modalContent) return;
+
+  modalOverlay.hidden = false;
+  modalContent.innerHTML = `
+    <div class="inline-ai-loading">
+      <div class="inline-ai-spinner"></div>
+      <span>Finding cross-references for ${strongNum}…</span>
+    </div>
+  `;
+
+  // Parse contextText: "English Word — Original (transliteration) [Strong's]"
+  const parts = contextText.split(" — ");
+  const englishWord = parts[0]?.trim() || "";
+  const originalPart = parts[1] || contextText;
+  const wordMatch = originalPart.match(/^([^\(]+)/);
+  const originalWord = wordMatch ? wordMatch[1].trim() : "";
+
+  const prompt = `
+    TASK: Find 5 cross-references for Strong's ${strongNum} (${englishWord} / ${originalWord}).
+    
+    OUTPUT FORMAT (STRICT):
+    - RAW HTML ONLY
+    - NO code blocks, backticks, or "html" labels
+    - ONE outer <div>
+    - Format per entry:
+      <div class="cross-ref-item">
+        <span class="cross-ref-ref">Book Chapter:Verse</span>
+        <p class="cross-ref-text">Verse text with **${englishWord}** or **${originalWord}** BOLDED (use <strong> tag)</p>
+        <p style="font-size:12px; opacity:0.8; margin-top:4px;">* Taglish explanation of usage.</p>
+      </div>
+
+    RULES:
+    - BE FAST: Keep verses short.
+    - HIGHLIGHT: You MUST bold the translated word in the verse text using <strong>.
+    - LANGUAGE: Taglish explanation.
+  `;
+
+  try {
+    const res = await fetch(
+      "https://gemini-proxy-668755364170.asia-southeast1.run.app",
+      {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({
+          task: "summary",
+          contents: [{ parts: [{ text: prompt }] }],
+        }),
+      }
+    );
+
+    const data = await res.json();
+    modalContent.innerHTML = `
+      <h3 style="margin:0 0 4px; font-size:20px;">${englishWord}</h3>
+      <div style="opacity:0.6; font-size:14px; margin-bottom:20px;">
+        ${originalWord} [${strongNum}] • Cross-references & Usage
+      </div>
+      ${
+        data.candidates?.[0]?.content?.parts?.[0]?.text ||
+        "No references found."
+      }
+    `;
+  } catch (err) {
+    modalContent.innerHTML = "Failed to load cross-references.";
+  }
+}
+
 /* ---------- LOCAL BIBLE DATA ---------- */
 let bibleData = null;
 
@@ -338,10 +422,10 @@ GENERAL:
 
 LEXICAL RULES (VERY STRICT):
 - EVERY lexical entry MUST:
-  1. Start with ORIGINAL SCRIPT (Greek or Hebrew characters)
-  2. Include transliteration in parentheses
+  1. Start with the English meaning/word
+  2. Include original script (Greek/Hebrew) and transliteration in parentheses
   3. Include Strong's Number in brackets
-  4. Follow format: original (transliteration) [Strong's Number] — meaning, meaning
+  4. Follow format: English Word — original (transliteration) [Strong's Number]
 - DO NOT output English-only words
 - If original word is unknown, SKIP it
 
@@ -352,7 +436,7 @@ LANGUAGE:
 STRUCTURE (MANDATORY):
 <div>
   <section data-col="lexical">
-    <div>λόγος (logos) [G3056] — word, reason</div>
+    <div>word — λόγος (logos) [G3056]</div>
   </section>
 
   <section data-col="flow">
@@ -416,16 +500,33 @@ ${book} ${chapter}:${verse}
       /* --- LEXICAL (FILTER BAD ENTRIES) --- */
       if (col === "lexical") {
         section.querySelectorAll("div").forEach((el) => {
-          const text = el.textContent.trim();
+          let html = el.innerHTML;
 
           // Require original script (Greek or Hebrew)
-          const hasGreek = /[\u0370-\u03FF]/.test(text);
-          const hasHebrew = /[\u0590-\u05FF]/.test(text);
+          const hasGreek = /[\u0370-\u03FF]/.test(html);
+          const hasHebrew = /[\u0590-\u05FF]/.test(html);
 
           if (!hasGreek && !hasHebrew) return; // DROP invalid entry
 
-          el.classList.add("lex-item");
-          lexCol.appendChild(el);
+          // Identify Strong's number [G1234] or [H1234]
+          html = html.replace(
+            /\[([GH]\d+)\]/g,
+            '<a class="strong-num" data-strong="$1">[$1]</a>'
+          );
+
+          const newEl = document.createElement("div");
+          newEl.className = "lex-item";
+          newEl.innerHTML = html;
+
+          // Add click listener for Strong's numbers
+          newEl.querySelectorAll(".strong-num").forEach((sn) => {
+            sn.onclick = (e) => {
+              e.stopPropagation();
+              openStrongModal(sn.dataset.strong, newEl.textContent);
+            };
+          });
+
+          lexCol.appendChild(newEl);
         });
       }
 

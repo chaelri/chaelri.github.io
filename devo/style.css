@@ -851,3 +851,117 @@ html {
     padding-left: 4px;
   }
 }
+
+/* ---------- MODAL ---------- */
+.modal-overlay {
+  position: fixed;
+  inset: 0;
+  background: rgba(15, 23, 42, 0.8);
+  backdrop-filter: blur(8px);
+  display: none;
+  align-items: center;
+  justify-content: center;
+  z-index: 10000;
+  padding: 20px;
+}
+
+.modal-overlay:not([hidden]) {
+  display: flex;
+}
+
+.modal-card {
+  background: linear-gradient(180deg, #0f172a, #0c1425);
+  border: 1px solid rgba(255, 255, 255, 0.1);
+  border-radius: 20px;
+  width: 100%;
+  max-width: 500px;
+  max-height: 80vh;
+  position: relative;
+  display: flex;
+  flex-direction: column;
+  box-shadow: 0 20px 60px rgba(0, 0, 0, 0.5);
+  animation: modalIn 0.3s cubic-bezier(0.34, 1.56, 0.64, 1);
+}
+
+@keyframes modalIn {
+  from {
+    transform: scale(0.9);
+    opacity: 0;
+  }
+  to {
+    transform: scale(1);
+    opacity: 1;
+  }
+}
+
+.modal-close {
+  position: absolute;
+  top: 16px;
+  right: 16px;
+  background: rgba(255, 255, 255, 0.1);
+  border: none;
+  border-radius: 50%;
+  width: 32px;
+  height: 32px;
+  color: #fff;
+  cursor: pointer;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  z-index: 10;
+}
+
+#modalContent {
+  padding: 24px;
+  overflow-y: auto;
+  scrollbar-width: thin;
+  scrollbar-color: rgba(255, 255, 255, 0.2) transparent;
+}
+
+#modalContent::-webkit-scrollbar {
+  width: 6px;
+}
+
+#modalContent::-webkit-scrollbar-thumb {
+  background: rgba(255, 255, 255, 0.2);
+  border-radius: 10px;
+}
+
+.strong-num {
+  background: linear-gradient(135deg, #486bec, #db2777);
+  color: white;
+  padding: 2px 4px;
+  font-size: 11px;
+  font-weight: bold;
+  border-radius: 4px;
+  text-decoration: none;
+  display: inline-block;
+  white-space: nowrap;
+  vertical-align: middle;
+  cursor: pointer;
+  margin-left: 4px;
+}
+
+.strong-num:hover {
+  box-shadow: 2px 2px 5px rgba(0, 0, 0, 0.3);
+  background: #ff59fe;
+}
+
+.cross-ref-item {
+  margin-bottom: 16px;
+  padding-bottom: 16px;
+  border-bottom: 1px solid rgba(255, 255, 255, 0.05);
+}
+
+.cross-ref-ref {
+  font-weight: bold;
+  color: #db2777;
+  display: block;
+  margin-bottom: 4px;
+}
+
+.cross-ref-text {
+  font-size: 14px;
+  line-height: 1.5;
+  opacity: 0.9;
+}
