@@ -52,6 +52,9 @@ self.addEventListener("activate", (event) => {
 self.addEventListener("fetch", (event) => {
   const req = event.request;
 
+  // Only handle GET requests (Cache API doesn't support POST/PUT/etc.)
+  if (req.method !== "GET") return;
+
   // HTML / navigation — ALWAYS NETWORK
   if (req.mode === "navigate") {
     event.respondWith(fetch(req, { cache: "no-store" }));
