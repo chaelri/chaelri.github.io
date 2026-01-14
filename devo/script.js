@@ -282,16 +282,203 @@ async function fetchInlineQuickContext(
     <div class="inline-ai-result">
         <button class="inline-ai-close" title="Close">✕</button>
         ${data.candidates?.[0]?.content?.parts?.[0]?.text || ""}
+        <div class="inline-ai-actions">
+          <button class="inline-ai-dig">🔎 Dig Deeper</button>
+        </div>
+        <div class="inline-ai-deep" hidden></div>
     </div>
     `;
 
     mountEl.querySelector(".inline-ai-close").onclick = () => {
       mountEl.innerHTML = "";
     };
+
+    const digBtn = mountEl.querySelector(".inline-ai-dig");
+    const deepEl = mountEl.querySelector(".inline-ai-deep");
+
+    digBtn.onclick = async (e) => {
+      e.stopPropagation();
+
+      if (!deepEl.hidden) {
+        deepEl.hidden = true;
+        return;
+      }
+
+      deepEl.hidden = false;
+
+      await fetchInlineDigDeeper(
+        {
+          book,
+          chapter,
+          verse,
+        },
+        deepEl
+      );
+    };
   } catch {
     mountEl.innerHTML = "";
   }
 }
+
+async function fetchInlineDigDeeper({ book, chapter, verse }, mountEl) {
+  mountEl.innerHTML = `
+    <div class="inline-ai-loading">
+      <div class="inline-ai-spinner"></div>
+      <span>Digging deeper…</span>
+    </div>
+  `;
+
+  const prompt = `
+IMPORTANT OUTPUT RULES (ABSOLUTE — NO EXCEPTIONS):
+
+GENERAL:
+- RAW HTML ONLY
+- ONE outer <div> only
+- NO markdown, NO explanations, NO preaching
+
+LEXICAL RULES (VERY STRICT):
+- EVERY lexical entry MUST:
+  1. Start with ORIGINAL SCRIPT (Greek or Hebrew characters)
+  2. Include transliteration in parentheses
+  3. Follow format: original (transliteration) — meaning, meaning
+- DO NOT output English-only words
+- If original word is unknown, SKIP it
+
+LANGUAGE:
+- New Testament → GREEK ONLY
+- Old Testament → HEBREW ONLY
+
+STRUCTURE (MANDATORY):
+<div>
+  <section data-col="lexical">
+    <div>λόγος (logos) — word, reason</div>
+  </section>
+
+  <section data-col="flow">
+    <div>Entity</div>
+  </section>
+
+  <section data-col="meta">
+    <div data-type>Type text</div>
+    <div data-focus>Focus text</div>
+    <div data-time data-keyword>Time text</div>
+  </section>
+</div>
+
+TASK:
+Extract structured study data for:
+
+${book} ${chapter}:${verse}
+`;
+
+  try {
+    const res = await fetch(
+      "https://gemini-proxy-668755364170.asia-southeast1.run.app",
+      {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({
+          task: "summary",
+          contents: [{ parts: [{ text: prompt }] }],
+        }),
+      }
+    );
+
+    const data = await res.json();
+    const html = data.candidates?.[0]?.content?.parts?.[0]?.text || "";
+
+    const temp = document.createElement("div");
+    temp.innerHTML = html;
+    const root = temp.querySelector("div");
+    if (!root) throw new Error("Invalid AI output");
+
+    // Reuse existing container (prevents double inline-ai-deep)
+    mountEl.innerHTML = "";
+    mountEl.classList.add("inline-ai-deep");
+
+    const lexCol = document.createElement("div");
+    lexCol.className = "deep-col deep-col-lexical";
+    lexCol.innerHTML = `<div class="deep-col-title">Original Words</div>`;
+
+    const flowCol = document.createElement("div");
+    flowCol.className = "deep-col deep-col-flow";
+    flowCol.innerHTML = `<div class="deep-col-title">Message Flow</div>`;
+
+    const metaCol = document.createElement("div");
+    metaCol.className = "deep-col deep-col-meta";
+    metaCol.innerHTML = `<div class="deep-col-title">Overview</div>`;
+
+    /* ---------- ROUTE AI CONTENT ---------- */
+    root.querySelectorAll("section").forEach((section) => {
+      const col = section.dataset.col;
+
+      /* --- LEXICAL (FILTER BAD ENTRIES) --- */
+      if (col === "lexical") {
+        section.querySelectorAll("div").forEach((el) => {
+          const text = el.textContent.trim();
+
+          // Require original script (Greek or Hebrew)
+          const hasGreek = /[\u0370-\u03FF]/.test(text);
+          const hasHebrew = /[\u0590-\u05FF]/.test(text);
+
+          if (!hasGreek && !hasHebrew) return; // DROP invalid entry
+
+          el.classList.add("lex-item");
+          lexCol.appendChild(el);
+        });
+      }
+
+      /* --- FLOW --- */
+      if (col === "flow") {
+        section.querySelectorAll("div").forEach((el, i, arr) => {
+          el.classList.add("flow-step");
+          flowCol.appendChild(el);
+          if (i < arr.length - 1) {
+            const arrow = document.createElement("div");
+            arrow.className = "flow-arrow";
+            arrow.textContent = "↓";
+            flowCol.appendChild(arrow);
+          }
+        });
+      }
+
+      /* --- META --- */
+      if (col === "meta") {
+        section.querySelectorAll("div").forEach((el) => {
+          const block = document.createElement("div");
+          block.className = "meta-block";
+
+          if (el.hasAttribute("data-type")) {
+            block.innerHTML = `<div class="meta-label">Type</div>${el.textContent}`;
+          } else if (el.hasAttribute("data-focus")) {
+            block.innerHTML = `<div class="meta-label">Focus</div>${el.textContent}`;
+          } else if (el.hasAttribute("data-time")) {
+            block.innerHTML = `<div class="meta-label">Time</div>${el.textContent}`;
+          }
+
+          metaCol.appendChild(block);
+        });
+      }
+    });
+
+    mountEl.appendChild(lexCol);
+    mountEl.appendChild(flowCol);
+    mountEl.appendChild(metaCol);
+
+    /* ---------- HIGHLIGHT SHARED KEYWORD ---------- */
+    metaCol.querySelectorAll("[data-keyword]").forEach((kw) => {
+      lexCol.querySelectorAll(".lex-item").forEach((item) => {
+        if (item.textContent.includes(kw.dataset.keyword)) {
+          item.classList.add("lexeme-highlight");
+        }
+      });
+    });
+  } catch (err) {
+    console.error(err);
+    mountEl.innerHTML = "";
+  }
+}
+
 
 /* ---------- PASSAGE TITLE ---------- */
 function updatePassageTitle() {

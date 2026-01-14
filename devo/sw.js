@@ -1,8 +1,9 @@
-// sw.js — automatic cache management (NO manual versioning needed)
+// sw.js — AGGRESSIVE cache refresh on new deployments (GitHub-safe)
 
-const CACHE_NAME = "dudu-devotion";
+const DEPLOYMENT_ID = self.registration.scope + "-" + Date.now();
+const CACHE_NAME = "dudu-devotion-" + DEPLOYMENT_ID;
 
-// Core app shell files
+// Core app shell files (always refreshed)
 const CORE_ASSETS = [
   "./",
   "./index.html",
@@ -14,58 +15,59 @@ const CORE_ASSETS = [
   "./icons/icon-512.png",
 ];
 
-// Install: cache core assets and activate immediately
+// INSTALL: force new SW immediately + fetch fresh assets
 self.addEventListener("install", (event) => {
   self.skipWaiting();
+
   event.waitUntil(
-    caches.open(CACHE_NAME).then((cache) => cache.addAll(CORE_ASSETS))
+    caches.open(CACHE_NAME).then(async (cache) => {
+      await cache.addAll(
+        CORE_ASSETS.map((url) => new Request(url, { cache: "no-store" }))
+      );
+    })
   );
 });
 
-// Activate: clean up old caches automatically
+// ACTIVATE: NUKE all old caches + force clients to reload
 self.addEventListener("activate", (event) => {
   event.waitUntil(
-    caches
-      .keys()
-      .then((keys) =>
-        Promise.all(
-          keys.map((key) => (key !== CACHE_NAME ? caches.delete(key) : null))
-        )
-      )
+    (async () => {
+      const keys = await caches.keys();
+      await Promise.all(keys.map((k) => caches.delete(k)));
+
+      await self.clients.claim();
+
+      // 🔥 FORCE ALL OPEN TABS TO HARD RELOAD
+      const clients = await self.clients.matchAll({ type: "window" });
+      clients.forEach((client) => {
+        client.navigate(client.url);
+      });
+    })()
   );
-  self.clients.claim();
 });
 
-// Fetch strategy:
-// - HTML/navigation → network-first (always get latest)
-// - Static assets → cache-first (fast, offline-ready)
+// FETCH STRATEGY (VERY AGGRESSIVE):
+// - HTML → NETWORK ONLY (never trust cache)
+// - Everything else → NETWORK FIRST + overwrite cache
 self.addEventListener("fetch", (event) => {
-  const request = event.request;
+  const req = event.request;
 
-  // Always try network first for page navigations
-  if (request.mode === "navigate") {
-    event.respondWith(
-      fetch(request)
-        .then((response) => {
-          const copy = response.clone();
-          caches.open(CACHE_NAME).then((cache) => cache.put(request, copy));
-          return response;
-        })
-        .catch(() => caches.match(request))
-    );
+  // HTML / navigation — ALWAYS NETWORK
+  if (req.mode === "navigate") {
+    event.respondWith(fetch(req, { cache: "no-store" }));
     return;
   }
 
-  // Cache-first for everything else (CSS, JS, icons, etc.)
+  // Static assets — network-first, overwrite cache
   event.respondWith(
-    caches.match(request).then(
-      (cached) =>
-        cached ||
-        fetch(request).then((response) => {
-          const copy = response.clone();
-          caches.open(CACHE_NAME).then((cache) => cache.put(request, copy));
-          return response;
-        })
-    )
+    fetch(req)
+      .then((res) => {
+        const copy = res.clone();
+        caches.open(CACHE_NAME).then((cache) => {
+          cache.put(req, copy);
+        });
+        return res;
+      })
+      .catch(() => caches.match(req))
   );
 });
