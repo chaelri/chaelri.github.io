@@ -340,7 +340,8 @@ LEXICAL RULES (VERY STRICT):
 - EVERY lexical entry MUST:
   1. Start with ORIGINAL SCRIPT (Greek or Hebrew characters)
   2. Include transliteration in parentheses
-  3. Follow format: original (transliteration) — meaning, meaning
+  3. Include Strong's Number in brackets
+  4. Follow format: original (transliteration) [Strong's Number] — meaning, meaning
 - DO NOT output English-only words
 - If original word is unknown, SKIP it
 
@@ -351,7 +352,7 @@ LANGUAGE:
 STRUCTURE (MANDATORY):
 <div>
   <section data-col="lexical">
-    <div>λόγος (logos) — word, reason</div>
+    <div>λόγος (logos) [G3056] — word, reason</div>
   </section>
 
   <section data-col="flow">
