@@ -1,0 +1,86 @@
+/*
+ * Gemini Code Bucket Downloader
+ * Custom CSS with Tailwind utilities and dark theme base
+ */
+
+/* Import a simple font for better readability */
+@import url('https://fonts.googleapis.com/css2?family=Inter:wght@400;600;700&display=swap');
+
+body {
+    font-family: 'Inter', sans-serif;
+    /* Use the dark background defined in HTML */
+    background-color: var(--bg-dark, #121212);
+}
+
+/* --- Utility Buttons --- */
+.btn-primary, .btn-secondary {
+    display: inline-flex;
+    align-items: center;
+    gap: 8px;
+    padding: 10px 16px;
+    border-radius: 100px; /* Pill shape */
+    font-weight: 600;
+    font-size: 14px;
+    transition: all 0.2s;
+    border: none;
+    cursor: pointer;
+}
+
+.btn-primary {
+    background-color: var(--accent-blue, #3b82f6);
+    color: white;
+    box-shadow: 0 4px 10px rgba(59, 130, 246, 0.3);
+}
+
+.btn-primary:hover {
+    background-color: #2563eb;
+    transform: translateY(-1px);
+}
+
+.btn-secondary {
+    background-color: var(--card-dark, #1e1e1e);
+    color: var(--text-light, #e0e0e0);
+    border: 1px solid var(--border-dark, #333);
+}
+
+.btn-secondary:hover {
+    background-color: #333;
+}
+
+/* --- Code Card Styling --- */
+.code-card {
+    background-color: var(--card-dark, #1e1e1e);
+    border: 1px solid var(--border-dark, #333);
+    border-radius: 12px;
+    padding: 20px;
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    transition: all 0.2s;
+}
+
+.code-card:hover {
+    border-color: var(--accent-blue, #3b82f6);
+}
+
+.code-card-meta {
+    font-size: 11px;
+    color: #999;
+}
+
+/* --- Specific Language Badges --- */
+.lang-badge {
+    padding: 4px 8px;
+    border-radius: 6px;
+    font-size: 11px;
+    font-weight: 600;
+    text-transform: uppercase;
+    margin-right: 12px;
+}
+
+.lang-html { background-color: #ef444420; color: #ef4444; }
+.lang-css { background-color: #3b82f620; color: #3b82f6; }
+.lang-javascript, .lang-typescript { background-color: #f59e0b20; color: #f59e0b; }
+.lang-python { background-color: #05966920; color: #059669; }
+.lang-text { background-color: #9ca3af20; color: #9ca3af; }
+/* Add more language styles as needed */
