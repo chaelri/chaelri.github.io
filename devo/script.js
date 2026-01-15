@@ -736,8 +736,13 @@ async function loadPassage() {
     }
 
     /* ---------- GET LOCAL VERSES ---------- */
+    if (bookName === "PSALMS") {
+        bookName = "PSALM";
+    }
+    
     const bookContent = bibleData[bookName];
     if (!bookContent) throw new Error(`Book ${bookName} not found in JSON.`);
+
 
     const chapterContent = bookContent[chapterNum];
     if (!chapterContent)
