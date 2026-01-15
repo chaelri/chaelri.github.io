@@ -377,7 +377,7 @@
     <html lang="en">
     <head>
         <meta charset="UTF-8">
-        <title>INFRASTRUCTURE | ${nav.seasonTitle}</title>
+        <title>ANIME | ${nav.seasonTitle}</title>
         <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;600;800&display=swap" rel="stylesheet">
         <link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Material+Symbols+Outlined:opsz,wght,FILL,GRAD@24,400,0,0" />
         <style>
