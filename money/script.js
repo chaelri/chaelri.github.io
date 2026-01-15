@@ -459,24 +459,42 @@ async function reorderItems(monthIdx, type, newOrder) {
   )
     return;
 
-  const currentList = appData.monthlyData[monthIdx][type];
-  const reorderedList = [];
+  const startIdx = monthIdx;
+  const endIdx = type === "fixedExpenses" ? 11 : monthIdx;
 
-  // Map the new order of IDs to the existing item objects
+  const currentList = appData.monthlyData[monthIdx][type];
+  const reorderedListStructure = [];
+
   newOrder.forEach((id) => {
     const item = currentList.find((i) => i.id === id);
     if (item) {
-      reorderedList.push(item);
+      reorderedListStructure.push(item);
     }
   });
 
-  // Replace the old list with the reordered list
-  appData.monthlyData[monthIdx][type] = reorderedList;
+  try {
+    for (let i = startIdx; i <= endIdx; i++) {
+      if (appData.monthlyData[i] && appData.monthlyData[i][type]) {
+        const monthList = appData.monthlyData[i][type];
+        const newMonthOrder = [];
 
-  // Commit to Firebase
-  await set(dbRef, appData);
-  // Note: The onValue listener will automatically call updateAllCalculations()
-  // to re-render the list after the database update.
+        reorderedListStructure.forEach((reorderedItem) => {
+          const existingItem = monthList.find(
+            (item) => item.id === reorderedItem.id
+          );
+          if (existingItem) {
+            newMonthOrder.push(existingItem);
+          }
+        });
+
+        appData.monthlyData[i][type] = newMonthOrder;
+      }
+    }
+
+    await set(dbRef, appData);
+  } catch (e) {
+    console.error("Reorder failed:", e);
+  }
 }
 
 window.switchView = (view) => {
