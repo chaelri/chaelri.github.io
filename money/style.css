@@ -203,3 +203,25 @@ input[type="checkbox"]:checked::before {
     padding: 0 40px 140px 40px;
   }
 }
+
+/* NEW: Dragging Styles for SortableJS */
+.sortable-ghost {
+  opacity: 0.3 !important;
+  background-color: #3b82f6 !important; /* Blue for the placeholder */
+  border: 1px dashed rgba(255, 255, 255, 0.5) !important;
+  transform: scale(0.98);
+}
+
+.sortable-fallback {
+  /* Style for the element being dragged */
+  opacity: 0.9;
+  box-shadow: 0 10px 25px rgba(0, 0, 0, 0.5),
+    0 0 0 1px rgba(255, 255, 255, 0.1) inset;
+  transform: rotate(1deg) scale(1.02);
+}
+
+/* Ensure the drag handle is clearly visible and clickable */
+.drag-handle {
+  cursor: grab;
+  touch-action: none; /* Prevents default touch scrolling interference */
+}

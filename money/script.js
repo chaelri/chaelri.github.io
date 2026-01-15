@@ -8,6 +8,8 @@ import {
   off,
 } from "https://www.gstatic.com/firebasejs/10.7.1/firebase-database.js";
 
+import Sortable from "https://cdn.jsdelivr.net/npm/sortablejs@1.15.0/modular/sortable.core.esm.js";
+
 // =============================
 // Firebase config
 // =============================
@@ -62,6 +64,8 @@ let appData = null;
 let activeEdit = null;
 let activeView = "budget";
 let dbRef = null;
+let isEditMode = false;
+let sortableInstances = [];
 
 // --- HELPERS ---
 const generateId = () => Math.random().toString(36).substr(2, 9);
@@ -253,14 +257,21 @@ function renderSwiper() {
 
 function createSectionHtml(title, key, color, monthIdx) {
   return `
-        <section class="space-y-4">
+        <section class="space-y-4" data-section-key="${key}"> <!-- ADDED data-section-key -->
             <div class="flex justify-between items-center">
                 <h3 class="text-xs font-black uppercase tracking-[0.2em] text-slate-500">${title}</h3>
-                <button onclick="openModal('${key}', null, null, null, ${monthIdx})" class="active:scale-75 transition-transform text-blue-400">
-                    <span class="material-icons text-xl">add</span>
-                </button>
+                <div class="flex gap-2">
+                    <!-- NEW: Edit/Sort Button -->
+                    <button onclick="toggleEditMode()" class="edit-mode-toggle active:scale-75 transition-transform text-slate-500">
+                        <span class="material-icons text-xl">sort</span>
+                    </button>
+                    <!-- Existing Add Button -->
+                    <button onclick="openModal('${key}', null, null, null, ${monthIdx})" class="add-item-btn active:scale-75 transition-transform text-blue-400">
+                        <span class="material-icons text-xl">add</span>
+                    </button>
+                </div>
             </div>
-            <div id="${key}-list-${monthIdx}" class="space-y-3"></div>
+            <div id="${key}-list-${monthIdx}" class="space-y-3 item-list"></div> <!-- ADDED item-list class -->
         </section>
     `;
 }
@@ -317,6 +328,10 @@ function renderRows(monthIdx, key, items, colorClass) {
   const container = document.getElementById(`${key}-list-${monthIdx}`);
   if (!container) return;
   container.innerHTML = "";
+
+  // Determine if the current month is the one in edit mode
+  const isCurrentMonthEditMode = isEditMode && monthIdx === currentMonthIdx;
+
   items.forEach((item) => {
     const div = document.createElement("div");
     const isPaid = item.isPaid === true;
@@ -325,13 +340,28 @@ function renderRows(monthIdx, key, items, colorClass) {
       : "glass-card";
     const textColor = isPaid ? "text-emerald-400 opacity-60" : "text-slate-300";
     const amountColor = isPaid ? "text-emerald-500" : colorClass;
-    div.className = `${cardStyle} p-4 rounded-2xl flex justify-between items-center transition-all duration-300`;
-    div.onclick = () =>
-      openModal(key, item.id, item.name, item.amount, monthIdx);
+
+    // Set drag-specific attributes/styles
+    const dragClass = isCurrentMonthEditMode ? "cursor-grab" : "";
+
+    div.className = `${cardStyle} p-4 rounded-2xl flex justify-between items-center transition-all duration-300 ${dragClass}`;
+    div.dataset.id = item.id; // Crucial for reordering
+
+    // Only allow item editing if NOT in edit mode
+    if (!isCurrentMonthEditMode) {
+      div.onclick = () =>
+        openModal(key, item.id, item.name, item.amount, monthIdx);
+    } else {
+      // Stop the click event from propagating when in edit mode
+      div.onclick = (e) => e.stopPropagation();
+    }
+
     div.innerHTML = `
             <div class="flex items-center gap-3">
                 ${
-                  isPaid
+                  isCurrentMonthEditMode
+                    ? `<span class="material-icons text-slate-500 drag-handle text-xl cursor-grab mr-2">drag_indicator</span>` // NEW: Drag handle
+                    : isPaid
                     ? '<span class="material-icons text-emerald-500 text-sm">check_circle</span>'
                     : ""
                 }
@@ -345,6 +375,108 @@ function renderRows(monthIdx, key, items, colorClass) {
         `;
     container.appendChild(div);
   });
+}
+
+window.toggleEditMode = () => {
+  const monthIdx = currentMonthIdx;
+  isEditMode = !isEditMode;
+
+  if (window.navigator.vibrate) window.navigator.vibrate(5); // Vibrate feedback
+
+  // 1. Destroy all sortable instances when toggling
+  sortableInstances.forEach((sortable) => sortable.destroy());
+  sortableInstances = [];
+
+  // Disable main swiper's horizontal scroll when in edit mode to allow vertical dragging
+  const swiper = document.getElementById("budget-view");
+  if (swiper) swiper.style.overflowX = isEditMode ? "hidden" : "auto";
+
+  // Update button icons and visibility
+  const toggleButtons = document.querySelectorAll(".edit-mode-toggle");
+  const addButtons = document.querySelectorAll(".add-item-btn");
+
+  toggleButtons.forEach((btn) => {
+    btn.classList.toggle("text-rose-400", isEditMode);
+    btn.classList.toggle("text-slate-500", !isEditMode);
+    btn.querySelector(".material-icons").innerText = isEditMode
+      ? "close"
+      : "sort";
+  });
+
+  addButtons.forEach((btn) => {
+    btn.style.display = isEditMode ? "none" : "block";
+  });
+
+  // 2. Re-render everything to apply drag handles/styles or remove them
+  updateAllCalculations();
+
+  // 3. If in edit mode, set up the sortable lists *after* they are rendered
+  if (isEditMode) {
+    setupSortableLists(monthIdx);
+  }
+};
+
+function setupSortableLists(monthIdx) {
+  // Only target lists within the current visible month view
+  const listContainers = document.querySelectorAll(
+    `#month-view-${monthIdx} .item-list`
+  );
+
+  listContainers.forEach((container) => {
+    // Get the key (e.g., 'fixedExpenses') from the parent section
+    const key = container.parentElement.dataset.sectionKey;
+
+    if (!key) return;
+
+    const sortable = Sortable.create(container, {
+      animation: 150,
+      ghostClass: "sortable-ghost", // See CSS delta
+      handle: ".drag-handle", // Only the handle is draggable
+      scroll: true,
+      bubbleScroll: true,
+      forceFallback: true, // For better mobile support
+
+      onUpdate: function (evt) {
+        // Get the new order of IDs from the DOM elements
+        const newOrder = Array.from(evt.from.children)
+          .map((item) => item.dataset.id)
+          .filter((id) => id);
+
+        // Save the new order to Firebase
+        reorderItems(monthIdx, key, newOrder);
+      },
+    });
+    sortableInstances.push(sortable);
+  });
+}
+
+async function reorderItems(monthIdx, type, newOrder) {
+  if (
+    !appData ||
+    !appData.monthlyData ||
+    !appData.monthlyData[monthIdx] ||
+    !appData.monthlyData[monthIdx][type]
+  )
+    return;
+
+  const currentList = appData.monthlyData[monthIdx][type];
+  const reorderedList = [];
+
+  // Map the new order of IDs to the existing item objects
+  newOrder.forEach((id) => {
+    const item = currentList.find((i) => i.id === id);
+    if (item) {
+      reorderedList.push(item);
+    }
+  });
+
+  // Replace the old list with the reordered list
+  appData.monthlyData[monthIdx][type] = reorderedList;
+
+  // Commit to Firebase
+  await set(dbRef, appData);
+  // Note: The onValue listener will automatically call updateAllCalculations()
+  // to re-render the list after the database update.
 }
 
 window.switchView = (view) => {
