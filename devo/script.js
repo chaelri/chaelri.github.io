@@ -581,7 +581,6 @@ ${book} ${chapter}:${verse}
   }
 }
 
-
 /* ---------- PASSAGE TITLE ---------- */
 function updatePassageTitle() {
   const book = bookEl.options[bookEl.selectedIndex]?.text || "";
@@ -737,12 +736,11 @@ async function loadPassage() {
 
     /* ---------- GET LOCAL VERSES ---------- */
     if (bookName === "PSALMS") {
-        bookName = "PSALM";
+      bookName = "PSALM";
     }
-    
+
     const bookContent = bibleData[bookName];
     if (!bookContent) throw new Error(`Book ${bookName} not found in JSON.`);
-
 
     const chapterContent = bookContent[chapterNum];
     if (!chapterContent)
@@ -1192,6 +1190,15 @@ function renderComments(key, container) {
       saveComments();
       renderComments(key, container);
       renderSummary();
+      const index = key.split("-").pop();
+      const indicator = document
+        .getElementById(index)
+        ?.querySelector(".comment-indicator");
+      if (indicator) {
+        let currentCount = parseInt(indicator.innerText.match(/\d+/)) || 0;
+        let newCount = currentCount - 1;
+        indicator.innerText = `💬 ${newCount}`;
+      }
     };
     container.appendChild(c);
   });
@@ -1207,6 +1214,15 @@ function renderComments(key, container) {
     saveComments();
     renderComments(key, container);
     renderSummary();
+    const index = key.split("-").pop();
+    const indicator = document
+      .getElementById(index)
+      ?.querySelector(".comment-indicator");
+    if (indicator) {
+      let currentCount = parseInt(indicator.innerText.match(/\d+/)) || 0;
+      let newCount = currentCount + 1;
+      indicator.innerText = `💬 ${newCount}`;
+    }
   };
 
   container.appendChild(input);
