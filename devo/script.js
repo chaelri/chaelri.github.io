@@ -727,7 +727,7 @@ async function loadPassage() {
     titleForGemini = passageTitleEl.textContent;
 
     const bookId = bookEl.value;
-    const bookName = BIBLE_META[bookId].name.toUpperCase();
+    let bookName = BIBLE_META[bookId].name.toUpperCase();
     const chapterNum = chapterEl.value;
     const single = verseEl.value;
 
