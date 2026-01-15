@@ -1,0 +1,86 @@
+@tailwind base;
+@tailwind components;
+@tailwind utilities;
+
+/* Custom Scrollbar */
+.layout::-webkit-scrollbar {
+    width: 8px;
+    height: 8px;
+}
+.layout::-webkit-scrollbar-track { background: #1f2937; }
+.layout::-webkit-scrollbar-thumb { background: #486bec; border-radius: 4px; }
+.layout::-webkit-scrollbar-thumb:hover { background: #3c5bd4; }
+
+/* Global Highlight */
+.verse-highlight {
+    animation: verseHighlight 3s ease-out;
+}
+
+/* Inline AI Loading */
+.inline-ai-loading {
+    display: flex;
+    align-items: center;
+    gap: 8px;
+    padding: 10px 0;
+    font-size: 14px;
+    color: #9ca3af;
+}
+
+.inline-ai-spinner {
+    border: 3px solid rgba(255, 255, 255, 0.3);
+    border-top: 3px solid #486bec;
+    border-radius: 50%;
+    width: 16px;
+    height: 16px;
+    animation: spin 1s linear infinite;
+}
+
+@keyframes spin {
+    0% { transform: rotate(0deg); }
+    100% { transform: rotate(360deg); }
+}
+
+/* AI Fade In & Shimmer */
+.ai-fade-in { animation: fadeIn 0.5s ease-out forwards; }
+.ai-shimmer { padding: 1rem; background-color: #1f2937; border-radius: 12px; margin-bottom: 2rem; max-width: 360px; box-shadow: 0 4px 10px rgba(0, 0, 0, 0.2); }
+.ai-shimmer-block { height: 12px; margin: 8px 0; background: linear-gradient(to right, #1f2937 8%, #374151 18%, #1f2937 33%); background-size: 800px 104px; animation: shimmer 2s infinite linear; border-radius: 4px; }
+.ai-shimmer-block:first-child { height: 16px; width: 70%; margin-top: 0; }
+.ai-shimmer-block.short { width: 40%; }
+@keyframes shimmer {
+    0% { background-position: -800px 0; }
+    100% { background-position: 800px 0; }
+}
+
+/* Inline Dig Deeper Styles (VERY Specific HTML from AI) */
+.inline-ai-deep {
+    display: grid;
+    grid-template-columns: repeat(3, minmax(0, 1fr));
+    gap: 16px;
+    margin-top: 16px;
+    padding: 16px;
+    border-radius: 8px;
+    background-color: #273041;
+}
+.deep-col-title { font-weight: 700; color: #facc15; margin-bottom: 8px; font-size: 14px; }
+.lex-item { margin-bottom: 4px; font-size: 13px; padding: 2px 0; }
+.lexeme-highlight { background-color: rgba(250, 204, 21, 0.2); border-radius: 4px; padding: 2px; }
+.strong-num { color: #facc15; text-decoration: underline; cursor: pointer; margin-left: 4px; }
+.flow-arrow { text-align: center; color: #9ca3af; }
+.flow-step { font-size: 14px; padding: 4px 0; }
+.meta-block { margin-bottom: 8px; font-size: 14px; }
+.meta-label { font-weight: 600; color: #a5b4fc; font-size: 12px; margin-bottom: 2px; display: block; }
+
+/* Strong Modal Cross-Ref Styles (for AI Output) */
+.cross-ref-item { 
+  border-bottom: 1px solid #374151; 
+  padding: 12px 0; 
+}
+.cross-ref-item:last-child { border-bottom: none; }
+.cross-ref-ref { 
+  font-weight: 700; 
+  color: #a5b4fc; 
+  font-size: 14px; 
+  display: block; 
+  margin-bottom: 4px; 
+}
+.cross-ref-text { font-size: 15px; margin: 0; }

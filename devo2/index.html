@@ -1,0 +1,36 @@
+<!doctype html>
+<html lang="en">
+  <head>
+    <meta charset="UTF-8" />
+    <!-- PWA: Ensure a modern, responsive viewport and disable zooming -->
+    <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no" />
+    
+    <title>Dudu Bible Study App</title>
+
+    <!-- PWA: Link to Manifest -->
+    <link rel="manifest" href="/manifest.json" />
+
+    <!-- PWA: Theme Color for Mobile Browsers -->
+    <meta name="theme-color" content="#111827" />
+
+    <!-- SEO / App Description -->
+    <meta name="description" content="A lightweight, modern, and powerful Bible study app with AI-powered context and reflection tools." />
+
+    <!-- Custom Favicon (Assuming you have an icon.png in the public folder) -->
+    <link rel="icon" href="/favicon.ico" sizes="any">
+    <link rel="icon" href="/icon.svg" type="image/svg+xml">
+    <link rel="apple-touch-icon" href="/apple-touch-icon.png">
+
+    <!-- Preload Fonts (Optional but good for smooth UX, assuming system fonts for now) -->
+    <!-- You can add specific font preloads here later -->
+    
+    <!-- Vite injects the main JS file here: <script type="module" src="/src/main.jsx"></script> -->
+  </head>
+  <body>
+    <!-- This is the root element where the entire React application is mounted -->
+    <div id="root"></div>
+    
+    <!-- Vite's script tag to inject the app's JavaScript bundle -->
+    <script type="module" src="/src/main.jsx"></script>
+  </body>
+</html>
