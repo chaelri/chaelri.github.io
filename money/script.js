@@ -670,9 +670,23 @@ window.openModal = (type, id, name, amount, monthIdx) => {
   } class="w-5 h-5 rounded border-none bg-slate-900 text-blue-500 focus:ring-0"><label for="edit-recurring" class="text-[10px] font-black uppercase text-slate-400">Apply to all future months</label></div>`;
   body.innerHTML = bodyHtml;
 
+  const handleEnterKey = (e) => {
+    if (e.key === "Enter") {
+      e.preventDefault();
+      window.saveModal();
+    }
+  };
+
+  const nameInput = document.getElementById("edit-name");
+  const amountInput = document.getElementById("edit-amount");
+  const quickAddInput = document.getElementById("cc-quick-add");
+
+  if (nameInput) nameInput.addEventListener("keydown", handleEnterKey);
+  if (amountInput) amountInput.addEventListener("keydown", handleEnterKey);
+  if (quickAddInput) quickAddInput.addEventListener("keydown", handleEnterKey);
+  // ---------------------------------------------
+
   if (type === "cc" && id) {
-    const quickAddInput = document.getElementById("cc-quick-add");
-    const amountInput = document.getElementById("edit-amount");
     quickAddInput.addEventListener("input", (e) => {
       const extra = parseFloat(e.target.value) || 0;
       amountInput.value = (amount || 0) + extra;
