@@ -1180,8 +1180,30 @@ async function restoreSavedReflectionAnswers() {
 /* ---------- COMMENTS ---------- */
 function renderComments(key, container) {
   container.innerHTML = "";
+  const verseIndex = key.split("-").pop();
+  const verseHeader = document.getElementById(verseIndex);
+  // Find the flex container that holds buttons and the indicator
+  const controls = verseHeader?.querySelector('div[style*="display:flex"]');
 
-  (comments[key] || []).forEach((obj, i) => {
+  const updateIndicator = (newCount) => {
+    if (!controls) return;
+    let indicator = controls.querySelector(".comment-indicator");
+
+    if (newCount > 0) {
+      if (!indicator) {
+        indicator = document.createElement("div");
+        indicator.className = "comment-indicator";
+        controls.appendChild(indicator);
+      }
+      indicator.innerText = `💬 ${newCount}`;
+    } else if (indicator) {
+      indicator.remove();
+    }
+  };
+
+  const list = comments[key] || [];
+
+  list.forEach((obj, i) => {
     const c = document.createElement("div");
     c.className = "comment";
     c.innerHTML = `${obj.text}<button>✕</button>`;
@@ -1190,15 +1212,7 @@ function renderComments(key, container) {
       saveComments();
       renderComments(key, container);
       renderSummary();
-      const index = key.split("-").pop();
-      const indicator = document
-        .getElementById(index)
-        ?.querySelector(".comment-indicator");
-      if (indicator) {
-        let currentCount = parseInt(indicator.innerText.match(/\d+/)) || 0;
-        let newCount = currentCount - 1;
-        indicator.innerText = `💬 ${newCount}`;
-      }
+      updateIndicator(comments[key].length); // Use actual array length for accuracy
     };
     container.appendChild(c);
   });
@@ -1209,20 +1223,12 @@ function renderComments(key, container) {
   input.querySelector("button").onclick = () => {
     const val = input.querySelector("textarea").value.trim();
     if (!val) return;
-    comments[key] = comments[key] || [];
+    if (!comments[key]) comments[key] = [];
     comments[key].push({ text: val, time: Date.now() });
     saveComments();
     renderComments(key, container);
     renderSummary();
-    const index = key.split("-").pop();
-    const indicator = document
-      .getElementById(index)
-      ?.querySelector(".comment-indicator");
-    if (indicator) {
-      let currentCount = parseInt(indicator.innerText.match(/\d+/)) || 0;
-      let newCount = currentCount + 1;
-      indicator.innerText = `💬 ${newCount}`;
-    }
+    updateIndicator(comments[key].length);
   };
 
   container.appendChild(input);
