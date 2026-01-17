@@ -1,0 +1,74 @@
+/* 
+========================================
+1. TRANSITION OVERLAY STYLING
+========================================
+*/
+#transition-overlay {
+    position: fixed;
+    top: 0;
+    left: 0;
+    width: 100vw;
+    height: 100vh;
+    z-index: 1000;
+    display: flex;
+    justify-content: center;
+    align-items: center;
+    
+    background: linear-gradient(135deg, #4f46e5, #00d9e8);
+    
+    /* The core transition, 1.2s and the custom cubic-bezier for smoothness */
+    transition: clip-path 1.2s cubic-bezier(0.86, 0, 0.07, 1);
+    
+    /* Initial State: Bottom-Right */
+    clip-path: polygon(100% 100%, 100% 100%, 100% 100%, 100% 100%);
+    pointer-events: none;
+}
+
+/* 
+   INSTANT RESET STATE: 
+   Sets the starting clip-path (Bottom-Right) and disables the transition property.
+*/
+.is-resetting {
+    clip-path: polygon(100% 100%, 100% 100%, 100% 100%, 100% 100%) !important;
+    transition: none !important; 
+}
+
+
+/* 
+   State 1 (WIPE-IN END): Full-Screen Cover 
+*/
+.is-active {
+    clip-path: polygon(0% 0%, 100% 0%, 100% 100%, 0% 100%) !important;
+    pointer-events: all;
+}
+
+/* 
+   State 2 (WIPE-OUT TARGET): 
+   Contracts the polygon to the TOP-LEFT corner (0% 0%).
+*/
+.is-wiping-out {
+    clip-path: polygon(0% 0%, 0% 0%, 0% 0%, 0% 0%) !important; 
+}
+
+/* 
+========================================
+2. LOADING SPINNER ANIMATION
+========================================
+*/
+@keyframes spin {
+    from { transform: rotate(0deg); }
+    to { transform: rotate(360deg); }
+}
+
+.spinner {
+    animation: spin 1s linear infinite;
+}
+
+#loading-indicator {
+    opacity: 0;
+    transition: opacity 0.3s;
+}
+
+.is-active #loading-indicator {
+    opacity: 1;
+}

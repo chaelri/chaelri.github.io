@@ -1,0 +1,49 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Robust Smooth Diagonal Transition</title>
+    
+    <!-- External Dependencies -->
+    <script src="https://cdn.tailwindcss.com"></script>
+    <link href="https://fonts.googleapis.com/icon?family=Material+Icons" rel="stylesheet">
+    
+    <!-- Link to our Custom Stylesheet -->
+    <link rel="stylesheet" href="style.css">
+</head>
+<body class="bg-gray-50">
+
+    <!-- The Transition Overlay -->
+    <div id="transition-overlay">
+        <div id="loading-indicator" class="text-white flex flex-col items-center">
+            <span class="material-icons text-6xl spinner">
+                autorenew
+            </span>
+            <p class="mt-4 text-xl font-bold">LOADING...</p>
+        </div>
+    </div>
+
+    <!-- Screen 1: Initial Content -->
+    <div id="screen-1" class="h-screen flex flex-col justify-center items-center bg-gray-100 p-8 text-center transition-opacity duration-500">
+        <h1 class="text-5xl font-extrabold text-indigo-700">Screen 1: The Home Base</h1>
+        <p class="mt-4 text-gray-600 max-w-lg">Click the button to simulate loading new content and see the smooth diagonal wipe transition!</p>
+        <button id="next-screen-btn" class="mt-8 bg-indigo-600 hover:bg-indigo-700 text-white font-bold py-3 px-8 rounded-full shadow-lg transition duration-300">
+            Go to Screen 2
+        </button>
+    </div>
+
+    <!-- Screen 2: Target Content (Initially hidden) -->
+    <div id="screen-2" class="h-screen flex flex-col justify-center items-center bg-teal-100 p-8 text-center transition-opacity duration-500 hidden">
+        <h1 class="text-5xl font-extrabold text-teal-700">Screen 2: The New Page</h1>
+        <p class="mt-4 text-gray-600 max-w-lg">Content is loaded! To test the wipe again, click below.</p>
+        <button id="back-screen-btn" class="mt-8 bg-teal-600 hover:bg-teal-700 text-white font-bold py-3 px-8 rounded-full shadow-lg transition duration-300">
+            Go Back to Screen 1
+        </button>
+    </div>
+
+    <!-- Link to our Native JavaScript -->
+    <script src="app.js"></script>
+
+</body>
+</html>
