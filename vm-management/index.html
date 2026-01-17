@@ -1,0 +1,225 @@
+<!--
+ * STRICT PROTOCOL: Selective Delta Updates Only. Treat my provided code as a "Locked Source" with 100% continuity; you must not omit, summarize, or clean up any meta tags, scripts, comments, or existing logic. If a file requires no modifications based on the requested changes, do not output it or provide any response for that file.
+ -->
+<!DOCTYPE html>
+<html lang="en">
+  <head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <title>Volunteer Time Management</title>
+    <!-- Tailwind CSS CDN -->
+    <script src="https://cdn.tailwindcss.com"></script>
+    <link rel="stylesheet" href="style.css" />
+    <!-- Firebase SDKs -->
+    <script src="https://www.gstatic.com/firebasejs/8.10.0/firebase-app.js"></script>
+    <script src="https://www.gstatic.com/firebasejs/8.10.0/firebase-database.js"></script>
+    <script src="https://www.gstatic.com/firebasejs/8.10.0/firebase-storage.js"></script>
+    <!-- QR Scanner Library -->
+    <script src="https://unpkg.com/html5-qrcode"></script>
+  </head>
+  <body class="bg-gray-100 min-h-screen flex items-center justify-center p-4">
+    <div class="w-full max-w-md bg-white rounded-lg shadow-xl p-6 md:p-8">
+      <h1 class="text-3xl font-bold text-center text-blue-600 mb-6">
+        Volunteer Checkpoint
+      </h1>
+
+      <!-- Stage 1: QR Scanning -->
+      <div id="stage-scan" class="text-center">
+        <p class="text-gray-600 mb-4">
+          Scan your QR Code on the iPad to begin.
+        </p>
+        <div
+          id="qr-scanner-area"
+          class="w-full h-64 bg-gray-200 rounded-lg overflow-hidden border-2 border-dashed border-blue-400"
+        ></div>
+        <p id="scan-message" class="mt-4 text-sm text-red-500 hidden"></p>
+      </div>
+
+      <!-- Stage 2: Time Action Selection -->
+      <div id="stage-action" class="hidden text-center">
+        <h2 class="text-2xl font-semibold mb-4 text-gray-800">
+          Welcome, <span id="volunteer-name" class="text-blue-600"></span>!
+        </h2>
+        <div class="space-y-4">
+          <button
+            id="time-in-btn"
+            class="w-full py-3 bg-green-500 text-white font-bold rounded-lg shadow-md hover:bg-green-600 transition duration-150 disabled:opacity-50"
+            disabled
+          >
+            Time In
+          </button>
+          <button
+            id="time-out-btn"
+            class="w-full py-3 bg-red-500 text-white font-bold rounded-lg shadow-md hover:bg-red-600 transition duration-150 disabled:opacity-50"
+            disabled
+          >
+            Time Out
+          </button>
+        </div>
+        <button
+          id="reset-scan-btn"
+          class="mt-6 text-sm text-blue-500 hover:text-blue-700"
+        >
+          Scan Different QR
+        </button>
+      </div>
+
+      <!-- Stage 3: Segment/Role Selection (Time In Flow) -->
+      <div id="stage-segment" class="hidden">
+        <h2 class="text-2xl font-semibold mb-4 text-gray-800">
+          Segment Details
+        </h2>
+        <form id="segment-form" class="space-y-4">
+          <div>
+            <label
+              for="segment-select"
+              class="block text-sm font-medium text-gray-700"
+              >Segment / Location (Category)</label
+            >
+            <select
+              id="segment-select"
+              name="segment"
+              required
+              class="mt-1 block w-full pl-3 pr-10 py-2 text-base border-gray-300 focus:outline-none focus:ring-blue-500 focus:border-blue-500 sm:text-sm rounded-md shadow-sm"
+            >
+              <option value="" disabled selected>Select a Segment</option>
+              <option value="Event_Setup">Event Setup</option>
+              <option value="Registration">Registration</option>
+              <option value="Logistics_Support">Logistics Support</option>
+              <option value="Crowd_Control">Crowd Control</option>
+            </select>
+          </div>
+          <div>
+            <label
+              for="service-select"
+              class="block text-sm font-medium text-gray-700"
+              >Specific Service</label
+            >
+            <input
+              type="text"
+              id="service-select"
+              name="service"
+              placeholder="e.g., Bag Claim, Information Desk"
+              required
+              class="mt-1 block w-full px-3 py-2 border border-gray-300 rounded-md shadow-sm focus:outline-none focus:ring-blue-500 focus:border-blue-500 sm:text-sm"
+            />
+          </div>
+          <div>
+            <label
+              for="role-select"
+              class="block text-sm font-medium text-gray-700"
+              >Role Type</label
+            >
+            <select
+              id="role-select"
+              name="role"
+              required
+              class="mt-1 block w-full pl-3 pr-10 py-2 text-base border-gray-300 focus:outline-none focus:ring-blue-500 focus:border-blue-500 sm:text-sm rounded-md shadow-sm"
+            >
+              <option value="" disabled selected>Select a Role</option>
+              <option value="Lead">Lead</option>
+              <option value="Support">Support</option>
+              <option value="Trainee">Trainee</option>
+            </select>
+          </div>
+          <button
+            type="submit"
+            class="w-full py-3 bg-blue-600 text-white font-bold rounded-lg shadow-md hover:bg-blue-700 transition duration-150"
+          >
+            Next: Get Comms/ID
+          </button>
+        </form>
+      </div>
+
+      <!-- Stage 4: Comms Assignment & Time In Confirmation -->
+      <div id="stage-comms" class="hidden text-center">
+        <h2 class="text-2xl font-semibold mb-4 text-green-600">
+          Time In Successful!
+        </h2>
+        <p class="text-gray-700 mb-6">
+          Your assignment is now logged. Please receive your corresponding
+          Comms/ID.
+        </p>
+        <div
+          class="bg-blue-50 border-l-4 border-blue-400 p-4 mb-6"
+          role="alert"
+        >
+          <p class="font-bold text-blue-700">Assigned Comms/ID:</p>
+          <p
+            id="assigned-comms-id"
+            class="text-3xl font-extrabold text-blue-900 mt-1"
+          ></p>
+        </div>
+
+        <p class="text-sm text-gray-500 mb-8">
+          Please confirm receiving the Comms/ID from the Logistics team.
+        </p>
+        <button
+          id="comms-received-btn"
+          class="w-full py-3 bg-purple-600 text-white font-bold rounded-lg shadow-md hover:bg-purple-700 transition duration-150"
+        >
+          I have received the Comms/ID
+        </button>
+      </div>
+
+      <!-- Stage 5: Time Out Flow (Comms Return) -->
+      <div id="stage-timeout" class="hidden">
+        <h2 class="text-2xl font-semibold mb-4 text-red-600">Time Out Check</h2>
+        <p class="text-gray-700 mb-6">
+          You are clocking out. Please return the following Comms/ID:
+        </p>
+        <div class="bg-red-50 border-l-4 border-red-400 p-4 mb-6" role="alert">
+          <p class="font-bold text-red-700">Required Comms/ID Return:</p>
+          <p
+            id="return-comms-id"
+            class="text-3xl font-extrabold text-red-900 mt-1"
+          ></p>
+        </div>
+
+        <p class="text-sm text-gray-500 mb-4">
+          Select the status of the returned equipment:
+        </p>
+
+        <div class="space-y-4 mb-6">
+          <button
+            id="comms-status-ok-btn"
+            data-status="OK"
+            class="w-full py-3 bg-green-500 text-white font-bold rounded-lg shadow-md hover:bg-green-600 transition duration-150"
+          >
+            Comms OK / No Damage
+          </button>
+          <button
+            id="comms-status-damaged-btn"
+            data-status="DAMAGED"
+            class="w-full py-3 bg-yellow-500 text-white font-bold rounded-lg shadow-md hover:bg-yellow-600 transition duration-150"
+          >
+            Comms DAMAGED (Requires VM Scan)
+          </button>
+        </div>
+
+        <p id="comms-status-message" class="text-sm text-red-500 hidden"></p>
+
+        <button
+          id="final-timeout-btn"
+          class="w-full py-3 bg-red-600 text-white font-bold rounded-lg shadow-md hover:bg-red-700 transition duration-150 hidden"
+        >
+          Confirm Time Out & Comms Return
+        </button>
+      </div>
+
+      <!-- Stage 6: Final Confirmation -->
+      <div id="stage-final" class="hidden text-center">
+        <h2 class="text-3xl font-bold text-blue-600 mb-4">Thank You!</h2>
+        <p id="final-message" class="text-gray-700 text-lg"></p>
+        <button
+          onclick="window.location.reload()"
+          class="mt-6 py-2 px-6 bg-blue-500 text-white font-bold rounded-lg hover:bg-blue-600 transition duration-150"
+        >
+          Start New Scan
+        </button>
+      </div>
+    </div>
+
+    <script src="script.js"></script>
+  </body>
+</html>

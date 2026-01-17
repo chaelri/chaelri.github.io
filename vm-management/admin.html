@@ -1,0 +1,165 @@
+<!DOCTYPE html>
+<html lang="en">
+  <head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <title>Admin: Account & Comms Management</title>
+    <!-- Tailwind CSS CDN -->
+    <script src="https://cdn.tailwindcss.com"></script>
+    <link rel="stylesheet" href="style.css" />
+    <!-- Firebase SDKs -->
+    <script src="https://www.gstatic.com/firebasejs/8.10.0/firebase-app.js"></script>
+    <script src="https://www.gstatic.com/firebasejs/8.10.0/firebase-database.js"></script>
+    <!-- QR Generator Library - Corrected CDN for global QRCode object -->
+    <script src="https://cdn.rawgit.com/davidshimjs/qrcodejs/gh-pages/qrcode.min.js"></script>
+    <!-- QR Scanner Library (for VM Comms Status) -->
+    <script src="https://unpkg.com/html5-qrcode"></script>
+  </head>
+  <body class="bg-gray-100 min-h-screen p-4">
+    <div
+      class="w-full max-w-4xl mx-auto bg-white rounded-lg shadow-xl p-6 md:p-8 space-y-10"
+    >
+      <h1 class="text-3xl font-bold text-center text-blue-600 mb-8">
+        Admin Console
+      </h1>
+
+      <!-- Volunteer Account & QR Creation -->
+      <div class="border-b pb-8 border-gray-200">
+        <h2 class="text-2xl font-semibold text-gray-800 mb-4">
+          1. Volunteer Account & QR Creation
+        </h2>
+        <div class="grid md:grid-cols-2 gap-8">
+          <!-- Account Creation Form -->
+          <div>
+            <form id="volunteer-form" class="space-y-4">
+              <div>
+                <label
+                  for="v-name"
+                  class="block text-sm font-medium text-gray-700"
+                  >Volunteer Full Name</label
+                >
+                <input
+                  type="text"
+                  id="v-name"
+                  required
+                  class="mt-1 block w-full px-3 py-2 border border-gray-300 rounded-md shadow-sm focus:ring-blue-500 focus:border-blue-500 sm:text-sm"
+                />
+              </div>
+              <button
+                type="submit"
+                class="w-full py-2 px-4 bg-green-600 text-white font-bold rounded-lg shadow-md hover:bg-green-700 transition duration-150"
+              >
+                Create Account & Generate QR
+              </button>
+            </form>
+            <p
+              id="volunteer-message"
+              class="mt-4 text-sm text-green-600 hidden"
+            ></p>
+          </div>
+
+          <!-- QR Display Area -->
+          <div
+            class="flex flex-col items-center justify-center bg-gray-50 p-4 rounded-lg border"
+          >
+            <p class="text-gray-600 mb-3 font-semibold">Generated QR Code</p>
+            <div id="qrcode-output" class="p-2 bg-white border border-gray-300">
+              <p class="text-sm text-gray-400">QR will appear here.</p>
+            </div>
+            <p
+              id="qr-id-display"
+              class="mt-3 text-lg font-bold text-blue-700"
+            ></p>
+          </div>
+        </div>
+      </div>
+
+      <!-- VM Special QR Scan for Comms Status -->
+      <div class="border-b pb-8 border-gray-200">
+        <h2 class="text-2xl font-semibold text-gray-800 mb-4">
+          2. VM: Comms Damage Status Check (Special QR)
+        </h2>
+        <p class="text-gray-600 mb-4">
+          Scan the Comm/ID (which is the Comm ID) to update its damage status.
+        </p>
+
+        <div class="grid md:grid-cols-2 gap-8">
+          <!-- QR Scanner Area -->
+          <div class="text-center">
+            <p class="text-gray-600 mb-3 font-semibold">
+              Scan Comms/ID Barcode/QR
+            </p>
+            <div
+              id="vm-qr-scanner-area"
+              class="w-full h-64 bg-gray-200 rounded-lg overflow-hidden border-2 border-dashed border-blue-400"
+            ></div>
+            <p
+              id="vm-scan-message"
+              class="mt-4 text-sm text-red-500 hidden"
+            ></p>
+          </div>
+
+          <!-- Status Update Form -->
+          <div
+            id="vm-status-update"
+            class="bg-yellow-50 p-6 rounded-lg shadow-inner hidden"
+          >
+            <h3 class="text-xl font-semibold text-yellow-800 mb-3">
+              Update Status for Comms ID:
+              <span id="scanned-comms-id" class="font-extrabold">...</span>
+            </h3>
+            <form id="comms-status-form" class="space-y-4">
+              <div>
+                <label
+                  for="comms-report"
+                  class="block text-sm font-medium text-gray-700"
+                  >Damage Report/Notes (Optional)</label
+                >
+                <textarea
+                  id="comms-report"
+                  rows="2"
+                  class="mt-1 block w-full px-3 py-2 border border-gray-300 rounded-md shadow-sm focus:ring-yellow-500 focus:border-yellow-500 sm:text-sm"
+                ></textarea>
+              </div>
+              <div class="space-y-2">
+                <button
+                  type="button"
+                  data-status="available"
+                  class="comms-status-btn w-full py-2 bg-green-500 text-white font-bold rounded-lg hover:bg-green-600 transition duration-150"
+                >
+                  Status: OK (Ready for next assignment)
+                </button>
+                <button
+                  type="button"
+                  data-status="damaged"
+                  class="comms-status-btn w-full py-2 bg-red-500 text-white font-bold rounded-lg hover:bg-red-600 transition duration-150"
+                >
+                  Status: DAMAGED (Requires repair)
+                </button>
+              </div>
+            </form>
+            <p
+              id="comms-update-message"
+              class="mt-4 text-sm text-green-600 hidden"
+            ></p>
+          </div>
+        </div>
+      </div>
+
+      <!-- Comms Master List (Optional, for easy lookup) -->
+      <div>
+        <h2 class="text-2xl font-semibold text-gray-800 mb-4">
+          3. Comms Master List (Live)
+        </h2>
+        <div
+          id="comms-list"
+          class="space-y-2 max-h-60 overflow-y-auto p-3 border rounded-lg bg-gray-50"
+        >
+          <p class="text-gray-500">Loading comms data...</p>
+        </div>
+      </div>
+    </div>
+
+    <script src="admin.js"></script>
+  </body>
+</html>

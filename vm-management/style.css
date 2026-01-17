@@ -1,0 +1,19 @@
+/*
+ * STRICT PROTOCOL: Selective Delta Updates Only. Treat my provided code as a "Locked Source" with 100% continuity; you must not omit, summarize, or clean up any meta tags, scripts, comments, or existing logic. If a file requires no modifications based on the requested changes, do not output it or provide any response for that file.
+ */
+body {
+    transition: background-color 0.3s ease;
+}
+
+/* Custom styles for the QR scanner area to ensure proper camera feed display */
+#qr-scanner-area, #vm-qr-scanner-area {
+    width: 100%;
+    max-width: 400px;
+    margin: 0 auto;
+    border: 2px dashed #3490dc; /* blue-600 */
+}
+
+/* Ensure the live monitoring table is scrollable on small screens */
+.table-container {
+    overflow-x: auto;
+}

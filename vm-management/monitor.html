@@ -1,0 +1,110 @@
+<!--
+ * STRICT PROTOCOL: Selective Delta Updates Only. Treat my provided code as a "Locked Source" with 100% continuity; you must not omit, summarize, or clean up any meta tags, scripts, comments, or existing logic. If a file requires no modifications based on the requested changes, do not output it or provide any response for that file.
+ -->
+<!DOCTYPE html>
+<html lang="en">
+  <head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <title>Live Volunteer Monitoring (Admin View)</title>
+    <!-- Tailwind CSS CDN -->
+    <script src="https://cdn.tailwindcss.com"></script>
+    <link rel="stylesheet" href="style.css" />
+    <!-- Firebase SDKs -->
+    <script src="https://www.gstatic.com/firebasejs/8.10.0/firebase-app.js"></script>
+    <script src="https://www.gstatic.com/firebasejs/8.10.0/firebase-database.js"></script>
+  </head>
+  <body class="bg-gray-100 min-h-screen p-4">
+    <div
+      class="w-full max-w-7xl mx-auto bg-white rounded-lg shadow-xl p-6 md:p-8"
+    >
+      <h1 class="text-3xl font-bold text-center text-blue-600 mb-6">
+        Live Volunteer Checkpoint Monitor
+      </h1>
+      <p class="text-center text-sm text-gray-500 mb-4">
+        Real-time data from all volunteer logs.
+      </p>
+
+      <div
+        class="flex flex-col md:flex-row justify-between items-center mb-6 space-y-4 md:space-y-0"
+      >
+        <h2 class="text-xl font-semibold text-gray-800">
+          Logs for <span id="current-date" class="text-green-600"></span>
+        </h2>
+        <div class="flex space-x-4">
+          <div class="p-2 bg-green-100 border-l-4 border-green-500">
+            <span class="font-bold text-green-700" id="active-count">0</span>
+            Active
+          </div>
+          <div class="p-2 bg-blue-100 border-l-4 border-blue-500">
+            <span class="font-bold text-blue-700" id="total-count">0</span>
+            Total Logs
+          </div>
+        </div>
+      </div>
+
+      <!-- Table Container for Responsiveness -->
+      <div
+        class="table-container shadow overflow-hidden border-b border-gray-200 sm:rounded-lg"
+      >
+        <table class="min-w-full divide-y divide-gray-200">
+          <thead class="bg-blue-50">
+            <tr>
+              <th
+                scope="col"
+                class="px-3 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider"
+              >
+                Status
+              </th>
+              <th
+                scope="col"
+                class="px-3 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider"
+              >
+                ID / Name
+              </th>
+              <th
+                scope="col"
+                class="px-3 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider"
+              >
+                Segment / Role
+              </th>
+              <th
+                scope="col"
+                class="px-3 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider"
+              >
+                Comms ID
+              </th>
+              <th
+                scope="col"
+                class="px-3 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider"
+              >
+                Time In
+              </th>
+              <th
+                scope="col"
+                class="px-3 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider"
+              >
+                Time Out
+              </th>
+              <th
+                scope="col"
+                class="px-3 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider"
+              >
+                Comms Status
+              </th>
+            </tr>
+          </thead>
+          <tbody id="logs-table-body" class="bg-white divide-y divide-gray-200">
+            <!-- Logs will be inserted here by JavaScript -->
+          </tbody>
+        </table>
+      </div>
+
+      <div id="no-logs-message" class="text-center p-8 text-gray-500 hidden">
+        No volunteer activity recorded for today.
+      </div>
+    </div>
+
+    <script src="monitor.js"></script>
+  </body>
+</html>
