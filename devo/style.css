@@ -7,6 +7,7 @@ body {
   height: 100%;
   background: radial-gradient(circle at top, #121b33, #0b1220);
   overscroll-behavior: none;
+  overflow: hidden;
 }
 
 body {
@@ -21,7 +22,7 @@ body {
   gap: 20px;
   padding: calc(28px + env(safe-area-inset-top)) 20px
     calc(24px + env(safe-area-inset-bottom));
-  /* height: 100dvh; 🔑 REQUIRED */
+  height: 100dvh;
   overflow-x: hidden;
   overflow-y: auto;
   -webkit-overflow-scrolling: touch;
@@ -29,6 +30,17 @@ body {
 
 .layout > * {
   min-width: 0;
+}
+
+/* For Chrome, Safari and Opera */
+.layout::-webkit-scrollbar {
+  display: none;
+}
+
+/* For IE, Edge and Firefox */
+.layout {
+  -ms-overflow-style: none; /* IE and Edge */
+  scrollbar-width: none; /* Firefox */
 }
 
 /* ===== MOBILE / NARROW ===== */
