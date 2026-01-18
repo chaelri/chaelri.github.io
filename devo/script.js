@@ -1324,7 +1324,16 @@ function renderSummary() {
       note.className = "summary-note";
       note.innerHTML = `
         ${n.text}
-        <time>${new Date(n.time).toLocaleString()}</time>
+        <time>
+          ${new Date(n.time).toLocaleString("en-US", {
+            month: "long",
+            day: "numeric",
+            year: "numeric",
+            hour: "numeric",
+            minute: "2-digit",
+            hour12: true,
+          })}
+        </time>
       `;
       block.appendChild(note);
     });
