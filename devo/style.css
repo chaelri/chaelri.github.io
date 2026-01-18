@@ -22,7 +22,7 @@ body {
   gap: 20px;
   padding: calc(28px + env(safe-area-inset-top)) 20px
     calc(24px + env(safe-area-inset-bottom));
-  height: 100dvh;
+  height: 90dvh;
   overflow-x: hidden;
   overflow-y: auto;
   -webkit-overflow-scrolling: touch;
@@ -675,8 +675,8 @@ select:disabled {
 .reflection-link {
   background: linear-gradient(135deg, #486bec, #db2777);
   color: white;
-  padding: 3px;
-  font-size: x-small;
+  padding: 4px 8px;
+  font-size: 0.6rem;
   font-weight: bold;
   border-radius: 4px;
   text-decoration: none;

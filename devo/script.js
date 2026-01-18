@@ -783,10 +783,15 @@ async function loadPassage() {
         <div id="${v.verse}" class="verse-header">
           <div>
             <span class="verse-num">${v.verse}</span>${v.text}
+            ${count ? `
+                    <span style="font-family: 'Material Icons'; font-size: 0.875rem;">
+                      chat_bubble
+                    </span> 
+                    <span style="font-size: 0.875rem;">${count}</span>`
+                   : ""}
           </div>
           <div style="display:flex;align-items:center;gap:8px;">
             <button class="inline-ai-btn" title="Quick verse context">✨</button>
-            ${count ? `<div class="comment-indicator">💬 ${count}</div>` : ""}
           </div>
         </div>
         <div class="inline-ai-mount"></div>
@@ -1183,7 +1188,7 @@ function renderComments(key, container) {
   const verseIndex = key.split("-").pop();
   const verseHeader = document.getElementById(verseIndex);
   // Find the flex container that holds buttons and the indicator
-  const controls = verseHeader?.querySelector('div[style*="display:flex"]');
+  const controls = verseHeader.children[0];
 
   const updateIndicator = (newCount) => {
     if (!controls) return;
@@ -1195,7 +1200,12 @@ function renderComments(key, container) {
         indicator.className = "comment-indicator";
         controls.appendChild(indicator);
       }
-      indicator.innerText = `💬 ${newCount}`;
+      indicator.innerHTML = `
+        <span style="font-family: 'Material Icons'; font-size: 0.875rem;">
+          chat_bubble
+        </span> 
+        <span style="font-size: 0.875rem;">${newCount}</span>
+      `;
     } else if (indicator) {
       indicator.remove();
     }
@@ -1409,7 +1419,7 @@ document.addEventListener("click", (e) => {
 
   e.preventDefault();
 
-  smoothScrollTo(target, 50);
+  smoothScrollTo(target, 700);
 
   // Highlight verse
   target.classList.remove("verse-highlight"); // reset if clicked again
@@ -1418,10 +1428,24 @@ document.addEventListener("click", (e) => {
 });
 
 function smoothScrollTo(target, duration = 700) {
-  const startY = window.scrollY;
-  const targetY = target.getBoundingClientRect().top + startY - 80;
+  const container = document.querySelector(".layout");
+  if (!container || !target) return;
+
+  const startY = container.scrollTop;
+
+  // Get the target's position relative to the container
+  const containerTop = container.getBoundingClientRect().top;
+  const targetTop = target.getBoundingClientRect().top;
+
+  // targetTop - containerTop gives the distance from top of container to element
+  // Then we add the current scroll position and subtract your 80px offset
+  const targetY = targetTop - containerTop + startY - 80;
+
   const diff = targetY - startY;
   let startTime = null;
+
+  // If the distance is basically zero, don't bother animating
+  if (Math.abs(diff) < 2) return;
 
   function easeInOutCubic(t) {
     return t < 0.5 ? 4 * t * t * t : 1 - Math.pow(-2 * t + 2, 3) / 2;
@@ -1429,12 +1453,12 @@ function smoothScrollTo(target, duration = 700) {
 
   function step(timestamp) {
     if (!startTime) startTime = timestamp;
-    const time = Math.min((timestamp - startTime) / duration, 1);
-    const eased = easeInOutCubic(time);
+    const elapsed = timestamp - startTime;
+    const progress = Math.min(elapsed / duration, 1);
 
-    window.scrollTo(0, startY + diff * eased);
+    container.scrollTop = startY + diff * easeInOutCubic(progress);
 
-    if (time < 1) {
+    if (progress < 1) {
       requestAnimationFrame(step);
     }
   }
