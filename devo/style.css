@@ -203,6 +203,28 @@ select:disabled {
   margin-bottom: 22px;
 }
 
+/* The specifically styled quoted text */
+.quote-style {
+  color: #a5b4fc; /* Light indigo/blue tint */
+  font-style: italic;
+  font-weight: 500;
+}
+
+/* Ensure the verse header layout is clean */
+.verse-header {
+  display: flex;
+  justify-content: space-between;
+  align-items: flex-start;
+  gap: 12px;
+  cursor: pointer;
+}
+
+.verse-content {
+  flex: 1;
+  line-height: 1.6;
+  color: #e2e8f0; /* Default text color */
+}
+
 .controls {
   display: grid;
   grid-template-columns: repeat(2, minmax(0, 1fr));

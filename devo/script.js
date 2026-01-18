@@ -773,24 +773,61 @@ async function loadPassage() {
     /* ---------- RENDER ---------- */
     output.innerHTML = "";
 
+    let isInsideQuote = false;
+
     verses.forEach((v) => {
       const key = keyOf(v.book_id, v.chapter, v.verse);
       const count = comments[key]?.length || 0;
 
+      let formattedText = "";
+
+      // If we are already inside a quote from the previous verse,
+      // start this verse with the opening span.
+      if (isInsideQuote) {
+        formattedText += '<span class="quote-style">';
+      }
+
+      for (let char of v.text) {
+        if (char === '"' || char === "“" || char === "”") {
+          if (!isInsideQuote) {
+            // Transition: Outside -> Inside
+            formattedText += '<span class="quote-style">' + char;
+            isInsideQuote = true;
+          } else {
+            // Transition: Inside -> Outside
+            formattedText += char + "</span>";
+            isInsideQuote = false;
+          }
+        } else {
+          formattedText += char;
+        }
+      }
+
+      // SAFETY: If the verse ends but the quote is still open,
+      // close the span for this div so it doesn't break the layout.
+      if (isInsideQuote) {
+        formattedText += "</span>";
+      }
+
       const wrap = document.createElement("div");
       wrap.className = "verse";
       wrap.innerHTML = `
-        <div id="${v.verse}" class="verse-header">
-          <div>
-            <span class="verse-num">${v.verse}</span>${v.text}
-            ${count ? `
-                    <span style="font-family: 'Material Icons'; font-size: 0.875rem;">
-                      chat_bubble
-                    </span> 
-                    <span style="font-size: 0.875rem;">${count}</span>`
-                   : ""}
+        <div id="${
+          v.verse
+        }" class="verse-header" style="display:flex; justify-content:space-between; align-items:flex-start;">
+          <div class="verse-content">
+            <span class="verse-num">${v.verse}</span>${formattedText}
+            ${
+              count
+                ? `
+              <span class="comment-indicator" style="display:inline-flex; align-items:center; margin-left:8px; opacity:0.6;">
+                <span class="material-icons" style="font-size:14px; margin-right:2px;">chat_bubble</span>
+                <span style="font-size:12px;">${count}</span>
+              </span>`
+                : ""
+            }
           </div>
-          <div style="display:flex;align-items:center;gap:8px;">
+          <div class="verse-actions">
             <button class="inline-ai-btn" title="Quick verse context">✨</button>
           </div>
         </div>
@@ -798,13 +835,17 @@ async function loadPassage() {
         <div class="comments ai-fade-in" hidden></div>
       `;
 
+      // ... keep your existing listener code here ...
       const commentsEl = wrap.querySelector(".comments");
-      wrap.querySelector(".verse-header").onclick = () => {
+      const headerEl = wrap.querySelector(".verse-header");
+      const aiBtn = wrap.querySelector(".inline-ai-btn");
+
+      headerEl.onclick = () => {
         commentsEl.hidden = !commentsEl.hidden;
         if (!commentsEl.hidden) renderComments(key, commentsEl);
       };
 
-      wrap.querySelector(".inline-ai-btn").onclick = (e) => {
+      aiBtn.onclick = (e) => {
         e.stopPropagation();
         const mount = wrap.querySelector(".inline-ai-mount");
         if (mount.innerHTML.trim()) {
