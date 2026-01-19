@@ -11,7 +11,11 @@ body {
 }
 
 body {
-  font-family: system-ui, -apple-system, BlinkMacSystemFont, sans-serif;
+  font-family:
+    system-ui,
+    -apple-system,
+    BlinkMacSystemFont,
+    sans-serif;
   color: #e6edf7;
   min-height: 100vh;
   padding-bottom: env(safe-area-inset-bottom);
@@ -74,7 +78,8 @@ textarea {
   border: 1px solid rgba(255, 255, 255, 0.08);
 
   backdrop-filter: blur(6px);
-  transition: background-color 180ms cubic-bezier(0.22, 1, 0.36, 1),
+  transition:
+    background-color 180ms cubic-bezier(0.22, 1, 0.36, 1),
     border-color 180ms cubic-bezier(0.22, 1, 0.36, 1),
     box-shadow 180ms cubic-bezier(0.22, 1, 0.36, 1),
     transform 120ms cubic-bezier(0.22, 1, 0.36, 1);
@@ -85,7 +90,8 @@ input:focus,
 textarea:focus {
   outline: none;
   border-color: rgba(124, 195, 255, 0.5);
-  box-shadow: 0 0 0 1px rgba(124, 195, 255, 0.35),
+  box-shadow:
+    0 0 0 1px rgba(124, 195, 255, 0.35),
     0 8px 24px rgba(72, 107, 236, 0.25);
 }
 
@@ -99,7 +105,8 @@ button {
   flex: 0 !important;
   cursor: pointer;
   font-weight: 600;
-  transition: transform 120ms cubic-bezier(0.22, 1, 0.36, 1),
+  transition:
+    transform 120ms cubic-bezier(0.22, 1, 0.36, 1),
     box-shadow 180ms cubic-bezier(0.22, 1, 0.36, 1);
 }
 button:active {
@@ -116,7 +123,8 @@ button:active {
   padding-left: 5px;
   margin-bottom: 2px;
   transform-origin: left top;
-  transition: transform 160ms cubic-bezier(0.22, 1, 0.36, 1),
+  transition:
+    transform 160ms cubic-bezier(0.22, 1, 0.36, 1),
     opacity 160ms cubic-bezier(0.22, 1, 0.36, 1);
 }
 
@@ -144,7 +152,9 @@ button:active {
 }
 
 .control {
-  transition: opacity 180ms ease, transform 180ms ease,
+  transition:
+    opacity 180ms ease,
+    transform 180ms ease,
     max-height 220ms cubic-bezier(0.22, 1, 0.36, 1);
   max-height: 80px;
 }
@@ -192,14 +202,15 @@ select:disabled {
 }
 
 .summary-title {
-  font-size: 22px;
+  font-size: 2.5rem;
   font-weight: 800;
-  margin-bottom: 14px;
+  text-transform: uppercase;
+  letter-spacing: -3px;
+  margin-bottom: 1rem;
 }
 
 /* ---------- BIBLE ---------- */
 .bible {
-  background: linear-gradient(180deg, #0f172a, #0c1425);
   border-radius: 18px;
   padding: 20px;
 }
@@ -236,7 +247,8 @@ select:disabled {
   gap: 12px 14px;
 
   padding: 3rem 16px 1rem;
-  border-radius: 0 0 18px 18px;
+  border-radius: 18px;
+  margin-top: 1rem;
 
   background: linear-gradient(360deg, #0b1220, #10172b);
   box-shadow: 0 12px 30px rgba(0, 0, 0, 0.35);
@@ -317,7 +329,7 @@ select:disabled {
 .summary {
   background: linear-gradient(180deg, #0f172a, #0c1425);
   border-radius: 18px;
-  padding: 1rem 1rem 20rem;
+  padding: 2rem 2rem 20rem;
 
   position: relative; /* 🔓 remove sticky trap */
   max-height: none; /* 🔓 allow full height */
@@ -333,6 +345,12 @@ select:disabled {
   color: #7cc3ff;
   font-weight: 700;
   margin-bottom: 6px;
+  font-size: 0.6rem;
+  font-family: "Google Sans Flex";
+  letter-spacing: 3px;
+  opacity: 0.3;
+  padding-bottom: 0.6rem;
+  text-transform: uppercase;
 }
 
 .summary-note {
@@ -348,6 +366,11 @@ select:disabled {
   opacity: 0.55;
   font-size: 12px;
   margin-top: 4px;
+  text-align: right;
+  font-size: 0.5rem;
+  font-family: "Google Sans Flex";
+  letter-spacing: 3px;
+  text-transform: uppercase;
 }
 
 /* Fullscreen loading overlay */
@@ -369,7 +392,11 @@ select:disabled {
   border-radius: 14px;
   box-shadow: 0 12px 30px rgba(236, 72, 153, 0.45);
   color: #ffffff;
-  font-family: system-ui, -apple-system, BlinkMacSystemFont, sans-serif;
+  font-family:
+    system-ui,
+    -apple-system,
+    BlinkMacSystemFont,
+    sans-serif;
   font-size: 16px;
   display: flex;
   align-items: center;
@@ -553,7 +580,11 @@ select:disabled {
   border: 1px solid #1f2a44;
   border-radius: 12px;
   color: #e6edf7;
-  font-family: system-ui, -apple-system, BlinkMacSystemFont, sans-serif;
+  font-family:
+    system-ui,
+    -apple-system,
+    BlinkMacSystemFont,
+    sans-serif;
   box-sizing: border-box;
 }
 
@@ -713,7 +744,7 @@ select:disabled {
 .reflection-link {
   background: linear-gradient(135deg, #486bec, #db2777);
   color: white;
-  padding: 4px 8px;
+  padding: 2px 3px;
   font-size: 0.6rem;
   font-weight: bold;
   border-radius: 4px;
@@ -1028,7 +1059,9 @@ html {
   align-items: center;
   justify-content: center;
   z-index: 10000; /* Stays on top of everything */
-  transition: opacity 0.5s ease, visibility 0.5s;
+  transition:
+    opacity 0.5s ease,
+    visibility 0.5s;
 }
 
 /* The Logo Animation */
@@ -1057,4 +1090,19 @@ html {
 .splash-hidden {
   opacity: 0;
   visibility: hidden;
+}
+
+.main {
+  display: flex;
+  flex-direction: column;
+  margin: auto;
+}
+
+#aiReflection {
+  font-weight: bold;
+}
+
+#toggleReflectionBtn {
+  margin: 12px auto;
+  width: 100%;
 }

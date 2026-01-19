@@ -65,7 +65,7 @@ async function openStrongModal(strongNum, contextText) {
           task: "summary",
           contents: [{ parts: [{ text: prompt }] }],
         }),
-      }
+      },
     );
 
     const data = await res.json();
@@ -282,7 +282,7 @@ let comments = JSON.parse(localStorage.getItem("bibleComments") || "{}");
 /* migrate old notes */
 Object.keys(comments).forEach((k) => {
   comments[k] = comments[k].map((n) =>
-    typeof n === "string" ? { text: n, time: Date.now() } : n
+    typeof n === "string" ? { text: n, time: Date.now() } : n,
   );
 });
 
@@ -307,7 +307,7 @@ function resetAISections() {
 
 async function fetchInlineQuickContext(
   { book, chapter, verse, text },
-  mountEl
+  mountEl,
 ) {
   mountEl.innerHTML = `
     <div class="inline-ai-loading">
@@ -358,7 +358,7 @@ async function fetchInlineQuickContext(
           task: "summary",
           contents: [{ parts: [{ text: prompt }] }],
         }),
-      }
+      },
     );
 
     const data = await res.json();
@@ -396,7 +396,7 @@ async function fetchInlineQuickContext(
           chapter,
           verse,
         },
-        deepEl
+        deepEl,
       );
     };
   } catch {
@@ -466,7 +466,7 @@ ${book} ${chapter}:${verse}
           task: "summary",
           contents: [{ parts: [{ text: prompt }] }],
         }),
-      }
+      },
     );
 
     const data = await res.json();
@@ -511,7 +511,7 @@ ${book} ${chapter}:${verse}
           // Identify Strong's number [G1234] or [H1234]
           html = html.replace(
             /\[([GH]\d+)\]/g,
-            '<a class="strong-num" data-strong="$1">[$1]</a>'
+            '<a class="strong-num" data-strong="$1">[$1]</a>',
           );
 
           const newEl = document.createElement("div");
@@ -855,7 +855,7 @@ async function loadPassage() {
             verse: v.verse,
             text: v.text,
           },
-          mount
+          mount,
         );
       };
 
@@ -1082,7 +1082,7 @@ Create a compact background context for ${titleForGemini}.
             },
           ],
         }),
-      }
+      },
     );
 
     const gemData = await gemini.json();
@@ -1099,6 +1099,7 @@ Create a compact background context for ${titleForGemini}.
 
 async function renderAIReflectionQuestions({ book, chapter, versesText }) {
   const mount = document.getElementById("aiReflection");
+  mount.classList.add("ai-fade-in");
   mount.innerHTML = `
   <div class="ai-shimmer">
     <div class="ai-shimmer-block"></div>
@@ -1189,7 +1190,7 @@ ${versesText}
           task: "summary",
           contents: [{ parts: [{ text: prompt }] }],
         }),
-      }
+      },
     );
 
     const data = await res.json();
