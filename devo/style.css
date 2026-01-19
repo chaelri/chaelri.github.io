@@ -20,7 +20,8 @@ body {
   display: grid;
   grid-template-columns: minmax(0, 1fr) minmax(320px, 380px);
   gap: 20px;
-  height: 100dvh;
+  height: 120dvh;
+  padding: 3rem 1rem;
   overflow-x: hidden;
   overflow-y: auto;
   -webkit-overflow-scrolling: touch;
@@ -305,7 +306,7 @@ select:disabled {
 .summary {
   background: linear-gradient(180deg, #0f172a, #0c1425);
   border-radius: 18px;
-  padding: 1rem 1rem 3rem;
+  padding: 1rem 1rem 20rem;
 
   position: relative; /* 🔓 remove sticky trap */
   max-height: none; /* 🔓 allow full height */
