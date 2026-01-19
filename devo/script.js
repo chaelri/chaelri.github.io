@@ -1222,6 +1222,10 @@ async function restoreSavedReflectionAnswers() {
 /* ---------- COMMENTS ---------- */
 function renderComments(key, container) {
   container.innerHTML = "";
+  const commentLabel = document.createElement("div");
+  commentLabel.classList.add("comment-label");
+  commentLabel.innerText = "NOTES";
+  container.appendChild(commentLabel);
   const verseIndex = key.split("-").pop();
   const verseHeader = document.getElementById(verseIndex);
   // Find the flex container that holds buttons and the indicator
