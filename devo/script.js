@@ -1545,3 +1545,12 @@ layout.addEventListener("scroll", () => {
 
   lastScrollY = currentScrollY;
 });
+
+window.addEventListener("load", () => {
+  const splash = document.getElementById("app-splash");
+
+  // Give it a small 1-second delay so the logo is actually seen
+  setTimeout(() => {
+    splash.classList.add("splash-hidden");
+  }, 1000);
+});
