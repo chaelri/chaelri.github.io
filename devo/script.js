@@ -1511,3 +1511,23 @@ function smoothScrollTo(target, duration = 700) {
 
   requestAnimationFrame(step);
 }
+
+const header = document.querySelector(".smart-header");
+const layout = document.querySelector(".layout");
+
+// Use scrollTop for elements, not scrollY
+let lastScrollY = layout.scrollTop;
+
+layout.addEventListener("scroll", () => {
+  const currentScrollY = layout.scrollTop;
+
+  if (currentScrollY > lastScrollY && currentScrollY > 50) {
+    // Scrolling Down - Hide Header
+    header.classList.add("header-hidden");
+  } else {
+    // Scrolling Up - Show Header
+    header.classList.remove("header-hidden");
+  }
+
+  lastScrollY = currentScrollY;
+});

@@ -23,7 +23,7 @@ body {
   grid-template-columns: minmax(0, 1fr) minmax(320px, 380px);
   gap: 20px;
   height: 120dvh;
-  padding: 3rem 1rem;
+  padding: 0 1rem 3rem 1rem;
   overflow-x: hidden;
   overflow-y: auto;
   -webkit-overflow-scrolling: touch;
@@ -231,7 +231,7 @@ select:disabled {
   grid-template-columns: repeat(2, minmax(0, 1fr));
   gap: 12px 14px;
 
-  padding: 16px;
+  padding: 3rem 16px 1rem;
   border-radius: 18px;
 
   background: linear-gradient(180deg, #0f172a, #0c1425);
@@ -675,11 +675,16 @@ select:disabled {
   list-style: none;
 }
 
+#aiReflection ol {
+  padding-inline-start: 1rem;
+}
+
 #aiReflection textarea {
   width: 100%;
   box-sizing: border-box;
   margin: 1rem 0;
   resize: none;
+  height: calc(5 * 1.5em);
 }
 
 #aiReflection h1 {
@@ -999,4 +1004,19 @@ html {
   font-size: 14px;
   line-height: 1.5;
   opacity: 0.9;
+}
+
+/* Mobile-first approach */
+@media (max-width: 768px) {
+  .controls.smart-header {
+    position: sticky;
+    top: 0;
+    transition: transform 0.3s ease-in-out;
+    z-index: 1000;
+  }
+
+  /* Class to hide the header when scrolling down */
+  .header-hidden {
+    transform: translateY(-122%);
+  }
 }
