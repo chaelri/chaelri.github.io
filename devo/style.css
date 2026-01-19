@@ -1005,18 +1005,3 @@ html {
   line-height: 1.5;
   opacity: 0.9;
 }
-
-/* Mobile-first approach */
-@media (max-width: 768px) {
-  .controls.smart-header {
-    position: sticky;
-    top: 0;
-    transition: transform 0.3s ease-in-out;
-    z-index: 1000;
-  }
-
-  /* Class to hide the header when scrolling down */
-  .header-hidden {
-    transform: translateY(-122%);
-  }
-}
