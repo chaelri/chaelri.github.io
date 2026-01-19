@@ -90,6 +90,31 @@ const getSectionLabel = (type) => {
   }
 };
 
+function setupScrollSync() {
+  const monthViews = document.querySelectorAll(".snap-point");
+  console.log(monthViews);
+
+  monthViews.forEach((view) => {
+    // Attach scroll listener to each month view
+    view.addEventListener("scroll", function (e) {
+      const currentScrollTop = e.target.scrollTop;
+      console.log(currentScrollTop);
+
+      // Apply the current scroll position to all other month views
+      monthViews.forEach((otherView) => {
+        // Crucial check: Only update if the scroll position is different
+        // and ensure we are not updating the source of the event
+        if (
+          otherView !== e.target &&
+          otherView.scrollTop !== currentScrollTop
+        ) {
+          otherView.scrollTop = currentScrollTop;
+        }
+      });
+    });
+  });
+}
+
 // --- INIT ---
 window.addEventListener("DOMContentLoaded", async () => {
   const logo = document.getElementById("intro-logo");
@@ -114,7 +139,7 @@ window.addEventListener("DOMContentLoaded", async () => {
       userSelection.classList.remove(
         "opacity-0",
         "translate-y-10",
-        "pointer-events-none"
+        "pointer-events-none",
       );
     }, 500);
   }, 50);
@@ -140,11 +165,10 @@ window.selectUser = async (name) => {
   dbRef = ref(db, path);
 
   document.getElementById("current-user-tag").innerText = name;
-  document.getElementById(
-    "current-user-tag"
-  ).className = `text-[10px] font-black tracking-[0.4em] uppercase ${
-    name === "Charlie" ? "text-blue-400" : "text-rose-400"
-  }`;
+  document.getElementById("current-user-tag").className =
+    `text-[10px] font-black tracking-[0.4em] uppercase ${
+      name === "Charlie" ? "text-blue-400" : "text-rose-400"
+    }`;
 
   try {
     const snapshot = await get(dbRef);
@@ -186,7 +210,10 @@ window.selectUser = async (name) => {
         }
       });
 
-      setTimeout(() => intro.remove(), 700);
+      setTimeout(() => {
+        setupScrollSync();
+        intro.remove();
+      }, 700);
     }, 800);
   } catch (e) {
     console.error("Login failed", e);
@@ -211,8 +238,8 @@ function renderSwiper() {
 
     snap.innerHTML = `
             <section id="dashboard-${idx}" class="relative overflow-hidden bg-gradient-to-br ${
-      monthlyGradients[idx]
-    } p-6 rounded-[2.5rem] shadow-2xl transition-all duration-500">
+              monthlyGradients[idx]
+            } p-6 rounded-[2.5rem] shadow-2xl transition-all duration-500">
                 <div class="relative z-10 space-y-4">
                     <div>
                         <p class="text-white/60 text-[10px] font-black uppercase tracking-widest">Total Current Funds</p>
@@ -239,13 +266,13 @@ function renderSwiper() {
               "INCOME SOURCES",
               "incomeSources",
               "text-emerald-400",
-              idx
+              idx,
             )}
             ${createSectionHtml(
               "FIXED EXPENSES",
               "fixedExpenses",
               "text-slate-300",
-              idx
+              idx,
             )}
             ${createSectionHtml("CREDIT CARDS", "cc", "text-rose-400", idx)}
             ${createSectionHtml("OTHERS", "others", "text-amber-300", idx)}
@@ -290,7 +317,7 @@ function updateAllCalculations() {
     };
     const income = (m.incomeSources || []).reduce(
       (s, i) => s + parseFloat(i.amount || 0),
-      0
+      0,
     );
     const filterPaid = (items) => (items || []).filter((item) => !item.isPaid);
     const expenses = [
@@ -310,13 +337,13 @@ function updateAllCalculations() {
     const view = document.getElementById(`month-view-${idx}`);
     if (!view) return;
     view.querySelector(".total-funds-display").innerText = `₱ ${formatMoney(
-      runningBalance
+      runningBalance,
     )}`;
     view.querySelector(".total-income-display").innerText = `₱ ${formatMoney(
-      income
+      income,
     )}`;
     view.querySelector(".total-expenses-display").innerText = `₱ ${formatMoney(
-      expenses
+      expenses,
     )}`;
     const savingsEl = view.querySelector(".monthly-savings-display");
     const sign = net >= 0 ? "+" : "-";
@@ -362,16 +389,16 @@ function renderRows(monthIdx, key, items, colorClass) {
                   isCurrentMonthEditMode
                     ? `<span class="material-icons text-slate-500 drag-handle text-xl cursor-grab mr-2">drag_indicator</span>` // NEW: Drag handle
                     : isPaid
-                    ? '<span class="material-icons text-emerald-500 text-sm">check_circle</span>'
-                    : ""
+                      ? '<span class="material-icons text-emerald-500 text-sm">check_circle</span>'
+                      : ""
                 }
                 <span class="font-bold ${textColor} text-sm tracking-tight ${
-      isPaid ? "line-through" : ""
-    }">${item.name}</span>
+                  isPaid ? "line-through" : ""
+                }">${item.name}</span>
             </div>
             <span class="font-black ${amountColor}">₱ ${formatMoney(
-      item.amount
-    )}</span>
+              item.amount,
+            )}</span>
         `;
     container.appendChild(div);
   });
@@ -419,7 +446,7 @@ window.toggleEditMode = () => {
 function setupSortableLists(monthIdx) {
   // Only target lists within the current visible month view
   const listContainers = document.querySelectorAll(
-    `#month-view-${monthIdx} .item-list`
+    `#month-view-${monthIdx} .item-list`,
   );
 
   listContainers.forEach((container) => {
@@ -480,7 +507,7 @@ async function reorderItems(monthIdx, type, newOrder) {
 
         reorderedListStructure.forEach((reorderedItem) => {
           const existingItem = monthList.find(
-            (item) => item.id === reorderedItem.id
+            (item) => item.id === reorderedItem.id,
           );
           if (existingItem) {
             newMonthOrder.push(existingItem);
@@ -537,7 +564,7 @@ function renderStats() {
     };
     const income = (m.incomeSources || []).reduce(
       (s, i) => s + parseFloat(i.amount || 0),
-      0
+      0,
     );
     const expenses = [
       ...(m.fixedExpenses || []),
@@ -558,7 +585,7 @@ function renderStats() {
     div.innerHTML = `<div class="flex justify-between text-[10px] font-black uppercase text-slate-500"><span>Annual ${
       cat.label
     }</span><span>₱ ${formatMoney(
-      total
+      total,
     )}</span></div><div class="stat-bar"><div class="stat-fill ${
       cat.color
     }" style="width: ${total > 0 ? "100%" : "0%"}"></div></div>`;
@@ -566,7 +593,7 @@ function renderStats() {
   });
   let maxSavings = Math.max(
     ...monthlyTotals.map((m) => Math.abs(m.savings)),
-    1
+    1,
   );
   monthlyTotals.forEach((m) => {
     const col = document.createElement("div");
@@ -652,10 +679,10 @@ window.openModal = (type, id, name, amount, monthIdx) => {
             .map(
               (log) =>
                 `<div class="flex justify-between items-center bg-slate-900/40 p-3 rounded-xl border border-white/5"><span class="text-[10px] font-bold text-slate-500 uppercase">${new Date(
-                  log.timestamp
+                  log.timestamp,
                 ).toLocaleDateString()}</span><span class="text-sm font-black text-emerald-400">+₱${formatMoney(
-                  log.amount
-                )}</span></div>`
+                  log.amount,
+                )}</span></div>`,
             )
             .reverse()
             .join("")
@@ -803,7 +830,7 @@ async function deleteItem() {
   for (let i = startIdx; i <= endIdx; i++) {
     if (appData.monthlyData[i] && appData.monthlyData[i][type]) {
       appData.monthlyData[i][type] = appData.monthlyData[i][type].filter(
-        (item) => item.id !== id
+        (item) => item.id !== id,
       );
     }
   }
@@ -825,7 +852,7 @@ function setupSwiperObserver() {
           updateHeader(parseInt(entry.target.dataset.index));
       });
     },
-    { root: swiper, threshold: 0.6 }
+    { root: swiper, threshold: 0.6 },
   );
   document.querySelectorAll(".snap-point").forEach((p) => observer.observe(p));
 }
