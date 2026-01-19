@@ -1,4 +1,4 @@
-<!DOCTYPE html>
+<!doctype html>
 <html lang="en">
   <head>
     <base target="_top" />
@@ -39,6 +39,11 @@
         <img src="icons/icon-512.png" alt="Devotion Logo" class="splash-logo" />
       </div>
       <div class="main">
+        <div id="topActions" style="padding: 3rem 16px 0">
+          <button id="homeBtn" class="secondary" hidden>
+            <span class="material-symbols-outlined"> home </span> Back to Home
+          </button>
+        </div>
         <div class="controls smart-header">
           <div class="control">
             <div class="control-label">Book</div>
@@ -67,7 +72,7 @@
 
       <aside class="summary">
         <div id="aiContextSummary"></div>
-        <button id="toggleReflectionBtn"hidden>
+        <button id="toggleReflectionBtn" hidden>
           🙏 Show Guided Reflection
         </button>
 

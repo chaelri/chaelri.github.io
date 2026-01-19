@@ -244,6 +244,18 @@ select:disabled {
   color: #e2e8f0; /* Default text color */
 }
 
+/* NEW: Favorite icon style */
+.material-icons.favorite-indicator {
+  cursor: pointer;
+  transition:
+    color 0.15s ease,
+    transform 0.15s ease;
+}
+
+.material-icons.favorite-indicator:active {
+  transform: scale(0.9);
+}
+
 .controls {
   display: grid;
   grid-template-columns: repeat(2, minmax(0, 1fr));
@@ -338,6 +350,8 @@ select:disabled {
   max-height: none; /* 🔓 allow full height */
   overflow-y: visible; /* 🔓 no clipping */
   box-sizing: border-box;
+  max-width: 600px;
+  margin: 0 auto;
 }
 
 .summary-item {
@@ -644,7 +658,7 @@ select:disabled {
   width: 60%;
 }
 
-/* ---------- LANDING ---------- */
+/* ---------- LANDING / DASHBOARD ---------- */
 .landing {
   min-height: 100%;
   display: flex;
@@ -672,6 +686,143 @@ select:disabled {
   opacity: 0.8;
   line-height: 1.5;
 }
+
+/* NEW: Dashboard specific styles */
+.dashboard {
+  padding: 0; /* REMOVED PADDING */
+  max-width: 600px; /* match bible container width for consistency */
+}
+
+.dashboard h2 {
+  font-size: 2.5rem;
+  font-weight: 800;
+  margin: 0 0 4px;
+  letter-spacing: -2px;
+}
+
+.dashboard-section {
+  margin-top: 30px;
+  padding-bottom: 20px;
+  border-bottom: 1px solid rgba(255, 255, 255, 0.08);
+}
+
+.dashboard-section:last-child {
+  border-bottom: none;
+}
+
+.dashboard-section h3 {
+  font-size: 1.1rem;
+  font-weight: 700;
+  margin: 0 0 10px;
+  color: white;
+  display: flex;
+  align-items: center;
+  gap: 8px;
+}
+
+.dashboard-icon {
+  font-size: 1.2em;
+  color: #db2777; /* Highlight icon */
+}
+
+.dashboard-list {
+  display: flex;
+  flex-direction: column;
+  gap: 10px;
+}
+
+.dashboard-item {
+  background: #141f3a;
+  border-radius: 12px;
+  padding: 12px 14px;
+  cursor: pointer;
+  transition: background-color 0.15s ease;
+  box-shadow: 0 4px 12px rgba(0, 0, 0, 0.15);
+}
+
+.note-preview-wrapper {
+  margin-top: 8px;
+  padding-top: 8px;
+  border-top: 1px dashed rgba(255, 255, 255, 0.1);
+}
+
+.note-label {
+  font-size: 11px;
+  opacity: 0.7;
+  font-weight: 600;
+  color: #facc15;
+  margin-right: 6px;
+}
+
+.dashboard-item:hover {
+  background: #18234a;
+}
+
+.dashboard-ref {
+  font-weight: bold;
+  color: #db2777; /* Use a primary color for the reference */
+  font-size: 1rem;
+  display: block;
+}
+
+.dashboard-verse-text {
+  margin: 4px 0;
+  font-style: italic;
+  opacity: 0.9;
+  font-size: 15px;
+}
+
+.dashboard-preview {
+  margin: 4px 0 0;
+  font-size: 14px;
+  opacity: 0.85;
+  line-height: 1.4;
+  display: inline; /* Make it inline with the note-label */
+}
+
+.dashboard-item time {
+  display: block;
+  text-align: right;
+  font-size: 11px;
+  opacity: 0.5;
+  margin-top: 6px;
+}
+
+.empty-state {
+  opacity: 0.6;
+  font-size: 14px;
+  padding: 8px 10px;
+  background: #111a2f;
+  border-radius: 8px;
+}
+
+#homeBtn {
+  /* Layout */
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  gap: 12px; /* Space between icon and text */
+
+  /* Sizing and Padding */
+  padding: 12px 24px;
+  border-radius: 50px; /* Fully rounded pill shape */
+
+  /* Styling (based on your image) */
+  background-color: transparent;
+  border: 1px solid #333b4d;
+  color: #c5d1f1;
+  font-family: sans-serif;
+  font-weight: 700;
+  cursor: pointer;
+  transition: all 0.2s ease;
+}
+
+#homeBtn:hover {
+  background-color: #1e2536;
+  border-color: #4a5568;
+}
+
+/* VOTD BANNER REMOVED */
 
 .scroll-top-btn {
   position: fixed;

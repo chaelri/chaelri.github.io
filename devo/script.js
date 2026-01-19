@@ -116,6 +116,16 @@ function openDB() {
   });
 }
 
+// NEW: Helper to get all devotion entries for dashboard
+async function getAllDevotionEntries() {
+  const db = await openDB();
+  return new Promise((resolve) => {
+    const req = db.transaction(STORE, "readonly").objectStore(STORE).getAll();
+    req.onsuccess = () => resolve(req.result || []);
+    req.onerror = () => resolve([]);
+  });
+}
+
 /* ---------- VERSE CACHE (INDEXEDDB) ---------- */
 const VERSE_STORE = "verses";
 
@@ -193,6 +203,8 @@ const summaryEl = document.getElementById("summaryContent");
 const loadBtn = document.getElementById("load");
 const copyNotesBtn = document.getElementById("copyNotesBtn");
 copyNotesBtn.style.display = "none";
+
+const homeBtn = document.getElementById("homeBtn");
 
 const notesCopyStatusEl = document.getElementById("notesCopyStatus");
 const toggleReflectionBtn = document.getElementById("toggleReflectionBtn");
@@ -278,6 +290,26 @@ async function loadAIFromStorage() {
 }
 
 let comments = JSON.parse(localStorage.getItem("bibleComments") || "{}");
+
+// NEW: Favorites store
+let favorites = JSON.parse(localStorage.getItem("bibleFavorites") || "{}");
+
+function saveFavorites() {
+  localStorage.setItem("bibleFavorites", JSON.stringify(favorites));
+}
+
+function isFavorite(key) {
+  return !!favorites[key];
+}
+
+function toggleFavorite(key) {
+  if (favorites[key]) {
+    delete favorites[key];
+  } else {
+    favorites[key] = Date.now();
+  }
+  saveFavorites();
+}
 
 /* migrate old notes */
 Object.keys(comments).forEach((k) => {
@@ -610,6 +642,28 @@ function updateControlStates() {
   });
 }
 
+// NEW: Helper to format key back to human-readable reference
+const formatKey = (key) => {
+  const [bookId, chapter, verse] = key.split("-");
+  const bookName = BIBLE_META[bookId]?.name || bookId;
+  return `${bookName} ${chapter}${verse ? ":" + verse : ""}`;
+};
+
+// NEW: Function to load passage from a dashboard link
+function loadPassageById(id) {
+  const [bookId, chapter, verse] = id.split("-");
+
+  // Set the select elements
+  bookEl.value = bookId;
+  loadChapters();
+  chapterEl.value = chapter;
+  loadVerses();
+  verseEl.value = verse || "";
+
+  // Trigger the load button action
+  loadBtn.click();
+}
+
 /* ---------- BOOKS ---------- */
 function loadBooks() {
   bookEl.innerHTML = "";
@@ -624,21 +678,20 @@ function loadBooks() {
   bookEl.value = "JHN";
   loadChapters();
 }
-function showLanding() {
-  lockAppScroll(true);
+
+// Renamed and updated from showLanding to showDashboard
+async function showDashboard() {
+  if (!bibleData) {
+    await fetchBibleData();
+  }
+
+  // lockAppScroll(true); // FIX: Removed to allow dashboard scrolling on mobile
   document.querySelector(".summary").style.display = "none";
 
-  output.innerHTML = `
-    <div class="landing">
-      <div class="landing-card">
-        <h2>Open the Word 📖</h2>
-        <p>Select a book and chapter, then press <strong>Search</strong>.</p>
-      </div>
-    </div>
-  `;
   passageTitleEl.hidden = true;
   toggleReflectionBtn.hidden = true;
   summaryTitleEl.hidden = true;
+  homeBtn.style.display = "none"; // HIDE HOME BUTTON ON DASHBOARD
 
   aiContextSummaryEl.innerHTML = "";
   const reflection = document.getElementById("aiReflection");
@@ -649,6 +702,220 @@ function showLanding() {
 
   summaryEl.innerHTML = "";
   copyNotesBtn.style.display = "none";
+
+  // Display loading state first
+  output.innerHTML = `
+    <div class="landing">
+      <div class="landing-card">
+        <h2>Loading Dashboard...</h2>
+      </div>
+    </div>
+  `;
+
+  // Ensure layout is unset for dashboard view to allow vertical scrolling
+  document.querySelector(".layout").classList.add("layout-unset");
+
+  await renderDashboard();
+}
+
+// New helper function to get verse text from loaded JSON
+function getVerseText(bookId, chapter, verse) {
+  const bookName = BIBLE_META[bookId]?.name.toUpperCase();
+  if (
+    !bibleData ||
+    !bookName ||
+    !bibleData[bookName] ||
+    !bibleData[bookName][chapter] ||
+    !bibleData[bookName][chapter][verse]
+  ) {
+    return "Verse text not found.";
+  }
+  return bibleData[bookName][chapter][verse].trim().replace(/\s+/g, " ");
+}
+
+async function renderDashboard() {
+  const favoritesKeys = Object.keys(favorites).sort(
+    (a, b) => favorites[b] - favorites[a],
+  );
+
+  // 1. Get favorite passages data (UPDATED)
+  const favoritePassages = favoritesKeys.map((key) => {
+    const [bookId, chapter, verse] = key.split("-");
+    const verseToFetch = verse || "1"; // Default to verse 1 if chapter selected
+    const verseText = getVerseText(bookId, chapter, verseToFetch);
+    return {
+      key,
+      verseText,
+      time: favorites[key],
+    };
+  });
+
+  // 1. Get recent notes (from localStorage)
+  let recentNotes = [];
+  Object.entries(comments).forEach(([key, list]) => {
+    if (list && list.length) {
+      // Get the timestamp of the very last note added
+      const latestNote = list.slice(-1)[0];
+      const [bookId, chapter, verse] = key.split("-");
+      // Only fetch verse text for specific verses, or the first verse if it's a chapter-only note.
+      const verseToFetch = verse || "1";
+      const verseText = getVerseText(bookId, chapter, verseToFetch);
+
+      recentNotes.push({
+        key,
+        latestNoteTime: latestNote.time,
+        noteText: latestNote.text,
+        verseText,
+      });
+    }
+  });
+  recentNotes.sort((a, b) => b.latestNoteTime - a.latestNoteTime);
+
+  // 2. Get reflection answer counts and actual Q&A from localStorage (UPDATED TO REMOVE IDB DEPENDENCY)
+  const reflectionPassages = {}; // Store { passageId: { QAs: ["Q:...\nA:...", ...], keys: ["reflection-JHN-1-1-0", ...], latestTime: 0 } }
+
+  for (let i = 0; i < localStorage.length; i++) {
+    const key = localStorage.key(i);
+    if (key.startsWith("reflection-")) {
+      const reflectionIdParts = key.split("-");
+      // The structure is reflection-B-C-V-INDEX. The passage ID is B-C-V.
+      // Note: Passage ID here is B-C-V if single verse, or B-C- if whole chapter
+      const passageId = reflectionIdParts.slice(1, 4).join("-");
+
+      const rawValue = localStorage.getItem(key);
+      const answer = rawValue.split("\nA: ")[1]?.trim() || "";
+
+      if (answer.length > 0) {
+        if (!reflectionPassages[passageId]) {
+          reflectionPassages[passageId] = { QAs: [], keys: [] };
+        }
+        reflectionPassages[passageId].QAs.push(rawValue); // Store the full Q&A string
+        reflectionPassages[passageId].keys.push(key);
+        // NOTE: Since the only timestamp is on 'comment' entries, and we cannot use IDB,
+        // we can't reliably sort reflection passages by time. We'll simply list them.
+      }
+    }
+  }
+
+  // 3. Prepare recent reflections data structure
+  let recentReflections = Object.keys(reflectionPassages).map((passageId) => {
+    const data = reflectionPassages[passageId];
+    return {
+      id: passageId,
+      // Since no reliable timestamp is available, we use the average time of the notes
+      // to try and guess the correct order, falling back to 0 if no notes exist.
+      // Fallback to 0 if no notes, relying on JS object key insertion order otherwise (unreliable but necessary without proper data).
+      updatedAt:
+        recentNotes.find((n) => n.key.startsWith(passageId))?.latestNoteTime ||
+        0,
+      reflectionCount: data.QAs.length,
+      QAs: data.QAs,
+    };
+  });
+
+  // Sort by the best available proxy time
+  recentReflections.sort((a, b) => b.updatedAt - a.updatedAt);
+
+  // Clean up the updatedAt proxy if it was 0 for better visual presentation in dashboard
+  recentReflections = recentReflections.map((r) => ({
+    ...r,
+    updatedAt: r.updatedAt || Date.now(), // Fallback to current time if 0, so it displays something
+  }));
+
+  const dashboardHTML = `
+    <div class="dashboard ai-fade-in">
+        
+      <h2>Your Dashboard</h2>
+
+      <!-- FAVORITE PASSAGES -->
+      <section class="dashboard-section">
+        <h3><span class="material-icons dashboard-icon">favorite</span> Favorite Passages</h3>
+        ${
+          favoritesKeys.length
+            ? `<div class="dashboard-list">
+            ${favoritePassages
+              .map(
+                (item) => `
+              <div class="dashboard-item" onclick="loadPassageById('${item.key}')">
+                <span class="dashboard-ref">${formatKey(item.key)}</span>
+                <p class="dashboard-verse-text">${item.verseText}</p>
+                <time>${new Date(item.time).toLocaleDateString()}</time>
+              </div>
+            `,
+              )
+              .join("")}
+          </div>`
+            : `<p class="empty-state">No favorite verses yet. Click the <span class="material-icons" style="font-size:1em; vertical-align:middle; color:#facc15;">favorite_border</span> icon next to a verse to add one!</p>`
+        }
+      </section>
+
+      <!-- RECENT NOTES -->
+      <section class="dashboard-section">
+        <h3><span class="material-icons dashboard-icon">edit_note</span> Recent Notes</h3>
+        ${
+          recentNotes.slice(0, 5).length
+            ? `<div class="dashboard-list">
+            ${recentNotes
+              .slice(0, 5)
+              .map(
+                (item) => `
+              <div class="dashboard-item dashboard-item-notes" onclick="loadPassageById('${item.key}')">
+                <span class="dashboard-ref">${formatKey(item.key)}</span>
+                <p class="dashboard-verse-text">${item.verseText}</p>
+                <div class="note-preview-wrapper">
+                    <span class="note-label">NOTE:</span>
+                    <p class="dashboard-preview">"${item.noteText.substring(0, 70).replace(/\n/g, " ")}..."</p>
+                </div>
+                <time>${new Date(item.latestNoteTime).toLocaleDateString()}</time>
+              </div>
+            `,
+              )
+              .join("")}
+          </div>`
+            : `<p class="empty-state">No notes saved recently. Start searching for a passage!</p>`
+        }
+      </section>
+
+      <!-- RECENT REFLECTIONS -->
+      <section class="dashboard-section">
+        <h3><span class="material-icons dashboard-icon">psychology_alt</span> Recent Reflections</h3>
+        ${
+          recentReflections.slice(0, 5).length
+            ? `<div class="dashboard-list">
+            ${recentReflections
+              .slice(0, 5)
+              .map(
+                (entry) => `
+              <div class="dashboard-item" onclick="loadPassageById('${entry.id}')">
+                <span class="dashboard-ref">${formatKey(entry.id)} (${entry.reflectionCount} questions)</span>
+                <div class="reflection-qas">
+                    ${entry.QAs.map((qa) => {
+                      // Q&A text stored as "Q: [Question]\nA: [Answer]"
+                      const parts = qa.split("\nA: ");
+                      const question = parts[0].replace("Q: ", "").trim();
+                      const answer = parts[1]?.trim() || "No answer recorded.";
+
+                      return `
+                            <div class="qa-pair" style="margin-top: 10px; padding: 8px 0; border-top: 1px solid rgba(255, 255, 255, 0.05);">
+                                <p style="font-size: 14px; font-weight: 600; margin: 0 0 4px; color: #a5b4fc;">Q: ${question}</p>
+                                <p style="font-size: 14px; margin: 0; opacity: 0.8;">A: ${answer}</p>
+                            </div>
+                        `;
+                    }).join("")}
+                </div>
+                <time>Last noted ${new Date(entry.updatedAt).toLocaleDateString()}</time>
+              </div>
+            `,
+              )
+              .join("")}
+          </div>`
+            : `<p class="empty-state">No reflections saved. Load a passage to use the Guided Reflection feature.</p>`
+        }
+      </section>
+    </div>
+  `;
+
+  output.innerHTML = dashboardHTML;
 }
 
 /* ---------- CHAPTERS ---------- */
@@ -679,7 +946,7 @@ function loadVerses() {
     verseEl.appendChild(o);
   }
 
-  if (!output.querySelector(".landing")) {
+  if (!output.querySelector(".dashboard")) {
     updatePassageTitle();
   }
 
@@ -722,6 +989,7 @@ async function loadPassage() {
   passageTitleEl.hidden = false;
   toggleReflectionBtn.hidden = false;
   summaryTitleEl.hidden = false;
+  homeBtn.style.display = "inline-flex"; // SHOW HOME BUTTON
 
   try {
     titleForGemini = passageTitleEl.textContent;
@@ -775,6 +1043,7 @@ async function loadPassage() {
     verses.forEach((v) => {
       const key = keyOf(v.book_id, v.chapter, v.verse);
       const count = comments[key]?.length || 0;
+      const isFav = isFavorite(key);
 
       let formattedText = "";
 
@@ -814,15 +1083,21 @@ async function loadPassage() {
         }" class="verse-header" style="display:flex; justify-content:space-between; align-items:flex-start;">
           <div class="verse-content">
             <span class="verse-num">${v.verse}</span>${formattedText}
-            ${
-              count
-                ? `
-              <span class="comment-indicator" style="display:inline-flex; align-items:center; margin-left:8px; opacity:0.6;">
-                <span class="material-icons" style="font-size:14px; margin-right:2px;">chat_bubble</span>
-                <span style="font-size:12px;">${count}</span>
-              </span>`
-                : ""
-            }
+            <!-- RENDER meta-indicators ALWAYS for the favorite icon -->
+            <span class="verse-meta-indicators" style="display:inline-flex; align-items:center; margin-left:8px; opacity:0.6;">
+              <span class="material-icons favorite-indicator" style="font-size:14px; margin-right:4px; ${
+                isFav ? 'color:#facc15;"' : '"'
+              } data-key="${key}">${isFav ? "favorite" : "favorite_border"}</span>
+              ${
+                count
+                  ? `
+                <span class="comment-indicator" style="display:inline-flex; align-items:center;">
+                  <span class="material-icons" style="font-size:14px; margin-right:2px;">chat_bubble</span>
+                  <span style="font-size:12px;">${count}</span>
+                </span>`
+                  : ""
+              }
+            </span>
           </div>
           <div class="verse-actions">
             <button class="inline-ai-btn" title="Quick verse context">✨</button>
@@ -836,6 +1111,10 @@ async function loadPassage() {
       const commentsEl = wrap.querySelector(".comments");
       const headerEl = wrap.querySelector(".verse-header");
       const aiBtn = wrap.querySelector(".inline-ai-btn");
+
+      // New: Favorite icon listener
+      const favIndicator = wrap.querySelector(".favorite-indicator");
+      const metaIndicators = wrap.querySelector(".verse-meta-indicators");
 
       headerEl.onclick = () => {
         commentsEl.hidden = !commentsEl.hidden;
@@ -859,6 +1138,17 @@ async function loadPassage() {
           mount,
         );
       };
+
+      if (favIndicator) {
+        favIndicator.onclick = (e) => {
+          e.stopPropagation();
+          toggleFavorite(key);
+          const isFavNow = isFavorite(key);
+
+          favIndicator.textContent = isFavNow ? "favorite" : "favorite_border";
+          favIndicator.style.color = isFavNow ? "#facc15" : "";
+        };
+      }
 
       output.appendChild(wrap);
     });
@@ -1230,27 +1520,57 @@ function renderComments(key, container) {
   container.appendChild(commentLabel);
   const verseIndex = key.split("-").pop();
   const verseHeader = document.getElementById(verseIndex);
-  // Find the flex container that holds buttons and the indicator
-  const controls = verseHeader.children[0];
+  // Find the flex container that holds the verse content
+  const verseContent = verseHeader.children[0];
 
-  const updateIndicator = (newCount) => {
-    if (!controls) return;
-    let indicator = controls.querySelector(".comment-indicator");
+  const updateMetaIndicators = (newCount) => {
+    const isFav = isFavorite(key);
+    let metaIndicators = verseContent.querySelector(".verse-meta-indicators");
 
+    // Ensure the container exists (it should always exist now as per loadPassage)
+    if (!metaIndicators) {
+      metaIndicators = document.createElement("span");
+      metaIndicators.className = "verse-meta-indicators";
+      metaIndicators.style.cssText =
+        "display:inline-flex; align-items:center; margin-left:8px; opacity:0.6;";
+      // Append it to verseContent, after the text
+      verseContent.appendChild(metaIndicators);
+    }
+
+    // 1. Update/create Favorite Indicator
+    let favIndicator = metaIndicators.querySelector(".favorite-indicator");
+    if (!favIndicator) {
+      favIndicator = document.createElement("span");
+      favIndicator.className = "material-icons favorite-indicator";
+      favIndicator.style.cssText = "font-size:14px; margin-right:4px;";
+      favIndicator.setAttribute("data-key", key);
+      metaIndicators.prepend(favIndicator);
+
+      favIndicator.onclick = (e) => {
+        e.stopPropagation();
+        toggleFavorite(key);
+        updateMetaIndicators(comments[key]?.length || 0); // Re-run to update icon
+      };
+    }
+    favIndicator.textContent = isFav ? "favorite" : "favorite_border";
+    favIndicator.style.color = isFav ? "#facc15" : "";
+
+    // 2. Update/create Comment Count Indicator
+    let commentIndicator = metaIndicators.querySelector(".comment-indicator");
     if (newCount > 0) {
-      if (!indicator) {
-        indicator = document.createElement("div");
-        indicator.className = "comment-indicator";
-        controls.appendChild(indicator);
+      if (!commentIndicator) {
+        commentIndicator = document.createElement("span");
+        commentIndicator.className = "comment-indicator";
+        commentIndicator.style.cssText =
+          "display:inline-flex; align-items:center;";
+        metaIndicators.appendChild(commentIndicator);
       }
-      indicator.innerHTML = `
-        <span style="font-family: 'Material Icons'; font-size: 0.875rem;">
-          chat_bubble
-        </span> 
-        <span style="font-size: 0.875rem;">${newCount}</span>
-      `;
-    } else if (indicator) {
-      indicator.remove();
+      commentIndicator.innerHTML = `
+          <span class="material-icons" style="font-size:14px; margin-right:2px;">chat_bubble</span>
+          <span style="font-size:12px;">${newCount}</span>
+        `;
+    } else if (commentIndicator) {
+      commentIndicator.remove();
     }
   };
 
@@ -1265,7 +1585,7 @@ function renderComments(key, container) {
       saveComments();
       renderComments(key, container);
       renderSummary();
-      updateIndicator(comments[key].length); // Use actual array length for accuracy
+      updateMetaIndicators(comments[key].length);
     };
     container.appendChild(c);
   });
@@ -1281,10 +1601,19 @@ function renderComments(key, container) {
     saveComments();
     renderComments(key, container);
     renderSummary();
-    updateIndicator(comments[key].length);
+    updateMetaIndicators(comments[key].length);
   };
 
   container.appendChild(input);
+
+  // Initial call to ensure indicators are correct when comments pane opens
+  const metaIndicators = verseContent.querySelector(".verse-meta-indicators");
+  if (!metaIndicators) {
+    // Should not happen now that loadPassage renders it always, but for safety
+    updateMetaIndicators(list.length);
+  } else {
+    updateMetaIndicators(list.length);
+  }
 }
 
 /* ---------- SUMMARY ---------- */
@@ -1375,10 +1704,18 @@ loadBtn.onclick = async () => {
   await runAIForCurrentPassage();
 };
 
+homeBtn.onclick = () => {
+  output.innerHTML = "";
+  resetAISections();
+  showDashboard();
+  // Keep layout-unset for dashboard view to allow scroll
+  // document.querySelector(".layout").classList.add("layout-unset");
+};
+
 /* ---------- INIT ---------- */
 fetchBibleData(); // Load the JSON file on startup
 loadBooks();
-showLanding();
+showDashboard(); // Changed from showLanding()
 updateControlStates();
 
 (async () => {
