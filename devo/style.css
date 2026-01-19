@@ -1109,3 +1109,7 @@ html {
   margin: 12px auto;
   width: 100%;
 }
+
+.layout-unset {
+  grid-template-columns: unset;
+}

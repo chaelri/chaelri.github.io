@@ -713,6 +713,7 @@ async function fetchAllOriginsUnli(url) {
 
 /* ---------- LOAD PASSAGE ---------- */
 async function loadPassage() {
+  document.querySelector(".layout").classList.remove("layout-unset");
   showLoading();
   lockAppScroll(false);
   updatePassageTitle();
