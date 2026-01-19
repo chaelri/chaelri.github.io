@@ -1479,6 +1479,7 @@ function smoothScrollTo(target, duration = 700) {
   if (!container || !target) return;
 
   isAutoScrolling = true;
+  document.querySelector(".smart-header").classList.add("header-hidden");
 
   const startY = container.scrollTop;
 
