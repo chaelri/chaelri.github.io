@@ -13,6 +13,8 @@ body {
 body {
   font-family: system-ui, -apple-system, BlinkMacSystemFont, sans-serif;
   color: #e6edf7;
+  min-height: 100vh;
+  padding-bottom: env(safe-area-inset-bottom);
 }
 
 /* ===== APP SCROLL CONTAINER ===== */
