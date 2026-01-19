@@ -1030,7 +1030,7 @@ font-family: system-ui, -apple-system, BlinkMacSystemFont, sans-serif;
 font-size: 16px;
 line-height: 1.4;
 color: #ffffff;
-max-width: 360px;
+width: 100%;
 margin-bottom: 2rem;
 box-sizing: border-box;
 
@@ -1473,9 +1473,12 @@ document.addEventListener("click", (e) => {
   target.classList.add("verse-highlight");
 });
 
+let isAutoScrolling = false; // Global flag
 function smoothScrollTo(target, duration = 700) {
   const container = document.querySelector(".layout");
   if (!container || !target) return;
+
+  isAutoScrolling = true;
 
   const startY = container.scrollTop;
 
@@ -1506,6 +1509,11 @@ function smoothScrollTo(target, duration = 700) {
 
     if (progress < 1) {
       requestAnimationFrame(step);
+    } else {
+      // UNLOCK: Delay slightly to ensure the scroll event finishes firing
+      setTimeout(() => {
+        isAutoScrolling = false;
+      }, 50);
     }
   }
 
@@ -1519,6 +1527,7 @@ const layout = document.querySelector(".layout");
 let lastScrollY = layout.scrollTop;
 
 layout.addEventListener("scroll", () => {
+  if (isAutoScrolling) return;
   const currentScrollY = layout.scrollTop;
 
   if (currentScrollY > lastScrollY && currentScrollY > 50) {

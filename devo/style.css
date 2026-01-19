@@ -22,7 +22,7 @@ body {
   display: grid;
   grid-template-columns: minmax(0, 1fr) minmax(320px, 380px);
   gap: 20px;
-  height: 120dvh;
+  height: 100dvh;
   padding: 0 1rem 3rem 1rem;
   overflow-x: hidden;
   overflow-y: auto;
@@ -57,10 +57,6 @@ body {
     width: 100%;
     margin-top: 20px;
   }
-}
-
-#summaryContent {
-  padding-right: 38px;
 }
 
 select,
@@ -138,6 +134,7 @@ button:active {
     position: sticky;
     bottom: 12px;
     z-index: 5;
+    grid-column: 2;
   }
 }
 
@@ -238,6 +235,7 @@ select:disabled {
   box-shadow: 0 12px 30px rgba(0, 0, 0, 0.35);
 
   margin-bottom: 16px;
+  align-items: end;
 }
 
 @media (min-width: 900px) {
@@ -313,6 +311,7 @@ select:disabled {
   position: relative; /* 🔓 remove sticky trap */
   max-height: none; /* 🔓 allow full height */
   overflow-y: visible; /* 🔓 no clipping */
+  box-sizing: border-box;
 }
 
 .summary-item {
@@ -677,6 +676,7 @@ select:disabled {
 
 #aiReflection ol {
   padding-inline-start: 1rem;
+  padding-inline-end: 1rem;
 }
 
 #aiReflection textarea {
@@ -687,13 +687,12 @@ select:disabled {
   height: calc(5 * 1.5em);
 }
 
-#aiReflection h1 {
-  font-size: 1.5rem;
+#aiReflection textarea::-webkit-scrollbar {
+  display: none;
 }
 
-#aiReflection,
-#aiContextSummary {
-  margin-right: 3rem;
+#aiReflection h1 {
+  font-size: 1.5rem;
 }
 
 #aiContextSummary .ai-fade-in {
@@ -746,11 +745,6 @@ html {
     padding-left: 0;
     border-left: 0;
   }
-}
-
-/* Optional: spacing so scroll lands nicely */
-[id] {
-  scroll-margin-top: 90px;
 }
 
 /* ---------- INLINE AI ACTIONS ---------- */
