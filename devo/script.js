@@ -845,7 +845,7 @@ async function renderDashboard() {
               )
               .join("")}
           </div>`
-            : `<p class="empty-state">No favorite verses yet. Click the <span class="material-icons" style="font-size:1em; vertical-align:middle; color:#facc15;">favorite_border</span> icon next to a verse to add one!</p>`
+            : `<p class="empty-state">No favorite verses yet. Click the <span class="material-icons" style="font-size:1em; vertical-align:middle; color:#c83086;">favorite_border</span> icon next to a verse to add one!</p>`
         }
       </section>
 
@@ -1086,7 +1086,7 @@ async function loadPassage() {
             <!-- RENDER meta-indicators ALWAYS for the favorite icon -->
             <span class="verse-meta-indicators" style="display:inline-flex; align-items:center; margin-left:8px; opacity:0.6;">
               <span class="material-icons favorite-indicator" style="font-size:14px; margin-right:4px; ${
-                isFav ? 'color:#facc15;"' : '"'
+                isFav ? 'color:#c83086;"' : '"'
               } data-key="${key}">${isFav ? "favorite" : "favorite_border"}</span>
               ${
                 count
@@ -1146,7 +1146,7 @@ async function loadPassage() {
           const isFavNow = isFavorite(key);
 
           favIndicator.textContent = isFavNow ? "favorite" : "favorite_border";
-          favIndicator.style.color = isFavNow ? "#facc15" : "";
+          favIndicator.style.color = isFavNow ? "#c83086" : "";
         };
       }
 
@@ -1553,7 +1553,7 @@ function renderComments(key, container) {
       };
     }
     favIndicator.textContent = isFav ? "favorite" : "favorite_border";
-    favIndicator.style.color = isFav ? "#facc15" : "";
+    favIndicator.style.color = isFav ? "#c83086" : "";
 
     // 2. Update/create Comment Count Indicator
     let commentIndicator = metaIndicators.querySelector(".comment-indicator");
