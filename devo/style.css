@@ -31,6 +31,8 @@ body {
   overflow-x: hidden;
   overflow-y: auto;
   -webkit-overflow-scrolling: touch;
+  max-width: 1200px;
+  margin: auto;
 }
 
 .layout > * {
@@ -213,6 +215,7 @@ select:disabled {
 .bible {
   border-radius: 18px;
   padding: 20px;
+  max-width: 600px;
 }
 
 .verse {
@@ -255,6 +258,7 @@ select:disabled {
 
   margin-bottom: 16px;
   align-items: end;
+  max-width: 600px;
 }
 .controls select {
   border: 0;
@@ -262,7 +266,6 @@ select:disabled {
 
 @media (min-width: 900px) {
   .controls {
-    grid-template-columns: 2.2fr 1fr 1.3fr 0.9fr 0.9fr auto;
     align-items: end;
   }
 }
@@ -329,7 +332,7 @@ select:disabled {
 .summary {
   background: linear-gradient(180deg, #0f172a, #0c1425);
   border-radius: 18px;
-  padding: 2rem 2rem 20rem;
+  padding: 2rem 0 20rem;
 
   position: relative; /* 🔓 remove sticky trap */
   max-height: none; /* 🔓 allow full height */
