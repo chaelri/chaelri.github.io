@@ -343,10 +343,8 @@ select:disabled {
 
 /* ---------- SUMMARY ---------- */
 .summary {
-  background: linear-gradient(180deg, #0f172a, #0c1425);
   border-radius: 18px;
   padding: 2rem 0 20rem;
-
   position: relative; /* 🔓 remove sticky trap */
   max-height: none; /* 🔓 allow full height */
   overflow-y: visible; /* 🔓 no clipping */
@@ -1265,7 +1263,7 @@ html {
 .main {
   display: flex;
   flex-direction: column;
-  margin: auto;
+  margin: 0 auto;
 }
 
 #aiReflection {
