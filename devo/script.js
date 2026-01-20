@@ -1709,7 +1709,7 @@ function renderSummary() {
   items.forEach((item) => {
     const block = document.createElement("div");
     block.className = "summary-item";
-    block.innerHTML = `<div class="summary-verse">Verse ${item.verseNum}</div>`;
+    block.innerHTML = `<a href="#${item.verseNum}" class="summary-verse">Verse ${item.verseNum}</a>`;
 
     item.list.forEach((n) => {
       const note = document.createElement("div");
@@ -1950,3 +1950,40 @@ window.addEventListener("load", () => {
     splash.classList.add("splash-hidden");
   }, 1000);
 });
+
+const tx = document.queryS; // 1. Initial height adjustment for existing textareas in #aiReflection
+const aiTextareas = document.querySelectorAll("#aiReflection textarea");
+
+aiTextareas.forEach((textarea) => {
+  textarea.style.overflowY = "hidden";
+  autoExpand(textarea); // Set initial height based on content
+});
+
+// 2. Event Listener restricted only to #aiReflection textareas
+document.addEventListener(
+  "input",
+  function (event) {
+    // Check if the element is a textarea AND is inside #aiReflection
+    if (
+      event.target.tagName.toLowerCase() === "textarea" &&
+      event.target.closest("#aiReflection")
+    ) {
+      autoExpand(event.target);
+    }
+  },
+  false,
+);
+
+function autoExpand(field) {
+  // Reset field height so it can shrink
+  field.style.height = "inherit";
+
+  // Calculate the height
+  const computed = window.getComputedStyle(field);
+  const height =
+    field.scrollHeight +
+    parseInt(computed.getPropertyValue("border-top-width"), 10) +
+    parseInt(computed.getPropertyValue("border-bottom-width"), 10);
+
+  field.style.height = height + "px";
+}

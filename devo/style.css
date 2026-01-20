@@ -360,22 +360,25 @@ select:disabled {
 }
 
 .summary-verse {
-  color: #7cc3ff;
+  color: white;
   font-weight: 700;
-  margin-bottom: 6px;
   font-size: 0.6rem;
   font-family: "Google Sans Flex";
   letter-spacing: 3px;
-  opacity: 0.3;
-  padding-bottom: 0.6rem;
+  opacity: 0.5;
   text-transform: uppercase;
+  text-decoration: none;
+  display: block;
+  padding-bottom: 1rem;
 }
 
 .summary-note {
-  background: #141f3a;
+  background: #00000063;
+  box-shadow: 0 4px 12px rgba(0, 0, 0, 0.35);
   border-radius: 12px;
   padding: 10px 12px;
   margin-bottom: 8px;
+  opacity: 0.8;
   font-size: 14px;
 }
 
@@ -891,7 +894,9 @@ select:disabled {
   box-sizing: border-box;
   margin: 1rem 0;
   resize: none;
-  height: calc(5 * 1.5em);
+  min-height: 120px;
+  height: auto;
+  overflow: hidden;
 }
 
 #aiReflection textarea::-webkit-scrollbar {
