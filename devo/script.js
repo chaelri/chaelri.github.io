@@ -1,5 +1,8 @@
 const API_WEB = "https://bible-api.com/data/web";
 
+const FAV_PAGE_SIZE = 5;
+let favoritesPage = 0;
+
 /* ---------- MODAL HANDLING ---------- */
 const modalOverlay = document.getElementById("modalOverlay");
 const modalClose = document.getElementById("modalClose");
@@ -693,6 +696,8 @@ async function showDashboard() {
   summaryTitleEl.hidden = true;
   homeBtn.style.display = "none"; // HIDE HOME BUTTON ON DASHBOARD
 
+  favoritesPage = 0;
+
   aiContextSummaryEl.innerHTML = "";
   const reflection = document.getElementById("aiReflection");
   if (reflection) {
@@ -739,7 +744,7 @@ async function renderDashboard() {
   );
 
   // 1. Get favorite passages data (UPDATED)
-  const favoritePassages = favoritesKeys.map((key) => {
+  const allFavoritePassages = favoritesKeys.map((key) => {
     const [bookId, chapter, verse] = key.split("-");
     const verseToFetch = verse || "1"; // Default to verse 1 if chapter selected
     const verseText = getVerseText(bookId, chapter, verseToFetch);
@@ -749,6 +754,15 @@ async function renderDashboard() {
       time: favorites[key],
     };
   });
+
+  const startFavIndex = favoritesPage * FAV_PAGE_SIZE;
+  const endFavIndex = startFavIndex + FAV_PAGE_SIZE;
+  const favoritePassages = allFavoritePassages.slice(
+    startFavIndex,
+    endFavIndex,
+  );
+
+  const totalFavPages = Math.ceil(allFavoritePassages.length / FAV_PAGE_SIZE);
 
   // 1. Get recent notes (from localStorage)
   let recentNotes = [];
@@ -827,9 +841,9 @@ async function renderDashboard() {
         
       <h2>Your Dashboard</h2>
 
-      <!-- FAVORITE PASSAGES -->
+      <!-- FAVORITES -->
       <section class="dashboard-section">
-        <h3><span class="material-icons dashboard-icon">favorite</span> Favorite Passages</h3>
+        <h3><span class="material-icons dashboard-icon">favorite</span> Favorites</h3>
         ${
           favoritesKeys.length
             ? `<div class="dashboard-list">
@@ -844,8 +858,17 @@ async function renderDashboard() {
             `,
               )
               .join("")}
-          </div>`
-            : `<p class="empty-state">No favorite verses yet. Click the <span class="material-icons" style="font-size:1em; vertical-align:middle; color:#c83086;">favorite_border</span> icon next to a verse to add one!</p>`
+          </div>
+          ${
+            totalFavPages > 1
+              ? `<div style="display:flex; justify-content: space-between; margin-top: 10px;">
+                    <button class="secondary" id="favPrevBtn" ${favoritesPage === 0 ? "disabled" : ""} style="opacity: 1;"><span class="material-icons dashboard-icon">chevron_left</span></button>
+                    <span style="font-size:12px; opacity: 0.7; align-self: center; text-transform: uppercase;">Page ${favoritesPage + 1} of ${totalFavPages}</span>
+                    <button class="secondary" id="favNextBtn" ${favoritesPage >= totalFavPages - 1 ? "disabled" : ""} style="opacity: 1;"><span class="material-icons dashboard-icon">chevron_right</span></button>
+                 </div>`
+              : ""
+          }`
+            : `<p class="empty-state">No favorite verses yet. Click the <span class="material-icons" style="font-size:1em; vertical-align:middle; color:#facc15;">favorite_border</span> icon next to a verse to add one!</p>`
         }
       </section>
 
@@ -916,6 +939,21 @@ async function renderDashboard() {
   `;
 
   output.innerHTML = dashboardHTML;
+
+  const favPrevBtn = document.getElementById("favPrevBtn");
+  const favNextBtn = document.getElementById("favNextBtn");
+
+  if (favPrevBtn) {
+    favPrevBtn.onclick = () => changeFavoritesPage(-1);
+  }
+  if (favNextBtn) {
+    favNextBtn.onclick = () => changeFavoritesPage(1);
+  }
+}
+
+function changeFavoritesPage(delta) {
+  favoritesPage = Math.max(0, favoritesPage + delta);
+  renderDashboard();
 }
 
 /* ---------- CHAPTERS ---------- */

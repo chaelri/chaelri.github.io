@@ -185,6 +185,7 @@ button.secondary {
   background: transparent;
   color: #c7d2fe;
   border: 1px solid rgba(255, 255, 255, 0.12);
+  padding: 4px 12px;
 }
 
 button:disabled,
@@ -723,6 +724,7 @@ select:disabled {
 .dashboard-icon {
   font-size: 1.2em;
   color: #db2777; /* Highlight icon */
+  line-height: 1.4;
 }
 
 .dashboard-list {
@@ -760,9 +762,11 @@ select:disabled {
 
 .dashboard-ref {
   font-weight: bold;
-  color: #db2777; /* Use a primary color for the reference */
-  font-size: 1rem;
+  color: #db2777;
+  font-size: 1.5rem;
   display: block;
+  text-transform: uppercase;
+  letter-spacing: -2px;
 }
 
 .dashboard-verse-text {
