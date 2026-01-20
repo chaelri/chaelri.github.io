@@ -766,23 +766,26 @@ async function renderDashboard() {
 
   // 1. Get recent notes (from localStorage)
   let recentNotes = [];
+
   Object.entries(comments).forEach(([key, list]) => {
     if (list && list.length) {
-      // Get the timestamp of the very last note added
-      const latestNote = list.slice(-1)[0];
       const [bookId, chapter, verse] = key.split("-");
-      // Only fetch verse text for specific verses, or the first verse if it's a chapter-only note.
       const verseToFetch = verse || "1";
       const verseText = getVerseText(bookId, chapter, verseToFetch);
 
-      recentNotes.push({
-        key,
-        latestNoteTime: latestNote.time,
-        noteText: latestNote.text,
-        verseText,
+      // Push EVERY note in the list to the recentNotes array
+      list.forEach((note) => {
+        recentNotes.push({
+          key,
+          latestNoteTime: note.time, // Using the individual note time
+          noteText: note.text, // Using the individual note text
+          verseText,
+        });
       });
     }
   });
+
+  // Sort globally so the absolute newest notes appear first
   recentNotes.sort((a, b) => b.latestNoteTime - a.latestNoteTime);
 
   // 2. Get reflection answer counts and actual Q&A from localStorage (UPDATED TO REMOVE IDB DEPENDENCY)
@@ -876,26 +879,27 @@ async function renderDashboard() {
       <section class="dashboard-section">
         <h3><span class="material-icons dashboard-icon">edit_note</span> Recent Notes</h3>
         ${
-          recentNotes.slice(0, 5).length
+          recentNotes.length
             ? `<div class="dashboard-list">
             ${recentNotes
               .slice(0, 5)
               .map(
                 (item) => `
               <div class="dashboard-item dashboard-item-notes" onclick="loadPassageById('${item.key}')">
-                <span class="dashboard-ref">${formatKey(item.key)}</span>
-                <p class="dashboard-verse-text">${item.verseText}</p>
-                <div class="note-preview-wrapper">
-                    <span class="note-label">NOTE:</span>
-                    <p class="dashboard-preview">"${item.noteText.substring(0, 70).replace(/\n/g, " ")}..."</p>
+                <div class="note-header">
+                  <span class="dashboard-ref">${formatKey(item.key)}</span>
+                  <time>${new Date(item.latestNoteTime).toLocaleDateString()}</time>
                 </div>
-                <time>${new Date(item.latestNoteTime).toLocaleDateString()}</time>
+                <p class="dashboard-verse-text">"${item.verseText}"</p>
+                <div class="note-preview-wrapper">
+                    <p class="dashboard-preview">${item.noteText}</p>
+                </div>
               </div>
             `,
               )
               .join("")}
           </div>`
-            : `<p class="empty-state">No notes saved recently. Start searching for a passage!</p>`
+            : `<p class="empty-state">No notes saved recently.</p>`
         }
       </section>
 
@@ -910,7 +914,7 @@ async function renderDashboard() {
               .map(
                 (entry) => `
               <div class="dashboard-item" onclick="loadPassageById('${entry.id}')">
-                <span class="dashboard-ref">${formatKey(entry.id)} (${entry.reflectionCount} questions)</span>
+                <span class="dashboard-ref">${formatKey(entry.id)}</span>
                 <div class="reflection-qas">
                     ${entry.QAs.map((qa) => {
                       // Q&A text stored as "Q: [Question]\nA: [Answer]"
@@ -920,8 +924,23 @@ async function renderDashboard() {
 
                       return `
                             <div class="qa-pair" style="margin-top: 10px; padding: 8px 0; border-top: 1px solid rgba(255, 255, 255, 0.05);">
-                                <p style="font-size: 14px; font-weight: 600; margin: 0 0 4px; color: #a5b4fc;">Q: ${question}</p>
-                                <p style="font-size: 14px; margin: 0; opacity: 0.8;">A: ${answer}</p>
+                                <p style="font-size: 14px; font-weight: 600; margin: 0 0 4px; color: white;">Q: ${question}</p>
+                                <div style="font-size: 16px;
+                                          margin: 0;
+                                          opacity: 0.8;
+                                          padding: 1rem;
+                                          width: fit-content;
+                                          border-radius: 12px;
+                                          margin-top: 1rem;
+                                          background: #00000063;
+                                          box-shadow: 0 4px 12px rgba(0, 0, 0, 0.35);">
+                                          <div style="text-transform: uppercase;
+                                                      opacity: 0.3;
+                                                      letter-spacing: 5px;
+                                                      font-size: x-small;
+                                                      margin-bottom: 0.5rem;">ANSWER</div>
+                                          <span>${answer}</span>
+                                </div>
                             </div>
                         `;
                     }).join("")}
