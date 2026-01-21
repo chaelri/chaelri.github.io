@@ -100,17 +100,21 @@ async function fetchBibleData() {
   }
 }
 
-/* ---------- INDEXEDDB (DEVOTION DATA) ---------- */
+/* ---------- INDEXEDDB ---------- */
 const STORE = "devotions";
+const VERSE_STORE = "verses"; // Ensure VERSE_STORE is defined globally
 
-function openDB() {
+function openDB() { // This now replaces both previous openDB functions
   return new Promise((resolve, reject) => {
-    const req = indexedDB.open("dudu-devotion-db", 1);
+    const req = indexedDB.open("dudu-devotion-db", 1); // Using the devotion DB name
 
-    req.onupgradeneeded = () => {
-      const db = req.result;
+    req.onupgradeneeded = (event) => {
+      const db = event.target.result;
       if (!db.objectStoreNames.contains(STORE)) {
         db.createObjectStore(STORE, { keyPath: "id" });
+      }
+      if (!db.objectStoreNames.contains(VERSE_STORE)) {
+        db.createObjectStore(VERSE_STORE, { keyPath: "id" });
       }
     };
 
@@ -130,29 +134,10 @@ async function getAllDevotionEntries() {
 }
 
 /* ---------- VERSE CACHE (INDEXEDDB) ---------- */
-const VERSE_STORE = "verses";
-
-function openDBWithVerses() {
-  return new Promise((resolve, reject) => {
-    const req = indexedDB.open("dudu-verses-db", 1);
-
-    req.onupgradeneeded = () => {
-      const db = req.result;
-      if (!db.objectStoreNames.contains(STORE)) {
-        db.createObjectStore(STORE, { keyPath: "id" });
-      }
-      if (!db.objectStoreNames.contains(VERSE_STORE)) {
-        db.createObjectStore(VERSE_STORE, { keyPath: "id" });
-      }
-    };
-
-    req.onsuccess = () => resolve(req.result);
-    req.onerror = () => reject(req.error);
-  });
-}
+// VERSE_STORE is already defined above
 
 async function getCachedVerses(id) {
-  const db = await openDBWithVerses();
+  const db = await openDB();
   return new Promise((resolve) => {
     const req = db
       .transaction(VERSE_STORE, "readonly")
@@ -163,7 +148,7 @@ async function getCachedVerses(id) {
 }
 
 async function saveCachedVerses(id, verses) {
-  const db = await openDBWithVerses();
+  const db = await openDB();
   const tx = db.transaction(VERSE_STORE, "readwrite");
   tx.objectStore(VERSE_STORE).put({
     id,
@@ -435,7 +420,7 @@ async function fetchInlineQuickContext(
       );
     };
   } catch {
-    mountEl.innerHTML = "";
+    mountEl.innerHTML = "<div class=\"inline-ai-result\"><p>Failed to load quick context.</p></div>"; // More descriptive error
   }
 }
 
@@ -612,7 +597,7 @@ ${book} ${chapter}:${verse}
     });
   } catch (err) {
     console.error(err);
-    mountEl.innerHTML = "";
+    mountEl.innerHTML = "<p>Failed to load deeper context.</p>"; // More descriptive error
   }
 }
 
@@ -1171,7 +1156,7 @@ async function loadPassage() {
 
       // New: Favorite icon listener
       const favIndicator = wrap.querySelector(".favorite-indicator");
-      const metaIndicators = wrap.querySelector(".verse-meta-indicators");
+      const verseContentEl = wrap.querySelector(".verse-content"); // Get verseContent for updateMetaIndicators
 
       headerEl.onclick = () => {
         commentsEl.hidden = !commentsEl.hidden;
@@ -1200,10 +1185,7 @@ async function loadPassage() {
         favIndicator.onclick = (e) => {
           e.stopPropagation();
           toggleFavorite(key);
-          const isFavNow = isFavorite(key);
-
-          favIndicator.textContent = isFavNow ? "favorite" : "favorite_border";
-          favIndicator.style.color = isFavNow ? "#c83086" : "";
+          updateMetaIndicators(key, verseContentEl, comments[key]?.length || 0); // Use the global function
         };
       }
 
@@ -1435,13 +1417,15 @@ Create a compact background context for ${titleForGemini}.
 
     const gemData = await gemini.json();
     aiContextSummaryEl.innerHTML =
-      gemData.candidates?.[0]?.content?.parts?.[0]?.text || "";
+      gemData.candidates?.[0]?.content?.parts?.[0]?.text ||
+      "<p>Failed to generate context summary.</p>"; // More descriptive error
 
     if (aiContextSummaryEl.firstElementChild) {
       aiContextSummaryEl.firstElementChild.classList.add("ai-fade-in");
     }
   } catch (err) {
     console.error(err);
+    aiContextSummaryEl.innerHTML = "<p>Failed to generate context summary.</p>"; // More descriptive error on fetch failure
   }
 }
 
@@ -1542,7 +1526,7 @@ ${versesText}
     );
 
     const data = await res.json();
-    mount.innerHTML = data.candidates?.[0]?.content?.parts?.[0]?.text || "";
+    mount.innerHTML = data.candidates?.[0]?.content?.parts?.[0]?.text || "<p>Failed to generate reflection questions.</p>"; // More descriptive error
     setTimeout(restoreSavedReflectionAnswers, 0);
 
     mount.querySelectorAll("textarea").forEach((ta, i) => {
@@ -1553,6 +1537,7 @@ ${versesText}
     initializeReflections();
   } catch (e) {
     console.error(e);
+    mount.innerHTML = "<p>Failed to generate reflection questions.</p>"; // More descriptive error on fetch failure
   }
   return true;
 }
@@ -1569,6 +1554,52 @@ async function restoreSavedReflectionAnswers() {
 }
 
 /* ---------- COMMENTS ---------- */
+
+// Moved to a higher scope for reusability and efficiency
+const updateMetaIndicators = (key, verseContent, newCommentCount) => {
+  const isFav = isFavorite(key);
+  let metaIndicators = verseContent.querySelector(".verse-meta-indicators");
+
+  // This block should ideally not be needed if loadPassage always renders it.
+  // Kept for robustness but it should rarely be hit.
+  if (!metaIndicators) {
+    metaIndicators = document.createElement("span");
+    metaIndicators.className = "verse-meta-indicators";
+    metaIndicators.style.cssText = "display:inline-flex; align-items:center; margin-left:8px; opacity:0.6;";
+    verseContent.appendChild(metaIndicators);
+  } else {
+    // Clear existing indicators to rebuild, ensuring no duplicates or stale states
+    metaIndicators.innerHTML = '';
+  }
+
+  // 1. Favorite Indicator
+  const favIndicator = document.createElement("span");
+  favIndicator.className = "material-icons favorite-indicator";
+  favIndicator.style.cssText = "font-size:14px; margin-right:4px;";
+  favIndicator.setAttribute("data-key", key);
+  favIndicator.textContent = isFav ? "favorite" : "favorite_border";
+  favIndicator.style.color = isFav ? "#c83086" : "";
+  favIndicator.onclick = (e) => {
+    e.stopPropagation();
+    toggleFavorite(key);
+    updateMetaIndicators(key, verseContent, comments[key]?.length || 0); // Re-run to update icon
+  };
+  metaIndicators.appendChild(favIndicator);
+
+  // 2. Comment Count Indicator
+  if (newCommentCount > 0) {
+    const commentIndicator = document.createElement("span");
+    commentIndicator.className = "comment-indicator";
+    commentIndicator.style.cssText = "display:inline-flex; align-items:center;";
+    commentIndicator.innerHTML = `
+        <span class="material-icons" style="font-size:14px; margin-right:2px;">chat_bubble</span>
+        <span style="font-size:12px;">${newCommentCount}</span>
+      `;
+    metaIndicators.appendChild(commentIndicator);
+  }
+};
+
+
 function renderComments(key, container) {
   container.innerHTML = "";
   const commentLabel = document.createElement("div");
@@ -1579,57 +1610,6 @@ function renderComments(key, container) {
   const verseHeader = document.getElementById(verseIndex);
   // Find the flex container that holds the verse content
   const verseContent = verseHeader.children[0];
-
-  const updateMetaIndicators = (newCount) => {
-    const isFav = isFavorite(key);
-    let metaIndicators = verseContent.querySelector(".verse-meta-indicators");
-
-    // Ensure the container exists (it should always exist now as per loadPassage)
-    if (!metaIndicators) {
-      metaIndicators = document.createElement("span");
-      metaIndicators.className = "verse-meta-indicators";
-      metaIndicators.style.cssText =
-        "display:inline-flex; align-items:center; margin-left:8px; opacity:0.6;";
-      // Append it to verseContent, after the text
-      verseContent.appendChild(metaIndicators);
-    }
-
-    // 1. Update/create Favorite Indicator
-    let favIndicator = metaIndicators.querySelector(".favorite-indicator");
-    if (!favIndicator) {
-      favIndicator = document.createElement("span");
-      favIndicator.className = "material-icons favorite-indicator";
-      favIndicator.style.cssText = "font-size:14px; margin-right:4px;";
-      favIndicator.setAttribute("data-key", key);
-      metaIndicators.prepend(favIndicator);
-
-      favIndicator.onclick = (e) => {
-        e.stopPropagation();
-        toggleFavorite(key);
-        updateMetaIndicators(comments[key]?.length || 0); // Re-run to update icon
-      };
-    }
-    favIndicator.textContent = isFav ? "favorite" : "favorite_border";
-    favIndicator.style.color = isFav ? "#c83086" : "";
-
-    // 2. Update/create Comment Count Indicator
-    let commentIndicator = metaIndicators.querySelector(".comment-indicator");
-    if (newCount > 0) {
-      if (!commentIndicator) {
-        commentIndicator = document.createElement("span");
-        commentIndicator.className = "comment-indicator";
-        commentIndicator.style.cssText =
-          "display:inline-flex; align-items:center;";
-        metaIndicators.appendChild(commentIndicator);
-      }
-      commentIndicator.innerHTML = `
-          <span class="material-icons" style="font-size:14px; margin-right:2px;">chat_bubble</span>
-          <span style="font-size:12px;">${newCount}</span>
-        `;
-    } else if (commentIndicator) {
-      commentIndicator.remove();
-    }
-  };
 
   const list = comments[key] || [];
 
@@ -1642,7 +1622,7 @@ function renderComments(key, container) {
       saveComments();
       renderComments(key, container);
       renderSummary();
-      updateMetaIndicators(comments[key].length);
+      updateMetaIndicators(key, verseContent, comments[key].length);
     };
     container.appendChild(c);
   });
@@ -1658,19 +1638,13 @@ function renderComments(key, container) {
     saveComments();
     renderComments(key, container);
     renderSummary();
-    updateMetaIndicators(comments[key].length);
+    updateMetaIndicators(key, verseContent, comments[key].length);
   };
 
   container.appendChild(input);
 
   // Initial call to ensure indicators are correct when comments pane opens
-  const metaIndicators = verseContent.querySelector(".verse-meta-indicators");
-  if (!metaIndicators) {
-    // Should not happen now that loadPassage renders it always, but for safety
-    updateMetaIndicators(list.length);
-  } else {
-    updateMetaIndicators(list.length);
-  }
+  updateMetaIndicators(key, verseContent, list.length);
 }
 
 /* ---------- SUMMARY ---------- */
@@ -1821,10 +1795,21 @@ const initializeReflections = () => {
       }
 
       // 3. Save logic on input
-      area.addEventListener("input", () => {
-        // Save in the specific format you requested
+      area.addEventListener("input", async () => { // Made async to await saveAIToStorage
+        // Save in the specific format you requested (Q&A) to localStorage
         const formattedEntry = `Q: ${questionText}\nA: ${area.value}`;
         localStorage.setItem(area.id, formattedEntry);
+
+        // Also update IndexedDB cache for AI reflections, storing only the answer
+        const devotionID = devotionId(); // Get current devotion ID
+        const cachedAI = await loadAIFromStorage(); // Load existing AI data
+        if (cachedAI) {
+          if (!cachedAI.answers) {
+            cachedAI.answers = {};
+          }
+          cachedAI.answers[area.id] = area.value; // Store only the answer
+          await saveAIToStorage(cachedAI); // Save updated AI data
+        }
       });
     });
 
@@ -1951,7 +1936,6 @@ window.addEventListener("load", () => {
   }, 1000);
 });
 
-const tx = document.queryS; // 1. Initial height adjustment for existing textareas in #aiReflection
 const aiTextareas = document.querySelectorAll("#aiReflection textarea");
 
 aiTextareas.forEach((textarea) => {
