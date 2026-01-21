@@ -1,0 +1,442 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial="initial-scale=1.0">
+    <title>Echoes - Instagram Style</title>
+    <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/tailwindcss@2.2.19/dist/tailwind.min.css">
+    <link rel="manifest" href="./manifest.json">
+    <style>
+        body {
+            /* Ensuring dark background and light text as a fallback, though Tailwind classes should dominate */
+            background-color: #171717; /* neutral-900 */
+            color: #E5E7EB; /* neutral-200 */
+        }
+        /* Custom scrollbar for horizontal stories */
+        .stories-scroll-container::-webkit-scrollbar {
+            height: 4px;
+        }
+        .stories-scroll-container::-webkit-scrollbar-track {
+            background: #262626; /* neutral-800 */
+        }
+        .stories-scroll-container::-webkit-scrollbar-thumb {
+            background: #4b5563; /* neutral-600 */
+            border-radius: 2px;
+        }
+        .stories-scroll-container::-webkit-scrollbar-thumb:hover {
+            background: #6b7280; /* neutral-500 */
+        }
+
+        /* Loader Styles for dark theme */
+        .loader {
+            border-top-color: #6b7280; /* Gray-500 for contrast */
+            animation: spin 1s linear infinite;
+        }
+
+        @keyframes spin {
+            0% { transform: rotate(0deg); }
+            100% { transform: rotate(360deg); }
+        }
+
+        /* Custom gradient for text - example for logo */
+        .gradient-text-logo {
+            background-image: linear-gradient(to right, #6EE7B7, #3B82F6); /* Teal to Blue */
+            -webkit-background-clip: text;
+            -webkit-text-fill-color: transparent;
+        }
+
+        /* Force opaque background for modal content */
+        .force-opaque-bg {
+            background-color: #262626 !important; /* neutral-800 */
+            opacity: 1 !important;
+        }
+
+        /* --- BEGIN: Force Styles for Inputs (Revised for aesthetics and blur) --- */
+        #content-type-select {
+            background-color: #262626 !important; /* neutral-800 */
+            color: #E5E7EB !important; /* neutral-100 */
+            border-color: #404040 !important; /* neutral-700 */
+            outline: none !important; /* Remove default outline */
+        }
+        #content-type-select:focus {
+            box-shadow: 0 0 0 2px rgba(59, 130, 246, 0.5) !important; /* focus:ring-blue-500 */
+        }
+
+        #post-caption {
+            background-color: #262626 !important; /* neutral-800 */
+            color: #E5E7EB !important; /* neutral-100 */
+            border-color: #404040 !important; /* neutral-700 */
+            outline: none !important;
+        }
+        #post-caption:focus {
+            box-shadow: 0 0 0 2px rgba(59, 130, 246, 0.5) !important; /* focus:ring-blue-500 */
+        }
+        #post-caption::placeholder {
+            color: #a3a3a3 !important; /* neutral-400 for placeholder */
+        }
+
+        /* Targeting the file input button specifically */
+        #media-upload::file-selector-button {
+            background-color: #4b5563 !important; /* neutral-600 */
+            color: #E5E7EB !important; /* neutral-100 */
+            border: none !important; /* Remove any default border */
+            padding: 8px 16px !important; /* py-2 px-4 */
+            border-radius: 9999px !important; /* rounded-full */
+            font-size: 0.875rem !important; /* text-sm */
+            font-weight: 600 !important; /* font-semibold */
+            margin-right: 16px !important; /* mr-4 */
+            transition: background-color 150ms ease-in-out !important; /* transition duration-150 ease-in-out */
+            cursor: pointer !important;
+        }
+        #media-upload::file-selector-button:hover {
+            background-color: #6b7280 !important; /* neutral-500 for hover */
+        }
+        /* --- END: Force Styles for Inputs --- */
+
+        /* Backdrop blur for modals */
+        .modal-backdrop-blur {
+            backdrop-filter: blur(8px);
+            -webkit-backdrop-filter: blur(8px); /* For Safari support */
+        }
+
+        /* Force opaque header background */
+        .force-opaque-header {
+            background-color: #171717 !important;
+        }
+
+        /* Story Progress Bar Styles */
+        .story-progress-bar-container {
+            display: flex;
+            gap: 4px;
+            position: absolute;
+            top: 10px;
+            left: 10px;
+            right: 10px;
+            z-index: 10;
+        }
+        .story-progress-segment {
+            flex-grow: 1;
+            height: 3px;
+            background-color: rgba(255, 255, 255, 0.3); /* Transparent white background */
+            border-radius: 1.5px;
+            overflow: hidden;
+        }
+        .story-progress-segment-inner {
+            height: 100%;
+            width: 0%; /* Initial state */
+            background-image: linear-gradient(to right, #6EE7B7, #3B82F6); /* Echoes gradient */
+            border-radius: 1.5px;
+            transform-origin: left;
+        }
+
+        /* Animation for the progress bar */
+        .story-progress-segment-inner.animate-progress {
+            animation: progress-animation 5s linear forwards; /* 5 seconds per story */
+        }
+
+        @keyframes progress-animation {
+            0% { width: 0%; }
+            100% { width: 100%; }
+        }
+
+        /* Toast Notification Styles */
+        #toast-notification {
+            position: fixed;
+            bottom: 20px;
+            left: 50%;
+            transform: translateX(-50%);
+            background-color: #333;
+            color: white;
+            padding: 12px 24px;
+            border-radius: 8px;
+            z-index: 1000;\
+            opacity: 0;
+            visibility: hidden;
+            transition: opacity 0.3s ease-in-out, visibility 0.3s ease-in-out, transform 0.3s ease-in-out;
+            max-width: 90%;
+            text-align: center;
+        }
+
+        #toast-notification.show {
+            opacity: 1;
+            visibility: visible;
+            transform: translateX(-50%) translateY(-10px); /* Slight lift effect */
+        }
+
+        #toast-notification.success {
+            background-image: linear-gradient(to right, #2DD4BF, #2563EB); /* Teal-500 to Blue-700 */
+            background-color: transparent; /* Ensure no fallback solid color */
+        }
+
+        #toast-notification.error {
+            background-color: #dc2626; /* Tailwind red-600 */
+        }
+
+        /* Blur-up styles for images */
+        /* These classes are applied by JavaScript dynamically to manage the blur effect */
+        .post-media-image.blur-lg {
+            filter: blur(10px);
+            transition: filter 0.5s ease-out; /* Smooth transition for the blur effect */
+        }
+        .post-media-image:not(.blur-lg) {
+            filter: blur(0px);
+        }
+
+        /* Specific styles for the story viewer to handle image sizing and overlay */
+        #story-viewer-modal .media-display-wrapper {
+            position: relative;
+            width: 100%;
+            height: 100%;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+        }
+
+        #story-viewer-media-image,
+        #story-viewer-media-video {
+            max-width: 100%;
+            max-height: 100%;
+            object-fit: contain; /* Ensure the media fits within the container */
+            position: absolute; /* Position absolutely within the wrapper */
+            top: 50%;
+            left: 50%;
+            transform: translate(-50%, -50%); /* Center the media */
+        }
+
+        /* Overlay for user info and controls */
+        #story-viewer-top-overlay {
+            position: absolute;
+            top: 0;
+            left: 0;
+            right: 0;
+            padding: 1rem;
+            display: flex;
+            align-items: center;
+            justify-content: space-between;
+            z-index: 20; /* Higher z-index than progress bar and media */
+            background-image: linear-gradient(to bottom, rgba(23, 23, 23, 0.7), transparent); /* Gradient fade */
+        }
+
+        /* Carousel specific styles */
+        .carousel-container {
+            position: relative;
+            width: 100%;
+            overflow: hidden;
+        }
+        .carousel-wrapper {
+            display: flex;
+            transition: transform 0.5s ease-in-out;
+        }
+        .carousel-slide {
+            min-width: 100%; /* Each slide takes full width */
+            box-sizing: border-box;
+        }
+        .carousel-button {
+            position: absolute;
+            top: 50%;
+            transform: translateY(-50%);
+            background-color: rgba(0, 0, 0, 0.5);
+            color: white;
+            border: none;
+            padding: 10px;
+            cursor: pointer;
+            z-index: 10;
+            border-radius: 50%;
+        }
+        .carousel-button-prev {
+            left: 10px;
+        }
+        .carousel-button-next {
+            right: 10px;
+        }
+        .carousel-indicators {
+            position: absolute;
+            bottom: 10px;
+            left: 50%;
+            transform: translateX(-50%);
+            display: flex;
+            gap: 8px;
+            z-index: 10;
+        }
+        .indicator-dot {
+            width: 8px;
+            height: 8px;
+            background-color: rgba(255, 255, 255, 0.5);
+            border-radius: 50%;
+            cursor: pointer;
+        }
+        .indicator-dot.active {
+            background-color: white;
+        }
+
+
+    </style>
+</head>
+<body class="bg-neutral-900 text-neutral-200 font-sans antialiased">
+
+    <!-- Loading Screen -->
+    <div id="loading-screen" class="fixed inset-0 bg-black/75 flex flex-col items-center justify-center z-50">
+        <div class="loader ease-linear rounded-full border-4 border-t-4 border-blue-500 h-12 w-12 mb-4"></div>
+        <p class="text-neutral-400">Loading Echoes...</p>
+    </div>
+
+    <!-- Login Screen -->
+    <div id="login-screen" class="hidden min-h-screen flex flex-col items-center justify-center bg-black/75 text-neutral-200 p-4">
+        <!-- Removed logo image -->
+        <h1 class="text-5xl font-extrabold gradient-text-logo mb-6">Echoes</h1>
+        <p class="text-neutral-400 mb-8 text-center max-w-sm">Connect and share your stories with the world.</p>
+        <div class="flex flex-col sm:flex-row space-y-4 sm:space-y-0 sm:space-x-4">
+            <button id="login-charlie" class="bg-gradient-to-r from-teal-500 to-blue-500 hover:from-teal-600 hover:to-blue-600 text-white font-bold py-3 px-8 rounded-full shadow-lg transition duration-200 ease-in-out transform hover:scale-105">
+                Login as Charlie
+            </button>
+            <button id="login-karla" class="bg-gradient-to-r from-purple-500 to-pink-500 hover:from-purple-600 hover:to-pink-600 text-white font-bold py-3 px-8 rounded-full shadow-lg transition duration-200 ease-in-out transform hover:scale-105">
+                Login as Karla
+            </button>
+        </div>
+    </div>
+
+    <!-- Main App Container -->
+    <div id="app-container" class="hidden min-h-screen bg-neutral-900 text-neutral-200">
+        <!-- Fixed Header -->
+        <header class="fixed top-0 left-0 right-0 bg-neutral-900 z-40 p-4 border-b border-neutral-700 force-opaque-header">
+            <div class="container mx-auto flex justify-between items-center max-w-2xl">
+                <div class="flex items-center">
+                    <!-- Removed logo image -->
+                    <h1 class="text-2xl font-bold gradient-text-logo">Echoes</h1>
+                </div>
+                <div class="flex items-center space-x-4">
+                    <p id="user-display" class="text-neutral-300 text-md font-semibold hidden md:block"></p>
+                    <button id="new-post-story-btn" class="bg-gradient-to-r from-teal-500 to-blue-500 hover:from-teal-600 hover:to-blue-600 text-white font-semibold py-1 px-3 rounded-full shadow-md transition duration-150 ease-in-out text-sm">
+                        + New
+                    </button>
+                </div>
+            </div>
+        </header>
+
+        <main class="container mx-auto mt-12 pb-4 max-w-2xl">
+            <!-- Stories Section -->
+            <section class="py-4 border-b border-neutral-800 mb-6">
+                <div id="stories-container" class="stories-scroll-container flex space-x-4 overflow-x-auto px-4 pt-4">
+                    <!-- Stories will be loaded here by JavaScript -->
+                    <div class="flex-shrink-0 flex flex-col items-center w-20">
+                        <div class="w-16 h-16 rounded-full bg-neutral-700 flex items-center justify-center text-neutral-400 text-xs">Loading</div>
+                        <p class="text-xs text-neutral-400 mt-1 truncate w-full text-center">...</p>
+                    </div>
+                </div>
+            </section>
+
+            <!-- Posts Section -->
+            <section>
+                <div id="posts-container" class="space-y-6">
+                    <!-- Posts will be loaded here by JavaScript -->
+                    <div class="bg-neutral-800 rounded-lg shadow-md p-4 animate-pulse">
+                        <div class="flex items-center mb-3">
+                            <div class="w-8 h-8 bg-neutral-700 rounded-full mr-3"></div>
+                            <div class="h-4 bg-neutral-700 rounded w-24"></div>
+                        </div>
+                        <div class="w-full bg-neutral-700 rounded mb-3"></div>
+                        <div class="h-4 bg-neutral-700 rounded w-full mb-2"></div>
+                        <div class="h-4 bg-neutral-700 rounded w-3/4"></div>
+                    </div>
+                </div>
+            </section>
+        </main>
+
+        <!-- New Post/Story Modal -->
+        <div id="post-story-modal" class="hidden fixed inset-0 bg-black/50 modal-backdrop-blur flex items-center justify-center z-50 p-4">
+            <div class="bg-neutral-800 force-opaque-bg rounded-lg shadow-xl p-6 w-full max-w-md">
+                <h3 class="text-2xl font-bold mb-4 text-neutral-100 text-center">Create New Content</h3>
+                <div class="mb-4">
+                    <label for="content-type-select" class="block text-neutral-300 text-sm font-bold mb-2">Content Type:</label>
+                    <select id="content-type-select" class="rounded w-full py-2 px-3 bg-neutral-800 text-neutral-100 leading-tight focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-transparent transition duration-150 border border-neutral-700">
+                        <option value="post">Post</option>
+                        <option value="story">Story</option>
+                    </select>
+                </div>
+                <div class="mb-4">
+                    <label for="media-upload" class="block text-neutral-300 text-sm font-bold mb-2">Upload Media (Optional for Post, Required for Story):</label>
+                    <input type="file" id="media-upload" accept="image/*,video/*" class="block w-full text-sm text-neutral-100
+                        file:mr-4 file:py-2 file:px-4
+                        file:rounded-full file:border-0
+                        file:text-sm file:font-semibold
+                        file:bg-neutral-600 file:text-neutral-100
+                        hover:file:bg-neutral-500 transition duration-150 ease-in-out cursor="cursor-pointer"
+                    ">
+                </div>
+                <div class="mb-6">
+                    <label for="post-caption" class="block text-neutral-300 text-sm font-bold mb-2">Caption:</label>
+                    <textarea id="post-caption" rows="4" class="rounded w-full py-2 px-3 bg-neutral-800 text-neutral-100 leading-tight focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-transparent transition duration-150 border border-neutral-700" placeholder="What's on your mind?"></textarea>
+                </div>
+                <div class="flex justify-end space-x-4 items-center">
+                    <!-- Loading Spinner for publishing -->
+                    <div id="publish-loading-spinner" class="hidden loader ease-linear rounded-full border-2 border-t-2 border-blue-400 h-5 w-5"></div>
+                    <button id="cancel-post-story" class="bg-neutral-600 hover:bg-neutral-700 text-white font-bold py-2 px-4 rounded-full transition duration-150 ease-in-out">
+                        Cancel
+                    </button>
+                    <button id="publish-post-story" class="bg-gradient-to-r from-purple-500 to-pink-500 hover:from-purple-600 hover:to-pink-600 text-white font-bold py-2 px-4 rounded-full shadow-lg transition duration-150 ease-in-out">
+                        Publish
+                    </button>
+                </div>
+            </div>
+        </div>
+
+        <!-- Story Viewer Modal -->
+        <div id="story-viewer-modal" class="hidden fixed inset-0 bg-black/90 modal-backdrop-blur flex items-center justify-center z-50 p-4">
+            <div class="relative w-full max-w-lg h-full max-h-[80vh] flex flex-col rounded-lg overflow-hidden bg-neutral-900">
+                <!-- Story Progress Bar Container -->
+                <div id="story-progress-container" class="story-progress-bar-container z-20"></div>
+
+                <!-- User Info and Close Button Overlay -->
+                <div id="story-viewer-top-overlay" class="absolute top-0 left-0 right-0 p-4 flex items-center justify-between z-20 bg-gradient-to-b from-neutral-900 to-transparent">
+                    <div id="story-viewer-user-info" class="flex items-center space-x-3">
+                        <div id="story-viewer-avatar" class="w-8 h-8 rounded-full bg-neutral-700 flex items-center justify-center text-white text-sm font-bold"></div>
+                        <p id="story-viewer-username" class="text-white font-semibold"></p>
+                    </div>
+                    <div class="flex items-center space-x-2">
+                        <button id="delete-story-viewer-btn" class="hidden bg-red-600 hover:bg-red-700 text-white font-bold py-1 px-3 rounded-full text-xs transition duration-150 ease-in-out">Delete Story</button>
+                        <button id="close-story-viewer" class="text-white text-2xl font-bold p-2 hover:text-neutral-300 transition-colors focus:outline-none">
+                            &times;
+                        </button>
+                    </div>
+                </div>
+
+                <!-- Media Display Wrapper -->
+                <div class="media-display-wrapper flex-grow flex items-center justify-center">
+                    <img id="story-viewer-media-image" class="hidden" src="" alt="Story media">
+                    <video id="story-viewer-media-video" class="hidden" src="" controls></video>
+                </div>
+
+                <!-- Navigation Buttons -->
+                <button id="story-viewer-prev-btn" class="absolute left-2 top-1/2 -translate-y-1/2 bg-black/50 hover:bg-black/75 text-white p-3 rounded-full shadow-md z-20 focus:outline-none">
+                    &#10094;
+                </button>
+                <button id="story-viewer-next-btn" class="absolute right-2 top-1/2 -translate-y-1/2 bg-black/50 hover:bg-black/75 text-white p-3 rounded-full shadow-md z-20 focus:outline-none">
+                    &#10095;
+                </button>
+            </div>
+        </div>
+
+    <!-- Custom Confirmation Modal -->
+    <div id="confirmation-modal" class="hidden fixed inset-0 bg-black/50 modal-backdrop-blur flex items-center justify-center z-50 p-4">
+        <div class="bg-neutral-800 force-opaque-bg rounded-lg shadow-xl p-6 w-full max-w-sm">
+            <h3 class="text-xl font-bold mb-4 text-neutral-100">Confirm Deletion</h3>
+            <p id="confirmation-message" class="text-neutral-300 mb-6">Are you sure you want to delete this item?</p>
+            <div class="flex justify-end space-x-4">
+                <button id="cancel-confirmation-btn" class="bg-neutral-600 hover:bg-neutral-700 text-white font-bold py-2 px-4 rounded-full transition duration-150 ease-in-out">
+                    Cancel
+                </button>
+                <button id="confirm-deletion-btn" class="bg-red-600 hover:bg-red-700 text-white font-bold py-2 px-4 rounded-full shadow-lg transition duration-150 ease-in-out">
+                    Delete
+                </button>
+            </div>
+        </div>
+    </div>
+
+    <!-- Toast Notification -->
+    <div id="toast-notification" class="hidden">
+        <p id="toast-message"></p>
+    </div>
+
+    <script src="./script.js" type="module"></script>
+</body>
+</html>

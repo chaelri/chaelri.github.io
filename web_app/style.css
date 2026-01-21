@@ -1,0 +1,14 @@
+body {
+    background-color: #171717 !important; /* Force neutral-900 background */
+}
+
+/* Loader Styles for dark theme */
+.loader {
+    border-top-color: #6b7280; /* Gray-500 for contrast */
+    animation: spin 1s linear infinite;
+}
+
+@keyframes spin {
+    0% { transform: rotate(0deg); }
+    100% { transform: rotate(360deg); }
+}
