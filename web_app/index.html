@@ -4,7 +4,7 @@
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial="initial-scale=1.0">
     <title>Echoes - Instagram Style</title>
-    <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/tailwindcss@2.2.19/dist/tailwind.min.css">
+    <script src="https://cdn.jsdelivr.net/npm/@tailwindcss/browser@4"></script>
     <link rel="manifest" href="./manifest.json">
     <style>
         body {
@@ -149,7 +149,7 @@
             color: white;
             padding: 12px 24px;
             border-radius: 8px;
-            z-index: 1000;\
+            z-index: 1000;
             opacity: 0;
             visibility: hidden;
             transition: opacity 0.3s ease-in-out, visibility 0.3s ease-in-out, transform 0.3s ease-in-out;
@@ -230,18 +230,47 @@
         .carousel-slide {
             min-width: 100%; /* Each slide takes full width */
             box-sizing: border-box;
+            position: relative; /* Added to correctly position absolute children like the loader */
         }
+        
+        /* New: Styles for Post Media Wrapper to fix aspect ratio/zoom issue */
+        .post-media-wrapper {
+            width: 100%;
+            height: 500px; /* Fixed height for consistent post feed look */
+            max-height: 80vh; /* Max height on smaller screens */
+            display: flex; 
+            align-items: center; 
+            justify-content: center; 
+            position: relative;
+        }
+
+        @media (max-width: 640px) { /* Adjust for mobile screens */
+            .post-media-wrapper {
+                height: 400px; /* Smaller height on mobile */
+            }
+        }
+        
         .carousel-button {
+            /* Critical for the perfect circle */
+            width: 30px;              /* Set an explicit width */
+            height: 30px;             /* Set the SAME explicit height */
+            border-radius: 50%;       /* Makes square a circle */
+            padding: 0;               /* Remove padding to avoid distortion */
+            
+            /* Centering the icon */
+            display: flex;            /* Use flexbox for modern centering */
+            align-items: center;
+            justify-content: center;
+
+            /* Your existing styles */
             position: absolute;
             top: 50%;
             transform: translateY(-50%);
             background-color: rgba(0, 0, 0, 0.5);
             color: white;
             border: none;
-            padding: 10px;
             cursor: pointer;
             z-index: 10;
-            border-radius: 50%;
         }
         .carousel-button-prev {
             left: 10px;
@@ -286,10 +315,10 @@
         <h1 class="text-5xl font-extrabold gradient-text-logo mb-6">Echoes</h1>
         <p class="text-neutral-400 mb-8 text-center max-w-sm">Connect and share your stories with the world.</p>
         <div class="flex flex-col sm:flex-row space-y-4 sm:space-y-0 sm:space-x-4">
-            <button id="login-charlie" class="bg-gradient-to-r from-teal-500 to-blue-500 hover:from-teal-600 hover:to-blue-600 text-white font-bold py-3 px-8 rounded-full shadow-lg transition duration-200 ease-in-out transform hover:scale-105">
+            <button id="login-charlie" class="bg-gradient-to-r from-teal-500 to-blue-500 hover:from-teal-600 hover:to-blue-600 text-white font-bold py-3 px-8 rounded-full shadow-2xl transition duration-200 ease-in-out transform hover:scale-105">
                 Login as Charlie
             </button>
-            <button id="login-karla" class="bg-gradient-to-r from-purple-500 to-pink-500 hover:from-purple-600 hover:to-pink-600 text-white font-bold py-3 px-8 rounded-full shadow-lg transition duration-200 ease-in-out transform hover:scale-105">
+            <button id="login-karla" class="bg-gradient-to-r from-purple-500 to-pink-500 hover:from-purple-600 hover:to-pink-600 text-white font-bold py-3 px-8 rounded-full shadow-2xl transition duration-200 ease-in-out transform hover:scale-105">
                 Login as Karla
             </button>
         </div>
@@ -373,7 +402,7 @@
                     <button id="cancel-post-story" class="bg-neutral-600 hover:bg-neutral-700 text-white font-bold py-2 px-4 rounded-full transition duration-150 ease-in-out">
                         Cancel
                     </button>
-                    <button id="publish-post-story" class="bg-gradient-to-r from-purple-500 to-pink-500 hover:from-purple-600 hover:to-pink-600 text-white font-bold py-2 px-4 rounded-full shadow-lg transition duration-150 ease-in-out">
+                    <button id="publish-post-story" class="bg-gradient-to-r from-purple-500 to-pink-500 hover:from-purple-600 hover:to-pink-600 text-white font-bold py-2 px-4 rounded-full shadow-2xl transition duration-150 ease-in-out">
                         Publish
                     </button>
                 </div>
@@ -381,8 +410,8 @@
         </div>
 
         <!-- Story Viewer Modal -->
-        <div id="story-viewer-modal" class="hidden fixed inset-0 bg-black/90 modal-backdrop-blur flex items-center justify-center z-50 p-4">
-            <div class="relative w-full max-w-lg h-full max-h-[80vh] flex flex-col rounded-lg overflow-hidden bg-neutral-900">
+        <div id="story-viewer-modal" class="hidden fixed inset-0 bg-black/90 modal-backdrop-blur flex items-center justify-center z-50 p-0 sm:p-4">
+            <div class="relative w-full max-w-md h-full max-h-[95vh] flex flex-col overflow-hidden bg-neutral-900 md:rounded-lg">
                 <!-- Story Progress Bar Container -->
                 <div id="story-progress-container" class="story-progress-bar-container z-20"></div>
 
@@ -425,7 +454,7 @@
                 <button id="cancel-confirmation-btn" class="bg-neutral-600 hover:bg-neutral-700 text-white font-bold py-2 px-4 rounded-full transition duration-150 ease-in-out">
                     Cancel
                 </button>
-                <button id="confirm-deletion-btn" class="bg-red-600 hover:bg-red-700 text-white font-bold py-2 px-4 rounded-full shadow-lg transition duration-150 ease-in-out">
+                <button id="confirm-deletion-btn" class="bg-red-600 hover:bg-red-700 text-white font-bold py-2 px-4 rounded-full shadow-2xl transition duration-150 ease-in-out">
                     Delete
                 </button>
             </div>

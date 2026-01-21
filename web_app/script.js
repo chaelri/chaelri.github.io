@@ -420,21 +420,21 @@ const loadPosts = () => {
                     // Multi-image post (carousel)
                     mediaData = post.media;
                     mediaHtml = `
-                        <div class="carousel-container">
-                            <div class="carousel-wrapper" style="width: ${mediaData.length * 100}%;">
+                        <div class="carousel-container relative overflow-hidden">
+                            <div class="carousel-wrapper flex transition-transform duration-300 ease-in-out";">
                                 ${mediaData.map((media, index) => `
-                                    <div class="carousel-slide relative w-full aspect-w-16 aspect-h-9 bg-neutral-900">
+                                    <div class="carousel-slide flex-none post-media-wrapper bg-neutral-900" style="width: calc(100% / ${mediaData.length});">
                                         <img src="${media.thumbnailBase64 || 'data:image/gif;base64,R0lGODlhAQABAAD/ACwAAAAAAQABAAACADs='}" 
                                             data-src="${media.mediaURL}" 
                                             alt="Post media ${index + 1}" 
-                                            class="post-media-image w-full h-full object-cover filter blur-lg transition-filter duration-500 ease-in-out">
+                                            class="post-media-image w-full h-full object-contain filter blur-lg transition-filter duration-500 ease-in-out">
                                         <div class="absolute inset-0 flex items-center justify-center">
                                             <div class="loader ease-linear rounded-full border-4 border-t-4 border-blue-500 h-8 w-8 text-white"></div>
                                         </div>
                                     </div>
                                 `).join('')}
                             </div>
-                            <button class="carousel-button carousel-button-prev left-0 hidden">&lt;</button>
+                            <button class="carousel-button carousel-button-prev left-0 ${mediaData.length <= 1 ? 'hidden' : ''}">&lt;</button>
                             <button class="carousel-button carousel-button-next right-0 ${mediaData.length <= 1 ? 'hidden' : ''}">&gt;</button>
                             ${mediaData.length > 1 ? `
                                 <div class="carousel-indicators">
@@ -449,17 +449,17 @@ const loadPosts = () => {
                     const urlWithoutQueryParams = post.mediaURL.split('?')[0];
                     if (urlWithoutQueryParams.match(/\.(mp4|webm|ogg)$/i)) {
                          mediaHtml = `
-                            <div class="relative w-full aspect-w-16 aspect-h-9 bg-neutral-900">
-                                <video src="${post.mediaURL}" controls class="w-full h-full object-cover"></video>
+                            <div class="relative w-full post-media-wrapper bg-neutral-900">
+                                <video src="${post.mediaURL}" controls class="w-full h-full object-contain"></video>
                             </div>
                         `;
                     } else {
                          mediaHtml = `
-                            <div class="relative w-full aspect-w-16 aspect-h-9 bg-neutral-900">
+                            <div class="relative w-full post-media-wrapper bg-neutral-900">
                                 <img src="${post.thumbnailBase64 || 'data:image/gif;base64,R0lGODlhAQABAAD/ACwAAAAAAQABAAACADs='}" 
                                     data-src="${post.mediaURL}" 
                                     alt="Post media" 
-                                    class="post-media-image w-full h-full object-cover filter blur-lg transition-filter duration-500 ease-in-out">
+                                    class="post-media-image w-full h-full object-contain filter blur-lg transition-filter duration-500 ease-in-out">
                                 <div class="absolute inset-0 flex items-center justify-center">
                                     <div class="loader ease-linear rounded-full border-4 border-t-4 border-blue-500 h-8 w-8 text-white"></div>
                                 </div>
@@ -514,7 +514,7 @@ const loadPosts = () => {
                         const indicatorDots = postElement.querySelectorAll('.indicator-dot');
 
                         const updateCarousel = () => {
-                            carouselWrapper.style.transform = `translateX(-${currentSlide * 100 / mediaData.length}%)`;
+                            carouselWrapper.style.transform = `translateX(-${currentSlide * 100}%)`;
                             indicatorDots.forEach((dot, idx) => {
                                 dot.classList.toggle('active', idx === currentSlide);
                             });
