@@ -247,7 +247,7 @@ body {
     width: 30px;              /* Set an explicit width */
     height: 30px;             /* Set the SAME explicit height */
     border-radius: 50%;       /* Makes square a circle */
-    padding: 0;               /* Remove padding to avoid distortion */
+    padding: 0 !important;     /* Ensure no padding distorts the circle */
 
     /* Centering the icon */
     display: flex;            /* Use flexbox for modern centering */
@@ -264,6 +264,11 @@ body {
     cursor: pointer;
     z-index: 10;
 }
+.carousel-button .material-icons {
+    font-size: 20px !important; /* Ensure the icon itself is not too large and is centered */
+    line-height: 1; /* Helps with vertical alignment */
+}
+
 .carousel-button-prev {
     left: 10px;
 }
@@ -288,4 +293,28 @@ body {
 }
 .indicator-dot.active {
     background-color: white;
+}
+
+/* Explicitly ensure the 'hidden' class works */
+.hidden {
+    display: none !important;
+}
+
+/* Force Material Icons font */
+.material-icons {
+    font-family: 'Material Icons' !important;
+    font-weight: normal;
+    font-style: normal;
+    font-size: 24px; /* Default size, can be overridden by Tailwind */
+    display: inline-block;
+    line-height: 1;
+    text-transform: none;
+    letter-spacing: normal;
+    word-wrap: normal;
+    white-space: nowrap;
+    direction: ltr;
+    -webkit-font-smoothing: antialiased;
+    text-rendering: optimizeLegibility;
+    -moz-osx-font-smoothing: grayscale;
+    font-feature-settings: 'liga';
 }

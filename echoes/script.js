@@ -199,6 +199,7 @@ const startProgressBar = (index) => {
     }, 5000);
 };
 
+
 // Display a specific story in the viewer and manage progress bars
 const loadStoryContent = (index) => {
     if (index < 0 || index >= currentStories.length) {
@@ -434,8 +435,8 @@ const loadPosts = () => {
                                     </div>
                                 `).join('')}
                             </div>
-                            <button class="carousel-button carousel-button-prev left-0 ${mediaData.length <= 1 ? 'hidden' : ''}">&lt;</button>
-                            <button class="carousel-button carousel-button-next right-0 ${mediaData.length <= 1 ? 'hidden' : ''}">&gt;</button>
+                            <button class="carousel-button carousel-button-prev left-0 ${mediaData.length <= 1 ? 'hidden' : ''}"><span class="material-icons">chevron_left</span></button>
+                            <button class="carousel-button carousel-button-next right-0 ${mediaData.length <= 1 ? 'hidden' : ''}"><span class="material-icons">chevron_right</span></button>
                             ${mediaData.length > 1 ? `
                                 <div class="carousel-indicators">
                                     ${mediaData.map((_, index) => `<span class="indicator-dot ${index === 0 ? 'active' : ''}" data-slide-to="${index}"></span>`).join('')}
