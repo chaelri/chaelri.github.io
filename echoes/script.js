@@ -1,4 +1,3 @@
-
 // script.js (FULL — PART 2/2)
 
 // =============================
@@ -60,6 +59,15 @@ let postsContainer;
 let storiesContainer;
 let publishLoadingSpinner;
 
+// Profile Modal DOM Elements
+let profileBtn;
+let profileModal;
+let profilePicPreview;
+let profilePicUpload;
+let cancelProfileEditBtn;
+let saveProfileBtn;
+let profileLoadingSpinner;
+
 // Story Viewer DOM Elements
 let storyViewerModal;
 let storyViewerAvatar;
@@ -84,6 +92,7 @@ let toastNotification;
 let toastMessage;
 
 let currentUser = null;
+let userProfiles = {}; // Global object to store user profiles by ID
 let currentStories = []; // Stores stories for the currently viewed user
 let currentStoryIndex = 0; // Index of the currently displayed story
 let progressBarTimeout; // To hold the timeout for progress bar animation
@@ -224,6 +233,7 @@ const loadStoryContent = (index) => {
 
     currentStoryIndex = index;
     const story = currentStories[currentStoryIndex];
+    const storyAuthorProfile = userProfiles[story.userId] || {}; // Get author's profile
 
     // Mark the story as seen by the current user
     markStoryAsSeen(story.id);
@@ -265,7 +275,13 @@ const loadStoryContent = (index) => {
     }
 
     storyViewerUsername.textContent = story.userName || 'Unknown';
-    storyViewerAvatar.textContent = (story.userName || 'U').charAt(0).toUpperCase();
+    
+    // Display profile picture or initial for story viewer avatar
+    if (storyAuthorProfile.profilePicURL) {
+        storyViewerAvatar.innerHTML = `<img src=\"${storyAuthorProfile.profilePicURL}\" alt=\"Profile\" class=\"w-full h-full object-cover rounded-full\">`;
+    } else {
+        storyViewerAvatar.innerHTML = (story.userName || 'U').charAt(0).toUpperCase();
+    }
 
     // Populate "Seen By" information
     const seenBy = story.seenBy || {};
@@ -274,12 +290,7 @@ const loadStoryContent = (index) => {
 
     for (const userId in seenBy) {
         if (userId === 'karla') {
-            // If seenBy[userId] stores a timestamp, we count it as 1 view for simplicity.
-            // If you want to count multiple views by Karla, you'd need a counter for each user in Firebase.
-            // For now, if 'karla' key exists, it means Karla has viewed it at least once.
-            karlaViewCount++; // Increment for each entry if we track multiple views
-            // If seenBy[userId] stores an actual count for a user, use that.
-            // For this implementation, we are just checking presence for other users, and counting Karla's entries.
+            karlaViewCount++; 
         } else {
             seenByUsers.push(userId.charAt(0).toUpperCase() + userId.slice(1));
         }
@@ -615,6 +626,8 @@ const loadPosts = () => {
             // Display newest posts first, Instagram-style (full width)
             Object.entries(posts).reverse().forEach(([key, post]) => {
                 const postAuthor = post.author || 'Unknown';
+                const postAuthorId = postAuthor.toLowerCase(); // Assuming user ID is lowercase name
+                const authorProfile = userProfiles[postAuthorId] || {}; // Get author's profile
                 const postAuthorInitial = postAuthor.charAt(0).toUpperCase();
                 const postLikes = post.likes || {};
                 const likeCount = Object.keys(postLikes).length;
@@ -676,8 +689,15 @@ const loadPosts = () => {
                     }
                 }
 
+                let avatarHtml = '';
+                if (authorProfile.profilePicURL) {
+                    avatarHtml = `<img src=\"${authorProfile.profilePicURL}\" alt=\"Profile\" class=\"w-full h-full object-cover rounded-full\">`;
+                } else {
+                    avatarHtml = `<div class=\"w-full h-full flex items-center justify-center text-white text-sm font-bold\">${postAuthorInitial}</div>`;
+                }
+
                 postElement.innerHTML = `
-                    <div class=\"flex items-center p-3\">\n                        <div class=\"w-8 h-8 bg-gradient-to-r from-teal-500 to-blue-500 rounded-full mr-3 flex items-center justify-center text-white text-sm font-bold\">${postAuthorInitial}</div>
+                    <div class=\"flex items-center p-3\">\n                        <div class=\"w-8 h-8 bg-gradient-to-r from-teal-500 to-blue-500 rounded-full mr-3 overflow-hidden\">${avatarHtml}</div>
                         <p class=\"font-semibold text-neutral-100\">${postAuthor}</p>
                         ${showDeleteButton ? `<button class=\"ml-auto text-red-400 hover:text-red-600 delete-post-btn text-sm\" data-id=\"${key}\">Delete</button>` : ''}
                     </div>
@@ -820,7 +840,7 @@ const loadStories = () => {
                     if (!activeStoriesByUserName[storyUserName]) {
                         activeStoriesByUserName[storyUserName] = [];
                     }
-                    activeStoriesByUserName[storyUserName].push({ id: key, ...story, userName: storyUserName });
+                    activeStoriesByUserName[storyUserName].push({ id: key, ...story, userName: storyUserName, userId: storyUserName.toLowerCase() });
                 }
             });
         }
@@ -833,6 +853,10 @@ const loadStories = () => {
         if (currentUser) {
             currentUserStoriesForViewer = activeStoriesByUserName[currentUser.name] || [];
             currentUserHasActiveStories = currentUserStoriesForViewer.length > 0;
+            const currentUserProfile = userProfiles[currentUser.id] || {};
+            const yourStoryAvatarHtml = currentUserProfile.profilePicURL 
+                ? `<img src=\"${currentUserProfile.profilePicURL}\" alt=\"Your Profile\" class=\"w-full h-full object-cover rounded-full\">`
+                : (currentUserHasActiveStories ? `<div class=\"w-full h-full flex items-center justify-center text-neutral-300 text-2xl font-bold\">${currentUser.name.charAt(0).toUpperCase()}</div>` : `<div class=\"w-full h-full flex items-center justify-center text-neutral-300 text-2xl font-bold\">+</div>`);
 
             const yourStoryElement = document.createElement('div');
             yourStoryElement.classList.add('flex-shrink-0', 'flex', 'flex-col', 'items-center', 'w-20', 'cursor-pointer');
@@ -841,7 +865,7 @@ const loadStories = () => {
             const yourStoryBorderClass = currentUserHasActiveStories ? 'border-solid border-blue-500' : 'border-dashed border-neutral-500';
 
             yourStoryElement.innerHTML = `
-                <div class=\"w-16 h-16 rounded-full bg-neutral-700 border-2 ${yourStoryBorderClass} flex items-center justify-center text-neutral-300 text-2xl font-bold\">${currentUserHasActiveStories ? (currentUser.name.charAt(0).toUpperCase()) : '+'}</div>
+                <div class=\"w-16 h-16 rounded-full bg-neutral-700 border-2 ${yourStoryBorderClass} flex items-center justify-center overflow-hidden\">${yourStoryAvatarHtml}</div>
                 <p class=\"text-xs text-neutral-400 mt-1 truncate w-full text-center\">Your Story</p>
             `;
             yourStoryElement.addEventListener('click', () => {
@@ -862,16 +886,25 @@ const loadStories = () => {
 
         Object.entries(activeStoriesByUserName).forEach(([userName, userStories]) => {
             const initial = userName.charAt(0).toUpperCase();
+            const userId = userName.toLowerCase();
+            const userProfile = userProfiles[userId] || {}; // Get user's profile
 
             // Determine if all of this user's stories have been seen by the currentUser
             const allStoriesSeen = currentUser && userStories.every(story => story.seenBy && story.seenBy[currentUser.id]);
             const storyBorderClass = allStoriesSeen ? 'story-seen-border' : 'bg-gradient-to-tr from-yellow-400 to-fuchsia-600 p-0.5';
+            
+            let userStoryAvatarHtml = '';
+            if (userProfile.profilePicURL) {
+                userStoryAvatarHtml = `<img src=\"${userProfile.profilePicURL}\" alt=\"Profile\" class=\"w-full h-full object-cover rounded-full\">`;
+            } else {
+                userStoryAvatarHtml = `<div class=\"w-full h-full flex items-center justify-center text-white text-lg font-bold\">${initial}</div>`;
+            }
 
             const storyElement = document.createElement('div');
             storyElement.classList.add('flex-shrink-0', 'flex', 'flex-col', 'items-center', 'w-20', 'cursor-pointer');
             storyElement.innerHTML = `
                 <div class=\"w-16 h-16 rounded-full ${storyBorderClass} flex items-center justify-center\">
-                    <div class=\"w-full h-full object-cover rounded-full border-2 border-neutral-900 bg-neutral-700 flex items-center justify-center text-white text-lg font-bold\">${initial}</div>
+                    <div class=\"w-full h-full object-cover rounded-full border-2 border-neutral-900 bg-neutral-700 flex items-center justify-center text-white text-lg font-bold overflow-hidden\">${userStoryAvatarHtml}</div>
                 </div>
                 <p class=\"text-xs text-neutral-300 mt-1 truncate w-full text-center\">${userName}</p>
             `;
@@ -912,8 +945,10 @@ const loginUser = (username) => {
     localStorage.setItem('currentUser', JSON.stringify(currentUser));
     userDisplay.textContent = `${currentUser.name}`;
     showScreen(appContainer);
+    loadAllUserProfiles(); // Load all user profiles on login
     loadPosts();
     loadStories();
+    loadUserProfile(); // Load current user's profile to update preview and currentUser object
 };
 
 // Helper function to process and publish a single media item
@@ -942,6 +977,51 @@ const processAndPublishMedia = async (mediaFile, type) => {
     };
 };
 
+// Function to update user profile in Firebase
+const updateUserProfile = async (userId, updates) => {
+    try {
+        await update(ref(db, `users/${userId}`), updates);
+        showToast('Profile updated successfully!', 'success');
+    } catch (error) {
+        console.error('Error updating profile:', error);
+        showToast('Failed to update profile. See console for details.', 'error');
+    }
+};
+
+// Function to load all user profiles into the global userProfiles object
+const loadAllUserProfiles = () => {
+    onValue(ref(db, 'users'), (snapshot) => {
+        const profiles = snapshot.val();
+        if (profiles) {
+            userProfiles = { ...profiles };
+            console.log("All user profiles loaded:", userProfiles);
+            // After loading all profiles, re-render posts and stories to apply new profile pics
+            loadPosts();
+            loadStories();
+        }
+    });
+};
+
+// Function to load current user profile and update the profile modal and currentUser object
+const loadUserProfile = () => {
+    if (!currentUser) return;
+
+    onValue(ref(db, `users/${currentUser.id}`), (snapshot) => {
+        const profile = snapshot.val();
+        if (profile) {
+            currentUser = { ...currentUser, ...profile }; // Merge profile data into currentUser
+            localStorage.setItem('currentUser', JSON.stringify(currentUser)); // Update local storage
+            if (profile.profilePicURL) {
+                profilePicPreview.src = profile.profilePicURL;
+            } else {
+                profilePicPreview.src = './icons/icon-512x512.png'; // Default image
+            }
+        } else {
+            profilePicPreview.src = './icons/icon-512x512.png'; // Default image if no profile exists
+        }
+    }); // Removed { onlyOnce: true } to listen for real-time updates
+};
+
 
 // Check for existing login and initialize toast elements
 document.addEventListener('DOMContentLoaded', () => {
@@ -962,6 +1042,15 @@ document.addEventListener('DOMContentLoaded', () => {
     postsContainer = document.getElementById('posts-container');
     storiesContainer = document.getElementById('stories-container');
     publishLoadingSpinner = document.getElementById('publish-loading-spinner');
+
+    // Profile Modal DOM Elements
+    profileBtn = document.getElementById('profile-btn');
+    profileModal = document.getElementById('profile-modal');
+    profilePicPreview = document.getElementById('profile-pic-preview');
+    profilePicUpload = document.getElementById('profile-pic-upload');
+    cancelProfileEditBtn = document.getElementById('cancel-profile-edit');
+    saveProfileBtn = document.getElementById('save-profile');
+    profileLoadingSpinner = document.getElementById('profile-loading-spinner');
 
     // Story Viewer DOM Elements
     storyViewerModal = document.getElementById('story-viewer-modal');
@@ -991,8 +1080,10 @@ document.addEventListener('DOMContentLoaded', () => {
         currentUser = JSON.parse(storedUser);
         userDisplay.textContent = `${currentUser.name}`;
         showScreen(appContainer);
+        loadAllUserProfiles(); // Load all user profiles on initial app load
         loadPosts();
         loadStories();
+        loadUserProfile(); // Load current user's profile to update preview and currentUser object
     } else {
         showScreen(loginScreen);
     }
@@ -1141,6 +1232,79 @@ document.addEventListener('DOMContentLoaded', () => {
             loadStoryContent(currentStoryIndex + 1);
         }
     });
+
+    // Profile Section Event Listeners
+    profileBtn.addEventListener('click', () => {
+        if (currentUser) {
+            loadUserProfile(); // Load current profile picture when opening modal
+            profileModal.classList.remove('hidden');
+        } else {
+            showToast('Please log in to edit your profile.', 'error');
+        }
+    });
+
+    cancelProfileEditBtn.addEventListener('click', () => {
+        profileModal.classList.add('hidden');
+        profilePicUpload.value = ''; // Clear file input
+        profileLoadingSpinner.classList.add('hidden');
+        saveProfileBtn.disabled = false;
+    });
+
+    profilePicUpload.addEventListener('change', (event) => {
+        const file = event.target.files[0];
+        if (file) {
+            const reader = new FileReader();
+            reader.onload = (e) => {
+                profilePicPreview.src = e.target.result;
+            };
+            reader.readAsDataURL(file);
+        }
+    });
+
+    saveProfileBtn.addEventListener('click', async () => {
+        if (!currentUser) {
+            showToast('Please log in to save your profile.', 'error');
+            return;
+        }
+
+        profileLoadingSpinner.classList.remove('hidden');
+        saveProfileBtn.disabled = true;
+
+        const file = profilePicUpload.files[0];
+        if (file) {
+            try {
+                // Delete old profile picture if it exists
+                if (currentUser.profilePicURL) {
+                    const oldProfilePicRef = sRef(storage, currentUser.profilePicURL);
+                    await deleteObject(oldProfilePicRef).catch(error => console.warn("Could not delete old profile picture, it might not exist or is a default:", error));
+                }
+
+                const profilePicRef = sRef(storage, `profilePics/${currentUser.id}_${Date.now()}_${file.name}`);
+                const snapshot = await uploadBytes(profilePicRef, file);
+                const profilePicURL = await getDownloadURL(snapshot.ref);
+
+                await updateUserProfile(currentUser.id, { profilePicURL: profilePicURL });
+                
+                // Update currentUser object with the new profile pic URL immediately
+                currentUser.profilePicURL = profilePicURL;
+                localStorage.setItem('currentUser', JSON.stringify(currentUser));
+
+                profileModal.classList.add('hidden');
+                profilePicUpload.value = '';
+            } catch (error) {
+                console.error('Error uploading profile picture:', error);
+                showToast('Failed to upload profile picture. See console for details.', 'error');
+            } finally {
+                profileLoadingSpinner.classList.add('hidden');
+                saveProfileBtn.disabled = false;
+            }
+        } else {
+            showToast('No new profile picture selected.', 'info');
+            profileModal.classList.add('hidden');
+            profileLoadingSpinner.classList.add('hidden');
+            saveProfileBtn.disabled = false;
+        }
+    });
 });
 
 // Delete Post
@@ -1148,12 +1312,12 @@ const deletePost = async (postId, mediaData) => {
     try {
         await remove(ref(db, `posts/${postId}`));
         // mediaData can be a single URL string or an array of objects
-        const filesToDelete = Array.isArray(mediaData) ? mediaData.map(m => m.mediaURL) : (mediaData ? [mediaData] : []);
+        const filesToDelete = Array.isArray(mediaData) ? mediaData.map(m => m.mediaURL) : (mediaData ? [m.mediaURL] : []);
 
         for (const url of filesToDelete) {
             if (url) {
                 const fileRef = sRef(storage, url);
-                await deleteObject(fileRef);
+                await deleteObject(fileRef).catch(error => console.warn("Could not delete media file, it might not exist:", error));
             }
         }
         showToast('Post deleted successfully!', 'success');
@@ -1174,7 +1338,7 @@ const deleteStory = async (storyId, mediaURL) => {
         await remove(ref(db, `stories/${storyId}`));
         if (mediaURL) {
             const fileRef = sRef(storage, mediaURL);
-            await deleteObject(fileRef);
+            await deleteObject(fileRef).catch(error => console.warn("Could not delete story media file, it might not exist:", error));
         }
 
         // Remove the deleted story from the currentStories array
