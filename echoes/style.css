@@ -318,3 +318,12 @@ body {
     -moz-osx-font-smoothing: grayscale;
     font-feature-settings: 'liga';
 }
+
+/* New style for seen stories */
+.story-seen-border {
+    background-color: #404040; /* neutral-700 */
+    border-color: #525252; /* neutral-600 */
+    padding: 2px; /* Similar padding to the gradient border */
+    border-width: 2px;
+    border-style: solid;
+}

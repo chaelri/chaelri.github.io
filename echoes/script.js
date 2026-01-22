@@ -1,3 +1,4 @@
+
 // script.js (FULL — PART 2/2)
 
 // =============================
@@ -70,6 +71,7 @@ let storyViewerPrevBtn;
 let storyViewerNextBtn;
 let deleteStoryViewerBtn;
 let storyProgressBarContainer;
+let storyViewerSeenBy; // New DOM element for seen by
 
 // Custom Confirmation Modal DOM Elements
 let confirmationModal;
@@ -187,7 +189,7 @@ const startProgressBar = (index) => {
         // Check if the current story is a video and if it's still playing
         if (storyViewerMediaVideo.classList.contains('hidden') === false && !storyViewerMediaVideo.paused) {
             // If it's a video and playing, let the video's 'ended' event handle the transition
-            // For now, we will let the timeout trigger next, as video length can vary
+            // For now, we will let the timeout trigger next, as video length can vary.
             // A better solution would be to tie progress to video duration.
             // For simplicity with fixed 5s, we proceed regardless of video state after 5s.
         }
@@ -199,6 +201,18 @@ const startProgressBar = (index) => {
     }, 5000);
 };
 
+// Function to mark a story as seen by the current user
+const markStoryAsSeen = async (storyId) => {
+    if (!currentUser || !storyId) return;
+
+    const seenByRef = ref(db, `stories/${storyId}/seenBy/${currentUser.id}`);
+    try {
+        await update(seenByRef, { timestamp: Date.now() });
+        console.log(`Story ${storyId} marked as seen by ${currentUser.name}`);
+    } catch (error) {
+        console.error('Error marking story as seen:', error);
+    }
+};
 
 // Display a specific story in the viewer and manage progress bars
 const loadStoryContent = (index) => {
@@ -210,6 +224,9 @@ const loadStoryContent = (index) => {
 
     currentStoryIndex = index;
     const story = currentStories[currentStoryIndex];
+
+    // Mark the story as seen by the current user
+    markStoryAsSeen(story.id);
 
     storyViewerMediaImage.classList.add('hidden');
     storyViewerMediaVideo.classList.add('hidden');
@@ -249,6 +266,43 @@ const loadStoryContent = (index) => {
 
     storyViewerUsername.textContent = story.userName || 'Unknown';
     storyViewerAvatar.textContent = (story.userName || 'U').charAt(0).toUpperCase();
+
+    // Populate "Seen By" information
+    const seenBy = story.seenBy || {};
+    let seenByUsers = [];
+    let karlaViewCount = 0;
+
+    for (const userId in seenBy) {
+        if (userId === 'karla') {
+            // If seenBy[userId] stores a timestamp, we count it as 1 view for simplicity.
+            // If you want to count multiple views by Karla, you'd need a counter for each user in Firebase.
+            // For now, if 'karla' key exists, it means Karla has viewed it at least once.
+            karlaViewCount++; // Increment for each entry if we track multiple views
+            // If seenBy[userId] stores an actual count for a user, use that.
+            // For this implementation, we are just checking presence for other users, and counting Karla's entries.
+        } else {
+            seenByUsers.push(userId.charAt(0).toUpperCase() + userId.slice(1));
+        }
+    }
+    
+    let seenByText = '';
+    if (Object.keys(seenBy).length > 0) {
+        seenByText = 'Viewed by: ';
+        if (seenByUsers.length > 0) {
+            seenByText += seenByUsers.join(', ');
+        }
+        if (karlaViewCount > 0) {
+            if (seenByUsers.length > 0) {
+                seenByText += ` (Karla: ${karlaViewCount} time${karlaViewCount > 1 ? 's' : ''})`;
+            } else {
+                seenByText += `Karla: ${karlaViewCount} time${karlaViewCount > 1 ? 's' : ''}`;
+            }
+        }
+    } else {
+        seenByText = 'No views yet.';
+    }
+    storyViewerSeenBy.textContent = seenByText;
+
 
     // Manage navigation button visibility
     storyViewerPrevBtn.classList.toggle('hidden', currentStoryIndex === 0);
@@ -452,7 +506,7 @@ const loadComments = (postId, commentListElement) => {
                 commentContent.classList.add('flex-grow');
 
                 const commentTimestamp = new Date(comment.timestamp).toLocaleString();
-                commentContent.innerHTML = `<span class="font-semibold text-neutral-100">${comment.author}</span> ${comment.text} <span class="text-neutral-500 text-xs ml-2">${commentTimestamp}</span>`;
+                commentContent.innerHTML = `<span class=\"font-semibold text-neutral-100\">${comment.author}</span> ${comment.text} <span class=\"text-neutral-500 text-xs ml-2\">${commentTimestamp}</span>`;
                 
                 commentElement.appendChild(commentContent);
 
@@ -464,8 +518,8 @@ const loadComments = (postId, commentListElement) => {
                 const likeButton = document.createElement('button');
                 likeButton.classList.add('flex', 'items-center', 'space-x-1', 'text-neutral-400', 'hover:text-red-500', 'transition-colors', 'duration-150', 'ease-in-out', 'mr-2');
                 likeButton.innerHTML = `
-                    <span class="material-icons ${isLiked ? 'text-red-500' : ''}">${isLiked ? 'favorite' : 'favorite_border'}</span>
-                    <span class="text-xs">${likeCount}</span>
+                    <span class=\"material-icons ${isLiked ? 'text-red-500' : ''}\">${isLiked ? 'favorite' : 'favorite_border'}</span>
+                    <span class=\"text-xs\">${likeCount}</span>
                 `;
                 likeButton.title = isLiked ? 'Unlike comment' : 'Like comment';
                 likeButton.addEventListener('click', async () => {
@@ -491,7 +545,7 @@ const loadComments = (postId, commentListElement) => {
                 commentListElement.appendChild(commentElement);
             });
         } else {
-            commentListElement.innerHTML = '<p class="text-neutral-400 text-sm">No comments yet.</p>';
+            commentListElement.innerHTML = '<p class=\"text-neutral-400 text-sm\">No comments yet.</p>';
         }
     });
 };
@@ -579,25 +633,23 @@ const loadPosts = () => {
                     // Multi-image post (carousel)
                     mediaData = post.media;
                     mediaHtml = `
-                        <div class="carousel-container relative overflow-hidden">
-                            <div class="carousel-wrapper flex transition-transform duration-300 ease-in-out";">
+                        <div class=\"carousel-container relative overflow-hidden\">
+                            <div class=\"carousel-wrapper flex transition-transform duration-300 ease-in-out\";\">
                                 ${mediaData.map((media, index) => `
-                                    <div class="carousel-slide flex-none post-media-wrapper bg-neutral-900" style="width: calc(100% / ${mediaData.length});">
-                                        <img src="${media.thumbnailBase64 || 'data:image/gif;base64,R0lGODlhAQABAAD/ACwAAAAAAQABAAACADs='}" 
-                                            data-src="${media.mediaURL}" 
-                                            alt="Post media ${index + 1}" 
-                                            class="post-media-image w-full h-full object-contain filter blur-lg transition-filter duration-500 ease-in-out">
-                                        <div class="absolute inset-0 flex items-center justify-center">
-                                            <div class="loader ease-linear rounded-full border-4 border-t-4 border-blue-500 h-8 w-8 text-white"></div>
+                                    <div class=\"carousel-slide flex-none post-media-wrapper bg-neutral-900\" style=\"width: calc(100% / ${mediaData.length});\">
+                                        <img src=\"${media.thumbnailBase64 || 'data:image/gif;base64,R0lGODlhAQABAAD/ACwAAAAAAQABAAACADs='}\" 
+                                            data-src=\"${media.mediaURL}\" 
+                                            alt=\"Post media ${index + 1}\" 
+                                            class=\"post-media-image w-full h-full object-contain filter blur-lg transition-filter duration-500 ease-in-out\">
+                                        <div class=\"absolute inset-0 flex items-center justify-center\">\n                                            <div class=\"loader ease-linear rounded-full border-4 border-t-4 border-blue-500 h-8 w-8 text-white\"></div>
                                         </div>
                                     </div>
                                 `).join('')}
                             </div>
-                            <button class="carousel-button carousel-button-prev left-0 ${mediaData.length <= 1 ? 'hidden' : ''}"><span class="material-icons">chevron_left</span></button>
-                            <button class="carousel-button carousel-button-next right-0 ${mediaData.length <= 1 ? 'hidden' : ''}"><span class="material-icons">chevron_right</span></button>
+                            <button class=\"carousel-button carousel-button-prev left-0 ${mediaData.length <= 1 ? 'hidden' : ''}\"><span class=\"material-icons\">chevron_left</span></button>
+                            <button class=\"carousel-button carousel-button-next right-0 ${mediaData.length <= 1 ? 'hidden' : ''}\"><span class=\"material-icons\">chevron_right</span></button>
                             ${mediaData.length > 1 ? `
-                                <div class="carousel-indicators">
-                                    ${mediaData.map((_, index) => `<span class="indicator-dot ${index === 0 ? 'active' : ''}" data-slide-to="${index}"></span>`).join('')}
+                                <div class=\"carousel-indicators\">\n                                    ${mediaData.map((_, index) => `<span class=\"indicator-dot ${index === 0 ? 'active' : ''}\" data-slide-to=\"${index}\"></span>`).join('')}
                                 </div>
                             ` : ''}
                         </div>
@@ -608,19 +660,16 @@ const loadPosts = () => {
                     const urlWithoutQueryParams = post.mediaURL.split('?')[0];
                     if (urlWithoutQueryParams.match(/\.(mp4|webm|ogg)$/i)) {
                          mediaHtml = `
-                            <div class="relative w-full post-media-wrapper bg-neutral-900">
-                                <video src="${post.mediaURL}" controls class="w-full h-full object-contain"></video>
+                            <div class=\"relative w-full post-media-wrapper bg-neutral-900\">\n                                <video src=\"${post.mediaURL}\" controls class=\"w-full h-full object-contain\"></video>
                             </div>
                         `;
                     } else {
                          mediaHtml = `
-                            <div class="relative w-full post-media-wrapper bg-neutral-900">
-                                <img src="${post.thumbnailBase64 || 'data:image/gif;base64,R0lGODlhAQABAAD/ACwAAAAAAQABAAACADs='}" 
-                                    data-src="${post.mediaURL}" 
-                                    alt="Post media" 
-                                    class="post-media-image w-full h-full object-contain filter blur-lg transition-filter duration-500 ease-in-out">
-                                <div class="absolute inset-0 flex items-center justify-center">
-                                    <div class="loader ease-linear rounded-full border-4 border-t-4 border-blue-500 h-8 w-8 text-white"></div>
+                            <div class=\"relative w-full post-media-wrapper bg-neutral-900\">\n                                <img src=\"${post.thumbnailBase64 || 'data:image/gif;base64,R0lGODlhAQABAAD/ACwAAAAAAQABAAACADs='}\" 
+                                    data-src=\"${post.mediaURL}\" 
+                                    alt=\"Post media\" 
+                                    class=\"post-media-image w-full h-full object-contain filter blur-lg transition-filter duration-500 ease-in-out\">
+                                <div class=\"absolute inset-0 flex items-center justify-center\">\n                                    <div class=\"loader ease-linear rounded-full border-4 border-t-4 border-blue-500 h-8 w-8 text-white\"></div>
                                 </div>
                             </div>
                         `;
@@ -628,30 +677,20 @@ const loadPosts = () => {
                 }
 
                 postElement.innerHTML = `
-                    <div class="flex items-center p-3">
-                        <div class="w-8 h-8 bg-gradient-to-r from-teal-500 to-blue-500 rounded-full mr-3 flex items-center justify-center text-white text-sm font-bold">${postAuthorInitial}</div>
-                        <p class="font-semibold text-neutral-100">${postAuthor}</p>
-                        ${showDeleteButton ? `<button class="ml-auto text-red-400 hover:text-red-600 delete-post-btn text-sm" data-id="${key}">Delete</button>` : ''}
+                    <div class=\"flex items-center p-3\">\n                        <div class=\"w-8 h-8 bg-gradient-to-r from-teal-500 to-blue-500 rounded-full mr-3 flex items-center justify-center text-white text-sm font-bold\">${postAuthorInitial}</div>
+                        <p class=\"font-semibold text-neutral-100\">${postAuthor}</p>
+                        ${showDeleteButton ? `<button class=\"ml-auto text-red-400 hover:text-red-600 delete-post-btn text-sm\" data-id=\"${key}\">Delete</button>` : ''}
                     </div>
                     ${mediaHtml}
-                    <div class="p-3">
-                        ${post.caption ? `<p class="text-neutral-300 mb-1"><span class="font-semibold text-neutral-100">${postAuthor}</span> ${post.caption}</p>` : ''}
-                        <div class="flex items-center space-x-4 mb-2">
-                            <button class="like-button flex items-center space-x-1 text-neutral-400 hover:text-red-500 transition-colors duration-150 ease-in-out" data-post-id="${key}">
-                                <span class="material-icons ${isLiked ? 'text-red-500' : ''}">${isLiked ? 'favorite' : 'favorite_border'}</span>
-                                <span class="text-sm">${likeCount}</span>
+                    <div class=\"p-3\">\n                        ${post.caption ? `<p class=\"text-neutral-300 mb-1\"><span class=\"font-semibold text-neutral-100\">${postAuthor}</span> ${post.caption}</p>` : ''}
+                        <div class=\"flex items-center space-x-4 mb-2\">\n                            <button class=\"like-button flex items-center space-x-1 text-neutral-400 hover:text-red-500 transition-colors duration-150 ease-in-out\" data-post-id=\"${key}\">\n                                <span class=\"material-icons ${isLiked ? 'text-red-500' : ''}\">${isLiked ? 'favorite' : 'favorite_border'}</span>
+                                <span class=\"text-sm\">${likeCount}</span>
                             </button>
-                            <p class="text-neutral-500 text-xs">${new Date(post.timestamp).toLocaleString()}</p>
+                            <p class=\"text-neutral-500 text-xs\">${new Date(post.timestamp).toLocaleString()}</p>
                         </div>
-                        <div class="post-comment-section mt-4 pt-4 border-t border-neutral-700">
-                            <div class="comment-list space-y-3 mb-4">
-                                <!-- Comments will be loaded here by JavaScript -->
-                                <p class="text-neutral-400 text-sm">Loading comments...</p>
-                            </div>
-                            <div class="flex items-center space-x-2">
-                                <textarea class="comment-input flex-grow rounded-lg py-2 px-4 bg-neutral-700 text-neutral-100 text-sm leading-tight focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-transparent transition duration-150 border border-neutral-600" placeholder="Add a comment..."></textarea>
-                                <button class="post-comment-btn bg-gradient-to-r from-teal-500 to-blue-500 hover:from-teal-600 hover:to-blue-600 text-white font-bold py-2 px-4 rounded-full text-sm shadow-md transition duration-150 ease-in-out" data-post-id="${key}">
-                                    Post
+                        <div class=\"post-comment-section mt-4 pt-4 border-t border-neutral-700\">\n                            <div class=\"comment-list space-y-3 mb-4\">\n                                <!-- Comments will be loaded here by JavaScript -->\n                                <p class=\"text-neutral-400 text-sm\">Loading comments...</p>\n                            </div>
+                            <div class=\"flex items-center space-x-2\">\n                                <textarea class=\"comment-input flex-grow rounded-lg py-2 px-4 bg-neutral-700 text-neutral-100 text-sm leading-tight focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-transparent transition duration-150 border border-neutral-600\" placeholder=\"Add a comment...\"></textarea>
+                                <button class=\"post-comment-btn bg-gradient-to-r from-teal-500 to-blue-500 hover:from-teal-600 hover:to-blue-600 text-white font-bold py-2 px-4 rounded-full text-sm shadow-md transition duration-150 ease-in-out\" data-post-id=\"${key}\">\n                                    Post
                                 </button>
                             </div>
                         </div>
@@ -758,7 +797,7 @@ const loadPosts = () => {
                 });
             });
         } else {
-            postsContainer.innerHTML = '<p class="text-center text-neutral-500 mt-8">No posts yet. Be the first to share!</p>';
+            postsContainer.innerHTML = '<p class=\"text-center text-neutral-500 mt-8\">No posts yet. Be the first to share!</p>';
         }
     });
 };
@@ -798,9 +837,12 @@ const loadStories = () => {
             const yourStoryElement = document.createElement('div');
             yourStoryElement.classList.add('flex-shrink-0', 'flex', 'flex-col', 'items-center', 'w-20', 'cursor-pointer');
             
+            // Determine border style for 'Your Story'
+            const yourStoryBorderClass = currentUserHasActiveStories ? 'border-solid border-blue-500' : 'border-dashed border-neutral-500';
+
             yourStoryElement.innerHTML = `
-                <div class="w-16 h-16 rounded-full bg-neutral-700 border-2 ${currentUserHasActiveStories ? 'border-solid border-blue-500' : 'border-dashed border-neutral-500'} flex items-center justify-center text-neutral-300 text-2xl font-bold">${currentUserHasActiveStories ? (currentUser.name.charAt(0).toUpperCase()) : '+'}</div>
-                <p class="text-xs text-neutral-400 mt-1 truncate w-full text-center">Your Story</p>
+                <div class=\"w-16 h-16 rounded-full bg-neutral-700 border-2 ${yourStoryBorderClass} flex items-center justify-center text-neutral-300 text-2xl font-bold\">${currentUserHasActiveStories ? (currentUser.name.charAt(0).toUpperCase()) : '+'}</div>
+                <p class=\"text-xs text-neutral-400 mt-1 truncate w-full text-center\">Your Story</p>
             `;
             yourStoryElement.addEventListener('click', () => {
                 if (currentUserHasActiveStories) {
@@ -821,13 +863,17 @@ const loadStories = () => {
         Object.entries(activeStoriesByUserName).forEach(([userName, userStories]) => {
             const initial = userName.charAt(0).toUpperCase();
 
+            // Determine if all of this user's stories have been seen by the currentUser
+            const allStoriesSeen = currentUser && userStories.every(story => story.seenBy && story.seenBy[currentUser.id]);
+            const storyBorderClass = allStoriesSeen ? 'story-seen-border' : 'bg-gradient-to-tr from-yellow-400 to-fuchsia-600 p-0.5';
+
             const storyElement = document.createElement('div');
             storyElement.classList.add('flex-shrink-0', 'flex', 'flex-col', 'items-center', 'w-20', 'cursor-pointer');
             storyElement.innerHTML = `
-                <div class="w-16 h-16 rounded-full bg-gradient-to-tr from-yellow-400 to-fuchsia-600 p-0.5 flex items-center justify-center">
-                    <div class="w-full h-full object-cover rounded-full border-2 border-neutral-900 bg-neutral-700 flex items-center justify-center text-white text-lg font-bold">${initial}</div>
+                <div class=\"w-16 h-16 rounded-full ${storyBorderClass} flex items-center justify-center\">
+                    <div class=\"w-full h-full object-cover rounded-full border-2 border-neutral-900 bg-neutral-700 flex items-center justify-center text-white text-lg font-bold\">${initial}</div>
                 </div>
-                <p class="text-xs text-neutral-300 mt-1 truncate w-full text-center">${userName}</p>
+                <p class=\"text-xs text-neutral-300 mt-1 truncate w-full text-center\">${userName}</p>
             `;
             storyElement.addEventListener('click', () => {
                 openStoryViewer(userStories, 0);
@@ -838,7 +884,7 @@ const loadStories = () => {
         });
 
         if (!anyStoryCircleRendered) {
-            storiesContainer.innerHTML = '<p class="text-center text-neutral-500 mt-8">No stories yet. Be the first to share!</p>';
+            storiesContainer.innerHTML = '<p class=\"text-center text-neutral-500 mt-8\">No stories yet. Be the first to share!</p>';
         }
     });
 };
@@ -928,6 +974,7 @@ document.addEventListener('DOMContentLoaded', () => {
     storyViewerNextBtn = document.getElementById('story-viewer-next-btn');
     deleteStoryViewerBtn = document.getElementById('delete-story-viewer-btn');
     storyProgressBarContainer = document.getElementById('story-progress-container');
+    storyViewerSeenBy = document.getElementById('story-viewer-seen-by'); // Initialize new DOM element
 
     // Custom Confirmation Modal DOM Elements
     confirmationModal = document.getElementById('confirmation-modal');
@@ -1062,6 +1109,7 @@ document.addEventListener('DOMContentLoaded', () => {
                     mediaURL: mediaInfo.mediaURL,
                     thumbnailBase64: mediaInfo.thumbnailBase64,
                     mediaType: mediaInfo.mediaType, // Store media type for stories too
+                    seenBy: {}, // Initialize seenBy as an empty object
                 };
                 console.log("Publishing new story:", newContent);
                 await push(ref(db, 'stories'), newContent);
@@ -1123,7 +1171,6 @@ const deleteStory = async (storyId, mediaURL) => {
             clearTimeout(progressBarTimeout);
             progressBarTimeout = null;
         }
-
         await remove(ref(db, `stories/${storyId}`));
         if (mediaURL) {
             const fileRef = sRef(storage, mediaURL);
@@ -1135,7 +1182,6 @@ const deleteStory = async (storyId, mediaURL) => {
         if (deletedIndex > -1) {
             currentStories.splice(deletedIndex, 1);
         }
-
         // If there are no more stories, close the viewer
         if (currentStories.length === 0) {
             closeStoryViewer();

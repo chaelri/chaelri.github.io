@@ -138,9 +138,12 @@
 
                 <!-- User Info and Close Button Overlay -->
                 <div id="story-viewer-top-overlay" class="absolute top-0 left-0 right-0 p-4 flex items-center justify-between z-20 bg-gradient-to-b from-neutral-900 to-transparent">
-                    <div id="story-viewer-user-info" class="flex items-center space-x-3">
+                    <div class="flex items-center space-x-3">
                         <div id="story-viewer-avatar" class="w-8 h-8 rounded-full bg-neutral-700 flex items-center justify-center text-white text-sm font-bold"></div>
-                        <p id="story-viewer-username" class="text-white font-semibold"></p>
+                        <div>
+                            <p id="story-viewer-username" class="text-white font-semibold"></p>
+                            <p id="story-viewer-seen-by" class="text-neutral-400 text-xs"></p> <!-- New Seen By element -->
+                        </div>
                     </div>
                     <div class="flex items-center space-x-2">
                         <button id="delete-story-viewer-btn" class="hidden bg-red-600 hover:bg-red-700 text-white font-bold py-1 px-3 rounded-full text-xs transition duration-150 ease-in-out">Delete Story</button>
