@@ -46,7 +46,7 @@ AGENT_STATE = {
 # NEW: A global event to signal the agent thread to stop
 AGENT_STOP_EVENT = threading.Event()
 
-# --- 1. Agent Tools (Unchanged) ---
+# --- 1. Agent Tools ---
 def create_directory(dirname: str) -> str:
     """Creates a new directory (folder) if it does not already exist."""
     try:
@@ -73,6 +73,24 @@ def write_file(filename: str, content: str) -> str:
     except Exception as e:
         return f"ERROR: File write failed: {e}"
 
+# NEW TOOL: Directory Tree (The Eyes)
+def list_files(directory: str = ".") -> str:
+    """Returns a visual tree of the directory structure to help the agent explore the codebase."""
+    try:
+        output = f"DIRECTORY STRUCTURE FOR '{directory}':\n"
+        exclude_dirs = {'.git', '__pycache__', 'node_modules', '.venv', 'venv'}
+        for root, dirs, files in os.walk(directory):
+            dirs[:] = [d for d in dirs if d not in exclude_dirs]
+            level = root.replace(directory, '').count(os.sep)
+            indent = ' ' * 4 * level
+            output += f"{indent}{os.path.basename(root)}/\n"
+            sub_indent = ' ' * 4 * (level + 1)
+            for f in files:
+                output += f"{sub_indent}{f}\n"
+        return output
+    except Exception as e:
+        return f"ERROR: Could not list directory: {e}"
+
 # NEW TOOL: Read files and return content
 def read_files(filenames: list) -> str:
     """Reads the content of specified files and returns a structured string."""
@@ -93,19 +111,21 @@ def read_files(filenames: list) -> str:
 
 AVAILABLE_TOOLS = {
     "write_file": write_file,
+    "list_files": list_files,
     "create_directory": create_directory,
     "read_files": read_files, 
 }
 
-# --- 2. Gemini API Connector (Updated System Instruction) ---
+# --- 2. Gemini API Connector ---
 GEMINI_API_URL = "https://generativelanguage.googleapis.com/v1beta/models/gemini-2.5-flash:generateContent"
 
 SYSTEM_INSTRUCTION = (
     "You are an **Autonomous Senior Web Developer Agent and Codebase Contributor** powered by Gemini. "
-    "Your core function is to analyze, modify, and create HTML, JavaScript, and CSS (using Tailwind) files. "
-    "When a user provides existing file content, you must use that as context. If the user asks to modify a file, "
-    "you MUST use the `write_file` tool to overwrite the ENTIRE content of that file with the modified code. "
-    "You have the authority to use the `write_file`, `create_directory`, and `read_files` tools. "
+    "Your core function is to analyze, modify, and create HTML, JavaScript, and CSS (using Tailwind) files.\n\n"
+    "STRATEGY:\n"
+    "1. Use `list_files` to see the project structure before making changes.\n"
+    "2. Use `read_files` to understand existing code context.\n"
+    "3. Use `write_file` to create or modify files. When modifying, you MUST overwrite the ENTIRE content of the file with the updated code.\n"
     "Always think step-by-step and provide your reasoning before making a tool call."
 )
 
@@ -117,6 +137,13 @@ TOOL_DEFINITIONS = [
                 "description": "Writes (overwrites) the ENTIRE content of a file (e.g., index.html, script.js). Use 'path/to/file.ext' to place in subdirectories.",
                 "parameters": {
                     "type": "OBJECT", "properties": {"filename": {"type": "STRING"}, "content": {"type": "STRING"}}, "required": ["filename", "content"],
+                }
+            },
+            {
+                "name": "list_files",
+                "description": "Lists the directory tree of the workspace so you can explore the file structure.",
+                "parameters": {
+                    "type": "OBJECT", "properties": {"directory": {"type": "STRING", "description": "Path to list, defaults to '.'"}},
                 }
             },
             {
@@ -205,7 +232,7 @@ def run_agent_loop(user_content):
             AGENT_STATE['agent_status'] = "Cancelled"
             break
             
-        AGENT_STATE['agent_status'] = random.choice(["Thinking...", "Processing context...", "Analyzing prompt..."])
+        AGENT_STATE['agent_status'] = random.choice(["Thinking...", "Processing context...", "Analyzing codebase structure..."])
         
         loop_start_time = time.time()
         
@@ -371,6 +398,16 @@ class AgentWebHandler(http.server.BaseHTTPRequestHandler):
         <script src="https://cdn.tailwindcss.com"></script>
         <!-- Material Symbols Icon CDN -->
         <link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Material+Symbols+Outlined:opsz,wght,FILL,GRAD@20..48,100..700,0..1,-50..200" />
+        
+        <!-- Markdown & Syntax Highlighting -->
+        <script src="https://cdn.jsdelivr.net/npm/marked/marked.min.js"></script>
+        <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/prism/1.29.0/themes/prism-tomorrow.min.css">
+        <script src="https://cdnjs.cloudflare.com/ajax/libs/prism/1.29.0/prism.min.js"></script>
+        <script src="https://cdnjs.cloudflare.com/ajax/libs/prism/1.29.0/components/prism-javascript.min.js"></script>
+        <script src="https://cdnjs.cloudflare.com/ajax/libs/prism/1.29.0/components/prism-python.min.js"></script>
+        <script src="https://cdnjs.cloudflare.com/ajax/libs/prism/1.29.0/components/prism-css.min.js"></script>
+        <script src="https://cdnjs.cloudflare.com/ajax/libs/prism/1.29.0/components/prism-json.min.js"></script>
+
         <style>
             /* New: Charcoal Vibe - Deep slate background */
             body { 
@@ -434,6 +471,14 @@ class AgentWebHandler(http.server.BaseHTTPRequestHandler):
                 overflow-y: auto; color: #E2E8F0; box-shadow: 0 10px 25px rgba(0,0,0,0.5); border: 2px solid #06b6d4;
             }
             .modal-content pre { background-color: #0F172A; padding: 1rem; border-radius: 0.5rem; overflow-x: auto; margin-top: 1rem; }
+
+            /* Markdown Styling Overrides for Chat */
+            .prose pre { background-color: #0F172A !important; border: 1px solid #334155; border-radius: 0.5rem; padding: 1rem; margin-top: 0.5rem; margin-bottom: 0.5rem; }
+            .prose code { color: #2DD4BF; font-family: monospace; } /* teal-400 */
+            .prose strong { color: #E2E8F0; }
+            .prose a { color: #06B6D4; text-decoration: underline; }
+            .prose ul { list-style-type: disc; padding-left: 1.5rem; }
+            .prose ol { list-style-type: decimal; padding-left: 1.5rem; }
         </style>
     </head>
     <body class="bg-slate-950 text-gray-100 p-8"> <!-- Increased body padding -->
@@ -534,6 +579,18 @@ class AgentWebHandler(http.server.BaseHTTPRequestHandler):
             const MAX_FILES_FOR_CONTEXT = 50; 
             const RUNNING_STATUSES = ["Thinking...", "Planning...", "Synthesizing...", "Reflecting..."]; 
 
+            // Configure Marked.js for Syntax Highlighting
+            marked.setOptions({
+                highlight: function(code, lang) {
+                    if (Prism.languages[lang]) {
+                        return Prism.highlight(code, Prism.languages[lang], lang);
+                    }
+                    return code;
+                },
+                breaks: true,
+                gfm: true
+            });
+
             // JS for Auto-expanding Textarea
             function autoExpand() {
                 userInput.style.height = 'auto';
@@ -541,7 +598,7 @@ class AgentWebHandler(http.server.BaseHTTPRequestHandler):
             }
             userInput.addEventListener('input', autoExpand);
 
-            // --- FILE CONTEXT LOGIC (UPDATED with View Button) ---
+            // --- FILE CONTEXT LOGIC ---
             function updateFileContext(files) {
                 contextFiles = Array.from(files);
                 if (contextFiles.length > MAX_FILES_FOR_CONTEXT) {
@@ -582,7 +639,6 @@ class AgentWebHandler(http.server.BaseHTTPRequestHandler):
             
             viewContextBtn.addEventListener('click', () => showFileContextPreview()); 
 
-            // NEW: Pre-Send Context Preview Logic
             async function buildFileContextString(files) {
                 let filesContent = "";
                 for (const file of files) {
@@ -616,7 +672,7 @@ class AgentWebHandler(http.server.BaseHTTPRequestHandler):
             // --- END FILE CONTEXT LOGIC ---
 
 
-            // --- IMAGE PASTE/UPLOAD LOGIC (Unchanged) ---
+            // --- IMAGE PASTE/UPLOAD LOGIC ---
             function setupImagePaste() {
                 pasteZone.addEventListener('click', () => imageUpload.click());
                 imageUpload.addEventListener('change', (e) => {
@@ -677,102 +733,85 @@ class AgentWebHandler(http.server.BaseHTTPRequestHandler):
             }
             // --- END IMAGE PASTE/UPLOAD LOGIC ---
 
-            // --- UI RENDERING LOGIC (MAJOR UPDATE: Tool Consolidation/Error Emphasis) ---
+            // --- UI RENDERING LOGIC ---
             function appendMessage(sender, text, isTool = false) {
                 const msgDiv = document.createElement('div');
-                let cssClasses = "message p-4 rounded-xl shadow-lg transition duration-300 agent-message-enter-active"; 
+                let cssClasses = "message p-4 rounded-xl shadow-lg transition duration-300 agent-message-enter-active prose prose-invert max-w-none"; 
                 let icon = "";
 
                 if (sender === 'user') {
-                    cssClasses += " user max-w-[85%] ml-auto bg-blue-700/80 rounded-tr-sm shadow-blue-900/50"; 
+                    cssClasses += " user ml-auto bg-blue-700/80 rounded-tr-sm shadow-blue-900/50 max-w-[85%]"; 
                 } else if (sender === 'agent') {
-                    cssClasses += " agent max-w-[85%] mr-auto bg-slate-800/80 rounded-tl-sm shadow-slate-950/50"; 
-                    icon = '<span class="material-symbols-outlined mr-3 text-cyan-400 align-top text-xl">robot_2</span>'; 
+                    cssClasses += " agent mr-auto bg-slate-800/80 rounded-tl-sm shadow-slate-950/50 max-w-[85%]"; 
+                    icon = '<div class="flex items-center mb-2"><span class="material-symbols-outlined mr-2 text-cyan-400 text-xl">robot_2</span><span class="text-xs font-bold text-cyan-400 uppercase tracking-widest">Agent</span></div>'; 
                 } else if (isTool) {
-                    // Check if it's Tool Action (not Reasoning)
                     if (!text.startsWith('**🧠')) {
-                        // NEW: Tool Consolidation & Collapsible Area
                         const toolDetails = parseToolLog(text);
                         const hasError = toolDetails.errors.length > 0;
                         const actionCount = toolDetails.actions.length;
                         const firstAction = toolDetails.actions[0] || {};
                         const summaryText = hasError 
-                            ? `🛠️ Executed ${actionCount} actions (1 Failed)`
+                            ? `🛠️ Executed ${actionCount} actions (Errors Detected)`
                             : `🛠️ Executed ${actionCount} actions (${firstAction.name || '...'})`;
                         
-                        // CONFIRMED FINAL FIX: Escaping the newline regex in the JS literal string
                         const detailsHtml = toolDetails.raw.map(log => 
                             `<div class="mt-2 p-2 rounded-lg ${log.hasError ? 'bg-red-950/70 text-red-200 border-l-2 border-red-500' : 'bg-slate-950/70 text-yellow-300 border-l-2 border-yellow-500'}">
-                                ${log.text.replace(/\\n/g, '<br>')}
+                                ${marked.parse(log.text)}
                             </div>`
                         ).join('');
 
-                        cssClasses = `message tool max-w-[95%] mr-auto border-l-4 p-4 my-3 shadow-inner rounded-r-xl transition duration-300 ${hasError ? 'tool-error-container' : 'bg-slate-900 border-yellow-500'}`;
+                        cssClasses = `message tool mr-auto border-l-4 p-4 my-3 shadow-inner rounded-r-xl transition duration-300 w-full ${hasError ? 'tool-error-container' : 'bg-slate-900 border-yellow-500'}`;
                         
                         msgDiv.innerHTML = `
                             <details class="text-sm">
                                 <summary class="tool-summary ${hasError ? 'tool-summary-error' : 'tool-summary-success'}">
-                                    ${icon} ${summaryText}
+                                    ${summaryText}
                                 </summary>
                                 <div class="tool-details">
-                                    ${toolDetails.reasoning ? `<div class="mb-3 p-2 border-b border-gray-700 text-cyan-300">**🧠 Reasoning**<br>${toolDetails.reasoning}</div>` : ''}
+                                    ${toolDetails.reasoning ? `<div class="mb-3 p-2 border-b border-gray-700 text-cyan-300">**🧠 Reasoning**<br>${marked.parse(toolDetails.reasoning)}</div>` : ''}
                                     ${detailsHtml}
                                 </div>
                             </details>
                         `;
                         chatWindow.appendChild(msgDiv);
                         chatWindow.scrollTop = chatWindow.scrollHeight;
+                        Prism.highlightAllUnder(msgDiv);
                         return;
                         
                     } else {
-                        // Reasoning block (cyan)
-                        cssClasses = "message tool max-w-[90%] mr-auto bg-gray-900 border-l-4 border-cyan-500 p-3 my-2 text-xs text-cyan-300 shadow-inner rounded-r-lg whitespace-pre-wrap transition duration-300";
-                        icon = '<span class="material-symbols-outlined mr-2 text-cyan-500 align-middle text-lg">psychology_alt</span>';
+                        cssClasses = "message tool mr-auto bg-gray-900 border-l-4 border-cyan-500 p-3 my-2 text-xs text-cyan-300 shadow-inner rounded-r-lg w-[90%] transition duration-300";
+                        icon = '<div class="flex items-center mb-1"><span class="material-symbols-outlined mr-2 text-cyan-500 text-lg">psychology_alt</span><span class="font-bold uppercase">Reasoning</span></div>';
                     }
                 }
                 
                 msgDiv.className = cssClasses;
                 
-                // Bulletproof formatting logic
-                let tempText = text;
+                // Using marked.parse for robust markdown rendering
+                const formattedContent = marked.parse(text);
+                msgDiv.innerHTML = icon + formattedContent;
                 
-                // 1. Handle bolding with ** 
-                tempText = tempText.replace(/\*\*(.*?)\*\*/g, '<strong>$1</strong>'); 
-                
-                // 2. Handle backticks for code 
-                tempText = tempText.replace(new RegExp('`(.*?)`', 'g'), '<code class="bg-slate-900 text-teal-300 px-1.5 py-0.5 rounded text-sm">$1</code>');
-                
-                // 3. Handle newlines - CONFIRMED FINAL FIX FOR JAVASCRIPT REGEX (The old location)
-                tempText = tempText.replace(/\\n/g, '<br>');
-
-                const formattedText = tempText;
-
-                msgDiv.innerHTML = icon + formattedText;
                 chatWindow.appendChild(msgDiv);
                 chatWindow.scrollTop = chatWindow.scrollHeight;
+                Prism.highlightAllUnder(msgDiv);
             }
 
-            // NEW: Function to parse tool log string for consolidation
             function parseToolLog(logString) {
                 const parts = logString.split('**🛠️ Tool Action');
                 let toolActions = [];
                 let reasoningText = null;
 
                 if (parts[0].trim().startsWith('**🧠')) {
-                    // CONFIRMED FINAL FIX: Escaping the newline regex in the JS literal string
-                    reasoningText = parts[0].trim().replace('**🧠 Agent Reasoning', '').replace(/\\n/g, '<br>').trim();
-                    parts.shift(); // Remove the reasoning part
+                    reasoningText = parts[0].trim().replace('**🧠 Agent Reasoning', '').trim();
+                    parts.shift(); 
                 } else {
-                    parts.shift(); // Remove any leading empty string
+                    parts.shift(); 
                 }
 
                 parts.forEach(part => {
                     const log = "**🛠️ Tool Action" + part;
                     const toolMatch = log.match(/- \*\*Tool:\*\* `(.*?)`/);
-                    // CRITICAL FIX: The newline character must be escaped inside the regex in the Python string literal.
-                    const argsMatch = log.match(/- \*\*Args:\*\* (.*?)\\n/s); // <-- FIX APPLIED HERE
+                    const argsMatch = log.match(/- \*\*Args:\*\* (.*?)\\n/s) || log.match(/- \*\*Args:\*\* (.*?)$/s);
                     const resultMatch = log.match(/- \*\*Result:\*\* (.*?)$/s);
-                    // Check for ERROR or Failed in log entry, specifically the result
                     const hasError = log.includes('ERROR:') || (resultMatch && (resultMatch[1].trim().startsWith('ERROR:') || resultMatch[1].trim().startsWith('Failed:')));
                     
                     toolActions.push({
@@ -786,7 +825,7 @@ class AgentWebHandler(http.server.BaseHTTPRequestHandler):
 
                 return {
                     reasoning: reasoningText,
-                    actions: toolActions.filter(a => !a.text.includes('Agent Reasoning')),
+                    actions: toolActions,
                     errors: toolActions.filter(a => a.hasError),
                     raw: toolActions.map(a => ({ text: a.text, hasError: a.hasError }))
                 };
@@ -794,7 +833,7 @@ class AgentWebHandler(http.server.BaseHTTPRequestHandler):
             // --- END UI RENDERING LOGIC ---
 
 
-            // NEW FUNCTION: Polling mechanism (Faster polling when running)
+            // --- POLLING LOGIC ---
             async function startPolling() {
                 isPolling = true;
                 setControlsRunningState(true);
@@ -802,25 +841,21 @@ class AgentWebHandler(http.server.BaseHTTPRequestHandler):
                 let lastAgentStatus = "";
 
                 while (isPolling) {
-                    await new Promise(resolve => setTimeout(resolve, 500)); // Faster polling
+                    await new Promise(resolve => setTimeout(resolve, 500)); 
 
                     try {
                         const response = await fetch('/status');
                         const data = await response.json();
                         
-                        // Display new tool logs (Incremental Rendering)
                         for (let i = lastLogCount; i < data.tool_logs.length; i++) {
                             appendMessage('tool', data.tool_logs[i], true);
                         }
                         lastLogCount = data.tool_logs.length;
                         
-                        // Update status displays
                         tokenDisplay.textContent = `Total Tokens: ${data.total_tokens} | Last Time: ${data.total_duration}`;
                         
-                        // Update live agent status text
                         if (data.agent_status !== lastAgentStatus) {
                             if (RUNNING_STATUSES.includes(data.agent_status)) {
-                                // Rotate between predefined statuses for active thinking
                                 typingIndicator.innerHTML = `<span class="material-symbols-outlined animate-spin text-sm mr-1 align-middle">sync</span> Agent is ${data.agent_status}`;
                             } else {
                                 typingIndicator.innerHTML = `<span class="material-symbols-outlined animate-spin text-sm mr-1 align-middle">sync</span> ${data.agent_status}`;
@@ -829,13 +864,9 @@ class AgentWebHandler(http.server.BaseHTTPRequestHandler):
                         }
                         
                         if (data.is_complete) {
-                            // Display the final response
                             if (lastLogCount == 0 && data.tool_logs.length == 0 && data.final_response) {
-                                // Only fire if no tool logs and no other messages were sent (pure text response)
                                 appendMessage('agent', data.final_response);
                             } else if (data.final_response && data.final_response !== lastAgentStatus) {
-                                // Heuristic: If the status is Complete and we have a final response, render it if it's new.
-                                // We check if the last message in chat history is from the model to avoid duplication.
                                 const lastChatMsg = data.chat_history[data.chat_history.length - 1];
                                 const hasText = lastChatMsg && lastChatMsg.role === 'model' && lastChatMsg.parts.some(p => p.text);
                                 
@@ -843,9 +874,7 @@ class AgentWebHandler(http.server.BaseHTTPRequestHandler):
                                     appendMessage('agent', data.final_response);
                                 }
                             }
-
                             
-                            // Reset state
                             isPolling = false;
                             setControlsRunningState(false);
                             break;
@@ -861,7 +890,6 @@ class AgentWebHandler(http.server.BaseHTTPRequestHandler):
                 }
             }
 
-            // NEW FUNCTION: Handles the UI state for running/stopped
             function setControlsRunningState(isRunning) {
                 if (isRunning) {
                     sendBtn.innerHTML = '<span class="material-symbols-outlined mr-1">cancel</span> Cancel';
@@ -882,20 +910,15 @@ class AgentWebHandler(http.server.BaseHTTPRequestHandler):
                 }
             }
             
-            // NEW FUNCTION: Sends the cancel signal
             async function sendCancel() {
                 if (!isPolling) return;
-                
                 sendBtn.disabled = true;
                 sendBtn.innerHTML = '<span class="material-symbols-outlined mr-1 animate-spin">sync</span> Stopping...';
-                
                 try {
                     const response = await fetch('/stop', { method: 'POST' });
-                    if (response.ok) {
-                        // The next poll will detect the cancelled state and stop polling
-                    } else {
+                    if (!response.ok) {
                         appendMessage('agent', 'Error: Failed to send cancellation signal to server.', true);
-                        setControlsRunningState(true); // Re-enable if it failed
+                        setControlsRunningState(true); 
                     }
                 } catch (error) {
                     console.error('Cancel error:', error);
@@ -906,12 +929,11 @@ class AgentWebHandler(http.server.BaseHTTPRequestHandler):
             }
 
 
-            // FIX: The core sendMessage function (now starts the background agent and polling)
             async function sendMessage() {
                 const message = userInput.value.trim();
                 const file = uploadedFile;
                 
-                if (isPolling) return; // Prevent double submission
+                if (isPolling) return; 
                 if (!message && !file && !contextFiles.length) return;
 
                 sendBtn.disabled = true;
@@ -921,19 +943,14 @@ class AgentWebHandler(http.server.BaseHTTPRequestHandler):
                 let imageMimeType = null;
                 let fileContextString = ""; 
 
-                // 1. Build File Context String
                 if (contextFiles.length > 0) {
                     fileContextString = await buildFileContextString(contextFiles);
-                    
-                    // Clear file context after reading and preparing the message
                     updateFileContext([]); 
                 }
 
-                // 2. Build Image Payload
                 if (file) {
                     const reader = new FileReader();
                     reader.readAsDataURL(file);
-                    
                     await new Promise(resolve => {
                         reader.onload = () => {
                             const [mime, base64] = reader.result.split(',');
@@ -950,10 +967,8 @@ class AgentWebHandler(http.server.BaseHTTPRequestHandler):
                     }
                 }
                 
-                // 3. Display User Message (including context prompt)
                 let userDisplayMessage = message;
                 if (fileContextString) {
-                    // Extract filenames for a cleaner display message
                     const fileNames = fileContextString.match(/--- (.*?) ---/g).map(s => s.replace(/---| /g, '')).join(', ');
                     userDisplayMessage += `\n\n[Context Injected: ${fileNames.length > 50 ? fileNames.substring(0, 47) + '...' : fileNames}]`;
                 }
@@ -962,19 +977,15 @@ class AgentWebHandler(http.server.BaseHTTPRequestHandler):
                 }
                 appendMessage('user', userDisplayMessage);
 
-
-                // 4. Clear Inputs & Send
                 userInput.value = '';
                 uploadedFile = null;
                 previewImage(); 
                 autoExpand(); 
                 lastLogCount = 0; 
 
-                // Final message sent to the backend
                 const finalMessage = message + (fileContextString ? `\n\n${fileContextString}` : '');
 
                 try {
-                    // NEW: Kick off the background agent via POST
                     const response = await fetch('/chat', {
                         method: 'POST',
                         headers: { 'Content-Type': 'application/json' },
@@ -986,14 +997,12 @@ class AgentWebHandler(http.server.BaseHTTPRequestHandler):
                     });
                     
                     if (response.ok) {
-                        startPolling(); // Start polling for status updates
+                        startPolling(); 
                     } else {
-                        // Handle initial connection error
                         const errorText = await response.text();
                         appendMessage('agent', `Server Error: ${errorText}`, true);
                         setControlsRunningState(false);
                     }
-
                 } catch (error) {
                     console.error('Chat error:', error);
                     appendMessage('agent', 'Error: Could not connect to the agent server.', true);
@@ -1002,8 +1011,7 @@ class AgentWebHandler(http.server.BaseHTTPRequestHandler):
                 sendBtn.disabled = false;
             }
             
-            // Attach listeners after the document is loaded
-            setControlsRunningState(false); // Initialize controls to Send state
+            setControlsRunningState(false); 
             userInput.addEventListener('keydown', function (e) {
                 if (e.key === 'Enter' && !e.shiftKey) {
                     e.preventDefault(); 
@@ -1011,27 +1019,23 @@ class AgentWebHandler(http.server.BaseHTTPRequestHandler):
                 }
             });
             
-            // Initial setup calls
             setupImagePaste(); 
             autoExpand(); 
-            updateFileContext([]); // Initialize file context buttons
+            updateFileContext([]); 
             
-            // Initial welcome message 
             setTimeout(() => {
                 appendMessage('agent', "Hello! I am your Autonomous Coding Agent. What new feature or bug fix can I develop for you today?");
             }, 100);
 
-            // getFileContent must be in the global scope for the buttons
             function getFileContent(file) {
                 return new Promise((resolve, reject) => {
                     const reader = new FileReader();
-                    // Max file size check (1MB for safety/performance)
                     if (file.size > 1024 * 1024 * 1) { 
                         reject(`File ${file.name} is too large (>1MB).`);
                         return;
                     }
                     reader.onload = (e) => resolve(e.target.result);
-                    reader.onerror = (e) => reject(e.target.error); // Reject with error object for better context
+                    reader.onerror = (e) => reject(e.target.error); 
                     reader.readAsText(file);
                 });
             }
@@ -1039,7 +1043,6 @@ class AgentWebHandler(http.server.BaseHTTPRequestHandler):
     </body>
     </html>
     """
-    # HTML (end)
 
     def do_POST(self):
         # NEW: Handle cancellation request
@@ -1105,8 +1108,8 @@ class AgentWebHandler(http.server.BaseHTTPRequestHandler):
                 'final_response': AGENT_STATE['final_response'],
                 'total_tokens': AGENT_STATE['total_tokens'],
                 'total_duration': AGENT_STATE['total_duration'],
-                'agent_status': AGENT_STATE['agent_status'], # NEW: Send agent status
-                'chat_history': AGENT_STATE['chat_history'] # NEW: Send chat history for advanced streaming/status checks
+                'agent_status': AGENT_STATE['agent_status'],
+                'chat_history': AGENT_STATE['chat_history']
             })
             self.wfile.write(response_data.encode('utf-8'))
 

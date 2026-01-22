@@ -395,6 +395,160 @@ const generateBase64Thumbnail = (imageFile, size = 20, quality = 0.1) => {
     });
 };
 
+// Delete a comment
+const deleteComment = async (postId, commentId) => {
+    try {
+        await remove(ref(db, `posts/${postId}/comments/${commentId}`));
+        showToast('Comment deleted successfully!', 'success');
+    } catch (error) {
+        console.error('Error deleting comment:', error);
+        showToast('Failed to delete comment. See console for details.', 'error');
+    }
+};
+
+// Toggle like on a comment
+const toggleCommentLike = async (postId, commentId, currentLikes) => {
+    if (!currentUser) {
+        showToast('Please log in to like comments.', 'error');
+        return;
+    }
+
+    const commentRef = ref(db, `posts/${postId}/comments/${commentId}/likes`);
+    let updatedLikes = { ...currentLikes }; // Create a mutable copy
+
+    if (updatedLikes[currentUser.id]) {
+        // User has already liked, so unlike
+        delete updatedLikes[currentUser.id];
+        showToast('Unliked comment.', 'info');
+    } else {
+        // User has not liked, so like
+        updatedLikes[currentUser.id] = true;
+        showToast('Liked comment!', 'success');
+    }
+
+    try {
+        await set(commentRef, updatedLikes);
+    } catch (error) {
+        console.error('Error toggling comment like:', error);
+        showToast('Failed to toggle comment like. See console for details.', 'error');
+    }
+};
+
+// Load comments for a specific post
+const loadComments = (postId, commentListElement) => {
+    onValue(ref(db, `posts/${postId}/comments`), (snapshot) => {
+        commentListElement.innerHTML = ''; // Clear existing comments
+        const comments = snapshot.val();
+        if (comments) {
+            Object.entries(comments).reverse().forEach(([commentId, comment]) => {
+                const commentLikes = comment.likes || {};
+                const likeCount = Object.keys(commentLikes).length;
+                const isLiked = currentUser && commentLikes[currentUser.id];
+
+                const commentElement = document.createElement('div');
+                commentElement.classList.add('text-sm', 'text-neutral-300', 'mb-2', 'flex', 'items-start', 'group'); // Added group for hover effects
+
+                const commentContent = document.createElement('p');
+                commentContent.classList.add('flex-grow');
+
+                const commentTimestamp = new Date(comment.timestamp).toLocaleString();
+                commentContent.innerHTML = `<span class="font-semibold text-neutral-100">${comment.author}</span> ${comment.text} <span class="text-neutral-500 text-xs ml-2">${commentTimestamp}</span>`;
+                
+                commentElement.appendChild(commentContent);
+
+                // Comment actions container
+                const commentActions = document.createElement('div');
+                commentActions.classList.add('flex', 'items-center', 'ml-2', 'opacity-0', 'group-hover:opacity-100', 'transition-opacity', 'duration-150', 'ease-in-out');
+
+                // Add like button for comments
+                const likeButton = document.createElement('button');
+                likeButton.classList.add('flex', 'items-center', 'space-x-1', 'text-neutral-400', 'hover:text-red-500', 'transition-colors', 'duration-150', 'ease-in-out', 'mr-2');
+                likeButton.innerHTML = `
+                    <span class="material-icons ${isLiked ? 'text-red-500' : ''}">${isLiked ? 'favorite' : 'favorite_border'}</span>
+                    <span class="text-xs">${likeCount}</span>
+                `;
+                likeButton.title = isLiked ? 'Unlike comment' : 'Like comment';
+                likeButton.addEventListener('click', async () => {
+                    await toggleCommentLike(postId, commentId, commentLikes);
+                });
+                commentActions.appendChild(likeButton);
+
+                // Add delete button if current user is the author
+                if (currentUser && currentUser.name === comment.author) {
+                    const deleteButton = document.createElement('button');
+                    deleteButton.classList.add('text-red-400', 'hover:text-red-600', 'text-xs', 'material-icons');
+                    deleteButton.textContent = 'delete';
+                    deleteButton.title = 'Delete comment';
+                    deleteButton.addEventListener('click', () => {
+                        showConfirmationModal('Are you sure you want to delete this comment?', async () => {
+                            await deleteComment(postId, commentId);
+                        });
+                    });
+                    commentActions.appendChild(deleteButton);
+                }
+
+                commentElement.appendChild(commentActions);
+                commentListElement.appendChild(commentElement);
+            });
+        } else {
+            commentListElement.innerHTML = '<p class="text-neutral-400 text-sm">No comments yet.</p>';
+        }
+    });
+};
+
+// Add a new comment to a post
+const addComment = async (postId, commentText) => {
+    if (!currentUser) {
+        showToast('Please log in to comment.', 'error');
+        return;
+    }
+    if (!commentText.trim()) {
+        showToast('Comment cannot be empty.', 'error');
+        return;
+    }
+
+    try {
+        const newComment = {
+            author: currentUser.name,
+            text: commentText.trim(),
+            timestamp: Date.now(),
+            likes: {}, // Initialize likes as an empty object for comments
+        };
+        await push(ref(db, `posts/${postId}/comments`), newComment);
+        showToast('Comment posted!', 'success');
+    } catch (error) {
+        console.error('Error adding comment:', error);
+        showToast('Failed to post comment. See console for details.', 'error');
+    }
+};
+
+// Toggle like on a post
+const toggleLike = async (postId, currentLikes) => {
+    if (!currentUser) {
+        showToast('Please log in to like posts.', 'error');
+        return;
+    }
+
+    const postRef = ref(db, `posts/${postId}/likes`);
+    let updatedLikes = { ...currentLikes }; // Create a mutable copy
+
+    if (updatedLikes[currentUser.id]) {
+        // User has already liked, so unlike
+        delete updatedLikes[currentUser.id];
+        showToast('Unliked post.', 'info');
+    } else {
+        // User has not liked, so like
+        updatedLikes[currentUser.id] = true;
+        showToast('Liked post!', 'success');
+    }
+
+    try {
+        await set(postRef, updatedLikes);
+    } catch (error) {
+        console.error('Error toggling like:', error);
+        showToast('Failed to toggle like. See console for details.', 'error');
+    }
+};
 
 // Load Posts (Instagram Feed Style)
 const loadPosts = () => {
@@ -408,11 +562,15 @@ const loadPosts = () => {
             Object.entries(posts).reverse().forEach(([key, post]) => {
                 const postAuthor = post.author || 'Unknown';
                 const postAuthorInitial = postAuthor.charAt(0).toUpperCase();
+                const postLikes = post.likes || {};
+                const likeCount = Object.keys(postLikes).length;
+                const isLiked = currentUser && postLikes[currentUser.id];
 
                 const showDeleteButton = currentUser && (currentUser.name === post.author || !post.author);
 
                 const postElement = document.createElement('div');
-                postElement.classList.add('bg-neutral-800', 'rounded-lg', 'shadow-lg', 'overflow-hidden', 'mb-6');
+                postElement.classList.add('bg-neutral-800', 'rounded-lg', 'shadow-lg', 'overflow-hidden', 'mb-6', 'post-item');
+                postElement.dataset.postId = key; // Set data attribute for postId
 
                 let mediaHtml = '';
                 let mediaData = []; // To store media info for carousel
@@ -478,10 +636,34 @@ const loadPosts = () => {
                     ${mediaHtml}
                     <div class="p-3">
                         ${post.caption ? `<p class="text-neutral-300 mb-1"><span class="font-semibold text-neutral-100">${postAuthor}</span> ${post.caption}</p>` : ''}
-                        <p class="text-neutral-500 text-xs">${new Date(post.timestamp).toLocaleString()}</p>
+                        <div class="flex items-center space-x-4 mb-2">
+                            <button class="like-button flex items-center space-x-1 text-neutral-400 hover:text-red-500 transition-colors duration-150 ease-in-out" data-post-id="${key}">
+                                <span class="material-icons ${isLiked ? 'text-red-500' : ''}">${isLiked ? 'favorite' : 'favorite_border'}</span>
+                                <span class="text-sm">${likeCount}</span>
+                            </button>
+                            <p class="text-neutral-500 text-xs">${new Date(post.timestamp).toLocaleString()}</p>
+                        </div>
+                        <div class="post-comment-section mt-4 pt-4 border-t border-neutral-700">
+                            <div class="comment-list space-y-3 mb-4">
+                                <!-- Comments will be loaded here by JavaScript -->
+                                <p class="text-neutral-400 text-sm">Loading comments...</p>
+                            </div>
+                            <div class="flex items-center space-x-2">
+                                <textarea class="comment-input flex-grow rounded-lg py-2 px-4 bg-neutral-700 text-neutral-100 text-sm leading-tight focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-transparent transition duration-150 border border-neutral-600" placeholder="Add a comment..."></textarea>
+                                <button class="post-comment-btn bg-gradient-to-r from-teal-500 to-blue-500 hover:from-teal-600 hover:to-blue-600 text-white font-bold py-2 px-4 rounded-full text-sm shadow-md transition duration-150 ease-in-out" data-post-id="${key}">
+                                    Post
+                                </button>
+                            </div>
+                        </div>
                     </div>
                 `;
                 postsContainer.appendChild(postElement);
+
+                // Immediately load comments for the post (default open)
+                const commentSection = postElement.querySelector('.post-comment-section');
+                if (commentSection) {
+                    loadComments(key, commentSection.querySelector('.comment-list'));
+                }
 
                 // Handle image loading and carousel functionality
                 if (mediaData.length > 0) {
@@ -559,6 +741,21 @@ const loadPosts = () => {
                         });
                     });
                 }
+
+                // Attach event listener for post comment button
+                postElement.querySelector('.post-comment-btn').addEventListener('click', async (e) => {
+                    const postId = e.currentTarget.dataset.postId;
+                    const commentInput = e.currentTarget.closest('.post-comment-section').querySelector('.comment-input');
+                    const commentText = commentInput.value; // Use .value for textarea
+                    await addComment(postId, commentText);
+                    commentInput.value = ''; // Clear input after posting
+                });
+
+                // Attach event listener for like button
+                postElement.querySelector('.like-button').addEventListener('click', async (e) => {
+                    const postId = e.currentTarget.dataset.postId;
+                    await toggleLike(postId, postLikes);
+                });
             });
         } else {
             postsContainer.innerHTML = '<p class="text-center text-neutral-500 mt-8">No posts yet. Be the first to share!</p>';
@@ -828,6 +1025,7 @@ document.addEventListener('DOMContentLoaded', () => {
                         caption: caption,
                         timestamp: Date.now(),
                         media: mediaArray, // Store all media info in an array
+                        likes: {}, // Initialize likes as an empty object
                     };
                     console.log("Publishing new multi-media post:", newContent);
                     await push(ref(db, 'posts'), newContent);
@@ -838,6 +1036,7 @@ document.addEventListener('DOMContentLoaded', () => {
                         author: currentUser.name,
                         caption: caption,
                         timestamp: Date.now(),
+                        likes: {}, // Initialize likes as an empty object
                     };
                     console.log("Publishing new text-only post:", newContent);
                     await push(ref(db, 'posts'), newContent);
