@@ -320,10 +320,12 @@ body {
 }
 
 /* New style for seen stories */
-.story-seen-border {
-    background-color: #404040; /* neutral-700 */
-    border-color: #525252; /* neutral-600 */
-    padding: 2px; /* Similar padding to the gradient border */
-    border-width: 2px;
-    border-style: solid;
+#user-bio {
+resize: none; /* Prevent manual resizing */
+height: 80px; /* Adjust height as needed */
+}
+
+/* Style the follow/unfollow button */
+#follow-unfollow-btn {
+/* Add any specific styles here */
 }

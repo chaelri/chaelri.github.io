@@ -138,11 +138,24 @@
             <div class="bg-neutral-800 force-opaque-bg rounded-lg shadow-xl p-6 w-full max-w-md">
                 <h3 class="text-2xl font-bold mb-4 text-neutral-100 text-center">Edit Profile</h3>
                 <div class="flex flex-col items-center mb-6">
-                    <img id="profile-pic-preview" src="./icons/icon-512x512.png" alt="Profile Picture" class="w-32 h-32 rounded-full object-cover mb-4 border-4 border-blue-500">
-                    <label for="profile-pic-upload" class="cursor-pointer bg-gradient-to-r from-teal-500 to-blue-500 hover:from-teal-600 hover:to-blue-600 text-white font-semibold py-2 px-4 rounded-full shadow-md transition duration-150 ease-in-out text-sm">
-                        Upload New Picture
-                    </label>
-                    <input type="file" id="profile-pic-upload" accept="image/*" class="hidden">
+                <img id="profile-pic-preview" src="./icons/icon-512x512.png" alt="Profile Picture" class="w-32 h-32 rounded-full object-cover mb-4 border-4 border-blue-500">
+                <label for="profile-pic-upload" class="cursor-pointer bg-gradient-to-r from-teal-500 to-blue-500 hover:from-teal-600 hover:to-blue-600 text-white font-semibold py-2 px-4 rounded-full shadow-md transition duration-150 ease-in-out text-sm">
+                Upload New Picture
+                </label>
+                <input type="file" id="profile-pic-upload" accept="image/*" class="hidden">
+                </div>
+                <div class="mb-4">
+                <label for="user-bio" class="block text-neutral-300 text-sm font-bold mb-2">Bio:</label>
+                <textarea id="user-bio" rows="3" class="rounded w-full py-2 px-3 bg-neutral-800 text-neutral-100 leading-tight focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-transparent transition duration-150 border border-neutral-700" placeholder="Tell us about yourself."></textarea>
+                </div>
+                <div class="flex justify-between items-center mb-4">
+                <div>
+                <span class="text-neutral-300 text-sm font-bold">Posts:</span>
+                <span id="user-posts-count" class="text-neutral-400 text-sm">0</span>
+                </div>
+                <button id="follow-unfollow-btn" class="bg-gradient-to-r from-purple-500 to-pink-500 hover:from-purple-600 hover:to-pink-600 text-white font-bold py-2 px-4 rounded-full shadow-2xl transition duration-150 ease-in-out">
+                Follow
+                </button>
                 </div>
                 <div class="flex justify-end space-x-4 items-center">
                     <div id="profile-loading-spinner" class="hidden loader ease-linear rounded-full border-2 border-t-2 border-blue-400 h-5 w-5"></div>

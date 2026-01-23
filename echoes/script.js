@@ -1009,17 +1009,17 @@ const loadUserProfile = () => {
     onValue(ref(db, `users/${currentUser.id}`), (snapshot) => {
         const profile = snapshot.val();
         if (profile) {
-            currentUser = { ...currentUser, ...profile }; // Merge profile data into currentUser
-            localStorage.setItem('currentUser', JSON.stringify(currentUser)); // Update local storage
-            if (profile.profilePicURL) {
-                profilePicPreview.src = profile.profilePicURL;
-            } else {
-                profilePicPreview.src = './icons/icon-512x512.png'; // Default image
-            }
+        currentUser = { ...currentUser, ...profile }; // Merge profile data into currentUser
+        localStorage.setItem('currentUser', JSON.stringify(currentUser)); // Update local storage
+        if (profile.profilePicURL) {
+        profilePicPreview.src = profile.profilePicURL;
         } else {
-            profilePicPreview.src = './icons/icon-512x512.png'; // Default image if no profile exists
+        profilePicPreview.src = './icons/icon-512x512.png'; // Default image
         }
-    }); // Removed { onlyOnce: true } to listen for real-time updates
+        } else {
+        profilePicPreview.src = './icons/icon-512x512.png'; // Default image if no profile exists
+        }
+        }); // Removed { onlyOnce: true } to listen for real-time updates
 };
 
 
@@ -1051,6 +1051,11 @@ document.addEventListener('DOMContentLoaded', () => {
     cancelProfileEditBtn = document.getElementById('cancel-profile-edit');
     saveProfileBtn = document.getElementById('save-profile');
     profileLoadingSpinner = document.getElementById('profile-loading-spinner');
+    
+    // Get the bio textarea and post count elements
+    const userBioTextarea = document.getElementById('user-bio');
+    const userPostsCountSpan = document.getElementById('user-posts-count');
+    const followUnfollowBtn = document.getElementById('follow-unfollow-btn');
 
     // Story Viewer DOM Elements
     storyViewerModal = document.getElementById('story-viewer-modal');
@@ -1235,12 +1240,12 @@ document.addEventListener('DOMContentLoaded', () => {
 
     // Profile Section Event Listeners
     profileBtn.addEventListener('click', () => {
-        if (currentUser) {
-            loadUserProfile(); // Load current profile picture when opening modal
-            profileModal.classList.remove('hidden');
-        } else {
-            showToast('Please log in to edit your profile.', 'error');
-        }
+    if (currentUser) {
+    loadUserProfile(); // Load current profile picture when opening modal
+    profileModal.classList.remove('hidden');
+    } else {
+    showToast('Please log in to edit your profile.', 'error');
+    }
     });
 
     cancelProfileEditBtn.addEventListener('click', () => {
@@ -1303,11 +1308,11 @@ document.addEventListener('DOMContentLoaded', () => {
             profileModal.classList.add('hidden');
             profileLoadingSpinner.classList.add('hidden');
             saveProfileBtn.disabled = false;
-        }
-    });
-});
-
-// Delete Post
+            }
+            });
+            });
+            
+            // Delete Post
 const deletePost = async (postId, mediaData) => {
     try {
         await remove(ref(db, `posts/${postId}`));

@@ -52,14 +52,10 @@ def read_file(path: str) -> str:
     except Exception as e: return f"ERROR: {e}"
 
 def apply_smart_patch(path: str, search_block: str, replace_block: str) -> str:
-    """
-    Smarter patching: Finds a unique block regardless of indentation drift 
-    and replaces it while preserving the file's style. Includes Visual Diffs.
-    """
+    """Smarter patching with Visual Diffs and Self-Correction."""
     try:
         if not os.path.exists(path): return f"ERROR: {path} not found."
         with open(path, "r") as f: lines = f.readlines()
-        
         search_lines = [l for l in search_block.strip("\n").split("\n")]
         
         def lines_match(file_idx):
@@ -70,49 +66,33 @@ def apply_smart_patch(path: str, search_block: str, replace_block: str) -> str:
 
         matches = [i for i in range(len(lines)) if lines_match(i)]
 
-        # --- SELF-CORRECTION LOGIC ---
         if len(matches) == 0:
             file_preview = "".join(lines[:60]) 
-            error_hint = (
-                f"ERROR: Search block not found in {path}. "
-                "Indentation might be different or context might be outdated. "
-                f"Here is a preview of the file to help you correct your search_block:\n\n{file_preview}"
-            )
-            console.print(Panel(error_hint, title="❌ Patch Failed (Self-Correction Triggered)", border_style="red"))
+            error_hint = f"ERROR: Search block not found in {path}. Check preview:\n\n{file_preview}"
+            console.print(Panel(error_hint, title="❌ Patch Failed", border_style="red"))
             return error_hint
 
         if len(matches) > 1:
-            return f"ERROR: Found {len(matches)} identical blocks. Provide more context in SEARCH to be unique."
+            return f"ERROR: Found {len(matches)} identical blocks. Provide more context."
 
-        # --- PREPARE DATA ---
         start_idx = matches[0]
         original_indent = re.match(r"^\s*", lines[start_idx]).group(0)
-        
         new_content_lines = replace_block.strip("\n").split("\n")
         indented_replacement = [original_indent + rl.lstrip() + "\n" for rl in new_content_lines]
-        
-        # --- VISUAL DIFFING ---
+
+        # Generate Diff
         old_segment = lines[start_idx : start_idx + len(search_lines)]
         diff = difflib.unified_diff(old_segment, indented_replacement, fromfile='Original', tofile='Patched')
-        
-        diff_text = ""
-        for line in diff:
-            if line.startswith('+'): diff_text += f"[green]{line}[/]"
-            elif line.startswith('-'): diff_text += f"[red]{line}[/]"
-            else: diff_text += f"[dim]{line}[/]"
-        
-        if diff_text:
-            console.print(Panel(diff_text, title=f"✨ DIFF: {path}", border_style="bold green"))
+        diff_text = "".join([f"[green]{l}[/]" if l.startswith('+') else f"[red]{l}[/]" if l.startswith('-') else f"[dim]{l}[/]" for l in diff])
+        if diff_text: console.print(Panel(diff_text, title=f"✨ DIFF: {path}", border_style="bold green"))
 
-        # --- EXECUTE SAVE ---
         lines[start_idx : start_idx + len(search_lines)] = indented_replacement
         with open(path, "w") as f: f.writelines(lines)
-            
         return f"SUCCESS: {path} patched."
     except Exception as e: return f"ERROR: {e}"
 
 def write_file(path: str, content: str) -> str:
-    """Writes a brand new file or small file."""
+    """Writes a brand new file."""
     try:
         os.makedirs(os.path.dirname(path), exist_ok=True) if os.path.dirname(path) else None
         with open(path, "w") as f: f.write(content)
@@ -135,7 +115,7 @@ def shell_exec(command: str) -> str:
 # --- 3. THE ENGINE ---
 
 def run():
-    console.print(Panel.fit("[bold cyan]TERMIGEN v4.6[/bold cyan]\n[dim]Semantic Engine + Visual Diffs + Self-Correction[/dim]", border_style="magenta", box=box.DOUBLE))
+    console.print(Panel.fit("[bold cyan]TERMIGEN v4.7[/bold cyan]\n[dim]Mindful Agentic Engine[/dim]", border_style="magenta", box=box.DOUBLE))
 
     tools = [list_files, read_file, apply_smart_patch, write_file, shell_exec]
     chat = client.chats.create(
@@ -144,17 +124,12 @@ def run():
             tools=tools,
             automatic_function_calling=types.AutomaticFunctionCallingConfig(disable=False),
             system_instruction=(
-                "You are TermiGen v4.6, a world-class Semantic Coding Agent. "
-                "Instead of rewriting whole files, use 'apply_smart_patch'.\n\n"
-                "HOW TO PATCH:\n"
-                "1. Read the file first to get the current context.\n"
-                "2. Pick a unique 'search_block' from the file (3-5 lines is best).\n"
-                "3. Provide the 'replace_block' with your changes.\n"
-                "4. Your tool will ignore indentation differences, so focus on the logic.\n"
-                "5. Ensure your search block is UNIQUE in the file.\n\n"
-                "AUTONOMOUS PROTOCOL:\n"
-                "- If a patch returns an ERROR, analyze the file preview provided and correct your search_block IMMEDIATELY.\n"
-                "- Be surgical. Stream your plan, then act immediately."
+                "You are TermiGen v4.7. You are a Senior Developer Agent.\n\n"
+                "STRICT PROTOCOLS:\n"
+                "1. PRIORITIZE USER CONSTRAINTS: If the user says 'don't implement' or 'only list', you MUST NOT call write_file, patch_file, or shell_exec.\n"
+                "2. SMART PATCHING: Use 'apply_smart_patch' for surgical edits. Read files first to get context.\n"
+                "3. AUTONOMY: If a patch fails, analyze the error preview and retry IMMEDIATELY with a better search block.\n"
+                "4. Be professional and concise. Stream your plan before acting."
             )
         )
     )
@@ -177,24 +152,32 @@ def run():
 
             with Live(console=console, refresh_per_second=10, auto_refresh=True) as live:
                 for chunk in chat.send_message_stream(message_parts):
-                    try:
-                        if not chunk.candidates or not chunk.candidates[0].content: continue
-                        for part in chunk.candidates[0].content.parts:
-                            if hasattr(part, 'text') and part.text:
-                                current_thought += part.text
-                                live.update(Panel(Markdown(current_thought), title="[bold magenta]Thought[/]", border_style="magenta"))
+                    if not chunk.candidates or not chunk.candidates[0].content: continue
+                    
+                    for part in chunk.candidates[0].content.parts:
+                        # 1. Handle Text Streaming
+                        if hasattr(part, 'text') and part.text:
+                            current_thought += part.text
+                            live.update(Panel(Markdown(current_thought), title="[bold magenta]Thought[/]", border_style="magenta"))
+                        
+                        # 2. Handle Tool Calls
+                        if hasattr(part, 'function_call') and part.function_call:
+                            # Finalize text before the tool runs to prevent duplication
+                            live.stop()
+                            if current_thought.strip():
+                                console.print(Panel(Markdown(current_thought), title="[bold magenta]Thought[/]", border_style="magenta"))
+                            current_thought = "" # Clear the buffer
                             
-                            if hasattr(part, 'function_call') and part.function_call:
-                                live.stop()
-                                if current_thought.strip():
-                                    console.print(Panel(Markdown(current_thought), title="[bold magenta]Thought[/]", border_style="magenta"))
-                                current_thought = ""
-                                console.print(Panel(f"Calling `{part.function_call.name}`...", title="⚙️ ACTION", border_style="cyan"))
-                                live.start()
-                    except: continue
+                            fn_name = part.function_call.name
+                            console.print(Panel(f"⚙️ [bold cyan]ACTION:[/bold cyan] Calling `{fn_name}`...", border_style="cyan"))
+                            live.start()
 
+            # Final response (if there is text remaining after the tools)
             if current_thought.strip():
-                console.print(Panel(Markdown(current_thought), title="[bold magenta]Final[/]", border_style="magenta"))
+                console.print(Panel(Markdown(current_thought), title="[bold magenta]Final Response[/]", border_style="magenta"))
+
+            if hasattr(chunk, 'usage_metadata'):
+                console.print(f"[dim]Tokens: {chunk.usage_metadata.total_token_count}[/dim]", justify="right")
 
         except KeyboardInterrupt: break
         except Exception as e: console.print(f"[bold red]Error:[/bold red] {e}")
