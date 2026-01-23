@@ -825,9 +825,23 @@ async function renderDashboard() {
   }));
 
   const dashboardHTML = `
-    <div class="dashboard ai-fade-in">
-        
-      <h2>Your Dashboard</h2>
+  <div class="dashboard ai-fade-in">
+  <style>
+  .dashboard-grid {
+  display: grid;
+  grid-template-columns: 1fr;
+  gap: 20px;
+  }
+  @media (min-width: 768px) {
+  .dashboard-grid {
+  grid-template-columns: 1fr 1fr 1fr;
+  }
+  }
+  </style>
+  
+  <h2>Your Dashboard</h2>
+  
+  <div class="dashboard-grid">
 
       <!-- FAVORITES -->
       <section class="dashboard-section">
@@ -944,8 +958,9 @@ async function renderDashboard() {
             : `<p class="empty-state">No reflections saved. Load a passage to use the Guided Reflection feature.</p>`
         }
       </section>
-    </div>
-  `;
+      </div>
+      </div>
+      `;
 
   output.innerHTML = dashboardHTML;
 

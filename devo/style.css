@@ -214,9 +214,9 @@ select:disabled {
 
 /* ---------- BIBLE ---------- */
 .bible {
-  border-radius: 18px;
-  padding: 20px;
-  max-width: 600px;
+border-radius: 18px;
+padding: 20px;
+max-width: 1200px;
 }
 
 .verse {
@@ -258,20 +258,21 @@ select:disabled {
 }
 
 .controls {
-  display: grid;
-  grid-template-columns: repeat(2, minmax(0, 1fr));
-  gap: 12px 14px;
+display: grid;
+grid-template-columns: repeat(2, minmax(0, 1fr));
+gap: 12px 14px;
+margin: 0 auto;
 
-  padding: 3rem 16px 1rem;
-  border-radius: 18px;
-  margin-top: 1rem;
+padding: 3rem 16px 1rem;
+border-radius: 18px;
+margin-top: 1rem;
 
-  background: linear-gradient(360deg, #0b1220, #10172b);
-  box-shadow: 0 12px 30px rgba(0, 0, 0, 0.35);
+background: linear-gradient(360deg, #0b1220, #10172b);
+box-shadow: 0 12px 30px rgba(0, 0, 0, 0.35);
 
-  margin-bottom: 16px;
-  align-items: end;
-  max-width: 600px;
+margin-bottom: 16px;
+align-items: end;
+max-width: 1200px;
 }
 .controls select {
   border: 0;
@@ -691,8 +692,8 @@ select:disabled {
 
 /* NEW: Dashboard specific styles */
 .dashboard {
-  padding: 0; /* REMOVED PADDING */
-  max-width: 600px; /* match bible container width for consistency */
+padding: 0; /* REMOVED PADDING */
+max-width: 1200px; /* match bible container width for consistency */
 }
 
 .dashboard h2 {
