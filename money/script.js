@@ -315,17 +315,8 @@ function updateAllCalculations() {
       cc: [],
       others: [],
     };
-    const income = (m.incomeSources || []).reduce(
-      (s, i) => s + parseFloat(i.amount || 0),
-      0,
-    );
-    const filterPaid = (items) => (items || []).filter((item) => !item.isPaid);
-    const expenses = [
-      ...filterPaid(m.fixedExpenses),
-      ...filterPaid(m.cc),
-      ...filterPaid(m.others),
-    ].reduce((s, i) => s + parseFloat(i.amount || 0), 0);
-
+    const { income, expenses, savings } = calculateMonthlyTotals(m);
+    
     const net = income - expenses;
     runningBalance += net;
 
@@ -349,9 +340,24 @@ function updateAllCalculations() {
     const sign = net >= 0 ? "+" : "-";
     savingsEl.innerText = `${sign} ₱ ${formatMoney(Math.abs(net))}`;
   });
-}
-
-function renderRows(monthIdx, key, items, colorClass) {
+  }
+  
+  function calculateMonthlyTotals(monthData) {
+  const income = (monthData.incomeSources || []).reduce(
+  (s, i) => s + parseFloat(i.amount || 0),
+  0,
+  );
+  const filterPaid = (items) => (items || []).filter((item) => !item.isPaid);
+  const expenses = [
+  ...filterPaid(monthData.fixedExpenses),
+  ...filterPaid(monthData.cc),
+  ...filterPaid(monthData.others),
+  ].reduce((s, i) => s + parseFloat(i.amount || 0), 0);
+  const savings = income - expenses;
+  return { income, expenses, savings };
+  }
+  
+  function renderRows(monthIdx, key, items, colorClass) {
   const container = document.getElementById(`${key}-list-${monthIdx}`);
   if (!container) return;
   container.innerHTML = "";
@@ -520,9 +526,10 @@ async function reorderItems(monthIdx, type, newOrder) {
 
     await set(dbRef, appData);
   } catch (e) {
-    console.error("Reorder failed:", e);
+  console.error("Reorder failed:", e);
+  alert("Reordering items failed. Please try again.");
   }
-}
+  }
 
 window.switchView = (view) => {
   activeView = view;
@@ -562,18 +569,9 @@ function renderStats() {
       cc: [],
       others: [],
     };
-    const income = (m.incomeSources || []).reduce(
-      (s, i) => s + parseFloat(i.amount || 0),
-      0,
-    );
-    const expenses = [
-      ...(m.fixedExpenses || []),
-      ...(m.cc || []),
-      ...(m.others || []),
-    ].reduce((s, i) => s + parseFloat(i.amount || 0), 0);
-    const savings = income - expenses;
+    const { income, expenses, savings } = calculateMonthlyTotals(m);
     return { income, expenses, savings };
-  });
+    });
   const categories = [
     { label: "Income", key: "income", color: "bg-emerald-500" },
     { label: "Expenses", key: "expenses", color: "bg-rose-500" },
@@ -692,9 +690,7 @@ window.openModal = (type, id, name, amount, monthIdx) => {
 
   bodyHtml += `<div id="recurring-wrapper" class="flex items-center gap-3 px-4 py-5 bg-slate-900/50 rounded-2xl mx-1 mt-6 ${
     type === "fixedExpenses" ? "hidden" : "flex"
-  }"><input type="checkbox" id="edit-recurring" ${
-    type === "fixedExpenses" ? "checked" : ""
-  } class="w-5 h-5 rounded border-none bg-slate-900 text-blue-500 focus:ring-0"><label for="edit-recurring" class="text-[10px] font-black uppercase text-slate-400">Apply to all future months</label></div>`;
+  }"><input type="checkbox" id="edit-recurring" class="w-5 h-5 rounded border-none bg-slate-900 text-blue-500 focus:ring-0"><label for="edit-recurring" class="text-[10px] font-black uppercase text-slate-400">Apply to all future months</label></div>`;
   body.innerHTML = bodyHtml;
 
   const handleEnterKey = (e) => {

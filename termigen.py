@@ -1,4 +1,4 @@
-import os, sys, subprocess, warnings, re, io, textwrap
+import os, sys, subprocess, warnings, re, io, textwrap, difflib
 from dotenv import load_dotenv
 
 # --- 1. SILENCE & SETUP ---
@@ -54,47 +54,60 @@ def read_file(path: str) -> str:
 def apply_smart_patch(path: str, search_block: str, replace_block: str) -> str:
     """
     Smarter patching: Finds a unique block regardless of indentation drift 
-    and replaces it while preserving the file's style.
+    and replaces it while preserving the file's style. Includes Visual Diffs.
     """
     try:
         if not os.path.exists(path): return f"ERROR: {path} not found."
         with open(path, "r") as f: lines = f.readlines()
         
-        # Normalize snippets for matching (strip trailing/leading empty lines)
         search_lines = [l for l in search_block.strip("\n").split("\n")]
         
         def lines_match(file_idx):
-            """Checks if the search block matches starting at file_idx."""
             for i, s_line in enumerate(search_lines):
                 if file_idx + i >= len(lines): return False
-                # Semantic match: compare stripped lines to ignore indentation drift
                 if lines[file_idx + i].strip() != s_line.strip(): return False
             return True
 
         matches = [i for i in range(len(lines)) if lines_match(i)]
 
+        # --- SELF-CORRECTION LOGIC ---
         if len(matches) == 0:
-            return "ERROR: Block not found. Ensure the SEARCH block matches the file exactly (ignoring indentation)."
+            file_preview = "".join(lines[:60]) 
+            error_hint = (
+                f"ERROR: Search block not found in {path}. "
+                "Indentation might be different or context might be outdated. "
+                f"Here is a preview of the file to help you correct your search_block:\n\n{file_preview}"
+            )
+            console.print(Panel(error_hint, title="❌ Patch Failed (Self-Correction Triggered)", border_style="red"))
+            return error_hint
+
         if len(matches) > 1:
             return f"ERROR: Found {len(matches)} identical blocks. Provide more context in SEARCH to be unique."
 
+        # --- PREPARE DATA ---
         start_idx = matches[0]
-        # Detect indentation of the original first line to fix the replacement
         original_indent = re.match(r"^\s*", lines[start_idx]).group(0)
         
-        # Prepare the replacement: apply original indentation to new lines
         new_content_lines = replace_block.strip("\n").split("\n")
-        # We try to keep the relative indentation provided by AI
-        indented_replacement = []
-        for rl in new_content_lines:
-            indented_replacement.append(original_indent + rl.lstrip() + "\n")
-
-        # Perform the swap
-        lines[start_idx : start_idx + len(search_lines)] = indented_replacement
+        indented_replacement = [original_indent + rl.lstrip() + "\n" for rl in new_content_lines]
         
+        # --- VISUAL DIFFING ---
+        old_segment = lines[start_idx : start_idx + len(search_lines)]
+        diff = difflib.unified_diff(old_segment, indented_replacement, fromfile='Original', tofile='Patched')
+        
+        diff_text = ""
+        for line in diff:
+            if line.startswith('+'): diff_text += f"[green]{line}[/]"
+            elif line.startswith('-'): diff_text += f"[red]{line}[/]"
+            else: diff_text += f"[dim]{line}[/]"
+        
+        if diff_text:
+            console.print(Panel(diff_text, title=f"✨ DIFF: {path}", border_style="bold green"))
+
+        # --- EXECUTE SAVE ---
+        lines[start_idx : start_idx + len(search_lines)] = indented_replacement
         with open(path, "w") as f: f.writelines(lines)
             
-        console.print(Panel(f"Successfully patched {path}", title="✨ apply_smart_patch", border_style="bold green"))
         return f"SUCCESS: {path} patched."
     except Exception as e: return f"ERROR: {e}"
 
@@ -122,7 +135,7 @@ def shell_exec(command: str) -> str:
 # --- 3. THE ENGINE ---
 
 def run():
-    console.print(Panel.fit("[bold cyan]TERMIGEN v4.5[/bold cyan]\n[dim]Semantic Patching Engine[/dim]", border_style="magenta", box=box.DOUBLE))
+    console.print(Panel.fit("[bold cyan]TERMIGEN v4.6[/bold cyan]\n[dim]Semantic Engine + Visual Diffs + Self-Correction[/dim]", border_style="magenta", box=box.DOUBLE))
 
     tools = [list_files, read_file, apply_smart_patch, write_file, shell_exec]
     chat = client.chats.create(
@@ -131,7 +144,7 @@ def run():
             tools=tools,
             automatic_function_calling=types.AutomaticFunctionCallingConfig(disable=False),
             system_instruction=(
-                "You are TermiGen v4.5, a world-class Semantic Coding Agent. "
+                "You are TermiGen v4.6, a world-class Semantic Coding Agent. "
                 "Instead of rewriting whole files, use 'apply_smart_patch'.\n\n"
                 "HOW TO PATCH:\n"
                 "1. Read the file first to get the current context.\n"
@@ -139,7 +152,9 @@ def run():
                 "3. Provide the 'replace_block' with your changes.\n"
                 "4. Your tool will ignore indentation differences, so focus on the logic.\n"
                 "5. Ensure your search block is UNIQUE in the file.\n\n"
-                "Be surgical. Stream your plan, then act immediately."
+                "AUTONOMOUS PROTOCOL:\n"
+                "- If a patch returns an ERROR, analyze the file preview provided and correct your search_block IMMEDIATELY.\n"
+                "- Be surgical. Stream your plan, then act immediately."
             )
         )
     )
