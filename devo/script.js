@@ -834,7 +834,21 @@ async function renderDashboard() {
         <h3><span class="material-icons dashboard-icon">favorite</span> Favorites</h3>
         ${
           favoritesKeys.length
-            ? `<div class="dashboard-list">
+            ? `
+          ${
+            totalFavPages > 1
+              ? `<div style="display:flex; justify-content: space-between; margin-bottom: 12px;">
+                    <button class="secondary" id="favPrevBtn" style="opacity: 1; visibility: ${favoritesPage === 0 ? 'hidden' : 'visible'};">
+                      <span class="material-icons dashboard-icon">chevron_left</span>
+                    </button>
+                    <span style="font-size:12px; opacity: 0.7; align-self: center; text-transform: uppercase;">Page ${favoritesPage + 1} of ${totalFavPages}</span>
+                    <button class="secondary" id="favNextBtn" style="opacity: 1; visibility: ${favoritesPage >= totalFavPages - 1 ? 'hidden' : 'visible'};">
+                      <span class="material-icons dashboard-icon">chevron_right</span>
+                    </button>
+                 </div>`
+              : ""
+          }
+          <div class="dashboard-list">
             ${favoritePassages
               .map(
                 (item) => `
@@ -846,16 +860,7 @@ async function renderDashboard() {
             `,
               )
               .join("")}
-          </div>
-          ${
-            totalFavPages > 1
-              ? `<div style="display:flex; justify-content: space-between; margin-top: 10px;">
-                    <button class="secondary" id="favPrevBtn" ${favoritesPage === 0 ? "disabled" : ""} style="opacity: 1;"><span class="material-icons dashboard-icon">chevron_left</span></button>
-                    <span style="font-size:12px; opacity: 0.7; align-self: center; text-transform: uppercase;">Page ${favoritesPage + 1} of ${totalFavPages}</span>
-                    <button class="secondary" id="favNextBtn" ${favoritesPage >= totalFavPages - 1 ? "disabled" : ""} style="opacity: 1;"><span class="material-icons dashboard-icon">chevron_right</span></button>
-                 </div>`
-              : ""
-          }`
+          </div>`
             : `<p class="empty-state">No favorite verses yet. Click the <span class="material-icons" style="font-size:1em; vertical-align:middle; color:#facc15;">favorite_border</span> icon next to a verse to add one!</p>`
         }
       </section>
