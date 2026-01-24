@@ -523,7 +523,7 @@ const loadComments = (postId, commentListElement) => {
 
                 // Comment actions container
                 const commentActions = document.createElement('div');
-                commentActions.classList.add('flex', 'items-center', 'ml-2', 'opacity-0', 'group-hover:opacity-100', 'transition-opacity', 'duration-150', 'ease-in-out');
+                commentActions.classList.add('flex', 'items-center', 'ml-2', 'transition-opacity', 'duration-150', 'ease-in-out'); // Removed 'opacity-0', 'group-hover:opacity-100'
 
                 // Add like button for comments
                 const likeButton = document.createElement('button');
@@ -559,7 +559,7 @@ const loadComments = (postId, commentListElement) => {
             commentListElement.innerHTML = '<p class=\"text-neutral-400 text-sm\">No comments yet.</p>';
         }
     });
-};
+};;
 
 // Add a new comment to a post
 const addComment = async (postId, commentText) => {
