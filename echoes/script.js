@@ -780,6 +780,10 @@ const loadPosts = () => {
                             indicatorDots.forEach((dot, idx) => {
                                 dot.classList.toggle('active', idx === currentSlide);
                             });
+
+                            // Hide/show prev/next buttons based on currentSlide
+                            prevBtn.classList.toggle('hidden', currentSlide === 0);
+                            nextBtn.classList.toggle('hidden', currentSlide === mediaData.length - 1);
                         };
 
                         const handleTouchStart = (e) => {
@@ -888,7 +892,7 @@ const loadPosts = () => {
             postsContainer.innerHTML = '<p class="text-center text-neutral-500 mt-8">No posts yet. Be the first to share!</p>';
         }
     });
-};;;
+};;;;
 
 // Load Stories (Instagram Circle Style)
 const loadStories = () => {
