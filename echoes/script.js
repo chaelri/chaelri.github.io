@@ -646,23 +646,25 @@ const loadPosts = () => {
                     // Multi-image post (carousel)
                     mediaData = post.media;
                     mediaHtml = `
-                        <div class=\"carousel-container relative overflow-hidden\">
-                            <div class=\"carousel-wrapper flex transition-transform duration-300 ease-in-out\";\">
+                        <div class="carousel-container relative overflow-hidden">
+                            <div class="carousel-wrapper flex transition-transform duration-300 ease-in-out";">
                                 ${mediaData.map((media, index) => `
-                                    <div class=\"carousel-slide flex-none post-media-wrapper bg-neutral-900\" style=\"width: calc(100% / ${mediaData.length});\">
-                                        <img src=\"${media.thumbnailBase64 || 'data:image/gif;base64,R0lGODlhAQABAAD/ACwAAAAAAQABAAACADs='}\" 
-                                            data-src=\"${media.mediaURL}\" 
-                                            alt=\"Post media ${index + 1}\" 
-                                            class=\"post-media-image w-full h-full object-contain filter blur-lg transition-filter duration-500 ease-in-out\">
-                                        <div class=\"absolute inset-0 flex items-center justify-center\">\n                                            <div class=\"loader ease-linear rounded-full border-4 border-t-4 border-blue-500 h-8 w-8 text-white\"></div>
+                                    <div class="carousel-slide flex-none post-media-wrapper bg-neutral-900" style="width: calc(100% / ${mediaData.length});">
+                                        <img src="${media.thumbnailBase64 || 'data:image/gif;base64,R0lGODlhAQABAAD/ACwAAAAAAQABAAACADs='}" 
+                                            data-src="${media.mediaURL}" 
+                                            alt="Post media ${index + 1}" 
+                                            class="post-media-image w-full h-full object-contain filter blur-lg transition-filter duration-500 ease-in-out">
+                                        <div class="absolute inset-0 flex items-center justify-center">
+                                            <div class="loader ease-linear rounded-full border-4 border-t-4 border-blue-500 h-8 w-8 text-white"></div>
                                         </div>
                                     </div>
                                 `).join('')}
                             </div>
-                            <button class=\"carousel-button carousel-button-prev left-0 ${mediaData.length <= 1 ? 'hidden' : ''}\"><span class=\"material-icons\">chevron_left</span></button>
-                            <button class=\"carousel-button carousel-button-next right-0 ${mediaData.length <= 1 ? 'hidden' : ''}\"><span class=\"material-icons\">chevron_right</span></button>
+                            <button class="carousel-button carousel-button-prev left-0 ${mediaData.length <= 1 ? 'hidden' : ''}"><span class="material-icons">chevron_left</span></button>
+                            <button class="carousel-button carousel-button-next right-0 ${mediaData.length <= 1 ? 'hidden' : ''}"><span class="material-icons">chevron_right</span></button>
                             ${mediaData.length > 1 ? `
-                                <div class=\"carousel-indicators\">\n                                    ${mediaData.map((_, index) => `<span class=\"indicator-dot ${index === 0 ? 'active' : ''}\" data-slide-to=\"${index}\"></span>`).join('')}
+                                <div class="carousel-indicators">
+                                    ${mediaData.map((_, index) => `<span class="indicator-dot ${index === 0 ? 'active' : ''}" data-slide-to="${index}"></span>`).join('')}
                                 </div>
                             ` : ''}
                         </div>
@@ -673,16 +675,19 @@ const loadPosts = () => {
                     const urlWithoutQueryParams = post.mediaURL.split('?')[0];
                     if (urlWithoutQueryParams.match(/\.(mp4|webm|ogg)$/i)) {
                          mediaHtml = `
-                            <div class=\"relative w-full post-media-wrapper bg-neutral-900\">\n                                <video src=\"${post.mediaURL}\" controls class=\"w-full h-full object-contain\"></video>
+                            <div class="relative w-full post-media-wrapper bg-neutral-900">
+                                <video src="${post.mediaURL}" controls class="w-full h-full object-contain"></video>
                             </div>
                         `;
                     } else {
                          mediaHtml = `
-                            <div class=\"relative w-full post-media-wrapper bg-neutral-900\">\n                                <img src=\"${post.thumbnailBase64 || 'data:image/gif;base64,R0lGODlhAQABAAD/ACwAAAAAAQABAAACADs='}\" 
-                                    data-src=\"${post.mediaURL}\" 
-                                    alt=\"Post media\" 
-                                    class=\"post-media-image w-full h-full object-contain filter blur-lg transition-filter duration-500 ease-in-out\">
-                                <div class=\"absolute inset-0 flex items-center justify-center\">\n                                    <div class=\"loader ease-linear rounded-full border-4 border-t-4 border-blue-500 h-8 w-8 text-white\"></div>
+                            <div class="relative w-full post-media-wrapper bg-neutral-900">
+                                <img src="${post.thumbnailBase64 || 'data:image/gif;base64,R0lGODlhAQABAAD/ACwAAAAAAQABAAACADs='}" 
+                                    data-src="${post.mediaURL}" 
+                                    alt="Post media" 
+                                    class="post-media-image w-full h-full object-contain filter blur-lg transition-filter duration-500 ease-in-out">
+                                <div class="absolute inset-0 flex items-center justify-center">
+                                    <div class="loader ease-linear rounded-full border-4 border-t-4 border-blue-500 h-8 w-8 text-white"></div>
                                 </div>
                             </div>
                         `;
@@ -691,26 +696,36 @@ const loadPosts = () => {
 
                 let avatarHtml = '';
                 if (authorProfile.profilePicURL) {
-                    avatarHtml = `<img src=\"${authorProfile.profilePicURL}\" alt=\"Profile\" class=\"w-full h-full object-cover rounded-full\">`;
+                    avatarHtml = `<img src="${authorProfile.profilePicURL}" alt="Profile" class="w-full h-full object-cover rounded-full">`;
                 } else {
-                    avatarHtml = `<div class=\"w-full h-full flex items-center justify-center text-white text-sm font-bold\">${postAuthorInitial}</div>`;
+                    avatarHtml = `<div class="w-full h-full flex items-center justify-center text-white text-sm font-bold">${postAuthorInitial}</div>`;
                 }
 
                 postElement.innerHTML = `
-                    <div class=\"flex items-center p-3\">\n                        <div class=\"w-8 h-8 bg-gradient-to-r from-teal-500 to-blue-500 rounded-full mr-3 overflow-hidden\">${avatarHtml}</div>
-                        <p class=\"font-semibold text-neutral-100\">${postAuthor}</p>
-                        ${showDeleteButton ? `<button class=\"ml-auto text-red-400 hover:text-red-600 delete-post-btn text-sm\" data-id=\"${key}\">Delete</button>` : ''}
+                    <div class="flex items-center p-3">
+                        <div class="w-8 h-8 bg-gradient-to-r from-teal-500 to-blue-500 rounded-full mr-3 overflow-hidden">${avatarHtml}</div>
+                        <p class="font-semibold text-neutral-100">${postAuthor}</p>
+                        ${showDeleteButton ? `<button class="ml-auto text-red-400 hover:text-red-600 delete-post-btn text-sm" data-id="${key}">Delete</button>` : ''}
                     </div>
                     ${mediaHtml}
-                    <div class=\"p-3\">\n                        ${post.caption ? `<p class=\"text-neutral-300 mb-1\"><span class=\"font-semibold text-neutral-100\">${postAuthor}</span> ${post.caption}</p>` : ''}
-                        <div class=\"flex items-center space-x-4 mb-2\">\n                            <button class=\"like-button flex items-center space-x-1 text-neutral-400 hover:text-red-500 transition-colors duration-150 ease-in-out\" data-post-id=\"${key}\">\n                                <span class=\"material-icons ${isLiked ? 'text-red-500' : ''}\">${isLiked ? 'favorite' : 'favorite_border'}</span>
-                                <span class=\"text-sm\">${likeCount}</span>
+                    <div class="p-3">
+                        ${post.caption ? `<p class="text-neutral-300 mb-1"><span class="font-semibold text-neutral-100">${postAuthor}</span> ${post.caption}</p>` : ''}
+                        <div class="flex items-center space-x-4 mb-2">
+                            <button class="like-button flex items-center space-x-1 text-neutral-400 hover:text-red-500 transition-colors duration-150 ease-in-out" data-post-id="${key}">
+                                <span class="material-icons ${isLiked ? 'text-red-500' : ''}">favorite</span>
+                                <span class="text-sm">${likeCount}</span>
                             </button>
-                            <p class=\"text-neutral-500 text-xs\">${new Date(post.timestamp).toLocaleString()}</p>
+                            <p class="text-neutral-500 text-xs">${new Date(post.timestamp).toLocaleString()}</p>
                         </div>
-                        <div class=\"post-comment-section mt-4 pt-4 border-t border-neutral-700\">\n                            <div class=\"comment-list space-y-3 mb-4\">\n                                <!-- Comments will be loaded here by JavaScript -->\n                                <p class=\"text-neutral-400 text-sm\">Loading comments...</p>\n                            </div>
-                            <div class=\"flex items-center space-x-2\">\n                                <textarea class=\"comment-input flex-grow rounded-lg py-2 px-4 bg-neutral-700 text-neutral-100 text-sm leading-tight focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-transparent transition duration-150 border border-neutral-600\" placeholder=\"Add a comment...\"></textarea>
-                                <button class=\"post-comment-btn bg-gradient-to-r from-teal-500 to-blue-500 hover:from-teal-600 hover:to-blue-600 text-white font-bold py-2 px-4 rounded-full text-sm shadow-md transition duration-150 ease-in-out\" data-post-id=\"${key}\">\n                                    Post
+                        <div class="post-comment-section mt-4 pt-4 border-t border-neutral-700">
+                            <div class="comment-list space-y-3 mb-4">
+                                <!-- Comments will be loaded here by JavaScript -->
+                                <p class="text-neutral-400 text-sm">Loading comments...</p>
+                            </div>
+                            <div class="flex items-center space-x-2">
+                                <textarea class="comment-input flex-grow rounded-lg py-2 px-4 bg-neutral-700 text-neutral-100 text-sm leading-tight focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-transparent transition duration-150 border border-neutral-600" placeholder="Add a comment..."></textarea>
+                                <button class="post-comment-btn bg-gradient-to-r from-teal-500 to-blue-500 hover:from-teal-600 hover:to-blue-600 text-white font-bold py-2 px-4 rounded-full text-sm shadow-md transition duration-150 ease-in-out" data-post-id="${key}">
+                                    Post
                                 </button>
                             </div>
                         </div>
@@ -747,46 +762,99 @@ const loadPosts = () => {
                         }
                     });
 
-                    // Carousel logic
+                    // Touch event-based swiping
                     if (mediaData.length > 1) {
-                        let currentSlide = 0;
+                        const carouselContainer = postElement.querySelector('.carousel-container');
                         const carouselWrapper = postElement.querySelector('.carousel-wrapper');
                         const prevBtn = postElement.querySelector('.carousel-button-prev');
                         const nextBtn = postElement.querySelector('.carousel-button-next');
                         const indicatorDots = postElement.querySelectorAll('.indicator-dot');
+                        let startX = 0;
+                        let currentX = 0;
+                        let translateX = 0;
+                        let animationFrame = null;
+                        let currentSlide = 0; // Track the current slide
 
                         const updateCarousel = () => {
-                            carouselWrapper.style.transform = `translateX(-${currentSlide * 100}%)`;
+                            carouselWrapper.style.transform = `translateX(${-currentSlide * 100}%)`;
                             indicatorDots.forEach((dot, idx) => {
                                 dot.classList.toggle('active', idx === currentSlide);
                             });
-                            prevBtn.classList.toggle('hidden', currentSlide === 0);
-                            nextBtn.classList.toggle('hidden', currentSlide === mediaData.length - 1);
                         };
 
-                        if (prevBtn) {
-                            prevBtn.addEventListener('click', () => {
-                                if (currentSlide > 0) {
-                                    currentSlide--;
-                                    updateCarousel();
-                                }
+                        const handleTouchStart = (e) => {
+                            startX = e.touches[0].clientX;
+                            currentX = startX;
+                            translateX = parseFloat(carouselWrapper.style.transform.replace('translateX(', '').replace('%)', '')) || 0;
+                            carouselWrapper.classList.remove('transition-transform'); // Remove transition for smooth swiping
+                        };
+
+                        const handleTouchMove = (e) => {
+                            currentX = e.touches[0].clientX;
+                            const diffX = currentX - startX;
+                            const newTranslateX = translateX + diffX / carouselContainer.offsetWidth * 100; // Normalize to percentage
+                            
+                             // Prevent going beyond the limits
+                            if (newTranslateX > 0) {
+                                return;
+                            }
+                            if (Math.abs(newTranslateX) > (mediaData.length - 1) * 100) {
+                                return;
+                            }
+
+
+                            if (animationFrame) {
+                                cancelAnimationFrame(animationFrame);
+                            }
+
+                            animationFrame = requestAnimationFrame(() => {
+                                carouselWrapper.style.transform = `translateX(${newTranslateX}%)`;
                             });
-                        }
-                        if (nextBtn) {
-                            nextBtn.addEventListener('click', () => {
-                                if (currentSlide < mediaData.length - 1) {
-                                    currentSlide++;
-                                    updateCarousel();
+                        };
+
+                        const handleTouchEnd = (e) => {
+                           carouselWrapper.classList.add('transition-transform'); // Add transition back for the "snap" effect
+                            const diffX = currentX - startX;
+
+                            if (Math.abs(diffX) > carouselContainer.offsetWidth / 4) { // Swipe threshold
+                                if (diffX > 0) { // Swiping right
+                                   currentSlide = Math.max(0, currentSlide - 1);
+                                } else { // Swiping left
+                                    currentSlide = Math.min(mediaData.length - 1, currentSlide + 1);
                                 }
-                            });
-                        }
-                        indicatorDots.forEach(dot => {
-                            dot.addEventListener('click', (e) => {
-                                currentSlide = parseInt(e.target.dataset.slideTo);
+                            }
+
+                            translateX = -currentSlide * 100;
+                            carouselWrapper.style.transform = `translateX(${translateX}%)`;
+                            animationFrame = null;
+                            updateCarousel();
+                        };
+
+                        carouselContainer.addEventListener('touchstart', handleTouchStart);
+                        carouselContainer.addEventListener('touchmove', handleTouchMove);
+                        carouselContainer.addEventListener('touchend', handleTouchEnd);
+                        carouselContainer.addEventListener('touchcancel', handleTouchEnd); // In case the touch gets interrupted
+
+                        // Event listeners for prev/next buttons
+                        prevBtn.addEventListener('click', () => {
+                            currentSlide = Math.max(0, currentSlide - 1);
+                            updateCarousel();
+                        });
+
+                        nextBtn.addEventListener('click', () => {
+                            currentSlide = Math.min(mediaData.length - 1, currentSlide + 1);
+                            updateCarousel();
+                        });
+
+                        // Event listeners for indicator dots
+                        indicatorDots.forEach((dot, index) => {
+                            dot.addEventListener('click', () => {
+                                currentSlide = index;
                                 updateCarousel();
                             });
                         });
-                        updateCarousel(); // Initial setup
+
+                        updateCarousel(); // Initialize carousel
                     }
                 }
 
@@ -817,10 +885,10 @@ const loadPosts = () => {
                 });
             });
         } else {
-            postsContainer.innerHTML = '<p class=\"text-center text-neutral-500 mt-8\">No posts yet. Be the first to share!</p>';
+            postsContainer.innerHTML = '<p class="text-center text-neutral-500 mt-8">No posts yet. Be the first to share!</p>';
         }
     });
-};
+};;;
 
 // Load Stories (Instagram Circle Style)
 const loadStories = () => {

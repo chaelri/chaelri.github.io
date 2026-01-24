@@ -1,4 +1,4 @@
-import os, sys, subprocess, warnings, re, io, textwrap, difflib
+import os, sys, subprocess, warnings, re, io, difflib
 from dotenv import load_dotenv
 
 # --- 1. SILENCE & SETUP ---
@@ -28,10 +28,9 @@ from rich import box
 console = Console()
 client = genai.Client(api_key=os.getenv("GEMINI_API_KEY"))
 
-# --- 2. THE SEMANTIC TOOLS ---
+# --- 2. THE STRUCTURAL TOOLS ---
 
 def list_files(directory: str = ".") -> str:
-    """Lists files to see the project structure."""
     files = []
     exclude = {".git", "node_modules", "__pycache__", ".npm_local", ".venv"}
     for root, dirs, fnames in os.walk(directory):
@@ -43,7 +42,6 @@ def list_files(directory: str = ".") -> str:
     return res
 
 def read_file(path: str) -> str:
-    """Reads file content. Mandatory to see the code before patching."""
     try:
         with open(path, "r") as f:
             content = f.read()
@@ -51,48 +49,67 @@ def read_file(path: str) -> str:
             return content
     except Exception as e: return f"ERROR: {e}"
 
-def apply_smart_patch(path: str, search_block: str, replace_block: str) -> str:
-    """Smarter patching with Visual Diffs and Self-Correction."""
+def replace_function(path: str, function_name: str, new_function_code: str) -> str:
+    """
+    Finds a JavaScript/Python function by name and replaces the entire body 
+    using structural brace-matching. Safe for 60KB+ files.
+    """
     try:
         if not os.path.exists(path): return f"ERROR: {path} not found."
-        with open(path, "r") as f: lines = f.readlines()
-        search_lines = [l for l in search_block.strip("\n").split("\n")]
+        with open(path, "r") as f: content = f.read()
+
+        # 1. Locate the start of the function
+        # Matches: function name, async function name, const name = (...) =>
+        patterns = [
+            rf"function\s+{function_name}\s*\(",
+            rf"const\s+{function_name}\s*=",
+            rf"async\s+function\s+{function_name}\s*\("
+        ]
         
-        def lines_match(file_idx):
-            for i, s_line in enumerate(search_lines):
-                if file_idx + i >= len(lines): return False
-                if lines[file_idx + i].strip() != s_line.strip(): return False
-            return True
+        start_index = -1
+        for pattern in patterns:
+            match = re.search(pattern, content)
+            if match:
+                start_index = match.start()
+                break
+        
+        if start_index == -1:
+            return f"ERROR: Function '{function_name}' not found in {path}."
 
-        matches = [i for i in range(len(lines)) if lines_match(i)]
+        # 2. Find the bounds of the function using brace counting
+        first_brace = content.find("{", start_index)
+        if first_brace == -1: return "ERROR: Could not find opening brace."
+        
+        brace_count = 0
+        end_index = -1
+        for i in range(first_brace, len(content)):
+            if content[i] == "{": brace_count += 1
+            elif content[i] == "}": brace_count -= 1
+            
+            if brace_count == 0:
+                end_index = i + 1
+                break
+        
+        if end_index == -1: return "ERROR: Could not find matching closing brace."
 
-        if len(matches) == 0:
-            file_preview = "".join(lines[:60]) 
-            error_hint = f"ERROR: Search block not found in {path}. Check preview:\n\n{file_preview}"
-            console.print(Panel(error_hint, title="❌ Patch Failed", border_style="red"))
-            return error_hint
-
-        if len(matches) > 1:
-            return f"ERROR: Found {len(matches)} identical blocks. Provide more context."
-
-        start_idx = matches[0]
-        original_indent = re.match(r"^\s*", lines[start_idx]).group(0)
-        new_content_lines = replace_block.strip("\n").split("\n")
-        indented_replacement = [original_indent + rl.lstrip() + "\n" for rl in new_content_lines]
-
-        # Generate Diff
-        old_segment = lines[start_idx : start_idx + len(search_lines)]
-        diff = difflib.unified_diff(old_segment, indented_replacement, fromfile='Original', tofile='Patched')
+        # 3. Visual Diffing
+        old_code = content[start_index:end_index]
+        diff = difflib.unified_diff(old_code.splitlines(keepends=True), 
+                                    new_function_code.splitlines(keepends=True), 
+                                    fromfile='Old Function', tofile='New Function')
+        
         diff_text = "".join([f"[green]{l}[/]" if l.startswith('+') else f"[red]{l}[/]" if l.startswith('-') else f"[dim]{l}[/]" for l in diff])
-        if diff_text: console.print(Panel(diff_text, title=f"✨ DIFF: {path}", border_style="bold green"))
+        if diff_text: console.print(Panel(diff_text, title=f"✨ STRUCTURAL DIFF: {function_name}", border_style="bold green"))
 
-        lines[start_idx : start_idx + len(search_lines)] = indented_replacement
-        with open(path, "w") as f: f.writelines(lines)
-        return f"SUCCESS: {path} patched."
+        # 4. Save Changes
+        new_content = content[:start_index] + new_function_code.strip() + content[end_index:]
+        with open(path, "w") as f: f.write(new_content)
+        
+        return f"SUCCESS: Function '{function_name}' in {path} replaced structurally."
+
     except Exception as e: return f"ERROR: {e}"
 
 def write_file(path: str, content: str) -> str:
-    """Writes a brand new file."""
     try:
         os.makedirs(os.path.dirname(path), exist_ok=True) if os.path.dirname(path) else None
         with open(path, "w") as f: f.write(content)
@@ -101,7 +118,6 @@ def write_file(path: str, content: str) -> str:
     except Exception as e: return f"ERROR: {e}"
 
 def shell_exec(command: str) -> str:
-    """Runs terminal commands (npm, pip, node)."""
     console.print(Panel(f"{command}", title="⚡ CMD REQUEST", border_style="cyan", box=box.ROUNDED))
     if input("  Allow? (y/n): ").lower() != 'y': return "User cancelled."
     local_env = os.environ.copy()
@@ -112,24 +128,25 @@ def shell_exec(command: str) -> str:
     res = subprocess.run(command, shell=True, capture_output=True, text=True, env=local_env)
     return f"OUT: {res.stdout}\nERR: {res.stderr}"
 
-# --- 3. THE ENGINE ---
+# --- 3. THE MIND FLOW ---
 
 def run():
-    console.print(Panel.fit("[bold cyan]TERMIGEN v4.7[/bold cyan]\n[dim]Mindful Agentic Engine[/dim]", border_style="magenta", box=box.DOUBLE))
+    console.print(Panel.fit("[bold cyan]TERMIGEN v4.9[/bold cyan]\n[dim]Structural Function Surgery Engine[/dim]", border_style="magenta", box=box.DOUBLE))
 
-    tools = [list_files, read_file, apply_smart_patch, write_file, shell_exec]
+    tools = [list_files, read_file, replace_function, write_file, shell_exec]
     chat = client.chats.create(
         model="gemini-2.0-flash",
         config=types.GenerateContentConfig(
             tools=tools,
             automatic_function_calling=types.AutomaticFunctionCallingConfig(disable=False),
             system_instruction=(
-                "You are TermiGen v4.7. You are a Senior Developer Agent.\n\n"
-                "STRICT PROTOCOLS:\n"
-                "1. PRIORITIZE USER CONSTRAINTS: If the user says 'don't implement' or 'only list', you MUST NOT call write_file, patch_file, or shell_exec.\n"
-                "2. SMART PATCHING: Use 'apply_smart_patch' for surgical edits. Read files first to get context.\n"
-                "3. AUTONOMY: If a patch fails, analyze the error preview and retry IMMEDIATELY with a better search block.\n"
-                "4. Be professional and concise. Stream your plan before acting."
+                "You are TermiGen v4.9. You are a Structurally-Aware Developer Agent.\n\n"
+                "Surgical Logic:\n"
+                "1. If editing an existing JavaScript/Python file, use 'replace_function'.\n"
+                "2. Identify the function name (e.g., renderDashboard) and provide the complete NEW version of that function.\n"
+                "3. This tool automatically handles brace matching and indentation.\n"
+                "4. If the code logic is NOT inside a function, use write_file.\n\n"
+                "CONSTRAINT: If the user says 'don't implement', only provide the list of suggestions and stop."
             )
         )
     )
@@ -144,7 +161,7 @@ def run():
                 img = ImageGrab.grabclipboard()
                 if isinstance(img, Image.Image):
                     message_parts.append(img)
-                    console.print("[magenta]📷 Image attached.[/]")
+                    console.print("[magenta]📷 Image attached from clipboard.[/]")
                     user_msg = user_msg.replace("/paste", "")
             message_parts.append(user_msg)
 
@@ -155,24 +172,20 @@ def run():
                     if not chunk.candidates or not chunk.candidates[0].content: continue
                     
                     for part in chunk.candidates[0].content.parts:
-                        # 1. Handle Text Streaming
                         if hasattr(part, 'text') and part.text:
                             current_thought += part.text
                             live.update(Panel(Markdown(current_thought), title="[bold magenta]Thought[/]", border_style="magenta"))
                         
-                        # 2. Handle Tool Calls
                         if hasattr(part, 'function_call') and part.function_call:
-                            # Finalize text before the tool runs to prevent duplication
                             live.stop()
                             if current_thought.strip():
                                 console.print(Panel(Markdown(current_thought), title="[bold magenta]Thought[/]", border_style="magenta"))
-                            current_thought = "" # Clear the buffer
+                            current_thought = "" 
                             
                             fn_name = part.function_call.name
-                            console.print(Panel(f"⚙️ [bold cyan]ACTION:[/bold cyan] Calling `{fn_name}`...", border_style="cyan"))
+                            console.print(Panel(f"⚙️ ACTION: Calling `{fn_name}`...", border_style="cyan"))
                             live.start()
 
-            # Final response (if there is text remaining after the tools)
             if current_thought.strip():
                 console.print(Panel(Markdown(current_thought), title="[bold magenta]Final Response[/]", border_style="magenta"))
 
