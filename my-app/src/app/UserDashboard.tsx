@@ -1,6 +1,6 @@
 "use client";
 
-import { useState } from "react";
+import { useState, useOptimistic, useTransition } from "react";
 import { deleteUser, toggleUserStatus } from "./actions";
 
 type User = {
@@ -14,9 +14,19 @@ type User = {
 export default function UserDashboard({ initialUsers }: { initialUsers: User[] }) {
   const [query, setQuery] = useState("");
   const [activeTab, setActiveTab] = useState("Active");
+  const [isPending, startTransition] = useTransition();
 
-  // 1. Filter by Search + 2. Filter by Tab
-  const filteredUsers = initialUsers.filter((user) => {
+  // Optimistic UI: Update the list immediately before the server responds
+  const [optimisticUsers, addOptimisticUser] = useOptimistic(
+    initialUsers,
+    (state, updatedUser: { id: number; status: string }) => {
+      return state.map((user) =>
+        user.id === updatedUser.id ? { ...user, status: updatedUser.status } : user
+      );
+    }
+  );
+
+  const filteredUsers = optimisticUsers.filter((user) => {
     const matchesTab = user.status === activeTab;
     const searchStr = query.toLowerCase();
     const matchesSearch = query.length < 3 || 
@@ -87,8 +97,16 @@ export default function UserDashboard({ initialUsers }: { initialUsers: User[] }
 
                 <div className="flex items-center gap-2">
                   <button
-                    onClick={() => toggleUserStatus(user.id, user.status)}
-                    className="opacity-0 group-hover:opacity-100 px-3 py-1.5 rounded-lg text-[10px] font-black uppercase tracking-widest border border-zinc-700 text-zinc-400 hover:border-cyan-500 hover:text-cyan-500 transition-all cursor-pointer bg-zinc-950"
+                    onClick={() => {
+                      const newStatus = user.status === "Active" ? "Archived" : "Active";
+                      // 1. Update UI Instantly
+                      startTransition(() => {
+                        addOptimisticUser({ id: user.id, status: newStatus });
+                      });
+                      // 2. Run the actual Database work in the background
+                      toggleUserStatus(user.id, user.status);
+                    }}
+                    className="opacity-0 group-hover:opacity-100 px-3 py-1.5 rounded-lg text-[10px] font-black uppercase tracking-widest border border-zinc-700 text-zinc-400 hover:border-cyan-500 hover:text-cyan-500 transition-all cursor-pointer bg-zinc-950 disabled:opacity-50"
                   >
                     {user.status === "Active" ? "Archive" : "Restore"}
                   </button>
