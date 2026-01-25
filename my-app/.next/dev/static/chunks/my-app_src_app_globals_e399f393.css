@@ -32,7 +32,6 @@
     --color-cyan-400: #00d2ef;
     --color-cyan-500: #00b7d7;
     --color-zinc-100: #f4f4f5;
-    --color-zinc-300: #d4d4d8;
     --color-zinc-400: #9f9fa9;
     --color-zinc-500: #71717b;
     --color-zinc-600: #52525c;
@@ -75,7 +74,6 @@
       --color-cyan-400: lab(76.6045% -40.9406 -29.6231);
       --color-cyan-500: lab(67.805% -35.3952 -30.2018);
       --color-zinc-100: lab(96.1634% .0993311 -.364041);
-      --color-zinc-300: lab(84.9837% .601262 -2.17986);
       --color-zinc-400: lab(65.6464% 1.53497 -5.42429);
       --color-zinc-500: lab(47.8878% 1.65477 -5.77283);
       --color-zinc-600: lab(35.1166% 1.78212 -6.1173);
@@ -368,20 +366,12 @@
     margin-right: calc(var(--spacing) * 2);
   }
 
-  .mb-3 {
-    margin-bottom: calc(var(--spacing) * 3);
-  }
-
   .mb-6 {
     margin-bottom: calc(var(--spacing) * 6);
   }
 
   .mb-12 {
     margin-bottom: calc(var(--spacing) * 12);
-  }
-
-  .block {
-    display: block;
   }
 
   .flex {
@@ -558,11 +548,6 @@
     border-left-width: 4px;
   }
 
-  .border-dashed {
-    --tw-border-style: dashed;
-    border-style: dashed;
-  }
-
   .border-cyan-500 {
     border-color: var(--color-cyan-500);
   }
@@ -579,13 +564,13 @@
     border-top-color: #0000;
   }
 
-  .border-l-cyan-500\/30 {
-    border-left-color: #00b7d74d;
+  .border-l-cyan-500\/20 {
+    border-left-color: #00b7d733;
   }
 
   @supports (color: color-mix(in lab, red, red)) {
-    .border-l-cyan-500\/30 {
-      border-left-color: color-mix(in oklab, var(--color-cyan-500) 30%, transparent);
+    .border-l-cyan-500\/20 {
+      border-left-color: color-mix(in oklab, var(--color-cyan-500) 20%, transparent);
     }
   }
 
@@ -657,10 +642,6 @@
     padding: calc(var(--spacing) * 12);
   }
 
-  .p-20 {
-    padding: calc(var(--spacing) * 20);
-  }
-
   .px-3 {
     padding-inline: calc(var(--spacing) * 3);
   }
@@ -683,10 +664,6 @@
 
   .pl-11 {
     padding-left: calc(var(--spacing) * 11);
-  }
-
-  .text-center {
-    text-align: center;
   }
 
   .text-4xl {
@@ -726,11 +703,6 @@
   .font-semibold {
     --tw-font-weight: var(--font-weight-semibold);
     font-weight: var(--font-weight-semibold);
-  }
-
-  .tracking-\[0\.2em\] {
-    --tw-tracking: .2em;
-    letter-spacing: .2em;
   }
 
   .tracking-tighter {
@@ -775,10 +747,6 @@
     color: var(--color-zinc-600);
   }
 
-  .text-zinc-700 {
-    color: var(--color-zinc-700);
-  }
-
   .uppercase {
     text-transform: uppercase;
   }
@@ -802,11 +770,6 @@
 
   .shadow-lg {
     --tw-shadow: 0 10px 15px -3px var(--tw-shadow-color, #0000001a), 0 4px 6px -4px var(--tw-shadow-color, #0000001a);
-    box-shadow: var(--tw-inset-shadow), var(--tw-inset-ring-shadow), var(--tw-ring-offset-shadow), var(--tw-ring-shadow), var(--tw-shadow);
-  }
-
-  .shadow-sm {
-    --tw-shadow: 0 1px 3px 0 var(--tw-shadow-color, #0000001a), 0 1px 2px -1px var(--tw-shadow-color, #0000001a);
     box-shadow: var(--tw-inset-shadow), var(--tw-inset-ring-shadow), var(--tw-ring-offset-shadow), var(--tw-ring-shadow), var(--tw-shadow);
   }
 
@@ -859,12 +822,6 @@
   }
 
   @media (hover: hover) {
-    .hover\:border-cyan-500:hover {
-      border-color: var(--color-cyan-500);
-    }
-  }
-
-  @media (hover: hover) {
     .hover\:border-l-cyan-500:hover {
       border-left-color: var(--color-cyan-500);
     }
@@ -873,18 +830,6 @@
   @media (hover: hover) {
     .hover\:bg-cyan-500:hover {
       background-color: var(--color-cyan-500);
-    }
-  }
-
-  @media (hover: hover) {
-    .hover\:bg-zinc-900\/60:hover {
-      background-color: #18181b99;
-    }
-
-    @supports (color: color-mix(in lab, red, red)) {
-      .hover\:bg-zinc-900\/60:hover {
-        background-color: color-mix(in oklab, var(--color-zinc-900) 60%, transparent);
-      }
     }
   }
 
@@ -912,18 +857,8 @@
     }
   }
 
-  @media (hover: hover) {
-    .hover\:text-zinc-300:hover {
-      color: var(--color-zinc-300);
-    }
-  }
-
   .focus\:border-cyan-500:focus {
     border-color: var(--color-cyan-500);
-  }
-
-  .disabled\:opacity-50:disabled {
-    opacity: .5;
   }
 
   @media (min-width: 48rem) {

@@ -49,25 +49,38 @@ var __TURBOPACK__imported__module__$5b$project$5d2f$my$2d$app$2f$src$2f$app$2f$d
 ;
 ;
 function UserDashboard({ initialUsers }) {
+    // We manage the list locally, just like Firebase RTDB does internally
+    const [users, setUsers] = (0, __TURBOPACK__imported__module__$5b$project$5d2f$my$2d$app$2f$node_modules$2f$next$2f$dist$2f$server$2f$route$2d$modules$2f$app$2d$page$2f$vendored$2f$ssr$2f$react$2e$js__$5b$app$2d$ssr$5d$__$28$ecmascript$29$__["useState"])(initialUsers);
     const [query, setQuery] = (0, __TURBOPACK__imported__module__$5b$project$5d2f$my$2d$app$2f$node_modules$2f$next$2f$dist$2f$server$2f$route$2d$modules$2f$app$2d$page$2f$vendored$2f$ssr$2f$react$2e$js__$5b$app$2d$ssr$5d$__$28$ecmascript$29$__["useState"])("");
     const [activeTab, setActiveTab] = (0, __TURBOPACK__imported__module__$5b$project$5d2f$my$2d$app$2f$node_modules$2f$next$2f$dist$2f$server$2f$route$2d$modules$2f$app$2d$page$2f$vendored$2f$ssr$2f$react$2e$js__$5b$app$2d$ssr$5d$__$28$ecmascript$29$__["useState"])("Active");
-    const [isPending, startTransition] = (0, __TURBOPACK__imported__module__$5b$project$5d2f$my$2d$app$2f$node_modules$2f$next$2f$dist$2f$server$2f$route$2d$modules$2f$app$2d$page$2f$vendored$2f$ssr$2f$react$2e$js__$5b$app$2d$ssr$5d$__$28$ecmascript$29$__["useTransition"])();
-    // Optimistic UI: Update the list immediately before the server responds
-    const [optimisticUsers, addOptimisticUser] = (0, __TURBOPACK__imported__module__$5b$project$5d2f$my$2d$app$2f$node_modules$2f$next$2f$dist$2f$server$2f$route$2d$modules$2f$app$2d$page$2f$vendored$2f$ssr$2f$react$2e$js__$5b$app$2d$ssr$5d$__$28$ecmascript$29$__["useOptimistic"])(initialUsers, (state, updatedUser)=>{
-        return state.map((user)=>user.id === updatedUser.id ? {
-                ...user,
-                status: updatedUser.status
-            } : user);
-    });
-    const filteredUsers = optimisticUsers.filter((user)=>{
+    // Keep local state in sync if the server data changes (e.g. fresh page load)
+    (0, __TURBOPACK__imported__module__$5b$project$5d2f$my$2d$app$2f$node_modules$2f$next$2f$dist$2f$server$2f$route$2d$modules$2f$app$2d$page$2f$vendored$2f$ssr$2f$react$2e$js__$5b$app$2d$ssr$5d$__$28$ecmascript$29$__["useEffect"])(()=>{
+        setUsers(initialUsers);
+    }, [
+        initialUsers
+    ]);
+    const handleToggle = async (id, currentStatus)=>{
+        const newStatus = currentStatus === "Active" ? "Archived" : "Active";
+        // 1. INSTANT UPDATE (The Firebase Feeling)
+        setUsers((prev)=>prev.map((u)=>u.id === id ? {
+                    ...u,
+                    status: newStatus
+                } : u));
+        // 2. BACKEND SYNC (Background)
+        await (0, __TURBOPACK__imported__module__$5b$project$5d2f$my$2d$app$2f$src$2f$app$2f$data$3a$06a3a1__$5b$app$2d$ssr$5d$__$28$ecmascript$29$__$3c$text$2f$javascript$3e$__["toggleUserStatus"])(id, currentStatus);
+    };
+    const handleDelete = async (user)=>{
+        if (!confirm(`Delete ${user.name}?`)) return;
+        // 1. INSTANT UPDATE
+        setUsers((prev)=>prev.filter((u)=>u.id !== user.id));
+        // 2. BACKEND SYNC
+        await (0, __TURBOPACK__imported__module__$5b$project$5d2f$my$2d$app$2f$src$2f$app$2f$data$3a$1c71cc__$5b$app$2d$ssr$5d$__$28$ecmascript$29$__$3c$text$2f$javascript$3e$__["deleteUser"])(user.id);
+    };
+    const filteredUsers = users.filter((user)=>{
         const matchesTab = user.status === activeTab;
         const searchStr = query.toLowerCase();
-        const matchesSearch = query.length < 3 || user.name?.toLowerCase().includes(searchStr) || user.email.toLowerCase().includes(searchStr);
-        return matchesTab && matchesSearch;
+        return matchesTab && (query.length < 3 || user.name?.toLowerCase().includes(searchStr) || user.email.toLowerCase().includes(searchStr));
     });
-    // Calculate Stats for the UI
-    const activeCount = initialUsers.filter((u)=>u.status === "Active").length;
-    const archivedCount = initialUsers.filter((u)=>u.status === "Archived").length;
     return /*#__PURE__*/ (0, __TURBOPACK__imported__module__$5b$project$5d2f$my$2d$app$2f$node_modules$2f$next$2f$dist$2f$server$2f$route$2d$modules$2f$app$2d$page$2f$vendored$2f$ssr$2f$react$2d$jsx$2d$dev$2d$runtime$2e$js__$5b$app$2d$ssr$5d$__$28$ecmascript$29$__["jsxDEV"])("div", {
         className: "grid grid-cols-1 lg:grid-cols-3 gap-10",
         children: [
@@ -79,197 +92,94 @@ function UserDashboard({ initialUsers }) {
                         /*#__PURE__*/ (0, __TURBOPACK__imported__module__$5b$project$5d2f$my$2d$app$2f$node_modules$2f$next$2f$dist$2f$server$2f$route$2d$modules$2f$app$2d$page$2f$vendored$2f$ssr$2f$react$2d$jsx$2d$dev$2d$runtime$2e$js__$5b$app$2d$ssr$5d$__$28$ecmascript$29$__["jsxDEV"])("div", {
                             className: "flex bg-zinc-950 p-1 rounded-xl mb-6 border border-zinc-800",
                             children: [
-                                /*#__PURE__*/ (0, __TURBOPACK__imported__module__$5b$project$5d2f$my$2d$app$2f$node_modules$2f$next$2f$dist$2f$server$2f$route$2d$modules$2f$app$2d$page$2f$vendored$2f$ssr$2f$react$2d$jsx$2d$dev$2d$runtime$2e$js__$5b$app$2d$ssr$5d$__$28$ecmascript$29$__["jsxDEV"])("button", {
-                                    onClick: ()=>setActiveTab("Active"),
-                                    className: `flex-1 py-2 text-xs font-bold rounded-lg transition-all cursor-pointer ${activeTab === 'Active' ? 'bg-zinc-800 text-white shadow-lg' : 'text-zinc-500 hover:text-zinc-300'}`,
+                                "Active",
+                                "Archived"
+                            ].map((tab)=>/*#__PURE__*/ (0, __TURBOPACK__imported__module__$5b$project$5d2f$my$2d$app$2f$node_modules$2f$next$2f$dist$2f$server$2f$route$2d$modules$2f$app$2d$page$2f$vendored$2f$ssr$2f$react$2d$jsx$2d$dev$2d$runtime$2e$js__$5b$app$2d$ssr$5d$__$28$ecmascript$29$__["jsxDEV"])("button", {
+                                    onClick: ()=>setActiveTab(tab),
+                                    className: `flex-1 py-2 text-xs font-bold rounded-lg transition-all cursor-pointer ${activeTab === tab ? 'bg-zinc-800 text-white shadow-lg' : 'text-zinc-500'}`,
                                     children: [
-                                        "Active (",
-                                        activeCount,
+                                        tab,
+                                        " (",
+                                        users.filter((u)=>u.status === tab).length,
                                         ")"
                                     ]
-                                }, void 0, true, {
+                                }, tab, true, {
                                     fileName: "[project]/my-app/src/app/UserDashboard.tsx",
-                                    lineNumber: 50,
-                                    columnNumber: 13
-                                }, this),
-                                /*#__PURE__*/ (0, __TURBOPACK__imported__module__$5b$project$5d2f$my$2d$app$2f$node_modules$2f$next$2f$dist$2f$server$2f$route$2d$modules$2f$app$2d$page$2f$vendored$2f$ssr$2f$react$2d$jsx$2d$dev$2d$runtime$2e$js__$5b$app$2d$ssr$5d$__$28$ecmascript$29$__["jsxDEV"])("button", {
-                                    onClick: ()=>setActiveTab("Archived"),
-                                    className: `flex-1 py-2 text-xs font-bold rounded-lg transition-all cursor-pointer ${activeTab === 'Archived' ? 'bg-zinc-800 text-white shadow-lg' : 'text-zinc-500 hover:text-zinc-300'}`,
-                                    children: [
-                                        "Archived (",
-                                        archivedCount,
-                                        ")"
-                                    ]
-                                }, void 0, true, {
-                                    fileName: "[project]/my-app/src/app/UserDashboard.tsx",
-                                    lineNumber: 56,
-                                    columnNumber: 13
-                                }, this)
-                            ]
-                        }, void 0, true, {
-                            fileName: "[project]/my-app/src/app/UserDashboard.tsx",
-                            lineNumber: 49,
-                            columnNumber: 11
-                        }, this),
-                        /*#__PURE__*/ (0, __TURBOPACK__imported__module__$5b$project$5d2f$my$2d$app$2f$node_modules$2f$next$2f$dist$2f$server$2f$route$2d$modules$2f$app$2d$page$2f$vendored$2f$ssr$2f$react$2d$jsx$2d$dev$2d$runtime$2e$js__$5b$app$2d$ssr$5d$__$28$ecmascript$29$__["jsxDEV"])("label", {
-                            className: "block text-[10px] font-black text-zinc-600 uppercase tracking-[0.2em] mb-3",
-                            children: "Filter List"
+                                    lineNumber: 57,
+                                    columnNumber: 15
+                                }, this))
                         }, void 0, false, {
                             fileName: "[project]/my-app/src/app/UserDashboard.tsx",
-                            lineNumber: 64,
+                            lineNumber: 55,
                             columnNumber: 11
                         }, this),
-                        /*#__PURE__*/ (0, __TURBOPACK__imported__module__$5b$project$5d2f$my$2d$app$2f$node_modules$2f$next$2f$dist$2f$server$2f$route$2d$modules$2f$app$2d$page$2f$vendored$2f$ssr$2f$react$2d$jsx$2d$dev$2d$runtime$2e$js__$5b$app$2d$ssr$5d$__$28$ecmascript$29$__["jsxDEV"])("div", {
-                            className: "relative",
-                            children: [
-                                /*#__PURE__*/ (0, __TURBOPACK__imported__module__$5b$project$5d2f$my$2d$app$2f$node_modules$2f$next$2f$dist$2f$server$2f$route$2d$modules$2f$app$2d$page$2f$vendored$2f$ssr$2f$react$2d$jsx$2d$dev$2d$runtime$2e$js__$5b$app$2d$ssr$5d$__$28$ecmascript$29$__["jsxDEV"])("input", {
-                                    value: query,
-                                    onChange: (e)=>setQuery(e.target.value),
-                                    placeholder: "Search by name...",
-                                    className: "w-full bg-zinc-950 p-3 pl-11 rounded-xl border border-zinc-800 focus:border-cyan-500 outline-none text-sm transition-all"
-                                }, void 0, false, {
-                                    fileName: "[project]/my-app/src/app/UserDashboard.tsx",
-                                    lineNumber: 66,
-                                    columnNumber: 13
-                                }, this),
-                                /*#__PURE__*/ (0, __TURBOPACK__imported__module__$5b$project$5d2f$my$2d$app$2f$node_modules$2f$next$2f$dist$2f$server$2f$route$2d$modules$2f$app$2d$page$2f$vendored$2f$ssr$2f$react$2d$jsx$2d$dev$2d$runtime$2e$js__$5b$app$2d$ssr$5d$__$28$ecmascript$29$__["jsxDEV"])("div", {
-                                    className: "absolute left-4 top-3.5 text-zinc-600",
-                                    children: /*#__PURE__*/ (0, __TURBOPACK__imported__module__$5b$project$5d2f$my$2d$app$2f$node_modules$2f$next$2f$dist$2f$server$2f$route$2d$modules$2f$app$2d$page$2f$vendored$2f$ssr$2f$react$2d$jsx$2d$dev$2d$runtime$2e$js__$5b$app$2d$ssr$5d$__$28$ecmascript$29$__["jsxDEV"])("svg", {
-                                        xmlns: "http://www.w3.org/2000/svg",
-                                        width: "16",
-                                        height: "16",
-                                        viewBox: "0 0 24 24",
-                                        fill: "none",
-                                        stroke: "currentColor",
-                                        strokeWidth: "2",
-                                        strokeLinecap: "round",
-                                        strokeLinejoin: "round",
-                                        children: [
-                                            /*#__PURE__*/ (0, __TURBOPACK__imported__module__$5b$project$5d2f$my$2d$app$2f$node_modules$2f$next$2f$dist$2f$server$2f$route$2d$modules$2f$app$2d$page$2f$vendored$2f$ssr$2f$react$2d$jsx$2d$dev$2d$runtime$2e$js__$5b$app$2d$ssr$5d$__$28$ecmascript$29$__["jsxDEV"])("circle", {
-                                                cx: "11",
-                                                cy: "11",
-                                                r: "8"
-                                            }, void 0, false, {
-                                                fileName: "[project]/my-app/src/app/UserDashboard.tsx",
-                                                lineNumber: 73,
-                                                columnNumber: 193
-                                            }, this),
-                                            /*#__PURE__*/ (0, __TURBOPACK__imported__module__$5b$project$5d2f$my$2d$app$2f$node_modules$2f$next$2f$dist$2f$server$2f$route$2d$modules$2f$app$2d$page$2f$vendored$2f$ssr$2f$react$2d$jsx$2d$dev$2d$runtime$2e$js__$5b$app$2d$ssr$5d$__$28$ecmascript$29$__["jsxDEV"])("path", {
-                                                d: "m21 21-4.3-4.3"
-                                            }, void 0, false, {
-                                                fileName: "[project]/my-app/src/app/UserDashboard.tsx",
-                                                lineNumber: 73,
-                                                columnNumber: 224
-                                            }, this)
-                                        ]
-                                    }, void 0, true, {
-                                        fileName: "[project]/my-app/src/app/UserDashboard.tsx",
-                                        lineNumber: 73,
-                                        columnNumber: 15
-                                    }, this)
-                                }, void 0, false, {
-                                    fileName: "[project]/my-app/src/app/UserDashboard.tsx",
-                                    lineNumber: 72,
-                                    columnNumber: 13
-                                }, this)
-                            ]
-                        }, void 0, true, {
+                        /*#__PURE__*/ (0, __TURBOPACK__imported__module__$5b$project$5d2f$my$2d$app$2f$node_modules$2f$next$2f$dist$2f$server$2f$route$2d$modules$2f$app$2d$page$2f$vendored$2f$ssr$2f$react$2d$jsx$2d$dev$2d$runtime$2e$js__$5b$app$2d$ssr$5d$__$28$ecmascript$29$__["jsxDEV"])("input", {
+                            value: query,
+                            onChange: (e)=>setQuery(e.target.value),
+                            placeholder: "Search...",
+                            className: "w-full bg-zinc-950 p-3 rounded-xl border border-zinc-800 focus:border-cyan-500 outline-none text-sm"
+                        }, void 0, false, {
                             fileName: "[project]/my-app/src/app/UserDashboard.tsx",
-                            lineNumber: 65,
+                            lineNumber: 66,
                             columnNumber: 11
                         }, this)
                     ]
                 }, void 0, true, {
                     fileName: "[project]/my-app/src/app/UserDashboard.tsx",
-                    lineNumber: 47,
+                    lineNumber: 54,
                     columnNumber: 9
                 }, this)
             }, void 0, false, {
                 fileName: "[project]/my-app/src/app/UserDashboard.tsx",
-                lineNumber: 46,
+                lineNumber: 53,
                 columnNumber: 7
             }, this),
             /*#__PURE__*/ (0, __TURBOPACK__imported__module__$5b$project$5d2f$my$2d$app$2f$node_modules$2f$next$2f$dist$2f$server$2f$route$2d$modules$2f$app$2d$page$2f$vendored$2f$ssr$2f$react$2d$jsx$2d$dev$2d$runtime$2e$js__$5b$app$2d$ssr$5d$__$28$ecmascript$29$__["jsxDEV"])("section", {
                 className: "lg:col-span-2",
                 children: /*#__PURE__*/ (0, __TURBOPACK__imported__module__$5b$project$5d2f$my$2d$app$2f$node_modules$2f$next$2f$dist$2f$server$2f$route$2d$modules$2f$app$2d$page$2f$vendored$2f$ssr$2f$react$2d$jsx$2d$dev$2d$runtime$2e$js__$5b$app$2d$ssr$5d$__$28$ecmascript$29$__["jsxDEV"])("div", {
                     className: "grid gap-4",
-                    children: filteredUsers.length === 0 ? /*#__PURE__*/ (0, __TURBOPACK__imported__module__$5b$project$5d2f$my$2d$app$2f$node_modules$2f$next$2f$dist$2f$server$2f$route$2d$modules$2f$app$2d$page$2f$vendored$2f$ssr$2f$react$2d$jsx$2d$dev$2d$runtime$2e$js__$5b$app$2d$ssr$5d$__$28$ecmascript$29$__["jsxDEV"])("div", {
-                        className: "text-center p-20 border border-dashed border-zinc-800 rounded-3xl text-zinc-600",
-                        children: [
-                            "No ",
-                            activeTab.toLowerCase(),
-                            " users found."
-                        ]
-                    }, void 0, true, {
-                        fileName: "[project]/my-app/src/app/UserDashboard.tsx",
-                        lineNumber: 83,
-                        columnNumber: 13
-                    }, this) : filteredUsers.map((user)=>/*#__PURE__*/ (0, __TURBOPACK__imported__module__$5b$project$5d2f$my$2d$app$2f$node_modules$2f$next$2f$dist$2f$server$2f$route$2d$modules$2f$app$2d$page$2f$vendored$2f$ssr$2f$react$2d$jsx$2d$dev$2d$runtime$2e$js__$5b$app$2d$ssr$5d$__$28$ecmascript$29$__["jsxDEV"])("div", {
-                            className: "group flex items-center justify-between p-5 rounded-2xl bg-zinc-900/30 border border-zinc-800 hover:bg-zinc-900/60 transition-all border-l-4 border-l-cyan-500/30 hover:border-l-cyan-500 shadow-sm",
+                    children: filteredUsers.map((user)=>/*#__PURE__*/ (0, __TURBOPACK__imported__module__$5b$project$5d2f$my$2d$app$2f$node_modules$2f$next$2f$dist$2f$server$2f$route$2d$modules$2f$app$2d$page$2f$vendored$2f$ssr$2f$react$2d$jsx$2d$dev$2d$runtime$2e$js__$5b$app$2d$ssr$5d$__$28$ecmascript$29$__["jsxDEV"])("div", {
+                            className: "group flex items-center justify-between p-5 rounded-2xl bg-zinc-900/30 border border-zinc-800 hover:border-l-cyan-500 border-l-4 border-l-cyan-500/20 transition-all",
                             children: [
                                 /*#__PURE__*/ (0, __TURBOPACK__imported__module__$5b$project$5d2f$my$2d$app$2f$node_modules$2f$next$2f$dist$2f$server$2f$route$2d$modules$2f$app$2d$page$2f$vendored$2f$ssr$2f$react$2d$jsx$2d$dev$2d$runtime$2e$js__$5b$app$2d$ssr$5d$__$28$ecmascript$29$__["jsxDEV"])("div", {
                                     children: [
                                         /*#__PURE__*/ (0, __TURBOPACK__imported__module__$5b$project$5d2f$my$2d$app$2f$node_modules$2f$next$2f$dist$2f$server$2f$route$2d$modules$2f$app$2d$page$2f$vendored$2f$ssr$2f$react$2d$jsx$2d$dev$2d$runtime$2e$js__$5b$app$2d$ssr$5d$__$28$ecmascript$29$__["jsxDEV"])("p", {
                                             className: "font-semibold text-zinc-100",
-                                            children: user.name || "Anonymous"
+                                            children: user.name
                                         }, void 0, false, {
                                             fileName: "[project]/my-app/src/app/UserDashboard.tsx",
-                                            lineNumber: 93,
-                                            columnNumber: 19
+                                            lineNumber: 80,
+                                            columnNumber: 17
                                         }, this),
                                         /*#__PURE__*/ (0, __TURBOPACK__imported__module__$5b$project$5d2f$my$2d$app$2f$node_modules$2f$next$2f$dist$2f$server$2f$route$2d$modules$2f$app$2d$page$2f$vendored$2f$ssr$2f$react$2d$jsx$2d$dev$2d$runtime$2e$js__$5b$app$2d$ssr$5d$__$28$ecmascript$29$__["jsxDEV"])("p", {
                                             className: "text-sm text-zinc-500",
                                             children: user.email
                                         }, void 0, false, {
                                             fileName: "[project]/my-app/src/app/UserDashboard.tsx",
-                                            lineNumber: 94,
-                                            columnNumber: 19
-                                        }, this),
-                                        /*#__PURE__*/ (0, __TURBOPACK__imported__module__$5b$project$5d2f$my$2d$app$2f$node_modules$2f$next$2f$dist$2f$server$2f$route$2d$modules$2f$app$2d$page$2f$vendored$2f$ssr$2f$react$2d$jsx$2d$dev$2d$runtime$2e$js__$5b$app$2d$ssr$5d$__$28$ecmascript$29$__["jsxDEV"])("p", {
-                                            className: "text-[10px] text-zinc-700 uppercase mt-1 tracking-widest font-bold",
-                                            children: [
-                                                "Joined ",
-                                                new Date(user.createdAt).toLocaleDateString()
-                                            ]
-                                        }, void 0, true, {
-                                            fileName: "[project]/my-app/src/app/UserDashboard.tsx",
-                                            lineNumber: 95,
-                                            columnNumber: 19
+                                            lineNumber: 81,
+                                            columnNumber: 17
                                         }, this)
                                     ]
                                 }, void 0, true, {
                                     fileName: "[project]/my-app/src/app/UserDashboard.tsx",
-                                    lineNumber: 92,
-                                    columnNumber: 17
+                                    lineNumber: 79,
+                                    columnNumber: 15
                                 }, this),
                                 /*#__PURE__*/ (0, __TURBOPACK__imported__module__$5b$project$5d2f$my$2d$app$2f$node_modules$2f$next$2f$dist$2f$server$2f$route$2d$modules$2f$app$2d$page$2f$vendored$2f$ssr$2f$react$2d$jsx$2d$dev$2d$runtime$2e$js__$5b$app$2d$ssr$5d$__$28$ecmascript$29$__["jsxDEV"])("div", {
                                     className: "flex items-center gap-2",
                                     children: [
                                         /*#__PURE__*/ (0, __TURBOPACK__imported__module__$5b$project$5d2f$my$2d$app$2f$node_modules$2f$next$2f$dist$2f$server$2f$route$2d$modules$2f$app$2d$page$2f$vendored$2f$ssr$2f$react$2d$jsx$2d$dev$2d$runtime$2e$js__$5b$app$2d$ssr$5d$__$28$ecmascript$29$__["jsxDEV"])("button", {
-                                            onClick: ()=>{
-                                                const newStatus = user.status === "Active" ? "Archived" : "Active";
-                                                // 1. Update UI Instantly
-                                                startTransition(()=>{
-                                                    addOptimisticUser({
-                                                        id: user.id,
-                                                        status: newStatus
-                                                    });
-                                                });
-                                                // 2. Run the actual Database work in the background
-                                                (0, __TURBOPACK__imported__module__$5b$project$5d2f$my$2d$app$2f$src$2f$app$2f$data$3a$06a3a1__$5b$app$2d$ssr$5d$__$28$ecmascript$29$__$3c$text$2f$javascript$3e$__["toggleUserStatus"])(user.id, user.status);
-                                            },
-                                            className: "opacity-0 group-hover:opacity-100 px-3 py-1.5 rounded-lg text-[10px] font-black uppercase tracking-widest border border-zinc-700 text-zinc-400 hover:border-cyan-500 hover:text-cyan-500 transition-all cursor-pointer bg-zinc-950 disabled:opacity-50",
+                                            onClick: ()=>handleToggle(user.id, user.status),
+                                            className: "opacity-0 group-hover:opacity-100 px-3 py-1.5 rounded-lg text-[10px] font-black uppercase tracking-widest border border-zinc-700 text-zinc-400 hover:text-cyan-500 transition-all cursor-pointer bg-zinc-950",
                                             children: user.status === "Active" ? "Archive" : "Restore"
                                         }, void 0, false, {
                                             fileName: "[project]/my-app/src/app/UserDashboard.tsx",
-                                            lineNumber: 99,
-                                            columnNumber: 19
+                                            lineNumber: 84,
+                                            columnNumber: 17
                                         }, this),
                                         /*#__PURE__*/ (0, __TURBOPACK__imported__module__$5b$project$5d2f$my$2d$app$2f$node_modules$2f$next$2f$dist$2f$server$2f$route$2d$modules$2f$app$2d$page$2f$vendored$2f$ssr$2f$react$2d$jsx$2d$dev$2d$runtime$2e$js__$5b$app$2d$ssr$5d$__$28$ecmascript$29$__["jsxDEV"])("button", {
-                                            onClick: async ()=>{
-                                                if (confirm("Delete permanently?")) await (0, __TURBOPACK__imported__module__$5b$project$5d2f$my$2d$app$2f$src$2f$app$2f$data$3a$1c71cc__$5b$app$2d$ssr$5d$__$28$ecmascript$29$__$3c$text$2f$javascript$3e$__["deleteUser"])(user.id);
-                                            },
-                                            className: "opacity-0 group-hover:opacity-100 p-2 text-zinc-600 hover:text-red-400 transition-all cursor-pointer",
+                                            onClick: ()=>handleDelete(user),
+                                            className: "opacity-0 group-hover:opacity-100 p-2 text-zinc-600 hover:text-red-400 cursor-pointer",
                                             children: /*#__PURE__*/ (0, __TURBOPACK__imported__module__$5b$project$5d2f$my$2d$app$2f$node_modules$2f$next$2f$dist$2f$server$2f$route$2d$modules$2f$app$2d$page$2f$vendored$2f$ssr$2f$react$2d$jsx$2d$dev$2d$runtime$2e$js__$5b$app$2d$ssr$5d$__$28$ecmascript$29$__["jsxDEV"])("svg", {
                                                 xmlns: "http://www.w3.org/2000/svg",
                                                 width: "18",
@@ -285,60 +195,60 @@ function UserDashboard({ initialUsers }) {
                                                         d: "M3 6h18"
                                                     }, void 0, false, {
                                                         fileName: "[project]/my-app/src/app/UserDashboard.tsx",
-                                                        lineNumber: 118,
-                                                        columnNumber: 199
+                                                        lineNumber: 91,
+                                                        columnNumber: 197
                                                     }, this),
                                                     /*#__PURE__*/ (0, __TURBOPACK__imported__module__$5b$project$5d2f$my$2d$app$2f$node_modules$2f$next$2f$dist$2f$server$2f$route$2d$modules$2f$app$2d$page$2f$vendored$2f$ssr$2f$react$2d$jsx$2d$dev$2d$runtime$2e$js__$5b$app$2d$ssr$5d$__$28$ecmascript$29$__["jsxDEV"])("path", {
                                                         d: "M19 6v14c0 1-1 2-2 2H7c-1 0-2-1-2-2V6"
                                                     }, void 0, false, {
                                                         fileName: "[project]/my-app/src/app/UserDashboard.tsx",
-                                                        lineNumber: 118,
-                                                        columnNumber: 218
+                                                        lineNumber: 91,
+                                                        columnNumber: 216
                                                     }, this),
                                                     /*#__PURE__*/ (0, __TURBOPACK__imported__module__$5b$project$5d2f$my$2d$app$2f$node_modules$2f$next$2f$dist$2f$server$2f$route$2d$modules$2f$app$2d$page$2f$vendored$2f$ssr$2f$react$2d$jsx$2d$dev$2d$runtime$2e$js__$5b$app$2d$ssr$5d$__$28$ecmascript$29$__["jsxDEV"])("path", {
                                                         d: "M8 6V4c0-1 1-2 2-2h4c1 0 2 1 2 2v2"
                                                     }, void 0, false, {
                                                         fileName: "[project]/my-app/src/app/UserDashboard.tsx",
-                                                        lineNumber: 118,
-                                                        columnNumber: 267
+                                                        lineNumber: 91,
+                                                        columnNumber: 265
                                                     }, this)
                                                 ]
                                             }, void 0, true, {
                                                 fileName: "[project]/my-app/src/app/UserDashboard.tsx",
-                                                lineNumber: 118,
-                                                columnNumber: 21
+                                                lineNumber: 91,
+                                                columnNumber: 19
                                             }, this)
                                         }, void 0, false, {
                                             fileName: "[project]/my-app/src/app/UserDashboard.tsx",
-                                            lineNumber: 114,
-                                            columnNumber: 19
+                                            lineNumber: 90,
+                                            columnNumber: 17
                                         }, this)
                                     ]
                                 }, void 0, true, {
                                     fileName: "[project]/my-app/src/app/UserDashboard.tsx",
-                                    lineNumber: 98,
-                                    columnNumber: 17
+                                    lineNumber: 83,
+                                    columnNumber: 15
                                 }, this)
                             ]
                         }, user.id, true, {
                             fileName: "[project]/my-app/src/app/UserDashboard.tsx",
-                            lineNumber: 88,
-                            columnNumber: 15
+                            lineNumber: 78,
+                            columnNumber: 13
                         }, this))
                 }, void 0, false, {
                     fileName: "[project]/my-app/src/app/UserDashboard.tsx",
-                    lineNumber: 81,
+                    lineNumber: 76,
                     columnNumber: 9
                 }, this)
             }, void 0, false, {
                 fileName: "[project]/my-app/src/app/UserDashboard.tsx",
-                lineNumber: 80,
+                lineNumber: 75,
                 columnNumber: 7
             }, this)
         ]
     }, void 0, true, {
         fileName: "[project]/my-app/src/app/UserDashboard.tsx",
-        lineNumber: 44,
+        lineNumber: 52,
         columnNumber: 5
     }, this);
 }
