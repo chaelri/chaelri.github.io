@@ -36,3 +36,16 @@ export async function deleteUser(id: number) {
     console.error("Delete failed:", error);
   }
 }
+
+export async function toggleUserStatus(id: number, currentStatus: string) {
+  const newStatus = currentStatus === "Active" ? "Archived" : "Active";
+  try {
+    await prisma.user.update({
+      where: { id },
+      data: { status: newStatus },
+    });
+    revalidatePath("/");
+  } catch (error) {
+    console.error("Status update failed:", error);
+  }
+}

@@ -11,5 +11,6 @@ model User {
   id        Int      @id @default(autoincrement())
   email     String   
   name      String?
+  status    String   @default("Active")
   createdAt DateTime @default(now())
 }
