@@ -1,6 +1,9 @@
 const FAV_PAGE_SIZE = 5;
 let favoritesPage = 0;
 let currentVersion = localStorage.getItem("bibleVersion") || "NASB";
+let recentPassageId = localStorage.getItem("recentPassageId");
+let recentPassage = localStorage.getItem("recentPassage");
+
 const VERSION_FILES = {
   NASB: "nasb2020.json",
   EASY: "easy2024.json",
@@ -876,8 +879,16 @@ async function renderDashboard() {
   
   <div class="dashboard-grid">
 
-      <!-- FAVORITES -->
+      <!-- CONTINUE READING + FAVORITES -->
       <section class="dashboard-section">
+      
+        <h3><span class="material-icons dashboard-icon">book</span> Continue Reading?</h3>
+        <div onclick="loadPassageById('${recentPassageId}')" style="margin-bottom: 1rem; cursor: pointer">
+          <div class="dashboard-ref flex">
+           ${recentPassage} <span class="material-icons right">chevron_right</span>
+          </div>
+        </div>
+        
         <h3><span class="material-icons dashboard-icon">favorite</span> Favorites</h3>
         ${
           favoritesKeys.length
@@ -1094,6 +1105,11 @@ async function loadPassage() {
     const chapterNum = chapterEl.value;
     const single = verseEl.value;
 
+    recentPassageId = `${bookId}-${chapterNum}`;
+    recentPassage = `${bookName} ${chapterNum}`;
+    localStorage.setItem("recentPassageId", recentPassageId);
+    localStorage.setItem("recentPassage", recentPassage);
+
     if (!bibleData) {
       await fetchBibleData();
     }
@@ -1112,8 +1128,7 @@ async function loadPassage() {
       verse: vNum, // Keep as string (e.g. "1-4")
       text: text
         .trim()
-        .replace(/\.(?=[a-zA-Z])/g, ". ")
-        .replace(/’(?=[a-zA-Z])/g, "’ ")
+        .replace(/([.,!?’])(?=[a-zA-Z0-9])/g, "$1 ")
         .replace(/\s+/g, " "),
     }));
 
@@ -1272,7 +1287,9 @@ async function loadPassage() {
   } catch (err) {
     console.error(err);
     hideLoading();
-    showLoadError(`Failed to load passage. Check if ${VERSION_FILES[currentVersion]} is present.`);
+    showLoadError(
+      `Failed to load passage. Check if ${VERSION_FILES[currentVersion]} is present.`,
+    );
   }
 }
 

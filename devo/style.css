@@ -208,9 +208,9 @@ select:disabled {
 
 /* ---------- BIBLE ---------- */
 .bible {
-border-radius: 18px;
-padding: 20px;
-max-width: 1200px;
+  border-radius: 18px;
+  padding: 20px;
+  max-width: 1200px;
 }
 
 .verse {
@@ -252,21 +252,18 @@ max-width: 1200px;
 }
 
 .controls {
-display: grid;
-grid-template-columns: repeat(2, minmax(0, 1fr));
-gap: 12px 14px;
-margin: 0 auto;
-
-padding: 3rem 16px 1rem;
-border-radius: 18px;
-margin-top: 1rem;
-
-background: linear-gradient(360deg, #0b1220, #10172b);
-box-shadow: 0 12px 30px rgba(0, 0, 0, 0.35);
-
-margin-bottom: 16px;
-align-items: end;
-max-width: 1200px;
+  display: grid;
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+  gap: 12px 14px;
+  margin: 0 auto;
+  padding: 1rem 16px 1rem;
+  border-radius: 18px;
+  margin-top: 1rem;
+  background: linear-gradient(360deg, #0b1220, #10172b);
+  box-shadow: 0 12px 30px rgba(0, 0, 0, 0.35);
+  margin-bottom: 16px;
+  align-items: end;
+  max-width: 1200px;
 }
 .controls select {
   border: 0;
@@ -686,8 +683,8 @@ max-width: 1200px;
 
 /* NEW: Dashboard specific styles */
 .dashboard {
-padding: 0; /* REMOVED PADDING */
-max-width: 1200px; /* match bible container width for consistency */
+  padding: 0; /* REMOVED PADDING */
+  max-width: 1200px; /* match bible container width for consistency */
 }
 
 .dashboard h2 {
@@ -1272,4 +1269,26 @@ html {
 
 .layout-unset {
   grid-template-columns: unset;
+}
+
+.right {
+  margin: auto 0 auto auto;
+}
+
+.flex {
+  display: flex;
+}
+
+.dashboard-ref.flex {
+  font-family: "Editors Note", serif;
+  font-style: italic;
+  font-size: 2.5rem;
+}
+
+@font-face {
+  font-family: "Editors Note";
+  src: url("assets/EditorsNote-Italic.ttf") format("truetype");
+  font-weight: normal;
+  font-style: italic;
+  font-display: swap;
 }
