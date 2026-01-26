@@ -1292,3 +1292,7 @@ html {
   font-style: italic;
   font-display: swap;
 }
+
+.hidden {
+  display: none;
+}

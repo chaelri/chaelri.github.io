@@ -882,10 +882,12 @@ async function renderDashboard() {
       <!-- CONTINUE READING + FAVORITES -->
       <section class="dashboard-section">
       
-        <h3><span class="material-icons dashboard-icon">book</span> Continue Reading?</h3>
-        <div onclick="loadPassageById('${recentPassageId}')" style="margin-bottom: 1rem; cursor: pointer">
-          <div class="dashboard-ref flex">
-           ${recentPassage} <span class="material-icons right">chevron_right</span>
+        <div id="continue-reading" class="hidden">
+          <h3><span class="material-icons dashboard-icon">book</span> Continue Reading?</h3>
+          <div onclick="loadPassageById('${recentPassageId}')" style="margin-bottom: 1rem; cursor: pointer">
+            <div class="dashboard-ref flex">
+            ${recentPassage} <span class="material-icons right">chevron_right</span>
+            </div>
           </div>
         </div>
         
@@ -1007,6 +1009,10 @@ async function renderDashboard() {
       `;
 
   output.innerHTML = dashboardHTML;
+
+  if (recentPassageId) {
+    document.getElementById("continue-reading")?.classList.remove("hidden");
+  }
 
   const favPrevBtn = document.getElementById("favPrevBtn");
   const favNextBtn = document.getElementById("favNextBtn");
