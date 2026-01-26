@@ -130,12 +130,6 @@ button:active {
     opacity 160ms cubic-bezier(0.22, 1, 0.36, 1);
 }
 
-.control.has-value .control-label,
-.control:focus-within .control-label {
-  transform: translateY(-4px) scale(0.92);
-  opacity: 0.9;
-}
-
 @media (max-width: 900px) {
   .controls {
     grid-template-columns: 1fr 1fr;

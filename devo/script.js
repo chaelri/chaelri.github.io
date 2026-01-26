@@ -1,7 +1,10 @@
-const API_WEB = "https://bible-api.com/data/web";
-
 const FAV_PAGE_SIZE = 5;
 let favoritesPage = 0;
+let currentVersion = localStorage.getItem("bibleVersion") || "NASB";
+const VERSION_FILES = {
+  NASB: "nasb2020.json",
+  EASY: "easy2024.json",
+};
 
 /* ---------- MODAL HANDLING ---------- */
 const modalOverlay = document.getElementById("modalOverlay");
@@ -92,11 +95,29 @@ let bibleData = null;
 
 async function fetchBibleData() {
   try {
-    const response = await fetch("nasb2020.json"); // Ensure your filename matches this
+    const file = VERSION_FILES[currentVersion];
+    const response = await fetch(file);
     bibleData = await response.json();
-    console.log("NASB 2020 Loaded");
   } catch (err) {
     console.error("Failed to load local Bible JSON:", err);
+  }
+}
+
+async function switchVersion(ver) {
+  if (ver === currentVersion) return;
+  currentVersion = ver;
+  localStorage.setItem("bibleVersion", ver);
+
+  const vSelect = document.getElementById("versionSelect");
+  if (vSelect) vSelect.value = ver;
+
+  await fetchBibleData();
+
+  // Refresh view
+  if (document.querySelector(".summary").style.display === "block") {
+    loadPassage();
+  } else {
+    showDashboard();
   }
 }
 
@@ -104,7 +125,8 @@ async function fetchBibleData() {
 const STORE = "devotions";
 const VERSE_STORE = "verses"; // Ensure VERSE_STORE is defined globally
 
-function openDB() { // This now replaces both previous openDB functions
+function openDB() {
+  // This now replaces both previous openDB functions
   return new Promise((resolve, reject) => {
     const req = indexedDB.open("dudu-devotion-db", 1); // Using the devotion DB name
 
@@ -420,7 +442,8 @@ async function fetchInlineQuickContext(
       );
     };
   } catch {
-    mountEl.innerHTML = "<div class=\"inline-ai-result\"><p>Failed to load quick context.</p></div>"; // More descriptive error
+    mountEl.innerHTML =
+      '<div class="inline-ai-result"><p>Failed to load quick context.</p></div>'; // More descriptive error
   }
 }
 
@@ -708,19 +731,29 @@ async function showDashboard() {
   await renderDashboard();
 }
 
-// New helper function to get verse text from loaded JSON
 function getVerseText(bookId, chapter, verse) {
   const bookName = BIBLE_META[bookId]?.name.toUpperCase();
-  if (
-    !bibleData ||
-    !bookName ||
-    !bibleData[bookName] ||
-    !bibleData[bookName][chapter] ||
-    !bibleData[bookName][chapter][verse]
-  ) {
-    return "Verse text not found.";
-  }
-  return bibleData[bookName][chapter][verse].trim().replace(/\s+/g, " ");
+  const bookData = bibleData?.[bookName];
+  if (!bookData || !bookData[chapter]) return "Verse text not found.";
+
+  const chapterData = bookData[chapter];
+  // Regex to fix ".Word" -> ". Word"
+  const clean = (txt) =>
+    txt
+      .trim()
+      .replace(/\.(?=[a-zA-Z])/g, ". ")
+      .replace(/\s+/g, " ");
+
+  if (chapterData[verse]) return clean(chapterData[verse]);
+
+  const rangeKey = Object.keys(chapterData).find((k) => {
+    if (!k.includes("-")) return false;
+    const [start, end] = k.split("-").map(Number);
+    const v = Number(verse);
+    return v >= start && v <= end;
+  });
+
+  return rangeKey ? clean(chapterData[rangeKey]) : "Verse text not found.";
 }
 
 async function renderDashboard() {
@@ -852,11 +885,11 @@ async function renderDashboard() {
           ${
             totalFavPages > 1
               ? `<div style="display:flex; justify-content: space-between; margin-bottom: 12px;">
-                    <button class="secondary" id="favPrevBtn" style="opacity: 1; visibility: ${favoritesPage === 0 ? 'hidden' : 'visible'};">
+                    <button class="secondary" id="favPrevBtn" style="opacity: 1; visibility: ${favoritesPage === 0 ? "hidden" : "visible"};">
                       <span class="material-icons dashboard-icon">chevron_left</span>
                     </button>
                     <span style="font-size:12px; opacity: 0.7; align-self: center; text-transform: uppercase;">Page ${favoritesPage + 1} of ${totalFavPages}</span>
-                    <button class="secondary" id="favNextBtn" style="opacity: 1; visibility: ${favoritesPage >= totalFavPages - 1 ? 'hidden' : 'visible'};">
+                    <button class="secondary" id="favNextBtn" style="opacity: 1; visibility: ${favoritesPage >= totalFavPages - 1 ? "hidden" : "visible"};">
                       <span class="material-icons dashboard-icon">chevron_right</span>
                     </button>
                  </div>`
@@ -1076,9 +1109,25 @@ async function loadPassage() {
     let verses = Object.entries(chapterContent).map(([vNum, text]) => ({
       book_id: bookId,
       chapter: Number(chapterNum),
-      verse: Number(vNum),
-      text: text.trim().replace(/\s+/g, " "),
+      verse: vNum, // Keep as string (e.g. "1-4")
+      text: text
+        .trim()
+        .replace(/\.(?=[a-zA-Z])/g, ". ")
+        .replace(/’(?=[a-zA-Z])/g, "’ ")
+        .replace(/\s+/g, " "),
     }));
+
+    // Logic to filter single verse including range overlap
+    if (single) {
+      verses = verses.filter((v) => {
+        if (v.verse == single) return true;
+        if (v.verse.includes("-")) {
+          const [start, end] = v.verse.split("-").map(Number);
+          return +single >= start && +single <= end;
+        }
+        return false;
+      });
+    }
 
     // Generate Payload for AI before filtering for single verse
     const fullVersesText = verses
@@ -1116,7 +1165,13 @@ async function loadPassage() {
       }
 
       for (let char of v.text) {
-        if (char === '"' || char === "“" || char === "”") {
+        if (
+          char === '"' ||
+          char === "“" ||
+          char === "”" ||
+          char === `‘` ||
+          char === `’`
+        ) {
           if (!isInsideQuote) {
             // Transition: Outside -> Inside
             formattedText += '<span class="quote-style">' + char;
@@ -1217,7 +1272,7 @@ async function loadPassage() {
   } catch (err) {
     console.error(err);
     hideLoading();
-    showLoadError("Failed to load passage. Check if nasb2020.json is present.");
+    showLoadError(`Failed to load passage. Check if ${VERSION_FILES[currentVersion]} is present.`);
   }
 }
 
@@ -1546,7 +1601,9 @@ ${versesText}
     );
 
     const data = await res.json();
-    mount.innerHTML = data.candidates?.[0]?.content?.parts?.[0]?.text || "<p>Failed to generate reflection questions.</p>"; // More descriptive error
+    mount.innerHTML =
+      data.candidates?.[0]?.content?.parts?.[0]?.text ||
+      "<p>Failed to generate reflection questions.</p>"; // More descriptive error
     setTimeout(restoreSavedReflectionAnswers, 0);
 
     mount.querySelectorAll("textarea").forEach((ta, i) => {
@@ -1585,11 +1642,12 @@ const updateMetaIndicators = (key, verseContent, newCommentCount) => {
   if (!metaIndicators) {
     metaIndicators = document.createElement("span");
     metaIndicators.className = "verse-meta-indicators";
-    metaIndicators.style.cssText = "display:inline-flex; align-items:center; margin-left:8px; opacity:0.6;";
+    metaIndicators.style.cssText =
+      "display:inline-flex; align-items:center; margin-left:8px; opacity:0.6;";
     verseContent.appendChild(metaIndicators);
   } else {
     // Clear existing indicators to rebuild, ensuring no duplicates or stale states
-    metaIndicators.innerHTML = '';
+    metaIndicators.innerHTML = "";
   }
 
   // 1. Favorite Indicator
@@ -1618,7 +1676,6 @@ const updateMetaIndicators = (key, verseContent, newCommentCount) => {
     metaIndicators.appendChild(commentIndicator);
   }
 };
-
 
 function renderComments(key, container) {
   container.innerHTML = "";
@@ -1746,6 +1803,11 @@ scrollTopBtn.onclick = () => {
 /* ---------- EVENTS ---------- */
 bookEl.onchange = loadChapters;
 chapterEl.onchange = loadVerses;
+const vSelect = document.getElementById("versionSelect");
+if (vSelect) {
+  vSelect.value = currentVersion;
+  vSelect.onchange = () => switchVersion(vSelect.value);
+}
 loadBtn.onclick = async () => {
   output.innerHTML = "";
   resetAISections();
@@ -1815,7 +1877,8 @@ const initializeReflections = () => {
       }
 
       // 3. Save logic on input
-      area.addEventListener("input", async () => { // Made async to await saveAIToStorage
+      area.addEventListener("input", async () => {
+        // Made async to await saveAIToStorage
         // Save in the specific format you requested (Q&A) to localStorage
         const formattedEntry = `Q: ${questionText}\nA: ${area.value}`;
         localStorage.setItem(area.id, formattedEntry);
