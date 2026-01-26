@@ -36,4 +36,4 @@ body > nextjs-portal {
 /* If it's the static route indicator specifically */
 div[hidden][style*="position: fixed"] {
   display: none !important;
-}
+} 
