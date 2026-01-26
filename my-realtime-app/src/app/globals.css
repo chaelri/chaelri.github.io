@@ -1,0 +1,39 @@
+@import "tailwindcss";
+
+/* Minimal custom scrollbar for the board columns */
+@layer base {
+  ::-webkit-scrollbar {
+    width: 6px;
+  }
+  ::-webkit-scrollbar-track {
+    background: transparent;
+  }
+  ::-webkit-scrollbar-thumb {
+    background: #e4e4e7;
+    border-radius: 10px;
+  }
+}
+
+/* Add custom transition for state changes */
+.animate-in {
+  animation-duration: 400ms;
+}
+
+/* Hide Next.js 15 Dev Overlays */
+next-route-announcer, 
+#next-live-preview-root,
+[data-nextjs-toast-wrapper],
+[data-nextjs-route-announcer],
+nextjs-portal {
+  display: none !important;
+}
+
+/* Specifically targets the Turbopack / N badge */
+body > nextjs-portal {
+  display: none !important;
+}
+
+/* If it's the static route indicator specifically */
+div[hidden][style*="position: fixed"] {
+  display: none !important;
+}
