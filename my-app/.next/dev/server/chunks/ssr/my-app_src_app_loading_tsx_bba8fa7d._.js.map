@@ -1,6 +1,0 @@
-{
-  "version": 3,
-  "sources": [],
-  "sections": [
-    {"offset": {"line": 4, "column": 0}, "map": {"version":3,"sources":["file:///Users/ccayno/Documents/chaelri.github.io/my-app/src/app/loading.tsx"],"sourcesContent":["export default function Loading() {\n  return (\n    <main className=\"min-h-screen bg-[#09090b] p-12\">\n      <div className=\"max-w-6xl mx-auto space-y-8 animate-pulse\">\n        <div className=\"h-12 bg-zinc-900 w-1/4 rounded-2xl\"></div>\n        <div className=\"grid grid-cols-1 lg:grid-cols-3 gap-10\">\n          <div className=\"h-64 bg-zinc-900 rounded-3xl\"></div>\n          <div className=\"lg:col-span-2 space-y-4\">\n            <div className=\"h-20 bg-zinc-900 rounded-2xl\"></div>\n            <div className=\"h-20 bg-zinc-900 rounded-2xl\"></div>\n            <div className=\"h-20 bg-zinc-900 rounded-2xl\"></div>\n          </div>\n        </div>\n      </div>\n    </main>\n  );\n}"],"names":[],"mappings":";;;;;;AAAe,SAAS;IACtB,qBACE,2PAAC;QAAK,WAAU;kBACd,cAAA,2PAAC;YAAI,WAAU;;8BACb,2PAAC;oBAAI,WAAU;;;;;;8BACf,2PAAC;oBAAI,WAAU;;sCACb,2PAAC;4BAAI,WAAU;;;;;;sCACf,2PAAC;4BAAI,WAAU;;8CACb,2PAAC;oCAAI,WAAU;;;;;;8CACf,2PAAC;oCAAI,WAAU;;;;;;8CACf,2PAAC;oCAAI,WAAU;;;;;;;;;;;;;;;;;;;;;;;;;;;;;AAM3B"}}]
-}
