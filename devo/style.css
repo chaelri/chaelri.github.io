@@ -1207,7 +1207,7 @@ html {
   font-family: "Google Sans Flex";
   letter-spacing: 3px;
   opacity: 0.3;
-  padding-bottom: 0.6rem;
+  margin: auto 0;
 }
 
 /* Splash Screen Overlay */
@@ -1295,4 +1295,17 @@ html {
 
 .hidden {
   display: none;
+}
+
+.copy-verse {
+  cursor: pointer;
+  font-size: 0.6rem;
+  letter-spacing: 0px;
+  border: 0.5px solid #ffffff57;
+  padding: 4px;
+  border-radius: 6px;
+  font-weight: bold;
+  line-height: 12px;
+  margin-left: auto;
+  opacity: 0.6;
 }

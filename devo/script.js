@@ -1657,6 +1657,7 @@ async function restoreSavedReflectionAnswers() {
 
 // Moved to a higher scope for reusability and efficiency
 const updateMetaIndicators = (key, verseContent, newCommentCount) => {
+  console.log(key)
   const isFav = isFavorite(key);
   let metaIndicators = verseContent.querySelector(".verse-meta-indicators");
 
@@ -1702,14 +1703,44 @@ const updateMetaIndicators = (key, verseContent, newCommentCount) => {
 
 function renderComments(key, container) {
   container.innerHTML = "";
-  const commentLabel = document.createElement("div");
-  commentLabel.classList.add("comment-label");
-  commentLabel.innerText = "NOTES";
-  container.appendChild(commentLabel);
+
   const verseIndex = key.split("-").pop();
   const verseHeader = document.getElementById(verseIndex);
   // Find the flex container that holds the verse content
   const verseContent = verseHeader.children[0];
+
+  const commentHeader = document.createElement("div");
+  commentHeader.classList.add("flex");
+  container.appendChild(commentHeader);
+
+  const commentLabel = document.createElement("div");
+  commentLabel.classList.add("comment-label");
+  commentLabel.innerText = "NOTES";
+  commentHeader.appendChild(commentLabel);
+
+  const verse =
+    bibleData[BIBLE_META[key.split("-")[0]].name.toUpperCase()][
+      key.split("-")[1]
+    ][verseIndex];
+
+  const copyVerse = document.createElement("div");
+  copyVerse.classList.add("copy-verse");
+  copyVerse.innerText = "COPY VERSE";
+  commentHeader.appendChild(copyVerse);
+  copyVerse.onclick = () => {
+    copyVerse.style.opacity = "1";
+    copyVerse.classList.add("ai-fade-in");
+    copyVerse.innerText = "VERSE COPIED! ✅";
+    setTimeout(() => {
+      copyVerse.classList.remove("ai-fade-in");
+      copyVerse.innerText = "COPY VERSE";
+      copyVerse.style.opacity = "0.6";
+    }, 2000);
+    navigator.clipboard.writeText(
+      `${verse}
+${BIBLE_META[key.split("-")[0]].name.toUpperCase()} ${key.split("-")[1]}:${verseIndex}`,
+    );
+  };
 
   const list = comments[key] || [];
 
