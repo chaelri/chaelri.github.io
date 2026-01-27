@@ -2001,8 +2001,6 @@ function checkIfHasTextAreaAnswers() {
   });
 
   if (hasActualResponse || hasCurrentComments) {
-    console.log("hasActualResponse: ", hasActualResponse);
-    console.log("hasCurrentComments: ", hasCurrentComments);
     copyNotesBtn.style.display = "block";
   } else {
     copyNotesBtn.style.display = "none";
