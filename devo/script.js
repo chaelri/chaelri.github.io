@@ -1807,6 +1807,9 @@ ${BIBLE_META[key.split("-")[0]].name.toUpperCase()} ${key.split("-")[1]}:${verse
 
   // Initial call to ensure indicators are correct when comments pane opens
   updateMetaIndicators(key, verseContent, list.length);
+
+  const newTextarea = input.querySelector("textarea");
+  newTextarea.focus();
 }
 
 let hasCurrentComments = false;
