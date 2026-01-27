@@ -8,6 +8,9 @@ body {
   background: radial-gradient(circle at top, #121b33, #0b1220);
   overscroll-behavior: none;
   overflow: hidden;
+  transition:
+    background-color 0.4s ease,
+    color 0.4s ease;
 }
 
 body {
@@ -876,7 +879,6 @@ select:disabled {
 
 #aiReflection ol {
   padding-inline-start: 2rem;
-  padding-inline-end: 2rem;
 }
 
 #aiReflection textarea {
@@ -1308,4 +1310,102 @@ html {
   line-height: 12px;
   margin-left: auto;
   opacity: 0.6;
+}
+
+.mode-toggle {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  width: 40px;
+  height: 40px;
+  background: white;
+  color: black;
+  border-radius: 50%;
+  box-sizing: border-box;
+  cursor: pointer;
+  margin: auto 0;
+}
+
+body.light {
+  background-image: url(https://www.transparenttextures.com/patterns/paper-fibers.png);
+  background-color: #faf9f6;
+}
+
+.light .controls {
+  background-image: url(https://www.transparenttextures.com/patterns/paper-fibers.png);
+  background-color: #faf9f6;
+  color: black;
+}
+
+.light select,
+.light input,
+.light button,
+.light .dashboard-item,
+.light .summary-note,
+.light .comment {
+  background: white;
+}
+
+.light .mode-toggle {
+  background: black;
+}
+
+.light .mode-toggle {
+  color: white;
+}
+
+.light textarea {
+  background: #e8e8e8;
+  color: black;
+  border: 0.5px solid #00000029;
+}
+.light .inline-ai-btn {
+  border: 0.5px solid #00000029;
+}
+
+.light h3,
+.light h2,
+.light #pageRef,
+.light #homeBtn,
+.light .verse-content,
+.light .passage-title,
+.light .summary-title,
+.light #notesCopyStatus,
+.light .summary-verse,
+.light .flex,
+.light #aiReflection,
+.light select,
+.light button,
+.light .comment,
+.light .summary-note,
+.light .dashboard-verse-text,
+.light time,
+.light .reflection-qas p {
+  color: black !important;
+}
+
+.light .dashboard-preview,
+.light .qa-pair div {
+  background: black !important;
+}
+
+.light .summary-note {
+  box-shadow: 0 4px 12px rgb(0 0 0 / 5%);
+}
+
+.light button.primary {
+  background: linear-gradient(135deg, #486bec, #db2777);
+  color: white !important;
+}
+
+.light .copy-verse {
+  border: 0.5px solid #00000057;
+}
+
+.light .comment-input {
+  background: transparent;
+}
+
+.light .quote-style {
+  color: black;
 }

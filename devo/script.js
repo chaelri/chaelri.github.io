@@ -221,6 +221,7 @@ const homeBtn = document.getElementById("homeBtn");
 
 const notesCopyStatusEl = document.getElementById("notesCopyStatus");
 const toggleReflectionBtn = document.getElementById("toggleReflectionBtn");
+const toggleModesBtn = document.getElementById("mode-toggle");
 let reflectionVisible =
   JSON.parse(localStorage.getItem("reflectionVisible")) ?? false;
 
@@ -239,6 +240,24 @@ toggleReflectionBtn.onclick = () => {
   localStorage.setItem("reflectionVisible", JSON.stringify(reflectionVisible));
   applyReflectionVisibility();
 };
+
+let isLightMode = JSON.parse(localStorage.getItem("isLightMode")) || false;
+
+document.body.classList.toggle("light", isLightMode);
+updateIcon();
+
+toggleModesBtn.onclick = () => {
+  isLightMode = !isLightMode;
+
+  document.body.classList.toggle("light", isLightMode);
+  localStorage.setItem("isLightMode", isLightMode);
+  updateIcon();
+};
+
+function updateIcon() {
+  const icon = toggleModesBtn.querySelector("span");
+  icon.innerText = isLightMode ? "dark_mode" : "light_mode";
+}
 
 function saveComments() {
   localStorage.setItem("bibleComments", JSON.stringify(comments));
@@ -901,7 +920,7 @@ async function renderDashboard() {
                     <button class="secondary" id="favPrevBtn" style="opacity: 1; visibility: ${favoritesPage === 0 ? "hidden" : "visible"};">
                       <span class="material-icons dashboard-icon">chevron_left</span>
                     </button>
-                    <span style="font-size:12px; opacity: 0.7; align-self: center; text-transform: uppercase;">Page ${favoritesPage + 1} of ${totalFavPages}</span>
+                    <span id="pageRef" style="font-size:12px; opacity: 0.7; align-self: center; text-transform: uppercase;">Page ${favoritesPage + 1} of ${totalFavPages}</span>
                     <button class="secondary" id="favNextBtn" style="opacity: 1; visibility: ${favoritesPage >= totalFavPages - 1 ? "hidden" : "visible"};">
                       <span class="material-icons dashboard-icon">chevron_right</span>
                     </button>
@@ -1657,7 +1676,7 @@ async function restoreSavedReflectionAnswers() {
 
 // Moved to a higher scope for reusability and efficiency
 const updateMetaIndicators = (key, verseContent, newCommentCount) => {
-  console.log(key)
+  console.log(key);
   const isFav = isFavorite(key);
   let metaIndicators = verseContent.querySelector(".verse-meta-indicators");
 
