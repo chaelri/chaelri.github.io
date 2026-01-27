@@ -1322,7 +1322,13 @@ async function runAIForCurrentPassage() {
   if (!window.__aiPayload) return;
 
   const cached = await loadAIFromStorage();
-  if (cached) {
+  if (
+    cached &&
+    cached.contextHTML &&
+    cached.reflectionHTML &&
+    cached.contextHTML != "<p>Failed to generate context summary.</p>" &&
+    cached.reflectionHTML != "<p>Failed to generate reflection questions.</p>"
+  ) {
     aiContextSummaryEl.innerHTML = cached.contextHTML;
     document.getElementById("aiReflection").innerHTML = cached.reflectionHTML;
     applyReflectionVisibility();
@@ -1340,8 +1346,16 @@ async function runAIForCurrentPassage() {
   ]);
 
   await saveAIToStorage({
-    contextHTML: aiContextSummaryEl.innerHTML,
-    reflectionHTML: document.getElementById("aiReflection").innerHTML,
+    contextHTML:
+      aiContextSummaryEl.innerHTML !=
+      "<p>Failed to generate context summary.</p>"
+        ? aiContextSummaryEl.innerHTML
+        : null,
+    reflectionHTML:
+      document.getElementById("aiReflection").innerHTML !=
+      "<p>Failed to generate reflection questions.</p>"
+        ? document.getElementById("aiReflection").innerHTML
+        : null,
     answers: {},
   });
 }
