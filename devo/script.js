@@ -264,11 +264,6 @@ function saveComments() {
 }
 
 copyNotesBtn.onclick = async () => {
-  if (!window.__currentSummaryItems?.length) {
-    alert("No notes to copy.");
-    return;
-  }
-
   const bookName = bookEl.options[bookEl.selectedIndex]?.text;
   const chapter = chapterEl.value;
   const single = verseEl.value;
@@ -1690,7 +1685,6 @@ async function restoreSavedReflectionAnswers() {
 
 // Moved to a higher scope for reusability and efficiency
 const updateMetaIndicators = (key, verseContent, newCommentCount) => {
-  console.log(key);
   const isFav = isFavorite(key);
   let metaIndicators = verseContent.querySelector(".verse-meta-indicators");
 
@@ -1969,6 +1963,7 @@ const initializeReflections = () => {
         // Save in the specific format you requested (Q&A) to localStorage
         const formattedEntry = `Q: ${questionText}\nA: ${area.value}`;
         localStorage.setItem(area.id, formattedEntry);
+        checkIfHasTextAreaAnswers();
 
         // Also update IndexedDB cache for AI reflections, storing only the answer
         const devotionID = devotionId(); // Get current devotion ID
@@ -1986,7 +1981,28 @@ const initializeReflections = () => {
     // Stop watching once initialized
     observer.disconnect();
   }
+  checkIfHasTextAreaAnswers();
 };
+
+function checkIfHasTextAreaAnswers() {
+  const nodes = document.querySelectorAll('textarea[id^="reflection-"]');
+  const ids = Array.from(nodes).map((node) => node.id);
+
+  const hasActualResponse = ids.some((id) => {
+    const storedData = localStorage.getItem(id);
+
+    if (!storedData) return false;
+
+    const answerPart = storedData.split("A:")[1] || "";
+    return answerPart.trim().length > 0;
+  });
+
+  if (hasActualResponse) {
+    copyNotesBtn.style.display = "block";
+  } else {
+    copyNotesBtn.style.display = "none";
+  }
+}
 
 const observer = new MutationObserver(() => initializeReflections());
 observer.observe(document.body, { childList: true, subtree: true });

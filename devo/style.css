@@ -1378,6 +1378,7 @@ body.light {
 .light button,
 .light .comment,
 .light .summary-note,
+.light #summaryContent,
 .light .dashboard-verse-text,
 .light time,
 .light .reflection-qas p {
