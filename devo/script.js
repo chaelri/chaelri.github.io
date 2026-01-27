@@ -1169,10 +1169,6 @@ async function loadPassage() {
       .map((v) => `${v.verse}. ${v.text}`)
       .join("\n");
 
-    if (single) {
-      verses = verses.filter((v) => v.verse === +single);
-    }
-
     window.__aiPayload = {
       book: bookName,
       chapter: chapterNum,
@@ -1334,6 +1330,12 @@ async function runAIForCurrentPassage() {
 
   const { book, chapter, versesText } = window.__aiPayload;
   titleForGemini = `${book} ${chapter}`;
+
+  if (versesText) {
+    let verseNum;
+    verseNum = versesText.split(".")[0];
+    titleForGemini = `${book} ${chapter}:${verseNum}`;
+  }
 
   await Promise.all([
     renderAIContextSummary(),
@@ -1524,6 +1526,7 @@ No verse quotations
 TASK:
 Create a compact background context for ${titleForGemini}.
 `;
+  console.log(titleForGemini);
   try {
     const gemini = await fetch(
       "https://gemini-proxy-668755364170.asia-southeast1.run.app",
