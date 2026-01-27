@@ -1805,6 +1805,7 @@ ${BIBLE_META[key.split("-")[0]].name.toUpperCase()} ${key.split("-")[1]}:${verse
   updateMetaIndicators(key, verseContent, list.length);
 }
 
+let hasCurrentComments = false;
 /* ---------- SUMMARY ---------- */
 function renderSummary() {
   summaryEl.innerHTML = "";
@@ -1817,7 +1818,7 @@ function renderSummary() {
   window.__currentSummaryItems = [];
 
   let items = [];
-
+  hasCurrentComments = false;
   Object.entries(comments).forEach(([key, list]) => {
     const [b, c, v] = key.split("-");
     const verseNum = +v;
@@ -1826,9 +1827,11 @@ function renderSummary() {
     if (single && verseNum !== +single) return;
     if (!list.length) return;
 
+    hasCurrentComments = true;
+
     items.push({ verseNum, list });
     window.__currentSummaryItems.push({ verseNum, list });
-    copyNotesBtn.style.display = "block";
+    checkIfHasTextAreaAnswers();
   });
 
   if (!items.length) {
@@ -1997,7 +2000,9 @@ function checkIfHasTextAreaAnswers() {
     return answerPart.trim().length > 0;
   });
 
-  if (hasActualResponse) {
+  if (hasActualResponse || hasCurrentComments) {
+    console.log("hasActualResponse: ", hasActualResponse);
+    console.log("hasCurrentComments: ", hasCurrentComments);
     copyNotesBtn.style.display = "block";
   } else {
     copyNotesBtn.style.display = "none";
