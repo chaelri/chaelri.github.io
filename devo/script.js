@@ -1172,6 +1172,7 @@ async function loadPassage() {
     window.__aiPayload = {
       book: bookName,
       chapter: chapterNum,
+      isSingle: single,
       versesText: single
         ? verses.map((v) => `${v.verse}. ${v.text}`).join("\n")
         : fullVersesText,
@@ -1328,10 +1329,10 @@ async function runAIForCurrentPassage() {
     return;
   }
 
-  const { book, chapter, versesText } = window.__aiPayload;
+  const { book, chapter, isSingle, versesText } = window.__aiPayload;
   titleForGemini = `${book} ${chapter}`;
 
-  if (versesText) {
+  if (isSingle) {
     let verseNum;
     verseNum = versesText.split(".")[0];
     titleForGemini = `${book} ${chapter}:${verseNum}`;
