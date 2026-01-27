@@ -1228,6 +1228,7 @@ html {
 
 /* The Logo Animation */
 .splash-logo {
+  font-style: italic;
   font-size: 2.5rem;
   font-family: 'Editors Note';
   animation: pulse-logo 2s infinite ease-in-out;
@@ -1321,7 +1322,7 @@ html {
   border-radius: 50%;
   box-sizing: border-box;
   cursor: pointer;
-  margin: auto 0;
+  margin: auto 0 0 auto;
 }
 
 body.light {
