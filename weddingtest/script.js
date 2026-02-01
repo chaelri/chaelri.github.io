@@ -1216,7 +1216,7 @@ document.querySelectorAll(".trivia-note").forEach((note) => {
 
 // --- DRAMATIC COUNTDOWN LOGIC ---
 setInterval(() => {
-  const targetDate = new Date("July 2, 2026 15:00:00").getTime();
+  const targetDate = new Date("July 2, 2026 10:00:00").getTime();
   const now = new Date().getTime();
   const dist = targetDate - now;
 
