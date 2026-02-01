@@ -51,6 +51,7 @@ const ENTOURAGE_ROLES = [
   "Best Man",
   "Groomsman",
   "Principal Sponsor",
+  "Secondary Sponsor",
   "Secondary Sponsor (Veil)",
   "Secondary Sponsor (Coin)",
   "Secondary Sponsor (Candle)",
@@ -72,15 +73,15 @@ const MARCHING_ORDER = [
   {
     label: "Secondary Sponsors",
     roles: [
+      "Secondary Sponsor",
       "Secondary Sponsor (Veil)",
       "Secondary Sponsor (Coin)",
       "Secondary Sponsor (Candle)",
     ],
   },
-  {
-    label: "Young Bearers & Flowers",
-    roles: ["Bible Bearer", "Ring Bearer", "Flower Boy", "Flower Girl"],
-  },
+  { label: "Bible Bearer", roles: ["Bible Bearer"] },
+  { label: "Ring Bearer", roles: ["Ring Bearer"] },
+  { label: "Flower Girls", roles: ["Flower Boy", "Flower Girl"] },
 ];
 
 function init() {
@@ -108,6 +109,7 @@ function init() {
           gender: guest.gender || "",
           age: guest.age || "",
           photoUrl: guest.photoUrl || "",
+          marchingOrder: guest.marchingOrder || 0,
         };
       });
       render();
@@ -121,12 +123,8 @@ function render() {
   const tableBody = document.getElementById("guestTableBody");
   tableBody.innerHTML = "";
 
-  // Regular Guest Logic: Role is "guest", "none", or empty/null
+  // Update: Show all guests including entourage members
   let displayData = allData.filter((item) => {
-    const isRegularGuest =
-      !item.role ||
-      item.role.toLowerCase() === "guest" ||
-      item.role.toLowerCase() === "none";
     const matchesSearch =
       item.name.toLowerCase().includes(searchTerm.toLowerCase()) ||
       item.nickname.toLowerCase().includes(searchTerm.toLowerCase());
@@ -136,7 +134,6 @@ function render() {
     const matchesInvited =
       filterInvited === "all" || item.invited === filterInvited;
     return (
-      isRegularGuest &&
       matchesSearch &&
       matchesSide &&
       matchesStatus &&
@@ -192,6 +189,11 @@ function render() {
                     ${
                       guest.nickname
                         ? `<span class="text-[10px] text-stone-400 bg-stone-100 px-1.5 py-0.5 rounded">"${guest.nickname}"</span>`
+                        : ""
+                    }
+                    ${
+                      guest.role && guest.role !== 'guest' 
+                        ? `<span class="text-[8px] bg-[#7b8a5b]/10 text-[#7b8a5b] px-1.5 py-0.5 rounded font-bold uppercase tracking-tighter">${guest.role}</span>`
                         : ""
                     }
                 </div>
@@ -482,6 +484,12 @@ window.openEditModal = (id) => {
                       guest.age
                     }" class="w-full p-3 bg-stone-50 border border-stone-100 rounded-xl text-sm outline-none focus:ring-1 focus:ring-[#7b8a5b]">
                 </div>
+                <div class="space-y-1">
+                    <label class="text-[9px] uppercase tracking-widest text-stone-400 font-bold">Marching Order (1, 2, 3...)</label>
+                    <input type="number" id="editMarchingOrder" value="${
+                      guest.marchingOrder || 0
+                    }" class="w-full p-3 bg-stone-50 border border-stone-100 rounded-xl text-sm outline-none focus:ring-1 focus:ring-[#7b8a5b]">
+                </div>
             </div>
 
             <div class="pt-2">
@@ -548,13 +556,14 @@ window.saveGuestEdit = async (id) => {
   const role = document.getElementById("editRole").value;
   const gender = document.getElementById("editGender").value;
   const age = document.getElementById("editAge").value.trim();
+  const marchingOrder = parseInt(document.getElementById("editMarchingOrder").value) || 0;
   const photoInput = document.getElementById("photoInput");
 
   if (!name) return;
   btn.disabled = true;
   btn.innerHTML = `<span class="material-icons animate-spin text-sm">sync</span>`;
 
-  let updateData = { name, nickname, role, gender, age };
+  let updateData = { name, nickname, role, gender, age, marchingOrder };
 
   if (photoInput.files[0]) {
     const compressedBlob = await compressImage(photoInput.files[0]);
@@ -575,7 +584,7 @@ window.openDeleteModal = (id) => {
             <div class="w-16 h-16 bg-red-50 text-red-500 rounded-full flex items-center justify-center mx-auto mb-2">
                 <span class="material-icons text-3xl">delete_outline</span>
             </div>
-            <h3 class="serif text-xl italic text-stone-800">Delete Guest?</h3>
+            h3 class="serif text-xl italic text-stone-800">Delete Guest?</h3>
             <p class="text-sm text-stone-500 leading-relaxed">Are you sure you want to remove <span class="font-bold text-stone-700">${guest.name}</span> from the guest list?</p>
             <div class="grid grid-cols-2 gap-3 pt-2">
                 <button onclick="closeModal()" class="py-3 border border-stone-100 rounded-xl text-[10px] font-bold uppercase tracking-widest text-stone-400">Cancel</button>
@@ -857,9 +866,10 @@ function renderEntourage() {
 
   // VERTICAL MARCH GALLERY RENDERING
   MARCHING_ORDER.forEach((group) => {
-    const membersInGroup = entourageData.filter((p) =>
-      group.roles.includes(p.role)
-    );
+    const membersInGroup = entourageData
+      .filter((p) => group.roles.includes(p.role))
+      .sort((a, b) => (a.marchingOrder || 0) - (b.marchingOrder || 0));
+
     if (membersInGroup.length === 0) return;
 
     // Category Header
@@ -868,14 +878,16 @@ function renderEntourage() {
     rowHeader.innerHTML = `<p class="serif italic text-[#7b8a5b] text-sm uppercase tracking-widest mb-4 opacity-60">— ${group.label} —</p>`;
     gallery.appendChild(rowHeader);
 
-    // Categories Row
+    // Categories Row: Updated grid with centering for solo/orphaned rows
     const row = document.createElement("div");
-    row.className = "flex flex-wrap justify-center gap-8 md:gap-12 w-full";
+    row.className = "grid grid-cols-2 gap-x-4 md:gap-x-12 gap-y-10 w-full max-w-2xl mx-auto justify-items-center";
 
-    membersInGroup.forEach((person) => {
+    membersInGroup.forEach((person, index) => {
       const card = document.createElement("div");
-      card.className =
-        "flex flex-col items-center text-center space-y-3 group min-w-[120px] cursor-pointer hover:scale-105 transition-all duration-300";
+      // If there's an odd number of items and this is the last one, center it across 2 cols
+      const isSolo = membersInGroup.length % 2 !== 0 && index === membersInGroup.length - 1;
+      card.className = `${isSolo ? "col-span-2" : ""} flex flex-col items-center text-center space-y-3 group min-w-[120px] cursor-pointer hover:scale-105 transition-all duration-300`;
+      
       card.onclick = () => openEditModal(person.id);
       const avatar =
         person.photoUrl ||
