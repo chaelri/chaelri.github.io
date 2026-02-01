@@ -1,4 +1,4 @@
-<!DOCTYPE html>
+<!doctype html>
 <html lang="en">
   <head>
     <meta charset="UTF-8" />
@@ -273,7 +273,7 @@
     >
       <div
         class="md:w-1/2 h-[50vh] md:h-auto bg-cover bg-center"
-        style="background-image: url('./assets/hero-portrait.jpg')"
+        style="background-image: url(&quot;./assets/hero-portrait.jpg&quot;)"
       ></div>
       <div
         class="md:w-1/2 flex flex-col justify-center items-center p-8 md:p-16 text-center bg-white relative"
@@ -920,31 +920,342 @@
 
     <!-- ENTOURAGE SECTION (PRESERVED) -->
     <section id="entourage" class="py-24 bg-white/40">
-      <div class="max-w-5xl mx-auto px-6 text-center">
-        <h2 class="text-4xl serif italic text-[#7b8a5b] mb-8 text-center">
+      <div class="max-w-6xl mx-auto px-6 text-center">
+        <h2 class="text-4xl serif italic text-[#7b8a5b] mb-12">
           The Wedding Party
         </h2>
 
+        <!-- THE BRIDE & GROOM -->
         <div
-          class="mb-8 inline-block bg-[#7b8a5b]/5 border border-[#7b8a5b]/20 px-6 py-2 rounded-full"
+          class="grid grid-cols-1 md:grid-cols-2 gap-12 mb-20 max-w-3xl mx-auto"
         >
-          <p
-            class="text-[10px] uppercase tracking-[0.2em] font-bold text-[#7b8a5b]"
-          >
-            <span class="material-icons-outlined text-sm align-middle mr-1"
-              >info</span
+          <div>
+            <p
+              class="text-[10px] uppercase tracking-[0.2em] font-bold text-[#7b8a5b] mb-2"
             >
-            Note: Entourage details are TBD
-          </p>
+              The Bride
+            </p>
+            <h4 class="serif text-3xl text-stone-800 italic">
+              Karla Sofia Romantico
+            </h4>
+          </div>
+          <div>
+            <p
+              class="text-[10px] uppercase tracking-[0.2em] font-bold text-[#7b8a5b] mb-2"
+            >
+              The Groom
+            </p>
+            <h4 class="serif text-3xl text-stone-800 italic">
+              Charlie Michael Cayno
+            </h4>
+          </div>
         </div>
 
-        <!-- This is the new subtitle section -->
-        <div class="max-w-2xl mx-auto">
-          <p class="text-[#7b8a5b] italic font-light leading-relaxed">
-            We are currently finalizing our wedding party and confirming our
-            principal sponsors. We look forward to sharing the full list with
-            you here very soon!
-          </p>
+        <!-- PARENTS -->
+        <div class="mb-20">
+          <h3 class="serif italic text-2xl text-stone-400 mb-8">— Parents —</h3>
+          <div class="grid grid-cols-1 md:grid-cols-2 gap-12 max-w-4xl mx-auto">
+            <div class="space-y-2">
+              <p
+                class="text-[10px] uppercase tracking-[0.2em] font-bold text-[#7b8a5b]"
+              >
+                Parents of the Groom
+              </p>
+              <p class="serif text-xl text-stone-800">
+                Arlene
+                <span class="ampersand-animate italic font-normal">&</span>
+                Fernando Cayno
+              </p>
+            </div>
+            <div class="space-y-2">
+              <p
+                class="text-[10px] uppercase tracking-[0.2em] font-bold text-[#7b8a5b]"
+              >
+                Parents of the Bride
+              </p>
+              <p class="serif text-xl text-stone-800">
+                Honey Dawn
+                <span class="ampersand-animate italic font-normal">&</span>
+                Wilfredo Romantico
+              </p>
+            </div>
+          </div>
+        </div>
+
+        <!-- OFFICIANTS -->
+        <div class="mb-20">
+          <h3 class="serif italic text-2xl text-stone-400 mb-8">
+            — Officiant —
+          </h3>
+          <div class="space-y-2">
+            <p class="serif text-xl text-stone-800">Pastor Julius Rayala</p>
+          </div>
+        </div>
+
+        <!-- MAJOR ATTENDANTS -->
+        <div class="mb-20">
+          <h3 class="serif italic text-2xl text-stone-400 mb-8">
+            — Major Attendants —
+          </h3>
+          <div class="grid grid-cols-1 md:grid-cols-2 gap-12 max-w-3xl mx-auto">
+            <div class="space-y-2">
+              <p
+                class="text-[10px] uppercase tracking-[0.2em] font-bold text-[#7b8a5b]"
+              >
+                Maid of Honor
+              </p>
+              <p class="serif text-xl text-stone-800">Heleaena Luv Romantico</p>
+            </div>
+            <div class="space-y-2">
+              <p
+                class="text-[10px] uppercase tracking-[0.2em] font-bold text-[#7b8a5b]"
+              >
+                Best Man
+              </p>
+              <p class="serif text-xl text-stone-800">Charles Michael Cayno</p>
+            </div>
+          </div>
+        </div>
+
+        <!-- NINANGS/NINONGS (PRINCIPAL SPONSORS) -->
+        <div class="mb-24">
+          <h3 class="serif italic text-2xl text-stone-400 mb-12">
+            — Ninangs/Ninongs —
+          </h3>
+
+          <div class="space-y-12 md:space-y-16">
+            <!-- Top Row: 2 Columns -->
+            <div
+              class="flex flex-wrap justify-center gap-y-12 gap-x-12 md:gap-x-32 max-w-4xl mx-auto text-stone-800"
+            >
+              <div class="w-full sm:w-auto space-y-4">
+                <p class="serif text-lg">
+                  Mary Grace Francisco
+                  <span class="ampersand-animate italic font-normal">&</span>
+                  Sherill Obillo
+                </p>
+                <p class="serif text-lg">
+                  Mary Fatima
+                  <span class="ampersand-animate italic font-normal">&</span>
+                  Alvin Francisco
+                </p>
+              </div>
+              <div class="w-full sm:w-auto space-y-4">
+                <p class="serif text-lg">
+                  Lissa
+                  <span class="ampersand-animate italic font-normal">&</span>
+                  Manny Apostol
+                </p>
+                <p class="serif text-lg">
+                  Jennifer Francisco
+                  <span class="ampersand-animate italic font-normal">&</span>
+                  Rey Morante
+                </p>
+              </div>
+            </div>
+
+            <!-- Middle Row: 2 Columns -->
+            <div
+              class="flex flex-wrap justify-center gap-y-12 gap-x-12 md:gap-x-32 max-w-4xl mx-auto text-stone-800"
+            >
+              <div class="w-full sm:w-auto space-y-4">
+                <p class="serif text-lg">
+                  Aylene
+                  <span class="ampersand-animate italic font-normal">&</span>
+                  Amante Andal
+                </p>
+                <p class="serif text-lg">
+                  Atty. Judith Zamora
+                  <span class="ampersand-animate italic font-normal">&</span>
+                  Vanie Madrazo
+                </p>
+              </div>
+              <div class="w-full sm:w-auto space-y-4">
+                <p class="serif text-lg">
+                  Maui Rochell
+                  <span class="ampersand-animate italic font-normal">&</span>
+                  Christian Ilao
+                </p>
+                <p class="serif text-lg">
+                  Carmela Dawn
+                  <span class="ampersand-animate italic font-normal">&</span>
+                  Alexis Miguel Perez
+                </p>
+              </div>
+            </div>
+
+            <!-- Bottom Row: 3 Columns (Last one centers automatically) -->
+            <div
+              class="flex flex-wrap justify-center gap-y-12 gap-x-12 md:gap-x-20 max-w-6xl mx-auto text-stone-800"
+            >
+              <div class="w-full sm:w-auto space-y-4">
+                <p class="serif text-lg">
+                  Cristina
+                  <span class="ampersand-animate italic font-normal">&</span>
+                  Zhardo Nofiel
+                </p>
+                <p class="serif text-lg">
+                  Jerdin
+                  <span class="ampersand-animate italic font-normal">&</span>
+                  Melvin Catanghal
+                </p>
+              </div>
+              <div class="w-full sm:w-auto space-y-4">
+                <p class="serif text-lg">
+                  Jael Beatrice
+                  <span class="ampersand-animate italic font-normal">&</span>
+                  Kharl John Rayala
+                </p>
+                <p class="serif text-lg">
+                  Aldine
+                  <span class="ampersand-animate italic font-normal">&</span>
+                  Sharm Mercado
+                </p>
+              </div>
+              <div class="w-full sm:w-auto flex items-center">
+                <p class="serif text-lg">
+                  Shenlah
+                  <span class="ampersand-animate italic font-normal">&</span>
+                  Ivan Gomez
+                </p>
+              </div>
+            </div>
+          </div>
+        </div>
+
+        <!-- THE WEDDING PARTY -->
+        <div class="mb-24">
+          <h3 class="serif italic text-2xl text-stone-400 mb-12">
+            — Bridesmaids & Groomsmen —
+          </h3>
+          <div
+            class="grid grid-cols-1 md:grid-cols-2 gap-12 md:gap-x-24 max-w-3xl mx-auto"
+          >
+            <div class="space-y-6">
+              <p
+                class="text-[10px] uppercase tracking-[0.2em] font-bold text-[#7b8a5b]"
+              >
+                Bridesmaids
+              </p>
+              <div class="serif text-lg text-stone-700 space-y-2">
+                <p>Camille Cayabyab</p>
+                <p>Mitzi Marzan</p>
+                <p>Angelica Macalalad</p>
+                <p>Quiana Bernardo</p>
+                <p>Alyssa Moira Mangubat</p>
+                <p>Diane Faith Adviento</p>
+              </div>
+            </div>
+            <div class="space-y-6">
+              <p
+                class="text-[10px] uppercase tracking-[0.2em] font-bold text-[#7b8a5b]"
+              >
+                Groomsmen
+              </p>
+              <div class="serif text-lg text-stone-700 space-y-2">
+                <p>King David Gomez</p>
+                <p>James Patacsil</p>
+                <p>Peter Carl Pardo</p>
+                <p>Matt Joshua Cabezas</p>
+                <p>Albert Kobe Serrano</p>
+                <p>Eutemio Josef Romantico</p>
+              </div>
+            </div>
+          </div>
+        </div>
+
+        <!-- SECONDARY SPONSORS -->
+        <div class="mb-24">
+          <h3 class="serif italic text-2xl text-stone-400 mb-12">
+            — Secondary Sponsors —
+          </h3>
+          <div class="grid grid-cols-1 md:grid-cols-3 gap-12 max-w-5xl mx-auto">
+            <div class="space-y-2">
+              <p
+                class="text-[10px] uppercase tracking-[0.2em] font-bold text-[#7b8a5b]"
+              >
+                Candle
+              </p>
+              <p class="serif text-lg text-stone-800">
+                Chloe Obillo
+                <span class="ampersand-animate italic font-normal">&</span>
+                Vince Francisco
+              </p>
+            </div>
+            <div class="space-y-2">
+              <p
+                class="text-[10px] uppercase tracking-[0.2em] font-bold text-[#7b8a5b]"
+              >
+                Veil
+              </p>
+              <p class="serif text-lg text-stone-800">
+                Cayla Ochoa
+                <span class="ampersand-animate italic font-normal">&</span>
+                Carlo Miguel Nofiel
+              </p>
+            </div>
+            <div class="space-y-2">
+              <p
+                class="text-[10px] uppercase tracking-[0.2em] font-bold text-[#7b8a5b]"
+              >
+                Coin
+              </p>
+              <p class="serif text-lg text-stone-800">
+                Annika Meraña
+                <span class="ampersand-animate italic font-normal">&</span> Cy
+                Matthieu Cayno
+              </p>
+            </div>
+          </div>
+          <!-- General Secondary -->
+          <div class="flex flex-wrap justify-center gap-x-12 gap-y-6 mt-12">
+            <p class="serif text-lg text-stone-800">Clettes Obillo</p>
+            <p class="serif text-lg text-stone-800">Joshua Obillo</p>
+            <p class="serif text-lg text-stone-800">Raiñer John Alabado</p>
+          </div>
+        </div>
+
+        <!-- BEARERS & FLOWER GIRLS -->
+        <div class="grid grid-cols-1 md:grid-cols-3 gap-12 max-w-5xl mx-auto">
+          <div class="space-y-2">
+            <p
+              class="text-[10px] uppercase tracking-[0.2em] font-bold text-[#7b8a5b]"
+            >
+              Bible Bearer
+            </p>
+            <p class="serif text-lg text-stone-800">
+              Lance Ailen Grey Francisco
+            </p>
+          </div>
+          <div class="space-y-2">
+            <p
+              class="text-[10px] uppercase tracking-[0.2em] font-bold text-[#7b8a5b]"
+            >
+              Ring Bearer
+            </p>
+            <p class="serif text-lg text-stone-800">Pierce Raven Francisco</p>
+          </div>
+          <div class="space-y-4">
+            <p
+              class="text-[10px] uppercase tracking-[0.2em] font-bold text-[#7b8a5b]"
+            >
+              Flower Girls
+            </p>
+            <div class="serif text-lg text-stone-800 space-y-1">
+              <p>
+                <span class="text-[#FFB7C5] text-xl shrink-0 mr-2">✿</span>Minea
+                Obillo
+              </p>
+              <p>
+                <span class="text-[#FFB7C5] text-xl shrink-0 mr-2">✿</span
+                >Hiraya Gomez
+              </p>
+              <p>
+                <span class="text-[#FFB7C5] text-xl shrink-0 mr-2">✿</span
+                >Sienna Bri Catanghal
+              </p>
+            </div>
+          </div>
         </div>
       </div>
     </section>
@@ -1813,7 +2124,7 @@
     <div
       id="qrLightbox"
       class="fixed inset-0 z-[500] hidden flex flex-col items-center justify-center p-6 bg-stone-900/60 backdrop-blur-md opacity-0 transition-opacity duration-300"
-      onclick="if(event.target === this) window.closeQRModal()"
+      onclick="if (event.target === this) window.closeQRModal();"
     >
       <button
         onclick="window.closeQRModal()"
