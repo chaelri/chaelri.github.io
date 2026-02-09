@@ -44,23 +44,6 @@ def run_local_cmd(cmd):
         except Exception as e:
             console.print(f"[bold red]❌ Failed to run command: {e}[/bold red]")
 
-def apply_patch(path, search_text, replace_text):
-    """New: Applies a search-and-replace patch if exactly one match is found."""
-    if not os.path.exists(path):
-        return console.print(f"[bold red]❌ Patch Error:[/bold red] {path} not found.")
-    
-    with open(path, 'r') as f:
-        content = f.read()
-    
-    match_count = content.count(search_text)
-    if match_count == 1:
-        new_content = content.replace(search_text, replace_text)
-        with open(path, 'w') as f:
-            f.write(new_content)
-        console.print(f"[bold yellow]🔧 PATCHED:[/bold yellow] {path}")
-    else:
-        console.print(f"[bold red]❌ Patch Failed:[/bold red] Found {match_count} matches in {path}. Provide more context!")
-
 @app.post("/sync")
 async def sync_from_browser(request: Request):
     payload = await request.json()
@@ -71,24 +54,26 @@ async def sync_from_browser(request: Request):
 
     console.print("\n[bold magenta]───────────────── 👁️ AI OBSERVATION ─────────────────[/bold magenta]")
 
-    # 1. Handle Full Files and Patches
-    blocks = re.findall(r'```(?:\w+)?[:\s]?([\w\./-]+\.\w+|PATCH:[\w\./-]+\.\w+)\n(.*?)\n```', text, re.DOTALL)
+    # 1. Handle Full Files (Complete replacement)
+    # This regex looks for code blocks with filenames, e.g., ```python:main.py
+    blocks = re.findall(r'```(?:\w+)?[:\s]?([\w\./-]+\.\w+)\n(.*?)\n```', text, re.DOTALL)
     
     for filename, content in blocks:
-        if filename.startswith("PATCH:"):
-            real_name = filename.replace("PATCH:", "")
-            # Look for SEARCH/REPLACE structure inside the content
-            patch_match = re.search(r'<<<<SEARCH\n(.*?)\n====REPLACE\n(.*?)\n>>>>', content, re.DOTALL)
-            if patch_match:
-                apply_patch(real_name, patch_match.group(1), patch_match.group(2))
-        else:
-            console.print(f"[bold green]📂 CREATING:[/bold green] [white]{filename}[/white]")
-            syntax = Syntax(content[:300] + ("..." if len(content) > 300 else ""), "python", theme="monokai")
-            console.print(Panel(syntax, title=filename, border_style="blue"))
-            os.makedirs(os.path.dirname(filename), exist_ok=True) if os.path.dirname(filename) else None
-            with open(filename, "w") as f:
-                f.write(content.strip())
-            console.print(f"[dim]Saved to {os.path.abspath(filename)}[/dim]")
+        console.print(f"[bold green]📂 UPDATING FILE:[/bold green] [white]{filename}[/white]")
+        
+        # Display preview
+        syntax = Syntax(content[:300] + ("..." if len(content) > 300 else ""), "python", theme="monokai")
+        console.print(Panel(syntax, title=filename, border_style="blue"))
+        
+        # Ensure directory exists
+        dir_name = os.path.dirname(filename)
+        if dir_name:
+            os.makedirs(dir_name, exist_ok=True)
+            
+        # Write full file content (Complete replacement)
+        with open(filename, "w") as f:
+            f.write(content.strip())
+        console.print(f"[dim]Saved to {os.path.abspath(filename)}[/dim]")
 
     # 2. Handle Commands (Deduplicated list)
     cmds = list(set(re.findall(r'`(npm .*?|pip3? .*?)`', text)))

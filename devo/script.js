@@ -1908,6 +1908,53 @@ loadBtn.onclick = async () => {
   await runAIForCurrentPassage();
 };
 
+const prevChapterBtn = document.getElementById("prevChapterBtn");
+const nextChapterBtn = document.getElementById("nextChapterBtn");
+
+if (prevChapterBtn) {
+  prevChapterBtn.onclick = () => {
+    const bookKeys = Object.keys(BIBLE_META);
+    let currentBookIdx = bookKeys.indexOf(bookEl.value);
+    let currentChapter = parseInt(chapterEl.value);
+
+    if (currentChapter > 1) {
+      chapterEl.value = currentChapter - 1;
+    } else if (currentBookIdx > 0) {
+      currentBookIdx--;
+      bookEl.value = bookKeys[currentBookIdx];
+      loadChapters();
+      const lastChapter = BIBLE_META[bookEl.value].chapters.length;
+      chapterEl.value = lastChapter;
+    } else {
+      return; // Start of Bible
+    }
+    verseEl.value = ""; 
+    loadBtn.click();
+  };
+}
+
+if (nextChapterBtn) {
+  nextChapterBtn.onclick = () => {
+    const bookKeys = Object.keys(BIBLE_META);
+    let currentBookIdx = bookKeys.indexOf(bookEl.value);
+    let currentChapter = parseInt(chapterEl.value);
+    const totalChapters = BIBLE_META[bookEl.value].chapters.length;
+
+    if (currentChapter < totalChapters) {
+      chapterEl.value = currentChapter + 1;
+    } else if (currentBookIdx < bookKeys.length - 1) {
+      currentBookIdx++;
+      bookEl.value = bookKeys[currentBookIdx];
+      loadChapters();
+      chapterEl.value = 1;
+    } else {
+      return; // End of Bible
+    }
+    verseEl.value = ""; 
+    loadBtn.click();
+  };
+}
+
 homeBtn.onclick = () => {
   output.innerHTML = "";
   resetAISections();
@@ -2167,3 +2214,4 @@ function autoExpand(field) {
 
   field.style.height = height + "px";
 }
+ss
