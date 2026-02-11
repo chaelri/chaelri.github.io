@@ -1901,6 +1901,9 @@ if (vSelect) {
 }
 loadBtn.onclick = async () => {
   output.innerHTML = "";
+  document.getElementById("prevChapterBtn").classList.remove("hidden");
+  document.getElementById("nextChapterBtn").classList.remove("hidden");
+
   resetAISections();
 
   await loadPassage();
@@ -1957,6 +1960,8 @@ if (nextChapterBtn) {
 
 homeBtn.onclick = () => {
   output.innerHTML = "";
+  document.getElementById("prevChapterBtn").classList.add("hidden");
+  document.getElementById("nextChapterBtn").classList.add("hidden");
   resetAISections();
   showDashboard();
   // Keep layout-unset for dashboard view to allow scroll
