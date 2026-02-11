@@ -3,6 +3,7 @@ let favoritesPage = 0;
 let currentVersion = localStorage.getItem("bibleVersion") || "NASB";
 let recentPassageId = localStorage.getItem("recentPassageId");
 let recentPassage = localStorage.getItem("recentPassage");
+let verseChatHistories = {};
 
 const VERSION_FILES = {
   NASB: "nasb2020.json",
@@ -462,6 +463,117 @@ async function fetchInlineQuickContext(
     mountEl.innerHTML =
       '<div class="inline-ai-result"><p>Failed to load quick context.</p></div>'; // More descriptive error
   }
+}
+
+async function toggleVerseChat(key, book, chapter, verse, text, mountEl) {
+  if (mountEl.querySelector(".verse-chat-wrapper")) {
+    mountEl.innerHTML = "";
+    return;
+  }
+
+  mountEl.innerHTML = `
+    <div class="verse-chat-wrapper ai-fade-in">
+      <div class="chat-history" id="chat-hist-${key}"></div>
+      <div class="chat-input-area">
+        <textarea placeholder="Ask something about this verse..." id="chat-input-${key}"></textarea>
+        <button id="chat-send-${key}"><span class="material-icons">send</span></button>
+      </div>
+    </div>
+  `;
+
+  const input = document.getElementById(`chat-input-${key}`);
+  const sendBtn = document.getElementById(`chat-send-${key}`);
+  const histEl = document.getElementById(`chat-hist-${key}`);
+
+  // Render existing history if any
+  renderChatHistory(key, histEl);
+
+  const performSend = async () => {
+    const question = input.value.trim();
+    if (!question) return;
+
+    // Initialize history if empty
+    if (!verseChatHistories[key]) verseChatHistories[key] = [];
+
+    // Add User Message
+    verseChatHistories[key].push({ role: "user", text: question });
+    input.value = "";
+    renderChatHistory(key, histEl);
+
+    // Show loading
+    const botMsgDiv = document.createElement("div");
+    botMsgDiv.className = "chat-msg bot loading";
+    botMsgDiv.innerHTML = `<div class="inline-ai-spinner"></div>`;
+    histEl.appendChild(botMsgDiv);
+    histEl.scrollTop = histEl.scrollHeight;
+
+    const prompt = `
+      You are a Bible study assistant.
+      CONTEXT: ${book} ${chapter}:${verse} - "${text}"
+      HISTORY: ${JSON.stringify(verseChatHistories[key].slice(-5))}
+      
+      RULES:
+      - Be very concise (max 3 sentences).
+      - Focus on the specific verse context.
+      - Stay youth-friendly and encouraging.
+      
+      QUESTION: ${question}
+    `;
+
+    try {
+      const res = await fetch(
+        "https://gemini-proxy-668755364170.asia-southeast1.run.app",
+        {
+          method: "POST",
+          headers: { "Content-Type": "application/json" },
+          body: JSON.stringify({
+            task: "summary",
+            contents: [{ parts: [{ text: prompt }] }],
+          }),
+        },
+      );
+
+      const data = await res.json();
+      const answer =
+        data.candidates?.[0]?.content?.parts?.[0]?.text ||
+        "Pasensya na, hindi ko masagot 'yan sa ngayon.";
+
+      // Update history
+      verseChatHistories[key].push({ role: "model", text: answer });
+
+      // Limit history to 6 items (3 turns)
+      if (verseChatHistories[key].length > 6) verseChatHistories[key].shift();
+
+      renderChatHistory(key, histEl);
+    } catch (err) {
+      botMsgDiv.innerHTML = "Error connecting to AI.";
+    }
+  };
+
+  sendBtn.onclick = performSend;
+  input.onkeydown = (e) => {
+    if (e.key === "Enter" && !e.shiftKey) {
+      e.preventDefault();
+      performSend();
+    }
+  };
+}
+
+function renderChatHistory(key, container) {
+  const history = verseChatHistories[key] || [];
+  container.innerHTML = history
+    .map((msg) => {
+      // Convert Markdown to HTML if it's from the bot
+      const content = msg.role === "model" ? marked.parse(msg.text) : msg.text;
+
+      return `
+          <div class="chat-msg ${msg.role === "user" ? "user" : "bot"}">
+            ${content}
+          </div>
+        `;
+    })
+    .join("");
+  container.scrollTop = container.scrollHeight;
 }
 
 async function fetchInlineDigDeeper({ book, chapter, verse }, mountEl) {
@@ -1250,6 +1362,9 @@ async function loadPassage() {
           </div>
           <div class="verse-actions">
             <button class="inline-ai-btn" title="Quick verse context">✨</button>
+            <button id="verse-chat-btn" class="inline-ai-btn" title="Chat with this verse">
+              <span class="material-icons" style="font-size:16px;">question_mark</span>
+            </button>
           </div>
         </div>
         <div class="inline-ai-mount"></div>
@@ -1284,6 +1399,20 @@ async function loadPassage() {
             verse: v.verse,
             text: v.text,
           },
+          mount,
+        );
+      };
+
+      const chatBtn = wrap.querySelector("#verse-chat-btn");
+      chatBtn.onclick = (e) => {
+        e.stopPropagation();
+        const mount = wrap.querySelector(".inline-ai-mount");
+        toggleVerseChat(
+          key,
+          BIBLE_META[v.book_id].name,
+          v.chapter,
+          v.verse,
+          v.text,
           mount,
         );
       };
