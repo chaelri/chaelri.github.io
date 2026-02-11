@@ -1928,7 +1928,7 @@ if (prevChapterBtn) {
     } else {
       return; // Start of Bible
     }
-    verseEl.value = ""; 
+    verseEl.value = "";
     loadBtn.click();
   };
 }
@@ -1950,7 +1950,7 @@ if (nextChapterBtn) {
     } else {
       return; // End of Bible
     }
-    verseEl.value = ""; 
+    verseEl.value = "";
     loadBtn.click();
   };
 }
@@ -2214,4 +2214,10 @@ function autoExpand(field) {
 
   field.style.height = height + "px";
 }
-ss
+
+if (recentPassageId) {
+  let recentPassageSplit = recentPassageId.split("-");
+  bookEl.value = recentPassageSplit[0];
+  loadChapters();
+  chapterEl.value = recentPassageSplit[1];
+}
