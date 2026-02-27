@@ -339,6 +339,26 @@ function toggleFavorite(key) {
   saveFavorites();
 }
 
+// Highlights store
+let highlights = JSON.parse(localStorage.getItem("bibleHighlights") || "{}");
+
+function saveHighlights() {
+  localStorage.setItem("bibleHighlights", JSON.stringify(highlights));
+}
+
+function isHighlighted(key) {
+  return !!highlights[key];
+}
+
+function toggleHighlight(key) {
+  if (highlights[key]) {
+    delete highlights[key];
+  } else {
+    highlights[key] = Date.now();
+  }
+  saveHighlights();
+}
+
 /* migrate old notes */
 Object.keys(comments).forEach((k) => {
   comments[k] = comments[k].map((n) =>
@@ -1299,6 +1319,7 @@ async function loadPassage() {
       const key = keyOf(v.book_id, v.chapter, v.verse);
       const count = comments[key]?.length || 0;
       const isFav = isFavorite(key);
+      const isHL = isHighlighted(key);
 
       let formattedText = "";
 
@@ -1337,7 +1358,7 @@ async function loadPassage() {
       }
 
       const wrap = document.createElement("div");
-      wrap.className = "verse";
+      wrap.className = "verse" + (isHL ? " highlighted" : "");
       wrap.innerHTML = `
         <div id="${
           v.verse
@@ -1349,6 +1370,7 @@ async function loadPassage() {
               <span class="material-icons favorite-indicator" style="font-size:14px; margin-right:4px; ${
                 isFav ? 'color:#c83086;"' : '"'
               } data-key="${key}">${isFav ? "favorite" : "favorite_border"}</span>
+              <span class="material-icons highlight-indicator" style="font-size:10px; cursor:pointer; margin-right:4px; ${isHL ? "color:#facc15;" : "opacity:0.25;"}" data-key="${key}">brightness_1</span>
               ${
                 count
                   ? `
@@ -1422,6 +1444,18 @@ async function loadPassage() {
           e.stopPropagation();
           toggleFavorite(key);
           updateMetaIndicators(key, verseContentEl, comments[key]?.length || 0); // Use the global function
+        };
+      }
+
+      const hlIndicator = wrap.querySelector(".highlight-indicator");
+      if (hlIndicator) {
+        hlIndicator.onclick = (e) => {
+          e.stopPropagation();
+          toggleHighlight(key);
+          const isNowHL = isHighlighted(key);
+          wrap.classList.toggle("highlighted", isNowHL);
+          hlIndicator.style.color = isNowHL ? "#facc15" : "";
+          hlIndicator.style.opacity = isNowHL ? "1" : "0.25";
         };
       }
 
@@ -1847,6 +1881,24 @@ const updateMetaIndicators = (key, verseContent, newCommentCount) => {
     updateMetaIndicators(key, verseContent, comments[key]?.length || 0); // Re-run to update icon
   };
   metaIndicators.appendChild(favIndicator);
+
+  // 1.5. Highlight Indicator
+  const isHL = isHighlighted(key);
+  const hlIndicator = document.createElement("span");
+  hlIndicator.className = "material-icons highlight-indicator";
+  hlIndicator.style.cssText = `font-size:10px; cursor:pointer; margin-right:4px; ${isHL ? "color:#facc15;" : "opacity:0.25;"}`;
+  hlIndicator.setAttribute("data-key", key);
+  hlIndicator.textContent = "brightness_1";
+  const verseWrap = verseContent.closest(".verse");
+  hlIndicator.onclick = (e) => {
+    e.stopPropagation();
+    toggleHighlight(key);
+    const isNowHL = isHighlighted(key);
+    if (verseWrap) verseWrap.classList.toggle("highlighted", isNowHL);
+    hlIndicator.style.color = isNowHL ? "#facc15" : "";
+    hlIndicator.style.opacity = isNowHL ? "1" : "0.25";
+  };
+  metaIndicators.appendChild(hlIndicator);
 
   // 2. Comment Count Indicator
   if (newCommentCount > 0) {
