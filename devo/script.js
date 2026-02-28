@@ -359,6 +359,281 @@ function toggleHighlight(key) {
   saveHighlights();
 }
 
+// ── TTS — Google Cloud Text-to-Speech ─────────────────────────────────────────
+// Server-side synthesis: ~200-400ms per verse vs ~12s for in-browser WASM.
+// All verses fire in parallel; full chapter buffers in ~5 seconds.
+
+const TTS_VOICE_OPTIONS = [
+  { label: "US Male — Journey",              name: "en-US-Journey-D",  lang: "en-US" },
+  { label: "US Male — Studio (very natural)",name: "en-US-Studio-Q",   lang: "en-US" },
+  { label: "US Male — Neural",               name: "en-US-Neural2-D",  lang: "en-US" },
+  { label: "British Male — Wavenet (deep)",  name: "en-GB-Wavenet-D",  lang: "en-GB" },
+  { label: "British Male — Neural",          name: "en-GB-Neural2-D",  lang: "en-GB" },
+];
+
+function getTtsVoice() {
+  const saved = localStorage.getItem("googleTtsVoice");
+  const opt = TTS_VOICE_OPTIONS.find(v => v.name === saved) ?? TTS_VOICE_OPTIONS[0];
+  return { languageCode: opt.lang, name: opt.name };
+}
+
+let _ttsReadyCount = 0;
+
+async function ttsSynthesize(text) {
+  const key = window.GOOGLE_TTS_KEY || localStorage.getItem("googleTtsKey");
+  if (!key) throw new Error("no-key");
+
+  const resp = await fetch(
+    `https://texttospeech.googleapis.com/v1/text:synthesize?key=${encodeURIComponent(key)}`,
+    {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({
+        input: { text },
+        voice: getTtsVoice(),
+        audioConfig: { audioEncoding: "MP3" },
+      }),
+    }
+  );
+
+  if (resp.status === 401 || resp.status === 403) {
+    localStorage.removeItem("googleTtsKey");
+    throw new Error("auth");
+  }
+  if (!resp.ok) throw new Error(`api-${resp.status}`);
+
+  const { audioContent } = await resp.json();
+  const bytes = Uint8Array.from(atob(audioContent), c => c.charCodeAt(0));
+  return URL.createObjectURL(new Blob([bytes], { type: "audio/mpeg" }));
+}
+
+function ttsShowSettings(afterSave) {
+  const currentVoice = localStorage.getItem("googleTtsVoice") ?? TTS_VOICE_OPTIONS[0].name;
+  const currentKey   = localStorage.getItem("googleTtsKey") ?? "";
+  const voiceOpts = TTS_VOICE_OPTIONS.map(v =>
+    `<option value="${v.name}"${v.name === currentVoice ? " selected" : ""}>${v.label}</option>`
+  ).join("");
+  const content = document.getElementById("modalContent");
+  content.innerHTML = `
+    <h3 style="margin-bottom:12px">TTS Settings</h3>
+    <div style="margin-bottom:14px">
+      <div style="margin-bottom:6px;opacity:.7;font-size:.85em">VOICE</div>
+      <select id="ttsVoiceSelect" style="width:100%;padding:8px;border-radius:8px;border:1px solid #555;background:#1a2235;color:inherit;">${voiceOpts}</select>
+    </div>
+    <div style="margin-bottom:16px">
+      <div style="margin-bottom:6px;opacity:.7;font-size:.85em">GOOGLE CLOUD API KEY</div>
+      <input id="ttsKeyInput" type="text" value="${currentKey}" placeholder="AIza..." style="width:100%;padding:8px;border-radius:8px;border:1px solid #555;background:#1a2235;color:inherit;box-sizing:border-box;">
+    </div>
+    <button id="ttsSettingsSave" class="primary" style="width:100%">Save</button>
+  `;
+  document.getElementById("modalOverlay").hidden = false;
+  document.getElementById("ttsSettingsSave").onclick = () => {
+    const voice = document.getElementById("ttsVoiceSelect").value;
+    const key   = document.getElementById("ttsKeyInput").value.trim();
+    if (voice) localStorage.setItem("googleTtsVoice", voice);
+    if (key)   localStorage.setItem("googleTtsKey", key);
+    document.getElementById("modalOverlay").hidden = true;
+    if (afterSave) afterSave();
+  };
+}
+
+function ttsGetOrPromptKey() {
+  if (window.GOOGLE_TTS_KEY || localStorage.getItem("googleTtsKey")) return true;
+  ttsShowSettings(playChapter);
+  return false;
+}
+
+// ── Playback state ───────────────────────────────────────────────────────────
+let ttsGen = 0;
+let ttsQueue = [];   // [{el, verseNum, text, url, ready}]
+let ttsIdx = -1;
+let ttsAudio = null;
+let ttsPaused = false;
+
+function ttsBuildQueue() {
+  const els = [...document.querySelectorAll("#output .verse")];
+  const lines = (window.__aiPayload?.versesText || "").split("\n").filter(Boolean);
+  return els.map((el, i) => ({
+    el,
+    verseNum: el.querySelector(".verse-num")?.textContent?.trim() || String(i + 1),
+    text: (lines[i] || "").replace(/^\d[\d\-]*\.\s*/, "").trim(),
+    url: null,
+    ready: null,
+  }));
+}
+
+async function playChapter() {
+  if (!ttsGetOrPromptKey()) return;
+
+  ttsGen++;
+  const gen = ttsGen;
+
+  const pauseBtn = document.getElementById("ttsPauseBtn");
+  if (pauseBtn) pauseBtn.innerHTML = '<span class="material-symbols-outlined">pause</span>';
+
+  ttsQueue = ttsBuildQueue();
+  ttsIdx = -1;
+  if (!ttsQueue.length) return;
+
+  const playBtn = document.getElementById("ttsPlayBtn");
+  if (playBtn) playBtn.disabled = true;
+  ttsShowPlayer("Starting\u2026");
+
+  _ttsReadyCount = 0;
+  const bar = document.getElementById("ttsProgressBar");
+  if (bar) bar.style.width = "0%";
+
+  // Fire synthesis for ALL verses to the worker immediately.
+  // Worker processes them sequentially in the background.
+  // Results are stored on each item unconditionally — never discarded on nav.
+  for (const item of ttsQueue) {
+    item.ready = ttsSynthesize(item.text).then(
+      (url) => {
+        item.url = url;
+        _ttsReadyCount++;
+        if (gen === ttsGen && bar)
+          bar.style.width = `${(_ttsReadyCount / ttsQueue.length) * 100}%`;
+      },
+      () => { item.url = null; }
+    );
+  }
+
+  await ttsPlayAt(0, gen);
+}
+
+async function ttsPlayAt(index, gen) {
+  if (gen !== ttsGen) return;
+  if (index < 0 || index >= ttsQueue.length) {
+    if (gen === ttsGen) ttsFinish();
+    return;
+  }
+
+  ttsIdx = index;
+  const item = ttsQueue[index];
+
+  if (ttsAudio) { ttsAudio.onended = null; ttsAudio.pause(); ttsAudio = null; }
+
+  ttsMark(item.el);
+  ttsSetStatus(`Loading ${item.verseNum}\u2026`);
+  document.getElementById("ttsPlayer")?.classList.add("tts-buffering");
+
+  try {
+    await item.ready;           // instant if already synthesised, else wait
+    if (gen !== ttsGen) return;
+    if (!item.url) throw new Error("synthesis failed");
+
+    document.getElementById("ttsPlayer")?.classList.remove("tts-buffering");
+    ttsAudio = new Audio(item.url);
+    ttsPaused = false;
+    await ttsAudio.play();
+    if (gen !== ttsGen) { ttsAudio.pause(); return; }
+
+    ttsSetStatus(`\uD83C\uDFA7 ${item.verseNum} / ${ttsQueue.length}`);
+    ttsNavUpdate();
+
+    ttsAudio.onended = () => {
+      if (!ttsPaused && gen === ttsGen) ttsPlayAt(index + 1, gen);
+    };
+  } catch (err) {
+    if (gen !== ttsGen) return;
+    console.error("TTS", err);
+    ttsSetStatus("Error \u2014 tap \u2715 and retry");
+    const playBtn = document.getElementById("ttsPlayBtn");
+    if (playBtn) playBtn.disabled = false;
+  }
+}
+
+function ttsMark(el) {
+  document.querySelectorAll("#output .verse.tts-active").forEach(v => v.classList.remove("tts-active"));
+  document.querySelectorAll("#output .verse-header.verse-highlight").forEach(v => v.classList.remove("verse-highlight"));
+  if (!el) return;
+  el.classList.add("tts-active");
+  const hdr = el.querySelector(".verse-header");
+  if (hdr) { void hdr.offsetWidth; hdr.classList.add("verse-highlight"); }
+  const layout = document.querySelector(".layout");
+  if (layout) {
+    layout.scrollTo({
+      top: el.getBoundingClientRect().top - layout.getBoundingClientRect().top + layout.scrollTop - 120,
+      behavior: "smooth",
+    });
+  }
+}
+
+function pauseResumeTTS() {
+  if (!ttsAudio) return;
+  const btn = document.getElementById("ttsPauseBtn");
+  if (ttsPaused) {
+    ttsAudio.play(); ttsPaused = false;
+    if (btn) btn.innerHTML = '<span class="material-symbols-outlined">pause</span>';
+    ttsSetStatus(`\uD83C\uDFA7 ${ttsQueue[ttsIdx]?.verseNum} / ${ttsQueue.length}`);
+  } else {
+    ttsAudio.pause(); ttsPaused = true;
+    if (btn) btn.innerHTML = '<span class="material-symbols-outlined">play_arrow</span>';
+    ttsSetStatus(`\u23F8 Verse ${ttsQueue[ttsIdx]?.verseNum}`);
+  }
+}
+
+function ttsPrevVerse() {
+  if (ttsIdx <= 0) return;
+  ttsGen++;
+  if (ttsAudio) { ttsAudio.onended = null; ttsAudio.pause(); ttsAudio = null; }
+  ttsPlayAt(ttsIdx - 1, ttsGen);
+}
+
+function ttsNextVerse() {
+  if (ttsIdx >= ttsQueue.length - 1) return;
+  ttsGen++;
+  if (ttsAudio) { ttsAudio.onended = null; ttsAudio.pause(); ttsAudio = null; }
+  ttsPlayAt(ttsIdx + 1, ttsGen);
+}
+
+function stopTTS() {
+  ttsGen++;
+  if (ttsAudio) { ttsAudio.onended = null; ttsAudio.pause(); ttsAudio = null; }
+  ttsQueue = []; ttsIdx = -1; ttsPaused = false;
+  document.querySelectorAll("#output .verse.tts-active").forEach(v => v.classList.remove("tts-active"));
+  document.querySelectorAll("#output .verse-header.verse-highlight").forEach(v => v.classList.remove("verse-highlight"));
+  const player = document.getElementById("ttsPlayer");
+  player.classList.remove("tts-buffering");
+  const bar = document.getElementById("ttsProgressBar");
+  if (bar) bar.style.width = "0%";
+  player.hidden = true;
+  const playBtn = document.getElementById("ttsPlayBtn");
+  if (playBtn) playBtn.disabled = false;
+}
+
+function ttsFinish() {
+  if (ttsAudio) { ttsAudio.pause(); ttsAudio = null; }
+  ttsPaused = false;
+  document.querySelectorAll("#output .verse.tts-active").forEach(v => v.classList.remove("tts-active"));
+  document.querySelectorAll("#output .verse-header.verse-highlight").forEach(v => v.classList.remove("verse-highlight"));
+  const player = document.getElementById("ttsPlayer");
+  player.classList.remove("tts-buffering");
+  const bar = document.getElementById("ttsProgressBar");
+  if (bar) bar.style.width = "0%";
+  player.hidden = true;
+  const playBtn = document.getElementById("ttsPlayBtn");
+  if (playBtn) playBtn.disabled = false;
+}
+
+function ttsShowPlayer(status) {
+  document.getElementById("ttsPlayer").hidden = false;
+  ttsSetStatus(status);
+}
+
+function ttsSetStatus(text) {
+  const el = document.getElementById("ttsStatus");
+  if (el) el.textContent = text;
+}
+
+function ttsNavUpdate() {
+  const prev = document.getElementById("ttsPrevBtn");
+  const next = document.getElementById("ttsNextBtn");
+  if (prev) prev.disabled = ttsIdx <= 0;
+  if (next) next.disabled = ttsIdx >= ttsQueue.length - 1;
+}
+
+
 /* migrate old notes */
 Object.keys(comments).forEach((k) => {
   comments[k] = comments[k].map((n) =>
@@ -841,6 +1116,8 @@ function loadBooks() {
 
 // Renamed and updated from showLanding to showDashboard
 async function showDashboard() {
+  stopTTS(); // always stop audio when returning to dashboard
+
   if (!bibleData) {
     await fetchBibleData();
   }
@@ -2084,7 +2361,7 @@ loadBtn.onclick = async () => {
   output.innerHTML = "";
   document.getElementById("prevChapterBtn").classList.remove("hidden");
   document.getElementById("nextChapterBtn").classList.remove("hidden");
-
+  document.getElementById("ttsPlayBtn").classList.remove("hidden");
   resetAISections();
 
   await loadPassage();
@@ -2143,11 +2420,27 @@ homeBtn.onclick = () => {
   output.innerHTML = "";
   document.getElementById("prevChapterBtn").classList.add("hidden");
   document.getElementById("nextChapterBtn").classList.add("hidden");
+  document.getElementById("ttsPlayBtn").classList.add("hidden");
+  stopTTS();
   resetAISections();
   showDashboard();
   // Keep layout-unset for dashboard view to allow scroll
   // document.querySelector(".layout").classList.add("layout-unset");
 };
+
+/* ---------- TTS BUTTON WIRING ---------- */
+const ttsPlayBtn = document.getElementById("ttsPlayBtn");
+const ttsPrevBtn = document.getElementById("ttsPrevBtn");
+const ttsPauseBtn = document.getElementById("ttsPauseBtn");
+const ttsNextBtn = document.getElementById("ttsNextBtn");
+const ttsCloseBtn = document.getElementById("ttsCloseBtn");
+const ttsSettingsBtn = document.getElementById("ttsSettingsBtn");
+if (ttsPlayBtn) ttsPlayBtn.onclick = playChapter;
+if (ttsPrevBtn) ttsPrevBtn.onclick = ttsPrevVerse;
+if (ttsPauseBtn) ttsPauseBtn.onclick = pauseResumeTTS;
+if (ttsNextBtn) ttsNextBtn.onclick = ttsNextVerse;
+if (ttsCloseBtn) ttsCloseBtn.onclick = stopTTS;
+if (ttsSettingsBtn) ttsSettingsBtn.onclick = () => ttsShowSettings();
 
 /* ---------- INIT ---------- */
 fetchBibleData(); // Load the JSON file on startup

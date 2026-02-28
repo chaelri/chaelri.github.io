@@ -80,6 +80,11 @@
             <button id="nextChapterBtn" class="secondary hidden">
               <span class="material-symbols-outlined"> navigate_next </span>
             </button>
+
+            <button id="ttsPlayBtn" class="secondary hidden">
+              <span class="material-symbols-outlined">headphones</span>
+            </button>
+
               <div id="mode-toggle" class="mode-toggle">
             <span class="material-symbols-outlined">light_mode</span>
           </div>
@@ -122,6 +127,27 @@
       </div>
     </div>
 
+    <div id="ttsPlayer" class="tts-player" hidden>
+      <div id="ttsProgressBar" class="tts-progress-bar"></div>
+      <button id="ttsPrevBtn" class="tts-btn">
+        <span class="material-symbols-outlined">skip_previous</span>
+      </button>
+      <button id="ttsPauseBtn" class="tts-btn">
+        <span class="material-symbols-outlined">pause</span>
+      </button>
+      <button id="ttsNextBtn" class="tts-btn">
+        <span class="material-symbols-outlined">skip_next</span>
+      </button>
+      <span id="ttsStatus">🎧</span>
+      <button id="ttsSettingsBtn" class="tts-btn">
+        <span class="material-symbols-outlined">tune</span>
+      </button>
+      <button id="ttsCloseBtn" class="tts-btn tts-close">
+        <span class="material-symbols-outlined">close</span>
+      </button>
+    </div>
+
+    <script src="config.js" onerror="void 0"></script>
     <script src="bible-meta.js"></script>
     <script src="script.js"></script>
   </body>
