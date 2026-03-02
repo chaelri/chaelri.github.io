@@ -363,84 +363,46 @@ function toggleHighlight(key) {
 // Server-side synthesis: ~200-400ms per verse vs ~12s for in-browser WASM.
 // All verses fire in parallel; full chapter buffers in ~5 seconds.
 
-const TTS_VOICE_OPTIONS = [
-  { label: "US Male — Journey",              name: "en-US-Journey-D",  lang: "en-US" },
-  { label: "US Male — Studio (very natural)",name: "en-US-Studio-Q",   lang: "en-US" },
-  { label: "US Male — Neural",               name: "en-US-Neural2-D",  lang: "en-US" },
-  { label: "British Male — Wavenet (deep)",  name: "en-GB-Wavenet-D",  lang: "en-GB" },
-  { label: "British Male — Neural",          name: "en-GB-Neural2-D",  lang: "en-GB" },
-];
-
-function getTtsVoice() {
-  const saved = localStorage.getItem("googleTtsVoice");
-  const opt = TTS_VOICE_OPTIONS.find(v => v.name === saved) ?? TTS_VOICE_OPTIONS[0];
-  return { languageCode: opt.lang, name: opt.name };
-}
-
+const TTS_VOICE = { languageCode: "en-US", name: "en-US-Journey-D" };
 let _ttsReadyCount = 0;
 
-async function ttsSynthesize(text) {
+async function ttsSynthesize(text, retries = 5) {
   const key = window.GOOGLE_TTS_KEY || localStorage.getItem("googleTtsKey");
   if (!key) throw new Error("no-key");
 
-  const resp = await fetch(
-    `https://texttospeech.googleapis.com/v1/text:synthesize?key=${encodeURIComponent(key)}`,
-    {
-      method: "POST",
-      headers: { "Content-Type": "application/json" },
-      body: JSON.stringify({
-        input: { text },
-        voice: getTtsVoice(),
-        audioConfig: { audioEncoding: "MP3" },
-      }),
+  for (let attempt = 0; attempt < retries; attempt++) {
+    try {
+      const resp = await fetch(
+        `https://texttospeech.googleapis.com/v1/text:synthesize?key=${encodeURIComponent(key)}`,
+        {
+          method: "POST",
+          headers: { "Content-Type": "application/json" },
+          body: JSON.stringify({
+            input: { text },
+            voice: TTS_VOICE,
+            audioConfig: { audioEncoding: "MP3" },
+          }),
+        }
+      );
+
+      if (resp.status === 401 || resp.status === 403) throw new Error("auth");
+      if (!resp.ok) throw new Error(`api-${resp.status}`);
+
+      const { audioContent } = await resp.json();
+      const bytes = Uint8Array.from(atob(audioContent), c => c.charCodeAt(0));
+      return URL.createObjectURL(new Blob([bytes], { type: "audio/mpeg" }));
+    } catch (err) {
+      if (err.message === "auth" || err.message === "no-key") throw err;
+      if (attempt < retries - 1)
+        await new Promise(r => setTimeout(r, 1000));
+      else
+        throw err;
     }
-  );
-
-  if (resp.status === 401 || resp.status === 403) {
-    localStorage.removeItem("googleTtsKey");
-    throw new Error("auth");
   }
-  if (!resp.ok) throw new Error(`api-${resp.status}`);
-
-  const { audioContent } = await resp.json();
-  const bytes = Uint8Array.from(atob(audioContent), c => c.charCodeAt(0));
-  return URL.createObjectURL(new Blob([bytes], { type: "audio/mpeg" }));
-}
-
-function ttsShowSettings(afterSave) {
-  const currentVoice = localStorage.getItem("googleTtsVoice") ?? TTS_VOICE_OPTIONS[0].name;
-  const currentKey   = localStorage.getItem("googleTtsKey") ?? "";
-  const voiceOpts = TTS_VOICE_OPTIONS.map(v =>
-    `<option value="${v.name}"${v.name === currentVoice ? " selected" : ""}>${v.label}</option>`
-  ).join("");
-  const content = document.getElementById("modalContent");
-  content.innerHTML = `
-    <h3 style="margin-bottom:12px">TTS Settings</h3>
-    <div style="margin-bottom:14px">
-      <div style="margin-bottom:6px;opacity:.7;font-size:.85em">VOICE</div>
-      <select id="ttsVoiceSelect" style="width:100%;padding:8px;border-radius:8px;border:1px solid #555;background:#1a2235;color:inherit;">${voiceOpts}</select>
-    </div>
-    <div style="margin-bottom:16px">
-      <div style="margin-bottom:6px;opacity:.7;font-size:.85em">GOOGLE CLOUD API KEY</div>
-      <input id="ttsKeyInput" type="text" value="${currentKey}" placeholder="AIza..." style="width:100%;padding:8px;border-radius:8px;border:1px solid #555;background:#1a2235;color:inherit;box-sizing:border-box;">
-    </div>
-    <button id="ttsSettingsSave" class="primary" style="width:100%">Save</button>
-  `;
-  document.getElementById("modalOverlay").hidden = false;
-  document.getElementById("ttsSettingsSave").onclick = () => {
-    const voice = document.getElementById("ttsVoiceSelect").value;
-    const key   = document.getElementById("ttsKeyInput").value.trim();
-    if (voice) localStorage.setItem("googleTtsVoice", voice);
-    if (key)   localStorage.setItem("googleTtsKey", key);
-    document.getElementById("modalOverlay").hidden = true;
-    if (afterSave) afterSave();
-  };
 }
 
 function ttsGetOrPromptKey() {
-  if (window.GOOGLE_TTS_KEY || localStorage.getItem("googleTtsKey")) return true;
-  ttsShowSettings(playChapter);
-  return false;
+  return !!(window.GOOGLE_TTS_KEY || localStorage.getItem("googleTtsKey"));
 }
 
 // ── Playback state ───────────────────────────────────────────────────────────
@@ -513,6 +475,10 @@ async function ttsPlayAt(index, gen) {
 
   if (ttsAudio) { ttsAudio.onended = null; ttsAudio.pause(); ttsAudio = null; }
 
+  // Reset pause btn in case it was repurposed as a retry button
+  const pauseBtn = document.getElementById("ttsPauseBtn");
+  if (pauseBtn) { pauseBtn.innerHTML = '<span class="material-symbols-outlined">pause</span>'; pauseBtn.onclick = pauseResumeTTS; }
+
   ttsMark(item.el);
   ttsSetStatus(`Loading ${item.verseNum}\u2026`);
   document.getElementById("ttsPlayer")?.classList.add("tts-buffering");
@@ -537,9 +503,26 @@ async function ttsPlayAt(index, gen) {
   } catch (err) {
     if (gen !== ttsGen) return;
     console.error("TTS", err);
-    ttsSetStatus("Error \u2014 tap \u2715 and retry");
-    const playBtn = document.getElementById("ttsPlayBtn");
-    if (playBtn) playBtn.disabled = false;
+    document.getElementById("ttsPlayer")?.classList.remove("tts-buffering");
+    ttsSetStatus(`\u26A0 Verse ${item.verseNum} failed`);
+
+    // Repurpose pause button as a single-verse retry
+    const pauseBtn = document.getElementById("ttsPauseBtn");
+    if (pauseBtn) {
+      pauseBtn.innerHTML = '<span class="material-symbols-outlined">refresh</span>';
+      pauseBtn.onclick = () => {
+        // Reset pause button back to normal
+        pauseBtn.innerHTML = '<span class="material-symbols-outlined">pause</span>';
+        pauseBtn.onclick = pauseResumeTTS;
+        // Re-synthesize just this verse then play it
+        item.url = null;
+        item.ready = ttsSynthesize(item.text).then(
+          url => { item.url = url; },
+          () => { item.url = null; }
+        );
+        ttsPlayAt(index, gen);
+      };
+    }
   }
 }
 
@@ -2434,13 +2417,11 @@ const ttsPrevBtn = document.getElementById("ttsPrevBtn");
 const ttsPauseBtn = document.getElementById("ttsPauseBtn");
 const ttsNextBtn = document.getElementById("ttsNextBtn");
 const ttsCloseBtn = document.getElementById("ttsCloseBtn");
-const ttsSettingsBtn = document.getElementById("ttsSettingsBtn");
 if (ttsPlayBtn) ttsPlayBtn.onclick = playChapter;
 if (ttsPrevBtn) ttsPrevBtn.onclick = ttsPrevVerse;
 if (ttsPauseBtn) ttsPauseBtn.onclick = pauseResumeTTS;
 if (ttsNextBtn) ttsNextBtn.onclick = ttsNextVerse;
 if (ttsCloseBtn) ttsCloseBtn.onclick = stopTTS;
-if (ttsSettingsBtn) ttsSettingsBtn.onclick = () => ttsShowSettings();
 
 /* ---------- INIT ---------- */
 fetchBibleData(); // Load the JSON file on startup
