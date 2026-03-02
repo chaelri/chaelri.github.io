@@ -366,38 +366,58 @@ function toggleHighlight(key) {
 const TTS_VOICE = { languageCode: "en-US", name: "en-US-Journey-D" };
 let _ttsReadyCount = 0;
 
+// Semaphore: max 3 concurrent TTS requests to avoid 429 rate-limit errors
+const _synthSem = { active: 0, max: 3, queue: [] };
+function _synthAcquire() {
+  if (_synthSem.active < _synthSem.max) { _synthSem.active++; return Promise.resolve(); }
+  return new Promise(resolve => _synthSem.queue.push(resolve));
+}
+function _synthRelease() {
+  _synthSem.active--;
+  _synthSem.queue.shift()?.(_synthSem.active++);
+}
+
 async function ttsSynthesize(text, retries = 5) {
   const key = window.GOOGLE_TTS_KEY || localStorage.getItem("googleTtsKey");
   if (!key) throw new Error("no-key");
 
-  for (let attempt = 0; attempt < retries; attempt++) {
-    try {
-      const resp = await fetch(
-        `https://texttospeech.googleapis.com/v1/text:synthesize?key=${encodeURIComponent(key)}`,
-        {
-          method: "POST",
-          headers: { "Content-Type": "application/json" },
-          body: JSON.stringify({
-            input: { text },
-            voice: TTS_VOICE,
-            audioConfig: { audioEncoding: "MP3" },
-          }),
+  await _synthAcquire();
+  try {
+    for (let attempt = 0; attempt < retries; attempt++) {
+      try {
+        const resp = await fetch(
+          `https://texttospeech.googleapis.com/v1/text:synthesize?key=${encodeURIComponent(key)}`,
+          {
+            method: "POST",
+            headers: { "Content-Type": "application/json" },
+            body: JSON.stringify({
+              input: { text },
+              voice: TTS_VOICE,
+              audioConfig: { audioEncoding: "MP3" },
+            }),
+          }
+        );
+
+        if (resp.status === 401 || resp.status === 403) throw new Error("auth");
+        if (resp.status === 429) throw new Error("rate-limit");
+        if (!resp.ok) throw new Error(`api-${resp.status}`);
+
+        const { audioContent } = await resp.json();
+        const bytes = Uint8Array.from(atob(audioContent), c => c.charCodeAt(0));
+        return URL.createObjectURL(new Blob([bytes], { type: "audio/mpeg" }));
+      } catch (err) {
+        if (err.message === "auth" || err.message === "no-key") throw err;
+        if (attempt < retries - 1) {
+          // Back off longer for rate-limit errors
+          const delay = err.message === "rate-limit" ? 3000 : 1000;
+          await new Promise(r => setTimeout(r, delay));
+        } else {
+          throw err;
         }
-      );
-
-      if (resp.status === 401 || resp.status === 403) throw new Error("auth");
-      if (!resp.ok) throw new Error(`api-${resp.status}`);
-
-      const { audioContent } = await resp.json();
-      const bytes = Uint8Array.from(atob(audioContent), c => c.charCodeAt(0));
-      return URL.createObjectURL(new Blob([bytes], { type: "audio/mpeg" }));
-    } catch (err) {
-      if (err.message === "auth" || err.message === "no-key") throw err;
-      if (attempt < retries - 1)
-        await new Promise(r => setTimeout(r, 1000));
-      else
-        throw err;
+      }
     }
+  } finally {
+    _synthRelease();
   }
 }
 
