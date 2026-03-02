@@ -475,8 +475,11 @@ async function playChapter() {
       (url) => {
         item.url = url;
         _ttsReadyCount++;
-        if (gen === ttsGen && bar)
+        if (gen === ttsGen && bar) {
           bar.style.width = `${(_ttsReadyCount / ttsQueue.length) * 100}%`;
+          if (_ttsReadyCount === ttsQueue.length)
+            document.getElementById("ttsPlayer")?.classList.add("tts-ready");
+        }
       },
       () => { item.url = null; }
     );
@@ -516,7 +519,7 @@ async function ttsPlayAt(index, gen) {
     await ttsAudio.play();
     if (gen !== ttsGen) { ttsAudio.pause(); return; }
 
-    ttsSetStatus(`\uD83C\uDFA7 ${item.verseNum} / ${ttsQueue.length}`);
+    ttsSetStatus(`${ttsIcon("graphic_eq")} ${item.verseNum} / ${ttsQueue.length}`);
     ttsNavUpdate();
 
     ttsAudio.onended = () => {
@@ -526,7 +529,7 @@ async function ttsPlayAt(index, gen) {
     if (gen !== ttsGen) return;
     console.error("TTS", err);
     document.getElementById("ttsPlayer")?.classList.remove("tts-buffering");
-    ttsSetStatus(`\u26A0 Verse ${item.verseNum} failed`);
+    ttsSetStatus(`${ttsIcon("warning")} Verse ${item.verseNum} failed`);
 
     // Repurpose pause button as a single-verse retry
     const pauseBtn = document.getElementById("ttsPauseBtn");
@@ -570,11 +573,11 @@ function pauseResumeTTS() {
   if (ttsPaused) {
     ttsAudio.play(); ttsPaused = false;
     if (btn) btn.innerHTML = '<span class="material-symbols-outlined">pause</span>';
-    ttsSetStatus(`\uD83C\uDFA7 ${ttsQueue[ttsIdx]?.verseNum} / ${ttsQueue.length}`);
+    ttsSetStatus(`${ttsIcon("graphic_eq")} ${ttsQueue[ttsIdx]?.verseNum} / ${ttsQueue.length}`);
   } else {
     ttsAudio.pause(); ttsPaused = true;
     if (btn) btn.innerHTML = '<span class="material-symbols-outlined">play_arrow</span>';
-    ttsSetStatus(`\u23F8 Verse ${ttsQueue[ttsIdx]?.verseNum}`);
+    ttsSetStatus(`${ttsIcon("pause")} Verse ${ttsQueue[ttsIdx]?.verseNum}`);
   }
 }
 
@@ -599,7 +602,7 @@ function stopTTS() {
   document.querySelectorAll("#output .verse.tts-active").forEach(v => v.classList.remove("tts-active"));
   document.querySelectorAll("#output .verse-header.verse-highlight").forEach(v => v.classList.remove("verse-highlight"));
   const player = document.getElementById("ttsPlayer");
-  player.classList.remove("tts-buffering");
+  player.classList.remove("tts-buffering", "tts-ready");
   const bar = document.getElementById("ttsProgressBar");
   if (bar) bar.style.width = "0%";
   player.hidden = true;
@@ -613,7 +616,7 @@ function ttsFinish() {
   document.querySelectorAll("#output .verse.tts-active").forEach(v => v.classList.remove("tts-active"));
   document.querySelectorAll("#output .verse-header.verse-highlight").forEach(v => v.classList.remove("verse-highlight"));
   const player = document.getElementById("ttsPlayer");
-  player.classList.remove("tts-buffering");
+  player.classList.remove("tts-buffering", "tts-ready");
   const bar = document.getElementById("ttsProgressBar");
   if (bar) bar.style.width = "0%";
   player.hidden = true;
@@ -626,9 +629,12 @@ function ttsShowPlayer(status) {
   ttsSetStatus(status);
 }
 
-function ttsSetStatus(text) {
+function ttsIcon(name) {
+  return `<span class="material-symbols-outlined tts-status-icon">${name}</span>`;
+}
+function ttsSetStatus(html) {
   const el = document.getElementById("ttsStatus");
-  if (el) el.textContent = text;
+  if (el) el.innerHTML = html;
 }
 
 function ttsNavUpdate() {

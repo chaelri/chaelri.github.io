@@ -1616,10 +1616,10 @@ body.light {
   position: absolute;
   bottom: 0;
   left: 0;
-  height: 3px;
+  height: 2px;
   width: 0%;
-  background: rgba(255, 255, 255, 0.6);
-  border-radius: 0 0 999px 999px;
+  background: rgba(255, 255, 255, 0.45);
+  border-radius: 0; /* parent overflow:hidden handles clipping */
   transition: width 0.4s ease;
   pointer-events: none;
 }
@@ -1632,12 +1632,19 @@ body.light {
 .tts-player.tts-buffering .tts-progress-bar {
   background: linear-gradient(
     90deg,
-    rgba(255,255,255,0.25) 0%,
-    rgba(255,255,255,0.75) 50%,
-    rgba(255,255,255,0.25) 100%
+    rgba(255,255,255,0.15) 0%,
+    rgba(255,255,255,0.6) 50%,
+    rgba(255,255,255,0.15) 100%
   );
   background-size: 200% 100%;
-  animation: ttsShimmer 1.2s ease-in-out infinite;
+  animation: ttsShimmer 1.4s ease-in-out infinite;
+}
+
+/* All verses buffered — bar glows white briefly */
+.tts-player.tts-ready .tts-progress-bar {
+  background: rgba(255, 255, 255, 0.85);
+  box-shadow: 0 0 6px rgba(255, 255, 255, 0.5);
+  transition: background 0.5s ease, box-shadow 0.5s ease;
 }
 
 /* Only flex when the [hidden] attribute is absent */
@@ -1685,6 +1692,15 @@ body.light {
   overflow: hidden;
   text-overflow: ellipsis;
   max-width: 160px;
+  display: flex;
+  align-items: center;
+  gap: 4px;
+}
+
+.tts-status-icon {
+  font-size: 15px;
+  line-height: 1;
+  flex-shrink: 0;
 }
 
 /* On desktop, scroll-top btn is hidden; on mobile keep TTS above safe area */
