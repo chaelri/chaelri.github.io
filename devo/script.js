@@ -366,8 +366,8 @@ function toggleHighlight(key) {
 const TTS_VOICE = { languageCode: "en-US", name: "en-US-Journey-D" };
 let _ttsReadyCount = 0;
 
-// Semaphore: max 3 concurrent TTS requests to avoid 429 rate-limit errors
-const _synthSem = { active: 0, max: 3, queue: [] };
+// Semaphore: max 2 concurrent TTS requests to stay under rate limits
+const _synthSem = { active: 0, max: 2, queue: [] };
 function _synthAcquire() {
   if (_synthSem.active < _synthSem.max) { _synthSem.active++; return Promise.resolve(); }
   return new Promise(resolve => _synthSem.queue.push(resolve));
@@ -377,7 +377,7 @@ function _synthRelease() {
   _synthSem.queue.shift()?.(_synthSem.active++);
 }
 
-async function ttsSynthesize(text, retries = 5) {
+async function ttsSynthesize(text, retries = 10) {
   const key = window.GOOGLE_TTS_KEY || localStorage.getItem("googleTtsKey");
   if (!key) throw new Error("no-key");
 
@@ -408,8 +408,10 @@ async function ttsSynthesize(text, retries = 5) {
       } catch (err) {
         if (err.message === "auth" || err.message === "no-key") throw err;
         if (attempt < retries - 1) {
-          // Back off longer for rate-limit errors
-          const delay = err.message === "rate-limit" ? 3000 : 1000;
+          // Exponential backoff + jitter so concurrent retries don't all fire at once
+          const base = err.message === "rate-limit" ? 3000 : 800;
+          const delay = Math.min(base * Math.pow(1.8, attempt), 30000)
+                      + Math.random() * 1500;
           await new Promise(r => setTimeout(r, delay));
         } else {
           throw err;
