@@ -373,8 +373,15 @@ function _synthAcquire() {
   return new Promise(resolve => _synthSem.queue.push(resolve));
 }
 function _synthRelease() {
-  _synthSem.active--;
-  _synthSem.queue.shift()?.(_synthSem.active++);
+  _synthSem.active = Math.max(0, _synthSem.active - 1);
+  if (_synthSem.queue.length && _synthSem.active < _synthSem.max) {
+    _synthSem.active++;
+    _synthSem.queue.shift()();
+  }
+}
+function _synthReset() {
+  _synthSem.active = 0;
+  _synthSem.queue.length = 0; // abandon stale waiters, they'll be GC'd
 }
 
 async function ttsSynthesize(text, retries = 10) {
@@ -597,6 +604,7 @@ function ttsNextVerse() {
 
 function stopTTS() {
   ttsGen++;
+  _synthReset(); // flush stale semaphore so new chapter requests aren't blocked
   if (ttsAudio) { ttsAudio.onended = null; ttsAudio.pause(); ttsAudio = null; }
   ttsQueue = []; ttsIdx = -1; ttsPaused = false;
   document.querySelectorAll("#output .verse.tts-active").forEach(v => v.classList.remove("tts-active"));
@@ -2370,6 +2378,7 @@ if (vSelect) {
 }
 loadBtn.onclick = async () => {
   output.innerHTML = "";
+  stopTTS(); // fully reset TTS state so new chapter gets a fresh queue
   document.getElementById("prevChapterBtn").classList.remove("hidden");
   document.getElementById("nextChapterBtn").classList.remove("hidden");
   document.getElementById("ttsPlayBtn").classList.remove("hidden");
