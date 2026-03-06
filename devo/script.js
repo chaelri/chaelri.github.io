@@ -384,9 +384,64 @@ function _synthReset() {
   _synthSem.queue.length = 0; // abandon stale waiters, they'll be GC'd
 }
 
+function _escapeSSML(str) {
+  return str.replace(/&/g, "&amp;").replace(/</g, "&lt;").replace(/>/g, "&gt;");
+}
+function _textToSSML(text) {
+  const words = text.split(/\s+/).filter(Boolean);
+  const body  = words.map((w, i) => `<mark name="w${i}"/>${_escapeSSML(w)}`).join(" ");
+  return { ssml: `<speak>${body}</speak>`, words };
+}
+
+// ── Word-by-word highlight helpers ───────────────────────────────────────────
+let _ttsWordRaf = null;
+let _ttsActiveWordItem = null;
+
+function _injectWordSpans(item) {
+  if (!item.words?.length || !item.timepoints?.length) return;
+  const el = item.el?.querySelector(".verse-content");
+  if (!el) return;
+  item._originalHTML = el.innerHTML;
+  el.innerHTML = item.words.map((w, i) =>
+    `<span class="tts-word" data-idx="${i}">${w}</span>`
+  ).join(" ");
+}
+
+function _restoreVerseText(item) {
+  if (!item || item._originalHTML === undefined) return;
+  const el = item.el?.querySelector(".verse-content");
+  if (el) el.innerHTML = item._originalHTML;
+  delete item._originalHTML;
+}
+
+function _startWordHighlight(audio, item) {
+  if (!item?.timepoints?.length) return;
+  const el = item.el?.querySelector(".verse-content");
+  if (!el) return;
+  const pts = item.timepoints;
+  function tick() {
+    const t = audio.currentTime;
+    let wi = -1;
+    for (let i = 0; i < pts.length; i++) {
+      if (pts[i].timeSeconds <= t) wi = i; else break;
+    }
+    el.querySelectorAll(".tts-word").forEach((s, i) =>
+      s.classList.toggle("tts-word-active", i === wi)
+    );
+    if (!audio.paused && !audio.ended) _ttsWordRaf = requestAnimationFrame(tick);
+  }
+  _ttsWordRaf = requestAnimationFrame(tick);
+}
+
+function _stopWordHighlight() {
+  if (_ttsWordRaf) { cancelAnimationFrame(_ttsWordRaf); _ttsWordRaf = null; }
+}
+
 async function ttsSynthesize(text, retries = 10) {
   const key = window.GOOGLE_TTS_KEY || localStorage.getItem("googleTtsKey");
   if (!key) throw new Error("no-key");
+
+  const { ssml, words } = _textToSSML(text);
 
   await _synthAcquire();
   try {
@@ -398,9 +453,10 @@ async function ttsSynthesize(text, retries = 10) {
             method: "POST",
             headers: { "Content-Type": "application/json" },
             body: JSON.stringify({
-              input: { text },
+              input: { ssml },
               voice: TTS_VOICE,
               audioConfig: { audioEncoding: "MP3" },
+              enableTimePointing: ["SSML_MARK"],
             }),
           }
         );
@@ -409,16 +465,15 @@ async function ttsSynthesize(text, retries = 10) {
         if (resp.status === 429) throw new Error("rate-limit");
         if (!resp.ok) throw new Error(`api-${resp.status}`);
 
-        const { audioContent } = await resp.json();
+        const { audioContent, timepoints } = await resp.json();
         const bytes = Uint8Array.from(atob(audioContent), c => c.charCodeAt(0));
-        return URL.createObjectURL(new Blob([bytes], { type: "audio/mpeg" }));
+        const url = URL.createObjectURL(new Blob([bytes], { type: "audio/mpeg" }));
+        return { url, timepoints: timepoints || [], words };
       } catch (err) {
         if (err.message === "auth" || err.message === "no-key") throw err;
         if (attempt < retries - 1) {
-          // Exponential backoff + jitter so concurrent retries don't all fire at once
           const base = err.message === "rate-limit" ? 3000 : 800;
-          const delay = Math.min(base * Math.pow(1.8, attempt), 30000)
-                      + Math.random() * 1500;
+          const delay = Math.min(base * Math.pow(1.8, attempt), 30000) + Math.random() * 1500;
           await new Promise(r => setTimeout(r, delay));
         } else {
           throw err;
@@ -469,18 +524,18 @@ async function playChapter() {
   const playBtn = document.getElementById("ttsPlayBtn");
   if (playBtn) playBtn.disabled = true;
   ttsShowPlayer("Starting\u2026");
+  document.getElementById("output")?.classList.add("tts-mode");
 
   _ttsReadyCount = 0;
   const bar = document.getElementById("ttsProgressBar");
   if (bar) bar.style.width = "0%";
 
-  // Fire synthesis for ALL verses to the worker immediately.
-  // Worker processes them sequentially in the background.
-  // Results are stored on each item unconditionally — never discarded on nav.
   for (const item of ttsQueue) {
     item.ready = ttsSynthesize(item.text).then(
-      (url) => {
+      ({ url, timepoints, words }) => {
         item.url = url;
+        item.timepoints = timepoints;
+        item.words = words;
         _ttsReadyCount++;
         if (gen === ttsGen && bar) {
           bar.style.width = `${(_ttsReadyCount / ttsQueue.length) * 100}%`;
@@ -521,11 +576,19 @@ async function ttsPlayAt(index, gen) {
     if (!item.url) throw new Error("synthesis failed");
 
     document.getElementById("ttsPlayer")?.classList.remove("tts-buffering");
+
+    // Restore previous verse text, inject word spans for this verse
+    _stopWordHighlight();
+    _restoreVerseText(_ttsActiveWordItem);
+    _injectWordSpans(item);
+    _ttsActiveWordItem = item;
+
     ttsAudio = new Audio(item.url);
     ttsPaused = false;
     await ttsAudio.play();
     if (gen !== ttsGen) { ttsAudio.pause(); return; }
 
+    _startWordHighlight(ttsAudio, item);
     ttsSetStatus(`${ttsIcon("graphic_eq")} ${item.verseNum} / ${ttsQueue.length}`);
     ttsNavUpdate();
 
@@ -535,6 +598,7 @@ async function ttsPlayAt(index, gen) {
   } catch (err) {
     if (gen !== ttsGen) return;
     console.error("TTS", err);
+    _stopWordHighlight();
     document.getElementById("ttsPlayer")?.classList.remove("tts-buffering");
     ttsSetStatus(`${ttsIcon("warning")} Verse ${item.verseNum} failed`);
 
@@ -543,13 +607,11 @@ async function ttsPlayAt(index, gen) {
     if (pauseBtn) {
       pauseBtn.innerHTML = '<span class="material-symbols-outlined">refresh</span>';
       pauseBtn.onclick = () => {
-        // Reset pause button back to normal
         pauseBtn.innerHTML = '<span class="material-symbols-outlined">pause</span>';
         pauseBtn.onclick = pauseResumeTTS;
-        // Re-synthesize just this verse then play it
         item.url = null;
         item.ready = ttsSynthesize(item.text).then(
-          url => { item.url = url; },
+          ({ url, timepoints, words }) => { item.url = url; item.timepoints = timepoints; item.words = words; },
           () => { item.url = null; }
         );
         ttsPlayAt(index, gen);
@@ -581,8 +643,10 @@ function pauseResumeTTS() {
     ttsAudio.play(); ttsPaused = false;
     if (btn) btn.innerHTML = '<span class="material-symbols-outlined">pause</span>';
     ttsSetStatus(`${ttsIcon("graphic_eq")} ${ttsQueue[ttsIdx]?.verseNum} / ${ttsQueue.length}`);
+    _startWordHighlight(ttsAudio, _ttsActiveWordItem);
   } else {
     ttsAudio.pause(); ttsPaused = true;
+    _stopWordHighlight();
     if (btn) btn.innerHTML = '<span class="material-symbols-outlined">play_arrow</span>';
     ttsSetStatus(`${ttsIcon("pause")} Verse ${ttsQueue[ttsIdx]?.verseNum}`);
   }
@@ -602,9 +666,17 @@ function ttsNextVerse() {
   ttsPlayAt(ttsIdx + 1, ttsGen);
 }
 
+function _ttsCleanupMode() {
+  _stopWordHighlight();
+  _restoreVerseText(_ttsActiveWordItem);
+  _ttsActiveWordItem = null;
+  document.getElementById("output")?.classList.remove("tts-mode");
+}
+
 function stopTTS() {
   ttsGen++;
-  _synthReset(); // flush stale semaphore so new chapter requests aren't blocked
+  _synthReset();
+  _ttsCleanupMode();
   if (ttsAudio) { ttsAudio.onended = null; ttsAudio.pause(); ttsAudio = null; }
   ttsQueue = []; ttsIdx = -1; ttsPaused = false;
   document.querySelectorAll("#output .verse.tts-active").forEach(v => v.classList.remove("tts-active"));
@@ -619,6 +691,7 @@ function stopTTS() {
 }
 
 function ttsFinish() {
+  _ttsCleanupMode();
   if (ttsAudio) { ttsAudio.pause(); ttsAudio = null; }
   ttsPaused = false;
   document.querySelectorAll("#output .verse.tts-active").forEach(v => v.classList.remove("tts-active"));

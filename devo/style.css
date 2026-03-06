@@ -1710,6 +1710,39 @@ body.light {
   }
 }
 
+/* ---------- TTS MODE — immersive reading ---------- */
+
+/* Dim and blur non-active verses */
+#output.tts-mode .verse {
+  transition: opacity 0.4s ease, filter 0.4s ease;
+}
+#output.tts-mode .verse:not(.tts-active) {
+  opacity: 0.25;
+  filter: blur(1.5px);
+}
+#output.tts-mode .verse.tts-active {
+  opacity: 1;
+  filter: none;
+}
+
+/* Hide per-verse action buttons while TTS is playing */
+#output.tts-mode .verse-actions {
+  display: none !important;
+}
+
+/* Word-by-word highlight */
+.tts-word {
+  display: inline;
+  border-radius: 3px;
+  transition: background 0.08s ease, color 0.08s ease;
+}
+.tts-word-active {
+  background: rgba(255, 255, 255, 0.22);
+  color: #fff;
+  padding: 0 2px;
+  margin: 0 -2px;
+}
+
 /* ---------- TTS ACTIVE VERSE ---------- */
 .verse.tts-active .verse-content {
   background: rgba(72, 107, 236, 0.13);
