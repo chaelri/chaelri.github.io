@@ -1597,8 +1597,9 @@ body.light {
   left: 50%;
   transform: translateX(-50%);
   background: linear-gradient(135deg, #486bec, #db2777);
-  border-radius: 999px;
-  padding: 8px 14px;
+  border-radius: 24px;
+  padding: 10px 16px 10px;
+  flex-direction: column;
   align-items: center;
   gap: 6px;
   color: white;
@@ -1608,7 +1609,13 @@ body.light {
   white-space: nowrap;
   animation: aiFadeIn 0.3s ease-out;
   max-width: calc(100vw - 48px);
-  overflow: hidden; /* clips the progress bar to rounded corners */
+  overflow: hidden;
+}
+
+.tts-controls {
+  display: flex;
+  align-items: center;
+  gap: 6px;
 }
 
 /* Thin progress bar at bottom of pill — fills silently as verses are synthesised */
@@ -1650,6 +1657,7 @@ body.light {
 /* Only flex when the [hidden] attribute is absent */
 .tts-player:not([hidden]) {
   display: flex;
+  flex-direction: column;
 }
 
 .tts-btn {
@@ -1685,13 +1693,23 @@ body.light {
   opacity: 0.35;
 }
 
+.tts-passage {
+  font-size: 15px;
+  font-weight: 700;
+  opacity: 0.95;
+  white-space: nowrap;
+  letter-spacing: 0.01em;
+  text-align: center;
+  width: 100%;
+}
+
 #ttsStatus {
   font-size: 12px;
-  opacity: 0.9;
+  opacity: 0.75;
   padding: 0 4px;
   overflow: hidden;
   text-overflow: ellipsis;
-  max-width: 160px;
+  max-width: 120px;
   display: flex;
   align-items: center;
   gap: 4px;

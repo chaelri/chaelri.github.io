@@ -129,19 +129,22 @@
 
     <div id="ttsPlayer" class="tts-player" hidden>
       <div id="ttsProgressBar" class="tts-progress-bar"></div>
-      <button id="ttsPrevBtn" class="tts-btn">
-        <span class="material-symbols-outlined">skip_previous</span>
-      </button>
-      <button id="ttsPauseBtn" class="tts-btn">
-        <span class="material-symbols-outlined">pause</span>
-      </button>
-      <button id="ttsNextBtn" class="tts-btn">
-        <span class="material-symbols-outlined">skip_next</span>
-      </button>
-      <span id="ttsStatus"></span>
-      <button id="ttsCloseBtn" class="tts-btn tts-close">
-        <span class="material-symbols-outlined">close</span>
-      </button>
+      <span id="ttsPassage" class="tts-passage"></span>
+      <div class="tts-controls">
+        <button id="ttsPrevBtn" class="tts-btn">
+          <span class="material-symbols-outlined">skip_previous</span>
+        </button>
+        <button id="ttsPauseBtn" class="tts-btn">
+          <span class="material-symbols-outlined">pause</span>
+        </button>
+        <button id="ttsNextBtn" class="tts-btn">
+          <span class="material-symbols-outlined">skip_next</span>
+        </button>
+        <span id="ttsStatus"></span>
+        <button id="ttsCloseBtn" class="tts-btn tts-close">
+          <span class="material-symbols-outlined">close</span>
+        </button>
+      </div>
     </div>
 
     <script src="config.js" onerror="void 0"></script>

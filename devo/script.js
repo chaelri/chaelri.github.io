@@ -441,7 +441,7 @@ async function ttsSynthesize(text, retries = 10) {
   const key = window.GOOGLE_TTS_KEY || localStorage.getItem("googleTtsKey");
   if (!key) throw new Error("no-key");
 
-  const { ssml, words } = _textToSSML(text);
+  const words = text.split(/\s+/).filter(Boolean);
 
   await _synthAcquire();
   try {
@@ -453,10 +453,9 @@ async function ttsSynthesize(text, retries = 10) {
             method: "POST",
             headers: { "Content-Type": "application/json" },
             body: JSON.stringify({
-              input: { ssml },
+              input: { text },
               voice: TTS_VOICE,
               audioConfig: { audioEncoding: "MP3" },
-              enableTimePointing: ["SSML_MARK"],
             }),
           }
         );
@@ -465,10 +464,10 @@ async function ttsSynthesize(text, retries = 10) {
         if (resp.status === 429) throw new Error("rate-limit");
         if (!resp.ok) throw new Error(`api-${resp.status}`);
 
-        const { audioContent, timepoints } = await resp.json();
+        const { audioContent } = await resp.json();
         const bytes = Uint8Array.from(atob(audioContent), c => c.charCodeAt(0));
         const url = URL.createObjectURL(new Blob([bytes], { type: "audio/mpeg" }));
-        return { url, timepoints: timepoints || [], words };
+        return { url, timepoints: [], words };
       } catch (err) {
         if (err.message === "auth" || err.message === "no-key") throw err;
         if (attempt < retries - 1) {
@@ -707,6 +706,10 @@ function ttsFinish() {
 
 function ttsShowPlayer(status) {
   document.getElementById("ttsPlayer").hidden = false;
+  const name = BIBLE_META[bookEl?.value]?.name || "";
+  const ch   = chapterEl?.value || "";
+  const passageEl = document.getElementById("ttsPassage");
+  if (passageEl) passageEl.textContent = name && ch ? `${name} ${ch}` : "";
   ttsSetStatus(status);
 }
 
