@@ -699,9 +699,55 @@ function ttsFinish() {
   player.classList.remove("tts-buffering", "tts-ready");
   const bar = document.getElementById("ttsProgressBar");
   if (bar) bar.style.width = "0%";
-  player.hidden = true;
-  const playBtn = document.getElementById("ttsPlayBtn");
-  if (playBtn) playBtn.disabled = false;
+  ttsShowContinuePrompt();
+}
+
+function ttsShowContinuePrompt() {
+  const bookKeys = Object.keys(BIBLE_META);
+  let bookIdx = bookKeys.indexOf(bookEl.value);
+  let ch = parseInt(chapterEl.value);
+  const totalCh = BIBLE_META[bookEl.value].chapters.length;
+
+  let nextBook, nextCh;
+  if (ch < totalCh) {
+    nextBook = bookEl.value;
+    nextCh = ch + 1;
+  } else if (bookIdx < bookKeys.length - 1) {
+    nextBook = bookKeys[bookIdx + 1];
+    nextCh = 1;
+  } else {
+    stopTTS(); // end of Bible
+    return;
+  }
+
+  const nextName = `${BIBLE_META[nextBook].name} ${nextCh}`;
+
+  const passageEl = document.getElementById("ttsPassage");
+  if (passageEl) passageEl.textContent = nextName;
+  ttsSetStatus("Continue?");
+
+  const pauseBtn = document.getElementById("ttsPauseBtn");
+  if (pauseBtn) {
+    pauseBtn.innerHTML = ttsIcon("play_circle");
+    pauseBtn.onclick = async () => {
+      if (nextBook !== bookEl.value) {
+        bookEl.value = nextBook;
+        loadChapters();
+      }
+      chapterEl.value = nextCh;
+      verseEl.value = "";
+
+      document.getElementById("output").innerHTML = "";
+      stopTTS();
+      resetAISections();
+      document.getElementById("prevChapterBtn").classList.remove("hidden");
+      document.getElementById("nextChapterBtn").classList.remove("hidden");
+      document.getElementById("ttsPlayBtn").classList.remove("hidden");
+      await loadPassage();
+      runAIForCurrentPassage();
+      playChapter();
+    };
+  }
 }
 
 function ttsShowPlayer(status) {
