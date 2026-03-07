@@ -339,6 +339,21 @@ function toggleFavorite(key) {
   saveFavorites();
 }
 
+function animateFavorite(verseWrap) {
+  const icon = verseWrap.querySelector(".favorite-indicator");
+  if (icon) {
+    icon.classList.remove("fav-pop");
+    void icon.offsetWidth;
+    icon.classList.add("fav-pop");
+    icon.addEventListener("animationend", () => icon.classList.remove("fav-pop"), { once: true });
+  }
+  if (isFavorite(verseWrap.querySelector(".favorite-indicator")?.dataset.key)) {
+    verseWrap.classList.remove("fav-flash");
+    void verseWrap.offsetWidth;
+    verseWrap.classList.add("fav-flash");
+    verseWrap.addEventListener("animationend", () => verseWrap.classList.remove("fav-flash"), { once: true });
+  }
+}
 
 // ── TTS — Google Cloud Text-to-Speech ─────────────────────────────────────────
 // Server-side synthesis: ~200-400ms per verse vs ~12s for in-browser WASM.
@@ -1809,6 +1824,7 @@ async function loadPassage() {
         toggleFavorite(key);
         wrap.classList.toggle("highlighted", isFavorite(key));
         updateMetaIndicators(key, verseContentEl, comments[key]?.length || 0);
+        animateFavorite(wrap);
       };
 
       aiBtn.onclick = (e) => {
@@ -1859,6 +1875,7 @@ async function loadPassage() {
           toggleFavorite(key);
           wrap.classList.toggle("highlighted", isFavorite(key));
           updateMetaIndicators(key, verseContentEl, comments[key]?.length || 0);
+          animateFavorite(wrap);
         };
       }
 
@@ -2284,6 +2301,7 @@ const updateMetaIndicators = (key, verseContent, newCommentCount) => {
     e.stopPropagation();
     toggleFavorite(key);
     updateMetaIndicators(key, verseContent, comments[key]?.length || 0);
+    if (verseWrap) animateFavorite(verseWrap);
   };
   metaIndicators.appendChild(favIndicator);
 
