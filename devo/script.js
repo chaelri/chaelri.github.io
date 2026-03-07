@@ -339,25 +339,6 @@ function toggleFavorite(key) {
   saveFavorites();
 }
 
-// Highlights store
-let highlights = JSON.parse(localStorage.getItem("bibleHighlights") || "{}");
-
-function saveHighlights() {
-  localStorage.setItem("bibleHighlights", JSON.stringify(highlights));
-}
-
-function isHighlighted(key) {
-  return !!highlights[key];
-}
-
-function toggleHighlight(key) {
-  if (highlights[key]) {
-    delete highlights[key];
-  } else {
-    highlights[key] = Date.now();
-  }
-  saveHighlights();
-}
 
 // ── TTS — Google Cloud Text-to-Speech ─────────────────────────────────────────
 // Server-side synthesis: ~200-400ms per verse vs ~12s for in-browser WASM.
@@ -1488,7 +1469,7 @@ async function renderDashboard() {
               )
               .join("")}
           </div>`
-            : `<p class="empty-state">No favorite verses yet. Click the <span class="material-icons" style="font-size:1em; vertical-align:middle; color:#facc15;">favorite_border</span> icon next to a verse to add one!</p>`
+            : `<p class="empty-state">No favorite verses yet. Double-click a verse or tap the <span class="material-icons" style="font-size:1em; vertical-align:middle; color:#c83086;">favorite_border</span> icon to add one!</p>`
         }
       </section>
 
@@ -1744,7 +1725,6 @@ async function loadPassage() {
       const key = keyOf(v.book_id, v.chapter, v.verse);
       const count = comments[key]?.length || 0;
       const isFav = isFavorite(key);
-      const isHL = isHighlighted(key);
 
       let formattedText = "";
 
@@ -1783,7 +1763,7 @@ async function loadPassage() {
       }
 
       const wrap = document.createElement("div");
-      wrap.className = "verse" + (isHL ? " highlighted" : "");
+      wrap.className = "verse" + (isFav ? " highlighted" : "");
       wrap.innerHTML = `
         <div id="${
           v.verse
@@ -1795,14 +1775,10 @@ async function loadPassage() {
               <span class="material-icons favorite-indicator" style="font-size:14px; margin-right:4px; ${
                 isFav ? 'color:#c83086;"' : '"'
               } data-key="${key}">${isFav ? "favorite" : "favorite_border"}</span>
-              <span class="material-icons highlight-indicator" style="font-size:10px; cursor:pointer; margin-right:4px; ${isHL ? "color:#facc15;" : "opacity:0.25;"}" data-key="${key}">brightness_1</span>
+              <span class="material-icons note-indicator" style="font-size:14px; margin-right:4px; cursor:pointer; ${count ? "opacity:1;" : "opacity:0.25;"}" data-key="${key}">edit_note</span>
               ${
                 count
-                  ? `
-                <span class="comment-indicator" style="display:inline-flex; align-items:center;">
-                  <span class="material-icons" style="font-size:14px; margin-right:2px;">chat_bubble</span>
-                  <span style="font-size:12px;">${count}</span>
-                </span>`
+                  ? `<span style="font-size:11px; opacity:0.5;">${count}</span>`
                   : ""
               }
             </span>
@@ -1827,9 +1803,12 @@ async function loadPassage() {
       const favIndicator = wrap.querySelector(".favorite-indicator");
       const verseContentEl = wrap.querySelector(".verse-content"); // Get verseContent for updateMetaIndicators
 
-      headerEl.onclick = () => {
-        commentsEl.hidden = !commentsEl.hidden;
-        if (!commentsEl.hidden) renderComments(key, commentsEl);
+      // Double-click: toggle favorite
+      headerEl.ondblclick = (e) => {
+        e.stopPropagation();
+        toggleFavorite(key);
+        wrap.classList.toggle("highlighted", isFavorite(key));
+        updateMetaIndicators(key, verseContentEl, comments[key]?.length || 0);
       };
 
       aiBtn.onclick = (e) => {
@@ -1864,23 +1843,22 @@ async function loadPassage() {
         );
       };
 
+      // Note icon: open comments
+      const noteIndicator = wrap.querySelector(".note-indicator");
+      if (noteIndicator) {
+        noteIndicator.onclick = (e) => {
+          e.stopPropagation();
+          commentsEl.hidden = !commentsEl.hidden;
+          if (!commentsEl.hidden) renderComments(key, commentsEl);
+        };
+      }
+
       if (favIndicator) {
         favIndicator.onclick = (e) => {
           e.stopPropagation();
           toggleFavorite(key);
-          updateMetaIndicators(key, verseContentEl, comments[key]?.length || 0); // Use the global function
-        };
-      }
-
-      const hlIndicator = wrap.querySelector(".highlight-indicator");
-      if (hlIndicator) {
-        hlIndicator.onclick = (e) => {
-          e.stopPropagation();
-          toggleHighlight(key);
-          const isNowHL = isHighlighted(key);
-          wrap.classList.toggle("highlighted", isNowHL);
-          hlIndicator.style.color = isNowHL ? "#facc15" : "";
-          hlIndicator.style.opacity = isNowHL ? "1" : "0.25";
+          wrap.classList.toggle("highlighted", isFavorite(key));
+          updateMetaIndicators(key, verseContentEl, comments[key]?.length || 0);
         };
       }
 
@@ -2300,41 +2278,37 @@ const updateMetaIndicators = (key, verseContent, newCommentCount) => {
   favIndicator.setAttribute("data-key", key);
   favIndicator.textContent = isFav ? "favorite" : "favorite_border";
   favIndicator.style.color = isFav ? "#c83086" : "";
+  const verseWrap = verseContent.closest(".verse");
+  if (verseWrap) verseWrap.classList.toggle("highlighted", isFav);
   favIndicator.onclick = (e) => {
     e.stopPropagation();
     toggleFavorite(key);
-    updateMetaIndicators(key, verseContent, comments[key]?.length || 0); // Re-run to update icon
+    updateMetaIndicators(key, verseContent, comments[key]?.length || 0);
   };
   metaIndicators.appendChild(favIndicator);
 
-  // 1.5. Highlight Indicator
-  const isHL = isHighlighted(key);
-  const hlIndicator = document.createElement("span");
-  hlIndicator.className = "material-icons highlight-indicator";
-  hlIndicator.style.cssText = `font-size:10px; cursor:pointer; margin-right:4px; ${isHL ? "color:#facc15;" : "opacity:0.25;"}`;
-  hlIndicator.setAttribute("data-key", key);
-  hlIndicator.textContent = "brightness_1";
-  const verseWrap = verseContent.closest(".verse");
-  hlIndicator.onclick = (e) => {
+  // 2. Note Indicator
+  const noteIndicator = document.createElement("span");
+  noteIndicator.className = "material-icons note-indicator";
+  noteIndicator.style.cssText = `font-size:14px; margin-right:4px; cursor:pointer; ${newCommentCount > 0 ? "opacity:1;" : "opacity:0.25;"}`;
+  noteIndicator.setAttribute("data-key", key);
+  noteIndicator.textContent = "edit_note";
+  noteIndicator.onclick = (e) => {
     e.stopPropagation();
-    toggleHighlight(key);
-    const isNowHL = isHighlighted(key);
-    if (verseWrap) verseWrap.classList.toggle("highlighted", isNowHL);
-    hlIndicator.style.color = isNowHL ? "#facc15" : "";
-    hlIndicator.style.opacity = isNowHL ? "1" : "0.25";
+    const commentsEl = verseWrap?.querySelector(".comments");
+    if (commentsEl) {
+      commentsEl.hidden = !commentsEl.hidden;
+      if (!commentsEl.hidden) renderComments(key, commentsEl);
+    }
   };
-  metaIndicators.appendChild(hlIndicator);
+  metaIndicators.appendChild(noteIndicator);
 
-  // 2. Comment Count Indicator
+  // 3. Comment Count
   if (newCommentCount > 0) {
-    const commentIndicator = document.createElement("span");
-    commentIndicator.className = "comment-indicator";
-    commentIndicator.style.cssText = "display:inline-flex; align-items:center;";
-    commentIndicator.innerHTML = `
-        <span class="material-icons" style="font-size:14px; margin-right:2px;">chat_bubble</span>
-        <span style="font-size:12px;">${newCommentCount}</span>
-      `;
-    metaIndicators.appendChild(commentIndicator);
+    const countSpan = document.createElement("span");
+    countSpan.style.cssText = "font-size:11px; opacity:0.5;";
+    countSpan.textContent = newCommentCount;
+    metaIndicators.appendChild(countSpan);
   }
 };
 

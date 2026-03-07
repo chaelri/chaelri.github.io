@@ -227,7 +227,7 @@ select:disabled {
 }
 
 .verse.highlighted .verse-content {
-  background: rgba(250, 204, 21, 0.12);
+  background: rgba(200, 48, 134, 0.12);
   border-radius: 8px;
   padding: 4px 8px;
   transition: background 0.25s ease;
