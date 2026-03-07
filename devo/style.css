@@ -1730,6 +1730,11 @@ body.light {
 
 /* ---------- TTS MODE — immersive reading ---------- */
 
+/* Suppress the border-left/italic glow animation during TTS — the .tts-active background highlight is enough */
+#output.tts-mode .verse-highlight {
+  animation: none;
+}
+
 /* Dim and blur non-active verses */
 #output.tts-mode .verse {
   transition: opacity 0.4s ease, filter 0.4s ease;

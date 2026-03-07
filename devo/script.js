@@ -565,6 +565,9 @@ async function ttsPlayAt(index, gen) {
   const pauseBtn = document.getElementById("ttsPauseBtn");
   if (pauseBtn) { pauseBtn.innerHTML = '<span class="material-symbols-outlined">pause</span>'; pauseBtn.onclick = pauseResumeTTS; }
 
+  // Ensure tts-mode is on #output regardless of how ttsPlayAt was reached
+  // (e.g. navigating back during the continue prompt removes tts-mode via ttsFinish)
+  document.getElementById("output")?.classList.add("tts-mode");
   ttsMark(item.el);
   ttsSetStatus(`Loading ${item.verseNum}\u2026`);
   document.getElementById("ttsPlayer")?.classList.add("tts-buffering");
@@ -1702,6 +1705,10 @@ async function loadPassage() {
         .replace(/\s+/g, " "),
     }));
 
+    // Sort by numeric start so range keys like "1-4" don’t get pushed to the end
+    // (JS Object.entries puts integer-like keys first, non-integer strings after)
+    verses.sort((a, b) => parseInt(a.verse) - parseInt(b.verse));
+
     // Logic to filter single verse including range overlap
     if (single) {
       verses = verses.filter((v) => {
@@ -2334,7 +2341,9 @@ const updateMetaIndicators = (key, verseContent, newCommentCount) => {
 function renderComments(key, container) {
   container.innerHTML = "";
 
-  const verseIndex = key.split("-").pop();
+  // key format: "BOOKID-CHAPTER-VERSE" where VERSE may contain a dash (e.g. "1-4")
+  const parts = key.split("-");
+  const verseIndex = parts.slice(2).join("-");
   const verseHeader = document.getElementById(verseIndex);
   // Find the flex container that holds the verse content
   const verseContent = verseHeader.children[0];
@@ -2426,17 +2435,19 @@ function renderSummary() {
   let items = [];
   hasCurrentComments = false;
   Object.entries(comments).forEach(([key, list]) => {
-    const [b, c, v] = key.split("-");
-    const verseNum = +v;
+    const parts = key.split("-");
+    const b = parts[0];
+    const c = parts[1];
+    const v = parts.slice(2).join("-"); // preserves range keys like "1-4"
 
     if (b !== bookEl.value || c !== chapterEl.value) return;
-    if (single && verseNum !== +single) return;
+    if (single && parseInt(v) !== +single) return;
     if (!list.length) return;
 
     hasCurrentComments = true;
 
-    items.push({ verseNum, list });
-    window.__currentSummaryItems.push({ verseNum, list });
+    items.push({ verseNum: v, list });
+    window.__currentSummaryItems.push({ verseNum: parseInt(v), list }); // numeric for copy-notes sort
     checkIfHasTextAreaAnswers();
   });
 
@@ -2445,7 +2456,7 @@ function renderSummary() {
     return;
   }
 
-  items.sort((a, b) => a.verseNum - b.verseNum);
+  items.sort((a, b) => parseInt(a.verseNum) - parseInt(b.verseNum));
 
   items.forEach((item) => {
     const block = document.createElement("div");
