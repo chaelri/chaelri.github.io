@@ -494,6 +494,7 @@ let ttsPaused = false;
 // ── Immersive mode state (declared here so stopTTS can reference before the immersive block) ──
 let _immDoubleTapCount = 0;
 let _immDoubleTapTimer = null;
+let _immReflIndex = 0;
 
 function ttsBuildQueue() {
   const els = [...document.querySelectorAll("#output .verse")];
@@ -787,6 +788,12 @@ function ttsShowContinuePrompt() {
     immPauseBtn.innerHTML = '<span class="material-symbols-outlined">play_arrow</span>';
     immPauseBtn.classList.add("tts-imm-btn-pulse");
     immPauseBtn.onclick = continueHandler;
+  }
+
+  const reflectBtn = document.getElementById("ttsImmReflectBtn");
+  if (reflectBtn) {
+    reflectBtn.hidden = false;
+    reflectBtn.onclick = ttsImmReflectionOpen;
   }
 }
 
@@ -2887,6 +2894,16 @@ function ttsImmersiveOpen() {
   const el = document.getElementById("ttsImmersive");
   if (!el) return;
 
+  // Always reset reflection panel state so a fresh TTS session is clean
+  const reflPanel = document.getElementById("ttsImmReflPanel");
+  if (reflPanel) reflPanel.hidden = true;
+  const stage = document.querySelector(".tts-imm-stage");
+  if (stage) stage.style.display = "";
+  const footer = document.querySelector(".tts-imm-footer");
+  if (footer) footer.style.display = "";
+  const reflectBtn = document.getElementById("ttsImmReflectBtn");
+  if (reflectBtn) reflectBtn.hidden = true;
+
   // Set passage title
   const name = BIBLE_META[bookEl?.value]?.name || "";
   const ch = chapterEl?.value || "";
@@ -2926,6 +2943,17 @@ function ttsImmersiveClose() {
   if (el) el.hidden = true;
   _immDoubleTapCount = 0;
   clearTimeout(_immDoubleTapTimer);
+  // Reset reflection panel + verse popup state
+  const panel = document.getElementById("ttsImmReflPanel");
+  if (panel) panel.hidden = true;
+  const versePopup = document.getElementById("ttsImmVersePopup");
+  if (versePopup) versePopup.hidden = true;
+  const stage = document.querySelector(".tts-imm-stage");
+  if (stage) stage.style.display = "";
+  const footer = document.querySelector(".tts-imm-footer");
+  if (footer) footer.style.display = "";
+  const reflectBtn = document.getElementById("ttsImmReflectBtn");
+  if (reflectBtn) reflectBtn.hidden = true;
 }
 
 function ttsImmersiveBuildScrubber() {
@@ -3010,6 +3038,15 @@ function _immHandleDoubleTap() {
     if (!item) return;
     const key = keyOf(bookEl.value, chapterEl.value, item.verseNum);
     toggleFavorite(key);
+    // Sync the verse element in #output
+    const favIcon = document.querySelector(`.favorite-indicator[data-key="${key}"]`);
+    if (favIcon) {
+      const isFav = isFavorite(key);
+      const wrap = favIcon.closest(".verse");
+      if (wrap) wrap.classList.toggle("highlighted", isFav);
+      favIcon.textContent = isFav ? "favorite" : "favorite_border";
+      favIcon.style.color = isFav ? "#c83086" : "";
+    }
     const heart = document.getElementById("ttsImmHeart");
     if (heart) {
       heart.classList.remove("popping");
@@ -3020,4 +3057,130 @@ function _immHandleDoubleTap() {
   } else {
     _immDoubleTapTimer = setTimeout(() => { _immDoubleTapCount = 0; }, 350);
   }
+}
+
+// ── Immersive Guided Reflection ──────────────────────────────────────────────
+
+function ttsImmReflectionOpen() {
+  const textAreas = Array.from(document.querySelectorAll('#aiReflection textarea[id^="reflection-"]'));
+  if (textAreas.length === 0) {
+    const status = document.getElementById("ttsImmStatusEl");
+    if (status) {
+      status.textContent = "Reflection not ready yet";
+      status.style.opacity = "0.7";
+      setTimeout(() => { status.style.opacity = ""; status.textContent = ""; }, 2500);
+    }
+    return;
+  }
+  // Hide stage + footer, show reflection panel
+  const stage = document.querySelector(".tts-imm-stage");
+  const footer = document.querySelector(".tts-imm-footer");
+  if (stage) stage.style.display = "none";
+  if (footer) footer.style.display = "none";
+  const panel = document.getElementById("ttsImmReflPanel");
+  if (panel) panel.hidden = false;
+  _immReflIndex = 0;
+  ttsImmReflectionShow(_immReflIndex);
+}
+
+function ttsImmReflectionShow(index) {
+  const textAreas = Array.from(document.querySelectorAll('#aiReflection textarea[id^="reflection-"]'));
+  const total = textAreas.length;
+  const ta = textAreas[index];
+  if (!ta) return;
+
+  document.getElementById("ttsImmReflProgress").textContent = `${index + 1} / ${total}`;
+
+  // Question text is in the <li> or <p> just before the textarea
+  const questionText = ta.previousElementSibling?.textContent?.trim() || `Question ${index + 1}`;
+  const questionEl = document.getElementById("ttsImmReflQuestion");
+  questionEl.innerHTML = _immParseVerseRefs(questionText);
+  questionEl.querySelectorAll(".tts-imm-verse-ref").forEach(chip => {
+    chip.onclick = () => _immShowVersePopup(
+      parseInt(chip.dataset.start),
+      parseInt(chip.dataset.end)
+    );
+  });
+
+  const myArea = document.getElementById("ttsImmReflArea");
+  myArea.value = ta.value;
+  myArea.oninput = () => {
+    ta.value = myArea.value;
+    ta.dispatchEvent(new Event("input", { bubbles: true }));
+  };
+  myArea.focus();
+
+  const backBtn = document.getElementById("ttsImmReflBack");
+  const nextBtn = document.getElementById("ttsImmReflNext");
+  const copyBtn = document.getElementById("ttsImmReflCopy");
+  const statusEl = document.getElementById("ttsImmReflStatus");
+  statusEl.textContent = "";
+
+  // Back: go to prev question, or return to TTS stage on Q1
+  backBtn.textContent = index === 0 ? "← Verses" : "← Back";
+  backBtn.onclick = () => {
+    if (index === 0) {
+      document.getElementById("ttsImmReflPanel").hidden = true;
+      const stage = document.querySelector(".tts-imm-stage");
+      if (stage) stage.style.display = "";
+      const footer = document.querySelector(".tts-imm-footer");
+      if (footer) footer.style.display = "";
+    } else {
+      _immReflIndex--;
+      ttsImmReflectionShow(_immReflIndex);
+    }
+  };
+
+  if (index < total - 1) {
+    nextBtn.hidden = false;
+    nextBtn.textContent = "Next →";
+    nextBtn.onclick = () => {
+      _immReflIndex++;
+      ttsImmReflectionShow(_immReflIndex);
+    };
+    copyBtn.hidden = true;
+  } else {
+    nextBtn.hidden = true;
+    copyBtn.hidden = false;
+    copyBtn.onclick = async () => {
+      await copyNotesBtn.onclick?.();
+      statusEl.textContent = "✅ Notes copied!";
+      setTimeout(() => { statusEl.textContent = ""; }, 2500);
+    };
+  }
+}
+
+function _immParseVerseRefs(text) {
+  // Escape HTML first, then replace verse refs with tappable chips
+  const escaped = text.replace(/&/g,"&amp;").replace(/</g,"&lt;").replace(/>/g,"&gt;");
+  return escaped.replace(/\bv\.?\s*(\d+)(?:\s*[-–]\s*(\d+))?/gi, (match, start, end) => {
+    return `<span class="tts-imm-verse-ref" data-start="${start}" data-end="${end || start}">${match}</span>`;
+  });
+}
+
+function _immShowVersePopup(startVerse, endVerse) {
+  const popup = document.getElementById("ttsImmVersePopup");
+  const content = document.getElementById("ttsImmVersePopupContent");
+  if (!popup || !content) return;
+
+  const rows = [];
+  for (let v = startVerse; v <= endVerse; v++) {
+    const item = ttsQueue.find(q => String(q.verseNum) === String(v));
+    if (item) {
+      rows.push(`
+        <div class="tts-imm-verse-popup-row">
+          <span class="tts-imm-verse-popup-num">v.${v}</span>
+          <span class="tts-imm-verse-popup-text">${item.text}</span>
+        </div>`);
+    }
+  }
+
+  content.innerHTML = rows.length
+    ? rows.join("")
+    : `<span class="tts-imm-verse-popup-text" style="opacity:0.5">Verse not found.</span>`;
+
+  popup.hidden = false;
+
+  document.getElementById("ttsImmVersePopupClose").onclick = () => { popup.hidden = true; };
+  document.getElementById("ttsImmVersePopupBackdrop").onclick = () => { popup.hidden = true; };
 }

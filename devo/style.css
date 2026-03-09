@@ -2193,3 +2193,265 @@ body.light {
   min-height: 14px;
   font-family: 'Google Sans Flex', sans-serif;
 }
+
+/* Guided reflection entry button (shows after chapter done) */
+.tts-imm-reflect-btn {
+  display: block;
+  width: calc(100% - 32px) !important;
+  margin: 10px 16px 0 !important;
+  padding: 14px !important;
+  flex: none !important;
+  background: rgba(200, 48, 134, 0.15) !important;
+  border: 1px solid rgba(200, 48, 134, 0.35) !important;
+  border-radius: 14px !important;
+  color: #e88fc8 !important;
+  font-size: 14px !important;
+  font-weight: 600 !important;
+  letter-spacing: 0.5px !important;
+  cursor: pointer;
+  text-align: center;
+  transition: background 0.2s ease;
+}
+.tts-imm-reflect-btn:hover {
+  background: rgba(200, 48, 134, 0.28) !important;
+}
+.light .tts-imm-reflect-btn {
+  background: rgba(200, 48, 134, 0.1) !important;
+  border-color: rgba(200, 48, 134, 0.3) !important;
+  color: #c83086 !important;
+}
+
+/* Reflection panel — overlays stage+footer area */
+.tts-imm-refl-panel {
+  position: absolute;
+  inset: 0;
+  top: 68px; /* below the bar */
+  display: flex;
+  flex-direction: column;
+  padding: 24px 24px 32px;
+  gap: 16px;
+  background: inherit;
+  z-index: 10;
+  animation: ttsImmIn 0.3s cubic-bezier(0.16, 1, 0.3, 1) both;
+}
+/* Ensure hidden attribute works against display:flex above */
+.tts-imm-refl-panel[hidden] {
+  display: none !important;
+}
+.tts-imm-refl-top {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+}
+.tts-imm-refl-label {
+  font-size: 10px;
+  font-weight: 800;
+  letter-spacing: 3px;
+  text-transform: uppercase;
+  opacity: 0.45;
+  font-family: 'Google Sans Flex', sans-serif;
+}
+.tts-imm-refl-progress {
+  font-size: 11px;
+  font-weight: 700;
+  opacity: 0.5;
+  font-family: 'Google Sans Flex', sans-serif;
+}
+.tts-imm-refl-question {
+  font-size: 1.15rem;
+  font-weight: 600;
+  line-height: 1.5;
+  color: inherit;
+}
+.tts-imm-refl-area {
+  flex: 1;
+  min-height: 0;
+  resize: none;
+  border: 1px solid rgba(255,255,255,0.12);
+  border-radius: 14px;
+  background: rgba(255,255,255,0.06);
+  color: inherit;
+  font-size: 1rem;
+  line-height: 1.6;
+  padding: 14px 16px;
+  font-family: 'Google Sans Flex', sans-serif;
+  outline: none;
+}
+.tts-imm-refl-area:focus {
+  border-color: rgba(200, 48, 134, 0.5);
+  background: rgba(255,255,255,0.09);
+}
+.tts-imm-refl-actions {
+  display: flex;
+  gap: 10px;
+}
+.tts-imm-refl-back-btn {
+  flex: 0 0 auto !important;
+  padding: 14px 18px !important;
+  border-radius: 14px !important;
+  font-size: 14px !important;
+  font-weight: 600 !important;
+  cursor: pointer;
+  background: rgba(255,255,255,0.08) !important;
+  border: 1px solid rgba(255,255,255,0.12) !important;
+  color: inherit !important;
+}
+.tts-imm-refl-back-btn:hover {
+  background: rgba(255,255,255,0.14) !important;
+}
+.light .tts-imm-refl-back-btn {
+  background: rgba(0,0,0,0.06) !important;
+  border-color: rgba(0,0,0,0.12) !important;
+  color: #1a1a2e !important;
+}
+.tts-imm-refl-next-btn,
+.tts-imm-refl-copy-btn {
+  flex: 1 !important;
+  padding: 14px !important;
+  border-radius: 14px !important;
+  font-size: 14px !important;
+  font-weight: 700 !important;
+  cursor: pointer;
+  border: none !important;
+}
+.tts-imm-refl-next-btn {
+  background: linear-gradient(135deg, #c83086, #486bec) !important;
+  color: #fff !important;
+}
+.tts-imm-refl-copy-btn {
+  background: rgba(255,255,255,0.1) !important;
+  color: inherit !important;
+  border: 1px solid rgba(255,255,255,0.15) !important;
+}
+.tts-imm-refl-status {
+  text-align: center;
+  font-size: 12px;
+  opacity: 0.5;
+  min-height: 16px;
+}
+/* Light mode overrides for reflection panel */
+.light .tts-imm-refl-area {
+  background: rgba(0,0,0,0.04) !important;
+  border-color: rgba(0,0,0,0.12) !important;
+  color: #1a1a2e !important;
+}
+.light .tts-imm-refl-area:focus {
+  border-color: rgba(200, 48, 134, 0.4) !important;
+}
+.light .tts-imm-refl-copy-btn {
+  background: rgba(0,0,0,0.07) !important;
+  border-color: rgba(0,0,0,0.15) !important;
+  color: #1a1a2e !important;
+}
+
+/* Tappable verse reference chips inside reflection questions */
+.tts-imm-verse-ref {
+  display: inline-block;
+  color: #e88fc8;
+  background: rgba(200, 48, 134, 0.15);
+  border: 1px solid rgba(200, 48, 134, 0.3);
+  border-radius: 6px;
+  padding: 1px 6px;
+  cursor: pointer;
+  font-size: 0.9em;
+  transition: background 0.15s;
+}
+.tts-imm-verse-ref:hover, .tts-imm-verse-ref:active {
+  background: rgba(200, 48, 134, 0.3);
+}
+.light .tts-imm-verse-ref {
+  color: #c83086;
+  background: rgba(200, 48, 134, 0.1);
+  border-color: rgba(200, 48, 134, 0.25);
+}
+
+/* Verse popup overlay */
+.tts-imm-verse-popup {
+  position: absolute;
+  inset: 0;
+  z-index: 20;
+  display: flex;
+  align-items: flex-end;
+  justify-content: center;
+}
+.tts-imm-verse-popup[hidden] {
+  display: none !important;
+}
+.tts-imm-verse-popup-backdrop {
+  position: absolute;
+  inset: 0;
+  background: rgba(0, 0, 0, 0.55);
+  cursor: pointer;
+}
+.tts-imm-verse-popup-card {
+  position: relative;
+  z-index: 1;
+  width: 100%;
+  max-height: 65%;
+  background: #1a1f35;
+  border-radius: 24px 24px 0 0;
+  padding: 24px 24px 40px;
+  overflow-y: auto;
+  scrollbar-width: none;
+  animation: ttsImmVersePopIn 0.28s cubic-bezier(0.16, 1, 0.3, 1) both;
+}
+.tts-imm-verse-popup-card::-webkit-scrollbar { display: none; }
+@keyframes ttsImmVersePopIn {
+  from { transform: translateY(100%); opacity: 0; }
+  to   { transform: translateY(0);    opacity: 1; }
+}
+.tts-imm-verse-popup-close {
+  position: absolute !important;
+  top: 16px !important;
+  right: 16px !important;
+  width: 32px !important;
+  height: 32px !important;
+  min-width: 32px;
+  padding: 0 !important;
+  flex: none !important;
+  border-radius: 50%;
+  background: rgba(255,255,255,0.1) !important;
+  color: white !important;
+  border: none !important;
+  display: flex !important;
+  align-items: center;
+  justify-content: center;
+  cursor: pointer;
+}
+.tts-imm-verse-popup-close .material-symbols-outlined { font-size: 18px; }
+.tts-imm-verse-popup-content {
+  display: flex;
+  flex-direction: column;
+  gap: 16px;
+}
+.tts-imm-verse-popup-row {
+  display: flex;
+  gap: 12px;
+  align-items: flex-start;
+}
+.tts-imm-verse-popup-num {
+  font-size: 11px;
+  font-weight: 800;
+  color: #c83086;
+  letter-spacing: 2px;
+  text-transform: uppercase;
+  padding-top: 3px;
+  flex-shrink: 0;
+  font-family: 'Google Sans Flex', sans-serif;
+}
+.tts-imm-verse-popup-text {
+  font-size: 1.1rem;
+  line-height: 1.65;
+  color: #e2e8f0;
+}
+/* Light mode popup */
+.light .tts-imm-verse-popup-card {
+  background: #faf9f6;
+}
+.light .tts-imm-verse-popup-close {
+  background: rgba(0,0,0,0.08) !important;
+  color: #1a1a2e !important;
+}
+.light .tts-imm-verse-popup-text {
+  color: #1a1a2e;
+}

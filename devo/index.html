@@ -199,6 +199,36 @@
           </button>
         </div>
         <div class="tts-imm-hint" id="ttsImmStatusEl"></div>
+        <button id="ttsImmReflectBtn" class="tts-imm-reflect-btn" hidden>
+          🙏 Guided Reflection
+        </button>
+      </div>
+
+      <!-- Verse reference popup -->
+      <div id="ttsImmVersePopup" class="tts-imm-verse-popup" hidden>
+        <div class="tts-imm-verse-popup-backdrop" id="ttsImmVersePopupBackdrop"></div>
+        <div class="tts-imm-verse-popup-card">
+          <button class="tts-imm-verse-popup-close" id="ttsImmVersePopupClose">
+            <span class="material-symbols-outlined">close</span>
+          </button>
+          <div class="tts-imm-verse-popup-content" id="ttsImmVersePopupContent"></div>
+        </div>
+      </div>
+
+      <!-- Reflection panel (replaces stage+footer when open) -->
+      <div id="ttsImmReflPanel" class="tts-imm-refl-panel" hidden>
+        <div class="tts-imm-refl-top">
+          <div class="tts-imm-refl-label">GUIDED REFLECTION</div>
+          <div class="tts-imm-refl-progress" id="ttsImmReflProgress"></div>
+        </div>
+        <div class="tts-imm-refl-question" id="ttsImmReflQuestion"></div>
+        <textarea class="tts-imm-refl-area" id="ttsImmReflArea" placeholder="Write your thoughts here..."></textarea>
+        <div class="tts-imm-refl-actions">
+          <button class="tts-imm-refl-back-btn" id="ttsImmReflBack">← Back</button>
+          <button class="tts-imm-refl-next-btn" id="ttsImmReflNext">Next →</button>
+          <button class="tts-imm-refl-copy-btn" id="ttsImmReflCopy" hidden>📋 Copy Notes</button>
+        </div>
+        <div class="tts-imm-refl-status" id="ttsImmReflStatus"></div>
       </div>
     </div>
 
