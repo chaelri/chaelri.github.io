@@ -2902,7 +2902,11 @@ function ttsImmersiveOpen() {
   const footer = document.querySelector(".tts-imm-footer");
   if (footer) footer.style.display = "";
   const reflectBtn = document.getElementById("ttsImmReflectBtn");
-  if (reflectBtn) reflectBtn.hidden = true;
+  if (reflectBtn) {
+    const reflectionReady = document.querySelectorAll('#aiReflection textarea[id^="reflection-"]').length > 0;
+    reflectBtn.hidden = !reflectionReady;
+    if (reflectionReady) reflectBtn.onclick = ttsImmReflectionOpen;
+  }
 
   // Set passage title
   const name = BIBLE_META[bookEl?.value]?.name || "";
