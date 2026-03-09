@@ -3083,6 +3083,7 @@ function ttsImmReflectionOpen() {
   if (footer) footer.style.display = "none";
   const panel = document.getElementById("ttsImmReflPanel");
   if (panel) panel.hidden = false;
+
   _immReflIndex = 0;
   ttsImmReflectionShow(_immReflIndex);
 }
@@ -3112,7 +3113,7 @@ function ttsImmReflectionShow(index) {
     ta.value = myArea.value;
     ta.dispatchEvent(new Event("input", { bubbles: true }));
   };
-  myArea.focus();
+  myArea.focus({ preventScroll: true });
 
   const backBtn = document.getElementById("ttsImmReflBack");
   const nextBtn = document.getElementById("ttsImmReflNext");
@@ -3156,8 +3157,9 @@ function ttsImmReflectionShow(index) {
 
 function _immParseVerseRefs(text) {
   // Escape HTML first, then replace verse refs with tappable chips
+  // Handles: v. 1, v1, vv. 2-3, vv2-3, vv 3-5
   const escaped = text.replace(/&/g,"&amp;").replace(/</g,"&lt;").replace(/>/g,"&gt;");
-  return escaped.replace(/\bv\.?\s*(\d+)(?:\s*[-–]\s*(\d+))?/gi, (match, start, end) => {
+  return escaped.replace(/\bvv?\.?\s*(\d+)(?:\s*[-–]\s*(\d+))?/gi, (match, start, end) => {
     return `<span class="tts-imm-verse-ref" data-start="${start}" data-end="${end || start}">${match}</span>`;
   });
 }
