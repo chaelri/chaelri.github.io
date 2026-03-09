@@ -1871,7 +1871,7 @@ body.light {
   justify-content: center;
   padding: 0 28px;
   min-height: 0;
-  overflow: hidden;
+  overflow: visible;
   gap: 4px;
 }
 
@@ -1895,11 +1895,22 @@ body.light {
 .tts-imm-slot-cur {
   position: relative;
   flex: 1;
+  min-height: 0;
   display: flex;
   flex-direction: column;
-  justify-content: center;
+  justify-content: flex-start;
+  overflow-y: auto;
+  -webkit-overflow-scrolling: touch;
+  scrollbar-width: none;
+  padding-top: 16px;
+  padding-bottom: 32px;
   border-top: 1px solid rgba(255, 255, 255, 0.06);
   border-bottom: 1px solid rgba(255, 255, 255, 0.06);
+  mask-image: linear-gradient(to bottom, black 70%, transparent 100%);
+  -webkit-mask-image: linear-gradient(to bottom, black 70%, transparent 100%);
+}
+.tts-imm-slot-cur::-webkit-scrollbar {
+  display: none;
 }
 
 .tts-imm-slot-num {
@@ -1928,6 +1939,12 @@ body.light {
 .tts-imm-slot-cur .tts-imm-slot-text {
   font-size: 1.45rem;
   font-weight: 400;
+}
+
+@media (max-height: 700px) {
+  .tts-imm-slot-cur .tts-imm-slot-text {
+    font-size: 1.15rem;
+  }
 }
 
 .tts-imm-slot-prev .tts-imm-slot-text,
