@@ -491,6 +491,10 @@ let ttsIdx = -1;
 let ttsAudio = null;
 let ttsPaused = false;
 
+// ── Immersive mode state (declared here so stopTTS can reference before the immersive block) ──
+let _immDoubleTapCount = 0;
+let _immDoubleTapTimer = null;
+
 function ttsBuildQueue() {
   const els = [...document.querySelectorAll("#output .verse")];
   const lines = (window.__aiPayload?.versesText || "").split("\n").filter(Boolean);
@@ -533,7 +537,10 @@ async function playChapter() {
         item.words = words;
         _ttsReadyCount++;
         if (gen === ttsGen && bar) {
-          bar.style.width = `${(_ttsReadyCount / ttsQueue.length) * 100}%`;
+          const pct = `${(_ttsReadyCount / ttsQueue.length) * 100}%`;
+          bar.style.width = pct;
+          const immBar = document.getElementById("ttsImmLoadBar");
+          if (immBar) immBar.style.width = pct;
           if (_ttsReadyCount === ttsQueue.length)
             document.getElementById("ttsPlayer")?.classList.add("tts-ready");
         }
@@ -565,6 +572,7 @@ async function ttsPlayAt(index, gen) {
   // (e.g. navigating back during the continue prompt removes tts-mode via ttsFinish)
   document.getElementById("output")?.classList.add("tts-mode");
   ttsMark(item.el);
+  ttsImmersiveUpdate(index);
   ttsSetStatus(`Loading ${item.verseNum}\u2026`);
   document.getElementById("ttsPlayer")?.classList.add("tts-buffering");
 
@@ -602,19 +610,20 @@ async function ttsPlayAt(index, gen) {
 
     // Repurpose pause button as a single-verse retry
     const pauseBtn = document.getElementById("ttsPauseBtn");
-    if (pauseBtn) {
-      pauseBtn.innerHTML = '<span class="material-symbols-outlined">refresh</span>';
-      pauseBtn.onclick = () => {
-        pauseBtn.innerHTML = '<span class="material-symbols-outlined">pause</span>';
-        pauseBtn.onclick = pauseResumeTTS;
-        item.url = null;
-        item.ready = ttsSynthesize(item.text).then(
-          ({ url, timepoints, words }) => { item.url = url; item.timepoints = timepoints; item.words = words; },
-          () => { item.url = null; }
-        );
-        ttsPlayAt(index, gen);
-      };
-    }
+    const immPauseBtn = document.getElementById("ttsImmPauseBtn");
+    const retryIcon = '<span class="material-symbols-outlined">refresh</span>';
+    const retryHandler = () => {
+      if (pauseBtn) { pauseBtn.innerHTML = '<span class="material-symbols-outlined">pause</span>'; pauseBtn.onclick = pauseResumeTTS; }
+      if (immPauseBtn) { immPauseBtn.innerHTML = '<span class="material-symbols-outlined">pause</span>'; immPauseBtn.onclick = pauseResumeTTS; }
+      item.url = null;
+      item.ready = ttsSynthesize(item.text).then(
+        ({ url, timepoints, words }) => { item.url = url; item.timepoints = timepoints; item.words = words; },
+        () => { item.url = null; }
+      );
+      ttsPlayAt(index, gen);
+    };
+    if (pauseBtn) { pauseBtn.innerHTML = retryIcon; pauseBtn.onclick = retryHandler; }
+    if (immPauseBtn) { immPauseBtn.innerHTML = retryIcon; immPauseBtn.onclick = retryHandler; }
   }
 }
 
@@ -637,15 +646,18 @@ function ttsMark(el) {
 function pauseResumeTTS() {
   if (!ttsAudio) return;
   const btn = document.getElementById("ttsPauseBtn");
+  const immBtn = document.getElementById("ttsImmPauseBtn");
   if (ttsPaused) {
     ttsAudio.play(); ttsPaused = false;
     if (btn) btn.innerHTML = '<span class="material-symbols-outlined">pause</span>';
+    if (immBtn) immBtn.innerHTML = '<span class="material-symbols-outlined">pause</span>';
     ttsSetStatus(`${ttsIcon("graphic_eq")} ${ttsQueue[ttsIdx]?.verseNum} / ${ttsQueue.length}`);
     _startWordHighlight(ttsAudio, _ttsActiveWordItem);
   } else {
     ttsAudio.pause(); ttsPaused = true;
     _stopWordHighlight();
     if (btn) btn.innerHTML = '<span class="material-symbols-outlined">play_arrow</span>';
+    if (immBtn) immBtn.innerHTML = '<span class="material-symbols-outlined">play_arrow</span>';
     ttsSetStatus(`${ttsIcon("pause")} Verse ${ttsQueue[ttsIdx]?.verseNum}`);
   }
 }
@@ -684,6 +696,7 @@ function stopTTS() {
   const bar = document.getElementById("ttsProgressBar");
   if (bar) bar.style.width = "0%";
   player.hidden = true;
+  ttsImmersiveClose();
   const playBtn = document.getElementById("ttsPlayBtn");
   if (playBtn) playBtn.disabled = false;
 }
@@ -725,37 +738,61 @@ function ttsShowContinuePrompt() {
   if (passageEl) passageEl.textContent = nextName;
   ttsSetStatus("Continue?");
 
+  const continueHandler = async () => {
+    // Remove pulse from play button
+    document.getElementById("ttsImmPauseBtn")?.classList.remove("tts-imm-btn-pulse");
+    if (nextBook !== bookEl.value) {
+      bookEl.value = nextBook;
+      loadChapters();
+    }
+    chapterEl.value = nextCh;
+    verseEl.value = "";
+    document.getElementById("output").innerHTML = "";
+    stopTTS();
+    resetAISections();
+    document.getElementById("prevChapterBtn").classList.remove("hidden");
+    document.getElementById("nextChapterBtn").classList.remove("hidden");
+    document.getElementById("ttsPlayBtn").classList.remove("hidden");
+    await loadPassage();
+    runAIForCurrentPassage();
+    playChapter();
+  };
+
   const pauseBtn = document.getElementById("ttsPauseBtn");
   if (pauseBtn) {
     pauseBtn.innerHTML = ttsIcon("play_circle");
-    pauseBtn.onclick = async () => {
-      if (nextBook !== bookEl.value) {
-        bookEl.value = nextBook;
-        loadChapters();
-      }
-      chapterEl.value = nextCh;
-      verseEl.value = "";
+    pauseBtn.onclick = continueHandler;
+  }
+  // Update immersive: keep current title, show "Up Next" in the stage
+  const immStatus = document.getElementById("ttsImmStatusEl");
+  if (immStatus) immStatus.textContent = `Up next: ${nextName}`;
 
-      document.getElementById("output").innerHTML = "";
-      stopTTS();
-      resetAISections();
-      document.getElementById("prevChapterBtn").classList.remove("hidden");
-      document.getElementById("nextChapterBtn").classList.remove("hidden");
-      document.getElementById("ttsPlayBtn").classList.remove("hidden");
-      await loadPassage();
-      runAIForCurrentPassage();
-      playChapter();
-    };
+  const immCurNum  = document.getElementById("ttsImmCurNum");
+  const immCurText = document.getElementById("ttsImmCurText");
+  if (immCurNum)  immCurNum.textContent  = "Done";
+  if (immCurText) immCurText.textContent = "Chapter complete.";
+
+  const immNextNum  = document.getElementById("ttsImmNextNum");
+  const immNextText = document.getElementById("ttsImmNextText");
+  if (immNextNum)  immNextNum.textContent  = "Up Next";
+  if (immNextText) immNextText.textContent = nextName;
+
+  const immPrevNum  = document.getElementById("ttsImmPrevNum");
+  const immPrevText = document.getElementById("ttsImmPrevText");
+  if (immPrevNum)  immPrevNum.textContent  = "";
+  if (immPrevText) immPrevText.textContent = "";
+
+  const immPauseBtn = document.getElementById("ttsImmPauseBtn");
+  if (immPauseBtn) {
+    immPauseBtn.innerHTML = '<span class="material-symbols-outlined">play_arrow</span>';
+    immPauseBtn.classList.add("tts-imm-btn-pulse");
+    immPauseBtn.onclick = continueHandler;
   }
 }
 
-function ttsShowPlayer(status) {
-  document.getElementById("ttsPlayer").hidden = false;
-  const name = BIBLE_META[bookEl?.value]?.name || "";
-  const ch   = chapterEl?.value || "";
-  const passageEl = document.getElementById("ttsPassage");
-  if (passageEl) passageEl.textContent = name && ch ? `${name} ${ch}` : "";
-  ttsSetStatus(status);
+function ttsShowPlayer(_status) {
+  // Old pill stays hidden — immersive overlay is used instead
+  ttsImmersiveOpen();
 }
 
 function ttsIcon(name) {
@@ -2842,4 +2879,145 @@ if (recentPassageId) {
   bookEl.value = recentPassageSplit[0];
   loadChapters();
   chapterEl.value = recentPassageSplit[1];
+}
+
+// ── IMMERSIVE TTS MODE ────────────────────────────────────────────────────────
+
+function ttsImmersiveOpen() {
+  const el = document.getElementById("ttsImmersive");
+  if (!el) return;
+
+  // Set passage title
+  const name = BIBLE_META[bookEl?.value]?.name || "";
+  const ch = chapterEl?.value || "";
+  const titleEl = document.getElementById("ttsImmTitle");
+  if (titleEl) titleEl.textContent = name && ch ? `${name} ${ch}` : "";
+
+  // Reset load bar + status
+  const immBar = document.getElementById("ttsImmLoadBar");
+  if (immBar) immBar.style.width = "0%";
+  const immStatus = document.getElementById("ttsImmStatusEl");
+  if (immStatus) immStatus.textContent = "";
+
+  // Build scrubber dots from queue
+  ttsImmersiveBuildScrubber();
+
+  // Wire buttons
+  document.getElementById("ttsImmPrevBtn").onclick = ttsPrevVerse;
+  document.getElementById("ttsImmNextBtn").onclick = ttsNextVerse;
+  document.getElementById("ttsImmPauseBtn").onclick = pauseResumeTTS;
+  document.getElementById("ttsImmCloseBtn").onclick = stopTTS;
+
+  // Prev/next verse slots are tappable to jump
+  document.getElementById("ttsImmSlotPrev").onclick = () => { if (ttsIdx > 0) ttsPrevVerse(); };
+  document.getElementById("ttsImmSlotNext").onclick = () => { if (ttsIdx < ttsQueue.length - 1) ttsNextVerse(); };
+
+  // Double-tap current verse to favorite
+  const curSlot = document.getElementById("ttsImmSlotCur");
+  if (curSlot) {
+    curSlot.addEventListener("click", _immHandleDoubleTap);
+  }
+
+  el.hidden = false;
+}
+
+function ttsImmersiveClose() {
+  const el = document.getElementById("ttsImmersive");
+  if (el) el.hidden = true;
+  _immDoubleTapCount = 0;
+  clearTimeout(_immDoubleTapTimer);
+}
+
+function ttsImmersiveBuildScrubber() {
+  const scrubber = document.getElementById("ttsImmScrubber");
+  if (!scrubber) return;
+  scrubber.innerHTML = ttsQueue.map((item, i) =>
+    `<button class="tts-imm-dot" data-idx="${i}">${item.verseNum}</button>`
+  ).join("");
+  scrubber.querySelectorAll(".tts-imm-dot").forEach(dot => {
+    dot.onclick = () => {
+      const idx = parseInt(dot.dataset.idx);
+      ttsGen++;
+      if (ttsAudio) { ttsAudio.onended = null; ttsAudio.pause(); ttsAudio = null; }
+      ttsPlayAt(idx, ttsGen);
+    };
+  });
+}
+
+function ttsImmersiveUpdate(index) {
+  if (index < 0 || index >= ttsQueue.length) return;
+
+  const prev = ttsQueue[index - 1];
+  const cur  = ttsQueue[index];
+  const next = ttsQueue[index + 1];
+
+  // Prev slot
+  const prevNum  = document.getElementById("ttsImmPrevNum");
+  const prevText = document.getElementById("ttsImmPrevText");
+  if (prevNum)  prevNum.textContent  = prev ? `Verse ${prev.verseNum}` : "";
+  if (prevText) prevText.textContent = prev ? _immPreview(prev.text) : "";
+
+  // Current slot with animation
+  const curSlot = document.getElementById("ttsImmSlotCur");
+  const curNum  = document.getElementById("ttsImmCurNum");
+  const curText = document.getElementById("ttsImmCurText");
+  if (curSlot) {
+    curSlot.classList.remove("tts-verse-anim");
+    void curSlot.offsetWidth;
+    curSlot.classList.add("tts-verse-anim");
+  }
+  if (curNum)  curNum.textContent  = `Verse ${cur.verseNum}`;
+  if (curText) curText.textContent = cur.text;
+
+  // Next slot
+  const nextNum  = document.getElementById("ttsImmNextNum");
+  const nextText = document.getElementById("ttsImmNextText");
+  if (nextNum)  nextNum.textContent  = next ? `Verse ${next.verseNum}` : "";
+  if (nextText) nextText.textContent = next ? _immPreview(next.text) : "";
+
+  // Scrubber: activate current dot and scroll it into view
+  document.querySelectorAll("#ttsImmScrubber .tts-imm-dot").forEach((d, i) => {
+    d.classList.toggle("active", i === index);
+  });
+  const activeDot = document.querySelector(`#ttsImmScrubber .tts-imm-dot[data-idx="${index}"]`);
+  if (activeDot) activeDot.scrollIntoView({ behavior: "smooth", inline: "center", block: "nearest" });
+
+  // Nav buttons
+  const prevBtn = document.getElementById("ttsImmPrevBtn");
+  const nextBtn = document.getElementById("ttsImmNextBtn");
+  if (prevBtn) prevBtn.disabled = index <= 0;
+  if (nextBtn) nextBtn.disabled = index >= ttsQueue.length - 1;
+
+  // Reset pause button to pause icon
+  const pauseBtn = document.getElementById("ttsImmPauseBtn");
+  if (pauseBtn && !ttsPaused) {
+    pauseBtn.innerHTML = '<span class="material-symbols-outlined">pause</span>';
+    pauseBtn.onclick = pauseResumeTTS;
+  }
+}
+
+function _immPreview(text) {
+  const words = text.split(/\s+/);
+  return words.length > 8 ? words.slice(0, 8).join(" ") + "\u2026" : text;
+}
+
+function _immHandleDoubleTap() {
+  _immDoubleTapCount++;
+  if (_immDoubleTapCount === 2) {
+    _immDoubleTapCount = 0;
+    clearTimeout(_immDoubleTapTimer);
+    const item = ttsQueue[ttsIdx];
+    if (!item) return;
+    const key = keyOf(bookEl.value, chapterEl.value, item.verseNum);
+    toggleFavorite(key);
+    const heart = document.getElementById("ttsImmHeart");
+    if (heart) {
+      heart.classList.remove("popping");
+      void heart.offsetWidth;
+      heart.classList.add("popping");
+      heart.addEventListener("animationend", () => heart.classList.remove("popping"), { once: true });
+    }
+  } else {
+    _immDoubleTapTimer = setTimeout(() => { _immDoubleTapCount = 0; }, 350);
+  }
 }

@@ -147,6 +147,61 @@
       </div>
     </div>
 
+    <!-- TTS IMMERSIVE OVERLAY -->
+    <div id="ttsImmersive" class="tts-immersive" hidden>
+      <!-- Top bar -->
+      <div class="tts-imm-bar">
+        <div class="tts-imm-header-info">
+          <div class="tts-imm-label">NOW PLAYING</div>
+          <div class="tts-imm-title" id="ttsImmTitle"></div>
+        </div>
+        <button class="tts-imm-close-btn" id="ttsImmCloseBtn">
+          <span class="material-symbols-outlined">keyboard_arrow_down</span>
+        </button>
+      </div>
+
+      <!-- Verse stage -->
+      <div class="tts-imm-stage">
+        <div class="tts-imm-slot tts-imm-slot-prev" id="ttsImmSlotPrev">
+          <span class="tts-imm-slot-num" id="ttsImmPrevNum"></span>
+          <p class="tts-imm-slot-text" id="ttsImmPrevText"></p>
+        </div>
+        <div class="tts-imm-slot tts-imm-slot-cur" id="ttsImmSlotCur">
+          <span class="tts-imm-slot-num" id="ttsImmCurNum"></span>
+          <p class="tts-imm-slot-text" id="ttsImmCurText"></p>
+          <div class="tts-imm-heart" id="ttsImmHeart">
+            <span class="material-icons">favorite</span>
+          </div>
+        </div>
+        <div class="tts-imm-slot tts-imm-slot-next" id="ttsImmSlotNext">
+          <span class="tts-imm-slot-num" id="ttsImmNextNum"></span>
+          <p class="tts-imm-slot-text" id="ttsImmNextText"></p>
+        </div>
+      </div>
+
+      <!-- Footer: load bar + scrubber + controls -->
+      <div class="tts-imm-footer">
+        <div class="tts-imm-load-bar-wrap">
+          <div class="tts-imm-load-bar" id="ttsImmLoadBar"></div>
+        </div>
+        <div class="tts-imm-scrubber-wrap">
+          <div class="tts-imm-scrubber" id="ttsImmScrubber"></div>
+        </div>
+        <div class="tts-imm-controls">
+          <button class="tts-imm-btn" id="ttsImmPrevBtn">
+            <span class="material-symbols-outlined">skip_previous</span>
+          </button>
+          <button class="tts-imm-btn tts-imm-btn-play" id="ttsImmPauseBtn">
+            <span class="material-symbols-outlined">pause</span>
+          </button>
+          <button class="tts-imm-btn" id="ttsImmNextBtn">
+            <span class="material-symbols-outlined">skip_next</span>
+          </button>
+        </div>
+        <div class="tts-imm-hint" id="ttsImmStatusEl"></div>
+      </div>
+    </div>
+
     <script src="config.js" onerror="void 0"></script>
     <script src="bible-meta.js"></script>
     <script src="script.js"></script>

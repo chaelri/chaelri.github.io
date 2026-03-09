@@ -1798,3 +1798,381 @@ body.light {
   padding: 4px 8px;
   transition: background 0.3s ease;
 }
+
+/* ===== TTS IMMERSIVE OVERLAY ===== */
+.tts-immersive {
+  position: fixed;
+  inset: 0;
+  z-index: 900;
+  background: linear-gradient(160deg, #0d1526 0%, #0a0e1c 55%, #100c20 100%);
+  display: none;
+  flex-direction: column;
+  padding-top: env(safe-area-inset-top, 0);
+  padding-bottom: env(safe-area-inset-bottom, 0);
+  overflow: hidden;
+}
+
+.tts-immersive:not([hidden]) {
+  display: flex;
+  animation: ttsImmIn 0.4s cubic-bezier(0.16, 1, 0.3, 1);
+}
+
+@keyframes ttsImmIn {
+  from { transform: translateY(100%); opacity: 0; }
+  to   { transform: translateY(0);    opacity: 1; }
+}
+
+/* Top bar */
+.tts-imm-bar {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  padding: 20px 24px 12px;
+  flex-shrink: 0;
+}
+
+.tts-imm-label {
+  font-size: 10px;
+  letter-spacing: 3px;
+  text-transform: uppercase;
+  opacity: 0.35;
+  font-family: 'Google Sans Flex', sans-serif;
+  margin-bottom: 4px;
+}
+
+.tts-imm-title {
+  font-size: 22px;
+  font-weight: 800;
+  letter-spacing: -0.5px;
+  color: #fff;
+}
+
+.tts-imm-close-btn {
+  background: rgba(255, 255, 255, 0.1);
+  border: none;
+  border-radius: 50%;
+  width: 40px;
+  height: 40px;
+  color: white;
+  cursor: pointer;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  flex-shrink: 0;
+  transition: background 0.15s ease;
+}
+.tts-imm-close-btn:hover { background: rgba(255, 255, 255, 0.2); }
+
+/* Stage: 3-verse display */
+.tts-imm-stage {
+  flex: 1;
+  display: flex;
+  flex-direction: column;
+  justify-content: center;
+  padding: 0 28px;
+  min-height: 0;
+  overflow: hidden;
+  gap: 4px;
+}
+
+.tts-imm-slot {
+  padding: 14px 0;
+}
+
+.tts-imm-slot-prev,
+.tts-imm-slot-next {
+  opacity: 0.2;
+  cursor: pointer;
+  transition: opacity 0.3s ease;
+  flex-shrink: 0;
+}
+
+.tts-imm-slot-prev:hover,
+.tts-imm-slot-next:hover {
+  opacity: 0.4;
+}
+
+.tts-imm-slot-cur {
+  position: relative;
+  flex: 1;
+  display: flex;
+  flex-direction: column;
+  justify-content: center;
+  border-top: 1px solid rgba(255, 255, 255, 0.06);
+  border-bottom: 1px solid rgba(255, 255, 255, 0.06);
+}
+
+.tts-imm-slot-num {
+  display: block;
+  font-size: 11px;
+  font-weight: 800;
+  color: #c83086;
+  letter-spacing: 3px;
+  text-transform: uppercase;
+  margin-bottom: 12px;
+  font-family: 'Google Sans Flex', sans-serif;
+}
+
+.tts-imm-slot-prev .tts-imm-slot-num,
+.tts-imm-slot-next .tts-imm-slot-num {
+  font-size: 9px;
+  margin-bottom: 6px;
+}
+
+.tts-imm-slot-text {
+  margin: 0;
+  line-height: 1.6;
+  color: #e2e8f0;
+}
+
+.tts-imm-slot-cur .tts-imm-slot-text {
+  font-size: 1.45rem;
+  font-weight: 400;
+}
+
+.tts-imm-slot-prev .tts-imm-slot-text,
+.tts-imm-slot-next .tts-imm-slot-text {
+  font-size: 0.88rem;
+  display: -webkit-box;
+  -webkit-line-clamp: 2;
+  line-clamp: 2;
+  -webkit-box-orient: vertical;
+  overflow: hidden;
+}
+
+/* Verse change animation */
+@keyframes ttsVerseIn {
+  from { opacity: 0; transform: translateY(12px); }
+  to   { opacity: 1; transform: translateY(0); }
+}
+
+.tts-imm-slot-cur.tts-verse-anim {
+  animation: ttsVerseIn 0.35s cubic-bezier(0.16, 1, 0.3, 1) forwards;
+}
+
+/* Heart overlay on double-tap */
+.tts-imm-heart {
+  position: absolute;
+  top: 50%;
+  left: 50%;
+  transform: translate(-50%, -50%) scale(0);
+  font-size: 80px;
+  color: #db2777;
+  pointer-events: none;
+  opacity: 0;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+}
+
+.tts-imm-heart .material-icons {
+  font-size: inherit;
+  line-height: 1;
+}
+
+@keyframes ttsHeartPop {
+  0%   { transform: translate(-50%, -50%) scale(0);   opacity: 0.9; }
+  35%  { transform: translate(-50%, -50%) scale(1.25); opacity: 1; }
+  65%  { transform: translate(-50%, -50%) scale(0.9);  opacity: 0.9; }
+  100% { transform: translate(-50%, -50%) scale(1);   opacity: 0; }
+}
+
+.tts-imm-heart.popping {
+  animation: ttsHeartPop 0.65s cubic-bezier(0.17, 0.89, 0.32, 1.28) forwards;
+}
+
+/* Footer */
+.tts-imm-footer {
+  flex-shrink: 0;
+  padding: 0 24px 28px;
+  display: flex;
+  flex-direction: column;
+  gap: 14px;
+}
+
+/* Load progress bar */
+.tts-imm-load-bar-wrap {
+  height: 2px;
+  background: rgba(255, 255, 255, 0.08);
+  border-radius: 2px;
+  overflow: hidden;
+}
+
+.tts-imm-load-bar {
+  height: 100%;
+  width: 0%;
+  background: linear-gradient(90deg, #486bec, #db2777);
+  border-radius: 2px;
+  transition: width 0.4s ease;
+}
+
+/* Scrubber */
+.tts-imm-scrubber-wrap {
+  overflow: hidden;
+}
+
+.tts-imm-scrubber {
+  display: flex;
+  gap: 6px;
+  overflow-x: auto;
+  padding: 2px 0;
+  scrollbar-width: none;
+  -ms-overflow-style: none;
+  align-items: center;
+}
+
+.tts-imm-scrubber::-webkit-scrollbar { display: none; }
+
+.tts-imm-dot {
+  flex: none;
+  min-width: 30px;
+  height: 30px;
+  border-radius: 8px;
+  border: none;
+  background: rgba(255, 255, 255, 0.08);
+  color: rgba(255, 255, 255, 0.4);
+  font-size: 11px;
+  font-weight: 700;
+  cursor: pointer;
+  padding: 0 6px;
+  transition: background 0.2s ease, color 0.2s ease, box-shadow 0.2s ease;
+  font-family: 'Google Sans Flex', sans-serif;
+}
+
+.tts-imm-dot:hover {
+  background: rgba(255, 255, 255, 0.18);
+  color: white;
+}
+
+.tts-imm-dot.active {
+  background: linear-gradient(135deg, #486bec, #db2777);
+  color: white;
+  box-shadow: 0 4px 14px rgba(72, 107, 236, 0.5);
+}
+
+/* Controls */
+.tts-imm-controls {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  gap: 20px;
+}
+
+.tts-imm-btn {
+  background: rgba(255, 255, 255, 0.1);
+  border: none;
+  border-radius: 50%;
+  width: 52px !important;
+  height: 52px !important;
+  min-width: 52px;
+  aspect-ratio: 1 / 1;
+  color: white;
+  cursor: pointer;
+  display: flex !important;
+  align-items: center;
+  justify-content: center;
+  padding: 0 !important;
+  transition: background 0.15s ease, transform 0.1s ease;
+  flex: none !important;
+  box-sizing: border-box;
+}
+
+.tts-imm-btn:hover { background: rgba(255, 255, 255, 0.2); }
+.tts-imm-btn:active { transform: scale(0.92); }
+.tts-imm-btn:disabled { opacity: 0.3; cursor: default; }
+
+.tts-imm-btn-play {
+  width: 70px !important;
+  height: 70px !important;
+  min-width: 70px;
+  background: linear-gradient(135deg, #486bec, #db2777);
+  box-shadow: 0 8px 28px rgba(72, 107, 236, 0.45);
+}
+
+.tts-imm-btn-play:hover {
+  background: linear-gradient(135deg, #5a7aee, #e03487);
+  box-shadow: 0 10px 32px rgba(72, 107, 236, 0.6);
+}
+
+.tts-imm-btn .material-symbols-outlined { font-size: 24px; line-height: 1; }
+.tts-imm-btn-play .material-symbols-outlined { font-size: 32px; line-height: 1; }
+
+/* Light mode: immersive matches app's paper theme */
+.light .tts-immersive {
+  background-image: url(https://www.transparenttextures.com/patterns/paper-fibers.png);
+  background-color: #faf9f6;
+  color: #1a1a2e;
+}
+.light .tts-imm-title {
+  color: #1a1a2e !important;
+}
+.light .tts-imm-label {
+  color: rgba(0, 0, 0, 0.4) !important;
+  opacity: 1;
+}
+.light .tts-imm-slot-text {
+  color: #1a1a2e !important;
+}
+.light .tts-imm-hint {
+  color: rgba(0, 0, 0, 0.4) !important;
+  opacity: 1;
+}
+.light .tts-imm-slot-num {
+  color: #c83086 !important;
+}
+.light .tts-imm-slot-cur {
+  border-top-color: rgba(0, 0, 0, 0.08) !important;
+  border-bottom-color: rgba(0, 0, 0, 0.08) !important;
+}
+.light .tts-imm-close-btn {
+  background: rgba(0, 0, 0, 0.08) !important;
+  color: #1a1a2e !important;
+  border-color: transparent !important;
+}
+.light .tts-imm-btn {
+  background: rgba(0, 0, 0, 0.08) !important;
+  color: #1a1a2e !important;
+  border-color: transparent !important;
+}
+.light .tts-imm-btn:hover {
+  background: rgba(0, 0, 0, 0.14) !important;
+}
+.light .tts-imm-btn-play {
+  background: linear-gradient(135deg, #486bec, #db2777) !important;
+  color: white !important;
+}
+.light .tts-imm-load-bar-wrap {
+  background: rgba(0, 0, 0, 0.1) !important;
+}
+.light .tts-imm-dot {
+  background: rgba(0, 0, 0, 0.07) !important;
+  color: rgba(0, 0, 0, 0.35) !important;
+}
+.light .tts-imm-dot:hover {
+  background: rgba(0, 0, 0, 0.14) !important;
+  color: #1a1a2e !important;
+}
+.light .tts-imm-dot.active {
+  background: linear-gradient(135deg, #486bec, #db2777) !important;
+  color: white !important;
+}
+
+/* Pulsing play button for "continue" state */
+@keyframes ttsPlayPulse {
+  0%, 100% { box-shadow: 0 8px 28px rgba(72, 107, 236, 0.45); transform: scale(1); }
+  50% { box-shadow: 0 8px 36px rgba(72, 107, 236, 0.8), 0 0 0 10px rgba(72, 107, 236, 0.15); transform: scale(1.05); }
+}
+.tts-imm-btn-play.tts-imm-btn-pulse {
+  animation: ttsPlayPulse 2s ease-in-out infinite;
+}
+
+/* Status hint */
+.tts-imm-hint {
+  text-align: center;
+  font-size: 11px;
+  opacity: 0.35;
+  letter-spacing: 2px;
+  text-transform: uppercase;
+  min-height: 14px;
+  font-family: 'Google Sans Flex', sans-serif;
+}
