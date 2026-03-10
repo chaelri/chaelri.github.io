@@ -1,0 +1,42 @@
+{
+  "manifest_version": 3,
+  "name": "AnimeDownloader",
+  "version": "1.0.0",
+  "description": "One-click anime bulk downloader via AnimePahe. Discover on LiveChart, download everything automatically.",
+  "permissions": ["tabs"],
+  "host_permissions": [
+    "*://*.livechart.me/*",
+    "*://*.animepahe.si/*",
+    "*://kwik.cx/*",
+    "*://pahe.win/*"
+  ],
+  "background": {
+    "service_worker": "background.js"
+  },
+  "action": {
+    "default_popup": "popup/popup.html",
+    "default_title": "AnimeDownloader - Bucket"
+  },
+  "content_scripts": [
+    {
+      "matches": ["*://*.livechart.me/*"],
+      "js": ["content/livechart.js"],
+      "run_at": "document_idle"
+    },
+    {
+      "matches": ["*://*.animepahe.si/*"],
+      "js": ["content/animepahe.js"],
+      "run_at": "document_idle"
+    },
+    {
+      "matches": ["*://kwik.cx/*"],
+      "js": ["content/kwik.js"],
+      "run_at": "document_idle"
+    },
+    {
+      "matches": ["*://pahe.win/*"],
+      "js": ["content/pahe.js"],
+      "run_at": "document_idle"
+    }
+  ]
+}
