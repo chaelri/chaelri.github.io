@@ -1,0 +1,112 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>Guard Exit Interview Tracker</title>
+
+  <!-- Google Fonts: Inter -->
+  <link rel="preconnect" href="https://fonts.googleapis.com" />
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
+  <link href="https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700&display=swap" rel="stylesheet" />
+
+  <!-- Google Material Icons -->
+  <link href="https://fonts.googleapis.com/icon?family=Material+Icons" rel="stylesheet" />
+
+  <!-- Tailwind CSS via CDN -->
+  <script src="https://cdn.tailwindcss.com"></script>
+
+  <!-- xlsx-js-style for colored Excel export -->
+  <script src="https://cdn.jsdelivr.net/npm/xlsx-js-style@1.2.0/dist/xlsx.bundle.js"></script>
+  <!-- Custom Styles -->
+  <link rel="stylesheet" href="style.css" />
+</head>
+<body class="bg-slate-100 min-h-screen flex flex-col">
+
+  <!-- ===== HEADER ===== -->
+  <header id="app-header" class="fixed top-0 left-0 right-0 z-50 bg-blue-900 text-white shadow-lg">
+    <div class="flex items-center justify-between px-4 py-3 gap-4">
+      <!-- Left: Title -->
+      <div class="flex items-center gap-3 min-w-0">
+        <span class="material-icons text-2xl text-blue-300 flex-shrink-0">shield</span>
+        <div class="min-w-0">
+          <h1 class="text-base font-bold leading-tight truncate">Guard Exit Interview Tracker</h1>
+          <p id="header-subtitle" class="text-xs text-blue-300 font-medium">0 completed · 1 total</p>
+        </div>
+      </div>
+
+      <!-- Right: Nav Buttons -->
+      <div class="flex items-center gap-2 flex-shrink-0">
+        <button id="btn-form-view" class="header-tab active-tab px-3 py-1.5 rounded text-sm font-medium flex items-center gap-1">
+          <span class="material-icons text-base">edit_note</span>
+          <span class="hidden sm:inline">Form</span>
+        </button>
+        <button id="btn-summary-view" class="header-tab px-3 py-1.5 rounded text-sm font-medium flex items-center gap-1">
+          <span class="material-icons text-base">bar_chart</span>
+          <span class="hidden sm:inline">Summary</span>
+        </button>
+        <button id="btn-table-view" class="header-tab px-3 py-1.5 rounded text-sm font-medium flex items-center gap-1">
+          <span class="material-icons text-base">table_view</span>
+          <span class="hidden sm:inline">Table</span>
+        </button>
+        <button id="btn-export-csv" class="px-3 py-1.5 rounded text-sm font-medium flex items-center gap-1 bg-emerald-700 hover:bg-emerald-600 transition-colors">
+          <span class="material-icons text-base">table_chart</span>
+          <span class="hidden sm:inline">Export Excel</span>
+        </button>
+      </div>
+    </div>
+  </header>
+
+  <!-- ===== MAIN CONTENT ===== -->
+  <main class="flex-1 pt-16 overflow-hidden">
+
+    <!-- FORM VIEW -->
+    <div id="form-view" class="flex h-form-view">
+
+      <!-- Column 1: Guard Record List -->
+      <aside id="col-records" class="w-52 flex-shrink-0 bg-white border-r border-slate-200 flex flex-col overflow-hidden">
+        <div class="px-3 py-2 border-b border-slate-200 bg-slate-50">
+          <h2 class="text-xs font-semibold text-slate-500 uppercase tracking-wider">Records</h2>
+        </div>
+        <div id="record-list" class="flex-1 overflow-y-auto py-1"></div>
+        <div class="p-2 border-t border-slate-200">
+          <button id="btn-new-record" class="w-full flex items-center justify-center gap-1.5 px-3 py-2 bg-blue-600 hover:bg-blue-700 text-white text-sm font-medium rounded-lg transition-colors">
+            <span class="material-icons text-base">add</span>
+            New Record
+          </button>
+        </div>
+      </aside>
+
+      <!-- Column 2: Section Navigation -->
+      <nav id="col-sections" class="w-48 flex-shrink-0 bg-white border-r border-slate-200 overflow-y-auto">
+        <div class="px-3 py-2 border-b border-slate-200 bg-slate-50">
+          <h2 class="text-xs font-semibold text-slate-500 uppercase tracking-wider">Sections</h2>
+        </div>
+        <div id="section-nav" class="py-1"></div>
+      </nav>
+
+      <!-- Column 3: Form Content -->
+      <section id="col-form" class="flex-1 overflow-y-auto p-4 lg:p-6">
+        <div id="form-content"></div>
+      </section>
+
+    </div>
+
+    <!-- SUMMARY VIEW (hidden by default) -->
+    <div id="summary-view" class="hidden overflow-y-auto h-form-view p-4 lg:p-6">
+      <div id="summary-content" class="max-w-5xl mx-auto"></div>
+    </div>
+
+    <!-- TABLE VIEW (hidden by default) -->
+    <div id="table-view" class="hidden h-form-view flex flex-col">
+      <div id="table-toolbar" class="flex items-center gap-3 px-4 py-2 bg-white border-b border-slate-200 flex-shrink-0"></div>
+      <div id="table-scroll" class="flex-1 overflow-auto">
+        <div id="table-content"></div>
+      </div>
+    </div>
+
+  </main>
+
+  <script src="app.js"></script>
+</body>
+</html>
