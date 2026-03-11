@@ -495,6 +495,8 @@ let ttsPaused = false;
 let _immDoubleTapCount = 0;
 let _immDoubleTapTimer = null;
 let _immReflIndex = 0;
+let _immAutoReflTimer = null;
+let _immVerseUpdateTimer = null;
 
 function ttsBuildQueue() {
   const els = [...document.querySelectorAll("#output .verse")];
@@ -793,8 +795,38 @@ function ttsShowContinuePrompt() {
   const reflectBtn = document.getElementById("ttsImmReflectBtn");
   if (reflectBtn) {
     reflectBtn.hidden = false;
-    reflectBtn.onclick = ttsImmReflectionOpen;
+    reflectBtn.onclick = () => { _immCancelAutoRefl(); ttsImmReflectionOpen(); };
   }
+
+  // Auto-advance to reflection after 3s
+  _immCancelAutoRefl();
+  const autoReflBar = document.getElementById("ttsImmAutoReflBar");
+  const autoReflFill = document.getElementById("ttsImmAutoReflFill");
+  if (autoReflBar && autoReflFill) {
+    autoReflBar.hidden = false;
+    autoReflFill.style.transition = "none";
+    autoReflFill.style.width = "100%";
+    requestAnimationFrame(() => requestAnimationFrame(() => {
+      autoReflFill.style.transition = "width 3s linear";
+      autoReflFill.style.width = "0%";
+    }));
+  }
+  _immAutoReflTimer = setTimeout(() => {
+    _immAutoReflTimer = null;
+    _immHideAutoReflBar();
+    const ready = document.querySelectorAll('#aiReflection textarea[id^="reflection-"]').length > 0;
+    if (ready) ttsImmReflectionOpen();
+  }, 3000);
+}
+
+function _immCancelAutoRefl() {
+  if (_immAutoReflTimer) { clearTimeout(_immAutoReflTimer); _immAutoReflTimer = null; }
+  _immHideAutoReflBar();
+}
+
+function _immHideAutoReflBar() {
+  const bar = document.getElementById("ttsImmAutoReflBar");
+  if (bar) bar.hidden = true;
 }
 
 function ttsShowPlayer(_status) {
@@ -2947,6 +2979,8 @@ function ttsImmersiveClose() {
   if (el) el.hidden = true;
   _immDoubleTapCount = 0;
   clearTimeout(_immDoubleTapTimer);
+  _immCancelAutoRefl();
+  if (_immVerseUpdateTimer) { clearTimeout(_immVerseUpdateTimer); _immVerseUpdateTimer = null; }
   // Reset reflection panel + verse popup state
   const panel = document.getElementById("ttsImmReflPanel");
   if (panel) panel.hidden = true;
@@ -2983,49 +3017,80 @@ function ttsImmersiveUpdate(index) {
   const cur  = ttsQueue[index];
   const next = ttsQueue[index + 1];
 
-  // Prev slot
-  const prevNum  = document.getElementById("ttsImmPrevNum");
-  const prevText = document.getElementById("ttsImmPrevText");
-  if (prevNum)  prevNum.textContent  = prev ? `Verse ${prev.verseNum}` : "";
-  if (prevText) prevText.textContent = prev ? _immPreview(prev.text) : "";
+  // Cancel any in-flight deferred update
+  if (_immVerseUpdateTimer) {
+    clearTimeout(_immVerseUpdateTimer);
+    _immVerseUpdateTimer = null;
+    const cs = document.getElementById("ttsImmSlotCur");
+    if (cs) cs.classList.remove("tts-verse-exit", "tts-verse-anim");
+  }
 
-  // Current slot with animation
-  const curSlot = document.getElementById("ttsImmSlotCur");
-  const curNum  = document.getElementById("ttsImmCurNum");
-  const curText = document.getElementById("ttsImmCurText");
+  // Phase 1: exit animation on current slot, fade side slots out
+  const curSlot  = document.getElementById("ttsImmSlotCur");
+  const prevSlot = document.getElementById("ttsImmSlotPrev");
+  const nextSlot = document.getElementById("ttsImmSlotNext");
   if (curSlot) {
     curSlot.classList.remove("tts-verse-anim");
     void curSlot.offsetWidth;
-    curSlot.classList.add("tts-verse-anim");
+    curSlot.classList.add("tts-verse-exit");
   }
-  if (curNum)  curNum.textContent  = `Verse ${cur.verseNum}`;
-  if (curText) curText.textContent = cur.text;
+  if (prevSlot) prevSlot.style.opacity = "0";
+  if (nextSlot) nextSlot.style.opacity = "0";
 
-  // Next slot
-  const nextNum  = document.getElementById("ttsImmNextNum");
-  const nextText = document.getElementById("ttsImmNextText");
-  if (nextNum)  nextNum.textContent  = next ? `Verse ${next.verseNum}` : "";
-  if (nextText) nextText.textContent = next ? _immPreview(next.text) : "";
+  // Phase 2: after exit, swap content and animate in
+  _immVerseUpdateTimer = setTimeout(() => {
+    _immVerseUpdateTimer = null;
 
-  // Scrubber: activate current dot and scroll it into view
-  document.querySelectorAll("#ttsImmScrubber .tts-imm-dot").forEach((d, i) => {
-    d.classList.toggle("active", i === index);
-  });
-  const activeDot = document.querySelector(`#ttsImmScrubber .tts-imm-dot[data-idx="${index}"]`);
-  if (activeDot) activeDot.scrollIntoView({ behavior: "smooth", inline: "center", block: "nearest" });
+    // Prev slot
+    const prevNum  = document.getElementById("ttsImmPrevNum");
+    const prevText = document.getElementById("ttsImmPrevText");
+    if (prevNum)  prevNum.textContent  = prev ? `Verse ${prev.verseNum}` : "";
+    if (prevText) prevText.textContent = prev ? _immPreview(prev.text) : "";
 
-  // Nav buttons
-  const prevBtn = document.getElementById("ttsImmPrevBtn");
-  const nextBtn = document.getElementById("ttsImmNextBtn");
-  if (prevBtn) prevBtn.disabled = index <= 0;
-  if (nextBtn) nextBtn.disabled = index >= ttsQueue.length - 1;
+    // Current slot
+    const curNum  = document.getElementById("ttsImmCurNum");
+    const curText = document.getElementById("ttsImmCurText");
+    if (curSlot) {
+      curSlot.classList.remove("tts-verse-exit");
+      if (curNum)  curNum.textContent  = `Verse ${cur.verseNum}`;
+      if (curText) curText.textContent = cur.text;
+      void curSlot.offsetWidth;
+      curSlot.classList.add("tts-verse-anim");
+    } else {
+      if (curNum)  curNum.textContent  = `Verse ${cur.verseNum}`;
+      if (curText) curText.textContent = cur.text;
+    }
 
-  // Reset pause button to pause icon
-  const pauseBtn = document.getElementById("ttsImmPauseBtn");
-  if (pauseBtn && !ttsPaused) {
-    pauseBtn.innerHTML = '<span class="material-symbols-outlined">pause</span>';
-    pauseBtn.onclick = pauseResumeTTS;
-  }
+    // Next slot
+    const nextNum  = document.getElementById("ttsImmNextNum");
+    const nextText = document.getElementById("ttsImmNextText");
+    if (nextNum)  nextNum.textContent  = next ? `Verse ${next.verseNum}` : "";
+    if (nextText) nextText.textContent = next ? _immPreview(next.text) : "";
+
+    // Restore side slot opacity (CSS transition handles fade-in)
+    if (prevSlot) prevSlot.style.opacity = "";
+    if (nextSlot) nextSlot.style.opacity = "";
+
+    // Scrubber: activate current dot and scroll it into view
+    document.querySelectorAll("#ttsImmScrubber .tts-imm-dot").forEach((d, i) => {
+      d.classList.toggle("active", i === index);
+    });
+    const activeDot = document.querySelector(`#ttsImmScrubber .tts-imm-dot[data-idx="${index}"]`);
+    if (activeDot) activeDot.scrollIntoView({ behavior: "smooth", inline: "center", block: "nearest" });
+
+    // Nav buttons
+    const prevBtn = document.getElementById("ttsImmPrevBtn");
+    const nextBtn = document.getElementById("ttsImmNextBtn");
+    if (prevBtn) prevBtn.disabled = index <= 0;
+    if (nextBtn) nextBtn.disabled = index >= ttsQueue.length - 1;
+
+    // Reset pause button to pause icon
+    const pauseBtn = document.getElementById("ttsImmPauseBtn");
+    if (pauseBtn && !ttsPaused) {
+      pauseBtn.innerHTML = '<span class="material-symbols-outlined">pause</span>';
+      pauseBtn.onclick = pauseResumeTTS;
+    }
+  }, 120);
 }
 
 function _immPreview(text) {
@@ -3118,6 +3183,7 @@ function ttsImmReflectionShow(index) {
   const backBtn = document.getElementById("ttsImmReflBack");
   const nextBtn = document.getElementById("ttsImmReflNext");
   const copyBtn = document.getElementById("ttsImmReflCopy");
+  const doneBtn = document.getElementById("ttsImmReflDone");
   const statusEl = document.getElementById("ttsImmReflStatus");
   statusEl.textContent = "";
 
@@ -3144,6 +3210,7 @@ function ttsImmReflectionShow(index) {
       ttsImmReflectionShow(_immReflIndex);
     };
     copyBtn.hidden = true;
+    if (doneBtn) doneBtn.hidden = true;
   } else {
     nextBtn.hidden = true;
     copyBtn.hidden = false;
@@ -3152,6 +3219,10 @@ function ttsImmReflectionShow(index) {
       statusEl.textContent = "✅ Notes copied!";
       setTimeout(() => { statusEl.textContent = ""; }, 2500);
     };
+    if (doneBtn) {
+      doneBtn.hidden = false;
+      doneBtn.onclick = () => stopTTS();
+    }
   }
 }
 

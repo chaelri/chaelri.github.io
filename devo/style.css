@@ -1967,6 +1967,14 @@ body.light {
   animation: ttsVerseIn 0.35s cubic-bezier(0.16, 1, 0.3, 1) forwards;
 }
 
+@keyframes ttsVerseOut {
+  from { opacity: 1; transform: translateY(0); }
+  to   { opacity: 0; transform: translateY(-10px); }
+}
+.tts-imm-slot-cur.tts-verse-exit {
+  animation: ttsVerseOut 0.12s ease forwards;
+}
+
 /* Heart overlay on double-tap */
 .tts-imm-heart {
   position: absolute;
@@ -2221,6 +2229,23 @@ body.light {
   color: #c83086 !important;
 }
 
+/* Auto-reflection countdown bar */
+.tts-imm-auto-refl-bar {
+  width: calc(100% - 32px);
+  margin: 6px 16px 0;
+  height: 3px;
+  background: rgba(200, 48, 134, 0.15);
+  border-radius: 99px;
+  overflow: hidden;
+}
+.tts-imm-auto-refl-bar[hidden] { display: none !important; }
+.tts-imm-auto-refl-fill {
+  height: 100%;
+  width: 100%;
+  background: linear-gradient(90deg, #c83086, #486bec);
+  border-radius: 99px;
+}
+
 /* Reflection panel — overlays stage+footer area */
 .tts-imm-refl-panel {
   position: absolute;
@@ -2322,6 +2347,26 @@ body.light {
   background: rgba(255,255,255,0.1) !important;
   color: inherit !important;
   border: 1px solid rgba(255,255,255,0.15) !important;
+}
+.tts-imm-refl-done-btn {
+  flex: 0 0 auto !important;
+  padding: 14px 16px !important;
+  border-radius: 14px !important;
+  font-size: 14px !important;
+  font-weight: 700 !important;
+  border: none !important;
+  background: #16a34a !important;
+  color: #fff !important;
+  display: flex !important;
+  align-items: center !important;
+  justify-content: center !important;
+  transition: background 0.2s ease !important;
+}
+.tts-imm-refl-done-btn:hover {
+  background: #15803d !important;
+}
+.tts-imm-refl-done-btn .material-symbols-outlined {
+  font-size: 22px !important;
 }
 .tts-imm-refl-status {
   text-align: center;
