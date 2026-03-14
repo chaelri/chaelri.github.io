@@ -932,14 +932,50 @@ body[data-company="moriah"] .period-btn.active { background: #7c3aed; border-col
 /* Period filter bar */
 .period-filter-bar {
   display: flex;
-  align-items: center;
-  gap: 8px;
-  padding: 10px 16px;
+  flex-direction: column;
+  gap: 0;
+  padding: 0;
   background: #fff;
   border: 1px solid #e2e8f0;
   border-radius: 10px;
   margin-bottom: 16px;
+  overflow: hidden;
+}
+.pf-row {
+  display: flex;
+  align-items: center;
+  gap: 0;
+  padding: 9px 16px;
+  border-bottom: 1px solid #f1f5f9;
+}
+.pf-row:last-child { border-bottom: none; }
+.pf-row-label {
+  font-size: 12px;
+  font-weight: 700;
+  color: #475569;
+  width: 58px;
+  flex-shrink: 0;
+}
+.pf-row-controls {
+  display: flex;
+  align-items: center;
+  gap: 6px;
   flex-wrap: wrap;
+  flex: 1;
+}
+.pf-date-dash {
+  font-size: 12px;
+  color: #94a3b8;
+  flex-shrink: 0;
+  padding: 0 2px;
+}
+.pf-footer {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  padding: 8px 16px;
+  background: #f8fafc;
+  border-top: 1px solid #f1f5f9;
 }
 .period-filter-label { font-size: 12px; font-weight: 600; color: #475569; margin-right: 4px; }
 .period-btn {
@@ -955,7 +991,7 @@ body[data-company="moriah"] .period-btn.active { background: #7c3aed; border-col
   background: #f8fafc;
 }
 .period-count-badge {
-  margin-left: auto; background: #eff6ff; color: #1d4ed8;
+  background: #eff6ff; color: #1d4ed8;
   font-size: 11px; font-weight: 700; padding: 3px 10px; border-radius: 20px;
 }
 .period-date-input {
@@ -1255,8 +1291,10 @@ body[data-company="moriah"] .mobile-back-btn { color: #7c3aed; }
   /* Table search: full width on mobile (moved to its own row in JS) */
   .table-search { width: 100%; }
 
-  /* Summary period filter: compact */
-  .period-filter-bar { padding: 8px 12px; gap: 6px; }
+  /* Summary period filter: compact rows */
+  .pf-row { padding: 8px 12px; }
+  .pf-footer { padding: 7px 12px; }
+  .pf-row-controls { flex-wrap: wrap; gap: 5px; overflow-x: auto; -webkit-overflow-scrolling: touch; }
 
   /* Header: make company switcher smaller text on tiny screens */
   .company-tab { font-size: 11.5px; padding: 4px 8px; }

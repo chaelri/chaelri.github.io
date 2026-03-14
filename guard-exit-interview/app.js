@@ -2256,24 +2256,23 @@ function renderPeriodFilter() {
   const bar = document.createElement('div');
   bar.className = 'period-filter-bar';
 
-  const label = document.createElement('span');
-  label.className = 'period-filter-label';
-  label.textContent = 'Period:';
-  bar.appendChild(label);
+  // ── Row: Period ──
+  const periodRow = document.createElement('div');
+  periodRow.className = 'pf-row';
+  const periodLabel = document.createElement('span');
+  periodLabel.className = 'pf-row-label';
+  periodLabel.textContent = 'Period:';
+  periodRow.appendChild(periodLabel);
 
-  const types = [['all','All Time'],['monthly','Monthly'],['quarterly','Quarterly'],['annual','Annual']];
-  types.forEach(([t, txt]) => {
+  const periodControls = document.createElement('div');
+  periodControls.className = 'pf-row-controls';
+  [['all','All Time'],['monthly','Monthly'],['quarterly','Quarterly'],['annual','Annual']].forEach(([t, txt]) => {
     const b = document.createElement('button');
     b.className = 'period-btn' + (summaryPeriod.type === t ? ' active' : '');
     b.textContent = txt;
-    b.addEventListener('click', () => {
-      summaryPeriod.type = t;
-      renderSummary();
-    });
-    bar.appendChild(b);
+    b.addEventListener('click', () => { summaryPeriod.type = t; renderSummary(); });
+    periodControls.appendChild(b);
   });
-
-  // Year selector (shown when not 'all')
   if (summaryPeriod.type !== 'all') {
     const curYear = new Date().getFullYear();
     const ySel = document.createElement('select');
@@ -2285,25 +2284,20 @@ function renderPeriodFilter() {
       ySel.appendChild(o);
     }
     ySel.addEventListener('change', () => { summaryPeriod.year = parseInt(ySel.value); renderSummary(); });
-    bar.appendChild(ySel);
+    periodControls.appendChild(ySel);
   }
-
-  // Month selector (only for monthly)
   if (summaryPeriod.type === 'monthly') {
-    const MONTHS = ['Jan','Feb','Mar','Apr','May','Jun','Jul','Aug','Sep','Oct','Nov','Dec'];
     const mSel = document.createElement('select');
     mSel.className = 'period-select';
-    MONTHS.forEach((m, i) => {
+    ['Jan','Feb','Mar','Apr','May','Jun','Jul','Aug','Sep','Oct','Nov','Dec'].forEach((m, i) => {
       const o = document.createElement('option');
       o.value = i+1; o.textContent = m;
       if (i+1 === summaryPeriod.month) o.selected = true;
       mSel.appendChild(o);
     });
     mSel.addEventListener('change', () => { summaryPeriod.month = parseInt(mSel.value); renderSummary(); });
-    bar.appendChild(mSel);
+    periodControls.appendChild(mSel);
   }
-
-  // Quarter selector (only for quarterly)
   if (summaryPeriod.type === 'quarterly') {
     const qSel = document.createElement('select');
     qSel.className = 'period-select';
@@ -2314,21 +2308,55 @@ function renderPeriodFilter() {
       qSel.appendChild(o);
     });
     qSel.addEventListener('change', () => { summaryPeriod.quarter = parseInt(qSel.value); renderSummary(); });
-    bar.appendChild(qSel);
+    periodControls.appendChild(qSel);
   }
+  periodRow.appendChild(periodControls);
+  bar.appendChild(periodRow);
 
-  // Detachment / Branch filter
+  // ── Row: Date Range ──
+  const dateRow = document.createElement('div');
+  dateRow.className = 'pf-row';
+  const dateLabel = document.createElement('span');
+  dateLabel.className = 'pf-row-label';
+  dateLabel.textContent = 'Date:';
+  dateRow.appendChild(dateLabel);
+
+  const dateControls = document.createElement('div');
+  dateControls.className = 'pf-row-controls';
+  const drFrom = document.createElement('input');
+  drFrom.type = 'date';
+  drFrom.className = 'period-date-input';
+  drFrom.title = 'From date';
+  if (summaryPeriod.dateFrom) drFrom.value = summaryPeriod.dateFrom;
+  drFrom.addEventListener('change', () => { summaryPeriod.dateFrom = drFrom.value; renderSummary(); });
+  const drDash = document.createElement('span');
+  drDash.className = 'pf-date-dash';
+  drDash.textContent = '–';
+  const drTo = document.createElement('input');
+  drTo.type = 'date';
+  drTo.className = 'period-date-input';
+  drTo.title = 'To date';
+  if (summaryPeriod.dateTo) drTo.value = summaryPeriod.dateTo;
+  drTo.addEventListener('change', () => { summaryPeriod.dateTo = drTo.value; renderSummary(); });
+  dateControls.appendChild(drFrom);
+  dateControls.appendChild(drDash);
+  dateControls.appendChild(drTo);
+  dateRow.appendChild(dateControls);
+  bar.appendChild(dateRow);
+
+  // ── Row: Branch ──
   const usedDetachments = [...new Set(
     records.filter(r => r.fullName && r.fullName.trim() && r.detachment).map(r => r.detachment)
   )].sort();
   if (usedDetachments.length > 0) {
-    const sep = document.createElement('div');
-    sep.style.cssText = 'width:1px;height:20px;background:#e2e8f0;margin:0 2px;flex-shrink:0;';
-    bar.appendChild(sep);
-    const detLabel = document.createElement('span');
-    detLabel.className = 'period-filter-label';
-    detLabel.textContent = 'Branch:';
-    bar.appendChild(detLabel);
+    const branchRow = document.createElement('div');
+    branchRow.className = 'pf-row';
+    const branchLabel = document.createElement('span');
+    branchLabel.className = 'pf-row-label';
+    branchLabel.textContent = 'Branch:';
+    branchRow.appendChild(branchLabel);
+    const branchControls = document.createElement('div');
+    branchControls.className = 'pf-row-controls';
     const detSel = document.createElement('select');
     detSel.className = 'period-select';
     const allOpt = document.createElement('option');
@@ -2342,43 +2370,35 @@ function renderPeriodFilter() {
       detSel.appendChild(o);
     });
     detSel.addEventListener('change', () => { summaryPeriod.detachment = detSel.value; renderSummary(); });
-    bar.appendChild(detSel);
+    branchControls.appendChild(detSel);
+    branchRow.appendChild(branchControls);
+    bar.appendChild(branchRow);
   }
 
-  // Date range filter
-  const drSep = document.createElement('div');
-  drSep.style.cssText = 'width:1px;height:20px;background:#e2e8f0;margin:0 2px;flex-shrink:0;';
-  bar.appendChild(drSep);
-  const drLabel = document.createElement('span');
-  drLabel.className = 'period-filter-label';
-  drLabel.textContent = 'Date:';
-  bar.appendChild(drLabel);
-  const drFrom = document.createElement('input');
-  drFrom.type = 'date';
-  drFrom.className = 'period-date-input';
-  drFrom.title = 'From date';
-  if (summaryPeriod.dateFrom) drFrom.value = summaryPeriod.dateFrom;
-  drFrom.addEventListener('change', () => { summaryPeriod.dateFrom = drFrom.value; renderSummary(); });
-  bar.appendChild(drFrom);
-  const drSpan = document.createElement('span');
-  drSpan.style.cssText = 'font-size:11px;color:#94a3b8;flex-shrink:0;';
-  drSpan.textContent = '–';
-  bar.appendChild(drSpan);
-  const drTo = document.createElement('input');
-  drTo.type = 'date';
-  drTo.className = 'period-date-input';
-  drTo.title = 'To date';
-  if (summaryPeriod.dateTo) drTo.value = summaryPeriod.dateTo;
-  drTo.addEventListener('change', () => { summaryPeriod.dateTo = drTo.value; renderSummary(); });
-  bar.appendChild(drTo);
+  // ── Footer: count badge + reset ──
+  const footer = document.createElement('div');
+  footer.className = 'pf-footer';
 
-  // Result count badge
   const filtered = getFilteredCompleted();
   const badge = document.createElement('span');
   badge.className = 'period-count-badge';
+  badge.style.marginLeft = '0';
   badge.textContent = `${filtered.length} record${filtered.length !== 1 ? 's' : ''}`;
-  bar.appendChild(badge);
+  footer.appendChild(badge);
 
+  const hasFilters = summaryPeriod.type !== 'all' || summaryPeriod.detachment || summaryPeriod.dateFrom || summaryPeriod.dateTo;
+  const resetBtn = document.createElement('button');
+  resetBtn.className = 'btn-table-reset' + (hasFilters ? ' has-filters' : '');
+  resetBtn.innerHTML = '<span class="material-icons">restart_alt</span> Reset';
+  resetBtn.title = 'Clear all filters';
+  resetBtn.style.marginLeft = 'auto';
+  resetBtn.addEventListener('click', () => {
+    summaryPeriod = { type: 'all', year: new Date().getFullYear(), month: new Date().getMonth() + 1, quarter: Math.ceil((new Date().getMonth() + 1) / 3), detachment: '', dateFrom: '', dateTo: '' };
+    renderSummary();
+  });
+  footer.appendChild(resetBtn);
+
+  bar.appendChild(footer);
   return bar;
 }
 
