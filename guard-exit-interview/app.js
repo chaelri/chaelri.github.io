@@ -1767,7 +1767,6 @@ function getTableRows() {
 
 function renderTable(refocusSearch = false) {
   const toolbar = document.getElementById('table-toolbar');
-  const content = document.getElementById('table-content');
   toolbar.innerHTML = '';
   toolbar.style.cssText = 'display:flex;flex-direction:column;gap:0;padding:0;flex-shrink:0;';
 
@@ -1842,7 +1841,7 @@ function renderTable(refocusSearch = false) {
   if (tBounds.min) drFrom.min = tBounds.min;
   if (tBounds.max) drFrom.max = tBounds.max;
   if (tablePeriod.dateFrom) drFrom.value = tablePeriod.dateFrom;
-  drFrom.addEventListener('change', () => { tablePeriod.dateFrom = drFrom.value; renderTable(); });
+  drFrom.addEventListener('change', () => { tablePeriod.dateFrom = drFrom.value; renderTableBody(); });
   const drDash = document.createElement('span');
   drDash.className = 'pf-date-dash'; drDash.textContent = '–';
   const drTo = document.createElement('input');
@@ -1850,7 +1849,7 @@ function renderTable(refocusSearch = false) {
   if (tBounds.min) drTo.min = tBounds.min;
   if (tBounds.max) drTo.max = tBounds.max;
   if (tablePeriod.dateTo) drTo.value = tablePeriod.dateTo;
-  drTo.addEventListener('change', () => { tablePeriod.dateTo = drTo.value; renderTable(); });
+  drTo.addEventListener('change', () => { tablePeriod.dateTo = drTo.value; renderTableBody(); });
   dateCtrl.appendChild(drFrom); dateCtrl.appendChild(drDash); dateCtrl.appendChild(drTo);
   dateRow.appendChild(dateCtrl);
   toolbar.appendChild(dateRow);
@@ -1908,6 +1907,7 @@ function renderTable(refocusSearch = false) {
     ? `<strong>${records.length}</strong> record${records.length !== 1 ? 's' : ''}`
     : `<strong>${filteredRows.length}</strong> of <strong>${records.length}</strong>`;
   const infoBadge = document.createElement('span');
+  infoBadge.id = 'table-count-badge';
   infoBadge.className = 'period-count-badge';
   infoBadge.innerHTML = shownText;
   footer.appendChild(infoBadge);
@@ -1959,7 +1959,21 @@ function renderTable(refocusSearch = false) {
     if (s) { s.focus(); s.setSelectionRange(s.value.length, s.value.length); }
   }
 
-  // ── Table ──────────────────────────────────────────────
+  renderTableBody();
+}
+
+function renderTableBody() {
+  const content = document.getElementById('table-content');
+  const rows = getTableRows();
+
+  // Update count badge in toolbar if it exists
+  const badge = document.getElementById('table-count-badge');
+  if (badge) {
+    badge.innerHTML = rows.length === records.length
+      ? `<strong>${records.length}</strong> record${records.length !== 1 ? 's' : ''}`
+      : `<strong>${rows.length}</strong> of <strong>${records.length}</strong>`;
+  }
+
   content.innerHTML = '';
   const table = document.createElement('table');
   table.className = 'data-table';
@@ -1987,7 +2001,6 @@ function renderTable(refocusSearch = false) {
   const fieldTr = document.createElement('tr');
   fieldTr.className = 'field-header';
 
-  // ID column header — sorts by original record ID
   const thIdF = document.createElement('th');
   const idIsActive = !tableSort.field;
   thIdF.className = 'sticky-col col-id th-sortable' + (idIsActive ? ' th-sorted' : '');
@@ -2032,9 +2045,8 @@ function renderTable(refocusSearch = false) {
   thead.appendChild(fieldTr);
   table.appendChild(thead);
 
-  // Body rows — filtered + sorted
   const tbody = document.createElement('tbody');
-  if (filteredRows.length === 0) {
+  if (rows.length === 0) {
     const tr = document.createElement('tr');
     const td = document.createElement('td');
     td.colSpan = TABLE_COLUMNS.length + 2;
@@ -2043,7 +2055,7 @@ function renderTable(refocusSearch = false) {
     tr.appendChild(td);
     tbody.appendChild(tr);
   } else {
-    filteredRows.forEach(({ r, i: rowIdx }) => {
+    rows.forEach(({ r, i: rowIdx }) => {
       const tr = document.createElement('tr');
       tr.dataset.recordIdx = rowIdx;
       if (rowIdx === activeRecordIdx) tr.classList.add('active-row');
@@ -2366,7 +2378,7 @@ function renderPeriodFilter() {
   if (bounds.min) drFrom.min = bounds.min;
   if (bounds.max) drFrom.max = bounds.max;
   if (summaryPeriod.dateFrom) drFrom.value = summaryPeriod.dateFrom;
-  drFrom.addEventListener('change', () => { summaryPeriod.dateFrom = drFrom.value; renderSummary(); });
+  drFrom.addEventListener('change', () => { summaryPeriod.dateFrom = drFrom.value; renderSummaryCharts(); });
   const drDash = document.createElement('span');
   drDash.className = 'pf-date-dash';
   drDash.textContent = '–';
@@ -2377,7 +2389,7 @@ function renderPeriodFilter() {
   if (bounds.min) drTo.min = bounds.min;
   if (bounds.max) drTo.max = bounds.max;
   if (summaryPeriod.dateTo) drTo.value = summaryPeriod.dateTo;
-  drTo.addEventListener('change', () => { summaryPeriod.dateTo = drTo.value; renderSummary(); });
+  drTo.addEventListener('change', () => { summaryPeriod.dateTo = drTo.value; renderSummaryCharts(); });
   dateControls.appendChild(drFrom);
   dateControls.appendChild(drDash);
   dateControls.appendChild(drTo);
@@ -2421,6 +2433,7 @@ function renderPeriodFilter() {
 
   const filtered = getFilteredCompleted();
   const badge = document.createElement('span');
+  badge.id = 'summary-count-badge';
   badge.className = 'period-count-badge';
   badge.style.marginLeft = '0';
   badge.textContent = `${filtered.length} record${filtered.length !== 1 ? 's' : ''}`;
@@ -2442,6 +2455,53 @@ function renderPeriodFilter() {
   return bar;
 }
 
+function renderSummaryCharts() {
+  const container = document.getElementById('summary-content');
+  let chartsDiv = document.getElementById('summary-charts');
+  if (!chartsDiv) {
+    chartsDiv = document.createElement('div');
+    chartsDiv.id = 'summary-charts';
+    container.appendChild(chartsDiv);
+  }
+  chartsDiv.innerHTML = '';
+
+  const completed = getFilteredCompleted();
+
+  // Update count badge in filter toolbar if it exists
+  const badge = document.getElementById('summary-count-badge');
+  if (badge) badge.textContent = `${completed.length} record${completed.length !== 1 ? 's' : ''}`;
+
+  chartsDiv.appendChild(renderKPIs(completed));
+  chartsDiv.appendChild(renderMonthlyTrendChart());
+  chartsDiv.appendChild(renderDetachmentChart(completed));
+  chartsDiv.appendChild(renderExitReasonsChart(completed));
+  chartsDiv.appendChild(renderExitTypeChart(completed));
+  chartsDiv.appendChild(renderTrustIndexChart(completed));
+  chartsDiv.appendChild(renderOpStressorsChart(completed));
+  chartsDiv.appendChild(renderSupervisionChart(completed));
+  chartsDiv.appendChild(renderStayFactorsChart(completed));
+  chartsDiv.appendChild(renderServiceLengthChart(completed));
+  chartsDiv.appendChild(renderRecommendChart(completed));
+
+  // Animate bars after DOM is inserted
+  requestAnimationFrame(() => {
+    chartsDiv.querySelectorAll('.bar-fill[data-pct]').forEach(el => {
+      el.style.width = el.dataset.pct + '%';
+    });
+    chartsDiv.querySelectorAll('.donut-segment[data-deg]').forEach(el => {
+      el.style.setProperty('--seg-deg', el.dataset.deg + 'deg');
+    });
+  });
+
+  // Bar label click-to-pin (expand/collapse)
+  chartsDiv.addEventListener('click', e => {
+    const label = e.target.closest('.bar-label');
+    if (!label) return;
+    e.stopPropagation();
+    label.classList.toggle('expanded');
+  });
+}
+
 function renderSummary() {
   const container = document.getElementById('summary-content');
   container.innerHTML = '';
@@ -2449,42 +2509,12 @@ function renderSummary() {
   // Period filter bar
   container.appendChild(renderPeriodFilter());
 
-  const completed = getFilteredCompleted();
+  // Charts (in their own div so date filter changes can re-render without touching the filter bar)
+  const chartsDiv = document.createElement('div');
+  chartsDiv.id = 'summary-charts';
+  container.appendChild(chartsDiv);
 
-  // ── KPI Row ──
-  container.appendChild(renderKPIs(completed));
-
-  // Monthly trend (always show, based on all records for company)
-  container.appendChild(renderMonthlyTrendChart());
-
-  // ── Charts ──
-  container.appendChild(renderDetachmentChart(completed));
-  container.appendChild(renderExitReasonsChart(completed));
-  container.appendChild(renderExitTypeChart(completed));
-  container.appendChild(renderTrustIndexChart(completed));
-  container.appendChild(renderOpStressorsChart(completed));
-  container.appendChild(renderSupervisionChart(completed));
-  container.appendChild(renderStayFactorsChart(completed));
-  container.appendChild(renderServiceLengthChart(completed));
-  container.appendChild(renderRecommendChart(completed));
-
-  // Animate bars after DOM is inserted
-  requestAnimationFrame(() => {
-    container.querySelectorAll('.bar-fill[data-pct]').forEach(el => {
-      el.style.width = el.dataset.pct + '%';
-    });
-    container.querySelectorAll('.donut-segment[data-deg]').forEach(el => {
-      el.style.setProperty('--seg-deg', el.dataset.deg + 'deg');
-    });
-  });
-
-  // Bar label click-to-pin (expand/collapse)
-  container.addEventListener('click', e => {
-    const label = e.target.closest('.bar-label');
-    if (!label) return;
-    e.stopPropagation();
-    label.classList.toggle('expanded');
-  });
+  renderSummaryCharts();
 }
 
 // ─── MONTHLY TREND CHART ─────────────────────────────────────────────
