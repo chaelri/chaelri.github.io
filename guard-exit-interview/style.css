@@ -779,6 +779,113 @@ body {
 .btn-row-delete:hover { background: #fee2e2; color: #ef4444; }
 .btn-row-delete .material-icons { font-size: 13px; }
 
+/* ===== TABLE TOOLBAR ROWS ===== */
+.table-toolbar-row1 {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  padding: 6px 12px;
+  border-bottom: 1px solid #f1f5f9;
+  flex-wrap: wrap;
+  background: #fff;
+}
+.table-toolbar-row2 {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  padding: 5px 12px;
+  background: #fff;
+  border-bottom: 1px solid #e2e8f0;
+}
+
+/* Search box */
+.table-search-wrap {
+  position: relative;
+  flex-shrink: 0;
+}
+.table-search-wrap .material-icons {
+  position: absolute;
+  left: 7px;
+  top: 50%;
+  transform: translateY(-50%);
+  font-size: 14px;
+  color: #94a3b8;
+  pointer-events: none;
+}
+.table-search {
+  height: 28px;
+  padding: 0 10px 0 28px;
+  border: 1.5px solid #e2e8f0;
+  border-radius: 6px;
+  font-family: 'Inter', sans-serif;
+  font-size: 12px;
+  color: #374151;
+  background: #f8fafc;
+  outline: none;
+  width: 200px;
+  transition: border-color 0.15s, box-shadow 0.15s;
+}
+.table-search:focus {
+  border-color: #3b82f6;
+  box-shadow: 0 0 0 2px rgba(59,130,246,0.1);
+  background: #fff;
+}
+
+/* Sortable column headers */
+.th-sortable {
+  cursor: pointer;
+  user-select: none;
+}
+.th-sortable:hover { background: #e8edf2 !important; }
+.th-sortable.th-sorted { background: #dbeafe !important; color: #1d4ed8; }
+.sort-icon {
+  font-size: 10px;
+  margin-left: 2px;
+  opacity: 0.3;
+  vertical-align: middle;
+}
+.th-sorted .sort-icon { opacity: 1; color: #2563eb; }
+
+/* Active filter badge */
+.filter-active-badge {
+  display: inline-flex;
+  align-items: center;
+  gap: 2px;
+  background: #dbeafe;
+  color: #1d4ed8;
+  font-size: 10.5px;
+  font-weight: 700;
+  padding: 2px 8px;
+  border-radius: 20px;
+}
+
+/* Reset button */
+.btn-table-reset {
+  display: flex;
+  align-items: center;
+  gap: 4px;
+  padding: 4px 10px;
+  border: 1.5px solid #e2e8f0;
+  border-radius: 6px;
+  background: #fff;
+  color: #94a3b8;
+  font-size: 11.5px;
+  font-weight: 600;
+  font-family: 'Inter', sans-serif;
+  cursor: pointer;
+  transition: all 0.12s;
+}
+.btn-table-reset:hover { border-color: #ef4444; color: #ef4444; background: #fef2f2; }
+.btn-table-reset.has-filters { border-color: #f97316; color: #ea580c; background: #fff7ed; }
+.btn-table-reset .material-icons { font-size: 13px; }
+
+/* Moriah theme overrides for table */
+body[data-company="moriah"] .th-sortable.th-sorted { background: #ede9fe !important; color: #6d28d9; }
+body[data-company="moriah"] .th-sorted .sort-icon { color: #7c3aed; }
+body[data-company="moriah"] .table-search:focus { border-color: #7c3aed; box-shadow: 0 0 0 2px rgba(124,58,237,0.1); }
+body[data-company="moriah"] .filter-active-badge { background: #ede9fe; color: #6d28d9; }
+body[data-company="moriah"] .period-btn.active { background: #7c3aed; border-color: #7c3aed; }
+
 /* Freq select — wider than scale selects */
 .td-freq-select {
   width: 92px;
@@ -893,6 +1000,54 @@ body {
 .trend-up   { color: #ef4444; font-size: 9px; }
 .trend-down { color: #22c55e; font-size: 9px; }
 .trend-flat { color: #94a3b8; font-size: 9px; }
+
+/* ===== HEADER COMPANY TRANSITION ===== */
+#app-header { transition: background-color 0.5s ease; }
+.section-nav-item.active { transition: background 0.3s ease, border-color 0.3s ease; }
+.record-item.active { transition: background 0.3s ease, border-color 0.3s ease; }
+.record-item.active .record-id-badge { transition: background 0.3s ease, color 0.3s ease, border-color 0.3s ease; }
+#btn-new-record { transition: background 0.3s ease !important; }
+.trend-bar { transition: height 0.45s ease, background 0.4s ease; }
+
+/* ===== MORIAH COMPANY THEME (Purple) ===== */
+body[data-company="moriah"] #app-header { background-color: #2e1065; }
+body[data-company="moriah"] #app-header span.material-icons { color: #a78bfa !important; }
+body[data-company="moriah"] #app-header .header-tab span.material-icons,
+body[data-company="moriah"] #app-header .company-tab span.material-icons,
+body[data-company="moriah"] #btn-export-csv span.material-icons { color: inherit !important; }
+body[data-company="moriah"] .form-section-title .material-icons { color: #7c3aed !important; }
+body[data-company="moriah"] .summary-section-title .material-icons { color: #7c3aed !important; }
+body[data-company="moriah"] .section-nav-item .material-icons { color: #7c3aed; }
+body[data-company="moriah"] #header-subtitle { color: #ddd6fe !important; }
+body[data-company="moriah"] .header-tab.active-tab { background: #6d28d9; }
+body[data-company="moriah"] .header-tab:hover { background: rgba(255,255,255,0.18); }
+body[data-company="moriah"] #app-header .bg-blue-800 { background-color: #4c1d95 !important; }
+body[data-company="moriah"] .section-nav-item.active { background: #7c3aed; border-left-color: #6d28d9; }
+body[data-company="moriah"] .record-item.active { background: #f5f3ff; border-left-color: #7c3aed; }
+body[data-company="moriah"] .record-item.active .record-name { color: #6d28d9; }
+body[data-company="moriah"] .record-item.active .record-id-badge { background: #ede9fe; color: #6d28d9; border-color: #ddd6fe; }
+body[data-company="moriah"] #btn-new-record { background: #7c3aed; }
+body[data-company="moriah"] #btn-new-record:hover { background: #6d28d9; }
+body[data-company="moriah"] .period-btn.active { background: #7c3aed; border-color: #7c3aed; }
+body[data-company="moriah"] .period-btn:hover { border-color: #7c3aed; color: #6d28d9; }
+body[data-company="moriah"] .period-count-badge { background: #f5f3ff; color: #6d28d9; }
+body[data-company="moriah"] .btn-table-add { background: #7c3aed; }
+body[data-company="moriah"] .btn-table-add:hover { background: #6d28d9; }
+body[data-company="moriah"] .btn-sticky-toggle.pinned { background: #f5f3ff; border-color: #7c3aed; color: #6d28d9; }
+body[data-company="moriah"] .btn-sticky-toggle:hover { border-color: #7c3aed; color: #6d28d9; }
+body[data-company="moriah"] .trend-bar { background: linear-gradient(to top, #7c3aed, #a78bfa); }
+body[data-company="moriah"] .trend-count-label { color: #6d28d9; }
+body[data-company="moriah"] .data-table .group-header th { background: #2e1065; border-right-color: #4c1d95; }
+body[data-company="moriah"] .data-table tbody tr:hover { background: #f5f3ff !important; }
+body[data-company="moriah"] .data-table tbody tr:hover td.sticky-col { background: #f5f3ff; }
+body[data-company="moriah"] .data-table tbody tr.active-row { background: #ede9fe !important; }
+body[data-company="moriah"] .data-table tbody tr.active-row td.sticky-col { background: #ede9fe; }
+body[data-company="moriah"] .td-input:focus,
+body[data-company="moriah"] .td-select:focus { background: #f5f3ff; box-shadow: inset 0 0 0 1.5px #7c3aed; }
+body[data-company="moriah"] .field-input:focus,
+body[data-company="moriah"] .field-select:focus,
+body[data-company="moriah"] .field-textarea:focus,
+body[data-company="moriah"] .form-textarea:focus { border-color: #7c3aed; box-shadow: 0 0 0 3px rgba(124,58,237,0.12); }
 
 /* Form group heading for income section */
 .form-group-heading {

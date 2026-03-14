@@ -789,11 +789,21 @@ let activeRecordIdx = 0;
 let activeSectionId = 'guard-info';
 let currentView = 'form'; // 'form' | 'summary' | 'table'
 let stickyNameCol = true;
+let tableSort = { field: null, dir: 'asc' }; // null field = sort by original ID
+let tableSearch = '';
+let tablePeriod = {
+  type: 'all',
+  year: new Date().getFullYear(),
+  month: new Date().getMonth() + 1,
+  quarter: Math.ceil((new Date().getMonth() + 1) / 3),
+  detachment: '',
+};
 let summaryPeriod = {
   type: 'all', // 'all' | 'monthly' | 'quarterly' | 'annual'
   year: new Date().getFullYear(),
   month: new Date().getMonth() + 1,
   quarter: Math.ceil((new Date().getMonth() + 1) / 3),
+  detachment: '',
 };
 
 // ─── INIT ────────────────────────────────────────────────────────────
@@ -813,6 +823,9 @@ function init() {
   // Set initial active state on company tabs
   document.getElementById('btn-company-manela').classList.toggle('active-company', currentCompany === 'manela');
   document.getElementById('btn-company-moriah').classList.toggle('active-company', currentCompany === 'moriah');
+
+  // Apply company theme
+  document.body.dataset.company = currentCompany;
 }
 
 function loadFromStorage() {
@@ -864,20 +877,70 @@ function updateHeaderSubtitle() {
 // ─── COMPANY SWITCH ──────────────────────────────────────────────────
 function switchCompany(id) {
   if (currentCompany === id) return;
-  currentCompany = id;
-  localStorage.setItem('exit_interview_active_company', id);
-  activeRecordIdx = 0;
-  activeSectionId = 'guard-info';
-  loadFromStorage();
-  buildSectionNav();
-  renderAll();
-  if (currentView === 'summary') renderSummary();
-  if (currentView === 'table') renderTable();
-  // Update company tab active states
-  document.getElementById('btn-company-manela').classList.toggle('active-company', id === 'manela');
-  document.getElementById('btn-company-moriah').classList.toggle('active-company', id === 'moriah');
-  // Update header subtitle to show company name
-  updateHeaderSubtitle();
+
+  const COMPANY_ORDER = ['manela', 'moriah'];
+  const goingRight = COMPANY_ORDER.indexOf(id) > COMPANY_ORDER.indexOf(currentCompany);
+  const slideIn  = goingRight ? '100%'  : '-100%';
+  const slideOut = goingRight ? '-100%' : '100%';
+  const bgColor     = id === 'moriah' ? '#2e1065' : '#1e3a8a';
+  const accentColor = id === 'moriah' ? '#a78bfa' : '#60a5fa';
+  const companyName = COMPANIES[id].name;
+
+  // Build full-screen slide overlay
+  const overlay = document.createElement('div');
+  overlay.style.cssText = `
+    position:fixed;inset:0;z-index:9999;
+    background:${bgColor};
+    display:flex;flex-direction:column;align-items:center;justify-content:center;gap:16px;
+    transform:translateX(${slideIn});
+    transition:transform 0.38s cubic-bezier(0.4,0,0.2,1);
+  `;
+  overlay.innerHTML = `
+    <div id="_co_inner" style="
+      display:flex;flex-direction:column;align-items:center;gap:14px;
+      opacity:0;transform:scale(0.88);
+      transition:opacity 0.28s ease 0.12s, transform 0.28s ease 0.12s;
+    ">
+      <span class="material-icons" style="font-size:56px;color:${accentColor};">shield</span>
+      <div style="font-size:26px;font-weight:800;color:#fff;letter-spacing:0.01em;">${escHtml(companyName)}</div>
+      <div style="width:52px;height:3px;background:${accentColor};border-radius:2px;opacity:0.55;"></div>
+    </div>
+  `;
+  document.body.appendChild(overlay);
+
+  // Slide in, then fade in inner content
+  requestAnimationFrame(() => requestAnimationFrame(() => {
+    overlay.style.transform = 'translateX(0)';
+    setTimeout(() => {
+      const inner = overlay.querySelector('#_co_inner');
+      inner.style.opacity = '1';
+      inner.style.transform = 'scale(1)';
+    }, 100);
+  }));
+
+  // While overlay covers screen — swap all data & theme
+  setTimeout(() => {
+    currentCompany = id;
+    localStorage.setItem('exit_interview_active_company', id);
+    activeRecordIdx = 0;
+    activeSectionId = 'guard-info';
+    loadFromStorage();
+    buildSectionNav();
+    renderAll();
+    if (currentView === 'summary') renderSummary();
+    if (currentView === 'table') renderTable();
+    document.getElementById('btn-company-manela').classList.toggle('active-company', id === 'manela');
+    document.getElementById('btn-company-moriah').classList.toggle('active-company', id === 'moriah');
+    document.body.dataset.company = id;
+    updateHeaderSubtitle();
+
+    // Brief hold, then slide out in the opposite direction
+    setTimeout(() => {
+      overlay.style.transition = 'transform 0.38s cubic-bezier(0.4,0,0.2,1)';
+      overlay.style.transform = `translateX(${slideOut})`;
+      setTimeout(() => overlay.remove(), 420);
+    }, 420);
+  }, 400);
 }
 
 // ─── RECORD LIST ─────────────────────────────────────────────────────
@@ -1432,6 +1495,13 @@ function wireYNButtons(container, r) {
 const TABLE_COLUMNS = [
   // ── Guard Info ───────────────────────────────────────────
   { group: 'Guard Info', field: 'fullName',            label: 'Full Name',           type: 'text',   width: 150 },
+  { group: 'Guard Info', field: 'dateOfExit',          label: 'Exit Date',           type: 'date',   width: 110 },
+  { group: 'Guard Info', field: 'typeOfExit',          label: 'Exit Type',           type: 'select', width: 100,
+    options: ['', ...EXIT_TYPE_OPTIONS] },
+  { group: 'Guard Info', field: 'detachment',          label: 'Detachment',          type: 'select', width: 200, options: DETACHMENT_OPTIONS },
+  { group: 'Guard Info', field: 'rankPosition',        label: 'Rank/Position',       type: 'text',   width: 120 },
+  { group: 'Guard Info', field: 'lengthOfService',     label: 'Tenure',              type: 'select', width: 120,
+    options: LENGTH_OF_SERVICE_OPTIONS },
   { group: 'Guard Info', field: 'age',                 label: 'Age',                 type: 'number', width: 52  },
   { group: 'Guard Info', field: 'maritalStatus',       label: 'Marital Status',      type: 'select', width: 110,
     options: MARITAL_STATUS_OPTIONS },
@@ -1445,13 +1515,6 @@ const TABLE_COLUMNS = [
     options: WHERE_HEARD_OPTIONS },
   { group: 'Guard Info', field: 'numPreviousJobs',     label: 'Prev Jobs #',         type: 'number', width: 52  },
   { group: 'Guard Info', field: 'typePreviousJob',     label: 'Prev Job Type',       type: 'text',   width: 120 },
-  { group: 'Guard Info', field: 'rankPosition',        label: 'Rank/Position',       type: 'text',   width: 120 },
-  { group: 'Guard Info', field: 'detachment',          label: 'Detachment',          type: 'select', width: 200, options: DETACHMENT_OPTIONS },
-  { group: 'Guard Info', field: 'lengthOfService',     label: 'Tenure',              type: 'select', width: 120,
-    options: LENGTH_OF_SERVICE_OPTIONS },
-  { group: 'Guard Info', field: 'typeOfExit',          label: 'Exit Type',           type: 'select', width: 100,
-    options: ['', ...EXIT_TYPE_OPTIONS] },
-  { group: 'Guard Info', field: 'dateOfExit',          label: 'Exit Date',           type: 'date',   width: 110 },
   // ── Income & Payroll ──────────────────────────────────────
   ...IP_PAYROLL_FIELDS.map(f => ({
     group: 'Income & Payroll', field: `ip_${key(f)}`, label: f.length > 35 ? f.slice(0,33)+'…' : f, type: 'yn', width: 64,
@@ -1529,39 +1592,226 @@ const GROUP_COLORS = {
   'Trust Index':      '#4a1d96',
 };
 
+// ─── TABLE FILTER + SORT ─────────────────────────────────────────────
+function getTableRows() {
+  let rows = records.map((r, i) => ({ r, i }));
+
+  // Period filter
+  if (tablePeriod.type !== 'all') {
+    rows = rows.filter(({ r }) => {
+      if (!r.dateOfExit) return false;
+      const d = new Date(r.dateOfExit);
+      if (isNaN(d)) return false;
+      const y = d.getFullYear(), m = d.getMonth() + 1;
+      if (tablePeriod.type === 'annual')    return y === tablePeriod.year;
+      if (tablePeriod.type === 'quarterly') return y === tablePeriod.year && Math.ceil(m / 3) === tablePeriod.quarter;
+      if (tablePeriod.type === 'monthly')   return y === tablePeriod.year && m === tablePeriod.month;
+      return true;
+    });
+  }
+
+  // Detachment filter
+  if (tablePeriod.detachment) {
+    rows = rows.filter(({ r }) => r.detachment === tablePeriod.detachment);
+  }
+
+  // Search (name, detachment, exit type, rank)
+  if (tableSearch.trim()) {
+    const q = tableSearch.trim().toLowerCase();
+    rows = rows.filter(({ r }) =>
+      (r.fullName     || '').toLowerCase().includes(q) ||
+      (r.detachment   || '').toLowerCase().includes(q) ||
+      (r.typeOfExit   || '').toLowerCase().includes(q) ||
+      (r.rankPosition || '').toLowerCase().includes(q)
+    );
+  }
+
+  // Sort
+  if (tableSort.field) {
+    const col = TABLE_COLUMNS.find(c => c.field === tableSort.field);
+    const dir = tableSort.dir === 'asc' ? 1 : -1;
+    rows.sort((a, b) => {
+      let av = a.r[tableSort.field], bv = b.r[tableSort.field];
+      // Nulls/empty always last
+      const aEmpty = av === null || av === undefined || av === '';
+      const bEmpty = bv === null || bv === undefined || bv === '';
+      if (aEmpty && !bEmpty) return 1;
+      if (!aEmpty && bEmpty) return -1;
+      if (aEmpty && bEmpty)  return 0;
+      if (typeof av === 'boolean') av = av ? 1 : 0;
+      if (typeof bv === 'boolean') bv = bv ? 1 : 0;
+      if (col?.type === 'date') {
+        av = new Date(av).getTime() || 0;
+        bv = new Date(bv).getTime() || 0;
+      }
+      if (av < bv) return -1 * dir;
+      if (av > bv) return  1 * dir;
+      return 0;
+    });
+  } else if (tableSort.dir === 'desc') {
+    rows.reverse();
+  }
+
+  return rows;
+}
+
 function renderTable() {
   const toolbar = document.getElementById('table-toolbar');
   const content = document.getElementById('table-content');
-
-  // ── Toolbar ────────────────────────────────────────────
   toolbar.innerHTML = '';
+  toolbar.style.cssText = 'display:flex;flex-direction:column;gap:0;padding:0;flex-shrink:0;';
+
+  // ── Toolbar Row 1: Filters ──────────────────────────────
+  const row1 = document.createElement('div');
+  row1.className = 'table-toolbar-row1';
+
+  // Search
+  const searchWrap = document.createElement('div');
+  searchWrap.className = 'table-search-wrap';
+  searchWrap.innerHTML = '<span class="material-icons">search</span>';
+  const searchInp = document.createElement('input');
+  searchInp.type = 'text';
+  searchInp.className = 'table-search';
+  searchInp.placeholder = 'Search name, detachment, type…';
+  searchInp.value = tableSearch;
+  searchInp.addEventListener('input', () => { tableSearch = searchInp.value; renderTable(); });
+  searchWrap.appendChild(searchInp);
+  row1.appendChild(searchWrap);
+
+  // Divider
+  const sep1 = document.createElement('div');
+  sep1.style.cssText = 'width:1px;height:18px;background:#e2e8f0;flex-shrink:0;margin:0 2px;';
+  row1.appendChild(sep1);
+
+  // Period label
+  const pLabel = document.createElement('span');
+  pLabel.className = 'period-filter-label';
+  pLabel.textContent = 'Period:';
+  row1.appendChild(pLabel);
+
+  // Period buttons
+  [['all','All'],['monthly','Monthly'],['quarterly','Quarterly'],['annual','Annual']].forEach(([t, txt]) => {
+    const b = document.createElement('button');
+    b.className = 'period-btn' + (tablePeriod.type === t ? ' active' : '');
+    b.textContent = txt;
+    b.addEventListener('click', () => { tablePeriod.type = t; renderTable(); });
+    row1.appendChild(b);
+  });
+
+  // Year select
+  if (tablePeriod.type !== 'all') {
+    const curYear = new Date().getFullYear();
+    const ySel = document.createElement('select');
+    ySel.className = 'period-select';
+    for (let y = curYear; y >= curYear - 5; y--) {
+      const o = document.createElement('option');
+      o.value = y; o.textContent = y;
+      if (y === tablePeriod.year) o.selected = true;
+      ySel.appendChild(o);
+    }
+    ySel.addEventListener('change', () => { tablePeriod.year = parseInt(ySel.value); renderTable(); });
+    row1.appendChild(ySel);
+  }
+  if (tablePeriod.type === 'monthly') {
+    const mSel = document.createElement('select');
+    mSel.className = 'period-select';
+    ['Jan','Feb','Mar','Apr','May','Jun','Jul','Aug','Sep','Oct','Nov','Dec'].forEach((m, i) => {
+      const o = document.createElement('option');
+      o.value = i + 1; o.textContent = m;
+      if (i + 1 === tablePeriod.month) o.selected = true;
+      mSel.appendChild(o);
+    });
+    mSel.addEventListener('change', () => { tablePeriod.month = parseInt(mSel.value); renderTable(); });
+    row1.appendChild(mSel);
+  }
+  if (tablePeriod.type === 'quarterly') {
+    const qSel = document.createElement('select');
+    qSel.className = 'period-select';
+    ['Q1 (Jan–Mar)','Q2 (Apr–Jun)','Q3 (Jul–Sep)','Q4 (Oct–Dec)'].forEach((q, i) => {
+      const o = document.createElement('option');
+      o.value = i + 1; o.textContent = q;
+      if (i + 1 === tablePeriod.quarter) o.selected = true;
+      qSel.appendChild(o);
+    });
+    qSel.addEventListener('change', () => { tablePeriod.quarter = parseInt(qSel.value); renderTable(); });
+    row1.appendChild(qSel);
+  }
+
+  // Branch / detachment filter
+  const usedDetachments = [...new Set(records.filter(r => r.detachment).map(r => r.detachment))].sort();
+  if (usedDetachments.length > 0) {
+    const sep2 = document.createElement('div');
+    sep2.style.cssText = 'width:1px;height:18px;background:#e2e8f0;flex-shrink:0;margin:0 2px;';
+    row1.appendChild(sep2);
+    const detLabel = document.createElement('span');
+    detLabel.className = 'period-filter-label';
+    detLabel.textContent = 'Branch:';
+    row1.appendChild(detLabel);
+    const detSel = document.createElement('select');
+    detSel.className = 'period-select';
+    const allOpt = document.createElement('option');
+    allOpt.value = ''; allOpt.textContent = 'All branches';
+    if (!tablePeriod.detachment) allOpt.selected = true;
+    detSel.appendChild(allOpt);
+    usedDetachments.forEach(d => {
+      const o = document.createElement('option');
+      o.value = d; o.textContent = d;
+      if (d === tablePeriod.detachment) o.selected = true;
+      detSel.appendChild(o);
+    });
+    detSel.addEventListener('change', () => { tablePeriod.detachment = detSel.value; renderTable(); });
+    row1.appendChild(detSel);
+  }
+
+  // Reset button
+  const hasFilters = tablePeriod.type !== 'all' || tablePeriod.detachment || tableSearch.trim() || tableSort.field || tableSort.dir === 'desc';
+  const resetBtn = document.createElement('button');
+  resetBtn.className = 'btn-table-reset' + (hasFilters ? ' has-filters' : '');
+  resetBtn.innerHTML = '<span class="material-icons">restart_alt</span> Reset';
+  resetBtn.title = 'Clear all filters and sorting';
+  resetBtn.style.marginLeft = 'auto';
+  resetBtn.addEventListener('click', () => {
+    tableSort = { field: null, dir: 'asc' };
+    tableSearch = '';
+    tablePeriod = { type: 'all', year: new Date().getFullYear(), month: new Date().getMonth() + 1, quarter: Math.ceil((new Date().getMonth() + 1) / 3), detachment: '' };
+    renderTable();
+  });
+  row1.appendChild(resetBtn);
+  toolbar.appendChild(row1);
+
+  // ── Toolbar Row 2: Info + controls ──────────────────────
+  const row2 = document.createElement('div');
+  row2.className = 'table-toolbar-row2';
+
+  const filteredRows = getTableRows();
+  const completedCount = records.filter(r => r.fullName && r.fullName.trim()).length;
+  const shownText = filteredRows.length === records.length
+    ? `<strong>${records.length}</strong> record${records.length !== 1 ? 's' : ''}`
+    : `<strong>${filteredRows.length}</strong> of <strong>${records.length}</strong> shown`;
   const info = document.createElement('div');
   info.className = 'table-toolbar-info';
   info.innerHTML = `
     <span class="material-icons">table_view</span>
-    <span><strong>${records.length}</strong> records · <strong>${records.filter(r => r.fullName && r.fullName.trim()).length}</strong> completed</span>
+    <span>${shownText} · <strong>${completedCount}</strong> completed</span>
+    ${tableSort.field ? `<span class="filter-active-badge"><span class="material-icons" style="font-size:10px;">sort</span>&nbsp;${escHtml(TABLE_COLUMNS.find(c => c.field === tableSort.field)?.label || tableSort.field)} ${tableSort.dir === 'asc' ? '↑' : '↓'}</span>` : ''}
     <span style="color:#cbd5e1;">·</span>
-    <span style="color:#94a3b8;">Click any cell to edit. Changes save instantly.</span>
+    <span style="color:#94a3b8;font-size:11.5px;">Click cell to edit · Click header to sort</span>
   `;
+  row2.appendChild(info);
+
   const stickyBtn = document.createElement('button');
   stickyBtn.className = 'btn-sticky-toggle' + (stickyNameCol ? ' pinned' : '');
   stickyBtn.innerHTML = `<span class="material-icons">push_pin</span> ${stickyNameCol ? 'Unpin' : 'Pin'} Name`;
-  stickyBtn.title = 'Toggle sticky Full Name column';
-  stickyBtn.addEventListener('click', () => {
-    stickyNameCol = !stickyNameCol;
-    renderTable();
-  });
+  stickyBtn.style.marginLeft = 'auto';
+  stickyBtn.addEventListener('click', () => { stickyNameCol = !stickyNameCol; renderTable(); });
+  row2.appendChild(stickyBtn);
 
   const addBtn = document.createElement('button');
   addBtn.className = 'btn-table-add';
   addBtn.innerHTML = '<span class="material-icons">add</span> New Record';
-  addBtn.addEventListener('click', () => {
-    addRecord();
-    renderTable();
-  });
-  toolbar.appendChild(info);
-  toolbar.appendChild(stickyBtn);
-  toolbar.appendChild(addBtn);
+  addBtn.addEventListener('click', () => { addRecord(); renderTable(); });
+  row2.appendChild(addBtn);
+  toolbar.appendChild(row2);
 
   // ── Table ──────────────────────────────────────────────
   content.innerHTML = '';
@@ -1571,17 +1821,14 @@ function renderTable() {
   // Group header row
   const groupTr = document.createElement('tr');
   groupTr.className = 'group-header';
-  // ID + Actions sticky cells
   const thIdG = document.createElement('th');
   thIdG.className = 'sticky-col col-id';
   thIdG.style.background = '#0f172a';
   thIdG.textContent = '#';
   groupTr.appendChild(thIdG);
-
   const thActG = document.createElement('th');
   thActG.style.cssText = 'background:#0f172a;position:sticky;top:0;z-index:20;width:28px;min-width:28px;';
   groupTr.appendChild(thActG);
-
   TABLE_GROUPS.forEach(g => {
     const th = document.createElement('th');
     th.colSpan = g.span;
@@ -1590,26 +1837,47 @@ function renderTable() {
     groupTr.appendChild(th);
   });
 
-  // Field header row
+  // Field header row — sortable
   const fieldTr = document.createElement('tr');
   fieldTr.className = 'field-header';
+
+  // ID column header — sorts by original record ID
   const thIdF = document.createElement('th');
-  thIdF.className = 'sticky-col col-id';
-  thIdF.textContent = 'ID';
+  const idIsActive = !tableSort.field;
+  thIdF.className = 'sticky-col col-id th-sortable' + (idIsActive ? ' th-sorted' : '');
+  thIdF.title = 'Sort by original record ID';
+  thIdF.innerHTML = `ID <span class="sort-icon">${idIsActive ? (tableSort.dir === 'asc' ? '↑' : '↓') : '⇅'}</span>`;
+  thIdF.addEventListener('click', () => {
+    if (!tableSort.field) tableSort.dir = tableSort.dir === 'asc' ? 'desc' : 'asc';
+    else tableSort = { field: null, dir: 'asc' };
+    renderTable();
+  });
   fieldTr.appendChild(thIdF);
+
   const thActF = document.createElement('th');
   thActF.style.cssText = 'width:28px;min-width:28px;position:sticky;top:27px;z-index:19;background:#f1f5f9;border-bottom:2px solid #cbd5e1;border-right:1px solid #e2e8f0;';
   fieldTr.appendChild(thActF);
 
   TABLE_COLUMNS.forEach((col, ci) => {
     const th = document.createElement('th');
-    th.title = col.label;
+    const isActive = tableSort.field === col.field;
+    const sortIcon = isActive ? (tableSort.dir === 'asc' ? '↑' : '↓') : '⇅';
+    th.title = `Sort by ${col.label}`;
     th.style.minWidth = col.width + 'px';
-    th.textContent = col.label;
+    th.innerHTML = `${escHtml(col.label)} <span class="sort-icon">${sortIcon}</span>`;
+    th.classList.add('th-sortable');
+    if (isActive) th.classList.add('th-sorted');
     if (col.field === 'fullName' && stickyNameCol) th.classList.add('sticky-col', 'col-name');
-    // Mark last col in each group for divider
     const nextCol = TABLE_COLUMNS[ci + 1];
     if (!nextCol || nextCol.group !== col.group) th.style.borderRight = '2px solid #cbd5e1';
+    th.addEventListener('click', () => {
+      if (tableSort.field === col.field) {
+        tableSort.dir === 'asc' ? (tableSort.dir = 'desc') : (tableSort = { field: null, dir: 'asc' });
+      } else {
+        tableSort = { field: col.field, dir: 'asc' };
+      }
+      renderTable();
+    });
     fieldTr.appendChild(th);
   });
 
@@ -1618,50 +1886,53 @@ function renderTable() {
   thead.appendChild(fieldTr);
   table.appendChild(thead);
 
-  // Body rows
+  // Body rows — filtered + sorted
   const tbody = document.createElement('tbody');
-  records.forEach((r, rowIdx) => {
+  if (filteredRows.length === 0) {
     const tr = document.createElement('tr');
-    if (rowIdx === activeRecordIdx) tr.classList.add('active-row');
-
-    // ID cell — click to jump to form
-    const tdId = document.createElement('td');
-    tdId.className = 'sticky-col col-id td-id';
-    tdId.textContent = String(rowIdx + 1).padStart(4, '0');
-    tdId.title = 'Click to open in Form view';
-    tdId.addEventListener('click', () => {
-      activeRecordIdx = rowIdx;
-      activeSectionId = 'guard-info';
-      switchView('form');
-    });
-    tr.appendChild(tdId);
-
-    // Delete button cell
-    const tdDel = document.createElement('td');
-    tdDel.style.cssText = 'text-align:center;padding:2px;';
-    if (records.length > 1) {
-      const delBtn = document.createElement('button');
-      delBtn.className = 'btn-row-delete';
-      delBtn.title = 'Delete record';
-      delBtn.innerHTML = '<span class="material-icons">close</span>';
-      delBtn.addEventListener('click', () => confirmDelete(rowIdx));
-      tdDel.appendChild(delBtn);
-    }
-    tr.appendChild(tdDel);
-
-    // Data cells
-    TABLE_COLUMNS.forEach((col, ci) => {
-      const td = document.createElement('td');
-      if (col.field === 'fullName' && stickyNameCol) td.classList.add('sticky-col', 'col-name');
-      const nextCol = TABLE_COLUMNS[ci + 1];
-      if (!nextCol || nextCol.group !== col.group) td.classList.add('section-divider');
-
-      td.appendChild(buildTableCell(col, r, rowIdx));
-      tr.appendChild(td);
-    });
-
+    const td = document.createElement('td');
+    td.colSpan = TABLE_COLUMNS.length + 2;
+    td.style.cssText = 'text-align:center;padding:36px;color:#94a3b8;font-size:13px;';
+    td.innerHTML = '<span class="material-icons" style="display:block;font-size:36px;margin-bottom:10px;color:#cbd5e1;">search_off</span>No records match the current filters';
+    tr.appendChild(td);
     tbody.appendChild(tr);
-  });
+  } else {
+    filteredRows.forEach(({ r, i: rowIdx }) => {
+      const tr = document.createElement('tr');
+      tr.dataset.recordIdx = rowIdx;
+      if (rowIdx === activeRecordIdx) tr.classList.add('active-row');
+
+      const tdId = document.createElement('td');
+      tdId.className = 'sticky-col col-id td-id';
+      tdId.textContent = String(rowIdx + 1).padStart(4, '0');
+      tdId.title = 'Click to open in Form view';
+      tdId.addEventListener('click', () => { activeRecordIdx = rowIdx; activeSectionId = 'guard-info'; switchView('form'); });
+      tr.appendChild(tdId);
+
+      const tdDel = document.createElement('td');
+      tdDel.style.cssText = 'text-align:center;padding:2px;';
+      if (records.length > 1) {
+        const delBtn = document.createElement('button');
+        delBtn.className = 'btn-row-delete';
+        delBtn.title = 'Delete record';
+        delBtn.innerHTML = '<span class="material-icons">close</span>';
+        delBtn.addEventListener('click', () => confirmDelete(rowIdx));
+        tdDel.appendChild(delBtn);
+      }
+      tr.appendChild(tdDel);
+
+      TABLE_COLUMNS.forEach((col, ci) => {
+        const td = document.createElement('td');
+        if (col.field === 'fullName' && stickyNameCol) td.classList.add('sticky-col', 'col-name');
+        const nextCol = TABLE_COLUMNS[ci + 1];
+        if (!nextCol || nextCol.group !== col.group) td.classList.add('section-divider');
+        td.appendChild(buildTableCell(col, r, rowIdx));
+        tr.appendChild(td);
+      });
+
+      tbody.appendChild(tr);
+    });
+  }
   table.appendChild(tbody);
   content.appendChild(table);
 }
@@ -1810,10 +2081,9 @@ function buildTableCell(col, r, rowIdx) {
 }
 
 function updateTableRowHighlight(rowIdx) {
-  // refresh ID cell text in case name changed
-  const rows = document.querySelectorAll('#table-content tbody tr');
-  if (rows[rowIdx]) {
-    const idCell = rows[rowIdx].querySelector('.td-id');
+  const row = document.querySelector(`#table-content tbody tr[data-record-idx="${rowIdx}"]`);
+  if (row) {
+    const idCell = row.querySelector('.td-id');
     if (idCell) idCell.textContent = String(rowIdx + 1).padStart(4, '0');
   }
   updateHeaderSubtitle();
@@ -1821,7 +2091,10 @@ function updateTableRowHighlight(rowIdx) {
 
 // ─── SUMMARY VIEW ────────────────────────────────────────────────────
 function getFilteredCompleted() {
-  const base = records.filter(r => r.fullName && r.fullName.trim());
+  let base = records.filter(r => r.fullName && r.fullName.trim());
+  if (summaryPeriod.detachment) {
+    base = base.filter(r => r.detachment === summaryPeriod.detachment);
+  }
   if (summaryPeriod.type === 'all') return base;
   return base.filter(r => {
     if (!r.dateOfExit) return false;
@@ -1900,6 +2173,34 @@ function renderPeriodFilter() {
     bar.appendChild(qSel);
   }
 
+  // Detachment / Branch filter
+  const usedDetachments = [...new Set(
+    records.filter(r => r.fullName && r.fullName.trim() && r.detachment).map(r => r.detachment)
+  )].sort();
+  if (usedDetachments.length > 0) {
+    const sep = document.createElement('div');
+    sep.style.cssText = 'width:1px;height:20px;background:#e2e8f0;margin:0 2px;flex-shrink:0;';
+    bar.appendChild(sep);
+    const detLabel = document.createElement('span');
+    detLabel.className = 'period-filter-label';
+    detLabel.textContent = 'Branch:';
+    bar.appendChild(detLabel);
+    const detSel = document.createElement('select');
+    detSel.className = 'period-select';
+    const allOpt = document.createElement('option');
+    allOpt.value = ''; allOpt.textContent = 'All branches';
+    if (!summaryPeriod.detachment) allOpt.selected = true;
+    detSel.appendChild(allOpt);
+    usedDetachments.forEach(d => {
+      const o = document.createElement('option');
+      o.value = d; o.textContent = d;
+      if (d === summaryPeriod.detachment) o.selected = true;
+      detSel.appendChild(o);
+    });
+    detSel.addEventListener('change', () => { summaryPeriod.detachment = detSel.value; renderSummary(); });
+    bar.appendChild(detSel);
+  }
+
   // Result count badge
   const filtered = getFilteredCompleted();
   const badge = document.createElement('span');
@@ -1926,6 +2227,7 @@ function renderSummary() {
   container.appendChild(renderMonthlyTrendChart());
 
   // ── Charts ──
+  container.appendChild(renderDetachmentChart(completed));
   container.appendChild(renderExitReasonsChart(completed));
   container.appendChild(renderExitTypeChart(completed));
   container.appendChild(renderTrustIndexChart(completed));
@@ -2053,38 +2355,111 @@ function kpiCard(label, value, sub) {
   </div>`;
 }
 
+const EXIT_REASON_PIE_COLORS = ['#ef4444','#f97316','#f59e0b','#8b5cf6','#3b82f6','#ec4899','#14b8a6','#22c55e'];
+
 function renderExitReasonsChart(completed) {
-  const section = makeSummarySection('Top Exit Reasons by Category', 'logout', 'Total "Yes" responses per category, sorted by most cited');
+  const guardCount = completed.length;
+  const section = makeSummarySection('Exit Reasons by Category', 'logout',
+    `${guardCount} guard${guardCount !== 1 ? 's' : ''} · each checked all applicable reasons`);
 
   if (!completed.length) { section.appendChild(emptyState()); return section; }
 
-  const catData = EXIT_REASON_CATEGORIES.map(cat => {
+  const catData = EXIT_REASON_CATEGORIES.map((cat, i) => {
     const totalYes = cat.items.reduce((sum, label) => {
       return sum + completed.filter(r => r[`er_${key(label)}`] === true).length;
     }, 0);
-    return { label: cat.label, icon: cat.icon, totalYes };
-  }).sort((a, b) => b.totalYes - a.totalYes);
-
-  const maxYes = Math.max(...catData.map(d => d.totalYes), 1);
-
-  catData.forEach((d, i) => {
-    const pct = Math.round((d.totalYes / maxYes) * 100);
-    const row = document.createElement('div');
-    row.className = 'bar-row';
-    row.innerHTML = `
-      <span class="bar-label" style="width:260px">
-        <span style="color:#94a3b8;font-size:11px;margin-right:6px;">${i + 1}</span>
-        <span class="material-icons" style="font-size:14px;color:#64748b;margin-right:4px;">${d.icon}</span>
-        ${escHtml(d.label)}
-      </span>
-      <div class="bar-track">
-        <div class="bar-fill bar-fill-red" data-pct="${pct}" style="width:0%"></div>
-      </div>
-      <span class="bar-meta">${d.totalYes} response${d.totalYes !== 1 ? 's' : ''}</span>
-    `;
-    section.appendChild(row);
+    return { label: cat.label, icon: cat.icon, totalYes, color: EXIT_REASON_PIE_COLORS[i] };
   });
 
+  const grandTotal = catData.reduce((s, d) => s + d.totalYes, 0);
+  if (!grandTotal) { section.appendChild(emptyState('No exit reasons recorded yet')); return section; }
+
+  const sorted = [...catData].sort((a, b) => b.totalYes - a.totalYes);
+
+  const wrapper = document.createElement('div');
+  wrapper.className = 'flex flex-col md:flex-row gap-6 items-center';
+
+  // Donut chart (conic-gradient)
+  let deg = 0;
+  const segments = catData.filter(d => d.totalYes > 0).map(d => {
+    const pct = d.totalYes / grandTotal * 100;
+    const start = deg;
+    deg += pct * 3.6;
+    return { ...d, pct, start, end: deg };
+  });
+  const gradParts = segments.map(s => `${s.color} ${s.start.toFixed(1)}deg ${s.end.toFixed(1)}deg`).join(', ');
+
+  const top = sorted[0];
+  const topPct = Math.round(top.totalYes / grandTotal * 100);
+
+  const donutWrap = document.createElement('div');
+  donutWrap.className = 'flex-shrink-0 flex flex-col items-center gap-3';
+  donutWrap.innerHTML = `
+    <div style="width:190px;height:190px;border-radius:50%;background:conic-gradient(${gradParts});position:relative;filter:drop-shadow(0 4px 12px ${top.color}55);">
+      <div style="position:absolute;inset:42px;border-radius:50%;background:#fff;display:flex;flex-direction:column;align-items:center;justify-content:center;gap:1px;">
+        <span style="font-size:26px;font-weight:800;color:#1e293b;line-height:1;">${guardCount}</span>
+        <span style="font-size:10px;font-weight:600;color:#64748b;line-height:1.2;">${guardCount === 1 ? 'guard' : 'guards'}</span>
+        <span style="font-size:9px;color:#cbd5e1;margin-top:2px;">${grandTotal} checks</span>
+      </div>
+    </div>
+    <div style="display:flex;flex-wrap:wrap;gap:5px;justify-content:center;max-width:210px;">
+      ${catData.map(d => `<div style="display:flex;align-items:center;gap:3px;font-size:10.5px;color:#374151;">
+        <span style="width:9px;height:9px;border-radius:50%;background:${d.color};flex-shrink:0;display:inline-block;"></span>
+        ${escHtml(d.label.split(' ')[0])}
+      </div>`).join('')}
+    </div>
+  `;
+
+  // Ranked list — top item gets a callout banner, rest are bar rows
+  const listDiv = document.createElement('div');
+  listDiv.style.flex = '1';
+  sorted.forEach((d, i) => {
+    const pct = Math.round(d.totalYes / grandTotal * 100);
+    const barPct = sorted[0].totalYes ? Math.round(d.totalYes / sorted[0].totalYes * 100) : 0;
+
+    if (i === 0) {
+      // Top reason — highlighted callout
+      const callout = document.createElement('div');
+      callout.style.cssText = `
+        border:2px solid ${d.color}55; border-radius:10px; padding:10px 14px;
+        background:${d.color}0f; margin-bottom:12px; display:flex; flex-direction:column; gap:6px;
+      `;
+      callout.innerHTML = `
+        <div style="display:flex;align-items:center;gap:6px;">
+          <span style="background:${d.color};color:#fff;font-size:10px;font-weight:800;padding:2px 7px;border-radius:20px;letter-spacing:0.04em;">TOP REASON</span>
+          <span class="material-icons" style="font-size:16px;color:${d.color};">${d.icon}</span>
+          <span style="font-size:13px;font-weight:700;color:#1e293b;flex:1;">${escHtml(d.label)}</span>
+        </div>
+        <div style="display:flex;align-items:center;gap:8px;">
+          <div style="flex:1;height:10px;background:#f1f5f9;border-radius:999px;overflow:hidden;">
+            <div class="bar-fill" style="background:${d.color};height:100%;border-radius:999px;width:0%" data-pct="100"></div>
+          </div>
+          <span style="font-size:12px;font-weight:700;color:${d.color};">${d.totalYes} of ${guardCount} guard${guardCount !== 1 ? 's' : ''} · ${pct}%</span>
+        </div>
+      `;
+      listDiv.appendChild(callout);
+    } else {
+      const row = document.createElement('div');
+      row.className = 'bar-row';
+      row.innerHTML = `
+        <span class="bar-rank">${i + 1}</span>
+        <span class="bar-label" style="width:240px;display:flex;align-items:center;gap:5px;">
+          <span style="width:9px;height:9px;border-radius:50%;background:${d.color};flex-shrink:0;display:inline-block;"></span>
+          <span class="material-icons" style="font-size:13px;color:#94a3b8;flex-shrink:0;">${d.icon}</span>
+          <span style="overflow:hidden;text-overflow:ellipsis;white-space:nowrap;">${escHtml(d.label)}</span>
+        </span>
+        <div class="bar-track">
+          <div class="bar-fill" style="background:${d.color};width:0%" data-pct="${barPct}"></div>
+        </div>
+        <span class="bar-meta">${d.totalYes}/${guardCount} (${pct}%)</span>
+      `;
+      listDiv.appendChild(row);
+    }
+  });
+
+  wrapper.appendChild(donutWrap);
+  wrapper.appendChild(listDiv);
+  section.appendChild(wrapper);
   return section;
 }
 
@@ -2471,6 +2846,55 @@ function renderRecommendChart(completed) {
   return section;
 }
 
+// ─── CHART: RESIGNATIONS BY DETACHMENT ───────────────────────────────
+function renderDetachmentChart(completed) {
+  const section = makeSummarySection('Resignations by Detachment / Branch', 'location_on', 'Top branches with the most exit records (top 15 shown)');
+
+  if (!completed.length) { section.appendChild(emptyState()); return section; }
+
+  const countMap = {};
+  completed.forEach(r => {
+    if (!r.detachment) return;
+    countMap[r.detachment] = (countMap[r.detachment] || 0) + 1;
+  });
+
+  const data = Object.entries(countMap)
+    .map(([label, count]) => ({ label, count }))
+    .sort((a, b) => b.count - a.count)
+    .slice(0, 15);
+
+  if (!data.length) { section.appendChild(emptyState('No detachment data yet — fill in the Detachment field on guard records')); return section; }
+
+  const maxCount = data[0].count;
+  const total = completed.length;
+  const totalDetachments = Object.keys(countMap).length;
+
+  data.forEach((d, i) => {
+    const barPct = Math.round(d.count / maxCount * 100);
+    const guardPct = total ? Math.round(d.count / total * 100) : 0;
+    const row = document.createElement('div');
+    row.className = 'bar-row';
+    row.innerHTML = `
+      <span class="bar-rank">${i + 1}</span>
+      <span class="bar-label">${escHtml(d.label)}</span>
+      <div class="bar-track">
+        <div class="bar-fill bar-fill-orange" data-pct="${barPct}" style="width:0%"></div>
+      </div>
+      <span class="bar-meta">${d.count} guard${d.count > 1 ? 's' : ''} (${guardPct}%)</span>
+    `;
+    section.appendChild(row);
+  });
+
+  if (totalDetachments > 15) {
+    const note = document.createElement('div');
+    note.style.cssText = 'font-size:11px;color:#94a3b8;margin-top:8px;text-align:center;';
+    note.textContent = `Showing top 15 of ${totalDetachments} detachments`;
+    section.appendChild(note);
+  }
+
+  return section;
+}
+
 // ─── SUMMARY SECTION HELPER ──────────────────────────────────────────
 function makeSummarySection(title, icon, subtitle) {
   const div = document.createElement('div');
@@ -2642,7 +3066,7 @@ function exportXLSX() {
   };
   const subH = (...labels) => labels.map(l => cell(l, xs('F1F5F9', '475569', true)));
 
-  sumRows.push(H('GUARD EXIT INTERVIEW — SUMMARY ANALYTICS', '1E293B', 'FFFFFF', 6));
+  sumRows.push(H(`GUARD EXIT INTERVIEW — SUMMARY ANALYTICS  ·  ${COMPANIES[currentCompany].name}`, '1E293B', 'FFFFFF', 7));
   sumRows.push([cell(`Exported: ${today}  ·  ${records.length} records  ·  ${completed.length} completed`, xs('F8FAFC','64748B'))]);
   sumRows.push([]);
 
@@ -2662,24 +3086,62 @@ function exportXLSX() {
   sumRows.push([cell('Avg Trust Score',xs('FAFAFA','374151')), cell(avgTrust,xs(tBg,tFc,true,'center')), cell('out of 5.00',xs('F8FAFC','64748B'))]);
   sumRows.push([]);
 
-  // Exit Reasons
-  sumRows.push(H('EXIT REASONS — SEVERITY SCORES (0–5)', '7F1D1D', 'FFFFFF', 5));
-  sumRows.push(subH('Exit Reason','Total Score','Guards','Avg/Guard','Severity'));
-  const erD = EXIT_REASON_FIELDS.map(label => {
-    const fk = `er_${key(label)}`;
-    const vals = completed.map(r => r[fk]).filter(v => v !== null);
-    const total = vals.reduce((a,b)=>a+b,0);
-    return { label, total, count:vals.length, avg: vals.length ? total/vals.length : 0 };
-  }).sort((a,b)=>b.total-a.total);
-  const maxER = erD[0]?.total || 1;
-  erD.forEach(d => {
-    const pct = d.total/maxER;
-    const bg = pct>=0.75?'EF4444':pct>=0.45?'FED7AA':'FEF9C3';
-    const fc = pct>=0.75?'FFFFFF':'991B1B';
-    const sev = d.avg>=4?'CRITICAL':d.avg>=3?'HIGH':d.avg>=2?'MODERATE':d.avg>=1?'LOW':'NEGLIGIBLE';
-    const sBg = d.avg>=4?'EF4444':d.avg>=3?'FED7AA':d.avg>=2?'FEF9C3':'F1F5F9';
-    const sFc = d.avg>=4?'FFFFFF':d.avg>=3?'9A3412':d.avg>=2?'92400E':'94A3B8';
-    sumRows.push([cell(d.label,xs('FAFAFA','374151')), cell(d.total,xs(bg,fc,true,'center')), cell(d.count,xs('F8FAFC','374151',false,'center')), cell(d.count?+d.avg.toFixed(2):'—',xs('F8FAFC','374151',false,'center')), cell(sev,xs(sBg,sFc,true,'center'))]);
+  // Exit Reasons — By Category
+  sumRows.push(H('EXIT REASONS — BY CATEGORY (sorted by frequency)', '7F1D1D', 'FFFFFF', 6));
+  sumRows.push(subH('Category','Guards (any Yes)','% of Guards','Total Yes Checks','Most Cited Item',''));
+  const erCatData = EXIT_REASON_CATEGORIES.map(cat => {
+    const guardsWithCat = completed.filter(r => cat.items.some(label => r[`er_${key(label)}`] === true)).length;
+    const totalYes = cat.items.reduce((sum, label) => sum + completed.filter(r => r[`er_${key(label)}`] === true).length, 0);
+    const topItem = cat.items.reduce((best, label) => {
+      const cnt = completed.filter(r => r[`er_${key(label)}`] === true).length;
+      return cnt > best.cnt ? { label, cnt } : best;
+    }, { label: '—', cnt: 0 });
+    return { label: cat.label, guardsWithCat, totalYes, topItem };
+  }).sort((a, b) => b.guardsWithCat - a.guardsWithCat);
+  erCatData.forEach((d, i) => {
+    const pct = completed.length ? Math.round(d.guardsWithCat / completed.length * 100) : 0;
+    const bg = pct >= 50 ? 'FEE2E2' : pct >= 25 ? 'FEF9C3' : 'FAFAFA';
+    const fc = pct >= 50 ? '991B1B' : pct >= 25 ? '92400E' : '374151';
+    const rank = i === 0 ? '▶ TOP' : `#${i + 1}`;
+    sumRows.push([cell(d.label, xs('FAFAFA','374151')), cell(d.guardsWithCat, xs(bg,fc,d.guardsWithCat>0,'center')), cell(`${pct}%`, xs(bg,fc,false,'center')), cell(d.totalYes, xs('F8FAFC','64748B',false,'center')), cell(d.topItem.cnt > 0 ? d.topItem.label : '—', xs('F8FAFC','374151',false)), cell(rank, xs(i===0?'FEF9C3':'F1F5F9', i===0?'92400E':'94A3B8', i===0, 'center'))]);
+  });
+  sumRows.push([]);
+
+  // Exit Reasons — Individual Items
+  sumRows.push(H('EXIT REASONS — INDIVIDUAL ITEMS (sorted by frequency)', '7F1D1D', 'FFFFFF', 6));
+  sumRows.push(subH('Category','Exit Reason','Yes','No','N/A','% Guards'));
+  EXIT_REASON_CATEGORIES.flatMap(cat =>
+    cat.items.map(label => ({
+      category: cat.label,
+      label,
+      yes: completed.filter(r => r[`er_${key(label)}`] === true).length,
+      no:  completed.filter(r => r[`er_${key(label)}`] === false).length,
+    }))
+  ).sort((a, b) => b.yes - a.yes).forEach(d => {
+    const na  = completed.length - d.yes - d.no;
+    const pct = completed.length ? Math.round(d.yes / completed.length * 100) : 0;
+    const bg  = pct >= 50 ? 'FEE2E2' : pct >= 25 ? 'FEF9C3' : 'FAFAFA';
+    const fc  = pct >= 50 ? '991B1B' : pct >= 25 ? '92400E' : '374151';
+    sumRows.push([cell(d.category, xs('F1F5F9','64748B',false)), cell(d.label, xs('FAFAFA','374151')), cell(d.yes, xs(d.yes>0?'FEE2E2':'F8FAFC', d.yes>0?'991B1B':'94A3B8', d.yes>0,'center')), cell(d.no, xs('F8FAFC','374151',false,'center')), cell(na, xs('F8FAFC','94A3B8',false,'center')), cell(`${pct}%`, xs(bg,fc,pct>0,'center'))]);
+  });
+  sumRows.push([]);
+
+  // Income & Payroll
+  sumRows.push(H('INCOME & PAYROLL', '065F46', 'FFFFFF', 6));
+  sumRows.push(subH('Group','Item','Yes','No','N/A','% Yes'));
+  [
+    { label: 'Payroll Reliability',       fields: IP_PAYROLL_FIELDS },
+    { label: 'Salary Understanding',       fields: IP_UNDERSTANDING_FIELDS },
+    { label: 'Expectations vs Reality',    fields: IP_EXPECTATIONS_FIELDS },
+  ].forEach(g => {
+    g.fields.forEach(label => {
+      const fk  = `ip_${key(label)}`;
+      const yes = completed.filter(r => r[fk] === true).length;
+      const no  = completed.filter(r => r[fk] === false).length;
+      const na  = completed.length - yes - no;
+      const pct = completed.length ? Math.round(yes / completed.length * 100) : 0;
+      sumRows.push([cell(g.label, xs('F0FDF4','14532D',false)), cell(label, xs('FAFAFA','374151')), cell(yes, xs(yes>0?'DCFCE7':'F8FAFC', yes>0?'14532D':'94A3B8', yes>0,'center')), cell(no, xs(no>0?'FEE2E2':'F8FAFC', no>0?'991B1B':'94A3B8', false,'center')), cell(na, xs('F8FAFC','94A3B8',false,'center')), cell(`${pct}%`, xs(pct>=50?'FEE2E2':'FAFAFA', pct>=50?'991B1B':'374151', pct>=50,'center'))]);
+    });
   });
   sumRows.push([]);
 
@@ -2746,6 +3208,24 @@ function exportXLSX() {
   });
   sumRows.push([]);
 
+  // Top Detachments / Branches
+  const detCounts = {};
+  completed.forEach(r => { if (r.detachment) detCounts[r.detachment] = (detCounts[r.detachment] || 0) + 1; });
+  const detData = Object.entries(detCounts).map(([label, count]) => ({ label, count })).sort((a,b) => b.count - a.count).slice(0, 20);
+  if (detData.length > 0) {
+    sumRows.push(H('TOP DETACHMENTS / BRANCHES — RESIGNATIONS', '431407', 'FFFFFF', 4));
+    sumRows.push(subH('Rank','Detachment / Branch','Guard Count','% of Total'));
+    detData.forEach((d, i) => {
+      const pct = completed.length ? Math.round(d.count / completed.length * 100) : 0;
+      const isTop = i === 0;
+      const bg = isTop ? 'FEF3C7' : i < 3 ? 'FFF7ED' : 'FAFAFA';
+      const fc = isTop ? '92400E' : '374151';
+      const rank = i === 0 ? '🥇 #1' : i === 1 ? '🥈 #2' : i === 2 ? '🥉 #3' : `#${i+1}`;
+      sumRows.push([cell(rank, xs(bg,fc,isTop,'center')), cell(d.label, xs(bg,fc,isTop)), cell(d.count, xs(bg,fc,isTop,'center')), cell(`${pct}%`, xs(bg,'64748B',false,'center'))]);
+    });
+    sumRows.push([]);
+  }
+
   // Exit Type Distribution
   sumRows.push(H('EXIT TYPE DISTRIBUTION', '1E3A5F', 'FFFFFF', 4));
   sumRows.push(subH('Exit Type','Count','% of Total',''));
@@ -2780,7 +3260,7 @@ function exportXLSX() {
   // Build summary sheet
   const wsSum = XL.utils.aoa_to_sheet(sumRows.map(row => (row||[]).map(c => c ? c.v : '')));
   applyStyles(wsSum, sumRows);
-  wsSum['!cols'] = [{ wch:38 },{ wch:14 },{ wch:12 },{ wch:12 },{ wch:12 },{ wch:12 }];
+  wsSum['!cols'] = [{ wch:14 },{ wch:36 },{ wch:14 },{ wch:14 },{ wch:14 },{ wch:14 },{ wch:16 }];
 
   // ── Write workbook ────────────────────────────────────
   const wb = XL.utils.book_new();

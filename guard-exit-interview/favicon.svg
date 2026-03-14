@@ -1,0 +1,10 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 32 32">
+  <!-- Dark blue background circle -->
+  <rect width="32" height="32" rx="7" fill="#1e3a8a"/>
+  <!-- Shield icon (Material Design "shield" path scaled to 32×32) -->
+  <path d="M16 3 L6 7 v 7 c 0 6.5 4.3 12.6 10 14.1 5.7-1.5 10-7.6 10-14.1 V 7 Z"
+        fill="#93c5fd"/>
+  <!-- Inner shield accent -->
+  <path d="M16 6.5 L9 9.8 v 4.2 c 0 3.9 2.6 7.6 7 8.9 4.4-1.3 7-5 7-8.9 V 9.8 Z"
+        fill="#1e3a8a" opacity="0.35"/>
+</svg>
