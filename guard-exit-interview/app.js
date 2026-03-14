@@ -2477,6 +2477,14 @@ function renderSummary() {
       el.style.setProperty('--seg-deg', el.dataset.deg + 'deg');
     });
   });
+
+  // Bar label click-to-pin (expand/collapse)
+  container.addEventListener('click', e => {
+    const label = e.target.closest('.bar-label');
+    if (!label) return;
+    e.stopPropagation();
+    label.classList.toggle('expanded');
+  });
 }
 
 // ─── MONTHLY TREND CHART ─────────────────────────────────────────────
@@ -2657,6 +2665,22 @@ function renderExitReasonsChart(completed) {
   tChecks.textContent = `${grandTotal} checks`;
   centerG.appendChild(hole); centerG.appendChild(tMain); centerG.appendChild(tSub); centerG.appendChild(tChecks);
 
+  let pinned = null; // { path, s }
+
+  const showSegment = (p, s) => {
+    svg.querySelectorAll('path').forEach(q => { q.style.opacity = '0.35'; q.style.transform = ''; });
+    p.style.opacity = '1'; p.style.transform = 'scale(1.07)';
+    tMain.textContent = s.totalYes;
+    tSub.textContent = `${Math.round(s.pct)}%`;
+    tChecks.textContent = s.label.split(' ')[0];
+  };
+  const showDefault = () => {
+    svg.querySelectorAll('path').forEach(q => { q.style.opacity = '1'; q.style.transform = ''; });
+    tMain.textContent = guardCount;
+    tSub.textContent = guardCount === 1 ? 'guard' : 'guards';
+    tChecks.textContent = `${grandTotal} checks`;
+  };
+
   segments.forEach(s => {
     const [x1,y1] = pxy(s.start, OR); const [x2,y2] = pxy(s.end, OR);
     const [x3,y3] = pxy(s.end, IR);  const [x4,y4] = pxy(s.start, IR);
@@ -2664,27 +2688,36 @@ function renderExitReasonsChart(completed) {
     const d = `M${x1},${y1} A${OR},${OR},0,${large},1,${x2},${y2} L${x3},${y3} A${IR},${IR},0,${large},0,${x4},${y4}Z`;
     const path = document.createElementNS(svgNS, 'path');
     path.setAttribute('d', d); path.setAttribute('fill', s.color);
-    path.style.cssText = 'cursor:pointer;transition:opacity 0.15s,transform 0.15s;transform-box:fill-box;transform-origin:center;';
+    path.style.cssText = 'cursor:pointer;transition:opacity 0.18s,transform 0.18s;transform-box:fill-box;transform-origin:center;';
 
-    const activate = () => {
-      svg.querySelectorAll('path').forEach(p => p.style.opacity = '0.35');
-      path.style.opacity = '1'; path.style.transform = 'scale(1.06)';
-      tMain.textContent = s.totalYes;
-      tSub.textContent = `${Math.round(s.pct)}%`;
-      tChecks.textContent = s.label.split(' ')[0];
-    };
-    const deactivate = () => {
-      svg.querySelectorAll('path').forEach(p => { p.style.opacity = '1'; p.style.transform = ''; });
-      tMain.textContent = guardCount;
-      tSub.textContent = guardCount === 1 ? 'guard' : 'guards';
-      tChecks.textContent = `${grandTotal} checks`;
-    };
-    path.addEventListener('mouseenter', activate);
-    path.addEventListener('mouseleave', deactivate);
-    path.addEventListener('touchstart', (e) => { e.preventDefault(); activate(); }, { passive: false });
-    path.addEventListener('touchend', () => setTimeout(deactivate, 1200));
+    path.addEventListener('mouseenter', () => showSegment(path, s));
+    path.addEventListener('mouseleave', () => {
+      if (pinned) showSegment(pinned.path, pinned.s);
+      else showDefault();
+    });
+    path.addEventListener('click', (e) => {
+      e.stopPropagation();
+      if (pinned && pinned.path === path) {
+        // Unpin
+        pinned = null;
+        showDefault();
+      } else {
+        pinned = { path, s };
+        showSegment(path, s);
+      }
+    });
+    path.addEventListener('touchstart', (e) => { e.preventDefault(); showSegment(path, s); }, { passive: false });
+    path.addEventListener('touchend', () => {
+      if (!pinned) setTimeout(showDefault, 1400);
+    });
     svg.appendChild(path);
   });
+
+  // Click on SVG background to unpin
+  svg.addEventListener('click', () => {
+    if (pinned) { pinned = null; showDefault(); }
+  });
+
   svg.appendChild(centerG);
 
   const donutWrap = document.createElement('div');
@@ -2873,7 +2906,7 @@ function renderTrustIndexChart(completed) {
     const row = document.createElement('div');
     row.className = 'bar-row';
     row.innerHTML = `
-      <span class="bar-label" style="width:240px">${escHtml(a.label)}</span>
+      <span class="bar-label">${escHtml(a.label)}</span>
       <div class="bar-track"><div class="bar-fill" style="background:${color};width:0%" data-pct="${Math.round(pct)}"></div></div>
       <span class="bar-meta">${a.avg > 0 ? a.avg : '—'} / 5</span>
     `;

@@ -512,6 +512,33 @@ body {
   white-space: nowrap;
   overflow: hidden;
   text-overflow: ellipsis;
+  cursor: pointer;
+  transition: width 0.32s ease, color 0.15s;
+  user-select: none;
+  -webkit-user-select: none;
+}
+.bar-row:hover .bar-label,
+.bar-label.expanded {
+  width: 380px;
+  white-space: normal;
+  overflow: visible;
+  text-overflow: clip;
+  color: #1e293b;
+}
+/* inner text spans (exit reasons chart has nested spans) */
+.bar-row:hover .bar-label span:last-of-type,
+.bar-label.expanded span:last-of-type {
+  overflow: visible;
+  white-space: normal;
+  text-overflow: clip;
+}
+.bar-label.expanded {
+  font-weight: 600;
+}
+.bar-label.expanded::after {
+  content: ' 📌';
+  font-size: 10px;
+  opacity: 0.5;
 }
 .bar-track {
   flex: 1;
