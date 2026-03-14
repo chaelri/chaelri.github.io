@@ -2040,7 +2040,8 @@ function exportXLSX() {
   const wb = XL.utils.book_new();
   XL.utils.book_append_sheet(wb, wsRec, 'Records');
   XL.utils.book_append_sheet(wb, wsSum, 'Summary Analytics');
-  XL.writeFile(wb, `Exit_Interview_${today}.xlsx`);
+  const companySlug = COMPANIES[currentCompany].name.replace(/\s+/g, '_');
+  XL.writeFile(wb, `Exit_Interview_${companySlug}_${today}.xlsx`);
 }
 
 // Keep nullStr / boolStr used by legacy code paths
