@@ -23,12 +23,87 @@ const SECTIONS = [
   { id: 'trust-index',     label: 'Trust Index',          icon: 'verified_user' },
 ];
 
-const EXIT_REASON_FIELDS = [
-  'Financial / Pay', 'Workload / Stress', 'Scheduling Problems',
-  'Poor Leadership', 'Culture / Relationships', 'Career Growth',
-  'Lack of Recognition', 'Personal / External', 'Safety Concerns',
-  'Benefits / HMO', 'Commute / Location',
+const EXIT_REASON_CATEGORIES = [
+  {
+    label: 'Compensation & Financial Experience',
+    icon: 'payments',
+    items: [
+      'Low salary or take-home pay lower than expected',
+      'Early deductions created financial difficulty',
+      'Salary insufficient for personal or family needs',
+      'Better job opportunity elsewhere (local or overseas)',
+    ],
+  },
+  {
+    label: 'Workload, Stress & Well-being',
+    icon: 'fitness_center',
+    items: [
+      'Burnout (too much physical or emotional stress)',
+      'Work-life balance difficulties (straight duty, shift changes)',
+      'Health reasons',
+      'Cancellation of rest days',
+      'Frequent schedule changes',
+    ],
+  },
+  {
+    label: 'Deployment, Location & Work Conditions',
+    icon: 'location_on',
+    items: [
+      'Long commute or expensive transportation cost to your post',
+      'Poor living or work conditions at your post',
+      'Preferred different assignment or post',
+    ],
+  },
+  {
+    label: 'Career Development & Growth',
+    icon: 'trending_up',
+    items: [
+      'No career growth, promotion, or training opportunities',
+      'Viewed the role as a temporary position rather than a long-term career',
+      'Sought opportunities aligned with long-term career goals',
+    ],
+  },
+  {
+    label: 'Professional Identity & Recognition',
+    icon: 'workspace_premium',
+    items: [
+      'Feeling that the security role is undervalued or not professionally recognized',
+      'Low morale due to perception of security work as a low-skill or low-status job',
+      'Lack of recognition or appreciation for your work',
+    ],
+  },
+  {
+    label: 'Supervision and Leadership',
+    icon: 'manage_accounts',
+    items: [
+      'Conflict with your immediate supervisor',
+      'Perceived unfair treatment',
+      'Poor leadership at your post',
+    ],
+  },
+  {
+    label: 'Workplace Relationships & Culture',
+    icon: 'groups',
+    items: [
+      'Conflict with other security guards',
+      'Detachment culture not supportive or respectful',
+      'Bullying or discrimination',
+      'Sexual harassment',
+    ],
+  },
+  {
+    label: 'Personal & External Factors',
+    icon: 'person',
+    items: [
+      'Relationship or family issues (partner problems, childcare, relocation)',
+      'Family responsibilities (caring of parents, family property oversight, etc.)',
+      'Personal circumstances',
+      'Influence from social media or peers about other jobs',
+    ],
+  },
 ];
+// Flat list derived from categories (used for blankRecord and table columns)
+const EXIT_REASON_FIELDS = EXIT_REASON_CATEGORIES.flatMap(c => c.items);
 const OP_STRESSOR_FIELDS = [
   'Sudden or Unpredictable Schedule Changes',
   'Cancelled or Interrupted Rest Days',
@@ -55,25 +130,603 @@ const COMPLAINT_FLAGS = [
   'Inadequate Support', 'No Experience Handling Complaints',
 ];
 const STAY_FACTOR_FIELDS = [
-  'More Predictable Schedule', 'Fairer Supervision', 'Better Recognition',
-  'Career Growth Path', 'Transfer to Closer Post', 'Higher Pay', 'Better Benefits',
+  'More predictable and stable work schedules',
+  'Restructured long-term payroll deductions (uniform, paraphernalia, etc.)',
+  'Reduced frequency of sudden schedule changes',
+  'Fair, respectful, and consistent supervision',
+  'Fair and transparent scheduling practices',
+  'Improved communication from supervisors or management',
+  'Equal treatment in assignments, evaluations, and leave approvals',
+  'Transfer to a post closer to home',
+  'Consideration of personal or family circumstances in posting decisions',
+  'More recognition and appreciation for performance',
+  'Opportunities for promotion or career advancement',
+  'Access to training and professional development',
+  'Clearer performance evaluation and promotion criteria',
+  'Improved staffing levels',
+  'Better rest and recovery policies',
+  'Stronger and responsive grievance or complaint mechanisms',
+  'A safer and more respectful workplace environment',
 ];
 const TRUST_FIELDS = [
-  'I felt valued by the agency', 'I trusted management',
-  'I felt replaceable / disposable', 'I felt respected at work',
-  'I felt safe at work', 'My concerns were heard', 'Policies were applied fairly',
+  'I felt valued by the agency',
+  'I trusted management',
+  'I felt replaceable',
+  'I felt respected',
+  'I felt safe',
+];
+const BREAKING_POINT_CONTEXT = [
+  'Extreme workload or excessive overtime',
+  'Conflict or lack of support from supervisors or colleagues',
+  'Unsafe or unhealthy working conditions',
+  'Health or personal well-being concerns',
+  'Any other event that made continuing difficult',
 ];
 const EXIT_TYPE_OPTIONS = ['Resignation','AWOL','Terminated','Other'];
 const MARITAL_STATUS_OPTIONS = ['','Single','Married','Separated','Live-in Partner','Widow/Widower','Single Mom/Dad'];
 const FAMILY_LOCATION_OPTIONS = ['','Same city as post','Same province, different city','Different province'];
 const WHERE_HEARD_OPTIONS = ['','Training Center','Referral','Social Media','Walk-in applicant','Absorbed from another agency'];
+const EDUCATIONAL_ATTAINMENT_OPTIONS = [
+  '',
+  'Elementary Level',
+  'Elementary Graduate',
+  'High School Level (JHS)',
+  'High School Graduate (JHS)',
+  'Senior High School Level',
+  'Senior High School Graduate',
+  'Vocational / Technical Graduate (TESDA)',
+  'Some College Units (Undergraduate)',
+  'College Graduate',
+  'Post-Graduate (Master\'s / Doctorate)',
+  'Others',
+];
 const LENGTH_OF_SERVICE_OPTIONS = ['','Less than 3 months','3–6 months','6–12 months','1–2 years','2–3 years','More than 3 years'];
+const DETACHMENT_OPTIONS = [
+  '',
+  'ACE HARDWARE - PAVIA',
+  'ACE HARDWARE PHILIPPINES INC (MOLINO)',
+  'ACE HARDWARE PHILS. INC. (Lapu-Lapu)',
+  'ACE HARDWARE PHILS. INC. (Mabolo)',
+  'ACE HARDWARE-SM CITY ILOILO',
+  'ADC - MULTI STORE CORP. (JMall Mandaue)',
+  'ADC - Metro Manila Shopping',
+  'ADC THE SM STORE - CALOOCAN DEPARO',
+  'ADC-Shopping Lane Cebu Corp.',
+  'ASIA PACIFIC COLLEGE',
+  'AUTO VAULT',
+  'Ace Hardware - City Mall Kalibo',
+  'Ace Hardware - Deca Mall',
+  'Ace Hardware - Delgado',
+  'Ace Hardware - Passi',
+  'Ace Hardware - Telabastagan',
+  'Ace Hardware Phils.-Subangdako Mandaue',
+  'Ace Hardware-City Mall Tagbak',
+  'Adidas - Grand Central',
+  'Adidas Shop (Mabolo)',
+  'Adidas Shop (SM Seaside)',
+  'Adidas Shop - SM City Iloilo',
+  'Averon Holdings Inc. (6780 Bldg.)',
+  'BDO - THE PODIUM CARPARK',
+  'BDO - THE PODIUM PERIMETER',
+  'BDO A PLACE-CORAL WAY',
+  'BDO A. ARNAIZ-PASEO',
+  'BDO A. ARNAIZ-SAN LORENZO VILLAGE',
+  'BDO ALFARO SALCEDO VILLAGE',
+  'BDO ASIA TOWER - PASEO',
+  'BDO AUGMENT',
+  'BDO AYALA - RUFINO',
+  'BDO AYALA AVE. PEOPLE SUPPORT',
+  'BDO AYALA AVE. SGV1 BLDG.',
+  'BDO AYALA AVENUE',
+  'BDO AYALA AVENUE 6780',
+  'BDO AYALA TRIANGLE 1',
+  'BDO BACLARAN',
+  'BDO BGC - 9th AVENUE',
+  'BDO BGC - BURGOS CIRCLE',
+  'BDO BGC - CRESCENT PARK WEST',
+  'BDO BGC - ECOTOWER',
+  'BDO BGC - FORT LEGENDS',
+  'BDO BGC - FORT VICTORIA',
+  'BDO BGC - GRAND HAMPTON TOWER',
+  'BDO BGC - INOZA TOWER',
+  'BDO BGC - J.Y CAMPOS CENTER',
+  'BDO BGC - MARKET MARKET',
+  'BDO BGC - ONE MCKINLEY PLACE',
+  'BDO BGC - ONE WORLD PLACE',
+  'BDO BGC - PHIL. STOCK EXCHANGE',
+  'BDO BGC - PICADILLY STAR',
+  'BDO BGC - PIONEER HOUSE',
+  'BDO BGC - SHANGRI-LA',
+  'BDO BGC - SHANGRI-LA 2',
+  'BDO BGC - ST. LUKES',
+  'BDO BGC - THE INFINITY TOWER',
+  'BDO BGC - UNIVERSITY PARKWAY',
+  'BDO BGC - UPTOWN PALAZZO',
+  'BDO BGC - WORLD PLAZA',
+  'BDO BICUTAN - BETTER LIVING',
+  'BDO BICUTAN - BETTER LIVING BICUTAN',
+  'BDO BICUTAN - DONA SOLEDAD AVE. EXT.',
+  'BDO BICUTAN - EAST SERVICE ROAD',
+  'BDO BICUTAN - SM CITY BICUTAN',
+  'BDO BICUTAN - SUN VALLEY',
+  'BDO BICUTAN - WALTERMART',
+  'BDO BICUTAN - WEST SERVICE ROAD',
+  'BDO BUENDIA - TAFT',
+  'BDO CASH & CARRY',
+  'BDO CHINO ROCES - DELA ROSA (One Oculus)',
+  'BDO CHINO ROCES V.A RUFINO',
+  'BDO CORPORATE CENTER MAKATI',
+  'BDO DELA ROSA - GALLARDO',
+  'BDO DELA ROSA - RADA',
+  'BDO DIAN - BUILDING',
+  'BDO DIAN GIL PUYAT',
+  'BDO Dr. A. SANTOS AVE - PUREGOLD EVACOM',
+  'BDO EDSA PASAY',
+  'BDO FIVE E-COM (Releasing Center)',
+  'BDO FIVE E-COM CENTER',
+  'BDO GC CORP. PLAZA - LEGASPI ST.',
+  'BDO GIL PUYAT - FILMORE',
+  'BDO GIL PUYAT - HARRISON',
+  'BDO GIL PUYAT - TAFT',
+  'BDO GREENBELT - PASEO DE ROXAS',
+  'BDO LEGASPI VILLAGE - C. PALANCA',
+  'BDO LEGASPI VILLAGE - GAMBOA',
+  'BDO LEGASPI VILLAGE - SALCEDO ST.',
+  'BDO LEVERIZA - LIBERTAD',
+  'BDO MACAPAGAL BLVD. - MERIDIAN PARK',
+  'BDO MACAPAGAL BLVD. - PEARL DRIVE',
+  'BDO MACAPAGAL BLVD. - W MALL',
+  'BDO MAKATI - DELA ROSA LEGASPI ST',
+  'BDO MAKATI - ESTEBAN',
+  'BDO MAKATI - PASAY ROAD',
+  'BDO MAKATI - SHANGRI-LA',
+  'BDO MAKATI AVENUE - AYALA',
+  'BDO MALL OF ASIA -  CASH HUB',
+  'BDO MALL OF ASIA -  SEA RESIDENCES',
+  'BDO MALL OF ASIA - ARMORED CAR',
+  'BDO MALL OF ASIA - S. MAISON',
+  'BDO MALL OF ASIA - SHELL RESIDENCES',
+  'BDO MALL OF ASIA - SHORE RESIDENCES',
+  'BDO MEDICAL PLAZA - LEGASPI VILLAGE',
+  'BDO MOA CAR DEPOT PASAY',
+  'BDO NAIA-3',
+  'BDO NEWPORT CITY',
+  'BDO NEWPORT CITY - PLAZA 66',
+  'BDO ONE E - COMCENTER',
+  'BDO PARANAQUE - AIRPORT ROAD',
+  'BDO PARANAQUE - ASEANA BUSINESS PARK MONARCH',
+  'BDO PARANAQUE - BACLARAN REDEMPTORIST ROAD',
+  'BDO PARANAQUE - CITY OF DREAMS',
+  'BDO PARANAQUE - LA HUERTA',
+  'BDO PARANAQUE - MACAPAGAL ASEANA 3',
+  'BDO PARANAQUE - MACAPAGAL BLVD. BAY AREA',
+  'BDO PARANAQUE - MOONWALK',
+  'BDO PARANAQUE - MOONWALK E. ROD. AVE.',
+  'BDO PARANAQUE - NAIA 1',
+  'BDO PARANAQUE - NAIA ROAD',
+  'BDO PARANAQUE - OKADA',
+  'BDO PARANAQUE - PASCOR DRIVE',
+  'BDO PARANAQUE - SOLAIRE MANILA RESORT',
+  'BDO PARANAQUE - SOLAIRE THE SHOPPES',
+  'BDO PARANAQUE - STO. NINO',
+  'BDO PASAY',
+  'BDO PASAY - DOMESTIC ROAD',
+  'BDO PASAY - TWO SHOPPING CENTER',
+  'BDO PASIG - PUREGOLD SAN JOAQUIN',
+  'BDO PATEROS - POBLACION',
+  'BDO PEREA PASEO',
+  'BDO RADA - LEGASPI VILLAGE',
+  'BDO RESORTS WORLD MANILA',
+  'BDO RESPONSE TEAM',
+  'BDO ROXAS BLVD. - BREEZE RESIDENCES',
+  'BDO ROXAS BLVD. - RADIANCE MANILA BAY',
+  'BDO SALCEDO - DELA ROSA',
+  'BDO SALCEDO - GAMBOA',
+  'BDO SAMPALOC - G. TUAZON',
+  'BDO SM HYPERMARKET - MAKATI',
+  'BDO SM MAKATI',
+  'BDO SM MALL OF ASIA - A',
+  'BDO SM MALL OF ASIA B',
+  'BDO SM RETAIL HQ Bldg. A',
+  'BDO SM RETAIL HQ Bldg. B',
+  'BDO SUCAT - SM CITY SUCAT A',
+  'BDO SUCAT - SM CITY SUCAT B',
+  'BDO SUCAT - WALTERMART',
+  'BDO TAFT LIBERTAD',
+  'BDO TAGIUG - SM AURA PREMIER',
+  'BDO TAGUIG - BAYANI ROAD',
+  'BDO TAGUIG - D\'ZIGNO TILE COMPANY (ROPA)',
+  'BDO TAGUIG - GRACE RESIDENCES',
+  'BDO TAGUIG - LEVI MARIANO AVENUE',
+  'BDO TAGUIG - MCKINLEY  WEST',
+  'BDO TAGUIG - MCKINLEY HILL',
+  'BDO TAGUIG - ONE PARK DRIVE',
+  'BDO TAGUIG - SM HYPERMARKET - FTI',
+  'BDO TAGUIG - VISTA MALL',
+  'BDO TAGUIG - WAREHOUSE',
+  'BDO THREE E-COM CENTER',
+  'BDO UPTOWN EASTGATE',
+  'BDO V. A RUFINO - SOTTO',
+  'BDO V. A RUFINO - TUSCAN',
+  'BDO V. A RUFINO - VALERO',
+  'BDO VALERO - SALCEDO VILLAGE',
+  'BDO VILLAR - SALCEDO VILLAGE',
+  'BDO WASHINGTON - GIL PUYAT',
+  'BDO-ADRIATICO - STA MONICA',
+  'BDO-BLUMENTRITT-LAONG LAAN',
+  'BDO-CBG OFFICE',
+  'BDO-COAST RESIDENCE R. BLVD',
+  'BDO-DAPITAN ST-A.H. LACSON',
+  'BDO-ESPANA',
+  'BDO-ESPANA BASILIO',
+  'BDO-ESPANA GRAND RESIDENCE',
+  'BDO-ESPANA-BLUMENTRITT',
+  'BDO-ESPANA-M. DELA FUENTE',
+  'BDO-INTRAMUROS',
+  'BDO-KAMAGONG',
+  'BDO-LEON GUINTO SAN ANDRES',
+  'BDO-LEON GUINTO-GEN.MALVAR',
+  'BDO-LUNETA - TM KALAW',
+  'BDO-MABINI-GEN.MALVAR',
+  'BDO-MALATE-ADRIATICO',
+  'BDO-MANILA OTIS',
+  'BDO-OLD STA MESA ALBINA',
+  'BDO-PABLO OCAMPO',
+  'BDO-PACO',
+  'BDO-PACO A. LINAO',
+  'BDO-PACO WAREHOUSE PROPERTY',
+  'BDO-PADRE FAURA MABINI',
+  'BDO-PADRE FAURA MABINI BLDG',
+  'BDO-PEDRO GIL MABINI',
+  'BDO-PEDRO GIL-ADRIATICO',
+  'BDO-PLAZA CALDERON - PEDRO GIL',
+  'BDO-PORT AREA - SOUTH HARBOR',
+  'BDO-QUIRINO PACO',
+  'BDO-ROBINSONS PLACE MANILA',
+  'BDO-ROXAS BLVD ADMIRAL',
+  'BDO-ROXAS BLVD R SALAS',
+  'BDO-SAN ANDRES',
+  'BDO-STA MESA P. SANCHEZ',
+  'BDO-STA MESA THE SILK RES',
+  'BDO-STA MESA V. MAPA',
+  'BDO-STA. ANA - XENTRO MALL',
+  'BDO-TAFT ESTRADA',
+  'BDO-TAFT J. NAKPIL',
+  'BDO-TAFT PEDRO GIL PGH',
+  'BDO-TAFT PRES. QUIRINO',
+  'BDO-TAFT VITO CRUZ',
+  'BDO-TAFT VITO CRUZ BLDG',
+  'BDO-TAFT VITO CRUZ CASH HUB',
+  'BDO-TM KALAW LUNETA BLDG',
+  'BDO-UN AVE J. BOCOBO BLDG',
+  'BDO-UN AVENUE',
+  'BDO-UN AVENUE - J.BOCOBO',
+  'BDO-UN AVENUE-TIMES PLAZA',
+  'BOCU - Ayala Center Cebu',
+  'Block Eighty Eight',
+  'CASAMIA FURNITURE INC.',
+  'CCF - EASTWOOD',
+  'CCF - Mandaue',
+  'CCF- IMUS',
+  'CCF- ROBINSON MANILA',
+  'CCF-BGC',
+  'CCF-Glorieta',
+  'CITI CENTER CONDO. CORPORATION-PASEO',
+  'CITI TOWER CONDOMINIUM-VALERO',
+  'CPU - Admin Back Porch',
+  'CPU - Admin Entrance',
+  'CPU - Butterfly Garden',
+  'CPU - Senior High School',
+  'Central Philippine University',
+  'City Time Square Iloilo',
+  'Colegio De Las Hijas De Jesus',
+  'DC - SM North EDSA (Annex)',
+  'DC - SM North Edsa (Tower)',
+  'DR. PEK ENG LIM RESIDENCE',
+  'Dyson - Manila',
+  'Dyson - SM City Cebu',
+  'Dyson - SM City Seaside',
+  'Dyson Iloilo',
+  'EREMEL FOOD INTERPRISES (Central Bloc)',
+  'EREMEL FOODS INTERPRISE (Kasambagan Cebu City)',
+  'EREMEL FOODS INTERPRISE (Park Mall)',
+  'EREMEL FOODS INTERPRISE (Pueblo Verde)',
+  'FAMILYHEALTH & BEAUTY CORP. -  AYALA MALL',
+  'FAMILYHEALTH & BEAUTY CORP. -  GUAGUA',
+  'FAMILYHEALTH & BEAUTY CORP. -  MAGALANG',
+  'FAMILYHEALTH & BEAUTY CORP. -  PEDRO GIL',
+  'FAMILYHEALTH & BEAUTY CORP. -  SAN ANDRES',
+  'FAMILYHEALTH & BEAUTY CORP. - CM Parola',
+  'FAMILYHEALTH & BEAUTY CORP. - City Mall Jaro',
+  'FAMILYHEALTH & BEAUTY CORP. - Edsa Monumento',
+  'FAMILYHEALTH & BEAUTY CORP. - GAISANO LA PAZ',
+  'FAMILYHEALTH & BEAUTY CORP. - KINGSMEN KALIBO',
+  'FAMILYHEALTH & BEAUTY CORP. - Mall 1',
+  'FAMILYHEALTH & BEAUTY CORP. - Mall 2',
+  'FAMILYHEALTH & BEAUTY CORP. - O-Town Square',
+  'FAMILYHEALTH & BEAUTY CORP. - PUREGOLD JARO',
+  'FAMILYHEALTH & BEAUTY CORP. - R SQUARE TAFT',
+  'FAMILYHEALTH & BEAUTY CORP. - Rob. Iloilo',
+  'FAMILYHEALTH & BEAUTY CORP. - Robinsons Place Manila',
+  'FAMILYHEALTH & BEAUTY CORP. - SACRED HEARTILOILO',
+  'FAMILYHEALTH & BEAUTY CORP. - San Jose Antique',
+  'FAMILYHEALTH & BEAUTY CORP. - Tanjay Negros Oriental',
+  'FAMILYHEALTH & BEAUTY CORP. - Yulo',
+  'Fabtech International Corp',
+  'Fabtech International Corp-Pasong Tamo',
+  'Familyhealth - St. Pauls Hospital',
+  'Familyhealth Buendia',
+  'Familyhealth Green Mall',
+  'Familyhealth LEU Bldg Dumaguete',
+  'Far East Broadcasting Company Phils.',
+  'Filamer Christian University',
+  'For Me - Consolacion',
+  'For Me - SM City Cebu',
+  'G.T.G.F - MARIKINA',
+  'G7 Heavylift & Logistics Corporation',
+  'GTGF FOOD CORPORATION',
+  'Global Pacific Distributor',
+  'Gruppo Dolci Inc.',
+  'HOMEBI TRADING INC.',
+  'HYPERMARKET BICUTAN',
+  'HYPERMARKET BUENDIA',
+  'HYPERMARKET DECA MALL',
+  'HYPERMARKET HEAD OFFICE',
+  'HYPERMARKET ROSALES',
+  'HYPERMARKET TVSA',
+  'INDUSTRIAL & COMMERCIAL BANK OF CHINA',
+  'Jollibest Fast Food Corp.-Delgado',
+  'LCSN Express Movers Inc',
+  'LCSN Express Movers Inc.',
+  'LH PARAGON INC (IT Center)',
+  'LH Paragon Inc. (Mactan Property)',
+  'MADISON SHOPPING CENTER (SM STORE - PAMPANGA)',
+  'MASTER SHOPPERS VENUE INC.',
+  'MATIMCO INC.',
+  'MEGA VALUE DRUG STORE III',
+  'MEGAVALUE DRUGSTORE 1',
+  'MINISO -  SM CITY SEASIDE',
+  'MINISO - MABOLO',
+  'MINISO - ROBINSON PLACE',
+  'MINISO - SM CITY ILOILO',
+  'MMSM Delgado (BTR)',
+  'MR. & MRS. FONG RESIDENCE (Corinthian Garden)',
+  'MULTI KITCHEN INC.',
+  'MULTI STORE CORP. (JMall Mandaue)',
+  'MULTI STORE CORP. (Mabolo)',
+  'MY SHOPPINGLANE CEBU CORP. (Consolacion)',
+  'MY SHOPPINGLANE CEBU CORP. (Seaside)',
+  'Manduriao Star Inc.',
+  'Manduriao Star Inc. (BTR)',
+  'Metro Manila Shopping Mecca, Corp.',
+  'Metro Parking Management (Philippines) Inc. Tower 2',
+  'Metro Parking Management (Philippines) Inc. Tower 3',
+  'Miniso Pink- SM City JMall',
+  'Miniso- Telabastagan',
+  'NTT Limited Philippines Branch',
+  'Oakridge - Benevola',
+  'Oakridge - Prime',
+  'Oakridge Business Park',
+  'Oakridge Business Park (Mantle Wood Town Phase 1)',
+  'Oakridge Business Park (OITC 2)',
+  'Oakridge Business Park (OITC 3)',
+  'Oakridge Business Park (Oak Tree Drive 2)',
+  'Oakridge Business Park (Parking System & Under Chassis Inspection)',
+  'Oakridge Business Park (Warehouse Supply-Mandaue 1)',
+  'Our Home (Warehouse)',
+  'Our Home - SM City Iloilo',
+  'Oxygen - Ayala Center',
+  'Oxygen - Consolacion',
+  'Oxygen - SM Mabolo',
+  'PENSHOPPE (Robinson Cebu)',
+  'PENSHOPPE (SM City Cebu NRA)',
+  'PENSHOPPE (SM Seaside)',
+  'PENSHOPPE - Ayala',
+  'PHARMA GENERICS INC.',
+  'Penshoppe - ALI MALL',
+  'Penshoppe - Ayala Mall Central Bloc',
+  'Penshoppe - Mall of Asia',
+  'Penshoppe - Perdice, Dumaguete',
+  'Penshoppe - ROBINSON ERMITA',
+  'Penshoppe - SM Bacolod',
+  'Penshoppe - SM City Iloilo',
+  'Penshoppe - SM City Pampanga',
+  'Penshoppe - SM MEGAMALL',
+  'Penshoppe - SM NORTH EDSA',
+  'Penshoppe - TRINOMA',
+  'Pet Express (Molino)',
+  'Pet Express - Grand Central',
+  'Pet Express - JMall',
+  'Puma - SM City Cebu',
+  'Puma - SM Seaside City Cebu',
+  'QUEEN CITY DEVELOPMENT BANK',
+  'Reebok - SM City Cebu',
+  'Reebok - SM Seaside City Cebu',
+  'Robinsons Cybergate Center Plaza',
+  'Robinsons Cybergate Center Tower 1',
+  'Robinsons Cybergate Center Tower 2',
+  'Robinsons Cybergate Center Tower 3',
+  'SAMGYUPSALAMAT',
+  'SAMGYUPSALAMAT (Incheon Food) - Ayala Mall',
+  'SAMGYUPSALAMAT (Incheon Food) - SM City Cebu',
+  'SAMGYUPSALAMAT (Incheon Food) - SM Seaside',
+  'SAVEMORE AMIGO (New Manela)',
+  'SAVEMORE APALIT (New Manela)',
+  'SAVEMORE EB Town Center',
+  'SAVEMORE MALHACAN  (New Manela)',
+  'SAVEMORE MEGA CENTER (New Manela)',
+  'SAVEMORE SAN SIMON PAMPANGA',
+  'SAVEMORE TELABASTAGAN ESSEL (New Site)',
+  'SAVEMORE-MUZON',
+  'SHINHAN BANK',
+  'SHOEPLIER INC.. (Warehouse)',
+  'SM CITY URDANETA',
+  'SM CITY URDANETA - CINEMA',
+  'SM CITY URDANETA - FOOD COURT',
+  'SM City Urdaneta ( Det. Commander)',
+  'SM Iloilo Terminal Market - Traffic/Perimeter',
+  'SM Land, Inc. (Concourse  Area)',
+  'SM Land, Inc. (EMB Area)',
+  'SM PRIME HOLDINGS INC. (NORTH EDSA)',
+  'SM PRIME HOLDINGS INC. (NORTH TOWER)',
+  'SM Prime Holdings (Annex) - Late Payroll',
+  'SM Pulilan - Carpark',
+  'SM RETAIL HEADQUARTERS',
+  'SM Store Molino - ADC',
+  'SMCI - DC',
+  'SMCI Cinema (SM City Iloilo)',
+  'SMCI Food Court (SM City Iloilo)',
+  'SMCI Mall Area (SM City Iloilo)',
+  'SMCI Traffic Control (SM City Iloilo)',
+  'SMCO ACACIA',
+  'SMCO ANONAS',
+  'SMCO BERKELEY',
+  'SMCO BROADWAY',
+  'SMCO CARTIMAR',
+  'SMCO GREEN RESIDENCE',
+  'SMCO HEAD OFFICE',
+  'SMCO KAWIT',
+  'SMCO MARCOS ALVAREZ LAS PINAS',
+  'SMCO MERIDIAN',
+  'SMCO MEZZA',
+  'SMCO NAGTAHAN',
+  'SMCO NOVALICHES 1',
+  'SMCO PARKWAY PLACE (NAVARRO)',
+  'SMCO SALAWAG',
+  'SMCO SALITRAN',
+  'SMCO STA. ANA',
+  'SMCO VENTURA MALL',
+  'SPORT CENTRAL - Grand Central',
+  'SPORTS CENTRAL - SM City Pampanga',
+  'STAR APPLIANCE (SM Molino)',
+  'STAR APPLIANCE - SM City Pampanga',
+  'STAR APPLIANCE CENTER INC. (JMall)',
+  'STAR APPLIANCE CENTER INC. (NRA)',
+  'STELLAR BUILDERS',
+  'SUPER SHOPPING MARKET INC. (A.S Fortuna)',
+  'SUPER SHOPPING MARKET INC. (Handumanan)',
+  'SUPER SHOPPING MARKET INC. (Jaro)',
+  'SUPER SHOPPING MARKET INC. (Lapu-Lapu)',
+  'SUPER SHOPPING MARKET INC. (Subangdako)',
+  'SUPER SHOPPING MARKET INC. - TERMINAL',
+  'SUPER VALUE INC. (Mabolo)',
+  'SUPER VALUE INC. (SM Seaside)',
+  'SUPERSHOPPING MARKET INC. (Kadiwa)',
+  'SUPERSHOPPING MARKET INC. (Molino Bacoor)',
+  'SUPERSHOPPING MARKET INC. (Tagaytay)',
+  'SURPLUS SHOP (Molino)',
+  'SURPLUS SHOP - Grand Central',
+  'SURPLUS SHOP - SM City Pampanga',
+  'SVI AURA',
+  'SVI HEAD OFFICE',
+  'SVI MAKATI',
+  'SVI ROSARIO',
+  'SVI SAN PABLO',
+  'SVI SM CITY MANILA',
+  'SVI SM STO TOMAS BATANGAS',
+  'SVI SOUTH MALL',
+  'SVI STA MESA',
+  'SVI TRECE',
+  'SVI-MEGAMALL B.',
+  'SVI-MEXICO PAMPANGA (New Manela)',
+  'SVI-SAN FERNANDO',
+  'SVI-SAN JOSE DELMONTE BULACAN (Manela)',
+  'SVI-TELABASTAGAN',
+  'Savemore - Bacolod',
+  'Savemore - Barotac',
+  'Savemore - Calinog',
+  'Savemore - City Mall Victorias',
+  'Savemore - Danao',
+  'Savemore - Dumaguete',
+  'Savemore - East',
+  'Savemore - Festivewalk',
+  'Savemore - Fortune Town',
+  'Savemore - GT MAll',
+  'Savemore - Jaro 1',
+  'Savemore - Jaro 2',
+  'Savemore - Kabangkalan',
+  'Savemore - Maribago',
+  'Savemore - Pajac',
+  'Savemore - Passi',
+  'Savemore - San Carlos',
+  'Savemore - Sta. Barbara',
+  'Savemore - Strata',
+  'Savemore - Warehouse Cab. (New Manela)',
+  'Savemore -Warehouse Calinog',
+  'Sports Central - Deparo',
+  'Sports Central - Mandurriao - Levi\'s',
+  'Star Appliance - Deparo',
+  'Star Appliance - Telabastagan',
+  'Star Appliance - Warehouse',
+  'Star Appliance Center - SM City Iloilo',
+  'Star Appliance Center - SM Delgado',
+  'Style Residences',
+  'Supervalue Inc - Bacolod',
+  'Supervalue Inc - Calajunan Iloilo',
+  'Supervalue Inc - Manduariao',
+  'Supervalue Inc - Roxas Capiz',
+  'Supervalue Inc - SM Delgado',
+  'Supervalue Inc - Warehouse Iloilo',
+  'Surplus Shop - SM City Delgado',
+  'Surplus Shop - SM City Diversion Rd.',
+  'Surplus Shop - Telabastagan',
+  'THE SM STORE - CALOOCAN DEPARO',
+  'THE SM STORE - GRAND CENTRAL',
+  'THE SM STORE - MOLINO',
+  'THE SM STORE - TELABASTAGAN',
+  'THE SM STORE - VALENZUELA',
+  'THE WOW GROUP  (Mandaue City)',
+  'Toy Kingdom - SM City Mandurriao',
+  'UPTREND DESIGNED CORP. (Consolacion)',
+  'UPTREND FASHION DESIGNED CORP. (Mabolo)',
+  'UPTREND FASHION DESIGNED CORP. (Park Mall)',
+  'Under Armour SM City Cebu NRA Cebu City',
+  'Uniqlo - Dumaguete',
+  'Uniqlo - SM City Cebu',
+  'Uniqlo - SM City Iloilo',
+  'Uptrend Fashion - SM Seaside City Cebu',
+  'WATSON -  WAREHOUSE 2',
+  'WATSON -  WAREHOUSE BINAN LAGUNA',
+  'WATSON - Blumentritt',
+  'WATSON - Grand Central',
+  'WATSON - HEAD OFFICE',
+  'WATSON - Molino',
+  'WATSON - Vista Mall',
+  'WATSONS- RFC Mall',
+  'WOW GROUP (Balintwak-AVSC)',
+  'WOW GROUP (Balintwak-IAJ)',
+  'WOW GROUP (Balintwak-SAR)',
+  'Watson - Lucky China Town',
+  'Watson - Vicas',
+  'Watson Beauty - Plaza Kalibo',
+  'Watson Beauty - SM City Diversion - Mall 1',
+  'Watson Drug - SM City Diversion - Mall 3',
+  'Watsons - Gamboa',
+  'Watsons - Osmena Kalibo',
+  'Watsons - Puregold Binan',
+  'Watsons Anglo Taft',
+  'Watsons Caticlan',
+  'Watsons Deparo',
+  'Watsons Guihulngan',
+  'Watsons Janiuay',
+  'Watsons Paco Mall',
+  'Watsons Rizal Blvd Dumaguete',
+  'Watsons Southport Builders Bldg',
+  'Watsons Tayuman',
+  'Watsons. - Guimaras',
+  'Winebest Marketing Corp.',
+  'Wow Group (EDSA - BCI)',
+  'Wow Group (Malabon AVSC)',
+  'Wow Group (Malabon-BCI)',
+  'Wow Group (Malabon-IAJ)',
+  'Wow Group (Malabon-MEVC)',
+];
 const IP_PAYROLL_FIELDS = [
   'My salary was paid regularly and on time',
   'Overtime/holiday pay was accurate',
   'I did not experience salary delays during my employment',
   'My take-home pay during my first months was lower than I expected',
-  'Deductions affected my ability to cover daily expenses',
+  'Deductions during the first months affected my ability to cover daily expenses',
   'The deductions were manageable for me financially',
   'I experienced financial difficulty while deductions were ongoing',
   'I needed to borrow money or take loans during this period',
@@ -88,7 +741,7 @@ const IP_EXPECTATIONS_FIELDS = [
   'My take-home pay was lower than what I expected',
   'I did not fully understand how deductions would affect my salary',
 ];
-const MAIN_FACTOR_OPTIONS = ['Financial','Scheduling','Leadership','Culture','Career Growth','Recognition','Personal / External','Safety','Benefits','Commute','Other'];
+const MAIN_FACTOR_OPTIONS = EXIT_REASON_CATEGORIES.map(c => c.label);
 const FREQ_LABELS = ['Never','Sometimes','Often','Very Often'];
 
 function blankRecord(id) {
@@ -102,17 +755,22 @@ function blankRecord(id) {
   // Income & Payroll (Yes/No checks)
   [...IP_PAYROLL_FIELDS, ...IP_UNDERSTANDING_FIELDS, ...IP_EXPECTATIONS_FIELDS].forEach(f => r[`ip_${key(f)}`] = null);
   r.ip_comment = '';
-  // Exit Reasons (0-5 scale)
+  // Exit Reasons (boolean checkboxes — derived from EXIT_REASON_CATEGORIES)
   EXIT_REASON_FIELDS.forEach(f => r[`er_${key(f)}`] = null);
   // Op Stressors (0-3 freq)
   OP_STRESSOR_FIELDS.forEach(f => r[`os_${key(f)}`] = null);
   // Supervision flags (yes/no)
   SUPERVISION_FLAGS.forEach(f => r[`sv_${key(f)}`] = null);
   r.safeToSpeak = '';
+  r.unsafeToSpeakDescription = '';
   // Complaint flags
   COMPLAINT_FLAGS.forEach(f => r[`cp_${key(f)}`] = null);
   // Exit Summary
   r.mainExitFactor = ''; r.secondaryFactor = ''; r.breakingPoint = ''; r.wouldRecommend = '';
+  r.er_other_explain = '';
+  r.er_biggest_impact = '';
+  r.breakingPointOccurred = null;
+  BREAKING_POINT_CONTEXT.forEach(f => r[`bpc_${key(f)}`] = null);
   // Stay Factors
   STAY_FACTOR_FIELDS.forEach(f => r[`sf_${key(f)}`] = null);
   r.otherSuggestions = '';
@@ -330,14 +988,14 @@ function renderFormSection() {
 
 // ─── SECTION 1: GUARD INFO ───────────────────────────────────────────
 function renderGuardInfo(container, r) {
-  const card = makeCard('Guard Info', 'badge', 'Personal & employment background — Section 1 of original form');
+  const card = makeCard('Guard Info', 'badge', 'Basic personal details, employment history, and exit information');
   const body = card.querySelector('.form-card-body');
 
   const grid = makeGrid2();
   grid.appendChild(makeTextField('Full Name', 'fullName', r.fullName, 'text', 'e.g. Juan dela Cruz'));
   grid.appendChild(makeTextField('Age', 'age', r.age, 'number', ''));
   grid.appendChild(makeSelectField('Marital Status', 'maritalStatus', r.maritalStatus, MARITAL_STATUS_OPTIONS));
-  grid.appendChild(makeTextField('Educational Attainment', 'educationalAttainment', r.educationalAttainment, 'text', 'e.g. High School Graduate'));
+  grid.appendChild(makeSelectField('Educational Attainment', 'educationalAttainment', r.educationalAttainment, EDUCATIONAL_ATTAINMENT_OPTIONS));
   grid.appendChild(makeTextField('Course (if applicable)', 'courseIfApplicable', r.courseIfApplicable, 'text', 'e.g. Criminology'));
   grid.appendChild(makeSelectField('Living with Family?', 'livingWithFamily', r.livingWithFamily, ['','Yes','No']));
   grid.appendChild(makeSelectField('Where is Family Based?', 'familyLocation', r.familyLocation, FAMILY_LOCATION_OPTIONS));
@@ -345,7 +1003,7 @@ function renderGuardInfo(container, r) {
   grid.appendChild(makeTextField('Number of Previous Jobs', 'numPreviousJobs', r.numPreviousJobs, 'number', ''));
   grid.appendChild(makeTextField('Type(s) of Previous Job / Roles', 'typePreviousJob', r.typePreviousJob, 'text', 'e.g. Security Guard, Driver'));
   grid.appendChild(makeTextField('Rank / Position', 'rankPosition', r.rankPosition, 'text', 'e.g. Security Guard I'));
-  grid.appendChild(makeTextField('Current Post / Detachment', 'detachment', r.detachment, 'text', 'e.g. SM North EDSA'));
+  grid.appendChild(makeSelectField('Current Post / Detachment', 'detachment', r.detachment, DETACHMENT_OPTIONS));
   grid.appendChild(makeSelectField('Length of Service', 'lengthOfService', r.lengthOfService, LENGTH_OF_SERVICE_OPTIONS));
   grid.appendChild(makeSelectField('Type of Exit', 'typeOfExit', r.typeOfExit, ['', ...EXIT_TYPE_OPTIONS]));
   grid.appendChild(makeDateField('Date of Exit', 'dateOfExit', r.dateOfExit));
@@ -358,7 +1016,7 @@ function renderGuardInfo(container, r) {
 
 // ─── SECTION 2: INCOME & PAYROLL ─────────────────────────────────────
 function renderIncomePayroll(container, r) {
-  const card = makeCard('Income & Payroll', 'payments', 'Income stability & financial clarity — Section 2.1 of original form');
+  const card = makeCard('Income & Payroll', 'payments', 'Guard\'s experience with salary, deductions, and financial expectations during service');
   const body = card.querySelector('.form-card-body');
 
   // Payroll Reliability
@@ -409,23 +1067,53 @@ function renderIncomePayroll(container, r) {
   wireYNButtons(container, r);
 }
 
-// ─── SECTION 3: EXIT REASONS ─────────────────────────────────────────
+// ─── SECTION 3: EXIT REASONS (categorized checkboxes) ────────────────
 function renderExitReasons(container, r) {
-  const card = makeCard('Exit Reasons', 'logout', '');
+  const card = makeCard('Reasons for Exit', 'logout', 'All factors that contributed to the guard\'s decision to leave — check everything that applies');
   const body = card.querySelector('.form-card-body');
-  body.appendChild(makeNoteBar('info', '0 = Not a factor  |  1 = Minor  |  3 = Moderate  |  5 = Major'));
+  body.appendChild(makeNoteBar('info', 'Check all that apply. At the bottom, select the ONE factor that had the biggest impact.'));
 
-  EXIT_REASON_FIELDS.forEach(label => {
-    const fk = `er_${key(label)}`;
-    body.appendChild(makeScaleRow(label, fk, r[fk], [0,1,2,3,4,5], 'btn-scale'));
+  EXIT_REASON_CATEGORIES.forEach(cat => {
+    const h = document.createElement('div');
+    h.className = 'form-group-heading';
+    h.innerHTML = `<span class="material-icons">${cat.icon}</span> ${escHtml(cat.label)}`;
+    body.appendChild(h);
+    cat.items.forEach(label => {
+      body.appendChild(makeYNRow(label, `er_${key(label)}`, r[`er_${key(label)}`]));
+    });
   });
+
+  // Other
+  const otherH = document.createElement('div');
+  otherH.className = 'form-group-heading';
+  otherH.innerHTML = '<span class="material-icons">edit_note</span> Other';
+  body.appendChild(otherH);
+  const otherWrap = document.createElement('div');
+  otherWrap.className = 'form-group';
+  const otherTa = document.createElement('textarea');
+  otherTa.className = 'form-textarea';
+  otherTa.rows = 2;
+  otherTa.placeholder = 'Other reason (please explain)...';
+  otherTa.value = r.er_other_explain || '';
+  otherTa.addEventListener('input', () => { r.er_other_explain = otherTa.value; saveToLocalStorage(); });
+  otherWrap.appendChild(otherTa);
+  body.appendChild(otherWrap);
+
+  // Biggest impact
+  const bigH = document.createElement('div');
+  bigH.className = 'form-group-heading';
+  bigH.innerHTML = '<span class="material-icons">flag</span> Which ONE had the biggest impact on your decision to leave?';
+  body.appendChild(bigH);
+  body.appendChild(makeSelectField('Biggest Impact Category', 'er_biggest_impact', r.er_biggest_impact, ['', ...MAIN_FACTOR_OPTIONS]));
+
   container.appendChild(card);
-  wireScaleButtons(container, r);
+  wireYNButtons(container, r);
+  wireSelects(container, r);
 }
 
 // ─── SECTION 3: OP STRESSORS ─────────────────────────────────────────
 function renderOpStressors(container, r) {
-  const card = makeCard('Operational Stressors', 'warning_amber', '');
+  const card = makeCard('Operational Stressors', 'warning_amber', 'How often the guard experienced workload and scheduling pressures in their last 3 months');
   const body = card.querySelector('.form-card-body');
   body.appendChild(makeNoteBar('warning', '0 = Never  |  1 = Sometimes  |  2 = Often  |  3 = Very Often'));
 
@@ -439,7 +1127,7 @@ function renderOpStressors(container, r) {
 
 // ─── SECTION 4: SUPERVISION ───────────────────────────────────────────
 function renderSupervision(container, r) {
-  const card = makeCard('Supervision & Power', 'manage_accounts', '');
+  const card = makeCard('Supervision & Power', 'manage_accounts', 'Supervisory conduct experienced during service and guard\'s psychological safety level');
   const body = card.querySelector('.form-card-body');
   body.appendChild(makeNoteBar('info', 'Mark Yes / No for each item'));
 
@@ -448,10 +1136,30 @@ function renderSupervision(container, r) {
     body.appendChild(makeYNRow(label, fk, r[fk]));
   });
 
-  const divider = document.createElement('div');
-  divider.className = 'mt-4 pt-4 border-t border-slate-100';
-  divider.appendChild(makeSelectField('Safe to Speak Up?', 'safeToSpeak', r.safeToSpeak, ['','Yes','Somewhat','No']));
-  body.appendChild(divider);
+  // Psychological Safety
+  const psH = document.createElement('div');
+  psH.className = 'form-group-heading';
+  psH.innerHTML = '<span class="material-icons">psychology</span> Psychological Safety';
+  body.appendChild(psH);
+  body.appendChild(makeNoteBar('info', 'How safe did you feel expressing your concerns, opinions, or suggestions at work?'));
+  body.appendChild(makeSelectField('Safety Level', 'safeToSpeak', r.safeToSpeak,
+    ['', 'Very safe', 'Somewhat safe', 'Not safe', 'I avoided speaking up']));
+
+  // Unsafe situation description
+  const unsafeH = document.createElement('div');
+  unsafeH.className = 'form-group-heading';
+  unsafeH.innerHTML = '<span class="material-icons">report</span> If you ever felt unsafe speaking up, please describe the situation:';
+  body.appendChild(unsafeH);
+  const unsafeWrap = document.createElement('div');
+  unsafeWrap.className = 'form-group';
+  const unsafeTa = document.createElement('textarea');
+  unsafeTa.className = 'form-textarea';
+  unsafeTa.rows = 3;
+  unsafeTa.placeholder = 'Describe the situation where you felt unsafe speaking up...';
+  unsafeTa.value = r.unsafeToSpeakDescription || '';
+  unsafeTa.addEventListener('input', () => { r.unsafeToSpeakDescription = unsafeTa.value; saveToLocalStorage(); });
+  unsafeWrap.appendChild(unsafeTa);
+  body.appendChild(unsafeWrap);
 
   container.appendChild(card);
   wireYNButtons(container, r);
@@ -460,7 +1168,7 @@ function renderSupervision(container, r) {
 
 // ─── SECTION 5: COMPLAINTS ────────────────────────────────────────────
 function renderComplaints(container, r) {
-  const card = makeCard('Complaint Handling', 'report_problem', '');
+  const card = makeCard('Complaint Handling', 'report_problem', 'How the agency handled client complaints or issues involving the guard');
   const body = card.querySelector('.form-card-body');
   body.appendChild(makeNoteBar('info', 'Mark Yes / No for each item'));
 
@@ -472,24 +1180,57 @@ function renderComplaints(container, r) {
   wireYNButtons(container, r);
 }
 
-// ─── SECTION 6: EXIT SUMMARY ──────────────────────────────────────────
+// ─── SECTION 7: EXIT SUMMARY (Breaking Point) ────────────────────────
 function renderExitSummary(container, r) {
-  const card = makeCard('Exit Summary', 'exit_to_app', '');
+  const card = makeCard('The Breaking Point', 'exit_to_app', 'The specific moment or event, if any, that triggered the guard\'s final decision to leave');
   const body = card.querySelector('.form-card-body');
+
+  // Yes/No gate
+  body.appendChild(makeNoteBar('info', 'Was there a specific moment or event that made you decide you could no longer continue in this role?'));
+  body.appendChild(makeYNRow('A breaking point event occurred', 'breakingPointOccurred', r.breakingPointOccurred));
+
+  // Context checkboxes
+  const ctxH = document.createElement('div');
+  ctxH.className = 'form-group-heading';
+  ctxH.innerHTML = '<span class="material-icons">checklist</span> If yes, you may consider (check all that are relevant):';
+  body.appendChild(ctxH);
+  BREAKING_POINT_CONTEXT.forEach(label => {
+    body.appendChild(makeYNRow(label, `bpc_${key(label)}`, r[`bpc_${key(label)}`]));
+  });
+
+  // Description textarea
+  const descH = document.createElement('div');
+  descH.className = 'form-group-heading';
+  descH.innerHTML = '<span class="material-icons">description</span> If yes, please describe what happened:';
+  body.appendChild(descH);
+  const taWrap = document.createElement('div');
+  taWrap.className = 'form-group';
+  const ta = document.createElement('textarea');
+  ta.className = 'form-textarea';
+  ta.rows = 4;
+  ta.placeholder = 'Describe the specific moment or event that was the breaking point...';
+  ta.value = r.breakingPoint || '';
+  ta.addEventListener('input', () => { r.breakingPoint = ta.value; saveToLocalStorage(); });
+  taWrap.appendChild(ta);
+  body.appendChild(taWrap);
+
+  // Would Recommend (kept for analytics)
+  const addH = document.createElement('div');
+  addH.className = 'form-group-heading';
+  addH.innerHTML = '<span class="material-icons">thumb_up</span> Additional';
+  body.appendChild(addH);
   const grid = makeGrid2();
-  grid.appendChild(makeSelectField('Main Exit Factor', 'mainExitFactor', r.mainExitFactor, ['', ...MAIN_FACTOR_OPTIONS]));
-  grid.appendChild(makeSelectField('Secondary Factor', 'secondaryFactor', r.secondaryFactor, ['None', ...MAIN_FACTOR_OPTIONS]));
+  grid.appendChild(makeSelectField('Would Recommend Agency?', 'wouldRecommend', r.wouldRecommend, ['','Yes','Maybe','No']));
   body.appendChild(grid);
-  body.appendChild(makeTextareaField('Breaking Point Event', 'breakingPoint', r.breakingPoint, 'Describe the key event or moment that led to the decision to leave…'));
-  body.appendChild(makeSelectField('Would Recommend Agency?', 'wouldRecommend', r.wouldRecommend, ['','Yes','Maybe','No']));
+
   container.appendChild(card);
-  wireTextInputs(container, r);
+  wireYNButtons(container, r);
   wireSelects(container, r);
 }
 
 // ─── SECTION 7: STAY FACTORS ─────────────────────────────────────────
 function renderStayFactors(container, r) {
-  const card = makeCard('Stay Factors', 'anchor', '');
+  const card = makeCard('Stay Factors', 'anchor', 'What the agency could realistically have done to make the guard stay longer');
   const body = card.querySelector('.form-card-body');
   body.appendChild(makeNoteBar('lightbulb', 'What could have made the guard stay?'));
 
@@ -510,7 +1251,7 @@ function renderStayFactors(container, r) {
 
 // ─── SECTION 8: TRUST INDEX ───────────────────────────────────────────
 function renderTrustIndex(container, r) {
-  const card = makeCard('Trust Index', 'verified_user', '');
+  const card = makeCard('Trust Index', 'verified_user', 'Guard\'s overall sense of trust, respect, and belonging within the agency');
   const body = card.querySelector('.form-card-body');
   body.appendChild(makeNoteBar('star', '1 = Strongly Disagree  |  5 = Strongly Agree'));
 
@@ -694,7 +1435,7 @@ const TABLE_COLUMNS = [
   { group: 'Guard Info', field: 'age',                 label: 'Age',                 type: 'number', width: 52  },
   { group: 'Guard Info', field: 'maritalStatus',       label: 'Marital Status',      type: 'select', width: 110,
     options: MARITAL_STATUS_OPTIONS },
-  { group: 'Guard Info', field: 'educationalAttainment',label: 'Education',          type: 'text',   width: 130 },
+  { group: 'Guard Info', field: 'educationalAttainment',label: 'Education',          type: 'select', width: 160, options: EDUCATIONAL_ATTAINMENT_OPTIONS },
   { group: 'Guard Info', field: 'courseIfApplicable',  label: 'Course',              type: 'text',   width: 110 },
   { group: 'Guard Info', field: 'livingWithFamily',    label: 'Lives w/ Family',     type: 'select', width: 80,
     options: ['','Yes','No'] },
@@ -705,7 +1446,7 @@ const TABLE_COLUMNS = [
   { group: 'Guard Info', field: 'numPreviousJobs',     label: 'Prev Jobs #',         type: 'number', width: 52  },
   { group: 'Guard Info', field: 'typePreviousJob',     label: 'Prev Job Type',       type: 'text',   width: 120 },
   { group: 'Guard Info', field: 'rankPosition',        label: 'Rank/Position',       type: 'text',   width: 120 },
-  { group: 'Guard Info', field: 'detachment',          label: 'Detachment',          type: 'text',   width: 120 },
+  { group: 'Guard Info', field: 'detachment',          label: 'Detachment',          type: 'select', width: 200, options: DETACHMENT_OPTIONS },
   { group: 'Guard Info', field: 'lengthOfService',     label: 'Tenure',              type: 'select', width: 120,
     options: LENGTH_OF_SERVICE_OPTIONS },
   { group: 'Guard Info', field: 'typeOfExit',          label: 'Exit Type',           type: 'select', width: 100,
@@ -721,10 +1462,13 @@ const TABLE_COLUMNS = [
   ...IP_EXPECTATIONS_FIELDS.map(f => ({
     group: 'Income & Payroll', field: `ip_${key(f)}`, label: f.length > 35 ? f.slice(0,33)+'…' : f, type: 'yn', width: 64,
   })),
-  // ── Exit Reasons ─────────────────────────────────────────
+  // ── Exit Reasons (categorized checkboxes) ────────────────────────────
   ...EXIT_REASON_FIELDS.map(f => ({
-    group: 'Exit Reasons', field: `er_${key(f)}`, label: f, type: 'scale-er', width: 60,
+    group: 'Exit Reasons', field: `er_${key(f)}`, label: f.length > 40 ? f.slice(0,38)+'…' : f, type: 'yn', width: 64,
   })),
+  { group: 'Exit Reasons', field: 'er_other_explain',  label: 'Other Reason', type: 'textarea', width: 140 },
+  { group: 'Exit Reasons', field: 'er_biggest_impact', label: 'Biggest Impact', type: 'select', width: 140,
+    options: ['', ...MAIN_FACTOR_OPTIONS] },
   // ── Operational Stressors ────────────────────────────────
   ...OP_STRESSOR_FIELDS.map(f => ({
     group: 'Stressors', field: `os_${key(f)}`, label: f, type: 'freq', width: 96,
@@ -1309,36 +2053,38 @@ function kpiCard(label, value, sub) {
   </div>`;
 }
 
-// ─── CHART: EXIT REASONS (horizontal bars, ranked) ────────────────────
 function renderExitReasonsChart(completed) {
-  const section = makeSummarySection('Top Exit Reasons', 'logout', 'Total severity score across all guards (0–5 scale per guard)');
-
-  const scores = EXIT_REASON_FIELDS.map(label => {
-    const fk = `er_${key(label)}`;
-    const vals = completed.map(r => r[fk]).filter(v => v !== null);
-    const total = vals.reduce((a, b) => a + b, 0);
-    const guardCount = vals.length;
-    return { label, total, guardCount };
-  }).sort((a, b) => b.total - a.total);
-
-  const maxScore = scores[0]?.total || 1;
+  const section = makeSummarySection('Top Exit Reasons by Category', 'logout', 'Total "Yes" responses per category, sorted by most cited');
 
   if (!completed.length) { section.appendChild(emptyState()); return section; }
 
-  scores.forEach((s, i) => {
-    const pct = Math.round(s.total / maxScore * 100);
-    // Color by severity
-    const colorClass = pct >= 75 ? 'bar-fill-red' : pct >= 45 ? 'bar-fill-orange' : 'bar-fill-blue';
+  const catData = EXIT_REASON_CATEGORIES.map(cat => {
+    const totalYes = cat.items.reduce((sum, label) => {
+      return sum + completed.filter(r => r[`er_${key(label)}`] === true).length;
+    }, 0);
+    return { label: cat.label, icon: cat.icon, totalYes };
+  }).sort((a, b) => b.totalYes - a.totalYes);
+
+  const maxYes = Math.max(...catData.map(d => d.totalYes), 1);
+
+  catData.forEach((d, i) => {
+    const pct = Math.round((d.totalYes / maxYes) * 100);
     const row = document.createElement('div');
     row.className = 'bar-row';
     row.innerHTML = `
-      <span class="bar-rank">#${i+1}</span>
-      <span class="bar-label">${escHtml(s.label)}</span>
-      <div class="bar-track"><div class="bar-fill ${colorClass}" data-pct="${pct}" style="width:0%"></div></div>
-      <span class="bar-meta">${s.guardCount} guards · ${s.total} pts</span>
+      <span class="bar-label" style="width:260px">
+        <span style="color:#94a3b8;font-size:11px;margin-right:6px;">${i + 1}</span>
+        <span class="material-icons" style="font-size:14px;color:#64748b;margin-right:4px;">${d.icon}</span>
+        ${escHtml(d.label)}
+      </span>
+      <div class="bar-track">
+        <div class="bar-fill bar-fill-red" data-pct="${pct}" style="width:0%"></div>
+      </div>
+      <span class="bar-meta">${d.totalYes} response${d.totalYes !== 1 ? 's' : ''}</span>
     `;
     section.appendChild(row);
   });
+
   return section;
 }
 

@@ -205,6 +205,28 @@ body {
   resize: vertical;
   min-height: 80px;
 }
+/* Inline-built textareas (not via makeTextareaField) */
+.form-textarea {
+  width: 100%;
+  padding: 8px 11px;
+  border: 1px solid #d1d5db;
+  border-radius: 7px;
+  font-family: 'Inter', sans-serif;
+  font-size: 13.5px;
+  color: #1e293b;
+  background: #fff;
+  resize: vertical;
+  min-height: 80px;
+  transition: border-color 0.15s, box-shadow 0.15s;
+  outline: none;
+  box-sizing: border-box;
+}
+.form-textarea:focus {
+  border-color: #3b82f6;
+  box-shadow: 0 0 0 3px rgba(59, 130, 246, 0.12);
+}
+.form-textarea:hover { border-color: #94a3b8; }
+.form-group { width: 100%; }
 .field-input:focus,
 .field-select:focus,
 .field-textarea:focus {
