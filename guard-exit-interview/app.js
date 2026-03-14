@@ -1778,7 +1778,7 @@ function renderTable() {
     const b = document.createElement('button');
     b.className = 'period-btn' + (tablePeriod.type === t ? ' active' : '');
     b.textContent = txt;
-    b.addEventListener('click', () => { tablePeriod.type = t; renderTable(); });
+    b.addEventListener('click', () => { tablePeriod.type = t; tablePeriod.dateFrom = ''; tablePeriod.dateTo = ''; renderTable(); });
     row1.appendChild(b);
   });
 
@@ -1793,7 +1793,7 @@ function renderTable() {
       if (y === tablePeriod.year) o.selected = true;
       ySel.appendChild(o);
     }
-    ySel.addEventListener('change', () => { tablePeriod.year = parseInt(ySel.value); renderTable(); });
+    ySel.addEventListener('change', () => { tablePeriod.year = parseInt(ySel.value); tablePeriod.dateFrom = ''; tablePeriod.dateTo = ''; renderTable(); });
     row1.appendChild(ySel);
   }
   if (tablePeriod.type === 'monthly') {
@@ -1805,7 +1805,7 @@ function renderTable() {
       if (i + 1 === tablePeriod.month) o.selected = true;
       mSel.appendChild(o);
     });
-    mSel.addEventListener('change', () => { tablePeriod.month = parseInt(mSel.value); renderTable(); });
+    mSel.addEventListener('change', () => { tablePeriod.month = parseInt(mSel.value); tablePeriod.dateFrom = ''; tablePeriod.dateTo = ''; renderTable(); });
     row1.appendChild(mSel);
   }
   if (tablePeriod.type === 'quarterly') {
@@ -1817,7 +1817,7 @@ function renderTable() {
       if (i + 1 === tablePeriod.quarter) o.selected = true;
       qSel.appendChild(o);
     });
-    qSel.addEventListener('change', () => { tablePeriod.quarter = parseInt(qSel.value); renderTable(); });
+    qSel.addEventListener('change', () => { tablePeriod.quarter = parseInt(qSel.value); tablePeriod.dateFrom = ''; tablePeriod.dateTo = ''; renderTable(); });
     row1.appendChild(qSel);
   }
 
@@ -1855,10 +1855,13 @@ function renderTable() {
   drLabel.className = 'period-filter-label';
   drLabel.textContent = 'Date:';
   row1.appendChild(drLabel);
+  const tBounds = getPeriodBounds(tablePeriod);
   const drFrom = document.createElement('input');
   drFrom.type = 'date';
   drFrom.className = 'period-date-input';
   drFrom.title = 'From date';
+  if (tBounds.min) drFrom.min = tBounds.min;
+  if (tBounds.max) drFrom.max = tBounds.max;
   if (tablePeriod.dateFrom) drFrom.value = tablePeriod.dateFrom;
   drFrom.addEventListener('change', () => { tablePeriod.dateFrom = drFrom.value; renderTable(); });
   row1.appendChild(drFrom);
@@ -1870,6 +1873,8 @@ function renderTable() {
   drTo.type = 'date';
   drTo.className = 'period-date-input';
   drTo.title = 'To date';
+  if (tBounds.min) drTo.min = tBounds.min;
+  if (tBounds.max) drTo.max = tBounds.max;
   if (tablePeriod.dateTo) drTo.value = tablePeriod.dateTo;
   drTo.addEventListener('change', () => { tablePeriod.dateTo = drTo.value; renderTable(); });
   row1.appendChild(drTo);
@@ -2221,6 +2226,27 @@ function updateTableRowHighlight(rowIdx) {
   updateHeaderSubtitle();
 }
 
+// ─── PERIOD BOUNDS HELPER ────────────────────────────────────────────
+function getPeriodBounds(period) {
+  if (period.type === 'all') return { min: '', max: '' };
+  const y = period.year;
+  if (period.type === 'annual') {
+    return { min: `${y}-01-01`, max: `${y}-12-31` };
+  }
+  if (period.type === 'quarterly') {
+    const starts = ['01-01','04-01','07-01','10-01'];
+    const ends   = ['03-31','06-30','09-30','12-31'];
+    const q = period.quarter - 1;
+    return { min: `${y}-${starts[q]}`, max: `${y}-${ends[q]}` };
+  }
+  if (period.type === 'monthly') {
+    const m = String(period.month).padStart(2, '0');
+    const lastDay = new Date(y, period.month, 0).getDate();
+    return { min: `${y}-${m}-01`, max: `${y}-${m}-${String(lastDay).padStart(2,'0')}` };
+  }
+  return { min: '', max: '' };
+}
+
 // ─── SUMMARY VIEW ────────────────────────────────────────────────────
 function getFilteredCompleted() {
   let base = records.filter(r => r.fullName && r.fullName.trim());
@@ -2270,7 +2296,7 @@ function renderPeriodFilter() {
     const b = document.createElement('button');
     b.className = 'period-btn' + (summaryPeriod.type === t ? ' active' : '');
     b.textContent = txt;
-    b.addEventListener('click', () => { summaryPeriod.type = t; renderSummary(); });
+    b.addEventListener('click', () => { summaryPeriod.type = t; summaryPeriod.dateFrom = ''; summaryPeriod.dateTo = ''; renderSummary(); });
     periodControls.appendChild(b);
   });
   if (summaryPeriod.type !== 'all') {
@@ -2283,7 +2309,7 @@ function renderPeriodFilter() {
       if (y === summaryPeriod.year) o.selected = true;
       ySel.appendChild(o);
     }
-    ySel.addEventListener('change', () => { summaryPeriod.year = parseInt(ySel.value); renderSummary(); });
+    ySel.addEventListener('change', () => { summaryPeriod.year = parseInt(ySel.value); summaryPeriod.dateFrom = ''; summaryPeriod.dateTo = ''; renderSummary(); });
     periodControls.appendChild(ySel);
   }
   if (summaryPeriod.type === 'monthly') {
@@ -2295,7 +2321,7 @@ function renderPeriodFilter() {
       if (i+1 === summaryPeriod.month) o.selected = true;
       mSel.appendChild(o);
     });
-    mSel.addEventListener('change', () => { summaryPeriod.month = parseInt(mSel.value); renderSummary(); });
+    mSel.addEventListener('change', () => { summaryPeriod.month = parseInt(mSel.value); summaryPeriod.dateFrom = ''; summaryPeriod.dateTo = ''; renderSummary(); });
     periodControls.appendChild(mSel);
   }
   if (summaryPeriod.type === 'quarterly') {
@@ -2307,7 +2333,7 @@ function renderPeriodFilter() {
       if (i+1 === summaryPeriod.quarter) o.selected = true;
       qSel.appendChild(o);
     });
-    qSel.addEventListener('change', () => { summaryPeriod.quarter = parseInt(qSel.value); renderSummary(); });
+    qSel.addEventListener('change', () => { summaryPeriod.quarter = parseInt(qSel.value); summaryPeriod.dateFrom = ''; summaryPeriod.dateTo = ''; renderSummary(); });
     periodControls.appendChild(qSel);
   }
   periodRow.appendChild(periodControls);
@@ -2323,10 +2349,13 @@ function renderPeriodFilter() {
 
   const dateControls = document.createElement('div');
   dateControls.className = 'pf-row-controls';
+  const bounds = getPeriodBounds(summaryPeriod);
   const drFrom = document.createElement('input');
   drFrom.type = 'date';
   drFrom.className = 'period-date-input';
   drFrom.title = 'From date';
+  if (bounds.min) drFrom.min = bounds.min;
+  if (bounds.max) drFrom.max = bounds.max;
   if (summaryPeriod.dateFrom) drFrom.value = summaryPeriod.dateFrom;
   drFrom.addEventListener('change', () => { summaryPeriod.dateFrom = drFrom.value; renderSummary(); });
   const drDash = document.createElement('span');
@@ -2336,6 +2365,8 @@ function renderPeriodFilter() {
   drTo.type = 'date';
   drTo.className = 'period-date-input';
   drTo.title = 'To date';
+  if (bounds.min) drTo.min = bounds.min;
+  if (bounds.max) drTo.max = bounds.max;
   if (summaryPeriod.dateTo) drTo.value = summaryPeriod.dateTo;
   drTo.addEventListener('change', () => { summaryPeriod.dateTo = drTo.value; renderSummary(); });
   dateControls.appendChild(drFrom);
