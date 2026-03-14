@@ -799,6 +799,8 @@ let tablePeriod = {
   month: new Date().getMonth() + 1,
   quarter: Math.ceil((new Date().getMonth() + 1) / 3),
   detachment: '',
+  dateFrom: '',
+  dateTo: '',
 };
 let summaryPeriod = {
   type: 'all', // 'all' | 'monthly' | 'quarterly' | 'annual'
@@ -806,6 +808,8 @@ let summaryPeriod = {
   month: new Date().getMonth() + 1,
   quarter: Math.ceil((new Date().getMonth() + 1) / 3),
   detachment: '',
+  dateFrom: '',
+  dateTo: '',
 };
 
 // ─── INIT ────────────────────────────────────────────────────────────
@@ -1690,6 +1694,18 @@ function getTableRows() {
     rows = rows.filter(({ r }) => r.detachment === tablePeriod.detachment);
   }
 
+  // Date range filter
+  if (tablePeriod.dateFrom || tablePeriod.dateTo) {
+    rows = rows.filter(({ r }) => {
+      if (!r.dateOfExit) return false;
+      const d = new Date(r.dateOfExit);
+      if (isNaN(d)) return false;
+      if (tablePeriod.dateFrom && d < new Date(tablePeriod.dateFrom)) return false;
+      if (tablePeriod.dateTo && d > new Date(tablePeriod.dateTo)) return false;
+      return true;
+    });
+  }
+
   // Search (name, detachment, exit type, rank)
   if (tableSearch.trim()) {
     const q = tableSearch.trim().toLowerCase();
@@ -1831,8 +1847,35 @@ function renderTable() {
     row1.appendChild(detSel);
   }
 
+  // Date range filter
+  const drSep = document.createElement('div');
+  drSep.style.cssText = 'width:1px;height:18px;background:#e2e8f0;flex-shrink:0;margin:0 2px;';
+  row1.appendChild(drSep);
+  const drLabel = document.createElement('span');
+  drLabel.className = 'period-filter-label';
+  drLabel.textContent = 'Date:';
+  row1.appendChild(drLabel);
+  const drFrom = document.createElement('input');
+  drFrom.type = 'date';
+  drFrom.className = 'period-date-input';
+  drFrom.title = 'From date';
+  if (tablePeriod.dateFrom) drFrom.value = tablePeriod.dateFrom;
+  drFrom.addEventListener('change', () => { tablePeriod.dateFrom = drFrom.value; renderTable(); });
+  row1.appendChild(drFrom);
+  const drSpan = document.createElement('span');
+  drSpan.style.cssText = 'font-size:11px;color:#94a3b8;flex-shrink:0;';
+  drSpan.textContent = '–';
+  row1.appendChild(drSpan);
+  const drTo = document.createElement('input');
+  drTo.type = 'date';
+  drTo.className = 'period-date-input';
+  drTo.title = 'To date';
+  if (tablePeriod.dateTo) drTo.value = tablePeriod.dateTo;
+  drTo.addEventListener('change', () => { tablePeriod.dateTo = drTo.value; renderTable(); });
+  row1.appendChild(drTo);
+
   // Reset button
-  const hasFilters = tablePeriod.type !== 'all' || tablePeriod.detachment || tableSearch.trim() || tableSort.field || tableSort.dir === 'desc';
+  const hasFilters = tablePeriod.type !== 'all' || tablePeriod.detachment || tablePeriod.dateFrom || tablePeriod.dateTo || tableSearch.trim() || tableSort.field || tableSort.dir === 'desc';
   const resetBtn = document.createElement('button');
   resetBtn.className = 'btn-table-reset' + (hasFilters ? ' has-filters' : '');
   resetBtn.innerHTML = '<span class="material-icons">restart_alt</span> Reset';
@@ -1840,7 +1883,7 @@ function renderTable() {
   resetBtn.addEventListener('click', () => {
     tableSort = { field: null, dir: 'asc' };
     tableSearch = '';
-    tablePeriod = { type: 'all', year: new Date().getFullYear(), month: new Date().getMonth() + 1, quarter: Math.ceil((new Date().getMonth() + 1) / 3), detachment: '' };
+    tablePeriod = { type: 'all', year: new Date().getFullYear(), month: new Date().getMonth() + 1, quarter: Math.ceil((new Date().getMonth() + 1) / 3), detachment: '', dateFrom: '', dateTo: '' };
     renderTable();
   });
 
@@ -2184,17 +2227,29 @@ function getFilteredCompleted() {
   if (summaryPeriod.detachment) {
     base = base.filter(r => r.detachment === summaryPeriod.detachment);
   }
-  if (summaryPeriod.type === 'all') return base;
-  return base.filter(r => {
-    if (!r.dateOfExit) return false;
-    const d = new Date(r.dateOfExit);
-    if (isNaN(d)) return false;
-    const y = d.getFullYear(), m = d.getMonth() + 1;
-    if (summaryPeriod.type === 'annual') return y === summaryPeriod.year;
-    if (summaryPeriod.type === 'quarterly') return y === summaryPeriod.year && Math.ceil(m/3) === summaryPeriod.quarter;
-    if (summaryPeriod.type === 'monthly') return y === summaryPeriod.year && m === summaryPeriod.month;
-    return true;
-  });
+  if (summaryPeriod.type !== 'all') {
+    base = base.filter(r => {
+      if (!r.dateOfExit) return false;
+      const d = new Date(r.dateOfExit);
+      if (isNaN(d)) return false;
+      const y = d.getFullYear(), m = d.getMonth() + 1;
+      if (summaryPeriod.type === 'annual') return y === summaryPeriod.year;
+      if (summaryPeriod.type === 'quarterly') return y === summaryPeriod.year && Math.ceil(m/3) === summaryPeriod.quarter;
+      if (summaryPeriod.type === 'monthly') return y === summaryPeriod.year && m === summaryPeriod.month;
+      return true;
+    });
+  }
+  if (summaryPeriod.dateFrom || summaryPeriod.dateTo) {
+    base = base.filter(r => {
+      if (!r.dateOfExit) return false;
+      const d = new Date(r.dateOfExit);
+      if (isNaN(d)) return false;
+      if (summaryPeriod.dateFrom && d < new Date(summaryPeriod.dateFrom)) return false;
+      if (summaryPeriod.dateTo && d > new Date(summaryPeriod.dateTo)) return false;
+      return true;
+    });
+  }
+  return base;
 }
 
 function renderPeriodFilter() {
@@ -2289,6 +2344,33 @@ function renderPeriodFilter() {
     detSel.addEventListener('change', () => { summaryPeriod.detachment = detSel.value; renderSummary(); });
     bar.appendChild(detSel);
   }
+
+  // Date range filter
+  const drSep = document.createElement('div');
+  drSep.style.cssText = 'width:1px;height:20px;background:#e2e8f0;margin:0 2px;flex-shrink:0;';
+  bar.appendChild(drSep);
+  const drLabel = document.createElement('span');
+  drLabel.className = 'period-filter-label';
+  drLabel.textContent = 'Date:';
+  bar.appendChild(drLabel);
+  const drFrom = document.createElement('input');
+  drFrom.type = 'date';
+  drFrom.className = 'period-date-input';
+  drFrom.title = 'From date';
+  if (summaryPeriod.dateFrom) drFrom.value = summaryPeriod.dateFrom;
+  drFrom.addEventListener('change', () => { summaryPeriod.dateFrom = drFrom.value; renderSummary(); });
+  bar.appendChild(drFrom);
+  const drSpan = document.createElement('span');
+  drSpan.style.cssText = 'font-size:11px;color:#94a3b8;flex-shrink:0;';
+  drSpan.textContent = '–';
+  bar.appendChild(drSpan);
+  const drTo = document.createElement('input');
+  drTo.type = 'date';
+  drTo.className = 'period-date-input';
+  drTo.title = 'To date';
+  if (summaryPeriod.dateTo) drTo.value = summaryPeriod.dateTo;
+  drTo.addEventListener('change', () => { summaryPeriod.dateTo = drTo.value; renderSummary(); });
+  bar.appendChild(drTo);
 
   // Result count badge
   const filtered = getFilteredCompleted();
