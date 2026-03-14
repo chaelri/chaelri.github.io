@@ -4,17 +4,23 @@
 =================================================================== */
 
 // ─── DATA SCHEMA ────────────────────────────────────────────────────
-const STORAGE_KEY = 'exit_interview_records';
+const COMPANIES = {
+  manela: { id: 'manela', name: 'New Manela', storageKey: 'exit_interview_records_manela' },
+  moriah: { id: 'moriah', name: 'New Moriah', storageKey: 'exit_interview_records_moriah' },
+};
+let currentCompany = localStorage.getItem('exit_interview_active_company') || 'manela';
+function getStorageKey() { return COMPANIES[currentCompany].storageKey; }
 
 const SECTIONS = [
-  { id: 'guard-info',       label: 'Guard Info',          icon: 'badge' },
-  { id: 'exit-reasons',     label: 'Exit Reasons',         icon: 'logout' },
-  { id: 'op-stressors',     label: 'Operational Stressors',icon: 'warning_amber' },
-  { id: 'supervision',      label: 'Supervision & Power',  icon: 'manage_accounts' },
-  { id: 'complaints',       label: 'Complaint Handling',   icon: 'report_problem' },
-  { id: 'exit-summary',     label: 'Exit Summary',         icon: 'exit_to_app' },
-  { id: 'stay-factors',     label: 'Stay Factors',         icon: 'anchor' },
-  { id: 'trust-index',      label: 'Trust Index',          icon: 'verified_user' },
+  { id: 'guard-info',      label: 'Guard Info',          icon: 'badge' },
+  { id: 'income-payroll',  label: 'Income & Payroll',     icon: 'payments' },
+  { id: 'exit-reasons',    label: 'Exit Reasons',         icon: 'logout' },
+  { id: 'op-stressors',    label: 'Operational Stressors',icon: 'warning_amber' },
+  { id: 'supervision',     label: 'Supervision & Power',  icon: 'manage_accounts' },
+  { id: 'complaints',      label: 'Complaint Handling',   icon: 'report_problem' },
+  { id: 'exit-summary',    label: 'Exit Summary',         icon: 'exit_to_app' },
+  { id: 'stay-factors',    label: 'Stay Factors',         icon: 'anchor' },
+  { id: 'trust-index',     label: 'Trust Index',          icon: 'verified_user' },
 ];
 
 const EXIT_REASON_FIELDS = [
@@ -24,14 +30,25 @@ const EXIT_REASON_FIELDS = [
   'Benefits / HMO', 'Commute / Location',
 ];
 const OP_STRESSOR_FIELDS = [
-  'Sudden Schedule Changes', 'Cancelled Rest Days', 'Extended Shifts',
-  'Emotional Burnout', 'Physical Exhaustion', 'Feeling Underpaid for Effort',
-  'No Proper Breaks',
+  'Sudden or Unpredictable Schedule Changes',
+  'Cancelled or Interrupted Rest Days',
+  'Denied or Delayed Leave of Absence',
+  'Extended Shifts Beyond Schedule',
+  'Insufficient Recovery Time Between Shifts',
+  'Excessive Workload Beyond Reasonable Capacity',
+  'Insufficient Staffing Resulting in Work Overload',
+  'Emotional Exhaustion or Burnout Symptoms',
+  'Physical Exhaustion or Fatigue',
+  'Pressure to Work While Physically Unwell',
+  'Lack of Supervisory Support During High-Demand Periods',
 ];
 const SUPERVISION_FLAGS = [
-  'Public Reprimand', 'Abuse of Authority', 'Coercion',
-  'Obstruction of Reporting', 'Favoritism', 'Hostile Environment',
-  'Harassment / Bullying',
+  'Public reprimand or verbal humiliation',
+  'Abuse of authority or misuse of supervisory power',
+  'Pressure or coercion regarding work schedules, assignments, or responsibilities',
+  'Difficulty reporting grievances, concerns or complaints',
+  'Favoritism, inequitable treatment or bias in assignments, evaluations, or leave approvals',
+  'A hostile, intimidating, or professionally inappropriate supervisory environment',
 ];
 const COMPLAINT_FLAGS = [
   'Agency Protects Guards', 'Fair Investigation', 'Sides with Client Always',
@@ -46,15 +63,45 @@ const TRUST_FIELDS = [
   'I felt replaceable / disposable', 'I felt respected at work',
   'I felt safe at work', 'My concerns were heard', 'Policies were applied fairly',
 ];
-const EXIT_TYPE_OPTIONS = ['Resignation','Retirement','Termination','End of Contract','AWOL','Transfer'];
+const EXIT_TYPE_OPTIONS = ['Resignation','AWOL','Terminated','Other'];
+const MARITAL_STATUS_OPTIONS = ['','Single','Married','Separated','Live-in Partner','Widow/Widower','Single Mom/Dad'];
+const FAMILY_LOCATION_OPTIONS = ['','Same city as post','Same province, different city','Different province'];
+const WHERE_HEARD_OPTIONS = ['','Training Center','Referral','Social Media','Walk-in applicant','Absorbed from another agency'];
+const LENGTH_OF_SERVICE_OPTIONS = ['','Less than 3 months','3–6 months','6–12 months','1–2 years','2–3 years','More than 3 years'];
+const IP_PAYROLL_FIELDS = [
+  'My salary was paid regularly and on time',
+  'Overtime/holiday pay was accurate',
+  'I did not experience salary delays during my employment',
+  'My take-home pay during my first months was lower than I expected',
+  'Deductions affected my ability to cover daily expenses',
+  'The deductions were manageable for me financially',
+  'I experienced financial difficulty while deductions were ongoing',
+  'I needed to borrow money or take loans during this period',
+];
+const IP_UNDERSTANDING_FIELDS = [
+  'I clearly understood how my salary and deductions were computed',
+  'Deductions for uniform, training, or paraphernalia were explained before deployment',
+  'I sometimes found my pay slip difficult to understand',
+];
+const IP_EXPECTATIONS_FIELDS = [
+  'My take-home pay matched what I expected when I applied',
+  'My take-home pay was lower than what I expected',
+  'I did not fully understand how deductions would affect my salary',
+];
 const MAIN_FACTOR_OPTIONS = ['Financial','Scheduling','Leadership','Culture','Career Growth','Recognition','Personal / External','Safety','Benefits','Commute','Other'];
 const FREQ_LABELS = ['Never','Sometimes','Often','Very Often'];
 
 function blankRecord(id) {
   const r = { _id: id };
-  // Guard Info
-  r.fullName = ''; r.age = ''; r.gender = ''; r.rankPosition = '';
-  r.detachment = ''; r.lengthOfService = ''; r.typeOfExit = ''; r.dateOfExit = '';
+  // Guard Info (updated to match original form)
+  r.fullName = ''; r.age = ''; r.maritalStatus = ''; r.educationalAttainment = ''; r.courseIfApplicable = '';
+  r.livingWithFamily = ''; r.familyLocation = ''; r.whereHeardAboutJob = '';
+  r.numPreviousJobs = ''; r.typePreviousJob = '';
+  r.rankPosition = ''; r.detachment = '';
+  r.lengthOfService = ''; r.typeOfExit = ''; r.dateOfExit = '';
+  // Income & Payroll (Yes/No checks)
+  [...IP_PAYROLL_FIELDS, ...IP_UNDERSTANDING_FIELDS, ...IP_EXPECTATIONS_FIELDS].forEach(f => r[`ip_${key(f)}`] = null);
+  r.ip_comment = '';
   // Exit Reasons (0-5 scale)
   EXIT_REASON_FIELDS.forEach(f => r[`er_${key(f)}`] = null);
   // Op Stressors (0-3 freq)
@@ -84,6 +131,12 @@ let activeRecordIdx = 0;
 let activeSectionId = 'guard-info';
 let currentView = 'form'; // 'form' | 'summary' | 'table'
 let stickyNameCol = true;
+let summaryPeriod = {
+  type: 'all', // 'all' | 'monthly' | 'quarterly' | 'annual'
+  year: new Date().getFullYear(),
+  month: new Date().getMonth() + 1,
+  quarter: Math.ceil((new Date().getMonth() + 1) / 3),
+};
 
 // ─── INIT ────────────────────────────────────────────────────────────
 function init() {
@@ -96,11 +149,17 @@ function init() {
   document.getElementById('btn-summary-view').addEventListener('click', () => switchView('summary'));
   document.getElementById('btn-table-view').addEventListener('click', () => switchView('table'));
   document.getElementById('btn-export-csv').addEventListener('click', exportXLSX);
+  document.getElementById('btn-company-manela').addEventListener('click', () => switchCompany('manela'));
+  document.getElementById('btn-company-moriah').addEventListener('click', () => switchCompany('moriah'));
+
+  // Set initial active state on company tabs
+  document.getElementById('btn-company-manela').classList.toggle('active-company', currentCompany === 'manela');
+  document.getElementById('btn-company-moriah').classList.toggle('active-company', currentCompany === 'moriah');
 }
 
 function loadFromStorage() {
   try {
-    const raw = localStorage.getItem(STORAGE_KEY);
+    const raw = localStorage.getItem(getStorageKey());
     if (raw) {
       records = JSON.parse(raw);
       if (!records.length) records = [blankRecord(0)];
@@ -113,7 +172,7 @@ function loadFromStorage() {
 }
 
 function saveToLocalStorage() {
-  localStorage.setItem(STORAGE_KEY, JSON.stringify(records));
+  localStorage.setItem(getStorageKey(), JSON.stringify(records));
   updateHeaderSubtitle();
 }
 
@@ -139,8 +198,28 @@ function renderAll() {
 
 function updateHeaderSubtitle() {
   const completed = records.filter(r => r.fullName && r.fullName.trim()).length;
+  const companyName = COMPANIES[currentCompany].name;
   document.getElementById('header-subtitle').textContent =
-    `${completed} completed · ${records.length} total`;
+    `${companyName}  ·  ${completed} completed · ${records.length} total`;
+}
+
+// ─── COMPANY SWITCH ──────────────────────────────────────────────────
+function switchCompany(id) {
+  if (currentCompany === id) return;
+  currentCompany = id;
+  localStorage.setItem('exit_interview_active_company', id);
+  activeRecordIdx = 0;
+  activeSectionId = 'guard-info';
+  loadFromStorage();
+  buildSectionNav();
+  renderAll();
+  if (currentView === 'summary') renderSummary();
+  if (currentView === 'table') renderTable();
+  // Update company tab active states
+  document.getElementById('btn-company-manela').classList.toggle('active-company', id === 'manela');
+  document.getElementById('btn-company-moriah').classList.toggle('active-company', id === 'moriah');
+  // Update header subtitle to show company name
+  updateHeaderSubtitle();
 }
 
 // ─── RECORD LIST ─────────────────────────────────────────────────────
@@ -238,6 +317,7 @@ function renderFormSection() {
 
   switch (activeSectionId) {
     case 'guard-info':      renderGuardInfo(container, r); break;
+    case 'income-payroll':  renderIncomePayroll(container, r); break;
     case 'exit-reasons':    renderExitReasons(container, r); break;
     case 'op-stressors':    renderOpStressors(container, r); break;
     case 'supervision':     renderSupervision(container, r); break;
@@ -250,16 +330,23 @@ function renderFormSection() {
 
 // ─── SECTION 1: GUARD INFO ───────────────────────────────────────────
 function renderGuardInfo(container, r) {
-  const card = makeCard('Guard Info', 'badge', 'Basic information about the guard');
+  const card = makeCard('Guard Info', 'badge', 'Personal & employment background — Section 1 of original form');
   const body = card.querySelector('.form-card-body');
 
   const grid = makeGrid2();
   grid.appendChild(makeTextField('Full Name', 'fullName', r.fullName, 'text', 'e.g. Juan dela Cruz'));
   grid.appendChild(makeTextField('Age', 'age', r.age, 'number', ''));
-  grid.appendChild(makeSelectField('Gender', 'gender', r.gender, ['','Male','Female','Prefer not to say','Other']));
+  grid.appendChild(makeSelectField('Marital Status', 'maritalStatus', r.maritalStatus, MARITAL_STATUS_OPTIONS));
+  grid.appendChild(makeTextField('Educational Attainment', 'educationalAttainment', r.educationalAttainment, 'text', 'e.g. High School Graduate'));
+  grid.appendChild(makeTextField('Course (if applicable)', 'courseIfApplicable', r.courseIfApplicable, 'text', 'e.g. Criminology'));
+  grid.appendChild(makeSelectField('Living with Family?', 'livingWithFamily', r.livingWithFamily, ['','Yes','No']));
+  grid.appendChild(makeSelectField('Where is Family Based?', 'familyLocation', r.familyLocation, FAMILY_LOCATION_OPTIONS));
+  grid.appendChild(makeSelectField('Where did you hear about this job?', 'whereHeardAboutJob', r.whereHeardAboutJob, WHERE_HEARD_OPTIONS));
+  grid.appendChild(makeTextField('Number of Previous Jobs', 'numPreviousJobs', r.numPreviousJobs, 'number', ''));
+  grid.appendChild(makeTextField('Type(s) of Previous Job / Roles', 'typePreviousJob', r.typePreviousJob, 'text', 'e.g. Security Guard, Driver'));
   grid.appendChild(makeTextField('Rank / Position', 'rankPosition', r.rankPosition, 'text', 'e.g. Security Guard I'));
-  grid.appendChild(makeTextField('Detachment / Post', 'detachment', r.detachment, 'text', 'e.g. SM North EDSA'));
-  grid.appendChild(makeSelectField('Length of Service', 'lengthOfService', r.lengthOfService, ['','Less than 6 months','6–12 months','1–2 years','2–5 years','5–10 years','10+ years']));
+  grid.appendChild(makeTextField('Current Post / Detachment', 'detachment', r.detachment, 'text', 'e.g. SM North EDSA'));
+  grid.appendChild(makeSelectField('Length of Service', 'lengthOfService', r.lengthOfService, LENGTH_OF_SERVICE_OPTIONS));
   grid.appendChild(makeSelectField('Type of Exit', 'typeOfExit', r.typeOfExit, ['', ...EXIT_TYPE_OPTIONS]));
   grid.appendChild(makeDateField('Date of Exit', 'dateOfExit', r.dateOfExit));
 
@@ -269,7 +356,60 @@ function renderGuardInfo(container, r) {
   wireSelects(container, r);
 }
 
-// ─── SECTION 2: EXIT REASONS ─────────────────────────────────────────
+// ─── SECTION 2: INCOME & PAYROLL ─────────────────────────────────────
+function renderIncomePayroll(container, r) {
+  const card = makeCard('Income & Payroll', 'payments', 'Income stability & financial clarity — Section 2.1 of original form');
+  const body = card.querySelector('.form-card-body');
+
+  // Payroll Reliability
+  const h1 = document.createElement('div');
+  h1.className = 'form-group-heading';
+  h1.innerHTML = '<span class="material-icons">receipt_long</span> Payroll Reliability <span style="color:#94a3b8;font-size:12px;font-weight:400;">— Check all that apply</span>';
+  body.appendChild(h1);
+  body.appendChild(makeNoteBar('info', 'Mark Yes = experienced this  |  No = did not experience  |  Leave blank if unsure'));
+  IP_PAYROLL_FIELDS.forEach(label => {
+    body.appendChild(makeYNRow(label, `ip_${key(label)}`, r[`ip_${key(label)}`]));
+  });
+
+  // Salary Understanding
+  const h2 = document.createElement('div');
+  h2.className = 'form-group-heading';
+  h2.innerHTML = '<span class="material-icons">calculate</span> Understanding of Salary Breakdown';
+  body.appendChild(h2);
+  IP_UNDERSTANDING_FIELDS.forEach(label => {
+    body.appendChild(makeYNRow(label, `ip_${key(label)}`, r[`ip_${key(label)}`]));
+  });
+
+  // Expectations vs Reality
+  const h3 = document.createElement('div');
+  h3.className = 'form-group-heading';
+  h3.innerHTML = '<span class="material-icons">compare_arrows</span> Expectations vs Reality';
+  body.appendChild(h3);
+  IP_EXPECTATIONS_FIELDS.forEach(label => {
+    body.appendChild(makeYNRow(label, `ip_${key(label)}`, r[`ip_${key(label)}`]));
+  });
+
+  // Comment
+  const h4 = document.createElement('div');
+  h4.className = 'form-group-heading';
+  h4.innerHTML = '<span class="material-icons">comment</span> Other Comment';
+  body.appendChild(h4);
+  const taWrap = document.createElement('div');
+  taWrap.className = 'form-group';
+  const ta = document.createElement('textarea');
+  ta.className = 'field-textarea';
+  ta.rows = 3;
+  ta.placeholder = 'Any other comments about pay, deductions, or financial experience...';
+  ta.value = r.ip_comment || '';
+  ta.addEventListener('input', () => { r.ip_comment = ta.value; saveToLocalStorage(); });
+  taWrap.appendChild(ta);
+  body.appendChild(taWrap);
+
+  container.appendChild(card);
+  wireYNButtons(container, r);
+}
+
+// ─── SECTION 3: EXIT REASONS ─────────────────────────────────────────
 function renderExitReasons(container, r) {
   const card = makeCard('Exit Reasons', 'logout', '');
   const body = card.querySelector('.form-card-body');
@@ -550,17 +690,37 @@ function wireYNButtons(container, r) {
 */
 const TABLE_COLUMNS = [
   // ── Guard Info ───────────────────────────────────────────
-  { group: 'Guard Info', field: 'fullName',       label: 'Full Name',    type: 'text',   width: 150 },
-  { group: 'Guard Info', field: 'age',            label: 'Age',          type: 'number', width: 52  },
-  { group: 'Guard Info', field: 'gender',         label: 'Gender',       type: 'select', width: 90,
-    options: ['','Male','Female','Prefer not to say','Other'] },
-  { group: 'Guard Info', field: 'rankPosition',   label: 'Rank/Position',type: 'text',   width: 120 },
-  { group: 'Guard Info', field: 'detachment',     label: 'Detachment',   type: 'text',   width: 120 },
-  { group: 'Guard Info', field: 'lengthOfService',label: 'Tenure',       type: 'select', width: 110,
-    options: ['','Less than 6 months','6–12 months','1–2 years','2–5 years','5–10 years','10+ years'] },
-  { group: 'Guard Info', field: 'typeOfExit',     label: 'Exit Type',    type: 'select', width: 110,
+  { group: 'Guard Info', field: 'fullName',            label: 'Full Name',           type: 'text',   width: 150 },
+  { group: 'Guard Info', field: 'age',                 label: 'Age',                 type: 'number', width: 52  },
+  { group: 'Guard Info', field: 'maritalStatus',       label: 'Marital Status',      type: 'select', width: 110,
+    options: MARITAL_STATUS_OPTIONS },
+  { group: 'Guard Info', field: 'educationalAttainment',label: 'Education',          type: 'text',   width: 130 },
+  { group: 'Guard Info', field: 'courseIfApplicable',  label: 'Course',              type: 'text',   width: 110 },
+  { group: 'Guard Info', field: 'livingWithFamily',    label: 'Lives w/ Family',     type: 'select', width: 80,
+    options: ['','Yes','No'] },
+  { group: 'Guard Info', field: 'familyLocation',      label: 'Family Location',     type: 'select', width: 130,
+    options: FAMILY_LOCATION_OPTIONS },
+  { group: 'Guard Info', field: 'whereHeardAboutJob',  label: 'How Recruited',       type: 'select', width: 130,
+    options: WHERE_HEARD_OPTIONS },
+  { group: 'Guard Info', field: 'numPreviousJobs',     label: 'Prev Jobs #',         type: 'number', width: 52  },
+  { group: 'Guard Info', field: 'typePreviousJob',     label: 'Prev Job Type',       type: 'text',   width: 120 },
+  { group: 'Guard Info', field: 'rankPosition',        label: 'Rank/Position',       type: 'text',   width: 120 },
+  { group: 'Guard Info', field: 'detachment',          label: 'Detachment',          type: 'text',   width: 120 },
+  { group: 'Guard Info', field: 'lengthOfService',     label: 'Tenure',              type: 'select', width: 120,
+    options: LENGTH_OF_SERVICE_OPTIONS },
+  { group: 'Guard Info', field: 'typeOfExit',          label: 'Exit Type',           type: 'select', width: 100,
     options: ['', ...EXIT_TYPE_OPTIONS] },
-  { group: 'Guard Info', field: 'dateOfExit',     label: 'Exit Date',    type: 'date',   width: 110 },
+  { group: 'Guard Info', field: 'dateOfExit',          label: 'Exit Date',           type: 'date',   width: 110 },
+  // ── Income & Payroll ──────────────────────────────────────
+  ...IP_PAYROLL_FIELDS.map(f => ({
+    group: 'Income & Payroll', field: `ip_${key(f)}`, label: f.length > 35 ? f.slice(0,33)+'…' : f, type: 'yn', width: 64,
+  })),
+  ...IP_UNDERSTANDING_FIELDS.map(f => ({
+    group: 'Income & Payroll', field: `ip_${key(f)}`, label: f.length > 35 ? f.slice(0,33)+'…' : f, type: 'yn', width: 64,
+  })),
+  ...IP_EXPECTATIONS_FIELDS.map(f => ({
+    group: 'Income & Payroll', field: `ip_${key(f)}`, label: f.length > 35 ? f.slice(0,33)+'…' : f, type: 'yn', width: 64,
+  })),
   // ── Exit Reasons ─────────────────────────────────────────
   ...EXIT_REASON_FIELDS.map(f => ({
     group: 'Exit Reasons', field: `er_${key(f)}`, label: f, type: 'scale-er', width: 60,
@@ -614,14 +774,15 @@ const TABLE_GROUPS = (() => {
 
 // Group background colors
 const GROUP_COLORS = {
-  'Guard Info':    '#1e3a5f',
-  'Exit Reasons':  '#7f1d1d',
-  'Stressors':     '#78350f',
-  'Supervision':   '#3b0764',
-  'Complaints':    '#164e63',
-  'Exit Summary':  '#14532d',
-  'Stay Factors':  '#1e3a5f',
-  'Trust Index':   '#4a1d96',
+  'Guard Info':       '#1e3a5f',
+  'Income & Payroll': '#065f46',
+  'Exit Reasons':     '#7f1d1d',
+  'Stressors':        '#78350f',
+  'Supervision':      '#3b0764',
+  'Complaints':       '#164e63',
+  'Exit Summary':     '#14532d',
+  'Stay Factors':     '#1e3a5f',
+  'Trust Index':      '#4a1d96',
 };
 
 function renderTable() {
@@ -915,14 +1076,110 @@ function updateTableRowHighlight(rowIdx) {
 }
 
 // ─── SUMMARY VIEW ────────────────────────────────────────────────────
+function getFilteredCompleted() {
+  const base = records.filter(r => r.fullName && r.fullName.trim());
+  if (summaryPeriod.type === 'all') return base;
+  return base.filter(r => {
+    if (!r.dateOfExit) return false;
+    const d = new Date(r.dateOfExit);
+    if (isNaN(d)) return false;
+    const y = d.getFullYear(), m = d.getMonth() + 1;
+    if (summaryPeriod.type === 'annual') return y === summaryPeriod.year;
+    if (summaryPeriod.type === 'quarterly') return y === summaryPeriod.year && Math.ceil(m/3) === summaryPeriod.quarter;
+    if (summaryPeriod.type === 'monthly') return y === summaryPeriod.year && m === summaryPeriod.month;
+    return true;
+  });
+}
+
+function renderPeriodFilter() {
+  const bar = document.createElement('div');
+  bar.className = 'period-filter-bar';
+
+  const label = document.createElement('span');
+  label.className = 'period-filter-label';
+  label.textContent = 'Period:';
+  bar.appendChild(label);
+
+  const types = [['all','All Time'],['monthly','Monthly'],['quarterly','Quarterly'],['annual','Annual']];
+  types.forEach(([t, txt]) => {
+    const b = document.createElement('button');
+    b.className = 'period-btn' + (summaryPeriod.type === t ? ' active' : '');
+    b.textContent = txt;
+    b.addEventListener('click', () => {
+      summaryPeriod.type = t;
+      renderSummary();
+    });
+    bar.appendChild(b);
+  });
+
+  // Year selector (shown when not 'all')
+  if (summaryPeriod.type !== 'all') {
+    const curYear = new Date().getFullYear();
+    const ySel = document.createElement('select');
+    ySel.className = 'period-select';
+    for (let y = curYear; y >= curYear - 5; y--) {
+      const o = document.createElement('option');
+      o.value = y; o.textContent = y;
+      if (y === summaryPeriod.year) o.selected = true;
+      ySel.appendChild(o);
+    }
+    ySel.addEventListener('change', () => { summaryPeriod.year = parseInt(ySel.value); renderSummary(); });
+    bar.appendChild(ySel);
+  }
+
+  // Month selector (only for monthly)
+  if (summaryPeriod.type === 'monthly') {
+    const MONTHS = ['Jan','Feb','Mar','Apr','May','Jun','Jul','Aug','Sep','Oct','Nov','Dec'];
+    const mSel = document.createElement('select');
+    mSel.className = 'period-select';
+    MONTHS.forEach((m, i) => {
+      const o = document.createElement('option');
+      o.value = i+1; o.textContent = m;
+      if (i+1 === summaryPeriod.month) o.selected = true;
+      mSel.appendChild(o);
+    });
+    mSel.addEventListener('change', () => { summaryPeriod.month = parseInt(mSel.value); renderSummary(); });
+    bar.appendChild(mSel);
+  }
+
+  // Quarter selector (only for quarterly)
+  if (summaryPeriod.type === 'quarterly') {
+    const qSel = document.createElement('select');
+    qSel.className = 'period-select';
+    ['Q1 (Jan–Mar)','Q2 (Apr–Jun)','Q3 (Jul–Sep)','Q4 (Oct–Dec)'].forEach((q, i) => {
+      const o = document.createElement('option');
+      o.value = i+1; o.textContent = q;
+      if (i+1 === summaryPeriod.quarter) o.selected = true;
+      qSel.appendChild(o);
+    });
+    qSel.addEventListener('change', () => { summaryPeriod.quarter = parseInt(qSel.value); renderSummary(); });
+    bar.appendChild(qSel);
+  }
+
+  // Result count badge
+  const filtered = getFilteredCompleted();
+  const badge = document.createElement('span');
+  badge.className = 'period-count-badge';
+  badge.textContent = `${filtered.length} record${filtered.length !== 1 ? 's' : ''}`;
+  bar.appendChild(badge);
+
+  return bar;
+}
+
 function renderSummary() {
   const container = document.getElementById('summary-content');
   container.innerHTML = '';
 
-  const completed = records.filter(r => r.fullName && r.fullName.trim());
+  // Period filter bar
+  container.appendChild(renderPeriodFilter());
+
+  const completed = getFilteredCompleted();
 
   // ── KPI Row ──
   container.appendChild(renderKPIs(completed));
+
+  // Monthly trend (always show, based on all records for company)
+  container.appendChild(renderMonthlyTrendChart());
 
   // ── Charts ──
   container.appendChild(renderExitReasonsChart(completed));
@@ -943,6 +1200,84 @@ function renderSummary() {
       el.style.setProperty('--seg-deg', el.dataset.deg + 'deg');
     });
   });
+}
+
+// ─── MONTHLY TREND CHART ─────────────────────────────────────────────
+function renderMonthlyTrendChart() {
+  const section = makeSummarySection('Monthly Trend — Cases Over Time', 'trending_up', 'All records with a date of exit, last 14 months');
+
+  // Build last 14 months of data
+  const now = new Date();
+  const months = [];
+  for (let i = 13; i >= 0; i--) {
+    const d = new Date(now.getFullYear(), now.getMonth() - i, 1);
+    months.push({ year: d.getFullYear(), month: d.getMonth() + 1, label: d.toLocaleString('default', { month: 'short' }) + ' ' + String(d.getFullYear()).slice(2) });
+  }
+
+  // Count records per month (all records with dateOfExit, regardless of filter)
+  const allCompleted = records.filter(r => r.fullName && r.fullName.trim() && r.dateOfExit);
+  months.forEach(m => {
+    m.count = allCompleted.filter(r => {
+      const d = new Date(r.dateOfExit);
+      return !isNaN(d) && d.getFullYear() === m.year && d.getMonth() + 1 === m.month;
+    }).length;
+  });
+
+  const maxCount = Math.max(...months.map(m => m.count), 1);
+
+  // Trend chart wrapper
+  const chartWrap = document.createElement('div');
+  chartWrap.className = 'trend-chart-wrap';
+
+  months.forEach((m, i) => {
+    const prev = i > 0 ? months[i-1].count : null;
+    let trendIcon = '';
+    if (prev !== null) {
+      if (m.count > prev) trendIcon = '<span class="trend-up">▲</span>';
+      else if (m.count < prev) trendIcon = '<span class="trend-down">▼</span>';
+      else if (m.count === prev && m.count > 0) trendIcon = '<span class="trend-flat">—</span>';
+    }
+
+    const col = document.createElement('div');
+    col.className = 'trend-col';
+
+    const barArea = document.createElement('div');
+    barArea.className = 'trend-bar-area';
+
+    if (m.count > 0) {
+      const countLabel = document.createElement('div');
+      countLabel.className = 'trend-count-label';
+      countLabel.innerHTML = m.count + (trendIcon ? ' ' + trendIcon : '');
+      barArea.appendChild(countLabel);
+    }
+
+    const bar = document.createElement('div');
+    bar.className = 'trend-bar';
+    const pct = Math.round((m.count / maxCount) * 100);
+    bar.style.height = '0%';
+    bar.dataset.pct = pct;
+    bar.style.transition = 'height 0.4s ease';
+    barArea.appendChild(bar);
+
+    const lbl = document.createElement('div');
+    lbl.className = 'trend-label';
+    lbl.textContent = m.label;
+
+    col.appendChild(barArea);
+    col.appendChild(lbl);
+    chartWrap.appendChild(col);
+  });
+
+  section.appendChild(chartWrap);
+
+  // Animate bars after append using a small timeout
+  setTimeout(() => {
+    chartWrap.querySelectorAll('.trend-bar[data-pct]').forEach(el => {
+      el.style.height = el.dataset.pct + '%';
+    });
+  }, 50);
+
+  return section;
 }
 
 // ─── KPI CARDS ───────────────────────────────────────────────────────
@@ -1294,7 +1629,7 @@ function renderServiceLengthChart(completed) {
 
   if (!completed.length) { section.appendChild(emptyState()); return section; }
 
-  const options = ['Less than 6 months','6–12 months','1–2 years','2–5 years','5–10 years','10+ years'];
+  const options = LENGTH_OF_SERVICE_OPTIONS.filter(o => o !== '');
   const counts = {};
   options.forEach(o => counts[o] = 0);
   completed.forEach(r => { if (r.lengthOfService) counts[r.lengthOfService] = (counts[r.lengthOfService] || 0) + 1; });
@@ -1459,7 +1794,7 @@ function exportXLSX() {
   const TI_FC  = { null:'94A3B8', 1:'991B1B', 2:'9A3412', 3:'92400E', 4:'14532D', 5:'FFFFFF' };
   const FR_BG  = { null:'F1F5F9', 0:'F8FAFC', 1:'FEF9C3', 2:'FED7AA', 3:'FECACA' };
   const FR_FC  = { null:'94A3B8', 0:'94A3B8', 1:'854D0E', 2:'9A3412', 3:'991B1B' };
-  const GRP_HX = { 'Guard Info':'1E3A5F','Exit Reasons':'7F1D1D','Stressors':'78350F','Supervision':'3B0764','Complaints':'164E63','Exit Summary':'14532D','Stay Factors':'1E3A5F','Trust Index':'4A1D96' };
+  const GRP_HX = { 'Guard Info':'1E3A5F','Income & Payroll':'065F46','Exit Reasons':'7F1D1D','Stressors':'78350F','Supervision':'3B0764','Complaints':'164E63','Exit Summary':'14532D','Stay Factors':'1E3A5F','Trust Index':'4A1D96' };
 
   function cellStyleFor(col, raw) {
     if (col.type === 'scale-er') {
@@ -1959,7 +2294,7 @@ function exportCSV() {
   rows.push(['━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━']);
   rows.push(['Tenure Window', 'Bar', 'Guards', '% of Total', '']);
 
-  const tenureOptions = ['Less than 6 months','6–12 months','1–2 years','2–5 years','5–10 years','10+ years'];
+  const tenureOptions = LENGTH_OF_SERVICE_OPTIONS.filter(o => o !== '');
   const tenureCounts = {};
   tenureOptions.forEach(o => tenureCounts[o] = 0);
   completed.forEach(r => { if (r.lengthOfService) tenureCounts[r.lengthOfService] = (tenureCounts[r.lengthOfService] || 0) + 1; });

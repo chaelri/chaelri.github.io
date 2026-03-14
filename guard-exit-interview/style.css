@@ -792,3 +792,97 @@ body {
 .btn-sticky-toggle .material-icons { font-size: 14px; }
 .btn-sticky-toggle:hover { border-color: #3b82f6; color: #2563eb; }
 .btn-sticky-toggle.pinned { background: #eff6ff; border-color: #3b82f6; color: #1d4ed8; }
+
+/* ===== COMPANY TABS ===== */
+.company-tab { color: rgba(255,255,255,0.65); transition: all 0.15s; border: none; cursor: pointer; background: transparent; font-family: 'Inter', sans-serif; }
+.company-tab:hover { color: #fff; background: rgba(255,255,255,0.1); }
+.active-company { background: rgba(255,255,255,0.2) !important; color: #fff !important; }
+
+/* Period filter bar */
+.period-filter-bar {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  padding: 10px 16px;
+  background: #fff;
+  border: 1px solid #e2e8f0;
+  border-radius: 10px;
+  margin-bottom: 16px;
+  flex-wrap: wrap;
+}
+.period-filter-label { font-size: 12px; font-weight: 600; color: #475569; margin-right: 4px; }
+.period-btn {
+  padding: 4px 12px; border-radius: 6px; border: 1.5px solid #e2e8f0;
+  font-size: 12px; font-weight: 600; cursor: pointer; background: #fff; color: #64748b;
+  font-family: 'Inter', sans-serif; transition: all 0.12s;
+}
+.period-btn:hover { border-color: #3b82f6; color: #2563eb; }
+.period-btn.active { background: #2563eb; border-color: #2563eb; color: #fff; }
+.period-select {
+  padding: 3px 8px; border-radius: 6px; border: 1.5px solid #e2e8f0;
+  font-size: 12px; font-family: 'Inter', sans-serif; color: #374151; cursor: pointer;
+  background: #f8fafc;
+}
+.period-count-badge {
+  margin-left: auto; background: #eff6ff; color: #1d4ed8;
+  font-size: 11px; font-weight: 700; padding: 3px 10px; border-radius: 20px;
+}
+
+/* Monthly trend chart */
+.trend-chart-wrap {
+  display: flex;
+  align-items: flex-end;
+  gap: 6px;
+  height: 140px;
+  padding: 8px 0 0 0;
+}
+.trend-col {
+  flex: 1;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 4px;
+  height: 100%;
+}
+.trend-bar-area {
+  flex: 1;
+  width: 100%;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: flex-end;
+  position: relative;
+}
+.trend-bar {
+  width: 70%;
+  background: linear-gradient(to top, #2563eb, #60a5fa);
+  border-radius: 4px 4px 0 0;
+  min-height: 2px;
+  transition: height 0.45s ease;
+}
+.trend-count-label {
+  font-size: 10px; font-weight: 700; color: #1e40af;
+  margin-bottom: 2px; white-space: nowrap;
+}
+.trend-label {
+  font-size: 9.5px; font-weight: 600; color: #64748b;
+  text-align: center; white-space: nowrap;
+}
+.trend-up   { color: #ef4444; font-size: 9px; }
+.trend-down { color: #22c55e; font-size: 9px; }
+.trend-flat { color: #94a3b8; font-size: 9px; }
+
+/* Form group heading for income section */
+.form-group-heading {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  font-size: 13px;
+  font-weight: 700;
+  color: #1e293b;
+  padding: 10px 0 6px 0;
+  border-bottom: 1px solid #e2e8f0;
+  margin-bottom: 8px;
+  margin-top: 4px;
+}
+.form-group-heading .material-icons { font-size: 16px; color: #475569; }
