@@ -2693,7 +2693,7 @@ function renderExitReasonsChart(completed) {
 
     path.addEventListener('mouseenter', () => {
       clearTimeout(hoverTimer);
-      hoverTimer = setTimeout(() => showSegment(path, s), 180);
+      showSegment(path, s);
     });
     path.addEventListener('mouseleave', () => {
       clearTimeout(hoverTimer);

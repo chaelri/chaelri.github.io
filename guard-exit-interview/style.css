@@ -520,31 +520,33 @@ body {
 }
 .bar-row:hover .bar-label {
   width: 380px;
-  white-space: normal;
-  overflow: visible;
+  /* Keep nowrap so text slides into view as width animates — no wrapping flicker */
+  white-space: nowrap;
+  overflow: hidden;
   text-overflow: clip;
   color: #1e293b;
-  /* Delay before expanding so accidental hover-overs don't trigger it */
   transition: width 0.32s ease 0.22s, color 0.15s 0.22s;
+}
+/* inner text spans (exit reasons chart has nested spans) */
+.bar-row:hover .bar-label span:last-of-type {
+  overflow: hidden;
+  white-space: nowrap;
+  text-overflow: clip;
 }
 .bar-label.expanded {
   width: 380px;
+  /* Click-pinned: allow wrapping since it's intentional */
   white-space: normal;
   overflow: visible;
   text-overflow: clip;
   color: #1e293b;
-  /* No delay for click-pinned state */
+  font-weight: 600;
   transition: width 0.28s ease, color 0.15s;
 }
-/* inner text spans (exit reasons chart has nested spans) */
-.bar-row:hover .bar-label span:last-of-type,
 .bar-label.expanded span:last-of-type {
   overflow: visible;
   white-space: normal;
   text-overflow: clip;
-}
-.bar-label.expanded {
-  font-weight: 600;
 }
 .bar-label.expanded::after {
   content: ' 📌';
