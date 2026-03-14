@@ -790,6 +790,16 @@ let activeSectionId = 'guard-info';
 let currentView = 'form'; // 'form' | 'summary' | 'table'
 let stickyNameCol = true;
 // Mobile panel state
+// ─── SPLASH ──────────────────────────────────────────────────────────
+// Set company theme + name on splash immediately (before DOMContentLoaded delay)
+;(function() {
+  const co = localStorage.getItem('exit_interview_active_company') || 'manela';
+  document.body.setAttribute('data-company', co);
+  const names = { manela: 'New Manela', moriah: 'New Moriah' };
+  const el = document.getElementById('splash-company-name');
+  if (el) el.textContent = names[co] || 'New Manela';
+})();
+
 let mobilePanelState = 'records'; // 'records' | 'sections' | 'form'
 let tableSort = { field: null, dir: 'asc' }; // null field = sort by original ID
 let tableSearch = '';
@@ -817,6 +827,15 @@ function init() {
   loadFromStorage();
   buildSectionNav();
   renderAll();
+
+  // Dismiss splash after brief reveal
+  const splash = document.getElementById('splash-screen');
+  if (splash) {
+    setTimeout(() => {
+      splash.classList.add('splash-hiding');
+      setTimeout(() => splash.classList.add('splash-gone'), 580);
+    }, 1600);
+  }
 
   document.getElementById('btn-new-record').addEventListener('click', addRecord);
   document.getElementById('btn-form-view').addEventListener('click', () => switchView('form'));
