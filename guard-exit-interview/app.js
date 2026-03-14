@@ -789,6 +789,8 @@ let activeRecordIdx = 0;
 let activeSectionId = 'guard-info';
 let currentView = 'form'; // 'form' | 'summary' | 'table'
 let stickyNameCol = true;
+// Mobile panel state
+let mobilePanelState = 'records'; // 'records' | 'sections' | 'form'
 let tableSort = { field: null, dir: 'asc' }; // null field = sort by original ID
 let tableSearch = '';
 let tablePeriod = {
@@ -826,6 +828,25 @@ function init() {
 
   // Apply company theme
   document.body.dataset.company = currentCompany;
+
+  // Mobile bottom nav
+  document.getElementById('mobile-nav-form').addEventListener('click', () => switchView('form'));
+  document.getElementById('mobile-nav-summary').addEventListener('click', () => switchView('summary'));
+  document.getElementById('mobile-nav-table').addEventListener('click', () => switchView('table'));
+  document.getElementById('mobile-nav-export').addEventListener('click', exportXLSX);
+
+  // Mobile back button
+  document.getElementById('mobile-back-btn').addEventListener('click', () => {
+    if (mobilePanelState === 'form') setMobilePanel('sections');
+    else if (mobilePanelState === 'sections') setMobilePanel('records');
+  });
+
+  // Init mobile breadcrumb
+  updateMobileBreadcrumb();
+
+  // Dynamic header height (updates --header-h CSS variable)
+  updateHeaderHeight();
+  window.addEventListener('resize', updateHeaderHeight);
 }
 
 function loadFromStorage() {
@@ -847,6 +868,55 @@ function saveToLocalStorage() {
   updateHeaderSubtitle();
 }
 
+// ─── HEADER HEIGHT (dynamic, for CSS variable) ────────────────────────
+function updateHeaderHeight() {
+  const h = document.getElementById('app-header').offsetHeight;
+  document.documentElement.style.setProperty('--header-h', h + 'px');
+}
+
+// ─── MOBILE PANEL NAVIGATION ─────────────────────────────────────────
+function isMobile() { return window.innerWidth < 768; }
+
+function setMobilePanel(panel) {
+  mobilePanelState = panel;
+  const container = document.getElementById('panel-container');
+  if (!container) return;
+  container.classList.remove('mp-sections', 'mp-form');
+  if (panel === 'sections') container.classList.add('mp-sections');
+  if (panel === 'form') container.classList.add('mp-form');
+  updateMobileBreadcrumb();
+}
+
+function updateMobileBreadcrumb() {
+  const backBtn = document.getElementById('mobile-back-btn');
+  const breadcrumb = document.getElementById('mobile-breadcrumb');
+  const backLabel = document.getElementById('mobile-back-label');
+  if (!backBtn || !breadcrumb) return;
+
+  if (mobilePanelState === 'records') {
+    backBtn.style.visibility = 'hidden';
+    breadcrumb.textContent = 'Records';
+  } else if (mobilePanelState === 'sections') {
+    backBtn.style.visibility = 'visible';
+    if (backLabel) backLabel.textContent = 'Records';
+    const r = records[activeRecordIdx];
+    const name = (r?.fullName?.trim()) ? r.fullName.trim() : `Record #${String(activeRecordIdx + 1).padStart(4, '0')}`;
+    breadcrumb.textContent = name;
+  } else if (mobilePanelState === 'form') {
+    backBtn.style.visibility = 'visible';
+    if (backLabel) backLabel.textContent = 'Sections';
+    const sec = SECTIONS.find(s => s.id === activeSectionId);
+    breadcrumb.textContent = sec ? sec.label : '';
+  }
+}
+
+function updateMobileBottomNav(view) {
+  ['form', 'summary', 'table', 'export'].forEach(v => {
+    const btn = document.getElementById(`mobile-nav-${v}`);
+    if (btn) btn.classList.toggle('active-mobile-nav', v === view);
+  });
+}
+
 // ─── VIEW SWITCH ─────────────────────────────────────────────────────
 function switchView(view) {
   currentView = view;
@@ -856,6 +926,7 @@ function switchView(view) {
   document.getElementById('btn-form-view').classList.toggle('active-tab', view === 'form');
   document.getElementById('btn-summary-view').classList.toggle('active-tab', view === 'summary');
   document.getElementById('btn-table-view').classList.toggle('active-tab', view === 'table');
+  updateMobileBottomNav(view);
   if (view === 'summary') renderSummary();
   if (view === 'table') renderTable();
 }
@@ -865,6 +936,7 @@ function renderAll() {
   renderRecordList();
   renderFormSection();
   updateHeaderSubtitle();
+  updateMobileBreadcrumb();
 }
 
 function updateHeaderSubtitle() {
@@ -933,6 +1005,7 @@ function switchCompany(id) {
     document.getElementById('btn-company-moriah').classList.toggle('active-company', id === 'moriah');
     document.body.dataset.company = id;
     updateHeaderSubtitle();
+    updateHeaderHeight();
 
     // Brief hold, then slide out in the opposite direction
     setTimeout(() => {
@@ -965,6 +1038,7 @@ function renderRecordList() {
       activeRecordIdx = i;
       activeSectionId = 'guard-info';
       renderAll();
+      if (isMobile()) setMobilePanel('sections');
     });
     list.appendChild(div);
   });
@@ -1017,6 +1091,7 @@ function buildSectionNav() {
       document.querySelectorAll('.section-nav-item').forEach(el => el.classList.remove('active'));
       div.classList.add('active');
       renderFormSection();
+      if (isMobile()) setMobilePanel('form');
     });
     nav.appendChild(div);
   });
@@ -1676,18 +1751,11 @@ function renderTable() {
   searchInp.value = tableSearch;
   searchInp.addEventListener('input', () => { tableSearch = searchInp.value; renderTable(); });
   searchWrap.appendChild(searchInp);
-  row1.appendChild(searchWrap);
-
-  // Divider
-  const sep1 = document.createElement('div');
-  sep1.style.cssText = 'width:1px;height:18px;background:#e2e8f0;flex-shrink:0;margin:0 2px;';
-  row1.appendChild(sep1);
 
   // Period label
   const pLabel = document.createElement('span');
   pLabel.className = 'period-filter-label';
   pLabel.textContent = 'Period:';
-  row1.appendChild(pLabel);
 
   // Period buttons
   [['all','All'],['monthly','Monthly'],['quarterly','Quarterly'],['annual','Annual']].forEach(([t, txt]) => {
@@ -1769,15 +1837,36 @@ function renderTable() {
   resetBtn.className = 'btn-table-reset' + (hasFilters ? ' has-filters' : '');
   resetBtn.innerHTML = '<span class="material-icons">restart_alt</span> Reset';
   resetBtn.title = 'Clear all filters and sorting';
-  resetBtn.style.marginLeft = 'auto';
   resetBtn.addEventListener('click', () => {
     tableSort = { field: null, dir: 'asc' };
     tableSearch = '';
     tablePeriod = { type: 'all', year: new Date().getFullYear(), month: new Date().getMonth() + 1, quarter: Math.ceil((new Date().getMonth() + 1) / 3), detachment: '' };
     renderTable();
   });
-  row1.appendChild(resetBtn);
+
+  if (isMobile()) {
+    // On mobile: search + reset on their own non-scrolling row, filters on scrollable row1
+    const row0 = document.createElement('div');
+    row0.style.cssText = 'display:flex;align-items:center;gap:6px;padding:6px 12px 4px;border-bottom:1px solid #f1f5f9;';
+    searchWrap.style.flex = '1';
+    searchInp.style.width = '100%';
+    row0.appendChild(searchWrap);
+    resetBtn.style.marginLeft = '0';
+    row0.appendChild(resetBtn);
+    toolbar.appendChild(row0);
+    row1.appendChild(pLabel);
+  } else {
+    // On desktop: search + period label both in row1
+    row1.appendChild(searchWrap);
+    const sep1 = document.createElement('div');
+    sep1.style.cssText = 'width:1px;height:18px;background:#e2e8f0;flex-shrink:0;margin:0 2px;';
+    row1.appendChild(sep1);
+    row1.appendChild(pLabel);
+    resetBtn.style.marginLeft = 'auto';
+  }
+
   toolbar.appendChild(row1);
+  if (!isMobile()) row1.appendChild(resetBtn); // desktop: reset at end of row1
 
   // ── Toolbar Row 2: Info + controls ──────────────────────
   const row2 = document.createElement('div');
@@ -2314,7 +2403,10 @@ function renderMonthlyTrendChart() {
     chartWrap.appendChild(col);
   });
 
-  section.appendChild(chartWrap);
+  const chartScroll = document.createElement('div');
+  chartScroll.className = 'trend-chart-scroll';
+  chartScroll.appendChild(chartWrap);
+  section.appendChild(chartScroll);
 
   // Animate bars after append using a small timeout
   setTimeout(() => {
@@ -2379,7 +2471,7 @@ function renderExitReasonsChart(completed) {
   const wrapper = document.createElement('div');
   wrapper.className = 'flex flex-col md:flex-row gap-6 items-center';
 
-  // Donut chart (conic-gradient)
+  // Build segment angle data
   let deg = 0;
   const segments = catData.filter(d => d.totalYes > 0).map(d => {
     const pct = d.totalYes / grandTotal * 100;
@@ -2387,28 +2479,82 @@ function renderExitReasonsChart(completed) {
     deg += pct * 3.6;
     return { ...d, pct, start, end: deg };
   });
-  const gradParts = segments.map(s => `${s.color} ${s.start.toFixed(1)}deg ${s.end.toFixed(1)}deg`).join(', ');
 
   const top = sorted[0];
-  const topPct = Math.round(top.totalYes / grandTotal * 100);
+
+  // SVG donut — each segment is an interactive path
+  const SZ = 190, cx = 95, cy = 95, OR = 82, IR = 50;
+  function pxy(angleDeg, r) {
+    const rad = (angleDeg - 90) * Math.PI / 180;
+    return [cx + r * Math.cos(rad), cy + r * Math.sin(rad)];
+  }
+
+  const svgNS = 'http://www.w3.org/2000/svg';
+  const svg = document.createElementNS(svgNS, 'svg');
+  svg.setAttribute('viewBox', `0 0 ${SZ} ${SZ}`);
+  svg.setAttribute('overflow', 'visible');
+  svg.style.cssText = `width:${SZ}px;height:${SZ}px;filter:drop-shadow(0 4px 12px ${top.color}55);`;
+
+  // Center text group
+  const centerG = document.createElementNS(svgNS, 'g');
+  const hole = document.createElementNS(svgNS, 'circle');
+  hole.setAttribute('cx', cx); hole.setAttribute('cy', cy); hole.setAttribute('r', IR);
+  hole.setAttribute('fill', '#fff');
+  const tMain = document.createElementNS(svgNS, 'text');
+  tMain.setAttribute('x', cx); tMain.setAttribute('y', cy - 6);
+  tMain.setAttribute('text-anchor', 'middle'); tMain.setAttribute('dominant-baseline', 'auto');
+  tMain.setAttribute('font-size', '26'); tMain.setAttribute('font-weight', '800'); tMain.setAttribute('fill', '#1e293b');
+  tMain.textContent = guardCount;
+  const tSub = document.createElementNS(svgNS, 'text');
+  tSub.setAttribute('x', cx); tSub.setAttribute('y', cy + 10);
+  tSub.setAttribute('text-anchor', 'middle'); tSub.setAttribute('font-size', '10'); tSub.setAttribute('fill', '#64748b');
+  tSub.textContent = guardCount === 1 ? 'guard' : 'guards';
+  const tChecks = document.createElementNS(svgNS, 'text');
+  tChecks.setAttribute('x', cx); tChecks.setAttribute('y', cy + 22);
+  tChecks.setAttribute('text-anchor', 'middle'); tChecks.setAttribute('font-size', '9'); tChecks.setAttribute('fill', '#cbd5e1');
+  tChecks.textContent = `${grandTotal} checks`;
+  centerG.appendChild(hole); centerG.appendChild(tMain); centerG.appendChild(tSub); centerG.appendChild(tChecks);
+
+  segments.forEach(s => {
+    const [x1,y1] = pxy(s.start, OR); const [x2,y2] = pxy(s.end, OR);
+    const [x3,y3] = pxy(s.end, IR);  const [x4,y4] = pxy(s.start, IR);
+    const large = (s.end - s.start) > 180 ? 1 : 0;
+    const d = `M${x1},${y1} A${OR},${OR},0,${large},1,${x2},${y2} L${x3},${y3} A${IR},${IR},0,${large},0,${x4},${y4}Z`;
+    const path = document.createElementNS(svgNS, 'path');
+    path.setAttribute('d', d); path.setAttribute('fill', s.color);
+    path.style.cssText = 'cursor:pointer;transition:opacity 0.15s,transform 0.15s;transform-box:fill-box;transform-origin:center;';
+
+    const activate = () => {
+      svg.querySelectorAll('path').forEach(p => p.style.opacity = '0.35');
+      path.style.opacity = '1'; path.style.transform = 'scale(1.06)';
+      tMain.textContent = s.totalYes;
+      tSub.textContent = `${Math.round(s.pct)}%`;
+      tChecks.textContent = s.label.split(' ')[0];
+    };
+    const deactivate = () => {
+      svg.querySelectorAll('path').forEach(p => { p.style.opacity = '1'; p.style.transform = ''; });
+      tMain.textContent = guardCount;
+      tSub.textContent = guardCount === 1 ? 'guard' : 'guards';
+      tChecks.textContent = `${grandTotal} checks`;
+    };
+    path.addEventListener('mouseenter', activate);
+    path.addEventListener('mouseleave', deactivate);
+    path.addEventListener('touchstart', (e) => { e.preventDefault(); activate(); }, { passive: false });
+    path.addEventListener('touchend', () => setTimeout(deactivate, 1200));
+    svg.appendChild(path);
+  });
+  svg.appendChild(centerG);
 
   const donutWrap = document.createElement('div');
   donutWrap.className = 'flex-shrink-0 flex flex-col items-center gap-3';
-  donutWrap.innerHTML = `
-    <div style="width:190px;height:190px;border-radius:50%;background:conic-gradient(${gradParts});position:relative;filter:drop-shadow(0 4px 12px ${top.color}55);">
-      <div style="position:absolute;inset:42px;border-radius:50%;background:#fff;display:flex;flex-direction:column;align-items:center;justify-content:center;gap:1px;">
-        <span style="font-size:26px;font-weight:800;color:#1e293b;line-height:1;">${guardCount}</span>
-        <span style="font-size:10px;font-weight:600;color:#64748b;line-height:1.2;">${guardCount === 1 ? 'guard' : 'guards'}</span>
-        <span style="font-size:9px;color:#cbd5e1;margin-top:2px;">${grandTotal} checks</span>
-      </div>
-    </div>
-    <div style="display:flex;flex-wrap:wrap;gap:5px;justify-content:center;max-width:210px;">
-      ${catData.map(d => `<div style="display:flex;align-items:center;gap:3px;font-size:10.5px;color:#374151;">
-        <span style="width:9px;height:9px;border-radius:50%;background:${d.color};flex-shrink:0;display:inline-block;"></span>
-        ${escHtml(d.label.split(' ')[0])}
-      </div>`).join('')}
-    </div>
-  `;
+  const legendDiv = document.createElement('div');
+  legendDiv.style.cssText = 'display:flex;flex-wrap:wrap;gap:5px;justify-content:center;max-width:210px;';
+  legendDiv.innerHTML = catData.map(d => `<div style="display:flex;align-items:center;gap:3px;font-size:10.5px;color:#374151;">
+    <span style="width:9px;height:9px;border-radius:50%;background:${d.color};flex-shrink:0;display:inline-block;"></span>
+    ${escHtml(d.label.split(' ')[0])}
+  </div>`).join('');
+  donutWrap.appendChild(svg);
+  donutWrap.appendChild(legendDiv);
 
   // Ranked list — top item gets a callout banner, rest are bar rows
   const listDiv = document.createElement('div');
@@ -2443,7 +2589,7 @@ function renderExitReasonsChart(completed) {
       row.className = 'bar-row';
       row.innerHTML = `
         <span class="bar-rank">${i + 1}</span>
-        <span class="bar-label" style="width:240px;display:flex;align-items:center;gap:5px;">
+        <span class="bar-label" style="display:flex;align-items:center;gap:5px;">
           <span style="width:9px;height:9px;border-radius:50%;background:${d.color};flex-shrink:0;display:inline-block;"></span>
           <span class="material-icons" style="font-size:13px;color:#94a3b8;flex-shrink:0;">${d.icon}</span>
           <span style="overflow:hidden;text-overflow:ellipsis;white-space:nowrap;">${escHtml(d.label)}</span>

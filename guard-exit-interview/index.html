@@ -27,7 +27,7 @@
 
   <!-- ===== HEADER ===== -->
   <header id="app-header" class="fixed top-0 left-0 right-0 z-50 bg-blue-900 text-white shadow-lg">
-    <div class="flex items-center justify-between px-4 py-3 gap-4">
+    <div id="header-inner" class="flex items-center justify-between px-4 py-3 gap-4">
       <!-- Left: Title -->
       <div class="flex items-center gap-3 min-w-0">
         <span class="material-icons text-2xl text-blue-300 flex-shrink-0">shield</span>
@@ -37,8 +37,8 @@
         </div>
       </div>
 
-      <!-- Company Tabs (add between left title div and right nav div) -->
-      <div class="flex items-center gap-1 bg-blue-800 rounded-lg p-1">
+      <!-- Company Tabs -->
+      <div id="header-company-tabs" class="flex items-center gap-1 bg-blue-800 rounded-lg p-1">
         <button id="btn-company-manela" class="company-tab active-company px-3 py-1 rounded text-sm font-semibold flex items-center gap-1">
           <span class="material-icons text-sm">business</span> New Manela
         </button>
@@ -47,8 +47,8 @@
         </button>
       </div>
 
-      <!-- Right: Nav Buttons -->
-      <div class="flex items-center gap-2 flex-shrink-0">
+      <!-- Right: Nav Buttons (hidden on mobile, replaced by bottom nav) -->
+      <div class="hidden md:flex items-center gap-2 flex-shrink-0">
         <button id="btn-form-view" class="header-tab active-tab px-3 py-1.5 rounded text-sm font-medium flex items-center gap-1">
           <span class="material-icons text-base">edit_note</span>
           <span class="hidden sm:inline">Form</span>
@@ -70,10 +70,23 @@
   </header>
 
   <!-- ===== MAIN CONTENT ===== -->
-  <main class="flex-1 pt-16 overflow-hidden">
+  <main class="flex-1 overflow-hidden" id="main-content">
 
     <!-- FORM VIEW -->
     <div id="form-view" class="flex h-form-view">
+
+      <!-- Mobile breadcrumb nav bar (hidden on desktop) -->
+      <div id="mobile-form-nav" class="mobile-form-nav">
+        <button id="mobile-back-btn" class="mobile-back-btn">
+          <span class="material-icons" style="font-size:18px">arrow_back_ios_new</span>
+          <span id="mobile-back-label">Records</span>
+        </button>
+        <span id="mobile-breadcrumb" class="mobile-breadcrumb-title"></span>
+        <span style="width:72px"></span>
+      </div>
+
+      <!-- Panel container: flex on desktop, slide-panels on mobile -->
+      <div id="panel-container" class="flex flex-1 overflow-hidden">
 
       <!-- Column 1: Guard Record List -->
       <aside id="col-records" class="w-52 flex-shrink-0 bg-white border-r border-slate-200 flex flex-col overflow-hidden">
@@ -102,6 +115,7 @@
         <div id="form-content"></div>
       </section>
 
+      </div><!-- /panel-container -->
     </div>
 
     <!-- SUMMARY VIEW (hidden by default) -->
@@ -118,6 +132,26 @@
     </div>
 
   </main>
+
+  <!-- Mobile bottom nav (hidden on desktop) -->
+  <nav id="mobile-bottom-nav" class="mobile-bottom-nav">
+    <button class="mobile-nav-btn active-mobile-nav" id="mobile-nav-form">
+      <span class="material-icons">edit_note</span>
+      <span>Form</span>
+    </button>
+    <button class="mobile-nav-btn" id="mobile-nav-summary">
+      <span class="material-icons">bar_chart</span>
+      <span>Summary</span>
+    </button>
+    <button class="mobile-nav-btn" id="mobile-nav-table">
+      <span class="material-icons">table_view</span>
+      <span>Table</span>
+    </button>
+    <button class="mobile-nav-btn" id="mobile-nav-export">
+      <span class="material-icons">table_chart</span>
+      <span>Export</span>
+    </button>
+  </nav>
 
   <script src="app.js"></script>
 </body>
