@@ -1746,91 +1746,106 @@ function getTableRows() {
   return rows;
 }
 
-function renderTable() {
+function renderTable(refocusSearch = false) {
   const toolbar = document.getElementById('table-toolbar');
   const content = document.getElementById('table-content');
   toolbar.innerHTML = '';
   toolbar.style.cssText = 'display:flex;flex-direction:column;gap:0;padding:0;flex-shrink:0;';
 
-  // ── Toolbar Row 1: Filters ──────────────────────────────
-  const row1 = document.createElement('div');
-  row1.className = 'table-toolbar-row1';
+  const usedDetachments = [...new Set(records.filter(r => r.detachment).map(r => r.detachment))].sort();
+  const tBounds = getPeriodBounds(tablePeriod);
+  const hasFilters = tablePeriod.type !== 'all' || tablePeriod.detachment || tablePeriod.dateFrom || tablePeriod.dateTo || tableSearch.trim() || tableSort.field || tableSort.dir === 'desc';
 
-  // Search
-  const searchWrap = document.createElement('div');
-  searchWrap.className = 'table-search-wrap';
-  searchWrap.innerHTML = '<span class="material-icons">search</span>';
-  const searchInp = document.createElement('input');
-  searchInp.type = 'text';
-  searchInp.className = 'table-search';
-  searchInp.placeholder = 'Search name, detachment, type…';
-  searchInp.value = tableSearch;
-  searchInp.addEventListener('input', () => { tableSearch = searchInp.value; renderTable(); });
-  searchWrap.appendChild(searchInp);
-
-  // Period label
-  const pLabel = document.createElement('span');
-  pLabel.className = 'period-filter-label';
-  pLabel.textContent = 'Period:';
-
-  // Period buttons
+  // ── Period row ───────────────────────────────────────────
+  const periodRow = document.createElement('div');
+  periodRow.className = 'pf-row';
+  const periodLbl = document.createElement('span');
+  periodLbl.className = 'pf-row-label';
+  periodLbl.textContent = 'Period:';
+  periodRow.appendChild(periodLbl);
+  const periodCtrl = document.createElement('div');
+  periodCtrl.className = 'pf-row-controls';
   [['all','All'],['monthly','Monthly'],['quarterly','Quarterly'],['annual','Annual']].forEach(([t, txt]) => {
     const b = document.createElement('button');
     b.className = 'period-btn' + (tablePeriod.type === t ? ' active' : '');
     b.textContent = txt;
     b.addEventListener('click', () => { tablePeriod.type = t; tablePeriod.dateFrom = ''; tablePeriod.dateTo = ''; renderTable(); });
-    row1.appendChild(b);
+    periodCtrl.appendChild(b);
   });
-
-  // Year select
   if (tablePeriod.type !== 'all') {
     const curYear = new Date().getFullYear();
     const ySel = document.createElement('select');
     ySel.className = 'period-select';
     for (let y = curYear; y >= curYear - 5; y--) {
-      const o = document.createElement('option');
-      o.value = y; o.textContent = y;
+      const o = document.createElement('option'); o.value = y; o.textContent = y;
       if (y === tablePeriod.year) o.selected = true;
       ySel.appendChild(o);
     }
     ySel.addEventListener('change', () => { tablePeriod.year = parseInt(ySel.value); tablePeriod.dateFrom = ''; tablePeriod.dateTo = ''; renderTable(); });
-    row1.appendChild(ySel);
+    periodCtrl.appendChild(ySel);
   }
   if (tablePeriod.type === 'monthly') {
     const mSel = document.createElement('select');
     mSel.className = 'period-select';
     ['Jan','Feb','Mar','Apr','May','Jun','Jul','Aug','Sep','Oct','Nov','Dec'].forEach((m, i) => {
-      const o = document.createElement('option');
-      o.value = i + 1; o.textContent = m;
-      if (i + 1 === tablePeriod.month) o.selected = true;
+      const o = document.createElement('option'); o.value = i+1; o.textContent = m;
+      if (i+1 === tablePeriod.month) o.selected = true;
       mSel.appendChild(o);
     });
     mSel.addEventListener('change', () => { tablePeriod.month = parseInt(mSel.value); tablePeriod.dateFrom = ''; tablePeriod.dateTo = ''; renderTable(); });
-    row1.appendChild(mSel);
+    periodCtrl.appendChild(mSel);
   }
   if (tablePeriod.type === 'quarterly') {
     const qSel = document.createElement('select');
     qSel.className = 'period-select';
     ['Q1 (Jan–Mar)','Q2 (Apr–Jun)','Q3 (Jul–Sep)','Q4 (Oct–Dec)'].forEach((q, i) => {
-      const o = document.createElement('option');
-      o.value = i + 1; o.textContent = q;
-      if (i + 1 === tablePeriod.quarter) o.selected = true;
+      const o = document.createElement('option'); o.value = i+1; o.textContent = q;
+      if (i+1 === tablePeriod.quarter) o.selected = true;
       qSel.appendChild(o);
     });
     qSel.addEventListener('change', () => { tablePeriod.quarter = parseInt(qSel.value); tablePeriod.dateFrom = ''; tablePeriod.dateTo = ''; renderTable(); });
-    row1.appendChild(qSel);
+    periodCtrl.appendChild(qSel);
   }
+  periodRow.appendChild(periodCtrl);
+  toolbar.appendChild(periodRow);
 
-  // Branch / detachment filter
-  const usedDetachments = [...new Set(records.filter(r => r.detachment).map(r => r.detachment))].sort();
+  // ── Date row ─────────────────────────────────────────────
+  const dateRow = document.createElement('div');
+  dateRow.className = 'pf-row';
+  const dateLbl = document.createElement('span');
+  dateLbl.className = 'pf-row-label';
+  dateLbl.textContent = 'Date:';
+  dateRow.appendChild(dateLbl);
+  const dateCtrl = document.createElement('div');
+  dateCtrl.className = 'pf-row-controls';
+  const drFrom = document.createElement('input');
+  drFrom.type = 'date'; drFrom.className = 'period-date-input'; drFrom.title = 'From date';
+  if (tBounds.min) drFrom.min = tBounds.min;
+  if (tBounds.max) drFrom.max = tBounds.max;
+  if (tablePeriod.dateFrom) drFrom.value = tablePeriod.dateFrom;
+  drFrom.addEventListener('change', () => { tablePeriod.dateFrom = drFrom.value; renderTable(); });
+  const drDash = document.createElement('span');
+  drDash.className = 'pf-date-dash'; drDash.textContent = '–';
+  const drTo = document.createElement('input');
+  drTo.type = 'date'; drTo.className = 'period-date-input'; drTo.title = 'To date';
+  if (tBounds.min) drTo.min = tBounds.min;
+  if (tBounds.max) drTo.max = tBounds.max;
+  if (tablePeriod.dateTo) drTo.value = tablePeriod.dateTo;
+  drTo.addEventListener('change', () => { tablePeriod.dateTo = drTo.value; renderTable(); });
+  dateCtrl.appendChild(drFrom); dateCtrl.appendChild(drDash); dateCtrl.appendChild(drTo);
+  dateRow.appendChild(dateCtrl);
+  toolbar.appendChild(dateRow);
+
+  // ── Branch row ───────────────────────────────────────────
   if (usedDetachments.length > 0) {
-    const sep2 = document.createElement('div');
-    sep2.style.cssText = 'width:1px;height:18px;background:#e2e8f0;flex-shrink:0;margin:0 2px;';
-    row1.appendChild(sep2);
-    const detLabel = document.createElement('span');
-    detLabel.className = 'period-filter-label';
-    detLabel.textContent = 'Branch:';
-    row1.appendChild(detLabel);
+    const branchRow = document.createElement('div');
+    branchRow.className = 'pf-row';
+    const branchLbl = document.createElement('span');
+    branchLbl.className = 'pf-row-label';
+    branchLbl.textContent = 'Branch:';
+    branchRow.appendChild(branchLbl);
+    const branchCtrl = document.createElement('div');
+    branchCtrl.className = 'pf-row-controls';
     const detSel = document.createElement('select');
     detSel.className = 'period-select';
     const allOpt = document.createElement('option');
@@ -1838,49 +1853,53 @@ function renderTable() {
     if (!tablePeriod.detachment) allOpt.selected = true;
     detSel.appendChild(allOpt);
     usedDetachments.forEach(d => {
-      const o = document.createElement('option');
-      o.value = d; o.textContent = d;
+      const o = document.createElement('option'); o.value = d; o.textContent = d;
       if (d === tablePeriod.detachment) o.selected = true;
       detSel.appendChild(o);
     });
     detSel.addEventListener('change', () => { tablePeriod.detachment = detSel.value; renderTable(); });
-    row1.appendChild(detSel);
+    branchCtrl.appendChild(detSel);
+    branchRow.appendChild(branchCtrl);
+    toolbar.appendChild(branchRow);
   }
 
-  // Date range filter
-  const drSep = document.createElement('div');
-  drSep.style.cssText = 'width:1px;height:18px;background:#e2e8f0;flex-shrink:0;margin:0 2px;';
-  row1.appendChild(drSep);
-  const drLabel = document.createElement('span');
-  drLabel.className = 'period-filter-label';
-  drLabel.textContent = 'Date:';
-  row1.appendChild(drLabel);
-  const tBounds = getPeriodBounds(tablePeriod);
-  const drFrom = document.createElement('input');
-  drFrom.type = 'date';
-  drFrom.className = 'period-date-input';
-  drFrom.title = 'From date';
-  if (tBounds.min) drFrom.min = tBounds.min;
-  if (tBounds.max) drFrom.max = tBounds.max;
-  if (tablePeriod.dateFrom) drFrom.value = tablePeriod.dateFrom;
-  drFrom.addEventListener('change', () => { tablePeriod.dateFrom = drFrom.value; renderTable(); });
-  row1.appendChild(drFrom);
-  const drSpan = document.createElement('span');
-  drSpan.style.cssText = 'font-size:11px;color:#94a3b8;flex-shrink:0;';
-  drSpan.textContent = '–';
-  row1.appendChild(drSpan);
-  const drTo = document.createElement('input');
-  drTo.type = 'date';
-  drTo.className = 'period-date-input';
-  drTo.title = 'To date';
-  if (tBounds.min) drTo.min = tBounds.min;
-  if (tBounds.max) drTo.max = tBounds.max;
-  if (tablePeriod.dateTo) drTo.value = tablePeriod.dateTo;
-  drTo.addEventListener('change', () => { tablePeriod.dateTo = drTo.value; renderTable(); });
-  row1.appendChild(drTo);
+  // ── Footer: search + info + reset + actions ───────────────
+  const footer = document.createElement('div');
+  footer.className = 'pf-footer';
+  footer.style.cssText = 'flex-wrap:wrap;gap:6px;';
 
-  // Reset button
-  const hasFilters = tablePeriod.type !== 'all' || tablePeriod.detachment || tablePeriod.dateFrom || tablePeriod.dateTo || tableSearch.trim() || tableSort.field || tableSort.dir === 'desc';
+  const searchWrap = document.createElement('div');
+  searchWrap.className = 'table-search-wrap';
+  searchWrap.style.flex = '1';
+  searchWrap.style.minWidth = '140px';
+  searchWrap.innerHTML = '<span class="material-icons">search</span>';
+  const searchInp = document.createElement('input');
+  searchInp.type = 'text';
+  searchInp.className = 'table-search';
+  searchInp.style.width = '100%';
+  searchInp.placeholder = 'Search name, detachment, type…';
+  searchInp.value = tableSearch;
+  searchInp.addEventListener('input', () => { tableSearch = searchInp.value; renderTable(true); });
+  searchWrap.appendChild(searchInp);
+  footer.appendChild(searchWrap);
+
+  const filteredRows = getTableRows();
+  const completedCount = records.filter(r => r.fullName && r.fullName.trim()).length;
+  const shownText = filteredRows.length === records.length
+    ? `<strong>${records.length}</strong> record${records.length !== 1 ? 's' : ''}`
+    : `<strong>${filteredRows.length}</strong> of <strong>${records.length}</strong>`;
+  const infoBadge = document.createElement('span');
+  infoBadge.className = 'period-count-badge';
+  infoBadge.innerHTML = shownText;
+  footer.appendChild(infoBadge);
+
+  if (tableSort.field) {
+    const sortBadge = document.createElement('span');
+    sortBadge.className = 'filter-active-badge';
+    sortBadge.innerHTML = `<span class="material-icons" style="font-size:10px;">sort</span>&nbsp;${escHtml(TABLE_COLUMNS.find(c => c.field === tableSort.field)?.label || tableSort.field)} ${tableSort.dir === 'asc' ? '↑' : '↓'}`;
+    footer.appendChild(sortBadge);
+  }
+
   const resetBtn = document.createElement('button');
   resetBtn.className = 'btn-table-reset' + (hasFilters ? ' has-filters' : '');
   resetBtn.innerHTML = '<span class="material-icons">restart_alt</span> Reset';
@@ -1891,64 +1910,35 @@ function renderTable() {
     tablePeriod = { type: 'all', year: new Date().getFullYear(), month: new Date().getMonth() + 1, quarter: Math.ceil((new Date().getMonth() + 1) / 3), detachment: '', dateFrom: '', dateTo: '' };
     renderTable();
   });
-
-  if (isMobile()) {
-    // On mobile: search + reset on their own non-scrolling row, filters on scrollable row1
-    const row0 = document.createElement('div');
-    row0.style.cssText = 'display:flex;align-items:center;gap:6px;padding:6px 12px 4px;border-bottom:1px solid #f1f5f9;';
-    searchWrap.style.flex = '1';
-    searchInp.style.width = '100%';
-    row0.appendChild(searchWrap);
-    resetBtn.style.marginLeft = '0';
-    row0.appendChild(resetBtn);
-    toolbar.appendChild(row0);
-    row1.appendChild(pLabel);
-  } else {
-    // On desktop: search + period label both in row1
-    row1.appendChild(searchWrap);
-    const sep1 = document.createElement('div');
-    sep1.style.cssText = 'width:1px;height:18px;background:#e2e8f0;flex-shrink:0;margin:0 2px;';
-    row1.appendChild(sep1);
-    row1.appendChild(pLabel);
-    resetBtn.style.marginLeft = 'auto';
-  }
-
-  toolbar.appendChild(row1);
-  if (!isMobile()) row1.appendChild(resetBtn); // desktop: reset at end of row1
-
-  // ── Toolbar Row 2: Info + controls ──────────────────────
-  const row2 = document.createElement('div');
-  row2.className = 'table-toolbar-row2';
-
-  const filteredRows = getTableRows();
-  const completedCount = records.filter(r => r.fullName && r.fullName.trim()).length;
-  const shownText = filteredRows.length === records.length
-    ? `<strong>${records.length}</strong> record${records.length !== 1 ? 's' : ''}`
-    : `<strong>${filteredRows.length}</strong> of <strong>${records.length}</strong> shown`;
-  const info = document.createElement('div');
-  info.className = 'table-toolbar-info';
-  info.innerHTML = `
-    <span class="material-icons">table_view</span>
-    <span>${shownText} · <strong>${completedCount}</strong> completed</span>
-    ${tableSort.field ? `<span class="filter-active-badge"><span class="material-icons" style="font-size:10px;">sort</span>&nbsp;${escHtml(TABLE_COLUMNS.find(c => c.field === tableSort.field)?.label || tableSort.field)} ${tableSort.dir === 'asc' ? '↑' : '↓'}</span>` : ''}
-    <span style="color:#cbd5e1;">·</span>
-    <span style="color:#94a3b8;font-size:11.5px;">Click cell to edit · Click header to sort</span>
-  `;
-  row2.appendChild(info);
+  footer.appendChild(resetBtn);
 
   const stickyBtn = document.createElement('button');
   stickyBtn.className = 'btn-sticky-toggle' + (stickyNameCol ? ' pinned' : '');
-  stickyBtn.innerHTML = `<span class="material-icons">push_pin</span> ${stickyNameCol ? 'Unpin' : 'Pin'} Name`;
-  stickyBtn.style.marginLeft = 'auto';
+  stickyBtn.innerHTML = `<span class="material-icons">push_pin</span>`;
+  stickyBtn.title = stickyNameCol ? 'Unpin Name column' : 'Pin Name column';
   stickyBtn.addEventListener('click', () => { stickyNameCol = !stickyNameCol; renderTable(); });
-  row2.appendChild(stickyBtn);
+  footer.appendChild(stickyBtn);
 
   const addBtn = document.createElement('button');
   addBtn.className = 'btn-table-add';
   addBtn.innerHTML = '<span class="material-icons">add</span> New Record';
   addBtn.addEventListener('click', () => { addRecord(); renderTable(); });
-  row2.appendChild(addBtn);
-  toolbar.appendChild(row2);
+  footer.appendChild(addBtn);
+
+  toolbar.appendChild(footer);
+
+  // ── Info row (desktop hint) ──────────────────────────────
+  const hintRow = document.createElement('div');
+  hintRow.className = 'table-toolbar-row2';
+  hintRow.style.cssText = 'padding:4px 16px;border-top:1px solid #f1f5f9;';
+  hintRow.innerHTML = `<span class="table-toolbar-info"><span class="material-icons">table_view</span><span><strong>${completedCount}</strong> completed</span><span style="color:#cbd5e1;">·</span><span style="color:#94a3b8;font-size:11.5px;">Click cell to edit · Click header to sort</span></span>`;
+  toolbar.appendChild(hintRow);
+
+  // Restore search focus after re-render (prevents losing cursor on keystroke)
+  if (refocusSearch) {
+    const s = toolbar.querySelector('.table-search');
+    if (s) { s.focus(); s.setSelectionRange(s.value.length, s.value.length); }
+  }
 
   // ── Table ──────────────────────────────────────────────
   content.innerHTML = '';
