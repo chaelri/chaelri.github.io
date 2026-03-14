@@ -2666,6 +2666,7 @@ function renderExitReasonsChart(completed) {
   centerG.appendChild(hole); centerG.appendChild(tMain); centerG.appendChild(tSub); centerG.appendChild(tChecks);
 
   let pinned = null; // { path, s }
+  let hoverTimer = null;
 
   const showSegment = (p, s) => {
     svg.querySelectorAll('path').forEach(q => { q.style.opacity = '0.35'; q.style.transform = ''; });
@@ -2690,8 +2691,12 @@ function renderExitReasonsChart(completed) {
     path.setAttribute('d', d); path.setAttribute('fill', s.color);
     path.style.cssText = 'cursor:pointer;transition:opacity 0.18s,transform 0.18s;transform-box:fill-box;transform-origin:center;';
 
-    path.addEventListener('mouseenter', () => showSegment(path, s));
+    path.addEventListener('mouseenter', () => {
+      clearTimeout(hoverTimer);
+      hoverTimer = setTimeout(() => showSegment(path, s), 180);
+    });
     path.addEventListener('mouseleave', () => {
+      clearTimeout(hoverTimer);
       if (pinned) showSegment(pinned.path, pinned.s);
       else showDefault();
     });

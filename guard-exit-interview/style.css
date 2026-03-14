@@ -513,17 +513,28 @@ body {
   overflow: hidden;
   text-overflow: ellipsis;
   cursor: pointer;
-  transition: width 0.32s ease, color 0.15s;
+  /* No delay on collapse — snaps back immediately */
+  transition: width 0.28s ease, color 0.15s;
   user-select: none;
   -webkit-user-select: none;
 }
-.bar-row:hover .bar-label,
+.bar-row:hover .bar-label {
+  width: 380px;
+  white-space: normal;
+  overflow: visible;
+  text-overflow: clip;
+  color: #1e293b;
+  /* Delay before expanding so accidental hover-overs don't trigger it */
+  transition: width 0.32s ease 0.22s, color 0.15s 0.22s;
+}
 .bar-label.expanded {
   width: 380px;
   white-space: normal;
   overflow: visible;
   text-overflow: clip;
   color: #1e293b;
+  /* No delay for click-pinned state */
+  transition: width 0.28s ease, color 0.15s;
 }
 /* inner text spans (exit reasons chart has nested spans) */
 .bar-row:hover .bar-label span:last-of-type,
