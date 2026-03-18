@@ -1,18 +1,306 @@
 // ══════════════════════════════════════════════════════════════
-// FOOD FARM — app.js
+// FOOD FARM — app.js  (isometric voxel)
 // ══════════════════════════════════════════════════════════════
 
-const TYPES = {
-  chicken: { label: 'Chicken', emoji: '🐔', size: 44, isPlant: false },
-  pork:    { label: 'Pork',    emoji: '🐷', size: 46, isPlant: false },
-  beef:    { label: 'Beef',    emoji: '🐄', size: 54, isPlant: false },
-  fish:    { label: 'Fish',    emoji: '🐟', size: 42, isPlant: false },
-  rice:    { label: 'Rice',    emoji: '🌾', size: 38, isPlant: true  },
-  veggie:  { label: 'Veggie',  emoji: '🥦', size: 34, isPlant: true  },
+// ── GRID CONSTANTS ────────────────────────────────────────────
+const FARM = {
+  W: 390, H: 380,       // SVG viewBox — same width as mobile so scale=1 horizontally
+  COLS: 10, ROWS: 7,    // main farm grid (fenced)
+  HW: 22, HH: 11,       // tile half-width / half-height  (2:1 isometric)
+  EDGE: 4,              // visible side-face depth on floor tiles
+  OX: 162, OY: 120,     // SVG coord of tile(0,0) center
+  EXT: 4,               // ambient tiles drawn beyond the fence each direction
+  WALK: { c0: 1.5, c1: 7.5, r0: 1.5, r1: 5.2 },
 };
+
+// ── COORDINATE HELPERS ────────────────────────────────────────
+
+function gToS(col, row) {
+  return {
+    x: FARM.OX + (col - row) * FARM.HW,
+    y: FARM.OY + (col + row) * FARM.HH,
+  };
+}
+
+// Floor tile — top face diamond + thin left/right side edges
+function drawTile(col, row, topC, edgeL, edgeR) {
+  const { x, y } = gToS(col, row);
+  const { HW: hw, HH: hh, EDGE: e } = FARM;
+  return (
+    `<polygon points="${x-hw},${y} ${x},${y+hh} ${x},${y+hh+e} ${x-hw},${y+e}" fill="${edgeL}"/>` +
+    `<polygon points="${x+hw},${y} ${x},${y+hh} ${x},${y+hh+e} ${x+hw},${y+e}" fill="${edgeR}"/>` +
+    `<polygon points="${x},${y-hh} ${x+hw},${y} ${x},${y+hh} ${x-hw},${y}" fill="${topC}"/>`
+  );
+}
+
+// Isometric cube sitting on a tile (H = visual height above the tile)
+function drawCube(col, row, H, topC, leftC, rightC) {
+  const { x, y } = gToS(col, row);
+  const { HW: hw, HH: hh } = FARM;
+  const top   = `${x},${y-hh-H} ${x+hw},${y-H} ${x},${y+hh-H} ${x-hw},${y-H}`;
+  const left  = `${x-hw},${y-H} ${x},${y+hh-H} ${x},${y+hh} ${x-hw},${y}`;
+  const right = `${x+hw},${y-H} ${x},${y+hh-H} ${x},${y+hh} ${x+hw},${y}`;
+  return (
+    `<polygon points="${left}"  fill="${leftC}"/>` +
+    `<polygon points="${right}" fill="${rightC}"/>` +
+    `<polygon points="${top}"   fill="${topC}"/>`
+  );
+}
+
+// Thin fence rail bar connecting two tile centers at height H
+function drawRail(c1, r1, c2, r2, H, thick, color) {
+  const a = gToS(c1, r1), b = gToS(c2, r2);
+  const ay = a.y - H, by = b.y - H;
+  return `<polygon points="${a.x},${ay} ${b.x},${by} ${b.x},${by+thick} ${a.x},${ay+thick}" fill="${color}" opacity="0.92"/>`;
+}
+
+// ── FARM SVG ──────────────────────────────────────────────────
+
+function buildFarmSVG() {
+  const { W, H, COLS, ROWS, HW, HH, EXT } = FARM;
+
+  const BARN = new Set(['8,0','9,0','8,1','9,1']);
+  const POND = new Set(['0,4','0,5','0,6','1,5','1,6']);
+  const PATH = new Set(['4,2','5,2','4,3','5,3','4,4','5,4']);
+  const PERIM = new Set();
+  for (let c = 0; c < COLS; c++) {
+    PERIM.add(`${c},0`); PERIM.add(`${c},${ROWS-1}`);
+  }
+  for (let r = 1; r < ROWS - 1; r++) {
+    PERIM.add(`0,${r}`); PERIM.add(`${COLS-1},${r}`);
+  }
+
+  const G = [
+    `<svg id="farm-svg" viewBox="0 0 ${W} ${H}" xmlns="http://www.w3.org/2000/svg"`,
+    ` preserveAspectRatio="xMidYMid slice"`,
+    ` style="position:absolute;inset:0;width:100%;height:100%;">`,
+    `<defs>`,
+    `<linearGradient id="skyG" x1="0" y1="0" x2="0" y2="1">`,
+    `<stop offset="0%" stop-color="#b8d898"/>`,
+    `<stop offset="40%" stop-color="#c4e0a4"/>`,
+    `<stop offset="100%" stop-color="#a8cc88"/>`,
+    `</linearGradient>`,
+    `<radialGradient id="vigG" cx="50%" cy="50%" r="70%">`,
+    `<stop offset="0%" stop-color="transparent"/>`,
+    `<stop offset="100%" stop-color="rgba(20,50,10,0.22)"/>`,
+    `</radialGradient>`,
+    `</defs>`,
+    `<rect width="${W}" height="${H}" fill="url(#skyG)"/>`,
+  ].join('');
+
+  const parts = [G];
+
+  // Draw tiles back→front using painter's algorithm (sort by col+row sum)
+  // Extended range covers EXT tiles beyond the fence in all directions
+  const SUM_MIN = -(EXT * 2);
+  const SUM_MAX = COLS + ROWS - 2 + EXT * 2;
+
+  for (let sum = SUM_MIN; sum <= SUM_MAX; sum++) {
+    const inMainRange = sum >= 0 && sum <= COLS + ROWS - 2;
+    const cMin = Math.max(-EXT, sum - ROWS - EXT + 1);
+    const cMax = Math.min(COLS + EXT - 1, sum + EXT);
+
+    for (let col = cMin; col <= cMax; col++) {
+      const row = sum - col;
+      if (row < -EXT || row >= ROWS + EXT) continue;
+
+      const inMain = col >= 0 && col < COLS && row >= 0 && row < ROWS;
+      const key = `${col},${row}`;
+
+      if (!inMain) {
+        // Ambient tile outside the fence — slightly wilder green
+        const s = (col + row) % 2;
+        parts.push(drawTile(col, row, s ? '#6ab858' : '#60ae50', '#3c7230', '#306028'));
+        continue;
+      }
+
+      if (BARN.has(key)) {
+        parts.push(drawTile(col, row, '#c8986a', '#8a6838', '#7a5828'));
+        continue;
+      }
+      if (POND.has(key)) {
+        const { x, y } = gToS(col, row);
+        parts.push(`<polygon points="${x},${y-HH+2} ${x+HW},${y+2} ${x},${y+HH+2} ${x-HW},${y+2}" fill="#48a8cc"/>`);
+        parts.push(`<ellipse cx="${x-4}" cy="${y}" rx="7" ry="2.5" fill="rgba(255,255,255,0.2)" transform="rotate(-18 ${x-4} ${y})"/>`);
+        continue;
+      }
+      if (PATH.has(key)) {
+        parts.push(drawTile(col, row, '#c8986a', '#8a6838', '#7a5828'));
+        continue;
+      }
+      if (PERIM.has(key)) {
+        const s = (col + row) % 2;
+        parts.push(drawTile(col, row, s ? '#7acc68' : '#74c860', '#4a9838', '#3a8028'));
+        parts.push(drawCube(col, row, 16, '#d8a870', '#a87848', '#8a6030'));
+        continue;
+      }
+      // Standard grass
+      const s = (col + row) % 2;
+      parts.push(drawTile(col, row, s ? '#7ecc6a' : '#76c862', '#4a9838', '#3a8028'));
+    }
+
+    // Fence rails — only for main fence perimeter
+    if (inMainRange) {
+      // top row (row=0) rail: col-1 → col along row=0
+      if (sum >= 1 && sum <= COLS - 1) {
+        const c = sum;
+        parts.push(drawRail(c-1,0, c,0, 14,3,'#c89050'));
+        parts.push(drawRail(c-1,0, c,0,  8,2,'#a87030'));
+      }
+      // left col (col=0) rail
+      if (sum >= 1 && sum <= ROWS - 1) {
+        const r = sum;
+        parts.push(drawRail(0,r-1, 0,r, 14,3,'#c89050'));
+        parts.push(drawRail(0,r-1, 0,r,  8,2,'#a87030'));
+      }
+      // right col (col=COLS-1) rail
+      if (sum >= COLS && sum <= COLS + ROWS - 2) {
+        const r = sum - (COLS - 1);
+        if (r >= 1) {
+          parts.push(drawRail(COLS-1,r-1, COLS-1,r, 14,3,'#c89050'));
+          parts.push(drawRail(COLS-1,r-1, COLS-1,r,  8,2,'#a87030'));
+        }
+      }
+      // bottom row (row=ROWS-1) rail
+      if (sum >= ROWS && sum <= COLS + ROWS - 2) {
+        const c = sum - (ROWS - 1);
+        if (c >= 1 && c < COLS) {
+          parts.push(drawRail(c-1,ROWS-1, c,ROWS-1, 14,3,'#c89050'));
+          parts.push(drawRail(c-1,ROWS-1, c,ROWS-1,  8,2,'#a87030'));
+        }
+      }
+    }
+
+    // Barn at sum=9 (covers tile area 8+1=9)
+    if (sum === 9) parts.push(buildBarn());
+
+    // Trees
+    if (sum === 2)  parts.push(buildTree(1, 1, 36));
+    if (sum === 13) parts.push(buildTree(8, 5, 30));
+  }
+
+  // Pond detail
+  const pC = gToS(0.5, 5.2);
+  parts.push(`<ellipse cx="${pC.x}" cy="${pC.y+3}" rx="8" ry="4.5" fill="#3a9030"/>`);
+
+  // Flowers (fixed positions)
+  [[2,2],[3,4],[6,1],[7,3],[2,3],[6,4],[3,1],[7,2],[5,1],[4,5],[2,5],[6,3]].forEach(([c,r]) => {
+    parts.push(buildFlowerAt(c, r));
+  });
+
+  // Atmospheric vignette
+  parts.push(`<rect width="${W}" height="${H}" fill="url(#vigG)" pointer-events="none"/>`);
+  parts.push(`</svg>`);
+  return parts.join('');
+}
+
+// ── BARN ──────────────────────────────────────────────────────
+
+function buildBarn() {
+  const bk = gToS(8,0), rt = gToS(9,0), fr = gToS(9,1), lf = gToS(8,1);
+  const wH = 40, rH = 26;
+
+  const ubk = {x:bk.x, y:bk.y-wH}, urt = {x:rt.x, y:rt.y-wH};
+  const ufr = {x:fr.x, y:fr.y-wH}, ulf = {x:lf.x, y:lf.y-wH};
+  const ridgeL = {x:(ubk.x+ulf.x)/2, y:(ubk.y+ulf.y)/2 - rH};
+  const ridgeR = {x:(urt.x+ufr.x)/2, y:(urt.y+ufr.y)/2 - rH};
+
+  const p = pts => pts.map(q => `${Math.round(q.x)},${Math.round(q.y)}`).join(' ');
+
+  return [
+    // Walls
+    `<polygon points="${p([ulf,ufr,fr,lf])}" fill="#a01818"/>`,
+    `<polygon points="${p([ufr,urt,rt,fr])}" fill="#881010"/>`,
+    `<polygon points="${p([ubk,urt,ufr,ulf])}" fill="#c02020"/>`,
+    // Roof slopes
+    `<polygon points="${p([ridgeL,ridgeR,ufr,ulf])}" fill="#c82828"/>`,
+    `<polygon points="${p([ridgeL,ridgeR,urt,ubk])}" fill="#d83030"/>`,
+    // Gable ends
+    `<polygon points="${p([ulf,ubk,ridgeL])}" fill="#b01818"/>`,
+    `<polygon points="${p([urt,ufr,ridgeR])}" fill="#981010"/>`,
+    // Door
+    `<polygon points="${Math.round(ulf.x+7)},${Math.round(ulf.y+15)} ${Math.round(ulf.x+14)},${Math.round(ulf.y+18.5)} ${Math.round(ulf.x+14)},${Math.round(ulf.y+wH)} ${Math.round(ulf.x+7)},${Math.round(ulf.y+wH-3.5)}" fill="#4a1808"/>`,
+    `<line x1="${Math.round(ulf.x+10.5)}" y1="${Math.round(ulf.y+15)}" x2="${Math.round(ulf.x+10.5)}" y2="${Math.round(ulf.y+wH)}" stroke="#381008" stroke-width="1"/>`,
+    `<line x1="${Math.round(ulf.x+7)}" y1="${Math.round(ulf.y+25)}" x2="${Math.round(ulf.x+14)}" y2="${Math.round(ulf.y+28.5)}" stroke="#381008" stroke-width="1"/>`,
+    // Window
+    `<polygon points="${Math.round(ulf.x+17)},${Math.round(ulf.y+9)} ${Math.round(ulf.x+24)},${Math.round(ulf.y+12.5)} ${Math.round(ulf.x+24)},${Math.round(ulf.y+20.5)} ${Math.round(ulf.x+17)},${Math.round(ulf.y+17)}" fill="#f8e880"/>`,
+    `<line x1="${Math.round(ulf.x+20.5)}" y1="${Math.round(ulf.y+9)}" x2="${Math.round(ulf.x+20.5)}" y2="${Math.round(ulf.y+20.5)}" stroke="#9a7020" stroke-width="1"/>`,
+    `<line x1="${Math.round(ulf.x+17)}" y1="${Math.round(ulf.y+14.5)}" x2="${Math.round(ulf.x+24)}" y2="${Math.round(ulf.y+18)}" stroke="#9a7020" stroke-width="1"/>`,
+  ].join('\n');
+}
+
+// ── TREE ──────────────────────────────────────────────────────
+
+function buildTree(col, row, trunkH) {
+  const { x, y } = gToS(col, row);
+  const { HW: hw, HH: hh } = FARM;
+  const lw = hw * 1.35, lhh = hh * 1.35, ly = y - trunkH;
+  return [
+    // Trunk
+    `<polygon points="${x-4},${ly} ${x+4},${ly} ${x+4},${ly+trunkH} ${x-4},${ly+trunkH}" fill="#7a5030"/>`,
+    // Layer 3 (bottom, widest)
+    `<polygon points="${x-lw},${ly+lhh*0.4} ${x},${ly+lhh*1.4} ${x},${ly+lhh*1.4+4} ${x-lw},${ly+lhh*0.4+4}" fill="#1e4c14"/>`,
+    `<polygon points="${x+lw},${ly+lhh*0.4} ${x},${ly+lhh*1.4} ${x},${ly+lhh*1.4+4} ${x+lw},${ly+lhh*0.4+4}" fill="#245818"/>`,
+    `<polygon points="${x},${ly-lhh*0.6} ${x+lw},${ly+lhh*0.4} ${x},${ly+lhh*1.4} ${x-lw},${ly+lhh*0.4}" fill="#2e6820"/>`,
+    // Layer 2 (mid)
+    `<polygon points="${x-lw*.8},${ly-15+lhh*.4} ${x},${ly-15+lhh*1.2} ${x},${ly-15+lhh*1.2+3} ${x-lw*.8},${ly-15+lhh*.4+3}" fill="#2c6820"/>`,
+    `<polygon points="${x+lw*.8},${ly-15+lhh*.4} ${x},${ly-15+lhh*1.2} ${x},${ly-15+lhh*1.2+3} ${x+lw*.8},${ly-15+lhh*.4+3}" fill="#245818"/>`,
+    `<polygon points="${x},${ly-15-lhh*.4} ${x+lw*.8},${ly-15+lhh*.4} ${x},${ly-15+lhh*1.2} ${x-lw*.8},${ly-15+lhh*.4}" fill="#388028"/>`,
+    // Layer 1 (top)
+    `<polygon points="${x},${ly-30-lhh*.3} ${x+lw*.5},${ly-30+lhh*.3} ${x},${ly-30+lhh*1.1} ${x-lw*.5},${ly-30+lhh*.3}" fill="#48a038"/>`,
+    // Highlight
+    `<ellipse cx="${x+4}" cy="${ly-30+3}" rx="4" ry="2.5" fill="#68c050" opacity="0.35"/>`,
+  ].join('\n');
+}
+
+// ── FLOWER ────────────────────────────────────────────────────
+
+function buildFlowerAt(col, row) {
+  const { x, y } = gToS(col, row);
+  const colors = ['#e82858','#f0a020','#9018c0','#e03870','#2898d8','#e83060'];
+  const ci = Math.abs(Math.sin(col * 7 + row * 13));
+  const c  = colors[Math.floor(ci * colors.length)];
+  const s  = 0.7 + Math.abs(Math.sin(col * 5 + row * 11)) * 0.45;
+  const ox = ((Math.sin(col * 3 + row) * 8) | 0);
+  const oy = ((Math.sin(col + row * 4) * 5) | 0);
+  const cx = x + ox, cy = y + oy;
+  return (
+    `<line x1="${cx}" y1="${cy+8*s}" x2="${cx}" y2="${cy+2}" stroke="#3a8828" stroke-width="1.5"/>` +
+    `<circle cx="${cx}" cy="${cy}" r="${4.5*s}" fill="${c}" opacity="0.9"/>` +
+    `<circle cx="${cx}" cy="${cy}" r="${2*s}" fill="#f8e840"/>`
+  );
+}
+
+// ── ANIMAL TYPES ──────────────────────────────────────────────
+
+const TYPES = {
+  chicken: { label: 'Chicken', emoji: '🐔', w: 44, h: 44, isPlant: false },
+  pork:    { label: 'Pork',    emoji: '🐷', w: 46, h: 44, isPlant: false },
+  beef:    { label: 'Beef',    emoji: '🐄', w: 54, h: 44, isPlant: false },
+  fish:    { label: 'Fish',    emoji: '🐟', w: 44, h: 30, isPlant: false },
+  rice:    { label: 'Rice',    emoji: '🌾', w: 34, h: 40, isPlant: true  },
+  veggie:  { label: 'Veggie',  emoji: '🥦', w: 28, h: 40, isPlant: true  },
+};
+
+// ── STATE ─────────────────────────────────────────────────────
 
 let state = { weekKey: '', animals: [] };
 let saveDebounce = null;
+
+// ── COORDINATE CONVERSION ─────────────────────────────────────
+
+function gridToScreen(col, row) {
+  const svgX = FARM.OX + (col - row) * FARM.HW;
+  const svgY = FARM.OY + (col + row) * FARM.HH;
+  const farm = document.getElementById('farm');
+  // preserveAspectRatio=slice → scale = max of both axes
+  const scaleX = farm.offsetWidth  / FARM.W;
+  const scaleY = farm.offsetHeight / FARM.H;
+  const scale  = Math.max(scaleX, scaleY);
+  const offX   = (farm.offsetWidth  - FARM.W * scale) / 2;
+  const offY   = (farm.offsetHeight - FARM.H * scale) / 2;
+  return { x: svgX * scale + offX, y: svgY * scale + offY };
+}
 
 // ── INIT ──────────────────────────────────────────────────────
 
@@ -21,90 +309,68 @@ function init() {
   let saved = null;
   try { saved = JSON.parse(localStorage.getItem('food-farm-' + key)); } catch(e) {}
 
-  if (saved && saved.weekKey === key) {
-    state = saved;
-  } else {
-    state = { weekKey: key, animals: [] };
-    saveState();
-  }
+  state = (saved && saved.weekKey === key) ? saved : { weekKey: key, animals: [] };
+  if (!saved || saved.weekKey !== key) saveState();
+
+  document.getElementById('farm').insertAdjacentHTML('afterbegin', buildFarmSVG());
 
   updateWeekLabel();
-  buildDecorations();
-
-  // Rehydrate saved animals (no spawn animation)
   state.animals.forEach(a => createAnimalEl(a, false));
   updateCount();
   renderLog();
+  state.animals.forEach(a => { if (!TYPES[a.type]?.isPlant) startWanderFor(a); });
 
-  // Start wandering for mobile creatures
-  state.animals.forEach(a => {
-    if (!TYPES[a.type]?.isPlant) startWanderFor(a);
-  });
-
-  // Button listeners
   document.querySelectorAll('.add-btn').forEach(btn => {
     btn.addEventListener('click', () => spawnAnimal(btn.dataset.type));
   });
 }
 
-// ── WEEK HELPERS ──────────────────────────────────────────────
+// ── WEEK ──────────────────────────────────────────────────────
 
 function getWeekKey() {
   const d = new Date();
-  const day = d.getDay(); // 0 = Sunday
-  const monday = new Date(d);
-  monday.setDate(d.getDate() - ((day + 6) % 7));
-  monday.setHours(0, 0, 0, 0);
-  return monday.toISOString().slice(0, 10);
+  const mon = new Date(d);
+  mon.setDate(d.getDate() - ((d.getDay() + 6) % 7));
+  mon.setHours(0, 0, 0, 0);
+  return mon.toISOString().slice(0, 10);
 }
 
 function updateWeekLabel() {
-  const monday = new Date(state.weekKey + 'T00:00:00');
-  const sunday = new Date(monday);
-  sunday.setDate(monday.getDate() + 6);
+  const mon = new Date(state.weekKey + 'T00:00:00');
+  const sun = new Date(mon); sun.setDate(mon.getDate() + 6);
   const fmt = d => d.toLocaleDateString('en-US', { month: 'short', day: 'numeric' });
-  document.getElementById('week-label').textContent = `${fmt(monday)} – ${fmt(sunday)}`;
+  document.getElementById('week-label').textContent = `${fmt(mon)} – ${fmt(sun)}`;
 }
 
 // ── SPAWN ─────────────────────────────────────────────────────
 
 function spawnAnimal(type) {
-  const def = TYPES[type];
-  if (!def) return;
-
-  const farm = document.getElementById('farm');
-  const W = farm.offsetWidth;
-  const H = farm.offsetHeight;
-  const PAD = 58; // keep inside fence
-
-  const id = Math.random().toString(36).slice(2, 10);
-  const x  = PAD + Math.random() * (W - def.size - PAD * 2);
-  const y  = PAD + Math.random() * (H - def.size - PAD * 2);
-
-  const entry = { id, type, x, y, facingLeft: false };
+  const def = TYPES[type]; if (!def) return;
+  const { c0, c1, r0, r1 } = FARM.WALK;
+  const col = c0 + Math.random() * (c1 - c0);
+  const row = r0 + Math.random() * (r1 - r0);
+  const id  = Math.random().toString(36).slice(2, 10);
+  const entry = { id, type, col, row, facingLeft: false };
   state.animals.push(entry);
   saveState();
-
   createAnimalEl(entry, true);
-  updateCount();
-  renderLog();
-
+  updateCount(); renderLog();
   if (!def.isPlant) startWanderFor(entry);
 }
 
-// ── DOM CREATION ──────────────────────────────────────────────
+// ── DOM ───────────────────────────────────────────────────────
 
 function createAnimalEl(entry, animate) {
-  const def = TYPES[entry.type];
-  if (!def) return;
+  const def = TYPES[entry.type]; if (!def) return;
+  const pos = gridToScreen(entry.col, entry.row);
 
   const wrap = document.createElement('div');
   wrap.className = 'animal-wrap';
   wrap.dataset.type = entry.type;
   wrap.dataset.id   = entry.id;
-  wrap.style.left   = Math.round(entry.x) + 'px';
-  wrap.style.top    = Math.round(entry.y) + 'px';
-  wrap.style.zIndex = 10 + Math.round(entry.y);
+  wrap.style.left   = Math.round(pos.x - def.w / 2) + 'px';
+  wrap.style.top    = Math.round(pos.y - def.h) + 'px';
+  wrap.style.zIndex = Math.round(pos.y);
   if (!animate) wrap.style.transition = 'none';
 
   const inner = document.createElement('div');
@@ -112,24 +378,23 @@ function createAnimalEl(entry, animate) {
   if (entry.facingLeft) inner.style.transform = 'scaleX(-1)';
   if (!animate) inner.style.animation = 'none';
 
+  const shadow = document.createElement('div');
+  shadow.className = 'iso-shadow';
+  shadow.style.width = Math.round(def.w * 0.7) + 'px';
+
   const svg = document.createElementNS('http://www.w3.org/2000/svg', 'svg');
-  svg.setAttribute('width',  def.size);
-  svg.setAttribute('height', def.size);
+  svg.setAttribute('width', def.w);
+  svg.setAttribute('height', def.h);
   svg.classList.add('animal-svg');
   const use = document.createElementNS('http://www.w3.org/2000/svg', 'use');
   use.setAttribute('href', '#spr-' + entry.type);
   svg.appendChild(use);
 
-  const shadow = document.createElement('div');
-  shadow.className = 'animal-shadow';
-  shadow.style.width = Math.round(def.size * 0.72) + 'px';
-
   inner.appendChild(svg);
-  wrap.appendChild(inner);
   wrap.appendChild(shadow);
+  wrap.appendChild(inner);
   document.getElementById('farm-animals').appendChild(wrap);
 
-  // Re-enable transitions after first paint (prevents jump on load)
   if (!animate) {
     requestAnimationFrame(() => requestAnimationFrame(() => {
       wrap.style.transition = '';
@@ -138,76 +403,57 @@ function createAnimalEl(entry, animate) {
   }
 }
 
-// ── WANDERING ─────────────────────────────────────────────────
+// ── WANDER ────────────────────────────────────────────────────
 
 function startWanderFor(entry) {
-  // Stagger start so they don't all move at once
-  setTimeout(() => wanderStep(entry), 500 + Math.random() * 3000);
+  setTimeout(() => wanderStep(entry), 500 + Math.random() * 2500);
 }
 
 function wanderStep(entry) {
   const wrap = document.querySelector(`.animal-wrap[data-id="${entry.id}"]`);
-  if (!wrap) return; // removed from DOM
+  if (!wrap) return;
+  const def = TYPES[entry.type];
+  const { c0, c1, r0, r1 } = FARM.WALK;
 
-  const farm = document.getElementById('farm');
-  const def  = TYPES[entry.type];
-  const PAD  = 58;
-  const W    = farm.offsetWidth;
-  const H    = farm.offsetHeight;
+  const tc = c0 + Math.random() * (c1 - c0);
+  const tr = r0 + Math.random() * (r1 - r0);
+  const tPos = gridToScreen(tc, tr);
+  const cPos = gridToScreen(entry.col, entry.row);
+  const dist = Math.hypot(tPos.x - cPos.x, tPos.y - cPos.y);
+  const speeds = { chicken: 55, pork: 38, beef: 28, fish: 62 };
+  const travelMs = Math.max(800, (dist / (speeds[entry.type] || 40)) * 1000);
 
-  const tx = PAD + Math.random() * (W - def.size - PAD * 2);
-  const ty = PAD + Math.random() * (H - def.size - PAD * 2);
-
-  const dx = tx - entry.x;
-  const dy = ty - entry.y;
-  const dist = Math.hypot(dx, dy);
-
-  // Speed varies per animal type
-  const speeds = { chicken: 55, pork: 38, beef: 30, fish: 65 };
-  const baseSpeed = speeds[entry.type] || 40;
-  const speed = baseSpeed + Math.random() * 20;
-  const travelMs = Math.max(700, (dist / speed) * 1000);
-
-  // Flip sprite based on horizontal direction
-  const facingLeft = dx < 0;
-  const inner = wrap.querySelector('.animal-inner');
-  inner.style.transform = facingLeft ? 'scaleX(-1)' : 'scaleX(1)';
+  const facingLeft = tPos.x < cPos.x;
+  wrap.querySelector('.animal-inner').style.transform = facingLeft ? 'scaleX(-1)' : 'scaleX(1)';
   entry.facingLeft = facingLeft;
 
-  // Animate position
   wrap.style.transition = `left ${travelMs}ms ease-in-out, top ${travelMs}ms ease-in-out`;
-  wrap.style.left   = Math.round(tx) + 'px';
-  wrap.style.top    = Math.round(ty) + 'px';
-  wrap.style.zIndex = 10 + Math.round(ty);
+  wrap.style.left   = Math.round(tPos.x - def.w / 2) + 'px';
+  wrap.style.top    = Math.round(tPos.y - def.h) + 'px';
+  wrap.style.zIndex = Math.round(tPos.y);
   wrap.classList.add('is-walking');
 
-  // Persist new position
-  entry.x = tx;
-  entry.y = ty;
+  entry.col = tc; entry.row = tr;
   saveState();
 
   setTimeout(() => {
     wrap.classList.remove('is-walking');
-    const idleMs = 1500 + Math.random() * 4500;
-    setTimeout(() => wanderStep(entry), idleMs);
+    setTimeout(() => wanderStep(entry), 1500 + Math.random() * 4000);
   }, travelMs);
 }
 
-// ── LOG ───────────────────────────────────────────────────────
+// ── LOG / COUNT ───────────────────────────────────────────────
 
 function renderLog() {
-  const container = document.getElementById('food-log');
-  if (state.animals.length === 0) {
-    container.innerHTML = '<span class="food-tag-empty">Nothing yet this week...</span>';
+  const el = document.getElementById('food-log');
+  if (!state.animals.length) {
+    el.innerHTML = '<span class="food-tag-empty">Nothing yet this week...</span>';
     return;
   }
   const counts = {};
-  state.animals.forEach(({ type }) => {
-    counts[type] = (counts[type] || 0) + 1;
-  });
-  container.innerHTML = Object.entries(counts).map(([type, n]) => {
-    const def = TYPES[type];
-    if (!def) return '';
+  state.animals.forEach(({ type }) => counts[type] = (counts[type] || 0) + 1);
+  el.innerHTML = Object.entries(counts).map(([type, n]) => {
+    const def = TYPES[type]; if (!def) return '';
     return `<span class="food-tag" data-type="${type}">${def.emoji} ${def.label}${n > 1 ? ' ×' + n : ''}</span>`;
   }).join('');
 }
@@ -226,149 +472,5 @@ function saveState() {
     localStorage.setItem('food-farm-' + state.weekKey, JSON.stringify(state));
   }, 250);
 }
-
-// ── DECORATIONS ───────────────────────────────────────────────
-
-function buildDecorations() {
-  const layer = document.getElementById('farm-deco');
-  const farm  = document.getElementById('farm');
-
-  requestAnimationFrame(() => {
-    const W = farm.offsetWidth;
-    const H = farm.offsetHeight;
-
-    // Barn — top right corner
-    layer.innerHTML += barnSVG(W - 90, 18);
-
-    // Trees — corners (avoid barn)
-    layer.innerHTML += treeSVG(16, 16);
-    layer.innerHTML += treeSVG(16, H - 82);
-    layer.innerHTML += treeSVG(W - 65, H - 85);
-
-    // Dirt path — diagonal strip through center
-    const path = document.createElement('div');
-    path.className = 'deco';
-    path.style.cssText = `
-      left: 50%; top: 50%;
-      transform: translate(-50%,-50%) rotate(-22deg);
-      width: 26px; height: ${H * 0.75}px;
-      background: rgba(156,100,48,0.2);
-      border-radius: 20px;
-    `;
-    layer.appendChild(path);
-
-    // Pond — bottom left
-    layer.innerHTML += pondSVG(20, H - 75);
-
-    // Flowers — scattered
-    const flowerCount = 12 + Math.floor(Math.random() * 6);
-    for (let i = 0; i < flowerCount; i++) {
-      const fx = 55 + Math.random() * (W - 110);
-      const fy = 55 + Math.random() * (H - 110);
-      layer.innerHTML += flowerSVG(fx, fy);
-    }
-
-    // Rocks
-    for (let i = 0; i < 4; i++) {
-      const rx = 60 + Math.random() * (W - 120);
-      const ry = 60 + Math.random() * (H - 120);
-      layer.innerHTML += rockSVG(rx, ry);
-    }
-  });
-}
-
-// ── DECORATION SVGs ───────────────────────────────────────────
-
-function barnSVG(x, y) {
-  return `<svg class="deco" style="left:${x}px;top:${y}px;width:72px;height:82px;" viewBox="0 0 72 82" xmlns="http://www.w3.org/2000/svg">
-    <!-- Roof shadow -->
-    <polygon points="0,36 36,2 72,36" fill="#7a1818"/>
-    <!-- Roof -->
-    <polygon points="4,36 36,7 68,36" fill="#b02020"/>
-    <!-- Roof highlight -->
-    <polygon points="8,36 36,12 64,36" fill="#c42828" opacity="0.7"/>
-    <!-- Body -->
-    <rect x="6" y="34" width="60" height="48" fill="#c42828"/>
-    <!-- Body shading -->
-    <rect x="6" y="34" width="8" height="48" fill="rgba(0,0,0,0.12)"/>
-    <rect x="58" y="34" width="8" height="48" fill="rgba(0,0,0,0.08)"/>
-    <!-- Door -->
-    <rect x="23" y="52" width="26" height="30" rx="13" fill="#4a1e0a"/>
-    <line x1="36" y1="52" x2="36" y2="82" stroke="#3a1606" stroke-width="1.5"/>
-    <line x1="23" y1="64" x2="49" y2="64" stroke="#3a1606" stroke-width="1.5"/>
-    <!-- Left window -->
-    <rect x="10" y="40" width="14" height="11" rx="3" fill="#f8e890"/>
-    <line x1="17" y1="40" x2="17" y2="51" stroke="#7a4820" stroke-width="1.5"/>
-    <line x1="10" y1="45.5" x2="24" y2="45.5" stroke="#7a4820" stroke-width="1.5"/>
-    <!-- Right window -->
-    <rect x="48" y="40" width="14" height="11" rx="3" fill="#f8e890"/>
-    <line x1="55" y1="40" x2="55" y2="51" stroke="#7a4820" stroke-width="1.5"/>
-    <line x1="48" y1="45.5" x2="62" y2="45.5" stroke="#7a4820" stroke-width="1.5"/>
-  </svg>`;
-}
-
-function treeSVG(x, y) {
-  return `<svg class="deco" style="left:${x}px;top:${y}px;width:54px;height:70px;" viewBox="0 0 54 70" xmlns="http://www.w3.org/2000/svg">
-    <!-- Trunk -->
-    <rect x="21" y="45" width="12" height="25" rx="4" fill="#7a5030"/>
-    <rect x="24" y="45" width="5"  height="25" rx="2.5" fill="#8a6040" opacity="0.45"/>
-    <!-- Canopy layers (dark to light, bottom to top) -->
-    <ellipse cx="27" cy="42" rx="22" ry="17" fill="#266020"/>
-    <ellipse cx="27" cy="36" rx="19" ry="15" fill="#307a28"/>
-    <ellipse cx="27" cy="29" rx="16" ry="13" fill="#3a9038"/>
-    <ellipse cx="27" cy="22" rx="12" ry="11" fill="#46a044"/>
-    <!-- Highlight -->
-    <ellipse cx="31" cy="24" rx="5" ry="4" fill="#68c860" opacity="0.45"/>
-  </svg>`;
-}
-
-function pondSVG(x, y) {
-  return `<svg class="deco" style="left:${x}px;top:${y}px;width:58px;height:38px;" viewBox="0 0 58 38" xmlns="http://www.w3.org/2000/svg">
-    <!-- Pond shadow/edge -->
-    <ellipse cx="29" cy="21" rx="27" ry="16" fill="#2a6888"/>
-    <!-- Pond water -->
-    <ellipse cx="29" cy="20" rx="26" ry="15" fill="#4898c8"/>
-    <!-- Water sheen -->
-    <ellipse cx="24" cy="15" rx="10" ry="5" fill="rgba(255,255,255,0.18)" transform="rotate(-15 24 15)"/>
-    <!-- Lily pad -->
-    <ellipse cx="34" cy="22" rx="5" ry="3.5" fill="#3a8828"/>
-    <line x1="34" y1="19" x2="36" y2="22" stroke="#3a8828" stroke-width="1.2"/>
-    <!-- Small ripple lines -->
-    <path d="M18 22 Q22 20 26 22" stroke="rgba(255,255,255,0.3)" stroke-width="1" fill="none"/>
-    <path d="M32 27 Q36 25 40 27" stroke="rgba(255,255,255,0.3)" stroke-width="1" fill="none"/>
-  </svg>`;
-}
-
-function flowerSVG(x, y) {
-  const palettes = [
-    ['#f02858','#f8e060'], ['#f0a030','#fff060'], ['#9820c8','#f8e060'],
-    ['#e04080','#ffd060'], ['#28a8e8','#fff8a0'], ['#f83858','#ffee50'],
-  ];
-  const [petal, center] = palettes[Math.floor(Math.random() * palettes.length)];
-  const s = 0.55 + Math.random() * 0.55;
-  const rot = Math.random() * 360;
-  return `<svg class="deco" style="left:${x}px;top:${y}px;width:${15*s}px;height:${19*s}px;" viewBox="0 0 15 19" xmlns="http://www.w3.org/2000/svg">
-    <line x1="7.5" y1="19" x2="7.5" y2="10" stroke="#3a8028" stroke-width="1.5"/>
-    <g transform="rotate(${rot}, 7.5, 8)">
-      <circle cx="7.5" cy="4.5" r="2.8" fill="${petal}" opacity="0.88"/>
-      <circle cx="11"  cy="8.5" r="2.8" fill="${petal}" opacity="0.88"/>
-      <circle cx="4"   cy="8.5" r="2.8" fill="${petal}" opacity="0.88"/>
-      <circle cx="5.5" cy="4"   r="2.2" fill="${petal}" opacity="0.75"/>
-      <circle cx="9.5" cy="4"   r="2.2" fill="${petal}" opacity="0.75"/>
-    </g>
-    <circle cx="7.5" cy="8" r="2.2" fill="${center}"/>
-  </svg>`;
-}
-
-function rockSVG(x, y) {
-  const s = 0.75 + Math.random() * 0.45;
-  return `<svg class="deco" style="left:${x}px;top:${y}px;width:${18*s}px;height:${13*s}px;" viewBox="0 0 18 13" xmlns="http://www.w3.org/2000/svg">
-    <ellipse cx="9" cy="8"  rx="8" ry="5"   fill="#8a8878"/>
-    <ellipse cx="9" cy="7"  rx="7" ry="4.5" fill="#a0a090"/>
-    <ellipse cx="7" cy="5.5" rx="2.5" ry="1.8" fill="#c0c0b0" opacity="0.55"/>
-  </svg>`;
-}
-
-// ── START ─────────────────────────────────────────────────────
 
 document.addEventListener('DOMContentLoaded', init);
