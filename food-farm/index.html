@@ -1,0 +1,239 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no, viewport-fit=cover">
+  <meta name="theme-color" content="#3d7a4e">
+  <meta name="apple-mobile-web-app-capable" content="yes">
+  <title>Food Farm 🌾</title>
+  <link rel="preconnect" href="https://fonts.googleapis.com">
+  <link href="https://fonts.googleapis.com/css2?family=Nunito:wght@400;600;700;800;900&display=swap" rel="stylesheet">
+  <link rel="stylesheet" href="style.css">
+</head>
+<body>
+<div id="app">
+
+  <!-- HEADER -->
+  <header id="farm-header">
+    <div class="header-left">
+      <div class="farm-title">🌾 Food Farm</div>
+      <div class="week-label" id="week-label">Loading...</div>
+    </div>
+    <div class="animal-count" id="animal-count">empty farm</div>
+  </header>
+
+  <!-- FARM WORLD -->
+  <div id="farm">
+    <div id="farm-bg"></div>
+    <div id="farm-deco"></div>
+    <div id="farm-animals"></div>
+  </div>
+
+  <!-- BOTTOM PANEL -->
+  <div id="bottom-panel">
+    <div id="log-row">
+      <span class="log-label">This week:</span>
+      <div id="food-log"></div>
+    </div>
+    <div id="add-buttons">
+      <button class="add-btn" data-type="chicken">
+        <span class="add-icon">🐔</span>
+        <span class="add-label">Chicken</span>
+      </button>
+      <button class="add-btn" data-type="pork">
+        <span class="add-icon">🐷</span>
+        <span class="add-label">Pork</span>
+      </button>
+      <button class="add-btn" data-type="beef">
+        <span class="add-icon">🐄</span>
+        <span class="add-label">Beef</span>
+      </button>
+      <button class="add-btn" data-type="rice">
+        <span class="add-icon">🌾</span>
+        <span class="add-label">Rice</span>
+      </button>
+      <button class="add-btn" data-type="veggie">
+        <span class="add-icon">🥦</span>
+        <span class="add-label">Veggie</span>
+      </button>
+      <button class="add-btn" data-type="fish">
+        <span class="add-icon">🐟</span>
+        <span class="add-label">Fish</span>
+      </button>
+    </div>
+  </div>
+
+</div>
+
+<!-- SVG SPRITE LIBRARY -->
+<svg id="sprites" xmlns="http://www.w3.org/2000/svg" style="display:none">
+  <defs>
+
+    <!-- ── CHICKEN ── -->
+    <symbol id="spr-chicken" viewBox="0 0 48 48">
+      <!-- Tail feathers -->
+      <ellipse cx="7" cy="32" rx="5" ry="8" fill="#c07810" transform="rotate(-40 7 32)"/>
+      <ellipse cx="5" cy="27" rx="4" ry="7" fill="#d88a18" transform="rotate(-60 5 27)"/>
+      <ellipse cx="9" cy="35" rx="4" ry="6" fill="#d88a18" transform="rotate(-20 9 35)"/>
+      <!-- Body -->
+      <ellipse cx="22" cy="31" rx="14" ry="11" fill="#f5c228"/>
+      <!-- Wing -->
+      <ellipse cx="16" cy="29" rx="9" ry="6" fill="#dda01a" transform="rotate(-12 16 29)"/>
+      <!-- Neck -->
+      <ellipse cx="31" cy="22" rx="5" ry="7" fill="#f8d440"/>
+      <!-- Head -->
+      <circle cx="35" cy="14" r="9" fill="#f8d440"/>
+      <!-- Comb -->
+      <circle cx="30" cy="7"  r="3"   fill="#cc1818"/>
+      <circle cx="34" cy="5"  r="3.5" fill="#e02020"/>
+      <circle cx="38" cy="7"  r="2.5" fill="#cc1818"/>
+      <!-- Wattle -->
+      <ellipse cx="40" cy="20" rx="2.5" ry="3" fill="#cc1818"/>
+      <!-- Beak -->
+      <path d="M42 13 L48 15.5 L42 18Z" fill="#e07510"/>
+      <!-- Eye -->
+      <circle cx="38" cy="12" r="3"   fill="#1a0a04"/>
+      <circle cx="39" cy="11" r="1.2" fill="white"/>
+      <!-- Legs -->
+      <line x1="20" y1="41" x2="18" y2="47" stroke="#e07510" stroke-width="2.5" stroke-linecap="round"/>
+      <line x1="26" y1="41" x2="24" y2="47" stroke="#e07510" stroke-width="2.5" stroke-linecap="round"/>
+      <!-- Feet -->
+      <line x1="14" y1="47" x2="22" y2="47" stroke="#e07510" stroke-width="2"   stroke-linecap="round"/>
+      <line x1="18" y1="43" x2="16" y2="48" stroke="#e07510" stroke-width="2"   stroke-linecap="round"/>
+      <line x1="20" y1="48" x2="25" y2="46" stroke="#e07510" stroke-width="2"   stroke-linecap="round"/>
+    </symbol>
+
+    <!-- ── PIG ── -->
+    <symbol id="spr-pork" viewBox="0 0 48 48">
+      <!-- Tail -->
+      <path d="M7 26 Q1 22 3 17 Q5 12 9 17" stroke="#e080a0" stroke-width="2.5" fill="none" stroke-linecap="round"/>
+      <!-- Body -->
+      <ellipse cx="22" cy="30" rx="16" ry="12" fill="#f5a8b8"/>
+      <!-- Head -->
+      <circle cx="35" cy="22" r="11" fill="#f5b0c0"/>
+      <!-- Ears -->
+      <ellipse cx="27" cy="13" rx="5"   ry="6"   fill="#f080a0" transform="rotate(-15 27 13)"/>
+      <ellipse cx="38" cy="12" rx="4"   ry="6"   fill="#f080a0" transform="rotate(15 38 12)"/>
+      <ellipse cx="27" cy="13" rx="2.5" ry="3.5" fill="#c85878" transform="rotate(-15 27 13)"/>
+      <ellipse cx="38" cy="12" rx="2"   ry="3.5" fill="#c85878" transform="rotate(15 38 12)"/>
+      <!-- Snout -->
+      <ellipse cx="41" cy="26" rx="6.5" ry="5.5" fill="#f090a8"/>
+      <circle  cx="39" cy="26" r="1.8" fill="#b84868"/>
+      <circle  cx="43" cy="26" r="1.8" fill="#b84868"/>
+      <!-- Eye -->
+      <circle cx="31" cy="19" r="3"   fill="#1a0a04"/>
+      <circle cx="32" cy="18" r="1.2" fill="white"/>
+      <!-- Legs -->
+      <rect x="10" y="38" width="5" height="8" rx="2.5" fill="#e898a8"/>
+      <rect x="17" y="38" width="5" height="8" rx="2.5" fill="#e898a8"/>
+      <rect x="24" y="38" width="5" height="8" rx="2.5" fill="#e898a8"/>
+      <rect x="31" y="38" width="5" height="8" rx="2.5" fill="#e898a8"/>
+    </symbol>
+
+    <!-- ── COW ── -->
+    <symbol id="spr-beef" viewBox="0 0 56 48">
+      <!-- Tail -->
+      <path d="M7 24 Q1 20 3 14 Q5 8 9 13" stroke="#c8c8b8" stroke-width="2" fill="none" stroke-linecap="round"/>
+      <ellipse cx="9" cy="13" rx="3.5" ry="2.5" fill="#b8b8a8"/>
+      <!-- Body -->
+      <ellipse cx="26" cy="30" rx="19" ry="13" fill="#f0efe8"/>
+      <!-- Black spots -->
+      <ellipse cx="20" cy="26" rx="8"   ry="6"   fill="#282828"/>
+      <ellipse cx="32" cy="36" rx="6"   ry="4.5" fill="#282828"/>
+      <ellipse cx="14" cy="35" rx="4"   ry="3"   fill="#282828"/>
+      <!-- Head -->
+      <ellipse cx="40" cy="22" rx="11" ry="10" fill="#f0efe8"/>
+      <!-- Horns -->
+      <path d="M33 14 Q28 6 26 10"  stroke="#c8a858" stroke-width="2.5" fill="none" stroke-linecap="round"/>
+      <path d="M43 13 Q46 5 48 9"   stroke="#c8a858" stroke-width="2.5" fill="none" stroke-linecap="round"/>
+      <!-- Ear -->
+      <ellipse cx="33" cy="16" rx="4.5" ry="3.5" fill="#e8b090" transform="rotate(-20 33 16)"/>
+      <!-- Snout -->
+      <ellipse cx="46" cy="26" rx="7"   ry="6"   fill="#e8b0a0"/>
+      <circle  cx="44" cy="26" r="1.8" fill="#a05060"/>
+      <circle  cx="48" cy="26" r="1.8" fill="#a05060"/>
+      <!-- Eye -->
+      <circle cx="37"  cy="18" r="3.5" fill="#1a0a04"/>
+      <circle cx="38.2" cy="17" r="1.4" fill="white"/>
+      <!-- Udder -->
+      <ellipse cx="22" cy="41" rx="7"   ry="4.5" fill="#f0c0b8"/>
+      <circle  cx="19" cy="44.5" r="1.8" fill="#d89088"/>
+      <circle  cx="24" cy="45"   r="1.8" fill="#d89088"/>
+      <!-- Legs -->
+      <rect x="13" y="40" width="5" height="7" rx="2" fill="#c8c8b0"/>
+      <rect x="20" y="40" width="5" height="7" rx="2" fill="#c8c8b0"/>
+      <rect x="27" y="40" width="5" height="7" rx="2" fill="#c8c8b0"/>
+      <rect x="34" y="40" width="5" height="7" rx="2" fill="#c8c8b0"/>
+    </symbol>
+
+    <!-- ── FISH ── -->
+    <symbol id="spr-fish" viewBox="0 0 52 36">
+      <!-- Tail fin -->
+      <path d="M10 4 L10 32 L2 18Z" fill="#3870d8"/>
+      <!-- Body -->
+      <ellipse cx="30" cy="18" rx="20" ry="12" fill="#4888f0"/>
+      <!-- Belly highlight -->
+      <ellipse cx="32" cy="21" rx="15" ry="8" fill="#80b8ff" opacity="0.6"/>
+      <!-- Dorsal fin -->
+      <path d="M22 6 L34 6 L30 12Z"  fill="#3060c8"/>
+      <!-- Ventral fin -->
+      <path d="M22 30 L34 30 L28 24Z" fill="#3060c8"/>
+      <!-- Scale arcs -->
+      <path d="M30 12 Q36 10 40 16" stroke="#5080e8" stroke-width="1.2" fill="none" stroke-linecap="round"/>
+      <path d="M24 12 Q30 10 34 16" stroke="#5080e8" stroke-width="1.2" fill="none" stroke-linecap="round"/>
+      <path d="M30 22 Q36 24 40 20" stroke="#5080e8" stroke-width="1.2" fill="none" stroke-linecap="round"/>
+      <!-- Eye -->
+      <circle cx="42" cy="15" r="4"   fill="white"/>
+      <circle cx="43" cy="15" r="2.5" fill="#1a1a2a"/>
+      <circle cx="44" cy="14" r="1"   fill="white"/>
+      <!-- Mouth -->
+      <path d="M48 17 Q50 19 48 21" stroke="#2858b0" stroke-width="1.5" fill="none" stroke-linecap="round"/>
+    </symbol>
+
+    <!-- ── RICE ── -->
+    <symbol id="spr-rice" viewBox="0 0 40 48">
+      <!-- Stem -->
+      <line x1="20" y1="48" x2="20" y2="14" stroke="#5a8838" stroke-width="3" stroke-linecap="round"/>
+      <!-- Leaves -->
+      <path d="M20 36 Q32 28 34 18" stroke="#6a9e3a" stroke-width="2.5" fill="none" stroke-linecap="round"/>
+      <path d="M20 38 Q8 30 6 20"   stroke="#6a9e3a" stroke-width="2.5" fill="none" stroke-linecap="round"/>
+      <!-- Grain stalks -->
+      <line x1="20" y1="18" x2="28" y2="26" stroke="#7aaa3a" stroke-width="2" stroke-linecap="round"/>
+      <line x1="20" y1="20" x2="26" y2="30" stroke="#7aaa3a" stroke-width="2" stroke-linecap="round"/>
+      <line x1="20" y1="22" x2="23" y2="32" stroke="#7aaa3a" stroke-width="2" stroke-linecap="round"/>
+      <line x1="20" y1="18" x2="12" y2="26" stroke="#7aaa3a" stroke-width="2" stroke-linecap="round"/>
+      <line x1="20" y1="20" x2="14" y2="30" stroke="#7aaa3a" stroke-width="2" stroke-linecap="round"/>
+      <line x1="20" y1="22" x2="17" y2="32" stroke="#7aaa3a" stroke-width="2" stroke-linecap="round"/>
+      <!-- Rice grains -->
+      <ellipse cx="28" cy="27" rx="3"   ry="4.5" fill="#e8c838" transform="rotate(25 28 27)"/>
+      <ellipse cx="26" cy="31" rx="3"   ry="4.5" fill="#d8b828" transform="rotate(15 26 31)"/>
+      <ellipse cx="23" cy="33" rx="3"   ry="4.5" fill="#e8c838" transform="rotate(5 23 33)"/>
+      <ellipse cx="20" cy="14" rx="3"   ry="4.5" fill="#e8c838"/>
+      <ellipse cx="12" cy="27" rx="3"   ry="4.5" fill="#e8c838" transform="rotate(-25 12 27)"/>
+      <ellipse cx="14" cy="31" rx="3"   ry="4.5" fill="#d8b828" transform="rotate(-15 14 31)"/>
+      <ellipse cx="17" cy="33" rx="3"   ry="4.5" fill="#e8c838" transform="rotate(-5 17 33)"/>
+    </symbol>
+
+    <!-- ── VEGGIE (Carrot) ── -->
+    <symbol id="spr-veggie" viewBox="0 0 36 48">
+      <!-- Ground dirt -->
+      <rect x="8" y="18" width="20" height="5" rx="2.5" fill="#a07040" opacity="0.55"/>
+      <!-- Carrot body -->
+      <path d="M13 18 L23 18 L20 46 L18 48 L16 46Z" fill="#f07218"/>
+      <!-- Shading lines -->
+      <line x1="16" y1="22" x2="15" y2="42" stroke="#d05a10" stroke-width="1.5" stroke-linecap="round" opacity="0.55"/>
+      <line x1="20" y1="22" x2="21" y2="42" stroke="#d05a10" stroke-width="1.5" stroke-linecap="round" opacity="0.55"/>
+      <!-- Leaves -->
+      <path d="M18 18 Q10 8 8 0"   stroke="#2a8820" stroke-width="3" fill="none" stroke-linecap="round"/>
+      <path d="M18 18 Q18 6 18 0"  stroke="#2a8820" stroke-width="3" fill="none" stroke-linecap="round"/>
+      <path d="M18 18 Q26 8 28 0"  stroke="#2a8820" stroke-width="3" fill="none" stroke-linecap="round"/>
+      <path d="M18 18 Q12 10 14 4" stroke="#50a040" stroke-width="2" fill="none" stroke-linecap="round"/>
+      <path d="M18 18 Q24 10 22 4" stroke="#50a040" stroke-width="2" fill="none" stroke-linecap="round"/>
+    </symbol>
+
+  </defs>
+</svg>
+
+<script src="app.js"></script>
+</body>
+</html>
