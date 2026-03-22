@@ -120,6 +120,52 @@
       <span class="material-symbols-outlined">arrow_upward</span>
     </button>
 
+    <!-- NOTES APP -->
+    <div id="notesApp" class="notes-app" hidden>
+      <!-- List View -->
+      <div class="notes-list-view" id="notesListView">
+        <div class="notes-app-bar">
+          <button class="notes-app-close" id="notesAppClose">
+            <span class="material-symbols-outlined">arrow_back_ios_new</span>
+          </button>
+          <div class="notes-app-bar-title">Notes</div>
+          <button class="notes-app-new" id="notesNewBtn" title="New note">
+            <span class="material-symbols-outlined">edit_square</span>
+          </button>
+        </div>
+        <div class="notes-search-bar">
+          <span class="material-symbols-outlined">search</span>
+          <input type="search" id="notesSearch" placeholder="Search notes…" autocomplete="off">
+        </div>
+        <div class="notes-list-scroll">
+          <div id="notesList" class="notes-list"></div>
+          <p id="notesEmptyState" class="notes-empty" hidden>No notes yet. Tap + to write your first note, or start adding notes to Bible passages.</p>
+        </div>
+        <div id="notesCount" class="notes-list-count"></div>
+      </div>
+
+      <!-- Detail / Editor View -->
+      <div class="notes-detail-view" id="notesDetailView" hidden>
+        <div class="notes-detail-bar">
+          <button class="notes-detail-back" id="notesDetailBack">
+            <span class="material-symbols-outlined">arrow_back_ios_new</span>
+            <span>Notes</span>
+          </button>
+          <div class="notes-detail-bar-actions">
+            <button class="notes-detail-action-btn" id="notesDetailShare" title="Copy to clipboard">
+              <span class="material-symbols-outlined">ios_share</span>
+            </button>
+            <button class="notes-detail-action-btn notes-delete-btn" id="notesDetailDelete" title="Delete note">
+              <span class="material-symbols-outlined">delete</span>
+            </button>
+          </div>
+        </div>
+        <div class="notes-detail-scroll" id="notesDetailScroll">
+          <div id="notesDetailContent" class="notes-detail-content"></div>
+        </div>
+      </div>
+    </div>
+
     <div id="modalOverlay" class="modal-overlay" hidden>
       <div class="modal-card">
         <button id="modalClose" class="modal-close">✕</button>
@@ -154,10 +200,14 @@
         <div class="tts-imm-header-info">
           <div class="tts-imm-label">NOW PLAYING</div>
           <div class="tts-imm-title" id="ttsImmTitle"></div>
+          <div class="tts-imm-range" id="ttsImmRange"></div>
         </div>
-        <button class="tts-imm-close-btn" id="ttsImmCloseBtn">
-          <span class="material-symbols-outlined">keyboard_arrow_down</span>
-        </button>
+        <div class="tts-imm-bar-actions">
+          <button id="ttsImmReflectBtn" class="tts-imm-reflect-btn" hidden>🙏</button>
+          <button class="tts-imm-close-btn" id="ttsImmCloseBtn">
+            <span class="material-symbols-outlined">keyboard_arrow_down</span>
+          </button>
+        </div>
       </div>
 
       <!-- Verse stage -->
@@ -167,7 +217,13 @@
           <p class="tts-imm-slot-text" id="ttsImmPrevText"></p>
         </div>
         <div class="tts-imm-slot tts-imm-slot-cur" id="ttsImmSlotCur">
-          <span class="tts-imm-slot-num" id="ttsImmCurNum"></span>
+          <div class="tts-imm-slot-header">
+            <span class="tts-imm-slot-num" id="ttsImmCurNum"></span>
+            <div class="tts-imm-fav-badge" id="ttsImmFavBadge">
+              <span class="material-icons">favorite</span>
+              <span>Liked</span>
+            </div>
+          </div>
           <p class="tts-imm-slot-text" id="ttsImmCurText"></p>
           <div class="tts-imm-heart" id="ttsImmHeart">
             <span class="material-icons">favorite</span>
@@ -177,6 +233,16 @@
           <span class="tts-imm-slot-num" id="ttsImmNextNum"></span>
           <p class="tts-imm-slot-text" id="ttsImmNextText"></p>
         </div>
+      </div>
+
+      <!-- Pause quick-actions panel (in flex flow, above footer) -->
+      <div id="ttsImmPausePanel" class="tts-imm-pause-panel" hidden>
+        <div class="tts-imm-pause-actions">
+          <button class="tts-imm-pause-action-btn" id="ttsImmPauseNote">📝<span>Note</span></button>
+          <button class="tts-imm-pause-action-btn" id="ttsImmPauseContext">✨<span>Context</span></button>
+          <button class="tts-imm-pause-action-btn" id="ttsImmPauseAsk">💬<span>Ask</span></button>
+        </div>
+        <div class="tts-imm-pause-content" id="ttsImmPauseContent"></div>
       </div>
 
       <!-- Footer: load bar + scrubber + controls -->
@@ -199,12 +265,17 @@
           </button>
         </div>
         <div class="tts-imm-hint" id="ttsImmStatusEl"></div>
-        <button id="ttsImmReflectBtn" class="tts-imm-reflect-btn" hidden>
-          🙏 Guided Reflection
-        </button>
         <div id="ttsImmAutoReflBar" class="tts-imm-auto-refl-bar" hidden>
           <div class="tts-imm-auto-refl-fill" id="ttsImmAutoReflFill"></div>
         </div>
+      </div>
+
+      <!-- Context intro panel (shown before TTS starts) -->
+      <div id="ttsImmContextPanel" class="tts-imm-context-panel" hidden>
+        <div class="tts-imm-context-scroll">
+          <div id="ttsImmContextContent"></div>
+        </div>
+        <button id="ttsImmContextStart" class="tts-imm-context-start-btn">Start Reading →</button>
       </div>
 
       <!-- Verse reference popup -->

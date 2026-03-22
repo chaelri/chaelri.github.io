@@ -491,6 +491,11 @@ let ttsIdx = -1;
 let ttsAudio = null;
 let ttsPaused = false;
 
+// ── AI loading state ──
+let _contextLoading = false;
+let _reflectionLoading = false;
+let _ttsFinished = false;
+
 // ── Immersive mode state (declared here so stopTTS can reference before the immersive block) ──
 let _immDoubleTapCount = 0;
 let _immDoubleTapTimer = null;
@@ -515,25 +520,34 @@ async function playChapter() {
 
   ttsGen++;
   const gen = ttsGen;
+  _ttsFinished = false;
 
   const pauseBtn = document.getElementById("ttsPauseBtn");
   if (pauseBtn) pauseBtn.innerHTML = '<span class="material-symbols-outlined">pause</span>';
 
   ttsQueue = ttsBuildQueue();
+
+  // Prepend chapter title to first verse's SPOKEN text only (display text stays clean)
+  const _ttsBookName = BIBLE_META[bookEl?.value]?.name || "";
+  const _ttsCh = chapterEl?.value || "";
+  if (_ttsBookName && _ttsCh && ttsQueue.length > 0) {
+    ttsQueue[0].ttsText = `${_ttsBookName} ${_ttsCh}. ${ttsQueue[0].text}`;
+  }
+
   ttsIdx = -1;
   if (!ttsQueue.length) return;
 
   const playBtn = document.getElementById("ttsPlayBtn");
   if (playBtn) playBtn.disabled = true;
-  ttsShowPlayer("Starting\u2026");
   document.getElementById("output")?.classList.add("tts-mode");
 
   _ttsReadyCount = 0;
   const bar = document.getElementById("ttsProgressBar");
   if (bar) bar.style.width = "0%";
 
+  // Start all synthesis in background
   for (const item of ttsQueue) {
-    item.ready = ttsSynthesize(item.text).then(
+    item.ready = ttsSynthesize(item.ttsText || item.text).then(
       ({ url, timepoints, words }) => {
         item.url = url;
         item.timepoints = timepoints;
@@ -552,7 +566,18 @@ async function playChapter() {
     );
   }
 
-  await ttsPlayAt(0, gen);
+  // Set verse range indicator in immersive top bar
+  const rangeEl = document.getElementById("ttsImmRange");
+  if (rangeEl && ttsQueue.length > 0) {
+    const first = ttsQueue[0].verseNum;
+    const last  = ttsQueue[ttsQueue.length - 1].verseNum;
+    rangeEl.textContent = ttsQueue.length === 1
+      ? `Verse ${first}`
+      : `Verses ${first}–${last}`;
+  }
+
+  // Show context intro screen — user taps "Start Reading" to begin playback
+  ttsImmContextOpen(gen);
 }
 
 async function ttsPlayAt(index, gen) {
@@ -561,6 +586,10 @@ async function ttsPlayAt(index, gen) {
     if (gen === ttsGen) ttsFinish();
     return;
   }
+
+  // Hide pause panel when verse changes
+  const _pp = document.getElementById("ttsImmPausePanel");
+  if (_pp) _pp.hidden = true;
 
   ttsIdx = index;
   const item = ttsQueue[index];
@@ -650,19 +679,72 @@ function pauseResumeTTS() {
   if (!ttsAudio) return;
   const btn = document.getElementById("ttsPauseBtn");
   const immBtn = document.getElementById("ttsImmPauseBtn");
+  const pausePanel = document.getElementById("ttsImmPausePanel");
   if (ttsPaused) {
     ttsAudio.play(); ttsPaused = false;
     if (btn) btn.innerHTML = '<span class="material-symbols-outlined">pause</span>';
     if (immBtn) immBtn.innerHTML = '<span class="material-symbols-outlined">pause</span>';
     ttsSetStatus(`${ttsIcon("graphic_eq")} ${ttsQueue[ttsIdx]?.verseNum} / ${ttsQueue.length}`);
     _startWordHighlight(ttsAudio, _ttsActiveWordItem);
+    if (pausePanel) pausePanel.hidden = true;
   } else {
     ttsAudio.pause(); ttsPaused = true;
     _stopWordHighlight();
     if (btn) btn.innerHTML = '<span class="material-symbols-outlined">play_arrow</span>';
     if (immBtn) immBtn.innerHTML = '<span class="material-symbols-outlined">play_arrow</span>';
     ttsSetStatus(`${ttsIcon("pause")} Verse ${ttsQueue[ttsIdx]?.verseNum}`);
+    _ttsImmShowPausePanel();
   }
+}
+
+function _ttsImmShowPausePanel() {
+  const panel = document.getElementById("ttsImmPausePanel");
+  const content = document.getElementById("ttsImmPauseContent");
+  if (!panel || !content) return;
+
+  const item = ttsQueue[ttsIdx];
+  if (!item) return;
+
+  const bookKey = bookEl.value;
+  const ch = chapterEl.value;
+  const verseNum = item.verseNum;
+  const key = keyOf(bookKey, ch, verseNum);
+  const bookName = BIBLE_META[bookKey]?.name || "";
+  const verseText = item.text;
+
+  content.innerHTML = "";
+  panel.hidden = false;
+
+  const noteBtn = document.getElementById("ttsImmPauseNote");
+  const ctxBtn = document.getElementById("ttsImmPauseContext");
+  const askBtn = document.getElementById("ttsImmPauseAsk");
+
+  [noteBtn, ctxBtn, askBtn].forEach(b => b?.classList.remove("active"));
+
+  const toggleAction = (btn, renderFn) => {
+    const wasActive = btn.classList.contains("active");
+    [noteBtn, ctxBtn, askBtn].forEach(b => b?.classList.remove("active"));
+    content.innerHTML = "";
+    if (!wasActive) {
+      btn.classList.add("active");
+      renderFn();
+    }
+  };
+
+  if (noteBtn) noteBtn.onclick = () => toggleAction(noteBtn, () => {
+    const notesDiv = document.createElement("div");
+    notesDiv.className = "tts-imm-pause-notes";
+    content.appendChild(notesDiv);
+    renderComments(key, notesDiv);
+  });
+
+  if (ctxBtn) ctxBtn.onclick = () => toggleAction(ctxBtn, () => {
+    fetchInlineQuickContext({ book: bookName, chapter: ch, verse: verseNum, text: verseText }, content);
+  });
+
+  if (askBtn) askBtn.onclick = () => toggleAction(askBtn, () => {
+    toggleVerseChat(key, bookName, ch, verseNum, verseText, content);
+  });
 }
 
 function ttsPrevVerse() {
@@ -687,6 +769,7 @@ function _ttsCleanupMode() {
 }
 
 function stopTTS() {
+  _ttsFinished = false;
   ttsGen++;
   _synthReset();
   _ttsCleanupMode();
@@ -705,6 +788,7 @@ function stopTTS() {
 }
 
 function ttsFinish() {
+  _ttsFinished = true;
   _ttsCleanupMode();
   if (ttsAudio) { ttsAudio.pause(); ttsAudio = null; }
   ttsPaused = false;
@@ -723,31 +807,94 @@ function ttsShowContinuePrompt() {
   let ch = parseInt(chapterEl.value);
   const totalCh = BIBLE_META[bookEl.value].chapters.length;
 
-  let nextBook, nextCh;
+  let nextBook, nextCh, nextName;
   if (ch < totalCh) {
-    nextBook = bookEl.value;
-    nextCh = ch + 1;
+    nextBook = bookEl.value; nextCh = ch + 1;
   } else if (bookIdx < bookKeys.length - 1) {
-    nextBook = bookKeys[bookIdx + 1];
-    nextCh = 1;
+    nextBook = bookKeys[bookIdx + 1]; nextCh = 1;
   } else {
-    stopTTS(); // end of Bible
-    return;
+    stopTTS(); return; // end of Bible
+  }
+  nextName = `${BIBLE_META[nextBook].name} ${nextCh}`;
+
+  _immCancelAutoRefl();
+
+  // Update stage to show "complete" state
+  const immCurNum  = document.getElementById("ttsImmCurNum");
+  const immCurText = document.getElementById("ttsImmCurText");
+  if (immCurNum)  immCurNum.textContent  = "";
+  if (immCurText) immCurText.textContent = "Chapter complete ✓";
+  const immPrevNum  = document.getElementById("ttsImmPrevNum");
+  const immPrevText = document.getElementById("ttsImmPrevText");
+  if (immPrevNum)  immPrevNum.textContent  = "";
+  if (immPrevText) immPrevText.textContent = "";
+  const immNextNum  = document.getElementById("ttsImmNextNum");
+  const immNextText = document.getElementById("ttsImmNextText");
+  if (immNextNum)  immNextNum.textContent  = "";
+  if (immNextText) immNextText.textContent = "";
+
+  // Disable pause/next — chapter is done. Keep prev enabled so user can replay any verse.
+  const immPauseBtn = document.getElementById("ttsImmPauseBtn");
+  if (immPauseBtn) { immPauseBtn.innerHTML = '<span class="material-symbols-outlined">pause</span>'; immPauseBtn.disabled = true; }
+  const immNextBtn = document.getElementById("ttsImmNextBtn");
+  if (immNextBtn) immNextBtn.disabled = true;
+  const immPrevBtn = document.getElementById("ttsImmPrevBtn");
+  if (immPrevBtn) {
+    immPrevBtn.disabled = false;
+    immPrevBtn.onclick = () => {
+      // Clear end state and resume normal navigation
+      panel.hidden = true;
+      const pauseActionsRow = document.querySelector(".tts-imm-pause-actions");
+      if (pauseActionsRow) pauseActionsRow.hidden = false;
+      if (immPauseBtn) immPauseBtn.disabled = false;
+      if (immNextBtn) immNextBtn.disabled = false;
+      _ttsFinished = false;
+      immPrevBtn.onclick = ttsPrevVerse;
+      ttsPrevVerse();
+    };
   }
 
-  const nextName = `${BIBLE_META[nextBook].name} ${nextCh}`;
+  // Keep reflect btn hidden — surfaced in the panel below
+  const reflectBtn = document.getElementById("ttsImmReflectBtn");
+  if (reflectBtn) reflectBtn.hidden = true;
 
-  const passageEl = document.getElementById("ttsPassage");
-  if (passageEl) passageEl.textContent = nextName;
-  ttsSetStatus("Continue?");
+  // Show choice panel
+  const panel = document.getElementById("ttsImmPausePanel");
+  const content = document.getElementById("ttsImmPauseContent");
+  if (!panel || !content) return;
+
+  const reflReady = !_reflectionLoading && document.querySelectorAll('#aiReflection textarea[id^="reflection-"]').length > 0;
+
+  content.innerHTML = `
+    <div class="tts-imm-end-choices">
+      <button class="tts-imm-end-btn tts-imm-end-continue" id="ttsEndContinueBtn">
+        <span class="material-symbols-outlined">play_arrow</span>
+        <div><strong>${nextName}</strong><span>Continue reading</span></div>
+      </button>
+      ${reflReady ? `<button class="tts-imm-end-btn tts-imm-end-reflect" id="ttsEndReflectBtn">
+        <span>🙏</span>
+        <div><strong>Guided Reflection</strong><span>Reflect on this chapter</span></div>
+      </button>` : ''}
+    </div>
+  `;
+
+  // Disable the action row buttons since this isn't a "paused" state
+  const noteBtn = document.getElementById("ttsImmPauseNote");
+  const ctxBtn  = document.getElementById("ttsImmPauseContext");
+  const askBtn  = document.getElementById("ttsImmPauseAsk");
+  const pauseActionsRow = document.querySelector(".tts-imm-pause-actions");
+  if (pauseActionsRow) pauseActionsRow.hidden = true;
+
+  panel.hidden = false;
 
   const continueHandler = async () => {
-    // Remove pulse from play button
-    document.getElementById("ttsImmPauseBtn")?.classList.remove("tts-imm-btn-pulse");
-    if (nextBook !== bookEl.value) {
-      bookEl.value = nextBook;
-      loadChapters();
-    }
+    panel.hidden = true;
+    const pauseActionsRow = document.querySelector(".tts-imm-pause-actions");
+    if (pauseActionsRow) pauseActionsRow.hidden = false;
+    if (immPauseBtn) immPauseBtn.disabled = false;
+    if (immPrevBtn) immPrevBtn.disabled = false;
+    if (immNextBtn) immNextBtn.disabled = false;
+    if (nextBook !== bookEl.value) { bookEl.value = nextBook; loadChapters(); }
     chapterEl.value = nextCh;
     verseEl.value = "";
     document.getElementById("output").innerHTML = "";
@@ -761,62 +908,10 @@ function ttsShowContinuePrompt() {
     playChapter();
   };
 
-  const pauseBtn = document.getElementById("ttsPauseBtn");
-  if (pauseBtn) {
-    pauseBtn.innerHTML = ttsIcon("play_circle");
-    pauseBtn.onclick = continueHandler;
-  }
-  // Update immersive: keep current title, show "Up Next" in the stage
-  const immStatus = document.getElementById("ttsImmStatusEl");
-  if (immStatus) immStatus.textContent = `Up next: ${nextName}`;
-
-  const immCurNum  = document.getElementById("ttsImmCurNum");
-  const immCurText = document.getElementById("ttsImmCurText");
-  if (immCurNum)  immCurNum.textContent  = "Done";
-  if (immCurText) immCurText.textContent = "Chapter complete.";
-
-  const immNextNum  = document.getElementById("ttsImmNextNum");
-  const immNextText = document.getElementById("ttsImmNextText");
-  if (immNextNum)  immNextNum.textContent  = "Up Next";
-  if (immNextText) immNextText.textContent = nextName;
-
-  const immPrevNum  = document.getElementById("ttsImmPrevNum");
-  const immPrevText = document.getElementById("ttsImmPrevText");
-  if (immPrevNum)  immPrevNum.textContent  = "";
-  if (immPrevText) immPrevText.textContent = "";
-
-  const immPauseBtn = document.getElementById("ttsImmPauseBtn");
-  if (immPauseBtn) {
-    immPauseBtn.innerHTML = '<span class="material-symbols-outlined">play_arrow</span>';
-    immPauseBtn.classList.add("tts-imm-btn-pulse");
-    immPauseBtn.onclick = continueHandler;
-  }
-
-  const reflectBtn = document.getElementById("ttsImmReflectBtn");
-  if (reflectBtn) {
-    reflectBtn.hidden = false;
-    reflectBtn.onclick = () => { _immCancelAutoRefl(); ttsImmReflectionOpen(); };
-  }
-
-  // Auto-advance to reflection after 3s
-  _immCancelAutoRefl();
-  const autoReflBar = document.getElementById("ttsImmAutoReflBar");
-  const autoReflFill = document.getElementById("ttsImmAutoReflFill");
-  if (autoReflBar && autoReflFill) {
-    autoReflBar.hidden = false;
-    autoReflFill.style.transition = "none";
-    autoReflFill.style.width = "100%";
-    requestAnimationFrame(() => requestAnimationFrame(() => {
-      autoReflFill.style.transition = "width 3s linear";
-      autoReflFill.style.width = "0%";
-    }));
-  }
-  _immAutoReflTimer = setTimeout(() => {
-    _immAutoReflTimer = null;
-    _immHideAutoReflBar();
-    const ready = document.querySelectorAll('#aiReflection textarea[id^="reflection-"]').length > 0;
-    if (ready) ttsImmReflectionOpen();
-  }, 3000);
+  document.getElementById("ttsEndContinueBtn")?.addEventListener("click", continueHandler);
+  document.getElementById("ttsEndReflectBtn")?.addEventListener("click", () => {
+    ttsImmReflectionOpen();
+  });
 }
 
 function _immCancelAutoRefl() {
@@ -982,9 +1077,11 @@ async function toggleVerseChat(key, book, chapter, verse, text, mountEl) {
     return;
   }
 
+  const hasHistory = verseChatHistories[key]?.length > 0;
+
   mountEl.innerHTML = `
     <div class="verse-chat-wrapper ai-fade-in">
-      <div class="chat-history" id="chat-hist-${key}"></div>
+      <div class="chat-history${hasHistory ? "" : " hidden"}" id="chat-hist-${key}"></div>
       <div class="chat-input-area">
         <textarea placeholder="Ask something about this verse..." id="chat-input-${key}"></textarea>
         <button id="chat-send-${key}"><span class="material-icons">send</span></button>
@@ -997,7 +1094,7 @@ async function toggleVerseChat(key, book, chapter, verse, text, mountEl) {
   const histEl = document.getElementById(`chat-hist-${key}`);
 
   // Render existing history if any
-  renderChatHistory(key, histEl);
+  if (hasHistory) renderChatHistory(key, histEl);
 
   const performSend = async () => {
     const question = input.value.trim();
@@ -1009,6 +1106,7 @@ async function toggleVerseChat(key, book, chapter, verse, text, mountEl) {
     // Add User Message
     verseChatHistories[key].push({ role: "user", text: question });
     input.value = "";
+    histEl.classList.remove("hidden");
     renderChatHistory(key, histEl);
 
     // Show loading
@@ -1509,7 +1607,7 @@ async function renderDashboard() {
   }
   @media (min-width: 768px) {
   .dashboard-grid {
-  grid-template-columns: 1fr 1fr 1fr;
+  grid-template-columns: 1fr 2fr;
   }
   }
   </style>
@@ -1564,84 +1662,28 @@ async function renderDashboard() {
         }
       </section>
 
-      <!-- RECENT NOTES -->
-      <section class="dashboard-section">
-        <h3><span class="material-icons dashboard-icon">edit_note</span> Recent Notes</h3>
-        ${
-          recentNotes.length
-            ? `<div class="dashboard-list">
-            ${recentNotes
-              .slice(0, 5)
-              .map(
-                (item) => `
-              <div class="dashboard-item dashboard-item-notes" onclick="loadPassageById('${item.key}')">
-                <div class="note-header">
-                  <span class="dashboard-ref">${formatKey(item.key)}</span>
-                  <time>${new Date(item.latestNoteTime).toLocaleDateString()}</time>
-                </div>
-                <p class="dashboard-verse-text">"${item.verseText}"</p>
-                <div class="note-preview-wrapper">
-                    <p class="dashboard-preview">${item.noteText}</p>
-                </div>
+      <!-- NOTES -->
+      <section class="dashboard-section" style="grid-column: span 2">
+        <h3 style="display:flex; justify-content:space-between; align-items:center; margin-bottom:12px;">
+          <span><span class="material-icons dashboard-icon">edit_note</span> Notes</span>
+          <button class="dash-notes-open-btn" onclick="openNotesApp()">View all →</button>
+        </h3>
+        ${(() => {
+          const allNotes = _getAllNotes().slice(0, 4);
+          if (!allNotes.length) return `<p class="empty-state">No notes yet. Add notes to Bible verses, complete a Guided Reflection, or tap "View all" to write your first note.</p>`;
+          const tagInfo = { verse: ["📖", "Verse Note"], reflection: ["🙏", "Reflection"], standalone: ["📝", "Note"] };
+          return `<div>${allNotes.map(note => {
+            const date = note.time ? new Date(note.time).toLocaleDateString("en-US", { month: "short", day: "numeric" }) : "";
+            const [icon, label] = tagInfo[note.type] || ["📝", "Note"];
+            return `<div class="dash-notes-card" onclick="openNotesApp()">
+              <div class="dash-notes-card-top">
+                <div class="dash-notes-card-title">${icon} ${note.title}</div>
+                <div class="dash-notes-card-date">${date}</div>
               </div>
-            `,
-              )
-              .join("")}
-          </div>`
-            : `<p class="empty-state">No notes saved recently.</p>`
-        }
-      </section>
-
-      <!-- RECENT REFLECTIONS -->
-      <section class="dashboard-section">
-        <h3><span class="material-icons dashboard-icon">psychology_alt</span> Recent Reflections</h3>
-        ${
-          recentReflections.slice(0, 5).length
-            ? `<div class="dashboard-list">
-            ${recentReflections
-              .slice(0, 5)
-              .map(
-                (entry) => `
-              <div class="dashboard-item" onclick="loadPassageById('${entry.id}')">
-                <span class="dashboard-ref">${formatKey(entry.id)}</span>
-                <div class="reflection-qas">
-                    ${entry.QAs.map((qa) => {
-                      // Q&A text stored as "Q: [Question]\nA: [Answer]"
-                      const parts = qa.split("\nA: ");
-                      const question = parts[0].replace("Q: ", "").trim();
-                      const answer = parts[1]?.trim() || "No answer recorded.";
-
-                      return `
-                            <div class="qa-pair" style="margin-top: 10px; padding: 8px 0; border-top: 1px solid rgba(255, 255, 255, 0.05);">
-                                <p style="font-size: 14px; font-weight: 600; margin: 0 0 4px; color: white;">Q: ${question}</p>
-                                <div style="font-size: 16px;
-                                          margin: 0;
-                                          opacity: 0.8;
-                                          padding: 1rem;
-                                          width: fit-content;
-                                          border-radius: 12px;
-                                          margin-top: 1rem;
-                                          background: #00000063;
-                                          box-shadow: 0 4px 12px rgba(0, 0, 0, 0.35);">
-                                          <div style="text-transform: uppercase;
-                                                      opacity: 0.3;
-                                                      letter-spacing: 5px;
-                                                      font-size: x-small;
-                                                      margin-bottom: 0.5rem;">ANSWER</div>
-                                          <span>${answer}</span>
-                                </div>
-                            </div>
-                        `;
-                    }).join("")}
-                </div>
-                <time>Last noted ${new Date(entry.updatedAt).toLocaleDateString()}</time>
-              </div>
-            `,
-              )
-              .join("")}
-          </div>`
-            : `<p class="empty-state">No reflections saved. Load a passage to use the Guided Reflection feature.</p>`
-        }
+              <div class="dash-notes-card-preview">${note.preview || "Empty note"}</div>
+            </div>`;
+          }).join("")}</div>`;
+        })()}
       </section>
       </div>
       </div>
@@ -1861,25 +1903,17 @@ async function loadPassage() {
         }" class="verse-header" style="display:flex; justify-content:space-between; align-items:flex-start;">
           <div class="verse-content">
             <span class="verse-num">${v.verse}</span>${formattedText}
-            <!-- RENDER meta-indicators ALWAYS for the favorite icon -->
             <span class="verse-meta-indicators" style="display:inline-flex; align-items:center; margin-left:8px; opacity:0.6;">
               <span class="material-icons favorite-indicator" style="font-size:14px; margin-right:4px; ${
                 isFav ? 'color:#c83086;"' : '"'
               } data-key="${key}">${isFav ? "favorite" : "favorite_border"}</span>
-              <span class="material-icons note-indicator" style="font-size:14px; margin-right:4px; cursor:pointer; ${count ? "opacity:1;" : "opacity:0.25;"}" data-key="${key}">edit_note</span>
-              ${
-                count
-                  ? `<span style="font-size:11px; opacity:0.5;">${count}</span>`
-                  : ""
-              }
             </span>
           </div>
-          <div class="verse-actions">
-            <button class="inline-ai-btn" title="Quick verse context">✨</button>
-            <button id="verse-chat-btn" class="inline-ai-btn" title="Chat with this verse">
-              <span class="material-icons" style="font-size:16px;">question_mark</span>
-            </button>
-          </div>
+        </div>
+        <div class="verse-actions">
+          <button class="verse-action-btn" data-action="context">✨ <span>Context</span></button>
+          <button class="verse-action-btn" data-action="ask">💬 <span>Ask</span></button>
+          <button class="verse-action-btn" data-action="note">📝 <span>Note</span></button>
         </div>
         <div class="inline-ai-mount"></div>
         <div class="comments ai-fade-in" hidden></div>
@@ -1888,7 +1922,7 @@ async function loadPassage() {
       // ... keep your existing listener code here ...
       const commentsEl = wrap.querySelector(".comments");
       const headerEl = wrap.querySelector(".verse-header");
-      const aiBtn = wrap.querySelector(".inline-ai-btn");
+      const aiBtn = wrap.querySelector('[data-action="context"]');
 
       // New: Favorite icon listener
       const favIndicator = wrap.querySelector(".favorite-indicator");
@@ -1921,7 +1955,7 @@ async function loadPassage() {
         );
       };
 
-      const chatBtn = wrap.querySelector("#verse-chat-btn");
+      const chatBtn = wrap.querySelector('[data-action="ask"]');
       chatBtn.onclick = (e) => {
         e.stopPropagation();
         const mount = wrap.querySelector(".inline-ai-mount");
@@ -1935,10 +1969,9 @@ async function loadPassage() {
         );
       };
 
-      // Note icon: open comments
-      const noteIndicator = wrap.querySelector(".note-indicator");
-      if (noteIndicator) {
-        noteIndicator.onclick = (e) => {
+      const noteActionBtn = wrap.querySelector('[data-action="note"]');
+      if (noteActionBtn) {
+        noteActionBtn.onclick = (e) => {
           e.stopPropagation();
           commentsEl.hidden = !commentsEl.hidden;
           if (!commentsEl.hidden) renderComments(key, commentsEl);
@@ -1972,6 +2005,11 @@ async function loadPassage() {
 async function runAIForCurrentPassage() {
   if (!window.__aiPayload) return;
 
+  // Set loading flags synchronously before any await so playChapter()/ttsImmContextOpen()
+  // always sees them as true when TTS opens the context screen right after this call.
+  _contextLoading = true;
+  _reflectionLoading = true;
+
   const cached = await loadAIFromStorage();
   if (
     cached &&
@@ -1983,7 +2021,8 @@ async function runAIForCurrentPassage() {
     aiContextSummaryEl.innerHTML = cached.contextHTML;
     document.getElementById("aiReflection").innerHTML = cached.reflectionHTML;
     applyReflectionVisibility();
-
+    _contextLoading = false;
+    _reflectionLoading = false;
     initializeReflections();
     return;
   }
@@ -1998,8 +2037,19 @@ async function runAIForCurrentPassage() {
   }
 
   await Promise.all([
-    renderAIContextSummary(),
-    renderAIReflectionQuestions({ book, chapter, versesText }),
+    renderAIContextSummary().then(() => { _contextLoading = false; }),
+    renderAIReflectionQuestions({ book, chapter, versesText }).then(() => {
+      _reflectionLoading = false;
+      // If TTS already finished while reflection was loading, show the reflect button now
+      if (_ttsFinished) {
+        const reflectBtn = document.getElementById("ttsImmReflectBtn");
+        const ready = document.querySelectorAll('#aiReflection textarea[id^="reflection-"]').length > 0;
+        if (reflectBtn && ready) {
+          reflectBtn.hidden = false;
+          reflectBtn.onclick = () => { _immCancelAutoRefl(); ttsImmReflectionOpen(); };
+        }
+      }
+    }),
   ]);
 
   await saveAIToStorage({
@@ -2116,14 +2166,13 @@ async function renderAIContextSummary() {
     </div>
   `;
 
-  let testText = `You are a Bible study assistant.
+  let testText = `You are a friendly Bible reading companion helping someone prepare to read a passage.
 
 IMPORTANT:
 Your response will be assigned directly to element.innerHTML.
 Because of this, you must follow the rules below exactly.
 
 OUTPUT RULES (MANDATORY):
-
 Respond with RAW HTML ONLY
 Do NOT use any code block formatting
 Do NOT wrap the response in backticks
@@ -2149,42 +2198,40 @@ font-size: 16px;
 line-height: 1.4;
 color: #ffffff;
 width: 100%;
-margin-bottom: 2rem;
+margin-bottom: 0;
 box-sizing: border-box;
 
 Title rules:
 - The FIRST element inside the div must be a p tag WITH inline styles:
-  font-size: 20px;
+  font-size: 18px;
   font-weight: 700;
-  margin: 0 0 0.8rem;
-- The title format must be:
-  "{BOOK} {CHAPTER} {VERSE (if it exists)} Context ✨"
+  margin: 0 0 0.75rem;
+- The title must be:
+  "Before you read — {BOOK} {CHAPTER}"
 - Use the actual book name and chapter from the task
-- Title should feel calm and clear (slightly stronger than body text)
 
 List rules:
 - Use a ul directly under the title
 - The ul MUST include inline styles:
-  margin-top: 1rem;
+  margin-top: 0.75rem;
   margin-bottom: 0;
-  padding-left: 1.25rem;
-- 3 to 5 short bullet points only
-- Short, clean sentences
-- Use <strong> to highlight key theological identities (e.g. Jesus, Word, Light, Lamb of God)
-- Use <em> to highlight important actions or roles (e.g. became flesh, witnessing, calling disciples)
-- Do NOT overuse emphasis — only 1–2 emphasized phrases per bullet
-- No extra spacing or decoration
-
+  padding-left: 1.2rem;
+- Exactly 3 bullet points
+- Keep each bullet to 1–2 short sentences max
+- Use <strong> sparingly for key names or ideas (e.g. David, covenant, praise)
+- Use <em> for key actions (e.g. calls out to God, returns to Jerusalem)
+- Do NOT overuse emphasis
 
 CONTENT RULES:
-
-Very concise
-Neutral, study-focused tone
-No modern application
-No verse quotations
+- Bullet 1: Quick background — who wrote this, when, and why (the "what's going on" before this passage)
+- Bullet 2: What is about to happen in this specific passage — a brief preview of the main movement or event
+- Bullet 3: One thing to watch for as you read — a key theme, word, or shift that makes this passage significant
+- Friendly, clear, accessible tone — like a knowledgeable friend preparing you to read
+- No academic jargon
+- No verse quotations
 
 TASK:
-Create a compact background context for ${titleForGemini}.
+Prepare the reader for ${titleForGemini}.
 `;
   console.log(titleForGemini);
   try {
@@ -2381,28 +2428,11 @@ const updateMetaIndicators = (key, verseContent, newCommentCount) => {
   };
   metaIndicators.appendChild(favIndicator);
 
-  // 2. Note Indicator
-  const noteIndicator = document.createElement("span");
-  noteIndicator.className = "material-icons note-indicator";
-  noteIndicator.style.cssText = `font-size:14px; margin-right:4px; cursor:pointer; ${newCommentCount > 0 ? "opacity:1;" : "opacity:0.25;"}`;
-  noteIndicator.setAttribute("data-key", key);
-  noteIndicator.textContent = "edit_note";
-  noteIndicator.onclick = (e) => {
-    e.stopPropagation();
-    const commentsEl = verseWrap?.querySelector(".comments");
-    if (commentsEl) {
-      commentsEl.hidden = !commentsEl.hidden;
-      if (!commentsEl.hidden) renderComments(key, commentsEl);
-    }
-  };
-  metaIndicators.appendChild(noteIndicator);
-
-  // 3. Comment Count
+  // 2. Note dot indicator (shows when notes exist, no interaction needed — Note button handles it)
   if (newCommentCount > 0) {
-    const countSpan = document.createElement("span");
-    countSpan.style.cssText = "font-size:11px; opacity:0.5;";
-    countSpan.textContent = newCommentCount;
-    metaIndicators.appendChild(countSpan);
+    const noteDot = document.createElement("span");
+    noteDot.style.cssText = "width:6px;height:6px;border-radius:50%;background:#c83086;display:inline-block;margin-left:2px;flex-shrink:0;";
+    metaIndicators.appendChild(noteDot);
   }
 };
 
@@ -2875,6 +2905,8 @@ window.addEventListener("load", () => {
   setTimeout(() => {
     splash.classList.add("splash-hidden");
   }, 1000);
+
+  initNotesApp();
 });
 
 const aiTextareas = document.querySelectorAll("#aiReflection textarea");
@@ -2920,6 +2952,329 @@ if (recentPassageId) {
   chapterEl.value = recentPassageSplit[1];
 }
 
+// ── NOTES APP ─────────────────────────────────────────────────────────────────
+
+let _notesActiveId = null;
+
+function _getAllNotes() {
+  const notes = [];
+
+  // 1. Verse notes from comments
+  Object.entries(comments).forEach(([key, list]) => {
+    if (!list || !list.length) return;
+    const [bookId, ch, verse] = key.split("-");
+    const bookName = BIBLE_META[bookId]?.name || bookId;
+    const ref = verse ? `${bookName} ${ch}:${verse}` : `${bookName} ${ch}`;
+    const latestTime = Math.max(...list.map(n => n.time));
+    notes.push({
+      id: `verse-${key}`,
+      type: "verse",
+      passageKey: key,
+      title: ref,
+      preview: list.map(n => n.text).join(" · "),
+      time: latestTime,
+      items: list,
+    });
+  });
+
+  // 2. Reflections
+  const refls = {};
+  for (let i = 0; i < localStorage.length; i++) {
+    const lsKey = localStorage.key(i);
+    if (!lsKey.startsWith("reflection-")) continue;
+    const parts = lsKey.split("-");
+    const passageId = parts.slice(1, 4).join("-");
+    const rawValue = localStorage.getItem(lsKey);
+    const answer = rawValue.split("\nA: ")[1]?.trim() || "";
+    if (!answer) continue;
+    if (!refls[passageId]) refls[passageId] = { QAs: [], time: 0 };
+    refls[passageId].QAs.push({ raw: rawValue, lsKey });
+    const noteTime = comments[passageId]?.[0]?.time || 0;
+    refls[passageId].time = Math.max(refls[passageId].time, noteTime);
+  }
+  Object.entries(refls).forEach(([passageId, data]) => {
+    const [bookId, ch, verse] = passageId.split("-");
+    const bookName = BIBLE_META[bookId]?.name || bookId;
+    const ref = verse ? `${bookName} ${ch}:${verse}` : `${bookName} ${ch}`;
+    const firstAnswer = data.QAs[0]?.raw.split("\nA: ")[1]?.trim() || "";
+    notes.push({
+      id: `refl-${passageId}`,
+      type: "reflection",
+      passageKey: passageId,
+      title: ref,
+      preview: firstAnswer,
+      time: data.time || 0,
+      QAs: data.QAs,
+    });
+  });
+
+  // 3. Standalone notes
+  const standalone = JSON.parse(localStorage.getItem("devotionStandaloneNotes") || "[]");
+  standalone.forEach(n => {
+    notes.push({
+      id: `s-${n.id}`,
+      type: "standalone",
+      standaloneId: n.id,
+      title: n.title || "Untitled",
+      preview: (n.body || "").replace(/\n/g, " ").slice(0, 120),
+      time: n.updatedAt,
+      data: n,
+    });
+  });
+
+  return notes.sort((a, b) => b.time - a.time);
+}
+
+function openNotesApp() {
+  const el = document.getElementById("notesApp");
+  if (!el) return;
+  el.hidden = false;
+  requestAnimationFrame(() => el.classList.add("notes-app-open"));
+  _renderNotesList();
+}
+
+function closeNotesApp() {
+  const el = document.getElementById("notesApp");
+  if (!el) return;
+  el.classList.remove("notes-app-open");
+  el.addEventListener("transitionend", () => { el.hidden = true; }, { once: true });
+  const detail = document.getElementById("notesDetailView");
+  if (detail) { detail.classList.remove("notes-detail-open"); detail.hidden = true; }
+  // Refresh dashboard if visible
+  if (homeBtn && homeBtn.style.display === "none") renderDashboard();
+}
+
+function _renderNotesList(filter = "") {
+  const all = _getAllNotes();
+  const filtered = filter
+    ? all.filter(n => (n.title + " " + n.preview).toLowerCase().includes(filter.toLowerCase()))
+    : all;
+
+  const listEl = document.getElementById("notesList");
+  const emptyEl = document.getElementById("notesEmptyState");
+  const countEl = document.getElementById("notesCount");
+  if (!listEl) return;
+
+  if (!filtered.length) {
+    listEl.innerHTML = "";
+    if (emptyEl) emptyEl.hidden = false;
+    if (countEl) countEl.textContent = "";
+    return;
+  }
+  if (emptyEl) emptyEl.hidden = true;
+  if (countEl) countEl.textContent = `${filtered.length} note${filtered.length !== 1 ? "s" : ""}`;
+
+  const today = new Date(); today.setHours(0,0,0,0);
+  const yesterday = new Date(today); yesterday.setDate(today.getDate() - 1);
+  const thisWeek = new Date(today); thisWeek.setDate(today.getDate() - 7);
+
+  const groups = [
+    { label: "Today", notes: [] },
+    { label: "Yesterday", notes: [] },
+    { label: "This Week", notes: [] },
+    { label: "Earlier", notes: [] },
+  ];
+  filtered.forEach(note => {
+    const d = new Date(note.time); d.setHours(0,0,0,0);
+    if (d >= today) groups[0].notes.push(note);
+    else if (d >= yesterday) groups[1].notes.push(note);
+    else if (d >= thisWeek) groups[2].notes.push(note);
+    else groups[3].notes.push(note);
+  });
+
+  const tagInfo = { verse: ["📖", "Verse Note", "notes-tag-verse"], reflection: ["🙏", "Reflection", "notes-tag-reflection"], standalone: ["📝", "Note", "notes-tag-standalone"] };
+  let html = "";
+  groups.forEach(({ label, notes }) => {
+    if (!notes.length) return;
+    html += `<div class="notes-group-label">${label}</div>`;
+    notes.forEach(note => {
+      const date = note.time ? new Date(note.time).toLocaleDateString("en-US", { month: "short", day: "numeric" }) : "";
+      const [icon, tagLabel, tagClass] = tagInfo[note.type] || ["📝", "Note", "notes-tag-standalone"];
+      html += `
+        <div class="notes-card" data-note-id="${note.id}">
+          <div class="notes-card-top">
+            <div class="notes-card-title">${_escHtml(note.title)}</div>
+            <div class="notes-card-date">${date}</div>
+          </div>
+          <div class="notes-card-preview">${_escHtml(note.preview)}</div>
+          <span class="notes-card-tag ${tagClass}">${icon} ${tagLabel}</span>
+        </div>`;
+    });
+  });
+  listEl.innerHTML = html;
+
+  listEl.querySelectorAll(".notes-card").forEach(card => {
+    card.addEventListener("click", () => {
+      const note = filtered.find(n => n.id === card.dataset.noteId);
+      if (note) _openNoteDetail(note);
+    });
+  });
+}
+
+function _openNoteDetail(note) {
+  _notesActiveId = note.id;
+  const detailView = document.getElementById("notesDetailView");
+  if (!detailView) return;
+  _renderNoteDetail(note);
+  detailView.hidden = false;
+  requestAnimationFrame(() => detailView.classList.add("notes-detail-open"));
+}
+
+function _closeNoteDetail() {
+  const detailView = document.getElementById("notesDetailView");
+  if (!detailView) return;
+  detailView.classList.remove("notes-detail-open");
+  detailView.addEventListener("transitionend", () => { detailView.hidden = true; }, { once: true });
+  _notesActiveId = null;
+  _renderNotesList(document.getElementById("notesSearch")?.value || "");
+}
+
+function _renderNoteDetail(note) {
+  const content = document.getElementById("notesDetailContent");
+  const deleteBtn = document.getElementById("notesDetailDelete");
+  const shareBtn = document.getElementById("notesDetailShare");
+  if (!content) return;
+
+  if (deleteBtn) {
+    deleteBtn.hidden = note.type !== "standalone";
+    deleteBtn.onclick = note.type === "standalone" ? () => _deleteStandaloneNote(note.standaloneId) : null;
+  }
+  if (shareBtn) shareBtn.onclick = () => _shareNote(note);
+
+  if (note.type === "standalone") _renderStandaloneEditor(note.data, content);
+  else if (note.type === "verse") _renderVerseNoteDetail(note, content);
+  else if (note.type === "reflection") _renderReflNoteDetail(note, content);
+}
+
+function _renderVerseNoteDetail(note, container) {
+  const [bookId, ch, verse] = note.passageKey.split("-");
+  const verseText = getVerseText(bookId, ch, verse || "1");
+  const dateStr = new Date(note.time).toLocaleDateString("en-US", { month: "long", day: "numeric", year: "numeric" });
+  container.innerHTML = `
+    <div class="notes-detail-title">${_escHtml(note.title)}</div>
+    <div class="notes-detail-meta">${note.items.length} note${note.items.length !== 1 ? "s" : ""} · ${dateStr}</div>
+    ${verseText ? `<div class="notes-detail-verse-quote">"${_escHtml(verseText)}"</div>` : ""}
+    <div class="notes-detail-section-label">Your Notes</div>
+    <div class="notes-verse-items">
+      ${note.items.map(item => `
+        <div class="notes-verse-item">
+          <div class="notes-verse-item-text">${_escHtml(item.text)}</div>
+          <div class="notes-verse-item-time">${new Date(item.time).toLocaleDateString("en-US", { month: "short", day: "numeric" })}</div>
+        </div>`).join("")}
+    </div>
+    <button class="notes-go-passage-btn" id="notesGoPassage">
+      <span class="material-symbols-outlined">menu_book</span> Go to passage
+    </button>`;
+  container.querySelector("#notesGoPassage")?.addEventListener("click", () => {
+    loadPassageById(note.passageKey);
+    closeNotesApp();
+  });
+}
+
+function _renderReflNoteDetail(note, container) {
+  const dateStr = new Date(note.time).toLocaleDateString("en-US", { month: "long", day: "numeric", year: "numeric" });
+  container.innerHTML = `
+    <div class="notes-detail-title">${_escHtml(note.title)}</div>
+    <div class="notes-detail-subtitle">Guided Reflection</div>
+    <div class="notes-detail-meta">${note.QAs.length} question${note.QAs.length !== 1 ? "s" : ""} answered · ${dateStr}</div>
+    <div class="notes-detail-section-label">Reflection Q&amp;A</div>
+    <div class="notes-refl-qas">
+      ${note.QAs.map(qa => {
+        const parts = qa.raw.split("\nA: ");
+        const q = parts[0].replace("Q: ", "").trim();
+        const a = parts[1]?.trim() || "";
+        return `<div class="notes-refl-qa">
+          <div class="notes-refl-q">${_escHtml(q)}</div>
+          <div class="notes-refl-a">${_escHtml(a)}</div>
+        </div>`;
+      }).join("")}
+    </div>
+    <button class="notes-go-passage-btn" id="notesGoPassage">
+      <span class="material-symbols-outlined">menu_book</span> Go to passage
+    </button>`;
+  container.querySelector("#notesGoPassage")?.addEventListener("click", () => {
+    loadPassageById(note.passageKey);
+    closeNotesApp();
+  });
+}
+
+function _renderStandaloneEditor(data, container) {
+  const dateStr = new Date(data.updatedAt).toLocaleDateString("en-US", { month: "long", day: "numeric", year: "numeric", hour: "numeric", minute: "2-digit" });
+  container.innerHTML = `
+    <input class="notes-editor-title" id="notesEditorTitle" value="${_escHtml(data.title || "")}" placeholder="Title">
+    <div class="notes-editor-date">${dateStr}</div>
+    <textarea class="notes-editor-body" id="notesEditorBody" placeholder="Start writing…">${_escHtml(data.body || "")}</textarea>`;
+  let saveTimer;
+  const titleEl = container.querySelector("#notesEditorTitle");
+  const bodyEl = container.querySelector("#notesEditorBody");
+  const autoSave = () => {
+    clearTimeout(saveTimer);
+    saveTimer = setTimeout(() => {
+      data.title = titleEl.value;
+      data.body = bodyEl.value;
+      data.updatedAt = Date.now();
+      _updateStandaloneNote(data);
+    }, 500);
+  };
+  titleEl?.addEventListener("input", autoSave);
+  bodyEl?.addEventListener("input", autoSave);
+  // Auto-resize textarea
+  const resize = () => { bodyEl.style.height = "auto"; bodyEl.style.height = bodyEl.scrollHeight + "px"; };
+  bodyEl?.addEventListener("input", resize);
+  resize();
+  // Focus body if title is empty
+  if (!data.title) setTimeout(() => titleEl?.focus(), 100);
+  else setTimeout(() => bodyEl?.focus(), 100);
+}
+
+function _createNewNote() {
+  const id = `note_${Date.now()}`;
+  const note = { id, title: "", body: "", createdAt: Date.now(), updatedAt: Date.now() };
+  const standalone = JSON.parse(localStorage.getItem("devotionStandaloneNotes") || "[]");
+  standalone.unshift(note);
+  localStorage.setItem("devotionStandaloneNotes", JSON.stringify(standalone));
+  _openNoteDetail({ id: `s-${id}`, type: "standalone", standaloneId: id, title: "", preview: "", time: note.updatedAt, data: note });
+}
+
+function _updateStandaloneNote(updated) {
+  const standalone = JSON.parse(localStorage.getItem("devotionStandaloneNotes") || "[]");
+  const idx = standalone.findIndex(n => n.id === updated.id);
+  if (idx >= 0) standalone[idx] = updated;
+  localStorage.setItem("devotionStandaloneNotes", JSON.stringify(standalone));
+}
+
+function _deleteStandaloneNote(noteId) {
+  if (!confirm("Delete this note?")) return;
+  const standalone = JSON.parse(localStorage.getItem("devotionStandaloneNotes") || "[]");
+  localStorage.setItem("devotionStandaloneNotes", JSON.stringify(standalone.filter(n => n.id !== noteId)));
+  _closeNoteDetail();
+}
+
+function _shareNote(note) {
+  let text = `${note.title}\n\n`;
+  if (note.type === "verse") note.items.forEach(item => { text += `• ${item.text}\n`; });
+  else if (note.type === "reflection") note.QAs.forEach(qa => { const p = qa.raw.split("\nA: "); text += `Q: ${p[0].replace("Q: ","").trim()}\nA: ${p[1]?.trim()||""}\n\n`; });
+  else text += note.data?.body || "";
+  navigator.clipboard.writeText(text).then(() => {
+    const toast = document.createElement("div");
+    toast.className = "notes-toast";
+    toast.textContent = "✅ Copied to clipboard";
+    document.body.appendChild(toast);
+    setTimeout(() => toast.remove(), 2000);
+  });
+}
+
+function _escHtml(str) {
+  return (str || "").replace(/&/g,"&amp;").replace(/</g,"&lt;").replace(/>/g,"&gt;").replace(/"/g,"&quot;");
+}
+
+function initNotesApp() {
+  document.getElementById("notesAppClose")?.addEventListener("click", closeNotesApp);
+  document.getElementById("notesDetailBack")?.addEventListener("click", _closeNoteDetail);
+  document.getElementById("notesNewBtn")?.addEventListener("click", _createNewNote);
+  document.getElementById("notesSearch")?.addEventListener("input", e => _renderNotesList(e.target.value));
+}
+
 // ── IMMERSIVE TTS MODE ────────────────────────────────────────────────────────
 
 function ttsImmersiveOpen() {
@@ -2933,12 +3288,9 @@ function ttsImmersiveOpen() {
   if (stage) stage.style.display = "";
   const footer = document.querySelector(".tts-imm-footer");
   if (footer) footer.style.display = "";
+  // Reflect btn starts hidden — only revealed when TTS finishes AND reflection is loaded
   const reflectBtn = document.getElementById("ttsImmReflectBtn");
-  if (reflectBtn) {
-    const reflectionReady = document.querySelectorAll('#aiReflection textarea[id^="reflection-"]').length > 0;
-    reflectBtn.hidden = !reflectionReady;
-    if (reflectionReady) reflectBtn.onclick = ttsImmReflectionOpen;
-  }
+  if (reflectBtn) reflectBtn.hidden = true;
 
   // Set passage title
   const name = BIBLE_META[bookEl?.value]?.name || "";
@@ -2981,7 +3333,23 @@ function ttsImmersiveClose() {
   clearTimeout(_immDoubleTapTimer);
   _immCancelAutoRefl();
   if (_immVerseUpdateTimer) { clearTimeout(_immVerseUpdateTimer); _immVerseUpdateTimer = null; }
-  // Reset reflection panel + verse popup state
+  // Reset all panels and any disabled states
+  const pausePanel = document.getElementById("ttsImmPausePanel");
+  if (pausePanel) pausePanel.hidden = true;
+  const pauseActionsRow = document.querySelector(".tts-imm-pause-actions");
+  if (pauseActionsRow) pauseActionsRow.hidden = false;
+  ["ttsImmPauseNote","ttsImmPauseContext","ttsImmPauseAsk"].forEach(id => {
+    const b = document.getElementById(id);
+    if (b) b.classList.remove("active");
+  });
+  const immPauseBtn = document.getElementById("ttsImmPauseBtn");
+  if (immPauseBtn) { immPauseBtn.disabled = false; immPauseBtn.classList.remove("tts-imm-btn-pulse"); }
+  const immPrevBtn = document.getElementById("ttsImmPrevBtn");
+  if (immPrevBtn) immPrevBtn.disabled = false;
+  const immNextBtn = document.getElementById("ttsImmNextBtn");
+  if (immNextBtn) immNextBtn.disabled = false;
+  const ctxPanel = document.getElementById("ttsImmContextPanel");
+  if (ctxPanel) ctxPanel.hidden = true;
   const panel = document.getElementById("ttsImmReflPanel");
   if (panel) panel.hidden = true;
   const versePopup = document.getElementById("ttsImmVersePopup");
@@ -2992,6 +3360,79 @@ function ttsImmersiveClose() {
   if (footer) footer.style.display = "";
   const reflectBtn = document.getElementById("ttsImmReflectBtn");
   if (reflectBtn) reflectBtn.hidden = true;
+}
+
+function ttsImmContextOpen(gen) {
+  const el = document.getElementById("ttsImmersive");
+  if (!el) return;
+
+  el.hidden = false;
+
+  // Hide stage + footer, hide reflection panel, hide reflect btn
+  const stage = document.querySelector(".tts-imm-stage");
+  if (stage) stage.style.display = "none";
+  const footer = document.querySelector(".tts-imm-footer");
+  if (footer) footer.style.display = "none";
+  const reflPanel = document.getElementById("ttsImmReflPanel");
+  if (reflPanel) reflPanel.hidden = true;
+  const reflectBtn = document.getElementById("ttsImmReflectBtn");
+  if (reflectBtn) reflectBtn.hidden = true;
+
+  // Set passage title
+  const name = BIBLE_META[bookEl?.value]?.name || "";
+  const ch = chapterEl?.value || "";
+  const titleEl = document.getElementById("ttsImmTitle");
+  if (titleEl) titleEl.textContent = name && ch ? `${name} ${ch}` : "";
+
+  // Close button stops TTS
+  document.getElementById("ttsImmCloseBtn").onclick = stopTTS;
+
+  // Populate context content
+  const ctxPanel = document.getElementById("ttsImmContextPanel");
+  const ctxContent = document.getElementById("ttsImmContextContent");
+  if (ctxContent) {
+    if (_contextLoading) {
+      ctxContent.innerHTML = `<div class="tts-imm-ctx-loading"><div class="tts-imm-ctx-spinner"></div><p>Loading context…</p></div>`;
+      const obs = new MutationObserver(() => {
+        ctxContent.innerHTML = aiContextSummaryEl.innerHTML;
+        if (!_contextLoading) obs.disconnect();
+      });
+      obs.observe(aiContextSummaryEl, { childList: true, subtree: true, characterData: true });
+    } else {
+      ctxContent.innerHTML = aiContextSummaryEl.innerHTML;
+    }
+  }
+  if (ctxPanel) ctxPanel.hidden = false;
+
+  // "Start Reading" button: hide context, show stage+footer, start TTS
+  const startBtn = document.getElementById("ttsImmContextStart");
+  if (startBtn) {
+    startBtn.onclick = () => {
+      if (gen !== ttsGen) return;
+      if (ctxPanel) ctxPanel.hidden = true;
+
+      const stage = document.querySelector(".tts-imm-stage");
+      if (stage) stage.style.display = "";
+      const footer = document.querySelector(".tts-imm-footer");
+      if (footer) footer.style.display = "";
+
+      const immBar = document.getElementById("ttsImmLoadBar");
+      if (immBar) immBar.style.width = "0%";
+      const immStatus = document.getElementById("ttsImmStatusEl");
+      if (immStatus) immStatus.textContent = "";
+
+      ttsImmersiveBuildScrubber();
+      document.getElementById("ttsImmPrevBtn").onclick = ttsPrevVerse;
+      document.getElementById("ttsImmNextBtn").onclick = ttsNextVerse;
+      document.getElementById("ttsImmPauseBtn").onclick = pauseResumeTTS;
+      document.getElementById("ttsImmSlotPrev").onclick = () => { if (ttsIdx > 0) ttsPrevVerse(); };
+      document.getElementById("ttsImmSlotNext").onclick = () => { if (ttsIdx < ttsQueue.length - 1) ttsNextVerse(); };
+      const curSlot = document.getElementById("ttsImmSlotCur");
+      if (curSlot) curSlot.addEventListener("click", _immHandleDoubleTap);
+
+      ttsPlayAt(0, gen);
+    };
+  }
 }
 
 function ttsImmersiveBuildScrubber() {
@@ -3071,6 +3512,13 @@ function ttsImmersiveUpdate(index) {
     if (prevSlot) prevSlot.style.opacity = "";
     if (nextSlot) nextSlot.style.opacity = "";
 
+    // Favorite badge for current verse
+    const favBadge = document.getElementById("ttsImmFavBadge");
+    if (favBadge && cur) {
+      const curKey = keyOf(bookEl.value, chapterEl.value, cur.verseNum);
+      favBadge.classList.toggle("visible", isFavorite(curKey));
+    }
+
     // Scrubber: activate current dot and scroll it into view
     document.querySelectorAll("#ttsImmScrubber .tts-imm-dot").forEach((d, i) => {
       d.classList.toggle("active", i === index);
@@ -3116,6 +3564,9 @@ function _immHandleDoubleTap() {
       favIcon.textContent = isFav ? "favorite" : "favorite_border";
       favIcon.style.color = isFav ? "#c83086" : "";
     }
+    // Update persistent fav badge
+    const favBadge = document.getElementById("ttsImmFavBadge");
+    if (favBadge) favBadge.classList.toggle("visible", isFavorite(key));
     const heart = document.getElementById("ttsImmHeart");
     if (heart) {
       heart.classList.remove("popping");
