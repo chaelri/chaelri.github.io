@@ -1,4 +1,4 @@
-const FAV_PAGE_SIZE = 5;
+const FAV_PAGE_SIZE = 3;
 let favoritesPage = 0;
 let currentVersion = localStorage.getItem("bibleVersion") || "NASB";
 let recentPassageId = localStorage.getItem("recentPassageId");
@@ -1481,7 +1481,7 @@ function getVerseText(bookId, chapter, verse) {
   const clean = (txt) =>
     txt
       .trim()
-      .replace(/\.(?=[a-zA-Z])/g, ". ")
+      .replace(/([.!?,;:])(?=[a-zA-Z])/g, "$1 ")
       .replace(/\s+/g, " ");
 
   if (chapterData[verse]) return clean(chapterData[verse]);
@@ -1599,18 +1599,6 @@ async function renderDashboard() {
 
   const dashboardHTML = `
   <div class="dashboard ai-fade-in">
-  <style>
-  .dashboard-grid {
-  display: grid;
-  grid-template-columns: 1fr;
-  gap: 20px;
-  }
-  @media (min-width: 768px) {
-  .dashboard-grid {
-  grid-template-columns: 1fr 2fr;
-  }
-  }
-  </style>
   
   <h2>Your Dashboard</h2>
   
@@ -1663,24 +1651,29 @@ async function renderDashboard() {
       </section>
 
       <!-- NOTES -->
-      <section class="dashboard-section" style="grid-column: span 2">
+      <section class="dashboard-section">
         <h3 style="display:flex; justify-content:space-between; align-items:center; margin-bottom:12px;">
           <span><span class="material-icons dashboard-icon">edit_note</span> Notes</span>
           <button class="dash-notes-open-btn" onclick="openNotesApp()">View all →</button>
         </h3>
         ${(() => {
-          const allNotes = _getAllNotes().slice(0, 4);
-          if (!allNotes.length) return `<p class="empty-state">No notes yet. Add notes to Bible verses, complete a Guided Reflection, or tap "View all" to write your first note.</p>`;
-          const tagInfo = { verse: ["📖", "Verse Note"], reflection: ["🙏", "Reflection"], standalone: ["📝", "Note"] };
-          return `<div>${allNotes.map(note => {
-            const date = note.time ? new Date(note.time).toLocaleDateString("en-US", { month: "short", day: "numeric" }) : "";
-            const [icon, label] = tagInfo[note.type] || ["📝", "Note"];
+          const sessions = _getSessions().slice(0, 3);
+          if (!sessions.length) return `<p class="empty-state">No notes yet. Add notes to Bible verses, complete a Guided Reflection, or tap "View all" to write your first note.</p>`;
+          return `<div class="dash-notes-list">${sessions.map(session => {
+            const dateStr = new Date(session.time).toLocaleDateString("en-US", { month: "short", day: "numeric", year: "numeric" });
+            const allItems = [
+              ...session.verse.map(n => ({ icon: "📖", label: n.title })),
+              ...session.reflection.map(n => ({ icon: "🙏", label: n.title })),
+              ...session.standalone.map(n => ({ icon: "📝", label: n.title || "Note" })),
+            ];
+            const visibleItems = allItems.slice(0, 3);
+            const extra = allItems.length - 3;
             return `<div class="dash-notes-card" onclick="openNotesApp()">
-              <div class="dash-notes-card-top">
-                <div class="dash-notes-card-title">${icon} ${note.title}</div>
-                <div class="dash-notes-card-date">${date}</div>
+              <div class="dash-notes-card-date">${dateStr}</div>
+              <div class="dash-notes-card-items">
+                ${visibleItems.map(i => `<div class="dash-notes-item"><span>${i.icon}</span><span class="dash-notes-item-label">${_escHtml(i.label)}</span></div>`).join("")}
+                ${extra > 0 ? `<div class="dash-notes-item-more">+${extra} more</div>` : ""}
               </div>
-              <div class="dash-notes-card-preview">${note.preview || "Empty note"}</div>
             </div>`;
           }).join("")}</div>`;
         })()}
@@ -2748,6 +2741,8 @@ const initializeReflections = () => {
         // Save in the specific format you requested (Q&A) to localStorage
         const formattedEntry = `Q: ${questionText}\nA: ${area.value}`;
         localStorage.setItem(area.id, formattedEntry);
+        // Save timestamp for this devotion session so notes can group by correct day
+        localStorage.setItem(`reflection-time-${devotionId()}`, String(Date.now()));
         checkIfHasTextAreaAnswers();
 
         // Also update IndexedDB cache for AI reflections, storing only the answer
@@ -2901,10 +2896,10 @@ layout.addEventListener("scroll", () => {
 window.addEventListener("load", () => {
   const splash = document.getElementById("app-splash");
 
-  // Give it a small 1-second delay so the logo is actually seen
+  // 2-second delay for branding
   setTimeout(() => {
     splash.classList.add("splash-hidden");
-  }, 1000);
+  }, 2000);
 
   initNotesApp();
 });
@@ -2955,25 +2950,63 @@ if (recentPassageId) {
 // ── NOTES APP ─────────────────────────────────────────────────────────────────
 
 let _notesActiveId = null;
+let _notesReturnNote = null; // stores note to reopen when returning from verse nav
+
+function showBackToNotesBubble(note) {
+  _notesReturnNote = note;
+  let bubble = document.getElementById("backToNotesBubble");
+  if (!bubble) {
+    bubble = document.createElement("div");
+    bubble.id = "backToNotesBubble";
+    bubble.className = "back-to-notes-bubble";
+    bubble.innerHTML = `<span class="material-symbols-outlined">arrow_back_ios_new</span> Back to Notes`;
+    bubble.addEventListener("click", () => {
+      const ret = _notesReturnNote;
+      hideBubble();
+      openNotesApp();
+      if (ret) requestAnimationFrame(() => _openNoteDetail(ret));
+    });
+    document.body.appendChild(bubble);
+  }
+  bubble.classList.add("visible");
+}
+
+function hideBubble() {
+  document.getElementById("backToNotesBubble")?.classList.remove("visible");
+}
 
 function _getAllNotes() {
   const notes = [];
 
-  // 1. Verse notes from comments
+  // 1. Verse notes — grouped by chapter (BOOKID-CH), not individual verse
+  const chapterBuckets = {};
   Object.entries(comments).forEach(([key, list]) => {
     if (!list || !list.length) return;
-    const [bookId, ch, verse] = key.split("-");
+    const parts = key.split("-");
+    const bookId = parts[0], ch = parts[1];
+    const chKey = `${bookId}-${ch}`;
+    if (!chapterBuckets[chKey]) chapterBuckets[chKey] = { verseKeys: [], allItems: [], time: 0 };
+    chapterBuckets[chKey].verseKeys.push(key);
+    list.forEach(n => chapterBuckets[chKey].allItems.push({ ...n, verseKey: key }));
+    chapterBuckets[chKey].time = Math.max(chapterBuckets[chKey].time, ...list.map(n => n.time));
+  });
+  Object.entries(chapterBuckets).forEach(([chKey, data]) => {
+    const [bookId, ch] = chKey.split("-");
     const bookName = BIBLE_META[bookId]?.name || bookId;
-    const ref = verse ? `${bookName} ${ch}:${verse}` : `${bookName} ${ch}`;
-    const latestTime = Math.max(...list.map(n => n.time));
+    const verseNums = data.verseKeys.map(k => parseInt(k.split("-")[2] || "1")).sort((a,b) => a-b);
+    const verseLabel = verseNums.length === 1 ? `verse ${verseNums[0]}` : `${verseNums.length} verses`;
+    const latestItem = data.allItems.sort((a,b) => b.time - a.time)[0];
     notes.push({
-      id: `verse-${key}`,
+      id: `verse-${chKey}`,
       type: "verse",
-      passageKey: key,
-      title: ref,
-      preview: list.map(n => n.text).join(" · "),
-      time: latestTime,
-      items: list,
+      chapterKey: chKey,
+      passageKey: chKey,
+      title: `${bookName} ${ch}`,
+      subtitle: verseLabel,
+      preview: latestItem?.text || "",
+      time: data.time,
+      verseKeys: data.verseKeys,
+      allItems: data.allItems,
     });
   });
 
@@ -2989,8 +3022,13 @@ function _getAllNotes() {
     if (!answer) continue;
     if (!refls[passageId]) refls[passageId] = { QAs: [], time: 0 };
     refls[passageId].QAs.push({ raw: rawValue, lsKey });
-    const noteTime = comments[passageId]?.[0]?.time || 0;
-    refls[passageId].time = Math.max(refls[passageId].time, noteTime);
+    // Find time from: saved reflection timestamp, or matching verse comments
+    const savedReflTime = parseInt(localStorage.getItem(`reflection-time-${passageId}`) || "0");
+    const chPrefix = passageId.replace(/-$/, "");
+    const commentTime = Math.max(0, ...Object.entries(comments)
+      .filter(([k]) => k === chPrefix || k.startsWith(chPrefix + "-"))
+      .flatMap(([, list]) => (list || []).map(n => n.time || 0)));
+    refls[passageId].time = Math.max(refls[passageId].time, savedReflTime, commentTime);
   }
   Object.entries(refls).forEach(([passageId, data]) => {
     const [bookId, ch, verse] = passageId.split("-");
@@ -3003,7 +3041,7 @@ function _getAllNotes() {
       passageKey: passageId,
       title: ref,
       preview: firstAnswer,
-      time: data.time || 0,
+      time: data.time || Date.now(), // fallback to now if no matching verse comment timestamp
       QAs: data.QAs,
     });
   });
@@ -3026,6 +3064,7 @@ function _getAllNotes() {
 }
 
 function openNotesApp() {
+  hideBubble();
   const el = document.getElementById("notesApp");
   if (!el) return;
   el.hidden = false;
@@ -3044,70 +3083,221 @@ function closeNotesApp() {
   if (homeBtn && homeBtn.style.display === "none") renderDashboard();
 }
 
-function _renderNotesList(filter = "") {
+// Group all notes into day-based devotion sessions
+function _getSessions(filter = "") {
   const all = _getAllNotes();
-  const filtered = filter
-    ? all.filter(n => (n.title + " " + n.preview).toLowerCase().includes(filter.toLowerCase()))
-    : all;
+  const q = filter.toLowerCase();
+  const flat = q ? all.filter(n => (n.title + " " + (n.subtitle||"") + " " + n.preview).toLowerCase().includes(q)) : all;
 
+  const buckets = {};
+  flat.forEach(note => {
+    // Use local date string as key so days are correct per device timezone
+    const d = new Date(note.time);
+    const dateKey = `${d.getFullYear()}-${d.getMonth()}-${d.getDate()}`;
+    if (!buckets[dateKey]) buckets[dateKey] = { dateKey, time: 0, verse: [], reflection: [], standalone: [] };
+    buckets[dateKey].time = Math.max(buckets[dateKey].time, note.time);
+    buckets[dateKey][note.type].push(note);
+  });
+
+  return Object.values(buckets).sort((a, b) => b.time - a.time);
+}
+
+function _renderNotesList(filter = "") {
+  const sessions = _getSessions(filter);
   const listEl = document.getElementById("notesList");
   const emptyEl = document.getElementById("notesEmptyState");
   const countEl = document.getElementById("notesCount");
   if (!listEl) return;
 
-  if (!filtered.length) {
+  if (!sessions.length) {
     listEl.innerHTML = "";
     if (emptyEl) emptyEl.hidden = false;
     if (countEl) countEl.textContent = "";
     return;
   }
   if (emptyEl) emptyEl.hidden = true;
-  if (countEl) countEl.textContent = `${filtered.length} note${filtered.length !== 1 ? "s" : ""}`;
+  if (countEl) countEl.textContent = `${sessions.length} devotion${sessions.length !== 1 ? "s" : ""}`;
 
-  const today = new Date(); today.setHours(0,0,0,0);
-  const yesterday = new Date(today); yesterday.setDate(today.getDate() - 1);
-  const thisWeek = new Date(today); thisWeek.setDate(today.getDate() - 7);
-
-  const groups = [
-    { label: "Today", notes: [] },
-    { label: "Yesterday", notes: [] },
-    { label: "This Week", notes: [] },
-    { label: "Earlier", notes: [] },
-  ];
-  filtered.forEach(note => {
-    const d = new Date(note.time); d.setHours(0,0,0,0);
-    if (d >= today) groups[0].notes.push(note);
-    else if (d >= yesterday) groups[1].notes.push(note);
-    else if (d >= thisWeek) groups[2].notes.push(note);
-    else groups[3].notes.push(note);
-  });
-
-  const tagInfo = { verse: ["📖", "Verse Note", "notes-tag-verse"], reflection: ["🙏", "Reflection", "notes-tag-reflection"], standalone: ["📝", "Note", "notes-tag-standalone"] };
   let html = "";
-  groups.forEach(({ label, notes }) => {
-    if (!notes.length) return;
-    html += `<div class="notes-group-label">${label}</div>`;
-    notes.forEach(note => {
-      const date = note.time ? new Date(note.time).toLocaleDateString("en-US", { month: "short", day: "numeric" }) : "";
-      const [icon, tagLabel, tagClass] = tagInfo[note.type] || ["📝", "Note", "notes-tag-standalone"];
-      html += `
-        <div class="notes-card" data-note-id="${note.id}">
-          <div class="notes-card-top">
-            <div class="notes-card-title">${_escHtml(note.title)}</div>
-            <div class="notes-card-date">${date}</div>
-          </div>
-          <div class="notes-card-preview">${_escHtml(note.preview)}</div>
-          <span class="notes-card-tag ${tagClass}">${icon} ${tagLabel}</span>
-        </div>`;
+  sessions.forEach(session => {
+    const dateStr = new Date(session.time).toLocaleDateString("en-US", { month: "long", day: "numeric", year: "numeric" });
+
+    // Build flat timeline items: verse notes first, then reflections, then standalone
+    const timelineItems = [];
+    session.verse.forEach(n => {
+      const count = n.allItems?.length || 1;
+      timelineItems.push({ icon: "📖", label: n.title, sub: `${count} verse note${count !== 1 ? "s" : ""}` });
     });
+    session.reflection.forEach(n => {
+      timelineItems.push({ icon: "🙏", label: n.title, sub: "Reflection" });
+    });
+    session.standalone.forEach(n => {
+      timelineItems.push({ icon: "📝", label: n.title || "Untitled note", sub: n.preview ? _escHtml(n.preview.slice(0, 40)) : "" });
+    });
+
+    const MAX_VISIBLE = 4;
+    const visible = timelineItems.slice(0, MAX_VISIBLE);
+    const extra = timelineItems.length - MAX_VISIBLE;
+
+    const timelineHTML = visible.map((item, i) => {
+      const isLast = i === visible.length - 1 && extra <= 0;
+      return `<div class="nst-item${isLast ? " nst-item-last" : ""}">
+        <div class="nst-line-wrap"><div class="nst-dot"></div>${!isLast ? '<div class="nst-line"></div>' : ''}</div>
+        <div class="nst-content">
+          <span class="nst-icon">${item.icon}</span>
+          <span class="nst-label">${_escHtml(item.label)}</span>
+          ${item.sub ? `<span class="nst-sub">${item.sub}</span>` : ""}
+        </div>
+      </div>`;
+    }).join("") + (extra > 0 ? `<div class="nst-more">+${extra} more</div>` : "");
+
+    html += `
+      <div class="notes-card notes-session-card" data-session-key="${session.dateKey}">
+        <div class="notes-card-date">${dateStr}</div>
+        <div class="notes-session-timeline">${timelineHTML}</div>
+      </div>`;
   });
   listEl.innerHTML = html;
 
-  listEl.querySelectorAll(".notes-card").forEach(card => {
+  listEl.querySelectorAll(".notes-session-card").forEach(card => {
     card.addEventListener("click", () => {
-      const note = filtered.find(n => n.id === card.dataset.noteId);
-      if (note) _openNoteDetail(note);
+      const session = sessions.find(s => s.dateKey === card.dataset.sessionKey);
+      if (session) _openSessionDetail(session);
     });
+  });
+}
+
+function _openSessionDetail(session) {
+  const detailView = document.getElementById("notesDetailView");
+  if (!detailView) return;
+
+  const deleteBtn = document.getElementById("notesDetailDelete");
+  const shareBtn  = document.getElementById("notesDetailShare");
+  if (deleteBtn) deleteBtn.hidden = true;
+  if (shareBtn)  shareBtn.onclick = () => _shareSession(session);
+
+  const content = document.getElementById("notesDetailContent");
+  if (!content) return;
+
+  const dateStr = new Date(session.time).toLocaleDateString("en-US", { weekday: "long", month: "long", day: "numeric", year: "numeric" });
+  let html = `<div class="notes-detail-title">${dateStr}</div>`;
+
+  // Verse notes per chapter
+  session.verse.forEach(note => {
+    html += `
+      <div class="notes-session-section">
+        <div class="notes-session-section-label">📖 ${_escHtml(note.title)}</div>`;
+    // Group by verse key within the chapter
+    const byVerse = {};
+    (note.allItems || []).forEach(item => {
+      const vk = item.verseKey || note.passageKey;
+      const vNum = vk.split("-")[2] || "?";
+      if (!byVerse[vNum]) byVerse[vNum] = [];
+      byVerse[vNum].push(item);
+    });
+    Object.entries(byVerse).sort((a,b) => parseInt(a[0])-parseInt(b[0])).forEach(([vNum, items]) => {
+      html += `<div class="notes-session-verse-group">
+        <span class="notes-session-verse-num">v${vNum}</span>
+        <div class="notes-session-verse-notes">${items.map(i => `<div class="notes-verse-item-text">${_escHtml(i.text)}</div>`).join("")}</div>
+      </div>`;
+    });
+    html += `<button class="notes-go-passage-btn" data-passage="${note.passageKey}">
+      <span class="material-symbols-outlined">menu_book</span> Go to passage
+    </button></div>`;
+  });
+
+  // Reflections
+  session.reflection.forEach(note => {
+    html += `
+      <div class="notes-session-section">
+        <div class="notes-session-section-label">🙏 Reflection · ${_escHtml(note.title)}</div>
+        <div class="notes-refl-qas">${note.QAs.map(qa => {
+          const parts = qa.raw.split("\nA: ");
+          const q = parts[0].replace("Q: ", "").trim();
+          const a = parts[1]?.trim() || "";
+          return `<div class="notes-refl-qa"><div class="notes-refl-q">${_escHtml(q)}</div><div class="notes-refl-a">${_escHtml(a)}</div></div>`;
+        }).join("")}</div>
+        <button class="notes-go-passage-btn" data-passage="${note.passageKey}">
+          <span class="material-symbols-outlined">menu_book</span> Go to passage
+        </button>
+      </div>`;
+  });
+
+  // Standalone notes
+  session.standalone.forEach(note => {
+    const hasBody = note.data?.bodyHTML || note.data?.body;
+    html += `
+      <div class="notes-session-section notes-session-standalone-card" data-standalone-id="${note.standaloneId}">
+        <div class="notes-session-standalone-header">
+          <div class="notes-session-section-label">📝 ${_escHtml(note.title || "Untitled Note")}</div>
+          <div class="notes-session-standalone-actions">
+            <button class="notes-session-edit-btn" data-standalone-id="${note.standaloneId}">Edit</button>
+            <button class="notes-session-del-btn" data-standalone-id="${note.standaloneId}" title="Delete note">
+              <span class="material-symbols-outlined">delete</span>
+            </button>
+          </div>
+        </div>
+        ${hasBody ? `<div class="notes-session-standalone-body">${note.data?.bodyHTML || _escHtml(note.data?.body || "")}</div>` : `<div class="notes-session-standalone-empty">Empty note</div>`}
+      </div>`;
+  });
+
+  content.innerHTML = html;
+
+  // Wire passage buttons
+  content.querySelectorAll(".notes-go-passage-btn[data-passage]").forEach(btn => {
+    btn.addEventListener("click", () => {
+      const [bookId, ch] = btn.dataset.passage.split("-");
+      closeNotesApp();
+      loadPassageById(`${bookId}-${ch}-`);
+      showBackToNotesBubble(null);
+    });
+  });
+  // Wire edit standalone buttons
+  content.querySelectorAll(".notes-session-edit-btn").forEach(btn => {
+    btn.addEventListener("click", () => {
+      const standalone = JSON.parse(localStorage.getItem("devotionStandaloneNotes") || "[]");
+      const noteData = standalone.find(n => n.id === btn.dataset.standaloneId);
+      if (noteData) _openNoteDetail({ id: `s-${noteData.id}`, type: "standalone", standaloneId: noteData.id, title: noteData.title, preview: "", time: noteData.updatedAt, data: noteData });
+    });
+  });
+  // Wire delete standalone buttons
+  content.querySelectorAll(".notes-session-del-btn").forEach(btn => {
+    btn.addEventListener("click", () => {
+      if (!confirm("Delete this note?")) return;
+      const standalone = JSON.parse(localStorage.getItem("devotionStandaloneNotes") || "[]");
+      localStorage.setItem("devotionStandaloneNotes", JSON.stringify(standalone.filter(n => n.id !== btn.dataset.standaloneId)));
+      btn.closest(".notes-session-standalone-card").remove();
+    });
+  });
+
+  detailView.hidden = false;
+  requestAnimationFrame(() => detailView.classList.add("notes-detail-open"));
+}
+
+function _shareSession(session) {
+  const dateStr = new Date(session.time).toLocaleDateString("en-US", { month: "long", day: "numeric", year: "numeric" });
+  let text = `${dateStr}\n${"─".repeat(30)}\n\n`;
+  session.verse.forEach(note => {
+    text += `📖 ${note.title}\n`;
+    (note.allItems || []).forEach(item => { text += `  v${item.verseKey?.split("-")[2] || "?"}: ${item.text}\n`; });
+    text += "\n";
+  });
+  session.reflection.forEach(note => {
+    text += `🙏 Reflection · ${note.title}\n`;
+    note.QAs.forEach(qa => {
+      const p = qa.raw.split("\nA: ");
+      text += `  Q: ${p[0].replace("Q: ","").trim()}\n  A: ${p[1]?.trim()||""}\n\n`;
+    });
+  });
+  session.standalone.forEach(note => {
+    text += `📝 ${note.title || "Note"}\n${note.data?.body || ""}\n\n`;
+  });
+  navigator.clipboard.writeText(text).then(() => {
+    const toast = document.createElement("div");
+    toast.className = "notes-toast";
+    toast.textContent = "✅ Copied to clipboard";
+    document.body.appendChild(toast);
+    setTimeout(() => toast.remove(), 2000);
   });
 }
 
@@ -3198,33 +3388,235 @@ function _renderReflNoteDetail(note, container) {
   });
 }
 
+// Parse "Psalms 117:1" / "John 3:16-20" / "Genesis 1" → "PSA-117-1" / "JN-3-16" / "GEN-1-"
+function _refToPassageId(ref) {
+  const match = ref.match(/^(.+?)\s+(\d+)(?::(\d+))?/);
+  if (!match) return null;
+  const [, bookName, ch, verse] = match;
+  const bookId = Object.keys(BIBLE_META).find(k =>
+    BIBLE_META[k].name.toLowerCase() === bookName.toLowerCase()
+  );
+  if (!bookId) return null;
+  return `${bookId}-${ch}-${verse || ""}`;
+}
+
 function _renderStandaloneEditor(data, container) {
   const dateStr = new Date(data.updatedAt).toLocaleDateString("en-US", { month: "long", day: "numeric", year: "numeric", hour: "numeric", minute: "2-digit" });
+
+  // Convert plain-text body to HTML for contenteditable (migrate old notes)
+  let bodyHTML = data.bodyHTML || "";
+  if (!bodyHTML && data.body) {
+    bodyHTML = data.body.split("\n").map(l => l ? `<p>${_escHtml(l)}</p>` : `<br>`).join("");
+  }
+
+  // Build book options from BIBLE_META
+  const bookOpts = Object.entries(BIBLE_META).map(([k, v]) =>
+    `<option value="${k}">${v.name}</option>`).join("");
+
   container.innerHTML = `
     <input class="notes-editor-title" id="notesEditorTitle" value="${_escHtml(data.title || "")}" placeholder="Title">
-    <div class="notes-editor-date">${dateStr}</div>
-    <textarea class="notes-editor-body" id="notesEditorBody" placeholder="Start writing…">${_escHtml(data.body || "")}</textarea>`;
-  let saveTimer;
-  const titleEl = container.querySelector("#notesEditorTitle");
-  const bodyEl = container.querySelector("#notesEditorBody");
+    <div class="notes-editor-date" id="notesEditorDate">${dateStr}</div>
+    <div class="notes-editor-toolbar" id="notesEditorToolbar">
+      <button class="ne-tool" data-cmd="bold" title="Bold"><b>B</b></button>
+      <button class="ne-tool" data-cmd="italic" title="Italic"><i>I</i></button>
+      <div class="ne-tool-sep"></div>
+      <button class="ne-tool" data-cmd="heading" title="Heading">H</button>
+      <div class="ne-tool-sep"></div>
+      <button class="ne-tool ne-tool-verse" id="neVerseBtn" title="Insert verse">📖 Verse</button>
+    </div>
+    <div class="notes-editor-body" id="notesEditorBody" contenteditable="true" data-placeholder="Start writing…">${bodyHTML}</div>
+    <div class="ne-verse-picker" id="neVersePicker" hidden>
+      <div class="ne-verse-mode-row">
+        <button class="ne-mode-btn active" data-mode="single">Single verse</button>
+        <button class="ne-mode-btn" data-mode="range">Range</button>
+        <button class="ne-mode-btn" data-mode="chapter">Whole chapter</button>
+      </div>
+      <div class="ne-verse-picker-row">
+        <select class="ne-verse-sel" id="nePickerBook">${bookOpts}</select>
+        <select class="ne-verse-sel" id="nePickerChapter"></select>
+        <select class="ne-verse-sel ne-picker-verse" id="nePickerVerseFrom"></select>
+        <select class="ne-verse-sel ne-picker-verse-to" id="nePickerVerseTo" hidden></select>
+      </div>
+      <button class="ne-verse-insert-btn" id="neVerseInsert">Insert</button>
+    </div>`;
+
+  const titleEl  = container.querySelector("#notesEditorTitle");
+  const bodyEl   = container.querySelector("#notesEditorBody");
+  const toolbar  = container.querySelector("#notesEditorToolbar");
+  const picker   = container.querySelector("#neVersePicker");
+
+  // Verse block: X to delete, click to navigate
+  bodyEl.addEventListener("click", e => {
+    // Delete button
+    if (e.target.closest(".nvb-delete")) {
+      const block = e.target.closest(".note-verse-block");
+      if (block) { block.remove(); autoSave(); }
+      return;
+    }
+    // Navigate to passage (always load whole chapter, then scroll to verse)
+    const block = e.target.closest(".note-verse-block");
+    if (!block) return;
+    const ref = block.dataset.ref || "";
+    const fullId = _refToPassageId(ref);
+    if (!fullId) return;
+    const [bookId, ch, verse] = fullId.split("-");
+    const returnNote = { id: `s-${data.id}`, type: "standalone", standaloneId: data.id, title: data.title, preview: "", time: data.updatedAt, data };
+    closeNotesApp();
+    loadPassageById(`${bookId}-${ch}-`); // always chapter view
+    showBackToNotesBubble(returnNote);
+    if (verse) {
+      setTimeout(() => {
+        const target = [...document.querySelectorAll("#output .verse")]
+          .find(el => el.querySelector(".verse-num")?.textContent?.trim() === verse);
+        target?.scrollIntoView({ behavior: "smooth", block: "center" });
+      }, 600);
+    }
+  });
+
+  let saveTimer, savedRange = null;
   const autoSave = () => {
     clearTimeout(saveTimer);
     saveTimer = setTimeout(() => {
-      data.title = titleEl.value;
-      data.body = bodyEl.value;
+      data.title   = titleEl.value;
+      data.bodyHTML = bodyEl.innerHTML;
+      data.body    = bodyEl.innerText; // plain text fallback
       data.updatedAt = Date.now();
+      container.querySelector("#notesEditorDate").textContent =
+        new Date(data.updatedAt).toLocaleDateString("en-US", { month: "long", day: "numeric", year: "numeric", hour: "numeric", minute: "2-digit" });
       _updateStandaloneNote(data);
     }, 500);
   };
-  titleEl?.addEventListener("input", autoSave);
-  bodyEl?.addEventListener("input", autoSave);
-  // Auto-resize textarea
-  const resize = () => { bodyEl.style.height = "auto"; bodyEl.style.height = bodyEl.scrollHeight + "px"; };
-  bodyEl?.addEventListener("input", resize);
-  resize();
-  // Focus body if title is empty
-  if (!data.title) setTimeout(() => titleEl?.focus(), 100);
-  else setTimeout(() => bodyEl?.focus(), 100);
+  titleEl.addEventListener("input", autoSave);
+  bodyEl.addEventListener("input", autoSave);
+
+  // Toolbar commands
+  toolbar.addEventListener("mousedown", e => {
+    const btn = e.target.closest("[data-cmd]");
+    if (!btn) return;
+    e.preventDefault();
+    const cmd = btn.dataset.cmd;
+    if (cmd === "bold" || cmd === "italic") {
+      document.execCommand(cmd);
+    } else if (cmd === "heading") {
+      const sel = window.getSelection();
+      const block = sel?.anchorNode?.parentElement?.closest("h1,h2,h3,p,div");
+      const isHeading = block && /^H[1-6]$/.test(block.tagName);
+      document.execCommand("formatBlock", false, isHeading ? "p" : "h2");
+    }
+    autoSave();
+  });
+
+  // Save cursor position on mousedown (fires before editor loses focus)
+  let neVerseBtn = container.querySelector("#neVerseBtn");
+  neVerseBtn.addEventListener("mousedown", e => {
+    e.preventDefault(); // keep focus in editor
+    const sel = window.getSelection();
+    if (sel && sel.rangeCount && bodyEl.contains(sel.getRangeAt(0).commonAncestorContainer)) {
+      savedRange = sel.getRangeAt(0).cloneRange();
+    }
+  });
+  neVerseBtn.addEventListener("click", () => {
+    picker.hidden = !picker.hidden;
+    neVerseBtn.classList.toggle("active", !picker.hidden);
+    if (!picker.hidden) _nePopulateChapters();
+  });
+
+  // Mode selector
+  let neMode = "single"; // single | range | chapter
+  picker.querySelectorAll(".ne-mode-btn").forEach(btn => {
+    btn.addEventListener("click", () => {
+      neMode = btn.dataset.mode;
+      picker.querySelectorAll(".ne-mode-btn").forEach(b => b.classList.toggle("active", b === btn));
+      _neApplyMode();
+    });
+  });
+
+  function _neApplyMode() {
+    const verseFromEl = container.querySelector("#nePickerVerseFrom");
+    const verseToEl   = container.querySelector("#nePickerVerseTo");
+    if (neMode === "chapter") {
+      verseFromEl.hidden = true;
+      verseToEl.hidden   = true;
+    } else if (neMode === "range") {
+      verseFromEl.hidden = false;
+      verseToEl.hidden   = false;
+    } else { // single
+      verseFromEl.hidden = false;
+      verseToEl.hidden   = true;
+    }
+  }
+
+  // Verse picker selects
+  container.querySelector("#nePickerBook").addEventListener("change", _nePopulateChapters);
+  container.querySelector("#nePickerChapter").addEventListener("change", _nePopulateVerses);
+
+  // Insert verse block
+  container.querySelector("#neVerseInsert").addEventListener("click", () => {
+    const book     = container.querySelector("#nePickerBook").value;
+    const ch       = container.querySelector("#nePickerChapter").value;
+    const vFromEl  = container.querySelector("#nePickerVerseFrom");
+    const vToEl    = container.querySelector("#nePickerVerseTo");
+    const vFrom    = neMode !== "chapter" ? vFromEl.value : "";
+    const vTo      = neMode === "range"   ? vToEl.value  : "";
+    const bookName = BIBLE_META[book]?.name || book;
+
+    // Collect verse texts
+    const verses = [];
+    if (neMode === "chapter") {
+      const total = BIBLE_META[book]?.chapters[parseInt(ch)-1] || 1;
+      for (let v = 1; v <= Math.min(total, 30); v++) {
+        const t = getVerseText(book, ch, String(v));
+        if (t && t !== "Verse text not found.") verses.push({ n: v, t });
+      }
+    } else {
+      const start = parseInt(vFrom) || 1;
+      const end   = neMode === "range" && vTo ? parseInt(vTo) : start;
+      for (let v = start; v <= end; v++) {
+        const t = getVerseText(book, ch, String(v));
+        if (t && t !== "Verse text not found.") verses.push({ n: v, t });
+      }
+    }
+
+    const refLabel = neMode === "chapter"
+      ? `${bookName} ${ch}`
+      : `${bookName} ${ch}:${vFrom}${neMode === "range" && vTo && vTo !== vFrom ? "–"+vTo : ""}`;
+    const versesHTML = verses.map(v => `<span class="nvb-verse"><sup class="nvb-num">${v.n}</sup>${_escHtml(v.t)}</span>`).join(" ");
+    const blockHTML = `<div class="note-verse-block" contenteditable="false" data-ref="${_escHtml(refLabel)}"><button class="nvb-delete" contenteditable="false">✕</button><div class="nvb-ref">📖 ${_escHtml(refLabel)}</div><div class="nvb-body">${versesHTML}</div></div><p><br></p>`;
+
+    // Insert at saved cursor position
+    bodyEl.focus();
+    if (savedRange) {
+      const sel = window.getSelection();
+      sel.removeAllRanges();
+      sel.addRange(savedRange);
+      savedRange = null;
+    }
+    document.execCommand("insertHTML", false, blockHTML);
+    picker.hidden = true;
+    neVerseBtn.classList.remove("active");
+    autoSave();
+  });
+
+  function _nePopulateChapters() {
+    const book = container.querySelector("#nePickerBook").value;
+    const chapters = BIBLE_META[book]?.chapters || [];
+    const chSel = container.querySelector("#nePickerChapter");
+    chSel.innerHTML = chapters.map((_,i) => `<option value="${i+1}">${i+1}</option>`).join("");
+    _nePopulateVerses();
+  }
+  function _nePopulateVerses() {
+    const book  = container.querySelector("#nePickerBook").value;
+    const ch    = container.querySelector("#nePickerChapter").value;
+    const total = BIBLE_META[book]?.chapters[parseInt(ch)-1] || 1;
+    const verseOpts = Array.from({length:total},(_,i)=>`<option value="${i+1}">${i+1}</option>`).join("");
+    container.querySelector("#nePickerVerseFrom").innerHTML = verseOpts;
+    container.querySelector("#nePickerVerseTo").innerHTML   = verseOpts;
+  }
+  _nePopulateChapters();
+  _neApplyMode();
+
+  if (!data.title) setTimeout(() => titleEl.focus(), 100);
+  else setTimeout(() => bodyEl.focus(), 100);
 }
 
 function _createNewNote() {
