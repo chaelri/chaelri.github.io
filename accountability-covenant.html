@@ -1,0 +1,1243 @@
+<!DOCTYPE html>
+
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Accountability Covenant</title>
+    <script src="https://cdn.tailwindcss.com"></script>
+    <style>
+        @import url('https://fonts.googleapis.com/css2?family=Playfair+Display:wght@600;700&family=Crimson+Text:wght@400;600&family=Work+Sans:wght@400;500;600&display=swap');
+
+```
+    :root {
+        color-scheme: light;
+    }
+
+    * {
+        margin: 0;
+        padding: 0;
+        box-sizing: border-box;
+        color-scheme: light !important;
+    }
+
+    html, body {
+        height: 100%;
+        width: 100%;
+        font-family: 'Crimson Text', serif;
+        background-color: #ffffff !important;
+        color: #1a1a1a !important;
+    }
+
+    body {
+        background: #ffffff !important;
+        color: #1a1a1a !important;
+        transition: all 0.4s cubic-bezier(0.4, 0, 0.2, 1);
+        min-height: 100vh;
+        position: relative;
+        overflow-x: hidden;
+        font-size: 1.05rem;
+        line-height: 1.7;
+    }
+
+    /* Animated gradient mesh background */
+    body::before {
+        content: '';
+        position: fixed;
+        top: 0;
+        left: 0;
+        right: 0;
+        bottom: 0;
+        background: transparent;
+        pointer-events: none;
+        z-index: -1;
+    }
+
+    /* Typography */
+    h1 {
+        font-family: 'Playfair Display', serif;
+        font-size: 2.2rem;
+        font-weight: 700;
+        letter-spacing: -1px;
+        color: #000000 !important;
+        line-height: 1.1;
+    }
+
+    h2 {
+        font-family: 'Playfair Display', serif;
+        font-size: 1.35rem;
+        font-weight: 600;
+        color: #1a1a1a !important;
+        margin: 0;
+        letter-spacing: -0.4px;
+        line-height: 1.3;
+    }
+
+    h3 {
+        font-family: 'Playfair Display', serif;
+        font-weight: 600;
+        color: #2d2d2d !important;
+        font-size: 1rem;
+    }
+
+    /* Container */
+    .container-main {
+        position: relative;
+        min-height: 100vh;
+        padding: 1rem;
+        max-width: 500px;
+        margin: 0 auto;
+    }
+
+    /* Cards - Minimalist */
+    .card {
+        background: #ffffff !important;
+        border: 1px solid #e5e5e5 !important;
+        border-radius: 8px;
+        padding: 1.25rem;
+        margin-bottom: 1rem;
+        backdrop-filter: none;
+        -webkit-backdrop-filter: none;
+        transition: all 0.25s cubic-bezier(0.4, 0, 0.2, 1);
+        box-shadow: none;
+        color: #1a1a1a !important;
+    }
+
+    .card:hover {
+        border-color: #d0d0d0 !important;
+        background: #fafafa !important;
+        box-shadow: 0 1px 3px rgba(0, 0, 0, 0.05);
+        transform: none;
+    }
+
+    /* Form elements */
+    .form-group {
+        margin-bottom: 1rem;
+    }
+
+    label {
+        display: block;
+        margin-bottom: 0.5rem;
+        font-weight: 600;
+        color: #4d4d4d !important;
+        font-size: 0.9rem;
+        line-height: 1.5;
+        letter-spacing: 0.2px;
+        font-family: 'Work Sans', sans-serif;
+    }
+
+    textarea, input[type="text"], input[type="email"] {
+        width: 100%;
+        padding: 0.75rem 1rem;
+        background: #f9f9f9 !important;
+        border: 1px solid #d0d0d0 !important;
+        border-radius: 6px;
+        color: #1a1a1a !important;
+        font-family: 'Crimson Text', serif;
+        font-size: 1.05rem;
+        transition: all 0.2s cubic-bezier(0.4, 0, 0.2, 1);
+        resize: vertical;
+        min-height: 80px;
+        backdrop-filter: none;
+        -webkit-text-fill-color: #1a1a1a !important;
+    }
+
+    textarea::placeholder, input::placeholder {
+        color: #999999 !important;
+        font-style: italic;
+        -webkit-text-fill-color: #999999 !important;
+    }
+
+    textarea:focus, input[type="text"]:focus, input[type="email"]:focus {
+        outline: none;
+        border-color: #000000 !important;
+        background: #ffffff !important;
+        box-shadow: inset 0 1px 2px rgba(0, 0, 0, 0.02);
+    }
+
+    /* Buttons */
+    button {
+        padding: 0.7rem 1.4rem;
+        background: #000000;
+        color: white;
+        border: none;
+        border-radius: 6px;
+        font-weight: 600;
+        cursor: pointer;
+        font-size: 0.95rem;
+        transition: all 0.2s cubic-bezier(0.4, 0, 0.2, 1);
+        font-family: 'Work Sans', sans-serif;
+        letter-spacing: 0.2px;
+        box-shadow: none;
+    }
+
+    button:hover {
+        transform: none;
+        background: #2d2d2d;
+        box-shadow: 0 2px 4px rgba(0, 0, 0, 0.1);
+    }
+
+    button:active {
+        transform: none;
+        box-shadow: 0 1px 2px rgba(0, 0, 0, 0.08);
+    }
+
+    .btn-secondary {
+        background: #e5e5e5;
+        color: #2d2d2d !important;
+        box-shadow: none;
+    }
+
+    .btn-secondary:hover {
+        background: #d0d0d0;
+        box-shadow: 0 2px 4px rgba(0, 0, 0, 0.08);
+    }
+
+    .btn-danger {
+        background: #ef4444;
+        box-shadow: none;
+    }
+
+    .btn-danger:hover {
+        background: #dc2626;
+        box-shadow: 0 2px 4px rgba(239, 68, 68, 0.15);
+    }
+
+    /* Radio options */
+    .radio-group {
+        display: flex;
+        gap: 0.75rem;
+        margin-top: 0.75rem;
+        flex-wrap: wrap;
+    }
+
+    .radio-option {
+        display: flex;
+        align-items: center;
+        padding: 0.55rem 0.9rem;
+        background: #f9f9f9 !important;
+        border: 1px solid #d0d0d0;
+        border-radius: 6px;
+        cursor: pointer;
+        transition: all 0.2s cubic-bezier(0.4, 0, 0.2, 1);
+        color: #2d2d2d !important;
+        font-weight: 500;
+        font-size: 0.95rem;
+        font-family: 'Work Sans', sans-serif;
+    }
+
+    .radio-option input[type="radio"] {
+        cursor: pointer;
+        margin-right: 0.5rem;
+        accent-color: #000000 !important;
+    }
+
+    .radio-option:hover {
+        border-color: #a0a0a0;
+        background: #ffffff !important;
+    }
+
+    .radio-option:has(input[type="radio"]:checked) {
+        background: #000000;
+        border-color: #000000 !important;
+        color: #ffffff;
+        box-shadow: none;
+    }
+
+    /* Sections */
+    .section {
+        margin-bottom: 1.5rem;
+    }
+
+    .section-header {
+        display: flex;
+        align-items: center;
+        gap: 0.8rem;
+        margin-bottom: 1.25rem;
+        padding-bottom: 0.75rem;
+        border-bottom: 1px solid #e5e5e5;
+    }
+
+    .section-icon {
+        font-size: 1.5rem;
+        display: inline-flex;
+        align-items: center;
+        justify-content: center;
+    }
+
+    /* Tabs */
+    .tabs {
+        display: flex;
+        gap: 0.4rem;
+        margin-bottom: 1.5rem;
+        overflow-x: auto;
+        padding-bottom: 0.5rem;
+        border-bottom: 1px solid #e5e5e5;
+    }
+
+    .tab-button {
+        padding: 0.65rem 1.1rem;
+        background: transparent;
+        border: none;
+        color: #666666 !important;
+        font-weight: 600;
+        cursor: pointer;
+        border-radius: 6px;
+        white-space: nowrap;
+        transition: all 0.2s cubic-bezier(0.4, 0, 0.2, 1);
+        font-size: 0.95rem;
+        letter-spacing: 0.2px;
+        position: relative;
+        font-family: 'Work Sans', sans-serif;
+    }
+
+    .tab-button:hover {
+        color: #1a1a1a !important;
+        background: #f9f9f9 !important;
+    }
+
+    .tab-button.active {
+        color: #000000 !important;
+        background: transparent;
+    }
+
+    .tab-button.active::after {
+        content: '';
+        position: absolute;
+        bottom: -10px;
+        left: 1.1rem;
+        right: 1.1rem;
+        height: 2px;
+        background: #000000;
+        border-radius: 1px;
+    }
+
+    .tab-content {
+        display: none;
+        animation: fadeSlideIn 0.35s cubic-bezier(0.4, 0, 0.2, 1);
+    }
+
+    .tab-content.active {
+        display: block;
+    }
+
+    @keyframes fadeSlideIn {
+        from {
+            opacity: 0;
+            transform: translateY(8px);
+        }
+        to {
+            opacity: 1;
+            transform: translateY(0);
+        }
+    }
+
+    /* Progress bar */
+    .progress-bar {
+        width: 100%;
+        height: 4px;
+        background: #e5e5e5;
+        border-radius: 10px;
+        margin-bottom: 1.5rem;
+        overflow: hidden;
+    }
+
+    .progress-fill {
+        height: 100%;
+        background: #000000;
+        border-radius: 10px;
+        transition: width 0.4s cubic-bezier(0.4, 0, 0.2, 1);
+        box-shadow: none;
+    }
+
+    /* Toast notification */
+    .toast {
+        position: fixed;
+        bottom: 2rem;
+        left: 1.25rem;
+        right: 1.25rem;
+        padding: 1rem 1.5rem;
+        background: #2d2d2d;
+        color: white;
+        border-radius: 6px;
+        font-weight: 500;
+        animation: toastSlideUp 0.35s cubic-bezier(0.4, 0, 0.2, 1);
+        z-index: 1000;
+        max-width: 448px;
+        margin: 0 auto;
+        box-shadow: 0 4px 12px rgba(0, 0, 0, 0.15);
+        border: none;
+    }
+
+    @keyframes toastSlideUp {
+        from {
+            transform: translateY(100px);
+            opacity: 0;
+        }
+        to {
+            transform: translateY(0);
+            opacity: 1;
+        }
+    }
+
+    /* Modal */
+    .modal {
+        display: none;
+        position: fixed;
+        top: 0;
+        left: 0;
+        right: 0;
+        bottom: 0;
+        background: rgba(0, 0, 0, 0.25);
+        backdrop-filter: blur(2px);
+        z-index: 999;
+        align-items: center;
+        justify-content: center;
+        padding: 1rem;
+        animation: fadeIn 0.25s ease;
+    }
+
+    .modal.active {
+        display: flex;
+    }
+
+    .modal-content {
+        background: #ffffff !important;
+        border: 1px solid #d0d0d0;
+        border-radius: 8px;
+        padding: 2rem;
+        max-width: 400px;
+        width: 100%;
+        animation: modalSlideIn 0.35s cubic-bezier(0.4, 0, 0.2, 1);
+        box-shadow: 0 10px 30px rgba(0, 0, 0, 0.1);
+        backdrop-filter: none;
+    }
+
+    .modal-content h2 {
+        margin-bottom: 1rem;
+    }
+
+    @keyframes modalSlideIn {
+        from {
+            transform: translateY(20px) scale(0.98);
+            opacity: 0;
+        }
+        to {
+            transform: translateY(0) scale(1);
+            opacity: 1;
+        }
+    }
+
+    @keyframes fadeIn {
+        from { opacity: 0; }
+        to { opacity: 1; }
+    }
+
+    /* Header */
+    .header {
+        text-align: center;
+        margin-bottom: 2rem;
+        padding: 1.5rem 0 1rem 0;
+        animation: headerFadeIn 0.6s cubic-bezier(0.4, 0, 0.2, 1);
+    }
+
+    @keyframes headerFadeIn {
+        from {
+            opacity: 0;
+            transform: translateY(-10px);
+        }
+        to {
+            opacity: 1;
+            transform: translateY(0);
+        }
+    }
+
+    .subtitle {
+        color: #666666 !important;
+        font-size: 1rem;
+        line-height: 1.6;
+        margin-top: 0.75rem;
+        font-weight: 400;
+        letter-spacing: 0.2px;
+        font-style: italic;
+        font-family: 'Crimson Text', serif;
+    }
+
+    /* Button group */
+    .button-group {
+        display: flex;
+        gap: 0.75rem;
+        margin-top: 1.5rem;
+    }
+
+    .button-group button {
+        flex: 1;
+    }
+
+    /* Footer */
+    .footer {
+        text-align: center;
+        padding: 2rem 0 1.5rem 0;
+        color: #999999 !important;
+        font-size: 0.9rem;
+        line-height: 1.6;
+        font-family: 'Crimson Text', serif;
+    }
+
+    /* Accessibility */
+    @media (prefers-reduced-motion: reduce) {
+        * {
+            animation-duration: 0.01ms !important;
+            animation-iteration-count: 1 !important;
+            transition-duration: 0.01ms !important;
+        }
+    }
+
+    /* Mobile-specific */
+    @media (max-width: 480px) {
+        h1 {
+            font-size: 1.8rem;
+        }
+
+        h2 {
+            font-size: 1.1rem;
+        }
+
+        .container-main {
+            padding: 1rem;
+        }
+
+        .card {
+            padding: 1.25rem;
+            margin-bottom: 1rem;
+        }
+
+        button {
+            font-size: 0.9rem;
+            padding: 0.7rem 1.4rem;
+        }
+
+        .button-group {
+            gap: 0.5rem;
+        }
+
+        .tabs {
+            gap: 0.3rem;
+        }
+
+        .tab-button {
+            padding: 0.6rem 1rem;
+            font-size: 0.85rem;
+        }
+    }
+
+    /* Scrollbar styling */
+    ::-webkit-scrollbar {
+        width: 6px;
+    }
+
+    ::-webkit-scrollbar-track {
+        background: rgba(59, 130, 246, 0.08);
+    }
+
+    ::-webkit-scrollbar-thumb {
+        background: rgba(59, 130, 246, 0.35);
+        border-radius: 3px;
+    }
+
+    ::-webkit-scrollbar-thumb:hover {
+        background: rgba(59, 130, 246, 0.5);
+    }
+</style>
+```
+
+</head>
+<body>
+    <div class="container-main">
+        <!-- Header -->
+        <div class="header">
+            <h1>Accountability Covenant</h1>
+            <p class="subtitle">A commitment to transparency, integrity, and spiritual health</p>
+        </div>
+
+```
+    <!-- Progress -->
+    <div class="progress-bar">
+        <div class="progress-fill" id="progressFill"></div>
+    </div>
+
+    <!-- Tabs -->
+    <div class="tabs">
+        <button class="tab-button active" onclick="switchTab('personal')">Personal</button>
+        <button class="tab-button" onclick="switchTab('behavior')">Behavior</button>
+        <button class="tab-button" onclick="switchTab('family')">Family</button>
+        <button class="tab-button" onclick="switchTab('health')">Health</button>
+    </div>
+
+    <form id="covenantForm">
+        <!-- Personal Tab -->
+        <div id="personal" class="tab-content active">
+            <div class="section">
+                <div class="section-header">
+                    <span class="section-icon">🔑</span>
+                    <h2>Access & Transparency</h2>
+                </div>
+                
+                <div class="card">
+                    <h3 style="margin: 0 0 1rem 0; font-size: 1.1rem; color: #1a202c; font-family: 'Playfair Display', serif;">Digital Access</h3>
+                    <div class="form-group">
+                        <label for="deviceAccess">What level of access do you have to your husband's digital devices, accounts, and financial tools?</label>
+                        <textarea id="deviceAccess" name="deviceAccess" placeholder="Share your honest assessment..."></textarea>
+                    </div>
+                </div>
+
+                <div class="card">
+                    <h3 style="margin: 0 0 1rem 0; font-size: 1.1rem; color: #1a202c; font-family: 'Playfair Display', serif;">Password Knowledge</h3>
+                    <div class="form-group">
+                        <label for="passwordKnowledge">Do you know your husband's passwords?</label>
+                        <div class="radio-group">
+                            <label class="radio-option">
+                                <input type="radio" name="passwordKnowledge" value="yes" required>
+                                <span>Yes, all</span>
+                            </label>
+                            <label class="radio-option">
+                                <input type="radio" name="passwordKnowledge" value="some">
+                                <span>Some</span>
+                            </label>
+                            <label class="radio-option">
+                                <input type="radio" name="passwordKnowledge" value="none">
+                                <span>None</span>
+                            </label>
+                        </div>
+                    </div>
+                </div>
+
+                <div class="card">
+                    <h3 style="margin: 0 0 1rem 0; font-size: 1.1rem; color: #1a202c; font-family: 'Playfair Display', serif;">Financial Transparency</h3>
+                    <div class="form-group">
+                        <label for="digitalTransparency">In what ways does he demonstrate transparency in digital life and finances?</label>
+                        <textarea id="digitalTransparency" name="digitalTransparency" placeholder="Describe specific instances..."></textarea>
+                    </div>
+                </div>
+            </div>
+
+            <div class="section">
+                <div class="section-header">
+                    <span class="section-icon">👁️</span>
+                    <h2>Visual & Moral Purity</h2>
+                </div>
+                
+                <div class="card">
+                    <h3 style="margin: 0 0 1rem 0; font-size: 1.1rem; color: #1a202c; font-family: 'Playfair Display', serif;">Media Consumption</h3>
+                    <div class="form-group">
+                        <label for="mediaConcerns">What concerns do you have regarding his media consumption?</label>
+                        <textarea id="mediaConcerns" name="mediaConcerns" placeholder="Be specific and honest..."></textarea>
+                    </div>
+                </div>
+
+                <div class="card">
+                    <h3 style="margin: 0 0 1rem 0; font-size: 1.1rem; color: #1a202c; font-family: 'Playfair Display', serif;">Pornography History</h3>
+                    <div class="form-group">
+                        <label for="pornographyHistory">Have you caught your husband with pornographic materials?</label>
+                        <div class="radio-group">
+                            <label class="radio-option">
+                                <input type="radio" name="pornographyHistory" value="never" required>
+                                <span>Never</span>
+                            </label>
+                            <label class="radio-option">
+                                <input type="radio" name="pornographyHistory" value="once">
+                                <span>Once</span>
+                            </label>
+                            <label class="radio-option">
+                                <input type="radio" name="pornographyHistory" value="multiple">
+                                <span>Multiple</span>
+                            </label>
+                        </div>
+                    </div>
+                    <div class="form-group">
+                        <label for="pornographyCount">If applicable, how many times?</label>
+                        <input type="text" id="pornographyCount" name="pornographyCount" placeholder="Be honest...">
+                    </div>
+                </div>
+
+                <div class="card">
+                    <h3 style="margin: 0 0 1rem 0; font-size: 1.1rem; color: #1a202c; font-family: 'Playfair Display', serif;">Self-Discipline</h3>
+                    <div class="form-group">
+                        <label for="selfDiscipline">How does he practice self-discipline in guarding his heart and mind?</label>
+                        <textarea id="selfDiscipline" name="selfDiscipline" placeholder="Describe his practices..."></textarea>
+                    </div>
+                </div>
+            </div>
+        </div>
+
+        <!-- Behavior Tab -->
+        <div id="behavior" class="tab-content">
+            <div class="section">
+                <div class="section-header">
+                    <span class="section-icon">👥</span>
+                    <h2>Boundaries & Relationships</h2>
+                </div>
+                
+                <div class="card">
+                    <h3 style="margin: 0 0 1rem 0; font-size: 1.1rem; color: #1a202c; font-family: 'Playfair Display', serif;">Social Boundaries</h3>
+                    <div class="form-group">
+                        <label for="relationshipsOpposite">How does your husband relate to the opposite sex?</label>
+                        <textarea id="relationshipsOpposite" name="relationshipsOpposite" placeholder="Share any concerns..."></textarea>
+                    </div>
+                </div>
+
+                <div class="card">
+                    <h3 style="margin: 0 0 1rem 0; font-size: 1.1rem; color: #1a202c; font-family: 'Playfair Display', serif;">Private Interactions</h3>
+                    <div class="form-group">
+                        <label for="privateConversations">Have you observed him in private conversations with opposite sex?</label>
+                        <div class="radio-group">
+                            <label class="radio-option">
+                                <input type="radio" name="privateConversations" value="no" required>
+                                <span>No</span>
+                            </label>
+                            <label class="radio-option">
+                                <input type="radio" name="privateConversations" value="occasionally">
+                                <span>Occasionally</span>
+                            </label>
+                            <label class="radio-option">
+                                <input type="radio" name="privateConversations" value="frequently">
+                                <span>Frequently</span>
+                            </label>
+                        </div>
+                    </div>
+                </div>
+            </div>
+
+            <div class="section">
+                <div class="section-header">
+                    <span class="section-icon">😤</span>
+                    <h2>Temper & Emotional Control</h2>
+                </div>
+                
+                <div class="card">
+                    <h3 style="margin: 0 0 1rem 0; font-size: 1.1rem; color: #1a202c; font-family: 'Playfair Display', serif;">Stress Response</h3>
+                    <div class="form-group">
+                        <label for="stressResponse">How does your husband typically respond to stress, conflict, or disappointment?</label>
+                        <textarea id="stressResponse" name="stressResponse" placeholder="Describe his typical response..."></textarea>
+                    </div>
+                </div>
+
+                <div class="card">
+                    <h3 style="margin: 0 0 1rem 0; font-size: 1.1rem; color: #1a202c; font-family: 'Playfair Display', serif;">Outbursts & Anger</h3>
+                    <div class="form-group">
+                        <label for="angerOutbursts">Describe moments when anger or emotional outbursts have been evident:</label>
+                        <textarea id="angerOutbursts" name="angerOutbursts" placeholder="Be specific and honest..."></textarea>
+                    </div>
+                    <div class="form-group">
+                        <label for="howOffends">In what ways does your husband usually offend you?</label>
+                        <textarea id="howOffends" name="howOffends" placeholder="Be honest..."></textarea>
+                    </div>
+                </div>
+
+                <div class="card">
+                    <h3 style="margin: 0 0 1rem 0; font-size: 1.1rem; color: #1a202c; font-family: 'Playfair Display', serif;">Taking Responsibility</h3>
+                    <div class="form-group">
+                        <label for="responsibility">When he fails, how does he take responsibility and seek forgiveness?</label>
+                        <textarea id="responsibility" name="responsibility" placeholder="Describe his pattern..."></textarea>
+                    </div>
+                </div>
+
+                <div class="card">
+                    <h3 style="margin: 0 0 1rem 0; font-size: 1.1rem; color: #1a202c; font-family: 'Playfair Display', serif;">Abuse Concerns</h3>
+                    <div class="form-group">
+                        <label for="abuse">Is he physically or verbally abusive when angry?</label>
+                        <div class="radio-group">
+                            <label class="radio-option">
+                                <input type="radio" name="abuse" value="never" required>
+                                <span>Never</span>
+                            </label>
+                            <label class="radio-option">
+                                <input type="radio" name="abuse" value="verbally">
+                                <span>Verbally</span>
+                            </label>
+                            <label class="radio-option">
+                                <input type="radio" name="abuse" value="physically">
+                                <span>Physically</span>
+                            </label>
+                            <label class="radio-option">
+                                <input type="radio" name="abuse" value="both">
+                                <span>Both</span>
+                            </label>
+                        </div>
+                    </div>
+                </div>
+            </div>
+
+            <div class="section">
+                <div class="section-header">
+                    <span class="section-icon">💰</span>
+                    <h2>Finances & Stewardship</h2>
+                </div>
+                
+                <div class="card">
+                    <h3 style="margin: 0 0 1rem 0; font-size: 1.1rem; color: #1a202c; font-family: 'Playfair Display', serif;">Financial Openness</h3>
+                    <div class="form-group">
+                        <label for="financialOpenness">How open and honest is your husband regarding income, expenses, and debts?</label>
+                        <textarea id="financialOpenness" name="financialOpenness" placeholder="Describe his transparency..."></textarea>
+                    </div>
+                </div>
+
+                <div class="card">
+                    <h3 style="margin: 0 0 1rem 0; font-size: 1.1rem; color: #1a202c; font-family: 'Playfair Display', serif;">Shared Access</h3>
+                    <div class="form-group">
+                        <label for="mutualAccess">Do you have mutual access to his finances?</label>
+                        <div class="radio-group">
+                            <label class="radio-option">
+                                <input type="radio" name="mutualAccess" value="yes" required>
+                                <span>Yes</span>
+                            </label>
+                            <label class="radio-option">
+                                <input type="radio" name="mutualAccess" value="partial">
+                                <span>Partial</span>
+                            </label>
+                            <label class="radio-option">
+                                <input type="radio" name="mutualAccess" value="no">
+                                <span>No</span>
+                            </label>
+                        </div>
+                    </div>
+                </div>
+
+                <div class="card">
+                    <h3 style="margin: 0 0 1rem 0; font-size: 1.1rem; color: #1a202c; font-family: 'Playfair Display', serif;">Family Dynamics</h3>
+                    <div class="form-group">
+                        <label for="familyDynamics">How does he respond when family conflicts arise regarding finances?</label>
+                        <textarea id="familyDynamics" name="familyDynamics" placeholder="Describe his approach..."></textarea>
+                    </div>
+                    <div class="form-group">
+                        <label for="familyRespect">Have there been moments when he was disrespectful toward your family?</label>
+                        <textarea id="familyRespect" name="familyRespect" placeholder="Provide examples..."></textarea>
+                    </div>
+                </div>
+
+                <div class="card">
+                    <h3 style="margin: 0 0 1rem 0; font-size: 1.1rem; color: #1a202c; font-family: 'Playfair Display', serif;">Extended Family</h3>
+                    <div class="form-group">
+                        <label for="extendedFamily">How does he lead when decisions involve extended family?</label>
+                        <textarea id="extendedFamily" name="extendedFamily" placeholder="Describe his leadership..."></textarea>
+                    </div>
+                </div>
+            </div>
+        </div>
+
+        <!-- Family Tab -->
+        <div id="family" class="tab-content">
+            <div class="section">
+                <div class="section-header">
+                    <span class="section-icon">👨‍👧‍👦</span>
+                    <h2>Fatherhood & Children</h2>
+                </div>
+                <div class="card">
+                    <div class="form-group">
+                        <label for="fatherPresence">How does your husband show presence and availability in your children's lives?</label>
+                        <textarea id="fatherPresence" name="fatherPresence" placeholder="Describe his involvement..."></textarea>
+                    </div>
+
+                    <div class="form-group">
+                        <label for="investmentIntentional">How does he intentionally invest time in each child?</label>
+                        <textarea id="investmentIntentional" name="investmentIntentional" placeholder="Be specific..."></textarea>
+                    </div>
+
+                    <div class="form-group">
+                        <label for="spiritualLeadership">In what ways does he lead or encourage children spiritually?</label>
+                        <textarea id="spiritualLeadership" name="spiritualLeadership" placeholder="Give examples..."></textarea>
+                    </div>
+
+                    <div class="form-group">
+                        <label for="disciplineApproach">How would you describe his approach to discipline and correction?</label>
+                        <textarea id="disciplineApproach" name="disciplineApproach" placeholder="Describe his style..."></textarea>
+                    </div>
+
+                    <div class="form-group">
+                        <label for="temperWithChildren">How does he manage his temper and patience with children?</label>
+                        <textarea id="temperWithChildren" name="temperWithChildren" placeholder="Be honest..."></textarea>
+                    </div>
+
+                    <div class="form-group">
+                        <label for="childrenResponse">How do the children typically respond to their father?</label>
+                        <textarea id="childrenResponse" name="childrenResponse" placeholder="What does this reveal?..."></textarea>
+                    </div>
+
+                    <div class="form-group">
+                        <label for="listeningToChildren">How well does he listen to children's thoughts and concerns?</label>
+                        <textarea id="listeningToChildren" name="listeningToChildren" placeholder="Describe his listening..."></textarea>
+                    </div>
+
+                    <div class="form-group">
+                        <label for="consistency">How consistent is he with promises and behavior as a father?</label>
+                        <textarea id="consistency" name="consistency" placeholder="Give examples..."></textarea>
+                    </div>
+                </div>
+            </div>
+
+            <div class="section">
+                <div class="section-header">
+                    <span class="section-icon">💕</span>
+                    <h2>Marital Intimacy</h2>
+                </div>
+                <div class="card">
+                    <div class="form-group">
+                        <label for="intimacyHealth">How would you describe the overall health of your emotional and physical intimacy?</label>
+                        <textarea id="intimacyHealth" name="intimacyHealth" placeholder="Be honest..."></textarea>
+                    </div>
+
+                    <div class="form-group">
+                        <label for="pursuitCloseness">In what ways does your husband pursue closeness and affection?</label>
+                        <textarea id="pursuitCloseness" name="pursuitCloseness" placeholder="Describe his efforts..."></textarea>
+                    </div>
+
+                    <div class="form-group">
+                        <label for="intimacySatisfaction">How satisfied are you with communication, affection, and sexual intimacy?</label>
+                        <textarea id="intimacySatisfaction" name="intimacySatisfaction" placeholder="Be specific..."></textarea>
+                    </div>
+
+                    <div class="form-group">
+                        <label for="intimacyNeeds">How does he respond when you express intimacy needs?</label>
+                        <textarea id="intimacyNeeds" name="intimacyNeeds" placeholder="Describe his response..."></textarea>
+                    </div>
+
+                    <div class="form-group">
+                        <label for="unresolvedConflicts">Are there unresolved conflicts affecting your intimacy?</label>
+                        <textarea id="unresolvedConflicts" name="unresolvedConflicts" placeholder="Be honest..."></textarea>
+                    </div>
+                </div>
+            </div>
+        </div>
+
+        <!-- Health Tab -->
+        <div id="health" class="tab-content">
+            <div class="section">
+                <div class="section-header">
+                    <span class="section-icon">🧠</span>
+                    <h2>Behavioral & Spiritual Health</h2>
+                </div>
+                <div class="card">
+                    <div class="form-group">
+                        <label for="recentPatterns">What recent behavior patterns concern or encourage you?</label>
+                        <textarea id="recentPatterns" name="recentPatterns" placeholder="Share your observations..."></textarea>
+                    </div>
+
+                    <div class="form-group">
+                        <label for="spiritualConsistency">How would you describe his consistency in prayer, Scripture, and spiritual disciplines?</label>
+                        <textarea id="spiritualConsistency" name="spiritualConsistency" placeholder="Be specific..."></textarea>
+                    </div>
+
+                    <div class="form-group">
+                        <label for="vulnerability">When alone, stressed, or tired, where is he most vulnerable to compromise?</label>
+                        <textarea id="vulnerability" name="vulnerability" placeholder="What areas concern you..."></textarea>
+                    </div>
+
+                    <div class="form-group">
+                        <label for="openness">How would you describe his willingness to share struggles honestly?</label>
+                        <textarea id="openness" name="openness" placeholder="Describe his openness..."></textarea>
+                    </div>
+
+                    <div class="form-group">
+                        <label for="receptiveness">How receptive is he to correction and spiritual leadership?</label>
+                        <textarea id="receptiveness" name="receptiveness" placeholder="Give examples..."></textarea>
+                    </div>
+                </div>
+            </div>
+
+            <div class="section">
+                <div class="section-header">
+                    <span class="section-icon">🏃</span>
+                    <h2>Physical Health</h2>
+                </div>
+                <div class="card">
+                    <div class="form-group">
+                        <label for="eatingHabits">Are you happy with your spouse's eating habits?</label>
+                        <div class="radio-group">
+                            <label class="radio-option">
+                                <input type="radio" name="eatingHabits" value="yes" required>
+                                <span>Yes</span>
+                            </label>
+                            <label class="radio-option">
+                                <input type="radio" name="eatingHabits" value="somewhat">
+                                <span>Somewhat</span>
+                            </label>
+                            <label class="radio-option">
+                                <input type="radio" name="eatingHabits" value="no">
+                                <span>No</span>
+                            </label>
+                        </div>
+                    </div>
+
+                    <div class="form-group">
+                        <label for="exercise">Is he engaged in regular physical exercise?</label>
+                        <textarea id="exercise" name="exercise" placeholder="Describe his activity level..."></textarea>
+                    </div>
+
+                    <div class="form-group">
+                        <label for="medications">Is he compliant with medications and doctor's orders?</label>
+                        <div class="radio-group">
+                            <label class="radio-option">
+                                <input type="radio" name="medications" value="na">
+                                <span>N/A</span>
+                            </label>
+                            <label class="radio-option">
+                                <input type="radio" name="medications" value="yes" required>
+                                <span>Yes</span>
+                            </label>
+                            <label class="radio-option">
+                                <input type="radio" name="medications" value="sometimes">
+                                <span>Sometimes</span>
+                            </label>
+                            <label class="radio-option">
+                                <input type="radio" name="medications" value="no">
+                                <span>No</span>
+                            </label>
+                        </div>
+                    </div>
+
+                    <div class="form-group">
+                        <label for="additionalHealth">Any additional health concerns?</label>
+                        <textarea id="additionalHealth" name="additionalHealth" placeholder="Share any other concerns..."></textarea>
+                    </div>
+                </div>
+            </div>
+
+            <!-- Footer Info -->
+            <div class="section">
+                <div class="card">
+                    <h3 style="color: #0f172a; margin-bottom: 1rem; font-family: 'Playfair Display', serif;">Important Note</h3>
+                    <p style="color: #1a202c; line-height: 1.6; margin-bottom: 1rem;">
+                        This covenant is a sacred commitment to transparency and accountability. All responses are saved privately in your device. Share this assessment with your spiritual leaders and marriage counselor for guidance, prayer, and loving support.
+                    </p>
+                    <p style="color: #6b7280; font-size: 0.9rem; line-height: 1.6;">
+                        <strong>Remember:</strong> Accountability without transparency is hypocrisy. This tool exists to foster honesty, restoration, and spiritual health—not judgment or shame.
+                    </p>
+                </div>
+            </div>
+
+            <!-- Action Buttons -->
+            <div class="button-group" style="margin-top: 2rem; margin-bottom: 3rem;">
+                <button type="button" class="btn-secondary" onclick="clearForm()">Clear All</button>
+                <button type="button" class="btn-secondary" onclick="exportData()">Export</button>
+                <button type="submit" class="btn-primary">💾 Save Progress</button>
+            </div>
+        </div>
+    </form>
+
+    <div class="footer">
+        <p>Your responses are saved securely in your device's local storage.</p>
+        <p style="margin-top: 0.5rem; color: #475569;">Last updated: <span id="lastSaved">Never</span></p>
+    </div>
+</div>
+
+<!-- Modal for warnings -->
+<div id="confirmModal" class="modal">
+    <div class="modal-content">
+        <h2 style="margin-top: 0; color: #0f172a;">Are you sure?</h2>
+        <p id="modalMessage" style="color: #374151; margin: 1rem 0;">This action cannot be undone.</p>
+        <div class="button-group">
+            <button type="button" class="btn-secondary" onclick="closeModal()">Cancel</button>
+            <button type="button" class="btn-danger" onclick="confirmAction()" id="confirmBtn">Confirm</button>
+        </div>
+    </div>
+</div>
+
+<script>
+    // Initialize app
+    let pendingAction = null;
+
+    document.addEventListener('DOMContentLoaded', function() {
+        loadFromLocalStorage();
+        updateProgressBar();
+        setupFormListener();
+        updateLastSaved();
+    });
+
+    // Tab switching
+    function switchTab(tabName) {
+        // Hide all tab contents
+        document.querySelectorAll('.tab-content').forEach(tab => {
+            tab.classList.remove('active');
+        });
+
+        // Deactivate all tab buttons
+        document.querySelectorAll('.tab-button').forEach(btn => {
+            btn.classList.remove('active');
+        });
+
+        // Show active tab
+        document.getElementById(tabName).classList.add('active');
+
+        // Activate clicked button
+        event.target.classList.add('active');
+
+        // Scroll to top
+        window.scrollTo(0, 0);
+
+        updateProgressBar();
+    }
+
+    // Form listener for auto-save
+    function setupFormListener() {
+        const form = document.getElementById('covenantForm');
+        
+        ['input', 'change', 'blur'].forEach(eventType => {
+            form.addEventListener(eventType, function(e) {
+                saveToLocalStorage();
+                updateProgressBar();
+            }, true);
+        });
+    }
+
+    // Save to localStorage
+    function saveToLocalStorage() {
+        const form = document.getElementById('covenantForm');
+        const formData = new FormData(form);
+        const data = {};
+
+        for (let [key, value] of formData.entries()) {
+            data[key] = value;
+        }
+
+        localStorage.setItem('accountabilityData', JSON.stringify(data));
+        updateLastSaved();
+        showToast('Progress saved ✓');
+    }
+
+    // Load from localStorage
+    function loadFromLocalStorage() {
+        const saved = localStorage.getItem('accountabilityData');
+        if (saved) {
+            try {
+                const data = JSON.parse(saved);
+                const form = document.getElementById('covenantForm');
+
+                Object.keys(data).forEach(key => {
+                    const field = form.elements[key];
+                    if (field) {
+                        if (field.type === 'radio') {
+                            const radio = form.querySelector(`input[name="${key}"][value="${data[key]}"]`);
+                            if (radio) radio.checked = true;
+                        } else {
+                            field.value = data[key];
+                        }
+                    }
+                });
+            } catch (e) {
+                console.error('Error loading data:', e);
+            }
+        }
+    }
+
+    // Update progress bar
+    function updateProgressBar() {
+        const form = document.getElementById('covenantForm');
+        const inputs = form.querySelectorAll('input, textarea');
+        let filledCount = 0;
+
+        inputs.forEach(input => {
+            if (input.type === 'radio') {
+                if (input.checked) filledCount++;
+            } else if (input.value.trim() !== '') {
+                filledCount++;
+            }
+        });
+
+        const percentage = (filledCount / inputs.length) * 100;
+        document.getElementById('progressFill').style.width = percentage + '%';
+    }
+
+    // Update last saved timestamp
+    function updateLastSaved() {
+        const now = new Date();
+        const timeString = now.toLocaleTimeString('en-US', {
+            hour: '2-digit',
+            minute: '2-digit',
+            second: '2-digit'
+        });
+        document.getElementById('lastSaved').textContent = timeString;
+    }
+
+    // Show toast notification
+    function showToast(message) {
+        const toast = document.createElement('div');
+        toast.className = 'toast';
+        toast.textContent = message;
+        document.body.appendChild(toast);
+
+        setTimeout(() => {
+            toast.style.animation = 'slideUp 0.3s ease reverse';
+            setTimeout(() => toast.remove(), 300);
+        }, 2000);
+    }
+
+    // Clear form with confirmation
+    function clearForm() {
+        pendingAction = 'clear';
+        document.getElementById('modalMessage').textContent = 'This will delete all your responses. This action cannot be undone.';
+        document.getElementById('confirmBtn').textContent = 'Delete All';
+        document.getElementById('confirmBtn').className = 'btn-danger';
+        document.getElementById('confirmModal').classList.add('active');
+    }
+
+    // Export data
+    function exportData() {
+        const saved = localStorage.getItem('accountabilityData');
+        if (!saved) {
+            showToast('No data to export');
+            return;
+        }
+
+        const data = JSON.parse(saved);
+        const text = Object.entries(data)
+            .map(([key, value]) => `${key.replace(/([A-Z])/g, ' $1').trim()}: ${value}`)
+            .join('\n\n');
+
+        const blob = new Blob([text], { type: 'text/plain' });
+        const url = URL.createObjectURL(blob);
+        const a = document.createElement('a');
+        a.href = url;
+        a.download = `Accountability-Covenant-${new Date().toISOString().split('T')[0]}.txt`;
+        a.click();
+        URL.revokeObjectURL(url);
+
+        showToast('Data exported ✓');
+    }
+
+    // Close modal
+    function closeModal() {
+        document.getElementById('confirmModal').classList.remove('active');
+        pendingAction = null;
+    }
+
+    // Confirm action
+    function confirmAction() {
+        if (pendingAction === 'clear') {
+            localStorage.removeItem('accountabilityData');
+            document.getElementById('covenantForm').reset();
+            updateProgressBar();
+            closeModal();
+            showToast('All data cleared');
+        }
+    }
+
+    // Form submission
+    document.getElementById('covenantForm').addEventListener('submit', function(e) {
+        e.preventDefault();
+        saveToLocalStorage();
+        showToast('Your commitment has been saved securely 🙏');
+    });
+
+    // Prevent accidental data loss
+    window.addEventListener('beforeunload', function(e) {
+        const saved = localStorage.getItem('accountabilityData');
+        if (saved && document.getElementById('covenantForm').checkValidity() === false) {
+            e.preventDefault();
+            e.returnValue = '';
+        }
+    });
+</script>
+```
+
+</body>
+</html>
