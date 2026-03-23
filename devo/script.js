@@ -1751,53 +1751,20 @@ async function renderDashboard() {
 
   loadDashGreetingMsg();
 
-  // Push notification button
+  // Push notification button — iOS requires everything in direct click handler
   const pushBtn = document.getElementById("pushBtn");
   if (pushBtn) {
-    pushBtn.onclick = async function() {
-      const isOn = localStorage.getItem("pushEnabled") === "true";
-
-      if (!isOn) {
-        // TURNING ON
-        try {
-          // 1. Check support
-          if (!("Notification" in window)) { alert("Notifications not supported on this browser."); return; }
-          if (!("serviceWorker" in navigator)) { alert("Service workers not supported."); return; }
-          if (!("PushManager" in window)) { alert("Push not supported. Make sure this app is added to your Home Screen."); return; }
-
-          // 2. Request permission in this direct tap
-          if (Notification.permission === "denied") {
-            alert("Notifications are blocked. Go to Settings > Notifications and enable them for Devotion.");
-            return;
-          }
-          const perm = await Notification.requestPermission();
-          if (perm !== "granted") { alert("Notification permission: " + perm); return; }
-
-          // 3. Subscribe
-          const ok = await _subscribePush();
-          if (ok) {
-            pushBtn.textContent = "ON";
-            pushBtn.classList.add("active");
-            document.getElementById("pushStatusText").textContent = "Enabled — gentle nudges based on your reading";
-          }
-        } catch (err) {
-          alert("Error: " + (err.message || err));
-        }
-      } else {
-        // TURNING OFF
-        await _unsubscribePush();
-        pushBtn.textContent = "OFF";
-        pushBtn.classList.remove("active");
-        document.getElementById("pushStatusText").textContent = "Get gentle nudges throughout the day";
-      }
-    };
+    pushBtn.addEventListener("click", function(evt) {
+      evt.preventDefault();
+      evt.stopPropagation();
+      _handlePushToggle();
+    });
   }
 
   // One-time notification prompt
-  if ("Notification" in window
-    && !localStorage.getItem("pushAsked")
+  if (!localStorage.getItem("pushAsked")
     && localStorage.getItem("pushEnabled") !== "true") {
-    setTimeout(() => _showNotifPrompt(), 1500);
+    setTimeout(() => _showNotifPrompt(), 2000);
   }
 
   const favPrevBtn = document.getElementById("favPrevBtn");
@@ -2953,8 +2920,8 @@ async function _subscribePush() {
     }
 
     const reg = await navigator.serviceWorker.ready;
-    const vapidKey = window.VAPID_PUBLIC_KEY;
-    if (!vapidKey) return false;
+    const vapidKey = window.VAPID_PUBLIC_KEY || "BLO1QhJelQXtbMWxhCtK8DbmQGKIJN04vU6s48J623f6xdfpJHFOW2lKaMeJMD7Tv5S-KmXpjYNA58exp0zTxBc";
+    if (!vapidKey) { alert("VAPID key missing"); return false; }
 
     // Convert VAPID key to Uint8Array
     const padding = "=".repeat((4 - vapidKey.length % 4) % 4);
@@ -2980,7 +2947,7 @@ async function _subscribePush() {
       const [bookCode, ch] = passageId.split("-");
       lastPassage = `${(BIBLE_META[bookCode]?.name || bookCode)} ${ch}`;
     }
-    await fetch((window.PUSH_SERVER_URL || "") + "/subscribe", {
+    await fetch((window.PUSH_SERVER_URL || "https://gemini-proxy-668755364170.asia-southeast1.run.app") + "/subscribe", {
       method: "POST",
       headers: { "Content-Type": "application/json" },
       body: JSON.stringify({ subscription: sub.toJSON(), name, notes, lastPassage }),
@@ -2999,7 +2966,7 @@ async function _unsubscribePush() {
     const reg = await navigator.serviceWorker.ready;
     const sub = await reg.pushManager.getSubscription();
     if (sub) {
-      await fetch((window.PUSH_SERVER_URL || "") + "/unsubscribe", {
+      await fetch((window.PUSH_SERVER_URL || "https://gemini-proxy-668755364170.asia-southeast1.run.app") + "/unsubscribe", {
         method: "POST",
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify({ endpoint: sub.endpoint }),
@@ -3066,6 +3033,76 @@ function _getRecentNotesContext() {
   } catch { return ""; }
 }
 
+// ── Push toggle handler (iOS-compatible) ─────────────────────────────────────
+async function _handlePushToggle() {
+  const btn = document.getElementById("pushBtn");
+  const statusEl = document.getElementById("pushStatusText");
+  if (!btn) return;
+
+  const isOn = localStorage.getItem("pushEnabled") === "true";
+
+  if (isOn) {
+    // Turn OFF
+    await _unsubscribePush();
+    btn.textContent = "OFF";
+    btn.classList.remove("active");
+    if (statusEl) statusEl.textContent = "Get gentle nudges throughout the day";
+    return;
+  }
+
+  // Turn ON — check everything step by step
+  const isStandalone = window.navigator.standalone === true || window.matchMedia("(display-mode: standalone)").matches;
+  const isIOS = /iphone|ipad|ipod/i.test(navigator.userAgent);
+
+  if (isIOS && !isStandalone) {
+    alert("To receive notifications, please add Devotion to your Home Screen first.\n\nSafari → Share → Add to Home Screen");
+    return;
+  }
+
+  if (!("serviceWorker" in navigator)) {
+    alert("Service workers are not supported on this browser.");
+    return;
+  }
+
+  if (!("Notification" in window)) {
+    alert("Notifications are not supported on this browser.");
+    return;
+  }
+
+  if (!("PushManager" in window)) {
+    alert("Push notifications are not available. Try closing and reopening the app.");
+    return;
+  }
+
+  // Request permission — MUST be in direct user gesture
+  let perm = Notification.permission;
+  if (perm === "denied") {
+    alert("Notifications are blocked.\n\nGo to Settings → Notifications → Devotion and turn them on.");
+    return;
+  }
+  if (perm === "default") {
+    perm = await Notification.requestPermission();
+  }
+  if (perm !== "granted") {
+    alert("Notification permission was not granted (" + perm + ").");
+    return;
+  }
+
+  // Subscribe
+  try {
+    const ok = await _subscribePush();
+    if (ok) {
+      btn.textContent = "ON";
+      btn.classList.add("active");
+      if (statusEl) statusEl.textContent = "Enabled — gentle nudges based on your reading";
+    } else {
+      alert("Failed to subscribe. Please try again.");
+    }
+  } catch (err) {
+    alert("Subscribe error: " + (err.message || err));
+  }
+}
+
 // ── One-time notification permission prompt ──────────────────────────────────
 function _showNotifPrompt() {
   const overlay = document.createElement("div");
@@ -3092,24 +3129,10 @@ function _showNotifPrompt() {
 
   document.getElementById("notifPromptAccept").onclick = async () => {
     localStorage.setItem("pushAsked", "true");
-    // Request permission FIRST directly in tap handler (required for iOS)
-    if ("Notification" in window && Notification.permission === "default") {
-      const perm = await Notification.requestPermission();
-      if (perm !== "granted") {
-        overlay.classList.remove("visible");
-        setTimeout(() => overlay.remove(), 300);
-        return;
-      }
-    }
-    const ok = await _subscribePush();
-    if (ok) {
-      const btn = document.getElementById("pushBtn");
-      if (btn) { btn.textContent = "ON"; btn.classList.add("active"); }
-      const st = document.getElementById("pushStatusText");
-      if (st) st.textContent = "Enabled — gentle nudges based on your reading";
-    }
     overlay.classList.remove("visible");
     setTimeout(() => overlay.remove(), 300);
+    // Use the same handler as the button
+    await _handlePushToggle();
   };
 }
 
@@ -3138,7 +3161,7 @@ async function _syncPushContext() {
       const bookName = BIBLE_META[bookCode]?.name || bookCode;
       lastPassage = `${bookName} ${ch}`;
     }
-    await fetch((window.PUSH_SERVER_URL || "") + "/subscribe", {
+    await fetch((window.PUSH_SERVER_URL || "https://gemini-proxy-668755364170.asia-southeast1.run.app") + "/subscribe", {
       method: "POST",
       headers: { "Content-Type": "application/json" },
       body: JSON.stringify({ subscription: sub.toJSON(), name, notes, lastPassage }),
