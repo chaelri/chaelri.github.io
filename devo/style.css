@@ -149,11 +149,7 @@ button:active {
     grid-column: 2;
   }
 
-  /* Give the nav/TTS/mode-toggle row full width so buttons don't squash */
-  .controls > .flex {
-    grid-column: span 2;
-    justify-content: flex-end;
-  }
+  /* Bottom row handled by controls-bottom-row wrapper */
 }
 
 .control {
@@ -308,6 +304,22 @@ select:disabled {
 }
 .controls select {
   border: 0;
+}
+
+/* Version + nav buttons always share one full-width row */
+.controls-bottom-row {
+  grid-column: span 2;
+  display: flex;
+  align-items: flex-end;
+  gap: 8px;
+}
+.controls-bottom-row #versionControl {
+  flex: 1;
+  min-width: 0;
+}
+.controls-bottom-row .flex {
+  flex-shrink: 0;
+  align-items: center;
 }
 
 @media (min-width: 900px) {

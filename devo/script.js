@@ -3867,7 +3867,11 @@ function ttsImmContextOpen(gen) {
       if (footer) footer.style.display = "";
 
       const immBar = document.getElementById("ttsImmLoadBar");
-      if (immBar) immBar.style.width = "0%";
+      if (immBar) {
+        // Reflect actual synthesis progress — may already be 100% if user read the context slowly
+        const pct = ttsQueue.length > 0 ? `${(_ttsReadyCount / ttsQueue.length) * 100}%` : "0%";
+        immBar.style.width = pct;
+      }
       const immStatus = document.getElementById("ttsImmStatusEl");
       if (immStatus) immStatus.textContent = "";
 
