@@ -1,0 +1,350 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Devotion — Admin</title>
+  <link rel="preconnect" href="https://fonts.googleapis.com">
+  <link href="https://fonts.googleapis.com/css2?family=Google+Sans+Flex:wght@400;500;600;700;800&display=swap" rel="stylesheet">
+  <link href="https://fonts.googleapis.com/icon?family=Material+Icons" rel="stylesheet">
+  <style>
+    * { margin: 0; padding: 0; box-sizing: border-box; }
+    body {
+      font-family: 'Google Sans Flex', system-ui, sans-serif;
+      background: #0b1220;
+      color: #e6edf7;
+      min-height: 100vh;
+      padding: 0 0 60px;
+    }
+
+    .admin-header {
+      padding: 40px 24px 20px;
+      max-width: 700px;
+      margin: 0 auto;
+    }
+    .admin-brand {
+      font-family: "Editors Note", serif;
+      font-style: italic;
+      font-size: 1.6rem;
+      opacity: 0.4;
+      margin-bottom: 16px;
+    }
+    .admin-title {
+      font-size: 28px;
+      font-weight: 800;
+      letter-spacing: -0.5px;
+    }
+    .admin-subtitle {
+      font-size: 14px;
+      opacity: 0.4;
+      margin-top: 4px;
+    }
+
+    .admin-stats {
+      display: flex;
+      gap: 12px;
+      padding: 20px 24px;
+      max-width: 700px;
+      margin: 0 auto;
+    }
+    .stat-card {
+      flex: 1;
+      background: rgba(255,255,255,0.04);
+      border: 1px solid rgba(255,255,255,0.06);
+      border-radius: 14px;
+      padding: 16px;
+      text-align: center;
+    }
+    .stat-num {
+      font-size: 32px;
+      font-weight: 800;
+      background: linear-gradient(135deg, #486bec, #db2777);
+      -webkit-background-clip: text;
+      -webkit-text-fill-color: transparent;
+      background-clip: text;
+    }
+    .stat-label {
+      font-size: 11px;
+      text-transform: uppercase;
+      letter-spacing: 2px;
+      opacity: 0.4;
+      margin-top: 4px;
+      font-weight: 600;
+    }
+
+    .admin-list {
+      padding: 12px 24px;
+      max-width: 700px;
+      margin: 0 auto;
+      display: flex;
+      flex-direction: column;
+      gap: 10px;
+    }
+
+    .user-card {
+      background: rgba(255,255,255,0.04);
+      border: 1px solid rgba(255,255,255,0.06);
+      border-radius: 14px;
+      padding: 16px 18px;
+      transition: background 0.15s;
+    }
+    .user-card:hover { background: rgba(255,255,255,0.06); }
+
+    .user-top {
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+      margin-bottom: 8px;
+    }
+    .user-name {
+      font-size: 16px;
+      font-weight: 700;
+    }
+    .user-time {
+      font-size: 11px;
+      opacity: 0.35;
+    }
+
+    .user-meta {
+      display: flex;
+      flex-wrap: wrap;
+      gap: 6px;
+      margin-bottom: 10px;
+    }
+    .user-chip {
+      display: inline-flex;
+      align-items: center;
+      gap: 4px;
+      background: rgba(200,48,134,0.12);
+      border: 1px solid rgba(200,48,134,0.2);
+      border-radius: 20px;
+      padding: 3px 10px 3px 6px;
+      font-size: 11px;
+      font-weight: 600;
+      color: #e060a8;
+    }
+    .user-chip .material-icons { font-size: 13px; }
+    .user-chip.blue {
+      background: rgba(72,107,236,0.12);
+      border-color: rgba(72,107,236,0.2);
+      color: #7b9cf7;
+    }
+
+    .user-notes {
+      font-size: 12px;
+      line-height: 1.5;
+      opacity: 0.4;
+      font-style: italic;
+      max-height: 60px;
+      overflow: hidden;
+      text-overflow: ellipsis;
+    }
+
+    .user-status {
+      display: inline-flex;
+      align-items: center;
+      gap: 4px;
+      font-size: 11px;
+      font-weight: 600;
+    }
+    .user-status .dot {
+      width: 7px;
+      height: 7px;
+      border-radius: 50%;
+    }
+    .dot.green { background: #22c55e; }
+    .dot.yellow { background: #eab308; }
+    .dot.red { background: #ef4444; }
+
+    .admin-loading {
+      text-align: center;
+      padding: 60px 24px;
+      opacity: 0.3;
+      font-size: 14px;
+    }
+
+    .admin-actions {
+      padding: 16px 24px;
+      max-width: 700px;
+      margin: 0 auto;
+      display: flex;
+      gap: 10px;
+    }
+    .admin-btn {
+      padding: 10px 18px;
+      border: none;
+      border-radius: 10px;
+      font-size: 13px;
+      font-weight: 600;
+      cursor: pointer;
+      font-family: 'Google Sans Flex', sans-serif;
+      display: flex;
+      align-items: center;
+      gap: 6px;
+    }
+    .admin-btn.primary {
+      background: linear-gradient(135deg, #486bec, #db2777);
+      color: #fff;
+    }
+    .admin-btn.ghost {
+      background: rgba(255,255,255,0.06);
+      color: rgba(255,255,255,0.6);
+    }
+    .admin-btn .material-icons { font-size: 16px; }
+    .admin-toast {
+      position: fixed;
+      bottom: 24px;
+      left: 50%;
+      transform: translateX(-50%);
+      background: #1a1f2e;
+      border: 1px solid rgba(255,255,255,0.1);
+      border-radius: 10px;
+      padding: 10px 18px;
+      font-size: 13px;
+      z-index: 100;
+      opacity: 0;
+      transition: opacity 0.2s;
+    }
+    .admin-toast.show { opacity: 1; }
+  </style>
+  <style>
+    @font-face {
+      font-family: "Editors Note";
+      src: url("assets/EditorsNote-Italic.ttf") format("truetype");
+      font-style: italic;
+    }
+  </style>
+</head>
+<body>
+  <div class="admin-header">
+    <div class="admin-brand">devotion.</div>
+    <div class="admin-title">Subscribers</div>
+    <div class="admin-subtitle" id="lastUpdated"></div>
+  </div>
+
+  <div class="admin-stats" id="statsRow">
+    <div class="stat-card">
+      <div class="stat-num" id="totalSubs">—</div>
+      <div class="stat-label">Subscribers</div>
+    </div>
+    <div class="stat-card">
+      <div class="stat-num" id="activeToday">—</div>
+      <div class="stat-label">Active Today</div>
+    </div>
+    <div class="stat-card">
+      <div class="stat-num" id="activeWeek">—</div>
+      <div class="stat-label">This Week</div>
+    </div>
+  </div>
+
+  <div class="admin-actions">
+    <button class="admin-btn primary" onclick="sendTestPush()">
+      <span class="material-icons">notifications</span> Send test push
+    </button>
+    <button class="admin-btn ghost" onclick="loadData()">
+      <span class="material-icons">refresh</span> Refresh
+    </button>
+  </div>
+
+  <div class="admin-list" id="userList">
+    <div class="admin-loading">Loading subscribers...</div>
+  </div>
+
+  <div class="admin-toast" id="toast"></div>
+
+  <script>
+    const API = "https://gemini-proxy-668755364170.asia-southeast1.run.app";
+
+    function timeAgo(ts) {
+      if (!ts) return "Never";
+      const diff = Date.now() - ts;
+      const mins = Math.floor(diff / 60000);
+      if (mins < 1) return "Just now";
+      if (mins < 60) return `${mins}m ago`;
+      const hrs = Math.floor(mins / 60);
+      if (hrs < 24) return `${hrs}h ago`;
+      const days = Math.floor(hrs / 24);
+      return `${days}d ago`;
+    }
+
+    function activityStatus(lastVisit) {
+      if (!lastVisit) return { cls: "red", label: "No activity" };
+      const hrs = (Date.now() - lastVisit) / 3600000;
+      if (hrs < 6) return { cls: "green", label: "Active" };
+      if (hrs < 24) return { cls: "yellow", label: "Today" };
+      return { cls: "red", label: timeAgo(lastVisit) };
+    }
+
+    function showToast(msg) {
+      const t = document.getElementById("toast");
+      t.textContent = msg;
+      t.classList.add("show");
+      setTimeout(() => t.classList.remove("show"), 2500);
+    }
+
+    async function sendTestPush() {
+      try {
+        const res = await fetch(API + "/test-push", {
+          method: "POST",
+          headers: { "Content-Type": "application/json" },
+          body: JSON.stringify({}),
+        });
+        const data = await res.json();
+        showToast(`Sent ${data.sent} notification${data.sent !== 1 ? "s" : ""}`);
+      } catch (e) {
+        showToast("Failed to send");
+      }
+    }
+
+    async function loadData() {
+      const list = document.getElementById("userList");
+      list.innerHTML = '<div class="admin-loading">Loading...</div>';
+
+      try {
+        const res = await fetch(API + "/admin-stats");
+        const data = await res.json();
+
+        document.getElementById("totalSubs").textContent = data.total;
+        document.getElementById("lastUpdated").textContent = `Updated ${new Date().toLocaleTimeString("en-US", { hour: "numeric", minute: "2-digit" })}`;
+
+        const now = Date.now();
+        const dayAgo = now - 24 * 3600000;
+        const weekAgo = now - 7 * 24 * 3600000;
+        document.getElementById("activeToday").textContent = data.subscribers.filter(s => s.lastVisit > dayAgo).length;
+        document.getElementById("activeWeek").textContent = data.subscribers.filter(s => s.lastVisit > weekAgo).length;
+
+        if (!data.subscribers.length) {
+          list.innerHTML = '<div class="admin-loading">No subscribers yet</div>';
+          return;
+        }
+
+        list.innerHTML = data.subscribers.map(s => {
+          const status = activityStatus(s.lastVisit);
+          const visitStr = s.lastVisit ? new Date(s.lastVisit).toLocaleString("en-US", { month: "short", day: "numeric", hour: "numeric", minute: "2-digit" }) : "Never";
+          return `
+            <div class="user-card">
+              <div class="user-top">
+                <div class="user-name">${esc(s.name)}</div>
+                <div class="user-status"><span class="dot ${status.cls}"></span> ${status.label}</div>
+              </div>
+              <div class="user-meta">
+                ${s.lastPassage ? `<span class="user-chip blue"><span class="material-icons">menu_book</span>${esc(s.lastPassage)}</span>` : ""}
+                <span class="user-chip"><span class="material-icons">schedule</span>${visitStr}</span>
+              </div>
+              ${s.notes ? `<div class="user-notes">${esc(s.notes.slice(0, 200))}</div>` : ""}
+            </div>
+          `;
+        }).join("");
+      } catch (e) {
+        list.innerHTML = `<div class="admin-loading">Error: ${e.message}</div>`;
+      }
+    }
+
+    function esc(s) {
+      return (s || "").replace(/&/g, "&amp;").replace(/</g, "&lt;").replace(/>/g, "&gt;");
+    }
+
+    loadData();
+  </script>
+</body>
+</html>

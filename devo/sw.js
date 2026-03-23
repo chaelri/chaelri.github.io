@@ -44,6 +44,32 @@ self.addEventListener("activate", (event) => {
   );
 });
 
+// PUSH NOTIFICATIONS
+self.addEventListener("push", (event) => {
+  let data = { title: "Devotion", body: "Time to spend with the Lord today." };
+  try { data = event.data.json(); } catch {}
+  event.waitUntil(
+    self.registration.showNotification(data.title || "Devotion", {
+      body: data.body,
+      icon: "./icons/icon-192.png",
+      badge: "./icons/icon-192.png",
+      data: { url: self.registration.scope },
+    })
+  );
+});
+
+self.addEventListener("notificationclick", (event) => {
+  event.notification.close();
+  const url = event.notification.data?.url || "./";
+  event.waitUntil(
+    self.clients.matchAll({ type: "window" }).then((clients) => {
+      const existing = clients.find((c) => c.url.includes("devo"));
+      if (existing) { existing.focus(); return; }
+      return self.clients.openWindow(url);
+    })
+  );
+});
+
 // FETCH STRATEGY (VERY AGGRESSIVE):
 // - HTML → NETWORK ONLY (never trust cache)
 // - Everything else → NETWORK FIRST + overwrite cache

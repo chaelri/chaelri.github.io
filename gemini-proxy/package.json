@@ -1,0 +1,9 @@
+{
+  "type": "module",
+  "dependencies": {
+    "express": "^4.19.2",
+    "node-fetch": "^3.3.2",
+    "web-push": "^3.6.7",
+    "@google-cloud/firestore": "^7.3.1"
+  }
+}

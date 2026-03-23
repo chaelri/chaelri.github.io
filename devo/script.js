@@ -1029,10 +1029,14 @@ async function fetchInlineQuickContext(
     );
 
     const data = await res.json();
+    let aiText = (data.candidates?.[0]?.content?.parts?.[0]?.text || "").trim();
+    // Extract only the content inside the first <div>...</div> to strip stray chars
+    const divMatch = aiText.match(/<div[\s\S]*<\/div>/i);
+    if (divMatch) aiText = divMatch[0];
     mountEl.innerHTML = `
     <div class="inline-ai-result">
         <button class="inline-ai-close" title="Close">✕</button>
-        ${data.candidates?.[0]?.content?.parts?.[0]?.text || ""}
+        ${aiText}
         <div class="inline-ai-actions">
           <button class="inline-ai-dig">🔎 Dig Deeper</button>
         </div>
@@ -1711,6 +1715,24 @@ async function renderDashboard() {
           }).join("")}</div>`;
         })()}
       </section>
+
+      <!-- DAILY REMINDER -->
+      ${"PushManager" in window ? `
+      <section class="dashboard-section dash-notif-section">
+        <div class="dash-notif-row">
+          <div class="dash-notif-info">
+            <span class="material-icons dash-notif-icon">notifications</span>
+            <div>
+              <div class="dash-notif-title">Reminders</div>
+              <div class="dash-notif-desc">Gentle nudges throughout the day based on your reading</div>
+            </div>
+          </div>
+          <label class="dash-toggle">
+            <input type="checkbox" id="pushToggle" ${localStorage.getItem("pushEnabled") === "true" ? "checked" : ""}>
+            <span class="dash-toggle-slider"></span>
+          </label>
+        </div>
+      </section>` : ""}
       </div>
       </div>
       `;
@@ -1722,6 +1744,26 @@ async function renderDashboard() {
   }
 
   loadDashGreetingMsg();
+
+  // Push notification toggle
+  const pushToggle = document.getElementById("pushToggle");
+  if (pushToggle) {
+    pushToggle.addEventListener("change", async () => {
+      if (pushToggle.checked) {
+        const ok = await _subscribePush();
+        if (!ok) { pushToggle.checked = false; }
+      } else {
+        await _unsubscribePush();
+      }
+    });
+  }
+
+  // One-time notification prompt (show once if not asked yet)
+  if ("PushManager" in window
+    && !localStorage.getItem("pushAsked")
+    && localStorage.getItem("pushEnabled") !== "true") {
+    setTimeout(() => _showNotifPrompt(pushToggle), 1500);
+  }
 
   const favPrevBtn = document.getElementById("favPrevBtn");
   const favNextBtn = document.getElementById("favNextBtn");
@@ -1756,10 +1798,11 @@ async function loadDashGreetingMsg() {
   const el = document.getElementById("dashGreetingMsg");
   if (!el) return;
 
-  // Show cached greeting instantly, then fetch fresh in background
+  // Show loading dots (show cached text as static fallback while fetching)
   const cached = localStorage.getItem("dashGreetingCache");
   if (cached) {
-    _typewriterReveal(el, cached);
+    el.textContent = cached;
+    el.style.opacity = "0.4";
   } else {
     el.innerHTML = `<span class="dash-greeting-glow-loader"><span class="gdot"></span><span class="gdot"></span><span class="gdot"></span></span>`;
   }
@@ -1768,17 +1811,11 @@ async function loadDashGreetingMsg() {
   const h = new Date().getHours();
   const timeOfDay = h < 12 ? "morning" : h < 17 ? "afternoon" : "evening";
 
-  // Up to 2 most recent notes, short previews
-  const sevenDaysAgo = Date.now() - 7 * 24 * 60 * 60 * 1000;
-  const recentNotes = _getAllNotes()
-    .filter(n => n.time && n.time > sevenDaysAgo && n.preview && n.preview.trim().length > 10)
-    .sort((a, b) => b.time - a.time)
-    .slice(0, 2)
-    .map(n => `"${n.preview.slice(0, 70)}"`);
+  const notesCtx = _getRecentNotesContext();
 
-  const notesCtx = recentNotes.length > 0 ? `Recent reflections: ${recentNotes.join("; ")}` : "";
-
-  const prompt = `Christian devotion app. Write ONE warm, casual, personal sentence (max 18 words) as a greeting for ${name || "a friend"} opening the app this ${timeOfDay}.${notesCtx ? ` Context: ${notesCtx}` : ""} If context given, reference it specifically. No guilt, no emojis, no "May God bless you". Reply with ONLY the sentence.`;
+  const prompt = notesCtx
+    ? `You are greeting ${name || "a friend"} in a Bible devotion app this ${timeOfDay}. Their recent reflections and notes: "${notesCtx.slice(0, 300)}". Write ONE sentence (max 18 words) referencing something from their notes. You may reference personal content (like people they mention) BUT never combine personal names with divine attributes or glory — that would be idolatry. Keep God's glory for God alone. Be warm, casual, like a close friend. No emojis, no guilt. Reply with ONLY the sentence.`
+    : `Write ONE warm greeting sentence (max 15 words) for ${name || "a friend"} opening a Bible app this ${timeOfDay}. Casual, caring, like a friend. No emojis, no guilt. Reply with ONLY the sentence.`;
 
   try {
     const res = await fetch("https://gemini-proxy-668755364170.asia-southeast1.run.app", {
@@ -1790,14 +1827,17 @@ async function loadDashGreetingMsg() {
     const msg = data.candidates?.[0]?.content?.parts?.[0]?.text?.trim();
     if (msg) {
       localStorage.setItem("dashGreetingCache", msg);
-      // Only update UI if element is still on screen
       if (document.getElementById("dashGreetingMsg") === el) {
+        el.style.opacity = "";
         _typewriterReveal(el, msg);
       }
+    } else if (cached) {
+      el.style.opacity = "";
     }
   } catch {
-    // Keep showing cached if fetch fails; clear shimmer if no cache
-    if (!cached) el.textContent = "";
+    // Keep showing cached if fetch fails
+    if (cached) { el.style.opacity = ""; }
+    else el.textContent = "";
   }
 }
 
@@ -1894,6 +1934,7 @@ async function loadPassage() {
     recentPassage = `${bookName} ${chapterNum}`;
     localStorage.setItem("recentPassageId", recentPassageId);
     localStorage.setItem("recentPassage", recentPassage);
+    _debouncedPushSync();
 
     if (!bibleData) {
       await fetchBibleData();
@@ -2457,14 +2498,48 @@ ${versesText}
     );
 
     const data = await res.json();
-    mount.innerHTML =
-      data.candidates?.[0]?.content?.parts?.[0]?.text ||
-      "<p>Failed to generate reflection questions.</p>"; // More descriptive error
+    let rawHTML = data.candidates?.[0]?.content?.parts?.[0]?.text || "";
+    if (!rawHTML) { mount.innerHTML = "<p>Failed to generate reflection questions.</p>"; return true; }
+
+    // Post-process: ensure each <li> has a textarea inside it
+    const tmp = document.createElement("div");
+    tmp.innerHTML = rawHTML;
+    const listItems = tmp.querySelectorAll("li");
+    listItems.forEach(li => {
+      // If textarea is not inside this li, add one
+      if (!li.querySelector("textarea")) {
+        const ta = document.createElement("textarea");
+        ta.setAttribute("placeholder", "Write your thoughts here...");
+        li.appendChild(ta);
+      }
+    });
+    // Remove any stray textareas that ended up outside <li>
+    tmp.querySelectorAll("ol > textarea, ul > textarea, div > textarea").forEach(ta => {
+      if (!ta.closest("li")) ta.remove();
+    });
+    mount.innerHTML = tmp.innerHTML;
+
     setTimeout(restoreSavedReflectionAnswers, 0);
 
     mount.querySelectorAll("textarea").forEach((ta, i) => {
       const id = `reflection-${devotionId()}-${i}`;
       ta.id = id;
+    });
+
+    // Make verse reference links clickable — scroll to & highlight verse
+    mount.querySelectorAll("a.reflection-link").forEach(link => {
+      link.addEventListener("click", e => {
+        e.preventDefault();
+        const verseNum = link.getAttribute("href")?.replace("#", "");
+        if (!verseNum) return;
+        const verseEl = document.querySelector(`#output .verse:nth-child(${verseNum}) .verse-header`);
+        if (verseEl) {
+          verseEl.scrollIntoView({ behavior: "smooth", block: "center" });
+          verseEl.classList.remove("verseGlow");
+          void verseEl.offsetWidth;
+          verseEl.classList.add("verseGlow");
+        }
+      });
     });
 
     initializeReflections();
@@ -2827,6 +2902,195 @@ if ("serviceWorker" in navigator) {
   });
 }
 
+// ── Push Notification Subscription ───────────────────────────────────────────
+async function _subscribePush() {
+  if (!("serviceWorker" in navigator) || !("PushManager" in window)) return false;
+  try {
+    const permission = await Notification.requestPermission();
+    if (permission !== "granted") return false;
+
+    const reg = await navigator.serviceWorker.ready;
+    const vapidKey = window.VAPID_PUBLIC_KEY;
+    if (!vapidKey) return false;
+
+    // Convert VAPID key to Uint8Array
+    const padding = "=".repeat((4 - vapidKey.length % 4) % 4);
+    const base64 = (vapidKey + padding).replace(/-/g, "+").replace(/_/g, "/");
+    const raw = atob(base64);
+    const key = new Uint8Array(raw.length);
+    for (let i = 0; i < raw.length; i++) key[i] = raw.charCodeAt(i);
+
+    let sub = await reg.pushManager.getSubscription();
+    if (!sub) {
+      sub = await reg.pushManager.subscribe({
+        userVisibleOnly: true,
+        applicationServerKey: key,
+      });
+    }
+
+    // Send subscription + user context to server
+    const name = getUserName() || "Friend";
+    const notes = _getRecentNotesContext();
+    const passageId = localStorage.getItem("recentPassageId") || "";
+    let lastPassage = "";
+    if (passageId) {
+      const [bookCode, ch] = passageId.split("-");
+      lastPassage = `${(BIBLE_META[bookCode]?.name || bookCode)} ${ch}`;
+    }
+    await fetch((window.PUSH_SERVER_URL || "") + "/subscribe", {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({ subscription: sub.toJSON(), name, notes, lastPassage }),
+    });
+
+    localStorage.setItem("pushEnabled", "true");
+    return true;
+  } catch (e) {
+    console.error("Push subscribe failed:", e);
+    return false;
+  }
+}
+
+async function _unsubscribePush() {
+  try {
+    const reg = await navigator.serviceWorker.ready;
+    const sub = await reg.pushManager.getSubscription();
+    if (sub) {
+      await fetch((window.PUSH_SERVER_URL || "") + "/unsubscribe", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ endpoint: sub.endpoint }),
+      });
+      await sub.unsubscribe();
+    }
+    localStorage.setItem("pushEnabled", "false");
+  } catch (e) {
+    console.error("Push unsubscribe failed:", e);
+  }
+}
+
+function _getRecentNotesContext() {
+  try {
+    const parts = [];
+
+    // Get notes from the past 3 days, sorted by recency
+    const threeDays = Date.now() - 3 * 24 * 60 * 60 * 1000;
+    const all = _getAllNotes();
+    const recent = all
+      .filter(n => n.time && n.time > threeDays)
+      .sort((a, b) => b.time - a.time)
+      .slice(0, 8);
+
+    // For each recent note, get its content
+    recent.forEach(n => {
+      if (n.type === "reflection" && n.QAs) {
+        // Include actual Q&A pairs
+        n.QAs.forEach(qa => {
+          const answer = qa.raw?.split("\nA: ")?.[1]?.trim();
+          if (answer && answer.length > 3) {
+            parts.push(`[${n.title} reflection] ${answer.slice(0, 100)}`);
+          }
+        });
+      } else if (n.type === "standalone") {
+        const preview = n.preview || n.data?.body || "";
+        if (preview.trim().length > 3) {
+          parts.push(`[Note: ${n.title || "Untitled"}] ${preview.slice(0, 100)}`);
+        }
+      } else if (n.type === "verse" && n.items) {
+        n.items.forEach(item => {
+          if (item.text && item.text.length > 3) {
+            parts.push(`[${n.title} note] ${item.text.slice(0, 80)}`);
+          }
+        });
+      }
+    });
+
+    // Also grab raw reflection textarea values (most recent answers)
+    const reflKeys = Object.keys(localStorage).filter(k => k.startsWith("reflection-"));
+    reflKeys.forEach(k => {
+      const val = localStorage.getItem(k);
+      if (val && val.trim().length > 3 && parts.length < 10) {
+        // Parse book/chapter from key: reflection-PSA-117-1-0
+        const keyParts = k.replace("reflection-", "").split("-");
+        const bookCode = keyParts[0];
+        const ch = keyParts[1];
+        const bookName = BIBLE_META[bookCode]?.name || bookCode;
+        parts.push(`[${bookName} ${ch} reflection answer] ${val.trim().slice(0, 100)}`);
+      }
+    });
+
+    return parts.slice(0, 8).join(" | ").slice(0, 500);
+  } catch { return ""; }
+}
+
+// ── One-time notification permission prompt ──────────────────────────────────
+function _showNotifPrompt(toggleEl) {
+  const overlay = document.createElement("div");
+  overlay.className = "notif-prompt-overlay";
+  overlay.innerHTML = `
+    <div class="notif-prompt-card">
+      <div class="notif-prompt-icon"><span class="material-icons">notifications_active</span></div>
+      <div class="notif-prompt-title">Stay in the Word</div>
+      <div class="notif-prompt-desc">Get gentle reminders throughout the day based on what you're reading and reflecting on.</div>
+      <div class="notif-prompt-actions">
+        <button class="notif-prompt-skip" id="notifPromptSkip">Not now</button>
+        <button class="notif-prompt-accept" id="notifPromptAccept">Enable reminders</button>
+      </div>
+    </div>
+  `;
+  document.body.appendChild(overlay);
+  requestAnimationFrame(() => overlay.classList.add("visible"));
+
+  document.getElementById("notifPromptSkip").onclick = () => {
+    localStorage.setItem("pushAsked", "true");
+    overlay.classList.remove("visible");
+    setTimeout(() => overlay.remove(), 300);
+  };
+
+  document.getElementById("notifPromptAccept").onclick = async () => {
+    localStorage.setItem("pushAsked", "true");
+    const ok = await _subscribePush();
+    if (ok && toggleEl) toggleEl.checked = true;
+    overlay.classList.remove("visible");
+    setTimeout(() => overlay.remove(), 300);
+  };
+}
+
+// Debounced push context sync — triggers after user activity
+let _pushSyncTimer = null;
+function _debouncedPushSync() {
+  if (localStorage.getItem("pushEnabled") !== "true") return;
+  clearTimeout(_pushSyncTimer);
+  _pushSyncTimer = setTimeout(_syncPushContext, 10000); // 10s after last activity
+}
+
+// Re-sync notes context on each app open (if subscribed)
+async function _syncPushContext() {
+  if (localStorage.getItem("pushEnabled") !== "true") return;
+  try {
+    const reg = await navigator.serviceWorker.ready;
+    const sub = await reg.pushManager.getSubscription();
+    if (!sub) return;
+    const name = getUserName() || "Friend";
+    const notes = _getRecentNotesContext();
+    // Include last opened passage
+    const passageId = localStorage.getItem("recentPassageId") || "";
+    let lastPassage = "";
+    if (passageId) {
+      const [bookCode, ch] = passageId.split("-");
+      const bookName = BIBLE_META[bookCode]?.name || bookCode;
+      lastPassage = `${bookName} ${ch}`;
+    }
+    await fetch((window.PUSH_SERVER_URL || "") + "/subscribe", {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({ subscription: sub.toJSON(), name, notes, lastPassage }),
+    });
+  } catch {}
+}
+// Sync context after dashboard loads
+setTimeout(_syncPushContext, 5000);
+
 const initializeReflections = () => {
   const textAreas = document.querySelectorAll('textarea[id^="reflection-"]');
 
@@ -2854,6 +3118,7 @@ const initializeReflections = () => {
         // Save timestamp for this devotion session so notes can group by correct day
         localStorage.setItem(`reflection-time-${devotionId()}`, String(Date.now()));
         checkIfHasTextAreaAnswers();
+        _debouncedPushSync();
 
         // Also update IndexedDB cache for AI reflections, storing only the answer
         const devotionID = devotionId(); // Get current devotion ID
