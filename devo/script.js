@@ -1,3 +1,11 @@
+// Global error catcher for iOS debugging
+window.onerror = function(msg, src, line, col, err) {
+  alert("JS Error: " + msg + "\nLine: " + line + "\nFile: " + (src||"").split("/").pop());
+};
+window.addEventListener("unhandledrejection", function(e) {
+  alert("Promise Error: " + (e.reason?.message || e.reason));
+});
+
 const FAV_PAGE_SIZE = 3;
 let favoritesPage = 0;
 let currentVersion = localStorage.getItem("bibleVersion") || "NASB";
