@@ -3128,7 +3128,7 @@ body.light {
 .tts-imm-refl-panel {
   position: absolute;
   inset: 0;
-  top: 68px; /* below the bar */
+  top: calc(68px + env(safe-area-inset-top, 0px));
   display: flex;
   flex-direction: column;
   padding: 24px 24px 32px;
@@ -3365,7 +3365,7 @@ body.light {
 .tts-imm-context-panel {
   position: absolute;
   inset: 0;
-  top: 68px;
+  top: calc(68px + env(safe-area-inset-top, 0px));
   display: flex;
   flex-direction: column;
   padding: 16px 20px 20px;
