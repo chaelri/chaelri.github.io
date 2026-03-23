@@ -114,6 +114,7 @@ async function switchVersion(ver) {
 
   const vSelect = document.getElementById("versionSelect");
   if (vSelect) vSelect.value = ver;
+  _updateVersionPills?.(ver);
 
   await fetchBibleData();
 
@@ -872,7 +873,7 @@ function ttsShowContinuePrompt() {
         <div><strong>${nextName}</strong><span>Continue reading</span></div>
       </button>
       ${reflReady ? `<button class="tts-imm-end-btn tts-imm-end-reflect" id="ttsEndReflectBtn">
-        <span>🙏</span>
+        <span class="material-icons">volunteer_activism</span>
         <div><strong>Guided Reflection</strong><span>Reflect on this chapter</span></div>
       </button>` : ''}
     </div>
@@ -1443,6 +1444,8 @@ async function showDashboard() {
   toggleReflectionBtn.hidden = true;
   summaryTitleEl.hidden = true;
   homeBtn.style.display = "none"; // HIDE HOME BUTTON ON DASHBOARD
+  const dashBrand = document.getElementById("dashBrand");
+  if (dashBrand) dashBrand.hidden = false;
 
   favoritesPage = 0;
 
@@ -1601,8 +1604,12 @@ async function renderDashboard() {
   <div class="dashboard ai-fade-in">
 
   <div class="dash-greeting">
-    <div class="dash-greeting-text">${(() => { const h = new Date().getHours(); return h < 12 ? "Good morning" : h < 17 ? "Good afternoon" : "Good evening"; })()}</div>
+    <div class="dash-greeting-top">
+      <div class="dash-greeting-text">${(() => { const h = new Date().getHours(); const g = h < 12 ? "Good morning" : h < 17 ? "Good afternoon" : "Good evening"; const name = getUserName(); return name ? `${g}, ${name}!` : g; })()}</div>
+      <button class="dash-name-edit-btn" onclick="_showNamePrompt(() => renderDashboard())" title="Edit name"><span class="material-icons">edit</span></button>
+    </div>
     <div class="dash-greeting-date">${new Date().toLocaleDateString("en-US", { weekday: "long", month: "long", day: "numeric" })}</div>
+    <div id="dashGreetingMsg" class="dash-greeting-msg"></div>
   </div>
   
   <div class="dashboard-grid">
@@ -1665,16 +1672,16 @@ async function renderDashboard() {
           return `<div class="dash-notes-list">${sessions.map(session => {
             const dateStr = new Date(session.time).toLocaleDateString("en-US", { month: "short", day: "numeric", year: "numeric" });
             const allItems = [
-              ...session.verse.map(n => ({ icon: "📖", label: n.title })),
-              ...session.reflection.map(n => ({ icon: "🙏", label: n.title })),
-              ...session.standalone.map(n => ({ icon: "📝", label: n.title || "Note" })),
+              ...session.verse.map(n => ({ icon: "menu_book", label: n.title })),
+              ...session.reflection.map(n => ({ icon: "volunteer_activism", label: n.title })),
+              ...session.standalone.map(n => ({ icon: "edit_note", label: n.title || "Note" })),
             ];
             const visibleItems = allItems.slice(0, 3);
             const extra = allItems.length - 3;
             return `<div class="dash-notes-card" onclick="openNotesApp()">
               <div class="dash-notes-card-date">${dateStr}</div>
               <div class="dash-notes-card-items">
-                ${visibleItems.map(i => `<div class="dash-notes-item"><span>${i.icon}</span><span class="dash-notes-item-label">${_escHtml(i.label)}</span></div>`).join("")}
+                ${visibleItems.map(i => `<div class="dash-notes-item"><span class="material-icons" style="font-size:14px;opacity:0.7;">${i.icon}</span><span class="dash-notes-item-label">${_escHtml(i.label)}</span></div>`).join("")}
                 ${extra > 0 ? `<div class="dash-notes-item-more">+${extra} more</div>` : ""}
               </div>
             </div>`;
@@ -1691,6 +1698,8 @@ async function renderDashboard() {
     document.getElementById("continue-reading")?.classList.remove("hidden");
   }
 
+  loadDashGreetingMsg();
+
   const favPrevBtn = document.getElementById("favPrevBtn");
   const favNextBtn = document.getElementById("favNextBtn");
 
@@ -1699,6 +1708,74 @@ async function renderDashboard() {
   }
   if (favNextBtn) {
     favNextBtn.onclick = () => changeFavoritesPage(1);
+  }
+}
+
+async function loadDashGreetingMsg() {
+  const el = document.getElementById("dashGreetingMsg");
+  if (!el) return;
+
+  el.textContent = "";
+  el.classList.remove("dash-greeting-msg-ready");
+  el.innerHTML = `<span class="dash-greeting-glow-loader"><span class="gdot"></span><span class="gdot"></span><span class="gdot"></span></span>`;
+
+  const name = getUserName();
+  const sessions = _getSessions();
+  const todayKey = (() => { const d = new Date(); return `${d.getFullYear()}-${d.getMonth()+1}-${d.getDate()}`; })();
+  const todaySessions = sessions.filter(s => s.dateKey === todayKey);
+  const hasActivityToday = todaySessions.length > 0;
+  const lastRead = recentPassage || "";
+  const h = new Date().getHours();
+  const timeOfDay = h < 12 ? "morning" : h < 17 ? "afternoon" : "evening";
+
+  const prompt = `You are a warm, uplifting Christian Bible devotion companion. Write ONE short sentence for a dashboard greeting.
+
+User name: ${name || "friend"}
+Time of day: ${timeOfDay}
+Already read or reflected today: ${hasActivityToday ? "yes" : "no"}
+Last passage they read: ${lastRead || "not yet"}
+
+Tone rules — VERY IMPORTANT:
+- Never imply they missed anything or failed to do something
+- Never say "No worries", "don't worry", "you missed", "you haven't"
+- If no activity yet: just warmly invite them — curiosity, excitement, not guilt
+- If they have activity: celebrate it, keep the energy going
+- Casual, like a friend — not a pastor, not a motivational poster
+- Use their name once max, only if it feels natural
+- No emojis, no "May God bless you", no generic phrases
+- Max 15 words
+- Reply with ONLY the sentence`;
+
+  try {
+    const res = await fetch("https://gemini-proxy-668755364170.asia-southeast1.run.app", {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({ task: "summary", contents: [{ parts: [{ text: prompt }] }] }),
+    });
+    const data = await res.json();
+    const msg = data.candidates?.[0]?.content?.parts?.[0]?.text?.trim();
+    if (msg) {
+      el.textContent = "";
+      // Add cursor then type letter by letter
+      const cursor = document.createElement("span");
+      cursor.className = "dash-greeting-cursor";
+      el.appendChild(cursor);
+      let i = 0;
+      const type = () => {
+        if (i < msg.length) {
+          el.insertBefore(document.createTextNode(msg[i++]), cursor);
+          setTimeout(type, 32);
+        } else {
+          // Remove cursor after typing done
+          setTimeout(() => cursor.remove(), 600);
+        }
+      };
+      type();
+    } else {
+      el.textContent = "";
+    }
+  } catch {
+    el.textContent = "";
   }
 }
 
@@ -1779,6 +1856,8 @@ async function loadPassage() {
   toggleReflectionBtn.hidden = false;
   summaryTitleEl.hidden = false;
   homeBtn.style.display = "inline-flex"; // SHOW HOME BUTTON
+  const dashBrand = document.getElementById("dashBrand");
+  if (dashBrand) dashBrand.hidden = true;
 
   try {
     titleForGemini = passageTitleEl.textContent;
@@ -1907,9 +1986,9 @@ async function loadPassage() {
           </div>
         </div>
         <div class="verse-actions">
-          <button class="verse-action-btn" data-action="context">✨ <span>Context</span></button>
-          <button class="verse-action-btn" data-action="ask">💬 <span>Ask</span></button>
-          <button class="verse-action-btn" data-action="note">📝 <span>Note</span></button>
+          <button class="verse-action-btn" data-action="context"><span class="material-icons">auto_awesome</span><span>Context</span></button>
+          <button class="verse-action-btn" data-action="ask"><span class="material-icons">chat_bubble_outline</span><span>Ask</span></button>
+          <button class="verse-action-btn" data-action="note"><span class="material-icons">edit_note</span><span>Note</span></button>
         </div>
         <div class="inline-ai-mount"></div>
         <div class="comments ai-fade-in" hidden></div>
@@ -2596,10 +2675,18 @@ scrollTopBtn.onclick = () => {
 bookEl.onchange = loadChapters;
 chapterEl.onchange = loadVerses;
 const vSelect = document.getElementById("versionSelect");
-if (vSelect) {
-  vSelect.value = currentVersion;
-  vSelect.onchange = () => switchVersion(vSelect.value);
+if (vSelect) vSelect.value = currentVersion;
+
+// Version pill toggle
+function _updateVersionPills(ver) {
+  document.querySelectorAll(".version-pill").forEach(btn => {
+    btn.classList.toggle("active", btn.dataset.ver === ver);
+  });
 }
+_updateVersionPills(currentVersion);
+document.querySelectorAll(".version-pill").forEach(btn => {
+  btn.addEventListener("click", () => switchVersion(btn.dataset.ver));
+});
 loadBtn.onclick = async () => {
   output.innerHTML = "";
   stopTTS(); // fully reset TTS state so new chapter gets a fresh queue
@@ -2911,12 +2998,54 @@ layout.addEventListener("scroll", () => {
   localStorage.setItem("refl-time-migrated", "1");
 })();
 
+// ── User name ─────────────────────────────────────────────────────────────────
+function getUserName() { return localStorage.getItem("userName") || ""; }
+
+function _showNamePrompt(onDone) {
+  const screen = document.getElementById("namePromptScreen");
+  const input  = document.getElementById("namePromptInput");
+  const btn    = document.getElementById("namePromptSubmit");
+  if (!screen) return;
+  input.value = getUserName();
+  screen.hidden = false;
+  requestAnimationFrame(() => screen.classList.add("name-prompt-visible"));
+  const submit = () => {
+    const name = input.value.trim();
+    if (!name) { input.focus(); return; }
+    localStorage.setItem("userName", name);
+    screen.classList.remove("name-prompt-visible");
+    screen.addEventListener("transitionend", () => { screen.hidden = true; }, { once: true });
+    if (onDone) onDone(name);
+  };
+  btn.onclick = submit;
+  input.onkeydown = e => { if (e.key === "Enter") submit(); };
+  setTimeout(() => input.focus(), 300);
+}
+
+// ── Custom confirm dialog ──────────────────────────────────────────────────────
+function _confirmDialog(message, onConfirm) {
+  const dialog    = document.getElementById("confirmDialog");
+  const msgEl     = document.getElementById("confirmMessage");
+  const okBtn     = document.getElementById("confirmOk");
+  const cancelBtn = document.getElementById("confirmCancel");
+  if (!dialog) { if (confirm(message)) onConfirm(); return; }
+  msgEl.textContent = message;
+  dialog.hidden = false;
+  requestAnimationFrame(() => dialog.classList.add("confirm-visible"));
+  const close = () => {
+    dialog.classList.remove("confirm-visible");
+    dialog.addEventListener("transitionend", () => { dialog.hidden = true; }, { once: true });
+  };
+  okBtn.onclick = () => { close(); onConfirm(); };
+  cancelBtn.onclick = close;
+}
+
 window.addEventListener("load", () => {
   const splash = document.getElementById("app-splash");
 
-  // 2-second delay for branding
   setTimeout(() => {
     splash.classList.add("splash-hidden");
+    if (!getUserName()) _showNamePrompt(() => renderDashboard());
   }, 2000);
 
   initNotesApp();
@@ -3144,13 +3273,13 @@ function _renderNotesList(filter = "") {
     const timelineItems = [];
     session.verse.forEach(n => {
       const count = n.allItems?.length || 1;
-      timelineItems.push({ icon: "📖", label: n.title, sub: `${count} verse note${count !== 1 ? "s" : ""}` });
+      timelineItems.push({ icon: "menu_book", label: n.title, sub: `${count} verse note${count !== 1 ? "s" : ""}` });
     });
     session.reflection.forEach(n => {
-      timelineItems.push({ icon: "🙏", label: n.title, sub: "Reflection" });
+      timelineItems.push({ icon: "volunteer_activism", label: n.title, sub: "Reflection" });
     });
     session.standalone.forEach(n => {
-      timelineItems.push({ icon: "📝", label: n.title || "Untitled note", sub: n.preview ? _escHtml(n.preview.slice(0, 40)) : "" });
+      timelineItems.push({ icon: "edit_note", label: n.title || "Untitled note", sub: n.preview ? _escHtml(n.preview.slice(0, 40)) : "" });
     });
 
     const MAX_VISIBLE = 4;
@@ -3159,7 +3288,7 @@ function _renderNotesList(filter = "") {
 
     const timelineHTML = visible.map(item => {
       return `<div class="nst-item">
-        <span class="nst-icon">${item.icon}</span>
+        <span class="material-icons nst-icon">${item.icon}</span>
         <span class="nst-label">${_escHtml(item.label)}</span>
         ${item.sub ? `<span class="nst-sub">${item.sub}</span>` : ""}
       </div>`;
@@ -3200,7 +3329,7 @@ function _openSessionDetail(session) {
   session.verse.forEach(note => {
     html += `
       <div class="notes-session-section">
-        <div class="notes-session-section-label">📖 ${_escHtml(note.title)}</div>`;
+        <div class="notes-session-section-label"><span class="material-icons" style="font-size:13px;vertical-align:middle;margin-right:4px;">menu_book</span>${_escHtml(note.title)}</div>`;
     // Group by verse key within the chapter
     const byVerse = {};
     (note.allItems || []).forEach(item => {
@@ -3224,7 +3353,7 @@ function _openSessionDetail(session) {
   session.reflection.forEach(note => {
     html += `
       <div class="notes-session-section">
-        <div class="notes-session-section-label">🙏 Reflection · ${_escHtml(note.title)}</div>
+        <div class="notes-session-section-label"><span class="material-icons" style="font-size:13px;vertical-align:middle;margin-right:4px;">volunteer_activism</span>Reflection · ${_escHtml(note.title)}</div>
         <div class="notes-refl-qas">${note.QAs.map(qa => {
           const parts = qa.raw.split("\nA: ");
           const q = parts[0].replace("Q: ", "").trim();
@@ -3243,7 +3372,7 @@ function _openSessionDetail(session) {
     html += `
       <div class="notes-session-section notes-session-standalone-card" data-standalone-id="${note.standaloneId}">
         <div class="notes-session-standalone-header">
-          <div class="notes-session-section-label">📝 ${_escHtml(note.title || "Untitled Note")}</div>
+          <div class="notes-session-section-label"><span class="material-icons" style="font-size:13px;vertical-align:middle;margin-right:4px;">edit_note</span>${_escHtml(note.title || "Untitled Note")}</div>
           <div class="notes-session-standalone-actions">
             <button class="notes-session-copy-btn" data-standalone-id="${note.standaloneId}" title="Copy this note">
               <span class="material-symbols-outlined">content_copy</span>
@@ -3296,10 +3425,11 @@ function _openSessionDetail(session) {
   // Wire delete standalone buttons
   content.querySelectorAll(".notes-session-del-btn").forEach(btn => {
     btn.addEventListener("click", () => {
-      if (!confirm("Delete this note?")) return;
-      const standalone = JSON.parse(localStorage.getItem("devotionStandaloneNotes") || "[]");
-      localStorage.setItem("devotionStandaloneNotes", JSON.stringify(standalone.filter(n => n.id !== btn.dataset.standaloneId)));
-      btn.closest(".notes-session-standalone-card").remove();
+      _confirmDialog("Delete this note?", () => {
+        const standalone = JSON.parse(localStorage.getItem("devotionStandaloneNotes") || "[]");
+        localStorage.setItem("devotionStandaloneNotes", JSON.stringify(standalone.filter(n => n.id !== btn.dataset.standaloneId)));
+        btn.closest(".notes-session-standalone-card").remove();
+      });
     });
   });
 
@@ -3455,7 +3585,7 @@ function _renderStandaloneEditor(data, container) {
       <div class="ne-tool-sep"></div>
       <button class="ne-tool" data-cmd="heading" title="Heading">H</button>
       <div class="ne-tool-sep"></div>
-      <button class="ne-tool ne-tool-verse" id="neVerseBtn" title="Insert verse">📖 Verse</button>
+      <button class="ne-tool ne-tool-verse" id="neVerseBtn" title="Insert verse"><span class="material-icons" style="font-size:15px;vertical-align:middle;">menu_book</span> Verse</button>
     </div>
     <div class="notes-editor-body" id="notesEditorBody" contenteditable="true" data-placeholder="Start writing…">${bodyHTML}</div>
     <div class="ne-verse-picker" id="neVersePicker" hidden>
@@ -3639,7 +3769,7 @@ function _renderStandaloneEditor(data, container) {
       ? `${bookName} ${ch}`
       : `${bookName} ${ch}:${vFrom}${neMode === "range" && vTo && vTo !== vFrom ? "–"+vTo : ""}`;
     const versesHTML = verses.map(v => `<span class="nvb-verse"><sup class="nvb-num">${v.n}</sup>${_escHtml(v.t)}</span>`).join(" ");
-    const blockHTML = `<div class="note-verse-block" contenteditable="false" data-ref="${_escHtml(refLabel)}"><button class="nvb-delete" contenteditable="false">✕</button><div class="nvb-ref">📖 ${_escHtml(refLabel)}</div><div class="nvb-body">${versesHTML}</div></div><p><br></p>`;
+    const blockHTML = `<div class="note-verse-block" contenteditable="false" data-ref="${_escHtml(refLabel)}"><button class="nvb-delete" contenteditable="false">✕</button><div class="nvb-ref"><span class="material-icons" style="font-size:13px;vertical-align:middle;margin-right:3px;">menu_book</span>${_escHtml(refLabel)}</div><div class="nvb-body">${versesHTML}</div></div><p><br></p>`;
 
     // Insert at saved cursor position
     bodyEl.focus();
@@ -3694,10 +3824,11 @@ function _updateStandaloneNote(updated) {
 }
 
 function _deleteStandaloneNote(noteId) {
-  if (!confirm("Delete this note?")) return;
-  const standalone = JSON.parse(localStorage.getItem("devotionStandaloneNotes") || "[]");
-  localStorage.setItem("devotionStandaloneNotes", JSON.stringify(standalone.filter(n => n.id !== noteId)));
-  _closeNoteDetail();
+  _confirmDialog("Delete this note?", () => {
+    const standalone = JSON.parse(localStorage.getItem("devotionStandaloneNotes") || "[]");
+    localStorage.setItem("devotionStandaloneNotes", JSON.stringify(standalone.filter(n => n.id !== noteId)));
+    _closeNoteDetail();
+  });
 }
 
 function _shareNote(note) {

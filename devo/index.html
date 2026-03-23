@@ -41,6 +41,7 @@
       </div>
       <div class="main">
         <div id="topActions" style="padding: 4rem 16px 0">
+          <div id="dashBrand" class="dash-brand" hidden>devotion.</div>
           <button id="homeBtn" class="secondary" hidden>
             <span class="material-symbols-outlined"> home </span> Back to Home
           </button>
@@ -66,21 +67,22 @@
           <button id="load" class="primary">Search</button>
 
           <div class="controls-bottom-row">
-            <div class="control" id="versionControl">
-              <div class="control-label">Version</div>
-              <select id="versionSelect">
-                <option value="NASB">NASB 2020</option>
-                <option value="EASY">EASY 2024</option>
-              </select>
+            <select id="versionSelect" hidden>
+              <option value="NASB">NASB 2020</option>
+              <option value="EASY">EASY 2024</option>
+            </select>
+            <div class="version-pill-group" id="versionPillGroup">
+              <button class="version-pill" data-ver="NASB">NASB</button>
+              <button class="version-pill" data-ver="EASY">EASY</button>
             </div>
-            <div class="flex" style="gap:8px; flex-shrink:0;">
-              <button id="prevChapterBtn" class="secondary hidden">
+            <div class="controls-actions">
+              <button id="prevChapterBtn" class="ctrl-icon-btn hidden">
                 <span class="material-symbols-outlined">navigate_before</span>
               </button>
-              <button id="nextChapterBtn" class="secondary hidden">
+              <button id="nextChapterBtn" class="ctrl-icon-btn hidden">
                 <span class="material-symbols-outlined">navigate_next</span>
               </button>
-              <button id="ttsPlayBtn" class="secondary hidden">
+              <button id="ttsPlayBtn" class="ctrl-icon-btn hidden">
                 <span class="material-symbols-outlined">headphones</span>
               </button>
               <div id="mode-toggle" class="mode-toggle">
@@ -100,7 +102,7 @@
       <aside class="summary">
         <div id="aiContextSummary"></div>
         <button id="toggleReflectionBtn" hidden>
-          🙏 Show Guided Reflection
+          <span class="material-icons" style="font-size:16px;vertical-align:middle;">volunteer_activism</span> Show Guided Reflection
         </button>
 
         <div id="aiReflection"></div>
@@ -165,6 +167,28 @@
       </div>
     </div>
 
+    <!-- NAME PROMPT SCREEN -->
+    <div id="namePromptScreen" class="name-prompt-screen" hidden>
+      <div class="name-prompt-card">
+        <div class="name-prompt-logo">devotion.</div>
+        <h2 class="name-prompt-title">Hey there! 👋</h2>
+        <p class="name-prompt-sub">What should we call you?</p>
+        <input id="namePromptInput" class="name-prompt-input" type="text" placeholder="Your name…" maxlength="32" autocomplete="off" />
+        <button id="namePromptSubmit" class="name-prompt-btn primary">Let's go →</button>
+      </div>
+    </div>
+
+    <!-- CUSTOM CONFIRM DIALOG -->
+    <div id="confirmDialog" class="confirm-dialog" hidden>
+      <div class="confirm-card">
+        <p class="confirm-message" id="confirmMessage"></p>
+        <div class="confirm-actions">
+          <button class="confirm-cancel" id="confirmCancel">Cancel</button>
+          <button class="confirm-ok" id="confirmOk">Delete</button>
+        </div>
+      </div>
+    </div>
+
     <div id="modalOverlay" class="modal-overlay" hidden>
       <div class="modal-card">
         <button id="modalClose" class="modal-close">✕</button>
@@ -202,7 +226,7 @@
           <div class="tts-imm-range" id="ttsImmRange"></div>
         </div>
         <div class="tts-imm-bar-actions">
-          <button id="ttsImmReflectBtn" class="tts-imm-reflect-btn" hidden>🙏</button>
+          <button id="ttsImmReflectBtn" class="tts-imm-reflect-btn" hidden><span class="material-icons">volunteer_activism</span></button>
           <button class="tts-imm-close-btn" id="ttsImmCloseBtn">
             <span class="material-symbols-outlined">keyboard_arrow_down</span>
           </button>
@@ -237,9 +261,9 @@
       <!-- Pause quick-actions panel (in flex flow, above footer) -->
       <div id="ttsImmPausePanel" class="tts-imm-pause-panel" hidden>
         <div class="tts-imm-pause-actions">
-          <button class="tts-imm-pause-action-btn" id="ttsImmPauseNote">📝<span>Note</span></button>
-          <button class="tts-imm-pause-action-btn" id="ttsImmPauseContext">✨<span>Context</span></button>
-          <button class="tts-imm-pause-action-btn" id="ttsImmPauseAsk">💬<span>Ask</span></button>
+          <button class="tts-imm-pause-action-btn" id="ttsImmPauseNote"><span class="material-icons">edit_note</span><span>Note</span></button>
+          <button class="tts-imm-pause-action-btn" id="ttsImmPauseContext"><span class="material-icons">auto_awesome</span><span>Context</span></button>
+          <button class="tts-imm-pause-action-btn" id="ttsImmPauseAsk"><span class="material-icons">chat_bubble_outline</span><span>Ask</span></button>
         </div>
         <div class="tts-imm-pause-content" id="ttsImmPauseContent"></div>
       </div>
