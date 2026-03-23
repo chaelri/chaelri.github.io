@@ -2793,10 +2793,10 @@ body.light {
   background: #1a1f2e;
   border: 1px solid rgba(255,255,255,0.12);
   border-radius: 12px;
-  padding: 14px 16px;
+  padding: 12px 14px;
   box-shadow: 0 6px 24px rgba(0,0,0,0.5);
-  max-width: 320px;
-  width: calc(100% - 40px);
+  max-width: 360px;
+  width: calc(100% - 32px);
 }
 .bref-preview[hidden] { display: none !important; }
 .bref-preview-ref {
@@ -2813,20 +2813,22 @@ body.light {
   overflow-y: auto;
 }
 .bref-preview-actions {
-  display: flex; gap: 8px; justify-content: flex-end;
+  display: flex; gap: 8px; justify-content: flex-end; align-items: center;
 }
 .bref-preview-dismiss {
   background: rgba(255,255,255,0.08);
   border: none; border-radius: 8px;
   color: rgba(255,255,255,0.6);
-  padding: 8px 14px; font-size: 13px; cursor: pointer;
+  padding: 6px 12px; font-size: 12px; cursor: pointer;
   font-family: 'Google Sans Flex', sans-serif;
+  white-space: nowrap;
 }
 .bref-preview-insert {
   background: linear-gradient(135deg,#486bec,#c83086);
   border: none; border-radius: 8px;
   color: #fff;
-  padding: 8px 16px; font-size: 13px; cursor: pointer; font-weight: 600;
+  padding: 6px 14px; font-size: 12px; cursor: pointer; font-weight: 600;
+  white-space: nowrap;
   font-family: 'Google Sans Flex', sans-serif;
 }
 

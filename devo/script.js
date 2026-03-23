@@ -3880,8 +3880,8 @@ function _renderStandaloneEditor(data, container) {
     const rect = sel.getRangeAt(0).getBoundingClientRect();
     const cRect = container.getBoundingClientRect();
     const scrollTop = container.parentElement?.scrollTop || 0;
-    el.style.left = Math.max(0, Math.min(rect.left - cRect.left, cRect.width - 180)) + "px";
     el.style.top = (rect.bottom - cRect.top + scrollTop + 4) + "px";
+    el.style.left = Math.max(0, Math.min(rect.left - cRect.left, cRect.width - el.offsetWidth - 16)) + "px";
   }
 
   function _brefShowDropdown(matches, query, textNode, cursorOffset, regexMatch) {
@@ -4143,10 +4143,13 @@ function _shareNote(note) {
 function _stripNotePreview(n) {
   const html = n.bodyHTML || "";
   if (html) {
-    // Parse HTML, remove verse blocks, get clean text
     const tmp = document.createElement("div");
     tmp.innerHTML = html;
-    tmp.querySelectorAll(".note-verse-block").forEach(el => el.remove());
+    // Replace verse blocks with just their reference label (e.g. "[John 3:16]")
+    tmp.querySelectorAll(".note-verse-block").forEach(el => {
+      const ref = el.dataset.ref || el.querySelector(".nvb-ref")?.textContent?.trim() || "";
+      el.replaceWith(document.createTextNode(ref ? ` [${ref}] ` : " "));
+    });
     return (tmp.textContent || "").replace(/\s+/g, " ").trim().slice(0, 120);
   }
   return (n.body || "").replace(/\n/g, " ").slice(0, 120);
