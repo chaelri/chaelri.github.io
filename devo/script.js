@@ -1718,6 +1718,7 @@ function _typewriterReveal(el, msg) {
   el.appendChild(cursor);
   let i = 0;
   const type = () => {
+    if (cursor.parentNode !== el) return; // el was replaced, bail out
     if (i < msg.length) {
       el.insertBefore(document.createTextNode(msg[i++]), cursor);
       setTimeout(type, 32);
