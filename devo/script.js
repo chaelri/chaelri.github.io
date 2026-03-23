@@ -1599,8 +1599,11 @@ async function renderDashboard() {
 
   const dashboardHTML = `
   <div class="dashboard ai-fade-in">
-  
-  <h2>Your Dashboard</h2>
+
+  <div class="dash-greeting">
+    <div class="dash-greeting-text">${(() => { const h = new Date().getHours(); return h < 12 ? "Good morning" : h < 17 ? "Good afternoon" : "Good evening"; })()}</div>
+    <div class="dash-greeting-date">${new Date().toLocaleDateString("en-US", { weekday: "long", month: "long", day: "numeric" })}</div>
+  </div>
   
   <div class="dashboard-grid">
 
@@ -2183,45 +2186,42 @@ STYLING RULES (MUST MATCH EXACTLY):
 Use ONE outer div with THIS EXACT inline style and DO NOT MODIFY IT:
 
 background: linear-gradient(135deg, #486bec, #db2777);
-padding: 1rem 1.5rem 2rem;
-border-radius: 12px;
+padding: 1.25rem 1.5rem 1.75rem;
+border-radius: 16px;
 box-shadow: 0 12px 30px rgba(236, 72, 153, 0.45);
 font-family: system-ui, -apple-system, BlinkMacSystemFont, sans-serif;
-font-size: 16px;
-line-height: 1.4;
 color: #ffffff;
 width: 100%;
 margin-bottom: 0;
 box-sizing: border-box;
 
-Title rules:
-- The FIRST element inside the div must be a p tag WITH inline styles:
-  font-size: 18px;
-  font-weight: 700;
-  margin: 0 0 0.75rem;
-- The title must be:
-  "Before you read — {BOOK} {CHAPTER}"
-- Use the actual book name and chapter from the task
+Header rules (FIRST element inside div):
+- A div containing TWO elements:
+  1. A p tag with inline style: font-size: 11px; font-weight: 700; letter-spacing: 2px; text-transform: uppercase; opacity: 0.7; margin: 0 0 4px;
+     Content: "Before you read"
+  2. A p tag with inline style: font-size: 2.75rem; font-weight: 800; text-transform: uppercase; letter-spacing: -3px; line-height: 1; margin: 0 0 1.25rem;
+     Content: "{BOOK} {CHAPTER}" — use the actual book name and chapter number only
 
-List rules:
-- Use a ul directly under the title
-- The ul MUST include inline styles:
-  margin-top: 0.75rem;
-  margin-bottom: 0;
-  padding-left: 1.2rem;
-- Exactly 3 bullet points
-- Keep each bullet to 1–2 short sentences max
-- Use <strong> sparingly for key names or ideas (e.g. David, covenant, praise)
-- Use <em> for key actions (e.g. calls out to God, returns to Jerusalem)
-- Do NOT overuse emphasis
+Section rules (AFTER the header div):
+- Use a div with inline style: display: flex; flex-direction: column; gap: 14px;
+- Inside, exactly 3 section divs, each with inline style: display: flex; gap: 10px; align-items: flex-start;
+- Each section div contains:
+  1. A span with inline style: font-family: 'Material Icons'; font-size: 18px; line-height: 1; flex-shrink: 0; margin-top: 2px; opacity: 0.9;
+     The span content (text node) must be the Material Icon ligature name exactly:
+     Section 1: info
+     Section 2: bolt
+     Section 3: visibility
+  2. A div with inline style: flex: 1; font-size: 14px; line-height: 1.5; containing:
+     - A strong tag: the section label (e.g. "Context", "What happens", "Watch for")
+     - A br tag
+     - Plain text: the content (1 sentence max, 20 words max)
 
 CONTENT RULES:
-- Bullet 1: Quick background — who wrote this, when, and why (the "what's going on" before this passage)
-- Bullet 2: What is about to happen in this specific passage — a brief preview of the main movement or event
-- Bullet 3: One thing to watch for as you read — a key theme, word, or shift that makes this passage significant
-- Friendly, clear, accessible tone — like a knowledgeable friend preparing you to read
-- No academic jargon
-- No verse quotations
+- Section 1 (Context): One sentence — who wrote it and the key situation leading into this passage
+- Section 2 (What happens): One sentence — the main event or action in this specific passage
+- Section 3 (Watch for): One sentence — one specific thing (a word, theme, or moment) to notice while reading
+- Tone: casual, like a friend texting you a heads-up before you read
+- No academic language, no verse citations, no full summaries
 
 TASK:
 Prepare the reader for ${titleForGemini}.
@@ -2893,6 +2893,24 @@ layout.addEventListener("scroll", () => {
   lastScrollY = currentScrollY;
 });
 
+// One-time migration: backfill reflection-time-* from IndexedDB updatedAt
+(async () => {
+  if (localStorage.getItem("refl-time-migrated")) return;
+  const passageIds = new Set();
+  for (let i = 0; i < localStorage.length; i++) {
+    const k = localStorage.key(i);
+    if (!k.startsWith("reflection-") || k.startsWith("reflection-time-")) continue;
+    const parts = k.split("-");
+    const passageId = parts.slice(1, 4).join("-");
+    if (!localStorage.getItem(`reflection-time-${passageId}`)) passageIds.add(passageId);
+  }
+  for (const pid of passageIds) {
+    const entry = await dbGet(pid);
+    if (entry?.updatedAt) localStorage.setItem(`reflection-time-${pid}`, String(entry.updatedAt));
+  }
+  localStorage.setItem("refl-time-migrated", "1");
+})();
+
 window.addEventListener("load", () => {
   const splash = document.getElementById("app-splash");
 
@@ -3041,7 +3059,7 @@ function _getAllNotes() {
       passageKey: passageId,
       title: ref,
       preview: firstAnswer,
-      time: data.time || Date.now(), // fallback to now if no matching verse comment timestamp
+      time: data.time || null, // null = unknown; excluded from session grouping
       QAs: data.QAs,
     });
   });
@@ -3087,7 +3105,7 @@ function closeNotesApp() {
 function _getSessions(filter = "") {
   const all = _getAllNotes();
   const q = filter.toLowerCase();
-  const flat = q ? all.filter(n => (n.title + " " + (n.subtitle||"") + " " + n.preview).toLowerCase().includes(q)) : all;
+  const flat = all.filter(n => n.time != null && (!q || (n.title + " " + (n.subtitle||"") + " " + n.preview).toLowerCase().includes(q)));
 
   const buckets = {};
   flat.forEach(note => {
@@ -3139,15 +3157,11 @@ function _renderNotesList(filter = "") {
     const visible = timelineItems.slice(0, MAX_VISIBLE);
     const extra = timelineItems.length - MAX_VISIBLE;
 
-    const timelineHTML = visible.map((item, i) => {
-      const isLast = i === visible.length - 1 && extra <= 0;
-      return `<div class="nst-item${isLast ? " nst-item-last" : ""}">
-        <div class="nst-line-wrap"><div class="nst-dot"></div>${!isLast ? '<div class="nst-line"></div>' : ''}</div>
-        <div class="nst-content">
-          <span class="nst-icon">${item.icon}</span>
-          <span class="nst-label">${_escHtml(item.label)}</span>
-          ${item.sub ? `<span class="nst-sub">${item.sub}</span>` : ""}
-        </div>
+    const timelineHTML = visible.map(item => {
+      return `<div class="nst-item">
+        <span class="nst-icon">${item.icon}</span>
+        <span class="nst-label">${_escHtml(item.label)}</span>
+        ${item.sub ? `<span class="nst-sub">${item.sub}</span>` : ""}
       </div>`;
     }).join("") + (extra > 0 ? `<div class="nst-more">+${extra} more</div>` : "");
 
@@ -3231,6 +3245,9 @@ function _openSessionDetail(session) {
         <div class="notes-session-standalone-header">
           <div class="notes-session-section-label">📝 ${_escHtml(note.title || "Untitled Note")}</div>
           <div class="notes-session-standalone-actions">
+            <button class="notes-session-copy-btn" data-standalone-id="${note.standaloneId}" title="Copy this note">
+              <span class="material-symbols-outlined">content_copy</span>
+            </button>
             <button class="notes-session-edit-btn" data-standalone-id="${note.standaloneId}">Edit</button>
             <button class="notes-session-del-btn" data-standalone-id="${note.standaloneId}" title="Delete note">
               <span class="material-symbols-outlined">delete</span>
@@ -3250,6 +3267,22 @@ function _openSessionDetail(session) {
       closeNotesApp();
       loadPassageById(`${bookId}-${ch}-`);
       showBackToNotesBubble(null);
+    });
+  });
+  // Wire copy standalone buttons
+  content.querySelectorAll(".notes-session-copy-btn").forEach(btn => {
+    btn.addEventListener("click", () => {
+      const standalone = JSON.parse(localStorage.getItem("devotionStandaloneNotes") || "[]");
+      const noteData = standalone.find(n => n.id === btn.dataset.standaloneId);
+      if (!noteData) return;
+      const text = `📝 ${noteData.title || "Note"}\n${noteData.body || ""}`;
+      navigator.clipboard.writeText(text).then(() => {
+        const toast = document.createElement("div");
+        toast.className = "notes-toast";
+        toast.textContent = "✅ Note copied";
+        document.body.appendChild(toast);
+        setTimeout(() => toast.remove(), 2000);
+      });
     });
   });
   // Wire edit standalone buttons
@@ -3444,6 +3477,31 @@ function _renderStandaloneEditor(data, container) {
   const bodyEl   = container.querySelector("#notesEditorBody");
   const toolbar  = container.querySelector("#notesEditorToolbar");
   const picker   = container.querySelector("#neVersePicker");
+
+  // Backspace deletes whole verse block as one unit (mobile + desktop)
+  bodyEl.addEventListener("beforeinput", e => {
+    if (e.inputType !== "deleteContentBackward") return;
+    const sel = window.getSelection();
+    if (!sel || !sel.isCollapsed) return;
+    const range = sel.getRangeAt(0);
+    let node = range.startContainer;
+    const offset = range.startOffset;
+    // Find what block-level element we're at the start of
+    let checkNode = null;
+    if (node === bodyEl) {
+      checkNode = bodyEl.childNodes[offset - 1];
+    } else if (offset === 0) {
+      // Walk up to find our top-level child in bodyEl
+      let el = node;
+      while (el.parentNode && el.parentNode !== bodyEl) el = el.parentNode;
+      checkNode = el.previousSibling;
+    }
+    if (checkNode?.classList?.contains("note-verse-block")) {
+      e.preventDefault();
+      checkNode.remove();
+      autoSave();
+    }
+  });
 
   // Verse block: X to delete, click to navigate
   bodyEl.addEventListener("click", e => {

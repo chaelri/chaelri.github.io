@@ -1680,6 +1680,100 @@ body.light {
 }
 .light .verse-action-btn:hover { background: rgba(0,0,0,0.08); }
 
+/* ── LIGHT MODE: NOTES APP ── */
+.light .notes-app { background: #faf9f6; color: #1a1a1a; }
+.light .notes-app-bar { background: #faf9f6; border-color: rgba(0,0,0,0.1); }
+.light .notes-app-bar-title,
+.light .notes-app-close,
+.light .notes-app-new { color: #1a1a1a; }
+.light .notes-search-bar { background: rgba(0,0,0,0.05); border-color: rgba(0,0,0,0.08); }
+.light .notes-search-bar input { color: #1a1a1a; }
+.light .notes-search-bar input::placeholder { color: rgba(0,0,0,0.35); }
+.light .notes-list-count { color: rgba(0,0,0,0.4); }
+
+/* Session cards in notes list */
+.light .notes-card { border-color: rgba(0,0,0,0.08); }
+.light .notes-card-date { color: #1a1a1a; }
+.light .nst-label { color: #db2777; }
+.light .nst-sub { color: rgba(0,0,0,0.45); }
+.light .nst-more { color: rgba(0,0,0,0.35); }
+
+/* Session detail */
+.light .notes-detail-view { background: #faf9f6; color: #1a1a1a; }
+.light .notes-detail-bar { background: #faf9f6; border-color: rgba(0,0,0,0.1); }
+.light .notes-detail-back,
+.light .notes-detail-action-btn { color: #1a1a1a; }
+.light .notes-detail-title { color: #1a1a1a; }
+.light .notes-session-section { border-color: rgba(0,0,0,0.08); }
+.light .notes-session-standalone-card { background: #fff; border-color: rgba(0,0,0,0.08); box-shadow: 0 2px 8px rgba(0,0,0,0.05); }
+.light .notes-session-section-label { color: rgba(0,0,0,0.5); }
+.light .notes-session-verse-num { color: #db2777; background: rgba(219,39,119,0.08); }
+.light .notes-verse-item-text { color: #1a1a1a; }
+.light .notes-refl-q { color: rgba(0,0,0,0.6); }
+.light .notes-refl-a { color: #1a1a1a; }
+.light .notes-go-passage-btn { background: rgba(0,0,0,0.05); border-color: rgba(0,0,0,0.1); color: #1a1a1a; }
+.light .notes-session-standalone-header .notes-session-section-label { color: rgba(0,0,0,0.5); }
+.light .notes-session-standalone-body { color: #1a1a1a; }
+.light .notes-session-standalone-empty { color: rgba(0,0,0,0.3); }
+.light .notes-session-edit-btn { border-color: rgba(219,39,119,0.4); color: #db2777; }
+.light .notes-session-del-btn { color: rgba(0,0,0,0.3); }
+
+/* Note editor */
+.light .notes-editor-title { color: #1a1a1a; }
+.light .notes-editor-title::placeholder { color: rgba(0,0,0,0.3); }
+.light .notes-editor-date { color: rgba(0,0,0,0.4); }
+.light .notes-editor-toolbar { background: #faf9f6; border-color: rgba(0,0,0,0.1); }
+.light .ne-tool { color: #1a1a1a; }
+.light .ne-tool:hover { background: rgba(0,0,0,0.06); }
+.light .ne-tool-sep { background: rgba(0,0,0,0.1); }
+.light .ne-tool-verse { border-color: rgba(0,0,0,0.15); color: rgba(0,0,0,0.5); }
+.light .ne-tool-verse.active { background: rgba(219,39,119,0.1); border-color: rgba(219,39,119,0.4); color: #db2777; }
+.light .notes-editor-body { color: #1a1a1a; }
+.light .notes-editor-body:empty:before { color: rgba(0,0,0,0.3); }
+.light .ne-verse-picker { background: rgba(0,0,0,0.03); border-color: rgba(0,0,0,0.1); }
+.light .ne-mode-btn { background: rgba(0,0,0,0.05); border-color: rgba(0,0,0,0.1); color: #1a1a1a; }
+.light .ne-mode-btn.active { background: rgba(219,39,119,0.1); border-color: rgba(219,39,119,0.4); color: #db2777; }
+.light .ne-verse-sel { background: rgba(0,0,0,0.05); border-color: rgba(0,0,0,0.1); color: #1a1a1a; }
+.light .note-verse-block { background: rgba(0,0,0,0.03); border-left-color: rgba(219,39,119,0.5); }
+.light .note-verse-block:hover { background: rgba(219,39,119,0.05); }
+.light .nvb-ref { color: #db2777; }
+.light .nvb-body { color: rgba(0,0,0,0.75); }
+.light .nvb-delete { background: rgba(0,0,0,0.08); color: rgba(0,0,0,0.4); }
+
+/* Dashboard notes cards */
+.light .dash-notes-card { background: #fff; box-shadow: 0 2px 8px rgba(0,0,0,0.08); }
+.light .dash-notes-card:hover { background: #f5f3f0; }
+.light .dash-notes-card-date { color: rgba(0,0,0,0.4); }
+.light .dash-notes-item-label { color: #db2777; }
+.light .dash-notes-item-more { color: rgba(0,0,0,0.3); }
+
+/* Back to notes bubble */
+.light .back-to-notes-bubble { background: #fff; border-color: rgba(219,39,119,0.3); box-shadow: 0 4px 16px rgba(0,0,0,0.12); }
+
+/* Empty state */
+.light .notes-empty { color: rgba(0,0,0,0.4); }
+
+/* Override the global .light button { background: white } for notes ghost buttons */
+.light .dash-notes-open-btn,
+.light .notes-app-close,
+.light .notes-app-new,
+.light .notes-detail-back,
+.light .notes-detail-action-btn,
+.light .notes-session-del-btn,
+.light .notes-go-passage-btn,
+.light .ne-tool,
+.light .ne-tool-verse,
+.light .ne-mode-btn { background: transparent; }
+.light .ne-mode-btn.active { background: rgba(219,39,119,0.1); }
+.light .ne-tool-verse.active { background: rgba(219,39,119,0.1); }
+.light .ne-tool:hover { background: rgba(0,0,0,0.06); }
+
+/* Title input — transparent so it blends with the editor bg */
+.light .notes-editor-title { background: transparent; color: #1a1a1a; }
+
+/* Dashboard date — darker so it's readable */
+.light .dash-notes-card-date { color: rgba(0,0,0,0.55); opacity: 1; }
+
 /* ---------- TTS PLAYER BAR ---------- */
 .tts-player {
   /* display controlled by [hidden] — do NOT set display here */
@@ -1998,7 +2092,20 @@ body.light {
 
 /* Session detail sections */
 .notes-session-section {
-  margin-bottom: 28px;
+  margin-bottom: 16px;
+}
+/* Standalone notes get a card treatment to distinguish multiple notes */
+.notes-session-standalone-card {
+  background: rgba(255,255,255,0.04);
+  border: 1px solid rgba(255,255,255,0.08);
+  border-radius: 14px;
+  padding: 18px 18px 16px;
+  margin-bottom: 12px;
+}
+.light .notes-session-standalone-card {
+  background: #fff;
+  border-color: rgba(0,0,0,0.08);
+  box-shadow: 0 2px 8px rgba(0,0,0,0.05);
 }
 .notes-session-section-label {
   font-size: 11px;
@@ -2108,17 +2215,12 @@ body.light {
 }
 
 /* Session timeline */
-.notes-session-timeline { display: flex; flex-direction: column; }
-.nst-item { display: flex; gap: 10px; }
-.nst-line-wrap { display: flex; flex-direction: column; align-items: center; width: 16px; flex-shrink: 0; padding-top: 3px; }
-.nst-dot { width: 7px; height: 7px; border-radius: 50%; background: #db2777; flex-shrink: 0; }
-.nst-line { width: 1px; flex: 1; background: rgba(219,39,119,0.2); margin: 3px 0; min-height: 8px; }
-.nst-content { display: flex; flex-wrap: wrap; align-items: baseline; gap: 4px; padding-bottom: 8px; min-width: 0; }
-.nst-item-last .nst-content { padding-bottom: 4px; }
-.nst-icon { font-size: 13px; }
-.nst-label { font-size: 13px; font-weight: 700; color: #db2777; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; max-width: 200px; }
-.nst-sub { font-size: 12px; opacity: 0.5; white-space: nowrap; }
-.nst-more { font-size: 12px; opacity: 0.35; padding-left: 26px; margin-top: 2px; }
+.notes-session-timeline { display: flex; flex-direction: column; gap: 5px; }
+.nst-item { display: flex; align-items: center; gap: 6px; min-width: 0; }
+.nst-icon { font-size: 13px; flex-shrink: 0; }
+.nst-label { font-size: 13px; font-weight: 700; color: #db2777; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; max-width: 160px; flex-shrink: 0; }
+.nst-sub { font-size: 12px; opacity: 0.45; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+.nst-more { font-size: 12px; opacity: 0.35; margin-top: 2px; }
 .notes-card-preview {
   font-size: 13px;
   opacity: 0.5;
@@ -2199,7 +2301,7 @@ body.light {
   font-size: 24px;
   font-weight: 800;
   letter-spacing: -0.5px;
-  margin-bottom: 4px;
+  margin-bottom: 20px;
 }
 .notes-detail-subtitle {
   font-size: 12px;
@@ -3424,3 +3526,37 @@ body.light {
 .light .tts-imm-verse-popup-text {
   color: #1a1a2e;
 }
+
+/* Dashboard greeting */
+.dash-greeting {
+  padding: 8px 0 20px;
+}
+.dash-greeting-text {
+  font-size: 28px;
+  font-weight: 800;
+  letter-spacing: -0.5px;
+  color: #fff;
+}
+.dash-greeting-date {
+  font-size: 14px;
+  opacity: 0.45;
+  margin-top: 2px;
+}
+.light .dash-greeting-text { color: #0b1220; }
+
+/* Per-note copy button — match delete button sizing */
+.notes-session-copy-btn {
+  background: none !important;
+  border: none !important;
+  color: rgba(255,255,255,0.35);
+  cursor: pointer;
+  padding: 4px !important;
+  display: flex;
+  align-items: center;
+  border-radius: 8px;
+  font-size: 14px !important;
+}
+.notes-session-copy-btn .material-symbols-outlined { font-size: 18px; }
+.notes-session-copy-btn:hover { color: rgba(255,255,255,0.7); }
+.light .notes-session-copy-btn { color: rgba(0,0,0,0.3); }
+.light .notes-session-copy-btn:hover { color: rgba(0,0,0,0.6); }
