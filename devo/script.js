@@ -1717,22 +1717,20 @@ async function renderDashboard() {
       </section>
 
       <!-- DAILY REMINDER -->
-      ${"PushManager" in window ? `
       <section class="dashboard-section dash-notif-section">
-        <div class="dash-notif-row" id="pushToggleRow" style="cursor:pointer">
+        <div class="dash-notif-row" id="pushArea">
           <div class="dash-notif-info">
             <span class="material-icons dash-notif-icon">notifications</span>
             <div>
               <div class="dash-notif-title">Reminders</div>
-              <div class="dash-notif-desc">Gentle nudges throughout the day based on your reading</div>
+              <div class="dash-notif-desc" id="pushStatusText">${localStorage.getItem("pushEnabled") === "true" ? "Enabled — gentle nudges based on your reading" : "Get gentle nudges throughout the day"}</div>
             </div>
           </div>
-          <div class="dash-toggle">
-            <input type="checkbox" id="pushToggle" ${localStorage.getItem("pushEnabled") === "true" ? "checked" : ""}>
-            <span class="dash-toggle-slider"></span>
-          </div>
+          <button class="dash-push-btn ${localStorage.getItem("pushEnabled") === "true" ? "active" : ""}" id="pushBtn">
+            ${localStorage.getItem("pushEnabled") === "true" ? "ON" : "OFF"}
+          </button>
         </div>
-      </section>` : ""}
+      </section>
       </div>
       </div>
       `;
@@ -1745,58 +1743,53 @@ async function renderDashboard() {
 
   loadDashGreetingMsg();
 
-  // Push notification toggle — click on entire row for iOS compatibility
-  const pushToggle = document.getElementById("pushToggle");
-  const pushRow = document.getElementById("pushToggleRow");
-  if (pushRow && pushToggle) {
-    pushRow.addEventListener("click", async (e) => {
-      e.preventDefault();
-      e.stopPropagation();
+  // Push notification button
+  const pushBtn = document.getElementById("pushBtn");
+  if (pushBtn) {
+    pushBtn.onclick = async function() {
+      const isOn = localStorage.getItem("pushEnabled") === "true";
 
-      const turningOn = !pushToggle.checked;
+      if (!isOn) {
+        // TURNING ON
+        try {
+          // 1. Check support
+          if (!("Notification" in window)) { alert("Notifications not supported on this browser."); return; }
+          if (!("serviceWorker" in navigator)) { alert("Service workers not supported."); return; }
+          if (!("PushManager" in window)) { alert("Push not supported. Make sure this app is added to your Home Screen."); return; }
 
-      if (turningOn) {
-        // Debug info
-        const hasNotif = "Notification" in window;
-        const hasSW = "serviceWorker" in navigator;
-        const hasPush = "PushManager" in window;
-
-        if (!hasSW || !hasPush || !hasNotif) {
-          alert("Push not supported.\nServiceWorker: " + hasSW + "\nPushManager: " + hasPush + "\nNotification: " + hasNotif + "\nStandalone: " + (window.navigator.standalone || window.matchMedia("(display-mode: standalone)").matches));
-          return;
-        }
-
-        // Request permission directly in this tap
-        if (Notification.permission === "denied") {
-          alert("Notifications are blocked. Go to Settings > Notifications and enable them for Devotion.");
-          return;
-        }
-        if (Notification.permission === "default") {
-          const result = await Notification.requestPermission();
-          if (result !== "granted") {
-            alert("Permission result: " + result);
+          // 2. Request permission in this direct tap
+          if (Notification.permission === "denied") {
+            alert("Notifications are blocked. Go to Settings > Notifications and enable them for Devotion.");
             return;
           }
-        }
+          const perm = await Notification.requestPermission();
+          if (perm !== "granted") { alert("Notification permission: " + perm); return; }
 
-        const ok = await _subscribePush();
-        if (ok) {
-          pushToggle.checked = true;
-        } else {
-          pushToggle.checked = false;
+          // 3. Subscribe
+          const ok = await _subscribePush();
+          if (ok) {
+            pushBtn.textContent = "ON";
+            pushBtn.classList.add("active");
+            document.getElementById("pushStatusText").textContent = "Enabled — gentle nudges based on your reading";
+          }
+        } catch (err) {
+          alert("Error: " + (err.message || err));
         }
       } else {
+        // TURNING OFF
         await _unsubscribePush();
-        pushToggle.checked = false;
+        pushBtn.textContent = "OFF";
+        pushBtn.classList.remove("active");
+        document.getElementById("pushStatusText").textContent = "Get gentle nudges throughout the day";
       }
-    });
+    };
   }
 
-  // One-time notification prompt (show once if not asked yet)
-  if ("PushManager" in window
+  // One-time notification prompt
+  if ("Notification" in window
     && !localStorage.getItem("pushAsked")
     && localStorage.getItem("pushEnabled") !== "true") {
-    setTimeout(() => _showNotifPrompt(pushToggle), 1500);
+    setTimeout(() => _showNotifPrompt(), 1500);
   }
 
   const favPrevBtn = document.getElementById("favPrevBtn");
@@ -3066,7 +3059,7 @@ function _getRecentNotesContext() {
 }
 
 // ── One-time notification permission prompt ──────────────────────────────────
-function _showNotifPrompt(toggleEl) {
+function _showNotifPrompt() {
   const overlay = document.createElement("div");
   overlay.className = "notif-prompt-overlay";
   overlay.innerHTML = `
@@ -3101,7 +3094,12 @@ function _showNotifPrompt(toggleEl) {
       }
     }
     const ok = await _subscribePush();
-    if (ok && toggleEl) toggleEl.checked = true;
+    if (ok) {
+      const btn = document.getElementById("pushBtn");
+      if (btn) { btn.textContent = "ON"; btn.classList.add("active"); }
+      const st = document.getElementById("pushStatusText");
+      if (st) st.textContent = "Enabled — gentle nudges based on your reading";
+    }
     overlay.classList.remove("visible");
     setTimeout(() => overlay.remove(), 300);
   };

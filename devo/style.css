@@ -2966,11 +2966,31 @@ body.light {
 .dash-toggle input:checked + .dash-toggle-slider::before {
   transform: translateX(20px);
 }
+/* Push button */
+.dash-push-btn {
+  background: rgba(255,255,255,0.08) !important;
+  border: 1px solid rgba(255,255,255,0.12) !important;
+  color: rgba(255,255,255,0.4);
+  font-size: 11px;
+  font-weight: 800;
+  letter-spacing: 1px;
+  padding: 8px 16px !important;
+  border-radius: 20px;
+  cursor: pointer;
+  font-family: 'Google Sans Flex', sans-serif;
+  flex-shrink: 0;
+  transition: all 0.2s;
+}
+.dash-push-btn.active {
+  background: linear-gradient(135deg, #486bec, #db2777) !important;
+  border-color: transparent !important;
+  color: #fff;
+}
 /* Light mode */
 .light .dash-notif-row { background: rgba(0,0,0,0.03); border-color: rgba(0,0,0,0.08); }
 .light .dash-notif-title { color: #1a1a1a; }
-.light .dash-toggle-slider { background: rgba(0,0,0,0.12); }
-.light .dash-toggle-slider::before { background: #fff; }
+.light .dash-push-btn { background: rgba(0,0,0,0.05) !important; border-color: rgba(0,0,0,0.1) !important; color: rgba(0,0,0,0.35); }
+.light .dash-push-btn.active { background: linear-gradient(135deg, #486bec, #db2777) !important; color: #fff; }
 
 /* Notification permission prompt */
 .notif-prompt-overlay {
