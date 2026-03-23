@@ -1761,8 +1761,9 @@ async function renderDashboard() {
     });
   }
 
-  // One-time notification prompt
-  if (!localStorage.getItem("pushAsked")
+  // One-time notification prompt (only after name is set)
+  if (getUserName()
+    && !localStorage.getItem("pushAsked")
     && localStorage.getItem("pushEnabled") !== "true") {
     setTimeout(() => _showNotifPrompt(), 2000);
   }

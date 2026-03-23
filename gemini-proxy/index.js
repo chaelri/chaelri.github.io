@@ -205,6 +205,25 @@ app.post("/test-push", async (req, res) => {
   }
 });
 
+// ── Admin: remove subscriber by name ──
+app.post("/admin-remove", async (req, res) => {
+  try {
+    const { name } = req.body;
+    if (!name) return res.status(400).json({ error: "Missing name" });
+    const snapshot = await subsCollection.get();
+    let removed = 0;
+    for (const doc of snapshot.docs) {
+      if (doc.data().name === name) {
+        await doc.ref.delete();
+        removed++;
+      }
+    }
+    res.json({ removed });
+  } catch (e) {
+    res.status(500).json({ error: e.message });
+  }
+});
+
 // ── Admin: broadcast announcement to all or specific subscribers ──
 app.post("/broadcast", async (req, res) => {
   try {

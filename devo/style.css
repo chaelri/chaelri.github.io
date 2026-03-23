@@ -2966,31 +2966,47 @@ body.light {
 .dash-toggle input:checked + .dash-toggle-slider::before {
   transform: translateX(20px);
 }
-/* Push button */
+/* Push toggle button (iOS-style switch) */
 .dash-push-btn {
-  background: rgba(255,255,255,0.08) !important;
-  border: 1px solid rgba(255,255,255,0.12) !important;
-  color: rgba(255,255,255,0.4);
-  font-size: 11px;
-  font-weight: 800;
-  letter-spacing: 1px;
-  padding: 8px 16px !important;
-  border-radius: 20px;
+  position: relative;
+  width: 48px;
+  min-width: 48px;
+  height: 28px;
+  padding: 0 !important;
+  border: none !important;
+  border-radius: 28px;
+  background: rgba(255,255,255,0.12) !important;
   cursor: pointer;
-  font-family: 'Google Sans Flex', sans-serif;
   flex-shrink: 0;
-  transition: all 0.2s;
+  transition: background 0.25s;
+  font-size: 0;
+  color: transparent;
+  overflow: hidden;
+  box-sizing: border-box;
+}
+.dash-push-btn::after {
+  content: "";
+  position: absolute;
+  top: 3px;
+  left: 3px;
+  width: 22px;
+  height: 22px;
+  border-radius: 50%;
+  background: #fff;
+  transition: transform 0.25s cubic-bezier(0.4, 0, 0.2, 1);
+  box-shadow: 0 1px 3px rgba(0,0,0,0.2);
 }
 .dash-push-btn.active {
   background: linear-gradient(135deg, #486bec, #db2777) !important;
-  border-color: transparent !important;
-  color: #fff;
+}
+.dash-push-btn.active::after {
+  transform: translateX(20px);
 }
 /* Light mode */
 .light .dash-notif-row { background: rgba(0,0,0,0.03); border-color: rgba(0,0,0,0.08); }
 .light .dash-notif-title { color: #1a1a1a; }
-.light .dash-push-btn { background: rgba(0,0,0,0.05) !important; border-color: rgba(0,0,0,0.1) !important; color: rgba(0,0,0,0.35); }
-.light .dash-push-btn.active { background: linear-gradient(135deg, #486bec, #db2777) !important; color: #fff; }
+.light .dash-push-btn { background: rgba(0,0,0,0.12) !important; }
+.light .dash-push-btn.active { background: linear-gradient(135deg, #486bec, #db2777) !important; }
 
 /* Notification permission prompt */
 .notif-prompt-overlay {

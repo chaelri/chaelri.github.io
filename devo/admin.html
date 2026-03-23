@@ -323,6 +323,13 @@
     }
     .user-send-btn:hover { color: #db2777; }
     .user-send-btn .material-icons { font-size: 18px; }
+    .user-del-btn {
+      background: none; border: none; color: rgba(255,255,255,0.15);
+      cursor: pointer; padding: 4px; display: flex; align-items: center;
+      border-radius: 6px; transition: color 0.15s;
+    }
+    .user-del-btn:hover { color: #ef4444; }
+    .user-del-btn .material-icons { font-size: 18px; }
   </style>
   <style>
     @font-face {
@@ -522,6 +529,23 @@
       openComposer(name);
     }
 
+    // ── Remove subscriber ──
+    async function removeUser(name) {
+      if (!confirm("Remove " + name + " from subscribers?")) return;
+      try {
+        const res = await fetch(API + "/admin-remove", {
+          method: "POST",
+          headers: { "Content-Type": "application/json" },
+          body: JSON.stringify({ name }),
+        });
+        const data = await res.json();
+        showToast("Removed " + name + " (" + data.removed + " subscription" + (data.removed !== 1 ? "s" : "") + ")");
+        loadData();
+      } catch (e) {
+        showToast("Failed to remove");
+      }
+    }
+
     // ── Load data ──
     async function loadData() {
       const list = document.getElementById("userList");
@@ -553,9 +577,12 @@
             <div class="user-card">
               <div class="user-top">
                 <div class="user-name">${esc(s.name)}</div>
-                <div style="display:flex;align-items:center;gap:8px;">
+                <div style="display:flex;align-items:center;gap:6px;">
                   <button class="user-send-btn" onclick="quickSend('${esc(s.name)}')" title="Send to ${esc(s.name)}">
                     <span class="material-icons">send</span>
+                  </button>
+                  <button class="user-del-btn" onclick="removeUser('${esc(s.name)}')" title="Remove ${esc(s.name)}">
+                    <span class="material-icons">person_remove</span>
                   </button>
                   <div class="user-status"><span class="dot ${status.cls}"></span> ${status.label}</div>
                 </div>
