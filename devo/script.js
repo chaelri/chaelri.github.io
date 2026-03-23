@@ -2931,15 +2931,16 @@ if ("serviceWorker" in navigator) {
 // ── Push Notification Subscription ───────────────────────────────────────────
 async function _subscribePush() {
   if (!("serviceWorker" in navigator) || !("PushManager" in window)) {
-    alert("Push notifications are not supported on this browser. On iPhone, make sure you've added this app to your Home Screen first.");
+    alert("Push not supported on this browser. On iPhone, add to Home Screen first.");
     return false;
   }
   try {
-    // Permission should already be granted by the caller (direct user gesture)
-    // but check just in case
     if ("Notification" in window && Notification.permission !== "granted") {
       const perm = await Notification.requestPermission();
-      if (perm !== "granted") return false;
+      if (perm !== "granted") {
+        alert("Permission not granted: " + perm);
+        return false;
+      }
     }
 
     const reg = await navigator.serviceWorker.ready;
@@ -2979,7 +2980,7 @@ async function _subscribePush() {
     localStorage.setItem("pushEnabled", "true");
     return true;
   } catch (e) {
-    console.error("Push subscribe failed:", e);
+    alert("Subscribe error: " + (e.message || e));
     return false;
   }
 }
