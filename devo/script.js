@@ -1719,7 +1719,7 @@ async function renderDashboard() {
       <!-- DAILY REMINDER -->
       ${"PushManager" in window ? `
       <section class="dashboard-section dash-notif-section">
-        <div class="dash-notif-row">
+        <div class="dash-notif-row" id="pushToggleRow" style="cursor:pointer">
           <div class="dash-notif-info">
             <span class="material-icons dash-notif-icon">notifications</span>
             <div>
@@ -1727,10 +1727,10 @@ async function renderDashboard() {
               <div class="dash-notif-desc">Gentle nudges throughout the day based on your reading</div>
             </div>
           </div>
-          <label class="dash-toggle">
+          <div class="dash-toggle">
             <input type="checkbox" id="pushToggle" ${localStorage.getItem("pushEnabled") === "true" ? "checked" : ""}>
             <span class="dash-toggle-slider"></span>
-          </label>
+          </div>
         </div>
       </section>` : ""}
       </div>
@@ -1745,41 +1745,49 @@ async function renderDashboard() {
 
   loadDashGreetingMsg();
 
-  // Push notification toggle — must request permission directly in click handler for iOS
+  // Push notification toggle — click on entire row for iOS compatibility
   const pushToggle = document.getElementById("pushToggle");
-  if (pushToggle) {
-    pushToggle.addEventListener("change", async (e) => {
-      if (pushToggle.checked) {
-        // Debug: check what's available
+  const pushRow = document.getElementById("pushToggleRow");
+  if (pushRow && pushToggle) {
+    pushRow.addEventListener("click", async (e) => {
+      e.preventDefault();
+      e.stopPropagation();
+
+      const turningOn = !pushToggle.checked;
+
+      if (turningOn) {
+        // Debug info
         const hasNotif = "Notification" in window;
         const hasSW = "serviceWorker" in navigator;
         const hasPush = "PushManager" in window;
-        const perm = hasNotif ? Notification.permission : "N/A";
 
-        if (!hasSW || !hasPush) {
-          alert(`Push not supported.\nServiceWorker: ${hasSW}\nPushManager: ${hasPush}\nNotification: ${hasNotif}\nPermission: ${perm}\nStandalone: ${window.navigator.standalone}\nDisplay: ${window.matchMedia('(display-mode: standalone)').matches}`);
-          pushToggle.checked = false;
+        if (!hasSW || !hasPush || !hasNotif) {
+          alert("Push not supported.\nServiceWorker: " + hasSW + "\nPushManager: " + hasPush + "\nNotification: " + hasNotif + "\nStandalone: " + (window.navigator.standalone || window.matchMedia("(display-mode: standalone)").matches));
           return;
         }
 
-        // Request permission FIRST in the direct user gesture
-        if (hasNotif && perm === "default") {
+        // Request permission directly in this tap
+        if (Notification.permission === "denied") {
+          alert("Notifications are blocked. Go to Settings > Notifications and enable them for Devotion.");
+          return;
+        }
+        if (Notification.permission === "default") {
           const result = await Notification.requestPermission();
           if (result !== "granted") {
-            pushToggle.checked = false;
-            if (result === "denied") alert("Notifications were denied. Enable them in Settings > Notifications for this app.");
+            alert("Permission result: " + result);
             return;
           }
-        } else if (hasNotif && perm === "denied") {
-          pushToggle.checked = false;
-          alert("Notifications are blocked. Go to Settings > Notifications and enable them for this app.");
-          return;
         }
 
         const ok = await _subscribePush();
-        if (!ok) { pushToggle.checked = false; }
+        if (ok) {
+          pushToggle.checked = true;
+        } else {
+          pushToggle.checked = false;
+        }
       } else {
         await _unsubscribePush();
+        pushToggle.checked = false;
       }
     });
   }
