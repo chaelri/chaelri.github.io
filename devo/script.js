@@ -1711,40 +1711,50 @@ async function renderDashboard() {
   }
 }
 
+function _typewriterReveal(el, msg) {
+  el.textContent = "";
+  const cursor = document.createElement("span");
+  cursor.className = "dash-greeting-cursor";
+  el.appendChild(cursor);
+  let i = 0;
+  const type = () => {
+    if (i < msg.length) {
+      el.insertBefore(document.createTextNode(msg[i++]), cursor);
+      setTimeout(type, 32);
+    } else {
+      setTimeout(() => cursor.remove(), 600);
+    }
+  };
+  type();
+}
+
 async function loadDashGreetingMsg() {
   const el = document.getElementById("dashGreetingMsg");
   if (!el) return;
 
-  el.textContent = "";
-  el.classList.remove("dash-greeting-msg-ready");
-  el.innerHTML = `<span class="dash-greeting-glow-loader"><span class="gdot"></span><span class="gdot"></span><span class="gdot"></span></span>`;
+  // Show cached greeting instantly, then fetch fresh in background
+  const cached = localStorage.getItem("dashGreetingCache");
+  if (cached) {
+    _typewriterReveal(el, cached);
+  } else {
+    el.innerHTML = `<span class="dash-greeting-glow-loader"><span class="gdot"></span><span class="gdot"></span><span class="gdot"></span></span>`;
+  }
 
   const name = getUserName();
-  const sessions = _getSessions();
-  const todayKey = (() => { const d = new Date(); return `${d.getFullYear()}-${d.getMonth()+1}-${d.getDate()}`; })();
-  const todaySessions = sessions.filter(s => s.dateKey === todayKey);
-  const hasActivityToday = todaySessions.length > 0;
-  const lastRead = recentPassage || "";
   const h = new Date().getHours();
   const timeOfDay = h < 12 ? "morning" : h < 17 ? "afternoon" : "evening";
 
-  const prompt = `You are a warm, uplifting Christian Bible devotion companion. Write ONE short sentence for a dashboard greeting.
+  // Up to 2 most recent notes, short previews
+  const sevenDaysAgo = Date.now() - 7 * 24 * 60 * 60 * 1000;
+  const recentNotes = _getAllNotes()
+    .filter(n => n.time && n.time > sevenDaysAgo && n.preview && n.preview.trim().length > 10)
+    .sort((a, b) => b.time - a.time)
+    .slice(0, 2)
+    .map(n => `"${n.preview.slice(0, 70)}"`);
 
-User name: ${name || "friend"}
-Time of day: ${timeOfDay}
-Already read or reflected today: ${hasActivityToday ? "yes" : "no"}
-Last passage they read: ${lastRead || "not yet"}
+  const notesCtx = recentNotes.length > 0 ? `Recent reflections: ${recentNotes.join("; ")}` : "";
 
-Tone rules — VERY IMPORTANT:
-- Never imply they missed anything or failed to do something
-- Never say "No worries", "don't worry", "you missed", "you haven't"
-- If no activity yet: just warmly invite them — curiosity, excitement, not guilt
-- If they have activity: celebrate it, keep the energy going
-- Casual, like a friend — not a pastor, not a motivational poster
-- Use their name once max, only if it feels natural
-- No emojis, no "May God bless you", no generic phrases
-- Max 15 words
-- Reply with ONLY the sentence`;
+  const prompt = `Christian devotion app. Write ONE warm, casual, personal sentence (max 18 words) as a greeting for ${name || "a friend"} opening the app this ${timeOfDay}.${notesCtx ? ` Context: ${notesCtx}` : ""} If context given, reference it specifically. No guilt, no emojis, no "May God bless you". Reply with ONLY the sentence.`;
 
   try {
     const res = await fetch("https://gemini-proxy-668755364170.asia-southeast1.run.app", {
@@ -1755,27 +1765,15 @@ Tone rules — VERY IMPORTANT:
     const data = await res.json();
     const msg = data.candidates?.[0]?.content?.parts?.[0]?.text?.trim();
     if (msg) {
-      el.textContent = "";
-      // Add cursor then type letter by letter
-      const cursor = document.createElement("span");
-      cursor.className = "dash-greeting-cursor";
-      el.appendChild(cursor);
-      let i = 0;
-      const type = () => {
-        if (i < msg.length) {
-          el.insertBefore(document.createTextNode(msg[i++]), cursor);
-          setTimeout(type, 32);
-        } else {
-          // Remove cursor after typing done
-          setTimeout(() => cursor.remove(), 600);
-        }
-      };
-      type();
-    } else {
-      el.textContent = "";
+      localStorage.setItem("dashGreetingCache", msg);
+      // Only update UI if element is still on screen
+      if (document.getElementById("dashGreetingMsg") === el) {
+        _typewriterReveal(el, msg);
+      }
     }
   } catch {
-    el.textContent = "";
+    // Keep showing cached if fetch fails; clear shimmer if no cache
+    if (!cached) el.textContent = "";
   }
 }
 

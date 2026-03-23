@@ -1629,10 +1629,12 @@ body.light {
 
 .chat-input-area {
   display: flex;
-  border-top: 1px solid rgba(255, 255, 255, 0.1);
   padding: 8px;
   gap: 8px;
   background: rgba(0, 0, 0, 0.2);
+}
+.chat-history:not(.hidden) + .chat-input-area {
+  border-top: 1px solid rgba(255, 255, 255, 0.1);
 }
 
 .chat-input-area textarea {
@@ -1712,6 +1714,9 @@ body.light {
 }
 .light .chat-input-area {
   background: white;
+}
+.light .chat-history:not(.hidden) + .chat-input-area {
+  border-top-color: #e2e8f0;
 }
 .light .chat-input-area textarea {
   color: black;
@@ -2732,7 +2737,7 @@ body.light {
   display: flex;
   align-items: center;
   justify-content: space-between;
-  padding: 20px 24px 12px;
+  padding: 14px 24px 8px;
   flex-shrink: 0;
 }
 
@@ -2820,7 +2825,7 @@ body.light {
 }
 
 .tts-imm-slot {
-  padding: 14px 0;
+  padding: 10px 0;
 }
 
 .tts-imm-slot-prev,
@@ -2953,10 +2958,10 @@ body.light {
 /* Footer */
 .tts-imm-footer {
   flex-shrink: 0;
-  padding: 0 24px 28px;
+  padding: 0 24px 16px;
   display: flex;
   flex-direction: column;
-  gap: 14px;
+  gap: 8px;
 }
 
 /* Load progress bar */
@@ -3132,6 +3137,7 @@ body.light {
 .tts-imm-btn-play.tts-imm-btn-pulse {
   animation: ttsPlayPulse 2s ease-in-out infinite;
 }
+
 
 /* Status hint */
 .tts-imm-hint {
