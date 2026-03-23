@@ -1750,19 +1750,32 @@ async function renderDashboard() {
   if (pushToggle) {
     pushToggle.addEventListener("change", async (e) => {
       if (pushToggle.checked) {
-        // Request permission FIRST in the direct user gesture
-        if ("Notification" in window && Notification.permission === "default") {
-          const perm = await Notification.requestPermission();
-          if (perm !== "granted") {
-            pushToggle.checked = false;
-            if (perm === "denied") alert("Notifications are blocked. Enable them in your device Settings for this app.");
-            return;
-          }
-        } else if ("Notification" in window && Notification.permission === "denied") {
+        // Debug: check what's available
+        const hasNotif = "Notification" in window;
+        const hasSW = "serviceWorker" in navigator;
+        const hasPush = "PushManager" in window;
+        const perm = hasNotif ? Notification.permission : "N/A";
+
+        if (!hasSW || !hasPush) {
+          alert(`Push not supported.\nServiceWorker: ${hasSW}\nPushManager: ${hasPush}\nNotification: ${hasNotif}\nPermission: ${perm}\nStandalone: ${window.navigator.standalone}\nDisplay: ${window.matchMedia('(display-mode: standalone)').matches}`);
           pushToggle.checked = false;
-          alert("Notifications are blocked. Enable them in your device Settings for this app.");
           return;
         }
+
+        // Request permission FIRST in the direct user gesture
+        if (hasNotif && perm === "default") {
+          const result = await Notification.requestPermission();
+          if (result !== "granted") {
+            pushToggle.checked = false;
+            if (result === "denied") alert("Notifications were denied. Enable them in Settings > Notifications for this app.");
+            return;
+          }
+        } else if (hasNotif && perm === "denied") {
+          pushToggle.checked = false;
+          alert("Notifications are blocked. Go to Settings > Notifications and enable them for this app.");
+          return;
+        }
+
         const ok = await _subscribePush();
         if (!ok) { pushToggle.checked = false; }
       } else {
