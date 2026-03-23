@@ -18,7 +18,7 @@ gcloud run deploy gemini-proxy \
   --source . \
   --region asia-southeast1 \
   --allow-unauthenticated \
-  --set-env-vars "GEMINI_API_KEY=YOUR_GEMINI_KEY,VAPID_PUBLIC_KEY=BFRkTDi99cyJzGlYRdl6gKuEcDWetGk-sm7LycamJIqJAR3-1KqmyY4gJW9mhtmcKFq8rNbfvJCAUvRzmzjmMOo,VAPID_PRIVATE_KEY=2z-YymznyIjVejofFuE05eq7DlpJ3rVR0_016QiRJ7w"
+  --set-env-vars "GEMINI_API_KEY=YOUR_GEMINI_KEY,VAPID_PUBLIC_KEY=YOUR_VAPID_PUBLIC_KEY,VAPID_PRIVATE_KEY=YOUR_VAPID_PRIVATE_KEY"
 ```
 
 Replace `YOUR_GEMINI_KEY` with your actual Gemini API key (the one already set in your current Cloud Run service).

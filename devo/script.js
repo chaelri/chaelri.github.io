@@ -2904,10 +2904,24 @@ if ("serviceWorker" in navigator) {
 
 // ── Push Notification Subscription ───────────────────────────────────────────
 async function _subscribePush() {
-  if (!("serviceWorker" in navigator) || !("PushManager" in window)) return false;
+  // Check if push is supported
+  if (!("serviceWorker" in navigator) || !("PushManager" in window)) {
+    alert("Push notifications are not supported on this browser. On iPhone, make sure you've added this app to your Home Screen first.");
+    return false;
+  }
   try {
+    // Check if already denied in system settings
+    if (Notification.permission === "denied") {
+      alert("Notifications are blocked. Please enable them in your device Settings > Notifications for this app.");
+      return false;
+    }
     const permission = await Notification.requestPermission();
-    if (permission !== "granted") return false;
+    if (permission !== "granted") {
+      if (permission === "denied") {
+        alert("Notifications were denied. You can enable them later in your device Settings.");
+      }
+      return false;
+    }
 
     const reg = await navigator.serviceWorker.ready;
     const vapidKey = window.VAPID_PUBLIC_KEY;
