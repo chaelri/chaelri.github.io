@@ -3927,6 +3927,8 @@ function _renderStandaloneEditor(data, container) {
 
     _brefPositionAt(brefPreview);
     brefPreview.hidden = false;
+    // Scroll preview into view on mobile (keyboard eats space)
+    setTimeout(() => brefPreview.scrollIntoView({ behavior: "smooth", block: "nearest" }), 50);
     brefState = { book, ch, vFrom, vTo, textNode, regexMatch, refLabel };
   }
 
