@@ -1745,11 +1745,24 @@ async function renderDashboard() {
 
   loadDashGreetingMsg();
 
-  // Push notification toggle
+  // Push notification toggle — must request permission directly in click handler for iOS
   const pushToggle = document.getElementById("pushToggle");
   if (pushToggle) {
-    pushToggle.addEventListener("change", async () => {
+    pushToggle.addEventListener("change", async (e) => {
       if (pushToggle.checked) {
+        // Request permission FIRST in the direct user gesture
+        if ("Notification" in window && Notification.permission === "default") {
+          const perm = await Notification.requestPermission();
+          if (perm !== "granted") {
+            pushToggle.checked = false;
+            if (perm === "denied") alert("Notifications are blocked. Enable them in your device Settings for this app.");
+            return;
+          }
+        } else if ("Notification" in window && Notification.permission === "denied") {
+          pushToggle.checked = false;
+          alert("Notifications are blocked. Enable them in your device Settings for this app.");
+          return;
+        }
         const ok = await _subscribePush();
         if (!ok) { pushToggle.checked = false; }
       } else {
@@ -2904,23 +2917,16 @@ if ("serviceWorker" in navigator) {
 
 // ── Push Notification Subscription ───────────────────────────────────────────
 async function _subscribePush() {
-  // Check if push is supported
   if (!("serviceWorker" in navigator) || !("PushManager" in window)) {
     alert("Push notifications are not supported on this browser. On iPhone, make sure you've added this app to your Home Screen first.");
     return false;
   }
   try {
-    // Check if already denied in system settings
-    if (Notification.permission === "denied") {
-      alert("Notifications are blocked. Please enable them in your device Settings > Notifications for this app.");
-      return false;
-    }
-    const permission = await Notification.requestPermission();
-    if (permission !== "granted") {
-      if (permission === "denied") {
-        alert("Notifications were denied. You can enable them later in your device Settings.");
-      }
-      return false;
+    // Permission should already be granted by the caller (direct user gesture)
+    // but check just in case
+    if ("Notification" in window && Notification.permission !== "granted") {
+      const perm = await Notification.requestPermission();
+      if (perm !== "granted") return false;
     }
 
     const reg = await navigator.serviceWorker.ready;
@@ -3063,6 +3069,15 @@ function _showNotifPrompt(toggleEl) {
 
   document.getElementById("notifPromptAccept").onclick = async () => {
     localStorage.setItem("pushAsked", "true");
+    // Request permission FIRST directly in tap handler (required for iOS)
+    if ("Notification" in window && Notification.permission === "default") {
+      const perm = await Notification.requestPermission();
+      if (perm !== "granted") {
+        overlay.classList.remove("visible");
+        setTimeout(() => overlay.remove(), 300);
+        return;
+      }
+    }
     const ok = await _subscribePush();
     if (ok && toggleEl) toggleEl.checked = true;
     overlay.classList.remove("visible");

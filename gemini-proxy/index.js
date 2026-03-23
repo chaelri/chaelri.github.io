@@ -205,6 +205,38 @@ app.post("/test-push", async (req, res) => {
   }
 });
 
+// ── Admin: broadcast announcement to all or specific subscribers ──
+app.post("/broadcast", async (req, res) => {
+  try {
+    const { title, body, targets } = req.body;
+    if (!body) return res.status(400).json({ error: "Missing body" });
+
+    const snapshot = await subsCollection.get();
+    let sent = 0, failed = 0;
+
+    for (const doc of snapshot.docs) {
+      const data = doc.data();
+      // If targets specified, only send to those names
+      if (targets && targets.length > 0) {
+        if (!targets.includes(data.name)) continue;
+      }
+      try {
+        await webPush.sendNotification(data.subscription, JSON.stringify({
+          title: title || "Devotion",
+          body,
+        }));
+        sent++;
+      } catch (e) {
+        if (e.statusCode === 410 || e.statusCode === 404) await doc.ref.delete();
+        failed++;
+      }
+    }
+    res.json({ sent, failed, total: snapshot.size });
+  } catch (e) {
+    res.status(500).json({ error: e.message });
+  }
+});
+
 // ── Admin: list all subscribers ──
 app.get("/admin-stats", async (req, res) => {
   try {
