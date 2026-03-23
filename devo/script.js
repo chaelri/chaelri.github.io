@@ -2905,60 +2905,49 @@ if ("serviceWorker" in navigator) {
 }
 
 // ── Push Notification Subscription ───────────────────────────────────────────
-async function _subscribePush() {
-  if (!("serviceWorker" in navigator) || !("PushManager" in window)) {
-    alert("Push not supported on this browser. On iPhone, add to Home Screen first.");
-    return false;
-  }
-  try {
-    if ("Notification" in window && Notification.permission !== "granted") {
-      const perm = await Notification.requestPermission();
-      if (perm !== "granted") {
-        alert("Permission not granted: " + perm);
-        return false;
-      }
+function _subscribePush() {
+  return new Promise(function(resolve) {
+    if (!("serviceWorker" in navigator) || !("PushManager" in window) || !("showNotification" in ServiceWorkerRegistration.prototype)) {
+      alert("Push not supported. On iPhone, add to Home Screen first.");
+      resolve(false);
+      return;
     }
 
-    const reg = await navigator.serviceWorker.ready;
-    const vapidKey = window.VAPID_PUBLIC_KEY || "BLO1QhJelQXtbMWxhCtK8DbmQGKIJN04vU6s48J623f6xdfpJHFOW2lKaMeJMD7Tv5S-KmXpjYNA58exp0zTxBc";
-    if (!vapidKey) { alert("VAPID key missing"); return false; }
+    var VAPID_KEY = "BLO1QhJelQXtbMWxhCtK8DbmQGKIJN04vU6s48J623f6xdfpJHFOW2lKaMeJMD7Tv5S-KmXpjYNA58exp0zTxBc";
+    var SERVER = "https://gemini-proxy-668755364170.asia-southeast1.run.app";
 
-    // Convert VAPID key to Uint8Array
-    const padding = "=".repeat((4 - vapidKey.length % 4) % 4);
-    const base64 = (vapidKey + padding).replace(/-/g, "+").replace(/_/g, "/");
-    const raw = atob(base64);
-    const key = new Uint8Array(raw.length);
-    for (let i = 0; i < raw.length; i++) key[i] = raw.charCodeAt(i);
-
-    let sub = await reg.pushManager.getSubscription();
-    if (!sub) {
-      sub = await reg.pushManager.subscribe({
-        userVisibleOnly: true,
-        applicationServerKey: key,
+    navigator.serviceWorker.ready
+      .then(function(registration) {
+        return registration.pushManager.subscribe({
+          userVisibleOnly: true,
+          applicationServerKey: VAPID_KEY
+        });
+      })
+      .then(function(subscription) {
+        var name = getUserName() || "Friend";
+        var notes = "";
+        try { notes = _getRecentNotesContext(); } catch(e) {}
+        var passageId = localStorage.getItem("recentPassageId") || "";
+        var lastPassage = "";
+        if (passageId) {
+          var parts = passageId.split("-");
+          lastPassage = ((BIBLE_META[parts[0]] || {}).name || parts[0]) + " " + parts[1];
+        }
+        return fetch(SERVER + "/subscribe", {
+          method: "POST",
+          headers: { "Content-Type": "application/json" },
+          body: JSON.stringify({ subscription: subscription.toJSON(), name: name, notes: notes, lastPassage: lastPassage })
+        });
+      })
+      .then(function() {
+        localStorage.setItem("pushEnabled", "true");
+        resolve(true);
+      })
+      .catch(function(err) {
+        alert("Subscribe failed: " + (err.message || err));
+        resolve(false);
       });
-    }
-
-    // Send subscription + user context to server
-    const name = getUserName() || "Friend";
-    const notes = _getRecentNotesContext();
-    const passageId = localStorage.getItem("recentPassageId") || "";
-    let lastPassage = "";
-    if (passageId) {
-      const [bookCode, ch] = passageId.split("-");
-      lastPassage = `${(BIBLE_META[bookCode]?.name || bookCode)} ${ch}`;
-    }
-    await fetch((window.PUSH_SERVER_URL || "https://gemini-proxy-668755364170.asia-southeast1.run.app") + "/subscribe", {
-      method: "POST",
-      headers: { "Content-Type": "application/json" },
-      body: JSON.stringify({ subscription: sub.toJSON(), name, notes, lastPassage }),
-    });
-
-    localStorage.setItem("pushEnabled", "true");
-    return true;
-  } catch (e) {
-    alert("Subscribe error: " + (e.message || e));
-    return false;
-  }
+  });
 }
 
 async function _unsubscribePush() {
