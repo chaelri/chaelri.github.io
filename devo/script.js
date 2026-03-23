@@ -1429,6 +1429,29 @@ function loadBooks() {
   loadChapters();
 }
 
+// ── Dashboard Clock (Philippine Time) ────────────────────────────────────────
+let _dashClockTimer = null;
+function _startDashClock() {
+  _updateDashClock();
+  _dashClockTimer = setInterval(_updateDashClock, 15000); // update every 15s
+}
+function _stopDashClock() {
+  if (_dashClockTimer) { clearInterval(_dashClockTimer); _dashClockTimer = null; }
+}
+function _updateDashClock() {
+  const el = document.getElementById("dashClock");
+  if (!el) return;
+  const now = new Date(new Date().toLocaleString("en-US", { timeZone: "Asia/Manila" }));
+  const h = now.getHours();
+  const m = now.getMinutes();
+  const ampm = h >= 12 ? "PM" : "AM";
+  const h12 = h % 12 || 12;
+  const mm = String(m).padStart(2, "0");
+  const weekday = now.toLocaleDateString("en-US", { weekday: "long" }).toUpperCase();
+  const monthDay = now.toLocaleDateString("en-US", { month: "long", day: "numeric" }).toUpperCase();
+  el.innerHTML = `<span class="dash-clock-day">${weekday}</span><span class="dash-clock-date">${monthDay}</span><span class="dash-clock-row"><span class="dash-clock-time">${h12}:${mm}</span><span class="dash-clock-ampm">${ampm}</span></span>`;
+}
+
 // Renamed and updated from showLanding to showDashboard
 async function showDashboard() {
   stopTTS(); // always stop audio when returning to dashboard
@@ -1444,8 +1467,9 @@ async function showDashboard() {
   toggleReflectionBtn.hidden = true;
   summaryTitleEl.hidden = true;
   homeBtn.style.display = "none"; // HIDE HOME BUTTON ON DASHBOARD
-  const dashBrand = document.getElementById("dashBrand");
-  if (dashBrand) dashBrand.hidden = false;
+  const dashBrandRow = document.getElementById("dashBrandRow");
+  if (dashBrandRow) dashBrandRow.hidden = false;
+  _startDashClock();
 
   favoritesPage = 0;
 
@@ -1608,7 +1632,6 @@ async function renderDashboard() {
       <div class="dash-greeting-text">${(() => { const h = new Date().getHours(); const g = h < 12 ? "Good morning" : h < 17 ? "Good afternoon" : "Good evening"; const name = getUserName(); return name ? `${g}, ${name}!` : g; })()}</div>
       <button class="dash-name-edit-btn" onclick="_showNamePrompt(() => renderDashboard())" title="Edit name"><span class="material-icons">edit</span></button>
     </div>
-    <div class="dash-greeting-date">${new Date().toLocaleDateString("en-US", { weekday: "long", month: "long", day: "numeric" })}</div>
     <div id="dashGreetingMsg" class="dash-greeting-msg"></div>
   </div>
   
@@ -1855,8 +1878,9 @@ async function loadPassage() {
   toggleReflectionBtn.hidden = false;
   summaryTitleEl.hidden = false;
   homeBtn.style.display = "inline-flex"; // SHOW HOME BUTTON
-  const dashBrand = document.getElementById("dashBrand");
-  if (dashBrand) dashBrand.hidden = true;
+  const dashBrandRow2 = document.getElementById("dashBrandRow");
+  if (dashBrandRow2) dashBrandRow2.hidden = true;
+  _stopDashClock();
 
   try {
     titleForGemini = passageTitleEl.textContent;
@@ -3200,7 +3224,7 @@ function _getAllNotes() {
       type: "standalone",
       standaloneId: n.id,
       title: n.title || "Untitled",
-      preview: (n.body || "").replace(/\n/g, " ").slice(0, 120),
+      preview: _stripNotePreview(n),
       time: n.updatedAt,
       data: n,
     });
@@ -3581,9 +3605,15 @@ function _renderStandaloneEditor(data, container) {
     <div class="notes-editor-toolbar" id="notesEditorToolbar">
       <button class="ne-tool" data-cmd="bold" title="Bold"><b>B</b></button>
       <button class="ne-tool" data-cmd="italic" title="Italic"><i>I</i></button>
+      <button class="ne-tool" data-cmd="underline" title="Underline"><u>U</u></button>
+      <button class="ne-tool" data-cmd="strikeThrough" title="Strikethrough"><s>S</s></button>
       <div class="ne-tool-sep"></div>
-      <button class="ne-tool" data-cmd="heading" title="Heading">H</button>
+      <button class="ne-tool" data-cmd="heading" title="Heading"><span style="font-weight:800">H</span></button>
+      <button class="ne-tool" data-cmd="insertUnorderedList" title="Bullet list"><span class="material-icons" style="font-size:16px;vertical-align:middle;">format_list_bulleted</span></button>
+      <button class="ne-tool" data-cmd="insertOrderedList" title="Numbered list"><span class="material-icons" style="font-size:16px;vertical-align:middle;">format_list_numbered</span></button>
       <div class="ne-tool-sep"></div>
+      <button class="ne-tool" data-cmd="blockquote" title="Quote"><span class="material-icons" style="font-size:16px;vertical-align:middle;">format_quote</span></button>
+      <button class="ne-tool" data-cmd="insertHorizontalRule" title="Divider"><span class="material-icons" style="font-size:16px;vertical-align:middle;">horizontal_rule</span></button>
       <button class="ne-tool ne-tool-verse" id="neVerseBtn" title="Insert verse"><span class="material-icons" style="font-size:15px;vertical-align:middle;">menu_book</span> Verse</button>
     </div>
     <div class="notes-editor-body" id="notesEditorBody" contenteditable="true" data-placeholder="Start writing…">${bodyHTML}</div>
@@ -3600,8 +3630,18 @@ function _renderStandaloneEditor(data, container) {
         <select class="ne-verse-sel ne-picker-verse-to" id="nePickerVerseTo" hidden></select>
       </div>
       <button class="ne-verse-insert-btn" id="neVerseInsert">Insert</button>
+    </div>
+    <div class="bref-dropdown" id="brefDropdown" hidden></div>
+    <div class="bref-preview" id="brefPreview" hidden>
+      <div class="bref-preview-ref" id="brefPreviewRef"></div>
+      <div class="bref-preview-body" id="brefPreviewBody"></div>
+      <div class="bref-preview-actions">
+        <button class="bref-preview-dismiss" id="brefDismiss">Dismiss</button>
+        <button class="bref-preview-insert" id="brefInsert">Insert verse</button>
+      </div>
     </div>`;
 
+  container.style.position = "relative";
   const titleEl  = container.querySelector("#notesEditorTitle");
   const bodyEl   = container.querySelector("#notesEditorBody");
   const toolbar  = container.querySelector("#notesEditorToolbar");
@@ -3682,13 +3722,19 @@ function _renderStandaloneEditor(data, container) {
     if (!btn) return;
     e.preventDefault();
     const cmd = btn.dataset.cmd;
-    if (cmd === "bold" || cmd === "italic") {
+    if (cmd === "bold" || cmd === "italic" || cmd === "underline" || cmd === "strikeThrough"
+        || cmd === "insertUnorderedList" || cmd === "insertOrderedList" || cmd === "insertHorizontalRule") {
       document.execCommand(cmd);
     } else if (cmd === "heading") {
       const sel = window.getSelection();
       const block = sel?.anchorNode?.parentElement?.closest("h1,h2,h3,p,div");
       const isHeading = block && /^H[1-6]$/.test(block.tagName);
       document.execCommand("formatBlock", false, isHeading ? "p" : "h2");
+    } else if (cmd === "blockquote") {
+      const sel = window.getSelection();
+      const block = sel?.anchorNode?.parentElement?.closest("blockquote,p,div,h2");
+      const isQuote = block && block.tagName === "BLOCKQUOTE";
+      document.execCommand("formatBlock", false, isQuote ? "p" : "blockquote");
     }
     autoSave();
   });
@@ -3804,6 +3850,256 @@ function _renderStandaloneEditor(data, container) {
 
   if (!data.title) setTimeout(() => titleEl.focus(), 100);
   else setTimeout(() => bodyEl.focus(), 100);
+
+  // ── Bible Reference Typeahead ──────────────────────────────────────────────
+  const brefDropdown = container.querySelector("#brefDropdown");
+  const brefPreview  = container.querySelector("#brefPreview");
+  let brefState = null;
+
+  // Build flat book list once
+  if (!window._brefBookList) {
+    window._brefBookList = Object.entries(BIBLE_META).map(([code, meta]) => ({
+      code, name: meta.name, nameLower: meta.name.toLowerCase()
+    }));
+  }
+  const bookList = window._brefBookList;
+
+  function _brefFindExactBook(str) {
+    const lower = str.toLowerCase();
+    return bookList.find(b => b.nameLower === lower) || null;
+  }
+
+  function _brefHide() {
+    brefDropdown.hidden = true;
+    brefPreview.hidden = true;
+  }
+
+  function _brefPositionAt(el) {
+    const sel = window.getSelection();
+    if (!sel.rangeCount) return;
+    const rect = sel.getRangeAt(0).getBoundingClientRect();
+    const cRect = container.getBoundingClientRect();
+    const scrollTop = container.parentElement?.scrollTop || 0;
+    el.style.left = Math.max(0, Math.min(rect.left - cRect.left, cRect.width - 180)) + "px";
+    el.style.top = (rect.bottom - cRect.top + scrollTop + 4) + "px";
+  }
+
+  function _brefShowDropdown(matches, query, textNode, cursorOffset, regexMatch) {
+    brefPreview.hidden = true;
+    brefDropdown.innerHTML = matches.map((b, i) => {
+      const idx = b.nameLower.indexOf(query);
+      const before = b.name.substring(0, idx);
+      const matched = b.name.substring(idx, idx + query.length);
+      const after = b.name.substring(idx + query.length);
+      return `<div class="bref-dropdown-item${i === 0 ? ' active' : ''}" data-code="${b.code}" data-name="${_escHtml(b.name)}">` +
+        `${_escHtml(before)}<span class="bref-match">${_escHtml(matched)}</span>${_escHtml(after)}</div>`;
+    }).join("");
+    _brefPositionAt(brefDropdown);
+    brefDropdown.hidden = false;
+    brefState = { textNode, cursorOffset, regexMatch, query };
+  }
+
+  function _brefShowPreview(book, ch, vFrom, vTo, textNode, regexMatch) {
+    brefDropdown.hidden = true;
+    const refLabel = vFrom
+      ? `${book.name} ${ch}:${vFrom}${vTo ? "\u2013" + vTo : ""}`
+      : `${book.name} ${ch}`;
+
+    const verses = [];
+    if (!vFrom) {
+      for (let v = 1; v <= 3; v++) {
+        const t = getVerseText(book.code, ch, String(v));
+        if (t && t !== "Verse text not found.") verses.push({ n: v, t });
+      }
+    } else {
+      const start = parseInt(vFrom), end = vTo ? parseInt(vTo) : start;
+      for (let v = start; v <= Math.min(end, start + 4); v++) {
+        const t = getVerseText(book.code, ch, String(v));
+        if (t && t !== "Verse text not found.") verses.push({ n: v, t });
+      }
+    }
+    if (verses.length === 0) { _brefHide(); return; }
+
+    container.querySelector("#brefPreviewRef").textContent = refLabel;
+    container.querySelector("#brefPreviewBody").innerHTML =
+      verses.map(v => `<sup style="font-size:9px;opacity:0.5">${v.n}</sup> ${_escHtml(v.t)}`).join(" ") +
+      (!vFrom ? " ..." : (vTo && parseInt(vTo) - parseInt(vFrom) > 4 ? " ..." : ""));
+
+    _brefPositionAt(brefPreview);
+    brefPreview.hidden = false;
+    brefState = { book, ch, vFrom, vTo, textNode, regexMatch, refLabel };
+  }
+
+  function _brefOnInput() {
+    const sel = window.getSelection();
+    if (!sel || !sel.isCollapsed || !sel.rangeCount) { _brefHide(); return; }
+
+    const range = sel.getRangeAt(0);
+    const node = range.startContainer;
+    if (node.nodeType !== Node.TEXT_NODE || !bodyEl.contains(node)) { _brefHide(); return; }
+
+    const textBefore = node.textContent.substring(0, range.startOffset);
+
+    // Try full reference: "BookName Chapter:Verse-Verse" or "BookName Chapter"
+    const fullRef = textBefore.match(
+      /(?:^|\s)((?:[123]\s)?[A-Za-z][A-Za-z ]*?)\s+(\d+)(?::(\d+)(?:\s*[-\u2013]\s*(\d+))?)?\s*$/
+    );
+    if (fullRef) {
+      const bookStr = fullRef[1].trim();
+      const ch = fullRef[2];
+      const vFrom = fullRef[3] || null;
+      const vTo = fullRef[4] || null;
+      const matched = _brefFindExactBook(bookStr);
+      if (matched) {
+        const chapters = BIBLE_META[matched.code]?.chapters;
+        if (chapters && parseInt(ch) >= 1 && parseInt(ch) <= chapters.length) {
+          if (vFrom !== null) {
+            _brefShowPreview(matched, ch, vFrom, vTo, node, fullRef);
+            return;
+          }
+          // "Book Ch " with trailing space → show whole chapter preview
+          if (textBefore.endsWith(" ")) {
+            _brefShowPreview(matched, ch, null, null, node, fullRef);
+            return;
+          }
+        }
+      }
+    }
+
+    // Try partial book name match for dropdown
+    const partial = textBefore.match(/(?:^|\s)((?:[123]\s)?[A-Za-z]{2,}[A-Za-z ]*)$/);
+    if (partial) {
+      const query = partial[1].trim().toLowerCase();
+      if (query.length >= 2) {
+        const matches = bookList.filter(b =>
+          b.nameLower.startsWith(query) || b.nameLower.includes(query)
+        ).slice(0, 6);
+        // Don't show dropdown if the only match is an exact match (user already typed full name)
+        if (matches.length > 0 && !(matches.length === 1 && matches[0].nameLower === query)) {
+          _brefShowDropdown(matches, query, node, range.startOffset, partial);
+          return;
+        }
+      }
+    }
+
+    _brefHide();
+  }
+
+  // Dropdown click → replace partial text with full book name
+  brefDropdown.addEventListener("mousedown", e => {
+    e.preventDefault(); // prevent blur
+  });
+  brefDropdown.addEventListener("click", e => {
+    const item = e.target.closest(".bref-dropdown-item");
+    if (!item || !brefState) return;
+    const name = item.dataset.name;
+    const { textNode, cursorOffset, regexMatch } = brefState;
+
+    const matchStart = cursorOffset - regexMatch[1].length;
+    const before = textNode.textContent.substring(0, matchStart);
+    const after = textNode.textContent.substring(cursorOffset);
+    textNode.textContent = before + name + " " + after;
+
+    const newOffset = matchStart + name.length + 1;
+    const r = document.createRange();
+    r.setStart(textNode, Math.min(newOffset, textNode.textContent.length));
+    r.collapse(true);
+    const s = window.getSelection();
+    s.removeAllRanges();
+    s.addRange(r);
+
+    _brefHide();
+    autoSave();
+  });
+
+  // Preview insert → replace typed ref with verse block
+  container.querySelector("#brefInsert").addEventListener("mousedown", e => e.preventDefault());
+  container.querySelector("#brefInsert").addEventListener("click", () => {
+    if (!brefState || !brefState.book) return;
+    const { book, ch, vFrom, vTo, textNode, regexMatch, refLabel } = brefState;
+
+    // Build verse block (same format as manual insert)
+    const verses = [];
+    if (!vFrom) {
+      const total = BIBLE_META[book.code]?.chapters[parseInt(ch) - 1] || 1;
+      for (let v = 1; v <= Math.min(total, 30); v++) {
+        const t = getVerseText(book.code, ch, String(v));
+        if (t && t !== "Verse text not found.") verses.push({ n: v, t });
+      }
+    } else {
+      const start = parseInt(vFrom), end = vTo ? parseInt(vTo) : start;
+      for (let v = start; v <= end; v++) {
+        const t = getVerseText(book.code, ch, String(v));
+        if (t && t !== "Verse text not found.") verses.push({ n: v, t });
+      }
+    }
+
+    const versesHTML = verses.map(v =>
+      `<span class="nvb-verse"><sup class="nvb-num">${v.n}</sup>${_escHtml(v.t)}</span>`
+    ).join(" ");
+    const blockHTML = `<div class="note-verse-block" contenteditable="false" data-ref="${_escHtml(refLabel)}">` +
+      `<button class="nvb-delete" contenteditable="false">\u2715</button>` +
+      `<div class="nvb-ref"><span class="material-icons" style="font-size:13px;vertical-align:middle;margin-right:3px;">menu_book</span>${_escHtml(refLabel)}</div>` +
+      `<div class="nvb-body">${versesHTML}</div></div><p><br></p>`;
+
+    // Select the typed reference text so insertHTML replaces it cleanly
+    bodyEl.focus();
+    const fullText = regexMatch[0];
+    const trimmed = fullText.replace(/^\s/, "");
+    const content = textNode.textContent;
+    const matchIdx = content.lastIndexOf(trimmed);
+    if (matchIdx >= 0 && textNode.parentNode) {
+      const r = document.createRange();
+      r.setStart(textNode, matchIdx);
+      r.setEnd(textNode, matchIdx + trimmed.length);
+      const s = window.getSelection();
+      s.removeAllRanges();
+      s.addRange(r);
+    }
+    document.execCommand("insertHTML", false, blockHTML);
+
+    // Ensure cursor lands in the new <p> after the block
+    setTimeout(() => {
+      const allP = bodyEl.querySelectorAll("p");
+      const lastP = allP[allP.length - 1];
+      if (lastP) {
+        const r = document.createRange();
+        r.selectNodeContents(lastP);
+        r.collapse(false);
+        const s = window.getSelection();
+        s.removeAllRanges();
+        s.addRange(r);
+      }
+    }, 0);
+
+    _brefHide();
+    autoSave();
+  });
+
+  // Dismiss preview
+  container.querySelector("#brefDismiss").addEventListener("mousedown", e => e.preventDefault());
+  container.querySelector("#brefDismiss").addEventListener("click", () => _brefHide());
+
+  // Wire up input listener
+  bodyEl.addEventListener("input", _brefOnInput);
+  bodyEl.addEventListener("blur", () => setTimeout(_brefHide, 250));
+  bodyEl.addEventListener("keydown", e => {
+    if (e.key === "Escape") { _brefHide(); return; }
+    if (!brefDropdown.hidden) {
+      if (e.key === "ArrowDown" || e.key === "ArrowUp") {
+        e.preventDefault();
+        const items = brefDropdown.querySelectorAll(".bref-dropdown-item");
+        let idx = [...items].findIndex(i => i.classList.contains("active"));
+        items[idx]?.classList.remove("active");
+        idx = e.key === "ArrowDown" ? Math.min(idx + 1, items.length - 1) : Math.max(idx - 1, 0);
+        items[idx]?.classList.add("active");
+      }
+      if (e.key === "Enter" || e.key === "Tab") {
+        const active = brefDropdown.querySelector(".bref-dropdown-item.active");
+        if (active) { e.preventDefault(); active.click(); }
+      }
+    }
+  });
 }
 
 function _createNewNote() {
@@ -3842,6 +4138,18 @@ function _shareNote(note) {
     document.body.appendChild(toast);
     setTimeout(() => toast.remove(), 2000);
   });
+}
+
+function _stripNotePreview(n) {
+  const html = n.bodyHTML || "";
+  if (html) {
+    // Parse HTML, remove verse blocks, get clean text
+    const tmp = document.createElement("div");
+    tmp.innerHTML = html;
+    tmp.querySelectorAll(".note-verse-block").forEach(el => el.remove());
+    return (tmp.textContent || "").replace(/\s+/g, " ").trim().slice(0, 120);
+  }
+  return (n.body || "").replace(/\n/g, " ").slice(0, 120);
 }
 
 function _escHtml(str) {

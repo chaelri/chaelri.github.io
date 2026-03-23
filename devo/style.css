@@ -301,6 +301,7 @@ select:disabled {
   margin-bottom: 16px;
   align-items: end;
   max-width: 1200px;
+  overflow: hidden;
 }
 .controls select {
   border: 0;
@@ -311,20 +312,20 @@ select:disabled {
   grid-column: span 2;
   display: flex;
   align-items: center;
-  gap: 10px;
+  gap: 8px;
   padding-top: 2px;
 }
 
 .version-pill-group {
   display: flex;
   background: rgba(255,255,255,0.07);
-  border-radius: 14px;
-  padding: 4px;
+  border-radius: 12px;
+  padding: 3px;
   gap: 2px;
-  flex-shrink: 0;
   height: 44px;
   box-sizing: border-box;
   align-items: center;
+  overflow: hidden;
 }
 .version-pill {
   background: none !important;
@@ -334,14 +335,14 @@ select:disabled {
   font-weight: 700;
   letter-spacing: 0.8px;
   padding: 0 14px !important;
-  height: 36px;
-  border-radius: 10px;
+  height: 100%;
+  border-radius: 9px;
   cursor: pointer;
   transition: background 0.15s, color 0.15s;
   white-space: nowrap;
 }
 .version-pill.active {
-  background: rgba(255,255,255,0.14) !important;
+  background: linear-gradient(135deg, #486bec, #db2777) !important;
   color: #fff;
 }
 .version-pill:active { transform: scale(0.96); }
@@ -351,7 +352,6 @@ select:disabled {
   align-items: center;
   gap: 6px;
   margin-left: auto;
-  flex-shrink: 0;
 }
 .ctrl-icon-btn {
   background: rgba(255,255,255,0.09) !important;
@@ -373,6 +373,24 @@ select:disabled {
 .ctrl-icon-btn:hover { background: rgba(255,255,255,0.15) !important; color: #fff; }
 .ctrl-icon-btn.hidden { display: none !important; }
 
+@media (max-width: 399px) {
+  .ctrl-icon-btn {
+    width: 36px !important;
+    min-width: 36px !important;
+    height: 36px !important;
+  }
+  .ctrl-icon-btn .material-symbols-outlined { font-size: 17px; }
+  .mode-toggle {
+    width: 36px !important;
+    height: 36px !important;
+  }
+  .mode-toggle .material-symbols-outlined { font-size: 17px; }
+  .version-pill { padding: 0 10px !important; font-size: 11px; }
+  .version-pill-group { height: 36px; padding: 3px; }
+  .controls { padding: 1rem 12px 1rem; }
+  .controls-actions { gap: 4px; }
+  .controls-bottom-row { gap: 5px; }
+}
 @media (min-width: 900px) {
   .controls {
     align-items: end;
@@ -1387,38 +1405,86 @@ html {
 .splash-screen {
   position: fixed;
   inset: 0;
-  background: #0b1220; /* Matches your body background */
+  background: #0b1220;
   display: flex;
   align-items: center;
   justify-content: center;
-  z-index: 10000; /* Stays on top of everything */
-  transition:
-    opacity 0.5s ease,
-    visibility 0.5s;
+  flex-direction: column;
+  gap: 16px;
+  z-index: 10000;
+  transition: opacity 0.6s cubic-bezier(0.4, 0, 0.2, 1), visibility 0.6s;
+  overflow: hidden;
+}
+/* Ambient glow behind logo */
+.splash-screen::before {
+  content: "";
+  position: absolute;
+  width: 280px;
+  height: 280px;
+  border-radius: 50%;
+  background: radial-gradient(circle, rgba(72,107,236,0.25) 0%, rgba(219,39,119,0.15) 50%, transparent 70%);
+  filter: blur(60px);
+  animation: splash-glow 2s ease-in-out infinite alternate;
 }
 
-/* The Logo Animation */
 .splash-logo {
   font-style: italic;
-  font-size: 2.5rem;
+  font-size: 3rem;
   font-family: "Editors Note";
-  animation: pulse-logo 2s infinite ease-in-out;
+  background: linear-gradient(135deg, #7b9cf7, #fff, #f0a0cc);
+  background-size: 200% 200%;
+  -webkit-background-clip: text;
+  -webkit-text-fill-color: transparent;
+  background-clip: text;
+  opacity: 0;
+  transform: translateY(12px) scale(0.95);
+  animation: splash-logo-in 0.8s 0.2s cubic-bezier(0.16, 1, 0.3, 1) forwards,
+             splash-shimmer 3s 1s ease-in-out infinite alternate;
+  position: relative;
+  z-index: 1;
 }
 
-/* Subtle breathing effect while loading */
-@keyframes pulse-logo {
-  0%,
-  100% {
-    transform: scale(1);
-    opacity: 0.8;
-  }
-  50% {
-    transform: scale(1.05);
-    opacity: 1;
-  }
+.splash-tagline {
+  font-size: 0.75rem;
+  letter-spacing: 4px;
+  text-transform: uppercase;
+  opacity: 0;
+  color: rgba(255,255,255,0.35);
+  font-family: 'Google Sans Flex', sans-serif;
+  font-weight: 500;
+  animation: splash-tag-in 0.6s 0.6s ease forwards;
+  position: relative;
+  z-index: 1;
 }
 
-/* Class to trigger the fade out */
+@keyframes splash-logo-in {
+  to { opacity: 1; transform: translateY(0) scale(1); }
+}
+@keyframes splash-tag-in {
+  to { opacity: 1; }
+}
+@keyframes splash-shimmer {
+  0% { background-position: 0% 50%; }
+  100% { background-position: 100% 50%; }
+}
+@keyframes splash-glow {
+  0% { opacity: 0.5; transform: scale(0.9); }
+  100% { opacity: 1; transform: scale(1.1); }
+}
+
+/* Light mode splash */
+.light .splash-screen { background: #faf9f6; }
+.light .splash-logo {
+  background: linear-gradient(135deg, #486bec, #db2777, #486bec);
+  background-size: 200% 200%;
+  -webkit-background-clip: text;
+  -webkit-text-fill-color: transparent;
+  background-clip: text;
+}
+.light .splash-screen::before {
+  background: radial-gradient(circle, rgba(72,107,236,0.12) 0%, rgba(219,39,119,0.08) 50%, transparent 70%);
+}
+
 .splash-hidden {
   opacity: 0;
   visibility: hidden;
@@ -1488,8 +1554,8 @@ html {
   justify-content: center;
   width: 44px;
   height: 44px;
-  background: white;
-  color: black;
+  background: rgba(255,255,255,0.09);
+  color: rgba(255,255,255,0.7);
   border-radius: 50%;
   box-sizing: border-box;
   cursor: pointer;
@@ -1517,13 +1583,13 @@ body.light {
 }
 
 .light .mode-toggle {
-  background: black;
-  color: white;
+  background: rgba(0,0,0,0.08);
+  color: rgba(0,0,0,0.55);
 }
 
 .light .version-pill-group { background: rgba(0,0,0,0.07); }
 .light .version-pill { color: rgba(0,0,0,0.4); }
-.light .version-pill.active { background: rgba(0,0,0,0.12) !important; color: #0b1220; }
+.light .version-pill.active { background: linear-gradient(135deg, #486bec, #db2777) !important; color: #fff; }
 .light .ctrl-icon-btn { background: rgba(0,0,0,0.08) !important; color: rgba(0,0,0,0.55); }
 .light .ctrl-icon-btn:hover { background: rgba(0,0,0,0.13) !important; color: #0b1220; }
 
@@ -1587,8 +1653,8 @@ body.light {
 /* ---------- VERSE CHAT UI ---------- */
 .verse-chat-wrapper {
   margin-top: 10px;
-  background: rgba(15, 23, 42, 0.4);
-  border: 1px solid rgba(255, 255, 255, 0.1);
+  background: #111a2e;
+  border: 1px solid rgba(255, 255, 255, 0.08);
   border-radius: 12px;
   display: flex;
   flex-direction: column;
@@ -1631,7 +1697,7 @@ body.light {
   display: flex;
   padding: 8px;
   gap: 8px;
-  background: rgba(0, 0, 0, 0.2);
+  background: transparent;
 }
 .chat-history:not(.hidden) + .chat-input-area {
   border-top: 1px solid rgba(255, 255, 255, 0.1);
@@ -1802,6 +1868,8 @@ body.light {
 .light .ne-tool-verse.active { background: rgba(219,39,119,0.1); border-color: rgba(219,39,119,0.4); color: #db2777; }
 .light .notes-editor-body { color: #1a1a1a; }
 .light .notes-editor-body:empty:before { color: rgba(0,0,0,0.3); }
+.light .notes-editor-body blockquote { border-left-color: rgba(219,39,119,0.5); background: rgba(219,39,119,0.06); }
+.light .notes-editor-body hr { background: linear-gradient(to right, transparent, rgba(0,0,0,0.12), transparent); }
 .light .ne-verse-picker { background: rgba(0,0,0,0.03); border-color: rgba(0,0,0,0.1); }
 .light .ne-mode-btn { background: rgba(0,0,0,0.05); border-color: rgba(0,0,0,0.1); color: #1a1a1a; }
 .light .ne-mode-btn.active { background: rgba(219,39,119,0.1); border-color: rgba(219,39,119,0.4); color: #db2777; }
@@ -2366,6 +2434,7 @@ body.light {
 }
 .notes-detail-content {
   padding: 20px 20px max(env(safe-area-inset-bottom), 40px);
+  position: relative;
 }
 
 /* Verse note detail */
@@ -2486,7 +2555,11 @@ body.light {
   top: 0;
   background: #0b1220;
   z-index: 1;
+  overflow-x: auto;
+  -webkit-overflow-scrolling: touch;
+  scrollbar-width: none;
 }
+.notes-editor-toolbar::-webkit-scrollbar { display: none; }
 .ne-tool {
   background: none;
   border: none;
@@ -2498,6 +2571,7 @@ body.light {
   font-family: inherit;
   transition: background 0.15s, color 0.15s;
   line-height: 1;
+  flex-shrink: 0;
 }
 .ne-tool:hover { background: rgba(255,255,255,0.08); color: #fff; }
 .ne-tool-verse {
@@ -2520,6 +2594,7 @@ body.light {
   height: 18px;
   background: rgba(255,255,255,0.1);
   margin: 0 4px;
+  flex-shrink: 0;
 }
 
 /* Rich text body */
@@ -2542,6 +2617,26 @@ body.light {
 .notes-editor-body:focus { outline: none; box-shadow: none; }
 .notes-editor-body h2 { font-size: 20px; font-weight: 700; margin: 16px 0 4px; }
 .notes-editor-body p  { margin: 0 0 6px; }
+.notes-editor-body blockquote {
+  margin: 8px 0;
+  padding: 8px 16px;
+  border-left: 3px solid rgba(200,48,134,0.5);
+  background: rgba(200,48,134,0.06);
+  border-radius: 0 8px 8px 0;
+  font-style: italic;
+  opacity: 0.85;
+}
+.notes-editor-body ul, .notes-editor-body ol {
+  margin: 4px 0 8px;
+  padding-left: 24px;
+}
+.notes-editor-body li { margin-bottom: 4px; }
+.notes-editor-body hr {
+  border: none;
+  height: 1px;
+  background: linear-gradient(to right, transparent, rgba(255,255,255,0.15), transparent);
+  margin: 16px 0;
+}
 
 /* Verse picker panel */
 .ne-verse-picker {
@@ -2660,6 +2755,90 @@ body.light {
   font-style: normal;
   vertical-align: super;
 }
+
+/* Bible reference typeahead dropdown */
+.bref-dropdown {
+  position: absolute;
+  z-index: 1000;
+  background: #1a1f2e;
+  border: 1px solid rgba(255,255,255,0.12);
+  border-radius: 10px;
+  max-height: 200px;
+  overflow-y: auto;
+  padding: 4px 0;
+  box-shadow: 0 4px 16px rgba(0,0,0,0.4);
+  min-width: 170px;
+}
+.bref-dropdown[hidden] { display: none !important; }
+.bref-dropdown-item {
+  padding: 10px 14px;
+  font-size: 14px;
+  cursor: pointer;
+  color: rgba(255,255,255,0.85);
+  font-family: 'Google Sans Flex', sans-serif;
+}
+.bref-dropdown-item:hover,
+.bref-dropdown-item.active {
+  background: rgba(200,48,134,0.15);
+}
+.bref-dropdown-item .bref-match {
+  color: #e060a8;
+  font-weight: 700;
+}
+
+/* Bible ref verse preview popup */
+.bref-preview {
+  position: absolute;
+  z-index: 1001;
+  background: #1a1f2e;
+  border: 1px solid rgba(255,255,255,0.12);
+  border-radius: 12px;
+  padding: 14px 16px;
+  box-shadow: 0 6px 24px rgba(0,0,0,0.5);
+  max-width: 320px;
+  width: calc(100% - 40px);
+}
+.bref-preview[hidden] { display: none !important; }
+.bref-preview-ref {
+  font-size: 12px; font-weight: 700; color: #e060a8;
+  margin-bottom: 8px;
+  font-family: 'Google Sans Flex', sans-serif;
+}
+.bref-preview-body {
+  font-size: 13px; line-height: 1.6;
+  color: rgba(255,255,255,0.65);
+  font-style: italic;
+  margin-bottom: 12px;
+  max-height: 100px;
+  overflow-y: auto;
+}
+.bref-preview-actions {
+  display: flex; gap: 8px; justify-content: flex-end;
+}
+.bref-preview-dismiss {
+  background: rgba(255,255,255,0.08);
+  border: none; border-radius: 8px;
+  color: rgba(255,255,255,0.6);
+  padding: 8px 14px; font-size: 13px; cursor: pointer;
+  font-family: 'Google Sans Flex', sans-serif;
+}
+.bref-preview-insert {
+  background: linear-gradient(135deg,#486bec,#c83086);
+  border: none; border-radius: 8px;
+  color: #fff;
+  padding: 8px 16px; font-size: 13px; cursor: pointer; font-weight: 600;
+  font-family: 'Google Sans Flex', sans-serif;
+}
+
+/* Light mode */
+.light .bref-dropdown { background: #fff; border-color: rgba(0,0,0,0.1); box-shadow: 0 4px 16px rgba(0,0,0,0.1); }
+.light .bref-dropdown-item { color: #1a1a1a; }
+.light .bref-dropdown-item:hover, .light .bref-dropdown-item.active { background: rgba(219,39,119,0.08); }
+.light .bref-dropdown-item .bref-match { color: #db2777; }
+.light .bref-preview { background: #fff; border-color: rgba(0,0,0,0.1); box-shadow: 0 6px 20px rgba(0,0,0,0.1); }
+.light .bref-preview-ref { color: #db2777; }
+.light .bref-preview-body { color: rgba(0,0,0,0.55); }
+.light .bref-preview-dismiss { background: rgba(0,0,0,0.06); color: rgba(0,0,0,0.5); }
 
 /* Toast */
 .notes-toast {
@@ -3608,6 +3787,13 @@ body.light {
 }
 
 /* Dashboard brand */
+.dash-brand-row {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  margin-bottom: 4px;
+}
+.dash-brand-row[hidden] { display: none !important; }
 .dash-brand {
   font-family: "Editors Note";
   font-style: italic;
@@ -3615,11 +3801,51 @@ body.light {
   color: #fff;
   opacity: 0.85;
   line-height: 1;
-  margin-bottom: 4px;
   pointer-events: none;
   user-select: none;
 }
 .light .dash-brand { color: #1a1a2e; opacity: 0.75; }
+
+/* Dashboard clock */
+.dash-clock {
+  display: flex;
+  flex-direction: column;
+  align-items: flex-end;
+  font-family: 'Google Sans Flex', sans-serif;
+  opacity: 0.45;
+  user-select: none;
+  line-height: 1;
+}
+.dash-clock-day {
+  font-size: 0.8rem;
+  font-weight: 700;
+  letter-spacing: 3px;
+}
+.dash-clock-date {
+  font-size: 0.6rem;
+  font-weight: 500;
+  letter-spacing: 2px;
+  opacity: 0.6;
+  margin-top: 4px;
+}
+.dash-clock-row {
+  display: flex;
+  align-items: baseline;
+  gap: 2px;
+  margin-top: 6px;
+}
+.dash-clock-time {
+  font-size: 1.6rem;
+  font-weight: 800;
+  letter-spacing: -0.5px;
+}
+.dash-clock-ampm {
+  font-size: 0.6rem;
+  font-weight: 600;
+  letter-spacing: 1px;
+  opacity: 0.65;
+}
+.light .dash-clock { color: #0b1220; opacity: 0.35; }
 
 /* Dashboard greeting */
 .dash-greeting {
@@ -3637,6 +3863,18 @@ body.light {
   margin-top: 2px;
 }
 .light .dash-greeting-text { color: #0b1220; }
+.light .dash-greeting-date { color: rgba(0,0,0,0.5); opacity: 1; }
+.light .dashboard-section { border-color: rgba(0,0,0,0.08); }
+.light .dashboard-section h3 { color: #1a1a1a; }
+.light .nst-icon { color: #db2777; opacity: 1; }
+.light .nst-sub { color: rgba(0,0,0,0.5); opacity: 1; }
+.light .dash-notes-item .material-icons { color: #db2777; opacity: 1 !important; }
+.light .name-prompt-screen { background: #faf9f6; }
+.light .name-prompt-title { color: #0b1220; }
+.light .name-prompt-sub { color: rgba(0,0,0,0.5); }
+.light .name-prompt-input { background: rgba(0,0,0,0.04) !important; border-color: rgba(0,0,0,0.12) !important; color: #0b1220; }
+.light .name-prompt-input:focus { border-color: rgba(219,39,119,0.5) !important; }
+.light .name-prompt-input::placeholder { color: rgba(0,0,0,0.3); }
 
 /* Per-note copy button — match delete button sizing */
 .notes-session-copy-btn {
@@ -3813,7 +4051,7 @@ body.light {
   min-height: 1.4em;
   opacity: 0.55;
 }
-.light .dash-greeting-msg { opacity: 0.5; }
+.light .dash-greeting-msg { color: rgba(0,0,0,0.55); opacity: 1; }
 
 /* Golden glow loading dots */
 .dash-greeting-glow-loader {
