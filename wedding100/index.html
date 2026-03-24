@@ -960,14 +960,8 @@ function todayStr(){return dateStr(phNow())}
 function getRoutineIndex(d){return(d-1)%5}
 
 // Color themes per routine type
-const ROUTINE_THEMES=[
-  {btn:'from-claude-500 to-claude-600',border:'border-claude-300',badge:'text-claude-600 bg-claude-50 border-claude-200',text:'text-claude-600',textLight:'text-claude-500',bg:'bg-claude-50',ring:'ring-claude-300',check:'bg-claude-500 border-claude-500',accent:'#da7756',accentLight:'#fdeedd',accentBorder:'#fadcb8'},
-  {btn:'from-fuchsia-500 to-fuchsia-600',border:'border-fuchsia-300',badge:'text-fuchsia-600 bg-fuchsia-50 border-fuchsia-200',text:'text-fuchsia-600',textLight:'text-fuchsia-500',bg:'bg-fuchsia-50',ring:'ring-fuchsia-300',check:'bg-fuchsia-500 border-fuchsia-500',accent:'#c026d3',accentLight:'#fae8ff',accentBorder:'#f0abfc'},
-  {btn:'from-amber-500 to-amber-600',border:'border-amber-300',badge:'text-amber-600 bg-amber-50 border-amber-200',text:'text-amber-600',textLight:'text-amber-500',bg:'bg-amber-50',ring:'ring-amber-300',check:'bg-amber-500 border-amber-500',accent:'#d97706',accentLight:'#fef3c7',accentBorder:'#fcd34d'},
-  {btn:'from-sky-500 to-sky-600',border:'border-sky-300',badge:'text-sky-600 bg-sky-50 border-sky-200',text:'text-sky-600',textLight:'text-sky-500',bg:'bg-sky-50',ring:'ring-sky-300',check:'bg-sky-500 border-sky-500',accent:'#0284c7',accentLight:'#e0f2fe',accentBorder:'#7dd3fc'},
-  {btn:'from-emerald-500 to-emerald-600',border:'border-emerald-300',badge:'text-emerald-600 bg-emerald-50 border-emerald-200',text:'text-emerald-600',textLight:'text-emerald-500',bg:'bg-emerald-50',ring:'ring-emerald-300',check:'bg-emerald-500 border-emerald-500',accent:'#059669',accentLight:'#d1fae5',accentBorder:'#6ee7b7'},
-];
-function getTheme(){return ROUTINE_THEMES[getRoutineIndex(getCurrentDayNum())]}
+// Single claude theme for everything
+function getTheme(){return {btn:'from-claude-500 to-claude-600',border:'border-claude-300',badge:'text-claude-600 bg-claude-50 border-claude-200',text:'text-claude-800',textLight:'text-claude-500',accent:'#da7756',accentLight:'#fdeedd',accentBorder:'#fadcb8'}}
 function getCompletedCount(){return Object.keys(state.completed).length}
 function getCurrentDayNum(){
   const s=new Date(state.startDate+'T00:00:00'),n=new Date(todayStr()+'T00:00:00');
@@ -1343,28 +1337,21 @@ function renderActivityChart(){
     const isToday=i===0;
     const dayLabel=['S','M','T','W','T','F','S'][d.getDay()];
 
-    // Workout bar color based on routine type
-    const ri=dayNum>=1&&dayNum<=100?getRoutineIndex(dayNum):0;
-    const wColors=['bg-claude-400','bg-fuchsia-400','bg-amber-400','bg-sky-400','bg-emerald-400'];
-    const wH=didWorkout?100:0;
-    const sH=Math.max(4,stepsPct);
-
-    // Use fixed pixel heights instead of percentages
     var wPx=didWorkout?64:3;
     var sPx=Math.max(3,Math.round(stepsPct*0.64));
 
     html+=`<div class="flex-1 flex flex-col items-center gap-0.5">
       <div class="w-full flex gap-[2px] items-end h-16">
-        <div class="flex-1 rounded-sm ${didWorkout?wColors[ri]:'bg-sand-100'}" style="height:${wPx}px"></div>
-        <div class="flex-1 rounded-sm ${steps>=10000?'bg-emerald-400':steps>0?'bg-sand-300':'bg-sand-100'}" style="height:${sPx}px"></div>
+        <div class="flex-1 rounded-sm ${didWorkout?'bg-claude-400':'bg-sand-100'}" style="height:${wPx}px"></div>
+        <div class="flex-1 rounded-sm ${steps>=10000?'bg-claude-600':steps>0?'bg-claude-200':'bg-sand-100'}" style="height:${sPx}px"></div>
       </div>
       <span class="text-[7px] ${isToday?'font-bold text-claude-600':'text-sand-400'}">${dayNum<=100?'D'+dayNum:''}</span>
     </div>`;
   }
   var legend=`<div class="flex items-center gap-3 mt-2 justify-center">
     <div class="flex items-center gap-1"><div class="w-2 h-2 rounded-sm bg-claude-400"></div><span class="text-[9px] text-sand-400">Workout</span></div>
-    <div class="flex items-center gap-1"><div class="w-2 h-2 rounded-sm bg-sand-300"></div><span class="text-[9px] text-sand-400">Steps</span></div>
-    <div class="flex items-center gap-1"><div class="w-2 h-2 rounded-sm bg-emerald-400"></div><span class="text-[9px] text-sand-400">10k+</span></div>
+    <div class="flex items-center gap-1"><div class="w-2 h-2 rounded-sm bg-claude-200"></div><span class="text-[9px] text-sand-400">Steps</span></div>
+    <div class="flex items-center gap-1"><div class="w-2 h-2 rounded-sm bg-claude-600"></div><span class="text-[9px] text-sand-400">10k+</span></div>
   </div>`;
   chart.innerHTML='<div class="flex items-end gap-[3px]">'+html+'</div>'+legend;
 }
@@ -2088,15 +2075,8 @@ function renderToday(){
 function renderWeek(){
   const grid=document.getElementById('dayGrid'),start=currentWeek*7+1,wn=currentWeek+1;
   document.getElementById('weekLabel').textContent=wn<=14?`Week ${wn}`:'Final';
-  // Color themes per workout type
-  const dotColors=['bg-claude-500','bg-fuchsia-400','bg-amber-500','bg-sky-500','bg-emerald-500'];
-  const completedBg=[
-    'background:linear-gradient(135deg,#da7756,#c25a3a)', // Full Body - claude orange
-    'background:linear-gradient(135deg,#d946ef,#a21caf)',  // Lower Body - fuchsia/purple
-    'background:linear-gradient(135deg,#f59e0b,#d97706)',  // Core - amber/gold
-    'background:linear-gradient(135deg,#0ea5e9,#0284c7)',  // Upper Body - sky blue
-    'background:linear-gradient(135deg,#10b981,#059669)',   // Recovery - emerald green
-  ];
+  // Workout type initials for the dots
+  const typeInitials=['F','L','C','U','R']; // Full, Lower, Core, Upper, Recovery
   const dayLabels=['S','M','T','W','T','F','S'];
   const startDate=new Date(state.startDate+'T00:00:00');
   let html='';
@@ -2111,10 +2091,10 @@ function renderWeek(){
     const done=!!state.completed[d],isT=d===getCurrentDayNum();
     const ri=getRoutineIndex(d);
     html+=`<button onclick="openDayModal(${d})" class="day-btn relative flex flex-col items-center justify-center w-full aspect-square rounded-lg border ${
-      done?'':'border-sand-200 bg-white hover:border-claude-300'
-    } ${isT&&!done?'ring-2 ring-claude-300 ring-offset-1':''}" ${done?'style="'+completedBg[ri]+';color:white;transform:scale(1.05);box-shadow:0 2px 8px rgba(0,0,0,0.15);border-color:transparent"':''}>
+      done?'completed':'border-sand-200 bg-white hover:border-claude-300'
+    } ${isT&&!done?'ring-2 ring-claude-300 ring-offset-1':''}">
       <span class="text-xs font-semibold ${done?'text-white':'text-claude-700'}">${d}</span>
-      <span class="w-1 h-1 rounded-full mt-0.5 ${done?'bg-white/50':dotColors[ri]}"></span>
+      <span class="text-[6px] mt-0.5 ${done?'text-white/60':'text-sand-400'}">${typeInitials[ri]}</span>
     </button>`;
   }
   grid.innerHTML=html;
