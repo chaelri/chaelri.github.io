@@ -1102,7 +1102,8 @@ function toggleExCheck(dayNum,exIdx){
   const wasChecked=!!state.exerciseChecks[k];
   if(wasChecked){
     delete state.exerciseChecks[k];
-    // Stop any running timer/workout flow
+    // Stop any running timer/workout flow + melody
+    stopBgMelody();
     if(activeTimer){clearInterval(activeTimer.iv);activeTimer=null}
     if(workoutFlow){workoutFlow=null}
     // Also uncomplete the day if it was completed
@@ -1433,53 +1434,121 @@ function playTone(freq,dur,delay=0,type='sine',vol=0.3){
 function vibrate(pattern){if(navigator.vibrate)navigator.vibrate(pattern)}
 
 // Exercise start — energetic ascending whistle
-// ── Workout Background Melody ─────────────────────────
-// Chill looping pentatonic melody using Web Audio API
-var bgMelody={iv:null,playing:false};
+// ── Workout Background Beat ───────────────────────────
+// Upbeat electronic workout rhythm using Web Audio API
+var bgMelody={iv:null,playing:false,beat:0};
 
 function startBgMelody(){
   if(bgMelody.playing)return;
   bgMelody.playing=true;
+  bgMelody.beat=0;
 
-  // Pentatonic scale notes (C major pentatonic, octave 4-5) — chill and positive
-  var notes=[261.6,293.7,329.6,392.0,440.0,523.3,587.3,659.3];
-  var beatDur=0.4; // seconds per note
-  var vol=0.06; // very soft background
+  var bpm=128; // energetic tempo
+  var beatMs=60000/bpm;
+  var vol=0.08;
 
-  function playNote(){
-    if(!bgMelody.playing)return;
-    var freq=notes[Math.floor(Math.random()*notes.length)];
-    var t=audioCtx.currentTime;
-
-    // Main note — soft sine
+  // Drum pattern: kick on 1,3 — snare on 2,4 — hihat on every beat
+  function kick(t){
     var o=audioCtx.createOscillator();
     var g=audioCtx.createGain();
     o.connect(g);g.connect(audioCtx.destination);
-    o.frequency.value=freq;
+    o.frequency.setValueAtTime(150,t);
+    o.frequency.exponentialRampToValueAtTime(40,t+0.1);
     o.type='sine';
-    g.gain.setValueAtTime(vol,t);
-    g.gain.exponentialRampToValueAtTime(0.001,t+beatDur*0.9);
-    o.start(t);o.stop(t+beatDur);
-
-    // Harmony — octave below, even softer
-    if(Math.random()>0.5){
-      var o2=audioCtx.createOscillator();
-      var g2=audioCtx.createGain();
-      o2.connect(g2);g2.connect(audioCtx.destination);
-      o2.frequency.value=freq/2;
-      o2.type='triangle';
-      g2.gain.setValueAtTime(vol*0.4,t);
-      g2.gain.exponentialRampToValueAtTime(0.001,t+beatDur*0.8);
-      o2.start(t);o2.stop(t+beatDur);
-    }
+    g.gain.setValueAtTime(vol*1.2,t);
+    g.gain.exponentialRampToValueAtTime(0.001,t+0.15);
+    o.start(t);o.stop(t+0.15);
   }
 
-  // Play a note every beat
-  playNote();
+  function snare(t){
+    // Noise burst for snare
+    var buf=audioCtx.createBuffer(1,audioCtx.sampleRate*0.08,audioCtx.sampleRate);
+    var data=buf.getChannelData(0);
+    for(var i=0;i<data.length;i++)data[i]=(Math.random()*2-1);
+    var n=audioCtx.createBufferSource();
+    var g=audioCtx.createGain();
+    var f=audioCtx.createBiquadFilter();
+    n.buffer=buf;
+    f.type='highpass';f.frequency.value=3000;
+    n.connect(f);f.connect(g);g.connect(audioCtx.destination);
+    g.gain.setValueAtTime(vol*0.7,t);
+    g.gain.exponentialRampToValueAtTime(0.001,t+0.08);
+    n.start(t);n.stop(t+0.08);
+    // Body tone
+    var o=audioCtx.createOscillator();
+    var g2=audioCtx.createGain();
+    o.connect(g2);g2.connect(audioCtx.destination);
+    o.frequency.value=200;o.type='triangle';
+    g2.gain.setValueAtTime(vol*0.5,t);
+    g2.gain.exponentialRampToValueAtTime(0.001,t+0.06);
+    o.start(t);o.stop(t+0.06);
+  }
+
+  function hihat(t){
+    var buf=audioCtx.createBuffer(1,audioCtx.sampleRate*0.03,audioCtx.sampleRate);
+    var data=buf.getChannelData(0);
+    for(var i=0;i<data.length;i++)data[i]=(Math.random()*2-1);
+    var n=audioCtx.createBufferSource();
+    var g=audioCtx.createGain();
+    var f=audioCtx.createBiquadFilter();
+    n.buffer=buf;
+    f.type='highpass';f.frequency.value=8000;
+    n.connect(f);f.connect(g);g.connect(audioCtx.destination);
+    g.gain.setValueAtTime(vol*0.3,t);
+    g.gain.exponentialRampToValueAtTime(0.001,t+0.03);
+    n.start(t);n.stop(t+0.03);
+  }
+
+  function bass(t,freq){
+    var o=audioCtx.createOscillator();
+    var g=audioCtx.createGain();
+    o.connect(g);g.connect(audioCtx.destination);
+    o.frequency.value=freq;o.type='sawtooth';
+    g.gain.setValueAtTime(vol*0.4,t);
+    g.gain.exponentialRampToValueAtTime(0.001,t+0.12);
+    o.start(t);o.stop(t+0.12);
+  }
+
+  // Bassline pattern (E minor pentatonic — energetic)
+  var bassNotes=[82.4,98.0,110.0,123.5,146.8,82.4,110.0,98.0]; // E2-based
+
+  function playBeat(){
+    if(!bgMelody.playing)return;
+    var t=audioCtx.currentTime;
+    var b=bgMelody.beat%8; // 8 beat pattern (2 bars of 4)
+
+    // Kick on 1,3,5,7 (every other beat)
+    if(b%2===0)kick(t);
+    // Snare on 2,4,6,8
+    if(b%2===1)snare(t);
+    // Hihat on every beat + offbeat
+    hihat(t);
+    hihat(t+beatMs/2000); // offbeat hihat
+    // Bass on every beat
+    bass(t,bassNotes[b]);
+
+    // Synth stab on beat 1 and 5 (every 4 beats)
+    if(b%4===0){
+      var freqs=[329.6,392.0,440.0]; // E4, G4, A4 chord
+      freqs.forEach(function(f){
+        var o=audioCtx.createOscillator();
+        var g=audioCtx.createGain();
+        o.connect(g);g.connect(audioCtx.destination);
+        o.frequency.value=f;o.type='square';
+        g.gain.setValueAtTime(vol*0.15,t);
+        g.gain.exponentialRampToValueAtTime(0.001,t+0.2);
+        o.start(t);o.stop(t+0.2);
+      });
+    }
+
+    bgMelody.beat++;
+  }
+
+  playBeat();
   bgMelody.iv=setInterval(function(){
     if(!bgMelody.playing){clearInterval(bgMelody.iv);bgMelody.iv=null;return}
-    playNote();
-  },beatDur*1000);
+    playBeat();
+  },beatMs);
 }
 
 function stopBgMelody(){
@@ -1781,6 +1850,7 @@ function stopTimer(){
 // Handle timer button click: start, pause, or resume
 // Finish exercise early (tap the pulsing dot while timer running)
 function finishExEarly(dayNum,exIdx){
+  stopBgMelody();
   if(activeTimer&&activeTimer.day===dayNum&&activeTimer.ex===exIdx){
     clearInterval(activeTimer.iv);activeTimer=null;
   }
