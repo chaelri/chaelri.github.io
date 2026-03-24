@@ -1279,8 +1279,19 @@ function getTodayKcal(){
 // ── Sound + Vibration ─────────────────────────────────
 const audioCtx=new (window.AudioContext||window.webkitAudioContext)();
 // Resume audio on first touch/click anywhere (browser policy)
-document.addEventListener('click',function(){if(audioCtx.state==='suspended')audioCtx.resume()},{once:true});
-document.addEventListener('touchstart',function(){if(audioCtx.state==='suspended')audioCtx.resume()},{once:true});
+// iOS requires user gesture to unlock audio. Unlock everything on first tap.
+var _audioUnlocked=false;
+function unlockAudio(){
+  if(_audioUnlocked)return;
+  _audioUnlocked=true;
+  // Unlock AudioContext (for beeps/chimes)
+  if(audioCtx.state==='suspended')audioCtx.resume();
+  // Unlock HTML5 Audio (for TTS mp3 playback on iOS)
+  var silence=new Audio('data:audio/mp3;base64,SUQzBAAAAAAAI1RTU0UAAAAPAAADTGF2ZjU4Ljc2LjEwMAAAAAAAAAAAAAAA//tQAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAWGluZwAAAA8AAAACAAABhgC7u7u7u7u7u7u7u7u7u7u7u7u7u7u7u7u7u7u7u7u7u7u7u7u7u7u7u7u7u7u7u7u7u7u7//////////////////////////////////////////////////////////////////8AAAAATGF2YzU4LjEzAAAAAAAAAAAAAAAAJAAAAAAAAAAAAYYoRBqmAAAAAAD/+1DEAAAHAAGf9AAAIAAAP8AAAARMQUxCMy4xMDCqqqqqqqqqqqqqTEFNRTMuMTAwqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqg==');
+  silence.play().then(function(){silence.pause();silence=null}).catch(function(){});
+}
+document.addEventListener('click',unlockAudio,{once:false,capture:true});
+document.addEventListener('touchstart',unlockAudio,{once:false,capture:true});
 
 function playTone(freq,dur,delay=0,type='sine',vol=0.3){
   const t=audioCtx.currentTime+delay;
