@@ -688,8 +688,19 @@ function animFigDual(a,b,sa,sb){
 
 function exSvg(p1,p2){
   if(!p2)return `<svg viewBox="-4 -6 58 90" class="exercise-svg">${fig(p1)}</svg>`;
-  // If exercise has side-view poses, use dual animation
-  if(p1._sp1&&p1._sp2)return `<svg viewBox="-4 -6 58 90" class="exercise-svg">${animFigDual(p1,p2,p1._sp1,p1._sp2)}</svg>`;
+  // Show front view + side view side by side
+  if(p1._sp1&&p1._sp2){
+    return `<div class="flex items-center gap-1 justify-center">
+      <div class="text-center">
+        <svg viewBox="-4 -6 58 90" style="width:60px;height:auto">${animFig(p1,p2)}</svg>
+        <p class="text-[7px] text-sand-400 -mt-1">Front</p>
+      </div>
+      <div class="text-center">
+        <svg viewBox="-4 -6 58 90" style="width:60px;height:auto">${animFig(p1._sp1,p1._sp2)}</svg>
+        <p class="text-[7px] text-sand-400 -mt-1">Side</p>
+      </div>
+    </div>`;
+  }
   return `<svg viewBox="-4 -6 58 90" class="exercise-svg">${animFig(p1,p2)}</svg>`;
 }
 
