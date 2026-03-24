@@ -1604,6 +1604,7 @@ function sfxExerciseDone(){
     {notes:[1047,1319,1568],vol:0.35,dur:0.22,vib:[100,50,100,50,200]}, // 5th ACE — C6 major
   ];
 
+  if(k<=0)k=1; // safety: at least level 1
   var s=scales[Math.min(k-1,scales.length-1)];
 
   // Play the chord
@@ -2010,9 +2011,6 @@ function startExTimer(dayNum,exIdx,totalSec,autoNext){
     b.innerHTML=`<span class="timer-fill" style="width:${activeTimer.pct}%"></span><span class="relative">${rem>0?rem+'s':'\u2713'}</span>`;
     if(rem<=0){
       clearInterval(activeTimer.iv);activeTimer=null;
-      b.classList.remove('timer-active');
-      b.innerHTML='\u2713 Done';
-      b.className=b.className.replace('from-claude-500 to-claude-600','from-emerald-500 to-emerald-600');
       stopBgMelody();
       sfxExerciseDone();
       fireSmallConfetti();
@@ -2075,13 +2073,18 @@ function startRestTimer(dayNum,nextExIdx){
   const div=document.createElement('div');
   div.id='restTimer';
   div.className='fixed inset-0 z-40 bg-black/50 flex items-center justify-center';
-  div.innerHTML=`<div class="bg-white rounded-3xl p-8 text-center max-w-xs mx-4">
-    <p class="text-sand-400 text-sm font-medium uppercase tracking-widest mb-2">Rest</p>
-    <p id="restCountdown" class="text-5xl font-serif text-claude-600">${rest}</p>
-    <p class="text-sand-400 text-xs mt-3 mb-1">Up next</p>
-    <p class="font-semibold text-claude-800 text-sm mb-2">${nextEx.name}</p>
-    <div class="flex justify-center mb-4">${nextSvg}</div>
-    <button onclick="skipRest()" class="text-sm text-claude-500 font-semibold hover:text-claude-600">Skip \u00bb</button>
+  div.innerHTML=`<div class="bg-white rounded-3xl p-6 max-w-sm mx-4 max-h-[80vh] overflow-y-auto">
+    <div class="text-center mb-4">
+      <p class="text-sand-400 text-sm font-medium uppercase tracking-widest mb-2">Rest</p>
+      <p id="restCountdown" class="text-5xl font-serif text-claude-600">${rest}</p>
+    </div>
+    <div class="border-t border-sand-100 pt-4">
+      <p class="text-sand-400 text-[10px] font-semibold uppercase tracking-widest mb-1">Up next</p>
+      <p class="font-semibold text-claude-800 text-base mb-1">${nextEx.name} <span class="text-xs font-normal text-sand-400">${nextEx.sets}</span></p>
+      <div class="flex justify-center my-3">${nextSvg}</div>
+      <div class="how-to rounded-lg px-3 py-2 text-xs text-claude-700 leading-relaxed" style="border-left-color:${getTheme().accentBorder};background:${getTheme().accentLight};--how-accent:${getTheme().accent};--how-num-bg:${getTheme().accentBorder}">${nextEx.howTo}</div>
+    </div>
+    <button onclick="skipRest()" class="w-full mt-4 text-sm text-claude-500 font-semibold hover:text-claude-600">Skip \u00bb</button>
   </div>`;
   document.body.appendChild(div);
 
