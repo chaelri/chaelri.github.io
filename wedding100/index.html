@@ -495,6 +495,11 @@
           <input type="date" id="startDateInput" class="w-full border border-sand-200 rounded-xl px-3 py-2.5 text-sm text-claude-800 bg-sand-50 focus:outline-none focus:ring-2 focus:ring-claude-300">
           <p class="text-xs text-sand-400 mt-1">Wedding day: July 2, 2026</p>
         </div>
+        <div>
+          <label class="block text-sm font-medium text-claude-700 mb-2">Voice</label>
+          <div id="voiceList" class="space-y-1.5 max-h-48 overflow-y-auto"></div>
+          <p class="text-xs text-sand-400 mt-1">Tap any voice to preview</p>
+        </div>
         <button onclick="saveSettings()" class="w-full py-3 rounded-xl font-semibold text-white bg-gradient-to-r from-claude-500 to-claude-600 active:scale-[0.97] transition-transform">Save</button>
       </div>
     </div>
@@ -897,10 +902,41 @@ function getAvgSteps(){
 
 // ── Steps ─────────────────────────────────────────────
 function getTodaySteps(){return state.steps[todayStr()]||0}
+var _lastStepsMilestone=0;
 function saveStepsInput(v){
-  const n=parseInt(v)||0;
-  state.steps[todayStr()]=Math.max(0,Math.min(99999,n));
-  saveState();renderSteps();renderStats();
+  var prev=state.steps[todayStr()]||0;
+  var n=Math.max(0,Math.min(99999,parseInt(v)||0));
+  state.steps[todayStr()]=n;
+  saveState();renderSteps();renderStats();renderToday();
+  // Celebrate milestones: 5k, 10k, 15k, 20k
+  var milestones=[5000,10000,15000,20000];
+  for(var i=milestones.length-1;i>=0;i--){
+    if(n>=milestones[i]&&prev<milestones[i]&&milestones[i]>_lastStepsMilestone){
+      _lastStepsMilestone=milestones[i];
+      var k=milestones[i]/1000;
+      sfxExerciseDone();
+      fireSmallConfetti();
+      if(milestones[i]>=10000){
+        speak(k+'K steps! Amazing, {name}!');
+      }else{
+        speak(k+'K steps! Keep walking, {name}!');
+      }
+      break;
+    }
+  }
+  // Reset milestone tracker if steps go back down
+  if(n<_lastStepsMilestone)_lastStepsMilestone=0;
+  // Encourage at every 1000-step crossing (but not if we already celebrated a milestone above)
+  var prevK=Math.floor(prev/1000),nowK=Math.floor(n/1000);
+  if(nowK>prevK&&n%1000<500&&!milestones.includes(nowK*1000)){
+    var encouragements=[
+      nowK+'K steps! Getting there, {name}!',
+      nowK+'K! Keep moving!',
+      'Nice, '+nowK+'K steps so far!',
+      nowK+' thousand steps. You\'re on a roll!',
+    ];
+    speak(encouragements[Math.floor(Math.random()*encouragements.length)]);
+  }
 }
 function toggleStepsGoal(){
   const cur=getTodaySteps();
@@ -1429,7 +1465,21 @@ const FORM_GENERIC=[
 ];
 
 // Google Cloud TTS (same as devo app)
-const TTS_VOICE={languageCode:'en-US',name:'en-US-Journey-D'};
+var TTS_VOICE={languageCode:'en-US',name:localStorage.getItem('wedding100_voice')||'en-US-Journey-D'};
+var TTS_VOICES=[
+  {name:'en-US-Journey-D',label:'Journey D',desc:'Male, warm & natural'},
+  {name:'en-US-Journey-F',label:'Journey F',desc:'Female, warm & natural'},
+  {name:'en-US-Journey-O',label:'Journey O',desc:'Female, expressive'},
+  {name:'en-US-Casual-K',label:'Casual K',desc:'Male, relaxed & friendly'},
+  {name:'en-US-Neural2-A',label:'Neural2 A',desc:'Male, clear & professional'},
+  {name:'en-US-Neural2-C',label:'Neural2 C',desc:'Female, clear & professional'},
+  {name:'en-US-Neural2-D',label:'Neural2 D',desc:'Male, deep & confident'},
+  {name:'en-US-Neural2-F',label:'Neural2 F',desc:'Female, bright & energetic'},
+  {name:'en-US-Neural2-J',label:'Neural2 J',desc:'Male, youthful & upbeat'},
+  {name:'en-US-Studio-O',label:'Studio O',desc:'Female, studio quality'},
+  {name:'en-US-Studio-Q',label:'Studio Q',desc:'Male, studio quality'},
+  {name:'en-US-Polyglot-1',label:'Polyglot 1',desc:'Male, multilingual'},
+];
 var ttsAudioEl=null;
 var ttsCache={};
 
@@ -1915,8 +1965,39 @@ function openSettings(){
   var bc=document.getElementById('btnCharlie'),bk=document.getElementById('btnKarla');
   if(bc)bc.className='flex-1 py-2.5 rounded-xl text-sm font-semibold transition-all active:scale-95 '+(userName==='Charlie'?'bg-gradient-to-r from-claude-500 to-claude-600 text-white':'border border-sand-200 text-claude-600 hover:bg-claude-50');
   if(bk)bk.className='flex-1 py-2.5 rounded-xl text-sm font-semibold transition-all active:scale-95 '+(userName==='Karla'?'bg-gradient-to-r from-claude-500 to-claude-600 text-white':'border border-sand-200 text-claude-600 hover:bg-claude-50');
+  // Render voice list
+  var vl=document.getElementById('voiceList');
+  if(vl){
+    vl.innerHTML=TTS_VOICES.map(function(v){
+      var active=TTS_VOICE.name===v.name;
+      return '<button onclick="previewVoice(\''+v.name+'\')" class="w-full flex items-center gap-2 p-2 rounded-lg text-left transition-all active:scale-[0.98] '+(active?'bg-claude-50 border border-claude-300':'border border-sand-100 hover:bg-sand-50')+'">'+
+        '<div class="flex-1"><p class="text-sm font-medium '+(active?'text-claude-700':'text-claude-800')+'">'+v.label+(active?' <span class="text-[9px] text-claude-500 font-bold uppercase">Current</span>':'')+'</p><p class="text-[10px] text-sand-400">'+v.desc+'</p></div>'+
+        '<svg class="w-4 h-4 text-claude-400 shrink-0" fill="currentColor" viewBox="0 0 20 20"><path d="M6.3 2.84A1.5 1.5 0 004 4.11v11.78a1.5 1.5 0 002.3 1.27l9.344-5.891a1.5 1.5 0 000-2.538L6.3 2.841z"/></svg>'+
+      '</button>';
+    }).join('');
+  }
   document.getElementById('settingsModal').classList.remove('hidden');
 }
+
+function previewVoice(voiceName){
+  // Set as current voice
+  TTS_VOICE.name=voiceName;
+  localStorage.setItem('wedding100_voice',voiceName);
+  // Clear TTS cache so new voice is used
+  ttsCache={};
+  // Preview with a sample phrase
+  var previews=[
+    'Nice one, {name}! Keep it up!',
+    'Let\'s go, {name}! You got this!',
+    'Starting Kettlebell Swing. 45 seconds.',
+    '{name}, that was fire!',
+    'Workout complete! Amazing work, {name}!',
+  ];
+  speak(previews[Math.floor(Math.random()*previews.length)]);
+  // Re-render voice list to show new current
+  openSettings();
+}
+
 function switchToUser(name){
   if(name===userName){closeSettings();return}
   if(dbRef)dbRef.off();
