@@ -389,10 +389,10 @@
           </div>
         </div>
 
-        <!-- Activity Chart (last 14 days) -->
+        <!-- Activity Chart -->
         <div class="bg-white rounded-2xl border border-sand-200 p-4 shadow-sm mb-4">
-          <p class="text-[10px] font-semibold text-sand-400 uppercase tracking-widest mb-2">Last 14 Days</p>
-          <div id="activityChart" class="flex items-end gap-[3px] h-16"></div>
+          <p class="text-[10px] font-semibold text-sand-400 uppercase tracking-widest mb-2">Your Journey</p>
+          <div id="activityChart"><div class="flex items-end gap-[3px] h-20"></div></div>
         </div>
 
         <!-- Week Grid -->
@@ -953,8 +953,21 @@ function pickUser(name){
     render();
   },500);
 }
-function todayStr(){return new Date().toISOString().split('T')[0]}
+// All dates in PH time (UTC+8)
+function phNow(){return new Date(new Date().toLocaleString('en-US',{timeZone:'Asia/Manila'}))}
+function dateStr(d){return d.getFullYear()+'-'+String(d.getMonth()+1).padStart(2,'0')+'-'+String(d.getDate()).padStart(2,'0')}
+function todayStr(){return dateStr(phNow())}
 function getRoutineIndex(d){return(d-1)%5}
+
+// Color themes per routine type
+const ROUTINE_THEMES=[
+  {btn:'from-claude-500 to-claude-600',border:'border-claude-300',badge:'text-claude-600 bg-claude-50 border-claude-200',text:'text-claude-600',textLight:'text-claude-500',bg:'bg-claude-50',ring:'ring-claude-300',check:'bg-claude-500 border-claude-500'},       // Full Body
+  {btn:'from-fuchsia-500 to-fuchsia-600',border:'border-fuchsia-300',badge:'text-fuchsia-600 bg-fuchsia-50 border-fuchsia-200',text:'text-fuchsia-600',textLight:'text-fuchsia-500',bg:'bg-fuchsia-50',ring:'ring-fuchsia-300',check:'bg-fuchsia-500 border-fuchsia-500'},   // Lower Body
+  {btn:'from-amber-500 to-amber-600',border:'border-amber-300',badge:'text-amber-600 bg-amber-50 border-amber-200',text:'text-amber-600',textLight:'text-amber-500',bg:'bg-amber-50',ring:'ring-amber-300',check:'bg-amber-500 border-amber-500'},             // Core
+  {btn:'from-sky-500 to-sky-600',border:'border-sky-300',badge:'text-sky-600 bg-sky-50 border-sky-200',text:'text-sky-600',textLight:'text-sky-500',bg:'bg-sky-50',ring:'ring-sky-300',check:'bg-sky-500 border-sky-500'},                        // Upper Body
+  {btn:'from-emerald-500 to-emerald-600',border:'border-emerald-300',badge:'text-emerald-600 bg-emerald-50 border-emerald-200',text:'text-emerald-600',textLight:'text-emerald-500',bg:'bg-emerald-50',ring:'ring-emerald-300',check:'bg-emerald-500 border-emerald-500'},    // Recovery
+];
+function getTheme(){return ROUTINE_THEMES[getRoutineIndex(getCurrentDayNum())]}
 function getCompletedCount(){return Object.keys(state.completed).length}
 function getCurrentDayNum(){
   const s=new Date(state.startDate+'T00:00:00'),n=new Date(todayStr()+'T00:00:00');
@@ -974,12 +987,18 @@ function getStreak(){
   return streak;
 }
 function getAvgSteps(){
-  const vals=Object.values(state.steps).filter(v=>v>0);
-  return vals.length?Math.round(vals.reduce((a,b)=>a+b,0)/vals.length):0;
+  var vals=Object.keys(state.steps).map(function(k){return getStepsForDate(k)}).filter(function(v){return v>0});
+  return vals.length?Math.round(vals.reduce(function(a,b){return a+b},0)/vals.length):0;
 }
 
 // ── Steps ─────────────────────────────────────────────
-function getTodaySteps(){return state.steps[todayStr()]||0}
+function getStepsForDate(key){
+  var v=state.steps[key];
+  if(!v)return 0;
+  if(typeof v==='object')return Object.values(v).reduce(function(a,b){return a+(parseInt(b)||0)},0);
+  return parseInt(v)||0;
+}
+function getTodaySteps(){return getStepsForDate(todayStr())}
 var _lastStepsMilestone=0;
 function saveStepsInput(v){
   var prev=state.steps[todayStr()]||0;
@@ -1060,8 +1079,8 @@ function renderSteps(){
   let html='',weekTotal=0,weekDays=0;
   for(let i=0;i<7;i++){
     const d=new Date(today);d.setDate(d.getDate()-mo+i);
-    const key=d.toISOString().split('T')[0];
-    const s=state.steps[key]||0;
+    const key=dateStr(d);
+    const s=getStepsForDate(key);
     if(s>0){weekTotal+=s;weekDays++}
     const h=Math.max(4,(s/15000)*100);
     const isT=key===todayStr(),hit=s>=10000;
@@ -1218,7 +1237,7 @@ function renderStats(){
   document.getElementById('statWedding').textContent=getDaysUntilWedding();
   // Today's kcal
   var todayCal=getTodayKcal();
-  var todayStepsKcal=Math.round((state.steps[todayStr()]||0)*0.04);
+  var todayStepsKcal=Math.round(getTodaySteps()*0.04);
   document.getElementById('statTodayCal').textContent=todayCal+todayStepsKcal;
   // Total Kcal Lost (all completed workout days + all steps ever)
   var totalWorkoutCal=0;
@@ -1308,32 +1327,40 @@ function renderActivityChart(){
   if(!chart)return;
   const today=new Date(todayStr()+'T00:00:00');
   const startD=new Date(state.startDate+'T00:00:00');
+  // Show days since start (max 14, min 1)
+  const totalDays=Math.max(1,Math.min(14,Math.floor((today-startD)/864e5)+1));
   let html='';
-  for(let i=13;i>=0;i--){
+  for(let i=totalDays-1;i>=0;i--){
     const d=new Date(today);d.setDate(d.getDate()-i);
-    const key=d.toISOString().split('T')[0];
+    const key=dateStr(d);
     const dayNum=Math.floor((d-startD)/864e5)+1;
-    const didWorkout=dayNum>=1&&dayNum<=100&&!!state.completed[dayNum];
-    const steps=state.steps[key]||0;
+    const didWorkout=dayNum>=1&&dayNum<=100&&(!!state.completed[dayNum]||!!state.completed[String(dayNum)]);
+    const steps=getStepsForDate(key);
     const stepsPct=Math.min(100,steps/10000*100);
     const isToday=i===0;
     const dayLabel=['S','M','T','W','T','F','S'][d.getDay()];
 
-    // Each bar shows workout (bottom, solid) + steps (top, lighter)
-    const wH=didWorkout?40:0;
-    const sH=Math.max(0,stepsPct*0.5);
-    const totalH=Math.max(4,wH+sH);
+    // Workout bar color based on routine type
+    const ri=dayNum>=1&&dayNum<=100?getRoutineIndex(dayNum):0;
+    const wColors=['bg-claude-400','bg-fuchsia-400','bg-amber-400','bg-sky-400','bg-emerald-400'];
+    const wH=didWorkout?100:0;
+    const sH=Math.max(4,stepsPct);
 
     html+=`<div class="flex-1 flex flex-col items-center gap-0.5">
-      <div class="w-full flex flex-col justify-end rounded-sm overflow-hidden" style="height:${totalH}%">
-        ${sH>0?`<div class="w-full bg-claude-200" style="height:${sH/(sH+wH)*100}%"></div>`:''}
-        ${wH>0?`<div class="w-full ${isToday?'bg-claude-500':'bg-claude-400'}" style="height:${wH/(sH+wH)*100}%"></div>`:''}
-        ${!didWorkout&&sH===0?`<div class="w-full bg-sand-100 h-full"></div>`:''}
+      <div class="w-full flex gap-[2px] items-end" style="height:100%">
+        <div class="flex-1 rounded-sm ${didWorkout?wColors[ri]:'bg-sand-100'}" style="height:${Math.max(4,wH)}%"></div>
+        <div class="flex-1 rounded-sm ${steps>=10000?'bg-emerald-400':steps>0?'bg-sand-300':'bg-sand-100'}" style="height:${sH}%"></div>
       </div>
-      <span class="text-[7px] ${isToday?'font-bold text-claude-600':'text-sand-400'}">${dayLabel}</span>
+      <span class="text-[7px] ${isToday?'font-bold text-claude-600':'text-sand-400'}">${dayNum<=100?'D'+dayNum:''}</span>
     </div>`;
   }
-  chart.innerHTML=html;
+  // Legend
+  html+=`</div><div class="flex items-center gap-3 mt-2 justify-center">
+    <div class="flex items-center gap-1"><div class="w-2 h-2 rounded-sm bg-claude-400"></div><span class="text-[9px] text-sand-400">Workout</span></div>
+    <div class="flex items-center gap-1"><div class="w-2 h-2 rounded-sm bg-sand-300"></div><span class="text-[9px] text-sand-400">Steps</span></div>
+    <div class="flex items-center gap-1"><div class="w-2 h-2 rounded-sm bg-emerald-400"></div><span class="text-[9px] text-sand-400">10k+</span></div>
+  </div>`;
+  chart.innerHTML='<div class="flex items-end gap-[3px] h-20">'+html;
 }
 
 function parseSec(sets){const m=sets.match(/(\d+)\s*sec/);return m?parseInt(m[1]):45}
@@ -1632,40 +1659,56 @@ function getTtsKey(){
   return window.GOOGLE_TTS_KEY||localStorage.getItem('googleTtsKey')||'';
 }
 
+// TTS queue — prevents overlapping speech
+var _ttsQueue=[];
+var _ttsBusy=false;
+var _ttsAudio=new Audio();
+_ttsAudio.volume=0.85;
+_ttsAudio.addEventListener('ended',function(){_ttsBusy=false;_processQueue()});
+_ttsAudio.addEventListener('error',function(){_ttsBusy=false;_processQueue()});
+
+function _processQueue(){
+  if(_ttsBusy||_ttsQueue.length===0)return;
+  var url=_ttsQueue.shift();
+  _ttsBusy=true;
+  _ttsAudio.src=url;
+  _ttsAudio.play().catch(function(){_ttsBusy=false;_processQueue()});
+}
+
 async function speak(text){
-  const resolved=text.replace(/\{name\}/g,userName||'champ');
-  const key=getTtsKey();
-  if(!key)return; // No key, no voice — never use robotic fallback
+  var resolved=text.replace(/\{name\}/g,userName||'champ');
+  var key=getTtsKey();
+  if(!key)return;
   // Check cache
   if(ttsCache[resolved]){
-    playTtsUrl(ttsCache[resolved]);
+    _ttsQueue.push(ttsCache[resolved]);
+    _processQueue();
     return;
   }
   try{
-    const resp=await fetch(
+    var resp=await fetch(
       'https://texttospeech.googleapis.com/v1/text:synthesize?key='+encodeURIComponent(key),
       {method:'POST',headers:{'Content-Type':'application/json'},
        body:JSON.stringify({input:{text:resolved},voice:TTS_VOICE,audioConfig:{audioEncoding:'MP3'}})}
     );
     if(!resp.ok)throw new Error('tts-'+resp.status);
-    const{audioContent}=await resp.json();
-    const bytes=Uint8Array.from(atob(audioContent),c=>c.charCodeAt(0));
-    const url=URL.createObjectURL(new Blob([bytes],{type:'audio/mpeg'}));
+    var data=await resp.json();
+    var bytes=Uint8Array.from(atob(data.audioContent),function(c){return c.charCodeAt(0)});
+    var url=URL.createObjectURL(new Blob([bytes],{type:'audio/mpeg'}));
     ttsCache[resolved]=url;
-    playTtsUrl(url);
+    _ttsQueue.push(url);
+    _processQueue();
   }catch(e){
     console.warn('Google TTS error:',e);
   }
 }
 
-// Reuse single Audio element for iOS compatibility
-var _ttsAudio=new Audio();
-_ttsAudio.volume=0.85;
-function playTtsUrl(url){
+// Skip current speech and clear queue
+function ttsFlush(){
+  _ttsQueue=[];
   _ttsAudio.pause();
   _ttsAudio.currentTime=0;
-  _ttsAudio.src=url;
-  _ttsAudio.play().catch(function(){});
+  _ttsBusy=false;
 }
 
 function speakRandom(arr){speak(arr[Math.floor(Math.random()*arr.length)])}
@@ -1744,7 +1787,7 @@ function startExTimer(dayNum,exIdx,totalSec,autoNext){
     const rem=activeTimer.remaining;
     activeTimer.pct=((totalSec-rem)/totalSec)*100;
     const b=document.getElementById(`timer-${dayNum}-${exIdx}`);
-    if(!b){clearInterval(activeTimer.iv);activeTimer=null;return}
+    if(!b)return; // button temporarily missing during re-render, skip this tick
     if(rem<=3&&rem>0)sfxTick();
     // Mid-workout: switch sides indicator + form cues
     var halfwayMark=Math.floor(totalSec/2);
@@ -1952,7 +1995,7 @@ function renderExerciseCompact(exercises,dayNum){
         </div>
         ${checked
           ?'<span class="text-emerald-500 text-xs font-semibold">\u2713</span>'
-          :`<button id="timer-${dayNum}-${i}" onclick="event.stopPropagation();handleTimerClick(${dayNum},${i},${sec})" class="timer-btn flex items-center gap-1 px-2.5 py-1.5 rounded-lg text-[11px] font-semibold bg-gradient-to-r from-claude-500 to-claude-600 text-white active:scale-95 transition-transform shrink-0"><svg class="w-3 h-3" fill="currentColor" viewBox="0 0 20 20"><path d="M6.3 2.84A1.5 1.5 0 004 4.11v11.78a1.5 1.5 0 002.3 1.27l9.344-5.891a1.5 1.5 0 000-2.538L6.3 2.841z"/></svg><span class="relative">${sec}s</span></button>`
+          :`<button id="timer-${dayNum}-${i}" onclick="event.stopPropagation();handleTimerClick(${dayNum},${i},${sec})" class="timer-btn flex items-center gap-1 px-2.5 py-1.5 rounded-lg text-[11px] font-semibold bg-gradient-to-r ${getTheme().btn} text-white active:scale-95 transition-transform shrink-0"><svg class="w-3 h-3" fill="currentColor" viewBox="0 0 20 20"><path d="M6.3 2.84A1.5 1.5 0 004 4.11v11.78a1.5 1.5 0 002.3 1.27l9.344-5.891a1.5 1.5 0 000-2.538L6.3 2.841z"/></svg><span class="relative">${sec}s</span></button>`
         }
         <svg class="chevron w-3.5 h-3.5 text-sand-300 shrink-0" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M19 9l-7 7-7-7"/></svg>
       </summary>
@@ -1984,6 +2027,7 @@ function renderExerciseFull(exercises,dayNum){
 
 function renderToday(){
   const dn=getCurrentDayNum(),r=ROUTINES[getRoutineIndex(dn)],done=!!state.completed[dn];
+  const theme=getTheme();
   const checkedCount=r.exercises.filter((_,i)=>isExChecked(dn,i)).length;
   document.getElementById('todayCard').innerHTML=`
     <div class="flex items-center justify-between mb-3">
@@ -1996,12 +2040,12 @@ function renderToday(){
       </div>
       ${done
         ?'<span class="text-[10px] font-bold text-emerald-600 bg-emerald-50 border border-emerald-200 px-2 py-0.5 rounded-full uppercase tracking-wide">Done</span>'
-        :`<span class="text-[10px] font-bold text-claude-500 bg-claude-50 border border-claude-200 px-2 py-0.5 rounded-full uppercase tracking-wide">${checkedCount}/${r.exercises.length}</span>`}
+        :`<span class="text-[10px] font-bold ${theme.badge} border px-2 py-0.5 rounded-full uppercase tracking-wide">${checkedCount}/${r.exercises.length}</span>`}
     </div>
     <div class="space-y-2">${renderExerciseCompact(r.exercises,dn)}</div>
     <div class="flex items-center justify-between mt-3 px-1">
       <div class="text-[10px] text-sand-400">
-        <span class="font-semibold ${checkedCount>0?'text-claude-500':''}">Lost today: ${getTodayKcal()} kcal</span>
+        <span class="font-semibold ${checkedCount>0?theme.textLight:''}">Lost today: ${getTodayKcal()} kcal</span>
         <span class="mx-1">\u00b7</span>
         <span>Full workout: ~${getRoutineKcal(r)} kcal loss</span>
       </div>
@@ -2023,7 +2067,7 @@ function renderToday(){
           :(checkedCount===r.exercises.length
             ?`<button onclick="toggleDay(${dn})" class="w-full py-3 rounded-xl text-sm font-semibold bg-gradient-to-r from-emerald-500 to-emerald-600 text-white active:scale-95 transition-all shadow-sm">Complete Day \u2713</button>`
             :`<div class="flex gap-2">
-                <button onclick="startWorkout()" class="flex-1 py-3 rounded-xl text-sm font-semibold bg-gradient-to-r from-claude-500 to-claude-600 text-white active:scale-95 transition-all shadow-sm flex items-center justify-center gap-2">
+                <button onclick="startWorkout()" class="flex-1 py-3 rounded-xl text-sm font-semibold bg-gradient-to-r ${theme.btn} text-white active:scale-95 transition-all shadow-sm flex items-center justify-center gap-2">
                   <svg class="w-4 h-4" fill="currentColor" viewBox="0 0 20 20"><path d="M6.3 2.84A1.5 1.5 0 004 4.11v11.78a1.5 1.5 0 002.3 1.27l9.344-5.891a1.5 1.5 0 000-2.538L6.3 2.841z"/></svg>
                   Start Workout
                 </button>
@@ -2038,25 +2082,33 @@ function renderToday(){
 function renderWeek(){
   const grid=document.getElementById('dayGrid'),start=currentWeek*7+1,wn=currentWeek+1;
   document.getElementById('weekLabel').textContent=wn<=14?`Week ${wn}`:'Final';
-  const dc=['bg-claude-500','bg-fuchsia-400','bg-amber-500','bg-sky-500','bg-emerald-500'];
+  // Color themes per workout type
+  const dotColors=['bg-claude-500','bg-fuchsia-400','bg-amber-500','bg-sky-500','bg-emerald-500'];
+  const completedBg=[
+    'background:linear-gradient(135deg,#da7756,#c25a3a)', // Full Body - claude orange
+    'background:linear-gradient(135deg,#d946ef,#a21caf)',  // Lower Body - fuchsia/purple
+    'background:linear-gradient(135deg,#f59e0b,#d97706)',  // Core - amber/gold
+    'background:linear-gradient(135deg,#0ea5e9,#0284c7)',  // Upper Body - sky blue
+    'background:linear-gradient(135deg,#10b981,#059669)',   // Recovery - emerald green
+  ];
   const dayLabels=['S','M','T','W','T','F','S'];
   const startDate=new Date(state.startDate+'T00:00:00');
   let html='';
-  // Show actual day-of-week labels for this week's days
   for(let i=0;i<7;i++){
     var dayNum=start+i;
     if(dayNum>100){html+='<div></div>';continue}
-    var d=new Date(startDate);d.setDate(d.getDate()+dayNum-1);
-    html+=`<div class="text-center text-[9px] font-semibold text-sand-400">${dayLabels[d.getDay()]}</div>`;
+    var dd=new Date(startDate);dd.setDate(dd.getDate()+dayNum-1);
+    html+=`<div class="text-center text-[9px] font-semibold text-sand-400">${dayLabels[dd.getDay()]}</div>`;
   }
   for(let d=start;d<=start+6;d++){
     if(d>100){html+='<div></div>';continue}
     const done=!!state.completed[d],isT=d===getCurrentDayNum();
+    const ri=getRoutineIndex(d);
     html+=`<button onclick="openDayModal(${d})" class="day-btn relative flex flex-col items-center justify-center w-full aspect-square rounded-lg border ${
-      done?'completed':'border-sand-200 bg-white hover:border-claude-300'
-    } ${isT&&!done?'ring-2 ring-claude-300 ring-offset-1':''}">
+      done?'':'border-sand-200 bg-white hover:border-claude-300'
+    } ${isT&&!done?'ring-2 ring-claude-300 ring-offset-1':''}" ${done?'style="'+completedBg[ri]+';color:white;transform:scale(1.05);box-shadow:0 2px 8px rgba(0,0,0,0.15);border-color:transparent"':''}>
       <span class="text-xs font-semibold ${done?'text-white':'text-claude-700'}">${d}</span>
-      <span class="w-1 h-1 rounded-full mt-0.5 ${done?'bg-white/50':dc[getRoutineIndex(d)]}"></span>
+      <span class="w-1 h-1 rounded-full mt-0.5 ${done?'bg-white/50':dotColors[ri]}"></span>
     </button>`;
   }
   grid.innerHTML=html;
@@ -2072,8 +2124,9 @@ function routineThumbSvg(r){
 
 function renderRoutineCards(){
   const c=document.getElementById('routineCards'),ti=getRoutineIndex(getCurrentDayNum());
+  const todayTheme=ROUTINE_THEMES[ti];
   c.innerHTML=ROUTINES.map((r,i)=>`
-    <details class="bg-white rounded-2xl border ${i===ti?'border-claude-300 shadow-sm':'border-sand-200'} overflow-hidden">
+    <details class="bg-white rounded-2xl border ${i===ti?todayTheme.border+' shadow-sm':'border-sand-200'} overflow-hidden">
       <summary class="flex items-center gap-3 p-4 cursor-pointer select-none">
         <div class="w-10 h-10 rounded-xl bg-claude-50 flex items-center justify-center overflow-hidden shrink-0">${routineThumbSvg(r)}</div>
         <div class="flex-1 min-w-0">
