@@ -1340,24 +1340,34 @@ function renderActivityChart(){
     const key=dateStr(d);
     const dayNum=Math.floor((d-startD)/864e5)+1;
     const didWorkout=dayNum>=1&&dayNum<=100&&(!!state.completed[dayNum]||!!state.completed[String(dayNum)]);
+    // Count partial progress (checked exercises for this day)
+    var exChecked=0,exTotal=5;
+    if(dayNum>=1&&dayNum<=100){
+      var routine=ROUTINES[getRoutineIndex(dayNum)];
+      exTotal=routine.exercises.length;
+      exChecked=routine.exercises.filter(function(_,ei){return isExChecked(dayNum,ei)}).length;
+    }
+    var workoutPct=didWorkout?100:(exChecked/exTotal*100);
     const steps=getStepsForDate(key);
     const stepsPct=Math.min(100,steps/10000*100);
     const isToday=i===0;
     const dayLabel=['S','M','T','W','T','F','S'][d.getDay()];
 
-    var wPx=didWorkout?64:3;
+    var wPx=Math.max(3,Math.round(workoutPct*0.64));
     var sPx=Math.max(3,Math.round(stepsPct*0.64));
+    var wColor=didWorkout?'bg-claude-500':exChecked>0?'bg-claude-300':'bg-sand-100';
 
     html+=`<div class="flex-1 flex flex-col items-center gap-0.5">
       <div class="w-full flex gap-[2px] items-end h-16">
-        <div class="flex-1 rounded-sm ${didWorkout?'bg-claude-400':'bg-sand-100'}" style="height:${wPx}px"></div>
+        <div class="flex-1 rounded-sm ${wColor}" style="height:${wPx}px"></div>
         <div class="flex-1 rounded-sm ${steps>=10000?'bg-claude-600':steps>0?'bg-claude-200':'bg-sand-100'}" style="height:${sPx}px"></div>
       </div>
       <span class="text-[7px] ${isToday?'font-bold text-claude-600':'text-sand-400'}">${dayNum<=100?'D'+dayNum:''}</span>
     </div>`;
   }
   var legend=`<div class="flex items-center gap-3 mt-2 justify-center">
-    <div class="flex items-center gap-1"><div class="w-2 h-2 rounded-sm bg-claude-400"></div><span class="text-[9px] text-sand-400">Workout</span></div>
+    <div class="flex items-center gap-1"><div class="w-2 h-2 rounded-sm bg-claude-500"></div><span class="text-[9px] text-sand-400">Done</span></div>
+    <div class="flex items-center gap-1"><div class="w-2 h-2 rounded-sm bg-claude-300"></div><span class="text-[9px] text-sand-400">In progress</span></div>
     <div class="flex items-center gap-1"><div class="w-2 h-2 rounded-sm bg-claude-200"></div><span class="text-[9px] text-sand-400">Steps</span></div>
     <div class="flex items-center gap-1"><div class="w-2 h-2 rounded-sm bg-claude-600"></div><span class="text-[9px] text-sand-400">10k+</span></div>
   </div>`;
