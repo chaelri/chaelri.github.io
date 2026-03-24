@@ -1925,37 +1925,26 @@ function finishExEarly(dayNum,exIdx){
 
 function handleTimerClick(dayNum,exIdx,totalSec){
   if(audioCtx.state==='suspended')audioCtx.resume();
-  // If this exercise timer is running → pause
-  if(activeTimer&&activeTimer.day===dayNum&&activeTimer.ex===exIdx&&!activeTimer.paused){
+  // If a timer is currently running for THIS exercise → stop everything
+  if(activeTimer&&activeTimer.day===dayNum&&activeTimer.ex===exIdx){
     clearInterval(activeTimer.iv);
-    activeTimer.paused=true;
+    activeTimer=null;
     stopBgMelody();
-    speak('Paused.');
-    const btn=document.getElementById(`timer-${dayNum}-${exIdx}`);
-    if(btn){
-      btn.classList.remove('timer-active');
-      btn.innerHTML=`<span class="timer-fill" style="width:${activeTimer.pct}%"></span><svg class="w-3 h-3 relative" fill="currentColor" viewBox="0 0 20 20"><path d="M6.3 2.84A1.5 1.5 0 004 4.11v11.78a1.5 1.5 0 002.3 1.27l9.344-5.891a1.5 1.5 0 000-2.538L6.3 2.841z"/></svg><span class="relative">${activeTimer.remaining}s</span>`;
-    }
+    if(workoutFlow){workoutFlow=null}
+    speak('Stopped.');
+    renderToday();
     return;
   }
-  // If this exercise timer is paused → resume
-  if(activeTimer&&activeTimer.day===dayNum&&activeTimer.ex===exIdx&&activeTimer.paused){
-    activeTimer.paused=false;
-    speak('Resuming.');
-    sfxStart();
-    const btn=document.getElementById(`timer-${dayNum}-${exIdx}`);
-    if(btn){
-      btn.classList.add('timer-active');
-      btn.innerHTML=`<span class="timer-fill" style="width:${activeTimer.pct}%"></span><span class="relative">${activeTimer.remaining}s</span>`;
-    }
-    resumeExTimer();
-    return;
+  // If a different timer is running → stop it first
+  if(activeTimer){
+    clearInterval(activeTimer.iv);
+    activeTimer=null;
+    stopBgMelody();
+    if(workoutFlow){workoutFlow=null}
   }
-  // Otherwise start fresh
-  // Auto-open the details panel for this exercise
+  // Start this exercise fresh
   const details=document.querySelectorAll('#todayCard details');
   if(details[exIdx])details[exIdx].open=true;
-  // Announce the exercise
   const r=ROUTINES[getRoutineIndex(dayNum)];
   speak(`Starting ${r.exercises[exIdx].name}. ${totalSec} seconds.`);
   startExTimer(dayNum,exIdx,totalSec);
@@ -2186,8 +2175,7 @@ function renderExerciseCompact(exercises,dayNum){
     const svg=e.p2?exSvg(e.p1,e.p2):(e.p1?exSvg(e.p1):'');
     const sec=parseSec(e.sets);
     const isRunning=activeTimer&&activeTimer.day===dayNum&&activeTimer.ex===i&&!activeTimer.paused;
-    const isPaused=activeTimer&&activeTimer.day===dayNum&&activeTimer.ex===i&&activeTimer.paused;
-    return `<details class="rounded-xl overflow-hidden transition-all ${isRunning?'border border-sand-200 bg-white shadow-sm':checked?'border border-sand-100 bg-sand-50/50 opacity-50':'border border-sand-100'}" ${isRunning||isPaused?'open':''}>
+    return `<details class="rounded-xl overflow-hidden transition-all ${isRunning?'border border-sand-200 bg-white shadow-sm':checked?'border border-sand-100 bg-sand-50/50 opacity-50':'border border-sand-100'}" ${isRunning?'open':''}>
       <summary class="flex items-center gap-2.5 p-2.5 cursor-pointer select-none">
         ${isRunning
           ?`<span onclick="event.stopPropagation();finishExEarly(${dayNum},${i})" class="w-5 h-5 rounded-full bg-claude-500 shrink-0 flex items-center justify-center cursor-pointer hover:bg-emerald-500 transition-colors" title="Finish early"><span class="w-1.5 h-1.5 bg-white rounded-full animate-pulse"></span></span>`
