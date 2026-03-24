@@ -1134,8 +1134,8 @@ function toggleExCheck(dayNum,exIdx){
     state.completed[dayNum]=todayStr();saveState();
     sfxDayComplete();
     celebrateDay();
-    render();
   }
+  render(); // always full re-render to update chart, stats, kcal
 }
 
 // ── Rendering ─────────────────────────────────────────
@@ -1616,6 +1616,20 @@ const VOICE_START=[
 ];
 
 // Mid-workout form cues per exercise name
+// No-repeat cue picker — tracks recently used cues per exercise
+var _usedCues={};
+function pickCue(exerciseName){
+  var pool=(FORM_CUES[exerciseName]||[]).concat(FORM_GENERIC);
+  if(!_usedCues[exerciseName])_usedCues[exerciseName]=[];
+  // Filter out recently used
+  var available=pool.filter(function(c){return _usedCues[exerciseName].indexOf(c)===-1});
+  // If all used, reset
+  if(available.length===0){_usedCues[exerciseName]=[];available=pool}
+  var pick=available[Math.floor(Math.random()*available.length)];
+  _usedCues[exerciseName].push(pick);
+  return pick;
+}
+
 const FORM_CUES={
   'Kettlebell Swing':[
     'Drive those hips! Arms stay loose.',
@@ -1757,6 +1771,11 @@ const FORM_GENERIC=[
   'Nice and controlled.',
   'Keep going, {name}. Strong.',
   'Halfway there. Stay focused.',
+  'You\'re doing amazing.',
+  'Feel the burn? That means it\'s working.',
+  'Stay with it, {name}.',
+  'Almost there. Push through.',
+  'Great rhythm. Keep it up.',
 ];
 
 // Google Cloud TTS (same as devo app)
@@ -1924,26 +1943,20 @@ function startExTimer(dayNum,exIdx,totalSec,autoNext){
 
     if(rem===halfwayMark){
       if(needsSwitch){
-        // Switch sides! Visual + sound + TTS
         playTone(880,0.1,0,'sine',0.3);playTone(1100,0.1,0.1,'sine',0.3);
         vibrate([100,50,100]);
         speak('Switch sides now!');
-        // Show visual overlay
         var switchEl=document.createElement('div');
         switchEl.className='fixed inset-0 z-40 flex items-center justify-center pointer-events-none';
         switchEl.innerHTML='<div class="bg-claude-600 text-white px-6 py-3 rounded-2xl text-lg font-bold shadow-xl" style="animation:fadeUp .4s ease">Switch Sides!</div>';
         document.body.appendChild(switchEl);
         setTimeout(function(){switchEl.remove()},2000);
       }else{
-        var eName=exData.name;
-        var cues=FORM_CUES[eName]||FORM_GENERIC;
-        speak(cues[Math.floor(Math.random()*cues.length)]);
+        speak(pickCue(exData.name));
       }
     }
     if(rem===lateCheck){
-      var eName2=exData.name;
-      var cues2=FORM_CUES[eName2]||FORM_GENERIC;
-      speak(cues2[Math.floor(Math.random()*cues2.length)]);
+      speak(pickCue(exData.name));
     }
     b.innerHTML=`<span class="timer-fill" style="width:${activeTimer.pct}%"></span><span class="relative">${rem>0?rem+'s':'\u2713'}</span>`;
     if(rem<=0){
@@ -1963,12 +1976,29 @@ function startExTimer(dayNum,exIdx,totalSec,autoNext){
         exName+' done! Strong, {name}!',
       ];
       speak(phrases[Math.floor(Math.random()*phrases.length)]);
-      if(!isExChecked(dayNum,exIdx)){toggleExCheck(dayNum,exIdx)}
+      // Mark exercise done without triggering celebration (auto mode handles it)
+      if(!isExChecked(dayNum,exIdx)){
+        state.exerciseChecks[getExKey(dayNum,exIdx)]=true;
+        saveState();
+      }
       if(autoNext!==undefined&&workoutFlow){
         const r=ROUTINES[getRoutineIndex(dayNum)];
-        if(autoNext<r.exercises.length){startRestTimer(dayNum,autoNext)}
-        else{workoutFlow=null;renderToday();celebrateDay()}
-      }else{renderToday()}
+        if(autoNext<r.exercises.length){
+          renderToday();renderStats();
+          startRestTimer(dayNum,autoNext);
+        }else{
+          // All exercises done — complete the day
+          var allDone=r.exercises.every(function(_,i){return isExChecked(dayNum,i)});
+          if(allDone&&!state.completed[dayNum]){
+            state.completed[dayNum]=todayStr();saveState();
+          }
+          workoutFlow=null;
+          render();
+          celebrateDay();
+        }
+      }else{
+        render();
+      }
     }
   }
   activeTimer.iv=setInterval(tick,1000);
