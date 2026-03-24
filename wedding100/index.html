@@ -1242,12 +1242,15 @@ function renderStats(){
   // Total Kcal Lost (all completed workout days + all steps ever)
   var totalWorkoutCal=0;
   Object.keys(state.completed).forEach(function(dayNum){
-    var ri=getRoutineIndex(parseInt(dayNum));
+    var dn=parseInt(dayNum);
+    if(isNaN(dn)||dn<1||dn>100)return;
+    var ri=getRoutineIndex(dn);
+    if(!ROUTINES[ri])return;
     var routineKcal=getRoutineKcal(ROUTINES[ri]);
     var bonus=(state.bonusRounds&&state.bonusRounds[dayNum])||0;
     totalWorkoutCal+=routineKcal*(1+bonus);
   });
-  var totalStepsCal=Object.values(state.steps).reduce(function(a,v){return a+Math.round(v*0.04)},0);
+  var totalStepsCal=Object.keys(state.steps).reduce(function(a,k){return a+Math.round(getStepsForDate(k)*0.04)},0);
   var totalCal=totalWorkoutCal+totalStepsCal;
   document.getElementById('statTotalCal').textContent=totalCal>=1000?(totalCal/1000).toFixed(1)+'k':totalCal;
   const avg=getAvgSteps();
@@ -1346,21 +1349,24 @@ function renderActivityChart(){
     const wH=didWorkout?100:0;
     const sH=Math.max(4,stepsPct);
 
+    // Use fixed pixel heights instead of percentages
+    var wPx=didWorkout?64:3;
+    var sPx=Math.max(3,Math.round(stepsPct*0.64));
+
     html+=`<div class="flex-1 flex flex-col items-center gap-0.5">
-      <div class="w-full flex gap-[2px] items-end" style="height:100%">
-        <div class="flex-1 rounded-sm ${didWorkout?wColors[ri]:'bg-sand-100'}" style="height:${Math.max(4,wH)}%"></div>
-        <div class="flex-1 rounded-sm ${steps>=10000?'bg-emerald-400':steps>0?'bg-sand-300':'bg-sand-100'}" style="height:${sH}%"></div>
+      <div class="w-full flex gap-[2px] items-end h-16">
+        <div class="flex-1 rounded-sm ${didWorkout?wColors[ri]:'bg-sand-100'}" style="height:${wPx}px"></div>
+        <div class="flex-1 rounded-sm ${steps>=10000?'bg-emerald-400':steps>0?'bg-sand-300':'bg-sand-100'}" style="height:${sPx}px"></div>
       </div>
       <span class="text-[7px] ${isToday?'font-bold text-claude-600':'text-sand-400'}">${dayNum<=100?'D'+dayNum:''}</span>
     </div>`;
   }
-  // Legend
-  html+=`</div><div class="flex items-center gap-3 mt-2 justify-center">
+  var legend=`<div class="flex items-center gap-3 mt-2 justify-center">
     <div class="flex items-center gap-1"><div class="w-2 h-2 rounded-sm bg-claude-400"></div><span class="text-[9px] text-sand-400">Workout</span></div>
     <div class="flex items-center gap-1"><div class="w-2 h-2 rounded-sm bg-sand-300"></div><span class="text-[9px] text-sand-400">Steps</span></div>
     <div class="flex items-center gap-1"><div class="w-2 h-2 rounded-sm bg-emerald-400"></div><span class="text-[9px] text-sand-400">10k+</span></div>
   </div>`;
-  chart.innerHTML='<div class="flex items-end gap-[3px] h-20">'+html;
+  chart.innerHTML='<div class="flex items-end gap-[3px]">'+html+'</div>'+legend;
 }
 
 function parseSec(sets){const m=sets.match(/(\d+)\s*sec/);return m?parseInt(m[1]):45}
@@ -2034,8 +2040,8 @@ function renderToday(){
       <div class="flex items-center gap-2.5">
         <div class="w-10 h-10 rounded-xl bg-claude-50 flex items-center justify-center overflow-hidden shrink-0">${routineThumbSvg(r)}</div>
         <div>
-          <p class="font-semibold text-claude-800">${r.name}</p>
-          <p class="text-xs text-sand-400">Day ${dn} \u00b7 ${r.duration}</p>
+          <p class="font-semibold ${theme.text}">${r.name}</p>
+          <p class="text-xs ${theme.textLight}">Day ${dn} \u00b7 ${r.duration}</p>
         </div>
       </div>
       ${done
