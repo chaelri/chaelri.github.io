@@ -381,11 +381,11 @@
         <div class="grid grid-cols-2 gap-2 mb-4">
           <div class="bg-white rounded-xl border border-sand-200 p-2.5 text-center">
             <p id="statTodayCal" class="text-lg font-serif text-claude-600">0</p>
-            <p class="text-[9px] text-sand-400 font-medium uppercase tracking-wider">Today kcal</p>
+            <p class="text-[9px] text-sand-400 font-medium uppercase tracking-wider">Kcal Today</p>
           </div>
           <div class="bg-white rounded-xl border border-sand-200 p-2.5 text-center">
             <p id="statTotalCal" class="text-lg font-serif text-claude-600">0</p>
-            <p class="text-[9px] text-sand-400 font-medium uppercase tracking-wider">Total kcal</p>
+            <p class="text-[9px] text-sand-400 font-medium uppercase tracking-wider">Total Kcal</p>
           </div>
         </div>
 
@@ -1220,7 +1220,7 @@ function renderStats(){
   var todayCal=getTodayKcal();
   var todayStepsKcal=Math.round((state.steps[todayStr()]||0)*0.04);
   document.getElementById('statTodayCal').textContent=todayCal+todayStepsKcal;
-  // Total kcal (all completed workout days + all steps ever)
+  // Total Kcal (all completed workout days + all steps ever)
   var totalWorkoutCal=0;
   Object.keys(state.completed).forEach(function(dayNum){
     var ri=getRoutineIndex(parseInt(dayNum));
