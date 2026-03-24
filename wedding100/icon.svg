@@ -1,0 +1,30 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 512 512">
+  <defs>
+    <linearGradient id="bg" x1="0%" y1="0%" x2="100%" y2="100%">
+      <stop offset="0%" stop-color="#fdeedd"/>
+      <stop offset="100%" stop-color="#fadcb8"/>
+    </linearGradient>
+    <linearGradient id="kb" x1="0%" y1="0%" x2="100%" y2="100%">
+      <stop offset="0%" stop-color="#da7756"/>
+      <stop offset="100%" stop-color="#c25a3a"/>
+    </linearGradient>
+  </defs>
+  <!-- Background -->
+  <rect width="512" height="512" rx="112" fill="url(#bg)"/>
+  <!-- Stick figure - swing top pose (KB overhead, arms up) -->
+  <!-- Head -->
+  <circle cx="256" cy="108" r="28" fill="#fef7f0" stroke="#83382c" stroke-width="10"/>
+  <!-- Torso -->
+  <line x1="256" y1="136" x2="256" y2="300" stroke="#83382c" stroke-width="12" stroke-linecap="round"/>
+  <!-- Left arm (reaching up) -->
+  <line x1="256" y1="170" x2="190" y2="100" stroke="#83382c" stroke-width="10" stroke-linecap="round"/>
+  <!-- Right arm (reaching up) -->
+  <line x1="256" y1="170" x2="322" y2="100" stroke="#83382c" stroke-width="10" stroke-linecap="round"/>
+  <!-- Left leg -->
+  <line x1="256" y1="300" x2="196" y2="430" stroke="#83382c" stroke-width="10" stroke-linecap="round"/>
+  <!-- Right leg -->
+  <line x1="256" y1="300" x2="316" y2="430" stroke="#83382c" stroke-width="10" stroke-linecap="round"/>
+  <!-- Kettlebell (above hands) -->
+  <circle cx="256" cy="68" r="24" fill="url(#kb)"/>
+  <path d="M240,52 Q256,26 272,52" stroke="url(#kb)" fill="none" stroke-width="8" stroke-linecap="round"/>
+</svg>
