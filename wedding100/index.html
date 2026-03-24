@@ -1581,13 +1581,14 @@ function sfxTick(){
 }
 
 // Exercise complete — ascending two-note chime
-// Escalating exercise complete sound — higher pitch with each one
+// Escalating exercise complete sound — pitch based on how many are checked
 // Like Valorant kill feed: first kill → double → triple → quadra → ACE
-var _exerciseKillCount=0;
 
 function sfxExerciseDone(){
-  _exerciseKillCount++;
-  var k=_exerciseKillCount;
+  // Count how many exercises are currently checked for today
+  var dn=getCurrentDayNum();
+  var r=ROUTINES[getRoutineIndex(dn)];
+  var k=r.exercises.filter(function(_,i){return isExChecked(dn,i)}).length;
 
   // Base frequencies escalate with each completion
   // 1st: C5 chord (normal)
@@ -1620,8 +1621,6 @@ function sfxExerciseDone(){
   vibrate(s.vib);
 }
 
-// Reset kill count when starting a new workout or new day
-function resetKillCount(){_exerciseKillCount=0}
 
 // Rest start — gentle low tone
 function sfxRestStart(){
@@ -2114,7 +2113,6 @@ function skipRest(){
 // ── Start Full Workout Flow ───────────────────────────
 function startWorkout(){
   if(audioCtx.state==='suspended')audioCtx.resume();
-  resetKillCount();
   sfxStart();
   const dn=getCurrentDayNum();
   const r=ROUTINES[getRoutineIndex(dn)];
@@ -2358,7 +2356,6 @@ function toggleDay(dn){
 
 // Go Again: reset checks, start another round, track bonus
 function goAgain(){
-  resetKillCount();
   var dn=getCurrentDayNum();
   if(!state.bonusRounds)state.bonusRounds={};
   state.bonusRounds[dn]=(state.bonusRounds[dn]||0)+1;
