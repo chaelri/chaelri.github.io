@@ -381,11 +381,11 @@
         <div class="grid grid-cols-2 gap-2 mb-4">
           <div class="bg-white rounded-xl border border-sand-200 p-2.5 text-center">
             <p id="statTodayCal" class="text-lg font-serif text-claude-600">0</p>
-            <p class="text-[9px] text-sand-400 font-medium uppercase tracking-wider">Kcal Today</p>
+            <p class="text-[9px] text-sand-400 font-medium uppercase tracking-wider">Kcal Lost Today</p>
           </div>
           <div class="bg-white rounded-xl border border-sand-200 p-2.5 text-center">
             <p id="statTotalCal" class="text-lg font-serif text-claude-600">0</p>
-            <p class="text-[9px] text-sand-400 font-medium uppercase tracking-wider">Total Kcal</p>
+            <p class="text-[9px] text-sand-400 font-medium uppercase tracking-wider">Total Kcal Lost</p>
           </div>
         </div>
 
@@ -1220,7 +1220,7 @@ function renderStats(){
   var todayCal=getTodayKcal();
   var todayStepsKcal=Math.round((state.steps[todayStr()]||0)*0.04);
   document.getElementById('statTodayCal').textContent=todayCal+todayStepsKcal;
-  // Total Kcal (all completed workout days + all steps ever)
+  // Total Kcal Lost (all completed workout days + all steps ever)
   var totalWorkoutCal=0;
   Object.keys(state.completed).forEach(function(dayNum){
     var ri=getRoutineIndex(parseInt(dayNum));
@@ -1927,7 +1927,7 @@ function celebrateDay(){
       {h:[25,12],s:[25,20],p:[25,48],lh:[10,6],rh:[40,6],lf:[19,74],rf:[31,74],kb:[25,2]}
     )}</svg>
     <p class="font-serif text-2xl text-claude-700">Day Complete!</p>
-    <p class="text-claude-500 text-sm mt-1 font-semibold">~${getTodayKcal()} kcal burned</p>
+    <p class="text-claude-500 text-sm mt-1 font-semibold">~${getTodayKcal()} kcal lost</p>
     <p class="text-claude-400 text-xs mt-1">Great work, ${userName||'champ'}</p>
   </div>`;
   document.body.appendChild(el);
@@ -2001,9 +2001,9 @@ function renderToday(){
     <div class="space-y-2">${renderExerciseCompact(r.exercises,dn)}</div>
     <div class="flex items-center justify-between mt-3 px-1">
       <div class="text-[10px] text-sand-400">
-        <span class="font-semibold ${checkedCount>0?'text-claude-500':''}">Today: ${getTodayKcal()} kcal</span>
+        <span class="font-semibold ${checkedCount>0?'text-claude-500':''}">Lost today: ${getTodayKcal()} kcal</span>
         <span class="mx-1">\u00b7</span>
-        <span>Full workout: ${getRoutineKcal(r)} kcal</span>
+        <span>Full workout: ~${getRoutineKcal(r)} kcal loss</span>
       </div>
     </div>
     <div class="mt-3 pt-3 border-t border-sand-100">
