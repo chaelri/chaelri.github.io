@@ -1433,6 +1433,60 @@ function playTone(freq,dur,delay=0,type='sine',vol=0.3){
 function vibrate(pattern){if(navigator.vibrate)navigator.vibrate(pattern)}
 
 // Exercise start — energetic ascending whistle
+// ── Workout Background Melody ─────────────────────────
+// Chill looping pentatonic melody using Web Audio API
+var bgMelody={iv:null,playing:false};
+
+function startBgMelody(){
+  if(bgMelody.playing)return;
+  bgMelody.playing=true;
+
+  // Pentatonic scale notes (C major pentatonic, octave 4-5) — chill and positive
+  var notes=[261.6,293.7,329.6,392.0,440.0,523.3,587.3,659.3];
+  var beatDur=0.4; // seconds per note
+  var vol=0.06; // very soft background
+
+  function playNote(){
+    if(!bgMelody.playing)return;
+    var freq=notes[Math.floor(Math.random()*notes.length)];
+    var t=audioCtx.currentTime;
+
+    // Main note — soft sine
+    var o=audioCtx.createOscillator();
+    var g=audioCtx.createGain();
+    o.connect(g);g.connect(audioCtx.destination);
+    o.frequency.value=freq;
+    o.type='sine';
+    g.gain.setValueAtTime(vol,t);
+    g.gain.exponentialRampToValueAtTime(0.001,t+beatDur*0.9);
+    o.start(t);o.stop(t+beatDur);
+
+    // Harmony — octave below, even softer
+    if(Math.random()>0.5){
+      var o2=audioCtx.createOscillator();
+      var g2=audioCtx.createGain();
+      o2.connect(g2);g2.connect(audioCtx.destination);
+      o2.frequency.value=freq/2;
+      o2.type='triangle';
+      g2.gain.setValueAtTime(vol*0.4,t);
+      g2.gain.exponentialRampToValueAtTime(0.001,t+beatDur*0.8);
+      o2.start(t);o2.stop(t+beatDur);
+    }
+  }
+
+  // Play a note every beat
+  playNote();
+  bgMelody.iv=setInterval(function(){
+    if(!bgMelody.playing){clearInterval(bgMelody.iv);bgMelody.iv=null;return}
+    playNote();
+  },beatDur*1000);
+}
+
+function stopBgMelody(){
+  bgMelody.playing=false;
+  if(bgMelody.iv){clearInterval(bgMelody.iv);bgMelody.iv=null}
+}
+
 function sfxStart(){
   playTone(330,0.1,0,'sine',0.2);       // E4
   playTone(440,0.1,0.08,'sine',0.25);   // A4
@@ -1718,6 +1772,7 @@ let activeTimer=null;
 let workoutFlow=null; // for auto-flow mode
 
 function stopTimer(){
+  stopBgMelody();
   if(activeTimer){clearInterval(activeTimer.iv);activeTimer=null}
   if(workoutFlow){workoutFlow=null}
   renderToday();
@@ -1741,6 +1796,7 @@ function handleTimerClick(dayNum,exIdx,totalSec){
   if(activeTimer&&activeTimer.day===dayNum&&activeTimer.ex===exIdx&&!activeTimer.paused){
     clearInterval(activeTimer.iv);
     activeTimer.paused=true;
+    stopBgMelody();
     speak('Paused.');
     const btn=document.getElementById(`timer-${dayNum}-${exIdx}`);
     if(btn){
@@ -1775,6 +1831,7 @@ function handleTimerClick(dayNum,exIdx,totalSec){
 function startExTimer(dayNum,exIdx,totalSec,autoNext){
   if(audioCtx.state==='suspended')audioCtx.resume();
   sfxStart();
+  startBgMelody();
   if(activeTimer&&!activeTimer.paused){clearInterval(activeTimer.iv);activeTimer=null}
   let remaining=totalSec;
 
@@ -1824,6 +1881,7 @@ function startExTimer(dayNum,exIdx,totalSec,autoNext){
       b.classList.remove('timer-active');
       b.innerHTML='\u2713 Done';
       b.className=b.className.replace('from-claude-500 to-claude-600','from-emerald-500 to-emerald-600');
+      stopBgMelody();
       sfxExerciseDone();
       fireSmallConfetti();
       var exName=ROUTINES[getRoutineIndex(dayNum)].exercises[exIdx].name;
@@ -1850,6 +1908,7 @@ function startExTimer(dayNum,exIdx,totalSec,autoNext){
 function resumeExTimer(){
   if(!activeTimer||!activeTimer.paused)return;
   activeTimer.paused=false;
+  startBgMelody();
   activeTimer.iv=setInterval(activeTimer._tick,1000);
 }
 
@@ -2355,7 +2414,7 @@ function switchToUser(name){
   },800);
 
   // ── Phase 3: Circle wipe OUT + switch data ─────────
-  var wipeOutTime=fromCharlie?2600:3200;
+  var wipeOutTime=fromCharlie?3800:4400; // extra time to show new user working out
   setTimeout(function(){
     overlay.style.clipPath='circle(0% at 50% 40%)';
     if(dbRef)dbRef.off();
