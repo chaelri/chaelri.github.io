@@ -70,13 +70,20 @@
     @keyframes coachFadeIn{0%{opacity:0}100%{opacity:1}}
     @keyframes coachFadeOut{0%{opacity:1}100%{opacity:0}}
     @keyframes coachFullBody{0%,30%{opacity:1}40%,70%{opacity:0}80%,100%{opacity:1}}
+    /* Switch user animations */
+    @keyframes slideOutLeft{0%{transform:translateX(0)}100%{transform:translateX(-120%)}}
+    @keyframes slideOutRight{0%{transform:translateX(0)}100%{transform:translateX(120%)}}
+    @keyframes slideInLeft{0%{transform:translateX(-120%)}100%{transform:translateX(0)}}
+    @keyframes slideInRight{0%{transform:translateX(120%)}100%{transform:translateX(0)}}
+    @keyframes kickIn{0%{transform:translateX(120%) scale(1.2)}50%{transform:translateX(-10%) scale(1.1)}100%{transform:translateX(0) scale(1)}}
+    @keyframes gentleLead{0%{transform:translateX(-120%)}60%{transform:translateX(5%)}100%{transform:translateX(0)}}
     @keyframes coachZoomedFace{0%,30%{opacity:0}40%,70%{opacity:1}80%,100%{opacity:0}}
     @keyframes confettiFall{0%{transform:translateY(-100vh) rotate(0deg);opacity:1}80%{opacity:1}100%{transform:translateY(100vh) rotate(720deg);opacity:0}}
     @keyframes confettiBurst{0%{transform:translate(0,0) rotate(0deg) scale(1);opacity:1}100%{transform:translate(var(--cx),var(--cy)) rotate(var(--cr)) scale(0);opacity:0}}
     .how-to ol{list-style:none;counter-reset:step;padding:0;margin:0}
     .how-to li{counter-increment:step;display:flex;gap:6px;margin-bottom:4px}
     .how-to li:last-child{margin-bottom:0}
-    .how-to li::before{content:counter(step);font-size:9px;font-weight:700;color:var(--how-accent,#da7756);background:var(--how-bg,#fdeedd);width:16px;height:16px;border-radius:50%;display:flex;align-items:center;justify-content:center;flex-shrink:0;margin-top:1px}
+    .how-to li::before{content:counter(step);font-size:9px;font-weight:700;color:var(--how-accent,#da7756);background:var(--how-num-bg,#fadcb8);width:18px;height:18px;border-radius:6px;display:flex;align-items:center;justify-content:center;flex-shrink:0;margin-top:2px}
     .steps-fill{transition:width .4s cubic-bezier(.4,0,.2,1)}
     .exercise-svg{width:80px;height:auto;flex-shrink:0;display:block;margin:0 auto}
     .check-ex{-webkit-appearance:none;appearance:none;width:20px;height:20px;border:2px solid #e4ded4;border-radius:50%;cursor:pointer;position:relative;flex-shrink:0;transition:all .2s ease}
@@ -1994,7 +2001,7 @@ function renderExerciseCompact(exercises,dayNum){
       </summary>
       <div class="px-3 pb-3 pt-1 bg-sand-50/50">
         ${svg?`<div class="flex justify-center mb-2">${svg}</div>`:''}
-        <div class="how-to rounded-lg px-3 py-2 text-xs text-claude-700 leading-relaxed" style="border-left-color:${getTheme().accentBorder};background:${getTheme().accentLight};--how-accent:${getTheme().accent};--how-bg:${getTheme().accentLight}">${e.howTo}</div>
+        <div class="how-to rounded-lg px-3 py-2 text-xs text-claude-700 leading-relaxed" style="border-left-color:${getTheme().accentBorder};background:${getTheme().accentLight};--how-accent:${getTheme().accent};--how-num-bg:${getTheme().accentBorder}">${e.howTo}</div>
       </div>
     </details>`;
   }).join('');
@@ -2011,7 +2018,7 @@ function renderExerciseFull(exercises,dayNum){
         <div class="flex-1">
           <p class="font-semibold text-claude-800 ${checked?'line-through opacity-50':''}">${e.name} <span class="font-normal text-sand-400">\u2014 ${e.sets}</span> <span class="text-[10px] text-claude-400">${getExKcal(e.name)} kcal</span></p>
           <div class="my-2 flex justify-center">${svg}</div>
-          <div class="how-to rounded-lg px-3 py-2 text-xs text-claude-700 leading-relaxed" style="border-left-color:${getTheme().accentBorder};background:${getTheme().accentLight};--how-accent:${getTheme().accent};--how-bg:${getTheme().accentLight}">${e.howTo}</div>
+          <div class="how-to rounded-lg px-3 py-2 text-xs text-claude-700 leading-relaxed" style="border-left-color:${getTheme().accentBorder};background:${getTheme().accentLight};--how-accent:${getTheme().accent};--how-num-bg:${getTheme().accentBorder}">${e.howTo}</div>
         </div>
       </div>
     </div>`;
@@ -2110,7 +2117,7 @@ function routineThumbSvg(r){
 
 function renderRoutineCards(){
   const c=document.getElementById('routineCards'),ti=getRoutineIndex(getCurrentDayNum());
-  const todayTheme=ROUTINE_THEMES[ti];
+  const todayTheme=getTheme();
   c.innerHTML=ROUTINES.map((r,i)=>`
     <details class="bg-white rounded-2xl border ${i===ti?todayTheme.border+' shadow-sm':'border-sand-200'} overflow-hidden">
       <summary class="flex items-center gap-3 p-4 cursor-pointer select-none">
@@ -2216,13 +2223,68 @@ function previewVoice(voiceName){
 
 function switchToUser(name){
   if(name===userName){closeSettings();return}
-  if(dbRef)dbRef.off();
-  userName=name;
-  localStorage.setItem('wedding100_name',userName);
-  state=loadState();
-  initFirebase();
   closeSettings();
-  render();
+  var fromCharlie=userName==='Charlie';
+  var toCharlie=name==='Charlie';
+  // Build the animated overlay
+  var overlay=document.createElement('div');
+  overlay.style.cssText='position:fixed;inset:0;z-index:200;background:linear-gradient(135deg,#83382c 0%,#a24430 40%,#c25a3a 100%);display:flex;align-items:center;justify-content:center;clip-path:circle(0% at 50% 50%);transition:clip-path .6s cubic-bezier(.77,0,.18,1)';
+  // Charlie SVG (goblet squat)
+  var charlieSvg='<svg viewBox="-4 -6 58 90" style="width:80px;height:100px;filter:brightness(1.8)" xmlns="http://www.w3.org/2000/svg"><circle cx="25" r="5" fill="#fef7f0" stroke="#83382c" stroke-width="2"><animate attributeName="cy" values="12;24;12" dur="2s" repeatCount="indefinite"/></circle><line x1="25" x2="25" stroke="#83382c" stroke-width="2.5" stroke-linecap="round"><animate attributeName="y1" values="20;32;20" dur="2s" repeatCount="indefinite"/><animate attributeName="y2" values="48;50;48" dur="2s" repeatCount="indefinite"/></line><line x1="25" stroke="#83382c" stroke-width="2" stroke-linecap="round"><animate attributeName="y1" values="26;36;26" dur="2s" repeatCount="indefinite"/><animate attributeName="x2" values="20;22;20" dur="2s" repeatCount="indefinite"/><animate attributeName="y2" values="28;40;28" dur="2s" repeatCount="indefinite"/></line><line x1="25" stroke="#83382c" stroke-width="2" stroke-linecap="round"><animate attributeName="y1" values="26;36;26" dur="2s" repeatCount="indefinite"/><animate attributeName="x2" values="30;28;30" dur="2s" repeatCount="indefinite"/><animate attributeName="y2" values="28;40;28" dur="2s" repeatCount="indefinite"/></line><polyline fill="none" stroke="#83382c" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><animate attributeName="points" values="25,48 19,58 19,74;25,50 15,60 12,72;25,48 19,58 19,74" dur="2s" repeatCount="indefinite"/></polyline><polyline fill="none" stroke="#83382c" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><animate attributeName="points" values="25,48 31,58 31,74;25,50 35,60 38,72;25,48 31,58 31,74" dur="2s" repeatCount="indefinite"/></polyline><circle r="3.5" fill="#c25a3a" opacity="0.85"><animate attributeName="cx" values="25;26;25" dur="2s" repeatCount="indefinite"/><animate attributeName="cy" values="32;44;32" dur="2s" repeatCount="indefinite"/></circle></svg>';
+  // Karla SVG (KB press with hair)
+  var karlaSvg='<svg viewBox="-4 -6 58 90" style="width:80px;height:100px;filter:brightness(1.8)" xmlns="http://www.w3.org/2000/svg"><circle cx="25" cy="12" r="5" fill="#fef7f0" stroke="#83382c" stroke-width="2"/><path d="M19,10 Q19,4 25,4 Q31,4 31,10" stroke="#83382c" stroke-width="1.5" fill="none"/><line x1="19" y1="10" x2="17" y2="18" stroke="#83382c" stroke-width="1.5" stroke-linecap="round"/><line x1="31" y1="10" x2="33" y2="18" stroke="#83382c" stroke-width="1.5" stroke-linecap="round"/><line x1="25" y1="20" x2="25" y2="48" stroke="#83382c" stroke-width="2" stroke-linecap="round"/><line x1="25" y1="26" x2="14" y2="36" stroke="#83382c" stroke-width="1.8" stroke-linecap="round"/><line x1="25" y1="26" stroke="#83382c" stroke-width="1.8" stroke-linecap="round"><animate attributeName="x2" values="34;36;34" dur="1.8s" repeatCount="indefinite"/><animate attributeName="y2" values="20;4;20" dur="1.8s" repeatCount="indefinite"/></line><line x1="25" y1="48" x2="17" y2="74" stroke="#83382c" stroke-width="1.8" stroke-linecap="round"/><line x1="25" y1="48" x2="33" y2="74" stroke="#83382c" stroke-width="1.8" stroke-linecap="round"/><circle r="3.5" fill="#c25a3a" opacity="0.85"><animate attributeName="cx" values="35;37;35" dur="1.8s" repeatCount="indefinite"/><animate attributeName="cy" values="17;0;17" dur="1.8s" repeatCount="indefinite"/></circle><path stroke="#c25a3a" fill="none" stroke-width="1.3"><animate attributeName="d" values="M32.5,14 Q35,9.5 37.5,14;M34.5,-3 Q37,-7.5 39.5,-3;M32.5,14 Q35,9.5 37.5,14" dur="1.8s" repeatCount="indefinite"/></path></svg>';
+
+  var outgoing=document.createElement('div');
+  outgoing.style.cssText='position:absolute;transition:transform .6s cubic-bezier(.4,0,.2,1)';
+  outgoing.innerHTML=fromCharlie?charlieSvg:karlaSvg;
+
+  var incoming=document.createElement('div');
+  incoming.style.cssText='position:absolute;transform:translateX('+(toCharlie?'-120%':'120%')+')';
+  incoming.innerHTML=toCharlie?charlieSvg:karlaSvg;
+
+  var nameLabel=document.createElement('p');
+  nameLabel.style.cssText='position:absolute;bottom:25%;font-family:DM Serif Display,serif;font-size:24px;color:#fdeedd;opacity:0;transition:opacity .4s ease';
+  nameLabel.textContent=name;
+
+  overlay.appendChild(outgoing);
+  overlay.appendChild(incoming);
+  overlay.appendChild(nameLabel);
+  document.body.appendChild(overlay);
+
+  // Phase 1: Circle wipe in
+  requestAnimationFrame(function(){
+    overlay.style.clipPath='circle(150% at 50% 50%)';
+  });
+
+  // Phase 2: After wipe in, animate the stick figures
+  setTimeout(function(){
+    if(toCharlie){
+      // Karla→Charlie: Karla kicks Charlie out (incoming bounces in from right)
+      outgoing.style.transform='translateX(-120%)';
+      incoming.style.cssText='position:absolute;animation:kickIn .8s cubic-bezier(.34,1.56,.64,1) forwards';
+      incoming.innerHTML=charlieSvg;
+    }else{
+      // Charlie→Karla: Charlie leads Karla in gently, then runs off
+      outgoing.style.transform='translateX(120%)';
+      incoming.style.cssText='position:absolute;animation:gentleLead .8s cubic-bezier(.34,1.56,.64,1) forwards';
+      incoming.innerHTML=karlaSvg;
+    }
+    setTimeout(function(){nameLabel.style.opacity='1'},400);
+  },700);
+
+  // Phase 3: Circle wipe out + do the actual switch
+  setTimeout(function(){
+    overlay.style.clipPath='circle(0% at 50% 50%)';
+    overlay.style.transition='clip-path .6s cubic-bezier(.77,0,.18,1)';
+    // Actually switch user data
+    if(dbRef)dbRef.off();
+    userName=name;
+    localStorage.setItem('wedding100_name',userName);
+    state=loadState();
+    initFirebase();
+    render();
+    setTimeout(function(){overlay.remove()},700);
+  },2200);
 }
 function closeSettings(){document.getElementById('settingsModal').classList.add('hidden')}
 function saveSettings(){
