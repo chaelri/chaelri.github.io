@@ -1909,6 +1909,13 @@ function stopTimer(){
   if(workoutFlow){workoutFlow=null}
   renderToday();
 }
+function stopTimerFull(){
+  stopBgMelody();
+  if(activeTimer){clearInterval(activeTimer.iv);activeTimer=null}
+  if(workoutFlow){workoutFlow=null}
+  speak('Stopped.');
+  render();
+}
 
 // Handle timer button click: start, pause, or resume
 // Finish exercise early (tap the pulsing dot while timer running)
@@ -1925,13 +1932,22 @@ function finishExEarly(dayNum,exIdx){
 
 function handleTimerClick(dayNum,exIdx,totalSec){
   if(audioCtx.state==='suspended')audioCtx.resume();
-  // If a timer is currently running for THIS exercise → stop everything
-  if(activeTimer&&activeTimer.day===dayNum&&activeTimer.ex===exIdx){
+  // If THIS exercise timer is running → PAUSE (keep remaining time)
+  if(activeTimer&&activeTimer.day===dayNum&&activeTimer.ex===exIdx&&!activeTimer.paused){
     clearInterval(activeTimer.iv);
-    activeTimer=null;
+    activeTimer.paused=true;
     stopBgMelody();
     if(workoutFlow){workoutFlow=null}
-    speak('Stopped.');
+    speak('Paused.');
+    renderToday();
+    return;
+  }
+  // If THIS exercise is paused → RESUME from where it left off
+  if(activeTimer&&activeTimer.day===dayNum&&activeTimer.ex===exIdx&&activeTimer.paused){
+    activeTimer.paused=false;
+    activeTimer.iv=setInterval(activeTimer._tick,1000);
+    startBgMelody();
+    speak('Resuming.');
     renderToday();
     return;
   }
@@ -2175,7 +2191,8 @@ function renderExerciseCompact(exercises,dayNum){
     const svg=e.p2?exSvg(e.p1,e.p2):(e.p1?exSvg(e.p1):'');
     const sec=parseSec(e.sets);
     const isRunning=activeTimer&&activeTimer.day===dayNum&&activeTimer.ex===i&&!activeTimer.paused;
-    return `<details class="rounded-xl overflow-hidden transition-all ${isRunning?'border border-sand-200 bg-white shadow-sm':checked?'border border-sand-100 bg-sand-50/50 opacity-50':'border border-sand-100'}" ${isRunning?'open':''}>
+    const isPaused=activeTimer&&activeTimer.day===dayNum&&activeTimer.ex===i&&activeTimer.paused;
+    return `<details class="rounded-xl overflow-hidden transition-all ${isRunning?'border border-sand-200 bg-white shadow-sm':isPaused?'border border-claude-200 bg-claude-50/30':checked?'border border-sand-100 bg-sand-50/50 opacity-50':'border border-sand-100'}" ${isRunning||isPaused?'open':''}>
       <summary class="flex items-center gap-2.5 p-2.5 cursor-pointer select-none">
         ${isRunning
           ?`<span onclick="event.stopPropagation();finishExEarly(${dayNum},${i})" class="w-5 h-5 rounded-full bg-claude-500 shrink-0 flex items-center justify-center cursor-pointer hover:bg-emerald-500 transition-colors" title="Finish early"><span class="w-1.5 h-1.5 bg-white rounded-full animate-pulse"></span></span>`
@@ -2186,7 +2203,14 @@ function renderExerciseCompact(exercises,dayNum){
         </div>
         ${checked
           ?'<span class="text-emerald-500 text-xs font-semibold">\u2713</span>'
-          :`<button id="timer-${dayNum}-${i}" onclick="event.stopPropagation();handleTimerClick(${dayNum},${i},${sec})" class="timer-btn flex items-center gap-1 px-2.5 py-1.5 rounded-lg text-[11px] font-semibold bg-gradient-to-r ${getTheme().btn} text-white active:scale-95 transition-transform shrink-0"><svg class="w-3 h-3" fill="currentColor" viewBox="0 0 20 20"><path d="M6.3 2.84A1.5 1.5 0 004 4.11v11.78a1.5 1.5 0 002.3 1.27l9.344-5.891a1.5 1.5 0 000-2.538L6.3 2.841z"/></svg><span class="relative">${sec}s</span></button>`
+          :isRunning
+            // RUNNING: show pause button + stop button
+            ?`<button id="timer-${dayNum}-${i}" onclick="event.stopPropagation();handleTimerClick(${dayNum},${i},${sec})" class="timer-btn flex items-center gap-1 px-2.5 py-1.5 rounded-lg text-[11px] font-semibold bg-gradient-to-r ${getTheme().btn} text-white active:scale-95 transition-transform shrink-0 timer-active"><svg class="w-3 h-3" fill="currentColor" viewBox="0 0 20 20"><rect x="5" y="4" width="4" height="12" rx="1"/><rect x="12" y="4" width="4" height="12" rx="1"/></svg><span class="relative">${activeTimer?activeTimer.remaining+'s':sec+'s'}</span></button><button onclick="event.stopPropagation();stopTimerFull()" class="w-7 h-7 rounded-lg flex items-center justify-center border border-sand-200 text-sand-400 hover:bg-sand-100 active:scale-95 shrink-0" title="Stop"><svg class="w-3 h-3" fill="currentColor" viewBox="0 0 20 20"><rect x="4" y="4" width="12" height="12" rx="2"/></svg></button>`
+            :isPaused
+              // PAUSED: show play button (resume) + stop button + remaining time
+              ?`<button id="timer-${dayNum}-${i}" onclick="event.stopPropagation();handleTimerClick(${dayNum},${i},${sec})" class="timer-btn flex items-center gap-1 px-2.5 py-1.5 rounded-lg text-[11px] font-semibold bg-gradient-to-r ${getTheme().btn} text-white active:scale-95 transition-transform shrink-0"><svg class="w-3 h-3" fill="currentColor" viewBox="0 0 20 20"><path d="M6.3 2.84A1.5 1.5 0 004 4.11v11.78a1.5 1.5 0 002.3 1.27l9.344-5.891a1.5 1.5 0 000-2.538L6.3 2.841z"/></svg><span class="relative">${activeTimer?activeTimer.remaining+'s':sec+'s'}</span></button><button onclick="event.stopPropagation();stopTimerFull()" class="w-7 h-7 rounded-lg flex items-center justify-center border border-sand-200 text-sand-400 hover:bg-sand-100 active:scale-95 shrink-0" title="Stop"><svg class="w-3 h-3" fill="currentColor" viewBox="0 0 20 20"><rect x="4" y="4" width="12" height="12" rx="2"/></svg></button>`
+              // IDLE: show play button
+              :`<button id="timer-${dayNum}-${i}" onclick="event.stopPropagation();handleTimerClick(${dayNum},${i},${sec})" class="timer-btn flex items-center gap-1 px-2.5 py-1.5 rounded-lg text-[11px] font-semibold bg-gradient-to-r ${getTheme().btn} text-white active:scale-95 transition-transform shrink-0"><svg class="w-3 h-3" fill="currentColor" viewBox="0 0 20 20"><path d="M6.3 2.84A1.5 1.5 0 004 4.11v11.78a1.5 1.5 0 002.3 1.27l9.344-5.891a1.5 1.5 0 000-2.538L6.3 2.841z"/></svg><span class="relative">${sec}s</span></button>`
         }
         <svg class="chevron w-3.5 h-3.5 text-sand-300 shrink-0" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M19 9l-7 7-7-7"/></svg>
       </summary>
