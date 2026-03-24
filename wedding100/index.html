@@ -2270,88 +2270,102 @@ function switchToUser(name){
   overlay.appendChild(stage);
   document.body.appendChild(overlay);
 
-  // ── Phase 1: Circle wipe IN (0ms → 700ms) ──────────
-  // Current user is working out in center, overlay expands
+  // ── Position: A in center working out, B off-screen ──
   if(fromCharlie){
-    // Charlie→Karla: Charlie is in center working out
-    // Karla waits off-screen to the right
-    figB.style.transform='translateX(150vw)';
+    // Charlie→Karla: Charlie center, Karla enters from LEFT
+    figB.style.transform='translateX(-60vw)';
   }else{
-    // Karla→Charlie: Karla is in center working out
-    // Charlie waits off-screen to the left
-    figB.style.transform='translateX(-150vw)';
+    // Karla→Charlie: Karla center, Charlie enters from LEFT
+    figB.style.transform='translateX(-60vw)';
   }
 
+  // ── Phase 1: Circle wipe IN (0→700ms) ──────────────
   requestAnimationFrame(function(){
     overlay.style.clipPath='circle(150% at 50% 50%)';
   });
 
-  // ── Phase 2: The interaction (800ms → 2400ms) ──────
+  // ── Phase 2: Character interaction (800ms→) ────────
   setTimeout(function(){
-    labelA.style.opacity='0'; // fade out current name
 
     if(fromCharlie){
-      // CHARLIE → KARLA scenario:
-      // Charlie stops, walks to side, Karla enters from right gently
-      // Step 1 (800ms): Charlie slides right to make room
-      figA.style.transform='translateX(30vw)';
-      // Karla starts sliding in from right
-      figB.style.transform='translateX(10vw)';
+      // ═══ CHARLIE → KARLA ═══
+      // Charlie is working out in center.
+      // Karla runs in from the left toward Charlie.
+
+      // 0ms: Karla starts running in from left
+      figB.style.transition='transform .8s cubic-bezier(.4,0,.2,1)';
+      figB.style.transform='translateX(-8vw)'; // arrives near Charlie
 
       setTimeout(function(){
-        // Step 2 (1200ms): Charlie "leads" Karla to center, moves further right
+        // 800ms: Karla reaches Charlie — KICK!
+        // Charlie goes FLYING off to the right
+        figA.style.transition='transform .4s cubic-bezier(.6,0,1,.4)';
+        figA.style.transform='translateX(60vw) rotate(15deg)';
+        labelA.style.opacity='0';
+
+        // Karla moves to center with a confident step
+        figB.style.transition='transform .6s cubic-bezier(.34,1.56,.64,1)';
         figB.style.transform='translateX(0)';
-        figA.style.transform='translateX(40vw)';
-      },400);
-
-      setTimeout(function(){
-        // Step 3 (1600ms): Charlie runs off screen right
-        figA.style.transition='transform .5s cubic-bezier(.6,0,1,.4)'; // fast exit
-        figA.style.transform='translateX(150vw)';
-        // Show Karla's name
-        labelB.style.opacity='1';
-        subLabel.style.opacity='1';
       },800);
 
+      setTimeout(function(){
+        // 1600ms: Karla is now in center, starts working out
+        // Show her name
+        labelB.style.opacity='1';
+        subLabel.textContent='My turn now!';
+        subLabel.style.opacity='1';
+      },1400);
+
     }else{
-      // KARLA → CHARLIE scenario:
-      // Karla is working out, Charlie bursts in from left and kicks her out
-      // Step 1 (800ms): Charlie charges in from left
-      figB.style.transform='translateX(-20vw)';
+      // ═══ KARLA → CHARLIE ═══
+      // Karla is working out in center.
+      // Charlie walks in from the left politely.
+
+      // 0ms: Charlie walks in from left, stops near Karla
+      figB.style.transition='transform 1s cubic-bezier(.4,0,.2,1)';
+      figB.style.transform='translateX(-12vw)'; // stops beside Karla
 
       setTimeout(function(){
-        // Step 2 (1200ms): Charlie arrives, bumps Karla
-        figB.style.transform='translateX(-5vw)';
-        figA.style.transform='translateX(20vw)';
-      },350);
+        // 1000ms: Charlie is beside Karla (polite pause — "excuse me")
+        // Small nod gesture — Charlie shifts slightly
+        figB.style.transition='transform .2s ease';
+        figB.style.transform='translateX(-10vw)';
+      },1000);
 
       setTimeout(function(){
-        // Step 3 (1500ms): Karla flies off to the right, Charlie centers
-        figA.style.transition='transform .4s cubic-bezier(.6,0,1,.4)';
-        figA.style.transform='translateX(150vw)';
-        figB.style.transition='transform .5s cubic-bezier(.34,1.56,.64,1)'; // bouncy settle
+        // 1300ms: Karla nods back, starts walking away to the right
+        figA.style.transition='transform 1s cubic-bezier(.4,0,.6,1)';
+        figA.style.transform='translateX(60vw)';
+        labelA.style.opacity='0';
+      },1300);
+
+      setTimeout(function(){
+        // 1800ms: Charlie walks to center
+        figB.style.transition='transform .7s cubic-bezier(.4,0,.2,1)';
         figB.style.transform='translateX(0)';
-        // Show Charlie's name
+      },1800);
+
+      setTimeout(function(){
+        // 2400ms: Charlie is centered, starts working out
         labelB.style.opacity='1';
         subLabel.textContent='Let\u2019s go!';
         subLabel.style.opacity='1';
-      },700);
+      },2300);
     }
   },800);
 
-  // ── Phase 3: Circle wipe OUT + switch data (2800ms) ─
+  // ── Phase 3: Circle wipe OUT + switch data ─────────
+  var wipeOutTime=fromCharlie?2600:3200;
   setTimeout(function(){
     overlay.style.clipPath='circle(0% at 50% 40%)';
-    // Actually switch user data during the wipe out
     if(dbRef)dbRef.off();
     userName=name;
     localStorage.setItem('wedding100_name',userName);
     state=loadState();
     initFirebase();
     render();
-    // Clean up
     setTimeout(function(){overlay.remove()},800);
-  },2800);
+  },wipeOutTime);
 }
 function closeSettings(){document.getElementById('settingsModal').classList.add('hidden')}
 function saveSettings(){
