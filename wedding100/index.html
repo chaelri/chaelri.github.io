@@ -4,8 +4,9 @@
   <meta charset="UTF-8">
   <meta name="viewport" content="width=device-width, initial-scale=1.0, user-scalable=no, viewport-fit=cover">
   <meta name="theme-color" content="#faf8f5">
+  <meta name="apple-mobile-web-app-capable" content="yes">
   <meta name="mobile-web-app-capable" content="yes">
-  <meta name="apple-mobile-web-app-status-bar-style" content="default">
+  <meta name="apple-mobile-web-app-status-bar-style" content="black-translucent">
   <meta name="apple-mobile-web-app-title" content="100 Days">
   <title>100 Days to the Wedding</title>
   <link rel="icon" type="image/svg+xml" href="icon.svg">
@@ -43,7 +44,8 @@
   </script>
   <style>
     *{-webkit-tap-highlight-color:transparent;box-sizing:border-box}
-    body{font-family:'DM Sans',sans-serif;background:#faf8f5;min-height:100vh;min-height:100dvh}
+    html{background:#faf8f5}
+    body{font-family:'DM Sans',sans-serif;background:#faf8f5;min-height:100vh;min-height:100dvh;margin:0}
     .font-serif{font-family:'DM Serif Display',serif}
     .day-btn{transition:all .25s cubic-bezier(.4,0,.2,1)}
     .day-btn.completed{background:linear-gradient(135deg,#da7756,#c25a3a);color:#fff;transform:scale(1.05);box-shadow:0 2px 10px rgba(218,119,86,.35)}
@@ -314,65 +316,6 @@
           <div id="activityChart" class="flex items-end gap-[3px] h-16"></div>
         </div>
 
-        <!-- Steps Today -->
-        <div class="bg-white rounded-2xl border border-sand-200 p-4 shadow-sm mb-5">
-          <div class="flex items-center justify-between mb-3">
-            <div class="flex items-center gap-2">
-              <svg viewBox="-2 -4 54 84" class="w-6 h-6 shrink-0">
-                <circle r="3.5" fill="#fef7f0" stroke="#83382c" stroke-width="1.6">
-                  <animate attributeName="cx" values="25;25;25" dur="0.8s" repeatCount="indefinite"/>
-                  <animate attributeName="cy" values="10;9;10" dur="0.8s" repeatCount="indefinite" calcMode="spline" keySplines="0.4 0 0.2 1;0.4 0 0.2 1"/>
-                </circle>
-                <line stroke="#83382c" stroke-width="1.8" stroke-linecap="round">
-                  <animate attributeName="x1" values="25;25;25" dur="0.8s" repeatCount="indefinite"/>
-                  <animate attributeName="y1" values="16;15;16" dur="0.8s" repeatCount="indefinite" calcMode="spline" keySplines="0.4 0 0.2 1;0.4 0 0.2 1"/>
-                  <animate attributeName="x2" values="25;25;25" dur="0.8s" repeatCount="indefinite"/>
-                  <animate attributeName="y2" values="42;42;42" dur="0.8s" repeatCount="indefinite"/>
-                </line>
-                <line stroke="#83382c" stroke-width="1.6" stroke-linecap="round">
-                  <animate attributeName="x1" values="25;25;25" dur="0.8s" repeatCount="indefinite"/>
-                  <animate attributeName="y1" values="22;21;22" dur="0.8s" repeatCount="indefinite" calcMode="spline" keySplines="0.4 0 0.2 1;0.4 0 0.2 1"/>
-                  <animate attributeName="x2" values="15;20;15" dur="0.8s" repeatCount="indefinite" calcMode="spline" keySplines="0.4 0 0.2 1;0.4 0 0.2 1"/>
-                  <animate attributeName="y2" values="32;28;32" dur="0.8s" repeatCount="indefinite" calcMode="spline" keySplines="0.4 0 0.2 1;0.4 0 0.2 1"/>
-                </line>
-                <line stroke="#83382c" stroke-width="1.6" stroke-linecap="round">
-                  <animate attributeName="x1" values="25;25;25" dur="0.8s" repeatCount="indefinite"/>
-                  <animate attributeName="y1" values="22;21;22" dur="0.8s" repeatCount="indefinite" calcMode="spline" keySplines="0.4 0 0.2 1;0.4 0 0.2 1"/>
-                  <animate attributeName="x2" values="35;30;35" dur="0.8s" repeatCount="indefinite" calcMode="spline" keySplines="0.4 0 0.2 1;0.4 0 0.2 1"/>
-                  <animate attributeName="y2" values="28;32;28" dur="0.8s" repeatCount="indefinite" calcMode="spline" keySplines="0.4 0 0.2 1;0.4 0 0.2 1"/>
-                </line>
-                <polyline fill="none" stroke="#83382c" stroke-width="1.6" stroke-linecap="round" stroke-linejoin="round">
-                  <animate attributeName="points" values="25,42 18,56 14,70;25,42 22,56 28,70;25,42 18,56 14,70" dur="0.8s" repeatCount="indefinite" calcMode="spline" keySplines="0.4 0 0.2 1;0.4 0 0.2 1"/>
-                </polyline>
-                <polyline fill="none" stroke="#83382c" stroke-width="1.6" stroke-linecap="round" stroke-linejoin="round">
-                  <animate attributeName="points" values="25,42 32,56 36,70;25,42 28,56 22,70;25,42 32,56 36,70" dur="0.8s" repeatCount="indefinite" calcMode="spline" keySplines="0.4 0 0.2 1;0.4 0 0.2 1"/>
-                </polyline>
-              </svg>
-              <p class="font-semibold text-claude-800 text-sm">Steps Today</p>
-            </div>
-            <button id="stepsGoalBtn" onclick="toggleStepsGoal()" class="text-xs font-semibold px-3 py-1 rounded-full border transition-all active:scale-95">
-              10k reached
-            </button>
-          </div>
-          <div class="w-full h-2 bg-sand-100 rounded-full overflow-hidden mb-3">
-            <div id="stepsBar" class="steps-fill h-full rounded-full" style="width:0%"></div>
-          </div>
-          <div class="flex items-center gap-2">
-            <input type="number" id="stepsInput" min="0" max="99999" step="100" placeholder="0"
-              class="flex-1 border border-sand-200 rounded-lg px-3 py-2 text-sm text-claude-800 bg-sand-50 focus:outline-none focus:ring-2 focus:ring-claude-300 [appearance:textfield] [&::-webkit-inner-spin-button]:appearance-none"
-              oninput="saveStepsInput(this.value)">
-            <span class="text-xs text-sand-400 shrink-0">steps</span>
-          </div>
-          <!-- Weekly mini bars -->
-          <div class="mt-3 pt-3 border-t border-sand-100">
-            <div class="flex items-center justify-between mb-1.5">
-              <p class="text-[10px] font-semibold text-sand-400 uppercase tracking-widest">This Week</p>
-              <p id="stepsWeekAvg" class="text-[10px] text-sand-400"></p>
-            </div>
-            <div id="stepsWeekBars" class="flex items-end gap-1 h-10"></div>
-          </div>
-        </div>
-
         <!-- Week Grid -->
         <div class="flex items-center justify-between mb-2.5">
           <p class="text-xs font-semibold text-sand-400 uppercase tracking-widest">Progress</p>
@@ -468,6 +411,62 @@
             <p class="font-semibold text-claude-800 text-sm">Partner Progress</p>
           </div>
           <div id="partnerContent" class="text-sm text-claude-700"></div>
+        </div>
+
+        <!-- Steps Today -->
+        <div class="bg-white rounded-2xl border border-sand-200 p-4 shadow-sm mb-5">
+          <div class="flex items-center justify-between mb-3">
+            <div class="flex items-center gap-2">
+              <svg viewBox="-2 -4 54 84" class="w-6 h-6 shrink-0" xmlns="http://www.w3.org/2000/svg">
+                <circle r="3.5" fill="#fef7f0" stroke="#83382c" stroke-width="1.6">
+                  <animate attributeName="cx" values="25;25;25" dur="0.8s" repeatCount="indefinite"/>
+                  <animate attributeName="cy" values="10;9;10" dur="0.8s" repeatCount="indefinite"/>
+                </circle>
+                <line stroke="#83382c" stroke-width="1.8" stroke-linecap="round">
+                  <animate attributeName="x1" values="25;25;25" dur="0.8s" repeatCount="indefinite"/>
+                  <animate attributeName="y1" values="16;15;16" dur="0.8s" repeatCount="indefinite"/>
+                  <animate attributeName="x2" values="25;25;25" dur="0.8s" repeatCount="indefinite"/>
+                  <animate attributeName="y2" values="42;42;42" dur="0.8s" repeatCount="indefinite"/>
+                </line>
+                <line stroke="#83382c" stroke-width="1.6" stroke-linecap="round">
+                  <animate attributeName="x1" values="25;25;25" dur="0.8s" repeatCount="indefinite"/>
+                  <animate attributeName="y1" values="22;21;22" dur="0.8s" repeatCount="indefinite"/>
+                  <animate attributeName="x2" values="15;20;15" dur="0.8s" repeatCount="indefinite"/>
+                  <animate attributeName="y2" values="32;28;32" dur="0.8s" repeatCount="indefinite"/>
+                </line>
+                <line stroke="#83382c" stroke-width="1.6" stroke-linecap="round">
+                  <animate attributeName="x1" values="25;25;25" dur="0.8s" repeatCount="indefinite"/>
+                  <animate attributeName="y1" values="22;21;22" dur="0.8s" repeatCount="indefinite"/>
+                  <animate attributeName="x2" values="35;30;35" dur="0.8s" repeatCount="indefinite"/>
+                  <animate attributeName="y2" values="28;32;28" dur="0.8s" repeatCount="indefinite"/>
+                </line>
+                <polyline fill="none" stroke="#83382c" stroke-width="1.6" stroke-linecap="round" stroke-linejoin="round">
+                  <animate attributeName="points" values="25,42 18,56 14,70;25,42 22,56 28,70;25,42 18,56 14,70" dur="0.8s" repeatCount="indefinite"/>
+                </polyline>
+                <polyline fill="none" stroke="#83382c" stroke-width="1.6" stroke-linecap="round" stroke-linejoin="round">
+                  <animate attributeName="points" values="25,42 32,56 36,70;25,42 28,56 22,70;25,42 32,56 36,70" dur="0.8s" repeatCount="indefinite"/>
+                </polyline>
+              </svg>
+              <p class="font-semibold text-claude-800 text-sm">Steps Today</p>
+            </div>
+            <button id="stepsGoalBtn" onclick="toggleStepsGoal()" class="text-xs font-semibold px-3 py-1 rounded-full border transition-all active:scale-95">10k reached</button>
+          </div>
+          <div class="w-full h-2 bg-sand-100 rounded-full overflow-hidden mb-3">
+            <div id="stepsBar" class="steps-fill h-full rounded-full" style="width:0%"></div>
+          </div>
+          <div class="flex items-center gap-2">
+            <input type="number" id="stepsInput" min="0" max="99999" step="100" placeholder="0"
+              class="flex-1 border border-sand-200 rounded-lg px-3 py-2 text-sm text-claude-800 bg-sand-50 focus:outline-none focus:ring-2 focus:ring-claude-300 [appearance:textfield] [&::-webkit-inner-spin-button]:appearance-none"
+              oninput="saveStepsInput(this.value)">
+            <span class="text-xs text-sand-400 shrink-0">steps</span>
+          </div>
+          <div class="mt-3 pt-3 border-t border-sand-100">
+            <div class="flex items-center justify-between mb-1.5">
+              <p class="text-[10px] font-semibold text-sand-400 uppercase tracking-widest">This Week</p>
+              <p id="stepsWeekAvg" class="text-[10px] text-sand-400"></p>
+            </div>
+            <div id="stepsWeekBars" class="flex items-end gap-1 h-10"></div>
+          </div>
         </div>
       </div>
 
