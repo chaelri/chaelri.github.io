@@ -1581,12 +1581,47 @@ function sfxTick(){
 }
 
 // Exercise complete — ascending two-note chime
+// Escalating exercise complete sound — higher pitch with each one
+// Like Valorant kill feed: first kill → double → triple → quadra → ACE
+var _exerciseKillCount=0;
+
 function sfxExerciseDone(){
-  playTone(523,0.15,0,'sine',0.25);    // C5
-  playTone(659,0.15,0.12,'sine',0.25);  // E5
-  playTone(784,0.2,0.24,'sine',0.3);    // G5
-  vibrate([60,40,60,40,120]);
+  _exerciseKillCount++;
+  var k=_exerciseKillCount;
+
+  // Base frequencies escalate with each completion
+  // 1st: C5 chord (normal)
+  // 2nd: D5 chord (slightly higher)
+  // 3rd: E5 chord (building)
+  // 4th: G5 chord (intense)
+  // 5th: C6 chord (ACE! — octave up, longer, louder)
+  var scales=[
+    {notes:[523,659,784],vol:0.2,dur:0.15,vib:[60,40,60]},           // 1st — C major
+    {notes:[587,740,880],vol:0.23,dur:0.15,vib:[60,40,80]},          // 2nd — D major
+    {notes:[659,830,988],vol:0.26,dur:0.16,vib:[60,40,60,40,100]},   // 3rd — E major
+    {notes:[784,988,1175],vol:0.3,dur:0.17,vib:[80,40,80,40,120]},   // 4th — G major
+    {notes:[1047,1319,1568],vol:0.35,dur:0.22,vib:[100,50,100,50,200]}, // 5th ACE — C6 major
+  ];
+
+  var s=scales[Math.min(k-1,scales.length-1)];
+
+  // Play the chord
+  s.notes.forEach(function(freq,i){
+    playTone(freq,s.dur,i*0.1,'sine',s.vol);
+  });
+
+  // 5th exercise (ACE) — add shimmer + extra high notes
+  if(k>=5){
+    playTone(1568,0.3,0.3,'sine',0.15);  // G6 shimmer
+    playTone(2093,0.25,0.35,'sine',0.1);  // C7 sparkle
+    playTone(2637,0.2,0.4,'sine',0.06);   // E7 fairy dust
+  }
+
+  vibrate(s.vib);
 }
+
+// Reset kill count when starting a new workout or new day
+function resetKillCount(){_exerciseKillCount=0}
 
 // Rest start — gentle low tone
 function sfxRestStart(){
@@ -2079,6 +2114,7 @@ function skipRest(){
 // ── Start Full Workout Flow ───────────────────────────
 function startWorkout(){
   if(audioCtx.state==='suspended')audioCtx.resume();
+  resetKillCount();
   sfxStart();
   const dn=getCurrentDayNum();
   const r=ROUTINES[getRoutineIndex(dn)];
@@ -2322,6 +2358,7 @@ function toggleDay(dn){
 
 // Go Again: reset checks, start another round, track bonus
 function goAgain(){
+  resetKillCount();
   var dn=getCurrentDayNum();
   if(!state.bonusRounds)state.bonusRounds={};
   state.bonusRounds[dn]=(state.bonusRounds[dn]||0)+1;
