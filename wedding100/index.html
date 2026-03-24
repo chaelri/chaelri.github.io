@@ -623,37 +623,73 @@ function fig(p){
   return d;
 }
 
-// Animated figure: smoothly interpolates between two poses
+// Animated figure: smoothly interpolates between two poses (front view)
 function animFig(a,b){
   let d='';
-  // Head
   d+=`<circle r="4" fill="#fef7f0" stroke="${SC}" stroke-width="1.8">${av('cx',a.h[0],b.h[0])}${av('cy',a.h[1],b.h[1])}</circle>`;
-  // Torso
   d+=`<line stroke="${SC}" stroke-width="2" stroke-linecap="round">${av('x1',a.s[0],b.s[0])}${av('y1',a.s[1],b.s[1])}${av('x2',a.p[0],b.p[0])}${av('y2',a.p[1],b.p[1])}</line>`;
-  // Left arm (shoulder→hand)
   d+=`<line stroke="${SC}" stroke-width="1.8" stroke-linecap="round">${av('x1',a.s[0],b.s[0])}${av('y1',a.s[1],b.s[1])}${av('x2',a.lh[0],b.lh[0])}${av('y2',a.lh[1],b.lh[1])}</line>`;
-  // Right arm
   d+=`<line stroke="${SC}" stroke-width="1.8" stroke-linecap="round">${av('x1',a.s[0],b.s[0])}${av('y1',a.s[1],b.s[1])}${av('x2',a.rh[0],b.rh[0])}${av('y2',a.rh[1],b.rh[1])}</line>`;
-  // Legs (always polyline with 3 points: hip→knee→foot)
   const alk=knee(a,'l'),blk=knee(b,'l'),ark=knee(a,'r'),brk=knee(b,'r');
-  const lPts1=`${a.p} ${alk} ${a.lf}`, lPts2=`${b.p} ${blk} ${b.lf}`;
-  const rPts1=`${a.p} ${ark} ${a.rf}`, rPts2=`${b.p} ${brk} ${b.rf}`;
-  d+=`<polyline fill="none" stroke="${SC}" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round">${av('points',lPts1,lPts2)}</polyline>`;
-  d+=`<polyline fill="none" stroke="${SC}" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round">${av('points',rPts1,rPts2)}</polyline>`;
-  // Kettlebell (animate if both have it, show static if only one)
+  d+=`<polyline fill="none" stroke="${SC}" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round">${av('points',`${a.p} ${alk} ${a.lf}`,`${b.p} ${blk} ${b.lf}`)}</polyline>`;
+  d+=`<polyline fill="none" stroke="${SC}" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round">${av('points',`${a.p} ${ark} ${a.rf}`,`${b.p} ${brk} ${b.rf}`)}</polyline>`;
   const kb1=a.kb||b.kb, kb2=b.kb||a.kb;
   if(kb1&&kb2){
     d+=`<circle r="3.5" fill="${KC}" opacity="0.85">${av('cx',kb1[0],kb2[0])}${av('cy',kb1[1],kb2[1])}</circle>`;
-    // Animated handle
-    const h1=`M${kb1[0]-2.5},${kb1[1]-3} Q${kb1[0]},${kb1[1]-7.5} ${kb1[0]+2.5},${kb1[1]-3}`;
-    const h2=`M${kb2[0]-2.5},${kb2[1]-3} Q${kb2[0]},${kb2[1]-7.5} ${kb2[0]+2.5},${kb2[1]-3}`;
-    d+=`<path stroke="${KC}" fill="none" stroke-width="1.3">${av('d',h1,h2)}</path>`;
+    d+=`<path stroke="${KC}" fill="none" stroke-width="1.3">${av('d',
+      `M${kb1[0]-2.5},${kb1[1]-3} Q${kb1[0]},${kb1[1]-7.5} ${kb1[0]+2.5},${kb1[1]-3}`,
+      `M${kb2[0]-2.5},${kb2[1]-3} Q${kb2[0]},${kb2[1]-7.5} ${kb2[0]+2.5},${kb2[1]-3}`
+    )}</path>`;
   }
+  return d;
+}
+
+// Multi-phase animation: front view → side view → front view (cycles)
+// 5 keyframes: front1 → front2 → side1 → side2 → front1
+function av4(attr,f1,f2,s1,s2){
+  return `<animate attributeName="${attr}" values="${f1};${f2};${s1};${s2};${f1}" dur="4.8s" keyTimes="0;0.25;0.35;0.6;0.85" repeatCount="indefinite" calcMode="spline" keySplines="0.4 0 0.2 1;0.3 0 0.7 1;0.4 0 0.2 1;0.3 0 0.7 1"/>`;
+}
+
+function animFigDual(a,b,sa,sb){
+  let d='';
+  // Head
+  d+=`<circle r="4" fill="#fef7f0" stroke="${SC}" stroke-width="1.8">${av4('cx',a.h[0],b.h[0],sa.h[0],sb.h[0])}${av4('cy',a.h[1],b.h[1],sa.h[1],sb.h[1])}</circle>`;
+  // Torso
+  d+=`<line stroke="${SC}" stroke-width="2" stroke-linecap="round">${av4('x1',a.s[0],b.s[0],sa.s[0],sb.s[0])}${av4('y1',a.s[1],b.s[1],sa.s[1],sb.s[1])}${av4('x2',a.p[0],b.p[0],sa.p[0],sb.p[0])}${av4('y2',a.p[1],b.p[1],sa.p[1],sb.p[1])}</line>`;
+  // Left arm → becomes the visible arm in side view
+  d+=`<line stroke="${SC}" stroke-width="1.8" stroke-linecap="round">${av4('x1',a.s[0],b.s[0],sa.s[0],sb.s[0])}${av4('y1',a.s[1],b.s[1],sa.s[1],sb.s[1])}${av4('x2',a.lh[0],b.lh[0],sa.lh[0],sb.lh[0])}${av4('y2',a.lh[1],b.lh[1],sa.lh[1],sb.lh[1])}</line>`;
+  // Right arm → merges with left arm in side view (behind)
+  d+=`<line stroke="${SC}" stroke-width="1.8" stroke-linecap="round">${av4('x1',a.s[0],b.s[0],sa.s[0],sb.s[0])}${av4('y1',a.s[1],b.s[1],sa.s[1],sb.s[1])}${av4('x2',a.rh[0],b.rh[0],sa.rh[0],sb.rh[0])}${av4('y2',a.rh[1],b.rh[1],sa.rh[1],sb.rh[1])}</line>`;
+  // Legs
+  var alk=knee(a,'l'),blk=knee(b,'l'),salk=knee(sa,'l'),sblk=knee(sb,'l');
+  var ark=knee(a,'r'),brk=knee(b,'r'),sark=knee(sa,'r'),sbrk=knee(sb,'r');
+  d+=`<polyline fill="none" stroke="${SC}" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round">${av4('points',
+    `${a.p} ${alk} ${a.lf}`,`${b.p} ${blk} ${b.lf}`,`${sa.p} ${salk} ${sa.lf}`,`${sb.p} ${sblk} ${sb.lf}`
+  )}</polyline>`;
+  d+=`<polyline fill="none" stroke="${SC}" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round">${av4('points',
+    `${a.p} ${ark} ${a.rf}`,`${b.p} ${brk} ${b.rf}`,`${sa.p} ${sark} ${sa.rf}`,`${sb.p} ${sbrk} ${sb.rf}`
+  )}</polyline>`;
+  // KB
+  var kb=[a.kb||b.kb, b.kb||a.kb, sa.kb||sb.kb, sb.kb||sa.kb];
+  if(kb[0]&&kb[2]){
+    d+=`<circle r="3.5" fill="${KC}" opacity="0.85">${av4('cx',kb[0][0],kb[1][0],kb[2][0],kb[3][0])}${av4('cy',kb[0][1],kb[1][1],kb[2][1],kb[3][1])}</circle>`;
+    d+=`<path stroke="${KC}" fill="none" stroke-width="1.3">${av4('d',
+      `M${kb[0][0]-2.5},${kb[0][1]-3} Q${kb[0][0]},${kb[0][1]-7.5} ${kb[0][0]+2.5},${kb[0][1]-3}`,
+      `M${kb[1][0]-2.5},${kb[1][1]-3} Q${kb[1][0]},${kb[1][1]-7.5} ${kb[1][0]+2.5},${kb[1][1]-3}`,
+      `M${kb[2][0]-2.5},${kb[2][1]-3} Q${kb[2][0]},${kb[2][1]-7.5} ${kb[2][0]+2.5},${kb[2][1]-3}`,
+      `M${kb[3][0]-2.5},${kb[3][1]-3} Q${kb[3][0]},${kb[3][1]-7.5} ${kb[3][0]+2.5},${kb[3][1]-3}`
+    )}</path>`;
+  }
+  // "FRONT" / "SIDE" label that fades in/out
+  d+=`<text x="25" y="78" text-anchor="middle" fill="${SC}" font-size="5" font-family="sans-serif" opacity="0.3"><animate attributeName="opacity" values="0.4;0;0.4;0;0.4" dur="4.8s" keyTimes="0;0.25;0.35;0.6;0.85" repeatCount="indefinite"/>FRONT</text>`;
+  d+=`<text x="25" y="78" text-anchor="middle" fill="${SC}" font-size="5" font-family="sans-serif" opacity="0"><animate attributeName="opacity" values="0;0;0.4;0;0" dur="4.8s" keyTimes="0;0.25;0.35;0.6;0.85" repeatCount="indefinite"/>SIDE</text>`;
   return d;
 }
 
 function exSvg(p1,p2){
   if(!p2)return `<svg viewBox="-4 -6 58 90" class="exercise-svg">${fig(p1)}</svg>`;
+  // If exercise has side-view poses, use dual animation
+  if(p1._sp1&&p1._sp2)return `<svg viewBox="-4 -6 58 90" class="exercise-svg">${animFigDual(p1,p2,p1._sp1,p1._sp2)}</svg>`;
   return `<svg viewBox="-4 -6 58 90" class="exercise-svg">${animFig(p1,p2)}</svg>`;
 }
 
@@ -877,6 +913,117 @@ const ROUTINES = [
     tip: 'Recovery is training. Just as important as the other days.',
   },
 ];
+
+// ── Side-view poses per exercise (figure facing left) ──
+// In side view: lower X = forward, higher X = behind
+// Arms overlap (one visible), legs show front/back stride
+var SIDE_POSES={
+  'Kettlebell Swing':[
+    // Side start: hinged forward, KB behind
+    {h:[22,18],s:[24,24],p:[28,48],lh:[34,48],rh:[34,48],lk:[22,58],rk:[32,56],lf:[18,74],rf:[34,74],kb:[36,52]},
+    // Side end: standing tall, KB in front at chest height
+    {h:[25,12],s:[25,20],p:[25,48],lh:[12,14],rh:[12,14],lf:[22,74],rf:[28,74],kb:[10,12]}
+  ],
+  'Goblet Squat':[
+    {h:[25,12],s:[25,20],p:[25,48],lh:[18,26],rh:[18,26],lf:[20,74],rf:[30,74],kb:[16,28]},
+    {h:[25,24],s:[25,30],p:[28,50],lh:[18,38],rh:[18,38],lk:[18,58],rk:[34,56],lf:[14,70],rf:[36,74],kb:[16,40]}
+  ],
+  'KB Clean & Press':[
+    {h:[25,12],s:[25,20],p:[25,48],lh:[30,36],rh:[18,20],lf:[22,74],rf:[28,74],kb:[16,18]},
+    {h:[25,12],s:[25,20],p:[25,48],lh:[30,36],rh:[20,4],lf:[22,74],rf:[28,74],kb:[18,0]}
+  ],
+  'Single-Arm Row':[
+    {h:[20,18],s:[22,24],p:[28,48],lh:[16,34],rh:[24,48],lf:[18,74],rf:[34,74],kb:[24,52]},
+    {h:[20,18],s:[22,24],p:[28,48],lh:[16,34],rh:[28,28],lf:[18,74],rf:[34,74],kb:[30,26]}
+  ],
+  'Farmer\'s Hold':[
+    {h:[25,12],s:[25,20],p:[25,48],lh:[30,36],rh:[20,48],lf:[22,74],rf:[28,74],kb:[18,52]},
+    null // static hold, no second side pose needed
+  ],
+  'KB Deadlift':[
+    {h:[20,18],s:[22,24],p:[28,48],lh:[22,46],rh:[22,46],lk:[20,58],rk:[32,56],lf:[16,74],rf:[34,74],kb:[22,50]},
+    {h:[25,12],s:[25,20],p:[25,48],lh:[22,46],rh:[22,46],lf:[22,74],rf:[28,74],kb:[22,50]}
+  ],
+  'KB Reverse Lunge':[
+    {h:[25,12],s:[25,20],p:[25,48],lh:[18,28],rh:[18,28],lf:[20,74],rf:[30,74],kb:[16,30]},
+    {h:[25,12],s:[25,20],p:[25,48],lh:[18,28],rh:[18,28],lk:[16,56],lf:[14,70],rf:[36,76],kb:[16,30]}
+  ],
+  'KB Sumo Squat':[
+    {h:[25,12],s:[25,20],p:[25,48],lh:[22,44],rh:[22,44],lf:[18,74],rf:[32,74],kb:[22,48]},
+    {h:[25,22],s:[25,28],p:[25,50],lh:[22,48],rh:[22,48],lk:[16,58],rk:[34,56],lf:[14,70],rf:[36,74],kb:[22,52]}
+  ],
+  'KB Calf Raise':[
+    {h:[25,12],s:[25,20],p:[25,48],lh:[30,36],rh:[18,48],lf:[22,74],rf:[28,74],kb:[16,52]},
+    {h:[25,8],s:[25,16],p:[25,44],lh:[30,32],rh:[18,44],lf:[23,72],rf:[27,72],kb:[16,48]}
+  ],
+  'KB Halo':[
+    {h:[25,14],s:[25,22],p:[25,48],lh:[18,14],rh:[18,14],lf:[22,74],rf:[28,74],kb:[14,10]},
+    {h:[25,14],s:[25,22],p:[25,48],lh:[32,14],rh:[32,14],lf:[22,74],rf:[28,74],kb:[36,10]}
+  ],
+  'KB Russian Twist':[
+    {h:[25,30],s:[25,38],p:[25,58],lh:[12,42],rh:[12,42],lf:[20,54],rf:[30,54],kb:[10,44]},
+    {h:[25,30],s:[25,38],p:[25,58],lh:[38,42],rh:[38,42],lf:[20,54],rf:[30,54],kb:[40,44]}
+  ],
+  'KB Windmill':[
+    {h:[25,12],s:[25,20],p:[25,48],lh:[30,36],rh:[22,4],lf:[22,74],rf:[28,74],kb:[20,0]},
+    {h:[22,18],s:[23,26],p:[27,48],lh:[32,52],rh:[20,6],lf:[22,74],rf:[30,74],kb:[18,2]}
+  ],
+  'KB Figure 8':[
+    {h:[25,14],s:[25,22],p:[25,48],lh:[16,46],rh:[34,40],lk:[18,58],rk:[32,58],lf:[16,74],rf:[34,74],kb:[14,50]},
+    {h:[25,14],s:[25,22],p:[25,48],lh:[34,46],rh:[16,40],lk:[18,58],rk:[32,58],lf:[16,74],rf:[34,74],kb:[36,50]}
+  ],
+  'KB Suitcase Carry':[
+    {h:[25,12],s:[25,20],p:[25,48],lh:[30,36],rh:[18,48],lf:[22,74],rf:[28,74],kb:[16,52]},
+    null
+  ],
+  'KB Press':[
+    {h:[25,12],s:[25,20],p:[25,48],lh:[30,36],rh:[18,20],lf:[22,74],rf:[28,74],kb:[16,18]},
+    {h:[25,12],s:[25,20],p:[25,48],lh:[30,36],rh:[20,4],lf:[22,74],rf:[28,74],kb:[18,0]}
+  ],
+  'KB Curl':[
+    {h:[25,12],s:[25,20],p:[25,48],lh:[18,46],rh:[18,46],lf:[22,74],rf:[28,74],kb:[16,50]},
+    {h:[25,12],s:[25,20],p:[25,48],lh:[18,24],rh:[18,24],lf:[22,74],rf:[28,74],kb:[16,22]}
+  ],
+  'KB Upright Row':[
+    {h:[25,12],s:[25,20],p:[25,48],lh:[18,44],rh:[18,44],lf:[22,74],rf:[28,74],kb:[16,48]},
+    {h:[25,12],s:[25,20],p:[25,48],lh:[18,16],rh:[18,16],lf:[22,74],rf:[28,74],kb:[16,14]}
+  ],
+  'KB Goblet Squat Hold':[
+    {h:[25,24],s:[25,30],p:[28,50],lh:[18,38],rh:[18,38],lk:[18,58],rk:[34,56],lf:[14,70],rf:[36,74],kb:[16,40]},
+    null
+  ],
+  'KB Around the World':[
+    {h:[25,12],s:[25,20],p:[25,48],lh:[14,44],rh:[14,44],lf:[22,74],rf:[28,74],kb:[12,46]},
+    {h:[25,12],s:[25,20],p:[25,48],lh:[36,44],rh:[36,44],lf:[22,74],rf:[28,74],kb:[38,46]}
+  ],
+  'KB Halo (slow)':[
+    {h:[25,14],s:[25,22],p:[25,48],lh:[18,14],rh:[18,14],lf:[22,74],rf:[28,74],kb:[14,10]},
+    {h:[25,14],s:[25,22],p:[25,48],lh:[32,14],rh:[32,14],lf:[22,74],rf:[28,74],kb:[36,10]}
+  ],
+  'KB Good Morning':[
+    {h:[25,12],s:[25,20],p:[25,48],lh:[20,16],rh:[20,16],lf:[22,74],rf:[28,74],kb:[18,14]},
+    {h:[18,22],s:[20,28],p:[26,48],lh:[16,24],rh:[16,24],lf:[20,74],rf:[30,74],kb:[14,22]}
+  ],
+  'KB Figure 8 (slow)':[
+    {h:[25,14],s:[25,22],p:[25,48],lh:[16,46],rh:[34,40],lk:[18,58],rk:[32,58],lf:[16,74],rf:[34,74],kb:[14,50]},
+    {h:[25,14],s:[25,22],p:[25,48],lh:[34,46],rh:[16,40],lk:[18,58],rk:[32,58],lf:[16,74],rf:[34,74],kb:[36,50]}
+  ],
+};
+
+// Auto-attach side poses to exercises
+ROUTINES.forEach(function(r){
+  r.exercises.forEach(function(e){
+    var sp=SIDE_POSES[e.name];
+    if(sp&&sp[0]&&sp[1]){
+      e.p1._sp1=sp[0];
+      e.p1._sp2=sp[1];
+    }else if(sp&&sp[0]){
+      // Static hold: use same side pose for both
+      e.p1._sp1=sp[0];
+      e.p1._sp2=sp[0];
+    }
+  });
+});
 
 const MOTIVATIONS = [
   "Every journey starts with Day 1. You're here.",
