@@ -76,7 +76,7 @@
     .how-to ol{list-style:none;counter-reset:step;padding:0;margin:0}
     .how-to li{counter-increment:step;display:flex;gap:6px;margin-bottom:4px}
     .how-to li:last-child{margin-bottom:0}
-    .how-to li::before{content:counter(step);font-size:9px;font-weight:700;color:#da7756;background:#fdeedd;width:16px;height:16px;border-radius:50%;display:flex;align-items:center;justify-content:center;flex-shrink:0;margin-top:1px}
+    .how-to li::before{content:counter(step);font-size:9px;font-weight:700;color:var(--how-accent,#da7756);background:var(--how-bg,#fdeedd);width:16px;height:16px;border-radius:50%;display:flex;align-items:center;justify-content:center;flex-shrink:0;margin-top:1px}
     .steps-fill{transition:width .4s cubic-bezier(.4,0,.2,1)}
     .exercise-svg{width:80px;height:auto;flex-shrink:0;display:block;margin:0 auto}
     .check-ex{-webkit-appearance:none;appearance:none;width:20px;height:20px;border:2px solid #e4ded4;border-radius:50%;cursor:pointer;position:relative;flex-shrink:0;transition:all .2s ease}
@@ -961,11 +961,11 @@ function getRoutineIndex(d){return(d-1)%5}
 
 // Color themes per routine type
 const ROUTINE_THEMES=[
-  {btn:'from-claude-500 to-claude-600',border:'border-claude-300',badge:'text-claude-600 bg-claude-50 border-claude-200',text:'text-claude-600',textLight:'text-claude-500',bg:'bg-claude-50',ring:'ring-claude-300',check:'bg-claude-500 border-claude-500'},       // Full Body
-  {btn:'from-fuchsia-500 to-fuchsia-600',border:'border-fuchsia-300',badge:'text-fuchsia-600 bg-fuchsia-50 border-fuchsia-200',text:'text-fuchsia-600',textLight:'text-fuchsia-500',bg:'bg-fuchsia-50',ring:'ring-fuchsia-300',check:'bg-fuchsia-500 border-fuchsia-500'},   // Lower Body
-  {btn:'from-amber-500 to-amber-600',border:'border-amber-300',badge:'text-amber-600 bg-amber-50 border-amber-200',text:'text-amber-600',textLight:'text-amber-500',bg:'bg-amber-50',ring:'ring-amber-300',check:'bg-amber-500 border-amber-500'},             // Core
-  {btn:'from-sky-500 to-sky-600',border:'border-sky-300',badge:'text-sky-600 bg-sky-50 border-sky-200',text:'text-sky-600',textLight:'text-sky-500',bg:'bg-sky-50',ring:'ring-sky-300',check:'bg-sky-500 border-sky-500'},                        // Upper Body
-  {btn:'from-emerald-500 to-emerald-600',border:'border-emerald-300',badge:'text-emerald-600 bg-emerald-50 border-emerald-200',text:'text-emerald-600',textLight:'text-emerald-500',bg:'bg-emerald-50',ring:'ring-emerald-300',check:'bg-emerald-500 border-emerald-500'},    // Recovery
+  {btn:'from-claude-500 to-claude-600',border:'border-claude-300',badge:'text-claude-600 bg-claude-50 border-claude-200',text:'text-claude-600',textLight:'text-claude-500',bg:'bg-claude-50',ring:'ring-claude-300',check:'bg-claude-500 border-claude-500',accent:'#da7756',accentLight:'#fdeedd',accentBorder:'#fadcb8'},
+  {btn:'from-fuchsia-500 to-fuchsia-600',border:'border-fuchsia-300',badge:'text-fuchsia-600 bg-fuchsia-50 border-fuchsia-200',text:'text-fuchsia-600',textLight:'text-fuchsia-500',bg:'bg-fuchsia-50',ring:'ring-fuchsia-300',check:'bg-fuchsia-500 border-fuchsia-500',accent:'#c026d3',accentLight:'#fae8ff',accentBorder:'#f0abfc'},
+  {btn:'from-amber-500 to-amber-600',border:'border-amber-300',badge:'text-amber-600 bg-amber-50 border-amber-200',text:'text-amber-600',textLight:'text-amber-500',bg:'bg-amber-50',ring:'ring-amber-300',check:'bg-amber-500 border-amber-500',accent:'#d97706',accentLight:'#fef3c7',accentBorder:'#fcd34d'},
+  {btn:'from-sky-500 to-sky-600',border:'border-sky-300',badge:'text-sky-600 bg-sky-50 border-sky-200',text:'text-sky-600',textLight:'text-sky-500',bg:'bg-sky-50',ring:'ring-sky-300',check:'bg-sky-500 border-sky-500',accent:'#0284c7',accentLight:'#e0f2fe',accentBorder:'#7dd3fc'},
+  {btn:'from-emerald-500 to-emerald-600',border:'border-emerald-300',badge:'text-emerald-600 bg-emerald-50 border-emerald-200',text:'text-emerald-600',textLight:'text-emerald-500',bg:'bg-emerald-50',ring:'ring-emerald-300',check:'bg-emerald-500 border-emerald-500',accent:'#059669',accentLight:'#d1fae5',accentBorder:'#6ee7b7'},
 ];
 function getTheme(){return ROUTINE_THEMES[getRoutineIndex(getCurrentDayNum())]}
 function getCompletedCount(){return Object.keys(state.completed).length}
@@ -2007,7 +2007,7 @@ function renderExerciseCompact(exercises,dayNum){
       </summary>
       <div class="px-3 pb-3 pt-1 bg-sand-50/50">
         ${svg?`<div class="flex justify-center mb-2">${svg}</div>`:''}
-        <div class="how-to rounded-lg px-3 py-2 text-xs text-claude-700 leading-relaxed">${e.howTo}</div>
+        <div class="how-to rounded-lg px-3 py-2 text-xs text-claude-700 leading-relaxed" style="border-left-color:${getTheme().accentBorder};background:${getTheme().accentLight};--how-accent:${getTheme().accent};--how-bg:${getTheme().accentLight}">${e.howTo}</div>
       </div>
     </details>`;
   }).join('');
@@ -2024,7 +2024,7 @@ function renderExerciseFull(exercises,dayNum){
         <div class="flex-1">
           <p class="font-semibold text-claude-800 ${checked?'line-through opacity-50':''}">${e.name} <span class="font-normal text-sand-400">\u2014 ${e.sets}</span> <span class="text-[10px] text-claude-400">${getExKcal(e.name)} kcal</span></p>
           <div class="my-2 flex justify-center">${svg}</div>
-          <div class="how-to rounded-lg px-3 py-2 text-xs text-claude-700 leading-relaxed">${e.howTo}</div>
+          <div class="how-to rounded-lg px-3 py-2 text-xs text-claude-700 leading-relaxed" style="border-left-color:${getTheme().accentBorder};background:${getTheme().accentLight};--how-accent:${getTheme().accent};--how-bg:${getTheme().accentLight}">${e.howTo}</div>
         </div>
       </div>
     </div>`;
