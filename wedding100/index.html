@@ -1746,13 +1746,34 @@ function startExTimer(dayNum,exIdx,totalSec,autoNext){
     const b=document.getElementById(`timer-${dayNum}-${exIdx}`);
     if(!b){clearInterval(activeTimer.iv);activeTimer=null;return}
     if(rem<=3&&rem>0)sfxTick();
-    // Mid-workout form cues
+    // Mid-workout: switch sides indicator + form cues
     var halfwayMark=Math.floor(totalSec/2);
     var lateCheck=15;
-    if(rem===halfwayMark||rem===lateCheck){
-      var eName=ROUTINES[getRoutineIndex(dayNum)].exercises[exIdx].name;
-      var cues=FORM_CUES[eName]||FORM_GENERIC;
-      speak(cues[Math.floor(Math.random()*cues.length)]);
+    var exData=ROUTINES[getRoutineIndex(dayNum)].exercises[exIdx];
+    var needsSwitch=/alternate|switch|per arm|per leg|per side/i.test(exData.sets);
+
+    if(rem===halfwayMark){
+      if(needsSwitch){
+        // Switch sides! Visual + sound + TTS
+        playTone(880,0.1,0,'sine',0.3);playTone(1100,0.1,0.1,'sine',0.3);
+        vibrate([100,50,100]);
+        speak('Switch sides now!');
+        // Show visual overlay
+        var switchEl=document.createElement('div');
+        switchEl.className='fixed inset-0 z-40 flex items-center justify-center pointer-events-none';
+        switchEl.innerHTML='<div class="bg-claude-600 text-white px-6 py-3 rounded-2xl text-lg font-bold shadow-xl" style="animation:fadeUp .4s ease">Switch Sides!</div>';
+        document.body.appendChild(switchEl);
+        setTimeout(function(){switchEl.remove()},2000);
+      }else{
+        var eName=exData.name;
+        var cues=FORM_CUES[eName]||FORM_GENERIC;
+        speak(cues[Math.floor(Math.random()*cues.length)]);
+      }
+    }
+    if(rem===lateCheck){
+      var eName2=exData.name;
+      var cues2=FORM_CUES[eName2]||FORM_GENERIC;
+      speak(cues2[Math.floor(Math.random()*cues2.length)]);
     }
     b.innerHTML=`<span class="timer-fill" style="width:${activeTimer.pct}%"></span><span class="relative">${rem>0?rem+'s':'\u2713'}</span>`;
     if(rem<=0){
