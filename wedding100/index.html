@@ -215,6 +215,18 @@
       if(typeof state!=='undefined')state=loadState();
       if(typeof initFirebase==='function')initFirebase();
       if(typeof render==='function')render();
+      // Welcome greeting for first-time user
+      if(typeof speak==='function'&&userName){
+        var h=new Date().getHours();
+        var timeGreet=h<12?'morning':h<17?'afternoon':'evening';
+        var daysLeft=typeof getDaysUntilWedding==='function'?getDaysUntilWedding():100;
+        var welcomes=[
+          'Welcome, {name}! Good '+timeGreet+'. '+daysLeft+' days to the wedding. Let\'s get started!',
+          'Hey {name}! So glad you\'re here. Ready for your first 5 minute workout?',
+          '{name}! Welcome to 100 days. Your kettlebell journey starts now!',
+        ];
+        setTimeout(function(){speak(welcomes[Math.floor(Math.random()*welcomes.length)])},500);
+      }
     },3200);
   }
   function showSplash(){
