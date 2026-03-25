@@ -2180,8 +2180,8 @@ function startExTimer(dayNum,exIdx,totalSec,autoNext){
     activeTimer.pct=((totalSec-rem)/totalSec)*100;
     const b=document.getElementById(`timer-${dayNum}-${exIdx}`);
     if(!b)return; // button temporarily missing during re-render, skip this tick
+    if(rem===8)speak('Almost there, finish strong!');
     if(rem<=3&&rem>0){sfxTick();speak(''+rem);}
-    if(rem===5)speak('5 seconds left, finish strong!');
     // Mid-workout: switch sides indicator + form cues
     var halfwayMark=Math.floor(totalSec/2);
     var lateCheck=15;
@@ -2289,8 +2289,8 @@ function startRestTimer(dayNum,nextExIdx){
     rest--;
     const el=document.getElementById('restCountdown');
     if(el)el.textContent=rest;
+    if(rest===8)speak('Get ready for '+r.exercises[nextExIdx].name+'!');
     if(rest<=3&&rest>0){sfxTick();speak(''+rest);}
-    if(rest===5)speak('Get ready for '+r.exercises[nextExIdx].name+'!');
     if(rest<=0){
       clearInterval(activeTimer.iv);activeTimer=null;
       div.remove();
