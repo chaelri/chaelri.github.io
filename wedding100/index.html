@@ -345,6 +345,10 @@
         </div>
       </div>
       <div class="flex items-center gap-2.5">
+        <button id="bgMusicBtn" onclick="toggleBgMusic()" class="w-8 h-8 flex items-center justify-center rounded-full hover:bg-sand-100 text-sand-400" title="Background music">
+          <svg id="bgMusicIcon" class="w-[18px] h-[18px]" fill="none" stroke="currentColor" stroke-width="1.5" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" d="M9 9l10.5-3m0 6.553v3.75a2.25 2.25 0 01-1.632 2.163l-1.32.377a1.803 1.803 0 11-.99-3.467l2.31-.66a2.25 2.25 0 001.632-2.163zm0 0V4.5L9 7.5v9m0 0v3.75a2.25 2.25 0 01-1.632 2.163l-1.32.377a1.803 1.803 0 01-.99-3.467l2.31-.66A2.25 2.25 0 009 16.5z"/></svg>
+          <svg id="bgMusicOffIcon" class="w-[18px] h-[18px] hidden" fill="none" stroke="currentColor" stroke-width="1.5" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" d="M17.25 9.75L19.5 12m0 0l2.25 2.25M19.5 12l2.25-2.25M19.5 12l-2.25 2.25m-10.5-6l4.72-2.21A.75.75 0 0112 6.25v11.5a.75.75 0 01-1.03.69L6.25 16H5.25A2.25 2.25 0 013 13.75v-3.5A2.25 2.25 0 015.25 8h1z"/></svg>
+        </button>
         <button onclick="openSettings()" class="w-8 h-8 flex items-center justify-center rounded-full hover:bg-sand-100 text-sand-400">
           <svg class="w-[18px] h-[18px]" fill="none" stroke="currentColor" stroke-width="1.5" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" d="M9.594 3.94c.09-.542.56-.94 1.11-.94h2.593c.55 0 1.02.398 1.11.94l.213 1.281c.063.374.313.686.645.87.074.04.147.083.22.127.325.196.72.257 1.075.124l1.217-.456a1.125 1.125 0 011.37.49l1.296 2.247a1.125 1.125 0 01-.26 1.431l-1.003.827c-.293.241-.438.613-.43.992a7 7 0 010 .255c-.008.378.137.75.43.991l1.004.827c.424.35.534.955.26 1.43l-1.298 2.247a1.125 1.125 0 01-1.369.491l-1.217-.456c-.355-.133-.75-.072-1.076.124a7 7 0 01-.22.128c-.331.183-.581.495-.644.869l-.213 1.281c-.09.543-.56.941-1.11.941h-2.594c-.55 0-1.019-.398-1.11-.94l-.213-1.281c-.062-.374-.312-.686-.644-.87a7 7 0 01-.22-.127c-.325-.196-.72-.257-1.076-.124l-1.217.456a1.125 1.125 0 01-1.369-.49l-1.297-2.247a1.125 1.125 0 01.26-1.431l1.004-.827c.292-.24.437-.613.43-.991a7 7 0 010-.255c.007-.38-.138-.751-.43-.992l-1.004-.827a1.125 1.125 0 01-.26-1.43l1.297-2.247a1.125 1.125 0 011.37-.491l1.216.456c.356.133.751.072 1.076-.124.072-.044.146-.086.22-.128.332-.183.582-.495.644-.869l.214-1.28z"/><path stroke-linecap="round" stroke-linejoin="round" d="M15 12a3 3 0 11-6 0 3 3 0 016 0z"/></svg>
         </button>
@@ -1409,6 +1413,7 @@ function renderStats(){
   // Update header to show actual days remaining
   var hd=document.getElementById('headerDays');
   if(hd)hd.textContent=daysLeft+' Days';
+  document.title=daysLeft+' Days to the Wedding';
   // Today's kcal
   var todayCal=getTodayKcal();
   var todayStepsKcal=Math.round(getTodaySteps()*0.04);
@@ -1606,6 +1611,8 @@ function unlockAudio(){
   // Unlock HTML5 Audio (for TTS mp3 playback on iOS)
   var silence=new Audio('data:audio/mp3;base64,SUQzBAAAAAAAI1RTU0UAAAAPAAADTGF2ZjU4Ljc2LjEwMAAAAAAAAAAAAAAA//tQAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAWGluZwAAAA8AAAACAAABhgC7u7u7u7u7u7u7u7u7u7u7u7u7u7u7u7u7u7u7u7u7u7u7u7u7u7u7u7u7u7u7u7u7u7u7//////////////////////////////////////////////////////////////////8AAAAATGF2YzU4LjEzAAAAAAAAAAAAAAAAJAAAAAAAAAAAAYYoRBqmAAAAAAD/+1DEAAAHAAGf9AAAIAAAP8AAAARMQUxCMy4xMDCqqqqqqqqqqqqqTEFNRTMuMTAwqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqg==');
   silence.play().then(function(){silence.pause();silence=null}).catch(function(){});
+  // Start chill melody if enabled (needs user gesture)
+  if(chillMelody.enabled&&!chillMelody.playing&&!bgMelody.playing)startChillMelody();
 }
 document.addEventListener('click',unlockAudio,{once:false,capture:true});
 document.addEventListener('touchstart',unlockAudio,{once:false,capture:true});
@@ -1629,6 +1636,7 @@ var bgMelody={iv:null,playing:false,beat:0};
 
 function startBgMelody(){
   if(bgMelody.playing)return;
+  stopChillMelody(); // pause chill, go upbeat
   bgMelody.playing=true;
   bgMelody.beat=0;
 
@@ -1743,6 +1751,135 @@ function startBgMelody(){
 function stopBgMelody(){
   bgMelody.playing=false;
   if(bgMelody.iv){clearInterval(bgMelody.iv);bgMelody.iv=null}
+  // Resume chill if bg music is on
+  if(chillMelody.enabled&&!chillMelody.playing)startChillMelody();
+}
+
+// === Chill ambient melody (browsing/idle) ===
+var chillMelody={playing:false,iv:null,enabled:false,beat:0};
+
+function startChillMelody(){
+  if(chillMelody.playing||bgMelody.playing)return;
+  ensureAudioCtx();
+  chillMelody.playing=true;
+  chillMelody.beat=0;
+
+  var bpm=72; // slow, relaxed
+  var beatMs=60000/bpm;
+  var vol=0.04; // very quiet
+
+  // Warm pad notes — Cmaj7 voicings (C, E, G, B) — dreamy
+  var padChords=[
+    [261.6,329.6,392.0,493.9],  // Cmaj7
+    [220.0,277.2,329.6,415.3],  // Am7
+    [246.9,311.1,370.0,466.2],  // Bm7b5 → Fmaj7 feel
+    [196.0,246.9,293.7,370.0],  // Gmaj7
+  ];
+
+  // Gentle pluck melody — pentatonic (C D E G A)
+  var melodyNotes=[523.3,587.3,659.3,784.0,880.0,784.0,659.3,587.3,523.3,0,659.3,784.0,880.0,0,784.0,659.3];
+
+  function pad(t,chord){
+    chord.forEach(function(f){
+      var o=audioCtx.createOscillator();
+      var g=audioCtx.createGain();
+      var filt=audioCtx.createBiquadFilter();
+      o.connect(filt);filt.connect(g);g.connect(audioCtx.destination);
+      o.frequency.value=f;
+      o.type='sine';
+      filt.type='lowpass';filt.frequency.value=800;
+      g.gain.setValueAtTime(0,t);
+      g.gain.linearRampToValueAtTime(vol*0.6,t+0.3);
+      g.gain.linearRampToValueAtTime(vol*0.4,t+beatMs*2/1000);
+      g.gain.linearRampToValueAtTime(0,t+beatMs*4/1000);
+      o.start(t);o.stop(t+beatMs*4/1000+0.1);
+    });
+  }
+
+  function pluck(t,freq){
+    if(!freq)return;
+    var o=audioCtx.createOscillator();
+    var g=audioCtx.createGain();
+    o.connect(g);g.connect(audioCtx.destination);
+    o.frequency.value=freq;
+    o.type='triangle';
+    g.gain.setValueAtTime(vol*0.8,t);
+    g.gain.exponentialRampToValueAtTime(0.001,t+0.6);
+    o.start(t);o.stop(t+0.65);
+  }
+
+  // Soft hi-hat shimmer every 2 beats
+  function shimmer(t){
+    var buf=audioCtx.createBuffer(1,audioCtx.sampleRate*0.05,audioCtx.sampleRate);
+    var data=buf.getChannelData(0);
+    for(var i=0;i<data.length;i++)data[i]=(Math.random()*2-1);
+    var n=audioCtx.createBufferSource();
+    var g=audioCtx.createGain();
+    var f=audioCtx.createBiquadFilter();
+    n.buffer=buf;
+    f.type='highpass';f.frequency.value=10000;
+    n.connect(f);f.connect(g);g.connect(audioCtx.destination);
+    g.gain.setValueAtTime(vol*0.15,t);
+    g.gain.exponentialRampToValueAtTime(0.001,t+0.05);
+    n.start(t);n.stop(t+0.06);
+  }
+
+  function playChillBeat(){
+    if(!chillMelody.playing)return;
+    var t=audioCtx.currentTime;
+    var b=chillMelody.beat%16;
+
+    // Pad chord every 4 beats (slow wash)
+    if(b%4===0){
+      var ci=Math.floor(chillMelody.beat/4)%padChords.length;
+      pad(t,padChords[ci]);
+    }
+
+    // Melody pluck every beat
+    pluck(t,melodyNotes[b]);
+
+    // Shimmer every 2 beats
+    if(b%2===0)shimmer(t);
+
+    chillMelody.beat++;
+  }
+
+  playChillBeat();
+  chillMelody.iv=setInterval(function(){
+    if(!chillMelody.playing){clearInterval(chillMelody.iv);chillMelody.iv=null;return}
+    playChillBeat();
+  },beatMs);
+}
+
+function stopChillMelody(){
+  chillMelody.playing=false;
+  if(chillMelody.iv){clearInterval(chillMelody.iv);chillMelody.iv=null}
+}
+
+function toggleBgMusic(){
+  ensureAudioCtx();
+  chillMelody.enabled=!chillMelody.enabled;
+  localStorage.setItem('wedding100_bgmusic',chillMelody.enabled?'1':'0');
+  updateMusicIcon();
+  if(chillMelody.enabled){
+    if(!bgMelody.playing)startChillMelody();
+  }else{
+    stopChillMelody();
+  }
+}
+
+function updateMusicIcon(){
+  var on=document.getElementById('bgMusicIcon');
+  var off=document.getElementById('bgMusicOffIcon');
+  var btn=document.getElementById('bgMusicBtn');
+  if(!on||!off)return;
+  if(chillMelody.enabled){
+    on.classList.remove('hidden');off.classList.add('hidden');
+    btn.classList.add('text-claude-600');btn.classList.remove('text-sand-400');
+  }else{
+    on.classList.add('hidden');off.classList.remove('hidden');
+    btn.classList.remove('text-claude-600');btn.classList.add('text-sand-400');
+  }
 }
 
 function sfxStart(){
@@ -2834,6 +2971,9 @@ if(userName){
 currentWeek=Math.floor((getCurrentDayNum()-1)/7);
 renderHeaderAnim();
 setInterval(renderHeaderAnim,8000);
+// Load bg music preference
+chillMelody.enabled=localStorage.getItem('wedding100_bgmusic')==='1';
+updateMusicIcon();
 render();
 
 // Welcome TTS on app open (only for returning users, after splash)
