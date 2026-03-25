@@ -1824,22 +1824,97 @@ function startChillMelody(){
     n.start(t);n.stop(t+0.06);
   }
 
+  // Soft kick for groove rounds
+  function chillKick(t){
+    var o=audioCtx.createOscillator();
+    var g=audioCtx.createGain();
+    o.connect(g);g.connect(audioCtx.destination);
+    o.frequency.setValueAtTime(100,t);
+    o.frequency.exponentialRampToValueAtTime(40,t+0.08);
+    o.type='sine';
+    g.gain.setValueAtTime(vol*0.7,t);
+    g.gain.exponentialRampToValueAtTime(0.001,t+0.12);
+    o.start(t);o.stop(t+0.13);
+  }
+
+  // Soft snap/clap on 2 and 4
+  function chillSnap(t){
+    var buf=audioCtx.createBuffer(1,audioCtx.sampleRate*0.04,audioCtx.sampleRate);
+    var data=buf.getChannelData(0);
+    for(var i=0;i<data.length;i++)data[i]=(Math.random()*2-1);
+    var n=audioCtx.createBufferSource();
+    var g=audioCtx.createGain();
+    var f=audioCtx.createBiquadFilter();
+    n.buffer=buf;
+    f.type='bandpass';f.frequency.value=4000;f.Q.value=2;
+    n.connect(f);f.connect(g);g.connect(audioCtx.destination);
+    g.gain.setValueAtTime(vol*0.5,t);
+    g.gain.exponentialRampToValueAtTime(0.001,t+0.04);
+    n.start(t);n.stop(t+0.05);
+  }
+
+  // Sub bass for deep rounds
+  function chillBass(t,freq){
+    var o=audioCtx.createOscillator();
+    var g=audioCtx.createGain();
+    o.connect(g);g.connect(audioCtx.destination);
+    o.frequency.value=freq;o.type='sine';
+    g.gain.setValueAtTime(vol*0.5,t);
+    g.gain.exponentialRampToValueAtTime(0.001,t+0.25);
+    o.start(t);o.stop(t+0.26);
+  }
+
+  // Arp notes for sparkle rounds
+  var arpNotes=[392.0,493.9,587.3,784.0,987.8,784.0,587.3,493.9];
+  function chillArp(t,idx){
+    var freq=arpNotes[idx%arpNotes.length];
+    var o=audioCtx.createOscillator();
+    var g=audioCtx.createGain();
+    o.connect(g);g.connect(audioCtx.destination);
+    o.frequency.value=freq;o.type='sine';
+    g.gain.setValueAtTime(vol*0.35,t);
+    g.gain.exponentialRampToValueAtTime(0.001,t+0.3);
+    o.start(t);o.stop(t+0.35);
+  }
+
+  // Bass root notes matching chord progression
+  var bassRoots=[98.0,130.8,146.8,98.0]; // G2,C3,D3,G2
+
   function playChillBeat(){
     if(!chillMelody.playing)return;
     var t=audioCtx.currentTime;
     var b=chillMelody.beat%16;
+    var round=Math.floor(chillMelody.beat/16)%4; // 0=bare, 1=+beats, 2=+bass+arp, 3=full
 
-    // Pad chord every 4 beats (slow wash)
+    // Pad chord every 4 beats (always)
     if(b%4===0){
       var ci=Math.floor(chillMelody.beat/4)%padChords.length;
       pad(t,padChords[ci]);
     }
 
-    // Melody pluck every beat
+    // Melody pluck every beat (always)
     pluck(t,melodyNotes[b]);
 
-    // Shimmer every 2 beats
+    // Shimmer every 2 beats (always)
     if(b%2===0)shimmer(t);
+
+    // Round 1+: add soft kick on 1,3 and snap on 2,4
+    if(round>=1){
+      if(b%4===0||b%4===2)chillKick(t);
+      if(b%4===1||b%4===3)chillSnap(t);
+    }
+
+    // Round 2+: add sub bass on chord changes + arp every other beat
+    if(round>=2){
+      if(b%4===0)chillBass(t,bassRoots[Math.floor(b/4)%4]);
+      if(b%2===1)chillArp(t,b);
+    }
+
+    // Round 3: everything + offbeat shimmers + double-time hihats
+    if(round>=3){
+      shimmer(t+beatMs/2000); // offbeat shimmer
+      if(b%2===0)chillArp(t+beatMs/2000,(b+4)%8); // offbeat arp sparkle
+    }
 
     chillMelody.beat++;
   }
