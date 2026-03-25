@@ -87,23 +87,23 @@
     .steps-fill{transition:width .4s cubic-bezier(.4,0,.2,1)}
     .exercise-svg{width:80px;height:auto;flex-shrink:0;display:block;margin:0 auto}
     .stick-bubble{
-      position:absolute;top:-2px;right:-4px;z-index:2;
-      background:#fef7f0;border:1.5px solid #e8d5c4;border-radius:10px;
-      padding:2px 7px;font-size:8px;color:#83382c;font-weight:500;
-      max-width:110px;line-height:1.3;text-align:center;
-      white-space:nowrap;pointer-events:none;
-      box-shadow:0 1px 4px rgba(0,0,0,0.06);
+      position:relative;z-index:2;margin:0 auto 2px;width:fit-content;
+      background:#fef7f0;border:1px solid #e8d5c4;border-radius:8px;
+      padding:2px 8px;font-size:9px;color:#83382c;font-weight:500;
+      max-width:140px;line-height:1.3;text-align:center;
+      pointer-events:none;
+      box-shadow:0 1px 3px rgba(0,0,0,0.05);
       animation:bubbleCycle 6s ease infinite;
     }
     .stick-bubble::after{
-      content:'';position:absolute;bottom:-5px;left:14px;
+      content:'';position:absolute;bottom:-4px;left:50%;transform:translateX(-50%);
       border-left:4px solid transparent;border-right:4px solid transparent;
-      border-top:5px solid #fef7f0;
+      border-top:4px solid #fef7f0;
     }
     .stick-bubble::before{
-      content:'';position:absolute;bottom:-7px;left:13px;
+      content:'';position:absolute;bottom:-6px;left:50%;transform:translateX(-50%);
       border-left:5px solid transparent;border-right:5px solid transparent;
-      border-top:6px solid #e8d5c4;
+      border-top:5px solid #e8d5c4;
     }
     @keyframes bubbleCycle{0%,8%{transform:scale(0);opacity:0}12%{transform:scale(1.05);opacity:1}16%,80%{transform:scale(1);opacity:1}88%,100%{transform:scale(0.9);opacity:0}}
     .check-ex{-webkit-appearance:none;appearance:none;width:20px;height:20px;border:2px solid #e4ded4;border-radius:50%;cursor:pointer;position:relative;flex-shrink:0;transition:all .2s ease}
@@ -756,10 +756,10 @@ function exSvg(p1,p2){
   var quip=getQuip();
   var id='sq'+(_quipCounter++);
   var bubble=`<div class="stick-bubble" id="${id}">${quip}</div>`;
-  if(!p2)return `<div class="relative pt-4">${bubble}<svg viewBox="-4 -6 58 90" class="exercise-svg">${fig(p1)}</svg></div>`;
+  if(!p2)return `<div>${bubble}<svg viewBox="-4 -6 58 90" class="exercise-svg">${fig(p1)}</svg></div>`;
   // Show front view + side view side by side
   if(p1._sp1&&p1._sp2){
-    return `<div class="relative pt-4">
+    return `<div>
       ${bubble}
       <div class="flex items-center gap-1 justify-center">
         <div class="text-center">
@@ -773,7 +773,7 @@ function exSvg(p1,p2){
       </div>
     </div>`;
   }
-  return `<div class="relative pt-4">${bubble}<svg viewBox="-4 -6 58 90" class="exercise-svg">${animFig(p1,p2)}</svg></div>`;
+  return `<div>${bubble}<svg viewBox="-4 -6 58 90" class="exercise-svg">${animFig(p1,p2)}</svg></div>`;
 }
 
 // ── Routines ──────────────────────────────────────────
