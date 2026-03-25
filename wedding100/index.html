@@ -340,7 +340,7 @@
       <div class="flex items-center gap-2.5">
         <div id="headerAnim" class="w-8 h-8 rounded-lg bg-claude-100 overflow-hidden flex items-center justify-center"></div>
         <div>
-          <h1 class="font-serif text-xl text-claude-800 leading-tight">100 Days</h1>
+          <h1 id="headerDays" class="font-serif text-xl text-claude-800 leading-tight">100 Days</h1>
           <p class="text-[10px] text-claude-500 font-semibold tracking-widest uppercase">To the Wedding &middot; 6kg KB</p>
         </div>
       </div>
@@ -1404,7 +1404,11 @@ function renderCoach(){
 }
 
 function renderStats(){
-  document.getElementById('statWedding').textContent=getDaysUntilWedding();
+  var daysLeft=getDaysUntilWedding();
+  document.getElementById('statWedding').textContent=daysLeft;
+  // Update header to show actual days remaining
+  var hd=document.getElementById('headerDays');
+  if(hd)hd.textContent=daysLeft+' Days';
   // Today's kcal
   var todayCal=getTodayKcal();
   var todayStepsKcal=Math.round(getTodaySteps()*0.04);
@@ -1485,9 +1489,16 @@ function renderPartner(){
           <div class="w-full h-2 bg-sand-100 rounded-full overflow-hidden mb-1.5">
             <div class="h-full rounded-full bg-gradient-to-r from-claude-300 to-claude-500" style="width:${pct}%"></div>
           </div>
-          <div class="flex justify-between">
-            <span class="text-[10px] text-sand-400">${completed}/100 days</span>
-            <span class="text-[10px] text-sand-400">${steps>0?(steps>=1000?(steps/1000).toFixed(1)+'k':steps)+' steps':''}</span>
+          <span class="text-[10px] text-sand-400 mb-2 block">${completed}/100 days</span>
+          <div class="flex items-center gap-2 mb-1">
+            <span class="text-[10px] text-sand-400 w-12 shrink-0">Steps</span>
+            <div class="flex-1 h-1.5 bg-sand-100 rounded-full overflow-hidden">
+              <div class="h-full rounded-full bg-gradient-to-r from-claude-200 to-claude-400 transition-all" style="width:${Math.min(100,steps/100)}%"></div>
+            </div>
+            <span class="text-[10px] font-medium text-claude-600 w-10 text-right">${steps>0?(steps>=1000?(steps/1000).toFixed(1)+'k':steps):'0'}</span>
+          </div>
+          <div class="flex items-center justify-between">
+            <span class="text-[10px] text-sand-300">${steps>=10000?'10k reached!':Math.round(steps/10000*100)+'% of 10k'}</span>
           </div>
         </div>
       </div>`;
@@ -2169,7 +2180,8 @@ function startExTimer(dayNum,exIdx,totalSec,autoNext){
     activeTimer.pct=((totalSec-rem)/totalSec)*100;
     const b=document.getElementById(`timer-${dayNum}-${exIdx}`);
     if(!b)return; // button temporarily missing during re-render, skip this tick
-    if(rem<=3&&rem>0)sfxTick();
+    if(rem<=3&&rem>0){sfxTick();speak(''+rem);}
+    if(rem===5)speak('5 seconds left, finish strong!');
     // Mid-workout: switch sides indicator + form cues
     var halfwayMark=Math.floor(totalSec/2);
     var lateCheck=15;
@@ -2277,7 +2289,8 @@ function startRestTimer(dayNum,nextExIdx){
     rest--;
     const el=document.getElementById('restCountdown');
     if(el)el.textContent=rest;
-    if(rest<=3&&rest>0)sfxTick();
+    if(rest<=3&&rest>0){sfxTick();speak(''+rest);}
+    if(rest===5)speak('Get ready for '+r.exercises[nextExIdx].name+'!');
     if(rest<=0){
       clearInterval(activeTimer.iv);activeTimer=null;
       div.remove();
