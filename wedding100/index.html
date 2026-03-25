@@ -930,14 +930,16 @@ const ROUTINES = [
 // Arms overlap (one visible), legs show front/back stride
 var SIDE_POSES={
   'Kettlebell Swing':[
-    // Side start: hinged forward, KB behind
-    {h:[22,18],s:[24,24],p:[28,48],lh:[34,48],rh:[34,48],lk:[22,58],rk:[32,56],lf:[18,74],rf:[34,74],kb:[36,52]},
-    // Side end: standing tall, KB in front at chest height
-    {h:[25,12],s:[25,20],p:[25,48],lh:[12,14],rh:[12,14],lf:[22,74],rf:[28,74],kb:[10,12]}
+    // Side start: deep hip hinge — torso almost horizontal, KB behind legs
+    {h:[14,20],s:[18,26],p:[30,48],lh:[36,50],rh:[36,50],lk:[22,58],rk:[34,56],lf:[18,74],rf:[36,74],kb:[40,54]},
+    // Side end: standing tall, hips thrust forward, KB out in front at chest
+    {h:[25,12],s:[25,20],p:[25,48],lh:[10,16],rh:[10,16],lf:[22,74],rf:[28,74],kb:[8,14]}
   ],
   'Goblet Squat':[
-    {h:[25,12],s:[25,20],p:[25,48],lh:[18,26],rh:[18,26],lf:[20,74],rf:[30,74],kb:[16,28]},
-    {h:[25,24],s:[25,30],p:[28,50],lh:[18,38],rh:[18,38],lk:[18,58],rk:[34,56],lf:[14,70],rf:[36,74],kb:[16,40]}
+    // Side start: standing, KB at chest
+    {h:[25,12],s:[25,20],p:[25,48],lh:[18,26],rh:[18,26],lf:[22,74],rf:[28,74],kb:[16,28]},
+    // Side end: deep squat — butt way back, torso leaned forward, knees bent
+    {h:[22,24],s:[23,30],p:[30,52],lh:[16,38],rh:[16,38],lk:[16,62],rk:[36,58],lf:[12,72],rf:[38,74],kb:[14,40]}
   ],
   'KB Clean & Press':[
     {h:[25,12],s:[25,20],p:[25,48],lh:[30,36],rh:[18,20],lf:[22,74],rf:[28,74],kb:[16,18]},
@@ -952,16 +954,22 @@ var SIDE_POSES={
     null // static hold, no second side pose needed
   ],
   'KB Deadlift':[
-    {h:[20,18],s:[22,24],p:[28,48],lh:[22,46],rh:[22,46],lk:[20,58],rk:[32,56],lf:[16,74],rf:[34,74],kb:[22,50]},
+    // Side start: hinged forward deeply — flat back, butt back, KB hanging
+    {h:[14,22],s:[18,28],p:[30,48],lh:[18,46],rh:[18,46],lk:[22,58],rk:[34,56],lf:[18,74],rf:[36,74],kb:[18,50]},
+    // Side end: standing tall
     {h:[25,12],s:[25,20],p:[25,48],lh:[22,46],rh:[22,46],lf:[22,74],rf:[28,74],kb:[22,50]}
   ],
   'KB Reverse Lunge':[
-    {h:[25,12],s:[25,20],p:[25,48],lh:[18,28],rh:[18,28],lf:[20,74],rf:[30,74],kb:[16,30]},
-    {h:[25,12],s:[25,20],p:[25,48],lh:[18,28],rh:[18,28],lk:[16,56],lf:[14,70],rf:[36,76],kb:[16,30]}
+    // Side start: standing tall, KB at chest
+    {h:[25,12],s:[25,20],p:[25,48],lh:[18,28],rh:[18,28],lf:[22,74],rf:[28,74],kb:[16,30]},
+    // Side end: front leg bent (knee forward), back leg extended behind, body lowered
+    {h:[25,24],s:[25,32],p:[25,52],lh:[18,40],rh:[18,40],lk:[14,60],rk:[38,58],lf:[12,72],rf:[42,74],kb:[16,42]}
   ],
   'KB Sumo Squat':[
+    // Side start: wide stance standing, KB hanging
     {h:[25,12],s:[25,20],p:[25,48],lh:[22,44],rh:[22,44],lf:[18,74],rf:[32,74],kb:[22,48]},
-    {h:[25,22],s:[25,28],p:[25,50],lh:[22,48],rh:[22,48],lk:[16,58],rk:[34,56],lf:[14,70],rf:[36,74],kb:[22,52]}
+    // Side end: lowered deep, knees wide, torso upright
+    {h:[25,24],s:[25,30],p:[25,52],lh:[22,50],rh:[22,50],lk:[14,60],rk:[36,58],lf:[10,72],rf:[40,74],kb:[22,54]}
   ],
   'KB Calf Raise':[
     {h:[25,12],s:[25,20],p:[25,48],lh:[30,36],rh:[18,48],lf:[22,74],rf:[28,74],kb:[16,52]},
@@ -1012,8 +1020,10 @@ var SIDE_POSES={
     {h:[25,14],s:[25,22],p:[25,48],lh:[32,14],rh:[32,14],lf:[22,74],rf:[28,74],kb:[36,10]}
   ],
   'KB Good Morning':[
-    {h:[25,12],s:[25,20],p:[25,48],lh:[20,16],rh:[20,16],lf:[22,74],rf:[28,74],kb:[18,14]},
-    {h:[18,22],s:[20,28],p:[26,48],lh:[16,24],rh:[16,24],lf:[20,74],rf:[30,74],kb:[14,22]}
+    // Side start: standing, KB behind neck
+    {h:[25,12],s:[25,20],p:[25,48],lh:[20,16],rh:[20,16],lf:[22,74],rf:[28,74],kb:[22,14]},
+    // Side end: deep bow — torso nearly horizontal, butt way back
+    {h:[10,26],s:[14,30],p:[30,48],lh:[10,26],rh:[10,26],lf:[22,74],rf:[32,74],kb:[12,28]}
   ],
   'KB Figure 8 (slow)':[
     {h:[25,14],s:[25,22],p:[25,48],lh:[16,46],rh:[34,40],lk:[18,58],rk:[32,58],lf:[16,74],rf:[34,74],kb:[14,50]},
@@ -1733,9 +1743,26 @@ function sfxStart(){
 }
 
 // Countdown tick — short crisp click
+// Descending countdown ticks: 3 → 2 → 1 (like Valorant round start)
 function sfxTick(){
-  playTone(800,0.06,0,'square',0.15);
-  vibrate(30);
+  // Get remaining seconds from active timer to determine pitch
+  var rem=activeTimer?activeTimer.remaining:3;
+  if(rem===3){
+    playTone(880,0.12,0,'sine',0.25);    // A5 — high
+    playTone(440,0.08,0,'square',0.08);   // subtle click layer
+    vibrate(40);
+  }else if(rem===2){
+    playTone(660,0.12,0,'sine',0.25);    // E5 — mid
+    playTone(330,0.08,0,'square',0.08);
+    vibrate(40);
+  }else if(rem===1){
+    playTone(440,0.15,0,'sine',0.3);     // A4 — low, slightly longer
+    playTone(220,0.1,0,'square',0.1);    // deeper undertone
+    vibrate(60);
+  }else{
+    playTone(800,0.06,0,'square',0.15);
+    vibrate(30);
+  }
 }
 
 // Exercise complete — ascending two-note chime
