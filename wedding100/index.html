@@ -1768,16 +1768,16 @@ function startChillMelody(){
   var beatMs=60000/bpm;
   var vol=0.04; // very quiet
 
-  // Warm pad notes — Cmaj7 voicings (C, E, G, B) — dreamy
+  // All-major bright progression: G → C → D → G (sunny, uplifting)
   var padChords=[
-    [261.6,329.6,392.0,493.9],  // Cmaj7
-    [220.0,277.2,329.6,415.3],  // Am7
-    [246.9,311.1,370.0,466.2],  // Bm7b5 → Fmaj7 feel
-    [196.0,246.9,293.7,370.0],  // Gmaj7
+    [196.0,246.9,293.7,392.0],  // G major (G3,B3,D4,G4)
+    [261.6,329.6,392.0,523.3],  // C major (C4,E4,G4,C5)
+    [293.7,370.0,440.0,587.3],  // D major (D4,F#4,A4,D5)
+    [196.0,246.9,293.7,392.0],  // G major again (resolve home)
   ];
 
-  // Gentle pluck melody — pentatonic (C D E G A)
-  var melodyNotes=[523.3,587.3,659.3,784.0,880.0,784.0,659.3,587.3,523.3,0,659.3,784.0,880.0,0,784.0,659.3];
+  // Bright pluck melody — G major pentatonic (G A B D E)
+  var melodyNotes=[784.0,880.0,987.8,0,1174.7,987.8,880.0,784.0,0,880.0,987.8,1174.7,1318.5,0,1174.7,987.8];
 
   function pad(t,chord){
     chord.forEach(function(f){
