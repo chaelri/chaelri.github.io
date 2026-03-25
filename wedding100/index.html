@@ -1760,7 +1760,7 @@ var chillMelody={playing:false,iv:null,enabled:false,beat:0};
 
 function startChillMelody(){
   if(chillMelody.playing||bgMelody.playing)return;
-  ensureAudioCtx();
+  if(audioCtx.state==='suspended')audioCtx.resume();
   chillMelody.playing=true;
   chillMelody.beat=0;
 
@@ -1857,7 +1857,7 @@ function stopChillMelody(){
 }
 
 function toggleBgMusic(){
-  ensureAudioCtx();
+  if(audioCtx.state==='suspended')audioCtx.resume();
   chillMelody.enabled=!chillMelody.enabled;
   localStorage.setItem('wedding100_bgmusic',chillMelody.enabled?'1':'0');
   updateMusicIcon();
