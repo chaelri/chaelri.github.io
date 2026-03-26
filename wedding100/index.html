@@ -87,13 +87,14 @@
     .steps-fill{transition:width .4s cubic-bezier(.4,0,.2,1)}
     .exercise-svg{width:80px;height:auto;flex-shrink:0;display:block;margin:0 auto}
     .stick-bubble{
-      position:relative;z-index:2;margin:0 auto 2px;width:fit-content;
+      position:relative;z-index:2;margin:6px auto 4px;width:fit-content;
       background:#fef7f0;border:1px solid #e8d5c4;border-radius:8px;
-      padding:2px 8px;font-size:9px;color:#83382c;font-weight:500;
-      max-width:140px;line-height:1.3;text-align:center;
-      pointer-events:none;
+      padding:3px 8px;font-size:8px;color:#83382c;font-weight:500;
+      max-width:130px;line-height:1.25;text-align:center;
+      pointer-events:none;white-space:nowrap;overflow:hidden;text-overflow:ellipsis;
       box-shadow:0 1px 3px rgba(0,0,0,0.05);
       animation:bubbleCycle 6s ease infinite;
+      height:18px;box-sizing:border-box;
     }
     .stick-bubble::after{
       content:'';position:absolute;bottom:-4px;left:50%;transform:translateX(-50%);
