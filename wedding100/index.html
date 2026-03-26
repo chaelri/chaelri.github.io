@@ -966,11 +966,11 @@ const ROUTINES = [
         p2:{h:[25,30],s:[25,38],p:[25,58],lh:[36,44],rh:[40,44],lf:[16,54],rf:[34,54],kb:[42,46]},
       },
       {
-        name: 'KB Windmill',
-        sets: '45 sec (switch arms halfway)',
-        howTo: '<ol><li>Push KB overhead with one arm, keep it locked</li><li>Stand with feet wide apart</li><li>Slowly bend sideways, sliding your free hand down your leg</li><li>Keep looking up at the KB the whole time</li><li>Only go as far as you can without rounding your back</li></ol>',
-        p1:{h:[25,12],s:[25,20],p:[25,48],lh:[14,36],rh:[36,4],lf:[19,74],rf:[31,74],kb:[37,0]},
-        p2:{h:[18,18],s:[20,26],p:[27,48],lh:[10,56],rh:[34,4],lf:[18,74],rf:[34,74],kb:[35,0]},
+        name: 'KB Side Bend',
+        sets: '45 sec (switch sides halfway)',
+        howTo: '<ol><li>Hold KB in one hand at your side, feet shoulder-width apart</li><li>Put your free hand behind your head</li><li>Slowly bend sideways AWAY from the KB, squeezing your obliques</li><li>Come back up straight with control</li><li>Switch hands halfway through</li></ol>',
+        p1:{h:[25,12],s:[25,20],p:[25,48],lh:[20,14],rh:[36,48],lf:[19,74],rf:[31,74],kb:[37,52]},
+        p2:{h:[18,18],s:[20,26],p:[27,48],lh:[16,14],rh:[38,50],lf:[19,74],rf:[34,74],kb:[40,54]},
       },
       {
         name: 'KB Figure 8',
@@ -1136,9 +1136,11 @@ var SIDE_POSES={
     {h:[25,30],s:[25,38],p:[25,58],lh:[12,42],rh:[12,42],lf:[20,54],rf:[30,54],kb:[10,44]},
     {h:[25,30],s:[25,38],p:[25,58],lh:[38,42],rh:[38,42],lf:[20,54],rf:[30,54],kb:[40,44]}
   ],
-  'KB Windmill':[
-    {h:[25,12],s:[25,20],p:[25,48],lh:[30,36],rh:[22,4],lf:[22,74],rf:[28,74],kb:[20,0]},
-    {h:[22,18],s:[23,26],p:[27,48],lh:[32,52],rh:[20,6],lf:[22,74],rf:[30,74],kb:[18,2]}
+  'KB Side Bend':[
+    // Side start: standing, KB at side, free hand behind head
+    {h:[25,12],s:[25,20],p:[25,48],lh:[20,14],rh:[36,48],lf:[22,74],rf:[28,74],kb:[37,52]},
+    // Side end: bending away from KB
+    {h:[18,18],s:[20,26],p:[27,48],lh:[14,14],rh:[38,50],lf:[22,74],rf:[30,74],kb:[40,54]}
   ],
   'KB Figure 8':[
     {h:[25,14],s:[25,22],p:[25,48],lh:[16,46],rh:[34,40],lk:[18,58],rk:[32,58],lf:[16,74],rf:[34,74],kb:[14,50]},
@@ -1727,7 +1729,7 @@ const KCAL_PER_EXERCISE={
   'KB Halo':7,              // mobility, low-moderate
   'KB Halo (slow)':5,       // recovery
   'KB Russian Twist':9,     // core, moderate
-  'KB Windmill':8,          // stability, moderate
+  'KB Side Bend':8,         // obliques, moderate
   'KB Figure 8':10,         // coordination, moderate
   'KB Figure 8 (slow)':7,   // recovery
   'KB Suitcase Carry':7,    // isometric, low-moderate
@@ -2308,11 +2310,12 @@ const FORM_CUES={
     'Keep your feet steady.',
     'Go slow and controlled.',
   ],
-  'KB Windmill':[
-    'Eyes on the kettlebell, always.',
-    'Only go as far as your back stays flat.',
-    'The KB arm stays locked.',
-    'Push your hip out to the side.',
+  'KB Side Bend':[
+    'Bend slow, squeeze your obliques.',
+    'Don\u2019t lean forward, only sideways.',
+    'Keep your hips still, only your torso moves.',
+    'Feel the stretch on the opposite side.',
+    'Control the way back up, don\u2019t rush.',
   ],
   'KB Figure 8':[
     'Stay low, chest up.',
