@@ -1120,19 +1120,23 @@ ROUTINES.forEach(function(r){
   });
 });
 
-const MOTIVATIONS = [
-  "Every journey starts with Day 1. You're here.",
-  "Building the habit. Discipline is forged here.",
-  "The hardest part is behind you.",
-  "You're finding your rhythm now.",
-  "One month of showing up. That's character.",
-  "Halfway there. Look how far you've come.",
-  "The momentum is real. Trust it.",
-  "Your body is changing. Trust the process.",
-  "Almost there. Finish what you started.",
-  "The final stretch. You've earned every day.",
-  "100 days. You did it.",
-];
+function getMotivation(day){
+  if(day<=1)return "Day 1. Every transformation starts with a single rep.";
+  if(day<=3)return "Still showing up. That's already more than most.";
+  if(day<=7)return "First week down. The habit is taking root.";
+  if(day<=14)return "Two weeks in. Your body is starting to listen.";
+  if(day<=21)return "Three weeks — they say this is when habits stick.";
+  if(day<=30)return "One month of discipline. That's real character.";
+  if(day<=40)return "You're in the groove now. Keep that energy.";
+  if(day<=50)return "Halfway there. Look how far you've come.";
+  if(day<=60)return "60 days. The version of you at the wedding is being built right now.";
+  if(day<=70)return "The momentum is undeniable. Trust it.";
+  if(day<=80)return "20 days left. Every rep counts double now.";
+  if(day<=90)return "Single digits coming. Finish what you started.";
+  if(day<=95)return "The final stretch. You've earned every single day.";
+  if(day<=99)return "Almost there. The wedding is right around the corner.";
+  return "Day 100. You did it. Every rep, every step, every day. \u{1F451}";
+}
 
 const WEDDING_DATE='2026-07-02', START_DATE='2026-03-24';
 
@@ -1387,8 +1391,7 @@ function render(){
   document.getElementById('progressRing').style.strokeDashoffset=326.73*(1-count/100);
   const cd=getCurrentDayNum();
   document.getElementById('daysLeft').textContent=cd<=100?`Day ${cd} of 100`:'Journey complete!';
-  const mi=Math.min(Math.floor(count/10),MOTIVATIONS.length-1);
-  document.getElementById('motivationText').textContent=MOTIVATIONS[mi];
+  document.getElementById('motivationText').textContent=getMotivation(count);
   renderStats();renderGreeting();renderCoach();renderToday();renderWeek();renderRoutineCards();renderSteps();renderPartner();
 }
 
