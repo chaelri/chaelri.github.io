@@ -162,6 +162,11 @@
     html.dark .border-emerald-200{border-color:#2a4a2a!important}
     /* Font color on main headings */
     html.dark .font-serif{color:#fdeedd}
+    .hist-card{background:white;border-radius:1rem;border:1px solid #e4ded4;box-shadow:0 1px 3px rgba(0,0,0,.04)}
+    /* Dark mode history panel */
+    html.dark #historyPanel .absolute{background:#1a1410!important}
+    html.dark .hist-card{background:#2a2118!important;border-color:#3d3228!important}
+    html.dark #historyPanel .glass{background:rgba(26,20,16,.9)!important}
     .check-ex{-webkit-appearance:none;appearance:none;width:20px;height:20px;border:2px solid #e4ded4;border-radius:50%;cursor:pointer;position:relative;flex-shrink:0;transition:all .2s ease}
     .check-ex:checked{background:linear-gradient(135deg,#da7756,#c25a3a);border-color:#da7756}
     .check-ex:checked::after{content:'';position:absolute;top:3px;left:6px;width:5px;height:9px;border:solid #fff;border-width:0 2px 2px 0;transform:rotate(45deg)}
@@ -3219,6 +3224,7 @@ function renderHistoryContent(data,name){
   var exerciseChecks=data.exerciseChecks||{};
   var bonusRounds=data.bonusRounds||{};
   var startDate=data.startDate||START_DATE;
+  var userKey=name.toLowerCase().replace(/[^a-z0-9]/g,'_');
 
   // Summary stats
   var totalDays=Object.keys(completed).length;
@@ -3233,7 +3239,7 @@ function renderHistoryContent(data,name){
 
   var html='';
   // Summary card
-  html+='<div class="bg-white rounded-2xl border border-sand-200 p-4 mt-3 mb-4">';
+  html+='<div class="hist-card p-4 mt-3 mb-4">';
   html+='<h3 class="font-serif text-lg text-claude-800 mb-3">'+name+'\'s Journey</h3>';
   html+='<div class="grid grid-cols-3 gap-3 text-center">';
   html+='<div><p class="text-xl font-bold text-claude-600">'+totalDays+'</p><p class="text-[10px] text-sand-400 uppercase">Days Done</p></div>';
@@ -3254,49 +3260,74 @@ function renderHistoryContent(data,name){
     dayStepsDate.setDate(dayStepsDate.getDate()+(d-1));
     var dateStr=dayStepsDate.toISOString().split('T')[0];
     var daySteps=steps[dateStr]||(typeof steps[dateStr]==='object'?0:0);
-    if(typeof daySteps==='object')daySteps=0; // handle Firebase push keys
+    if(typeof daySteps==='object')daySteps=0;
     var dayKcal=isDone?getRoutineKcal(routine):0;
     var bonus=(bonusRounds[d])||0;
     if(bonus)dayKcal+=getRoutineKcal(routine)*bonus;
 
-    // Check individual exercises
+    // Count checked exercises
     var exDone=[];
     routine.exercises.forEach(function(_,i){
       if(exerciseChecks['d'+d+'e'+i])exDone.push(i);
     });
+    var allChecked=exDone.length===routine.exercises.length;
 
-    html+='<div class="bg-white rounded-xl border border-sand-200 p-3 mb-2 '+(isDone?'':'opacity-60')+'">';
-    html+='<div class="flex items-center justify-between mb-1">';
-    html+='<div class="flex items-center gap-2">';
-    html+='<span class="text-xs font-bold '+(isDone?'text-emerald-600':'text-sand-400')+'">Day '+d+'</span>';
-    html+='<span class="text-xs text-sand-400">'+routine.name+'</span>';
+    // Day card
+    html+='<div class="hist-card p-3 mb-2.5">';
+
+    // Header row: Day + routine name + status
+    html+='<div class="flex items-center justify-between mb-2">';
+    html+='<div>';
+    html+='<span class="text-sm font-bold text-claude-800">Day '+d+'</span>';
+    html+='<span class="text-xs text-sand-400 ml-2">'+routine.name+'</span>';
     html+='</div>';
-    html+='<div class="flex items-center gap-2">';
-    if(isDone)html+='<span class="text-[9px] font-bold text-emerald-600 bg-emerald-50 border border-emerald-200 px-1.5 py-0.5 rounded-full">Done</span>';
+    html+='<div class="flex items-center gap-1.5">';
     if(bonus)html+='<span class="text-[9px] font-bold text-claude-500 bg-claude-50 border border-claude-200 px-1.5 py-0.5 rounded-full">+'+bonus+' bonus</span>';
+    if(isDone)html+='<span class="text-[9px] font-bold text-emerald-600 bg-emerald-50 border border-emerald-200 px-1.5 py-0.5 rounded-full">\u2713 Complete</span>';
+    else html+='<span class="text-[9px] text-sand-400 bg-sand-50 border border-sand-200 px-1.5 py-0.5 rounded-full">'+exDone.length+'/'+routine.exercises.length+'</span>';
     html+='</div>';
     html+='</div>';
 
-    // Date + stats row
-    html+='<div class="flex items-center justify-between text-[10px] text-sand-400 mb-1.5">';
+    // Date + stats
+    html+='<div class="flex items-center justify-between text-[10px] text-sand-400 mb-2">';
     html+='<span>'+dateStr+'</span>';
-    html+='<span>'+dayKcal+' kcal'+(daySteps?' &middot; '+daySteps.toLocaleString()+' steps':'')+'</span>';
+    html+='<span>'+(dayKcal?dayKcal+' kcal lost':'0 kcal')+(daySteps?' \u00b7 '+daySteps.toLocaleString()+' steps':'')+'</span>';
     html+='</div>';
 
-    // Exercise checklist (editable)
-    html+='<div class="flex flex-wrap gap-1">';
+    // Mark All / Undo All button
+    html+='<div class="flex items-center gap-2 mb-2">';
+    html+='<button onclick="toggleHistoryAllEx(\''+userKey+'\','+d+','+(allChecked?'false':'true')+')" class="text-[10px] font-semibold px-3 py-1 rounded-lg transition-all active:scale-95 '+(allChecked?'border border-sand-200 text-sand-400 hover:border-claude-300':'bg-gradient-to-r from-claude-500 to-claude-600 text-white')+'">'+(allChecked?'Undo All':'Mark All Done')+'</button>';
+    html+='<span class="text-[9px] text-sand-300">or tap individual:</span>';
+    html+='</div>';
+
+    // Exercise checklist with proper checkboxes
+    html+='<div class="flex flex-wrap gap-1.5 mb-2">';
     routine.exercises.forEach(function(ex,i){
       var checked=exDone.indexOf(i)>=0;
-      var key=name.toLowerCase().replace(/[^a-z0-9]/g,'_');
-      html+='<button onclick="toggleHistoryEx(\''+key+'\','+d+','+i+',this)" class="text-[9px] px-2 py-0.5 rounded-full border transition-all active:scale-95 '+(checked?'bg-claude-50 border-claude-300 text-claude-700':'border-sand-200 text-sand-400 hover:border-claude-300')+'">'+
-        (checked?'&#10003; ':'')+ex.name+'</button>';
+      html+='<button onclick="toggleHistoryEx(\''+userKey+'\','+d+','+i+')" class="flex items-center gap-1 text-[10px] px-2.5 py-1 rounded-lg border transition-all active:scale-95 '+(checked?'bg-claude-50 border-claude-300 text-claude-700 font-medium':'border-sand-200 text-sand-400 hover:border-claude-300')+'">';
+      html+='<span class="w-3.5 h-3.5 rounded border flex items-center justify-center text-[8px] shrink-0 '+(checked?'bg-claude-500 border-claude-500 text-white':'border-sand-300')+'">'+(checked?'\u2713':'')+'</span>';
+      html+=ex.name+'</button>';
     });
     html+='</div>';
 
-    // Steps edit
-    html+='<div class="flex items-center gap-2 mt-1.5">';
-    html+='<span class="text-[9px] text-sand-400">Steps:</span>';
-    html+='<input type="number" value="'+(daySteps||'')+'" placeholder="0" onchange="updateHistorySteps(\''+name.toLowerCase().replace(/[^a-z0-9]/g,'_')+'\',\''+dateStr+'\',this.value)" class="w-20 text-[10px] border border-sand-200 rounded-lg px-2 py-1 text-claude-800 bg-sand-50 focus:outline-none focus:ring-1 focus:ring-claude-300 [appearance:textfield] [&::-webkit-inner-spin-button]:appearance-none">';
+    // Bonus rounds display
+    if(bonus>0){
+      for(var b=0;b<bonus;b++){
+        html+='<div class="flex flex-wrap gap-1.5 mb-1 pl-3 border-l-2 border-claude-200">';
+        html+='<span class="text-[9px] text-claude-500 font-semibold mr-1">Round '+(b+2)+':</span>';
+        routine.exercises.forEach(function(ex){
+          html+='<span class="text-[9px] px-2 py-0.5 rounded-full bg-claude-50 border border-claude-200 text-claude-600">\u2713 '+ex.name+'</span>';
+        });
+        html+='</div>';
+      }
+    }
+
+    // Steps edit row
+    html+='<div class="flex items-center gap-2 mt-2 pt-2 border-t border-sand-100">';
+    html+='<svg class="w-3.5 h-3.5 text-sand-400" fill="none" stroke="currentColor" stroke-width="1.5" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" d="M15.75 10.5l4.72-4.72a.75.75 0 011.28.53v11.38a.75.75 0 01-1.28.53l-4.72-4.72M4.5 18.75h9a2.25 2.25 0 002.25-2.25v-9a2.25 2.25 0 00-2.25-2.25h-9A2.25 2.25 0 002.25 7.5v9a2.25 2.25 0 002.25 2.25z"/></svg>';
+    html+='<span class="text-[10px] text-sand-400">Steps:</span>';
+    html+='<input type="number" value="'+(daySteps||'')+'" placeholder="0" onchange="updateHistorySteps(\''+userKey+'\',\''+dateStr+'\',this.value)" class="w-24 text-xs border border-sand-200 rounded-lg px-2 py-1.5 text-claude-800 bg-sand-50 focus:outline-none focus:ring-1 focus:ring-claude-300 [appearance:textfield] [&::-webkit-inner-spin-button]:appearance-none">';
+    html+='<span class="text-[10px] text-sand-300">steps</span>';
     html+='</div>';
 
     html+='</div>';
@@ -3332,6 +3363,29 @@ function toggleHistoryEx(userKey,dayNum,exIdx,btn){
     // Refresh after short delay
     setTimeout(function(){loadHistoryData();render()},300);
   });
+}
+
+function toggleHistoryAllEx(userKey,dayNum,markDone){
+  var ri=getRoutineIndex(dayNum);
+  var total=ROUTINES[ri].exercises.length;
+  var updates={};
+  for(var i=0;i<total;i++){
+    updates['exerciseChecks/d'+dayNum+'e'+i]=markDone?true:null;
+  }
+  updates['completed/'+dayNum]=markDone?todayStr():null;
+  db.ref('wedding100/users/'+userKey).update(updates);
+  // Update local state if editing own data
+  if(userKey===userName.toLowerCase().replace(/[^a-z0-9]/g,'_')){
+    for(var i=0;i<total;i++){
+      var k='d'+dayNum+'e'+i;
+      if(markDone)state.exerciseChecks[k]=true;
+      else delete state.exerciseChecks[k];
+    }
+    if(markDone)state.completed[dayNum]=todayStr();
+    else delete state.completed[dayNum];
+    saveState();
+  }
+  setTimeout(function(){loadHistoryData();render()},300);
 }
 
 function updateHistorySteps(userKey,dateStr,val){
