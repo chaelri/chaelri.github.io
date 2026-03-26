@@ -11,6 +11,62 @@ const COMPANIES = {
 let currentCompany = localStorage.getItem('exit_interview_active_company') || 'manela';
 function getStorageKey() { return COMPANIES[currentCompany].storageKey; }
 
+// ─── FIREBASE ───────────────────────────────────────────────────────
+const firebaseConfig = {
+  apiKey: "AIzaSyB8ahT56WbEUaGAymsRNNA-DrfZnUnWIwk",
+  authDomain: "test-database-55379.firebaseapp.com",
+  databaseURL: "https://test-database-55379-default-rtdb.asia-southeast1.firebasedatabase.app",
+  projectId: "test-database-55379",
+  storageBucket: "test-database-55379.firebasestorage.app",
+  messagingSenderId: "933688602756",
+  appId: "1:933688602756:web:392a3a4ce040cb9d4452d1"
+};
+firebase.initializeApp(firebaseConfig);
+const fbDb = firebase.database();
+
+function getFirebaseRef() {
+  return fbDb.ref('guard_exit_interview/' + currentCompany);
+}
+
+function saveToFirebase() {
+  getFirebaseRef().set(records);
+}
+
+function loadFromFirebase() {
+  return getFirebaseRef().once('value').then(snap => {
+    const fbData = snap.val();
+    if (fbData && Array.isArray(fbData) && fbData.length) {
+      records = fbData;
+      // Also cache locally
+      localStorage.setItem(getStorageKey(), JSON.stringify(records));
+      renderAll();
+      if (currentView === 'summary') renderSummary();
+      if (currentView === 'table') renderTable();
+    } else {
+      // No Firebase data yet — push local to Firebase
+      saveToFirebase();
+    }
+  });
+}
+
+// Listen for real-time changes (other devices)
+let fbListener = null;
+function startFirebaseListener() {
+  if (fbListener) fbListener();
+  const ref = getFirebaseRef();
+  const cb = ref.on('value', snap => {
+    const fbData = snap.val();
+    if (fbData && Array.isArray(fbData) && JSON.stringify(fbData) !== JSON.stringify(records)) {
+      records = fbData;
+      localStorage.setItem(getStorageKey(), JSON.stringify(records));
+      renderAll();
+      if (currentView === 'summary') renderSummary();
+      if (currentView === 'table') renderTable();
+    }
+  });
+  fbListener = () => ref.off('value', cb);
+}
+
 const SECTIONS = [
   { id: 'guard-info',      label: 'Guard Info',          icon: 'badge' },
   { id: 'income-payroll',  label: 'Income & Payroll',     icon: 'payments' },
@@ -827,6 +883,8 @@ function init() {
   loadFromStorage();
   buildSectionNav();
   renderAll();
+  // Load from Firebase (overrides local if exists) + listen for changes
+  loadFromFirebase().then(() => startFirebaseListener());
 
   // Dismiss splash after brief reveal
   const splash = document.getElementById('splash-screen');
@@ -888,6 +946,7 @@ function loadFromStorage() {
 
 function saveToLocalStorage() {
   localStorage.setItem(getStorageKey(), JSON.stringify(records));
+  saveToFirebase();
   updateHeaderSubtitle();
 }
 
@@ -1024,6 +1083,8 @@ function switchCompany(id) {
     renderAll();
     if (currentView === 'summary') renderSummary();
     if (currentView === 'table') renderTable();
+    // Re-sync Firebase for new company
+    loadFromFirebase().then(() => startFirebaseListener());
     document.getElementById('btn-company-manela').classList.toggle('active-company', id === 'manela');
     document.getElementById('btn-company-moriah').classList.toggle('active-company', id === 'moriah');
     document.body.dataset.company = id;
