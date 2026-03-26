@@ -611,6 +611,15 @@
           <div id="partnerContent"></div>
         </div>
 
+        <!-- View Full History Button -->
+        <button onclick="openHistory()" class="w-full bg-white rounded-2xl border border-sand-200 shadow-sm mb-5 px-4 py-3 flex items-center justify-between hover:bg-sand-50 active:scale-[0.99] transition-all">
+          <div class="flex items-center gap-2.5">
+            <svg class="w-5 h-5 text-claude-500" fill="none" stroke="currentColor" stroke-width="1.5" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" d="M12 6v6h4.5m4.5 0a9 9 0 11-18 0 9 9 0 0118 0z"/></svg>
+            <span class="font-semibold text-claude-800 text-sm">Full History</span>
+          </div>
+          <span class="text-sand-400 text-xs">Both partners</span>
+        </button>
+
       </div>
 
       <!-- FULL WIDTH -->
@@ -667,6 +676,22 @@
         </div>
         <button onclick="saveSettings()" class="w-full py-3 rounded-xl font-semibold text-white bg-gradient-to-r from-claude-500 to-claude-600 active:scale-[0.97] transition-transform">Save</button>
       </div>
+    </div>
+  </div>
+
+  <!-- History Panel (full screen overlay) -->
+  <div id="historyPanel" class="hidden fixed inset-0 z-50 bg-black/30" onclick="if(event.target===this)closeHistory()">
+    <div class="absolute inset-0 bg-white overflow-y-auto" style="padding-top:env(safe-area-inset-top)">
+      <div class="sticky top-0 z-10 glass border-b border-sand-200 px-4 py-3 flex items-center justify-between" style="padding-top:env(safe-area-inset-top)">
+        <h2 class="font-serif text-xl text-claude-800">Full History</h2>
+        <button onclick="closeHistory()" class="w-8 h-8 flex items-center justify-center rounded-full hover:bg-sand-100 text-sand-400">
+          <svg class="w-5 h-5" fill="none" stroke="currentColor" stroke-width="2" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" d="M6 18L18 6M6 6l12 12"/></svg>
+        </button>
+      </div>
+      <!-- Tab selector: Charlie / Karla -->
+      <div class="px-4 pt-3 pb-2 flex gap-2" id="historyTabs"></div>
+      <!-- History content -->
+      <div id="historyContent" class="px-4 pb-8"></div>
     </div>
   </div>
 
@@ -3143,6 +3168,179 @@ function resetAll(){
 
 document.getElementById('dayModal').addEventListener('click',e=>{if(e.target===e.currentTarget)closeModal()});
 document.getElementById('settingsModal').addEventListener('click',e=>{if(e.target===e.currentTarget)closeSettings()});
+
+// ── History Panel ──────────────────────────────────────
+var historyViewUser=null;
+function openHistory(){
+  document.getElementById('historyPanel').classList.remove('hidden');
+  // Default to current user's tab
+  historyViewUser=userName;
+  renderHistoryTabs();
+  loadHistoryData();
+}
+function closeHistory(){
+  document.getElementById('historyPanel').classList.add('hidden');
+}
+
+function renderHistoryTabs(){
+  var tabs=document.getElementById('historyTabs');
+  tabs.innerHTML=['Charlie','Karla'].map(function(n){
+    var active=historyViewUser===n;
+    return '<button onclick="switchHistoryTab(\''+n+'\')" class="flex-1 py-2 rounded-xl text-sm font-semibold transition-all active:scale-[0.97] '+(active?'bg-gradient-to-r from-claude-500 to-claude-600 text-white':'border border-sand-200 text-claude-600 hover:bg-claude-50')+'">'+n+'</button>';
+  }).join('');
+}
+
+function switchHistoryTab(n){
+  historyViewUser=n;
+  renderHistoryTabs();
+  loadHistoryData();
+}
+
+function loadHistoryData(){
+  var content=document.getElementById('historyContent');
+  content.innerHTML='<p class="text-center text-sand-400 py-8">Loading...</p>';
+  var key=historyViewUser.toLowerCase().replace(/[^a-z0-9]/g,'_');
+  db.ref('wedding100/users/'+key).once('value').then(function(snap){
+    var data=snap.val();
+    if(!data){content.innerHTML='<p class="text-center text-sand-400 py-8">No data yet for '+historyViewUser+'</p>';return}
+    renderHistoryContent(data,historyViewUser);
+  }).catch(function(){
+    content.innerHTML='<p class="text-center text-sand-400 py-8">Failed to load data</p>';
+  });
+}
+
+function renderHistoryContent(data,name){
+  var content=document.getElementById('historyContent');
+  var completed=data.completed||{};
+  var steps=data.steps||{};
+  var exerciseChecks=data.exerciseChecks||{};
+  var bonusRounds=data.bonusRounds||{};
+  var startDate=data.startDate||START_DATE;
+
+  // Summary stats
+  var totalDays=Object.keys(completed).length;
+  var totalSteps=Object.values(steps).reduce(function(a,b){return a+(typeof b==='number'?b:0)},0);
+  var totalKcal=0;
+  Object.keys(completed).forEach(function(dn){
+    var ri=getRoutineIndex(parseInt(dn));
+    if(ROUTINES[ri])totalKcal+=getRoutineKcal(ROUTINES[ri]);
+    if(bonusRounds[dn])totalKcal+=getRoutineKcal(ROUTINES[ri])*bonusRounds[dn];
+  });
+  var totalStepsKcal=Math.round(totalSteps*0.04);
+
+  var html='';
+  // Summary card
+  html+='<div class="bg-white rounded-2xl border border-sand-200 p-4 mt-3 mb-4">';
+  html+='<h3 class="font-serif text-lg text-claude-800 mb-3">'+name+'\'s Journey</h3>';
+  html+='<div class="grid grid-cols-3 gap-3 text-center">';
+  html+='<div><p class="text-xl font-bold text-claude-600">'+totalDays+'</p><p class="text-[10px] text-sand-400 uppercase">Days Done</p></div>';
+  html+='<div><p class="text-xl font-bold text-claude-600">'+(totalKcal+totalStepsKcal)+'</p><p class="text-[10px] text-sand-400 uppercase">Total kcal</p></div>';
+  html+='<div><p class="text-xl font-bold text-claude-600">'+(totalSteps>=1000?(totalSteps/1000).toFixed(1)+'k':totalSteps)+'</p><p class="text-[10px] text-sand-400 uppercase">Total Steps</p></div>';
+  html+='</div></div>';
+
+  // Day-by-day breakdown (most recent first)
+  html+='<h4 class="font-semibold text-claude-800 text-sm mb-2">Day-by-Day</h4>';
+
+  var currentDay=getCurrentDayNum();
+  for(var d=Math.min(currentDay,100);d>=1;d--){
+    var ri=getRoutineIndex(d);
+    var routine=ROUTINES[ri];
+    if(!routine)continue;
+    var isDone=!!completed[d];
+    var dayStepsDate=new Date(startDate);
+    dayStepsDate.setDate(dayStepsDate.getDate()+(d-1));
+    var dateStr=dayStepsDate.toISOString().split('T')[0];
+    var daySteps=steps[dateStr]||(typeof steps[dateStr]==='object'?0:0);
+    if(typeof daySteps==='object')daySteps=0; // handle Firebase push keys
+    var dayKcal=isDone?getRoutineKcal(routine):0;
+    var bonus=(bonusRounds[d])||0;
+    if(bonus)dayKcal+=getRoutineKcal(routine)*bonus;
+
+    // Check individual exercises
+    var exDone=[];
+    routine.exercises.forEach(function(_,i){
+      if(exerciseChecks['d'+d+'e'+i])exDone.push(i);
+    });
+
+    html+='<div class="bg-white rounded-xl border border-sand-200 p-3 mb-2 '+(isDone?'':'opacity-60')+'">';
+    html+='<div class="flex items-center justify-between mb-1">';
+    html+='<div class="flex items-center gap-2">';
+    html+='<span class="text-xs font-bold '+(isDone?'text-emerald-600':'text-sand-400')+'">Day '+d+'</span>';
+    html+='<span class="text-xs text-sand-400">'+routine.name+'</span>';
+    html+='</div>';
+    html+='<div class="flex items-center gap-2">';
+    if(isDone)html+='<span class="text-[9px] font-bold text-emerald-600 bg-emerald-50 border border-emerald-200 px-1.5 py-0.5 rounded-full">Done</span>';
+    if(bonus)html+='<span class="text-[9px] font-bold text-claude-500 bg-claude-50 border border-claude-200 px-1.5 py-0.5 rounded-full">+'+bonus+' bonus</span>';
+    html+='</div>';
+    html+='</div>';
+
+    // Date + stats row
+    html+='<div class="flex items-center justify-between text-[10px] text-sand-400 mb-1.5">';
+    html+='<span>'+dateStr+'</span>';
+    html+='<span>'+dayKcal+' kcal'+(daySteps?' &middot; '+daySteps.toLocaleString()+' steps':'')+'</span>';
+    html+='</div>';
+
+    // Exercise checklist (editable)
+    html+='<div class="flex flex-wrap gap-1">';
+    routine.exercises.forEach(function(ex,i){
+      var checked=exDone.indexOf(i)>=0;
+      var key=name.toLowerCase().replace(/[^a-z0-9]/g,'_');
+      html+='<button onclick="toggleHistoryEx(\''+key+'\','+d+','+i+',this)" class="text-[9px] px-2 py-0.5 rounded-full border transition-all active:scale-95 '+(checked?'bg-claude-50 border-claude-300 text-claude-700':'border-sand-200 text-sand-400 hover:border-claude-300')+'">'+
+        (checked?'&#10003; ':'')+ex.name+'</button>';
+    });
+    html+='</div>';
+
+    // Steps edit
+    html+='<div class="flex items-center gap-2 mt-1.5">';
+    html+='<span class="text-[9px] text-sand-400">Steps:</span>';
+    html+='<input type="number" value="'+(daySteps||'')+'" placeholder="0" onchange="updateHistorySteps(\''+name.toLowerCase().replace(/[^a-z0-9]/g,'_')+'\',\''+dateStr+'\',this.value)" class="w-20 text-[10px] border border-sand-200 rounded-lg px-2 py-1 text-claude-800 bg-sand-50 focus:outline-none focus:ring-1 focus:ring-claude-300 [appearance:textfield] [&::-webkit-inner-spin-button]:appearance-none">';
+    html+='</div>';
+
+    html+='</div>';
+  }
+
+  content.innerHTML=html;
+}
+
+function toggleHistoryEx(userKey,dayNum,exIdx,btn){
+  var path='wedding100/users/'+userKey+'/exerciseChecks/d'+dayNum+'e'+exIdx;
+  db.ref(path).once('value').then(function(snap){
+    var current=snap.val();
+    if(current){
+      db.ref(path).remove();
+      // Also unmark day completion if it was marked
+      db.ref('wedding100/users/'+userKey+'/completed/'+dayNum).remove();
+    }else{
+      db.ref(path).set(true);
+      // Check if all exercises now done → mark day complete
+      var ri=getRoutineIndex(dayNum);
+      var total=ROUTINES[ri].exercises.length;
+      db.ref('wedding100/users/'+userKey+'/exerciseChecks').once('value').then(function(s){
+        var checks=s.val()||{};
+        var allDone=true;
+        for(var i=0;i<total;i++){
+          if(!checks['d'+dayNum+'e'+i]){allDone=false;break}
+        }
+        if(allDone){
+          db.ref('wedding100/users/'+userKey+'/completed/'+dayNum).set(todayStr());
+        }
+      });
+    }
+    // Refresh after short delay
+    setTimeout(function(){loadHistoryData();render()},300);
+  });
+}
+
+function updateHistorySteps(userKey,dateStr,val){
+  var steps=parseInt(val)||0;
+  db.ref('wedding100/users/'+userKey+'/steps/'+dateStr).set(steps);
+  // If editing own data, update local state too
+  if(userKey===userName.toLowerCase().replace(/[^a-z0-9]/g,'_')){
+    state.steps[dateStr]=steps;
+    saveState();
+  }
+  setTimeout(function(){render()},300);
+}
 
 // ── Unregister old service worker (was caching stale files) ──
 if('serviceWorker' in navigator){navigator.serviceWorker.getRegistrations().then(function(r){r.forEach(function(reg){reg.unregister()})})}
