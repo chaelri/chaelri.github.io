@@ -3200,6 +3200,7 @@ function renderHistoryTabs(){
 
 function switchHistoryTab(n){
   historyViewUser=n;
+  _historyPage=0;
   renderHistoryTabs();
   loadHistoryData();
 }
@@ -3217,6 +3218,7 @@ function loadHistoryData(){
   });
 }
 
+var _historyPage=0; // current week page (0 = most recent)
 function renderHistoryContent(data,name){
   var content=document.getElementById('historyContent');
   var completed=data.completed||{};
@@ -3247,11 +3249,77 @@ function renderHistoryContent(data,name){
   html+='<div><p class="text-xl font-bold text-claude-600">'+(totalSteps>=1000?(totalSteps/1000).toFixed(1)+'k':totalSteps)+'</p><p class="text-[10px] text-sand-400 uppercase">Total Steps</p></div>';
   html+='</div></div>';
 
-  // Day-by-day breakdown (most recent first)
-  html+='<h4 class="font-semibold text-claude-800 text-sm mb-2">Day-by-Day</h4>';
-
+  // ── Journey Bar Chart ──
   var currentDay=getCurrentDayNum();
-  for(var d=Math.min(currentDay,100);d>=1;d--){
+  html+='<div class="hist-card p-4 mb-4">';
+  html+='<p class="text-[10px] font-semibold text-sand-400 uppercase tracking-widest mb-3">Your Journey</p>';
+  // Build day data for chart (show recent 14 days that fit)
+  var chartDays=[];
+  for(var cd=Math.max(1,currentDay-13);cd<=Math.min(currentDay,100);cd++){
+    var cri=getRoutineIndex(cd);
+    var croutine=ROUTINES[cri];
+    if(!croutine)continue;
+    var cDone=!!completed[cd];
+    var cStepsDate=new Date(startDate);
+    cStepsDate.setDate(cStepsDate.getDate()+(cd-1));
+    var cDateStr=cStepsDate.toISOString().split('T')[0];
+    var cDaySteps=(typeof steps[cDateStr]==='number')?steps[cDateStr]:0;
+    var cExDone=0;
+    croutine.exercises.forEach(function(_,i){if(exerciseChecks['d'+cd+'e'+i])cExDone++});
+    var cProgress=cDone?1:(cExDone/croutine.exercises.length);
+    chartDays.push({d:cd,done:cDone,progress:cProgress,steps:cDaySteps});
+  }
+  var maxSteps=Math.max.apply(null,chartDays.map(function(c){return c.steps||1}));
+  if(maxSteps<1000)maxSteps=1000;
+  html+='<div class="flex items-end justify-center gap-3" style="height:90px">';
+  chartDays.forEach(function(c){
+    var workoutH=c.done?90:(c.progress>0?Math.max(c.progress*70,15):0);
+    var stepsH=c.steps?Math.max((c.steps/maxSteps)*80,6):0;
+    var is10k=c.steps>=10000;
+    var wColor=c.done?(is10k?'bg-claude-500':'bg-claude-400'):(c.progress>0?'bg-claude-200':'');
+    var sColor=is10k?'bg-claude-600':'bg-sand-300';
+    html+='<div class="flex flex-col items-center gap-0.5">';
+    html+='<div class="flex items-end gap-0.5" style="height:76px">';
+    // Workout bar (left)
+    if(workoutH>0)html+='<div class="rounded-t '+wColor+'" style="width:12px;height:'+workoutH+'%;min-height:6px"></div>';
+    else html+='<div class="rounded-t bg-sand-100" style="width:12px;height:3px"></div>';
+    // Steps bar (right)
+    if(stepsH>0)html+='<div class="rounded-t '+sColor+'" style="width:10px;height:'+stepsH+'%;min-height:4px"></div>';
+    else html+='<div style="width:10px;height:2px"></div>';
+    html+='</div>';
+    html+='<span class="text-[7px] text-sand-400 leading-none '+(c.d===currentDay?'font-bold text-claude-500':'')+'">D'+c.d+'</span>';
+    html+='</div>';
+  });
+  html+='</div>';
+  // Legend
+  html+='<div class="flex items-center justify-center gap-3 mt-2.5">';
+  html+='<span class="flex items-center gap-1 text-[8px] text-sand-400"><span class="w-2 h-2 rounded-sm bg-claude-400"></span>Done</span>';
+  html+='<span class="flex items-center gap-1 text-[8px] text-sand-400"><span class="w-2 h-2 rounded-sm bg-claude-200"></span>In progress</span>';
+  html+='<span class="flex items-center gap-1 text-[8px] text-sand-400"><span class="w-2 h-2 rounded-sm bg-sand-300"></span>Steps</span>';
+  html+='<span class="flex items-center gap-1 text-[8px] text-sand-400"><span class="w-2 h-2 rounded-sm bg-claude-600"></span>10k+</span>';
+  html+='</div>';
+  html+='</div>';
+
+  // ── Weekly Pagination ──
+  var totalWeeks=Math.ceil(Math.min(currentDay,100)/7);
+  // Clamp page
+  if(_historyPage>=totalWeeks)_historyPage=totalWeeks-1;
+  if(_historyPage<0)_historyPage=0;
+  // Calculate day range for current page (most recent first)
+  var pageEndDay=Math.min(currentDay,100)-(_historyPage*7);
+  var pageStartDay=Math.max(1,pageEndDay-6);
+
+  // Week navigation
+  html+='<div class="flex items-center justify-between mb-2">';
+  html+='<h4 class="font-semibold text-claude-800 text-sm">Day-by-Day</h4>';
+  html+='<div class="flex items-center gap-1.5">';
+  html+='<button onclick="_historyPage=Math.min(_historyPage+1,'+(totalWeeks-1)+');loadHistoryData()" class="w-7 h-7 rounded-lg flex items-center justify-center border border-sand-200 text-sand-400 hover:bg-sand-100 active:scale-95 transition-all '+(pageStartDay<=1?'opacity-30 pointer-events-none':'')+'"><svg class="w-3.5 h-3.5" fill="none" stroke="currentColor" stroke-width="2" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" d="M15 19l-7-7 7-7"/></svg></button>';
+  html+='<span class="text-[10px] text-sand-400 font-medium min-w-[80px] text-center">Day '+pageStartDay+' – '+pageEndDay+'</span>';
+  html+='<button onclick="_historyPage=Math.max(_historyPage-1,0);loadHistoryData()" class="w-7 h-7 rounded-lg flex items-center justify-center border border-sand-200 text-sand-400 hover:bg-sand-100 active:scale-95 transition-all '+(_historyPage<=0?'opacity-30 pointer-events-none':'')+'"><svg class="w-3.5 h-3.5" fill="none" stroke="currentColor" stroke-width="2" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" d="M9 5l7 7-7 7"/></svg></button>';
+  html+='</div>';
+  html+='</div>';
+
+  for(var d=pageEndDay;d>=pageStartDay;d--){
     var ri=getRoutineIndex(d);
     var routine=ROUTINES[ri];
     if(!routine)continue;
@@ -3265,12 +3333,20 @@ function renderHistoryContent(data,name){
     var bonus=(bonusRounds[d])||0;
     if(bonus)dayKcal+=getRoutineKcal(routine)*bonus;
 
-    // Count checked exercises
+    // Count checked exercises — if day is marked complete but no individual checks, treat all as checked
     var exDone=[];
+    var hasAnyChecks=false;
     routine.exercises.forEach(function(_,i){
-      if(exerciseChecks['d'+d+'e'+i])exDone.push(i);
+      if(exerciseChecks['d'+d+'e'+i]){exDone.push(i);hasAnyChecks=true;}
     });
+    // Fix: if day is complete but no individual checks logged (completed via main UI), treat all as done
+    if(isDone&&!hasAnyChecks){
+      routine.exercises.forEach(function(_,i){exDone.push(i)});
+    }
     var allChecked=exDone.length===routine.exercises.length;
+
+    // Total rounds (1 base + bonus)
+    var totalRounds=1+bonus;
 
     // Day card
     html+='<div class="hist-card p-3 mb-2.5">';
@@ -3282,7 +3358,7 @@ function renderHistoryContent(data,name){
     html+='<span class="text-xs text-sand-400 ml-2">'+routine.name+'</span>';
     html+='</div>';
     html+='<div class="flex items-center gap-1.5">';
-    if(bonus)html+='<span class="text-[9px] font-bold text-claude-500 bg-claude-50 border border-claude-200 px-1.5 py-0.5 rounded-full">+'+bonus+' bonus</span>';
+    if(totalRounds>1)html+='<span class="text-[9px] font-bold text-claude-500 bg-claude-50 border border-claude-200 px-1.5 py-0.5 rounded-full">'+totalRounds+' rounds</span>';
     if(isDone)html+='<span class="text-[9px] font-bold text-emerald-600 bg-emerald-50 border border-emerald-200 px-1.5 py-0.5 rounded-full">\u2713 Complete</span>';
     else html+='<span class="text-[9px] text-sand-400 bg-sand-50 border border-sand-200 px-1.5 py-0.5 rounded-full">'+exDone.length+'/'+routine.exercises.length+'</span>';
     html+='</div>';
@@ -3294,14 +3370,13 @@ function renderHistoryContent(data,name){
     html+='<span>'+(dayKcal?dayKcal+' kcal lost':'0 kcal')+(daySteps?' \u00b7 '+daySteps.toLocaleString()+' steps':'')+'</span>';
     html+='</div>';
 
-    // Mark All / Undo All button
-    html+='<div class="flex items-center gap-2 mb-2">';
-    html+='<button onclick="toggleHistoryAllEx(\''+userKey+'\','+d+','+(allChecked?'false':'true')+')" class="text-[10px] font-semibold px-3 py-1 rounded-lg transition-all active:scale-95 '+(allChecked?'border border-sand-200 text-sand-400 hover:border-claude-300':'bg-gradient-to-r from-claude-500 to-claude-600 text-white')+'">'+(allChecked?'Undo All':'Mark All Done')+'</button>';
-    html+='<span class="text-[9px] text-sand-300">or tap individual:</span>';
+    // ── Round 1 ──
+    html+='<div class="mb-2">';
+    html+='<div class="flex items-center justify-between mb-1.5">';
+    html+='<span class="text-[10px] font-semibold text-claude-700">Round 1</span>';
+    html+='<button onclick="toggleHistoryAllEx(\''+userKey+'\','+d+','+(allChecked?'false':'true')+')" class="text-[9px] font-semibold px-2.5 py-0.5 rounded-lg transition-all active:scale-95 '+(allChecked?'border border-sand-200 text-sand-400 hover:border-claude-300':'bg-gradient-to-r from-claude-500 to-claude-600 text-white')+'">'+(allChecked?'Undo All':'Mark All Done')+'</button>';
     html+='</div>';
-
-    // Exercise checklist with proper checkboxes
-    html+='<div class="flex flex-wrap gap-1.5 mb-2">';
+    html+='<div class="flex flex-wrap gap-1.5">';
     routine.exercises.forEach(function(ex,i){
       var checked=exDone.indexOf(i)>=0;
       html+='<button onclick="toggleHistoryEx(\''+userKey+'\','+d+','+i+')" class="flex items-center gap-1 text-[10px] px-2.5 py-1 rounded-lg border transition-all active:scale-95 '+(checked?'bg-claude-50 border-claude-300 text-claude-700 font-medium':'border-sand-200 text-sand-400 hover:border-claude-300')+'">';
@@ -3309,18 +3384,46 @@ function renderHistoryContent(data,name){
       html+=ex.name+'</button>';
     });
     html+='</div>';
+    html+='</div>';
 
-    // Bonus rounds display
-    if(bonus>0){
-      for(var b=0;b<bonus;b++){
-        html+='<div class="flex flex-wrap gap-1.5 mb-1 pl-3 border-l-2 border-claude-200">';
-        html+='<span class="text-[9px] text-claude-500 font-semibold mr-1">Round '+(b+2)+':</span>';
-        routine.exercises.forEach(function(ex){
-          html+='<span class="text-[9px] px-2 py-0.5 rounded-full bg-claude-50 border border-claude-200 text-claude-600">\u2713 '+ex.name+'</span>';
-        });
-        html+='</div>';
+    // ── Bonus Rounds (same interactive UI as Round 1) ──
+    for(var b=0;b<bonus;b++){
+      var roundNum=b+2;
+      // Check per-round exercise checks (key: d{day}r{round}e{idx})
+      var rExDone=[];
+      routine.exercises.forEach(function(_,i){
+        if(exerciseChecks['d'+d+'r'+roundNum+'e'+i])rExDone.push(i);
+      });
+      // If no per-round checks but day is complete, treat as all done
+      var rHasChecks=rExDone.length>0;
+      if(isDone&&!rHasChecks){
+        routine.exercises.forEach(function(_,i){rExDone.push(i)});
       }
+      var rAllChecked=rExDone.length===routine.exercises.length;
+
+      html+='<div class="mb-2 pl-3 border-l-2 border-claude-200">';
+      html+='<div class="flex items-center justify-between mb-1.5">';
+      html+='<span class="text-[10px] font-semibold text-claude-500">Round '+roundNum+'</span>';
+      html+='<div class="flex items-center gap-1.5">';
+      if(!rAllChecked)html+='<button onclick="toggleHistoryAllRoundEx(\''+userKey+'\','+d+','+roundNum+',true)" class="text-[9px] font-semibold px-2.5 py-0.5 rounded-lg transition-all active:scale-95 bg-gradient-to-r from-claude-500 to-claude-600 text-white">Mark All</button>';
+      html+='<button onclick="removeHistoryRound(\''+userKey+'\','+d+','+roundNum+')" class="text-[9px] px-1.5 py-0.5 rounded-lg border border-red-200 text-red-400 hover:bg-red-50 transition-all active:scale-95" title="Remove round">\u2715</button>';
+      html+='</div>';
+      html+='</div>';
+      html+='<div class="flex flex-wrap gap-1.5">';
+      routine.exercises.forEach(function(ex,i){
+        var checked=rExDone.indexOf(i)>=0;
+        html+='<button onclick="toggleHistoryRoundEx(\''+userKey+'\','+d+','+roundNum+','+i+')" class="flex items-center gap-1 text-[10px] px-2.5 py-1 rounded-lg border transition-all active:scale-95 '+(checked?'bg-claude-50 border-claude-300 text-claude-700 font-medium':'border-sand-200 text-sand-400 hover:border-claude-300')+'">';
+        html+='<span class="w-3.5 h-3.5 rounded border flex items-center justify-center text-[8px] shrink-0 '+(checked?'bg-claude-500 border-claude-500 text-white':'border-sand-300')+'">'+(checked?'\u2713':'')+'</span>';
+        html+=ex.name+'</button>';
+      });
+      html+='</div>';
+      html+='</div>';
     }
+
+    // Add Round button
+    html+='<div class="flex items-center gap-2 mb-2 mt-1">';
+    html+='<button onclick="addHistoryRound(\''+userKey+'\','+d+')" class="text-[9px] font-semibold px-3 py-1 rounded-lg border border-dashed border-claude-300 text-claude-500 hover:bg-claude-50 transition-all active:scale-95">+ Add Round</button>';
+    html+='</div>';
 
     // Steps edit row
     html+='<div class="flex items-center gap-2 mt-2 pt-2 border-t border-sand-100">';
@@ -3330,6 +3433,15 @@ function renderHistoryContent(data,name){
     html+='<span class="text-[10px] text-sand-300">steps</span>';
     html+='</div>';
 
+    html+='</div>';
+  }
+
+  // Week page dots
+  if(totalWeeks>1){
+    html+='<div class="flex items-center justify-center gap-1.5 py-3">';
+    for(var wp=0;wp<totalWeeks;wp++){
+      html+='<button onclick="_historyPage='+wp+';loadHistoryData()" class="w-2 h-2 rounded-full transition-all '+(_historyPage===wp?'bg-claude-500 scale-125':'bg-sand-200 hover:bg-sand-300')+'"></button>';
+    }
     html+='</div>';
   }
 
@@ -3397,6 +3509,74 @@ function updateHistorySteps(userKey,dateStr,val){
     saveState();
   }
   setTimeout(function(){render()},300);
+}
+
+// ── Bonus round exercise toggling ──
+function toggleHistoryRoundEx(userKey,dayNum,roundNum,exIdx){
+  var path='wedding100/users/'+userKey+'/exerciseChecks/d'+dayNum+'r'+roundNum+'e'+exIdx;
+  db.ref(path).once('value').then(function(snap){
+    if(snap.val()){
+      db.ref(path).remove();
+    }else{
+      db.ref(path).set(true);
+    }
+    setTimeout(function(){loadHistoryData();render()},300);
+  });
+}
+
+function toggleHistoryAllRoundEx(userKey,dayNum,roundNum,markDone){
+  var ri=getRoutineIndex(dayNum);
+  var total=ROUTINES[ri].exercises.length;
+  var updates={};
+  for(var i=0;i<total;i++){
+    updates['exerciseChecks/d'+dayNum+'r'+roundNum+'e'+i]=markDone?true:null;
+  }
+  db.ref('wedding100/users/'+userKey).update(updates);
+  setTimeout(function(){loadHistoryData();render()},300);
+}
+
+function addHistoryRound(userKey,dayNum){
+  db.ref('wedding100/users/'+userKey+'/bonusRounds/'+dayNum).once('value').then(function(snap){
+    var current=snap.val()||0;
+    db.ref('wedding100/users/'+userKey+'/bonusRounds/'+dayNum).set(current+1);
+    // Update local state if editing own data
+    if(userKey===userName.toLowerCase().replace(/[^a-z0-9]/g,'_')){
+      if(!state.bonusRounds)state.bonusRounds={};
+      state.bonusRounds[dayNum]=(state.bonusRounds[dayNum]||0)+1;
+      saveState();
+    }
+    setTimeout(function(){loadHistoryData();render()},300);
+  });
+}
+
+function removeHistoryRound(userKey,dayNum,roundNum){
+  db.ref('wedding100/users/'+userKey+'/bonusRounds/'+dayNum).once('value').then(function(snap){
+    var current=snap.val()||0;
+    if(current<=0)return;
+    var newVal=current-1;
+    // Remove the last round's exercise checks
+    var ri=getRoutineIndex(dayNum);
+    var total=ROUTINES[ri].exercises.length;
+    var updates={};
+    updates['bonusRounds/'+dayNum]=newVal>0?newVal:null;
+    // Remove exercise checks for the removed round
+    var removedRound=current+1; // roundNum is 2-based, current bonus count maps to last round
+    for(var i=0;i<total;i++){
+      updates['exerciseChecks/d'+dayNum+'r'+(current+1)+'e'+i]=null;
+    }
+    db.ref('wedding100/users/'+userKey).update(updates);
+    // Update local state if editing own data
+    if(userKey===userName.toLowerCase().replace(/[^a-z0-9]/g,'_')){
+      if(!state.bonusRounds)state.bonusRounds={};
+      if(newVal>0)state.bonusRounds[dayNum]=newVal;
+      else delete state.bonusRounds[dayNum];
+      for(var i=0;i<total;i++){
+        delete state.exerciseChecks['d'+dayNum+'r'+(current+1)+'e'+i];
+      }
+      saveState();
+    }
+    setTimeout(function(){loadHistoryData();render()},300);
+  });
 }
 
 // ── Unregister old service worker (was caching stale files) ──
