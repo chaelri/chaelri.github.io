@@ -108,6 +108,60 @@
       border-top:5px solid #e8d5c4;
     }
     @keyframes bubbleCycle{0%,8%{transform:scale(0);opacity:0}12%{transform:scale(1.05);opacity:1}16%,80%{transform:scale(1);opacity:1}88%,100%{transform:scale(0.9);opacity:0}}
+
+    /* ── Dark Mode (auto after 6pm, before 6am) ── */
+    html.dark{background:#1a1410}
+    html.dark body{background:#1a1410;color:#fdeedd}
+    html.dark .glass{background:rgba(26,20,16,.9)!important;border-color:#3d3228!important}
+    /* Cards & containers */
+    html.dark .bg-white,html.dark [class*="bg-white"]{background:#2a2118!important}
+    html.dark .bg-sand-50,html.dark [class*="bg-sand-50"]{background:#221c15!important}
+    html.dark .bg-claude-50{background:#2a2118!important}
+    html.dark .bg-claude-100{background:#342a1f!important}
+    /* Borders */
+    html.dark [class*="border-sand"]{border-color:#3d3228!important}
+    html.dark [class*="border-claude-1"],html.dark [class*="border-claude-2"]{border-color:#4a3828!important}
+    /* Text */
+    html.dark .text-claude-800,html.dark [class*="text-claude-8"]{color:#fdeedd!important}
+    html.dark .text-claude-700{color:#f5c48a!important}
+    html.dark .text-claude-600{color:#e9a15c!important}
+    html.dark .text-claude-500{color:#da7756!important}
+    html.dark .text-sand-400{color:#8a7d6e!important}
+    html.dark .text-sand-300{color:#6b5f52!important}
+    html.dark .text-sand-500{color:#9a8c7d!important}
+    /* Inputs */
+    html.dark input,html.dark select{background:#2a2118!important;color:#fdeedd!important;border-color:#3d3228!important}
+    html.dark input::placeholder{color:#6b5f52!important}
+    /* Cards shadow */
+    html.dark .shadow-sm{box-shadow:0 1px 3px rgba(0,0,0,.3)!important}
+    /* Progress bars backgrounds */
+    html.dark .bg-sand-100{background:#2a2118!important}
+    html.dark .bg-sand-200{background:#342a1f!important}
+    /* How-to sections */
+    html.dark .how-to{background:#2a2118!important;border-color:#4a3828!important;color:#d4cbbf!important}
+    /* Speech bubble */
+    html.dark .stick-bubble{background:#342a1f!important;border-color:#4a3828!important;color:#fdeedd!important}
+    html.dark .stick-bubble::after{border-top-color:#342a1f!important}
+    html.dark .stick-bubble::before{border-top-color:#4a3828!important}
+    /* SVG stickman — make lighter for dark bg */
+    html.dark .exercise-svg line,html.dark .exercise-svg polyline{stroke:#d4a574!important}
+    html.dark .exercise-svg circle[stroke]{stroke:#d4a574!important}
+    html.dark .exercise-svg circle[fill="#fef7f0"]{fill:#342a1f!important}
+    /* Check marks */
+    html.dark .check-ex{border-color:#4a3828!important}
+    /* Daily note thinking face */
+    html.dark #dailyNoteFace circle[fill="#fef7f0"]{fill:#342a1f!important}
+    html.dark #dailyNoteFace line,html.dark #dailyNoteFace path,html.dark #dailyNoteFace circle[stroke]{stroke:#d4a574!important}
+    /* Settings bottom sheet */
+    html.dark .fixed .bg-white{background:#221c15!important}
+    /* Activity chart */
+    html.dark [class*="bg-claude-50\\/"],html.dark [class*="bg-sand-50\\/"]{background:rgba(42,33,24,.5)!important}
+    /* Emerald success states in dark */
+    html.dark .bg-emerald-50{background:#1a2e1a!important}
+    html.dark .text-emerald-600{color:#6ee67a!important}
+    html.dark .border-emerald-200{border-color:#2a4a2a!important}
+    /* Font color on main headings */
+    html.dark .font-serif{color:#fdeedd}
     .check-ex{-webkit-appearance:none;appearance:none;width:20px;height:20px;border:2px solid #e4ded4;border-radius:50%;cursor:pointer;position:relative;flex-shrink:0;transition:all .2s ease}
     .check-ex:checked{background:linear-gradient(135deg,#da7756,#c25a3a);border-color:#da7756}
     .check-ex:checked::after{content:'';position:absolute;top:3px;left:6px;width:5px;height:9px;border:solid #fff;border-width:0 2px 2px 0;transform:rotate(45deg)}
@@ -3122,6 +3176,19 @@ setInterval(renderHeaderAnim,8000);
 // Load bg music preference
 chillMelody.enabled=localStorage.getItem('wedding100_bgmusic')==='1';
 updateMusicIcon();
+
+// Auto dark mode based on time (6pm–6am)
+function checkDarkMode(){
+  var h=new Date().getHours();
+  var isDark=h>=18||h<6;
+  document.documentElement.classList.toggle('dark',isDark);
+  // Update theme-color meta for iOS status bar
+  var meta=document.querySelector('meta[name="theme-color"]');
+  if(meta)meta.setAttribute('content',isDark?'#1a1410':'#faf8f5');
+}
+checkDarkMode();
+setInterval(checkDarkMode,60000); // re-check every minute
+
 render();
 
 // Welcome TTS on app open (only for returning users, after splash)
