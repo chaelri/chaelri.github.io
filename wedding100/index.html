@@ -14,6 +14,7 @@
   <link rel="manifest" href="manifest.json">
   <script src="/devo/config.js"></script>
   <script src="https://cdn.jsdelivr.net/npm/canvas-confetti@1.6.0/dist/confetti.browser.min.js"></script>
+  <script src="https://cdn.jsdelivr.net/npm/three@0.160.0/build/three.min.js"></script>
   <script src="https://www.gstatic.com/firebasejs/10.12.0/firebase-app-compat.js"></script>
   <script src="https://www.gstatic.com/firebasejs/10.12.0/firebase-database-compat.js"></script>
   <script src="https://cdn.tailwindcss.com"></script>
@@ -86,6 +87,8 @@
     .how-to li::before{content:counter(step);font-size:9px;font-weight:700;color:var(--how-accent,#da7756);background:var(--how-num-bg,#fadcb8);width:18px;height:18px;border-radius:6px;display:flex;align-items:center;justify-content:center;flex-shrink:0;margin-top:2px}
     .steps-fill{transition:width .4s cubic-bezier(.4,0,.2,1)}
     .exercise-svg{width:80px;height:auto;flex-shrink:0;display:block;margin:0 auto}
+    .exercise-3d-container{border:none;background:transparent!important}
+    html.dark .exercise-3d-container{border:none;background:transparent!important}
     .stick-bubble{
       position:relative;z-index:2;margin:6px auto 4px;width:fit-content;
       background:#fef7f0;border:1px solid #e8d5c4;border-radius:8px;
@@ -700,6 +703,7 @@
     </div>
   </div>
 
+<script src="figure3d.js"></script>
 <script>
 // ── Animated SVG Stick Figure ─────────────────────────
 const SC='#83382c',KC='#c25a3a',DUR='1.8s',KSP='0.4 0 0.2 1;0.4 0 0.2 1';
@@ -838,12 +842,23 @@ setInterval(function(){
   });
 },6000);
 
-function exSvg(p1,p2){
+function exSvg(p1,p2,exName){
   var quip=getQuip();
   var id='sq'+(_quipCounter++);
   var bubble=`<div class="stick-bubble" id="${id}">${quip}</div>`;
+
+  // Use 3D viewer if available for this exercise
+  if(exName&&window.Exercise3D&&Exercise3D.has(exName)){
+    var cid='ex3d_'+(_quipCounter);
+    return `<div>
+      <div class="exercise-3d-container" id="${cid}" data-exercise="${exName}"
+           style="width:200px;height:220px;margin:0 auto;overflow:hidden">
+      </div>
+    </div>`;
+  }
+
+  // Fallback to 2D SVG
   if(!p2)return `<div>${bubble}<svg viewBox="-4 -6 58 90" class="exercise-svg">${fig(p1)}</svg></div>`;
-  // Show front view + side view side by side
   if(p1._sp1&&p1._sp2){
     return `<div>
       ${bubble}
@@ -2638,7 +2653,7 @@ function startRestTimer(dayNum,nextExIdx){
   if(restEl)restEl.remove();
   const r=ROUTINES[getRoutineIndex(dayNum)];
   const nextEx=r.exercises[nextExIdx];
-  const nextSvg=nextEx.p2?exSvg(nextEx.p1,nextEx.p2):(nextEx.p1?exSvg(nextEx.p1):'');
+  const nextSvg=nextEx.p2?exSvg(nextEx.p1,nextEx.p2,nextEx.name):(nextEx.p1?exSvg(nextEx.p1,null,nextEx.name):'');
   const div=document.createElement('div');
   div.id='restTimer';
   div.className='fixed inset-0 z-40 bg-black/50 flex items-center justify-center';
@@ -2761,7 +2776,7 @@ function celebrateDay(){
 function renderExerciseCompact(exercises,dayNum){
   return exercises.map((e,i)=>{
     const checked=isExChecked(dayNum,i);
-    const svg=e.p2?exSvg(e.p1,e.p2):(e.p1?exSvg(e.p1):'');
+    const svg=e.p2?exSvg(e.p1,e.p2,e.name):(e.p1?exSvg(e.p1,null,e.name):'');
     const sec=parseSec(e.sets);
     const isRunning=activeTimer&&activeTimer.day===dayNum&&activeTimer.ex===i&&!activeTimer.paused;
     const isPaused=activeTimer&&activeTimer.day===dayNum&&activeTimer.ex===i&&activeTimer.paused;
@@ -2798,7 +2813,7 @@ function renderExerciseCompact(exercises,dayNum){
 function renderExerciseFull(exercises,dayNum){
   return exercises.map((e,i)=>{
     const checked=dayNum?isExChecked(dayNum,i):false;
-    const svg=e.p2?exSvg(e.p1,e.p2):(e.p1?exSvg(e.p1):' ');
+    const svg=e.p2?exSvg(e.p1,e.p2,e.name):(e.p1?exSvg(e.p1,null,e.name):' ');
     return `<div class="space-y-2">
       <div class="flex items-start gap-2">
         ${dayNum?`<input type="checkbox" class="check-ex mt-1" ${checked?'checked':''} onchange="toggleExCheck(${dayNum},${i})">`:''}
@@ -2967,8 +2982,16 @@ function openDayModal(dn){
   btn.className=`mt-5 w-full py-3 rounded-xl font-semibold transition-all active:scale-[0.97] ${
     done?'text-claude-600 border border-claude-200 bg-white hover:bg-claude-50':'text-white bg-gradient-to-r from-claude-500 to-claude-600'}`;
   document.getElementById('dayModal').classList.remove('hidden');
+  // Init 3D viewers in modal (exercises are expanded/visible)
+  if(window.Exercise3D)setTimeout(()=>Exercise3D.initVisible(),50);
 }
-function closeModal(){document.getElementById('dayModal').classList.add('hidden');modalDay=null}
+function closeModal(){
+  document.getElementById('dayModal').classList.add('hidden');modalDay=null;
+  // Dispose 3D viewers in modal
+  if(window.Exercise3D){
+    document.querySelectorAll('#modalBody .exercise-3d-container').forEach(el=>Exercise3D.destroy(el));
+  }
+}
 function toggleDayFromModal(){if(modalDay){toggleDay(modalDay);closeModal()}}
 function openSettings(){
   document.getElementById('startDateInput').value=state.startDate;
@@ -3653,6 +3676,39 @@ if(userName){
   setTimeout(function(){
     speak(welcomes[Math.floor(Math.random()*welcomes.length)]);
   },3500);
+}
+
+// ── 3D Viewer Lifecycle ──────────────────────────────
+if(window.Exercise3D){
+  // Init/dispose 3D viewers when details elements toggle
+  document.addEventListener('toggle',function(e){
+    if(e.target.tagName!=='DETAILS')return;
+    var containers=e.target.querySelectorAll('.exercise-3d-container');
+    containers.forEach(function(el){
+      if(e.target.open){
+        // Use initVisible which triggers IntersectionObserver lazy loading
+        Exercise3D.initVisible();
+      }else{
+        Exercise3D.destroy(el);
+      }
+    });
+  },true);
+
+  // Hook into renderToday to cleanup stale viewers
+  var _origRenderToday=renderToday;
+  renderToday=function(){
+    Exercise3D.cleanup();
+    _origRenderToday.apply(this,arguments);
+  };
+
+  // Also init 3D for rest timer overlays
+  var _origStartRest=typeof startRestTimer==='function'?startRestTimer:null;
+  if(_origStartRest){
+    startRestTimer=function(){
+      _origStartRest.apply(this,arguments);
+      setTimeout(function(){Exercise3D.initVisible()},100);
+    };
+  }
 }
 </script>
 </body>
