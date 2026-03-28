@@ -842,6 +842,36 @@ setInterval(function(){
   });
 },6000);
 
+// Video exercise: loops a segment of a video
+function exVideo(video){
+  if(!video)return '';
+  var vid='exvid_'+(++_quipCounter);
+  return `<div style="width:200px;margin:0 auto">
+    <video id="${vid}" muted playsinline
+      style="width:100%;border-radius:8px;display:block"
+      data-vstart="${video.start}" data-vend="${video.end}"
+      src="${video.src}" class="exercise-video">
+    </video>
+  </div>`;
+}
+// Init all exercise videos: seek to start, loop within range
+function initExerciseVideos(){
+  document.querySelectorAll('video.exercise-video').forEach(function(v){
+    if(v._loopInit)return;
+    v._loopInit=true;
+    var s=parseFloat(v.dataset.vstart),e=parseFloat(v.dataset.vend);
+    function seekPlay(){v.currentTime=s;v.play().catch(function(){});}
+    v.addEventListener('loadedmetadata',seekPlay);
+    v.addEventListener('timeupdate',function(){
+      if(v.currentTime>=e-0.1||v.currentTime<s-1){seekPlay()}
+    });
+    v.addEventListener('ended',seekPlay);
+    if(v.readyState>=1){seekPlay()}else{v.load()}
+  });
+}
+// Auto-detect new exercise videos via MutationObserver
+new MutationObserver(function(){initExerciseVideos()}).observe(document.body,{childList:true,subtree:true});
+
 function exSvg(p1,p2,exName){
   var quip=getQuip();
   var id='sq'+(_quipCounter++);
@@ -1097,6 +1127,42 @@ const ROUTINES = [
     tip: 'Recovery is training. Just as important as the other days.',
   },
 ];
+
+// ── Karla's Strap Band Routine (video-based) ──
+const KARLA_STRAPBAND = {
+  name: 'Strap Band Burn',
+  icon: '<svg viewBox="0 0 24 24" width="24" height="24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round"><circle cx="4" cy="12" r="2"/><circle cx="20" cy="12" r="2"/><path d="M6 12h12"/><path d="M2 10v4M22 10v4M6 9v6M18 9v6"/></svg>',
+  duration: '~10 min',
+  karlaOnly: true,
+  exercises: [
+    {
+      name: 'Strap Band Exercise 1',
+      sets: '20 reps × 3 sets',
+      howTo: '',
+      video: { src: 'strapbands.mp4', start: 16, end: 21 }
+    },
+    {
+      name: 'Strap Band Exercise 2',
+      sets: '20 reps × 3 sets',
+      howTo: '',
+      video: { src: 'strapbands.mp4', start: 21, end: 25 }
+    },
+    {
+      name: 'Strap Band Exercise 3',
+      sets: '20 reps × 3 sets',
+      howTo: '',
+      video: { src: 'strapbands.mp4', start: 26, end: 30 }
+    },
+    {
+      name: 'Strap Band Exercise 4',
+      sets: '20 reps × 3 sets',
+      howTo: '',
+      video: { src: 'strapbands.mp4', start: 31, end: 38 }
+    },
+  ],
+  rest: '30 sec between sets',
+  tip: 'Focus on controlled movements — feel the band tension throughout.'
+};
 
 // ── Side-view poses per exercise (figure facing left) ──
 // In side view: lower X = forward, higher X = behind
@@ -2776,7 +2842,7 @@ function celebrateDay(){
 function renderExerciseCompact(exercises,dayNum){
   return exercises.map((e,i)=>{
     const checked=isExChecked(dayNum,i);
-    const svg=e.p2?exSvg(e.p1,e.p2,e.name):(e.p1?exSvg(e.p1,null,e.name):'');
+    const svg=e.video?exVideo(e.video):e.p2?exSvg(e.p1,e.p2,e.name):(e.p1?exSvg(e.p1,null,e.name):'');
     const sec=parseSec(e.sets);
     const isRunning=activeTimer&&activeTimer.day===dayNum&&activeTimer.ex===i&&!activeTimer.paused;
     const isPaused=activeTimer&&activeTimer.day===dayNum&&activeTimer.ex===i&&activeTimer.paused;
@@ -2804,7 +2870,7 @@ function renderExerciseCompact(exercises,dayNum){
       </summary>
       <div class="px-3 pb-3 pt-1 bg-sand-50/50">
         ${svg?`<div class="flex justify-center mb-2">${svg}</div>`:''}
-        <div class="how-to rounded-lg px-3 py-2 text-xs text-claude-700 leading-relaxed" style="border-left-color:${getTheme().accentBorder};background:${getTheme().accentLight};--how-accent:${getTheme().accent};--how-num-bg:${getTheme().accentBorder}">${e.howTo}</div>
+        ${e.howTo?`<div class="how-to rounded-lg px-3 py-2 text-xs text-claude-700 leading-relaxed" style="border-left-color:${getTheme().accentBorder};background:${getTheme().accentLight};--how-accent:${getTheme().accent};--how-num-bg:${getTheme().accentBorder}">${e.howTo}</div>`:''}
       </div>
     </details>`;
   }).join('');
@@ -2813,7 +2879,7 @@ function renderExerciseCompact(exercises,dayNum){
 function renderExerciseFull(exercises,dayNum){
   return exercises.map((e,i)=>{
     const checked=dayNum?isExChecked(dayNum,i):false;
-    const svg=e.p2?exSvg(e.p1,e.p2,e.name):(e.p1?exSvg(e.p1,null,e.name):' ');
+    const svg=e.video?exVideo(e.video):e.p2?exSvg(e.p1,e.p2,e.name):(e.p1?exSvg(e.p1,null,e.name):' ');
     return `<div class="space-y-2">
       <div class="flex items-start gap-2">
         ${dayNum?`<input type="checkbox" class="check-ex mt-1" ${checked?'checked':''} onchange="toggleExCheck(${dayNum},${i})">`:''}
@@ -2821,7 +2887,7 @@ function renderExerciseFull(exercises,dayNum){
         <div class="flex-1">
           <p class="font-semibold text-claude-800 ${checked?'line-through opacity-50':''}">${e.name} <span class="font-normal text-sand-400">\u2014 ${e.sets}</span> <span class="text-[10px] text-claude-400">${getExKcal(e.name)} kcal</span></p>
           <div class="my-2 flex justify-center">${svg}</div>
-          <div class="how-to rounded-lg px-3 py-2 text-xs text-claude-700 leading-relaxed" style="border-left-color:${getTheme().accentBorder};background:${getTheme().accentLight};--how-accent:${getTheme().accent};--how-num-bg:${getTheme().accentBorder}">${e.howTo}</div>
+          ${e.howTo?`<div class="how-to rounded-lg px-3 py-2 text-xs text-claude-700 leading-relaxed" style="border-left-color:${getTheme().accentBorder};background:${getTheme().accentLight};--how-accent:${getTheme().accent};--how-num-bg:${getTheme().accentBorder}">${e.howTo}</div>`:''}
         </div>
       </div>
     </div>`;
@@ -2879,7 +2945,18 @@ function renderToday(){
           )
         )
       }
-    </div>`;
+    </div>
+    ${userName==='Karla'?`
+    <div class="mt-4 pt-4 border-t border-sand-100">
+      <div class="flex items-center gap-2 mb-3">
+        <span class="text-claude-600">${KARLA_STRAPBAND.icon}</span>
+        <div>
+          <p class="font-semibold ${theme.text} text-sm">${KARLA_STRAPBAND.name}</p>
+          <p class="text-xs ${theme.textLight}">${KARLA_STRAPBAND.duration} \u00b7 Bonus for Karla</p>
+        </div>
+      </div>
+      <div class="space-y-2">${renderExerciseCompact(KARLA_STRAPBAND.exercises,null)}</div>
+    </div>`:''}`;
 }
 
 function renderWeek(){
@@ -2921,15 +2998,17 @@ function routineThumbSvg(r){
 function renderRoutineCards(){
   const c=document.getElementById('routineCards'),ti=getRoutineIndex(getCurrentDayNum());
   const todayTheme=getTheme();
-  c.innerHTML=ROUTINES.map((r,i)=>`
+  // Include Karla's strap band routine if user is Karla
+  const allRoutines=userName==='Karla'?[...ROUTINES,KARLA_STRAPBAND]:ROUTINES;
+  c.innerHTML=allRoutines.map((r,i)=>`
     <details class="bg-white rounded-2xl border ${i===ti?todayTheme.border+' shadow-sm':'border-sand-200'} overflow-hidden">
       <summary class="flex items-center gap-3 p-4 cursor-pointer select-none">
-        <div class="w-10 h-10 rounded-xl bg-claude-50 flex items-center justify-center overflow-hidden shrink-0">${routineThumbSvg(r)}</div>
+        <div class="w-10 h-10 rounded-xl bg-claude-50 flex items-center justify-center overflow-hidden shrink-0">${r.karlaOnly?r.icon:routineThumbSvg(r)}</div>
         <div class="flex-1 min-w-0">
-          <p class="font-semibold text-claude-800 text-sm">${r.name}</p>
-          <p class="text-xs text-sand-400">${r.duration} \u00b7 ${r.exercises.length} exercises \u00b7 ~${getRoutineKcal(r)} kcal</p>
+          <p class="font-semibold text-claude-800 text-sm">${r.name}${r.karlaOnly?' <span class="text-[9px] text-claude-400 font-bold uppercase">Karla only</span>':''}</p>
+          <p class="text-xs text-sand-400">${r.duration} \u00b7 ${r.exercises.length} exercises</p>
         </div>
-        ${i===ti?'<span class="text-[9px] font-bold text-claude-600 bg-claude-50 px-1.5 py-0.5 rounded-full uppercase tracking-wide">Today</span>':''}
+        ${i===ti&&!r.karlaOnly?'<span class="text-[9px] font-bold text-claude-600 bg-claude-50 px-1.5 py-0.5 rounded-full uppercase tracking-wide">Today</span>':''}
         <svg class="chevron w-4 h-4 text-sand-400 shrink-0" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M19 9l-7 7-7-7"/></svg>
       </summary>
       <div class="px-4 pb-4 space-y-4 border-t border-sand-100 pt-3">
@@ -2984,6 +3063,7 @@ function openDayModal(dn){
   document.getElementById('dayModal').classList.remove('hidden');
   // Init 3D viewers in modal (exercises are expanded/visible)
   if(window.Exercise3D)setTimeout(()=>Exercise3D.initVisible(),50);
+  setTimeout(initExerciseVideos,100);
 }
 function closeModal(){
   document.getElementById('dayModal').classList.add('hidden');modalDay=null;
@@ -3692,6 +3772,8 @@ if(window.Exercise3D){
         Exercise3D.destroy(el);
       }
     });
+    // Also init any exercise videos inside
+    if(e.target.open)setTimeout(initExerciseVideos,50);
   },true);
 
   // Hook into renderToday to cleanup stale viewers
