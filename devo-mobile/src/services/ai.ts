@@ -20,7 +20,7 @@ async function callGemini(prompt: string): Promise<string> {
   return data?.candidates?.[0]?.content?.parts?.[0]?.text || '';
 }
 
-const TONE = `Use a warm, friendly English tone — casual yet respectful, like explaining to a young adult friend. Keep answers concise but insightful. Use bullet points when helpful. Reference specific verse numbers.`;
+const TONE = `Be direct — no greetings, no filler, no "Hey there!", no "Great question!", no restating the verse. Start immediately with the insight. Use clear, simple English. Bold key terms with **double asterisks**.`;
 
 export async function getContextSummary(
   bookName: string,
@@ -72,16 +72,25 @@ export async function getDigDeeper(
   verseNum: number,
   verseText: string
 ): Promise<string> {
-  return callGemini(`You are a Bible study assistant. ${TONE}
+  return callGemini(`You are a premium Bible study tool. ${TONE}
 
-Do a deep word study / "Dig Deeper" analysis for ${bookName} ${chapter}:${verseNum}:
-"${verseText}"
+${bookName} ${chapter}:${verseNum}: "${verseText}"
 
-Include:
-1. **Key Greek/Hebrew Words** — original language words with transliteration and meaning
-2. **Word Study** — deeper meaning and usage in other passages
-3. **Cross-References** — 3-5 related verses that illuminate this verse
-4. **Application** — How this deeper understanding applies to life today`);
+Give a dense, high-value word study. NO fluff. Every word must earn its place. ~120 words total.
+
+#### Original Language
+- **Word** (transliteration) — meaning. Max 2-3 key words only.
+
+#### Deeper Meaning
+- 2 sharp insights. Connect to broader theology. One sentence each.
+
+#### Cross-References
+- 3 verses max. **Reference** — one-line why it matters.
+
+#### Takeaway
+- One powerful sentence for real life. Make it hit.
+
+STRICT: No greetings. No "this verse tells us". No padding. Start with #### Original Language immediately.`);
 }
 
 export async function getCrossReferences(
@@ -98,6 +107,47 @@ Find cross-references for ${bookName} ${chapter}:${verseNum}:
 List 5-8 cross-references. For each, give:
 - The reference (e.g., Romans 8:28)
 - A brief explanation of how it connects to this verse`);
+}
+
+export async function getSuggestedQuestions(
+  bookName: string,
+  chapter: number,
+  verseNum: number,
+  verseText: string
+): Promise<string[]> {
+  const raw = await callGemini(`Generate 4 unique, thought-provoking questions someone might ask about ${bookName} ${chapter}:${verseNum}: "${verseText}"
+
+RULES:
+- Questions should be specific to THIS verse, not generic.
+- Focus on: real-life application, surprising insights, theological implications, emotional/relational angles.
+- Do NOT ask about word meanings or historical context (those are covered elsewhere).
+- Each question must be 1 short sentence, under 10 words.
+- Return ONLY the 4 questions, one per line, no numbers, no bullets, no extra text.`);
+
+  return raw.split('\n').map(q => q.trim()).filter(q => q.length > 5).slice(0, 4);
+}
+
+export async function getFollowUpQuestions(
+  bookName: string,
+  chapter: number,
+  verseNum: number,
+  verseText: string,
+  userQuestion: string,
+  aiAnswer: string
+): Promise<string[]> {
+  const raw = await callGemini(`Based on this conversation about ${bookName} ${chapter}:${verseNum} ("${verseText}"):
+
+User asked: "${userQuestion}"
+Answer given: "${aiAnswer}"
+
+Generate 3 natural follow-up questions the user might want to ask next.
+RULES:
+- Each under 8 words
+- Build on what was just discussed — go deeper, not sideways
+- One per line, no numbers, no bullets
+- No generic questions like "what does this mean"`)
+
+  return raw.split('\n').map(q => q.trim()).filter(q => q.length > 5).slice(0, 3);
 }
 
 export interface ChatMessage {

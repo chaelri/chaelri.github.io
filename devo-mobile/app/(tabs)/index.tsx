@@ -9,6 +9,7 @@ import {
   ActivityIndicator,
   Platform,
   Alert,
+  ImageBackground,
 } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
 import { MaterialIcons } from '@expo/vector-icons';
@@ -23,6 +24,7 @@ import VersionToggle from '../../src/components/VersionToggle';
 import AIPanel from '../../src/components/AIPanel';
 import InlineAI from '../../src/components/InlineAI';
 import GradientView from '../../src/components/GradientView';
+import { LinearGradient } from 'expo-linear-gradient';
 // CommentInput no longer used — notes are inline now
 import SearchModal from '../../src/components/SearchModal';
 import ReflectionPanel from '../../src/components/ReflectionPanel';
@@ -225,7 +227,25 @@ export default function ReadScreen() {
   };
 
   return (
-    <SafeAreaView style={[styles.container, { backgroundColor: theme.background }]} edges={['top']}>
+    <View style={styles.container}>
+    {colorScheme === 'dark' ? (
+      <LinearGradient
+        colors={['#121b33', '#0b1220']}
+        start={{ x: 0.5, y: 0 }}
+        end={{ x: 0.5, y: 1 }}
+        style={StyleSheet.absoluteFill}
+      />
+    ) : (
+      <>
+        <View style={[StyleSheet.absoluteFill, { backgroundColor: '#faf9f6' }]} />
+        <ImageBackground
+          source={{ uri: 'https://www.transparenttextures.com/patterns/paper-fibers.png' }}
+          style={StyleSheet.absoluteFill}
+          resizeMode="repeat"
+        />
+      </>
+    )}
+    <SafeAreaView style={[styles.container, { backgroundColor: 'transparent' }]} edges={['top']}>
       {/* Header */}
       <View style={[styles.header, { borderBottomColor: theme.border }]}>
         <TouchableOpacity
@@ -341,10 +361,8 @@ export default function ReadScreen() {
                   delayLongPress={300}
                   activeOpacity={0.9}
                 >
-                  <Text style={[styles.verseNum, { color: theme.accent }]}>
-                    {verseNum}
-                  </Text>
                   <Text style={[styles.verseText, { color: theme.text }]}>
+                    <Text style={[styles.verseNum, { color: theme.accent }]}>{verseNum}  </Text>
                     {text}
                   </Text>
                   {fav && (
@@ -393,18 +411,17 @@ export default function ReadScreen() {
                   </TouchableOpacity>
                 </View>
 
-                {/* Saved notes — compact list */}
+                {/* Saved notes — pill chips */}
                 {verseNotes.length > 0 && (
                   <View style={styles.notesSection}>
                     {verseNotes.map((note) => (
-                      <View key={note.id} style={styles.inlineNote}>
-                        <MaterialIcons name="edit" size={11} color={theme.textMuted} />
-                        <Text style={[styles.inlineNoteText, { color: theme.textMuted }]} numberOfLines={1}>{note.body}</Text>
+                      <View key={note.id} style={[styles.notePill, { borderColor: theme.glassBorder, backgroundColor: theme.glassBackground }]}>
+                        <Text style={[styles.notePillText, { color: theme.textSecondary }]} numberOfLines={1}>{note.body}</Text>
                         <TouchableOpacity
                           onPress={() => deleteNote(note.id)}
                           hitSlop={{ top: 8, bottom: 8, left: 8, right: 8 }}
                         >
-                          <MaterialIcons name="close" size={12} color={theme.textMuted} style={{ opacity: 0.5 }} />
+                          <MaterialIcons name="close" size={11} color={theme.textMuted} />
                         </TouchableOpacity>
                       </View>
                     ))}
@@ -561,6 +578,7 @@ export default function ReadScreen() {
         max={limitModal.max}
       />
     </SafeAreaView>
+    </View>
   );
 }
 
@@ -705,33 +723,38 @@ const styles = StyleSheet.create({
   },
   verseRow: {
     flexDirection: 'row',
-    gap: 10,
     alignItems: 'flex-start',
   },
   verseNum: {
-    fontSize: 20,
+    fontSize: 22,
     fontWeight: '800',
-    marginTop: 1,
-    minWidth: 24,
+    lineHeight: 26,
   },
   verseText: {
     fontSize: 16,
     lineHeight: 26,
     flex: 1,
   },
-  // Saved inline notes — compact
+  // Saved inline notes — pills
   notesSection: {
-    marginTop: 4,
-    gap: 2,
+    flexDirection: 'row',
+    flexWrap: 'wrap',
+    gap: 6,
+    marginTop: 6,
   },
-  inlineNote: {
+  notePill: {
     flexDirection: 'row',
     alignItems: 'center',
-    gap: 5,
-    paddingVertical: 2,
+    paddingHorizontal: 12,
+    paddingVertical: 6,
+    borderRadius: BorderRadius.pill,
+    borderWidth: 1,
+    gap: 6,
+    maxWidth: '80%',
   },
-  inlineNoteText: {
+  notePillText: {
     fontSize: 12,
+    flexShrink: 1,
     flex: 1,
     fontStyle: 'italic',
   },
@@ -759,7 +782,6 @@ const styles = StyleSheet.create({
     flexDirection: 'row',
     gap: 8,
     marginTop: 8,
-    marginLeft: 34,
   },
   verseChip: {
     flexDirection: 'row',

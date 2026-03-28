@@ -6,7 +6,6 @@ import { useRouter } from 'expo-router';
 import { useTheme } from '../../src/hooks/useTheme';
 import { useStore, FREE_LIMITS } from '../../src/store/useStore';
 import { Spacing, FontSize, BorderRadius } from '../../src/constants/theme';
-import { hasTTSKey, setTTSKey } from '../../src/services/tts';
 
 export default function SettingsScreen() {
   const theme = useTheme();
@@ -22,20 +21,6 @@ export default function SettingsScreen() {
       label: 'Appearance',
       value: colorScheme === 'dark' ? 'Dark' : 'Light',
       onPress: toggleTheme,
-    },
-    {
-      icon: 'record-voice-over' as const,
-      label: 'Google TTS Key',
-      value: '',
-      onPress: () => {
-        Alert.prompt?.(
-          'Google TTS API Key',
-          'Enter your Google Cloud TTS API key for Journey voice. Get one at console.cloud.google.com.',
-          (key: string) => { if (key.trim()) setTTSKey(key.trim()); },
-          'plain-text',
-          ''
-        ) ?? Alert.alert('TTS Key', 'Enter key in Settings on iOS device.');
-      },
     },
     {
       icon: 'person-outline' as const,

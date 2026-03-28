@@ -8,6 +8,7 @@ import {
   Easing,
 } from 'react-native';
 import { MaterialIcons } from '@expo/vector-icons';
+import { LinearGradient } from 'expo-linear-gradient';
 import { useTheme } from '../hooks/useTheme';
 import { Spacing, FontSize, BorderRadius } from '../constants/theme';
 import GradientView from './GradientView';
@@ -128,53 +129,82 @@ export default function InlineAI({ fetchContent, onClose, onDigDeeper, onCrossRe
     }
   };
 
-  return (
-    <GradientView style={styles.container} borderRadius={14}>
-      <View style={styles.innerPad}>
-        {/* Header row */}
-        <View style={styles.headerRow}>
-          <Text style={styles.headerLabel}>{label || 'Quick Context'}</Text>
-          <TouchableOpacity onPress={onClose} hitSlop={{ top: 8, bottom: 8, left: 8, right: 8 }}>
-            <MaterialIcons name="close" size={18} color="rgba(255,255,255,0.6)" />
-          </TouchableOpacity>
-        </View>
+  const isDigDeeper = label === 'Dig Deeper';
+  const isCrossRefs = label === 'Cross-References';
+  const gradientColors = isDigDeeper
+    ? ['#0f0a2e', '#2a1252', '#0f0a2e'] as [string, string, ...string[]]
+    : isCrossRefs
+    ? ['#0a1e2e', '#0d2a3d', '#0a1e2e'] as [string, string, ...string[]]
+    : undefined;
 
-        {loading ? (
-          <SparkleLoader />
-        ) : error ? (
-          <View style={styles.errorRow}>
-            <Text style={styles.errorText}>{error}</Text>
-            <TouchableOpacity onPress={load}>
-              <Text style={styles.retryText}>Retry</Text>
+  const shadowColor = isDigDeeper ? '#7c3aed' : isCrossRefs ? '#0ea5e9' : '#486bec';
+
+  const showFooter = !loading && !error && onDigDeeper;
+
+  return (
+    <View style={[styles.container, { shadowColor, borderRadius: 14, overflow: 'hidden' }]}>
+      <GradientView
+        style={{ borderRadius: showFooter ? 0 : 14 }}
+        borderRadius={showFooter ? 0 : 14}
+        colors={gradientColors}
+      >
+        <View style={styles.innerPad}>
+          {/* Header row */}
+          <View style={styles.headerRow}>
+            <Text style={styles.headerLabel}>{label || 'Quick Context'}</Text>
+            <TouchableOpacity onPress={onClose} hitSlop={{ top: 8, bottom: 8, left: 8, right: 8 }}>
+              <MaterialIcons name="close" size={18} color="rgba(255,255,255,0.6)" />
             </TouchableOpacity>
           </View>
-        ) : (
-          <Animated.View style={{ opacity: fadeAnim, transform: [{ translateY: fadeAnim.interpolate({ inputRange: [0, 1], outputRange: [8, 0] }) }] }}>
-            <InlineMarkdown text={content} />
 
-            {/* Action buttons: Dig Deeper */}
-            {(onDigDeeper || onCrossRefs) && (
-              <View style={styles.actionRow}>
-                {onDigDeeper && (
-                  <TouchableOpacity
-                    onPress={onDigDeeper}
-                    activeOpacity={0.8}
-                    style={styles.actionBtn}
-                  >
-                    <MaterialIcons name="search" size={16} color="#fff" />
-                    <Text style={styles.actionBtnText}>Dig Deeper</Text>
-                  </TouchableOpacity>
-                )}
-              </View>
-            )}
-          </Animated.View>
-        )}
-      </View>
-    </GradientView>
+          {loading ? (
+            <SparkleLoader />
+          ) : error ? (
+            <View style={styles.errorRow}>
+              <Text style={styles.errorText}>{error}</Text>
+              <TouchableOpacity onPress={load}>
+                <Text style={styles.retryText}>Retry</Text>
+              </TouchableOpacity>
+            </View>
+          ) : (
+            <Animated.View style={{ opacity: fadeAnim, transform: [{ translateY: fadeAnim.interpolate({ inputRange: [0, 1], outputRange: [8, 0] }) }] }}>
+              <InlineMarkdown text={content} />
+            </Animated.View>
+          )}
+        </View>
+      </GradientView>
+
+      {/* White footer — Dig Deeper CTA */}
+      {showFooter && (
+        <DigDeeperFooter onPress={onDigDeeper!} />
+      )}
+    </View>
   );
 }
 
 // White-on-gradient markdown renderer
+// ─── Dig Deeper CTA — theme-aware footer ────────────────────────────────────
+function DigDeeperFooter({ onPress }: { onPress: () => void }) {
+  const theme = useTheme();
+  const isDark = theme.background === '#0b1220';
+  const bg = isDark ? 'rgb(19, 27, 48)' : '#fff';
+  const textColor = isDark ? '#fff' : '#1a1a2e';
+  const iconColor = isDark ? 'rgba(255,255,255,0.5)' : '#6b21a8';
+  const chevronColor = isDark ? 'rgba(255,255,255,0.3)' : '#9ca3af';
+
+  return (
+    <TouchableOpacity
+      onPress={onPress}
+      activeOpacity={0.85}
+      style={[styles.digDeeperFooter, { backgroundColor: bg }]}
+    >
+      <MaterialIcons name="auto-awesome" size={14} color={iconColor} />
+      <Text style={[styles.digDeeperText, { color: textColor }]}>Dig Deeper</Text>
+      <MaterialIcons name="chevron-right" size={16} color={chevronColor} />
+    </TouchableOpacity>
+  );
+}
+
 function InlineMarkdown({ text }: { text: string }) {
   if (!text) return null;
   const lines = text.split('\n');
@@ -183,31 +213,53 @@ function InlineMarkdown({ text }: { text: string }) {
     <View>
       {lines.map((line, i) => {
         const trimmed = line.trim();
-        if (!trimmed) return <View key={i} style={{ height: 4 }} />;
+        if (!trimmed) return <View key={i} style={{ height: 6 }} />;
+
+        // Headings — check #### first, then ### / ##
+        const h4Match = trimmed.match(/^#{4,}\s+(.+)/);
+        if (h4Match) {
+          return (
+            <Text key={i} style={styles.mdH4}>{renderInline(h4Match[1])}</Text>
+          );
+        }
+        const h2Match = trimmed.match(/^#{1,3}\s+(.+)/);
+        if (h2Match) {
+          return (
+            <Text key={i} style={styles.mdH2}>{renderInline(h2Match[1])}</Text>
+          );
+        }
+
+        // Bullet points
         if (trimmed.startsWith('- ') || trimmed.startsWith('* ')) {
           return (
             <View key={i} style={styles.mdBulletRow}>
               <Text style={styles.mdBulletDot}>•</Text>
-              <Text style={styles.mdText}>{renderBold(trimmed.slice(2))}</Text>
+              <Text style={[styles.mdText, { flex: 1 }]}>{renderInline(trimmed.slice(2))}</Text>
             </View>
           );
         }
+
+        // Regular paragraph
         return (
-          <Text key={i} style={styles.mdText}>{renderBold(trimmed)}</Text>
+          <Text key={i} style={styles.mdText}>{renderInline(trimmed)}</Text>
         );
       })}
     </View>
   );
 }
 
-function renderBold(text: string): React.ReactNode {
-  const parts = text.split(/(\*\*[^*]+\*\*)/g);
+function renderInline(text: string): React.ReactNode {
+  // Handle **bold**, *italic*, and "quoted" text
+  const parts = text.split(/(\*\*[^*]+\*\*|\*[^*]+\*|"[^""]+")/g);
   return parts.map((part, i) => {
     if (part.startsWith('**') && part.endsWith('**')) {
       return <Text key={i} style={styles.mdBold}>{part.slice(2, -2)}</Text>;
     }
-    if (part.startsWith('*') && part.endsWith('*') && !part.startsWith('**')) {
-      return <Text key={i} style={{ fontStyle: 'italic', color: '#fff' }}>{part.slice(1, -1)}</Text>;
+    if (part.startsWith('*') && part.endsWith('*')) {
+      return <Text key={i} style={styles.mdItalic}>{part.slice(1, -1)}</Text>;
+    }
+    if (part.startsWith('"') && part.endsWith('"')) {
+      return <Text key={i} style={styles.mdQuote}>"{part.slice(1, -1)}"</Text>;
     }
     return part;
   });
@@ -248,33 +300,42 @@ const styles = StyleSheet.create({
   errorText: { fontSize: FontSize.sm, color: 'rgba(255,255,255,0.7)' },
   retryText: { fontSize: FontSize.sm, fontWeight: '600', color: '#fff' },
 
-  // Actions
-  actionRow: {
-    flexDirection: 'row',
-    gap: 8,
-    marginTop: Spacing.sm + 4,
-  },
-  actionBtn: {
+  // Dig Deeper footer
+  digDeeperFooter: {
     flexDirection: 'row',
     alignItems: 'center',
     justifyContent: 'center',
-    gap: 6,
-    backgroundColor: 'rgba(255,255,255,0.2)',
-    paddingVertical: 12,
-    borderRadius: 10,
-    width: '100%',
+    gap: 8,
+    paddingVertical: 14,
   },
-  actionBtnText: {
-    color: '#fff',
-    fontSize: 14,
-    fontFamily: 'EditorsNote-Italic',
+  digDeeperText: {
+    fontSize: 11,
+    fontWeight: '700',
+    letterSpacing: 1.5,
     textTransform: 'uppercase',
-    letterSpacing: 1,
   },
 
-  // Markdown — white text on gradient (high contrast)
+  // Markdown — white text on gradient
+  mdH2: {
+    fontSize: 16,
+    fontWeight: '700',
+    color: '#fff',
+    marginTop: 10,
+    marginBottom: 4,
+  },
+  mdH4: {
+    fontSize: 12,
+    fontWeight: '700',
+    color: '#c084fc',
+    letterSpacing: 1.2,
+    textTransform: 'uppercase',
+    marginTop: 14,
+    marginBottom: 6,
+  },
   mdBold: { fontSize: 15, fontWeight: '800', color: '#fff' },
-  mdText: { fontSize: 15, lineHeight: 19, color: '#fff', marginBottom: 2 },
-  mdBulletRow: { flexDirection: 'row', marginBottom: 2 },
-  mdBulletDot: { width: 14, fontSize: 15, lineHeight: 23, fontWeight: '700', color: 'rgba(255,255,255,0.7)' },
+  mdItalic: { fontSize: 15, fontStyle: 'italic', color: 'rgba(255,255,255,0.9)' },
+  mdQuote: { fontSize: 15, fontStyle: 'italic', color: 'rgba(255,255,255,0.85)' },
+  mdText: { fontSize: 15, lineHeight: 22, color: 'rgba(255,255,255,0.92)', marginBottom: 4 },
+  mdBulletRow: { flexDirection: 'row', marginBottom: 6, paddingLeft: 4 } as any,
+  mdBulletDot: { width: 16, fontSize: 15, lineHeight: 22, fontWeight: '700', color: 'rgba(255,255,255,0.5)' },
 });

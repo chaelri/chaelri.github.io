@@ -1,4 +1,4 @@
-import React, { useState, useRef } from 'react';
+import React, { useState, useRef, useEffect } from 'react';
 import {
   View,
   Text,
@@ -10,12 +10,23 @@ import {
   Platform,
   ActivityIndicator,
 } from 'react-native';
+import { LinearGradient } from 'expo-linear-gradient';
 import { SafeAreaView } from 'react-native-safe-area-context';
 import { MaterialIcons } from '@expo/vector-icons';
 import { useRouter, useLocalSearchParams } from 'expo-router';
 import { useTheme } from '../src/hooks/useTheme';
 import { Spacing, FontSize, BorderRadius } from '../src/constants/theme';
-import { sendVerseChat, type ChatMessage } from '../src/services/ai';
+import { sendVerseChat, getSuggestedQuestions, type ChatMessage } from '../src/services/ai';
+
+function renderBoldText(text: string, color: string): React.ReactNode {
+  const parts = text.split(/(\*\*[^*]+\*\*)/g);
+  return parts.map((part, i) => {
+    if (part.startsWith('**') && part.endsWith('**')) {
+      return <Text key={i} style={{ fontWeight: '800', color }}>{part.slice(2, -2)}</Text>;
+    }
+    return part;
+  });
+}
 
 export default function VerseChatScreen() {
   const theme = useTheme();
@@ -31,7 +42,21 @@ export default function VerseChatScreen() {
   const [messages, setMessages] = useState<ChatMessage[]>([]);
   const [input, setInput] = useState('');
   const [loading, setLoading] = useState(false);
+  const [suggestions, setSuggestions] = useState<string[]>([]);
+  const [suggestionsLoading, setSuggestionsLoading] = useState(true);
+  const [remainingSuggestions, setRemainingSuggestions] = useState<string[]>([]);
   const flatListRef = useRef<FlatList>(null);
+
+  useEffect(() => {
+    getSuggestedQuestions(bookName, Number(chapter), Number(verseNum), verseText)
+      .then(setSuggestions)
+      .catch(() => setSuggestions([
+        'What does this verse mean?',
+        'How can I apply this today?',
+        'What is the historical context?',
+      ]))
+      .finally(() => setSuggestionsLoading(false));
+  }, []);
 
   const sendMessage = async () => {
     const text = input.trim();
@@ -63,12 +88,6 @@ export default function VerseChatScreen() {
     }
   };
 
-  const suggestions = [
-    'What does this verse mean?',
-    'How can I apply this today?',
-    'What is the historical context?',
-    'Explain the key words',
-  ];
 
   return (
     <SafeAreaView style={[styles.container, { backgroundColor: theme.background }]}>
@@ -91,7 +110,7 @@ export default function VerseChatScreen() {
         <Text style={[styles.verseRef, { color: theme.accent }]}>
           {verseNum}
         </Text>
-        <Text style={[styles.verseTextPreview, { color: theme.textSecondary }]} numberOfLines={3}>
+        <Text style={[styles.verseTextPreview, { color: theme.textSecondary }]}>
           {verseText}
         </Text>
       </View>
@@ -101,9 +120,16 @@ export default function VerseChatScreen() {
         behavior={Platform.OS === 'ios' ? 'padding' : 'height'}
         keyboardVerticalOffset={0}
       >
+        {/* Top fade — messages fade out as they scroll up */}
+        <LinearGradient
+          colors={[theme.background, 'transparent']}
+          style={{ position: 'absolute', top: 0, left: 0, right: 0, height: 32, zIndex: 1 }}
+          pointerEvents="none"
+        />
         <FlatList
           ref={flatListRef}
           data={messages}
+          showsVerticalScrollIndicator={false}
           keyExtractor={(_, i) => String(i)}
           renderItem={({ item }) => (
             <View
@@ -114,14 +140,13 @@ export default function VerseChatScreen() {
                   : [styles.aiBubble, { backgroundColor: theme.surface, borderColor: theme.glassBorder }],
               ]}
             >
-              <Text
-                style={[
-                  styles.bubbleText,
-                  { color: item.role === 'user' ? '#fff' : theme.text },
-                ]}
-              >
-                {item.text}
-              </Text>
+              {item.role === 'user' ? (
+                <Text style={[styles.bubbleText, { color: '#fff' }]}>{item.text}</Text>
+              ) : (
+                <Text style={[styles.bubbleText, { color: theme.text }]}>
+                  {renderBoldText(item.text, theme.text)}
+                </Text>
+              )}
             </View>
           )}
           contentContainerStyle={styles.messageList}
@@ -133,22 +158,23 @@ export default function VerseChatScreen() {
                 Ask anything about this verse
               </Text>
               <View style={styles.suggestions}>
-                {suggestions.map((s) => (
+                {suggestionsLoading ? (
+                  <ActivityIndicator size="small" color={theme.textMuted} style={{ marginTop: 12 }} />
+                ) : suggestions.map((s) => (
                   <TouchableOpacity
                     key={s}
                     style={[styles.suggestion, { borderColor: theme.glassBorder }]}
                     onPress={() => {
-                      setInput(s);
-                      // Auto-send after a tick so state updates
-                      setTimeout(() => {
-                        const userMsg: ChatMessage = { role: 'user', text: s };
-                        setMessages((prev) => [...prev, userMsg]);
-                        setLoading(true);
-                        sendVerseChat(bookName, Number(chapter), Number(verseNum), verseText, [], s)
-                          .then((reply) => setMessages((prev) => [...prev, { role: 'model', text: reply }]))
-                          .catch((err) => setMessages((prev) => [...prev, { role: 'model', text: `Sorry: ${err.message}` }]))
-                          .finally(() => { setLoading(false); setInput(''); });
-                      }, 50);
+                      // Save remaining as follow-ups
+                      setRemainingSuggestions(suggestions.filter(q => q !== s));
+                      const userMsg: ChatMessage = { role: 'user', text: s };
+                      setMessages([userMsg]);
+                      setInput('');
+                      setLoading(true);
+                      sendVerseChat(bookName, Number(chapter), Number(verseNum), verseText, [], s)
+                        .then((reply) => setMessages((prev) => [...prev, { role: 'model', text: reply }]))
+                        .catch((err) => setMessages((prev) => [...prev, { role: 'model', text: `Sorry: ${err.message}` }]))
+                        .finally(() => setLoading(false));
                     }}
                     activeOpacity={0.7}
                   >
@@ -156,6 +182,7 @@ export default function VerseChatScreen() {
                   </TouchableOpacity>
                 ))}
               </View>
+
             </View>
           }
           ListFooterComponent={
@@ -165,6 +192,29 @@ export default function VerseChatScreen() {
                   <ActivityIndicator size="small" color={theme.accent} />
                 </View>
                 <Text style={[styles.typingText, { color: theme.textMuted }]}>Thinking...</Text>
+              </View>
+            ) : remainingSuggestions.length > 0 ? (
+              <View style={styles.followUps}>
+                {remainingSuggestions.map((q) => (
+                  <TouchableOpacity
+                    key={q}
+                    style={[styles.followUpChip, { borderColor: theme.glassBorder }]}
+                    onPress={() => {
+                      setRemainingSuggestions(remainingSuggestions.filter(s => s !== q));
+                      const userMsg: ChatMessage = { role: 'user', text: q };
+                      setMessages((prev) => [...prev, userMsg]);
+                      setInput('');
+                      setLoading(true);
+                      sendVerseChat(bookName, Number(chapter), Number(verseNum), verseText, messages, q)
+                        .then((reply) => setMessages((prev) => [...prev, { role: 'model', text: reply }]))
+                        .catch((err) => setMessages((prev) => [...prev, { role: 'model', text: `Sorry: ${err.message}` }]))
+                        .finally(() => setLoading(false));
+                    }}
+                    activeOpacity={0.7}
+                  >
+                    <Text style={[styles.followUpText, { color: theme.textSecondary }]}>{q}</Text>
+                  </TouchableOpacity>
+                ))}
               </View>
             ) : null
           }
@@ -178,7 +228,6 @@ export default function VerseChatScreen() {
             placeholderTextColor={theme.textMuted}
             value={input}
             onChangeText={setInput}
-            multiline
             maxLength={500}
             returnKeyType="send"
             onSubmitEditing={sendMessage}
@@ -274,17 +323,36 @@ const styles = StyleSheet.create({
     fontSize: FontSize.md,
   },
   suggestions: {
+    flexDirection: 'row',
+    flexWrap: 'wrap',
     marginTop: Spacing.md,
-    gap: Spacing.sm,
-    width: '100%',
+    gap: 8,
   },
   suggestion: {
     borderWidth: 1,
-    borderRadius: BorderRadius.md,
-    padding: Spacing.md,
+    borderRadius: BorderRadius.pill,
+    paddingHorizontal: 14,
+    paddingVertical: 10,
+    flexShrink: 1,
   },
   suggestionText: {
     fontSize: FontSize.sm,
+  },
+  followUps: {
+    flexDirection: 'row',
+    flexWrap: 'wrap',
+    gap: 8,
+    marginTop: Spacing.sm,
+  },
+  followUpChip: {
+    borderWidth: 1,
+    borderRadius: BorderRadius.pill,
+    paddingHorizontal: 12,
+    paddingVertical: 7,
+    flexShrink: 1,
+  },
+  followUpText: {
+    fontSize: FontSize.xs,
   },
   typingRow: {
     flexDirection: 'row',
@@ -296,7 +364,7 @@ const styles = StyleSheet.create({
   typingText: { fontSize: FontSize.sm },
   inputRow: {
     flexDirection: 'row',
-    alignItems: 'flex-end',
+    alignItems: 'center',
     paddingHorizontal: Spacing.md,
     paddingVertical: Spacing.sm,
     borderTopWidth: 0.5,
@@ -305,17 +373,15 @@ const styles = StyleSheet.create({
   textInput: {
     flex: 1,
     fontSize: FontSize.md,
-    borderRadius: 14,
+    borderRadius: 22,
     borderWidth: 1,
-    paddingHorizontal: 14,
-    paddingVertical: 10,
-    maxHeight: 100,
-    minHeight: 40,
+    paddingHorizontal: 16,
+    height: 44,
   },
   sendBtn: {
-    width: 40,
-    height: 40,
-    borderRadius: 20,
+    width: 44,
+    height: 44,
+    borderRadius: 22,
     justifyContent: 'center',
     alignItems: 'center',
   },

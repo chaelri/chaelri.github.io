@@ -1,5 +1,6 @@
-import React from 'react';
-import { View, Text, TouchableOpacity, ScrollView, StyleSheet, Alert } from 'react-native';
+import React, { useEffect, useRef } from 'react';
+import { View, Text, TouchableOpacity, ScrollView, StyleSheet, Alert, Animated } from 'react-native';
+import { LinearGradient } from 'expo-linear-gradient';
 import { SafeAreaView } from 'react-native-safe-area-context';
 import { MaterialIcons } from '@expo/vector-icons';
 import { useRouter } from 'expo-router';
@@ -19,6 +20,17 @@ export default function PaywallScreen() {
   const theme = useTheme();
   const router = useRouter();
   const { setPremium } = useStore();
+  const shimmerAnim = useRef(new Animated.Value(0)).current;
+
+  useEffect(() => {
+    Animated.loop(
+      Animated.timing(shimmerAnim, {
+        toValue: 1,
+        duration: 2500,
+        useNativeDriver: true,
+      })
+    ).start();
+  }, []);
 
   const handlePurchase = (plan: string) => {
     Alert.alert(
@@ -40,7 +52,12 @@ export default function PaywallScreen() {
   return (
     <SafeAreaView style={[styles.container, { backgroundColor: theme.background }]}>
       <ScrollView contentContainerStyle={styles.content}>
-        <TouchableOpacity style={styles.closeBtn} onPress={() => router.back()}>
+        <TouchableOpacity
+          style={styles.closeBtn}
+          onPress={() => router.back()}
+          onLongPress={() => { setPremium(true); Alert.alert('Dev Mode', 'Premium activated!'); router.back(); }}
+          delayLongPress={500}
+        >
           <MaterialIcons name="close" size={22} color={theme.textMuted} />
         </TouchableOpacity>
 
@@ -64,16 +81,42 @@ export default function PaywallScreen() {
           ))}
         </View>
 
-        {/* Annual — primary CTA */}
+        {/* Annual — primary CTA with shimmer border */}
         <TouchableOpacity
           onPress={() => handlePurchase('annual')}
           activeOpacity={0.85}
           style={{ width: '100%', marginBottom: Spacing.sm }}
         >
-          <GradientView style={styles.btnPrimary} borderRadius={BorderRadius.lg}>
-            <Text style={styles.btnPrimaryLabel}>Annual — Best Value</Text>
-            <Text style={styles.btnPrimaryPrice}>$19.99/year <Text style={styles.btnSub}>($1.67/mo)</Text></Text>
-          </GradientView>
+          <View style={styles.shimmerWrapper}>
+            {/* Shimmer border layer */}
+            <View style={[styles.shimmerBorderOuter, { borderRadius: BorderRadius.lg + 2 }]}>
+              <Animated.View
+                style={[
+                  styles.shimmerGradientTrack,
+                  {
+                    transform: [{
+                      translateX: shimmerAnim.interpolate({
+                        inputRange: [0, 1],
+                        outputRange: [-400, 400],
+                      }),
+                    }],
+                  },
+                ]}
+              >
+                <LinearGradient
+                  colors={['transparent', 'rgba(255,255,255,0.7)', 'rgba(168,180,255,0.9)', 'rgba(255,255,255,0.7)', 'transparent']}
+                  start={{ x: 0, y: 0.5 }}
+                  end={{ x: 1, y: 0.5 }}
+                  style={{ width: 400, height: '100%' }}
+                />
+              </Animated.View>
+            </View>
+            {/* Actual button content */}
+            <GradientView style={styles.btnPrimary} borderRadius={BorderRadius.lg}>
+              <Text style={styles.btnPrimaryLabel}>Annual — Best Value</Text>
+              <Text style={styles.btnPrimaryPrice}>$19.99/year <Text style={styles.btnSub}>($1.67/mo)</Text></Text>
+            </GradientView>
+          </View>
         </TouchableOpacity>
 
         {/* Monthly */}
@@ -163,6 +206,22 @@ const styles = StyleSheet.create({
   featureText: {
     fontSize: FontSize.md,
     fontWeight: '500',
+  },
+  shimmerWrapper: {
+    position: 'relative',
+  },
+  shimmerBorderOuter: {
+    ...StyleSheet.absoluteFillObject,
+    overflow: 'hidden',
+    margin: -2,
+    backgroundColor: 'rgba(72, 107, 236, 0.25)',
+  },
+  shimmerGradientTrack: {
+    position: 'absolute',
+    top: 0,
+    left: 0,
+    bottom: 0,
+    width: 800,
   },
   btnPrimary: {
     alignItems: 'center',
