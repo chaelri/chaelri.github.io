@@ -1139,25 +1139,25 @@ const KARLA_STRAPBAND = {
       name: 'Strap Band Exercise 1',
       sets: '20 reps × 3 sets',
       howTo: '',
-      video: { src: 'strapbands.mp4', start: 16, end: 21 }
+      gif: 'strap1.gif'
     },
     {
       name: 'Strap Band Exercise 2',
       sets: '20 reps × 3 sets',
       howTo: '',
-      video: { src: 'strapbands.mp4', start: 21, end: 25 }
+      gif: 'strap2.gif'
     },
     {
       name: 'Strap Band Exercise 3',
       sets: '20 reps × 3 sets',
       howTo: '',
-      video: { src: 'strapbands.mp4', start: 26, end: 30 }
+      gif: 'strap3.gif'
     },
     {
       name: 'Strap Band Exercise 4',
       sets: '20 reps × 3 sets',
       howTo: '',
-      video: { src: 'strapbands.mp4', start: 31, end: 38 }
+      gif: 'strap4.gif'
     },
   ],
   rest: '30 sec between sets',
@@ -2842,7 +2842,7 @@ function celebrateDay(){
 function renderExerciseCompact(exercises,dayNum){
   return exercises.map((e,i)=>{
     const checked=isExChecked(dayNum,i);
-    const svg=e.video?exVideo(e.video):e.p2?exSvg(e.p1,e.p2,e.name):(e.p1?exSvg(e.p1,null,e.name):'');
+    const svg=e.gif?`<img src="${e.gif}" style="width:200px;border-radius:8px;display:block;margin:0 auto">`:e.video?exVideo(e.video):e.p2?exSvg(e.p1,e.p2,e.name):(e.p1?exSvg(e.p1,null,e.name):'');
     const sec=parseSec(e.sets);
     const isRunning=activeTimer&&activeTimer.day===dayNum&&activeTimer.ex===i&&!activeTimer.paused;
     const isPaused=activeTimer&&activeTimer.day===dayNum&&activeTimer.ex===i&&activeTimer.paused;
@@ -2879,7 +2879,7 @@ function renderExerciseCompact(exercises,dayNum){
 function renderExerciseFull(exercises,dayNum){
   return exercises.map((e,i)=>{
     const checked=dayNum?isExChecked(dayNum,i):false;
-    const svg=e.video?exVideo(e.video):e.p2?exSvg(e.p1,e.p2,e.name):(e.p1?exSvg(e.p1,null,e.name):' ');
+    const svg=e.gif?`<img src="${e.gif}" style="width:200px;border-radius:8px;display:block;margin:0 auto">`:e.video?exVideo(e.video):e.p2?exSvg(e.p1,e.p2,e.name):(e.p1?exSvg(e.p1,null,e.name):' ');
     return `<div class="space-y-2">
       <div class="flex items-start gap-2">
         ${dayNum?`<input type="checkbox" class="check-ex mt-1" ${checked?'checked':''} onchange="toggleExCheck(${dayNum},${i})">`:''}

@@ -76,7 +76,7 @@
 
     _build(scene){
       const dk=isDark();
-      const skin=this._skin(dk?0xd4a574:0x83382c); // matches 2D stick figure color
+      const skin=this._skin(dk?0xd4a574:0xc49a78); // warm tan (light), golden brown (dark)
       const shoe=this._mat(dk?0x3a2820:SHOE);
       const km=this._mat(KB_BODY),kh=this._mat(KB_HANDLE);
       this._mats=[skin,shoe,km,kh];
