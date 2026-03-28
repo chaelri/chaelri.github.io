@@ -31,13 +31,15 @@ function synthRelease() {
 }
 
 // ── API Key management ──────────────────────────────────────────────────────
+// Dev key — same as PWA's config.js. On production, use stored key.
+const DEV_TTS_KEY = 'AIzaSyAr3wUTdrQRLwdw9Yq0pLNxiORN9FG7Hfg';
 let _cachedKey: string | null = null;
 
 export async function getTTSKey(): Promise<string | null> {
   if (_cachedKey) return _cachedKey;
   const key = await getItem('googleTtsKey');
-  _cachedKey = key;
-  return key;
+  _cachedKey = key || DEV_TTS_KEY;
+  return _cachedKey;
 }
 
 export async function setTTSKey(key: string): Promise<void> {

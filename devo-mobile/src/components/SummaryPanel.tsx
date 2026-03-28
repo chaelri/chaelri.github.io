@@ -80,12 +80,15 @@ Keep it concise and clear. No bullet points, no numbering.
 PASSAGE:
 ${versesText}`;
 
-      const fullPrompt = `You are a Bible study assistant. Use a warm, friendly English tone — casual yet respectful. Give a detailed context summary for ${bookName} Chapter ${chapter}. Cover:
-1. **Background** — What's happening at this point in the book
-2. **Key Themes** — Main ideas in this chapter
-3. **Watch For** — Things the reader should pay attention to
+      const fullPrompt = `You are a Bible study assistant. Give a detailed context summary for ${bookName} Chapter ${chapter}.
 
-Use bullet points when helpful. Reference specific verse numbers.
+RULES:
+- Do NOT start with greetings or intro sentences. Start directly with the content.
+- Use these exact section headers with ## markdown: ## Background, ## Key Themes, ## Watch For
+- Use bullet points with bold key terms using **double asterisks**
+- Reference specific verse numbers
+- Be thorough but readable
+- Friendly English tone, casual yet respectful
 
 Here are the verses:
 ${versesText}`;
@@ -227,31 +230,22 @@ ${versesText}`;
 
                     {quickSummary.context ? (
                       <View style={styles.quickSection}>
-                        <MaterialIcons name="info-outline" size={18} color="rgba(255,255,255,0.7)" style={{ marginTop: 2 }} />
-                        <View style={styles.quickSectionContent}>
-                          <Text style={styles.quickSectionTitle}>Context</Text>
-                          <Text style={styles.quickSectionText}>{quickSummary.context}</Text>
-                        </View>
+                        <Text style={styles.quickSectionTitle}>Context</Text>
+                        <Text style={styles.quickSectionText}>{quickSummary.context}</Text>
                       </View>
                     ) : null}
 
                     {quickSummary.whatHappens ? (
                       <View style={styles.quickSection}>
-                        <MaterialIcons name="bolt" size={18} color="rgba(255,255,255,0.7)" style={{ marginTop: 2 }} />
-                        <View style={styles.quickSectionContent}>
-                          <Text style={styles.quickSectionTitle}>What happens</Text>
-                          <Text style={styles.quickSectionText}>{quickSummary.whatHappens}</Text>
-                        </View>
+                        <Text style={styles.quickSectionTitle}>What Happens</Text>
+                        <Text style={styles.quickSectionText}>{quickSummary.whatHappens}</Text>
                       </View>
                     ) : null}
 
                     {quickSummary.watchFor ? (
                       <View style={styles.quickSection}>
-                        <MaterialIcons name="visibility" size={18} color="rgba(255,255,255,0.7)" style={{ marginTop: 2 }} />
-                        <View style={styles.quickSectionContent}>
-                          <Text style={styles.quickSectionTitle}>Watch for</Text>
-                          <Text style={styles.quickSectionText}>{quickSummary.watchFor}</Text>
-                        </View>
+                        <Text style={styles.quickSectionTitle}>Watch For</Text>
+                        <Text style={styles.quickSectionText}>{quickSummary.watchFor}</Text>
                       </View>
                     ) : null}
                   </View>
@@ -280,7 +274,9 @@ function MarkdownLite({ text, theme }: { text: string; theme: any }) {
 
   lines.forEach((line, i) => {
     const trimmed = line.trim();
-    if (trimmed.startsWith('### ')) {
+    if (trimmed.startsWith('#### ')) {
+      elements.push(<Text key={i} style={[mdStyles.h3, { color: theme.text }]}>{trimmed.slice(5)}</Text>);
+    } else if (trimmed.startsWith('### ')) {
       elements.push(<Text key={i} style={[mdStyles.h3, { color: theme.text }]}>{trimmed.slice(4)}</Text>);
     } else if (trimmed.startsWith('## ')) {
       elements.push(<Text key={i} style={[mdStyles.h2, { color: theme.text }]}>{trimmed.slice(3)}</Text>);
@@ -324,9 +320,9 @@ function renderBold(text: string, theme: any): React.ReactNode {
 }
 
 const mdStyles = StyleSheet.create({
-  h1: { fontSize: FontSize.xl, fontWeight: '800', marginBottom: 8, marginTop: 12, letterSpacing: -1 },
-  h2: { fontSize: FontSize.lg, fontWeight: '700', marginBottom: 6, marginTop: 10 },
-  h3: { fontSize: FontSize.md, fontWeight: '700', marginBottom: 4, marginTop: 8 },
+  h1: { fontSize: 28, fontFamily: 'EditorsNote-Italic', marginBottom: 8, marginTop: 16, textTransform: 'uppercase' },
+  h2: { fontSize: 24, fontFamily: 'EditorsNote-Italic', marginBottom: 8, marginTop: 20, textTransform: 'uppercase' },
+  h3: { fontSize: 20, fontFamily: 'EditorsNote-Italic', marginBottom: 6, marginTop: 14, textTransform: 'uppercase' },
   body: { fontSize: FontSize.md, lineHeight: 24, marginBottom: 4 },
   bullet: { flexDirection: 'row', marginBottom: 4, paddingRight: 16 },
   bulletDot: { width: 16, fontSize: FontSize.md, lineHeight: 24, fontWeight: '700' },
@@ -392,22 +388,18 @@ const styles = StyleSheet.create({
     textTransform: 'uppercase',
   },
   quickSection: {
-    flexDirection: 'row',
-    marginBottom: Spacing.md + 4,
-    gap: 10,
-  },
-  quickSectionContent: {
-    flex: 1,
+    marginBottom: Spacing.lg,
   },
   quickSectionTitle: {
-    fontSize: FontSize.md,
-    fontWeight: '800',
+    fontSize: 30,
+    fontFamily: 'EditorsNote-Italic',
     color: '#fff',
-    marginBottom: 3,
+    textTransform: 'uppercase',
+    marginBottom: 6,
   },
   quickSectionText: {
     fontSize: FontSize.md,
-    lineHeight: 22,
+    lineHeight: 23,
     color: 'rgba(255,255,255,0.85)',
   },
 
