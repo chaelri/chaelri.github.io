@@ -2665,7 +2665,7 @@ function renderKPIs(completed) {
   const factors = completed.map(r => r.mainExitFactor).filter(Boolean);
   const topFactor = factors.length ? mode(factors) : '—';
   const trustScores = completed.flatMap(r =>
-    TRUST_FIELDS.map(f => r[`ti_${key(f)}`]).filter(v => v !== null)
+    TRUST_FIELDS.map(f => r[`ti_${key(f)}`]).filter(v => v != null)
   );
   const avgTrust = trustScores.length ? (trustScores.reduce((a, b) => a + b, 0) / trustScores.length).toFixed(2) : '—';
 
@@ -2964,7 +2964,7 @@ function renderTrustIndexChart(completed) {
 
   const avgs = TRUST_FIELDS.map(label => {
     const fk = `ti_${key(label)}`;
-    const vals = completed.map(r => r[fk]).filter(v => v !== null);
+    const vals = completed.map(r => r[fk]).filter(v => v != null);
     const avg = vals.length ? vals.reduce((a, b) => a + b, 0) / vals.length : 0;
     return { label, avg: +avg.toFixed(2), count: vals.length };
   });
@@ -3032,7 +3032,7 @@ function renderOpStressorsChart(completed) {
 
   OP_STRESSOR_FIELDS.forEach(label => {
     const fk = `os_${key(label)}`;
-    const vals = completed.map(r => r[fk]).filter(v => v !== null);
+    const vals = completed.map(r => r[fk]).filter(v => v != null);
     if (!vals.length) return;
 
     const counts = [0,1,2,3].map(i => vals.filter(v => v === i).length);
@@ -3490,7 +3490,7 @@ function exportXLSX() {
   // KPI
   const factors   = completed.map(r => r.mainExitFactor).filter(Boolean);
   const topFactor = factors.length ? mode(factors) : '—';
-  const tScores   = completed.flatMap(r => TRUST_FIELDS.map(f => r[`ti_${key(f)}`]).filter(v => v !== null));
+  const tScores   = completed.flatMap(r => TRUST_FIELDS.map(f => r[`ti_${key(f)}`]).filter(v => v != null));
   const avgTrust  = tScores.length ? (tScores.reduce((a,b)=>a+b,0)/tScores.length).toFixed(2) : '—';
   const atNum     = parseFloat(avgTrust);
   sumRows.push(H('KEY PERFORMANCE INDICATORS', '1E3A5F', 'FFFFFF', 3));
@@ -3567,7 +3567,7 @@ function exportXLSX() {
   sumRows.push(subH('Statement','Avg Score','/ 5','Guards','Interpretation'));
   TRUST_FIELDS.forEach(label => {
     const fk = `ti_${key(label)}`;
-    const vals = completed.map(r => r[fk]).filter(v => v !== null);
+    const vals = completed.map(r => r[fk]).filter(v => v != null);
     const avg  = vals.length ? vals.reduce((a,b)=>a+b,0)/vals.length : 0;
     const k    = vals.length ? Math.round(avg) : 'null';
     const interp = avg>=4?'Agree':avg>=3?'Neutral':avg>0?'Disagree':'—';
@@ -3580,7 +3580,7 @@ function exportXLSX() {
   sumRows.push(subH('Stressor','Never','Sometimes','Often','Very Often','% V.Often','Severity'));
   OP_STRESSOR_FIELDS.forEach(label => {
     const fk    = `os_${key(label)}`;
-    const vals  = completed.map(r => r[fk]).filter(v => v !== null);
+    const vals  = completed.map(r => r[fk]).filter(v => v != null);
     const cnts  = [0,1,2,3].map(i => vals.filter(v=>v===i).length);
     const voPct = vals.length ? Math.round(cnts[3]/vals.length*100) : 0;
     const sev   = voPct>=50?'CRITICAL':voPct>=25?'HIGH':voPct>=10?'MODERATE':'LOW';
@@ -3752,7 +3752,7 @@ function exportCSV() {
   const factors = completed.map(r => r.mainExitFactor).filter(Boolean);
   const topFactor = factors.length ? mode(factors) : '—';
   const trustScores = completed.flatMap(r =>
-    TRUST_FIELDS.map(f => r[`ti_${key(f)}`]).filter(v => v !== null)
+    TRUST_FIELDS.map(f => r[`ti_${key(f)}`]).filter(v => v != null)
   );
   const avgTrust = trustScores.length
     ? (trustScores.reduce((a, b) => a + b, 0) / trustScores.length).toFixed(2)
@@ -3777,7 +3777,7 @@ function exportCSV() {
 
   const erData = EXIT_REASON_FIELDS.map(label => {
     const fk = `er_${key(label)}`;
-    const vals = completed.map(r => r[fk]).filter(v => v !== null);
+    const vals = completed.map(r => r[fk]).filter(v => v != null);
     const totalScore = vals.reduce((a, b) => a + b, 0);
     const avg = vals.length ? totalScore / vals.length : 0;
     return { label, totalScore, count: vals.length, avg };
@@ -3824,7 +3824,7 @@ function exportCSV() {
 
   const tiData = TRUST_FIELDS.map(label => {
     const fk = `ti_${key(label)}`;
-    const vals = completed.map(r => r[fk]).filter(v => v !== null);
+    const vals = completed.map(r => r[fk]).filter(v => v != null);
     const avg = vals.length ? vals.reduce((a, b) => a + b, 0) / vals.length : 0;
     return { label, avg: +avg.toFixed(2), count: vals.length };
   });
@@ -3859,7 +3859,7 @@ function exportCSV() {
 
   OP_STRESSOR_FIELDS.forEach(label => {
     const fk = `os_${key(label)}`;
-    const vals = completed.map(r => r[fk]).filter(v => v !== null);
+    const vals = completed.map(r => r[fk]).filter(v => v != null);
     if (!vals.length) { rows.push([label, '(no data)', '', '', '', '', '', '']); return; }
     const counts = [0, 1, 2, 3].map(i => vals.filter(v => v === i).length);
     const voPct = Math.round(counts[3] / vals.length * 100);
