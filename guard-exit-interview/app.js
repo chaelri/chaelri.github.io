@@ -2587,15 +2587,23 @@ function renderMonthlyTrendChart() {
   const months = [];
   for (let i = 13; i >= 0; i--) {
     const d = new Date(now.getFullYear(), now.getMonth() - i, 1);
-    months.push({ year: d.getFullYear(), month: d.getMonth() + 1, label: d.toLocaleString('default', { month: 'short' }) + ' ' + String(d.getFullYear()).slice(2) });
+    const shortMonth = d.toLocaleString('default', { month: 'short' });
+    // Only show year on Jan or when year changes from previous month
+    const prevD = i < 13 ? new Date(now.getFullYear(), now.getMonth() - i - 1, 1) : null;
+    const showYear = d.getMonth() === 0 || (prevD && prevD.getFullYear() !== d.getFullYear());
+    months.push({ year: d.getFullYear(), month: d.getMonth() + 1, label: showYear ? shortMonth + ' ' + String(d.getFullYear()).slice(2) : shortMonth });
   }
 
   // Count records per month (all records with dateOfExit, regardless of filter)
-  const allCompleted = records.filter(r => r.fullName && r.fullName.trim() && r.dateOfExit);
+  const allCompleted = records.filter(r => r && r.fullName && r.fullName.trim() && r.dateOfExit);
   months.forEach(m => {
     m.count = allCompleted.filter(r => {
-      const d = new Date(r.dateOfExit);
-      return !isNaN(d) && d.getFullYear() === m.year && d.getMonth() + 1 === m.month;
+      const raw = r.dateOfExit;
+      // Handle both "YYYY-MM-DD" strings and any other parseable format
+      const d = typeof raw === 'number' ? new Date(raw) : new Date(String(raw));
+      if (isNaN(d)) return false;
+      // Compare using UTC to avoid timezone-shifted month boundaries
+      return d.getUTCFullYear() === m.year && d.getUTCMonth() + 1 === m.month;
     }).length;
   });
 
@@ -3113,16 +3121,19 @@ function renderSupervisionChart(completed) {
   `;
   section.appendChild(alertDiv);
 
-  data.forEach(d => {
+  data.forEach((d, i) => {
     const pct = Math.round(d.count / maxCount * 100);
     const guardPct = total ? Math.round(d.count / total * 100) : 0;
     const barColor = guardPct >= 50 ? '#ef4444' : guardPct >= 25 ? '#f97316' : '#f59e0b';
     const row = document.createElement('div');
-    row.className = 'bar-row';
+    row.className = 'bar-row-stacked';
     row.innerHTML = `
-      <span class="bar-label">${escHtml(d.label)}</span>
+      <div class="bar-stacked-top">
+        <span class="bar-rank">${i + 1}</span>
+        <span class="bar-stacked-label">${escHtml(d.label)}</span>
+        <span class="bar-meta">${d.count} / ${total} (${guardPct}%)</span>
+      </div>
       <div class="bar-track"><div class="bar-fill" style="background:${barColor};width:0%" data-pct="${pct}"></div></div>
-      <span class="bar-meta">${d.count} / ${total} (${guardPct}%)</span>
     `;
     section.appendChild(row);
   });
@@ -3184,11 +3195,13 @@ function renderServiceLengthChart(completed) {
     const pct = Math.round(c / maxCount * 100);
     const guardPct = total ? Math.round(c / total * 100) : 0;
     const row = document.createElement('div');
-    row.className = 'bar-row';
+    row.className = 'bar-row-stacked';
     row.innerHTML = `
-      <span class="bar-label">${escHtml(o)}</span>
-      <div class="bar-track"><div class="bar-fill" style="background:${TENURE_COLORS[i]};width:0%" data-pct="${pct}"></div></div>
-      <span class="bar-meta">${c} guards (${guardPct}%)</span>
+      <div class="bar-stacked-top">
+        <span class="bar-stacked-label">${escHtml(o)}</span>
+        <span class="bar-meta">${c} guards (${guardPct}%)</span>
+      </div>
+      <div class="bar-track" style="margin-left:0"><div class="bar-fill" style="background:${TENURE_COLORS[i]};width:0%" data-pct="${pct}"></div></div>
     `;
     section.appendChild(row);
   });
