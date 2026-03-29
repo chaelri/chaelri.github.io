@@ -2533,7 +2533,7 @@ function renderSummaryCharts() {
   if (badge) badge.textContent = `${completed.length} record${completed.length !== 1 ? 's' : ''}`;
 
   chartsDiv.appendChild(renderKPIs(completed));
-  chartsDiv.appendChild(renderMonthlyTrendChart());
+  chartsDiv.appendChild(renderMonthlyTrendChart(completed));
   chartsDiv.appendChild(renderDetachmentChart(completed));
   chartsDiv.appendChild(renderExitReasonsChart(completed));
   chartsDiv.appendChild(renderExitTypeChart(completed));
@@ -2579,8 +2579,11 @@ function renderSummary() {
 }
 
 // ─── MONTHLY TREND CHART ─────────────────────────────────────────────
-function renderMonthlyTrendChart() {
-  const section = makeSummarySection('Monthly Trend — Cases Over Time', 'trending_up', 'All records with a date of exit, last 14 months');
+function renderMonthlyTrendChart(completed) {
+  const subtitle = summaryPeriod.detachment
+    ? `Filtered records, last 14 months`
+    : 'All records with a date of exit, last 14 months';
+  const section = makeSummarySection('Monthly Trend — Cases Over Time', 'trending_up', subtitle);
 
   // Build last 14 months of data
   const now = new Date();
@@ -2594,10 +2597,9 @@ function renderMonthlyTrendChart() {
     months.push({ year: d.getFullYear(), month: d.getMonth() + 1, label: showYear ? shortMonth + ' ' + String(d.getFullYear()).slice(2) : shortMonth });
   }
 
-  // Count records per month (all records with dateOfExit, regardless of filter)
-  const allCompleted = records.filter(r => r && r.fullName && r.fullName.trim() && r.dateOfExit);
+  // Count records per month using filtered completed records
   months.forEach(m => {
-    m.count = allCompleted.filter(r => {
+    m.count = completed.filter(r => {
       const raw = r.dateOfExit;
       // Handle both "YYYY-MM-DD" strings and any other parseable format
       const d = typeof raw === 'number' ? new Date(raw) : new Date(String(raw));
