@@ -579,6 +579,43 @@ body {
   flex-shrink: 0;
 }
 
+/* ===== STACKED BAR ROWS (label above bar) ===== */
+.bar-row-stacked {
+  margin-bottom: 10px;
+}
+.bar-stacked-top {
+  display: flex;
+  align-items: baseline;
+  gap: 8px;
+  margin-bottom: 4px;
+}
+.bar-stacked-top .bar-rank {
+  font-size: 11px;
+  font-weight: 700;
+  color: #94a3b8;
+  min-width: 18px;
+  flex-shrink: 0;
+}
+.bar-stacked-label {
+  flex: 1;
+  font-size: 13px;
+  font-weight: 500;
+  color: #374151;
+  line-height: 1.3;
+}
+.bar-stacked-top .bar-meta {
+  width: auto;
+  flex-shrink: 0;
+  white-space: nowrap;
+}
+.bar-row-stacked .bar-track {
+  height: 10px;
+  background: #e8ecf1;
+  border-radius: 999px;
+  overflow: hidden;
+  margin-left: 26px;
+}
+
 /* ===== EXIT TYPE GRID ===== */
 .exit-type-grid {
   display: grid;

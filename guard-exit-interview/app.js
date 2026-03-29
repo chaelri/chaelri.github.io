@@ -3145,15 +3145,18 @@ function renderStayFactorsChart(completed) {
   const maxCount = data[0]?.count || 1;
   const total = completed.length;
 
-  data.forEach(d => {
+  data.forEach((d, i) => {
     const pct = Math.round(d.count / maxCount * 100);
     const guardPct = total ? Math.round(d.count / total * 100) : 0;
     const row = document.createElement('div');
-    row.className = 'bar-row';
+    row.className = 'bar-row-stacked';
     row.innerHTML = `
-      <span class="bar-label">${escHtml(d.label)}</span>
+      <div class="bar-stacked-top">
+        <span class="bar-rank">${i + 1}</span>
+        <span class="bar-stacked-label">${escHtml(d.label)}</span>
+        <span class="bar-meta">${d.count} / ${total} (${guardPct}%)</span>
+      </div>
       <div class="bar-track"><div class="bar-fill bar-fill-green" style="width:0%" data-pct="${pct}"></div></div>
-      <span class="bar-meta">${d.count} / ${total} (${guardPct}%)</span>
     `;
     section.appendChild(row);
   });
