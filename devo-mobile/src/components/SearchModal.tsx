@@ -266,7 +266,8 @@ const styles = StyleSheet.create({
     flex: 1,
     fontSize: FontSize.md,
     paddingVertical: 2,
-  },
+    outlineStyle: 'none',
+  } as any,
   cancelBtn: {
     paddingHorizontal: Spacing.sm,
     paddingVertical: Spacing.sm,

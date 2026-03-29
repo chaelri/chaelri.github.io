@@ -60,13 +60,23 @@ export default function ReflectionPanel({ visible, onClose, bookName, chapter, v
   };
 
   const storageKey = `reflection-${bookName}-${chapter}`;
+  const lastKeyRef = useRef('');
 
   useEffect(() => {
-    if (visible && questions.length === 0) {
-      loadSaved();
-      fetchQuestions();
+    if (visible) {
+      const key = `${bookName}-${chapter}`;
+      if (key !== lastKeyRef.current) {
+        lastKeyRef.current = key;
+        setQuestions([]);
+        setAnswers({});
+        loadSaved();
+        fetchQuestions();
+      } else if (questions.length === 0) {
+        loadSaved();
+        fetchQuestions();
+      }
     }
-  }, [visible]);
+  }, [visible, bookName, chapter]);
 
   useEffect(() => {
     if (loading) {
@@ -102,15 +112,17 @@ export default function ReflectionPanel({ visible, onClose, bookName, chapter, v
 RULES:
 - Generate EXACTLY 3 numbered questions
 - Each question should be personally directed (use "you", "your")
-- Reference specific verses using the format [v.X] where X is the verse number
+- Reference specific individual verse numbers using ONLY the format [v.X] where X is ONE verse number
+- NEVER use ranges like [v.3-12]. Instead pick the single most relevant verse, e.g. [v.3]
+- Place [v.X] naturally WITHIN the sentence, not at the end
 - At least one question should ask about practical steps
 - Do NOT provide answers or preach
 - Keep questions concise (1-2 sentences each)
 
 FORMAT (follow exactly):
-1. [question text with [v.X] references]
-2. [question text with [v.X] references]
-3. [question text with [v.X] references]
+1. [question text with [v.X] inline]
+2. [question text with [v.X] inline]
+3. [question text with [v.X] inline]
 
 PASSAGE:
 ${bookName} ${chapter}
@@ -165,13 +177,13 @@ ${versesText}`;
   const parseOneQuestion = (text: string): ReflectionQuestion => {
     // Extract verse refs like [v.1], [v. 1], v. 1, (v. 1), v.1-2
     const refs: number[] = [];
-    const refRegex = /\[?v\.?\s*(\d+)(?:-\d+)?\]?/gi;
+    const refRegex = /\[v\.?\s*(\d+)(?:\s*-\s*\d+)?\]/gi;
     let match;
     while ((match = refRegex.exec(text)) !== null) {
       refs.push(parseInt(match[1], 10));
     }
     // Clean the text — remove the [v.X] markers, they'll be rendered as badges
-    const cleanText = text.replace(/\[?v\.?\s*\d+(?:-\d+)?\]?/gi, '{{VERSE_REF}}');
+    const cleanText = text.replace(/\[v\.?\s*\d+(?:\s*-\s*\d+)?\]/gi, '{{VERSE_REF}}');
     return { text: cleanText, verseRefs: refs };
   };
 
@@ -247,17 +259,18 @@ ${versesText}`;
                         refIdx++;
                         return (
                           <React.Fragment key={pi}>
-                            <Text style={{ fontWeight: '700' }}>{part}</Text>
+                            {part}
                             <Text
-                              style={styles.verseBadgeText}
+                              style={[styles.verseBadgeText, { color: theme.accent }]}
                               onPress={() => showVersePreview(vNum)}
+                              suppressHighlighting={false}
                             >
-                              {' v. '}{vNum}{' '}
+                              v.{vNum}
                             </Text>
                           </React.Fragment>
                         );
                       }
-                      return <Text key={pi} style={{ fontWeight: '700' }}>{part}</Text>;
+                      return <React.Fragment key={pi}>{part}</React.Fragment>;
                     })}
                   </Text>
 
@@ -326,7 +339,6 @@ function VerseBadge({ verseNum, onPress }: { verseNum: number; onPress?: (v: num
 const styles = StyleSheet.create({
   container: {
     flex: 1,
-    paddingTop: 50,
   },
   header: {
     flexDirection: 'row',
@@ -432,15 +444,9 @@ const styles = StyleSheet.create({
     paddingVertical: 3,
   },
   verseBadgeText: {
-    fontSize: 12,
+    fontSize: 14,
     fontWeight: '800',
-    color: '#fff',
-    backgroundColor: '#db2777',
-    borderRadius: 5,
-    overflow: 'hidden',
-    paddingHorizontal: 3,
-    paddingVertical: 2,
-    letterSpacing: 0.3,
+    textDecorationLine: 'underline',
   },
 
   // Journal input

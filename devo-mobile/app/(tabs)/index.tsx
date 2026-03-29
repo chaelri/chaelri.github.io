@@ -406,7 +406,7 @@ export default function ReadScreen() {
                     onPress={() => toggleNoteInput(verseNum)}
                     activeOpacity={0.7}
                   >
-                    <MaterialIcons name="edit-note" size={13} color={theme.textMuted} />
+                    <MaterialIcons name="edit" size={12} color={theme.textMuted} />
                     <Text style={[styles.verseChipText, { color: theme.textSecondary }]}>Note</Text>
                   </TouchableOpacity>
                 </View>
@@ -671,7 +671,7 @@ const styles = StyleSheet.create({
   // Content
   scrollView: { flex: 1 },
   scrollContent: {
-    paddingHorizontal: Spacing.md,
+    paddingHorizontal: 40,
     paddingTop: Spacing.lg,
   },
 

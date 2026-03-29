@@ -4,8 +4,9 @@ import {
   Text,
   TouchableOpacity,
   StyleSheet,
-  ScrollView,
-  Alert,
+  Animated,
+  Easing,
+  ActivityIndicator,
 } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
 import { MaterialIcons } from '@expo/vector-icons';
@@ -32,7 +33,17 @@ export default function ImmersiveTTSScreen() {
   const bookName = BIBLE_META[bookCode]?.name || bookCode;
 
   const [ttsState, setTtsState] = useState<TTSChapterState | null>(null);
+  const [ready, setReady] = useState(false);
+  const readyRef = useRef(false);
   const playerRef = useRef<ReturnType<typeof createChapterPlayer> | null>(null);
+  const prevIndexRef = useRef(-1);
+
+  // Animated values for verse transition
+  const fadeAnim = useRef(new Animated.Value(1)).current;
+  const slideAnim = useRef(new Animated.Value(0)).current;
+
+  // Loading screen fade
+  const loadingFade = useRef(new Animated.Value(1)).current;
 
   useEffect(() => {
     let player: ReturnType<typeof createChapterPlayer> | null = null;
@@ -47,6 +58,15 @@ export default function ImmersiveTTSScreen() {
 
     player = createChapterPlayer(verses, (state) => {
       setTtsState(state);
+      if (!readyRef.current && state.isPlaying) {
+        readyRef.current = true;
+        setReady(true);
+        Animated.timing(loadingFade, {
+          toValue: 0,
+          duration: 400,
+          useNativeDriver: true,
+        }).start();
+      }
     });
 
     playerRef.current = player;
@@ -56,6 +76,20 @@ export default function ImmersiveTTSScreen() {
       player?.destroy();
     };
   }, [bookCode, chapter, version]);
+
+  // Animate on verse change
+  useEffect(() => {
+    if (!ttsState) return;
+    if (prevIndexRef.current === ttsState.currentIndex) return;
+    prevIndexRef.current = ttsState.currentIndex;
+
+    fadeAnim.setValue(0);
+    slideAnim.setValue(20);
+    Animated.parallel([
+      Animated.timing(fadeAnim, { toValue: 1, duration: 400, easing: Easing.out(Easing.quad), useNativeDriver: true }),
+      Animated.timing(slideAnim, { toValue: 0, duration: 400, easing: Easing.out(Easing.quad), useNativeDriver: true }),
+    ]).start();
+  }, [ttsState?.currentIndex]);
 
   const currentVerse = ttsState?.verses[ttsState.currentIndex];
   const prevVerse = ttsState && ttsState.currentIndex > 0
@@ -71,6 +105,21 @@ export default function ImmersiveTTSScreen() {
 
   return (
     <SafeAreaView style={[styles.container, { backgroundColor: theme.background }]}>
+      {/* Loading overlay */}
+      <Animated.View
+        style={[styles.loadingOverlay, { backgroundColor: theme.background, opacity: loadingFade }]}
+        pointerEvents={ready ? 'none' : 'auto'}
+      >
+        <GradientView style={styles.loadingIcon} borderRadius={20}>
+          <MaterialIcons name="headphones" size={28} color="#fff" />
+        </GradientView>
+        <Text style={[styles.loadingTitle, { color: theme.text }]}>Preparing Audio</Text>
+        <Text style={[styles.loadingSubtitle, { color: theme.textMuted }]}>
+          {bookName} {chapter}
+        </Text>
+        <ActivityIndicator size="small" color={theme.accent} style={{ marginTop: 20 }} />
+      </Animated.View>
+
       {/* Header */}
       <View style={styles.header}>
         <TouchableOpacity
@@ -98,44 +147,43 @@ export default function ImmersiveTTSScreen() {
         />
       </View>
 
-      {/* Verse display */}
-      <ScrollView
-        style={styles.content}
-        contentContainerStyle={styles.contentInner}
-      >
-        {prevVerse && (
-          <View style={styles.contextVerse}>
-            <Text style={[styles.contextNum, { color: theme.textMuted }]}>
-              {prevVerse.num}
-            </Text>
-            <Text style={[styles.contextText, { color: theme.textMuted }]}>
-              {prevVerse.text}
-            </Text>
-          </View>
-        )}
+      {/* Verse display — animated */}
+      <View style={styles.content}>
+        <Animated.View style={[styles.contentInner, { opacity: fadeAnim, transform: [{ translateY: slideAnim }] }]}>
+          {prevVerse && (
+            <View style={styles.contextVerse}>
+              <Text style={[styles.contextNum, { color: theme.textMuted }]}>
+                {prevVerse.num}
+              </Text>
+              <Text style={[styles.contextText, { color: theme.textMuted }]}>
+                {prevVerse.text}
+              </Text>
+            </View>
+          )}
 
-        {currentVerse && (
-          <View style={[styles.currentVerse, { backgroundColor: theme.primaryLight }]}>
-            <Text style={[styles.currentNum, { color: theme.accent }]}>
-              {currentVerse.num}
-            </Text>
-            <Text style={[styles.currentText, { color: theme.text }]}>
-              {currentVerse.text}
-            </Text>
-          </View>
-        )}
+          {currentVerse && (
+            <View style={[styles.currentVerse, { backgroundColor: theme.primaryLight }]}>
+              <Text style={[styles.currentNum, { color: theme.accent }]}>
+                {currentVerse.num}
+              </Text>
+              <Text style={[styles.currentText, { color: theme.text }]}>
+                {currentVerse.text}
+              </Text>
+            </View>
+          )}
 
-        {nextVerse && (
-          <View style={styles.contextVerse}>
-            <Text style={[styles.contextNum, { color: theme.textMuted }]}>
-              {nextVerse.num}
-            </Text>
-            <Text style={[styles.contextText, { color: theme.textMuted }]}>
-              {nextVerse.text}
-            </Text>
-          </View>
-        )}
-      </ScrollView>
+          {nextVerse && (
+            <View style={styles.contextVerse}>
+              <Text style={[styles.contextNum, { color: theme.textMuted }]}>
+                {nextVerse.num}
+              </Text>
+              <Text style={[styles.contextText, { color: theme.textMuted }]}>
+                {nextVerse.text}
+              </Text>
+            </View>
+          )}
+        </Animated.View>
+      </View>
 
       {/* Verse counter */}
       <Text style={[styles.verseCounter, { color: theme.textMuted }]}>
@@ -189,6 +237,27 @@ export default function ImmersiveTTSScreen() {
 
 const styles = StyleSheet.create({
   container: { flex: 1 },
+  loadingOverlay: {
+    ...StyleSheet.absoluteFillObject,
+    zIndex: 10,
+    justifyContent: 'center',
+    alignItems: 'center',
+    gap: 10,
+  },
+  loadingIcon: {
+    width: 56,
+    height: 56,
+    justifyContent: 'center',
+    alignItems: 'center',
+    marginBottom: 8,
+  },
+  loadingTitle: {
+    fontSize: FontSize.lg,
+    fontWeight: '700',
+  },
+  loadingSubtitle: {
+    fontSize: FontSize.sm,
+  },
   header: {
     flexDirection: 'row',
     alignItems: 'center',
@@ -219,10 +288,9 @@ const styles = StyleSheet.create({
   },
   content: {
     flex: 1,
+    justifyContent: 'center',
   },
   contentInner: {
-    justifyContent: 'center',
-    flexGrow: 1,
     paddingHorizontal: Spacing.xl,
     paddingVertical: Spacing.xxl,
   },

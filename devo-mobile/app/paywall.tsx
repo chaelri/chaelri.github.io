@@ -1,5 +1,5 @@
 import React, { useEffect, useRef } from 'react';
-import { View, Text, TouchableOpacity, ScrollView, StyleSheet, Alert, Animated } from 'react-native';
+import { View, Text, TouchableOpacity, ScrollView, StyleSheet, Alert, Animated, Easing } from 'react-native';
 import { LinearGradient } from 'expo-linear-gradient';
 import { SafeAreaView } from 'react-native-safe-area-context';
 import { MaterialIcons } from '@expo/vector-icons';
@@ -19,7 +19,7 @@ const FEATURES = [
 export default function PaywallScreen() {
   const theme = useTheme();
   const router = useRouter();
-  const { setPremium } = useStore();
+  const { isPremium, setPremium } = useStore();
   const shimmerAnim = useRef(new Animated.Value(0)).current;
 
   useEffect(() => {
@@ -49,6 +49,92 @@ export default function PaywallScreen() {
     );
   };
 
+  // ─── Premium Active View ─────────────────────────────────────────────────
+  const fadeIn = useRef(new Animated.Value(0)).current;
+  const slideUp = useRef(new Animated.Value(30)).current;
+
+  useEffect(() => {
+    if (isPremium) {
+      Animated.parallel([
+        Animated.timing(fadeIn, { toValue: 1, duration: 600, easing: Easing.out(Easing.quad), useNativeDriver: true }),
+        Animated.timing(slideUp, { toValue: 0, duration: 600, easing: Easing.out(Easing.quad), useNativeDriver: true }),
+      ]).start();
+    }
+  }, [isPremium]);
+
+  if (isPremium) {
+    return (
+      <SafeAreaView style={[styles.container, { backgroundColor: theme.background }]}>
+        <ScrollView contentContainerStyle={styles.content}>
+          <TouchableOpacity style={styles.closeBtn} onPress={() => router.back()}>
+            <MaterialIcons name="close" size={22} color={theme.textMuted} />
+          </TouchableOpacity>
+
+          <Animated.View style={{ opacity: fadeIn, transform: [{ translateY: slideUp }], alignItems: 'center', width: '100%' }}>
+            <Text style={styles.brand}>devo.</Text>
+
+            {/* Status badge */}
+            <GradientView style={styles.premiumBadge} borderRadius={BorderRadius.pill}>
+              <MaterialIcons name="verified" size={18} color="#fff" />
+              <Text style={styles.premiumBadgeText}>Premium Active</Text>
+            </GradientView>
+
+            <Text style={[styles.title, { color: theme.text, marginTop: Spacing.lg }]}>
+              You're All Set
+            </Text>
+            <Text style={[styles.subtitle, { color: theme.textSecondary }]}>
+              You have full access to every{'\n'}AI study tool — no limits.
+            </Text>
+
+            {/* Perks list */}
+            <View style={styles.features}>
+              {FEATURES.map((f, i) => (
+                <Animated.View
+                  key={f.label}
+                  style={{
+                    opacity: fadeIn,
+                    transform: [{
+                      translateY: fadeIn.interpolate({
+                        inputRange: [0, 1],
+                        outputRange: [20 + i * 8, 0],
+                      }),
+                    }],
+                  }}
+                >
+                  <View style={styles.featureRow}>
+                    <GradientView style={styles.featureIcon} borderRadius={10}>
+                      <MaterialIcons name={f.icon} size={18} color="#fff" />
+                    </GradientView>
+                    <Text style={[styles.featureText, { color: theme.text }]}>{f.label}</Text>
+                    <MaterialIcons name="check-circle" size={18} color="#22c55e" style={{ marginLeft: 'auto' }} />
+                  </View>
+                </Animated.View>
+              ))}
+            </View>
+
+            {/* Dev mode toggle */}
+            <TouchableOpacity
+              style={[styles.devModeBtn, { borderColor: theme.glassBorder }]}
+              onPress={() => {
+                setPremium(false);
+                router.back();
+              }}
+              activeOpacity={0.7}
+            >
+              <MaterialIcons name="code" size={15} color={theme.textMuted} />
+              <Text style={[styles.devModeBtnText, { color: theme.textMuted }]}>Disable Dev Mode</Text>
+            </TouchableOpacity>
+
+            <Text style={[styles.footer, { color: theme.textMuted }]}>
+              Thank you for supporting devo.
+            </Text>
+          </Animated.View>
+        </ScrollView>
+      </SafeAreaView>
+    );
+  }
+
+  // ─── Paywall View ─────────────────────────────────────────────────────────
   return (
     <SafeAreaView style={[styles.container, { backgroundColor: theme.background }]}>
       <ScrollView contentContainerStyle={styles.content}>
@@ -157,9 +243,10 @@ export default function PaywallScreen() {
 const styles = StyleSheet.create({
   container: { flex: 1 },
   content: {
-    padding: Spacing.lg,
-    alignItems: 'center',
+    paddingHorizontal: 40,
     paddingTop: Spacing.xxl + 16,
+    paddingBottom: Spacing.lg,
+    alignItems: 'center',
   },
   closeBtn: {
     position: 'absolute',
@@ -287,5 +374,36 @@ const styles = StyleSheet.create({
   restoreText: {
     fontSize: FontSize.sm,
     fontWeight: '600',
+  },
+  // Premium active view
+  premiumBadge: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    alignSelf: 'center',
+    gap: 6,
+    paddingHorizontal: 16,
+    paddingVertical: 8,
+  },
+  premiumBadgeText: {
+    color: '#fff',
+    fontSize: 13,
+    fontWeight: '700',
+    letterSpacing: 0.5,
+  },
+  devModeBtn: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    justifyContent: 'center',
+    alignSelf: 'stretch',
+    gap: 8,
+    paddingVertical: 14,
+    borderRadius: BorderRadius.pill,
+    borderWidth: 1,
+    marginTop: Spacing.lg,
+  },
+  devModeBtnText: {
+    fontSize: FontSize.xs,
+    fontWeight: '600',
+    letterSpacing: 0.3,
   },
 });

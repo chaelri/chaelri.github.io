@@ -79,7 +79,8 @@ ${bookName} ${chapter}:${verseNum}: "${verseText}"
 Give a dense, high-value word study. NO fluff. Every word must earn its place. ~120 words total.
 
 #### Original Language
-- **Word** (transliteration) — meaning. Max 2-3 key words only.
+- **English Word** — Greek/Hebrew script (transliteration, pronunciation) — meaning. Max 2-3 key words.
+- Example format: **Word** — λόγος (logos, LOH-goss) — reason, divine utterance.
 
 #### Deeper Meaning
 - 2 sharp insights. Connect to broader theology. One sentence each.

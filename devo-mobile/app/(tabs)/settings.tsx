@@ -11,7 +11,7 @@ export default function SettingsScreen() {
   const theme = useTheme();
   const router = useRouter();
   const {
-    isPremium, colorScheme, toggleTheme, dailyLimits,
+    isPremium, setPremium, colorScheme, toggleTheme, dailyLimits,
     clearAllData, userName, setUserName, notes, favorites,
   } = useStore();
 
@@ -40,7 +40,7 @@ export default function SettingsScreen() {
       icon: 'star' as const,
       label: isPremium ? 'Premium Active' : 'Upgrade to Premium',
       value: isPremium ? '✦' : '',
-      onPress: () => { if (!isPremium) router.push('/paywall'); },
+      onPress: () => router.push('/paywall'),
       accent: !isPremium,
     },
     {

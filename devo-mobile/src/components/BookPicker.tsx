@@ -166,7 +166,8 @@ const styles = StyleSheet.create({
     flex: 1,
     fontSize: FontSize.md,
     paddingVertical: 2,
-  },
+    outlineStyle: 'none',
+  } as any,
   tabRow: {
     flexDirection: 'row',
     borderRadius: BorderRadius.md,
