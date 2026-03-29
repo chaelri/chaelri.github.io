@@ -2865,18 +2865,18 @@ function renderExitReasonsChart(completed) {
       listDiv.appendChild(callout);
     } else {
       const row = document.createElement('div');
-      row.className = 'bar-row';
+      row.className = 'bar-row-stacked';
       row.innerHTML = `
-        <span class="bar-rank">${i + 1}</span>
-        <span class="bar-label" style="display:flex;align-items:center;gap:5px;">
+        <div class="bar-stacked-top">
+          <span class="bar-rank">${i + 1}</span>
           <span style="width:9px;height:9px;border-radius:50%;background:${d.color};flex-shrink:0;display:inline-block;"></span>
           <span class="material-icons" style="font-size:13px;color:#94a3b8;flex-shrink:0;">${d.icon}</span>
-          <span style="overflow:hidden;text-overflow:ellipsis;white-space:nowrap;">${escHtml(d.label)}</span>
-        </span>
+          <span class="bar-stacked-label">${escHtml(d.label)}</span>
+          <span class="bar-meta">${d.totalYes}/${guardCount} (${pct}%)</span>
+        </div>
         <div class="bar-track">
           <div class="bar-fill" style="background:${d.color};width:0%" data-pct="${barPct}"></div>
         </div>
-        <span class="bar-meta">${d.totalYes}/${guardCount} (${pct}%)</span>
       `;
       listDiv.appendChild(row);
     }
@@ -3306,14 +3306,16 @@ function renderDetachmentChart(completed) {
     const barPct = Math.round(d.count / maxCount * 100);
     const guardPct = total ? Math.round(d.count / total * 100) : 0;
     const row = document.createElement('div');
-    row.className = 'bar-row';
+    row.className = 'bar-row-stacked';
     row.innerHTML = `
-      <span class="bar-rank">${i + 1}</span>
-      <span class="bar-label">${escHtml(d.label)}</span>
+      <div class="bar-stacked-top">
+        <span class="bar-rank">${i + 1}</span>
+        <span class="bar-stacked-label">${escHtml(d.label)}</span>
+        <span class="bar-meta">${d.count} guard${d.count > 1 ? 's' : ''} (${guardPct}%)</span>
+      </div>
       <div class="bar-track">
         <div class="bar-fill bar-fill-orange" data-pct="${barPct}" style="width:0%"></div>
       </div>
-      <span class="bar-meta">${d.count} guard${d.count > 1 ? 's' : ''} (${guardPct}%)</span>
     `;
     section.appendChild(row);
   });
