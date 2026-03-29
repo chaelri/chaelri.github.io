@@ -13,6 +13,60 @@ let recentPassageId = localStorage.getItem("recentPassageId");
 let recentPassage = localStorage.getItem("recentPassage");
 let verseChatHistories = {};
 
+const GEMINI_PROXY = 'https://gemini-proxy-668755364170.asia-southeast1.run.app';
+const AI_TONE = `Be direct — no greetings, no filler, no "Hey there!", no "Great question!", no restating the verse. Start immediately with the insight. Use clear, simple English. Bold key terms with **double asterisks**.`;
+
+/* ---------- SHARED: Call Gemini Proxy ---------- */
+async function callGemini(prompt) {
+  const res = await fetch(GEMINI_PROXY, {
+    method: 'POST',
+    headers: { 'Content-Type': 'application/json' },
+    body: JSON.stringify({ task: 'summary', contents: [{ parts: [{ text: prompt }] }] }),
+  });
+  if (!res.ok) throw new Error(`Gemini proxy error: ${res.status}`);
+  const data = await res.json();
+  return data?.candidates?.[0]?.content?.parts?.[0]?.text || '';
+}
+
+/* ---------- SHARED: Markdown → HTML (white-on-gradient) ---------- */
+function mdToHTML(text) {
+  if (!text) return '';
+  const lines = text.split('\n');
+  let html = '';
+  for (const line of lines) {
+    const t = line.trim();
+    if (!t) { html += '<div style="height:6px"></div>'; continue; }
+    // h4+
+    const h4 = t.match(/^#{4,}\s+(.+)/);
+    if (h4) { html += `<div class="md-h4">${inlineMd(h4[1])}</div>`; continue; }
+    // h2/h3
+    const h2 = t.match(/^#{1,3}\s+(.+)/);
+    if (h2) { html += `<div class="md-h2">${inlineMd(h2[1])}</div>`; continue; }
+    // bullet
+    if (t.startsWith('- ') || t.startsWith('* ')) {
+      html += `<div class="md-bullet"><span class="md-bullet-dot">•</span><span style="flex:1">${inlineMd(t.slice(2))}</span></div>`;
+      continue;
+    }
+    html += `<p>${inlineMd(t)}</p>`;
+  }
+  return html;
+}
+
+function inlineMd(text) {
+  return text
+    .replace(/\*\*([^*]+)\*\*/g, '<strong>$1</strong>')
+    .replace(/\*([^*]+)\*/g, '<em>$1</em>')
+    .replace(/\u201c([^\u201d]+)\u201d/g, '<em>&ldquo;$1&rdquo;</em>');
+}
+
+/* ---------- SHARED: Sparkle Loader HTML ---------- */
+function sparkleLoaderHTML(msg) {
+  return `<div class="sparkle-loader">
+    <div class="sparkle-row"><span class="sparkle">✦</span><span class="sparkle">✦</span><span class="sparkle">✦</span></div>
+    <span class="sparkle-text">${msg || 'Generating...'}</span>
+  </div>`;
+}
+
 const VERSION_FILES = {
   NASB: "nasb2020.json",
   EASY: "easy2024.json",
@@ -984,103 +1038,57 @@ async function fetchInlineQuickContext(
   { book, chapter, verse, text },
   mountEl,
 ) {
-  mountEl.innerHTML = `
-    <div class="inline-ai-loading">
-      <div class="inline-ai-spinner"></div>
-      <span>Quick context…</span>
+  // Show sparkle loader inside a card shell
+  mountEl.innerHTML = `<div class="inline-ai-card">
+    <div class="ai-card-gradient">
+      <div class="ai-card-header">
+        <span class="ai-card-label">Quick Context</span>
+        <button class="ai-card-close" title="Close">✕</button>
+      </div>
+      ${sparkleLoaderHTML('Quick context…')}
     </div>
-  `;
-
-  const prompt = `
-    IMPORTANT OUTPUT RULES (STRICT):
-    - Respond with RAW HTML ONLY
-    - DO NOT use code blocks
-    - DO NOT use backticks
-    - DO NOT write the word html
-    - DO NOT explain anything outside the HTML
-    - The FIRST character of your response MUST be "<"
-    - The LAST character of your response MUST be ">"
-
-    HTML RULES:
-    - Use ONE div only
-    - Allowed tags ONLY: div, p, strong, em
-
-    CONTENT RULES:
-    - VERY SHORT (1–2 sentences)
-    - Simple explanation of meaning
-    - Taglish (Filipino + English)
-    - Youth-friendly, casual, warm tone
-    - Early-believer level (easy to understand, not deep theology)
-    - No preaching
-    - No applications
-    - No titles
-    - No verse quotation
-
-    TASK:
-    Explain this verse briefly:
-
-    ${book} ${chapter}:${verse}
-    ${text}
-    `;
+  </div>`;
+  mountEl.querySelector('.ai-card-close').onclick = () => { mountEl.innerHTML = ''; };
 
   try {
-    const res = await fetch(
-      "https://gemini-proxy-668755364170.asia-southeast1.run.app",
-      {
-        method: "POST",
-        headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({
-          task: "summary",
-          contents: [{ parts: [{ text: prompt }] }],
-        }),
-      },
-    );
+    const aiText = await callGemini(`You are a Bible study assistant. Be extremely concise.
 
-    const data = await res.json();
-    let aiText = (data.candidates?.[0]?.content?.parts?.[0]?.text || "").trim();
-    // Extract only the content inside the first <div>...</div> to strip stray chars
-    const divMatch = aiText.match(/<div[\s\S]*<\/div>/i);
-    if (divMatch) aiText = divMatch[0];
-    mountEl.innerHTML = `
-    <div class="inline-ai-result">
-        <button class="inline-ai-close" title="Close">✕</button>
-        ${aiText}
-        <div class="inline-ai-actions">
-          <button class="inline-ai-dig">🔎 Dig Deeper</button>
+Explain ${book} ${chapter}:${verse} in exactly 2-3 short sentences. Start directly with the verse reference (e.g., "${book} ${chapter}:${verse} tells us..."). Cover what it means in context and why it matters. No headers, no bullet points, no fluff, no greetings — just the core insight.
+
+IMPORTANT: Bold the key theological terms and important words using **double asterisks**.
+
+"${text}"`);
+
+    mountEl.innerHTML = `<div class="inline-ai-card">
+      <div class="ai-card-gradient">
+        <div class="ai-card-header">
+          <span class="ai-card-label">Quick Context</span>
+          <button class="ai-card-close" title="Close">✕</button>
         </div>
-        <div class="inline-ai-deep" hidden></div>
-    </div>
-    `;
+        <div class="ai-md-content">${mdToHTML(aiText)}</div>
+      </div>
+      <div class="inline-ai-dig-footer" title="Dig Deeper">
+        <span class="material-icons">auto_awesome</span>
+        <span class="dig-footer-label">Dig Deeper</span>
+        <span class="material-icons chevron">chevron_right</span>
+      </div>
+    </div>`;
 
-    mountEl.querySelector(".inline-ai-close").onclick = () => {
-      mountEl.innerHTML = "";
-    };
-
-    const digBtn = mountEl.querySelector(".inline-ai-dig");
-    const deepEl = mountEl.querySelector(".inline-ai-deep");
-
-    digBtn.onclick = async (e) => {
-      e.stopPropagation();
-
-      if (!deepEl.hidden) {
-        deepEl.hidden = true;
-        return;
-      }
-
-      deepEl.hidden = false;
-
-      await fetchInlineDigDeeper(
-        {
-          book,
-          chapter,
-          verse,
-        },
-        deepEl,
-      );
+    mountEl.querySelector('.ai-card-close').onclick = () => { mountEl.innerHTML = ''; };
+    mountEl.querySelector('.inline-ai-dig-footer').onclick = () => {
+      fetchInlineDigDeeper({ book, chapter, verse, text }, mountEl);
     };
   } catch {
-    mountEl.innerHTML =
-      '<div class="inline-ai-result"><p>Failed to load quick context.</p></div>'; // More descriptive error
+    mountEl.innerHTML = `<div class="inline-ai-card">
+      <div class="ai-card-gradient">
+        <div class="ai-card-header">
+          <span class="ai-card-label">Quick Context</span>
+          <button class="ai-card-close" title="Close">✕</button>
+        </div>
+        <p style="color:rgba(255,255,255,0.7);font-size:13px;">Failed to load quick context.</p>
+      </div>
+    </div>`;
+    mountEl.querySelector('.ai-card-close').onclick = () => { mountEl.innerHTML = ''; };
   }
 }
 
@@ -1091,13 +1099,36 @@ async function toggleVerseChat(key, book, chapter, verse, text, mountEl) {
   }
 
   const hasHistory = verseChatHistories[key]?.length > 0;
+  // Track suggestions and follow-ups per key
+  if (!window._chatSuggestions) window._chatSuggestions = {};
+  if (!window._chatFollowups) window._chatFollowups = {};
+
+  const truncText = text.length > 120 ? text.slice(0, 120) + '…' : text;
 
   mountEl.innerHTML = `
-    <div class="verse-chat-wrapper ai-fade-in">
+    <div class="verse-chat-wrapper">
+      <div class="verse-chat-context">
+        <span class="verse-chat-ref">${verse}</span>
+        <span class="verse-chat-preview">${truncText}</span>
+      </div>
       <div class="chat-history${hasHistory ? "" : " hidden"}" id="chat-hist-${key}"></div>
+      <div id="chat-empty-${key}" class="${hasHistory ? "hidden" : ""}">
+        <div class="chat-empty-state">
+          <span class="material-icons">chat_bubble_outline</span>
+          <span class="chat-empty-text">Ask anything about this verse</span>
+          <div class="chat-suggestions" id="chat-suggest-${key}">
+            ${sparkleLoaderHTML('Loading questions…')}
+          </div>
+        </div>
+      </div>
+      <div id="chat-followups-${key}" class="chat-followups" style="display:none"></div>
+      <div id="chat-typing-${key}" class="chat-typing" style="display:none">
+        <div class="inline-ai-spinner"></div>
+        <span>Thinking...</span>
+      </div>
       <div class="chat-input-area">
-        <textarea placeholder="Ask something about this verse..." id="chat-input-${key}"></textarea>
-        <button id="chat-send-${key}"><span class="material-icons">send</span></button>
+        <textarea placeholder="Ask about this verse..." id="chat-input-${key}"></textarea>
+        <button class="chat-send-btn" id="chat-send-${key}"><span class="material-icons">send</span></button>
       </div>
     </div>
   `;
@@ -1105,74 +1136,135 @@ async function toggleVerseChat(key, book, chapter, verse, text, mountEl) {
   const input = document.getElementById(`chat-input-${key}`);
   const sendBtn = document.getElementById(`chat-send-${key}`);
   const histEl = document.getElementById(`chat-hist-${key}`);
+  const emptyEl = document.getElementById(`chat-empty-${key}`);
+  const suggestEl = document.getElementById(`chat-suggest-${key}`);
+  const followupsEl = document.getElementById(`chat-followups-${key}`);
+  const typingEl = document.getElementById(`chat-typing-${key}`);
 
   // Render existing history if any
-  if (hasHistory) renderChatHistory(key, histEl);
+  if (hasHistory) {
+    renderChatHistory(key, histEl);
+    // Show follow-ups if we have them
+    if (window._chatFollowups[key]?.length) {
+      renderFollowups(key);
+    }
+  }
 
-  const performSend = async () => {
-    const question = input.value.trim();
+  // Update send button active state
+  const updateSendState = () => {
+    sendBtn.classList.toggle('active', !!input.value.trim());
+  };
+  input.addEventListener('input', updateSendState);
+
+  // Fetch suggested questions
+  if (!hasHistory) {
+    fetchSuggestedQuestions(book, chapter, verse, text, key, suggestEl);
+  }
+
+  async function fetchSuggestedQuestions(bk, ch, v, vt, k, el) {
+    try {
+      const raw = await callGemini(`Generate 4 unique, thought-provoking questions someone might ask about ${bk} ${ch}:${v}: "${vt}"
+
+RULES:
+- Questions should be specific to THIS verse, not generic.
+- Focus on: real-life application, surprising insights, theological implications, emotional/relational angles.
+- Do NOT ask about word meanings or historical context (those are covered elsewhere).
+- Each question must be 1 short sentence, under 10 words.
+- Return ONLY the 4 questions, one per line, no numbers, no bullets, no extra text.`);
+
+      const questions = raw.split('\n').map(q => q.trim()).filter(q => q.length > 5).slice(0, 4);
+      window._chatSuggestions[k] = questions;
+
+      el.innerHTML = questions.map(q =>
+        `<button class="chat-suggestion-chip">${q}</button>`
+      ).join('');
+
+      el.querySelectorAll('.chat-suggestion-chip').forEach(chip => {
+        chip.onclick = () => {
+          const q = chip.textContent;
+          // Save remaining as follow-ups
+          window._chatFollowups[k] = questions.filter(s => s !== q);
+          performSend(q);
+        };
+      });
+    } catch {
+      el.innerHTML = ['What does this verse mean?', 'How can I apply this today?', 'What is the historical context?'].map(q =>
+        `<button class="chat-suggestion-chip">${q}</button>`
+      ).join('');
+      el.querySelectorAll('.chat-suggestion-chip').forEach(chip => {
+        chip.onclick = () => performSend(chip.textContent);
+      });
+    }
+  }
+
+  function renderFollowups(k) {
+    const chips = window._chatFollowups[k] || [];
+    if (!chips.length) { followupsEl.style.display = 'none'; return; }
+    followupsEl.style.display = '';
+    followupsEl.innerHTML = chips.map(q =>
+      `<button class="chat-followup-chip">${q}</button>`
+    ).join('');
+    followupsEl.querySelectorAll('.chat-followup-chip').forEach(chip => {
+      chip.onclick = () => {
+        const q = chip.textContent;
+        window._chatFollowups[k] = (window._chatFollowups[k] || []).filter(s => s !== q);
+        performSend(q);
+      };
+    });
+  }
+
+  const performSend = async (questionOverride) => {
+    const question = questionOverride || input.value.trim();
     if (!question) return;
 
-    // Initialize history if empty
     if (!verseChatHistories[key]) verseChatHistories[key] = [];
-
-    // Add User Message
     verseChatHistories[key].push({ role: "user", text: question });
     input.value = "";
+    updateSendState();
+
+    // Hide empty state, show history
+    emptyEl.classList.add("hidden");
     histEl.classList.remove("hidden");
     renderChatHistory(key, histEl);
 
-    // Show loading
-    const botMsgDiv = document.createElement("div");
-    botMsgDiv.className = "chat-msg bot loading";
-    botMsgDiv.innerHTML = `<div class="inline-ai-spinner"></div>`;
-    histEl.appendChild(botMsgDiv);
+    // Show typing indicator, hide follow-ups
+    typingEl.style.display = '';
+    followupsEl.style.display = 'none';
     histEl.scrollTop = histEl.scrollHeight;
 
-    const prompt = `
-      You are a Bible study assistant.
-      CONTEXT: ${book} ${chapter}:${verse} - "${text}"
-      HISTORY: ${JSON.stringify(verseChatHistories[key].slice(-5))}
-      
-      RULES:
-      - Be very concise (max 3 sentences).
-      - Focus on the specific verse context.
-      - Stay youth-friendly and encouraging.
-      
-      QUESTION: ${question}
-    `;
-
     try {
-      const res = await fetch(
-        "https://gemini-proxy-668755364170.asia-southeast1.run.app",
-        {
-          method: "POST",
-          headers: { "Content-Type": "application/json" },
-          body: JSON.stringify({
-            task: "summary",
-            contents: [{ parts: [{ text: prompt }] }],
-          }),
-        },
-      );
+      const historyStr = verseChatHistories[key].length > 1
+        ? `HISTORY: ${JSON.stringify(verseChatHistories[key].slice(-5))}`
+        : '';
 
-      const data = await res.json();
-      const answer =
-        data.candidates?.[0]?.content?.parts?.[0]?.text ||
-        "Pasensya na, hindi ko masagot 'yan sa ngayon.";
+      const answer = await callGemini(`You are a Bible study assistant. ${AI_TONE}
 
-      // Update history
+CONTEXT: ${book} ${chapter}:${verse} - "${text}"
+${historyStr}
+
+RULES:
+- Be very concise (max 3 sentences).
+- Focus on the specific verse context.
+- Stay youth-friendly and encouraging.
+- Do NOT start with greetings like "Hey there!" or "Great question!" — start directly with the answer referencing the verse.
+- Bold key theological terms using **double asterisks**.
+
+QUESTION: ${question}`);
+
       verseChatHistories[key].push({ role: "model", text: answer });
+      if (verseChatHistories[key].length > 10) verseChatHistories[key].shift();
 
-      // Limit history to 6 items (3 turns)
-      if (verseChatHistories[key].length > 6) verseChatHistories[key].shift();
-
+      typingEl.style.display = 'none';
       renderChatHistory(key, histEl);
+      renderFollowups(key);
     } catch (err) {
-      botMsgDiv.innerHTML = "Error connecting to AI.";
+      typingEl.style.display = 'none';
+      verseChatHistories[key].push({ role: "model", text: "Sorry, something went wrong." });
+      renderChatHistory(key, histEl);
     }
   };
 
-  sendBtn.onclick = performSend;
+  sendBtn.onclick = () => performSend();
   input.onkeydown = (e) => {
     if (e.key === "Enter" && !e.shiftKey) {
       e.preventDefault();
@@ -1185,193 +1277,78 @@ function renderChatHistory(key, container) {
   const history = verseChatHistories[key] || [];
   container.innerHTML = history
     .map((msg) => {
-      // Convert Markdown to HTML if it's from the bot
-      const content = msg.role === "model" ? marked.parse(msg.text) : msg.text;
-
-      return `
-          <div class="chat-msg ${msg.role === "user" ? "user" : "bot"}">
-            ${content}
-          </div>
-        `;
+      if (msg.role === "user") {
+        return `<div class="chat-msg user">${msg.text}</div>`;
+      }
+      // Render bold text for bot messages
+      const content = msg.text
+        .replace(/\*\*([^*]+)\*\*/g, '<strong>$1</strong>')
+        .replace(/\*([^*]+)\*/g, '<em>$1</em>');
+      return `<div class="chat-msg bot">${content}</div>`;
     })
     .join("");
   container.scrollTop = container.scrollHeight;
 }
 
-async function fetchInlineDigDeeper({ book, chapter, verse }, mountEl) {
-  mountEl.innerHTML = `
-    <div class="inline-ai-loading">
-      <div class="inline-ai-spinner"></div>
-      <span>Digging deeper…</span>
+async function fetchInlineDigDeeper({ book, chapter, verse, text }, mountEl) {
+  // Show dig deeper card with sparkle loader
+  mountEl.innerHTML = `<div class="inline-ai-card dig-deeper">
+    <div class="ai-card-gradient">
+      <div class="ai-card-header">
+        <span class="ai-card-label">Dig Deeper</span>
+        <button class="ai-card-close" title="Close">✕</button>
+      </div>
+      ${sparkleLoaderHTML('Digging deeper…')}
     </div>
-  `;
+  </div>`;
+  mountEl.querySelector('.ai-card-close').onclick = () => { mountEl.innerHTML = ''; };
 
-  const prompt = `
-IMPORTANT OUTPUT RULES (ABSOLUTE — NO EXCEPTIONS):
-
-GENERAL:
-- RAW HTML ONLY
-- ONE outer <div> only
-- NO markdown, NO explanations, NO preaching
-
-LEXICAL RULES (VERY STRICT):
-- EVERY lexical entry MUST:
-  1. Start with the English meaning/word
-  2. Include original script (Greek/Hebrew) and transliteration in parentheses
-  3. Include Strong's Number in brackets
-  4. Follow format: English Word — original (transliteration) [Strong's Number]
-- DO NOT output English-only words
-- If original word is unknown, SKIP it
-
-LANGUAGE:
-- New Testament → GREEK ONLY
-- Old Testament → HEBREW ONLY
-
-STRUCTURE (MANDATORY):
-<div>
-  <section data-col="lexical">
-    <div>word — λόγος (logos) [G3056]</div>
-  </section>
-
-  <section data-col="flow">
-    <div>Entity</div>
-  </section>
-
-  <section data-col="meta">
-    <div data-type>Type text</div>
-    <div data-focus>Focus text</div>
-    <div data-time data-keyword>Time text</div>
-  </section>
-</div>
-
-TASK:
-Extract structured study data for:
-
-${book} ${chapter}:${verse}
-`;
+  const verseText = text || '';
 
   try {
-    const res = await fetch(
-      "https://gemini-proxy-668755364170.asia-southeast1.run.app",
-      {
-        method: "POST",
-        headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({
-          task: "summary",
-          contents: [{ parts: [{ text: prompt }] }],
-        }),
-      },
-    );
+    const aiText = await callGemini(`You are a premium Bible study tool. ${AI_TONE}
 
-    const data = await res.json();
-    const html = data.candidates?.[0]?.content?.parts?.[0]?.text || "";
+${book} ${chapter}:${verse}: "${verseText}"
 
-    const temp = document.createElement("div");
-    temp.innerHTML = html;
-    const root = temp.querySelector("div");
-    if (!root) throw new Error("Invalid AI output");
+Give a dense, high-value word study. NO fluff. Every word must earn its place. ~120 words total.
 
-    // Reuse existing container (prevents double inline-ai-deep)
-    mountEl.innerHTML = "";
-    mountEl.classList.add("inline-ai-deep");
+#### Original Language
+- **English Word** — Greek/Hebrew script (transliteration, pronunciation) — meaning. Max 2-3 key words.
+- Example format: **Word** — λόγος (logos, LOH-goss) — reason, divine utterance.
 
-    const lexCol = document.createElement("div");
-    lexCol.className = "deep-col deep-col-lexical";
-    lexCol.innerHTML = `<div class="deep-col-title">Original Words</div>`;
+#### Deeper Meaning
+- 2 sharp insights. Connect to broader theology. One sentence each.
 
-    const flowCol = document.createElement("div");
-    flowCol.className = "deep-col deep-col-flow";
-    flowCol.innerHTML = `<div class="deep-col-title">Message Flow</div>`;
+#### Cross-References
+- 3 verses max. **Reference** — one-line why it matters.
 
-    const metaCol = document.createElement("div");
-    metaCol.className = "deep-col deep-col-meta";
-    metaCol.innerHTML = `<div class="deep-col-title">Overview</div>`;
+#### Takeaway
+- One powerful sentence for real life. Make it hit.
 
-    /* ---------- ROUTE AI CONTENT ---------- */
-    root.querySelectorAll("section").forEach((section) => {
-      const col = section.dataset.col;
+STRICT: No greetings. No "this verse tells us". No padding. Start with #### Original Language immediately.`);
 
-      /* --- LEXICAL (FILTER BAD ENTRIES) --- */
-      if (col === "lexical") {
-        section.querySelectorAll("div").forEach((el) => {
-          let html = el.innerHTML;
-
-          // Require original script (Greek or Hebrew)
-          const hasGreek = /[\u0370-\u03FF]/.test(html);
-          const hasHebrew = /[\u0590-\u05FF]/.test(html);
-
-          if (!hasGreek && !hasHebrew) return; // DROP invalid entry
-
-          // Identify Strong's number [G1234] or [H1234]
-          html = html.replace(
-            /\[([GH]\d+)\]/g,
-            '<a class="strong-num" data-strong="$1">[$1]</a>',
-          );
-
-          const newEl = document.createElement("div");
-          newEl.className = "lex-item";
-          newEl.innerHTML = html;
-
-          // Add click listener for Strong's numbers
-          newEl.querySelectorAll(".strong-num").forEach((sn) => {
-            sn.onclick = (e) => {
-              e.stopPropagation();
-              openStrongModal(sn.dataset.strong, newEl.textContent);
-            };
-          });
-
-          lexCol.appendChild(newEl);
-        });
-      }
-
-      /* --- FLOW --- */
-      if (col === "flow") {
-        section.querySelectorAll("div").forEach((el, i, arr) => {
-          el.classList.add("flow-step");
-          flowCol.appendChild(el);
-          if (i < arr.length - 1) {
-            const arrow = document.createElement("div");
-            arrow.className = "flow-arrow";
-            arrow.textContent = "↓";
-            flowCol.appendChild(arrow);
-          }
-        });
-      }
-
-      /* --- META --- */
-      if (col === "meta") {
-        section.querySelectorAll("div").forEach((el) => {
-          const block = document.createElement("div");
-          block.className = "meta-block";
-
-          if (el.hasAttribute("data-type")) {
-            block.innerHTML = `<div class="meta-label">Type</div>${el.textContent}`;
-          } else if (el.hasAttribute("data-focus")) {
-            block.innerHTML = `<div class="meta-label">Focus</div>${el.textContent}`;
-          } else if (el.hasAttribute("data-time")) {
-            block.innerHTML = `<div class="meta-label">Time</div>${el.textContent}`;
-          }
-
-          metaCol.appendChild(block);
-        });
-      }
-    });
-
-    mountEl.appendChild(lexCol);
-    mountEl.appendChild(flowCol);
-    mountEl.appendChild(metaCol);
-
-    /* ---------- HIGHLIGHT SHARED KEYWORD ---------- */
-    metaCol.querySelectorAll("[data-keyword]").forEach((kw) => {
-      lexCol.querySelectorAll(".lex-item").forEach((item) => {
-        if (item.textContent.includes(kw.dataset.keyword)) {
-          item.classList.add("lexeme-highlight");
-        }
-      });
-    });
+    mountEl.innerHTML = `<div class="inline-ai-card dig-deeper">
+      <div class="ai-card-gradient">
+        <div class="ai-card-header">
+          <span class="ai-card-label">Dig Deeper</span>
+          <button class="ai-card-close" title="Close">✕</button>
+        </div>
+        <div class="ai-md-content">${mdToHTML(aiText)}</div>
+      </div>
+    </div>`;
+    mountEl.querySelector('.ai-card-close').onclick = () => { mountEl.innerHTML = ''; };
   } catch (err) {
     console.error(err);
-    mountEl.innerHTML = "<p>Failed to load deeper context.</p>"; // More descriptive error
+    mountEl.innerHTML = `<div class="inline-ai-card dig-deeper">
+      <div class="ai-card-gradient">
+        <div class="ai-card-header">
+          <span class="ai-card-label">Dig Deeper</span>
+          <button class="ai-card-close" title="Close">✕</button>
+        </div>
+        <p style="color:rgba(255,255,255,0.7);font-size:13px;">Failed to load deeper context.</p>
+      </div>
+    </div>`;
+    mountEl.querySelector('.ai-card-close').onclick = () => { mountEl.innerHTML = ''; };
   }
 }
 
@@ -2300,108 +2277,127 @@ function hideLoading() {
 }
 
 async function renderAIContextSummary() {
-  aiContextSummaryEl.innerHTML = `
-    <div class="ai-shimmer" style="margin-bottom:2rem;max-width:360px;">
-      <div class="ai-shimmer-block"></div>
-      <div class="ai-shimmer-block"></div>
-      <div class="ai-shimmer-block short"></div>
-    </div>
-  `;
+  const { book, chapter, versesText } = window.__aiPayload || {};
+  const bookChapter = titleForGemini || `${book} ${chapter}`;
 
-  let testText = `You are a friendly Bible reading companion helping someone prepare to read a passage.
+  aiContextSummaryEl.innerHTML = `<div style="padding:20px 0;text-align:center;">${sparkleLoaderHTML('Generating summary…')}</div>`;
 
-IMPORTANT:
-Your response will be assigned directly to element.innerHTML.
-Because of this, you must follow the rules below exactly.
+  const quickPrompt = `You are a Bible study assistant. Give a brief structured summary for ${bookChapter}.
 
-OUTPUT RULES (MANDATORY):
-Respond with RAW HTML ONLY
-Do NOT use any code block formatting
-Do NOT wrap the response in backticks
-Do NOT label the response as code
-Do NOT explain anything
-Do NOT include the word html anywhere
-The first character of your response must be the less-than symbol
-Start immediately with a div tag
+FORMAT (follow exactly — 3 sections, each 1-2 sentences max):
+CONTEXT: [Brief background — what's happening at this point in the book]
+WHAT_HAPPENS: [What occurs in this chapter]
+WATCH_FOR: [One key thing the reader should pay attention to]
 
-ALLOWED TAGS ONLY:
-div, p, ul, li, strong, em
+Keep it concise and clear. No bullet points, no numbering. Casual tone, like a friend giving you a heads-up.
 
-STYLING RULES (MUST MATCH EXACTLY):
+PASSAGE:
+${versesText || ''}`;
 
-Use ONE outer div with THIS EXACT inline style and DO NOT MODIFY IT:
+  const fullPrompt = `You are a Bible study assistant. Give a detailed context summary for ${bookChapter}.
 
-background: linear-gradient(135deg, #486bec, #db2777);
-padding: 1.25rem 1.5rem 1.75rem;
-border-radius: 16px;
-box-shadow: 0 12px 30px rgba(236, 72, 153, 0.45);
-font-family: system-ui, -apple-system, BlinkMacSystemFont, sans-serif;
-color: #ffffff;
-width: 100%;
-margin-bottom: 0;
-box-sizing: border-box;
+RULES:
+- Do NOT start with greetings or intro sentences. Start directly with the content.
+- Use these exact section headers with ## markdown: ## Background, ## Key Themes, ## Watch For
+- Use bullet points with bold key terms using **double asterisks**
+- Reference specific verse numbers
+- Be thorough but readable
+- Friendly English tone, casual yet respectful
 
-Header rules (FIRST element inside div):
-- A div containing TWO elements:
-  1. A p tag with inline style: font-size: 11px; font-weight: 700; letter-spacing: 2px; text-transform: uppercase; opacity: 0.7; margin: 0 0 4px;
-     Content: "Before you read"
-  2. A p tag with inline style: font-size: 2.75rem; font-weight: 800; text-transform: uppercase; letter-spacing: -3px; line-height: 1; margin: 0 0 1.25rem;
-     Content: "{BOOK} {CHAPTER}" — use the actual book name and chapter number only
+Here are the verses:
+${versesText || ''}`;
 
-Section rules (AFTER the header div):
-- Use a div with inline style: display: flex; flex-direction: column; gap: 14px;
-- Inside, exactly 3 section divs, each with inline style: display: flex; gap: 10px; align-items: flex-start;
-- Each section div contains:
-  1. A span with inline style: font-family: 'Material Icons'; font-size: 18px; line-height: 1; flex-shrink: 0; margin-top: 2px; opacity: 0.9;
-     The span content (text node) must be the Material Icon ligature name exactly:
-     Section 1: info
-     Section 2: bolt
-     Section 3: visibility
-  2. A div with inline style: flex: 1; font-size: 14px; line-height: 1.5; containing:
-     - A strong tag: the section label (e.g. "Context", "What happens", "Watch for")
-     - A br tag
-     - Plain text: the content (1 sentence max, 20 words max)
-
-CONTENT RULES:
-- Section 1 (Context): One sentence — who wrote it and the key situation leading into this passage
-- Section 2 (What happens): One sentence — the main event or action in this specific passage
-- Section 3 (Watch for): One sentence — one specific thing (a word, theme, or moment) to notice while reading
-- Tone: casual, like a friend texting you a heads-up before you read
-- No academic language, no verse citations, no full summaries
-
-TASK:
-Prepare the reader for ${titleForGemini}.
-`;
-  console.log(titleForGemini);
   try {
-    const gemini = await fetch(
-      "https://gemini-proxy-668755364170.asia-southeast1.run.app",
-      {
-        method: "POST",
-        headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({
-          task: "summary",
-          contents: [
-            {
-              parts: [{ text: testText }],
-            },
-          ],
-        }),
-      },
-    );
+    const [quickText, fullText] = await Promise.all([
+      callGemini(quickPrompt),
+      callGemini(fullPrompt),
+    ]);
 
-    const gemData = await gemini.json();
-    aiContextSummaryEl.innerHTML =
-      gemData.candidates?.[0]?.content?.parts?.[0]?.text ||
-      "<p>Failed to generate context summary.</p>"; // More descriptive error
+    // Parse quick summary
+    const quick = parseQuickSummary(quickText);
 
-    if (aiContextSummaryEl.firstElementChild) {
-      aiContextSummaryEl.firstElementChild.classList.add("ai-fade-in");
+    // Build the quick card HTML
+    let quickCardHTML = `
+      <div class="summary-quick-card">
+        <div class="summary-quick-label">Before you read</div>
+        <div class="summary-quick-title">${(book || '').toUpperCase()} ${chapter}</div>`;
+
+    if (quick.context) {
+      quickCardHTML += `<div class="summary-quick-section">
+        <div class="summary-quick-section-title">Context</div>
+        <div class="summary-quick-section-text">${quick.context}</div>
+      </div>`;
     }
+    if (quick.whatHappens) {
+      quickCardHTML += `<div class="summary-quick-section">
+        <div class="summary-quick-section-title">What Happens</div>
+        <div class="summary-quick-section-text">${quick.whatHappens}</div>
+      </div>`;
+    }
+    if (quick.watchFor) {
+      quickCardHTML += `<div class="summary-quick-section">
+        <div class="summary-quick-section-title">Watch For</div>
+        <div class="summary-quick-section-text">${quick.watchFor}</div>
+      </div>`;
+    }
+    quickCardHTML += `</div>`;
+
+    // Build the full summary HTML
+    const fullHTML = summaryMdToHTML(fullText);
+
+    aiContextSummaryEl.innerHTML = `
+      <div class="ai-fade-in">
+        ${quickCardHTML}
+        <div class="summary-full-section">${fullHTML}</div>
+      </div>`;
   } catch (err) {
     console.error(err);
-    aiContextSummaryEl.innerHTML = "<p>Failed to generate context summary.</p>"; // More descriptive error on fetch failure
+    aiContextSummaryEl.innerHTML = "<p>Failed to generate context summary.</p>";
   }
+}
+
+function parseQuickSummary(text) {
+  let context = '', whatHappens = '', watchFor = '';
+  const lines = text.split('\n');
+  for (const line of lines) {
+    const t = line.trim();
+    if (/^CONTEXT:/i.test(t)) context = t.replace(/^CONTEXT:\s*/i, '');
+    else if (/^WHAT.?HAPPENS:/i.test(t)) whatHappens = t.replace(/^WHAT.?HAPPENS:\s*/i, '');
+    else if (/^WATCH.?FOR:/i.test(t)) watchFor = t.replace(/^WATCH.?FOR:\s*/i, '');
+  }
+  // Fallback
+  if (!context && !whatHappens && !watchFor) {
+    const sentences = text.split(/(?<=[.!?])\s+/).filter(Boolean);
+    context = sentences[0] || text;
+    whatHappens = sentences[1] || '';
+    watchFor = sentences[2] || '';
+  }
+  return { context, whatHappens, watchFor };
+}
+
+function summaryMdToHTML(text) {
+  if (!text) return '';
+  const lines = text.split('\n');
+  let html = '';
+  for (const line of lines) {
+    const t = line.trim();
+    if (!t) { html += '<div style="height:8px"></div>'; continue; }
+    if (t.startsWith('#### ')) { html += `<h3>${t.slice(5)}</h3>`; continue; }
+    if (t.startsWith('### ')) { html += `<h3>${t.slice(4)}</h3>`; continue; }
+    if (t.startsWith('## ')) { html += `<h2>${t.slice(3)}</h2>`; continue; }
+    if (t.startsWith('# ')) { html += `<h1>${t.slice(2)}</h1>`; continue; }
+    if (t.startsWith('- ') || t.startsWith('* ')) {
+      html += `<div class="md-bullet"><span class="md-bullet-dot">•</span><span class="md-bullet-text">${inlineMd(t.slice(2))}</span></div>`;
+      continue;
+    }
+    const numMatch = t.match(/^(\d+)\.\s(.*)$/);
+    if (numMatch) {
+      html += `<div class="md-bullet"><span class="md-num">${numMatch[1]}.</span><span class="md-bullet-text">${inlineMd(numMatch[2])}</span></div>`;
+      continue;
+    }
+    html += `<p>${inlineMd(t)}</p>`;
+  }
+  return html;
 }
 
 async function renderAIReflectionQuestions({ book, chapter, versesText }) {
