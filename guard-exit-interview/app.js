@@ -3019,14 +3019,27 @@ function renderTrustIndexChart(completed) {
   return section;
 }
 
-// ─── CHART: OPERATIONAL STRESSORS (stacked frequency bars) ───────────
+// ─── CHART: OPERATIONAL STRESSORS (severity-ranked) ──────────────────
 function renderOpStressorsChart(completed) {
-  const section = makeSummarySection('Operational Stressors', 'warning_amber', 'Frequency of each stressor across all guards');
+  const section = makeSummarySection('Operational Stressors', 'warning_amber', 'Ranked by severity score (0 = Never, 3 = Very Often)');
 
   if (!completed.length) { section.appendChild(emptyState()); return section; }
 
   const freqColors = ['#e2e8f0','#fbbf24','#f97316','#ef4444'];
   const freqLabels = ['Never','Sometimes','Often','Very Often'];
+
+  // Compute severity for each stressor and sort
+  const data = OP_STRESSOR_FIELDS.map(label => {
+    const fk = `os_${key(label)}`;
+    const vals = completed.map(r => r[fk]).filter(v => v != null);
+    if (!vals.length) return null;
+    const counts = [0,1,2,3].map(i => vals.filter(v => v === i).length);
+    const total = vals.length;
+    const severity = vals.reduce((a, b) => a + b, 0) / total; // 0-3 scale
+    return { label, counts, total, severity };
+  }).filter(Boolean).sort((a, b) => b.severity - a.severity);
+
+  if (!data.length) { section.appendChild(emptyState()); return section; }
 
   // Legend
   const legend = document.createElement('div');
@@ -3038,51 +3051,27 @@ function renderOpStressorsChart(completed) {
   ).join('');
   section.appendChild(legend);
 
-  OP_STRESSOR_FIELDS.forEach(label => {
-    const fk = `os_${key(label)}`;
-    const vals = completed.map(r => r[fk]).filter(v => v != null);
-    if (!vals.length) return;
-
-    const counts = [0,1,2,3].map(i => vals.filter(v => v === i).length);
-    const total = vals.length;
+  data.forEach((d, idx) => {
+    const severityPct = Math.round(d.severity / 3 * 100);
+    const barColor = d.severity >= 2 ? '#ef4444' : d.severity >= 1.2 ? '#f97316' : d.severity >= 0.5 ? '#fbbf24' : '#e2e8f0';
+    const severityLabel = d.severity >= 2 ? 'Critical' : d.severity >= 1.2 ? 'High' : d.severity >= 0.5 ? 'Moderate' : 'Low';
 
     const row = document.createElement('div');
-    row.style.cssText = 'margin-bottom:10px;';
-    const labelEl = document.createElement('div');
-    labelEl.style.cssText = 'font-size:12.5px;font-weight:500;color:#374151;margin-bottom:4px;';
-    labelEl.textContent = label;
-
-    const stackTrack = document.createElement('div');
-    stackTrack.style.cssText = 'display:flex;height:22px;border-radius:6px;overflow:hidden;gap:1px;';
-
-    counts.forEach((c, i) => {
-      const pct = total ? c / total * 100 : 0;
-      if (pct === 0) return;
-      const seg = document.createElement('div');
-      seg.style.cssText = `background:${freqColors[i]};width:0%;transition:width 0.4s ease;display:flex;align-items:center;justify-content:center;`;
-      seg.dataset.pct = pct.toFixed(1);
-      if (pct > 8) {
-        seg.innerHTML = `<span style="font-size:10px;font-weight:700;color:${i < 1 ? '#64748b' : '#fff'};">${c}</span>`;
-      }
-      stackTrack.appendChild(seg);
-    });
-
-    const metaEl = document.createElement('div');
-    metaEl.style.cssText = 'font-size:11px;color:#94a3b8;margin-top:3px;';
-    const worstPct = total ? Math.round(counts[3] / total * 100) : 0;
-    metaEl.textContent = `${total} responses · ${worstPct}% Very Often`;
-
-    row.appendChild(labelEl);
-    row.appendChild(stackTrack);
-    row.appendChild(metaEl);
+    row.className = 'bar-row-stacked';
+    row.innerHTML = `
+      <div class="bar-stacked-top">
+        <span class="bar-rank">${idx + 1}</span>
+        <span class="bar-stacked-label">${escHtml(d.label)}</span>
+        <span style="font-size:11px;font-weight:700;color:${barColor};flex-shrink:0;">${d.severity.toFixed(1)} · ${escHtml(severityLabel)}</span>
+      </div>
+      <div style="display:flex;align-items:center;gap:8px;margin-left:26px;">
+        <div class="bar-track" style="margin-left:0;height:10px;flex:1;"><div class="bar-fill" style="background:${barColor};width:0%;height:100%;border-radius:999px;" data-pct="${severityPct}"></div></div>
+        <div style="display:flex;gap:2px;flex-shrink:0;">
+          ${d.counts.map((c, i) => c > 0 ? `<span style="background:${freqColors[i]};color:${i < 1 ? '#64748b' : '#fff'};font-size:9.5px;font-weight:700;padding:1px 5px;border-radius:4px;">${c}</span>` : '').join('')}
+        </div>
+      </div>
+    `;
     section.appendChild(row);
-
-    // Animate stacked bars
-    requestAnimationFrame(() => {
-      stackTrack.querySelectorAll('[data-pct]').forEach(el => {
-        setTimeout(() => { el.style.width = el.dataset.pct + '%'; }, 50);
-      });
-    });
   });
 
   return section;
