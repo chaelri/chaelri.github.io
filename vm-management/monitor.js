@@ -231,11 +231,16 @@ function renderTable() {
       );
       row.appendChild(commsButton(log.commsId));
 
-      // Seg ID input
+      // Seg ID input + confirm button
       const segIdTd = document.createElement("td");
       segIdTd.className = "px-4 py-2 text-sm";
       segIdTd.innerHTML = `
-        <input type="text" placeholder="#" data-key="${log.key}" class="pending-segid-input w-16 px-2 py-1 bg-neutral-800 border border-neutral-700 rounded text-center text-white text-xs font-mono focus:outline-none focus:border-amber-400" />
+        <div class="flex items-center gap-1">
+          <input type="text" placeholder="#" data-key="${log.key}" class="pending-segid-input w-16 px-2 py-1 bg-neutral-800 border border-neutral-700 rounded text-center text-white text-xs font-mono focus:outline-none focus:border-amber-400" />
+          <button class="pending-confirm-btn flex items-center justify-center w-7 h-7 rounded-lg bg-neutral-700 text-neutral-500 cursor-not-allowed transition duration-150 disabled" disabled data-key="${log.key}" data-comms="${log.commsId || ""}" data-volunteer="${log.volunteerId || ""}" data-time="${log.timeIn || ""}" title="Enter Seg ID first">
+            <span class="material-icons-round text-base">check</span>
+          </button>
+        </div>
       `;
       row.appendChild(segIdTd);
 
@@ -256,23 +261,70 @@ function renderTable() {
     document.querySelectorAll(".pending-cancel-btn").forEach((btn) => {
       btn.addEventListener("click", async () => {
         const key = btn.dataset.key;
-        if (confirm("Cancel this volunteer's time-in?")) {
+        const confirmed = await showConfirm("Cancel this volunteer's pending time-in?");
+        if (confirmed) {
           await db.ref(`logs/${todayDate}/${key}`).remove();
+          showToast("Pending time-in cancelled", "cancel", "text-red-400");
         }
       });
     });
 
-    // Attach seg ID save on blur/enter
-    document.querySelectorAll(".pending-segid-input").forEach((input) => {
-      const saveSegId = async () => {
-        const key = input.dataset.key;
-        const val = input.value.trim();
-        if (val) {
-          await db.ref(`logs/${todayDate}/${key}`).update({ numberedId: val });
+    // Attach confirm handlers (check button beside seg ID)
+    document.querySelectorAll(".pending-confirm-btn").forEach((btn) => {
+      btn.addEventListener("click", async () => {
+        const key = btn.dataset.key;
+        const commsCode = btn.dataset.comms;
+        const volunteerId = btn.dataset.volunteer;
+        const timeIn = btn.dataset.time;
+        const segIdInput = btn.closest("div").querySelector(".pending-segid-input");
+        const numberedId = segIdInput ? segIdInput.value.trim() : "";
+
+        try {
+          // 1. Upgrade pending record to confirmed
+          await db.ref(`logs/${todayDate}/${key}`).update({
+            numberedId: numberedId || null,
+            status: null, // Remove pending flag — now confirmed
+          });
+
+          // 2. Update comms status if mapped
+          if (commsCode) {
+            await db.ref(`comms/${commsCode}`).update({
+              status: "assigned",
+              assignedTo: volunteerId,
+              assignedTime: timeIn,
+            });
+          }
+
+          showToast("Volunteer timed in successfully", "check_circle", "text-green-400");
+        } catch (e) {
+          console.error("Confirm error:", e);
+          showToast("Failed to confirm time-in", "error", "text-red-400");
         }
-      };
-      input.addEventListener("blur", saveSegId);
-      input.addEventListener("keydown", (e) => { if (e.key === "Enter") { e.preventDefault(); saveSegId(); input.blur(); } });
+      });
+    });
+
+    // Enable/disable confirm button based on seg ID input
+    document.querySelectorAll(".pending-segid-input").forEach((input) => {
+      const confirmBtn = input.closest("div").querySelector(".pending-confirm-btn");
+      input.addEventListener("input", () => {
+        const hasValue = input.value.trim().length > 0;
+        if (confirmBtn) {
+          confirmBtn.disabled = !hasValue;
+          if (hasValue) {
+            confirmBtn.className = "pending-confirm-btn flex items-center justify-center w-7 h-7 rounded-lg bg-green-600 hover:bg-green-500 text-white transition duration-150";
+            confirmBtn.title = "Confirm time-in";
+          } else {
+            confirmBtn.className = "pending-confirm-btn flex items-center justify-center w-7 h-7 rounded-lg bg-neutral-700 text-neutral-500 cursor-not-allowed transition duration-150";
+            confirmBtn.title = "Enter Seg ID first";
+          }
+        }
+      });
+      input.addEventListener("keydown", (e) => {
+        if (e.key === "Enter") {
+          e.preventDefault();
+          if (confirmBtn && !confirmBtn.disabled) confirmBtn.click();
+        }
+      });
     });
   } else {
     pendingSection.classList.add("hidden");
@@ -344,6 +396,48 @@ function renderTable() {
   // Attach comms history click handlers
   document.querySelectorAll(".comms-history-btn").forEach((btn) => {
     btn.addEventListener("click", () => showCommsHistory(btn.dataset.comms));
+  });
+}
+
+// =============================
+// Toast & Confirm Modal
+// =============================
+function showToast(msg, icon = "check_circle", color = "text-green-400") {
+  const toast = document.getElementById("toast");
+  document.getElementById("toast-msg").textContent = msg;
+  const iconEl = document.getElementById("toast-icon");
+  iconEl.textContent = icon;
+  iconEl.className = `material-icons-round text-base ${color}`;
+  toast.classList.remove("hidden");
+  toast.style.animation = "none";
+  toast.offsetHeight;
+  toast.style.animation = "toastIn 0.3s ease forwards";
+  clearTimeout(toast._timer);
+  toast._timer = setTimeout(() => {
+    toast.style.animation = "toastOut 0.3s ease forwards";
+    setTimeout(() => toast.classList.add("hidden"), 300);
+  }, 3000);
+}
+
+function showConfirm(msg) {
+  return new Promise((resolve) => {
+    const modal = document.getElementById("confirm-modal");
+    document.getElementById("confirm-modal-msg").textContent = msg;
+    modal.classList.remove("hidden");
+
+    const okBtn = document.getElementById("confirm-modal-ok");
+    const cancelBtn = document.getElementById("confirm-modal-cancel");
+
+    const cleanup = () => {
+      modal.classList.add("hidden");
+      okBtn.removeEventListener("click", onOk);
+      cancelBtn.removeEventListener("click", onCancel);
+    };
+    const onOk = () => { cleanup(); resolve(true); };
+    const onCancel = () => { cleanup(); resolve(false); };
+
+    okBtn.addEventListener("click", onOk);
+    cancelBtn.addEventListener("click", onCancel);
   });
 }
 

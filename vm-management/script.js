@@ -32,7 +32,7 @@ let html5QrcodeScanner = null;
 // =============================
 // UI Element Selectors
 // =============================
-const stages = ["scan", "action", "segment", "comms", "timeout", "final", "register", "qr-result"];
+const stages = ["scan", "action", "segment", "comms", "timeout", "final", "register", "qr-result", "initial", "guest", "guest-qr", "search-user"];
 
 // Smooth card height animation
 function animateCardHeight(callback) {
@@ -137,9 +137,6 @@ const startQrScanner = async () => {
   Html5Qrcode.getCameras()
     .then((devices) => {
       if (devices && devices.length) {
-        // Prefer the back camera on mobile/iPad
-        const cameraId = devices.length > 1 ? devices[1].id : devices[0].id;
-
         // Show skeleton while camera loads
         const skeleton = document.getElementById("qr-skeleton");
         const scannerEl = document.getElementById("qr-scanner-area");
@@ -148,7 +145,7 @@ const startQrScanner = async () => {
 
         html5QrcodeScanner
           .start(
-            cameraId,
+            { facingMode: "user" },
             {
               fps: 10,
               qrbox: { width: 250, height: 250 },
@@ -188,7 +185,15 @@ const startQrScanner = async () => {
   showStage("scan");
 };
 
-document.addEventListener("DOMContentLoaded", startQrScanner);
+document.addEventListener("DOMContentLoaded", () => {
+  if (document.getElementById("qr-scanner-area")) {
+    startQrScanner();
+  }
+  if (document.getElementById("stage-initial")) {
+    showStage("initial");
+  } else if (document.getElementById("stage-scan")) {
+  }
+});
 
 // =============================
 // Core Logic
@@ -342,40 +347,45 @@ async function handleVolunteerScan(id) {
 /**
  * Handles the Time In button click: proceeds to Segment selection.
  */
-document.getElementById("time-in-btn").addEventListener("click", () => {
-  if (volunteerId) {
-    showStage("segment");
-  }
-});
+if (document.getElementById("time-in-btn")) {
+  document.getElementById("time-in-btn").addEventListener("click", () => {
+    if (volunteerId) {
+      showStage("segment");
+    }
+  });
+}
 
 /**
  * Handles the Time Out button click: proceeds to Comms return check.
  */
-document.getElementById("time-out-btn").addEventListener("click", () => {
-  if (currentLogKey) {
-    // Retrieve the comms ID from the active log
-    const date = new Date().toISOString().slice(0, 10);
-    db.ref(`logs/${date}/${currentLogKey}`)
-      .once("value", (snapshot) => {
-        const log = snapshot.val();
-        document.getElementById("return-comms-id").textContent =
-          log.commsId || "N/A";
-        showStage("timeout");
-      })
-      .catch((error) => {
-        console.error("Error retrieving log for time out:", error);
-        alert(
-          "Could not retrieve active log details. Please try scanning again."
-        );
-        startQrScanner();
-      });
-  }
-});
+if (document.getElementById("time-out-btn")) {
+  document.getElementById("time-out-btn").addEventListener("click", () => {
+    if (currentLogKey) {
+      // Retrieve the comms ID from the active log
+      const date = new Date().toISOString().slice(0, 10);
+      db.ref(`logs/${date}/${currentLogKey}`)
+        .once("value", (snapshot) => {
+          const log = snapshot.val();
+          document.getElementById("return-comms-id").textContent =
+            log.commsId || "N/A";
+          showStage("timeout");
+        })
+        .catch((error) => {
+          console.error("Error retrieving log for time out:", error);
+          alert(
+            "Could not retrieve active log details. Please try scanning again."
+          );
+          startQrScanner();
+        });
+    }
+  });
+}
 
 // =============================
 // Segment → Role Mapping
 // =============================
 const segmentRoles = {
+  // Camera — A1-A8 (Camera 1-8), B1 (Camera 9), B8 (Camera 10)
   "Audio": [
     "FOH",
     "FOH Assistant",
@@ -440,12 +450,6 @@ const segmentRoles = {
     "Teleprompter Operator",
     "Graphics Trainee/Observer",
     "Graphics Mentor",
-  ],
-  "Volunteer Management": [
-    "VM / Comms Custodian",
-    "VM - Volunteer Care",
-    "Volunteer Management",
-    "VM Trainee",
   ],
   "Live Prod Crew": [
     "Graphics Playback",
@@ -663,6 +667,7 @@ async function selectSegment(segment) {
         const takenCommsCode = roleToComms[role];
         const takenCommsBadge = takenCommsCode ? `<span class="text-xs font-mono font-bold text-green-400 bg-green-100 px-2 py-0.5 rounded">${takenCommsCode}</span>` : "";
         row.className = "w-full text-left px-3 py-2.5 rounded-lg text-sm border border-green-100 bg-green-50 text-green-700 cursor-default transition duration-150";
+        row.dataset.defaultClass = row.className;
         row.innerHTML = `
           <span class="flex items-center gap-2 w-full">
             <span class="material-icons-round text-base text-green-400">check_circle</span>
@@ -686,6 +691,7 @@ function selectRole(selectedRow, role) {
   // Reset all rows, highlight selected
   const allRows = document.getElementById("role-pills").querySelectorAll("button");
   allRows.forEach((r) => {
+    if (r.disabled) return; // skip taken/serving rows
     r.className = r.dataset.defaultClass || "w-full text-left px-3 py-2.5 rounded-lg text-sm font-medium border border-neutral-200 bg-white text-neutral-700 hover:bg-neutral-50 hover:border-neutral-400 transition duration-150";
     r.style.opacity = "1";
     r.style.transform = "translateY(0)";
@@ -708,16 +714,18 @@ function selectRole(selectedRow, role) {
 }
 
 // "Change segment" link
-document.getElementById("change-segment-btn").addEventListener("click", () => {
-  document.getElementById("selected-segment").value = "";
-  document.getElementById("selected-role").value = "";
-  document.getElementById("segment-submit-btn").disabled = true;
-  animateCardHeight(() => {
-    document.getElementById("role-pills-section").classList.add("hidden");
-    document.getElementById("segment-pills-section").classList.remove("hidden");
-    renderSegmentPills();
+if (document.getElementById("change-segment-btn")) {
+  document.getElementById("change-segment-btn").addEventListener("click", () => {
+    document.getElementById("selected-segment").value = "";
+    document.getElementById("selected-role").value = "";
+    document.getElementById("segment-submit-btn").disabled = true;
+    animateCardHeight(() => {
+      document.getElementById("role-pills-section").classList.add("hidden");
+      document.getElementById("segment-pills-section").classList.remove("hidden");
+      renderSegmentPills();
+    });
   });
-});
+}
 
 /**
  * Handles the Segment Form submission (Stage 3 -> Stage 4).
@@ -726,151 +734,145 @@ document.getElementById("change-segment-btn").addEventListener("click", () => {
 // Store pending time-in data
 let pendingTimeIn = null;
 
-document
-  .getElementById("segment-form")
-  .addEventListener("submit", async (e) => {
-    e.preventDefault();
-    const segment = document.getElementById("selected-segment").value;
-    const role = document.getElementById("selected-role").value;
+if (document.getElementById("segment-form")) {
+  document
+    .getElementById("segment-form")
+    .addEventListener("submit", async (e) => {
+      e.preventDefault();
+      const segment = document.getElementById("selected-segment").value;
+      const role = document.getElementById("selected-role").value;
 
-    if (!segment || !role) return;
+      if (!segment || !role) return;
 
-    // Resolve comms code
-    const commsCode = roleToComms[role] || null;
+      // Resolve comms code
+      const commsCode = roleToComms[role] || null;
 
-    // Store for later confirmation
-    const commsId = commsCode || "NONE";
-    pendingTimeIn = { segment, role, commsCode, commsId };
+      // Store for later confirmation
+      const commsId = commsCode || "NONE";
+      pendingTimeIn = { segment, role, commsCode, commsId };
 
-    // Write a PENDING record to Firebase so monitor can see
-    const now = new Date().toISOString();
-    const date = now.slice(0, 10);
-    const pendingRef = db.ref(`logs/${date}`).push();
-    pendingTimeIn.pendingKey = pendingRef.key;
-    pendingTimeIn.timestamp = now;
-    await pendingRef.set({
-      volunteerId: volunteerId,
-      name: volunteerName,
-      timeIn: now,
-      timeOut: null,
-      segment: segment,
-      role: role,
-      commsId: commsId,
-      numberedId: null,
-      commsStatusOut: null,
-      status: "pending", // <-- pending flag
+      // Write a PENDING record to Firebase so monitor can see
+      const now = new Date().toISOString();
+      const date = now.slice(0, 10);
+      const pendingRef = db.ref(`logs/${date}`).push();
+      pendingTimeIn.pendingKey = pendingRef.key;
+      pendingTimeIn.timestamp = now;
+      await pendingRef.set({
+        volunteerId: volunteerId,
+        name: volunteerName,
+        timeIn: now,
+        timeOut: null,
+        segment: segment,
+        role: role,
+        commsId: commsId,
+        numberedId: null,
+        commsStatusOut: null,
+        status: "pending", // <-- pending flag
+      });
+
+      // Update UI only
+      document.getElementById("comms-volunteer-name").textContent = volunteerName;
+      document.getElementById("comms-time-in").textContent = new Date().toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' });
+      document.getElementById("comms-segment-label").textContent = segment;
+      document.getElementById("comms-role-label").textContent = role;
+      document.getElementById("numbered-id-input").value = "";
+
+      if (commsCode) {
+        document.getElementById("assigned-comms-id").textContent = commsCode;
+        document.getElementById("comms-assignment-block").classList.remove("hidden");
+        document.getElementById("comms-none-block").classList.add("hidden");
+      } else {
+        document.getElementById("comms-assignment-block").classList.add("hidden");
+        document.getElementById("comms-none-block").classList.remove("hidden");
+      }
+
+      showStage("comms");
+      startPendingListener();
     });
-
-    // Update UI only
-    document.getElementById("comms-volunteer-name").textContent = volunteerName;
-    document.getElementById("comms-time-in").textContent = new Date().toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' });
-    document.getElementById("comms-segment-label").textContent = segment;
-    document.getElementById("comms-role-label").textContent = role;
-    document.getElementById("numbered-id-input").value = "";
-
-    if (commsCode) {
-      document.getElementById("assigned-comms-id").textContent = commsCode;
-      document.getElementById("comms-assignment-block").classList.remove("hidden");
-      document.getElementById("comms-none-block").classList.add("hidden");
-    } else {
-      document.getElementById("comms-assignment-block").classList.add("hidden");
-      document.getElementById("comms-none-block").classList.remove("hidden");
-    }
-
-    showStage("comms");
-  });
+}
 
 /**
  * Handles Comms Received Confirmation (Stage 4 -> Stage 6).
  * This button completes the Time In process from the volunteer's perspective.
  */
 // Go back from comms to segment selection
-document.getElementById("comms-go-back-btn").addEventListener("click", async () => {
-  // Remove pending record from Firebase
-  if (pendingTimeIn && pendingTimeIn.pendingKey) {
-    const date = pendingTimeIn.timestamp.slice(0, 10);
-    await db.ref(`logs/${date}/${pendingTimeIn.pendingKey}`).remove().catch(() => {});
-  }
-  pendingTimeIn = null;
-  showStage("segment");
-});
+if (document.getElementById("comms-go-back-btn")) {
+  document.getElementById("comms-go-back-btn").addEventListener("click", async () => {
+    // Stop listening for admin confirmation
+    if (pendingListener) { pendingListener.off(); pendingListener = null; }
+    // Remove pending record from Firebase
+    if (pendingTimeIn && pendingTimeIn.pendingKey) {
+      const date = pendingTimeIn.timestamp.slice(0, 10);
+      await db.ref(`logs/${date}/${pendingTimeIn.pendingKey}`).remove().catch(() => {});
+    }
+    pendingTimeIn = null;
+    showStage("segment");
+  });
+}
 
-// Clear error on typing
-document.getElementById("numbered-id-input").addEventListener("input", () => {
-  document.getElementById("numbered-id-error").classList.add("hidden");
-  document.getElementById("numbered-id-input").classList.remove("border-red-400", "shake");
-});
+// Listen for admin confirmation of pending time-in
+let pendingListener = null;
 
-document.getElementById("comms-received-btn").addEventListener("click", async () => {
-  const numberedId = document.getElementById("numbered-id-input").value.trim();
+function startPendingListener() {
+  if (!pendingTimeIn) return;
+  const { pendingKey, timestamp, commsCode } = pendingTimeIn;
+  const date = timestamp.slice(0, 10);
+  const ref = db.ref(`logs/${date}/${pendingKey}`);
 
-  showLoading("Timing in...");
+  // Clean up any previous listener
+  if (pendingListener) { pendingListener.off(); pendingListener = null; }
 
-  try {
-    if (!pendingTimeIn) {
-      hideLoading();
-      alert("Error: No pending time-in data. Please start over.");
+  pendingListener = ref;
+  ref.on("value", (snap) => {
+    const data = snap.val();
+    if (!data) {
+      // Record was deleted (admin cancelled) — go back to scan
+      ref.off();
+      pendingListener = null;
+      pendingTimeIn = null;
+      showStage("scan");
       startQrScanner();
       return;
     }
+    // Admin confirmed: status is removed (null/undefined)
+    if (data.status !== "pending") {
+      ref.off();
+      pendingListener = null;
 
-    const { segment, role, commsCode, pendingKey, timestamp } = pendingTimeIn;
-    const assignedCommsId = commsCode || "NONE";
-    const date = timestamp.slice(0, 10);
+      const commsText = document.getElementById("assigned-comms-id").textContent || "—";
+      const timeText = document.getElementById("comms-time-in").textContent;
+      const numberedId = data.numberedId || "";
 
-    // 1. Upgrade pending record to confirmed
-    currentLogKey = pendingKey;
-    await db.ref(`logs/${date}/${pendingKey}`).update({
-      numberedId: numberedId,
-      status: null, // Remove pending flag — now confirmed
-    });
-    console.log(`Time In confirmed at: logs/${date}/${currentLogKey}`);
+      currentLogKey = pendingKey;
+      pendingTimeIn = null;
 
-    // 2. Update Comms Status in Firebase (if mapped)
-    if (commsCode) {
-      await db.ref(`comms/${commsCode}`).update({
-        status: "assigned",
-        assignedTo: volunteerId,
-        assignedTime: now,
-      });
+      // Populate final page
+      document.getElementById("final-type-badge").textContent = "Timed In";
+      document.getElementById("final-type-badge").className = "inline-block bg-green-600 text-white text-xs font-bold uppercase tracking-wider px-3 py-1 rounded-full mb-3";
+      document.getElementById("final-volunteer-name").textContent = volunteerName;
+      document.getElementById("final-time-label").textContent = timeText;
+      document.getElementById("final-date-label").textContent = new Date().toLocaleDateString([], { month: 'short', day: 'numeric', year: 'numeric' });
+      document.getElementById("final-comms-code").textContent = commsText;
+      document.getElementById("final-message").textContent = "Do your best for God as you serve. God bless!";
+
+      if (commsText && commsText !== "—") {
+        document.getElementById("final-comms-block").classList.remove("hidden");
+      } else {
+        document.getElementById("final-comms-block").classList.add("hidden");
+      }
+
+      if (numberedId) {
+        document.getElementById("final-seg-id").textContent = "#" + numberedId;
+        document.getElementById("final-segid-block").classList.remove("hidden");
+      } else {
+        document.getElementById("final-segid-block").classList.add("hidden");
+      }
+
+      showStage("final");
+      startFinalCountdown();
     }
-
-    pendingTimeIn = null;
-
-    const commsText = document.getElementById("assigned-comms-id").textContent || "—";
-    const timeText = document.getElementById("comms-time-in").textContent;
-
-    // Populate final page
-    document.getElementById("final-type-badge").textContent = "Timed In";
-    document.getElementById("final-type-badge").className = "inline-block bg-green-600 text-white text-xs font-bold uppercase tracking-wider px-3 py-1 rounded-full mb-3";
-    document.getElementById("final-volunteer-name").textContent = volunteerName;
-    document.getElementById("final-time-label").textContent = timeText;
-    document.getElementById("final-date-label").textContent = new Date().toLocaleDateString([], { month: 'short', day: 'numeric', year: 'numeric' });
-    document.getElementById("final-comms-code").textContent = commsText;
-    document.getElementById("final-message").textContent = "Do your best for God as you serve. God bless!";
-
-    if (commsText && commsText !== "—") {
-      document.getElementById("final-comms-block").classList.remove("hidden");
-    } else {
-      document.getElementById("final-comms-block").classList.add("hidden");
-    }
-
-    if (numberedId) {
-      document.getElementById("final-seg-id").textContent = "#" + numberedId;
-      document.getElementById("final-segid-block").classList.remove("hidden");
-    } else {
-      document.getElementById("final-segid-block").classList.add("hidden");
-    }
-
-    hideLoading();
-    showStage("final");
-    startFinalCountdown();
-  } catch (error) {
-    hideLoading();
-    console.error("Time In Error:", error);
-    alert("An error occurred during Time In. Please try again.");
-  }
-});
+  });
+}
 
 /**
  * Handles Comms Status selection during Time Out (Stage 5).
@@ -881,111 +883,117 @@ let commsIdToReturn = null;
 /**
  * Handles the final Time Out confirmation (Stage 5 -> Stage 6).
  */
-document
-  .getElementById("final-timeout-btn")
-  .addEventListener("click", async () => {
-    if (!currentLogKey) {
-      alert("Error: Missing log. Please re-scan.");
-      startQrScanner();
-      return;
-    }
-
-    commsStatusOut = "OK";
-    commsIdToReturn = document.getElementById("return-comms-id").textContent;
-    showLoading("Timing out...");
-
-    try {
-      const now = new Date().toISOString();
-      const date = now.slice(0, 10);
-
-      // 1. Update Log Time Out and Comms Status
-      const logUpdate = {
-        timeOut: now,
-        commsStatusOut: commsStatusOut,
-      };
-      await db.ref(`logs/${date}/${currentLogKey}`).update(logUpdate);
-      console.log(
-        `Time Out logged successfully at path: logs/${date}/${currentLogKey}`
-      ); // DIAGNOSTIC LOG 8
-
-      // 2. Update Comms status
-      if (commsIdToReturn && commsIdToReturn !== "NONE" && commsIdToReturn !== "N/A" && commsIdToReturn !== "ID_NONE") {
-        const commsUpdate = {
-          assignedTo: null,
-          assignedTime: null,
-          status: commsStatusOut === "OK" ? "available" : "damaged", // Mark as damaged if selected
-        };
-        await db.ref(`comms/${commsIdToReturn}`).update(commsUpdate);
-        console.log(
-          `Comms ID ${commsIdToReturn} updated to ${commsUpdate.status}.`
-        ); // DIAGNOSTIC LOG 9
+if (document.getElementById("final-timeout-btn")) {
+  document
+    .getElementById("final-timeout-btn")
+    .addEventListener("click", async () => {
+      if (!currentLogKey) {
+        alert("Error: Missing log. Please re-scan.");
+        startQrScanner();
+        return;
       }
 
-      // 3. Final UI update
-      document.getElementById("final-type-badge").textContent = "Timed Out";
-      document.getElementById("final-type-badge").className = "inline-block bg-red-600 text-white text-xs font-bold uppercase tracking-wider px-3 py-1 rounded-full mb-3";
-      document.getElementById("final-volunteer-name").textContent = volunteerName;
-      document.getElementById("final-time-label").textContent = new Date().toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' });
-      document.getElementById("final-date-label").textContent = new Date().toLocaleDateString([], { month: 'short', day: 'numeric', year: 'numeric' });
-      document.getElementById("final-comms-block").classList.add("hidden");
-      document.getElementById("final-segid-block").classList.add("hidden");
-      document.getElementById("final-message").textContent = "Thank you for serving the Lord!";
-      hideLoading();
-      showStage("final");
-      startFinalCountdown();
-    } catch (error) {
-      hideLoading();
-      console.error("Time Out/Comms Return Error:", error);
-      alert("An error occurred during Time Out. Please contact admin.");
-    }
-  });
+      commsStatusOut = "OK";
+      commsIdToReturn = document.getElementById("return-comms-id").textContent;
+      showLoading("Timing out...");
+
+      try {
+        const now = new Date().toISOString();
+        const date = now.slice(0, 10);
+
+        // 1. Update Log Time Out and Comms Status
+        const logUpdate = {
+          timeOut: now,
+          commsStatusOut: commsStatusOut,
+        };
+        await db.ref(`logs/${date}/${currentLogKey}`).update(logUpdate);
+        console.log(
+          `Time Out logged successfully at path: logs/${date}/${currentLogKey}`
+        ); // DIAGNOSTIC LOG 8
+
+        // 2. Update Comms status
+        if (commsIdToReturn && commsIdToReturn !== "NONE" && commsIdToReturn !== "N/A" && commsIdToReturn !== "ID_NONE") {
+          const commsUpdate = {
+            assignedTo: null,
+            assignedTime: null,
+            status: commsStatusOut === "OK" ? "available" : "damaged", // Mark as damaged if selected
+          };
+          await db.ref(`comms/${commsIdToReturn}`).update(commsUpdate);
+          console.log(
+            `Comms ID ${commsIdToReturn} updated to ${commsUpdate.status}.`
+          ); // DIAGNOSTIC LOG 9
+        }
+
+        // 3. Final UI update
+        document.getElementById("final-type-badge").textContent = "Timed Out";
+        document.getElementById("final-type-badge").className = "inline-block bg-red-600 text-white text-xs font-bold uppercase tracking-wider px-3 py-1 rounded-full mb-3";
+        document.getElementById("final-volunteer-name").textContent = volunteerName;
+        document.getElementById("final-time-label").textContent = new Date().toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' });
+        document.getElementById("final-date-label").textContent = new Date().toLocaleDateString([], { month: 'short', day: 'numeric', year: 'numeric' });
+        document.getElementById("final-comms-block").classList.add("hidden");
+        document.getElementById("final-segid-block").classList.add("hidden");
+        document.getElementById("final-message").textContent = "Thank you for serving the Lord!";
+        hideLoading();
+        showStage("final");
+        startFinalCountdown();
+      } catch (error) {
+        hideLoading();
+        console.error("Time Out/Comms Return Error:", error);
+        alert("An error occurred during Time Out. Please contact admin.");
+      }
+    });
+}
 
 /**
  * Resets the application state to restart scanning.
  */
-document.getElementById("reset-scan-btn").addEventListener("click", () => {
-  volunteerId = null;
-  volunteerName = null;
-  currentLogKey = null;
-  commsStatusOut = null;
-  commsIdToReturn = null;
-  startQrScanner();
-});
+if (document.getElementById("reset-scan-btn")) {
+  document.getElementById("reset-scan-btn").addEventListener("click", () => {
+    volunteerId = null;
+    volunteerName = null;
+    currentLogKey = null;
+    commsStatusOut = null;
+    commsIdToReturn = null;
+    startQrScanner();
+  });
+}
 
 // =============================
 // DEBUG: Test User
 // =============================
-document.getElementById("test-user-btn").addEventListener("click", async () => {
-  showLoading("Looking up volunteer...");
+if (document.getElementById("test-user-btn")) {
+  document.getElementById("test-user-btn").addEventListener("click", async () => {
+    showLoading("Looking up volunteer...");
 
-  const testId = "VOL-0000000000000-TEST";
-  const testName = "Test Volunteer";
+    const testId = "VOL-0000000000000-TEST";
+    const testName = "Test Volunteer";
 
-  // Ensure test user exists in Firebase
-  const snap = await db.ref(`volunteers/${testId}`).once("value");
-  if (!snap.exists()) {
-    await db.ref(`volunteers/${testId}`).set({
-      name: testName,
-      type: "volunteer",
-      registeredAt: new Date().toISOString(),
-    });
-  }
-
-  // Stop scanner and simulate scan
-  if (html5QrcodeScanner) {
-    try {
-      const state = html5QrcodeScanner.getState();
-      if (state === Html5QrcodeScannerState.SCANNING || state === Html5QrcodeScannerState.PAUSED) {
-        await html5QrcodeScanner.stop();
-      }
-      await html5QrcodeScanner.clear();
-    } catch (e) {
-      console.log("Failed to stop/clear scanner for test user:", e);
+    // Ensure test user exists in Firebase
+    const snap = await db.ref(`volunteers/${testId}`).once("value");
+    if (!snap.exists()) {
+      await db.ref(`volunteers/${testId}`).set({
+        name: testName,
+        type: "volunteer",
+        registeredAt: new Date().toISOString(),
+      });
     }
-  }
 
-  handleVolunteerScan(testId);
-});
+    // Stop scanner and simulate scan
+    if (html5QrcodeScanner) {
+      try {
+        const state = html5QrcodeScanner.getState();
+        if (state === Html5QrcodeScannerState.SCANNING || state === Html5QrcodeScannerState.PAUSED) {
+          await html5QrcodeScanner.stop();
+        }
+        await html5QrcodeScanner.clear();
+      } catch (e) {
+        console.log("Failed to stop/clear scanner for test user:", e);
+      }
+    }
+
+    handleVolunteerScan(testId);
+  });
+}
 
 // =============================
 // Registration / Guest Check-in Logic
@@ -995,78 +1003,18 @@ document.getElementById("test-user-btn").addEventListener("click", async () => {
  * Opens the registration form for volunteers or guests.
  * @param {string} type - "volunteer" or "guest"
  */
-async function openRegisterForm(type) {
-  // Stop scanner while registering — must stop before clearing
-  if (html5QrcodeScanner) {
-    try {
-      const state = html5QrcodeScanner.getState();
-      if (state === Html5QrcodeScannerState.SCANNING || state === Html5QrcodeScannerState.PAUSED) {
-        await html5QrcodeScanner.stop();
-      }
-      await html5QrcodeScanner.clear();
-    } catch (e) {
-      console.log("Failed to stop/clear scanner for register:", e);
+
+
+if (document.getElementById("register-back-btn")) {
+  document.getElementById("register-back-btn").addEventListener("click", () => {
+    hideAllStages();
+    if (document.getElementById("stage-initial")) {
+      showStage("initial");
+    } else {
+      showStage("scan");
     }
-  }
-
-  document.getElementById("register-type").value = type;
-  document.getElementById("register-form").reset();
-
-  if (type === "guest") {
-    document.getElementById("register-title").textContent = "Guest Check-in";
-    document.getElementById("register-team-group").classList.add("hidden");
-    document.getElementById("register-submit-btn").textContent =
-      "Generate Guest QR";
-  } else {
-    document.getElementById("register-title").textContent =
-      "Register Volunteer";
-    document.getElementById("register-team-group").classList.remove("hidden");
-    document.getElementById("register-submit-btn").textContent =
-      "Register & Generate QR";
-
-    // Render segment pills for volunteer registration (multi-select)
-    const pillContainer = document.getElementById("register-segment-pills");
-    pillContainer.innerHTML = "";
-    const selectedSegments = new Set();
-    document.getElementById("register-team").value = "";
-
-    const defaultPillClass = "px-3 py-1.5 rounded-full text-xs font-medium border border-neutral-300 bg-white text-neutral-700 hover:bg-neutral-900 hover:text-white hover:border-neutral-900 transition duration-150";
-    const activePillClass = "px-3 py-1.5 rounded-full text-xs font-medium border-2 border-neutral-900 bg-neutral-900 text-white transition duration-150";
-
-    const allSegs = Object.keys(segmentRoles);
-    allSegs.forEach((seg) => {
-      const pill = document.createElement("button");
-      pill.type = "button";
-      pill.textContent = seg;
-      pill.className = defaultPillClass;
-      pill.addEventListener("click", () => {
-        if (selectedSegments.has(seg)) {
-          selectedSegments.delete(seg);
-          pill.className = defaultPillClass;
-        } else {
-          selectedSegments.add(seg);
-          pill.className = activePillClass;
-        }
-        document.getElementById("register-team").value = [...selectedSegments].join(", ");
-      });
-      pillContainer.appendChild(pill);
-    });
-  }
-
-  showStage("register");
+  });
 }
-
-document
-  .getElementById("open-register-btn")
-  .addEventListener("click", () => openRegisterForm("volunteer"));
-
-document
-  .getElementById("open-guest-btn")
-  .addEventListener("click", () => openRegisterForm("guest"));
-
-document.getElementById("register-back-btn").addEventListener("click", () => {
-  startQrScanner();
-});
 
 // =============================
 // Name autocomplete for registration
@@ -1088,148 +1036,165 @@ async function loadVolunteers() {
 }
 loadVolunteers();
 
-document.getElementById("register-name").addEventListener("input", (e) => {
-  const query = e.target.value.toLowerCase().trim();
-  const suggestionsEl = document.getElementById("name-suggestions");
-  const matchMsg = document.getElementById("name-match-msg");
-  suggestionsEl.innerHTML = "";
-  matchMsg.classList.add("hidden");
+if (document.getElementById("register-name")) {
+  document.getElementById("register-name").addEventListener("input", (e) => {
+    const query = e.target.value.toLowerCase().trim();
+    const suggestionsEl = document.getElementById("name-suggestions");
+    const matchMsg = document.getElementById("name-match-msg");
+    suggestionsEl.innerHTML = "";
+    matchMsg.classList.add("hidden");
 
-  if (query.length < 2) {
-    suggestionsEl.classList.add("hidden");
-    return;
-  }
-
-  const matches = allVolunteers.filter((v) =>
-    v.name.toLowerCase().includes(query)
-  ).slice(0, 5);
-
-  if (matches.length === 0) {
-    suggestionsEl.classList.add("hidden");
-    return;
-  }
-
-  suggestionsEl.classList.remove("hidden");
-  matches.forEach((v) => {
-    const item = document.createElement("button");
-    item.type = "button";
-    item.className = "w-full text-left px-3 py-2 text-sm hover:bg-neutral-50 transition flex items-center justify-between";
-    item.innerHTML = `
-      <span class="font-medium text-neutral-800">${v.name}</span>
-      <span class="text-xs text-amber-600 font-medium">Already registered</span>
-    `;
-    item.addEventListener("click", () => {
-      document.getElementById("register-name").value = v.name;
+    if (query.length < 2) {
       suggestionsEl.classList.add("hidden");
-      matchMsg.textContent = `"${v.name}" is already registered. They can scan their QR to time in.`;
-      matchMsg.className = "text-xs mt-1 text-amber-600";
-      matchMsg.classList.remove("hidden");
-    });
-    suggestionsEl.appendChild(item);
-  });
-});
+      return;
+    }
 
-// Hide suggestions on blur (with delay for click)
-document.getElementById("register-name").addEventListener("blur", () => {
-  setTimeout(() => document.getElementById("name-suggestions").classList.add("hidden"), 200);
-});
+    const matches = allVolunteers.filter((v) =>
+      v.name.toLowerCase().includes(query)
+    ).slice(0, 5);
+
+    if (matches.length === 0) {
+      suggestionsEl.classList.add("hidden");
+      return;
+    }
+
+    suggestionsEl.classList.remove("hidden");
+    matches.forEach((v) => {
+      const item = document.createElement("button");
+      item.type = "button";
+      item.className = "w-full text-left px-3 py-2 text-sm hover:bg-neutral-50 transition flex items-center justify-between";
+      item.innerHTML = `
+        <span class="font-medium text-neutral-800">${v.name}</span>
+        <span class="text-xs text-amber-600 font-medium">Already registered</span>
+      `;
+      item.addEventListener("click", () => {
+        document.getElementById("register-name").value = v.name;
+        suggestionsEl.classList.add("hidden");
+        matchMsg.textContent = `"${v.name}" is already registered. They can scan their QR to time in.`;
+        matchMsg.className = "text-xs mt-1 text-amber-600";
+        matchMsg.classList.remove("hidden");
+      });
+      suggestionsEl.appendChild(item);
+    });
+  });
+}
+
+if (document.getElementById("register-name")) {
+  document.getElementById("register-name").addEventListener("blur", () => {
+    setTimeout(() => document.getElementById("name-suggestions").classList.add("hidden"), 200);
+  });
+}
 
 /**
  * Handles registration form submission.
  * Generates a unique ID, saves to Firebase, and shows the QR code.
  */
-document
-  .getElementById("register-form")
-  .addEventListener("submit", async (e) => {
-    e.preventDefault();
+if (document.getElementById("register-form")) {
+  document
+    .getElementById("register-form")
+    .addEventListener("submit", async (e) => {
+      e.preventDefault();
 
-    const type = document.getElementById("register-type").value;
-    const name = document.getElementById("register-name").value.trim();
-    const team = document.getElementById("register-team").value.trim();
-    const contact = document.getElementById("register-contact").value.trim();
+      const type = document.getElementById("register-type").value;
+      const name = document.getElementById("register-name").value.trim();
+      const team = document.getElementById("register-team").value.trim();
+      const contact = document.getElementById("register-contact").value.trim();
 
-    if (!name) {
-      alert("Please enter a name.");
-      return;
-    }
-
-    // Generate a unique ID
-    const prefix = type === "guest" ? "GUEST" : "VOL";
-    const newId = `${prefix}-${Date.now()}-${Math.random()
-      .toString(36)
-      .substring(2, 6)
-      .toUpperCase()}`;
-
-    try {
-      // Save to Firebase
-      const volunteerData = {
-        name: name,
-        type: type,
-        registeredAt: new Date().toISOString(),
-      };
-
-      if (type === "volunteer" && team) {
-        volunteerData.team = team;
-      }
-      if (contact) {
-        volunteerData.contact = contact;
+      if (!name) {
+        alert("Please enter a name.");
+        return;
       }
 
-      await db.ref(`volunteers/${newId}`).set(volunteerData);
-      console.log(`${type} registered with ID: ${newId}`);
+      // Generate a unique ID
+      const prefix = type === "guest" ? "GUEST" : "VOL";
+      const newId = `${prefix}-${Date.now()}-${Math.random()
+        .toString(36)
+        .substring(2, 6)
+        .toUpperCase()}`;
 
-      // Show QR result
-      const titleEl = document.getElementById("qr-result-title");
-      const nameEl = document.getElementById("qr-result-name");
-      const idEl = document.getElementById("qr-result-id");
-      const qrContainer = document.getElementById("qr-code-output");
+      try {
+        // Save to Firebase
+        const volunteerData = {
+          name: name,
+          type: type,
+          registeredAt: new Date().toISOString(),
+        };
 
-      if (type === "guest") {
-        titleEl.textContent = "Guest Registered!";
-        titleEl.classList.remove("text-green-600");
-        titleEl.classList.add("text-gray-600");
-        nameEl.textContent = name;
-      } else {
-        titleEl.textContent = "Volunteer Registered!";
-        titleEl.classList.remove("text-gray-600");
-        titleEl.classList.add("text-green-600");
-        nameEl.textContent = `${name}${team ? " — " + team : ""}`;
+        if (type === "volunteer" && team) {
+          volunteerData.team = team;
+        }
+        if (contact) {
+          volunteerData.contact = contact;
+        }
+
+        await db.ref(`volunteers/${newId}`).set(volunteerData);
+        console.log(`${type} registered with ID: ${newId}`);
+
+        // Show QR result
+        const titleEl = document.getElementById("qr-result-title");
+        const nameEl = document.getElementById("qr-result-name");
+        const idEl = document.getElementById("qr-result-id");
+        const qrContainer = document.getElementById("qr-code-output");
+
+        if (type === "guest") {
+          titleEl.textContent = "Guest Registered!";
+          titleEl.classList.remove("text-green-600");
+          titleEl.classList.add("text-gray-600");
+          nameEl.textContent = name;
+        } else {
+          titleEl.textContent = "Volunteer Registered!";
+          titleEl.classList.remove("text-gray-600");
+          titleEl.classList.add("text-green-600");
+          nameEl.textContent = `${name}${team ? " — " + team : ""}`;
+        }
+
+        idEl.textContent = `ID: ${newId}`;
+
+        // Clear previous QR code
+        qrContainer.innerHTML = "";
+
+        // Generate QR code
+        new QRCode(qrContainer, {
+          text: newId,
+          width: 200,
+          height: 200,
+          colorDark: "#000000",
+          colorLight: "#ffffff",
+          correctLevel: QRCode.CorrectLevel.H,
+        });
+
+        showStage("qr-result");
+      } catch (error) {
+        console.error("Registration error:", error);
+        alert("Registration failed. Please try again.");
       }
-
-      idEl.textContent = `ID: ${newId}`;
-
-      // Clear previous QR code
-      qrContainer.innerHTML = "";
-
-      // Generate QR code
-      new QRCode(qrContainer, {
-        text: newId,
-        width: 200,
-        height: 200,
-        colorDark: "#000000",
-        colorLight: "#ffffff",
-        correctLevel: QRCode.CorrectLevel.H,
-      });
-
-      showStage("qr-result");
-    } catch (error) {
-      console.error("Registration error:", error);
-      alert("Registration failed. Please try again.");
-    }
-  });
+    });
+}
 
 /**
  * Proceed to scan the newly generated QR.
  */
-document
-  .getElementById("qr-proceed-scan-btn")
-  .addEventListener("click", () => {
-    startQrScanner();
-  });
+if (document.getElementById("qr-proceed-scan-btn")) {
+  document
+    .getElementById("qr-proceed-scan-btn")
+    .addEventListener("click", () => {
+      if (document.getElementById("stage-initial")) {
+        window.location.href = "index.html";
+      } else {
+        startQrScanner();
+      }
+    });
+}
 
-document.getElementById("qr-done-btn").addEventListener("click", () => {
-  startQrScanner();
-});
+if (document.getElementById("qr-done-btn")) {
+  document.getElementById("qr-done-btn").addEventListener("click", () => {
+    if (document.getElementById("stage-initial")) {
+      showStage("initial");
+    } else {
+      startQrScanner();
+    }
+  });
+}
 
 // =============================
 // Final stage auto-restart countdown
@@ -1268,7 +1233,138 @@ function stopFinalCountdown() {
   clearInterval(finalCountdownInterval);
 }
 
-document.getElementById("final-new-scan-btn").addEventListener("click", () => {
-  stopFinalCountdown();
-  window.location.reload();
-});
+if (document.getElementById("final-new-scan-btn")) {
+  document.getElementById("final-new-scan-btn").addEventListener("click", () => {
+    stopFinalCountdown();
+    window.location.reload();
+  });
+}
+
+// =============================
+// Guest Check-in (inline in index.html)
+// =============================
+if (document.getElementById("open-guest-btn")) {
+  document.getElementById("open-guest-btn").addEventListener("click", async () => {
+    if (html5QrcodeScanner) {
+      try {
+        const state = html5QrcodeScanner.getState();
+        if (state === Html5QrcodeScannerState.SCANNING || state === Html5QrcodeScannerState.PAUSED) {
+          await html5QrcodeScanner.stop();
+        }
+        await html5QrcodeScanner.clear();
+      } catch (e) {}
+    }
+    showStage("guest");
+  });
+}
+
+if (document.getElementById("guest-back-btn")) {
+  document.getElementById("guest-back-btn").addEventListener("click", () => startQrScanner());
+}
+
+if (document.getElementById("guest-form")) {
+  document.getElementById("guest-form").addEventListener("submit", async (e) => {
+    e.preventDefault();
+    const name = document.getElementById("guest-name").value.trim();
+    const contact = document.getElementById("guest-contact").value.trim();
+    if (!name) return;
+
+    showLoading("Registering guest...");
+    const newId = `GUEST-${Date.now()}-${Math.random().toString(36).substring(2, 6).toUpperCase()}`;
+
+    try {
+      await db.ref(`volunteers/${newId}`).set({
+        name, type: "guest", registeredAt: new Date().toISOString(),
+        ...(contact ? { contact } : {}),
+      });
+
+      document.getElementById("guest-qr-name").textContent = name;
+      document.getElementById("guest-qr-id").textContent = `ID: ${newId}`;
+      const qrContainer = document.getElementById("guest-qr-output");
+      qrContainer.innerHTML = "";
+      new QRCode(qrContainer, { text: newId, width: 200, height: 200, colorDark: "#000000", colorLight: "#ffffff", correctLevel: QRCode.CorrectLevel.H });
+
+      hideLoading();
+      showStage("guest-qr");
+    } catch (error) {
+      hideLoading();
+      alert("Registration failed. Please try again.");
+    }
+  });
+}
+
+if (document.getElementById("guest-proceed-scan-btn")) {
+  document.getElementById("guest-proceed-scan-btn").addEventListener("click", () => startQrScanner());
+}
+if (document.getElementById("guest-back-to-scan-btn")) {
+  document.getElementById("guest-back-to-scan-btn").addEventListener("click", () => startQrScanner());
+}
+
+// =============================
+// Search User (forgot QR)
+// =============================
+if (document.getElementById("open-search-btn")) {
+  document.getElementById("open-search-btn").addEventListener("click", async () => {
+    if (html5QrcodeScanner) {
+      try {
+        const state = html5QrcodeScanner.getState();
+        if (state === Html5QrcodeScannerState.SCANNING || state === Html5QrcodeScannerState.PAUSED) {
+          await html5QrcodeScanner.stop();
+        }
+        await html5QrcodeScanner.clear();
+      } catch (e) {}
+    }
+    // Load volunteers for search
+    try {
+      const snap = await db.ref("volunteers").once("value");
+      const data = snap.val() || {};
+      window._searchVolunteers = Object.entries(data).map(([id, v]) => ({ id, name: v.name || "", team: v.team || "" }));
+    } catch (e) {
+      window._searchVolunteers = [];
+    }
+    document.getElementById("search-user-input").value = "";
+    document.getElementById("search-results").innerHTML = "";
+    showStage("search-user");
+  });
+}
+
+if (document.getElementById("search-back-btn")) {
+  document.getElementById("search-back-btn").addEventListener("click", () => startQrScanner());
+}
+
+if (document.getElementById("search-user-input")) {
+  document.getElementById("search-user-input").addEventListener("input", (e) => {
+    const query = e.target.value.toLowerCase().trim();
+    const resultsEl = document.getElementById("search-results");
+    resultsEl.innerHTML = "";
+    if (query.length < 2) return;
+
+    const matches = (window._searchVolunteers || []).filter((v) =>
+      v.name.toLowerCase().includes(query)
+    ).slice(0, 10);
+
+    if (matches.length === 0) {
+      resultsEl.innerHTML = '<p class="text-sm text-neutral-400 text-center py-4">No volunteers found.</p>';
+      return;
+    }
+
+    matches.forEach((v) => {
+      const row = document.createElement("button");
+      row.type = "button";
+      row.className = "w-full text-left px-3 py-3 rounded-lg border border-neutral-200 hover:bg-neutral-50 hover:border-neutral-400 transition duration-150 flex items-center justify-between";
+      row.innerHTML = `
+        <div>
+          <span class="font-semibold text-neutral-800">${v.name}</span>
+          ${v.team ? `<span class="text-xs text-neutral-400 ml-2">${v.team}</span>` : ""}
+        </div>
+        <span class="material-icons-round text-neutral-400 text-base">arrow_forward</span>
+      `;
+      row.addEventListener("click", () => {
+        // Simulate scanning this volunteer's QR
+        showLoading("Looking up volunteer...");
+        handleVolunteerScan(v.id);
+      });
+      resultsEl.appendChild(row);
+    });
+  });
+}

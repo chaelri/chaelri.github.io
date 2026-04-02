@@ -262,6 +262,26 @@
       </div>
     </div>
 
+    <!-- Confirm Modal -->
+    <div id="confirm-modal" class="fixed inset-0 bg-black/70 backdrop-blur-sm z-50 flex items-center justify-center p-4 hidden">
+      <div class="bg-neutral-900 border border-neutral-800 rounded-2xl w-full max-w-sm p-5 text-center">
+        <span class="material-icons-round text-amber-400 text-3xl mb-2">warning</span>
+        <p id="confirm-modal-msg" class="text-sm text-white font-medium mb-4"></p>
+        <div class="flex gap-3">
+          <button id="confirm-modal-cancel" class="flex-1 py-2.5 text-sm font-semibold rounded-lg bg-neutral-800 text-neutral-400 hover:bg-neutral-700 hover:text-white transition">Cancel</button>
+          <button id="confirm-modal-ok" class="flex-1 py-2.5 text-sm font-semibold rounded-lg bg-red-600 text-white hover:bg-red-500 transition">Confirm</button>
+        </div>
+      </div>
+    </div>
+
+    <!-- Toast -->
+    <div id="toast" class="fixed bottom-6 left-1/2 -translate-x-1/2 z-50 hidden">
+      <div class="bg-neutral-900 border border-neutral-700 text-white text-sm font-medium px-5 py-3 rounded-xl shadow-2xl flex items-center gap-2">
+        <span id="toast-icon" class="material-icons-round text-base"></span>
+        <span id="toast-msg"></span>
+      </div>
+    </div>
+
     <script src="https://cdn.jsdelivr.net/npm/qrcodejs@1.0.0/qrcode.min.js"></script>
     <script src="monitor.js"></script>
   </body>
