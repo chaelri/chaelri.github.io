@@ -803,20 +803,6 @@ document.getElementById("numbered-id-input").addEventListener("input", () => {
 
 document.getElementById("comms-received-btn").addEventListener("click", async () => {
   const numberedId = document.getElementById("numbered-id-input").value.trim();
-  const errorEl = document.getElementById("numbered-id-error");
-
-  if (!numberedId) {
-    const input = document.getElementById("numbered-id-input");
-    errorEl.classList.remove("hidden");
-    input.classList.add("border-red-400");
-    input.classList.remove("shake");
-    input.offsetHeight; // reflow
-    input.classList.add("shake");
-    input.focus();
-    return;
-  }
-  errorEl.classList.add("hidden");
-  document.getElementById("numbered-id-input").classList.remove("border-red-400", "shake");
 
   showLoading("Timing in...");
 
@@ -1038,24 +1024,30 @@ async function openRegisterForm(type) {
     document.getElementById("register-submit-btn").textContent =
       "Register & Generate QR";
 
-    // Render segment pills for volunteer registration
+    // Render segment pills for volunteer registration (multi-select)
     const pillContainer = document.getElementById("register-segment-pills");
     pillContainer.innerHTML = "";
+    const selectedSegments = new Set();
     document.getElementById("register-team").value = "";
+
+    const defaultPillClass = "px-3 py-1.5 rounded-full text-xs font-medium border border-neutral-300 bg-white text-neutral-700 hover:bg-neutral-900 hover:text-white hover:border-neutral-900 transition duration-150";
+    const activePillClass = "px-3 py-1.5 rounded-full text-xs font-medium border-2 border-neutral-900 bg-neutral-900 text-white transition duration-150";
+
     const allSegs = Object.keys(segmentRoles);
     allSegs.forEach((seg) => {
       const pill = document.createElement("button");
       pill.type = "button";
       pill.textContent = seg;
-      pill.className = "px-3 py-1.5 rounded-full text-xs font-medium border border-neutral-300 bg-white text-neutral-700 hover:bg-neutral-900 hover:text-white hover:border-neutral-900 transition duration-150";
+      pill.className = defaultPillClass;
       pill.addEventListener("click", () => {
-        // Deselect all
-        pillContainer.querySelectorAll("button").forEach((p) => {
-          p.className = "px-3 py-1.5 rounded-full text-xs font-medium border border-neutral-300 bg-white text-neutral-700 hover:bg-neutral-900 hover:text-white hover:border-neutral-900 transition duration-150";
-        });
-        // Select this one
-        pill.className = "px-3 py-1.5 rounded-full text-xs font-medium border-2 border-neutral-900 bg-neutral-900 text-white transition duration-150";
-        document.getElementById("register-team").value = seg;
+        if (selectedSegments.has(seg)) {
+          selectedSegments.delete(seg);
+          pill.className = defaultPillClass;
+        } else {
+          selectedSegments.add(seg);
+          pill.className = activePillClass;
+        }
+        document.getElementById("register-team").value = [...selectedSegments].join(", ");
       });
       pillContainer.appendChild(pill);
     });
@@ -1074,6 +1066,72 @@ document
 
 document.getElementById("register-back-btn").addEventListener("click", () => {
   startQrScanner();
+});
+
+// =============================
+// Name autocomplete for registration
+// =============================
+let allVolunteers = []; // cached volunteer list
+
+async function loadVolunteers() {
+  try {
+    const snap = await db.ref("volunteers").once("value");
+    const data = snap.val() || {};
+    allVolunteers = Object.entries(data).map(([id, v]) => ({
+      id,
+      name: v.name || "",
+      team: v.team || "",
+    }));
+  } catch (e) {
+    console.log("Could not load volunteers for autocomplete:", e);
+  }
+}
+loadVolunteers();
+
+document.getElementById("register-name").addEventListener("input", (e) => {
+  const query = e.target.value.toLowerCase().trim();
+  const suggestionsEl = document.getElementById("name-suggestions");
+  const matchMsg = document.getElementById("name-match-msg");
+  suggestionsEl.innerHTML = "";
+  matchMsg.classList.add("hidden");
+
+  if (query.length < 2) {
+    suggestionsEl.classList.add("hidden");
+    return;
+  }
+
+  const matches = allVolunteers.filter((v) =>
+    v.name.toLowerCase().includes(query)
+  ).slice(0, 5);
+
+  if (matches.length === 0) {
+    suggestionsEl.classList.add("hidden");
+    return;
+  }
+
+  suggestionsEl.classList.remove("hidden");
+  matches.forEach((v) => {
+    const item = document.createElement("button");
+    item.type = "button";
+    item.className = "w-full text-left px-3 py-2 text-sm hover:bg-neutral-50 transition flex items-center justify-between";
+    item.innerHTML = `
+      <span class="font-medium text-neutral-800">${v.name}</span>
+      <span class="text-xs text-amber-600 font-medium">Already registered</span>
+    `;
+    item.addEventListener("click", () => {
+      document.getElementById("register-name").value = v.name;
+      suggestionsEl.classList.add("hidden");
+      matchMsg.textContent = `"${v.name}" is already registered. They can scan their QR to time in.`;
+      matchMsg.className = "text-xs mt-1 text-amber-600";
+      matchMsg.classList.remove("hidden");
+    });
+    suggestionsEl.appendChild(item);
+  });
+});
+
+// Hide suggestions on blur (with delay for click)
+document.getElementById("register-name").addEventListener("blur", () => {
+  setTimeout(() => document.getElementById("name-suggestions").classList.add("hidden"), 200);
 });
 
 /**

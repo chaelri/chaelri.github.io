@@ -98,19 +98,22 @@
         <form id="register-form" class="space-y-4">
           <input type="hidden" id="register-type" value="volunteer" />
 
-          <div>
+          <div class="relative">
             <label for="register-name" class="block text-xs uppercase tracking-widest text-neutral-400 font-semibold mb-1">Full Name</label>
             <input
               type="text"
               id="register-name"
               required
+              autocomplete="off"
               placeholder="e.g., Juan Dela Cruz"
               class="block w-full px-3 py-2.5 border border-neutral-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-neutral-900 focus:border-neutral-900 sm:text-sm"
             />
+            <div id="name-suggestions" class="absolute z-10 left-0 right-0 top-full mt-1 bg-white border border-neutral-200 rounded-lg shadow-lg max-h-40 overflow-y-auto hidden"></div>
+            <p id="name-match-msg" class="text-xs mt-1 hidden"></p>
           </div>
 
           <div id="register-team-group">
-            <label class="block text-xs uppercase tracking-widest text-neutral-400 font-semibold mb-2">Segment</label>
+            <label class="block text-xs uppercase tracking-widest text-neutral-400 font-semibold mb-2">Segment <span class="text-neutral-300 normal-case tracking-normal">(multi-select)</span></label>
             <input type="hidden" id="register-team" />
             <div id="register-segment-pills" class="flex flex-wrap gap-2 justify-center"></div>
           </div>
@@ -270,18 +273,8 @@
           </div>
         </div>
 
-        <!-- Numbered ID Input -->
-        <div class="mb-4">
-          <label for="numbered-id-input" class="block text-xs uppercase tracking-widest text-neutral-400 font-semibold mb-1.5">Segment ID Number</label>
-          <input
-            type="text"
-            id="numbered-id-input"
-            required
-            placeholder="e.g., 01, 02, 15"
-            class="block w-full px-3 py-2.5 border border-neutral-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-neutral-900 focus:border-neutral-900 text-center text-lg font-mono"
-          />
-          <p id="numbered-id-error" class="text-xs text-red-500 mt-1 hidden">Please enter the Segment ID Number.</p>
-        </div>
+        <!-- Numbered ID (now handled by admin in monitor) -->
+        <input type="hidden" id="numbered-id-input" value="" />
 
         <button
           id="comms-received-btn"

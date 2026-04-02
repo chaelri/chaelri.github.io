@@ -230,11 +230,49 @@ function renderTable() {
         td(`<span class="text-neutral-400">${log.segment || "—"}</span><span class="text-neutral-600 mx-1">/</span><span class="text-white font-medium">${log.role || "—"}</span>`)
       );
       row.appendChild(commsButton(log.commsId));
+
+      // Seg ID input
+      const segIdTd = document.createElement("td");
+      segIdTd.className = "px-4 py-2 text-sm";
+      segIdTd.innerHTML = `
+        <input type="text" placeholder="#" data-key="${log.key}" class="pending-segid-input w-16 px-2 py-1 bg-neutral-800 border border-neutral-700 rounded text-center text-white text-xs font-mono focus:outline-none focus:border-amber-400" />
+      `;
+      row.appendChild(segIdTd);
+
       row.appendChild(
         td(`<span class="font-mono text-amber-400 text-xs">${formatTime(log.timeIn)}</span>`)
       );
 
+      // Cancel button
+      const actionTd = document.createElement("td");
+      actionTd.className = "px-4 py-2 text-sm";
+      actionTd.innerHTML = `<button class="pending-cancel-btn text-neutral-500 hover:text-red-400 transition text-xs flex items-center gap-1" data-key="${log.key}"><span class="material-icons-round text-base">close</span>Cancel</button>`;
+      row.appendChild(actionTd);
+
       pendingBody.appendChild(row);
+    });
+
+    // Attach cancel handlers
+    document.querySelectorAll(".pending-cancel-btn").forEach((btn) => {
+      btn.addEventListener("click", async () => {
+        const key = btn.dataset.key;
+        if (confirm("Cancel this volunteer's time-in?")) {
+          await db.ref(`logs/${todayDate}/${key}`).remove();
+        }
+      });
+    });
+
+    // Attach seg ID save on blur/enter
+    document.querySelectorAll(".pending-segid-input").forEach((input) => {
+      const saveSegId = async () => {
+        const key = input.dataset.key;
+        const val = input.value.trim();
+        if (val) {
+          await db.ref(`logs/${todayDate}/${key}`).update({ numberedId: val });
+        }
+      };
+      input.addEventListener("blur", saveSegId);
+      input.addEventListener("keydown", (e) => { if (e.key === "Enter") { e.preventDefault(); saveSegId(); input.blur(); } });
     });
   } else {
     pendingSection.classList.add("hidden");
@@ -421,3 +459,218 @@ db.ref(logsPath).on(
     console.error("Firebase Read Error:", error);
   }
 );
+
+// =============================
+// Volunteers View
+// =============================
+const monitorView = document.querySelector(".max-w-5xl");
+const volunteersView = document.getElementById("volunteers-view");
+const volTableBody = document.getElementById("vol-table-body");
+const volSearchInput = document.getElementById("vol-search-input");
+const volCountEl = document.getElementById("vol-count");
+const noVolMsg = document.getElementById("no-vol-message");
+const registeredCountEl = document.getElementById("registered-count");
+const qrModal = document.getElementById("qr-modal");
+const qrModalOutput = document.getElementById("qr-modal-output");
+let allVolunteers = [];
+let currentQrTeam = "";
+
+// Toggle views
+document.getElementById("toggle-volunteers-btn").addEventListener("click", () => {
+  monitorView.classList.add("hidden");
+  volunteersView.classList.remove("hidden");
+});
+document.getElementById("back-to-monitor-btn").addEventListener("click", () => {
+  volunteersView.classList.add("hidden");
+  monitorView.classList.remove("hidden");
+});
+
+function vtd(content) {
+  const el = document.createElement("td");
+  el.className = "px-4 py-3 text-sm";
+  el.innerHTML = content;
+  return el;
+}
+
+function renderVolunteers() {
+  const query = (volSearchInput.value || "").toLowerCase().trim();
+  let filtered = allVolunteers;
+  if (query) {
+    filtered = allVolunteers.filter((v) =>
+      `${v.name} ${v.team} ${v.contact} ${v.type} ${v.id}`.toLowerCase().includes(query)
+    );
+  }
+
+  volTableBody.innerHTML = "";
+  volCountEl.textContent = `${allVolunteers.length} total`;
+  registeredCountEl.textContent = allVolunteers.length;
+  noVolMsg.classList.toggle("hidden", filtered.length > 0);
+
+  filtered.forEach((v) => {
+    const row = document.createElement("tr");
+    row.className = "hover:bg-neutral-800 transition duration-150";
+
+    row.appendChild(vtd(`<span class="font-semibold text-white">${v.name}</span>`));
+
+    const typeBadge = v.type === "guest"
+      ? '<span class="text-xs bg-neutral-700 text-neutral-300 px-2 py-0.5 rounded-full">Guest</span>'
+      : '<span class="text-xs bg-neutral-800 text-white px-2 py-0.5 rounded-full">Volunteer</span>';
+    row.appendChild(vtd(typeBadge));
+
+    const segments = v.team
+      ? v.team.split(",").map((s) => `<span class="inline-block text-xs bg-neutral-800 text-neutral-300 px-2 py-0.5 rounded-full mr-1 mb-1">${s.trim()}</span>`).join("")
+      : '<span class="text-neutral-600">—</span>';
+    row.appendChild(vtd(segments));
+
+    row.appendChild(vtd(v.contact ? `<span class="text-neutral-400 font-mono text-xs">${v.contact}</span>` : '<span class="text-neutral-600">—</span>'));
+
+    const qrTd = document.createElement("td");
+    qrTd.className = "px-4 py-3 text-sm";
+    qrTd.innerHTML = `<button class="qr-preview-btn text-neutral-500 hover:text-white transition" data-id="${v.id}" data-name="${v.name}" data-team="${v.team}"><span class="material-icons-round text-xl">qr_code</span></button>`;
+    row.appendChild(qrTd);
+
+    const dlTd = document.createElement("td");
+    dlTd.className = "px-4 py-3 text-sm";
+    dlTd.innerHTML = `<button class="qr-download-btn text-neutral-500 hover:text-white transition" data-id="${v.id}" data-name="${v.name}" data-team="${v.team}"><span class="material-icons-round text-base">download</span></button>`;
+    row.appendChild(dlTd);
+
+    volTableBody.appendChild(row);
+  });
+
+  document.querySelectorAll(".qr-preview-btn").forEach((btn) => {
+    btn.addEventListener("click", () => showQrModal(btn.dataset.id, btn.dataset.name, btn.dataset.team));
+  });
+  document.querySelectorAll(".qr-download-btn").forEach((btn) => {
+    btn.addEventListener("click", () => downloadQr(btn.dataset.id, btn.dataset.name, btn.dataset.team));
+  });
+}
+
+volSearchInput.addEventListener("input", renderVolunteers);
+
+// QR Modal
+function showQrModal(id, name, team) {
+  document.getElementById("qr-modal-name").textContent = name;
+  document.getElementById("qr-modal-id").textContent = id;
+  currentQrTeam = team || "";
+  qrModalOutput.innerHTML = "";
+  new QRCode(qrModalOutput, { text: id, width: 200, height: 200, colorDark: "#000000", colorLight: "#ffffff", correctLevel: QRCode.CorrectLevel.H });
+  qrModal.classList.remove("hidden");
+}
+
+document.getElementById("qr-modal-close").addEventListener("click", () => qrModal.classList.add("hidden"));
+qrModal.addEventListener("click", (e) => { if (e.target === qrModal) qrModal.classList.add("hidden"); });
+
+// Branded QR builder
+function buildBrandedQr(qrCanvas, name, team) {
+  const qrSize = 400;
+  const padding = 40;
+  const headerH = 70;  // CCF branding top
+  const nameH = 50;    // volunteer name
+  const segmentH = team ? 35 : 0;
+  const bottomPad = 30;
+  const totalW = qrSize + padding * 2;
+  const totalH = headerH + nameH + segmentH + qrSize + padding + bottomPad;
+
+  const canvas = document.createElement("canvas");
+  canvas.width = totalW;
+  canvas.height = totalH;
+  const ctx = canvas.getContext("2d");
+
+  // White background
+  ctx.fillStyle = "#ffffff";
+  ctx.fillRect(0, 0, totalW, totalH);
+
+  // Top bar — dark background with CCF branding
+  ctx.fillStyle = "#171717";
+  ctx.fillRect(0, 0, totalW, headerH);
+
+  // CCF logo circle
+  const logoX = totalW / 2 - 70;
+  const logoY = headerH / 2;
+  ctx.fillStyle = "#ffffff";
+  ctx.beginPath();
+  ctx.arc(logoX, logoY, 14, 0, Math.PI * 2);
+  ctx.fill();
+  ctx.fillStyle = "#171717";
+  ctx.font = "bold 11px Inter, sans-serif";
+  ctx.textAlign = "center";
+  ctx.fillText("ccf", logoX, logoY + 4);
+
+  // "Live Production" text
+  ctx.fillStyle = "#ffffff";
+  ctx.font = "bold 18px Inter, sans-serif";
+  ctx.textAlign = "left";
+  ctx.fillText("Live Production", logoX + 22, logoY + 6);
+
+  // Volunteer name (big, centered)
+  let yPos = headerH + 38;
+  ctx.fillStyle = "#171717";
+  ctx.font = "bold 28px Inter, sans-serif";
+  ctx.textAlign = "center";
+  ctx.fillText(name, totalW / 2, yPos);
+  yPos += 8;
+
+  // Segment
+  if (team) {
+    yPos += 24;
+    ctx.fillStyle = "#737373";
+    ctx.font = "15px Inter, sans-serif";
+    ctx.fillText(team, totalW / 2, yPos);
+    yPos += 12;
+  }
+
+  // QR code
+  const qrY = headerH + nameH + segmentH;
+  ctx.drawImage(qrCanvas, padding, qrY, qrSize, qrSize);
+
+  return canvas;
+}
+
+document.getElementById("qr-modal-download").addEventListener("click", () => {
+  const name = document.getElementById("qr-modal-name").textContent;
+  const id = document.getElementById("qr-modal-id").textContent;
+  const tempDiv = document.createElement("div");
+  tempDiv.style.cssText = "position:absolute;left:-9999px";
+  document.body.appendChild(tempDiv);
+  new QRCode(tempDiv, { text: id, width: 400, height: 400, correctLevel: QRCode.CorrectLevel.H });
+  setTimeout(() => {
+    const c = tempDiv.querySelector("canvas");
+    if (c) {
+      const branded = buildBrandedQr(c, name, currentQrTeam);
+      const link = document.createElement("a");
+      link.download = `QR-${name.replace(/\s+/g, "_")}.png`;
+      link.href = branded.toDataURL("image/png");
+      link.click();
+    }
+    document.body.removeChild(tempDiv);
+  }, 300);
+});
+
+function downloadQr(id, name, team) {
+  const tempDiv = document.createElement("div");
+  tempDiv.style.cssText = "position:absolute;left:-9999px";
+  document.body.appendChild(tempDiv);
+  new QRCode(tempDiv, { text: id, width: 400, height: 400, correctLevel: QRCode.CorrectLevel.H });
+  setTimeout(() => {
+    const c = tempDiv.querySelector("canvas");
+    if (c) {
+      const branded = buildBrandedQr(c, name, team || "");
+      const link = document.createElement("a");
+      link.download = `QR-${name.replace(/\s+/g, "_")}.png`;
+      link.href = branded.toDataURL("image/png");
+      link.click();
+    }
+    document.body.removeChild(tempDiv);
+  }, 300);
+}
+
+// Load volunteers
+db.ref("volunteers").on("value", (snapshot) => {
+  const data = snapshot.val() || {};
+  allVolunteers = Object.entries(data).map(([id, v]) => ({
+    id, name: v.name || "—", type: v.type || "volunteer", team: v.team || "", contact: v.contact || "", registeredAt: v.registeredAt || "",
+  }));
+  allVolunteers.sort((a, b) => a.name.localeCompare(b.name));
+  registeredCountEl.textContent = allVolunteers.length;
+  renderVolunteers();
+});
