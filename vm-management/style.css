@@ -5,15 +5,214 @@ body {
     transition: background-color 0.3s ease;
 }
 
+/* =============================
+   Stage transitions
+   ============================= */
+[id^="stage-"]:not(.hidden) {
+    animation: stageEnter 0.35s cubic-bezier(0.4, 0, 0.2, 1) forwards;
+}
+@keyframes stageEnter {
+    from { opacity: 0; transform: translateY(16px); }
+    to   { opacity: 1; transform: translateY(0); }
+}
+
+/* =============================
+   Pill press & select animations
+   ============================= */
+#segment-pills button,
+#role-pills button {
+    transition: background-color 0.2s ease, border-color 0.2s ease, color 0.2s ease, box-shadow 0.2s ease, transform 0.15s ease;
+    transform: scale(1);
+}
+#segment-pills button:active,
+#role-pills button:active {
+    transform: scale(0.95);
+}
+
+/* Give pills breathing room for selection ring */
+#segment-pills,
+#role-pills {
+    padding: 4px;
+}
+
+/* Role pills scroll area */
+.role-pills-scroll {
+    scrollbar-width: thin;
+    scrollbar-color: rgba(0,0,0,0.15) transparent;
+}
+.role-pills-scroll::-webkit-scrollbar {
+    width: 4px;
+}
+.role-pills-scroll::-webkit-scrollbar-thumb {
+    background: rgba(0,0,0,0.15);
+    border-radius: 4px;
+}
+
+/* Segment & role pills staggered fade-in */
+#segment-pills button,
+#role-pills button,
+#segment-pills .divider-anim {
+    opacity: 0;
+    transform: translateY(8px);
+    animation: pillFadeIn 0.35s ease forwards;
+}
+@keyframes pillFadeIn {
+    to { opacity: 1; transform: translateY(0); }
+}
+
+/* Role section slide-in */
+#role-pills-section:not(.hidden) {
+    animation: sectionFadeIn 0.3s ease forwards;
+}
+#segment-pills-section:not(.hidden) {
+    animation: sectionFadeIn 0.3s ease forwards;
+}
+@keyframes sectionFadeIn {
+    from { opacity: 0; transform: translateY(10px); }
+    to   { opacity: 1; transform: translateY(0); }
+}
+
+/* Smooth card height transitions */
+#main-card {
+    transition: height 0.35s cubic-bezier(0.4, 0, 0.2, 1);
+}
+
+/* =============================
+   Button press feedback
+   ============================= */
+button {
+    transition: all 0.15s cubic-bezier(0.4, 0, 0.2, 1);
+}
+button:active:not(:disabled) {
+    transform: scale(0.96);
+}
+
+/* =============================
+   Segment label banner slide-in
+   ============================= */
+#role-pills-section {
+    animation: slideDown 0.3s ease forwards;
+}
+@keyframes slideDown {
+    from { opacity: 0; transform: translateY(-10px); }
+    to   { opacity: 1; transform: translateY(0); }
+}
+
+/* =============================
+   Welcome banner pulse on appear
+   ============================= */
+.bg-green-50 {
+    animation: softPulse 0.6s ease;
+}
+@keyframes softPulse {
+    0%   { opacity: 0; transform: scale(0.95); }
+    50%  { transform: scale(1.02); }
+    100% { opacity: 1; transform: scale(1); }
+}
+
+/* =============================
+   QR code result pop-in
+   ============================= */
+#qr-code-output {
+    animation: popIn 0.4s cubic-bezier(0.34, 1.56, 0.64, 1) forwards;
+}
+@keyframes popIn {
+    from { opacity: 0; transform: scale(0.7); }
+    to   { opacity: 1; transform: scale(1); }
+}
+
+/* Role check icon transition */
+.role-check {
+    transition: opacity 0.2s ease;
+}
+
+/* QR skeleton pulse */
+.skeleton-pulse {
+    animation: skeletonPulse 1.5s ease-in-out infinite;
+}
+@keyframes skeletonPulse {
+    0%, 100% { opacity: 0.3; }
+    50% { opacity: 0.7; }
+}
+
+/* Input shake animation */
+.shake {
+    animation: shake 0.4s ease;
+}
+@keyframes shake {
+    0%, 100% { transform: translateX(0); }
+    20% { transform: translateX(-8px); }
+    40% { transform: translateX(8px); }
+    60% { transform: translateX(-6px); }
+    80% { transform: translateX(4px); }
+}
+
 /* Custom styles for the QR scanner area to ensure proper camera feed display */
 #qr-scanner-area, #vm-qr-scanner-area {
     width: 100%;
     max-width: 400px;
     margin: 0 auto;
-    border: 2px dashed #3490dc; /* blue-600 */
+}
+
+/* Mirror the camera feed for selfie view */
+#qr-scanner-area video {
+    transform: scaleX(-1);
 }
 
 /* Ensure the live monitoring table is scrollable on small screens */
 .table-container {
     overflow-x: auto;
+}
+
+/* Comms table collapse */
+#comms-table-wrapper {
+    max-height: 2000px;
+    opacity: 1;
+    transition: max-height 0.35s ease, opacity 0.25s ease, border-color 0.25s ease;
+    overflow: hidden;
+}
+
+/* Dark scrollbar for monitor */
+.bg-neutral-950 *::-webkit-scrollbar {
+    width: 4px;
+}
+.bg-neutral-950 *::-webkit-scrollbar-track {
+    background: transparent;
+}
+.bg-neutral-950 *::-webkit-scrollbar-thumb {
+    background: #404040;
+    border-radius: 4px;
+}
+.bg-neutral-950 * {
+    scrollbar-width: thin;
+    scrollbar-color: #404040 transparent;
+}
+
+/* =============================
+   Loading overlay — sparkle dots
+   ============================= */
+.sparkle-row {
+    display: flex;
+    gap: 8px;
+    margin-bottom: 4px;
+}
+.sparkle-dot {
+    width: 10px;
+    height: 10px;
+    border-radius: 50%;
+    background: #171717;
+    animation: sparklePulse 1.2s ease-in-out infinite;
+}
+.sparkle-dot:nth-child(2) { animation-delay: 0.3s; }
+.sparkle-dot:nth-child(3) { animation-delay: 0.6s; }
+@keyframes sparklePulse {
+    0%, 100% { opacity: 0.2; transform: scale(0.6); }
+    50% { opacity: 1; transform: scale(1.3); }
+}
+#loading-overlay {
+    transition: opacity 0.25s ease;
+}
+#loading-overlay.hidden {
+    opacity: 0;
+    pointer-events: none;
 }

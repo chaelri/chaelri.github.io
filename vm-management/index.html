@@ -16,23 +16,155 @@
     <script src="https://www.gstatic.com/firebasejs/8.10.0/firebase-storage.js"></script>
     <!-- QR Scanner Library -->
     <script src="https://unpkg.com/html5-qrcode"></script>
+    <!-- QR Code Generator -->
+    <script src="https://cdn.jsdelivr.net/npm/qrcodejs@1.0.0/qrcode.min.js"></script>
+    <!-- Material Icons -->
+    <link href="https://fonts.googleapis.com/icon?family=Material+Icons+Round" rel="stylesheet" />
+    <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700;800;900&display=swap" rel="stylesheet" />
   </head>
-  <body class="bg-gray-100 min-h-screen flex items-center justify-center p-4">
-    <div class="w-full max-w-md bg-white rounded-lg shadow-xl p-6 md:p-8">
-      <h1 class="text-3xl font-bold text-center text-blue-600 mb-6">
-        Volunteer Checkpoint
+  <body class="bg-neutral-950 min-h-screen flex items-center justify-center p-4" style="font-family:'Inter',sans-serif;">
+    <div id="main-card" class="w-full max-w-md bg-white rounded-2xl shadow-2xl p-6 md:p-8 overflow-hidden">
+      <!-- Header with CCF Logo -->
+      <div class="flex items-center justify-center mb-2">
+        <div class="bg-neutral-900 rounded-full w-12 h-12 flex items-center justify-center p-1">
+          <img src="ccf-logo.png" alt="CCF Logo" class="h-9 w-9 object-contain" />
+        </div>
+      </div>
+      <h1 class="text-xl font-bold text-center text-neutral-900 tracking-tight mb-0.5">
+        Live Production
       </h1>
+      <p class="text-xs text-center text-neutral-400 font-medium tracking-wide uppercase mb-3">Volunteer Checkpoint</p>
+      <hr class="border-neutral-200 mb-5 mx-8" />
 
       <!-- Stage 1: QR Scanning -->
       <div id="stage-scan" class="text-center">
-        <p class="text-gray-600 mb-4">
-          Scan your QR Code on the iPad to begin.
+        <p class="text-neutral-500 mb-4 text-sm">
+          Scan your <span class="font-bold text-neutral-700">QR Code</span> to begin.
         </p>
-        <div
-          id="qr-scanner-area"
-          class="w-full h-64 bg-gray-200 rounded-lg overflow-hidden border-2 border-dashed border-blue-400"
-        ></div>
+        <div class="relative w-full h-64 bg-neutral-100 rounded-xl overflow-hidden">
+          <!-- Skeleton loader shown while camera loads -->
+          <div id="qr-skeleton" class="absolute inset-0 flex flex-col items-center justify-center gap-3 z-10">
+            <span class="material-icons-round text-4xl text-neutral-300">qr_code_scanner</span>
+            <div class="sparkle-row">
+              <span class="sparkle-dot"></span>
+              <span class="sparkle-dot"></span>
+              <span class="sparkle-dot"></span>
+            </div>
+            <p class="text-xs text-neutral-400 font-semibold tracking-widest uppercase">Starting camera</p>
+          </div>
+          <div id="qr-scanner-area" class="w-full h-full"></div>
+        </div>
         <p id="scan-message" class="mt-4 text-sm text-red-500 hidden"></p>
+
+        <!-- DEBUG: Test User Button -->
+        <div class="mt-4">
+          <button
+            id="test-user-btn"
+            class="w-full py-2 bg-yellow-400 text-yellow-900 text-xs font-mono font-bold rounded-lg hover:bg-yellow-500 transition duration-150"
+          >
+            [DEBUG] Test User Scan
+          </button>
+        </div>
+
+        <!-- Register / Guest link -->
+        <div class="mt-6 pt-4 border-t border-gray-200">
+          <p class="text-sm text-gray-500 mb-3">No QR code yet?</p>
+          <div class="flex gap-3">
+            <button
+              id="open-register-btn"
+              class="flex-1 py-2 px-3 bg-neutral-900 text-white text-sm font-semibold rounded-lg hover:bg-neutral-700 transition duration-150"
+            >
+              Register Volunteer
+            </button>
+            <button
+              id="open-guest-btn"
+              class="flex-1 py-2 px-3 bg-neutral-200 text-neutral-700 text-sm font-semibold rounded-lg hover:bg-neutral-300 transition duration-150"
+            >
+              Guest Check-in
+            </button>
+          </div>
+        </div>
+      </div>
+
+      <!-- Stage: Register New Volunteer / Guest -->
+      <div id="stage-register" class="hidden">
+        <div class="flex items-center mb-4">
+          <button id="register-back-btn" class="text-neutral-400 hover:text-neutral-700 mr-3">
+            <span class="material-icons-round text-xl">arrow_back</span>
+          </button>
+          <h2 id="register-title" class="text-xl font-bold text-neutral-900">Register Volunteer</h2>
+        </div>
+
+        <form id="register-form" class="space-y-4">
+          <input type="hidden" id="register-type" value="volunteer" />
+
+          <div>
+            <label for="register-name" class="block text-xs uppercase tracking-widest text-neutral-400 font-semibold mb-1">Full Name</label>
+            <input
+              type="text"
+              id="register-name"
+              required
+              placeholder="e.g., Juan Dela Cruz"
+              class="block w-full px-3 py-2.5 border border-neutral-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-neutral-900 focus:border-neutral-900 sm:text-sm"
+            />
+          </div>
+
+          <div id="register-team-group">
+            <label class="block text-xs uppercase tracking-widest text-neutral-400 font-semibold mb-2">Segment</label>
+            <input type="hidden" id="register-team" />
+            <div id="register-segment-pills" class="flex flex-wrap gap-2 justify-center"></div>
+          </div>
+
+          <div id="register-contact-group">
+            <label for="register-contact" class="block text-xs uppercase tracking-widest text-neutral-400 font-semibold mb-1">Contact Number <span class="text-neutral-300">(optional)</span></label>
+            <input
+              type="tel"
+              id="register-contact"
+              placeholder="e.g., 09171234567"
+              class="block w-full px-3 py-2.5 border border-neutral-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-neutral-900 focus:border-neutral-900 sm:text-sm"
+            />
+          </div>
+
+          <button
+            type="submit"
+            id="register-submit-btn"
+            class="w-full py-3 bg-neutral-900 text-white font-bold rounded-lg shadow-md hover:bg-neutral-700 transition duration-150"
+          >
+            Register & Generate QR
+          </button>
+        </form>
+      </div>
+
+      <!-- Stage: QR Code Result -->
+      <div id="stage-qr-result" class="hidden text-center">
+        <div class="mb-4">
+          <span class="material-icons-round text-neutral-800 text-4xl">how_to_reg</span>
+          <h2 id="qr-result-title" class="text-xl font-bold text-neutral-900 mt-2">Registered!</h2>
+          <p id="qr-result-name" class="text-neutral-500 text-sm mt-1"></p>
+        </div>
+
+        <p class="text-xs text-neutral-400 mb-4">Screenshot this QR code for future check-ins</p>
+
+        <div class="flex justify-center mb-4">
+          <div id="qr-code-output" class="inline-block p-4 bg-white border border-neutral-200 rounded-xl"></div>
+        </div>
+
+        <p id="qr-result-id" class="text-xs text-neutral-300 mb-6 font-mono"></p>
+
+        <div class="space-y-3">
+          <button
+            id="qr-proceed-scan-btn"
+            class="w-full py-3 bg-neutral-900 text-white font-bold rounded-lg shadow-md hover:bg-neutral-700 transition duration-150"
+          >
+            Proceed to Scan QR
+          </button>
+          <button
+            id="qr-done-btn"
+            class="w-full py-2 text-xs text-neutral-400 hover:text-neutral-600 transition duration-150"
+          >
+            Back to Scanner
+          </button>
+        </div>
       </div>
 
       <!-- Stage 2: Time Action Selection -->
@@ -66,157 +198,201 @@
 
       <!-- Stage 3: Segment/Role Selection (Time In Flow) -->
       <div id="stage-segment" class="hidden">
-        <h2 class="text-2xl font-semibold mb-4 text-gray-800">
-          Segment Details
-        </h2>
-        <form id="segment-form" class="space-y-4">
-          <div>
-            <label
-              for="segment-select"
-              class="block text-sm font-medium text-gray-700"
-              >Segment / Location (Category)</label
-            >
-            <select
-              id="segment-select"
-              name="segment"
-              required
-              class="mt-1 block w-full pl-3 pr-10 py-2 text-base border-gray-300 focus:outline-none focus:ring-blue-500 focus:border-blue-500 sm:text-sm rounded-md shadow-sm"
-            >
-              <option value="" disabled selected>Select a Segment</option>
-              <option value="Event_Setup">Event Setup</option>
-              <option value="Registration">Registration</option>
-              <option value="Logistics_Support">Logistics Support</option>
-              <option value="Crowd_Control">Crowd Control</option>
-            </select>
+        <div class="mb-4 text-center">
+          <span class="inline-block bg-green-600 text-white text-xs font-bold uppercase tracking-wider px-3 py-1 rounded-full mb-2">Time In</span>
+          <p class="text-xl font-bold text-neutral-900 mt-1">Hi, <span id="segment-volunteer-name"></span>!</p>
+          <p class="text-xs text-neutral-400 mt-1 font-mono"><span id="segment-time-in" class="font-semibold"></span> <span id="segment-date" class="ml-1"></span></p>
+        </div>
+        <form id="segment-form">
+          <input type="hidden" id="selected-segment" name="segment" />
+          <input type="hidden" id="selected-role" name="role" />
+
+          <!-- Segment Pills -->
+          <div id="segment-pills-section">
+            <p class="text-xs uppercase tracking-widest text-neutral-400 font-semibold mb-3">Select Segment</p>
+            <div id="segment-pills" class="flex flex-wrap gap-2 justify-center"></div>
           </div>
-          <div>
-            <label
-              for="service-select"
-              class="block text-sm font-medium text-gray-700"
-              >Specific Service</label
-            >
-            <input
-              type="text"
-              id="service-select"
-              name="service"
-              placeholder="e.g., Bag Claim, Information Desk"
-              required
-              class="mt-1 block w-full px-3 py-2 border border-gray-300 rounded-md shadow-sm focus:outline-none focus:ring-blue-500 focus:border-blue-500 sm:text-sm"
-            />
+
+          <!-- Role Selection (hidden until segment selected) -->
+          <div id="role-pills-section" class="hidden mt-4">
+            <div class="flex items-center justify-between mb-3">
+              <div class="flex items-center gap-2">
+                <span class="text-xs text-neutral-400 uppercase tracking-wide font-medium">Segment:</span>
+                <span id="selected-segment-label" class="text-sm font-bold text-neutral-800"></span>
+              </div>
+              <button type="button" id="change-segment-btn" class="text-xs font-medium text-neutral-500 bg-neutral-100 hover:bg-neutral-200 px-3 py-1 rounded-full transition duration-150">Change</button>
+            </div>
+            <p class="text-xs uppercase tracking-widest text-neutral-400 font-semibold mb-2">Select Role</p>
+            <div id="role-pills" class="flex flex-col gap-1.5 max-h-56 overflow-y-auto pr-1 pb-1 role-pills-scroll"></div>
           </div>
-          <div>
-            <label
-              for="role-select"
-              class="block text-sm font-medium text-gray-700"
-              >Role Type</label
-            >
-            <select
-              id="role-select"
-              name="role"
-              required
-              class="mt-1 block w-full pl-3 pr-10 py-2 text-base border-gray-300 focus:outline-none focus:ring-blue-500 focus:border-blue-500 sm:text-sm rounded-md shadow-sm"
-            >
-              <option value="" disabled selected>Select a Role</option>
-              <option value="Lead">Lead</option>
-              <option value="Support">Support</option>
-              <option value="Trainee">Trainee</option>
-            </select>
-          </div>
+
           <button
             type="submit"
-            class="w-full py-3 bg-blue-600 text-white font-bold rounded-lg shadow-md hover:bg-blue-700 transition duration-150"
+            id="segment-submit-btn"
+            disabled
+            class="mt-4 w-full py-3 bg-neutral-900 text-white font-bold rounded-lg shadow-md hover:bg-neutral-700 transition duration-150 disabled:opacity-30 disabled:cursor-not-allowed"
           >
             Next: Get Comms/ID
           </button>
         </form>
       </div>
 
-      <!-- Stage 4: Comms Assignment & Time In Confirmation -->
-      <div id="stage-comms" class="hidden text-center">
-        <h2 class="text-2xl font-semibold mb-4 text-green-600">
-          Time In Successful!
-        </h2>
-        <p class="text-gray-700 mb-6">
-          Your assignment is now logged. Please receive your corresponding
-          Comms/ID.
-        </p>
-        <div
-          class="bg-blue-50 border-l-4 border-blue-400 p-4 mb-6"
-          role="alert"
-        >
-          <p class="font-bold text-blue-700">Assigned Comms/ID:</p>
-          <p
-            id="assigned-comms-id"
-            class="text-3xl font-extrabold text-blue-900 mt-1"
-          ></p>
+      <!-- Stage 4: Comms/ID Assignment (pre-confirmation) -->
+      <div id="stage-comms" class="hidden">
+        <!-- Name & assignment summary -->
+        <div class="text-center mb-4">
+          <p class="text-base text-neutral-800 font-bold" id="comms-volunteer-name"></p>
+          <div class="flex items-center justify-center gap-2 mt-2 flex-wrap">
+            <span class="inline-flex items-center gap-1 text-xs bg-neutral-100 text-neutral-600 px-2.5 py-0.5 rounded-full font-medium">
+              <span class="material-icons-round text-xs">schedule</span>
+              <span id="comms-time-in" class="font-mono"></span>
+            </span>
+            <span class="inline-flex items-center gap-1 text-xs bg-neutral-100 text-neutral-600 px-2.5 py-0.5 rounded-full font-medium" id="comms-segment-label"></span>
+            <span class="inline-flex items-center gap-1 text-xs bg-neutral-800 text-white px-2.5 py-0.5 rounded-full font-medium" id="comms-role-label"></span>
+          </div>
         </div>
 
-        <p class="text-sm text-gray-500 mb-8">
-          Please confirm receiving the Comms/ID from the Logistics team.
-        </p>
+        <!-- Comms Assignment -->
+        <div id="comms-assignment-block" class="bg-neutral-50 border border-neutral-200 rounded-xl p-5 mb-4 text-center">
+          <p class="text-xs text-neutral-400 font-semibold uppercase tracking-widest mb-1">Your Comms Code</p>
+          <p id="assigned-comms-id" class="text-5xl font-black text-neutral-900 my-1"></p>
+        </div>
+
+        <!-- No comms fallback (hidden by default, shown when no code) -->
+        <div id="comms-none-block" class="hidden"></div>
+
+        <!-- Valid ID Reminder -->
+        <div id="comms-id-reminder" class="bg-neutral-50 border border-neutral-200 rounded-lg p-3 mb-4 flex items-start gap-3">
+          <span class="material-icons-round text-neutral-400 text-xl mt-0.5">info</span>
+          <div>
+            <p class="text-sm font-semibold text-neutral-700">Kindly surrender a Valid ID</p>
+            <p class="text-xs text-neutral-400 mt-0.5">It will be returned when you Time Out. God bless!</p>
+          </div>
+        </div>
+
+        <!-- Numbered ID Input -->
+        <div class="mb-4">
+          <label for="numbered-id-input" class="block text-xs uppercase tracking-widest text-neutral-400 font-semibold mb-1.5">Segment ID Number</label>
+          <input
+            type="text"
+            id="numbered-id-input"
+            required
+            placeholder="e.g., 01, 02, 15"
+            class="block w-full px-3 py-2.5 border border-neutral-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-neutral-900 focus:border-neutral-900 text-center text-lg font-mono"
+          />
+          <p id="numbered-id-error" class="text-xs text-red-500 mt-1 hidden">Please enter the Segment ID Number.</p>
+        </div>
+
         <button
           id="comms-received-btn"
-          class="w-full py-3 bg-purple-600 text-white font-bold rounded-lg shadow-md hover:bg-purple-700 transition duration-150"
+          class="w-full py-3 bg-neutral-900 text-white font-bold rounded-lg shadow-md hover:bg-neutral-700 transition duration-150"
         >
-          I have received the Comms/ID
+          Confirm — I received Comms & ID
+        </button>
+        <button
+          id="comms-go-back-btn"
+          class="w-full mt-2 py-2 text-xs text-neutral-400 hover:text-neutral-600 transition duration-150"
+        >
+          Go back — wrong selection
         </button>
       </div>
 
-      <!-- Stage 5: Time Out Flow (Comms Return) -->
+      <!-- Stage 5: Time Out Flow -->
       <div id="stage-timeout" class="hidden">
-        <h2 class="text-2xl font-semibold mb-4 text-red-600">Time Out Check</h2>
-        <p class="text-gray-700 mb-6">
-          You are clocking out. Please return the following Comms/ID:
-        </p>
-        <div class="bg-red-50 border-l-4 border-red-400 p-4 mb-6" role="alert">
-          <p class="font-bold text-red-700">Required Comms/ID Return:</p>
-          <p
-            id="return-comms-id"
-            class="text-3xl font-extrabold text-red-900 mt-1"
-          ></p>
+        <!-- Header -->
+        <div class="text-center mb-4">
+          <span class="inline-block bg-red-600 text-white text-xs font-bold uppercase tracking-wider px-3 py-1 rounded-full mb-2">Time Out</span>
+          <p class="text-xl font-bold text-neutral-900" id="timeout-volunteer-name"></p>
+          <p class="text-xs text-neutral-400 mt-1 font-mono"><span id="timeout-time" class="font-semibold"></span> <span id="timeout-date" class="ml-1"></span></p>
+          <div class="flex items-center justify-center gap-2 mt-2 flex-wrap">
+            <span class="inline-flex items-center gap-1 text-xs bg-neutral-100 text-neutral-600 px-2.5 py-0.5 rounded-full font-medium" id="timeout-segment-label"></span>
+            <span class="inline-flex items-center gap-1 text-xs bg-neutral-800 text-white px-2.5 py-0.5 rounded-full font-medium" id="timeout-role-label"></span>
+          </div>
         </div>
 
-        <p class="text-sm text-gray-500 mb-4">
-          Select the status of the returned equipment:
-        </p>
-
-        <div class="space-y-4 mb-6">
-          <button
-            id="comms-status-ok-btn"
-            data-status="OK"
-            class="w-full py-3 bg-green-500 text-white font-bold rounded-lg shadow-md hover:bg-green-600 transition duration-150"
-          >
-            Comms OK / No Damage
-          </button>
-          <button
-            id="comms-status-damaged-btn"
-            data-status="DAMAGED"
-            class="w-full py-3 bg-yellow-500 text-white font-bold rounded-lg shadow-md hover:bg-yellow-600 transition duration-150"
-          >
-            Comms DAMAGED (Requires VM Scan)
-          </button>
+        <!-- Comms & Segment ID to return (side by side) -->
+        <div class="flex items-center justify-center gap-3 mb-4">
+          <div id="timeout-comms-block" class="bg-neutral-50 border border-neutral-200 rounded-xl p-4 text-center hidden flex-1">
+            <p class="text-xs text-neutral-400 font-semibold uppercase tracking-widest mb-1">Return Comms</p>
+            <p id="return-comms-id" class="text-3xl font-black text-neutral-900"></p>
+          </div>
+          <div id="timeout-segid-block" class="bg-neutral-50 border border-neutral-200 rounded-xl p-4 text-center hidden flex-1">
+            <p class="text-xs text-neutral-400 font-semibold uppercase tracking-widest mb-1">Return Segment ID</p>
+            <p id="return-seg-id" class="text-3xl font-black text-neutral-900"></p>
+          </div>
         </div>
 
-        <p id="comms-status-message" class="text-sm text-red-500 hidden"></p>
+        <!-- Reminder -->
+        <div class="bg-neutral-50 border border-neutral-200 rounded-lg p-3 mb-5 flex items-start gap-3">
+          <span class="material-icons-round text-neutral-400 text-xl mt-0.5">info</span>
+          <div>
+            <p class="text-sm font-semibold text-neutral-700">Collect your Valid ID</p>
+            <p class="text-xs text-neutral-400 mt-0.5">Thank you for serving. God bless!</p>
+          </div>
+        </div>
 
         <button
           id="final-timeout-btn"
-          class="w-full py-3 bg-red-600 text-white font-bold rounded-lg shadow-md hover:bg-red-700 transition duration-150 hidden"
+          class="w-full py-3 bg-neutral-900 text-white font-bold rounded-lg shadow-md hover:bg-neutral-700 transition duration-150"
         >
-          Confirm Time Out & Comms Return
+          Confirm Time Out
         </button>
       </div>
 
       <!-- Stage 6: Final Confirmation -->
       <div id="stage-final" class="hidden text-center">
-        <h2 class="text-3xl font-bold text-blue-600 mb-4">Thank You!</h2>
-        <p id="final-message" class="text-gray-700 text-lg"></p>
+        <p id="final-type-badge" class="inline-block bg-neutral-900 text-white text-xs font-bold uppercase tracking-wider px-3 py-1 rounded-full mb-3">Timed In</p>
+        <h2 id="final-volunteer-name" class="text-2xl font-bold text-gray-800 mb-1"></h2>
+        <p class="text-xs text-neutral-400 mt-1 mb-4 font-mono"><span id="final-time-label" class="font-semibold"></span> <span id="final-date-label" class="ml-1"></span></p>
+
+        <div class="flex items-center justify-center gap-3 mb-4">
+          <div id="final-comms-block" class="bg-neutral-50 border border-neutral-200 rounded-lg px-4 py-3 inline-block">
+            <p class="text-xs text-neutral-400 font-medium uppercase tracking-wide">Comms</p>
+            <p id="final-comms-code" class="text-2xl font-black text-neutral-900"></p>
+          </div>
+          <div id="final-segid-block" class="bg-neutral-50 border border-neutral-200 rounded-lg px-4 py-3 inline-block hidden">
+            <p class="text-xs text-neutral-400 font-medium uppercase tracking-wide">Segment ID</p>
+            <p id="final-seg-id" class="text-2xl font-black text-neutral-900"></p>
+          </div>
+        </div>
+
+        <p id="final-message" class="text-neutral-400 text-sm mt-2 mb-6 italic"></p>
+
+        <!-- Auto-restart countdown -->
+        <div class="relative w-full mb-3">
+          <div class="w-full h-1 bg-neutral-100 rounded-full overflow-hidden">
+            <div id="final-progress" class="h-full bg-neutral-900 rounded-full" style="width:0%;transition:width 10s linear;"></div>
+          </div>
+          <p id="final-countdown" class="text-xs text-neutral-400 text-center mt-1.5">New scan in <span id="final-seconds">10</span>s</p>
+        </div>
+
         <button
-          onclick="window.location.reload()"
-          class="mt-6 py-2 px-6 bg-blue-500 text-white font-bold rounded-lg hover:bg-blue-600 transition duration-150"
+          id="final-new-scan-btn"
+          class="text-xs text-neutral-400 hover:text-neutral-600 transition duration-150"
         >
-          Start New Scan
+          Start now
         </button>
+      </div>
+    </div>
+
+    <!-- Loading Overlay -->
+    <div id="loading-overlay" class="fixed inset-0 bg-white/90 backdrop-blur-sm z-50 flex items-center justify-center hidden">
+      <div class="flex flex-col items-center gap-4">
+        <div class="bg-neutral-900 rounded-full w-12 h-12 flex items-center justify-center p-1">
+          <img src="ccf-logo.png" alt="CCF" class="h-9 w-9 object-contain" />
+        </div>
+        <div class="text-center">
+          <p class="text-base font-bold text-neutral-900">Live Production</p>
+          <p class="text-xs text-neutral-400 font-medium tracking-wide uppercase">Volunteer Checkpoint</p>
+        </div>
+        <div class="flex flex-col items-center gap-2 mt-2">
+          <div class="sparkle-row">
+            <span class="sparkle-dot"></span>
+            <span class="sparkle-dot"></span>
+            <span class="sparkle-dot"></span>
+          </div>
+          <p id="loading-text" class="text-xs text-neutral-400 font-semibold tracking-widest uppercase">Processing...</p>
+        </div>
       </div>
     </div>
 
