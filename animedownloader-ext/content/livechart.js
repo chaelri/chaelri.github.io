@@ -35,7 +35,7 @@
     btn.onclick = () => {
       const title = h4.innerText.split("\n")[0].trim();
       window.open(
-        `https://animepahe.si/anime?searchFilter=${encodeURIComponent(title)}&episodeNumber=${input.value}&auto=true`
+        `https://animepahe.com/anime?searchFilter=${encodeURIComponent(title)}&episodeNumber=${input.value}&auto=true`
       );
     };
 
@@ -113,7 +113,7 @@
           const description =
             card.querySelector(".anime-synopsis")?.innerText.trim() ||
             "No description available.";
-          const downloadLink = `https://animepahe.si/anime?searchFilter=${encodeURIComponent(title)}&auto=true`;
+          const downloadLink = `https://animepahe.com/anime?searchFilter=${encodeURIComponent(title)}&auto=true`;
 
           return {
             title, rating, genres, thumbnail,

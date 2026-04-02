@@ -6,7 +6,7 @@
   "permissions": ["tabs"],
   "host_permissions": [
     "*://*.livechart.me/*",
-    "*://*.animepahe.si/*",
+    "*://*.animepahe.com/*",
     "*://kwik.cx/*",
     "*://pahe.win/*"
   ],
@@ -24,7 +24,7 @@
       "run_at": "document_idle"
     },
     {
-      "matches": ["*://*.animepahe.si/*"],
+      "matches": ["*://*.animepahe.com/*"],
       "js": ["content/animepahe.js"],
       "run_at": "document_idle"
     },
