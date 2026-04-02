@@ -1103,14 +1103,9 @@ async function toggleVerseChat(key, book, chapter, verse, text, mountEl) {
   if (!window._chatSuggestions) window._chatSuggestions = {};
   if (!window._chatFollowups) window._chatFollowups = {};
 
-  const truncText = text.length > 120 ? text.slice(0, 120) + '…' : text;
 
   mountEl.innerHTML = `
     <div class="verse-chat-wrapper">
-      <div class="verse-chat-context">
-        <span class="verse-chat-ref">${verse}</span>
-        <span class="verse-chat-preview">${truncText}</span>
-      </div>
       <div class="chat-history${hasHistory ? "" : " hidden"}" id="chat-hist-${key}"></div>
       <div id="chat-empty-${key}" class="${hasHistory ? "hidden" : ""}">
         <div class="chat-empty-state">
@@ -1123,8 +1118,7 @@ async function toggleVerseChat(key, book, chapter, verse, text, mountEl) {
       </div>
       <div id="chat-followups-${key}" class="chat-followups" style="display:none"></div>
       <div id="chat-typing-${key}" class="chat-typing" style="display:none">
-        <div class="inline-ai-spinner"></div>
-        <span>Thinking...</span>
+        ${sparkleLoaderHTML('Thinking…')}
       </div>
       <div class="chat-input-area">
         <textarea placeholder="Ask about this verse..." id="chat-input-${key}"></textarea>
@@ -1201,9 +1195,10 @@ RULES:
     const chips = window._chatFollowups[k] || [];
     if (!chips.length) { followupsEl.style.display = 'none'; return; }
     followupsEl.style.display = '';
-    followupsEl.innerHTML = chips.map(q =>
-      `<button class="chat-followup-chip">${q}</button>`
-    ).join('');
+    followupsEl.innerHTML = `<span class="chat-followups-label">Keep exploring</span>` +
+      chips.map(q =>
+        `<button class="chat-followup-chip">${q}</button>`
+      ).join('');
     followupsEl.querySelectorAll('.chat-followup-chip').forEach(chip => {
       chip.onclick = () => {
         const q = chip.textContent;
@@ -1239,14 +1234,15 @@ RULES:
 
       const answer = await callGemini(`You are a Bible study assistant. ${AI_TONE}
 
-CONTEXT: ${book} ${chapter}:${verse} - "${text}"
+CONTEXT (for reference): ${book} ${chapter}:${verse} - "${text}"
 ${historyStr}
 
 RULES:
 - Be very concise (max 3 sentences).
-- Focus on the specific verse context.
+- Answer the question directly and straightforwardly.
+- Only relate your answer to the verse context if the question is clearly about the verse. If the question is general (e.g. about theology, history, a word meaning, or any topic), answer it on its own merits without forcing a verse connection.
 - Stay youth-friendly and encouraging.
-- Do NOT start with greetings like "Hey there!" or "Great question!" — start directly with the answer referencing the verse.
+- Do NOT start with greetings like "Hey there!" or "Great question!" — start directly with the answer.
 - Bold key theological terms using **double asterisks**.
 
 QUESTION: ${question}`);
@@ -1275,18 +1271,23 @@ QUESTION: ${question}`);
 
 function renderChatHistory(key, container) {
   const history = verseChatHistories[key] || [];
-  container.innerHTML = history
-    .map((msg) => {
-      if (msg.role === "user") {
-        return `<div class="chat-msg user">${msg.text}</div>`;
-      }
-      // Render bold text for bot messages
-      const content = msg.text
+  const existing = container.children.length;
+
+  // Only append new messages beyond what's already rendered
+  for (let i = existing; i < history.length; i++) {
+    const msg = history[i];
+    const div = document.createElement('div');
+    if (msg.role === 'user') {
+      div.className = 'chat-msg user chat-msg-new';
+      div.innerHTML = msg.text;
+    } else {
+      div.className = 'chat-msg bot chat-msg-new';
+      div.innerHTML = msg.text
         .replace(/\*\*([^*]+)\*\*/g, '<strong>$1</strong>')
         .replace(/\*([^*]+)\*/g, '<em>$1</em>');
-      return `<div class="chat-msg bot">${content}</div>`;
-    })
-    .join("");
+    }
+    container.appendChild(div);
+  }
   container.scrollTop = container.scrollHeight;
 }
 
