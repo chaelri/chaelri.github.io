@@ -23,9 +23,15 @@ if (!firebase.apps.length) {
 }
 const db = firebase.database();
 
+// Philippine time helper (UTC+8)
+function getPHDate() {
+  return new Date().toLocaleDateString('en-CA', { timeZone: 'Asia/Manila' }); // YYYY-MM-DD
+}
+
 // State variables
 let volunteerId = null;
 let volunteerName = null;
+let volunteerTeam = null; // Registered segments (comma-separated)
 let currentLogKey = null; // Key for the current ongoing time-in log
 let html5QrcodeScanner = null;
 
@@ -248,10 +254,12 @@ async function handleVolunteerScan(id) {
       return;
     }
 
-    volunteerName = volunteerSnapshot.val().name || "Volunteer";
+    const volunteerData = volunteerSnapshot.val();
+    volunteerName = volunteerData.name || "Volunteer";
+    volunteerTeam = volunteerData.team || "";
     document.getElementById("volunteer-name").textContent = volunteerName;
 
-    const date = new Date().toISOString().slice(0, 10); // YYYY-MM-DD
+    const date = getPHDate(); // YYYY-MM-DD in Philippine time
     const logsRef = db.ref(`logs/${date}`);
     const logSnapshot = await logsRef
       .orderByChild("volunteerId")
@@ -308,8 +316,14 @@ async function handleVolunteerScan(id) {
         document.getElementById("timeout-segid-block").classList.add("hidden");
       }
 
+      // Mark as pending time-out in Firebase
+      await db.ref(`logs/${date}/${currentLogKey}`).update({ status: "pending-out" });
+
       hideLoading();
       showStage("timeout");
+
+      // Listen for admin confirmation of time-out
+      startPendingTimeOutListener(date, currentLogKey);
     } else {
       // Not clocked in → auto Time In flow (segment selection)
       console.log("Volunteer not clocked in. Auto-routing to Time In."); // DIAGNOSTIC LOG 4
@@ -323,6 +337,8 @@ async function handleVolunteerScan(id) {
       document.getElementById("segment-pills-section").classList.remove("hidden");
       document.getElementById("role-pills-section").classList.add("hidden");
       renderSegmentPills();
+      // Render volunteer QR code for reference
+      renderSegmentQR(volunteerId);
       hideLoading();
       showStage("segment");
     }
@@ -359,24 +375,22 @@ if (document.getElementById("time-in-btn")) {
  * Handles the Time Out button click: proceeds to Comms return check.
  */
 if (document.getElementById("time-out-btn")) {
-  document.getElementById("time-out-btn").addEventListener("click", () => {
+  document.getElementById("time-out-btn").addEventListener("click", async () => {
     if (currentLogKey) {
-      // Retrieve the comms ID from the active log
-      const date = new Date().toISOString().slice(0, 10);
-      db.ref(`logs/${date}/${currentLogKey}`)
-        .once("value", (snapshot) => {
-          const log = snapshot.val();
-          document.getElementById("return-comms-id").textContent =
-            log.commsId || "N/A";
-          showStage("timeout");
-        })
-        .catch((error) => {
-          console.error("Error retrieving log for time out:", error);
-          alert(
-            "Could not retrieve active log details. Please try scanning again."
-          );
-          startQrScanner();
-        });
+      const date = getPHDate();
+      try {
+        const snapshot = await db.ref(`logs/${date}/${currentLogKey}`).once("value");
+        const log = snapshot.val();
+        document.getElementById("return-comms-id").textContent = log.commsId || "N/A";
+        // Mark as pending time-out
+        await db.ref(`logs/${date}/${currentLogKey}`).update({ status: "pending-out" });
+        showStage("timeout");
+        startPendingTimeOutListener(date, currentLogKey);
+      } catch (error) {
+        console.error("Error retrieving log for time out:", error);
+        alert("Could not retrieve active log details. Please try scanning again.");
+        startQrScanner();
+      }
     }
   });
 }
@@ -525,6 +539,39 @@ const roleToComms = {
 };
 
 // =============================
+// Segment Stage QR Code
+// =============================
+function renderSegmentQR(volId) {
+  const qrOut = document.getElementById("segment-qr-output");
+  const qrContainer = document.getElementById("segment-qr-container");
+  const idLabel = document.getElementById("segment-qr-id-label");
+  const toggleArrow = document.getElementById("qr-toggle-arrow");
+  const toggleText = document.getElementById("qr-toggle-text");
+  // Reset state
+  qrOut.innerHTML = "";
+  qrContainer.classList.add("hidden");
+  toggleArrow.style.transform = "";
+  toggleText.textContent = "Show my QR";
+  // Generate QR
+  new QRCode(qrOut, { text: volId, width: 140, height: 140, colorDark: "#171717", colorLight: "#ffffff", correctLevel: QRCode.CorrectLevel.H });
+  idLabel.textContent = volId;
+}
+
+// Toggle listener for segment QR
+(function() {
+  const btn = document.getElementById("show-my-qr-btn");
+  if (!btn) return;
+  btn.addEventListener("click", () => {
+    const qrContainer = document.getElementById("segment-qr-container");
+    const arrow = document.getElementById("qr-toggle-arrow");
+    const text = document.getElementById("qr-toggle-text");
+    const isHidden = qrContainer.classList.toggle("hidden");
+    arrow.style.transform = isHidden ? "" : "rotate(180deg)";
+    text.textContent = isHidden ? "Show my QR" : "Hide my QR";
+  });
+})();
+
+// =============================
 // Pill-based Segment & Role Picker
 // =============================
 function renderSegmentPills() {
@@ -534,15 +581,31 @@ function renderSegmentPills() {
   const volunteerSegs = Object.keys(segmentRoles).filter((s) => !staffSegments.includes(s));
   const staffSegs = Object.keys(segmentRoles).filter((s) => staffSegments.includes(s));
 
+  // Parse registered segments for hint styling
+  const registeredSegs = volunteerTeam
+    ? volunteerTeam.split(",").map((s) => s.trim().toLowerCase())
+    : [];
+
+  function isRegistered(seg) {
+    return registeredSegs.some((r) => r === seg.toLowerCase() || seg.toLowerCase().includes(r) || r.includes(seg.toLowerCase()));
+  }
+
   let idx = 0;
 
   // Volunteer segments
   volunteerSegs.forEach((seg) => {
     const pill = document.createElement("button");
     pill.type = "button";
-    pill.textContent = seg;
-    pill.className =
-      "px-4 py-2 rounded-full text-sm font-medium border border-neutral-300 bg-white text-neutral-700 hover:bg-neutral-900 hover:text-white hover:border-neutral-900 transition duration-150";
+    const hint = isRegistered(seg);
+    if (hint) {
+      pill.innerHTML = `${seg} <span class="text-[10px] opacity-60 ml-1">★</span>`;
+      pill.className =
+        "px-4 py-2 rounded-full text-sm font-medium border-2 border-neutral-800 bg-neutral-50 text-neutral-900 hover:bg-neutral-900 hover:text-white hover:border-neutral-900 transition duration-150";
+    } else {
+      pill.textContent = seg;
+      pill.className =
+        "px-4 py-2 rounded-full text-sm font-medium border border-neutral-300 bg-white text-neutral-700 hover:bg-neutral-900 hover:text-white hover:border-neutral-900 transition duration-150";
+    }
     pill.style.animationDelay = `${idx * 50}ms`;
     pill.addEventListener("click", () => selectSegment(seg));
     container.appendChild(pill);
@@ -563,9 +626,16 @@ function renderSegmentPills() {
   staffSegs.forEach((seg) => {
     const pill = document.createElement("button");
     pill.type = "button";
-    pill.textContent = seg;
-    pill.className =
-      "px-4 py-2 rounded-full text-sm font-medium border border-neutral-300 bg-neutral-900 text-white hover:bg-neutral-700 transition duration-150";
+    const hint = isRegistered(seg);
+    if (hint) {
+      pill.innerHTML = `${seg} <span class="text-[10px] opacity-60 ml-1">★</span>`;
+      pill.className =
+        "px-4 py-2 rounded-full text-sm font-medium border-2 border-white bg-neutral-900 text-white hover:bg-neutral-700 transition duration-150 ring-2 ring-neutral-400";
+    } else {
+      pill.textContent = seg;
+      pill.className =
+        "px-4 py-2 rounded-full text-sm font-medium border border-neutral-300 bg-neutral-900 text-white hover:bg-neutral-700 transition duration-150";
+    }
     pill.style.animationDelay = `${idx * 50}ms`;
     pill.addEventListener("click", () => selectSegment(seg));
     container.appendChild(pill);
@@ -642,7 +712,7 @@ async function selectSegment(segment) {
   });
 
   // 4. Fetch taken roles in BACKGROUND, then disable them
-  const date = new Date().toISOString().slice(0, 10);
+  const date = getPHDate();
   try {
     const logsSnap = await db.ref(`logs/${date}`).once("value");
     const logs = logsSnap.val();
@@ -753,7 +823,7 @@ if (document.getElementById("segment-form")) {
 
       // Write a PENDING record to Firebase so monitor can see
       const now = new Date().toISOString();
-      const date = now.slice(0, 10);
+      const date = getPHDate();
       const pendingRef = db.ref(`logs/${date}`).push();
       pendingTimeIn.pendingKey = pendingRef.key;
       pendingTimeIn.timestamp = now;
@@ -875,73 +945,46 @@ function startPendingListener() {
 }
 
 /**
- * Handles Comms Status selection during Time Out (Stage 5).
+ * Listen for admin confirmation of pending time-out.
+ * When admin confirms, the log gets timeOut set and status removed.
  */
-let commsStatusOut = null;
-let commsIdToReturn = null;
+let pendingTimeOutListener = null;
 
-/**
- * Handles the final Time Out confirmation (Stage 5 -> Stage 6).
- */
-if (document.getElementById("final-timeout-btn")) {
-  document
-    .getElementById("final-timeout-btn")
-    .addEventListener("click", async () => {
-      if (!currentLogKey) {
-        alert("Error: Missing log. Please re-scan.");
-        startQrScanner();
-        return;
-      }
+function startPendingTimeOutListener(date, logKey) {
+  const ref = db.ref(`logs/${date}/${logKey}`);
 
-      commsStatusOut = "OK";
-      commsIdToReturn = document.getElementById("return-comms-id").textContent;
-      showLoading("Timing out...");
+  // Clean up any previous listener
+  if (pendingTimeOutListener) { pendingTimeOutListener.off(); pendingTimeOutListener = null; }
 
-      try {
-        const now = new Date().toISOString();
-        const date = now.slice(0, 10);
+  pendingTimeOutListener = ref;
+  ref.on("value", (snap) => {
+    const data = snap.val();
+    if (!data) {
+      // Record was deleted — go back to scan
+      ref.off();
+      pendingTimeOutListener = null;
+      showStage("scan");
+      startQrScanner();
+      return;
+    }
+    // Admin confirmed: status is no longer "pending-out" and timeOut is set
+    if (data.status !== "pending-out" && data.timeOut) {
+      ref.off();
+      pendingTimeOutListener = null;
 
-        // 1. Update Log Time Out and Comms Status
-        const logUpdate = {
-          timeOut: now,
-          commsStatusOut: commsStatusOut,
-        };
-        await db.ref(`logs/${date}/${currentLogKey}`).update(logUpdate);
-        console.log(
-          `Time Out logged successfully at path: logs/${date}/${currentLogKey}`
-        ); // DIAGNOSTIC LOG 8
-
-        // 2. Update Comms status
-        if (commsIdToReturn && commsIdToReturn !== "NONE" && commsIdToReturn !== "N/A" && commsIdToReturn !== "ID_NONE") {
-          const commsUpdate = {
-            assignedTo: null,
-            assignedTime: null,
-            status: commsStatusOut === "OK" ? "available" : "damaged", // Mark as damaged if selected
-          };
-          await db.ref(`comms/${commsIdToReturn}`).update(commsUpdate);
-          console.log(
-            `Comms ID ${commsIdToReturn} updated to ${commsUpdate.status}.`
-          ); // DIAGNOSTIC LOG 9
-        }
-
-        // 3. Final UI update
-        document.getElementById("final-type-badge").textContent = "Timed Out";
-        document.getElementById("final-type-badge").className = "inline-block bg-red-600 text-white text-xs font-bold uppercase tracking-wider px-3 py-1 rounded-full mb-3";
-        document.getElementById("final-volunteer-name").textContent = volunteerName;
-        document.getElementById("final-time-label").textContent = new Date().toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' });
-        document.getElementById("final-date-label").textContent = new Date().toLocaleDateString([], { month: 'short', day: 'numeric', year: 'numeric' });
-        document.getElementById("final-comms-block").classList.add("hidden");
-        document.getElementById("final-segid-block").classList.add("hidden");
-        document.getElementById("final-message").textContent = "Thank you for serving the Lord!";
-        hideLoading();
-        showStage("final");
-        startFinalCountdown();
-      } catch (error) {
-        hideLoading();
-        console.error("Time Out/Comms Return Error:", error);
-        alert("An error occurred during Time Out. Please contact admin.");
-      }
-    });
+      // Show final page
+      document.getElementById("final-type-badge").textContent = "Timed Out";
+      document.getElementById("final-type-badge").className = "inline-block bg-red-600 text-white text-xs font-bold uppercase tracking-wider px-3 py-1 rounded-full mb-3";
+      document.getElementById("final-volunteer-name").textContent = volunteerName;
+      document.getElementById("final-time-label").textContent = new Date(data.timeOut).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' });
+      document.getElementById("final-date-label").textContent = new Date(data.timeOut).toLocaleDateString([], { month: 'short', day: 'numeric', year: 'numeric' });
+      document.getElementById("final-comms-block").classList.add("hidden");
+      document.getElementById("final-segid-block").classList.add("hidden");
+      document.getElementById("final-message").textContent = "Thank you for serving the Lord!";
+      showStage("final");
+      startFinalCountdown();
+    }
+  });
 }
 
 /**
@@ -955,43 +998,6 @@ if (document.getElementById("reset-scan-btn")) {
     commsStatusOut = null;
     commsIdToReturn = null;
     startQrScanner();
-  });
-}
-
-// =============================
-// DEBUG: Test User
-// =============================
-if (document.getElementById("test-user-btn")) {
-  document.getElementById("test-user-btn").addEventListener("click", async () => {
-    showLoading("Looking up volunteer...");
-
-    const testId = "VOL-0000000000000-TEST";
-    const testName = "Test Volunteer";
-
-    // Ensure test user exists in Firebase
-    const snap = await db.ref(`volunteers/${testId}`).once("value");
-    if (!snap.exists()) {
-      await db.ref(`volunteers/${testId}`).set({
-        name: testName,
-        type: "volunteer",
-        registeredAt: new Date().toISOString(),
-      });
-    }
-
-    // Stop scanner and simulate scan
-    if (html5QrcodeScanner) {
-      try {
-        const state = html5QrcodeScanner.getState();
-        if (state === Html5QrcodeScannerState.SCANNING || state === Html5QrcodeScannerState.PAUSED) {
-          await html5QrcodeScanner.stop();
-        }
-        await html5QrcodeScanner.clear();
-      } catch (e) {
-        console.log("Failed to stop/clear scanner for test user:", e);
-      }
-    }
-
-    handleVolunteerScan(testId);
   });
 }
 

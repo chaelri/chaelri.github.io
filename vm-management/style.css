@@ -226,3 +226,14 @@ button:active:not(:disabled) {
     opacity: 0;
     pointer-events: none;
 }
+
+/* =============================
+   Segment QR toggle
+   ============================= */
+#segment-qr-container {
+    animation: qrReveal 0.25s ease forwards;
+}
+@keyframes qrReveal {
+    from { opacity: 0; transform: scale(0.95); }
+    to   { opacity: 1; transform: scale(1); }
+}

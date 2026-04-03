@@ -34,13 +34,31 @@ const modal = document.getElementById("comms-modal");
 const modalContent = document.getElementById("comms-modal-content");
 const modalClose = document.getElementById("comms-modal-close");
 
-const todayDate = new Date().toISOString().slice(0, 10);
+const todayDate = new Date().toLocaleDateString('en-CA', { timeZone: 'Asia/Manila' });
 currentDateEl.textContent = new Date().toLocaleDateString([], {
   weekday: "short",
   month: "short",
   day: "numeric",
   year: "numeric",
 });
+
+// =============================
+// Google Sheets Sync
+// =============================
+const SHEETS_API_URL = 'https://script.google.com/macros/s/AKfycby1MQ0l0uJfynqWveFAZDa1Q3HQPbfmLxGX4ux5bvdCHmOtS6JmD-_lvIDvLPjU8-0/exec';
+
+function syncToSheets(payload) {
+  fetch(SHEETS_API_URL, {
+    method: 'POST',
+    headers: { 'Content-Type': 'text/plain;charset=utf-8' },
+    body: JSON.stringify(payload),
+  }).then((res) => {
+    if (res.ok) return res.json();
+    throw new Error('Sheets API error: ' + res.status);
+  }).then((data) => {
+    console.log('Sheets sync result:', data);
+  }).catch((err) => console.warn('Sheets sync failed:', err));
+}
 
 // =============================
 // State
@@ -136,7 +154,8 @@ function renderTable() {
   entries.sort((a, b) => (b.timeIn || "").localeCompare(a.timeIn || ""));
 
   const pendingEntries = entries.filter((l) => !l.timeOut && l.status === "pending");
-  const activeEntries = entries.filter((l) => !l.timeOut && l.status !== "pending");
+  const pendingOutEntries = entries.filter((l) => !l.timeOut && l.status === "pending-out");
+  const activeEntries = entries.filter((l) => !l.timeOut && l.status !== "pending" && l.status !== "pending-out");
   const completedEntries = entries.filter((l) => l.timeOut);
 
   // Counts (from full data, not filtered)
@@ -236,9 +255,9 @@ function renderTable() {
       segIdTd.className = "px-4 py-2 text-sm";
       segIdTd.innerHTML = `
         <div class="flex items-center gap-1">
-          <input type="text" placeholder="#" data-key="${log.key}" class="pending-segid-input w-16 px-2 py-1 bg-neutral-800 border border-neutral-700 rounded text-center text-white text-xs font-mono focus:outline-none focus:border-amber-400" />
-          <button class="pending-confirm-btn flex items-center justify-center w-7 h-7 rounded-lg bg-neutral-700 text-neutral-500 cursor-not-allowed transition duration-150 disabled" disabled data-key="${log.key}" data-comms="${log.commsId || ""}" data-volunteer="${log.volunteerId || ""}" data-time="${log.timeIn || ""}" title="Enter Seg ID first">
-            <span class="material-icons-round text-base">check</span>
+          <input type="text" placeholder="#" data-key="${log.key}" class="pending-segid-input w-16 px-2 py-1.5 bg-neutral-800 border border-neutral-700 rounded text-center text-white text-xs font-mono focus:outline-none focus:border-amber-400" />
+          <button class="pending-confirm-btn flex items-center justify-center w-6 h-6 rounded-md bg-neutral-700 text-neutral-500 cursor-not-allowed transition duration-150 disabled" disabled data-key="${log.key}" data-comms="${log.commsId || ""}" data-volunteer="${log.volunteerId || ""}" data-time="${log.timeIn || ""}" data-name="${log.name || ""}" data-segment="${log.segment || ""}" data-role="${log.role || ""}" title="Enter Seg ID first">
+            <span class="material-icons-round text-sm">check</span>
           </button>
         </div>
       `;
@@ -295,6 +314,20 @@ function renderTable() {
             });
           }
 
+          // 3. Sync to Google Sheets
+          syncToSheets({
+            action: 'timeIn',
+            logKey: key,
+            volunteerId: volunteerId,
+            name: btn.dataset.name,
+            segment: btn.dataset.segment,
+            role: btn.dataset.role,
+            commsId: commsCode || 'NONE',
+            numberedId: numberedId,
+            timeIn: timeIn,
+            date: todayDate,
+          });
+
           showToast("Volunteer timed in successfully", "check_circle", "text-green-400");
         } catch (e) {
           console.error("Confirm error:", e);
@@ -311,10 +344,10 @@ function renderTable() {
         if (confirmBtn) {
           confirmBtn.disabled = !hasValue;
           if (hasValue) {
-            confirmBtn.className = "pending-confirm-btn flex items-center justify-center w-7 h-7 rounded-lg bg-green-600 hover:bg-green-500 text-white transition duration-150";
+            confirmBtn.className = "pending-confirm-btn flex items-center justify-center w-6 h-6 rounded-md bg-green-600 hover:bg-green-500 text-white transition duration-150";
             confirmBtn.title = "Confirm time-in";
           } else {
-            confirmBtn.className = "pending-confirm-btn flex items-center justify-center w-7 h-7 rounded-lg bg-neutral-700 text-neutral-500 cursor-not-allowed transition duration-150";
+            confirmBtn.className = "pending-confirm-btn flex items-center justify-center w-6 h-6 rounded-md bg-neutral-700 text-neutral-500 cursor-not-allowed transition duration-150";
             confirmBtn.title = "Enter Seg ID first";
           }
         }
@@ -328,6 +361,118 @@ function renderTable() {
     });
   } else {
     pendingSection.classList.add("hidden");
+  }
+
+  // Pending Time Out table
+  const pendingOutBody = document.getElementById("pending-out-table-body");
+  const pendingOutSection = document.getElementById("pending-out-section");
+  pendingOutBody.innerHTML = "";
+
+  if (pendingOutEntries.length > 0) {
+    pendingOutSection.classList.remove("hidden");
+    document.getElementById("pending-out-table-count").textContent = `(${pendingOutEntries.length})`;
+
+    pendingOutEntries.forEach((log) => {
+      const row = document.createElement("tr");
+      row.className = "hover:bg-neutral-800 transition duration-150";
+
+      row.appendChild(
+        td(`<div class="flex items-center"><span class="inline-block w-2 h-2 rounded-full bg-red-400 mr-2 animate-pulse"></span><span class="font-semibold text-red-300">${log.name || "—"}</span></div>`)
+      );
+      row.appendChild(
+        td(`<span class="text-neutral-400">${log.segment || "—"}</span><span class="text-neutral-600 mx-1">/</span><span class="text-white font-medium">${log.role || "—"}</span>`)
+      );
+
+      // Return Comms
+      const commsId = log.commsId;
+      if (commsId && commsId !== "NONE") {
+        row.appendChild(td(`<span class="font-mono font-bold text-white bg-neutral-800 px-2 py-0.5 rounded text-xs">${commsId}</span>`));
+      } else {
+        row.appendChild(td('<span class="text-neutral-600">—</span>'));
+      }
+
+      // Return Seg ID
+      row.appendChild(
+        td(log.numberedId ? `<span class="font-mono font-bold text-white">#${log.numberedId}</span>` : '<span class="text-neutral-600">—</span>')
+      );
+
+      // Duration
+      row.appendChild(
+        td(`<span class="font-mono text-red-400 text-xs">${calcDuration(log)}</span>`)
+      );
+
+      // Confirm + Cancel buttons
+      const actionTd = document.createElement("td");
+      actionTd.className = "px-4 py-2 text-sm";
+      actionTd.innerHTML = `
+        <div class="flex items-center gap-2">
+          <button class="pending-out-confirm-btn flex items-center gap-1 px-3 py-1.5 rounded-lg bg-red-600 hover:bg-red-500 text-white text-xs font-semibold transition duration-150" data-key="${log.key}" data-comms="${log.commsId || ""}" data-volunteer="${log.volunteerId || ""}" data-time="${log.timeIn || ""}">
+            <span class="material-icons-round text-sm">check</span>Confirm
+          </button>
+          <button class="pending-out-cancel-btn text-neutral-500 hover:text-neutral-300 transition text-xs" data-key="${log.key}" data-comms="${log.commsId || ""}" title="Cancel time-out request">
+            <span class="material-icons-round text-base">close</span>
+          </button>
+        </div>
+      `;
+      row.appendChild(actionTd);
+
+      pendingOutBody.appendChild(row);
+    });
+
+    // Attach confirm handlers for pending time-out
+    document.querySelectorAll(".pending-out-confirm-btn").forEach((btn) => {
+      btn.addEventListener("click", async () => {
+        const key = btn.dataset.key;
+        const commsCode = btn.dataset.comms;
+
+        try {
+          const now = new Date().toISOString();
+
+          // 1. Update log: set timeOut, remove pending-out status
+          await db.ref(`logs/${todayDate}/${key}`).update({
+            timeOut: now,
+            status: null,
+            commsStatusOut: "OK",
+          });
+
+          // 2. Release comms if applicable
+          if (commsCode && commsCode !== "NONE" && commsCode !== "N/A") {
+            await db.ref(`comms/${commsCode}`).update({
+              assignedTo: null,
+              assignedTime: null,
+              status: "available",
+            });
+          }
+
+          // 3. Sync to Google Sheets
+          syncToSheets({
+            action: 'timeOut',
+            logKey: key,
+            timeOut: now,
+            timeIn: btn.dataset.time,
+          });
+
+          showToast("Volunteer timed out successfully", "check_circle", "text-green-400");
+        } catch (e) {
+          console.error("Confirm time-out error:", e);
+          showToast("Failed to confirm time-out", "error", "text-red-400");
+        }
+      });
+    });
+
+    // Attach cancel handlers for pending time-out
+    document.querySelectorAll(".pending-out-cancel-btn").forEach((btn) => {
+      btn.addEventListener("click", async () => {
+        const key = btn.dataset.key;
+        const confirmed = await showConfirm("Cancel this time-out request? Volunteer will remain active.");
+        if (confirmed) {
+          await db.ref(`logs/${todayDate}/${key}`).update({ status: null });
+          showToast("Time-out request cancelled", "cancel", "text-red-400");
+        }
+      });
+    });
+  } else {
+    pendingOutSection.classList.add("hidden");
   }
 
   // Active table
@@ -398,6 +543,92 @@ function renderTable() {
     btn.addEventListener("click", () => showCommsHistory(btn.dataset.comms));
   });
 }
+
+// =============================
+// Previous Logs (past dates)
+// =============================
+let previousLogsLoaded = false;
+
+function loadPreviousLogs() {
+  if (previousLogsLoaded) return;
+  previousLogsLoaded = true;
+
+  db.ref("logs").once("value", (snapshot) => {
+    const allDates = snapshot.val() || {};
+    renderPreviousLogs(allDates);
+  });
+}
+
+function renderPreviousLogs(allDates) {
+  const section = document.getElementById("previous-logs-section");
+  const body = document.getElementById("previous-logs-body");
+  body.innerHTML = "";
+
+  const entries = [];
+  Object.entries(allDates).forEach(([date, dateLogs]) => {
+    if (date === todayDate) return; // Skip today
+    Object.entries(dateLogs).forEach(([key, log]) => {
+      if (log.status === "pending") return;
+      entries.push({ key, date, ...log });
+    });
+  });
+
+  if (entries.length === 0) {
+    section.classList.add("hidden");
+    return;
+  }
+
+  // Sort by date desc, then timeIn desc
+  entries.sort((a, b) => {
+    if (a.date !== b.date) return b.date.localeCompare(a.date);
+    return (b.timeIn || "").localeCompare(a.timeIn || "");
+  });
+
+  section.classList.remove("hidden");
+  document.getElementById("previous-logs-count").textContent = `(${entries.length})`;
+
+  entries.forEach((log) => {
+    const row = document.createElement("tr");
+    row.className = "hover:bg-neutral-800 transition duration-150 opacity-50 hover:opacity-80";
+
+    row.appendChild(td(`<span class="font-mono text-neutral-400 text-xs">${log.date}</span>`));
+    row.appendChild(td(`<span class="text-neutral-400">${log.name || "—"}</span>`));
+    row.appendChild(
+      td(`<span class="text-neutral-500">${log.segment || "—"}</span><span class="text-neutral-700 mx-1">/</span><span class="text-neutral-400">${log.role || "—"}</span>`)
+    );
+    row.appendChild(commsButton(log.commsId));
+    row.appendChild(td(`<span class="font-mono text-neutral-500 text-xs">${formatTime(log.timeIn)}</span>`));
+    row.appendChild(td(`<span class="font-mono text-neutral-500 text-xs">${formatTime(log.timeOut)}</span>`));
+    row.appendChild(td(`<span class="font-mono text-neutral-500 text-xs">${calcDuration(log)}</span>`));
+
+    // Delete button
+    const actionTd = document.createElement("td");
+    actionTd.className = "px-4 py-3 text-sm";
+    actionTd.innerHTML = `<button class="prev-log-delete-btn text-neutral-600 hover:text-red-400 transition" data-date="${log.date}" data-key="${log.key}" data-name="${log.name || ""}" title="Delete entry"><span class="material-icons-round text-base">delete_outline</span></button>`;
+    row.appendChild(actionTd);
+
+    body.appendChild(row);
+  });
+
+  // Attach delete handlers
+  document.querySelectorAll(".prev-log-delete-btn").forEach((btn) => {
+    btn.addEventListener("click", async () => {
+      const { date, key, name } = btn.dataset;
+      const confirmed = await showConfirm(`Delete log for "${name}" on ${date}?`);
+      if (!confirmed) return;
+      await db.ref(`logs/${date}/${key}`).remove();
+      btn.closest("tr").remove();
+      showToast("Log entry deleted", "delete", "text-red-400");
+      // Update count
+      const remaining = document.querySelectorAll("#previous-logs-body tr").length;
+      document.getElementById("previous-logs-count").textContent = `(${remaining})`;
+      if (remaining === 0) document.getElementById("previous-logs-section").classList.add("hidden");
+    });
+  });
+}
+
+// Load previous logs on page load
+loadPreviousLogs();
 
 // =============================
 // Toast & Confirm Modal
@@ -628,6 +859,12 @@ function renderVolunteers() {
     dlTd.innerHTML = `<button class="qr-download-btn text-neutral-500 hover:text-white transition" data-id="${v.id}" data-name="${v.name}" data-team="${v.team}"><span class="material-icons-round text-base">download</span></button>`;
     row.appendChild(dlTd);
 
+    // Delete button
+    const delTd = document.createElement("td");
+    delTd.className = "px-4 py-3 text-sm";
+    delTd.innerHTML = `<button class="vol-delete-btn text-neutral-700 hover:text-red-400 transition" data-id="${v.id}" data-name="${v.name}" title="Delete volunteer"><span class="material-icons-round text-base">delete_outline</span></button>`;
+    row.appendChild(delTd);
+
     volTableBody.appendChild(row);
   });
 
@@ -636,6 +873,15 @@ function renderVolunteers() {
   });
   document.querySelectorAll(".qr-download-btn").forEach((btn) => {
     btn.addEventListener("click", () => downloadQr(btn.dataset.id, btn.dataset.name, btn.dataset.team));
+  });
+  document.querySelectorAll(".vol-delete-btn").forEach((btn) => {
+    btn.addEventListener("click", async () => {
+      const { id, name } = btn.dataset;
+      const confirmed = await showConfirm(`Delete volunteer "${name}"? This cannot be undone.`);
+      if (!confirmed) return;
+      await db.ref(`volunteers/${id}`).remove();
+      showToast(`"${name}" deleted`, "delete", "text-red-400");
+    });
   });
 }
 
@@ -757,6 +1003,91 @@ function downloadQr(id, name, team) {
     document.body.removeChild(tempDiv);
   }, 300);
 }
+
+// =============================
+// Manual Sync to Google Sheets
+// =============================
+document.getElementById("sync-sheets-btn").addEventListener("click", async () => {
+  const btn = document.getElementById("sync-sheets-btn");
+  const label = document.getElementById("sync-sheets-label");
+  const icon = btn.querySelector(".material-icons-round");
+
+  // Disable button and show syncing state
+  btn.disabled = true;
+  btn.classList.add("opacity-50", "pointer-events-none");
+  label.textContent = "Syncing...";
+  icon.textContent = "hourglass_top";
+  icon.classList.add("animate-spin");
+
+  try {
+    // Read ALL logs from Firebase (all dates)
+    const logsSnap = await db.ref("logs").once("value");
+    const allDates = logsSnap.val() || {};
+    const allLogEntries = [];
+
+    Object.entries(allDates).forEach(([date, dateLogs]) => {
+      Object.entries(dateLogs).forEach(([key, log]) => {
+        // Skip pending entries that haven't been confirmed
+        if (log.status === "pending") return;
+        allLogEntries.push({
+          key,
+          date,
+          volunteerId: log.volunteerId || "",
+          name: log.name || "",
+          segment: log.segment || "",
+          role: log.role || "",
+          commsId: log.commsId || "",
+          numberedId: log.numberedId || "",
+          timeIn: log.timeIn || "",
+          timeOut: log.timeOut || "",
+        });
+      });
+    });
+
+    // Sort by date desc, then timeIn desc
+    allLogEntries.sort((a, b) => {
+      if (a.date !== b.date) return a.date.localeCompare(b.date);
+      return (a.timeIn || "").localeCompare(b.timeIn || "");
+    });
+
+    // Send to Sheets
+    const res = await fetch(SHEETS_API_URL, {
+      method: 'POST',
+      headers: { 'Content-Type': 'text/plain;charset=utf-8' },
+      body: JSON.stringify({ action: 'bulkSync', logs: allLogEntries }),
+    });
+    const result = await res.json();
+    console.log('Bulk sync result:', result);
+
+    // Show success
+    label.textContent = "Synced!";
+    icon.textContent = "check_circle";
+    icon.classList.remove("animate-spin");
+    btn.classList.remove("opacity-50");
+    btn.classList.add("text-green-400", "border-green-900");
+    showToast(`Synced ${result.added || 0} added, ${result.updated || 0} updated`, "sync", "text-green-400");
+
+    setTimeout(() => {
+      label.textContent = "Sync Sheets";
+      icon.textContent = "sync";
+      btn.disabled = false;
+      btn.classList.remove("pointer-events-none", "text-green-400", "border-green-900");
+    }, 3000);
+  } catch (err) {
+    console.error("Sheets sync error:", err);
+    label.textContent = "Sync Failed";
+    icon.textContent = "error";
+    icon.classList.remove("animate-spin");
+    showToast("Failed to sync to Sheets", "error", "text-red-400");
+
+    setTimeout(() => {
+      label.textContent = "Sync Sheets";
+      icon.textContent = "sync";
+      btn.disabled = false;
+      btn.classList.remove("opacity-50", "pointer-events-none");
+    }, 3000);
+  }
+});
 
 // Load volunteers
 db.ref("volunteers").on("value", (snapshot) => {

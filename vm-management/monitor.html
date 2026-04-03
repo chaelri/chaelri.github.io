@@ -69,6 +69,10 @@
         <button id="sort-reset" class="text-xs text-neutral-500 hover:text-white bg-neutral-900 border border-neutral-800 rounded-lg px-3 py-2.5 transition duration-150">
           Reset sort
         </button>
+        <button id="sync-sheets-btn" class="flex items-center gap-1.5 text-xs text-neutral-500 hover:text-green-400 bg-neutral-900 border border-neutral-800 hover:border-green-900 rounded-lg px-3 py-2.5 transition duration-150" title="Sync all data to Google Sheets">
+          <span class="material-icons-round text-sm">sync</span>
+          <span id="sync-sheets-label">Sync Sheets</span>
+        </button>
       </div>
 
       <!-- Pending Table -->
@@ -92,6 +96,32 @@
                 </tr>
               </thead>
               <tbody id="pending-table-body" class="divide-y divide-neutral-800/50"></tbody>
+            </table>
+          </div>
+        </div>
+      </div>
+
+      <!-- Pending Time Out Table -->
+      <div id="pending-out-section" class="mb-6 hidden">
+        <div class="flex items-center gap-2 mb-3">
+          <span class="w-2.5 h-2.5 rounded-full bg-red-400 animate-pulse"></span>
+          <h2 class="text-sm font-bold text-red-400 uppercase tracking-widest">Pending Time Out</h2>
+          <span id="pending-out-table-count" class="text-xs text-neutral-500 font-mono"></span>
+        </div>
+        <div class="bg-neutral-900 border border-red-900/30 rounded-xl overflow-hidden">
+          <div class="overflow-x-auto">
+            <table class="min-w-full">
+              <thead>
+                <tr class="border-b border-neutral-800">
+                  <th class="px-4 py-2.5 text-left text-xs font-semibold text-neutral-500 uppercase tracking-wider">Volunteer</th>
+                  <th class="px-4 py-2.5 text-left text-xs font-semibold text-neutral-500 uppercase tracking-wider">Segment / Role</th>
+                  <th class="px-4 py-2.5 text-left text-xs font-semibold text-neutral-500 uppercase tracking-wider">Return Comms</th>
+                  <th class="px-4 py-2.5 text-left text-xs font-semibold text-neutral-500 uppercase tracking-wider">Return Seg ID</th>
+                  <th class="px-4 py-2.5 text-left text-xs font-semibold text-neutral-500 uppercase tracking-wider">Duration</th>
+                  <th class="px-4 py-2.5 text-left text-xs font-semibold text-neutral-500 uppercase tracking-wider"></th>
+                </tr>
+              </thead>
+              <tbody id="pending-out-table-body" class="divide-y divide-neutral-800/50"></tbody>
             </table>
           </div>
         </div>
@@ -181,6 +211,34 @@
         </div>
       </div>
 
+      <!-- Previous Logs (past dates) -->
+      <div id="previous-logs-section" class="mt-8 hidden">
+        <div class="flex items-center gap-2 mb-3">
+          <span class="material-icons-round text-neutral-600 text-sm">history</span>
+          <h2 class="text-sm font-bold text-neutral-600 uppercase tracking-widest">Previous Logs</h2>
+          <span id="previous-logs-count" class="text-xs text-neutral-600 font-mono"></span>
+        </div>
+        <div class="bg-neutral-900 border border-neutral-800 rounded-xl overflow-hidden">
+          <div class="overflow-x-auto">
+            <table class="min-w-full">
+              <thead>
+                <tr class="border-b border-neutral-800">
+                  <th class="px-4 py-3 text-left text-xs font-semibold text-neutral-500 uppercase tracking-wider">Date</th>
+                  <th class="px-4 py-3 text-left text-xs font-semibold text-neutral-500 uppercase tracking-wider">Volunteer</th>
+                  <th class="px-4 py-3 text-left text-xs font-semibold text-neutral-500 uppercase tracking-wider">Segment / Role</th>
+                  <th class="px-4 py-3 text-left text-xs font-semibold text-neutral-500 uppercase tracking-wider">Comms</th>
+                  <th class="px-4 py-3 text-left text-xs font-semibold text-neutral-500 uppercase tracking-wider">Time In</th>
+                  <th class="px-4 py-3 text-left text-xs font-semibold text-neutral-500 uppercase tracking-wider">Time Out</th>
+                  <th class="px-4 py-3 text-left text-xs font-semibold text-neutral-500 uppercase tracking-wider">Duration</th>
+                  <th class="px-4 py-3 text-left text-xs font-semibold text-neutral-500 uppercase tracking-wider"></th>
+                </tr>
+              </thead>
+              <tbody id="previous-logs-body" class="divide-y divide-neutral-800/50"></tbody>
+            </table>
+          </div>
+        </div>
+      </div>
+
       <div id="no-logs-message" class="text-center py-12 text-neutral-600 hidden">
         <span class="material-icons-round text-4xl text-neutral-700 mb-2 block">inbox</span>
         <p class="text-sm">No volunteer activity recorded for today.</p>
@@ -222,6 +280,7 @@
                 <th class="px-4 py-3 text-left text-xs font-semibold text-neutral-500 uppercase tracking-wider">Segments</th>
                 <th class="px-4 py-3 text-left text-xs font-semibold text-neutral-500 uppercase tracking-wider">Contact</th>
                 <th class="px-4 py-3 text-left text-xs font-semibold text-neutral-500 uppercase tracking-wider">QR</th>
+                <th class="px-4 py-3 text-left text-xs font-semibold text-neutral-500 uppercase tracking-wider"></th>
                 <th class="px-4 py-3 text-left text-xs font-semibold text-neutral-500 uppercase tracking-wider"></th>
               </tr>
             </thead>
