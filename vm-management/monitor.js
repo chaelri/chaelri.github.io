@@ -42,6 +42,14 @@ currentDateEl.textContent = new Date().toLocaleDateString([], {
   year: "numeric",
 });
 
+// Live clock
+const currentTimeEl = document.getElementById("current-time");
+function updateClock() {
+  currentTimeEl.textContent = new Date().toLocaleTimeString([], { hour: '2-digit', minute: '2-digit', second: '2-digit' });
+}
+updateClock();
+setInterval(updateClock, 1000);
+
 // =============================
 // Google Sheets Sync
 // =============================
@@ -179,11 +187,11 @@ function renderTable() {
   const commsBody = document.getElementById("comms-table-body");
   commsBody.innerHTML = "";
 
-  // Build a map: commsId -> active log
+  // Build a map: commsId -> active log (with key)
   const activeCommsMap = {};
-  Object.values(allLogs).forEach((log) => {
+  Object.entries(allLogs).forEach(([key, log]) => {
     if (!log.timeOut && log.commsId && log.commsId !== "NONE") {
-      activeCommsMap[log.commsId] = log;
+      activeCommsMap[log.commsId] = { ...log, key };
     }
   });
 
@@ -226,6 +234,16 @@ function renderTable() {
       row.appendChild(td('<span class="text-neutral-700">—</span>'));
     }
 
+    // Force time-out button
+    if (isActive) {
+      const actionTd = document.createElement("td");
+      actionTd.className = "px-4 py-2.5 text-sm";
+      actionTd.innerHTML = `<button class="force-timeout-btn text-neutral-600 hover:text-red-400 transition text-xs flex items-center gap-1" data-key="${activeLo.key}" data-comms="${comms.code}" data-name="${activeLo.name || ""}" data-time="${activeLo.timeIn || ""}"><span class="material-icons-round text-sm">logout</span></button>`;
+      row.appendChild(actionTd);
+    } else {
+      row.appendChild(td(''));
+    }
+
     commsBody.appendChild(row);
   });
 
@@ -246,7 +264,7 @@ function renderTable() {
         td(`<div class="flex items-center"><span class="inline-block w-2 h-2 rounded-full bg-amber-400 mr-2 animate-pulse"></span><span class="font-semibold text-amber-300">${log.name || "—"}</span></div>`)
       );
       row.appendChild(
-        td(`<span class="text-neutral-400">${log.segment || "—"}</span><span class="text-neutral-600 mx-1">/</span><span class="text-white font-medium">${log.role || "—"}</span>`)
+        td(`<span class="text-neutral-500 text-xs">${log.segment || "—"}</span><br/><span class="text-white font-medium">${log.role || "—"}</span>`)
       );
       row.appendChild(commsButton(log.commsId));
 
@@ -262,6 +280,16 @@ function renderTable() {
         </div>
       `;
       row.appendChild(segIdTd);
+
+      // No ID toggle
+      const noIdTd = document.createElement("td");
+      noIdTd.className = "px-4 py-2 text-sm text-center";
+      noIdTd.innerHTML = `
+        <button class="pending-noid-toggle group flex items-center gap-1.5 px-2.5 py-1 rounded-full border transition duration-150 border-green-500 bg-green-500/20 text-green-400" data-key="${log.key}" data-checked="false" title="Toggle: No valid ID">
+          <span class="material-icons-round text-xs noid-icon">verified</span>
+          <span class="text-[10px] font-semibold uppercase tracking-wide noid-label">Has ID</span>
+        </button>`;
+      row.appendChild(noIdTd);
 
       row.appendChild(
         td(`<span class="font-mono text-amber-400 text-xs">${formatTime(log.timeIn)}</span>`)
@@ -298,10 +326,15 @@ function renderTable() {
         const segIdInput = btn.closest("div").querySelector(".pending-segid-input");
         const numberedId = segIdInput ? segIdInput.value.trim() : "";
 
+        // Check if "No ID" toggle is active for this entry
+        const noIdToggle = document.querySelector(`.pending-noid-toggle[data-key="${key}"]`);
+        const noId = noIdToggle ? noIdToggle.dataset.checked === "true" : false;
+
         try {
           // 1. Upgrade pending record to confirmed
           await db.ref(`logs/${todayDate}/${key}`).update({
             numberedId: numberedId || null,
+            noId: noId || null,
             status: null, // Remove pending flag — now confirmed
           });
 
@@ -359,6 +392,27 @@ function renderTable() {
         }
       });
     });
+
+    // No ID toggle handlers
+    document.querySelectorAll(".pending-noid-toggle").forEach((btn) => {
+      btn.addEventListener("click", () => {
+        const isChecked = btn.dataset.checked === "true";
+        btn.dataset.checked = isChecked ? "false" : "true";
+        const icon = btn.querySelector(".noid-icon");
+        const label = btn.querySelector(".noid-label");
+        if (!isChecked) {
+          // Toggled to "No ID"
+          btn.className = "pending-noid-toggle group flex items-center gap-1.5 px-2.5 py-1 rounded-full border transition duration-150 border-amber-500 bg-amber-500/20 text-amber-400";
+          label.textContent = "No ID";
+          icon.textContent = "warning";
+        } else {
+          // Toggled back to "Has ID"
+          btn.className = "pending-noid-toggle group flex items-center gap-1.5 px-2.5 py-1 rounded-full border transition duration-150 border-green-500 bg-green-500/20 text-green-400";
+          label.textContent = "Has ID";
+          icon.textContent = "verified";
+        }
+      });
+    });
   } else {
     pendingSection.classList.add("hidden");
   }
@@ -380,7 +434,7 @@ function renderTable() {
         td(`<div class="flex items-center"><span class="inline-block w-2 h-2 rounded-full bg-red-400 mr-2 animate-pulse"></span><span class="font-semibold text-red-300">${log.name || "—"}</span></div>`)
       );
       row.appendChild(
-        td(`<span class="text-neutral-400">${log.segment || "—"}</span><span class="text-neutral-600 mx-1">/</span><span class="text-white font-medium">${log.role || "—"}</span>`)
+        td(`<span class="text-neutral-500 text-xs">${log.segment || "—"}</span><br/><span class="text-white font-medium">${log.role || "—"}</span>`)
       );
 
       // Return Comms
@@ -489,18 +543,35 @@ function renderTable() {
       td(`<div class="flex items-center"><span class="inline-block w-2 h-2 rounded-full bg-green-400 mr-2 animate-pulse"></span><span class="font-semibold text-white">${log.name || "—"}</span></div>`)
     );
     row.appendChild(
-      td(`<span class="text-neutral-400">${log.segment || "—"}</span><span class="text-neutral-600 mx-1">/</span><span class="text-white font-medium">${log.role || "—"}</span>`)
+      td(`<span class="text-neutral-500 text-xs">${log.segment || "—"}</span><br/><span class="text-white font-medium">${log.role || "—"}</span>`)
     );
     row.appendChild(commsButton(log.commsId));
     row.appendChild(
       td(log.numberedId ? `<span class="font-mono font-bold text-white">#${log.numberedId}</span>` : '<span class="text-neutral-600">—</span>')
     );
+
+    // ID status
+    const idStatusTd = document.createElement("td");
+    idStatusTd.className = "px-4 py-3 text-sm text-center";
+    if (log.noId) {
+      idStatusTd.innerHTML = `<span class="inline-flex items-center gap-1 px-2 py-0.5 rounded-full bg-amber-500/15 text-amber-400 text-[10px] font-semibold uppercase tracking-wide"><span class="material-icons-round text-xs">warning</span>No ID</span>`;
+    } else {
+      idStatusTd.innerHTML = `<span class="inline-flex items-center gap-1 px-2 py-0.5 rounded-full bg-green-500/15 text-green-400 text-[10px] font-semibold uppercase tracking-wide"><span class="material-icons-round text-xs">verified</span>OK</span>`;
+    }
+    row.appendChild(idStatusTd);
+
     row.appendChild(
       td(`<span class="font-mono text-green-400">${formatTime(log.timeIn)}</span>`)
     );
     row.appendChild(
       td(`<span class="font-mono text-neutral-400">${calcDuration(log)}</span>`)
     );
+
+    // Force time-out button
+    const actionTd = document.createElement("td");
+    actionTd.className = "px-4 py-3 text-sm";
+    actionTd.innerHTML = `<button class="force-timeout-btn text-neutral-600 hover:text-red-400 transition text-xs flex items-center gap-1" data-key="${log.key}" data-comms="${log.commsId || ""}" data-name="${log.name || ""}" data-time="${log.timeIn || ""}"><span class="material-icons-round text-sm">logout</span>Time out</button>`;
+    row.appendChild(actionTd);
 
     activeBody.appendChild(row);
   });
@@ -519,7 +590,7 @@ function renderTable() {
       td(`<div class="flex items-center"><span class="inline-block w-2 h-2 rounded-full bg-neutral-600 mr-2"></span><span class="font-medium text-neutral-400">${log.name || "—"}</span></div>`)
     );
     row.appendChild(
-      td(`<span class="text-neutral-500">${log.segment || "—"}</span><span class="text-neutral-700 mx-1">/</span><span class="text-neutral-400">${log.role || "—"}</span>`)
+      td(`<span class="text-neutral-600 text-xs">${log.segment || "—"}</span><br/><span class="text-neutral-400">${log.role || "—"}</span>`)
     );
     row.appendChild(commsButton(log.commsId));
     row.appendChild(
@@ -535,12 +606,58 @@ function renderTable() {
       td(`<span class="font-mono text-neutral-500">${calcDuration(log)}</span>`)
     );
 
+    // Delete button
+    const delTd = document.createElement("td");
+    delTd.className = "px-4 py-3 text-sm";
+    delTd.innerHTML = `<button class="completed-delete-btn text-neutral-700 hover:text-red-400 transition" data-key="${log.key}" data-name="${log.name || ""}" title="Delete entry"><span class="material-icons-round text-base">delete_outline</span></button>`;
+    row.appendChild(delTd);
+
     completedBody.appendChild(row);
   });
 
   // Attach comms history click handlers
   document.querySelectorAll(".comms-history-btn").forEach((btn) => {
     btn.addEventListener("click", () => showCommsHistory(btn.dataset.comms));
+  });
+
+  // Attach force time-out handlers (comms overview + active table)
+  document.querySelectorAll(".force-timeout-btn").forEach((btn) => {
+    btn.addEventListener("click", async () => {
+      const { key, comms, name, time } = btn.dataset;
+      const confirmed = await showConfirm(`Force time-out for "${name}"?`);
+      if (!confirmed) return;
+
+      const now = new Date().toISOString();
+      await db.ref(`logs/${todayDate}/${key}`).update({
+        timeOut: now,
+        status: null,
+        commsStatusOut: "OK",
+      });
+
+      if (comms && comms !== "NONE" && comms !== "N/A") {
+        await db.ref(`comms/${comms}`).update({
+          assignedTo: null,
+          assignedTime: null,
+          status: "available",
+        });
+      }
+
+      // Sync to Sheets
+      syncToSheets({ action: 'timeOut', logKey: key, timeOut: now, timeIn: time });
+
+      showToast(`"${name}" timed out`, "logout", "text-red-400");
+    });
+  });
+
+  // Attach completed log delete handlers
+  document.querySelectorAll(".completed-delete-btn").forEach((btn) => {
+    btn.addEventListener("click", async () => {
+      const { key, name } = btn.dataset;
+      const confirmed = await showConfirm(`Delete completed log for "${name}"?`);
+      if (!confirmed) return;
+      await db.ref(`logs/${todayDate}/${key}`).remove();
+      showToast("Log entry deleted", "delete", "text-red-400");
+    });
   });
 }
 
@@ -594,7 +711,7 @@ function renderPreviousLogs(allDates) {
     row.appendChild(td(`<span class="font-mono text-neutral-400 text-xs">${log.date}</span>`));
     row.appendChild(td(`<span class="text-neutral-400">${log.name || "—"}</span>`));
     row.appendChild(
-      td(`<span class="text-neutral-500">${log.segment || "—"}</span><span class="text-neutral-700 mx-1">/</span><span class="text-neutral-400">${log.role || "—"}</span>`)
+      td(`<span class="text-neutral-600 text-xs">${log.segment || "—"}</span><br/><span class="text-neutral-400">${log.role || "—"}</span>`)
     );
     row.appendChild(commsButton(log.commsId));
     row.appendChild(td(`<span class="font-mono text-neutral-500 text-xs">${formatTime(log.timeIn)}</span>`));
@@ -820,16 +937,40 @@ function vtd(content) {
 function renderVolunteers() {
   const query = (volSearchInput.value || "").toLowerCase().trim();
   let filtered = allVolunteers;
+
+  // Text search
   if (query) {
-    filtered = allVolunteers.filter((v) =>
+    filtered = filtered.filter((v) =>
       `${v.name} ${v.team} ${v.contact} ${v.type} ${v.id}`.toLowerCase().includes(query)
     );
   }
 
+  // Apply pill filters
+  if (activeVolFilters.size > 0) {
+    const typeFilters = [...activeVolFilters].filter(f => f.startsWith("type:")).map(f => f.slice(5));
+    const segFilters = [...activeVolFilters].filter(f => f.startsWith("seg:")).map(f => f.slice(4));
+
+    filtered = filtered.filter((v) => {
+      const typeMatch = typeFilters.length === 0 || typeFilters.includes(v.type);
+      const volSegs = v.team ? v.team.split(",").map(s => s.trim()) : [];
+      const segMatch = segFilters.length === 0 || segFilters.some(sf => volSegs.includes(sf));
+      return typeMatch && segMatch;
+    });
+  }
+
   volTableBody.innerHTML = "";
-  volCountEl.textContent = `${allVolunteers.length} total`;
+  const showingFiltered = activeVolFilters.size > 0 || query;
+  volCountEl.textContent = showingFiltered
+    ? `${filtered.length} of ${allVolunteers.length} shown`
+    : `${allVolunteers.length} total`;
   registeredCountEl.textContent = allVolunteers.length;
   noVolMsg.classList.toggle("hidden", filtered.length > 0);
+
+  // Build set of volunteer IDs with active duty (no timeOut, not pending)
+  const activeVolIds = new Set();
+  Object.values(allLogs).forEach((log) => {
+    if (!log.timeOut && log.volunteerId) activeVolIds.add(log.volunteerId);
+  });
 
   filtered.forEach((v) => {
     const row = document.createElement("tr");
@@ -859,10 +1000,21 @@ function renderVolunteers() {
     dlTd.innerHTML = `<button class="qr-download-btn text-neutral-500 hover:text-white transition" data-id="${v.id}" data-name="${v.name}" data-team="${v.team}"><span class="material-icons-round text-base">download</span></button>`;
     row.appendChild(dlTd);
 
-    // Delete button
+    // Edit button
+    const editTd = document.createElement("td");
+    editTd.className = "px-4 py-3 text-sm";
+    editTd.innerHTML = `<button class="vol-edit-btn text-neutral-700 hover:text-white transition" data-id="${v.id}" title="Edit volunteer"><span class="material-icons-round text-base">edit</span></button>`;
+    row.appendChild(editTd);
+
+    // Delete button (disabled if on active duty)
     const delTd = document.createElement("td");
     delTd.className = "px-4 py-3 text-sm";
-    delTd.innerHTML = `<button class="vol-delete-btn text-neutral-700 hover:text-red-400 transition" data-id="${v.id}" data-name="${v.name}" title="Delete volunteer"><span class="material-icons-round text-base">delete_outline</span></button>`;
+    const isOnDuty = activeVolIds.has(v.id);
+    if (isOnDuty) {
+      delTd.innerHTML = `<span class="text-neutral-800 cursor-not-allowed" title="Currently on active duty"><span class="material-icons-round text-base">lock</span></span>`;
+    } else {
+      delTd.innerHTML = `<button class="vol-delete-btn text-neutral-700 hover:text-red-400 transition" data-id="${v.id}" data-name="${v.name}" title="Delete volunteer"><span class="material-icons-round text-base">delete_outline</span></button>`;
+    }
     row.appendChild(delTd);
 
     volTableBody.appendChild(row);
@@ -883,9 +1035,173 @@ function renderVolunteers() {
       showToast(`"${name}" deleted`, "delete", "text-red-400");
     });
   });
+  document.querySelectorAll(".vol-edit-btn").forEach((btn) => {
+    btn.addEventListener("click", () => {
+      const vol = allVolunteers.find((v) => v.id === btn.dataset.id);
+      if (vol) openEditModal(vol);
+    });
+  });
 }
 
 volSearchInput.addEventListener("input", renderVolunteers);
+
+// =============================
+// Volunteer Filter Pills
+// =============================
+const volFilterSegments = ["Audio", "Lights", "Camera", "Stage", "Graphics", "Volunteer Management", "Guest", "Live Prod Crew", "Comms"];
+const volFilterTypes = ["Volunteer", "Guest"];
+let activeVolFilters = new Set();
+
+function renderVolFilterPills() {
+  const container = document.getElementById("vol-filter-pills");
+  container.innerHTML = "";
+
+  // "All" pill
+  const allPill = document.createElement("button");
+  allPill.textContent = "All";
+  allPill.className = activeVolFilters.size === 0
+    ? "px-3 py-1 rounded-full text-xs font-semibold bg-white text-neutral-900 transition"
+    : "px-3 py-1 rounded-full text-xs font-semibold bg-neutral-800 text-neutral-500 hover:text-white border border-neutral-700 transition";
+  allPill.addEventListener("click", () => {
+    activeVolFilters.clear();
+    renderVolFilterPills();
+    renderVolunteers();
+  });
+  container.appendChild(allPill);
+
+  // Type pills
+  volFilterTypes.forEach((type) => {
+    const pill = document.createElement("button");
+    pill.textContent = type;
+    const isActive = activeVolFilters.has("type:" + type.toLowerCase());
+    pill.className = isActive
+      ? "px-3 py-1 rounded-full text-xs font-semibold bg-white text-neutral-900 transition"
+      : "px-3 py-1 rounded-full text-xs font-semibold bg-neutral-800 text-neutral-400 border border-neutral-700 hover:border-neutral-500 transition";
+    pill.addEventListener("click", () => {
+      const key = "type:" + type.toLowerCase();
+      if (activeVolFilters.has(key)) activeVolFilters.delete(key);
+      else activeVolFilters.add(key);
+      renderVolFilterPills();
+      renderVolunteers();
+    });
+    container.appendChild(pill);
+  });
+
+  // Separator
+  const sep = document.createElement("span");
+  sep.className = "w-px h-5 bg-neutral-700 self-center mx-1";
+  container.appendChild(sep);
+
+  // Segment pills
+  volFilterSegments.forEach((seg) => {
+    const pill = document.createElement("button");
+    pill.textContent = seg;
+    const isActive = activeVolFilters.has("seg:" + seg);
+    pill.className = isActive
+      ? "px-3 py-1 rounded-full text-xs font-semibold bg-white text-neutral-900 transition"
+      : "px-3 py-1 rounded-full text-xs font-semibold bg-neutral-800 text-neutral-400 border border-neutral-700 hover:border-neutral-500 transition";
+    pill.addEventListener("click", () => {
+      const key = "seg:" + seg;
+      if (activeVolFilters.has(key)) activeVolFilters.delete(key);
+      else activeVolFilters.add(key);
+      renderVolFilterPills();
+      renderVolunteers();
+    });
+    container.appendChild(pill);
+  });
+}
+
+renderVolFilterPills();
+
+// =============================
+// Edit Volunteer Modal
+// =============================
+const editSegmentsList = ["Audio", "Lights", "Camera", "Stage", "Graphics", "Volunteer Management", "Guest", "Live Prod Crew", "Comms"];
+const editModal = document.getElementById("edit-vol-modal");
+let editSelectedType = "volunteer";
+let editSelectedSegments = new Set();
+
+function openEditModal(vol) {
+  document.getElementById("edit-vol-id").value = vol.id;
+  document.getElementById("edit-vol-name").value = vol.name;
+  document.getElementById("edit-vol-contact").value = vol.contact || "";
+
+  // Type toggle
+  editSelectedType = vol.type || "volunteer";
+  updateTypeButtons();
+
+  // Segments
+  editSelectedSegments = new Set(
+    vol.team ? vol.team.split(",").map((s) => s.trim()).filter(Boolean) : []
+  );
+  renderEditSegments();
+
+  editModal.classList.remove("hidden");
+}
+
+function updateTypeButtons() {
+  document.querySelectorAll(".edit-type-btn").forEach((btn) => {
+    if (btn.dataset.type === editSelectedType) {
+      btn.className = "edit-type-btn flex-1 py-2 text-sm font-semibold rounded-lg border border-white bg-white text-neutral-900 transition";
+    } else {
+      btn.className = "edit-type-btn flex-1 py-2 text-sm font-semibold rounded-lg border border-neutral-700 bg-neutral-800 text-neutral-400 hover:border-neutral-500 transition";
+    }
+  });
+}
+
+function renderEditSegments() {
+  const container = document.getElementById("edit-vol-segments");
+  container.innerHTML = "";
+  editSegmentsList.forEach((seg) => {
+    const pill = document.createElement("button");
+    pill.type = "button";
+    pill.textContent = seg;
+    const isSelected = editSelectedSegments.has(seg);
+    pill.className = isSelected
+      ? "px-3 py-1 rounded-full text-xs font-medium bg-white text-neutral-900 border border-white transition"
+      : "px-3 py-1 rounded-full text-xs font-medium bg-neutral-800 text-neutral-400 border border-neutral-700 hover:border-neutral-500 transition";
+    pill.addEventListener("click", () => {
+      if (editSelectedSegments.has(seg)) {
+        editSelectedSegments.delete(seg);
+      } else {
+        editSelectedSegments.add(seg);
+      }
+      renderEditSegments();
+    });
+    container.appendChild(pill);
+  });
+}
+
+// Type toggle clicks
+document.querySelectorAll(".edit-type-btn").forEach((btn) => {
+  btn.addEventListener("click", () => {
+    editSelectedType = btn.dataset.type;
+    updateTypeButtons();
+  });
+});
+
+// Close
+document.getElementById("edit-vol-close").addEventListener("click", () => editModal.classList.add("hidden"));
+editModal.addEventListener("click", (e) => { if (e.target === editModal) editModal.classList.add("hidden"); });
+
+// Save
+document.getElementById("edit-vol-save").addEventListener("click", async () => {
+  const id = document.getElementById("edit-vol-id").value;
+  const name = document.getElementById("edit-vol-name").value.trim();
+  const contact = document.getElementById("edit-vol-contact").value.trim();
+  if (!name) return;
+
+  const team = [...editSelectedSegments].join(", ");
+  await db.ref(`volunteers/${id}`).update({
+    name,
+    type: editSelectedType,
+    team: team || null,
+    contact: contact || null,
+  });
+
+  editModal.classList.add("hidden");
+  showToast(`"${name}" updated`, "check_circle", "text-green-400");
+});
 
 // QR Modal
 function showQrModal(id, name, team) {

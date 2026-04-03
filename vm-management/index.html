@@ -24,16 +24,18 @@
   </head>
   <body class="bg-neutral-950 min-h-screen flex items-center justify-center p-4" style="font-family:'Inter',sans-serif;">
     <div id="main-card" class="w-full max-w-md bg-white rounded-2xl shadow-2xl p-6 md:p-8 overflow-hidden">
-      <!-- Header with CCF Logo -->
-      <div class="flex items-center justify-center mb-2">
-        <div class="bg-neutral-900 rounded-full w-12 h-12 flex items-center justify-center p-1">
-          <img src="ccf-logo.png" alt="CCF Logo" class="h-9 w-9 object-contain" />
+      <!-- Header with CCF Logo (clickable → back to scan) -->
+      <div id="header-home-btn" class="cursor-pointer">
+        <div class="flex items-center justify-center mb-2">
+          <div class="bg-neutral-900 rounded-full w-12 h-12 flex items-center justify-center p-1">
+            <img src="ccf-logo.png" alt="CCF Logo" class="h-9 w-9 object-contain" />
+          </div>
         </div>
+        <h1 class="text-xl font-bold text-center text-neutral-900 tracking-tight mb-0.5">
+          Live Production
+        </h1>
+        <p class="text-xs text-center text-neutral-400 font-medium tracking-wide uppercase mb-3">Volunteer Checkpoint</p>
       </div>
-      <h1 class="text-xl font-bold text-center text-neutral-900 tracking-tight mb-0.5">
-        Live Production
-      </h1>
-      <p class="text-xs text-center text-neutral-400 font-medium tracking-wide uppercase mb-3">Volunteer Checkpoint</p>
       <hr class="border-neutral-200 mb-5 mx-8" />
 
       <!-- Stage 1: QR Scanning -->
@@ -56,30 +58,45 @@
         </div>
         <p id="scan-message" class="mt-4 text-sm text-red-500 hidden"></p>
 
-        <!-- Guest + Register + Search links -->
-        <div class="mt-6 pt-4 border-t border-neutral-200">
-          <p class="text-sm text-neutral-400 mb-3">No account yet?</p>
-          <div class="flex gap-3 mb-3">
-            <button
-              id="open-guest-btn"
-              class="flex-1 py-2 px-3 bg-neutral-900 text-white text-sm font-semibold rounded-lg hover:bg-neutral-700 transition duration-150"
-            >
-              Guest Check-in
-            </button>
-            <a
-              href="register.html"
-              class="flex-1 py-2 px-3 bg-neutral-100 text-neutral-700 text-sm font-semibold rounded-lg hover:bg-neutral-200 transition duration-150 text-center"
-            >
-              Register
-            </a>
+        <!-- Quick name check-in -->
+        <div class="mt-5 pt-4 border-t border-neutral-200">
+          <p class="text-xs text-neutral-400 uppercase tracking-widest font-semibold mb-2">Or type your name</p>
+          <div class="relative">
+            <input
+              type="text"
+              id="quick-name-input"
+              placeholder="e.g., Juan Dela Cruz"
+              autocomplete="off"
+              class="block w-full px-3 py-2.5 border border-neutral-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-neutral-900 focus:border-neutral-900 text-sm"
+            />
+            <div id="quick-name-results" class="hidden absolute left-0 right-0 top-full mt-1 bg-white border border-neutral-200 rounded-lg shadow-lg z-20 max-h-48 overflow-y-auto"></div>
           </div>
+          <div id="quick-name-status" class="hidden mt-2 text-xs"></div>
+
+          <!-- Segment picker for new registrations -->
+          <div id="quick-reg-segments" class="hidden mt-3">
+            <p class="text-xs text-neutral-400 uppercase tracking-widest font-semibold mb-2">Select segment(s)</p>
+            <div id="quick-seg-pills" class="flex flex-wrap gap-1.5"></div>
+          </div>
+
           <button
-            id="open-search-btn"
+            id="quick-name-go-btn"
+            class="hidden mt-3 w-full py-2.5 bg-neutral-900 text-white text-sm font-bold rounded-lg hover:bg-neutral-700 transition duration-150 disabled:opacity-30 disabled:cursor-not-allowed"
+            disabled
+          >
+            Continue
+          </button>
+        </div>
+
+        <!-- Register link -->
+        <div class="mt-4 pt-3 border-t border-neutral-100">
+          <a
+            href="register.html"
             class="w-full py-2 text-xs text-neutral-400 hover:text-neutral-600 transition duration-150 flex items-center justify-center gap-1"
           >
-            <span class="material-icons-round text-sm">search</span>
-            Find your account
-          </button>
+            <span class="material-icons-round text-sm">person_add</span>
+            Register as new volunteer
+          </a>
         </div>
       </div>
 
@@ -313,6 +330,15 @@
           <div id="final-segid-block" class="bg-neutral-50 border border-neutral-200 rounded-lg px-4 py-3 inline-block hidden">
             <p class="text-xs text-neutral-400 font-medium uppercase tracking-wide">Segment ID</p>
             <p id="final-seg-id" class="text-2xl font-black text-neutral-900"></p>
+          </div>
+        </div>
+
+        <!-- No ID Notice -->
+        <div id="final-noid-notice" class="hidden bg-amber-50 border border-amber-200 rounded-lg p-3 mb-4 mx-2 text-left flex items-start gap-3">
+          <span class="material-icons-round text-amber-500 text-xl mt-0.5">warning</span>
+          <div>
+            <p class="text-sm font-semibold text-amber-800">No Valid ID Submitted</p>
+            <p class="text-xs text-amber-600 mt-0.5">You are currently logged in <span class="font-bold">without an ID</span>. Please bring a valid ID next time for faster check-in.</p>
           </div>
         </div>
 

@@ -213,7 +213,7 @@ async function handleVolunteerScan(id) {
   console.log("Processing Volunteer ID for lookup:", id); // DIAGNOSTIC LOG 2
 
   // Validate QR format before hitting Firebase
-  const validPattern = /^(VOL|GUEST)-\d+-[A-Z0-9]{4}$/;
+  const validPattern = /^(VOL|GUEST)-\d+-[A-Z0-9]{4,8}$/;
   if (!validPattern.test(id)) {
     console.warn("Invalid QR format rejected:", id);
     const scanMsg = document.getElementById("scan-message");
@@ -465,6 +465,15 @@ const segmentRoles = {
     "Graphics Trainee/Observer",
     "Graphics Mentor",
   ],
+  "Volunteer Management": [
+    "Comms Custodian",
+    "Volunteer Care",
+    "Volunteer Management",
+    "VM Trainee",
+  ],
+  "Guest": [
+    "Guest",
+  ],
   "Live Prod Crew": [
     "Graphics Playback",
     "Soundbooth Support",
@@ -489,6 +498,7 @@ const staffSegments = ["Live Prod Crew", "Comms"];
 // Segment color themes (Tailwind classes)
 const segmentColors = {
   "Volunteer Management": { bg: "bg-rose-50", border: "border-rose-200", text: "text-rose-700", pill: "bg-rose-100 text-rose-800 border-rose-300", pillActive: "bg-rose-600 text-white border-rose-600 ring-rose-300", badge: "bg-rose-600" },
+  "Guest": { bg: "bg-neutral-50", border: "border-neutral-300", text: "text-neutral-600", pill: "bg-neutral-100 text-neutral-700 border-neutral-300", pillActive: "bg-neutral-700 text-white border-neutral-700 ring-neutral-400", badge: "bg-neutral-600" },
   "Audio": { bg: "bg-violet-50", border: "border-violet-200", text: "text-violet-700", pill: "bg-violet-100 text-violet-800 border-violet-300", pillActive: "bg-violet-600 text-white border-violet-600 ring-violet-300", badge: "bg-violet-600" },
   "Lights": { bg: "bg-amber-50", border: "border-amber-200", text: "text-amber-700", pill: "bg-amber-100 text-amber-800 border-amber-300", pillActive: "bg-amber-600 text-white border-amber-600 ring-amber-300", badge: "bg-amber-600" },
   "Camera": { bg: "bg-blue-50", border: "border-blue-200", text: "text-blue-700", pill: "bg-blue-100 text-blue-800 border-blue-300", pillActive: "bg-blue-600 text-white border-blue-600 ring-blue-300", badge: "bg-blue-600" },
@@ -662,11 +672,14 @@ async function selectSegment(segment) {
 
   // 2. Build all role pills INSTANTLY (no waiting for Firebase)
   const leaderKeywords = ["Director", "Lead", "Mentor", "Head", "Manager", "Trainee", "Observer"];
-  const volunteerRole = `${segment} (Volunteer)`;
   const segRoles = [...segmentRoles[segment]];
   const regularRoles = segRoles.filter((r) => !leaderKeywords.some((k) => r.includes(k)));
   const leaderRoles = segRoles.filter((r) => leaderKeywords.some((k) => r.includes(k)));
-  const allRoles = [...regularRoles, ...leaderRoles, volunteerRole];
+  // Add generic "(Volunteer)" role unless segment is "Guest"
+  const volunteerRole = `${segment} (Volunteer)`;
+  const allRoles = segment === "Guest"
+    ? [...regularRoles, ...leaderRoles]
+    : [...regularRoles, ...leaderRoles, volunteerRole];
   const rowMap = {}; // role -> row element, for later disable
 
   allRoles.forEach((role, pillIdx) => {
@@ -923,7 +936,15 @@ function startPendingListener() {
       document.getElementById("final-time-label").textContent = timeText;
       document.getElementById("final-date-label").textContent = new Date().toLocaleDateString([], { month: 'short', day: 'numeric', year: 'numeric' });
       document.getElementById("final-comms-code").textContent = commsText;
-      document.getElementById("final-message").textContent = "Do your best for God as you serve. God bless!";
+      // Show No ID notice or normal message
+      const noIdNotice = document.getElementById("final-noid-notice");
+      if (data.noId) {
+        document.getElementById("final-message").textContent = "";
+        if (noIdNotice) noIdNotice.classList.remove("hidden");
+      } else {
+        document.getElementById("final-message").textContent = "Do your best for God as you serve. God bless!";
+        if (noIdNotice) noIdNotice.classList.add("hidden");
+      }
 
       if (commsText && commsText !== "—") {
         document.getElementById("final-comms-block").classList.remove("hidden");
@@ -997,6 +1018,213 @@ if (document.getElementById("reset-scan-btn")) {
     currentLogKey = null;
     commsStatusOut = null;
     commsIdToReturn = null;
+    startQrScanner();
+  });
+}
+
+// =============================
+// Quick Name Check-in
+// =============================
+(function() {
+  const input = document.getElementById("quick-name-input");
+  const results = document.getElementById("quick-name-results");
+  const status = document.getElementById("quick-name-status");
+  const goBtn = document.getElementById("quick-name-go-btn");
+  if (!input) return;
+
+  const segContainer = document.getElementById("quick-reg-segments");
+  const segPills = document.getElementById("quick-seg-pills");
+  const quickSegList = ["Audio", "Lights", "Camera", "Stage", "Graphics", "Volunteer Management", "Guest"];
+  let quickSelectedSegs = new Set();
+
+  let allVols = [];
+  let selectedVolId = null;
+  let isNewUser = false;
+
+  function renderQuickSegPills() {
+    segPills.innerHTML = "";
+    quickSegList.forEach(seg => {
+      const pill = document.createElement("button");
+      pill.type = "button";
+      pill.textContent = seg;
+      const isActive = quickSelectedSegs.has(seg);
+      pill.className = isActive
+        ? "px-3 py-1.5 rounded-full text-xs font-semibold bg-neutral-900 text-white border border-neutral-900 transition"
+        : "px-3 py-1.5 rounded-full text-xs font-medium bg-white text-neutral-600 border border-neutral-300 hover:border-neutral-500 transition";
+      pill.addEventListener("click", () => {
+        if (quickSelectedSegs.has(seg)) quickSelectedSegs.delete(seg);
+        else quickSelectedSegs.add(seg);
+        renderQuickSegPills();
+        goBtn.disabled = quickSelectedSegs.size === 0;
+      });
+      segPills.appendChild(pill);
+    });
+  }
+
+  function showSegPicker(show) {
+    if (show) {
+      quickSelectedSegs.clear();
+      segContainer.classList.remove("hidden");
+      renderQuickSegPills();
+      goBtn.disabled = true;
+    } else {
+      segContainer.classList.add("hidden");
+      goBtn.disabled = false;
+    }
+  }
+
+  // Load all volunteers for matching
+  db.ref("volunteers").once("value", (snap) => {
+    const data = snap.val() || {};
+    allVols = Object.entries(data).map(([id, v]) => ({ id, name: v.name || "", type: v.type || "volunteer" }));
+  });
+
+  input.addEventListener("input", () => {
+    const query = input.value.trim().toLowerCase();
+    selectedVolId = null;
+    isNewUser = false;
+    goBtn.classList.add("hidden");
+    status.classList.add("hidden");
+    showSegPicker(false);
+    results.innerHTML = "";
+
+    if (query.length < 2) {
+      results.classList.add("hidden");
+      return;
+    }
+
+    const matches = allVols.filter(v => v.name.toLowerCase().includes(query)).slice(0, 6);
+    results.classList.remove("hidden");
+
+    if (matches.length > 0) {
+      matches.forEach(v => {
+        const item = document.createElement("button");
+        item.type = "button";
+        item.className = "w-full text-left px-3 py-2.5 hover:bg-neutral-50 transition text-sm flex items-center gap-2 border-b border-neutral-100 last:border-0";
+        item.innerHTML = `<span class="material-icons-round text-neutral-400 text-base">person</span><span class="font-medium text-neutral-800">${v.name}</span>`;
+        item.addEventListener("click", () => {
+          input.value = v.name;
+          selectedVolId = v.id;
+          isNewUser = false;
+          results.classList.add("hidden");
+          status.innerHTML = `<span class="text-green-600 flex items-center gap-1"><span class="material-icons-round text-sm">check_circle</span> Account found</span>`;
+          status.classList.remove("hidden");
+          showSegPicker(false);
+          goBtn.textContent = `Continue as ${v.name}`;
+          goBtn.classList.remove("hidden");
+        });
+        results.appendChild(item);
+      });
+
+      // "Not in list" option
+      const notFound = document.createElement("button");
+      notFound.type = "button";
+      notFound.className = "w-full text-left px-3 py-2.5 hover:bg-neutral-50 transition text-sm flex items-center gap-2 text-neutral-500";
+      notFound.innerHTML = `<span class="material-icons-round text-base">person_add</span><span>Register as "<strong class="text-neutral-700">${input.value.trim()}</strong>"</span>`;
+      notFound.addEventListener("click", () => {
+        selectedVolId = null;
+        isNewUser = true;
+        results.classList.add("hidden");
+        status.innerHTML = `<span class="text-amber-600 flex items-center gap-1"><span class="material-icons-round text-sm">info</span> New volunteer — select segment(s) below</span>`;
+        status.classList.remove("hidden");
+        showSegPicker(true);
+        goBtn.textContent = `Register & Continue`;
+        goBtn.classList.remove("hidden");
+      });
+      results.appendChild(notFound);
+    } else {
+      // No matches at all
+      const noMatch = document.createElement("div");
+      noMatch.className = "px-3 py-3 text-sm text-neutral-400 text-center";
+      noMatch.textContent = "No matches found";
+      results.appendChild(noMatch);
+
+      const createBtn = document.createElement("button");
+      createBtn.type = "button";
+      createBtn.className = "w-full text-left px-3 py-2.5 hover:bg-neutral-50 transition text-sm flex items-center gap-2 text-neutral-600 border-t border-neutral-100";
+      createBtn.innerHTML = `<span class="material-icons-round text-base">person_add</span><span>Register "<strong class="text-neutral-800">${input.value.trim()}</strong>"</span>`;
+      createBtn.addEventListener("click", () => {
+        selectedVolId = null;
+        isNewUser = true;
+        results.classList.add("hidden");
+        status.innerHTML = `<span class="text-amber-600 flex items-center gap-1"><span class="material-icons-round text-sm">info</span> New volunteer — select segment(s) below</span>`;
+        status.classList.remove("hidden");
+        showSegPicker(true);
+        goBtn.textContent = `Register & Continue`;
+        goBtn.classList.remove("hidden");
+      });
+      results.appendChild(createBtn);
+    }
+  });
+
+  // Close results when clicking outside
+  document.addEventListener("click", (e) => {
+    if (!e.target.closest("#quick-name-input") && !e.target.closest("#quick-name-results")) {
+      results.classList.add("hidden");
+    }
+  });
+
+  goBtn.addEventListener("click", async () => {
+    const name = input.value.trim();
+    if (!name) return;
+
+    showLoading("Processing...");
+
+    if (selectedVolId) {
+      // Existing volunteer — proceed to scan flow
+      if (html5QrcodeScanner) {
+        try {
+          const state = html5QrcodeScanner.getState();
+          if (state === Html5QrcodeScannerState.SCANNING || state === Html5QrcodeScannerState.PAUSED) {
+            await html5QrcodeScanner.stop();
+          }
+          await html5QrcodeScanner.clear();
+        } catch (e) {}
+      }
+      handleVolunteerScan(selectedVolId);
+    } else if (isNewUser) {
+      // Auto-register new volunteer with selected segments
+      const team = [...quickSelectedSegs].join(", ");
+      const newId = `VOL-${Date.now()}-${Math.random().toString(36).substring(2, 8).toUpperCase()}`;
+      await db.ref(`volunteers/${newId}`).set({
+        name: name,
+        type: "volunteer",
+        team: team || null,
+        contact: null,
+        registeredAt: new Date().toISOString(),
+      });
+      // Add to local list
+      allVols.push({ id: newId, name, type: "volunteer" });
+      // Proceed
+      if (html5QrcodeScanner) {
+        try {
+          const state = html5QrcodeScanner.getState();
+          if (state === Html5QrcodeScannerState.SCANNING || state === Html5QrcodeScannerState.PAUSED) {
+            await html5QrcodeScanner.stop();
+          }
+          await html5QrcodeScanner.clear();
+        } catch (e) {}
+      }
+      handleVolunteerScan(newId);
+    }
+
+    // Reset
+    input.value = "";
+    selectedVolId = null;
+    isNewUser = false;
+    goBtn.classList.add("hidden");
+    status.classList.add("hidden");
+  });
+})();
+
+// Header logo click → back to scan
+if (document.getElementById("header-home-btn")) {
+  document.getElementById("header-home-btn").addEventListener("click", () => {
+    volunteerId = null;
+    volunteerName = null;
+    volunteerTeam = null;
+    currentLogKey = null;
+    if (pendingTimeOutListener) { pendingTimeOutListener.off(); pendingTimeOutListener = null; }
     startQrScanner();
   });
 }
