@@ -6,6 +6,7 @@
   <head>
     <meta charset="UTF-8" />
     <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <link rel="icon" type="image/svg+xml" href="favicon.svg" />
     <title>Volunteer Time Management</title>
     <!-- Tailwind CSS CDN -->
     <script src="https://cdn.tailwindcss.com"></script>
@@ -36,15 +37,12 @@
         </h1>
         <p class="text-xs text-center text-neutral-400 font-medium tracking-wide uppercase mb-3">Volunteer Checkpoint</p>
       </div>
-      <hr class="border-neutral-200 mb-5 mx-8" />
+      <hr class="border-neutral-100 mb-5 mx-8" />
 
       <!-- Stage 1: QR Scanning -->
       <div id="stage-scan" class="text-center">
-        <p class="text-neutral-500 mb-4 text-sm">
-          Scan your <span class="font-bold text-neutral-700">QR Code</span> to begin.
-        </p>
-        <div class="relative w-full h-64 bg-neutral-100 rounded-xl overflow-hidden">
-          <!-- Skeleton loader shown while camera loads -->
+        <!-- QR Scanner (collapsible) -->
+        <div id="qr-scanner-wrapper" class="relative w-full h-64 bg-neutral-100 rounded-xl overflow-hidden transition-all duration-300 ease-in-out mb-4">
           <div id="qr-skeleton" class="absolute inset-0 flex flex-col items-center justify-center gap-3 z-10">
             <span class="material-icons-round text-4xl text-neutral-300">qr_code_scanner</span>
             <div class="sparkle-row">
@@ -56,27 +54,59 @@
           </div>
           <div id="qr-scanner-area" class="w-full h-full"></div>
         </div>
-        <p id="scan-message" class="mt-4 text-sm text-red-500 hidden"></p>
+        <p id="scan-message" class="mt-2 text-sm text-red-500 hidden"></p>
 
-        <!-- Quick name check-in -->
-        <div class="mt-5 pt-4 border-t border-neutral-200">
-          <p class="text-xs text-neutral-400 uppercase tracking-widest font-semibold mb-2">Or type your name</p>
-          <div class="relative">
+        <!-- Name input -->
+        <div>
+          <!-- New registration header (hidden until "not listed" is selected) -->
+          <div id="quick-reg-header" class="hidden mb-4 text-center">
+            <span class="inline-block bg-neutral-900 text-white text-[10px] font-bold uppercase tracking-widest px-3 py-1 rounded-full mb-2">New Volunteer</span>
+            <p class="text-xs text-neutral-400">Fill in your details to get started</p>
+          </div>
+          <p id="quick-input-label" class="hidden text-xs uppercase tracking-widest text-neutral-400 font-semibold mb-2">Full Name</p>
+          <div class="relative" id="quick-input-wrapper">
+            <span id="quick-search-icon" class="material-icons-round absolute left-3 top-1/2 -translate-y-1/2 text-neutral-400 text-lg">search</span>
             <input
               type="text"
               id="quick-name-input"
-              placeholder="e.g., Juan Dela Cruz"
+              placeholder="Search or enter your name"
               autocomplete="off"
-              class="block w-full px-3 py-2.5 border border-neutral-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-neutral-900 focus:border-neutral-900 text-sm"
+              class="block w-full pl-10 pr-9 py-3 border border-neutral-200 rounded-xl focus:outline-none focus:ring-2 focus:ring-neutral-900 focus:border-neutral-900 text-sm bg-neutral-50 placeholder-neutral-400"
             />
-            <div id="quick-name-results" class="hidden absolute left-0 right-0 top-full mt-1 bg-white border border-neutral-200 rounded-lg shadow-lg z-20 max-h-48 overflow-y-auto"></div>
+            <button type="button" id="quick-name-clear" class="absolute right-3 top-1/2 -translate-y-1/2 text-neutral-300 hover:text-neutral-500 transition hidden">
+              <span class="material-icons-round text-lg">close</span>
+            </button>
+            <!-- Selected pill (hidden until selection) -->
+            <div id="quick-selected-pill" class="hidden absolute inset-0 flex items-center pl-3 pr-2 bg-white border border-neutral-200 rounded-xl">
+              <div class="flex items-center gap-2 flex-1 min-w-0">
+                <span class="w-7 h-7 rounded-full bg-neutral-900 flex items-center justify-center flex-shrink-0">
+                  <span class="material-icons-round text-white text-xs">person</span>
+                </span>
+                <span id="quick-pill-name" class="text-sm font-semibold text-neutral-900 truncate"></span>
+              </div>
+              <button type="button" id="quick-pill-remove" class="ml-2 w-7 h-7 rounded-full bg-neutral-100 hover:bg-neutral-200 flex items-center justify-center flex-shrink-0 transition">
+                <span class="material-icons-round text-neutral-500 text-sm">close</span>
+              </button>
+            </div>
           </div>
-          <div id="quick-name-status" class="hidden mt-2 text-xs"></div>
+
+          <!-- Scanner toggle (shows when scanner is collapsed) -->
+          <button type="button" id="show-scanner-btn" class="hidden mt-2 w-full py-1.5 text-xs text-neutral-400 hover:text-neutral-600 transition flex items-center justify-center gap-1">
+            <span class="material-icons-round text-sm">qr_code_scanner</span>
+            Scan QR code instead
+          </button>
+
+          <!-- Search results (inline, animated height) -->
+          <div id="quick-name-results" class="mt-2 bg-white border border-neutral-200 rounded-xl">
+            <div class="results-inner" id="quick-name-results-inner"></div>
+          </div>
+
+          <div id="quick-name-status" class="hidden mt-3 text-xs"></div>
 
           <!-- Segment picker for new registrations -->
           <div id="quick-reg-segments" class="hidden mt-3">
             <p class="text-xs text-neutral-400 uppercase tracking-widest font-semibold mb-2">Select segment(s)</p>
-            <div id="quick-seg-pills" class="flex flex-wrap gap-1.5"></div>
+            <div id="quick-seg-pills" class="flex flex-wrap gap-1.5 justify-center"></div>
           </div>
 
           <button
@@ -86,17 +116,6 @@
           >
             Continue
           </button>
-        </div>
-
-        <!-- Register link -->
-        <div class="mt-4 pt-3 border-t border-neutral-100">
-          <a
-            href="register.html"
-            class="w-full py-2 text-xs text-neutral-400 hover:text-neutral-600 transition duration-150 flex items-center justify-center gap-1"
-          >
-            <span class="material-icons-round text-sm">person_add</span>
-            Register as new volunteer
-          </a>
         </div>
       </div>
 
@@ -199,8 +218,10 @@
               <div class="inline-block p-3 bg-white border border-neutral-200 rounded-xl shadow-sm">
                 <div id="segment-qr-output"></div>
               </div>
-              <p class="text-[10px] text-neutral-300 mt-1.5 font-mono" id="segment-qr-id-label"></p>
-              <p class="text-[10px] text-neutral-400 mt-0.5">Screenshot this for future check-ins</p>
+              <div class="mt-2 inline-flex items-center gap-1 px-2.5 py-1 bg-neutral-50 border border-neutral-200 rounded-full">
+                <span class="material-icons-round text-neutral-400" style="font-size:11px">screenshot</span>
+                <span class="text-[10px] text-neutral-400 font-medium">Save this for faster check-ins next time</span>
+              </div>
             </div>
           </div>
         </div>
@@ -216,15 +237,13 @@
 
           <!-- Role Selection (hidden until segment selected) -->
           <div id="role-pills-section" class="hidden mt-4">
-            <div class="flex items-center justify-between mb-3">
-              <div class="flex items-center gap-2">
-                <span class="text-xs text-neutral-400 uppercase tracking-wide font-medium">Segment:</span>
-                <span id="selected-segment-label" class="text-sm font-bold text-neutral-800"></span>
-              </div>
-              <button type="button" id="change-segment-btn" class="text-xs font-medium text-neutral-500 bg-neutral-100 hover:bg-neutral-200 px-3 py-1 rounded-full transition duration-150">Change</button>
+            <div class="flex items-center justify-between mb-2 px-1">
+              <p class="text-xs uppercase tracking-widest text-neutral-400 font-semibold">
+                <span id="selected-segment-label" class="text-neutral-800"></span> — Select Role
+              </p>
+              <button type="button" id="change-segment-btn" class="text-[10px] font-medium text-neutral-400 hover:text-neutral-600 transition duration-150">Change</button>
             </div>
-            <p class="text-xs uppercase tracking-widest text-neutral-400 font-semibold mb-2">Select Role</p>
-            <div id="role-pills" class="flex flex-col gap-1.5 max-h-56 overflow-y-auto pr-1 pb-1 role-pills-scroll"></div>
+            <div id="role-pills" class="flex flex-col gap-1.5 max-h-56 overflow-y-auto pr-1 py-1 role-pills-scroll"></div>
           </div>
 
           <button
