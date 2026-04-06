@@ -6,7 +6,7 @@ window.addEventListener("unhandledrejection", function(e) {
   alert("Promise Error: " + (e.reason?.message || e.reason));
 });
 
-const FAV_PAGE_SIZE = 3;
+const FAV_PAGE_SIZE = 20;
 let favoritesPage = 0;
 let currentVersion = localStorage.getItem("bibleVersion") || "NASB";
 let recentPassageId = localStorage.getItem("recentPassageId");
@@ -1392,7 +1392,7 @@ const formatKey = (key) => {
 };
 
 // NEW: Function to load passage from a dashboard link
-function loadPassageById(id) {
+function loadPassageById(id, scrollToVerse) {
   const [bookId, chapter, verse] = id.split("-");
 
   // Set the select elements
@@ -1400,10 +1400,27 @@ function loadPassageById(id) {
   loadChapters();
   chapterEl.value = chapter;
   loadVerses();
-  verseEl.value = verse || "";
 
-  // Trigger the load button action
+  // Always load full chapter, then scroll to the verse
+  const targetVerse = scrollToVerse || verse;
+  verseEl.value = "";
+
+  // Trigger load then scroll to the verse
   loadBtn.click();
+
+  if (targetVerse) {
+    // Wait for rendering to finish, then scroll
+    requestAnimationFrame(() => {
+      setTimeout(() => {
+        const verseEl2 = document.getElementById(targetVerse);
+        if (verseEl2) {
+          verseEl2.scrollIntoView({ behavior: "smooth", block: "center" });
+          verseEl2.classList.add("verse-highlight");
+          setTimeout(() => verseEl2.classList.remove("verse-highlight"), 5000);
+        }
+      }, 300);
+    });
+  }
 }
 
 /* ---------- BOOKS ---------- */
@@ -1645,33 +1662,13 @@ async function renderDashboard() {
         <h3><span class="material-icons dashboard-icon">favorite</span> Favorites</h3>
         ${
           favoritesKeys.length
-            ? `
-          ${
-            totalFavPages > 1
-              ? `<div style="display:flex; justify-content: space-between; margin-bottom: 12px;">
-                    <button class="secondary" id="favPrevBtn" style="opacity: 1; visibility: ${favoritesPage === 0 ? "hidden" : "visible"};">
-                      <span class="material-icons dashboard-icon">chevron_left</span>
-                    </button>
-                    <span id="pageRef" style="font-size:12px; opacity: 0.7; align-self: center; text-transform: uppercase;">Page ${favoritesPage + 1} of ${totalFavPages}</span>
-                    <button class="secondary" id="favNextBtn" style="opacity: 1; visibility: ${favoritesPage >= totalFavPages - 1 ? "hidden" : "visible"};">
-                      <span class="material-icons dashboard-icon">chevron_right</span>
-                    </button>
-                 </div>`
-              : ""
-          }
-          <div class="dashboard-list">
+            ? `<div class="dash-fav-scroll-wrap"><div class="dash-fav-scroll">
             ${favoritePassages
               .map(
-                (item) => `
-              <div class="dashboard-item" onclick="loadPassageById('${item.key}')">
-                <span class="dashboard-ref">${formatKey(item.key)}</span>
-                <p class="dashboard-verse-text">${item.verseText}</p>
-                <time>${new Date(item.time).toLocaleDateString()}</time>
-              </div>
-            `,
+                (item) => `<button class="dash-fav-chip" onclick="loadPassageById('${item.key}')">${formatKey(item.key)}</button>`
               )
               .join("")}
-          </div>`
+          </div></div>`
             : `<p class="empty-state">No favorite verses yet. Double-click a verse or tap the <span class="material-icons" style="font-size:1em; vertical-align:middle; color:#c83086;">favorite_border</span> icon to add one!</p>`
         }
       </section>
@@ -1683,23 +1680,17 @@ async function renderDashboard() {
           <button class="dash-notes-open-btn" onclick="openNotesApp()">View all →</button>
         </h3>
         ${(() => {
-          const sessions = _getSessions().slice(0, 3);
-          if (!sessions.length) return `<p class="empty-state">No notes yet. Add notes to Bible verses, complete a Guided Reflection, or tap "View all" to write your first note.</p>`;
-          return `<div class="dash-notes-list">${sessions.map(session => {
-            const dateStr = new Date(session.time).toLocaleDateString("en-US", { month: "short", day: "numeric", year: "numeric" });
-            const allItems = [
-              ...session.verse.map(n => ({ icon: "menu_book", label: n.title })),
-              ...session.reflection.map(n => ({ icon: "volunteer_activism", label: n.title })),
-              ...session.standalone.map(n => ({ icon: "edit_note", label: n.title || "Note" })),
-            ];
-            const visibleItems = allItems.slice(0, 3);
-            const extra = allItems.length - 3;
+          const allNotes = _getAllNotes()
+            .filter(n => n.preview && n.time)
+            .sort((a, b) => b.time - a.time)
+            .slice(0, 4);
+          if (!allNotes.length) return `<p class="empty-state">No notes yet. Add notes to Bible verses, complete a Guided Reflection, or tap "View all" to write your first note.</p>`;
+          return `<div class="dash-notes-list">${allNotes.map(n => {
+            const preview = n.preview.length > 80 ? n.preview.slice(0, 80) + "…" : n.preview;
+            const dateStr = new Date(n.time).toLocaleDateString("en-US", { month: "short", day: "numeric" });
             return `<div class="dash-notes-card" onclick="openNotesApp()">
               <div class="dash-notes-card-date">${dateStr}</div>
-              <div class="dash-notes-card-items">
-                ${visibleItems.map(i => `<div class="dash-notes-item"><span class="material-icons" style="font-size:14px;opacity:0.7;">${i.icon}</span><span class="dash-notes-item-label">${_escHtml(i.label)}</span></div>`).join("")}
-                ${extra > 0 ? `<div class="dash-notes-item-more">+${extra} more</div>` : ""}
-              </div>
+              <div class="dash-notes-card-preview">${_escHtml(preview)}</div>
             </div>`;
           }).join("")}</div>`;
         })()}
@@ -1749,15 +1740,6 @@ async function renderDashboard() {
     setTimeout(() => _showNotifPrompt(), 2000);
   }
 
-  const favPrevBtn = document.getElementById("favPrevBtn");
-  const favNextBtn = document.getElementById("favNextBtn");
-
-  if (favPrevBtn) {
-    favPrevBtn.onclick = () => changeFavoritesPage(-1);
-  }
-  if (favNextBtn) {
-    favNextBtn.onclick = () => changeFavoritesPage(1);
-  }
 }
 
 function _typewriterReveal(el, msg) {

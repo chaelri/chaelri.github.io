@@ -1041,6 +1041,57 @@ select:disabled {
   line-height: 1.4;
 }
 
+/* Favorites horizontal scroll */
+.dash-fav-scroll-wrap {
+  position: relative;
+}
+.dash-fav-scroll-wrap::after {
+  content: '';
+  position: absolute;
+  top: 0; right: 0; bottom: 0;
+  width: 40px;
+  background: linear-gradient(to right, transparent, #0c1322);
+  pointer-events: none;
+  z-index: 1;
+}
+.light .dash-fav-scroll-wrap::after {
+  background: linear-gradient(to right, transparent, #faf9f6);
+}
+.dash-fav-scroll {
+  display: flex;
+  gap: 8px;
+  overflow-x: auto;
+  padding-bottom: 4px;
+  padding-right: 32px;
+  -webkit-overflow-scrolling: touch;
+  scrollbar-width: none;
+}
+.dash-fav-scroll::-webkit-scrollbar { display: none; }
+.dash-fav-chip {
+  flex-shrink: 0;
+  padding: 8px 14px;
+  border-radius: 8px;
+  background: rgba(219, 39, 119, 0.1);
+  border: none;
+  color: #db2777;
+  font-size: 13px;
+  font-weight: 800;
+  letter-spacing: -0.3px;
+  text-transform: uppercase;
+  cursor: pointer;
+  transition: all 0.15s ease;
+  white-space: nowrap;
+}
+.dash-fav-chip:hover {
+  background: rgba(219, 39, 119, 0.18);
+}
+.light .dash-fav-chip {
+  background: rgba(219, 39, 119, 0.08);
+}
+.light .dash-fav-chip:hover {
+  background: rgba(219, 39, 119, 0.15);
+}
+
 .dashboard-list {
   display: flex;
   flex-direction: column;
@@ -1892,6 +1943,14 @@ html {
   font-style: italic;
   font-size: 2.5rem;
 }
+.dashboard-ref.flex .right {
+  margin: auto 0 auto 4px;
+  animation: nudgeRight 1.5s ease-in-out infinite;
+}
+@keyframes nudgeRight {
+  0%, 100% { transform: translateX(0); }
+  50% { transform: translateX(6px); }
+}
 
 @font-face {
   font-family: "Editors Note";
@@ -2447,6 +2506,7 @@ body.light {
 
 /* Dashboard date — darker so it's readable */
 .light .dash-notes-card-date { color: rgba(0,0,0,0.55); opacity: 1; }
+.light .dash-notes-card-preview { color: #2a2a3e; }
 
 /* ---------- TTS PLAYER BAR ---------- */
 .tts-player {
@@ -3400,8 +3460,11 @@ body.light {
 .dash-notes-open-btn {
   background: none;
   border: none;
-  color: #c83086;
-  font-size: 13px;
+  color: #db2777;
+  font-size: 10px;
+  font-weight: 700;
+  letter-spacing: 1.5px;
+  text-transform: uppercase;
   cursor: pointer;
   white-space: nowrap;
   flex-shrink: 0;
@@ -3418,8 +3481,8 @@ body.light {
 }
 .dash-notes-card:hover { background: #18234a; }
 .dash-notes-card:active { background: #1c2850; }
-.dash-notes-card-date { font-size: 11px; opacity: 0.35; margin-bottom: 8px; font-weight: 500; letter-spacing: 0.3px; }
-.dash-notes-card-items { display: flex; flex-direction: column; gap: 5px; }
+.dash-notes-card-date { font-size: 11px; opacity: 0.4; font-weight: 500; letter-spacing: 0.3px; margin-bottom: 6px; }
+.dash-notes-card-preview { font-size: 13px; line-height: 1.45; color: #c5d1f1; opacity: 0.8; }
 .dash-notes-item { display: flex; align-items: center; gap: 7px; }
 .dash-notes-item-label { font-size: 13px; font-weight: 700; color: #db2777; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
 .dash-notes-item-more { font-size: 11px; opacity: 0.3; padding-left: 22px; margin-top: 2px; }
