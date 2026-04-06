@@ -2791,6 +2791,7 @@ loadBtn.onclick = async () => {
   document.getElementById("prevChapterBtn").classList.remove("hidden");
   document.getElementById("nextChapterBtn").classList.remove("hidden");
   document.getElementById("ttsPlayBtn").classList.remove("hidden");
+  document.getElementById("storyBtn").classList.remove("hidden");
   resetAISections();
 
   await loadPassage();
@@ -4940,4 +4941,461 @@ function _immShowVersePopup(startVerse, endVerse) {
 
   document.getElementById("ttsImmVersePopupClose").onclick = () => { popup.hidden = true; };
   document.getElementById("ttsImmVersePopupBackdrop").onclick = () => { popup.hidden = true; };
+}
+
+// ═══════════════════════════════════════════════════════════════════════════
+// STORY MODAL — Interactive story breakdown (mirrors mobile app)
+// ═══════════════════════════════════════════════════════════════════════════
+let _storySlides = [];
+let _storyIndex = 0;
+
+async function openStoryModal() {
+  const modal = document.getElementById("storyModal");
+  const content = document.getElementById("storyContent");
+  modal.hidden = false;
+  _storySlides = [];
+  _storyIndex = 0;
+
+  // Show loading
+  content.innerHTML = `
+    <div class="story-loading">
+      <div class="story-sparkle-row"><span class="story-sparkle">✦</span><span class="story-sparkle">✦</span><span class="story-sparkle">✦</span></div>
+      <div class="story-loading-text">Generating stories...</div>
+    </div>`;
+  updateStoryProgress(0, 1);
+  document.getElementById("storyCounter").textContent = "";
+
+  if (!window.__aiPayload) { closeStoryModal(); return; }
+  const { book, chapter, versesText } = window.__aiPayload;
+
+  try {
+    const [glance, segments, closing] = await Promise.all([
+      fetchStoryGlance(book, chapter, versesText),
+      fetchStoryTimeline(book, chapter, versesText),
+      fetchStoryClosing(book, chapter, versesText),
+    ]);
+
+    // Build slides array
+    _storySlides.push({ type: "glance", data: glance, book, chapter });
+    _storySlides.push({ type: "map", data: segments, book, chapter });
+    segments.forEach(seg => _storySlides.push({ type: "segment", data: seg, book, chapter }));
+    if (closing) {
+      _storySlides.push({ type: "recap", data: closing, book, chapter });
+      _storySlides.push({ type: "reflect", data: closing, book, chapter });
+    }
+
+    renderStorySlide();
+  } catch (e) {
+    content.innerHTML = `
+      <div class="story-loading">
+        <span class="material-symbols-outlined" style="font-size:36px;color:#6b7a94">error_outline</span>
+        <div class="story-loading-text">${e.message || "Failed to load"}</div>
+        <button class="primary" onclick="openStoryModal()" style="margin-top:8px">Retry</button>
+      </div>`;
+  }
+}
+
+function closeStoryModal() {
+  const modal = document.getElementById("storyModal");
+  const content = document.getElementById("storyContent");
+  // Show closing screen
+  content.innerHTML = `
+    <div class="story-loading">
+      <div class="story-sparkle-row"><span class="story-sparkle">✦</span><span class="story-sparkle">✦</span><span class="story-sparkle">✦</span></div>
+      <div class="story-loading-text">Happy reading</div>
+    </div>`;
+  setTimeout(() => { modal.hidden = true; }, 1200);
+}
+
+function updateStoryProgress(current, total) {
+  const bar = document.getElementById("storyProgressBar");
+  bar.innerHTML = Array.from({ length: total }, (_, i) =>
+    `<div class="story-progress-seg"><div class="story-progress-fill" style="width:${i <= current ? '100%' : '0'}; opacity:${i <= current ? 1 : 0.3}"></div></div>`
+  ).join("");
+}
+
+function renderStorySlide() {
+  const content = document.getElementById("storyContent");
+  const counter = document.getElementById("storyCounter");
+  const total = _storySlides.length;
+  const slide = _storySlides[_storyIndex];
+  if (!slide) return;
+
+  updateStoryProgress(_storyIndex, total);
+  counter.textContent = `${_storyIndex + 1} / ${total}`;
+
+  // Fade transition
+  content.classList.add("fade-out");
+  setTimeout(() => {
+    content.innerHTML = buildSlideHTML(slide);
+    content.classList.remove("fade-out");
+    content.classList.add("fade-in");
+    // Wire tap zones
+    document.getElementById("storyTapLeft").onclick = storyPrev;
+    document.getElementById("storyTapRight").onclick = storyNext;
+  }, 200);
+}
+
+function storyNext() {
+  if (_storyIndex >= _storySlides.length - 1) { closeStoryModal(); return; }
+  _storyIndex++;
+  renderStorySlide();
+}
+function storyPrev() {
+  if (_storyIndex <= 0) return;
+  _storyIndex--;
+  renderStorySlide();
+}
+
+// ── Slide HTML builders ──────────────────────────────────────────────────
+function buildSlideHTML(slide) {
+  switch (slide.type) {
+    case "glance": return buildGlanceHTML(slide);
+    case "map": return buildMapHTML(slide);
+    case "segment": return buildSegmentHTML(slide);
+    case "recap": return buildRecapHTML(slide);
+    case "reflect": return buildReflectHTML(slide);
+    default: return "";
+  }
+}
+
+function buildGlanceHTML({ data, book, chapter }) {
+  const chars = (data.characters || []).map(c =>
+    `<div class="story-chip"><div class="story-chip-name">${esc(c.name)}</div>${c.role ? `<div class="story-chip-role">${esc(c.role)}</div>` : ""}</div>`
+  ).join("");
+
+  return `
+    <div class="story-sparkle-cluster top-left">
+      <span class="story-bg-sparkle big" style="transform:rotate(-15deg)">✦</span>
+      <span class="story-bg-sparkle sm1-tl">✦</span>
+      <span class="story-bg-sparkle sm2-tl">✦</span>
+    </div>
+    <div class="story-sparkle-cluster bottom-right">
+      <span class="story-bg-sparkle big" style="transform:rotate(20deg)">✦</span>
+      <span class="story-bg-sparkle sm1-br">✦</span>
+      <span class="story-bg-sparkle sm2-br">✦</span>
+    </div>
+    <div class="story-label">AT A GLANCE</div>
+    <div class="story-title">${esc(book)} ${chapter}</div>
+    <div class="story-oneline">
+      <span class="story-oneline-highlight">${esc(data.oneLineSubject)} </span>
+      <span class="story-oneline-rest">${esc(data.oneLineRest)}</span>
+    </div>
+    ${chars ? `<div class="story-characters-label">Characters</div><div class="story-chips">${chars}</div>` : ""}
+    ${data.setting ? `<div class="story-meta-row"><span class="material-icons story-meta-icon">place</span><div><div class="story-meta-label">Setting</div><div class="story-meta-value">${esc(data.setting)}</div></div></div>` : ""}
+    ${data.timeline ? `<div class="story-meta-row"><span class="material-icons story-meta-icon">schedule</span><div><div class="story-meta-label">Timeline</div><div class="story-meta-value">${esc(data.timeline)}</div></div></div>` : ""}
+  `;
+}
+
+function buildMapHTML({ data: segments, book, chapter }) {
+  const nodes = segments.map((seg, i) => {
+    const isLast = i === segments.length - 1;
+    const line = i > 0 ? `<div class="story-map-line"></div>` : "";
+    const circle = isLast
+      ? `<div class="story-map-circle last"><span class="material-icons" style="font-size:18px">flag</span></div>`
+      : `<div class="story-map-circle">${i + 1}</div>`;
+    return `${line}<div class="story-map-node">${circle}<div><div class="story-map-title">${esc(seg.title)}</div><div class="story-map-verse">Verses ${esc(seg.verses)}</div></div></div>`;
+  }).join("");
+
+  return `
+    <span class="story-map-bg-icon pin"><span class="material-icons" style="font-size:80px">place</span></span>
+    <span class="story-map-bg-icon flag"><span class="material-icons" style="font-size:60px">flag</span></span>
+    <span class="story-map-bg-icon compass"><span class="material-icons" style="font-size:70px">explore</span></span>
+    <div class="story-label">CHAPTER MAP</div>
+    <div class="story-title">${esc(book)} ${chapter}</div>
+    <div>${nodes}</div>
+  `;
+}
+
+function buildSegmentHTML({ data: seg }) {
+  switch (seg.displayType) {
+    case "conversation": return buildConversationHTML(seg);
+    case "teaching": return buildTeachingHTML(seg);
+    case "contrast": return buildContrastHTML(seg);
+    case "narration":
+    case "sequence":
+    case "list":
+    default:
+      return buildScrapbookHTML(seg);
+  }
+}
+
+function buildScrapbookHTML(seg) {
+  const items = seg.content.points || seg.content.steps || seg.content.rows || [];
+  const verseStart = parseInt((seg.verses || "1").match(/\d+/)?.[0] || "1", 10);
+  const rotations = [-2.0, 1.8, -1.2, 2.2, -1.6, 1.4, -2.4, 1.0];
+
+  // Build cards with connectors between them
+  const parts = [];
+  items.forEach((item, i) => {
+    const text = typeof item === "string" ? item : (item.text || (Array.isArray(item) ? item.join(" · ") : ""));
+    const rot = rotations[i % rotations.length];
+    const isLeft = i % 2 === 0;
+    const side = isLeft ? "flex-start" : "flex-end";
+    const delay = i * 0.6;
+
+    parts.push(`
+      <div class="story-scrap-card" style="align-self:${side}; transform:rotate(${rot}deg); animation-delay:${delay}s">
+        <div class="tape"></div>
+        <span class="verse-ref">v${verseStart + i}</span>
+        <div class="story-scrap-text">${esc(text)}</div>
+      </div>
+    `);
+
+    // Add connector between cards (not after last)
+    if (i < items.length - 1) {
+      // Diagonal from current card center to next card center (opposite side)
+      // Left card center ~27.5%, right card center ~72.5% of container width
+      const fromPct = isLeft ? 27.5 : 72.5;
+      const toPct = isLeft ? 72.5 : 27.5;
+      const dx = toPct - fromPct; // percentage
+      const connH = 36; // connector height in px
+      // Approximate: card width is ~55% of container, so dx in px ≈ dx% of ~340px (typical mobile width)
+      // We use a CSS trick: position dots at known percentages and draw a line between them
+      const animDelay = delay + 0.35;
+      parts.push(`
+        <div class="story-connector" style="animation-delay:${animDelay}s">
+          <div class="story-connector-dot" style="left:${fromPct}%;top:-3px;animation-delay:${animDelay}s"></div>
+          <div class="story-connector-dot" style="left:${toPct}%;bottom:-3px;animation-delay:${animDelay}s"></div>
+          <svg style="position:absolute;inset:0;width:100%;height:100%;overflow:visible" preserveAspectRatio="none">
+            <line x1="${fromPct}%" y1="0" x2="${toPct}%" y2="100%" stroke="#db2777" stroke-width="1.5" opacity="0.3"/>
+          </svg>
+        </div>
+      `);
+    }
+  });
+
+  return `
+    <div style="position:relative">
+      <div class="story-grid-bg"></div>
+      <span class="story-ambient-sparkle s1">✦</span>
+      <span class="story-ambient-sparkle s2">✦</span>
+      <div class="story-title" style="position:relative;z-index:2">${esc(seg.title)}</div>
+      <div class="story-scrap-board" style="display:flex;flex-direction:column">${parts.join("")}</div>
+    </div>
+  `;
+}
+
+function buildConversationHTML(seg) {
+  const msgs = seg.content.messages || [];
+  const speakers = [...new Set(msgs.map(m => m.speaker))];
+  const sideMap = {};
+  let lastSide = "right";
+  speakers.forEach(s => { const newSide = lastSide === "left" ? "right" : "left"; sideMap[s] = newSide; lastSide = newSide; });
+
+  const bubbles = msgs.map((msg, i) => {
+    const side = sideMap[msg.speaker] || "left";
+    const prevSpeaker = i > 0 ? msgs[i - 1].speaker : "";
+    const showName = msg.speaker !== prevSpeaker;
+    const cls = side === "right" ? "story-bubble-right" : "story-bubble-left";
+    const radius = getBubbleRadius(msgs, i, side);
+    return `
+      <div class="story-bubble-wrap ${cls}" style="animation:scrapIn 0.5s ease-out ${i * 0.6}s forwards; opacity:0">
+        ${showName ? `<div class="story-speaker" ${side === "right" ? 'style="text-align:right"' : ""}>${esc(msg.speaker)}</div>` : ""}
+        <div class="story-bubble" style="${radius}">${esc(msg.text)}</div>
+      </div>
+    `;
+  }).join("");
+
+  return `
+    <div class="story-label">VERSES ${esc(seg.verses)}</div>
+    <div class="story-title">${esc(seg.title)}</div>
+    <div class="story-chat-area">${bubbles}</div>
+  `;
+}
+
+function getBubbleRadius(msgs, i, side) {
+  const R = 20, T = 4;
+  const prevSame = i > 0 && msgs[i - 1].speaker === msgs[i].speaker;
+  const nextSame = i < msgs.length - 1 && msgs[i + 1].speaker === msgs[i].speaker;
+  let tl = R, tr = R, bl = R, br = R;
+  if (side === "right") {
+    if (prevSame) tr = T;
+    if (nextSame) br = T;
+  } else {
+    if (prevSame) tl = T;
+    if (nextSame) bl = T;
+  }
+  return `border-radius:${tl}px ${tr}px ${br}px ${bl}px`;
+}
+
+function buildTeachingHTML(seg) {
+  const { quote, speaker, explanation } = seg.content;
+  const verseRef = seg.content.verseRef || seg.verses;
+  const explHTML = explanation ? boldify(explanation) : "";
+  return `
+    <span class="story-watermark open">\u201C</span>
+    <span class="story-watermark close">\u201D</span>
+    <div class="story-label">VERSES ${esc(seg.verses)}</div>
+    <div class="story-title">${esc(seg.title)}</div>
+    <div class="story-quote-card">
+      <span class="material-icons" style="color:#db2777;opacity:0.5;margin-bottom:10px">format_quote</span>
+      <div class="story-quote-text">${esc(quote || "")}</div>
+      ${speaker ? `<div class="story-quote-attr"><span class="story-quote-speaker">— ${esc(speaker)}</span><span class="story-quote-ref">v. ${esc(verseRef)}</span></div>` : ""}
+    </div>
+    ${explHTML ? `<div class="story-explanation">${explHTML}</div>` : ""}
+  `;
+}
+
+function buildContrastHTML(seg) {
+  const { left, right, reflection } = seg.content;
+  return `
+    <div class="story-glow-circle pink"></div>
+    <div class="story-glow-circle blue"></div>
+    <div class="story-label">VERSES ${esc(seg.verses)}</div>
+    <div class="story-title">${esc(seg.title)}</div>
+    <div class="story-vs-section">
+      <div class="story-vs-label">${esc(left?.label || "Before")}</div>
+      <div class="story-vs-text">${boldify(left?.text || "")}</div>
+    </div>
+    <div class="story-vs-divider"><div class="story-vs-divider-line"></div><span class="story-vs-divider-text">VS</span><div class="story-vs-divider-line"></div></div>
+    <div class="story-vs-section">
+      <div class="story-vs-label">${esc(right?.label || "After")}</div>
+      <div class="story-vs-text blue">${boldify(right?.text || "")}</div>
+    </div>
+    ${reflection ? `<div class="story-reflection-row"><span class="material-icons" style="color:#db2777;font-size:16px;margin-top:2px">lightbulb</span><div class="story-reflection-text">${boldify(reflection)}</div></div>` : ""}
+  `;
+}
+
+function buildRecapHTML({ data, book, chapter }) {
+  const points = (data.recapPoints || []).map((p, i) =>
+    `<div class="story-recap-row"><div class="story-recap-num">${i + 1}</div><div class="story-recap-text">${esc(p)}</div></div>`
+  ).join("");
+  return `
+    <span class="story-recap-bg-icon"><span class="material-icons" style="font-size:320px;color:#db2777">replay</span></span>
+    <div class="story-label">QUICK RECAP</div>
+    <div class="story-title">${esc(book)} ${chapter}</div>
+    <div class="story-recap-points">${points}</div>
+  `;
+}
+
+function buildReflectHTML({ data, book, chapter }) {
+  return `
+    <span class="story-float-heart br1"><span class="material-icons" style="font-size:28px">favorite</span></span>
+    <span class="story-float-heart br2"><span class="material-icons" style="font-size:20px">favorite</span></span>
+    <span class="story-float-heart br3"><span class="material-icons" style="font-size:24px">favorite</span></span>
+    <span class="story-float-heart tl1"><span class="material-icons" style="font-size:22px">favorite</span></span>
+    <span class="story-float-heart tl2"><span class="material-icons" style="font-size:18px">favorite</span></span>
+    <span class="story-float-heart tl3"><span class="material-icons" style="font-size:26px">favorite</span></span>
+    <div style="text-align:center">
+      <span class="material-icons" style="font-size:32px;color:#db2777;margin-bottom:16px">favorite</span>
+      <div class="story-label" style="text-align:center">REFLECT</div>
+      <div class="story-title" style="text-align:center">${esc(book)} ${chapter}</div>
+      <div class="story-reflect-text">${esc(data.reflectionP1 || "")}</div>
+      <div class="story-reflect-text" style="margin-top:16px">${esc(data.reflectionP2 || "")}</div>
+      <div class="story-reflect-closing"><span class="material-icons" style="font-size:14px;color:#db2777">auto_awesome</span> Take a moment to sit with this.</div>
+    </div>
+  `;
+}
+
+// ── Story API calls ──────────────────────────────────────────────────────
+async function fetchStoryGlance(book, chapter, versesText) {
+  const raw = await callGemini(`You are a Bible study assistant. For ${book} Chapter ${chapter}, provide a quick visual snapshot.
+
+Return ONLY valid JSON, no markdown fences:
+{
+  "characters": [{"name": "Character Name", "role": "brief role"}],
+  "setting": "Location or context",
+  "timeline": "Approximate time period",
+  "oneLineSubject": "The key subject noun/phrase",
+  "oneLineRest": "rest of the sentence"
+}
+
+RULES:
+- characters: list ALL named people (max 6)
+- setting: be specific
+- timeline: use approximate dates or eras
+- oneLineSubject + oneLineRest: one punchy sentence (max 15 words). Subject is the main noun/concept.
+
+PASSAGE:
+${versesText}`);
+  try {
+    const cleaned = raw.replace(/\`\`\`json\s*/gi, "").replace(/\`\`\`\s*/gi, "").trim();
+    const p = JSON.parse(cleaned);
+    return { characters: (p.characters || []).slice(0, 6), setting: p.setting || "", timeline: p.timeline || "", oneLineSubject: p.oneLineSubject || book, oneLineRest: p.oneLineRest || `Chapter ${chapter}` };
+  } catch { return { characters: [], setting: "", timeline: "", oneLineSubject: book, oneLineRest: `Chapter ${chapter}` }; }
+}
+
+async function fetchStoryTimeline(book, chapter, versesText) {
+  const verseCount = versesText.split("\n").filter(l => l.trim()).length;
+  const target = Math.max(3, Math.min(10, Math.ceil(verseCount / 8)));
+  const ICONS = '"light-mode","water-drop","park","pets","person","groups","favorite","local-fire-department","auto-awesome","menu-book","church","bolt","shield","visibility","healing","handshake","gavel","sailing","terrain","nightlight","celebration","warning","star","home","explore","psychology","volunteer-activism"';
+
+  const raw = await callGemini(`You are a Bible study assistant creating an interactive story breakdown for ${book} Chapter ${chapter}.
+
+Break the chapter into ${target} sequential segments. For EACH segment, pick the BEST displayType:
+
+DISPLAY TYPES:
+- "conversation": dialogue. Content: {"messages": [{"speaker": "Name", "text": "what they say"}]}
+- "narration": action/events. Content: {"points": [{"text": "short point", "emoji": "optional emoji or empty"}]}
+- "teaching": key concept. Content: {"quote": "the key teaching", "speaker": "who", "verseRef": "specific verse num", "explanation": "1-2 sentences"}
+- "contrast": before/after. Content: {"left": {"label": "Before", "text": "..."}, "right": {"label": "After", "text": "..."}, "reflection": "1 sentence learning"}
+- "sequence": step-by-step. Content: {"steps": [{"text": "step", "emoji": "optional"}]}
+
+RULES:
+- Every verse in exactly one segment
+- Use a MIX of displayTypes
+- Keep ALL text concise
+- materialIcon from: ${ICONS}
+
+Return ONLY valid JSON array:
+[{"title": "Title", "materialIcon": "icon", "verses": "1-5", "displayType": "narration", "content": {}}]
+
+PASSAGE:
+${versesText}`);
+
+  const strategies = [
+    () => raw.replace(/\`\`\`json\s*/gi, "").replace(/\`\`\`\s*/gi, "").trim(),
+    () => { const m = raw.match(/\[[\s\S]*\]/); return m ? m[0] : ""; },
+  ];
+  for (const extract of strategies) {
+    try {
+      const cleaned = extract();
+      if (!cleaned) continue;
+      const parsed = JSON.parse(cleaned);
+      if (Array.isArray(parsed) && parsed.length > 0) {
+        return parsed.slice(0, 15).map(s => ({
+          title: String(s.title || "Summary"),
+          materialIcon: String(s.materialIcon || "auto-awesome"),
+          verses: String(s.verses || ""),
+          displayType: ["conversation","narration","list","teaching","contrast","sequence"].includes(s.displayType) ? s.displayType : "narration",
+          content: s.content || {},
+        }));
+      }
+    } catch {}
+  }
+  throw new Error("Failed to generate story. Please try again.");
+}
+
+async function fetchStoryClosing(book, chapter, versesText) {
+  const raw = await callGemini(`You are a warm Bible study guide. For ${book} Chapter ${chapter}, create a closing.
+
+Return ONLY valid JSON:
+{
+  "recapPoints": ["point 1", "point 2", "point 3"],
+  "reflectionP1": "First paragraph: relatable feeling, link to chapter.",
+  "reflectionP2": "Second paragraph: clear takeaway, something real about God."
+}
+
+RULES:
+- recapPoints: exactly 3, max 12 words each
+- DON'T start with book name. Be relatable, not preachy. Short sentences.
+
+PASSAGE:
+${versesText}`);
+  try {
+    const cleaned = raw.replace(/\`\`\`json\s*/gi, "").replace(/\`\`\`\s*/gi, "").trim();
+    const p = JSON.parse(cleaned);
+    return { recapPoints: (p.recapPoints || []).slice(0, 5), reflectionP1: p.reflectionP1 || "", reflectionP2: p.reflectionP2 || "" };
+  } catch { return null; }
+}
+
+function boldify(text) {
+  return esc(text).replace(/\*\*([^*]+)\*\*/g, "<strong>$1</strong>");
+}
+
+function esc(str) {
+  const d = document.createElement("div");
+  d.textContent = str || "";
+  return d.innerHTML;
 }

@@ -100,7 +100,26 @@
 
         <div id="passageTitle" class="passage-title" hidden></div>
 
+        <button id="storyBtn" class="story-btn hidden" onclick="openStoryModal()">
+          <span class="material-icons" style="font-size:16px">auto_awesome</span>
+          Story
+        </button>
+
         <div id="output" class="bible"></div>
+
+        <!-- Story Modal -->
+        <div id="storyModal" class="story-modal" hidden>
+          <div class="story-modal-inner">
+            <div class="story-progress-bar" id="storyProgressBar"></div>
+            <button class="story-close-btn" onclick="closeStoryModal()">
+              <span class="material-symbols-outlined">close</span>
+            </button>
+            <div class="story-content" id="storyContent"></div>
+            <div class="story-counter" id="storyCounter"></div>
+            <div class="story-tap-left" id="storyTapLeft"></div>
+            <div class="story-tap-right" id="storyTapRight"></div>
+          </div>
+        </div>
       </div>
 
       <aside class="summary">
