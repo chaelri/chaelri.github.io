@@ -347,10 +347,14 @@ copyNotesBtn.onclick = async () => {
   let hasReflections = false;
   const reflectionLines = [];
 
-  document.querySelectorAll('textarea[id^="reflection-"]').forEach((area) => {
-    const entry = localStorage.getItem(area.id);
-    if (entry && area.value.trim() !== "") {
-      reflectionLines.push(entry);
+  document.querySelectorAll('textarea[id^="reflection-"]').forEach((area, idx) => {
+    if (area.value.trim() !== "") {
+      // Get the question text from the preceding <p> sibling
+      const li = area.closest("li");
+      const questionP = li?.querySelector("p");
+      const questionText = questionP ? questionP.textContent.trim() : `Question ${idx + 1}`;
+      reflectionLines.push(`Q: ${questionText}`);
+      reflectionLines.push(`A: ${area.value.trim()}`);
       reflectionLines.push(""); // Spacer
       hasReflections = true;
     }
@@ -2532,12 +2536,17 @@ ${versesText}
         e.preventDefault();
         const verseNum = link.getAttribute("href")?.replace("#", "");
         if (!verseNum) return;
-        const verseEl = document.querySelector(`#output .verse:nth-child(${verseNum}) .verse-header`);
-        if (verseEl) {
-          verseEl.scrollIntoView({ behavior: "smooth", block: "center" });
-          verseEl.classList.remove("verseGlow");
-          void verseEl.offsetWidth;
-          verseEl.classList.add("verseGlow");
+        // Find the verse element by matching .verse-num text content
+        const allVerses = document.querySelectorAll("#output .verse");
+        const target = Array.from(allVerses).find(el =>
+          el.querySelector(".verse-num")?.textContent?.trim() === verseNum
+        );
+        const header = target?.querySelector(".verse-header") || target;
+        if (header) {
+          header.scrollIntoView({ behavior: "smooth", block: "center" });
+          header.classList.remove("verseGlow");
+          void header.offsetWidth;
+          header.classList.add("verseGlow");
         }
       });
     });
@@ -2791,7 +2800,7 @@ loadBtn.onclick = async () => {
   document.getElementById("prevChapterBtn").classList.remove("hidden");
   document.getElementById("nextChapterBtn").classList.remove("hidden");
   document.getElementById("ttsPlayBtn").classList.remove("hidden");
-  document.getElementById("storyBtn").classList.remove("hidden");
+  document.getElementById("storyReflectRow").classList.remove("hidden");
   resetAISections();
 
   await loadPassage();
@@ -4998,20 +5007,31 @@ async function openStoryModal() {
 function closeStoryModal() {
   const modal = document.getElementById("storyModal");
   const content = document.getElementById("storyContent");
-  // Show closing screen
   content.innerHTML = `
     <div class="story-loading">
       <div class="story-sparkle-row"><span class="story-sparkle">✦</span><span class="story-sparkle">✦</span><span class="story-sparkle">✦</span></div>
       <div class="story-loading-text">Happy reading</div>
     </div>`;
-  setTimeout(() => { modal.hidden = true; }, 1200);
+  setTimeout(() => {
+    modal.classList.add("fade-out");
+    setTimeout(() => { modal.hidden = true; modal.classList.remove("fade-out"); }, 400);
+  }, 1200);
 }
 
 function updateStoryProgress(current, total) {
   const bar = document.getElementById("storyProgressBar");
   bar.innerHTML = Array.from({ length: total }, (_, i) =>
-    `<div class="story-progress-seg"><div class="story-progress-fill" style="width:${i <= current ? '100%' : '0'}; opacity:${i <= current ? 1 : 0.3}"></div></div>`
+    `<div class="story-progress-seg"><div class="story-progress-fill" style="width:${i <= current ? '100%' : '0%'}; opacity:${i <= current ? 1 : 0.3}"></div></div>`
   ).join("");
+}
+
+// For chapter map: animate progress segments one by one in sync with nodes
+function animateMapProgress(total, segCount) {
+  const bar = document.getElementById("storyProgressBar");
+  const segs = bar.querySelectorAll(".story-progress-fill");
+  // Slide 0 (at-a-glance) and 1 (map) are already filled.
+  // We just need the current slide (index 1) to be filled. That's already handled.
+  // No extra animation needed since progress is per-slide not per-node.
 }
 
 function renderStorySlide() {
@@ -5028,6 +5048,7 @@ function renderStorySlide() {
   content.classList.add("fade-out");
   setTimeout(() => {
     content.innerHTML = buildSlideHTML(slide);
+    content.scrollTop = 0; // scroll to top on every slide
     content.classList.remove("fade-out");
     content.classList.add("fade-in");
     // Wire tap zones
@@ -5165,6 +5186,12 @@ function buildScrapbookHTML(seg) {
     }
   });
 
+  const footer = `<div style="text-align:center;margin-top:28px;z-index:2;position:relative">
+    <div style="width:40px;height:2px;border-radius:1px;background:rgba(255,255,255,0.08);margin:0 auto 12px"></div>
+    <div style="font-size:11px;font-weight:800;letter-spacing:2px;text-transform:uppercase;color:#db2777">Verses ${esc(seg.verses)}</div>
+    <div style="font-size:13px;font-weight:600;color:#6b7a94;opacity:0.5;margin-top:4px">${esc(seg.title)}</div>
+  </div>`;
+
   return `
     <div style="position:relative">
       <div class="story-grid-bg"></div>
@@ -5172,6 +5199,7 @@ function buildScrapbookHTML(seg) {
       <span class="story-ambient-sparkle s2">✦</span>
       <div class="story-title" style="position:relative;z-index:2">${esc(seg.title)}</div>
       <div class="story-scrap-board" style="display:flex;flex-direction:column">${parts.join("")}</div>
+      ${footer}
     </div>
   `;
 }
@@ -5398,4 +5426,26 @@ function esc(str) {
   const d = document.createElement("div");
   d.textContent = str || "";
   return d.innerHTML;
+}
+
+// ═══════════════════════════════════════════════════════════════════════════
+// REFLECT MODAL — Shows reflection questions in a clean fullscreen view
+// ═══════════════════════════════════════════════════════════════════════════
+function openReflectModal() {
+  const modal = document.getElementById("reflectModal");
+  const content = document.getElementById("reflectContent");
+  const reflectionEl = document.getElementById("aiReflection");
+
+  if (!reflectionEl || !reflectionEl.innerHTML.trim()) {
+    content.innerHTML = `<div class="story-loading"><div class="story-loading-text">No reflection questions yet. Load a passage first.</div></div>`;
+  } else {
+    content.innerHTML = `<div style="max-width:600px;margin:0 auto">${reflectionEl.innerHTML}</div>`;
+  }
+  modal.hidden = false;
+}
+
+function closeReflectModal() {
+  const modal = document.getElementById("reflectModal");
+  modal.classList.add("fade-out");
+  setTimeout(() => { modal.hidden = true; modal.classList.remove("fade-out"); }, 400);
 }

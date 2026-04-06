@@ -100,10 +100,26 @@
 
         <div id="passageTitle" class="passage-title" hidden></div>
 
-        <button id="storyBtn" class="story-btn hidden" onclick="openStoryModal()">
-          <span class="material-icons" style="font-size:16px">auto_awesome</span>
-          Story
-        </button>
+        <div id="storyReflectRow" class="story-reflect-row hidden">
+          <button id="storyBtn" class="story-btn" onclick="openStoryModal()">
+            <span class="material-icons" style="font-size:16px">auto_awesome</span>
+            Story
+          </button>
+          <button id="reflectBtn" class="story-btn" onclick="openReflectModal()">
+            <span class="material-icons" style="font-size:16px">volunteer_activism</span>
+            Reflect
+          </button>
+        </div>
+
+        <!-- Reflect Modal -->
+        <div id="reflectModal" class="story-modal" hidden>
+          <div class="story-modal-inner">
+            <button class="story-close-btn" onclick="closeReflectModal()">
+              <span class="material-symbols-outlined">close</span>
+            </button>
+            <div class="story-content" id="reflectContent"></div>
+          </div>
+        </div>
 
         <div id="output" class="bible"></div>
 
@@ -123,7 +139,7 @@
       </div>
 
       <aside class="summary">
-        <div id="aiContextSummary"></div>
+        <div id="aiContextSummary" hidden></div>
         <button id="toggleReflectionBtn" hidden>
           <span class="material-icons" style="font-size:16px;vertical-align:middle;">volunteer_activism</span> Show Guided Reflection
         </button>
