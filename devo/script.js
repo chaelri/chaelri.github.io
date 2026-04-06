@@ -5109,13 +5109,20 @@ function buildGlanceHTML({ data, book, chapter }) {
 }
 
 function buildMapHTML({ data: segments, book, chapter }) {
-  const nodes = segments.map((seg, i) => {
+  // Each node gets: line grows down FIRST, then node fades in
+  // Timing: node0 at 0.3s, line1 at 0.5s, node1 at 0.7s, line2 at 0.9s, node2 at 1.1s ...
+  const parts = segments.map((seg, i) => {
     const isLast = i === segments.length - 1;
-    const line = i > 0 ? `<div class="story-map-line"></div>` : "";
+    const nodeDelay = 0.3 + i * 0.4; // node appears
+    const lineDelay = nodeDelay - 0.2; // line grows just before node
+
+    const line = i > 0
+      ? `<div class="story-map-line" style="opacity:0;animation:mapLineGrow 0.3s ease-out ${lineDelay}s forwards"></div>`
+      : "";
     const circle = isLast
       ? `<div class="story-map-circle last"><span class="material-icons" style="font-size:18px">flag</span></div>`
       : `<div class="story-map-circle">${i + 1}</div>`;
-    return `${line}<div class="story-map-node">${circle}<div><div class="story-map-title">${esc(seg.title)}</div><div class="story-map-verse">Verses ${esc(seg.verses)}</div></div></div>`;
+    return `${line}<div class="story-map-node" style="animation-delay:${nodeDelay}s">${circle}<div><div class="story-map-title">${esc(seg.title)}</div><div class="story-map-verse">Verses ${esc(seg.verses)}</div></div></div>`;
   }).join("");
 
   return `
@@ -5124,7 +5131,7 @@ function buildMapHTML({ data: segments, book, chapter }) {
     <span class="story-map-bg-icon compass"><span class="material-icons" style="font-size:70px">explore</span></span>
     <div class="story-label">CHAPTER MAP</div>
     <div class="story-title">${esc(book)} ${chapter}</div>
-    <div>${nodes}</div>
+    <div>${parts}</div>
   `;
 }
 
@@ -5438,14 +5445,77 @@ function openReflectModal() {
 
   if (!reflectionEl || !reflectionEl.innerHTML.trim()) {
     content.innerHTML = `<div class="story-loading"><div class="story-loading-text">No reflection questions yet. Load a passage first.</div></div>`;
-  } else {
-    content.innerHTML = `<div style="max-width:600px;margin:0 auto">${reflectionEl.innerHTML}</div>`;
+    modal.hidden = false;
+    return;
   }
+
+  const bookName = bookEl.options[bookEl.selectedIndex]?.text || "";
+  const chapter = chapterEl.value;
+
+  content.innerHTML = `
+    <div style="max-width:600px;margin:0 auto">
+      <div class="story-label">GUIDED REFLECTION</div>
+      <div class="story-title">${bookName} ${chapter}</div>
+      ${reflectionEl.innerHTML}
+    </div>`;
+
   modal.hidden = false;
+
+  // Wire verse reference links to open bottom sheet peek instead of scrolling
+  content.querySelectorAll("a.reflection-link").forEach(link => {
+    link.addEventListener("click", e => {
+      e.preventDefault();
+      e.stopPropagation();
+      const verseNum = link.getAttribute("href")?.replace("#", "");
+      if (verseNum) openVersePeek(verseNum);
+    });
+  });
+
+  // Sync textarea values with the original reflection section
+  content.querySelectorAll("textarea").forEach(ta => {
+    ta.addEventListener("input", () => {
+      const origTa = reflectionEl.querySelector(`#${ta.id}`);
+      if (origTa) origTa.value = ta.value;
+      // Also save to localStorage
+      if (ta.id) localStorage.setItem(ta.id, ta.value);
+      // Auto-resize
+      ta.style.height = "auto";
+      ta.style.height = ta.scrollHeight + "px";
+    });
+  });
 }
 
 function closeReflectModal() {
   const modal = document.getElementById("reflectModal");
   modal.classList.add("fade-out");
   setTimeout(() => { modal.hidden = true; modal.classList.remove("fade-out"); }, 400);
+}
+
+function openVersePeek(verseNum) {
+  // Find the verse text from the loaded passage
+  const allVerses = document.querySelectorAll("#output .verse");
+  const target = Array.from(allVerses).find(el =>
+    el.querySelector(".verse-num")?.textContent?.trim() === verseNum
+  );
+  const verseContent = target?.querySelector(".verse-content, .verse-header");
+  const text = verseContent?.textContent?.trim() || "Verse not found.";
+
+  const bookName = bookEl.options[bookEl.selectedIndex]?.text || "";
+  const chapter = chapterEl.value;
+
+  const overlay = document.createElement("div");
+  overlay.className = "verse-peek-overlay";
+  overlay.innerHTML = `
+    <div class="verse-peek-sheet">
+      <div class="verse-peek-handle"></div>
+      <div class="verse-peek-ref">${bookName} ${chapter}:${verseNum}</div>
+      <div class="verse-peek-text">${text}</div>
+    </div>`;
+  document.body.appendChild(overlay);
+
+  overlay.addEventListener("click", e => {
+    if (e.target === overlay) {
+      overlay.remove();
+    }
+  });
 }
