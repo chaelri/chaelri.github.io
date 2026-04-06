@@ -4601,6 +4601,36 @@ function ttsImmersiveClose() {
   if (reflectBtn) reflectBtn.hidden = true;
 }
 
+function _ttsImmStartPlayback(gen) {
+  if (gen !== ttsGen) return;
+  const ctxPanel = document.getElementById("ttsImmContextPanel");
+  if (ctxPanel) ctxPanel.hidden = true;
+
+  const stage = document.querySelector(".tts-imm-stage");
+  if (stage) stage.style.display = "";
+  const footer = document.querySelector(".tts-imm-footer");
+  if (footer) footer.style.display = "";
+
+  const immBar = document.getElementById("ttsImmLoadBar");
+  if (immBar) {
+    const pct = ttsQueue.length > 0 ? `${(_ttsReadyCount / ttsQueue.length) * 100}%` : "0%";
+    immBar.style.width = pct;
+  }
+  const immStatus = document.getElementById("ttsImmStatusEl");
+  if (immStatus) immStatus.textContent = "";
+
+  ttsImmersiveBuildScrubber();
+  document.getElementById("ttsImmPrevBtn").onclick = ttsPrevVerse;
+  document.getElementById("ttsImmNextBtn").onclick = ttsNextVerse;
+  document.getElementById("ttsImmPauseBtn").onclick = pauseResumeTTS;
+  document.getElementById("ttsImmSlotPrev").onclick = () => { if (ttsIdx > 0) ttsPrevVerse(); };
+  document.getElementById("ttsImmSlotNext").onclick = () => { if (ttsIdx < ttsQueue.length - 1) ttsNextVerse(); };
+  const curSlot = document.getElementById("ttsImmSlotCur");
+  if (curSlot) curSlot.addEventListener("click", _immHandleDoubleTap);
+
+  ttsPlayAt(0, gen);
+}
+
 function ttsImmContextOpen(gen) {
   const el = document.getElementById("ttsImmersive");
   if (!el) return;
@@ -4626,56 +4656,36 @@ function ttsImmContextOpen(gen) {
   // Close button stops TTS
   document.getElementById("ttsImmCloseBtn").onclick = stopTTS;
 
-  // Populate context content
+  // Show loading screen instead of context
   const ctxPanel = document.getElementById("ttsImmContextPanel");
   const ctxContent = document.getElementById("ttsImmContextContent");
   if (ctxContent) {
-    if (_contextLoading) {
-      ctxContent.innerHTML = `<div class="tts-imm-ctx-loading"><div class="tts-imm-ctx-spinner"></div><p>Loading context…</p></div>`;
-      const obs = new MutationObserver(() => {
-        ctxContent.innerHTML = aiContextSummaryEl.innerHTML;
-        if (!_contextLoading) obs.disconnect();
-      });
-      obs.observe(aiContextSummaryEl, { childList: true, subtree: true, characterData: true });
-    } else {
-      ctxContent.innerHTML = aiContextSummaryEl.innerHTML;
-    }
+    ctxContent.innerHTML = `
+      <div class="tts-imm-loader">
+        <div class="story-sparkle-row">
+          <span class="story-sparkle">✦</span>
+          <span class="story-sparkle">✦</span>
+          <span class="story-sparkle">✦</span>
+        </div>
+        <div class="tts-imm-loader-text">Preparing audio…</div>
+      </div>`;
   }
   if (ctxPanel) ctxPanel.hidden = false;
 
-  // "Start Reading" button: hide context, show stage+footer, start TTS
+  // Hide the start button — we auto-start
   const startBtn = document.getElementById("ttsImmContextStart");
-  if (startBtn) {
-    startBtn.onclick = () => {
-      if (gen !== ttsGen) return;
-      if (ctxPanel) ctxPanel.hidden = true;
+  if (startBtn) startBtn.style.display = "none";
 
-      const stage = document.querySelector(".tts-imm-stage");
-      if (stage) stage.style.display = "";
-      const footer = document.querySelector(".tts-imm-footer");
-      if (footer) footer.style.display = "";
-
-      const immBar = document.getElementById("ttsImmLoadBar");
-      if (immBar) {
-        // Reflect actual synthesis progress — may already be 100% if user read the context slowly
-        const pct = ttsQueue.length > 0 ? `${(_ttsReadyCount / ttsQueue.length) * 100}%` : "0%";
-        immBar.style.width = pct;
-      }
-      const immStatus = document.getElementById("ttsImmStatusEl");
-      if (immStatus) immStatus.textContent = "";
-
-      ttsImmersiveBuildScrubber();
-      document.getElementById("ttsImmPrevBtn").onclick = ttsPrevVerse;
-      document.getElementById("ttsImmNextBtn").onclick = ttsNextVerse;
-      document.getElementById("ttsImmPauseBtn").onclick = pauseResumeTTS;
-      document.getElementById("ttsImmSlotPrev").onclick = () => { if (ttsIdx > 0) ttsPrevVerse(); };
-      document.getElementById("ttsImmSlotNext").onclick = () => { if (ttsIdx < ttsQueue.length - 1) ttsNextVerse(); };
-      const curSlot = document.getElementById("ttsImmSlotCur");
-      if (curSlot) curSlot.addEventListener("click", _immHandleDoubleTap);
-
-      ttsPlayAt(0, gen);
-    };
-  }
+  // Poll for first verse ready, then auto-start
+  const pollId = setInterval(() => {
+    if (gen !== ttsGen) { clearInterval(pollId); return; }
+    // Start as soon as the first verse is synthesized
+    if (_ttsReadyCount >= 1) {
+      clearInterval(pollId);
+      if (startBtn) startBtn.style.display = "";
+      _ttsImmStartPlayback(gen);
+    }
+  }, 150);
 }
 
 function ttsImmersiveBuildScrubber() {
@@ -5342,7 +5352,7 @@ function buildReflectHTML({ data, book, chapter }) {
       <div class="story-reflect-closing"><span class="material-icons" style="font-size:14px;color:#db2777">auto_awesome</span> ${getReflectClosingLine()}</div>
       <div class="story-reflect-actions">
         <button class="story-reflect-action-btn" onclick="closeStoryModal(); setTimeout(openReflectModal, 500)">
-          Reflect on Chapter
+          Reflect this Chapter
         </button>
         <button class="story-reflect-action-btn outline" onclick="closeStoryModal()">
           Back to Reading

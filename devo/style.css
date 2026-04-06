@@ -181,7 +181,7 @@ button.primary {
   background: #db2777;
   border: none;
   color: #ffffff;
-  box-shadow: 0 10px 30px rgba(72, 107, 236, 0.35);
+  box-shadow: 0 10px 30px rgba(219, 39, 119, 0.35);
 }
 
 button.primary:hover {
@@ -1184,7 +1184,7 @@ select:disabled {
   background: #db2777;
   color: #fff;
   font-size: 18px;
-  box-shadow: 0 10px 30px rgba(72, 107, 236, 0.35);
+  box-shadow: 0 10px 30px rgba(219, 39, 119, 0.35);
   cursor: pointer;
   display: flex;
   align-items: center;
@@ -1969,7 +1969,7 @@ body.light {
   border: 0.5px solid #00000029;
 }
 .light .inline-ai-btn {
-  box-shadow: 0 10px 30px rgba(72, 107, 236, 0.35);
+  box-shadow: 0 10px 30px rgba(219, 39, 119, 0.35);
 }
 
 .light h3,
@@ -3972,12 +3972,12 @@ body.light {
   height: 70px !important;
   min-width: 70px;
   background: #db2777;
-  box-shadow: 0 8px 28px rgba(72, 107, 236, 0.45);
+  box-shadow: 0 8px 28px rgba(219, 39, 119, 0.4);
 }
 
 .tts-imm-btn-play:hover {
-  background: linear-gradient(135deg, #5a7aee, #e03487);
-  box-shadow: 0 10px 32px rgba(72, 107, 236, 0.6);
+  background: #e8348a;
+  box-shadow: 0 10px 32px rgba(219, 39, 119, 0.6);
 }
 
 .tts-imm-btn .material-symbols-outlined { font-size: 24px; line-height: 1; }
@@ -4386,6 +4386,20 @@ body.light {
   transition: opacity 0.15s ease;
 }
 .tts-imm-context-start-btn:hover { opacity: 0.88; }
+.tts-imm-loader {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  height: 100%;
+  gap: 16px;
+}
+.tts-imm-loader-text {
+  font-size: 17px;
+  font-weight: 600;
+  color: #8a95a8;
+  letter-spacing: 0.3px;
+}
 .tts-imm-ctx-loading {
   display: flex;
   flex-direction: column;
@@ -5158,10 +5172,13 @@ body.light {
   position: absolute;
   bottom: 16px;
   right: 28px;
-  font-size: 13px;
+  font-size: 11px;
   font-weight: 700;
-  letter-spacing: 0.5px;
-  color: #6b7a94;
+  letter-spacing: 1px;
+  color: #fff;
+  background: #db2777;
+  padding: 4px 8px;
+  border-radius: 3px;
 }
 .story-tap-left, .story-tap-right {
   position: absolute;
@@ -5620,7 +5637,7 @@ body.light {
 .light .story-explanation strong { color: #1a1a2e; }
 .light .story-close-btn { color: #8a95a8; }
 .light .story-close-btn:hover { color: #1a1a2e; }
-.light .story-counter { color: #8a95a8; }
+.light .story-counter { color: #fff; }
 .light .story-progress-seg { background: rgba(0,0,0,0.06); }
 
 /* ===== REFLECT MODAL OVERRIDES ===== */
