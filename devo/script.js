@@ -290,13 +290,11 @@ let reflectionVisible =
   JSON.parse(localStorage.getItem("reflectionVisible")) ?? false;
 
 function applyReflectionVisibility() {
+  // Reflection is now in the Reflect modal — always keep sidebar version hidden
   const el = document.getElementById("aiReflection");
-  if (!el) return;
-
-  el.style.display = reflectionVisible ? "block" : "none";
-  toggleReflectionBtn.textContent = reflectionVisible
-    ? "🙏 Hide Guided Reflection"
-    : "🙏 Show Guided Reflection";
+  if (el) el.style.display = "none";
+  const btn = document.getElementById("toggleReflectionBtn");
+  if (btn) btn.style.display = "none";
 }
 
 toggleReflectionBtn.onclick = () => {
@@ -1460,6 +1458,7 @@ async function showDashboard() {
   passageTitleEl.hidden = true;
   toggleReflectionBtn.hidden = true;
   summaryTitleEl.hidden = true;
+  document.getElementById("storyReflectRow")?.classList.add("hidden");
   homeBtn.style.display = "none"; // HIDE HOME BUTTON ON DASHBOARD
   const dashBrandRow = document.getElementById("dashBrandRow");
   if (dashBrandRow) dashBrandRow.hidden = false;
@@ -2429,7 +2428,11 @@ IMPORTANT OUTPUT RULES (STRICT):
 
 
 ALLOWED TAGS:
-div, p, ol, li, strong, em, textarea, a
+div, p, ol, li, textarea, a
+
+BANNED (DO NOT USE):
+- strong, em, b, i, span, mark, code — DO NOT wrap any words in styling tags
+- DO NOT highlight or style quoted Bible phrases — just write them as plain text in the sentence
 
 
 ROLE:
@@ -2534,9 +2537,9 @@ ${versesText}
     mount.querySelectorAll("a.reflection-link").forEach(link => {
       link.addEventListener("click", e => {
         e.preventDefault();
-        const verseNum = link.getAttribute("href")?.replace("#", "");
+        const rawRef = link.getAttribute("href")?.replace("#", "") || "";
+        const verseNum = rawRef.replace(/[^0-9\-–]/g, "").split(/[-–]/)[0].trim();
         if (!verseNum) return;
-        // Find the verse element by matching .verse-num text content
         const allVerses = document.querySelectorAll("#output .verse");
         const target = Array.from(allVerses).find(el =>
           el.querySelector(".verse-num")?.textContent?.trim() === verseNum
@@ -2800,7 +2803,7 @@ loadBtn.onclick = async () => {
   document.getElementById("prevChapterBtn").classList.remove("hidden");
   document.getElementById("nextChapterBtn").classList.remove("hidden");
   document.getElementById("ttsPlayBtn").classList.remove("hidden");
-  document.getElementById("storyReflectRow").classList.remove("hidden");
+  document.getElementById("storyReflectRow")?.classList.remove("hidden");
   resetAISections();
 
   await loadPassage();
@@ -5193,7 +5196,8 @@ function buildScrapbookHTML(seg) {
     }
   });
 
-  const footer = `<div style="text-align:center;margin-top:28px;z-index:2;position:relative">
+  const footerDelay = (items.length - 1) * 0.6 + 0.8;
+  const footer = `<div style="text-align:center;margin-top:28px;z-index:2;position:relative;opacity:0;animation:nodeIn 0.4s ease-out ${footerDelay}s forwards">
     <div style="width:40px;height:2px;border-radius:1px;background:rgba(255,255,255,0.08);margin:0 auto 12px"></div>
     <div style="font-size:11px;font-weight:800;letter-spacing:2px;text-transform:uppercase;color:#db2777">Verses ${esc(seg.verses)}</div>
     <div style="font-size:13px;font-weight:600;color:#6b7a94;opacity:0.5;margin-top:4px">${esc(seg.title)}</div>
@@ -5318,7 +5322,15 @@ function buildReflectHTML({ data, book, chapter }) {
       <div class="story-title" style="text-align:center">${esc(book)} ${chapter}</div>
       <div class="story-reflect-text">${esc(data.reflectionP1 || "")}</div>
       <div class="story-reflect-text" style="margin-top:16px">${esc(data.reflectionP2 || "")}</div>
-      <div class="story-reflect-closing"><span class="material-icons" style="font-size:14px;color:#db2777">auto_awesome</span> Take a moment to sit with this.</div>
+      <div class="story-reflect-closing"><span class="material-icons" style="font-size:14px;color:#db2777">auto_awesome</span> ${getReflectClosingLine()}</div>
+      <div class="story-reflect-actions">
+        <button class="story-reflect-action-btn" onclick="closeStoryModal(); setTimeout(openReflectModal, 500)">
+          Reflect on Chapter
+        </button>
+        <button class="story-reflect-action-btn outline" onclick="closeStoryModal()">
+          Back to Reading
+        </button>
+      </div>
     </div>
   `;
 }
@@ -5361,7 +5373,7 @@ async function fetchStoryTimeline(book, chapter, versesText) {
 Break the chapter into ${target} sequential segments. For EACH segment, pick the BEST displayType:
 
 DISPLAY TYPES:
-- "conversation": dialogue. Content: {"messages": [{"speaker": "Name", "text": "what they say"}]}
+- "conversation": dialogue. Content: {"messages": [{"speaker": "Name", "text": "what they say"}]} — paraphrase in simple modern English, keep each message SHORT (1-2 sentences, max 20 words per message)
 - "narration": action/events. Content: {"points": [{"text": "short point", "emoji": "optional emoji or empty"}]}
 - "teaching": key concept. Content: {"quote": "the key teaching", "speaker": "who", "verseRef": "specific verse num", "explanation": "1-2 sentences"}
 - "contrast": before/after. Content: {"left": {"label": "Before", "text": "..."}, "right": {"label": "After", "text": "..."}, "reflection": "1 sentence learning"}
@@ -5408,13 +5420,13 @@ async function fetchStoryClosing(book, chapter, versesText) {
 Return ONLY valid JSON:
 {
   "recapPoints": ["point 1", "point 2", "point 3"],
-  "reflectionP1": "First paragraph: relatable feeling, link to chapter.",
-  "reflectionP2": "Second paragraph: clear takeaway, something real about God."
+  "reflectionP1": "2 sentences MAX: a relatable feeling, linked to the chapter.",
+  "reflectionP2": "2 sentences MAX: one clear takeaway + one line about God's character."
 }
 
 RULES:
 - recapPoints: exactly 3, max 12 words each
-- DON'T start with book name. Be relatable, not preachy. Short sentences.
+- reflectionP1 + reflectionP2: KEEP IT SHORT. Max 2 sentences each, max 30 words each. DON'T start with book name. No filler. No rhetorical questions. Talk like a real person. Use "we/us/our" not "I/me/my".
 
 PASSAGE:
 ${versesText}`);
@@ -5423,6 +5435,22 @@ ${versesText}`);
     const p = JSON.parse(cleaned);
     return { recapPoints: (p.recapPoints || []).slice(0, 5), reflectionP1: p.reflectionP1 || "", reflectionP2: p.reflectionP2 || "" };
   } catch { return null; }
+}
+
+const REFLECT_CLOSING_LINES = [
+  "Take a moment to sit with this.",
+  "Let this settle in your heart.",
+  "No rush — just be here for a sec.",
+  "Breathe. You're exactly where you need to be.",
+  "Let these words stay with you today.",
+  "Sit with this before you move on.",
+  "Take this with you into your day.",
+  "You don't have to figure it all out right now.",
+  "Just let it land.",
+  "Carry this truth with you today.",
+];
+function getReflectClosingLine() {
+  return REFLECT_CLOSING_LINES[Math.floor(Math.random() * REFLECT_CLOSING_LINES.length)];
 }
 
 function boldify(text) {
@@ -5452,11 +5480,15 @@ function openReflectModal() {
   const bookName = bookEl.options[bookEl.selectedIndex]?.text || "";
   const chapter = chapterEl.value;
 
+  // Clone and clean the HTML — strip any rogue styled spans/marks from AI
+  const cleanHTML = reflectionEl.innerHTML
+    .replace(/<(strong|em|b|i|mark|span)[^>]*>(.*?)<\/\1>/gi, '$2');
+
   content.innerHTML = `
-    <div style="max-width:600px;margin:0 auto">
+    <div>
       <div class="story-label">GUIDED REFLECTION</div>
       <div class="story-title">${bookName} ${chapter}</div>
-      ${reflectionEl.innerHTML}
+      ${cleanHTML}
     </div>`;
 
   modal.hidden = false;
@@ -5471,12 +5503,20 @@ function openReflectModal() {
     });
   });
 
-  // Sync textarea values with the original reflection section
+  // Restore saved values and sync textarea values
   content.querySelectorAll("textarea").forEach(ta => {
+    // Restore from localStorage
+    if (ta.id) {
+      const saved = localStorage.getItem(ta.id);
+      if (saved) ta.value = saved;
+    }
+    // Auto-resize to fit content
+    ta.style.height = "auto";
+    ta.style.height = ta.scrollHeight + "px";
+
     ta.addEventListener("input", () => {
       const origTa = reflectionEl.querySelector(`#${ta.id}`);
       if (origTa) origTa.value = ta.value;
-      // Also save to localStorage
       if (ta.id) localStorage.setItem(ta.id, ta.value);
       // Auto-resize
       ta.style.height = "auto";
@@ -5487,21 +5527,47 @@ function openReflectModal() {
 
 function closeReflectModal() {
   const modal = document.getElementById("reflectModal");
+  const content = document.getElementById("reflectContent");
+  const reflectionEl = document.getElementById("aiReflection");
+
+  // Sync all textarea values back to the original reflection section + localStorage
+  content.querySelectorAll("textarea").forEach(ta => {
+    if (ta.id) {
+      // Save to localStorage
+      localStorage.setItem(ta.id, ta.value);
+      // Sync back to original
+      const orig = reflectionEl?.querySelector(`#${ta.id}`);
+      if (orig) orig.value = ta.value;
+    }
+  });
+
   modal.classList.add("fade-out");
   setTimeout(() => { modal.hidden = true; modal.classList.remove("fade-out"); }, 400);
 }
 
-function openVersePeek(verseNum) {
-  // Find the verse text from the loaded passage
+function openVersePeek(rawRef) {
+  // Clean the ref — extract just the first number from things like "v. 23", "23", "vv. 28-29"
+  const cleanNum = rawRef.replace(/[^0-9\-–]/g, "").split(/[-–]/)[0].trim();
+
   const allVerses = document.querySelectorAll("#output .verse");
   const target = Array.from(allVerses).find(el =>
-    el.querySelector(".verse-num")?.textContent?.trim() === verseNum
+    el.querySelector(".verse-num")?.textContent?.trim() === cleanNum
   );
-  const verseContent = target?.querySelector(".verse-content, .verse-header");
-  const text = verseContent?.textContent?.trim() || "Verse not found.";
+
+  let text = "Verse not found.";
+  if (target) {
+    const contentEl = target.querySelector(".verse-content");
+    if (contentEl) {
+      const clone = contentEl.cloneNode(true);
+      // Remove verse number, icons, and meta indicators
+      clone.querySelectorAll(".verse-num, .verse-meta-indicators, .favorite-indicator").forEach(el => el.remove());
+      text = clone.textContent.trim();
+    }
+  }
 
   const bookName = bookEl.options[bookEl.selectedIndex]?.text || "";
   const chapter = chapterEl.value;
+  const verseNum = cleanNum;
 
   const overlay = document.createElement("div");
   overlay.className = "verse-peek-overlay";

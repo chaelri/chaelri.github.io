@@ -249,13 +249,13 @@ export async function getChapterClosing(
 Return ONLY valid JSON, no markdown fences:
 {
   "recapPoints": ["point 1", "point 2", "point 3"],
-  "reflectionP1": "First paragraph (2-3 sentences): Start with a relatable feeling or situation the reader might connect with — like 'Sometimes we feel...' or 'There are days when...' — then link it to what the chapter is about. Make them feel seen, not lectured.",
-  "reflectionP2": "Second paragraph (2 sentences): A clear, grounded takeaway. End with something real about God — not a cliché, just truth."
+  "reflectionP1": "2 sentences MAX: a relatable feeling, linked to the chapter.",
+  "reflectionP2": "2 sentences MAX: one clear takeaway + one line about God's character."
 }
 
 RULES:
 - recapPoints: exactly 3 bullet points, each max 12 words, summarizing the key moments of the chapter
-- reflectionP1 + reflectionP2: relatable and real. DON'T start with the book name or chapter number. DON'T be preachy or use churchy language. Write like you're talking to a friend who just read this with you. Make the reader feel understood — not told what to feel. Short sentences. No filler. No rhetorical questions like "can't it?" or "isn't it?". No "you might be feeling".
+- reflectionP1 + reflectionP2: KEEP IT SHORT. Max 2 sentences each, max 30 words each. DON'T start with book name. No filler. No rhetorical questions. Relatable and real — like talking to a friend. No churchy language. Use "we/us/our" not "I/me/my".
 
 PASSAGE:
 ${versesText}`);

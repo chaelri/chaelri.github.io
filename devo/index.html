@@ -98,53 +98,35 @@
         
         </div>
 
-        <div id="passageTitle" class="passage-title" hidden></div>
-
-        <div id="storyReflectRow" class="story-reflect-row hidden">
-          <button id="storyBtn" class="story-btn" onclick="openStoryModal()">
-            <span class="material-icons" style="font-size:16px">auto_awesome</span>
-            Story
-          </button>
-          <button id="reflectBtn" class="story-btn" onclick="openReflectModal()">
-            <span class="material-icons" style="font-size:16px">volunteer_activism</span>
-            Reflect
-          </button>
-        </div>
-
-        <!-- Reflect Modal -->
-        <div id="reflectModal" class="story-modal" hidden>
-          <div class="story-modal-inner">
-            <button class="story-close-btn" onclick="closeReflectModal()">
-              <span class="material-symbols-outlined">close</span>
+        <div id="storyReflectRow" class="action-section hidden">
+          <div class="action-left">
+            <div id="passageTitle" class="passage-title"></div>
+            <button id="reflectBtn" class="action-reflect-btn" onclick="openReflectModal()">
+              <span class="material-icons">volunteer_activism</span>
+              Reflect
             </button>
-            <div class="story-content" id="reflectContent"></div>
           </div>
+          <button id="storyBtn" class="action-story-stack" onclick="openStoryModal()">
+            <div class="story-stack-cards">
+              <div class="story-orbit-dot"></div>
+              <div class="story-orbit-dot-h"></div>
+              <div class="story-stack-card c3"></div>
+              <div class="story-stack-card c2"></div>
+              <div class="story-stack-card c1">
+                <span class="material-icons">auto_awesome</span>
+              </div>
+            </div>
+            <span class="action-story-label">Story</span>
+          </button>
         </div>
 
         <div id="output" class="bible"></div>
-
-        <!-- Story Modal -->
-        <div id="storyModal" class="story-modal" hidden>
-          <div class="story-modal-inner">
-            <div class="story-progress-bar" id="storyProgressBar"></div>
-            <button class="story-close-btn" onclick="closeStoryModal()">
-              <span class="material-symbols-outlined">close</span>
-            </button>
-            <div class="story-content" id="storyContent"></div>
-            <div class="story-counter" id="storyCounter"></div>
-            <div class="story-tap-left" id="storyTapLeft"></div>
-            <div class="story-tap-right" id="storyTapRight"></div>
-          </div>
-        </div>
       </div>
 
       <aside class="summary">
         <div id="aiContextSummary" hidden></div>
-        <button id="toggleReflectionBtn" hidden>
-          <span class="material-icons" style="font-size:16px;vertical-align:middle;">volunteer_activism</span> Show Guided Reflection
-        </button>
-
-        <div id="aiReflection"></div>
+        <button id="toggleReflectionBtn" hidden></button>
+        <div id="aiReflection" hidden></div>
         <div id="summaryTitle" class="summary-title" hidden></div>
 
         <div id="summaryContent">
@@ -368,6 +350,28 @@
           </button>
         </div>
         <div class="tts-imm-refl-status" id="ttsImmReflStatus"></div>
+      </div>
+    </div>
+
+    <!-- Modals — at body root so position:fixed works on all viewports -->
+    <div id="storyModal" class="story-modal" hidden>
+      <div class="story-modal-inner">
+        <div class="story-progress-bar" id="storyProgressBar"></div>
+        <button class="story-close-btn" onclick="closeStoryModal()">
+          <span class="material-symbols-outlined">close</span>
+        </button>
+        <div class="story-content" id="storyContent"></div>
+        <div class="story-counter" id="storyCounter"></div>
+        <div class="story-tap-left" id="storyTapLeft"></div>
+        <div class="story-tap-right" id="storyTapRight"></div>
+      </div>
+    </div>
+    <div id="reflectModal" class="story-modal" hidden>
+      <div class="story-modal-inner">
+        <button class="story-close-btn" onclick="closeReflectModal()">
+          <span class="material-symbols-outlined">close</span>
+        </button>
+        <div class="story-content" id="reflectContent"></div>
       </div>
     </div>
 

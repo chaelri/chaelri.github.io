@@ -4,6 +4,19 @@ import { MaterialIcons } from '@expo/vector-icons';
 
 const { width: SCREEN_WIDTH, height: SCREEN_HEIGHT } = Dimensions.get('window');
 
+const REFLECT_CLOSING_LINES = [
+  "Take a moment to sit with this.",
+  "Let this settle in your heart.",
+  "No rush — just be here for a sec.",
+  "Breathe. You're exactly where you need to be.",
+  "Let these words stay with you today.",
+  "Sit with this before you move on.",
+  "Take this with you into your day.",
+  "You don't have to figure it all out right now.",
+  "Just let it land.",
+  "Carry this truth with you today.",
+];
+
 interface Props {
   reflectionP1: string;
   reflectionP2: string;
@@ -128,7 +141,7 @@ export default function ReflectionSlide({ reflectionP1, reflectionP2, bookName, 
           <View style={styles.closingRow}>
             <MaterialIcons name="auto-awesome" size={14} color={theme.accent} />
             <Text style={[styles.closingText, { color: theme.textMuted }]}>
-              Take a moment to sit with this.
+              {REFLECT_CLOSING_LINES[Math.floor(Math.random() * REFLECT_CLOSING_LINES.length)]}
             </Text>
           </View>
         </Animated.View>
