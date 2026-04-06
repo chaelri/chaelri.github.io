@@ -2752,11 +2752,23 @@ const scrollTopBtn = document.getElementById("scrollTopBtn");
 const layoutEl = document.querySelector(".layout");
 
 scrollTopBtn.style.display = "none";
+let _scrollBtnVisible = false;
 
 layoutEl.addEventListener("scroll", () => {
   if (window.innerWidth > 900) return;
+  const shouldShow = layoutEl.scrollTop > 160;
 
-  scrollTopBtn.style.display = layoutEl.scrollTop > 160 ? "flex" : "none";
+  if (shouldShow && !_scrollBtnVisible) {
+    _scrollBtnVisible = true;
+    scrollTopBtn.style.display = "flex";
+    scrollTopBtn.style.animation = "scrollBtnIn 0.3s cubic-bezier(0.16,1,0.3,1) forwards";
+  } else if (!shouldShow && _scrollBtnVisible) {
+    _scrollBtnVisible = false;
+    scrollTopBtn.style.animation = "scrollBtnOut 0.25s ease-in forwards";
+    scrollTopBtn.addEventListener("animationend", () => {
+      if (!_scrollBtnVisible) scrollTopBtn.style.display = "none";
+    }, { once: true });
+  }
 });
 
 scrollTopBtn.onclick = () => {

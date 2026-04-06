@@ -239,7 +239,7 @@ select:disabled {
 
 /* The specifically styled quoted text */
 .quote-style {
-  color: #a5b4fc; /* Light indigo/blue tint */
+  color: #db2777;
   font-style: italic;
   font-weight: 500;
 }
@@ -1240,11 +1240,25 @@ select:disabled {
   display: flex;
   align-items: center;
   justify-content: center;
+  animation: scrollBtnIn 0.3s cubic-bezier(0.16, 1, 0.3, 1);
+}
+@keyframes scrollBtnIn {
+  from { opacity: 0; transform: scale(0.5) translateY(20px); }
+  to { opacity: 1; transform: scale(1) translateY(0); }
+}
+@keyframes scrollBtnOut {
+  from { opacity: 1; transform: scale(1) translateY(0); }
+  to { opacity: 0; transform: scale(0.5) translateY(20px); }
 }
 
 .scroll-top-btn .material-symbols-outlined {
   font-size: 22px;
   line-height: 1;
+  animation: arrowBob 1.2s ease-in-out infinite;
+}
+@keyframes arrowBob {
+  0%, 100% { transform: translateY(0); }
+  50% { transform: translateY(-3px); }
 }
 
 .scroll-top-btn:active {
@@ -2018,7 +2032,7 @@ body.light {
 
 .light .version-pill-group { background: rgba(0,0,0,0.07); }
 .light .version-pill { color: rgba(0,0,0,0.4); }
-.light .version-pill.active { background: #db2777 !important; color: #fff; }
+.light .version-pill.active { background: #db2777 !important; color: #fff !important; }
 .light .ctrl-icon-btn { background: rgba(0,0,0,0.08) !important; color: rgba(0,0,0,0.55); }
 .light .ctrl-icon-btn:hover { background: rgba(0,0,0,0.13) !important; color: #0b1220; }
 
