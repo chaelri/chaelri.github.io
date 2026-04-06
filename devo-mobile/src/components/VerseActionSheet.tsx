@@ -9,6 +9,7 @@ import {
 import { MaterialIcons } from '@expo/vector-icons';
 import { useTheme } from '../hooks/useTheme';
 import { Spacing, FontSize, BorderRadius } from '../constants/theme';
+import * as H from '../utils/haptics';
 
 interface Action {
   icon: string;
@@ -92,6 +93,7 @@ export default function VerseActionSheet({
               ]}
               onPress={() => {
                 if (!action.disabled) {
+                  H.tap();
                   onClose();
                   action.onPress();
                 }

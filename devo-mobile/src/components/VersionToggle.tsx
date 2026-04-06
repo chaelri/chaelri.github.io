@@ -1,7 +1,7 @@
 import React from 'react';
-import { View, Text, TouchableOpacity, StyleSheet, Platform } from 'react-native';
-import * as Haptics from 'expo-haptics';
+import { View, Text, TouchableOpacity, StyleSheet } from 'react-native';
 import { useTheme } from '../hooks/useTheme';
+import * as H from '../utils/haptics';
 import { useStore } from '../store/useStore';
 import { FontSize, BorderRadius } from '../constants/theme';
 import GradientView from './GradientView';
@@ -12,7 +12,7 @@ export default function VersionToggle() {
 
   const toggle = (v: 'NASB' | 'EASY') => {
     if (v === currentVersion) return;
-    if (Platform.OS !== 'web') Haptics.selectionAsync();
+    H.tick();
     setVersion(v);
   };
 

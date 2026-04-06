@@ -2,19 +2,32 @@ import React, { useEffect, useState, useRef } from 'react';
 import {
   View,
   Text,
-  ScrollView,
   TouchableOpacity,
   StyleSheet,
   Modal,
   Animated,
   Easing,
 } from 'react-native';
+import { SafeAreaView } from 'react-native-safe-area-context';
 import { MaterialIcons } from '@expo/vector-icons';
 import { useTheme } from '../hooks/useTheme';
-import { Spacing, FontSize, BorderRadius } from '../constants/theme';
-import GradientView from './GradientView';
+import * as H from '../utils/haptics';
+import { BorderRadius } from '../constants/theme';
+import {
+  getAtAGlance,
+  getChapterTimeline,
+  getChapterClosing,
+  type AtAGlance,
+  type StorySegment,
+  type ChapterClosing,
+} from '../services/ai';
+import { SegmentSlideRouter, AtAGlanceSlide, ChapterMapSlide } from './StorySlide';
+import RecapSlide from './slides/RecapSlide';
+import ReflectionSlide from './slides/ReflectionSlide';
 
-const GEMINI_PROXY = 'https://gemini-proxy-668755364170.asia-southeast1.run.app';
+
+// These display types use scrapbook-style reveal within the slide
+const SCRAPBOOK_TYPES = new Set(['narration', 'sequence', 'list']);
 
 interface Props {
   visible: boolean;
@@ -24,27 +37,60 @@ interface Props {
   versesText: string;
 }
 
-interface QuickSummary {
-  context: string;
-  whatHappens: string;
-  watchFor: string;
-}
-
 export default function SummaryPanel({ visible, onClose, bookName, chapter, versesText }: Props) {
   const theme = useTheme();
-  const [quickSummary, setQuickSummary] = useState<QuickSummary | null>(null);
-  const [fullSummary, setFullSummary] = useState('');
+  const [atAGlance, setAtAGlance] = useState<AtAGlance | null>(null);
+  const [segments, setSegments] = useState<StorySegment[]>([]);
+  const [closing, setClosing] = useState<ChapterClosing | null>(null);
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState('');
+  const [currentIndex, setCurrentIndex] = useState(0);
 
-  // Sparkle animation
   const sparkles = [useRef(new Animated.Value(0)).current, useRef(new Animated.Value(0)).current, useRef(new Animated.Value(0)).current];
-  const fadeIn = useRef(new Animated.Value(0)).current;
+  const slideFade = useRef(new Animated.Value(1)).current;
+  const slideTranslateY = useRef(new Animated.Value(0)).current;
+  // Exit animation
+  const exitFade = useRef(new Animated.Value(1)).current;
+  const [isExiting, setIsExiting] = useState(false);
+
+  // totalSlides: AtAGlance + ChapterMap + segments + Recap + Reflection
+  const totalSlides = atAGlance ? 2 + segments.length + (closing ? 2 : 0) : 0;
+
+  // Per-slide scrapbook reveal tracking: how many items revealed for current slide
+  const [revealedCount, setRevealedCount] = useState(1);
+
+  const getItemCount = (seg: StorySegment): number => {
+    switch (seg.displayType) {
+      case 'narration': return (seg.content.points || []).length;
+      case 'sequence': return (seg.content.steps || []).length;
+      case 'list': return (seg.content.rows || []).length;
+      default: return 0;
+    }
+  };
+
+  // Auto-reveal scrapbook cards on a timer
+  useEffect(() => {
+    setRevealedCount(1);
+  }, [currentIndex]);
 
   useEffect(() => {
-    if (visible && !quickSummary && !fullSummary) {
-      fetchSummary();
-    }
+    const segIdx = currentIndex - 2;
+    if (segIdx < 0 || segIdx >= segments.length) return;
+    const seg = segments[segIdx];
+    if (!SCRAPBOOK_TYPES.has(seg.displayType)) return;
+
+    const total = getItemCount(seg);
+    if (revealedCount >= total) return;
+
+    const timer = setTimeout(() => {
+      setRevealedCount((c) => c + 1);
+    }, 600); // reveal next card every 0.6s
+
+    return () => clearTimeout(timer);
+  }, [currentIndex, revealedCount, segments]);
+
+  useEffect(() => {
+    if (visible && !atAGlance && segments.length === 0) fetchData();
   }, [visible]);
 
   useEffect(() => {
@@ -61,350 +107,295 @@ export default function SummaryPanel({ visible, onClose, bookName, chapter, vers
     }
   }, [loading]);
 
-  const fetchSummary = async () => {
+  const fetchData = async () => {
     setLoading(true);
     setError('');
-    fadeIn.setValue(0);
+    setCurrentIndex(0);
+    H.sparkleRhythm();
 
     try {
-      // Fetch both: quick structured summary + full detailed summary
-      const quickPrompt = `You are a Bible study assistant. Give a brief structured summary for ${bookName} Chapter ${chapter}.
-
-FORMAT (follow exactly — 3 sections, each 1-2 sentences max):
-CONTEXT: [Brief background — what's happening at this point in the book]
-WHAT_HAPPENS: [What occurs in this chapter]
-WATCH_FOR: [One key thing the reader should pay attention to]
-
-Keep it concise and clear. No bullet points, no numbering.
-
-PASSAGE:
-${versesText}`;
-
-      const fullPrompt = `You are a Bible study assistant. Give a detailed context summary for ${bookName} Chapter ${chapter}.
-
-RULES:
-- Do NOT start with greetings or intro sentences. Start directly with the content.
-- Use these exact section headers with ## markdown: ## Background, ## Key Themes, ## Watch For
-- Use bullet points with bold key terms using **double asterisks**
-- Reference specific verse numbers
-- Be thorough but readable
-- Friendly English tone, casual yet respectful
-
-Here are the verses:
-${versesText}`;
-
-      // Fire both requests in parallel
-      const [quickRes, fullRes] = await Promise.all([
-        fetch(GEMINI_PROXY, {
-          method: 'POST',
-          headers: { 'Content-Type': 'application/json' },
-          body: JSON.stringify({ task: 'summary', contents: [{ parts: [{ text: quickPrompt }] }] }),
-        }),
-        fetch(GEMINI_PROXY, {
-          method: 'POST',
-          headers: { 'Content-Type': 'application/json' },
-          body: JSON.stringify({ task: 'summary', contents: [{ parts: [{ text: fullPrompt }] }] }),
-        }),
+      const [glance, timeline, closingData] = await Promise.all([
+        getAtAGlance(bookName, chapter, versesText),
+        getChapterTimeline(bookName, chapter, versesText),
+        getChapterClosing(bookName, chapter, versesText),
       ]);
 
-      if (!quickRes.ok || !fullRes.ok) throw new Error('API error');
-
-      const [quickData, fullData] = await Promise.all([quickRes.json(), fullRes.json()]);
-
-      const quickText = quickData?.candidates?.[0]?.content?.parts?.[0]?.text || '';
-      const fullText = fullData?.candidates?.[0]?.content?.parts?.[0]?.text || '';
-
-      // Parse quick summary
-      const parsed = parseQuickSummary(quickText);
-      setQuickSummary(parsed);
-      setFullSummary(fullText);
-
-      Animated.timing(fadeIn, {
-        toValue: 1,
-        duration: 500,
-        easing: Easing.out(Easing.quad),
-        useNativeDriver: true,
-      }).start();
+      setAtAGlance(glance);
+      setSegments(timeline);
+      setClosing(closingData);
+      H.stopSparkle();
+      H.success();
     } catch (err: any) {
+      H.stopSparkle();
+      H.error();
       setError(err.message || 'Failed to load');
     } finally {
       setLoading(false);
     }
   };
 
-  const parseQuickSummary = (text: string): QuickSummary => {
-    let context = '';
-    let whatHappens = '';
-    let watchFor = '';
+  const animateTransition = (cb: () => void, direction: 'next' | 'prev' = 'next') => {
+    const exitY = direction === 'next' ? -16 : 16;
+    const enterY = direction === 'next' ? 24 : -24;
 
-    const lines = text.split('\n');
-    for (const line of lines) {
-      const trimmed = line.trim();
-      if (trimmed.match(/^CONTEXT:/i)) {
-        context = trimmed.replace(/^CONTEXT:\s*/i, '');
-      } else if (trimmed.match(/^WHAT.?HAPPENS:/i)) {
-        whatHappens = trimmed.replace(/^WHAT.?HAPPENS:\s*/i, '');
-      } else if (trimmed.match(/^WATCH.?FOR:/i)) {
-        watchFor = trimmed.replace(/^WATCH.?FOR:\s*/i, '');
-      }
-    }
+    Animated.parallel([
+      Animated.timing(slideFade, { toValue: 0, duration: 200, easing: Easing.in(Easing.cubic), useNativeDriver: true }),
+      Animated.timing(slideTranslateY, { toValue: exitY, duration: 200, easing: Easing.in(Easing.cubic), useNativeDriver: true }),
+    ]).start(() => {
+      cb();
+      slideTranslateY.setValue(enterY);
+      Animated.parallel([
+        Animated.timing(slideFade, { toValue: 1, duration: 400, easing: Easing.out(Easing.cubic), useNativeDriver: true }),
+        Animated.timing(slideTranslateY, { toValue: 0, duration: 400, easing: Easing.out(Easing.cubic), useNativeDriver: true }),
+      ]).start();
+    });
+  };
 
-    // Fallback: if parsing failed, split by sentences
-    if (!context && !whatHappens && !watchFor) {
-      const sentences = text.split(/(?<=[.!?])\s+/).filter(Boolean);
-      context = sentences[0] || text;
-      whatHappens = sentences[1] || '';
-      watchFor = sentences[2] || '';
-    }
+  const goNext = () => {
+    if (currentIndex >= totalSlides - 1) { H.press(); animateExit(); return; }
+    H.tick();
+    animateTransition(() => setCurrentIndex((i) => i + 1), 'next');
+  };
 
-    return { context, whatHappens, watchFor };
+  const goPrev = () => {
+    if (currentIndex <= 0) return;
+    H.tick();
+    animateTransition(() => setCurrentIndex((i) => i - 1), 'prev');
+  };
+
+  const animateExit = () => {
+    if (isExiting) return;
+    setIsExiting(true);
+    H.success();
+    // Restart sparkle anims for closing screen
+    sparkles.forEach((anim, i) => {
+      Animated.loop(
+        Animated.sequence([
+          Animated.delay(i * 250),
+          Animated.timing(anim, { toValue: 1, duration: 500, easing: Easing.out(Easing.quad), useNativeDriver: true }),
+          Animated.timing(anim, { toValue: 0.2, duration: 500, easing: Easing.in(Easing.quad), useNativeDriver: true }),
+        ])
+      ).start();
+    });
+    // Fade out current slide, show closing screen, then dismiss
+    Animated.timing(slideFade, { toValue: 0, duration: 300, easing: Easing.in(Easing.cubic), useNativeDriver: true }).start(() => {
+      setTimeout(() => {
+        resetAndClose();
+      }, 1500);
+    });
   };
 
   const handleClose = () => {
-    setQuickSummary(null);
-    setFullSummary('');
+    animateExit();
+  };
+
+  const resetAndClose = () => {
+    H.stopSparkle();
+    setAtAGlance(null);
+    setSegments([]);
+    setClosing(null);
+    setCurrentIndex(0);
+    setIsExiting(false);
+    exitFade.setValue(1);
+    slideFade.setValue(1);
     onClose();
   };
 
-  return (
-    <Modal visible={visible} transparent animationType="slide" onRequestClose={handleClose}>
-      <View style={[styles.container, { backgroundColor: theme.background }]}>
-        {/* Header */}
-        <View style={[styles.header, { borderBottomColor: theme.border }]}>
-          <View style={styles.headerLeft}>
-            <View style={[styles.headerIcon, { backgroundColor: theme.accentLight }]}>
-              <MaterialIcons name="auto-awesome" size={18} color={theme.accent} />
-            </View>
-            <View>
-              <Text style={[styles.headerLabel, { color: theme.textMuted }]}>AI STUDY TOOL</Text>
-              <Text style={[styles.headerTitle, { color: theme.text }]}>Context Summary</Text>
-            </View>
-          </View>
-          <TouchableOpacity onPress={handleClose} style={styles.closeBtn}>
-            <MaterialIcons name="close" size={22} color={theme.textMuted} />
-          </TouchableOpacity>
-        </View>
+  const renderSlide = () => {
+    if (!atAGlance) return null;
 
-        <ScrollView
-          style={styles.scrollView}
-          contentContainerStyle={styles.scrollContent}
-          showsVerticalScrollIndicator={false}
-        >
+    if (currentIndex === 0) {
+      return <AtAGlanceSlide data={atAGlance} bookName={bookName} chapter={chapter} theme={theme} />;
+    }
+    if (currentIndex === 1) {
+      return <ChapterMapSlide segments={segments} bookName={bookName} chapter={chapter} theme={theme} />;
+    }
+
+    const segIndex = currentIndex - 2;
+
+    // Segment slides
+    if (segIndex >= 0 && segIndex < segments.length) {
+      const seg = segments[segIndex];
+      const isScrapType = SCRAPBOOK_TYPES.has(seg.displayType);
+
+      // For scrapbook types, clip the content to revealed count
+      const displaySeg = isScrapType ? clipSegment(seg, revealedCount) : seg;
+      const totalItems = isScrapType ? getItemCount(seg) : 0;
+      const allRevealed = revealedCount >= totalItems;
+
+      return (
+        <SegmentSlideRouter
+          segment={displaySeg}
+          theme={theme}
+          bookName={bookName}
+          chapter={chapter}
+        />
+      );
+    }
+
+    // Recap slide
+    if (closing && segIndex === segments.length) {
+      return <RecapSlide recapPoints={closing.recapPoints} bookName={bookName} chapter={chapter} theme={theme} />;
+    }
+
+    // Reflection slide
+    if (closing && segIndex === segments.length + 1) {
+      return <ReflectionSlide reflectionP1={closing.reflectionP1} reflectionP2={closing.reflectionP2} bookName={bookName} chapter={chapter} theme={theme} />;
+    }
+
+    return null;
+  };
+
+  return (
+    <Modal visible={visible} animationType="fade" transparent={false} onRequestClose={handleClose}>
+      <View style={[styles.container, { backgroundColor: theme.background }]}>
+        <SafeAreaView style={styles.safeArea} edges={['top', 'bottom']}>
+          {/* Progress bar + close */}
+          <View style={styles.topBar}>
+            <View style={styles.progressRow}>
+              {totalSlides > 0 && Array.from({ length: totalSlides }).map((_, i) => (
+                <View key={i} style={[styles.progressSeg, { backgroundColor: theme.glassBackground }]}>
+                  <View style={[
+                    styles.progressFill,
+                    {
+                      backgroundColor: theme.accent,
+                      width: i <= currentIndex ? '100%' : '0%',
+                      opacity: i <= currentIndex ? 1 : 0.3,
+                    },
+                  ]} />
+                </View>
+              ))}
+            </View>
+            <TouchableOpacity onPress={handleClose} style={styles.closeBtn} hitSlop={{ top: 12, bottom: 12, left: 12, right: 12 }}>
+              <MaterialIcons name="close" size={24} color={theme.textMuted} />
+            </TouchableOpacity>
+          </View>
+
+          {/* Content */}
           {loading ? (
-            <View style={styles.loadingContainer}>
+            <View style={styles.center}>
               <View style={styles.sparkleRow}>
                 {sparkles.map((anim, i) => (
-                  <Animated.Text
-                    key={i}
-                    style={[
-                      styles.sparkle,
-                      {
-                        opacity: anim,
-                        transform: [{ scale: anim.interpolate({ inputRange: [0, 1], outputRange: [0.6, 1.3] }) }],
-                      },
-                    ]}
-                  >
-                    ✦
-                  </Animated.Text>
+                  <Animated.Text key={i} style={[styles.sparkle, {
+                    opacity: anim,
+                    transform: [{ scale: anim.interpolate({ inputRange: [0, 1], outputRange: [0.6, 1.3] }) }],
+                  }]}>✦</Animated.Text>
                 ))}
               </View>
-              <Text style={[styles.loadingText, { color: theme.textMuted }]}>Generating summary...</Text>
+              <Text style={[styles.loadingText, { color: theme.textMuted }]}>Generating stories...</Text>
             </View>
           ) : error ? (
-            <View style={styles.errorContainer}>
-              <Text style={[styles.errorText, { color: theme.textSecondary }]}>{error}</Text>
-              <TouchableOpacity onPress={fetchSummary} style={[styles.retryBtn, { backgroundColor: theme.primary }]}>
-                <Text style={styles.retryBtnText}>Retry</Text>
+            <View style={styles.center}>
+              <MaterialIcons name="error-outline" size={36} color={theme.textMuted} />
+              <Text style={[styles.loadingText, { color: theme.textSecondary }]}>{error}</Text>
+              <TouchableOpacity onPress={fetchData} style={[styles.retryBtn, { backgroundColor: theme.primary }]}>
+                <Text style={styles.retryText}>Retry</Text>
               </TouchableOpacity>
             </View>
+          ) : isExiting ? (
+            <View style={styles.center}>
+              <View style={styles.sparkleRow}>
+                {sparkles.map((anim, i) => (
+                  <Animated.Text key={i} style={[styles.sparkle, {
+                    opacity: anim,
+                    transform: [{ scale: anim.interpolate({ inputRange: [0, 1], outputRange: [0.6, 1.3] }) }],
+                  }]}>✦</Animated.Text>
+                ))}
+              </View>
+              <Text style={[styles.loadingText, { color: theme.textMuted }]}>Happy reading</Text>
+            </View>
           ) : (
-            <Animated.View style={{ opacity: fadeIn }}>
-              {/* ─── Quick Glance Card (gradient) ─── */}
-              {quickSummary && (
-                <GradientView style={styles.quickCard} borderRadius={20}>
-                  <View style={styles.quickCardInner}>
-                    <Text style={styles.quickLabel}>BEFORE YOU READ</Text>
-                    <Text style={styles.quickTitle}>
-                      {bookName.toUpperCase()} {chapter}
-                    </Text>
+            <View style={{ flex: 1 }}>
+              <Animated.View style={[styles.slideWrap, { opacity: slideFade, transform: [{ translateY: slideTranslateY }] }]}>
+                {renderSlide()}
+                {totalSlides > 0 && (
+                  <Text style={[styles.counter, { color: theme.textMuted }]}>
+                    {currentIndex + 1} / {totalSlides}
+                  </Text>
+                )}
+              </Animated.View>
 
-                    {quickSummary.context ? (
-                      <View style={styles.quickSection}>
-                        <Text style={styles.quickSectionTitle}>Context</Text>
-                        <Text style={styles.quickSectionText}>{quickSummary.context}</Text>
-                      </View>
-                    ) : null}
-
-                    {quickSummary.whatHappens ? (
-                      <View style={styles.quickSection}>
-                        <Text style={styles.quickSectionTitle}>What Happens</Text>
-                        <Text style={styles.quickSectionText}>{quickSummary.whatHappens}</Text>
-                      </View>
-                    ) : null}
-
-                    {quickSummary.watchFor ? (
-                      <View style={styles.quickSection}>
-                        <Text style={styles.quickSectionTitle}>Watch For</Text>
-                        <Text style={styles.quickSectionText}>{quickSummary.watchFor}</Text>
-                      </View>
-                    ) : null}
-                  </View>
-                </GradientView>
-              )}
-
-              {/* ─── Full Detailed Summary ─── */}
-              {fullSummary ? (
-                <View style={styles.fullSection}>
-                  <MarkdownLite text={fullSummary} theme={theme} />
-                </View>
-              ) : null}
-            </Animated.View>
+              {/* Invisible edge tap zones — don't interfere with scroll */}
+              <TouchableOpacity
+                style={styles.tapZoneLeft}
+                onPress={goPrev}
+                activeOpacity={1}
+              />
+              <TouchableOpacity
+                style={styles.tapZoneRight}
+                onPress={goNext}
+                activeOpacity={1}
+              />
+            </View>
           )}
-        </ScrollView>
+        </SafeAreaView>
       </View>
     </Modal>
   );
 }
 
-// Simple markdown renderer for the full summary
-function MarkdownLite({ text, theme }: { text: string; theme: any }) {
-  if (!text) return null;
-  const lines = text.split('\n');
-  const elements: React.ReactNode[] = [];
-
-  lines.forEach((line, i) => {
-    const trimmed = line.trim();
-    if (trimmed.startsWith('#### ')) {
-      elements.push(<Text key={i} style={[mdStyles.h3, { color: theme.text }]}>{trimmed.slice(5)}</Text>);
-    } else if (trimmed.startsWith('### ')) {
-      elements.push(<Text key={i} style={[mdStyles.h3, { color: theme.text }]}>{trimmed.slice(4)}</Text>);
-    } else if (trimmed.startsWith('## ')) {
-      elements.push(<Text key={i} style={[mdStyles.h2, { color: theme.text }]}>{trimmed.slice(3)}</Text>);
-    } else if (trimmed.startsWith('# ')) {
-      elements.push(<Text key={i} style={[mdStyles.h1, { color: theme.text }]}>{trimmed.slice(2)}</Text>);
-    } else if (trimmed.startsWith('- ') || trimmed.startsWith('* ')) {
-      elements.push(
-        <View key={i} style={mdStyles.bullet}>
-          <Text style={[mdStyles.bulletDot, { color: theme.accent }]}>•</Text>
-          <Text style={[mdStyles.body, { color: theme.textSecondary }]}>{renderBold(trimmed.slice(2), theme)}</Text>
-        </View>
-      );
-    } else if (/^\d+\.\s/.test(trimmed)) {
-      const match = trimmed.match(/^(\d+)\.\s(.*)$/);
-      if (match) {
-        elements.push(
-          <View key={i} style={mdStyles.bullet}>
-            <Text style={[mdStyles.num, { color: theme.accent }]}>{match[1]}.</Text>
-            <Text style={[mdStyles.body, { color: theme.textSecondary }]}>{renderBold(match[2], theme)}</Text>
-          </View>
-        );
-      }
-    } else if (trimmed === '') {
-      elements.push(<View key={i} style={{ height: 8 }} />);
-    } else {
-      elements.push(<Text key={i} style={[mdStyles.body, { color: theme.textSecondary }]}>{renderBold(trimmed, theme)}</Text>);
-    }
-  });
-
-  return <View>{elements}</View>;
+/** Clips a segment's items to show only `count` entries */
+function clipSegment(segment: StorySegment, count: number): StorySegment {
+  const clipped = { ...segment, content: { ...segment.content } };
+  switch (segment.displayType) {
+    case 'narration':
+      clipped.content.points = (segment.content.points || []).slice(0, count);
+      break;
+    case 'sequence':
+      clipped.content.steps = (segment.content.steps || []).slice(0, count);
+      break;
+    case 'list':
+      clipped.content.rows = (segment.content.rows || []).slice(0, count);
+      break;
+  }
+  return clipped;
 }
-
-function renderBold(text: string, theme: any): React.ReactNode {
-  const parts = text.split(/(\*\*[^*]+\*\*)/g);
-  return parts.map((part, i) => {
-    if (part.startsWith('**') && part.endsWith('**')) {
-      return <Text key={i} style={{ fontWeight: '700', color: theme.text }}>{part.slice(2, -2)}</Text>;
-    }
-    return part;
-  });
-}
-
-const mdStyles = StyleSheet.create({
-  h1: { fontSize: 28, fontFamily: 'EditorsNote-Italic', marginBottom: 8, marginTop: 16, textTransform: 'uppercase' },
-  h2: { fontSize: 24, fontFamily: 'EditorsNote-Italic', marginBottom: 8, marginTop: 20, textTransform: 'uppercase' },
-  h3: { fontSize: 20, fontFamily: 'EditorsNote-Italic', marginBottom: 6, marginTop: 14, textTransform: 'uppercase' },
-  body: { fontSize: FontSize.md, lineHeight: 24, marginBottom: 4 },
-  bullet: { flexDirection: 'row', marginBottom: 4, paddingRight: 16 },
-  bulletDot: { width: 16, fontSize: FontSize.md, lineHeight: 24, fontWeight: '700' },
-  num: { width: 22, fontSize: FontSize.md, lineHeight: 24, fontWeight: '700' },
-});
 
 const styles = StyleSheet.create({
   container: { flex: 1 },
-  header: {
+  safeArea: { flex: 1 },
+  topBar: {
     flexDirection: 'row',
-    justifyContent: 'space-between',
     alignItems: 'center',
-    paddingHorizontal: Spacing.lg,
-    paddingVertical: Spacing.md,
-    borderBottomWidth: 0.5,
+    paddingHorizontal: 16,
+    paddingTop: 8,
+    paddingBottom: 12,
+    gap: 12,
   },
-  headerLeft: { flexDirection: 'row', alignItems: 'center', gap: 10 },
-  headerIcon: { width: 36, height: 36, borderRadius: 10, justifyContent: 'center', alignItems: 'center' },
-  headerLabel: { fontSize: 9, fontWeight: '700', letterSpacing: 1.5, textTransform: 'uppercase', marginBottom: 1 },
-  headerTitle: { fontSize: FontSize.md, fontWeight: '700', letterSpacing: -0.3 },
+  progressRow: { flex: 1, flexDirection: 'row', gap: 3 },
+  progressSeg: { flex: 1, height: 3, borderRadius: 1.5, overflow: 'hidden' },
+  progressFill: { height: '100%', borderRadius: 1.5 },
   closeBtn: { padding: 4 },
-  scrollView: { flex: 1 },
-  scrollContent: { padding: Spacing.lg, paddingBottom: Spacing.xxl * 2 },
-
-  // Loading
-  loadingContainer: { alignItems: 'center', paddingTop: 80, gap: 12 },
+  center: { flex: 1, justifyContent: 'center', alignItems: 'center', gap: 14 },
   sparkleRow: { flexDirection: 'row', gap: 6 },
-  sparkle: { fontSize: 22, color: '#fbbf24' },
-  loadingText: { fontSize: FontSize.sm, fontWeight: '600' },
-
-  // Error
-  errorContainer: { alignItems: 'center', paddingTop: 60, gap: Spacing.md },
-  errorText: { fontSize: FontSize.md, textAlign: 'center' },
-  retryBtn: { paddingHorizontal: Spacing.lg, paddingVertical: Spacing.sm, borderRadius: BorderRadius.md },
-  retryBtnText: { color: '#fff', fontWeight: '600' },
-
-  // Quick glance card
-  quickCard: {
-    marginBottom: Spacing.xl,
-    shadowColor: '#486bec',
-    shadowOffset: { width: 0, height: 12 },
-    shadowOpacity: 0.35,
-    shadowRadius: 25,
-    elevation: 8,
-  },
-  quickCardInner: {
-    padding: Spacing.lg + 4,
-  },
-  quickLabel: {
-    fontSize: 11,
+  sparkle: { fontSize: 24, color: '#fbbf24' },
+  loadingText: { fontSize: 16, fontWeight: '600' },
+  retryBtn: { paddingHorizontal: 24, paddingVertical: 10, borderRadius: BorderRadius.md, marginTop: 8 },
+  retryText: { color: '#fff', fontWeight: '700', fontSize: 15 },
+  slideWrap: { flex: 1 },
+  counter: {
+    position: 'absolute',
+    bottom: 12,
+    right: 32,
+    fontSize: 13,
     fontWeight: '700',
-    letterSpacing: 3,
-    color: 'rgba(255,255,255,0.6)',
-    textTransform: 'uppercase',
-    marginBottom: 4,
+    letterSpacing: 0.5,
+    zIndex: 10,
   },
-  quickTitle: {
-    fontSize: 32,
-    fontWeight: '900',
-    color: '#fff',
-    letterSpacing: -2,
-    marginBottom: Spacing.lg,
-    textTransform: 'uppercase',
+  tapZoneLeft: {
+    position: 'absolute',
+    left: 0,
+    top: 0,
+    bottom: 60,
+    width: 32,
+    zIndex: 5,
   },
-  quickSection: {
-    marginBottom: Spacing.lg,
-  },
-  quickSectionTitle: {
-    fontSize: 30,
-    fontFamily: 'EditorsNote-Italic',
-    color: '#fff',
-    textTransform: 'uppercase',
-    marginBottom: 6,
-  },
-  quickSectionText: {
-    fontSize: FontSize.md,
-    lineHeight: 23,
-    color: 'rgba(255,255,255,0.85)',
-  },
-
-  // Full summary section
-  fullSection: {
-    paddingTop: Spacing.sm,
+  tapZoneRight: {
+    position: 'absolute',
+    right: 0,
+    top: 0,
+    bottom: 60,
+    width: 32,
+    zIndex: 5,
   },
 });

@@ -59,22 +59,22 @@ export const Colors = {
 };
 
 export const Spacing = {
-  xs: 4,
-  sm: 8,
-  md: 16,
-  lg: 24,
-  xl: 32,
-  xxl: 48,
+  xs: 6,
+  sm: 12,
+  md: 20,
+  lg: 30,
+  xl: 40,
+  xxl: 56,
 };
 
 export const FontSize = {
-  xs: 11,
-  sm: 13,
-  md: 15,
-  lg: 17,
-  xl: 22,
-  xxl: 28,
-  title: 34,
+  xs: 15,
+  sm: 17,
+  md: 19,
+  lg: 21,
+  xl: 28,
+  xxl: 34,
+  title: 38,
 };
 
 export const BorderRadius = {

@@ -1,7 +1,7 @@
 import { Tabs } from 'expo-router';
-import { View, StyleSheet } from 'react-native';
 import { MaterialIcons } from '@expo/vector-icons';
 import { useTheme } from '../../src/hooks/useTheme';
+import * as H from '../../src/utils/haptics';
 
 export default function TabLayout() {
   const theme = useTheme();
@@ -41,6 +41,7 @@ export default function TabLayout() {
             />
           ),
         }}
+        listeners={{ tabPress: H.tick }}
       />
       <Tabs.Screen
         name="notes"
@@ -54,6 +55,7 @@ export default function TabLayout() {
             />
           ),
         }}
+        listeners={{ tabPress: H.tick }}
       />
       <Tabs.Screen
         name="settings"
@@ -67,6 +69,7 @@ export default function TabLayout() {
             />
           ),
         }}
+        listeners={{ tabPress: H.tick }}
       />
     </Tabs>
   );

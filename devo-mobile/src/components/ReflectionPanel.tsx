@@ -9,9 +9,12 @@ import {
   Modal,
   Animated,
   Easing,
+  Platform,
 } from 'react-native';
+import { SafeAreaView } from 'react-native-safe-area-context';
 import { MaterialIcons } from '@expo/vector-icons';
 import { useTheme } from '../hooks/useTheme';
+import * as H from '../utils/haptics';
 import { Spacing, FontSize, BorderRadius } from '../constants/theme';
 import GradientView from './GradientView';
 import { getJSON, setJSON } from '../services/storage';
@@ -106,6 +109,7 @@ export default function ReflectionPanel({ visible, onClose, bookName, chapter, v
   const fetchQuestions = async () => {
     setLoading(true);
     setError('');
+    H.sparkleRhythm();
     try {
       const prompt = `You generate REFLECTION QUESTIONS for Bible study.
 
@@ -145,7 +149,11 @@ ${versesText}`;
       // Parse numbered questions
       const parsed = parseQuestions(rawText);
       setQuestions(parsed);
+      H.stopSparkle();
+      H.success();
     } catch (err: any) {
+      H.stopSparkle();
+      H.error();
       setError(err.message || 'Failed to load');
     } finally {
       setLoading(false);
@@ -192,8 +200,8 @@ ${versesText}`;
   };
 
   return (
-    <Modal visible={visible} transparent animationType="slide" onRequestClose={handleClose}>
-      <View style={[styles.container, { backgroundColor: theme.background }]}>
+    <Modal visible={visible} animationType="slide" presentationStyle="pageSheet" onRequestClose={handleClose}>
+      <SafeAreaView style={[styles.container, { backgroundColor: theme.background }]} edges={['top']}>
         {/* Header */}
         <View style={[styles.header, { borderBottomColor: theme.border }]}>
           <View style={styles.headerLeft}>
@@ -319,7 +327,7 @@ ${versesText}`;
             </TouchableOpacity>
           </Modal>
         )}
-      </View>
+      </SafeAreaView>
     </Modal>
   );
 }

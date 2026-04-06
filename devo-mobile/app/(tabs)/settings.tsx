@@ -6,6 +6,7 @@ import { useRouter } from 'expo-router';
 import { useTheme } from '../../src/hooks/useTheme';
 import { useStore, FREE_LIMITS } from '../../src/store/useStore';
 import { Spacing, FontSize, BorderRadius } from '../../src/constants/theme';
+import * as H from '../../src/utils/haptics';
 
 export default function SettingsScreen() {
   const theme = useTheme();
@@ -141,7 +142,7 @@ export default function SettingsScreen() {
                 styles.row,
                 i < settingsRows.length - 1 && { borderBottomColor: theme.border, borderBottomWidth: 0.5 },
               ]}
-              onPress={row.onPress}
+              onPress={() => { row.destructive ? H.thud() : H.tap(); row.onPress(); }}
               activeOpacity={0.7}
             >
               <View style={styles.rowLeft}>

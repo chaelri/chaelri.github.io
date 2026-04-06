@@ -16,6 +16,7 @@ import { useTheme } from '../../src/hooks/useTheme';
 import { useStore, type Note } from '../../src/store/useStore';
 import { BIBLE_META } from '../../src/constants/bible-meta';
 import { Spacing, FontSize, BorderRadius } from '../../src/constants/theme';
+import * as H from '../../src/utils/haptics';
 
 type ViewMode = 'list' | 'detail' | 'edit';
 
@@ -65,11 +66,13 @@ export default function NotesScreen() {
   };
 
   const openNote = (note: Note) => {
+    H.tap();
     setSelectedNote(note);
     setViewMode('detail');
   };
 
   const startNewNote = () => {
+    H.press();
     setEditTitle('');
     setEditBody('');
     setSelectedNote(null);
@@ -77,6 +80,7 @@ export default function NotesScreen() {
   };
 
   const startEdit = (note: Note) => {
+    H.tap();
     setEditTitle(note.title);
     setEditBody(note.body);
     setSelectedNote(note);
@@ -84,6 +88,7 @@ export default function NotesScreen() {
   };
 
   const saveNote = () => {
+    H.success();
     if (!editTitle.trim() && !editBody.trim()) {
       setViewMode('list');
       return;
@@ -104,6 +109,7 @@ export default function NotesScreen() {
   };
 
   const handleDelete = (note: Note) => {
+    H.warning();
     Alert.alert('Delete Note', 'Are you sure?', [
       { text: 'Cancel', style: 'cancel' },
       {
@@ -284,7 +290,7 @@ const styles = StyleSheet.create({
     paddingTop: Spacing.md,
     paddingBottom: Spacing.sm,
   },
-  title: { fontSize: 38, fontWeight: '900', letterSpacing: -2.5, textTransform: 'uppercase' },
+  title: { fontSize: 40, fontWeight: '900', letterSpacing: -2.5, textTransform: 'uppercase' },
   addBtn: { padding: Spacing.sm },
   searchBox: {
     flexDirection: 'row',

@@ -67,13 +67,15 @@ export default function RootLayout() {
           name="verse-chat"
           options={{
             animation: 'slide_from_right',
+            gestureEnabled: true,
           }}
         />
         <Stack.Screen
           name="immersive-tts"
           options={{
-            presentation: 'fullScreenModal',
+            presentation: 'modal',
             animation: 'slide_from_bottom',
+            gestureEnabled: true,
           }}
         />
       </Stack>

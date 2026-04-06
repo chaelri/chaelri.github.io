@@ -20,6 +20,25 @@ async function callGemini(prompt: string): Promise<string> {
   return data?.candidates?.[0]?.content?.parts?.[0]?.text || '';
 }
 
+export async function getDigDeeperForSegment(
+  bookName: string,
+  chapter: number,
+  verses: string,
+  title: string
+): Promise<string> {
+  return callGemini(`You are a Bible study assistant. ${TONE}
+
+Give a deep theological and historical analysis of ${bookName} ${chapter}:${verses} ("${title}").
+
+Cover:
+- **Historical context** — what was happening in that time period
+- **Original language insights** — key Hebrew/Greek words and their deeper meaning
+- **Theological significance** — why this matters in the bigger biblical narrative
+- **Practical application** — how this applies today
+
+Use **bold** for key terms. Keep each section to 2-3 sentences. Be thorough but concise.`);
+}
+
 const TONE = `Be direct — no greetings, no filler, no "Hey there!", no "Great question!", no restating the verse. Start immediately with the insight. Use clear, simple English. Bold key terms with **double asterisks**.`;
 
 export async function getContextSummary(
@@ -36,6 +55,226 @@ Give a brief context summary for ${bookName} Chapter ${chapter}. Cover:
 
 Here are the verses:
 ${versesText}`);
+}
+
+// ─── Story Types ────────────────────────────────────────────────────────────
+
+export interface AtAGlance {
+  characters: { name: string; role: string }[];
+  setting: string;
+  timeline: string;
+  oneLineSubject: string;
+  oneLineRest: string;
+}
+
+export type DisplayType = 'conversation' | 'narration' | 'list' | 'teaching' | 'contrast' | 'sequence';
+
+export interface StorySegment {
+  title: string;
+  materialIcon: string;
+  verses: string;
+  displayType: DisplayType;
+  content: {
+    messages?: { speaker: string; text: string }[];
+    points?: { icon?: string; text: string; emoji?: string }[];
+    headers?: string[];
+    rows?: string[][];
+    quote?: string;
+    speaker?: string;
+    explanation?: string;
+    left?: { label: string; text: string };
+    right?: { label: string; text: string };
+    steps?: { text: string; emoji?: string }[];
+    reflection?: string;
+    verseRef?: string;
+  };
+}
+
+export async function getAtAGlance(
+  bookName: string,
+  chapter: number,
+  versesText: string
+): Promise<AtAGlance> {
+  const raw = await callGemini(`You are a Bible study assistant. For ${bookName} Chapter ${chapter}, provide a quick visual snapshot.
+
+Return ONLY valid JSON, no markdown fences:
+{
+  "characters": [{"name": "Character Name", "role": "brief role like 'Prophet' or 'Apostle'"}],
+  "setting": "Location or context where this takes place",
+  "timeline": "Approximate time period or era",
+  "oneLineSubject": "The key subject noun/phrase of the sentence e.g. 'The Word', 'God's promise', 'Jesus'",
+  "oneLineRest": "the rest of the sentence continuing from the subject"
+}
+
+RULES:
+- characters: list ALL named people (max 6). If no named characters, use roles like "The Psalmist"
+- setting: be specific — city, region, or situation
+- timeline: use approximate dates or eras like "~30 AD", "During the Exodus", "Babylonian Exile"
+- oneLineSubject + oneLineRest together form one punchy sentence (max 15 words total). The subject is the main noun/person/concept of the chapter — e.g. "The Word", "Abraham", "God's covenant". NOT random first words.
+
+PASSAGE:
+${versesText}`);
+
+  try {
+    const cleaned = raw.replace(/```json\s*/gi, '').replace(/```\s*/gi, '').trim();
+    const parsed = JSON.parse(cleaned);
+    return {
+      characters: Array.isArray(parsed.characters) ? parsed.characters.slice(0, 6) : [],
+      setting: String(parsed.setting || 'Unknown'),
+      timeline: String(parsed.timeline || 'Ancient times'),
+      oneLineSubject: String(parsed.oneLineSubject || bookName),
+      oneLineRest: String(parsed.oneLineRest || `Chapter ${chapter}`),
+    };
+  } catch {
+    return { characters: [], setting: '', timeline: '', oneLineSubject: bookName, oneLineRest: `Chapter ${chapter}` };
+  }
+}
+
+const ICON_LIST = '"light-mode","water-drop","park","pets","person","groups","favorite","local-fire-department","auto-awesome","menu-book","church","bolt","shield","visibility","healing","handshake","gavel","sailing","terrain","nightlight","celebration","warning","star","home","explore","psychology","volunteer-activism"';
+
+export async function getChapterTimeline(
+  bookName: string,
+  chapter: number,
+  versesText: string
+): Promise<StorySegment[]> {
+  const verseCount = versesText.split('\n').filter((l) => l.trim()).length;
+  const targetSegments = Math.max(3, Math.min(10, Math.ceil(verseCount / 8)));
+
+  const raw = await callGemini(`You are a Bible study assistant creating an interactive story breakdown for ${bookName} Chapter ${chapter}.
+
+Break the chapter into ${targetSegments} sequential segments. For EACH segment, pick the BEST displayType based on the content:
+
+DISPLAY TYPES:
+- "conversation": when there is dialogue between characters. Content: {"messages": [{"speaker": "Name", "text": "what they say/do"}]}
+- "narration": for action, events, descriptions. Content: {"points": [{"text": "short point", "emoji": "optional single emoji or empty string"}]} — use 3-5 bullet points, NOT paragraphs. Emoji: add a trendy/subtle emoji ONLY when it fits naturally (max 2-3 out of 5 points get an emoji, the rest empty string). Think ✨🕊️👀🔥💀🫣🤝 vibes — not churchy, not overdone.
+- "list": for genealogies, lists of names/items. Content: {"headers": ["Col1","Col2"], "rows": [["val1","val2"]]}
+- "teaching": when someone teaches a key concept or makes a declaration. Content: {"quote": "the key verse/teaching", "speaker": "who said it", "verseRef": "the specific verse number the quote is from e.g. '5' or '12'", "explanation": "1-2 sentence explanation"}
+- "contrast": for before/after, comparison, old vs new. Content: {"left": {"label": "Before", "text": "..."}, "right": {"label": "After", "text": "..."}, "reflection": "1 sentence practical learning from this contrast"}
+- "sequence": for step-by-step creation, journeys, processes. Content: {"steps": [{"text": "Step description", "emoji": "optional single emoji or empty string"}]} — same emoji rules as narration
+
+RULES:
+- Every verse must be in exactly one segment, no gaps, no overlaps
+- Title: character-first when possible ("Jesus Heals the Blind Man" not "A Miracle")
+- materialIcon: use ONLY from: ${ICON_LIST}
+- Use a MIX of displayTypes — do NOT make every segment "narration"
+- For conversations: paraphrase in simple modern English, keep messages SHORT (1-2 sentences each, max 20 words per message), biblical accuracy
+- For narration points: each point max 15 words, scannable
+- For teaching quotes: keep quotes concise and impactful, not full verses. Use **bold** in explanation
+- For contrast: use **bold** for key terms in both sides
+- Keep ALL text concise — short sentences, easy to scan on mobile
+- Do NOT include a "digDeeper" field
+
+Return ONLY valid JSON array, no markdown fences:
+[
+  {
+    "title": "Character-First Title",
+    "materialIcon": "icon-name",
+    "verses": "1-5",
+    "displayType": "narration",
+    "content": {"points": [{"icon": "light-mode", "text": "Short scannable point"}]}
+  }
+]
+
+PASSAGE:
+${versesText}`);
+
+  // Try multiple extraction strategies
+  const strategies = [
+    // 1. Strip markdown fences
+    () => raw.replace(/```json\s*/gi, '').replace(/```\s*/gi, '').trim(),
+    // 2. Extract first JSON array from the response
+    () => {
+      const match = raw.match(/\[[\s\S]*\]/);
+      return match ? match[0] : '';
+    },
+  ];
+
+  for (const extract of strategies) {
+    try {
+      const cleaned = extract();
+      if (!cleaned) continue;
+      const parsed = JSON.parse(cleaned);
+      if (Array.isArray(parsed) && parsed.length > 0) {
+        return parsed.slice(0, 15).map((s: any) => {
+          const dt = ['conversation', 'narration', 'list', 'teaching', 'contrast', 'sequence']
+            .includes(s.displayType) ? s.displayType : 'narration';
+          return {
+            title: String(s.title || 'Summary'),
+            materialIcon: String(s.materialIcon || 'auto-awesome'),
+            verses: String(s.verses || ''),
+            displayType: dt as DisplayType,
+            content: s.content || {},
+          };
+        });
+      }
+    } catch {}
+  }
+
+  // If all parsing fails, retry the API call once
+  try {
+    const retry = await callGemini(`Return ONLY a valid JSON array for a Bible chapter story breakdown. No markdown, no explanation, just the JSON array starting with [ and ending with ]. The chapter is ${bookName} ${chapter}.
+
+Previous attempt returned invalid JSON. Please fix and return valid JSON array of story segments.`);
+    const match = retry.match(/\[[\s\S]*\]/);
+    if (match) {
+      const parsed = JSON.parse(match[0]);
+      if (Array.isArray(parsed) && parsed.length > 0) {
+        return parsed.slice(0, 15).map((s: any) => ({
+          title: String(s.title || 'Summary'),
+          materialIcon: String(s.materialIcon || 'auto-awesome'),
+          verses: String(s.verses || ''),
+          displayType: (['conversation', 'narration', 'list', 'teaching', 'contrast', 'sequence'].includes(s.displayType) ? s.displayType : 'narration') as DisplayType,
+          content: s.content || {},
+        }));
+      }
+    }
+  } catch {}
+
+  throw new Error('Failed to generate story breakdown. Please try again.');
+}
+
+export interface ChapterClosing {
+  recapPoints: string[];
+  reflectionP1: string;
+  reflectionP2: string;
+}
+
+export async function getChapterClosing(
+  bookName: string,
+  chapter: number,
+  versesText: string
+): Promise<ChapterClosing> {
+  const raw = await callGemini(`You are a warm, empathetic Bible study guide. For ${bookName} Chapter ${chapter}, create a closing reflection.
+
+Return ONLY valid JSON, no markdown fences:
+{
+  "recapPoints": ["point 1", "point 2", "point 3"],
+  "reflectionP1": "First paragraph (2-3 sentences): Start with a relatable feeling or situation the reader might connect with — like 'Sometimes we feel...' or 'There are days when...' — then link it to what the chapter is about. Make them feel seen, not lectured.",
+  "reflectionP2": "Second paragraph (2 sentences): A clear, grounded takeaway. End with something real about God — not a cliché, just truth."
+}
+
+RULES:
+- recapPoints: exactly 3 bullet points, each max 12 words, summarizing the key moments of the chapter
+- reflectionP1 + reflectionP2: relatable and real. DON'T start with the book name or chapter number. DON'T be preachy or use churchy language. Write like you're talking to a friend who just read this with you. Make the reader feel understood — not told what to feel. Short sentences. No filler. No rhetorical questions like "can't it?" or "isn't it?". No "you might be feeling".
+
+PASSAGE:
+${versesText}`);
+
+  try {
+    const cleaned = raw.replace(/```json\s*/gi, '').replace(/```\s*/gi, '').trim();
+    const parsed = JSON.parse(cleaned);
+    return {
+      recapPoints: Array.isArray(parsed.recapPoints) ? parsed.recapPoints.slice(0, 5) : [],
+      reflectionP1: String(parsed.reflectionP1 || ''),
+      reflectionP2: String(parsed.reflectionP2 || ''),
+    };
+  } catch {
+    return {
+      recapPoints: [`${bookName} ${chapter} — a chapter worth revisiting.`],
+      reflectionP1: `Take a moment to sit with what you just read in ${bookName} ${chapter}.`,
+      reflectionP2: `God is present in every verse, every word. Let it settle in your heart.`,
+    };
+  }
 }
 
 export async function getQuickContext(

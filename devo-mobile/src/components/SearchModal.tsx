@@ -7,7 +7,10 @@ import {
   FlatList,
   StyleSheet,
   Modal,
+  Platform,
+  KeyboardAvoidingView,
 } from 'react-native';
+import { SafeAreaView } from 'react-native-safe-area-context';
 import { MaterialIcons } from '@expo/vector-icons';
 import { useTheme } from '../hooks/useTheme';
 import { BIBLE_META, BOOK_ORDER } from '../constants/bible-meta';
@@ -96,7 +99,6 @@ export default function SearchModal({ visible, onClose, onSelect, version }: Pro
     for (const bookCode of BOOK_ORDER) {
       const meta = BIBLE_META[bookCode];
       if (meta.name.toLowerCase().startsWith(lower) || meta.name.toLowerCase().includes(lower)) {
-        // Show first verse of chapter 1 as preview
         try {
           const verses = getVerses(version, meta.name, 1);
           const firstVerse = Object.entries(verses).find(([k]) => !k.includes('-'));
@@ -119,8 +121,7 @@ export default function SearchModal({ visible, onClose, onSelect, version }: Pro
       }
     }
 
-    // 2. Text search — verse content matches (skip books already matched)
-    const matchedBooks = new Set(found.map((r) => r.bookCode));
+    // 2. Text search — verse content matches
     for (const bookCode of BOOK_ORDER) {
       if (found.length >= 50) break;
       const meta = BIBLE_META[bookCode];
@@ -166,91 +167,95 @@ export default function SearchModal({ visible, onClose, onSelect, version }: Pro
   };
 
   return (
-    <Modal visible={visible} animationType="slide" onRequestClose={onClose}>
-      <View style={[styles.container, { backgroundColor: theme.background }]}>
-        {/* Header */}
-        <View style={[styles.header, { backgroundColor: theme.surface }]}>
-          <View style={[styles.searchBox, { backgroundColor: theme.background }]}>
-            <MaterialIcons name="search" size={20} color={theme.textMuted} />
-            <TextInput
-              style={[styles.searchInput, { color: theme.text }]}
-              placeholder="Search the Bible..."
-              placeholderTextColor={theme.textMuted}
-              value={query}
-              onChangeText={search}
-              autoFocus
-              autoCorrect={false}
-              returnKeyType="search"
-            />
-            {query.length > 0 && (
-              <TouchableOpacity onPress={() => search('')}>
-                <MaterialIcons name="close" size={18} color={theme.textMuted} />
-              </TouchableOpacity>
-            )}
+    <Modal visible={visible} animationType="slide" presentationStyle="pageSheet" onRequestClose={onClose}>
+      <SafeAreaView style={[styles.container, { backgroundColor: theme.background }]} edges={['top']}>
+        <KeyboardAvoidingView style={{ flex: 1 }} behavior={Platform.OS === 'ios' ? 'padding' : undefined}>
+          {/* Header */}
+          <View style={[styles.header, { backgroundColor: theme.surface }]}>
+            <View style={[styles.searchBox, { backgroundColor: theme.background }]}>
+              <MaterialIcons name="search" size={20} color={theme.textMuted} />
+              <TextInput
+                style={[styles.searchInput, { color: theme.text }]}
+                placeholder="Search the Bible..."
+                placeholderTextColor={theme.textMuted}
+                value={query}
+                onChangeText={search}
+                autoFocus
+                autoCorrect={false}
+                returnKeyType="search"
+              />
+              {query.length > 0 && (
+                <TouchableOpacity onPress={() => search('')}>
+                  <MaterialIcons name="close" size={18} color={theme.textMuted} />
+                </TouchableOpacity>
+              )}
+            </View>
+            <TouchableOpacity onPress={onClose} style={styles.cancelBtn}>
+              <Text style={[styles.cancelText, { color: theme.accent }]}>Cancel</Text>
+            </TouchableOpacity>
           </View>
-          <TouchableOpacity onPress={onClose} style={styles.cancelBtn}>
-            <Text style={[styles.cancelText, { color: theme.accent }]}>Cancel</Text>
-          </TouchableOpacity>
-        </View>
 
-        {/* Results */}
-        {query.length < 3 ? (
-          <View style={styles.empty}>
-            <MaterialIcons name="search" size={48} color={theme.textMuted} />
-            <Text style={[styles.emptyText, { color: theme.textMuted }]}>
-              Type at least 3 characters to search
-            </Text>
-          </View>
-        ) : results.length === 0 && !searching ? (
-          <View style={styles.empty}>
-            <Text style={[styles.emptyText, { color: theme.textMuted }]}>
-              No results found for "{query}"
-            </Text>
-          </View>
-        ) : (
-          <FlatList
-            data={results}
-            keyExtractor={(item, i) => `${item.bookCode}-${item.chapter}-${item.verse}-${i}`}
-            renderItem={({ item }) => (
-              <TouchableOpacity
-                style={[styles.resultRow, { borderBottomColor: theme.border }]}
-                onPress={() => {
-                  onSelect(item.bookCode, item.chapter);
-                  onClose();
-                }}
-                activeOpacity={0.7}
-              >
-                <Text style={[styles.resultRef, { color: theme.accent }]}>
-                  {item.bookName} {item.chapter}:{item.verse}
-                </Text>
-                <Text
-                  style={[styles.resultText, { color: theme.textSecondary }]}
-                  numberOfLines={2}
-                >
-                  {highlightText(item.text, query)}
-                </Text>
-              </TouchableOpacity>
-            )}
-            contentContainerStyle={styles.listContent}
-            ListHeaderComponent={
-              <Text style={[styles.resultCount, { color: theme.textMuted }]}>
-                {results.length} result{results.length !== 1 ? 's' : ''}{results.length >= 50 ? ' (showing first 50)' : ''}
+          {/* Results */}
+          {query.length < 3 ? (
+            <View style={styles.empty}>
+              <MaterialIcons name="search" size={48} color={theme.textMuted} />
+              <Text style={[styles.emptyText, { color: theme.textMuted }]}>
+                Type at least 3 characters to search
               </Text>
-            }
-          />
-        )}
-      </View>
+            </View>
+          ) : results.length === 0 && !searching ? (
+            <View style={styles.empty}>
+              <Text style={[styles.emptyText, { color: theme.textMuted }]}>
+                No results found for "{query}"
+              </Text>
+            </View>
+          ) : (
+            <FlatList
+              data={results}
+              keyExtractor={(item, i) => `${item.bookCode}-${item.chapter}-${item.verse}-${i}`}
+              keyboardShouldPersistTaps="handled"
+              keyboardDismissMode="on-drag"
+              renderItem={({ item }) => (
+                <TouchableOpacity
+                  style={[styles.resultRow, { borderBottomColor: theme.border }]}
+                  onPress={() => {
+                    onSelect(item.bookCode, item.chapter);
+                    onClose();
+                  }}
+                  activeOpacity={0.7}
+                >
+                  <Text style={[styles.resultRef, { color: theme.accent }]}>
+                    {item.bookName} {item.chapter}:{item.verse}
+                  </Text>
+                  <Text
+                    style={[styles.resultText, { color: theme.textSecondary }]}
+                    numberOfLines={2}
+                  >
+                    {highlightText(item.text, query)}
+                  </Text>
+                </TouchableOpacity>
+              )}
+              contentContainerStyle={styles.listContent}
+              ListHeaderComponent={
+                <Text style={[styles.resultCount, { color: theme.textMuted }]}>
+                  {results.length} result{results.length !== 1 ? 's' : ''}{results.length >= 50 ? ' (showing first 50)' : ''}
+                </Text>
+              }
+            />
+          )}
+        </KeyboardAvoidingView>
+      </SafeAreaView>
     </Modal>
   );
 }
 
 const styles = StyleSheet.create({
-  container: { flex: 1, paddingTop: 0 },
+  container: { flex: 1 },
   header: {
     flexDirection: 'row',
     alignItems: 'center',
     paddingHorizontal: Spacing.md,
-    paddingVertical: Spacing.sm,
+    paddingVertical: Spacing.sm + 4,
     gap: Spacing.sm,
   },
   searchBox: {
@@ -259,7 +264,7 @@ const styles = StyleSheet.create({
     alignItems: 'center',
     borderRadius: BorderRadius.md,
     paddingHorizontal: Spacing.md,
-    paddingVertical: Spacing.sm,
+    paddingVertical: Spacing.sm + 2,
     gap: Spacing.sm,
   },
   searchInput: {
@@ -306,6 +311,6 @@ const styles = StyleSheet.create({
   },
   resultText: {
     fontSize: FontSize.md,
-    lineHeight: 22,
+    lineHeight: 24,
   },
 });

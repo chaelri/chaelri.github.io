@@ -2,11 +2,19 @@ import React, { useState } from 'react';
 import {
   View,
   Text,
-  ScrollView,
+  FlatList,
   TouchableOpacity,
   StyleSheet,
   TextInput,
+  KeyboardAvoidingView,
+  Platform,
+  LayoutAnimation,
+  UIManager,
 } from 'react-native';
+
+if (Platform.OS === 'android' && UIManager.setLayoutAnimationEnabledExperimental) {
+  UIManager.setLayoutAnimationEnabledExperimental(true);
+}
 import { MaterialIcons } from '@expo/vector-icons';
 import { useTheme } from '../hooks/useTheme';
 import { useStore } from '../store/useStore';
@@ -21,6 +29,8 @@ interface Props {
   onSelect: (bookCode: string) => void;
   onClose: () => void;
 }
+
+import * as H from '../utils/haptics';
 
 export default function BookPicker({ onSelect, onClose }: Props) {
   const theme = useTheme();
@@ -38,10 +48,15 @@ export default function BookPicker({ onSelect, onClose }: Props) {
       )
     : books;
 
+  const handleSearch = (text: string) => {
+    LayoutAnimation.configureNext(LayoutAnimation.Presets.easeInEaseOut);
+    setSearch(text);
+  };
+
   return (
     <View style={styles.overlay}>
       <TouchableOpacity style={styles.backdrop} onPress={onClose} activeOpacity={1} />
-      <View style={styles.sheet}>
+      <KeyboardAvoidingView style={styles.sheet} behavior={Platform.OS === 'ios' ? 'padding' : undefined}>
         {/* Header */}
         <View style={styles.header}>
           <Text style={[styles.title, { color: theme.text }]}>Select Book</Text>
@@ -58,7 +73,7 @@ export default function BookPicker({ onSelect, onClose }: Props) {
             placeholder="Search books..."
             placeholderTextColor={theme.textMuted}
             value={search}
-            onChangeText={setSearch}
+            onChangeText={handleSearch}
             autoCorrect={false}
           />
         </View>
@@ -69,7 +84,7 @@ export default function BookPicker({ onSelect, onClose }: Props) {
             <TouchableOpacity
               key={t}
               style={styles.tabTouchable}
-              onPress={() => { setTab(t); setSearch(''); }}
+              onPress={() => { H.tick(); setTab(t); setSearch(''); }}
               activeOpacity={0.7}
             >
               {tab === t ? (
@@ -90,17 +105,22 @@ export default function BookPicker({ onSelect, onClose }: Props) {
         </View>
 
         {/* Book list */}
-        <ScrollView showsVerticalScrollIndicator={false}>
-          {filtered.map((code) => {
+        <FlatList
+          data={filtered}
+          keyExtractor={(item) => item}
+          showsVerticalScrollIndicator={false}
+          keyboardShouldPersistTaps="handled"
+          keyboardDismissMode="on-drag"
+          contentContainerStyle={{ paddingBottom: 20 }}
+          renderItem={({ item: code }) => {
             const active = code === currentBook;
             return (
               <TouchableOpacity
-                key={code}
                 style={[
                   styles.bookRow,
                   active && { backgroundColor: theme.accentLight },
                 ]}
-                onPress={() => onSelect(code)}
+                onPress={() => { H.tap(); onSelect(code); }}
                 activeOpacity={0.7}
               >
                 <Text
@@ -117,9 +137,9 @@ export default function BookPicker({ onSelect, onClose }: Props) {
                 </Text>
               </TouchableOpacity>
             );
-          })}
-        </ScrollView>
-      </View>
+          }}
+        />
+      </KeyboardAvoidingView>
     </View>
   );
 }

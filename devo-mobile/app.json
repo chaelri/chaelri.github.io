@@ -33,6 +33,19 @@
       "expo-secure-store",
       "expo-font",
       "expo-asset"
-    ]
+    ],
+    "extra": {
+      "router": {},
+      "eas": {
+        "projectId": "f3c2f938-c8fc-4c7d-a953-b5a60369b445"
+      }
+    },
+    "owner": "chaelri",
+    "runtimeVersion": {
+      "policy": "appVersion"
+    },
+    "updates": {
+      "url": "https://u.expo.dev/f3c2f938-c8fc-4c7d-a953-b5a60369b445"
+    }
   }
 }

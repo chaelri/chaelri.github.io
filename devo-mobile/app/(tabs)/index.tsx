@@ -7,14 +7,13 @@ import {
   TouchableOpacity,
   StyleSheet,
   ActivityIndicator,
-  Platform,
   Alert,
   ImageBackground,
 } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
 import { MaterialIcons } from '@expo/vector-icons';
-import * as Haptics from 'expo-haptics';
 import { useRouter } from 'expo-router';
+import * as H from '../../src/utils/haptics';
 import { useTheme } from '../../src/hooks/useTheme';
 import { useStore, FREE_LIMITS } from '../../src/store/useStore';
 import { BIBLE_META, BOOK_ORDER } from '../../src/constants/bible-meta';
@@ -40,6 +39,7 @@ import {
 } from '../../src/services/ai';
 
 type VerseData = Record<string, string>;
+
 
 export default function ReadScreen() {
   const theme = useTheme();
@@ -108,10 +108,6 @@ export default function ReadScreen() {
     loadPassage();
   }, [loadPassage]);
 
-  const haptic = () => {
-    if (Platform.OS !== 'web') Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Light);
-  };
-
   const verseEntries = Object.entries(verses)
     .filter(([key]) => !key.includes('-'))
     .sort((a, b) => Number(a[0]) - Number(b[0]));
@@ -119,7 +115,15 @@ export default function ReadScreen() {
   const getVersesText = () =>
     verseEntries.map(([num, text]) => `${num}. ${text}`).join('\n');
 
+  const closeAllInline = () => {
+    H.stopSparkle();
+    setInlineAI(null);
+    setNoteInputVerse(null);
+    setNoteInputText('');
+  };
+
   const prevChapter = () => {
+    closeAllInline();
     if (currentChapter > 1) {
       setChapter(currentChapter - 1);
     } else {
@@ -133,6 +137,7 @@ export default function ReadScreen() {
   };
 
   const nextChapter = () => {
+    closeAllInline();
     if (currentChapter < totalChapters) {
       setChapter(currentChapter + 1);
     } else {
@@ -167,6 +172,7 @@ export default function ReadScreen() {
   // Per-verse inline actions — shows below the verse, not a modal
   const toggleInlineContext = (verseNum: string) => {
     if (inlineAI?.verseNum === verseNum && inlineAI.type === 'context') {
+      H.stopSparkle();
       setInlineAI(null); // close if same verse
     } else {
       setInlineAI({ verseNum, type: 'context' });
@@ -250,7 +256,7 @@ export default function ReadScreen() {
       <View style={[styles.header, { borderBottomColor: theme.border }]}>
         <TouchableOpacity
           style={[styles.bookButton, { backgroundColor: theme.surface, borderColor: theme.glassBorder, borderWidth: 1 }]}
-          onPress={() => setShowBookPicker(true)}
+          onPress={() => { H.tap(); setShowBookPicker(true); }}
           activeOpacity={0.7}
         >
           <Text style={[styles.bookButtonText, { color: theme.text }]}>
@@ -260,11 +266,11 @@ export default function ReadScreen() {
         </TouchableOpacity>
 
         <View style={styles.headerRight}>
-          <TouchableOpacity onPress={() => setShowSearch(true)} style={styles.iconBtn}>
+          <TouchableOpacity onPress={() => { H.tap(); setShowSearch(true); }} style={styles.iconBtn}>
             <MaterialIcons name="search" size={22} color={theme.textMuted} />
           </TouchableOpacity>
           <VersionToggle />
-          <TouchableOpacity onPress={toggleTheme} style={styles.iconBtn}>
+          <TouchableOpacity onPress={() => { H.press(); toggleTheme(); }} style={styles.iconBtn}>
             <MaterialIcons
               name={colorScheme === 'dark' ? 'light-mode' : 'dark-mode'}
               size={20}
@@ -286,15 +292,15 @@ export default function ReadScreen() {
         >
           {/* Chapter title with inline nav */}
           <View style={styles.titleRow}>
-            <TouchableOpacity onPress={prevChapter} style={styles.titleNav} activeOpacity={0.6}>
+            <TouchableOpacity onPress={() => { H.tick(); prevChapter(); }} style={styles.titleNav} activeOpacity={0.6}>
               <MaterialIcons name="chevron-left" size={28} color={theme.textMuted} />
             </TouchableOpacity>
-            <TouchableOpacity onPress={() => setShowChapterPicker(true)} activeOpacity={0.7} style={styles.titleCenter}>
+            <TouchableOpacity onPress={() => { H.tap(); setShowChapterPicker(true); }} activeOpacity={0.7} style={styles.titleCenter}>
               <Text style={[styles.passageTitle, { color: theme.text }]}>
                 {bookMeta.name.toUpperCase()} {currentChapter}
               </Text>
             </TouchableOpacity>
-            <TouchableOpacity onPress={nextChapter} style={styles.titleNav} activeOpacity={0.6}>
+            <TouchableOpacity onPress={() => { H.tick(); nextChapter(); }} style={styles.titleNav} activeOpacity={0.6}>
               <MaterialIcons name="chevron-right" size={28} color={theme.textMuted} />
             </TouchableOpacity>
           </View>
@@ -303,15 +309,15 @@ export default function ReadScreen() {
           <View style={styles.chapterTools}>
             <TouchableOpacity
               style={[styles.chapterChip, { backgroundColor: theme.surface, borderColor: theme.glassBorder }]}
-              onPress={() => setShowContextSummary(true)}
+              onPress={() => { H.sparkleRhythm(); setShowContextSummary(true); }}
               activeOpacity={0.7}
             >
               <MaterialIcons name="auto-awesome" size={14} color={theme.accent} />
-              <Text style={[styles.chapterChipText, { color: theme.textSecondary }]}>Summary</Text>
+              <Text style={[styles.chapterChipText, { color: theme.textSecondary }]}>Story</Text>
             </TouchableOpacity>
             <TouchableOpacity
               style={[styles.chapterChip, { backgroundColor: theme.surface, borderColor: theme.glassBorder }]}
-              onPress={() => setShowReflection(true)}
+              onPress={() => { H.sparkleRhythm(); setShowReflection(true); }}
               activeOpacity={0.7}
             >
               <MaterialIcons name="lightbulb-outline" size={14} color={theme.accent} />
@@ -320,6 +326,7 @@ export default function ReadScreen() {
             <TouchableOpacity
               style={[styles.chapterChip, { backgroundColor: theme.surface, borderColor: theme.glassBorder }]}
               onPress={() => {
+                H.press();
                 if (!checkLimit('immersiveTts')) return;
                 incrementLimit('immersiveTts');
                 router.push({
@@ -355,7 +362,7 @@ export default function ReadScreen() {
                     hl && !fav && { backgroundColor: theme.primaryLight, borderRadius: BorderRadius.sm, paddingHorizontal: 8 },
                   ]}
                   onLongPress={() => {
-                    haptic();
+                    H.heartbeat();
                     toggleFavorite(key);
                   }}
                   delayLongPress={300}
@@ -367,7 +374,7 @@ export default function ReadScreen() {
                   </Text>
                   {fav && (
                     <TouchableOpacity
-                      onPress={() => { haptic(); toggleFavorite(key); }}
+                      onPress={() => { H.heartbeat(); toggleFavorite(key); }}
                       hitSlop={{ top: 8, bottom: 8, left: 8, right: 8 }}
                     >
                       <MaterialIcons name="favorite" size={16} color={theme.favorite} style={{ marginTop: 2 }} />
@@ -375,7 +382,7 @@ export default function ReadScreen() {
                   )}
                   {!fav && (
                     <TouchableOpacity
-                      onPress={() => { haptic(); toggleFavorite(key); }}
+                      onPress={() => { H.heartbeat(); toggleFavorite(key); }}
                       hitSlop={{ top: 8, bottom: 8, left: 8, right: 8 }}
                     >
                       <MaterialIcons name="favorite-border" size={16} color={theme.textMuted} style={{ marginTop: 2, opacity: 0.4 }} />
@@ -387,7 +394,11 @@ export default function ReadScreen() {
                 <View style={styles.verseActions}>
                   <TouchableOpacity
                     style={[styles.verseChip, { borderColor: theme.glassBorder }]}
-                    onPress={() => toggleInlineContext(verseNum)}
+                    onPress={() => {
+                      const isClosing = inlineAI?.verseNum === verseNum && inlineAI.type === 'context';
+                      isClosing ? H.tap() : H.sparkleRhythm();
+                      toggleInlineContext(verseNum);
+                    }}
                     activeOpacity={0.7}
                   >
                     <MaterialIcons name="auto-awesome" size={12} color={theme.textMuted} />
@@ -395,7 +406,7 @@ export default function ReadScreen() {
                   </TouchableOpacity>
                   <TouchableOpacity
                     style={[styles.verseChip, { borderColor: theme.glassBorder }]}
-                    onPress={() => openVerseChat(verseNum, text)}
+                    onPress={() => { H.press(); openVerseChat(verseNum, text); }}
                     activeOpacity={0.7}
                   >
                     <MaterialIcons name="chat-bubble-outline" size={12} color={theme.textMuted} />
@@ -403,7 +414,7 @@ export default function ReadScreen() {
                   </TouchableOpacity>
                   <TouchableOpacity
                     style={[styles.verseChip, { borderColor: theme.glassBorder }]}
-                    onPress={() => toggleNoteInput(verseNum)}
+                    onPress={() => { H.tick(); toggleNoteInput(verseNum); }}
                     activeOpacity={0.7}
                   >
                     <MaterialIcons name="edit" size={12} color={theme.textMuted} />
@@ -418,7 +429,7 @@ export default function ReadScreen() {
                       <View key={note.id} style={[styles.notePill, { borderColor: theme.glassBorder, backgroundColor: theme.glassBackground }]}>
                         <Text style={[styles.notePillText, { color: theme.textSecondary }]} numberOfLines={1}>{note.body}</Text>
                         <TouchableOpacity
-                          onPress={() => deleteNote(note.id)}
+                          onPress={() => { H.thud(); deleteNote(note.id); }}
                           hitSlop={{ top: 8, bottom: 8, left: 8, right: 8 }}
                         >
                           <MaterialIcons name="close" size={11} color={theme.textMuted} />
@@ -442,7 +453,7 @@ export default function ReadScreen() {
                       returnKeyType="done"
                     />
                     <TouchableOpacity
-                      onPress={() => saveInlineNote(verseNum)}
+                      onPress={() => { H.success(); saveInlineNote(verseNum); }}
                       disabled={!noteInputText.trim()}
                       hitSlop={{ top: 8, bottom: 8, left: 8, right: 8 }}
                     >
@@ -478,7 +489,7 @@ export default function ReadScreen() {
           <View style={styles.chapterNav}>
             <TouchableOpacity
               style={[styles.navBtn, { backgroundColor: theme.surface, borderColor: theme.glassBorder }]}
-              onPress={prevChapter}
+              onPress={() => { H.tick(); prevChapter(); }}
               activeOpacity={0.7}
             >
               <MaterialIcons name="chevron-left" size={20} color={theme.textMuted} />
@@ -487,7 +498,7 @@ export default function ReadScreen() {
 
             <TouchableOpacity
               style={[styles.navBtn, styles.navBtnCenter, { backgroundColor: theme.surface, borderColor: theme.glassBorder }]}
-              onPress={() => setShowChapterPicker(true)}
+              onPress={() => { H.tap(); setShowChapterPicker(true); }}
               activeOpacity={0.7}
             >
               <Text style={[styles.navLabel, { color: theme.textMuted }]}>CHAPTER</Text>
@@ -498,7 +509,7 @@ export default function ReadScreen() {
 
             <TouchableOpacity
               style={[styles.navBtn, { backgroundColor: theme.surface, borderColor: theme.glassBorder }]}
-              onPress={nextChapter}
+              onPress={() => { H.tick(); nextChapter(); }}
               activeOpacity={0.7}
             >
               <Text style={[styles.navBtnText, { color: theme.textSecondary }]}>Next</Text>
@@ -609,7 +620,7 @@ function ChapterPicker({
                   { backgroundColor: theme.glassBackground, borderColor: theme.glassBorder, borderWidth: 1 },
                   active && { backgroundColor: theme.accent, borderColor: theme.accent },
                 ]}
-                onPress={() => onSelect(ch)}
+                onPress={() => { H.tick(); onSelect(ch); }}
               >
                 <Text
                   style={[
@@ -671,8 +682,8 @@ const styles = StyleSheet.create({
   // Content
   scrollView: { flex: 1 },
   scrollContent: {
-    paddingHorizontal: 40,
-    paddingTop: Spacing.lg,
+    paddingHorizontal: 28,
+    paddingTop: Spacing.md,
   },
 
   // Chapter title row with nav arrows
@@ -689,9 +700,9 @@ const styles = StyleSheet.create({
     alignItems: 'center',
   },
   passageTitle: {
-    fontSize: 40,
+    fontSize: 34,
     fontWeight: '900',
-    letterSpacing: -2.5,
+    letterSpacing: -2,
     textTransform: 'uppercase',
   },
 
@@ -706,13 +717,13 @@ const styles = StyleSheet.create({
     flexDirection: 'row',
     alignItems: 'center',
     justifyContent: 'center',
-    paddingVertical: 10,
+    paddingVertical: 12,
     borderRadius: BorderRadius.md,
     borderWidth: 1,
     gap: 6,
   },
   chapterChipText: {
-    fontSize: 12,
+    fontSize: 16,
     fontWeight: '600',
     letterSpacing: 0.3,
   },
@@ -726,13 +737,13 @@ const styles = StyleSheet.create({
     alignItems: 'flex-start',
   },
   verseNum: {
-    fontSize: 22,
+    fontSize: 24,
     fontWeight: '800',
-    lineHeight: 26,
+    lineHeight: 34,
   },
   verseText: {
-    fontSize: 16,
-    lineHeight: 26,
+    fontSize: 20,
+    lineHeight: 34,
     flex: 1,
   },
   // Saved inline notes — pills
@@ -746,16 +757,15 @@ const styles = StyleSheet.create({
     flexDirection: 'row',
     alignItems: 'center',
     paddingHorizontal: 12,
-    paddingVertical: 6,
+    paddingVertical: 7,
     borderRadius: BorderRadius.pill,
     borderWidth: 1,
-    gap: 6,
-    maxWidth: '80%',
+    gap: 8,
+    maxWidth: '90%',
   },
   notePillText: {
-    fontSize: 12,
+    fontSize: 16,
     flexShrink: 1,
-    flex: 1,
     fontStyle: 'italic',
   },
 
@@ -772,8 +782,8 @@ const styles = StyleSheet.create({
   },
   noteInput: {
     flex: 1,
-    fontSize: 14,
-    paddingVertical: 4,
+    fontSize: 18,
+    paddingVertical: 8,
     outlineStyle: 'none',
   } as any,
 
@@ -786,14 +796,14 @@ const styles = StyleSheet.create({
   verseChip: {
     flexDirection: 'row',
     alignItems: 'center',
-    paddingHorizontal: 12,
-    paddingVertical: 6,
+    paddingHorizontal: 14,
+    paddingVertical: 8,
     borderRadius: BorderRadius.pill,
     borderWidth: 1,
-    gap: 4,
+    gap: 5,
   },
   verseChipText: {
-    fontSize: 12,
+    fontSize: 16,
     fontWeight: '600',
   },
 

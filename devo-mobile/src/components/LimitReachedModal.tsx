@@ -10,6 +10,7 @@ import { MaterialIcons } from '@expo/vector-icons';
 import { useTheme } from '../hooks/useTheme';
 import { Spacing, FontSize, BorderRadius } from '../constants/theme';
 import GradientView from './GradientView';
+import * as H from '../utils/haptics';
 
 interface Props {
   visible: boolean;
@@ -22,6 +23,10 @@ interface Props {
 
 export default function LimitReachedModal({ visible, onClose, onUpgrade, feature, used, max }: Props) {
   const theme = useTheme();
+
+  React.useEffect(() => {
+    if (visible) H.warning();
+  }, [visible]);
 
   return (
     <Modal visible={visible} transparent animationType="fade" onRequestClose={onClose}>

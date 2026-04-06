@@ -28,6 +28,8 @@ function renderBoldText(text: string, color: string): React.ReactNode {
   });
 }
 
+import * as H from '../src/utils/haptics';
+
 export default function VerseChatScreen() {
   const theme = useTheme();
   const router = useRouter();
@@ -61,6 +63,7 @@ export default function VerseChatScreen() {
   const sendMessage = async () => {
     const text = input.trim();
     if (!text || loading) return;
+    H.press();
 
     const userMsg: ChatMessage = { role: 'user', text };
     const newMessages = [...messages, userMsg];
@@ -93,7 +96,7 @@ export default function VerseChatScreen() {
     <SafeAreaView style={[styles.container, { backgroundColor: theme.background }]}>
       {/* Header */}
       <View style={[styles.header, { borderBottomColor: theme.border }]}>
-        <TouchableOpacity onPress={() => router.back()} style={styles.backBtn}>
+        <TouchableOpacity onPress={() => { H.tap(); router.back(); }} style={styles.backBtn}>
           <MaterialIcons name="arrow-back" size={22} color={theme.text} />
         </TouchableOpacity>
         <View style={styles.headerInfo}>
@@ -165,6 +168,7 @@ export default function VerseChatScreen() {
                     key={s}
                     style={[styles.suggestion, { borderColor: theme.glassBorder }]}
                     onPress={() => {
+                      H.press();
                       // Save remaining as follow-ups
                       setRemainingSuggestions(suggestions.filter(q => q !== s));
                       const userMsg: ChatMessage = { role: 'user', text: s };
@@ -200,6 +204,7 @@ export default function VerseChatScreen() {
                     key={q}
                     style={[styles.followUpChip, { borderColor: theme.glassBorder }]}
                     onPress={() => {
+                      H.press();
                       setRemainingSuggestions(remainingSuggestions.filter(s => s !== q));
                       const userMsg: ChatMessage = { role: 'user', text: q };
                       setMessages((prev) => [...prev, userMsg]);
@@ -266,7 +271,7 @@ const styles = StyleSheet.create({
   backBtn: { padding: 4 },
   headerInfo: { flex: 1, marginLeft: 10 },
   headerLabel: {
-    fontSize: 9,
+    fontSize: 12,
     fontWeight: '700',
     letterSpacing: 1.5,
     textTransform: 'uppercase',

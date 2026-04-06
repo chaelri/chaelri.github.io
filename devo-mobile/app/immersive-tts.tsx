@@ -267,7 +267,7 @@ const styles = StyleSheet.create({
   closeBtn: { padding: 4 },
   headerCenter: { flex: 1, alignItems: 'center' },
   headerLabel: {
-    fontSize: 9,
+    fontSize: 12,
     fontWeight: '700',
     letterSpacing: 1.5,
     textTransform: 'uppercase',
@@ -320,19 +320,19 @@ const styles = StyleSheet.create({
     marginVertical: Spacing.sm,
   },
   currentNum: {
-    fontSize: 22,
+    fontSize: 26,
     fontWeight: '800',
-    width: 30,
+    width: 34,
     marginTop: 3,
   },
   currentText: {
-    fontSize: 20,
-    lineHeight: 32,
+    fontSize: 22,
+    lineHeight: 34,
     flex: 1,
   },
   verseCounter: {
     textAlign: 'center',
-    fontSize: 10,
+    fontSize: 13,
     fontWeight: '700',
     letterSpacing: 1.5,
     textTransform: 'uppercase',

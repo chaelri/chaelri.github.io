@@ -1,5 +1,6 @@
 import React from 'react';
 import { TouchableOpacity, Text, View, StyleSheet } from 'react-native';
+import * as H from '../utils/haptics';
 import { MaterialIcons } from '@expo/vector-icons';
 import { Gradient, BorderRadius, FontSize, Spacing } from '../constants/theme';
 
@@ -15,13 +16,17 @@ interface Props {
 // Simulated gradient using two half-colored views overlapping
 // This gives the blue-to-pink gradient feel without expo-linear-gradient
 export default function GradientButton({ label, onPress, icon, size = 'md', disabled, style }: Props) {
+  const handlePress = () => {
+    H.press();
+    onPress();
+  };
   const height = size === 'sm' ? 36 : size === 'lg' ? 52 : 44;
   const fontSize = size === 'sm' ? FontSize.xs : size === 'lg' ? FontSize.lg : FontSize.md;
   const px = size === 'sm' ? Spacing.md : size === 'lg' ? Spacing.xl : Spacing.lg;
 
   return (
     <TouchableOpacity
-      onPress={onPress}
+      onPress={handlePress}
       activeOpacity={0.85}
       disabled={disabled}
       style={[

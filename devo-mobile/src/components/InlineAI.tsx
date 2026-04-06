@@ -10,6 +10,7 @@ import {
 import { MaterialIcons } from '@expo/vector-icons';
 import { LinearGradient } from 'expo-linear-gradient';
 import { useTheme } from '../hooks/useTheme';
+import * as H from '../utils/haptics';
 import { Spacing, FontSize, BorderRadius } from '../constants/theme';
 import GradientView from './GradientView';
 
@@ -112,9 +113,12 @@ export default function InlineAI({ fetchContent, onClose, onDigDeeper, onCrossRe
     setLoading(true);
     setError('');
     fadeAnim.setValue(0);
+    H.sparkleRhythm();
     try {
       const result = await fetchContent();
       setContent(result);
+      H.stopSparkle();
+      H.success();
       // Animate content in
       Animated.timing(fadeAnim, {
         toValue: 1,
@@ -123,6 +127,8 @@ export default function InlineAI({ fetchContent, onClose, onDigDeeper, onCrossRe
         useNativeDriver: true,
       }).start();
     } catch (err: any) {
+      H.stopSparkle();
+      H.error();
       setError(err.message || 'Failed to load');
     } finally {
       setLoading(false);
@@ -317,25 +323,25 @@ const styles = StyleSheet.create({
 
   // Markdown — white text on gradient
   mdH2: {
-    fontSize: 16,
+    fontSize: 18,
     fontWeight: '700',
     color: '#fff',
-    marginTop: 10,
-    marginBottom: 4,
+    marginTop: 12,
+    marginBottom: 6,
   },
   mdH4: {
-    fontSize: 12,
+    fontSize: 13,
     fontWeight: '700',
     color: '#c084fc',
     letterSpacing: 1.2,
     textTransform: 'uppercase',
-    marginTop: 14,
-    marginBottom: 6,
+    marginTop: 16,
+    marginBottom: 8,
   },
-  mdBold: { fontSize: 15, fontWeight: '800', color: '#fff' },
-  mdItalic: { fontSize: 15, fontStyle: 'italic', color: 'rgba(255,255,255,0.9)' },
-  mdQuote: { fontSize: 15, fontStyle: 'italic', color: 'rgba(255,255,255,0.85)' },
-  mdText: { fontSize: 15, lineHeight: 22, color: 'rgba(255,255,255,0.92)', marginBottom: 4 },
-  mdBulletRow: { flexDirection: 'row', marginBottom: 6, paddingLeft: 4 } as any,
-  mdBulletDot: { width: 16, fontSize: 15, lineHeight: 22, fontWeight: '700', color: 'rgba(255,255,255,0.5)' },
+  mdBold: { fontSize: 18, fontWeight: '800', color: '#fff' },
+  mdItalic: { fontSize: 18, fontStyle: 'italic', color: 'rgba(255,255,255,0.9)' },
+  mdQuote: { fontSize: 18, fontStyle: 'italic', color: 'rgba(255,255,255,0.85)' },
+  mdText: { fontSize: 18, lineHeight: 28, color: 'rgba(255,255,255,0.92)', marginBottom: 6 },
+  mdBulletRow: { flexDirection: 'row', marginBottom: 8, paddingLeft: 4 } as any,
+  mdBulletDot: { width: 20, fontSize: 18, lineHeight: 28, fontWeight: '700', color: 'rgba(255,255,255,0.5)' },
 });

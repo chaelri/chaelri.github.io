@@ -8,6 +8,7 @@ import { useStore } from '../src/store/useStore';
 import { Spacing, FontSize, BorderRadius } from '../src/constants/theme';
 import { useTheme } from '../src/hooks/useTheme';
 import GradientView from '../src/components/GradientView';
+import * as H from '../src/utils/haptics';
 
 const FEATURES = [
   { icon: 'auto-awesome' as const, label: 'Unlimited AI study tools' },
@@ -33,6 +34,7 @@ export default function PaywallScreen() {
   }, []);
 
   const handlePurchase = (plan: string) => {
+    H.rampUp();
     Alert.alert(
       'Coming Soon',
       `The ${plan} plan will be available once the app is on the App Store. For now, you can use dev mode to test premium features.`,
@@ -243,7 +245,7 @@ export default function PaywallScreen() {
 const styles = StyleSheet.create({
   container: { flex: 1 },
   content: {
-    paddingHorizontal: 40,
+    paddingHorizontal: 24,
     paddingTop: Spacing.xxl + 16,
     paddingBottom: Spacing.lg,
     alignItems: 'center',
