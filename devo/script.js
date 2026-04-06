@@ -2804,6 +2804,7 @@ loadBtn.onclick = async () => {
   document.getElementById("nextChapterBtn").classList.remove("hidden");
   document.getElementById("ttsPlayBtn").classList.remove("hidden");
   document.getElementById("storyReflectRow")?.classList.remove("hidden");
+  updateStorySeenState();
   resetAISections();
 
   await loadPassage();
@@ -4961,7 +4962,22 @@ function _immShowVersePopup(startVerse, endVerse) {
 let _storySlides = [];
 let _storyIndex = 0;
 
+function markStorySeen() {
+  const key = `${bookEl.value}_${chapterEl.value}`;
+  const seen = JSON.parse(localStorage.getItem("storySeenHistory") || "{}");
+  seen[key] = Date.now();
+  localStorage.setItem("storySeenHistory", JSON.stringify(seen));
+  document.getElementById("storyBtn")?.classList.add("story-seen");
+}
+function updateStorySeenState() {
+  const key = `${bookEl.value}_${chapterEl.value}`;
+  const seen = JSON.parse(localStorage.getItem("storySeenHistory") || "{}");
+  const btn = document.getElementById("storyBtn");
+  if (btn) btn.classList.toggle("story-seen", !!seen[key]);
+}
+
 async function openStoryModal() {
+  markStorySeen();
   const modal = document.getElementById("storyModal");
   const content = document.getElementById("storyContent");
   modal.hidden = false;
@@ -5017,8 +5033,8 @@ function closeStoryModal() {
     </div>`;
   setTimeout(() => {
     modal.classList.add("fade-out");
-    setTimeout(() => { modal.hidden = true; modal.classList.remove("fade-out"); }, 400);
-  }, 1200);
+    setTimeout(() => { modal.hidden = true; modal.classList.remove("fade-out"); }, 250);
+  }, 350);
 }
 
 function updateStoryProgress(current, total) {
@@ -5051,7 +5067,6 @@ function renderStorySlide() {
   content.classList.add("fade-out");
   setTimeout(() => {
     content.innerHTML = buildSlideHTML(slide);
-    content.scrollTop = 0; // scroll to top on every slide
     content.classList.remove("fade-out");
     content.classList.add("fade-in");
     // Wire tap zones
@@ -5166,7 +5181,7 @@ function buildScrapbookHTML(seg) {
     const delay = i * 0.6;
 
     parts.push(`
-      <div class="story-scrap-card" style="align-self:${side}; transform:rotate(${rot}deg); animation-delay:${delay}s">
+      <div class="story-scrap-card" style="align-self:${side}; transform:rotate(${rot}deg); animation-delay:${delay}s; cursor:pointer" onclick="openVersePeek('${verseStart + i}')">
         <div class="tape"></div>
         <span class="verse-ref">v${verseStart + i}</span>
         <div class="story-scrap-text">${esc(text)}</div>
@@ -5204,7 +5219,7 @@ function buildScrapbookHTML(seg) {
   </div>`;
 
   return `
-    <div style="position:relative">
+    <div style="position:relative; width:100%">
       <div class="story-grid-bg"></div>
       <span class="story-ambient-sparkle s1">✦</span>
       <span class="story-ambient-sparkle s2">✦</span>
@@ -5237,9 +5252,11 @@ function buildConversationHTML(seg) {
   }).join("");
 
   return `
-    <div class="story-label">VERSES ${esc(seg.verses)}</div>
-    <div class="story-title">${esc(seg.title)}</div>
-    <div class="story-chat-area">${bubbles}</div>
+    <div style="width:100%">
+      <div class="story-label">VERSES ${esc(seg.verses)}</div>
+      <div class="story-title">${esc(seg.title)}</div>
+      <div class="story-chat-area">${bubbles}</div>
+    </div>
   `;
 }
 

@@ -1122,29 +1122,23 @@ select:disabled {
 }
 
 #homeBtn {
-  /* Layout */
   display: inline-flex;
   align-items: center;
-  justify-content: center;
-  gap: 12px; /* Space between icon and text */
-
-  /* Sizing and Padding */
-  padding: 12px 24px;
-  border-radius: 50px; /* Fully rounded pill shape */
-
-  /* Styling (based on your image) */
-  background-color: transparent;
-  border: 1px solid #333b4d;
-  color: #c5d1f1;
-  font-family: sans-serif;
-  font-weight: 700;
+  gap: 2px;
+  padding: 6px 2px;
+  background: none;
+  border: none;
+  color: #8a95a8;
+  font-size: 15px;
+  font-weight: 600;
   cursor: pointer;
-  transition: all 0.2s ease;
+  transition: color 0.2s ease;
 }
-
+#homeBtn .material-symbols-outlined {
+  font-size: 18px;
+}
 #homeBtn:hover {
-  background-color: #1e2536;
-  border-color: #4a5568;
+  color: #c5d1f1;
 }
 
 /* VOTD BANNER REMOVED */
@@ -1274,7 +1268,7 @@ select:disabled {
 .reflection-link {
   background: rgba(219, 39, 119, 0.12);
   color: #db2777;
-  padding: 2px 7px;
+  padding: 1px 6px;
   font-size: 0.7rem;
   font-weight: 700;
   border-radius: 4px;
@@ -4846,6 +4840,7 @@ body.light {
   align-items: stretch;
   gap: 14px;
   margin: 8px 16px 12px;
+  max-width: 520px;
 }
 .action-section.hidden { display: none; }
 .action-left {
@@ -4867,6 +4862,7 @@ body.light {
   justify-content: center;
   gap: 8px;
   width: 100%;
+  max-width: 420px;
   padding: 12px 0;
   border: 1px solid rgba(255,255,255,0.08);
   border-radius: 12px;
@@ -4906,10 +4902,17 @@ body.light {
   transition: all 0.2s;
   flex-shrink: 0;
   position: relative;
+  margin-left: auto;
 }
 .action-story-stack:hover {
   transform: translateY(-2px);
 }
+/* Hide orbit animations once story has been viewed */
+.story-seen .story-stack-cards::before,
+.story-seen .story-stack-cards::after,
+.story-seen .story-orbit-dot,
+.story-seen .story-orbit-dot-h { display: none; }
+
 /* Orbit trail ring — conic gradient that rotates, creating a comet trail */
 .story-stack-cards::before {
   content: '';
@@ -5053,7 +5056,10 @@ body.light {
 .action-story-stack:hover .action-story-label { color: #db2777; }
 .light .story-stack-card {
   border-color: rgba(0,0,0,0.08);
-  background: rgba(0,0,0,0.03);
+  background: transparent;
+}
+.light .story-stack-card.c1 {
+  background: rgba(0,0,0,0.04);
 }
 .light .action-story-stack:hover {
   transform: translateY(-2px);
@@ -5125,12 +5131,20 @@ body.light {
   padding: 24px 28px 80px;
   display: flex;
   flex-direction: column;
-  justify-content: center;
   transition: opacity 0.3s ease, transform 0.3s ease;
   max-width: 480px;
   margin: 0 auto;
   width: 100%;
   box-sizing: border-box;
+}
+/* Spacer before content pushes it to center when short, collapses when tall */
+.story-content::before {
+  content: '';
+  flex: 1;
+}
+.story-content::after {
+  content: '';
+  flex: 1;
 }
 .story-content.fade-out {
   opacity: 0;
@@ -5331,6 +5345,10 @@ body.light {
 @keyframes scrapIn {
   from { opacity: 0; transform: scale(0.85); }
   to { opacity: 1; transform: scale(1); }
+}
+.story-scrap-card:active {
+  opacity: 0.8;
+  transition: opacity 0.1s;
 }
 .story-scrap-card .verse-ref {
   position: absolute;
@@ -5629,14 +5647,14 @@ body.light {
   font-size: 16px;
   line-height: 26px;
   color: #e6edf7;
-  margin: 0 0 14px;
+  margin: 0 0 16px !important;
 }
 #reflectContent textarea {
   width: 100%;
   box-sizing: border-box;
   min-height: 80px;
   padding: 14px 16px;
-  margin: 0;
+  margin: 4px 0 0 !important;
   border: 1px solid rgba(255,255,255,0.08);
   border-radius: 12px;
   background: rgba(255,255,255,0.04);
@@ -5657,7 +5675,7 @@ body.light {
 #reflectContent .reflection-link {
   background: rgba(219, 39, 119, 0.12);
   color: #db2777;
-  padding: 2px 7px;
+  padding: 0 6px;
   font-size: 11px;
   font-weight: 700;
   border-radius: 4px;
@@ -5858,10 +5876,11 @@ body.light {
 
 /* Reflect — floating hearts */
 .story-float-heart {
-  position: absolute;
+  position: fixed;
   color: #db2777;
   pointer-events: none;
   z-index: 0;
+  opacity: 0;
 }
 .story-float-heart.br1 { animation: heartBR1 14s linear infinite; }
 .story-float-heart.br2 { animation: heartBR2 16s linear infinite 3s; }
