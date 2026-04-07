@@ -3970,6 +3970,15 @@ body.light {
   border-radius: 2px;
   transition: width 0.4s ease;
 }
+.tts-imm-load-bar.buffering {
+  background: linear-gradient(90deg, #db2777 30%, #f472b6 50%, #db2777 70%);
+  background-size: 200% 100%;
+  animation: ttsBarShimmer 1.2s linear infinite;
+}
+@keyframes ttsBarShimmer {
+  0% { background-position: 200% 0; }
+  100% { background-position: -200% 0; }
+}
 
 /* Scrubber */
 .tts-imm-scrubber-wrap {
@@ -4129,6 +4138,16 @@ body.light {
   animation: ttsPlayPulse 2s ease-in-out infinite;
 }
 
+
+/* Loading state — pulsing ring on play button */
+.tts-imm-btn-loading {
+  animation: ttsLoadPulse 1s ease-in-out infinite !important;
+  box-shadow: 0 0 0 4px rgba(219, 39, 119, 0.3) !important;
+}
+@keyframes ttsLoadPulse {
+  0%, 100% { box-shadow: 0 0 0 4px rgba(219, 39, 119, 0.2); }
+  50% { box-shadow: 0 0 0 10px rgba(219, 39, 119, 0.05); }
+}
 
 /* Status hint */
 .tts-imm-hint {
@@ -4466,12 +4485,15 @@ body.light {
 }
 .tts-imm-context-start-btn:hover { opacity: 0.88; }
 .tts-imm-loader {
+  position: fixed;
+  inset: 0;
   display: flex;
   flex-direction: column;
   align-items: center;
   justify-content: center;
-  flex: 1;
   gap: 16px;
+  z-index: 1;
+  pointer-events: none;
 }
 .tts-imm-loader-text {
   font-size: 17px;
@@ -5007,24 +5029,14 @@ body.light {
 .story-seen .story-stack-cards::after,
 .story-seen .story-orbit-dot,
 .story-seen .story-orbit-dot-h { display: none; }
+.story-seen .story-stack-card.c1 {
+  box-shadow: none;
+  animation: storyIdle 3s ease-in-out infinite;
+}
 
-/* Orbit trail ring — conic gradient that rotates, creating a comet trail */
+/* Orbit trail ring — disabled, keeping dots only */
 .story-stack-cards::before {
-  content: '';
-  position: absolute;
-  top: 50%; left: 50%;
-  width: 80px; height: 80px;
-  transform: translate(-50%,-50%);
-  border-radius: 50%;
-  background: conic-gradient(
-    from 0deg,
-    transparent 0deg,
-    transparent 240deg,
-    #db2777 360deg
-  );
-  -webkit-mask: radial-gradient(circle, transparent 34px, black 35px, black 38px, transparent 39px);
-  mask: radial-gradient(circle, transparent 34px, black 35px, black 38px, transparent 39px);
-  animation: storyOrbitTrail 5s linear infinite;
+  display: none;
   z-index: 5;
 }
 @keyframes storyOrbitTrail {
@@ -5032,24 +5044,9 @@ body.light {
   to { transform: translate(-50%,-50%) rotate(360deg); }
 }
 
-/* Second orbit trail — horizontal ellipse, uses a rotated scaled circle */
+/* Second orbit trail — disabled */
 .story-stack-cards::after {
-  content: '';
-  position: absolute;
-  top: 50%; left: 50%;
-  width: 80px; height: 80px;
-  transform: translate(-50%,-50%) scaleY(0.3);
-  border-radius: 50%;
-  background: conic-gradient(
-    from 0deg,
-    transparent 0deg,
-    transparent 240deg,
-    #db2777 360deg
-  );
-  -webkit-mask: radial-gradient(circle, transparent 34px, black 35px, black 38px, transparent 39px);
-  mask: radial-gradient(circle, transparent 34px, black 35px, black 38px, transparent 39px);
-  animation: storyOrbitTrailH 7s linear infinite;
-  z-index: 4;
+  display: none;
 }
 @keyframes storyOrbitTrailH {
   from { transform: translate(-50%,-50%) scaleY(0.3) rotate(0deg); }
@@ -5135,6 +5132,12 @@ body.light {
   align-items: center;
   justify-content: center;
   background: rgba(255,255,255,0.08);
+  box-shadow: 0 8px 24px rgba(219, 39, 119, 0.3);
+  animation: storyIdle 3s ease-in-out infinite, storyGlow 2.5s ease-in-out infinite;
+}
+@keyframes storyGlow {
+  0%, 100% { box-shadow: 0 8px 28px rgba(219, 39, 119, 0.4); }
+  50% { box-shadow: 0 14px 40px rgba(219, 39, 119, 0.7); }
 }
 .story-stack-card.c1 .material-icons {
   font-size: 20px;
@@ -5165,6 +5168,85 @@ body.light {
 }
 .light .action-story-label { color: #5a6478; }
 .light .action-story-stack:hover .action-story-label { color: #db2777; }
+
+/* Story card sparkles — float up and fade out */
+.story-spark {
+  position: absolute;
+  font-size: 8px;
+  color: #db2777;
+  opacity: 0;
+  pointer-events: none;
+  z-index: 5;
+  animation: sparkUp 4s ease-out infinite;
+}
+.story-spark.s1 { left: 8%; bottom: 20%; animation-delay: 0s; font-size: 48px; }
+.story-spark.s2 { left: 35%; bottom: 15%; animation-delay: 0.6s; font-size: 56px; }
+.story-spark.s3 { left: 55%; bottom: 25%; animation-delay: 1.2s; font-size: 40px; }
+.story-spark.s4 { left: 18%; bottom: 30%; animation-delay: 1.8s; font-size: 52px; }
+.story-spark.s5 { left: 45%; bottom: 18%; animation-delay: 0.3s; font-size: 36px; }
+@keyframes sparkUp {
+  0% { opacity: 0; transform: translateY(0) scale(0.5); }
+  15% { opacity: 0.25; transform: translateY(-6px) scale(1); }
+  60% { opacity: 0.12; transform: translateY(-22px) scale(0.8); }
+  100% { opacity: 0; transform: translateY(-36px) scale(0.3); }
+}
+.story-seen .story-spark { display: none; }
+
+/* Daily featured story card */
+.dash-featured-story {
+  margin: 12px 0 8px;
+  padding: 16px 18px;
+  border-radius: 14px;
+  background: rgba(219, 39, 119, 0.08);
+  border: 1px solid rgba(219, 39, 119, 0.15);
+  cursor: pointer;
+  transition: all 0.15s;
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 12px;
+}
+.dash-featured-story:hover {
+  background: rgba(219, 39, 119, 0.13);
+}
+.dash-featured-left { flex: 1; min-width: 0; }
+.dash-featured-cards {
+  position: relative;
+  width: 52px;
+  height: 68px;
+  flex-shrink: 0;
+}
+.dash-featured-label {
+  display: flex;
+  align-items: center;
+  gap: 5px;
+  font-size: 10px;
+  font-weight: 700;
+  letter-spacing: 1.5px;
+  text-transform: uppercase;
+  color: #db2777;
+  margin-bottom: 6px;
+}
+.dash-featured-title {
+  font-family: "Editors Note", serif;
+  font-style: italic;
+  font-size: 1.8rem;
+  color: #fff;
+  margin-bottom: 4px;
+}
+.dash-featured-cta {
+  font-size: 12px;
+  color: #8a95a8;
+  font-weight: 600;
+}
+.light .dash-featured-story {
+  background: rgba(219, 39, 119, 0.06);
+  border-color: rgba(219, 39, 119, 0.12);
+}
+.light .dash-featured-story:hover {
+  background: rgba(219, 39, 119, 0.1);
+}
+.light .dash-featured-title { color: #1a1a2e; }
 
 /* ===== STORY MODAL ===== */
 .story-modal {

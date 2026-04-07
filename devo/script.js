@@ -428,7 +428,7 @@ const TTS_VOICE = { languageCode: "en-US", name: "en-US-Journey-D" };
 let _ttsReadyCount = 0;
 
 // Semaphore: max 2 concurrent TTS requests to stay under rate limits
-const _synthSem = { active: 0, max: 2, queue: [] };
+const _synthSem = { active: 0, max: 1, queue: [] };
 function _synthAcquire() {
   if (_synthSem.active < _synthSem.max) { _synthSem.active++; return Promise.resolve(); }
   return new Promise(resolve => _synthSem.queue.push(resolve));
@@ -443,6 +443,38 @@ function _synthRelease() {
 function _synthReset() {
   _synthSem.active = 0;
   _synthSem.queue.length = 0; // abandon stale waiters, they'll be GC'd
+}
+
+// On-demand synthesis: synthesize a single item if not already done
+const TTS_LOOKAHEAD = 2;
+function _ttsSynthItem(item, gen) {
+  if (item.ready) return item.ready; // already in-flight or done
+  item.ready = ttsSynthesize(item.ttsText || item.text).then(
+    ({ url, timepoints, words }) => {
+      item.url = url;
+      item.timepoints = timepoints;
+      item.words = words;
+      _ttsReadyCount++;
+      const bar = document.getElementById("ttsProgressBar");
+      if (gen === ttsGen && bar) {
+        const pct = `${(_ttsReadyCount / ttsQueue.length) * 100}%`;
+        bar.style.width = pct;
+        const immBar = document.getElementById("ttsImmLoadBar");
+        if (immBar) immBar.style.width = pct;
+        if (_ttsReadyCount === ttsQueue.length)
+          document.getElementById("ttsPlayer")?.classList.add("tts-ready");
+      }
+    },
+    () => { item.url = null; }
+  );
+  return item.ready;
+}
+
+// Kick off synthesis for current index + lookahead
+function _ttsPrepareLookahead(index, gen) {
+  for (let i = index; i < Math.min(index + TTS_LOOKAHEAD + 1, ttsQueue.length); i++) {
+    _ttsSynthItem(ttsQueue[i], gen);
+  }
 }
 
 function _escapeSSML(str) {
@@ -610,26 +642,8 @@ async function playChapter() {
   const bar = document.getElementById("ttsProgressBar");
   if (bar) bar.style.width = "0%";
 
-  // Start all synthesis in background
-  for (const item of ttsQueue) {
-    item.ready = ttsSynthesize(item.ttsText || item.text).then(
-      ({ url, timepoints, words }) => {
-        item.url = url;
-        item.timepoints = timepoints;
-        item.words = words;
-        _ttsReadyCount++;
-        if (gen === ttsGen && bar) {
-          const pct = `${(_ttsReadyCount / ttsQueue.length) * 100}%`;
-          bar.style.width = pct;
-          const immBar = document.getElementById("ttsImmLoadBar");
-          if (immBar) immBar.style.width = pct;
-          if (_ttsReadyCount === ttsQueue.length)
-            document.getElementById("ttsPlayer")?.classList.add("tts-ready");
-        }
-      },
-      () => { item.url = null; }
-    );
-  }
+  // Pre-synthesize first few verses so playback starts fast
+  _ttsPrepareLookahead(0, gen);
 
   // Set verse range indicator in immersive top bar
   const rangeEl = document.getElementById("ttsImmRange");
@@ -645,12 +659,19 @@ async function playChapter() {
   ttsImmContextOpen(gen);
 }
 
+let _ttsPlaySeq = 0; // debounce sequence for rapid next/prev
+
 async function ttsPlayAt(index, gen) {
   if (gen !== ttsGen) return;
   if (index < 0 || index >= ttsQueue.length) {
     if (gen === ttsGen) ttsFinish();
     return;
   }
+
+  // Debounce rapid navigation — only the latest call wins
+  const seq = ++_ttsPlaySeq;
+  await new Promise(r => setTimeout(r, 150));
+  if (seq !== _ttsPlaySeq || gen !== ttsGen) return;
 
   // Hide pause panel when verse changes
   const _pp = document.getElementById("ttsImmPausePanel");
@@ -670,15 +691,28 @@ async function ttsPlayAt(index, gen) {
   document.getElementById("output")?.classList.add("tts-mode");
   ttsMark(item.el);
   ttsImmersiveUpdate(index);
-  ttsSetStatus(`Loading ${item.verseNum}\u2026`);
+  const immPauseBtn = document.getElementById("ttsImmPauseBtn");
+  const immLoadBar = document.getElementById("ttsImmLoadBar");
+  if (!item.url) {
+    ttsSetStatus(`Preparing verse ${item.verseNum}\u2026`);
+    if (immPauseBtn) immPauseBtn.classList.add("tts-imm-btn-loading");
+    if (immLoadBar) immLoadBar.classList.add("buffering");
+  } else {
+    ttsSetStatus(`${ttsIcon("graphic_eq")} ${item.verseNum} / ${ttsQueue.length}`);
+  }
   document.getElementById("ttsPlayer")?.classList.add("tts-buffering");
 
+  // Synthesize this verse + lookahead on demand
+  _ttsPrepareLookahead(index, gen);
+
   try {
-    await item.ready;           // instant if already synthesised, else wait
+    await _ttsSynthItem(item, gen); // instant if already done, else wait
     if (gen !== ttsGen) return;
     if (!item.url) throw new Error("synthesis failed");
 
     document.getElementById("ttsPlayer")?.classList.remove("tts-buffering");
+    if (immPauseBtn) immPauseBtn.classList.remove("tts-imm-btn-loading");
+    if (immLoadBar) immLoadBar.classList.remove("buffering");
 
     // Restore previous verse text, inject word spans for this verse
     _stopWordHighlight();
@@ -702,6 +736,8 @@ async function ttsPlayAt(index, gen) {
     if (gen !== ttsGen) return;
     console.error("TTS", err);
     _stopWordHighlight();
+    if (immPauseBtn) immPauseBtn.classList.remove("tts-imm-btn-loading");
+    if (immLoadBar) immLoadBar.classList.remove("buffering");
     document.getElementById("ttsPlayer")?.classList.remove("tts-buffering");
     ttsSetStatus(`${ttsIcon("warning")} Verse ${item.verseNum} failed`);
 
@@ -1391,7 +1427,44 @@ const formatKey = (key) => {
   return `${bookName} ${chapter}${verse ? ":" + verse : ""}`;
 };
 
-// NEW: Function to load passage from a dashboard link
+// Open daily story without navigating away from dashboard
+async function _openDailyStory(bookKey, ch) {
+  const bookName = BIBLE_META[bookKey]?.name;
+  if (!bookName) return;
+
+  // Ensure bible data is loaded
+  if (!bibleData) await fetchBibleData();
+
+  const bookContent = bibleData[bookName.toUpperCase()];
+  if (!bookContent || !bookContent[ch]) return;
+
+  // Build versesText from the chapter data
+  const chapterData = bookContent[ch];
+  const versesText = Object.entries(chapterData)
+    .sort((a, b) => parseInt(a[0]) - parseInt(b[0]))
+    .map(([v, text]) => `${v}. ${text.trim().replace(/([.!?,;:])(?=[a-zA-Z])/g, "$1 ").replace(/\s+/g, " ")}`)
+    .join("\n");
+
+  // Temporarily set __aiPayload so the story modal can use it
+  const prevPayload = window.__aiPayload;
+  window.__aiPayload = { book: bookName.toUpperCase(), chapter: String(ch), versesText };
+
+  // Temporarily set selects for markStorySeen
+  const prevBook = bookEl.value;
+  const prevCh = chapterEl.value;
+  bookEl.value = bookKey;
+  loadChapters();
+  chapterEl.value = ch;
+
+  await openStoryModal();
+
+  // Restore everything
+  bookEl.value = prevBook;
+  loadChapters();
+  chapterEl.value = prevCh;
+  window.__aiPayload = prevPayload;
+}
+
 function loadPassageById(id, scrollToVerse) {
   const [bookId, chapter, verse] = id.split("-");
 
@@ -1644,12 +1717,41 @@ async function renderDashboard() {
     </div>
     <div id="dashGreetingMsg" class="dash-greeting-msg"></div>
   </div>
-  
+
+  ${(() => {
+    // Daily featured story — deterministic per day
+    const today = new Date();
+    const seed = today.getFullYear() * 10000 + (today.getMonth() + 1) * 100 + today.getDate();
+    const bookKeys = Object.keys(BIBLE_META);
+    const bookIdx = seed % bookKeys.length;
+    const bookKey = bookKeys[bookIdx];
+    const book = BIBLE_META[bookKey];
+    const chIdx = seed % book.chapters.length;
+    const ch = chIdx + 1;
+    return `<div class="dash-featured-story" onclick="_openDailyStory('${bookKey}', ${ch})">
+      <div class="dash-featured-left">
+        <div class="dash-featured-label"><span class="material-icons" style="font-size:14px;">auto_awesome</span> Today's Story</div>
+        <div class="dash-featured-title">${book.name} ${ch}</div>
+        <div class="dash-featured-cta">Tap to explore <span class="material-icons" style="font-size:14px;vertical-align:middle;">arrow_forward</span></div>
+      </div>
+      <div class="dash-featured-cards">
+        <div class="story-stack-card c3"></div>
+        <div class="story-stack-card c2"></div>
+        <div class="story-stack-card c1">
+          <span class="material-icons">auto_awesome</span>
+          <span class="story-spark s1 material-icons">auto_awesome</span>
+          <span class="story-spark s2 material-icons">auto_awesome</span>
+          <span class="story-spark s3 material-icons">auto_awesome</span>
+        </div>
+      </div>
+    </div>`;
+  })()}
+
   <div class="dashboard-grid">
 
       <!-- CONTINUE READING + FAVORITES -->
       <section class="dashboard-section">
-      
+
         <div id="continue-reading" class="hidden">
           <h3><span class="material-icons dashboard-icon">book</span> Continue Reading?</h3>
           <div onclick="loadPassageById('${recentPassageId}')" style="margin-bottom: 1rem; cursor: pointer">
@@ -1658,7 +1760,7 @@ async function renderDashboard() {
             </div>
           </div>
         </div>
-        
+
         <h3><span class="material-icons dashboard-icon">favorite</span> Favorites</h3>
         ${
           favoritesKeys.length
@@ -3852,8 +3954,22 @@ function _renderNoteDetail(note) {
   if (!content) return;
 
   if (deleteBtn) {
-    deleteBtn.hidden = note.type !== "standalone";
-    deleteBtn.onclick = note.type === "standalone" ? () => _deleteStandaloneNote(note.standaloneId) : null;
+    deleteBtn.hidden = false;
+    if (note.type === "standalone") {
+      deleteBtn.onclick = () => _deleteStandaloneNote(note.standaloneId);
+    } else if (note.type === "verse") {
+      deleteBtn.onclick = () => _confirmDialog("Delete all notes for this passage?", () => {
+        (note.verseKeys || [note.chapterKey + "-1"]).forEach(k => { delete comments[k]; });
+        saveComments();
+        _closeNoteDetail();
+      });
+    } else if (note.type === "reflection") {
+      deleteBtn.onclick = () => _confirmDialog("Delete this reflection?", () => {
+        (note.QAs || []).forEach(qa => { if (qa.lsKey) localStorage.removeItem(qa.lsKey); });
+        localStorage.removeItem("reflection-time-" + note.passageKey);
+        _closeNoteDetail();
+      });
+    }
   }
   if (shareBtn) shareBtn.onclick = () => _shareNote(note);
 
@@ -5487,15 +5603,30 @@ function esc(str) {
 // ═══════════════════════════════════════════════════════════════════════════
 // REFLECT MODAL — Shows reflection questions in a clean fullscreen view
 // ═══════════════════════════════════════════════════════════════════════════
-function openReflectModal() {
+async function openReflectModal() {
   const modal = document.getElementById("reflectModal");
   const content = document.getElementById("reflectContent");
   const reflectionEl = document.getElementById("aiReflection");
 
   if (!reflectionEl || !reflectionEl.innerHTML.trim()) {
-    content.innerHTML = `<div class="story-loading"><div class="story-loading-text">No reflection questions yet. Load a passage first.</div></div>`;
-    modal.hidden = false;
-    return;
+    // Try to generate reflections on-the-fly if we have payload
+    if (window.__aiPayload) {
+      modal.hidden = false;
+      content.innerHTML = `<div class="story-loading">
+        <div class="story-sparkle-row"><span class="story-sparkle">✦</span><span class="story-sparkle">✦</span><span class="story-sparkle">✦</span></div>
+        <div class="story-loading-text">Generating reflections...</div>
+      </div>`;
+      await renderAIReflectionQuestions(window.__aiPayload);
+      // Now reflectionEl should have content — re-run
+      if (!reflectionEl.innerHTML.trim()) {
+        content.innerHTML = `<div class="story-loading"><div class="story-loading-text">Failed to generate reflections.</div></div>`;
+        return;
+      }
+    } else {
+      content.innerHTML = `<div class="story-loading"><div class="story-loading-text">No reflection questions yet. Load a passage first.</div></div>`;
+      modal.hidden = false;
+      return;
+    }
   }
 
   const bookName = bookEl.options[bookEl.selectedIndex]?.text || "";
