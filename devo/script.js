@@ -1456,13 +1456,14 @@ async function _openDailyStory(bookKey, ch) {
   loadChapters();
   chapterEl.value = ch;
 
-  await openStoryModal();
+  // Store restore info — will be cleaned up when story/reflect modal closes
+  window._dailyStoryRestore = {
+    prevPayload,
+    prevBook,
+    prevCh,
+  };
 
-  // Restore everything
-  bookEl.value = prevBook;
-  loadChapters();
-  chapterEl.value = prevCh;
-  window.__aiPayload = prevPayload;
+  await openStoryModal();
 }
 
 function loadPassageById(id, scrollToVerse) {
@@ -5174,8 +5175,21 @@ function closeStoryModal() {
     </div>`;
   setTimeout(() => {
     modal.classList.add("fade-out");
-    setTimeout(() => { modal.hidden = true; modal.classList.remove("fade-out"); }, 250);
+    setTimeout(() => { modal.hidden = true; modal.classList.remove("fade-out"); _restoreDailyStory(); }, 250);
   }, 350);
+}
+
+function _restoreDailyStory() {
+  const r = window._dailyStoryRestore;
+  if (!r) return;
+  // Only restore if reflect modal is also closed
+  const reflectModal = document.getElementById("reflectModal");
+  if (reflectModal && !reflectModal.hidden) return; // reflect still open, defer
+  bookEl.value = r.prevBook;
+  loadChapters();
+  chapterEl.value = r.prevCh;
+  window.__aiPayload = r.prevPayload;
+  window._dailyStoryRestore = null;
 }
 
 function updateStoryProgress(current, total) {
@@ -5715,7 +5729,7 @@ function closeReflectModal() {
   });
 
   modal.classList.add("fade-out");
-  setTimeout(() => { modal.hidden = true; modal.classList.remove("fade-out"); }, 400);
+  setTimeout(() => { modal.hidden = true; modal.classList.remove("fade-out"); _restoreDailyStory(); }, 400);
 }
 
 function openVersePeek(rawRef) {
@@ -5732,14 +5746,22 @@ function openVersePeek(rawRef) {
     const contentEl = target.querySelector(".verse-content");
     if (contentEl) {
       const clone = contentEl.cloneNode(true);
-      // Remove verse number, icons, and meta indicators
       clone.querySelectorAll(".verse-num, .verse-meta-indicators, .favorite-indicator").forEach(el => el.remove());
       text = clone.textContent.trim();
     }
   }
 
-  const bookName = bookEl.options[bookEl.selectedIndex]?.text || "";
-  const chapter = chapterEl.value;
+  // Fallback: read from JSON if verse not found in DOM (e.g. daily story)
+  if (text === "Verse not found." && bibleData && window.__aiPayload) {
+    const { book, chapter: ch } = window.__aiPayload;
+    const bookContent = bibleData[book] || bibleData[book?.toUpperCase()];
+    if (bookContent && bookContent[ch] && bookContent[ch][cleanNum]) {
+      text = bookContent[ch][cleanNum].trim().replace(/([.!?,;:])(?=[a-zA-Z])/g, "$1 ").replace(/\s+/g, " ");
+    }
+  }
+
+  const bookName = bookEl.options[bookEl.selectedIndex]?.text || (window.__aiPayload?.book || "");
+  const chapter = chapterEl.value || (window.__aiPayload?.chapter || "");
   const verseNum = cleanNum;
 
   const overlay = document.createElement("div");

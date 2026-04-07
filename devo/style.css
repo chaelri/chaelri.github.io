@@ -5808,6 +5808,12 @@ body.light {
 .light .story-progress-seg { background: rgba(0,0,0,0.06); }
 
 /* ===== REFLECT MODAL OVERRIDES ===== */
+#reflectContent {
+  padding-top: calc(48px + env(safe-area-inset-top, 0px)) !important;
+}
+#reflectModal .story-close-btn {
+  top: calc(16px + env(safe-area-inset-top, 0px));
+}
 #reflectContent ol {
   list-style: none;
   padding: 0;
@@ -5816,7 +5822,7 @@ body.light {
 }
 #reflectContent li {
   counter-increment: reflect;
-  margin-bottom: 36px;
+  margin-bottom: 40px;
 }
 #reflectContent li::before {
   content: "QUESTION " counter(reflect);
@@ -5838,7 +5844,7 @@ body.light {
   box-sizing: border-box;
   min-height: 80px;
   padding: 14px 16px;
-  margin: 4px 0 0 !important;
+  margin: 12px 0 0 !important;
   border: 1px solid rgba(255,255,255,0.08);
   border-radius: 12px;
   background: rgba(255,255,255,0.04);
