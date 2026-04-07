@@ -3781,7 +3781,28 @@ function _openSessionDetail(session) {
 
   const deleteBtn = document.getElementById("notesDetailDelete");
   const shareBtn  = document.getElementById("notesDetailShare");
-  if (deleteBtn) deleteBtn.hidden = true;
+  if (deleteBtn) {
+    deleteBtn.style.display = "";
+    deleteBtn.onclick = () => _confirmDialog("Delete all notes from this day?", () => {
+      // Delete verse comments
+      session.verse.forEach(note => {
+        (note.verseKeys || []).forEach(k => { delete comments[k]; });
+      });
+      saveComments();
+      // Delete reflections
+      session.reflection.forEach(note => {
+        (note.QAs || []).forEach(qa => { if (qa.lsKey) localStorage.removeItem(qa.lsKey); });
+        if (note.passageKey) localStorage.removeItem("reflection-time-" + note.passageKey);
+      });
+      // Delete standalone notes
+      if (session.standalone.length) {
+        const ids = session.standalone.map(n => n.standaloneId);
+        const all = JSON.parse(localStorage.getItem("devotionStandaloneNotes") || "[]");
+        localStorage.setItem("devotionStandaloneNotes", JSON.stringify(all.filter(n => !ids.includes(n.id))));
+      }
+      _closeNoteDetail();
+    });
+  }
   if (shareBtn)  shareBtn.onclick = () => _shareSession(session);
 
   const content = document.getElementById("notesDetailContent");
@@ -3954,7 +3975,7 @@ function _renderNoteDetail(note) {
   if (!content) return;
 
   if (deleteBtn) {
-    deleteBtn.hidden = false;
+    deleteBtn.style.display = "";
     if (note.type === "standalone") {
       deleteBtn.onclick = () => _deleteStandaloneNote(note.standaloneId);
     } else if (note.type === "verse") {
