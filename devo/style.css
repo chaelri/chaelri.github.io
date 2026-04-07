@@ -4448,6 +4448,8 @@ body.light {
   flex: 1;
   overflow-y: auto;
   -webkit-overflow-scrolling: touch;
+  display: flex;
+  flex-direction: column;
 }
 .tts-imm-context-start-btn {
   flex-shrink: 0;
@@ -4468,7 +4470,7 @@ body.light {
   flex-direction: column;
   align-items: center;
   justify-content: center;
-  height: 100%;
+  flex: 1;
   gap: 16px;
 }
 .tts-imm-loader-text {
@@ -4931,10 +4933,9 @@ body.light {
 /* ===== ACTION SECTION — [TITLE + REFLECT] + [STORY STACK] ===== */
 .action-section {
   display: flex;
-  align-items: stretch;
-  gap: 14px;
-  margin: 8px 16px 12px;
-  max-width: 520px;
+  align-items: flex-end;
+  gap: 10px;
+  margin: 8px 16px 4px;
 }
 .action-section.hidden { display: none; }
 .action-left {
@@ -5091,17 +5092,21 @@ body.light {
 
 /* Occasional nudge animation on the front card */
 .story-stack-card.c1 {
-  animation: storyNudge 4s ease-in-out infinite;
+  animation: storyIdle 3s ease-in-out infinite;
 }
-@keyframes storyNudge {
-  0%, 85%, 100% { transform: rotate(2deg); }
-  90% { transform: rotate(-1deg) translateY(-3px); }
-  95% { transform: rotate(3deg) translateY(-1px); }
+@keyframes storyIdle {
+  0%, 100% { transform: rotate(2deg) scale(1); }
+  15% { transform: rotate(-1deg) translateY(-3px) scale(1.03); }
+  30% { transform: rotate(3deg) translateY(-1px); }
+  45% { transform: rotate(2deg) scale(1); }
+  60% { transform: rotate(1deg) translateX(2px); }
+  75% { transform: rotate(-1.5deg) translateY(-2px) scale(1.02); }
+  90% { transform: rotate(2.5deg) translateX(-1px); }
 }
 .story-stack-cards {
   position: relative;
   width: 52px;
-  height: 58px;
+  height: 68px;
 }
 .story-stack-card {
   position: absolute;
@@ -5111,19 +5116,19 @@ body.light {
   transition: transform 0.3s ease;
 }
 .story-stack-card.c3 {
-  width: 42px; height: 50px;
+  width: 42px; height: 60px;
   bottom: 0; left: 0;
   transform: rotate(-8deg);
   opacity: 0.25;
 }
 .story-stack-card.c2 {
-  width: 44px; height: 52px;
+  width: 44px; height: 62px;
   bottom: 1px; left: 2px;
   transform: rotate(-3deg);
   opacity: 0.45;
 }
 .story-stack-card.c1 {
-  width: 48px; height: 56px;
+  width: 48px; height: 66px;
   bottom: 2px; left: 4px;
   transform: rotate(2deg);
   display: flex;
@@ -5145,7 +5150,7 @@ body.light {
   color: #6b7a94;
   letter-spacing: 1.5px;
   text-transform: uppercase;
-  margin-top: 4px;
+  margin-top: 2px;
 }
 .action-story-stack:hover .action-story-label { color: #db2777; }
 .light .story-stack-card {
