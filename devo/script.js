@@ -5165,6 +5165,15 @@ async function openStoryModal() {
   }
 }
 
+function _storyToReflect() {
+  // Open reflect modal on top of story modal — no closing, no flash
+  openReflectModal();
+  // Then silently hide story behind it
+  const storyModal = document.getElementById("storyModal");
+  storyModal.hidden = true;
+  storyModal.querySelector(".story-content").innerHTML = "";
+}
+
 function closeStoryModal() {
   const modal = document.getElementById("storyModal");
   const content = document.getElementById("storyContent");
@@ -5496,7 +5505,7 @@ function buildReflectHTML({ data, book, chapter }) {
       <div class="story-reflect-text" style="margin-top:16px">${esc(data.reflectionP2 || "")}</div>
       <div class="story-reflect-closing"><span class="material-icons" style="font-size:14px;color:#db2777">auto_awesome</span> ${getReflectClosingLine()}</div>
       <div class="story-reflect-actions">
-        <button class="story-reflect-action-btn" onclick="closeStoryModal(); setTimeout(openReflectModal, 500)">
+        <button class="story-reflect-action-btn" onclick="_storyToReflect()">
           Reflect this Chapter
         </button>
         <button class="story-reflect-action-btn outline" onclick="closeStoryModal()">
