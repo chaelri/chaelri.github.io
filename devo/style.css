@@ -4626,9 +4626,12 @@ body.light {
   font-size: 2.2rem;
   color: #fff;
   opacity: 0.85;
-  line-height: 1;
-  pointer-events: none;
+  position: relative;
+  z-index: 10;
+  cursor: default;
+  -webkit-tap-highlight-color: transparent;
   user-select: none;
+  line-height: 1;
 }
 .light .dash-brand { color: #1a1a2e; opacity: 0.75; }
 
@@ -5989,3 +5992,157 @@ body.light {
 @keyframes heartTL1 { 0%{transform:translate(5vw,-5vh);opacity:0} 5%{opacity:0.18} 50%{opacity:0.12} 90%{opacity:0.08} 100%{transform:translate(105vw,110vh);opacity:0} }
 @keyframes heartTL2 { 0%{transform:translate(15vw,-10vh);opacity:0} 5%{opacity:0.2} 50%{opacity:0.15} 90%{opacity:0.1} 100%{transform:translate(110vw,105vh);opacity:0} }
 @keyframes heartTL3 { 0%{transform:translate(10vw,-8vh);opacity:0} 5%{opacity:0.18} 50%{opacity:0.12} 90%{opacity:0.08} 100%{transform:translate(100vw,115vh);opacity:0} }
+
+/* ── Firebase Sync Toast ── */
+.sync-toast {
+  position: fixed;
+  top: calc(env(safe-area-inset-top, 0px) + 16px);
+  left: 50%;
+  transform: translateX(-50%);
+  background: rgba(219, 39, 119, 0.95);
+  color: #fff;
+  font-size: 13px;
+  font-weight: 700;
+  letter-spacing: 0.3px;
+  padding: 10px 20px;
+  border-radius: 12px;
+  z-index: 10000;
+  pointer-events: none;
+  opacity: 0;
+  box-shadow: 0 8px 24px rgba(219, 39, 119, 0.4);
+  white-space: nowrap;
+}
+.sync-toast-in {
+  animation: syncToastIn 0.35s cubic-bezier(0.16, 1, 0.3, 1) forwards;
+}
+.sync-toast-out {
+  animation: syncToastOut 0.3s ease-in forwards;
+}
+@keyframes syncToastIn {
+  from { opacity: 0; transform: translateX(-50%) translateY(-20px) scale(0.9); }
+  to { opacity: 1; transform: translateX(-50%) translateY(0) scale(1); }
+}
+@keyframes syncToastOut {
+  from { opacity: 1; transform: translateX(-50%) translateY(0) scale(1); }
+  to { opacity: 0; transform: translateX(-50%) translateY(-20px) scale(0.9); }
+}
+
+/* Sync linked overlay */
+.sync-linked-overlay {
+  position: fixed;
+  inset: 0;
+  z-index: 9999;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  background: #0c1322;
+  animation: syncOverlayIn 0.4s ease-out;
+  gap: 16px;
+}
+.sync-linked-overlay.fade-out {
+  animation: syncOverlayOut 0.5s ease-in forwards;
+}
+@keyframes syncOverlayIn {
+  from { opacity: 0; }
+  to { opacity: 1; }
+}
+@keyframes syncOverlayOut {
+  from { opacity: 1; }
+  to { opacity: 0; }
+}
+.sync-linked-icon {
+  font-size: 48px;
+  color: #db2777;
+  animation: syncPop 0.5s cubic-bezier(0.16, 1, 0.3, 1) 0.2s both;
+}
+.sync-linked-text {
+  font-size: 20px;
+  font-weight: 800;
+  color: #fff;
+  letter-spacing: -0.3px;
+  animation: syncPop 0.5s cubic-bezier(0.16, 1, 0.3, 1) 0.35s both;
+}
+.sync-linked-sub {
+  font-size: 13px;
+  color: #8a95a8;
+  animation: syncPop 0.5s cubic-bezier(0.16, 1, 0.3, 1) 0.5s both;
+}
+@keyframes syncPop {
+  from { opacity: 0; transform: scale(0.5) translateY(10px); }
+  to { opacity: 1; transform: scale(1) translateY(0); }
+}
+.sync-linked-check {
+  width: 56px; height: 56px;
+  border-radius: 50%;
+  background: #db2777;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  animation: syncPop 0.5s cubic-bezier(0.16, 1, 0.3, 1) 0.15s both;
+  box-shadow: 0 8px 32px rgba(219, 39, 119, 0.5);
+}
+.sync-linked-check .material-icons {
+  font-size: 32px;
+  color: #fff;
+}
+
+/* Sync confirmation dialog */
+.sync-confirm-card {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 14px;
+  padding: 32px 28px;
+  animation: syncPop 0.4s cubic-bezier(0.16, 1, 0.3, 1) both;
+}
+.sync-confirm-icon {
+  width: 52px; height: 52px;
+  border-radius: 50%;
+  background: rgba(219, 39, 119, 0.15);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+}
+.sync-confirm-icon .material-icons {
+  font-size: 26px;
+  color: #db2777;
+}
+.sync-confirm-title {
+  font-size: 22px;
+  font-weight: 800;
+  color: #fff;
+}
+.sync-confirm-sub {
+  font-size: 13px;
+  color: #8a95a8;
+  text-align: center;
+  line-height: 1.5;
+}
+.sync-confirm-actions {
+  display: flex;
+  gap: 12px;
+  margin-top: 4px;
+  width: 100%;
+  max-width: 280px;
+}
+.sync-confirm-btn {
+  flex: 1 !important;
+  padding: 12px 0;
+  border-radius: 10px;
+  border: none;
+  font-size: 14px;
+  font-weight: 700;
+  cursor: pointer;
+  transition: all 0.15s;
+}
+.sync-confirm-btn.yes {
+  background: #db2777 !important;
+  color: #fff !important;
+}
+.sync-confirm-btn.yes:hover { opacity: 0.88; }
+.sync-confirm-btn.no {
+  background: rgba(255,255,255,0.08) !important;
+  color: #8a95a8 !important;
+}
+.sync-confirm-btn.no:hover { background: rgba(255,255,255,0.12) !important; }
