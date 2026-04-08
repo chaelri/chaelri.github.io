@@ -144,6 +144,7 @@ function playEpisode(index) {
   nowPlaying.classList.remove("hidden");
   nowPlayingText.textContent = `EP ${ep.ep} — ${ep.title}`;
 
+
   document.querySelectorAll(".ep-row").forEach((row, i) => {
     row.classList.toggle("active", i === index);
   });
