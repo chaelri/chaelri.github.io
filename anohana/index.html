@@ -1,0 +1,390 @@
+<!DOCTYPE html>
+<html lang="en">
+  <head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0, user-scalable=no, viewport-fit=cover" />
+    <title>Anohana — The Flower We Saw That Day</title>
+    <link rel="manifest" href="manifest.json" />
+    <meta name="theme-color" content="#060609" />
+    <meta name="apple-mobile-web-app-capable" content="yes" />
+    <meta name="mobile-web-app-capable" content="yes" />
+    <meta name="apple-mobile-web-app-status-bar-style" content="black-translucent" />
+    <meta name="apple-mobile-web-app-title" content="Anohana" />
+    <link rel="apple-touch-icon" href="icon-192.png" />
+    <link rel="icon" type="image/png" href="favicon.png" />
+    <script src="https://cdn.tailwindcss.com"></script>
+    <link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Material+Symbols+Outlined:opsz,wght,FILL,GRAD@24,400,0,0" />
+    <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700;800;900&display=swap" rel="stylesheet" />
+    <script>
+      tailwind.config = {
+        theme: {
+          extend: {
+            fontFamily: { sans: ["Inter", "sans-serif"] },
+            colors: {
+              ano: {
+                red: "#e53935",
+                blue: "#1e88e5",
+                dark: "#060609",
+                card: "#0c0c12",
+                border: "#16161f",
+              },
+            },
+          },
+        },
+      };
+    </script>
+    <style>
+      * { -webkit-tap-highlight-color: transparent; }
+      html { scroll-behavior: smooth; background: #060609; }
+      body {
+        background: #060609;
+        padding-top: env(safe-area-inset-top);
+        padding-left: env(safe-area-inset-left);
+        padding-right: env(safe-area-inset-right);
+        padding-bottom: env(safe-area-inset-bottom);
+      }
+      @media (min-width: 768px) {
+        ::-webkit-scrollbar { width: 4px; }
+        ::-webkit-scrollbar-track { background: transparent; }
+        ::-webkit-scrollbar-thumb { background: rgba(30,136,229,0.4); border-radius: 9999px; }
+      }
+      @media (max-width: 767px) {
+        ::-webkit-scrollbar { display: none; }
+        body { scrollbar-width: none; }
+      }
+
+      /* ── Episode rows ── */
+      .ep-row {
+        transform: scale(1);
+        transition: all 0.3s cubic-bezier(0.4, 0, 0.2, 1);
+      }
+      .ep-row:active { transform: scale(0.98); transition: transform 0.1s ease; }
+      .ep-row.active {
+        background: linear-gradient(135deg, rgba(229,57,53,0.15), rgba(30,136,229,0.15));
+        border: 1.5px solid rgba(229,57,53,0.5);
+        box-shadow: 0 0 20px -4px rgba(229,57,53,0.2), 0 0 20px -4px rgba(30,136,229,0.15);
+      }
+      .ep-row.active .ep-title { color: #fff; }
+      .ep-row.active .ep-sub { color: rgba(229,57,53,0.7); }
+      .ep-row.active .now-badge { display: inline-flex; }
+      .ep-row:not(.active):hover { background: rgba(255,255,255,0.03); border-color: rgba(255,255,255,0.08); }
+
+      @keyframes now-playing-pulse { 0%, 100% { opacity: 1; } 50% { opacity: 0.5; } }
+      .now-badge { display: none; animation: now-playing-pulse 1.5s ease-in-out infinite; }
+
+      /* ── Scroll reveal ── */
+      .reveal {
+        opacity: 0; transform: translateY(20px);
+        transition: opacity 0.6s cubic-bezier(0.4,0,0.2,1), transform 0.6s cubic-bezier(0.4,0,0.2,1);
+      }
+      .reveal.visible { opacity: 1; transform: translateY(0); }
+
+      .gradient-line { height: 2px; background: linear-gradient(90deg, #e53935, #1e88e5); }
+      .player-glow {
+        box-shadow: 0 0 80px -20px rgba(30,136,229,0.15), 0 0 80px -20px rgba(229,57,53,0.1);
+        transition: box-shadow 0.5s ease;
+      }
+
+      /* ── Hero ── */
+      .hero-bg { position: relative; overflow: hidden; }
+      .hero-bg::before {
+        content: ""; position: absolute; inset: -40px;
+        background: url("cover.jpg") center/cover no-repeat;
+        filter: blur(60px) saturate(1.8); opacity: 0.15; z-index: 0; pointer-events: none;
+      }
+      .hero-bg::after {
+        content: ""; position: absolute; inset: 0;
+        background: linear-gradient(to bottom, transparent 40%, #060609 100%);
+        z-index: 0; pointer-events: none;
+      }
+      .cover-img { transition: transform 0.5s cubic-bezier(0.4,0,0.2,1), box-shadow 0.5s ease; }
+      .cover-img:hover {
+        transform: scale(1.03) rotate(0.5deg);
+        box-shadow: 0 20px 60px -10px rgba(229,57,53,0.2), 0 20px 60px -10px rgba(30,136,229,0.15);
+      }
+
+      @keyframes fadeUp { from { opacity:0; transform:translateY(16px); } to { opacity:1; transform:translateY(0); } }
+      .fade-up { opacity:0; animation: fadeUp 0.7s cubic-bezier(0.4,0,0.2,1) forwards; }
+
+      /* ── Petals ── */
+      .petal { position:fixed; z-index:9999; pointer-events:none; opacity:0; will-change:transform,opacity; }
+      .petal svg { width:100%; height:100%; }
+      @keyframes petal-fall {
+        0%   { opacity:0; transform: translateY(-20px) rotate(0deg) translateX(0); }
+        10%  { opacity:0.6; }
+        50%  { transform: translateY(50vh) rotate(180deg) translateX(60px); }
+        90%  { opacity:0.4; }
+        100% { opacity:0; transform: translateY(calc(100vh + 40px)) rotate(360deg) translateX(-20px); }
+      }
+
+      /* ── Fireflies ── */
+      .firefly { position:absolute; border-radius:50%; pointer-events:none; filter:blur(1px); }
+      @keyframes firefly-float {
+        0%, 100% { transform:translate(0,0); opacity:0; }
+        15% { opacity:0.8; }
+        50% { transform:translate(var(--fx),var(--fy)); opacity:0.4; }
+        85% { opacity:0.7; }
+      }
+
+      /* ── Thumbnail ── */
+      .ep-thumb {
+        position:relative; width:90px; min-width:90px; aspect-ratio:16/9;
+        border-radius:8px; overflow:hidden; background:#0c0c12;
+        transition: all 0.3s cubic-bezier(0.4,0,0.2,1);
+      }
+      .ep-thumb img { width:100%; height:100%; object-fit:cover; transition: all 0.4s cubic-bezier(0.4,0,0.2,1); }
+      .ep-thumb:hover img { transform:scale(1.08); }
+      .ep-thumb .thumb-play {
+        position:absolute; inset:0; display:flex; align-items:center; justify-content:center;
+        background:rgba(0,0,0,0.3); opacity:0; transition:opacity 0.3s ease;
+      }
+      .ep-thumb:hover .thumb-play { opacity:1; }
+      .ep-row.active .ep-thumb { box-shadow: 0 0 12px -2px rgba(229,57,53,0.4); }
+      .ep-row.active .thumb-play { opacity:1; background:rgba(229,57,53,0.25); }
+      @media (min-width:640px) { .ep-thumb { width:120px; min-width:120px; } }
+
+      /* ── Shimmer ── */
+      .shimmer { overflow:hidden; position:relative; }
+      .shimmer::after {
+        content:""; position:absolute; inset:0;
+        background: linear-gradient(90deg,transparent 0%,rgba(255,255,255,0.03) 40%,rgba(255,255,255,0.06) 50%,rgba(255,255,255,0.03) 60%,transparent 100%);
+        animation: shimmer-slide 2s ease-in-out infinite;
+      }
+      @keyframes shimmer-slide { 0%{transform:translateX(-100%);} 100%{transform:translateX(100%);} }
+
+      /* ── Quote typing ── */
+      .quote-text {
+        border-right:2px solid rgba(229,57,53,0.5); animation:blink-cursor 0.8s step-end infinite;
+        white-space:nowrap; overflow:hidden; display:inline-block; max-width:100%;
+      }
+      .quote-done { border-right-color:transparent; animation:none; }
+      @keyframes blink-cursor { 50% { border-right-color:transparent; } }
+
+      /* ── Nav buttons ── */
+      .nav-btn { transition: all 0.2s cubic-bezier(0.4,0,0.2,1); }
+      .nav-btn:active { transform:scale(0.9); }
+      .nav-btn:hover { background:rgba(255,255,255,0.08); }
+
+      /* ── Intro overlay ── */
+      .intro-overlay {
+        position: fixed;
+        inset: 0;
+        z-index: 99999;
+        background: #060609;
+        display: flex;
+        flex-direction: column;
+        align-items: center;
+        justify-content: center;
+        gap: 16px;
+        transition: opacity 0.8s ease;
+      }
+      .intro-overlay .intro-flower {
+        opacity: 0;
+        transform: scale(0.3) rotate(-45deg);
+        transition: all 1s cubic-bezier(0.34, 1.56, 0.64, 1);
+      }
+      .intro-overlay .intro-menma {
+        opacity: 0;
+        transform: translateY(30px);
+        transition: all 0.8s cubic-bezier(0.4, 0, 0.2, 1);
+      }
+      .intro-overlay .intro-title {
+        opacity: 0;
+        transform: translateY(20px);
+        transition: all 0.7s cubic-bezier(0.4, 0, 0.2, 1);
+      }
+      .intro-overlay .intro-sub {
+        opacity: 0;
+        transform: translateY(15px);
+        transition: all 0.7s cubic-bezier(0.4, 0, 0.2, 1);
+      }
+      #app-body {
+        opacity: 0;
+        transform: translateY(10px);
+        transition: opacity 0.8s ease, transform 0.8s ease;
+        overflow-x: hidden;
+      }
+
+      /* ── Menma peeking ── */
+      .menma-peek {
+        position: fixed;
+        z-index: 9998;
+        pointer-events: none;
+        transition: transform 0.8s cubic-bezier(0.34, 1.56, 0.64, 1);
+      }
+      .menma-peek img {
+        animation: menma-wiggle 2s ease-in-out infinite;
+      }
+      @keyframes menma-wiggle {
+        0%, 100% { transform: rotate(0deg) translateY(0); }
+        25% { transform: rotate(-3deg) translateY(-3px); }
+        75% { transform: rotate(3deg) translateY(-2px); }
+      }
+      .menma-peek.from-right {
+        right: 8px;
+        bottom: 60px;
+        transform: translateX(120%);
+      }
+      .menma-peek.from-right.show {
+        transform: translateX(0);
+      }
+      .menma-peek.from-left {
+        left: 8px;
+        bottom: 80px;
+        transform: translateX(-120%) scaleX(-1);
+      }
+      .menma-peek.from-left.show {
+        transform: translateX(0) scaleX(-1);
+      }
+      .menma-peek.from-bottom {
+        bottom: -10px;
+        left: 50%;
+        transform: translateY(120%) translateX(-50%);
+      }
+      .menma-peek.from-bottom.show {
+        transform: translateY(0) translateX(-50%);
+      }
+      .menma-peek.from-top-right {
+        right: 60px;
+        top: 70px;
+        transform: translateY(-120%);
+      }
+      .menma-peek.from-top-right.show {
+        transform: translateY(0);
+      }
+
+      /* ── Floating lyric ── */
+      .floating-lyric {
+        position: fixed;
+        pointer-events: none;
+        z-index: 9997;
+        font-size: 12px;
+        font-style: italic;
+        color: rgba(229,57,53,0.2);
+        white-space: nowrap;
+        animation: lyric-drift 12s linear forwards;
+      }
+      @keyframes lyric-drift {
+        0%   { opacity: 0; transform: translateX(100vw); }
+        10%  { opacity: 1; }
+        85%  { opacity: 1; }
+        100% { opacity: 0; transform: translateX(-100vw); }
+      }
+    </style>
+  </head>
+
+  <body class="text-zinc-400 font-sans min-h-screen">
+    <!-- Intro overlay -->
+    <div id="intro-overlay" class="intro-overlay">
+      <div id="intro-flower" class="intro-flower">
+        <svg viewBox="0 0 80 80" width="60" height="60" fill="none" xmlns="http://www.w3.org/2000/svg">
+          <circle cx="40" cy="40" r="8" fill="#ffab40"/>
+          <ellipse cx="40" cy="20" rx="8" ry="14" fill="#e53935" opacity="0.8" transform="rotate(0 40 40)"/>
+          <ellipse cx="40" cy="20" rx="8" ry="14" fill="#ef9a9a" opacity="0.7" transform="rotate(72 40 40)"/>
+          <ellipse cx="40" cy="20" rx="8" ry="14" fill="#f48fb1" opacity="0.7" transform="rotate(144 40 40)"/>
+          <ellipse cx="40" cy="20" rx="8" ry="14" fill="#ce93d8" opacity="0.7" transform="rotate(216 40 40)"/>
+          <ellipse cx="40" cy="20" rx="8" ry="14" fill="#90caf9" opacity="0.7" transform="rotate(288 40 40)"/>
+        </svg>
+      </div>
+      <div id="intro-menma" class="intro-menma">
+        <img src="menma1.png" alt="Menma" style="width:120px; filter:drop-shadow(0 0 20px rgba(229,57,53,0.2));" />
+      </div>
+      <h1 id="intro-title" class="intro-title text-2xl md:text-3xl font-black text-white tracking-tight">Anohana</h1>
+      <p id="intro-sub" class="intro-sub text-xs text-zinc-500 tracking-wide">The Flower We Saw That Day</p>
+    </div>
+
+    <div id="app-body">
+    <div id="petals" aria-hidden="true"></div>
+    <div id="menma-container" aria-hidden="true"></div>
+
+    <!-- Top bar -->
+    <nav class="sticky top-0 z-50 bg-ano-dark/80 backdrop-blur-xl border-b border-ano-border">
+      <div class="max-w-5xl mx-auto flex items-center justify-center px-5 py-4">
+        <div class="flex items-center gap-2">
+          <span class="material-symbols-outlined text-ano-red text-[20px]">local_florist</span>
+          <span class="text-white font-bold text-sm tracking-tight">ANOHANA</span>
+        </div>
+      </div>
+    </nav>
+
+    <!-- Hero -->
+    <div class="hero-bg">
+      <div id="fireflies" class="absolute inset-0 z-[1] overflow-hidden pointer-events-none" aria-hidden="true"></div>
+      <div class="max-w-5xl mx-auto px-5 pt-8 pb-10 md:pt-12 md:pb-14 relative z-10">
+        <header class="mb-0 fade-up flex items-center gap-6 md:gap-10">
+          <div class="flex-1 min-w-0">
+            <p id="time-greeting" class="text-[11px] text-zinc-600 mb-2 tracking-wide uppercase"></p>
+            <h1 class="text-3xl md:text-4xl font-black text-white tracking-tight mb-1">Anohana</h1>
+            <p class="text-sm text-zinc-500 mb-2">あの日見た花の名前を僕達はまだ知らない。</p>
+            <p id="hero-quote" class="text-[13px] text-zinc-600 italic mb-4 h-5">
+              <span class="quote-text"></span>
+            </p>
+            <div class="gradient-line w-24 rounded-full mb-4"></div>
+            <div class="flex flex-wrap gap-3 text-xs">
+              <span class="flex items-center gap-1 text-zinc-500">
+                <span class="material-symbols-outlined text-[14px]">movie</span> 11 Episodes
+              </span>
+              <span class="flex items-center gap-1 text-zinc-500">
+                <span class="material-symbols-outlined text-[14px]">schedule</span> ~22 min each
+              </span>
+              <span class="flex items-center gap-1 text-zinc-500">
+                <span class="material-symbols-outlined text-[14px]">calendar_month</span> 2011
+              </span>
+            </div>
+          </div>
+          <img src="cover.jpg" alt="Anohana"
+            class="cover-img hidden sm:block w-40 md:w-52 rounded-xl border border-ano-border shadow-2xl shadow-black/50 object-cover aspect-[16/10] shrink-0" />
+        </header>
+      </div>
+    </div>
+
+    <main class="max-w-5xl mx-auto px-5 pb-8 md:pb-12">
+      <!-- Player -->
+      <section class="mb-8 fade-up" style="animation-delay: 0.1s;">
+        <div class="rounded-xl overflow-hidden border border-ano-border player-glow bg-black">
+          <div id="player-container" class="relative w-full" style="padding-top: 56.25%;">
+            <iframe id="player" class="absolute inset-0 w-full h-full" src="" frameborder="0"
+              allow="autoplay; encrypted-media" allowfullscreen style="opacity:0; transition:opacity 0.5s ease;"></iframe>
+            <div id="player-placeholder" class="shimmer absolute inset-0 flex flex-col items-center justify-center bg-ano-card">
+              <span class="material-symbols-outlined text-5xl text-zinc-700 mb-3">play_circle</span>
+              <p class="text-zinc-600 text-sm">Select an episode to start watching</p>
+            </div>
+          </div>
+        </div>
+        <div id="now-playing" class="hidden mt-3 flex items-center gap-3 px-1">
+          <div class="flex items-center gap-2">
+            <span class="material-symbols-outlined text-ano-blue text-[18px]">play_arrow</span>
+            <span id="now-playing-text" class="text-sm text-white font-semibold"></span>
+          </div>
+          <div class="flex-1"></div>
+          <button onclick="playPrev()" class="nav-btn p-1.5 rounded-lg transition" title="Previous">
+            <span class="material-symbols-outlined text-[20px]">skip_previous</span>
+          </button>
+          <button onclick="playNext()" class="nav-btn p-1.5 rounded-lg transition" title="Next">
+            <span class="material-symbols-outlined text-[20px]">skip_next</span>
+          </button>
+        </div>
+      </section>
+
+      <!-- Episodes -->
+      <section>
+        <h2 class="text-white font-bold text-lg mb-4 flex items-center gap-2 fade-up" style="animation-delay: 0.2s;">
+          <span class="material-symbols-outlined text-ano-red text-[20px]">video_library</span> Episodes
+        </h2>
+        <div id="episode-list" class="space-y-1"></div>
+      </section>
+    </main>
+
+    <footer class="border-t border-ano-border mt-12">
+      <div class="max-w-5xl mx-auto px-5 py-6 flex items-center justify-between">
+        <span class="text-[10px] text-zinc-700 font-mono">CHAELRI_STREAM</span>
+        <span class="text-[10px] text-zinc-700">Menma forever</span>
+      </div>
+    </footer>
+
+    </div><!-- /app-body -->
+
+    <script src="app.js"></script>
+    <script>if ("serviceWorker" in navigator) navigator.serviceWorker.register("sw.js");</script>
+  </body>
+</html>
