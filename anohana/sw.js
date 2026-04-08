@@ -1,4 +1,4 @@
-const CACHE_NAME = "anohana-v2";
+const CACHE_NAME = "anohana-v3";
 const ASSETS = [
   "/anohana/",
   "/anohana/index.html",

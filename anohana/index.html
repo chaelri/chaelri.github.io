@@ -344,7 +344,8 @@
         <div class="rounded-xl overflow-hidden border border-ano-border player-glow bg-black">
           <div id="player-container" class="relative w-full" style="padding-top: 56.25%;">
             <iframe id="player" class="absolute inset-0 w-full h-full" src="" frameborder="0"
-              allow="autoplay; encrypted-media" allowfullscreen style="opacity:0; transition:opacity 0.5s ease;"></iframe>
+              allow="autoplay; encrypted-media; fullscreen" allowfullscreen
+              style="opacity:0; transition:opacity 0.5s ease;"></iframe>
             <div id="player-placeholder" class="shimmer absolute inset-0 flex flex-col items-center justify-center bg-ano-card">
               <span class="material-symbols-outlined text-5xl text-zinc-700 mb-3">play_circle</span>
               <p class="text-zinc-600 text-sm">Select an episode to start watching</p>
@@ -362,9 +363,6 @@
           </button>
           <button onclick="playNext()" class="nav-btn p-1.5 rounded-lg transition" title="Next">
             <span class="material-symbols-outlined text-[20px]">skip_next</span>
-          </button>
-          <button id="open-external" onclick="openExternal()" class="nav-btn p-1.5 rounded-lg transition hidden" title="Open fullscreen in new tab">
-            <span class="material-symbols-outlined text-[20px]">open_in_new</span>
           </button>
         </div>
       </section>
