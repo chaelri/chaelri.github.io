@@ -143,6 +143,7 @@ function playEpisode(index) {
 
   nowPlaying.classList.remove("hidden");
   nowPlayingText.textContent = `EP ${ep.ep} — ${ep.title}`;
+  document.getElementById("open-external").classList.remove("hidden");
 
   document.querySelectorAll(".ep-row").forEach((row, i) => {
     row.classList.toggle("active", i === index);
@@ -150,6 +151,12 @@ function playEpisode(index) {
 
   localStorage.setItem("anohana_last_ep", index);
   document.querySelector("nav").scrollIntoView({ behavior: "smooth", block: "start" });
+}
+
+function openExternal() {
+  if (currentEp === null) return;
+  const ep = EPISODES[currentEp];
+  window.open(`https://drive.google.com/file/d/${ep.fileId}/view`, "_blank");
 }
 
 function playNext() {
