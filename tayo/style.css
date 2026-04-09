@@ -805,8 +805,11 @@ body {
 }
 .voice-play-btn:active { transform: scale(0.9); }
 .voice-waveform {
-  display: flex; align-items: center; gap: 1.5px;
+  display: flex; align-items: center;
   height: 20px; flex: 1; min-width: 0; overflow: hidden;
+}
+.voice-waveform .bar {
+  flex: 1; margin: 0 0.5px;
 }
 .voice-waveform .bar {
   width: 3px; border-radius: 2px;
@@ -884,7 +887,20 @@ body {
   text-transform: uppercase; letter-spacing: 0.1em;
   flex-shrink: 0; margin-top: 0.1rem;
 }
-.saved-answer-chip .sa-text { font-size: 0.7rem; color: var(--light); line-height: 1.4; }
+.saved-answer-chip .sa-content { flex: 1; min-width: 0; }
+.saved-answer-chip .sa-text { font-size: 0.7rem; color: var(--light); line-height: 1.4; display: block; }
+.sa-voice {
+  display: flex; align-items: center; gap: 0.3rem;
+  margin-top: 0.2rem;
+}
+.sa-voice-play {
+  background: var(--accent); border: none;
+  border-radius: 50%; width: 22px; height: 22px;
+  display: flex; align-items: center; justify-content: center;
+  cursor: pointer; color: var(--accent-text); flex-shrink: 0;
+}
+.sa-voice-play:active { transform: scale(0.9); }
+.sa-voice-label { font-size: 0.55rem; color: var(--muted); }
 
 @keyframes micPulse {
   0%, 100% { box-shadow: 0 0 0 0 rgba(255,237,233,0.3); }
@@ -1158,8 +1174,9 @@ body {
   background: var(--surface);
   border: 1px solid var(--border);
   border-radius: 1rem;
-  padding: 0.9rem;
-  margin-bottom: 0.6rem;
+  padding: 1rem;
+  margin-bottom: 1.2rem;
+  position: relative;
 }
 .je-delete {
   background: none; border: none;
@@ -1176,6 +1193,7 @@ body {
 .je-header {
   display: flex; align-items: center; gap: 0.4rem;
   margin-bottom: 0.5rem;
+  position: relative;
 }
 .je-icon {
   display: flex; align-items: center; justify-content: center;
@@ -1255,13 +1273,229 @@ body {
   color: var(--muted);
   display: block; margin-bottom: 0.15rem;
 }
+.je-answer-card { position: relative; }
 .je-answer-text {
   font-size: 0.78rem; color: var(--light); line-height: 1.45;
+}
+
+/* Answer-level react button */
+.je-ans-react {
+  position: absolute;
+  bottom: -8px; right: 8px;
+  background: var(--surface);
+  border: 1px solid var(--border);
+  border-radius: 50%;
+  width: 24px; height: 24px;
+  display: flex; align-items: center; justify-content: center;
+  cursor: pointer;
+  color: var(--muted);
+  font-size: 0.8rem;
+  line-height: 1;
+  transition: transform 0.15s, border-color 0.2s;
+  z-index: 3;
+  padding: 0;
+}
+.je-ans-react:hover { border-color: var(--subtle); transform: scale(1.1); }
+/* Answer-level emoji picker */
+.je-ans-picker {
+  position: absolute;
+  bottom: -8px; right: 32px;
+  background: var(--surface);
+  border: 1px solid var(--border);
+  border-radius: 2rem;
+  padding: 0.3rem 0.4rem;
+  display: flex; gap: 0.15rem;
+  z-index: 10;
+  opacity: 0;
+  transform: scale(0.8);
+  transition: opacity 0.2s ease, transform 0.2s cubic-bezier(0.34,1.56,0.64,1);
+  box-shadow: 0 4px 16px rgba(0,0,0,0.3);
+}
+.je-ans-picker.show { opacity: 1; transform: scale(1); }
+
+.je-ans-react.has-react {
+  border: none;
+  background: none;
+  width: auto; height: auto;
+  font-size: 1rem;
+  bottom: -10px; right: 6px;
+  filter: drop-shadow(0 1px 3px rgba(0,0,0,0.3));
 }
 
 .material-symbols-rounded {
   font-variation-settings: 'FILL' 1, 'wght' 400, 'GRAD' 0, 'opsz' 24;
 }
+/* React button */
+.je-react-btn {
+  background: none; border: none;
+  color: var(--muted); cursor: pointer;
+  padding: 0.2rem; border-radius: 50%;
+  transition: color 0.2s;
+  line-height: 1;
+}
+.je-react-btn:hover { color: var(--light); }
+
+/* React picker popup */
+.je-react-picker {
+  position: absolute;
+  right: 0; top: 100%;
+  margin-top: 0.3rem;
+  background: var(--surface);
+  border: 1px solid var(--border);
+  border-radius: 2rem;
+  padding: 0.3rem 0.4rem;
+  display: flex; gap: 0.15rem;
+  z-index: 10;
+  opacity: 0;
+  transform: scale(0.8) translateY(-4px);
+  transition: opacity 0.2s ease, transform 0.2s cubic-bezier(0.34,1.56,0.64,1);
+  box-shadow: 0 4px 16px rgba(0,0,0,0.3);
+}
+.je-react-picker.show {
+  opacity: 1;
+  transform: scale(1) translateY(0);
+}
+.je-react-emoji {
+  background: none; border: none;
+  font-size: 1.3rem;
+  cursor: pointer;
+  padding: 0.2rem 0.25rem;
+  border-radius: 50%;
+  transition: transform 0.15s ease, background 0.15s;
+  line-height: 1;
+}
+.je-react-emoji:hover {
+  transform: scale(1.3);
+  background: var(--border);
+}
+.je-react-emoji:active { transform: scale(1.1); }
+
+/* Displayed reactions — circle like Facebook */
+.je-reactions-float {
+  display: flex;
+  align-items: center;
+  gap: 0.15rem;
+  position: absolute;
+  bottom: -12px;
+  right: 12px;
+  background: var(--surface);
+  border: 1px solid var(--border);
+  border-radius: 2rem;
+  padding: 3px 8px 3px 5px;
+  font-size: 0.95rem;
+  line-height: 1;
+  box-shadow: 0 2px 8px rgba(0,0,0,0.25);
+  cursor: pointer;
+  z-index: 5;
+}
+.je-reactions-float .je-react-emojis {
+  display: flex;
+  gap: 0;
+}
+.je-reactions-float .je-react-emojis span {
+  display: inline-block;
+  margin-left: -2px;
+}
+.je-reactions-float .je-react-emojis span:first-child {
+  margin-left: 0;
+}
+/* Float picker (on the reaction pill itself) */
+.je-float-picker {
+  position: absolute;
+  bottom: calc(100% + 6px);
+  right: 0;
+  background: var(--surface);
+  border: 1px solid var(--border);
+  border-radius: 2rem;
+  padding: 0.3rem 0.4rem;
+  display: flex; gap: 0.15rem;
+  z-index: 10;
+  opacity: 0;
+  transform: scale(0.8);
+  transition: opacity 0.2s ease, transform 0.2s cubic-bezier(0.34,1.56,0.64,1);
+  box-shadow: 0 4px 16px rgba(0,0,0,0.3);
+}
+.je-float-picker.show { opacity: 1; transform: scale(1); }
+
+.je-react-count {
+  font-size: 0.6rem;
+  font-weight: 600;
+  color: var(--subtle);
+  margin-left: 1px;
+}
+
+/* Tooltip — who reacted */
+.je-react-tooltip {
+  display: none;
+  position: absolute;
+  bottom: calc(100% + 8px);
+  right: 0;
+  background: var(--bg);
+  border: 1px solid var(--border);
+  border-radius: 0.6rem;
+  padding: 0.4rem 0.7rem;
+  font-size: 0.65rem;
+  color: var(--light);
+  white-space: nowrap;
+  box-shadow: 0 4px 12px rgba(0,0,0,0.3);
+  z-index: 10;
+  pointer-events: none;
+  line-height: 1.6;
+}
+.je-react-tooltip::after {
+  content: "";
+  position: absolute;
+  top: 100%;
+  right: 12px;
+  border: 5px solid transparent;
+  border-top-color: var(--border);
+}
+/* Desktop hover */
+@media (hover: hover) {
+  .je-reactions-float:hover .je-react-tooltip { display: block; }
+}
+/* Mobile tap — toggle via JS */
+.je-react-tooltip.show { display: block; }
+
+/* Reply */
+.je-reply { margin-top: 0.3rem; }
+.je-reply-prompt { margin-top: 0.4rem; }
+.je-reply-btn {
+  display: flex; align-items: center; gap: 0.3rem;
+  background: none; border: 1px solid var(--border);
+  border-radius: 2rem; color: var(--muted);
+  font-family: "Inter", sans-serif;
+  font-size: 0.65rem; padding: 0.3rem 0.7rem;
+  cursor: pointer; transition: all 0.2s;
+}
+.je-reply-btn:hover { border-color: var(--subtle); color: var(--light); }
+
+.je-reply-input {
+  display: flex; gap: 0.3rem; margin-top: 0.4rem;
+  align-items: flex-end;
+}
+.je-reply-field {
+  flex: 1; background: var(--bg);
+  border: 1px solid var(--border);
+  border-radius: 1rem; color: var(--light);
+  font-family: "Inter", sans-serif;
+  font-size: 16px; padding: 0.5rem 0.8rem;
+  outline: none;
+  resize: none; overflow: hidden;
+  min-height: 36px; max-height: 150px;
+  line-height: 1.4;
+}
+.je-reply-field::placeholder { color: var(--muted); }
+.je-reply-field:focus { border-color: var(--subtle); }
+.je-reply-send {
+  background: var(--accent); border: none;
+  border-radius: 50%; width: 32px; height: 32px;
+  display: flex; align-items: center; justify-content: center;
+  cursor: pointer; color: var(--accent-text);
+  flex-shrink: 0;
+}
+.je-reply-send:active { transform: scale(0.9); }
+
 .journal-empty { color: var(--muted); font-size: 0.8rem; font-style: italic; }
 
 /* ══════════════════════════════════════

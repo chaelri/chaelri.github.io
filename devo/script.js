@@ -1497,6 +1497,51 @@ function loadPassageById(id, scrollToVerse) {
   }
 }
 
+function dashNoteGoToVerse(verseKey, verseNum) {
+  const [bookId, chapter] = verseKey.split("-");
+  bookEl.value = bookId;
+  loadChapters();
+  chapterEl.value = chapter;
+  loadVerses();
+  verseEl.value = "";
+  loadBtn.click();
+
+  requestAnimationFrame(() => {
+    setTimeout(() => {
+      const verseEl2 = document.getElementById(verseNum);
+      if (verseEl2) {
+        verseEl2.scrollIntoView({ behavior: "smooth", block: "center" });
+        verseEl2.classList.add("verse-highlight");
+        setTimeout(() => verseEl2.classList.remove("verse-highlight"), 5000);
+        // Auto-open the note section for this verse
+        const wrap = verseEl2.closest(".verse");
+        if (wrap) {
+          const commentsEl = wrap.querySelector(".comments");
+          if (commentsEl) {
+            commentsEl.hidden = false;
+            renderComments(verseKey, commentsEl);
+          }
+        }
+      }
+    }, 400);
+  });
+}
+
+function dashNoteGoToReflection(passageKey) {
+  const [bookId, chapter] = passageKey.split("-");
+  bookEl.value = bookId;
+  loadChapters();
+  chapterEl.value = chapter;
+  loadVerses();
+  verseEl.value = "";
+  loadBtn.click();
+
+  // Wait for passage + reflections to load, then open reflect modal
+  requestAnimationFrame(() => {
+    setTimeout(() => openReflectModal(), 600);
+  });
+}
+
 /* ---------- BOOKS ---------- */
 function loadBooks() {
   bookEl.innerHTML = "";
@@ -1784,15 +1829,27 @@ async function renderDashboard() {
         </h3>
         ${(() => {
           const allNotes = _getAllNotes()
-            .filter(n => n.preview && n.time)
-            .sort((a, b) => b.time - a.time)
-            .slice(0, 4);
+            .filter(n => n.preview)
+            .sort((a, b) => (b.time || 0) - (a.time || 0))
+            .slice(0, 5);
           if (!allNotes.length) return `<p class="empty-state">No notes yet. Add notes to Bible verses, complete a Guided Reflection, or tap "View all" to write your first note.</p>`;
           return `<div class="dash-notes-list">${allNotes.map(n => {
             const preview = n.preview.length > 80 ? n.preview.slice(0, 80) + "…" : n.preview;
-            const dateStr = new Date(n.time).toLocaleDateString("en-US", { month: "short", day: "numeric" });
-            return `<div class="dash-notes-card" onclick="openNotesApp()">
-              <div class="dash-notes-card-date">${dateStr}</div>
+            const dateStr = n.time ? new Date(n.time).toLocaleDateString("en-US", { month: "short", day: "numeric" }) : "";
+            const label = n.type === "reflection" ? `<span class="dash-notes-type-label">Reflection</span>` : "";
+            let onclick = `openNotesApp()`;
+            if (n.type === "verse" && n.verseKeys?.length) {
+              const firstKey = n.verseKeys.sort((a,b) => {
+                const va = parseInt(a.split("-")[2] || "1"), vb = parseInt(b.split("-")[2] || "1");
+                return va - vb;
+              })[0];
+              const verseNum = firstKey.split("-")[2] || "";
+              onclick = `dashNoteGoToVerse('${_escHtml(firstKey)}', '${_escHtml(verseNum)}')`;
+            } else if (n.type === "reflection" && n.passageKey) {
+              onclick = `dashNoteGoToReflection('${_escHtml(n.passageKey)}')`;
+            }
+            return `<div class="dash-notes-card" onclick="${onclick}">
+              <div class="dash-notes-card-date">${dateStr}${label}</div>
               <div class="dash-notes-card-preview">${_escHtml(preview)}</div>
             </div>`;
           }).join("")}</div>`;
@@ -2593,7 +2650,8 @@ ${versesText}
     let rawHTML = data.candidates?.[0]?.content?.parts?.[0]?.text || "";
     if (!rawHTML) { mount.innerHTML = "<p>Failed to generate reflection questions.</p>"; return true; }
 
-    // Post-process: ensure each <li> has a textarea inside it
+    // Post-process: strip inline styles and ensure each <li> has a textarea
+    rawHTML = rawHTML.replace(/\s*style="[^"]*"/gi, '');
     const tmp = document.createElement("div");
     tmp.innerHTML = rawHTML;
     const listItems = tmp.querySelectorAll("li");
@@ -2622,8 +2680,10 @@ ${versesText}
     mount.querySelectorAll("a.reflection-link").forEach(link => {
       link.addEventListener("click", e => {
         e.preventDefault();
-        const rawRef = link.getAttribute("href")?.replace("#", "") || "";
-        const verseNum = rawRef.replace(/[^0-9\-–]/g, "").split(/[-–]/)[0].trim();
+        // Extract verse number from display text — AI sometimes puts wrong number in href
+        const rawRef = link.textContent.replace(/[^0-9,\-–\s]/g, "").trim() || (link.getAttribute("href")?.replace("#", "") || "");
+        // For inline scroll, use the first verse number
+        const verseNum = rawRef.replace(/[^0-9]/g, " ").trim().split(/\s+/)[0];
         if (!verseNum) return;
         const allVerses = document.querySelectorAll("#output .verse");
         const target = Array.from(allVerses).find(el =>
@@ -3739,10 +3799,14 @@ function _renderNotesList(filter = "") {
     const timelineItems = [];
     session.verse.forEach(n => {
       const count = n.allItems?.length || 1;
-      timelineItems.push({ icon: "menu_book", label: n.title, sub: `${count} verse note${count !== 1 ? "s" : ""}` });
+      const latestText = n.allItems?.sort((a,b) => (b.time||0) - (a.time||0))[0]?.text || "";
+      const notePreview = latestText.length > 60 ? latestText.slice(0, 60) + "…" : latestText;
+      timelineItems.push({ icon: "menu_book", label: n.title, sub: `${count} verse note${count !== 1 ? "s" : ""}`, preview: notePreview });
     });
     session.reflection.forEach(n => {
-      timelineItems.push({ icon: "volunteer_activism", label: n.title, sub: "Reflection" });
+      const firstAnswer = n.QAs?.[0]?.raw?.split("\nA: ")?.[1]?.trim() || "";
+      const answerPreview = firstAnswer.length > 60 ? firstAnswer.slice(0, 60) + "…" : firstAnswer;
+      timelineItems.push({ icon: "self_improvement", label: n.title, sub: "Reflection", preview: answerPreview });
     });
     session.standalone.forEach(n => {
       timelineItems.push({ icon: "edit_note", label: n.title || "Untitled note", sub: n.preview ? _escHtml(n.preview.slice(0, 40)) : "" });
@@ -3754,9 +3818,11 @@ function _renderNotesList(filter = "") {
 
     const timelineHTML = visible.map(item => {
       return `<div class="nst-item">
-        <span class="material-icons nst-icon">${item.icon}</span>
-        <span class="nst-label">${_escHtml(item.label)}</span>
-        ${item.sub ? `<span class="nst-sub">${item.sub}</span>` : ""}
+        <div class="nst-item-header">
+          <span class="nst-label">${_escHtml(item.label)}</span>
+          ${item.sub ? `<span class="nst-sub">${item.sub}</span>` : ""}
+        </div>
+        ${item.preview ? `<div class="nst-preview">${_escHtml(item.preview)}</div>` : ""}
       </div>`;
     }).join("") + (extra > 0 ? `<div class="nst-more">+${extra} more</div>` : "");
 
@@ -5345,7 +5411,7 @@ function buildScrapbookHTML(seg) {
     const delay = i * 0.6;
 
     parts.push(`
-      <div class="story-scrap-card" style="align-self:${side}; transform:rotate(${rot}deg); animation-delay:${delay}s; cursor:pointer" onclick="openVersePeek('${verseStart + i}')">
+      <div class="story-scrap-card" style="align-self:${side}; transform:rotate(${rot}deg); animation-delay:${delay}s; cursor:pointer" onclick="openVersePeek('${verseStart + i}', this)">
         <div class="tape"></div>
         <span class="verse-ref">v${verseStart + i}</span>
         <div class="story-scrap-text">${esc(text)}</div>
@@ -5652,7 +5718,10 @@ async function openReflectModal() {
   const content = document.getElementById("reflectContent");
   const reflectionEl = document.getElementById("aiReflection");
 
-  if (!reflectionEl || !reflectionEl.innerHTML.trim()) {
+  // Check if reflections are actually ready (has textareas), not just shimmer/loading state
+  const hasReflections = reflectionEl && reflectionEl.querySelectorAll('textarea[id^="reflection-"]').length > 0;
+
+  if (!hasReflections) {
     // Try to generate reflections on-the-fly if we have payload
     if (window.__aiPayload) {
       modal.hidden = false;
@@ -5661,8 +5730,8 @@ async function openReflectModal() {
         <div class="story-loading-text">Generating reflections...</div>
       </div>`;
       await renderAIReflectionQuestions(window.__aiPayload);
-      // Now reflectionEl should have content — re-run
-      if (!reflectionEl.innerHTML.trim()) {
+      // Now reflectionEl should have content — re-check
+      if (!reflectionEl.querySelectorAll('textarea[id^="reflection-"]').length) {
         content.innerHTML = `<div class="story-loading"><div class="story-loading-text">Failed to generate reflections.</div></div>`;
         return;
       }
@@ -5676,35 +5745,82 @@ async function openReflectModal() {
   const bookName = bookEl.options[bookEl.selectedIndex]?.text || "";
   const chapter = chapterEl.value;
 
-  // Clone and clean the HTML — strip any rogue styled spans/marks from AI
+  // Clone and clean the HTML — strip rogue styled tags and inline styles from AI
   const cleanHTML = reflectionEl.innerHTML
-    .replace(/<(strong|em|b|i|mark|span)[^>]*>(.*?)<\/\1>/gi, '$2');
+    .replace(/<(strong|em|b|i|mark|span)[^>]*>(.*?)<\/\1>/gi, '$2')
+    .replace(/\s*style="[^"]*"/gi, '');
 
   content.innerHTML = `
     <div>
       <div class="story-label">GUIDED REFLECTION</div>
       <div class="story-title">${bookName} ${chapter}</div>
       ${cleanHTML}
+      <button class="reflect-copy-notes-btn" id="reflectCopyNotesBtn">
+        <span class="material-symbols-outlined" style="font-size:18px;vertical-align:middle;margin-right:6px;">content_copy</span>Copy Notes
+      </button>
     </div>`;
 
   modal.hidden = false;
+
+  // Copy notes button
+  document.getElementById("reflectCopyNotesBtn").onclick = async () => {
+    const btn = document.getElementById("reflectCopyNotesBtn");
+    await copyNotesBtn.onclick?.();
+    btn.textContent = "✅ Copied!";
+    setTimeout(() => { btn.innerHTML = '<span class="material-symbols-outlined" style="font-size:18px;vertical-align:middle;margin-right:6px;">content_copy</span>Copy Notes'; }, 2000);
+  };
+
+  // Convert any remaining plain-text verse refs (v. 5, vv. 2-3) into clickable links
+  content.querySelectorAll("li p").forEach(p => {
+    // Only process text nodes that aren't already inside <a> tags
+    const walker = document.createTreeWalker(p, NodeFilter.SHOW_TEXT, null);
+    const replacements = [];
+    let node;
+    while (node = walker.nextNode()) {
+      if (node.parentElement?.tagName === "A") continue;
+      const regex = /\bvv?\.?\s*(\d+(?:\s*[-–]\s*\d+)?(?:\s*,\s*\d+(?:\s*[-–]\s*\d+)?)*)/gi;
+      let match;
+      while (match = regex.exec(node.textContent)) {
+        replacements.push({ node, fullMatch: match[0], nums: match[1], index: match.index });
+      }
+    }
+    // Apply replacements in reverse order to preserve indices
+    for (let i = replacements.length - 1; i >= 0; i--) {
+      const r = replacements[i];
+      const textNode = r.node;
+      const before = textNode.textContent.substring(0, r.index);
+      const after = textNode.textContent.substring(r.index + r.fullMatch.length);
+      const link = document.createElement("a");
+      link.href = `#${r.nums}`;
+      link.className = "reflection-link";
+      link.textContent = r.fullMatch;
+      const afterNode = document.createTextNode(after);
+      textNode.textContent = before;
+      textNode.parentNode.insertBefore(link, textNode.nextSibling);
+      textNode.parentNode.insertBefore(afterNode, link.nextSibling);
+    }
+  });
 
   // Wire verse reference links to open bottom sheet peek instead of scrolling
   content.querySelectorAll("a.reflection-link").forEach(link => {
     link.addEventListener("click", e => {
       e.preventDefault();
       e.stopPropagation();
-      const verseNum = link.getAttribute("href")?.replace("#", "");
-      if (verseNum) openVersePeek(verseNum);
+      // Extract all numbers from display text — handles "v. 8", "vv. 19-21", "vv. 19, 25"
+      const verseRef = link.textContent.replace(/[^0-9,\-–\s]/g, "").trim() || link.getAttribute("href")?.replace("#", "");
+      if (verseRef) openVersePeek(verseRef, link);
     });
   });
 
   // Restore saved values and sync textarea values
   content.querySelectorAll("textarea").forEach(ta => {
-    // Restore from localStorage
+    // Restore from localStorage — extract answer only (stored as "Q: ...\nA: ...")
     if (ta.id) {
       const saved = localStorage.getItem(ta.id);
-      if (saved) ta.value = saved;
+      if (saved) {
+        const answerOnly = saved.includes("\nA: ") ? saved.split("\nA: ").slice(1).join("\nA: ") : saved;
+        ta.value = answerOnly;
+      }
     }
     // Auto-resize to fit content
     ta.style.height = "auto";
@@ -5713,7 +5829,12 @@ async function openReflectModal() {
     ta.addEventListener("input", () => {
       const origTa = reflectionEl.querySelector(`#${ta.id}`);
       if (origTa) origTa.value = ta.value;
-      if (ta.id) localStorage.setItem(ta.id, ta.value);
+      // Save in Q&A format matching initializeReflections
+      if (ta.id) {
+        const li = ta.closest("li");
+        const questionText = li?.querySelector("p")?.textContent?.trim() || "Question";
+        localStorage.setItem(ta.id, `Q: ${questionText}\nA: ${ta.value}`);
+      }
       // Auto-resize
       ta.style.height = "auto";
       ta.style.height = ta.scrollHeight + "px";
@@ -5729,8 +5850,10 @@ function closeReflectModal() {
   // Sync all textarea values back to the original reflection section + localStorage
   content.querySelectorAll("textarea").forEach(ta => {
     if (ta.id) {
-      // Save to localStorage
-      localStorage.setItem(ta.id, ta.value);
+      // Save in Q&A format
+      const li = ta.closest("li");
+      const questionText = li?.querySelector("p")?.textContent?.trim() || "Question";
+      localStorage.setItem(ta.id, `Q: ${questionText}\nA: ${ta.value}`);
       // Sync back to original
       const orig = reflectionEl?.querySelector(`#${ta.id}`);
       if (orig) orig.value = ta.value;
@@ -5741,51 +5864,139 @@ function closeReflectModal() {
   setTimeout(() => { modal.hidden = true; modal.classList.remove("fade-out"); _restoreDailyStory(); }, 400);
 }
 
-function openVersePeek(rawRef) {
-  // Clean the ref — extract just the first number from things like "v. 23", "23", "vv. 28-29"
-  const cleanNum = rawRef.replace(/[^0-9\-–]/g, "").split(/[-–]/)[0].trim();
-
-  const allVerses = document.querySelectorAll("#output .verse");
+function _peekGetVerseText(v, allVerses) {
+  // Try DOM first
   const target = Array.from(allVerses).find(el =>
-    el.querySelector(".verse-num")?.textContent?.trim() === cleanNum
+    el.querySelector(".verse-num")?.textContent?.trim() === String(v)
   );
-
-  let text = "Verse not found.";
   if (target) {
     const contentEl = target.querySelector(".verse-content");
     if (contentEl) {
       const clone = contentEl.cloneNode(true);
       clone.querySelectorAll(".verse-num, .verse-meta-indicators, .favorite-indicator").forEach(el => el.remove());
-      text = clone.textContent.trim();
+      return clone.textContent.trim();
     }
   }
-
-  // Fallback: read from JSON if verse not found in DOM (e.g. daily story)
-  if (text === "Verse not found." && bibleData && window.__aiPayload) {
+  // Fallback: read from JSON
+  if (bibleData && window.__aiPayload) {
     const { book, chapter: ch } = window.__aiPayload;
     const bookContent = bibleData[book] || bibleData[book?.toUpperCase()];
-    if (bookContent && bookContent[ch] && bookContent[ch][cleanNum]) {
-      text = bookContent[ch][cleanNum].trim().replace(/([.!?,;:])(?=[a-zA-Z])/g, "$1 ").replace(/\s+/g, " ");
+    if (bookContent && bookContent[ch] && bookContent[ch][String(v)]) {
+      return bookContent[ch][String(v)].trim().replace(/([.!?,;:])(?=[a-zA-Z])/g, "$1 ").replace(/\s+/g, " ");
     }
   }
+  return null;
+}
 
+function openVersePeek(rawRef, anchorEl) {
+  // Parse verse numbers — handles: "8", "19-21", "19, 25", "19,25", "19, 20, 26"
+  const cleaned = rawRef.replace(/[^0-9,\-–]/g, "");
+  const verseNums = [];
+
+  // Split by comma first for lists like "19, 25"
+  cleaned.split(",").forEach(part => {
+    part = part.trim();
+    if (!part) return;
+    const rangeParts = part.split(/[-–]/);
+    const start = parseInt(rangeParts[0], 10);
+    const end = rangeParts[1] ? parseInt(rangeParts[1], 10) : start;
+    if (!isNaN(start) && !isNaN(end)) {
+      for (let v = start; v <= end; v++) verseNums.push(v);
+    }
+  });
+
+  if (verseNums.length === 0) return;
+
+  const allVerses = document.querySelectorAll("#output .verse");
   const bookName = bookEl.options[bookEl.selectedIndex]?.text || (window.__aiPayload?.book || "");
   const chapter = chapterEl.value || (window.__aiPayload?.chapter || "");
-  const verseNum = cleanNum;
+
+  const rows = verseNums.map(v => ({ num: v, text: _peekGetVerseText(v, allVerses) || "Verse not found." }));
+
+  // Build label: "19, 25" for comma lists, "19–21" for ranges, "8" for single
+  const refLabel = `${bookName} ${chapter}:${verseNums.length === 1 ? verseNums[0] : rawRef.replace(/[^0-9,\-–\s]/g, "").trim()}`;
+  const bodyHTML = rows.map(r =>
+    `<div class="verse-peek-row"><span class="verse-peek-num">v.${r.num}</span><span>${r.text}</span></div>`
+  ).join("");
+
+  // Remove any existing peek
+  document.querySelector(".verse-peek-overlay")?.remove();
 
   const overlay = document.createElement("div");
   overlay.className = "verse-peek-overlay";
-  overlay.innerHTML = `
-    <div class="verse-peek-sheet">
-      <div class="verse-peek-handle"></div>
-      <div class="verse-peek-ref">${bookName} ${chapter}:${verseNum}</div>
-      <div class="verse-peek-text">${text}</div>
-    </div>`;
+
+  const bubble = document.createElement("div");
+  bubble.className = "verse-peek-bubble";
+  bubble.innerHTML = `
+    <div class="verse-peek-ref">${refLabel}</div>
+    <div class="verse-peek-body-wrap">
+      <div class="verse-peek-body">${bodyHTML}</div>
+    </div>
+    <div class="verse-peek-tail"></div>`;
+
+  // Hide gradient when scrolled to bottom
+  const peekBody = bubble.querySelector(".verse-peek-body");
+  const peekWrap = bubble.querySelector(".verse-peek-body-wrap");
+  const checkPeekScroll = () => {
+    const atEnd = peekBody.scrollHeight - peekBody.scrollTop - peekBody.clientHeight < 8;
+    peekWrap.classList.toggle("peek-scrolled-end", atEnd);
+  };
+  peekBody.addEventListener("scroll", checkPeekScroll);
+  requestAnimationFrame(checkPeekScroll);
+  overlay.appendChild(bubble);
   document.body.appendChild(overlay);
 
+  // Position bubble above the anchor element
+  if (anchorEl) {
+    const rect = anchorEl.getBoundingClientRect();
+    const anchorCenterX = rect.left + rect.width / 2;
+    const anchorTopY = rect.top;
+
+    // Place bubble so its tail points at the anchor
+    requestAnimationFrame(() => {
+      const bw = bubble.offsetWidth;
+      const bh = bubble.offsetHeight;
+      const vw = window.innerWidth;
+      const vh = window.innerHeight;
+      const pad = 8;
+
+      // Horizontal: center on anchor, clamp to viewport
+      let left = anchorCenterX - bw / 2;
+      left = Math.max(pad, Math.min(left, vw - bw - pad));
+
+      // Vertical: above the anchor by default
+      let top = anchorTopY - bh - 10;
+      let tailBelow = true;
+
+      // If not enough room above, show below
+      if (top < pad) {
+        top = rect.bottom + 10;
+        tailBelow = false;
+      }
+
+      // Clamp vertically too
+      top = Math.max(pad, Math.min(top, vh - bh - pad));
+
+      bubble.style.left = left + "px";
+      bubble.style.top = top + "px";
+
+      // Position tail centered on anchor
+      const tail = bubble.querySelector(".verse-peek-tail");
+      const tailX = anchorCenterX - left;
+      tail.style.left = Math.max(18, Math.min(tailX, bw - 18)) + "px";
+
+      if (!tailBelow) {
+        tail.classList.add("verse-peek-tail-top");
+      }
+    });
+  } else {
+    // Fallback: center on screen
+    bubble.style.left = "50%";
+    bubble.style.top = "50%";
+    bubble.style.transform = "translate(-50%, -50%)";
+  }
+
   overlay.addEventListener("click", e => {
-    if (e.target === overlay) {
-      overlay.remove();
-    }
+    if (e.target === overlay) overlay.remove();
   });
 }

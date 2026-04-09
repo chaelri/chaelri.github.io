@@ -488,17 +488,59 @@ function initRemote() {
   const unsub4 = onValue(qAnswersRef, (snap) => {
     const answers = snap.val();
     if (!answers) return;
+
+    // Parse JSON answer data (text + voiceURL)
+    function parseAnswer(raw) {
+      if (!raw) return null;
+      try { return JSON.parse(raw); } catch { return { text: raw, voiceURL: null }; }
+    }
+
+    const cData = parseAnswer(answers.charlie);
+    const kData = parseAnswer(answers.karla);
+
     // Check if both answered — reveal
-    if (answers.charlie && answers.karla) {
+    if (cData && kData) {
       $("remote-waiting").classList.add("hidden");
+      answerArea.classList.remove("show");
       const reveal = $("remote-reveal");
-      $("reveal-charlie").textContent = answers.charlie;
-      $("reveal-karla").textContent = answers.karla;
+
+      // Build reveal content with text + voice
+      function buildReveal(id, data) {
+        const el = $(id);
+        el.innerHTML = "";
+        if (data.text) el.innerHTML += `<span>${data.text}</span>`;
+        if (data.voiceURL) {
+          el.innerHTML += `
+            <div class="je-voice-player" style="margin-top:0.3rem">
+              <button class="je-voice-play" onclick="const a=this.parentElement.querySelector('audio');if(a.paused){a.play();this.querySelector('.material-symbols-rounded').textContent='pause'}else{a.pause();this.querySelector('.material-symbols-rounded').textContent='play_arrow'}">
+                <span class="material-symbols-rounded">play_arrow</span>
+              </button>
+              <div class="je-voice-bars">${Array.from({length:20},()=>`<div class="je-bar" style="height:${3+Math.random()*14}px"></div>`).join("")}</div>
+              <audio src="${data.voiceURL}" onended="this.parentElement.querySelector('.je-voice-play .material-symbols-rounded').textContent='play_arrow'"></audio>
+            </div>`;
+        }
+        if (!data.text && !data.voiceURL) el.textContent = "(no answer)";
+      }
+
+      buildReveal("reveal-charlie", cData);
+      buildReveal("reveal-karla", kData);
       reveal.classList.remove("hidden");
       creatureCelebrate();
 
-      // Save to journal
-      saveToJournalDirect(answers.question, answers.charlie, answers.karla);
+      // Save to journal with voice URLs
+      const JOURNAL_KEY = "tayo_journal";
+      let journal = JSON.parse(localStorage.getItem(JOURNAL_KEY) || "[]");
+      journal.unshift({
+        question: answers.question,
+        charlie: cData.text || "",
+        karla: kData.text || "",
+        charlieVoiceURL: cData.voiceURL || null,
+        karlaVoiceURL: kData.voiceURL || null,
+        time: Date.now(),
+      });
+      if (journal.length > 200) journal = journal.slice(0, 200);
+      localStorage.setItem(JOURNAL_KEY, JSON.stringify(journal));
+      syncJournalToFirebase();
 
       // Clear after 8s
       setTimeout(() => {
@@ -973,9 +1015,11 @@ Rules:
 - Pure and wholesome. No sexual content.
 - Charlie and Karla are a committed Christian couple. They never dated casually or had a "fling." Don't imply that. Their relationship has always been intentional and serious.
 - Question under 25 words.
+- Never start a question with "Thinking about" or any -ing gerund opener. Use direct phrasing like "Think about...", "What's...", "If we could...", "What would...".
 - Quiz mode: ALWAYS include "choices" array (4 items) and "correct" index (0-3) and "explanation".
 - Quiz choices must be SHORT — max 5 words each. Be concise and direct.
-- NEVER reveal the answer inside the choices. Choices should not contain hints like parenthetical translations or explanations. Bad: "い (i)" Good: "い". Bad: "Mars (Red Planet)" Good: "Mars".`;
+- NEVER reveal the answer inside the choices. Choices should not contain hints like parenthetical translations or explanations. Bad: "い (i)" Good: "い". Bad: "Mars (Red Planet)" Good: "Mars".
+- There must be EXACTLY ONE correct answer. All 4 choices must be clearly distinct with no ambiguity. Never have two choices that could both be correct.`;
 }
 
 // ═══════════════════════════════════════
@@ -1386,21 +1430,53 @@ function showAnswerArea() {
   saveBtn.classList.remove("ready");
   $("remote-waiting").classList.add("hidden");
   $("remote-reveal").classList.add("hidden");
+  voicePerPerson = {};
+  clearVoiceRecording();
   answerArea.classList.add("show");
 }
 
 const answerWho = document.querySelector(".answer-who");
+let voicePerPerson = {}; // { charlie: { blob, url, duration }, karla: ... }
 
 [tabCharlie, tabKarla].forEach((tab) => {
   tab.addEventListener("click", () => {
+    // Save current person's text + voice
     const text = answerText.textContent.trim();
     if (text) currentAnswers[currentWho] = text;
+    if (recordingBlob) {
+      voicePerPerson[currentWho] = { blob: recordingBlob, url: recordingURL, duration: recordDuration };
+    }
+
+    // Stop recording if active
+    if (mediaRecorder && mediaRecorder.state === "recording") {
+      stopVoiceRecording();
+    }
+
+    // Switch person
     currentWho = tab.dataset.who;
     tabCharlie.classList.toggle("active", currentWho === "charlie");
     tabKarla.classList.toggle("active", currentWho === "karla");
     answerWho.classList.toggle("karla-active", currentWho === "karla");
+
+    // Restore text
     answerText.textContent = currentAnswers[currentWho] || "";
+
+    // Restore voice
+    const saved = voicePerPerson[currentWho];
+    if (saved) {
+      recordingBlob = saved.blob;
+      recordingURL = saved.url;
+      recordDuration = saved.duration;
+      voiceAudio.src = recordingURL;
+      showVoicePreview();
+    } else {
+      recordingBlob = null;
+      recordingURL = null;
+      voicePreview.classList.add("hidden");
+    }
+
     updateSaveBtn();
+    playTap();
   });
 });
 
@@ -1464,12 +1540,25 @@ saveBtn.addEventListener("click", async () => {
     creatureCelebrate();
     return;
   } else if (playMode === "remote" && currentUser) {
-    // Remote: save my answer to Firebase, wait for partner
+    // Remote: upload voice if any, then save answer to Firebase
+    let voiceURL = null;
+    if (recordingBlob) {
+      try {
+        saveBtn.textContent = "Uploading...";
+        voiceURL = await uploadVoice(recordingBlob);
+      } catch (e) { /* silent */ }
+      saveBtn.textContent = "Save";
+    }
+    const answerData = {
+      text: text || "",
+      voiceURL: voiceURL || null,
+    };
     update(ref(db, "tayo/remote/questionAnswers"), {
-      [myIdentity]: text,
+      [myIdentity]: JSON.stringify(answerData),
       question: currentQuestion,
     });
     answerText.textContent = "";
+    clearVoiceRecording();
     saveBtn.classList.remove("ready");
     $("remote-waiting").classList.remove("hidden");
     $("remote-waiting").textContent = `Waiting for ${myIdentity === "charlie" ? "Karla" : "Charlie"}...`;
@@ -1488,7 +1577,11 @@ saveBtn.addEventListener("click", async () => {
       if (!currentAnswers._voices) currentAnswers._voices = {};
       currentAnswers._voices[currentWho] = voiceURL;
     }
-    clearVoiceRecording();
+    // Clear only this person's voice, preserve other's
+    recordingBlob = null;
+    recordingURL = null;
+    voicePreview.classList.add("hidden");
+    delete voicePerPerson[currentWho];
     if (currentWho === "charlie") tabCharlie.classList.add("has-answer");
     else tabKarla.classList.add("has-answer");
     renderSavedAnswers();
@@ -1501,6 +1594,18 @@ saveBtn.addEventListener("click", async () => {
       tabCharlie.classList.toggle("active", currentWho === "charlie");
       tabKarla.classList.toggle("active", currentWho === "karla");
       answerWho.classList.toggle("karla-active", currentWho === "karla");
+
+      // Restore other person's pending voice if they have one
+      const saved = voicePerPerson[currentWho];
+      if (saved) {
+        recordingBlob = saved.blob;
+        recordingURL = saved.url;
+        recordDuration = saved.duration;
+        voiceAudio.src = recordingURL;
+        showVoicePreview();
+      }
+      answerText.textContent = currentAnswers[currentWho] || "";
+      updateSaveBtn();
     }
 
     if (currentAnswers.charlie && currentAnswers.karla) {
@@ -1512,11 +1617,29 @@ saveBtn.addEventListener("click", async () => {
 
 function renderSavedAnswers() {
   savedAnswers.innerHTML = "";
+  const voices = currentAnswers._voices || {};
   for (const who of ["charlie", "karla"]) {
-    if (currentAnswers[who]) {
+    if (currentAnswers[who] || voices[who]) {
       const chip = document.createElement("div");
       chip.className = "saved-answer-chip";
-      chip.innerHTML = `<span class="sa-who">${who === "charlie" ? "C" : "K"}</span><span class="sa-text">${currentAnswers[who]}</span>`;
+      const label = who === "charlie" ? "C" : "K";
+      const text = currentAnswers[who] && currentAnswers[who] !== "Voice message" ? currentAnswers[who] : "";
+      const voiceURL = voices[who];
+
+      chip.innerHTML = `
+        <span class="sa-who">${label}</span>
+        <div class="sa-content">
+          ${text ? `<span class="sa-text">${text}</span>` : ""}
+          ${voiceURL ? `
+          <div class="sa-voice">
+            <button class="sa-voice-play" onclick="const a=this.nextElementSibling;if(a.paused){a.play();this.querySelector('.material-symbols-rounded').textContent='pause'}else{a.pause();this.querySelector('.material-symbols-rounded').textContent='play_arrow'}">
+              <span class="material-symbols-rounded" style="font-size:14px">play_arrow</span>
+            </button>
+            <audio src="${voiceURL}" onended="this.previousElementSibling.querySelector('.material-symbols-rounded').textContent='play_arrow'"></audio>
+            <span class="sa-voice-label">Voice</span>
+          </div>` : ""}
+        </div>
+      `;
       savedAnswers.appendChild(chip);
     }
   }
@@ -1726,10 +1849,13 @@ function saveQuizToJournal(data) {
 function saveToJournal() {
   const JOURNAL_KEY = "tayo_journal";
   let journal = JSON.parse(localStorage.getItem(JOURNAL_KEY) || "[]");
+  const voices = currentAnswers._voices || {};
   journal.unshift({
     question: currentQuestion,
     charlie: currentAnswers.charlie || "",
     karla: currentAnswers.karla || "",
+    charlieVoiceURL: voices.charlie || null,
+    karlaVoiceURL: voices.karla || null,
     time: Date.now(),
   });
   if (journal.length > 200) journal = journal.slice(0, 200);
@@ -1765,6 +1891,37 @@ $("journal-hint").addEventListener("click", () => {
     $("journal-subtitle").textContent = `${journal.length} conversation${journal.length !== 1 ? "s" : ""}`;
     list.innerHTML = journal.map((e, idx) => {
       const deleteBtn = `<button class="je-delete" data-idx="${idx}" title="Delete"><span class="material-symbols-rounded">delete</span></button>`;
+      const REACT_EMOJIS = ["💕", "😂", "😮", "😢", "🥹", "😡"];
+      // Helper: answer-level react button
+      function answerReactHTML(entryIdx, answerKey) {
+        const ar = e.answerReactions || {};
+        const myReact = ar[answerKey]?.[myIdentity];
+        if (myReact) {
+          return `<button class="je-ans-react has-react" data-idx="${entryIdx}" data-answer="${answerKey}">${myReact}</button>`;
+        }
+        return `<button class="je-ans-react" data-idx="${entryIdx}" data-answer="${answerKey}"><span class="material-symbols-rounded" style="font-size:14px">add_reaction</span></button>`;
+      }
+      // Helper: answer actions (edit/delete own, add response to partner's)
+      function answerActionsHTML(entryIdx, answerKey) {
+        return `<div class="je-ans-actions">
+          <button class="je-ans-action je-ans-edit" data-idx="${entryIdx}" data-answer="${answerKey}" title="Edit"><span class="material-symbols-rounded" style="font-size:13px">edit</span></button>
+          <button class="je-ans-action je-ans-del" data-idx="${entryIdx}" data-answer="${answerKey}" title="Delete"><span class="material-symbols-rounded" style="font-size:13px">delete</span></button>
+        </div>`;
+      }
+      const reactions = e.reactions || {};
+      const reactionsHTML = (() => {
+        const entries = Object.entries(reactions);
+        if (entries.length === 0) return "";
+        const emojis = entries.map(([,e]) => e);
+        const unique = [...new Set(emojis)];
+        const tooltipLines = entries.map(([who, emoji]) => `${who === "charlie" ? "Charlie" : "Karla"} ${emoji}`);
+        return `<div class="je-reactions-float" data-idx="${idx}">
+          <span class="je-react-emojis">${unique.map(e => `<span>${e}</span>`).join("")}</span>
+          ${entries.length > 1 ? `<span class="je-react-count">${entries.length}</span>` : ""}
+          <div class="je-react-tooltip">${tooltipLines.join("<br>")}</div>
+        </div>`;
+      })();
+      const reactBtn = "";
       if (e.type === "solo") {
         const who = (e.who || "charlie");
         const whoLabel = who === "charlie" ? "Charlie" : "Karla";
@@ -1774,11 +1931,12 @@ $("journal-hint").addEventListener("click", () => {
               <span class="je-icon"><span class="material-symbols-rounded">person</span></span>
               <span class="je-type-label">Solo — ${whoLabel}</span>
               <span class="je-time">${timeAgo(e.time)}</span>
-              ${deleteBtn}
+              ${reactBtn}${deleteBtn}
             </div>
             <div class="je-question">${e.question}</div>
             <div class="je-answer-card">
               <span class="je-answer-name">${whoLabel}</span>
+              ${answerReactHTML(idx, who)}
               ${e.answer ? `<span class="je-answer-text">${e.answer}</span>` : ""}
               ${e.voiceURL ? `
               <div class="je-voice-player">
@@ -1795,6 +1953,26 @@ $("journal-hint").addEventListener("click", () => {
               </div>
               ` : ""}
             </div>
+            ${(() => {
+              const partner = who === "charlie" ? "karla" : "charlie";
+              const partnerLabel = partner === "charlie" ? "Charlie" : "Karla";
+              if (e.partnerReply) {
+                return `
+                  <div class="je-answer-card je-reply">
+                    <span class="je-answer-name">${partnerLabel}'s reply</span>
+                    <span class="je-answer-text">${e.partnerReply}</span>
+                  </div>`;
+              } else {
+                return `
+                  <div class="je-reply-prompt">
+                    <button class="je-reply-btn" data-idx="${idx}">
+                      <span class="material-symbols-rounded" style="font-size:14px">reply</span>
+                      ${partnerLabel}, reply to this
+                    </button>
+                  </div>`;
+              }
+            })()}
+            ${reactionsHTML}
           </div>
         `;
       }
@@ -1808,7 +1986,7 @@ $("journal-hint").addEventListener("click", () => {
               <span class="je-icon"><span class="material-symbols-rounded">quiz</span></span>
               <span class="je-type-label">Quiz</span>
               <span class="je-time">${timeAgo(e.time)}</span>
-              ${deleteBtn}
+              ${reactBtn}${deleteBtn}
             </div>
             <div class="je-question">${e.question}</div>
             <div class="je-correct">
@@ -1827,6 +2005,7 @@ $("journal-hint").addEventListener("click", () => {
                 <span class="material-symbols-rounded je-pick-icon">${kRight ? "check" : "close"}</span>
               </div>
             </div>
+            ${reactionsHTML}
           </div>
         `;
       }
@@ -1836,53 +2015,240 @@ $("journal-hint").addEventListener("click", () => {
             <span class="je-icon"><span class="material-symbols-rounded">chat_bubble</span></span>
             <span class="je-type-label">Question</span>
             <span class="je-time">${timeAgo(e.time)}</span>
-            ${deleteBtn}
+            ${reactBtn}${deleteBtn}
           </div>
           <div class="je-question">${e.question}</div>
           ${e.charlie ? `
             <div class="je-answer-card">
               <span class="je-answer-name">Charlie</span>
-              <span class="je-answer-text">${e.charlie}</span>
+              ${answerReactHTML(idx, "charlie")}
+              ${e.charlie && e.charlie !== "Voice message" ? `<span class="je-answer-text">${e.charlie}</span>` : ""}
+              ${e.charlieVoiceURL ? `
+              <div class="je-voice-player">
+                <button class="je-voice-play" onclick="const a=this.parentElement.querySelector('audio');if(a.paused){a.play();this.querySelector('.material-symbols-rounded').textContent='pause'}else{a.pause();this.querySelector('.material-symbols-rounded').textContent='play_arrow'}">
+                  <span class="material-symbols-rounded">play_arrow</span>
+                </button>
+                <div class="je-voice-bars">${Array.from({length:24},()=>`<div class="je-bar" style="height:${3+Math.random()*14}px"></div>`).join("")}</div>
+                <span class="je-voice-dur">--</span>
+                <audio src="${e.charlieVoiceURL}"
+                  onloadedmetadata="const d=this.parentElement.querySelector('.je-voice-dur');const s=Math.round(this.duration);d.textContent='0:'+String(s).padStart(2,'0')"
+                  ontimeupdate="const p=(this.currentTime/this.duration*100)||0;const bars=this.parentElement.querySelectorAll('.je-bar');const played=Math.floor(bars.length*p/100);bars.forEach((b,i)=>b.style.opacity=i<played?'1':'0.35')"
+                  onended="this.parentElement.querySelector('.je-voice-play .material-symbols-rounded').textContent='play_arrow';this.parentElement.querySelectorAll('.je-bar').forEach(b=>b.style.opacity='1')"
+                ></audio>
+              </div>` : ""}
             </div>` : ""}
           ${e.karla ? `
             <div class="je-answer-card">
               <span class="je-answer-name">Karla</span>
-              <span class="je-answer-text">${e.karla}</span>
+              ${answerReactHTML(idx, "karla")}
+              ${e.karla && e.karla !== "Voice message" ? `<span class="je-answer-text">${e.karla}</span>` : ""}
+              ${e.karlaVoiceURL ? `
+              <div class="je-voice-player">
+                <button class="je-voice-play" onclick="const a=this.parentElement.querySelector('audio');if(a.paused){a.play();this.querySelector('.material-symbols-rounded').textContent='pause'}else{a.pause();this.querySelector('.material-symbols-rounded').textContent='play_arrow'}">
+                  <span class="material-symbols-rounded">play_arrow</span>
+                </button>
+                <div class="je-voice-bars">${Array.from({length:24},()=>`<div class="je-bar" style="height:${3+Math.random()*14}px"></div>`).join("")}</div>
+                <span class="je-voice-dur">--</span>
+                <audio src="${e.karlaVoiceURL}"
+                  onloadedmetadata="const d=this.parentElement.querySelector('.je-voice-dur');const s=Math.round(this.duration);d.textContent='0:'+String(s).padStart(2,'0')"
+                  ontimeupdate="const p=(this.currentTime/this.duration*100)||0;const bars=this.parentElement.querySelectorAll('.je-bar');const played=Math.floor(bars.length*p/100);bars.forEach((b,i)=>b.style.opacity=i<played?'1':'0.35')"
+                  onended="this.parentElement.querySelector('.je-voice-play .material-symbols-rounded').textContent='play_arrow';this.parentElement.querySelectorAll('.je-bar').forEach(b=>b.style.opacity='1')"
+                ></audio>
+              </div>` : ""}
             </div>` : ""}
+          ${reactionsHTML}
         </div>
       `;
     }).join("");
   }
   // Delete handlers
   list.querySelectorAll(".je-delete").forEach((btn) => {
-    btn.addEventListener("click", async (e) => {
+    btn.addEventListener("click", (e) => {
       e.stopPropagation();
       const idx = parseInt(btn.dataset.idx);
       const journal = JSON.parse(localStorage.getItem("tayo_journal") || "[]");
       const entry = journal[idx];
 
-      // Delete voice files from Firebase Storage
-      if (entry) {
-        const voiceURLs = [entry.voiceURL, entry.charlieVoiceURL, entry.karlaVoiceURL].filter(Boolean);
-        for (const url of voiceURLs) {
-          try {
-            // Extract path from Firebase Storage URL
-            const path = decodeURIComponent(url.split("/o/")[1]?.split("?")[0]);
-            if (path) await deleteObject(storageRef(storage, path));
-          } catch (err) { /* silent — file may already be deleted */ }
-        }
-      }
-
+      // Remove from journal immediately
       journal.splice(idx, 1);
       localStorage.setItem("tayo_journal", JSON.stringify(journal));
       syncJournalToFirebase();
-      // Re-render
+
+      // Animate out
       btn.closest(".journal-entry").style.transition = "opacity 0.3s, transform 0.3s";
       btn.closest(".journal-entry").style.opacity = "0";
       btn.closest(".journal-entry").style.transform = "translateX(30px)";
+      setTimeout(() => { $("journal-hint").click(); }, 300);
+
+      // Delete voice files from Firebase Storage in background (fire and forget)
+      if (entry) {
+        const voiceURLs = [entry.voiceURL, entry.charlieVoiceURL, entry.karlaVoiceURL].filter(Boolean);
+        voiceURLs.forEach((url) => {
+          try {
+            const path = decodeURIComponent(url.split("/o/")[1]?.split("?")[0]);
+            if (path) deleteObject(storageRef(storage, path)).catch(() => {});
+          } catch {}
+        });
+      }
+    });
+  });
+
+  // Reaction handlers
+  const REACT_EMOJIS_LIST = ["💕", "😂", "😮", "😢", "🥹", "😡"];
+
+
+
+  // Answer-level react handlers
+  list.querySelectorAll(".je-ans-react").forEach((btn) => {
+    btn.addEventListener("click", (ev) => {
+      ev.stopPropagation();
+      const idx = parseInt(btn.dataset.idx);
+      const answerKey = btn.dataset.answer;
+
+      // If already reacted, tap to remove
+      if (btn.classList.contains("has-react")) {
+        const journal = JSON.parse(localStorage.getItem("tayo_journal") || "[]");
+        if (journal[idx]?.answerReactions?.[answerKey]) {
+          delete journal[idx].answerReactions[answerKey][myIdentity];
+          localStorage.setItem("tayo_journal", JSON.stringify(journal));
+          syncJournalToFirebase();
+          $("journal-hint").click();
+        }
+        return;
+      }
+
+      // Show emoji picker near button
+      document.querySelectorAll(".je-ans-picker").forEach((p) => p.remove());
+      const picker = document.createElement("div");
+      picker.className = "je-ans-picker";
+      picker.innerHTML = REACT_EMOJIS_LIST.map((emoji) =>
+        `<button class="je-react-emoji" data-emoji="${emoji}">${emoji}</button>`
+      ).join("");
+      btn.closest(".je-answer-card").appendChild(picker);
+      requestAnimationFrame(() => picker.classList.add("show"));
+
+      picker.querySelectorAll(".je-react-emoji").forEach((emojiBtn) => {
+        emojiBtn.addEventListener("click", (e2) => {
+          e2.stopPropagation();
+          const journal = JSON.parse(localStorage.getItem("tayo_journal") || "[]");
+          if (journal[idx]) {
+            if (!journal[idx].answerReactions) journal[idx].answerReactions = {};
+            if (!journal[idx].answerReactions[answerKey]) journal[idx].answerReactions[answerKey] = {};
+            journal[idx].answerReactions[answerKey][myIdentity] = emojiBtn.dataset.emoji;
+            localStorage.setItem("tayo_journal", JSON.stringify(journal));
+            syncJournalToFirebase();
+            $("journal-hint").click();
+          }
+        });
+      });
+
       setTimeout(() => {
-        $("journal-hint").click(); // Re-open to refresh
-      }, 300);
+        const close = (e3) => {
+          if (!picker.contains(e3.target)) {
+            picker.classList.remove("show");
+            setTimeout(() => picker.remove(), 200);
+            document.removeEventListener("click", close);
+          }
+        };
+        document.addEventListener("click", close);
+      }, 10);
+    });
+  });
+
+  // Floating reaction pill — tap to change, hold/hover for tooltip
+  list.querySelectorAll(".je-reactions-float").forEach((el) => {
+    let holdTimer = null;
+
+    // Tap = show picker to change reaction
+    el.addEventListener("click", (ev) => {
+      ev.stopPropagation();
+      document.querySelectorAll(".je-float-picker").forEach((p) => p.remove());
+      const idx = parseInt(el.dataset.idx);
+      const picker = document.createElement("div");
+      picker.className = "je-float-picker";
+      picker.innerHTML = REACT_EMOJIS_LIST.map((emoji) =>
+        `<button class="je-react-emoji" data-emoji="${emoji}">${emoji}</button>`
+      ).join("");
+      el.appendChild(picker);
+      requestAnimationFrame(() => picker.classList.add("show"));
+
+      picker.querySelectorAll(".je-react-emoji").forEach((emojiBtn) => {
+        emojiBtn.addEventListener("click", (e2) => {
+          e2.stopPropagation();
+          const journal = JSON.parse(localStorage.getItem("tayo_journal") || "[]");
+          if (journal[idx]) {
+            if (!journal[idx].reactions) journal[idx].reactions = {};
+            if (journal[idx].reactions[myIdentity] === emojiBtn.dataset.emoji) {
+              delete journal[idx].reactions[myIdentity];
+            } else {
+              journal[idx].reactions[myIdentity] = emojiBtn.dataset.emoji;
+            }
+            localStorage.setItem("tayo_journal", JSON.stringify(journal));
+            syncJournalToFirebase();
+            $("journal-hint").click();
+          }
+        });
+      });
+
+      setTimeout(() => {
+        const close = (e3) => {
+          if (!picker.contains(e3.target)) {
+            picker.classList.remove("show");
+            setTimeout(() => picker.remove(), 200);
+            document.removeEventListener("click", close);
+          }
+        };
+        document.addEventListener("click", close);
+      }, 10);
+    });
+
+    // Long press = show tooltip
+    el.addEventListener("touchstart", () => {
+      holdTimer = setTimeout(() => {
+        const tip = el.querySelector(".je-react-tooltip");
+        if (tip) { tip.classList.add("show"); setTimeout(() => tip.classList.remove("show"), 2500); }
+      }, 500);
+    });
+    el.addEventListener("touchend", () => clearTimeout(holdTimer));
+    el.addEventListener("touchmove", () => clearTimeout(holdTimer));
+  });
+
+  // Reply handlers
+  list.querySelectorAll(".je-reply-btn").forEach((btn) => {
+    btn.addEventListener("click", (e) => {
+      e.stopPropagation();
+      const idx = parseInt(btn.dataset.idx);
+      const replyInput = document.createElement("div");
+      replyInput.className = "je-reply-input";
+      replyInput.innerHTML = `
+        <textarea class="je-reply-field" placeholder="Type your reply..." rows="1"></textarea>
+        <button class="je-reply-send"><span class="material-symbols-rounded" style="font-size:16px">send</span></button>
+      `;
+      btn.replaceWith(replyInput);
+      const field = replyInput.querySelector(".je-reply-field");
+      field.focus();
+
+      // Auto-expand
+      field.addEventListener("input", () => {
+        field.style.height = "auto";
+        field.style.height = field.scrollHeight + "px";
+      });
+
+      replyInput.querySelector(".je-reply-send").addEventListener("click", () => {
+        const reply = field.value.trim();
+        if (!reply) return;
+        const journal = JSON.parse(localStorage.getItem("tayo_journal") || "[]");
+        if (journal[idx]) {
+          journal[idx].partnerReply = reply;
+          localStorage.setItem("tayo_journal", JSON.stringify(journal));
+          syncJournalToFirebase();
+          $("journal-hint").click(); // Re-render
+        }
+      });
+
+      field.addEventListener("keydown", (ev) => {
+        if (ev.key === "Enter") replyInput.querySelector(".je-reply-send").click();
+      });
     });
   });
 
