@@ -80,7 +80,7 @@ body {
   display: flex; flex-direction: column;
   align-items: center;
   padding: 0.8rem 1.5rem;
-  padding-top: calc(0.6rem + var(--safe-top));
+  padding-top: calc(0.8rem + var(--safe-top));
   padding-bottom: calc(0.8rem + var(--safe-bottom));
   position: relative;
   max-width: 480px;
@@ -385,7 +385,7 @@ body {
 
 /* ── Scoreboard ── */
 .scoreboard {
-  display: none;
+  display: none !important;
   align-items: center;
   justify-content: center;
   gap: 0.5rem;
@@ -1267,6 +1267,15 @@ body {
 /* ══════════════════════════════════════
    KEYFRAMES
    ══════════════════════════════════════ */
+/* Tighter top padding on mobile with safe area (Dynamic Island) */
+@supports (padding-top: env(safe-area-inset-top)) {
+  @media (max-width: 768px) {
+    #app {
+      padding-top: var(--safe-top);
+    }
+  }
+}
+
 @keyframes fadeUp { to { opacity: 1; transform: translateY(0); } }
 @keyframes fadeScale { from { opacity: 0; transform: scale(0.8); } to { opacity: 1; transform: scale(1); } }
 @keyframes lineGrow { to { width: 100px; } }
