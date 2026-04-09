@@ -1,0 +1,23 @@
+{
+  "name": "Tayo — Charlie & Karla",
+  "short_name": "Tayo",
+  "description": "Our bonding companion",
+  "start_url": "/tayo/",
+  "display": "standalone",
+  "background_color": "#1a1818",
+  "theme_color": "#1a1818",
+  "icons": [
+    {
+      "src": "icon-192.png",
+      "sizes": "192x192",
+      "type": "image/png",
+      "purpose": "any maskable"
+    },
+    {
+      "src": "icon-512.png",
+      "sizes": "512x512",
+      "type": "image/png",
+      "purpose": "any maskable"
+    }
+  ]
+}

@@ -1,0 +1,150 @@
+<!DOCTYPE html>
+<html lang="en">
+  <head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0, user-scalable=no, viewport-fit=cover" />
+    <title>Tayo</title>
+    <link rel="manifest" href="manifest.json" />
+    <meta name="theme-color" content="#1a1818" />
+    <meta name="apple-mobile-web-app-capable" content="yes" />
+    <meta name="mobile-web-app-capable" content="yes" />
+    <meta name="apple-mobile-web-app-status-bar-style" content="black-translucent" />
+    <meta name="apple-mobile-web-app-title" content="Tayo" />
+    <link rel="apple-touch-icon" href="icon-192.png" />
+    <link rel="icon" type="image/png" href="favicon.png" />
+    <link href="https://fonts.googleapis.com/css2?family=Playfair+Display:ital,wght@0,400;0,500;0,600;0,700;1,400&family=Inter:wght@300;400;500;600&display=swap" rel="stylesheet" />
+    <link rel="stylesheet" href="style.css" />
+  </head>
+  <body>
+
+    <!-- Splash -->
+    <div id="splash">
+      <h1>Tayo</h1>
+      <div class="line"></div>
+      <p>For when we're together</p>
+    </div>
+
+    <!-- App -->
+    <div id="app">
+
+      <!-- Header bar -->
+      <div class="topbar">
+        <button class="topbar-btn" id="journal-hint">Journal</button>
+        <div class="topbar-center">
+          <div class="brand">Tayo</div>
+          <div class="countdown" id="countdown"></div>
+          <div class="current-vibe" id="current-vibe">Anything</div>
+          <div class="scoreboard" id="scoreboard">
+            <span class="score-name">C</span>
+            <span class="score-num" id="score-charlie">0</span>
+            <span class="score-divider">:</span>
+            <span class="score-num" id="score-karla">0</span>
+            <span class="score-name">K</span>
+          </div>
+        </div>
+        <button class="topbar-btn" id="settings-btn">Vibe</button>
+      </div>
+
+      <!-- Mode toggle -->
+      <div class="mode-area">
+        <div class="mode-toggle">
+          <button class="mode-chip active" id="mode-question" data-mode="question">Question</button>
+          <button class="mode-chip" id="mode-quiz" data-mode="quiz">Quiz</button>
+        </div>
+      </div>
+
+      <!-- Yhon Yhon + Bubble group -->
+      <div class="yhon-group">
+        <div class="bubble-container" id="bubble-container">
+          <div class="bubble" id="bubble">
+            <div class="bubble-topic" id="bubble-topic"></div>
+          <div class="bubble-text" id="bubble-text"></div>
+            <div class="quiz-area" id="quiz-area">
+              <div class="quiz-picks" id="quiz-picks"></div>
+              <div class="quiz-choices" id="quiz-choices"></div>
+              <div class="quiz-result" id="quiz-result"></div>
+            </div>
+            <div class="bubble-tail"></div>
+          </div>
+        </div>
+        <div class="creature-area">
+        <div class="creature-glow" id="creature-glow"></div>
+        <div class="creature" id="creature">
+          <div class="creature-body" id="creature-body">
+            <div class="ear left-ear"></div>
+            <div class="ear right-ear"></div>
+            <div class="arm left-arm"></div>
+            <div class="arm right-arm"></div>
+            <div class="eye left-eye"></div>
+            <div class="eye right-eye"></div>
+            <div class="snout"><div class="nostril left-nostril"></div><div class="nostril right-nostril"></div></div>
+            <div class="blush left-blush"></div>
+            <div class="blush right-blush"></div>
+            <div class="foot left-foot"></div>
+            <div class="foot right-foot"></div>
+            <div class="think-dots" id="think-dots"><span></span><span></span><span></span></div>
+          </div>
+        </div>
+      </div>
+      </div> <!-- /yhon-group -->
+
+      <!-- Answer Area (speech-to-text + typing) -->
+      <div id="answer-area" class="answer-area">
+        <div class="answer-who">
+          <button class="answer-tab active" data-who="charlie" id="tab-charlie">Charlie</button>
+          <button class="answer-tab" data-who="karla" id="tab-karla">Karla</button>
+        </div>
+        <div class="answer-box" id="answer-box">
+          <div class="answer-text" id="answer-text" contenteditable="true" data-placeholder="Tap mic or type..."></div>
+          <div class="answer-controls">
+            <button class="mic-btn" id="mic-btn">
+              <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M12 1a3 3 0 0 0-3 3v8a3 3 0 0 0 6 0V4a3 3 0 0 0-3-3z"/><path d="M19 10v2a7 7 0 0 1-14 0v-2"/><line x1="12" y1="19" x2="12" y2="23"/><line x1="8" y1="23" x2="16" y2="23"/></svg>
+              <span class="mic-label">Speak</span>
+            </button>
+            <button class="save-answer-btn" id="save-answer-btn">Save</button>
+          </div>
+        </div>
+        <div class="saved-answers" id="saved-answers"></div>
+      </div>
+
+      <!-- Tap hint -->
+      <div class="tap-hint" id="tap-hint">Tap Yhon Yhon</div>
+
+    </div>
+
+    <!-- Settings (bottom sheet) -->
+    <div class="settings-panel" id="settings-panel">
+      <div class="settings-header">
+        <span class="settings-title">Set the vibe</span>
+        <button class="settings-close" id="settings-close">Done</button>
+      </div>
+      <div class="vibe-chips" id="vibe-chips">
+        <button class="vibe-chip active" data-vibe="anything">Anything</button>
+        <button class="vibe-chip" data-vibe="deep">Deep</button>
+        <button class="vibe-chip" data-vibe="fun">Fun</button>
+        <button class="vibe-chip" data-vibe="sweet">Sweet</button>
+        <button class="vibe-chip" data-vibe="silly">Silly</button>
+        <button class="vibe-chip" data-vibe="real talk">Real Talk</button>
+        <button class="vibe-chip" data-vibe="growth">Growth</button>
+        <button class="vibe-chip" data-vibe="spiritual">Spiritual</button>
+      </div>
+      <input type="text" id="vibe-input" class="vibe-input" placeholder="Or type your own vibe..." />
+    </div>
+    <div class="settings-backdrop" id="settings-backdrop"></div>
+
+    <!-- Journal Panel -->
+    <div id="journal">
+      <button class="close-btn" id="journal-close">&larr; back</button>
+      <h2>Our Journal</h2>
+      <p class="journal-subtitle" id="journal-subtitle"></p>
+      <div id="journal-list"></div>
+    </div>
+
+    <!-- History (reusing journal for now) -->
+    <div id="history" style="display:none">
+      <div id="history-list"></div>
+    </div>
+
+    <script type="module" src="app.js"></script>
+  </body>
+</html>
