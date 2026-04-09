@@ -13,6 +13,7 @@
     <link rel="apple-touch-icon" href="icon-192.png" />
     <link rel="icon" type="image/png" href="favicon.png" />
     <link href="https://fonts.googleapis.com/css2?family=Playfair+Display:ital,wght@0,400;0,500;0,600;0,700;1,400&family=Inter:wght@300;400;500;600&display=swap" rel="stylesheet" />
+    <link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Material+Symbols+Rounded:opsz,wght,FILL,GRAD@24,400,1,0" />
     <link rel="stylesheet" href="style.css" />
   </head>
   <body>
@@ -31,7 +32,7 @@
       <div class="topbar">
         <button class="topbar-btn" id="journal-hint">Journal</button>
         <div class="topbar-center">
-          <div class="brand">Tayo</div>
+          <div class="brand">Tayo <span class="partner-dot hidden" id="partner-dot"></span></div>
           <div class="countdown" id="countdown"></div>
           <div class="current-vibe" id="current-vibe">Anything</div>
           <div class="scoreboard" id="scoreboard">
@@ -42,7 +43,7 @@
             <span class="score-name">K</span>
           </div>
         </div>
-        <button class="topbar-btn" id="settings-btn">Vibe</button>
+        <button class="topbar-btn" id="settings-btn">Settings</button>
       </div>
 
       <!-- Mode toggle -->
@@ -107,6 +108,21 @@
         <div class="saved-answers" id="saved-answers"></div>
       </div>
 
+      <!-- Remote: waiting for partner's answer -->
+      <div class="remote-waiting hidden" id="remote-waiting">Waiting for partner's answer...</div>
+
+      <!-- Remote: answer reveal -->
+      <div class="remote-reveal hidden" id="remote-reveal">
+        <div class="reveal-card">
+          <div class="reveal-label">Charlie said:</div>
+          <div class="reveal-text" id="reveal-charlie"></div>
+        </div>
+        <div class="reveal-card">
+          <div class="reveal-label">Karla said:</div>
+          <div class="reveal-text" id="reveal-karla"></div>
+        </div>
+      </div>
+
       <!-- Tap hint -->
       <div class="tap-hint" id="tap-hint">Tap Yhon Yhon</div>
 
@@ -115,20 +131,72 @@
     <!-- Settings (bottom sheet) -->
     <div class="settings-panel" id="settings-panel">
       <div class="settings-header">
-        <span class="settings-title">Set the vibe</span>
+        <span class="settings-title">Settings</span>
         <button class="settings-close" id="settings-close">Done</button>
       </div>
-      <div class="vibe-chips" id="vibe-chips">
-        <button class="vibe-chip active" data-vibe="anything">Anything</button>
-        <button class="vibe-chip" data-vibe="deep">Deep</button>
-        <button class="vibe-chip" data-vibe="fun">Fun</button>
-        <button class="vibe-chip" data-vibe="sweet">Sweet</button>
-        <button class="vibe-chip" data-vibe="silly">Silly</button>
-        <button class="vibe-chip" data-vibe="real talk">Real Talk</button>
-        <button class="vibe-chip" data-vibe="growth">Growth</button>
-        <button class="vibe-chip" data-vibe="spiritual">Spiritual</button>
+
+      <!-- Play Mode -->
+      <div class="settings-section">
+        <div class="settings-label">Play Mode</div>
+        <div class="settings-toggle" id="play-mode-toggle">
+          <button class="settings-toggle-btn active" data-playmode="together">Together</button>
+          <button class="settings-toggle-btn" data-playmode="remote">Remote</button>
+        </div>
+        <div class="settings-hint" id="play-mode-hint">Same device — pass the phone</div>
       </div>
-      <input type="text" id="vibe-input" class="vibe-input" placeholder="Or type your own vibe..." />
+
+      <!-- Identity (hidden — only used internally for remote) -->
+      <div class="settings-section hidden" id="identity-section">
+        <div class="settings-label">I am</div>
+        <div class="settings-toggle" id="identity-toggle">
+          <button class="settings-toggle-btn active" data-identity="charlie">Charlie</button>
+          <button class="settings-toggle-btn" data-identity="karla">Karla</button>
+        </div>
+      </div>
+
+      <!-- Remote Sign-In (hidden by default) -->
+      <div class="settings-section hidden" id="remote-section">
+        <div class="settings-label">Remote Play</div>
+        <!-- Not signed in -->
+        <div id="remote-signin-card" class="remote-card">
+          <p class="remote-card-text">Sign in to play on separate devices</p>
+          <button id="btn-google-signin" class="google-signin-btn">
+            <svg width="16" height="16" viewBox="0 0 18 18"><path fill="#4285F4" d="M16.51 8H8.98v3h4.27c-.18 1-.74 1.84-1.58 2.4v2h2.56c1.5-1.38 2.37-3.42 2.37-5.84 0-.56-.05-1.1-.14-1.56z"/><path fill="#34A853" d="M8.98 17c2.16 0 3.97-.72 5.3-1.94l-2.56-2c-.72.48-1.63.76-2.74.76-2.1 0-3.88-1.42-4.52-3.33H1.84v2.07C3.16 15.1 5.85 17 8.98 17z"/><path fill="#FBBC05" d="M4.46 10.49c-.16-.48-.25-.99-.25-1.52s.09-1.04.25-1.52V5.38H1.84C1.3 6.48 1 7.7 1 9s.3 2.52.84 3.62l2.62-2.13z"/><path fill="#EA4335" d="M8.98 4.15c1.18 0 2.25.41 3.08 1.21l2.3-2.3C12.94 1.69 11.14.97 8.98.97 5.85 2.87 1.84 5.38l2.62 2.07c.64-1.91 2.42-3.3 4.52-3.3z"/></svg>
+            Sign in with Google
+          </button>
+        </div>
+        <!-- Signed in -->
+        <div id="remote-status-card" class="remote-card hidden">
+          <div class="remote-user-row">
+            <div class="remote-avatar" id="remote-avatar">C</div>
+            <div class="remote-user-info">
+              <div class="remote-user-name" id="remote-user-name">Charlie</div>
+              <div class="remote-user-email" id="remote-user-email"></div>
+            </div>
+            <button class="logout-btn" id="logout-btn">Sign out</button>
+          </div>
+          <div class="remote-partner-row" id="partner-status">
+            <span class="remote-partner-dot" id="remote-partner-dot"></span>
+            <span class="remote-partner-text" id="remote-partner-text">Karla is offline</span>
+          </div>
+        </div>
+      </div>
+
+      <!-- Vibe -->
+      <div class="settings-section">
+        <div class="settings-label">Vibe</div>
+        <div class="vibe-chips" id="vibe-chips">
+          <button class="vibe-chip active" data-vibe="anything">Anything</button>
+          <button class="vibe-chip" data-vibe="deep">Deep</button>
+          <button class="vibe-chip" data-vibe="fun">Fun</button>
+          <button class="vibe-chip" data-vibe="sweet">Sweet</button>
+          <button class="vibe-chip" data-vibe="silly">Silly</button>
+          <button class="vibe-chip" data-vibe="real talk">Real Talk</button>
+          <button class="vibe-chip" data-vibe="growth">Growth</button>
+          <button class="vibe-chip" data-vibe="spiritual">Spiritual</button>
+        </div>
+        <input type="text" id="vibe-input" class="vibe-input" placeholder="Or type your own vibe..." />
+      </div>
     </div>
     <div class="settings-backdrop" id="settings-backdrop"></div>
 

@@ -662,9 +662,14 @@ function renderTable() {
 }
 
 // =============================
-// Previous Logs (past dates)
+// Previous Logs (all dates)
 // =============================
 let previousLogsLoaded = false;
+let allPreviousEntries = [];
+let filteredPreviousEntries = [];
+let prevLogsPage = 1;
+const PREV_LOGS_PER_PAGE = 25;
+let prevLogsSortKey = "date-desc";
 
 function loadPreviousLogs() {
   if (previousLogsLoaded) return;
@@ -672,43 +677,109 @@ function loadPreviousLogs() {
 
   db.ref("logs").once("value", (snapshot) => {
     const allDates = snapshot.val() || {};
-    renderPreviousLogs(allDates);
+    allPreviousEntries = [];
+    Object.entries(allDates).forEach(([date, dateLogs]) => {
+      Object.entries(dateLogs).forEach(([key, log]) => {
+        if (log.status === "pending") return;
+        allPreviousEntries.push({ key, date, ...log });
+      });
+    });
+    prevLogsPage = 1;
+    filterAndRenderPreviousLogs();
   });
 }
 
-function renderPreviousLogs(allDates) {
+function calcDurationMs(log) {
+  if (!log.timeIn) return 0;
+  const start = new Date(log.timeIn);
+  const end = log.timeOut ? new Date(log.timeOut) : new Date();
+  return end - start;
+}
+
+function sortPreviousEntries(entries) {
+  const key = prevLogsSortKey;
+  return entries.slice().sort((a, b) => {
+    switch (key) {
+      case "date-asc":
+        if (a.date !== b.date) return a.date.localeCompare(b.date);
+        return (a.timeIn || "").localeCompare(b.timeIn || "");
+      case "date-desc":
+        if (a.date !== b.date) return b.date.localeCompare(a.date);
+        return (b.timeIn || "").localeCompare(a.timeIn || "");
+      case "name-asc":
+        return (a.name || "").localeCompare(b.name || "");
+      case "name-desc":
+        return (b.name || "").localeCompare(a.name || "");
+      case "duration-desc":
+        return calcDurationMs(b) - calcDurationMs(a);
+      case "duration-asc":
+        return calcDurationMs(a) - calcDurationMs(b);
+      default:
+        if (a.date !== b.date) return b.date.localeCompare(a.date);
+        return (b.timeIn || "").localeCompare(a.timeIn || "");
+    }
+  });
+}
+
+function filterAndRenderPreviousLogs() {
+  const searchTerm = (document.getElementById("prev-logs-search").value || "").toLowerCase().trim();
+
+  let entries = allPreviousEntries;
+  if (searchTerm) {
+    entries = entries.filter((log) => {
+      const haystack = `${log.date} ${log.name} ${log.segment} ${log.role} ${log.commsId} ${log.numberedId}`.toLowerCase();
+      return haystack.includes(searchTerm);
+    });
+  }
+
+  filteredPreviousEntries = sortPreviousEntries(entries);
+  renderPreviousLogsPage();
+}
+
+function renderPreviousLogsPage() {
   const section = document.getElementById("previous-logs-section");
   const body = document.getElementById("previous-logs-body");
+  const noMsg = document.getElementById("no-prev-logs-message");
   body.innerHTML = "";
 
-  const entries = [];
-  Object.entries(allDates).forEach(([date, dateLogs]) => {
-    if (date === todayDate) return; // Skip today
-    Object.entries(dateLogs).forEach(([key, log]) => {
-      if (log.status === "pending") return;
-      entries.push({ key, date, ...log });
-    });
-  });
+  const total = filteredPreviousEntries.length;
 
-  if (entries.length === 0) {
+  if (allPreviousEntries.length === 0) {
     section.classList.add("hidden");
     return;
   }
 
-  // Sort by date desc, then timeIn desc
-  entries.sort((a, b) => {
-    if (a.date !== b.date) return b.date.localeCompare(a.date);
-    return (b.timeIn || "").localeCompare(a.timeIn || "");
-  });
-
   section.classList.remove("hidden");
-  document.getElementById("previous-logs-count").textContent = `(${entries.length})`;
+  document.getElementById("previous-logs-count").textContent = `(${total})`;
 
-  entries.forEach((log) => {
+  if (total === 0) {
+    noMsg.classList.remove("hidden");
+    document.getElementById("prev-logs-page-info").textContent = "";
+    document.getElementById("prev-logs-page-numbers").innerHTML = "";
+    ["prev-logs-first", "prev-logs-prev", "prev-logs-next", "prev-logs-last"].forEach(id => {
+      document.getElementById(id).disabled = true;
+    });
+    return;
+  }
+  noMsg.classList.add("hidden");
+
+  const totalPages = Math.ceil(total / PREV_LOGS_PER_PAGE);
+  if (prevLogsPage > totalPages) prevLogsPage = totalPages;
+  if (prevLogsPage < 1) prevLogsPage = 1;
+
+  const startIdx = (prevLogsPage - 1) * PREV_LOGS_PER_PAGE;
+  const endIdx = Math.min(startIdx + PREV_LOGS_PER_PAGE, total);
+  const pageEntries = filteredPreviousEntries.slice(startIdx, endIdx);
+
+  pageEntries.forEach((log) => {
     const row = document.createElement("tr");
     row.className = "hover:bg-neutral-800 transition duration-150 opacity-50 hover:opacity-80";
 
-    row.appendChild(td(`<span class="font-mono text-neutral-400 text-xs">${log.date}</span>`));
+    const isToday = log.date === todayDate;
+    const dateBadge = isToday
+      ? `<span class="font-mono text-green-400 text-xs">${log.date}</span> <span class="text-[10px] bg-green-500/20 text-green-400 px-1.5 py-0.5 rounded-full font-semibold">TODAY</span>`
+      : `<span class="font-mono text-neutral-400 text-xs">${log.date}</span>`;
+    row.appendChild(td(dateBadge));
     row.appendChild(td(`<span class="text-neutral-400">${log.name || "—"}</span>`));
     row.appendChild(
       td(`<span class="text-neutral-600 text-xs">${log.segment || "—"}</span><br/><span class="text-neutral-400">${log.role || "—"}</span>`)
@@ -718,7 +789,6 @@ function renderPreviousLogs(allDates) {
     row.appendChild(td(`<span class="font-mono text-neutral-500 text-xs">${formatTime(log.timeOut)}</span>`));
     row.appendChild(td(`<span class="font-mono text-neutral-500 text-xs">${calcDuration(log)}</span>`));
 
-    // Delete button
     const actionTd = document.createElement("td");
     actionTd.className = "px-4 py-3 text-sm";
     actionTd.innerHTML = `<button class="prev-log-delete-btn text-neutral-600 hover:text-red-400 transition" data-date="${log.date}" data-key="${log.key}" data-name="${log.name || ""}" title="Delete entry"><span class="material-icons-round text-base">delete_outline</span></button>`;
@@ -734,15 +804,147 @@ function renderPreviousLogs(allDates) {
       const confirmed = await showConfirm(`Delete log for "${name}" on ${date}?`);
       if (!confirmed) return;
       await db.ref(`logs/${date}/${key}`).remove();
-      btn.closest("tr").remove();
+      // Remove from allPreviousEntries
+      allPreviousEntries = allPreviousEntries.filter(e => !(e.key === key && e.date === date));
+      filterAndRenderPreviousLogs();
       showToast("Log entry deleted", "delete", "text-red-400");
-      // Update count
-      const remaining = document.querySelectorAll("#previous-logs-body tr").length;
-      document.getElementById("previous-logs-count").textContent = `(${remaining})`;
-      if (remaining === 0) document.getElementById("previous-logs-section").classList.add("hidden");
     });
   });
+
+  // Attach comms history click handlers for previous logs
+  body.querySelectorAll(".comms-history-btn").forEach((btn) => {
+    btn.addEventListener("click", () => showCommsHistory(btn.dataset.comms));
+  });
+
+  // Pagination info
+  document.getElementById("prev-logs-page-info").textContent = `${startIdx + 1}–${endIdx} of ${total}`;
+
+  // Pagination buttons
+  document.getElementById("prev-logs-first").disabled = prevLogsPage <= 1;
+  document.getElementById("prev-logs-prev").disabled = prevLogsPage <= 1;
+  document.getElementById("prev-logs-next").disabled = prevLogsPage >= totalPages;
+  document.getElementById("prev-logs-last").disabled = prevLogsPage >= totalPages;
+
+  // Page numbers
+  const pageNumContainer = document.getElementById("prev-logs-page-numbers");
+  pageNumContainer.innerHTML = "";
+  const maxVisible = 5;
+  let startPage = Math.max(1, prevLogsPage - Math.floor(maxVisible / 2));
+  let endPage = Math.min(totalPages, startPage + maxVisible - 1);
+  if (endPage - startPage + 1 < maxVisible) startPage = Math.max(1, endPage - maxVisible + 1);
+
+  for (let p = startPage; p <= endPage; p++) {
+    const btn = document.createElement("button");
+    btn.textContent = p;
+    btn.className = p === prevLogsPage
+      ? "w-8 h-8 rounded-lg text-xs font-bold bg-white text-neutral-900 transition"
+      : "w-8 h-8 rounded-lg text-xs font-semibold text-neutral-500 hover:text-white bg-neutral-900 border border-neutral-800 transition";
+    btn.addEventListener("click", () => {
+      prevLogsPage = p;
+      renderPreviousLogsPage();
+    });
+    pageNumContainer.appendChild(btn);
+  }
 }
+
+// Pagination button handlers
+document.getElementById("prev-logs-first").addEventListener("click", () => { prevLogsPage = 1; renderPreviousLogsPage(); });
+document.getElementById("prev-logs-prev").addEventListener("click", () => { prevLogsPage--; renderPreviousLogsPage(); });
+document.getElementById("prev-logs-next").addEventListener("click", () => { prevLogsPage++; renderPreviousLogsPage(); });
+document.getElementById("prev-logs-last").addEventListener("click", () => { prevLogsPage = Math.ceil(filteredPreviousEntries.length / PREV_LOGS_PER_PAGE); renderPreviousLogsPage(); });
+
+// Search handler for previous logs
+document.getElementById("prev-logs-search").addEventListener("input", () => {
+  prevLogsPage = 1;
+  filterAndRenderPreviousLogs();
+});
+
+// Sort dropdown handler
+document.getElementById("prev-logs-sort").addEventListener("change", (e) => {
+  prevLogsSortKey = e.target.value;
+  prevLogsPage = 1;
+  filterAndRenderPreviousLogs();
+});
+
+// Clickable sort headers
+document.querySelectorAll(".prev-sort-header").forEach((th) => {
+  th.addEventListener("click", () => {
+    const col = th.dataset.sort;
+    const sortMap = { date: "date", name: "name", timein: "date", timeout: "date", duration: "duration" };
+    const base = sortMap[col] || "date";
+    const currentBase = prevLogsSortKey.replace(/-asc$|-desc$/, "");
+    const currentDir = prevLogsSortKey.endsWith("-asc") ? "asc" : "desc";
+    const newDir = (currentBase === base && currentDir === "desc") ? "asc" : "desc";
+    prevLogsSortKey = `${base}-${newDir}`;
+    document.getElementById("prev-logs-sort").value = prevLogsSortKey;
+    prevLogsPage = 1;
+    filterAndRenderPreviousLogs();
+  });
+});
+
+// =============================
+// Download XLSX
+// =============================
+document.getElementById("download-xlsx-btn").addEventListener("click", async () => {
+  const btn = document.getElementById("download-xlsx-btn");
+  btn.disabled = true;
+  btn.classList.add("opacity-50", "pointer-events-none");
+
+  try {
+    // Use allPreviousEntries if loaded, otherwise fetch fresh
+    let entries = allPreviousEntries;
+    if (entries.length === 0) {
+      const snap = await db.ref("logs").once("value");
+      const allDates = snap.val() || {};
+      entries = [];
+      Object.entries(allDates).forEach(([date, dateLogs]) => {
+        Object.entries(dateLogs).forEach(([key, log]) => {
+          if (log.status === "pending") return;
+          entries.push({ key, date, ...log });
+        });
+      });
+    }
+
+    // Sort by date desc, then timeIn desc
+    entries.sort((a, b) => {
+      if (a.date !== b.date) return b.date.localeCompare(a.date);
+      return (b.timeIn || "").localeCompare(a.timeIn || "");
+    });
+
+    // Build sheet data
+    const rows = entries.map((log) => ({
+      Date: log.date,
+      Volunteer: log.name || "",
+      Segment: log.segment || "",
+      Role: log.role || "",
+      Comms: log.commsId || "",
+      "Seg ID": log.numberedId || "",
+      "Time In": log.timeIn ? new Date(log.timeIn).toLocaleTimeString([], { hour: "2-digit", minute: "2-digit" }) : "",
+      "Time Out": log.timeOut ? new Date(log.timeOut).toLocaleTimeString([], { hour: "2-digit", minute: "2-digit" }) : "",
+      Duration: calcDuration(log),
+    }));
+
+    const ws = XLSX.utils.json_to_sheet(rows);
+    const wb = XLSX.utils.book_new();
+    XLSX.utils.book_append_sheet(wb, ws, "Logs");
+
+    // Auto-size columns
+    const colWidths = Object.keys(rows[0] || {}).map((key) => {
+      const maxLen = Math.max(key.length, ...rows.map((r) => String(r[key] || "").length));
+      return { wch: Math.min(maxLen + 2, 30) };
+    });
+    ws["!cols"] = colWidths;
+
+    XLSX.writeFile(wb, `LiveProd_Logs_${todayDate}.xlsx`);
+    showToast(`Downloaded ${rows.length} records`, "download", "text-green-400");
+  } catch (err) {
+    console.error("XLSX download error:", err);
+    showToast("Failed to download", "error", "text-red-400");
+  } finally {
+    btn.disabled = false;
+    btn.classList.remove("opacity-50", "pointer-events-none");
+  }
+});
 
 // Load previous logs on page load
 loadPreviousLogs();

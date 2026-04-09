@@ -3,7 +3,8 @@
 // ═══════════════════════════════════════
 
 import { initializeApp } from "https://www.gstatic.com/firebasejs/11.0.2/firebase-app.js";
-import { getDatabase, ref, set, onValue } from "https://www.gstatic.com/firebasejs/11.0.2/firebase-database.js";
+import { getAuth, GoogleAuthProvider, signInWithPopup, onAuthStateChanged, signOut } from "https://www.gstatic.com/firebasejs/11.0.2/firebase-auth.js";
+import { getDatabase, ref, set, get, update, onValue, onDisconnect, serverTimestamp, remove } from "https://www.gstatic.com/firebasejs/11.0.2/firebase-database.js";
 
 const firebaseConfig = {
   apiKey: "AIzaSyB8ahT56WbEUaGAymsRNNA-DrfZnUnWIwk",
@@ -16,6 +17,8 @@ const firebaseConfig = {
 };
 const fbApp = initializeApp(firebaseConfig);
 const db = getDatabase(fbApp);
+const auth = getAuth(fbApp);
+const ALLOWED_EMAILS = ["charliecayno@gmail.com", "kasromantico@gmail.com"];
 
 const GEMINI_PROXY = "https://gemini-proxy-668755364170.asia-southeast1.run.app";
 const WEDDING_DATE = new Date("2026-07-02T00:00:00+08:00");
@@ -278,6 +281,233 @@ $("settings-close").addEventListener("click", closeSettings);
 settingsBackdrop.addEventListener("click", closeSettings);
 
 // ═══════════════════════════════════════
+//  PLAY MODE + IDENTITY + REMOTE
+// ═══════════════════════════════════════
+let playMode = localStorage.getItem("tayo_playmode") || "together"; // "together" | "remote"
+let myIdentity = localStorage.getItem("tayo_identity") || "charlie"; // "charlie" | "karla"
+let currentUser = null;
+let partnerOnline = false;
+let remoteListeners = [];
+
+// Play mode toggle
+const playModeToggle = $("play-mode-toggle");
+const playModeHint = $("play-mode-hint");
+const identitySection = $("identity-section");
+const remoteSection = $("remote-section");
+
+function setPlayMode(mode) {
+  playMode = mode;
+  localStorage.setItem("tayo_playmode", mode);
+  playModeToggle.classList.toggle("right", mode === "remote");
+  playModeToggle.querySelectorAll(".settings-toggle-btn").forEach((b) => {
+    b.classList.toggle("active", b.dataset.playmode === mode);
+  });
+  if (mode === "together") {
+    playModeHint.textContent = "Same device — pass the phone";
+    identitySection.classList.add("hidden");
+    remoteSection.classList.add("hidden");
+    $("partner-dot").classList.add("hidden");
+    cleanupRemote();
+  } else {
+    playModeHint.textContent = "Separate devices — real-time sync";
+    identitySection.classList.add("hidden");
+    remoteSection.classList.remove("hidden");
+    initRemote();
+  }
+}
+
+playModeToggle.addEventListener("click", (e) => {
+  const btn = e.target.closest(".settings-toggle-btn");
+  if (!btn) return;
+  setPlayMode(btn.dataset.playmode);
+  playTap();
+});
+
+// Identity toggle (together mode)
+const identityToggle = $("identity-toggle");
+function setIdentity(id) {
+  myIdentity = id;
+  localStorage.setItem("tayo_identity", id);
+  identityToggle.classList.toggle("right", id === "karla");
+  identityToggle.querySelectorAll(".settings-toggle-btn").forEach((b) => {
+    b.classList.toggle("active", b.dataset.identity === id);
+  });
+}
+
+identityToggle.addEventListener("click", (e) => {
+  const btn = e.target.closest(".settings-toggle-btn");
+  if (!btn) return;
+  setIdentity(btn.dataset.identity);
+  playTap();
+});
+
+// Init from saved state
+setPlayMode(playMode);
+setIdentity(myIdentity);
+
+// ═══════════════════════════════════════
+//  REMOTE — Google Sign-In + Presence
+// ═══════════════════════════════════════
+$("btn-google-signin").addEventListener("click", async () => {
+  try {
+    const provider = new GoogleAuthProvider();
+    const result = await signInWithPopup(auth, provider);
+    if (!ALLOWED_EMAILS.includes(result.user.email)) {
+      await signOut(auth);
+      $("remote-status").textContent = "This app is just for Charlie & Karla.";
+      return;
+    }
+  } catch (e) {
+    $("remote-status").textContent = "Sign-in failed. Try again.";
+  }
+});
+
+onAuthStateChanged(auth, (user) => {
+  if (user && ALLOWED_EMAILS.includes(user.email)) {
+    currentUser = user;
+    myIdentity = user.email === "charliecayno@gmail.com" ? "charlie" : "karla";
+    if (playMode === "remote") initRemote();
+  } else {
+    currentUser = null;
+    if (playMode === "remote") {
+      $("remote-status").textContent = "";
+      $("partner-status").textContent = "";
+    }
+  }
+});
+
+$("logout-btn").addEventListener("click", async () => {
+  if (currentUser) {
+    set(ref(db, `tayo/presence/${myIdentity}`), { online: false, lastSeen: Date.now() });
+  }
+  await signOut(auth);
+  currentUser = null;
+  cleanupRemote();
+  $("remote-signin-card").classList.remove("hidden");
+  $("remote-status-card").classList.add("hidden");
+  $("partner-dot").classList.add("hidden");
+});
+
+function initRemote() {
+  if (!currentUser) {
+    $("remote-signin-card").classList.remove("hidden");
+    $("remote-status-card").classList.add("hidden");
+    return;
+  }
+
+  $("remote-signin-card").classList.add("hidden");
+  $("remote-status-card").classList.remove("hidden");
+  const name = myIdentity === "charlie" ? "Charlie" : "Karla";
+  $("remote-avatar").textContent = name[0];
+  $("remote-user-name").textContent = name;
+  $("remote-user-email").textContent = currentUser.email;
+
+  // Presence
+  const myPresRef = ref(db, `tayo/presence/${myIdentity}`);
+  set(myPresRef, { online: true, lastSeen: Date.now() });
+  onDisconnect(myPresRef).set({ online: false, lastSeen: serverTimestamp() });
+
+  // Listen to partner
+  const partnerId = myIdentity === "charlie" ? "karla" : "charlie";
+  const partnerRef = ref(db, `tayo/presence/${partnerId}`);
+  const unsub = onValue(partnerRef, (snap) => {
+    const data = snap.val();
+    partnerOnline = data?.online === true;
+    // Topbar dot
+    const dot = $("partner-dot");
+    dot.classList.remove("hidden");
+    dot.classList.toggle("offline", !partnerOnline);
+    // Settings card
+    const pDot = $("remote-partner-dot");
+    const pText = $("remote-partner-text");
+    const pName = partnerId === "charlie" ? "Charlie" : "Karla";
+    pDot.classList.toggle("online", partnerOnline);
+    pText.textContent = partnerOnline ? `${pName} is online` : `${pName} is offline`;
+  });
+  remoteListeners.push(unsub);
+
+  // Listen for remote session (partner started a question)
+  const sessionRef = ref(db, "tayo/remote/session");
+  const unsub2 = onValue(sessionRef, (snap) => {
+    const session = snap.val();
+    if (!session || session.startedBy === myIdentity) return;
+
+    // Partner started a question — show it on our device too
+    if (session.state === "thinking") {
+      setCreatureState("thinking");
+      creatureGlow.classList.add("active");
+      bubble.classList.remove("show");
+      setTimeout(playThinkOink, 400);
+    } else if (session.state === "revealed" && session.data) {
+      setCreatureState(null);
+      creatureGlow.classList.remove("active");
+      currentTopicLabel = session.topicLabel || "";
+      const topicEl = $("bubble-topic");
+      if (topicEl) {
+        topicEl.textContent = currentTopicLabel;
+        topicEl.style.setProperty("--vibe-color", session.vibeColor || "#998e8e");
+      }
+      revealBubble(session.data);
+    }
+  });
+  remoteListeners.push(unsub2);
+
+  // Listen for remote quiz answers (race mode)
+  const answersRef = ref(db, "tayo/remote/quizAnswers");
+  const unsub3 = onValue(answersRef, (snap) => {
+    const answers = snap.val();
+    if (!answers) return;
+    // This is handled inside setupQuizRemote
+  });
+  remoteListeners.push(unsub3);
+
+  // Listen for remote question answers (reveal together)
+  const qAnswersRef = ref(db, "tayo/remote/questionAnswers");
+  const unsub4 = onValue(qAnswersRef, (snap) => {
+    const answers = snap.val();
+    if (!answers) return;
+    // Check if both answered — reveal
+    if (answers.charlie && answers.karla) {
+      $("remote-waiting").classList.add("hidden");
+      const reveal = $("remote-reveal");
+      $("reveal-charlie").textContent = answers.charlie;
+      $("reveal-karla").textContent = answers.karla;
+      reveal.classList.remove("hidden");
+      creatureCelebrate();
+
+      // Save to journal
+      saveToJournalDirect(answers.question, answers.charlie, answers.karla);
+
+      // Clear after 8s
+      setTimeout(() => {
+        reveal.classList.add("hidden");
+        remove(qAnswersRef);
+      }, 8000);
+    } else if (answers[myIdentity]) {
+      // We answered, waiting for partner
+      $("remote-waiting").classList.remove("hidden");
+      $("remote-waiting").textContent = `Waiting for ${myIdentity === "charlie" ? "Karla" : "Charlie"}...`;
+    }
+  });
+  remoteListeners.push(unsub4);
+}
+
+function cleanupRemote() {
+  remoteListeners.forEach((unsub) => { if (typeof unsub === "function") unsub(); });
+  remoteListeners = [];
+  $("partner-dot").classList.add("hidden");
+}
+
+function saveToJournalDirect(question, charlieAnswer, karlaAnswer) {
+  const JOURNAL_KEY = "tayo_journal";
+  let journal = JSON.parse(localStorage.getItem(JOURNAL_KEY) || "[]");
+  journal.unshift({ question, charlie: charlieAnswer, karla: karlaAnswer, time: Date.now() });
+  if (journal.length > 200) journal = journal.slice(0, 200);
+  localStorage.setItem(JOURNAL_KEY, JSON.stringify(journal));
+  syncJournalToFirebase();
+}
+
+// ═══════════════════════════════════════
 //  PIG — Eye tracking
 // ═══════════════════════════════════════
 const leftEye = document.querySelector(".left-eye");
@@ -306,7 +536,21 @@ function trackEyes(cx, cy) {
 // ═══════════════════════════════════════
 //  PIG — Tap to ask
 // ═══════════════════════════════════════
-$("creature").addEventListener("click", () => { playOink(); askAI(); });
+$("creature").addEventListener("click", () => {
+  // Remote mode: block if partner is offline
+  if (playMode === "remote" && currentUser && !partnerOnline) {
+    playTap();
+    // Show a temporary message
+    const hint = $("tap-hint");
+    hint.textContent = myIdentity === "charlie" ? "Karla is offline..." : "Charlie is offline...";
+    hint.style.display = "";
+    hint.style.opacity = "1";
+    setTimeout(() => { hint.style.opacity = "0"; }, 2000);
+    return;
+  }
+  playOink();
+  askAI();
+});
 
 function setCreatureState(state) {
   creatureBody.classList.remove("thinking", "happy", "sad");
@@ -457,7 +701,21 @@ function setupQuiz(data) {
     btn.textContent = choice;
     btn.addEventListener("click", () => {
       if (revealed) return;
-      const first = charliePick === null && karlaPick === null;
+
+      if (playMode === "remote" && currentUser) {
+        // Remote race mode — save my pick to Firebase
+        update(ref(db, "tayo/remote/quizAnswers"), {
+          [myIdentity]: { pick: i, time: Date.now() },
+        });
+        // Disable all choices for me
+        choicesEl.querySelectorAll(".quiz-choice").forEach((b) => { b.style.pointerEvents = "none"; b.style.opacity = "0.6"; });
+        btn.style.opacity = "1";
+        btn.classList.add(myIdentity === "charlie" ? "selected-charlie" : "selected-karla");
+        playSelect();
+        return;
+      }
+
+      // Together mode — normal turn-based
       if (currentPicker === "charlie") {
         charliePick = i;
         currentPicker = karlaPick === null ? "karla" : "done";
@@ -468,7 +726,6 @@ function setupQuiz(data) {
       playSelect();
       renderChoiceState();
       renderPicks();
-      // Flash the turn switch
       if (currentPicker !== "done") {
         const label = picksEl.querySelector(".quiz-turn-label");
         if (label) {
@@ -554,6 +811,36 @@ function setupQuiz(data) {
 
   renderPicks();
   updateScoreboard();
+
+  // Remote race mode — listen for both answers
+  if (playMode === "remote" && currentUser) {
+    picksEl.innerHTML = '<span class="quiz-turn-label">Race! Pick your answer</span>';
+    const quizAnswersRef = ref(db, "tayo/remote/quizAnswers");
+    const unsubQuiz = onValue(quizAnswersRef, (snap) => {
+      const answers = snap.val();
+      if (!answers) return;
+      const cAnswer = answers.charlie;
+      const kAnswer = answers.karla;
+
+      // Update visual for partner's pick
+      if (cAnswer) charliePick = cAnswer.pick;
+      if (kAnswer) karlaPick = kAnswer.pick;
+      renderChoiceState();
+
+      // Both answered — reveal with "First!" badge
+      if (cAnswer && kAnswer && !revealed) {
+        const charlieFirst = cAnswer.time <= kAnswer.time;
+        setTimeout(() => {
+          revealAnswer();
+          // Add "First!" badge
+          const firstPerson = charlieFirst ? "Charlie" : "Karla";
+          const resultEl = $("quiz-result");
+          resultEl.innerHTML += `<br><span style="font-size:0.6rem;opacity:0.7">${firstPerson} answered first! ⚡</span>`;
+        }, 600);
+      }
+    });
+    remoteListeners.push(unsubQuiz);
+  }
 }
 
 // ═══════════════════════════════════════
@@ -823,7 +1110,16 @@ async function askAI() {
   creatureGlow.classList.add("active");
   bubble.classList.remove("show");
   answerArea.classList.remove("show");
+  $("remote-reveal").classList.add("hidden");
+  $("remote-waiting").classList.add("hidden");
   setTimeout(playThinkOink, 400);
+
+  // Remote: broadcast thinking state
+  if (playMode === "remote" && currentUser) {
+    set(ref(db, "tayo/remote/session"), { state: "thinking", startedBy: myIdentity, time: Date.now() });
+    remove(ref(db, "tayo/remote/quizAnswers"));
+    remove(ref(db, "tayo/remote/questionAnswers"));
+  }
   const tapHint = $("tap-hint");
   if (tapHint) tapHint.style.display = "none";
 
@@ -891,6 +1187,19 @@ async function askAI() {
   creatureGlow.classList.remove("active");
 
   currentQuestion = parsed.question;
+
+  // Remote: broadcast question to partner
+  if (playMode === "remote" && currentUser) {
+    set(ref(db, "tayo/remote/session"), {
+      state: "revealed",
+      startedBy: myIdentity,
+      data: parsed,
+      topicLabel: currentTopicLabel,
+      vibeColor: VIBE_COLORS[activeVibe] || "#f59e0b",
+      time: Date.now(),
+    });
+  }
+
   await revealBubble(parsed);
   isGenerating = false;
 }
@@ -975,13 +1284,23 @@ let recognition = null;
 let isRecording = false;
 
 function showAnswerArea() {
-  currentWho = "charlie";
+  if (playMode === "remote") {
+    // Remote: no tabs, just show text input for my answer
+    currentWho = myIdentity;
+    document.querySelector(".answer-who").classList.add("hidden");
+  } else {
+    currentWho = "charlie";
+    document.querySelector(".answer-who").classList.remove("hidden");
+    tabCharlie.classList.add("active");
+    tabCharlie.classList.remove("has-answer");
+    tabKarla.classList.remove("active", "has-answer");
+    answerWho.classList.remove("karla-active");
+  }
   answerText.textContent = "";
   savedAnswers.innerHTML = "";
-  tabCharlie.classList.add("active");
-  tabCharlie.classList.remove("has-answer");
-  tabKarla.classList.remove("active", "has-answer");
   saveBtn.classList.remove("ready");
+  $("remote-waiting").classList.add("hidden");
+  $("remote-reveal").classList.add("hidden");
   answerArea.classList.add("show");
 }
 
@@ -1009,24 +1328,38 @@ saveBtn.addEventListener("click", () => {
   const text = answerText.textContent.trim();
   if (!text) return;
   playSelect();
-  currentAnswers[currentWho] = text;
-  if (currentWho === "charlie") tabCharlie.classList.add("has-answer");
-  else tabKarla.classList.add("has-answer");
-  renderSavedAnswers();
-  answerText.textContent = "";
-  saveBtn.classList.remove("ready");
 
-  const other = currentWho === "charlie" ? "karla" : "charlie";
-  if (!currentAnswers[other]) {
-    currentWho = other;
-    tabCharlie.classList.toggle("active", currentWho === "charlie");
-    tabKarla.classList.toggle("active", currentWho === "karla");
-    answerWho.classList.toggle("karla-active", currentWho === "karla");
-  }
+  if (playMode === "remote" && currentUser) {
+    // Remote: save my answer to Firebase, wait for partner
+    update(ref(db, "tayo/remote/questionAnswers"), {
+      [myIdentity]: text,
+      question: currentQuestion,
+    });
+    answerText.textContent = "";
+    saveBtn.classList.remove("ready");
+    $("remote-waiting").classList.remove("hidden");
+    $("remote-waiting").textContent = `Waiting for ${myIdentity === "charlie" ? "Karla" : "Charlie"}...`;
+  } else {
+    // Together mode: normal flow
+    currentAnswers[currentWho] = text;
+    if (currentWho === "charlie") tabCharlie.classList.add("has-answer");
+    else tabKarla.classList.add("has-answer");
+    renderSavedAnswers();
+    answerText.textContent = "";
+    saveBtn.classList.remove("ready");
 
-  if (currentAnswers.charlie && currentAnswers.karla) {
-    saveToJournal();
-    creatureCelebrate();
+    const other = currentWho === "charlie" ? "karla" : "charlie";
+    if (!currentAnswers[other]) {
+      currentWho = other;
+      tabCharlie.classList.toggle("active", currentWho === "charlie");
+      tabKarla.classList.toggle("active", currentWho === "karla");
+      answerWho.classList.toggle("karla-active", currentWho === "karla");
+    }
+
+    if (currentAnswers.charlie && currentAnswers.karla) {
+      saveToJournal();
+      creatureCelebrate();
+    }
   }
 });
 
@@ -1099,6 +1432,7 @@ function saveQuizToJournal(data) {
   });
   if (journal.length > 200) journal = journal.slice(0, 200);
   localStorage.setItem(JOURNAL_KEY, JSON.stringify(journal));
+  syncJournalToFirebase();
 }
 
 function saveToJournal() {
@@ -1112,46 +1446,111 @@ function saveToJournal() {
   });
   if (journal.length > 200) journal = journal.slice(0, 200);
   localStorage.setItem(JOURNAL_KEY, JSON.stringify(journal));
+  syncJournalToFirebase();
 }
 
 // ═══════════════════════════════════════
 //  HISTORY / JOURNAL
 // ═══════════════════════════════════════
+// Save journal to Firebase
+function syncJournalToFirebase() {
+  const journal = JSON.parse(localStorage.getItem("tayo_journal") || "[]");
+  set(ref(db, "tayo/journal"), journal);
+}
+
+// Load journal from Firebase on start
+onValue(ref(db, "tayo/journal"), (snap) => {
+  const data = snap.val();
+  if (data && Array.isArray(data)) {
+    localStorage.setItem("tayo_journal", JSON.stringify(data));
+  }
+}, { onlyOnce: true });
+
 $("journal-hint").addEventListener("click", () => {
   const panel = $("journal");
   const list = $("journal-list");
   const journal = JSON.parse(localStorage.getItem("tayo_journal") || "[]");
   if (!journal.length) {
     list.innerHTML = '<p class="journal-empty">No entries yet. Answer some questions together!</p>';
+    $("journal-subtitle").textContent = "";
   } else {
     $("journal-subtitle").textContent = `${journal.length} conversation${journal.length !== 1 ? "s" : ""}`;
-    list.innerHTML = journal.map((e) => {
+    list.innerHTML = journal.map((e, idx) => {
+      const deleteBtn = `<button class="je-delete" data-idx="${idx}"><span class="material-symbols-rounded">delete</span></button>`;
       if (e.type === "quiz") {
         const correctAnswer = e.choices?.[e.correct] || "?";
+        const cRight = e.charlieRight;
+        const kRight = e.karlaRight;
         return `
           <div class="journal-entry">
-            <div class="je-type">Quiz</div>
-            <div class="je-question">${e.question}</div>
-            <div class="je-quiz-answer">Answer: ${correctAnswer}</div>
-            <div class="je-quiz-results">
-              <span class="je-pick ${e.charlieRight ? 'correct' : 'wrong'}">C: ${e.choices?.[e.charliePick] || "?"} ${e.charlieRight ? "✓" : "✗"}</span>
-              <span class="je-pick ${e.karlaRight ? 'correct' : 'wrong'}">K: ${e.choices?.[e.karlaPick] || "?"} ${e.karlaRight ? "✓" : "✗"}</span>
+            ${deleteBtn}
+            <div class="je-header">
+              <span class="je-icon"><span class="material-symbols-rounded">quiz</span></span>
+              <span class="je-type-label">Quiz</span>
+              <span class="je-time">${timeAgo(e.time)}</span>
             </div>
-            <div class="je-time">${timeAgo(e.time)}</div>
+            <div class="je-question">${e.question}</div>
+            <div class="je-correct">
+              <span class="material-symbols-rounded je-correct-icon">check_circle</span>
+              ${correctAnswer}
+            </div>
+            <div class="je-picks">
+              <div class="je-pick-card ${cRight ? 'correct' : 'wrong'}">
+                <span class="je-pick-name">Charlie</span>
+                <span class="je-pick-answer">${e.choices?.[e.charliePick] || "?"}</span>
+                <span class="material-symbols-rounded je-pick-icon">${cRight ? "check" : "close"}</span>
+              </div>
+              <div class="je-pick-card ${kRight ? 'correct' : 'wrong'}">
+                <span class="je-pick-name">Karla</span>
+                <span class="je-pick-answer">${e.choices?.[e.karlaPick] || "?"}</span>
+                <span class="material-symbols-rounded je-pick-icon">${kRight ? "check" : "close"}</span>
+              </div>
+            </div>
           </div>
         `;
       }
       return `
         <div class="journal-entry">
-          <div class="je-type">Question</div>
+          ${deleteBtn}
+          <div class="je-header">
+            <span class="je-icon"><span class="material-symbols-rounded">chat_bubble</span></span>
+            <span class="je-type-label">Question</span>
+            <span class="je-time">${timeAgo(e.time)}</span>
+          </div>
           <div class="je-question">${e.question}</div>
-          ${e.charlie ? `<div class="je-answer"><span class="je-who">Charlie</span><span class="je-text">${e.charlie}</span></div>` : ""}
-          ${e.karla ? `<div class="je-answer"><span class="je-who">Karla</span><span class="je-text">${e.karla}</span></div>` : ""}
-          <div class="je-time">${timeAgo(e.time)}</div>
+          ${e.charlie ? `
+            <div class="je-answer-card">
+              <span class="je-answer-name">Charlie</span>
+              <span class="je-answer-text">${e.charlie}</span>
+            </div>` : ""}
+          ${e.karla ? `
+            <div class="je-answer-card">
+              <span class="je-answer-name">Karla</span>
+              <span class="je-answer-text">${e.karla}</span>
+            </div>` : ""}
         </div>
       `;
     }).join("");
   }
+  // Delete handlers
+  list.querySelectorAll(".je-delete").forEach((btn) => {
+    btn.addEventListener("click", (e) => {
+      e.stopPropagation();
+      const idx = parseInt(btn.dataset.idx);
+      const journal = JSON.parse(localStorage.getItem("tayo_journal") || "[]");
+      journal.splice(idx, 1);
+      localStorage.setItem("tayo_journal", JSON.stringify(journal));
+      syncJournalToFirebase();
+      // Re-render
+      btn.closest(".journal-entry").style.transition = "opacity 0.3s, transform 0.3s";
+      btn.closest(".journal-entry").style.opacity = "0";
+      btn.closest(".journal-entry").style.transform = "translateX(30px)";
+      setTimeout(() => {
+        $("journal-hint").click(); // Re-open to refresh
+      }, 300);
+    });
+  });
+
   panel.classList.add("open");
 });
 
