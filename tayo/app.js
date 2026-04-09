@@ -5,7 +5,7 @@
 import { initializeApp } from "https://www.gstatic.com/firebasejs/11.0.2/firebase-app.js";
 import { getAuth, GoogleAuthProvider, signInWithPopup, onAuthStateChanged, signOut } from "https://www.gstatic.com/firebasejs/11.0.2/firebase-auth.js";
 import { getDatabase, ref, set, get, update, onValue, onDisconnect, serverTimestamp, remove } from "https://www.gstatic.com/firebasejs/11.0.2/firebase-database.js";
-import { getStorage, ref as storageRef, uploadBytes, getDownloadURL } from "https://www.gstatic.com/firebasejs/11.0.2/firebase-storage.js";
+import { getStorage, ref as storageRef, uploadBytes, getDownloadURL, deleteObject } from "https://www.gstatic.com/firebasejs/11.0.2/firebase-storage.js";
 
 const firebaseConfig = {
   apiKey: "AIzaSyB8ahT56WbEUaGAymsRNNA-DrfZnUnWIwk",
@@ -935,8 +935,14 @@ JSON format:
 { "question": "..." }`;
   }
 
+  const partnerName = myIdentity === "charlie" ? "Karla" : "Charlie";
+  const myName = myIdentity === "charlie" ? "Charlie" : "Karla";
+
   if (playMode === "solo") {
-    modeBlock = `MODE: SOLO — a reflective question for one person to think about and answer on their own. Frame it as "you/your" not "we/us". It's personal reflection time.
+    modeBlock = `MODE: SOLO — You are talking to ${myName}. Their partner is ${partnerName}.
+Ask a personal reflective question addressed to ${myName} about ${partnerName}, their relationship, or their own life.
+Use "you" for ${myName} and "${partnerName}" by name. Example: "What's one thing ${partnerName} does that always makes you smile?"
+Make it feel intimate and personal — this is ${myName}'s alone time to reflect.
 
 JSON format:
 { "question": "..." }`;
@@ -1406,6 +1412,23 @@ function updateSaveBtn() {
 }
 
 saveBtn.addEventListener("click", async () => {
+  // If still recording, stop and wait for blob
+  if (mediaRecorder && mediaRecorder.state === "recording") {
+    await new Promise((resolve) => {
+      mediaRecorder.onstop = () => {
+        mediaRecorder.stream.getTracks().forEach((t) => t.stop());
+        cancelAnimationFrame(liveWaveRAF);
+        clearInterval(recordTimerInterval);
+        recordingBlob = new Blob(audioChunks, { type: "audio/webm" });
+        recordingURL = URL.createObjectURL(recordingBlob);
+        voiceBtn.classList.remove("hidden");
+        voiceRecording.classList.add("hidden");
+        resolve();
+      };
+      mediaRecorder.stop();
+    });
+  }
+
   const text = answerText.textContent.trim();
   if (!text && !recordingBlob) return;
   playSelect();
@@ -1425,8 +1448,9 @@ saveBtn.addEventListener("click", async () => {
       type: "solo",
       question: currentQuestion,
       who: myIdentity,
-      answer: text || (voiceURL ? "🎤 Voice message" : ""),
+      answer: text || "",
       voiceURL: voiceURL || null,
+      voiceDuration: voiceURL ? recordDuration : null,
       time: Date.now(),
     });
     if (journal.length > 200) journal = journal.slice(0, 200);
@@ -1459,7 +1483,7 @@ saveBtn.addEventListener("click", async () => {
       } catch (e) { /* silent */ }
       saveBtn.textContent = "Save";
     }
-    currentAnswers[currentWho] = text || (voiceURL ? "🎤 Voice message" : "");
+    currentAnswers[currentWho] = text || (voiceURL ? "Voice message" : "");
     if (voiceURL) {
       if (!currentAnswers._voices) currentAnswers._voices = {};
       currentAnswers._voices[currentWho] = voiceURL;
@@ -1502,13 +1526,16 @@ function renderSavedAnswers() {
 //  VOICE RECORDING
 // ═══════════════════════════════════════
 const voiceBtn = $("voice-btn");
-const voiceLabel = $("voice-label");
+const voiceRecording = $("voice-recording");
+const voiceStopBtn = $("voice-stop-btn");
+const voiceLiveWave = $("voice-live-wave");
 const voiceTimer = $("voice-timer");
 const voicePreview = $("voice-preview");
 const voiceAudio = $("voice-audio");
 const voicePlayBtn = $("voice-play-btn");
 const voiceDeleteBtn = $("voice-delete-btn");
 const voiceWaveform = $("voice-waveform");
+const voiceDur = $("voice-dur");
 
 let mediaRecorder = null;
 let audioChunks = [];
@@ -1516,24 +1543,32 @@ let recordingBlob = null;
 let recordingURL = null;
 let recordTimerInterval = null;
 let recordStartTime = 0;
+let recordDuration = 0;
+let analyser = null;
+let liveWaveRAF = null;
+const VOICE_MAX_SECONDS = 30;
 
-voiceBtn.addEventListener("click", () => {
-  if (mediaRecorder && mediaRecorder.state === "recording") {
-    stopVoiceRecording();
-  } else {
-    startVoiceRecording();
-  }
-});
+voiceBtn.addEventListener("click", startVoiceRecording);
+voiceStopBtn.addEventListener("click", stopVoiceRecording);
 
 async function startVoiceRecording() {
   try {
     const stream = await navigator.mediaDevices.getUserMedia({ audio: true });
+
+    // Set up analyser for live waveform
+    const ctx = getAudio();
+    const source = ctx.createMediaStreamSource(stream);
+    analyser = ctx.createAnalyser();
+    analyser.fftSize = 64;
+    source.connect(analyser);
+
     mediaRecorder = new MediaRecorder(stream, { mimeType: "audio/webm;codecs=opus" });
     audioChunks = [];
 
     mediaRecorder.ondataavailable = (e) => { if (e.data.size > 0) audioChunks.push(e.data); };
     mediaRecorder.onstop = () => {
       stream.getTracks().forEach((t) => t.stop());
+      cancelAnimationFrame(liveWaveRAF);
       recordingBlob = new Blob(audioChunks, { type: "audio/webm" });
       recordingURL = URL.createObjectURL(recordingBlob);
       voiceAudio.src = recordingURL;
@@ -1542,18 +1577,47 @@ async function startVoiceRecording() {
     };
 
     mediaRecorder.start();
-    voiceBtn.classList.add("recording");
+
+    // UI: switch to recording state
+    voiceBtn.classList.add("hidden");
+    voiceRecording.classList.remove("hidden");
     voicePreview.classList.add("hidden");
+    saveBtn.classList.add("ready");
+
+    // Build live bars
+    voiceLiveWave.innerHTML = "";
+    const barCount = 24;
+    for (let i = 0; i < barCount; i++) {
+      const bar = document.createElement("div");
+      bar.className = "lbar";
+      bar.style.height = "3px";
+      voiceLiveWave.appendChild(bar);
+    }
+
+    // Animate live waveform
+    const dataArray = new Uint8Array(analyser.frequencyBinCount);
+    function drawLive() {
+      analyser.getByteFrequencyData(dataArray);
+      const bars = voiceLiveWave.querySelectorAll(".lbar");
+      bars.forEach((bar, i) => {
+        const val = dataArray[i % dataArray.length] / 255;
+        bar.style.height = `${3 + val * 18}px`;
+      });
+      liveWaveRAF = requestAnimationFrame(drawLive);
+    }
+    drawLive();
+
+    // Timer countdown
     recordStartTime = Date.now();
-    voiceTimer.textContent = "0:00";
+    recordDuration = 0;
+    voiceTimer.textContent = `0:${String(VOICE_MAX_SECONDS).padStart(2, "0")}`;
     recordTimerInterval = setInterval(() => {
       const elapsed = Math.floor((Date.now() - recordStartTime) / 1000);
-      const m = Math.floor(elapsed / 60);
-      const s = String(elapsed % 60).padStart(2, "0");
-      voiceTimer.textContent = `${m}:${s}`;
-      // Auto-stop at 30 seconds
-      if (elapsed >= 30) stopVoiceRecording();
-    }, 1000);
+      recordDuration = elapsed;
+      const left = Math.max(0, VOICE_MAX_SECONDS - elapsed);
+      voiceTimer.textContent = `0:${String(left).padStart(2, "0")}`;
+      if (elapsed >= VOICE_MAX_SECONDS) stopVoiceRecording();
+    }, 500);
 
     playTap();
   } catch (e) {
@@ -1565,20 +1629,46 @@ function stopVoiceRecording() {
   if (mediaRecorder && mediaRecorder.state === "recording") {
     mediaRecorder.stop();
   }
-  voiceBtn.classList.remove("recording");
+  cancelAnimationFrame(liveWaveRAF);
   clearInterval(recordTimerInterval);
+  voiceBtn.classList.remove("hidden");
+  voiceRecording.classList.add("hidden");
   playTap();
 }
 
-function showVoicePreview() {
+async function showVoicePreview() {
   voicePreview.classList.remove("hidden");
-  // Generate fake waveform bars
   voiceWaveform.innerHTML = "";
-  for (let i = 0; i < 20; i++) {
-    const bar = document.createElement("div");
-    bar.className = "bar";
-    bar.style.height = `${4 + Math.random() * 14}px`;
-    voiceWaveform.appendChild(bar);
+  voiceDur.textContent = `0:${String(Math.round(recordDuration)).padStart(2, "0")}`;
+
+  // Decode audio and extract real waveform
+  try {
+    const ctx = getAudio();
+    const arrayBuffer = await recordingBlob.arrayBuffer();
+    const audioBuffer = await ctx.decodeAudioData(arrayBuffer);
+    const rawData = audioBuffer.getChannelData(0);
+    const bars = 28;
+    const blockSize = Math.floor(rawData.length / bars);
+
+    for (let i = 0; i < bars; i++) {
+      let sum = 0;
+      for (let j = 0; j < blockSize; j++) {
+        sum += Math.abs(rawData[i * blockSize + j]);
+      }
+      const avg = sum / blockSize;
+      const height = Math.max(3, Math.min(18, avg * 80));
+      const bar = document.createElement("div");
+      bar.className = "bar";
+      bar.style.height = `${height}px`;
+      voiceWaveform.appendChild(bar);
+    }
+  } catch (e) {
+    for (let i = 0; i < 28; i++) {
+      const bar = document.createElement("div");
+      bar.className = "bar";
+      bar.style.height = `${3 + Math.random() * 14}px`;
+      voiceWaveform.appendChild(bar);
+    }
   }
 }
 
@@ -1689,8 +1779,21 @@ $("journal-hint").addEventListener("click", () => {
             <div class="je-question">${e.question}</div>
             <div class="je-answer-card">
               <span class="je-answer-name">${whoLabel}</span>
-              <span class="je-answer-text">${e.answer}</span>
-              ${e.voiceURL ? `<div class="je-voice-player"><button class="je-voice-play" onclick="this.nextElementSibling.paused?this.nextElementSibling.play():this.nextElementSibling.pause();this.querySelector('.material-symbols-rounded').textContent=this.nextElementSibling.paused?'play_arrow':'pause'"><span class="material-symbols-rounded">play_arrow</span></button><audio src="${e.voiceURL}" onended="this.previousElementSibling.querySelector('.material-symbols-rounded').textContent='play_arrow'"></audio></div>` : ""}
+              ${e.answer ? `<span class="je-answer-text">${e.answer}</span>` : ""}
+              ${e.voiceURL ? `
+              <div class="je-voice-player">
+                <button class="je-voice-play" onclick="const a=this.parentElement.querySelector('audio');if(a.paused){a.play();this.querySelector('.material-symbols-rounded').textContent='pause'}else{a.pause();this.querySelector('.material-symbols-rounded').textContent='play_arrow'}">
+                  <span class="material-symbols-rounded">play_arrow</span>
+                </button>
+                <div class="je-voice-bars">${Array.from({length:24},()=>`<div class="je-bar" style="height:${3+Math.random()*14}px"></div>`).join("")}</div>
+                <span class="je-voice-dur">${e.voiceDuration ? `0:${String(Math.round(e.voiceDuration)).padStart(2,"0")}` : "--"}</span>
+                <audio src="${e.voiceURL}"
+                  onloadedmetadata="const d=this.parentElement.querySelector('.je-voice-dur');if(d.textContent==='--'){const s=Math.round(this.duration);d.textContent='0:'+String(s).padStart(2,'0')}"
+                  ontimeupdate="const p=(this.currentTime/this.duration*100)||0;this.parentElement.style.setProperty('--progress',p+'%');const bars=this.parentElement.querySelectorAll('.je-bar');const played=Math.floor(bars.length*p/100);bars.forEach((b,i)=>b.style.opacity=i<played?'1':'0.35')"
+                  onended="this.parentElement.querySelector('.je-voice-play .material-symbols-rounded').textContent='play_arrow';this.parentElement.style.setProperty('--progress','0%');this.parentElement.querySelectorAll('.je-bar').forEach(b=>b.style.opacity='1')"
+                ></audio>
+              </div>
+              ` : ""}
             </div>
           </div>
         `;
@@ -1752,10 +1855,24 @@ $("journal-hint").addEventListener("click", () => {
   }
   // Delete handlers
   list.querySelectorAll(".je-delete").forEach((btn) => {
-    btn.addEventListener("click", (e) => {
+    btn.addEventListener("click", async (e) => {
       e.stopPropagation();
       const idx = parseInt(btn.dataset.idx);
       const journal = JSON.parse(localStorage.getItem("tayo_journal") || "[]");
+      const entry = journal[idx];
+
+      // Delete voice files from Firebase Storage
+      if (entry) {
+        const voiceURLs = [entry.voiceURL, entry.charlieVoiceURL, entry.karlaVoiceURL].filter(Boolean);
+        for (const url of voiceURLs) {
+          try {
+            // Extract path from Firebase Storage URL
+            const path = decodeURIComponent(url.split("/o/")[1]?.split("?")[0]);
+            if (path) await deleteObject(storageRef(storage, path));
+          } catch (err) { /* silent — file may already be deleted */ }
+        }
+      }
+
       journal.splice(idx, 1);
       localStorage.setItem("tayo_journal", JSON.stringify(journal));
       syncJournalToFirebase();

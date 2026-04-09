@@ -101,20 +101,30 @@
         <div class="answer-box" id="answer-box">
           <div class="answer-text" id="answer-text" contenteditable="true" data-placeholder="Type your answer..."></div>
           <div class="answer-controls">
+            <!-- Voice: idle state -->
             <button class="voice-btn" id="voice-btn">
               <span class="material-symbols-rounded voice-icon">mic</span>
-              <span class="voice-label" id="voice-label">Hold to record</span>
-              <span class="voice-timer hidden" id="voice-timer">0:00</span>
+              <span class="voice-label" id="voice-label">Record</span>
             </button>
+            <!-- Voice: recording state -->
+            <div class="voice-recording hidden" id="voice-recording">
+              <button class="voice-stop-btn" id="voice-stop-btn">
+                <span class="material-symbols-rounded" style="font-size:16px">stop</span>
+              </button>
+              <div class="voice-live-wave" id="voice-live-wave"></div>
+              <span class="voice-timer" id="voice-timer">0:30</span>
+            </div>
+            <!-- Voice: preview state -->
             <div class="voice-preview hidden" id="voice-preview">
-              <audio id="voice-audio" class="hidden"></audio>
               <button class="voice-play-btn" id="voice-play-btn">
                 <span class="material-symbols-rounded" style="font-size:16px">play_arrow</span>
               </button>
               <div class="voice-waveform" id="voice-waveform"></div>
+              <span class="voice-dur" id="voice-dur"></span>
               <button class="voice-delete-btn" id="voice-delete-btn">
                 <span class="material-symbols-rounded" style="font-size:14px">close</span>
               </button>
+              <audio id="voice-audio" class="hidden"></audio>
             </div>
             <button class="save-answer-btn" id="save-answer-btn">Save</button>
           </div>
