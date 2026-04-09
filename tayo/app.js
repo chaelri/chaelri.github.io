@@ -5,6 +5,7 @@
 import { initializeApp } from "https://www.gstatic.com/firebasejs/11.0.2/firebase-app.js";
 import { getAuth, GoogleAuthProvider, signInWithPopup, onAuthStateChanged, signOut } from "https://www.gstatic.com/firebasejs/11.0.2/firebase-auth.js";
 import { getDatabase, ref, set, get, update, onValue, onDisconnect, serverTimestamp, remove } from "https://www.gstatic.com/firebasejs/11.0.2/firebase-database.js";
+import { getStorage, ref as storageRef, uploadBytes, getDownloadURL } from "https://www.gstatic.com/firebasejs/11.0.2/firebase-storage.js";
 
 const firebaseConfig = {
   apiKey: "AIzaSyB8ahT56WbEUaGAymsRNNA-DrfZnUnWIwk",
@@ -18,6 +19,7 @@ const firebaseConfig = {
 const fbApp = initializeApp(firebaseConfig);
 const db = getDatabase(fbApp);
 const auth = getAuth(fbApp);
+const storage = getStorage(fbApp);
 const ALLOWED_EMAILS = ["charliecayno@gmail.com", "kasromantico@gmail.com"];
 
 const GEMINI_PROXY = "https://gemini-proxy-668755364170.asia-southeast1.run.app";
@@ -254,6 +256,7 @@ setTimeout(() => $("splash").classList.add("gone"), 2600);
 //  COUNTDOWN
 // ═══════════════════════════════════════
 function updateCountdown() {
+  if (!countdownEl) return;
   const diff = WEDDING_DATE - new Date();
   if (diff <= 0) { countdownEl.textContent = "Today is the day"; return; }
   const days = Math.floor(diff / 86400000);
@@ -298,19 +301,28 @@ const remoteSection = $("remote-section");
 function setPlayMode(mode) {
   playMode = mode;
   localStorage.setItem("tayo_playmode", mode);
-  playModeToggle.classList.toggle("right", mode === "remote");
+  // Pill position: solo=left, together=center, remote=right
+  playModeToggle.classList.remove("left", "right");
+  if (mode === "solo") playModeToggle.classList.add("left");
+  else if (mode === "remote") playModeToggle.classList.add("right");
   playModeToggle.querySelectorAll(".settings-toggle-btn").forEach((b) => {
     b.classList.toggle("active", b.dataset.playmode === mode);
   });
-  if (mode === "together") {
+  identitySection.classList.add("hidden");
+  remoteSection.classList.add("hidden");
+  $("partner-dot").classList.add("hidden");
+  cleanupRemote();
+
+  // Update topbar indicator
+  const pmLabel = $("current-playmode");
+  if (pmLabel) pmLabel.textContent = mode === "solo" ? "Solo" : mode === "together" ? "Together" : "Remote";
+
+  if (mode === "solo") {
+    playModeHint.textContent = "Just you — reflect on your own";
+  } else if (mode === "together") {
     playModeHint.textContent = "Same device — pass the phone";
-    identitySection.classList.add("hidden");
-    remoteSection.classList.add("hidden");
-    $("partner-dot").classList.add("hidden");
-    cleanupRemote();
   } else {
     playModeHint.textContent = "Separate devices — real-time sync";
-    identitySection.classList.add("hidden");
     remoteSection.classList.remove("hidden");
     initRemote();
   }
@@ -402,10 +414,20 @@ function initRemote() {
   $("remote-user-name").textContent = name;
   $("remote-user-email").textContent = currentUser.email;
 
-  // Presence
+  // Presence — online only when tab is visible
   const myPresRef = ref(db, `tayo/presence/${myIdentity}`);
-  set(myPresRef, { online: true, lastSeen: Date.now() });
+
+  function setOnline(isOnline) {
+    set(myPresRef, { online: isOnline, lastSeen: Date.now() });
+  }
+
+  setOnline(!document.hidden);
   onDisconnect(myPresRef).set({ online: false, lastSeen: serverTimestamp() });
+
+  // Track tab visibility
+  const visHandler = () => setOnline(!document.hidden);
+  document.addEventListener("visibilitychange", visHandler);
+  remoteListeners.push(() => document.removeEventListener("visibilitychange", visHandler));
 
   // Listen to partner
   const partnerId = myIdentity === "charlie" ? "karla" : "charlie";
@@ -809,6 +831,56 @@ function setupQuiz(data) {
     el.classList.remove("pop"); void el.offsetWidth; el.classList.add("pop");
   }
 
+  // Solo quiz — single player, no turns
+  if (playMode === "solo") {
+    picksEl.innerHTML = "";
+    charliePick = null;
+    karlaPick = null;
+    let soloPicked = false;
+
+    choices.forEach((choice, i) => {
+      const btn = choicesEl.children[i];
+      if (!btn) return;
+      // Replace click handler for solo
+      const newBtn = btn.cloneNode(true);
+      btn.replaceWith(newBtn);
+      newBtn.addEventListener("click", () => {
+        if (soloPicked) return;
+        soloPicked = true;
+        playSelect();
+
+        // Mark pick
+        if (myIdentity === "charlie") charliePick = i;
+        else karlaPick = i;
+
+        // Reveal immediately
+        choicesEl.querySelectorAll(".quiz-choice").forEach((b, j) => {
+          b.style.pointerEvents = "none";
+          b.classList.add(j === correct ? "correct" : "wrong");
+          if (j === i) b.classList.add(myIdentity === "charlie" ? "selected-charlie" : "selected-karla");
+        });
+
+        const isRight = i === correct;
+        if (isRight) { scores[myIdentity]++; popScore(myIdentity === "charlie" ? "score-charlie" : "score-karla"); }
+        const name = myIdentity === "charlie" ? "Charlie" : "Karla";
+        resultEl.innerHTML = `<strong>${isRight ? `${name} got it!` : "Wrong!"}</strong>${explanation ? "<br>" + explanation : ""}`;
+        resultEl.classList.add("show");
+        updateScoreboard();
+        if (isRight) creatureCelebrate(); else creatureSad();
+
+        if (quizDismissTimer) clearTimeout(quizDismissTimer);
+        quizDismissTimer = setTimeout(() => {
+          if (!isGenerating) { bubble.classList.remove("show"); $("quiz-area").classList.remove("show"); }
+          quizDismissTimer = null;
+        }, 10000);
+
+        saveQuizToJournal({ question: data.question, choices, correct, charliePick, karlaPick, explanation });
+      });
+    });
+    updateScoreboard();
+    return;
+  }
+
   renderPicks();
   updateScoreboard();
 
@@ -858,6 +930,13 @@ JSON format:
 { "question": "...", "choices": ["A", "B", "C", "D"], "correct": 0, "explanation": "short explanation why" }`;
   } else {
     modeBlock = `MODE: QUESTION — a conversation question they discuss face to face. No choices, no correct answer. Just a question to talk about.
+
+JSON format:
+{ "question": "..." }`;
+  }
+
+  if (playMode === "solo") {
+    modeBlock = `MODE: SOLO — a reflective question for one person to think about and answer on their own. Frame it as "you/your" not "we/us". It's personal reflection time.
 
 JSON format:
 { "question": "..." }`;
@@ -1245,8 +1324,8 @@ async function revealBubble(data) {
     }
   }
 
-  // Show answer area for question mode
-  if (currentMode === "question") {
+  // Show answer area for question mode or solo play mode
+  if (currentMode === "question" || playMode === "solo") {
     await sleep(300);
     showAnswerArea();
   }
@@ -1284,8 +1363,8 @@ let recognition = null;
 let isRecording = false;
 
 function showAnswerArea() {
-  if (playMode === "remote") {
-    // Remote: no tabs, just show text input for my answer
+  if (playMode === "remote" || playMode === "solo") {
+    // Remote or solo: no tabs, just text input
     currentWho = myIdentity;
     document.querySelector(".answer-who").classList.add("hidden");
   } else {
@@ -1321,15 +1400,46 @@ const answerWho = document.querySelector(".answer-who");
 
 answerText.addEventListener("input", updateSaveBtn);
 function updateSaveBtn() {
-  saveBtn.classList.toggle("ready", answerText.textContent.trim().length > 0);
+  const hasText = answerText.textContent.trim().length > 0;
+  const hasVoice = recordingBlob !== null;
+  saveBtn.classList.toggle("ready", hasText || hasVoice);
 }
 
-saveBtn.addEventListener("click", () => {
+saveBtn.addEventListener("click", async () => {
   const text = answerText.textContent.trim();
-  if (!text) return;
+  if (!text && !recordingBlob) return;
   playSelect();
 
-  if (playMode === "remote" && currentUser) {
+  if (playMode === "solo") {
+    // Solo: save immediately with identity
+    let voiceURL = null;
+    if (recordingBlob) {
+      try {
+        saveBtn.textContent = "Uploading...";
+        voiceURL = await uploadVoice(recordingBlob);
+      } catch (e) { /* silent */ }
+    }
+    const JOURNAL_KEY = "tayo_journal";
+    let journal = JSON.parse(localStorage.getItem(JOURNAL_KEY) || "[]");
+    journal.unshift({
+      type: "solo",
+      question: currentQuestion,
+      who: myIdentity,
+      answer: text || (voiceURL ? "🎤 Voice message" : ""),
+      voiceURL: voiceURL || null,
+      time: Date.now(),
+    });
+    if (journal.length > 200) journal = journal.slice(0, 200);
+    localStorage.setItem(JOURNAL_KEY, JSON.stringify(journal));
+    syncJournalToFirebase();
+    answerText.textContent = "";
+    clearVoiceRecording();
+    saveBtn.textContent = "Save";
+    saveBtn.classList.remove("ready");
+    answerArea.classList.remove("show");
+    creatureCelebrate();
+    return;
+  } else if (playMode === "remote" && currentUser) {
     // Remote: save my answer to Firebase, wait for partner
     update(ref(db, "tayo/remote/questionAnswers"), {
       [myIdentity]: text,
@@ -1341,7 +1451,20 @@ saveBtn.addEventListener("click", () => {
     $("remote-waiting").textContent = `Waiting for ${myIdentity === "charlie" ? "Karla" : "Charlie"}...`;
   } else {
     // Together mode: normal flow
-    currentAnswers[currentWho] = text;
+    let voiceURL = null;
+    if (recordingBlob) {
+      try {
+        saveBtn.textContent = "Uploading...";
+        voiceURL = await uploadVoice(recordingBlob);
+      } catch (e) { /* silent */ }
+      saveBtn.textContent = "Save";
+    }
+    currentAnswers[currentWho] = text || (voiceURL ? "🎤 Voice message" : "");
+    if (voiceURL) {
+      if (!currentAnswers._voices) currentAnswers._voices = {};
+      currentAnswers._voices[currentWho] = voiceURL;
+    }
+    clearVoiceRecording();
     if (currentWho === "charlie") tabCharlie.classList.add("has-answer");
     else tabKarla.classList.add("has-answer");
     renderSavedAnswers();
@@ -1375,44 +1498,119 @@ function renderSavedAnswers() {
   }
 }
 
-// Speech-to-Text
-micBtn.addEventListener("click", toggleRecording);
+// ═══════════════════════════════════════
+//  VOICE RECORDING
+// ═══════════════════════════════════════
+const voiceBtn = $("voice-btn");
+const voiceLabel = $("voice-label");
+const voiceTimer = $("voice-timer");
+const voicePreview = $("voice-preview");
+const voiceAudio = $("voice-audio");
+const voicePlayBtn = $("voice-play-btn");
+const voiceDeleteBtn = $("voice-delete-btn");
+const voiceWaveform = $("voice-waveform");
 
-function toggleRecording() {
-  if (isRecording) { stopRecording(); return; }
-  if (!("webkitSpeechRecognition" in window) && !("SpeechRecognition" in window)) {
-    alert("Speech recognition not supported. Try Chrome or Safari.");
-    return;
+let mediaRecorder = null;
+let audioChunks = [];
+let recordingBlob = null;
+let recordingURL = null;
+let recordTimerInterval = null;
+let recordStartTime = 0;
+
+voiceBtn.addEventListener("click", () => {
+  if (mediaRecorder && mediaRecorder.state === "recording") {
+    stopVoiceRecording();
+  } else {
+    startVoiceRecording();
   }
-  const SR = window.SpeechRecognition || window.webkitSpeechRecognition;
-  recognition = new SR();
-  recognition.continuous = true;
-  recognition.interimResults = true;
-  recognition.lang = "en-PH";
+});
 
-  let finalText = answerText.textContent || "";
-  recognition.onresult = (e) => {
-    let interim = "";
-    for (let i = e.resultIndex; i < e.results.length; i++) {
-      if (e.results[i].isFinal) finalText += e.results[i][0].transcript;
-      else interim = e.results[i][0].transcript;
-    }
-    answerText.textContent = finalText + interim;
-    updateSaveBtn();
-  };
-  recognition.onerror = () => stopRecording();
-  recognition.onend = () => stopRecording();
-  recognition.start();
-  isRecording = true;
-  micBtn.classList.add("recording");
-  answerBox.classList.add("recording");
+async function startVoiceRecording() {
+  try {
+    const stream = await navigator.mediaDevices.getUserMedia({ audio: true });
+    mediaRecorder = new MediaRecorder(stream, { mimeType: "audio/webm;codecs=opus" });
+    audioChunks = [];
+
+    mediaRecorder.ondataavailable = (e) => { if (e.data.size > 0) audioChunks.push(e.data); };
+    mediaRecorder.onstop = () => {
+      stream.getTracks().forEach((t) => t.stop());
+      recordingBlob = new Blob(audioChunks, { type: "audio/webm" });
+      recordingURL = URL.createObjectURL(recordingBlob);
+      voiceAudio.src = recordingURL;
+      showVoicePreview();
+      updateSaveBtn();
+    };
+
+    mediaRecorder.start();
+    voiceBtn.classList.add("recording");
+    voicePreview.classList.add("hidden");
+    recordStartTime = Date.now();
+    voiceTimer.textContent = "0:00";
+    recordTimerInterval = setInterval(() => {
+      const elapsed = Math.floor((Date.now() - recordStartTime) / 1000);
+      const m = Math.floor(elapsed / 60);
+      const s = String(elapsed % 60).padStart(2, "0");
+      voiceTimer.textContent = `${m}:${s}`;
+      // Auto-stop at 30 seconds
+      if (elapsed >= 30) stopVoiceRecording();
+    }, 1000);
+
+    playTap();
+  } catch (e) {
+    alert("Microphone access denied.");
+  }
 }
 
-function stopRecording() {
-  if (recognition) { try { recognition.stop(); } catch {} recognition = null; }
-  isRecording = false;
-  micBtn.classList.remove("recording");
-  answerBox.classList.remove("recording");
+function stopVoiceRecording() {
+  if (mediaRecorder && mediaRecorder.state === "recording") {
+    mediaRecorder.stop();
+  }
+  voiceBtn.classList.remove("recording");
+  clearInterval(recordTimerInterval);
+  playTap();
+}
+
+function showVoicePreview() {
+  voicePreview.classList.remove("hidden");
+  // Generate fake waveform bars
+  voiceWaveform.innerHTML = "";
+  for (let i = 0; i < 20; i++) {
+    const bar = document.createElement("div");
+    bar.className = "bar";
+    bar.style.height = `${4 + Math.random() * 14}px`;
+    voiceWaveform.appendChild(bar);
+  }
+}
+
+function clearVoiceRecording() {
+  recordingBlob = null;
+  if (recordingURL) { URL.revokeObjectURL(recordingURL); recordingURL = null; }
+  voicePreview.classList.add("hidden");
+  voiceAudio.src = "";
+  updateSaveBtn();
+}
+
+voicePlayBtn.addEventListener("click", () => {
+  if (voiceAudio.paused) {
+    voiceAudio.play();
+    voicePlayBtn.querySelector(".material-symbols-rounded").textContent = "pause";
+  } else {
+    voiceAudio.pause();
+    voicePlayBtn.querySelector(".material-symbols-rounded").textContent = "play_arrow";
+  }
+});
+voiceAudio.addEventListener("ended", () => {
+  voicePlayBtn.querySelector(".material-symbols-rounded").textContent = "play_arrow";
+});
+
+voiceDeleteBtn.addEventListener("click", clearVoiceRecording);
+
+// Upload voice to Firebase Storage
+async function uploadVoice(blob) {
+  const filename = `tayo/voices/${Date.now()}_${myIdentity}.webm`;
+  const sRef = storageRef(storage, filename);
+  await uploadBytes(sRef, blob);
+  return await getDownloadURL(sRef);
 }
 
 function saveQuizToJournal(data) {
@@ -1476,18 +1674,38 @@ $("journal-hint").addEventListener("click", () => {
   } else {
     $("journal-subtitle").textContent = `${journal.length} conversation${journal.length !== 1 ? "s" : ""}`;
     list.innerHTML = journal.map((e, idx) => {
-      const deleteBtn = `<button class="je-delete" data-idx="${idx}"><span class="material-symbols-rounded">delete</span></button>`;
+      const deleteBtn = `<button class="je-delete" data-idx="${idx}" title="Delete"><span class="material-symbols-rounded">delete</span></button>`;
+      if (e.type === "solo") {
+        const who = (e.who || "charlie");
+        const whoLabel = who === "charlie" ? "Charlie" : "Karla";
+        return `
+          <div class="journal-entry solo-entry">
+            <div class="je-header">
+              <span class="je-icon"><span class="material-symbols-rounded">person</span></span>
+              <span class="je-type-label">Solo — ${whoLabel}</span>
+              <span class="je-time">${timeAgo(e.time)}</span>
+              ${deleteBtn}
+            </div>
+            <div class="je-question">${e.question}</div>
+            <div class="je-answer-card">
+              <span class="je-answer-name">${whoLabel}</span>
+              <span class="je-answer-text">${e.answer}</span>
+              ${e.voiceURL ? `<div class="je-voice-player"><button class="je-voice-play" onclick="this.nextElementSibling.paused?this.nextElementSibling.play():this.nextElementSibling.pause();this.querySelector('.material-symbols-rounded').textContent=this.nextElementSibling.paused?'play_arrow':'pause'"><span class="material-symbols-rounded">play_arrow</span></button><audio src="${e.voiceURL}" onended="this.previousElementSibling.querySelector('.material-symbols-rounded').textContent='play_arrow'"></audio></div>` : ""}
+            </div>
+          </div>
+        `;
+      }
       if (e.type === "quiz") {
         const correctAnswer = e.choices?.[e.correct] || "?";
         const cRight = e.charlieRight;
         const kRight = e.karlaRight;
         return `
           <div class="journal-entry">
-            ${deleteBtn}
             <div class="je-header">
               <span class="je-icon"><span class="material-symbols-rounded">quiz</span></span>
               <span class="je-type-label">Quiz</span>
               <span class="je-time">${timeAgo(e.time)}</span>
+              ${deleteBtn}
             </div>
             <div class="je-question">${e.question}</div>
             <div class="je-correct">
@@ -1511,11 +1729,11 @@ $("journal-hint").addEventListener("click", () => {
       }
       return `
         <div class="journal-entry">
-          ${deleteBtn}
           <div class="je-header">
             <span class="je-icon"><span class="material-symbols-rounded">chat_bubble</span></span>
             <span class="je-type-label">Question</span>
             <span class="je-time">${timeAgo(e.time)}</span>
+            ${deleteBtn}
           </div>
           <div class="je-question">${e.question}</div>
           ${e.charlie ? `

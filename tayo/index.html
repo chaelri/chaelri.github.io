@@ -22,26 +22,17 @@
     <div id="splash">
       <h1>Tayo</h1>
       <div class="line"></div>
-      <p>For when we're together</p>
+      <p>Charlie & Karla</p>
     </div>
 
     <!-- App -->
     <div id="app">
 
-      <!-- Header bar -->
+      <!-- Top row: Journal — Tayo — Settings -->
       <div class="topbar">
         <button class="topbar-btn" id="journal-hint">Journal</button>
         <div class="topbar-center">
           <div class="brand">Tayo <span class="partner-dot hidden" id="partner-dot"></span></div>
-          <div class="countdown" id="countdown"></div>
-          <div class="current-vibe" id="current-vibe">Anything</div>
-          <div class="scoreboard" id="scoreboard">
-            <span class="score-name">C</span>
-            <span class="score-num" id="score-charlie">0</span>
-            <span class="score-divider">:</span>
-            <span class="score-num" id="score-karla">0</span>
-            <span class="score-name">K</span>
-          </div>
         </div>
         <button class="topbar-btn" id="settings-btn">Settings</button>
       </div>
@@ -51,6 +42,18 @@
         <div class="mode-toggle">
           <button class="mode-chip active" id="mode-question" data-mode="question">Question</button>
           <button class="mode-chip" id="mode-quiz" data-mode="quiz">Quiz</button>
+        </div>
+        <div class="topbar-indicators">
+          <span class="current-playmode" id="current-playmode">Together</span>
+          <span class="indicator-dot">·</span>
+          <span class="current-vibe" id="current-vibe">Anything</span>
+        </div>
+        <div class="scoreboard" id="scoreboard">
+          <span class="score-name">C</span>
+          <span class="score-num" id="score-charlie">0</span>
+          <span class="score-divider">:</span>
+          <span class="score-num" id="score-karla">0</span>
+          <span class="score-name">K</span>
         </div>
       </div>
 
@@ -96,12 +99,23 @@
           <button class="answer-tab" data-who="karla" id="tab-karla">Karla</button>
         </div>
         <div class="answer-box" id="answer-box">
-          <div class="answer-text" id="answer-text" contenteditable="true" data-placeholder="Tap mic or type..."></div>
+          <div class="answer-text" id="answer-text" contenteditable="true" data-placeholder="Type your answer..."></div>
           <div class="answer-controls">
-            <button class="mic-btn" id="mic-btn">
-              <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M12 1a3 3 0 0 0-3 3v8a3 3 0 0 0 6 0V4a3 3 0 0 0-3-3z"/><path d="M19 10v2a7 7 0 0 1-14 0v-2"/><line x1="12" y1="19" x2="12" y2="23"/><line x1="8" y1="23" x2="16" y2="23"/></svg>
-              <span class="mic-label">Speak</span>
+            <button class="voice-btn" id="voice-btn">
+              <span class="material-symbols-rounded voice-icon">mic</span>
+              <span class="voice-label" id="voice-label">Hold to record</span>
+              <span class="voice-timer hidden" id="voice-timer">0:00</span>
             </button>
+            <div class="voice-preview hidden" id="voice-preview">
+              <audio id="voice-audio" class="hidden"></audio>
+              <button class="voice-play-btn" id="voice-play-btn">
+                <span class="material-symbols-rounded" style="font-size:16px">play_arrow</span>
+              </button>
+              <div class="voice-waveform" id="voice-waveform"></div>
+              <button class="voice-delete-btn" id="voice-delete-btn">
+                <span class="material-symbols-rounded" style="font-size:14px">close</span>
+              </button>
+            </div>
             <button class="save-answer-btn" id="save-answer-btn">Save</button>
           </div>
         </div>
@@ -138,7 +152,8 @@
       <!-- Play Mode -->
       <div class="settings-section">
         <div class="settings-label">Play Mode</div>
-        <div class="settings-toggle" id="play-mode-toggle">
+        <div class="settings-toggle settings-toggle-3" id="play-mode-toggle">
+          <button class="settings-toggle-btn" data-playmode="solo">Solo</button>
           <button class="settings-toggle-btn active" data-playmode="together">Together</button>
           <button class="settings-toggle-btn" data-playmode="remote">Remote</button>
         </div>
@@ -161,7 +176,7 @@
         <div id="remote-signin-card" class="remote-card">
           <p class="remote-card-text">Sign in to play on separate devices</p>
           <button id="btn-google-signin" class="google-signin-btn">
-            <svg width="16" height="16" viewBox="0 0 18 18"><path fill="#4285F4" d="M16.51 8H8.98v3h4.27c-.18 1-.74 1.84-1.58 2.4v2h2.56c1.5-1.38 2.37-3.42 2.37-5.84 0-.56-.05-1.1-.14-1.56z"/><path fill="#34A853" d="M8.98 17c2.16 0 3.97-.72 5.3-1.94l-2.56-2c-.72.48-1.63.76-2.74.76-2.1 0-3.88-1.42-4.52-3.33H1.84v2.07C3.16 15.1 5.85 17 8.98 17z"/><path fill="#FBBC05" d="M4.46 10.49c-.16-.48-.25-.99-.25-1.52s.09-1.04.25-1.52V5.38H1.84C1.3 6.48 1 7.7 1 9s.3 2.52.84 3.62l2.62-2.13z"/><path fill="#EA4335" d="M8.98 4.15c1.18 0 2.25.41 3.08 1.21l2.3-2.3C12.94 1.69 11.14.97 8.98.97 5.85 2.87 1.84 5.38l2.62 2.07c.64-1.91 2.42-3.3 4.52-3.3z"/></svg>
+            <svg width="16" height="16" viewBox="0 0 18 18"><path fill="#4285F4" d="M16.51 8H8.98v3h4.27c-.18 1-.74 1.84-1.58 2.4v2h2.56c1.5-1.38 2.37-3.42 2.37-5.84 0-.56-.05-1.1-.14-1.56z"/><path fill="#34A853" d="M8.98 17c2.16 0 3.97-.72 5.3-1.94l-2.56-2c-.72.48-1.63.76-2.74.76-2.1 0-3.88-1.42-4.52-3.33H1.84v2.07C3.16 15.1 5.85 17 8.98 17z"/><path fill="#FBBC05" d="M4.46 10.49c-.16-.48-.25-.99-.25-1.52s.09-1.04.25-1.52V5.38H1.84C1.3 6.48 1 7.7 1 9s.3 2.52.84 3.62l2.62-2.13z"/><path fill="#EA4335" d="M8.98 4.15c1.18 0 2.25.41 3.08 1.21l2.3-2.3C12.94 1.69 11.14.97 8.98.97 5.85.97 3.16 2.87 1.84 5.38l2.62 2.07c.64-1.91 2.42-3.3 4.52-3.3z"/></svg>
             Sign in with Google
           </button>
         </div>
