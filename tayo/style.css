@@ -161,7 +161,7 @@ body {
    MODE TOGGLE
    ══════════════════════════════════════ */
 .mode-area {
-  margin-top: 1.2rem;
+  margin-top: 0.6rem;
   display: flex;
   flex-direction: column;
   align-items: center;
@@ -1272,6 +1272,9 @@ body {
   @media (max-width: 768px) {
     #app {
       padding-top: var(--safe-top);
+    }
+    #journal {
+      padding-bottom: calc(3rem + var(--safe-bottom));
     }
   }
 }
