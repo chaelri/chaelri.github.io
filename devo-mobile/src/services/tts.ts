@@ -31,8 +31,8 @@ function synthRelease() {
 }
 
 // ── API Key management ──────────────────────────────────────────────────────
-// Dev key — same as PWA's config.js. On production, use stored key.
-const DEV_TTS_KEY = 'AIzaSyAr3wUTdrQRLwdw9Yq0pLNxiORN9FG7Hfg';
+// Dev key from env. On production, use stored key.
+const DEV_TTS_KEY = process.env.EXPO_PUBLIC_GOOGLE_TTS_KEY ?? '';
 let _cachedKey: string | null = null;
 
 export async function getTTSKey(): Promise<string | null> {
