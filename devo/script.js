@@ -49,7 +49,7 @@ function mdToHTML(text) {
     }
     html += `<p>${inlineMd(t)}</p>`;
   }
-  return html;
+  return linkifyBibleRefs(html);
 }
 
 function inlineMd(text) {
@@ -57,6 +57,224 @@ function inlineMd(text) {
     .replace(/\*\*([^*]+)\*\*/g, '<strong>$1</strong>')
     .replace(/\*([^*]+)\*/g, '<em>$1</em>')
     .replace(/\u201c([^\u201d]+)\u201d/g, '<em>&ldquo;$1&rdquo;</em>');
+}
+
+// Bible reference pattern: matches "Genesis 1:2", "1 John 4:7-8", "Psalm 23:1, 3"
+const _XREF_RE = /\b((?:[123]\s)?(?:Genesis|Exodus|Leviticus|Numbers|Deuteronomy|Joshua|Judges|Ruth|Samuel|Kings|Chronicles|Ezra|Nehemiah|Esther|Job|Psalms?|Proverbs|Ecclesiastes|Song of Solomon|Isaiah|Jeremiah|Lamentations|Ezekiel|Daniel|Hosea|Joel|Amos|Obadiah|Jonah|Micah|Nahum|Habakkuk|Zephaniah|Haggai|Zechariah|Malachi|Matthew|Mark|Luke|John|Acts|Romans|Corinthians|Galatians|Ephesians|Philippians|Colossians|Thessalonians|Timothy|Titus|Philemon|Hebrews|James|Peter|Jude|Revelation))\s+(\d+):(\d+(?:\s*[-–,]\s*\d+)*)\b/gi;
+
+function linkifyBibleRefs(html) {
+  return html.replace(_XREF_RE, (match, book, ch, verses) => {
+    const ref = `${book} ${ch}:${verses}`;
+    return `<span class="xref-link" onclick="openCrossRefPeek('${ref.replace(/'/g, "\\'")}', this)">${match}</span>`;
+  });
+}
+
+function openCrossRefPeek(refStr, anchorEl) {
+  // Parse "1 John 4:7-8" into book, chapter, verse range
+  const m = refStr.match(/^(.+?)\s+(\d+):(.+)$/);
+  if (!m) return;
+  const [, bookStr, chStr, versesStr] = m;
+  const ch = parseInt(chStr, 10);
+
+  // Parse verse numbers
+  const verseNums = [];
+  versesStr.split(",").forEach(part => {
+    part = part.trim();
+    const rangeParts = part.split(/[-–]/);
+    const start = parseInt(rangeParts[0], 10);
+    const end = rangeParts[1] ? parseInt(rangeParts[1], 10) : start;
+    if (!isNaN(start) && !isNaN(end)) {
+      for (let v = start; v <= end; v++) verseNums.push(v);
+    }
+  });
+  if (!verseNums.length) return;
+
+  // Look up book in bibleData
+  const bookUpper = bookStr.toUpperCase();
+  let bookContent = bibleData?.[bookUpper];
+  if (!bookContent) {
+    // Try matching by BIBLE_META name
+    for (const key of Object.keys(BIBLE_META)) {
+      if (BIBLE_META[key].name.toUpperCase() === bookUpper) {
+        bookContent = bibleData?.[BIBLE_META[key].name.toUpperCase()] || bibleData?.[BIBLE_META[key].name];
+        break;
+      }
+    }
+  }
+
+  const rows = verseNums.map(v => {
+    const text = bookContent?.[ch]?.[String(v)]?.trim()?.replace(/([.!?,;:])(?=[a-zA-Z])/g, "$1 ")?.replace(/\s+/g, " ");
+    return { num: v, text: text || "Verse not available." };
+  });
+
+  const refLabel = `${bookStr} ${chStr}:${versesStr}`;
+  const bodyHTML = rows.map(r =>
+    `<div class="verse-peek-row"><span class="verse-peek-num">v.${r.num}</span><span>${r.text}</span></div>`
+  ).join("");
+
+  // Remove existing peek
+  document.querySelector(".verse-peek-overlay")?.remove();
+
+  const overlay = document.createElement("div");
+  overlay.className = "verse-peek-overlay";
+
+  const bubble = document.createElement("div");
+  bubble.className = "verse-peek-bubble";
+  bubble.innerHTML = `
+    <div class="verse-peek-header">
+      <div class="verse-peek-ref">${refLabel}</div>
+      <button class="verse-peek-goto" title="Go to passage"><span class="material-icons">open_in_new</span></button>
+    </div>
+    <div class="verse-peek-body-wrap">
+      <div class="verse-peek-body">${bodyHTML}</div>
+    </div>
+    <div class="verse-peek-tail"></div>`;
+
+  bubble.querySelector(".verse-peek-goto").onclick = () => {
+    _goToPassageFromPeek(bookStr, chStr, verseNums[0]);
+  };
+
+  const peekWrap = bubble.querySelector(".verse-peek-body-wrap");
+  const checkPeekScroll = () => {
+    const atEnd = peekWrap.scrollHeight - peekWrap.scrollTop - peekWrap.clientHeight < 8;
+    peekWrap.classList.toggle("peek-scrolled-end", atEnd);
+  };
+  peekWrap.addEventListener("scroll", checkPeekScroll);
+  peekWrap.addEventListener("touchmove", e => e.stopPropagation());
+  overlay.addEventListener("touchmove", e => {
+    if (!peekWrap.contains(e.target)) e.preventDefault();
+  }, { passive: false });
+  requestAnimationFrame(checkPeekScroll);
+  overlay.appendChild(bubble);
+  document.body.appendChild(overlay);
+
+  // Position
+  if (anchorEl) {
+    const rect = anchorEl.getBoundingClientRect();
+    const anchorCenterX = rect.left + rect.width / 2;
+    requestAnimationFrame(() => {
+      const bw = bubble.offsetWidth;
+      const bh = bubble.offsetHeight;
+      const vw = window.innerWidth;
+      const vh = window.innerHeight;
+      const pad = 8;
+      let left = anchorCenterX - bw / 2;
+      left = Math.max(pad, Math.min(left, vw - bw - pad));
+      let top = rect.top - bh - 10;
+      let tailBelow = true;
+      if (top < pad) { top = rect.bottom + 10; tailBelow = false; }
+      top = Math.max(pad, Math.min(top, vh - bh - pad));
+      bubble.style.left = left + "px";
+      bubble.style.top = top + "px";
+      const tail = bubble.querySelector(".verse-peek-tail");
+      const tailX = anchorCenterX - left;
+      tail.style.left = Math.max(18, Math.min(tailX, bw - 18)) + "px";
+      if (!tailBelow) tail.classList.add("verse-peek-tail-top");
+    });
+  } else {
+    bubble.style.left = "50%";
+    bubble.style.top = "50%";
+    bubble.style.transform = "translate(-50%, -50%)";
+  }
+
+  overlay.addEventListener("click", e => {
+    if (e.target === overlay) overlay.remove();
+  });
+}
+
+// ── Go to Passage from Peek ─────────────────────────────────────────────
+function _bookNameToId(name) {
+  const upper = name.toUpperCase();
+  for (const [key, meta] of Object.entries(BIBLE_META)) {
+    if (meta.name.toUpperCase() === upper) return key;
+  }
+  // Try partial match (e.g. "John" → "1JN" won't work, but "John" → "JHN" might)
+  for (const [key, meta] of Object.entries(BIBLE_META)) {
+    if (meta.name.toUpperCase().includes(upper) || upper.includes(meta.name.toUpperCase())) return key;
+  }
+  return null;
+}
+
+function _goToPassageFromPeek(bookName, chapter, verseNum) {
+  // Save current state for "Go Back"
+  const prevBook = bookEl.value;
+  const prevCh = chapterEl.value;
+  const prevScroll = document.getElementById("output")?.scrollTop || window.scrollY;
+  const prevPayload = window.__aiPayload;
+  const wasStoryOpen = !document.getElementById("storyModal")?.hidden;
+
+  // Close peek overlay
+  document.querySelector(".verse-peek-overlay")?.remove();
+
+  // Close story modal if open
+  if (wasStoryOpen) {
+    const storyModal = document.getElementById("storyModal");
+    storyModal.hidden = true;
+  }
+
+  // Navigate to the passage
+  const bookId = _bookNameToId(bookName);
+  if (!bookId) return;
+
+  bookEl.value = bookId;
+  loadChapters();
+  chapterEl.value = chapter;
+  loadVerses();
+  verseEl.value = "";
+  loadBtn.click();
+
+  // Scroll to verse after render
+  requestAnimationFrame(() => {
+    setTimeout(() => {
+      const vEl = document.getElementById(String(verseNum));
+      if (vEl) {
+        vEl.scrollIntoView({ behavior: "smooth", block: "center" });
+        vEl.classList.add("verse-highlight");
+        setTimeout(() => vEl.classList.remove("verse-highlight"), 5000);
+      }
+    }, 400);
+  });
+
+  // Show "Go Back" floating pill
+  _showGoBackPill(prevBook, prevCh, prevScroll, prevPayload, wasStoryOpen);
+}
+
+function _showGoBackPill(prevBook, prevCh, prevScroll, prevPayload, wasStoryOpen) {
+  // Remove existing pill
+  document.getElementById("goBackPill")?.remove();
+
+  const prevBookName = BIBLE_META[prevBook]?.name || prevBook;
+  const pill = document.createElement("button");
+  pill.id = "goBackPill";
+  pill.className = "go-back-pill";
+  pill.innerHTML = `<span class="material-icons">arrow_back</span> Back to ${prevBookName} ${prevCh}`;
+  document.body.appendChild(pill);
+
+  // Animate in
+  requestAnimationFrame(() => pill.classList.add("visible"));
+
+  pill.onclick = () => {
+    pill.remove();
+    bookEl.value = prevBook;
+    loadChapters();
+    chapterEl.value = prevCh;
+    loadVerses();
+    verseEl.value = "";
+    window.__aiPayload = prevPayload;
+    loadBtn.click();
+
+    if (wasStoryOpen) {
+      requestAnimationFrame(() => {
+        setTimeout(() => {
+          const storyModal = document.getElementById("storyModal");
+          storyModal.hidden = false;
+        }, 400);
+      });
+    }
+  };
+
+  // Auto-dismiss after 15 seconds
+  setTimeout(() => { if (pill.parentNode) pill.classList.remove("visible"); setTimeout(() => pill.remove(), 300); }, 15000);
 }
 
 /* ---------- SHARED: Sparkle Loader HTML ---------- */
@@ -1774,11 +1992,13 @@ async function renderDashboard() {
     const book = BIBLE_META[bookKey];
     const chIdx = seed % book.chapters.length;
     const ch = chIdx + 1;
-    return `<div class="dash-featured-story" onclick="_openDailyStory('${bookKey}', ${ch})">
+    const seen = JSON.parse(localStorage.getItem("storySeenHistory") || "{}");
+    const isSeen = !!seen[`${bookKey}_${ch}`];
+    return `<div class="dash-featured-story${isSeen ? ' dash-story-seen' : ''}" onclick="_openDailyStory('${bookKey}', ${ch})">
       <div class="dash-featured-left">
         <div class="dash-featured-label"><span class="material-icons" style="font-size:14px;">auto_awesome</span> Today's Story</div>
         <div class="dash-featured-title">${book.name} ${ch}</div>
-        <div class="dash-featured-cta">Tap to explore <span class="material-icons" style="font-size:14px;vertical-align:middle;">arrow_forward</span></div>
+        <div class="dash-featured-cta">${isSeen ? 'Viewed — tap to revisit' : 'Tap to explore'} <span class="material-icons" style="font-size:14px;vertical-align:middle;">arrow_forward</span></div>
       </div>
       <div class="dash-featured-cards">
         <div class="story-stack-card c3"></div>
@@ -5192,6 +5412,12 @@ async function openStoryModal() {
   _storySlides = [];
   _storyIndex = 0;
 
+  // Hide nav bar and progress bar while loading
+  const navBar = modal.querySelector(".story-nav-bar");
+  if (navBar) navBar.hidden = true;
+  const progressBar = document.getElementById("storyProgressBar");
+  if (progressBar) progressBar.hidden = true;
+
   // Show loading
   content.innerHTML = `
     <div class="story-loading">
@@ -5220,6 +5446,8 @@ async function openStoryModal() {
       _storySlides.push({ type: "reflect", data: closing, book, chapter });
     }
 
+    if (navBar) navBar.hidden = false;
+    if (progressBar) progressBar.hidden = false;
     renderStorySlide();
   } catch (e) {
     content.innerHTML = `
@@ -5299,9 +5527,10 @@ function renderStorySlide() {
     content.innerHTML = buildSlideHTML(slide);
     content.classList.remove("fade-out");
     content.classList.add("fade-in");
-    // Wire tap zones
-    document.getElementById("storyTapLeft").onclick = storyPrev;
-    document.getElementById("storyTapRight").onclick = storyNext;
+    // Update nav button states
+    updateStoryNavButtons();
+    // Wire segment footer buttons
+    wireSegmentFooter(content);
   }, 200);
 }
 
@@ -5314,6 +5543,272 @@ function storyPrev() {
   if (_storyIndex <= 0) return;
   _storyIndex--;
   renderStorySlide();
+}
+function updateStoryNavButtons() {
+  const prevBtn = document.getElementById("storyPrevBtn");
+  const nextBtn = document.getElementById("storyNextBtn");
+  if (!prevBtn || !nextBtn) return;
+  prevBtn.disabled = _storyIndex <= 0;
+  const isLast = _storyIndex >= _storySlides.length - 1;
+  nextBtn.innerHTML = isLast
+    ? `<span>Done</span><span class="material-symbols-outlined">check</span>`
+    : `<span>Next</span><span class="material-symbols-outlined">arrow_forward</span>`;
+}
+
+function wireSegmentFooter(container) {
+  const digBtn = container.querySelector(".story-dig-btn");
+  const askBtn = container.querySelector(".story-ask-btn");
+  const expandEl = container.querySelector("#storySegExpand");
+  if (!digBtn || !expandEl) return;
+
+  digBtn.onclick = () => {
+    const { verses, book, chapter } = digBtn.dataset;
+    fetchStoryDigDeeper(book, chapter, verses, expandEl);
+  };
+  if (askBtn) {
+    askBtn.onclick = () => {
+      const { verses, book, chapter } = askBtn.dataset;
+      openStoryAskAI(book, chapter, verses, expandEl);
+    };
+  }
+}
+
+function _getVersesText(book, chapter, verses) {
+  const allVerses = document.querySelectorAll("#output .verse");
+  const rangeMatch = verses.match(/(\d+)\s*[-–]\s*(\d+)/);
+  let start, end;
+  if (rangeMatch) {
+    start = parseInt(rangeMatch[1], 10);
+    end = parseInt(rangeMatch[2], 10);
+  } else {
+    start = end = parseInt(verses, 10) || 1;
+  }
+  const texts = [];
+  for (let v = start; v <= end; v++) {
+    const t = _peekGetVerseText(v, allVerses);
+    if (t) texts.push(`${v}. ${t}`);
+  }
+  return texts.join("\n");
+}
+
+async function fetchStoryDigDeeper(book, chapter, verses, mountEl) {
+  mountEl.innerHTML = `<div class="inline-ai-card dig-deeper">
+    <div class="ai-card-gradient">
+      <div class="ai-card-header">
+        <span class="ai-card-label">Dig Deeper — ${book} ${chapter}:${verses}</span>
+        <button class="ai-card-close" title="Close">✕</button>
+      </div>
+      ${sparkleLoaderHTML('Digging deeper…')}
+    </div>
+  </div>`;
+  mountEl.querySelector('.ai-card-close').onclick = () => { mountEl.innerHTML = ''; };
+
+  const passageText = _getVersesText(book, chapter, verses);
+  try {
+    const aiText = await callGemini(`You are a premium Bible study tool. ${AI_TONE}
+
+${book} ${chapter}:${verses}:
+"${passageText}"
+
+Give a dense, high-value study of this passage. ~180 words total.
+
+#### Key Themes
+- 2-3 key themes or theological concepts in this passage. One sentence each, bold the key term.
+
+#### Deeper Meaning
+- 2-3 sharp insights connecting these verses. One sentence each.
+
+#### Cross-References
+- 3 verses max. **Reference** — one-line why it connects.
+
+#### Suggested Practical Application
+- 2-3 concrete, actionable ways to live this out today. Be specific, not vague. Keep each to one sentence.
+- Do NOT instruct or command — frame as gentle suggestions ("Consider...", "Try...", "You might...").
+- Let the Holy Spirit do the convicting — just offer the tool.
+
+STRICT: No greetings. No padding. Start with #### Key Themes immediately.`);
+
+    mountEl.innerHTML = `<div class="inline-ai-card dig-deeper">
+      <div class="ai-card-gradient">
+        <div class="ai-card-header">
+          <span class="ai-card-label">Dig Deeper — ${esc(book)} ${chapter}:${esc(verses)}</span>
+          <button class="ai-card-close" title="Close">✕</button>
+        </div>
+        <div class="ai-md-content">${mdToHTML(aiText)}</div>
+      </div>
+    </div>`;
+    mountEl.querySelector('.ai-card-close').onclick = () => { mountEl.innerHTML = ''; };
+  } catch {
+    mountEl.innerHTML = `<div class="inline-ai-card dig-deeper">
+      <div class="ai-card-gradient">
+        <div class="ai-card-header">
+          <span class="ai-card-label">Dig Deeper</span>
+          <button class="ai-card-close" title="Close">✕</button>
+        </div>
+        <p style="color:rgba(255,255,255,0.7);font-size:13px;">Failed to load. Try again.</p>
+      </div>
+    </div>`;
+    mountEl.querySelector('.ai-card-close').onclick = () => { mountEl.innerHTML = ''; };
+  }
+}
+
+async function openStoryAskAI(book, chapter, verses, mountEl) {
+  const key = `story_${book}_${chapter}_${verses}`;
+  // Toggle off if already open
+  if (mountEl.querySelector(".verse-chat-wrapper")) {
+    mountEl.innerHTML = "";
+    return;
+  }
+
+  const passageText = _getVersesText(book, chapter, verses);
+  if (!verseChatHistories[key]) verseChatHistories[key] = [];
+  const hasHistory = verseChatHistories[key].length > 0;
+
+  mountEl.innerHTML = `
+    <div class="verse-chat-wrapper">
+      <div class="chat-history${hasHistory ? "" : " hidden"}" id="chat-hist-${key}"></div>
+      <div id="chat-empty-${key}" class="${hasHistory ? "hidden" : ""}">
+        <div class="chat-empty-state">
+          <span class="material-icons">chat_bubble_outline</span>
+          <span class="chat-empty-text">Ask anything about ${esc(book)} ${chapter}:${esc(verses)}</span>
+          <div class="chat-suggestions" id="chat-suggest-${key}">
+            ${sparkleLoaderHTML('Loading questions…')}
+          </div>
+        </div>
+      </div>
+      <div id="chat-followups-${key}" class="chat-followups" style="display:none"></div>
+      <div id="chat-typing-${key}" class="chat-typing" style="display:none">
+        ${sparkleLoaderHTML('Thinking…')}
+      </div>
+      <div class="chat-input-area">
+        <textarea placeholder="Ask about these verses..." id="chat-input-${key}"></textarea>
+        <button class="chat-send-btn" id="chat-send-${key}"><span class="material-icons">send</span></button>
+      </div>
+    </div>
+  `;
+
+  const input = document.getElementById(`chat-input-${key}`);
+  const sendBtn = document.getElementById(`chat-send-${key}`);
+  const histEl = document.getElementById(`chat-hist-${key}`);
+  const emptyEl = document.getElementById(`chat-empty-${key}`);
+  const suggestEl = document.getElementById(`chat-suggest-${key}`);
+  const followupsEl = document.getElementById(`chat-followups-${key}`);
+  const typingEl = document.getElementById(`chat-typing-${key}`);
+
+  if (hasHistory) {
+    renderChatHistory(key, histEl);
+    if (window._chatFollowups?.[key]?.length) {
+      renderStoryFollowups(key, followupsEl, performSend);
+    }
+  }
+
+  const updateSendState = () => sendBtn.classList.toggle('active', !!input.value.trim());
+  input.addEventListener('input', updateSendState);
+
+  // Fetch suggested questions for verse range
+  if (!hasHistory) {
+    try {
+      const raw = await callGemini(`Generate 4 unique, thought-provoking questions someone might ask about ${book} ${chapter}:${verses}:
+"${passageText}"
+
+RULES:
+- Questions should be specific to THIS passage, not generic.
+- Focus on: real-life application, surprising insights, theological implications, emotional/relational angles.
+- Each question must be 1 short sentence, under 10 words.
+- Return ONLY the 4 questions, one per line, no numbers, no bullets.`);
+
+      const questions = raw.split('\n').map(q => q.trim()).filter(q => q.length > 5).slice(0, 4);
+      if (!window._chatSuggestions) window._chatSuggestions = {};
+      window._chatSuggestions[key] = questions;
+
+      suggestEl.innerHTML = questions.map(q =>
+        `<button class="chat-suggestion-chip">${q}</button>`
+      ).join('');
+      suggestEl.querySelectorAll('.chat-suggestion-chip').forEach(chip => {
+        chip.onclick = () => {
+          const q = chip.textContent;
+          if (!window._chatFollowups) window._chatFollowups = {};
+          window._chatFollowups[key] = questions.filter(s => s !== q);
+          performSend(q);
+        };
+      });
+    } catch {
+      suggestEl.innerHTML = ['What is the main message here?', 'How can I apply this today?', 'What connects these verses?'].map(q =>
+        `<button class="chat-suggestion-chip">${q}</button>`
+      ).join('');
+      suggestEl.querySelectorAll('.chat-suggestion-chip').forEach(chip => {
+        chip.onclick = () => performSend(chip.textContent);
+      });
+    }
+  }
+
+  function renderStoryFollowups(k, el, sendFn) {
+    const chips = window._chatFollowups?.[k] || [];
+    if (!chips.length) { el.style.display = 'none'; return; }
+    el.style.display = '';
+    el.innerHTML = `<span class="chat-followups-label">Keep exploring</span>` +
+      chips.map(q => `<button class="chat-followup-chip">${q}</button>`).join('');
+    el.querySelectorAll('.chat-followup-chip').forEach(chip => {
+      chip.onclick = () => {
+        const q = chip.textContent;
+        window._chatFollowups[k] = (window._chatFollowups[k] || []).filter(s => s !== q);
+        sendFn(q);
+      };
+    });
+  }
+
+  async function performSend(questionOverride) {
+    const question = questionOverride || input.value.trim();
+    if (!question) return;
+
+    verseChatHistories[key].push({ role: "user", text: question });
+    input.value = "";
+    updateSendState();
+
+    emptyEl.classList.add("hidden");
+    histEl.classList.remove("hidden");
+    renderChatHistory(key, histEl);
+
+    typingEl.style.display = '';
+    followupsEl.style.display = 'none';
+    histEl.scrollTop = histEl.scrollHeight;
+
+    try {
+      const historyStr = verseChatHistories[key].length > 1
+        ? `HISTORY: ${JSON.stringify(verseChatHistories[key].slice(-5))}`
+        : '';
+
+      const answer = await callGemini(`You are a Bible study assistant. ${AI_TONE}
+
+CONTEXT: ${book} ${chapter}:${verses} - "${passageText}"
+${historyStr}
+
+RULES:
+- Be very concise (max 3 sentences).
+- Answer the question directly.
+- Stay youth-friendly and encouraging.
+- Start directly with the answer.
+- Bold key theological terms using **double asterisks**.
+
+QUESTION: ${question}`);
+
+      verseChatHistories[key].push({ role: "model", text: answer });
+      if (verseChatHistories[key].length > 10) verseChatHistories[key].shift();
+
+      typingEl.style.display = 'none';
+      renderChatHistory(key, histEl);
+      renderStoryFollowups(key, followupsEl, performSend);
+    } catch {
+      typingEl.style.display = 'none';
+      verseChatHistories[key].push({ role: "model", text: "Sorry, something went wrong." });
+      renderChatHistory(key, histEl);
+    }
+  }
+
+  sendBtn.onclick = () => performSend();
+  input.onkeydown = (e) => {
+    if (e.key === "Enter" && !e.shiftKey) { e.preventDefault(); performSend(); }
+  };
 }
 
 // ── Slide HTML builders ──────────────────────────────────────────────────
@@ -5370,7 +5865,7 @@ function buildMapHTML({ data: segments, book, chapter }) {
     const circle = isLast
       ? `<div class="story-map-circle last"><span class="material-icons" style="font-size:18px">flag</span></div>`
       : `<div class="story-map-circle">${i + 1}</div>`;
-    return `${line}<div class="story-map-node" style="animation-delay:${nodeDelay}s">${circle}<div><div class="story-map-title">${esc(seg.title)}</div><div class="story-map-verse">Verses ${esc(seg.verses)}</div></div></div>`;
+    return `${line}<div class="story-map-node" style="animation-delay:${nodeDelay}s">${circle}<div><div class="story-map-title">${esc(seg.title)}</div><div class="story-map-verse story-verse-link" onclick="openVersePeek('${esc(seg.verses)}', this)">Verses ${esc(seg.verses)}</div></div></div>`;
   }).join("");
 
   return `
@@ -5383,17 +5878,40 @@ function buildMapHTML({ data: segments, book, chapter }) {
   `;
 }
 
-function buildSegmentHTML({ data: seg }) {
+function buildSegmentHTML({ data: seg, book, chapter }) {
+  let html;
   switch (seg.displayType) {
-    case "conversation": return buildConversationHTML(seg);
-    case "teaching": return buildTeachingHTML(seg);
-    case "contrast": return buildContrastHTML(seg);
+    case "conversation": html = buildConversationHTML(seg); break;
+    case "teaching": html = buildTeachingHTML(seg); break;
+    case "contrast": html = buildContrastHTML(seg); break;
     case "narration":
     case "sequence":
     case "list":
     default:
-      return buildScrapbookHTML(seg);
+      html = buildScrapbookHTML(seg); break;
   }
+  html += buildSegmentFooterHTML(seg, book, chapter);
+  return html;
+}
+
+function buildSegmentFooterHTML(seg, book, chapter) {
+  const verses = seg.verses || "";
+  // Calculate delay based on number of animated items in the slide
+  const itemCount = (seg.content.points || seg.content.steps || seg.content.messages || []).length || 2;
+  const delay = Math.min(itemCount * 0.6 + 0.5, 4);
+  return `
+    <div class="story-segment-footer" style="--footer-delay:${delay}s">
+      <button class="story-seg-btn story-dig-btn" data-verses="${esc(verses)}" data-book="${esc(book)}" data-chapter="${esc(chapter)}">
+        <span class="material-icons">auto_awesome</span>
+        <span>Dig Deeper</span>
+      </button>
+      <button class="story-seg-btn story-ask-btn" data-verses="${esc(verses)}" data-book="${esc(book)}" data-chapter="${esc(chapter)}">
+        <span class="material-icons">chat</span>
+        <span>Ask a Question</span>
+      </button>
+    </div>
+    <div class="story-seg-expand" id="storySegExpand"></div>
+  `;
 }
 
 function buildScrapbookHTML(seg) {
@@ -5405,15 +5923,17 @@ function buildScrapbookHTML(seg) {
   const parts = [];
   items.forEach((item, i) => {
     const text = typeof item === "string" ? item : (item.text || (Array.isArray(item) ? item.join(" · ") : ""));
+    const vRef = (typeof item === "object" && item.verseRef) ? String(item.verseRef) : String(verseStart + i);
+    const vLabel = vRef.match(/[-–]/) ? `v${vRef}` : `v${vRef}`;
     const rot = rotations[i % rotations.length];
     const isLeft = i % 2 === 0;
     const side = isLeft ? "flex-start" : "flex-end";
     const delay = i * 0.6;
 
     parts.push(`
-      <div class="story-scrap-card" style="align-self:${side}; transform:rotate(${rot}deg); animation-delay:${delay}s; cursor:pointer" onclick="openVersePeek('${verseStart + i}', this)">
+      <div class="story-scrap-card" style="align-self:${side}; transform:rotate(${rot}deg); animation-delay:${delay}s; cursor:pointer" onclick="openVersePeek('${vRef}', this)">
         <div class="tape"></div>
-        <span class="verse-ref">v${verseStart + i}</span>
+        <span class="verse-ref">${vLabel}</span>
         <div class="story-scrap-text">${esc(text)}</div>
       </div>
     `);
@@ -5473,17 +5993,19 @@ function buildConversationHTML(seg) {
     const showName = msg.speaker !== prevSpeaker;
     const cls = side === "right" ? "story-bubble-right" : "story-bubble-left";
     const radius = getBubbleRadius(msgs, i, side);
+    const vRef = msg.verseRef ? String(msg.verseRef) : "";
+    const vRefHTML = vRef ? `<span class="story-bubble-vref" onclick="event.stopPropagation();openVersePeek('${esc(vRef)}', this)">v.${esc(vRef)}</span>` : "";
     return `
       <div class="story-bubble-wrap ${cls}" style="animation:scrapIn 0.5s ease-out ${i * 0.6}s forwards; opacity:0">
         ${showName ? `<div class="story-speaker" ${side === "right" ? 'style="text-align:right"' : ""}>${esc(msg.speaker)}</div>` : ""}
-        <div class="story-bubble" style="${radius}">${esc(msg.text)}</div>
+        <div class="story-bubble" style="${radius}">${esc(msg.text)}${vRefHTML}</div>
       </div>
     `;
   }).join("");
 
   return `
     <div style="width:100%">
-      <div class="story-label">VERSES ${esc(seg.verses)}</div>
+      <div class="story-label story-verse-link" onclick="openVersePeek('${esc(seg.verses)}', this)">VERSES ${esc(seg.verses)}</div>
       <div class="story-title">${esc(seg.title)}</div>
       <div class="story-chat-area">${bubbles}</div>
     </div>
@@ -5512,12 +6034,12 @@ function buildTeachingHTML(seg) {
   return `
     <span class="story-watermark open">\u201C</span>
     <span class="story-watermark close">\u201D</span>
-    <div class="story-label">VERSES ${esc(seg.verses)}</div>
+    <div class="story-label story-verse-link" onclick="openVersePeek('${esc(seg.verses)}', this)">VERSES ${esc(seg.verses)}</div>
     <div class="story-title">${esc(seg.title)}</div>
     <div class="story-quote-card">
       <span class="material-icons" style="color:#db2777;opacity:0.5;margin-bottom:10px">format_quote</span>
       <div class="story-quote-text">${esc(quote || "")}</div>
-      ${speaker ? `<div class="story-quote-attr"><span class="story-quote-speaker">— ${esc(speaker)}</span><span class="story-quote-ref">v. ${esc(verseRef)}</span></div>` : ""}
+      ${speaker ? `<div class="story-quote-attr"><span class="story-quote-speaker">— ${esc(speaker)}</span><span class="story-quote-ref" style="cursor:pointer;text-decoration:underline;text-decoration-style:dotted;text-underline-offset:3px" onclick="openVersePeek('${esc(verseRef)}', this)">v. ${esc(verseRef)}</span></div>` : ""}
     </div>
     ${explHTML ? `<div class="story-explanation">${explHTML}</div>` : ""}
   `;
@@ -5528,7 +6050,7 @@ function buildContrastHTML(seg) {
   return `
     <div class="story-glow-circle pink"></div>
     <div class="story-glow-circle blue"></div>
-    <div class="story-label">VERSES ${esc(seg.verses)}</div>
+    <div class="story-label story-verse-link" onclick="openVersePeek('${esc(seg.verses)}', this)">VERSES ${esc(seg.verses)}</div>
     <div class="story-title">${esc(seg.title)}</div>
     <div class="story-vs-section">
       <div class="story-vs-label">${esc(left?.label || "Before")}</div>
@@ -5620,11 +6142,11 @@ async function fetchStoryTimeline(book, chapter, versesText) {
 Break the chapter into ${target} sequential segments. For EACH segment, pick the BEST displayType:
 
 DISPLAY TYPES:
-- "conversation": dialogue. Content: {"messages": [{"speaker": "Name", "text": "what they say"}]} — paraphrase in simple modern English, keep each message SHORT (1-2 sentences, max 20 words per message)
-- "narration": action/events. Content: {"points": [{"text": "short point", "emoji": "optional emoji or empty"}]}
+- "conversation": dialogue. Content: {"messages": [{"speaker": "Name", "text": "what they say", "verseRef": "exact verse number(s) this message is about, e.g. '3' or '4-5'"}]} — paraphrase in simple modern English, keep each message SHORT (1-2 sentences, max 20 words per message)
+- "narration": action/events. Content: {"points": [{"text": "short point", "emoji": "optional emoji or empty", "verseRef": "exact verse number(s) this point is about, e.g. '3' or '4-5'"}]}
 - "teaching": key concept. Content: {"quote": "the key teaching", "speaker": "who", "verseRef": "specific verse num", "explanation": "1-2 sentences"}
 - "contrast": before/after. Content: {"left": {"label": "Before", "text": "..."}, "right": {"label": "After", "text": "..."}, "reflection": "1 sentence learning"}
-- "sequence": step-by-step. Content: {"steps": [{"text": "step", "emoji": "optional"}]}
+- "sequence": step-by-step. Content: {"steps": [{"text": "step", "emoji": "optional", "verseRef": "exact verse number(s) this step is about, e.g. '7' or '8-9'"}]}
 
 RULES:
 - Every verse in exactly one segment
@@ -5914,7 +6436,8 @@ function openVersePeek(rawRef, anchorEl) {
   const rows = verseNums.map(v => ({ num: v, text: _peekGetVerseText(v, allVerses) || "Verse not found." }));
 
   // Build label: "19, 25" for comma lists, "19–21" for ranges, "8" for single
-  const refLabel = `${bookName} ${chapter}:${verseNums.length === 1 ? verseNums[0] : rawRef.replace(/[^0-9,\-–\s]/g, "").trim()}`;
+  const verseLabel = verseNums.length === 1 ? verseNums[0] : rawRef.replace(/[^0-9,\-–\s]/g, "").trim();
+  const refLabel = `${bookName} ${chapter}:${verseLabel}`;
   const bodyHTML = rows.map(r =>
     `<div class="verse-peek-row"><span class="verse-peek-num">v.${r.num}</span><span>${r.text}</span></div>`
   ).join("");
@@ -5928,20 +6451,31 @@ function openVersePeek(rawRef, anchorEl) {
   const bubble = document.createElement("div");
   bubble.className = "verse-peek-bubble";
   bubble.innerHTML = `
-    <div class="verse-peek-ref">${refLabel}</div>
+    <div class="verse-peek-header">
+      <div class="verse-peek-ref">${refLabel}</div>
+      <button class="verse-peek-goto" title="Go to passage"><span class="material-icons">open_in_new</span></button>
+    </div>
     <div class="verse-peek-body-wrap">
       <div class="verse-peek-body">${bodyHTML}</div>
     </div>
     <div class="verse-peek-tail"></div>`;
 
-  // Hide gradient when scrolled to bottom
-  const peekBody = bubble.querySelector(".verse-peek-body");
+  bubble.querySelector(".verse-peek-goto").onclick = () => {
+    _goToPassageFromPeek(bookName, chapter, verseNums[0]);
+  };
+
+  // Hide gradient when scrolled to bottom — wrap is now the scroll container
   const peekWrap = bubble.querySelector(".verse-peek-body-wrap");
   const checkPeekScroll = () => {
-    const atEnd = peekBody.scrollHeight - peekBody.scrollTop - peekBody.clientHeight < 8;
+    const atEnd = peekWrap.scrollHeight - peekWrap.scrollTop - peekWrap.clientHeight < 8;
     peekWrap.classList.toggle("peek-scrolled-end", atEnd);
   };
-  peekBody.addEventListener("scroll", checkPeekScroll);
+  peekWrap.addEventListener("scroll", checkPeekScroll);
+  // Prevent touch events from leaking to story modal behind
+  peekWrap.addEventListener("touchmove", e => e.stopPropagation());
+  overlay.addEventListener("touchmove", e => {
+    if (!peekWrap.contains(e.target)) e.preventDefault();
+  }, { passive: false });
   requestAnimationFrame(checkPeekScroll);
   overlay.appendChild(bubble);
   document.body.appendChild(overlay);

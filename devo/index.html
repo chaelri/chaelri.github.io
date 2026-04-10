@@ -365,9 +365,17 @@
           <span class="material-symbols-outlined">close</span>
         </button>
         <div class="story-content" id="storyContent"></div>
-        <div class="story-counter" id="storyCounter"></div>
-        <div class="story-tap-left" id="storyTapLeft"></div>
-        <div class="story-tap-right" id="storyTapRight"></div>
+        <div class="story-nav-bar">
+          <button class="story-nav-btn story-nav-prev" id="storyPrevBtn" onclick="storyPrev()">
+            <span class="material-symbols-outlined">arrow_back</span>
+            <span>Back</span>
+          </button>
+          <div class="story-counter" id="storyCounter"></div>
+          <button class="story-nav-btn story-nav-next" id="storyNextBtn" onclick="storyNext()">
+            <span>Next</span>
+            <span class="material-symbols-outlined">arrow_forward</span>
+          </button>
+        </div>
       </div>
     </div>
     <div id="reflectModal" class="story-modal" hidden>
