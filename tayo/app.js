@@ -1937,6 +1937,7 @@ $("journal-hint").addEventListener("click", () => {
             <div class="je-answer-card">
               <span class="je-answer-name">${whoLabel}</span>
               ${answerReactHTML(idx, who)}
+              ${answerActionsHTML(idx, who)}
               ${e.answer ? `<span class="je-answer-text">${e.answer}</span>` : ""}
               ${e.voiceURL ? `
               <div class="je-voice-player">
@@ -2022,6 +2023,7 @@ $("journal-hint").addEventListener("click", () => {
             <div class="je-answer-card">
               <span class="je-answer-name">Charlie</span>
               ${answerReactHTML(idx, "charlie")}
+              ${answerActionsHTML(idx, "charlie")}
               ${e.charlie && e.charlie !== "Voice message" ? `<span class="je-answer-text">${e.charlie}</span>` : ""}
               ${e.charlieVoiceURL ? `
               <div class="je-voice-player">
@@ -2041,6 +2043,7 @@ $("journal-hint").addEventListener("click", () => {
             <div class="je-answer-card">
               <span class="je-answer-name">Karla</span>
               ${answerReactHTML(idx, "karla")}
+              ${answerActionsHTML(idx, "karla")}
               ${e.karla && e.karla !== "Voice message" ? `<span class="je-answer-text">${e.karla}</span>` : ""}
               ${e.karlaVoiceURL ? `
               <div class="je-voice-player">
@@ -2097,6 +2100,73 @@ $("journal-hint").addEventListener("click", () => {
   const REACT_EMOJIS_LIST = ["💕", "😂", "😮", "😢", "🥹", "😡"];
 
 
+
+  // Answer edit/delete handlers
+  list.querySelectorAll(".je-ans-edit").forEach((btn) => {
+    btn.addEventListener("click", (ev) => {
+      ev.stopPropagation();
+      const idx = parseInt(btn.dataset.idx);
+      const key = btn.dataset.answer;
+      const journal = JSON.parse(localStorage.getItem("tayo_journal") || "[]");
+      const entry = journal[idx];
+      if (!entry) return;
+      const currentText = entry.type === "solo" ? entry.answer : entry[key];
+      const card = btn.closest(".je-answer-card");
+      const textEl = card.querySelector(".je-answer-text");
+      if (!textEl) return;
+
+      // Replace text with editable textarea
+      const textarea = document.createElement("textarea");
+      textarea.className = "je-edit-field";
+      textarea.value = currentText || "";
+      textarea.rows = 2;
+      textEl.replaceWith(textarea);
+      textarea.focus();
+      textarea.style.height = textarea.scrollHeight + "px";
+      textarea.addEventListener("input", () => { textarea.style.height = "auto"; textarea.style.height = textarea.scrollHeight + "px"; });
+
+      // Save on blur or Enter
+      const save = () => {
+        const newText = textarea.value.trim();
+        if (entry.type === "solo") { journal[idx].answer = newText; }
+        else { journal[idx][key] = newText; }
+        localStorage.setItem("tayo_journal", JSON.stringify(journal));
+        syncJournalToFirebase();
+        $("journal-hint").click();
+      };
+      textarea.addEventListener("blur", save);
+      textarea.addEventListener("keydown", (e2) => { if (e2.key === "Enter" && !e2.shiftKey) { e2.preventDefault(); save(); } });
+    });
+  });
+
+  list.querySelectorAll(".je-ans-del").forEach((btn) => {
+    btn.addEventListener("click", (ev) => {
+      ev.stopPropagation();
+      const idx = parseInt(btn.dataset.idx);
+      const key = btn.dataset.answer;
+      const journal = JSON.parse(localStorage.getItem("tayo_journal") || "[]");
+      if (!journal[idx]) return;
+
+      if (journal[idx].type === "solo") {
+        // Delete the whole solo entry
+        const voiceURL = journal[idx].voiceURL;
+        journal.splice(idx, 1);
+        if (voiceURL) { try { const p = decodeURIComponent(voiceURL.split("/o/")[1]?.split("?")[0]); if (p) deleteObject(storageRef(storage, p)).catch(() => {}); } catch {} }
+      } else {
+        // Delete just this person's answer
+        const voiceKey = key + "VoiceURL";
+        const voiceURL = journal[idx][voiceKey];
+        journal[idx][key] = "";
+        if (voiceURL) { journal[idx][voiceKey] = null; try { const p = decodeURIComponent(voiceURL.split("/o/")[1]?.split("?")[0]); if (p) deleteObject(storageRef(storage, p)).catch(() => {}); } catch {} }
+        // If both empty, remove entire entry
+        if (!journal[idx].charlie && !journal[idx].karla) journal.splice(idx, 1);
+      }
+
+      localStorage.setItem("tayo_journal", JSON.stringify(journal));
+      syncJournalToFirebase();
+      $("journal-hint").click();
+    });
+  });
 
   // Answer-level react handlers
   list.querySelectorAll(".je-ans-react").forEach((btn) => {

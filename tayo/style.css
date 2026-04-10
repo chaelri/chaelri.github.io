@@ -1313,6 +1313,31 @@ body {
 }
 .je-ans-picker.show { opacity: 1; transform: scale(1); }
 
+/* Answer actions (edit/delete) */
+.je-ans-actions {
+  position: absolute;
+  top: 0.35rem; right: 0.35rem;
+  display: flex; gap: 0.15rem;
+}
+.je-ans-action {
+  background: var(--surface); border: 1px solid var(--border);
+  border-radius: 50%; width: 22px; height: 22px;
+  display: flex; align-items: center; justify-content: center;
+  cursor: pointer; color: var(--muted);
+  padding: 0; transition: color 0.2s, border-color 0.2s;
+}
+.je-ans-action:hover { color: var(--light); border-color: var(--subtle); }
+.je-ans-del:hover { color: #ef4444; border-color: #ef4444; }
+
+.je-edit-field {
+  width: 100%; background: var(--bg);
+  border: 1px solid var(--accent); border-radius: 0.5rem;
+  color: var(--light); font-family: "Inter", sans-serif;
+  font-size: 0.78rem; padding: 0.4rem 0.6rem;
+  outline: none; resize: none; overflow: hidden;
+  line-height: 1.45; min-height: 2rem;
+}
+
 .je-ans-react.has-react {
   border: none;
   background: none;
