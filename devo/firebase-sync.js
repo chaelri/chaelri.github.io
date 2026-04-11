@@ -22,6 +22,8 @@ const SYNC_STATIC_KEYS = [
   "bibleVersion",
   "recentPassageId",
   "recentPassage",
+  "soap_application",
+  "soap_prayer",
 ];
 
 // Dynamic key prefix for reflections
@@ -246,6 +248,8 @@ function _mergeAll(local, remote) {
       merged[key] = _mergeComments(lVal, rVal);
     } else if (decodedKey === "devotionStandaloneNotes") {
       merged[key] = _mergeStandaloneNotes(lVal, rVal);
+    } else if (decodedKey === "soap_application" || decodedKey === "soap_prayer") {
+      merged[key] = _mergeSoapEntries(lVal, rVal);
     } else {
       // For simple strings, prefer local (the device you're on)
       merged[key] = lVal;
@@ -311,6 +315,17 @@ function _mergeStandaloneNotes(a, b) {
     }
 
     return JSON.stringify(Object.values(byId).sort((a, b) => (b.updatedAt || 0) - (a.updatedAt || 0)));
+  } catch { return a || b; }
+}
+
+function _mergeSoapEntries(a, b) {
+  try {
+    const arrA = typeof a === "string" ? JSON.parse(a) : a || [];
+    const arrB = typeof b === "string" ? JSON.parse(b) : b || [];
+    const byId = {};
+    for (const e of arrB) byId[e.id] = e;
+    for (const e of arrA) byId[e.id] = e; // local wins on conflict
+    return JSON.stringify(Object.values(byId).sort((a, b) => (b.time || 0) - (a.time || 0)));
   } catch { return a || b; }
 }
 

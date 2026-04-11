@@ -1181,8 +1181,6 @@ select:disabled {
   opacity: 0.6;
   font-size: 14px;
   padding: 8px 10px;
-  background: #111a2f;
-  border-radius: 8px;
 }
 
 #homeBtn {
@@ -6547,3 +6545,349 @@ button#storyBtn { background: unset; }
   color: #8a95a8 !important;
 }
 .sync-confirm-btn.no:hover { background: rgba(255,255,255,0.12) !important; }
+
+/* ═══════════════════════════════════════════════════════════════════════════
+   SOAP — Application & Prayer (A & P)
+   ═══════════════════════════════════════════════════════════════════════════ */
+
+/* ── Buttons inside Dig Deeper card ── */
+.soap-ap-buttons {
+  display: flex;
+  gap: 8px;
+  margin-top: 14px;
+  padding-top: 12px;
+  border-top: 1px solid rgba(255,255,255,0.08);
+}
+.soap-ap-btn {
+  flex: 1 !important;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  gap: 6px;
+  padding: 10px 12px;
+  border-radius: 10px;
+  border: 1px solid rgba(255,255,255,0.08);
+  background: rgba(255,255,255,0.05);
+  color: rgba(255,255,255,0.6);
+  font-size: 13px;
+  font-weight: 600;
+  cursor: pointer;
+  transition: background 0.15s, border-color 0.15s;
+}
+.soap-ap-btn .material-icons { font-size: 16px; opacity: 0.6; }
+.soap-ap-btn:hover {
+  background: rgba(255,255,255,0.08);
+  border-color: rgba(255,255,255,0.15);
+}
+.soap-ap-btn:active { transform: scale(0.97); }
+
+/* ── Stack area ── */
+.soap-ap-stack {
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+}
+.soap-ap-stack:not(:empty) { margin-top: 12px; }
+
+/* ── Picker (category + writer) ── */
+.soap-picker {
+  border: 1px solid rgba(255,255,255,0.06);
+  border-radius: 12px;
+  padding: 12px;
+  background: rgba(255,255,255,0.02);
+}
+.soap-picker-header {
+  font-size: 11px;
+  font-weight: 700;
+  letter-spacing: 1.2px;
+  text-transform: uppercase;
+  color: rgba(255,255,255,0.35);
+  margin-bottom: 8px;
+}
+.soap-pill-row {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 6px;
+  justify-content: center;
+}
+.soap-pill {
+  padding: 6px 12px;
+  border-radius: 10px;
+  border: 1px solid rgba(255,255,255,0.08);
+  background: none;
+  color: rgba(255,255,255,0.5);
+  font-size: 12px;
+  font-weight: 600;
+  cursor: pointer;
+  transition: background 0.15s, border-color 0.15s, color 0.15s;
+}
+.soap-pill:hover {
+  background: rgba(255,255,255,0.07);
+  border-color: rgba(255,255,255,0.15);
+}
+.soap-pill.active {
+  background: #db2777;
+  color: #fff;
+  border-color: #db2777;
+}
+
+/* ── Writer (textarea + save) ── */
+.soap-writer {
+  margin-top: 10px;
+  position: relative;
+}
+.soap-writer[hidden] { display: none !important; }
+.soap-textarea {
+  width: 100%;
+  background: rgba(255,255,255,0.05);
+  border: 1px solid rgba(255,255,255,0.08);
+  border-radius: 10px;
+  padding: 12px 14px 40px 14px;
+  color: inherit;
+  font-size: 14px;
+  font-family: inherit;
+  resize: none;
+  min-height: 70px;
+  max-height: 120px;
+  overflow-y: auto;
+  box-sizing: border-box;
+  scrollbar-width: none;
+}
+.soap-textarea::-webkit-scrollbar { display: none; }
+.soap-textarea::placeholder { color: rgba(255,255,255,0.2); }
+.soap-textarea:focus {
+  outline: none;
+  border-color: rgba(255,255,255,0.15);
+}
+.soap-writer-save {
+  position: absolute;
+  right: 8px;
+  bottom: 12px;
+  padding: 5px 14px;
+  border-radius: 8px;
+  border: none;
+  background: #db2777;
+  color: #fff;
+  font-size: 12px;
+  font-weight: 700;
+  cursor: pointer;
+  transition: opacity 0.15s;
+}
+.soap-writer-save:hover { opacity: 0.85; }
+
+/* ── Saved entry card ── */
+.soap-entry-card {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  padding: 10px 12px;
+  border-radius: 10px;
+  background: rgba(255,255,255,0.04);
+  border: 1px solid rgba(255,255,255,0.06);
+}
+.soap-entry-tag {
+  font-size: 10px;
+  font-weight: 700;
+  letter-spacing: 0.3px;
+  text-transform: uppercase;
+  color: #db2777;
+  flex-shrink: 0;
+  white-space: nowrap;
+}
+.soap-entry-text {
+  flex: 1;
+  font-size: 13px;
+  line-height: 1.4;
+  color: rgba(255,255,255,0.8);
+  outline: none;
+  border-radius: 4px;
+  padding: 2px 4px;
+  border: 1px solid transparent;
+  transition: border-color 0.15s, background 0.15s;
+}
+.soap-entry-text[contenteditable="true"] {
+  border-color: rgba(255,255,255,0.1);
+  background: rgba(255,255,255,0.04);
+}
+.soap-entry-edit {
+  background: none;
+  border: none;
+  color: rgba(255,255,255,0.15);
+  cursor: pointer;
+  padding: 0;
+  flex-shrink: 0;
+  transition: color 0.15s;
+}
+.soap-entry-edit .material-icons { font-size: 14px; }
+.soap-entry-edit:hover { color: rgba(255,255,255,0.4); }
+
+/* ── Light mode ── */
+.light .soap-picker { background: rgba(0,0,0,0.02); border-color: rgba(0,0,0,0.06); }
+.light .soap-picker-header { color: rgba(0,0,0,0.3); }
+.light .soap-pill { border-color: rgba(0,0,0,0.08); color: rgba(0,0,0,0.45); }
+.light .soap-pill:hover { background: rgba(0,0,0,0.04); }
+.light .soap-pill.active { background: #db2777; color: #fff; border-color: #db2777; }
+.light .soap-textarea { background: #fff; border-color: rgba(0,0,0,0.1); color: #1a1a1a; }
+.light .soap-textarea::placeholder { color: rgba(0,0,0,0.2); }
+.light .soap-textarea:focus { border-color: rgba(0,0,0,0.15); }
+.light .soap-entry-card { background: rgba(0,0,0,0.03); border-color: rgba(0,0,0,0.06); }
+.light .soap-entry-text { color: rgba(0,0,0,0.7); }
+.light .soap-entry-text[contenteditable="true"] { background: rgba(0,0,0,0.03); border-color: rgba(0,0,0,0.1); }
+.light .soap-entry-edit { color: rgba(0,0,0,0.15); }
+.light .soap-entry-edit:hover { color: rgba(0,0,0,0.4); }
+
+/* ── Editable text in dashboard cards ── */
+.soap-dash-card-text[contenteditable] {
+  outline: none;
+  border: 1px solid transparent;
+  border-radius: 6px;
+  padding: 2px 4px;
+  margin: -2px -4px;
+  transition: border-color 0.15s, background 0.15s;
+}
+.soap-dash-card-text[contenteditable]:focus {
+  border-color: rgba(255,255,255,0.12);
+  background: rgba(255,255,255,0.04);
+}
+.light .soap-dash-card-text[contenteditable]:focus {
+  border-color: rgba(0,0,0,0.1);
+  background: rgba(0,0,0,0.02);
+}
+
+/* ═══════════════════════════════════════════════════════════════════════════
+   SOAP Dashboard — Applications & Prayers
+   ═══════════════════════════════════════════════════════════════════════════ */
+
+.soap-dash-section h3 { margin-bottom: 12px; }
+.soap-dash-empty {
+  background: none !important;
+  border: none !important;
+  box-shadow: none !important;
+  padding-bottom: 10px;
+}
+.soap-dash-count {
+  font-size: 11px;
+  font-weight: 700;
+  opacity: 0.35;
+}
+
+/* ── Filter pills row ── */
+.soap-dash-pills {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 6px;
+  margin-bottom: 14px;
+}
+.soap-dash-pill {
+  padding: 6px 12px;
+  border-radius: 10px;
+  border: 1px solid rgba(255,255,255,0.08);
+  background: none;
+  color: rgba(255,255,255,0.45);
+  font-size: 12px;
+  font-weight: 600;
+  cursor: pointer;
+  transition: background 0.15s, border-color 0.15s, color 0.15s;
+  display: flex;
+  align-items: center;
+  gap: 4px;
+}
+.soap-dash-pill:hover {
+  background: rgba(255,255,255,0.07);
+  border-color: rgba(255,255,255,0.15);
+}
+.soap-dash-pill.active {
+  background: rgba(219,39,119,0.12);
+  color: #db2777;
+  border-color: rgba(219,39,119,0.2);
+}
+.soap-dash-pill-count {
+  font-size: 10px;
+  opacity: 0.5;
+}
+
+/* ── Entry cards ── */
+.soap-dash-list {
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+}
+.soap-dash-card {
+  background: rgba(255,255,255,0.03);
+  border: 1px solid rgba(255,255,255,0.06);
+  border-radius: 12px;
+  padding: 12px 14px;
+  transition: background 0.15s;
+}
+.soap-dash-card:hover {
+  background: rgba(255,255,255,0.06);
+}
+.soap-dash-card-top {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  margin-bottom: 6px;
+}
+.soap-dash-cat-badge {
+  font-size: 10px;
+  font-weight: 700;
+  letter-spacing: 0.3px;
+  text-transform: uppercase;
+  color: #db2777;
+  opacity: 0.8;
+}
+.soap-dash-card-date {
+  font-size: 11px;
+  color: rgba(255,255,255,0.25);
+  margin-left: auto;
+}
+.soap-dash-card-del {
+  background: none;
+  border: none;
+  color: rgba(255,255,255,0.12);
+  cursor: pointer;
+  padding: 0;
+  line-height: 1;
+  transition: color 0.15s;
+}
+.soap-dash-card-del .material-icons { font-size: 16px; }
+.soap-dash-card-del:hover { color: rgba(255,100,100,0.6); }
+
+.soap-dash-card-text {
+  font-size: 13px;
+  line-height: 1.5;
+  color: rgba(255,255,255,0.75);
+}
+.soap-dash-card-passage {
+  font-size: 11px;
+  font-weight: 600;
+  color: rgba(255,255,255,0.25);
+  margin-top: 6px;
+}
+
+.soap-dash-show-all {
+  display: block;
+  margin-top: 10px;
+  padding: 8px 0;
+  background: none;
+  border: none;
+  color: rgba(255,255,255,0.35);
+  font-size: 13px;
+  font-weight: 600;
+  cursor: pointer;
+  transition: color 0.15s;
+}
+.soap-dash-show-all:hover { color: rgba(255,255,255,0.6); }
+
+.light .soap-dash-pill { border-color: rgba(0,0,0,0.08); color: rgba(0,0,0,0.4); }
+.light .soap-dash-pill:hover { background: rgba(0,0,0,0.04); }
+.light .soap-dash-pill.active { background: rgba(219,39,119,0.08); color: #db2777; border-color: rgba(219,39,119,0.15); }
+.light .soap-dash-card { background: #fff; border-color: rgba(0,0,0,0.06); }
+.light .soap-dash-card:hover { background: #faf9f6; }
+.light .soap-dash-card-text { color: #2a2a3e; }
+.light .soap-dash-card-date { color: rgba(0,0,0,0.3); }
+.light .soap-dash-card-passage { color: rgba(0,0,0,0.3); }
+.light .soap-dash-card-del { color: rgba(0,0,0,0.12); }
+.light .soap-dash-card-del:hover { color: rgba(220,50,50,0.5); }
+.light .soap-dash-show-all { color: rgba(0,0,0,0.35); }
+.light .soap-dash-show-all:hover { color: rgba(0,0,0,0.6); }

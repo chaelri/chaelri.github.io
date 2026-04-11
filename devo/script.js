@@ -1591,9 +1591,11 @@ STRICT: No greetings. No "this verse tells us". No padding. Start with #### Orig
           <button class="ai-card-close" title="Close">✕</button>
         </div>
         <div class="ai-md-content">${mdToHTML(aiText)}</div>
+        ${_soapAPButtonsHTML(book, chapter, verse)}
       </div>
     </div>`;
     mountEl.querySelector('.ai-card-close').onclick = () => { mountEl.innerHTML = ''; };
+    _bindSoapAPButtons(mountEl, book, chapter, verse);
   } catch (err) {
     console.error(err);
     mountEl.innerHTML = `<div class="inline-ai-card dig-deeper">
@@ -2076,6 +2078,12 @@ async function renderDashboard() {
         })()}
       </section>
 
+      <!-- SOAP: APPLICATIONS -->
+      ${_renderSoapDashboardSection("application")}
+
+      <!-- SOAP: PRAYERS -->
+      ${_renderSoapDashboardSection("prayer")}
+
       <!-- DAILY REMINDER -->
       <section class="dashboard-section dash-notif-section">
         <div class="dash-notif-row" id="pushArea">
@@ -2112,6 +2120,9 @@ async function renderDashboard() {
       _handlePushToggle();
     });
   }
+
+  // Bind SOAP A&P dashboard interactions
+  _bindSoapDashboard();
 
   // One-time notification prompt (only after name is set)
   if (getUserName()
@@ -5635,9 +5646,11 @@ STRICT: No greetings. No padding. Start with #### Key Themes immediately.`);
           <button class="ai-card-close" title="Close">✕</button>
         </div>
         <div class="ai-md-content">${mdToHTML(aiText)}</div>
+        ${_soapAPButtonsHTML(book, chapter, verses)}
       </div>
     </div>`;
     mountEl.querySelector('.ai-card-close').onclick = () => { mountEl.innerHTML = ''; };
+    _bindSoapAPButtons(mountEl, book, chapter, verses);
   } catch {
     mountEl.innerHTML = `<div class="inline-ai-card dig-deeper">
       <div class="ai-card-gradient">
@@ -6532,5 +6545,285 @@ function openVersePeek(rawRef, anchorEl) {
 
   overlay.addEventListener("click", e => {
     if (e.target === overlay) overlay.remove();
+  });
+}
+
+/* ═══════════════════════════════════════════════════════════════════════════
+   SOAP — Application & Prayer (A & P)
+   ═══════════════════════════════════════════════════════════════════════════ */
+
+const SOAP_CATEGORIES = ["God", "Family", "Work/School", "Ministry", "Others"];
+
+function _soapStorageKey(type) { return `soap_${type}`; }
+
+function _getSoapEntries(type) {
+  return JSON.parse(localStorage.getItem(_soapStorageKey(type)) || "[]");
+}
+function _saveSoapEntries(type, entries) {
+  localStorage.setItem(_soapStorageKey(type), JSON.stringify(entries));
+}
+
+function _soapAPButtonsHTML(book, chapter, verse) {
+  return `
+    <div class="soap-ap-buttons">
+      <button class="soap-ap-btn" data-soap-type="application">Add Application</button>
+      <button class="soap-ap-btn" data-soap-type="prayer">Add Prayer</button>
+    </div>
+    <div class="soap-ap-stack"></div>
+  `;
+}
+
+function _bindSoapAPButtons(container, book, chapter, verse) {
+  const btns = container.querySelectorAll(".soap-ap-btn");
+  const stack = container.querySelector(".soap-ap-stack");
+  btns.forEach(btn => {
+    btn.onclick = () => {
+      const type = btn.dataset.soapType;
+      // If there's already an open picker for this type, don't duplicate
+      if (stack.querySelector(`.soap-picker[data-soap-picker-type="${type}"]`)) return;
+      _appendSoapPicker(stack, type, book, chapter, verse);
+    };
+  });
+}
+
+function _appendSoapPicker(stack, type, book, chapter, verse) {
+  const label = type === "application" ? "Application" : "Prayer";
+  const picker = document.createElement("div");
+  picker.className = "soap-picker";
+  picker.dataset.soapPickerType = type;
+  picker.style.animation = "aiFadeSlideIn .25s ease-out";
+  picker.innerHTML = `
+    <div class="soap-picker-header">${label}</div>
+    <div class="soap-pill-row">
+      ${SOAP_CATEGORIES.map(c => `<button class="soap-pill" data-cat="${_escHtml(c)}">${_escHtml(c)}</button>`).join("")}
+    </div>
+    <div class="soap-writer" hidden>
+      <textarea class="soap-textarea" placeholder="Write here..." rows="1"></textarea>
+      <button class="soap-writer-save">Save</button>
+    </div>
+  `;
+  stack.appendChild(picker);
+
+  let selectedCat = null;
+  const pills = picker.querySelectorAll(".soap-pill");
+  const writer = picker.querySelector(".soap-writer");
+  const textarea = picker.querySelector(".soap-textarea");
+  const saveBtn = picker.querySelector(".soap-writer-save");
+
+  // Auto-resize textarea
+  textarea.addEventListener("input", () => {
+    textarea.style.height = "auto";
+    textarea.style.height = Math.min(textarea.scrollHeight, 120) + "px";
+  });
+
+  pills.forEach(pill => {
+    pill.onclick = () => {
+      pills.forEach(p => p.classList.remove("active"));
+      pill.classList.add("active");
+      selectedCat = pill.dataset.cat;
+      writer.hidden = false;
+      textarea.focus();
+    };
+  });
+
+  saveBtn.onclick = () => {
+    const text = textarea.value.trim();
+    if (!text || !selectedCat) return;
+
+    const entry = {
+      id: Date.now() + "_" + Math.random().toString(36).slice(2, 7),
+      category: selectedCat,
+      text,
+      passage: `${book} ${chapter}${verse ? ":" + verse : ""}`,
+      time: Date.now()
+    };
+
+    const entries = _getSoapEntries(type);
+    entries.unshift(entry);
+    _saveSoapEntries(type, entries);
+
+    // Replace picker with saved card
+    const card = _createSoapEntryCard(entry, type);
+    picker.replaceWith(card);
+  };
+}
+
+function _createSoapEntryCard(entry, type) {
+  const card = document.createElement("div");
+  card.className = "soap-entry-card";
+  card.style.animation = "aiFadeSlideIn .25s ease-out";
+  card.dataset.soapId = entry.id;
+  const label = type === "application" ? "Application" : "Prayer";
+  card.innerHTML = `
+    <div class="soap-entry-tag">${_escHtml(entry.category)} · ${label}</div>
+    <span class="soap-entry-text" data-soap-id="${entry.id}" data-soap-type="${type}">${_escHtml(entry.text)}</span>
+    <button class="soap-entry-edit" title="Edit"><span class="material-icons">edit</span></button>
+  `;
+
+  const textEl = card.querySelector(".soap-entry-text");
+  const editBtn = card.querySelector(".soap-entry-edit");
+
+  editBtn.onclick = () => {
+    textEl.contentEditable = "true";
+    textEl.focus();
+    const range = document.createRange();
+    range.selectNodeContents(textEl);
+    const sel = window.getSelection();
+    sel.removeAllRanges();
+    sel.addRange(range);
+  };
+
+  textEl.addEventListener("blur", () => {
+    textEl.contentEditable = "false";
+    const newText = textEl.textContent.trim();
+    if (!newText) {
+      // Empty = delete
+      const entries = _getSoapEntries(type).filter(e => e.id !== entry.id);
+      _saveSoapEntries(type, entries);
+      card.style.opacity = "0";
+      card.style.transition = "opacity .2s";
+      setTimeout(() => card.remove(), 200);
+      return;
+    }
+    const entries = _getSoapEntries(type);
+    const found = entries.find(e => e.id === entry.id);
+    if (found) { found.text = newText; _saveSoapEntries(type, entries); }
+  });
+
+  textEl.addEventListener("keydown", (e) => {
+    if (e.key === "Enter") { e.preventDefault(); textEl.blur(); }
+  });
+
+  return card;
+}
+
+/* ── SOAP Dashboard Sections ── */
+
+function _renderSoapDashboardSection(type) {
+  const label = type === "application" ? "Applications" : "Prayers";
+  const icon = type === "application" ? "edit_note" : "volunteer_activism";
+  const entries = _getSoapEntries(type);
+
+  if (!entries.length) {
+    return `
+      <section class="dashboard-section soap-dash-section soap-dash-empty">
+        <h3><span class="material-icons dashboard-icon">${icon}</span> ${label}</h3>
+        <p class="empty-state">No ${label.toLowerCase()} yet. Open Dig Deeper on any passage to add one!</p>
+      </section>`;
+  }
+
+  const grouped = {};
+  SOAP_CATEGORIES.forEach(c => { grouped[c] = []; });
+  entries.forEach(e => {
+    if (!grouped[e.category]) grouped[e.category] = [];
+    grouped[e.category].push(e);
+  });
+
+  const activeCats = SOAP_CATEGORIES.filter(c => grouped[c].length > 0);
+
+  return `
+    <section class="dashboard-section soap-dash-section">
+      <h3 style="display:flex;justify-content:space-between;align-items:center;">
+        <span><span class="material-icons dashboard-icon">${icon}</span> ${label}</span>
+        <span class="soap-dash-count">${entries.length}</span>
+      </h3>
+      <div class="soap-dash-pills" data-soap-dash-type="${type}">
+        <button class="soap-dash-pill active" data-filter="all">All</button>
+        ${activeCats.map(c => `<button class="soap-dash-pill" data-filter="${_escHtml(c)}">${_escHtml(c)} <span class="soap-dash-pill-count">${grouped[c].length}</span></button>`).join("")}
+      </div>
+      <div class="soap-dash-list" data-soap-dash-list="${type}">
+        ${entries.slice(0, 10).map(e => _soapDashCardHTML(e, type)).join("")}
+      </div>
+      ${entries.length > 10 ? `<button class="soap-dash-show-all" data-soap-show-type="${type}">Show all ${entries.length} →</button>` : ""}
+    </section>`;
+}
+
+function _soapDashCardHTML(entry, type) {
+  const dateStr = new Date(entry.time).toLocaleDateString("en-US", { month: "short", day: "numeric" });
+  return `
+    <div class="soap-dash-card" data-soap-cat="${_escHtml(entry.category)}" data-soap-id="${entry.id}">
+      <div class="soap-dash-card-top">
+        <span class="soap-dash-cat-badge">${_escHtml(entry.category)}</span>
+        <span class="soap-dash-card-date">${dateStr}</span>
+        <button class="soap-dash-card-del" data-soap-del-id="${entry.id}" data-soap-del-type="${type}" title="Delete">
+          <span class="material-icons">close</span>
+        </button>
+      </div>
+      <div class="soap-dash-card-text" contenteditable="true" data-soap-edit-id="${entry.id}" data-soap-edit-type="${type}">${_escHtml(entry.text)}</div>
+      <div class="soap-dash-card-passage">${_escHtml(entry.passage)}</div>
+    </div>`;
+}
+
+function _bindSoapDashboard() {
+  document.querySelectorAll(".soap-dash-pills").forEach(pillRow => {
+    const type = pillRow.dataset.soapDashType;
+    const list = document.querySelector(`[data-soap-dash-list="${type}"]`);
+    if (!list) return;
+    pillRow.querySelectorAll(".soap-dash-pill").forEach(pill => {
+      pill.onclick = () => {
+        pillRow.querySelectorAll(".soap-dash-pill").forEach(p => p.classList.remove("active"));
+        pill.classList.add("active");
+        const filter = pill.dataset.filter;
+        list.querySelectorAll(".soap-dash-card").forEach(card => {
+          card.style.display = (filter === "all" || card.dataset.soapCat === filter) ? "" : "none";
+        });
+      };
+    });
+  });
+
+  document.querySelectorAll(".soap-dash-show-all").forEach(btn => {
+    btn.onclick = () => {
+      const type = btn.dataset.soapShowType;
+      const entries = _getSoapEntries(type);
+      const list = document.querySelector(`[data-soap-dash-list="${type}"]`);
+      if (!list) return;
+      list.innerHTML = entries.map(e => _soapDashCardHTML(e, type)).join("");
+      btn.hidden = true;
+      _bindSoapDeleteButtons();
+      _bindSoapDashEditables();
+    };
+  });
+
+  _bindSoapDeleteButtons();
+  _bindSoapDashEditables();
+}
+
+function _bindSoapDeleteButtons() {
+  document.querySelectorAll(".soap-dash-card-del").forEach(btn => {
+    btn.onclick = (e) => {
+      e.stopPropagation();
+      const id = btn.dataset.soapDelId;
+      const type = btn.dataset.soapDelType;
+      const entries = _getSoapEntries(type).filter(e => e.id !== id);
+      _saveSoapEntries(type, entries);
+      const card = btn.closest(".soap-dash-card");
+      if (card) {
+        card.style.opacity = "0";
+        card.style.transform = "scale(0.95)";
+        setTimeout(() => {
+          card.remove();
+          // Re-render the whole section to update counts / empty state
+          const section = document.querySelector(`[data-soap-dash-list="${type}"]`)?.closest(".soap-dash-section");
+          if (section) {
+            section.outerHTML = _renderSoapDashboardSection(type);
+            _bindSoapDashboard();
+          }
+        }, 200);
+      }
+    };
+  });
+}
+
+function _bindSoapDashEditables() {
+  document.querySelectorAll("[data-soap-edit-id]").forEach(el => {
+    el.addEventListener("blur", () => {
+      const newText = el.textContent.trim();
+      if (!newText) return;
+      const id = el.dataset.soapEditId;
+      const type = el.dataset.soapEditType;
+      const entries = _getSoapEntries(type);
+      const found = entries.find(e => e.id === id);
+      if (found) { found.text = newText; _saveSoapEntries(type, entries); }
+    });
   });
 }
