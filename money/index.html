@@ -302,11 +302,11 @@
                 <p class="text-[10px] text-slate-400">What's left in your pocket after July 2</p>
               </div>
             </div>
-            <!-- The big number -->
+            <!-- The big number: June projected balance -->
             <div class="bg-slate-900/50 rounded-2xl p-5 text-center space-y-1 border border-white/[0.04]">
-              <p class="text-[9px] font-bold uppercase tracking-widest text-slate-500">Projected Balance After Wedding</p>
-              <p id="after-wedding-balance" class="text-4xl font-black text-emerald-400">--</p>
-              <p id="after-wedding-sub" class="text-[10px] text-slate-500 mt-1">--</p>
+              <p class="text-[9px] font-bold uppercase tracking-widest text-slate-500">Your June Balance (Projected)</p>
+              <p id="after-wedding-balance" class="text-4xl font-black text-blue-400">--</p>
+              <p id="after-wedding-sub" class="text-[10px] text-slate-500 mt-1">This is what you'll have going into the wedding</p>
             </div>
             <!-- Breakdown -->
             <div class="space-y-2">
@@ -327,6 +327,55 @@
                 <span id="aw-result" class="font-black text-emerald-400">--</span>
               </div>
             </div>
+          </div>
+        </div>
+
+        <!-- TRAJECTORY VIEW -->
+        <div
+          id="trajectory-view"
+          class="absolute inset-0 overflow-y-auto px-6 md:px-8 pt-4 pb-32 space-y-4 opacity-0 pointer-events-none transition-opacity duration-300 bg-slate-900"
+        >
+          <!-- Controls -->
+          <div class="glass-card p-5 rounded-[2.5rem] space-y-4">
+            <div class="flex items-center justify-between">
+              <div class="flex items-center gap-3">
+                <div class="w-10 h-10 rounded-2xl bg-gradient-to-br from-blue-500 to-indigo-600 flex items-center justify-center">
+                  <span class="material-icons text-white text-lg">trending_up</span>
+                </div>
+                <h4 class="text-sm font-black text-white">Trajectory</h4>
+              </div>
+              <div id="traj-salary-toggle" class="traj-salary-toggle">
+                <button onclick="setTrajSalary(125000)" class="traj-sal-chip active" data-sal="125">Azur</button>
+                <button onclick="setTrajSalary(210000)" class="traj-sal-chip" data-sal="210">Temenos</button>
+              </div>
+            </div>
+
+            <!-- Rent -->
+            <div class="flex items-center justify-between bg-slate-900/50 rounded-xl p-3 border border-white/[0.04] cursor-pointer active:scale-[0.98] transition-transform" onclick="promptTrajRent()">
+              <span class="text-[10px] font-bold uppercase text-slate-500">Rent / mo</span>
+              <div class="flex items-center gap-1.5">
+                <span id="traj-rent-display" class="text-sm font-black text-indigo-400">₱15,000</span>
+                <span class="material-icons text-[12px] text-blue-400/50">edit</span>
+              </div>
+            </div>
+
+            <!-- Living Expenses (editable list) -->
+            <div class="space-y-2">
+              <div class="flex items-center justify-between">
+                <span class="text-[10px] font-bold uppercase text-slate-500">Living Expenses / mo (from July)</span>
+                <!-- Rent label note -->
+                <!-- Rent: from May | Living: from July -->
+                <span id="traj-living-total" class="text-[10px] font-black text-pink-400">--</span>
+              </div>
+              <div id="traj-living-list" class="space-y-1">
+                <!-- Rendered by JS -->
+              </div>
+            </div>
+          </div>
+
+          <!-- Month cards (Horizon-style) -->
+          <div id="traj-month-cards" class="space-y-3">
+            <!-- Rendered by JS -->
           </div>
         </div>
 
@@ -399,6 +448,14 @@
         >
           <span class="material-icons">diamond</span>
           <span class="text-[10px] font-bold uppercase">Goals</span>
+        </button>
+        <button
+          onclick="switchView('trajectory')"
+          id="nav-trajectory"
+          class="flex flex-col items-center gap-1 text-slate-500 transition-colors"
+        >
+          <span class="material-icons">trending_up</span>
+          <span class="text-[10px] font-bold uppercase">Trajectory</span>
         </button>
         <button
           onclick="switchView('setup')"

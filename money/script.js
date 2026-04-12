@@ -830,7 +830,7 @@ async function reorderItems(monthIdx, type, newOrder) {
 
 window.switchView = (view) => {
   activeView = view;
-  const views = ["budget", "stats", "commitments", "setup"];
+  const views = ["budget", "stats", "commitments", "trajectory", "setup"];
   views.forEach((v) => {
     const el = document.getElementById(`${v}-view`);
     const nav = document.getElementById(`nav-${v}`);
@@ -849,6 +849,7 @@ window.switchView = (view) => {
   });
   if (view === "stats") renderStats();
   if (view === "commitments") renderCommitments();
+  if (view === "trajectory") renderTrajectory();
   const header = document.querySelector("header");
   if (header) header.style.display = view === "budget" ? "flex" : "none";
   const sidebar = document.getElementById("desktop-sidebar");
@@ -1491,13 +1492,14 @@ async function renderWeddingFund() {
   $("aw-result").textContent = `₱${formatMoney(julyBalance)}`;
   $("aw-result").className = `font-black ${julyBalance >= 0 ? "text-emerald-400" : "text-rose-400"}`;
 
-  $("after-wedding-balance").textContent = `₱${formatMoney(julyBalance)}`;
-  $("after-wedding-balance").className = `text-4xl font-black ${julyBalance >= 0 ? "text-emerald-400" : "text-rose-400"}`;
+  // Hero number = June projected balance (what you actually have before wedding costs)
+  $("after-wedding-balance").textContent = `₱${formatMoney(charlieAmount)}`;
+  $("after-wedding-balance").className = `text-4xl font-black ${charlieAmount >= 0 ? "text-blue-400" : "text-rose-400"}`;
 
-  if (julyBalance >= 0) {
-    $("after-wedding-sub").textContent = "You'll have this left to start married life";
+  if (charlieAmount >= 0) {
+    $("after-wedding-sub").textContent = "This is what you'll have going into the wedding";
   } else {
-    $("after-wedding-sub").textContent = "You'll be short — need to save more before July";
+    $("after-wedding-sub").textContent = "You'll be negative by June — need to save more";
     $("after-wedding-sub").className = "text-[10px] text-rose-400 mt-1";
   }
 }
@@ -1562,3 +1564,272 @@ window.openWeddingUpdate = async () => {
 
   overlay.classList.add("open");
 };
+
+// =============================================
+// TRAJECTORY VIEW — Horizon-style month cards
+// =============================================
+const TRAJ_NET_125K = 96_412;
+const TRAJ_NET_210K = 160_623;
+const TRAJ_SALARY_BUMP = TRAJ_NET_210K - TRAJ_NET_125K;
+
+// Editable living expenses (defaults)
+let trajLiving = [
+  { name: "Electricity", amount: 4000 },
+  { name: "Water", amount: 400 },
+  { name: "Drinkable Water", amount: 600 },
+  { name: "Motor Gas", amount: 2500 },
+  { name: "Cooking Gas (LPG)", amount: 600 },
+  { name: "Grocery", amount: 10000 },
+  { name: "Parking", amount: 2500 },
+  { name: "WiFi", amount: 1699 },
+];
+function getTrajLivingTotal() { return trajLiving.reduce((s, x) => s + x.amount, 0); }
+
+let trajSalary = 125000;
+let trajRent = 15000;
+
+const fmtT = (v) => "₱" + Math.round(v || 0).toLocaleString("en-PH");
+
+window.setTrajSalary = (val) => {
+  trajSalary = val;
+  const toggle = document.getElementById("traj-salary-toggle");
+  toggle.classList.toggle("temenos-active", val === 210000);
+  document.querySelectorAll(".traj-sal-chip").forEach((btn) => {
+    btn.classList.toggle("active", btn.dataset.sal === (val === 125000 ? "125" : "210"));
+  });
+  renderTrajectory();
+};
+
+window.promptTrajRent = () => {
+  const input = prompt("Enter monthly rent amount (₱):", trajRent);
+  if (input !== null && input.trim() !== "") {
+    trajRent = Math.max(0, Math.round(Number(input.replace(/[^0-9]/g, "")) || 0));
+    renderTrajectory();
+  }
+};
+
+window.editLivingItem = (idx) => {
+  const item = trajLiving[idx];
+  if (!item) return;
+  const input = prompt(`${item.name} — monthly amount (₱):`, item.amount);
+  if (input !== null && input.trim() !== "") {
+    trajLiving[idx].amount = Math.max(0, Math.round(Number(input.replace(/[^0-9]/g, "")) || 0));
+    renderTrajectory();
+  }
+};
+
+function renderLivingList() {
+  const list = document.getElementById("traj-living-list");
+  const totalEl = document.getElementById("traj-living-total");
+  if (!list) return;
+  totalEl.textContent = fmtT(getTrajLivingTotal());
+  list.innerHTML = trajLiving.map((item, i) => `
+    <div class="flex items-center justify-between bg-slate-900/50 rounded-lg px-3 py-2 border border-white/[0.03] cursor-pointer active:scale-[0.98] transition-transform" onclick="editLivingItem(${i})">
+      <span class="text-[10px] text-slate-400">${item.name}</span>
+      <div class="flex items-center gap-1">
+        <span class="text-[10px] font-bold text-pink-400">${fmtT(item.amount)}</span>
+        <span class="material-icons text-[10px] text-pink-400/40">edit</span>
+      </div>
+    </div>
+  `).join("");
+}
+
+function renderTrajectory() {
+  if (!appData || !appData.monthlyData) return;
+
+  const container = document.getElementById("traj-month-cards");
+  const rentDisplay = document.getElementById("traj-rent-display");
+  if (!container) return;
+  if (rentDisplay) rentDisplay.textContent = fmtT(trajRent);
+
+  // Render editable living expenses list
+  renderLivingList();
+
+  const now = new Date();
+  const startMonth = now.getMonth();
+  const startYear = now.getFullYear();
+  const livingTotal = getTrajLivingTotal();
+
+  // Find reference month (latest with income data) for baseline expenses
+  let refData = null;
+  for (let i = startMonth; i >= 0; i--) {
+    const m = appData.monthlyData[i];
+    if (m) {
+      const inc = (m.incomeSources || []).reduce((s, x) => s + (Number(x.amount) || 0), 0);
+      if (inc > 0) { refData = m; break; }
+    }
+  }
+  if (!refData) refData = { incomeSources: [], fixedExpenses: [], cc: [], others: [] };
+
+  // Running balance: start from Firebase startingBalance, accumulate through past months
+  let runningBalance = parseFloat(appData.startingBalance || 0);
+  for (let m = 0; m < startMonth; m++) {
+    const md = appData.monthlyData[m] || { incomeSources: [], fixedExpenses: [], cc: [], others: [] };
+    const { income, expenses } = calculateMonthlyTotals(md);
+    runningBalance += income - expenses;
+  }
+
+  const maxMonths = 12 - startMonth;
+  const cards = [];
+  let lastYear = startYear;
+
+  for (let i = 0; i < maxMonths; i++) {
+    const mIdx = (startMonth + i) % 12;
+    const year = startYear + Math.floor((startMonth + i) / 12);
+    const monthLabel = `${months[mIdx]} ${year}`;
+
+    // Year divider
+    if (year !== lastYear) {
+      cards.push(`
+        <div class="flex items-center gap-3 py-2">
+          <div class="flex-1 h-px bg-gradient-to-r from-transparent via-amber-500/30 to-transparent"></div>
+          <span class="text-[9px] font-black tracking-[0.25em] uppercase text-amber-400">Projected ${year}</span>
+          <div class="flex-1 h-px bg-gradient-to-r from-transparent via-amber-500/30 to-transparent"></div>
+        </div>
+      `);
+      lastYear = year;
+    }
+
+    // Use actual Firebase data if available, otherwise reference
+    const rawM = appData.monthlyData[mIdx];
+    const hasData = rawM && (rawM.incomeSources || []).reduce((s, x) => s + (Number(x.amount) || 0), 0) > 0;
+    const mData = hasData ? rawM : refData;
+    const { income: baseIncome, expenses } = calculateMonthlyTotals(mData);
+    const isProjected = !hasData || (year > startYear);
+
+    // Apply salary toggle
+    const income = trajSalary === 210000 ? baseIncome + TRAJ_SALARY_BUMP : baseIncome;
+
+    // Rent starts May (index 4) — moving in before wedding
+    // Living expenses start July (index 6) — after wedding
+    const rentActive = (year > 2026) || (year === 2026 && mIdx >= 4);
+    const livingActive = (year > 2026) || (year === 2026 && mIdx >= 6);
+    const thisRent = rentActive ? trajRent : 0;
+    const thisLiving = livingActive ? livingTotal : 0;
+
+    const carryOver = runningBalance;
+    const monthNet = income - expenses - thisRent - thisLiving;
+    runningBalance += monthNet;
+    const endBalance = runningBalance;
+
+    const isCurrent = (i === 0);
+    const isWedding = (mIdx === 6 && year === 2026);
+
+    // Status
+    let statusColor, statusBg, statusText;
+    if (endBalance < 0) {
+      statusColor = "text-rose-400"; statusBg = "border-rose-500/20"; statusText = "NEGATIVE";
+    } else if (monthNet < 0 && endBalance >= 0) {
+      statusColor = "text-amber-400"; statusBg = "border-amber-500/20"; statusText = "DIPPING INTO SAVINGS";
+    } else if (monthNet < 10000) {
+      statusColor = "text-amber-300"; statusBg = "border-amber-500/10"; statusText = "TIGHT";
+    } else if (monthNet < 20000) {
+      statusColor = "text-blue-400"; statusBg = "border-blue-500/10"; statusText = "COMFORTABLE";
+    } else {
+      statusColor = "text-emerald-400"; statusBg = "border-emerald-500/20"; statusText = "COMFORTABLE";
+    }
+
+    // Badge
+    let badge = "";
+    if (isCurrent) badge = '<span class="px-2 py-0.5 rounded-md text-[8px] font-black bg-blue-500/20 text-blue-300 uppercase">Now</span>';
+    else if (isWedding) badge = '<span class="px-2 py-0.5 rounded-md text-[8px] font-black bg-pink-500/20 text-pink-300 uppercase">Wedding</span>';
+    else if (isProjected) badge = '<span class="px-2 py-0.5 rounded-md text-[8px] font-black bg-amber-500/10 text-amber-400/70 uppercase">Projected</span>';
+
+    // Usage bar percentages
+    const totalIn = Math.max(1, carryOver + income);
+    const totalSpend = expenses + thisRent + thisLiving;
+    const usedPct = Math.min((totalSpend / totalIn) * 100, 100);
+    const expPct = (expenses / totalIn * 100);
+    const rentPct = (thisRent / totalIn * 100);
+    const livingPct = (thisLiving / totalIn * 100);
+
+    cards.push(`
+      <div class="glass-card rounded-2xl p-4 border ${statusBg} space-y-3" style="animation: slideIn 0.4s ease both; animation-delay: ${i * 40}ms">
+        <!-- Header -->
+        <div class="flex items-center justify-between">
+          <div class="flex items-center gap-2">
+            <span class="text-sm font-black text-white">${monthLabel}</span>
+            ${badge}
+          </div>
+          <span class="px-2 py-0.5 rounded-md text-[8px] font-black ${statusColor} bg-slate-900/50">${statusText}</span>
+        </div>
+
+        <!-- Budget lines -->
+        <div class="space-y-1.5">
+          ${carryOver !== 0 ? `
+          <div class="flex items-center justify-between text-[11px]">
+            <span class="flex items-center gap-1.5">
+              <span class="w-1.5 h-1.5 rounded-full bg-blue-500"></span>
+              <span class="text-slate-400">Carry-over</span>
+            </span>
+            <span class="font-semibold ${carryOver >= 0 ? 'text-blue-400' : 'text-rose-400'}">${fmtT(carryOver)}</span>
+          </div>` : ""}
+          <div class="flex items-center justify-between text-[11px]">
+            <span class="flex items-center gap-1.5">
+              <span class="w-1.5 h-1.5 rounded-full bg-emerald-500"></span>
+              <span class="text-slate-400">Income</span>
+            </span>
+            <span class="font-bold text-emerald-400">${fmtT(income)}</span>
+          </div>
+          <div class="flex items-center justify-between text-[11px]">
+            <span class="flex items-center gap-1.5">
+              <span class="w-1.5 h-1.5 rounded-full bg-rose-500"></span>
+              <span class="text-slate-400">Expenses</span>
+            </span>
+            <span class="font-semibold text-rose-400">− ${fmtT(expenses)}</span>
+          </div>
+          ${rentActive ? `
+          <div class="flex items-center justify-between text-[11px]">
+            <span class="flex items-center gap-1.5">
+              <span class="w-1.5 h-1.5 rounded-full bg-indigo-500"></span>
+              <span class="text-slate-400">Rent</span>
+            </span>
+            <span class="font-semibold text-indigo-400">− ${fmtT(thisRent)}</span>
+          </div>` : ""}
+          ${livingActive ? `
+          <div class="flex items-center justify-between text-[11px]">
+            <span class="flex items-center gap-1.5">
+              <span class="w-1.5 h-1.5 rounded-full bg-pink-500"></span>
+              <span class="text-slate-400">Living Expenses</span>
+            </span>
+            <span class="font-semibold text-pink-400">− ${fmtT(thisLiving)}</span>
+          </div>` : ""}
+          <div class="border-t border-white/[0.06] pt-1.5 space-y-1">
+            <div class="flex items-center justify-between text-[10px]">
+              <span class="text-slate-500">This month's net</span>
+              <span class="font-semibold ${monthNet >= 0 ? 'text-emerald-400/70' : 'text-rose-400/70'}">${monthNet >= 0 ? '+' : ''}${fmtT(monthNet)}</span>
+            </div>
+            <div class="flex items-center justify-between">
+              <span class="font-black text-white uppercase text-[10px]">End of Month</span>
+              <span class="font-black text-base ${statusColor}">${fmtT(endBalance)}</span>
+            </div>
+          </div>
+        </div>
+
+        <!-- Usage bar -->
+        <div class="h-2 bg-slate-900/60 rounded-full overflow-hidden flex">
+          <div class="h-full bg-rose-500/70 rounded-l-full traj-bar" style="width:0%" data-w="${expPct.toFixed(1)}%"></div>
+          ${rentActive ? `<div class="h-full bg-indigo-500/70 traj-bar" style="width:0%" data-w="${rentPct.toFixed(1)}%"></div>` : ""}
+          ${livingActive ? `<div class="h-full bg-pink-500/70 traj-bar" style="width:0%" data-w="${livingPct.toFixed(1)}%"></div>` : ""}
+          <div class="h-full flex-1 bg-emerald-500/30 rounded-r-full"></div>
+        </div>
+        <div class="flex justify-between text-[8px] text-slate-500 font-bold">
+          <span>${usedPct.toFixed(0)}% of funds used</span>
+          <span>${(100 - usedPct).toFixed(0)}% remaining</span>
+        </div>
+      </div>
+    `);
+  }
+
+  container.innerHTML = cards.join("");
+
+  // Animate bars
+  requestAnimationFrame(() => {
+    setTimeout(() => {
+      container.querySelectorAll(".traj-bar").forEach((bar) => {
+        bar.style.transition = "width 0.8s cubic-bezier(0.16, 1, 0.3, 1)";
+        bar.style.width = bar.dataset.w;
+      });
+    }, 50);
+  });
+}

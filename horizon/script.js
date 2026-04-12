@@ -126,6 +126,26 @@ let currentRate = 5.75;
 let activeSection = "overview";
 let charts = {};
 
+// --- Rent Amount (editable) ---
+window.setRentAmount = (val) => {
+  const amt = Math.max(0, Math.round(Number(val) || 0));
+  TRACKS.rent.rentAmount = amt;
+  TRACKS.rent.note = `₱${(amt/1000).toFixed(0)}K/mo rent — no loan, no down payment, no interest. But no equity built.`;
+  // Update all rent labels
+  document.querySelectorAll(".rent-amt-label").forEach(el => {
+    el.textContent = `₱${(amt/1000).toFixed(0)}K/mo`;
+  });
+  renderAll();
+};
+
+window.promptRentAmount = () => {
+  const current = TRACKS.rent.rentAmount;
+  const input = prompt("Enter monthly rent amount (₱):", current);
+  if (input !== null && input.trim() !== "") {
+    window.setRentAmount(input.replace(/[^0-9]/g, ""));
+  }
+};
+
 // Derived from current track
 function getTrack() { return TRACKS[currentTrack]; }
 function getLoanAmount() { return getTrack().loanAmount; }
@@ -321,8 +341,10 @@ window.switchSection = (name) => {
 // =============================================
 window.setSalary = (val) => {
   currentSalary = val;
-  document.querySelectorAll(".sal-btn").forEach((btn) => {
-    btn.classList.toggle("active", btn.id === `sal-${val === 125000 ? "125" : "210"}`);
+  const toggle = el("salary-toggle");
+  toggle.classList.toggle("temenos-active", val === 210000);
+  document.querySelectorAll(".sal-chip").forEach((btn) => {
+    btn.classList.toggle("active", btn.dataset.sal === (val === 125000 ? "125" : "210"));
   });
   renderAll();
 };
@@ -524,43 +546,43 @@ function renderHouse() {
   // Render dynamic summary row
   if (track.isRent) {
     el("house-summary").innerHTML = `
-      <div class="bg-slate-800/50 rounded-xl p-3 text-center border border-white/[0.04] col-span-2">
-        <p class="text-[8px] font-bold tracking-widest uppercase text-slate-500">Monthly Rent</p>
-        <p class="text-lg font-display font-bold text-indigo-400 mt-1">${fmt(track.rentAmount)}</p>
+      <div class="bg-slate-800/50 rounded-xl p-3 text-center border border-white/[0.04] col-span-2 cursor-pointer active:scale-95 transition-transform" onclick="promptRentAmount()">
+        <p class="text-[10px] font-bold tracking-widest uppercase text-slate-500">Monthly Rent <span class="material-icons-round text-[10px] align-middle text-blue-400/60">edit</span></p>
+        <p class="text-xl font-display font-bold text-indigo-400 mt-1">${fmt(track.rentAmount)}</p>
       </div>
       <div class="bg-slate-800/50 rounded-xl p-3 text-center border border-white/[0.04]">
-        <p class="text-[8px] font-bold tracking-widest uppercase text-slate-500">Down Payment</p>
-        <p class="text-sm font-display font-bold text-emerald-400 mt-1">None</p>
+        <p class="text-[10px] font-bold tracking-widest uppercase text-slate-500">Down Payment</p>
+        <p class="text-base font-display font-bold text-emerald-400 mt-1">None</p>
       </div>
       <div class="bg-slate-800/50 rounded-xl p-3 text-center border border-white/[0.04]">
-        <p class="text-[8px] font-bold tracking-widest uppercase text-slate-500">Equity Built</p>
-        <p class="text-sm font-display font-bold text-rose-400 mt-1">None</p>
+        <p class="text-[10px] font-bold tracking-widest uppercase text-slate-500">Equity Built</p>
+        <p class="text-base font-display font-bold text-rose-400 mt-1">None</p>
       </div>
     `;
   } else {
     el("house-summary").innerHTML = `
       <div class="bg-slate-800/50 rounded-xl p-3 text-center border border-white/[0.04]">
-        <p class="text-[8px] font-bold tracking-widest uppercase text-slate-500">Loan</p>
-        <p class="text-sm font-display font-bold text-white mt-1">${fmtShort(track.loanAmount)}</p>
+        <p class="text-[10px] font-bold tracking-widest uppercase text-slate-500">Loan</p>
+        <p class="text-base font-display font-bold text-white mt-1">${fmtShort(track.loanAmount)}</p>
       </div>
       <div class="bg-slate-800/50 rounded-xl p-3 text-center border border-white/[0.04]">
-        <p class="text-[8px] font-bold tracking-widest uppercase text-slate-500">Down Payment</p>
-        <p class="text-sm font-display font-bold ${track.downPayment > 0 ? 'text-amber-400' : 'text-emerald-400'} mt-1">${track.downPayment > 0 ? fmtShort(track.downPayment) : 'None'}</p>
+        <p class="text-[10px] font-bold tracking-widest uppercase text-slate-500">Down Payment</p>
+        <p class="text-base font-display font-bold ${track.downPayment > 0 ? 'text-amber-400' : 'text-emerald-400'} mt-1">${track.downPayment > 0 ? fmtShort(track.downPayment) : 'None'}</p>
       </div>
       <div class="bg-slate-800/50 rounded-xl p-3 text-center border border-white/[0.04]">
-        <p class="text-[8px] font-bold tracking-widest uppercase text-slate-500">Term</p>
-        <p class="text-sm font-display font-bold text-white mt-1">${track.termYears}yr</p>
+        <p class="text-[10px] font-bold tracking-widest uppercase text-slate-500">Term</p>
+        <p class="text-base font-display font-bold text-white mt-1">${track.termYears}yr</p>
       </div>
       <div class="bg-slate-800/50 rounded-xl p-3 text-center border border-white/[0.04]">
-        <p class="text-[8px] font-bold tracking-widest uppercase text-slate-500">Gov Fees</p>
-        <p class="text-sm font-display font-bold text-amber-400 mt-1">${fmtShort(track.govFees)}</p>
+        <p class="text-[10px] font-bold tracking-widest uppercase text-slate-500">Gov Fees</p>
+        <p class="text-base font-display font-bold text-amber-400 mt-1">${fmtShort(track.govFees)}</p>
       </div>
     `;
   }
 
   // Render rate buttons (hide for rent)
   if (track.isRent) {
-    el("rate-buttons").innerHTML = '<p class="text-[10px] text-slate-500 italic">No interest rates — flat ₱15K/month rent</p>';
+    el("rate-buttons").innerHTML = `<p class="text-[11px] text-slate-500 italic">Flat ${fmt(getTrack().rentAmount)}/mo — no interest</p>`;
   } else {
     el("rate-buttons").innerHTML = track.rates.map((r) => {
       const isActive = r.rate === currentRate;
@@ -754,11 +776,12 @@ function renderMonthCards(housePayment) {
     runningBalance += d.income - d.total;
   }
 
-  // Show 18 months from now
+  // Show only remaining months in current year (no 2027 projections)
+  const maxMonths = 12 - startMonth;
   const cards = [];
   let lastYear = startYear;
 
-  for (let i = 0; i < 18; i++) {
+  for (let i = 0; i < maxMonths; i++) {
     const mIdx = (startMonth + i) % 12;
     const year = startYear + Math.floor((startMonth + i) / 12);
     const monthLabel = `${MONTH_FULL[mIdx]} ${year}`;
@@ -853,7 +876,7 @@ function renderMonthCards(housePayment) {
         <!-- Header -->
         <div class="flex items-center justify-between">
           <div class="flex items-center gap-2">
-            <span class="text-xs font-display font-bold text-white">${monthLabel}</span>
+            <span class="text-sm font-display font-bold text-white">${monthLabel}</span>
             ${badge}
           </div>
           <div class="flex items-center gap-2">
@@ -1044,7 +1067,7 @@ function renderYearlyProgression(income, expenses) {
         <td class="py-2.5 px-2 text-right"><span class="px-2 py-0.5 rounded-md text-[9px] font-bold ${statusBg} ${statusColor}">${statusText}</span></td>
       </tr>
       <tr>
-        <td colspan="5" class="py-3 px-2 text-[10px] text-slate-500 text-center italic">Rent stays flat at ${fmt(payment)}/mo — no repricing, but no equity either. After 30 years you'll have paid ${fmt(payment * 360)} with nothing to show.</td>
+        <td colspan="5" class="py-3 px-2 text-[10px] text-slate-500 text-center italic">Flat ${fmt(payment)}/mo — no repricing, no equity.</td>
       </tr>
     `;
     return;
@@ -1287,7 +1310,7 @@ function renderTimeline() {
 
   keyNums.innerHTML = data.map((d) => `
     <div class="bg-slate-800/50 rounded-xl p-3 border border-white/[0.04] text-center">
-      <p class="text-[8px] font-bold tracking-widest uppercase text-slate-500">${d.label}</p>
+      <p class="text-[10px] font-bold tracking-widest uppercase text-slate-500">${d.label}</p>
       <p class="text-sm font-display font-bold text-white mt-1 tabular-nums">${d.value}</p>
       <p class="text-[8px] text-slate-500 mt-0.5">${d.sub}</p>
     </div>
