@@ -91,7 +91,7 @@
     <!-- APP SHELL -->
     <div
       id="app"
-      class="h-screen flex flex-col opacity-0 transition-opacity duration-500 max-w-2xl md:max-w-none mx-auto shadow-2xl bg-slate-900"
+      class="h-screen flex flex-col opacity-0 transition-opacity duration-500 max-w-2xl md:max-w-5xl mx-auto shadow-2xl bg-slate-900"
     >
       <!-- HEADER -->
       <header
@@ -281,14 +281,9 @@
               </div>
             </div>
             <!-- Buttons -->
-            <div class="grid grid-cols-2 gap-2">
-              <button onclick="openWeddingUpdate()" class="py-4 bg-amber-500/10 border border-amber-500/20 rounded-2xl font-black text-amber-400 text-[11px] flex items-center justify-center gap-2 active:scale-95 transition-transform">
-                <span class="material-icons text-sm">edit</span> Update
-              </button>
-              <button onclick="syncWeddingToJune()" class="py-4 bg-blue-500/10 border border-blue-500/20 rounded-2xl font-black text-blue-400 text-[11px] flex items-center justify-center gap-2 active:scale-95 transition-transform">
-                <span class="material-icons text-sm">sync</span> Sync to June
-              </button>
-            </div>
+            <button onclick="openWeddingUpdate()" class="w-full py-4 bg-amber-500/10 border border-amber-500/20 rounded-2xl font-black text-amber-400 text-[11px] flex items-center justify-center gap-2 active:scale-95 transition-transform">
+              <span class="material-icons text-sm">edit</span> Update
+            </button>
           </div>
 
           <!-- THE WHOLE POINT: What's left AFTER the wedding -->
@@ -423,7 +418,7 @@
 
       <!-- BOTTOM NAV BAR -->
       <nav
-        class="fixed bottom-0 left-0 right-0 md:max-w-none max-w-2xl mx-auto h-20 bg-slate-900/90 backdrop-blur-xl border-t border-slate-800 flex items-center justify-around px-8 pb-4 z-40"
+        class="fixed bottom-0 left-0 right-0 max-w-2xl md:max-w-5xl mx-auto h-20 bg-slate-900/90 backdrop-blur-xl border-t border-slate-800 flex items-center justify-around px-8 pb-4 z-40"
       >
         <button
           onclick="switchView('budget')"
