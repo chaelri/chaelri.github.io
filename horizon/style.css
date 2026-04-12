@@ -1,0 +1,285 @@
+/* ===========================
+   HORIZON — Financial Trajectory App
+   Buttery smooth, dark-mode, minimal
+   =========================== */
+
+/* --- Base & Scrollbar --- */
+* { -webkit-tap-highlight-color: transparent; }
+html, body { overscroll-behavior: none; }
+body { -webkit-font-smoothing: antialiased; -moz-osx-font-smoothing: grayscale; }
+::-webkit-scrollbar { width: 0; height: 0; }
+input, button { outline: none; }
+.tabular-nums { font-variant-numeric: tabular-nums; }
+
+/* --- Card Glass Morphism --- */
+.card-glass {
+  background: linear-gradient(135deg, rgba(30, 41, 59, 0.6), rgba(15, 23, 42, 0.8));
+  backdrop-filter: blur(12px);
+  -webkit-backdrop-filter: blur(12px);
+}
+
+/* --- Loading Bar --- */
+@keyframes loading-bar {
+  0% { transform: translateX(-100%); width: 40%; }
+  50% { width: 60%; }
+  100% { transform: translateX(250%); width: 40%; }
+}
+.animate-loading-bar { animation: loading-bar 1.2s ease-in-out infinite; }
+
+/* --- Splash Animations --- */
+@keyframes splash-particle {
+  0% { opacity: 0; transform: translateY(0) scale(0); }
+  20% { opacity: 0.6; transform: scale(1); }
+  100% { opacity: 0; transform: translateY(-120vh) scale(0.3); }
+}
+.splash-dot {
+  position: absolute;
+  border-radius: 50%;
+  animation: splash-particle var(--dur) ease-out forwards;
+  animation-delay: var(--delay);
+}
+
+/* --- Idle Pulse (ambient glow) --- */
+@keyframes idle-pulse {
+  0%, 100% { opacity: 0.5; transform: scale(1); }
+  50% { opacity: 0.8; transform: scale(1.1); }
+}
+.idle-pulse { animation: idle-pulse 4s ease-in-out infinite; }
+
+/* --- Section Transition --- */
+.app-section {
+  animation: section-enter 0.5s cubic-bezier(0.16, 1, 0.3, 1) forwards;
+}
+@keyframes section-enter {
+  from { opacity: 0; transform: translateY(20px); }
+  to { opacity: 1; transform: translateY(0); }
+}
+
+/* --- Metric Card Hover/Press --- */
+.metric-card {
+  transition: transform 0.2s cubic-bezier(0.34, 1.56, 0.64, 1), box-shadow 0.2s ease;
+}
+.metric-card:active {
+  transform: scale(0.96);
+}
+@media (hover: hover) {
+  .metric-card:hover {
+    box-shadow: 0 0 20px rgba(59, 130, 246, 0.08);
+    transform: translateY(-1px);
+  }
+}
+
+/* --- Bottom Nav --- */
+.nav-btn {
+  color: rgba(148, 163, 184, 0.6);
+  position: relative;
+}
+.nav-btn.active {
+  color: #60a5fa;
+}
+.nav-btn.active::after {
+  content: '';
+  position: absolute;
+  top: 0;
+  left: 50%;
+  transform: translateX(-50%);
+  width: 20px;
+  height: 2px;
+  background: #60a5fa;
+  border-radius: 0 0 4px 4px;
+}
+.nav-btn:active {
+  transform: scale(0.92);
+  transition: transform 0.1s ease;
+}
+
+/* --- Salary Toggle --- */
+.sal-btn {
+  color: rgba(148, 163, 184, 0.6);
+  transition: all 0.3s cubic-bezier(0.34, 1.56, 0.64, 1);
+}
+.sal-btn.active {
+  background: linear-gradient(135deg, #3b82f6, #6366f1);
+  color: white;
+  box-shadow: 0 2px 12px rgba(59, 130, 246, 0.3);
+}
+
+/* --- Family Mode Buttons --- */
+.fam-btn {
+  background: rgba(30, 41, 59, 0.5);
+  border-color: rgba(255, 255, 255, 0.06);
+  color: rgba(148, 163, 184, 0.8);
+  transition: all 0.3s cubic-bezier(0.34, 1.56, 0.64, 1);
+}
+.fam-btn.active {
+  background: rgba(236, 72, 153, 0.12);
+  border-color: rgba(236, 72, 153, 0.35);
+  color: #f9a8d4;
+  box-shadow: 0 0 12px rgba(236, 72, 153, 0.08);
+}
+.fam-btn:active { transform: scale(0.94); }
+
+/* --- Track Buttons --- */
+.track-btn {
+  background: rgba(30, 41, 59, 0.5);
+  border-color: rgba(255, 255, 255, 0.06);
+  color: rgba(148, 163, 184, 0.8);
+  transition: all 0.3s cubic-bezier(0.34, 1.56, 0.64, 1);
+}
+.track-btn.active {
+  background: rgba(99, 102, 241, 0.15);
+  border-color: rgba(99, 102, 241, 0.4);
+  color: #a5b4fc;
+  box-shadow: 0 0 16px rgba(99, 102, 241, 0.1);
+}
+.track-btn:active { transform: scale(0.94); }
+
+/* --- Rate Buttons --- */
+.rate-btn {
+  background: rgba(30, 41, 59, 0.5);
+  border-color: rgba(255, 255, 255, 0.06);
+  color: rgba(148, 163, 184, 0.8);
+  transition: all 0.3s cubic-bezier(0.34, 1.56, 0.64, 1);
+}
+.rate-btn.active {
+  background: rgba(59, 130, 246, 0.15);
+  border-color: rgba(59, 130, 246, 0.4);
+  color: #93c5fd;
+  box-shadow: 0 0 16px rgba(59, 130, 246, 0.1);
+}
+.rate-btn:active { transform: scale(0.94); }
+
+/* --- Timeline --- */
+.tl-line {
+  position: absolute;
+  left: 7px;
+  top: 0;
+  bottom: 0;
+  width: 2px;
+  background: linear-gradient(to bottom, #3b82f6, #6366f1, #8b5cf6, #a855f7);
+  border-radius: 1px;
+}
+.tl-node {
+  position: relative;
+  padding-left: 24px;
+  padding-bottom: 20px;
+  animation: tl-enter 0.5s cubic-bezier(0.16, 1, 0.3, 1) forwards;
+  animation-delay: var(--d);
+  opacity: 0;
+}
+@keyframes tl-enter {
+  from { opacity: 0; transform: translateX(-8px); }
+  to { opacity: 1; transform: translateX(0); }
+}
+.tl-dot {
+  position: absolute;
+  left: 0;
+  top: 2px;
+  width: 16px;
+  height: 16px;
+  border-radius: 50%;
+  border: 2px solid;
+  background: #0f172a;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+}
+.tl-dot.done { border-color: #22c55e; background: rgba(34, 197, 94, 0.15); }
+.tl-dot.active { border-color: #3b82f6; background: rgba(59, 130, 246, 0.15); }
+.tl-dot.future { border-color: #475569; }
+.tl-dot .material-icons-round { font-size: 9px; }
+
+/* --- Expense Bar Animation --- */
+.exp-bar-fill {
+  transition: width 0.8s cubic-bezier(0.16, 1, 0.3, 1);
+}
+
+/* --- Month Card Bars --- */
+.mc-bar {
+  transition: width 0.8s cubic-bezier(0.16, 1, 0.3, 1);
+}
+.month-card {
+  animation: mc-enter 0.4s cubic-bezier(0.16, 1, 0.3, 1) both;
+}
+@keyframes mc-enter {
+  from { opacity: 0; transform: translateY(12px) scale(0.98); }
+  to { opacity: 1; transform: translateY(0) scale(1); }
+}
+
+/* --- Table Rows --- */
+#traj-table tr {
+  transition: background 0.2s ease;
+}
+#traj-table tr:hover {
+  background: rgba(59, 130, 246, 0.04);
+}
+#traj-table tr.wedding-row {
+  background: rgba(244, 114, 182, 0.08);
+}
+#traj-table tr.house-start-row {
+  background: rgba(59, 130, 246, 0.08);
+}
+
+/* --- Count-Up Animation --- */
+@keyframes countPulse {
+  0% { transform: scale(1); }
+  50% { transform: scale(1.04); }
+  100% { transform: scale(1); }
+}
+.count-up { animation: countPulse 0.3s ease; }
+
+/* --- Number Shimmer (loading state) --- */
+@keyframes shimmer {
+  0% { background-position: -200% 0; }
+  100% { background-position: 200% 0; }
+}
+.shimmer {
+  background: linear-gradient(90deg, #1e293b 25%, #334155 50%, #1e293b 75%);
+  background-size: 200% 100%;
+  animation: shimmer 1.5s ease-in-out infinite;
+  border-radius: 6px;
+  color: transparent !important;
+}
+
+/* --- Responsive --- */
+@media (min-width: 768px) {
+  main { max-width: 800px; margin: 0 auto; }
+}
+@media (min-width: 1024px) {
+  main { max-width: 1100px; }
+}
+@media (min-width: 1280px) {
+  main { max-width: 1200px; }
+}
+
+/* --- Desktop grid for sections --- */
+@media (min-width: 768px) {
+  .desktop-2col {
+    display: grid;
+    grid-template-columns: 1fr 1fr;
+    gap: 12px;
+  }
+}
+
+/* --- Expense detail expand --- */
+.expense-detail {
+  max-height: 0;
+  overflow: hidden;
+  transition: max-height 0.4s cubic-bezier(0.16, 1, 0.3, 1), opacity 0.3s ease;
+  opacity: 0;
+}
+.expense-detail.open {
+  max-height: 600px;
+  opacity: 1;
+}
+.month-card { cursor: pointer; }
+.month-card:active { transform: scale(0.985); }
+@media (hover: hover) {
+  .month-card:hover { background: rgba(30, 41, 59, 0.6); }
+}
+
+/* --- Safe Area (iPhone notch) --- */
+@supports (padding: env(safe-area-inset-bottom)) {
+  nav { padding-bottom: max(env(safe-area-inset-bottom), 8px); }
+  header { padding-top: max(env(safe-area-inset-top), 12px); }
+}

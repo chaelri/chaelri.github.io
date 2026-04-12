@@ -1,0 +1,428 @@
+<!DOCTYPE html>
+<html lang="en">
+  <head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no" />
+    <title>HORIZON | Financial Future</title>
+    <meta name="theme-color" content="#020617" />
+    <script src="https://cdn.tailwindcss.com"></script>
+    <script src="https://cdn.jsdelivr.net/npm/chart.js@4.4.1/dist/chart.umd.min.js"></script>
+    <link href="https://fonts.googleapis.com/icon?family=Material+Icons+Round" rel="stylesheet" />
+    <link href="https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700;800;900&family=Space+Grotesk:wght@400;500;600;700&display=swap" rel="stylesheet" />
+    <link rel="stylesheet" href="style.css" />
+    <script>
+      tailwind.config = {
+        theme: {
+          extend: {
+            fontFamily: {
+              sans: ['Inter', 'system-ui', 'sans-serif'],
+              display: ['Space Grotesk', 'Inter', 'sans-serif'],
+            },
+          },
+        },
+      };
+    </script>
+  </head>
+  <body class="bg-slate-950 text-slate-100 overflow-hidden font-sans select-none">
+
+    <!-- ====== SPLASH SCREEN ====== -->
+    <div id="splash" class="fixed inset-0 z-[200] bg-slate-950 flex flex-col items-center justify-center">
+      <!-- Horizon line animation -->
+      <div id="horizon-line" class="absolute top-1/2 left-1/2 -translate-x-1/2 -translate-y-1/2 w-0 h-[2px] bg-gradient-to-r from-transparent via-blue-400 to-transparent transition-all duration-1000 ease-out"></div>
+      <!-- Glow behind line -->
+      <div id="horizon-glow" class="absolute top-1/2 left-1/2 -translate-x-1/2 -translate-y-[60%] w-0 h-32 bg-gradient-to-t from-blue-500/20 to-transparent rounded-full blur-2xl transition-all duration-1200 ease-out opacity-0"></div>
+      <!-- Text -->
+      <div id="splash-text" class="relative z-10 flex flex-col items-center gap-3 opacity-0 translate-y-4 transition-all duration-700 ease-out">
+        <h1 class="text-5xl font-display font-bold tracking-tight bg-gradient-to-r from-blue-300 via-blue-100 to-blue-300 bg-clip-text text-transparent">HORIZON</h1>
+        <p class="text-[10px] font-semibold tracking-[0.35em] uppercase text-blue-400/70">Your Financial Future, Visualized</p>
+      </div>
+      <!-- Particles -->
+      <div id="splash-particles" class="absolute inset-0 pointer-events-none overflow-hidden"></div>
+    </div>
+
+    <!-- ====== MAIN APP ====== -->
+    <div id="app" class="fixed inset-0 opacity-0 transition-opacity duration-700 flex flex-col">
+
+      <!-- TOP BAR -->
+      <header class="relative z-50 flex items-center justify-between px-5 pt-[max(env(safe-area-inset-top),12px)] pb-3 bg-slate-950/80 backdrop-blur-xl border-b border-white/[0.04]">
+        <div class="flex items-center gap-3">
+          <div class="w-8 h-8 rounded-xl bg-gradient-to-br from-blue-500 to-indigo-600 flex items-center justify-center shadow-lg shadow-blue-500/20">
+            <span class="material-icons-round text-white text-[16px]">auto_graph</span>
+          </div>
+          <div>
+            <h1 class="text-sm font-display font-bold tracking-tight text-white leading-none">HORIZON</h1>
+            <p class="text-[9px] font-medium tracking-widest uppercase text-slate-500 mt-0.5">Charlie's Trajectory</p>
+          </div>
+        </div>
+        <!-- Salary Toggle -->
+        <div id="salary-toggle" class="flex items-center bg-slate-800/80 rounded-2xl p-1 border border-white/[0.06]">
+          <button onclick="setSalary(125000)" id="sal-125" class="sal-btn active px-3 py-1.5 rounded-xl text-[10px] font-bold tracking-wide transition-all duration-300">125K</button>
+          <button onclick="setSalary(210000)" id="sal-210" class="sal-btn px-3 py-1.5 rounded-xl text-[10px] font-bold tracking-wide transition-all duration-300">Temenos</button>
+        </div>
+      </header>
+
+      <!-- SCROLLABLE CONTENT -->
+      <main id="main-content" class="flex-1 overflow-y-auto overflow-x-hidden scroll-smooth pb-24">
+
+        <!-- ====== SECTION: OVERVIEW ====== -->
+        <section id="sec-overview" class="app-section px-5 lg:px-8 pt-6 pb-8 space-y-5">
+          <!-- Financial Snapshot Card -->
+          <div class="card-glass rounded-[1.75rem] p-5 space-y-4 border border-white/[0.06] overflow-hidden relative">
+            <div class="absolute -top-20 -right-20 w-48 h-48 bg-blue-500/[0.07] rounded-full blur-3xl idle-pulse"></div>
+            <div class="flex items-center justify-between">
+              <p class="text-[10px] font-bold tracking-[0.3em] uppercase text-slate-400">Live Financial Snapshot</p>
+              <span class="flex items-center gap-1 text-[9px] font-semibold text-emerald-400"><span class="w-1.5 h-1.5 rounded-full bg-emerald-400 animate-pulse"></span> LIVE</span>
+            </div>
+            <div class="grid grid-cols-2 gap-3">
+              <div class="metric-card bg-slate-800/50 rounded-2xl p-3.5 border border-white/[0.04]">
+                <p class="text-[9px] font-bold tracking-widest uppercase text-slate-500 mb-1">Gross Income</p>
+                <p id="ov-income" class="text-xl font-display font-bold text-emerald-400 tabular-nums">--</p>
+              </div>
+              <div class="metric-card bg-slate-800/50 rounded-2xl p-3.5 border border-white/[0.04]">
+                <p class="text-[9px] font-bold tracking-widest uppercase text-slate-500 mb-1">Total Expenses</p>
+                <p id="ov-expenses" class="text-xl font-display font-bold text-rose-400 tabular-nums">--</p>
+              </div>
+              <div class="metric-card bg-slate-800/50 rounded-2xl p-3.5 border border-white/[0.04]">
+                <p class="text-[9px] font-bold tracking-widest uppercase text-slate-500 mb-1">Net Savings</p>
+                <p id="ov-savings" class="text-xl font-display font-bold text-blue-400 tabular-nums">--</p>
+              </div>
+              <div class="metric-card bg-slate-800/50 rounded-2xl p-3.5 border border-white/[0.04]">
+                <p class="text-[9px] font-bold tracking-widest uppercase text-slate-500 mb-1">Savings Rate</p>
+                <p id="ov-rate" class="text-xl font-display font-bold text-amber-400 tabular-nums">--</p>
+              </div>
+            </div>
+          </div>
+
+          <div class="grid grid-cols-1 md:grid-cols-2 gap-5">
+            <!-- Income vs Expense Donut -->
+            <div class="card-glass rounded-[1.75rem] p-5 border border-white/[0.06]">
+              <p class="text-[10px] font-bold tracking-[0.3em] uppercase text-slate-400 mb-4">Income vs Expense Breakdown</p>
+              <div class="flex items-center gap-4">
+                <div class="w-36 h-36 flex-shrink-0 relative">
+                  <canvas id="chart-donut"></canvas>
+                  <div class="absolute inset-0 flex flex-col items-center justify-center">
+                    <p id="donut-center" class="text-lg font-display font-bold text-white tabular-nums">--</p>
+                    <p class="text-[8px] font-bold tracking-widest uppercase text-slate-500">Net</p>
+                  </div>
+                </div>
+                <div id="donut-legend" class="flex-1 space-y-2 text-xs"></div>
+              </div>
+            </div>
+
+            <!-- Expense Categories -->
+            <div class="card-glass rounded-[1.75rem] p-5 border border-white/[0.06]">
+              <p class="text-[10px] font-bold tracking-[0.3em] uppercase text-slate-400 mb-4">Current Expense Categories</p>
+              <div id="expense-bars" class="space-y-3"></div>
+            </div>
+          </div>
+        </section>
+
+        <!-- ====== SECTION: HOUSE PLAN ====== -->
+        <section id="sec-house" class="app-section px-5 lg:px-8 pt-6 pb-8 space-y-5 hidden">
+          <!-- House Overview + Track Selector -->
+          <div class="card-glass rounded-[1.75rem] p-5 border border-white/[0.06] overflow-hidden relative space-y-4">
+            <div class="absolute -top-16 -left-16 w-40 h-40 bg-indigo-500/[0.08] rounded-full blur-3xl idle-pulse"></div>
+            <div class="flex items-center gap-3">
+              <div class="w-10 h-10 rounded-2xl bg-gradient-to-br from-indigo-500 to-purple-600 flex items-center justify-center">
+                <span class="material-icons-round text-white text-lg">home</span>
+              </div>
+              <div>
+                <h2 id="house-title" class="text-sm font-display font-bold text-white">6M House via Pag-IBIG</h2>
+                <p class="text-[10px] text-slate-400">Pasig City, Brgy. Sta. Lucia</p>
+              </div>
+            </div>
+
+            <!-- Financing Track Toggle -->
+            <div>
+              <p class="text-[9px] font-bold tracking-[0.25em] uppercase text-slate-500 mb-2">Financing Track</p>
+              <div class="grid grid-cols-4 gap-2">
+                <button onclick="setTrack('pagibig90')" id="track-pagibig90" class="track-btn active flex flex-col items-center gap-1 p-2.5 rounded-xl border transition-all duration-300">
+                  <span class="text-[10px] font-bold">Pag-IBIG</span>
+                  <span class="text-[8px] text-slate-400">90% LTV</span>
+                </button>
+                <button onclick="setTrack('pagibig100')" id="track-pagibig100" class="track-btn flex flex-col items-center gap-1 p-2.5 rounded-xl border transition-all duration-300">
+                  <span class="text-[10px] font-bold">Pag-IBIG</span>
+                  <span class="text-[8px] text-slate-400">100%</span>
+                </button>
+                <button onclick="setTrack('bdo')" id="track-bdo" class="track-btn flex flex-col items-center gap-1 p-2.5 rounded-xl border transition-all duration-300">
+                  <span class="text-[10px] font-bold">BDO</span>
+                  <span class="text-[8px] text-slate-400">Bank Loan</span>
+                </button>
+                <button onclick="setTrack('rent')" id="track-rent" class="track-btn flex flex-col items-center gap-1 p-2.5 rounded-xl border transition-all duration-300">
+                  <span class="text-[10px] font-bold">Rent</span>
+                  <span class="text-[8px] text-slate-400">₱15K/mo</span>
+                </button>
+              </div>
+            </div>
+
+            <!-- Dynamic summary row -->
+            <div id="house-summary" class="grid grid-cols-4 gap-2">
+              <!-- Rendered by JS -->
+            </div>
+          </div>
+
+          <div class="grid grid-cols-1 md:grid-cols-2 gap-5">
+            <!-- Loan Calculator -->
+            <div class="card-glass rounded-[1.75rem] p-5 border border-white/[0.06] space-y-4">
+              <p id="calc-title" class="text-[10px] font-bold tracking-[0.3em] uppercase text-slate-400">Pag-IBIG Loan Calculator</p>
+              <!-- Rate selector (dynamic per track) -->
+              <div id="rate-buttons" class="flex gap-2 flex-wrap">
+                <!-- Rendered by JS -->
+              </div>
+              <!-- Loan details -->
+              <div class="grid grid-cols-2 gap-3">
+                <div class="bg-slate-800/50 rounded-2xl p-3.5 border border-white/[0.04]">
+                  <p class="text-[9px] font-bold tracking-widest uppercase text-slate-500 mb-1">Monthly Payment</p>
+                  <p id="h-monthly" class="text-xl font-display font-bold text-blue-400 tabular-nums">--</p>
+                </div>
+                <div class="bg-slate-800/50 rounded-2xl p-3.5 border border-white/[0.04]">
+                  <p class="text-[9px] font-bold tracking-widest uppercase text-slate-500 mb-1">Total Interest</p>
+                  <p id="h-interest" class="text-xl font-display font-bold text-rose-400 tabular-nums">--</p>
+                </div>
+                <div class="bg-slate-800/50 rounded-2xl p-3.5 border border-white/[0.04]">
+                  <p class="text-[9px] font-bold tracking-widest uppercase text-slate-500 mb-1">Total Paid (30yr)</p>
+                  <p id="h-total" class="text-xl font-display font-bold text-white tabular-nums">--</p>
+                </div>
+                <div class="bg-slate-800/50 rounded-2xl p-3.5 border border-white/[0.04]">
+                  <p class="text-[9px] font-bold tracking-widest uppercase text-slate-500 mb-1">Monthly Buffer</p>
+                  <p id="h-buffer" class="text-xl font-display font-bold text-emerald-400 tabular-nums">--</p>
+                </div>
+              </div>
+            </div>
+
+            <!-- DTI Gauge -->
+            <div class="card-glass rounded-[1.75rem] p-5 border border-white/[0.06] space-y-4">
+            <p class="text-[10px] font-bold tracking-[0.3em] uppercase text-slate-400">Debt-to-Income Ratio</p>
+            <div class="flex items-center gap-5">
+              <div class="w-32 h-32 flex-shrink-0 relative">
+                <canvas id="chart-dti"></canvas>
+                <div class="absolute inset-0 flex flex-col items-center justify-center pt-4">
+                  <p id="dti-pct" class="text-2xl font-display font-bold text-white tabular-nums">--</p>
+                  <p class="text-[8px] font-bold tracking-widest uppercase text-slate-500">DTI</p>
+                </div>
+              </div>
+              <div class="flex-1 space-y-2">
+                <div class="flex justify-between text-[10px]">
+                  <span class="text-slate-400">Max allowed</span>
+                  <span class="font-bold text-white">35%</span>
+                </div>
+                <div class="flex justify-between text-[10px]">
+                  <span class="text-slate-400">Your DTI</span>
+                  <span id="dti-val" class="font-bold text-emerald-400">--</span>
+                </div>
+                <div class="flex justify-between text-[10px]">
+                  <span class="text-slate-400">Max capacity</span>
+                  <span id="dti-cap" class="font-bold text-white">--</span>
+                </div>
+                <div id="dti-status" class="mt-2 px-3 py-1.5 rounded-lg text-[10px] font-bold text-center">--</div>
+              </div>
+            </div>
+          </div>
+          </div><!-- close 2-col grid -->
+
+          <!-- Cash Needed Tracker (dynamic per track) -->
+          <div class="card-glass rounded-[1.75rem] p-5 border border-white/[0.06] space-y-4">
+            <p class="text-[10px] font-bold tracking-[0.3em] uppercase text-slate-400">Upfront Cash Needed</p>
+            <div id="cash-tracker" class="space-y-3">
+              <!-- Rendered by JS -->
+            </div>
+            <div class="bg-slate-800/50 rounded-xl p-3 border border-white/[0.04] text-center">
+              <p class="text-[9px] font-bold tracking-widest uppercase text-slate-500 mb-1">Months to Save (from net savings)</p>
+              <p id="h-months-save" class="text-2xl font-display font-bold text-amber-400 tabular-nums">--</p>
+            </div>
+          </div>
+
+          <!-- Track Note -->
+          <div class="bg-slate-800/30 rounded-xl px-4 py-3 border border-white/[0.04]">
+            <p id="track-note" class="text-[10px] text-slate-500 text-center italic">--</p>
+          </div>
+        </section>
+
+        <!-- ====== SECTION: TRAJECTORY ====== -->
+        <section id="sec-trajectory" class="app-section px-5 lg:px-8 pt-6 pb-8 space-y-5 hidden">
+
+          <!-- Card 1: Month-by-Month Budget After House -->
+          <div class="card-glass rounded-[1.75rem] p-5 border border-white/[0.06] overflow-hidden relative space-y-4">
+            <div class="absolute -top-16 -right-16 w-40 h-40 bg-emerald-500/[0.06] rounded-full blur-3xl idle-pulse"></div>
+            <div class="flex items-center justify-between">
+              <p class="text-[10px] font-bold tracking-[0.3em] uppercase text-slate-400">Month-by-Month After House</p>
+              <span id="traj-scenario" class="text-[9px] font-bold px-2 py-1 rounded-lg bg-blue-500/20 text-blue-300">125K</span>
+            </div>
+            <p class="text-[10px] text-slate-500">Each month — eto sahod mo, eto gastos, eto house, eto natira.</p>
+
+            <!-- Financing Track (mirrored from House tab) -->
+            <div class="bg-slate-800/40 rounded-xl p-3 border border-white/[0.04] space-y-2">
+              <p class="text-[9px] font-bold tracking-[0.2em] uppercase text-slate-500">Housing Scenario</p>
+              <div class="grid grid-cols-4 gap-2">
+                <button onclick="setTrack('pagibig90')" class="track-btn active text-[8px] font-bold px-2 py-2 rounded-xl border transition-all duration-300 text-center" data-track="pagibig90">
+                  <span class="block">Pag-IBIG</span>
+                  <span class="block text-[7px] font-normal text-slate-400 mt-0.5">90% LTV</span>
+                </button>
+                <button onclick="setTrack('pagibig100')" class="track-btn text-[8px] font-bold px-2 py-2 rounded-xl border transition-all duration-300 text-center" data-track="pagibig100">
+                  <span class="block">Pag-IBIG</span>
+                  <span class="block text-[7px] font-normal text-slate-400 mt-0.5">100%</span>
+                </button>
+                <button onclick="setTrack('bdo')" class="track-btn text-[8px] font-bold px-2 py-2 rounded-xl border transition-all duration-300 text-center" data-track="bdo">
+                  <span class="block">BDO</span>
+                  <span class="block text-[7px] font-normal text-slate-400 mt-0.5">20yr max</span>
+                </button>
+                <button onclick="setTrack('rent')" class="track-btn text-[8px] font-bold px-2 py-2 rounded-xl border transition-all duration-300 text-center" data-track="rent">
+                  <span class="block">Rent</span>
+                  <span class="block text-[7px] font-normal text-slate-400 mt-0.5">₱15K/mo</span>
+                </button>
+              </div>
+            </div>
+
+            <!-- Family Support Toggle -->
+            <div class="bg-slate-800/40 rounded-xl p-3 border border-white/[0.04] space-y-2">
+              <p class="text-[9px] font-bold tracking-[0.2em] uppercase text-slate-500">Family Support (after wedding)</p>
+              <div class="grid grid-cols-3 gap-2">
+                <button onclick="setFamilyMode('full')" id="fam-full" class="fam-btn active text-[9px] font-bold px-2 py-2 rounded-xl border transition-all duration-300 text-center">
+                  <span class="block">Full</span>
+                  <span class="block text-[7px] font-normal text-slate-400 mt-0.5">Keep paying</span>
+                </button>
+                <button onclick="setFamilyMode('prorated')" id="fam-prorated" class="fam-btn text-[9px] font-bold px-2 py-2 rounded-xl border transition-all duration-300 text-center">
+                  <span class="block">Pro-rated</span>
+                  <span class="block text-[7px] font-normal text-slate-400 mt-0.5">Half (kuya covers more)</span>
+                </button>
+                <button onclick="setFamilyMode('none')" id="fam-none" class="fam-btn text-[9px] font-bold px-2 py-2 rounded-xl border transition-all duration-300 text-center">
+                  <span class="block">None</span>
+                  <span class="block text-[7px] font-normal text-slate-400 mt-0.5">Stop all</span>
+                </button>
+              </div>
+              <p id="fam-savings-note" class="text-[9px] text-slate-500 text-center"></p>
+            </div>
+
+            <!-- Month cards rendered by JS -->
+            <div id="month-cards" class="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-3">
+              <!-- Rendered by JS -->
+            </div>
+          </div>
+
+          <!-- Card 2: Year-by-Year Repricing Progression -->
+          <div class="card-glass rounded-[1.75rem] p-5 border border-white/[0.06] space-y-4">
+            <p class="text-[10px] font-bold tracking-[0.3em] uppercase text-slate-400">How It Changes Over The Years</p>
+            <p class="text-[10px] text-slate-500">Pag-IBIG rates reprice. Here's what your budget looks like as the rate adjusts.</p>
+            <div class="h-56 relative">
+              <canvas id="chart-yearly"></canvas>
+            </div>
+            <div class="flex gap-4 text-[9px] font-semibold flex-wrap">
+              <span class="flex items-center gap-1.5"><span class="w-2.5 h-2.5 rounded-full bg-emerald-500"></span> Remaining for Life</span>
+              <span class="flex items-center gap-1.5"><span class="w-2.5 h-2.5 rounded-full bg-indigo-500"></span> Pag-IBIG Payment</span>
+              <span class="flex items-center gap-1.5"><span class="w-2.5 h-2.5 rounded-full bg-rose-500/60"></span> Expenses</span>
+            </div>
+            <!-- Year-by-year detail table -->
+            <div class="overflow-x-auto -mx-2">
+              <table class="w-full text-[10px]">
+                <thead>
+                  <tr class="text-slate-500 font-bold uppercase tracking-widest">
+                    <th class="text-left py-2 px-2">Period</th>
+                    <th class="text-right py-2 px-2">Rate</th>
+                    <th class="text-right py-2 px-2">House</th>
+                    <th class="text-right py-2 px-2">Remaining</th>
+                    <th class="text-right py-2 px-2">Status</th>
+                  </tr>
+                </thead>
+                <tbody id="yearly-table" class="divide-y divide-white/[0.04]"></tbody>
+              </table>
+            </div>
+          </div>
+
+          <!-- Card 3: 125K vs 210K Side-by-Side -->
+          <div class="card-glass rounded-[1.75rem] p-5 border border-white/[0.06] space-y-4">
+            <p class="text-[10px] font-bold tracking-[0.3em] uppercase text-slate-400">Current vs Temenos — Your Monthly Life</p>
+            <div class="grid grid-cols-2 gap-3">
+              <!-- 125K Column -->
+              <div class="bg-slate-800/50 rounded-2xl p-4 border border-blue-500/10 space-y-3">
+                <div class="flex items-center gap-2 mb-2">
+                  <span class="w-2.5 h-2.5 rounded-full bg-blue-500"></span>
+                  <span class="text-[10px] font-bold text-blue-400 tracking-wider">CURRENT (125K)</span>
+                </div>
+                <div class="space-y-2" id="col-125">
+                  <!-- Rendered by JS -->
+                </div>
+              </div>
+              <!-- 210K Column -->
+              <div class="bg-slate-800/50 rounded-2xl p-4 border border-emerald-500/10 space-y-3">
+                <div class="flex items-center gap-2 mb-2">
+                  <span class="w-2.5 h-2.5 rounded-full bg-emerald-500"></span>
+                  <span class="text-[10px] font-bold text-emerald-400 tracking-wider">TEMENOS (210K)</span>
+                </div>
+                <div class="space-y-2" id="col-210">
+                  <!-- Rendered by JS -->
+                </div>
+              </div>
+            </div>
+            <!-- Difference callout -->
+            <div id="salary-diff-callout" class="bg-gradient-to-r from-emerald-500/10 to-blue-500/10 rounded-xl p-3 border border-emerald-500/10 text-center">
+              <p class="text-[9px] font-bold tracking-widest uppercase text-slate-500">Extra Breathing Room with Temenos</p>
+              <p id="salary-diff-val" class="text-xl font-display font-bold text-emerald-400 tabular-nums">--</p>
+              <p class="text-[9px] text-slate-500">more per month for life after house</p>
+            </div>
+          </div>
+
+        </section>
+
+        <!-- ====== SECTION: TIMELINE ====== -->
+        <section id="sec-timeline" class="app-section px-5 pt-6 pb-8 space-y-5 hidden">
+          <div class="card-glass rounded-[1.75rem] p-5 border border-white/[0.06] space-y-4">
+            <p class="text-[10px] font-bold tracking-[0.3em] uppercase text-slate-400">Journey Milestones</p>
+            <div id="timeline-list" class="relative pl-6 space-y-0">
+              <!-- Rendered by JS -->
+            </div>
+          </div>
+
+          <!-- Key Numbers -->
+          <div class="card-glass rounded-[1.75rem] p-5 border border-white/[0.06] space-y-4">
+            <p class="text-[10px] font-bold tracking-[0.3em] uppercase text-slate-400">Key Numbers at a Glance</p>
+            <div class="grid grid-cols-2 gap-3" id="key-numbers">
+              <!-- Rendered by JS -->
+            </div>
+          </div>
+
+          <!-- Amortization Insight -->
+          <div class="card-glass rounded-[1.75rem] p-5 border border-white/[0.06] space-y-4">
+            <p class="text-[10px] font-bold tracking-[0.3em] uppercase text-slate-400">Amortization Insight (Year 1)</p>
+            <div class="h-44 relative">
+              <canvas id="chart-amort"></canvas>
+            </div>
+            <p class="text-[10px] text-slate-500 text-center">Early payments are mostly interest. Over time, more goes to principal.</p>
+          </div>
+        </section>
+
+      </main>
+
+      <!-- BOTTOM NAV -->
+      <nav class="fixed bottom-0 left-0 right-0 z-50 bg-slate-950/90 backdrop-blur-xl border-t border-white/[0.06] pb-[max(env(safe-area-inset-bottom),8px)]">
+        <div class="flex items-stretch justify-around max-w-lg mx-auto">
+          <button onclick="switchSection('overview')" class="nav-btn active flex-1 flex flex-col items-center gap-0.5 py-2.5 transition-all duration-300">
+            <span class="material-icons-round text-[20px]">dashboard</span>
+            <span class="text-[9px] font-bold tracking-wider uppercase">Overview</span>
+          </button>
+          <button onclick="switchSection('house')" class="nav-btn flex-1 flex flex-col items-center gap-0.5 py-2.5 transition-all duration-300">
+            <span class="material-icons-round text-[20px]">home</span>
+            <span class="text-[9px] font-bold tracking-wider uppercase">House</span>
+          </button>
+          <button onclick="switchSection('trajectory')" class="nav-btn flex-1 flex flex-col items-center gap-0.5 py-2.5 transition-all duration-300">
+            <span class="material-icons-round text-[20px]">trending_up</span>
+            <span class="text-[9px] font-bold tracking-wider uppercase">Trajectory</span>
+          </button>
+          <button onclick="switchSection('timeline')" class="nav-btn flex-1 flex flex-col items-center gap-0.5 py-2.5 transition-all duration-300">
+            <span class="material-icons-round text-[20px]">flag</span>
+            <span class="text-[9px] font-bold tracking-wider uppercase">Timeline</span>
+          </button>
+        </div>
+      </nav>
+
+      <!-- Loading Overlay -->
+      <div id="loading-overlay" class="fixed inset-0 z-[150] bg-slate-950/90 backdrop-blur-sm flex flex-col items-center justify-center gap-4 transition-opacity duration-500 hidden">
+        <div class="w-10 h-1 bg-blue-500/30 rounded-full overflow-hidden">
+          <div class="h-full bg-blue-400 rounded-full animate-loading-bar"></div>
+        </div>
+        <p class="text-[10px] font-bold tracking-[0.4em] uppercase text-blue-400">Syncing Finances...</p>
+      </div>
+    </div>
+
+    <script type="module" src="script.js"></script>
+  </body>
+</html>
