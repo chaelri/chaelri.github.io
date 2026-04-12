@@ -135,22 +135,18 @@
             <!-- Financing Track Toggle -->
             <div>
               <p class="text-[9px] font-bold tracking-[0.25em] uppercase text-slate-500 mb-2">Financing Track</p>
-              <div class="grid grid-cols-4 gap-2">
-                <button onclick="setTrack('pagibig90')" id="track-pagibig90" class="track-btn active flex flex-col items-center gap-1 p-2.5 rounded-xl border transition-all duration-300">
+              <div class="grid grid-cols-3 gap-2">
+                <button onclick="setTrack('rent')" id="track-rent" class="track-btn active flex flex-col items-center gap-1 p-2.5 rounded-xl border transition-all duration-300">
+                  <span class="text-[10px] font-bold">Rent</span>
+                  <span class="text-[8px] text-slate-400 rent-amt-label">₱15K/mo</span>
+                </button>
+                <button onclick="setTrack('pagibig90')" id="track-pagibig90" class="track-btn flex flex-col items-center gap-1 p-2.5 rounded-xl border transition-all duration-300">
                   <span class="text-[10px] font-bold">Pag-IBIG</span>
                   <span class="text-[8px] text-slate-400">90% LTV</span>
-                </button>
-                <button onclick="setTrack('pagibig100')" id="track-pagibig100" class="track-btn flex flex-col items-center gap-1 p-2.5 rounded-xl border transition-all duration-300">
-                  <span class="text-[10px] font-bold">Pag-IBIG</span>
-                  <span class="text-[8px] text-slate-400">100%</span>
                 </button>
                 <button onclick="setTrack('bdo')" id="track-bdo" class="track-btn flex flex-col items-center gap-1 p-2.5 rounded-xl border transition-all duration-300">
                   <span class="text-[10px] font-bold">BDO</span>
                   <span class="text-[8px] text-slate-400">Bank Loan</span>
-                </button>
-                <button onclick="setTrack('rent')" id="track-rent" class="track-btn flex flex-col items-center gap-1 p-2.5 rounded-xl border transition-all duration-300">
-                  <span class="text-[10px] font-bold">Rent</span>
-                  <span class="text-[8px] text-slate-400">₱15K/mo</span>
                 </button>
               </div>
             </div>
@@ -253,22 +249,18 @@
             <!-- Financing Track (mirrored from House tab) -->
             <div class="bg-slate-800/40 rounded-xl p-3 border border-white/[0.04] space-y-2">
               <p class="text-[9px] font-bold tracking-[0.2em] uppercase text-slate-500">Housing Scenario</p>
-              <div class="grid grid-cols-4 gap-2">
-                <button onclick="setTrack('pagibig90')" class="track-btn active text-[8px] font-bold px-2 py-2 rounded-xl border transition-all duration-300 text-center" data-track="pagibig90">
+              <div class="grid grid-cols-3 gap-2">
+                <button onclick="setTrack('rent')" class="track-btn active text-[8px] font-bold px-2 py-2 rounded-xl border transition-all duration-300 text-center" data-track="rent">
+                  <span class="block">Rent</span>
+                  <span class="block text-[7px] font-normal text-slate-400 mt-0.5 rent-amt-label">₱15K/mo</span>
+                </button>
+                <button onclick="setTrack('pagibig90')" class="track-btn text-[8px] font-bold px-2 py-2 rounded-xl border transition-all duration-300 text-center" data-track="pagibig90">
                   <span class="block">Pag-IBIG</span>
                   <span class="block text-[7px] font-normal text-slate-400 mt-0.5">90% LTV</span>
-                </button>
-                <button onclick="setTrack('pagibig100')" class="track-btn text-[8px] font-bold px-2 py-2 rounded-xl border transition-all duration-300 text-center" data-track="pagibig100">
-                  <span class="block">Pag-IBIG</span>
-                  <span class="block text-[7px] font-normal text-slate-400 mt-0.5">100%</span>
                 </button>
                 <button onclick="setTrack('bdo')" class="track-btn text-[8px] font-bold px-2 py-2 rounded-xl border transition-all duration-300 text-center" data-track="bdo">
                   <span class="block">BDO</span>
                   <span class="block text-[7px] font-normal text-slate-400 mt-0.5">20yr max</span>
-                </button>
-                <button onclick="setTrack('rent')" class="track-btn text-[8px] font-bold px-2 py-2 rounded-xl border transition-all duration-300 text-center" data-track="rent">
-                  <span class="block">Rent</span>
-                  <span class="block text-[7px] font-normal text-slate-400 mt-0.5">₱15K/mo</span>
                 </button>
               </div>
             </div>

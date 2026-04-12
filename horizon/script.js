@@ -87,21 +87,6 @@ const TRACKS = {
     defaultRate: 5.75,
     note: "Government-backed, lowest rates, 30yr max, no prepayment penalty",
   },
-  pagibig100: {
-    name: "Pag-IBIG (100% - Hypothetical)",
-    shortName: "Pag-IBIG 100%",
-    loanAmount: 6_000_000,        // Full 6M
-    downPayment: 0,
-    termYears: 30,
-    govFees: GOV_FEES,
-    rates: [
-      { rate: 5.75, label: "5.75%", sub: "1yr repricing" },
-      { rate: 6.25, label: "6.25%", sub: "3yr repricing" },
-      { rate: 6.50, label: "6.50%", sub: "5yr repricing" },
-    ],
-    defaultRate: 5.75,
-    note: "Hypothetical scenario — Pag-IBIG normally caps at 90% LTV for properties over ₱2.5M",
-  },
   bdo: {
     name: "BDO Bank Loan",
     shortName: "BDO",
@@ -136,7 +121,7 @@ const TRACKS = {
 // --- App State ---
 let appData = null;
 let currentSalary = 125000;
-let currentTrack = "pagibig90";
+let currentTrack = "rent";
 let currentRate = 5.75;
 let activeSection = "overview";
 let charts = {};
@@ -813,7 +798,7 @@ function renderMonthCards(housePayment) {
     const familyReduction = familyLeft ? getFamilyReduction(mData.categories) : 0;
 
     const carryOver = runningBalance;
-    const adjustedExpenses = expenses - familyReduction; // expenses go DOWN when you stop/reduce family support
+    const adjustedExpenses = expenses - familyReduction;
     const monthNet = income - adjustedExpenses - thisHouse - livingCost;
     runningBalance += monthNet; // carry forward
     const endBalance = runningBalance;

@@ -92,18 +92,13 @@ const getSectionLabel = (type) => {
 
 function setupScrollSync() {
   const monthViews = document.querySelectorAll(".snap-point");
-  console.log(monthViews);
 
   monthViews.forEach((view) => {
-    // Attach scroll listener to each month view
     view.addEventListener("scroll", function (e) {
+      if (isDesktop()) return; // No scroll sync needed on desktop (single pane)
       const currentScrollTop = e.target.scrollTop;
-      console.log(currentScrollTop);
 
-      // Apply the current scroll position to all other month views
       monthViews.forEach((otherView) => {
-        // Crucial check: Only update if the scroll position is different
-        // and ensure we are not updating the source of the event
         if (
           otherView !== e.target &&
           otherView.scrollTop !== currentScrollTop
@@ -196,9 +191,23 @@ window.selectUser = async (name) => {
       intro.classList.add("opacity-0", "pointer-events-none");
       document.getElementById("app").classList.add("opacity-100");
 
+      // Start at the first active (uncompleted) month
+      currentMonthIdx = getFirstActiveMonth();
+      document.getElementById("current-month-display").innerText = months[currentMonthIdx];
+
       initMonthPicker();
+      initDesktopSidebar();
       renderSwiper();
       setupSwiperObserver();
+
+      // Desktop: show only active month on init
+      lastIsDesktop = isDesktop();
+      if (isDesktop()) {
+        showDesktopMonth(currentMonthIdx);
+      }
+
+      updateCompleteMonthButtons();
+      updateMonthVisibility();
 
       onValue(dbRef, (snapshot) => {
         const val = snapshot.val();
@@ -206,6 +215,8 @@ window.selectUser = async (name) => {
           appData = val;
           if (!appData.monthlyData) appData.monthlyData = {};
           updateAllCalculations();
+          updateCompleteMonthButtons();
+          updateMonthVisibility();
           if (activeView === "stats") renderStats();
         }
       });
@@ -239,25 +250,30 @@ function renderSwiper() {
     snap.innerHTML = `
             <section id="dashboard-${idx}" class="relative overflow-hidden bg-gradient-to-br ${
               monthlyGradients[idx]
-            } p-6 rounded-[2.5rem] shadow-2xl transition-all duration-500">
+            } p-6 md:p-8 rounded-[2.5rem] shadow-2xl transition-all duration-500">
                 <div class="relative z-10 space-y-4">
                     <div>
                         <p class="text-white/60 text-[10px] font-black uppercase tracking-widest">Total Current Funds</p>
-                        <h2 class="total-funds-display text-4xl font-black tracking-tighter">₱ 0.00</h2>
+                        <h2 class="total-funds-display text-4xl md:text-5xl font-black tracking-tighter">₱ 0.00</h2>
                     </div>
-                    <div class="grid grid-cols-1 gap-2 border-t border-white/10 pt-4">
-                        <div class="flex justify-between items-center">
+                    <div class="grid grid-cols-1 md:grid-cols-3 gap-2 md:gap-4 border-t border-white/10 pt-4">
+                        <div class="flex justify-between md:flex-col md:gap-1 items-center md:items-start">
                             <span class="text-white/60 text-[10px] font-black uppercase">Gross Income</span>
-                            <span class="total-income-display text-sm font-bold text-white">₱ 0.00</span>
+                            <span class="total-income-display text-sm md:text-lg font-bold text-white">₱ 0.00</span>
                         </div>
-                        <div class="flex justify-between items-center">
+                        <div class="flex justify-between md:flex-col md:gap-1 items-center md:items-start">
                             <span class="text-white/60 text-[10px] font-black uppercase">Total Expenses</span>
-                            <span class="total-expenses-display text-sm font-bold text-white/90">₱ 0.00</span>
+                            <span class="total-expenses-display text-sm md:text-lg font-bold text-white/90">₱ 0.00</span>
                         </div>
-                        <div class="flex justify-between items-center bg-white/10 p-2 px-3 rounded-xl">
+                        <div class="flex justify-between md:flex-col md:gap-1 items-center md:items-start bg-white/10 p-2 px-3 rounded-xl">
                             <span class="text-white/60 text-[10px] font-black uppercase">Net Savings</span>
-                            <span class="monthly-savings-display text-sm font-black text-white">₱ 0.00</span>
+                            <span class="monthly-savings-display text-sm md:text-lg font-black text-white">₱ 0.00</span>
                         </div>
+                    </div>
+                    <div id="complete-month-btn-${idx}" class="complete-month-wrapper hidden">
+                        <button onclick="completeMonth(${idx})" class="w-full mt-3 py-3 bg-white/10 hover:bg-white/20 rounded-2xl font-black text-white text-[11px] uppercase tracking-widest flex items-center justify-center gap-2 active:scale-95 transition-all">
+                            <span class="material-icons text-sm">check_circle</span> Complete ${months[idx]}
+                        </button>
                     </div>
                 </div>
             </section>
@@ -280,6 +296,11 @@ function renderSwiper() {
     swiper.appendChild(snap);
   });
   updateAllCalculations();
+
+  // Desktop: re-apply active month
+  if (isDesktop()) {
+    showDesktopMonth(currentMonthIdx);
+  }
 }
 
 function createSectionHtml(title, key, color, monthIdx) {
@@ -307,6 +328,9 @@ function updateAllCalculations() {
   if (!appData || !appData.monthlyData) return;
 
   let runningBalance = parseFloat(appData.startingBalance || 0);
+
+  // Preserve desktop active state after re-render
+  const preserveDesktop = isDesktop();
 
   months.forEach((_, idx) => {
     const m = appData.monthlyData[idx] || {
@@ -340,8 +364,13 @@ function updateAllCalculations() {
     const sign = net >= 0 ? "+" : "-";
     savingsEl.innerText = `${sign} ₱ ${formatMoney(Math.abs(net))}`;
   });
+
+  // Re-apply desktop active state
+  if (preserveDesktop) {
+    showDesktopMonth(currentMonthIdx);
   }
-  
+  }
+
   function calculateMonthlyTotals(monthData) {
   const income = (monthData.incomeSources || []).reduce(
   (s, i) => s + parseFloat(i.amount || 0),
@@ -356,7 +385,275 @@ function updateAllCalculations() {
   const savings = income - expenses;
   return { income, expenses, savings };
   }
-  
+
+// =============================================
+// COMPLETE MONTH
+// =============================================
+// Shows the button on months that are closable (last days of month, or past months not yet completed)
+function updateCompleteMonthButtons() {
+  if (!appData) return;
+  const now = new Date();
+  const realMonth = now.getMonth();
+  const dayOfMonth = now.getDate();
+  const completedMonths = appData.completedMonths || {};
+
+  months.forEach((_, idx) => {
+    const btn = document.getElementById(`complete-month-btn-${idx}`);
+    if (!btn) return;
+
+    const isCompleted = !!completedMonths[idx];
+    // Show button if: month is past OR it's the closing days (28+) of current month, AND not yet completed
+    const isPast = idx < realMonth;
+    const isClosing = idx === realMonth && dayOfMonth >= 28;
+    const shouldShow = !isCompleted && (isPast || isClosing);
+
+    btn.classList.toggle("hidden", !shouldShow);
+
+    // Mark completed months visually
+    const dashboard = document.getElementById(`dashboard-${idx}`);
+    if (dashboard && isCompleted) {
+      dashboard.classList.add("opacity-50");
+      // Add completed badge
+      if (!dashboard.querySelector(".completed-badge")) {
+        const badge = document.createElement("div");
+        badge.className = "completed-badge absolute top-4 right-4 z-20 px-3 py-1 bg-emerald-500/20 rounded-lg text-[9px] font-black text-emerald-400 uppercase";
+        badge.textContent = "Completed";
+        dashboard.style.position = "relative";
+        dashboard.appendChild(badge);
+      }
+    }
+  });
+}
+
+// --- Custom Confirm Modal ---
+let confirmResolve = null;
+
+function showConfirm({ title, items, actionText, icon, iconGradient }) {
+  const overlay = document.getElementById("confirm-overlay");
+  const iconEl = document.getElementById("confirm-icon");
+  const titleEl = document.getElementById("confirm-title");
+  const bodyEl = document.getElementById("confirm-body");
+  const actionBtn = document.getElementById("confirm-action-btn");
+
+  titleEl.textContent = title;
+  actionBtn.textContent = actionText || "Confirm";
+  iconEl.className = `w-16 h-16 rounded-[1.5rem] bg-gradient-to-br ${iconGradient || "from-emerald-500 to-teal-600"} flex items-center justify-center shadow-lg`;
+  iconEl.innerHTML = `<span class="material-icons text-white text-3xl">${icon || "check_circle"}</span>`;
+
+  bodyEl.innerHTML = items.map(item =>
+    `<div class="flex items-start gap-3 bg-slate-900/50 rounded-xl p-3 border border-white/[0.03]">
+      <span class="material-icons text-sm mt-0.5 ${item.color || 'text-slate-400'}">${item.icon}</span>
+      <div>
+        <p class="text-[11px] font-bold text-white">${item.title}</p>
+        ${item.sub ? `<p class="text-[9px] text-slate-500 mt-0.5">${item.sub}</p>` : ""}
+      </div>
+    </div>`
+  ).join("");
+
+  overlay.classList.add("open");
+
+  return new Promise((resolve) => {
+    confirmResolve = resolve;
+    actionBtn.onclick = () => {
+      // Close overlay without triggering the cancel resolve
+      document.getElementById("confirm-overlay").classList.remove("open");
+      confirmResolve = null;
+      resolve(true);
+    };
+  });
+}
+
+window.closeConfirm = () => {
+  document.getElementById("confirm-overlay").classList.remove("open");
+  if (confirmResolve) { confirmResolve(false); confirmResolve = null; }
+};
+
+// --- Toast ---
+function showToast(text, icon, duration) {
+  const toast = document.getElementById("toast");
+  document.getElementById("toast-text").textContent = text;
+  document.getElementById("toast-icon").textContent = icon || "check_circle";
+  toast.classList.add("show");
+  setTimeout(() => toast.classList.remove("show"), duration || 3000);
+}
+
+// --- Complete Month ---
+window.completeMonth = async (monthIdx) => {
+  if (!appData || !appData.monthlyData || !appData.monthlyData[monthIdx]) return;
+
+  const confirmed = await showConfirm({
+    title: `Complete ${months[monthIdx]}?`,
+    icon: "task_alt",
+    iconGradient: "from-emerald-500 to-teal-600 shadow-emerald-500/20",
+    actionText: `Complete ${months[monthIdx]}`,
+    items: [
+      { icon: "check_circle", color: "text-emerald-400", title: "Mark all expenses as paid", sub: "Fixed, credit cards, and others" },
+      { icon: "money_off", color: "text-blue-400", title: "Zero out all income sources", sub: "You'll set up next month manually" },
+      { icon: "visibility_off", color: "text-slate-400", title: "Hide from main view", sub: "Month will be dimmed and skipped" },
+    ],
+  });
+
+  if (!confirmed) return;
+
+  const m = appData.monthlyData[monthIdx];
+  const toArr = (v) => Array.isArray(v) ? v : (v ? Object.values(v) : []);
+
+  // 1. Mark all expenses as paid
+  ["fixedExpenses", "cc", "others"].forEach((key) => {
+    toArr(m[key]).forEach((item) => { item.isPaid = true; });
+  });
+
+  // 2. Zero out ALL income sources
+  toArr(m.incomeSources).forEach((item) => { item.amount = 0; });
+
+  // 3. Mark month as completed
+  if (!appData.completedMonths) appData.completedMonths = {};
+  appData.completedMonths[monthIdx] = { completedAt: Date.now() };
+
+  // Save
+  await set(dbRef, appData);
+  updateAllCalculations();
+  updateCompleteMonthButtons();
+  updateMonthVisibility();
+
+  updateMonthPicker();
+  initDesktopSidebar();
+  showToast(`${months[monthIdx]} completed`, "task_alt", 3000);
+
+  // Auto-navigate to next uncompleted month
+  const nextMonth = getFirstActiveMonth();
+  if (nextMonth !== monthIdx) {
+    currentMonthIdx = nextMonth;
+    const display = document.getElementById("current-month-display");
+    if (display) display.innerText = months[nextMonth];
+    if (isDesktop()) {
+      showDesktopMonth(nextMonth);
+    } else {
+      const swiper = document.getElementById("budget-view");
+      if (swiper) swiper.scrollTo({ left: swiper.clientWidth * nextMonth, behavior: "smooth" });
+    }
+  }
+
+  if (window.navigator.vibrate) window.navigator.vibrate([10, 50, 10]);
+};
+
+// --- Sync Wedding Remaining to June Expenses ---
+const WEDDING_EXPENSE_ID = "wedding_vendor_remaining";
+
+window.syncWeddingToJune = async () => {
+  if (!appData) return;
+
+  const data = await loadWeddingData();
+  const vendorRemaining = data.grandTotal - (data.vendorPaid || 0);
+  const charlaCovers = data.charlaPaid || 0;
+  // Charlie only pays what CharLa joint doesn't cover
+  const charlieShare = Math.max(0, vendorRemaining - charlaCovers);
+
+  if (vendorRemaining <= 0) {
+    showToast("All vendors paid — nothing to sync", "check_circle", 3000);
+    return;
+  }
+
+  const confirmed = await showConfirm({
+    title: "Sync to June?",
+    icon: "sync",
+    iconGradient: "from-blue-500 to-indigo-600 shadow-blue-500/20",
+    actionText: `Add ₱${formatMoney(charlieShare)} to June`,
+    items: [
+      { icon: "receipt_long", color: "text-amber-400", title: `Total vendor remaining: ₱${formatMoney(vendorRemaining)}`, sub: "Full amount still owed to vendors" },
+      { icon: "diamond", color: "text-rose-400", title: `CharLa joint covers: ₱${formatMoney(charlaCovers)}`, sub: "This comes from your joint commitment fund" },
+      { icon: "person", color: "text-blue-400", title: `Your share: ₱${formatMoney(charlieShare)}`, sub: "Only this hits YOUR June balance" },
+    ],
+  });
+
+  if (!confirmed) return;
+
+  // Ensure June data exists
+  const juneIdx = 5;
+  if (!appData.monthlyData) appData.monthlyData = {};
+  if (!appData.monthlyData[juneIdx]) {
+    appData.monthlyData[juneIdx] = { incomeSources: [], fixedExpenses: [], cc: [], others: [] };
+  }
+  if (!appData.monthlyData[juneIdx].others) appData.monthlyData[juneIdx].others = [];
+
+  const others = appData.monthlyData[juneIdx].others;
+  const toArr = (v) => Array.isArray(v) ? v : (v ? Object.values(v) : []);
+  const list = toArr(others);
+
+  // Sync Charlie's share only (not CharLa's portion)
+  const existing = list.findIndex(item => item.id === WEDDING_EXPENSE_ID);
+  if (charlieShare > 0) {
+    if (existing >= 0) {
+      list[existing].amount = charlieShare;
+      list[existing].name = "Wedding (My Share)";
+    } else {
+      list.push({
+        id: WEDDING_EXPENSE_ID,
+        name: "Wedding (My Share)",
+        amount: charlieShare,
+        isPaid: false,
+        logs: [],
+      });
+    }
+  } else if (existing >= 0) {
+    // CharLa covers everything, remove the expense
+    list.splice(existing, 1);
+  }
+
+  appData.monthlyData[juneIdx].others = list;
+  await set(dbRef, appData);
+  updateAllCalculations();
+
+  showToast(`₱${formatMoney(charlieShare)} synced to June`, "sync", 3000);
+};
+
+// Get first non-completed month (the one you should be looking at)
+function getFirstActiveMonth() {
+  const completed = appData?.completedMonths || {};
+  const now = new Date();
+  const realMonth = now.getMonth();
+  // Start from current real month, find first uncompleted
+  for (let i = realMonth; i < 12; i++) {
+    if (!completed[i]) return i;
+  }
+  // Fallback: find any uncompleted
+  for (let i = 0; i < 12; i++) {
+    if (!completed[i]) return i;
+  }
+  return 0;
+}
+
+// Hide completed months from sidebar + swiper
+function updateMonthVisibility() {
+  const completed = appData?.completedMonths || {};
+
+  // Desktop sidebar: dim completed months
+  document.querySelectorAll(".sidebar-month-btn").forEach((btn, idx) => {
+    if (completed[idx]) {
+      btn.classList.add("opacity-30");
+      if (!btn.querySelector(".done-dot")) {
+        const dot = document.createElement("span");
+        dot.className = "done-dot material-icons text-[10px] text-emerald-500";
+        dot.textContent = "check_circle";
+        btn.appendChild(dot);
+      }
+    } else {
+      btn.classList.remove("opacity-30");
+    }
+  });
+
+  // Mobile swiper: hide completed snap-points (they can still access via month picker)
+  if (!isDesktop()) {
+    document.querySelectorAll(".snap-point").forEach((sp, idx) => {
+      if (completed[idx]) {
+        sp.style.display = "none";
+      } else {
+        sp.style.display = "";
+      }
+    });
+  }
+}
+
   function renderRows(monthIdx, key, items, colorClass) {
   const container = document.getElementById(`${key}-list-${monthIdx}`);
   if (!container) return;
@@ -533,7 +830,7 @@ async function reorderItems(monthIdx, type, newOrder) {
 
 window.switchView = (view) => {
   activeView = view;
-  const views = ["budget", "stats", "setup"];
+  const views = ["budget", "stats", "commitments", "setup"];
   views.forEach((v) => {
     const el = document.getElementById(`${v}-view`);
     const nav = document.getElementById(`nav-${v}`);
@@ -551,8 +848,11 @@ window.switchView = (view) => {
     }
   });
   if (view === "stats") renderStats();
+  if (view === "commitments") renderCommitments();
   const header = document.querySelector("header");
   if (header) header.style.display = view === "budget" ? "flex" : "none";
+  const sidebar = document.getElementById("desktop-sidebar");
+  if (sidebar) sidebar.style.display = (view === "budget" && isDesktop()) ? "flex" : "none";
 };
 
 function renderStats() {
@@ -837,20 +1137,27 @@ async function deleteItem() {
 function setupSwiperObserver() {
   const swiper = document.getElementById("budget-view");
   if (!swiper) return;
-  swiper.onscroll = () => {
-    const idx = Math.round(swiper.scrollLeft / swiper.clientWidth);
-    if (idx !== currentMonthIdx && idx >= 0 && idx < 12) updateHeader(idx);
-  };
+
+  // Use IntersectionObserver — works correctly even with hidden months
   const observer = new IntersectionObserver(
     (entries) => {
+      if (isDesktop()) return;
       entries.forEach((entry) => {
-        if (entry.isIntersecting)
-          updateHeader(parseInt(entry.target.dataset.index));
+        if (entry.isIntersecting) {
+          const idx = parseInt(entry.target.dataset.index);
+          if (idx >= 0 && idx < 12 && idx !== currentMonthIdx) {
+            updateHeader(idx);
+          }
+        }
       });
     },
     { root: swiper, threshold: 0.6 },
   );
   document.querySelectorAll(".snap-point").forEach((p) => observer.observe(p));
+}
+
+function isDesktop() {
+  return window.innerWidth >= 768;
 }
 
 function updateHeader(idx) {
@@ -859,7 +1166,70 @@ function updateHeader(idx) {
   const display = document.getElementById("current-month-display");
   if (display) display.innerText = months[idx];
   if (window.navigator.vibrate) window.navigator.vibrate(5);
+
+  // Desktop: show only active month pane + update sidebar
+  if (isDesktop()) {
+    showDesktopMonth(idx);
+  }
 }
+
+function showDesktopMonth(idx) {
+  // Show only the selected month's snap-point
+  document.querySelectorAll(".snap-point").forEach((sp, i) => {
+    sp.classList.toggle("desktop-active", i === idx);
+  });
+  // Update sidebar active state
+  document.querySelectorAll(".sidebar-month-btn").forEach((btn, i) => {
+    btn.classList.toggle("active", i === idx);
+  });
+}
+
+function initDesktopSidebar() {
+  const sidebar = document.getElementById("desktop-sidebar");
+  if (!sidebar) return;
+  sidebar.innerHTML = "";
+
+  months.forEach((m, idx) => {
+    const btn = document.createElement("button");
+    btn.className = `sidebar-month-btn ${idx === currentMonthIdx ? "active" : ""}`;
+    btn.innerHTML = `
+      <span>${m}</span>
+      <span class="text-[10px] font-bold opacity-50">${String(idx + 1).padStart(2, "0")}</span>
+    `;
+    btn.onclick = () => {
+      currentMonthIdx = idx;
+      const display = document.getElementById("current-month-display");
+      if (display) display.innerText = months[idx];
+      showDesktopMonth(idx);
+      if (window.navigator.vibrate) window.navigator.vibrate(5);
+    };
+    sidebar.appendChild(btn);
+  });
+}
+
+// Handle resize: switch between mobile swiper and desktop single-pane
+let lastIsDesktop = false;
+function handleResize() {
+  const desktop = isDesktop();
+  if (desktop !== lastIsDesktop) {
+    lastIsDesktop = desktop;
+    if (desktop) {
+      showDesktopMonth(currentMonthIdx);
+    } else {
+      // Back to mobile: show all snap-points, remove desktop-active
+      document.querySelectorAll(".snap-point").forEach((sp) => {
+        sp.classList.remove("desktop-active");
+        sp.style.display = "";
+      });
+      // Scroll swiper to current month
+      const target = document.getElementById(`month-view-${currentMonthIdx}`);
+      if (target) {
+        setTimeout(() => target.scrollIntoView({ inline: "start" }), 100);
+      }
+    }
+  }
+}
+window.addEventListener("resize", handleResize);
 
 window.toggleMonthPicker = () => {
   const mp = document.getElementById("month-picker");
@@ -876,18 +1246,319 @@ function initMonthPicker() {
   const container = picker.querySelector("div");
   if (!container) return;
   container.innerHTML = "";
+  const completed = appData?.completedMonths || {};
+
   months.forEach((m, idx) => {
+    const isDone = !!completed[idx];
     const btn = document.createElement("button");
-    btn.className =
-      "p-6 rounded-3xl bg-slate-800 text-lg font-black active:scale-90 transition-transform uppercase tracking-widest text-slate-400";
-    btn.innerText = m.substring(0, 3);
+    btn.className = `p-6 rounded-3xl text-lg font-black active:scale-90 transition-transform uppercase tracking-widest ${
+      isDone ? "bg-emerald-500/10 text-emerald-500/40 border border-emerald-500/10" : "bg-slate-800 text-slate-400"
+    }`;
+    btn.id = `mp-btn-${idx}`;
+    btn.innerHTML = isDone
+      ? `<div class="flex items-center justify-center gap-2"><span class="material-icons text-sm">check_circle</span>${m.substring(0, 3)}</div>`
+      : m.substring(0, 3);
     btn.onclick = () => {
-      const swiper = document.getElementById("budget-view");
-      if (swiper)
-        swiper.scrollTo({ left: swiper.clientWidth * idx, behavior: "smooth" });
+      const target = document.getElementById(`month-view-${idx}`);
+      if (target) {
+        // Unhide temporarily if completed so user can view it
+        if (isDone) target.style.display = "";
+        target.scrollIntoView({ behavior: "smooth", inline: "start" });
+      }
       updateHeader(idx);
       window.toggleMonthPicker();
     };
     container.appendChild(btn);
   });
 }
+
+// Re-init month picker when completed state changes
+function updateMonthPicker() {
+  initMonthPicker();
+}
+
+// =============================================
+// COMMITMENTS (CharLa Ring + Wedding Fund)
+// =============================================
+// Data stored in Firebase under `commitments` key in user's path
+// Structure:
+// {
+//   ring: { charliePerMonth: 14000, karlaPerMonth: 6000, totalTarget: 440000, startMonth: "2025-01", endMonth: "2026-11", payments: [...] },
+//   wedding: { grandTotal: 357527, charliePaid: 103477, karlaPaid: 189372, remaining: 25404 }
+// }
+
+// Actual CharLa payment schedule (from the spreadsheet)
+// Jan-Aug 2025: ₱14K(C) + ₱6K(K) = ₱20K/mo × 8 = ₱160,000
+// Sep 2025-Jan 2026: pause (₱0)
+// Feb 2026: ₱118,372 lump sum
+// Mar-Jun 2026: ₱14K(C) + ₱5K(K) = ₱19K/mo × 4 = ₱76,000
+// Total target: ₱160,000 + ₱118,372 + ₱76,000 = ₱354,372
+// But user says CharLa total = ₱189,372 — that's the CharLa joint portion
+const CHARLA_SCHEDULE = [
+  { label: "Jan 2025", y: 2025, m: 0, charlie: 14000, karla: 6000 },
+  { label: "Feb 2025", y: 2025, m: 1, charlie: 14000, karla: 6000 },
+  { label: "Mar 2025", y: 2025, m: 2, charlie: 14000, karla: 6000 },
+  { label: "Apr 2025", y: 2025, m: 3, charlie: 14000, karla: 6000 },
+  { label: "May 2025", y: 2025, m: 4, charlie: 14000, karla: 6000 },
+  { label: "Jun 2025", y: 2025, m: 5, charlie: 14000, karla: 6000 },
+  { label: "Jul 2025", y: 2025, m: 6, charlie: 14000, karla: 6000 },
+  { label: "Aug 2025", y: 2025, m: 7, charlie: 14000, karla: 6000 },
+  { label: "Sep 2025", y: 2025, m: 8, charlie: 0, karla: 0 },
+  { label: "Oct 2025", y: 2025, m: 9, charlie: 0, karla: 0 },
+  { label: "Nov 2025", y: 2025, m: 10, charlie: 0, karla: 0 },
+  { label: "Dec 2025", y: 2025, m: 11, charlie: 0, karla: 0 },
+  { label: "Jan 2026", y: 2026, m: 0, charlie: 0, karla: 0 },
+  { label: "Feb 2026", y: 2026, m: 1, charlie: 118372, karla: 0 },
+  { label: "Mar 2026", y: 2026, m: 2, charlie: 14000, karla: 5000 },
+  { label: "Apr 2026", y: 2026, m: 3, charlie: 14000, karla: 5000 },
+  { label: "May 2026", y: 2026, m: 4, charlie: 14000, karla: 5000 },
+  { label: "Jun 2026", y: 2026, m: 5, charlie: 14000, karla: 5000 },
+];
+const CHARLA_TARGET = CHARLA_SCHEDULE.reduce((s, x) => s + x.charlie + x.karla, 0);
+
+// Wedding fund defaults — will be overridden by Firebase if data exists
+const WEDDING_DEFAULTS = {
+  grandTotal: 357527,       // Total wedding cost
+  vendorPaid: 90082,        // Actual payments made to vendors so far
+  charlaPaid: 189372,       // CharLa joint commitment (funding source)
+  dueDate: "2026-07-02",
+};
+
+function renderCommitments() {
+  renderCharLaCommitment();
+  renderWeddingFund();
+}
+
+function renderCharLaCommitment() {
+  const now = new Date();
+  const currentYear = now.getFullYear();
+  const currentMonth = now.getMonth();
+
+  let totalPaid = 0;
+  let monthsWithPayment = 0;
+  let monthsLeft = 0;
+
+  CHARLA_SCHEDULE.forEach((s) => {
+    const isPast = (s.y < currentYear) || (s.y === currentYear && s.m < currentMonth);
+    const isCurrent = (s.y === currentYear && s.m === currentMonth);
+    if (isPast || isCurrent) totalPaid += s.charlie + s.karla;
+    if (!isPast && !isCurrent && (s.charlie + s.karla) > 0) monthsLeft++;
+    if (s.charlie + s.karla > 0) monthsWithPayment++;
+  });
+
+  const remaining = CHARLA_TARGET - totalPaid;
+  const progressPct = CHARLA_TARGET > 0 ? (totalPaid / CHARLA_TARGET * 100).toFixed(1) : "0";
+  const isDone = remaining <= 0;
+
+  const $ = (id) => document.getElementById(id);
+  $("ring-target").textContent = `₱${formatMoney(CHARLA_TARGET)}`;
+  $("ring-total-paid").textContent = `₱${formatMoney(totalPaid)}`;
+  $("ring-remaining").textContent = isDone ? "₱0" : `₱${formatMoney(remaining)}`;
+  $("ring-months-left").textContent = isDone ? "Done!" : `${monthsLeft}`;
+  $("ring-progress-pct").textContent = `${progressPct}%`;
+  $("ring-progress-bar").style.width = `${Math.min(100, parseFloat(progressPct))}%`;
+  $("ring-status").textContent = isDone ? "COMPLETE" : `${monthsLeft} mo left`;
+  $("ring-status").className = `text-[9px] font-black px-2 py-1 rounded-lg uppercase ${isDone ? "bg-emerald-500/20 text-emerald-400" : "bg-amber-500/20 text-amber-400"}`;
+
+  // Timeline: show each month with actual payment amounts
+  const timeline = $("ring-timeline");
+  timeline.innerHTML = "";
+  const mn = ["Jan", "Feb", "Mar", "Apr", "May", "Jun", "Jul", "Aug", "Sep", "Oct", "Nov", "Dec"];
+
+  CHARLA_SCHEDULE.forEach((s) => {
+    const isPast = (s.y < currentYear) || (s.y === currentYear && s.m < currentMonth);
+    const isCurrent = (s.y === currentYear && s.m === currentMonth);
+    const total = s.charlie + s.karla;
+    const hasAmount = total > 0;
+
+    // All past months = PAID (even ₱0 months were bulk-covered by Feb lump sum)
+    const cell = document.createElement("div");
+    cell.className = `rounded-lg p-1.5 text-center text-[8px] font-bold border transition-all ${
+      isPast ? "bg-emerald-500/15 border-emerald-500/20 text-emerald-400" :
+      isCurrent ? "bg-blue-500/15 border-blue-500/30 text-blue-400 ring-1 ring-blue-500/30" :
+      "bg-slate-800/50 border-white/[0.04] text-slate-500"
+    }`;
+    cell.innerHTML = `
+      <div>${mn[s.m]} '${String(s.y).slice(-2)}</div>
+      ${hasAmount ? `<div class="text-[7px] ${isPast ? 'text-emerald-500' : isCurrent ? 'text-blue-400' : 'text-slate-400'}">₱${total >= 100000 ? (total/1000).toFixed(0) + 'K' : (total/1000).toFixed(0) + 'K'}</div>` :
+        `<div class="text-[7px] ${isPast ? 'text-emerald-500/50' : 'opacity-40'}">bulk</div>`}
+      ${isPast ? '<span class="material-icons text-[9px]">check</span>' :
+        isCurrent ? '<span class="material-icons text-[9px]">radio_button_checked</span>' : ''}
+    `;
+    timeline.appendChild(cell);
+  });
+}
+
+// --- Wedding Fund (Firebase-backed, editable) ---
+// Stored at: {userPath}/wedding  e.g. chalee_v1/wedding
+async function loadWeddingData() {
+  if (!currentUser) return WEDDING_DEFAULTS;
+  const path = currentUser === "Charlie" ? "chalee_v1" : "karla_v1";
+  const weddingRef = ref(db, `${path}/wedding`);
+  const snapshot = await get(weddingRef);
+  if (snapshot.exists() && snapshot.val()) {
+    const saved = snapshot.val();
+    // Migration: old data had 'totalPaid' (wrong), new uses 'vendorPaid'
+    if (saved.totalPaid && !saved.vendorPaid) {
+      saved.vendorPaid = WEDDING_DEFAULTS.vendorPaid; // reset to correct value
+      delete saved.totalPaid;
+      delete saved.charliePaid;
+      await set(weddingRef, { ...WEDDING_DEFAULTS, ...saved });
+    }
+    return { ...WEDDING_DEFAULTS, ...saved };
+  }
+  await set(weddingRef, WEDDING_DEFAULTS);
+  return WEDDING_DEFAULTS;
+}
+
+async function saveWeddingData(data) {
+  if (!currentUser) return;
+  const path = currentUser === "Charlie" ? "chalee_v1" : "karla_v1";
+  const weddingRef = ref(db, `${path}/wedding`);
+  await set(weddingRef, data);
+}
+
+// Calculate running balance at any month (inclusive)
+function getRunningBalanceAt(monthIdx) {
+  if (!appData || !appData.monthlyData) return 0;
+  let balance = parseFloat(appData.startingBalance || 0);
+  for (let i = 0; i <= monthIdx; i++) {
+    const m = appData.monthlyData[i] || { incomeSources: [], fixedExpenses: [], cc: [], others: [] };
+    const { income, expenses } = calculateMonthlyTotals(m);
+    balance += income - expenses;
+  }
+  return balance;
+}
+
+// Calculate Charlie's running balance at June (month index 5)
+function getJuneRunningBalance() {
+  if (!appData || !appData.monthlyData) return 0;
+  let balance = parseFloat(appData.startingBalance || 0);
+  for (let i = 0; i <= 5; i++) { // 0=Jan through 5=June
+    const m = appData.monthlyData[i] || { incomeSources: [], fixedExpenses: [], cc: [], others: [] };
+    const { income, expenses } = calculateMonthlyTotals(m);
+    balance += income - expenses;
+  }
+  return balance;
+}
+
+async function renderWeddingFund() {
+  const data = await loadWeddingData();
+
+  // Vendor payments
+  const vendorPaid = data.vendorPaid || 0;
+  const vendorRemaining = data.grandTotal - vendorPaid;
+  const vendorPct = data.grandTotal > 0 ? (vendorPaid / data.grandTotal * 100).toFixed(1) : "0";
+
+  // Funding sources
+  const charlieAmount = getJuneRunningBalance();
+  const totalFunding = charlieAmount + (data.charlaPaid || 0);
+  const shortfall = vendorRemaining - totalFunding; // negative = surplus
+
+  const dueDate = new Date(data.dueDate || "2026-07-02");
+  const now = new Date();
+  const daysLeft = Math.max(0, Math.ceil((dueDate - now) / (1000 * 60 * 60 * 24)));
+  const isDone = vendorRemaining <= 0;
+
+  const $ = (id) => document.getElementById(id);
+  $("wedding-grand-total").textContent = `₱${formatMoney(data.grandTotal)}`;
+  $("wedding-total-paid").textContent = `₱${formatMoney(vendorPaid)}`;
+  $("wedding-remaining").textContent = isDone ? "₱0" : `₱${formatMoney(Math.max(0, vendorRemaining))}`;
+  $("wedding-days-left").textContent = isDone ? "Done!" : `${daysLeft}`;
+  $("wedding-progress-pct").textContent = `${vendorPct}%`;
+  $("wedding-progress-bar").style.width = `${Math.min(100, parseFloat(vendorPct))}%`;
+  $("wedding-charlie").textContent = `₱${formatMoney(charlieAmount)}`;
+  $("wedding-karla").textContent = `₱${formatMoney(data.charlaPaid || 0)}`;
+
+  // Status badge
+  if (isDone) {
+    $("wedding-status").textContent = "ALL PAID";
+    $("wedding-status").className = "text-[9px] font-black px-2 py-1 rounded-lg uppercase bg-emerald-500/20 text-emerald-400";
+  } else {
+    $("wedding-status").textContent = `₱${formatMoney(vendorRemaining)} to vendors`;
+    $("wedding-status").className = "text-[9px] font-black px-2 py-1 rounded-lg uppercase bg-amber-500/20 text-amber-400";
+  }
+
+  // === AFTER WEDDING: the whole point ===
+  // July balance = what you actually have after wedding expenses hit in June
+  // This uses the Money app's running balance at July (index 6)
+  const julyBalance = getRunningBalanceAt(6);
+  const charlieShare = Math.max(0, vendorRemaining - (data.charlaPaid || 0));
+
+  $("aw-june-bal").textContent = `₱${formatMoney(charlieAmount)}`;
+  $("aw-charla").textContent = `₱${formatMoney(data.charlaPaid || 0)}`;
+  $("aw-vendor-remaining").textContent = `₱${formatMoney(charlieShare)}`;
+  $("aw-result").textContent = `₱${formatMoney(julyBalance)}`;
+  $("aw-result").className = `font-black ${julyBalance >= 0 ? "text-emerald-400" : "text-rose-400"}`;
+
+  $("after-wedding-balance").textContent = `₱${formatMoney(julyBalance)}`;
+  $("after-wedding-balance").className = `text-4xl font-black ${julyBalance >= 0 ? "text-emerald-400" : "text-rose-400"}`;
+
+  if (julyBalance >= 0) {
+    $("after-wedding-sub").textContent = "You'll have this left to start married life";
+  } else {
+    $("after-wedding-sub").textContent = "You'll be short — need to save more before July";
+    $("after-wedding-sub").className = "text-[10px] text-rose-400 mt-1";
+  }
+}
+
+// Update wedding fund: add a payment
+window.openWeddingUpdate = async () => {
+  const data = await loadWeddingData();
+  const remaining = data.grandTotal - data.totalPaid;
+
+  const overlay = document.getElementById("modal-overlay");
+  const body = document.getElementById("modal-body");
+  const deleteBtn = document.getElementById("delete-btn");
+  const saveBtn = document.getElementById("save-btn");
+  if (!overlay || !body) return;
+
+  document.getElementById("modal-title").innerText = "UPDATE WEDDING FUND";
+  deleteBtn.style.display = "none";
+  saveBtn.disabled = false;
+  saveBtn.innerText = "Save";
+
+  const vendorPaid = data.vendorPaid || 0;
+  const vendorRemaining = data.grandTotal - vendorPaid;
+
+  body.innerHTML = `
+    <div class="space-y-4 px-1">
+      <div class="bg-slate-900/50 rounded-xl p-4 text-center space-y-1">
+        <p class="text-[9px] font-bold uppercase text-slate-500">Still Owed to Vendors</p>
+        <p class="text-2xl font-black text-amber-400">₱${formatMoney(Math.max(0, vendorRemaining))}</p>
+      </div>
+      <div class="space-y-1">
+        <label class="text-[10px] font-black uppercase text-slate-500 ml-1">Grand Total (₱)</label>
+        <input type="number" id="wed-grand-total" value="${data.grandTotal}" class="w-full bg-slate-900 border-none rounded-2xl text-lg font-bold text-white focus:ring-2 focus:ring-blue-500">
+      </div>
+      <div class="space-y-1">
+        <label class="text-[10px] font-black uppercase text-slate-500 ml-1">Total Paid to Vendors (₱)</label>
+        <input type="number" id="wed-vendor-paid" value="${vendorPaid}" class="w-full bg-slate-900 border-none rounded-2xl text-2xl font-black text-emerald-400 focus:ring-2 focus:ring-emerald-500">
+      </div>
+      <div class="space-y-1">
+        <label class="text-[10px] font-black uppercase text-slate-500 ml-1">CharLa Joint Committed (₱)</label>
+        <input type="number" id="wed-charla" value="${data.charlaPaid}" class="w-full bg-slate-900 border-none rounded-2xl text-lg font-bold text-rose-400 focus:ring-2 focus:ring-rose-500">
+      </div>
+    </div>
+  `;
+
+  // Override save to update wedding data
+  activeEdit = null; // clear any budget edit
+  saveBtn.onclick = async () => {
+    saveBtn.disabled = true;
+    saveBtn.innerText = "Saving...";
+    const updated = {
+      grandTotal: parseFloat(document.getElementById("wed-grand-total").value) || 0,
+      vendorPaid: parseFloat(document.getElementById("wed-vendor-paid").value) || 0,
+      charlaPaid: parseFloat(document.getElementById("wed-charla").value) || 0,
+      dueDate: data.dueDate || "2026-07-02",
+    };
+    await saveWeddingData(updated);
+    closeModal();
+    renderWeddingFund();
+    // Restore normal save behavior
+    saveBtn.onclick = () => window.saveModal();
+  };
+
+  overlay.classList.add("open");
+};

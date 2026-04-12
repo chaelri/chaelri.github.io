@@ -204,6 +204,95 @@ input[type="checkbox"]:checked::before {
   }
 }
 
+/* ===== TABLET / DESKTOP LAYOUT ===== */
+@media (min-width: 768px) {
+  /* Budget view: single-pane, no horizontal scroll */
+  #budget-view {
+    display: block !important;
+    overflow-x: hidden !important;
+    overflow-y: auto !important;
+    scroll-snap-type: none !important;
+    padding-bottom: 100px;
+  }
+
+  /* Hide all month snap-points except the active one */
+  .snap-point {
+    display: none;
+    flex: none;
+    height: auto;
+    overflow: visible;
+    padding-bottom: 100px;
+  }
+  .snap-point.desktop-active {
+    display: block;
+  }
+
+  /* 2-column grid for sections on desktop */
+  .snap-point.desktop-active {
+    display: grid;
+    grid-template-columns: 1fr 1fr;
+    gap: 20px;
+    padding: 20px 32px 140px;
+  }
+  /* Dashboard card spans full width */
+  .snap-point.desktop-active > section:first-child {
+    grid-column: 1 / -1;
+  }
+
+  /* Desktop sidebar styles */
+  #desktop-sidebar {
+    scrollbar-width: none;
+  }
+  #desktop-sidebar::-webkit-scrollbar {
+    display: none;
+  }
+  .sidebar-month-btn {
+    width: 100%;
+    padding: 10px 14px;
+    border-radius: 12px;
+    text-align: left;
+    font-weight: 800;
+    font-size: 13px;
+    color: #64748b;
+    transition: all 0.2s ease;
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    border: 1px solid transparent;
+  }
+  .sidebar-month-btn:hover {
+    background: rgba(30, 41, 59, 0.8);
+    color: #94a3b8;
+  }
+  .sidebar-month-btn:active {
+    transform: scale(0.97);
+  }
+  .sidebar-month-btn.active {
+    background: rgba(59, 130, 246, 0.1);
+    color: #60a5fa;
+    border-color: rgba(59, 130, 246, 0.2);
+  }
+
+  /* Modal wider on desktop */
+  #modal-content {
+    max-width: 480px;
+    border-radius: 2.5rem !important;
+  }
+
+  /* Month picker full screen on desktop too */
+  #month-picker {
+    display: none !important;
+  }
+}
+
+/* Large desktop: even wider sections */
+@media (min-width: 1200px) {
+  .snap-point.desktop-active {
+    padding: 24px 48px 140px;
+    gap: 24px;
+  }
+}
+
 /* NEW: Dragging Styles for SortableJS */
 .sortable-ghost {
   opacity: 0.3 !important;
@@ -223,5 +312,22 @@ input[type="checkbox"]:checked::before {
 /* Ensure the drag handle is clearly visible and clickable */
 .drag-handle {
   cursor: grab;
-  touch-action: none; /* Prevents default touch scrolling interference */
+  touch-action: none;
+}
+
+/* Confirm Modal */
+#confirm-overlay.open {
+  opacity: 1;
+  pointer-events: auto;
+}
+#confirm-overlay.open #confirm-card {
+  transform: scale(1);
+  opacity: 1;
+}
+
+/* Toast */
+#toast.show {
+  opacity: 1;
+  transform: translateX(-50%) translateY(0);
+  pointer-events: auto;
 }

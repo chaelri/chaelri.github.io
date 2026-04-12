@@ -91,11 +91,11 @@
     <!-- APP SHELL -->
     <div
       id="app"
-      class="h-screen flex flex-col opacity-0 transition-opacity duration-500 max-w-2xl mx-auto shadow-2xl bg-slate-900"
+      class="h-screen flex flex-col opacity-0 transition-opacity duration-500 max-w-2xl md:max-w-none mx-auto shadow-2xl bg-slate-900"
     >
       <!-- HEADER -->
       <header
-        class="p-6 flex justify-between items-end bg-slate-900/80 backdrop-blur-md sticky top-0 z-40"
+        class="p-6 md:px-8 flex justify-between items-end bg-slate-900/80 backdrop-blur-md sticky top-0 z-40"
       >
         <div>
           <h1
@@ -111,23 +111,32 @@
             CHARLIE
           </p>
         </div>
-        <button
-          onclick="toggleMonthPicker()"
-          class="w-12 h-12 flex items-center justify-center bg-slate-800 rounded-2xl active:scale-90 transition-transform shadow-lg"
-        >
-          <span class="material-icons text-blue-400">calendar_month</span>
-        </button>
+        <div class="flex items-center gap-3">
+          <button
+            onclick="toggleMonthPicker()"
+            class="w-12 h-12 flex items-center justify-center bg-slate-800 rounded-2xl active:scale-90 transition-transform shadow-lg md:hidden"
+          >
+            <span class="material-icons text-blue-400">calendar_month</span>
+          </button>
+        </div>
       </header>
 
-      <!-- VIEWS -->
-      <main id="view-container" class="flex-1 relative overflow-hidden">
-        <!-- BUDGET VIEW (SWIPER) -->
-        <div
-          id="budget-view"
-          class="absolute inset-0 flex overflow-x-auto scroll-smooth snap-x snap-mandatory transition-opacity duration-300"
-        >
-          <!-- Snap points for months -->
-        </div>
+      <!-- DESKTOP LAYOUT: sidebar + content -->
+      <div class="flex-1 flex overflow-hidden">
+        <!-- DESKTOP MONTH SIDEBAR (hidden on mobile) -->
+        <aside id="desktop-sidebar" class="hidden md:flex flex-col w-48 lg:w-56 flex-shrink-0 border-r border-white/[0.04] bg-slate-900/50 overflow-y-auto py-3 px-3 gap-1">
+          <!-- Rendered by JS -->
+        </aside>
+
+        <!-- VIEWS -->
+        <main id="view-container" class="flex-1 relative overflow-hidden">
+          <!-- BUDGET VIEW (SWIPER on mobile, single pane on desktop) -->
+          <div
+            id="budget-view"
+            class="absolute inset-0 flex overflow-x-auto scroll-smooth snap-x snap-mandatory transition-opacity duration-300 md:block md:overflow-x-hidden md:overflow-y-auto"
+          >
+            <!-- Snap points for months -->
+          </div>
 
         <!-- STATS VIEW -->
         <div
@@ -158,6 +167,167 @@
               <!-- Trend lines -->
             </div>
           </section>
+        </div>
+
+        <!-- COMMITMENTS VIEW -->
+        <div
+          id="commitments-view"
+          class="absolute inset-0 overflow-y-auto px-6 md:px-8 pt-4 pb-32 space-y-6 opacity-0 pointer-events-none transition-opacity duration-300 bg-slate-900"
+        >
+          <h3 class="text-xs font-black uppercase tracking-[0.2em] text-slate-500">Commitments</h3>
+
+          <!-- CharLa Wedding Commitments -->
+          <div class="glass-card p-6 rounded-[2.5rem] space-y-4">
+            <div class="flex items-center justify-between">
+              <div class="flex items-center gap-3">
+                <div class="w-10 h-10 rounded-2xl bg-gradient-to-br from-pink-500 to-rose-600 flex items-center justify-center">
+                  <span class="material-icons text-white text-lg">diamond</span>
+                </div>
+                <div>
+                  <h4 class="text-sm font-black text-white">CharLa Wedding Commitments</h4>
+                  <p class="text-[10px] text-slate-400">Jan 2025 — June 2026</p>
+                </div>
+              </div>
+              <span id="ring-status" class="text-[9px] font-black px-2 py-1 rounded-lg bg-amber-500/20 text-amber-400 uppercase">Active</span>
+            </div>
+            <div class="grid grid-cols-2 md:grid-cols-4 gap-3">
+              <div class="bg-slate-900/50 rounded-xl p-3 text-center">
+                <p class="text-[8px] font-bold uppercase text-slate-500">Target</p>
+                <p id="ring-target" class="text-sm font-black text-white mt-1">--</p>
+              </div>
+              <div class="bg-slate-900/50 rounded-xl p-3 text-center">
+                <p class="text-[8px] font-bold uppercase text-slate-500">Total Paid</p>
+                <p id="ring-total-paid" class="text-sm font-black text-emerald-400 mt-1">--</p>
+              </div>
+              <div class="bg-slate-900/50 rounded-xl p-3 text-center">
+                <p class="text-[8px] font-bold uppercase text-slate-500">Remaining</p>
+                <p id="ring-remaining" class="text-sm font-black text-amber-400 mt-1">--</p>
+              </div>
+              <div class="bg-slate-900/50 rounded-xl p-3 text-center">
+                <p class="text-[8px] font-bold uppercase text-slate-500">Months Left</p>
+                <p id="ring-months-left" class="text-sm font-black text-blue-400 mt-1">--</p>
+              </div>
+            </div>
+            <!-- Progress bar -->
+            <div>
+              <div class="flex justify-between text-[9px] font-bold text-slate-500 mb-1">
+                <span>Progress</span>
+                <span id="ring-progress-pct">--%</span>
+              </div>
+              <div class="h-3 bg-slate-900/50 rounded-full overflow-hidden">
+                <div id="ring-progress-bar" class="h-full bg-gradient-to-r from-pink-500 to-rose-500 rounded-full transition-all duration-700" style="width:0%"></div>
+              </div>
+            </div>
+            <!-- Payment timeline -->
+            <div>
+              <p class="text-[9px] font-bold uppercase text-slate-500 mb-2">Payment Schedule</p>
+              <div id="ring-timeline" class="grid grid-cols-3 md:grid-cols-6 gap-1.5">
+                <!-- Rendered by JS -->
+              </div>
+            </div>
+          </div>
+
+          <!-- Wedding Fund -->
+          <div class="glass-card p-6 rounded-[2.5rem] space-y-4">
+            <div class="flex items-center justify-between">
+              <div class="flex items-center gap-3">
+                <div class="w-10 h-10 rounded-2xl bg-gradient-to-br from-amber-500 to-orange-600 flex items-center justify-center">
+                  <span class="material-icons text-white text-lg">favorite</span>
+                </div>
+                <div>
+                  <h4 class="text-sm font-black text-white">Wedding Fund</h4>
+                  <p class="text-[10px] text-slate-400">Due before July 2, 2026</p>
+                </div>
+              </div>
+              <span id="wedding-status" class="text-[9px] font-black px-2 py-1 rounded-lg bg-amber-500/20 text-amber-400 uppercase">Active</span>
+            </div>
+            <div class="grid grid-cols-2 md:grid-cols-4 gap-3">
+              <div class="bg-slate-900/50 rounded-xl p-3 text-center">
+                <p class="text-[8px] font-bold uppercase text-slate-500">Grand Total</p>
+                <p id="wedding-grand-total" class="text-sm font-black text-white mt-1">--</p>
+              </div>
+              <div class="bg-slate-900/50 rounded-xl p-3 text-center">
+                <p class="text-[8px] font-bold uppercase text-slate-500">Total Paid</p>
+                <p id="wedding-total-paid" class="text-sm font-black text-emerald-400 mt-1">--</p>
+              </div>
+              <div class="bg-slate-900/50 rounded-xl p-3 text-center">
+                <p class="text-[8px] font-bold uppercase text-slate-500">Remaining</p>
+                <p id="wedding-remaining" class="text-sm font-black text-amber-400 mt-1">--</p>
+              </div>
+              <div class="bg-slate-900/50 rounded-xl p-3 text-center">
+                <p class="text-[8px] font-bold uppercase text-slate-500">Days Left</p>
+                <p id="wedding-days-left" class="text-sm font-black text-blue-400 mt-1">--</p>
+              </div>
+            </div>
+            <!-- Progress bar -->
+            <div>
+              <div class="flex justify-between text-[9px] font-bold text-slate-500 mb-1">
+                <span>Funded</span>
+                <span id="wedding-progress-pct">--%</span>
+              </div>
+              <div class="h-3 bg-slate-900/50 rounded-full overflow-hidden">
+                <div id="wedding-progress-bar" class="h-full bg-gradient-to-r from-amber-500 to-orange-500 rounded-full transition-all duration-700" style="width:0%"></div>
+              </div>
+            </div>
+            <!-- Contributors -->
+            <div class="grid grid-cols-2 gap-3">
+              <div class="bg-slate-900/50 rounded-xl p-3">
+                <p class="text-[8px] font-bold uppercase text-slate-500 mb-1">Charlie (Me)</p>
+                <p id="wedding-charlie" class="text-lg font-black text-blue-400">--</p>
+              </div>
+              <div class="bg-slate-900/50 rounded-xl p-3">
+                <p class="text-[8px] font-bold uppercase text-slate-500 mb-1">CharLa Joint</p>
+                <p id="wedding-karla" class="text-lg font-black text-rose-400">--</p>
+              </div>
+            </div>
+            <!-- Buttons -->
+            <div class="grid grid-cols-2 gap-2">
+              <button onclick="openWeddingUpdate()" class="py-4 bg-amber-500/10 border border-amber-500/20 rounded-2xl font-black text-amber-400 text-[11px] flex items-center justify-center gap-2 active:scale-95 transition-transform">
+                <span class="material-icons text-sm">edit</span> Update
+              </button>
+              <button onclick="syncWeddingToJune()" class="py-4 bg-blue-500/10 border border-blue-500/20 rounded-2xl font-black text-blue-400 text-[11px] flex items-center justify-center gap-2 active:scale-95 transition-transform">
+                <span class="material-icons text-sm">sync</span> Sync to June
+              </button>
+            </div>
+          </div>
+
+          <!-- THE WHOLE POINT: What's left AFTER the wedding -->
+          <div class="glass-card p-6 rounded-[2.5rem] space-y-4 border border-emerald-500/10">
+            <div class="flex items-center gap-3">
+              <div class="w-10 h-10 rounded-2xl bg-gradient-to-br from-emerald-500 to-teal-600 flex items-center justify-center">
+                <span class="material-icons text-white text-lg">account_balance</span>
+              </div>
+              <div>
+                <h4 class="text-sm font-black text-white">After the Wedding</h4>
+                <p class="text-[10px] text-slate-400">What's left in your pocket after July 2</p>
+              </div>
+            </div>
+            <!-- The big number -->
+            <div class="bg-slate-900/50 rounded-2xl p-5 text-center space-y-1 border border-white/[0.04]">
+              <p class="text-[9px] font-bold uppercase tracking-widest text-slate-500">Projected Balance After Wedding</p>
+              <p id="after-wedding-balance" class="text-4xl font-black text-emerald-400">--</p>
+              <p id="after-wedding-sub" class="text-[10px] text-slate-500 mt-1">--</p>
+            </div>
+            <!-- Breakdown -->
+            <div class="space-y-2">
+              <div class="flex justify-between text-[10px]">
+                <span class="text-slate-400">Your June balance (projected)</span>
+                <span id="aw-june-bal" class="font-bold text-blue-400">--</span>
+              </div>
+              <div class="flex justify-between text-[10px]">
+                <span class="text-slate-400">+ CharLa joint funds</span>
+                <span id="aw-charla" class="font-bold text-rose-400">--</span>
+              </div>
+              <div class="flex justify-between text-[10px]">
+                <span class="text-slate-400">− Wedding (my share only)</span>
+                <span id="aw-vendor-remaining" class="font-bold text-amber-400">--</span>
+              </div>
+              <div class="border-t border-white/[0.06] pt-2 flex justify-between text-[11px]">
+                <span class="font-black text-white uppercase text-[10px]">= What's Left</span>
+                <span id="aw-result" class="font-black text-emerald-400">--</span>
+              </div>
+            </div>
+          </div>
         </div>
 
         <!-- SETUP VIEW -->
@@ -200,10 +370,11 @@
           </section>
         </div>
       </main>
+      </div><!-- close desktop flex wrapper -->
 
       <!-- BOTTOM NAV BAR -->
       <nav
-        class="fixed bottom-0 left-0 right-0 max-w-2xl mx-auto h-20 bg-slate-900/90 backdrop-blur-xl border-t border-slate-800 flex items-center justify-around px-8 pb-4 z-40"
+        class="fixed bottom-0 left-0 right-0 md:max-w-none max-w-2xl mx-auto h-20 bg-slate-900/90 backdrop-blur-xl border-t border-slate-800 flex items-center justify-around px-8 pb-4 z-40"
       >
         <button
           onclick="switchView('budget')"
@@ -220,6 +391,14 @@
         >
           <span class="material-icons">insights</span>
           <span class="text-[10px] font-bold uppercase">Stats</span>
+        </button>
+        <button
+          onclick="switchView('commitments')"
+          id="nav-commitments"
+          class="flex flex-col items-center gap-1 text-slate-500 transition-colors"
+        >
+          <span class="material-icons">diamond</span>
+          <span class="text-[10px] font-bold uppercase">Goals</span>
         </button>
         <button
           onclick="switchView('setup')"
@@ -298,6 +477,39 @@
       >
         <span class="material-icons">close</span>
       </button>
+    </div>
+
+    <!-- CONFIRM MODAL -->
+    <div id="confirm-overlay" class="fixed inset-0 z-[70] bg-black/70 backdrop-blur-md opacity-0 pointer-events-none transition-all duration-300 flex items-center justify-center p-6">
+      <div id="confirm-card" class="bg-slate-800 w-full max-w-sm rounded-[2.5rem] p-8 scale-90 opacity-0 transition-all duration-500 ease-out shadow-2xl border border-white/5 space-y-6">
+        <!-- Icon -->
+        <div class="flex justify-center">
+          <div id="confirm-icon" class="w-16 h-16 rounded-[1.5rem] bg-gradient-to-br from-emerald-500 to-teal-600 flex items-center justify-center shadow-lg shadow-emerald-500/20">
+            <span class="material-icons text-white text-3xl">check_circle</span>
+          </div>
+        </div>
+        <!-- Title -->
+        <h3 id="confirm-title" class="text-xl font-black text-white text-center">Complete January?</h3>
+        <!-- Body -->
+        <div id="confirm-body" class="space-y-3">
+          <!-- Rendered by JS -->
+        </div>
+        <!-- Buttons -->
+        <div class="space-y-2 pt-2">
+          <button id="confirm-action-btn" class="w-full py-4 font-black text-white bg-emerald-600 rounded-2xl active:scale-95 transition-transform shadow-lg shadow-emerald-900/30">
+            Complete
+          </button>
+          <button onclick="closeConfirm()" class="w-full py-4 font-bold text-slate-400 bg-slate-700/50 rounded-2xl active:scale-95 transition-transform">
+            Cancel
+          </button>
+        </div>
+      </div>
+    </div>
+
+    <!-- TOAST -->
+    <div id="toast" class="fixed top-6 left-1/2 -translate-x-1/2 z-[80] px-5 py-3 bg-slate-800 border border-white/10 rounded-2xl shadow-2xl flex items-center gap-3 opacity-0 -translate-y-4 pointer-events-none transition-all duration-500">
+      <span id="toast-icon" class="material-icons text-emerald-400 text-lg">check_circle</span>
+      <span id="toast-text" class="text-sm font-bold text-white">Done!</span>
     </div>
 
     <script type="module" src="script.js"></script>
