@@ -259,6 +259,7 @@ window.selectUser = async (name) => {
       initDesktopSidebar();
       initMonthDots();
       initParticles();
+      initWeddingCostsListener();
       renderSwiper();
       setupSwiperObserver();
 
@@ -1564,32 +1565,42 @@ function renderCharLaCommitment() {
   });
 }
 
-// --- Wedding Fund (Firebase-backed, editable) ---
-// Stored at: {userPath}/wedding  e.g. chalee_v1/wedding
+// --- Wedding Fund ---
+// Grand Total + Total Paid come from weddingCosts (same as WeddingBar app)
+// Only charlaPaid is stored locally at {userPath}/wedding
+
+let weddingCostsData = { grandTotal: 0, vendorPaid: 0 }; // from weddingCosts Firebase
+
+function initWeddingCostsListener() {
+  const costsRef = ref(db, "weddingCosts");
+  onValue(costsRef, (snap) => {
+    const val = snap.val();
+    if (!val) { weddingCostsData = { grandTotal: 0, vendorPaid: 0 }; return; }
+    const items = Object.values(val);
+    weddingCostsData.grandTotal = items.reduce((s, it) => s + Number(it.total || 0), 0);
+    weddingCostsData.vendorPaid = items.reduce((s, it) => s + Number(it.paid || 0), 0);
+    // Re-render if on goals view
+    if (activeView === "commitments") renderWeddingFund();
+  });
+}
+
 async function loadWeddingData() {
   if (!currentUser) return WEDDING_DEFAULTS;
   const path = currentUser === "Charlie" ? "chalee_v1" : "karla_v1";
   const weddingRef = ref(db, `${path}/wedding`);
   const snapshot = await get(weddingRef);
   if (snapshot.exists() && snapshot.val()) {
-    const saved = snapshot.val();
-    // Migration: old data had 'totalPaid' (wrong), new uses 'vendorPaid'
-    if (saved.totalPaid && !saved.vendorPaid) {
-      saved.vendorPaid = WEDDING_DEFAULTS.vendorPaid; // reset to correct value
-      delete saved.totalPaid;
-      delete saved.charliePaid;
-      await syncSet(weddingRef, { ...WEDDING_DEFAULTS, ...saved });
-    }
-    return { ...WEDDING_DEFAULTS, ...saved };
+    return { ...WEDDING_DEFAULTS, ...snapshot.val() };
   }
-  await syncSet(weddingRef, WEDDING_DEFAULTS);
   return WEDDING_DEFAULTS;
 }
 
-async function saveWeddingData(data) {
+async function saveCharlaPaid(amount) {
   if (!currentUser) return;
   const path = currentUser === "Charlie" ? "chalee_v1" : "karla_v1";
   const weddingRef = ref(db, `${path}/wedding`);
+  const data = await loadWeddingData();
+  data.charlaPaid = amount;
   await syncSet(weddingRef, data);
 }
 
@@ -1620,10 +1631,11 @@ function getJuneRunningBalance() {
 async function renderWeddingFund() {
   const data = await loadWeddingData();
 
-  // Vendor payments
-  const vendorPaid = data.vendorPaid || 0;
-  const vendorRemaining = data.grandTotal - vendorPaid;
-  const vendorPct = data.grandTotal > 0 ? (vendorPaid / data.grandTotal * 100).toFixed(1) : "0";
+  // Grand Total + Total Paid from weddingCosts (same source as WeddingBar)
+  const grandTotal = weddingCostsData.grandTotal || data.grandTotal;
+  const vendorPaid = weddingCostsData.vendorPaid || (data.vendorPaid || 0);
+  const vendorRemaining = grandTotal - vendorPaid;
+  const vendorPct = grandTotal > 0 ? (vendorPaid / grandTotal * 100).toFixed(1) : "0";
 
   // Funding sources
   const charlieAmount = getJuneRunningBalance();
@@ -1636,7 +1648,7 @@ async function renderWeddingFund() {
   const isDone = vendorRemaining <= 0;
 
   const $ = (id) => document.getElementById(id);
-  $("wedding-grand-total").textContent = `₱${formatMoney(data.grandTotal)}`;
+  $("wedding-grand-total").textContent = `₱${formatMoney(grandTotal)}`;
   $("wedding-total-paid").textContent = `₱${formatMoney(vendorPaid)}`;
   $("wedding-remaining").textContent = isDone ? "₱0" : `₱${formatMoney(Math.max(0, vendorRemaining))}`;
   $("wedding-days-left").textContent = isDone ? "Done!" : `${daysLeft}`;
@@ -1678,10 +1690,9 @@ async function renderWeddingFund() {
   }
 }
 
-// Update wedding fund: add a payment
-window.openWeddingUpdate = async () => {
+// Edit CharLa Joint amount (only editable field in wedding fund)
+window.editCharlaJoint = async () => {
   const data = await loadWeddingData();
-  const remaining = data.grandTotal - data.totalPaid;
 
   const overlay = document.getElementById("modal-overlay");
   const body = document.getElementById("modal-body");
@@ -1689,54 +1700,35 @@ window.openWeddingUpdate = async () => {
   const saveBtn = document.getElementById("save-btn");
   if (!overlay || !body) return;
 
-  document.getElementById("modal-title").innerText = "UPDATE WEDDING FUND";
+  document.getElementById("modal-title").innerText = "CHARLA JOINT";
   deleteBtn.style.display = "none";
   saveBtn.disabled = false;
   saveBtn.innerText = "Save";
 
-  const vendorPaid = data.vendorPaid || 0;
-  const vendorRemaining = data.grandTotal - vendorPaid;
-
   body.innerHTML = `
     <div class="space-y-4 px-1">
-      <div class="bg-slate-900/50 rounded-xl p-4 text-center space-y-1">
-        <p class="text-[9px] font-bold uppercase text-slate-500">Still Owed to Vendors</p>
-        <p class="text-2xl font-black text-amber-400">₱${formatMoney(Math.max(0, vendorRemaining))}</p>
-      </div>
+      <p class="text-[10px] text-slate-400">Total committed funds from CharLa joint savings.</p>
       <div class="space-y-1">
-        <label class="text-[10px] font-black uppercase text-slate-500 ml-1">Grand Total (₱)</label>
-        <input type="number" id="wed-grand-total" value="${data.grandTotal}" class="w-full bg-slate-900 border-none rounded-2xl text-lg font-bold text-white focus:ring-2 focus:ring-blue-500">
-      </div>
-      <div class="space-y-1">
-        <label class="text-[10px] font-black uppercase text-slate-500 ml-1">Total Paid to Vendors (₱)</label>
-        <input type="number" id="wed-vendor-paid" value="${vendorPaid}" class="w-full bg-slate-900 border-none rounded-2xl text-2xl font-black text-emerald-400 focus:ring-2 focus:ring-emerald-500">
-      </div>
-      <div class="space-y-1">
-        <label class="text-[10px] font-black uppercase text-slate-500 ml-1">CharLa Joint Committed (₱)</label>
-        <input type="number" id="wed-charla" value="${data.charlaPaid}" class="w-full bg-slate-900 border-none rounded-2xl text-lg font-bold text-rose-400 focus:ring-2 focus:ring-rose-500">
+        <label class="text-[10px] font-black uppercase text-slate-500 ml-1">Amount (₱)</label>
+        <input type="number" id="wed-charla-input" value="${data.charlaPaid || 0}" class="w-full bg-slate-900 border-none rounded-2xl py-5 px-6 text-2xl font-black text-rose-400 focus:ring-2 focus:ring-rose-500" inputmode="numeric">
       </div>
     </div>
   `;
 
-  // Override save to update wedding data
-  activeEdit = null; // clear any budget edit
+  activeEdit = null;
   saveBtn.onclick = async () => {
     saveBtn.disabled = true;
     saveBtn.innerText = "Saving...";
-    const updated = {
-      grandTotal: parseFloat(document.getElementById("wed-grand-total").value) || 0,
-      vendorPaid: parseFloat(document.getElementById("wed-vendor-paid").value) || 0,
-      charlaPaid: parseFloat(document.getElementById("wed-charla").value) || 0,
-      dueDate: data.dueDate || "2026-07-02",
-    };
-    await saveWeddingData(updated);
+    const amount = parseFloat(document.getElementById("wed-charla-input").value) || 0;
+    await saveCharlaPaid(amount);
     closeModal();
     renderWeddingFund();
-    // Restore normal save behavior
+    if (window.navigator.vibrate) window.navigator.vibrate(5);
     saveBtn.onclick = () => window.saveModal();
   };
 
   overlay.classList.add("open");
+  setTimeout(() => document.getElementById("wed-charla-input")?.focus(), 300);
 };
 
 // =============================================
