@@ -69,6 +69,66 @@ let sortableInstances = [];
 
 // --- HELPERS ---
 const generateId = () => Math.random().toString(36).substr(2, 9);
+
+// Background floating particles
+function initParticles() {
+  const app = document.getElementById("app");
+  if (!app) return;
+  const colors = ["#3b82f6", "#6366f1", "#8b5cf6", "#60a5fa"];
+  for (let i = 0; i < 8; i++) {
+    const p = document.createElement("div");
+    p.className = "bg-particle";
+    const size = 3 + Math.random() * 4;
+    p.style.cssText = `
+      width: ${size}px; height: ${size}px;
+      left: ${5 + Math.random() * 90}%;
+      bottom: -10px;
+      background: ${colors[Math.floor(Math.random() * colors.length)]};
+      animation-duration: ${12 + Math.random() * 18}s;
+      animation-delay: ${Math.random() * 10}s;
+    `;
+    app.appendChild(p);
+  }
+}
+
+// Sync indicator
+function showSync() {
+  const bar = document.getElementById("sync-bar");
+  if (bar) bar.style.opacity = "1";
+}
+function hideSync() {
+  const bar = document.getElementById("sync-bar");
+  if (bar) bar.style.opacity = "0";
+}
+async function syncSet(ref, data) {
+  showSync();
+  try { await set(ref, data); }
+  finally { setTimeout(hideSync, 400); }
+}
+
+// Animate a number element from current value to target
+function animateNumber(el, target, prefix = "₱ ", duration = 500) {
+  if (!el) return;
+  const current = parseFloat(el.textContent.replace(/[^0-9.\-]/g, "")) || 0;
+  if (Math.abs(current - target) < 1) { el.innerText = `${prefix}${formatMoney(target)}`; return; }
+  const start = performance.now();
+  const diff = target - current;
+  function tick(now) {
+    const elapsed = now - start;
+    const progress = Math.min(elapsed / duration, 1);
+    const ease = 1 - Math.pow(1 - progress, 3);
+    const val = current + diff * ease;
+    el.innerText = `${prefix}${formatMoney(val)}`;
+    if (progress < 1) {
+      requestAnimationFrame(tick);
+    } else {
+      // Pop at the end
+      el.classList.add("num-pop");
+      setTimeout(() => el.classList.remove("num-pop"), 300);
+    }
+  }
+  requestAnimationFrame(tick);
+}
 const formatMoney = (val) =>
   (val || 0).toLocaleString("en-PH", {
     minimumFractionDigits: 2,
@@ -182,7 +242,7 @@ window.selectUser = async (name) => {
           others: [],
         };
       }
-      await set(dbRef, appData);
+      await syncSet(dbRef, appData);
     }
 
     // Hide intro and show app after minimal intentional delay for smoothness
@@ -197,6 +257,8 @@ window.selectUser = async (name) => {
 
       initMonthPicker();
       initDesktopSidebar();
+      initMonthDots();
+      initParticles();
       renderSwiper();
       setupSwiperObserver();
 
@@ -250,7 +312,8 @@ function renderSwiper() {
     snap.innerHTML = `
             <section id="dashboard-${idx}" class="relative overflow-hidden bg-gradient-to-br ${
               monthlyGradients[idx]
-            } p-6 md:p-8 rounded-[2.5rem] shadow-2xl transition-all duration-500">
+            } p-6 md:p-8 rounded-2xl shadow-2xl transition-all duration-500">
+                <div class="ambient-glow" style="top:-40px;right:-40px"></div>
                 <div class="relative z-10 space-y-4">
                     <div>
                         <p class="text-white/60 text-[10px] font-black uppercase tracking-widest">Total Current Funds</p>
@@ -351,18 +414,12 @@ function updateAllCalculations() {
 
     const view = document.getElementById(`month-view-${idx}`);
     if (!view) return;
-    view.querySelector(".total-funds-display").innerText = `₱ ${formatMoney(
-      runningBalance,
-    )}`;
-    view.querySelector(".total-income-display").innerText = `₱ ${formatMoney(
-      income,
-    )}`;
-    view.querySelector(".total-expenses-display").innerText = `₱ ${formatMoney(
-      expenses,
-    )}`;
+    animateNumber(view.querySelector(".total-funds-display"), runningBalance);
+    animateNumber(view.querySelector(".total-income-display"), income);
+    animateNumber(view.querySelector(".total-expenses-display"), expenses);
     const savingsEl = view.querySelector(".monthly-savings-display");
     const sign = net >= 0 ? "+" : "-";
-    savingsEl.innerText = `${sign} ₱ ${formatMoney(Math.abs(net))}`;
+    animateNumber(savingsEl, Math.abs(net), `${sign} ₱ `);
   });
 
   // Re-apply desktop active state
@@ -511,7 +568,7 @@ window.completeMonth = async (monthIdx) => {
   appData.completedMonths[monthIdx] = { completedAt: Date.now() };
 
   // Save
-  await set(dbRef, appData);
+  await syncSet(dbRef, appData);
   updateAllCalculations();
   updateCompleteMonthButtons();
   updateMonthVisibility();
@@ -601,7 +658,7 @@ window.syncWeddingToJune = async () => {
   }
 
   appData.monthlyData[juneIdx].others = list;
-  await set(dbRef, appData);
+  await syncSet(dbRef, appData);
   updateAllCalculations();
 
   showToast(`₱${formatMoney(charlieShare)} synced to June`, "sync", 3000);
@@ -674,7 +731,7 @@ function updateMonthVisibility() {
     // Set drag-specific attributes/styles
     const dragClass = isCurrentMonthEditMode ? "cursor-grab" : "";
 
-    div.className = `${cardStyle} p-4 rounded-2xl flex justify-between items-center transition-all duration-300 ${dragClass}`;
+    div.className = `${cardStyle} p-4 rounded-2xl flex justify-between items-center transition-all duration-300 ${dragClass} row-enter`;
     div.dataset.id = item.id; // Crucial for reordering
 
     // Only allow item editing if NOT in edit mode
@@ -821,39 +878,107 @@ async function reorderItems(monthIdx, type, newOrder) {
       }
     }
 
-    await set(dbRef, appData);
+    await syncSet(dbRef, appData);
   } catch (e) {
   console.error("Reorder failed:", e);
   alert("Reordering items failed. Please try again.");
   }
   }
 
+function updateNavPill(view) {
+  const pill = document.getElementById("nav-pill");
+  const navId = view === "setup" ? null : `nav-${view}`;
+  const btn = navId ? document.getElementById(navId) : null;
+  if (!pill) return;
+  if (!btn) { pill.style.opacity = "0"; return; }
+  pill.style.opacity = "1";
+  const nav = pill.parentElement;
+  const navRect = nav.getBoundingClientRect();
+  const btnRect = btn.getBoundingClientRect();
+  pill.style.width = `${btnRect.width * 0.6}px`;
+  pill.style.left = `${btnRect.left - navRect.left + btnRect.width * 0.2}px`;
+}
+
+let viewBeforeSetup = "budget";
+window.toggleSetup = () => {
+  if (activeView === "setup") {
+    switchView(viewBeforeSetup);
+  } else {
+    viewBeforeSetup = activeView;
+    switchView("setup");
+  }
+};
+
 window.switchView = (view) => {
   activeView = view;
   const views = ["budget", "stats", "commitments", "trajectory", "setup"];
   views.forEach((v) => {
-    const el = document.getElementById(`${v}-view`);
+    const viewEl = document.getElementById(`${v}-view`);
     const nav = document.getElementById(`nav-${v}`);
-    if (!el || !nav) return;
-    if (v === view) {
-      el.classList.add("opacity-100");
-      el.classList.remove("opacity-0", "pointer-events-none");
-      nav.classList.add("text-blue-400");
-      nav.classList.remove("text-slate-500");
-    } else {
-      el.classList.remove("opacity-100");
-      el.classList.add("opacity-0", "pointer-events-none");
-      nav.classList.remove("text-blue-400");
-      nav.classList.add("text-slate-500");
+    if (viewEl) {
+      if (v === view) {
+        viewEl.classList.add("opacity-100", "view-active");
+        viewEl.classList.remove("opacity-0", "pointer-events-none");
+      } else {
+        viewEl.classList.remove("opacity-100", "view-active");
+        viewEl.classList.add("opacity-0", "pointer-events-none");
+      }
+    }
+    if (nav) {
+      if (v === view) {
+        nav.classList.add("text-blue-400");
+        nav.classList.remove("text-slate-500");
+      } else {
+        nav.classList.remove("text-blue-400");
+        nav.classList.add("text-slate-500");
+      }
     }
   });
   if (view === "stats") renderStats();
   if (view === "commitments") renderCommitments();
   if (view === "trajectory") renderTrajectory();
-  const header = document.querySelector("header");
-  if (header) header.style.display = view === "budget" ? "flex" : "none";
+
+  // Header: always visible, adapt content per view
+  const monthDisplay = document.getElementById("current-month-display");
+  const calendarBtn = document.querySelector("header .md\\:hidden");
+  const settingsBtn = document.getElementById("header-settings-btn");
+
+  if (monthDisplay) {
+    if (view === "budget") {
+      monthDisplay.textContent = months[currentMonthIdx];
+      monthDisplay.className = "text-3xl font-black tracking-tight text-white uppercase italic";
+    } else {
+      const label = view === "commitments" ? "Goals" : view === "setup" ? "Settings" : view.charAt(0).toUpperCase() + view.slice(1);
+      monthDisplay.textContent = label;
+      monthDisplay.className = "text-xl font-black tracking-tight text-white";
+    }
+  }
+  if (calendarBtn) calendarBtn.style.display = view === "budget" ? "" : "none";
+
+  // Gear icon becomes back arrow in settings with rotation
+  if (settingsBtn) {
+    const icon = settingsBtn.querySelector(".material-icons");
+    if (view === "setup") {
+      settingsBtn.classList.add("in-settings");
+      icon.textContent = "arrow_back";
+      icon.classList.remove("text-slate-400");
+      icon.classList.add("text-blue-400");
+    } else {
+      settingsBtn.classList.remove("in-settings");
+      icon.textContent = "settings";
+      icon.classList.remove("text-blue-400");
+      icon.classList.add("text-slate-400");
+    }
+  }
+
   const sidebar = document.getElementById("desktop-sidebar");
   if (sidebar) sidebar.style.display = (view === "budget" && isDesktop()) ? "flex" : "none";
+
+  const dots = document.getElementById("month-dots");
+  if (dots) dots.style.display = (view === "budget" && !isDesktop()) ? "flex" : "none";
+
+  // Slide nav pill to active tab
+  updateNavPill(view);
 };
 
 function renderStats() {
@@ -907,7 +1032,7 @@ function renderStats() {
 window.updateStartingBalance = async (val) => {
   if (!appData) appData = { startingBalance: 0, monthlyData: {} };
   appData.startingBalance = parseFloat(val) || 0;
-  await set(dbRef, appData);
+  await syncSet(dbRef, appData);
 };
 
 window.openModal = (type, id, name, amount, monthIdx) => {
@@ -1034,6 +1159,13 @@ window.togglePaidStatus = () => {
     btn.innerHTML = `<span class="material-icons">${
       activeEdit.isPaid ? "check_circle" : "radio_button_unchecked"
     }</span> ${activeEdit.isPaid ? "PAID" : "MARK AS PAID"}`;
+
+    // Satisfying burst on paid
+    if (activeEdit.isPaid) {
+      btn.classList.add("paid-burst");
+      if (window.navigator.vibrate) window.navigator.vibrate([10, 30, 10]);
+      setTimeout(() => btn.classList.remove("paid-burst"), 500);
+    }
   }
 };
 
@@ -1109,12 +1241,16 @@ window.saveModal = async () => {
         list.push(newItem);
       }
     }
-    await set(dbRef, appData);
+    await syncSet(dbRef, appData);
     closeModal();
+    // Satisfying vibration on successful save
+    if (window.navigator.vibrate) window.navigator.vibrate(5);
   } catch (e) {
     console.error("Save failed:", e);
     saveBtn.disabled = false;
     saveBtn.innerText = "Retry";
+    // Error vibration pattern
+    if (window.navigator.vibrate) window.navigator.vibrate([50, 30, 50]);
   }
 };
 
@@ -1131,7 +1267,7 @@ async function deleteItem() {
       );
     }
   }
-  await set(dbRef, appData);
+  await syncSet(dbRef, appData);
   closeModal();
 }
 
@@ -1165,8 +1301,9 @@ function updateHeader(idx) {
   if (idx === currentMonthIdx) return;
   currentMonthIdx = idx;
   const display = document.getElementById("current-month-display");
-  if (display) display.innerText = months[idx];
+  if (display && activeView === "budget") display.innerText = months[idx];
   if (window.navigator.vibrate) window.navigator.vibrate(5);
+  updateMonthDots();
 
   // Desktop: show only active month pane + update sidebar
   if (isDesktop()) {
@@ -1174,10 +1311,47 @@ function updateHeader(idx) {
   }
 }
 
+function initMonthDots() {
+  const container = document.getElementById("month-dots");
+  if (!container) return;
+  const mn = ["J","F","M","A","M","J","J","A","S","O","N","D"];
+  container.innerHTML = months.map((_, i) =>
+    `<button onclick="scrollToMonth(${i})" class="month-dot ${i === currentMonthIdx ? 'active' : ''}" title="${months[i]}">
+      <span class="dot-label">${mn[i]}</span>
+    </button>`
+  ).join("");
+}
+
+function updateMonthDots() {
+  document.querySelectorAll(".month-dot").forEach((dot, i) => {
+    dot.classList.toggle("active", i === currentMonthIdx);
+  });
+}
+
+window.scrollToMonth = (idx) => {
+  if (isDesktop()) {
+    currentMonthIdx = idx;
+    const display = document.getElementById("current-month-display");
+    if (display && activeView === "budget") display.innerText = months[idx];
+    showDesktopMonth(idx);
+    updateMonthDots();
+    return;
+  }
+  const target = document.getElementById(`month-view-${idx}`);
+  if (target) target.scrollIntoView({ behavior: "smooth", inline: "start" });
+};
+
 function showDesktopMonth(idx) {
   // Show only the selected month's snap-point
   document.querySelectorAll(".snap-point").forEach((sp, i) => {
-    sp.classList.toggle("desktop-active", i === idx);
+    const isActive = i === idx;
+    sp.classList.toggle("desktop-active", isActive);
+    // Re-trigger stagger animation
+    if (isActive) {
+      sp.classList.remove("stagger-in");
+      void sp.offsetWidth;
+      sp.classList.add("stagger-in");
+    }
   });
   // Update sidebar active state
   document.querySelectorAll(".sidebar-month-btn").forEach((btn, i) => {
@@ -1374,7 +1548,7 @@ function renderCharLaCommitment() {
 
     // All past months = PAID (even ₱0 months were bulk-covered by Feb lump sum)
     const cell = document.createElement("div");
-    cell.className = `rounded-lg p-1.5 text-center text-[8px] font-bold border transition-all ${
+    cell.className = `rounded-lg p-1.5 text-center text-[9px] font-bold border transition-all ${
       isPast ? "bg-emerald-500/15 border-emerald-500/20 text-emerald-400" :
       isCurrent ? "bg-blue-500/15 border-blue-500/30 text-blue-400 ring-1 ring-blue-500/30" :
       "bg-slate-800/50 border-white/[0.04] text-slate-500"
@@ -1404,11 +1578,11 @@ async function loadWeddingData() {
       saved.vendorPaid = WEDDING_DEFAULTS.vendorPaid; // reset to correct value
       delete saved.totalPaid;
       delete saved.charliePaid;
-      await set(weddingRef, { ...WEDDING_DEFAULTS, ...saved });
+      await syncSet(weddingRef, { ...WEDDING_DEFAULTS, ...saved });
     }
     return { ...WEDDING_DEFAULTS, ...saved };
   }
-  await set(weddingRef, WEDDING_DEFAULTS);
+  await syncSet(weddingRef, WEDDING_DEFAULTS);
   return WEDDING_DEFAULTS;
 }
 
@@ -1416,7 +1590,7 @@ async function saveWeddingData(data) {
   if (!currentUser) return;
   const path = currentUser === "Charlie" ? "chalee_v1" : "karla_v1";
   const weddingRef = ref(db, `${path}/wedding`);
-  await set(weddingRef, data);
+  await syncSet(weddingRef, data);
 }
 
 // Calculate running balance at any month (inclusive)
@@ -1456,9 +1630,9 @@ async function renderWeddingFund() {
   const totalFunding = charlieAmount + (data.charlaPaid || 0);
   const shortfall = vendorRemaining - totalFunding; // negative = surplus
 
-  const dueDate = new Date(data.dueDate || "2026-07-02");
-  const now = new Date();
-  const daysLeft = Math.max(0, Math.ceil((dueDate - now) / (1000 * 60 * 60 * 24)));
+  // Match weddingbar exactly: local midnight of July 2 2026
+  const weddingDate = new Date("July 2, 2026 00:00:00").getTime();
+  const daysLeft = Math.max(0, Math.floor((weddingDate - Date.now()) / (1000 * 60 * 60 * 24)));
   const isDone = vendorRemaining <= 0;
 
   const $ = (id) => document.getElementById(id);
@@ -1566,6 +1740,27 @@ window.openWeddingUpdate = async () => {
 };
 
 // =============================================
+// WEDDING BAR IFRAME
+// =============================================
+window.openWeddingBar = () => {
+  const overlay = document.getElementById("weddingbar-overlay");
+  const frame = document.getElementById("weddingbar-frame");
+  if (!frame.src || frame.src === "about:blank") {
+    frame.src = "/weddingbar/";
+  }
+  overlay.style.transform = "translateY(0)";
+  overlay.classList.remove("opacity-0", "pointer-events-none");
+  overlay.classList.add("opacity-100");
+};
+
+window.closeWeddingBar = () => {
+  const overlay = document.getElementById("weddingbar-overlay");
+  overlay.style.transform = "translateY(100%)";
+  overlay.classList.add("opacity-0", "pointer-events-none");
+  overlay.classList.remove("opacity-100");
+};
+
+// =============================================
 // TRAJECTORY VIEW — Horizon-style month cards
 // =============================================
 const TRAJ_NET_125K = 96_412;
@@ -1600,22 +1795,54 @@ window.setTrajSalary = (val) => {
   renderTrajectory();
 };
 
-window.promptTrajRent = () => {
-  const input = prompt("Enter monthly rent amount (₱):", trajRent);
-  if (input !== null && input.trim() !== "") {
-    trajRent = Math.max(0, Math.round(Number(input.replace(/[^0-9]/g, "")) || 0));
+// Reuse the app modal for trajectory edits
+function openTrajModal(title, currentVal, onSave) {
+  const overlay = document.getElementById("modal-overlay");
+  const body = document.getElementById("modal-body");
+  const saveBtn = document.getElementById("save-btn");
+  const deleteBtn = document.getElementById("delete-btn");
+  document.getElementById("modal-title").innerText = title;
+  deleteBtn.style.display = "none";
+  saveBtn.disabled = false;
+  saveBtn.innerText = "Save";
+
+  body.innerHTML = `
+    <div class="space-y-2 px-1">
+      <label class="text-[10px] font-black uppercase text-slate-500 ml-1">Amount (₱)</label>
+      <input type="number" id="traj-modal-input" value="${currentVal}" class="w-full bg-slate-900 border-none rounded-2xl py-5 px-6 text-2xl font-black text-white focus:ring-2 focus:ring-blue-500" inputmode="numeric">
+    </div>
+  `;
+
+  activeEdit = null;
+  saveBtn.onclick = () => {
+    const val = Math.max(0, Math.round(Number(document.getElementById("traj-modal-input").value) || 0));
+    onSave(val);
+    closeModal();
     renderTrajectory();
-  }
+    saveBtn.onclick = () => window.saveModal();
+  };
+
+  overlay.classList.add("open");
+  setTimeout(() => document.getElementById("traj-modal-input")?.focus(), 300);
+}
+
+window.promptTrajRent = () => {
+  openTrajModal("EDIT RENT", trajRent, (val) => { trajRent = val; });
+};
+
+window.toggleLivingList = () => {
+  const list = document.getElementById("traj-living-list");
+  const chevron = document.getElementById("living-chevron");
+  if (!list) return;
+  const isHidden = list.classList.contains("hidden");
+  list.classList.toggle("hidden", !isHidden);
+  if (chevron) chevron.style.transform = isHidden ? "rotate(180deg)" : "";
 };
 
 window.editLivingItem = (idx) => {
   const item = trajLiving[idx];
   if (!item) return;
-  const input = prompt(`${item.name} — monthly amount (₱):`, item.amount);
-  if (input !== null && input.trim() !== "") {
-    trajLiving[idx].amount = Math.max(0, Math.round(Number(input.replace(/[^0-9]/g, "")) || 0));
-    renderTrajectory();
-  }
+  openTrajModal(item.name.toUpperCase(), item.amount, (val) => { trajLiving[idx].amount = val; });
 };
 
 function renderLivingList() {
@@ -1731,9 +1958,9 @@ function renderTrajectory() {
 
     // Badge
     let badge = "";
-    if (isCurrent) badge = '<span class="px-2 py-0.5 rounded-md text-[8px] font-black bg-blue-500/20 text-blue-300 uppercase">Now</span>';
-    else if (isWedding) badge = '<span class="px-2 py-0.5 rounded-md text-[8px] font-black bg-pink-500/20 text-pink-300 uppercase">Wedding</span>';
-    else if (isProjected) badge = '<span class="px-2 py-0.5 rounded-md text-[8px] font-black bg-amber-500/10 text-amber-400/70 uppercase">Projected</span>';
+    if (isCurrent) badge = '<span class="px-2 py-0.5 rounded-md text-[9px] font-black bg-blue-500/20 text-blue-300 uppercase">Now</span>';
+    else if (isWedding) badge = '<span class="px-2 py-0.5 rounded-md text-[9px] font-black bg-pink-500/20 text-pink-300 uppercase">Wedding</span>';
+    else if (isProjected) badge = '<span class="px-2 py-0.5 rounded-md text-[9px] font-black bg-amber-500/10 text-amber-400/70 uppercase">Projected</span>';
 
     // Usage bar percentages
     const totalIn = Math.max(1, carryOver + income);
@@ -1751,53 +1978,38 @@ function renderTrajectory() {
             <span class="text-sm font-black text-white">${monthLabel}</span>
             ${badge}
           </div>
-          <span class="px-2 py-0.5 rounded-md text-[8px] font-black ${statusColor} bg-slate-900/50">${statusText}</span>
+          <span class="px-2 py-0.5 rounded-md text-[9px] font-black ${statusColor} bg-slate-900/50">${statusText}</span>
         </div>
 
         <!-- Budget lines -->
         <div class="space-y-1.5">
           ${carryOver !== 0 ? `
           <div class="flex items-center justify-between text-[11px]">
-            <span class="flex items-center gap-1.5">
-              <span class="w-1.5 h-1.5 rounded-full bg-blue-500"></span>
-              <span class="text-slate-400">Carry-over</span>
-            </span>
-            <span class="font-semibold ${carryOver >= 0 ? 'text-blue-400' : 'text-rose-400'}">${fmtT(carryOver)}</span>
+            <span class="text-slate-500">Carry-over</span>
+            <span class="font-semibold ${carryOver >= 0 ? 'text-slate-300' : 'text-rose-400'}">${fmtT(carryOver)}</span>
           </div>` : ""}
           <div class="flex items-center justify-between text-[11px]">
-            <span class="flex items-center gap-1.5">
-              <span class="w-1.5 h-1.5 rounded-full bg-emerald-500"></span>
-              <span class="text-slate-400">Income</span>
-            </span>
+            <span class="text-slate-400">Income</span>
             <span class="font-bold text-emerald-400">${fmtT(income)}</span>
           </div>
           <div class="flex items-center justify-between text-[11px]">
-            <span class="flex items-center gap-1.5">
-              <span class="w-1.5 h-1.5 rounded-full bg-rose-500"></span>
-              <span class="text-slate-400">Expenses</span>
-            </span>
-            <span class="font-semibold text-rose-400">− ${fmtT(expenses)}</span>
+            <span class="text-slate-400">Expenses</span>
+            <span class="font-semibold text-slate-300">− ${fmtT(expenses)}</span>
           </div>
           ${rentActive ? `
           <div class="flex items-center justify-between text-[11px]">
-            <span class="flex items-center gap-1.5">
-              <span class="w-1.5 h-1.5 rounded-full bg-indigo-500"></span>
-              <span class="text-slate-400">Rent</span>
-            </span>
-            <span class="font-semibold text-indigo-400">− ${fmtT(thisRent)}</span>
+            <span class="text-slate-400">Rent</span>
+            <span class="font-semibold text-slate-300">− ${fmtT(thisRent)}</span>
           </div>` : ""}
           ${livingActive ? `
           <div class="flex items-center justify-between text-[11px]">
-            <span class="flex items-center gap-1.5">
-              <span class="w-1.5 h-1.5 rounded-full bg-pink-500"></span>
-              <span class="text-slate-400">Living Expenses</span>
-            </span>
-            <span class="font-semibold text-pink-400">− ${fmtT(thisLiving)}</span>
+            <span class="text-slate-400">Living</span>
+            <span class="font-semibold text-slate-300">− ${fmtT(thisLiving)}</span>
           </div>` : ""}
           <div class="border-t border-white/[0.06] pt-1.5 space-y-1">
             <div class="flex items-center justify-between text-[10px]">
               <span class="text-slate-500">This month's net</span>
-              <span class="font-semibold ${monthNet >= 0 ? 'text-emerald-400/70' : 'text-rose-400/70'}">${monthNet >= 0 ? '+' : ''}${fmtT(monthNet)}</span>
+              <span class="font-semibold ${monthNet >= 0 ? 'text-emerald-400' : 'text-rose-400'}">${monthNet >= 0 ? '+' : ''}${fmtT(monthNet)}</span>
             </div>
             <div class="flex items-center justify-between">
               <span class="font-black text-white uppercase text-[10px]">End of Month</span>
@@ -1807,15 +2019,9 @@ function renderTrajectory() {
         </div>
 
         <!-- Usage bar -->
-        <div class="h-2 bg-slate-900/60 rounded-full overflow-hidden flex">
-          <div class="h-full bg-rose-500/70 rounded-l-full traj-bar" style="width:0%" data-w="${expPct.toFixed(1)}%"></div>
-          ${rentActive ? `<div class="h-full bg-indigo-500/70 traj-bar" style="width:0%" data-w="${rentPct.toFixed(1)}%"></div>` : ""}
-          ${livingActive ? `<div class="h-full bg-pink-500/70 traj-bar" style="width:0%" data-w="${livingPct.toFixed(1)}%"></div>` : ""}
-          <div class="h-full flex-1 bg-emerald-500/30 rounded-r-full"></div>
-        </div>
-        <div class="flex justify-between text-[8px] text-slate-500 font-bold">
-          <span>${usedPct.toFixed(0)}% of funds used</span>
-          <span>${(100 - usedPct).toFixed(0)}% remaining</span>
+        <div class="h-1.5 bg-slate-900/60 rounded-full overflow-hidden flex">
+          <div class="h-full bg-slate-500/50 rounded-l-full traj-bar" style="width:0%" data-w="${usedPct.toFixed(1)}%"></div>
+          <div class="h-full flex-1 ${monthNet >= 0 ? 'bg-emerald-500/30' : 'bg-rose-500/30'} rounded-r-full"></div>
         </div>
       </div>
     `);

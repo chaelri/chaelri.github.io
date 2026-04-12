@@ -48,6 +48,25 @@ body {
   animation: slideIn 0.5s cubic-bezier(0.23, 1, 0.32, 1) forwards;
 }
 
+/* Staggered card entrance */
+.stagger-in > section,
+.stagger-in > .glass-card {
+  opacity: 0;
+  transform: translateY(12px);
+  animation: staggerFade 0.4s cubic-bezier(0.16, 1, 0.3, 1) forwards;
+}
+.stagger-in > *:nth-child(1) { animation-delay: 0ms; }
+.stagger-in > *:nth-child(2) { animation-delay: 60ms; }
+.stagger-in > *:nth-child(3) { animation-delay: 120ms; }
+.stagger-in > *:nth-child(4) { animation-delay: 180ms; }
+.stagger-in > *:nth-child(5) { animation-delay: 240ms; }
+.stagger-in > *:nth-child(6) { animation-delay: 300ms; }
+
+@keyframes staggerFade {
+  from { opacity: 0; transform: translateY(12px); }
+  to { opacity: 1; transform: translateY(0); }
+}
+
 @keyframes slideIn {
   from {
     opacity: 0;
@@ -339,10 +358,272 @@ input[type="checkbox"]:checked::before {
   opacity: 1;
 }
 
+/* Bottom nav */
+.nav-tab {
+  flex: 1;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  gap: 2px;
+  border: none;
+  background: none;
+  cursor: pointer;
+  transition: color 0.2s ease;
+  padding: 8px 0;
+}
+.nav-tab .material-icons { font-size: 22px; }
+.nav-label {
+  font-size: 10px;
+  font-weight: 700;
+  text-transform: uppercase;
+  letter-spacing: 0.02em;
+}
+.nav-tab:active { transform: scale(0.9); transition: transform 0.1s ease; }
+
+/* === IDLE ANIMATIONS === */
+
+/* 1. Live pulse dot */
+@keyframes livePulse {
+  0%, 100% { opacity: 0.3; transform: scale(1); box-shadow: 0 0 0 0 rgba(59,130,246,0.4); }
+  50% { opacity: 1; transform: scale(1.4); box-shadow: 0 0 8px 2px rgba(59,130,246,0.3); }
+}
+.live-dot {
+  width: 6px; height: 6px;
+  border-radius: 50%;
+  background: #3b82f6;
+  display: inline-block;
+  animation: livePulse 2s ease-in-out infinite;
+  margin-left: 6px;
+  vertical-align: middle;
+}
+
+/* 2. Dashboard gradient — static, no animation (gradient shift was distracting) */
+
+/* 3. Ambient glow — faster, more visible */
+@keyframes ambientGlow {
+  0%, 100% { opacity: 0.25; transform: scale(1) translate(0, 0); }
+  33% { opacity: 0.7; transform: scale(1.15) translate(-10px, 5px); }
+  66% { opacity: 0.5; transform: scale(1.05) translate(5px, -5px); }
+}
+.ambient-glow {
+  position: absolute;
+  width: 180px; height: 180px;
+  border-radius: 50%;
+  background: radial-gradient(circle, rgba(255,255,255,0.12), transparent 70%);
+  pointer-events: none;
+  animation: ambientGlow 3.5s ease-in-out infinite;
+  z-index: 0;
+  filter: blur(20px);
+}
+
+/* 4. Progress bar shimmer */
+@keyframes barShimmer {
+  0% { transform: translateX(-100%); }
+  100% { transform: translateX(200%); }
+}
+.bar-shimmer {
+  position: relative;
+  overflow: hidden;
+}
+.bar-shimmer::after {
+  content: '';
+  position: absolute;
+  top: 0; left: 0;
+  width: 50%; height: 100%;
+  background: linear-gradient(90deg, transparent, rgba(255,255,255,0.15), transparent);
+  animation: barShimmer 2.5s ease-in-out infinite;
+}
+
+/* 5. Soft card hover lift on desktop */
+@media (hover: hover) {
+  .glass-card:hover {
+    transform: translateY(-2px);
+    box-shadow: 0 8px 30px rgba(0,0,0,0.2);
+  }
+  .glass-card:active {
+    transform: scale(0.98) translateY(0);
+  }
+}
+
+/* 6. Floating background particles */
+@keyframes floatUp {
+  0% { transform: translateY(0) scale(0); opacity: 0; }
+  10% { opacity: 0.15; transform: translateY(0) scale(1); }
+  90% { opacity: 0.08; }
+  100% { transform: translateY(-100vh) scale(0.5); opacity: 0; }
+}
+.bg-particle {
+  position: fixed;
+  border-radius: 50%;
+  pointer-events: none;
+  z-index: 0;
+  animation: floatUp linear infinite;
+}
+
+/* 7. Section header accent line */
+@keyframes accentPulse {
+  0%, 100% { width: 20px; opacity: 0.5; }
+  50% { width: 40px; opacity: 1; }
+}
+.section-accent {
+  height: 2px;
+  background: linear-gradient(90deg, #3b82f6, #6366f1);
+  border-radius: 1px;
+  animation: accentPulse 4s ease-in-out infinite;
+  margin-top: 4px;
+}
+
+/* 8. Nav tab press ripple */
+.nav-tab {
+  position: relative;
+  overflow: hidden;
+}
+.nav-tab::after {
+  content: '';
+  position: absolute;
+  inset: 0;
+  background: radial-gradient(circle at center, rgba(59,130,246,0.15), transparent 70%);
+  opacity: 0;
+  transition: opacity 0.3s ease;
+  pointer-events: none;
+}
+.nav-tab:active::after {
+  opacity: 1;
+}
+
+/* === SATISFYING MICRO-INTERACTIONS === */
+
+/* 9. Paid item celebration burst */
+@keyframes paidBurst {
+  0% { transform: scale(1); box-shadow: 0 0 0 0 rgba(16,185,129,0.4); }
+  40% { transform: scale(1.03); box-shadow: 0 0 0 8px rgba(16,185,129,0); }
+  100% { transform: scale(1); box-shadow: none; }
+}
+.paid-burst {
+  animation: paidBurst 0.5s cubic-bezier(0.34, 1.56, 0.64, 1);
+}
+
+/* 10. Checkmark draw animation */
+@keyframes checkDraw {
+  0% { stroke-dashoffset: 24; }
+  100% { stroke-dashoffset: 0; }
+}
+.check-draw {
+  stroke-dasharray: 24;
+  stroke-dashoffset: 24;
+  animation: checkDraw 0.4s cubic-bezier(0.65, 0, 0.35, 1) forwards;
+  animation-delay: 0.1s;
+}
+
+/* 11. Card press physics — deeper press, spring release */
+.glass-card {
+  transition: transform 0.3s cubic-bezier(0.34, 1.56, 0.64, 1),
+              box-shadow 0.3s ease,
+              background 0.3s ease;
+}
+.glass-card:active {
+  transform: scale(0.97) !important;
+  transition-duration: 0.1s;
+}
+
+/* 12. Amount number pop on change */
+@keyframes numPop {
+  0% { transform: scale(1); }
+  50% { transform: scale(1.08); }
+  100% { transform: scale(1); }
+}
+.num-pop {
+  animation: numPop 0.3s cubic-bezier(0.34, 1.56, 0.64, 1);
+}
+
+/* 13. Row slide-in when items are added */
+@keyframes rowSlideIn {
+  from { opacity: 0; transform: translateX(-20px); }
+  to { opacity: 1; transform: translateX(0); }
+}
+.row-enter {
+  animation: rowSlideIn 0.35s cubic-bezier(0.16, 1, 0.3, 1);
+}
+
+/* 14. Success flash on save */
+@keyframes successFlash {
+  0% { background: rgba(16,185,129,0.15); }
+  100% { background: transparent; }
+}
+.success-flash {
+  animation: successFlash 0.8s ease-out;
+}
+
+/* 15. Smooth month swipe snap feel */
+.snap-point {
+  scroll-snap-align: start;
+  scroll-snap-stop: always;
+}
+
+/* Sync bar animation */
+@keyframes syncSlide {
+  0% { transform: translateX(-100%); }
+  100% { transform: translateX(100%); }
+}
+.animate-sync-slide {
+  animation: syncSlide 1.2s ease-in-out infinite;
+}
+
+/* Gear icon animation */
+#header-settings-btn .material-icons {
+  transition: transform 0.4s cubic-bezier(0.34, 1.56, 0.64, 1), color 0.3s ease;
+}
+#header-settings-btn.in-settings .material-icons {
+  transform: rotate(90deg);
+}
+
+/* View transition */
+#stats-view,
+#commitments-view,
+#trajectory-view,
+#setup-view {
+  transition: opacity 0.3s ease, transform 0.3s ease;
+  transform: translateY(8px);
+}
+#stats-view.view-active,
+#commitments-view.view-active,
+#trajectory-view.view-active,
+#setup-view.view-active {
+  transform: translateY(0);
+}
+
+/* Month Dot Indicator */
+.month-dot {
+  width: 24px; height: 24px;
+  border-radius: 50%;
+  border: none;
+  background: transparent;
+  display: flex; align-items: center; justify-content: center;
+  cursor: pointer;
+  transition: all 0.25s ease;
+  padding: 0;
+}
+.month-dot .dot-label {
+  font-size: 9px;
+  font-weight: 800;
+  color: #475569;
+  transition: color 0.25s ease;
+}
+.month-dot.active {
+  background: rgba(59, 130, 246, 0.15);
+}
+.month-dot.active .dot-label {
+  color: #60a5fa;
+}
+
 /* Toast */
+#toast {
+  transition: all 0.5s cubic-bezier(0.34, 1.56, 0.64, 1);
+}
 #toast.show {
   opacity: 1;
-  transform: translateX(-50%) translateY(0);
+  transform: translateX(-50%) translateY(0) scale(1);
   pointer-events: auto;
 }
 
