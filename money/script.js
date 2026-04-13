@@ -1719,8 +1719,32 @@ window.editCharlaJoint = async () => {
   saveBtn.onclick = async () => {
     saveBtn.disabled = true;
     saveBtn.innerText = "Saving...";
-    const amount = parseFloat(document.getElementById("wed-charla-input").value) || 0;
-    await saveCharlaPaid(amount);
+    const charlaPaid = parseFloat(document.getElementById("wed-charla-input").value) || 0;
+    await saveCharlaPaid(charlaPaid);
+
+    // Auto-sync Charlie's share to June expenses
+    const grandTotal = weddingCostsData.grandTotal || WEDDING_DEFAULTS.grandTotal;
+    const vendorPaid = weddingCostsData.vendorPaid || WEDDING_DEFAULTS.vendorPaid;
+    const vendorRemaining = grandTotal - vendorPaid;
+    const charlieShare = Math.max(0, vendorRemaining - charlaPaid);
+
+    if (appData) {
+      const juneIdx = 5;
+      if (!appData.monthlyData) appData.monthlyData = {};
+      if (!appData.monthlyData[juneIdx]) appData.monthlyData[juneIdx] = { incomeSources: [], fixedExpenses: [], cc: [], others: [] };
+      if (!appData.monthlyData[juneIdx].others) appData.monthlyData[juneIdx].others = [];
+      const toArr = (v) => Array.isArray(v) ? v : (v ? Object.values(v) : []);
+      const list = toArr(appData.monthlyData[juneIdx].others);
+      const existing = list.findIndex(item => item.id === WEDDING_EXPENSE_ID);
+      if (charlieShare > 0) {
+        if (existing >= 0) { list[existing].amount = charlieShare; list[existing].name = "Wedding (My Share)"; }
+        else list.push({ id: WEDDING_EXPENSE_ID, name: "Wedding (My Share)", amount: charlieShare, isPaid: false, logs: [] });
+      } else if (existing >= 0) { list.splice(existing, 1); }
+      appData.monthlyData[juneIdx].others = list;
+      await syncSet(dbRef, appData);
+      updateAllCalculations();
+    }
+
     closeModal();
     renderWeddingFund();
     if (window.navigator.vibrate) window.navigator.vibrate(5);
