@@ -688,10 +688,78 @@ select:disabled {
   padding: 16px;
 }
 .inline-ai-card.dig-deeper .ai-card-gradient {
-  background: linear-gradient(135deg, #0f0a2e, #2a1252, #0f0a2e);
+  background: #1b2238;
+  border-radius: 12px;
 }
 .inline-ai-card.dig-deeper {
-  box-shadow: 0 8px 16px rgba(124, 58, 237, 0.3);
+  border: 1.5px solid rgba(219,39,119,0.3);
+  padding: 1.5px;
+  animation: digGlow 2.5s ease-in-out infinite;
+  overflow: visible;
+  background: rgba(219,39,119,0.06);
+}
+@keyframes digGlow {
+  0%, 100% { box-shadow: 0 8px 28px rgba(219,39,119,0.2); }
+  50% { box-shadow: 0 14px 44px rgba(219,39,119,0.4); }
+}
+
+/* Sparkle stars that pop in the background (same as Story) */
+.dig-spark {
+  position: absolute;
+  color: #db2777;
+  opacity: 0;
+  pointer-events: none;
+  z-index: 3;
+  animation: digSparkle 3.5s ease-out infinite;
+}
+@keyframes digSparkle {
+  0%  { opacity: 0; transform: translateY(0) scale(0.4); }
+  12% { opacity: 0.4; transform: translateY(-4px) scale(1); }
+  50% { opacity: 0.2; transform: translateY(-18px) scale(0.7); }
+  100% { opacity: 0; transform: translateY(-30px) scale(0.3); }
+}
+.dig-spark.ds1 { right: 6%;  top: 8%;    animation-delay: 0s;   font-size: 30px; }
+.dig-spark.ds2 { left: 4%;   top: 25%;   animation-delay: 0.8s; font-size: 24px; }
+.dig-spark.ds3 { right: 12%; bottom: 25%; animation-delay: 1.6s; font-size: 34px; }
+.dig-spark.ds4 { left: 10%;  bottom: 12%; animation-delay: 0.4s; font-size: 22px; }
+.dig-spark.ds5 { right: 28%; top: 4%;    animation-delay: 1.2s; font-size: 26px; }
+.dig-spark.ds6 { left: 30%;  top: 15%;   animation-delay: 2.2s; font-size: 20px; }
+.dig-spark.ds7 { right: 5%;  top: 50%;   animation-delay: 0.3s; font-size: 28px; }
+.dig-spark.ds8 { left: 6%;   bottom: 35%; animation-delay: 1.8s; font-size: 18px; }
+
+/* Orbit dots — centered, rotate around the card (same as Story) */
+.dig-orbit {
+  position: absolute;
+  border-radius: 50%;
+  background: #db2777;
+  pointer-events: none;
+  top: 50%;
+  left: 50%;
+}
+.dig-orbit.do1 {
+  width: 5px;
+  height: 5px;
+  box-shadow: 0 0 6px 2px rgba(219,39,119,0.5);
+  z-index: 12;
+  animation: digOrbit1 5s linear infinite;
+}
+@keyframes digOrbit1 {
+  from { transform: translate(-50%,-50%) rotate(0deg) translateX(140px); }
+  to   { transform: translate(-50%,-50%) rotate(360deg) translateX(140px); }
+}
+.dig-orbit.do2 {
+  width: 4px;
+  height: 4px;
+  box-shadow: 0 0 5px 1px rgba(219,39,119,0.4);
+  z-index: 12;
+  animation: digOrbit2 7s linear infinite;
+}
+@keyframes digOrbit2 {
+  0%   { transform: translate(-50%,-50%) translateX(160px) translateY(0); }
+  25%  { transform: translate(-50%,-50%) translateX(0)     translateY(-80px); }
+  50%  { transform: translate(-50%,-50%) translateX(-160px) translateY(0); }
+  75%  { transform: translate(-50%,-50%) translateX(0)     translateY(80px); }
+  100% { transform: translate(-50%,-50%) translateX(160px) translateY(0); }
 }
 .inline-ai-card .ai-card-header {
   display: flex;
@@ -740,7 +808,7 @@ select:disabled {
 .inline-ai-card .ai-md-content .md-h4 {
   font-size: 12px;
   font-weight: 700;
-  color: #c084fc;
+  color: #db2777;
   letter-spacing: 1.2px;
   text-transform: uppercase;
   margin: 14px 0 6px;
@@ -776,7 +844,7 @@ select:disabled {
   text-underline-offset: 2px;
   text-decoration-color: rgba(219, 39, 119, 0.5);
 }
-.xref-link:active { color: #f472b6; }
+.xref-link:active { color: #db2777; }
 .light .xref-link { color: #db2777; text-decoration-color: rgba(219, 39, 119, 0.4); }
 .light .xref-link:active { color: #be185d; }
 
@@ -6547,10 +6615,339 @@ button#storyBtn { background: unset; }
 .sync-confirm-btn.no:hover { background: rgba(255,255,255,0.12) !important; }
 
 /* ═══════════════════════════════════════════════════════════════════════════
+   SOAP Respond Screen (Full-Screen Overlay)
+   ═══════════════════════════════════════════════════════════════════════════ */
+
+.soap-screen {
+  position: fixed;
+  inset: 0;
+  z-index: 10001;
+  background: var(--bg, #0b1220);
+  transform: translateX(100%);
+  transition: transform 0.32s cubic-bezier(0.4, 0, 0.2, 1);
+  display: flex;
+  flex-direction: column;
+  overscroll-behavior: contain;
+}
+.soap-screen[hidden] { display: none; }
+.soap-screen.soap-screen-open { transform: translateX(0); }
+
+.soap-screen-bar {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  padding: 16px 16px 12px;
+  padding-top: max(16px, env(safe-area-inset-top, 16px));
+  flex-shrink: 0;
+}
+.soap-screen-back {
+  background: none;
+  border: none;
+  color: rgba(255,255,255,0.6);
+  cursor: pointer;
+  padding: 4px;
+  display: flex;
+  align-items: center;
+}
+.soap-screen-back:hover { color: #fff; }
+.soap-screen-title {
+  font-size: 14px;
+  font-weight: 600;
+  color: rgba(255,255,255,0.5);
+}
+
+.soap-screen-scroll {
+  flex: 1;
+  overflow-y: auto;
+  padding: 0 20px 40px;
+  scrollbar-width: none;
+}
+.soap-screen-scroll::-webkit-scrollbar { display: none; }
+
+/* ── Reference card (collapsible) ── */
+.soap-ref-toggle {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  padding: 12px 0;
+  background: none;
+  border: none;
+  color: rgba(255,255,255,0.35);
+  font-size: 13px;
+  font-weight: 600;
+  cursor: pointer;
+  width: 100%;
+  transition: color 0.15s;
+}
+.soap-ref-toggle:hover { color: rgba(255,255,255,0.55); }
+.soap-ref-toggle .material-icons { font-size: 16px; transition: transform 0.2s; }
+.soap-ref-toggle.open .material-icons { transform: rotate(90deg); }
+
+.soap-ref-content {
+  display: none;
+  padding: 14px;
+  border-radius: 12px;
+  background: rgba(255,255,255,0.03);
+  margin-bottom: 16px;
+  font-size: 13px;
+  line-height: 1.6;
+  color: rgba(255,255,255,0.7);
+}
+.soap-ref-content.open { display: block; animation: aiFadeSlideIn 0.25s ease-out; }
+.soap-ref-content h4, .soap-ref-content .md-h4 {
+  font-size: 11px; font-weight: 700; color: #db2777;
+  letter-spacing: 1px; text-transform: uppercase; margin: 10px 0 4px;
+}
+.soap-ref-content h4:first-child, .soap-ref-content .md-h4:first-child { margin-top: 0; }
+
+/* ── Type switch (segmented control) ── */
+.soap-type-switch {
+  display: flex;
+  position: relative;
+  margin: 8px auto 20px;
+  background: rgba(255,255,255,0.06);
+  border-radius: 999px;
+  padding: 3px;
+  max-width: 300px;
+}
+.soap-type-switch-bg {
+  position: absolute;
+  top: 3px;
+  left: 3px;
+  width: calc(50% - 3px);
+  height: calc(100% - 6px);
+  border-radius: 999px;
+  transition: transform 0.28s cubic-bezier(0.4, 0, 0.2, 1), background 0.28s;
+}
+.soap-type-switch-bg.at-application {
+  transform: translateX(0);
+  background: rgba(59,130,246,0.15);
+  box-shadow: 0 0 12px rgba(59,130,246,0.15);
+}
+.soap-type-switch-bg.at-prayer {
+  transform: translateX(100%);
+  background: rgba(219,39,119,0.15);
+  box-shadow: 0 0 12px rgba(219,39,119,0.15);
+}
+.soap-type-switch-opt {
+  flex: 1 !important;
+  position: relative;
+  z-index: 1;
+  padding: 10px 0 !important;
+  border: none !important;
+  background: none !important;
+  backdrop-filter: none !important;
+  color: rgba(255,255,255,0.35);
+  font-size: 13px;
+  font-weight: 600;
+  cursor: pointer;
+  border-radius: 999px !important;
+  transition: color 0.2s;
+  box-shadow: none !important;
+}
+.soap-type-switch-opt.active-application { color: #3b82f6; }
+.soap-type-switch-opt.active-prayer { color: #db2777; }
+
+/* ── Category pills (VM-management style) ── */
+.soap-cat-row {
+  display: flex;
+  flex-wrap: wrap;
+  justify-content: center;
+  gap: 8px;
+  margin-bottom: 20px;
+}
+.soap-cat-pill {
+  flex: 0 !important;
+  padding: 8px 20px !important;
+  border-radius: 999px !important;
+  border: 1.5px solid rgba(255,255,255,0.12) !important;
+  background: none !important;
+  backdrop-filter: none !important;
+  box-shadow: none !important;
+  color: rgba(255,255,255,0.45);
+  font-size: 13px;
+  font-weight: 600;
+  cursor: pointer;
+  transition: all 0.2s cubic-bezier(0.4, 0, 0.2, 1);
+}
+.soap-cat-pill:active { transform: scale(0.95); }
+.soap-cat-pill.active-application {
+  border-color: #3b82f6;
+  color: #3b82f6;
+  background: rgba(59,130,246,0.08);
+  transform: scale(1.05);
+}
+.soap-cat-pill.active-prayer {
+  border-color: #db2777;
+  color: #db2777;
+  background: rgba(219,39,119,0.08);
+  transform: scale(1.05);
+}
+
+/* ── Write area ── */
+.soap-write-area {
+  margin-bottom: 24px;
+}
+.soap-write-textarea {
+  width: 100%;
+  background: rgba(255,255,255,0.05);
+  border: none;
+  border-radius: 14px;
+  padding: 14px 16px;
+  color: inherit;
+  font-size: 14px;
+  font-family: inherit;
+  resize: none;
+  min-height: 80px;
+  max-height: 140px;
+  overflow-y: auto;
+  box-sizing: border-box;
+  scrollbar-width: none;
+}
+.soap-write-textarea::-webkit-scrollbar { display: none; }
+.soap-write-textarea::placeholder { color: rgba(255,255,255,0.18); }
+.soap-write-textarea:focus { outline: none; background: rgba(255,255,255,0.07); }
+
+.soap-write-save {
+  display: block;
+  margin: 10px 0 0 auto;
+  padding: 8px 24px;
+  border-radius: 999px;
+  border: none;
+  color: #fff;
+  font-size: 13px;
+  font-weight: 700;
+  cursor: pointer;
+  transition: opacity 0.15s;
+}
+.soap-write-save:hover { opacity: 0.85; }
+.soap-write-save:active { transform: scale(0.97); }
+.soap-write-save.save-application { background: #3b82f6; }
+.soap-write-save.save-prayer { background: #db2777; }
+
+/* ── Entries list ── */
+.soap-entries-label {
+  font-size: 11px;
+  font-weight: 700;
+  letter-spacing: 1px;
+  text-transform: uppercase;
+  color: rgba(255,255,255,0.2);
+  margin-bottom: 10px;
+}
+.soap-entry-list {
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+}
+.soap-entry-item {
+  display: flex;
+  align-items: flex-start;
+  gap: 10px;
+  padding: 12px;
+  border-radius: 12px;
+  background: rgba(255,255,255,0.03);
+  animation: aiFadeSlideIn 0.25s ease-out;
+}
+.soap-entry-item-cat {
+  font-size: 10px;
+  font-weight: 700;
+  letter-spacing: 0.3px;
+  text-transform: uppercase;
+  padding: 3px 10px;
+  border-radius: 999px;
+  flex-shrink: 0;
+  white-space: nowrap;
+  margin-top: 2px;
+}
+.soap-entry-item-cat.cat-application {
+  color: #3b82f6;
+  background: rgba(59,130,246,0.08);
+}
+.soap-entry-item-cat.cat-prayer {
+  color: #db2777;
+  background: rgba(219,39,119,0.08);
+}
+.soap-entry-item-text {
+  flex: 1;
+  font-size: 13px;
+  line-height: 1.5;
+  color: rgba(255,255,255,0.75);
+  min-width: 0;
+}
+.soap-entry-item-del {
+  background: none;
+  border: none;
+  color: rgba(255,255,255,0.15);
+  cursor: pointer;
+  padding: 0;
+  flex-shrink: 0;
+  margin-top: 1px;
+  transition: color 0.15s;
+}
+.soap-entry-item-del .material-icons { font-size: 16px; }
+.soap-entry-item-del:hover { color: rgba(255,100,100,0.6); }
+
+/* ── Light mode — Respond screen ── */
+.light .soap-screen { background: #f5f5fa; }
+.light .soap-screen-back { color: rgba(0,0,0,0.5); }
+.light .soap-screen-back:hover { color: #000; }
+.light .soap-screen-title { color: rgba(0,0,0,0.45); }
+.light .soap-ref-toggle { color: rgba(0,0,0,0.3); }
+.light .soap-ref-toggle:hover { color: rgba(0,0,0,0.5); }
+.light .soap-ref-content { background: rgba(0,0,0,0.03); color: rgba(0,0,0,0.6); }
+.light .soap-type-switch { background: rgba(0,0,0,0.05); }
+.light .soap-type-switch-bg.at-application { background: rgba(37,99,235,0.1); box-shadow: none; }
+.light .soap-type-switch-bg.at-prayer { background: rgba(219,39,119,0.1); box-shadow: none; }
+.light .soap-type-switch-opt { color: rgba(0,0,0,0.3); }
+.light .soap-type-switch-opt.active-application { color: #2563eb; }
+.light .soap-type-switch-opt.active-prayer { color: #db2777; }
+.light .soap-cat-pill { border-color: rgba(0,0,0,0.1); color: rgba(0,0,0,0.4); }
+.light .soap-cat-pill.active-application { border-color: #2563eb; color: #2563eb; background: rgba(37,99,235,0.06); }
+.light .soap-cat-pill.active-prayer { border-color: #db2777; color: #db2777; background: rgba(219,39,119,0.06); }
+.light .soap-write-textarea { background: rgba(0,0,0,0.04); color: #1a1a1a; }
+.light .soap-write-textarea::placeholder { color: rgba(0,0,0,0.2); }
+.light .soap-write-textarea:focus { background: rgba(0,0,0,0.06); }
+.light .soap-entries-label { color: rgba(0,0,0,0.2); }
+.light .soap-entry-item { background: #fff; }
+.light .soap-entry-item-cat.cat-application { color: #2563eb; background: rgba(37,99,235,0.06); }
+.light .soap-entry-item-cat.cat-prayer { color: #db2777; background: rgba(219,39,119,0.06); }
+.light .soap-entry-item-text { color: rgba(0,0,0,0.7); }
+.light .soap-entry-item-del { color: rgba(0,0,0,0.12); }
+.light .soap-entry-item-del:hover { color: rgba(220,50,50,0.5); }
+
+/* ═══════════════════════════════════════════════════════════════════════════
    SOAP — Application & Prayer (A & P)
    ═══════════════════════════════════════════════════════════════════════════ */
 
-/* ── Buttons inside Dig Deeper card ── */
+/* ── Respond button inside Dig Deeper card ── */
+.soap-respond-row {
+  margin-top: 14px;
+  padding-top: 12px;
+  border-top: 1px solid rgba(255,255,255,0.08);
+}
+.soap-respond-btn {
+  width: 100%;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  gap: 8px;
+  padding: 13px;
+  border-radius: 14px;
+  border: none;
+  background: #db2777;
+  color: #fff;
+  font-size: 14px;
+  font-weight: 600;
+  cursor: pointer;
+  transition: opacity 0.15s;
+}
+.soap-respond-btn .material-icons { font-size: 18px; }
+.soap-respond-btn:hover { opacity: 0.88; }
+.soap-respond-btn:active { transform: scale(0.97); }
+
+.light .soap-respond-row { border-top-color: rgba(0,0,0,0.06); }
+
+/* ── Legacy buttons (kept for backward compat) ── */
 .soap-ap-buttons {
   display: flex;
   gap: 8px;
@@ -6566,20 +6963,23 @@ button#storyBtn { background: unset; }
   gap: 6px;
   padding: 10px 12px;
   border-radius: 10px;
-  border: 1px solid rgba(255,255,255,0.08);
-  background: rgba(255,255,255,0.05);
-  color: rgba(255,255,255,0.6);
+  border: none;
+  background: none;
   font-size: 13px;
   font-weight: 600;
   cursor: pointer;
-  transition: background 0.15s, border-color 0.15s;
+  transition: opacity 0.15s;
 }
-.soap-ap-btn .material-icons { font-size: 16px; opacity: 0.6; }
-.soap-ap-btn:hover {
-  background: rgba(255,255,255,0.08);
-  border-color: rgba(255,255,255,0.15);
-}
-.soap-ap-btn:active { transform: scale(0.97); }
+.soap-ap-btn .material-icons { font-size: 16px; }
+.soap-ap-btn:active { transform: scale(0.97); opacity: 0.7; }
+
+/* Application button — blue */
+.soap-ap-btn--application { color: #3b82f6; }
+.soap-ap-btn--application:hover { opacity: 0.75; }
+
+/* Prayer button — pink */
+.soap-ap-btn--prayer { color: #db2777; }
+.soap-ap-btn--prayer:hover { opacity: 0.75; }
 
 /* ── Stack area ── */
 .soap-ap-stack {
@@ -6591,28 +6991,25 @@ button#storyBtn { background: unset; }
 
 /* ── Picker (category + writer) ── */
 .soap-picker {
-  border: 1px solid rgba(255,255,255,0.06);
-  border-radius: 12px;
-  padding: 12px;
-  background: rgba(255,255,255,0.02);
+  border: none;
+  border-radius: 0;
+  padding: 0;
+  background: none;
 }
-.soap-picker-header {
-  font-size: 11px;
-  font-weight: 700;
-  letter-spacing: 1.2px;
-  text-transform: uppercase;
-  color: rgba(255,255,255,0.35);
-  margin-bottom: 8px;
-}
+
+
 .soap-pill-row {
   display: flex;
   flex-wrap: wrap;
-  gap: 6px;
   justify-content: center;
+  gap: 6px;
+  max-width: 320px;
+  margin: 0 auto;
 }
 .soap-pill {
   padding: 6px 12px;
   border-radius: 10px;
+  text-align: center;
   border: 1px solid rgba(255,255,255,0.08);
   background: none;
   color: rgba(255,255,255,0.5);
@@ -6625,10 +7022,16 @@ button#storyBtn { background: unset; }
   background: rgba(255,255,255,0.07);
   border-color: rgba(255,255,255,0.15);
 }
-.soap-pill.active {
-  background: #db2777;
-  color: #fff;
-  border-color: #db2777;
+/* Type-colored active pills */
+.soap-picker--application .soap-pill.active {
+  background: rgba(59,130,246,0.15);
+  color: #3b82f6;
+  border-color: rgba(59,130,246,0.3);
+}
+.soap-picker--prayer .soap-pill.active {
+  background: rgba(219,39,119,0.15);
+  color: #db2777;
+  border-color: rgba(219,39,119,0.3);
 }
 
 /* ── Writer (textarea + save) ── */
@@ -6639,30 +7042,30 @@ button#storyBtn { background: unset; }
 .soap-writer[hidden] { display: none !important; }
 .soap-textarea {
   width: 100%;
-  background: rgba(255,255,255,0.05);
-  border: 1px solid rgba(255,255,255,0.08);
+  background: rgba(255,255,255,0.06);
+  border: none;
   border-radius: 10px;
-  padding: 12px 14px 40px 14px;
+  padding: 12px 14px 36px 14px;
   color: inherit;
   font-size: 14px;
   font-family: inherit;
   resize: none;
-  min-height: 70px;
+  min-height: 60px;
   max-height: 120px;
   overflow-y: auto;
   box-sizing: border-box;
   scrollbar-width: none;
 }
 .soap-textarea::-webkit-scrollbar { display: none; }
-.soap-textarea::placeholder { color: rgba(255,255,255,0.2); }
+.soap-textarea::placeholder { color: rgba(255,255,255,0.18); }
 .soap-textarea:focus {
   outline: none;
-  border-color: rgba(255,255,255,0.15);
+  background: rgba(255,255,255,0.08);
 }
 .soap-writer-save {
   position: absolute;
   right: 8px;
-  bottom: 12px;
+  bottom: 10px;
   padding: 5px 14px;
   border-radius: 8px;
   border: none;
@@ -6674,6 +7077,7 @@ button#storyBtn { background: unset; }
   transition: opacity 0.15s;
 }
 .soap-writer-save:hover { opacity: 0.85; }
+.soap-writer-save--application { background: #3b82f6; }
 
 /* ── Saved entry card ── */
 .soap-entry-card {
@@ -6690,10 +7094,12 @@ button#storyBtn { background: unset; }
   font-weight: 700;
   letter-spacing: 0.3px;
   text-transform: uppercase;
-  color: #db2777;
   flex-shrink: 0;
   white-space: nowrap;
 }
+.soap-entry-card--application .soap-entry-tag { color: #3b82f6; }
+.soap-entry-card--prayer .soap-entry-tag { color: #db2777; }
+
 .soap-entry-text {
   flex: 1;
   font-size: 13px;
@@ -6721,16 +7127,30 @@ button#storyBtn { background: unset; }
 .soap-entry-edit .material-icons { font-size: 14px; }
 .soap-entry-edit:hover { color: rgba(255,255,255,0.4); }
 
-/* ── Light mode ── */
-.light .soap-picker { background: rgba(0,0,0,0.02); border-color: rgba(0,0,0,0.06); }
-.light .soap-picker-header { color: rgba(0,0,0,0.3); }
+/* ── Light mode — SOAP inline ── */
+.light .soap-ap-buttons { border-top-color: rgba(0,0,0,0.06); }
+.light .soap-ap-btn--application { color: #2563eb; }
+.light .soap-ap-btn--prayer { color: #be185d; }
+
 .light .soap-pill { border-color: rgba(0,0,0,0.08); color: rgba(0,0,0,0.45); }
 .light .soap-pill:hover { background: rgba(0,0,0,0.04); }
-.light .soap-pill.active { background: #db2777; color: #fff; border-color: #db2777; }
-.light .soap-textarea { background: #fff; border-color: rgba(0,0,0,0.1); color: #1a1a1a; }
+.light .soap-picker--application .soap-pill.active {
+  background: rgba(37,99,235,0.1);
+  color: #2563eb;
+  border-color: rgba(37,99,235,0.2);
+}
+.light .soap-picker--prayer .soap-pill.active {
+  background: rgba(219,39,119,0.1);
+  color: #db2777;
+  border-color: rgba(219,39,119,0.2);
+}
+.light .soap-textarea { background: rgba(0,0,0,0.04); color: #1a1a1a; }
 .light .soap-textarea::placeholder { color: rgba(0,0,0,0.2); }
-.light .soap-textarea:focus { border-color: rgba(0,0,0,0.15); }
+.light .soap-textarea:focus { background: rgba(0,0,0,0.06); }
+
 .light .soap-entry-card { background: rgba(0,0,0,0.03); border-color: rgba(0,0,0,0.06); }
+.light .soap-entry-card--application .soap-entry-tag { color: #2563eb; }
+.light .soap-entry-card--prayer .soap-entry-tag { color: #be185d; }
 .light .soap-entry-text { color: rgba(0,0,0,0.7); }
 .light .soap-entry-text[contenteditable="true"] { background: rgba(0,0,0,0.03); border-color: rgba(0,0,0,0.1); }
 .light .soap-entry-edit { color: rgba(0,0,0,0.15); }
@@ -6758,6 +7178,10 @@ button#storyBtn { background: unset; }
    SOAP Dashboard — Applications & Prayers
    ═══════════════════════════════════════════════════════════════════════════ */
 
+/* ── Dashboard section header icons ── */
+.soap-dash-icon--application { color: #3b82f6 !important; }
+.soap-dash-icon--prayer { color: #db2777 !important; }
+
 .soap-dash-section h3 { margin-bottom: 12px; }
 .soap-dash-empty {
   background: none !important;
@@ -6770,6 +7194,28 @@ button#storyBtn { background: unset; }
   font-weight: 700;
   opacity: 0.35;
 }
+
+/* ── Empty state ── */
+.soap-empty-state {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  padding: 20px 16px;
+  gap: 4px;
+}
+.soap-empty-icon { font-size: 32px; margin-bottom: 4px; }
+.soap-dash--application .soap-empty-icon { color: rgba(59,130,246,0.2); }
+.soap-dash--prayer .soap-empty-icon { color: rgba(219,39,119,0.2); }
+.soap-empty-text {
+  font-size: 14px;
+  color: rgba(255,255,255,0.4);
+  font-weight: 600;
+}
+.soap-empty-hint {
+  font-size: 12px;
+  color: rgba(255,255,255,0.2);
+}
+.soap-empty-hint strong { color: rgba(255,255,255,0.35); }
 
 /* ── Filter pills row ── */
 .soap-dash-pills {
@@ -6796,7 +7242,13 @@ button#storyBtn { background: unset; }
   background: rgba(255,255,255,0.07);
   border-color: rgba(255,255,255,0.15);
 }
-.soap-dash-pill.active {
+/* Type-colored active pills */
+.soap-dash--application .soap-dash-pill.active {
+  background: rgba(59,130,246,0.1);
+  color: #3b82f6;
+  border-color: rgba(59,130,246,0.2);
+}
+.soap-dash--prayer .soap-dash-pill.active {
   background: rgba(219,39,119,0.12);
   color: #db2777;
   border-color: rgba(219,39,119,0.2);
@@ -6806,88 +7258,174 @@ button#storyBtn { background: unset; }
   opacity: 0.5;
 }
 
-/* ── Entry cards ── */
-.soap-dash-list {
+/* ── Dashboard stacked cards ── */
+.soap-stack-wrap {
   display: flex;
   flex-direction: column;
-  gap: 8px;
-}
-.soap-dash-card {
-  background: rgba(255,255,255,0.03);
-  border: 1px solid rgba(255,255,255,0.06);
-  border-radius: 12px;
-  padding: 12px 14px;
-  transition: background 0.15s;
-}
-.soap-dash-card:hover {
-  background: rgba(255,255,255,0.06);
-}
-.soap-dash-card-top {
-  display: flex;
   align-items: center;
-  gap: 8px;
-  margin-bottom: 6px;
+  gap: 12px;
 }
-.soap-dash-cat-badge {
+.soap-stack {
+  position: relative;
+  width: 100%;
+  max-width: 340px;
+  height: 200px;
+}
+.soap-stack-card {
+  position: absolute;
+  inset: 0;
+  border-radius: 14px;
+  border: 1px solid rgba(255,255,255,0.08);
+  background: rgba(255,255,255,0.04);
+  transition: transform 0.3s ease, opacity 0.3s;
+}
+.soap-stack-card.c3 {
+  transform: rotate(-3deg) scale(0.93) translateY(8px);
+  opacity: 0.2;
+}
+.soap-stack-card.c2 {
+  transform: rotate(-1.5deg) scale(0.96) translateY(4px);
+  opacity: 0.35;
+}
+.soap-stack-card.c1 {
+  transform: rotate(0);
+  opacity: 1;
+  display: flex;
+  flex-direction: column;
+  padding: 18px;
+  z-index: 2;
+}
+.soap-stack-card--application.c1 {
+  background: linear-gradient(135deg, rgba(59,130,246,0.06), rgba(59,130,246,0.02));
+  border-color: rgba(59,130,246,0.12);
+  box-shadow: 0 8px 24px rgba(59,130,246,0.08);
+}
+.soap-stack-card--prayer.c1 {
+  background: linear-gradient(135deg, rgba(219,39,119,0.06), rgba(219,39,119,0.02));
+  border-color: rgba(219,39,119,0.12);
+  box-shadow: 0 8px 24px rgba(219,39,119,0.08);
+}
+@keyframes stackFlip {
+  0% { opacity: 0; transform: scale(0.95) translateY(6px); }
+  100% { opacity: 1; transform: scale(1) translateY(0); }
+}
+
+.soap-stack-cat {
   font-size: 10px;
   font-weight: 700;
-  letter-spacing: 0.3px;
+  letter-spacing: 0.5px;
   text-transform: uppercase;
-  color: #db2777;
-  opacity: 0.8;
+  margin-bottom: 10px;
 }
-.soap-dash-card-date {
+.soap-stack-cat.cat-app { color: #3b82f6; }
+.soap-stack-cat.cat-pray { color: #db2777; }
+
+.soap-stack-text {
+  flex: 1;
+  font-size: 14px;
+  line-height: 1.6;
+  color: rgba(255,255,255,0.8);
+  overflow: hidden;
+  display: -webkit-box;
+  -webkit-line-clamp: 4;
+  -webkit-box-orient: vertical;
+}
+.soap-stack-foot {
+  display: flex;
+  justify-content: space-between;
+  margin-top: 12px;
   font-size: 11px;
   color: rgba(255,255,255,0.25);
-  margin-left: auto;
+  font-weight: 600;
 }
-.soap-dash-card-del {
-  background: none;
-  border: none;
+.soap-stack-del {
+  position: absolute;
+  top: 12px;
+  right: 12px;
+  background: none !important;
+  border: none !important;
+  backdrop-filter: none !important;
+  box-shadow: none !important;
   color: rgba(255,255,255,0.12);
   cursor: pointer;
-  padding: 0;
-  line-height: 1;
+  padding: 0 !important;
+  flex: 0 !important;
   transition: color 0.15s;
 }
-.soap-dash-card-del .material-icons { font-size: 16px; }
-.soap-dash-card-del:hover { color: rgba(255,100,100,0.6); }
+.soap-stack-del .material-icons { font-size: 16px; }
+.soap-stack-del:hover { color: rgba(255,100,100,0.5); }
 
-.soap-dash-card-text {
-  font-size: 13px;
-  line-height: 1.5;
-  color: rgba(255,255,255,0.75);
-}
-.soap-dash-card-passage {
-  font-size: 11px;
-  font-weight: 600;
-  color: rgba(255,255,255,0.25);
-  margin-top: 6px;
+.soap-stack-empty {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  height: 100%;
 }
 
-.soap-dash-show-all {
-  display: block;
-  margin-top: 10px;
-  padding: 8px 0;
-  background: none;
-  border: none;
-  color: rgba(255,255,255,0.35);
-  font-size: 13px;
-  font-weight: 600;
+/* ── Stack navigation ── */
+.soap-stack-nav {
+  display: flex;
+  align-items: center;
+  gap: 16px;
+}
+.soap-stack-prev, .soap-stack-next {
+  background: none !important;
+  border: none !important;
+  backdrop-filter: none !important;
+  box-shadow: none !important;
+  color: rgba(255,255,255,0.3);
   cursor: pointer;
+  padding: 4px !important;
+  flex: 0 !important;
+  border-radius: 50% !important;
   transition: color 0.15s;
 }
-.soap-dash-show-all:hover { color: rgba(255,255,255,0.6); }
+.soap-stack-prev:hover, .soap-stack-next:hover { color: rgba(255,255,255,0.6); }
+.soap-stack-counter {
+  font-size: 12px;
+  color: rgba(255,255,255,0.25);
+  font-weight: 600;
+  letter-spacing: 0.5px;
+}
+
+/* ── Light mode — Dashboard ── */
+.light .soap-dash-icon--application { color: #2563eb !important; }
+.light .soap-dash-icon--prayer { color: #db2777 !important; }
+.light .soap-dash--application .soap-empty-icon { color: rgba(37,99,235,0.2); }
+.light .soap-dash--prayer .soap-empty-icon { color: rgba(219,39,119,0.2); }
+.light .soap-empty-text { color: rgba(0,0,0,0.4); }
+.light .soap-empty-hint { color: rgba(0,0,0,0.25); }
+.light .soap-empty-hint strong { color: rgba(0,0,0,0.4); }
 
 .light .soap-dash-pill { border-color: rgba(0,0,0,0.08); color: rgba(0,0,0,0.4); }
 .light .soap-dash-pill:hover { background: rgba(0,0,0,0.04); }
-.light .soap-dash-pill.active { background: rgba(219,39,119,0.08); color: #db2777; border-color: rgba(219,39,119,0.15); }
-.light .soap-dash-card { background: #fff; border-color: rgba(0,0,0,0.06); }
-.light .soap-dash-card:hover { background: #faf9f6; }
-.light .soap-dash-card-text { color: #2a2a3e; }
-.light .soap-dash-card-date { color: rgba(0,0,0,0.3); }
-.light .soap-dash-card-passage { color: rgba(0,0,0,0.3); }
-.light .soap-dash-card-del { color: rgba(0,0,0,0.12); }
-.light .soap-dash-card-del:hover { color: rgba(220,50,50,0.5); }
-.light .soap-dash-show-all { color: rgba(0,0,0,0.35); }
-.light .soap-dash-show-all:hover { color: rgba(0,0,0,0.6); }
+.light .soap-dash--application .soap-dash-pill.active {
+  background: rgba(37,99,235,0.08);
+  color: #2563eb;
+  border-color: rgba(37,99,235,0.15);
+}
+.light .soap-dash--prayer .soap-dash-pill.active {
+  background: rgba(219,39,119,0.08);
+  color: #db2777;
+  border-color: rgba(219,39,119,0.15);
+}
+.light .soap-stack-card { background: rgba(0,0,0,0.02); border-color: rgba(0,0,0,0.06); }
+.light .soap-stack-card--application.c1 {
+  background: linear-gradient(135deg, rgba(37,99,235,0.04), rgba(37,99,235,0.01));
+  border-color: rgba(37,99,235,0.08);
+  box-shadow: 0 8px 24px rgba(37,99,235,0.06);
+}
+.light .soap-stack-card--prayer.c1 {
+  background: linear-gradient(135deg, rgba(219,39,119,0.04), rgba(219,39,119,0.01));
+  border-color: rgba(219,39,119,0.08);
+  box-shadow: 0 8px 24px rgba(219,39,119,0.06);
+}
+.light .soap-stack-cat.cat-app { color: #2563eb; }
+.light .soap-stack-cat.cat-pray { color: #be185d; }
+.light .soap-stack-text { color: #2a2a3e; }
+.light .soap-stack-foot { color: rgba(0,0,0,0.25); }
+.light .soap-stack-del { color: rgba(0,0,0,0.1); }
+.light .soap-stack-del:hover { color: rgba(220,50,50,0.5); }
+.light .soap-stack-prev, .light .soap-stack-next { color: rgba(0,0,0,0.25); }
+.light .soap-stack-prev:hover, .light .soap-stack-next:hover { color: rgba(0,0,0,0.5); }
+.light .soap-stack-counter { color: rgba(0,0,0,0.25); }

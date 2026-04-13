@@ -1547,9 +1547,23 @@ function renderChatHistory(key, container) {
   container.scrollTop = container.scrollHeight;
 }
 
+function _digDeeperEffectsHTML() {
+  return `<span class="dig-spark ds1 material-icons">auto_awesome</span>
+    <span class="dig-spark ds2 material-icons">auto_awesome</span>
+    <span class="dig-spark ds3 material-icons">auto_awesome</span>
+    <span class="dig-spark ds4 material-icons">auto_awesome</span>
+    <span class="dig-spark ds5 material-icons">auto_awesome</span>
+    <span class="dig-spark ds6 material-icons">auto_awesome</span>
+    <span class="dig-spark ds7 material-icons">auto_awesome</span>
+    <span class="dig-spark ds8 material-icons">auto_awesome</span>
+    <div class="dig-orbit do1"></div>
+    <div class="dig-orbit do2"></div>`;
+}
+
 async function fetchInlineDigDeeper({ book, chapter, verse, text }, mountEl) {
-  // Show dig deeper card with sparkle loader
   mountEl.innerHTML = `<div class="inline-ai-card dig-deeper">
+    ${_digDeeperEffectsHTML()}
+
     <div class="ai-card-gradient">
       <div class="ai-card-header">
         <span class="ai-card-label">Dig Deeper</span>
@@ -1561,6 +1575,7 @@ async function fetchInlineDigDeeper({ book, chapter, verse, text }, mountEl) {
   mountEl.querySelector('.ai-card-close').onclick = () => { mountEl.innerHTML = ''; };
 
   const verseText = text || '';
+  const passage = `${book} ${chapter}${verse ? ':' + verse : ''}`;
 
   try {
     const aiText = await callGemini(`You are a premium Bible study tool. ${AI_TONE}
@@ -1585,20 +1600,32 @@ Give a dense, high-value word study. NO fluff. Every word must earn its place. ~
 STRICT: No greetings. No "this verse tells us". No padding. Start with #### Original Language immediately.`);
 
     mountEl.innerHTML = `<div class="inline-ai-card dig-deeper">
+    ${_digDeeperEffectsHTML()}
+  
       <div class="ai-card-gradient">
         <div class="ai-card-header">
           <span class="ai-card-label">Dig Deeper</span>
           <button class="ai-card-close" title="Close">✕</button>
         </div>
         <div class="ai-md-content">${mdToHTML(aiText)}</div>
-        ${_soapAPButtonsHTML(book, chapter, verse)}
+        <div class="soap-respond-row">
+          <button class="soap-respond-btn" data-passage="${_escHtml(passage)}">
+            <span class="material-icons">edit_note</span> Respond
+          </button>
+        </div>
       </div>
     </div>`;
     mountEl.querySelector('.ai-card-close').onclick = () => { mountEl.innerHTML = ''; };
-    _bindSoapAPButtons(mountEl, book, chapter, verse);
+    // Store AI text for the Respond screen
+    const respondBtn = mountEl.querySelector('.soap-respond-btn');
+    if (respondBtn) {
+      respondBtn.onclick = () => openSoapScreen(passage, aiText);
+    }
   } catch (err) {
     console.error(err);
     mountEl.innerHTML = `<div class="inline-ai-card dig-deeper">
+    ${_digDeeperEffectsHTML()}
+  
       <div class="ai-card-gradient">
         <div class="ai-card-header">
           <span class="ai-card-label">Dig Deeper</span>
@@ -5604,6 +5631,8 @@ function _getVersesText(book, chapter, verses) {
 
 async function fetchStoryDigDeeper(book, chapter, verses, mountEl) {
   mountEl.innerHTML = `<div class="inline-ai-card dig-deeper">
+    ${_digDeeperEffectsHTML()}
+
     <div class="ai-card-gradient">
       <div class="ai-card-header">
         <span class="ai-card-label">Dig Deeper — ${book} ${chapter}:${verses}</span>
@@ -5615,6 +5644,7 @@ async function fetchStoryDigDeeper(book, chapter, verses, mountEl) {
   mountEl.querySelector('.ai-card-close').onclick = () => { mountEl.innerHTML = ''; };
 
   const passageText = _getVersesText(book, chapter, verses);
+  const passage = `${book} ${chapter}:${verses}`;
   try {
     const aiText = await callGemini(`You are a premium Bible study tool. ${AI_TONE}
 
@@ -5640,19 +5670,30 @@ Give a dense, high-value study of this passage. ~180 words total.
 STRICT: No greetings. No padding. Start with #### Key Themes immediately.`);
 
     mountEl.innerHTML = `<div class="inline-ai-card dig-deeper">
+    ${_digDeeperEffectsHTML()}
+  
       <div class="ai-card-gradient">
         <div class="ai-card-header">
           <span class="ai-card-label">Dig Deeper — ${esc(book)} ${chapter}:${esc(verses)}</span>
           <button class="ai-card-close" title="Close">✕</button>
         </div>
         <div class="ai-md-content">${mdToHTML(aiText)}</div>
-        ${_soapAPButtonsHTML(book, chapter, verses)}
+        <div class="soap-respond-row">
+          <button class="soap-respond-btn" data-passage="${_escHtml(passage)}">
+            <span class="material-icons">edit_note</span> Respond
+          </button>
+        </div>
       </div>
     </div>`;
     mountEl.querySelector('.ai-card-close').onclick = () => { mountEl.innerHTML = ''; };
-    _bindSoapAPButtons(mountEl, book, chapter, verses);
+    const respondBtn = mountEl.querySelector('.soap-respond-btn');
+    if (respondBtn) {
+      respondBtn.onclick = () => openSoapScreen(passage, aiText);
+    }
   } catch {
     mountEl.innerHTML = `<div class="inline-ai-card dig-deeper">
+    ${_digDeeperEffectsHTML()}
+  
       <div class="ai-card-gradient">
         <div class="ai-card-header">
           <span class="ai-card-label">Dig Deeper</span>
@@ -6554,6 +6595,238 @@ function openVersePeek(rawRef, anchorEl) {
 
 const SOAP_CATEGORIES = ["God", "Family", "Work/School", "Ministry", "Others"];
 
+/* ── Respond Screen (full-screen overlay) ── */
+let _soapScreenType = "application";
+let _soapScreenPassage = "";
+let _soapScreenAiText = "";
+let _soapScreenCat = null;
+
+function openSoapScreen(passage, aiText) {
+  _soapScreenPassage = passage;
+  _soapScreenAiText = aiText || "";
+  _soapScreenType = "application";
+  _soapScreenCat = null;
+
+  const screen = document.getElementById("soapScreen");
+  const title = document.getElementById("soapScreenTitle");
+  title.textContent = passage;
+  screen.hidden = false;
+  requestAnimationFrame(() => screen.classList.add("soap-screen-open"));
+
+  _renderSoapScreenContent();
+
+  document.getElementById("soapScreenBack").onclick = closeSoapScreen;
+}
+
+function closeSoapScreen() {
+  const screen = document.getElementById("soapScreen");
+  screen.classList.remove("soap-screen-open");
+  const onEnd = () => {
+    screen.hidden = true;
+    screen.removeEventListener("transitionend", onEnd);
+    // Refresh dashboard if visible
+    if (typeof renderDashboard === "function") {
+      const homeBtn = document.getElementById("homeBtn");
+      if (homeBtn && homeBtn.style.display === "none") renderDashboard();
+    }
+  };
+  screen.addEventListener("transitionend", onEnd);
+}
+
+function _renderSoapScreenContent() {
+  const body = document.getElementById("soapScreenBody");
+  const ref = document.getElementById("soapScreenRef");
+  const type = _soapScreenType;
+  const isApp = type === "application";
+  const placeholder = isApp
+    ? "How will you apply this to your life today?"
+    : "Write your prayer to God here...";
+  const entries = _getSoapEntries(type).filter(e => e.passage === _soapScreenPassage);
+
+  // Reference card
+  ref.innerHTML = _soapScreenAiText ? `
+    <button class="soap-ref-toggle" id="soapRefToggle">
+      <span class="material-icons">chevron_right</span>
+      View study notes
+    </button>
+    <div class="soap-ref-content" id="soapRefContent">${mdToHTML(_soapScreenAiText)}</div>
+  ` : '';
+
+  if (_soapScreenAiText) {
+    const toggle = document.getElementById("soapRefToggle");
+    const content = document.getElementById("soapRefContent");
+    toggle.onclick = () => {
+      toggle.classList.toggle("open");
+      content.classList.toggle("open");
+    };
+  }
+
+  // Body
+  body.innerHTML = `
+    <div class="soap-type-switch">
+      <div class="soap-type-switch-bg at-${type}"></div>
+      <button class="soap-type-switch-opt ${isApp ? 'active-application' : ''}" data-stype="application">Application</button>
+      <button class="soap-type-switch-opt ${!isApp ? 'active-prayer' : ''}" data-stype="prayer">Prayer</button>
+    </div>
+
+    <div class="soap-cat-row">
+      ${SOAP_CATEGORIES.map(c => `<button class="soap-cat-pill${_soapScreenCat === c ? ' active-' + type : ''}" data-cat="${_escHtml(c)}">${_escHtml(c)}</button>`).join("")}
+    </div>
+
+    <div class="soap-write-area" ${!_soapScreenCat ? 'hidden' : ''}>
+      <textarea class="soap-write-textarea" id="soapWriteTA" placeholder="${placeholder}" rows="1"></textarea>
+      <button class="soap-write-save save-${type}" id="soapWriteSave">Save</button>
+    </div>
+
+    ${entries.length ? `<div class="soap-entries-label">Your ${isApp ? 'applications' : 'prayers'}</div>` : ''}
+    <div class="soap-entry-list" id="soapEntryList">
+      ${entries.map(e => _soapScreenEntryHTML(e, type)).join("")}
+    </div>
+  `;
+
+  // Bind type switch (animate in-place, no full re-render)
+  body.querySelectorAll(".soap-type-switch-opt").forEach(opt => {
+    opt.onclick = () => {
+      const newType = opt.dataset.stype;
+      if (newType === _soapScreenType) return;
+      _soapScreenType = newType;
+      _soapScreenCat = null;
+      const isApp = newType === "application";
+
+      // Slide the bg indicator
+      const bg = body.querySelector(".soap-type-switch-bg");
+      if (bg) {
+        bg.className = `soap-type-switch-bg at-${newType}`;
+      }
+
+      // Update opt text colors
+      body.querySelectorAll(".soap-type-switch-opt").forEach(o => {
+        o.className = "soap-type-switch-opt" + (o.dataset.stype === newType ? ` active-${newType}` : "");
+      });
+
+      // Reset category pills
+      body.querySelectorAll(".soap-cat-pill").forEach(p => {
+        p.className = "soap-cat-pill";
+      });
+
+      // Update placeholder + save button
+      const ta = body.querySelector(".soap-write-textarea");
+      if (ta) ta.placeholder = isApp ? "How will you apply this to your life today?" : "Write your prayer to God here...";
+      const saveBtn = body.querySelector(".soap-write-save");
+      if (saveBtn) saveBtn.className = `soap-write-save save-${newType}`;
+
+      // Hide write area (no category selected)
+      const writeArea = body.querySelector(".soap-write-area");
+      if (writeArea) writeArea.hidden = true;
+
+      // Re-render just the entry list
+      const entries = _getSoapEntries(newType).filter(e => e.passage === _soapScreenPassage);
+      const label = body.querySelector(".soap-entries-label");
+      const list = document.getElementById("soapEntryList");
+      if (label) label.textContent = `Your ${isApp ? 'applications' : 'prayers'}`;
+      if (label) label.style.display = entries.length ? '' : 'none';
+      if (list) {
+        list.innerHTML = entries.map(e => _soapScreenEntryHTML(e, newType)).join("");
+        _bindSoapScreenDeleteButtons();
+      }
+    };
+  });
+
+  // Bind category pills
+  body.querySelectorAll(".soap-cat-pill").forEach(pill => {
+    pill.onclick = () => {
+      _soapScreenCat = pill.dataset.cat;
+      // Update pill styles
+      body.querySelectorAll(".soap-cat-pill").forEach(p => {
+        p.className = "soap-cat-pill" + (p.dataset.cat === _soapScreenCat ? ` active-${type}` : "");
+      });
+      // Show write area
+      const writeArea = body.querySelector(".soap-write-area");
+      if (writeArea) {
+        writeArea.hidden = false;
+        body.querySelector(".soap-write-textarea")?.focus();
+      }
+    };
+  });
+
+  // Bind save
+  const saveBtn = document.getElementById("soapWriteSave");
+  if (saveBtn) {
+    saveBtn.onclick = () => {
+      const ta = document.getElementById("soapWriteTA");
+      const text = ta?.value.trim();
+      if (!text || !_soapScreenCat) return;
+
+      const entry = {
+        id: Date.now() + "_" + Math.random().toString(36).slice(2, 7),
+        category: _soapScreenCat,
+        text,
+        passage: _soapScreenPassage,
+        time: Date.now()
+      };
+
+      const entries = _getSoapEntries(type);
+      entries.unshift(entry);
+      _saveSoapEntries(type, entries);
+      _flushSoapToFirebase(type);
+
+      // Re-render to show new entry
+      _soapScreenCat = null;
+      _renderSoapScreenContent();
+    };
+  }
+
+  // Auto-resize textarea
+  const ta = document.getElementById("soapWriteTA");
+  if (ta) {
+    ta.addEventListener("input", () => {
+      ta.style.height = "auto";
+      ta.style.height = Math.min(ta.scrollHeight, 140) + "px";
+    });
+  }
+
+  // Bind delete buttons
+  _bindSoapScreenDeleteButtons();
+}
+
+function _soapScreenEntryHTML(entry, type) {
+  return `
+    <div class="soap-entry-item" data-soap-sid="${entry.id}">
+      <span class="soap-entry-item-cat cat-${type}">${_escHtml(entry.category)}</span>
+      <span class="soap-entry-item-text">${_escHtml(entry.text)}</span>
+      <button class="soap-entry-item-del" data-sid="${entry.id}" data-stype="${type}">
+        <span class="material-icons">close</span>
+      </button>
+    </div>`;
+}
+
+function _bindSoapScreenDeleteButtons() {
+  document.querySelectorAll(".soap-entry-item-del").forEach(btn => {
+    btn.onclick = () => {
+      const id = btn.dataset.sid;
+      const type = btn.dataset.stype;
+      const entries = _getSoapEntries(type).filter(e => e.id !== id);
+      _saveSoapEntries(type, entries);
+      _flushSoapToFirebase(type);
+      const item = btn.closest(".soap-entry-item");
+      if (item) {
+        item.style.opacity = "0";
+        item.style.transform = "scale(0.95)";
+        item.style.transition = "all 0.2s";
+        setTimeout(() => {
+          item.remove();
+          // Update label visibility
+          const list = document.getElementById("soapEntryList");
+          if (list && !list.children.length) {
+            const label = document.querySelector(".soap-entries-label");
+            if (label) label.remove();
+          }
+        }, 200);
+      }
+    };
+  });
+}
+
 function _soapStorageKey(type) { return `soap_${type}`; }
 
 function _getSoapEntries(type) {
@@ -6563,11 +6836,28 @@ function _saveSoapEntries(type, entries) {
   localStorage.setItem(_soapStorageKey(type), JSON.stringify(entries));
 }
 
+function _flushSoapToFirebase(type) {
+  if (typeof _fbDb === 'undefined' || !_fbDb || !_syncEnabled) return;
+  const key = _soapStorageKey(type);
+  const val = localStorage.getItem(key);
+  if (val === null) return;
+  const encodedKey = key.replace(/\./g, "__DOT__").replace(/\//g, "__SL__");
+  clearTimeout(_syncDebounceTimers[encodedKey]);
+  _ignoreRemoteUpdate = true;
+  _fbDb.ref(`${RTDB_PATH}/${encodedKey}`).set(val).then(() => {
+    _ignoreRemoteUpdate = false;
+  }).catch(() => { _ignoreRemoteUpdate = false; });
+}
+
 function _soapAPButtonsHTML(book, chapter, verse) {
   return `
     <div class="soap-ap-buttons">
-      <button class="soap-ap-btn" data-soap-type="application">Add Application</button>
-      <button class="soap-ap-btn" data-soap-type="prayer">Add Prayer</button>
+      <button class="soap-ap-btn soap-ap-btn--application" data-soap-type="application">
+        <span class="material-icons">edit_note</span> Application
+      </button>
+      <button class="soap-ap-btn soap-ap-btn--prayer" data-soap-type="prayer">
+        <span class="material-icons">volunteer_activism</span> Prayer
+      </button>
     </div>
     <div class="soap-ap-stack"></div>
   `;
@@ -6587,19 +6877,23 @@ function _bindSoapAPButtons(container, book, chapter, verse) {
 }
 
 function _appendSoapPicker(stack, type, book, chapter, verse) {
-  const label = type === "application" ? "Application" : "Prayer";
+  const isApp = type === "application";
+  const label = isApp ? "Application" : "Prayer";
+  const icon = isApp ? "edit_note" : "volunteer_activism";
+  const placeholder = isApp
+    ? "How will you apply this to your life today?"
+    : "Write your prayer to God here...";
   const picker = document.createElement("div");
-  picker.className = "soap-picker";
+  picker.className = `soap-picker soap-picker--${type}`;
   picker.dataset.soapPickerType = type;
   picker.style.animation = "aiFadeSlideIn .25s ease-out";
   picker.innerHTML = `
-    <div class="soap-picker-header">${label}</div>
     <div class="soap-pill-row">
       ${SOAP_CATEGORIES.map(c => `<button class="soap-pill" data-cat="${_escHtml(c)}">${_escHtml(c)}</button>`).join("")}
     </div>
     <div class="soap-writer" hidden>
-      <textarea class="soap-textarea" placeholder="Write here..." rows="1"></textarea>
-      <button class="soap-writer-save">Save</button>
+      <textarea class="soap-textarea" placeholder="${placeholder}" rows="1"></textarea>
+      <button class="soap-writer-save${isApp ? ' soap-writer-save--application' : ''}">Save</button>
     </div>
   `;
   stack.appendChild(picker);
@@ -6650,12 +6944,11 @@ function _appendSoapPicker(stack, type, book, chapter, verse) {
 
 function _createSoapEntryCard(entry, type) {
   const card = document.createElement("div");
-  card.className = "soap-entry-card";
+  card.className = `soap-entry-card soap-entry-card--${type}`;
   card.style.animation = "aiFadeSlideIn .25s ease-out";
   card.dataset.soapId = entry.id;
-  const label = type === "application" ? "Application" : "Prayer";
   card.innerHTML = `
-    <div class="soap-entry-tag">${_escHtml(entry.category)} · ${label}</div>
+    <div class="soap-entry-tag">${_escHtml(entry.category)}</div>
     <span class="soap-entry-text" data-soap-id="${entry.id}" data-soap-type="${type}">${_escHtml(entry.text)}</span>
     <button class="soap-entry-edit" title="Edit"><span class="material-icons">edit</span></button>
   `;
@@ -6680,6 +6973,7 @@ function _createSoapEntryCard(entry, type) {
       // Empty = delete
       const entries = _getSoapEntries(type).filter(e => e.id !== entry.id);
       _saveSoapEntries(type, entries);
+      _flushSoapToFirebase(type);
       card.style.opacity = "0";
       card.style.transition = "opacity .2s";
       setTimeout(() => card.remove(), 200);
@@ -6700,15 +6994,20 @@ function _createSoapEntryCard(entry, type) {
 /* ── SOAP Dashboard Sections ── */
 
 function _renderSoapDashboardSection(type) {
-  const label = type === "application" ? "Applications" : "Prayers";
-  const icon = type === "application" ? "edit_note" : "volunteer_activism";
+  const isApp = type === "application";
+  const label = isApp ? "Applications" : "Prayers";
+  const icon = isApp ? "edit_note" : "volunteer_activism";
   const entries = _getSoapEntries(type);
 
   if (!entries.length) {
     return `
-      <section class="dashboard-section soap-dash-section soap-dash-empty">
-        <h3><span class="material-icons dashboard-icon">${icon}</span> ${label}</h3>
-        <p class="empty-state">No ${label.toLowerCase()} yet. Open Dig Deeper on any passage to add one!</p>
+      <section class="dashboard-section soap-dash-section soap-dash-empty soap-dash--${type}">
+        <h3><span class="material-icons dashboard-icon soap-dash-icon--${type}">${icon}</span> ${label}</h3>
+        <div class="soap-empty-state">
+          <span class="material-icons soap-empty-icon">${icon}</span>
+          <p class="soap-empty-text">No ${label.toLowerCase()} yet</p>
+          <p class="soap-empty-hint">Open <strong>Dig Deeper</strong> on any passage to add one</p>
+        </div>
       </section>`;
   }
 
@@ -6722,97 +7021,167 @@ function _renderSoapDashboardSection(type) {
   const activeCats = SOAP_CATEGORIES.filter(c => grouped[c].length > 0);
 
   return `
-    <section class="dashboard-section soap-dash-section">
+    <section class="dashboard-section soap-dash-section soap-dash--${type}">
       <h3 style="display:flex;justify-content:space-between;align-items:center;">
-        <span><span class="material-icons dashboard-icon">${icon}</span> ${label}</span>
+        <span><span class="material-icons dashboard-icon soap-dash-icon--${type}">${icon}</span> ${label}</span>
         <span class="soap-dash-count">${entries.length}</span>
       </h3>
       <div class="soap-dash-pills" data-soap-dash-type="${type}">
         <button class="soap-dash-pill active" data-filter="all">All</button>
         ${activeCats.map(c => `<button class="soap-dash-pill" data-filter="${_escHtml(c)}">${_escHtml(c)} <span class="soap-dash-pill-count">${grouped[c].length}</span></button>`).join("")}
       </div>
-      <div class="soap-dash-list" data-soap-dash-list="${type}">
-        ${entries.slice(0, 10).map(e => _soapDashCardHTML(e, type)).join("")}
+      <div class="soap-stack-wrap" data-soap-stack-type="${type}" data-soap-stack-idx="0">
+        <div class="soap-stack" data-soap-dash-list="${type}">
+          <div class="soap-stack-card c3"></div>
+          <div class="soap-stack-card c2"></div>
+          <div class="soap-stack-card c1" id="soapStackFront_${type}"></div>
+        </div>
+        <div class="soap-stack-nav">
+          <button class="soap-stack-prev" data-stack-type="${type}"><span class="material-symbols-outlined">chevron_left</span></button>
+          <span class="soap-stack-counter" id="soapStackCounter_${type}"></span>
+          <button class="soap-stack-next" data-stack-type="${type}"><span class="material-symbols-outlined">chevron_right</span></button>
+        </div>
       </div>
-      ${entries.length > 10 ? `<button class="soap-dash-show-all" data-soap-show-type="${type}">Show all ${entries.length} →</button>` : ""}
     </section>`;
 }
 
-function _soapDashCardHTML(entry, type) {
-  const dateStr = new Date(entry.time).toLocaleDateString("en-US", { month: "short", day: "numeric" });
-  return `
-    <div class="soap-dash-card" data-soap-cat="${_escHtml(entry.category)}" data-soap-id="${entry.id}">
-      <div class="soap-dash-card-top">
-        <span class="soap-dash-cat-badge">${_escHtml(entry.category)}</span>
-        <span class="soap-dash-card-date">${dateStr}</span>
-        <button class="soap-dash-card-del" data-soap-del-id="${entry.id}" data-soap-del-type="${type}" title="Delete">
-          <span class="material-icons">close</span>
-        </button>
-      </div>
-      <div class="soap-dash-card-text" contenteditable="true" data-soap-edit-id="${entry.id}" data-soap-edit-type="${type}">${_escHtml(entry.text)}</div>
-      <div class="soap-dash-card-passage">${_escHtml(entry.passage)}</div>
-    </div>`;
+function _soapDashCardHTML(entry, type) { return ''; /* unused, replaced by stack */ }
+
+/* ── Stack card rendering + navigation ── */
+const _soapStackState = {};
+
+function _getFilteredSoapEntries(type) {
+  const wrap = document.querySelector(`[data-soap-stack-type="${type}"]`);
+  const filter = wrap?.dataset.soapStackFilter || "all";
+  const entries = _getSoapEntries(type);
+  return filter === "all" ? entries : entries.filter(e => e.category === filter);
+}
+
+function _renderSoapStackCard(type) {
+  const entries = _getFilteredSoapEntries(type);
+  const wrap = document.querySelector(`[data-soap-stack-type="${type}"]`);
+  if (!wrap) return;
+  let idx = parseInt(wrap.dataset.soapStackIdx) || 0;
+  if (idx >= entries.length) idx = 0;
+  if (idx < 0) idx = entries.length - 1;
+  wrap.dataset.soapStackIdx = idx;
+
+  const front = document.getElementById(`soapStackFront_${type}`);
+  const counter = document.getElementById(`soapStackCounter_${type}`);
+  const c2 = wrap.querySelector(".soap-stack-card.c2");
+  const c3 = wrap.querySelector(".soap-stack-card.c3");
+
+  if (!entries.length) {
+    front.innerHTML = `<div class="soap-stack-empty"><span class="material-icons" style="font-size:28px;opacity:0.15">edit_note</span></div>`;
+    if (counter) counter.textContent = "";
+    if (c2) c2.style.display = "none";
+    if (c3) c3.style.display = "none";
+    return;
+  }
+
+  const e = entries[idx];
+  const dateStr = new Date(e.time).toLocaleDateString("en-US", { month: "short", day: "numeric" });
+  const isApp = type === "application";
+
+  front.innerHTML = `
+    <div class="soap-stack-cat ${isApp ? 'cat-app' : 'cat-pray'}">${_escHtml(e.category)}</div>
+    <div class="soap-stack-text">${_escHtml(e.text)}</div>
+    <div class="soap-stack-foot">
+      <span>${_escHtml(e.passage)}</span>
+      <span>${dateStr}</span>
+    </div>
+    <button class="soap-stack-del" data-soap-del-id="${e.id}" data-soap-del-type="${type}">
+      <span class="material-icons">close</span>
+    </button>
+  `;
+  front.className = `soap-stack-card c1 soap-stack-card--${type}`;
+
+  if (counter) counter.textContent = `${idx + 1} of ${entries.length}`;
+  if (c2) c2.style.display = entries.length > 1 ? "" : "none";
+  if (c3) c3.style.display = entries.length > 2 ? "" : "none";
+
+  // Bind delete
+  const delBtn = front.querySelector(".soap-stack-del");
+  if (delBtn) {
+    delBtn.onclick = (ev) => {
+      ev.stopPropagation();
+      const id = delBtn.dataset.soapDelId;
+      const t = delBtn.dataset.soapDelType;
+      const arr = _getSoapEntries(t).filter(x => x.id !== id);
+      _saveSoapEntries(t, arr);
+      _flushSoapToFirebase(t);
+      // Re-render stack
+      const filtered = _getFilteredSoapEntries(t);
+      if (idx >= filtered.length) wrap.dataset.soapStackIdx = Math.max(0, filtered.length - 1);
+      _renderSoapStackCard(t);
+      // Update section count
+      const section = wrap.closest(".soap-dash-section");
+      if (section) {
+        const countEl = section.querySelector(".soap-dash-count");
+        if (countEl) countEl.textContent = _getSoapEntries(t).length;
+        if (!_getSoapEntries(t).length) {
+          section.outerHTML = _renderSoapDashboardSection(t);
+          _bindSoapDashboard();
+        }
+      }
+    };
+  }
+}
+
+function _bindSoapStackNav() {
+  document.querySelectorAll(".soap-stack-prev").forEach(btn => {
+    btn.onclick = () => {
+      const type = btn.dataset.stackType;
+      const wrap = document.querySelector(`[data-soap-stack-type="${type}"]`);
+      if (!wrap) return;
+      let idx = parseInt(wrap.dataset.soapStackIdx) || 0;
+      const entries = _getFilteredSoapEntries(type);
+      wrap.dataset.soapStackIdx = (idx - 1 + entries.length) % entries.length;
+      // Animate
+      const front = wrap.querySelector(".c1");
+      if (front) { front.style.animation = "none"; front.offsetHeight; front.style.animation = "stackFlip 0.25s ease-out"; }
+      _renderSoapStackCard(type);
+    };
+  });
+  document.querySelectorAll(".soap-stack-next").forEach(btn => {
+    btn.onclick = () => {
+      const type = btn.dataset.stackType;
+      const wrap = document.querySelector(`[data-soap-stack-type="${type}"]`);
+      if (!wrap) return;
+      let idx = parseInt(wrap.dataset.soapStackIdx) || 0;
+      const entries = _getFilteredSoapEntries(type);
+      wrap.dataset.soapStackIdx = (idx + 1) % entries.length;
+      const front = wrap.querySelector(".c1");
+      if (front) { front.style.animation = "none"; front.offsetHeight; front.style.animation = "stackFlip 0.25s ease-out"; }
+      _renderSoapStackCard(type);
+    };
+  });
 }
 
 function _bindSoapDashboard() {
+  // Filter pills → update stack filter and re-render
   document.querySelectorAll(".soap-dash-pills").forEach(pillRow => {
     const type = pillRow.dataset.soapDashType;
-    const list = document.querySelector(`[data-soap-dash-list="${type}"]`);
-    if (!list) return;
     pillRow.querySelectorAll(".soap-dash-pill").forEach(pill => {
       pill.onclick = () => {
         pillRow.querySelectorAll(".soap-dash-pill").forEach(p => p.classList.remove("active"));
         pill.classList.add("active");
-        const filter = pill.dataset.filter;
-        list.querySelectorAll(".soap-dash-card").forEach(card => {
-          card.style.display = (filter === "all" || card.dataset.soapCat === filter) ? "" : "none";
-        });
+        const wrap = document.querySelector(`[data-soap-stack-type="${type}"]`);
+        if (wrap) {
+          wrap.dataset.soapStackFilter = pill.dataset.filter;
+          wrap.dataset.soapStackIdx = "0";
+        }
+        _renderSoapStackCard(type);
       };
     });
   });
 
-  document.querySelectorAll(".soap-dash-show-all").forEach(btn => {
-    btn.onclick = () => {
-      const type = btn.dataset.soapShowType;
-      const entries = _getSoapEntries(type);
-      const list = document.querySelector(`[data-soap-dash-list="${type}"]`);
-      if (!list) return;
-      list.innerHTML = entries.map(e => _soapDashCardHTML(e, type)).join("");
-      btn.hidden = true;
-      _bindSoapDeleteButtons();
-      _bindSoapDashEditables();
-    };
-  });
-
-  _bindSoapDeleteButtons();
-  _bindSoapDashEditables();
+  // Initialize stacks
+  ["application", "prayer"].forEach(t => _renderSoapStackCard(t));
+  _bindSoapStackNav();
 }
 
-function _bindSoapDeleteButtons() {
-  document.querySelectorAll(".soap-dash-card-del").forEach(btn => {
-    btn.onclick = (e) => {
-      e.stopPropagation();
-      const id = btn.dataset.soapDelId;
-      const type = btn.dataset.soapDelType;
-      const entries = _getSoapEntries(type).filter(e => e.id !== id);
-      _saveSoapEntries(type, entries);
-      const card = btn.closest(".soap-dash-card");
-      if (card) {
-        card.style.opacity = "0";
-        card.style.transform = "scale(0.95)";
-        setTimeout(() => {
-          card.remove();
-          // Re-render the whole section to update counts / empty state
-          const section = document.querySelector(`[data-soap-dash-list="${type}"]`)?.closest(".soap-dash-section");
-          if (section) {
-            section.outerHTML = _renderSoapDashboardSection(type);
-            _bindSoapDashboard();
-          }
-        }, 200);
-      }
-    };
-  });
-}
+function _bindSoapDeleteButtons() { /* handled by stack nav */ }
 
 function _bindSoapDashEditables() {
   document.querySelectorAll("[data-soap-edit-id]").forEach(el => {
