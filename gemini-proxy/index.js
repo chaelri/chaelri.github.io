@@ -277,6 +277,55 @@ app.get("/admin-stats", async (req, res) => {
   }
 });
 
+// ── Image generation via Imagen (Gemini 2.5 Flash) ──
+app.post("/generate-image", async (req, res) => {
+  try {
+    const { prompt, aspectRatio } = req.body;
+    if (!prompt) return res.status(400).json({ error: "Missing prompt" });
+
+    const model = "gemini-2.5-flash-image";
+    const url = `https://generativelanguage.googleapis.com/v1beta/models/${model}:generateContent?key=${process.env.GEMINI_API_KEY}`;
+
+    const body = {
+      contents: [{ parts: [{ text: prompt }] }],
+      generationConfig: {
+        responseModalities: ["IMAGE"],
+        imageConfig: {
+          aspectRatio: aspectRatio || "9:16",
+        },
+      },
+    };
+
+    const r = await fetch(url, {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify(body),
+    });
+
+    const data = await r.json();
+
+    // Extract image from response
+    const parts = data.candidates?.[0]?.content?.parts || [];
+    const imagePart = parts.find((p) => p.inlineData);
+
+    if (!imagePart) {
+      const textPart = parts.find((p) => p.text);
+      return res.status(422).json({
+        error: "No image generated",
+        detail: textPart?.text || "Model returned no image",
+      });
+    }
+
+    res.json({
+      image: imagePart.inlineData.data,
+      mimeType: imagePart.inlineData.mimeType || "image/png",
+    });
+  } catch (e) {
+    console.error("Image gen error:", e);
+    res.status(500).json({ error: "Image generation failed" });
+  }
+});
+
 // ── Health check ──
 app.get("/", (req, res) => res.json({ status: "ok" }));
 

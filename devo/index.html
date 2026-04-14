@@ -387,6 +387,62 @@
       </div>
     </div>
 
+    <!-- IMAGE CREATOR PANEL -->
+    <div id="imgCreatorPanel" class="imgcr-panel" hidden>
+      <div class="imgcr-bar">
+        <button class="imgcr-back" id="imgCreatorBack">
+          <span class="material-symbols-outlined">arrow_back_ios</span>
+        </button>
+        <span class="imgcr-bar-title" id="imgCreatorTitle">Create Scene</span>
+      </div>
+      <div class="imgcr-scroll">
+        <!-- Mode toggle -->
+        <div class="imgcr-mode-row">
+          <button class="imgcr-mode-btn active" data-mode="scene" id="imgcrModeScene">
+            <span class="material-icons">landscape</span> Scene
+          </button>
+          <button class="imgcr-mode-btn" data-mode="verse" id="imgcrModeVerse">
+            <span class="material-icons">format_quote</span> Verse Card
+          </button>
+        </div>
+
+        <!-- Passage selector -->
+        <div class="imgcr-passage-row">
+          <select class="imgcr-select" id="imgcrBook"></select>
+          <select class="imgcr-select" id="imgcrChapter"></select>
+          <select class="imgcr-select" id="imgcrVerse">
+            <option value="">Whole chapter</option>
+          </select>
+        </div>
+
+        <!-- Aspect ratio (scene only) -->
+        <div class="imgcr-aspect-row" id="imgcrAspectRow">
+          <button class="imgcr-aspect-btn active" data-ratio="9:16">9:16</button>
+          <button class="imgcr-aspect-btn" data-ratio="1:1">1:1</button>
+          <button class="imgcr-aspect-btn" data-ratio="16:9">16:9</button>
+        </div>
+
+        <!-- Generate -->
+        <button class="imgcr-gen-btn" id="imgcrGenBtn">
+          <span class="material-icons">auto_awesome</span>
+          Generate
+        </button>
+
+        <!-- Preview -->
+        <div class="imgcr-preview" id="imgcrPreview"></div>
+
+        <!-- Actions (hidden until image is generated) -->
+        <div class="imgcr-actions" id="imgcrActions" hidden>
+          <button class="imgcr-action-btn" id="imgcrDownload">
+            <span class="material-icons">download</span> Save
+          </button>
+          <button class="imgcr-action-btn" id="imgcrShare">
+            <span class="material-icons">share</span> Share
+          </button>
+        </div>
+      </div>
+    </div>
+
     <!-- SOAP List Panel (All Applications / All Prayers) -->
     <div id="soapListPanel" class="soap-list-panel" hidden>
       <div class="soap-list-bar">

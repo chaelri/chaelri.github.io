@@ -28,6 +28,140 @@ async function callGemini(prompt) {
   return data?.candidates?.[0]?.content?.parts?.[0]?.text || '';
 }
 
+/* ---------- SHARED: Generate Image via Proxy + IndexedDB Cache ---------- */
+const _imageCache = {};
+const _IMG_DB_NAME = "devo-cache";
+const _IMG_DB_VER = 2;
+const _IMG_STORE = "images";
+const _STORY_STORE = "stories";
+const _IMG_MAX_AGE = 7 * 24 * 60 * 60 * 1000; // 7 days
+const _STORY_MAX_AGE = 7 * 24 * 60 * 60 * 1000; // 7 days
+
+function _openImageDB() {
+  return new Promise((resolve, reject) => {
+    const req = indexedDB.open(_IMG_DB_NAME, _IMG_DB_VER);
+    req.onupgradeneeded = () => {
+      const db = req.result;
+      if (!db.objectStoreNames.contains(_IMG_STORE)) {
+        db.createObjectStore(_IMG_STORE, { keyPath: "key" });
+      }
+      if (!db.objectStoreNames.contains(_STORY_STORE)) {
+        db.createObjectStore(_STORY_STORE, { keyPath: "key" });
+      }
+    };
+    req.onsuccess = () => resolve(req.result);
+    req.onerror = () => reject(req.error);
+  });
+}
+
+async function _getImageFromIDB(key) {
+  try {
+    const db = await _openImageDB();
+    return new Promise((resolve) => {
+      const tx = db.transaction(_IMG_STORE, "readonly");
+      const store = tx.objectStore(_IMG_STORE);
+      const req = store.get(key);
+      req.onsuccess = () => {
+        const entry = req.result;
+        if (entry && Date.now() - entry.time < _IMG_MAX_AGE) resolve(entry.dataUrl);
+        else resolve(null);
+      };
+      req.onerror = () => resolve(null);
+    });
+  } catch { return null; }
+}
+
+async function _saveImageToIDB(key, dataUrl) {
+  try {
+    const db = await _openImageDB();
+    const tx = db.transaction(_IMG_STORE, "readwrite");
+    tx.objectStore(_IMG_STORE).put({ key, dataUrl, time: Date.now() });
+  } catch {}
+}
+
+/* ── Story AI cache (glance + segments + closing) ── */
+
+async function _getStoryCache(key) {
+  try {
+    const db = await _openImageDB();
+    return new Promise((resolve) => {
+      const tx = db.transaction(_STORY_STORE, "readonly");
+      const req = tx.objectStore(_STORY_STORE).get(key);
+      req.onsuccess = () => {
+        const entry = req.result;
+        if (entry && Date.now() - entry.time < _STORY_MAX_AGE) resolve(entry.data);
+        else resolve(null);
+      };
+      req.onerror = () => resolve(null);
+    });
+  } catch { return null; }
+}
+
+async function _saveStoryCache(key, data) {
+  try {
+    const db = await _openImageDB();
+    const tx = db.transaction(_STORY_STORE, "readwrite");
+    tx.objectStore(_STORY_STORE).put({ key, data, time: Date.now() });
+  } catch {}
+}
+
+// Purge expired entries on startup (images: 1 day, stories: 7 days)
+(async function _purgeExpiredCache() {
+  try {
+    const db = await _openImageDB();
+    const purge = (storeName, maxAge) => {
+      const tx = db.transaction(storeName, "readwrite");
+      const req = tx.objectStore(storeName).openCursor();
+      req.onsuccess = () => {
+        const cursor = req.result;
+        if (!cursor) return;
+        if (Date.now() - cursor.value.time >= maxAge) cursor.delete();
+        cursor.continue();
+      };
+    };
+    purge(_IMG_STORE, _IMG_MAX_AGE);
+    purge(_STORY_STORE, _STORY_MAX_AGE);
+  } catch {}
+})();
+
+async function callImageGen(prompt, aspectRatio = "9:16") {
+  // Hash the full prompt so different passages always get unique keys
+  let hash = 0;
+  for (let i = 0; i < prompt.length; i++) {
+    hash = ((hash << 5) - hash + prompt.charCodeAt(i)) | 0;
+  }
+  const cacheKey = "img_" + hash + "_" + aspectRatio;
+
+  // 1. Memory cache (instant)
+  if (_imageCache[cacheKey]) return _imageCache[cacheKey];
+
+  // 2. IndexedDB cache (persists across refreshes)
+  const cached = await _getImageFromIDB(cacheKey);
+  if (cached) {
+    _imageCache[cacheKey] = cached;
+    return cached;
+  }
+
+  // 3. Generate fresh
+  const res = await fetch(GEMINI_PROXY + "/generate-image", {
+    method: "POST",
+    headers: { "Content-Type": "application/json" },
+    body: JSON.stringify({ prompt, aspectRatio }),
+  });
+  if (!res.ok) throw new Error(`Image gen error: ${res.status}`);
+  const data = await res.json();
+  if (data.error) throw new Error(data.error);
+
+  const dataUrl = `data:${data.mimeType || "image/png"};base64,${data.image}`;
+  _imageCache[cacheKey] = dataUrl;
+  _saveImageToIDB(cacheKey, dataUrl); // fire-and-forget
+  return dataUrl;
+}
+
+function buildScenePrompt(bookName, chapter, verseRange, context) {
+  return `Biblical illustration, oil painting style, warm golden light, cinematic composition. Scene from ${bookName} chapter ${chapter}${verseRange ? " verses " + verseRange : ""}. ${context || ""}. No text, no words, no letters, no UI elements. Reverent, atmospheric, historically accurate clothing and setting.`;
+}
+
 /* ---------- SHARED: Markdown → HTML (white-on-gradient) ---------- */
 function mdToHTML(text) {
   if (!text) return '';
@@ -2023,7 +2157,8 @@ async function renderDashboard() {
     const ch = chIdx + 1;
     const seen = JSON.parse(localStorage.getItem("storySeenHistory") || "{}");
     const isSeen = !!seen[`${bookKey}_${ch}`];
-    return `<div class="dash-featured-story${isSeen ? ' dash-story-seen' : ''}" onclick="_openDailyStory('${bookKey}', ${ch})">
+    return `<div class="dash-featured-story${isSeen ? ' dash-story-seen' : ''}" id="dashFeaturedStory" onclick="_openDailyStory('${bookKey}', ${ch})" data-book="${bookKey}" data-book-name="${book.name}" data-ch="${ch}">
+      <div class="dash-featured-bg" id="dashFeaturedBg"></div>
       <div class="dash-featured-left">
         <div class="dash-featured-label"><span class="material-icons" style="font-size:14px;">auto_awesome</span> Today's Story</div>
         <div class="dash-featured-title">${book.name} ${ch}</div>
@@ -2105,6 +2240,23 @@ async function renderDashboard() {
         })()}
       </section>
 
+      <!-- CREATE & SHARE -->
+      <section class="dashboard-section dash-create-section">
+        <h3><span class="material-icons dashboard-icon">brush</span> Create & Share</h3>
+        <div class="dash-create-grid">
+          <button class="dash-create-card" onclick="openImageCreator('scene')">
+            <span class="material-icons dash-create-icon">landscape</span>
+            <div class="dash-create-label">Scene</div>
+            <div class="dash-create-desc">AI biblical illustration</div>
+          </button>
+          <button class="dash-create-card" onclick="openImageCreator('verse')">
+            <span class="material-icons dash-create-icon">format_quote</span>
+            <div class="dash-create-label">Verse Card</div>
+            <div class="dash-create-desc">Shareable modern design</div>
+          </button>
+        </div>
+      </section>
+
       <!-- SOAP: APPLICATIONS & PRAYERS (combined) -->
       ${_renderSoapDashCombined()}
 
@@ -2148,6 +2300,9 @@ async function renderDashboard() {
   // Bind SOAP A&P dashboard interactions
   _bindSoapDashboard();
 
+  // Generate featured story background image
+  _loadDashFeaturedImage();
+
   // One-time notification prompt (only after name is set)
   if (getUserName()
     && !localStorage.getItem("pushAsked")
@@ -2173,6 +2328,20 @@ function _typewriterReveal(el, msg) {
     }
   };
   type();
+}
+
+async function _loadDashFeaturedImage() {
+  const card = document.getElementById("dashFeaturedStory");
+  const bg = document.getElementById("dashFeaturedBg");
+  if (!card || !bg) return;
+  const bookName = card.dataset.bookName;
+  const ch = card.dataset.ch;
+  const prompt = buildScenePrompt(bookName, ch, null, "Overview scene of the entire chapter");
+  try {
+    const dataUrl = await callImageGen(prompt, "21:9");
+    bg.style.backgroundImage = `url(${dataUrl})`;
+    bg.classList.add("dash-featured-bg-loaded");
+  } catch {}
 }
 
 async function loadDashGreetingMsg() {
@@ -5018,6 +5187,28 @@ function ttsImmersiveOpen() {
   el.hidden = false;
 }
 
+async function _loadTtsImmersiveBg(bookName, ch) {
+  const el = document.getElementById("ttsImmersive");
+  if (!el || !bookName) return;
+  el.querySelector(".tts-imm-scene-bg")?.remove();
+  try {
+    const prompt = buildScenePrompt(bookName, ch, null, "Wide cinematic establishing shot, atmospheric, moody lighting, depth of field");
+    const dataUrl = await callImageGen(prompt, "9:16");
+    if (el.hidden) return;
+    const bg = document.createElement("div");
+    bg.className = "tts-imm-scene-bg";
+    const img = new Image();
+    img.style.cssText = "width:100%;height:100%;object-fit:cover;position:absolute;inset:0;";
+    img.onload = () => {
+      if (el.hidden) return;
+      el.prepend(bg);
+      requestAnimationFrame(() => requestAnimationFrame(() => bg.classList.add("visible")));
+    };
+    img.src = dataUrl;
+    bg.appendChild(img);
+  } catch {}
+}
+
 function ttsImmersiveClose() {
   const el = document.getElementById("ttsImmersive");
   if (el) el.hidden = true;
@@ -5105,6 +5296,9 @@ function ttsImmContextOpen(gen) {
   const ch = chapterEl?.value || "";
   const titleEl = document.getElementById("ttsImmTitle");
   if (titleEl) titleEl.textContent = name && ch ? `${name} ${ch}` : "";
+
+  // Generate immersive background image
+  _loadTtsImmersiveBg(name, ch);
 
   // Close button stops TTS
   document.getElementById("ttsImmCloseBtn").onclick = stopTTS;
@@ -5380,6 +5574,19 @@ function ttsImmReflectionShow(index) {
       doneBtn.hidden = false;
       doneBtn.onclick = () => stopTTS();
     }
+
+    // Generate a completion scene image
+    const reflSceneMnt = document.getElementById("ttsImmReflStatus");
+    if (reflSceneMnt) {
+      const name = BIBLE_META[bookEl?.value]?.name || "";
+      const ch = chapterEl?.value || "";
+      if (name && ch) {
+        reflSceneMnt.innerHTML = `<div class="refl-scene-wrap"><div class="story-scene-shimmer" style="width:100%;height:120px;border-radius:12px"></div></div>`;
+        callImageGen(buildScenePrompt(name, ch, null, "Peaceful closing scene, sunset, quiet moment of prayer and reflection"), "21:9").then(dataUrl => {
+          reflSceneMnt.innerHTML = `<div class="refl-scene-wrap"><img src="${dataUrl}" class="refl-scene-img" alt="Reflection scene"></div>`;
+        }).catch(() => { reflSceneMnt.innerHTML = ""; });
+      }
+    }
   }
 }
 
@@ -5466,11 +5673,22 @@ async function openStoryModal() {
   const { book, chapter, versesText } = window.__aiPayload;
 
   try {
-    const [glance, segments, closing] = await Promise.all([
-      fetchStoryGlance(book, chapter, versesText),
-      fetchStoryTimeline(book, chapter, versesText),
-      fetchStoryClosing(book, chapter, versesText),
-    ]);
+    const storyKey = `story_${book}_${chapter}`;
+    let glance, segments, closing;
+
+    const cached = await _getStoryCache(storyKey);
+    if (cached) {
+      glance = cached.glance;
+      segments = cached.segments;
+      closing = cached.closing;
+    } else {
+      [glance, segments, closing] = await Promise.all([
+        fetchStoryGlance(book, chapter, versesText),
+        fetchStoryTimeline(book, chapter, versesText),
+        fetchStoryClosing(book, chapter, versesText),
+      ]);
+      _saveStoryCache(storyKey, { glance, segments, closing });
+    }
 
     // Build slides array
     _storySlides.push({ type: "glance", data: glance, book, chapter });
@@ -5559,6 +5777,7 @@ function renderStorySlide() {
   // Fade transition
   content.classList.add("fade-out");
   setTimeout(() => {
+    content.scrollTop = 0;
     content.innerHTML = buildSlideHTML(slide);
     content.classList.remove("fade-out");
     content.classList.add("fade-in");
@@ -5566,7 +5785,18 @@ function renderStorySlide() {
     updateStoryNavButtons();
     // Wire segment footer buttons
     wireSegmentFooter(content);
+    // Prefetch next slide's image (one ahead only)
+    _prefetchNextStoryImage();
   }, 200);
+}
+
+function _prefetchNextStoryImage() {
+  const next = _storySlides[_storyIndex + 1];
+  if (!next || next.type !== "segment") return;
+  const seg = next.data;
+  const bookName = BIBLE_META[next.book]?.name || next.book;
+  const ctx = seg.title || seg.content?.quote || "";
+  callImageGen(buildScenePrompt(bookName, next.chapter, seg.verses, ctx), "16:9").catch(() => {});
 }
 
 function storyNext() {
@@ -5930,16 +6160,36 @@ function buildMapHTML({ data: segments, book, chapter }) {
 }
 
 function buildSegmentHTML({ data: seg, book, chapter }) {
-  let html;
+  let html = "";
+
+  // Scene image banner — starts hidden, expands in when image arrives
+  const sceneId = `scene_${book}_${chapter}_${(seg.verses || "").replace(/\D/g,"_")}`;
+  html += `<div class="story-scene-banner story-scene-hidden" id="${sceneId}"></div>`;
+
+  // Image gen fires in background — no shimmer, just appears when ready
+  const bookName = BIBLE_META[book]?.name || book;
+  const sceneCtx = seg.title || seg.content?.quote || "";
+  const imgPrompt = buildScenePrompt(bookName, chapter, seg.verses, sceneCtx);
+  callImageGen(imgPrompt, "16:9").then(dataUrl => {
+    const el = document.getElementById(sceneId);
+    if (!el) return;
+    const kb = ["kenBurns1","kenBurns2","kenBurns3"][Math.floor(Math.random()*3)];
+    el.innerHTML = `<img src="${dataUrl}" alt="Scene illustration" class="story-scene-img" style="--ken-burns:${kb}">`;
+    requestAnimationFrame(() => el.classList.remove("story-scene-hidden"));
+  }).catch(() => {
+    const el = document.getElementById(sceneId);
+    if (el) el.remove();
+  });
+
   switch (seg.displayType) {
-    case "conversation": html = buildConversationHTML(seg); break;
-    case "teaching": html = buildTeachingHTML(seg); break;
-    case "contrast": html = buildContrastHTML(seg); break;
+    case "conversation": html += buildConversationHTML(seg); break;
+    case "teaching": html += buildTeachingHTML(seg); break;
+    case "contrast": html += buildContrastHTML(seg); break;
     case "narration":
     case "sequence":
     case "list":
     default:
-      html = buildScrapbookHTML(seg); break;
+      html += buildScrapbookHTML(seg); break;
   }
   html += buildSegmentFooterHTML(seg, book, chapter);
   return html;
@@ -7554,4 +7804,200 @@ function _showSoapVersePopover(passage, anchorEl) {
   overlay.addEventListener("click", e => {
     if (e.target === overlay) overlay.remove();
   });
+}
+
+/* ═══════════════════════════════════════════════════════════════════════════
+   IMAGE CREATOR — Scene & Verse Card Generator
+   ═══════════════════════════════════════════════════════════════════════════ */
+
+let _imgcrMode = "scene";
+let _imgcrAspect = "9:16";
+let _imgcrLastDataUrl = null;
+
+function openImageCreator(mode) {
+  _imgcrMode = mode || "scene";
+  _imgcrLastDataUrl = null;
+  const panel = document.getElementById("imgCreatorPanel");
+  panel.hidden = false;
+  requestAnimationFrame(() => panel.classList.add("imgcr-open"));
+  document.getElementById("imgCreatorTitle").textContent = _imgcrMode === "scene" ? "Create Scene" : "Create Verse Card";
+  document.getElementById("imgcrModeScene").classList.toggle("active", _imgcrMode === "scene");
+  document.getElementById("imgcrModeVerse").classList.toggle("active", _imgcrMode === "verse");
+  document.getElementById("imgcrAspectRow").style.display = _imgcrMode === "scene" ? "flex" : "none";
+  _imgcrAspect = "9:16";
+  _imgcrPopulateBooks();
+  document.getElementById("imgcrPreview").innerHTML = "";
+  document.getElementById("imgcrActions").hidden = true;
+  document.getElementById("imgCreatorBack").onclick = closeImageCreator;
+  document.getElementById("imgcrModeScene").onclick = () => _imgcrSwitchMode("scene");
+  document.getElementById("imgcrModeVerse").onclick = () => _imgcrSwitchMode("verse");
+  document.getElementById("imgcrGenBtn").onclick = _imgcrGenerate;
+  document.querySelectorAll(".imgcr-aspect-btn").forEach(btn => {
+    btn.classList.toggle("active", btn.dataset.ratio === _imgcrAspect);
+    btn.onclick = () => {
+      document.querySelectorAll(".imgcr-aspect-btn").forEach(b => b.classList.remove("active"));
+      btn.classList.add("active");
+      _imgcrAspect = btn.dataset.ratio;
+    };
+  });
+  document.getElementById("imgcrDownload").onclick = _imgcrDownload;
+  document.getElementById("imgcrShare").onclick = _imgcrShare;
+}
+
+function closeImageCreator() {
+  const panel = document.getElementById("imgCreatorPanel");
+  panel.classList.remove("imgcr-open");
+  panel.addEventListener("transitionend", () => { panel.hidden = true; }, { once: true });
+}
+
+function _imgcrSwitchMode(mode) {
+  _imgcrMode = mode;
+  document.getElementById("imgCreatorTitle").textContent = mode === "scene" ? "Create Scene" : "Create Verse Card";
+  document.getElementById("imgcrModeScene").classList.toggle("active", mode === "scene");
+  document.getElementById("imgcrModeVerse").classList.toggle("active", mode === "verse");
+  document.getElementById("imgcrAspectRow").style.display = mode === "scene" ? "flex" : "none";
+  if (mode === "verse") _imgcrAspect = "9:16";
+}
+
+function _imgcrPopulateBooks() {
+  const bSel = document.getElementById("imgcrBook");
+  const cSel = document.getElementById("imgcrChapter");
+  const vSel = document.getElementById("imgcrVerse");
+  bSel.innerHTML = Object.keys(BIBLE_META).map(k => `<option value="${k}">${BIBLE_META[k].name}</option>`).join("");
+  if (bookEl?.value) bSel.value = bookEl.value;
+  const fillCh = () => {
+    const meta = BIBLE_META[bSel.value];
+    if (!meta) return;
+    cSel.innerHTML = meta.chapters.map((_, i) => `<option value="${i + 1}">${i + 1}</option>`).join("");
+    if (bSel.value === bookEl?.value && chapterEl?.value) cSel.value = chapterEl.value;
+    fillV();
+  };
+  const fillV = () => {
+    const meta = BIBLE_META[bSel.value];
+    if (!meta) return;
+    const count = meta.chapters[parseInt(cSel.value) - 1] || 30;
+    vSel.innerHTML = '<option value="">Whole chapter</option>' + Array.from({ length: count }, (_, i) => `<option value="${i + 1}">${i + 1}</option>`).join("");
+  };
+  bSel.onchange = fillCh;
+  cSel.onchange = fillV;
+  fillCh();
+}
+
+async function _imgcrGenerate() {
+  const btn = document.getElementById("imgcrGenBtn");
+  const preview = document.getElementById("imgcrPreview");
+  const actions = document.getElementById("imgcrActions");
+  const bookCode = document.getElementById("imgcrBook").value;
+  const chapter = document.getElementById("imgcrChapter").value;
+  const verse = document.getElementById("imgcrVerse").value;
+  const bookName = BIBLE_META[bookCode]?.name || bookCode;
+  btn.disabled = true;
+  btn.innerHTML = '<span class="material-icons">hourglass_top</span> Generating...';
+  actions.hidden = true;
+  const ratio = _imgcrMode === "verse" ? "9 / 16" : _imgcrAspect.replace(":", " / ");
+  preview.innerHTML = `<div class="imgcr-shimmer" style="aspect-ratio:${ratio}"></div>`;
+  try {
+    let dataUrl;
+    if (_imgcrMode === "scene") {
+      const prompt = buildScenePrompt(bookName, chapter, verse || null, "Highly detailed, dramatic, museum quality");
+      dataUrl = await callImageGen(prompt, _imgcrAspect);
+    } else {
+      dataUrl = await _imgcrBuildVerseCard(bookCode, bookName, chapter, verse);
+    }
+    _imgcrLastDataUrl = dataUrl;
+    preview.innerHTML = `<img src="${dataUrl}" alt="Generated image">`;
+    actions.hidden = false;
+  } catch {
+    preview.innerHTML = '<div style="text-align:center;color:rgba(255,255,255,0.3);padding:20px"><span class="material-icons" style="font-size:32px;display:block;margin-bottom:8px">error_outline</span>Failed to generate. Try again.</div>';
+  }
+  btn.disabled = false;
+  btn.innerHTML = '<span class="material-icons">auto_awesome</span> Generate';
+}
+
+async function _imgcrBuildVerseCard(bookCode, bookName, chapter, verse) {
+  let verseText = "", refLabel = bookName + " " + chapter;
+  if (verse) {
+    verseText = getVerseText(bookCode, chapter, verse);
+    refLabel = bookName + " " + chapter + ":" + verse;
+  } else {
+    const v1 = getVerseText(bookCode, chapter, "1");
+    const v2 = getVerseText(bookCode, chapter, "2");
+    verseText = v1 + (v2 && v2 !== "Verse text not found." ? " " + v2 : "");
+    refLabel = bookName + " " + chapter + ":1-2";
+  }
+  if (!verseText || verseText === "Verse text not found.") verseText = "The Lord is my shepherd; I shall not want.";
+
+  // Unique theme per passage so each verse gets a different design
+  const themes = ["soft golden light and warm earth tones", "cool blue twilight with silver accents", "warm sunset amber and deep burgundy", "gentle morning mist with sage greens", "deep indigo night sky with starlight", "rose gold and blush pink marble texture", "ocean teal with soft white foam patterns", "autumn bronze and deep forest green"];
+  const themeIdx = (bookCode.charCodeAt(0) + parseInt(chapter) + parseInt(verse || "0")) % themes.length;
+  const bgPrompt = "Abstract minimalist background for " + bookName + " " + chapter + (verse ? ":" + verse : "") + ". Style: " + themes[themeIdx] + ". Subtle light rays, elegant, modern, clean. No people, no objects, no text, no letters, no words.";
+  const bgDataUrl = await callImageGen(bgPrompt, "9:16");
+
+  const canvas = document.createElement("canvas");
+  canvas.width = 1080;
+  canvas.height = 1920;
+  const ctx = canvas.getContext("2d");
+
+  const bgImg = new Image();
+  await new Promise((res, rej) => { bgImg.onload = res; bgImg.onerror = rej; bgImg.src = bgDataUrl; });
+  ctx.drawImage(bgImg, 0, 0, 1080, 1920);
+
+  ctx.fillStyle = "rgba(0,0,0,0.35)";
+  ctx.fillRect(0, 0, 1080, 1920);
+
+  ctx.textAlign = "center";
+  const fs = verseText.length > 150 ? 48 : verseText.length > 80 ? 56 : 64;
+  const font = "300 " + fs + "px 'Google Sans Flex', 'Helvetica Neue', sans-serif";
+  ctx.font = font;
+  const maxW = 900, lh = fs * 1.5;
+  const words = verseText.split(" ");
+  const lines = [];
+  let cur = "";
+  for (const w of words) {
+    const test = cur ? cur + " " + w : w;
+    if (ctx.measureText(test).width > maxW && cur) { lines.push(cur); cur = w; }
+    else cur = test;
+  }
+  if (cur) lines.push(cur);
+
+  const totalH = lines.length * lh;
+  let y = (1920 - totalH) / 2 + fs;
+
+  ctx.font = "200 120px 'Google Sans Flex', serif";
+  ctx.fillStyle = "rgba(219,39,119,0.6)";
+  ctx.fillText("\u201C", 540, y - 50);
+
+  ctx.font = font;
+  ctx.fillStyle = "#ffffff";
+  for (const line of lines) { ctx.fillText(line, 540, y); y += lh; }
+
+  ctx.font = "600 36px 'Google Sans Flex', sans-serif";
+  ctx.fillStyle = "rgba(219,39,119,0.8)";
+  ctx.fillText(refLabel, 540, y + 40);
+
+  ctx.font = "400 28px 'Monsieur La Doulaise', cursive";
+  ctx.fillStyle = "rgba(255,255,255,0.25)";
+  ctx.fillText("devotion.", 540, 1860);
+
+  return canvas.toDataURL("image/png");
+}
+
+function _imgcrDownload() {
+  if (!_imgcrLastDataUrl) return;
+  const a = document.createElement("a");
+  a.href = _imgcrLastDataUrl;
+  a.download = "devotion-" + _imgcrMode + "-" + Date.now() + ".png";
+  a.click();
+}
+
+async function _imgcrShare() {
+  if (!_imgcrLastDataUrl) return;
+  try {
+    const res = await fetch(_imgcrLastDataUrl);
+    const blob = await res.blob();
+    const file = new File([blob], "devotion-" + _imgcrMode + ".png", { type: "image/png" });
+    if (navigator.share && navigator.canShare({ files: [file] })) {
+      await navigator.share({ files: [file], title: "Devotion" });
+    } else { _imgcrDownload(); }
+  } catch { _imgcrDownload(); }
 }
