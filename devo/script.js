@@ -148,9 +148,11 @@ async function callImageGen(prompt, aspectRatio = "9:16") {
     headers: { "Content-Type": "application/json" },
     body: JSON.stringify({ prompt, aspectRatio }),
   });
-  if (!res.ok) throw new Error(`Image gen error: ${res.status}`);
   const data = await res.json();
-  if (data.error) throw new Error(data.error);
+  if (!res.ok || data.error) {
+    const reason = data.detail || data.error || `Image gen error: ${res.status}`;
+    throw new Error(reason);
+  }
 
   const dataUrl = `data:${data.mimeType || "image/png"};base64,${data.image}`;
   _imageCache[cacheKey] = dataUrl;
@@ -159,7 +161,7 @@ async function callImageGen(prompt, aspectRatio = "9:16") {
 }
 
 function buildScenePrompt(bookName, chapter, verseRange, context) {
-  return `Biblical illustration, oil painting style, warm golden light, cinematic composition. Scene from ${bookName} chapter ${chapter}${verseRange ? " verses " + verseRange : ""}. ${context || ""}. No text, no words, no letters, no UI elements. Reverent, atmospheric, historically accurate clothing and setting.`;
+  return `Ultra-premium cinematic biblical scene from ${bookName} chapter ${chapter}${verseRange ? " verses " + verseRange : ""}. ${context || ""}. Extreme high-detail cinematic quality. Sharp facial features, natural skin texture, visible pores, realistic hair strands, crisp eyes, clean refined edges. High-contrast clarity, deep depth, balanced cinematic lighting. Poster-grade realism with dramatic but accurate detail. 8K resolution, studio-level sharpness. Photorealistic textures, historically accurate clothing and setting. Reverent, atmospheric. No text, no words, no letters, no UI elements, no verse text.`;
 }
 
 /* ---------- SHARED: Markdown → HTML (white-on-gradient) ---------- */
@@ -1559,21 +1561,20 @@ RULES:
       const questions = raw.split('\n').map(q => q.trim()).filter(q => q.length > 5).slice(0, 4);
       window._chatSuggestions[k] = questions;
 
-      el.innerHTML = questions.map(q =>
-        `<button class="chat-suggestion-chip">${q}</button>`
+      el.innerHTML = [...questions, _IMAGE_CHIP_TEXT].map(q =>
+        `<button class="chat-suggestion-chip${q === _IMAGE_CHIP_TEXT ? ' chat-img-chip' : ''}">${q}</button>`
       ).join('');
 
       el.querySelectorAll('.chat-suggestion-chip').forEach(chip => {
         chip.onclick = () => {
           const q = chip.textContent;
-          // Save remaining as follow-ups
           window._chatFollowups[k] = questions.filter(s => s !== q);
           performSend(q);
         };
       });
     } catch {
-      el.innerHTML = ['What does this verse mean?', 'How can I apply this today?', 'What is the historical context?'].map(q =>
-        `<button class="chat-suggestion-chip">${q}</button>`
+      el.innerHTML = ['What does this verse mean?', 'How can I apply this today?', _IMAGE_CHIP_TEXT].map(q =>
+        `<button class="chat-suggestion-chip${q === _IMAGE_CHIP_TEXT ? ' chat-img-chip' : ''}">${q}</button>`
       ).join('');
       el.querySelectorAll('.chat-suggestion-chip').forEach(chip => {
         chip.onclick = () => performSend(chip.textContent);
@@ -1618,8 +1619,22 @@ RULES:
     histEl.scrollTop = histEl.scrollHeight;
 
     try {
+      // Image generation request
+      if (_isImageRequest(question)) {
+        const isDefault = question === _IMAGE_CHIP_TEXT;
+        const prompt = isDefault
+          ? buildScenePrompt(book, chapter, verse, text.slice(0, 80))
+          : `Scene from ${book} ${chapter}:${verse}. "${text.slice(0, 80)}". User request: ${question}. No text, no words, no letters in the image.`;
+        const dataUrl = await callImageGen(prompt, "16:9");
+        verseChatHistories[key].push({ role: "model", image: dataUrl, text: "" });
+        typingEl.style.display = 'none';
+        renderChatHistory(key, histEl);
+        renderFollowups(key);
+        return;
+      }
+
       const historyStr = verseChatHistories[key].length > 1
-        ? `HISTORY: ${JSON.stringify(verseChatHistories[key].slice(-5))}`
+        ? `HISTORY: ${JSON.stringify(verseChatHistories[key].slice(-5).map(m => m.image ? { role: m.role, text: "[generated image]" } : m))}`
         : '';
 
       const answer = await callGemini(`You are a Bible study assistant. ${AI_TONE}
@@ -1644,8 +1659,10 @@ QUESTION: ${question}`);
       renderChatHistory(key, histEl);
       renderFollowups(key);
     } catch (err) {
+      console.error("[Verse Chat Error]", err);
       typingEl.style.display = 'none';
-      verseChatHistories[key].push({ role: "model", text: "Sorry, something went wrong." });
+      const msg = err?.message?.length > 10 && err.message.length < 200 ? err.message : "Sorry, something went wrong.";
+      verseChatHistories[key].push({ role: "model", text: msg });
       renderChatHistory(key, histEl);
     }
   };
@@ -1663,13 +1680,15 @@ function renderChatHistory(key, container) {
   const history = verseChatHistories[key] || [];
   const existing = container.children.length;
 
-  // Only append new messages beyond what's already rendered
   for (let i = existing; i < history.length; i++) {
     const msg = history[i];
     const div = document.createElement('div');
     if (msg.role === 'user') {
       div.className = 'chat-msg user chat-msg-new';
       div.innerHTML = msg.text;
+    } else if (msg.image) {
+      div.className = 'chat-msg bot chat-msg-new';
+      div.innerHTML = `<img src="${msg.image}" class="chat-gen-img" alt="Generated scene">`;
     } else {
       div.className = 'chat-msg bot chat-msg-new';
       div.innerHTML = msg.text
@@ -1679,6 +1698,16 @@ function renderChatHistory(key, container) {
     container.appendChild(div);
   }
   container.scrollTop = container.scrollHeight;
+}
+
+const _IMAGE_CHIP_TEXT = "Visualize this scene";
+
+function _isImageRequest(text) {
+  if (text === _IMAGE_CHIP_TEXT) return true;
+  const t = text.toLowerCase();
+  const hasSubject = /\b(image|picture|scene|illustration|visual|painting|art|photo|drawing|version)\b/.test(t);
+  const hasAction = /\b(make|generate|create|show|draw|paint|visualize|imagine|illustrate|depict|render|design)\b/.test(t);
+  return hasSubject && hasAction;
 }
 
 function _digDeeperEffectsHTML() {
@@ -6002,8 +6031,8 @@ RULES:
       if (!window._chatSuggestions) window._chatSuggestions = {};
       window._chatSuggestions[key] = questions;
 
-      suggestEl.innerHTML = questions.map(q =>
-        `<button class="chat-suggestion-chip">${q}</button>`
+      suggestEl.innerHTML = [...questions, _IMAGE_CHIP_TEXT].map(q =>
+        `<button class="chat-suggestion-chip${q === _IMAGE_CHIP_TEXT ? ' chat-img-chip' : ''}">${q}</button>`
       ).join('');
       suggestEl.querySelectorAll('.chat-suggestion-chip').forEach(chip => {
         chip.onclick = () => {
@@ -6014,7 +6043,7 @@ RULES:
         };
       });
     } catch {
-      suggestEl.innerHTML = ['What is the main message here?', 'How can I apply this today?', 'What connects these verses?'].map(q =>
+      suggestEl.innerHTML = ['What is the main message here?', 'How can I apply this today?', _IMAGE_CHIP_TEXT].map(q =>
         `<button class="chat-suggestion-chip">${q}</button>`
       ).join('');
       suggestEl.querySelectorAll('.chat-suggestion-chip').forEach(chip => {
@@ -6055,8 +6084,22 @@ RULES:
     histEl.scrollTop = histEl.scrollHeight;
 
     try {
+      // Image generation request
+      if (_isImageRequest(question)) {
+        const isDefault = question === _IMAGE_CHIP_TEXT;
+        const prompt = isDefault
+          ? buildScenePrompt(book, chapter, verses, passageText.slice(0, 80))
+          : `Scene from ${book} ${chapter}:${verses}. "${passageText.slice(0, 80)}". User request: ${question}. No text, no words, no letters in the image.`;
+        const dataUrl = await callImageGen(prompt, "16:9");
+        verseChatHistories[key].push({ role: "model", image: dataUrl, text: "" });
+        typingEl.style.display = 'none';
+        renderChatHistory(key, histEl);
+        renderStoryFollowups(key, followupsEl, performSend);
+        return;
+      }
+
       const historyStr = verseChatHistories[key].length > 1
-        ? `HISTORY: ${JSON.stringify(verseChatHistories[key].slice(-5))}`
+        ? `HISTORY: ${JSON.stringify(verseChatHistories[key].slice(-5).map(m => m.image ? { role: m.role, text: "[generated image]" } : m))}`
         : '';
 
       const answer = await callGemini(`You are a Bible study assistant. ${AI_TONE}
@@ -6079,9 +6122,11 @@ QUESTION: ${question}`);
       typingEl.style.display = 'none';
       renderChatHistory(key, histEl);
       renderStoryFollowups(key, followupsEl, performSend);
-    } catch {
+    } catch (err) {
+      console.error("[Story Chat Error]", err);
       typingEl.style.display = 'none';
-      verseChatHistories[key].push({ role: "model", text: "Sorry, something went wrong." });
+      const msg = err?.message?.length > 10 && err.message.length < 200 ? err.message : "Sorry, something went wrong.";
+      verseChatHistories[key].push({ role: "model", text: msg });
       renderChatHistory(key, histEl);
     }
   }
