@@ -124,8 +124,9 @@ async function _saveStoryCache(key, data) {
   } catch {}
 })();
 
+const _imageInflight = {}; // deduplicate concurrent requests for same prompt
+
 async function callImageGen(prompt, aspectRatio = "9:16") {
-  // Hash the full prompt so different passages always get unique keys
   let hash = 0;
   for (let i = 0; i < prompt.length; i++) {
     hash = ((hash << 5) - hash + prompt.charCodeAt(i)) | 0;
@@ -135,14 +136,18 @@ async function callImageGen(prompt, aspectRatio = "9:16") {
   // 1. Memory cache (instant)
   if (_imageCache[cacheKey]) return _imageCache[cacheKey];
 
-  // 2. IndexedDB cache (persists across refreshes)
+  // 2. Already in-flight? Wait for same promise instead of duplicating
+  if (_imageInflight[cacheKey]) return _imageInflight[cacheKey];
+
+  // 3. IndexedDB cache (persists across refreshes)
   const cached = await _getImageFromIDB(cacheKey);
   if (cached) {
     _imageCache[cacheKey] = cached;
     return cached;
   }
 
-  // 3. Generate fresh
+  // 4. Generate fresh — store the promise to deduplicate
+  _imageInflight[cacheKey] = (async () => {
   const res = await fetch(GEMINI_PROXY + "/generate-image", {
     method: "POST",
     headers: { "Content-Type": "application/json" },
@@ -154,14 +159,19 @@ async function callImageGen(prompt, aspectRatio = "9:16") {
     throw new Error(reason);
   }
 
-  const dataUrl = `data:${data.mimeType || "image/png"};base64,${data.image}`;
-  _imageCache[cacheKey] = dataUrl;
-  _saveImageToIDB(cacheKey, dataUrl); // fire-and-forget
-  return dataUrl;
+    const dataUrl = `data:${data.mimeType || "image/png"};base64,${data.image}`;
+    _imageCache[cacheKey] = dataUrl;
+    _saveImageToIDB(cacheKey, dataUrl);
+    delete _imageInflight[cacheKey];
+    return dataUrl;
+  })();
+
+  _imageInflight[cacheKey].catch(() => { delete _imageInflight[cacheKey]; });
+  return _imageInflight[cacheKey];
 }
 
 function buildScenePrompt(bookName, chapter, verseRange, context) {
-  return `Ultra-premium cinematic biblical scene from ${bookName} chapter ${chapter}${verseRange ? " verses " + verseRange : ""}. ${context || ""}. Extreme high-detail cinematic quality. Sharp facial features, natural skin texture, visible pores, realistic hair strands, crisp eyes, clean refined edges. High-contrast clarity, deep depth, balanced cinematic lighting. Poster-grade realism with dramatic but accurate detail. 8K resolution, studio-level sharpness. Photorealistic textures, historically accurate clothing and setting. Reverent, atmospheric. No text, no words, no letters, no UI elements, no verse text.`;
+  return `Ultra-premium cinematic biblical scene from ${bookName} chapter ${chapter}${verseRange ? " verses " + verseRange : ""}. ${context || ""}. Shot with shallow depth of field, f/1.4 aperture — main subject sharp and close to camera, background figures softly blurred with beautiful bokeh. Extreme high-detail cinematic quality. Sharp facial features, natural skin texture, realistic hair strands, crisp eyes. Balanced cinematic warm lighting. Poster-grade realism, 8K resolution, studio-level sharpness. Photorealistic textures, historically accurate clothing and setting. Reverent, atmospheric. IMPORTANT: Fill the entire frame edge to edge — absolutely NO black bars, NO letterboxing, NO borders, NO cinematic black strips on top or bottom. No text, no words, no letters, no UI elements.`;
 }
 
 /* ---------- SHARED: Markdown → HTML (white-on-gradient) ---------- */
@@ -1097,11 +1107,11 @@ async function ttsPlayAt(index, gen) {
 
     // Repurpose pause button as a single-verse retry
     const pauseBtn = document.getElementById("ttsPauseBtn");
-    const immPauseBtn = document.getElementById("ttsImmPauseBtn");
+    const immPauseBtn2 = document.getElementById("ttsImmPauseBtn");
     const retryIcon = '<span class="material-symbols-outlined">refresh</span>';
     const retryHandler = () => {
       if (pauseBtn) { pauseBtn.innerHTML = '<span class="material-symbols-outlined">pause</span>'; pauseBtn.onclick = pauseResumeTTS; }
-      if (immPauseBtn) { immPauseBtn.innerHTML = '<span class="material-symbols-outlined">pause</span>'; immPauseBtn.onclick = pauseResumeTTS; }
+      if (immPauseBtn2) { immPauseBtn2.innerHTML = '<span class="material-symbols-outlined">pause</span>'; immPauseBtn2.onclick = pauseResumeTTS; }
       item.url = null;
       item.ready = ttsSynthesize(item.text).then(
         ({ url, timepoints, words }) => { item.url = url; item.timepoints = timepoints; item.words = words; },
@@ -1110,7 +1120,7 @@ async function ttsPlayAt(index, gen) {
       ttsPlayAt(index, gen);
     };
     if (pauseBtn) { pauseBtn.innerHTML = retryIcon; pauseBtn.onclick = retryHandler; }
-    if (immPauseBtn) { immPauseBtn.innerHTML = retryIcon; immPauseBtn.onclick = retryHandler; }
+    if (immPauseBtn2) { immPauseBtn2.innerHTML = retryIcon; immPauseBtn2.onclick = retryHandler; }
   }
 }
 
@@ -6218,7 +6228,8 @@ function buildSegmentHTML({ data: seg, book, chapter }) {
   callImageGen(imgPrompt, "16:9").then(dataUrl => {
     const el = document.getElementById(sceneId);
     if (!el) return;
-    const kb = ["kenBurns1","kenBurns2","kenBurns3"][Math.floor(Math.random()*3)];
+    const kbIdx = (sceneId.charCodeAt(6) + sceneId.charCodeAt(sceneId.length - 1)) % 3;
+    const kb = ["kenBurns1","kenBurns2","kenBurns3"][kbIdx];
     el.innerHTML = `<img src="${dataUrl}" alt="Scene illustration" class="story-scene-img" style="--ken-burns:${kb}">`;
     requestAnimationFrame(() => el.classList.remove("story-scene-hidden"));
   }).catch(() => {
