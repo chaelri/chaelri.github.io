@@ -31,7 +31,7 @@ async function callGemini(prompt) {
 /* ---------- SHARED: Generate Image via Proxy + IndexedDB Cache ---------- */
 const _imageCache = {};
 const _IMG_DB_NAME = "devo-cache";
-const _IMG_DB_VER = 2;
+const _IMG_DB_VER = 3; // bumped to invalidate old cached images with black bars
 const _IMG_STORE = "images";
 const _STORY_STORE = "stories";
 const _IMG_MAX_AGE = 7 * 24 * 60 * 60 * 1000; // 7 days
@@ -42,9 +42,9 @@ function _openImageDB() {
     const req = indexedDB.open(_IMG_DB_NAME, _IMG_DB_VER);
     req.onupgradeneeded = () => {
       const db = req.result;
-      if (!db.objectStoreNames.contains(_IMG_STORE)) {
-        db.createObjectStore(_IMG_STORE, { keyPath: "key" });
-      }
+      // Delete and recreate image store on version bump to clear stale images
+      if (db.objectStoreNames.contains(_IMG_STORE)) db.deleteObjectStore(_IMG_STORE);
+      db.createObjectStore(_IMG_STORE, { keyPath: "key" });
       if (!db.objectStoreNames.contains(_STORY_STORE)) {
         db.createObjectStore(_STORY_STORE, { keyPath: "key" });
       }
