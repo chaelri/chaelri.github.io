@@ -7182,6 +7182,45 @@ button#storyBtn { background: unset; }
 .soap-dash-icon--application { color: #3b82f6 !important; }
 .soap-dash-icon--prayer { color: #db2777 !important; }
 
+/* ── Combined paired layout ── */
+.soap-dash-combined {
+  grid-column: 1 / -1;
+}
+.soap-dash-combined > .soap-dash-pills {
+  margin-bottom: 16px;
+  justify-content: center;
+}
+.soap-dash-pair {
+  display: grid;
+  grid-template-columns: 1fr;
+  gap: 24px;
+}
+@media (min-width: 600px) {
+  .soap-dash-pair {
+    grid-template-columns: 1fr 1fr;
+    gap: 28px;
+    justify-items: center;
+  }
+}
+.soap-dash-col {
+  width: 100%;
+  max-width: 400px;
+}
+.soap-dash-col-title {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  gap: 8px;
+  margin-bottom: 12px;
+  cursor: pointer;
+  transition: opacity 0.15s;
+  font-size: 1.1rem;
+  font-weight: 700;
+  color: white;
+}
+.soap-dash-col-title:hover { opacity: 0.7; }
+.light .soap-dash-col-title { color: #1a1a1a; }
+
 .soap-dash-section h3 { margin-bottom: 12px; }
 .soap-dash-empty {
   background: none !important;
@@ -7253,6 +7292,12 @@ button#storyBtn { background: unset; }
   color: #db2777;
   border-color: rgba(219,39,119,0.2);
 }
+/* Combined (unified) pills — gradient of both type colors */
+.soap-dash-combined .soap-dash-pill.active {
+  background: linear-gradient(135deg, rgba(59,130,246,0.08), rgba(219,39,119,0.08));
+  color: rgba(255,255,255,0.85);
+  border-color: rgba(255,255,255,0.15);
+}
 .soap-dash-pill-count {
   font-size: 10px;
   opacity: 0.5;
@@ -7294,6 +7339,7 @@ button#storyBtn { background: unset; }
   flex-direction: column;
   padding: 18px;
   z-index: 2;
+  cursor: pointer;
 }
 .soap-stack-card--application.c1 {
   background: linear-gradient(135deg, rgba(59,130,246,0.06), rgba(59,130,246,0.02));
@@ -7357,9 +7403,11 @@ button#storyBtn { background: unset; }
 
 .soap-stack-empty {
   display: flex;
+  flex-direction: column;
   align-items: center;
   justify-content: center;
   height: 100%;
+  text-align: center;
 }
 
 /* ── Stack navigation ── */
@@ -7409,6 +7457,12 @@ button#storyBtn { background: unset; }
   color: #db2777;
   border-color: rgba(219,39,119,0.15);
 }
+.light .soap-dash-combined .soap-dash-pill.active {
+  background: linear-gradient(135deg, rgba(37,99,235,0.06), rgba(219,39,119,0.06));
+  color: rgba(0,0,0,0.75);
+  border-color: rgba(0,0,0,0.12);
+}
+.light .soap-dash-col-title { color: #1a1a1a; }
 .light .soap-stack-card { background: rgba(0,0,0,0.02); border-color: rgba(0,0,0,0.06); }
 .light .soap-stack-card--application.c1 {
   background: linear-gradient(135deg, rgba(37,99,235,0.04), rgba(37,99,235,0.01));
@@ -7429,3 +7483,345 @@ button#storyBtn { background: unset; }
 .light .soap-stack-prev, .light .soap-stack-next { color: rgba(0,0,0,0.25); }
 .light .soap-stack-prev:hover, .light .soap-stack-next:hover { color: rgba(0,0,0,0.5); }
 .light .soap-stack-counter { color: rgba(0,0,0,0.25); }
+
+/* ═══════════════════════════════════════════════════════════════════════════
+   SOAP List Panel — Fullscreen list of all Applications / Prayers
+   ═══════════════════════════════════════════════════════════════════════════ */
+
+.soap-list-panel {
+  position: fixed;
+  inset: 0;
+  z-index: 9999;
+  background: var(--bg, #0b1220);
+  display: flex;
+  flex-direction: column;
+  transform: translateY(100%);
+  transition: transform 0.38s cubic-bezier(0.4, 0, 0.2, 1);
+  overscroll-behavior: contain;
+}
+.soap-list-panel[hidden] { display: none; }
+.soap-list-panel.soap-list-open { transform: translateY(0); }
+
+/* ── Top bar ── */
+.soap-list-bar {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  padding: 16px 16px 12px;
+  padding-top: max(16px, env(safe-area-inset-top, 16px));
+  flex-shrink: 0;
+  border-bottom: 1px solid rgba(255,255,255,0.06);
+}
+.soap-list-back {
+  background: none;
+  border: none;
+  color: rgba(255,255,255,0.6);
+  cursor: pointer;
+  padding: 4px;
+  display: flex;
+  align-items: center;
+  transition: color 0.15s;
+}
+.soap-list-back:hover { color: #fff; }
+.soap-list-bar-info {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+}
+.soap-list-bar-icon { font-size: 22px; }
+.soap-list-bar-title {
+  font-size: 18px;
+  font-weight: 700;
+  color: rgba(255,255,255,0.9);
+}
+.soap-list-bar-count {
+  font-size: 12px;
+  font-weight: 700;
+  opacity: 0.3;
+  margin-left: 2px;
+}
+
+/* ── Filter pills ── */
+.soap-list-pills {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 6px;
+  padding: 12px 16px;
+  flex-shrink: 0;
+}
+.soap-list-pill {
+  padding: 6px 14px;
+  border-radius: 10px;
+  border: 1px solid rgba(255,255,255,0.08);
+  background: none;
+  color: rgba(255,255,255,0.45);
+  font-size: 12px;
+  font-weight: 600;
+  cursor: pointer;
+  transition: background 0.15s, border-color 0.15s, color 0.15s, transform 0.15s;
+  display: flex;
+  align-items: center;
+  gap: 4px;
+}
+.soap-list-pill:hover {
+  background: rgba(255,255,255,0.07);
+  border-color: rgba(255,255,255,0.15);
+}
+.soap-list-pill:active { transform: scale(0.95); }
+.soap-list-pill-count {
+  font-size: 10px;
+  opacity: 0.5;
+}
+
+/* Active pill — application */
+.soap-list-panel--application .soap-list-pill.active {
+  background: rgba(59,130,246,0.12);
+  color: #3b82f6;
+  border-color: rgba(59,130,246,0.25);
+}
+.soap-list-panel--application .soap-list-bar-icon { color: #3b82f6; }
+
+/* Active pill — prayer */
+.soap-list-panel--prayer .soap-list-pill.active {
+  background: rgba(219,39,119,0.12);
+  color: #db2777;
+  border-color: rgba(219,39,119,0.25);
+}
+.soap-list-panel--prayer .soap-list-bar-icon { color: #db2777; }
+
+/* ── Scrollable list ── */
+.soap-list-scroll {
+  flex: 1;
+  overflow-y: auto;
+  padding: 0 16px 40px;
+  scrollbar-width: none;
+}
+.soap-list-scroll::-webkit-scrollbar { display: none; }
+
+.soap-list-items {
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+}
+
+/* ── Individual list row ── */
+.soap-list-row {
+  display: flex;
+  align-items: flex-start;
+  gap: 12px;
+  padding: 14px 16px;
+  border-radius: 12px;
+  background: rgba(255,255,255,0.03);
+  border: 1px solid rgba(255,255,255,0.06);
+  opacity: 0;
+  transform: translateY(12px);
+  animation: soapListIn 0.35s ease-out forwards;
+  transition: background 0.15s, transform 0.15s;
+}
+.soap-list-row { cursor: pointer; }
+.soap-list-row:active { transform: scale(0.985); }
+
+@keyframes soapListIn {
+  to { opacity: 1; transform: translateY(0); }
+}
+
+.soap-list-row-body {
+  flex: 1;
+  min-width: 0;
+}
+.soap-list-row-top {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  margin-bottom: 4px;
+}
+.soap-list-row-cat {
+  font-size: 9px;
+  font-weight: 700;
+  text-transform: uppercase;
+  letter-spacing: 0.5px;
+  padding: 2px 8px;
+  border-radius: 6px;
+}
+.soap-list-panel--application .soap-list-row-cat {
+  color: #3b82f6;
+  background: rgba(59,130,246,0.1);
+}
+.soap-list-panel--prayer .soap-list-row-cat {
+  color: #db2777;
+  background: rgba(219,39,119,0.1);
+}
+.soap-list-row-passage {
+  font-size: 11px;
+  color: rgba(255,255,255,0.25);
+  font-weight: 600;
+}
+.soap-list-row-text {
+  font-size: 13px;
+  line-height: 1.5;
+  color: rgba(255,255,255,0.75);
+  display: -webkit-box;
+  -webkit-line-clamp: 2;
+  -webkit-box-orient: vertical;
+  overflow: hidden;
+}
+.soap-list-row-date {
+  font-size: 10px;
+  color: rgba(255,255,255,0.18);
+  margin-top: 6px;
+  font-weight: 600;
+}
+.soap-list-row-del {
+  background: none !important;
+  border: none !important;
+  box-shadow: none !important;
+  backdrop-filter: none !important;
+  color: rgba(255,255,255,0.1);
+  cursor: pointer;
+  padding: 4px !important;
+  flex: 0 0 auto !important;
+  transition: color 0.15s;
+  margin-top: 2px;
+}
+.soap-list-row-del .material-icons { font-size: 16px; }
+.soap-list-row-del:hover { color: rgba(255,100,100,0.5); }
+
+/* ── Sticky top (hero + divider together) ── */
+.soap-list-sticky-top {
+  position: sticky;
+  top: 0;
+  z-index: 2;
+  background: var(--bg, #0b1220);
+  padding-bottom: 4px;
+}
+.light .soap-list-sticky-top { background: #f5f5fa; }
+
+/* ── Hero card (top featured entry) ── */
+.soap-list-hero {
+  padding: 16px 0 0;
+}
+.soap-list-hero-card {
+  border-radius: 16px;
+  padding: 24px;
+  display: flex;
+  flex-direction: column;
+  min-height: 340px;
+  max-width: 320px;
+  margin: 0 auto;
+  animation: soapListIn 0.35s ease-out forwards;
+}
+.soap-list-hero--application {
+  background: linear-gradient(135deg, rgba(59,130,246,0.08), rgba(59,130,246,0.02));
+  border: 1px solid rgba(59,130,246,0.15);
+  box-shadow: 0 8px 24px rgba(59,130,246,0.08);
+}
+.soap-list-hero--prayer {
+  background: linear-gradient(135deg, rgba(219,39,119,0.08), rgba(219,39,119,0.02));
+  border: 1px solid rgba(219,39,119,0.15);
+  box-shadow: 0 8px 24px rgba(219,39,119,0.08);
+}
+.soap-list-hero-text {
+  flex: 1;
+  font-size: 15px;
+  line-height: 1.7;
+  color: rgba(255,255,255,0.85);
+  margin-top: 4px;
+  /* No line clamp — full text visible */
+}
+
+/* ── Divider ── */
+.soap-list-divider {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+  padding: 12px 0 10px;
+}
+.soap-list-divider::after {
+  content: "";
+  flex: 1;
+  height: 1px;
+  background: rgba(255,255,255,0.06);
+}
+.soap-list-divider-label {
+  font-size: 11px;
+  font-weight: 700;
+  text-transform: uppercase;
+  letter-spacing: 0.5px;
+  color: rgba(255,255,255,0.2);
+  white-space: nowrap;
+}
+
+/* ── Empty state ── */
+.soap-list-empty {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  padding: 60px 20px;
+  gap: 8px;
+  color: rgba(255,255,255,0.2);
+}
+.soap-list-empty-icon { font-size: 40px; opacity: 0.3; }
+.soap-list-empty p { font-size: 14px; font-weight: 600; }
+
+/* ── Light mode ── */
+.light .soap-list-panel { background: #f5f5fa; }
+.light .soap-list-bar { border-bottom-color: rgba(0,0,0,0.06); }
+.light .soap-list-back { color: rgba(0,0,0,0.5); }
+.light .soap-list-back:hover { color: #000; }
+.light .soap-list-bar-title { color: rgba(0,0,0,0.85); }
+.light .soap-list-pill { border-color: rgba(0,0,0,0.08); color: rgba(0,0,0,0.4); }
+.light .soap-list-pill:hover { background: rgba(0,0,0,0.04); }
+.light .soap-list-panel--application .soap-list-pill.active {
+  background: rgba(37,99,235,0.08);
+  color: #2563eb;
+  border-color: rgba(37,99,235,0.15);
+}
+.light .soap-list-panel--prayer .soap-list-pill.active {
+  background: rgba(219,39,119,0.08);
+  color: #db2777;
+  border-color: rgba(219,39,119,0.15);
+}
+.light .soap-list-panel--application .soap-list-bar-icon { color: #2563eb; }
+.light .soap-list-panel--prayer .soap-list-bar-icon { color: #db2777; }
+.light .soap-list-row {
+  background: #fff;
+  border-color: rgba(0,0,0,0.06);
+}
+.light .soap-list-panel--application .soap-list-row-cat {
+  color: #2563eb;
+  background: rgba(37,99,235,0.06);
+}
+.light .soap-list-panel--prayer .soap-list-row-cat {
+  color: #be185d;
+  background: rgba(219,39,119,0.06);
+}
+.light .soap-list-row-passage { color: rgba(0,0,0,0.3); }
+.light .soap-list-row-text { color: rgba(0,0,0,0.7); }
+.light .soap-list-row-date { color: rgba(0,0,0,0.2); }
+.light .soap-list-row-del { color: rgba(0,0,0,0.1); }
+.light .soap-list-row-del:hover { color: rgba(220,50,50,0.5); }
+.light .soap-list-hero--application {
+  background: linear-gradient(135deg, rgba(37,99,235,0.05), rgba(37,99,235,0.01));
+  border-color: rgba(37,99,235,0.1);
+  box-shadow: 0 8px 24px rgba(37,99,235,0.06);
+}
+.light .soap-list-hero--prayer {
+  background: linear-gradient(135deg, rgba(219,39,119,0.05), rgba(219,39,119,0.01));
+  border-color: rgba(219,39,119,0.1);
+  box-shadow: 0 8px 24px rgba(219,39,119,0.06);
+}
+.light .soap-list-hero-text { color: #2a2a3e; }
+.light .soap-list-divider::after { background: rgba(0,0,0,0.06); }
+.light .soap-list-divider-label { color: rgba(0,0,0,0.2); }
+/* ── Passage link (tappable) ── */
+.soap-list-passage-link {
+  cursor: pointer;
+  text-decoration: underline;
+  text-decoration-style: dotted;
+  text-underline-offset: 3px;
+  transition: opacity 0.15s;
+}
+.soap-list-passage-link:hover { opacity: 0.7; }
+
+.light .soap-list-empty { color: rgba(0,0,0,0.2); }

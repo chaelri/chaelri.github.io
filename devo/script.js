@@ -2105,11 +2105,8 @@ async function renderDashboard() {
         })()}
       </section>
 
-      <!-- SOAP: APPLICATIONS -->
-      ${_renderSoapDashboardSection("application")}
-
-      <!-- SOAP: PRAYERS -->
-      ${_renderSoapDashboardSection("prayer")}
+      <!-- SOAP: APPLICATIONS & PRAYERS (combined) -->
+      ${_renderSoapDashCombined()}
 
       <!-- DAILY REMINDER -->
       <section class="dashboard-section dash-notif-section">
@@ -6993,68 +6990,80 @@ function _createSoapEntryCard(entry, type) {
 
 /* ── SOAP Dashboard Sections ── */
 
-function _renderSoapDashboardSection(type) {
-  const isApp = type === "application";
-  const label = isApp ? "Applications" : "Prayers";
-  const icon = isApp ? "edit_note" : "volunteer_activism";
-  const entries = _getSoapEntries(type);
+/* ── Combined SOAP Dashboard — Applications & Prayers side-by-side ── */
 
-  if (!entries.length) {
+function _renderSoapDashCombined() {
+  const appEntries = _getSoapEntries("application");
+  const prayEntries = _getSoapEntries("prayer");
+  const allEntries = [...appEntries, ...prayEntries];
+
+  // Build united category pills from both types
+  const grouped = {};
+  SOAP_CATEGORIES.forEach(c => { grouped[c] = 0; });
+  allEntries.forEach(e => { grouped[e.category] = (grouped[e.category] || 0) + 1; });
+  const activeCats = SOAP_CATEGORIES.filter(c => grouped[c] > 0);
+
+  function _stackHTML(type) {
+    const entries = _getSoapEntries(type);
+    const isApp = type === "application";
+    const label = isApp ? "Applications" : "Prayers";
+    const icon = isApp ? "edit_note" : "volunteer_activism";
+
+    if (!entries.length) {
+      return `
+        <div class="soap-dash-col soap-dash--${type}">
+          <h3 class="soap-dash-col-title" data-soap-open-list="${type}">
+            <span><span class="material-icons dashboard-icon soap-dash-icon--${type}">${icon}</span> ${label}</span>
+          </h3>
+          <div class="soap-empty-state">
+            <span class="material-icons soap-empty-icon">${icon}</span>
+            <p class="soap-empty-text">No ${label.toLowerCase()} yet</p>
+            <p class="soap-empty-hint">Open <strong>Dig Deeper</strong> on any passage to add one</p>
+          </div>
+        </div>`;
+    }
+
     return `
-      <section class="dashboard-section soap-dash-section soap-dash-empty soap-dash--${type}">
-        <h3><span class="material-icons dashboard-icon soap-dash-icon--${type}">${icon}</span> ${label}</h3>
-        <div class="soap-empty-state">
-          <span class="material-icons soap-empty-icon">${icon}</span>
-          <p class="soap-empty-text">No ${label.toLowerCase()} yet</p>
-          <p class="soap-empty-hint">Open <strong>Dig Deeper</strong> on any passage to add one</p>
+      <div class="soap-dash-col soap-dash--${type}">
+        <h3 class="soap-dash-col-title" data-soap-open-list="${type}">
+          <span><span class="material-icons dashboard-icon soap-dash-icon--${type}">${icon}</span> ${label}</span>
+          <span class="soap-dash-count" id="soapDashCount_${type}">${entries.length}</span>
+        </h3>
+        <div class="soap-stack-wrap" data-soap-stack-type="${type}" data-soap-stack-idx="0">
+          <div class="soap-stack" data-soap-dash-list="${type}" data-soap-open-list="${type}">
+            <div class="soap-stack-card c3"></div>
+            <div class="soap-stack-card c2"></div>
+            <div class="soap-stack-card c1" id="soapStackFront_${type}"></div>
+          </div>
+          <div class="soap-stack-nav">
+            <button class="soap-stack-prev" data-stack-type="${type}"><span class="material-symbols-outlined">chevron_left</span></button>
+            <span class="soap-stack-counter" id="soapStackCounter_${type}"></span>
+            <button class="soap-stack-next" data-stack-type="${type}"><span class="material-symbols-outlined">chevron_right</span></button>
+          </div>
         </div>
-      </section>`;
+      </div>`;
   }
 
-  const grouped = {};
-  SOAP_CATEGORIES.forEach(c => { grouped[c] = []; });
-  entries.forEach(e => {
-    if (!grouped[e.category]) grouped[e.category] = [];
-    grouped[e.category].push(e);
-  });
-
-  const activeCats = SOAP_CATEGORIES.filter(c => grouped[c].length > 0);
-
   return `
-    <section class="dashboard-section soap-dash-section soap-dash--${type}">
-      <h3 style="display:flex;justify-content:space-between;align-items:center;">
-        <span><span class="material-icons dashboard-icon soap-dash-icon--${type}">${icon}</span> ${label}</span>
-        <span class="soap-dash-count">${entries.length}</span>
-      </h3>
-      <div class="soap-dash-pills" data-soap-dash-type="${type}">
+    <section class="dashboard-section soap-dash-combined">
+      <div class="soap-dash-pills" data-soap-dash-type="combined">
         <button class="soap-dash-pill active" data-filter="all">All</button>
-        ${activeCats.map(c => `<button class="soap-dash-pill" data-filter="${_escHtml(c)}">${_escHtml(c)} <span class="soap-dash-pill-count">${grouped[c].length}</span></button>`).join("")}
+        ${activeCats.map(c => `<button class="soap-dash-pill" data-filter="${_escHtml(c)}">${_escHtml(c)} <span class="soap-dash-pill-count">${grouped[c]}</span></button>`).join("")}
       </div>
-      <div class="soap-stack-wrap" data-soap-stack-type="${type}" data-soap-stack-idx="0">
-        <div class="soap-stack" data-soap-dash-list="${type}">
-          <div class="soap-stack-card c3"></div>
-          <div class="soap-stack-card c2"></div>
-          <div class="soap-stack-card c1" id="soapStackFront_${type}"></div>
-        </div>
-        <div class="soap-stack-nav">
-          <button class="soap-stack-prev" data-stack-type="${type}"><span class="material-symbols-outlined">chevron_left</span></button>
-          <span class="soap-stack-counter" id="soapStackCounter_${type}"></span>
-          <button class="soap-stack-next" data-stack-type="${type}"><span class="material-symbols-outlined">chevron_right</span></button>
-        </div>
+      <div class="soap-dash-pair">
+        ${_stackHTML("application")}
+        ${_stackHTML("prayer")}
       </div>
     </section>`;
 }
 
-function _soapDashCardHTML(entry, type) { return ''; /* unused, replaced by stack */ }
-
 /* ── Stack card rendering + navigation ── */
-const _soapStackState = {};
+
+let _soapCombinedFilter = "all";
 
 function _getFilteredSoapEntries(type) {
-  const wrap = document.querySelector(`[data-soap-stack-type="${type}"]`);
-  const filter = wrap?.dataset.soapStackFilter || "all";
   const entries = _getSoapEntries(type);
-  return filter === "all" ? entries : entries.filter(e => e.category === filter);
+  return _soapCombinedFilter === "all" ? entries : entries.filter(e => e.category === _soapCombinedFilter);
 }
 
 function _renderSoapStackCard(type) {
@@ -7071,8 +7080,17 @@ function _renderSoapStackCard(type) {
   const c2 = wrap.querySelector(".soap-stack-card.c2");
   const c3 = wrap.querySelector(".soap-stack-card.c3");
 
+  // Update column count to match filtered
+  const countEl = document.getElementById(`soapDashCount_${type}`);
+  if (countEl) countEl.textContent = entries.length;
+
   if (!entries.length) {
-    front.innerHTML = `<div class="soap-stack-empty"><span class="material-icons" style="font-size:28px;opacity:0.15">edit_note</span></div>`;
+    const label = type === "application" ? "applications" : "prayers";
+    front.innerHTML = `<div class="soap-stack-empty">
+      <span class="material-icons" style="font-size:28px;opacity:0.15">${type === "application" ? "edit_note" : "volunteer_activism"}</span>
+      <p style="font-size:12px;color:rgba(255,255,255,0.2);margin-top:8px;font-weight:600">No ${label} here</p>
+    </div>`;
+    front.className = "soap-stack-card c1";
     if (counter) counter.textContent = "";
     if (c2) c2.style.display = "none";
     if (c3) c3.style.display = "none";
@@ -7115,17 +7133,59 @@ function _renderSoapStackCard(type) {
       if (idx >= filtered.length) wrap.dataset.soapStackIdx = Math.max(0, filtered.length - 1);
       _renderSoapStackCard(t);
       // Update section count
-      const section = wrap.closest(".soap-dash-section");
-      if (section) {
-        const countEl = section.querySelector(".soap-dash-count");
+      const col = wrap.closest(".soap-dash-col");
+      if (col) {
+        const countEl = col.querySelector(".soap-dash-count");
         if (countEl) countEl.textContent = _getSoapEntries(t).length;
-        if (!_getSoapEntries(t).length) {
-          section.outerHTML = _renderSoapDashboardSection(t);
-          _bindSoapDashboard();
-        }
       }
+      // Rebuild pills to reflect new category counts
+      _rebuildSoapCombinedPills();
     };
   }
+}
+
+/* Rebuild the united pills after any data change */
+function _rebuildSoapCombinedPills() {
+  const pillRow = document.querySelector('[data-soap-dash-type="combined"]');
+  if (!pillRow) return;
+  const allEntries = [..._getSoapEntries("application"), ..._getSoapEntries("prayer")];
+  const grouped = {};
+  SOAP_CATEGORIES.forEach(c => { grouped[c] = 0; });
+  allEntries.forEach(e => { grouped[e.category] = (grouped[e.category] || 0) + 1; });
+  const activeCats = SOAP_CATEGORIES.filter(c => grouped[c] > 0);
+
+  // If current filter no longer has entries, reset to "all"
+  if (_soapCombinedFilter !== "all" && !grouped[_soapCombinedFilter]) {
+    _soapCombinedFilter = "all";
+    ["application", "prayer"].forEach(t => {
+      const w = document.querySelector(`[data-soap-stack-type="${t}"]`);
+      if (w) { w.dataset.soapStackIdx = "0"; }
+    });
+    ["application", "prayer"].forEach(t => _renderSoapStackCard(t));
+  }
+
+  pillRow.innerHTML = `
+    <button class="soap-dash-pill${_soapCombinedFilter === "all" ? " active" : ""}" data-filter="all">All</button>
+    ${activeCats.map(c => `<button class="soap-dash-pill${_soapCombinedFilter === c ? " active" : ""}" data-filter="${_escHtml(c)}">${_escHtml(c)} <span class="soap-dash-pill-count">${grouped[c]}</span></button>`).join("")}
+  `;
+  _bindSoapCombinedPills();
+}
+
+function _bindSoapCombinedPills() {
+  const pillRow = document.querySelector('[data-soap-dash-type="combined"]');
+  if (!pillRow) return;
+  pillRow.querySelectorAll(".soap-dash-pill").forEach(pill => {
+    pill.onclick = () => {
+      pillRow.querySelectorAll(".soap-dash-pill").forEach(p => p.classList.remove("active"));
+      pill.classList.add("active");
+      _soapCombinedFilter = pill.dataset.filter;
+      ["application", "prayer"].forEach(t => {
+        const w = document.querySelector(`[data-soap-stack-type="${t}"]`);
+        if (w) { w.dataset.soapStackIdx = "0"; }
+      });
+      ["application", "prayer"].forEach(t => _renderSoapStackCard(t));
+    };
+  });
 }
 
 function _bindSoapStackNav() {
@@ -7137,7 +7197,6 @@ function _bindSoapStackNav() {
       let idx = parseInt(wrap.dataset.soapStackIdx) || 0;
       const entries = _getFilteredSoapEntries(type);
       wrap.dataset.soapStackIdx = (idx - 1 + entries.length) % entries.length;
-      // Animate
       const front = wrap.querySelector(".c1");
       if (front) { front.style.animation = "none"; front.offsetHeight; front.style.animation = "stackFlip 0.25s ease-out"; }
       _renderSoapStackCard(type);
@@ -7159,40 +7218,340 @@ function _bindSoapStackNav() {
 }
 
 function _bindSoapDashboard() {
-  // Filter pills → update stack filter and re-render
-  document.querySelectorAll(".soap-dash-pills").forEach(pillRow => {
-    const type = pillRow.dataset.soapDashType;
-    pillRow.querySelectorAll(".soap-dash-pill").forEach(pill => {
-      pill.onclick = () => {
-        pillRow.querySelectorAll(".soap-dash-pill").forEach(p => p.classList.remove("active"));
-        pill.classList.add("active");
-        const wrap = document.querySelector(`[data-soap-stack-type="${type}"]`);
-        if (wrap) {
-          wrap.dataset.soapStackFilter = pill.dataset.filter;
-          wrap.dataset.soapStackIdx = "0";
-        }
-        _renderSoapStackCard(type);
-      };
-    });
+  _soapCombinedFilter = "all";
+  _bindSoapCombinedPills();
+  // Bind clickable titles + card stacks → open list panel
+  document.querySelectorAll("h3[data-soap-open-list]").forEach(el => {
+    el.onclick = () => openSoapListPanel(el.dataset.soapOpenList);
   });
-
+  document.querySelectorAll(".soap-stack[data-soap-open-list]").forEach(el => {
+    el.onclick = (ev) => {
+      if (ev.target.closest(".soap-stack-del") || ev.target.closest(".soap-stack-nav")) return;
+      const type = el.dataset.soapOpenList;
+      const wrap = document.querySelector(`[data-soap-stack-type="${type}"]`);
+      const idx = wrap ? parseInt(wrap.dataset.soapStackIdx) || 0 : 0;
+      openSoapListPanel(type, idx);
+    };
+  });
   // Initialize stacks
   ["application", "prayer"].forEach(t => _renderSoapStackCard(t));
   _bindSoapStackNav();
 }
 
 function _bindSoapDeleteButtons() { /* handled by stack nav */ }
+function _bindSoapDashEditables() { /* handled inline */ }
 
-function _bindSoapDashEditables() {
-  document.querySelectorAll("[data-soap-edit-id]").forEach(el => {
-    el.addEventListener("blur", () => {
-      const newText = el.textContent.trim();
-      if (!newText) return;
-      const id = el.dataset.soapEditId;
-      const type = el.dataset.soapEditType;
-      const entries = _getSoapEntries(type);
-      const found = entries.find(e => e.id === id);
-      if (found) { found.text = newText; _saveSoapEntries(type, entries); }
+/* ═══════════════════════════════════════════════════════════════════
+   SOAP List Panel — fullscreen list of all Applications / Prayers
+   ═══════════════════════════════════════════════════════════════════ */
+
+let _soapListType = "application";
+let _soapListFilter = "all";
+let _soapListHeroIdx = 0;
+
+function openSoapListPanel(type, heroIdx) {
+  _soapListType = type;
+  _soapListFilter = "all";
+  _soapListHeroIdx = heroIdx || 0;
+  const panel = document.getElementById("soapListPanel");
+  panel.hidden = false;
+  panel.className = `soap-list-panel soap-list-panel--${type}`;
+  requestAnimationFrame(() => panel.classList.add("soap-list-open"));
+
+  const isApp = type === "application";
+  document.getElementById("soapListIcon").textContent = isApp ? "edit_note" : "volunteer_activism";
+  document.getElementById("soapListTitle").textContent = isApp ? "Applications" : "Prayers";
+
+  _renderSoapListPills();
+  _renderSoapListItems();
+
+  document.getElementById("soapListBack").onclick = closeSoapListPanel;
+}
+
+function closeSoapListPanel() {
+  const panel = document.getElementById("soapListPanel");
+  panel.classList.remove("soap-list-open");
+  panel.addEventListener("transitionend", () => {
+    panel.hidden = true;
+  }, { once: true });
+  // Refresh dashboard stacks in case items were deleted
+  _rebuildSoapCombinedPills();
+  ["application", "prayer"].forEach(t => {
+    _renderSoapStackCard(t);
+    // Update column title count
+    const col = document.querySelector(`.soap-dash-col.soap-dash--${t}`);
+    if (col) {
+      const countEl = col.querySelector(".soap-dash-count");
+      if (countEl) countEl.textContent = _getSoapEntries(t).length;
+    }
+  });
+}
+
+function _renderSoapListPills() {
+  const entries = _getSoapEntries(_soapListType);
+  const grouped = {};
+  SOAP_CATEGORIES.forEach(c => { grouped[c] = 0; });
+  entries.forEach(e => { grouped[e.category] = (grouped[e.category] || 0) + 1; });
+  const activeCats = SOAP_CATEGORIES.filter(c => grouped[c] > 0);
+
+  const pillsEl = document.getElementById("soapListPills");
+  pillsEl.innerHTML = `
+    <button class="soap-list-pill${_soapListFilter === "all" ? " active" : ""}" data-filter="all">All</button>
+    ${activeCats.map(c => `<button class="soap-list-pill${_soapListFilter === c ? " active" : ""}" data-filter="${_escHtml(c)}">${_escHtml(c)} <span class="soap-list-pill-count">${grouped[c]}</span></button>`).join("")}
+  `;
+  pillsEl.querySelectorAll(".soap-list-pill").forEach(pill => {
+    pill.onclick = () => {
+      _soapListFilter = pill.dataset.filter;
+      pillsEl.querySelectorAll(".soap-list-pill").forEach(p => p.classList.remove("active"));
+      pill.classList.add("active");
+      _renderSoapListItems();
+    };
+  });
+
+  // Update count
+  document.getElementById("soapListCount").textContent = entries.length;
+}
+
+function _renderSoapListHero() {
+  const entries = _getSoapEntries(_soapListType);
+  const filtered = _soapListFilter === "all" ? entries : entries.filter(e => e.category === _soapListFilter);
+  const heroEl = document.getElementById("soapListHero");
+  if (!filtered.length) { heroEl.innerHTML = ""; return; }
+
+  const idx = Math.min(_soapListHeroIdx, filtered.length - 1);
+  const e = filtered[idx];
+  const isApp = _soapListType === "application";
+  const dateStr = new Date(e.time).toLocaleDateString("en-US", { month: "short", day: "numeric" });
+
+  heroEl.innerHTML = `
+    <div class="soap-list-hero-card soap-list-hero--${_soapListType}">
+      <div class="soap-stack-cat ${isApp ? 'cat-app' : 'cat-pray'}">${_escHtml(e.category)}</div>
+      <div class="soap-list-hero-text">${_escHtml(e.text)}</div>
+      <div class="soap-stack-foot">
+        <span class="soap-list-passage-link" data-passage="${_escHtml(e.passage)}">${_escHtml(e.passage)}</span>
+        <span>${dateStr}</span>
+      </div>
+    </div>`;
+  _bindSoapPassageLinks(heroEl);
+}
+
+function _renderSoapListItems() {
+  const entries = _getSoapEntries(_soapListType);
+  const filtered = _soapListFilter === "all" ? entries : entries.filter(e => e.category === _soapListFilter);
+  const container = document.getElementById("soapListItems");
+  const emptyEl = document.getElementById("soapListEmpty");
+  const divider = document.getElementById("soapListDivider");
+
+  // Render hero card
+  _renderSoapListHero();
+
+  if (!filtered.length) {
+    container.innerHTML = "";
+    emptyEl.hidden = false;
+    divider.hidden = true;
+    return;
+  }
+  emptyEl.hidden = true;
+  // If only the hero exists, no list needed
+  if (filtered.length <= 1) {
+    container.innerHTML = "";
+    divider.hidden = true;
+    emptyEl.hidden = true;
+    return;
+  }
+
+  // Exclude the hero entry from the list
+  const heroIdx = Math.min(_soapListHeroIdx, filtered.length - 1);
+  const heroId = filtered[heroIdx]?.id;
+  const listEntries = filtered.filter(e => e.id !== heroId);
+  divider.hidden = listEntries.length === 0;
+
+  container.innerHTML = listEntries.map((e, i) => {
+    const dateStr = new Date(e.time).toLocaleDateString("en-US", { month: "short", day: "numeric", year: "numeric" });
+    return `
+      <div class="soap-list-row" style="animation-delay:${i * 0.04}s" data-soap-list-id="${e.id}">
+        <div class="soap-list-row-body">
+          <div class="soap-list-row-top">
+            <span class="soap-list-row-cat">${_escHtml(e.category)}</span>
+            <span class="soap-list-row-passage soap-list-passage-link" data-passage="${_escHtml(e.passage)}">${_escHtml(e.passage)}</span>
+          </div>
+          <div class="soap-list-row-text">${_escHtml(e.text)}</div>
+          <div class="soap-list-row-date">${dateStr}</div>
+        </div>
+        <button class="soap-list-row-del" data-del-id="${e.id}">
+          <span class="material-icons">close</span>
+        </button>
+      </div>`;
+  }).join("");
+
+  // Bind delete buttons
+  container.querySelectorAll(".soap-list-row-del").forEach(btn => {
+    btn.onclick = (ev) => {
+      ev.stopPropagation();
+      const id = btn.dataset.delId;
+      const row = btn.closest(".soap-list-row");
+      row.style.transition = "opacity 0.25s, transform 0.25s";
+      row.style.opacity = "0";
+      row.style.transform = "translateX(40px)";
+      row.addEventListener("transitionend", () => {
+        const arr = _getSoapEntries(_soapListType).filter(x => x.id !== id);
+        _saveSoapEntries(_soapListType, arr);
+        _flushSoapToFirebase(_soapListType);
+        _renderSoapListPills();
+        _renderSoapListItems();
+      }, { once: true });
+    };
+  });
+
+  // Bind row tap → swap into hero
+  container.querySelectorAll(".soap-list-row").forEach(row => {
+    row.onclick = (ev) => {
+      if (ev.target.closest(".soap-list-row-del") || ev.target.closest(".soap-list-passage-link")) return;
+      const id = row.dataset.soapListId;
+      const entries = _getSoapEntries(_soapListType);
+      const idx = entries.findIndex(e => e.id === id);
+      if (idx >= 0) {
+        _soapListHeroIdx = idx;
+        _renderSoapListItems();
+        // Scroll to top so hero is visible
+        document.getElementById("soapListScroll").scrollTo({ top: 0, behavior: "smooth" });
+      }
+    };
+  });
+
+  // Bind passage links
+  _bindSoapPassageLinks(container);
+
+  // Ensure empty state is hidden when we have items
+  emptyEl.hidden = true;
+}
+
+/* ── Verse popover from passage string ── */
+
+function _bindSoapPassageLinks(root) {
+  root.querySelectorAll(".soap-list-passage-link").forEach(el => {
+    el.onclick = (ev) => {
+      ev.stopPropagation();
+      _showSoapVersePopover(el.dataset.passage, el);
+    };
+  });
+}
+
+function _parsePassageString(passage) {
+  // "Exodus 35:5-19" → { bookCode, chapter, startVerse, endVerse }
+  // "1 John 3:16" → single verse
+  // "Genesis 1" → whole chapter
+  const match = passage.match(/^(.+?)\s+(\d+)(?::(\d+)(?:\s*[-–]\s*(\d+))?)?$/);
+  if (!match) return null;
+  const bookName = match[1].trim();
+  const chapter = match[2];
+  const startVerse = match[3] ? parseInt(match[3]) : null;
+  const endVerse = match[4] ? parseInt(match[4]) : (startVerse || null);
+
+  // Reverse lookup: book name → BIBLE_META code
+  const bookUpper = bookName.toUpperCase();
+  let bookCode = null;
+  for (const key of Object.keys(BIBLE_META)) {
+    if (BIBLE_META[key].name.toUpperCase() === bookUpper) {
+      bookCode = key;
+      break;
+    }
+  }
+  if (!bookCode) return null;
+  return { bookCode, chapter, startVerse, endVerse };
+}
+
+function _showSoapVersePopover(passage, anchorEl) {
+  const parsed = _parsePassageString(passage);
+  if (!parsed) return;
+
+  const { bookCode, chapter, startVerse, endVerse } = parsed;
+  const bookName = BIBLE_META[bookCode]?.name || bookCode;
+  const bookUpper = bookName.toUpperCase();
+  const bookData = bibleData?.[bookUpper];
+  if (!bookData || !bookData[chapter]) return;
+
+  // Build verse numbers list
+  const verseNums = [];
+  if (startVerse && endVerse) {
+    for (let v = startVerse; v <= endVerse; v++) verseNums.push(v);
+  } else {
+    // Whole chapter — first 10
+    Object.keys(bookData[chapter]).sort((a, b) => parseInt(a) - parseInt(b)).slice(0, 10).forEach(k => verseNums.push(parseInt(k)));
+  }
+  if (!verseNums.length) return;
+
+  const verseLabel = startVerse ? (startVerse === endVerse ? `${startVerse}` : `${startVerse}-${endVerse}`) : "";
+  const refLabel = `${bookName} ${chapter}${verseLabel ? ":" + verseLabel : ""}`;
+
+  const bodyHTML = verseNums.map(v => {
+    const text = getVerseText(bookCode, chapter, String(v));
+    if (!text || text === "Verse text not found.") return "";
+    return `<div class="verse-peek-row"><span class="verse-peek-num">v.${v}</span><span>${_escHtml(text)}</span></div>`;
+  }).join("");
+
+  // Remove any existing peek
+  document.querySelector(".verse-peek-overlay")?.remove();
+
+  const overlay = document.createElement("div");
+  overlay.className = "verse-peek-overlay";
+
+  const bubble = document.createElement("div");
+  bubble.className = "verse-peek-bubble";
+  bubble.innerHTML = `
+    <div class="verse-peek-header">
+      <div class="verse-peek-ref">${refLabel}</div>
+    </div>
+    <div class="verse-peek-body-wrap">
+      <div class="verse-peek-body">${bodyHTML || '<span style="opacity:0.4">No verses found.</span>'}</div>
+    </div>
+    <div class="verse-peek-tail"></div>`;
+
+  const peekWrap = bubble.querySelector(".verse-peek-body-wrap");
+  const checkPeekScroll = () => {
+    const atEnd = peekWrap.scrollHeight - peekWrap.scrollTop - peekWrap.clientHeight < 8;
+    peekWrap.classList.toggle("peek-scrolled-end", atEnd);
+  };
+  peekWrap.addEventListener("scroll", checkPeekScroll);
+  peekWrap.addEventListener("touchmove", e => e.stopPropagation());
+  overlay.addEventListener("touchmove", e => {
+    if (!peekWrap.contains(e.target)) e.preventDefault();
+  }, { passive: false });
+
+  overlay.appendChild(bubble);
+  document.body.appendChild(overlay);
+  requestAnimationFrame(checkPeekScroll);
+
+  // Position bubble near anchor
+  if (anchorEl) {
+    const rect = anchorEl.getBoundingClientRect();
+    const anchorCenterX = rect.left + rect.width / 2;
+    requestAnimationFrame(() => {
+      const bw = bubble.offsetWidth;
+      const bh = bubble.offsetHeight;
+      const vw = window.innerWidth;
+      const vh = window.innerHeight;
+      const pad = 8;
+      let left = anchorCenterX - bw / 2;
+      left = Math.max(pad, Math.min(left, vw - bw - pad));
+      let top = rect.top - bh - 10;
+      let tailBelow = true;
+      if (top < pad) { top = rect.bottom + 10; tailBelow = false; }
+      top = Math.max(pad, Math.min(top, vh - bh - pad));
+      bubble.style.left = left + "px";
+      bubble.style.top = top + "px";
+      const tail = bubble.querySelector(".verse-peek-tail");
+      const tailX = anchorCenterX - left;
+      tail.style.left = Math.max(18, Math.min(tailX, bw - 18)) + "px";
+      if (!tailBelow) tail.classList.add("verse-peek-tail-top");
     });
+  } else {
+    bubble.style.left = "50%";
+    bubble.style.top = "50%";
+    bubble.style.transform = "translate(-50%, -50%)";
+  }
+
+  overlay.addEventListener("click", e => {
+    if (e.target === overlay) overlay.remove();
   });
 }
