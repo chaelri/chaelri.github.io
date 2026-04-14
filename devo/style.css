@@ -7752,6 +7752,7 @@ button#storyBtn { background: unset; }
 }
 
 /* ── Empty state ── */
+.soap-list-empty[hidden] { display: none !important; }
 .soap-list-empty {
   display: flex;
   flex-direction: column;
