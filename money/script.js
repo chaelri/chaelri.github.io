@@ -230,6 +230,7 @@ window.selectUser = async (name) => {
     if (snapshot.exists() && snapshot.val()) {
       appData = snapshot.val();
       if (!appData.monthlyData) appData.monthlyData = {};
+      loadTrajSettings();
       document.getElementById("setup-balance").value =
         appData.startingBalance || 0;
     } else {
@@ -277,10 +278,12 @@ window.selectUser = async (name) => {
         if (snapshot.exists() && val) {
           appData = val;
           if (!appData.monthlyData) appData.monthlyData = {};
+          loadTrajSettings();
           updateAllCalculations();
           updateCompleteMonthButtons();
           updateMonthVisibility();
           if (activeView === "stats") renderStats();
+          if (activeView === "trajectory") renderTrajectory();
         }
       });
 
@@ -1779,34 +1782,94 @@ window.closeWeddingBar = () => {
 // =============================================
 // TRAJECTORY VIEW — Horizon-style month cards
 // =============================================
-const TRAJ_NET_125K = 96_412;
-const TRAJ_NET_210K = 160_623;
-const TRAJ_SALARY_BUMP = TRAJ_NET_210K - TRAJ_NET_125K;
+// PH TRAIN Law 2023+ tax computation (valid through 2026)
+// Gov deductions (employee share, all hit caps): SSS ₱1,750 + PhilHealth ₱2,500 + Pag-IBIG ₱200 = ₱4,450/mo
+// 125K: taxable ₱120,550 → 25% bracket → tax ₱22,013 → net ₱98,537
+// 185K: taxable ₱180,550 → 30% bracket → tax ₱37,707 → net ₱142,843
+// 210K: taxable ₱205,550 → 30% bracket → tax ₱45,207 → net ₱160,343
+const TRAJ_NET_125K = 98_537;
+const TRAJ_NET_185K = 142_843;
+const TRAJ_NET_210K = 160_343;
+const TRAJ_BUMP_185K = TRAJ_NET_185K - TRAJ_NET_125K; // +₱44,306/mo
+const TRAJ_BUMP_210K = TRAJ_NET_210K - TRAJ_NET_125K; // +₱61,806/mo
 
-// Editable living expenses (defaults)
-let trajLiving = [
-  { name: "Electricity", amount: 4000 },
-  { name: "Water", amount: 400 },
-  { name: "Drinkable Water", amount: 600 },
-  { name: "Motor Gas", amount: 2500 },
-  { name: "Cooking Gas (LPG)", amount: 600 },
-  { name: "Grocery", amount: 10000 },
-  { name: "Parking", amount: 2500 },
-  { name: "WiFi", amount: 1699 },
-];
+// Editable living expenses — persisted to Firebase under appData.trajectorySettings
+const TRAJ_DEFAULTS = {
+  rent: 13000,
+  living: [
+    { name: "Electricity", amount: 4000 },
+    { name: "Water", amount: 400 },
+    { name: "Drinkable Water", amount: 600 },
+    { name: "Motor Gas", amount: 2500 },
+    { name: "Cooking Gas (LPG)", amount: 600 },
+    { name: "Grocery", amount: 10000 },
+    { name: "Parking", amount: 0 },
+    { name: "WiFi", amount: 1699 },
+  ],
+};
+let trajLiving = TRAJ_DEFAULTS.living.map(x => ({ ...x }));
+let trajRent = TRAJ_DEFAULTS.rent;
 function getTrajLivingTotal() { return trajLiving.reduce((s, x) => s + x.amount, 0); }
 
+function loadTrajSettings() {
+  if (!appData?.trajectorySettings) return;
+  const s = appData.trajectorySettings;
+  if (s.rent !== undefined) trajRent = s.rent;
+  if (Array.isArray(s.living)) trajLiving = s.living.map(x => ({ ...x }));
+}
+
+async function saveTrajSettings() {
+  if (!appData || !dbRef) return;
+  appData.trajectorySettings = { rent: trajRent, living: trajLiving };
+  await syncSet(dbRef, appData);
+}
+
 let trajSalary = 125000;
-let trajRent = 15000;
+
+// Family support reduction (same logic as Horizon)
+// Expenses with "bahay" or "contribution" in name = family household contributions
+const TRAJ_FAMILY_KEYWORDS = ["bahay", "contribution"];
+let trajFamilyMode = "full"; // "full" | "prorated" | "none"
+
+function getTrajFamilyReduction(monthData) {
+  const allItems = [
+    ...(monthData.fixedExpenses || []),
+    ...(monthData.cc || []),
+    ...(monthData.others || []),
+  ].filter(x => !x.isPaid);
+  const familyItems = allItems.filter(x =>
+    TRAJ_FAMILY_KEYWORDS.some(kw => (x.name || "").toLowerCase().includes(kw))
+  );
+  const familyTotal = familyItems.reduce((s, x) => s + (Number(x.amount) || 0), 0);
+  if (trajFamilyMode === "none") return familyTotal;
+  if (trajFamilyMode === "prorated") return familyTotal * 0.5;
+  return 0;
+}
+
+window.setTrajFamilyMode = (mode) => {
+  trajFamilyMode = mode;
+  document.querySelectorAll(".traj-fam-btn").forEach((btn) => {
+    btn.classList.toggle("active", btn.dataset.fam === mode);
+  });
+  const note = document.getElementById("traj-fam-note");
+  if (note) {
+    if (mode === "full") note.textContent = "Keeping full family contributions.";
+    else if (mode === "prorated") note.textContent = "Paying half — kuya covers the rest.";
+    else note.textContent = "No more family contributions after wedding.";
+  }
+  renderTrajectory();
+};
 
 const fmtT = (v) => "₱" + Math.round(v || 0).toLocaleString("en-PH");
 
 window.setTrajSalary = (val) => {
   trajSalary = val;
   const toggle = document.getElementById("traj-salary-toggle");
-  toggle.classList.toggle("temenos-active", val === 210000);
+  toggle.classList.remove("pos-1", "pos-2");
+  if (val === 185000) toggle.classList.add("pos-1");
+  else if (val === 210000) toggle.classList.add("pos-2");
   document.querySelectorAll(".traj-sal-chip").forEach((btn) => {
-    btn.classList.toggle("active", btn.dataset.sal === (val === 125000 ? "125" : "210"));
+    btn.classList.toggle("active", btn.dataset.sal === String(val / 1000));
   });
   renderTrajectory();
 };
@@ -1843,7 +1906,7 @@ function openTrajModal(title, currentVal, onSave) {
 }
 
 window.promptTrajRent = () => {
-  openTrajModal("EDIT RENT", trajRent, (val) => { trajRent = val; });
+  openTrajModal("EDIT RENT", trajRent, (val) => { trajRent = val; saveTrajSettings(); });
 };
 
 window.toggleLivingList = () => {
@@ -1858,7 +1921,7 @@ window.toggleLivingList = () => {
 window.editLivingItem = (idx) => {
   const item = trajLiving[idx];
   if (!item) return;
-  openTrajModal(item.name.toUpperCase(), item.amount, (val) => { trajLiving[idx].amount = val; });
+  openTrajModal(item.name.toUpperCase(), item.amount, (val) => { trajLiving[idx].amount = val; saveTrajSettings(); });
 };
 
 function renderLivingList() {
@@ -1941,17 +2004,23 @@ function renderTrajectory() {
     const isProjected = !hasData || (year > startYear);
 
     // Apply salary toggle
-    const income = trajSalary === 210000 ? baseIncome + TRAJ_SALARY_BUMP : baseIncome;
+    const income = trajSalary === 210000 ? baseIncome + TRAJ_BUMP_210K
+                 : trajSalary === 185000 ? baseIncome + TRAJ_BUMP_185K
+                 : baseIncome;
 
     // Rent starts May (index 4) — moving in before wedding
     // Living expenses start July (index 6) — after wedding
+    // Family reduction starts July (index 6) — when Charlie leaves family house
     const rentActive = (year > 2026) || (year === 2026 && mIdx >= 4);
     const livingActive = (year > 2026) || (year === 2026 && mIdx >= 6);
+    const familyLeft = (year > 2026) || (year === 2026 && mIdx >= 6);
     const thisRent = rentActive ? trajRent : 0;
     const thisLiving = livingActive ? livingTotal : 0;
+    const familyReduction = familyLeft ? getTrajFamilyReduction(mData) : 0;
+    const adjustedExpenses = expenses - familyReduction;
 
     const carryOver = runningBalance;
-    const monthNet = income - expenses - thisRent - thisLiving;
+    const monthNet = income - adjustedExpenses - thisRent - thisLiving;
     runningBalance += monthNet;
     const endBalance = runningBalance;
 
@@ -1980,7 +2049,7 @@ function renderTrajectory() {
 
     // Usage bar percentages
     const totalIn = Math.max(1, carryOver + income);
-    const totalSpend = expenses + thisRent + thisLiving;
+    const totalSpend = adjustedExpenses + thisRent + thisLiving;
     const usedPct = Math.min((totalSpend / totalIn) * 100, 100);
     const expPct = (expenses / totalIn * 100);
     const rentPct = (thisRent / totalIn * 100);
@@ -2009,8 +2078,8 @@ function renderTrajectory() {
             <span class="font-bold text-emerald-400">${fmtT(income)}</span>
           </div>
           <div class="flex items-center justify-between text-[11px]">
-            <span class="text-slate-400">Expenses</span>
-            <span class="font-semibold text-slate-300">− ${fmtT(expenses)}</span>
+            <span class="text-slate-400">Expenses${familyReduction > 0 ? ` <span class="text-[8px] text-emerald-400/70">(−${fmtT(familyReduction)} fam)</span>` : ''}</span>
+            <span class="font-semibold text-slate-300">− ${fmtT(adjustedExpenses)}</span>
           </div>
           ${rentActive ? `
           <div class="flex items-center justify-between text-[11px]">

@@ -239,19 +239,30 @@ function getCurrentFinancials() {
 }
 
 // --- Salary override logic ---
-// PH Tax-computed net salaries:
-// 125K gross → ₱96,412 net (actual from Firebase: ₱48,206 × 2)
-// 210K gross → ₱160,623 net (computed from PH TRAIN law tax tables)
-const NET_SALARY_125K = 96_412;  // actual from Firebase (48,206 mid + 48,206 end)
-const NET_SALARY_210K = 160_623; // PH tax computed (80,312 × 2)
-const SALARY_INCREASE = NET_SALARY_210K - NET_SALARY_125K; // ₱64,211 more per month
+// PH TRAIN Law 2023+ tax computation (valid through 2026)
+// Mandatory gov deductions (employee share, all salaries hit the caps):
+//   SSS:        ₱1,750/mo  (5% of max MSC ₱35,000)
+//   PhilHealth: ₱2,500/mo  (2.5% of max ₱100K ceiling, no 2026 hike per PIA)
+//   Pag-IBIG:     ₱200/mo  (2% of max ₱10K fund salary)
+//   Total gov:  ₱4,450/mo
+//
+// Taxable = Gross − ₱4,450 gov deductions
+// 125K: taxable ₱120,550 → 25% bracket → tax ₱22,013 → net ₱98,537
+// 185K: taxable ₱180,550 → 30% bracket → tax ₱37,707 → net ₱142,843
+// 210K: taxable ₱205,550 → 30% bracket → tax ₱45,207 → net ₱160,343
+//
+// Note: 185K & 210K jump to the 30% bracket (over ₱166,667 taxable)
+//       vs 125K which stays in the 25% bracket — significant tax hit
+const NET_SALARY_125K = 98_537;
+const NET_SALARY_185K = 142_843;
+const NET_SALARY_210K = 160_343;
+const SALARY_INCREASE_185K = NET_SALARY_185K - NET_SALARY_125K; // +₱44,306/mo
+const SALARY_INCREASE_210K = NET_SALARY_210K - NET_SALARY_125K; // +₱61,806/mo
 
 function getProjectedIncome(baseIncome) {
-  if (currentSalary === 210000 && baseIncome > 0) {
-    // Only increase the salary portion, keep other income sources as-is
-    // Add the difference between 210K net and 125K net to total income
-    return baseIncome + SALARY_INCREASE;
-  }
+  if (baseIncome <= 0) return baseIncome;
+  if (currentSalary === 185000) return baseIncome + SALARY_INCREASE_185K;
+  if (currentSalary === 210000) return baseIncome + SALARY_INCREASE_210K;
   return baseIncome;
 }
 
@@ -342,9 +353,11 @@ window.switchSection = (name) => {
 window.setSalary = (val) => {
   currentSalary = val;
   const toggle = el("salary-toggle");
-  toggle.classList.toggle("temenos-active", val === 210000);
+  toggle.classList.remove("pos-1", "pos-2");
+  if (val === 185000) toggle.classList.add("pos-1");
+  else if (val === 210000) toggle.classList.add("pos-2");
   document.querySelectorAll(".sal-chip").forEach((btn) => {
-    btn.classList.toggle("active", btn.dataset.sal === (val === 125000 ? "125" : "210"));
+    btn.classList.toggle("active", btn.dataset.sal === String(val / 1000));
   });
   renderAll();
 };
@@ -726,8 +739,10 @@ function renderTrajectory() {
   const monthly = getMonthlyHousingCost();
 
   // Scenario badge
-  el("traj-scenario").textContent = currentSalary === 210000 ? "Temenos" : "125K";
-  el("traj-scenario").className = `text-[9px] font-bold px-2 py-1 rounded-lg ${currentSalary === 210000 ? "bg-emerald-500/20 text-emerald-300" : "bg-blue-500/20 text-blue-300"}`;
+  const scenarioLabels = { 125000: "Azur 125K", 185000: "T. 185K", 210000: "T. 210K" };
+  const scenarioStyles = { 125000: "bg-blue-500/20 text-blue-300", 185000: "bg-amber-500/20 text-amber-300", 210000: "bg-emerald-500/20 text-emerald-300" };
+  el("traj-scenario").textContent = scenarioLabels[currentSalary] || "125K";
+  el("traj-scenario").className = `text-[9px] font-bold px-2 py-1 rounded-lg ${scenarioStyles[currentSalary] || "bg-blue-500/20 text-blue-300"}`;
 
   // === Card 1: Month-by-Month ===
   renderMonthCards(monthly);
@@ -750,10 +765,11 @@ function renderTrajectory() {
   const adjustedExpForYearly = fin.total - getFamilyReduction(fin.categories) + POST_WEDDING_TOTAL;
   renderYearlyProgression(income, adjustedExpForYearly);
 
-  // === Card 3: Current vs Temenos Side-by-Side ===
+  // === Card 3: Salary Comparison (3-way) ===
   const income125 = fin.income;
-  const income210 = fin.income + SALARY_INCREASE;
-  renderSalaryComparison(income125, income210, adjustedExpForYearly, monthly);
+  const income185 = fin.income + SALARY_INCREASE_185K;
+  const income210 = fin.income + SALARY_INCREASE_210K;
+  renderSalaryComparison(income125, income185, income210, adjustedExpForYearly, monthly);
 }
 
 function renderMonthCards(housePayment) {
@@ -1164,36 +1180,41 @@ function renderYearlyProgression(income, expenses) {
   }).join("");
 }
 
-function renderSalaryComparison(income125, income210, expenses, monthly) {
+function renderSalaryComparison(income125, income185, income210, expenses, monthly) {
   const remaining125 = income125 - expenses - monthly - POST_WEDDING_TOTAL;
+  const remaining185 = income185 - expenses - monthly - POST_WEDDING_TOTAL;
   const remaining210 = income210 - expenses - monthly - POST_WEDDING_TOTAL;
-  const diff = remaining210 - remaining125;
+  const diff185 = remaining185 - remaining125;
+  const diff210 = remaining210 - remaining125;
 
   function buildColumn(income, remaining, colId) {
+    const housingLabel = isRentTrack() ? "Rent" : "Pag-IBIG";
     const items = [
       { label: "Income", value: fmt(income), color: "text-emerald-400" },
       { label: "Expenses", value: `- ${fmt(expenses)}`, color: "text-rose-400" },
-      { label: isRentTrack() ? "Rent" : "Pag-IBIG", value: `- ${fmt(monthly)}`, color: "text-indigo-400" },
+      { label: housingLabel, value: `- ${fmt(monthly)}`, color: "text-indigo-400" },
       { label: "Living", value: `- ${fmt(POST_WEDDING_TOTAL)}`, color: "text-pink-400" },
       { label: "divider", value: "", color: "" },
-      { label: "Remaining", value: fmt(remaining), color: remaining >= 0 ? "text-emerald-400" : "text-rose-400", bold: true },
+      { label: "Left", value: fmt(remaining), color: remaining >= 0 ? "text-emerald-400" : "text-rose-400", bold: true },
     ];
 
     el(colId).innerHTML = items.map((item) => {
       if (item.label === "divider") return '<div class="border-t border-white/[0.06] my-1"></div>';
       return `
         <div class="flex justify-between items-center">
-          <span class="text-[9px] text-slate-500 uppercase tracking-wider">${item.label}</span>
-          <span class="text-[11px] ${item.color} tabular-nums ${item.bold ? "font-bold font-display text-sm" : "font-semibold"}">${item.value}</span>
+          <span class="text-[8px] text-slate-500 uppercase tracking-wider">${item.label}</span>
+          <span class="text-[10px] ${item.color} tabular-nums ${item.bold ? "font-bold font-display text-[11px]" : "font-semibold"}">${item.value}</span>
         </div>
       `;
     }).join("");
   }
 
   buildColumn(income125, remaining125, "col-125");
+  buildColumn(income185, remaining185, "col-185");
   buildColumn(income210, remaining210, "col-210");
 
-  el("salary-diff-val").textContent = `+ ${fmt(diff)}`;
+  el("salary-diff-185").textContent = `+ ${fmt(diff185)}`;
+  el("salary-diff-210").textContent = `+ ${fmt(diff210)}`;
 }
 
 // =============================================

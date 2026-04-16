@@ -368,7 +368,8 @@
             </div>
             <div id="traj-salary-toggle" class="traj-salary-toggle" style="width:100%">
               <button onclick="setTrajSalary(125000)" class="traj-sal-chip active" data-sal="125">Azur</button>
-              <button onclick="setTrajSalary(210000)" class="traj-sal-chip" data-sal="210">Temenos</button>
+              <button onclick="setTrajSalary(185000)" class="traj-sal-chip" data-sal="185">T. 185K</button>
+              <button onclick="setTrajSalary(210000)" class="traj-sal-chip" data-sal="210">T. 210K</button>
             </div>
 
             <!-- Rent + Living: same style rows -->
@@ -392,6 +393,26 @@
                   <!-- Rendered by JS -->
                 </div>
               </div>
+            </div>
+
+            <!-- Family Support Toggle -->
+            <div class="bg-slate-900/50 rounded-xl border border-white/[0.04] p-3.5 space-y-2">
+              <p class="text-[10px] font-bold uppercase text-slate-500">Family Support (after wedding)</p>
+              <div class="grid grid-cols-3 gap-2">
+                <button onclick="setTrajFamilyMode('full')" class="traj-fam-btn active" data-fam="full">
+                  <span class="block text-[10px] font-bold">Full</span>
+                  <span class="block text-[8px] text-slate-400">Keep paying</span>
+                </button>
+                <button onclick="setTrajFamilyMode('prorated')" class="traj-fam-btn" data-fam="prorated">
+                  <span class="block text-[10px] font-bold">Pro-rated</span>
+                  <span class="block text-[8px] text-slate-400">Half</span>
+                </button>
+                <button onclick="setTrajFamilyMode('none')" class="traj-fam-btn" data-fam="none">
+                  <span class="block text-[10px] font-bold">None</span>
+                  <span class="block text-[8px] text-slate-400">Stop all</span>
+                </button>
+              </div>
+              <p id="traj-fam-note" class="text-[10px] text-slate-500 text-center">Keeping full family contributions.</p>
             </div>
           </div>
 

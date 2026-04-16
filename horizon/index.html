@@ -57,7 +57,8 @@
         <!-- Salary Toggle -->
         <div id="salary-toggle" class="salary-toggle">
           <button onclick="setSalary(125000)" id="sal-125" class="sal-chip active" data-sal="125">Azur</button>
-          <button onclick="setSalary(210000)" id="sal-210" class="sal-chip" data-sal="210">Temenos</button>
+          <button onclick="setSalary(185000)" id="sal-185" class="sal-chip" data-sal="185">T. 185K</button>
+          <button onclick="setSalary(210000)" id="sal-210" class="sal-chip" data-sal="210">T. 210K</button>
         </div>
       </header>
 
@@ -317,36 +318,53 @@
             </div>
           </div>
 
-          <!-- Card 3: 125K vs 210K Side-by-Side -->
+          <!-- Card 3: Salary Comparison (3-way) -->
           <div class="card-glass rounded-[1.75rem] p-5 border border-white/[0.06] space-y-4">
-            <p class="text-xs font-bold tracking-[0.3em] uppercase text-slate-400">Current vs Temenos</p>
-            <div class="grid grid-cols-2 gap-3">
+            <p class="text-xs font-bold tracking-[0.3em] uppercase text-slate-400">Salary Comparison</p>
+            <div class="grid grid-cols-3 gap-2">
               <!-- 125K Column -->
-              <div class="bg-slate-800/50 rounded-2xl p-4 border border-blue-500/10 space-y-3">
-                <div class="flex items-center gap-2 mb-2">
-                  <span class="w-2.5 h-2.5 rounded-full bg-blue-500"></span>
-                  <span class="text-[11px] font-bold text-blue-400 tracking-wider">CURRENT (125K)</span>
+              <div class="bg-slate-800/50 rounded-2xl p-3 border border-blue-500/10 space-y-3">
+                <div class="flex items-center gap-1.5 mb-1">
+                  <span class="w-2 h-2 rounded-full bg-blue-500"></span>
+                  <span class="text-[9px] font-bold text-blue-400 tracking-wider">AZUR 125K</span>
                 </div>
-                <div class="space-y-2" id="col-125">
+                <div class="space-y-1.5" id="col-125">
+                  <!-- Rendered by JS -->
+                </div>
+              </div>
+              <!-- 185K Column -->
+              <div class="bg-slate-800/50 rounded-2xl p-3 border border-amber-500/10 space-y-3">
+                <div class="flex items-center gap-1.5 mb-1">
+                  <span class="w-2 h-2 rounded-full bg-amber-500"></span>
+                  <span class="text-[9px] font-bold text-amber-400 tracking-wider">T. 185K</span>
+                </div>
+                <div class="space-y-1.5" id="col-185">
                   <!-- Rendered by JS -->
                 </div>
               </div>
               <!-- 210K Column -->
-              <div class="bg-slate-800/50 rounded-2xl p-4 border border-emerald-500/10 space-y-3">
-                <div class="flex items-center gap-2 mb-2">
-                  <span class="w-2.5 h-2.5 rounded-full bg-emerald-500"></span>
-                  <span class="text-[11px] font-bold text-emerald-400 tracking-wider">TEMENOS (210K)</span>
+              <div class="bg-slate-800/50 rounded-2xl p-3 border border-emerald-500/10 space-y-3">
+                <div class="flex items-center gap-1.5 mb-1">
+                  <span class="w-2 h-2 rounded-full bg-emerald-500"></span>
+                  <span class="text-[9px] font-bold text-emerald-400 tracking-wider">T. 210K</span>
                 </div>
-                <div class="space-y-2" id="col-210">
+                <div class="space-y-1.5" id="col-210">
                   <!-- Rendered by JS -->
                 </div>
               </div>
             </div>
-            <!-- Difference callout -->
-            <div id="salary-diff-callout" class="bg-gradient-to-r from-emerald-500/10 to-blue-500/10 rounded-xl p-3 border border-emerald-500/10 text-center">
-              <p class="text-[10px] font-bold tracking-widest uppercase text-slate-500">Extra with Temenos</p>
-              <p id="salary-diff-val" class="text-2xl font-display font-bold text-emerald-400 tabular-nums">--</p>
-              <p class="text-[10px] text-slate-500">more per month</p>
+            <!-- Difference callouts -->
+            <div class="grid grid-cols-2 gap-2">
+              <div class="bg-gradient-to-r from-amber-500/10 to-blue-500/10 rounded-xl p-3 border border-amber-500/10 text-center">
+                <p class="text-[9px] font-bold tracking-widest uppercase text-slate-500">Extra w/ T. 185K</p>
+                <p id="salary-diff-185" class="text-lg font-display font-bold text-amber-400 tabular-nums">--</p>
+                <p class="text-[9px] text-slate-500">vs Azur / mo</p>
+              </div>
+              <div class="bg-gradient-to-r from-emerald-500/10 to-blue-500/10 rounded-xl p-3 border border-emerald-500/10 text-center">
+                <p class="text-[9px] font-bold tracking-widest uppercase text-slate-500">Extra w/ T. 210K</p>
+                <p id="salary-diff-210" class="text-lg font-display font-bold text-emerald-400 tabular-nums">--</p>
+                <p class="text-[9px] text-slate-500">vs Azur / mo</p>
+              </div>
             </div>
           </div>
 
