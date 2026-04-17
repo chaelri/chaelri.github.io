@@ -1,4 +1,33 @@
-// Service worker — tab ops, download renaming, context menu, tab grouping
+// Service worker — tab ops, download renaming, context menu, tab grouping,
+// auto-close of completed download tabs.
+
+// ══════════════════════════════════════════════════════════════════════════
+// Tracking which tabs we opened — so we can safely close them when their
+// download finishes. Persisted via chrome.storage.session so it survives
+// service-worker wake/sleep cycles.
+// ══════════════════════════════════════════════════════════════════════════
+const TABS_KEY = "downloadTabs";
+
+async function trackTab(tabId, meta) {
+  const store = await chrome.storage.session.get(TABS_KEY);
+  const tabs = store[TABS_KEY] || {};
+  tabs[tabId] = { openedAt: Date.now(), ...meta };
+  await chrome.storage.session.set({ [TABS_KEY]: tabs });
+}
+
+async function untrackTab(tabId) {
+  const store = await chrome.storage.session.get(TABS_KEY);
+  const tabs = store[TABS_KEY] || {};
+  if (tabId in tabs) {
+    delete tabs[tabId];
+    await chrome.storage.session.set({ [TABS_KEY]: tabs });
+  }
+}
+
+async function getTrackedTabs() {
+  const store = await chrome.storage.session.get(TABS_KEY);
+  return store[TABS_KEY] || {};
+}
 
 // ══════════════════════════════════════════════════════════════════════════
 // Message routing — content scripts send tab open/close + anime metadata
@@ -6,14 +35,63 @@
 chrome.runtime.onMessage.addListener((msg, sender) => {
   if (msg.action === "openTab") {
     chrome.tabs.create({ url: msg.url, active: false }, (tab) => {
-      if (msg.animeId && msg.animeTitle && tab) {
+      if (!tab) return;
+      trackTab(tab.id, { animeId: msg.animeId, animeTitle: msg.animeTitle });
+      if (msg.animeId && msg.animeTitle) {
         groupDownloadTab(tab.id, msg.animeId, msg.animeTitle);
       }
     });
   } else if (msg.action === "closeTab") {
+    untrackTab(sender.tab.id);
     chrome.tabs.remove(sender.tab.id);
   }
 });
+
+chrome.tabs.onRemoved.addListener((tabId) => {
+  untrackTab(tabId);
+});
+
+// ══════════════════════════════════════════════════════════════════════════
+// Auto-close download tabs when their download actually finishes.
+// Background-level safety net: kwik.js has its own 15s countdown that also
+// sends closeTab, but that can fail silently on Cloudflare challenges, ad
+// script interference, or network hiccups. Listening to real download state
+// at the browser level is much more reliable.
+// ══════════════════════════════════════════════════════════════════════════
+chrome.downloads.onChanged.addListener((delta) => {
+  if (!delta.state || delta.state.current !== "complete") return;
+  // Give the browser a beat to finalize the file write before we close.
+  setTimeout(closeOldestFinishedTab, 1200);
+});
+
+async function closeOldestFinishedTab() {
+  const tracked = await getTrackedTabs();
+  const candidates = [];
+  for (const [tabIdStr, meta] of Object.entries(tracked)) {
+    const tabId = parseInt(tabIdStr, 10);
+    try {
+      const tab = await chrome.tabs.get(tabId);
+      const url = tab?.url || "";
+      // Only close tabs that are on a download-host page — never animepahe
+      // itself (that's the auto-pilot driver tab).
+      if (/kwik\.cx|pahe\.win/.test(url)) {
+        candidates.push({ tabId, openedAt: meta.openedAt });
+      }
+    } catch (e) {
+      // Tab already closed externally — clean up our tracking.
+      untrackTab(tabId);
+    }
+  }
+  if (!candidates.length) return;
+  // Close the tab that was opened longest ago — it's most likely the one
+  // whose download just completed.
+  candidates.sort((a, b) => a.openedAt - b.openedAt);
+  const { tabId } = candidates[0];
+  try {
+    await chrome.tabs.remove(tabId);
+  } catch (e) {}
+  untrackTab(tabId);
+}
 
 // ══════════════════════════════════════════════════════════════════════════
 // Context menu — right-click animepahe links to kick off auto-pilot

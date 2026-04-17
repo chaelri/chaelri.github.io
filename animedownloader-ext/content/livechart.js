@@ -424,7 +424,21 @@
     .sd-result-meta { font-size: 0.72rem; color: var(--text-muted); display: flex; gap: 6px; flex-wrap: wrap; }
     .sd-result-meta .sep { color: #444; }
     .sd-result-meta .star { color: #ffab00; }
-    .sd-result-dl { color: #00e676; font-size: 0.65rem; font-weight: 700; letter-spacing: 1.5px; text-transform: uppercase; white-space: nowrap; }
+    .sd-result-dl { color: #00e676; font-size: 0.65rem; font-weight: 700; letter-spacing: 1.5px; text-transform: uppercase; white-space: nowrap; align-self: start; padding-top: 2px; }
+    .sd-ai { background: linear-gradient(135deg, #7c3aed, #3B97FC); border: none; color: white; padding: 6px 12px; border-radius: 6px; font-size: 0.7rem; font-weight: 700; cursor: pointer; font-family: inherit; letter-spacing: 0.5px; transition: 0.15s; white-space: nowrap; }
+    .sd-ai:hover { opacity: 0.88; }
+    .sd-ai:disabled { opacity: 0.4; cursor: not-allowed; }
+    .sd-ai-badge { background: linear-gradient(135deg, #7c3aed, #3B97FC); color: white; font-size: 0.55rem; padding: 2px 6px; border-radius: 4px; font-weight: 700; letter-spacing: 0.5px; margin-left: 6px; vertical-align: middle; }
+    .sd-ai-hint { padding: 10px 18px; font-size: 0.7rem; color: #a78bfa; border-bottom: 1px solid var(--border); text-align: center; }
+
+    /* AI result card — no poster column, richer text content */
+    .sd-result-ai { grid-template-columns: 1fr auto; padding: 16px 18px; align-items: start; gap: 16px; }
+    .sd-result-ai .sd-result-title { white-space: normal; margin-bottom: 6px; font-size: 0.95rem; }
+    .sd-result-studio { font-size: 0.68rem; color: var(--accent); font-weight: 700; text-transform: uppercase; letter-spacing: 0.8px; margin-bottom: 4px; }
+    .sd-genres { display: flex; flex-wrap: wrap; gap: 5px; margin: 6px 0 8px 0; }
+    .sd-genre { font-size: 0.6rem; background: #1a1a1a; color: #aaa; padding: 2px 8px; border-radius: 4px; font-weight: 600; border: 1px solid var(--border); letter-spacing: 0.3px; }
+    .sd-synopsis { font-size: 0.76rem; color: #aaa; line-height: 1.55; margin-bottom: 6px; }
+    .sd-reason { font-size: 0.7rem; color: #a78bfa; font-style: italic; line-height: 1.4; }
 
     @media (max-width: 720px) {
       .search-link { padding: 8px 14px; font-size: 0.75rem; }
@@ -498,7 +512,8 @@
     <div class="sd-panel" role="dialog" aria-label="Search LiveChart">
       <div class="sd-head">
         <span class="material-symbols-outlined">search</span>
-        <input type="text" id="sd-input" class="sd-input" placeholder="Search LiveChart's full database…" autocomplete="off" spellcheck="false">
+        <input type="text" id="sd-input" class="sd-input" placeholder="Title or describe it — &quot;anime with pink hair&quot;…" autocomplete="off" spellcheck="false">
+        <button type="button" class="sd-ai" id="sd-ai-btn" title="Ask AI (⌘↵ / Ctrl↵)">✨ AI</button>
         <button type="button" class="sd-close" id="sd-close" aria-label="Close">×</button>
       </div>
       <div class="sd-body" id="sd-results">
@@ -733,6 +748,7 @@ Where score is the rank (1 = best). Only genuine matches. Raw JSON only, no mark
     const sdResults = document.getElementById("sd-results");
     const sdOpenBtn = document.getElementById("open-search-dropdown");
     const sdCloseBtn = document.getElementById("sd-close");
+    const sdAiBtn = document.getElementById("sd-ai-btn");
 
     let sdAbort = null;
     let sdDebounce = null;
@@ -766,41 +782,94 @@ Where score is the rank (1 = best). Only genuine matches. Raw JSON only, no mark
       }
     });
 
-    const renderSdResults = (results, query) => {
+    const escapeHTML = (s) =>
+      String(s || "")
+        .replace(/&/g, "&amp;")
+        .replace(/</g, "&lt;")
+        .replace(/>/g, "&gt;")
+        .replace(/"/g, "&quot;");
+
+    const renderAICard = (r) => {
+      const dlUrl = `https://animepahe.pw/anime?searchFilter=${encodeURIComponent(r.title)}&auto=true`;
+      const metaBits = [];
+      if (r.type) metaBits.push(escapeHTML(r.type));
+      if (r.episodes && r.type !== "Movie")
+        metaBits.push(`${escapeHTML(r.episodes)} eps`);
+      if (r.year) metaBits.push(escapeHTML(r.year));
+      const metaHTML = metaBits.length
+        ? `<div class="sd-result-meta">${metaBits.join('<span class="sep">·</span>')}</div>`
+        : "";
+      const studioHTML = r.studio
+        ? `<div class="sd-result-studio">${escapeHTML(r.studio)}</div>`
+        : "";
+      const genresHTML = Array.isArray(r.genres) && r.genres.length
+        ? `<div class="sd-genres">${r.genres
+            .slice(0, 5)
+            .map((g) => `<span class="sd-genre">${escapeHTML(g)}</span>`)
+            .join("")}</div>`
+        : "";
+      const synopsisHTML = r.synopsis
+        ? `<div class="sd-synopsis">${escapeHTML(r.synopsis)}</div>`
+        : "";
+      const reasonHTML = r.reason
+        ? `<div class="sd-reason">✨ ${escapeHTML(r.reason)}</div>`
+        : "";
+      return `
+        <a class="sd-result sd-result-ai" href="${dlUrl}" target="_blank" rel="noopener">
+          <div class="sd-result-info">
+            ${studioHTML}
+            <div class="sd-result-title">${escapeHTML(r.title)}<span class="sd-ai-badge">✨ AI</span></div>
+            ${metaHTML}
+            ${genresHTML}
+            ${synopsisHTML}
+            ${reasonHTML}
+          </div>
+          <span class="sd-result-dl">▶ Download</span>
+        </a>`;
+    };
+
+    const renderRegularCard = (r) => {
+      const dlUrl = `https://animepahe.pw/anime?searchFilter=${encodeURIComponent(r.title)}&auto=true`;
+      const poster = r.poster
+        ? `<img class="sd-result-poster" src="${escapeHTML(r.poster)}" alt="" loading="lazy" onerror="this.style.visibility='hidden'">`
+        : `<div class="sd-result-poster"></div>`;
+      const metaBits = [];
+      if (r.titleExtra) metaBits.push(escapeHTML(r.titleExtra.replace(/^\(|\)$/g, "")));
+      if (r.date) metaBits.push(escapeHTML(r.date));
+      const metaHTML = metaBits
+        .map((b) => `<span>${b}</span>`)
+        .join('<span class="sep">·</span>');
+      const ratingHTML = r.rating
+        ? `<span class="sep">·</span><span class="star">★ ${escapeHTML(r.rating)}</span>`
+        : "";
+      return `
+        <a class="sd-result" href="${dlUrl}" target="_blank" rel="noopener">
+          ${poster}
+          <div class="sd-result-info">
+            <div class="sd-result-title">${escapeHTML(r.title)}</div>
+            <div class="sd-result-meta">${metaHTML}${ratingHTML}</div>
+          </div>
+          <span class="sd-result-dl">▶ Download</span>
+        </a>`;
+    };
+
+    const renderSdResults = (results, query, opts = {}) => {
       if (!query) {
-        sdResults.innerHTML = `<div class="sd-hint">Start typing to search all anime on LiveChart.</div>`;
+        sdResults.innerHTML = `<div class="sd-hint">Start typing to search by title, or describe an anime and hit ✨ AI.</div>`;
         return;
       }
       if (!results.length) {
-        sdResults.innerHTML = `<div class="sd-empty">No matches for "${query}".</div>`;
+        sdResults.innerHTML = `<div class="sd-empty">No matches for "${escapeHTML(query)}".</div>`;
         return;
       }
-      sdResults.innerHTML = results
-        .map((r) => {
-          const dlUrl = `https://animepahe.pw/anime?searchFilter=${encodeURIComponent(r.title)}&auto=true`;
-          const poster = r.poster
-            ? `<img class="sd-result-poster" src="${r.poster}" alt="" loading="lazy" onerror="this.style.visibility='hidden'">`
-            : `<div class="sd-result-poster"></div>`;
-          const metaBits = [];
-          if (r.titleExtra) metaBits.push(r.titleExtra.replace(/^\(|\)$/g, ""));
-          if (r.date) metaBits.push(r.date);
-          const metaHTML = metaBits
-            .map((b) => `<span>${b}</span>`)
-            .join('<span class="sep">·</span>');
-          const ratingHTML = r.rating
-            ? `<span class="sep">·</span><span class="star">★ ${r.rating}</span>`
-            : "";
-          return `
-            <a class="sd-result" href="${dlUrl}" target="_blank" rel="noopener">
-              ${poster}
-              <div class="sd-result-info">
-                <div class="sd-result-title">${r.title}</div>
-                <div class="sd-result-meta">${metaHTML}${ratingHTML}</div>
-              </div>
-              <span class="sd-result-dl">▶ Download</span>
-            </a>`;
-        })
-        .join("");
+      const hintHTML = opts.ai
+        ? `<div class="sd-ai-hint">✨ AI picks for "${escapeHTML(query)}"</div>`
+        : "";
+      sdResults.innerHTML =
+        hintHTML +
+        results
+          .map((r) => (r.aiSuggested ? renderAICard(r) : renderRegularCard(r)))
+          .join("");
     };
 
     const runSdSearch = async (query) => {
@@ -832,6 +901,95 @@ Where score is the rank (1 = best). Only genuine matches. Raw JSON only, no mark
       }
       if (q.length < 2) return;
       sdDebounce = setTimeout(() => runSdSearch(q), 250);
+    });
+
+    // ── AI search: natural-language → title suggestions
+    // Zero LiveChart fetches — AI returns title+year+reason inline, and the
+    // Download button goes straight to animepahe, so we never scrape LiveChart
+    // just to enrich AI output. Protects against IP bans / bot detection.
+    const runSdAI = async () => {
+      const query = sdInput.value.trim();
+      if (!query) return;
+
+      if (sdAbort) sdAbort.abort();
+      sdAbort = new AbortController();
+
+      sdAiBtn.disabled = true;
+      sdResults.innerHTML = `<div class="sd-loading">✨ Asking AI…</div>`;
+
+      try {
+        const prompt = `You are an anime expert. Given the user's query, return up to 8 real anime that best match.
+
+Query: "${query}"
+
+Return ONLY a raw JSON array — no markdown, no explanations — with objects shaped exactly:
+[{
+  "title": "Canonical Romaji or English title",
+  "year": "YYYY",
+  "type": "TV" | "Movie" | "OVA" | "ONA" | "Special",
+  "episodes": "number as string, or 1 for Movie",
+  "studio": "Main animation studio",
+  "genres": ["Genre1", "Genre2", "Genre3"],
+  "synopsis": "1-2 sentence plot summary",
+  "reason": "why it matches the query, under 80 chars"
+}]
+
+Rules:
+- Use the canonical Romaji or English title — whichever is more commonly searchable on anime sites
+- Only real, existing anime — never invent titles
+- Sort best-match first
+- Studio should be the main production studio (e.g. "MAPPA", "Kyoto Animation", "Wit Studio")
+- Genres should be 2-5 widely recognized genre tags (e.g. "Drama", "Slice of Life", "Isekai")
+- Synopsis is a fresh 1-2 sentence plot summary — not a copy-paste
+- If query describes traits (character looks, vibe, genre), prioritize shows actually known for those traits`;
+
+        const aiRes = await fetch(GEMINI_PROXY, {
+          method: "POST",
+          headers: { "Content-Type": "application/json" },
+          body: JSON.stringify({
+            task: "anime_title_search",
+            contents: [{ parts: [{ text: prompt }] }],
+          }),
+          signal: sdAbort.signal,
+        });
+        const aiData = await aiRes.json();
+        const raw = aiData.candidates?.[0]?.content?.parts?.[0]?.text || "[]";
+        const items = JSON.parse(raw.replace(/```json|```/g, "").trim());
+
+        if (!Array.isArray(items) || !items.length) {
+          sdResults.innerHTML = `<div class="sd-empty">AI found no matches for "${query}".</div>`;
+          return;
+        }
+
+        const results = items.map((item) => ({
+          title: item.title || "",
+          year: item.year ? String(item.year) : "",
+          type: item.type || "",
+          episodes: item.episodes ? String(item.episodes) : "",
+          studio: item.studio || "",
+          genres: Array.isArray(item.genres) ? item.genres : [],
+          synopsis: item.synopsis || "",
+          reason: item.reason || "",
+          aiSuggested: true,
+        }));
+
+        renderSdResults(results, query, { ai: true });
+      } catch (e) {
+        if (e.name !== "AbortError") {
+          sdResults.innerHTML = `<div class="sd-empty">AI failed: ${e.message}</div>`;
+        }
+      } finally {
+        sdAiBtn.disabled = false;
+      }
+    };
+
+    sdAiBtn.addEventListener("click", runSdAI);
+    sdInput.addEventListener("keydown", (e) => {
+      if (e.key === "Enter" && (e.metaKey || e.ctrlKey)) {
+        e.preventDefault();
+        clearTimeout(sdDebounce);
+        runSdAI();
+      }
     });
   }
 
