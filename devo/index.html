@@ -69,7 +69,7 @@
 
           <button id="load" class="primary">Search</button>
 
-          <div class="controls-bottom-row">
+          <div class="controls-toolbar">
             <select id="versionSelect" hidden>
               <option value="NASB">NASB 2020</option>
               <option value="EASY">EASY 2024</option>
@@ -78,20 +78,35 @@
               <button class="version-pill" data-ver="NASB">NASB</button>
               <button class="version-pill" data-ver="EASY">EASY</button>
             </div>
-            <div class="controls-actions">
-              <button id="prevChapterBtn" class="ctrl-icon-btn hidden">
-                <span class="material-symbols-outlined">navigate_before</span>
-              </button>
-              <button id="nextChapterBtn" class="ctrl-icon-btn hidden">
-                <span class="material-symbols-outlined">navigate_next</span>
-              </button>
-              <button id="ttsPlayBtn" class="ctrl-icon-btn hidden">
-                <span class="material-symbols-outlined">headphones</span>
-              </button>
-              <div id="mode-toggle" class="mode-toggle">
-                <span class="material-symbols-outlined">light_mode</span>
-              </div>
+            <button id="prevChapterBtn" class="ctrl-icon-btn hidden">
+              <span class="material-symbols-outlined">navigate_before</span>
+            </button>
+            <button id="nextChapterBtn" class="ctrl-icon-btn hidden">
+              <span class="material-symbols-outlined">navigate_next</span>
+            </button>
+            <button id="ttsPlayBtn" class="ctrl-icon-btn hidden">
+              <span class="material-symbols-outlined">headphones</span>
+            </button>
+            <button id="notesToggleBtn" class="ctrl-icon-btn hidden" title="Toggle all notes">
+              <span class="material-symbols-outlined">edit_note</span>
+            </button>
+            <div id="mode-toggle" class="mode-toggle">
+              <span class="material-symbols-outlined">light_mode</span>
             </div>
+            <button id="bibleSearchBtn" class="ctrl-icon-btn" title="Search Bible">
+              <span class="material-symbols-outlined">search</span>
+            </button>
+          </div>
+
+          <!-- Bible Search Modal -->
+          <div id="bibleSearchModal" class="bible-search-modal" hidden>
+            <div class="bible-search-bar">
+              <span class="material-symbols-outlined bible-search-icon">search</span>
+              <input type="search" id="bibleSearchInput" class="bible-search-input" placeholder="Search verse, keyword, or reference…" autocomplete="off" />
+              <button id="bibleSearchClose" class="bible-search-close">Cancel</button>
+            </div>
+            <div class="bible-search-hint" id="bibleSearchHint">Type at least 3 characters to search all verses</div>
+            <div class="bible-search-results" id="bibleSearchResults"></div>
           </div>
 
         

@@ -1368,6 +1368,7 @@ function ttsShowContinuePrompt() {
     document.getElementById("prevChapterBtn").classList.remove("hidden");
     document.getElementById("nextChapterBtn").classList.remove("hidden");
     document.getElementById("ttsPlayBtn").classList.remove("hidden");
+    document.getElementById("notesToggleBtn").classList.remove("hidden");
     await loadPassage();
     runAIForCurrentPassage();
     playChapter();
@@ -2579,6 +2580,8 @@ async function loadPassage() {
 
     /* ---------- RENDER ---------- */
     output.innerHTML = "";
+    _allNotesOpen = false;
+    document.getElementById("notesToggleBtn")?.classList.remove("ctrl-icon-active");
 
     let isInsideQuote = false;
 
@@ -2625,6 +2628,7 @@ async function loadPassage() {
 
       const wrap = document.createElement("div");
       wrap.className = "verse" + (isFav ? " highlighted" : "");
+      wrap.dataset.verseKey = key;
       wrap.innerHTML = `
         <div id="${
           v.verse
@@ -2718,6 +2722,14 @@ async function loadPassage() {
 
       output.appendChild(wrap);
     });
+
+    // Add Reflect button below the last verse
+    const reflectRow = document.createElement("div");
+    reflectRow.className = "passage-end-reflect";
+    reflectRow.innerHTML = `
+      <button class="passage-end-reflect-btn" onclick="openReflectModal()">Reflect</button>
+    `;
+    output.appendChild(reflectRow);
 
     renderSummary();
     hideLoading();
@@ -3226,7 +3238,7 @@ const updateMetaIndicators = (key, verseContent, newCommentCount) => {
   }
 };
 
-function renderComments(key, container) {
+function renderComments(key, container, { skipFocus = false } = {}) {
   container.innerHTML = "";
 
   // key format: "BOOKID-CHAPTER-VERSE" where VERSE may contain a dash (e.g. "1-4")
@@ -3305,8 +3317,32 @@ ${BIBLE_META[key.split("-")[0]].name.toUpperCase()} ${key.split("-")[1]}:${verse
   updateMetaIndicators(key, verseContent, list.length);
 
   const newTextarea = input.querySelector("textarea");
-  newTextarea.focus();
+  if (!skipFocus) newTextarea.focus();
 }
+
+/* ---------- TOGGLE ALL NOTES ---------- */
+let _allNotesOpen = false;
+
+function toggleAllNotes() {
+  _allNotesOpen = !_allNotesOpen;
+  const btn = document.getElementById("notesToggleBtn");
+  btn.classList.toggle("ctrl-icon-active", _allNotesOpen);
+
+  document.querySelectorAll("#output .verse").forEach((wrap) => {
+    const key = wrap.dataset.verseKey;
+    const commentsEl = wrap.querySelector(".comments");
+    if (!key || !commentsEl) return;
+
+    if (_allNotesOpen) {
+      commentsEl.hidden = false;
+      renderComments(key, commentsEl, { skipFocus: true });
+    } else {
+      commentsEl.hidden = true;
+    }
+  });
+}
+
+document.getElementById("notesToggleBtn")?.addEventListener("click", toggleAllNotes);
 
 let hasCurrentComments = false;
 /* ---------- SUMMARY ---------- */
@@ -3423,6 +3459,7 @@ loadBtn.onclick = async () => {
   document.getElementById("prevChapterBtn").classList.remove("hidden");
   document.getElementById("nextChapterBtn").classList.remove("hidden");
   document.getElementById("ttsPlayBtn").classList.remove("hidden");
+  document.getElementById("notesToggleBtn").classList.remove("hidden");
   document.getElementById("storyReflectRow")?.classList.remove("hidden");
   updateStorySeenState();
   resetAISections();
@@ -3484,6 +3521,9 @@ homeBtn.onclick = () => {
   document.getElementById("prevChapterBtn").classList.add("hidden");
   document.getElementById("nextChapterBtn").classList.add("hidden");
   document.getElementById("ttsPlayBtn").classList.add("hidden");
+  document.getElementById("notesToggleBtn").classList.add("hidden");
+  _allNotesOpen = false;
+  document.getElementById("notesToggleBtn").classList.remove("ctrl-icon-active");
   stopTTS();
   resetAISections();
   showDashboard();
@@ -8057,3 +8097,178 @@ async function _imgcrShare() {
     } else { _imgcrDownload(); }
   } catch { _imgcrDownload(); }
 }
+
+// =============================================
+// BIBLE SEARCH — Full-text search across all books
+// =============================================
+(function initBibleSearch() {
+  const searchBtn = document.getElementById("bibleSearchBtn");
+  const modal = document.getElementById("bibleSearchModal");
+  const input = document.getElementById("bibleSearchInput");
+  const closeBtn = document.getElementById("bibleSearchClose");
+  const resultsEl = document.getElementById("bibleSearchResults");
+  const hintEl = document.getElementById("bibleSearchHint");
+  if (!searchBtn || !modal) return;
+
+  const BOOK_KEYS = Object.keys(BIBLE_META);
+  const MAX_RESULTS = 50;
+
+  function openSearch() {
+    modal.hidden = false;
+    requestAnimationFrame(() => {
+      modal.classList.add("open");
+      input.value = "";
+      resultsEl.innerHTML = "";
+      hintEl.textContent = "Type at least 3 characters to search all verses";
+      hintEl.hidden = false;
+      setTimeout(() => input.focus(), 100);
+    });
+  }
+
+  function closeSearch() {
+    modal.classList.remove("open");
+    input.blur();
+    setTimeout(() => { modal.hidden = true; }, 250);
+  }
+
+  searchBtn.onclick = async () => {
+    if (!bibleData) await fetchBibleData();
+    openSearch();
+  };
+  closeBtn.onclick = closeSearch;
+
+  // Parse verse reference like "John 3:16", "Gen 1", "1 Cor 13:4"
+  function parseRef(q) {
+    const m = q.match(/^(\d?\s?[a-zA-Z]+(?:\s[a-zA-Z]+)?)\s+(\d+)(?::(\d+))?$/);
+    if (!m) return null;
+    const rawBook = m[1].trim().toLowerCase();
+    const ch = parseInt(m[2]);
+    const v = m[3] ? parseInt(m[3]) : null;
+    // Match against BIBLE_META
+    for (const code of BOOK_KEYS) {
+      const name = BIBLE_META[code].name.toLowerCase();
+      if (name === rawBook || name.startsWith(rawBook) || code.toLowerCase() === rawBook) {
+        if (ch >= 1 && ch <= BIBLE_META[code].chapters.length) {
+          return { code, name: BIBLE_META[code].name, ch, v };
+        }
+      }
+    }
+    return null;
+  }
+
+  function highlight(text, query) {
+    if (!query || query.length < 3) return text;
+    const escaped = query.replace(/[.*+?^${}()|[\]\\]/g, "\\$&");
+    return text.replace(new RegExp(`(${escaped})`, "gi"), '<mark class="bible-search-mark">$1</mark>');
+  }
+
+  function renderResults(results, query) {
+    if (!results.length) {
+      resultsEl.innerHTML = `<div class="bible-search-empty">No results for "${query}"</div>`;
+      return;
+    }
+    resultsEl.innerHTML = results.map((r) => `
+      <div class="bible-search-result" data-id="${r.code}-${r.ch}-${r.v || ''}">
+        <div class="bible-search-ref">${r.name} ${r.ch}${r.v ? ':' + r.v : ''}</div>
+        <div class="bible-search-text">${highlight(r.text, query)}</div>
+      </div>
+    `).join("");
+
+    if (results.length >= MAX_RESULTS) {
+      resultsEl.innerHTML += `<div class="bible-search-cap">Showing first ${MAX_RESULTS} results</div>`;
+    }
+  }
+
+  function doSearch(q) {
+    q = q.trim();
+    if (q.length < 3) {
+      resultsEl.innerHTML = "";
+      hintEl.textContent = "Type at least 3 characters to search all verses";
+      hintEl.hidden = false;
+      return;
+    }
+    hintEl.hidden = true;
+
+    if (!bibleData) {
+      resultsEl.innerHTML = '<div class="bible-search-empty">Bible data not loaded. Try again.</div>';
+      return;
+    }
+
+    // 1. Try reference parse
+    const ref = parseRef(q);
+    if (ref) {
+      const bookName = BIBLE_META[ref.code].name.toUpperCase();
+      const chData = bibleData[bookName]?.[String(ref.ch)];
+      if (chData) {
+        const found = [];
+        if (ref.v) {
+          const text = chData[String(ref.v)];
+          if (text) found.push({ code: ref.code, name: ref.name, ch: ref.ch, v: ref.v, text });
+        } else {
+          for (const [vn, text] of Object.entries(chData)) {
+            if (vn.includes("-")) continue;
+            found.push({ code: ref.code, name: ref.name, ch: ref.ch, v: parseInt(vn), text });
+          }
+          found.sort((a, b) => a.v - b.v);
+        }
+        if (found.length) {
+          renderResults(found, q);
+          return;
+        }
+      }
+    }
+
+    // 2. Book name matches
+    const lower = q.toLowerCase();
+    const found = [];
+    for (const code of BOOK_KEYS) {
+      const meta = BIBLE_META[code];
+      if (meta.name.toLowerCase().startsWith(lower)) {
+        found.push({ code, name: meta.name, ch: 1, v: null, text: `${meta.name} — ${meta.chapters.length} chapters` });
+      }
+    }
+
+    // 3. Text content search
+    for (const code of BOOK_KEYS) {
+      if (found.length >= MAX_RESULTS) break;
+      const meta = BIBLE_META[code];
+      const bookData = bibleData[meta.name.toUpperCase()] || bibleData[meta.name];
+      if (!bookData) continue;
+      for (let ch = 1; ch <= meta.chapters.length; ch++) {
+        if (found.length >= MAX_RESULTS) break;
+        const chData = bookData[String(ch)];
+        if (!chData) continue;
+        for (const [vn, text] of Object.entries(chData)) {
+          if (vn.includes("-")) continue;
+          if (text.toLowerCase().includes(lower)) {
+            found.push({ code, name: meta.name, ch, v: parseInt(vn), text });
+            if (found.length >= MAX_RESULTS) break;
+          }
+        }
+      }
+    }
+
+    renderResults(found, q);
+  }
+
+  let _searchTimer = null;
+  input.addEventListener("input", () => {
+    clearTimeout(_searchTimer);
+    _searchTimer = setTimeout(() => doSearch(input.value), 200);
+  });
+
+  // Navigate on result click
+  resultsEl.addEventListener("click", (e) => {
+    const row = e.target.closest(".bible-search-result");
+    if (!row) return;
+    const id = row.dataset.id;
+    closeSearch();
+    const [bookCode, ch, v] = id.split("-");
+    loadPassageById(`${bookCode}-${ch}-`, v || null);
+  });
+
+  // Close on Escape
+  input.addEventListener("keydown", (e) => {
+    if (e.key === "Escape") closeSearch();
+  });
+})();
