@@ -4,7 +4,9 @@
   const HREF = window.location.href;
   const GEMINI_PROXY = "https://gemini-proxy-668755364170.asia-southeast1.run.app";
 
-  if (HREF.includes("/anime/") || HREF.match(/\/anime\/\d+/)) {
+  if (HREF.includes("/search")) {
+    liveChartSearchView();
+  } else if (HREF.includes("/anime/") || HREF.match(/\/anime\/\d+/)) {
     liveChartAnimeOnlyView();
   } else {
     liveChartAnimeListView();
@@ -41,6 +43,244 @@
 
     wrapper.append(btn, input);
     h4.appendChild(wrapper);
+  }
+
+  // ── /search PAGE: live search against LiveChart with bulk-download actions ──
+
+  function liveChartSearchView() {
+    const wait = setInterval(() => {
+      // The page may still be rendering results — wait until body exists
+      if (!document.body) return;
+      clearInterval(wait);
+
+      const initialResults = parseSearchResults(document);
+      const initialQuery =
+        new URL(location.href).searchParams.get("q") || "";
+
+      renderSearchUI(initialQuery, initialResults);
+    }, 50);
+  }
+
+  function parseSearchResults(root) {
+    return Array.from(root.querySelectorAll(".anime-item")).map((el) => {
+      const titleLink = el.querySelector('a[data-anime-item-target="mainTitle"]');
+      const title = titleLink?.innerText?.trim() || el.dataset.title || "";
+      const liveChartUrl = titleLink
+        ? new URL(titleLink.getAttribute("href"), location.origin).href
+        : null;
+
+      const img = el.querySelector(".anime-item__poster-wrap img");
+      let poster = img?.src || "";
+      const srcset = img?.getAttribute("srcset");
+      if (srcset) {
+        // srcset format: "small 1x, large 2x" — take the highest-res
+        const parts = srcset.split(",").map((s) => s.trim().split(" ")[0]);
+        if (parts.length) poster = parts[parts.length - 1];
+      }
+
+      const titleExtra = el.querySelector(".title-extra")?.innerText?.trim() || "";
+      const info = el.querySelector(".info")?.innerText?.trim() || "";
+      const [datePart, ratingPart] = info
+        .split("·")
+        .map((s) => s.trim().replace(/^\s*[\u2605\u2B50]\s*/, ""));
+
+      return {
+        title,
+        liveChartUrl,
+        poster,
+        titleExtra,
+        date: datePart || "",
+        rating: (ratingPart || "").replace(/[^\d.]/g, ""),
+      };
+    });
+  }
+
+  function renderSearchUI(initialQuery, initialResults) {
+    window.stop();
+    let lastId = window.setTimeout(() => {}, 0);
+    while (lastId--) {
+      window.clearTimeout(lastId);
+      window.clearInterval(lastId);
+    }
+
+    document.documentElement.innerHTML = `
+<head>
+  <meta charset="UTF-8">
+  <title>Search — AnimeDownloader</title>
+  <link href="https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600&display=swap" rel="stylesheet">
+  <style>
+    :root {
+      --bg: #0a0a0a;
+      --fg: #fff;
+      --fg-dim: rgba(255,255,255,0.55);
+      --fg-ghost: rgba(255,255,255,0.25);
+      --line: rgba(255,255,255,0.08);
+      --line-hover: rgba(255,255,255,0.2);
+      --accent: #3B97FC;
+      --done: #00e676;
+    }
+    * { box-sizing: border-box; }
+    html, body { background: var(--bg); margin: 0; padding: 0; height: 100%; }
+    body { font-family: 'Inter', sans-serif; color: var(--fg); font-weight: 400; overflow-x: hidden; }
+
+    header { position: sticky; top: 0; z-index: 10; background: rgba(10,10,10,0.92); backdrop-filter: blur(20px); border-bottom: 1px solid var(--line); }
+    .header-inner { max-width: 960px; margin: 0 auto; padding: 28px 40px 24px; }
+    .brand { font-size: 0.7rem; letter-spacing: 2px; text-transform: uppercase; color: var(--fg-ghost); font-weight: 500; margin-bottom: 14px; }
+    .search-row { display: flex; align-items: center; gap: 14px; position: relative; }
+    .search-input { flex: 1; background: none; border: none; border-bottom: 1px solid var(--line); padding: 14px 0; color: var(--fg); font-size: 1.4rem; font-weight: 500; outline: none; font-family: inherit; letter-spacing: -0.3px; }
+    .search-input::placeholder { color: var(--fg-ghost); font-weight: 400; }
+    .search-input:focus { border-bottom-color: var(--accent); }
+    .search-count { font-size: 0.7rem; color: var(--fg-dim); letter-spacing: 1px; text-transform: uppercase; font-weight: 500; min-width: 80px; text-align: right; }
+
+    .wrap { max-width: 960px; margin: 0 auto; padding: 28px 40px 80px; }
+    .empty, .loading { padding: 60px 20px; text-align: center; color: var(--fg-dim); font-size: 0.9rem; font-weight: 400; }
+
+    .grid { display: flex; flex-direction: column; gap: 2px; }
+    .card { display: grid; grid-template-columns: 80px 1fr auto; gap: 20px; align-items: center; padding: 14px 4px; border-bottom: 1px solid var(--line); transition: background 0.15s; }
+    .card:hover { background: rgba(255,255,255,0.025); }
+    .poster { width: 80px; aspect-ratio: 2/3; object-fit: cover; border-radius: 3px; display: block; background: #111; }
+    .info { min-width: 0; }
+    .title { font-weight: 600; font-size: 1rem; line-height: 1.25; margin: 0 0 4px 0; letter-spacing: -0.2px; }
+    .title a { color: var(--fg); text-decoration: none; }
+    .title a:hover { color: var(--accent); }
+    .meta { font-size: 0.75rem; color: var(--fg-dim); font-weight: 400; display: flex; flex-wrap: wrap; gap: 6px; align-items: center; }
+    .meta .sep { color: var(--fg-ghost); }
+    .rating { color: #ffab00; font-weight: 500; }
+    .actions { display: flex; gap: 20px; align-items: center; }
+    .dl-btn { background: none; border: none; color: var(--done); font-size: 0.7rem; font-weight: 500; letter-spacing: 1.5px; text-transform: uppercase; text-decoration: none; padding: 8px 0; font-family: inherit; cursor: pointer; transition: color 0.15s; white-space: nowrap; }
+    .dl-btn:hover { color: var(--fg); }
+    .lc-btn { color: var(--fg-dim); font-size: 0.7rem; font-weight: 500; letter-spacing: 1.5px; text-transform: uppercase; text-decoration: none; transition: color 0.15s; white-space: nowrap; }
+    .lc-btn:hover { color: var(--fg); }
+
+    @media (max-width: 720px) {
+      .header-inner { padding: 20px 20px 16px; }
+      .search-input { font-size: 1.1rem; }
+      .wrap { padding: 20px 16px 60px; }
+      .card { grid-template-columns: 64px 1fr; gap: 14px; padding: 14px 4px; }
+      .poster { width: 64px; }
+      .actions { grid-column: 1 / -1; justify-content: flex-end; gap: 16px; }
+      .title { font-size: 0.95rem; }
+    }
+  </style>
+</head>
+<body>
+  <header>
+    <div class="header-inner">
+      <div class="brand">AnimeDownloader · LiveChart Search</div>
+      <div class="search-row">
+        <input class="search-input" id="q" type="text" placeholder="Search anime by title…" autocomplete="off">
+        <span class="search-count" id="count"></span>
+      </div>
+    </div>
+  </header>
+  <div class="wrap">
+    <div id="grid" class="grid"></div>
+  </div>
+</body>
+`;
+
+    const input = document.getElementById("q");
+    const grid = document.getElementById("grid");
+    const count = document.getElementById("count");
+
+    let abortCtl = null;
+    let debounceTimer = null;
+
+    const renderResults = (results, query) => {
+      count.textContent = query ? `${results.length} result${results.length === 1 ? "" : "s"}` : "";
+      if (!query) {
+        grid.innerHTML = `<div class="empty">Type a title above to search LiveChart's full database.</div>`;
+        return;
+      }
+      if (!results.length) {
+        grid.innerHTML = `<div class="empty">No matches for "${query}".</div>`;
+        return;
+      }
+      grid.innerHTML = results.map((r) => {
+        const dlUrl = `https://animepahe.pw/anime?searchFilter=${encodeURIComponent(r.title)}&auto=true`;
+        const poster = r.poster
+          ? `<img class="poster" src="${r.poster}" alt="" loading="lazy" onerror="this.style.visibility='hidden'">`
+          : `<div class="poster"></div>`;
+        const metaBits = [];
+        if (r.titleExtra) metaBits.push(r.titleExtra.replace(/^\(|\)$/g, ""));
+        if (r.date) metaBits.push(r.date);
+        const metaHTML = metaBits
+          .map((b) => `<span>${b}</span>`)
+          .join('<span class="sep">·</span>');
+        const ratingHTML = r.rating
+          ? `<span class="sep">·</span><span class="rating">★ ${r.rating}</span>`
+          : "";
+        const lcHTML = r.liveChartUrl
+          ? `<a class="lc-btn" href="${r.liveChartUrl}">LiveChart</a>`
+          : "";
+        return `
+          <div class="card">
+            ${poster}
+            <div class="info">
+              <div class="title"><a href="${r.liveChartUrl || "#"}">${r.title}</a></div>
+              <div class="meta">${metaHTML}${ratingHTML}</div>
+            </div>
+            <div class="actions">
+              ${lcHTML}
+              <a class="dl-btn" href="${dlUrl}" target="_blank">▶ Bulk Download</a>
+            </div>
+          </div>`;
+      }).join("");
+    };
+
+    const runSearch = async (query) => {
+      if (abortCtl) abortCtl.abort();
+      abortCtl = new AbortController();
+
+      grid.innerHTML = `<div class="loading">Searching…</div>`;
+      count.textContent = "";
+
+      try {
+        const res = await fetch(`/search?q=${encodeURIComponent(query)}`, {
+          signal: abortCtl.signal,
+          credentials: "same-origin",
+        });
+        const html = await res.text();
+        const doc = new DOMParser().parseFromString(html, "text/html");
+        const results = parseSearchResults(doc);
+        renderResults(results, query);
+        try {
+          history.replaceState(null, "", `/search?q=${encodeURIComponent(query)}`);
+        } catch (e) {}
+      } catch (e) {
+        if (e.name !== "AbortError") {
+          grid.innerHTML = `<div class="empty">Search failed: ${e.message}</div>`;
+        }
+      }
+    };
+
+    input.addEventListener("input", (e) => {
+      clearTimeout(debounceTimer);
+      const q = e.target.value.trim();
+      if (q.length === 0) {
+        renderResults([], "");
+        return;
+      }
+      if (q.length < 2) return;
+      debounceTimer = setTimeout(() => runSearch(q), 300);
+    });
+
+    input.addEventListener("keydown", (e) => {
+      if (e.key === "Enter") {
+        clearTimeout(debounceTimer);
+        const q = input.value.trim();
+        if (q.length >= 1) runSearch(q);
+      }
+    });
+
+    // Seed from URL — render initial results immediately, skip re-fetch
+    input.value = initialQuery;
+    if (initialQuery) {
+      renderResults(initialResults, initialQuery);
+    } else {
+      renderResults([], "");
+    }
+    input.focus();
   }
 
   // ── SEASON LIST PAGE: full UI reconstruction + AI search ──
@@ -157,6 +397,43 @@
     .season-info span { font-size: 0.7rem; color: var(--accent); text-transform: uppercase; letter-spacing: 2px; font-weight: 800; }
     .nav-btn { background: var(--card); border: 1px solid var(--border); color: white; padding: 8px; border-radius: 50%; cursor: pointer; display: flex; text-decoration: none; transition: 0.2s; }
     .nav-btn:hover { background: var(--border); transform: scale(1.1); }
+    .search-link { display: inline-flex; align-items: center; gap: 8px; background: var(--card); border: 1px solid var(--border); color: white; padding: 10px 18px; border-radius: 100px; text-decoration: none; font-size: 0.8rem; font-weight: 600; letter-spacing: 0.5px; transition: 0.2s; cursor: pointer; font-family: inherit; }
+    .search-link:hover { border-color: var(--accent); color: var(--accent); }
+    .search-link .material-symbols-outlined { font-size: 18px; }
+    .search-link .kbd { font-size: 0.65rem; color: var(--text-muted); background: var(--bg); border: 1px solid var(--border); padding: 1px 6px; border-radius: 4px; font-weight: 600; margin-left: 4px; }
+
+    .sd-overlay { position: fixed; inset: 0; background: rgba(0,0,0,0.7); backdrop-filter: blur(6px); z-index: 2000; display: flex; align-items: flex-start; justify-content: center; padding: 10vh 20px 40px; opacity: 0; pointer-events: none; transition: opacity 0.15s ease; }
+    .sd-overlay.is-open { opacity: 1; pointer-events: auto; }
+    .sd-panel { background: #0e0e0e; border: 1px solid var(--border); border-radius: 14px; width: 100%; max-width: 720px; max-height: 80vh; overflow: hidden; display: flex; flex-direction: column; box-shadow: 0 40px 100px rgba(0,0,0,0.7); transform: translateY(-8px); opacity: 0; transition: transform 0.18s ease, opacity 0.18s ease; }
+    .sd-overlay.is-open .sd-panel { transform: translateY(0); opacity: 1; }
+    .sd-head { display: flex; align-items: center; gap: 12px; padding: 16px 20px; border-bottom: 1px solid var(--border); }
+    .sd-head .material-symbols-outlined { font-size: 20px; color: var(--text-muted); }
+    .sd-input { flex: 1; background: none; border: none; color: white; font-size: 1rem; font-weight: 500; outline: none; font-family: inherit; letter-spacing: -0.2px; }
+    .sd-input::placeholder { color: var(--text-muted); font-weight: 400; }
+    .sd-close { background: none; border: 1px solid var(--border); color: var(--text-muted); width: 28px; height: 28px; border-radius: 6px; cursor: pointer; font-family: inherit; font-size: 1rem; display: flex; align-items: center; justify-content: center; padding: 0; transition: 0.15s; }
+    .sd-close:hover { color: white; border-color: var(--text-muted); }
+    .sd-body { flex: 1; overflow-y: auto; padding: 8px 0; scrollbar-width: thin; scrollbar-color: var(--border) transparent; }
+    .sd-body::-webkit-scrollbar { width: 4px; }
+    .sd-body::-webkit-scrollbar-thumb { background: var(--border); border-radius: 2px; }
+    .sd-hint, .sd-empty, .sd-loading { padding: 40px 20px; text-align: center; color: var(--text-muted); font-size: 0.85rem; }
+    .sd-result { display: grid; grid-template-columns: 56px 1fr auto; gap: 14px; align-items: center; padding: 10px 18px; text-decoration: none; color: white; transition: background 0.12s; cursor: pointer; border: none; background: none; font-family: inherit; width: 100%; text-align: left; }
+    .sd-result:hover, .sd-result:focus-visible { background: rgba(255,255,255,0.05); outline: none; }
+    .sd-result-poster { width: 56px; aspect-ratio: 2/3; object-fit: cover; border-radius: 4px; background: var(--bg); }
+    .sd-result-info { min-width: 0; }
+    .sd-result-title { font-size: 0.9rem; font-weight: 600; line-height: 1.2; margin: 0 0 4px 0; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+    .sd-result-meta { font-size: 0.72rem; color: var(--text-muted); display: flex; gap: 6px; flex-wrap: wrap; }
+    .sd-result-meta .sep { color: #444; }
+    .sd-result-meta .star { color: #ffab00; }
+    .sd-result-dl { color: #00e676; font-size: 0.65rem; font-weight: 700; letter-spacing: 1.5px; text-transform: uppercase; white-space: nowrap; }
+
+    @media (max-width: 720px) {
+      .search-link { padding: 8px 14px; font-size: 0.75rem; }
+      .search-link .kbd { display: none; }
+      .sd-overlay { padding: 8vh 12px 20px; }
+      .sd-result { grid-template-columns: 44px 1fr; padding: 10px 14px; }
+      .sd-result-poster { width: 44px; }
+      .sd-result-dl { grid-column: 1 / -1; text-align: right; }
+    }
     .toolbar { max-width: 1400px; margin: 20px auto; padding: 0 20px; display: flex; flex-wrap: wrap; gap: 15px; align-items: center; }
     .search-box { flex: 1; min-width: 300px; display: flex; gap: 10px; align-items: center; }
     .search-box input { flex: 1; background: var(--card); border: 1px solid var(--border); padding: 14px 20px; border-radius: 12px; color: white; outline: none; font-weight: 600; font-size: 0.9rem; font-family: 'Inter', sans-serif; }
@@ -210,8 +487,25 @@
         </div>
         <a href="${nav.nextLink || "#"}" class="nav-btn"><span class="material-symbols-outlined">arrow_forward_ios</span></a>
       </div>
+      <button type="button" id="open-search-dropdown" class="search-link" title="Search all anime on LiveChart (⌘K)">
+        <span class="material-symbols-outlined">search</span>
+        Search all anime
+        <span class="kbd">⌘K</span>
+      </button>
     </div>
   </header>
+  <div id="sd-overlay" class="sd-overlay" aria-hidden="true">
+    <div class="sd-panel" role="dialog" aria-label="Search LiveChart">
+      <div class="sd-head">
+        <span class="material-symbols-outlined">search</span>
+        <input type="text" id="sd-input" class="sd-input" placeholder="Search LiveChart's full database…" autocomplete="off" spellcheck="false">
+        <button type="button" class="sd-close" id="sd-close" aria-label="Close">×</button>
+      </div>
+      <div class="sd-body" id="sd-results">
+        <div class="sd-hint">Start typing to search all anime on LiveChart.</div>
+      </div>
+    </div>
+  </div>
   <div class="toolbar">
     <div class="search-box">
       <input type="text" id="infra-search" placeholder='Search title, studio, genre... or try "anime with pink hair"'>
@@ -431,6 +725,114 @@ Where score is the rank (1 = best). Only genuine matches. Raw JSON only, no mark
 
     render();
     setInterval(updateCountdowns, 1000);
+
+    // ── Inline search-all dropdown (command-palette style) ──
+
+    const sdOverlay = document.getElementById("sd-overlay");
+    const sdInput = document.getElementById("sd-input");
+    const sdResults = document.getElementById("sd-results");
+    const sdOpenBtn = document.getElementById("open-search-dropdown");
+    const sdCloseBtn = document.getElementById("sd-close");
+
+    let sdAbort = null;
+    let sdDebounce = null;
+
+    const openSearch = () => {
+      sdOverlay.classList.add("is-open");
+      sdOverlay.setAttribute("aria-hidden", "false");
+      // Wait for transition, then focus
+      setTimeout(() => sdInput.focus(), 20);
+    };
+    const closeSearch = () => {
+      sdOverlay.classList.remove("is-open");
+      sdOverlay.setAttribute("aria-hidden", "true");
+      if (sdAbort) sdAbort.abort();
+    };
+
+    sdOpenBtn.addEventListener("click", openSearch);
+    sdCloseBtn.addEventListener("click", closeSearch);
+    sdOverlay.addEventListener("click", (e) => {
+      if (e.target === sdOverlay) closeSearch();
+    });
+
+    document.addEventListener("keydown", (e) => {
+      const isMac = navigator.platform.toUpperCase().indexOf("MAC") >= 0;
+      const meta = isMac ? e.metaKey : e.ctrlKey;
+      if (meta && e.key.toLowerCase() === "k") {
+        e.preventDefault();
+        openSearch();
+      } else if (e.key === "Escape" && sdOverlay.classList.contains("is-open")) {
+        closeSearch();
+      }
+    });
+
+    const renderSdResults = (results, query) => {
+      if (!query) {
+        sdResults.innerHTML = `<div class="sd-hint">Start typing to search all anime on LiveChart.</div>`;
+        return;
+      }
+      if (!results.length) {
+        sdResults.innerHTML = `<div class="sd-empty">No matches for "${query}".</div>`;
+        return;
+      }
+      sdResults.innerHTML = results
+        .map((r) => {
+          const dlUrl = `https://animepahe.pw/anime?searchFilter=${encodeURIComponent(r.title)}&auto=true`;
+          const poster = r.poster
+            ? `<img class="sd-result-poster" src="${r.poster}" alt="" loading="lazy" onerror="this.style.visibility='hidden'">`
+            : `<div class="sd-result-poster"></div>`;
+          const metaBits = [];
+          if (r.titleExtra) metaBits.push(r.titleExtra.replace(/^\(|\)$/g, ""));
+          if (r.date) metaBits.push(r.date);
+          const metaHTML = metaBits
+            .map((b) => `<span>${b}</span>`)
+            .join('<span class="sep">·</span>');
+          const ratingHTML = r.rating
+            ? `<span class="sep">·</span><span class="star">★ ${r.rating}</span>`
+            : "";
+          return `
+            <a class="sd-result" href="${dlUrl}" target="_blank" rel="noopener">
+              ${poster}
+              <div class="sd-result-info">
+                <div class="sd-result-title">${r.title}</div>
+                <div class="sd-result-meta">${metaHTML}${ratingHTML}</div>
+              </div>
+              <span class="sd-result-dl">▶ Download</span>
+            </a>`;
+        })
+        .join("");
+    };
+
+    const runSdSearch = async (query) => {
+      if (sdAbort) sdAbort.abort();
+      sdAbort = new AbortController();
+      sdResults.innerHTML = `<div class="sd-loading">Searching…</div>`;
+      try {
+        const res = await fetch(`/search?q=${encodeURIComponent(query)}`, {
+          signal: sdAbort.signal,
+          credentials: "same-origin",
+        });
+        const html = await res.text();
+        const doc = new DOMParser().parseFromString(html, "text/html");
+        const results = parseSearchResults(doc);
+        renderSdResults(results, query);
+      } catch (e) {
+        if (e.name !== "AbortError") {
+          sdResults.innerHTML = `<div class="sd-empty">Search failed: ${e.message}</div>`;
+        }
+      }
+    };
+
+    sdInput.addEventListener("input", (e) => {
+      clearTimeout(sdDebounce);
+      const q = e.target.value.trim();
+      if (q.length === 0) {
+        renderSdResults([], "");
+        return;
+      }
+      if (q.length < 2) return;
+      sdDebounce = setTimeout(() => runSdSearch(q), 250);
+    });
   }
 
   // ── Shared helpers ──
