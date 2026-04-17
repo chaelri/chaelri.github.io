@@ -2,7 +2,10 @@
   "use strict";
 
   const HREF = window.location.href;
-  const GEMINI_PROXY = "https://gemini-proxy-668755364170.asia-southeast1.run.app";
+  // AI search features disabled — they hit Gemini which was driving cost.
+  // Setting to empty means any lingering AI fetch fails fast.
+  const GEMINI_PROXY = "";
+  const AI_DISABLED = true;
 
   if (HREF.includes("/search")) {
     liveChartSearchView();
@@ -429,16 +432,33 @@
     .sd-ai:hover { opacity: 0.88; }
     .sd-ai:disabled { opacity: 0.4; cursor: not-allowed; }
     .sd-ai-badge { background: linear-gradient(135deg, #7c3aed, #3B97FC); color: white; font-size: 0.55rem; padding: 2px 6px; border-radius: 4px; font-weight: 700; letter-spacing: 0.5px; margin-left: 6px; vertical-align: middle; }
-    .sd-ai-hint { padding: 10px 18px; font-size: 0.7rem; color: #a78bfa; border-bottom: 1px solid var(--border); text-align: center; }
+    .sd-ai-hint { padding: 10px 18px; font-size: 0.72rem; color: #a78bfa; border-bottom: 1px solid var(--border); text-align: center; display: flex; align-items: center; justify-content: center; gap: 6px; flex-wrap: wrap; }
+    .sd-ai-hint .material-symbols-outlined { font-size: 15px; }
+    .sd-ai-hint .dot { color: #555; }
+    .sd-ai-hint .stat { color: #888; font-weight: 500; }
 
-    /* AI result card — no poster column, richer text content */
-    .sd-result-ai { grid-template-columns: 1fr auto; padding: 16px 18px; align-items: start; gap: 16px; }
+    /* AI result card — 3-col (poster + content + download); collapses to 2-col when no poster */
+    .sd-result-ai { grid-template-columns: 90px 1fr auto; padding: 16px 18px; align-items: start; gap: 16px; }
+    .sd-result-ai.sd-result-no-poster { grid-template-columns: 1fr auto; }
+    .sd-result-ai .sd-result-poster { width: 90px; height: 135px; aspect-ratio: 2/3; border-radius: 4px; object-fit: cover; }
     .sd-result-ai .sd-result-title { white-space: normal; margin-bottom: 6px; font-size: 0.95rem; }
     .sd-result-studio { font-size: 0.68rem; color: var(--accent); font-weight: 700; text-transform: uppercase; letter-spacing: 0.8px; margin-bottom: 4px; }
     .sd-genres { display: flex; flex-wrap: wrap; gap: 5px; margin: 6px 0 8px 0; }
     .sd-genre { font-size: 0.6rem; background: #1a1a1a; color: #aaa; padding: 2px 8px; border-radius: 4px; font-weight: 600; border: 1px solid var(--border); letter-spacing: 0.3px; }
     .sd-synopsis { font-size: 0.76rem; color: #aaa; line-height: 1.55; margin-bottom: 6px; }
-    .sd-reason { font-size: 0.7rem; color: #a78bfa; font-style: italic; line-height: 1.4; }
+    .sd-reason { font-size: 0.7rem; color: #a78bfa; font-style: italic; line-height: 1.4; display: flex; align-items: center; gap: 6px; }
+    .sd-reason .material-symbols-outlined { font-size: 14px; }
+
+    /* Spinning loader — Material Symbols "progress_activity" with CSS animation */
+    @keyframes sd-spin { to { transform: rotate(360deg); } }
+    .sd-loader { display: flex; flex-direction: column; align-items: center; justify-content: center; gap: 10px; padding: 50px 20px; color: var(--text-muted); font-size: 0.85rem; }
+    .sd-loader .material-symbols-outlined { font-size: 28px; color: var(--accent); animation: sd-spin 1.2s linear infinite; }
+    .sd-loader.ai .material-symbols-outlined { color: #a78bfa; }
+
+    /* Material icons should inline-align within text pills */
+    .sd-result-dl .material-symbols-outlined { font-size: 14px; vertical-align: middle; margin-right: 2px; }
+    .sd-ai .material-symbols-outlined { font-size: 14px; vertical-align: middle; margin-right: 3px; }
+    .sd-ai-badge .material-symbols-outlined { font-size: 10px; vertical-align: middle; margin-right: 2px; }
 
     @media (max-width: 720px) {
       .search-link { padding: 8px 14px; font-size: 0.75rem; }
@@ -513,7 +533,6 @@
       <div class="sd-head">
         <span class="material-symbols-outlined">search</span>
         <input type="text" id="sd-input" class="sd-input" placeholder="Title or describe it — &quot;anime with pink hair&quot;…" autocomplete="off" spellcheck="false">
-        <button type="button" class="sd-ai" id="sd-ai-btn" title="Ask AI (⌘↵ / Ctrl↵)">✨ AI</button>
         <button type="button" class="sd-close" id="sd-close" aria-label="Close">×</button>
       </div>
       <div class="sd-body" id="sd-results">
@@ -523,16 +542,13 @@
   </div>
   <div class="toolbar">
     <div class="search-box">
-      <input type="text" id="infra-search" placeholder='Search title, studio, genre... or try "anime with pink hair"'>
-      <button class="ai-btn" id="ai-search-btn">✨ AI Search</button>
+      <input type="text" id="infra-search" placeholder="Search title, studio, genre…">
     </div>
     <div class="filter-row">
       <button class="sort-btn" data-sort="rating">Rating</button>
       <button class="sort-btn" data-sort="title">Title</button>
       <button class="sort-btn" data-sort="episodes">Progress</button>
-      <button class="sort-btn" id="clear-ai-btn" style="display:none; color:#e879f9; border-color:#7c3aed;">Clear AI</button>
     </div>
-    <span class="ai-status" id="ai-status"></span>
   </div>
   <div id="infra-grid" class="main-grid"></div>
 </body>
@@ -542,7 +558,6 @@
 
     let currentFilter = "";
     let currentSort = { key: null, dir: 1 };
-    let aiResults = null;
 
     function updateCountdowns() {
       const now = Math.floor(Date.now() / 1000);
@@ -563,24 +578,7 @@
       const grid = document.getElementById("infra-grid");
       let items = [...data];
 
-      if (aiResults) {
-        const aiMap = {};
-        aiResults.forEach((r, i) => {
-          aiMap[r.title.toLowerCase()] = { rank: i, reason: r.reason, score: i + 1 };
-        });
-        items = items
-          .filter((i) => aiMap[i.title.toLowerCase()])
-          .sort((a, b) => {
-            const ra = aiMap[a.title.toLowerCase()]?.rank ?? 999;
-            const rb = aiMap[b.title.toLowerCase()]?.rank ?? 999;
-            return ra - rb;
-          })
-          .map((i) => ({
-            ...i,
-            _aiReason: aiMap[i.title.toLowerCase()]?.reason,
-            _aiScore: aiMap[i.title.toLowerCase()]?.score,
-          }));
-      } else if (currentFilter) {
+      if (currentFilter) {
         const q = currentFilter.toLowerCase();
         items = items.filter(
           (i) =>
@@ -590,7 +588,7 @@
         );
       }
 
-      if (!aiResults && currentSort.key) {
+      if (currentSort.key) {
         items.sort((a, b) => {
           let valA = a[currentSort.key];
           let valB = b[currentSort.key];
@@ -611,8 +609,7 @@
       grid.innerHTML = items
         .map(
           (item) => `
-        <div class="infra-card ${item._aiReason ? "ai-match" : ""}">
-          ${item._aiScore ? `<div class="ai-score-badge">AI #${item._aiScore}</div>` : ""}
+        <div class="infra-card">
           <div class="poster-area">
             <img src="${item.thumbnail}" loading="lazy" onerror="this.src='https://placehold.co/300x450/111/444?text=No+Poster'">
             <div class="rating-badge">${item.rating}</div>
@@ -621,11 +618,7 @@
           <div class="card-body">
             <div class="studio-line">${item.studio}</div>
             <div class="card-title" title="${item.title}">${item.title}</div>
-            ${
-              item._aiReason
-                ? `<div class="ai-reason">✨ ${item._aiReason}</div>`
-                : `<div class="description">${item.description}</div>`
-            }
+            <div class="description">${item.description}</div>
             <div class="tags">${item.genres.map((g) => `<span class="tag">${g}</span>`).join("")}</div>
             <div class="meta-footer">
               <div class="countdown-box" data-ts="${item.timestamp}">${item.countdown}</div>
@@ -639,87 +632,13 @@
       updateCountdowns();
     }
 
-    async function runAISearch(query) {
-      const aiBtn = document.getElementById("ai-search-btn");
-      const aiStatus = document.getElementById("ai-status");
-      const clearBtn = document.getElementById("clear-ai-btn");
-
-      aiBtn.disabled = true;
-      aiBtn.innerText = "Searching...";
-      aiStatus.innerText = "Asking AI...";
-
-      const animeListText = data
-        .map(
-          (a, i) =>
-            `${i + 1}. ${a.title} | Genres: ${a.genres.join(", ")} | Synopsis: ${a.description.slice(0, 150)}`
-        )
-        .join("\n");
-
-      const prompt = `You are an anime expert. The user wants: "${query}"
-
-This season's anime:
-${animeListText}
-
-Return ONLY the matching anime as a JSON array:
-[{"title": "Exact Title From List", "reason": "Short reason why it matches", "score": 1}, ...]
-
-Where score is the rank (1 = best). Only genuine matches. Raw JSON only, no markdown.`;
-
-      try {
-        const res = await fetch(GEMINI_PROXY, {
-          method: "POST",
-          headers: { "Content-Type": "application/json" },
-          body: JSON.stringify({
-            task: "anime_search",
-            contents: [{ parts: [{ text: prompt }] }],
-          }),
-        });
-
-        const resData = await res.json();
-        const rawText = resData.candidates?.[0]?.content?.parts?.[0]?.text || "[]";
-        const cleaned = rawText.replace(/```json|```/g, "").trim();
-        const matches = JSON.parse(cleaned);
-
-        if (matches.length === 0) {
-          aiStatus.innerText = `No matches for "${query}". Try different keywords.`;
-        } else {
-          aiResults = matches;
-          aiStatus.innerText = `${matches.length} AI match${matches.length > 1 ? "es" : ""} for "${query}"`;
-          clearBtn.style.display = "inline-block";
-        }
-        render();
-      } catch (e) {
-        aiStatus.innerText = "AI search failed. Try again.";
-        console.error("[AnimeDownloader] AI search error:", e);
-      } finally {
-        aiBtn.disabled = false;
-        aiBtn.innerText = "✨ AI Search";
-      }
-    }
+    // runAISearch removed — AI disabled.
 
     // ── Attach event listeners ──
 
+    // Plain title/studio/genre filter on current season's already-loaded data
     document.getElementById("infra-search").addEventListener("input", (e) => {
       currentFilter = e.target.value;
-      if (!aiResults) render();
-    });
-
-    document.getElementById("infra-search").addEventListener("keydown", (e) => {
-      if (e.key === "Enter") {
-        const query = e.target.value.trim();
-        if (query.length > 2) runAISearch(query);
-      }
-    });
-
-    document.getElementById("ai-search-btn").addEventListener("click", () => {
-      const query = document.getElementById("infra-search").value.trim();
-      if (query.length > 2) runAISearch(query);
-    });
-
-    document.getElementById("clear-ai-btn").addEventListener("click", () => {
-      aiResults = null;
-      document.getElementById("ai-status").innerText = "";
-      document.getElementById("clear-ai-btn").style.display = "none";
       render();
     });
 
@@ -733,7 +652,6 @@ Where score is the rank (1 = best). Only genuine matches. Raw JSON only, no mark
         }
         document.querySelectorAll(".sort-btn").forEach((b) => b.classList.remove("active"));
         btn.classList.add("active");
-        aiResults = null;
         render();
       });
     });
@@ -748,7 +666,7 @@ Where score is the rank (1 = best). Only genuine matches. Raw JSON only, no mark
     const sdResults = document.getElementById("sd-results");
     const sdOpenBtn = document.getElementById("open-search-dropdown");
     const sdCloseBtn = document.getElementById("sd-close");
-    const sdAiBtn = document.getElementById("sd-ai-btn");
+    // sdAiBtn removed — AI search disabled
 
     let sdAbort = null;
     let sdDebounce = null;
@@ -791,6 +709,7 @@ Where score is the rank (1 = best). Only genuine matches. Raw JSON only, no mark
 
     const renderAICard = (r) => {
       const dlUrl = `https://animepahe.pw/anime?searchFilter=${encodeURIComponent(r.title)}&auto=true`;
+      const hasPoster = !!r.poster;
       const metaBits = [];
       if (r.type) metaBits.push(escapeHTML(r.type));
       if (r.episodes && r.type !== "Movie")
@@ -798,6 +717,9 @@ Where score is the rank (1 = best). Only genuine matches. Raw JSON only, no mark
       if (r.year) metaBits.push(escapeHTML(r.year));
       const metaHTML = metaBits.length
         ? `<div class="sd-result-meta">${metaBits.join('<span class="sep">·</span>')}</div>`
+        : "";
+      const posterHTML = hasPoster
+        ? `<img class="sd-result-poster" src="${escapeHTML(r.poster)}" alt="" loading="lazy" onerror="this.style.visibility='hidden'">`
         : "";
       const studioHTML = r.studio
         ? `<div class="sd-result-studio">${escapeHTML(r.studio)}</div>`
@@ -812,19 +734,22 @@ Where score is the rank (1 = best). Only genuine matches. Raw JSON only, no mark
         ? `<div class="sd-synopsis">${escapeHTML(r.synopsis)}</div>`
         : "";
       const reasonHTML = r.reason
-        ? `<div class="sd-reason">✨ ${escapeHTML(r.reason)}</div>`
+        ? `<div class="sd-reason"><span class="material-symbols-outlined">auto_awesome</span>${escapeHTML(r.reason)}</div>`
         : "";
+      const badgeHTML = `<span class="sd-ai-badge"><span class="material-symbols-outlined">auto_awesome</span>AI</span>`;
+      const classes = `sd-result sd-result-ai${hasPoster ? "" : " sd-result-no-poster"}`;
       return `
-        <a class="sd-result sd-result-ai" href="${dlUrl}" target="_blank" rel="noopener">
+        <a class="${classes}" href="${dlUrl}" target="_blank" rel="noopener">
+          ${posterHTML}
           <div class="sd-result-info">
             ${studioHTML}
-            <div class="sd-result-title">${escapeHTML(r.title)}<span class="sd-ai-badge">✨ AI</span></div>
+            <div class="sd-result-title">${escapeHTML(r.title)}${badgeHTML}</div>
             ${metaHTML}
             ${genresHTML}
             ${synopsisHTML}
             ${reasonHTML}
           </div>
-          <span class="sd-result-dl">▶ Download</span>
+          <span class="sd-result-dl"><span class="material-symbols-outlined">play_arrow</span>Download</span>
         </a>`;
     };
 
@@ -849,7 +774,7 @@ Where score is the rank (1 = best). Only genuine matches. Raw JSON only, no mark
             <div class="sd-result-title">${escapeHTML(r.title)}</div>
             <div class="sd-result-meta">${metaHTML}${ratingHTML}</div>
           </div>
-          <span class="sd-result-dl">▶ Download</span>
+          <span class="sd-result-dl"><span class="material-symbols-outlined">play_arrow</span>Download</span>
         </a>`;
     };
 
@@ -862,9 +787,20 @@ Where score is the rank (1 = best). Only genuine matches. Raw JSON only, no mark
         sdResults.innerHTML = `<div class="sd-empty">No matches for "${escapeHTML(query)}".</div>`;
         return;
       }
-      const hintHTML = opts.ai
-        ? `<div class="sd-ai-hint">✨ AI picks for "${escapeHTML(query)}"</div>`
-        : "";
+      let hintHTML = "";
+      if (opts.ai) {
+        const statParts = [];
+        if (opts.elapsed != null) {
+          statParts.push(`<span class="stat">${(opts.elapsed / 1000).toFixed(1)}s</span>`);
+        }
+        if (opts.totalTokens) {
+          statParts.push(`<span class="stat">${opts.totalTokens.toLocaleString()} tokens</span>`);
+        }
+        const stats = statParts.length
+          ? `<span class="dot">·</span>${statParts.join('<span class="dot">·</span>')}`
+          : "";
+        hintHTML = `<div class="sd-ai-hint"><span class="material-symbols-outlined">auto_awesome</span>AI picks for "${escapeHTML(query)}"${stats}</div>`;
+      }
       sdResults.innerHTML =
         hintHTML +
         results
@@ -875,7 +811,11 @@ Where score is the rank (1 = best). Only genuine matches. Raw JSON only, no mark
     const runSdSearch = async (query) => {
       if (sdAbort) sdAbort.abort();
       sdAbort = new AbortController();
-      sdResults.innerHTML = `<div class="sd-loading">Searching…</div>`;
+      sdResults.innerHTML = `
+        <div class="sd-loader">
+          <span class="material-symbols-outlined">progress_activity</span>
+          <span>Searching LiveChart…</span>
+        </div>`;
       try {
         const res = await fetch(`/search?q=${encodeURIComponent(query)}`, {
           signal: sdAbort.signal,
@@ -903,94 +843,7 @@ Where score is the rank (1 = best). Only genuine matches. Raw JSON only, no mark
       sdDebounce = setTimeout(() => runSdSearch(q), 250);
     });
 
-    // ── AI search: natural-language → title suggestions
-    // Zero LiveChart fetches — AI returns title+year+reason inline, and the
-    // Download button goes straight to animepahe, so we never scrape LiveChart
-    // just to enrich AI output. Protects against IP bans / bot detection.
-    const runSdAI = async () => {
-      const query = sdInput.value.trim();
-      if (!query) return;
-
-      if (sdAbort) sdAbort.abort();
-      sdAbort = new AbortController();
-
-      sdAiBtn.disabled = true;
-      sdResults.innerHTML = `<div class="sd-loading">✨ Asking AI…</div>`;
-
-      try {
-        const prompt = `You are an anime expert. Given the user's query, return up to 8 real anime that best match.
-
-Query: "${query}"
-
-Return ONLY a raw JSON array — no markdown, no explanations — with objects shaped exactly:
-[{
-  "title": "Canonical Romaji or English title",
-  "year": "YYYY",
-  "type": "TV" | "Movie" | "OVA" | "ONA" | "Special",
-  "episodes": "number as string, or 1 for Movie",
-  "studio": "Main animation studio",
-  "genres": ["Genre1", "Genre2", "Genre3"],
-  "synopsis": "1-2 sentence plot summary",
-  "reason": "why it matches the query, under 80 chars"
-}]
-
-Rules:
-- Use the canonical Romaji or English title — whichever is more commonly searchable on anime sites
-- Only real, existing anime — never invent titles
-- Sort best-match first
-- Studio should be the main production studio (e.g. "MAPPA", "Kyoto Animation", "Wit Studio")
-- Genres should be 2-5 widely recognized genre tags (e.g. "Drama", "Slice of Life", "Isekai")
-- Synopsis is a fresh 1-2 sentence plot summary — not a copy-paste
-- If query describes traits (character looks, vibe, genre), prioritize shows actually known for those traits`;
-
-        const aiRes = await fetch(GEMINI_PROXY, {
-          method: "POST",
-          headers: { "Content-Type": "application/json" },
-          body: JSON.stringify({
-            task: "anime_title_search",
-            contents: [{ parts: [{ text: prompt }] }],
-          }),
-          signal: sdAbort.signal,
-        });
-        const aiData = await aiRes.json();
-        const raw = aiData.candidates?.[0]?.content?.parts?.[0]?.text || "[]";
-        const items = JSON.parse(raw.replace(/```json|```/g, "").trim());
-
-        if (!Array.isArray(items) || !items.length) {
-          sdResults.innerHTML = `<div class="sd-empty">AI found no matches for "${query}".</div>`;
-          return;
-        }
-
-        const results = items.map((item) => ({
-          title: item.title || "",
-          year: item.year ? String(item.year) : "",
-          type: item.type || "",
-          episodes: item.episodes ? String(item.episodes) : "",
-          studio: item.studio || "",
-          genres: Array.isArray(item.genres) ? item.genres : [],
-          synopsis: item.synopsis || "",
-          reason: item.reason || "",
-          aiSuggested: true,
-        }));
-
-        renderSdResults(results, query, { ai: true });
-      } catch (e) {
-        if (e.name !== "AbortError") {
-          sdResults.innerHTML = `<div class="sd-empty">AI failed: ${e.message}</div>`;
-        }
-      } finally {
-        sdAiBtn.disabled = false;
-      }
-    };
-
-    sdAiBtn.addEventListener("click", runSdAI);
-    sdInput.addEventListener("keydown", (e) => {
-      if (e.key === "Enter" && (e.metaKey || e.ctrlKey)) {
-        e.preventDefault();
-        clearTimeout(sdDebounce);
-        runSdAI();
-      }
-    });
+    // AI search + AniList poster enrichment removed — was a Gemini cost path.
   }
 
   // ── Shared helpers ──

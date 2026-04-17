@@ -124,50 +124,11 @@ async function _saveStoryCache(key, data) {
   } catch {}
 })();
 
-const _imageInflight = {}; // deduplicate concurrent requests for same prompt
-
+// Image generation disabled — AI image calls were the main cost driver.
+// Keeping this function as a throwing stub so every caller's existing try/catch
+// or .catch() path silently skips the image without breaking the surrounding UI.
 async function callImageGen(prompt, aspectRatio = "9:16") {
-  let hash = 0;
-  for (let i = 0; i < prompt.length; i++) {
-    hash = ((hash << 5) - hash + prompt.charCodeAt(i)) | 0;
-  }
-  const cacheKey = "img_" + hash + "_" + aspectRatio;
-
-  // 1. Memory cache (instant)
-  if (_imageCache[cacheKey]) return _imageCache[cacheKey];
-
-  // 2. Already in-flight? Wait for same promise instead of duplicating
-  if (_imageInflight[cacheKey]) return _imageInflight[cacheKey];
-
-  // 3. IndexedDB cache (persists across refreshes)
-  const cached = await _getImageFromIDB(cacheKey);
-  if (cached) {
-    _imageCache[cacheKey] = cached;
-    return cached;
-  }
-
-  // 4. Generate fresh — store the promise to deduplicate
-  _imageInflight[cacheKey] = (async () => {
-  const res = await fetch(GEMINI_PROXY + "/generate-image", {
-    method: "POST",
-    headers: { "Content-Type": "application/json" },
-    body: JSON.stringify({ prompt, aspectRatio }),
-  });
-  const data = await res.json();
-  if (!res.ok || data.error) {
-    const reason = data.detail || data.error || `Image gen error: ${res.status}`;
-    throw new Error(reason);
-  }
-
-    const dataUrl = `data:${data.mimeType || "image/png"};base64,${data.image}`;
-    _imageCache[cacheKey] = dataUrl;
-    _saveImageToIDB(cacheKey, dataUrl);
-    delete _imageInflight[cacheKey];
-    return dataUrl;
-  })();
-
-  _imageInflight[cacheKey].catch(() => { delete _imageInflight[cacheKey]; });
-  return _imageInflight[cacheKey];
+  throw new Error("Image generation disabled");
 }
 
 function buildScenePrompt(bookName, chapter, verseRange, context) {
@@ -1572,7 +1533,7 @@ RULES:
       const questions = raw.split('\n').map(q => q.trim()).filter(q => q.length > 5).slice(0, 4);
       window._chatSuggestions[k] = questions;
 
-      el.innerHTML = [...questions, _IMAGE_CHIP_TEXT].map(q =>
+      el.innerHTML = [...questions].filter(Boolean).map(q =>
         `<button class="chat-suggestion-chip${q === _IMAGE_CHIP_TEXT ? ' chat-img-chip' : ''}">${q}</button>`
       ).join('');
 
@@ -1584,7 +1545,7 @@ RULES:
         };
       });
     } catch {
-      el.innerHTML = ['What does this verse mean?', 'How can I apply this today?', _IMAGE_CHIP_TEXT].map(q =>
+      el.innerHTML = ['What does this verse mean?', 'How can I apply this today?'].filter(Boolean).map(q =>
         `<button class="chat-suggestion-chip${q === _IMAGE_CHIP_TEXT ? ' chat-img-chip' : ''}">${q}</button>`
       ).join('');
       el.querySelectorAll('.chat-suggestion-chip').forEach(chip => {
@@ -1711,15 +1672,9 @@ function renderChatHistory(key, container) {
   container.scrollTop = container.scrollHeight;
 }
 
-const _IMAGE_CHIP_TEXT = "Visualize this scene";
-
-function _isImageRequest(text) {
-  if (text === _IMAGE_CHIP_TEXT) return true;
-  const t = text.toLowerCase();
-  const hasSubject = /\b(image|picture|scene|illustration|visual|painting|art|photo|drawing|version)\b/.test(t);
-  const hasAction = /\b(make|generate|create|show|draw|paint|visualize|imagine|illustrate|depict|render|design)\b/.test(t);
-  return hasSubject && hasAction;
-}
+// Image generation in verse chat disabled — was a Gemini image-API cost driver.
+const _IMAGE_CHIP_TEXT = null;
+function _isImageRequest() { return false; }
 
 function _digDeeperEffectsHTML() {
   return `<span class="dig-spark ds1 material-icons">auto_awesome</span>
@@ -2185,37 +2140,7 @@ async function renderDashboard() {
     <div id="dashGreetingMsg" class="dash-greeting-msg"></div>
   </div>
 
-  ${(() => {
-    // Daily featured story — deterministic per day
-    const today = new Date();
-    const seed = today.getFullYear() * 10000 + (today.getMonth() + 1) * 100 + today.getDate();
-    const bookKeys = Object.keys(BIBLE_META);
-    const bookIdx = seed % bookKeys.length;
-    const bookKey = bookKeys[bookIdx];
-    const book = BIBLE_META[bookKey];
-    const chIdx = seed % book.chapters.length;
-    const ch = chIdx + 1;
-    const seen = JSON.parse(localStorage.getItem("storySeenHistory") || "{}");
-    const isSeen = !!seen[`${bookKey}_${ch}`];
-    return `<div class="dash-featured-story${isSeen ? ' dash-story-seen' : ''}" id="dashFeaturedStory" onclick="_openDailyStory('${bookKey}', ${ch})" data-book="${bookKey}" data-book-name="${book.name}" data-ch="${ch}">
-      <div class="dash-featured-bg" id="dashFeaturedBg"></div>
-      <div class="dash-featured-left">
-        <div class="dash-featured-label"><span class="material-icons" style="font-size:14px;">auto_awesome</span> Today's Story</div>
-        <div class="dash-featured-title">${book.name} ${ch}</div>
-        <div class="dash-featured-cta">${isSeen ? 'Viewed — tap to revisit' : 'Tap to explore'} <span class="material-icons" style="font-size:14px;vertical-align:middle;">arrow_forward</span></div>
-      </div>
-      <div class="dash-featured-cards">
-        <div class="story-stack-card c3"></div>
-        <div class="story-stack-card c2"></div>
-        <div class="story-stack-card c1">
-          <span class="material-icons">auto_awesome</span>
-          <span class="story-spark s1 material-icons">auto_awesome</span>
-          <span class="story-spark s2 material-icons">auto_awesome</span>
-          <span class="story-spark s3 material-icons">auto_awesome</span>
-        </div>
-      </div>
-    </div>`;
-  })()}
+  ${/* Daily featured story removed — was driving image-gen costs. */ ""}
 
   <div class="dashboard-grid">
 
@@ -2280,41 +2205,12 @@ async function renderDashboard() {
         })()}
       </section>
 
-      <!-- CREATE & SHARE -->
-      <section class="dashboard-section dash-create-section">
-        <h3><span class="material-icons dashboard-icon">brush</span> Create & Share</h3>
-        <div class="dash-create-grid">
-          <button class="dash-create-card" onclick="openImageCreator('scene')">
-            <span class="material-icons dash-create-icon">landscape</span>
-            <div class="dash-create-label">Scene</div>
-            <div class="dash-create-desc">AI biblical illustration</div>
-          </button>
-          <button class="dash-create-card" onclick="openImageCreator('verse')">
-            <span class="material-icons dash-create-icon">format_quote</span>
-            <div class="dash-create-label">Verse Card</div>
-            <div class="dash-create-desc">Shareable modern design</div>
-          </button>
-        </div>
-      </section>
+      ${/* "Create & Share" removed — opened the AI image creator. */ ""}
 
       <!-- SOAP: APPLICATIONS & PRAYERS (combined) -->
       ${_renderSoapDashCombined()}
 
-      <!-- DAILY REMINDER -->
-      <section class="dashboard-section dash-notif-section">
-        <div class="dash-notif-row" id="pushArea">
-          <div class="dash-notif-info">
-            <span class="material-icons dash-notif-icon">notifications</span>
-            <div>
-              <div class="dash-notif-title">Reminders</div>
-              <div class="dash-notif-desc" id="pushStatusText">${localStorage.getItem("pushEnabled") === "true" ? "Enabled — gentle nudges based on your reading" : "Get gentle nudges throughout the day"}</div>
-            </div>
-          </div>
-          <button class="dash-push-btn ${localStorage.getItem("pushEnabled") === "true" ? "active" : ""}" id="pushBtn">
-            ${localStorage.getItem("pushEnabled") === "true" ? "ON" : "OFF"}
-          </button>
-        </div>
-      </section>
+      ${/* Daily Reminder section removed — it relied on Cloud Scheduler + Gemini personalization. */ ""}
       </div>
       </div>
       `;
@@ -2327,29 +2223,8 @@ async function renderDashboard() {
 
   loadDashGreetingMsg();
 
-  // Push notification button — iOS requires everything in direct click handler
-  const pushBtn = document.getElementById("pushBtn");
-  if (pushBtn) {
-    pushBtn.addEventListener("click", function(evt) {
-      evt.preventDefault();
-      evt.stopPropagation();
-      _handlePushToggle();
-    });
-  }
-
   // Bind SOAP A&P dashboard interactions
   _bindSoapDashboard();
-
-  // Generate featured story background image
-  _loadDashFeaturedImage();
-
-  // One-time notification prompt (only after name is set)
-  if (getUserName()
-    && !localStorage.getItem("pushAsked")
-    && localStorage.getItem("pushEnabled") !== "true") {
-    setTimeout(() => _showNotifPrompt(), 2000);
-  }
-
 }
 
 function _typewriterReveal(el, msg) {
@@ -3072,26 +2947,47 @@ CRITICAL LINKING RULE (MUST FOLLOW):
 - Final output must contain ZERO plain-text verse references and ZERO parentheses surrounding verse links
 
 
-QUESTION STYLE (MATCH THE SAMPLE):
-- Personally directed reflection tone (address the reader directly)
-- Questions MUST speak in second person ("you", "your")
-- Questions should invite personal meaning, conviction, or response
-- Questions may ask what the passage says to you, challenges you about, or calls you to consider
-- At least ONE question should ask about practical steps or responses you might take
-- Questions may connect the passage to present-day life or society as experienced by you
-- Do NOT provide answers
-- Do NOT preach
-- Do NOT explain theology beyond what the text directly supports
+QUESTION STYLE (STRICT — FOLLOW EXACTLY):
+- CONVERSATIONAL tone — like a friend asking over coffee, NOT a preacher, pastor, theologian, or textbook author
+- HARD MAX: 20 WORDS PER QUESTION. Count the words. If 21+, rewrite shorter.
+- Address the reader directly ("you", "your") — ALWAYS second person
+- ONE single idea per question. If you're tempted to use "considering…", "in light of…", "given that…" — STOP and split into two questions or pick one angle
+- Use plain, everyday English. A 16-year-old should understand every word without a dictionary
+- Prefer CONCRETE over abstract. "What would you do if…" beats "What does this teach you about…"
+- At least ONE of the 3 questions must name a specific action for THIS WEEK
+- VARY the opening — don't start all 3 questions with "What" or "How"
+
+BANNED WORDS / PHRASES (do not use any of these):
+- theological, implications, undeserving, unified, turning towards, in light of, considering, ultimate, collective response, encompassing, holistic, grapple, wrestle with, challenge your understanding, sovereign, providence, salvific, eschatological
+
+FORBIDDEN PATTERNS:
+- "What does X teach you about Y?" — school-quiz phrasing, don't use
+- "How does X challenge your understanding of Y?" — academic, don't use
+- Compound questions with "and" connecting two different concepts
+- Questions that restate the verse before asking (just ask the question)
+
+GOOD EXAMPLES (write like these):
+- "Where in your life are you running from something God is asking you to do? (vv. 1–3)"
+- "What's one thing you're stubbornly holding onto that God is calling you to let go of? (v. 5)"
+- "How would your week look if you took v. 8 seriously starting tomorrow?"
+- "Who in your life needs the same mercy God gave Nineveh — and what's stopping you? (v. 10)"
+- "Name one habit you'd cut this week if you really believed v. 9 applied to you."
+
+BAD EXAMPLES (do NOT write like these):
+- "What does their collective response, from the common people to the king, teach you about the power of a unified turning towards God?" — too long, academic, multi-concept
+- "Considering God's ultimate compassion, how does this passage challenge your understanding of mercy, even to those who might seem undeserving?" — 3 concepts crammed in, jargon
+- "How does the king's decree reveal the nature of genuine repentance and its societal implications?" — stilted, theological, abstract
 
 PERSONALIZATION RULE (STRICT):
 - ALL questions MUST be directly addressed to the reader
-- Avoid third-person or general phrasing (e.g., "people today", "believers", "society")
-- Prefer phrasing like:
-  "What does this passage say to you…"
-  "How does this challenge you…"
-  "What might this mean for the way you respond…"
-  "What practical steps could you take…"
-- If a question could apply without being personal, rewrite it
+- Never use "people today", "believers", "society", "we as a community"
+- If a question could apply to a random stranger, rewrite it to be personal
+
+DO NOT:
+- Provide answers
+- Preach or moralize
+- Explain theology
+- Use parentheses around the verse link (write "v. 5" not "(v. 5)")
 
 STRUCTURE:
 - NO title
@@ -6081,7 +5977,7 @@ RULES:
       if (!window._chatSuggestions) window._chatSuggestions = {};
       window._chatSuggestions[key] = questions;
 
-      suggestEl.innerHTML = [...questions, _IMAGE_CHIP_TEXT].map(q =>
+      suggestEl.innerHTML = [...questions].filter(Boolean).map(q =>
         `<button class="chat-suggestion-chip${q === _IMAGE_CHIP_TEXT ? ' chat-img-chip' : ''}">${q}</button>`
       ).join('');
       suggestEl.querySelectorAll('.chat-suggestion-chip').forEach(chip => {
@@ -6093,7 +5989,7 @@ RULES:
         };
       });
     } catch {
-      suggestEl.innerHTML = ['What is the main message here?', 'How can I apply this today?', _IMAGE_CHIP_TEXT].map(q =>
+      suggestEl.innerHTML = ['What is the main message here?', 'How can I apply this today?'].filter(Boolean).map(q =>
         `<button class="chat-suggestion-chip">${q}</button>`
       ).join('');
       suggestEl.querySelectorAll('.chat-suggestion-chip').forEach(chip => {
