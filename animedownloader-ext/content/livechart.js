@@ -405,68 +405,40 @@
     .search-link .material-symbols-outlined { font-size: 18px; }
     .search-link .kbd { font-size: 0.65rem; color: var(--text-muted); background: var(--bg); border: 1px solid var(--border); padding: 1px 6px; border-radius: 4px; font-weight: 600; margin-left: 4px; }
 
-    .sd-overlay { position: fixed; inset: 0; background: rgba(0,0,0,0.7); backdrop-filter: blur(6px); z-index: 2000; display: flex; align-items: flex-start; justify-content: center; padding: 10vh 20px 40px; opacity: 0; pointer-events: none; transition: opacity 0.15s ease; }
-    .sd-overlay.is-open { opacity: 1; pointer-events: auto; }
-    .sd-panel { background: #0e0e0e; border: 1px solid var(--border); border-radius: 14px; width: 100%; max-width: 720px; max-height: 80vh; overflow: hidden; display: flex; flex-direction: column; box-shadow: 0 40px 100px rgba(0,0,0,0.7); transform: translateY(-8px); opacity: 0; transition: transform 0.18s ease, opacity 0.18s ease; }
-    .sd-overlay.is-open .sd-panel { transform: translateY(0); opacity: 1; }
-    .sd-head { display: flex; align-items: center; gap: 12px; padding: 16px 20px; border-bottom: 1px solid var(--border); }
-    .sd-head .material-symbols-outlined { font-size: 20px; color: var(--text-muted); }
-    .sd-input { flex: 1; background: none; border: none; color: white; font-size: 1rem; font-weight: 500; outline: none; font-family: inherit; letter-spacing: -0.2px; }
+    /* Compact anchored dropdown — no backdrop, no full-screen modal */
+    .search-wrapper { position: relative; }
+    .sd-dropdown { position: absolute; top: calc(100% + 8px); right: 0; width: 460px; max-height: 70vh; background: #0e0e0e; border: 1px solid var(--border); border-radius: 12px; box-shadow: 0 20px 60px rgba(0,0,0,0.7), 0 0 0 1px rgba(255,255,255,0.03); display: flex; flex-direction: column; overflow: hidden; z-index: 1100; transform: translateY(-4px); opacity: 0; pointer-events: none; transition: transform 0.15s ease, opacity 0.15s ease; }
+    .sd-dropdown.is-open { transform: translateY(0); opacity: 1; pointer-events: auto; }
+    .sd-head { display: flex; align-items: center; gap: 10px; padding: 10px 14px; border-bottom: 1px solid var(--border); }
+    .sd-head .material-symbols-outlined { font-size: 18px; color: var(--text-muted); }
+    .sd-input { flex: 1; background: none; border: none; color: white; font-size: 0.9rem; font-weight: 500; outline: none; font-family: inherit; padding: 4px 0; }
     .sd-input::placeholder { color: var(--text-muted); font-weight: 400; }
-    .sd-close { background: none; border: 1px solid var(--border); color: var(--text-muted); width: 28px; height: 28px; border-radius: 6px; cursor: pointer; font-family: inherit; font-size: 1rem; display: flex; align-items: center; justify-content: center; padding: 0; transition: 0.15s; }
+    .sd-close { background: none; border: 1px solid var(--border); color: var(--text-muted); width: 24px; height: 24px; border-radius: 6px; cursor: pointer; font-family: inherit; font-size: 0.9rem; display: flex; align-items: center; justify-content: center; padding: 0; transition: 0.15s; }
     .sd-close:hover { color: white; border-color: var(--text-muted); }
-    .sd-body { flex: 1; overflow-y: auto; padding: 8px 0; scrollbar-width: thin; scrollbar-color: var(--border) transparent; }
+    .sd-body { flex: 1; overflow-y: auto; padding: 4px 0; scrollbar-width: thin; scrollbar-color: var(--border) transparent; }
     .sd-body::-webkit-scrollbar { width: 4px; }
     .sd-body::-webkit-scrollbar-thumb { background: var(--border); border-radius: 2px; }
-    .sd-hint, .sd-empty, .sd-loading { padding: 40px 20px; text-align: center; color: var(--text-muted); font-size: 0.85rem; }
-    .sd-result { display: grid; grid-template-columns: 56px 1fr auto; gap: 14px; align-items: center; padding: 10px 18px; text-decoration: none; color: white; transition: background 0.12s; cursor: pointer; border: none; background: none; font-family: inherit; width: 100%; text-align: left; }
+    .sd-hint, .sd-empty, .sd-loading { padding: 30px 16px; text-align: center; color: var(--text-muted); font-size: 0.8rem; }
+    .sd-result { display: grid; grid-template-columns: 40px 1fr auto; gap: 12px; align-items: center; padding: 8px 14px; text-decoration: none; color: white; transition: background 0.12s; cursor: pointer; border: none; background: none; font-family: inherit; width: 100%; text-align: left; }
     .sd-result:hover, .sd-result:focus-visible { background: rgba(255,255,255,0.05); outline: none; }
-    .sd-result-poster { width: 56px; aspect-ratio: 2/3; object-fit: cover; border-radius: 4px; background: var(--bg); }
+    .sd-result-poster { width: 40px; aspect-ratio: 2/3; object-fit: cover; border-radius: 3px; background: var(--bg); }
     .sd-result-info { min-width: 0; }
-    .sd-result-title { font-size: 0.9rem; font-weight: 600; line-height: 1.2; margin: 0 0 4px 0; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
-    .sd-result-meta { font-size: 0.72rem; color: var(--text-muted); display: flex; gap: 6px; flex-wrap: wrap; }
+    .sd-result-title { font-size: 0.82rem; font-weight: 600; line-height: 1.25; margin: 0 0 2px 0; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+    .sd-result-meta { font-size: 0.68rem; color: var(--text-muted); display: flex; gap: 5px; flex-wrap: wrap; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
     .sd-result-meta .sep { color: #444; }
     .sd-result-meta .star { color: #ffab00; }
-    .sd-result-dl { color: #00e676; font-size: 0.65rem; font-weight: 700; letter-spacing: 1.5px; text-transform: uppercase; white-space: nowrap; align-self: start; padding-top: 2px; }
-    .sd-ai { background: linear-gradient(135deg, #7c3aed, #3B97FC); border: none; color: white; padding: 6px 12px; border-radius: 6px; font-size: 0.7rem; font-weight: 700; cursor: pointer; font-family: inherit; letter-spacing: 0.5px; transition: 0.15s; white-space: nowrap; }
-    .sd-ai:hover { opacity: 0.88; }
-    .sd-ai:disabled { opacity: 0.4; cursor: not-allowed; }
-    .sd-ai-badge { background: linear-gradient(135deg, #7c3aed, #3B97FC); color: white; font-size: 0.55rem; padding: 2px 6px; border-radius: 4px; font-weight: 700; letter-spacing: 0.5px; margin-left: 6px; vertical-align: middle; }
-    .sd-ai-hint { padding: 10px 18px; font-size: 0.72rem; color: #a78bfa; border-bottom: 1px solid var(--border); text-align: center; display: flex; align-items: center; justify-content: center; gap: 6px; flex-wrap: wrap; }
-    .sd-ai-hint .material-symbols-outlined { font-size: 15px; }
-    .sd-ai-hint .dot { color: #555; }
-    .sd-ai-hint .stat { color: #888; font-weight: 500; }
+    .sd-result-dl { color: #00e676; font-size: 0.6rem; font-weight: 700; letter-spacing: 1.2px; text-transform: uppercase; white-space: nowrap; }
+    .sd-result-dl .material-symbols-outlined { font-size: 12px; vertical-align: middle; margin-right: 1px; }
 
-    /* AI result card — 3-col (poster + content + download); collapses to 2-col when no poster */
-    .sd-result-ai { grid-template-columns: 90px 1fr auto; padding: 16px 18px; align-items: start; gap: 16px; }
-    .sd-result-ai.sd-result-no-poster { grid-template-columns: 1fr auto; }
-    .sd-result-ai .sd-result-poster { width: 90px; height: 135px; aspect-ratio: 2/3; border-radius: 4px; object-fit: cover; }
-    .sd-result-ai .sd-result-title { white-space: normal; margin-bottom: 6px; font-size: 0.95rem; }
-    .sd-result-studio { font-size: 0.68rem; color: var(--accent); font-weight: 700; text-transform: uppercase; letter-spacing: 0.8px; margin-bottom: 4px; }
-    .sd-genres { display: flex; flex-wrap: wrap; gap: 5px; margin: 6px 0 8px 0; }
-    .sd-genre { font-size: 0.6rem; background: #1a1a1a; color: #aaa; padding: 2px 8px; border-radius: 4px; font-weight: 600; border: 1px solid var(--border); letter-spacing: 0.3px; }
-    .sd-synopsis { font-size: 0.76rem; color: #aaa; line-height: 1.55; margin-bottom: 6px; }
-    .sd-reason { font-size: 0.7rem; color: #a78bfa; font-style: italic; line-height: 1.4; display: flex; align-items: center; gap: 6px; }
-    .sd-reason .material-symbols-outlined { font-size: 14px; }
-
-    /* Spinning loader — Material Symbols "progress_activity" with CSS animation */
+    /* Spinning loader */
     @keyframes sd-spin { to { transform: rotate(360deg); } }
-    .sd-loader { display: flex; flex-direction: column; align-items: center; justify-content: center; gap: 10px; padding: 50px 20px; color: var(--text-muted); font-size: 0.85rem; }
-    .sd-loader .material-symbols-outlined { font-size: 28px; color: var(--accent); animation: sd-spin 1.2s linear infinite; }
-    .sd-loader.ai .material-symbols-outlined { color: #a78bfa; }
-
-    /* Material icons should inline-align within text pills */
-    .sd-result-dl .material-symbols-outlined { font-size: 14px; vertical-align: middle; margin-right: 2px; }
-    .sd-ai .material-symbols-outlined { font-size: 14px; vertical-align: middle; margin-right: 3px; }
-    .sd-ai-badge .material-symbols-outlined { font-size: 10px; vertical-align: middle; margin-right: 2px; }
+    .sd-loader { display: flex; align-items: center; justify-content: center; gap: 8px; padding: 24px 16px; color: var(--text-muted); font-size: 0.75rem; }
+    .sd-loader .material-symbols-outlined { font-size: 18px; color: var(--accent); animation: sd-spin 1.2s linear infinite; }
 
     @media (max-width: 720px) {
       .search-link { padding: 8px 14px; font-size: 0.75rem; }
       .search-link .kbd { display: none; }
-      .sd-overlay { padding: 8vh 12px 20px; }
-      .sd-result { grid-template-columns: 44px 1fr; padding: 10px 14px; }
-      .sd-result-poster { width: 44px; }
-      .sd-result-dl { grid-column: 1 / -1; text-align: right; }
+      .sd-dropdown { width: calc(100vw - 24px); right: 12px; left: 12px; }
     }
     .toolbar { max-width: 1400px; margin: 20px auto; padding: 0 20px; display: flex; flex-wrap: wrap; gap: 15px; align-items: center; }
     .search-box { flex: 1; min-width: 300px; display: flex; gap: 10px; align-items: center; }
@@ -521,25 +493,25 @@
         </div>
         <a href="${nav.nextLink || "#"}" class="nav-btn"><span class="material-symbols-outlined">arrow_forward_ios</span></a>
       </div>
-      <button type="button" id="open-search-dropdown" class="search-link" title="Search all anime on LiveChart (⌘K)">
-        <span class="material-symbols-outlined">search</span>
-        Search all anime
-        <span class="kbd">⌘K</span>
-      </button>
+      <div class="search-wrapper">
+        <button type="button" id="open-search-dropdown" class="search-link" title="Search all anime on LiveChart (⌘K)">
+          <span class="material-symbols-outlined">search</span>
+          Search all anime
+          <span class="kbd">⌘K</span>
+        </button>
+        <div id="sd-dropdown" class="sd-dropdown" role="dialog" aria-label="Search LiveChart" aria-hidden="true">
+          <div class="sd-head">
+            <span class="material-symbols-outlined">search</span>
+            <input type="text" id="sd-input" class="sd-input" placeholder="Search title, studio…" autocomplete="off" spellcheck="false">
+            <button type="button" class="sd-close" id="sd-close" aria-label="Close">×</button>
+          </div>
+          <div class="sd-body" id="sd-results">
+            <div class="sd-hint">Type a title to search LiveChart.</div>
+          </div>
+        </div>
+      </div>
     </div>
   </header>
-  <div id="sd-overlay" class="sd-overlay" aria-hidden="true">
-    <div class="sd-panel" role="dialog" aria-label="Search LiveChart">
-      <div class="sd-head">
-        <span class="material-symbols-outlined">search</span>
-        <input type="text" id="sd-input" class="sd-input" placeholder="Title or describe it — &quot;anime with pink hair&quot;…" autocomplete="off" spellcheck="false">
-        <button type="button" class="sd-close" id="sd-close" aria-label="Close">×</button>
-      </div>
-      <div class="sd-body" id="sd-results">
-        <div class="sd-hint">Start typing to search all anime on LiveChart.</div>
-      </div>
-    </div>
-  </div>
   <div class="toolbar">
     <div class="search-box">
       <input type="text" id="infra-search" placeholder="Search title, studio, genre…">
@@ -661,41 +633,51 @@
 
     // ── Inline search-all dropdown (command-palette style) ──
 
-    const sdOverlay = document.getElementById("sd-overlay");
+    const sdDropdown = document.getElementById("sd-dropdown");
+    const sdWrapper = sdDropdown?.closest(".search-wrapper");
     const sdInput = document.getElementById("sd-input");
     const sdResults = document.getElementById("sd-results");
     const sdOpenBtn = document.getElementById("open-search-dropdown");
     const sdCloseBtn = document.getElementById("sd-close");
-    // sdAiBtn removed — AI search disabled
 
     let sdAbort = null;
     let sdDebounce = null;
 
     const openSearch = () => {
-      sdOverlay.classList.add("is-open");
-      sdOverlay.setAttribute("aria-hidden", "false");
-      // Wait for transition, then focus
+      sdDropdown.classList.add("is-open");
+      sdDropdown.setAttribute("aria-hidden", "false");
       setTimeout(() => sdInput.focus(), 20);
     };
     const closeSearch = () => {
-      sdOverlay.classList.remove("is-open");
-      sdOverlay.setAttribute("aria-hidden", "true");
+      sdDropdown.classList.remove("is-open");
+      sdDropdown.setAttribute("aria-hidden", "true");
       if (sdAbort) sdAbort.abort();
     };
+    const isOpen = () => sdDropdown.classList.contains("is-open");
 
-    sdOpenBtn.addEventListener("click", openSearch);
-    sdCloseBtn.addEventListener("click", closeSearch);
-    sdOverlay.addEventListener("click", (e) => {
-      if (e.target === sdOverlay) closeSearch();
+    sdOpenBtn.addEventListener("click", (e) => {
+      e.stopPropagation();
+      isOpen() ? closeSearch() : openSearch();
     });
+    sdCloseBtn.addEventListener("click", (e) => {
+      e.stopPropagation();
+      closeSearch();
+    });
+    // Click outside the wrapper (button + dropdown) to close
+    document.addEventListener("click", (e) => {
+      if (!isOpen()) return;
+      if (sdWrapper && !sdWrapper.contains(e.target)) closeSearch();
+    });
+    // Don't let clicks inside the dropdown bubble up to close it
+    sdDropdown.addEventListener("click", (e) => e.stopPropagation());
 
     document.addEventListener("keydown", (e) => {
       const isMac = navigator.platform.toUpperCase().indexOf("MAC") >= 0;
       const meta = isMac ? e.metaKey : e.ctrlKey;
       if (meta && e.key.toLowerCase() === "k") {
         e.preventDefault();
-        openSearch();
-      } else if (e.key === "Escape" && sdOverlay.classList.contains("is-open")) {
+        isOpen() ? closeSearch() : openSearch();
+      } else if (e.key === "Escape" && isOpen()) {
         closeSearch();
       }
     });
@@ -707,53 +689,7 @@
         .replace(/>/g, "&gt;")
         .replace(/"/g, "&quot;");
 
-    const renderAICard = (r) => {
-      const dlUrl = `https://animepahe.pw/anime?searchFilter=${encodeURIComponent(r.title)}&auto=true`;
-      const hasPoster = !!r.poster;
-      const metaBits = [];
-      if (r.type) metaBits.push(escapeHTML(r.type));
-      if (r.episodes && r.type !== "Movie")
-        metaBits.push(`${escapeHTML(r.episodes)} eps`);
-      if (r.year) metaBits.push(escapeHTML(r.year));
-      const metaHTML = metaBits.length
-        ? `<div class="sd-result-meta">${metaBits.join('<span class="sep">·</span>')}</div>`
-        : "";
-      const posterHTML = hasPoster
-        ? `<img class="sd-result-poster" src="${escapeHTML(r.poster)}" alt="" loading="lazy" onerror="this.style.visibility='hidden'">`
-        : "";
-      const studioHTML = r.studio
-        ? `<div class="sd-result-studio">${escapeHTML(r.studio)}</div>`
-        : "";
-      const genresHTML = Array.isArray(r.genres) && r.genres.length
-        ? `<div class="sd-genres">${r.genres
-            .slice(0, 5)
-            .map((g) => `<span class="sd-genre">${escapeHTML(g)}</span>`)
-            .join("")}</div>`
-        : "";
-      const synopsisHTML = r.synopsis
-        ? `<div class="sd-synopsis">${escapeHTML(r.synopsis)}</div>`
-        : "";
-      const reasonHTML = r.reason
-        ? `<div class="sd-reason"><span class="material-symbols-outlined">auto_awesome</span>${escapeHTML(r.reason)}</div>`
-        : "";
-      const badgeHTML = `<span class="sd-ai-badge"><span class="material-symbols-outlined">auto_awesome</span>AI</span>`;
-      const classes = `sd-result sd-result-ai${hasPoster ? "" : " sd-result-no-poster"}`;
-      return `
-        <a class="${classes}" href="${dlUrl}" target="_blank" rel="noopener">
-          ${posterHTML}
-          <div class="sd-result-info">
-            ${studioHTML}
-            <div class="sd-result-title">${escapeHTML(r.title)}${badgeHTML}</div>
-            ${metaHTML}
-            ${genresHTML}
-            ${synopsisHTML}
-            ${reasonHTML}
-          </div>
-          <span class="sd-result-dl"><span class="material-symbols-outlined">play_arrow</span>Download</span>
-        </a>`;
-    };
-
-    const renderRegularCard = (r) => {
+    const renderResultCard = (r) => {
       const dlUrl = `https://animepahe.pw/anime?searchFilter=${encodeURIComponent(r.title)}&auto=true`;
       const poster = r.poster
         ? `<img class="sd-result-poster" src="${escapeHTML(r.poster)}" alt="" loading="lazy" onerror="this.style.visibility='hidden'">`
@@ -774,38 +710,20 @@
             <div class="sd-result-title">${escapeHTML(r.title)}</div>
             <div class="sd-result-meta">${metaHTML}${ratingHTML}</div>
           </div>
-          <span class="sd-result-dl"><span class="material-symbols-outlined">play_arrow</span>Download</span>
+          <span class="sd-result-dl"><span class="material-symbols-outlined">download</span></span>
         </a>`;
     };
 
-    const renderSdResults = (results, query, opts = {}) => {
+    const renderSdResults = (results, query) => {
       if (!query) {
-        sdResults.innerHTML = `<div class="sd-hint">Start typing to search by title, or describe an anime and hit ✨ AI.</div>`;
+        sdResults.innerHTML = `<div class="sd-hint">Type a title to search LiveChart.</div>`;
         return;
       }
       if (!results.length) {
         sdResults.innerHTML = `<div class="sd-empty">No matches for "${escapeHTML(query)}".</div>`;
         return;
       }
-      let hintHTML = "";
-      if (opts.ai) {
-        const statParts = [];
-        if (opts.elapsed != null) {
-          statParts.push(`<span class="stat">${(opts.elapsed / 1000).toFixed(1)}s</span>`);
-        }
-        if (opts.totalTokens) {
-          statParts.push(`<span class="stat">${opts.totalTokens.toLocaleString()} tokens</span>`);
-        }
-        const stats = statParts.length
-          ? `<span class="dot">·</span>${statParts.join('<span class="dot">·</span>')}`
-          : "";
-        hintHTML = `<div class="sd-ai-hint"><span class="material-symbols-outlined">auto_awesome</span>AI picks for "${escapeHTML(query)}"${stats}</div>`;
-      }
-      sdResults.innerHTML =
-        hintHTML +
-        results
-          .map((r) => (r.aiSuggested ? renderAICard(r) : renderRegularCard(r)))
-          .join("");
+      sdResults.innerHTML = results.map(renderResultCard).join("");
     };
 
     const runSdSearch = async (query) => {
