@@ -15,7 +15,7 @@
   },
   "action": {
     "default_popup": "popup/popup.html",
-    "default_title": "AnimeDownloader - Bucket"
+    "default_title": "AnimeDownloader"
   },
   "content_scripts": [
     {

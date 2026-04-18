@@ -303,8 +303,11 @@
         const nextLink = headerBox.querySelector(".-next a")?.href;
 
         const scrapedData = Array.from(animeCards).map((card) => {
-          const title =
-            card.querySelector(".main-title a")?.innerText.trim() || "N/A";
+          const titleLink = card.querySelector(".main-title a");
+          const title = titleLink?.innerText.trim() || "N/A";
+          const liveChartUrl = titleLink
+            ? new URL(titleLink.getAttribute("href"), location.origin).href
+            : null;
           const genres = Array.from(
             card.querySelectorAll(".anime-tags li a")
           ).map((g) => g.innerText.trim());
@@ -362,7 +365,7 @@
             title, rating, genres, thumbnail,
             currentEpisodes, totalEpisodes,
             countdown: countdownStatic, timestamp,
-            studio, description, downloadLink,
+            studio, description, downloadLink, liveChartUrl,
           };
         });
 
@@ -452,7 +455,7 @@
     .ai-btn:disabled { opacity: 0.5; cursor: not-allowed; transform: none; }
     .ai-status { font-size: 0.75rem; color: #a78bfa; font-weight: 600; padding: 0 10px; }
     .main-grid { display: grid; grid-template-columns: repeat(auto-fill, minmax(210px, 1fr)); gap: 15px; max-width: 1400px; margin: 0 auto; padding: 20px; }
-    .infra-card { background: var(--card); border: 1px solid var(--border); border-radius: 15px; overflow: hidden; display: flex; flex-direction: column; transition: transform 0.3s, border-color 0.3s; position: relative; }
+    .infra-card { background: var(--card); border: 1px solid var(--border); border-radius: 15px; overflow: hidden; display: flex; flex-direction: column; transition: transform 0.3s, border-color 0.3s; position: relative; cursor: pointer; }
     .infra-card:hover { transform: translateY(-5px); border-color: var(--accent); }
     .infra-card.ai-match { border-color: #7c3aed; box-shadow: 0 0 20px rgba(124,58,237,0.2); }
     .ai-score-badge { position: absolute; top: 12px; left: 12px; background: linear-gradient(135deg, #7c3aed, #3B97FC); color: white; padding: 3px 8px; border-radius: 100px; font-size: 0.6rem; font-weight: 800; z-index: 5; }
@@ -479,6 +482,40 @@
       .card-body { padding: 10px; }
       .description, .tags, .rating-badge { display: none; }
       .meta-footer { border: none; padding-top: 5px; }
+    }
+
+    /* Card detail modal */
+    .card-modal-overlay { position: fixed; inset: 0; background: rgba(0,0,0,0.85); backdrop-filter: blur(12px); z-index: 2000; display: flex; align-items: center; justify-content: center; padding: 20px; opacity: 0; pointer-events: none; transition: opacity 0.18s ease; }
+    .card-modal-overlay.is-open { opacity: 1; pointer-events: auto; }
+    .card-modal { background: var(--card); border: 1px solid var(--border); border-radius: 16px; max-width: 760px; width: 100%; max-height: 90vh; overflow-y: auto; display: grid; grid-template-columns: 240px 1fr; position: relative; box-shadow: 0 40px 100px rgba(0,0,0,0.6); scrollbar-width: thin; scrollbar-color: var(--border) transparent; }
+    .card-modal::-webkit-scrollbar { width: 4px; }
+    .card-modal::-webkit-scrollbar-thumb { background: var(--border); border-radius: 2px; }
+    .cm-poster-col { background: #000; }
+    .cm-poster-col img { width: 100%; height: 100%; object-fit: cover; display: block; aspect-ratio: 2/3; }
+    .cm-body { padding: 28px 28px 24px; min-width: 0; }
+    .cm-close { position: absolute; top: 14px; right: 14px; width: 32px; height: 32px; border-radius: 50%; background: rgba(0,0,0,0.7); border: 1px solid var(--border); color: white; cursor: pointer; display: flex; align-items: center; justify-content: center; font-family: inherit; font-size: 1.2rem; line-height: 1; padding: 0; transition: 0.15s; z-index: 2; }
+    .cm-close:hover { background: var(--bg); border-color: var(--accent); color: var(--accent); }
+    .cm-studio { font-size: 0.7rem; color: var(--accent); font-weight: 800; letter-spacing: 0.8px; text-transform: uppercase; margin-bottom: 8px; }
+    .cm-title { font-size: 1.45rem; font-weight: 800; line-height: 1.2; letter-spacing: -0.5px; margin-bottom: 14px; }
+    .cm-meta-row { display: flex; gap: 12px; flex-wrap: wrap; align-items: center; margin-bottom: 18px; font-size: 0.75rem; font-weight: 600; }
+    .cm-rating { color: #ffab00; }
+    .cm-ep { color: white; background: var(--accent); padding: 3px 10px; border-radius: 100px; font-size: 0.65rem; font-weight: 800; letter-spacing: 0.5px; }
+    .cm-countdown { color: #ffab00; font-weight: 800; }
+    .cm-description { font-size: 0.85rem; color: #ccc; line-height: 1.6; margin-bottom: 18px; white-space: pre-wrap; }
+    .cm-tags { display: flex; gap: 6px; flex-wrap: wrap; margin-bottom: 22px; }
+    .cm-tags .tag { font-size: 0.65rem; background: #181818; padding: 4px 10px; border-radius: 4px; color: #aaa; font-weight: 600; border: 1px solid #222; }
+    .cm-actions { display: flex; gap: 10px; flex-wrap: wrap; }
+    .cm-btn { flex: 1; min-width: 140px; padding: 12px 16px; border-radius: 10px; text-decoration: none; font-size: 0.75rem; font-weight: 800; letter-spacing: 0.8px; text-transform: uppercase; text-align: center; transition: 0.2s; border: none; cursor: pointer; font-family: inherit; display: inline-flex; align-items: center; justify-content: center; gap: 6px; }
+    .cm-btn .material-symbols-outlined { font-size: 16px; }
+    .cm-btn-primary { background: var(--accent); color: white; }
+    .cm-btn-primary:hover { background: #2563eb; }
+    .cm-btn-secondary { background: #181818; color: #ccc; border: 1px solid var(--border); }
+    .cm-btn-secondary:hover { border-color: var(--accent); color: var(--accent); }
+    @media (max-width: 600px) {
+      .card-modal { grid-template-columns: 1fr; max-height: 94vh; }
+      .cm-poster-col img { aspect-ratio: 3/2; max-height: 260px; }
+      .cm-body { padding: 22px; }
+      .cm-title { font-size: 1.2rem; }
     }
   </style>
 </head>
@@ -523,6 +560,27 @@
     </div>
   </div>
   <div id="infra-grid" class="main-grid"></div>
+  <div id="card-modal" class="card-modal-overlay" aria-hidden="true" role="dialog">
+    <div class="card-modal">
+      <button type="button" class="cm-close" id="card-modal-close" aria-label="Close">×</button>
+      <div class="cm-poster-col"><img id="cm-poster" src="" alt=""></div>
+      <div class="cm-body">
+        <div class="cm-studio" id="cm-studio"></div>
+        <div class="cm-title" id="cm-title"></div>
+        <div class="cm-meta-row">
+          <span class="cm-rating" id="cm-rating"></span>
+          <span class="cm-ep" id="cm-ep"></span>
+          <span class="cm-countdown" id="cm-countdown" data-ts=""></span>
+        </div>
+        <div class="cm-description" id="cm-description"></div>
+        <div class="cm-tags" id="cm-tags"></div>
+        <div class="cm-actions">
+          <a id="cm-dl" class="cm-btn cm-btn-primary" href="#" target="_blank"><span class="material-symbols-outlined">download</span>Bulk Download</a>
+          <a id="cm-lc" class="cm-btn cm-btn-secondary" href="#" target="_blank">View on LiveChart</a>
+        </div>
+      </div>
+    </div>
+  </div>
 </body>
 `;
 
@@ -581,7 +639,7 @@
       grid.innerHTML = items
         .map(
           (item) => `
-        <div class="infra-card">
+        <div class="infra-card" data-title="${item.title.replace(/"/g, "&quot;")}">
           <div class="poster-area">
             <img src="${item.thumbnail}" loading="lazy" onerror="this.src='https://placehold.co/300x450/111/444?text=No+Poster'">
             <div class="rating-badge">${item.rating}</div>
@@ -630,6 +688,69 @@
 
     render();
     setInterval(updateCountdowns, 1000);
+
+    // ── Card detail modal ──
+
+    const modalOverlay = document.getElementById("card-modal");
+    const modalCloseBtn = document.getElementById("card-modal-close");
+    const cmPoster = document.getElementById("cm-poster");
+    const cmTitle = document.getElementById("cm-title");
+    const cmStudio = document.getElementById("cm-studio");
+    const cmRating = document.getElementById("cm-rating");
+    const cmEp = document.getElementById("cm-ep");
+    const cmCountdown = document.getElementById("cm-countdown");
+    const cmDescription = document.getElementById("cm-description");
+    const cmTags = document.getElementById("cm-tags");
+    const cmDl = document.getElementById("cm-dl");
+    const cmLc = document.getElementById("cm-lc");
+
+    const openCardModal = (item) => {
+      cmPoster.src = item.thumbnail;
+      cmPoster.onerror = () => {
+        cmPoster.src = "https://placehold.co/300x450/111/444?text=No+Poster";
+      };
+      cmTitle.innerText = item.title;
+      cmStudio.innerText = item.studio === "N/A" ? "" : item.studio;
+      cmRating.innerText = item.rating === "N/A" ? "" : "★ " + item.rating;
+      cmEp.innerText = `EP ${item.currentEpisodes} / ${item.totalEpisodes}`;
+      cmCountdown.dataset.ts = item.timestamp || "";
+      cmCountdown.innerText = item.countdown;
+      cmDescription.innerText = item.description;
+      cmTags.innerHTML = item.genres
+        .map((g) => `<span class="tag">${g}</span>`)
+        .join("");
+      cmDl.href = item.downloadLink;
+      if (item.liveChartUrl) {
+        cmLc.href = item.liveChartUrl;
+        cmLc.style.display = "";
+      } else {
+        cmLc.style.display = "none";
+      }
+      modalOverlay.classList.add("is-open");
+      modalOverlay.setAttribute("aria-hidden", "false");
+    };
+    const closeCardModal = () => {
+      modalOverlay.classList.remove("is-open");
+      modalOverlay.setAttribute("aria-hidden", "true");
+    };
+
+    document.getElementById("infra-grid").addEventListener("click", (e) => {
+      if (e.target.closest(".dl-btn")) return;
+      const card = e.target.closest(".infra-card");
+      if (!card) return;
+      const title = card.getAttribute("data-title");
+      const item = data.find((i) => i.title === title);
+      if (item) openCardModal(item);
+    });
+    modalCloseBtn.addEventListener("click", closeCardModal);
+    modalOverlay.addEventListener("click", (e) => {
+      if (e.target === modalOverlay) closeCardModal();
+    });
+    document.addEventListener("keydown", (e) => {
+      if (e.key === "Escape" && modalOverlay.classList.contains("is-open")) {
+        closeCardModal();
+      }
+    });
 
     // ── Inline search-all dropdown (command-palette style) ──
 
