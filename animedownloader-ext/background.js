@@ -174,11 +174,10 @@ async function groupDownloadTab(tabId, animeId, animeTitle) {
 // ══════════════════════════════════════════════════════════════════════════
 // Filename rewriting
 //   Input:  AnimePahe_Kimi_ni_Todoke_-_1_BD_1080p_Freehold.mp4
-//   Output: Kimi ni Todoke/KnT E01.mp4
+//   Output: Kimi ni Todoke/Kimi ni Todoke EP 1.mp4
 //
-// Folder keeps the full title (so files remain self-describing when browsed),
-// filename uses an abbreviation so VLC / Finder / media players group them
-// tightly without repeating the series name on every row.
+// Folder + filename both use the full title so every file is self-describing
+// even out of folder context. Episode is suffixed as "EP N" for natural sort.
 // ══════════════════════════════════════════════════════════════════════════
 chrome.downloads.onDeterminingFilename.addListener((item, suggest) => {
   const cleaned = reformatAnimePaheName(item.filename);
@@ -208,40 +207,16 @@ function reformatAnimePaheName(rawName) {
 
   const [, rawTitle, epRaw] = match;
   const title = sanitize(rawTitle.replace(/_/g, " ").trim());
-  const abbr = abbreviate(title) || title;
   const ep = padEp(epRaw);
 
-  return `${title}/${abbr} E${ep}${ext}`;
-}
-
-// Particles (English + common Japanese transliterations): lowercase first letter.
-const PARTICLES = new Set([
-  "no", "ni", "wa", "to", "ga", "wo", "de", "mo", "ka", "ya",
-  "the", "a", "an", "of", "and", "or", "on", "in", "at", "by", "for",
-]);
-// Structural words we drop entirely so "Chained Soldier Season 2" → "CS2"
-const SKIP_WORDS = new Set(["season", "part", "cour", "arc"]);
-
-function abbreviate(title) {
-  const cleaned = title.replace(/[^\w\s]/g, " ");
-  const words = cleaned.split(/\s+/).filter(Boolean);
-  let out = "";
-  for (const w of words) {
-    const lower = w.toLowerCase();
-    if (SKIP_WORDS.has(lower)) continue;
-    if (/^\d+$/.test(w)) { out += w; continue; }     // keep raw numbers
-    if (PARTICLES.has(lower)) { out += lower[0]; continue; } // lowercase particle
-    out += w[0].toUpperCase();
-  }
-  return out;
+  return `${title}/${title} EP ${ep}${ext}`;
 }
 
 function padEp(epRaw) {
-  if (epRaw.includes(".")) {
-    const [intPart, frac] = epRaw.split(".");
-    return intPart.padStart(2, "0") + "." + frac;
-  }
-  return epRaw.padStart(2, "0");
+  // No zero-padding — "EP 1", "EP 2" as the user requested. Modern file
+  // managers and media players (Finder, VLC, Plex) all use natural-sort so
+  // EP 2 still correctly sorts before EP 10.
+  return epRaw;
 }
 
 function sanitize(s) {

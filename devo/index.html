@@ -15,6 +15,10 @@
     />
 
     <title>Devotion</title>
+    <!-- Preconnect to Gemini proxy so TLS handshake + DNS are done before
+         the first AI call fires. Shaves ~200-400ms off initial latency. -->
+    <link rel="preconnect" href="https://gemini-proxy-668755364170.asia-southeast1.run.app" crossorigin />
+    <link rel="dns-prefetch" href="https://gemini-proxy-668755364170.asia-southeast1.run.app" />
     <link rel="manifest" href="manifest.json" />
     <link rel="icon" href="icons/icon-192.png" />
     <script src="https://cdn.jsdelivr.net/npm/marked/marked.min.js"></script>

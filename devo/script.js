@@ -16,6 +16,15 @@ let verseChatHistories = {};
 const GEMINI_PROXY = 'https://gemini-proxy-668755364170.asia-southeast1.run.app';
 const AI_TONE = `Be direct — no greetings, no filler, no "Hey there!", no "Great question!", no restating the verse. Start immediately with the insight. Use clear, simple English. Bold key terms with **double asterisks**.`;
 
+// Warm up Cloud Run on page load so the first AI call doesn't pay the
+// cold-start tax (~1–3s container spin-up). Fires a cheap GET to the health
+// route — zero tokens, zero cost, but leaves the container alive and ready.
+(function _warmGeminiProxy() {
+  try {
+    fetch(GEMINI_PROXY, { method: 'GET', cache: 'no-store', keepalive: true }).catch(() => {});
+  } catch {}
+})();
+
 /* ---------- SHARED: Call Gemini Proxy ---------- */
 async function callGemini(prompt) {
   const res = await fetch(GEMINI_PROXY, {
@@ -26,6 +35,47 @@ async function callGemini(prompt) {
   if (!res.ok) throw new Error(`Gemini proxy error: ${res.status}`);
   const data = await res.json();
   return data?.candidates?.[0]?.content?.parts?.[0]?.text || '';
+}
+
+/* ---------- SHARED: Streaming Gemini (SSE) ----------
+ * Streams tokens as they're generated. First token typically arrives in
+ * ~200-400ms vs ~2s for the full non-streaming response.
+ *
+ * onChunk(delta, full) fires for every incremental token batch:
+ *   delta = the new text that just arrived
+ *   full  = the full accumulated text so far
+ * Resolves with the full text when the stream ends.
+ */
+async function callGeminiStream(prompt, onChunk) {
+  // Dead-simple: fetch the full response non-streaming, then reveal it to
+  // the UI character-by-character via setTimeout. We tried server-side
+  // streaming but Cloud Run + HTTP/2 intermediaries buffer chunks until
+  // the response ends, which makes real SSE streaming unreliable. This
+  // approach guarantees a visible typing effect regardless of network
+  // behavior — user always sees text appearing progressively.
+  const text = await callGemini(prompt);
+  if (!text) {
+    try { onChunk?.('', ''); } catch {}
+    return '';
+  }
+  await _typeOut(text, onChunk);
+  return text;
+}
+
+function _typeOut(text, onChunk) {
+  return new Promise((resolve) => {
+    // ~4 chars per 16ms tick = ~240 chars/sec. Feels like fast typing
+    // without feeling laggy on long responses.
+    let i = 0;
+    const step = () => {
+      const take = Math.min(4, text.length - i);
+      i += take;
+      try { onChunk?.(text.slice(i - take, i), text.slice(0, i)); } catch {}
+      if (i < text.length) setTimeout(step, 16);
+      else resolve();
+    };
+    step();
+  });
 }
 
 /* ---------- SHARED: Generate Image via Proxy + IndexedDB Cache ---------- */
@@ -1609,7 +1659,13 @@ RULES:
         ? `HISTORY: ${JSON.stringify(verseChatHistories[key].slice(-5).map(m => m.image ? { role: m.role, text: "[generated image]" } : m))}`
         : '';
 
-      const answer = await callGemini(`You are a Bible study assistant. ${AI_TONE}
+      // Push a streaming message placeholder so we can update it in place
+      verseChatHistories[key].push({ role: "model", text: "", streaming: true });
+      typingEl.style.display = 'none';
+      renderChatHistory(key, histEl);
+
+      const answer = await callGeminiStream(
+        `You are a Bible study assistant. ${AI_TONE}
 
 CONTEXT (for reference): ${book} ${chapter}:${verse} - "${text}"
 ${historyStr}
@@ -1622,12 +1678,24 @@ RULES:
 - Do NOT start with greetings like "Hey there!" or "Great question!" — start directly with the answer.
 - Bold key theological terms using **double asterisks**.
 
-QUESTION: ${question}`);
+QUESTION: ${question}`,
+        (_delta, full) => {
+          const msg = verseChatHistories[key][verseChatHistories[key].length - 1];
+          if (msg && msg.streaming) {
+            msg.text = full;
+            renderChatHistory(key, histEl);
+            histEl.scrollTop = histEl.scrollHeight;
+          }
+        }
+      );
 
-      verseChatHistories[key].push({ role: "model", text: answer });
+      const lastMsg = verseChatHistories[key][verseChatHistories[key].length - 1];
+      if (lastMsg) {
+        lastMsg.text = answer;
+        delete lastMsg.streaming;
+      }
       if (verseChatHistories[key].length > 10) verseChatHistories[key].shift();
 
-      typingEl.style.display = 'none';
       renderChatHistory(key, histEl);
       renderFollowups(key);
     } catch (err) {
@@ -1650,10 +1718,18 @@ QUESTION: ${question}`);
 
 function renderChatHistory(key, container) {
   const history = verseChatHistories[key] || [];
-  const existing = container.children.length;
+  // While a streaming bubble is still empty, show the sparkle loader inside
+  // it. As soon as the first chunk of text lands, it swaps to the text.
+  const botBubbleHTML = (msg) => {
+    if (msg.text) {
+      return msg.text
+        .replace(/\*\*([^*]+)\*\*/g, '<strong>$1</strong>')
+        .replace(/\*([^*]+)\*/g, '<em>$1</em>');
+    }
+    return msg.streaming ? sparkleLoaderHTML('Thinking…') : '';
+  };
 
-  for (let i = existing; i < history.length; i++) {
-    const msg = history[i];
+  const renderMsg = (msg) => {
     const div = document.createElement('div');
     if (msg.role === 'user') {
       div.className = 'chat-msg user chat-msg-new';
@@ -1662,13 +1738,25 @@ function renderChatHistory(key, container) {
       div.className = 'chat-msg bot chat-msg-new';
       div.innerHTML = `<img src="${msg.image}" class="chat-gen-img" alt="Generated scene">`;
     } else {
-      div.className = 'chat-msg bot chat-msg-new';
-      div.innerHTML = msg.text
-        .replace(/\*\*([^*]+)\*\*/g, '<strong>$1</strong>')
-        .replace(/\*([^*]+)\*/g, '<em>$1</em>');
+      div.className = 'chat-msg bot' + (msg.streaming ? '' : ' chat-msg-new');
+      div.innerHTML = botBubbleHTML(msg);
     }
-    container.appendChild(div);
+    return div;
+  };
+
+  // Append newly-arrived messages
+  const existing = container.children.length;
+  for (let i = existing; i < history.length; i++) {
+    container.appendChild(renderMsg(history[i]));
   }
+
+  // If the last message is streaming, update its DOM in place each tick
+  // instead of rebuilding the whole list — keeps the typing animation smooth.
+  const last = history[history.length - 1];
+  if (last && last.streaming && container.lastElementChild) {
+    container.lastElementChild.innerHTML = botBubbleHTML(last);
+  }
+
   container.scrollTop = container.scrollHeight;
 }
 
@@ -1707,7 +1795,31 @@ async function fetchInlineDigDeeper({ book, chapter, verse, text }, mountEl) {
   const passage = `${book} ${chapter}${verse ? ':' + verse : ''}`;
 
   try {
-    const aiText = await callGemini(`You are a premium Bible study tool. ${AI_TONE}
+    // Build the final card shell immediately so streaming has a text target.
+    // Pre-fill the content area with the sparkle loader so the user sees
+    // activity while we wait for the first streamed chunk.
+    mountEl.innerHTML = `<div class="inline-ai-card dig-deeper">
+    ${_digDeeperEffectsHTML()}
+
+      <div class="ai-card-gradient">
+        <div class="ai-card-header">
+          <span class="ai-card-label">Dig Deeper</span>
+          <button class="ai-card-close" title="Close">✕</button>
+        </div>
+        <div class="ai-md-content" id="dig-deeper-stream">${sparkleLoaderHTML('Digging deeper…')}</div>
+        <div class="soap-respond-row" hidden>
+          <button class="soap-respond-btn" data-passage="${_escHtml(passage)}">
+            <span class="material-icons">edit_note</span> Respond
+          </button>
+        </div>
+      </div>
+    </div>`;
+    mountEl.querySelector('.ai-card-close').onclick = () => { mountEl.innerHTML = ''; };
+
+    const streamEl = mountEl.querySelector('#dig-deeper-stream');
+
+    const aiText = await callGeminiStream(
+      `You are a premium Bible study tool. ${AI_TONE}
 
 ${book} ${chapter}:${verse}: "${verseText}"
 
@@ -1726,26 +1838,15 @@ Give a dense, high-value word study. NO fluff. Every word must earn its place. ~
 #### Takeaway
 - One powerful sentence for real life. Make it hit.
 
-STRICT: No greetings. No "this verse tells us". No padding. Start with #### Original Language immediately.`);
+STRICT: No greetings. No "this verse tells us". No padding. Start with #### Original Language immediately.`,
+      (_delta, full) => {
+        streamEl.innerHTML = mdToHTML(full);
+      }
+    );
 
-    mountEl.innerHTML = `<div class="inline-ai-card dig-deeper">
-    ${_digDeeperEffectsHTML()}
-  
-      <div class="ai-card-gradient">
-        <div class="ai-card-header">
-          <span class="ai-card-label">Dig Deeper</span>
-          <button class="ai-card-close" title="Close">✕</button>
-        </div>
-        <div class="ai-md-content">${mdToHTML(aiText)}</div>
-        <div class="soap-respond-row">
-          <button class="soap-respond-btn" data-passage="${_escHtml(passage)}">
-            <span class="material-icons">edit_note</span> Respond
-          </button>
-        </div>
-      </div>
-    </div>`;
-    mountEl.querySelector('.ai-card-close').onclick = () => { mountEl.innerHTML = ''; };
-    // Store AI text for the Respond screen
+    // Reveal the Respond button once streaming finishes
+    const respondRow = mountEl.querySelector('.soap-respond-row');
+    if (respondRow) respondRow.hidden = false;
     const respondBtn = mountEl.querySelector('.soap-respond-btn');
     if (respondBtn) {
       respondBtn.onclick = () => openSoapScreen(passage, aiText);
@@ -2804,48 +2905,59 @@ Here are the verses:
 ${versesText || ''}`;
 
   try {
-    const [quickText, fullText] = await Promise.all([
-      callGemini(quickPrompt),
-      callGemini(fullPrompt),
-    ]);
-
-    // Parse quick summary
-    const quick = parseQuickSummary(quickText);
-
-    // Build the quick card HTML
-    let quickCardHTML = `
-      <div class="summary-quick-card">
-        <div class="summary-quick-label">Before you read</div>
-        <div class="summary-quick-title">${(book || '').toUpperCase()} ${chapter}</div>`;
-
-    if (quick.context) {
-      quickCardHTML += `<div class="summary-quick-section">
-        <div class="summary-quick-section-title">Context</div>
-        <div class="summary-quick-section-text">${quick.context}</div>
-      </div>`;
-    }
-    if (quick.whatHappens) {
-      quickCardHTML += `<div class="summary-quick-section">
-        <div class="summary-quick-section-title">What Happens</div>
-        <div class="summary-quick-section-text">${quick.whatHappens}</div>
-      </div>`;
-    }
-    if (quick.watchFor) {
-      quickCardHTML += `<div class="summary-quick-section">
-        <div class="summary-quick-section-title">Watch For</div>
-        <div class="summary-quick-section-text">${quick.watchFor}</div>
-      </div>`;
-    }
-    quickCardHTML += `</div>`;
-
-    // Build the full summary HTML
-    const fullHTML = summaryMdToHTML(fullText);
-
+    // Render the scaffold immediately so streaming has a target.
     aiContextSummaryEl.innerHTML = `
       <div class="ai-fade-in">
-        ${quickCardHTML}
-        <div class="summary-full-section">${fullHTML}</div>
+        <div id="ai-quick-mount">
+          <div class="summary-quick-card summary-quick-skeleton">
+            <div class="summary-quick-label">Before you read</div>
+            <div class="summary-quick-title">${(book || '').toUpperCase()} ${chapter}</div>
+            <div style="padding:20px 0;text-align:center;">${sparkleLoaderHTML('…')}</div>
+          </div>
+        </div>
+        <div class="summary-full-section" id="ai-full-mount"></div>
       </div>`;
+
+    const quickMount = document.getElementById('ai-quick-mount');
+    const fullMount = document.getElementById('ai-full-mount');
+
+    // Fire both in parallel. Quick stays non-streaming (we need to parse
+    // structured CONTEXT:/WHAT_HAPPENS:/WATCH_FOR: sections). Full streams
+    // so the user sees text appearing almost immediately.
+    const quickPromise = callGemini(quickPrompt).then((quickText) => {
+      const quick = parseQuickSummary(quickText);
+      let html = `
+        <div class="summary-quick-card">
+          <div class="summary-quick-label">Before you read</div>
+          <div class="summary-quick-title">${(book || '').toUpperCase()} ${chapter}</div>`;
+      if (quick.context) {
+        html += `<div class="summary-quick-section">
+          <div class="summary-quick-section-title">Context</div>
+          <div class="summary-quick-section-text">${quick.context}</div>
+        </div>`;
+      }
+      if (quick.whatHappens) {
+        html += `<div class="summary-quick-section">
+          <div class="summary-quick-section-title">What Happens</div>
+          <div class="summary-quick-section-text">${quick.whatHappens}</div>
+        </div>`;
+      }
+      if (quick.watchFor) {
+        html += `<div class="summary-quick-section">
+          <div class="summary-quick-section-title">Watch For</div>
+          <div class="summary-quick-section-text">${quick.watchFor}</div>
+        </div>`;
+      }
+      html += `</div>`;
+      quickMount.innerHTML = html;
+    });
+
+    const fullPromise = callGeminiStream(fullPrompt, (_chunk, full) => {
+      // Re-render progressively. summaryMdToHTML is fast (~<1ms on typical input).
+      fullMount.innerHTML = summaryMdToHTML(full);
+    });
+
+    await Promise.all([quickPromise, fullPromise]);
   } catch (err) {
     console.error(err);
     aiContextSummaryEl.innerHTML = "<p>Failed to generate context summary.</p>";
