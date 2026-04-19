@@ -45,19 +45,21 @@
           .forEach((el) => el.remove());
       }, 1000);
 
-      // Countdown indicator on the button
+      // Visual indicator only — the actual close is driven by
+      // chrome.downloads.onCreated in background.js the moment the browser
+      // registers the download. This 5s countdown is just a safety fallback
+      // in case that event doesn't reach us (rare).
       setTimeout(() => {
         btn.style.cssText =
-          "margin: auto; width: 150px; height: 150px; border-radius: 50%; border: none; font-size: 4rem; display:flex; align-items:center; justify-content:center; background:#3B97FC; color:white;";
-        let c = 16;
+          "margin: auto; width: 120px; height: 120px; border-radius: 50%; border: none; font-size: 1rem; display:flex; align-items:center; justify-content:center; background:#3B97FC; color:white;";
+        btn.innerHTML = "Downloading…";
+        let c = 5;
         const t = setInterval(() => {
-          if (c > 0) btn.innerHTML = --c;
-          else {
-            clearInterval(t);
-            chrome.runtime.sendMessage({ action: "closeTab" });
-          }
+          if (c-- > 0) return;
+          clearInterval(t);
+          chrome.runtime.sendMessage({ action: "closeTab" });
         }, 1000);
-      }, 1000);
+      }, 500);
 
       return;
     }

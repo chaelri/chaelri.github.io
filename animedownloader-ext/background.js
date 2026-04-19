@@ -44,8 +44,141 @@ chrome.runtime.onMessage.addListener((msg, sender) => {
   } else if (msg.action === "closeTab") {
     untrackTab(sender.tab.id);
     chrome.tabs.remove(sender.tab.id);
+  } else if (msg.action === "batchDownload") {
+    enqueueBatch(msg, sender.tab?.id);
+  } else if (msg.action === "cancelBatch") {
+    cancelBatch();
   }
 });
+
+// ══════════════════════════════════════════════════════════════════════════
+// Batch download queue — lets the animepahe tab stay put while downloads
+// happen sequentially in background tabs. Each item is opened, its download
+// is kicked off by kwik.js + the browser, the tab auto-closes on
+// downloads.onCreated, and then we move to the next one.
+// ══════════════════════════════════════════════════════════════════════════
+const batch = {
+  originTabId: null,
+  animeId: null,
+  animeTitle: null,
+  poster: null,
+  total: 0,
+  done: 0,
+  active: false,
+  tabToEp: new Map(),
+  cancelled: false,
+};
+
+function enqueueBatch(msg, originTabId) {
+  batch.originTabId = originTabId;
+  batch.animeId = msg.animeId;
+  batch.animeTitle = msg.animeTitle;
+  batch.poster = msg.poster;
+  batch.total = (msg.items || []).length;
+  batch.done = 0;
+  batch.cancelled = false;
+  batch.tabToEp.clear();
+  fireAll(msg.items || []);
+}
+
+function cancelBatch() {
+  batch.cancelled = true;
+  for (const id of batch.tabToEp.keys()) {
+    chrome.tabs.remove(id).catch(() => {});
+  }
+  batch.tabToEp.clear();
+  reportBatchProgress("cancelled");
+  batch.total = 0;
+  batch.done = 0;
+  batch.active = false;
+}
+
+async function fireAll(items) {
+  batch.active = true;
+  for (const item of items) {
+    if (batch.cancelled) break;
+    reportBatchProgress("start", item.ep);
+    try {
+      await markEpDownloaded(batch.animeId, item.ep, batch.animeTitle, batch.poster);
+      const tab = await chrome.tabs.create({ url: item.downloadUrl, active: false });
+      batch.tabToEp.set(tab.id, item.ep);
+      await trackTab(tab.id, { animeId: batch.animeId, animeTitle: batch.animeTitle });
+      if (batch.animeId && batch.animeTitle) {
+        groupDownloadTab(tab.id, batch.animeId, batch.animeTitle).catch(() => {});
+      }
+    } catch (e) {
+      batch.done += 1;
+      reportBatchProgress("failed", item.ep);
+    }
+  }
+  // All tabs fired — Chrome handles the actual page-load queueing itself.
+  // Completion is tracked lazily via tabs.onRemoved below.
+  maybeMarkComplete();
+}
+
+// When a batch-tab closes (either via our auto-close on download start, or
+// kwik.js safety timeout), tick up completion and forward to the UI.
+chrome.tabs.onRemoved.addListener((tabId) => {
+  const ep = batch.tabToEp.get(tabId);
+  if (ep === undefined) return;
+  batch.tabToEp.delete(tabId);
+  batch.done += 1;
+  reportBatchProgress("done", ep);
+  maybeMarkComplete();
+});
+
+function maybeMarkComplete() {
+  if (batch.cancelled) return;
+  if (batch.active && batch.tabToEp.size === 0 && batch.done >= batch.total) {
+    batch.active = false;
+    reportBatchProgress("complete");
+    batch.total = 0;
+    batch.done = 0;
+  }
+}
+
+function reportBatchProgress(status, ep) {
+  if (batch.originTabId == null) return;
+  chrome.tabs.sendMessage(batch.originTabId, {
+    action: "batchProgress",
+    status,
+    ep,
+    done: batch.done,
+    total: batch.total,
+  }).catch(() => {});
+}
+
+function waitForTabClose(tabId, timeoutMs) {
+  return new Promise((resolve) => {
+    let settled = false;
+    const settle = () => {
+      if (settled) return;
+      settled = true;
+      chrome.tabs.onRemoved.removeListener(onRemoved);
+      clearTimeout(to);
+      resolve();
+    };
+    const onRemoved = (id) => { if (id === tabId) settle(); };
+    chrome.tabs.onRemoved.addListener(onRemoved);
+    const to = setTimeout(() => {
+      chrome.tabs.remove(tabId).catch(() => {});
+      settle();
+    }, timeoutMs);
+  });
+}
+
+async function markEpDownloaded(animeId, ep, title, poster) {
+  if (!animeId || !ep) return;
+  const store = await chrome.storage.local.get(["animeHistory"]);
+  const history = store.animeHistory || {};
+  const a = history[animeId] || { downloaded: [] };
+  if (!a.downloaded.includes(ep)) a.downloaded.push(ep);
+  if (title) a.title = title;
+  if (poster) a.poster = poster;
+  a.lastUpdated = Date.now();
+  history[animeId] = a;
+  await chrome.storage.local.set({ animeHistory: history });
+}
 
 chrome.tabs.onRemoved.addListener((tabId) => {
   untrackTab(tabId);
@@ -58,10 +191,19 @@ chrome.tabs.onRemoved.addListener((tabId) => {
 // script interference, or network hiccups. Listening to real download state
 // at the browser level is much more reliable.
 // ══════════════════════════════════════════════════════════════════════════
+// Fire as soon as the browser kicks off a download — tabs can close safely
+// once the download is owned by the download manager (Chrome keeps pulling
+// the file even after the originating tab goes away). This cuts the per-tab
+// wait from ~15s down to ~1s in the happy path.
+chrome.downloads.onCreated.addListener(() => {
+  setTimeout(closeOldestFinishedTab, 400);
+});
+
+// Fallback: still close on completion in case onCreated was missed (e.g.,
+// service-worker was asleep when the event fired).
 chrome.downloads.onChanged.addListener((delta) => {
   if (!delta.state || delta.state.current !== "complete") return;
-  // Give the browser a beat to finalize the file write before we close.
-  setTimeout(closeOldestFinishedTab, 1200);
+  setTimeout(closeOldestFinishedTab, 800);
 });
 
 async function closeOldestFinishedTab() {

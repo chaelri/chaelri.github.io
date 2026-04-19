@@ -7,6 +7,9 @@
   "host_permissions": [
     "*://*.livechart.me/*",
     "*://*.animepahe.pw/*",
+    "*://*.animepahe.com/*",
+    "*://*.animepahe.ru/*",
+    "*://*.animepahe.org/*",
     "*://kwik.cx/*",
     "*://pahe.win/*"
   ],
@@ -21,6 +24,9 @@
     {
       "matches": [
         "*://*.animepahe.pw/play/*",
+        "*://*.animepahe.com/play/*",
+        "*://*.animepahe.ru/play/*",
+        "*://*.animepahe.org/play/*",
         "*://kwik.cx/*",
         "*://pahe.win/*"
       ],
@@ -35,7 +41,12 @@
       "run_at": "document_idle"
     },
     {
-      "matches": ["*://*.animepahe.pw/*"],
+      "matches": [
+        "*://*.animepahe.pw/*",
+        "*://*.animepahe.com/*",
+        "*://*.animepahe.ru/*",
+        "*://*.animepahe.org/*"
+      ],
       "js": ["content/animepahe.js"],
       "run_at": "document_idle"
     },

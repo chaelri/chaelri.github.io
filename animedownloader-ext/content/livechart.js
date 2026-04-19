@@ -44,7 +44,20 @@
       );
     };
 
-    wrapper.append(btn, input);
+    const viewBtn = document.createElement("button");
+    viewBtn.type = "button";
+    viewBtn.innerText = "View on AnimePahe";
+    viewBtn.className = "aesthetic-view-btn";
+    viewBtn.style.width = "fit-content";
+    viewBtn.title = "Open AnimePahe without auto-download";
+    viewBtn.onclick = () => {
+      const title = h4.innerText.split("\n")[0].trim();
+      window.open(
+        `https://animepahe.pw/anime?searchFilter=${encodeURIComponent(title)}`
+      );
+    };
+
+    wrapper.append(btn, input, viewBtn);
     h4.appendChild(wrapper);
   }
 
@@ -152,6 +165,8 @@
     .actions { display: flex; gap: 20px; align-items: center; }
     .dl-btn { background: none; border: none; color: var(--done); font-size: 0.7rem; font-weight: 500; letter-spacing: 1.5px; text-transform: uppercase; text-decoration: none; padding: 8px 0; font-family: inherit; cursor: pointer; transition: color 0.15s; white-space: nowrap; }
     .dl-btn:hover { color: var(--fg); }
+    .view-btn { color: var(--accent); font-size: 0.7rem; font-weight: 500; letter-spacing: 1.5px; text-transform: uppercase; text-decoration: none; transition: color 0.15s; white-space: nowrap; }
+    .view-btn:hover { color: var(--fg); }
     .lc-btn { color: var(--fg-dim); font-size: 0.7rem; font-weight: 500; letter-spacing: 1.5px; text-transform: uppercase; text-decoration: none; transition: color 0.15s; white-space: nowrap; }
     .lc-btn:hover { color: var(--fg); }
 
@@ -201,6 +216,7 @@
       }
       grid.innerHTML = results.map((r) => {
         const dlUrl = `https://animepahe.pw/anime?searchFilter=${encodeURIComponent(r.title)}&auto=true`;
+        const viewUrl = `https://animepahe.pw/anime?searchFilter=${encodeURIComponent(r.title)}`;
         const poster = r.poster
           ? `<img class="poster" src="${r.poster}" alt="" loading="lazy" onerror="this.style.visibility='hidden'">`
           : `<div class="poster"></div>`;
@@ -225,6 +241,7 @@
             </div>
             <div class="actions">
               ${lcHTML}
+              <a class="view-btn" href="${viewUrl}" target="_blank" title="View on AnimePahe (no auto-download)">View</a>
               <a class="dl-btn" href="${dlUrl}" target="_blank">▶ Bulk Download</a>
             </div>
           </div>`;
@@ -422,16 +439,21 @@
     .sd-body::-webkit-scrollbar { width: 4px; }
     .sd-body::-webkit-scrollbar-thumb { background: var(--border); border-radius: 2px; }
     .sd-hint, .sd-empty, .sd-loading { padding: 30px 16px; text-align: center; color: var(--text-muted); font-size: 0.8rem; }
-    .sd-result { display: grid; grid-template-columns: 40px 1fr auto; gap: 12px; align-items: center; padding: 8px 14px; text-decoration: none; color: white; transition: background 0.12s; cursor: pointer; border: none; background: none; font-family: inherit; width: 100%; text-align: left; }
-    .sd-result:hover, .sd-result:focus-visible { background: rgba(255,255,255,0.05); outline: none; }
+    .sd-result { display: grid; grid-template-columns: 40px 1fr auto; gap: 12px; align-items: center; padding: 8px 14px; text-decoration: none; color: white; transition: background 0.12s; border: none; background: none; font-family: inherit; width: 100%; text-align: left; }
+    .sd-result:hover { background: rgba(255,255,255,0.05); }
     .sd-result-poster { width: 40px; aspect-ratio: 2/3; object-fit: cover; border-radius: 3px; background: var(--bg); }
     .sd-result-info { min-width: 0; }
     .sd-result-title { font-size: 0.82rem; font-weight: 600; line-height: 1.25; margin: 0 0 2px 0; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
     .sd-result-meta { font-size: 0.68rem; color: var(--text-muted); display: flex; gap: 5px; flex-wrap: wrap; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
     .sd-result-meta .sep { color: #444; }
     .sd-result-meta .star { color: #ffab00; }
-    .sd-result-dl { color: #00e676; font-size: 0.6rem; font-weight: 700; letter-spacing: 1.2px; text-transform: uppercase; white-space: nowrap; }
-    .sd-result-dl .material-symbols-outlined { font-size: 12px; vertical-align: middle; margin-right: 1px; }
+    .sd-result-actions { display: flex; gap: 4px; align-items: center; }
+    .sd-result-btn { display: inline-flex; align-items: center; justify-content: center; width: 28px; height: 28px; border-radius: 6px; text-decoration: none; border: 1px solid var(--border); transition: 0.15s; }
+    .sd-result-btn.view { color: #aaa; }
+    .sd-result-btn.view:hover { color: var(--accent); border-color: var(--accent); }
+    .sd-result-btn.dl { color: #00e676; }
+    .sd-result-btn.dl:hover { border-color: #00e676; background: rgba(0,230,118,0.1); }
+    .sd-result-btn .material-symbols-outlined { font-size: 14px; }
 
     /* Spinning loader */
     @keyframes sd-spin { to { transform: rotate(360deg); } }
@@ -472,9 +494,13 @@
     .tag { font-size: 0.6rem; background: #181818; padding: 3px 8px; border-radius: 4px; color: #888; font-weight: 600; border: 1px solid #222; }
     .meta-footer { margin-top: auto; border-top: 1px solid var(--border); padding-top: 12px; display: flex; justify-content: space-between; align-items: center; }
     .countdown-box { font-size: 0.7rem; color: #ffab00; font-weight: 800; }
+    .card-actions { display: flex; gap: 6px; align-items: center; }
     .dl-btn { background: #fff; color: #000; text-decoration: none; width: 36px; height: 36px; border-radius: 10px; transition: 0.2s; border: none; cursor: pointer; display: inline-flex; align-items: center; justify-content: center; flex-shrink: 0; }
     .dl-btn:hover { background: var(--accent); color: white; }
     .dl-btn .material-symbols-outlined { font-size: 20px; }
+    .view-btn { background: transparent; color: #fff; text-decoration: none; width: 36px; height: 36px; border-radius: 10px; transition: 0.2s; border: 1px solid var(--border); cursor: pointer; display: inline-flex; align-items: center; justify-content: center; flex-shrink: 0; }
+    .view-btn:hover { border-color: var(--accent); color: var(--accent); }
+    .view-btn .material-symbols-outlined { font-size: 20px; }
     @media (max-width: 768px) {
       .main-grid { grid-template-columns: 1fr; padding: 10px; }
       .infra-card { flex-direction: row; height: 160px; }
@@ -575,8 +601,9 @@
         <div class="cm-description" id="cm-description"></div>
         <div class="cm-tags" id="cm-tags"></div>
         <div class="cm-actions">
-          <a id="cm-dl" class="cm-btn cm-btn-primary" href="#" target="_blank"><span class="material-symbols-outlined">download</span>Bulk Download</a>
-          <a id="cm-lc" class="cm-btn cm-btn-secondary" href="#" target="_blank">View on LiveChart</a>
+          <a id="cm-dl" class="cm-btn cm-btn-primary" href="#" target="_blank"><span class="material-symbols-outlined">download</span>Download</a>
+          <a id="cm-view" class="cm-btn cm-btn-secondary" href="#" target="_blank"><span class="material-symbols-outlined">visibility</span>Watch</a>
+          <a id="cm-lc" class="cm-btn cm-btn-secondary" href="#" target="_blank">View Anime</a>
         </div>
       </div>
     </div>
@@ -652,7 +679,10 @@
             <div class="tags">${item.genres.map((g) => `<span class="tag">${g}</span>`).join("")}</div>
             <div class="meta-footer">
               <div class="countdown-box" data-ts="${item.timestamp}">${item.countdown}</div>
-              <a href="${item.downloadLink}" target="_blank" class="dl-btn"><span class="material-symbols-outlined">download</span></a>
+              <div class="card-actions">
+                <a href="https://animepahe.pw/anime?searchFilter=${encodeURIComponent(item.title)}" target="_blank" class="view-btn" title="View on AnimePahe (no auto-download)"><span class="material-symbols-outlined">visibility</span></a>
+                <a href="${item.downloadLink}" target="_blank" class="dl-btn" title="Bulk download"><span class="material-symbols-outlined">download</span></a>
+              </div>
             </div>
           </div>
         </div>`
@@ -702,6 +732,7 @@
     const cmDescription = document.getElementById("cm-description");
     const cmTags = document.getElementById("cm-tags");
     const cmDl = document.getElementById("cm-dl");
+    const cmView = document.getElementById("cm-view");
     const cmLc = document.getElementById("cm-lc");
 
     const openCardModal = (item) => {
@@ -720,6 +751,7 @@
         .map((g) => `<span class="tag">${g}</span>`)
         .join("");
       cmDl.href = item.downloadLink;
+      cmView.href = `https://animepahe.pw/anime?searchFilter=${encodeURIComponent(item.title)}`;
       if (item.liveChartUrl) {
         cmLc.href = item.liveChartUrl;
         cmLc.style.display = "";
@@ -735,7 +767,7 @@
     };
 
     document.getElementById("infra-grid").addEventListener("click", (e) => {
-      if (e.target.closest(".dl-btn")) return;
+      if (e.target.closest(".dl-btn") || e.target.closest(".view-btn")) return;
       const card = e.target.closest(".infra-card");
       if (!card) return;
       const title = card.getAttribute("data-title");
@@ -812,6 +844,7 @@
 
     const renderResultCard = (r) => {
       const dlUrl = `https://animepahe.pw/anime?searchFilter=${encodeURIComponent(r.title)}&auto=true`;
+      const viewUrl = `https://animepahe.pw/anime?searchFilter=${encodeURIComponent(r.title)}`;
       const poster = r.poster
         ? `<img class="sd-result-poster" src="${escapeHTML(r.poster)}" alt="" loading="lazy" onerror="this.style.visibility='hidden'">`
         : `<div class="sd-result-poster"></div>`;
@@ -825,14 +858,17 @@
         ? `<span class="sep">·</span><span class="star">★ ${escapeHTML(r.rating)}</span>`
         : "";
       return `
-        <a class="sd-result" href="${dlUrl}" target="_blank" rel="noopener">
+        <div class="sd-result">
           ${poster}
           <div class="sd-result-info">
             <div class="sd-result-title">${escapeHTML(r.title)}</div>
             <div class="sd-result-meta">${metaHTML}${ratingHTML}</div>
           </div>
-          <span class="sd-result-dl"><span class="material-symbols-outlined">download</span></span>
-        </a>`;
+          <div class="sd-result-actions">
+            <a class="sd-result-btn view" href="${viewUrl}" target="_blank" rel="noopener" title="View on AnimePahe (no auto-download)"><span class="material-symbols-outlined">visibility</span></a>
+            <a class="sd-result-btn dl" href="${dlUrl}" target="_blank" rel="noopener" title="Bulk download"><span class="material-symbols-outlined">download</span></a>
+          </div>
+        </div>`;
     };
 
     const renderSdResults = (results, query) => {
@@ -894,6 +930,8 @@
     style.innerText = `
       .aesthetic-download-btn { background: #3B97FC !important; color: white !important; border: none; padding: 10px 16px; font-weight: bold; cursor: pointer; transition: background 0.2s; border-radius: 10px; font-size: 14px; }
       .aesthetic-download-btn:hover { background: #2563eb !important; }
+      .aesthetic-view-btn { background: transparent !important; color: #3B97FC !important; border: 1px solid #3B97FC; padding: 9px 16px; font-weight: bold; cursor: pointer; transition: all 0.2s; border-radius: 10px; font-size: 14px; }
+      .aesthetic-view-btn:hover { background: #3B97FC !important; color: white !important; }
       .input-episode { border: 1px solid #eee; border-radius: 8px; width: 50px; text-align: center; font-weight: bold; padding: 10px 5px; font-size: 14px; }
     `;
     document.head.appendChild(style);
