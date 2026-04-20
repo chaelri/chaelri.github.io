@@ -1373,6 +1373,25 @@ document.getElementById("active-search")?.addEventListener("input", (e) => {
   renderTable();
 });
 
+// Active section collapse toggle
+let activeCollapsed = false;
+document.getElementById("active-section-toggle").addEventListener("click", () => {
+  activeCollapsed = !activeCollapsed;
+  const body = document.getElementById("active-section-body");
+  const icon = document.getElementById("active-toggle-icon");
+  if (activeCollapsed) {
+    body.style.maxHeight = "0px";
+    body.style.overflow = "hidden";
+    body.style.opacity = "0";
+    icon.textContent = "expand_more";
+  } else {
+    body.style.maxHeight = "2000px";
+    body.style.overflow = "";
+    body.style.opacity = "1";
+    icon.textContent = "expand_less";
+  }
+});
+
 // Comms table collapse toggle
 let commsCollapsed = false;
 document.getElementById("comms-toggle").addEventListener("click", () => {

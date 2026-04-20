@@ -164,6 +164,14 @@ button:active:not(:disabled) {
     overflow-x: auto;
 }
 
+/* Active section collapse */
+#active-section-body {
+    max-height: 2000px;
+    opacity: 1;
+    transition: max-height 0.35s ease, opacity 0.25s ease;
+    overflow: visible;
+}
+
 /* Comms table collapse */
 #comms-table-wrapper {
     max-height: 2000px;
