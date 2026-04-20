@@ -78,6 +78,7 @@ let activeCommsFilter = "all"; // "all" | "has" | "none"
 let activeIdFilter = "all"; // "all" | "has" | "none"
 let activeSearch = "";
 let activeSort = { key: "timein", dir: "desc" }; // key: "name"|"timein"|"duration"
+let compSort = { key: "timein", dir: "desc" }; // key: "name"|"segment"|"comms"|"timein"|"timeout"|"duration"
 let commsView = "grid"; // "grid" | "compact" | "list"
 let activeCommsMap = {};
 
@@ -666,7 +667,29 @@ function renderTable() {
   document.getElementById("completed-table-count").textContent = completedEntries.length ? `(${completedEntries.length})` : "";
   document.getElementById("no-completed-message").classList.toggle("hidden", completedEntries.length > 0);
 
-  completedEntries.forEach((log) => {
+  // Sort completed entries
+  const sortedCompleted = completedEntries.slice().sort((a, b) => {
+    const d = compSort.dir === "asc" ? 1 : -1;
+    switch (compSort.key) {
+      case "name": return d * (a.name || "").localeCompare(b.name || "");
+      case "segment": return d * (a.segment || "").localeCompare(b.segment || "");
+      case "comms": return d * (a.commsId || "").localeCompare(b.commsId || "");
+      case "timeout": return d * (a.timeOut || "").localeCompare(b.timeOut || "");
+      case "duration": {
+        const ms = (l) => l.timeIn ? (l.timeOut ? new Date(l.timeOut) : new Date()) - new Date(l.timeIn) : 0;
+        return d * (ms(a) - ms(b));
+      }
+      default: return d * (a.timeIn || "").localeCompare(b.timeIn || "");
+    }
+  });
+
+  // Update sort arrows
+  ["name","segment","comms","timein","timeout","duration"].forEach((k) => {
+    const el = document.getElementById(`comp-arrow-${k}`);
+    if (el) el.textContent = compSort.key === k ? (compSort.dir === "asc" ? "↑" : "↓") : "";
+  });
+
+  sortedCompleted.forEach((log) => {
     const row = document.createElement("tr");
     row.className = "hover:bg-neutral-800 transition duration-150 opacity-60";
 
@@ -1428,6 +1451,14 @@ document.getElementById("active-th-name")?.addEventListener("click", () => toggl
 document.getElementById("active-th-timein")?.addEventListener("click", () => toggleActiveSort("timein"));
 document.getElementById("active-th-duration")?.addEventListener("click", () => toggleActiveSort("duration"));
 
+["name","segment","comms","timein","timeout","duration"].forEach((key) => {
+  document.getElementById(`comp-th-${key}`)?.addEventListener("click", () => {
+    if (compSort.key === key) { compSort.dir = compSort.dir === "asc" ? "desc" : "asc"; }
+    else { compSort.key = key; compSort.dir = key === "timein" || key === "timeout" ? "desc" : "asc"; }
+    renderTable();
+  });
+});
+
 // Active section search
 document.getElementById("active-search")?.addEventListener("input", (e) => {
   activeSearch = e.target.value;
@@ -1526,16 +1557,23 @@ async function showCommsHistory(commsId) {
 
     items.forEach((h) => {
       if (h._type === "event") {
-        const isTransfer = h.eventType === "transferred_to";
-        const icon = isTransfer ? "swap_horiz" : "link_off";
-        const label = isTransfer ? "Transferred to" : "Released by";
-        const color = isTransfer ? "text-amber-400" : "text-neutral-500";
+        let icon, label, color, subLabel;
+        if (h.eventType === "transferred_to") {
+          icon = "arrow_downward"; color = "text-amber-400"; label = "Assigned to";
+          subLabel = h.previousCommsId ? `<span class="text-neutral-600">prev: <span class="font-mono">${h.previousCommsId}</span></span>` : "";
+        } else if (h.eventType === "transferred_from") {
+          icon = "arrow_upward"; color = "text-sky-400"; label = "Released from";
+          subLabel = h.nextCommsId ? `<span class="text-neutral-600">moved to: <span class="font-mono">${h.nextCommsId}</span></span>` : "";
+        } else {
+          icon = "link_off"; color = "text-neutral-500"; label = "Released by"; subLabel = "";
+        }
         html += `
           <div class="flex items-center gap-3 bg-neutral-900 border border-neutral-700 rounded-lg px-3 py-2">
             <span class="material-icons-round text-sm ${color} flex-shrink-0">${icon}</span>
             <div class="flex-1 min-w-0">
               <p class="text-xs ${color} font-semibold">${label}</p>
               <p class="text-xs text-neutral-400 truncate">${h.volunteerName || "—"}</p>
+              ${subLabel ? `<p class="text-[10px] mt-0.5">${subLabel}</p>` : ""}
             </div>
             <div class="text-xs text-neutral-600 font-mono flex-shrink-0">${formatTime(h.timestamp)}</div>
           </div>`;
@@ -1689,10 +1727,24 @@ async function applyCommsChange(logKey, newCommsId, oldCommsId, volunteerId) {
         eventType: "transferred_to",
         volunteerName: volName,
         volunteerId: volunteerId || null,
+        previousCommsId: (oldCommsId && oldCommsId !== "NONE") ? oldCommsId : null,
         logKey,
         date: todayDate,
         timestamp: now,
       });
+      // Also record on the old comms that this volunteer moved away from it to newCommsId
+      if (oldCommsId && oldCommsId !== "NONE") {
+        await db.ref("commsEvents").push({
+          commsId: oldCommsId,
+          eventType: "transferred_from",
+          volunteerName: volName,
+          volunteerId: volunteerId || null,
+          nextCommsId: newCommsId,
+          logKey,
+          date: todayDate,
+          timestamp: now,
+        });
+      }
     }
 
     showToast(newCommsId ? `Comms changed to ${newCommsId}` : "Comms cleared", "headset_mic", "text-teal-400");

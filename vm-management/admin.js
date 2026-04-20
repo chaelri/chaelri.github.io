@@ -433,15 +433,23 @@ async function loadCommsHistory(commsId) {
 
     items.forEach((h) => {
       if (h._type === "event") {
-        const isTransfer = h.eventType === "transferred_to";
-        const label = isTransfer ? "Transferred to" : "Released by";
-        const badgeClass = isTransfer ? "bg-amber-100 text-amber-700" : "bg-gray-100 text-gray-500";
+        let label, badgeClass, subNote;
+        if (h.eventType === "transferred_to") {
+          label = "Assigned to"; badgeClass = "bg-amber-100 text-amber-700";
+          subNote = h.previousCommsId ? `prev: ${h.previousCommsId}` : "";
+        } else if (h.eventType === "transferred_from") {
+          label = "Released from"; badgeClass = "bg-sky-100 text-sky-700";
+          subNote = h.nextCommsId ? `moved to: ${h.nextCommsId}` : "";
+        } else {
+          label = "Released by"; badgeClass = "bg-gray-100 text-gray-500"; subNote = "";
+        }
         html += `<div class="flex items-center justify-between p-2.5 rounded-lg border border-gray-100 bg-gray-50">
-          <div class="flex items-center gap-2">
+          <div class="flex items-center gap-2 flex-wrap">
             <span class="text-xs px-2 py-0.5 rounded-full font-semibold ${badgeClass}">${label}</span>
             <span class="text-sm text-gray-700 font-medium">${h.volunteerName || "—"}</span>
+            ${subNote ? `<span class="text-xs text-gray-400 font-mono">${subNote}</span>` : ""}
           </div>
-          <div class="text-right text-xs text-gray-400 font-mono">${h.date || ""} ${fmtTime(h.timestamp)}</div>
+          <div class="text-right text-xs text-gray-400 font-mono flex-shrink-0">${h.date || ""} ${fmtTime(h.timestamp)}</div>
         </div>`;
       } else {
         const isActive = !h.timeOut;
