@@ -6,6 +6,11 @@
   if (HREF.includes("?searchFilter=")) animePaheSearchAutoClick();
   else if (HREF.includes("/play/")) animePaheClicker();
   else if (HREF.includes("/anime/")) animePaheEpisodeList();
+  else animePaheHomeInjector();
+
+  if (!HREF.includes("/play/") && !HREF.includes("?searchFilter=")) {
+    animePaheSearchPills();
+  }
 
   // ── PERSISTENT DOWNLOAD HISTORY (chrome.storage.local) ──
 
@@ -351,19 +356,6 @@
           null;
         const currentEp = episodeBtn.innerText.match(/\d+/)[0];
         const allEpLinks = Array.from(scrollArea.querySelectorAll("a.dropdown-item"));
-
-        // Clicking a card on animepahe home / "Latest Releases" lands you on the
-        // LAST aired episode. Force a redirect to episode 1 when the referrer is
-        // the home page or its paginated variants (and we're not auto-downloading).
-        const ref = document.referrer || "";
-        const fromHome = /^https?:\/\/[^\/]*animepahe\.pw\/(\?|$)/i.test(ref);
-        if (fromHome && !isAuto && allEpLinks.length > 0) {
-          const firstLink = allEpLinks[0];
-          if (firstLink && !firstLink.classList.contains("active")) {
-            window.location.href = firstLink.href;
-            return;
-          }
-        }
 
         const epNumbers = allEpLinks.map((el) =>
           parseInt(el.innerText.match(/\d+/)?.[0] || 0)
@@ -1001,17 +993,19 @@
 
   function animePaheEpisodeList() {
     const params = new URLSearchParams(window.location.search);
-    // `?view=browse` means the user explicitly asked to see the native AnimePahe
-    // page — skip the auto-redirect that normally jumps into a specific episode.
     if (params.get("view") === "browse") return;
-    const epNum = params.get("episodeNumber") || 1;
+    const epLast = params.get("episodeLast") === "true";
+    const epNum = parseInt(params.get("episodeNumber") || "1", 10);
     const auto = params.get("auto") === "true";
 
     setTimeout(() => {
       document.querySelector(".btn-group.btn-group-toggle")?.children[0]?.click();
       setTimeout(() => {
         const list = document.querySelectorAll(".episode-list.row > div");
-        const link = (list[epNum - 1] || list[0])?.querySelector("a");
+        const picked = epLast && list.length > 0
+          ? list[list.length - 1]
+          : (list[epNum - 1] || list[0]);
+        const link = picked?.querySelector("a");
         if (link) {
           let target = link.href;
           if (auto) target += (target.includes("?") ? "&" : "?") + "auto=true";
@@ -1019,5 +1013,393 @@
         }
       }, 1000);
     }, 1000);
+  }
+
+  // ── FIRST/LAST EP PILL INJECTION (home thumbnails + search results) ──
+
+  function injectFLStyles() {
+    if (document.getElementById("fl-pill-styles")) return;
+    const style = document.createElement("style");
+    style.id = "fl-pill-styles";
+    style.textContent = `
+      .episode-snapshot { position: relative; overflow: visible !important; }
+      /* Darken the bottom gradient so the title + episode count read clearly
+         against any thumbnail art. */
+      .episode-label-wrap {
+        background: linear-gradient(to top,
+          rgba(0, 0, 0, 0.78) 0%,
+          rgba(0, 0, 0, 0.55) 45%,
+          rgba(0, 0, 0, 0.22) 80%,
+          rgba(0, 0, 0, 0) 100%) !important;
+      }
+      .episode-title,
+      .episode-title a,
+      .episode-number {
+        text-shadow: none !important;
+      }
+      .fl-first-btn {
+        position: absolute;
+        top: 0;
+        right: 0;
+        display: flex !important;
+        flex-direction: row;
+        align-items: center;
+        justify-content: center;
+        gap: 7px;
+        padding: 9px 13px;
+        background: #d5015b !important;
+        color: #fff !important;
+        z-index: 9 !important;
+        border: none !important;
+        border-radius: 0 !important;
+        text-decoration: none !important;
+        cursor: pointer !important;
+        box-sizing: border-box;
+        font-family: inherit;
+        text-transform: uppercase;
+        line-height: 1;
+        transform-origin: top right;
+        transform: scale(1);
+        outline: 0 solid rgba(255, 255, 255, 0);
+        box-shadow: 0 0 0 rgba(213, 1, 91, 0);
+        transition:
+          background 0.3s ease,
+          transform 0.35s cubic-bezier(0.22, 1, 0.36, 1),
+          box-shadow 0.35s cubic-bezier(0.22, 1, 0.36, 1),
+          outline-color 0.3s ease,
+          outline-width 0.3s ease !important;
+      }
+      .fl-first-btn:hover {
+        background: #ec1670 !important;
+        transform: scale(1.12) !important;
+        outline: 2px solid rgba(255, 255, 255, 0.95) !important;
+        outline-offset: -2px;
+        box-shadow: 0 10px 32px rgba(213, 1, 91, 0.65) !important;
+      }
+      .fl-first-btn:hover .fl-first-btn-top {
+        letter-spacing: 2.8px;
+        opacity: 1;
+      }
+      .fl-first-btn:hover .fl-first-btn-bot {
+        letter-spacing: 1px;
+      }
+      .fl-first-btn:active {
+        background: #b01049 !important;
+        transform: scale(1.04) !important;
+        transition:
+          background 0.08s ease,
+          transform 0.08s ease,
+          box-shadow 0.08s ease !important;
+      }
+      .fl-first-btn-icon {
+        width: 16px;
+        height: 16px;
+        flex-shrink: 0;
+        transition: transform 0.35s cubic-bezier(0.22, 1, 0.36, 1);
+      }
+      .fl-first-btn:hover .fl-first-btn-icon {
+        transform: translateX(-1px) scale(1.15);
+      }
+      .fl-first-btn-top {
+        font-size: 0.8rem;
+        font-weight: 300;
+        letter-spacing: 2px;
+        opacity: 0.85;
+        transition: letter-spacing 0.35s cubic-bezier(0.22, 1, 0.36, 1), opacity 0.3s ease;
+      }
+      .fl-first-btn-bot {
+        font-size: 0.92rem;
+        font-weight: 800;
+        letter-spacing: 0.6px;
+        transition: letter-spacing 0.35s cubic-bezier(0.22, 1, 0.36, 1);
+      }
+      /* Episode-number cell: stacked "LATEST / EPISODE / <n>" all centered */
+      .episode-number-wrap { text-align: center !important; }
+      .episode-number {
+        display: flex !important;
+        flex-direction: column;
+        align-items: center;
+        justify-content: center;
+        gap: 2px;
+        font-size: 2rem !important;
+        font-weight: 800 !important;
+        line-height: 1 !important;
+        text-align: center !important;
+      }
+      .fl-ep-kicker {
+        display: flex;
+        flex-direction: column;
+        align-items: center;
+        line-height: 1;
+        margin-bottom: 2px;
+      }
+      .fl-ep-kicker-line {
+        font-size: 0.6rem;
+        font-weight: bold !important;
+        text-transform: uppercase;
+        opacity: 0.6;
+        text-shadow: none;
+      }
+      /* Genre chips under the title */
+      .fl-genre-row {
+        display: flex;
+        flex-wrap: wrap;
+        gap: 4px;
+        margin-top: 6px;
+        min-height: 16px;
+      }
+      .fl-genre-chip {
+        font-size: 0.55rem !important;
+        font-weight: 700;
+        letter-spacing: 0.7px;
+        text-transform: uppercase;
+        padding: 3px 7px;
+        background: rgba(255, 255, 255, 0.14);
+        color: rgba(255, 255, 255, 0.88) !important;
+        text-decoration: none !important;
+        text-shadow: none !important;
+        line-height: 1.2;
+        border: 1px solid rgba(255, 255, 255, 0.08);
+        transition: background 0.15s ease, color 0.15s ease, border-color 0.15s ease;
+      }
+      .fl-genre-chip:hover {
+        background: #d5015b;
+        border-color: #d5015b;
+        color: #fff !important;
+      }
+      /* NSFW blur — blur the thumbnail art on cards tagged ecchi/erotica/hentai.
+         Hover to reveal. UI (button, gradient, title) stays sharp. */
+      .fl-nsfw .episode-snapshot img {
+        filter: blur(18px) saturate(0.85) brightness(0.75);
+        transform: scale(1.05);
+        transition: filter 0.35s ease, transform 0.35s ease;
+      }
+      .fl-nsfw .episode-snapshot:hover img {
+        filter: blur(0) saturate(1) brightness(1);
+        transform: scale(1);
+      }
+      .fl-nsfw .episode-snapshot::before {
+        content: "HOVER TO REVEAL";
+        position: absolute;
+        top: 50%;
+        left: 50%;
+        transform: translate(-50%, -50%);
+        font-size: 0.58rem;
+        font-weight: 700;
+        letter-spacing: 1.6px;
+        color: rgba(255, 255, 255, 0.75);
+        background: rgba(0, 0, 0, 0.45);
+        padding: 5px 10px;
+        pointer-events: none;
+        z-index: 3;
+        transition: opacity 0.2s ease;
+      }
+      .fl-nsfw .episode-snapshot:hover::before {
+        opacity: 0;
+      }
+      .search-results li { position: relative; }
+      .fl-search-first {
+        position: absolute;
+        top: 50%;
+        right: 6px;
+        transform: translateY(-50%);
+        display: inline-flex;
+        align-items: center;
+        gap: 4px;
+        background: #d5015b;
+        color: #fff !important;
+        font-size: 0.62rem;
+        font-weight: 700;
+        letter-spacing: 0.8px;
+        text-transform: uppercase;
+        padding: 6px 10px;
+        border-radius: 0;
+        border: 1px solid #d5015b;
+        text-decoration: none !important;
+        transition: background 0.12s ease, border-color 0.12s ease;
+        z-index: 6;
+        cursor: pointer;
+        font-family: inherit;
+        line-height: 1;
+      }
+      .fl-search-first::before {
+        content: "\\23EE";
+        font-size: 0.75rem;
+        line-height: 1;
+      }
+      .fl-search-first:hover {
+        background: #ec1670;
+        border-color: #ec1670;
+      }
+      .fl-search-first:active {
+        background: #b01049;
+        border-color: #b01049;
+      }
+    `;
+    (document.head || document.documentElement).appendChild(style);
+  }
+
+  // Throttle genre hydration: /anime/{id} fetches are heavy, so cap parallelism.
+  const _genreQueue = [];
+  let _genreActive = 0;
+  const GENRE_CONCURRENCY = 3;
+  function _pumpGenreQueue() {
+    while (_genreActive < GENRE_CONCURRENCY && _genreQueue.length) {
+      const task = _genreQueue.shift();
+      _genreActive++;
+      Promise.resolve(task()).finally(() => {
+        _genreActive--;
+        _pumpGenreQueue();
+      });
+    }
+  }
+  function _hydrateGenres(wrap, animeId) {
+    const titleWrap = wrap.querySelector(".episode-title-wrap");
+    if (!titleWrap || titleWrap.querySelector(".fl-genre-row")) return;
+    const row = document.createElement("div");
+    row.className = "fl-genre-row";
+    titleWrap.appendChild(row);
+
+    _genreQueue.push(() =>
+      getAnimeDetails(animeId)
+        .then(({ details }) => {
+          // Relabel the episode-count kicker when the show is no longer
+          // airing. AnimePahe's value for finished shows is "Finished Airing",
+          // which contains BOTH "finish" and "airing" — so test the "finish"
+          // marker first so we don't accidentally class it as ongoing.
+          const statusRow = (details?.info || []).find((r) =>
+            /status/i.test(r.label || "")
+          );
+          const statusVal = (statusRow?.value || "").toLowerCase().trim();
+          const isFinished =
+            !!statusVal && /finish|complete|ended|concluded/.test(statusVal);
+          if (isFinished) {
+            const kicker = wrap.querySelector(".fl-ep-kicker");
+            if (kicker) {
+              kicker.innerHTML = '<span class="fl-ep-kicker-line">Completed</span>';
+              kicker.classList.add("fl-ep-kicker-completed");
+            }
+          }
+
+          const genresAll = details?.genres || [];
+          // Blur the thumbnail (and the blurred top-bar art) for NSFW tags —
+          // users can hover to reveal.
+          const isNsfw = genresAll.some((g) =>
+            /\b(ecchi|erotica|hentai)\b/i.test(g.name || "")
+          );
+          if (isNsfw) wrap.classList.add("fl-nsfw");
+
+          const genres = genresAll.slice(0, 3);
+          if (!genres.length) { row.remove(); return; }
+          row.innerHTML = genres
+            .map((g) => {
+              const href = g.url || "#";
+              const name = (g.name || "").replace(/</g, "&lt;");
+              return `<a class="fl-genre-chip" href="${href}" title="${name}">${name}</a>`;
+            })
+            .join("");
+          row.classList.add("is-loaded");
+        })
+        .catch(() => row.remove())
+    );
+    _pumpGenreQueue();
+  }
+
+  function animePaheHomeInjector() {
+    injectFLStyles();
+
+    const injectFirstButtons = () => {
+      document.querySelectorAll(".episode-wrap:not([data-fl-done])").forEach((wrap) => {
+        wrap.dataset.flDone = "1";
+        const snapshot = wrap.querySelector(".episode-snapshot");
+        const titleLink = wrap.querySelector(".episode-title a");
+        const href = titleLink?.getAttribute("href");
+        if (!snapshot || !href) return;
+
+        const firstBtn = document.createElement("a");
+        firstBtn.className = "fl-first-btn";
+        firstBtn.href = href;
+        firstBtn.title = "Watch from Episode 1";
+        firstBtn.setAttribute("aria-label", "Watch from Episode 1");
+        firstBtn.innerHTML =
+          '<svg class="fl-first-btn-icon" viewBox="0 0 24 24" fill="currentColor" aria-hidden="true">' +
+          '<path d="M8 5v14l11-7z"/>' +
+          '</svg>' +
+          '<span class="fl-first-btn-top">Watch</span>' +
+          '<span class="fl-first-btn-bot">EP 1</span>';
+        firstBtn.addEventListener("click", (e) => e.stopPropagation());
+        snapshot.appendChild(firstBtn);
+
+        // Dress up the episode-number cell: add "LATEST EPISODE" kicker above
+        // the big episode count so the two-line right column reads clearly.
+        const epNumberCell = wrap.querySelector(".episode-number");
+        if (epNumberCell && !epNumberCell.querySelector(".fl-ep-kicker")) {
+          const kicker = document.createElement("div");
+          kicker.className = "fl-ep-kicker";
+          kicker.innerHTML =
+            '<span class="fl-ep-kicker-line">Latest</span>' +
+            '<span class="fl-ep-kicker-line">Episode</span>';
+          epNumberCell.insertBefore(kicker, epNumberCell.firstChild);
+        }
+
+        // Async-fetch + render genres under the title (cache-backed).
+        const animeId = (href.match(/\/anime\/([^/?#]+)/) || [])[1];
+        if (animeId) _hydrateGenres(wrap, animeId);
+      });
+    };
+
+    injectFirstButtons();
+    const target =
+      document.querySelector(".episode-list-wrapper") ||
+      document.querySelector(".latest-release") ||
+      document.body;
+    if (target) {
+      new MutationObserver(injectFirstButtons).observe(target, {
+        childList: true,
+        subtree: true,
+      });
+    }
+  }
+
+  function animePaheSearchPills() {
+    injectFLStyles();
+
+    const searchWrap = document.querySelector(".search-results-wrap");
+    if (!searchWrap) return;
+
+    const injectPills = () => {
+      searchWrap.querySelectorAll("a:not([data-fl-done])").forEach((a) => {
+        const href = a.getAttribute("href");
+        if (!href || !/^\/anime\//.test(href)) return;
+        a.dataset.flDone = "1";
+
+        a.addEventListener("click", (e) => {
+          if (e.target.closest(".fl-search-first")) return;
+          e.preventDefault();
+          const url = new URL(href, window.location.origin);
+          url.searchParams.set("episodeLast", "true");
+          window.location.href = url.pathname + url.search;
+        });
+
+        const firstBtn = document.createElement("span");
+        firstBtn.className = "fl-search-first";
+        firstBtn.textContent = "EP 1";
+        firstBtn.title = "Watch from Episode 1";
+        firstBtn.addEventListener("click", (e) => {
+          e.preventDefault();
+          e.stopPropagation();
+          window.location.href = href;
+        });
+
+        const li = a.closest("li") || a.parentElement;
+        if (li) li.appendChild(firstBtn);
+      });
+    };
+
+    injectPills();
+    new MutationObserver(injectPills).observe(searchWrap, {
+      childList: true,
+      subtree: true,
+    });
   }
 })();

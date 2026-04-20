@@ -2808,6 +2808,24 @@ body.light {
   margin: 0 -2px;
 }
 
+/* Immersive word-by-word highlight — keep all text at full readability and
+   mark the active word with a subtle outlined box instead of dimming the rest. */
+.tts-imm-word {
+  display: inline;
+  padding: 2px 5px;
+  margin: 0 -4px;
+  border-radius: 0;
+  transition: background-color 0.18s ease, color 0.18s ease;
+}
+.tts-imm-word.tts-imm-word-active {
+  background: #db2777;
+  color: #fff;
+}
+.light .tts-imm-word.tts-imm-word-active {
+  background: #db2777;
+  color: #fff;
+}
+
 /* ---------- TTS ACTIVE VERSE ---------- */
 .verse.tts-active .verse-content {
   background: rgba(72, 107, 236, 0.13);
@@ -4024,6 +4042,47 @@ body.light {
 @media (max-height: 700px) {
   .tts-imm-slot-cur .tts-imm-slot-text {
     font-size: 1.15rem;
+  }
+}
+
+/* Desktop: constrain content to a readable centered column. All three
+   sections (bar/stage/footer) share the same max-width + padding so the
+   title, verses, and controls align along a single vertical axis. */
+@media (min-width: 900px) {
+  .tts-imm-bar,
+  .tts-imm-stage,
+  .tts-imm-footer {
+    width: 100%;
+    max-width: 860px;
+    margin-left: auto;
+    margin-right: auto;
+    padding-left: 40px;
+    padding-right: 40px;
+    box-sizing: border-box;
+  }
+  .tts-imm-stage {
+    justify-content: center;
+    gap: 12px;
+  }
+  .tts-imm-slot-cur .tts-imm-slot-text {
+    font-size: 1.6rem;
+    line-height: 1.7;
+  }
+  .tts-imm-slot-prev .tts-imm-slot-text,
+  .tts-imm-slot-next .tts-imm-slot-text {
+    font-size: 0.95rem;
+  }
+  .tts-imm-title { font-size: 26px; }
+}
+
+@media (min-width: 1400px) {
+  .tts-imm-bar,
+  .tts-imm-stage,
+  .tts-imm-footer {
+    max-width: 960px;
+  }
+  .tts-imm-slot-cur .tts-imm-slot-text {
+    font-size: 1.75rem;
   }
 }
 

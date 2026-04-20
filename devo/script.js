@@ -719,23 +719,41 @@ copyNotesBtn.onclick = async () => {
 
   let hasReflections = false;
   const reflectionLines = [];
+  const seenReflectionIds = new Set();
 
-  document.querySelectorAll('textarea[id^="reflection-"]').forEach((area, idx) => {
-    if (area.value.trim() !== "") {
-      // Get the question text from the preceding <p> sibling
+  // Scope to the primary reflection container so stray/cached textareas
+  // elsewhere in the DOM (e.g. old panels, notes previews) can't duplicate
+  // the Q&A list. Also dedupe by id as a belt-and-suspenders guard.
+  document
+    .querySelectorAll('#aiReflection textarea[id^="reflection-"]')
+    .forEach((area, idx) => {
+      // Normalize the answer: strip leading/trailing whitespace AND collapse
+      // runs of 3+ newlines to a single paragraph break (prevents stray
+      // dangling blank lines from sneaking into the clipboard).
+      const answer = area.value
+        .replace(/\n{3,}/g, "\n\n")
+        .replace(/[ \t]+\n/g, "\n")
+        .trim();
+      if (!answer) return;
+      if (area.id && seenReflectionIds.has(area.id)) return;
+      if (area.id) seenReflectionIds.add(area.id);
       const li = area.closest("li");
       const questionP = li?.querySelector("p");
       const questionText = questionP ? questionP.textContent.trim() : `Question ${idx + 1}`;
+      if (reflectionLines.length) reflectionLines.push("");
       reflectionLines.push(`Q: ${questionText}`);
-      reflectionLines.push(`A: ${area.value.trim()}`);
-      reflectionLines.push(""); // Spacer
+      reflectionLines.push(`A: ${answer}`);
       hasReflections = true;
-    }
-  });
+    });
 
   if (hasReflections) {
     lines.push("\nGuided Reflection 🙏🏼\n");
     lines.push(...reflectionLines);
+  }
+
+  // Drop any trailing blanks from the final output.
+  while (lines.length && lines[lines.length - 1].replace(/\s+/g, "") === "") {
+    lines.pop();
   }
 
   await navigator.clipboard.writeText(lines.join("\n"));
@@ -882,23 +900,93 @@ function _restoreVerseText(item) {
   delete item._originalHTML;
 }
 
+// Estimate per-word timings when the TTS provider doesn't give real ones.
+// Each word's time share is proportional to its letter count (plus a small
+// base), with extra weight for trailing punctuation so the highlight holds
+// over a comma, colon, period, etc. — mimicking how a narrator would pause.
+function _computeSyntheticTimepoints(words, duration) {
+  if (!words?.length || !isFinite(duration) || duration <= 0) return [];
+
+  // Extra "silence weight" to simulate pauses. Tuned empirically against
+  // ~150–170 wpm narration — a comma reads as roughly a half-syllable pause,
+  // a period closer to a full one.
+  const punctWeight = (tail) => {
+    if (!tail) return 0;
+    if (/[.!?]["')\]]?$/.test(tail)) return 3.2;       // sentence end
+    if (/[;:]$/.test(tail))            return 2.2;     // clause break
+    if (/[,—–-]$/.test(tail))          return 1.5;     // mid-sentence pause
+    return 0;
+  };
+
+  const weights = words.map((w) => {
+    const letters = (w.match(/[A-Za-z0-9]/g) || []).length;
+    const tail = (w.match(/[^A-Za-z0-9]+$/) || [""])[0];
+    return Math.max(1, letters) + 1.4 + punctWeight(tail);
+  });
+
+  const total = weights.reduce((a, b) => a + b, 0);
+  const leadIn = duration * 0.015;
+  const usable = duration * 0.965;
+  let acc = leadIn;
+  return weights.map((w) => {
+    const tp = { timeSeconds: acc };
+    acc += (w / total) * usable;
+    return tp;
+  });
+}
+
 function _startWordHighlight(audio, item) {
-  if (!item?.timepoints?.length) return;
+  if (!item) return;
   const el = item.el?.querySelector(".verse-content");
-  if (!el) return;
-  const pts = item.timepoints;
-  function tick() {
-    const t = audio.currentTime;
-    let wi = -1;
-    for (let i = 0; i < pts.length; i++) {
-      if (pts[i].timeSeconds <= t) wi = i; else break;
+  const immEl = document.getElementById("ttsImmCurText");
+  if (!el && !immEl) return;
+
+  const ensurePoints = () => {
+    if (item.timepoints?.length) return true;
+    if (!item.words?.length) return false;
+    const dur = audio.duration;
+    if (!isFinite(dur) || dur <= 0) return false;
+    item.timepoints = _computeSyntheticTimepoints(item.words, dur);
+    return item.timepoints.length > 0;
+  };
+
+  const beginTick = () => {
+    const pts = item.timepoints;
+    if (!pts?.length) return;
+    const prefix = item.prefixWordCount || 0;
+    function tick() {
+      const t = audio.currentTime;
+      let wi = -1;
+      for (let i = 0; i < pts.length; i++) {
+        if (pts[i].timeSeconds <= t) wi = i; else break;
+      }
+      // `wi` is the synth-side word index (may include a chapter-title prefix
+      // that isn't rendered). Shift into display-word space for highlighting.
+      const displayIdx = wi >= 0 ? wi - prefix : -1;
+      if (el) {
+        el.querySelectorAll(".tts-word").forEach((s, i) =>
+          s.classList.toggle("tts-word-active", i === wi)
+        );
+      }
+      if (immEl) {
+        immEl.querySelectorAll(".tts-imm-word").forEach((s, i) =>
+          s.classList.toggle("tts-imm-word-active", i === displayIdx)
+        );
+      }
+      if (!audio.paused && !audio.ended) _ttsWordRaf = requestAnimationFrame(tick);
     }
-    el.querySelectorAll(".tts-word").forEach((s, i) =>
-      s.classList.toggle("tts-word-active", i === wi)
-    );
-    if (!audio.paused && !audio.ended) _ttsWordRaf = requestAnimationFrame(tick);
+    _ttsWordRaf = requestAnimationFrame(tick);
+  };
+
+  if (ensurePoints()) {
+    beginTick();
+  } else {
+    const onMeta = () => {
+      audio.removeEventListener("loadedmetadata", onMeta);
+      if (ensurePoints()) beginTick();
+    };
+    audio.addEventListener("loadedmetadata", onMeta);
   }
-  _ttsWordRaf = requestAnimationFrame(tick);
 }
 
 function _stopWordHighlight() {
@@ -1003,7 +1091,9 @@ async function playChapter() {
   const _ttsBookName = BIBLE_META[bookEl?.value]?.name || "";
   const _ttsCh = chapterEl?.value || "";
   if (_ttsBookName && _ttsCh && ttsQueue.length > 0) {
-    ttsQueue[0].ttsText = `${_ttsBookName} ${_ttsCh}. ${ttsQueue[0].text}`;
+    const prefix = `${_ttsBookName} ${_ttsCh}.`;
+    ttsQueue[0].ttsText = `${prefix} ${ttsQueue[0].text}`;
+    ttsQueue[0].prefixWordCount = prefix.split(/\s+/).filter(Boolean).length;
   }
 
   ttsIdx = -1;
@@ -5478,15 +5568,23 @@ function ttsImmersiveUpdate(index) {
     // Current slot
     const curNum  = document.getElementById("ttsImmCurNum");
     const curText = document.getElementById("ttsImmCurText");
+    const _renderCurText = () => {
+      if (!curText) return;
+      const words = (cur.text || "").split(/\s+/).filter(Boolean);
+      if (!words.length) { curText.textContent = cur.text || ""; return; }
+      curText.innerHTML = words
+        .map((w, i) => `<span class="tts-imm-word" data-idx="${i}">${_escapeSSML(w)}</span>`)
+        .join(" ");
+    };
     if (curSlot) {
       curSlot.classList.remove("tts-verse-exit");
-      if (curNum)  curNum.textContent  = `Verse ${cur.verseNum}`;
-      if (curText) curText.textContent = cur.text;
+      if (curNum) curNum.textContent = `Verse ${cur.verseNum}`;
+      _renderCurText();
       void curSlot.offsetWidth;
       curSlot.classList.add("tts-verse-anim");
     } else {
-      if (curNum)  curNum.textContent  = `Verse ${cur.verseNum}`;
-      if (curText) curText.textContent = cur.text;
+      if (curNum) curNum.textContent = `Verse ${cur.verseNum}`;
+      _renderCurText();
     }
 
     // Next slot
