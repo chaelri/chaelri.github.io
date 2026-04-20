@@ -33,7 +33,7 @@
             <span class="hidden sm:inline">Registration</span>
           </a>
           <a href="index.html" target="_blank" class="text-xs font-semibold text-neutral-400 bg-neutral-900 border border-neutral-800 hover:border-neutral-600 hover:text-white rounded-lg px-3 py-2 transition duration-150 flex items-center gap-1.5" title="Volunteer Checkpoint">
-            <span class="material-icons-round text-sm">login</span>
+            <span class="material-icons-round text-sm">badge</span>
             <span class="hidden sm:inline">Checkpoint</span>
           </a>
           <button id="toggle-volunteers-btn" class="text-xs font-semibold text-neutral-400 bg-neutral-900 border border-neutral-800 hover:border-neutral-600 hover:text-white rounded-lg px-3 py-2 transition duration-150 flex items-center gap-1.5">
@@ -379,8 +379,9 @@
           <table class="min-w-full">
             <thead>
               <tr class="border-b border-neutral-800">
-                <th class="px-4 py-3 text-left text-xs font-semibold text-neutral-500 uppercase tracking-wider">Name</th>
-                <th class="px-4 py-3 text-left text-xs font-semibold text-neutral-500 uppercase tracking-wider">Type</th>
+                <th id="vol-th-name" class="px-4 py-3 text-left text-xs font-semibold text-neutral-500 uppercase tracking-wider cursor-pointer hover:text-white transition select-none">Name <span id="vol-arrow-name" class="font-mono text-[10px]">↑</span></th>
+                <th id="vol-th-nickname" class="px-4 py-3 text-left text-xs font-semibold text-neutral-500 uppercase tracking-wider cursor-pointer hover:text-white transition select-none">Nickname <span id="vol-arrow-nickname" class="font-mono text-[10px]"></span></th>
+                <th id="vol-th-type" class="px-4 py-3 text-left text-xs font-semibold text-neutral-500 uppercase tracking-wider cursor-pointer hover:text-white transition select-none">Type <span id="vol-arrow-type" class="font-mono text-[10px]"></span></th>
                 <th class="px-4 py-3 text-left text-xs font-semibold text-neutral-500 uppercase tracking-wider">Segments</th>
                 <th class="px-4 py-3 text-left text-xs font-semibold text-neutral-500 uppercase tracking-wider">Contact</th>
                 <th class="px-4 py-3 text-left text-xs font-semibold text-neutral-500 uppercase tracking-wider">QR</th>

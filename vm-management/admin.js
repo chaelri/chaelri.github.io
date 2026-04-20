@@ -381,25 +381,34 @@ async function loadCommsHistory(commsId) {
   commsHistoryPanel.innerHTML = `<p class="text-gray-400 text-sm text-center py-4">Loading history for <strong class="font-mono">${commsId}</strong>...</p>`;
 
   try {
-    const snap = await db.ref("logs").once("value");
-    const allDates = snap.val() || {};
-    const history = [];
+    const [logsSnap, eventsSnap] = await Promise.all([
+      db.ref("logs").once("value"),
+      db.ref("commsEvents").orderByChild("commsId").equalTo(commsId).once("value"),
+    ]);
+
+    const allDates = logsSnap.val() || {};
+    const allEvents = eventsSnap.val() || {};
+
+    const items = [];
 
     Object.entries(allDates).forEach(([date, dateLogs]) => {
       if (!dateLogs) return;
       Object.entries(dateLogs).forEach(([key, log]) => {
         if (log.commsId === commsId && log.status !== "pending") {
-          history.push({ key, date, ...log });
+          items.push({ _type: "log", _sort: `${date}T${log.timeIn || ""}`, key, date, ...log });
         }
       });
     });
 
-    history.sort((a, b) => {
-      if (a.date !== b.date) return b.date.localeCompare(a.date);
-      return (b.timeIn || "").localeCompare(a.timeIn || "");
+    Object.entries(allEvents).forEach(([, ev]) => {
+      items.push({ _type: "event", _sort: ev.timestamp || "", ...ev });
     });
 
-    if (history.length === 0) {
+    items.sort((a, b) => b._sort.localeCompare(a._sort));
+
+    const logCount = items.filter((i) => i._type === "log").length;
+
+    if (items.length === 0) {
       commsHistoryPanel.innerHTML = `<p class="text-gray-500 text-center py-4">No usage history found for <strong class="font-mono text-blue-600">${commsId}</strong>.</p>`;
       return;
     }
@@ -419,23 +428,36 @@ async function loadCommsHistory(commsId) {
 
     let html = `<div class="mb-3 pb-2 border-b border-gray-200 flex items-center justify-between">
       <h3 class="font-bold text-gray-800">Comms <span class="font-mono text-blue-600">${commsId}</span></h3>
-      <span class="text-xs text-gray-400">${history.length} record${history.length !== 1 ? "s" : ""}</span>
+      <span class="text-xs text-gray-400">${logCount} session${logCount !== 1 ? "s" : ""}</span>
     </div><div class="space-y-2">`;
 
-    history.forEach((h) => {
-      const isActive = !h.timeOut;
-      html += `<div class="flex items-center justify-between p-3 rounded-lg border ${isActive ? "border-green-300 bg-green-50" : "border-gray-200 bg-white"}">
-        <div>
-          <p class="font-semibold text-gray-800 text-sm">${h.name || "—"}</p>
-          <p class="text-xs text-gray-500">${h.segment || "—"} / ${h.role || "—"}</p>
-          <p class="text-xs text-gray-400 font-mono">${h.date}</p>
-        </div>
-        <div class="text-right text-xs">
-          <p class="text-green-600 font-mono font-semibold">${fmtTime(h.timeIn)}</p>
-          <p class="${isActive ? "text-green-500 font-bold" : "text-red-500"} font-mono">${isActive ? "Active" : fmtTime(h.timeOut)}</p>
-          <p class="text-gray-400 mt-0.5">${fmtDuration(h)}</p>
-        </div>
-      </div>`;
+    items.forEach((h) => {
+      if (h._type === "event") {
+        const isTransfer = h.eventType === "transferred_to";
+        const label = isTransfer ? "Transferred to" : "Released by";
+        const badgeClass = isTransfer ? "bg-amber-100 text-amber-700" : "bg-gray-100 text-gray-500";
+        html += `<div class="flex items-center justify-between p-2.5 rounded-lg border border-gray-100 bg-gray-50">
+          <div class="flex items-center gap-2">
+            <span class="text-xs px-2 py-0.5 rounded-full font-semibold ${badgeClass}">${label}</span>
+            <span class="text-sm text-gray-700 font-medium">${h.volunteerName || "—"}</span>
+          </div>
+          <div class="text-right text-xs text-gray-400 font-mono">${h.date || ""} ${fmtTime(h.timestamp)}</div>
+        </div>`;
+      } else {
+        const isActive = !h.timeOut;
+        html += `<div class="flex items-center justify-between p-3 rounded-lg border ${isActive ? "border-green-300 bg-green-50" : "border-gray-200 bg-white"}">
+          <div>
+            <p class="font-semibold text-gray-800 text-sm">${h.name || "—"}</p>
+            <p class="text-xs text-gray-500">${h.segment || "—"} / ${h.role || "—"}</p>
+            <p class="text-xs text-gray-400 font-mono">${h.date}</p>
+          </div>
+          <div class="text-right text-xs">
+            <p class="text-green-600 font-mono font-semibold">${fmtTime(h.timeIn)}</p>
+            <p class="${isActive ? "text-green-500 font-bold" : "text-red-500"} font-mono">${isActive ? "Active" : fmtTime(h.timeOut)}</p>
+            <p class="text-gray-400 mt-0.5">${fmtDuration(h)}</p>
+          </div>
+        </div>`;
+      }
     });
 
     html += `</div>`;

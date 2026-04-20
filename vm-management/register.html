@@ -255,12 +255,16 @@
 
       // Name autocomplete
       let allVolunteers = [];
+      let selectedExistingId = null; // set when editing an existing volunteer
 
       async function loadVolunteers() {
         try {
           const snap = await db.ref("volunteers").once("value");
           const data = snap.val() || {};
-          allVolunteers = Object.entries(data).map(([id, v]) => ({ id, name: v.name || "" }));
+          allVolunteers = Object.entries(data).map(([id, v]) => ({
+            id, name: v.name || "", nickname: v.nickname || "",
+            team: v.team || "", contact: v.contact || "", type: v.type || "volunteer",
+          }));
         } catch (e) {}
       }
       loadVolunteers();
@@ -273,6 +277,11 @@
         matchMsg.classList.add("hidden");
         hideForgotQr();
 
+        // Reset existing selection when user types manually
+        selectedExistingId = null;
+        const type = document.getElementById("register-type").value;
+        document.getElementById("register-submit-btn").textContent = type === "guest" ? "Generate Guest QR" : "Register & Generate QR";
+
         if (query.length < 2) { suggestionsEl.classList.add("hidden"); return; }
 
         const matches = allVolunteers.filter((v) => v.name.toLowerCase().includes(query)).slice(0, 5);
@@ -283,12 +292,16 @@
           const item = document.createElement("button");
           item.type = "button";
           item.className = "w-full text-left px-3 py-2 text-sm hover:bg-neutral-50 transition flex items-center justify-between";
-          item.innerHTML = `<span class="font-medium text-neutral-800">${v.name}</span><span class="text-xs text-amber-600 font-medium">Already registered</span>`;
+          item.innerHTML = `<span class="font-medium text-neutral-800">${v.name}</span><span class="text-xs text-blue-600 font-medium">Edit profile</span>`;
           item.addEventListener("click", () => {
             document.getElementById("register-name").value = v.name;
+            document.getElementById("register-nickname").value = v.nickname || "";
+            document.getElementById("register-contact").value = v.contact || "";
             suggestionsEl.classList.add("hidden");
-            matchMsg.textContent = `"${v.name}" is already registered. They can scan their QR to time in.`;
-            matchMsg.className = "text-xs mt-1 text-amber-600";
+            selectedExistingId = v.id;
+            document.getElementById("register-submit-btn").textContent = "Update Existing Profile";
+            matchMsg.textContent = `Editing profile for "${v.name}". Submitting will update their existing account — no new QR will be created.`;
+            matchMsg.className = "text-xs mt-1 text-blue-600";
             matchMsg.classList.remove("hidden");
             showForgotQr(v.id, v.name);
           });
@@ -311,8 +324,39 @@
 
         if (!name) { alert("Please enter a name."); return; }
 
-        showLoading("Registering...");
+        showLoading(selectedExistingId ? "Updating profile..." : "Registering...");
 
+        // ── UPDATE existing record ────────────────────────────────────────────
+        if (selectedExistingId) {
+          try {
+            const updateData = { name };
+            updateData.nickname = nickname || null;
+            if (type === "volunteer") updateData.team = team || null;
+            updateData.contact = contact || null;
+
+            await db.ref(`volunteers/${selectedExistingId}`).update(updateData);
+
+            document.getElementById("qr-result-title").textContent = "Profile Updated!";
+            document.getElementById("qr-result-name").textContent = `${name}${nickname ? ` (${nickname})` : ""}`;
+            document.getElementById("qr-result-id").textContent = `ID: ${selectedExistingId}`;
+
+            const qrContainer = document.getElementById("qr-code-output");
+            qrContainer.innerHTML = "";
+            new QRCode(qrContainer, { text: selectedExistingId, width: 200, height: 200, colorDark: "#000000", colorLight: "#ffffff", correctLevel: QRCode.CorrectLevel.H });
+
+            document.getElementById("stage-register").classList.add("hidden");
+            document.getElementById("stage-qr-result").classList.remove("hidden");
+            loadVolunteers();
+            hideLoading();
+          } catch (error) {
+            hideLoading();
+            console.error("Update error:", error);
+            alert("Update failed. Please try again.");
+          }
+          return;
+        }
+
+        // ── CREATE new record ─────────────────────────────────────────────────
         const prefix = type === "guest" ? "GUEST" : "VOL";
         const newId = `${prefix}-${Date.now()}-${Math.random().toString(36).substring(2, 6).toUpperCase()}`;
 
@@ -354,6 +398,7 @@
         document.getElementById("register-form").reset();
         document.getElementById("name-match-msg").classList.add("hidden");
         hideForgotQr();
+        selectedExistingId = null;
         setTab(document.getElementById("register-type").value);
       });
 

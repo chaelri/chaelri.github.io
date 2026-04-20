@@ -240,7 +240,19 @@ function renderTable() {
       row.appendChild(
         td(`<span class="text-neutral-500 text-xs">${log.segment || "—"}</span><br/><span class="text-white font-medium">${log.role || "—"}</span>`)
       );
-      row.appendChild(commsButton(log.commsId));
+      // Editable comms for pending (can reserve even if currently occupied)
+      const pendingCommsTd = document.createElement("td");
+      pendingCommsTd.className = "px-4 py-2 text-sm";
+      if (log.commsId && log.commsId !== "NONE") {
+        const isTakenByOther = activeCommsMap[log.commsId];
+        const takenLabel = isTakenByOther
+          ? `<span class="text-[9px] text-amber-500 ml-0.5">⏳</span>`
+          : "";
+        pendingCommsTd.innerHTML = `<button class="pending-change-comms-btn group font-mono font-bold text-amber-300 bg-neutral-800 hover:bg-neutral-700 px-2 py-0.5 rounded text-xs transition flex items-center gap-1" data-key="${log.key}" data-comms="${log.commsId}" data-name="${log.name || ""}" data-volunteer="${log.volunteerId || ""}">${log.commsId}${takenLabel}<span class="material-icons-round text-neutral-600 group-hover:text-neutral-300 transition" style="font-size:10px">edit</span></button>`;
+      } else {
+        pendingCommsTd.innerHTML = `<button class="pending-change-comms-btn group text-neutral-600 hover:text-white transition flex items-center gap-1 text-xs" data-key="${log.key}" data-comms="" data-name="${log.name || ""}" data-volunteer="${log.volunteerId || ""}"><span>—</span><span class="material-icons-round text-neutral-700 group-hover:text-neutral-400 transition" style="font-size:10px">edit</span></button>`;
+      }
+      row.appendChild(pendingCommsTd);
 
       // Seg ID input + confirm button
       const segIdTd = document.createElement("td");
@@ -288,6 +300,13 @@ function renderTable() {
           showToast("Pending time-in cancelled", "cancel", "text-red-400");
         }
       });
+    });
+
+    // Pending comms reservation (opens change-comms in pending mode)
+    document.querySelectorAll(".pending-change-comms-btn").forEach((btn) => {
+      btn.addEventListener("click", () =>
+        openChangeCommsModal(btn.dataset.key, btn.dataset.comms, btn.dataset.name, btn.dataset.volunteer, true)
+      );
     });
 
     // Attach confirm handlers (check button beside seg ID)
@@ -463,14 +482,8 @@ function renderTable() {
             commsStatusOut: "OK",
           });
 
-          // 2. Release comms if applicable
-          if (commsCode && commsCode !== "NONE" && commsCode !== "N/A") {
-            await db.ref(`comms/${commsCode}`).update({
-              assignedTo: null,
-              assignedTime: null,
-              status: "available",
-            });
-          }
+          // 2. Release comms (or auto-assign to pending reservation)
+          await releaseCommsOrAutoAssign(commsCode);
 
           // 3. Sync to Google Sheets
           syncToSheets({
@@ -710,13 +723,7 @@ function renderTable() {
         commsStatusOut: "OK",
       });
 
-      if (comms && comms !== "NONE" && comms !== "N/A") {
-        await db.ref(`comms/${comms}`).update({
-          assignedTo: null,
-          assignedTime: null,
-          status: "available",
-        });
-      }
+      await releaseCommsOrAutoAssign(comms);
 
       // Sync to Sheets
       syncToSheets({ action: 'timeOut', logKey: key, timeOut: now, timeIn: time });
@@ -735,6 +742,34 @@ function renderTable() {
       showToast("Log entry deleted", "delete", "text-red-400");
     });
   });
+}
+
+// =============================
+// Comms Release / Auto-Assign Helper
+// =============================
+async function releaseCommsOrAutoAssign(commsCode) {
+  if (!commsCode || commsCode === "NONE" || commsCode === "N/A") return;
+
+  // Check for a pending time-in user that has reserved this comms
+  const pendingReservation = Object.entries(allLogs).find(([k, l]) =>
+    !l.timeOut && l.status === "pending" && l.commsId === commsCode
+  );
+
+  if (pendingReservation) {
+    const [, rLog] = pendingReservation;
+    await db.ref(`comms/${commsCode}`).update({
+      assignedTo: rLog.volunteerId || null,
+      assignedTime: new Date().toISOString(),
+      status: "assigned",
+    });
+    showToast(`Comms ${commsCode} → ${rLog.name || "pending user"}`, "headset_mic", "text-teal-400");
+  } else {
+    await db.ref(`comms/${commsCode}`).update({
+      assignedTo: null,
+      assignedTime: null,
+      status: "available",
+    });
+  }
 }
 
 // =============================
@@ -846,9 +881,7 @@ function renderCommsView(map) {
         if (!confirmed) return;
         const now = new Date().toISOString();
         await db.ref(`logs/${todayDate}/${key}`).update({ timeOut: now, status: null, commsStatusOut: "OK" });
-        if (comms && comms !== "NONE" && comms !== "N/A") {
-          await db.ref(`comms/${comms}`).update({ assignedTo: null, assignedTime: null, status: "available" });
-        }
+        await releaseCommsOrAutoAssign(comms);
         syncToSheets({ action: "timeOut", logKey: key, timeOut: now, timeIn: time });
         showToast(`"${name}" timed out`, "logout", "text-red-400");
       });
@@ -1451,49 +1484,79 @@ async function showCommsHistory(commsId) {
   modal.classList.remove("hidden");
 
   try {
-    const logsSnap = await db.ref(`logs/${todayDate}`).once("value");
+    const [logsSnap, eventsSnap] = await Promise.all([
+      db.ref(`logs/${todayDate}`).once("value"),
+      db.ref("commsEvents").orderByChild("commsId").equalTo(commsId).once("value"),
+    ]);
+
     const todayLogs = logsSnap.val() || {};
-    const history = [];
+    const allEvents = eventsSnap.val() || {};
+
+    // Build unified timeline entries
+    const items = [];
 
     Object.entries(todayLogs).forEach(([key, log]) => {
       if (log.commsId === commsId) {
-        history.push({ ...log });
+        items.push({ _type: "log", _sort: log.timeIn || "", ...log });
       }
     });
 
-    history.sort((a, b) => (b.timeIn || "").localeCompare(a.timeIn || ""));
+    Object.entries(allEvents).forEach(([, ev]) => {
+      if (ev.date === todayDate) {
+        items.push({ _type: "event", _sort: ev.timestamp || "", ...ev });
+      }
+    });
 
-    if (history.length === 0) {
+    items.sort((a, b) => (b._sort || "").localeCompare(a._sort || ""));
+
+    if (items.length === 0) {
       modalContent.innerHTML = `
         <p class="text-center text-neutral-500 py-8">No history found for <span class="font-mono font-bold text-white">${commsId}</span></p>`;
       return;
     }
 
+    const logCount = items.filter((i) => i._type === "log").length;
+
     let html = `
       <div class="mb-4 text-center">
         <span class="font-mono font-black text-2xl text-white">${commsId}</span>
-        <p class="text-xs text-neutral-500 mt-1">${history.length} record${history.length > 1 ? "s" : ""} today</p>
+        <p class="text-xs text-neutral-500 mt-1">${logCount} session${logCount !== 1 ? "s" : ""} today</p>
       </div>
       <div class="space-y-2 max-h-80 overflow-y-auto pr-1">`;
 
-    history.forEach((h) => {
-      const isClockedIn = !h.timeOut;
-      const dotColor = isClockedIn ? "bg-green-400 animate-pulse" : "bg-neutral-600";
-      const duration = calcDuration(h);
-
-      html += `
-        <div class="flex items-center gap-3 bg-neutral-800 rounded-lg px-3 py-2.5">
-          <span class="w-2 h-2 rounded-full ${dotColor} flex-shrink-0"></span>
-          <div class="flex-1 min-w-0">
-            <p class="text-sm font-semibold text-white truncate">${h.name || "—"}</p>
-            <p class="text-xs text-neutral-500">${h.segment || ""} / ${h.role || ""}</p>
-          </div>
-          <div class="text-right flex-shrink-0">
-            <p class="text-xs font-mono text-green-400">${formatTime(h.timeIn)}</p>
-            <p class="text-xs font-mono ${h.timeOut ? "text-red-400" : "text-neutral-600"}">${h.timeOut ? formatTime(h.timeOut) : "active"}</p>
-          </div>
-          <div class="text-xs text-neutral-500 font-mono flex-shrink-0">${duration}</div>
-        </div>`;
+    items.forEach((h) => {
+      if (h._type === "event") {
+        const isTransfer = h.eventType === "transferred_to";
+        const icon = isTransfer ? "swap_horiz" : "link_off";
+        const label = isTransfer ? "Transferred to" : "Released by";
+        const color = isTransfer ? "text-amber-400" : "text-neutral-500";
+        html += `
+          <div class="flex items-center gap-3 bg-neutral-900 border border-neutral-700 rounded-lg px-3 py-2">
+            <span class="material-icons-round text-sm ${color} flex-shrink-0">${icon}</span>
+            <div class="flex-1 min-w-0">
+              <p class="text-xs ${color} font-semibold">${label}</p>
+              <p class="text-xs text-neutral-400 truncate">${h.volunteerName || "—"}</p>
+            </div>
+            <div class="text-xs text-neutral-600 font-mono flex-shrink-0">${formatTime(h.timestamp)}</div>
+          </div>`;
+      } else {
+        const isClockedIn = !h.timeOut;
+        const dotColor = isClockedIn ? "bg-green-400 animate-pulse" : "bg-neutral-600";
+        const duration = calcDuration(h);
+        html += `
+          <div class="flex items-center gap-3 bg-neutral-800 rounded-lg px-3 py-2.5">
+            <span class="w-2 h-2 rounded-full ${dotColor} flex-shrink-0"></span>
+            <div class="flex-1 min-w-0">
+              <p class="text-sm font-semibold text-white truncate">${h.name || "—"}</p>
+              <p class="text-xs text-neutral-500">${h.segment || ""} / ${h.role || ""}</p>
+            </div>
+            <div class="text-right flex-shrink-0">
+              <p class="text-xs font-mono text-green-400">${formatTime(h.timeIn)}</p>
+              <p class="text-xs font-mono ${h.timeOut ? "text-red-400" : "text-neutral-600"}">${h.timeOut ? formatTime(h.timeOut) : "active"}</p>
+            </div>
+            <div class="text-xs text-neutral-500 font-mono flex-shrink-0">${duration}</div>
+          </div>`;
+      }
     });
 
     html += `</div>`;
@@ -1517,35 +1580,67 @@ const changeCommsModal = document.getElementById("change-comms-modal");
 document.getElementById("change-comms-modal-close")?.addEventListener("click", () => changeCommsModal.classList.add("hidden"));
 changeCommsModal?.addEventListener("click", (e) => { if (e.target === changeCommsModal) changeCommsModal.classList.add("hidden"); });
 
-function openChangeCommsModal(logKey, currentCommsId, volName, volunteerId) {
-  document.getElementById("change-comms-vol-name").textContent = volName;
+function openChangeCommsModal(logKey, currentCommsId, volName, volunteerId, isPending = false) {
+  const titleEl = document.getElementById("change-comms-vol-name");
+  titleEl.textContent = isPending ? `Reserve for ${volName}` : volName;
   const list = document.getElementById("change-comms-list");
   list.innerHTML = "";
   changeCommsModal.classList.remove("hidden");
 
-  // Build map of comms codes already in use by OTHER active volunteers
+  // Build map of comms codes already in use by OTHER active/confirmed volunteers
   const takenMap = {};
   Object.entries(allLogs).forEach(([key, log]) => {
-    if (key !== logKey && !log.timeOut && log.commsId && log.commsId !== "NONE") {
+    if (key !== logKey && !log.timeOut && log.commsId && log.commsId !== "NONE"
+        && log.status !== "pending") {
       takenMap[log.commsId] = log.name;
     }
   });
 
+  // For pending mode also include pending-out (will be freed soon but can be reserved)
+  const pendingOutMap = {};
+  if (isPending) {
+    Object.entries(allLogs).forEach(([key, log]) => {
+      if (key !== logKey && !log.timeOut && log.commsId && log.commsId !== "NONE"
+          && log.status === "pending-out") {
+        pendingOutMap[log.commsId] = log.name;
+      }
+    });
+  }
+
   function makeCommsBtn(label, sublabel, code, isCurrent, isTaken) {
     const btn = document.createElement("button");
     btn.type = "button";
-    btn.disabled = isTaken;
-    btn.className = isCurrent
-      ? "w-full text-left px-3 py-2 rounded-lg text-xs bg-white text-neutral-900 font-semibold flex items-center gap-2 transition"
-      : isTaken
-        ? "w-full text-left px-3 py-2 rounded-lg text-xs bg-neutral-800/40 text-neutral-600 cursor-not-allowed flex items-center gap-2"
-        : "w-full text-left px-3 py-2 rounded-lg text-xs bg-neutral-800 text-neutral-300 hover:bg-neutral-700 hover:text-white flex items-center gap-2 transition";
+    const isPendingOut = isPending && pendingOutMap[code];
+    // In pending mode: occupied comms are reservable (auto-assign on release)
+    const isReservable = isPending && isTaken && !isPendingOut;
+    const isDisabled = isTaken && !isPending;
+
+    btn.disabled = isDisabled;
+    if (isCurrent) {
+      btn.className = "w-full text-left px-3 py-2 rounded-lg text-xs bg-white text-neutral-900 font-semibold flex items-center gap-2 transition";
+    } else if (isPendingOut) {
+      btn.className = "w-full text-left px-3 py-2 rounded-lg text-xs bg-amber-500/10 border border-amber-500/20 text-amber-300 hover:bg-amber-500/20 flex items-center gap-2 transition";
+    } else if (isReservable) {
+      btn.className = "w-full text-left px-3 py-2 rounded-lg text-xs bg-amber-900/20 border border-amber-900/30 text-amber-500 hover:bg-amber-900/30 flex items-center gap-2 transition";
+    } else if (isDisabled) {
+      btn.className = "w-full text-left px-3 py-2 rounded-lg text-xs bg-neutral-800/40 text-neutral-600 cursor-not-allowed flex items-center gap-2";
+    } else {
+      btn.className = "w-full text-left px-3 py-2 rounded-lg text-xs bg-neutral-800 text-neutral-300 hover:bg-neutral-700 hover:text-white flex items-center gap-2 transition";
+    }
+
+    const codeColor = isCurrent ? "text-neutral-900" : (isPendingOut || isReservable) ? "text-amber-300" : isDisabled ? "text-neutral-600" : "text-white";
+    let rightLabel = "";
+    if (isCurrent) rightLabel = '<span class="material-icons-round text-sm text-neutral-900">check</span>';
+    else if (isPendingOut) rightLabel = `<span class="text-[9px] text-amber-400 truncate max-w-[100px]">Timing out · auto-assign</span>`;
+    else if (isReservable) rightLabel = `<span class="text-[9px] text-amber-600 truncate max-w-[100px]">In use · reserve</span>`;
+    else if (isDisabled) rightLabel = `<span class="text-[10px] text-neutral-600 truncate max-w-[80px]">${takenMap[code]}</span>`;
+
     btn.innerHTML = `
-      <span class="font-mono font-black text-sm w-8 flex-shrink-0 ${isCurrent ? "text-neutral-900" : isTaken ? "text-neutral-600" : "text-white"}">${label}</span>
+      <span class="font-mono font-black text-sm w-8 flex-shrink-0 ${codeColor}">${label}</span>
       <span class="flex-1">${sublabel}</span>
-      ${isTaken ? `<span class="text-[10px] text-neutral-600 truncate max-w-[80px]">${takenMap[code]}</span>` : ""}
-      ${isCurrent ? '<span class="material-icons-round text-sm text-neutral-900">check</span>' : ""}`;
-    if (!isTaken) btn.addEventListener("click", () => applyCommsChange(logKey, code, currentCommsId, volunteerId));
+      ${rightLabel}`;
+
+    if (!isDisabled) btn.addEventListener("click", () => applyCommsChange(logKey, code, currentCommsId, volunteerId));
     return btn;
   }
 
@@ -1557,18 +1652,47 @@ function openChangeCommsModal(logKey, currentCommsId, volName, volunteerId) {
     const isTaken = !isCurrent && !!takenMap[c.code];
     list.appendChild(makeCommsBtn(c.code, c.assignment, c.code, isCurrent, isTaken));
   });
+
+  if (isPending) {
+    const hint = document.createElement("p");
+    hint.className = "text-[10px] text-neutral-600 text-center mt-2 pt-2 border-t border-neutral-800";
+    hint.textContent = "Occupied comms marked ⏳ will auto-assign to this volunteer when the current holder times out.";
+    list.appendChild(hint);
+  }
 }
 
 async function applyCommsChange(logKey, newCommsId, oldCommsId, volunteerId) {
   changeCommsModal.classList.add("hidden");
   try {
+    const volLog = allLogs[logKey] || {};
+    const volName = volLog.name || volunteerId || "Unknown";
+    const now = new Date().toISOString();
+
     await db.ref(`logs/${todayDate}/${logKey}`).update({ commsId: newCommsId || "NONE" });
 
     if (oldCommsId && oldCommsId !== "NONE") {
       await db.ref(`comms/${oldCommsId}`).update({ assignedTo: null, assignedTime: null, status: "available" });
+      await db.ref("commsEvents").push({
+        commsId: oldCommsId,
+        eventType: "released",
+        volunteerName: volName,
+        volunteerId: volunteerId || null,
+        logKey,
+        date: todayDate,
+        timestamp: now,
+      });
     }
     if (newCommsId && newCommsId !== "NONE") {
-      await db.ref(`comms/${newCommsId}`).update({ status: "assigned", assignedTo: volunteerId, assignedTime: new Date().toISOString() });
+      await db.ref(`comms/${newCommsId}`).update({ status: "assigned", assignedTo: volunteerId, assignedTime: now });
+      await db.ref("commsEvents").push({
+        commsId: newCommsId,
+        eventType: "transferred_to",
+        volunteerName: volName,
+        volunteerId: volunteerId || null,
+        logKey,
+        date: todayDate,
+        timestamp: now,
+      });
     }
 
     showToast(newCommsId ? `Comms changed to ${newCommsId}` : "Comms cleared", "headset_mic", "text-teal-400");
@@ -1608,6 +1732,8 @@ const qrModal = document.getElementById("qr-modal");
 const qrModalOutput = document.getElementById("qr-modal-output");
 let allVolunteers = [];
 let currentQrTeam = "";
+let volSortKey = "name";
+let volSortDir = "asc";
 
 // Toggle views
 document.getElementById("toggle-volunteers-btn").addEventListener("click", () => {
@@ -1630,10 +1756,10 @@ function renderVolunteers() {
   const query = (volSearchInput.value || "").toLowerCase().trim();
   let filtered = allVolunteers;
 
-  // Text search
+  // Text search (include nickname)
   if (query) {
     filtered = filtered.filter((v) =>
-      `${v.name} ${v.team} ${v.contact} ${v.type} ${v.id}`.toLowerCase().includes(query)
+      `${v.name} ${v.nickname} ${v.team} ${v.contact} ${v.type} ${v.id}`.toLowerCase().includes(query)
     );
   }
 
@@ -1649,6 +1775,26 @@ function renderVolunteers() {
       return typeMatch && segMatch;
     });
   }
+
+  // Sort
+  filtered = filtered.slice().sort((a, b) => {
+    const dir = volSortDir === "asc" ? 1 : -1;
+    if (volSortKey === "nickname") return dir * (a.nickname || "").localeCompare(b.nickname || "");
+    if (volSortKey === "type") return dir * (a.type || "").localeCompare(b.type || "");
+    return dir * (a.name || "").localeCompare(b.name || "");
+  });
+
+  // Update sort arrows
+  ["name", "nickname", "type"].forEach((k) => {
+    const el = document.getElementById(`vol-arrow-${k}`);
+    if (!el) return;
+    if (volSortKey === k) {
+      el.textContent = volSortDir === "asc" ? "↑" : "↓";
+      el.className = "font-mono text-white text-[10px]";
+    } else {
+      el.textContent = "";
+    }
+  });
 
   volTableBody.innerHTML = "";
   const showingFiltered = activeVolFilters.size > 0 || query;
@@ -1669,6 +1815,8 @@ function renderVolunteers() {
     row.className = "hover:bg-neutral-800 transition duration-150";
 
     row.appendChild(vtd(`<span class="font-semibold text-white">${v.name}</span>`));
+
+    row.appendChild(vtd(v.nickname ? `<span class="text-neutral-300 text-xs font-medium">${v.nickname}</span>` : '<span class="text-neutral-700">—</span>'));
 
     const typeBadge = v.type === "guest"
       ? '<span class="text-xs bg-neutral-700 text-neutral-300 px-2 py-0.5 rounded-full">Guest</span>'
@@ -1736,6 +1884,19 @@ function renderVolunteers() {
 }
 
 volSearchInput.addEventListener("input", renderVolunteers);
+
+// Volunteer table sort headers
+["name", "nickname", "type"].forEach((key) => {
+  document.getElementById(`vol-th-${key}`)?.addEventListener("click", () => {
+    if (volSortKey === key) {
+      volSortDir = volSortDir === "asc" ? "desc" : "asc";
+    } else {
+      volSortKey = key;
+      volSortDir = "asc";
+    }
+    renderVolunteers();
+  });
+});
 
 // =============================
 // Volunteer Filter Pills
