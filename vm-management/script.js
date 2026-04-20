@@ -797,7 +797,7 @@ async function selectSegment(segment) {
   if (hasAnyComms) {
     const priorityLabel = document.createElement("div");
     priorityLabel.className = "w-full pb-0.5";
-    priorityLabel.innerHTML = '<p class="text-[10px] uppercase tracking-widest text-teal-600 font-semibold">Priority — Needs Comms</p>';
+    priorityLabel.innerHTML = '<p class="text-[10px] uppercase tracking-widest text-teal-600 font-semibold">Roles with Comms</p>';
     container.appendChild(priorityLabel);
   }
 
