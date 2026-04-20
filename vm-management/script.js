@@ -790,8 +790,29 @@ async function selectSegment(segment) {
   }
   const rowMap = {}; // role -> row element, for later disable
 
+  const hasAnyComms = allRoles.some((r) => !!roleToComms[r]);
+  let sectionDividerInserted = false;
+
+  // "Priority" label above comms roles
+  if (hasAnyComms) {
+    const priorityLabel = document.createElement("div");
+    priorityLabel.className = "w-full pb-0.5";
+    priorityLabel.innerHTML = '<p class="text-[10px] uppercase tracking-widest text-teal-600 font-semibold">Priority — Needs Comms</p>';
+    container.appendChild(priorityLabel);
+  }
+
   allRoles.forEach((role, pillIdx) => {
     const isVolunteerRole = role.endsWith("(Volunteer)");
+    const hasComms = !!roleToComms[role];
+
+    // Insert divider between comms and non-comms sections
+    if (hasAnyComms && !hasComms && !isVolunteerRole && !sectionDividerInserted) {
+      sectionDividerInserted = true;
+      const divider = document.createElement("div");
+      divider.className = "w-full pt-1 pb-0.5";
+      divider.innerHTML = '<p class="text-[10px] uppercase tracking-widest text-neutral-400 font-semibold">Other Roles</p>';
+      container.appendChild(divider);
+    }
 
     const row = document.createElement("button");
     row.type = "button";
