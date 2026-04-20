@@ -74,6 +74,7 @@ function syncToSheets(payload) {
 let allLogs = {};
 let activeSegFilter = "all";
 let activeCommsFilter = "all"; // "all" | "has" | "none"
+let activeIdFilter = "all"; // "all" | "has" | "none"
 let activeSearch = "";
 let activeSort = { key: "timein", dir: "desc" }; // key: "name"|"timein"|"duration"
 
@@ -568,6 +569,15 @@ function renderTable() {
     // Comms filter pills
     activeFilterContainer.appendChild(makePill("Has Comms", activeCommsFilter === "has", () => { activeCommsFilter = activeCommsFilter === "has" ? "all" : "has"; renderTable(); }));
     activeFilterContainer.appendChild(makePill("No Comms", activeCommsFilter === "none", () => { activeCommsFilter = activeCommsFilter === "none" ? "all" : "none"; renderTable(); }));
+
+    // Separator
+    const sep2 = document.createElement("span");
+    sep2.className = "w-px h-5 bg-neutral-700 self-center mx-0.5";
+    activeFilterContainer.appendChild(sep2);
+
+    // ID filter pills
+    activeFilterContainer.appendChild(makePill("Has ID", activeIdFilter === "has", () => { activeIdFilter = activeIdFilter === "has" ? "all" : "has"; renderTable(); }));
+    activeFilterContainer.appendChild(makePill("No ID", activeIdFilter === "none", () => { activeIdFilter = activeIdFilter === "none" ? "all" : "none"; renderTable(); }));
   }
 
   // Apply all active filters: search + segment + comms
@@ -585,6 +595,11 @@ function renderTable() {
     displayedActiveEntries = displayedActiveEntries.filter(l => l.commsId && l.commsId !== "NONE");
   } else if (activeCommsFilter === "none") {
     displayedActiveEntries = displayedActiveEntries.filter(l => !l.commsId || l.commsId === "NONE");
+  }
+  if (activeIdFilter === "has") {
+    displayedActiveEntries = displayedActiveEntries.filter(l => !l.noId);
+  } else if (activeIdFilter === "none") {
+    displayedActiveEntries = displayedActiveEntries.filter(l => l.noId === true);
   }
 
   // Apply sort
@@ -622,7 +637,17 @@ function renderTable() {
     row.appendChild(
       td(`<span class="text-neutral-500 text-xs">${log.segment || "—"}</span><br/><span class="text-white font-medium">${log.role || "—"}</span>`)
     );
-    row.appendChild(commsButton(log.commsId));
+
+    // Editable comms cell
+    const commsTd = document.createElement("td");
+    commsTd.className = "px-4 py-3 text-sm";
+    if (log.commsId && log.commsId !== "NONE") {
+      commsTd.innerHTML = `<button class="change-comms-btn group font-mono font-bold text-white bg-neutral-800 hover:bg-neutral-700 px-2 py-0.5 rounded text-xs transition flex items-center gap-1" data-key="${log.key}" data-comms="${log.commsId}" data-name="${log.name || ""}" data-volunteer="${log.volunteerId || ""}">${log.commsId}<span class="material-icons-round text-neutral-600 group-hover:text-neutral-300 transition" style="font-size:10px">edit</span></button>`;
+    } else {
+      commsTd.innerHTML = `<button class="change-comms-btn group text-neutral-600 hover:text-white transition flex items-center gap-1 text-xs" data-key="${log.key}" data-comms="" data-name="${log.name || ""}" data-volunteer="${log.volunteerId || ""}"><span>—</span><span class="material-icons-round text-neutral-700 group-hover:text-neutral-400 transition" style="font-size:10px">edit</span></button>`;
+    }
+    row.appendChild(commsTd);
+
     row.appendChild(
       td(log.numberedId ? `<span class="font-mono font-bold text-white">#${log.numberedId}</span>` : '<span class="text-neutral-600">—</span>')
     );
@@ -695,6 +720,11 @@ function renderTable() {
   // Attach comms history click handlers
   document.querySelectorAll(".comms-history-btn").forEach((btn) => {
     btn.addEventListener("click", () => showCommsHistory(btn.dataset.comms));
+  });
+
+  // Attach change-comms click handlers (active table)
+  document.querySelectorAll(".change-comms-btn").forEach((btn) => {
+    btn.addEventListener("click", () => openChangeCommsModal(btn.dataset.key, btn.dataset.comms, btn.dataset.name, btn.dataset.volunteer));
   });
 
   // Attach force time-out handlers (comms overview + active table)
@@ -1078,6 +1108,7 @@ document.getElementById("sort-reset")?.addEventListener("click", () => {
   activeSort = { key: "timein", dir: "desc" };
   activeSegFilter = "all";
   activeCommsFilter = "all";
+  activeIdFilter = "all";
   activeSearch = "";
   const searchEl = document.getElementById("active-search");
   if (searchEl) searchEl.value = "";
@@ -1190,7 +1221,76 @@ async function showCommsHistory(commsId) {
 modalClose.addEventListener("click", () => modal.classList.add("hidden"));
 modal.addEventListener("click", (e) => {
   if (e.target === modal) modal.classList.add("hidden");
+
 });
+
+// =============================
+// Change Comms Modal
+// =============================
+const changeCommsModal = document.getElementById("change-comms-modal");
+document.getElementById("change-comms-modal-close")?.addEventListener("click", () => changeCommsModal.classList.add("hidden"));
+changeCommsModal?.addEventListener("click", (e) => { if (e.target === changeCommsModal) changeCommsModal.classList.add("hidden"); });
+
+function openChangeCommsModal(logKey, currentCommsId, volName, volunteerId) {
+  document.getElementById("change-comms-vol-name").textContent = volName;
+  const list = document.getElementById("change-comms-list");
+  list.innerHTML = "";
+  changeCommsModal.classList.remove("hidden");
+
+  // Build map of comms codes already in use by OTHER active volunteers
+  const takenMap = {};
+  Object.entries(allLogs).forEach(([key, log]) => {
+    if (key !== logKey && !log.timeOut && log.commsId && log.commsId !== "NONE") {
+      takenMap[log.commsId] = log.name;
+    }
+  });
+
+  function makeCommsBtn(label, sublabel, code, isCurrent, isTaken) {
+    const btn = document.createElement("button");
+    btn.type = "button";
+    btn.disabled = isTaken;
+    btn.className = isCurrent
+      ? "w-full text-left px-3 py-2 rounded-lg text-xs bg-white text-neutral-900 font-semibold flex items-center gap-2 transition"
+      : isTaken
+        ? "w-full text-left px-3 py-2 rounded-lg text-xs bg-neutral-800/40 text-neutral-600 cursor-not-allowed flex items-center gap-2"
+        : "w-full text-left px-3 py-2 rounded-lg text-xs bg-neutral-800 text-neutral-300 hover:bg-neutral-700 hover:text-white flex items-center gap-2 transition";
+    btn.innerHTML = `
+      <span class="font-mono font-black text-sm w-8 flex-shrink-0 ${isCurrent ? "text-neutral-900" : isTaken ? "text-neutral-600" : "text-white"}">${label}</span>
+      <span class="flex-1">${sublabel}</span>
+      ${isTaken ? `<span class="text-[10px] text-neutral-600 truncate max-w-[80px]">${takenMap[code]}</span>` : ""}
+      ${isCurrent ? '<span class="material-icons-round text-sm text-neutral-900">check</span>' : ""}`;
+    if (!isTaken) btn.addEventListener("click", () => applyCommsChange(logKey, code, currentCommsId, volunteerId));
+    return btn;
+  }
+
+  // No Comms option
+  list.appendChild(makeCommsBtn("—", "No Comms", "", !currentCommsId || currentCommsId === "NONE", false));
+
+  allComms.forEach(c => {
+    const isCurrent = c.code === currentCommsId;
+    const isTaken = !isCurrent && !!takenMap[c.code];
+    list.appendChild(makeCommsBtn(c.code, c.assignment, c.code, isCurrent, isTaken));
+  });
+}
+
+async function applyCommsChange(logKey, newCommsId, oldCommsId, volunteerId) {
+  changeCommsModal.classList.add("hidden");
+  try {
+    await db.ref(`logs/${todayDate}/${logKey}`).update({ commsId: newCommsId || "NONE" });
+
+    if (oldCommsId && oldCommsId !== "NONE") {
+      await db.ref(`comms/${oldCommsId}`).update({ assignedTo: null, assignedTime: null, status: "available" });
+    }
+    if (newCommsId && newCommsId !== "NONE") {
+      await db.ref(`comms/${newCommsId}`).update({ status: "assigned", assignedTo: volunteerId, assignedTime: new Date().toISOString() });
+    }
+
+    showToast(newCommsId ? `Comms changed to ${newCommsId}` : "Comms cleared", "headset_mic", "text-teal-400");
+  } catch (e) {
+    console.error("Comms change error:", e);
+    showToast("Failed to update comms", "error", "text-red-400");
+  }
+}
 
 // =============================
 // Firebase Real-time Listener
