@@ -73,7 +73,9 @@ function syncToSheets(payload) {
 // =============================
 let allLogs = {};
 let activeSegFilter = "all";
-let activeNameSort = "none"; // "none" | "asc" | "desc"
+let activeCommsFilter = "all"; // "all" | "has" | "none"
+let activeSearch = "";
+let activeSort = { key: "timein", dir: "desc" }; // key: "name"|"timein"|"duration"
 
 // All comms codes with their default assignment (role name)
 const allComms = [
@@ -533,53 +535,78 @@ function renderTable() {
 
   // Active table
   const activeBody = document.getElementById("active-table-body");
-  // Active segment filter pills
+  // Active filter pills (segments + comms)
   const activeFilterContainer = document.getElementById("active-filter-pills");
   if (activeFilterContainer) {
-    const allActiveSegs = [...new Set(
-      Object.values(allLogs)
-        .filter(l => !l.timeOut && l.status !== "pending" && l.status !== "pending-out")
-        .map(l => l.segment)
-        .filter(Boolean)
-    )].sort();
+    const allActiveForFilter = Object.values(allLogs)
+      .filter(l => !l.timeOut && l.status !== "pending" && l.status !== "pending-out");
+    const allActiveSegs = [...new Set(allActiveForFilter.map(l => l.segment).filter(Boolean))].sort();
 
     activeFilterContainer.innerHTML = "";
 
-    const allPill = document.createElement("button");
-    allPill.textContent = "All";
-    allPill.className = activeSegFilter === "all"
-      ? "px-3 py-1 rounded-full text-xs font-semibold bg-white text-neutral-900 transition"
-      : "px-3 py-1 rounded-full text-xs font-semibold bg-neutral-800 text-neutral-500 hover:text-white border border-neutral-700 transition";
-    allPill.addEventListener("click", () => { activeSegFilter = "all"; renderTable(); });
-    activeFilterContainer.appendChild(allPill);
-
-    allActiveSegs.forEach((seg) => {
-      const pill = document.createElement("button");
-      pill.textContent = seg;
-      const isActive = activeSegFilter === seg;
-      pill.className = isActive
+    function makePill(label, isActive, onClick) {
+      const p = document.createElement("button");
+      p.textContent = label;
+      p.className = isActive
         ? "px-3 py-1 rounded-full text-xs font-semibold bg-white text-neutral-900 transition"
-        : "px-3 py-1 rounded-full text-xs font-semibold bg-neutral-800 text-neutral-400 border border-neutral-700 hover:border-neutral-500 transition";
-      pill.addEventListener("click", () => { activeSegFilter = seg; renderTable(); });
-      activeFilterContainer.appendChild(pill);
+        : "px-3 py-1 rounded-full text-xs font-semibold bg-neutral-800 text-neutral-400 border border-neutral-700 hover:border-neutral-500 hover:text-white transition";
+      p.addEventListener("click", onClick);
+      return p;
+    }
+
+    // Segment pills
+    activeFilterContainer.appendChild(makePill("All", activeSegFilter === "all", () => { activeSegFilter = "all"; renderTable(); }));
+    allActiveSegs.forEach(seg => {
+      activeFilterContainer.appendChild(makePill(seg, activeSegFilter === seg, () => { activeSegFilter = seg; renderTable(); }));
     });
+
+    // Separator
+    const sep = document.createElement("span");
+    sep.className = "w-px h-5 bg-neutral-700 self-center mx-0.5";
+    activeFilterContainer.appendChild(sep);
+
+    // Comms filter pills
+    activeFilterContainer.appendChild(makePill("Has Comms", activeCommsFilter === "has", () => { activeCommsFilter = activeCommsFilter === "has" ? "all" : "has"; renderTable(); }));
+    activeFilterContainer.appendChild(makePill("No Comms", activeCommsFilter === "none", () => { activeCommsFilter = activeCommsFilter === "none" ? "all" : "none"; renderTable(); }));
   }
 
-  // Apply active segment filter on top of search filter
-  let displayedActiveEntries = activeSegFilter === "all"
-    ? activeEntries
-    : activeEntries.filter(l => l.segment === activeSegFilter);
-
-  // Apply name sort
-  if (activeNameSort === "asc") {
-    displayedActiveEntries = displayedActiveEntries.slice().sort((a, b) => (a.name || "").localeCompare(b.name || ""));
-  } else if (activeNameSort === "desc") {
-    displayedActiveEntries = displayedActiveEntries.slice().sort((a, b) => (b.name || "").localeCompare(a.name || ""));
+  // Apply all active filters: search + segment + comms
+  let displayedActiveEntries = activeEntries;
+  if (activeSearch) {
+    const q = activeSearch.toLowerCase();
+    displayedActiveEntries = displayedActiveEntries.filter(l =>
+      `${l.name} ${l.segment} ${l.role} ${l.commsId} ${l.numberedId}`.toLowerCase().includes(q)
+    );
+  }
+  if (activeSegFilter !== "all") {
+    displayedActiveEntries = displayedActiveEntries.filter(l => l.segment === activeSegFilter);
+  }
+  if (activeCommsFilter === "has") {
+    displayedActiveEntries = displayedActiveEntries.filter(l => l.commsId && l.commsId !== "NONE");
+  } else if (activeCommsFilter === "none") {
+    displayedActiveEntries = displayedActiveEntries.filter(l => !l.commsId || l.commsId === "NONE");
   }
 
-  // Update sort arrow indicator
-  const arrowEl = document.getElementById("active-sort-arrow");
-  if (arrowEl) arrowEl.textContent = activeNameSort === "asc" ? "↑" : activeNameSort === "desc" ? "↓" : "";
+  // Apply sort
+  displayedActiveEntries = displayedActiveEntries.slice().sort((a, b) => {
+    const dir = activeSort.dir === "asc" ? 1 : -1;
+    if (activeSort.key === "name") return dir * (a.name || "").localeCompare(b.name || "");
+    if (activeSort.key === "duration") return dir * (calcDurationMs(a) - calcDurationMs(b));
+    // default: timein
+    return dir * (a.timeIn || "").localeCompare(b.timeIn || "");
+  });
+
+  // Update sort arrows on all sortable headers
+  ["name", "timein", "duration"].forEach(k => {
+    const arrowEl = document.getElementById(`active-arrow-${k}`);
+    if (!arrowEl) return;
+    if (activeSort.key === k) {
+      arrowEl.textContent = activeSort.dir === "asc" ? "↑" : "↓";
+      arrowEl.className = "font-mono text-white text-[10px]";
+    } else {
+      arrowEl.textContent = "";
+    }
+  });
 
   activeBody.innerHTML = "";
   document.getElementById("active-table-count").textContent = activeEntries.length ? `(${activeEntries.length})` : "";
@@ -1046,15 +1073,33 @@ function showConfirm(msg) {
 // =============================
 searchInput.addEventListener("input", () => renderTable());
 
-// Reset sort button
+// Reset sort button — also clears active filters
 document.getElementById("sort-reset")?.addEventListener("click", () => {
-  activeNameSort = "none";
+  activeSort = { key: "timein", dir: "desc" };
+  activeSegFilter = "all";
+  activeCommsFilter = "all";
+  activeSearch = "";
+  const searchEl = document.getElementById("active-search");
+  if (searchEl) searchEl.value = "";
   renderTable();
 });
 
-// Active table: click Volunteer header to toggle alphabetical sort
-document.getElementById("active-sort-name-th")?.addEventListener("click", () => {
-  activeNameSort = activeNameSort === "asc" ? "desc" : "asc";
+// Active table sortable column headers
+function toggleActiveSort(key) {
+  if (activeSort.key === key) {
+    activeSort.dir = activeSort.dir === "asc" ? "desc" : "asc";
+  } else {
+    activeSort = { key, dir: key === "timein" ? "desc" : "asc" };
+  }
+  renderTable();
+}
+document.getElementById("active-th-name")?.addEventListener("click", () => toggleActiveSort("name"));
+document.getElementById("active-th-timein")?.addEventListener("click", () => toggleActiveSort("timein"));
+document.getElementById("active-th-duration")?.addEventListener("click", () => toggleActiveSort("duration"));
+
+// Active section search
+document.getElementById("active-search")?.addEventListener("input", (e) => {
+  activeSearch = e.target.value;
   renderTable();
 });
 
