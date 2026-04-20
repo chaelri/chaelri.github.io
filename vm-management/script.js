@@ -1172,6 +1172,33 @@ function startPendingTimeOutListener(date, logKey) {
       showStage("final");
       startFinalCountdown();
     }
+
+    // Admin cancelled: status cleared but no timeOut — volunteer is still active
+    if (data.status !== "pending-out" && !data.timeOut) {
+      ref.off();
+      pendingTimeOutListener = null;
+
+      const waitingBlock = document.getElementById("timeout-waiting-block");
+      const cancelNotice = document.getElementById("timeout-cancel-notice");
+      if (waitingBlock) waitingBlock.classList.add("hidden");
+      if (cancelNotice) cancelNotice.classList.remove("hidden");
+
+      function goBackToAction() {
+        if (cancelNotice) cancelNotice.classList.add("hidden");
+        if (waitingBlock) waitingBlock.classList.remove("hidden");
+        document.getElementById("volunteer-name").textContent = volunteerName;
+        document.getElementById("time-in-btn").disabled = true;
+        document.getElementById("time-out-btn").disabled = false;
+        showStage("action");
+      }
+
+      const okBtn = document.getElementById("timeout-cancel-ok-btn");
+      if (okBtn) {
+        const handler = () => { okBtn.removeEventListener("click", handler); goBackToAction(); };
+        okBtn.addEventListener("click", handler);
+      }
+      setTimeout(goBackToAction, 8000);
+    }
   });
 }
 

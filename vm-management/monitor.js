@@ -72,6 +72,7 @@ function syncToSheets(payload) {
 // State
 // =============================
 let allLogs = {};
+let volunteerNicknameMap = {}; // volunteerId -> nickname or first name
 let activeSegFilter = "all";
 let activeCommsFilter = "all"; // "all" | "has" | "none"
 let activeIdFilter = "all"; // "all" | "has" | "none"
@@ -186,6 +187,22 @@ function renderTable() {
   activeCountEl.textContent = totalActive;
   document.getElementById("active-no-comms-count").textContent = totalActiveNoComms;
   totalCountEl.textContent = totalAll;
+
+  // Segment summary bar
+  const segSummary = document.getElementById("active-segment-summary");
+  if (segSummary) {
+    const segCounts = {};
+    Object.values(allLogs).forEach((log) => {
+      if (!log.timeOut && log.status !== "pending" && log.status !== "pending-out") {
+        const seg = log.segment || "Other";
+        segCounts[seg] = (segCounts[seg] || 0) + 1;
+      }
+    });
+    const entries2 = Object.entries(segCounts).sort(([a], [b]) => a.localeCompare(b));
+    segSummary.innerHTML = entries2.map(([seg, count]) =>
+      `<span class="inline-flex items-center gap-1.5 px-2.5 py-1 rounded-full text-[10px] font-semibold bg-neutral-800 border border-neutral-700 text-neutral-400">${seg}<span class="text-white font-black">${count}</span></span>`
+    ).join("");
+  }
 
   // No logs at all
   noLogsMessage.classList.toggle("hidden", entries.length > 0 || true); // always hide, we have comms table
@@ -742,11 +759,11 @@ function renderCommsView(map) {
       const active = map[c.code];
       if (active) {
         const since = active.timeIn ? calcDuration({ timeIn: active.timeIn }) : "—";
-        const firstName = (active.name || "").split(" ")[0];
+        const displayName = volunteerNicknameMap[active.volunteerId] || (active.name || "").split(" ")[0];
         html += `<div class="rounded-lg border border-green-500/40 bg-green-500/5 p-2 flex flex-col items-center gap-1 min-w-0">
           <span class="font-mono font-black text-green-400 text-base leading-none">${c.code}</span>
           <span class="text-[9px] text-neutral-500 text-center leading-tight truncate w-full">${c.assignment}</span>
-          <span class="text-[10px] font-semibold text-white text-center leading-tight truncate w-full">${firstName}</span>
+          <span class="text-[10px] font-semibold text-white text-center leading-tight truncate w-full">${displayName}</span>
           <span class="text-[9px] text-green-600 font-mono">${since}</span>
         </div>`;
       } else {
@@ -765,10 +782,10 @@ function renderCommsView(map) {
     allComms.forEach((c) => {
       const active = map[c.code];
       if (active) {
-        const firstName = (active.name || "").split(" ")[0];
+        const displayName = volunteerNicknameMap[active.volunteerId] || (active.name || "").split(" ")[0];
         html += `<div class="rounded-md bg-green-500/10 border border-green-500/30 px-1.5 py-1.5 flex flex-col items-center gap-0.5 min-w-0">
           <span class="font-mono font-black text-green-400 text-xs leading-none">${c.code}</span>
-          <span class="text-[8px] text-neutral-400 truncate w-full text-center leading-tight">${firstName}</span>
+          <span class="text-[8px] text-neutral-400 truncate w-full text-center leading-tight">${displayName}</span>
         </div>`;
       } else {
         html += `<div class="rounded-md bg-neutral-900 border border-neutral-800 px-1.5 py-1.5 flex flex-col items-center gap-0.5 min-w-0 opacity-35">
@@ -1000,6 +1017,17 @@ function renderPreviousLogsPage() {
       td(`<span class="text-neutral-600 text-xs">${log.segment || "—"}</span><br/><span class="text-neutral-400">${log.role || "—"}</span>`)
     );
     row.appendChild(commsButton(log.commsId));
+
+    // ID status
+    const prevIdTd = document.createElement("td");
+    prevIdTd.className = "px-4 py-3 text-sm text-center";
+    if (log.noId) {
+      prevIdTd.innerHTML = `<span class="inline-flex items-center gap-1 px-2 py-0.5 rounded-full bg-amber-500/15 text-amber-400 text-[10px] font-semibold uppercase tracking-wide"><span class="material-icons-round text-xs">warning</span>No ID</span>`;
+    } else {
+      prevIdTd.innerHTML = `<span class="inline-flex items-center gap-1 px-2 py-0.5 rounded-full bg-neutral-700/30 text-neutral-500 text-[10px] font-semibold uppercase tracking-wide"><span class="material-icons-round text-xs">verified</span>OK</span>`;
+    }
+    row.appendChild(prevIdTd);
+
     row.appendChild(td(`<span class="font-mono text-neutral-500 text-xs">${formatTime(log.timeIn)}</span>`));
     row.appendChild(td(`<span class="font-mono text-neutral-500 text-xs">${formatTime(log.timeOut)}</span>`));
     row.appendChild(td(`<span class="font-mono text-neutral-500 text-xs">${calcDuration(log)}</span>`));
@@ -2073,9 +2101,14 @@ document.getElementById("sync-sheets-btn").addEventListener("click", async () =>
 db.ref("volunteers").on("value", (snapshot) => {
   const data = snapshot.val() || {};
   allVolunteers = Object.entries(data).map(([id, v]) => ({
-    id, name: v.name || "—", type: v.type || "volunteer", team: v.team || "", contact: v.contact || "", registeredAt: v.registeredAt || "",
+    id, name: v.name || "—", nickname: v.nickname || "", type: v.type || "volunteer", team: v.team || "", contact: v.contact || "", registeredAt: v.registeredAt || "",
   }));
   allVolunteers.sort((a, b) => a.name.localeCompare(b.name));
+  // Rebuild nickname map: volunteerId -> nickname if set, else first name
+  volunteerNicknameMap = {};
+  allVolunteers.forEach((v) => {
+    volunteerNicknameMap[v.id] = v.nickname || (v.name || "").split(" ")[0];
+  });
   registeredCountEl.textContent = allVolunteers.length;
   renderVolunteers();
 });

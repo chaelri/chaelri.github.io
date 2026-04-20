@@ -61,6 +61,17 @@
             </div>
           </div>
 
+          <div>
+            <label for="register-nickname" class="block text-xs uppercase tracking-widest text-neutral-400 font-semibold mb-1">Nickname <span class="text-neutral-300 normal-case tracking-normal">(optional)</span></label>
+            <input
+              type="text"
+              id="register-nickname"
+              autocomplete="off"
+              placeholder="e.g., Jon, Ate Mae"
+              class="block w-full px-3 py-2.5 border border-neutral-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-neutral-900 focus:border-neutral-900 sm:text-sm"
+            />
+          </div>
+
           <div id="register-team-group">
             <label class="block text-xs uppercase tracking-widest text-neutral-400 font-semibold mb-2">Segment <span class="text-neutral-300 normal-case tracking-normal">(multi-select)</span></label>
             <input type="hidden" id="register-team" />
@@ -294,6 +305,7 @@
         e.preventDefault();
         const type = document.getElementById("register-type").value;
         const name = document.getElementById("register-name").value.trim();
+        const nickname = document.getElementById("register-nickname").value.trim();
         const team = document.getElementById("register-team").value.trim();
         const contact = document.getElementById("register-contact").value.trim();
 
@@ -306,6 +318,7 @@
 
         try {
           const volunteerData = { name, type, registeredAt: new Date().toISOString() };
+          if (nickname) volunteerData.nickname = nickname;
           if (type === "volunteer" && team) volunteerData.team = team;
           if (contact) volunteerData.contact = contact;
 
@@ -313,7 +326,7 @@
 
           // Show QR result
           document.getElementById("qr-result-title").textContent = type === "guest" ? "Guest Registered!" : "Volunteer Registered!";
-          document.getElementById("qr-result-name").textContent = `${name}${team ? " — " + team : ""}`;
+          document.getElementById("qr-result-name").textContent = `${name}${nickname ? ` (${nickname})` : ""}${team ? " — " + team : ""}`;
           document.getElementById("qr-result-id").textContent = `ID: ${newId}`;
 
           const qrContainer = document.getElementById("qr-code-output");

@@ -349,3 +349,98 @@ db.ref("comms").on(
 );
 
 document.addEventListener("DOMContentLoaded", startVmQrScanner);
+
+// =============================
+// 3. Comms Usage History
+// =============================
+const allCommsCodes = [
+  "A1","A2","A3","A4","A5","A6","A7","A8",
+  "B1","B2","B3","B4","B5","B6","B7","B8",
+  "C1","C2","C3","C4","C5","C6","C7","C8",
+];
+
+const commsHistorySelectGrid = document.getElementById("comms-history-select-grid");
+const commsHistoryPanel = document.getElementById("comms-history-panel");
+let activeCommsHistoryBtn = null;
+
+allCommsCodes.forEach((code) => {
+  const btn = document.createElement("button");
+  btn.textContent = code;
+  btn.className = "comms-hist-btn px-3 py-1.5 font-mono font-bold text-sm bg-white border border-gray-300 rounded-lg hover:bg-blue-50 hover:border-blue-400 transition duration-150";
+  btn.addEventListener("click", () => {
+    if (activeCommsHistoryBtn) activeCommsHistoryBtn.className = "comms-hist-btn px-3 py-1.5 font-mono font-bold text-sm bg-white border border-gray-300 rounded-lg hover:bg-blue-50 hover:border-blue-400 transition duration-150";
+    btn.className = "comms-hist-btn px-3 py-1.5 font-mono font-bold text-sm bg-blue-600 border border-blue-600 text-white rounded-lg transition duration-150";
+    activeCommsHistoryBtn = btn;
+    loadCommsHistory(code);
+  });
+  commsHistorySelectGrid.appendChild(btn);
+});
+
+async function loadCommsHistory(commsId) {
+  commsHistoryPanel.classList.remove("hidden");
+  commsHistoryPanel.innerHTML = `<p class="text-gray-400 text-sm text-center py-4">Loading history for <strong class="font-mono">${commsId}</strong>...</p>`;
+
+  try {
+    const snap = await db.ref("logs").once("value");
+    const allDates = snap.val() || {};
+    const history = [];
+
+    Object.entries(allDates).forEach(([date, dateLogs]) => {
+      if (!dateLogs) return;
+      Object.entries(dateLogs).forEach(([key, log]) => {
+        if (log.commsId === commsId && log.status !== "pending") {
+          history.push({ key, date, ...log });
+        }
+      });
+    });
+
+    history.sort((a, b) => {
+      if (a.date !== b.date) return b.date.localeCompare(a.date);
+      return (b.timeIn || "").localeCompare(a.timeIn || "");
+    });
+
+    if (history.length === 0) {
+      commsHistoryPanel.innerHTML = `<p class="text-gray-500 text-center py-4">No usage history found for <strong class="font-mono text-blue-600">${commsId}</strong>.</p>`;
+      return;
+    }
+
+    function fmtTime(iso) {
+      if (!iso) return "—";
+      return new Date(iso).toLocaleTimeString([], { hour: "2-digit", minute: "2-digit" });
+    }
+    function fmtDuration(log) {
+      if (!log.timeIn) return "—";
+      const start = new Date(log.timeIn);
+      const end = log.timeOut ? new Date(log.timeOut) : new Date();
+      const mins = Math.floor((end - start) / 60000);
+      const hrs = Math.floor(mins / 60);
+      return hrs > 0 ? `${hrs}h ${mins % 60}m` : `${mins}m`;
+    }
+
+    let html = `<div class="mb-3 pb-2 border-b border-gray-200 flex items-center justify-between">
+      <h3 class="font-bold text-gray-800">Comms <span class="font-mono text-blue-600">${commsId}</span></h3>
+      <span class="text-xs text-gray-400">${history.length} record${history.length !== 1 ? "s" : ""}</span>
+    </div><div class="space-y-2">`;
+
+    history.forEach((h) => {
+      const isActive = !h.timeOut;
+      html += `<div class="flex items-center justify-between p-3 rounded-lg border ${isActive ? "border-green-300 bg-green-50" : "border-gray-200 bg-white"}">
+        <div>
+          <p class="font-semibold text-gray-800 text-sm">${h.name || "—"}</p>
+          <p class="text-xs text-gray-500">${h.segment || "—"} / ${h.role || "—"}</p>
+          <p class="text-xs text-gray-400 font-mono">${h.date}</p>
+        </div>
+        <div class="text-right text-xs">
+          <p class="text-green-600 font-mono font-semibold">${fmtTime(h.timeIn)}</p>
+          <p class="${isActive ? "text-green-500 font-bold" : "text-red-500"} font-mono">${isActive ? "Active" : fmtTime(h.timeOut)}</p>
+          <p class="text-gray-400 mt-0.5">${fmtDuration(h)}</p>
+        </div>
+      </div>`;
+    });
+
+    html += `</div>`;
+    commsHistoryPanel.innerHTML = html;
+  } catch (err) {
+    commsHistoryPanel.innerHTML = `<p class="text-red-500 text-sm text-center py-4">Error: ${err.message}</p>`;
+  }
+}
