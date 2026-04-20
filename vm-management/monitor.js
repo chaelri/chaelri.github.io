@@ -72,6 +72,7 @@ function syncToSheets(payload) {
 // State
 // =============================
 let allLogs = {};
+let activeSegFilter = "all";
 
 // All comms codes with their default assignment (role name)
 const allComms = [
@@ -531,11 +532,48 @@ function renderTable() {
 
   // Active table
   const activeBody = document.getElementById("active-table-body");
+  // Active segment filter pills
+  const activeFilterContainer = document.getElementById("active-filter-pills");
+  if (activeFilterContainer) {
+    const allActiveSegs = [...new Set(
+      Object.values(allLogs)
+        .filter(l => !l.timeOut && l.status !== "pending" && l.status !== "pending-out")
+        .map(l => l.segment)
+        .filter(Boolean)
+    )].sort();
+
+    activeFilterContainer.innerHTML = "";
+
+    const allPill = document.createElement("button");
+    allPill.textContent = "All";
+    allPill.className = activeSegFilter === "all"
+      ? "px-3 py-1 rounded-full text-xs font-semibold bg-white text-neutral-900 transition"
+      : "px-3 py-1 rounded-full text-xs font-semibold bg-neutral-800 text-neutral-500 hover:text-white border border-neutral-700 transition";
+    allPill.addEventListener("click", () => { activeSegFilter = "all"; renderTable(); });
+    activeFilterContainer.appendChild(allPill);
+
+    allActiveSegs.forEach((seg) => {
+      const pill = document.createElement("button");
+      pill.textContent = seg;
+      const isActive = activeSegFilter === seg;
+      pill.className = isActive
+        ? "px-3 py-1 rounded-full text-xs font-semibold bg-white text-neutral-900 transition"
+        : "px-3 py-1 rounded-full text-xs font-semibold bg-neutral-800 text-neutral-400 border border-neutral-700 hover:border-neutral-500 transition";
+      pill.addEventListener("click", () => { activeSegFilter = seg; renderTable(); });
+      activeFilterContainer.appendChild(pill);
+    });
+  }
+
+  // Apply active segment filter on top of search filter
+  const displayedActiveEntries = activeSegFilter === "all"
+    ? activeEntries
+    : activeEntries.filter(l => l.segment === activeSegFilter);
+
   activeBody.innerHTML = "";
   document.getElementById("active-table-count").textContent = activeEntries.length ? `(${activeEntries.length})` : "";
-  document.getElementById("no-active-message").classList.toggle("hidden", activeEntries.length > 0);
+  document.getElementById("no-active-message").classList.toggle("hidden", displayedActiveEntries.length > 0);
 
-  activeEntries.forEach((log) => {
+  displayedActiveEntries.forEach((log) => {
     const row = document.createElement("tr");
     row.className = "hover:bg-neutral-800 transition duration-150";
 
