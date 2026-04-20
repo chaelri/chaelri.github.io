@@ -77,6 +77,8 @@ let activeCommsFilter = "all"; // "all" | "has" | "none"
 let activeIdFilter = "all"; // "all" | "has" | "none"
 let activeSearch = "";
 let activeSort = { key: "timein", dir: "desc" }; // key: "name"|"timein"|"duration"
+let commsView = "grid"; // "grid" | "compact" | "list"
+let activeCommsMap = {};
 
 // All comms codes with their default assignment (role name)
 const allComms = [
@@ -188,12 +190,9 @@ function renderTable() {
   // No logs at all
   noLogsMessage.classList.toggle("hidden", entries.length > 0 || true); // always hide, we have comms table
 
-  // ---- Comms Overview Table ----
-  const commsBody = document.getElementById("comms-table-body");
-  commsBody.innerHTML = "";
-
+  // ---- Comms Overview ----
   // Build a map: commsId -> active log (with key)
-  const activeCommsMap = {};
+  activeCommsMap = {};
   Object.entries(allLogs).forEach(([key, log]) => {
     if (!log.timeOut && log.commsId && log.commsId !== "NONE") {
       activeCommsMap[log.commsId] = { ...log, key };
@@ -203,54 +202,7 @@ function renderTable() {
   const activeCommsCount = Object.keys(activeCommsMap).length;
   document.getElementById("comms-toggle-count").textContent = `(${activeCommsCount}/${allComms.length} in use)`;
 
-  allComms.forEach((comms) => {
-    const activeLo = activeCommsMap[comms.code];
-    const isActive = !!activeLo;
-    const row = document.createElement("tr");
-    row.className = isActive
-      ? "hover:bg-neutral-800 transition duration-150"
-      : "hover:bg-neutral-800 transition duration-150 opacity-40";
-
-    // Status dot
-    const dotTd = document.createElement("td");
-    dotTd.className = "px-4 py-2.5 text-center";
-    dotTd.innerHTML = isActive
-      ? '<span class="inline-block w-2.5 h-2.5 rounded-full bg-green-400 animate-pulse"></span>'
-      : '<span class="inline-block w-2.5 h-2.5 rounded-full bg-neutral-700"></span>';
-    row.appendChild(dotTd);
-
-    // Comms code (clickable for history)
-    row.appendChild(td(`<button class="font-mono font-black text-white text-base hover:text-green-400 transition duration-150 cursor-pointer comms-history-btn" data-comms="${comms.code}">${comms.code}</button>`));
-
-    // Assignment
-    row.appendChild(td(`<span class="text-neutral-400 text-xs">${comms.assignment}</span>`));
-
-    // Volunteer
-    if (isActive) {
-      row.appendChild(td(`<span class="font-semibold text-white">${activeLo.name || "—"}</span>`));
-    } else {
-      row.appendChild(td('<span class="text-neutral-600 text-xs">Available</span>'));
-    }
-
-    // Since
-    if (isActive) {
-      row.appendChild(td(`<span class="font-mono text-green-400 text-xs">${formatTime(activeLo.timeIn)}</span>`));
-    } else {
-      row.appendChild(td('<span class="text-neutral-700">—</span>'));
-    }
-
-    // Force time-out button
-    if (isActive) {
-      const actionTd = document.createElement("td");
-      actionTd.className = "px-4 py-2.5 text-sm";
-      actionTd.innerHTML = `<button class="force-timeout-btn text-neutral-600 hover:text-red-400 transition text-xs flex items-center gap-1" data-key="${activeLo.key}" data-comms="${comms.code}" data-name="${activeLo.name || ""}" data-time="${activeLo.timeIn || ""}"><span class="material-icons-round text-sm">logout</span></button>`;
-      row.appendChild(actionTd);
-    } else {
-      row.appendChild(td(''));
-    }
-
-    commsBody.appendChild(row);
-  });
+  renderCommsView(activeCommsMap);
 
   // Pending table
   const pendingBody = document.getElementById("pending-table-body");
@@ -767,6 +719,133 @@ function renderTable() {
     });
   });
 }
+
+// =============================
+// Comms Overview Views
+// =============================
+function renderCommsView(map) {
+  const content = document.getElementById("comms-content");
+  if (!content) return;
+
+  // Update active state on view toggle buttons
+  ["grid", "compact", "list"].forEach((v) => {
+    const btn = document.getElementById(`comms-view-${v}`);
+    if (!btn) return;
+    btn.className = v === commsView
+      ? "comms-view-btn w-7 h-7 rounded-md flex items-center justify-center transition bg-neutral-700 text-white"
+      : "comms-view-btn w-7 h-7 rounded-md flex items-center justify-center transition text-neutral-500 hover:text-white hover:bg-neutral-800";
+  });
+
+  if (commsView === "grid") {
+    let html = '<div class="p-4 grid grid-cols-8 gap-2">';
+    allComms.forEach((c) => {
+      const active = map[c.code];
+      if (active) {
+        const since = active.timeIn ? calcDuration({ timeIn: active.timeIn }) : "—";
+        const firstName = (active.name || "").split(" ")[0];
+        html += `<div class="rounded-lg border border-green-500/40 bg-green-500/5 p-2 flex flex-col items-center gap-1 min-w-0">
+          <span class="font-mono font-black text-green-400 text-base leading-none">${c.code}</span>
+          <span class="text-[9px] text-neutral-500 text-center leading-tight truncate w-full">${c.assignment}</span>
+          <span class="text-[10px] font-semibold text-white text-center leading-tight truncate w-full">${firstName}</span>
+          <span class="text-[9px] text-green-600 font-mono">${since}</span>
+        </div>`;
+      } else {
+        html += `<div class="rounded-lg border border-neutral-800 bg-neutral-900/50 p-2 flex flex-col items-center gap-1 min-w-0 opacity-40">
+          <span class="font-mono font-bold text-neutral-500 text-base leading-none">${c.code}</span>
+          <span class="text-[9px] text-neutral-700 text-center leading-tight truncate w-full">${c.assignment}</span>
+          <span class="text-[9px] text-neutral-700">—</span>
+        </div>`;
+      }
+    });
+    html += "</div>";
+    content.innerHTML = html;
+
+  } else if (commsView === "compact") {
+    let html = '<div class="p-3 grid grid-cols-8 gap-1.5">';
+    allComms.forEach((c) => {
+      const active = map[c.code];
+      if (active) {
+        const firstName = (active.name || "").split(" ")[0];
+        html += `<div class="rounded-md bg-green-500/10 border border-green-500/30 px-1.5 py-1.5 flex flex-col items-center gap-0.5 min-w-0">
+          <span class="font-mono font-black text-green-400 text-xs leading-none">${c.code}</span>
+          <span class="text-[8px] text-neutral-400 truncate w-full text-center leading-tight">${firstName}</span>
+        </div>`;
+      } else {
+        html += `<div class="rounded-md bg-neutral-900 border border-neutral-800 px-1.5 py-1.5 flex flex-col items-center gap-0.5 min-w-0 opacity-35">
+          <span class="font-mono font-bold text-neutral-600 text-xs leading-none">${c.code}</span>
+          <span class="text-[8px] text-neutral-700 text-center leading-tight">—</span>
+        </div>`;
+      }
+    });
+    html += "</div>";
+    content.innerHTML = html;
+
+  } else {
+    // List view — table format
+    let html = `<table class="w-full text-sm">
+      <thead><tr class="text-neutral-500 text-xs uppercase tracking-wider border-b border-neutral-800">
+        <th class="px-4 py-2 text-left font-semibold w-6"></th>
+        <th class="px-4 py-2 text-left font-semibold">Comms</th>
+        <th class="px-4 py-2 text-left font-semibold">Assignment</th>
+        <th class="px-4 py-2 text-left font-semibold">Volunteer</th>
+        <th class="px-4 py-2 text-left font-semibold">Since</th>
+        <th class="px-4 py-2 text-left font-semibold"></th>
+      </tr></thead><tbody>`;
+
+    allComms.forEach((c) => {
+      const active = map[c.code];
+      if (active) {
+        const since = active.timeIn ? calcDuration({ timeIn: active.timeIn }) : "—";
+        html += `<tr class="hover:bg-neutral-800 transition duration-150 border-b border-neutral-800/50">
+          <td class="px-4 py-2"><span class="inline-block w-2 h-2 rounded-full bg-green-400 animate-pulse"></span></td>
+          <td class="px-4 py-2"><button class="comms-history-btn font-mono font-bold text-white bg-neutral-800 hover:bg-neutral-700 px-2 py-0.5 rounded text-xs transition cursor-pointer" data-comms="${c.code}">${c.code}</button></td>
+          <td class="px-4 py-2 text-neutral-400 text-xs">${c.assignment}</td>
+          <td class="px-4 py-2 text-xs"><span class="font-semibold text-white">${active.name || "—"}</span><br/><span class="text-neutral-500">${active.role || ""}</span></td>
+          <td class="px-4 py-2 font-mono text-green-400 text-xs">${since}</td>
+          <td class="px-4 py-2"><button class="force-timeout-btn text-neutral-600 hover:text-red-400 transition text-xs flex items-center gap-1" data-key="${active.key}" data-comms="${c.code}" data-name="${active.name || ""}" data-time="${active.timeIn || ""}"><span class="material-icons-round text-sm">logout</span></button></td>
+        </tr>`;
+      } else {
+        html += `<tr class="border-b border-neutral-800/30 opacity-35">
+          <td class="px-4 py-2"><span class="inline-block w-2 h-2 rounded-full bg-neutral-700"></span></td>
+          <td class="px-4 py-2"><span class="font-mono font-bold text-neutral-600 text-xs">${c.code}</span></td>
+          <td class="px-4 py-2 text-neutral-600 text-xs">${c.assignment}</td>
+          <td class="px-4 py-2 text-neutral-700 text-xs">Available</td>
+          <td class="px-4 py-2 text-neutral-700 text-xs">—</td>
+          <td class="px-4 py-2"></td>
+        </tr>`;
+      }
+    });
+
+    html += "</tbody></table>";
+    content.innerHTML = html;
+
+    content.querySelectorAll(".comms-history-btn").forEach((btn) => {
+      btn.addEventListener("click", () => showCommsHistory(btn.dataset.comms));
+    });
+    content.querySelectorAll(".force-timeout-btn").forEach((btn) => {
+      btn.addEventListener("click", async () => {
+        const { key, comms, name, time } = btn.dataset;
+        const confirmed = await showConfirm(`Force time-out for "${name}"?`);
+        if (!confirmed) return;
+        const now = new Date().toISOString();
+        await db.ref(`logs/${todayDate}/${key}`).update({ timeOut: now, status: null, commsStatusOut: "OK" });
+        if (comms && comms !== "NONE" && comms !== "N/A") {
+          await db.ref(`comms/${comms}`).update({ assignedTo: null, assignedTime: null, status: "available" });
+        }
+        syncToSheets({ action: "timeOut", logKey: key, timeOut: now, timeIn: time });
+        showToast(`"${name}" timed out`, "logout", "text-red-400");
+      });
+    });
+  }
+}
+
+// View toggle handlers
+["grid", "compact", "list"].forEach((v) => {
+  document.getElementById(`comms-view-${v}`)?.addEventListener("click", () => {
+    commsView = v;
+    renderCommsView(activeCommsMap);
+  });
+});
 
 // =============================
 // Previous Logs (all dates)
