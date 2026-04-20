@@ -856,6 +856,12 @@ let filteredPreviousEntries = [];
 let prevLogsPage = 1;
 const PREV_LOGS_PER_PAGE = 25;
 let prevLogsSortKey = "date-desc";
+let prevLogsDateFilter = null; // null = all, "YYYY-MM-DD" = specific date
+let prevLogsSegFilter = "all";
+let prevLogsCommsFilter = "all";
+let prevLogsIdFilter = "all";
+let calendarMonth = new Date().getMonth();
+let calendarYear = new Date().getFullYear();
 
 function loadPreviousLogs() {
   if (previousLogsLoaded) return;
@@ -871,6 +877,8 @@ function loadPreviousLogs() {
       });
     });
     prevLogsPage = 1;
+    renderPrevLogsPills();
+    renderCalendar();
     filterAndRenderPreviousLogs();
   });
 }
@@ -892,14 +900,18 @@ function sortPreviousEntries(entries) {
       case "date-desc":
         if (a.date !== b.date) return b.date.localeCompare(a.date);
         return (b.timeIn || "").localeCompare(a.timeIn || "");
-      case "name-asc":
-        return (a.name || "").localeCompare(b.name || "");
-      case "name-desc":
-        return (b.name || "").localeCompare(a.name || "");
-      case "duration-desc":
-        return calcDurationMs(b) - calcDurationMs(a);
-      case "duration-asc":
-        return calcDurationMs(a) - calcDurationMs(b);
+      case "name-asc": return (a.name || "").localeCompare(b.name || "");
+      case "name-desc": return (b.name || "").localeCompare(a.name || "");
+      case "segment-asc": return (a.segment || "").localeCompare(b.segment || "");
+      case "segment-desc": return (b.segment || "").localeCompare(a.segment || "");
+      case "comms-asc": return (a.commsId || "").localeCompare(b.commsId || "");
+      case "comms-desc": return (b.commsId || "").localeCompare(a.commsId || "");
+      case "timein-asc": return (a.timeIn || "").localeCompare(b.timeIn || "");
+      case "timein-desc": return (b.timeIn || "").localeCompare(a.timeIn || "");
+      case "timeout-asc": return (a.timeOut || "").localeCompare(b.timeOut || "");
+      case "timeout-desc": return (b.timeOut || "").localeCompare(a.timeOut || "");
+      case "duration-desc": return calcDurationMs(b) - calcDurationMs(a);
+      case "duration-asc": return calcDurationMs(a) - calcDurationMs(b);
       default:
         if (a.date !== b.date) return b.date.localeCompare(a.date);
         return (b.timeIn || "").localeCompare(a.timeIn || "");
@@ -917,8 +929,25 @@ function filterAndRenderPreviousLogs() {
       return haystack.includes(searchTerm);
     });
   }
+  if (prevLogsDateFilter) {
+    entries = entries.filter((e) => e.date === prevLogsDateFilter);
+  }
+  if (prevLogsSegFilter !== "all") {
+    entries = entries.filter((e) => e.segment === prevLogsSegFilter);
+  }
+  if (prevLogsCommsFilter === "has") {
+    entries = entries.filter((e) => e.commsId && e.commsId !== "NONE");
+  } else if (prevLogsCommsFilter === "none") {
+    entries = entries.filter((e) => !e.commsId || e.commsId === "NONE");
+  }
+  if (prevLogsIdFilter === "has") {
+    entries = entries.filter((e) => !e.noId);
+  } else if (prevLogsIdFilter === "none") {
+    entries = entries.filter((e) => e.noId === true);
+  }
 
   filteredPreviousEntries = sortPreviousEntries(entries);
+  updatePrevSortArrows();
   renderPreviousLogsPage();
 }
 
@@ -1045,27 +1074,158 @@ document.getElementById("prev-logs-search").addEventListener("input", () => {
   filterAndRenderPreviousLogs();
 });
 
-// Sort dropdown handler
-document.getElementById("prev-logs-sort").addEventListener("change", (e) => {
-  prevLogsSortKey = e.target.value;
-  prevLogsPage = 1;
-  filterAndRenderPreviousLogs();
-});
-
 // Clickable sort headers
 document.querySelectorAll(".prev-sort-header").forEach((th) => {
   th.addEventListener("click", () => {
-    const col = th.dataset.sort;
-    const sortMap = { date: "date", name: "name", timein: "date", timeout: "date", duration: "duration" };
-    const base = sortMap[col] || "date";
+    const col = th.dataset.sort; // date | name | segment | comms | timein | timeout | duration
     const currentBase = prevLogsSortKey.replace(/-asc$|-desc$/, "");
     const currentDir = prevLogsSortKey.endsWith("-asc") ? "asc" : "desc";
-    const newDir = (currentBase === base && currentDir === "desc") ? "asc" : "desc";
-    prevLogsSortKey = `${base}-${newDir}`;
-    document.getElementById("prev-logs-sort").value = prevLogsSortKey;
+    const newDir = (currentBase === col && currentDir === "desc") ? "asc" : "desc";
+    prevLogsSortKey = `${col}-${newDir}`;
     prevLogsPage = 1;
     filterAndRenderPreviousLogs();
   });
+});
+
+function updatePrevSortArrows() {
+  ["date", "name", "segment", "comms", "timein", "timeout", "duration"].forEach((k) => {
+    const el = document.getElementById(`prev-arrow-${k}`);
+    if (!el) return;
+    const base = prevLogsSortKey.replace(/-asc$|-desc$/, "");
+    if (base === k) {
+      el.textContent = prevLogsSortKey.endsWith("-asc") ? "↑" : "↓";
+      el.className = "font-mono text-white text-[10px]";
+    } else {
+      el.textContent = "";
+    }
+  });
+}
+
+function renderPrevLogsPills() {
+  const container = document.getElementById("prev-logs-filter-pills");
+  if (!container) return;
+  const allSegs = [...new Set(allPreviousEntries.map((e) => e.segment).filter(Boolean))].sort();
+  container.innerHTML = "";
+
+  function makePill(label, isActive, onClick) {
+    const p = document.createElement("button");
+    p.textContent = label;
+    p.className = isActive
+      ? "px-3 py-1 rounded-full text-xs font-semibold bg-white text-neutral-900 transition"
+      : "px-3 py-1 rounded-full text-xs font-semibold bg-neutral-800 text-neutral-400 border border-neutral-700 hover:border-neutral-500 hover:text-white transition";
+    p.addEventListener("click", onClick);
+    return p;
+  }
+
+  function sep() {
+    const s = document.createElement("span");
+    s.className = "w-px h-5 bg-neutral-700 self-center mx-0.5";
+    return s;
+  }
+
+  container.appendChild(makePill("All", prevLogsSegFilter === "all", () => { prevLogsSegFilter = "all"; prevLogsPage = 1; renderPrevLogsPills(); filterAndRenderPreviousLogs(); }));
+  allSegs.forEach((seg) => {
+    container.appendChild(makePill(seg, prevLogsSegFilter === seg, () => { prevLogsSegFilter = prevLogsSegFilter === seg ? "all" : seg; prevLogsPage = 1; renderPrevLogsPills(); filterAndRenderPreviousLogs(); }));
+  });
+  container.appendChild(sep());
+  container.appendChild(makePill("Has Comms", prevLogsCommsFilter === "has", () => { prevLogsCommsFilter = prevLogsCommsFilter === "has" ? "all" : "has"; prevLogsPage = 1; renderPrevLogsPills(); filterAndRenderPreviousLogs(); }));
+  container.appendChild(makePill("No Comms", prevLogsCommsFilter === "none", () => { prevLogsCommsFilter = prevLogsCommsFilter === "none" ? "all" : "none"; prevLogsPage = 1; renderPrevLogsPills(); filterAndRenderPreviousLogs(); }));
+  container.appendChild(sep());
+  container.appendChild(makePill("Has ID", prevLogsIdFilter === "has", () => { prevLogsIdFilter = prevLogsIdFilter === "has" ? "all" : "has"; prevLogsPage = 1; renderPrevLogsPills(); filterAndRenderPreviousLogs(); }));
+  container.appendChild(makePill("No ID", prevLogsIdFilter === "none", () => { prevLogsIdFilter = prevLogsIdFilter === "none" ? "all" : "none"; prevLogsPage = 1; renderPrevLogsPills(); filterAndRenderPreviousLogs(); }));
+}
+
+function renderCalendar() {
+  const grid = document.getElementById("cal-grid");
+  const label = document.getElementById("cal-month-label");
+  if (!grid || !label) return;
+
+  label.textContent = new Date(calendarYear, calendarMonth, 1).toLocaleDateString([], { month: "long", year: "numeric" });
+
+  const datesWithEntries = new Set(allPreviousEntries.map((e) => e.date));
+  const firstDay = new Date(calendarYear, calendarMonth, 1).getDay();
+  const daysInMonth = new Date(calendarYear, calendarMonth + 1, 0).getDate();
+
+  grid.innerHTML = "";
+  for (let i = 0; i < firstDay; i++) grid.appendChild(document.createElement("div"));
+
+  for (let d = 1; d <= daysInMonth; d++) {
+    const dateStr = `${calendarYear}-${String(calendarMonth + 1).padStart(2, "0")}-${String(d).padStart(2, "0")}`;
+    const hasEntries = datesWithEntries.has(dateStr);
+    const isSelected = prevLogsDateFilter === dateStr;
+    const isToday = dateStr === todayDate;
+
+    const btn = document.createElement("button");
+    btn.className = [
+      "relative w-8 h-8 mx-auto rounded-lg text-xs transition flex items-center justify-center leading-none",
+      isSelected ? "bg-white text-neutral-900 font-bold" :
+      isToday && hasEntries ? "text-green-400 font-semibold hover:bg-neutral-800" :
+      isToday ? "text-green-400 font-semibold" :
+      hasEntries ? "text-white hover:bg-neutral-800" :
+      "text-neutral-700 pointer-events-none",
+    ].join(" ");
+    btn.textContent = d;
+
+    if (hasEntries || isToday) {
+      btn.addEventListener("click", () => {
+        prevLogsDateFilter = isSelected ? null : dateStr;
+        const calLabel = document.getElementById("prev-logs-calendar-label");
+        calLabel.textContent = prevLogsDateFilter
+          ? new Date(prevLogsDateFilter + "T00:00:00").toLocaleDateString([], { month: "short", day: "numeric", year: "numeric" })
+          : "All Dates";
+        document.getElementById("prev-logs-calendar").classList.add("hidden");
+        const calBtn = document.getElementById("prev-logs-calendar-btn");
+        if (prevLogsDateFilter) calBtn.classList.add("border-white/30", "text-white");
+        else calBtn.classList.remove("border-white/30", "text-white");
+        prevLogsPage = 1;
+        renderCalendar();
+        filterAndRenderPreviousLogs();
+      });
+    }
+
+    if (hasEntries && !isSelected) {
+      const dot = document.createElement("span");
+      dot.className = "absolute bottom-0.5 left-1/2 -translate-x-1/2 w-1 h-1 rounded-full " + (isToday ? "bg-green-500" : "bg-neutral-500");
+      btn.appendChild(dot);
+    }
+
+    grid.appendChild(btn);
+  }
+}
+
+// Calendar toggle
+document.getElementById("prev-logs-calendar-btn")?.addEventListener("click", (e) => {
+  e.stopPropagation();
+  const cal = document.getElementById("prev-logs-calendar");
+  cal.classList.toggle("hidden");
+  if (!cal.classList.contains("hidden")) renderCalendar();
+});
+
+document.addEventListener("click", (e) => {
+  const cal = document.getElementById("prev-logs-calendar");
+  if (cal && !cal.classList.contains("hidden") && !cal.closest(".relative")?.contains(e.target)) {
+    cal.classList.add("hidden");
+  }
+});
+
+document.getElementById("cal-prev-month")?.addEventListener("click", () => {
+  calendarMonth--;
+  if (calendarMonth < 0) { calendarMonth = 11; calendarYear--; }
+  renderCalendar();
+});
+document.getElementById("cal-next-month")?.addEventListener("click", () => {
+  calendarMonth++;
+  if (calendarMonth > 11) { calendarMonth = 0; calendarYear++; }
+  renderCalendar();
+});
+document.getElementById("cal-clear")?.addEventListener("click", () => {
+  prevLogsDateFilter = null;
+  document.getElementById("prev-logs-calendar-label").textContent = "All Dates";
+  document.getElementById("prev-logs-calendar-btn").classList.remove("border-white/30", "text-white");
+  document.getElementById("prev-logs-calendar").classList.add("hidden");
+  prevLogsPage = 1;
+  renderCalendar();
+  filterAndRenderPreviousLogs();
 });
 
 // =============================
