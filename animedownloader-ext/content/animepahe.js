@@ -1167,36 +1167,93 @@
         border-color: #d5015b;
         color: #fff !important;
       }
-      /* NSFW blur — blur the thumbnail art on cards tagged ecchi/erotica/hentai.
-         Hover to reveal. UI (button, gradient, title) stays sharp. */
-      .fl-nsfw .episode-snapshot img {
-        filter: blur(18px) saturate(0.85) brightness(0.75);
-        transform: scale(1.05);
-        transition: filter 0.35s ease, transform 0.35s ease;
-      }
-      .fl-nsfw .episode-snapshot:hover img {
-        filter: blur(0) saturate(1) brightness(1);
-        transform: scale(1);
-      }
-      .fl-nsfw .episode-snapshot::before {
-        content: "HOVER TO REVEAL";
+      /* NSFW blur — while locked, an overlay div sits on top of the thumbnail
+         and applies backdrop-filter. The img itself is untouched so lazy
+         loading and natural sizing still work. First click reveals; next click
+         plays/navigates as usual. */
+      .fl-nsfw.fl-nsfw-locked .episode-snapshot { cursor: pointer; }
+      .fl-nsfw-overlay {
         position: absolute;
-        top: 50%;
-        left: 50%;
-        transform: translate(-50%, -50%);
-        font-size: 0.58rem;
+        inset: 0;
+        display: none;
+        align-items: center;
+        justify-content: center;
+        background: rgba(0, 0, 0, 0.18);
+        backdrop-filter: blur(18px) saturate(0.9);
+        -webkit-backdrop-filter: blur(18px) saturate(0.9);
+        z-index: 4;
+        pointer-events: none;
+      }
+      .fl-nsfw.fl-nsfw-locked .fl-nsfw-overlay { display: flex; }
+      .fl-nsfw-label {
+        color: #fff;
+        font-size: 0.72rem;
+        font-weight: 700;
+        letter-spacing: 2px;
+        text-transform: uppercase;
+      }
+      /* NSFW global toggle — pink iOS-style switch next to "Latest Releases" */
+      .latest-release { position: relative; }
+      .fl-nsfw-toggle {
+        position: absolute;
+        top: 0;
+        right: 0;
+        display: inline-flex;
+        align-items: center;
+        gap: 10px;
+        cursor: pointer;
+        user-select: none;
+        padding: 6px 10px;
+        z-index: 5;
+      }
+      .fl-nsfw-toggle-text {
+        font-size: 0.66rem;
         font-weight: 700;
         letter-spacing: 1.6px;
-        color: rgba(255, 255, 255, 0.75);
-        background: rgba(0, 0, 0, 0.45);
-        padding: 5px 10px;
-        pointer-events: none;
-        z-index: 3;
-        transition: opacity 0.2s ease;
+        text-transform: uppercase;
+        color: rgba(255, 255, 255, 0.65);
+        transition: color 0.2s ease;
       }
-      .fl-nsfw .episode-snapshot:hover::before {
+      .fl-nsfw-toggle:hover .fl-nsfw-toggle-text { color: #fff; }
+      .fl-nsfw-toggle-switch {
+        position: relative;
+        display: inline-block;
+        width: 40px;
+        height: 22px;
+        flex-shrink: 0;
+      }
+      .fl-nsfw-toggle-input {
+        position: absolute;
         opacity: 0;
+        width: 0;
+        height: 0;
       }
+      .fl-nsfw-toggle-slider {
+        position: absolute;
+        inset: 0;
+        background: rgba(255, 255, 255, 0.18);
+        border-radius: 999px;
+        transition: background 0.2s ease;
+      }
+      .fl-nsfw-toggle-slider::before {
+        content: "";
+        position: absolute;
+        top: 3px;
+        left: 3px;
+        width: 16px;
+        height: 16px;
+        background: #fff;
+        border-radius: 50%;
+        transition: transform 0.22s cubic-bezier(0.22, 1, 0.36, 1);
+        box-shadow: 0 1px 3px rgba(0, 0, 0, 0.35);
+      }
+      .fl-nsfw-toggle-input:checked + .fl-nsfw-toggle-slider {
+        background: #d5015b;
+      }
+      .fl-nsfw-toggle-input:checked + .fl-nsfw-toggle-slider::before {
+        transform: translateX(18px);
+      }
+      body.fl-nsfw-revealed .fl-nsfw-overlay { display: none !important; }
       .search-results li { position: relative; }
       .fl-search-first {
         position: absolute;
@@ -1282,12 +1339,36 @@
           }
 
           const genresAll = details?.genres || [];
-          // Blur the thumbnail (and the blurred top-bar art) for NSFW tags —
-          // users can hover to reveal.
+          // Blur the thumbnail for NSFW tags. First click on the card reveals
+          // the art (no navigation yet); a subsequent click plays/navigates.
           const isNsfw = genresAll.some((g) =>
             /\b(ecchi|erotica|hentai)\b/i.test(g.name || "")
           );
-          if (isNsfw) wrap.classList.add("fl-nsfw");
+          if (isNsfw) {
+            wrap.classList.add("fl-nsfw");
+            if (!_nsfwPrefOn()) wrap.classList.add("fl-nsfw-locked");
+            const snap = wrap.querySelector(".episode-snapshot");
+            if (snap && !snap.querySelector(".fl-nsfw-overlay")) {
+              const overlay = document.createElement("div");
+              overlay.className = "fl-nsfw-overlay";
+              overlay.innerHTML = '<span class="fl-nsfw-label">Tap to reveal</span>';
+              snap.appendChild(overlay);
+            }
+            if (snap && !snap.dataset.flNsfwBound) {
+              snap.dataset.flNsfwBound = "1";
+              snap.addEventListener(
+                "click",
+                (e) => {
+                  if (wrap.classList.contains("fl-nsfw-locked")) {
+                    e.preventDefault();
+                    e.stopPropagation();
+                    wrap.classList.remove("fl-nsfw-locked");
+                  }
+                },
+                true // capture so we fire before .play / EP 1 button handlers
+              );
+            }
+          }
 
           const genres = genresAll.slice(0, 3);
           if (!genres.length) { row.remove(); return; }
@@ -1305,8 +1386,56 @@
     _pumpGenreQueue();
   }
 
+  // NSFW global toggle — when ON, all ecchi/erotica/hentai cards render
+  // unblurred; when OFF (default) they stay blurred behind "Tap to reveal".
+  const NSFW_PREF_KEY = "flNsfwRevealed";
+  function _nsfwPrefOn() {
+    try { return localStorage.getItem(NSFW_PREF_KEY) === "1"; } catch (e) { return false; }
+  }
+  function _setNsfwPref(on) {
+    try { localStorage.setItem(NSFW_PREF_KEY, on ? "1" : "0"); } catch (e) {}
+  }
+  function _applyNsfwPref(on) {
+    document.body.classList.toggle("fl-nsfw-revealed", on);
+    if (on) {
+      document.querySelectorAll(".fl-nsfw.fl-nsfw-locked").forEach((w) =>
+        w.classList.remove("fl-nsfw-locked")
+      );
+    } else {
+      document.querySelectorAll(".fl-nsfw").forEach((w) =>
+        w.classList.add("fl-nsfw-locked")
+      );
+    }
+  }
+  function _injectNsfwToggle() {
+    const container = document.querySelector(".latest-release");
+    const h2 = container?.querySelector("h2");
+    if (!container || !h2 || container.querySelector(".fl-nsfw-toggle")) return;
+
+    const label = document.createElement("label");
+    label.className = "fl-nsfw-toggle";
+    label.title = "Reveal NSFW thumbnails (ecchi / erotica / hentai)";
+    label.innerHTML =
+      '<span class="fl-nsfw-toggle-text">NSFW</span>' +
+      '<span class="fl-nsfw-toggle-switch">' +
+        '<input type="checkbox" class="fl-nsfw-toggle-input" />' +
+        '<span class="fl-nsfw-toggle-slider"></span>' +
+      '</span>';
+    const input = label.querySelector("input");
+    const initial = _nsfwPrefOn();
+    input.checked = initial;
+    _applyNsfwPref(initial);
+    input.addEventListener("change", () => {
+      const on = input.checked;
+      _setNsfwPref(on);
+      _applyNsfwPref(on);
+    });
+    h2.insertAdjacentElement("afterend", label);
+  }
+
   function animePaheHomeInjector() {
     injectFLStyles();
+    _injectNsfwToggle();
 
     const injectFirstButtons = () => {
       document.querySelectorAll(".episode-wrap:not([data-fl-done])").forEach((wrap) => {
