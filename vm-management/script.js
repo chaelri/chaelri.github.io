@@ -758,6 +758,19 @@ async function selectSegment(segment) {
     ? [...regularRoles, ...leaderRoles]
     : [...regularRoles, ...leaderRoles, volunteerRole];
 
+  // Sort: roles with comms codes first, "(Volunteer)" catch-all last
+  allRoles.sort((a, b) => {
+    const aIsVol = a.endsWith("(Volunteer)");
+    const bIsVol = b.endsWith("(Volunteer)");
+    if (aIsVol && !bIsVol) return 1;
+    if (!aIsVol && bIsVol) return -1;
+    const aHasComms = !!roleToComms[a];
+    const bHasComms = !!roleToComms[b];
+    if (aHasComms && !bHasComms) return -1;
+    if (!aHasComms && bHasComms) return 1;
+    return 0;
+  });
+
   // If only 1 role, auto-select it and skip role picker
   if (allRoles.length === 1) {
     document.getElementById("selected-role").value = allRoles[0];
@@ -855,6 +868,8 @@ async function selectSegment(segment) {
             </span>
             ${takenCommsBadge}
           </span>`;
+        // Move taken row to the bottom of the list
+        container.appendChild(row);
       });
     }
   } catch (e) {
