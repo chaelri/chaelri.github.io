@@ -326,12 +326,22 @@
         </div>
 
         <!-- Waiting for admin confirmation -->
-        <div class="bg-amber-50 border border-amber-200 rounded-xl p-5 mb-4 text-center">
+        <div id="timeout-waiting-block" class="bg-amber-50 border border-amber-200 rounded-xl p-5 mb-4 text-center">
           <div class="flex justify-center mb-3">
             <span class="material-icons-round text-amber-500 text-3xl animate-pulse">hourglass_top</span>
           </div>
           <p class="text-sm font-bold text-amber-800 mb-1">Waiting for Admin Confirmation</p>
           <p class="text-xs text-amber-600">Please return your <span class="font-bold">Comms / Segment ID</span> and collect your <span class="font-bold">Valid ID</span>.<br/>Your time-out will be confirmed once the admin processes the return.</p>
+        </div>
+
+        <!-- Cancelled notice (shown when admin cancels the time-out request) -->
+        <div id="timeout-cancel-notice" class="hidden bg-red-50 border border-red-200 rounded-xl p-5 mb-4 text-center">
+          <div class="flex justify-center mb-3">
+            <span class="material-icons-round text-red-500 text-3xl">cancel</span>
+          </div>
+          <p class="text-sm font-bold text-red-800 mb-1">Time-out Request Cancelled</p>
+          <p class="text-xs text-red-600 mb-3">Your time-out request was cancelled by the admin.<br/>You are still active — please return to your station.</p>
+          <button id="timeout-cancel-ok-btn" class="px-5 py-2 bg-neutral-900 text-white text-xs font-bold rounded-lg hover:bg-neutral-700 transition">OK, I understand</button>
         </div>
       </div>
 

@@ -758,6 +758,19 @@ async function selectSegment(segment) {
     ? [...regularRoles, ...leaderRoles]
     : [...regularRoles, ...leaderRoles, volunteerRole];
 
+  // Sort: roles with comms codes first, "(Volunteer)" catch-all last
+  allRoles.sort((a, b) => {
+    const aIsVol = a.endsWith("(Volunteer)");
+    const bIsVol = b.endsWith("(Volunteer)");
+    if (aIsVol && !bIsVol) return 1;
+    if (!aIsVol && bIsVol) return -1;
+    const aHasComms = !!roleToComms[a];
+    const bHasComms = !!roleToComms[b];
+    if (aHasComms && !bHasComms) return -1;
+    if (!aHasComms && bHasComms) return 1;
+    return 0;
+  });
+
   // If only 1 role, auto-select it and skip role picker
   if (allRoles.length === 1) {
     document.getElementById("selected-role").value = allRoles[0];
@@ -777,8 +790,29 @@ async function selectSegment(segment) {
   }
   const rowMap = {}; // role -> row element, for later disable
 
+  const hasAnyComms = allRoles.some((r) => !!roleToComms[r]);
+  let sectionDividerInserted = false;
+
+  // "Priority" label above comms roles
+  if (hasAnyComms) {
+    const priorityLabel = document.createElement("div");
+    priorityLabel.className = "w-full pb-0.5";
+    priorityLabel.innerHTML = '<p class="text-[10px] uppercase tracking-widest text-teal-600 font-semibold">Roles with Comms</p>';
+    container.appendChild(priorityLabel);
+  }
+
   allRoles.forEach((role, pillIdx) => {
     const isVolunteerRole = role.endsWith("(Volunteer)");
+    const hasComms = !!roleToComms[role];
+
+    // Insert divider between comms and non-comms sections
+    if (hasAnyComms && !hasComms && !isVolunteerRole && !sectionDividerInserted) {
+      sectionDividerInserted = true;
+      const divider = document.createElement("div");
+      divider.className = "w-full pt-1 pb-0.5";
+      divider.innerHTML = '<p class="text-[10px] uppercase tracking-widest text-neutral-400 font-semibold">Other Roles</p>';
+      container.appendChild(divider);
+    }
 
     const row = document.createElement("button");
     row.type = "button";
@@ -855,6 +889,8 @@ async function selectSegment(segment) {
             </span>
             ${takenCommsBadge}
           </span>`;
+        // Move taken row to the bottom of the list
+        container.appendChild(row);
       });
     }
   } catch (e) {
@@ -1135,6 +1171,33 @@ function startPendingTimeOutListener(date, logKey) {
       document.getElementById("final-message").textContent = "Thank you for serving the Lord!";
       showStage("final");
       startFinalCountdown();
+    }
+
+    // Admin cancelled: status cleared but no timeOut — volunteer is still active
+    if (data.status !== "pending-out" && !data.timeOut) {
+      ref.off();
+      pendingTimeOutListener = null;
+
+      const waitingBlock = document.getElementById("timeout-waiting-block");
+      const cancelNotice = document.getElementById("timeout-cancel-notice");
+      if (waitingBlock) waitingBlock.classList.add("hidden");
+      if (cancelNotice) cancelNotice.classList.remove("hidden");
+
+      function goBackToAction() {
+        if (cancelNotice) cancelNotice.classList.add("hidden");
+        if (waitingBlock) waitingBlock.classList.remove("hidden");
+        document.getElementById("volunteer-name").textContent = volunteerName;
+        document.getElementById("time-in-btn").disabled = true;
+        document.getElementById("time-out-btn").disabled = false;
+        showStage("action");
+      }
+
+      const okBtn = document.getElementById("timeout-cancel-ok-btn");
+      if (okBtn) {
+        const handler = () => { okBtn.removeEventListener("click", handler); goBackToAction(); };
+        okBtn.addEventListener("click", handler);
+      }
+      setTimeout(goBackToAction, 8000);
     }
   });
 }

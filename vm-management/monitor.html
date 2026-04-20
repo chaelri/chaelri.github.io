@@ -28,6 +28,14 @@
           </div>
         </div>
         <div class="flex items-center gap-3">
+          <a href="register.html" target="_blank" class="text-xs font-semibold text-neutral-400 bg-neutral-900 border border-neutral-800 hover:border-neutral-600 hover:text-white rounded-lg px-3 py-2 transition duration-150 flex items-center gap-1.5" title="Registration">
+            <span class="material-icons-round text-sm">how_to_reg</span>
+            <span class="hidden sm:inline">Registration</span>
+          </a>
+          <a href="index.html" target="_blank" class="text-xs font-semibold text-neutral-400 bg-neutral-900 border border-neutral-800 hover:border-neutral-600 hover:text-white rounded-lg px-3 py-2 transition duration-150 flex items-center gap-1.5" title="Volunteer Checkpoint">
+            <span class="material-icons-round text-sm">badge</span>
+            <span class="hidden sm:inline">Checkpoint</span>
+          </a>
           <button id="toggle-volunteers-btn" class="text-xs font-semibold text-neutral-400 bg-neutral-900 border border-neutral-800 hover:border-neutral-600 hover:text-white rounded-lg px-3 py-2 transition duration-150 flex items-center gap-1.5">
             <span class="material-icons-round text-sm">people</span>
             <span id="registered-count">0</span> Registered
@@ -73,6 +81,32 @@
           <span class="material-icons-round text-sm">sync</span>
           <span id="sync-sheets-label">Sync Sheets</span>
         </button>
+      </div>
+
+      <!-- Comms Overview (Collapsible, multi-view) -->
+      <div class="mb-6">
+        <div class="flex items-center gap-2 mb-3">
+          <button id="comms-toggle" class="flex items-center gap-2 text-left group flex-1 min-w-0">
+            <h2 class="text-sm font-bold text-white uppercase tracking-widest">Comms Overview</h2>
+            <span id="comms-toggle-count" class="text-xs text-neutral-500 font-mono"></span>
+            <span class="material-icons-round text-neutral-500 text-sm group-hover:text-white transition" id="comms-toggle-icon">expand_less</span>
+          </button>
+          <!-- View toggles -->
+          <div class="flex items-center gap-1 flex-shrink-0">
+            <button id="comms-view-grid" title="Grid view" class="comms-view-btn w-7 h-7 rounded-md flex items-center justify-center transition">
+              <span class="material-icons-round text-sm">grid_view</span>
+            </button>
+            <button id="comms-view-compact" title="Compact view" class="comms-view-btn w-7 h-7 rounded-md flex items-center justify-center transition">
+              <span class="material-icons-round text-sm">apps</span>
+            </button>
+            <button id="comms-view-list" title="List view" class="comms-view-btn w-7 h-7 rounded-md flex items-center justify-center transition">
+              <span class="material-icons-round text-sm">table_rows</span>
+            </button>
+          </div>
+        </div>
+        <div id="comms-table-wrapper" class="bg-neutral-900 border border-neutral-800 rounded-xl overflow-hidden transition-all duration-300">
+          <div id="comms-content"></div>
+        </div>
       </div>
 
       <!-- Pending Table -->
@@ -130,23 +164,36 @@
 
       <!-- Active Table -->
       <div class="mb-6">
-        <div class="flex items-center gap-2 mb-3">
+        <div class="flex items-center gap-2 mb-2">
           <span class="w-2 h-2 rounded-full bg-green-400 animate-pulse"></span>
-          <h2 class="text-sm font-bold text-white uppercase tracking-widest">Active</h2>
-          <span id="active-table-count" class="text-xs text-neutral-500 font-mono"></span>
+          <button id="active-section-toggle" class="flex items-center gap-2 text-left group flex-1 min-w-0">
+            <h2 class="text-sm font-bold text-white uppercase tracking-widest">Active</h2>
+            <span id="active-table-count" class="text-xs text-neutral-500 font-mono"></span>
+            <span class="material-icons-round text-neutral-500 text-sm group-hover:text-white transition" id="active-toggle-icon">expand_less</span>
+          </button>
         </div>
+        <div id="active-section-body">
+        <!-- Segment overview -->
+        <div id="active-segment-summary" class="flex flex-wrap gap-1.5 mb-2"></div>
+        <!-- Active search -->
+        <div class="relative mb-2">
+          <span class="material-icons-round absolute left-2.5 top-1/2 -translate-y-1/2 text-neutral-600 text-sm">search</span>
+          <input id="active-search" type="text" placeholder="Search name, segment, role, comms..." class="w-full pl-8 pr-3 py-1.5 bg-neutral-800 border border-neutral-700 rounded-lg text-xs text-white placeholder-neutral-600 focus:outline-none focus:border-neutral-500 transition" />
+        </div>
+        <!-- Active filter pills -->
+        <div id="active-filter-pills" class="flex flex-wrap gap-1.5 mb-3"></div>
         <div class="bg-neutral-900 border border-neutral-800 rounded-xl overflow-hidden">
           <div class="overflow-x-auto">
             <table class="min-w-full">
               <thead>
                 <tr class="border-b border-neutral-800">
-                  <th class="px-4 py-3 text-left text-xs font-semibold text-neutral-500 uppercase tracking-wider">Volunteer</th>
+                  <th id="active-th-name" class="px-4 py-3 text-left text-xs font-semibold text-neutral-500 uppercase tracking-wider cursor-pointer hover:text-white transition select-none">Volunteer <span id="active-arrow-name" class="font-mono text-neutral-600 text-[10px]"></span></th>
                   <th class="px-4 py-3 text-left text-xs font-semibold text-neutral-500 uppercase tracking-wider">Segment / Role</th>
                   <th class="px-4 py-3 text-left text-xs font-semibold text-neutral-500 uppercase tracking-wider">Comms</th>
                   <th class="px-4 py-3 text-left text-xs font-semibold text-neutral-500 uppercase tracking-wider">Seg ID</th>
                   <th class="px-4 py-3 text-center text-xs font-semibold text-neutral-500 uppercase tracking-wider">ID</th>
-                  <th class="px-4 py-3 text-left text-xs font-semibold text-neutral-500 uppercase tracking-wider">Time In</th>
-                  <th class="px-4 py-3 text-left text-xs font-semibold text-neutral-500 uppercase tracking-wider">Duration</th>
+                  <th id="active-th-timein" class="px-4 py-3 text-left text-xs font-semibold text-neutral-500 uppercase tracking-wider cursor-pointer hover:text-white transition select-none">Time In <span id="active-arrow-timein" class="font-mono text-neutral-600 text-[10px]">↓</span></th>
+                  <th id="active-th-duration" class="px-4 py-3 text-left text-xs font-semibold text-neutral-500 uppercase tracking-wider cursor-pointer hover:text-white transition select-none">Duration <span id="active-arrow-duration" class="font-mono text-neutral-600 text-[10px]"></span></th>
                   <th class="px-4 py-3 text-left text-xs font-semibold text-neutral-500 uppercase tracking-wider"></th>
                 </tr>
               </thead>
@@ -157,32 +204,7 @@
             <p class="text-sm">No active volunteers right now.</p>
           </div>
         </div>
-      </div>
-
-      <!-- Comms Overview Table (Collapsible) -->
-      <div class="mb-6">
-        <button id="comms-toggle" class="flex items-center gap-2 mb-3 w-full text-left group">
-          <h2 class="text-sm font-bold text-white uppercase tracking-widest">Comms Overview</h2>
-          <span id="comms-toggle-count" class="text-xs text-neutral-500 font-mono"></span>
-          <span class="material-icons-round text-neutral-500 text-sm ml-auto group-hover:text-white transition" id="comms-toggle-icon">expand_less</span>
-        </button>
-        <div id="comms-table-wrapper" class="bg-neutral-900 border border-neutral-800 rounded-xl overflow-hidden transition-all duration-300">
-          <div class="overflow-x-auto">
-            <table class="min-w-full">
-              <thead>
-                <tr class="border-b border-neutral-800">
-                  <th class="px-4 py-2.5 text-left text-xs font-semibold text-neutral-500 uppercase tracking-wider w-12"></th>
-                  <th class="px-4 py-2.5 text-left text-xs font-semibold text-neutral-500 uppercase tracking-wider">Comms</th>
-                  <th class="px-4 py-2.5 text-left text-xs font-semibold text-neutral-500 uppercase tracking-wider">Assignment</th>
-                  <th class="px-4 py-2.5 text-left text-xs font-semibold text-neutral-500 uppercase tracking-wider">Volunteer</th>
-                  <th class="px-4 py-2.5 text-left text-xs font-semibold text-neutral-500 uppercase tracking-wider">Since</th>
-                  <th class="px-4 py-2.5 text-left text-xs font-semibold text-neutral-500 uppercase tracking-wider"></th>
-                </tr>
-              </thead>
-              <tbody id="comms-table-body" class="divide-y divide-neutral-800/50"></tbody>
-            </table>
-          </div>
-        </div>
+        </div><!-- end active-section-body -->
       </div>
 
       <!-- Completed Table -->
@@ -197,13 +219,13 @@
             <table class="min-w-full">
               <thead>
                 <tr class="border-b border-neutral-800">
-                  <th class="px-4 py-3 text-left text-xs font-semibold text-neutral-500 uppercase tracking-wider">Volunteer</th>
-                  <th class="px-4 py-3 text-left text-xs font-semibold text-neutral-500 uppercase tracking-wider">Segment / Role</th>
-                  <th class="px-4 py-3 text-left text-xs font-semibold text-neutral-500 uppercase tracking-wider">Comms</th>
+                  <th id="comp-th-name" class="px-4 py-3 text-left text-xs font-semibold text-neutral-500 uppercase tracking-wider cursor-pointer hover:text-white select-none">Volunteer <span id="comp-arrow-name" class="font-mono text-[10px]"></span></th>
+                  <th id="comp-th-segment" class="px-4 py-3 text-left text-xs font-semibold text-neutral-500 uppercase tracking-wider cursor-pointer hover:text-white select-none">Segment / Role <span id="comp-arrow-segment" class="font-mono text-[10px]"></span></th>
+                  <th id="comp-th-comms" class="px-4 py-3 text-left text-xs font-semibold text-neutral-500 uppercase tracking-wider cursor-pointer hover:text-white select-none">Comms <span id="comp-arrow-comms" class="font-mono text-[10px]"></span></th>
                   <th class="px-4 py-3 text-left text-xs font-semibold text-neutral-500 uppercase tracking-wider">Seg ID</th>
-                  <th class="px-4 py-3 text-left text-xs font-semibold text-neutral-500 uppercase tracking-wider">Time In</th>
-                  <th class="px-4 py-3 text-left text-xs font-semibold text-neutral-500 uppercase tracking-wider">Time Out</th>
-                  <th class="px-4 py-3 text-left text-xs font-semibold text-neutral-500 uppercase tracking-wider">Duration</th>
+                  <th id="comp-th-timein" class="px-4 py-3 text-left text-xs font-semibold text-neutral-500 uppercase tracking-wider cursor-pointer hover:text-white select-none">Time In <span id="comp-arrow-timein" class="font-mono text-[10px]">↓</span></th>
+                  <th id="comp-th-timeout" class="px-4 py-3 text-left text-xs font-semibold text-neutral-500 uppercase tracking-wider cursor-pointer hover:text-white select-none">Time Out <span id="comp-arrow-timeout" class="font-mono text-[10px]"></span></th>
+                  <th id="comp-th-duration" class="px-4 py-3 text-left text-xs font-semibold text-neutral-500 uppercase tracking-wider cursor-pointer hover:text-white select-none">Duration <span id="comp-arrow-duration" class="font-mono text-[10px]"></span></th>
                   <th class="px-4 py-3 text-left text-xs font-semibold text-neutral-500 uppercase tracking-wider"></th>
                 </tr>
               </thead>
@@ -224,8 +246,8 @@
           <span id="previous-logs-count" class="text-xs text-neutral-600 font-mono"></span>
         </div>
 
-        <!-- Search, Sort & Download controls -->
-        <div class="flex items-center gap-3 mb-3">
+        <!-- Search, Calendar & Download controls -->
+        <div class="flex items-center gap-3 mb-2">
           <div class="flex-1 relative">
             <span class="material-icons-round absolute left-3 top-1/2 -translate-y-1/2 text-neutral-600 text-lg">search</span>
             <input
@@ -235,32 +257,55 @@
               class="w-full pl-10 pr-4 py-2.5 bg-neutral-900 border border-neutral-800 rounded-lg text-sm text-white placeholder-neutral-600 focus:outline-none focus:border-neutral-600 transition"
             />
           </div>
-          <select id="prev-logs-sort" class="text-xs text-neutral-400 bg-neutral-900 border border-neutral-800 rounded-lg px-3 py-2.5 focus:outline-none focus:border-neutral-600 transition appearance-none cursor-pointer">
-            <option value="date-desc">Date (Newest)</option>
-            <option value="date-asc">Date (Oldest)</option>
-            <option value="name-asc">Name (A-Z)</option>
-            <option value="name-desc">Name (Z-A)</option>
-            <option value="duration-desc">Duration (Longest)</option>
-            <option value="duration-asc">Duration (Shortest)</option>
-          </select>
+          <!-- Calendar date picker -->
+          <div class="relative flex-shrink-0">
+            <button id="prev-logs-calendar-btn" class="flex items-center gap-1.5 text-xs text-neutral-400 hover:text-white bg-neutral-900 border border-neutral-800 hover:border-neutral-600 rounded-lg px-3 py-2.5 transition whitespace-nowrap">
+              <span class="material-icons-round text-sm">calendar_month</span>
+              <span id="prev-logs-calendar-label">All Dates</span>
+              <span class="material-icons-round text-sm text-neutral-600">expand_more</span>
+            </button>
+            <div id="prev-logs-calendar" class="hidden absolute right-0 top-full mt-1 z-50 bg-neutral-900 border border-neutral-700 rounded-xl shadow-2xl p-3 w-72">
+              <div class="flex items-center justify-between mb-2">
+                <button id="cal-prev-month" class="w-7 h-7 flex items-center justify-center rounded-lg text-neutral-500 hover:text-white hover:bg-neutral-800 transition"><span class="material-icons-round text-sm">chevron_left</span></button>
+                <span id="cal-month-label" class="text-xs font-semibold text-white"></span>
+                <button id="cal-next-month" class="w-7 h-7 flex items-center justify-center rounded-lg text-neutral-500 hover:text-white hover:bg-neutral-800 transition"><span class="material-icons-round text-sm">chevron_right</span></button>
+              </div>
+              <div class="grid grid-cols-7 text-center mb-1">
+                <span class="text-[10px] text-neutral-600 font-semibold py-1">S</span>
+                <span class="text-[10px] text-neutral-600 font-semibold py-1">M</span>
+                <span class="text-[10px] text-neutral-600 font-semibold py-1">T</span>
+                <span class="text-[10px] text-neutral-600 font-semibold py-1">W</span>
+                <span class="text-[10px] text-neutral-600 font-semibold py-1">T</span>
+                <span class="text-[10px] text-neutral-600 font-semibold py-1">F</span>
+                <span class="text-[10px] text-neutral-600 font-semibold py-1">S</span>
+              </div>
+              <div id="cal-grid" class="grid grid-cols-7 gap-0.5"></div>
+              <div class="mt-2 pt-2 border-t border-neutral-800">
+                <button id="cal-clear" class="w-full text-xs text-neutral-500 hover:text-white transition py-1">Show all dates</button>
+              </div>
+            </div>
+          </div>
           <button id="download-xlsx-btn" class="flex items-center gap-1.5 text-xs text-neutral-500 hover:text-green-400 bg-neutral-900 border border-neutral-800 hover:border-green-900 rounded-lg px-3 py-2.5 transition duration-150 whitespace-nowrap" title="Download all records as .xlsx">
             <span class="material-icons-round text-sm">download</span>
             Download .xlsx
           </button>
         </div>
+        <!-- Filter pills -->
+        <div id="prev-logs-filter-pills" class="flex flex-wrap items-center gap-1.5 mb-3"></div>
 
         <div class="bg-neutral-900 border border-neutral-800 rounded-xl overflow-hidden">
           <div class="overflow-x-auto">
             <table class="min-w-full">
               <thead>
                 <tr class="border-b border-neutral-800">
-                  <th class="px-4 py-3 text-left text-xs font-semibold text-neutral-500 uppercase tracking-wider cursor-pointer hover:text-white transition prev-sort-header" data-sort="date">Date</th>
-                  <th class="px-4 py-3 text-left text-xs font-semibold text-neutral-500 uppercase tracking-wider cursor-pointer hover:text-white transition prev-sort-header" data-sort="name">Volunteer</th>
-                  <th class="px-4 py-3 text-left text-xs font-semibold text-neutral-500 uppercase tracking-wider">Segment / Role</th>
-                  <th class="px-4 py-3 text-left text-xs font-semibold text-neutral-500 uppercase tracking-wider">Comms</th>
-                  <th class="px-4 py-3 text-left text-xs font-semibold text-neutral-500 uppercase tracking-wider cursor-pointer hover:text-white transition prev-sort-header" data-sort="timein">Time In</th>
-                  <th class="px-4 py-3 text-left text-xs font-semibold text-neutral-500 uppercase tracking-wider cursor-pointer hover:text-white transition prev-sort-header" data-sort="timeout">Time Out</th>
-                  <th class="px-4 py-3 text-left text-xs font-semibold text-neutral-500 uppercase tracking-wider cursor-pointer hover:text-white transition prev-sort-header" data-sort="duration">Duration</th>
+                  <th class="px-4 py-3 text-left text-xs font-semibold text-neutral-500 uppercase tracking-wider cursor-pointer hover:text-white transition prev-sort-header select-none" data-sort="date">Date <span id="prev-arrow-date" class="font-mono text-[10px]"></span></th>
+                  <th class="px-4 py-3 text-left text-xs font-semibold text-neutral-500 uppercase tracking-wider cursor-pointer hover:text-white transition prev-sort-header select-none" data-sort="name">Volunteer <span id="prev-arrow-name" class="font-mono text-[10px]"></span></th>
+                  <th class="px-4 py-3 text-left text-xs font-semibold text-neutral-500 uppercase tracking-wider cursor-pointer hover:text-white transition prev-sort-header select-none" data-sort="segment">Segment / Role <span id="prev-arrow-segment" class="font-mono text-[10px]"></span></th>
+                  <th class="px-4 py-3 text-left text-xs font-semibold text-neutral-500 uppercase tracking-wider cursor-pointer hover:text-white transition prev-sort-header select-none" data-sort="comms">Comms <span id="prev-arrow-comms" class="font-mono text-[10px]"></span></th>
+                  <th class="px-4 py-3 text-center text-xs font-semibold text-neutral-500 uppercase tracking-wider">ID</th>
+                  <th class="px-4 py-3 text-left text-xs font-semibold text-neutral-500 uppercase tracking-wider cursor-pointer hover:text-white transition prev-sort-header select-none" data-sort="timein">Time In <span id="prev-arrow-timein" class="font-mono text-[10px]"></span></th>
+                  <th class="px-4 py-3 text-left text-xs font-semibold text-neutral-500 uppercase tracking-wider cursor-pointer hover:text-white transition prev-sort-header select-none" data-sort="timeout">Time Out <span id="prev-arrow-timeout" class="font-mono text-[10px]"></span></th>
+                  <th class="px-4 py-3 text-left text-xs font-semibold text-neutral-500 uppercase tracking-wider cursor-pointer hover:text-white transition prev-sort-header select-none" data-sort="duration">Duration <span id="prev-arrow-duration" class="font-mono text-[10px]"></span></th>
                   <th class="px-4 py-3 text-left text-xs font-semibold text-neutral-500 uppercase tracking-wider"></th>
                 </tr>
               </thead>
@@ -334,8 +379,9 @@
           <table class="min-w-full">
             <thead>
               <tr class="border-b border-neutral-800">
-                <th class="px-4 py-3 text-left text-xs font-semibold text-neutral-500 uppercase tracking-wider">Name</th>
-                <th class="px-4 py-3 text-left text-xs font-semibold text-neutral-500 uppercase tracking-wider">Type</th>
+                <th id="vol-th-name" class="px-4 py-3 text-left text-xs font-semibold text-neutral-500 uppercase tracking-wider cursor-pointer hover:text-white transition select-none">Name <span id="vol-arrow-name" class="font-mono text-[10px]">↑</span></th>
+                <th id="vol-th-nickname" class="px-4 py-3 text-left text-xs font-semibold text-neutral-500 uppercase tracking-wider cursor-pointer hover:text-white transition select-none">Nickname <span id="vol-arrow-nickname" class="font-mono text-[10px]"></span></th>
+                <th id="vol-th-type" class="px-4 py-3 text-left text-xs font-semibold text-neutral-500 uppercase tracking-wider cursor-pointer hover:text-white transition select-none">Type <span id="vol-arrow-type" class="font-mono text-[10px]"></span></th>
                 <th class="px-4 py-3 text-left text-xs font-semibold text-neutral-500 uppercase tracking-wider">Segments</th>
                 <th class="px-4 py-3 text-left text-xs font-semibold text-neutral-500 uppercase tracking-wider">Contact</th>
                 <th class="px-4 py-3 text-left text-xs font-semibold text-neutral-500 uppercase tracking-wider">QR</th>
@@ -395,6 +441,10 @@
             <input type="text" id="edit-vol-name" class="w-full px-3 py-2 bg-neutral-800 border border-neutral-700 rounded-lg text-white text-sm focus:outline-none focus:border-neutral-500" />
           </div>
           <div>
+            <label class="block text-xs text-neutral-500 uppercase tracking-widest font-semibold mb-1">Nickname</label>
+            <input type="text" id="edit-vol-nickname" placeholder="Optional" class="w-full px-3 py-2 bg-neutral-800 border border-neutral-700 rounded-lg text-white text-sm focus:outline-none focus:border-neutral-500" />
+          </div>
+          <div>
             <label class="block text-xs text-neutral-500 uppercase tracking-widest font-semibold mb-1">Type</label>
             <div class="flex gap-2">
               <button type="button" class="edit-type-btn flex-1 py-2 text-sm font-semibold rounded-lg border transition" data-type="volunteer">Volunteer</button>
@@ -423,6 +473,18 @@
           <button id="confirm-modal-cancel" class="flex-1 py-2.5 text-sm font-semibold rounded-lg bg-neutral-800 text-neutral-400 hover:bg-neutral-700 hover:text-white transition">Cancel</button>
           <button id="confirm-modal-ok" class="flex-1 py-2.5 text-sm font-semibold rounded-lg bg-red-600 text-white hover:bg-red-500 transition">Confirm</button>
         </div>
+      </div>
+    </div>
+
+    <!-- Change Comms Modal -->
+    <div id="change-comms-modal" class="fixed inset-0 bg-black/70 backdrop-blur-sm z-50 flex items-center justify-center p-4 hidden">
+      <div class="bg-neutral-900 border border-neutral-800 rounded-2xl w-full max-w-xs p-5">
+        <div class="flex items-center justify-between mb-1">
+          <h3 class="text-sm font-bold text-white uppercase tracking-widest">Change Comms</h3>
+          <button id="change-comms-modal-close" class="text-neutral-500 hover:text-white transition"><span class="material-icons-round text-xl">close</span></button>
+        </div>
+        <p id="change-comms-vol-name" class="text-xs text-neutral-500 mb-3"></p>
+        <div id="change-comms-list" class="space-y-1 max-h-72 overflow-y-auto pr-1"></div>
       </div>
     </div>
 

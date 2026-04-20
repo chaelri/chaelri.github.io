@@ -72,6 +72,15 @@ function syncToSheets(payload) {
 // State
 // =============================
 let allLogs = {};
+let volunteerNicknameMap = {}; // volunteerId -> nickname or first name
+let activeSegFilter = "all";
+let activeCommsFilter = "all"; // "all" | "has" | "none"
+let activeIdFilter = "all"; // "all" | "has" | "none"
+let activeSearch = "";
+let activeSort = { key: "timein", dir: "desc" }; // key: "name"|"timein"|"duration"
+let compSort = { key: "timein", dir: "desc" }; // key: "name"|"segment"|"comms"|"timein"|"timeout"|"duration"
+let commsView = "grid"; // "grid" | "compact" | "list"
+let activeCommsMap = {};
 
 // All comms codes with their default assignment (role name)
 const allComms = [
@@ -180,15 +189,28 @@ function renderTable() {
   document.getElementById("active-no-comms-count").textContent = totalActiveNoComms;
   totalCountEl.textContent = totalAll;
 
+  // Segment summary bar
+  const segSummary = document.getElementById("active-segment-summary");
+  if (segSummary) {
+    const segCounts = {};
+    Object.values(allLogs).forEach((log) => {
+      if (!log.timeOut && log.status !== "pending" && log.status !== "pending-out") {
+        const seg = log.segment || "Other";
+        segCounts[seg] = (segCounts[seg] || 0) + 1;
+      }
+    });
+    const entries2 = Object.entries(segCounts).sort(([a], [b]) => a.localeCompare(b));
+    segSummary.innerHTML = entries2.map(([seg, count]) =>
+      `<span class="inline-flex items-center gap-1.5 px-2.5 py-1 rounded-full text-[10px] font-semibold bg-neutral-800 border border-neutral-700 text-neutral-400">${seg}<span class="text-white font-black">${count}</span></span>`
+    ).join("");
+  }
+
   // No logs at all
   noLogsMessage.classList.toggle("hidden", entries.length > 0 || true); // always hide, we have comms table
 
-  // ---- Comms Overview Table ----
-  const commsBody = document.getElementById("comms-table-body");
-  commsBody.innerHTML = "";
-
+  // ---- Comms Overview ----
   // Build a map: commsId -> active log (with key)
-  const activeCommsMap = {};
+  activeCommsMap = {};
   Object.entries(allLogs).forEach(([key, log]) => {
     if (!log.timeOut && log.commsId && log.commsId !== "NONE") {
       activeCommsMap[log.commsId] = { ...log, key };
@@ -198,54 +220,7 @@ function renderTable() {
   const activeCommsCount = Object.keys(activeCommsMap).length;
   document.getElementById("comms-toggle-count").textContent = `(${activeCommsCount}/${allComms.length} in use)`;
 
-  allComms.forEach((comms) => {
-    const activeLo = activeCommsMap[comms.code];
-    const isActive = !!activeLo;
-    const row = document.createElement("tr");
-    row.className = isActive
-      ? "hover:bg-neutral-800 transition duration-150"
-      : "hover:bg-neutral-800 transition duration-150 opacity-40";
-
-    // Status dot
-    const dotTd = document.createElement("td");
-    dotTd.className = "px-4 py-2.5 text-center";
-    dotTd.innerHTML = isActive
-      ? '<span class="inline-block w-2.5 h-2.5 rounded-full bg-green-400 animate-pulse"></span>'
-      : '<span class="inline-block w-2.5 h-2.5 rounded-full bg-neutral-700"></span>';
-    row.appendChild(dotTd);
-
-    // Comms code (clickable for history)
-    row.appendChild(td(`<button class="font-mono font-black text-white text-base hover:text-green-400 transition duration-150 cursor-pointer comms-history-btn" data-comms="${comms.code}">${comms.code}</button>`));
-
-    // Assignment
-    row.appendChild(td(`<span class="text-neutral-400 text-xs">${comms.assignment}</span>`));
-
-    // Volunteer
-    if (isActive) {
-      row.appendChild(td(`<span class="font-semibold text-white">${activeLo.name || "—"}</span>`));
-    } else {
-      row.appendChild(td('<span class="text-neutral-600 text-xs">Available</span>'));
-    }
-
-    // Since
-    if (isActive) {
-      row.appendChild(td(`<span class="font-mono text-green-400 text-xs">${formatTime(activeLo.timeIn)}</span>`));
-    } else {
-      row.appendChild(td('<span class="text-neutral-700">—</span>'));
-    }
-
-    // Force time-out button
-    if (isActive) {
-      const actionTd = document.createElement("td");
-      actionTd.className = "px-4 py-2.5 text-sm";
-      actionTd.innerHTML = `<button class="force-timeout-btn text-neutral-600 hover:text-red-400 transition text-xs flex items-center gap-1" data-key="${activeLo.key}" data-comms="${comms.code}" data-name="${activeLo.name || ""}" data-time="${activeLo.timeIn || ""}"><span class="material-icons-round text-sm">logout</span></button>`;
-      row.appendChild(actionTd);
-    } else {
-      row.appendChild(td(''));
-    }
-
-    commsBody.appendChild(row);
-  });
+  renderCommsView(activeCommsMap);
 
   // Pending table
   const pendingBody = document.getElementById("pending-table-body");
@@ -266,7 +241,19 @@ function renderTable() {
       row.appendChild(
         td(`<span class="text-neutral-500 text-xs">${log.segment || "—"}</span><br/><span class="text-white font-medium">${log.role || "—"}</span>`)
       );
-      row.appendChild(commsButton(log.commsId));
+      // Editable comms for pending (can reserve even if currently occupied)
+      const pendingCommsTd = document.createElement("td");
+      pendingCommsTd.className = "px-4 py-2 text-sm";
+      if (log.commsId && log.commsId !== "NONE") {
+        const isTakenByOther = activeCommsMap[log.commsId];
+        const takenLabel = isTakenByOther
+          ? `<span class="text-[9px] text-amber-500 ml-0.5">⏳</span>`
+          : "";
+        pendingCommsTd.innerHTML = `<button class="pending-change-comms-btn group font-mono font-bold text-amber-300 bg-neutral-800 hover:bg-neutral-700 px-2 py-0.5 rounded text-xs transition flex items-center gap-1" data-key="${log.key}" data-comms="${log.commsId}" data-name="${log.name || ""}" data-volunteer="${log.volunteerId || ""}">${log.commsId}${takenLabel}<span class="material-icons-round text-neutral-600 group-hover:text-neutral-300 transition" style="font-size:10px">edit</span></button>`;
+      } else {
+        pendingCommsTd.innerHTML = `<button class="pending-change-comms-btn group text-neutral-600 hover:text-white transition flex items-center gap-1 text-xs" data-key="${log.key}" data-comms="" data-name="${log.name || ""}" data-volunteer="${log.volunteerId || ""}"><span>—</span><span class="material-icons-round text-neutral-700 group-hover:text-neutral-400 transition" style="font-size:10px">edit</span></button>`;
+      }
+      row.appendChild(pendingCommsTd);
 
       // Seg ID input + confirm button
       const segIdTd = document.createElement("td");
@@ -314,6 +301,13 @@ function renderTable() {
           showToast("Pending time-in cancelled", "cancel", "text-red-400");
         }
       });
+    });
+
+    // Pending comms reservation (opens change-comms in pending mode)
+    document.querySelectorAll(".pending-change-comms-btn").forEach((btn) => {
+      btn.addEventListener("click", () =>
+        openChangeCommsModal(btn.dataset.key, btn.dataset.comms, btn.dataset.name, btn.dataset.volunteer, true)
+      );
     });
 
     // Attach confirm handlers (check button beside seg ID)
@@ -489,14 +483,8 @@ function renderTable() {
             commsStatusOut: "OK",
           });
 
-          // 2. Release comms if applicable
-          if (commsCode && commsCode !== "NONE" && commsCode !== "N/A") {
-            await db.ref(`comms/${commsCode}`).update({
-              assignedTo: null,
-              assignedTime: null,
-              status: "available",
-            });
-          }
+          // 2. Release comms (or auto-assign to pending reservation)
+          await releaseCommsOrAutoAssign(commsCode);
 
           // 3. Sync to Google Sheets
           syncToSheets({
@@ -531,11 +519,98 @@ function renderTable() {
 
   // Active table
   const activeBody = document.getElementById("active-table-body");
+  // Active filter pills (segments + comms)
+  const activeFilterContainer = document.getElementById("active-filter-pills");
+  if (activeFilterContainer) {
+    const allActiveForFilter = Object.values(allLogs)
+      .filter(l => !l.timeOut && l.status !== "pending" && l.status !== "pending-out");
+    const allActiveSegs = [...new Set(allActiveForFilter.map(l => l.segment).filter(Boolean))].sort();
+
+    activeFilterContainer.innerHTML = "";
+
+    function makePill(label, isActive, onClick) {
+      const p = document.createElement("button");
+      p.textContent = label;
+      p.className = isActive
+        ? "px-3 py-1 rounded-full text-xs font-semibold bg-white text-neutral-900 transition"
+        : "px-3 py-1 rounded-full text-xs font-semibold bg-neutral-800 text-neutral-400 border border-neutral-700 hover:border-neutral-500 hover:text-white transition";
+      p.addEventListener("click", onClick);
+      return p;
+    }
+
+    // Segment pills
+    activeFilterContainer.appendChild(makePill("All", activeSegFilter === "all", () => { activeSegFilter = "all"; renderTable(); }));
+    allActiveSegs.forEach(seg => {
+      activeFilterContainer.appendChild(makePill(seg, activeSegFilter === seg, () => { activeSegFilter = seg; renderTable(); }));
+    });
+
+    // Separator
+    const sep = document.createElement("span");
+    sep.className = "w-px h-5 bg-neutral-700 self-center mx-0.5";
+    activeFilterContainer.appendChild(sep);
+
+    // Comms filter pills
+    activeFilterContainer.appendChild(makePill("Has Comms", activeCommsFilter === "has", () => { activeCommsFilter = activeCommsFilter === "has" ? "all" : "has"; renderTable(); }));
+    activeFilterContainer.appendChild(makePill("No Comms", activeCommsFilter === "none", () => { activeCommsFilter = activeCommsFilter === "none" ? "all" : "none"; renderTable(); }));
+
+    // Separator
+    const sep2 = document.createElement("span");
+    sep2.className = "w-px h-5 bg-neutral-700 self-center mx-0.5";
+    activeFilterContainer.appendChild(sep2);
+
+    // ID filter pills
+    activeFilterContainer.appendChild(makePill("Has ID", activeIdFilter === "has", () => { activeIdFilter = activeIdFilter === "has" ? "all" : "has"; renderTable(); }));
+    activeFilterContainer.appendChild(makePill("No ID", activeIdFilter === "none", () => { activeIdFilter = activeIdFilter === "none" ? "all" : "none"; renderTable(); }));
+  }
+
+  // Apply all active filters: search + segment + comms
+  let displayedActiveEntries = activeEntries;
+  if (activeSearch) {
+    const q = activeSearch.toLowerCase();
+    displayedActiveEntries = displayedActiveEntries.filter(l =>
+      `${l.name} ${l.segment} ${l.role} ${l.commsId} ${l.numberedId}`.toLowerCase().includes(q)
+    );
+  }
+  if (activeSegFilter !== "all") {
+    displayedActiveEntries = displayedActiveEntries.filter(l => l.segment === activeSegFilter);
+  }
+  if (activeCommsFilter === "has") {
+    displayedActiveEntries = displayedActiveEntries.filter(l => l.commsId && l.commsId !== "NONE");
+  } else if (activeCommsFilter === "none") {
+    displayedActiveEntries = displayedActiveEntries.filter(l => !l.commsId || l.commsId === "NONE");
+  }
+  if (activeIdFilter === "has") {
+    displayedActiveEntries = displayedActiveEntries.filter(l => !l.noId);
+  } else if (activeIdFilter === "none") {
+    displayedActiveEntries = displayedActiveEntries.filter(l => l.noId === true);
+  }
+
+  // Apply sort
+  displayedActiveEntries = displayedActiveEntries.slice().sort((a, b) => {
+    const dir = activeSort.dir === "asc" ? 1 : -1;
+    if (activeSort.key === "name") return dir * (a.name || "").localeCompare(b.name || "");
+    if (activeSort.key === "duration") return dir * (calcDurationMs(a) - calcDurationMs(b));
+    // default: timein
+    return dir * (a.timeIn || "").localeCompare(b.timeIn || "");
+  });
+
+  // Update sort arrows on all sortable headers
+  ["name", "timein", "duration"].forEach(k => {
+    const arrowEl = document.getElementById(`active-arrow-${k}`);
+    if (!arrowEl) return;
+    if (activeSort.key === k) {
+      arrowEl.textContent = activeSort.dir === "asc" ? "↑" : "↓";
+      arrowEl.className = "font-mono text-white text-[10px]";
+    } else {
+      arrowEl.textContent = "";
+    }
+  });
+
   activeBody.innerHTML = "";
   document.getElementById("active-table-count").textContent = activeEntries.length ? `(${activeEntries.length})` : "";
-  document.getElementById("no-active-message").classList.toggle("hidden", activeEntries.length > 0);
+  document.getElementById("no-active-message").classList.toggle("hidden", displayedActiveEntries.length > 0);
 
-  activeEntries.forEach((log) => {
+  displayedActiveEntries.forEach((log) => {
     const row = document.createElement("tr");
     row.className = "hover:bg-neutral-800 transition duration-150";
 
@@ -545,7 +620,17 @@ function renderTable() {
     row.appendChild(
       td(`<span class="text-neutral-500 text-xs">${log.segment || "—"}</span><br/><span class="text-white font-medium">${log.role || "—"}</span>`)
     );
-    row.appendChild(commsButton(log.commsId));
+
+    // Editable comms cell
+    const commsTd = document.createElement("td");
+    commsTd.className = "px-4 py-3 text-sm";
+    if (log.commsId && log.commsId !== "NONE") {
+      commsTd.innerHTML = `<button class="change-comms-btn group font-mono font-bold text-white bg-neutral-800 hover:bg-neutral-700 px-2 py-0.5 rounded text-xs transition flex items-center gap-1" data-key="${log.key}" data-comms="${log.commsId}" data-name="${log.name || ""}" data-volunteer="${log.volunteerId || ""}">${log.commsId}<span class="material-icons-round text-neutral-600 group-hover:text-neutral-300 transition" style="font-size:10px">edit</span></button>`;
+    } else {
+      commsTd.innerHTML = `<button class="change-comms-btn group text-neutral-600 hover:text-white transition flex items-center gap-1 text-xs" data-key="${log.key}" data-comms="" data-name="${log.name || ""}" data-volunteer="${log.volunteerId || ""}"><span>—</span><span class="material-icons-round text-neutral-700 group-hover:text-neutral-400 transition" style="font-size:10px">edit</span></button>`;
+    }
+    row.appendChild(commsTd);
+
     row.appendChild(
       td(log.numberedId ? `<span class="font-mono font-bold text-white">#${log.numberedId}</span>` : '<span class="text-neutral-600">—</span>')
     );
@@ -582,7 +667,29 @@ function renderTable() {
   document.getElementById("completed-table-count").textContent = completedEntries.length ? `(${completedEntries.length})` : "";
   document.getElementById("no-completed-message").classList.toggle("hidden", completedEntries.length > 0);
 
-  completedEntries.forEach((log) => {
+  // Sort completed entries
+  const sortedCompleted = completedEntries.slice().sort((a, b) => {
+    const d = compSort.dir === "asc" ? 1 : -1;
+    switch (compSort.key) {
+      case "name": return d * (a.name || "").localeCompare(b.name || "");
+      case "segment": return d * (a.segment || "").localeCompare(b.segment || "");
+      case "comms": return d * (a.commsId || "").localeCompare(b.commsId || "");
+      case "timeout": return d * (a.timeOut || "").localeCompare(b.timeOut || "");
+      case "duration": {
+        const ms = (l) => l.timeIn ? (l.timeOut ? new Date(l.timeOut) : new Date()) - new Date(l.timeIn) : 0;
+        return d * (ms(a) - ms(b));
+      }
+      default: return d * (a.timeIn || "").localeCompare(b.timeIn || "");
+    }
+  });
+
+  // Update sort arrows
+  ["name","segment","comms","timein","timeout","duration"].forEach((k) => {
+    const el = document.getElementById(`comp-arrow-${k}`);
+    if (el) el.textContent = compSort.key === k ? (compSort.dir === "asc" ? "↑" : "↓") : "";
+  });
+
+  sortedCompleted.forEach((log) => {
     const row = document.createElement("tr");
     row.className = "hover:bg-neutral-800 transition duration-150 opacity-60";
 
@@ -620,6 +727,11 @@ function renderTable() {
     btn.addEventListener("click", () => showCommsHistory(btn.dataset.comms));
   });
 
+  // Attach change-comms click handlers (active table)
+  document.querySelectorAll(".change-comms-btn").forEach((btn) => {
+    btn.addEventListener("click", () => openChangeCommsModal(btn.dataset.key, btn.dataset.comms, btn.dataset.name, btn.dataset.volunteer));
+  });
+
   // Attach force time-out handlers (comms overview + active table)
   document.querySelectorAll(".force-timeout-btn").forEach((btn) => {
     btn.addEventListener("click", async () => {
@@ -634,13 +746,7 @@ function renderTable() {
         commsStatusOut: "OK",
       });
 
-      if (comms && comms !== "NONE" && comms !== "N/A") {
-        await db.ref(`comms/${comms}`).update({
-          assignedTo: null,
-          assignedTime: null,
-          status: "available",
-        });
-      }
+      await releaseCommsOrAutoAssign(comms);
 
       // Sync to Sheets
       syncToSheets({ action: 'timeOut', logKey: key, timeOut: now, timeIn: time });
@@ -662,6 +768,159 @@ function renderTable() {
 }
 
 // =============================
+// Comms Release / Auto-Assign Helper
+// =============================
+async function releaseCommsOrAutoAssign(commsCode) {
+  if (!commsCode || commsCode === "NONE" || commsCode === "N/A") return;
+
+  // Check for a pending time-in user that has reserved this comms
+  const pendingReservation = Object.entries(allLogs).find(([k, l]) =>
+    !l.timeOut && l.status === "pending" && l.commsId === commsCode
+  );
+
+  if (pendingReservation) {
+    const [, rLog] = pendingReservation;
+    await db.ref(`comms/${commsCode}`).update({
+      assignedTo: rLog.volunteerId || null,
+      assignedTime: new Date().toISOString(),
+      status: "assigned",
+    });
+    showToast(`Comms ${commsCode} → ${rLog.name || "pending user"}`, "headset_mic", "text-teal-400");
+  } else {
+    await db.ref(`comms/${commsCode}`).update({
+      assignedTo: null,
+      assignedTime: null,
+      status: "available",
+    });
+  }
+}
+
+// =============================
+// Comms Overview Views
+// =============================
+function renderCommsView(map) {
+  const content = document.getElementById("comms-content");
+  if (!content) return;
+
+  // Update active state on view toggle buttons
+  ["grid", "compact", "list"].forEach((v) => {
+    const btn = document.getElementById(`comms-view-${v}`);
+    if (!btn) return;
+    btn.className = v === commsView
+      ? "comms-view-btn w-7 h-7 rounded-md flex items-center justify-center transition bg-neutral-700 text-white"
+      : "comms-view-btn w-7 h-7 rounded-md flex items-center justify-center transition text-neutral-500 hover:text-white hover:bg-neutral-800";
+  });
+
+  if (commsView === "grid") {
+    let html = '<div class="p-4 grid grid-cols-8 gap-2">';
+    allComms.forEach((c) => {
+      const active = map[c.code];
+      if (active) {
+        const since = active.timeIn ? calcDuration({ timeIn: active.timeIn }) : "—";
+        const displayName = volunteerNicknameMap[active.volunteerId] || (active.name || "").split(" ")[0];
+        html += `<div class="rounded-lg border border-green-500/40 bg-green-500/5 p-2 flex flex-col items-center gap-1 min-w-0">
+          <span class="font-mono font-black text-green-400 text-base leading-none">${c.code}</span>
+          <span class="text-[9px] text-neutral-500 text-center leading-tight truncate w-full">${c.assignment}</span>
+          <span class="text-[10px] font-semibold text-white text-center leading-tight truncate w-full">${displayName}</span>
+          <span class="text-[9px] text-green-600 font-mono">${since}</span>
+        </div>`;
+      } else {
+        html += `<div class="rounded-lg border border-neutral-800 bg-neutral-900/50 p-2 flex flex-col items-center gap-1 min-w-0 opacity-40">
+          <span class="font-mono font-bold text-neutral-500 text-base leading-none">${c.code}</span>
+          <span class="text-[9px] text-neutral-700 text-center leading-tight truncate w-full">${c.assignment}</span>
+          <span class="text-[9px] text-neutral-700">—</span>
+        </div>`;
+      }
+    });
+    html += "</div>";
+    content.innerHTML = html;
+
+  } else if (commsView === "compact") {
+    let html = '<div class="p-3 grid grid-cols-8 gap-1.5">';
+    allComms.forEach((c) => {
+      const active = map[c.code];
+      if (active) {
+        const displayName = volunteerNicknameMap[active.volunteerId] || (active.name || "").split(" ")[0];
+        html += `<div class="rounded-md bg-green-500/10 border border-green-500/30 px-1.5 py-1.5 flex flex-col items-center gap-0.5 min-w-0">
+          <span class="font-mono font-black text-green-400 text-xs leading-none">${c.code}</span>
+          <span class="text-[8px] text-neutral-400 truncate w-full text-center leading-tight">${displayName}</span>
+        </div>`;
+      } else {
+        html += `<div class="rounded-md bg-neutral-900 border border-neutral-800 px-1.5 py-1.5 flex flex-col items-center gap-0.5 min-w-0 opacity-35">
+          <span class="font-mono font-bold text-neutral-600 text-xs leading-none">${c.code}</span>
+          <span class="text-[8px] text-neutral-700 text-center leading-tight">—</span>
+        </div>`;
+      }
+    });
+    html += "</div>";
+    content.innerHTML = html;
+
+  } else {
+    // List view — table format
+    let html = `<table class="w-full text-sm">
+      <thead><tr class="text-neutral-500 text-xs uppercase tracking-wider border-b border-neutral-800">
+        <th class="px-4 py-2 text-left font-semibold w-6"></th>
+        <th class="px-4 py-2 text-left font-semibold">Comms</th>
+        <th class="px-4 py-2 text-left font-semibold">Assignment</th>
+        <th class="px-4 py-2 text-left font-semibold">Volunteer</th>
+        <th class="px-4 py-2 text-left font-semibold">Since</th>
+        <th class="px-4 py-2 text-left font-semibold"></th>
+      </tr></thead><tbody>`;
+
+    allComms.forEach((c) => {
+      const active = map[c.code];
+      if (active) {
+        const since = active.timeIn ? calcDuration({ timeIn: active.timeIn }) : "—";
+        html += `<tr class="hover:bg-neutral-800 transition duration-150 border-b border-neutral-800/50">
+          <td class="px-4 py-2"><span class="inline-block w-2 h-2 rounded-full bg-green-400 animate-pulse"></span></td>
+          <td class="px-4 py-2"><button class="comms-history-btn font-mono font-bold text-white bg-neutral-800 hover:bg-neutral-700 px-2 py-0.5 rounded text-xs transition cursor-pointer" data-comms="${c.code}">${c.code}</button></td>
+          <td class="px-4 py-2 text-neutral-400 text-xs">${c.assignment}</td>
+          <td class="px-4 py-2 text-xs"><span class="font-semibold text-white">${active.name || "—"}</span><br/><span class="text-neutral-500">${active.role || ""}</span></td>
+          <td class="px-4 py-2 font-mono text-green-400 text-xs">${since}</td>
+          <td class="px-4 py-2"><button class="force-timeout-btn text-neutral-600 hover:text-red-400 transition text-xs flex items-center gap-1" data-key="${active.key}" data-comms="${c.code}" data-name="${active.name || ""}" data-time="${active.timeIn || ""}"><span class="material-icons-round text-sm">logout</span></button></td>
+        </tr>`;
+      } else {
+        html += `<tr class="border-b border-neutral-800/30 opacity-35">
+          <td class="px-4 py-2"><span class="inline-block w-2 h-2 rounded-full bg-neutral-700"></span></td>
+          <td class="px-4 py-2"><span class="font-mono font-bold text-neutral-600 text-xs">${c.code}</span></td>
+          <td class="px-4 py-2 text-neutral-600 text-xs">${c.assignment}</td>
+          <td class="px-4 py-2 text-neutral-700 text-xs">Available</td>
+          <td class="px-4 py-2 text-neutral-700 text-xs">—</td>
+          <td class="px-4 py-2"></td>
+        </tr>`;
+      }
+    });
+
+    html += "</tbody></table>";
+    content.innerHTML = html;
+
+    content.querySelectorAll(".comms-history-btn").forEach((btn) => {
+      btn.addEventListener("click", () => showCommsHistory(btn.dataset.comms));
+    });
+    content.querySelectorAll(".force-timeout-btn").forEach((btn) => {
+      btn.addEventListener("click", async () => {
+        const { key, comms, name, time } = btn.dataset;
+        const confirmed = await showConfirm(`Force time-out for "${name}"?`);
+        if (!confirmed) return;
+        const now = new Date().toISOString();
+        await db.ref(`logs/${todayDate}/${key}`).update({ timeOut: now, status: null, commsStatusOut: "OK" });
+        await releaseCommsOrAutoAssign(comms);
+        syncToSheets({ action: "timeOut", logKey: key, timeOut: now, timeIn: time });
+        showToast(`"${name}" timed out`, "logout", "text-red-400");
+      });
+    });
+  }
+}
+
+// View toggle handlers
+["grid", "compact", "list"].forEach((v) => {
+  document.getElementById(`comms-view-${v}`)?.addEventListener("click", () => {
+    commsView = v;
+    renderCommsView(activeCommsMap);
+  });
+});
+
+// =============================
 // Previous Logs (all dates)
 // =============================
 let previousLogsLoaded = false;
@@ -670,6 +929,12 @@ let filteredPreviousEntries = [];
 let prevLogsPage = 1;
 const PREV_LOGS_PER_PAGE = 25;
 let prevLogsSortKey = "date-desc";
+let prevLogsDateFilter = null; // null = all, "YYYY-MM-DD" = specific date
+let prevLogsSegFilter = "all";
+let prevLogsCommsFilter = "all";
+let prevLogsIdFilter = "all";
+let calendarMonth = new Date().getMonth();
+let calendarYear = new Date().getFullYear();
 
 function loadPreviousLogs() {
   if (previousLogsLoaded) return;
@@ -685,6 +950,8 @@ function loadPreviousLogs() {
       });
     });
     prevLogsPage = 1;
+    renderPrevLogsPills();
+    renderCalendar();
     filterAndRenderPreviousLogs();
   });
 }
@@ -706,14 +973,18 @@ function sortPreviousEntries(entries) {
       case "date-desc":
         if (a.date !== b.date) return b.date.localeCompare(a.date);
         return (b.timeIn || "").localeCompare(a.timeIn || "");
-      case "name-asc":
-        return (a.name || "").localeCompare(b.name || "");
-      case "name-desc":
-        return (b.name || "").localeCompare(a.name || "");
-      case "duration-desc":
-        return calcDurationMs(b) - calcDurationMs(a);
-      case "duration-asc":
-        return calcDurationMs(a) - calcDurationMs(b);
+      case "name-asc": return (a.name || "").localeCompare(b.name || "");
+      case "name-desc": return (b.name || "").localeCompare(a.name || "");
+      case "segment-asc": return (a.segment || "").localeCompare(b.segment || "");
+      case "segment-desc": return (b.segment || "").localeCompare(a.segment || "");
+      case "comms-asc": return (a.commsId || "").localeCompare(b.commsId || "");
+      case "comms-desc": return (b.commsId || "").localeCompare(a.commsId || "");
+      case "timein-asc": return (a.timeIn || "").localeCompare(b.timeIn || "");
+      case "timein-desc": return (b.timeIn || "").localeCompare(a.timeIn || "");
+      case "timeout-asc": return (a.timeOut || "").localeCompare(b.timeOut || "");
+      case "timeout-desc": return (b.timeOut || "").localeCompare(a.timeOut || "");
+      case "duration-desc": return calcDurationMs(b) - calcDurationMs(a);
+      case "duration-asc": return calcDurationMs(a) - calcDurationMs(b);
       default:
         if (a.date !== b.date) return b.date.localeCompare(a.date);
         return (b.timeIn || "").localeCompare(a.timeIn || "");
@@ -731,8 +1002,25 @@ function filterAndRenderPreviousLogs() {
       return haystack.includes(searchTerm);
     });
   }
+  if (prevLogsDateFilter) {
+    entries = entries.filter((e) => e.date === prevLogsDateFilter);
+  }
+  if (prevLogsSegFilter !== "all") {
+    entries = entries.filter((e) => e.segment === prevLogsSegFilter);
+  }
+  if (prevLogsCommsFilter === "has") {
+    entries = entries.filter((e) => e.commsId && e.commsId !== "NONE");
+  } else if (prevLogsCommsFilter === "none") {
+    entries = entries.filter((e) => !e.commsId || e.commsId === "NONE");
+  }
+  if (prevLogsIdFilter === "has") {
+    entries = entries.filter((e) => !e.noId);
+  } else if (prevLogsIdFilter === "none") {
+    entries = entries.filter((e) => e.noId === true);
+  }
 
   filteredPreviousEntries = sortPreviousEntries(entries);
+  updatePrevSortArrows();
   renderPreviousLogsPage();
 }
 
@@ -785,6 +1073,17 @@ function renderPreviousLogsPage() {
       td(`<span class="text-neutral-600 text-xs">${log.segment || "—"}</span><br/><span class="text-neutral-400">${log.role || "—"}</span>`)
     );
     row.appendChild(commsButton(log.commsId));
+
+    // ID status
+    const prevIdTd = document.createElement("td");
+    prevIdTd.className = "px-4 py-3 text-sm text-center";
+    if (log.noId) {
+      prevIdTd.innerHTML = `<span class="inline-flex items-center gap-1 px-2 py-0.5 rounded-full bg-amber-500/15 text-amber-400 text-[10px] font-semibold uppercase tracking-wide"><span class="material-icons-round text-xs">warning</span>No ID</span>`;
+    } else {
+      prevIdTd.innerHTML = `<span class="inline-flex items-center gap-1 px-2 py-0.5 rounded-full bg-neutral-700/30 text-neutral-500 text-[10px] font-semibold uppercase tracking-wide"><span class="material-icons-round text-xs">verified</span>OK</span>`;
+    }
+    row.appendChild(prevIdTd);
+
     row.appendChild(td(`<span class="font-mono text-neutral-500 text-xs">${formatTime(log.timeIn)}</span>`));
     row.appendChild(td(`<span class="font-mono text-neutral-500 text-xs">${formatTime(log.timeOut)}</span>`));
     row.appendChild(td(`<span class="font-mono text-neutral-500 text-xs">${calcDuration(log)}</span>`));
@@ -859,27 +1158,158 @@ document.getElementById("prev-logs-search").addEventListener("input", () => {
   filterAndRenderPreviousLogs();
 });
 
-// Sort dropdown handler
-document.getElementById("prev-logs-sort").addEventListener("change", (e) => {
-  prevLogsSortKey = e.target.value;
-  prevLogsPage = 1;
-  filterAndRenderPreviousLogs();
-});
-
 // Clickable sort headers
 document.querySelectorAll(".prev-sort-header").forEach((th) => {
   th.addEventListener("click", () => {
-    const col = th.dataset.sort;
-    const sortMap = { date: "date", name: "name", timein: "date", timeout: "date", duration: "duration" };
-    const base = sortMap[col] || "date";
+    const col = th.dataset.sort; // date | name | segment | comms | timein | timeout | duration
     const currentBase = prevLogsSortKey.replace(/-asc$|-desc$/, "");
     const currentDir = prevLogsSortKey.endsWith("-asc") ? "asc" : "desc";
-    const newDir = (currentBase === base && currentDir === "desc") ? "asc" : "desc";
-    prevLogsSortKey = `${base}-${newDir}`;
-    document.getElementById("prev-logs-sort").value = prevLogsSortKey;
+    const newDir = (currentBase === col && currentDir === "desc") ? "asc" : "desc";
+    prevLogsSortKey = `${col}-${newDir}`;
     prevLogsPage = 1;
     filterAndRenderPreviousLogs();
   });
+});
+
+function updatePrevSortArrows() {
+  ["date", "name", "segment", "comms", "timein", "timeout", "duration"].forEach((k) => {
+    const el = document.getElementById(`prev-arrow-${k}`);
+    if (!el) return;
+    const base = prevLogsSortKey.replace(/-asc$|-desc$/, "");
+    if (base === k) {
+      el.textContent = prevLogsSortKey.endsWith("-asc") ? "↑" : "↓";
+      el.className = "font-mono text-white text-[10px]";
+    } else {
+      el.textContent = "";
+    }
+  });
+}
+
+function renderPrevLogsPills() {
+  const container = document.getElementById("prev-logs-filter-pills");
+  if (!container) return;
+  const allSegs = [...new Set(allPreviousEntries.map((e) => e.segment).filter(Boolean))].sort();
+  container.innerHTML = "";
+
+  function makePill(label, isActive, onClick) {
+    const p = document.createElement("button");
+    p.textContent = label;
+    p.className = isActive
+      ? "px-3 py-1 rounded-full text-xs font-semibold bg-white text-neutral-900 transition"
+      : "px-3 py-1 rounded-full text-xs font-semibold bg-neutral-800 text-neutral-400 border border-neutral-700 hover:border-neutral-500 hover:text-white transition";
+    p.addEventListener("click", onClick);
+    return p;
+  }
+
+  function sep() {
+    const s = document.createElement("span");
+    s.className = "w-px h-5 bg-neutral-700 self-center mx-0.5";
+    return s;
+  }
+
+  container.appendChild(makePill("All", prevLogsSegFilter === "all", () => { prevLogsSegFilter = "all"; prevLogsPage = 1; renderPrevLogsPills(); filterAndRenderPreviousLogs(); }));
+  allSegs.forEach((seg) => {
+    container.appendChild(makePill(seg, prevLogsSegFilter === seg, () => { prevLogsSegFilter = prevLogsSegFilter === seg ? "all" : seg; prevLogsPage = 1; renderPrevLogsPills(); filterAndRenderPreviousLogs(); }));
+  });
+  container.appendChild(sep());
+  container.appendChild(makePill("Has Comms", prevLogsCommsFilter === "has", () => { prevLogsCommsFilter = prevLogsCommsFilter === "has" ? "all" : "has"; prevLogsPage = 1; renderPrevLogsPills(); filterAndRenderPreviousLogs(); }));
+  container.appendChild(makePill("No Comms", prevLogsCommsFilter === "none", () => { prevLogsCommsFilter = prevLogsCommsFilter === "none" ? "all" : "none"; prevLogsPage = 1; renderPrevLogsPills(); filterAndRenderPreviousLogs(); }));
+  container.appendChild(sep());
+  container.appendChild(makePill("Has ID", prevLogsIdFilter === "has", () => { prevLogsIdFilter = prevLogsIdFilter === "has" ? "all" : "has"; prevLogsPage = 1; renderPrevLogsPills(); filterAndRenderPreviousLogs(); }));
+  container.appendChild(makePill("No ID", prevLogsIdFilter === "none", () => { prevLogsIdFilter = prevLogsIdFilter === "none" ? "all" : "none"; prevLogsPage = 1; renderPrevLogsPills(); filterAndRenderPreviousLogs(); }));
+}
+
+function renderCalendar() {
+  const grid = document.getElementById("cal-grid");
+  const label = document.getElementById("cal-month-label");
+  if (!grid || !label) return;
+
+  label.textContent = new Date(calendarYear, calendarMonth, 1).toLocaleDateString([], { month: "long", year: "numeric" });
+
+  const datesWithEntries = new Set(allPreviousEntries.map((e) => e.date));
+  const firstDay = new Date(calendarYear, calendarMonth, 1).getDay();
+  const daysInMonth = new Date(calendarYear, calendarMonth + 1, 0).getDate();
+
+  grid.innerHTML = "";
+  for (let i = 0; i < firstDay; i++) grid.appendChild(document.createElement("div"));
+
+  for (let d = 1; d <= daysInMonth; d++) {
+    const dateStr = `${calendarYear}-${String(calendarMonth + 1).padStart(2, "0")}-${String(d).padStart(2, "0")}`;
+    const hasEntries = datesWithEntries.has(dateStr);
+    const isSelected = prevLogsDateFilter === dateStr;
+    const isToday = dateStr === todayDate;
+
+    const btn = document.createElement("button");
+    btn.className = [
+      "relative w-8 h-8 mx-auto rounded-lg text-xs transition flex items-center justify-center leading-none",
+      isSelected ? "bg-white text-neutral-900 font-bold" :
+      isToday && hasEntries ? "text-green-400 font-semibold hover:bg-neutral-800" :
+      isToday ? "text-green-400 font-semibold" :
+      hasEntries ? "text-white hover:bg-neutral-800" :
+      "text-neutral-700 pointer-events-none",
+    ].join(" ");
+    btn.textContent = d;
+
+    if (hasEntries || isToday) {
+      btn.addEventListener("click", () => {
+        prevLogsDateFilter = isSelected ? null : dateStr;
+        const calLabel = document.getElementById("prev-logs-calendar-label");
+        calLabel.textContent = prevLogsDateFilter
+          ? new Date(prevLogsDateFilter + "T00:00:00").toLocaleDateString([], { month: "short", day: "numeric", year: "numeric" })
+          : "All Dates";
+        document.getElementById("prev-logs-calendar").classList.add("hidden");
+        const calBtn = document.getElementById("prev-logs-calendar-btn");
+        if (prevLogsDateFilter) calBtn.classList.add("border-white/30", "text-white");
+        else calBtn.classList.remove("border-white/30", "text-white");
+        prevLogsPage = 1;
+        renderCalendar();
+        filterAndRenderPreviousLogs();
+      });
+    }
+
+    if (hasEntries && !isSelected) {
+      const dot = document.createElement("span");
+      dot.className = "absolute bottom-0.5 left-1/2 -translate-x-1/2 w-1 h-1 rounded-full " + (isToday ? "bg-green-500" : "bg-neutral-500");
+      btn.appendChild(dot);
+    }
+
+    grid.appendChild(btn);
+  }
+}
+
+// Calendar toggle
+document.getElementById("prev-logs-calendar-btn")?.addEventListener("click", (e) => {
+  e.stopPropagation();
+  const cal = document.getElementById("prev-logs-calendar");
+  cal.classList.toggle("hidden");
+  if (!cal.classList.contains("hidden")) renderCalendar();
+});
+
+document.addEventListener("click", (e) => {
+  const cal = document.getElementById("prev-logs-calendar");
+  if (cal && !cal.classList.contains("hidden") && !cal.closest(".relative")?.contains(e.target)) {
+    cal.classList.add("hidden");
+  }
+});
+
+document.getElementById("cal-prev-month")?.addEventListener("click", () => {
+  calendarMonth--;
+  if (calendarMonth < 0) { calendarMonth = 11; calendarYear--; }
+  renderCalendar();
+});
+document.getElementById("cal-next-month")?.addEventListener("click", () => {
+  calendarMonth++;
+  if (calendarMonth > 11) { calendarMonth = 0; calendarYear++; }
+  renderCalendar();
+});
+document.getElementById("cal-clear")?.addEventListener("click", () => {
+  prevLogsDateFilter = null;
+  document.getElementById("prev-logs-calendar-label").textContent = "All Dates";
+  document.getElementById("prev-logs-calendar-btn").classList.remove("border-white/30", "text-white");
+  document.getElementById("prev-logs-calendar").classList.add("hidden");
+  prevLogsPage = 1;
+  renderCalendar();
+  filterAndRenderPreviousLogs();
 });
 
 // =============================
@@ -996,8 +1426,63 @@ function showConfirm(msg) {
 // =============================
 searchInput.addEventListener("input", () => renderTable());
 
-// Reset sort button (just re-renders)
-document.getElementById("sort-reset")?.addEventListener("click", () => renderTable());
+// Reset sort button — also clears active filters
+document.getElementById("sort-reset")?.addEventListener("click", () => {
+  activeSort = { key: "timein", dir: "desc" };
+  activeSegFilter = "all";
+  activeCommsFilter = "all";
+  activeIdFilter = "all";
+  activeSearch = "";
+  const searchEl = document.getElementById("active-search");
+  if (searchEl) searchEl.value = "";
+  renderTable();
+});
+
+// Active table sortable column headers
+function toggleActiveSort(key) {
+  if (activeSort.key === key) {
+    activeSort.dir = activeSort.dir === "asc" ? "desc" : "asc";
+  } else {
+    activeSort = { key, dir: key === "timein" ? "desc" : "asc" };
+  }
+  renderTable();
+}
+document.getElementById("active-th-name")?.addEventListener("click", () => toggleActiveSort("name"));
+document.getElementById("active-th-timein")?.addEventListener("click", () => toggleActiveSort("timein"));
+document.getElementById("active-th-duration")?.addEventListener("click", () => toggleActiveSort("duration"));
+
+["name","segment","comms","timein","timeout","duration"].forEach((key) => {
+  document.getElementById(`comp-th-${key}`)?.addEventListener("click", () => {
+    if (compSort.key === key) { compSort.dir = compSort.dir === "asc" ? "desc" : "asc"; }
+    else { compSort.key = key; compSort.dir = key === "timein" || key === "timeout" ? "desc" : "asc"; }
+    renderTable();
+  });
+});
+
+// Active section search
+document.getElementById("active-search")?.addEventListener("input", (e) => {
+  activeSearch = e.target.value;
+  renderTable();
+});
+
+// Active section collapse toggle
+let activeCollapsed = false;
+document.getElementById("active-section-toggle").addEventListener("click", () => {
+  activeCollapsed = !activeCollapsed;
+  const body = document.getElementById("active-section-body");
+  const icon = document.getElementById("active-toggle-icon");
+  if (activeCollapsed) {
+    body.style.maxHeight = "0px";
+    body.style.overflow = "hidden";
+    body.style.opacity = "0";
+    icon.textContent = "expand_more";
+  } else {
+    body.style.maxHeight = "2000px";
+    body.style.overflow = "";
+    body.style.opacity = "1";
+    icon.textContent = "expand_less";
+  }
+});
 
 // Comms table collapse toggle
 let commsCollapsed = false;
@@ -1030,49 +1515,86 @@ async function showCommsHistory(commsId) {
   modal.classList.remove("hidden");
 
   try {
-    const logsSnap = await db.ref(`logs/${todayDate}`).once("value");
+    const [logsSnap, eventsSnap] = await Promise.all([
+      db.ref(`logs/${todayDate}`).once("value"),
+      db.ref("commsEvents").orderByChild("commsId").equalTo(commsId).once("value"),
+    ]);
+
     const todayLogs = logsSnap.val() || {};
-    const history = [];
+    const allEvents = eventsSnap.val() || {};
+
+    // Build unified timeline entries
+    const items = [];
 
     Object.entries(todayLogs).forEach(([key, log]) => {
       if (log.commsId === commsId) {
-        history.push({ ...log });
+        items.push({ _type: "log", _sort: log.timeIn || "", ...log });
       }
     });
 
-    history.sort((a, b) => (b.timeIn || "").localeCompare(a.timeIn || ""));
+    Object.entries(allEvents).forEach(([, ev]) => {
+      if (ev.date === todayDate) {
+        items.push({ _type: "event", _sort: ev.timestamp || "", ...ev });
+      }
+    });
 
-    if (history.length === 0) {
+    items.sort((a, b) => (b._sort || "").localeCompare(a._sort || ""));
+
+    if (items.length === 0) {
       modalContent.innerHTML = `
         <p class="text-center text-neutral-500 py-8">No history found for <span class="font-mono font-bold text-white">${commsId}</span></p>`;
       return;
     }
 
+    const logCount = items.filter((i) => i._type === "log").length;
+
     let html = `
       <div class="mb-4 text-center">
         <span class="font-mono font-black text-2xl text-white">${commsId}</span>
-        <p class="text-xs text-neutral-500 mt-1">${history.length} record${history.length > 1 ? "s" : ""} today</p>
+        <p class="text-xs text-neutral-500 mt-1">${logCount} session${logCount !== 1 ? "s" : ""} today</p>
       </div>
       <div class="space-y-2 max-h-80 overflow-y-auto pr-1">`;
 
-    history.forEach((h) => {
-      const isClockedIn = !h.timeOut;
-      const dotColor = isClockedIn ? "bg-green-400 animate-pulse" : "bg-neutral-600";
-      const duration = calcDuration(h);
-
-      html += `
-        <div class="flex items-center gap-3 bg-neutral-800 rounded-lg px-3 py-2.5">
-          <span class="w-2 h-2 rounded-full ${dotColor} flex-shrink-0"></span>
-          <div class="flex-1 min-w-0">
-            <p class="text-sm font-semibold text-white truncate">${h.name || "—"}</p>
-            <p class="text-xs text-neutral-500">${h.segment || ""} / ${h.role || ""}</p>
-          </div>
-          <div class="text-right flex-shrink-0">
-            <p class="text-xs font-mono text-green-400">${formatTime(h.timeIn)}</p>
-            <p class="text-xs font-mono ${h.timeOut ? "text-red-400" : "text-neutral-600"}">${h.timeOut ? formatTime(h.timeOut) : "active"}</p>
-          </div>
-          <div class="text-xs text-neutral-500 font-mono flex-shrink-0">${duration}</div>
-        </div>`;
+    items.forEach((h) => {
+      if (h._type === "event") {
+        let icon, label, color, subLabel;
+        if (h.eventType === "transferred_to") {
+          icon = "arrow_downward"; color = "text-amber-400"; label = "Assigned to";
+          subLabel = h.previousCommsId ? `<span class="text-neutral-600">prev: <span class="font-mono">${h.previousCommsId}</span></span>` : "";
+        } else if (h.eventType === "transferred_from") {
+          icon = "arrow_upward"; color = "text-sky-400"; label = "Released from";
+          subLabel = h.nextCommsId ? `<span class="text-neutral-600">moved to: <span class="font-mono">${h.nextCommsId}</span></span>` : "";
+        } else {
+          icon = "link_off"; color = "text-neutral-500"; label = "Released by"; subLabel = "";
+        }
+        html += `
+          <div class="flex items-center gap-3 bg-neutral-900 border border-neutral-700 rounded-lg px-3 py-2">
+            <span class="material-icons-round text-sm ${color} flex-shrink-0">${icon}</span>
+            <div class="flex-1 min-w-0">
+              <p class="text-xs ${color} font-semibold">${label}</p>
+              <p class="text-xs text-neutral-400 truncate">${h.volunteerName || "—"}</p>
+              ${subLabel ? `<p class="text-[10px] mt-0.5">${subLabel}</p>` : ""}
+            </div>
+            <div class="text-xs text-neutral-600 font-mono flex-shrink-0">${formatTime(h.timestamp)}</div>
+          </div>`;
+      } else {
+        const isClockedIn = !h.timeOut;
+        const dotColor = isClockedIn ? "bg-green-400 animate-pulse" : "bg-neutral-600";
+        const duration = calcDuration(h);
+        html += `
+          <div class="flex items-center gap-3 bg-neutral-800 rounded-lg px-3 py-2.5">
+            <span class="w-2 h-2 rounded-full ${dotColor} flex-shrink-0"></span>
+            <div class="flex-1 min-w-0">
+              <p class="text-sm font-semibold text-white truncate">${h.name || "—"}</p>
+              <p class="text-xs text-neutral-500">${h.segment || ""} / ${h.role || ""}</p>
+            </div>
+            <div class="text-right flex-shrink-0">
+              <p class="text-xs font-mono text-green-400">${formatTime(h.timeIn)}</p>
+              <p class="text-xs font-mono ${h.timeOut ? "text-red-400" : "text-neutral-600"}">${h.timeOut ? formatTime(h.timeOut) : "active"}</p>
+            </div>
+            <div class="text-xs text-neutral-500 font-mono flex-shrink-0">${duration}</div>
+          </div>`;
+      }
     });
 
     html += `</div>`;
@@ -1086,7 +1608,151 @@ async function showCommsHistory(commsId) {
 modalClose.addEventListener("click", () => modal.classList.add("hidden"));
 modal.addEventListener("click", (e) => {
   if (e.target === modal) modal.classList.add("hidden");
+
 });
+
+// =============================
+// Change Comms Modal
+// =============================
+const changeCommsModal = document.getElementById("change-comms-modal");
+document.getElementById("change-comms-modal-close")?.addEventListener("click", () => changeCommsModal.classList.add("hidden"));
+changeCommsModal?.addEventListener("click", (e) => { if (e.target === changeCommsModal) changeCommsModal.classList.add("hidden"); });
+
+function openChangeCommsModal(logKey, currentCommsId, volName, volunteerId, isPending = false) {
+  const titleEl = document.getElementById("change-comms-vol-name");
+  titleEl.textContent = isPending ? `Reserve for ${volName}` : volName;
+  const list = document.getElementById("change-comms-list");
+  list.innerHTML = "";
+  changeCommsModal.classList.remove("hidden");
+
+  // Build map of comms codes already in use by OTHER active/confirmed volunteers
+  const takenMap = {};
+  Object.entries(allLogs).forEach(([key, log]) => {
+    if (key !== logKey && !log.timeOut && log.commsId && log.commsId !== "NONE"
+        && log.status !== "pending") {
+      takenMap[log.commsId] = log.name;
+    }
+  });
+
+  // For pending mode also include pending-out (will be freed soon but can be reserved)
+  const pendingOutMap = {};
+  if (isPending) {
+    Object.entries(allLogs).forEach(([key, log]) => {
+      if (key !== logKey && !log.timeOut && log.commsId && log.commsId !== "NONE"
+          && log.status === "pending-out") {
+        pendingOutMap[log.commsId] = log.name;
+      }
+    });
+  }
+
+  function makeCommsBtn(label, sublabel, code, isCurrent, isTaken) {
+    const btn = document.createElement("button");
+    btn.type = "button";
+    const isPendingOut = isPending && pendingOutMap[code];
+    // In pending mode: occupied comms are reservable (auto-assign on release)
+    const isReservable = isPending && isTaken && !isPendingOut;
+    const isDisabled = isTaken && !isPending;
+
+    btn.disabled = isDisabled;
+    if (isCurrent) {
+      btn.className = "w-full text-left px-3 py-2 rounded-lg text-xs bg-white text-neutral-900 font-semibold flex items-center gap-2 transition";
+    } else if (isPendingOut) {
+      btn.className = "w-full text-left px-3 py-2 rounded-lg text-xs bg-amber-500/10 border border-amber-500/20 text-amber-300 hover:bg-amber-500/20 flex items-center gap-2 transition";
+    } else if (isReservable) {
+      btn.className = "w-full text-left px-3 py-2 rounded-lg text-xs bg-amber-900/20 border border-amber-900/30 text-amber-500 hover:bg-amber-900/30 flex items-center gap-2 transition";
+    } else if (isDisabled) {
+      btn.className = "w-full text-left px-3 py-2 rounded-lg text-xs bg-neutral-800/40 text-neutral-600 cursor-not-allowed flex items-center gap-2";
+    } else {
+      btn.className = "w-full text-left px-3 py-2 rounded-lg text-xs bg-neutral-800 text-neutral-300 hover:bg-neutral-700 hover:text-white flex items-center gap-2 transition";
+    }
+
+    const codeColor = isCurrent ? "text-neutral-900" : (isPendingOut || isReservable) ? "text-amber-300" : isDisabled ? "text-neutral-600" : "text-white";
+    let rightLabel = "";
+    if (isCurrent) rightLabel = '<span class="material-icons-round text-sm text-neutral-900">check</span>';
+    else if (isPendingOut) rightLabel = `<span class="text-[9px] text-amber-400 truncate max-w-[100px]">Timing out · auto-assign</span>`;
+    else if (isReservable) rightLabel = `<span class="text-[9px] text-amber-600 truncate max-w-[100px]">In use · reserve</span>`;
+    else if (isDisabled) rightLabel = `<span class="text-[10px] text-neutral-600 truncate max-w-[80px]">${takenMap[code]}</span>`;
+
+    btn.innerHTML = `
+      <span class="font-mono font-black text-sm w-8 flex-shrink-0 ${codeColor}">${label}</span>
+      <span class="flex-1">${sublabel}</span>
+      ${rightLabel}`;
+
+    if (!isDisabled) btn.addEventListener("click", () => applyCommsChange(logKey, code, currentCommsId, volunteerId));
+    return btn;
+  }
+
+  // No Comms option
+  list.appendChild(makeCommsBtn("—", "No Comms", "", !currentCommsId || currentCommsId === "NONE", false));
+
+  allComms.forEach(c => {
+    const isCurrent = c.code === currentCommsId;
+    const isTaken = !isCurrent && !!takenMap[c.code];
+    list.appendChild(makeCommsBtn(c.code, c.assignment, c.code, isCurrent, isTaken));
+  });
+
+  if (isPending) {
+    const hint = document.createElement("p");
+    hint.className = "text-[10px] text-neutral-600 text-center mt-2 pt-2 border-t border-neutral-800";
+    hint.textContent = "Occupied comms marked ⏳ will auto-assign to this volunteer when the current holder times out.";
+    list.appendChild(hint);
+  }
+}
+
+async function applyCommsChange(logKey, newCommsId, oldCommsId, volunteerId) {
+  changeCommsModal.classList.add("hidden");
+  try {
+    const volLog = allLogs[logKey] || {};
+    const volName = volLog.name || volunteerId || "Unknown";
+    const now = new Date().toISOString();
+
+    await db.ref(`logs/${todayDate}/${logKey}`).update({ commsId: newCommsId || "NONE" });
+
+    if (oldCommsId && oldCommsId !== "NONE") {
+      await db.ref(`comms/${oldCommsId}`).update({ assignedTo: null, assignedTime: null, status: "available" });
+      await db.ref("commsEvents").push({
+        commsId: oldCommsId,
+        eventType: "released",
+        volunteerName: volName,
+        volunteerId: volunteerId || null,
+        logKey,
+        date: todayDate,
+        timestamp: now,
+      });
+    }
+    if (newCommsId && newCommsId !== "NONE") {
+      await db.ref(`comms/${newCommsId}`).update({ status: "assigned", assignedTo: volunteerId, assignedTime: now });
+      await db.ref("commsEvents").push({
+        commsId: newCommsId,
+        eventType: "transferred_to",
+        volunteerName: volName,
+        volunteerId: volunteerId || null,
+        previousCommsId: (oldCommsId && oldCommsId !== "NONE") ? oldCommsId : null,
+        logKey,
+        date: todayDate,
+        timestamp: now,
+      });
+      // Also record on the old comms that this volunteer moved away from it to newCommsId
+      if (oldCommsId && oldCommsId !== "NONE") {
+        await db.ref("commsEvents").push({
+          commsId: oldCommsId,
+          eventType: "transferred_from",
+          volunteerName: volName,
+          volunteerId: volunteerId || null,
+          nextCommsId: newCommsId,
+          logKey,
+          date: todayDate,
+          timestamp: now,
+        });
+      }
+    }
+
+    showToast(newCommsId ? `Comms changed to ${newCommsId}` : "Comms cleared", "headset_mic", "text-teal-400");
+  } catch (e) {
+    console.error("Comms change error:", e);
+    showToast("Failed to update comms", "error", "text-red-400");
+  }
+}
 
 // =============================
 // Firebase Real-time Listener
@@ -1118,6 +1784,8 @@ const qrModal = document.getElementById("qr-modal");
 const qrModalOutput = document.getElementById("qr-modal-output");
 let allVolunteers = [];
 let currentQrTeam = "";
+let volSortKey = "name";
+let volSortDir = "asc";
 
 // Toggle views
 document.getElementById("toggle-volunteers-btn").addEventListener("click", () => {
@@ -1140,10 +1808,10 @@ function renderVolunteers() {
   const query = (volSearchInput.value || "").toLowerCase().trim();
   let filtered = allVolunteers;
 
-  // Text search
+  // Text search (include nickname)
   if (query) {
     filtered = filtered.filter((v) =>
-      `${v.name} ${v.team} ${v.contact} ${v.type} ${v.id}`.toLowerCase().includes(query)
+      `${v.name} ${v.nickname} ${v.team} ${v.contact} ${v.type} ${v.id}`.toLowerCase().includes(query)
     );
   }
 
@@ -1159,6 +1827,26 @@ function renderVolunteers() {
       return typeMatch && segMatch;
     });
   }
+
+  // Sort
+  filtered = filtered.slice().sort((a, b) => {
+    const dir = volSortDir === "asc" ? 1 : -1;
+    if (volSortKey === "nickname") return dir * (a.nickname || "").localeCompare(b.nickname || "");
+    if (volSortKey === "type") return dir * (a.type || "").localeCompare(b.type || "");
+    return dir * (a.name || "").localeCompare(b.name || "");
+  });
+
+  // Update sort arrows
+  ["name", "nickname", "type"].forEach((k) => {
+    const el = document.getElementById(`vol-arrow-${k}`);
+    if (!el) return;
+    if (volSortKey === k) {
+      el.textContent = volSortDir === "asc" ? "↑" : "↓";
+      el.className = "font-mono text-white text-[10px]";
+    } else {
+      el.textContent = "";
+    }
+  });
 
   volTableBody.innerHTML = "";
   const showingFiltered = activeVolFilters.size > 0 || query;
@@ -1179,6 +1867,8 @@ function renderVolunteers() {
     row.className = "hover:bg-neutral-800 transition duration-150";
 
     row.appendChild(vtd(`<span class="font-semibold text-white">${v.name}</span>`));
+
+    row.appendChild(vtd(v.nickname ? `<span class="text-neutral-300 text-xs font-medium">${v.nickname}</span>` : '<span class="text-neutral-700">—</span>'));
 
     const typeBadge = v.type === "guest"
       ? '<span class="text-xs bg-neutral-700 text-neutral-300 px-2 py-0.5 rounded-full">Guest</span>'
@@ -1246,6 +1936,19 @@ function renderVolunteers() {
 }
 
 volSearchInput.addEventListener("input", renderVolunteers);
+
+// Volunteer table sort headers
+["name", "nickname", "type"].forEach((key) => {
+  document.getElementById(`vol-th-${key}`)?.addEventListener("click", () => {
+    if (volSortKey === key) {
+      volSortDir = volSortDir === "asc" ? "desc" : "asc";
+    } else {
+      volSortKey = key;
+      volSortDir = "asc";
+    }
+    renderVolunteers();
+  });
+});
 
 // =============================
 // Volunteer Filter Pills
@@ -1326,6 +2029,7 @@ let editSelectedSegments = new Set();
 function openEditModal(vol) {
   document.getElementById("edit-vol-id").value = vol.id;
   document.getElementById("edit-vol-name").value = vol.name;
+  document.getElementById("edit-vol-nickname").value = vol.nickname || "";
   document.getElementById("edit-vol-contact").value = vol.contact || "";
 
   // Type toggle
@@ -1390,12 +2094,14 @@ editModal.addEventListener("click", (e) => { if (e.target === editModal) editMod
 document.getElementById("edit-vol-save").addEventListener("click", async () => {
   const id = document.getElementById("edit-vol-id").value;
   const name = document.getElementById("edit-vol-name").value.trim();
+  const nickname = document.getElementById("edit-vol-nickname").value.trim();
   const contact = document.getElementById("edit-vol-contact").value.trim();
   if (!name) return;
 
   const team = [...editSelectedSegments].join(", ");
   await db.ref(`volunteers/${id}`).update({
     name,
+    nickname: nickname || null,
     type: editSelectedType,
     team: team || null,
     contact: contact || null,
@@ -1611,9 +2317,14 @@ document.getElementById("sync-sheets-btn").addEventListener("click", async () =>
 db.ref("volunteers").on("value", (snapshot) => {
   const data = snapshot.val() || {};
   allVolunteers = Object.entries(data).map(([id, v]) => ({
-    id, name: v.name || "—", type: v.type || "volunteer", team: v.team || "", contact: v.contact || "", registeredAt: v.registeredAt || "",
+    id, name: v.name || "—", nickname: v.nickname || "", type: v.type || "volunteer", team: v.team || "", contact: v.contact || "", registeredAt: v.registeredAt || "",
   }));
   allVolunteers.sort((a, b) => a.name.localeCompare(b.name));
+  // Rebuild nickname map: volunteerId -> nickname if set, else first name
+  volunteerNicknameMap = {};
+  allVolunteers.forEach((v) => {
+    volunteerNicknameMap[v.id] = v.nickname || (v.name || "").split(" ")[0];
+  });
   registeredCountEl.textContent = allVolunteers.length;
   renderVolunteers();
 });
