@@ -73,6 +73,7 @@ function syncToSheets(payload) {
 // =============================
 let allLogs = {};
 let activeSegFilter = "all";
+let activeNameSort = "none"; // "none" | "asc" | "desc"
 
 // All comms codes with their default assignment (role name)
 const allComms = [
@@ -565,9 +566,20 @@ function renderTable() {
   }
 
   // Apply active segment filter on top of search filter
-  const displayedActiveEntries = activeSegFilter === "all"
+  let displayedActiveEntries = activeSegFilter === "all"
     ? activeEntries
     : activeEntries.filter(l => l.segment === activeSegFilter);
+
+  // Apply name sort
+  if (activeNameSort === "asc") {
+    displayedActiveEntries = displayedActiveEntries.slice().sort((a, b) => (a.name || "").localeCompare(b.name || ""));
+  } else if (activeNameSort === "desc") {
+    displayedActiveEntries = displayedActiveEntries.slice().sort((a, b) => (b.name || "").localeCompare(a.name || ""));
+  }
+
+  // Update sort arrow indicator
+  const arrowEl = document.getElementById("active-sort-arrow");
+  if (arrowEl) arrowEl.textContent = activeNameSort === "asc" ? "↑" : activeNameSort === "desc" ? "↓" : "";
 
   activeBody.innerHTML = "";
   document.getElementById("active-table-count").textContent = activeEntries.length ? `(${activeEntries.length})` : "";
@@ -1034,8 +1046,17 @@ function showConfirm(msg) {
 // =============================
 searchInput.addEventListener("input", () => renderTable());
 
-// Reset sort button (just re-renders)
-document.getElementById("sort-reset")?.addEventListener("click", () => renderTable());
+// Reset sort button
+document.getElementById("sort-reset")?.addEventListener("click", () => {
+  activeNameSort = "none";
+  renderTable();
+});
+
+// Active table: click Volunteer header to toggle alphabetical sort
+document.getElementById("active-sort-name-th")?.addEventListener("click", () => {
+  activeNameSort = activeNameSort === "asc" ? "desc" : "asc";
+  renderTable();
+});
 
 // Comms table collapse toggle
 let commsCollapsed = false;
