@@ -1279,9 +1279,12 @@
         font-family: inherit;
         line-height: 1;
       }
-      .fl-search-first::before {
-        content: "\\23EE";
-        font-size: 0.75rem;
+      .fl-search-first-icon {
+        width: 11px;
+        height: 11px;
+        flex-shrink: 0;
+      }
+      .fl-search-first-label {
         line-height: 1;
       }
       .fl-search-first:hover {
@@ -1512,8 +1515,12 @@
 
         const firstBtn = document.createElement("span");
         firstBtn.className = "fl-search-first";
-        firstBtn.textContent = "EP 1";
         firstBtn.title = "Watch from Episode 1";
+        firstBtn.innerHTML =
+          '<svg class="fl-search-first-icon" viewBox="0 0 24 24" fill="currentColor" aria-hidden="true">' +
+          '<path d="M8 5v14l11-7z"/>' +
+          '</svg>' +
+          '<span class="fl-search-first-label">EP 1</span>';
         firstBtn.addEventListener("click", (e) => {
           e.preventDefault();
           e.stopPropagation();
