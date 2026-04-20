@@ -1977,6 +1977,7 @@ let editSelectedSegments = new Set();
 function openEditModal(vol) {
   document.getElementById("edit-vol-id").value = vol.id;
   document.getElementById("edit-vol-name").value = vol.name;
+  document.getElementById("edit-vol-nickname").value = vol.nickname || "";
   document.getElementById("edit-vol-contact").value = vol.contact || "";
 
   // Type toggle
@@ -2041,12 +2042,14 @@ editModal.addEventListener("click", (e) => { if (e.target === editModal) editMod
 document.getElementById("edit-vol-save").addEventListener("click", async () => {
   const id = document.getElementById("edit-vol-id").value;
   const name = document.getElementById("edit-vol-name").value.trim();
+  const nickname = document.getElementById("edit-vol-nickname").value.trim();
   const contact = document.getElementById("edit-vol-contact").value.trim();
   if (!name) return;
 
   const team = [...editSelectedSegments].join(", ");
   await db.ref(`volunteers/${id}`).update({
     name,
+    nickname: nickname || null,
     type: editSelectedType,
     team: team || null,
     contact: contact || null,
