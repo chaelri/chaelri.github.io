@@ -28,6 +28,45 @@ function getPHDate() {
   return new Date().toLocaleDateString('en-CA', { timeZone: 'Asia/Manila' }); // YYYY-MM-DD
 }
 
+function getPHHour() {
+  return parseInt(new Date().toLocaleString("en-US", { timeZone: "Asia/Manila", hour: "numeric", hour12: false }));
+}
+
+// =============================
+// Service Selection (Sunday Services)
+// =============================
+const SERVICE_SLOTS = ["9AM", "12NN", "3PM", "6PM"];
+let selectedServices = new Set();
+
+function initServicePills() {
+  const phHour = getPHHour();
+  selectedServices = phHour < 12 ? new Set(["9AM", "12NN"]) : new Set(["3PM", "6PM"]);
+  updateServicePillUI();
+}
+
+function updateServicePillUI() {
+  document.querySelectorAll(".service-pill").forEach((btn) => {
+    const svc = btn.dataset.service;
+    const active = selectedServices.has(svc);
+    const isAM = svc === "9AM" || svc === "12NN";
+    btn.className = active
+      ? `service-pill py-2 rounded-lg text-xs font-bold border transition ${isAM ? "border-sky-500 bg-sky-500/20 text-sky-400" : "border-violet-500 bg-violet-500/20 text-violet-400"}`
+      : "service-pill py-2 rounded-lg text-xs font-bold border transition border-neutral-300 bg-white text-neutral-400 hover:border-neutral-500";
+  });
+}
+
+document.querySelectorAll(".service-pill").forEach((btn) => {
+  btn.addEventListener("click", () => {
+    const svc = btn.dataset.service;
+    if (selectedServices.has(svc)) selectedServices.delete(svc);
+    else selectedServices.add(svc);
+    updateServicePillUI();
+    const roleVal = document.getElementById("selected-role")?.value;
+    const submitBtn = document.getElementById("segment-submit-btn");
+    if (submitBtn) submitBtn.disabled = !roleVal || selectedServices.size === 0;
+  });
+});
+
 // State variables
 let volunteerId = null;
 let volunteerName = null;
@@ -403,6 +442,7 @@ async function handleVolunteerScan(id) {
       document.getElementById("segment-pills-section").classList.remove("hidden");
       document.getElementById("role-pills-section").classList.add("hidden");
       renderSegmentPills();
+      initServicePills();
       // Render volunteer QR code for reference
       renderSegmentQR(volunteerId);
       hideLoading();
@@ -916,7 +956,7 @@ async function selectSegment(segment) {
 
 function selectRole(selectedRow, role) {
   document.getElementById("selected-role").value = role;
-  document.getElementById("segment-submit-btn").disabled = false;
+  document.getElementById("segment-submit-btn").disabled = selectedServices.size === 0;
 
   // Reset all rows, highlight selected
   const allRows = document.getElementById("role-pills").querySelectorAll("button");
@@ -1022,7 +1062,8 @@ if (document.getElementById("segment-form")) {
         commsId: commsId,
         numberedId: null,
         commsStatusOut: null,
-        status: "pending", // <-- pending flag
+        status: "pending",
+        services: [...selectedServices],
       });
 
       // Update UI only

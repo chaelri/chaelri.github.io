@@ -417,6 +417,14 @@ async function loadCommsHistory(commsId) {
       if (!iso) return "—";
       return new Date(iso).toLocaleTimeString([], { hour: "2-digit", minute: "2-digit" });
     }
+    function servicesBadge(services) {
+      if (!services || !services.length) return "";
+      const badges = services.map((s) => {
+        const isAM = s === "9AM" || s === "12NN";
+        return `<span class="text-[9px] font-bold px-1.5 py-0.5 rounded ${isAM ? "bg-sky-100 text-sky-600" : "bg-violet-100 text-violet-600"}">${s}</span>`;
+      });
+      return `<span class="inline-flex gap-1 flex-wrap">${badges.join("")}</span>`;
+    }
     function fmtDuration(log) {
       if (!log.timeIn) return "—";
       const start = new Date(log.timeIn);
@@ -457,6 +465,7 @@ async function loadCommsHistory(commsId) {
           <div>
             <p class="font-semibold text-gray-800 text-sm">${h.name || "—"}</p>
             <p class="text-xs text-gray-500">${h.segment || "—"} / ${h.role || "—"}</p>
+            ${h.services && h.services.length ? `<div class="flex gap-1 mt-0.5 flex-wrap">${servicesBadge(h.services)}</div>` : ""}
             <p class="text-xs text-gray-400 font-mono">${h.date}</p>
           </div>
           <div class="text-right text-xs">

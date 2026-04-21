@@ -142,6 +142,20 @@ function td(content) {
   return el;
 }
 
+function servicesBadge(services) {
+  if (!services || !services.length) return "";
+  const badges = services.map((s) => {
+    const isAM = s === "9AM" || s === "12NN";
+    return `<span class="text-[9px] font-bold px-1.5 py-0.5 rounded ${isAM ? "bg-sky-900/60 text-sky-400" : "bg-violet-900/60 text-violet-400"}">${s}</span>`;
+  });
+  return `<div class="flex gap-1 mt-0.5 flex-wrap">${badges.join("")}</div>`;
+}
+
+function servicesLabel(services) {
+  if (!services || !services.length) return "—";
+  return services.join(", ");
+}
+
 function commsButton(commsId) {
   if (commsId && commsId !== "NONE") {
     return td(
@@ -239,7 +253,7 @@ function renderTable() {
         td(`<div class="flex items-center"><span class="inline-block w-2 h-2 rounded-full bg-amber-400 mr-2 animate-pulse"></span><span class="font-semibold text-amber-300">${log.name || "—"}</span></div>`)
       );
       row.appendChild(
-        td(`<span class="text-neutral-500 text-xs">${log.segment || "—"}</span><br/><span class="text-white font-medium">${log.role || "—"}</span>`)
+        td(`<span class="text-neutral-500 text-xs">${log.segment || "—"}</span><br/><span class="text-white font-medium">${log.role || "—"}</span>${servicesBadge(log.services)}`)
       );
       // Editable comms for pending (can reserve even if currently occupied)
       const pendingCommsTd = document.createElement("td");
@@ -618,7 +632,7 @@ function renderTable() {
       td(`<div class="flex items-center"><span class="inline-block w-2 h-2 rounded-full bg-green-400 mr-2 animate-pulse"></span><span class="font-semibold text-white">${log.name || "—"}</span></div>`)
     );
     row.appendChild(
-      td(`<span class="text-neutral-500 text-xs">${log.segment || "—"}</span><br/><span class="text-white font-medium">${log.role || "—"}</span>`)
+      td(`<span class="text-neutral-500 text-xs">${log.segment || "—"}</span><br/><span class="text-white font-medium">${log.role || "—"}</span>${servicesBadge(log.services)}`)
     );
 
     // Editable comms cell
@@ -699,7 +713,7 @@ function renderTable() {
       td(`<div class="flex items-center"><span class="inline-block w-2 h-2 rounded-full bg-neutral-600 mr-2"></span><span class="font-medium text-neutral-400">${log.name || "—"}</span></div>`)
     );
     row.appendChild(
-      td(`<span class="text-neutral-600 text-xs">${log.segment || "—"}</span><br/><span class="text-neutral-400">${log.role || "—"}</span>`)
+      td(`<span class="text-neutral-600 text-xs">${log.segment || "—"}</span><br/><span class="text-neutral-400">${log.role || "—"}</span>${servicesBadge(log.services)}`)
     );
     row.appendChild(commsButton(log.commsId));
     row.appendChild(
@@ -835,7 +849,6 @@ function renderCommsView(map) {
   const content = document.getElementById("comms-content");
   if (!content) return;
 
-  // Update active state on view toggle buttons
   ["grid", "compact", "list"].forEach((v) => {
     const btn = document.getElementById(`comms-view-${v}`);
     if (!btn) return;
@@ -844,88 +857,112 @@ function renderCommsView(map) {
       : "comms-view-btn w-7 h-7 rounded-md flex items-center justify-center transition text-neutral-500 hover:text-white hover:bg-neutral-800";
   });
 
+  // Split active comms into AM (9AM/12NN) and PM (3PM/6PM) batches
+  const amMap = {}, pmMap = {};
+  Object.entries(map).forEach(([code, data]) => {
+    const svcs = data.services || [];
+    if (svcs.some(s => s === "9AM" || s === "12NN")) amMap[code] = data;
+    if (svcs.some(s => s === "3PM" || s === "6PM")) pmMap[code] = data;
+  });
+
+  function batchHeader(label, count, colorClass) {
+    return `<div class="flex items-center gap-2 px-4 pt-3 pb-1.5">
+      <span class="text-[10px] font-bold uppercase tracking-widest ${colorClass}">${label}</span>
+      <span class="text-[10px] text-neutral-600 font-mono">${count}/${allComms.length} in use</span>
+    </div>`;
+  }
+
+  function gridCell(c, batchMap) {
+    const active = batchMap[c.code];
+    if (active) {
+      const since = active.timeIn ? calcDuration({ timeIn: active.timeIn }) : "—";
+      const displayName = volunteerNicknameMap[active.volunteerId] || (active.name || "").split(" ")[0];
+      return `<div class="rounded-lg border border-green-500/40 bg-green-500/5 p-2 flex flex-col items-center gap-1 min-w-0">
+        <span class="font-mono font-black text-green-400 text-base leading-none">${c.code}</span>
+        <span class="text-[9px] text-neutral-500 text-center leading-tight truncate w-full">${c.assignment}</span>
+        <span class="text-[10px] font-semibold text-white text-center leading-tight truncate w-full">${displayName}</span>
+        <span class="text-[9px] text-green-600 font-mono">${since}</span>
+      </div>`;
+    }
+    const otherBatch = map[c.code];
+    return `<div class="rounded-lg border border-neutral-800 bg-neutral-900/50 p-2 flex flex-col items-center gap-1 min-w-0 opacity-40">
+      <span class="font-mono font-bold text-neutral-500 text-base leading-none">${c.code}</span>
+      <span class="text-[9px] text-neutral-700 text-center leading-tight truncate w-full">${c.assignment}</span>
+      <span class="text-[9px] text-neutral-700">${otherBatch ? "Other batch" : "—"}</span>
+    </div>`;
+  }
+
+  function compactCell(c, batchMap) {
+    const active = batchMap[c.code];
+    if (active) {
+      const displayName = volunteerNicknameMap[active.volunteerId] || (active.name || "").split(" ")[0];
+      return `<div class="rounded-md bg-green-500/10 border border-green-500/30 px-1.5 py-1.5 flex flex-col items-center gap-0.5 min-w-0">
+        <span class="font-mono font-black text-green-400 text-xs leading-none">${c.code}</span>
+        <span class="text-[8px] text-neutral-400 truncate w-full text-center leading-tight">${displayName}</span>
+      </div>`;
+    }
+    return `<div class="rounded-md bg-neutral-900 border border-neutral-800 px-1.5 py-1.5 flex flex-col items-center gap-0.5 min-w-0 opacity-35">
+      <span class="font-mono font-bold text-neutral-600 text-xs leading-none">${c.code}</span>
+      <span class="text-[8px] text-neutral-700 text-center leading-tight">—</span>
+    </div>`;
+  }
+
+  function listRow(c, batchMap) {
+    const active = batchMap[c.code];
+    if (active) {
+      const since = active.timeIn ? calcDuration({ timeIn: active.timeIn }) : "—";
+      return `<tr class="hover:bg-neutral-800 transition duration-150 border-b border-neutral-800/50">
+        <td class="px-4 py-2"><span class="inline-block w-2 h-2 rounded-full bg-green-400 animate-pulse"></span></td>
+        <td class="px-4 py-2"><button class="comms-history-btn font-mono font-bold text-white bg-neutral-800 hover:bg-neutral-700 px-2 py-0.5 rounded text-xs transition cursor-pointer" data-comms="${c.code}">${c.code}</button></td>
+        <td class="px-4 py-2 text-neutral-400 text-xs">${c.assignment}</td>
+        <td class="px-4 py-2 text-xs"><span class="font-semibold text-white">${active.name || "—"}</span><br/><span class="text-neutral-500">${active.role || ""}</span></td>
+        <td class="px-4 py-2 font-mono text-green-400 text-xs">${since}</td>
+        <td class="px-4 py-2"><button class="force-timeout-btn text-neutral-600 hover:text-red-400 transition text-xs flex items-center gap-1" data-key="${active.key}" data-comms="${c.code}" data-name="${active.name || ""}" data-time="${active.timeIn || ""}"><span class="material-icons-round text-sm">logout</span></button></td>
+      </tr>`;
+    }
+    return `<tr class="border-b border-neutral-800/30 opacity-35">
+      <td class="px-4 py-2"><span class="inline-block w-2 h-2 rounded-full bg-neutral-700"></span></td>
+      <td class="px-4 py-2"><span class="font-mono font-bold text-neutral-600 text-xs">${c.code}</span></td>
+      <td class="px-4 py-2 text-neutral-600 text-xs">${c.assignment}</td>
+      <td class="px-4 py-2 text-neutral-700 text-xs">Available</td>
+      <td class="px-4 py-2 text-neutral-700 text-xs">—</td>
+      <td class="px-4 py-2"></td>
+    </tr>`;
+  }
+
+  const divider = `<div class="border-t border-neutral-800/60 mx-2"></div>`;
+  const listThead = `<thead><tr class="text-neutral-500 text-xs uppercase tracking-wider border-b border-neutral-800">
+    <th class="px-4 py-2 text-left font-semibold w-6"></th>
+    <th class="px-4 py-2 text-left font-semibold">Comms</th>
+    <th class="px-4 py-2 text-left font-semibold">Assignment</th>
+    <th class="px-4 py-2 text-left font-semibold">Volunteer</th>
+    <th class="px-4 py-2 text-left font-semibold">Since</th>
+    <th class="px-4 py-2 text-left font-semibold"></th>
+  </tr></thead>`;
+
   if (commsView === "grid") {
-    let html = '<div class="p-4 grid grid-cols-8 gap-2">';
-    allComms.forEach((c) => {
-      const active = map[c.code];
-      if (active) {
-        const since = active.timeIn ? calcDuration({ timeIn: active.timeIn }) : "—";
-        const displayName = volunteerNicknameMap[active.volunteerId] || (active.name || "").split(" ")[0];
-        html += `<div class="rounded-lg border border-green-500/40 bg-green-500/5 p-2 flex flex-col items-center gap-1 min-w-0">
-          <span class="font-mono font-black text-green-400 text-base leading-none">${c.code}</span>
-          <span class="text-[9px] text-neutral-500 text-center leading-tight truncate w-full">${c.assignment}</span>
-          <span class="text-[10px] font-semibold text-white text-center leading-tight truncate w-full">${displayName}</span>
-          <span class="text-[9px] text-green-600 font-mono">${since}</span>
-        </div>`;
-      } else {
-        html += `<div class="rounded-lg border border-neutral-800 bg-neutral-900/50 p-2 flex flex-col items-center gap-1 min-w-0 opacity-40">
-          <span class="font-mono font-bold text-neutral-500 text-base leading-none">${c.code}</span>
-          <span class="text-[9px] text-neutral-700 text-center leading-tight truncate w-full">${c.assignment}</span>
-          <span class="text-[9px] text-neutral-700">—</span>
-        </div>`;
-      }
-    });
-    html += "</div>";
-    content.innerHTML = html;
+    content.innerHTML =
+      batchHeader("AM Batch · 9AM & 12NN", Object.keys(amMap).length, "text-sky-400") +
+      `<div class="px-4 pb-3 grid grid-cols-8 gap-2">${allComms.map(c => gridCell(c, amMap)).join("")}</div>` +
+      divider +
+      batchHeader("PM Batch · 3PM & 6PM", Object.keys(pmMap).length, "text-violet-400") +
+      `<div class="px-4 pb-3 grid grid-cols-8 gap-2">${allComms.map(c => gridCell(c, pmMap)).join("")}</div>`;
 
   } else if (commsView === "compact") {
-    let html = '<div class="p-3 grid grid-cols-8 gap-1.5">';
-    allComms.forEach((c) => {
-      const active = map[c.code];
-      if (active) {
-        const displayName = volunteerNicknameMap[active.volunteerId] || (active.name || "").split(" ")[0];
-        html += `<div class="rounded-md bg-green-500/10 border border-green-500/30 px-1.5 py-1.5 flex flex-col items-center gap-0.5 min-w-0">
-          <span class="font-mono font-black text-green-400 text-xs leading-none">${c.code}</span>
-          <span class="text-[8px] text-neutral-400 truncate w-full text-center leading-tight">${displayName}</span>
-        </div>`;
-      } else {
-        html += `<div class="rounded-md bg-neutral-900 border border-neutral-800 px-1.5 py-1.5 flex flex-col items-center gap-0.5 min-w-0 opacity-35">
-          <span class="font-mono font-bold text-neutral-600 text-xs leading-none">${c.code}</span>
-          <span class="text-[8px] text-neutral-700 text-center leading-tight">—</span>
-        </div>`;
-      }
-    });
-    html += "</div>";
-    content.innerHTML = html;
+    content.innerHTML =
+      batchHeader("AM Batch · 9AM & 12NN", Object.keys(amMap).length, "text-sky-400") +
+      `<div class="px-3 pb-3 grid grid-cols-8 gap-1.5">${allComms.map(c => compactCell(c, amMap)).join("")}</div>` +
+      divider +
+      batchHeader("PM Batch · 3PM & 6PM", Object.keys(pmMap).length, "text-violet-400") +
+      `<div class="px-3 pb-3 grid grid-cols-8 gap-1.5">${allComms.map(c => compactCell(c, pmMap)).join("")}</div>`;
 
   } else {
-    // List view — table format
-    let html = `<table class="w-full text-sm">
-      <thead><tr class="text-neutral-500 text-xs uppercase tracking-wider border-b border-neutral-800">
-        <th class="px-4 py-2 text-left font-semibold w-6"></th>
-        <th class="px-4 py-2 text-left font-semibold">Comms</th>
-        <th class="px-4 py-2 text-left font-semibold">Assignment</th>
-        <th class="px-4 py-2 text-left font-semibold">Volunteer</th>
-        <th class="px-4 py-2 text-left font-semibold">Since</th>
-        <th class="px-4 py-2 text-left font-semibold"></th>
-      </tr></thead><tbody>`;
-
-    allComms.forEach((c) => {
-      const active = map[c.code];
-      if (active) {
-        const since = active.timeIn ? calcDuration({ timeIn: active.timeIn }) : "—";
-        html += `<tr class="hover:bg-neutral-800 transition duration-150 border-b border-neutral-800/50">
-          <td class="px-4 py-2"><span class="inline-block w-2 h-2 rounded-full bg-green-400 animate-pulse"></span></td>
-          <td class="px-4 py-2"><button class="comms-history-btn font-mono font-bold text-white bg-neutral-800 hover:bg-neutral-700 px-2 py-0.5 rounded text-xs transition cursor-pointer" data-comms="${c.code}">${c.code}</button></td>
-          <td class="px-4 py-2 text-neutral-400 text-xs">${c.assignment}</td>
-          <td class="px-4 py-2 text-xs"><span class="font-semibold text-white">${active.name || "—"}</span><br/><span class="text-neutral-500">${active.role || ""}</span></td>
-          <td class="px-4 py-2 font-mono text-green-400 text-xs">${since}</td>
-          <td class="px-4 py-2"><button class="force-timeout-btn text-neutral-600 hover:text-red-400 transition text-xs flex items-center gap-1" data-key="${active.key}" data-comms="${c.code}" data-name="${active.name || ""}" data-time="${active.timeIn || ""}"><span class="material-icons-round text-sm">logout</span></button></td>
-        </tr>`;
-      } else {
-        html += `<tr class="border-b border-neutral-800/30 opacity-35">
-          <td class="px-4 py-2"><span class="inline-block w-2 h-2 rounded-full bg-neutral-700"></span></td>
-          <td class="px-4 py-2"><span class="font-mono font-bold text-neutral-600 text-xs">${c.code}</span></td>
-          <td class="px-4 py-2 text-neutral-600 text-xs">${c.assignment}</td>
-          <td class="px-4 py-2 text-neutral-700 text-xs">Available</td>
-          <td class="px-4 py-2 text-neutral-700 text-xs">—</td>
-          <td class="px-4 py-2"></td>
-        </tr>`;
-      }
-    });
-
-    html += "</tbody></table>";
-    content.innerHTML = html;
+    content.innerHTML =
+      batchHeader("AM Batch · 9AM & 12NN", Object.keys(amMap).length, "text-sky-400") +
+      `<table class="w-full text-sm">${listThead}<tbody>${allComms.map(c => listRow(c, amMap)).join("")}</tbody></table>` +
+      divider +
+      batchHeader("PM Batch · 3PM & 6PM", Object.keys(pmMap).length, "text-violet-400") +
+      `<table class="w-full text-sm">${listThead}<tbody>${allComms.map(c => listRow(c, pmMap)).join("")}</tbody></table>`;
 
     content.querySelectorAll(".comms-history-btn").forEach((btn) => {
       btn.addEventListener("click", () => showCommsHistory(btn.dataset.comms));
@@ -1103,7 +1140,7 @@ function renderPreviousLogsPage() {
     row.appendChild(td(dateBadge));
     row.appendChild(td(`<span class="text-neutral-400">${log.name || "—"}</span>`));
     row.appendChild(
-      td(`<span class="text-neutral-600 text-xs">${log.segment || "—"}</span><br/><span class="text-neutral-400">${log.role || "—"}</span>`)
+      td(`<span class="text-neutral-600 text-xs">${log.segment || "—"}</span><br/><span class="text-neutral-400">${log.role || "—"}</span>${servicesBadge(log.services)}`)
     );
     row.appendChild(commsButton(log.commsId));
 
