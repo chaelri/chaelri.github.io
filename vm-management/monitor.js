@@ -1763,7 +1763,6 @@ async function applyCommsChange(logKey, newCommsId, oldCommsId, volunteerId, old
     await db.ref(`logs/${todayDate}/${logKey}`).update({ commsId: newCommsId || "NONE", pendingCommsId: null });
 
     if (oldCommsId && oldCommsId !== "NONE") {
-      await db.ref(`comms/${oldCommsId}`).update({ assignedTo: null, assignedTime: null, status: "available" });
       await db.ref("commsEvents").push({
         commsId: oldCommsId,
         eventType: "released",
@@ -1773,6 +1772,7 @@ async function applyCommsChange(logKey, newCommsId, oldCommsId, volunteerId, old
         date: todayDate,
         timestamp: now,
       });
+      await releaseCommsOrAutoAssign(oldCommsId);
     }
     if (newCommsId && newCommsId !== "NONE") {
       await db.ref(`comms/${newCommsId}`).update({ status: "assigned", assignedTo: volunteerId, assignedTime: now });
