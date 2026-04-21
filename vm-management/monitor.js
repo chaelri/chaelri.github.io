@@ -624,11 +624,13 @@ function renderTable() {
     // Editable comms cell
     const commsTd = document.createElement("td");
     commsTd.className = "px-4 py-3 text-sm";
-    if (log.commsId && log.commsId !== "NONE") {
-      commsTd.innerHTML = `<button class="change-comms-btn group font-mono font-bold text-white bg-neutral-800 hover:bg-neutral-700 px-2 py-0.5 rounded text-xs transition flex items-center gap-1" data-key="${log.key}" data-comms="${log.commsId}" data-name="${log.name || ""}" data-volunteer="${log.volunteerId || ""}">${log.commsId}<span class="material-icons-round text-neutral-600 group-hover:text-neutral-300 transition" style="font-size:10px">edit</span></button>`;
-    } else {
-      commsTd.innerHTML = `<button class="change-comms-btn group text-neutral-600 hover:text-white transition flex items-center gap-1 text-xs" data-key="${log.key}" data-comms="" data-name="${log.name || ""}" data-volunteer="${log.volunteerId || ""}"><span>—</span><span class="material-icons-round text-neutral-700 group-hover:text-neutral-400 transition" style="font-size:10px">edit</span></button>`;
-    }
+    const commsBtn = log.commsId && log.commsId !== "NONE"
+      ? `<button class="change-comms-btn group font-mono font-bold text-white bg-neutral-800 hover:bg-neutral-700 px-2 py-0.5 rounded text-xs transition flex items-center gap-1" data-key="${log.key}" data-comms="${log.commsId}" data-name="${log.name || ""}" data-volunteer="${log.volunteerId || ""}">${log.commsId}<span class="material-icons-round text-neutral-600 group-hover:text-neutral-300 transition" style="font-size:10px">edit</span></button>`
+      : `<button class="change-comms-btn group text-neutral-600 hover:text-white transition flex items-center gap-1 text-xs" data-key="${log.key}" data-comms="" data-name="${log.name || ""}" data-volunteer="${log.volunteerId || ""}"><span>—</span><span class="material-icons-round text-neutral-700 group-hover:text-neutral-400 transition" style="font-size:10px">edit</span></button>`;
+    const queueBadge = log.pendingCommsId
+      ? `<div class="flex items-center gap-0.5 mt-0.5 text-[9px] font-semibold text-amber-400"><span class="material-icons-round" style="font-size:9px">hourglass_top</span><span>queued: ${log.pendingCommsId}</span></div>`
+      : "";
+    commsTd.innerHTML = `<div>${commsBtn}${queueBadge}</div>`;
     row.appendChild(commsTd);
 
     row.appendChild(
@@ -773,7 +775,9 @@ function renderTable() {
 async function releaseCommsOrAutoAssign(commsCode) {
   if (!commsCode || commsCode === "NONE" || commsCode === "N/A") return;
 
-  // Check for a pending time-in user that has reserved this comms
+  const now = new Date().toISOString();
+
+  // Priority 1: pending time-in user that has reserved this comms
   const pendingReservation = Object.entries(allLogs).find(([k, l]) =>
     !l.timeOut && l.status === "pending" && l.commsId === commsCode
   );
@@ -782,17 +786,46 @@ async function releaseCommsOrAutoAssign(commsCode) {
     const [, rLog] = pendingReservation;
     await db.ref(`comms/${commsCode}`).update({
       assignedTo: rLog.volunteerId || null,
-      assignedTime: new Date().toISOString(),
+      assignedTime: now,
       status: "assigned",
     });
     showToast(`Comms ${commsCode} → ${rLog.name || "pending user"}`, "headset_mic", "text-teal-400");
-  } else {
-    await db.ref(`comms/${commsCode}`).update({
-      assignedTo: null,
-      assignedTime: null,
-      status: "available",
-    });
+    return;
   }
+
+  // Priority 2: active confirmed volunteer queued for this comms
+  const queuedEntry = Object.entries(allLogs).find(([k, l]) =>
+    !l.timeOut && !l.status && l.pendingCommsId === commsCode
+  );
+
+  if (queuedEntry) {
+    const [qKey, qLog] = queuedEntry;
+    const oldCommsId = qLog.commsId && qLog.commsId !== "NONE" ? qLog.commsId : null;
+
+    await db.ref(`logs/${todayDate}/${qKey}`).update({ commsId: commsCode, pendingCommsId: null });
+    await db.ref(`comms/${commsCode}`).update({ assignedTo: qLog.volunteerId || null, assignedTime: now, status: "assigned" });
+
+    if (oldCommsId) {
+      await db.ref(`comms/${oldCommsId}`).update({ assignedTo: null, assignedTime: null, status: "available" });
+      await db.ref("commsEvents").push({
+        commsId: oldCommsId, eventType: "released",
+        volunteerName: qLog.name || "Unknown", volunteerId: qLog.volunteerId || null,
+        logKey: qKey, date: todayDate, timestamp: now,
+      });
+    }
+    await db.ref("commsEvents").push({
+      commsId: commsCode, eventType: "transferred_to",
+      volunteerName: qLog.name || "Unknown", volunteerId: qLog.volunteerId || null,
+      previousCommsId: oldCommsId || null,
+      logKey: qKey, date: todayDate, timestamp: now,
+    });
+
+    showToast(`Comms ${commsCode} → ${qLog.name || "queued volunteer"}`, "headset_mic", "text-teal-400");
+    return;
+  }
+
+  // No reservation — free the comms
+  await db.ref(`comms/${commsCode}`).update({ assignedTo: null, assignedTime: null, status: "available" });
 }
 
 // =============================
@@ -1625,6 +1658,9 @@ function openChangeCommsModal(logKey, currentCommsId, volName, volunteerId, isPe
   list.innerHTML = "";
   changeCommsModal.classList.remove("hidden");
 
+  const currentLog = allLogs[logKey] || {};
+  const currentPendingCommsId = currentLog.pendingCommsId || null;
+
   // Build map of comms codes already in use by OTHER active/confirmed volunteers
   const takenMap = {};
   Object.entries(allLogs).forEach(([key, log]) => {
@@ -1649,36 +1685,36 @@ function openChangeCommsModal(logKey, currentCommsId, volName, volunteerId, isPe
     const btn = document.createElement("button");
     btn.type = "button";
     const isPendingOut = isPending && pendingOutMap[code];
-    // In pending mode: occupied comms are reservable (auto-assign on release)
-    const isReservable = isPending && isTaken && !isPendingOut;
-    const isDisabled = isTaken && !isPending;
+    const isReservable = isTaken && !isPendingOut; // Allow queuing for all volunteers
+    const isCurrentQueue = code === currentPendingCommsId;
 
-    btn.disabled = isDisabled;
     if (isCurrent) {
       btn.className = "w-full text-left px-3 py-2 rounded-lg text-xs bg-white text-neutral-900 font-semibold flex items-center gap-2 transition";
+    } else if (isCurrentQueue) {
+      btn.className = "w-full text-left px-3 py-2 rounded-lg text-xs bg-amber-400/20 border border-amber-400/40 text-amber-300 hover:bg-amber-400/30 flex items-center gap-2 transition";
     } else if (isPendingOut) {
       btn.className = "w-full text-left px-3 py-2 rounded-lg text-xs bg-amber-500/10 border border-amber-500/20 text-amber-300 hover:bg-amber-500/20 flex items-center gap-2 transition";
     } else if (isReservable) {
       btn.className = "w-full text-left px-3 py-2 rounded-lg text-xs bg-amber-900/20 border border-amber-900/30 text-amber-500 hover:bg-amber-900/30 flex items-center gap-2 transition";
-    } else if (isDisabled) {
-      btn.className = "w-full text-left px-3 py-2 rounded-lg text-xs bg-neutral-800/40 text-neutral-600 cursor-not-allowed flex items-center gap-2";
     } else {
       btn.className = "w-full text-left px-3 py-2 rounded-lg text-xs bg-neutral-800 text-neutral-300 hover:bg-neutral-700 hover:text-white flex items-center gap-2 transition";
     }
 
-    const codeColor = isCurrent ? "text-neutral-900" : (isPendingOut || isReservable) ? "text-amber-300" : isDisabled ? "text-neutral-600" : "text-white";
+    const codeColor = isCurrent ? "text-neutral-900"
+      : (isCurrentQueue || isPendingOut || isReservable) ? "text-amber-300"
+      : "text-white";
     let rightLabel = "";
     if (isCurrent) rightLabel = '<span class="material-icons-round text-sm text-neutral-900">check</span>';
+    else if (isCurrentQueue) rightLabel = `<span class="text-[9px] text-amber-400 truncate max-w-[100px]">⏳ Queued · tap to cancel</span>`;
     else if (isPendingOut) rightLabel = `<span class="text-[9px] text-amber-400 truncate max-w-[100px]">Timing out · auto-assign</span>`;
-    else if (isReservable) rightLabel = `<span class="text-[9px] text-amber-600 truncate max-w-[100px]">In use · reserve</span>`;
-    else if (isDisabled) rightLabel = `<span class="text-[10px] text-neutral-600 truncate max-w-[80px]">${takenMap[code]}</span>`;
+    else if (isReservable) rightLabel = `<span class="text-[9px] text-amber-600 truncate max-w-[100px]">In use · queue</span>`;
 
     btn.innerHTML = `
       <span class="font-mono font-black text-sm w-8 flex-shrink-0 ${codeColor}">${label}</span>
       <span class="flex-1">${sublabel}</span>
       ${rightLabel}`;
 
-    if (!isDisabled) btn.addEventListener("click", () => applyCommsChange(logKey, code, currentCommsId, volunteerId));
+    btn.addEventListener("click", () => applyCommsChange(logKey, code, currentCommsId, volunteerId, currentPendingCommsId));
     return btn;
   }
 
@@ -1691,22 +1727,40 @@ function openChangeCommsModal(logKey, currentCommsId, volName, volunteerId, isPe
     list.appendChild(makeCommsBtn(c.code, c.assignment, c.code, isCurrent, isTaken));
   });
 
-  if (isPending) {
+  if (isPending || currentPendingCommsId) {
     const hint = document.createElement("p");
     hint.className = "text-[10px] text-neutral-600 text-center mt-2 pt-2 border-t border-neutral-800";
-    hint.textContent = "Occupied comms marked ⏳ will auto-assign to this volunteer when the current holder times out.";
+    hint.textContent = "Occupied comms will auto-assign to this volunteer when the current holder times out.";
     list.appendChild(hint);
   }
 }
 
-async function applyCommsChange(logKey, newCommsId, oldCommsId, volunteerId) {
+async function applyCommsChange(logKey, newCommsId, oldCommsId, volunteerId, oldPendingCommsId = null) {
   changeCommsModal.classList.add("hidden");
   try {
     const volLog = allLogs[logKey] || {};
     const volName = volLog.name || volunteerId || "Unknown";
     const now = new Date().toISOString();
 
-    await db.ref(`logs/${todayDate}/${logKey}`).update({ commsId: newCommsId || "NONE" });
+    // Check if the selected comms is currently occupied by someone else
+    const newCommsOccupied = newCommsId && newCommsId !== "NONE" && !!activeCommsMap[newCommsId];
+    // Check if the volunteer is cancelling their existing queue by clicking the same comms again
+    const cancellingQueue = !!(oldPendingCommsId && newCommsId === oldPendingCommsId);
+
+    if (newCommsOccupied || cancellingQueue) {
+      // Queue / cancel-queue mode — don't release current comms, just set pendingCommsId
+      if (cancellingQueue) {
+        await db.ref(`logs/${todayDate}/${logKey}`).update({ pendingCommsId: null });
+        showToast(`Queue for ${oldPendingCommsId} cancelled`, "cancel", "text-neutral-400");
+      } else {
+        await db.ref(`logs/${todayDate}/${logKey}`).update({ pendingCommsId: newCommsId });
+        showToast(`Queued for ${newCommsId} — auto-assigns when freed`, "hourglass_top", "text-amber-400");
+      }
+      return;
+    }
+
+    // Normal assignment — update commsId and clear any pending queue
+    await db.ref(`logs/${todayDate}/${logKey}`).update({ commsId: newCommsId || "NONE", pendingCommsId: null });
 
     if (oldCommsId && oldCommsId !== "NONE") {
       await db.ref(`comms/${oldCommsId}`).update({ assignedTo: null, assignedTime: null, status: "available" });
@@ -1732,7 +1786,6 @@ async function applyCommsChange(logKey, newCommsId, oldCommsId, volunteerId) {
         date: todayDate,
         timestamp: now,
       });
-      // Also record on the old comms that this volunteer moved away from it to newCommsId
       if (oldCommsId && oldCommsId !== "NONE") {
         await db.ref("commsEvents").push({
           commsId: oldCommsId,
