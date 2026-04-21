@@ -867,29 +867,45 @@ async function selectSegment(segment) {
         }
       });
 
-      // Disable taken rows (except unlimited ones)
+      // Handle taken rows (except unlimited ones)
       Object.entries(takenMap).forEach(([role, info]) => {
         const row = rowMap[role];
         if (!row) return;
         const isUnlimited = role.endsWith("(Volunteer)") || /trainee|observer/i.test(role) || /technical director/i.test(role);
         if (isUnlimited) return;
 
-        row.disabled = true;
-        const timeStr = new Date(info.timeIn).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' });
         const takenCommsCode = roleToComms[role];
-        const takenCommsBadge = takenCommsCode ? `<span class="text-xs font-mono font-bold text-green-400 bg-green-100 px-2 py-0.5 rounded">${takenCommsCode}</span>` : "";
-        row.className = "w-full text-left px-3 py-2.5 rounded-lg text-sm border border-green-100 bg-green-50 text-green-700 cursor-default transition duration-150";
-        row.dataset.defaultClass = row.className;
-        row.innerHTML = `
-          <span class="flex items-center gap-2 w-full">
-            <span class="material-icons-round text-base text-green-400">check_circle</span>
-            <span class="flex-1">
-              <span class="font-medium">${role}</span>
-              <span class="block text-xs text-green-500 mt-0.5">${info.name} is serving since ${timeStr}</span>
-            </span>
-            ${takenCommsBadge}
-          </span>`;
-        // Move taken row to the bottom of the list
+        const timeStr = new Date(info.timeIn).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' });
+
+        if (takenCommsCode) {
+          // Comms role — allow queuing, keep enabled
+          const commsBadge = `<span class="text-xs font-mono font-bold text-amber-700 bg-amber-100 px-2 py-0.5 rounded">${takenCommsCode}</span>`;
+          row.className = "w-full text-left px-3 py-2.5 rounded-lg text-sm border border-amber-300 bg-amber-50 text-amber-700 hover:border-amber-400 hover:bg-amber-100 transition duration-150";
+          row.dataset.defaultClass = row.className;
+          row.innerHTML = `
+            <span class="flex items-center gap-2 w-full">
+              <span class="material-icons-round text-base text-amber-500">hourglass_top</span>
+              <span class="flex-1">
+                <span class="font-medium">${role}</span>
+                <span class="block text-xs text-amber-600 mt-0.5">${info.name} serving — tap to queue for auto-assign</span>
+              </span>
+              ${commsBadge}
+            </span>`;
+        } else {
+          // Non-comms role — keep disabled
+          row.disabled = true;
+          row.className = "w-full text-left px-3 py-2.5 rounded-lg text-sm border border-green-100 bg-green-50 text-green-700 cursor-default transition duration-150";
+          row.dataset.defaultClass = row.className;
+          row.innerHTML = `
+            <span class="flex items-center gap-2 w-full">
+              <span class="material-icons-round text-base text-green-400">check_circle</span>
+              <span class="flex-1">
+                <span class="font-medium">${role}</span>
+                <span class="block text-xs text-green-500 mt-0.5">${info.name} is serving since ${timeStr}</span>
+              </span>
+            </span>`;
+        }
+        // Move to bottom of list
         container.appendChild(row);
       });
     }
@@ -1016,13 +1032,24 @@ if (document.getElementById("segment-form")) {
       document.getElementById("comms-role-label").textContent = role;
       document.getElementById("numbered-id-input").value = "";
 
+      // Check if comms is currently in use by someone else
+      let commsOccupied = false;
+      if (commsCode) {
+        const commsSnap = await db.ref(`comms/${commsCode}`).once("value");
+        const commsData = commsSnap.val();
+        commsOccupied = !!(commsData && commsData.status === "assigned" && commsData.assignedTo !== volunteerId);
+      }
+
+      const commsQueuedBlock = document.getElementById("comms-queued-block");
       if (commsCode) {
         document.getElementById("assigned-comms-id").textContent = commsCode;
         document.getElementById("comms-assignment-block").classList.remove("hidden");
         document.getElementById("comms-none-block").classList.add("hidden");
+        if (commsQueuedBlock) commsQueuedBlock.classList.toggle("hidden", !commsOccupied);
       } else {
         document.getElementById("comms-assignment-block").classList.add("hidden");
         document.getElementById("comms-none-block").classList.remove("hidden");
+        if (commsQueuedBlock) commsQueuedBlock.classList.add("hidden");
       }
 
       showStage("comms");
