@@ -871,7 +871,7 @@ async function selectSegment(segment) {
       Object.entries(takenMap).forEach(([role, info]) => {
         const row = rowMap[role];
         if (!row) return;
-        const isUnlimited = role.endsWith("(Volunteer)") || /trainee|observer/i.test(role);
+        const isUnlimited = role.endsWith("(Volunteer)") || /trainee|observer/i.test(role) || /technical director/i.test(role);
         if (isUnlimited) return;
 
         row.disabled = true;
