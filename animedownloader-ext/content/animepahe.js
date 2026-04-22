@@ -3,6 +3,21 @@
 
   const HREF = window.location.href;
 
+  // Home-feed hydration overlay state. Declared up-front so the router
+  // dispatch below can call animePaheHomeInjector() → _showHomeLoading()
+  // without tripping the temporal dead zone on this const.
+  const _homeLoading = {
+    overlayEl: null,
+    pending: 0,
+    firstRunDone: false,
+    startedAt: 0,
+    hideTimer: null,
+    removeTimer: null,
+    safetyTimer: null,
+  };
+  const HOME_MIN_OVERLAY_MS = 600;
+  const HOME_OVERLAY_FADE_MS = 600;
+
   if (HREF.includes("?searchFilter=")) animePaheSearchAutoClick();
   else if (HREF.includes("/play/")) animePaheClicker();
   else if (HREF.includes("/anime/")) animePaheEpisodeList();
@@ -1167,93 +1182,84 @@
         border-color: #d5015b;
         color: #fff !important;
       }
-      /* NSFW blur — while locked, an overlay div sits on top of the thumbnail
-         and applies backdrop-filter. The img itself is untouched so lazy
-         loading and natural sizing still work. First click reveals; next click
-         plays/navigates as usual. */
-      .fl-nsfw.fl-nsfw-locked .episode-snapshot { cursor: pointer; }
-      .fl-nsfw-overlay {
-        position: absolute;
-        inset: 0;
-        display: none;
-        align-items: center;
-        justify-content: center;
-        background: rgba(0, 0, 0, 0.18);
-        backdrop-filter: blur(18px) saturate(0.9);
-        -webkit-backdrop-filter: blur(18px) saturate(0.9);
-        z-index: 4;
-        pointer-events: none;
+      /* Grid gating — fully invisible during hydration so no top-to-bottom
+         genre stamping bleeds through. visibility:hidden preserves
+         layout; opacity drives the fade-in once hydration drains. */
+      body.fl-home-loading .latest-release .episode-wrap {
+        visibility: hidden !important;
+        opacity: 0 !important;
       }
-      .fl-nsfw.fl-nsfw-locked .fl-nsfw-overlay { display: flex; }
-      .fl-nsfw-label {
-        color: #fff;
-        font-size: 0.72rem;
-        font-weight: 700;
-        letter-spacing: 2px;
-        text-transform: uppercase;
+      .latest-release .episode-wrap {
+        transition: opacity 0.5s cubic-bezier(0.22, 1, 0.36, 1);
       }
-      /* NSFW global toggle — pink iOS-style switch next to "Latest Releases" */
-      .latest-release { position: relative; }
-      .fl-nsfw-toggle {
-        position: absolute;
-        top: 0;
-        right: 0;
+      /* Small loader pill — centered over the (invisible) grid. Sparkle
+         stars pop in sequence, Inter label underneath. Styled after the
+         devo "Digging deeper…" indicator. */
+      .fl-home-loader {
+        position: fixed;
+        top: 50%;
+        left: 50%;
+        transform: translate(-50%, -50%);
         display: inline-flex;
+        flex-direction: column;
         align-items: center;
         gap: 10px;
-        cursor: pointer;
-        user-select: none;
-        padding: 6px 10px;
-        z-index: 5;
-      }
-      .fl-nsfw-toggle-text {
-        font-size: 0.66rem;
-        font-weight: 700;
-        letter-spacing: 1.6px;
-        text-transform: uppercase;
-        color: rgba(255, 255, 255, 0.65);
-        transition: color 0.2s ease;
-      }
-      .fl-nsfw-toggle:hover .fl-nsfw-toggle-text { color: #fff; }
-      .fl-nsfw-toggle-switch {
-        position: relative;
-        display: inline-block;
-        width: 40px;
-        height: 22px;
-        flex-shrink: 0;
-      }
-      .fl-nsfw-toggle-input {
-        position: absolute;
+        z-index: 20;
+        pointer-events: none;
         opacity: 0;
-        width: 0;
-        height: 0;
+        animation: fl-loader-in 0.4s 0.05s cubic-bezier(0.16, 1, 0.3, 1) forwards;
       }
-      .fl-nsfw-toggle-slider {
+      .fl-home-loader.is-hidden {
+        opacity: 0 !important;
+        animation: none;
+        transform: translate(-50%, calc(-50% - 4px));
+        transition: opacity 0.35s ease, transform 0.35s ease;
+      }
+      .fl-home-loader-sparks {
+        position: relative;
+        width: 64px;
+        height: 22px;
+      }
+      .fl-home-loader-sparks span {
         position: absolute;
-        inset: 0;
-        background: rgba(255, 255, 255, 0.18);
-        border-radius: 999px;
-        transition: background 0.2s ease;
+        top: 0;
+        color: #ffcd3c;
+        opacity: 0;
+        text-shadow: 0 0 8px rgba(255, 205, 60, 0.7);
+        animation: fl-loader-spark 2.1s ease-in-out infinite;
+        font-family: 'Arial', sans-serif;
+        line-height: 1;
       }
-      .fl-nsfw-toggle-slider::before {
-        content: "";
-        position: absolute;
-        top: 3px;
-        left: 3px;
-        width: 16px;
-        height: 16px;
-        background: #fff;
-        border-radius: 50%;
-        transition: transform 0.22s cubic-bezier(0.22, 1, 0.36, 1);
-        box-shadow: 0 1px 3px rgba(0, 0, 0, 0.35);
+      .fl-home-loader-sparks span:nth-child(1) {
+        left: 4px;  top: 6px;  font-size: 12px;
+        animation-delay: 0s;    color: #c89a5a;
       }
-      .fl-nsfw-toggle-input:checked + .fl-nsfw-toggle-slider {
-        background: #d5015b;
+      .fl-home-loader-sparks span:nth-child(2) {
+        left: 24px; top: 0;    font-size: 20px;
+        animation-delay: 0.25s;
       }
-      .fl-nsfw-toggle-input:checked + .fl-nsfw-toggle-slider::before {
-        transform: translateX(18px);
+      .fl-home-loader-sparks span:nth-child(3) {
+        left: 46px; top: 4px;  font-size: 16px;
+        animation-delay: 0.5s;
       }
-      body.fl-nsfw-revealed .fl-nsfw-overlay { display: none !important; }
+      .fl-home-loader-text {
+        font-family: 'Inter', sans-serif;
+        font-size: 0.72rem;
+        font-weight: 600;
+        letter-spacing: 1.8px;
+        text-transform: uppercase;
+        color: rgba(255, 255, 255, 0.82);
+      }
+      @keyframes fl-loader-in {
+        to { opacity: 1; }
+      }
+      @keyframes fl-loader-spark {
+        0%, 75%, 100% { opacity: 0; transform: translateY(6px) scale(0.4); }
+        15%           { opacity: 1; transform: translateY(0)   scale(1); }
+        35%           { opacity: 0.5; transform: translateY(-4px) scale(0.8); }
+        55%           { opacity: 0;   transform: translateY(-12px) scale(0.3); }
+      }
+
       .search-results li { position: relative; }
       .fl-search-first {
         position: absolute;
@@ -1299,6 +1305,61 @@
     (document.head || document.documentElement).appendChild(style);
   }
 
+  // Home-feed hydration overlay: covers the grid until every card has its
+  // genre chips applied (and NSFW cards yanked), so the user sees one
+  // finished state instead of watching each card get stamped top-to-bottom.
+  // State object
+  // is declared at the top of the IIFE to avoid TDZ when the router
+  // dispatches straight into animePaheHomeInjector().
+  function _showHomeLoading() {
+    // Cancel any pending fade-out from a previous batch so pagination
+    // re-triggers the loader cleanly.
+    clearTimeout(_homeLoading.hideTimer);
+    clearTimeout(_homeLoading.removeTimer);
+    document.body.classList.add("fl-home-loading");
+    _homeLoading.startedAt = performance.now();
+
+    // If a loader is still around (possibly mid-fade), restore it
+    // instead of creating a duplicate.
+    if (_homeLoading.overlayEl) {
+      _homeLoading.overlayEl.classList.remove("is-hidden");
+      return;
+    }
+    const host = document.querySelector(".latest-release") || document.body;
+    const loader = document.createElement("div");
+    loader.className = "fl-home-loader";
+    loader.innerHTML =
+      '<div class="fl-home-loader-sparks">' +
+        '<span>\u2726</span><span>\u2728</span><span>\u2726</span>' +
+      '</div>' +
+      '<div class="fl-home-loader-text">Loading latest releases</div>';
+    host.appendChild(loader);
+    _homeLoading.overlayEl = loader;
+  }
+
+  function _hideHomeLoading() {
+    const s = _homeLoading;
+    if (!s.overlayEl) return;
+    const elapsed = performance.now() - s.startedAt;
+    const wait = Math.max(0, HOME_MIN_OVERLAY_MS - elapsed);
+    clearTimeout(s.hideTimer);
+    s.hideTimer = setTimeout(() => {
+      document.body.classList.remove("fl-home-loading");
+      s.overlayEl?.classList.add("is-hidden");
+      clearTimeout(s.removeTimer);
+      s.removeTimer = setTimeout(() => {
+        s.overlayEl?.remove();
+        s.overlayEl = null;
+      }, HOME_OVERLAY_FADE_MS);
+    }, wait);
+  }
+
+  function _checkHomeLoadingDrain() {
+    if (!_homeLoading.firstRunDone) return;
+    if (_homeLoading.pending > 0) return;
+    _hideHomeLoading();
+  }
+
   // Throttle genre hydration: /anime/{id} fetches are heavy, so cap parallelism.
   const _genreQueue = [];
   let _genreActive = 0;
@@ -1320,6 +1381,7 @@
     row.className = "fl-genre-row";
     titleWrap.appendChild(row);
 
+    _homeLoading.pending++;
     _genreQueue.push(() =>
       getAnimeDetails(animeId)
         .then(({ details }) => {
@@ -1342,35 +1404,16 @@
           }
 
           const genresAll = details?.genres || [];
-          // Blur the thumbnail for NSFW tags. First click on the card reveals
-          // the art (no navigation yet); a subsequent click plays/navigates.
+          // Hard-hide NSFW entries: rip the card out of the DOM entirely so
+          // the grid just closes up around it. No blur, no toggle, no escape
+          // hatch. Since the grid stays hidden until hydration drains, the
+          // user never sees the card flash in before it gets removed.
           const isNsfw = genresAll.some((g) =>
             /\b(ecchi|erotica|hentai)\b/i.test(g.name || "")
           );
           if (isNsfw) {
-            wrap.classList.add("fl-nsfw");
-            if (!_nsfwPrefOn()) wrap.classList.add("fl-nsfw-locked");
-            const snap = wrap.querySelector(".episode-snapshot");
-            if (snap && !snap.querySelector(".fl-nsfw-overlay")) {
-              const overlay = document.createElement("div");
-              overlay.className = "fl-nsfw-overlay";
-              overlay.innerHTML = '<span class="fl-nsfw-label">Tap to reveal</span>';
-              snap.appendChild(overlay);
-            }
-            if (snap && !snap.dataset.flNsfwBound) {
-              snap.dataset.flNsfwBound = "1";
-              snap.addEventListener(
-                "click",
-                (e) => {
-                  if (wrap.classList.contains("fl-nsfw-locked")) {
-                    e.preventDefault();
-                    e.stopPropagation();
-                    wrap.classList.remove("fl-nsfw-locked");
-                  }
-                },
-                true // capture so we fire before .play / EP 1 button handlers
-              );
-            }
+            wrap.remove();
+            return;
           }
 
           const genres = genresAll.slice(0, 3);
@@ -1385,63 +1428,26 @@
           row.classList.add("is-loaded");
         })
         .catch(() => row.remove())
+        .finally(() => {
+          _homeLoading.pending--;
+          _checkHomeLoadingDrain();
+        })
     );
     _pumpGenreQueue();
   }
 
-  // NSFW global toggle — when ON, all ecchi/erotica/hentai cards render
-  // unblurred; when OFF (default) they stay blurred behind "Tap to reveal".
-  const NSFW_PREF_KEY = "flNsfwRevealed";
-  function _nsfwPrefOn() {
-    try { return localStorage.getItem(NSFW_PREF_KEY) === "1"; } catch (e) { return false; }
-  }
-  function _setNsfwPref(on) {
-    try { localStorage.setItem(NSFW_PREF_KEY, on ? "1" : "0"); } catch (e) {}
-  }
-  function _applyNsfwPref(on) {
-    document.body.classList.toggle("fl-nsfw-revealed", on);
-    if (on) {
-      document.querySelectorAll(".fl-nsfw.fl-nsfw-locked").forEach((w) =>
-        w.classList.remove("fl-nsfw-locked")
-      );
-    } else {
-      document.querySelectorAll(".fl-nsfw").forEach((w) =>
-        w.classList.add("fl-nsfw-locked")
-      );
-    }
-  }
-  function _injectNsfwToggle() {
-    const container = document.querySelector(".latest-release");
-    const h2 = container?.querySelector("h2");
-    if (!container || !h2 || container.querySelector(".fl-nsfw-toggle")) return;
-
-    const label = document.createElement("label");
-    label.className = "fl-nsfw-toggle";
-    label.title = "Reveal NSFW thumbnails (ecchi / erotica / hentai)";
-    label.innerHTML =
-      '<span class="fl-nsfw-toggle-text">NSFW</span>' +
-      '<span class="fl-nsfw-toggle-switch">' +
-        '<input type="checkbox" class="fl-nsfw-toggle-input" />' +
-        '<span class="fl-nsfw-toggle-slider"></span>' +
-      '</span>';
-    const input = label.querySelector("input");
-    const initial = _nsfwPrefOn();
-    input.checked = initial;
-    _applyNsfwPref(initial);
-    input.addEventListener("change", () => {
-      const on = input.checked;
-      _setNsfwPref(on);
-      _applyNsfwPref(on);
-    });
-    h2.insertAdjacentElement("afterend", label);
-  }
-
   function animePaheHomeInjector() {
     injectFLStyles();
-    _injectNsfwToggle();
 
     const injectFirstButtons = () => {
-      document.querySelectorAll(".episode-wrap:not([data-fl-done])").forEach((wrap) => {
+      const fresh = document.querySelectorAll(".episode-wrap:not([data-fl-done])");
+      if (!fresh.length) return;
+      // New wave of cards — either initial load or pagination/AJAX.
+      // Re-gate the grid + re-show the loader until these drain.
+      _showHomeLoading();
+      _homeLoading.firstRunDone = false;
+
+      fresh.forEach((wrap) => {
         wrap.dataset.flDone = "1";
         const snapshot = wrap.querySelector(".episode-snapshot");
         const titleLink = wrap.querySelector(".episode-title a");
@@ -1478,12 +1484,23 @@
         const animeId = (href.match(/\/anime\/([^/?#]+)/) || [])[1];
         if (animeId) _hydrateGenres(wrap, animeId);
       });
+
+      _homeLoading.firstRunDone = true;
+      _checkHomeLoadingDrain();
+      // Safety net: don't trap the user behind the loader if a fetch stalls.
+      clearTimeout(_homeLoading.safetyTimer);
+      _homeLoading.safetyTimer = setTimeout(() => {
+        if (_homeLoading.overlayEl) _hideHomeLoading();
+      }, 20000);
     };
 
     injectFirstButtons();
+
+    // Observe the whole home container so pagination that swaps out
+    // .episode-list-wrapper still triggers our hook.
     const target =
-      document.querySelector(".episode-list-wrapper") ||
       document.querySelector(".latest-release") ||
+      document.querySelector(".episode-list-wrapper") ||
       document.body;
     if (target) {
       new MutationObserver(injectFirstButtons).observe(target, {
