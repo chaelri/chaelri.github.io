@@ -94,6 +94,9 @@
             <button id="notesToggleBtn" class="ctrl-icon-btn hidden" title="Toggle all notes">
               <span class="material-symbols-outlined">edit_note</span>
             </button>
+            <button id="canvasModeBtn" class="ctrl-icon-btn hidden" title="Canvas mode">
+              <span class="material-symbols-outlined">brush</span>
+            </button>
             <div id="mode-toggle" class="mode-toggle">
               <span class="material-symbols-outlined">light_mode</span>
             </div>
@@ -486,6 +489,107 @@
       <div class="soap-screen-scroll" id="soapScreenScroll">
         <div class="soap-screen-ref" id="soapScreenRef"></div>
         <div class="soap-screen-body" id="soapScreenBody"></div>
+      </div>
+    </div>
+
+    <!-- CANVAS MODE OVERLAY -->
+    <div id="canvasModeOverlay" class="cm-overlay" hidden>
+      <div class="cm-topbar">
+        <button class="cm-icon-btn" id="cmCloseBtn" title="Close">
+          <span class="material-symbols-outlined">arrow_back_ios_new</span>
+        </button>
+        <div class="cm-title" id="cmTitle"></div>
+        <div class="cm-topbar-actions">
+          <button class="cm-icon-btn" id="cmClearBtn" title="Clear all">
+            <span class="material-symbols-outlined">delete_sweep</span>
+          </button>
+        </div>
+      </div>
+
+      <div class="cm-toolbar">
+        <div class="cm-tools">
+          <button class="cm-tool-btn active" data-tool="pan" title="Pan">
+            <span class="material-symbols-outlined">pan_tool</span>
+          </button>
+          <button class="cm-tool-btn" data-tool="highlight" title="Highlight">
+            <span class="material-symbols-outlined">ink_highlighter</span>
+          </button>
+          <button class="cm-tool-btn" data-tool="eraser" title="Eraser">
+            <span class="material-symbols-outlined">ink_eraser</span>
+          </button>
+        </div>
+        <div class="cm-swatches" id="cmSwatches">
+          <button class="cm-swatch" data-color="yellow" style="--sw:#ffe66b"></button>
+          <button class="cm-swatch" data-color="pink"   style="--sw:#f9a8d4"></button>
+          <button class="cm-swatch" data-color="blue"   style="--sw:#93c5fd"></button>
+          <button class="cm-swatch" data-color="orange" style="--sw:#fdba74"></button>
+          <button class="cm-swatch" data-color="green"  style="--sw:#bef264"></button>
+        </div>
+      </div>
+
+      <div class="cm-viewport" id="cmViewport">
+        <div class="cm-scroll" id="cmScroll">
+          <div class="cm-paper" id="cmPaper">
+            <div class="cm-passage-title" id="cmPassageTitle"></div>
+            <div class="cm-passage" id="cmPassage"></div>
+            <div class="cm-tail-spacer" aria-hidden="true"></div>
+          </div>
+        </div>
+      </div>
+
+      <div class="cm-popover" id="cmPopover" hidden>
+        <div class="cm-popover-swatches">
+          <button class="cm-pop-swatch" data-color="yellow" style="--sw:#ffe66b"></button>
+          <button class="cm-pop-swatch" data-color="pink"   style="--sw:#f9a8d4"></button>
+          <button class="cm-pop-swatch" data-color="blue"   style="--sw:#93c5fd"></button>
+          <button class="cm-pop-swatch" data-color="orange" style="--sw:#fdba74"></button>
+          <button class="cm-pop-swatch" data-color="green"  style="--sw:#bef264"></button>
+        </div>
+        <div class="cm-popover-actions">
+          <button class="cm-pop-action" data-action="clear" title="Clear highlight">
+            <span class="material-symbols-outlined">ink_eraser</span>
+          </button>
+          <button class="cm-pop-action" data-action="note" title="Add note">
+            <span class="material-symbols-outlined">edit_note</span>
+          </button>
+        </div>
+      </div>
+
+      <div class="cm-hint" id="cmHint"></div>
+
+      <!-- Note input modal -->
+      <div class="cm-note-modal" id="cmNoteModal" hidden>
+        <div class="cm-note-card">
+          <div class="cm-note-ref" id="cmNoteRef"></div>
+          <textarea class="cm-note-input" id="cmNoteInput" placeholder="Write your note…"></textarea>
+          <div class="cm-note-actions">
+            <button class="cm-note-btn cm-note-cancel" id="cmNoteCancel">Cancel</button>
+            <button class="cm-note-btn cm-note-save" id="cmNoteSave">Save</button>
+          </div>
+        </div>
+      </div>
+
+      <!-- Note view popover (verse-card style) -->
+      <div class="cm-note-view" id="cmNoteView" hidden>
+        <div class="cm-note-view-card">
+          <div class="cm-note-view-head">
+            <div class="cm-note-view-ref" id="cmNoteViewRef"></div>
+            <button class="cm-note-view-close" id="cmNoteViewClose" aria-label="Close">
+              <span class="material-symbols-outlined">close</span>
+            </button>
+          </div>
+          <div class="cm-note-view-body" id="cmNoteViewBody"></div>
+          <div class="cm-note-view-actions">
+            <button class="cm-note-view-action-btn" id="cmNoteViewEdit">
+              <span class="material-symbols-outlined">edit</span>
+              Edit
+            </button>
+            <button class="cm-note-view-action-btn cm-note-view-action-danger" id="cmNoteViewDelete">
+              <span class="material-symbols-outlined">delete</span>
+              Delete
+            </button>
+          </div>
+        </div>
       </div>
     </div>
 

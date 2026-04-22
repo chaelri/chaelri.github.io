@@ -1470,6 +1470,7 @@ function ttsShowContinuePrompt() {
     document.getElementById("nextChapterBtn").classList.remove("hidden");
     document.getElementById("ttsPlayBtn").classList.remove("hidden");
     document.getElementById("notesToggleBtn").classList.remove("hidden");
+    document.getElementById("canvasModeBtn")?.classList.remove("hidden");
     await loadPassage();
     runAIForCurrentPassage();
     playChapter();
@@ -3558,6 +3559,7 @@ loadBtn.onclick = async () => {
   document.getElementById("nextChapterBtn").classList.remove("hidden");
   document.getElementById("ttsPlayBtn").classList.remove("hidden");
   document.getElementById("notesToggleBtn").classList.remove("hidden");
+  document.getElementById("canvasModeBtn")?.classList.remove("hidden");
   document.getElementById("storyReflectRow")?.classList.remove("hidden");
   updateStorySeenState();
   resetAISections();
@@ -3620,6 +3622,7 @@ homeBtn.onclick = () => {
   document.getElementById("nextChapterBtn").classList.add("hidden");
   document.getElementById("ttsPlayBtn").classList.add("hidden");
   document.getElementById("notesToggleBtn").classList.add("hidden");
+  document.getElementById("canvasModeBtn")?.classList.add("hidden");
   _allNotesOpen = false;
   document.getElementById("notesToggleBtn").classList.remove("ctrl-icon-active");
   stopTTS();
@@ -8378,3 +8381,495 @@ async function _imgcrShare() {
     if (e.key === "Escape") closeSearch();
   });
 })();
+
+/* =====================================================================
+ * CANVAS MODE — full-screen highlight / note / text view (paper bg, no scale)
+ * =====================================================================
+ * Per-passage state (localStorage key `devo.canvas.<book>-<chapter>`):
+ *   { highlights:{wordIdx:color}, notes:{wordIdx:text},
+ *     textBoxes:[{x,y,text}], gridOn }
+ * Highlight is applied LIVE as the pointer crosses a word (WYSIWYG — same
+ * color during swipe and after). Word hit-testing uses elementFromPoint.
+ * No pan/zoom transform → text stays crisp.
+ * =================================================================== */
+(function canvasMode() {
+  const overlay   = document.getElementById("canvasModeOverlay");
+  if (!overlay) return;
+  const btn       = document.getElementById("canvasModeBtn");
+  const closeBtn  = document.getElementById("cmCloseBtn");
+  const titleEl   = document.getElementById("cmTitle");
+  const clearBtn  = document.getElementById("cmClearBtn");
+  const viewport  = document.getElementById("cmViewport");
+  const scrollEl  = document.getElementById("cmScroll");
+  const paperEl   = document.getElementById("cmPaper");
+  const passageTitleEl2 = document.getElementById("cmPassageTitle");
+  const passageEl = document.getElementById("cmPassage");
+  const popover   = document.getElementById("cmPopover");
+  const hintEl    = document.getElementById("cmHint");
+  const noteModal = document.getElementById("cmNoteModal");
+  const noteRef   = document.getElementById("cmNoteRef");
+  const noteInput = document.getElementById("cmNoteInput");
+  const noteSave  = document.getElementById("cmNoteSave");
+  const noteCancel = document.getElementById("cmNoteCancel");
+  const noteView  = document.getElementById("cmNoteView");
+  const noteViewRef = document.getElementById("cmNoteViewRef");
+  const noteViewBody = document.getElementById("cmNoteViewBody");
+  const noteViewClose = document.getElementById("cmNoteViewClose");
+  const noteViewEdit = document.getElementById("cmNoteViewEdit");
+  const noteViewDelete = document.getElementById("cmNoteViewDelete");
+
+  const DEFAULT_COLOR = "yellow";
+  let state = null;
+  let stateKey = null;
+  let currentInfo = null;     // { bookId, bookName, chapterNum, ... }
+  let tool = "pan";
+  let color = DEFAULT_COLOR;
+  let strokeActive = false;
+  let strokeTouched = null;   // Set of word indices touched this stroke
+  let strokePointerId = null;
+
+  function showHint(msg) {
+    hintEl.textContent = msg;
+    hintEl.classList.add("cm-hint-show");
+    clearTimeout(showHint._t);
+    showHint._t = setTimeout(() => hintEl.classList.remove("cm-hint-show"), 1800);
+  }
+
+  // ---------- Persistence ----------
+  function loadState(key) {
+    try {
+      const raw = localStorage.getItem(`devo.canvas.${key}`);
+      if (raw) {
+        const parsed = JSON.parse(raw);
+        return { highlights: parsed.highlights || {} };
+      }
+    } catch (_) {}
+    return { highlights: {} };
+  }
+  function saveState() {
+    if (!stateKey) return;
+    try { localStorage.setItem(`devo.canvas.${stateKey}`, JSON.stringify(state)); } catch (_) {}
+  }
+
+  // ---------- Passage info ----------
+  function getCurrentPassageInfo() {
+    const bookId = bookEl?.value;
+    const chapterNum = chapterEl?.value;
+    if (!bookId || !chapterNum || !bibleData) return null;
+    const bookName = BIBLE_META[bookId]?.name;
+    if (!bookName) return null;
+    const chapterContent = bibleData[bookName.toUpperCase()]?.[chapterNum];
+    if (!chapterContent) return null;
+    return { bookId, bookName, chapterNum, chapterContent, key: `${bookId}-${chapterNum}` };
+  }
+
+  // ---------- Render passage ----------
+  function renderPassage(info) {
+    passageEl.innerHTML = "";
+    let wordIdx = 0;
+    const verses = Object.entries(info.chapterContent)
+      .map(([v, t]) => ({ v, t }))
+      .sort((a, b) => parseInt(a.v) - parseInt(b.v));
+
+    for (const { v, t } of verses) {
+      const verseEl2 = document.createElement("div");
+      verseEl2.className = "cm-verse";
+      const num = document.createElement("span");
+      num.className = "cm-verse-num";
+      num.textContent = v;
+      verseEl2.appendChild(num);
+      const verseKey = keyOf(info.bookId, info.chapterNum, v);
+      const words = t.trim().replace(/\s+/g, " ").split(" ");
+      for (let i = 0; i < words.length; i++) {
+        const w = document.createElement("span");
+        w.className = "cm-word";
+        w.dataset.idx = wordIdx;
+        w.dataset.verseKey = verseKey;
+        w.dataset.verse = v;
+        w.textContent = words[i];
+        const c = state.highlights[wordIdx];
+        if (c) w.dataset.color = c;
+        verseEl2.appendChild(w);
+        if (i < words.length - 1) {
+          const gap = document.createElement("span");
+          gap.className = "cm-gap";
+          gap.dataset.left = wordIdx;
+          gap.dataset.right = wordIdx + 1;
+          gap.textContent = " ";
+          verseEl2.appendChild(gap);
+        }
+        wordIdx++;
+      }
+      passageEl.appendChild(verseEl2);
+    }
+    refreshRuns();
+    refreshNoteBadges();
+  }
+
+  // Float a small badge ABOVE each noted word (absolute-positioned child),
+  // so it never breaks the inline reading flow.
+  function refreshNoteBadges() {
+    passageEl.querySelectorAll(".cm-note-badge").forEach((n) => n.remove());
+    passageEl.querySelectorAll(".cm-word").forEach((w) => {
+      const idx = +w.dataset.idx;
+      const vKey = w.dataset.verseKey;
+      const entries = (typeof comments !== "undefined" && comments[vKey]) || [];
+      if (entries.some((e) => e.wordIdx === idx)) {
+        const badge = document.createElement("span");
+        badge.className = "cm-note-badge";
+        badge.dataset.wordIdx = idx;
+        badge.innerHTML = '<span class="material-symbols-outlined">sticky_note_2</span>';
+        badge.setAttribute("aria-label", "View note");
+        w.classList.add("cm-word-has-note");
+        w.appendChild(badge);
+      }
+    });
+  }
+
+  // Adjacent same-color words fuse into a single bar:
+  //   - gap span colored when both sides share color
+  //   - .cm-run-l / .cm-run-r on words drop the joining side's radius
+  function refreshRuns() {
+    const words = [...passageEl.querySelectorAll(".cm-word")];
+    words.forEach((w, i) => {
+      w.classList.remove("cm-run-l", "cm-run-r");
+      const c = state.highlights[+w.dataset.idx];
+      if (!c) return;
+      const prev = words[i - 1];
+      const next = words[i + 1];
+      if (prev && state.highlights[+prev.dataset.idx] === c) w.classList.add("cm-run-l");
+      if (next && state.highlights[+next.dataset.idx] === c) w.classList.add("cm-run-r");
+    });
+    passageEl.querySelectorAll(".cm-gap").forEach((g) => {
+      const cl = state.highlights[+g.dataset.left];
+      const cr = state.highlights[+g.dataset.right];
+      if (cl && cl === cr) g.dataset.color = cl;
+      else delete g.dataset.color;
+    });
+  }
+
+  // ---------- Textboxes ----------
+  // ---------- Note input modal (writes to app's comments store) ----------
+  let pendingNote = null; // { wordIdx, verseKey, verseNum, bookName, chapterNum }
+
+  function openNoteInput(wordEl) {
+    const idx = +wordEl.dataset.idx;
+    const verseKey = wordEl.dataset.verseKey;
+    if (!verseKey) return;
+    const verseNum = wordEl.dataset.verse;
+    const bookName = currentInfo?.bookName || verseKey.split("-")[0];
+    const chapterNum = currentInfo?.chapterNum || verseKey.split("-")[1];
+    pendingNote = { wordIdx: idx, verseKey, verseNum, bookName, chapterNum };
+    const existing = (comments[verseKey] || []).find((e) => e.wordIdx === idx);
+    noteInput.value = existing ? existing.text : "";
+    noteRef.textContent = `${bookName} ${chapterNum}:${verseNum}`;
+    noteModal.hidden = false;
+    setTimeout(() => noteInput.focus(), 30);
+  }
+  function closeNoteInput() {
+    noteModal.hidden = true;
+    pendingNote = null;
+  }
+  noteSave.addEventListener("click", () => {
+    if (!pendingNote) return;
+    const text = noteInput.value.trim();
+    const { verseKey, wordIdx: idx } = pendingNote;
+    if (!text) {
+      // Empty save = delete existing
+      if (comments[verseKey]) {
+        const ei = comments[verseKey].findIndex((e) => e.wordIdx === idx);
+        if (ei !== -1) comments[verseKey].splice(ei, 1);
+        if (comments[verseKey].length === 0) delete comments[verseKey];
+        saveComments();
+        if (typeof _debouncedPushSync === "function") _debouncedPushSync();
+      }
+      closeNoteInput();
+      refreshNoteBadges();
+      return;
+    }
+    if (!comments[verseKey]) comments[verseKey] = [];
+    const existingIdx = comments[verseKey].findIndex((e) => e.wordIdx === idx);
+    const entry = { text, time: Date.now(), wordIdx: idx };
+    if (existingIdx !== -1) comments[verseKey][existingIdx] = entry;
+    else comments[verseKey].push(entry);
+    saveComments();
+    if (typeof _debouncedPushSync === "function") _debouncedPushSync();
+    closeNoteInput();
+    refreshNoteBadges();
+  });
+  noteCancel.addEventListener("click", closeNoteInput);
+  noteModal.addEventListener("click", (e) => {
+    if (e.target === noteModal) closeNoteInput();
+  });
+
+  // ---------- Note view popover ----------
+  function openNoteView(wordIdx, anchorEl) {
+    const w = passageEl.querySelector(`.cm-word[data-idx="${wordIdx}"]`);
+    if (!w) return;
+    const verseKey = w.dataset.verseKey;
+    const note = (comments[verseKey] || []).find((e) => e.wordIdx === wordIdx);
+    if (!note) return;
+    const verseNum = w.dataset.verse;
+    const bookName = currentInfo?.bookName || "";
+    const chapterNum = currentInfo?.chapterNum || "";
+    noteViewRef.textContent = `${bookName} ${chapterNum}:${verseNum}`;
+    noteViewBody.textContent = note.text;
+    noteView.dataset.wordIdx = wordIdx;
+    noteView.hidden = false;
+    // Position near the anchor (badge or word)
+    const r = (anchorEl || w).getBoundingClientRect();
+    const pw = noteView.offsetWidth;
+    const ph = noteView.offsetHeight;
+    let left = r.left + r.width / 2 - pw / 2;
+    let top = r.bottom + 10;
+    if (top + ph > window.innerHeight - 8) top = r.top - ph - 10;
+    left = Math.max(8, Math.min(left, window.innerWidth - pw - 8));
+    top = Math.max(8, top);
+    noteView.style.left = left + "px";
+    noteView.style.top = top + "px";
+  }
+  function closeNoteView() {
+    noteView.hidden = true;
+    noteView.dataset.wordIdx = "";
+  }
+  noteViewClose.addEventListener("click", closeNoteView);
+  noteViewEdit.addEventListener("click", () => {
+    const idx = +noteView.dataset.wordIdx;
+    const w = passageEl.querySelector(`.cm-word[data-idx="${idx}"]`);
+    closeNoteView();
+    if (w) openNoteInput(w);
+  });
+  noteViewDelete.addEventListener("click", () => {
+    const idx = +noteView.dataset.wordIdx;
+    const w = passageEl.querySelector(`.cm-word[data-idx="${idx}"]`);
+    if (!w) { closeNoteView(); return; }
+    const verseKey = w.dataset.verseKey;
+    _confirmDialog("Delete this note?", () => {
+      if (comments[verseKey]) {
+        const ei = comments[verseKey].findIndex((e) => e.wordIdx === idx);
+        if (ei !== -1) comments[verseKey].splice(ei, 1);
+        if (comments[verseKey].length === 0) delete comments[verseKey];
+        saveComments();
+        if (typeof _debouncedPushSync === "function") _debouncedPushSync();
+      }
+      closeNoteView();
+      refreshNoteBadges();
+    });
+  });
+
+  // ---------- Tool UI ----------
+  function setTool(t) {
+    tool = t;
+    overlay.querySelectorAll(".cm-tool-btn").forEach((b) => b.classList.toggle("active", b.dataset.tool === t));
+    viewport.classList.remove("cm-tool-pan", "cm-tool-draw", "cm-tool-erase");
+    if (t === "highlight") viewport.classList.add("cm-tool-draw");
+    else if (t === "eraser") viewport.classList.add("cm-tool-erase");
+    else viewport.classList.add("cm-tool-pan");
+    const hints = {
+      pan: "Scroll · tap a word for options",
+      highlight: "Swipe across words to highlight",
+      eraser: "Swipe across words to erase",
+    };
+    showHint(hints[t] || "");
+  }
+  overlay.querySelectorAll(".cm-tool-btn").forEach((b) =>
+    b.addEventListener("click", () => setTool(b.dataset.tool))
+  );
+
+  function setColor(c) {
+    color = c;
+    overlay.querySelectorAll(".cm-swatch").forEach((s) => s.classList.toggle("active", s.dataset.color === c));
+    if (tool !== "highlight") setTool("highlight");
+  }
+  overlay.querySelectorAll(".cm-swatch").forEach((s) =>
+    s.addEventListener("click", () => setColor(s.dataset.color))
+  );
+
+  // ---------- Word hit detection ----------
+  function wordAtPoint(clientX, clientY) {
+    const el = document.elementFromPoint(clientX, clientY);
+    if (!el) return null;
+    // Note badges sit inside words — if the pointer lands on a badge, ignore it
+    // for stroke purposes (stroke shouldn't fire on badges anyway, but belt-and-suspenders).
+    if (el.closest && el.closest(".cm-note-badge")) return null;
+    const w = el.closest && el.closest(".cm-word");
+    if (w) return w;
+    const gap = el.closest && el.closest(".cm-gap");
+    if (gap) return passageEl.querySelector(`.cm-word[data-idx="${gap.dataset.left}"]`);
+    return null;
+  }
+
+  function applyStrokeAt(cx, cy) {
+    const wordEl = wordAtPoint(cx, cy);
+    if (!wordEl) return;
+    const idx = +wordEl.dataset.idx;
+    if (strokeTouched.has(idx)) return;
+    strokeTouched.add(idx);
+    if (tool === "highlight") {
+      state.highlights[idx] = color;
+      wordEl.dataset.color = color;
+    } else if (tool === "eraser") {
+      if (idx in state.highlights) {
+        delete state.highlights[idx];
+        delete wordEl.dataset.color;
+      }
+    }
+    refreshRuns();
+  }
+
+  // ---------- Pointer on viewport ----------
+  viewport.addEventListener("pointerdown", (e) => {
+    closePopover();
+    // If the pointerdown landed on a note badge, don't begin a stroke —
+    // let the click bubble so the view opens, even in highlight/eraser mode.
+    if (e.target.closest(".cm-note-badge")) return;
+    if (tool === "highlight" || tool === "eraser") {
+      e.preventDefault();
+      strokeActive = true;
+      strokeTouched = new Set();
+      strokePointerId = e.pointerId;
+      try { viewport.setPointerCapture(e.pointerId); } catch (_) {}
+      applyStrokeAt(e.clientX, e.clientY);
+    }
+    // pan mode: native scroll + click-to-popover handled below
+  });
+
+  viewport.addEventListener("pointermove", (e) => {
+    if (!strokeActive || e.pointerId !== strokePointerId) return;
+    applyStrokeAt(e.clientX, e.clientY);
+  });
+
+  function finishStroke(e) {
+    if (!strokeActive) return;
+    if (e && e.pointerId !== strokePointerId) return;
+    try { viewport.releasePointerCapture(strokePointerId); } catch (_) {}
+    strokeActive = false;
+    strokePointerId = null;
+    strokeTouched = null;
+    saveState();
+  }
+  viewport.addEventListener("pointerup", finishStroke);
+  viewport.addEventListener("pointercancel", finishStroke);
+
+  // Tap a word → highlight/note popover. Tap a note badge → view popover.
+  passageEl.addEventListener("click", (e) => {
+    const badge = e.target.closest(".cm-note-badge");
+    if (badge) {
+      e.stopPropagation();
+      closePopover();
+      if (tool !== "pan") setTool("pan");
+      openNoteView(+badge.dataset.wordIdx, badge);
+      return;
+    }
+    if (tool !== "pan") return;
+    const w = e.target.closest(".cm-word");
+    if (!w) return;
+    openPopover(w);
+  });
+
+  // ---------- Popover ----------
+  function openPopover(wordEl) {
+    popover.hidden = false;
+    popover.dataset.wordIdx = wordEl.dataset.idx;
+    const r = wordEl.getBoundingClientRect();
+    const pw = popover.offsetWidth;
+    const ph = popover.offsetHeight;
+    let left = r.left + r.width / 2 - pw / 2;
+    let top  = r.top - ph - 10;
+    if (top < 70) top = r.bottom + 10;
+    left = Math.max(8, Math.min(left, window.innerWidth - pw - 8));
+    popover.style.left = left + "px";
+    popover.style.top  = top + "px";
+  }
+  function closePopover() {
+    popover.hidden = true;
+    popover.dataset.wordIdx = "";
+  }
+
+  popover.addEventListener("click", (e) => {
+    const idx = +popover.dataset.wordIdx;
+    const wordEl = passageEl.querySelector(`.cm-word[data-idx="${idx}"]`);
+    const swatch = e.target.closest(".cm-pop-swatch");
+    const action = e.target.closest(".cm-pop-action");
+    if (swatch) {
+      const c = swatch.dataset.color;
+      state.highlights[idx] = c;
+      if (wordEl) wordEl.dataset.color = c;
+      refreshRuns();
+      saveState();
+      closePopover();
+      return;
+    }
+    if (action) {
+      const a = action.dataset.action;
+      if (a === "clear") {
+        delete state.highlights[idx];
+        if (wordEl) delete wordEl.dataset.color;
+        refreshRuns();
+        saveState();
+        closePopover();
+      } else if (a === "note") {
+        closePopover();
+        if (wordEl) openNoteInput(wordEl);
+      }
+    }
+  });
+
+  document.addEventListener("click", (e) => {
+    if (overlay.hidden) return;
+    if (!popover.hidden && !popover.contains(e.target) && !e.target.closest(".cm-word")) closePopover();
+    if (!noteView.hidden && !noteView.contains(e.target) && !e.target.closest(".cm-note-badge")) closeNoteView();
+  });
+
+  // ---------- Grid / clear ----------
+  clearBtn.addEventListener("click", () => {
+    _confirmDialog("Clear all highlights on this canvas?", () => {
+      state.highlights = {};
+      passageEl.querySelectorAll(".cm-word").forEach((w) => { delete w.dataset.color; });
+      refreshRuns();
+      saveState();
+    });
+  });
+
+  // ---------- Keyboard ----------
+  document.addEventListener("keydown", (e) => {
+    if (overlay.hidden) return;
+    if (noteModal && !noteModal.hidden) return; // typing in note input
+    if (e.key === "Escape") {
+      if (!noteView.hidden) closeNoteView();
+      else if (!popover.hidden) closePopover();
+      else close();
+    } else if (e.key === "h" || e.key === "H") setTool("highlight");
+    else if (e.key === "e" || e.key === "E") setTool("eraser");
+    else if (e.key === "p" || e.key === "P") setTool("pan");
+  });
+
+  // ---------- Open / close ----------
+  function open() {
+    const info = getCurrentPassageInfo();
+    if (!info) { alert("Load a passage first."); return; }
+    currentInfo = info;
+    stateKey = info.key;
+    state = loadState(stateKey);
+    const titleText = `${info.bookName} ${info.chapterNum}`;
+    titleEl.textContent = titleText;
+    passageTitleEl2.textContent = titleText;
+
+    renderPassage(info);
+
+    overlay.hidden = false;
+    setColor(DEFAULT_COLOR);
+    setTool("pan");
+    scrollEl.scrollTop = 0;
+  }
+  function close() {
+    closePopover();
+    closeNoteView();
+    closeNoteInput();
+    overlay.hidden = true;
+  }
+
+  btn?.addEventListener("click", open);
+  closeBtn.addEventListener("click", close);
+})();
+
