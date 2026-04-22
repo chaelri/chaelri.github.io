@@ -5042,9 +5042,9 @@ body.light {
   inset: 0;
   z-index: 10100;
   display: flex;
-  align-items: flex-end;
+  align-items: center;
   justify-content: center;
-  padding: 0 16px max(env(safe-area-inset-bottom), 24px);
+  padding: 20px;
   background: rgba(0,0,0,0);
   transition: background 0.25s ease;
   pointer-events: none;
@@ -5055,16 +5055,17 @@ body.light {
 }
 .confirm-dialog[hidden] { display: none !important; }
 .confirm-card {
-  width: 100%;
-  max-width: 480px;
+  width: fit-content;
+  max-width: 440px;
   background: #1a2340;
   border-radius: 20px;
-  padding: 20px 20px 16px;
-  transform: translateY(120%);
-  transition: transform 0.3s cubic-bezier(0.16, 1, 0.3, 1);
+  padding: 18px 22px 14px;
+  transform: translateY(24px) scale(0.96);
+  opacity: 0;
+  transition: transform 0.25s cubic-bezier(0.16,1,0.3,1), opacity 0.2s ease;
   border: 1px solid rgba(255,255,255,0.08);
 }
-.confirm-visible .confirm-card { transform: translateY(0); }
+.confirm-visible .confirm-card { transform: translateY(0) scale(1); opacity: 1; }
 .confirm-message {
   font-size: 16px;
   font-weight: 600;
@@ -5074,13 +5075,15 @@ body.light {
 .confirm-actions {
   display: flex;
   gap: 10px;
+  justify-content: flex-end;
 }
 .confirm-cancel, .confirm-ok {
-  flex: 1;
-  padding: 12px !important;
+  flex: 0 0 auto;
+  padding: 9px 18px !important;
   border-radius: 14px !important;
   font-size: 15px !important;
   font-weight: 600;
+  min-width: 80px;
 }
 .confirm-cancel {
   background: rgba(255,255,255,0.08) !important;
@@ -5097,11 +5100,26 @@ body.light {
 .light .confirm-card { background: #fff; border-color: rgba(0,0,0,0.08); color: #0b1220; }
 .light .confirm-cancel { background: rgba(0,0,0,0.07) !important; color: #333; }
 
-/* On wider screens, center the dialog instead of treating it as a bottom-sheet. */
+/* On wider screens, center the dialog and let it size to content. */
 @media (min-width: 600px) {
   .confirm-dialog { align-items: center; padding: 20px; }
-  .confirm-card { transform: translateY(24px) scale(0.96); opacity: 0; transition: transform 0.25s cubic-bezier(0.16,1,0.3,1), opacity 0.2s ease; }
+  .confirm-card {
+    width: fit-content;
+    min-width: 0;
+    max-width: 440px;
+    padding: 18px 22px 14px;
+    transform: translateY(24px) scale(0.96);
+    opacity: 0;
+    transition: transform 0.25s cubic-bezier(0.16,1,0.3,1), opacity 0.2s ease;
+  }
   .confirm-visible .confirm-card { transform: translateY(0) scale(1); opacity: 1; }
+  /* Right-align actions with natural button widths — standard dialog convention. */
+  .confirm-actions { justify-content: flex-end; }
+  .confirm-cancel, .confirm-ok {
+    flex: 0 0 auto !important;
+    padding: 9px 18px !important;
+    min-width: 80px;
+  }
 }
 
 /* AI greeting message */

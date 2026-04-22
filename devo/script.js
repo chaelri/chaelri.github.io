@@ -8661,6 +8661,12 @@ async function _imgcrShare() {
   function setTool(t) {
     tool = t;
     overlay.querySelectorAll(".cm-tool-btn").forEach((b) => b.classList.toggle("active", b.dataset.tool === t));
+    // Swatches highlight only while the highlight tool is active — in pan/eraser,
+    // there's no selected color (no swatch should look pressed).
+    const showSwatch = (t === "highlight");
+    overlay.querySelectorAll(".cm-swatch").forEach((s) => {
+      s.classList.toggle("active", showSwatch && s.dataset.color === color);
+    });
     viewport.classList.remove("cm-tool-pan", "cm-tool-draw", "cm-tool-erase");
     if (t === "highlight") viewport.classList.add("cm-tool-draw");
     else if (t === "eraser") viewport.classList.add("cm-tool-erase");
@@ -8678,8 +8684,9 @@ async function _imgcrShare() {
 
   function setColor(c) {
     color = c;
-    overlay.querySelectorAll(".cm-swatch").forEach((s) => s.classList.toggle("active", s.dataset.color === c));
-    if (tool !== "highlight") setTool("highlight");
+    // Clicking a swatch means "I want to highlight with this" → switch to highlight
+    // tool, which also refreshes swatch active state.
+    setTool("highlight");
   }
   overlay.querySelectorAll(".cm-swatch").forEach((s) =>
     s.addEventListener("click", () => setColor(s.dataset.color))
@@ -8858,7 +8865,7 @@ async function _imgcrShare() {
     renderPassage(info);
 
     overlay.hidden = false;
-    setColor(DEFAULT_COLOR);
+    color = DEFAULT_COLOR; // remembered for when user activates highlight tool
     setTool("pan");
     scrollEl.scrollTop = 0;
   }
