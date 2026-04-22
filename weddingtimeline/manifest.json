@@ -1,11 +1,11 @@
 {
-  "name": "Charlie & Karla: The Main Story",
+  "name": "Charlie & Karla · Wedding Binder",
   "short_name": "CK Wedding",
   "start_url": "./index.html",
   "display": "standalone",
-  "background_color": "#0f0f0f",
-  "theme_color": "#0f0f0f",
-  "description": "The Ultimate Wedding Binder & Timeline",
+  "background_color": "#0a0b14",
+  "theme_color": "#0a0b14",
+  "description": "Charlie & Karla's wedding binder — timeline, entourage, floor plan and day-of checklists in one cinematic dashboard.",
   "icons": [
     {
       "src": "https://cdn-icons-png.flaticon.com/512/3656/3656830.png",
