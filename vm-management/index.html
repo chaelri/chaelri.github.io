@@ -246,6 +246,17 @@
             <div id="role-pills" class="flex flex-col gap-1.5 max-h-56 overflow-y-auto pr-1 py-1 role-pills-scroll"></div>
           </div>
 
+          <!-- Service Selection -->
+          <div class="mt-4">
+            <p class="text-xs uppercase tracking-widest text-neutral-400 font-semibold mb-2">Serving Which Service(s)?</p>
+            <div class="grid grid-cols-4 gap-2">
+              <button type="button" class="service-pill py-2 rounded-lg text-xs font-bold border transition" data-service="9AM">9 AM</button>
+              <button type="button" class="service-pill py-2 rounded-lg text-xs font-bold border transition" data-service="12NN">12 NN</button>
+              <button type="button" class="service-pill py-2 rounded-lg text-xs font-bold border transition" data-service="3PM">3 PM</button>
+              <button type="button" class="service-pill py-2 rounded-lg text-xs font-bold border transition" data-service="6PM">6 PM</button>
+            </div>
+          </div>
+
           <button
             type="submit"
             id="segment-submit-btn"
@@ -280,6 +291,12 @@
 
         <!-- No comms fallback (hidden by default, shown when no code) -->
         <div id="comms-none-block" class="hidden"></div>
+
+        <!-- Comms queued notice (shown when comms is currently in use by someone else) -->
+        <div id="comms-queued-block" class="hidden bg-amber-50 border border-amber-200 rounded-xl px-4 py-3 mb-4 text-center">
+          <p class="text-xs font-bold text-amber-800 mb-0.5">You're in queue for this comms</p>
+          <p class="text-xs text-amber-600">It will be auto-assigned to you once the current holder times out.</p>
+        </div>
 
         <!-- Waiting for admin confirmation -->
         <div class="bg-amber-50 border border-amber-200 rounded-xl p-5 mb-4 text-center">

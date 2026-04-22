@@ -28,6 +28,45 @@ function getPHDate() {
   return new Date().toLocaleDateString('en-CA', { timeZone: 'Asia/Manila' }); // YYYY-MM-DD
 }
 
+function getPHHour() {
+  return parseInt(new Date().toLocaleString("en-US", { timeZone: "Asia/Manila", hour: "numeric", hour12: false }));
+}
+
+// =============================
+// Service Selection (Sunday Services)
+// =============================
+const SERVICE_SLOTS = ["9AM", "12NN", "3PM", "6PM"];
+let selectedServices = new Set();
+
+function initServicePills() {
+  const phHour = getPHHour();
+  selectedServices = phHour < 12 ? new Set(["9AM", "12NN"]) : new Set(["3PM", "6PM"]);
+  updateServicePillUI();
+}
+
+function updateServicePillUI() {
+  document.querySelectorAll(".service-pill").forEach((btn) => {
+    const svc = btn.dataset.service;
+    const active = selectedServices.has(svc);
+    const isAM = svc === "9AM" || svc === "12NN";
+    btn.className = active
+      ? `service-pill py-2 rounded-lg text-xs font-bold border transition ${isAM ? "border-sky-500 bg-sky-500/20 text-sky-400" : "border-violet-500 bg-violet-500/20 text-violet-400"}`
+      : "service-pill py-2 rounded-lg text-xs font-bold border transition border-neutral-300 bg-white text-neutral-400 hover:border-neutral-500";
+  });
+}
+
+document.querySelectorAll(".service-pill").forEach((btn) => {
+  btn.addEventListener("click", () => {
+    const svc = btn.dataset.service;
+    if (selectedServices.has(svc)) selectedServices.delete(svc);
+    else selectedServices.add(svc);
+    updateServicePillUI();
+    const roleVal = document.getElementById("selected-role")?.value;
+    const submitBtn = document.getElementById("segment-submit-btn");
+    if (submitBtn) submitBtn.disabled = !roleVal || selectedServices.size === 0;
+  });
+});
+
 // State variables
 let volunteerId = null;
 let volunteerName = null;
@@ -403,6 +442,7 @@ async function handleVolunteerScan(id) {
       document.getElementById("segment-pills-section").classList.remove("hidden");
       document.getElementById("role-pills-section").classList.add("hidden");
       renderSegmentPills();
+      initServicePills();
       // Render volunteer QR code for reference
       renderSegmentQR(volunteerId);
       hideLoading();
@@ -867,29 +907,45 @@ async function selectSegment(segment) {
         }
       });
 
-      // Disable taken rows (except unlimited ones)
+      // Handle taken rows (except unlimited ones)
       Object.entries(takenMap).forEach(([role, info]) => {
         const row = rowMap[role];
         if (!row) return;
-        const isUnlimited = role.endsWith("(Volunteer)") || /trainee|observer/i.test(role);
+        const isUnlimited = role.endsWith("(Volunteer)") || /trainee|observer/i.test(role) || /technical director/i.test(role);
         if (isUnlimited) return;
 
-        row.disabled = true;
-        const timeStr = new Date(info.timeIn).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' });
         const takenCommsCode = roleToComms[role];
-        const takenCommsBadge = takenCommsCode ? `<span class="text-xs font-mono font-bold text-green-400 bg-green-100 px-2 py-0.5 rounded">${takenCommsCode}</span>` : "";
-        row.className = "w-full text-left px-3 py-2.5 rounded-lg text-sm border border-green-100 bg-green-50 text-green-700 cursor-default transition duration-150";
-        row.dataset.defaultClass = row.className;
-        row.innerHTML = `
-          <span class="flex items-center gap-2 w-full">
-            <span class="material-icons-round text-base text-green-400">check_circle</span>
-            <span class="flex-1">
-              <span class="font-medium">${role}</span>
-              <span class="block text-xs text-green-500 mt-0.5">${info.name} is serving since ${timeStr}</span>
-            </span>
-            ${takenCommsBadge}
-          </span>`;
-        // Move taken row to the bottom of the list
+        const timeStr = new Date(info.timeIn).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' });
+
+        if (takenCommsCode) {
+          // Comms role — allow queuing, keep enabled
+          const commsBadge = `<span class="text-xs font-mono font-bold text-amber-700 bg-amber-100 px-2 py-0.5 rounded">${takenCommsCode}</span>`;
+          row.className = "w-full text-left px-3 py-2.5 rounded-lg text-sm border border-amber-300 bg-amber-50 text-amber-700 hover:border-amber-400 hover:bg-amber-100 transition duration-150";
+          row.dataset.defaultClass = row.className;
+          row.innerHTML = `
+            <span class="flex items-center gap-2 w-full">
+              <span class="material-icons-round text-base text-amber-500">hourglass_top</span>
+              <span class="flex-1">
+                <span class="font-medium">${role}</span>
+                <span class="block text-xs text-amber-600 mt-0.5">${info.name} serving — tap to queue for auto-assign</span>
+              </span>
+              ${commsBadge}
+            </span>`;
+        } else {
+          // Non-comms role — keep disabled
+          row.disabled = true;
+          row.className = "w-full text-left px-3 py-2.5 rounded-lg text-sm border border-green-100 bg-green-50 text-green-700 cursor-default transition duration-150";
+          row.dataset.defaultClass = row.className;
+          row.innerHTML = `
+            <span class="flex items-center gap-2 w-full">
+              <span class="material-icons-round text-base text-green-400">check_circle</span>
+              <span class="flex-1">
+                <span class="font-medium">${role}</span>
+                <span class="block text-xs text-green-500 mt-0.5">${info.name} is serving since ${timeStr}</span>
+              </span>
+            </span>`;
+        }
+        // Move to bottom of list
         container.appendChild(row);
       });
     }
@@ -900,7 +956,7 @@ async function selectSegment(segment) {
 
 function selectRole(selectedRow, role) {
   document.getElementById("selected-role").value = role;
-  document.getElementById("segment-submit-btn").disabled = false;
+  document.getElementById("segment-submit-btn").disabled = selectedServices.size === 0;
 
   // Reset all rows, highlight selected
   const allRows = document.getElementById("role-pills").querySelectorAll("button");
@@ -1006,7 +1062,8 @@ if (document.getElementById("segment-form")) {
         commsId: commsId,
         numberedId: null,
         commsStatusOut: null,
-        status: "pending", // <-- pending flag
+        status: "pending",
+        services: [...selectedServices],
       });
 
       // Update UI only
@@ -1016,13 +1073,24 @@ if (document.getElementById("segment-form")) {
       document.getElementById("comms-role-label").textContent = role;
       document.getElementById("numbered-id-input").value = "";
 
+      // Check if comms is currently in use by someone else
+      let commsOccupied = false;
+      if (commsCode) {
+        const commsSnap = await db.ref(`comms/${commsCode}`).once("value");
+        const commsData = commsSnap.val();
+        commsOccupied = !!(commsData && commsData.status === "assigned" && commsData.assignedTo !== volunteerId);
+      }
+
+      const commsQueuedBlock = document.getElementById("comms-queued-block");
       if (commsCode) {
         document.getElementById("assigned-comms-id").textContent = commsCode;
         document.getElementById("comms-assignment-block").classList.remove("hidden");
         document.getElementById("comms-none-block").classList.add("hidden");
+        if (commsQueuedBlock) commsQueuedBlock.classList.toggle("hidden", !commsOccupied);
       } else {
         document.getElementById("comms-assignment-block").classList.add("hidden");
         document.getElementById("comms-none-block").classList.remove("hidden");
+        if (commsQueuedBlock) commsQueuedBlock.classList.add("hidden");
       }
 
       showStage("comms");

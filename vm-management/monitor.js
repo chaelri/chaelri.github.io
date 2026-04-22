@@ -142,6 +142,20 @@ function td(content) {
   return el;
 }
 
+function servicesBadge(services) {
+  if (!services || !services.length) return "";
+  const badges = services.map((s) => {
+    const isAM = s === "9AM" || s === "12NN";
+    return `<span class="text-[9px] font-bold px-1.5 py-0.5 rounded ${isAM ? "bg-sky-900/60 text-sky-400" : "bg-violet-900/60 text-violet-400"}">${s}</span>`;
+  });
+  return `<div class="flex gap-1 mt-0.5 flex-wrap">${badges.join("")}</div>`;
+}
+
+function servicesLabel(services) {
+  if (!services || !services.length) return "—";
+  return services.join(", ");
+}
+
 function commsButton(commsId) {
   if (commsId && commsId !== "NONE") {
     return td(
@@ -239,7 +253,7 @@ function renderTable() {
         td(`<div class="flex items-center"><span class="inline-block w-2 h-2 rounded-full bg-amber-400 mr-2 animate-pulse"></span><span class="font-semibold text-amber-300">${log.name || "—"}</span></div>`)
       );
       row.appendChild(
-        td(`<span class="text-neutral-500 text-xs">${log.segment || "—"}</span><br/><span class="text-white font-medium">${log.role || "—"}</span>`)
+        td(`<span class="text-neutral-500 text-xs">${log.segment || "—"}</span><br/><span class="text-white font-medium">${log.role || "—"}</span>${servicesBadge(log.services)}`)
       );
       // Editable comms for pending (can reserve even if currently occupied)
       const pendingCommsTd = document.createElement("td");
@@ -618,17 +632,19 @@ function renderTable() {
       td(`<div class="flex items-center"><span class="inline-block w-2 h-2 rounded-full bg-green-400 mr-2 animate-pulse"></span><span class="font-semibold text-white">${log.name || "—"}</span></div>`)
     );
     row.appendChild(
-      td(`<span class="text-neutral-500 text-xs">${log.segment || "—"}</span><br/><span class="text-white font-medium">${log.role || "—"}</span>`)
+      td(`<span class="text-neutral-500 text-xs">${log.segment || "—"}</span><br/><span class="text-white font-medium">${log.role || "—"}</span>${servicesBadge(log.services)}`)
     );
 
     // Editable comms cell
     const commsTd = document.createElement("td");
     commsTd.className = "px-4 py-3 text-sm";
-    if (log.commsId && log.commsId !== "NONE") {
-      commsTd.innerHTML = `<button class="change-comms-btn group font-mono font-bold text-white bg-neutral-800 hover:bg-neutral-700 px-2 py-0.5 rounded text-xs transition flex items-center gap-1" data-key="${log.key}" data-comms="${log.commsId}" data-name="${log.name || ""}" data-volunteer="${log.volunteerId || ""}">${log.commsId}<span class="material-icons-round text-neutral-600 group-hover:text-neutral-300 transition" style="font-size:10px">edit</span></button>`;
-    } else {
-      commsTd.innerHTML = `<button class="change-comms-btn group text-neutral-600 hover:text-white transition flex items-center gap-1 text-xs" data-key="${log.key}" data-comms="" data-name="${log.name || ""}" data-volunteer="${log.volunteerId || ""}"><span>—</span><span class="material-icons-round text-neutral-700 group-hover:text-neutral-400 transition" style="font-size:10px">edit</span></button>`;
-    }
+    const commsBtn = log.commsId && log.commsId !== "NONE"
+      ? `<button class="change-comms-btn group font-mono font-bold text-white bg-neutral-800 hover:bg-neutral-700 px-2 py-0.5 rounded text-xs transition flex items-center gap-1" data-key="${log.key}" data-comms="${log.commsId}" data-name="${log.name || ""}" data-volunteer="${log.volunteerId || ""}">${log.commsId}<span class="material-icons-round text-neutral-600 group-hover:text-neutral-300 transition" style="font-size:10px">edit</span></button>`
+      : `<button class="change-comms-btn group text-neutral-600 hover:text-white transition flex items-center gap-1 text-xs" data-key="${log.key}" data-comms="" data-name="${log.name || ""}" data-volunteer="${log.volunteerId || ""}"><span>—</span><span class="material-icons-round text-neutral-700 group-hover:text-neutral-400 transition" style="font-size:10px">edit</span></button>`;
+    const queueBadge = log.pendingCommsId
+      ? `<div class="flex items-center gap-0.5 mt-0.5 text-[9px] font-semibold text-amber-400"><span class="material-icons-round" style="font-size:9px">hourglass_top</span><span>queued: ${log.pendingCommsId}</span></div>`
+      : "";
+    commsTd.innerHTML = `<div>${commsBtn}${queueBadge}</div>`;
     row.appendChild(commsTd);
 
     row.appendChild(
@@ -697,7 +713,7 @@ function renderTable() {
       td(`<div class="flex items-center"><span class="inline-block w-2 h-2 rounded-full bg-neutral-600 mr-2"></span><span class="font-medium text-neutral-400">${log.name || "—"}</span></div>`)
     );
     row.appendChild(
-      td(`<span class="text-neutral-600 text-xs">${log.segment || "—"}</span><br/><span class="text-neutral-400">${log.role || "—"}</span>`)
+      td(`<span class="text-neutral-600 text-xs">${log.segment || "—"}</span><br/><span class="text-neutral-400">${log.role || "—"}</span>${servicesBadge(log.services)}`)
     );
     row.appendChild(commsButton(log.commsId));
     row.appendChild(
@@ -773,7 +789,9 @@ function renderTable() {
 async function releaseCommsOrAutoAssign(commsCode) {
   if (!commsCode || commsCode === "NONE" || commsCode === "N/A") return;
 
-  // Check for a pending time-in user that has reserved this comms
+  const now = new Date().toISOString();
+
+  // Priority 1: pending time-in user that has reserved this comms
   const pendingReservation = Object.entries(allLogs).find(([k, l]) =>
     !l.timeOut && l.status === "pending" && l.commsId === commsCode
   );
@@ -782,17 +800,46 @@ async function releaseCommsOrAutoAssign(commsCode) {
     const [, rLog] = pendingReservation;
     await db.ref(`comms/${commsCode}`).update({
       assignedTo: rLog.volunteerId || null,
-      assignedTime: new Date().toISOString(),
+      assignedTime: now,
       status: "assigned",
     });
     showToast(`Comms ${commsCode} → ${rLog.name || "pending user"}`, "headset_mic", "text-teal-400");
-  } else {
-    await db.ref(`comms/${commsCode}`).update({
-      assignedTo: null,
-      assignedTime: null,
-      status: "available",
-    });
+    return;
   }
+
+  // Priority 2: active confirmed volunteer queued for this comms
+  const queuedEntry = Object.entries(allLogs).find(([k, l]) =>
+    !l.timeOut && !l.status && l.pendingCommsId === commsCode
+  );
+
+  if (queuedEntry) {
+    const [qKey, qLog] = queuedEntry;
+    const oldCommsId = qLog.commsId && qLog.commsId !== "NONE" ? qLog.commsId : null;
+
+    await db.ref(`logs/${todayDate}/${qKey}`).update({ commsId: commsCode, pendingCommsId: null });
+    await db.ref(`comms/${commsCode}`).update({ assignedTo: qLog.volunteerId || null, assignedTime: now, status: "assigned" });
+
+    if (oldCommsId) {
+      await db.ref(`comms/${oldCommsId}`).update({ assignedTo: null, assignedTime: null, status: "available" });
+      await db.ref("commsEvents").push({
+        commsId: oldCommsId, eventType: "released",
+        volunteerName: qLog.name || "Unknown", volunteerId: qLog.volunteerId || null,
+        logKey: qKey, date: todayDate, timestamp: now,
+      });
+    }
+    await db.ref("commsEvents").push({
+      commsId: commsCode, eventType: "transferred_to",
+      volunteerName: qLog.name || "Unknown", volunteerId: qLog.volunteerId || null,
+      previousCommsId: oldCommsId || null,
+      logKey: qKey, date: todayDate, timestamp: now,
+    });
+
+    showToast(`Comms ${commsCode} → ${qLog.name || "queued volunteer"}`, "headset_mic", "text-teal-400");
+    return;
+  }
+
+  // No reservation — free the comms
+  await db.ref(`comms/${commsCode}`).update({ assignedTo: null, assignedTime: null, status: "available" });
 }
 
 // =============================
@@ -802,7 +849,6 @@ function renderCommsView(map) {
   const content = document.getElementById("comms-content");
   if (!content) return;
 
-  // Update active state on view toggle buttons
   ["grid", "compact", "list"].forEach((v) => {
     const btn = document.getElementById(`comms-view-${v}`);
     if (!btn) return;
@@ -811,88 +857,157 @@ function renderCommsView(map) {
       : "comms-view-btn w-7 h-7 rounded-md flex items-center justify-center transition text-neutral-500 hover:text-white hover:bg-neutral-800";
   });
 
+  // Split active comms into AM (9AM/12NN) and PM (3PM/6PM) batches
+  // Built from allLogs directly so same commsId can appear in both batches (different services)
+  const amMap = {}, pmMap = {}, amQueueMap = {}, pmQueueMap = {};
+  Object.entries(allLogs).forEach(([key, log]) => {
+    if (log.timeOut) return;
+    const svcs = log.services || [];
+    const isAM = svcs.some(s => s === "9AM" || s === "12NN");
+    const isPM = svcs.some(s => s === "3PM" || s === "6PM");
+    if (log.commsId && log.commsId !== "NONE") {
+      if (isAM) amMap[log.commsId] = { ...log, key };
+      if (isPM) pmMap[log.commsId] = { ...log, key };
+    }
+    if (log.pendingCommsId) {
+      if (isAM) amQueueMap[log.pendingCommsId] = { ...log, key };
+      if (isPM) pmQueueMap[log.pendingCommsId] = { ...log, key };
+    }
+  });
+
+  function batchHeader(label, count, colorClass) {
+    return `<div class="flex items-center gap-2 px-4 pt-3 pb-1.5">
+      <span class="text-[10px] font-bold uppercase tracking-widest ${colorClass}">${label}</span>
+      <span class="text-[10px] text-neutral-600 font-mono">${count}/${allComms.length} in use</span>
+    </div>`;
+  }
+
+  function gridCell(c, batchMap, queueMap) {
+    const active = batchMap[c.code];
+    const queued = queueMap[c.code];
+    if (active) {
+      const since = active.timeIn ? calcDuration({ timeIn: active.timeIn }) : "—";
+      const displayName = volunteerNicknameMap[active.volunteerId] || (active.name || "").split(" ")[0];
+      const queuedName = queued ? (volunteerNicknameMap[queued.volunteerId] || (queued.name || "").split(" ")[0]) : null;
+      return `<div class="rounded-lg border border-green-500/40 bg-green-500/5 p-2 flex flex-col items-center gap-1 min-w-0">
+        <span class="font-mono font-black text-green-400 text-base leading-none">${c.code}</span>
+        <span class="text-[9px] text-neutral-500 text-center leading-tight truncate w-full">${c.assignment}</span>
+        <span class="text-[10px] font-semibold text-white text-center leading-tight truncate w-full">${displayName}</span>
+        <span class="text-[9px] text-green-600 font-mono">${since}</span>
+        ${queuedName ? `<span class="text-[8px] text-amber-400 font-semibold flex items-center gap-0.5"><span class="material-icons-round" style="font-size:8px">hourglass_top</span>${queuedName}</span>` : ""}
+      </div>`;
+    }
+    if (queued) {
+      const displayName = volunteerNicknameMap[queued.volunteerId] || (queued.name || "").split(" ")[0];
+      return `<div class="rounded-lg border border-amber-500/40 bg-amber-500/5 p-2 flex flex-col items-center gap-1 min-w-0">
+        <span class="font-mono font-black text-amber-400 text-base leading-none">${c.code}</span>
+        <span class="text-[9px] text-neutral-500 text-center leading-tight truncate w-full">${c.assignment}</span>
+        <span class="material-icons-round text-amber-500" style="font-size:11px">hourglass_top</span>
+        <span class="text-[10px] font-semibold text-amber-300 text-center leading-tight truncate w-full">${displayName}</span>
+        <span class="text-[9px] text-amber-700 font-mono">queued</span>
+      </div>`;
+    }
+    const otherBatch = map[c.code];
+    return `<div class="rounded-lg border border-neutral-800 bg-neutral-900/50 p-2 flex flex-col items-center gap-1 min-w-0 opacity-40">
+      <span class="font-mono font-bold text-neutral-500 text-base leading-none">${c.code}</span>
+      <span class="text-[9px] text-neutral-700 text-center leading-tight truncate w-full">${c.assignment}</span>
+      <span class="text-[9px] text-neutral-700">${otherBatch ? "Other batch" : "—"}</span>
+    </div>`;
+  }
+
+  function compactCell(c, batchMap, queueMap) {
+    const active = batchMap[c.code];
+    const queued = queueMap[c.code];
+    if (active) {
+      const displayName = volunteerNicknameMap[active.volunteerId] || (active.name || "").split(" ")[0];
+      const queuedName = queued ? (volunteerNicknameMap[queued.volunteerId] || (queued.name || "").split(" ")[0]) : null;
+      return `<div class="rounded-md bg-green-500/10 border border-green-500/30 px-1.5 py-1.5 flex flex-col items-center gap-0.5 min-w-0">
+        <span class="font-mono font-black text-green-400 text-xs leading-none">${c.code}</span>
+        <span class="text-[8px] text-neutral-400 truncate w-full text-center leading-tight">${displayName}</span>
+        ${queuedName ? `<span class="text-[7px] text-amber-400 flex items-center gap-0.5"><span class="material-icons-round" style="font-size:7px">hourglass_top</span>${queuedName}</span>` : ""}
+      </div>`;
+    }
+    if (queued) {
+      const displayName = volunteerNicknameMap[queued.volunteerId] || (queued.name || "").split(" ")[0];
+      return `<div class="rounded-md bg-amber-500/10 border border-amber-500/30 px-1.5 py-1.5 flex flex-col items-center gap-0.5 min-w-0">
+        <span class="font-mono font-black text-amber-400 text-xs leading-none">${c.code}</span>
+        <span class="text-[7px] text-amber-500 flex items-center gap-0.5 justify-center"><span class="material-icons-round" style="font-size:7px">hourglass_top</span>${displayName}</span>
+      </div>`;
+    }
+    return `<div class="rounded-md bg-neutral-900 border border-neutral-800 px-1.5 py-1.5 flex flex-col items-center gap-0.5 min-w-0 opacity-35">
+      <span class="font-mono font-bold text-neutral-600 text-xs leading-none">${c.code}</span>
+      <span class="text-[8px] text-neutral-700 text-center leading-tight">—</span>
+    </div>`;
+  }
+
+  function listRow(c, batchMap, queueMap) {
+    const active = batchMap[c.code];
+    const queued = queueMap[c.code];
+    if (active) {
+      const since = active.timeIn ? calcDuration({ timeIn: active.timeIn }) : "—";
+      const queuedName = queued ? (volunteerNicknameMap[queued.volunteerId] || (queued.name || "").split(" ")[0]) : null;
+      return `<tr class="hover:bg-neutral-800 transition duration-150 border-b border-neutral-800/50">
+        <td class="px-4 py-2"><span class="inline-block w-2 h-2 rounded-full bg-green-400 animate-pulse"></span></td>
+        <td class="px-4 py-2"><button class="comms-history-btn font-mono font-bold text-white bg-neutral-800 hover:bg-neutral-700 px-2 py-0.5 rounded text-xs transition cursor-pointer" data-comms="${c.code}">${c.code}</button></td>
+        <td class="px-4 py-2 text-neutral-400 text-xs">${c.assignment}</td>
+        <td class="px-4 py-2 text-xs"><span class="font-semibold text-white">${active.name || "—"}</span><br/><span class="text-neutral-500">${active.role || ""}</span>${queuedName ? `<br/><span class="text-[9px] text-amber-400 flex items-center gap-0.5 mt-0.5"><span class="material-icons-round" style="font-size:9px">hourglass_top</span>queued: ${queuedName}</span>` : ""}</td>
+        <td class="px-4 py-2 font-mono text-green-400 text-xs">${since}</td>
+        <td class="px-4 py-2"><button class="force-timeout-btn text-neutral-600 hover:text-red-400 transition text-xs flex items-center gap-1" data-key="${active.key}" data-comms="${c.code}" data-name="${active.name || ""}" data-time="${active.timeIn || ""}"><span class="material-icons-round text-sm">logout</span></button></td>
+      </tr>`;
+    }
+    if (queued) {
+      return `<tr class="hover:bg-neutral-800 transition duration-150 border-b border-neutral-800/50 opacity-75">
+        <td class="px-4 py-2"><span class="material-icons-round text-amber-500" style="font-size:9px">hourglass_top</span></td>
+        <td class="px-4 py-2"><span class="font-mono font-bold text-amber-400 text-xs">${c.code}</span></td>
+        <td class="px-4 py-2 text-neutral-400 text-xs">${c.assignment}</td>
+        <td class="px-4 py-2 text-xs"><span class="font-semibold text-amber-300">${queued.name || "—"}</span><br/><span class="text-neutral-500">${queued.role || ""}</span></td>
+        <td class="px-4 py-2 text-amber-700 text-xs font-mono">queued</td>
+        <td class="px-4 py-2"></td>
+      </tr>`;
+    }
+    return `<tr class="border-b border-neutral-800/30 opacity-35">
+      <td class="px-4 py-2"><span class="inline-block w-2 h-2 rounded-full bg-neutral-700"></span></td>
+      <td class="px-4 py-2"><span class="font-mono font-bold text-neutral-600 text-xs">${c.code}</span></td>
+      <td class="px-4 py-2 text-neutral-600 text-xs">${c.assignment}</td>
+      <td class="px-4 py-2 text-neutral-700 text-xs">Available</td>
+      <td class="px-4 py-2 text-neutral-700 text-xs">—</td>
+      <td class="px-4 py-2"></td>
+    </tr>`;
+  }
+
+  const divider = `<div class="border-t border-neutral-800/60 mx-2"></div>`;
+  const listThead = `<thead><tr class="text-neutral-500 text-xs uppercase tracking-wider border-b border-neutral-800">
+    <th class="px-4 py-2 text-left font-semibold w-6"></th>
+    <th class="px-4 py-2 text-left font-semibold">Comms</th>
+    <th class="px-4 py-2 text-left font-semibold">Assignment</th>
+    <th class="px-4 py-2 text-left font-semibold">Volunteer</th>
+    <th class="px-4 py-2 text-left font-semibold">Since</th>
+    <th class="px-4 py-2 text-left font-semibold"></th>
+  </tr></thead>`;
+
   if (commsView === "grid") {
-    let html = '<div class="p-4 grid grid-cols-8 gap-2">';
-    allComms.forEach((c) => {
-      const active = map[c.code];
-      if (active) {
-        const since = active.timeIn ? calcDuration({ timeIn: active.timeIn }) : "—";
-        const displayName = volunteerNicknameMap[active.volunteerId] || (active.name || "").split(" ")[0];
-        html += `<div class="rounded-lg border border-green-500/40 bg-green-500/5 p-2 flex flex-col items-center gap-1 min-w-0">
-          <span class="font-mono font-black text-green-400 text-base leading-none">${c.code}</span>
-          <span class="text-[9px] text-neutral-500 text-center leading-tight truncate w-full">${c.assignment}</span>
-          <span class="text-[10px] font-semibold text-white text-center leading-tight truncate w-full">${displayName}</span>
-          <span class="text-[9px] text-green-600 font-mono">${since}</span>
-        </div>`;
-      } else {
-        html += `<div class="rounded-lg border border-neutral-800 bg-neutral-900/50 p-2 flex flex-col items-center gap-1 min-w-0 opacity-40">
-          <span class="font-mono font-bold text-neutral-500 text-base leading-none">${c.code}</span>
-          <span class="text-[9px] text-neutral-700 text-center leading-tight truncate w-full">${c.assignment}</span>
-          <span class="text-[9px] text-neutral-700">—</span>
-        </div>`;
-      }
-    });
-    html += "</div>";
-    content.innerHTML = html;
+    content.innerHTML =
+      batchHeader("AM Batch · 9AM & 12NN", Object.keys(amMap).length, "text-sky-400") +
+      `<div class="px-4 pb-3 grid grid-cols-8 gap-2">${allComms.map(c => gridCell(c, amMap, amQueueMap)).join("")}</div>` +
+      divider +
+      batchHeader("PM Batch · 3PM & 6PM", Object.keys(pmMap).length, "text-violet-400") +
+      `<div class="px-4 pb-3 grid grid-cols-8 gap-2">${allComms.map(c => gridCell(c, pmMap, pmQueueMap)).join("")}</div>`;
 
   } else if (commsView === "compact") {
-    let html = '<div class="p-3 grid grid-cols-8 gap-1.5">';
-    allComms.forEach((c) => {
-      const active = map[c.code];
-      if (active) {
-        const displayName = volunteerNicknameMap[active.volunteerId] || (active.name || "").split(" ")[0];
-        html += `<div class="rounded-md bg-green-500/10 border border-green-500/30 px-1.5 py-1.5 flex flex-col items-center gap-0.5 min-w-0">
-          <span class="font-mono font-black text-green-400 text-xs leading-none">${c.code}</span>
-          <span class="text-[8px] text-neutral-400 truncate w-full text-center leading-tight">${displayName}</span>
-        </div>`;
-      } else {
-        html += `<div class="rounded-md bg-neutral-900 border border-neutral-800 px-1.5 py-1.5 flex flex-col items-center gap-0.5 min-w-0 opacity-35">
-          <span class="font-mono font-bold text-neutral-600 text-xs leading-none">${c.code}</span>
-          <span class="text-[8px] text-neutral-700 text-center leading-tight">—</span>
-        </div>`;
-      }
-    });
-    html += "</div>";
-    content.innerHTML = html;
+    content.innerHTML =
+      batchHeader("AM Batch · 9AM & 12NN", Object.keys(amMap).length, "text-sky-400") +
+      `<div class="px-3 pb-3 grid grid-cols-8 gap-1.5">${allComms.map(c => compactCell(c, amMap, amQueueMap)).join("")}</div>` +
+      divider +
+      batchHeader("PM Batch · 3PM & 6PM", Object.keys(pmMap).length, "text-violet-400") +
+      `<div class="px-3 pb-3 grid grid-cols-8 gap-1.5">${allComms.map(c => compactCell(c, pmMap, pmQueueMap)).join("")}</div>`;
 
   } else {
-    // List view — table format
-    let html = `<table class="w-full text-sm">
-      <thead><tr class="text-neutral-500 text-xs uppercase tracking-wider border-b border-neutral-800">
-        <th class="px-4 py-2 text-left font-semibold w-6"></th>
-        <th class="px-4 py-2 text-left font-semibold">Comms</th>
-        <th class="px-4 py-2 text-left font-semibold">Assignment</th>
-        <th class="px-4 py-2 text-left font-semibold">Volunteer</th>
-        <th class="px-4 py-2 text-left font-semibold">Since</th>
-        <th class="px-4 py-2 text-left font-semibold"></th>
-      </tr></thead><tbody>`;
-
-    allComms.forEach((c) => {
-      const active = map[c.code];
-      if (active) {
-        const since = active.timeIn ? calcDuration({ timeIn: active.timeIn }) : "—";
-        html += `<tr class="hover:bg-neutral-800 transition duration-150 border-b border-neutral-800/50">
-          <td class="px-4 py-2"><span class="inline-block w-2 h-2 rounded-full bg-green-400 animate-pulse"></span></td>
-          <td class="px-4 py-2"><button class="comms-history-btn font-mono font-bold text-white bg-neutral-800 hover:bg-neutral-700 px-2 py-0.5 rounded text-xs transition cursor-pointer" data-comms="${c.code}">${c.code}</button></td>
-          <td class="px-4 py-2 text-neutral-400 text-xs">${c.assignment}</td>
-          <td class="px-4 py-2 text-xs"><span class="font-semibold text-white">${active.name || "—"}</span><br/><span class="text-neutral-500">${active.role || ""}</span></td>
-          <td class="px-4 py-2 font-mono text-green-400 text-xs">${since}</td>
-          <td class="px-4 py-2"><button class="force-timeout-btn text-neutral-600 hover:text-red-400 transition text-xs flex items-center gap-1" data-key="${active.key}" data-comms="${c.code}" data-name="${active.name || ""}" data-time="${active.timeIn || ""}"><span class="material-icons-round text-sm">logout</span></button></td>
-        </tr>`;
-      } else {
-        html += `<tr class="border-b border-neutral-800/30 opacity-35">
-          <td class="px-4 py-2"><span class="inline-block w-2 h-2 rounded-full bg-neutral-700"></span></td>
-          <td class="px-4 py-2"><span class="font-mono font-bold text-neutral-600 text-xs">${c.code}</span></td>
-          <td class="px-4 py-2 text-neutral-600 text-xs">${c.assignment}</td>
-          <td class="px-4 py-2 text-neutral-700 text-xs">Available</td>
-          <td class="px-4 py-2 text-neutral-700 text-xs">—</td>
-          <td class="px-4 py-2"></td>
-        </tr>`;
-      }
-    });
-
-    html += "</tbody></table>";
-    content.innerHTML = html;
+    content.innerHTML =
+      batchHeader("AM Batch · 9AM & 12NN", Object.keys(amMap).length, "text-sky-400") +
+      `<table class="w-full text-sm">${listThead}<tbody>${allComms.map(c => listRow(c, amMap, amQueueMap)).join("")}</tbody></table>` +
+      divider +
+      batchHeader("PM Batch · 3PM & 6PM", Object.keys(pmMap).length, "text-violet-400") +
+      `<table class="w-full text-sm">${listThead}<tbody>${allComms.map(c => listRow(c, pmMap, pmQueueMap)).join("")}</tbody></table>`;
 
     content.querySelectorAll(".comms-history-btn").forEach((btn) => {
       btn.addEventListener("click", () => showCommsHistory(btn.dataset.comms));
@@ -1070,7 +1185,7 @@ function renderPreviousLogsPage() {
     row.appendChild(td(dateBadge));
     row.appendChild(td(`<span class="text-neutral-400">${log.name || "—"}</span>`));
     row.appendChild(
-      td(`<span class="text-neutral-600 text-xs">${log.segment || "—"}</span><br/><span class="text-neutral-400">${log.role || "—"}</span>`)
+      td(`<span class="text-neutral-600 text-xs">${log.segment || "—"}</span><br/><span class="text-neutral-400">${log.role || "—"}</span>${servicesBadge(log.services)}`)
     );
     row.appendChild(commsButton(log.commsId));
 
@@ -1625,6 +1740,9 @@ function openChangeCommsModal(logKey, currentCommsId, volName, volunteerId, isPe
   list.innerHTML = "";
   changeCommsModal.classList.remove("hidden");
 
+  const currentLog = allLogs[logKey] || {};
+  const currentPendingCommsId = currentLog.pendingCommsId || null;
+
   // Build map of comms codes already in use by OTHER active/confirmed volunteers
   const takenMap = {};
   Object.entries(allLogs).forEach(([key, log]) => {
@@ -1649,36 +1767,36 @@ function openChangeCommsModal(logKey, currentCommsId, volName, volunteerId, isPe
     const btn = document.createElement("button");
     btn.type = "button";
     const isPendingOut = isPending && pendingOutMap[code];
-    // In pending mode: occupied comms are reservable (auto-assign on release)
-    const isReservable = isPending && isTaken && !isPendingOut;
-    const isDisabled = isTaken && !isPending;
+    const isReservable = isTaken && !isPendingOut; // Allow queuing for all volunteers
+    const isCurrentQueue = code === currentPendingCommsId;
 
-    btn.disabled = isDisabled;
     if (isCurrent) {
       btn.className = "w-full text-left px-3 py-2 rounded-lg text-xs bg-white text-neutral-900 font-semibold flex items-center gap-2 transition";
+    } else if (isCurrentQueue) {
+      btn.className = "w-full text-left px-3 py-2 rounded-lg text-xs bg-amber-400/20 border border-amber-400/40 text-amber-300 hover:bg-amber-400/30 flex items-center gap-2 transition";
     } else if (isPendingOut) {
       btn.className = "w-full text-left px-3 py-2 rounded-lg text-xs bg-amber-500/10 border border-amber-500/20 text-amber-300 hover:bg-amber-500/20 flex items-center gap-2 transition";
     } else if (isReservable) {
       btn.className = "w-full text-left px-3 py-2 rounded-lg text-xs bg-amber-900/20 border border-amber-900/30 text-amber-500 hover:bg-amber-900/30 flex items-center gap-2 transition";
-    } else if (isDisabled) {
-      btn.className = "w-full text-left px-3 py-2 rounded-lg text-xs bg-neutral-800/40 text-neutral-600 cursor-not-allowed flex items-center gap-2";
     } else {
       btn.className = "w-full text-left px-3 py-2 rounded-lg text-xs bg-neutral-800 text-neutral-300 hover:bg-neutral-700 hover:text-white flex items-center gap-2 transition";
     }
 
-    const codeColor = isCurrent ? "text-neutral-900" : (isPendingOut || isReservable) ? "text-amber-300" : isDisabled ? "text-neutral-600" : "text-white";
+    const codeColor = isCurrent ? "text-neutral-900"
+      : (isCurrentQueue || isPendingOut || isReservable) ? "text-amber-300"
+      : "text-white";
     let rightLabel = "";
     if (isCurrent) rightLabel = '<span class="material-icons-round text-sm text-neutral-900">check</span>';
+    else if (isCurrentQueue) rightLabel = `<span class="text-[9px] text-amber-400 truncate max-w-[100px]">⏳ Queued · tap to cancel</span>`;
     else if (isPendingOut) rightLabel = `<span class="text-[9px] text-amber-400 truncate max-w-[100px]">Timing out · auto-assign</span>`;
-    else if (isReservable) rightLabel = `<span class="text-[9px] text-amber-600 truncate max-w-[100px]">In use · reserve</span>`;
-    else if (isDisabled) rightLabel = `<span class="text-[10px] text-neutral-600 truncate max-w-[80px]">${takenMap[code]}</span>`;
+    else if (isReservable) rightLabel = `<span class="text-[9px] text-amber-600 truncate max-w-[100px]">In use · queue</span>`;
 
     btn.innerHTML = `
       <span class="font-mono font-black text-sm w-8 flex-shrink-0 ${codeColor}">${label}</span>
       <span class="flex-1">${sublabel}</span>
       ${rightLabel}`;
 
-    if (!isDisabled) btn.addEventListener("click", () => applyCommsChange(logKey, code, currentCommsId, volunteerId));
+    btn.addEventListener("click", () => applyCommsChange(logKey, code, currentCommsId, volunteerId, currentPendingCommsId));
     return btn;
   }
 
@@ -1691,25 +1809,42 @@ function openChangeCommsModal(logKey, currentCommsId, volName, volunteerId, isPe
     list.appendChild(makeCommsBtn(c.code, c.assignment, c.code, isCurrent, isTaken));
   });
 
-  if (isPending) {
+  if (isPending || currentPendingCommsId) {
     const hint = document.createElement("p");
     hint.className = "text-[10px] text-neutral-600 text-center mt-2 pt-2 border-t border-neutral-800";
-    hint.textContent = "Occupied comms marked ⏳ will auto-assign to this volunteer when the current holder times out.";
+    hint.textContent = "Occupied comms will auto-assign to this volunteer when the current holder times out.";
     list.appendChild(hint);
   }
 }
 
-async function applyCommsChange(logKey, newCommsId, oldCommsId, volunteerId) {
+async function applyCommsChange(logKey, newCommsId, oldCommsId, volunteerId, oldPendingCommsId = null) {
   changeCommsModal.classList.add("hidden");
   try {
     const volLog = allLogs[logKey] || {};
     const volName = volLog.name || volunteerId || "Unknown";
     const now = new Date().toISOString();
 
-    await db.ref(`logs/${todayDate}/${logKey}`).update({ commsId: newCommsId || "NONE" });
+    // Check if the selected comms is currently occupied by someone else
+    const newCommsOccupied = newCommsId && newCommsId !== "NONE" && !!activeCommsMap[newCommsId];
+    // Check if the volunteer is cancelling their existing queue by clicking the same comms again
+    const cancellingQueue = !!(oldPendingCommsId && newCommsId === oldPendingCommsId);
+
+    if (newCommsOccupied || cancellingQueue) {
+      // Queue / cancel-queue mode — don't release current comms, just set pendingCommsId
+      if (cancellingQueue) {
+        await db.ref(`logs/${todayDate}/${logKey}`).update({ pendingCommsId: null });
+        showToast(`Queue for ${oldPendingCommsId} cancelled`, "cancel", "text-neutral-400");
+      } else {
+        await db.ref(`logs/${todayDate}/${logKey}`).update({ pendingCommsId: newCommsId });
+        showToast(`Queued for ${newCommsId} — auto-assigns when freed`, "hourglass_top", "text-amber-400");
+      }
+      return;
+    }
+
+    // Normal assignment — update commsId and clear any pending queue
+    await db.ref(`logs/${todayDate}/${logKey}`).update({ commsId: newCommsId || "NONE", pendingCommsId: null });
 
     if (oldCommsId && oldCommsId !== "NONE") {
-      await db.ref(`comms/${oldCommsId}`).update({ assignedTo: null, assignedTime: null, status: "available" });
       await db.ref("commsEvents").push({
         commsId: oldCommsId,
         eventType: "released",
@@ -1719,6 +1854,7 @@ async function applyCommsChange(logKey, newCommsId, oldCommsId, volunteerId) {
         date: todayDate,
         timestamp: now,
       });
+      await releaseCommsOrAutoAssign(oldCommsId);
     }
     if (newCommsId && newCommsId !== "NONE") {
       await db.ref(`comms/${newCommsId}`).update({ status: "assigned", assignedTo: volunteerId, assignedTime: now });
@@ -1732,7 +1868,6 @@ async function applyCommsChange(logKey, newCommsId, oldCommsId, volunteerId) {
         date: todayDate,
         timestamp: now,
       });
-      // Also record on the old comms that this volunteer moved away from it to newCommsId
       if (oldCommsId && oldCommsId !== "NONE") {
         await db.ref("commsEvents").push({
           commsId: oldCommsId,
