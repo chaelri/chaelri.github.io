@@ -8405,7 +8405,6 @@ async function _imgcrShare() {
   const passageTitleEl2 = document.getElementById("cmPassageTitle");
   const passageEl = document.getElementById("cmPassage");
   const popover   = document.getElementById("cmPopover");
-  const hintEl    = document.getElementById("cmHint");
   const noteModal = document.getElementById("cmNoteModal");
   const noteRef   = document.getElementById("cmNoteRef");
   const noteInput = document.getElementById("cmNoteInput");
@@ -8427,13 +8426,6 @@ async function _imgcrShare() {
   let strokeActive = false;
   let strokeTouched = null;   // Set of word indices touched this stroke
   let strokePointerId = null;
-
-  function showHint(msg) {
-    hintEl.textContent = msg;
-    hintEl.classList.add("cm-hint-show");
-    clearTimeout(showHint._t);
-    showHint._t = setTimeout(() => hintEl.classList.remove("cm-hint-show"), 1800);
-  }
 
   // ---------- Persistence ----------
   function loadState(key) {
@@ -8685,12 +8677,6 @@ async function _imgcrShare() {
     if (t === "highlight") viewport.classList.add("cm-tool-draw");
     else if (t === "eraser") viewport.classList.add("cm-tool-erase");
     else viewport.classList.add("cm-tool-pan");
-    const hints = {
-      pan: "Scroll · tap a word for options",
-      highlight: "Swipe across words to highlight",
-      eraser: "Swipe across words to erase",
-    };
-    showHint(hints[t] || "");
   }
   overlay.querySelectorAll(".cm-tool-btn").forEach((b) =>
     b.addEventListener("click", () => setTool(b.dataset.tool))

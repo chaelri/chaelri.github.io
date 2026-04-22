@@ -8857,25 +8857,6 @@ button#storyBtn { background: unset; }
 .cm-pop-action:hover { background: rgba(0,0,0,0.1); color: #1a1a2e; }
 .cm-pop-action .material-symbols-outlined { font-size: 18px; }
 
-.cm-hint {
-  position: absolute;
-  bottom: 18px;
-  left: 50%;
-  transform: translateX(-50%);
-  font-size: 12px;
-  color: rgba(0,0,0,0.55);
-  background: rgba(255,255,255,0.9);
-  padding: 6px 12px;
-  border-radius: 20px;
-  pointer-events: none;
-  letter-spacing: 0.3px;
-  opacity: 0;
-  transition: opacity 0.2s ease;
-  z-index: 4;
-  box-shadow: 0 2px 10px rgba(0,0,0,0.08);
-}
-.cm-hint.cm-hint-show { opacity: 1; }
-
 @media (max-width: 520px) {
   .cm-toolbar { padding: 8px 10px; gap: 8px; }
   .cm-tool-btn { width: 36px; height: 36px; }
