@@ -393,6 +393,152 @@
       </div>
     </div>
 
+    <!-- Home Blueprint (fullscreen) -->
+    <div id="bp-overlay" class="bp-overlay hidden">
+      <header class="bp-header">
+        <div class="bp-header-left">
+          <button onclick="window.closeBlueprint()" class="icon-btn-sm" title="Back">
+            <span class="material-icons-round">arrow_back</span>
+          </button>
+          <div class="bp-room-switch">
+            <button id="bp-room-btn" class="bp-room-btn" onclick="window.openRoomMenu()">
+              <span class="material-icons-round text-[16px]">meeting_room</span>
+              <span id="bp-room-name">—</span>
+              <span class="material-icons-round text-[16px]">unfold_more</span>
+            </button>
+            <div id="bp-room-menu" class="bp-room-menu hidden">
+              <div id="bp-room-list" class="bp-room-list"></div>
+              <div class="bp-room-actions">
+                <button onclick="window.createRoom()" class="bp-room-action">
+                  <span class="material-icons-round text-[14px]">add</span>New room
+                </button>
+                <button onclick="window.renameCurrentRoom()" class="bp-room-action">
+                  <span class="material-icons-round text-[14px]">edit</span>Rename
+                </button>
+                <button onclick="window.resizeCurrentRoom()" class="bp-room-action">
+                  <span class="material-icons-round text-[14px]">aspect_ratio</span>Resize
+                </button>
+                <button onclick="window.deleteCurrentRoom()" class="bp-room-action bp-room-action-danger">
+                  <span class="material-icons-round text-[14px]">delete</span>Delete
+                </button>
+              </div>
+            </div>
+          </div>
+        </div>
+        <div class="bp-header-right">
+          <div class="bp-view-toggle">
+            <button class="bp-view-btn is-active" data-view="2d" onclick="window.setBpView('2d')" title="Plan view">
+              <span class="material-icons-round text-[16px]">view_in_ar</span>
+              <span>2D</span>
+            </button>
+            <button class="bp-view-btn" data-view="3d" onclick="window.setBpView('3d')" title="3D preview">
+              <span class="material-icons-round text-[16px]">view_in_ar</span>
+              <span>3D</span>
+            </button>
+          </div>
+          <div class="bp-room-dims" id="bp-room-dims">—</div>
+        </div>
+      </header>
+
+      <div class="bp-body">
+        <!-- Left: Tool palette + furniture library -->
+        <aside class="bp-palette" id="bp-palette">
+          <div class="bp-palette-section">
+            <div class="bp-palette-title">Tools</div>
+            <div class="bp-tools">
+              <button class="bp-tool is-active" data-tool="select" onclick="window.setBpTool('select')" title="Select / Move">
+                <span class="material-icons-round">pan_tool</span><span>Select</span>
+              </button>
+              <button class="bp-tool" data-tool="wall" onclick="window.setBpTool('wall')" title="Draw wall">
+                <span class="material-icons-round">border_outer</span><span>Wall</span>
+              </button>
+              <button class="bp-tool" data-tool="door" onclick="window.setBpTool('door')" title="Draw door">
+                <span class="material-icons-round">door_front</span><span>Door</span>
+              </button>
+              <button class="bp-tool" data-tool="window" onclick="window.setBpTool('window')" title="Draw window">
+                <span class="material-icons-round">window</span><span>Window</span>
+              </button>
+              <button class="bp-tool" data-tool="erase" onclick="window.setBpTool('erase')" title="Erase">
+                <span class="material-icons-round">delete</span><span>Erase</span>
+              </button>
+            </div>
+          </div>
+
+          <div class="bp-palette-section">
+            <div class="bp-palette-title">Furniture</div>
+            <div class="bp-furn-grid" id="bp-furn-grid">
+              <!-- Populated by JS -->
+            </div>
+            <button class="bp-custom-furn" onclick="window.addCustomFurniture()">
+              <span class="material-icons-round text-[14px]">add_box</span>
+              <span>Custom box</span>
+            </button>
+          </div>
+        </aside>
+
+        <!-- Center: SVG canvas -->
+        <div id="bp-canvas-wrap" class="bp-canvas-wrap">
+          <svg id="bp-svg" class="bp-svg" xmlns="http://www.w3.org/2000/svg">
+            <defs>
+              <pattern id="bp-grid-pattern" width="40" height="40" patternUnits="userSpaceOnUse">
+                <path d="M 40 0 L 0 0 0 40" fill="none" stroke="rgba(255,255,255,0.07)" stroke-width="1"/>
+              </pattern>
+              <pattern id="bp-grid-pattern-major" width="200" height="200" patternUnits="userSpaceOnUse">
+                <path d="M 200 0 L 0 0 0 200" fill="none" stroke="rgba(255,255,255,0.14)" stroke-width="1"/>
+              </pattern>
+            </defs>
+            <g id="bp-viewport">
+              <rect id="bp-floor" fill="rgba(255,255,255,0.015)" />
+              <rect id="bp-grid-rect" fill="url(#bp-grid-pattern)" />
+              <rect id="bp-grid-major-rect" fill="url(#bp-grid-pattern-major)" />
+              <g id="bp-walls"></g>
+              <g id="bp-openings"></g>
+              <g id="bp-furniture"></g>
+              <g id="bp-rulers"></g>
+              <g id="bp-overlay-g"></g>
+            </g>
+          </svg>
+          <!-- 3D canvas (lazy-mounted by Three.js) -->
+          <div id="bp-3d" class="bp-3d hidden"></div>
+
+          <div id="bp-hint" class="bp-hint"></div>
+
+          <!-- Floating bottom bar -->
+          <div class="bp-bottom-bar">
+            <button class="bp-zoom-btn" onclick="window.bpZoom(-1)"><span class="material-icons-round">remove</span></button>
+            <button class="bp-zoom-btn" onclick="window.bpResetView()"><span class="material-icons-round">filter_center_focus</span></button>
+            <button class="bp-zoom-btn" onclick="window.bpZoom(1)"><span class="material-icons-round">add</span></button>
+            <div class="bp-sep"></div>
+            <button class="bp-zoom-btn" id="bp-toggle-grid" onclick="window.bpToggleGrid()"><span class="material-icons-round">grid_on</span></button>
+            <button class="bp-zoom-btn" id="bp-toggle-ruler" onclick="window.bpToggleRuler()"><span class="material-icons-round">straighten</span></button>
+          </div>
+        </div>
+
+        <!-- Right: Properties panel (appears when item selected) -->
+        <aside id="bp-props" class="bp-props hidden">
+          <div class="bp-props-head">
+            <span id="bp-props-title" class="bp-props-title">Selected</span>
+            <button class="icon-btn-sm" onclick="window.clearBpSelection()">
+              <span class="material-icons-round">close</span>
+            </button>
+          </div>
+          <div id="bp-props-body" class="bp-props-body">
+            <!-- Populated by JS -->
+          </div>
+          <div class="bp-props-foot">
+            <button class="qv-secondary qv-secondary-danger" onclick="window.deleteBpSelection()">
+              <span class="material-icons-round text-[16px]">delete</span>Delete
+            </button>
+          </div>
+        </aside>
+
+        <!-- Mobile palette toggle -->
+        <button id="bp-palette-toggle" class="bp-palette-toggle" onclick="window.toggleBpPalette()">
+          <span class="material-icons-round">build</span>
+        </button>
+      </div>
+    </div>
+
     <!-- Quick View (read-only) -->
     <div id="item-quickview" class="qv-overlay hidden" onclick="window.onQuickViewBackdrop(event)">
       <div class="qv-panel" role="dialog" aria-modal="true">

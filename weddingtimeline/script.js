@@ -1,3 +1,4 @@
+import { initBlueprint } from "./blueprint.js";
 import { initializeApp } from "https://www.gstatic.com/firebasejs/10.7.1/firebase-app.js";
 import {
   getDatabase,
@@ -1425,6 +1426,7 @@ document.addEventListener("DOMContentLoaded", () => {
 });
 initSync();
 initToBuySync();
+initBlueprint({ db, confirmModal });
 
 /* ═══════════════════════════════════════════════════════════════
    Things to Buy — Home Wishlist Module
