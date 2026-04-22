@@ -5100,27 +5100,6 @@ body.light {
 .light .confirm-card { background: #fff; border-color: rgba(0,0,0,0.08); color: #0b1220; }
 .light .confirm-cancel { background: rgba(0,0,0,0.07) !important; color: #333; }
 
-/* On wider screens, center the dialog and let it size to content. */
-@media (min-width: 600px) {
-  .confirm-dialog { align-items: center; padding: 20px; }
-  .confirm-card {
-    width: fit-content;
-    min-width: 0;
-    max-width: 440px;
-    padding: 18px 22px 14px;
-    transform: translateY(24px) scale(0.96);
-    opacity: 0;
-    transition: transform 0.25s cubic-bezier(0.16,1,0.3,1), opacity 0.2s ease;
-  }
-  .confirm-visible .confirm-card { transform: translateY(0) scale(1); opacity: 1; }
-  /* Right-align actions with natural button widths — standard dialog convention. */
-  .confirm-actions { justify-content: flex-end; }
-  .confirm-cancel, .confirm-ok {
-    flex: 0 0 auto !important;
-    padding: 9px 18px !important;
-    min-width: 80px;
-  }
-}
 
 /* AI greeting message */
 .dash-greeting-msg {
@@ -5257,6 +5236,24 @@ body.light {
   color: #1a1a2e !important;
 }
 .light .passage-end-reflect-btn:hover { background: rgba(0,0,0,0.04) !important; }
+
+/* Canvas mode: center the Reflect button under the passage, paper colors. */
+.cm-reflect-row {
+  display: flex;
+  justify-content: center;
+  padding: 2.5rem 0 3rem;
+}
+.cm-reflect-btn {
+  width: auto !important;
+  padding: 14px 40px !important;
+  border-color: rgba(26, 26, 46, 0.15) !important;
+  background: rgba(255, 255, 255, 0.65) !important;
+  color: #1a1a2e !important;
+}
+.cm-reflect-btn:hover {
+  background: rgba(26, 26, 46, 0.05) !important;
+  border-color: rgba(26, 26, 46, 0.22) !important;
+}
 
 button#storyBtn { background: unset; }
 /* Story card stack button — no border, just the stack is the button */
@@ -5535,7 +5532,7 @@ button#storyBtn { background: unset; }
 .story-modal {
   position: fixed;
   inset: 0;
-  z-index: 10000;
+  z-index: 10100;
   background: var(--bg, #0b1220);
   overflow: hidden;
   animation: storyFadeIn 0.3s ease-out;

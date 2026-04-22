@@ -26,8 +26,8 @@ const SYNC_STATIC_KEYS = [
   "soap_prayer",
 ];
 
-// Dynamic key prefix for reflections
-const SYNC_DYNAMIC_PREFIXES = ["reflection-"];
+// Dynamic key prefix for reflections and canvas highlights
+const SYNC_DYNAMIC_PREFIXES = ["reflection-", "devo.canvas."];
 
 const RTDB_PATH = "devo-sync";
 
@@ -250,6 +250,8 @@ function _mergeAll(local, remote) {
       merged[key] = _mergeStandaloneNotes(lVal, rVal);
     } else if (decodedKey === "soap_application" || decodedKey === "soap_prayer") {
       merged[key] = _mergeSoapEntries(lVal, rVal);
+    } else if (decodedKey.startsWith("devo.canvas.")) {
+      merged[key] = _mergeCanvasState(lVal, rVal);
     } else {
       // For simple strings, prefer local (the device you're on)
       merged[key] = lVal;
@@ -318,6 +320,16 @@ function _mergeStandaloneNotes(a, b) {
   } catch { return a || b; }
 }
 
+function _mergeCanvasState(a, b) {
+  try {
+    const objA = typeof a === "string" ? JSON.parse(a) : a || {};
+    const objB = typeof b === "string" ? JSON.parse(b) : b || {};
+    // Union highlights by wordIdx; local wins on color conflict
+    const highlights = { ...(objB.highlights || {}), ...(objA.highlights || {}) };
+    return JSON.stringify({ highlights });
+  } catch { return a || b; }
+}
+
 function _mergeSoapEntries(a, b) {
   try {
     const arrA = typeof a === "string" ? JSON.parse(a) : a || [];
@@ -335,18 +347,24 @@ function _decodeKey(key) { return key.replace(/__DOT__/g, ".").replace(/__SL__/g
 
 // ── Apply remote data to localStorage ──
 function _applyToLocal(data) {
+  const changedCanvasKeys = [];
   for (const [encodedKey, val] of Object.entries(data)) {
     if (val === null || val === undefined) continue;
     const key = _decodeKey(encodedKey);
     const current = localStorage.getItem(key);
     if (current !== val) {
       localStorage.setItem(key, val);
+      if (key.startsWith("devo.canvas.")) changedCanvasKeys.push(key);
     }
   }
 
   // Refresh in-memory globals from localStorage
   try { favorites = JSON.parse(localStorage.getItem("bibleFavorites") || "{}"); } catch {}
   try { comments = JSON.parse(localStorage.getItem("bibleComments") || "{}"); } catch {}
+
+  if (changedCanvasKeys.length) {
+    window.dispatchEvent(new CustomEvent("devo:canvas-sync", { detail: { keys: changedCanvasKeys } }));
+  }
 }
 
 // ── Listen for remote changes ──

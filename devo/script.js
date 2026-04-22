@@ -8502,6 +8502,20 @@ async function _imgcrShare() {
       }
       passageEl.appendChild(verseEl2);
     }
+
+    // Reflect button at the end — matches the styled one from the dashboard
+    // (pink volunteer_activism icon + pill button).
+    const reflectRow = document.createElement("div");
+    reflectRow.className = "cm-reflect-row";
+    const reflectBtn = document.createElement("button");
+    reflectBtn.className = "action-reflect-btn cm-reflect-btn";
+    reflectBtn.innerHTML = `<span class="material-icons">volunteer_activism</span>Reflect`;
+    reflectBtn.addEventListener("click", () => {
+      if (typeof openReflectModal === "function") openReflectModal();
+    });
+    reflectRow.appendChild(reflectBtn);
+    passageEl.appendChild(reflectRow);
+
     refreshRuns();
     refreshNoteBadges();
   }
@@ -8725,11 +8739,43 @@ async function _imgcrShare() {
   }
 
   // ---------- Pointer on viewport ----------
+  // Single-finger (or mouse) swipe → highlight / erase stroke.
+  // Two-finger swipe → scroll the passage. Works even when highlight/eraser
+  // has touch-action:none, because we handle scroll manually.
+  const activePointers = new Map(); // pointerId → {x, y}
+  let twoFingerScroll = null;       // { lastMidY }
+
+  function midY() {
+    let sum = 0;
+    for (const p of activePointers.values()) sum += p.y;
+    return sum / activePointers.size;
+  }
+  function cancelStroke() {
+    if (!strokeActive) return;
+    try { viewport.releasePointerCapture(strokePointerId); } catch (_) {}
+    saveState();
+    strokeActive = false;
+    strokePointerId = null;
+    strokeTouched = null;
+  }
+
   viewport.addEventListener("pointerdown", (e) => {
     closePopover();
-    // If the pointerdown landed on a note badge, don't begin a stroke —
-    // let the click bubble so the view opens, even in highlight/eraser mode.
+    // Note badge → let click bubble to open the note view.
     if (e.target.closest(".cm-note-badge")) return;
+
+    if (e.pointerType === "touch") {
+      activePointers.set(e.pointerId, { x: e.clientX, y: e.clientY });
+      if (activePointers.size >= 2) {
+        // Second finger arrived — abandon any active highlight stroke and
+        // take over as a two-finger scroll gesture.
+        cancelStroke();
+        twoFingerScroll = { lastMidY: midY() };
+        e.preventDefault();
+        return;
+      }
+    }
+
     if (tool === "highlight" || tool === "eraser") {
       e.preventDefault();
       strokeActive = true;
@@ -8742,11 +8788,26 @@ async function _imgcrShare() {
   });
 
   viewport.addEventListener("pointermove", (e) => {
+    if (e.pointerType === "touch" && activePointers.has(e.pointerId)) {
+      activePointers.set(e.pointerId, { x: e.clientX, y: e.clientY });
+    }
+    if (twoFingerScroll && activePointers.size >= 2) {
+      const m = midY();
+      scrollEl.scrollTop += twoFingerScroll.lastMidY - m;
+      twoFingerScroll.lastMidY = m;
+      return;
+    }
     if (!strokeActive || e.pointerId !== strokePointerId) return;
     applyStrokeAt(e.clientX, e.clientY);
   });
 
   function finishStroke(e) {
+    if (e && e.pointerType === "touch") activePointers.delete(e.pointerId);
+    if (twoFingerScroll && activePointers.size < 2) {
+      // One finger lifted during a two-finger scroll — end scroll gesture.
+      // Don't resurrect any stroke; treat remaining fingers as passive.
+      twoFingerScroll = null;
+    }
     if (!strokeActive) return;
     if (e && e.pointerId !== strokePointerId) return;
     try { viewport.releasePointerCapture(strokePointerId); } catch (_) {}
@@ -8878,5 +8939,15 @@ async function _imgcrShare() {
 
   btn?.addEventListener("click", open);
   closeBtn.addEventListener("click", close);
+
+  // When Firebase sync applies remote canvas updates, refresh if the
+  // currently open canvas state changed out from under us.
+  window.addEventListener("devo:canvas-sync", (e) => {
+    if (overlay.hidden || !stateKey) return;
+    const keys = e.detail?.keys || [];
+    if (!keys.includes(`devo.canvas.${stateKey}`)) return;
+    state = loadState(stateKey);
+    if (currentInfo) renderPassage(currentInfo);
+  });
 })();
 
