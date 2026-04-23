@@ -8399,6 +8399,9 @@ async function _imgcrShare() {
   const closeBtn  = document.getElementById("cmCloseBtn");
   const titleEl   = document.getElementById("cmTitle");
   const clearBtn  = document.getElementById("cmClearBtn");
+  const undoBtn   = document.getElementById("cmUndoBtn");
+  const redoBtn   = document.getElementById("cmRedoBtn");
+  const shareBtn  = document.getElementById("cmShareBtn");
   const viewport  = document.getElementById("cmViewport");
   const scrollEl  = document.getElementById("cmScroll");
   const paperEl   = document.getElementById("cmPaper");
@@ -8408,6 +8411,8 @@ async function _imgcrShare() {
   const fab       = document.getElementById("cmFab");
   const fabIcon   = document.getElementById("cmFabIcon");
   const fabArc    = document.getElementById("cmFabArc");
+  const fabColorDot = document.getElementById("cmFabColorDot");
+  const COLOR_HEX = { yellow: "#ffe66b", pink: "#f9a8d4", blue: "#93c5fd", orange: "#fdba74", green: "#bef264" };
   const noteModal = document.getElementById("cmNoteModal");
   const noteRef   = document.getElementById("cmNoteRef");
   const noteInput = document.getElementById("cmNoteInput");
@@ -8429,6 +8434,44 @@ async function _imgcrShare() {
   let strokeActive = false;
   let strokeTouched = null;   // Set of word indices touched this stroke
   let strokePointerId = null;
+
+  // Undo/redo: snapshot state.highlights before each mutation. Capped to
+  // avoid unbounded memory on heavy sessions.
+  const HISTORY_MAX = 50;
+  let undoStack = [];
+  let redoStack = [];
+  function snapshot() { return JSON.parse(JSON.stringify(state.highlights || {})); }
+  function pushHistory() {
+    undoStack.push(snapshot());
+    if (undoStack.length > HISTORY_MAX) undoStack.shift();
+    redoStack = [];
+    refreshHistoryButtons();
+  }
+  function refreshHistoryButtons() {
+    if (undoBtn) undoBtn.disabled = undoStack.length === 0;
+    if (redoBtn) redoBtn.disabled = redoStack.length === 0;
+  }
+  function resetHistory() {
+    undoStack = [];
+    redoStack = [];
+    refreshHistoryButtons();
+  }
+  function doUndo() {
+    if (!undoStack.length) return;
+    redoStack.push(snapshot());
+    state.highlights = undoStack.pop();
+    saveState();
+    if (currentInfo) renderPassage(currentInfo);
+    refreshHistoryButtons();
+  }
+  function doRedo() {
+    if (!redoStack.length) return;
+    undoStack.push(snapshot());
+    state.highlights = redoStack.pop();
+    saveState();
+    if (currentInfo) renderPassage(currentInfo);
+    refreshHistoryButtons();
+  }
 
   // ---------- Persistence ----------
   function loadState(key) {
@@ -8726,6 +8769,9 @@ async function _imgcrShare() {
       if (t === "highlight") fab.dataset.color = color;
       else delete fab.dataset.color;
     }
+    if (fabColorDot) {
+      fabColorDot.style.setProperty("--active-color", COLOR_HEX[color] || COLOR_HEX.yellow);
+    }
     if (fabIcon) {
       fabIcon.textContent =
         t === "highlight" ? "edit" :
@@ -8946,22 +8992,36 @@ async function _imgcrShare() {
     if (!strokeActive) return;
     if (e && e.pointerId !== strokePointerId) return;
     try { viewport.releasePointerCapture(strokePointerId); } catch (_) {}
+    const pre = snapshot();
     const committed = commitStroke();
     strokeActive = false;
     strokePointerId = null;
     strokeTouched = null;
-    if (committed) saveState();
+    if (committed) {
+      undoStack.push(pre);
+      if (undoStack.length > HISTORY_MAX) undoStack.shift();
+      redoStack = [];
+      refreshHistoryButtons();
+      saveState();
+    }
   }
   viewport.addEventListener("pointerup", finishStroke);
   viewport.addEventListener("pointercancel", finishStroke);
   viewport.addEventListener("lostpointercapture", (e) => {
     if (strokeActive && e.pointerId === strokePointerId) {
       // Commit what the user touched — losing capture shouldn't lose work.
+      const pre = snapshot();
       const committed = commitStroke();
       strokeActive = false;
       strokePointerId = null;
       strokeTouched = null;
-      if (committed) saveState();
+      if (committed) {
+        undoStack.push(pre);
+        if (undoStack.length > HISTORY_MAX) undoStack.shift();
+        redoStack = [];
+        refreshHistoryButtons();
+        saveState();
+      }
     }
   });
 
@@ -9008,6 +9068,7 @@ async function _imgcrShare() {
     const secondary = e.target.closest(".cm-pop-secondary-btn");
     if (swatch) {
       const c = swatch.dataset.color;
+      if (state.highlights[idx] !== c) pushHistory();
       state.highlights[idx] = c;
       if (wordEl) wordEl.dataset.color = c;
       refreshRuns();
@@ -9018,6 +9079,7 @@ async function _imgcrShare() {
     if (action) {
       const a = action.dataset.action;
       if (a === "clear") {
+        if (idx in state.highlights) pushHistory();
         delete state.highlights[idx];
         if (wordEl) delete wordEl.dataset.color;
         refreshRuns();
@@ -9120,12 +9182,121 @@ async function _imgcrShare() {
   // ---------- Grid / clear ----------
   clearBtn.addEventListener("click", () => {
     _confirmDialog("Clear all highlights on this canvas?", () => {
+      if (Object.keys(state.highlights).length) pushHistory();
       state.highlights = {};
       passageEl.querySelectorAll(".cm-word").forEach((w) => { delete w.dataset.color; });
       refreshRuns();
       saveState();
     });
   });
+
+  undoBtn?.addEventListener("click", doUndo);
+  redoBtn?.addEventListener("click", doRedo);
+
+  // ---------- Export passage → PNG ----------
+  let html2canvasPromise = null;
+  let exportInFlight = false;
+  function loadHtml2Canvas() {
+    if (window.html2canvas) return Promise.resolve(window.html2canvas);
+    if (html2canvasPromise) return html2canvasPromise;
+    html2canvasPromise = new Promise((resolve, reject) => {
+      const s = document.createElement("script");
+      s.src = "https://cdn.jsdelivr.net/npm/html2canvas@1.4.1/dist/html2canvas.min.js";
+      s.onload = () => resolve(window.html2canvas);
+      s.onerror = () => { html2canvasPromise = null; reject(new Error("Failed to load html2canvas")); };
+      document.head.appendChild(s);
+    });
+    return html2canvasPromise;
+  }
+
+  async function exportPassageAsImage() {
+    if (!paperEl || !currentInfo) return;
+    if (exportInFlight) return;
+    exportInFlight = true;
+    const oldLabel = shareBtn?.querySelector(".material-symbols-outlined")?.textContent;
+    try {
+      if (shareBtn) {
+        shareBtn.disabled = true;
+        const iconEl = shareBtn.querySelector(".material-symbols-outlined");
+        if (iconEl) iconEl.textContent = "hourglass_top";
+      }
+      const h2c = await loadHtml2Canvas();
+
+      // Hide elements that are interactive-only, not content.
+      const hideList = paperEl.querySelectorAll(".cm-reflect-row, .cm-tail-spacer");
+      const prevDisplays = [];
+      hideList.forEach((el) => { prevDisplays.push(el.style.display); el.style.display = "none"; });
+
+      // Scroll to top so html2canvas measures from the actual start.
+      const prevScrollTop = scrollEl.scrollTop;
+      scrollEl.scrollTop = 0;
+
+      // Force layout then read full natural dims of the paper (not the
+      // clipped scroll viewport), so the whole chapter is captured.
+      void paperEl.offsetHeight;
+      const fullW = Math.ceil(paperEl.scrollWidth);
+      const fullH = Math.ceil(paperEl.scrollHeight);
+
+      const canvas = await h2c(paperEl, {
+        backgroundColor: "#f5f2ea",
+        scale: 2,
+        useCORS: true,
+        logging: false,
+        width: fullW,
+        height: fullH,
+        windowWidth: fullW,
+        windowHeight: fullH,
+      });
+
+      scrollEl.scrollTop = prevScrollTop;
+      hideList.forEach((el, i) => { el.style.display = prevDisplays[i]; });
+
+      const blob = await new Promise((res) => canvas.toBlob(res, "image/png"));
+      if (!blob) throw new Error("Could not create PNG");
+
+      const safeName = `${currentInfo.bookName}-${currentInfo.chapterNum}`
+        .toLowerCase().replace(/\s+/g, "-");
+      const filename = `${safeName}.png`;
+
+      // Mobile (touch-only device) → Web Share sheet (has Save to Photos,
+      // Messages, IG, etc). Desktop → straight download (share sheets there
+      // lack "Save to Downloads", so users end up stuck).
+      const isMobile = window.matchMedia("(pointer: coarse) and (hover: none)").matches;
+      const file = new File([blob], filename, { type: "image/png" });
+      if (isMobile && navigator.canShare?.({ files: [file] })) {
+        try {
+          await navigator.share({ files: [file], title: `${currentInfo.bookName} ${currentInfo.chapterNum}` });
+        } catch (err) {
+          if (err?.name !== "AbortError") downloadBlob(blob, filename);
+        }
+      } else {
+        downloadBlob(blob, filename);
+      }
+    } catch (err) {
+      console.error(err);
+      cmToast("Sorry, couldn't save image");
+    } finally {
+      exportInFlight = false;
+      if (shareBtn) {
+        shareBtn.disabled = false;
+        const iconEl = shareBtn.querySelector(".material-symbols-outlined");
+        if (iconEl && oldLabel) iconEl.textContent = oldLabel;
+      }
+    }
+  }
+
+  function downloadBlob(blob, filename) {
+    const url = URL.createObjectURL(blob);
+    const a = document.createElement("a");
+    a.href = url;
+    a.download = filename;
+    document.body.appendChild(a);
+    a.click();
+    a.remove();
+    setTimeout(() => URL.revokeObjectURL(url), 1000);
+  }
+
+  shareBtn?.addEventListener("click", exportPassageAsImage);
 
   // ---------- Keyboard ----------
   document.addEventListener("keydown", (e) => {
@@ -9140,6 +9311,12 @@ async function _imgcrShare() {
       if (!noteView.hidden) closeNoteView();
       else if (!popover.hidden) closePopover();
       else close();
+    } else if ((e.metaKey || e.ctrlKey) && (e.key === "z" || e.key === "Z")) {
+      e.preventDefault();
+      if (e.shiftKey) doRedo(); else doUndo();
+    } else if ((e.metaKey || e.ctrlKey) && (e.key === "y" || e.key === "Y")) {
+      e.preventDefault();
+      doRedo();
     } else if (e.key === "h" || e.key === "H") setTool("highlight");
     else if (e.key === "e" || e.key === "E") setTool("eraser");
     else if (e.key === "p" || e.key === "P") setTool("pan");
@@ -9157,6 +9334,7 @@ async function _imgcrShare() {
     passageTitleEl2.textContent = titleText;
 
     renderPassage(info);
+    resetHistory();
 
     overlay.hidden = false;
     color = DEFAULT_COLOR; // remembered for when user activates highlight tool

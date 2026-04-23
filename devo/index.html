@@ -624,6 +624,15 @@
         </button>
         <div class="cm-title" id="cmTitle"></div>
         <div class="cm-topbar-actions">
+          <button class="cm-icon-btn" id="cmUndoBtn" title="Undo" disabled>
+            <span class="material-symbols-outlined">undo</span>
+          </button>
+          <button class="cm-icon-btn" id="cmRedoBtn" title="Redo" disabled>
+            <span class="material-symbols-outlined">redo</span>
+          </button>
+          <button class="cm-icon-btn" id="cmShareBtn" title="Save as image">
+            <span class="material-symbols-outlined">ios_share</span>
+          </button>
           <button class="cm-icon-btn" id="cmClearBtn" title="Clear all">
             <span class="material-symbols-outlined">delete_sweep</span>
           </button>
@@ -663,6 +672,7 @@
         <div class="cm-fab-arc" id="cmFabArc" aria-hidden="true"></div>
         <button class="cm-fab" id="cmFab" aria-label="Toggle scroll / highlight" data-current="pan">
           <span class="material-symbols-outlined cm-fab-icon" id="cmFabIcon">pan_tool</span>
+          <span class="cm-fab-color-dot" id="cmFabColorDot" aria-hidden="true"></span>
         </button>
       </div>
 
