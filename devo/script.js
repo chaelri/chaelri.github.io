@@ -8405,6 +8405,9 @@ async function _imgcrShare() {
   const passageTitleEl2 = document.getElementById("cmPassageTitle");
   const passageEl = document.getElementById("cmPassage");
   const popover   = document.getElementById("cmPopover");
+  const fab       = document.getElementById("cmFab");
+  const fabIcon   = document.getElementById("cmFabIcon");
+  const fabArc    = document.getElementById("cmFabArc");
   const noteModal = document.getElementById("cmNoteModal");
   const noteRef   = document.getElementById("cmNoteRef");
   const noteInput = document.getElementById("cmNoteInput");
@@ -8535,22 +8538,56 @@ async function _imgcrShare() {
   // Adjacent same-color words fuse into a single bar:
   //   - gap span colored when both sides share color
   //   - .cm-run-l / .cm-run-r on words drop the joining side's radius
+  //
+  // The gap color also respects preview state: during a stroke, words get
+  // `data-preview-color` (lighter wash) and the connector between two such
+  // words should also wash light so the run looks continuous while dragging.
+  // Words being erased ignore their committed color for gap calculations so
+  // the gap disappears too (preview = "about to be gone").
   function refreshRuns() {
-    const words = [...passageEl.querySelectorAll(".cm-word")];
-    words.forEach((w, i) => {
+    const allWords = [...passageEl.querySelectorAll(".cm-word")];
+
+    // Effective color of a word for run/gap calculations:
+    //   - erase-preview → null (treat as uncolored)
+    //   - preview-color → that color (not yet committed)
+    //   - else committed data-color / state.highlights
+    function effective(w) {
+      if (!w) return null;
+      if (w.dataset.previewErase) return null;
+      if (w.dataset.previewColor) return w.dataset.previewColor;
+      return state.highlights[+w.dataset.idx] || null;
+    }
+    function isPreview(w) {
+      return !!(w && (w.dataset.previewColor || w.dataset.previewErase));
+    }
+
+    allWords.forEach((w, i) => {
       w.classList.remove("cm-run-l", "cm-run-r");
-      const c = state.highlights[+w.dataset.idx];
+      const c = effective(w);
       if (!c) return;
-      const prev = words[i - 1];
-      const next = words[i + 1];
-      if (prev && state.highlights[+prev.dataset.idx] === c) w.classList.add("cm-run-l");
-      if (next && state.highlights[+next.dataset.idx] === c) w.classList.add("cm-run-r");
+      const prev = allWords[i - 1];
+      const next = allWords[i + 1];
+      if (prev && effective(prev) === c) w.classList.add("cm-run-l");
+      if (next && effective(next) === c) w.classList.add("cm-run-r");
     });
+
     passageEl.querySelectorAll(".cm-gap").forEach((g) => {
-      const cl = state.highlights[+g.dataset.left];
-      const cr = state.highlights[+g.dataset.right];
-      if (cl && cl === cr) g.dataset.color = cl;
-      else delete g.dataset.color;
+      const leftW = passageEl.querySelector(`.cm-word[data-idx="${g.dataset.left}"]`);
+      const rightW = passageEl.querySelector(`.cm-word[data-idx="${g.dataset.right}"]`);
+      const cl = effective(leftW);
+      const cr = effective(rightW);
+      if (cl && cl === cr) {
+        if (isPreview(leftW) || isPreview(rightW)) {
+          g.dataset.previewColor = cl;
+          delete g.dataset.color;
+        } else {
+          g.dataset.color = cl;
+          delete g.dataset.previewColor;
+        }
+      } else {
+        delete g.dataset.color;
+        delete g.dataset.previewColor;
+      }
     });
   }
 
@@ -8677,7 +8714,120 @@ async function _imgcrShare() {
     if (t === "highlight") viewport.classList.add("cm-tool-draw");
     else if (t === "eraser") viewport.classList.add("cm-tool-erase");
     else viewport.classList.add("cm-tool-pan");
+    // Keep FAB icon + color in sync with the active tool.
+    if (fab) {
+      fab.dataset.current = t;
+      if (t === "highlight") fab.dataset.color = color;
+      else delete fab.dataset.color;
+    }
+    if (fabIcon) {
+      fabIcon.textContent =
+        t === "highlight" ? "edit" :
+        t === "eraser"    ? "ink_eraser" :
+                            "pan_tool";
+    }
   }
+
+  // ---------- Radial FAB arc (4 other colors + eraser) ----------
+  const ARC_COLORS = [
+    { id: "yellow", sw: "#ffe66b" },
+    { id: "pink",   sw: "#f9a8d4" },
+    { id: "blue",   sw: "#93c5fd" },
+    { id: "orange", sw: "#fdba74" },
+    { id: "green",  sw: "#bef264" },
+  ];
+  const ARC_RADIUS = 82;
+  const ARC_AUTOHIDE_MS = 3000;
+  let arcHideTimer = null;
+
+  function renderArc() {
+    if (!fabArc) return;
+    fabArc.innerHTML = "";
+    const others = ARC_COLORS.filter(c => c.id !== color);
+    const items = [...others.map(c => ({ kind: "color", ...c })), { kind: "erase" }];
+    const n = items.length;
+    const isNarrow = window.innerWidth < 360;
+    items.forEach((it, i) => {
+      const btn = document.createElement("button");
+      btn.className = "cm-fab-arc-chip" + (it.kind === "erase" ? " cm-fab-arc-eraser" : " cm-fab-arc-color");
+      if (it.kind === "color") {
+        btn.dataset.color = it.id;
+        btn.style.setProperty("--sw", it.sw);
+        btn.setAttribute("aria-label", `Highlight ${it.id}`);
+      } else {
+        btn.dataset.action = "erase";
+        btn.innerHTML = '<span class="material-symbols-outlined">ink_eraser</span>';
+        btn.setAttribute("aria-label", "Eraser");
+      }
+      let dx, dy;
+      if (isNarrow) {
+        // Vertical stack above FAB — safer on phones < 360px wide.
+        dx = 0;
+        dy = -(i + 1) * 50;
+      } else {
+        // Quarter-arc from 12 o'clock → 9 o'clock (top → left).
+        const theta = (Math.PI / 2) * (i / (n - 1));
+        dx = -ARC_RADIUS * Math.sin(theta);
+        dy = -ARC_RADIUS * Math.cos(theta);
+      }
+      btn.style.setProperty("--dx", `${dx}px`);
+      btn.style.setProperty("--dy", `${dy}px`);
+      btn.style.setProperty("--i", i);
+      fabArc.appendChild(btn);
+    });
+  }
+  function openArc() {
+    if (!fabArc) return;
+    renderArc();
+    // Force a layout so the initial "scaled 0" state is committed before we
+    // add the open class; without this the transition sometimes skips.
+    void fabArc.offsetWidth;
+    fabArc.classList.add("cm-fab-arc-open");
+    scheduleArcHide(ARC_AUTOHIDE_MS);
+  }
+  function closeArc() {
+    if (!fabArc) return;
+    fabArc.classList.remove("cm-fab-arc-open");
+    clearTimeout(arcHideTimer);
+    arcHideTimer = null;
+  }
+  function scheduleArcHide(ms) {
+    clearTimeout(arcHideTimer);
+    arcHideTimer = setTimeout(closeArc, ms);
+  }
+  function isArcOpen() { return fabArc?.classList.contains("cm-fab-arc-open"); }
+
+  // FAB tap:
+  //   pan → highlight + arc shown for 3s
+  //   stroke mode → pan + arc closes
+  fab?.addEventListener("click", () => {
+    if (tool === "pan") {
+      setTool("highlight");
+      openArc();
+    } else {
+      setTool("pan");
+      closeArc();
+    }
+  });
+
+  // Arc chip tap: change color or switch to eraser, keep arc visible briefly.
+  fabArc?.addEventListener("click", (e) => {
+    const chip = e.target.closest(".cm-fab-arc-chip");
+    if (!chip) return;
+    if (chip.dataset.action === "erase") {
+      setTool("eraser");
+      // Eraser has a clear outcome; auto-collapse faster.
+      scheduleArcHide(800);
+    } else {
+      color = chip.dataset.color;
+      setTool("highlight");
+      // Re-render so the newly-current color disappears from the arc.
+      renderArc();
+      // Ensure the new chips animate in; the open class is still on.
+      void fabArc.offsetWidth;
+      scheduleArcHide(ARC_AUTOHIDE_MS);
+    }
+  });
   overlay.querySelectorAll(".cm-tool-btn").forEach((b) =>
     b.addEventListener("click", () => setTool(b.dataset.tool))
   );
@@ -8712,57 +8862,65 @@ async function _imgcrShare() {
     const idx = +wordEl.dataset.idx;
     if (strokeTouched.has(idx)) return;
     strokeTouched.add(idx);
+    // Preview only — don't mutate state.highlights until the stroke is
+    // released. That gives the "light while dragging, pops to full color
+    // on release" feel.
     if (tool === "highlight") {
-      state.highlights[idx] = color;
-      wordEl.dataset.color = color;
+      wordEl.dataset.previewColor = color;
     } else if (tool === "eraser") {
-      if (idx in state.highlights) {
+      if (idx in state.highlights) wordEl.dataset.previewErase = "1";
+    }
+    refreshRuns();  // keeps gap connectors in sync with the preview state
+  }
+
+  // Apply every previewed word to the real state + refresh the fused runs.
+  function commitStroke() {
+    if (!strokeTouched || strokeTouched.size === 0) return false;
+    for (const idx of strokeTouched) {
+      const wordEl = passageEl.querySelector(`.cm-word[data-idx="${idx}"]`);
+      if (!wordEl) continue;
+      if (wordEl.dataset.previewColor) {
+        const c = wordEl.dataset.previewColor;
+        state.highlights[idx] = c;
+        wordEl.dataset.color = c;
+        delete wordEl.dataset.previewColor;
+      }
+      if (wordEl.dataset.previewErase) {
         delete state.highlights[idx];
         delete wordEl.dataset.color;
+        delete wordEl.dataset.previewErase;
       }
     }
     refreshRuns();
+    return true;
+  }
+
+  // Roll back preview without committing (used when a stroke is cancelled
+  // by some external signal — e.g. lost pointer capture with no pointerup).
+  function rollbackStroke() {
+    if (!strokeTouched) return;
+    for (const idx of strokeTouched) {
+      const wordEl = passageEl.querySelector(`.cm-word[data-idx="${idx}"]`);
+      if (!wordEl) continue;
+      delete wordEl.dataset.previewColor;
+      delete wordEl.dataset.previewErase;
+    }
   }
 
   // ---------- Pointer on viewport ----------
-  // Single-finger (or mouse) swipe → highlight / erase stroke.
-  // Two-finger swipe → scroll the passage. Works even when highlight/eraser
-  // has touch-action:none, because we handle scroll manually.
-  const activePointers = new Map(); // pointerId → {x, y}
-  let twoFingerScroll = null;       // { lastMidY }
-
-  function midY() {
-    let sum = 0;
-    for (const p of activePointers.values()) sum += p.y;
-    return sum / activePointers.size;
-  }
-  function cancelStroke() {
-    if (!strokeActive) return;
-    try { viewport.releasePointerCapture(strokePointerId); } catch (_) {}
-    saveState();
-    strokeActive = false;
-    strokePointerId = null;
-    strokeTouched = null;
-  }
-
+  // Single-pointer model: swipe = stroke in highlight/eraser mode, native
+  // scroll in pan mode. Use the bottom-right FAB to toggle between pan and
+  // highlight; eraser lives in the top toolbar.
   viewport.addEventListener("pointerdown", (e) => {
+    // FAB + arc live inside the viewport — let their clicks through cleanly.
+    if (e.target.closest(".cm-fab") || e.target.closest(".cm-fab-arc")) return;
     closePopover();
     // Note badge → let click bubble to open the note view.
     if (e.target.closest(".cm-note-badge")) return;
 
-    if (e.pointerType === "touch") {
-      activePointers.set(e.pointerId, { x: e.clientX, y: e.clientY });
-      if (activePointers.size >= 2) {
-        // Second finger arrived — abandon any active highlight stroke and
-        // take over as a two-finger scroll gesture.
-        cancelStroke();
-        twoFingerScroll = { lastMidY: midY() };
-        e.preventDefault();
-        return;
-      }
-    }
-
     if (tool === "highlight" || tool === "eraser") {
+      // Starting a stroke = user has made their choice; collapse arc if open.
+      closeArc();
       e.preventDefault();
       strokeActive = true;
       strokeTouched = new Set();
@@ -8774,36 +8932,32 @@ async function _imgcrShare() {
   });
 
   viewport.addEventListener("pointermove", (e) => {
-    if (e.pointerType === "touch" && activePointers.has(e.pointerId)) {
-      activePointers.set(e.pointerId, { x: e.clientX, y: e.clientY });
-    }
-    if (twoFingerScroll && activePointers.size >= 2) {
-      const m = midY();
-      scrollEl.scrollTop += twoFingerScroll.lastMidY - m;
-      twoFingerScroll.lastMidY = m;
-      return;
-    }
     if (!strokeActive || e.pointerId !== strokePointerId) return;
     applyStrokeAt(e.clientX, e.clientY);
   });
 
   function finishStroke(e) {
-    if (e && e.pointerType === "touch") activePointers.delete(e.pointerId);
-    if (twoFingerScroll && activePointers.size < 2) {
-      // One finger lifted during a two-finger scroll — end scroll gesture.
-      // Don't resurrect any stroke; treat remaining fingers as passive.
-      twoFingerScroll = null;
-    }
     if (!strokeActive) return;
     if (e && e.pointerId !== strokePointerId) return;
     try { viewport.releasePointerCapture(strokePointerId); } catch (_) {}
+    const committed = commitStroke();
     strokeActive = false;
     strokePointerId = null;
     strokeTouched = null;
-    saveState();
+    if (committed) saveState();
   }
   viewport.addEventListener("pointerup", finishStroke);
   viewport.addEventListener("pointercancel", finishStroke);
+  viewport.addEventListener("lostpointercapture", (e) => {
+    if (strokeActive && e.pointerId === strokePointerId) {
+      // Commit what the user touched — losing capture shouldn't lose work.
+      const committed = commitStroke();
+      strokeActive = false;
+      strokePointerId = null;
+      strokeTouched = null;
+      if (committed) saveState();
+    }
+  });
 
   // Tap a word → highlight/note popover. Tap a note badge → view popover.
   passageEl.addEventListener("click", (e) => {
@@ -8845,6 +8999,7 @@ async function _imgcrShare() {
     const wordEl = passageEl.querySelector(`.cm-word[data-idx="${idx}"]`);
     const swatch = e.target.closest(".cm-pop-swatch");
     const action = e.target.closest(".cm-pop-action");
+    const secondary = e.target.closest(".cm-pop-secondary-btn");
     if (swatch) {
       const c = swatch.dataset.color;
       state.highlights[idx] = c;
@@ -8865,9 +9020,90 @@ async function _imgcrShare() {
       } else if (a === "note") {
         closePopover();
         if (wordEl) openNoteInput(wordEl);
+      } else if (a === "copy") {
+        if (wordEl) copyVerseFromWord(wordEl);
+        closePopover();
       }
+      return;
+    }
+    if (secondary) {
+      const a = secondary.dataset.action;
+      if (!wordEl) return;
+      closePopover();
+      if (a === "context") openAiModal(wordEl, "context");
+      else if (a === "ask") openAiModal(wordEl, "ask");
     }
   });
+
+  // ---------- Context / Ask Question modal ----------
+  const aiModal = document.getElementById("cmAiModal");
+  const aiRef   = document.getElementById("cmAiRef");
+  const aiBody  = document.getElementById("cmAiBody");
+  const aiClose = document.getElementById("cmAiClose");
+
+  function openAiModal(wordEl, kind) {
+    const verseNum = wordEl.dataset.verse;
+    const bookName = currentInfo?.bookName;
+    const chapterNum = currentInfo?.chapterNum;
+    const verseText = currentInfo?.chapterContent?.[verseNum];
+    if (!bookName || !chapterNum || !verseText) return;
+    const key = keyOf(currentInfo.bookId, chapterNum, verseNum);
+    aiRef.textContent = `${bookName} ${chapterNum}:${verseNum}`;
+    aiBody.innerHTML = "";
+    aiModal.hidden = false;
+    if (kind === "context") {
+      fetchInlineQuickContext({ book: bookName, chapter: chapterNum, verse: verseNum, text: verseText }, aiBody);
+    } else {
+      toggleVerseChat(key, bookName, chapterNum, verseNum, verseText, aiBody);
+    }
+  }
+  function closeAiModal() {
+    aiModal.hidden = true;
+    aiBody.innerHTML = "";
+  }
+  aiClose?.addEventListener("click", closeAiModal);
+  aiModal?.addEventListener("click", (e) => { if (e.target === aiModal) closeAiModal(); });
+
+  // ---------- Copy verse ----------
+  function cmToast(message) {
+    const t = document.createElement("div");
+    t.className = "cm-toast";
+    t.textContent = message;
+    document.body.appendChild(t);
+    setTimeout(() => t.remove(), 2000);
+  }
+  function copyVerseFromWord(wordEl) {
+    const verseNum = wordEl.dataset.verse;
+    const bookName = currentInfo?.bookName;
+    const chapterNum = currentInfo?.chapterNum;
+    const verseText = currentInfo?.chapterContent?.[verseNum];
+    if (!bookName || !chapterNum || !verseText) return;
+    const ref = `${bookName} ${chapterNum}:${verseNum}`;
+    const text = `${ref} — ${verseText.trim()}`;
+    const done = () => cmToast(`${ref} copied!`);
+    if (navigator.clipboard?.writeText) {
+      navigator.clipboard.writeText(text).then(done).catch(() => {
+        // Fallback — older iOS / insecure contexts.
+        const ta = document.createElement("textarea");
+        ta.value = text;
+        ta.style.position = "fixed";
+        ta.style.opacity = "0";
+        document.body.appendChild(ta);
+        ta.select();
+        try { document.execCommand("copy"); done(); } catch (_) {}
+        ta.remove();
+      });
+    } else {
+      const ta = document.createElement("textarea");
+      ta.value = text;
+      ta.style.position = "fixed";
+      ta.style.opacity = "0";
+      document.body.appendChild(ta);
+      ta.select();
+      try { document.execCommand("copy"); done(); } catch (_) {}
+      ta.remove();
+    }
+  }
 
   document.addEventListener("click", (e) => {
     if (overlay.hidden) return;
@@ -8889,6 +9125,11 @@ async function _imgcrShare() {
   document.addEventListener("keydown", (e) => {
     if (overlay.hidden) return;
     if (noteModal && !noteModal.hidden) return; // typing in note input
+    if (aiModal && !aiModal.hidden) {
+      // Inside AI modal: only handle Escape to dismiss, never steal typing.
+      if (e.key === "Escape") closeAiModal();
+      return;
+    }
     if (e.key === "Escape") {
       if (!noteView.hidden) closeNoteView();
       else if (!popover.hidden) closePopover();
@@ -8920,6 +9161,11 @@ async function _imgcrShare() {
     closePopover();
     closeNoteView();
     closeNoteInput();
+    closeAiModal();
+    closeArc();
+    strokeActive = false;
+    strokePointerId = null;
+    strokeTouched = null;
     overlay.hidden = true;
   }
 
@@ -8935,5 +9181,340 @@ async function _imgcrShare() {
     state = loadState(stateKey);
     if (currentInfo) renderPassage(currentInfo);
   });
+})();
+
+/* =====================================================================
+ * REVAMPED MAIN TOOLBAR — thin proxy over the legacy controls
+ * =====================================================================
+ * The old .controls.smart-header is hidden and shown as a modal sheet
+ * only when the user taps the passage pill. Every button in the new
+ * toolbar forwards clicks to the original hidden button so all existing
+ * JS (which watches #book.value, #load.onclick, etc.) keeps working.
+ * =================================================================== */
+(function mainToolbar() {
+  const mtBar          = document.getElementById("mtBar");
+  const mtPassage      = document.getElementById("mtPassage");
+  const mtPassageText  = document.getElementById("mtPassageText");
+  const mtPrev         = document.getElementById("mtPrev");
+  const mtNext         = document.getElementById("mtNext");
+  const mtActions      = document.getElementById("mtActions");
+  const mtListen       = document.getElementById("mtListen");
+  const mtOverflow     = document.getElementById("mtOverflow");
+  const mtOverflowSheet = document.getElementById("mtOverflowSheet");
+  const mtOverflowBackdrop = document.getElementById("mtOverflowBackdrop");
+  const mtThemeToggle  = document.getElementById("mtThemeToggle");
+  const mtSearchBible  = document.getElementById("mtSearchBible");
+  const mtNotesToggle  = document.getElementById("mtNotesToggle");
+  if (!mtPassage) return;
+
+  const bookSel     = document.getElementById("book");
+  const chapterSel  = document.getElementById("chapter");
+  const loadBtn     = document.getElementById("load");
+  const prevOrigBtn = document.getElementById("prevChapterBtn");
+  const nextOrigBtn = document.getElementById("nextChapterBtn");
+  const ttsBtn      = document.getElementById("ttsPlayBtn");
+  const notesBtn    = document.getElementById("notesToggleBtn");
+  const themeBtn    = document.getElementById("mode-toggle");
+  const searchBtn   = document.getElementById("bibleSearchBtn");
+
+  function updatePassageText() {
+    const book = bookSel?.options[bookSel.selectedIndex]?.text?.trim();
+    const ch = chapterSel?.value;
+    mtPassageText.textContent = book && ch ? `${book} ${ch}` : "Select passage";
+  }
+
+  // Passage sheet (reveals the old dropdowns as a modal).
+  function openCfgSheet() { document.body.classList.add("cfg-sheet-open"); }
+  function closeCfgSheet() { document.body.classList.remove("cfg-sheet-open"); }
+  // Passage entry points all open the Book picker directly — the old
+   // intermediate "passage sheet" modal is gone. Chapter pick auto-loads.
+  function openBookDirectly() {
+    window._openBookPicker?.();
+  }
+  mtPassage.addEventListener("click", openBookDirectly);
+  document.getElementById("dashBrowseBtn")?.addEventListener("click", openBookDirectly);
+  // Big passage header itself is the primary navigator now.
+  document.getElementById("passageTitle")?.addEventListener("click", openBookDirectly);
+  // Passage title chevrons proxy to the legacy prev/next chapter buttons.
+  document.getElementById("passageTitlePrev")?.addEventListener("click", () =>
+    document.getElementById("prevChapterBtn")?.click()
+  );
+  document.getElementById("passageTitleNext")?.addEventListener("click", () =>
+    document.getElementById("nextChapterBtn")?.click()
+  );
+
+  // Close the sheet immediately on Search click, then fire the original
+  // loadBtn handler async. Awaiting first left the sheet open for the whole
+  // loadPassage() + runAIForCurrentPassage() cycle (several seconds).
+  if (loadBtn) {
+    const prev = loadBtn.onclick;
+    loadBtn.onclick = async function (...args) {
+      closeCfgSheet();
+      updatePassageText();
+      try {
+        if (prev) return await prev.apply(this, args);
+      } catch (err) { console.error(err); }
+    };
+  }
+  bookSel?.addEventListener("change", updatePassageText);
+  chapterSel?.addEventListener("change", updatePassageText);
+  updatePassageText();
+
+  // Chevron / action proxies
+  mtPrev?.addEventListener("click", () => prevOrigBtn?.click());
+  mtNext?.addEventListener("click", () => nextOrigBtn?.click());
+  mtListen?.addEventListener("click", () => ttsBtn?.click());
+
+  // Version toggle moved into the overflow sheet (Settings-ish row).
+  // Proxies taps to the original .version-pill buttons so all downstream JS
+  // still runs; mirrors the active state both ways.
+  const mtSheetVer = document.getElementById("mtSheetVersion");
+  function syncSheetVerPills() {
+    const active = document.querySelector(".version-pill.active")?.dataset.ver;
+    mtSheetVer?.querySelectorAll(".mt-sheet-ver").forEach(b => {
+      b.classList.toggle("active", b.dataset.ver === active);
+    });
+  }
+  mtSheetVer?.addEventListener("click", (e) => {
+    const btn = e.target.closest(".mt-sheet-ver");
+    if (!btn) return;
+    document.querySelector(`.version-pill[data-ver="${btn.dataset.ver}"]`)?.click();
+    setTimeout(syncSheetVerPills, 10);
+  });
+  document.querySelectorAll(".version-pill").forEach(p =>
+    p.addEventListener("click", () => setTimeout(syncSheetVerPills, 10))
+  );
+  syncSheetVerPills();
+
+  // Overflow sheet
+  function openOverflow() { mtOverflowSheet.hidden = false; }
+  function closeOverflow() { mtOverflowSheet.hidden = true; }
+  mtOverflow?.addEventListener("click", openOverflow);
+  mtOverflowBackdrop?.addEventListener("click", closeOverflow);
+  mtThemeToggle?.addEventListener("click", () => { themeBtn?.click(); closeOverflow(); });
+  mtSearchBible?.addEventListener("click", () => { searchBtn?.click(); closeOverflow(); });
+  mtNotesToggle?.addEventListener("click", () => { notesBtn?.click(); closeOverflow(); });
+
+  // Mirror the "hidden until passage loaded" behavior of the original buttons.
+  // Watch the ttsPlayBtn's class list — when loadBtn.click() unhides it, show
+  // our chevrons + action row.
+  function syncPassageLoadedState() {
+    const loaded = ttsBtn && !ttsBtn.classList.contains("hidden");
+    mtPrev.hidden = !loaded;
+    mtNext.hidden = !loaded;
+    mtActions.hidden = !loaded;
+  }
+  if (ttsBtn) {
+    new MutationObserver(syncPassageLoadedState)
+      .observe(ttsBtn, { attributes: true, attributeFilter: ["class"] });
+  }
+  syncPassageLoadedState();
+
+  // Reflect TTS playing state on the Listen pill.
+  function syncListenState() {
+    const playing = ttsBtn?.classList.contains("playing");
+    mtListen?.classList.toggle("playing", !!playing);
+  }
+  if (ttsBtn) {
+    new MutationObserver(syncListenState)
+      .observe(ttsBtn, { attributes: true, attributeFilter: ["class"] });
+  }
+})();
+
+/* =====================================================================
+ * BOOK / CHAPTER PICKER — mobile-inspired bottom-sheet selectors
+ * =====================================================================
+ * Replaces the native <select> UI inside the passage sheet. The selects
+ * stay in the DOM (and stay in sync) because the rest of the app reads
+ * bookEl.value / chapterEl.value directly.
+ * =================================================================== */
+(function bookChapterPicker() {
+  const bookBtn     = document.getElementById("bookPickerBtn");
+  const chapterBtn  = document.getElementById("chapterPickerBtn");
+  const bookText    = document.getElementById("bookPickerText");
+  const chapterText = document.getElementById("chapterPickerText");
+  const bookSheet   = document.getElementById("bookPickerSheet");
+  const chapSheet   = document.getElementById("chapterPickerSheet");
+  const bookList    = document.getElementById("bookPickerList");
+  const chapGrid    = document.getElementById("chapterPickerGrid");
+  const chapLabel   = document.getElementById("chapterPickerLabel");
+  const bookSearch  = document.getElementById("bookPickerSearch");
+  const bookTabs    = document.getElementById("bookPickerTabs");
+  if (!bookBtn || !chapterBtn) return;
+
+  const bookSel     = document.getElementById("book");
+  const chapterSel  = document.getElementById("chapter");
+  const META        = window.BIBLE_META || {};
+  const BOOK_ORDER  = Object.keys(META);
+  const OT = BOOK_ORDER.slice(0, 39);
+  const NT = BOOK_ORDER.slice(39);
+
+  let activeTab = "OT";
+  let searchTerm = "";
+
+  function fire(el, type) { el?.dispatchEvent(new Event(type, { bubbles: true })); }
+
+  function currentBookCode() { return bookSel?.value || ""; }
+  function currentChapterNum() { return parseInt(chapterSel?.value, 10) || 1; }
+
+  function renderLabels() {
+    const code = currentBookCode();
+    bookText.textContent = code ? (META[code]?.name || "Select book") : "Select book";
+    chapterText.textContent = currentChapterNum() ? String(currentChapterNum()) : "1";
+  }
+
+  function openBookSheet() {
+    // Default tab to whichever testament the current book belongs to.
+    const code = currentBookCode();
+    activeTab = code && NT.includes(code) ? "NT" : "OT";
+    searchTerm = "";
+    if (bookSearch) bookSearch.value = "";
+    updateTabsUI();
+    renderBookList();
+    renderCurrentPassage();
+    bookSheet.hidden = false;
+    setTimeout(() => bookSearch?.focus(), 100);
+  }
+
+  function renderCurrentPassage() {
+    const banner = document.getElementById("bookPickerCurrent");
+    const ref = document.getElementById("bookPickerCurrentRef");
+    if (!banner || !ref) return;
+    const code = currentBookCode();
+    const ch = currentChapterNum();
+    if (!code || !META[code]) {
+      banner.hidden = true;
+      return;
+    }
+    ref.textContent = `${META[code].name} ${ch}`;
+    banner.hidden = false;
+  }
+  function closeBookSheet() { bookSheet.hidden = true; }
+  function openChapterSheet() {
+    const code = currentBookCode();
+    if (!code) { openBookSheet(); return; }
+    chapLabel.textContent = `${(META[code]?.name || "").toUpperCase()} — SELECT CHAPTER`;
+    renderChapterGrid();
+    chapSheet.hidden = false;
+  }
+  function closeChapterSheet() { chapSheet.hidden = true; }
+
+  function updateTabsUI() {
+    bookTabs.querySelectorAll(".bc-tab").forEach(t => {
+      t.classList.toggle("active", t.dataset.tab === activeTab);
+    });
+  }
+
+  function renderBookList() {
+    bookList.innerHTML = "";
+    const list = searchTerm
+      ? BOOK_ORDER.filter(c => META[c].name.toLowerCase().includes(searchTerm.toLowerCase()))
+      : (activeTab === "OT" ? OT : NT);
+    if (!list.length) {
+      bookList.innerHTML = `<div class="bc-empty">No books match "${searchTerm}"</div>`;
+      return;
+    }
+    const current = currentBookCode();
+    for (const code of list) {
+      const row = document.createElement("div");
+      row.className = "bc-book-row" + (code === current ? " active" : "");
+      row.dataset.code = code;
+      row.innerHTML = `
+        <span class="bc-book-name">${META[code].name}</span>
+        <span class="bc-book-chapters">${META[code].chapters.length} chapters</span>
+      `;
+      row.addEventListener("click", () => selectBook(code));
+      bookList.appendChild(row);
+    }
+  }
+
+  function renderChapterGrid() {
+    chapGrid.innerHTML = "";
+    const code = currentBookCode();
+    const n = META[code]?.chapters?.length || 1;
+    const current = currentChapterNum();
+    for (let i = 1; i <= n; i++) {
+      const cell = document.createElement("button");
+      cell.type = "button";
+      cell.className = "bc-chapter-cell" + (i === current ? " active" : "");
+      cell.textContent = i;
+      cell.addEventListener("click", () => selectChapter(i));
+      chapGrid.appendChild(cell);
+    }
+  }
+
+  function selectBook(code) {
+    if (!bookSel) return;
+    // Preserve the currently-reading chapter when the user picks the SAME
+    // book (e.g. they opened the picker to change chapter and want to see
+    // the current chapter highlighted on the chapter grid). The legacy
+    // bookSel.onchange (loadChapters) rebuilds the #chapter <select> and
+    // resets it to "1" — so we save and restore manually.
+    const sameBook = bookSel.value === code;
+    const prevChapter = chapterSel?.value;
+    bookSel.value = code;
+    fire(bookSel, "change");  // legacy handler populates chapter dropdown
+    if (sameBook && prevChapter && chapterSel) {
+      // Only restore if the previous chapter is valid for this book.
+      const n = META[code]?.chapters?.length || 1;
+      const pc = parseInt(prevChapter, 10);
+      if (pc >= 1 && pc <= n) chapterSel.value = String(pc);
+    }
+    renderLabels();
+    closeBookSheet();
+    // Chain naturally into chapter pick — mirrors the mobile UX.
+    setTimeout(openChapterSheet, 160);
+  }
+  function selectChapter(n) {
+    if (!chapterSel) return;
+    chapterSel.value = String(n);
+    fire(chapterSel, "change");
+    renderLabels();
+    closeChapterSheet();
+    // Auto-load the passage — no more Search button in between.
+    document.getElementById("load")?.click();
+  }
+
+  // Expose the opener so the passage pill / dashboard browse button can hit
+  // it directly (skipping the deprecated passage-sheet modal).
+  window._openBookPicker = openBookSheet;
+
+  // Wiring
+  bookBtn.addEventListener("click", openBookSheet);
+  chapterBtn.addEventListener("click", openChapterSheet);
+  // "Currently reading" banner behavior is context-aware:
+   //   - from dashboard → navigate to that passage (close + load)
+   //   - from reading view → just dismiss (user is staying)
+  document.getElementById("bookPickerCurrent")?.addEventListener("click", () => {
+    closeBookSheet();
+    const onDashboard = document.querySelector(".layout")?.classList.contains("layout-unset");
+    if (onDashboard) document.getElementById("load")?.click();
+  });
+  bookTabs.addEventListener("click", (e) => {
+    const tab = e.target.closest(".bc-tab");
+    if (!tab) return;
+    activeTab = tab.dataset.tab;
+    searchTerm = "";
+    if (bookSearch) bookSearch.value = "";
+    updateTabsUI();
+    renderBookList();
+  });
+  bookSearch?.addEventListener("input", (e) => {
+    searchTerm = e.target.value.trim();
+    renderBookList();
+  });
+  [bookSheet, chapSheet].forEach(s => {
+    s?.addEventListener("click", (e) => {
+      if (e.target.closest("[data-close-bc]")) {
+        s.hidden = true;
+      }
+    });
+  });
+
+  // Keep picker labels in sync when the legacy dropdowns change from elsewhere
+  // (e.g., prev/next chapter buttons, loadPassageById, dashboard shortcuts).
+  bookSel?.addEventListener("change", renderLabels);
+  chapterSel?.addEventListener("change", renderLabels);
+  renderLabels();
 })();
 

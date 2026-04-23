@@ -113,6 +113,7 @@ textarea:focus {
   flex-direction: column;
   justify-content: flex-end;
 }
+.control[hidden] { display: none !important; }
 
 button {
   flex: 0 !important;
@@ -4847,8 +4848,12 @@ body.light {
   font-family: "Editors Note";
   font-style: italic;
   font-size: 2.2rem;
-  color: #fff;
-  opacity: 0.85;
+  background: linear-gradient(135deg, #7b9cf7, #fff, #f0a0cc);
+  background-size: 200% 200%;
+  -webkit-background-clip: text;
+  -webkit-text-fill-color: transparent;
+  background-clip: text;
+  animation: splash-shimmer 3s ease-in-out infinite alternate;
   position: relative;
   z-index: 10;
   cursor: default;
@@ -4856,7 +4861,13 @@ body.light {
   user-select: none;
   line-height: 1;
 }
-.light .dash-brand { color: #1a1a2e; opacity: 0.75; }
+.light .dash-brand {
+  background: linear-gradient(135deg, #4a6cf7, #1a1a2e, #c83086);
+  background-size: 200% 200%;
+  -webkit-background-clip: text;
+  -webkit-text-fill-color: transparent;
+  background-clip: text;
+}
 
 /* Dashboard clock */
 .dash-clock {
@@ -6401,7 +6412,7 @@ button#storyBtn { background: unset; }
 .verse-peek-overlay {
   position: fixed;
   inset: 0;
-  z-index: 10001;
+  z-index: 10250;
   background: rgba(0,0,0,0.25);
   animation: versePeekFadeIn 0.15s ease-out;
 }
@@ -6865,7 +6876,7 @@ button#storyBtn { background: unset; }
 .soap-screen {
   position: fixed;
   inset: 0;
-  z-index: 10001;
+  z-index: 10120;
   background: var(--bg, #0b1220);
   transform: translateX(100%);
   transition: transform 0.32s cubic-bezier(0.4, 0, 0.2, 1);
@@ -8323,7 +8334,7 @@ button#storyBtn { background: unset; }
 .bible-search-modal {
   position: fixed;
   inset: 0;
-  z-index: 9999;
+  z-index: 10200;
   background: #0b1220;
   display: flex;
   flex-direction: column;
@@ -8568,6 +8579,91 @@ button#storyBtn { background: unset; }
 .cm-viewport.cm-tool-erase .cm-scroll,
 .cm-viewport.cm-tool-text  .cm-scroll { touch-action: none; }
 
+/* Sticky bottom-right FAB — tap to toggle pan ↔ highlight quickly. Eraser
+   stays in the top toolbar for deliberate access. */
+.cm-fab {
+  position: absolute;
+  right: 20px;
+  bottom: calc(20px + env(safe-area-inset-bottom, 0px));
+  width: 56px;
+  height: 56px;
+  border-radius: 50%;
+  border: 2px solid rgba(255, 255, 255, 0.85);
+  background: #1a1a2e;
+  color: #fff;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  box-shadow: 0 8px 22px rgba(0, 0, 0, 0.25), 0 2px 6px rgba(0, 0, 0, 0.15);
+  cursor: pointer;
+  z-index: 6;
+  transition: background 0.2s ease, transform 0.1s ease, box-shadow 0.2s ease;
+  touch-action: manipulation;
+  -webkit-tap-highlight-color: transparent;
+}
+.cm-fab:active { transform: scale(0.93); }
+.cm-fab-icon { font-size: 26px; line-height: 1; }
+.cm-fab[data-current="pan"]    { background: #1a1a2e; color: #fff; }
+.cm-fab[data-current="eraser"] { background: #475569; color: #fff; }
+/* In highlight mode, the FAB IS the current color swatch — instant visual
+   read of what color you're painting with. Icon is white for clean contrast. */
+.cm-fab[data-current="highlight"] { color: #fff; }
+.cm-fab[data-current="highlight"][data-color="yellow"] { background: #ffe66b; }
+.cm-fab[data-current="highlight"][data-color="pink"]   { background: #f9a8d4; }
+.cm-fab[data-current="highlight"][data-color="blue"]   { background: #93c5fd; }
+.cm-fab[data-current="highlight"][data-color="orange"] { background: #fdba74; }
+.cm-fab[data-current="highlight"][data-color="green"]  { background: #bef264; }
+
+/* Radial arc of chips around the FAB — 4 other colors + eraser.
+   Each chip reads a precomputed --dx/--dy (set by JS) for its offset and a
+   --i index for the stagger delay. Collapsed state scales chips to 0;
+   opening adds .cm-fab-arc-open which runs the transition per-chip. */
+.cm-fab-arc {
+  position: absolute;
+  right: 20px;
+  bottom: calc(20px + env(safe-area-inset-bottom, 0px));
+  width: 56px;
+  height: 56px;
+  z-index: 6;
+  pointer-events: none;
+}
+.cm-fab-arc-chip {
+  position: absolute;
+  left: 28px;
+  top: 28px;
+  width: 40px;
+  height: 40px;
+  margin-left: -20px;
+  margin-top: -20px;
+  padding: 0;
+  border-radius: 50%;
+  border: 2px solid rgba(255, 255, 255, 0.85);
+  background: var(--sw, #fff);
+  box-shadow: 0 4px 14px rgba(0, 0, 0, 0.2), 0 1px 3px rgba(0, 0, 0, 0.12);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  color: #1a1a2e;
+  cursor: pointer;
+  pointer-events: auto;
+  -webkit-tap-highlight-color: transparent;
+  transform: translate(0, 0) scale(0);
+  opacity: 0;
+  transition: transform 0.28s cubic-bezier(0.34, 1.56, 0.64, 1),
+              opacity 0.18s ease;
+}
+.cm-fab-arc.cm-fab-arc-open .cm-fab-arc-chip {
+  transform: translate(var(--dx, 0), var(--dy, 0)) scale(1);
+  opacity: 1;
+  transition-delay: calc(var(--i, 0) * 35ms);
+}
+.cm-fab-arc-chip:active { transform: translate(var(--dx, 0), var(--dy, 0)) scale(0.9); }
+.cm-fab-arc-eraser {
+  background: #475569;
+  color: #fff;
+}
+.cm-fab-arc-eraser .material-symbols-outlined { font-size: 18px; }
+
 .cm-paper {
   position: relative;
   width: 100%;
@@ -8611,6 +8707,10 @@ button#storyBtn { background: unset; }
 .cm-verse-num {
   display: inline;
   font-size: 1.4rem;
+  /* Pin line-height so the bigger verse number can't inflate the first line's
+     line-box — otherwise the first line's highlight renders taller than
+     subsequent lines (sub-pixel paint differs between line-heights on iOS). */
+  line-height: 1;
   font-weight: 800;
   color: #c83086;
   background: transparent;
@@ -8620,7 +8720,8 @@ button#storyBtn { background: unset; }
   user-select: none;
 }
 
-/* Words live inline; highlight is a solid vivid color (no opacity dimming). */
+/* Words live inline; highlight is a solid vivid color (no opacity dimming).
+   Padding is kept constant so toggling a highlight never shifts the text. */
 .cm-word {
   display: inline;
   padding: 4px 1px;
@@ -8636,9 +8737,46 @@ button#storyBtn { background: unset; }
 .cm-word[data-color="orange"] { background: #fdba74; }
 .cm-word[data-color="green"]  { background: #c5f26a; }
 
-/* Fuse adjacent same-color words into a single bar. */
-.cm-word[data-color].cm-run-l { border-top-left-radius: 0; border-bottom-left-radius: 0; padding-left: 0; }
-.cm-word[data-color].cm-run-r { border-top-right-radius: 0; border-bottom-right-radius: 0; padding-right: 0; }
+/* Live preview while the user is still dragging — lighter wash of the
+   chosen color. On pointerup the preview is replaced with the full-saturation
+   data-color, giving a satisfying "commit" moment. Preview wins over
+   committed color (data-color) because it's declared later. */
+.cm-word[data-preview-color="yellow"] { background: rgba(255, 230, 107, 0.45) !important; }
+.cm-word[data-preview-color="pink"]   { background: rgba(249, 168, 212, 0.45) !important; }
+.cm-word[data-preview-color="blue"]   { background: rgba(165, 200, 255, 0.5)  !important; }
+.cm-word[data-preview-color="orange"] { background: rgba(253, 186, 116, 0.45) !important; }
+.cm-word[data-preview-color="green"]  { background: rgba(197, 242, 106, 0.45) !important; }
+
+/* Erase preview — show a lighter wash of the word's EXISTING color so the
+   user sees "this will become uncolored" rather than a mysterious fade. */
+.cm-word[data-color="yellow"][data-preview-erase] { background: rgba(255, 230, 107, 0.35) !important; }
+.cm-word[data-color="pink"][data-preview-erase]   { background: rgba(249, 168, 212, 0.35) !important; }
+.cm-word[data-color="blue"][data-preview-erase]   { background: rgba(165, 200, 255, 0.4)  !important; }
+.cm-word[data-color="orange"][data-preview-erase] { background: rgba(253, 186, 116, 0.35) !important; }
+.cm-word[data-color="green"][data-preview-erase]  { background: rgba(197, 242, 106, 0.35) !important; }
+
+.cm-word[data-preview-color],
+.cm-word[data-preview-erase] { transition: background 0.15s ease; }
+
+/* Gap connectors follow the same preview logic — when both sides of a gap
+   are in a matching preview color, the gap washes too for smooth fusion. */
+.cm-gap[data-preview-color="yellow"] { background: rgba(255, 230, 107, 0.45); }
+.cm-gap[data-preview-color="pink"]   { background: rgba(249, 168, 212, 0.45); }
+.cm-gap[data-preview-color="blue"]   { background: rgba(165, 200, 255, 0.5);  }
+.cm-gap[data-preview-color="orange"] { background: rgba(253, 186, 116, 0.45); }
+.cm-gap[data-preview-color="green"]  { background: rgba(197, 242, 106, 0.45); }
+.cm-gap[data-preview-color] {
+  margin: 0 -2px;
+  padding: 4px 2px;
+  position: relative;
+  z-index: 0;
+  transition: background 0.15s ease;
+}
+
+/* Fuse adjacent same-color words into a single bar — only radius changes,
+   padding stays the same so the text doesn't shift when a run forms. */
+.cm-word[data-color].cm-run-l { border-top-left-radius: 0; border-bottom-left-radius: 0; }
+.cm-word[data-color].cm-run-r { border-top-right-radius: 0; border-bottom-right-radius: 0; }
 
 .cm-gap { padding: 4px 0; border-radius: 0; }
 .cm-gap[data-color="yellow"] { background: #ffe66b; }
@@ -8646,6 +8784,15 @@ button#storyBtn { background: unset; }
 .cm-gap[data-color="blue"]   { background: #a5c8ff; }
 .cm-gap[data-color="orange"] { background: #fdba74; }
 .cm-gap[data-color="green"]  { background: #c5f26a; }
+/* Overlap neighbors by 2px each side when the gap is colored — the overlap
+   is same-color so it's invisible but it forcibly bridges any sub-pixel
+   hairline gap that Safari sometimes leaves between inline boxes on iOS. */
+.cm-gap[data-color] {
+  margin: 0 -2px;
+  padding: 4px 2px;
+  position: relative;
+  z-index: 0;
+}
 
 /* Noted-word badge — absolute positioned inside the word so it floats
    above the text without breaking inline reading flow. */
@@ -8834,13 +8981,19 @@ button#storyBtn { background: unset; }
   border-radius: 14px;
   padding: 10px 12px;
   display: flex;
-  gap: 10px;
-  align-items: center;
+  flex-direction: column;
+  gap: 8px;
+  min-width: 280px;
   box-shadow: 0 10px 30px rgba(0,0,0,0.12);
   animation: cmPopIn 0.18s ease;
 }
 .cm-popover[hidden] { display: none !important; }
 @keyframes cmPopIn { from { opacity: 0; transform: translateY(4px) scale(0.96); } to { opacity: 1; transform: translateY(0) scale(1); } }
+.cm-popover-row {
+  display: flex;
+  gap: 10px;
+  align-items: center;
+}
 .cm-popover-actions { display: flex; gap: 4px; border-left: 1px solid rgba(0,0,0,0.08); padding-left: 10px; }
 .cm-pop-action {
   width: 32px;
@@ -8856,6 +9009,262 @@ button#storyBtn { background: unset; }
 }
 .cm-pop-action:hover { background: rgba(0,0,0,0.1); color: #1a1a2e; }
 .cm-pop-action .material-symbols-outlined { font-size: 18px; }
+
+.cm-popover-secondary {
+  display: grid;
+  grid-template-columns: 1fr 1fr;
+  gap: 6px;
+  border-top: 1px solid rgba(0,0,0,0.06);
+  padding-top: 8px;
+}
+.cm-pop-secondary-btn {
+  width: 100%;
+  padding: 7px 10px;
+  border: 1px solid rgba(0,0,0,0.08);
+  border-radius: 8px;
+  background: #faf9f6;
+  color: #1a1a2e;
+  font-family: inherit;
+  font-size: 13px;
+  font-weight: 600;
+  letter-spacing: 0.2px;
+  white-space: nowrap;
+  text-overflow: ellipsis;
+  overflow: hidden;
+  cursor: pointer;
+  transition: background 0.15s ease, border-color 0.15s ease;
+}
+.cm-pop-secondary-btn:hover { background: rgba(0,0,0,0.04); border-color: rgba(0,0,0,0.14); }
+
+/* Light-mode modal for Context / Ask Question. Mounts fetchInlineQuickContext
+   or toggleVerseChat into #cmAiBody — their cards get paper-flavored overrides
+   below. */
+.cm-ai-modal {
+  position: fixed;
+  inset: 0;
+  z-index: 10080;
+  background: rgba(15,23,42,0.35);
+  backdrop-filter: blur(4px);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  padding: 20px;
+  animation: cmFadeIn 0.18s ease;
+}
+.cm-ai-modal[hidden] { display: none !important; }
+.cm-ai-card {
+  background: #faf7f0;
+  border-radius: 16px;
+  width: 100%;
+  max-width: 560px;
+  max-height: 85vh;
+  display: flex;
+  flex-direction: column;
+  box-shadow: 0 16px 40px rgba(0,0,0,0.18);
+  animation: cmPopIn 0.2s ease;
+  overflow: hidden;
+}
+.cm-ai-header {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  padding: 14px 18px;
+  border-bottom: 1px solid rgba(0,0,0,0.06);
+}
+.cm-ai-ref {
+  font-size: 12px;
+  font-weight: 700;
+  color: #c83086;
+  text-transform: uppercase;
+  letter-spacing: 1px;
+}
+.cm-ai-close {
+  width: 32px;
+  height: 32px;
+  border: 1px solid rgba(26, 26, 46, 0.1);
+  background: rgba(26, 26, 46, 0.04);
+  color: rgba(26, 26, 46, 0.65);
+  border-radius: 50%;
+  cursor: pointer;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  transition: background 0.15s ease, border-color 0.15s ease, color 0.15s ease;
+}
+.cm-ai-close:hover {
+  background: rgba(26, 26, 46, 0.07);
+  border-color: rgba(26, 26, 46, 0.18);
+  color: #1a1a2e;
+}
+.cm-ai-close .material-symbols-outlined { font-size: 18px; }
+.cm-ai-body {
+  padding: 14px 18px 18px;
+  overflow-y: auto;
+  color: #1a1a2e;
+}
+
+/* Flatten the nested inline-ai-card inside this modal — the modal already
+   provides the card frame and header, so we strip the inner duplicate
+   backgrounds, borders, padding, and header for a single-layer look. */
+.cm-ai-body .inline-ai-card,
+.cm-ai-body .inline-ai-card.dig-deeper {
+  margin: 0;
+  padding: 0;
+  background: transparent;
+  border: none;
+  border-radius: 0;
+  overflow: visible;
+  animation: none;
+}
+.cm-ai-body .inline-ai-card .ai-card-gradient {
+  background: transparent;
+  padding: 0;
+  border-radius: 0;
+  color: #1a1a2e;
+}
+/* Outer modal already shows the reference; hide the inner header entirely. */
+.cm-ai-body .inline-ai-card .ai-card-header { display: none; }
+.cm-ai-body .inline-ai-card .ai-md-content,
+.cm-ai-body .inline-ai-card .ai-md-content p,
+.cm-ai-body .inline-ai-card .ai-md-content strong,
+.cm-ai-body .inline-ai-card .ai-md-content em,
+.cm-ai-body .inline-ai-card .ai-md-content h4,
+.cm-ai-body .inline-ai-card .ai-md-content .md-h2,
+.cm-ai-body .inline-ai-card .ai-md-content .md-h4,
+.cm-ai-body .inline-ai-card .ai-md-content .md-bullet { color: #1a1a2e; }
+/* Dig Deeper footer — paper-card styling, not the default bright white. */
+.cm-ai-body .inline-ai-dig-footer,
+.cm-ai-modal.light .inline-ai-dig-footer {
+  margin-top: 16px;
+  background: rgba(26, 26, 46, 0.04);
+  border: 1px solid rgba(26, 26, 46, 0.1);
+  border-radius: 10px;
+  color: #1a1a2e;
+  padding: 12px 14px;
+}
+.cm-ai-body .inline-ai-dig-footer:hover,
+.cm-ai-modal.light .inline-ai-dig-footer:hover {
+  background: rgba(26, 26, 46, 0.07);
+  border-color: rgba(26, 26, 46, 0.18);
+}
+.cm-ai-body .inline-ai-dig-footer .material-icons { color: #c83086; opacity: 1; font-size: 16px; }
+.cm-ai-body .inline-ai-dig-footer .chevron { color: #c83086; opacity: 0.7; }
+
+/* Bullet dots render as 50% white by default — invisible on paper. Darken. */
+.cm-ai-body .inline-ai-card .ai-md-content .md-bullet-dot { color: rgba(26, 26, 46, 0.55); }
+
+/* Respond CTA (from Dig Deeper): match the paper-chip treatment used by the
+   Dig Deeper footer so neither button looks pasted onto the card. */
+.cm-ai-body .soap-respond-row {
+  border-top-color: rgba(26, 26, 46, 0.08);
+  margin-top: 16px;
+  padding-top: 14px;
+}
+.cm-ai-body .soap-respond-btn {
+  background: rgba(26, 26, 46, 0.04);
+  border: 1px solid rgba(26, 26, 46, 0.12);
+  color: #1a1a2e;
+}
+.cm-ai-body .soap-respond-btn:hover {
+  background: rgba(26, 26, 46, 0.07);
+  opacity: 1;
+}
+.cm-ai-body .soap-respond-btn .material-icons { color: #c83086; }
+/* Flatten look = no sparkle/orbit decorations (they only make sense on a
+   framed card with its own backdrop). */
+.cm-ai-body .dig-spark,
+.cm-ai-body .dig-orbit { display: none; }
+
+/* Flatten the verse-chat wrapper so chat bubbles render directly on the
+   paper card without a second framed panel. */
+.cm-ai-body .verse-chat-wrapper,
+.cm-ai-modal.light .verse-chat-wrapper {
+  background: transparent;
+  border: none;
+  border-radius: 0;
+  margin: 0;
+  max-width: none;
+  animation: none;
+  overflow: visible;
+}
+.cm-ai-body .verse-chat-context { padding: 0 0 10px; border-bottom-color: rgba(0,0,0,0.08); }
+.cm-ai-body .chat-history {
+  padding: 10px 0;
+  mask-image: none;
+  -webkit-mask-image: none;
+}
+.cm-ai-body .chat-input-area {
+  padding: 10px 0 0;
+  border-top: none;
+}
+
+/* Chat follow-up chips were tiny (11px) with awkward wrapper padding — scale
+   up to match suggestion chips. Both chip types share the same paper-chip
+   treatment used by Dig Deeper & Respond for a cohesive look. */
+.cm-ai-body .chat-empty-state {
+  padding: 0;
+  gap: 6px;
+}
+.cm-ai-body .chat-suggestions { margin-top: 10px; }
+.cm-ai-body .chat-followups {
+  padding: 0;
+  margin-top: 12px;
+  gap: 8px;
+}
+.cm-ai-body .chat-followups-label {
+  padding: 0;
+  color: rgba(26, 26, 46, 0.5);
+}
+.cm-ai-body .chat-suggestion-chip,
+.cm-ai-body .chat-followup-chip {
+  background: rgba(26, 26, 46, 0.04);
+  border-color: rgba(26, 26, 46, 0.1);
+  color: rgba(26, 26, 46, 0.85);
+  font-size: 13px;
+  padding: 10px 14px;
+  border-radius: 10px;
+}
+.cm-ai-body .chat-suggestion-chip:hover,
+.cm-ai-body .chat-followup-chip:hover {
+  background: rgba(26, 26, 46, 0.07);
+  border-color: rgba(26, 26, 46, 0.18);
+}
+
+/* Sparkle loader: inline-row layout with dark text so the loading state
+   reads as "✦✦✦ Quick context…" instead of 3 orphan stars on paper. */
+.cm-ai-body .sparkle-loader {
+  flex-direction: row;
+  justify-content: center;
+  align-items: center;
+  gap: 10px;
+  padding: 14px 0;
+}
+.cm-ai-body .sparkle-loader .sparkle-text {
+  color: rgba(26, 26, 46, 0.65);
+}
+
+/* Canvas-mode toast (sits above the canvas overlay, unlike .notes-toast). */
+.cm-toast {
+  position: fixed;
+  bottom: max(env(safe-area-inset-bottom, 0px) + 24px, 40px);
+  left: 50%;
+  transform: translateX(-50%);
+  background: rgba(26, 26, 46, 0.95);
+  color: #fff;
+  border-radius: 24px;
+  padding: 10px 20px;
+  font-size: 14px;
+  font-weight: 500;
+  letter-spacing: 0.2px;
+  z-index: 10200;
+  white-space: nowrap;
+  box-shadow: 0 6px 18px rgba(0, 0, 0, 0.25);
+  animation: cmToastIn 0.18s ease;
+}
+@keyframes cmToastIn {
+  from { opacity: 0; transform: translateX(-50%) translateY(8px); }
+  to   { opacity: 1; transform: translateX(-50%) translateY(0); }
+}
 
 @media (max-width: 520px) {
   .cm-toolbar { padding: 8px 10px; gap: 8px; }
@@ -8878,3 +9287,738 @@ button#storyBtn { background: unset; }
 .light .bible-search-mark { background: rgba(219,39,119,0.15); color: #be185d; }
 .light .bible-search-empty { color: rgba(0,0,0,0.3); }
 .light .bible-search-cap { color: rgba(0,0,0,0.2); }
+
+/* ===== REVAMPED MAIN TOOLBAR ===================================
+   Compact passage bar that replaces the 3-dropdown + 6-icon clutter.
+   Original .controls.smart-header stays in the DOM (for the JS that
+   reads #book/#chapter/#verse values) but is hidden until the user
+   taps the passage pill, at which point it appears as a sheet modal.
+================================================================== */
+.controls.smart-header { display: none; }
+body.cfg-sheet-open .controls.smart-header {
+  display: grid;
+  position: fixed;
+  top: 50%;
+  left: 50%;
+  transform: translate(-50%, -50%);
+  width: calc(100% - 32px);
+  max-width: 440px;
+  z-index: 1001;
+  margin: 0;
+  max-height: 85vh;
+  overflow-y: auto;
+  animation: mtSheetIn 0.2s ease;
+}
+body.cfg-sheet-open::before {
+  content: "";
+  position: fixed;
+  inset: 0;
+  background: rgba(0, 0, 0, 0.55);
+  backdrop-filter: blur(3px);
+  z-index: 1000;
+  animation: mtFadeIn 0.15s ease;
+}
+/* In sheet mode, hide the legacy icon buttons but keep the NASB/EASY version
+   pills — those belong with the passage selection. */
+body.cfg-sheet-open .controls-toolbar {
+  display: flex;
+  grid-column: 1 / -1;
+  justify-content: center;
+  align-items: center;
+  padding: 4px 0 0;
+  gap: 8px;
+  border: 0;
+}
+body.cfg-sheet-open .controls-toolbar > .ctrl-icon-btn,
+body.cfg-sheet-open .controls-toolbar > .mode-toggle { display: none !important; }
+/* Subtle translation toggle — demoted from bright pink pill to a quiet text
+   segmented control so Book + Chapter stay the stars of the sheet. */
+body.cfg-sheet-open .version-pill-group {
+  display: inline-flex;
+  padding: 3px;
+  gap: 2px;
+  background: rgba(255, 255, 255, 0.05);
+  border-radius: 999px;
+}
+body.cfg-sheet-open .version-pill {
+  padding: 6px 14px;
+  border: none;
+  border-radius: 999px;
+  background: transparent;
+  color: rgba(255, 255, 255, 0.5);
+  font-size: 11px;
+  font-weight: 700;
+  letter-spacing: 0.5px;
+  cursor: pointer;
+}
+body.cfg-sheet-open .version-pill.active {
+  background: rgba(255, 255, 255, 0.08);
+  color: rgba(255, 255, 255, 0.9);
+}
+body.cfg-sheet-open.light .version-pill-group { background: rgba(0, 0, 0, 0.04); }
+body.cfg-sheet-open.light .version-pill { color: rgba(0, 0, 0, 0.45); }
+body.cfg-sheet-open.light .version-pill.active { background: rgba(0, 0, 0, 0.08); color: #1a1a2e; }
+body.cfg-sheet-open #load { grid-column: 1 / -1; }
+
+/* Hide the native <select> inside the sheet and show our custom picker
+   buttons instead. The selects stay in the DOM because many JS call sites
+   read bookEl.value / chapterEl.value. */
+body.cfg-sheet-open #book,
+body.cfg-sheet-open #chapter { display: none !important; }
+.bc-picker-btn { display: none; }
+body.cfg-sheet-open .bc-picker-btn {
+  display: inline-flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 8px;
+  width: 100%;
+  padding: 12px 14px;
+  border: 1px solid rgba(255, 255, 255, 0.08);
+  border-radius: 12px;
+  background: rgba(255, 255, 255, 0.04);
+  color: #e6edf7;
+  font-family: inherit;
+  font-size: 15px;
+  font-weight: 600;
+  text-align: left;
+  cursor: pointer;
+  transition: background 0.15s ease, border-color 0.15s ease;
+}
+body.cfg-sheet-open .bc-picker-btn:hover {
+  background: rgba(255, 255, 255, 0.07);
+  border-color: rgba(255, 255, 255, 0.14);
+}
+body.cfg-sheet-open .bc-picker-btn .material-symbols-outlined {
+  font-size: 20px;
+  color: rgba(255, 255, 255, 0.5);
+}
+body.cfg-sheet-open.light .bc-picker-btn {
+  background: rgba(0, 0, 0, 0.03);
+  border-color: rgba(0, 0, 0, 0.08);
+  color: #1a1a2e;
+}
+body.cfg-sheet-open.light .bc-picker-btn:hover { background: rgba(0, 0, 0, 0.06); }
+body.cfg-sheet-open.light .bc-picker-btn .material-symbols-outlined { color: rgba(0, 0, 0, 0.45); }
+
+/* ===== BOOK / CHAPTER PICKER BOTTOM SHEETS ========================== */
+.bc-sheet {
+  position: fixed;
+  inset: 0;
+  z-index: 1005;
+  display: flex;
+  align-items: flex-end;
+  justify-content: center;
+}
+.bc-sheet[hidden] { display: none !important; }
+.bc-sheet-backdrop {
+  position: absolute;
+  inset: 0;
+  background: rgba(0, 0, 0, 0.65);
+  backdrop-filter: blur(3px);
+  animation: mtFadeIn 0.18s ease;
+}
+.bc-sheet-panel {
+  position: relative;
+  background: #1a2240;
+  width: 100%;
+  max-width: 560px;
+  max-height: 85vh;
+  border-top-left-radius: 24px;
+  border-top-right-radius: 24px;
+  padding: 20px;
+  display: flex;
+  flex-direction: column;
+  box-shadow: 0 -12px 40px rgba(0, 0, 0, 0.4);
+  animation: bcSlideUp 0.28s cubic-bezier(0.2, 0.9, 0.3, 1);
+}
+@keyframes bcSlideUp {
+  from { transform: translateY(100%); }
+  to   { transform: translateY(0); }
+}
+.bc-sheet-header {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  margin-bottom: 14px;
+}
+.bc-sheet-title {
+  font-size: 20px;
+  font-weight: 700;
+  color: #e6edf7;
+  letter-spacing: -0.3px;
+}
+.bc-sheet-label {
+  font-size: 11px;
+  font-weight: 700;
+  letter-spacing: 1.5px;
+  color: rgba(255, 255, 255, 0.45);
+  text-transform: uppercase;
+}
+.bc-sheet-close {
+  width: 32px;
+  height: 32px;
+  border: none;
+  background: transparent;
+  color: rgba(255, 255, 255, 0.5);
+  border-radius: 50%;
+  cursor: pointer;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+}
+.bc-sheet-close:hover { background: rgba(255, 255, 255, 0.06); color: #e6edf7; }
+
+/* Book picker — search + OT/NT + list */
+.bc-search {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  padding: 10px 12px;
+  background: rgba(11, 18, 32, 0.6);
+  border: 1px solid rgba(255, 255, 255, 0.06);
+  border-radius: 12px;
+  margin-bottom: 12px;
+}
+.bc-search-icon { font-size: 20px; color: rgba(255, 255, 255, 0.4); }
+.bc-search input {
+  flex: 1;
+  border: none;
+  background: transparent;
+  color: #e6edf7;
+  font-family: inherit;
+  font-size: 15px;
+  outline: none !important;
+  box-shadow: none !important;
+  -webkit-appearance: none;
+  appearance: none;
+}
+.bc-search input:focus,
+.bc-search input:focus-visible,
+.bc-search input:active {
+  outline: none !important;
+  box-shadow: none !important;
+  border: none !important;
+}
+.bc-search input::placeholder { color: rgba(255, 255, 255, 0.35); }
+/* Keep the search wrapper visually stable when the inner input is focused
+   (no browser- or global-rule-injected focus glow). */
+.bc-search:focus-within { box-shadow: none; border-color: rgba(255, 255, 255, 0.06); }
+
+.bc-tabs {
+  display: grid;
+  grid-template-columns: 1fr 1fr;
+  gap: 3px;
+  padding: 3px;
+  background: rgba(11, 18, 32, 0.6);
+  border: 1px solid rgba(255, 255, 255, 0.06);
+  border-radius: 12px;
+  margin-bottom: 14px;
+}
+.bc-tab {
+  padding: 10px 12px;
+  border: none;
+  border-radius: 9px;
+  background: transparent;
+  color: rgba(255, 255, 255, 0.55);
+  font-family: inherit;
+  font-size: 13px;
+  font-weight: 600;
+  cursor: pointer;
+  transition: background 0.15s ease, color 0.15s ease;
+}
+.bc-tab.active {
+  background: #db2777;
+  color: #fff;
+  font-weight: 700;
+}
+
+.bc-book-list {
+  flex: 1;
+  min-height: 0;
+  overflow-y: auto;
+  padding-bottom: max(8px, env(safe-area-inset-bottom, 0px));
+  scrollbar-width: thin;
+  scrollbar-color: rgba(255, 255, 255, 0.15) transparent;
+}
+.bc-book-list::-webkit-scrollbar { width: 6px; }
+.bc-book-list::-webkit-scrollbar-thumb { background: rgba(255, 255, 255, 0.15); border-radius: 3px; }
+.bc-book-row {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  padding: 14px 12px;
+  border-radius: 10px;
+  cursor: pointer;
+  transition: background 0.1s ease;
+}
+.bc-book-row:hover { background: rgba(255, 255, 255, 0.04); }
+.bc-book-row.active { background: rgba(219, 39, 119, 0.12); }
+.bc-book-row.active .bc-book-name { color: #db2777; font-weight: 700; }
+.bc-book-name {
+  font-size: 15px;
+  font-weight: 500;
+  color: #e6edf7;
+}
+.bc-book-chapters {
+  font-size: 12px;
+  color: rgba(255, 255, 255, 0.4);
+}
+
+/* Chapter picker — numbered grid */
+.bc-chapter-grid {
+  display: grid;
+  grid-template-columns: repeat(auto-fill, minmax(56px, 1fr));
+  gap: 8px;
+  overflow-y: auto;
+  padding-bottom: max(8px, env(safe-area-inset-bottom, 0px));
+  margin-top: 6px;
+  scrollbar-width: thin;
+  scrollbar-color: rgba(255, 255, 255, 0.15) transparent;
+}
+.bc-chapter-grid::-webkit-scrollbar { width: 6px; }
+.bc-chapter-grid::-webkit-scrollbar-thumb { background: rgba(255, 255, 255, 0.15); border-radius: 3px; }
+.bc-chapter-cell {
+  aspect-ratio: 1;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  border: 1px solid rgba(255, 255, 255, 0.08);
+  border-radius: 10px;
+  background: rgba(255, 255, 255, 0.03);
+  color: #e6edf7;
+  font-family: inherit;
+  font-size: 15px;
+  font-weight: 600;
+  cursor: pointer;
+  transition: background 0.1s ease, border-color 0.1s ease, transform 0.08s ease;
+}
+.bc-chapter-cell:hover { background: rgba(255, 255, 255, 0.07); border-color: rgba(255, 255, 255, 0.16); }
+.bc-chapter-cell:active { transform: scale(0.95); }
+.bc-chapter-cell.active {
+  background: #db2777;
+  border-color: #db2777;
+  color: #fff;
+  font-weight: 700;
+}
+.bc-empty {
+  padding: 30px 12px;
+  text-align: center;
+  color: rgba(255, 255, 255, 0.4);
+  font-size: 14px;
+}
+
+/* Light mode overrides */
+.light .bc-sheet-panel { background: #fff; }
+.light .bc-sheet-title { color: #1a1a2e; }
+.light .bc-sheet-label { color: rgba(0, 0, 0, 0.45); }
+.light .bc-sheet-close { color: rgba(0, 0, 0, 0.5); }
+.light .bc-sheet-close:hover { background: rgba(0, 0, 0, 0.06); color: #1a1a2e; }
+.light .bc-search { background: rgba(0, 0, 0, 0.03); border-color: rgba(0, 0, 0, 0.06); }
+.light .bc-search-icon { color: rgba(0, 0, 0, 0.4); }
+.light .bc-search input { color: #1a1a2e; }
+.light .bc-search input::placeholder { color: rgba(0, 0, 0, 0.35); }
+.light .bc-tabs { background: rgba(0, 0, 0, 0.03); border-color: rgba(0, 0, 0, 0.06); }
+.light .bc-tab { color: rgba(0, 0, 0, 0.55); }
+.light .bc-book-row:hover { background: rgba(0, 0, 0, 0.04); }
+.light .bc-book-name { color: #1a1a2e; }
+.light .bc-book-chapters { color: rgba(0, 0, 0, 0.45); }
+.light .bc-chapter-cell { background: rgba(0, 0, 0, 0.03); border-color: rgba(0, 0, 0, 0.08); color: #1a1a2e; }
+.light .bc-chapter-cell:hover { background: rgba(0, 0, 0, 0.06); border-color: rgba(0, 0, 0, 0.14); }
+.light .bc-empty { color: rgba(0, 0, 0, 0.4); }
+
+.mt-bar {
+  /* Deprecated: the passage title itself is now the navigation trigger, with
+     inline chevrons. The mt-bar is kept in the DOM for legacy references but
+     never rendered. */
+  display: none !important;
+}
+.layout.layout-unset .mt-actions { display: none !important; }
+
+/* Clickable passage title (big header) + prev/next chevrons on the right. */
+.passage-title-row {
+  display: flex;
+  flex-direction: row;
+  align-items: center;
+  justify-content: space-between;
+  gap: 12px;
+  margin-bottom: 6px;
+  max-width: 100%;
+  min-width: 0;
+  overflow: hidden;
+}
+.passage-title-row .passage-title {
+  display: block !important;
+  flex: 1 1 auto !important;
+  min-width: 0 !important;
+  padding: 2px 0 !important;
+  margin: 0 !important;
+  border: none !important;
+  background: transparent !important;
+  color: #e6edf7 !important;
+  font-family: inherit;
+  /* Responsive: scales with viewport so it never blows past the available
+     flex column on narrow phones (≤370px). */
+  font-size: clamp(1.5rem, 8vw, 2.5rem) !important;
+  font-weight: 800 !important;
+  text-transform: uppercase !important;
+  letter-spacing: -2px !important;
+  line-height: 1.05;
+  cursor: pointer;
+  text-align: left;
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+.passage-title-row .passage-title::after {
+  content: "  ▾";
+  font-size: 0.55em;
+  opacity: 0.5;
+  font-weight: 400;
+  letter-spacing: 0;
+  margin-left: 4px;
+  vertical-align: middle;
+  display: inline-block;
+}
+.passage-title-row .passage-title:hover { opacity: 0.85; }
+.light .passage-title-row .passage-title { color: #1a1a2e !important; }
+
+/* Prev/Next chapter buttons sit as a compact pair below the title — they're
+   navigation, so they live next to the Study CTA, not crammed into the
+   typographic header. */
+.passage-nav-row {
+  display: inline-flex;
+  flex: 0 0 auto !important;
+  gap: 6px;
+  align-items: center;
+}
+.passage-nav-btn {
+  flex: 0 0 auto;
+  width: 44px;
+  height: 44px;
+  border: 1px solid rgba(255, 255, 255, 0.08);
+  border-radius: 50%;
+  background: rgba(255, 255, 255, 0.04);
+  color: rgba(255, 255, 255, 0.7);
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  cursor: pointer;
+  transition: background 0.15s ease, color 0.15s ease;
+}
+.passage-nav-btn:hover { background: rgba(255, 255, 255, 0.08); color: #fff; }
+.passage-nav-btn[hidden] { display: none !important; }
+.passage-nav-btn .material-symbols-outlined { font-size: 22px; }
+
+/* Light mode */
+.light .passage-nav-btn {
+  background: rgba(0, 0, 0, 0.04);
+  border-color: rgba(0, 0, 0, 0.08);
+  color: rgba(0, 0, 0, 0.6);
+}
+.light .passage-nav-btn:hover { background: rgba(0, 0, 0, 0.08); color: #1a1a2e; }
+
+/* Copy Notes button: align the Material icon with the label. */
+#copyNotesBtn {
+  display: inline-flex;
+  align-items: center;
+  gap: 8px;
+}
+#copyNotesBtn .material-symbols-outlined { font-size: 18px; }
+
+/* "Currently reading" card — matches the dashboard "Continue Reading?" card
+   so navigation context is visually consistent app-wide. Stacked layout:
+   [📕 Currently Reading] label above a huge italic pink serif passage ref. */
+.bc-current-passage {
+  display: flex;
+  flex-direction: column;
+  gap: 6px;
+  width: 100%;
+  padding: 14px 16px;
+  margin-bottom: 14px;
+  background: rgba(219, 39, 119, 0.08);
+  border: 1px solid rgba(219, 39, 119, 0.25);
+  border-radius: 12px;
+  cursor: pointer;
+  font-family: inherit;
+  text-align: left;
+  transition: background 0.15s ease, border-color 0.15s ease;
+}
+.bc-current-passage:hover {
+  background: rgba(219, 39, 119, 0.14);
+  border-color: rgba(219, 39, 119, 0.4);
+}
+.bc-current-passage[hidden] { display: none !important; }
+
+.bc-current-header {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+}
+.bc-current-icon {
+  font-size: 18px !important;
+  color: #db2777;
+}
+.bc-current-label {
+  font-size: 14px;
+  font-weight: 700;
+  color: #e6edf7;
+  letter-spacing: 0.1px;
+}
+
+.bc-current-body {
+  display: flex;
+  align-items: center;
+  gap: 4px;
+}
+.bc-current-ref {
+  font-family: "Editors Note", serif;
+  font-style: italic;
+  font-size: 2.2rem;
+  font-weight: 400;
+  color: #db2777;
+  text-transform: uppercase;
+  letter-spacing: -1.5px;
+  line-height: 1;
+}
+.bc-current-chev {
+  font-size: 24px !important;
+  color: #db2777;
+  margin-left: 2px;
+}
+
+.light .bc-current-label { color: #1a1a2e; }
+.light .bc-current-passage { background: rgba(219, 39, 119, 0.06); }
+
+/* Dashboard browse icon (next to the "devotion." brand). */
+.dash-brand-row {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 12px;
+}
+.dash-brand-row[hidden] { display: none !important; }
+.dash-browse-btn {
+  width: 40px;
+  height: 40px;
+  border: 1px solid rgba(255, 255, 255, 0.08);
+  border-radius: 50%;
+  background: rgba(255, 255, 255, 0.04);
+  color: rgba(255, 255, 255, 0.75);
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  cursor: pointer;
+  transition: background 0.15s ease, border-color 0.15s ease;
+}
+.dash-browse-btn:hover {
+  background: rgba(255, 255, 255, 0.08);
+  border-color: rgba(255, 255, 255, 0.16);
+}
+.dash-browse-btn .material-symbols-outlined { font-size: 20px; }
+.light .dash-browse-btn {
+  background: rgba(0, 0, 0, 0.04);
+  border-color: rgba(0, 0, 0, 0.08);
+  color: rgba(0, 0, 0, 0.65);
+}
+.light .dash-browse-btn:hover { background: rgba(0, 0, 0, 0.08); }
+.mt-bar > :is(.mt-prev, .mt-next) {
+  flex: 0 0 auto;
+  width: 40px;
+  height: 40px;
+  border: none;
+  border-radius: 50%;
+  background: rgba(255, 255, 255, 0.06);
+  color: rgba(255, 255, 255, 0.75);
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  cursor: pointer;
+  transition: background 0.15s ease;
+}
+.mt-bar > :is(.mt-prev, .mt-next):hover { background: rgba(255, 255, 255, 0.1); }
+.mt-bar > :is(.mt-prev, .mt-next)[hidden] { display: none; }
+
+.mt-passage {
+  flex: 1 1 auto !important;
+  min-width: 0;
+  height: 44px;
+  padding: 0 16px;
+  border: 1px solid rgba(255, 255, 255, 0.08);
+  border-radius: 22px;
+  background: rgba(255, 255, 255, 0.04);
+  color: #e6edf7;
+  font-family: inherit;
+  font-size: 15px;
+  font-weight: 700;
+  letter-spacing: 0.3px;
+  cursor: pointer;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  gap: 6px;
+  transition: background 0.15s ease, border-color 0.15s ease;
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+.mt-passage:hover {
+  background: rgba(255, 255, 255, 0.07);
+  border-color: rgba(255, 255, 255, 0.15);
+}
+.mt-passage .mt-chev { font-size: 18px; opacity: 0.6; }
+
+.mt-actions {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+}
+/* Home button + Listen/overflow sit on the same row (reading view). */
+.top-actions-reading {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 12px;
+  min-height: 44px;
+}
+.mt-actions[hidden] { display: none; }
+.mt-action {
+  flex: 1 1 auto;
+  height: 44px;
+  padding: 0 16px;
+  border: 1px solid rgba(255, 255, 255, 0.08);
+  border-radius: 22px;
+  background: rgba(255, 255, 255, 0.04);
+  color: #e6edf7;
+  font-family: inherit;
+  font-size: 14px;
+  font-weight: 700;
+  letter-spacing: 0.3px;
+  cursor: pointer;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  gap: 8px;
+  transition: background 0.15s ease, border-color 0.15s ease;
+}
+.mt-action:hover {
+  background: rgba(255, 255, 255, 0.08);
+  border-color: rgba(255, 255, 255, 0.14);
+}
+.mt-action.playing { background: rgba(219, 39, 119, 0.15); border-color: rgba(219, 39, 119, 0.35); color: #f9a8d4; }
+.mt-action .material-symbols-outlined { font-size: 18px; color: #db2777; }
+.mt-overflow {
+  flex: 0 0 auto;
+  width: 44px;
+  height: 44px;
+  border: 1px solid rgba(255, 255, 255, 0.08);
+  border-radius: 50%;
+  background: rgba(255, 255, 255, 0.04);
+  color: rgba(255, 255, 255, 0.75);
+  cursor: pointer;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  transition: background 0.15s ease;
+}
+.mt-overflow:hover { background: rgba(255, 255, 255, 0.08); }
+
+/* Overflow sheet */
+.mt-sheet { position: fixed; inset: 0; z-index: 1002; }
+.mt-sheet[hidden] { display: none !important; }
+.mt-sheet-backdrop {
+  position: absolute;
+  inset: 0;
+  background: rgba(0, 0, 0, 0.5);
+  backdrop-filter: blur(3px);
+  animation: mtFadeIn 0.15s ease;
+}
+.mt-sheet-panel {
+  position: absolute;
+  left: 12px;
+  right: 12px;
+  bottom: max(16px, env(safe-area-inset-bottom, 0px));
+  background: #1b2238;
+  border: 1px solid rgba(255, 255, 255, 0.06);
+  border-radius: 18px;
+  padding: 6px;
+  box-shadow: 0 20px 60px rgba(0, 0, 0, 0.5);
+  animation: mtSheetInUp 0.22s cubic-bezier(0.2, 0.9, 0.3, 1);
+}
+.mt-sheet-item {
+  width: 100%;
+  display: flex;
+  align-items: center;
+  gap: 12px;
+  padding: 14px 16px;
+  border: none;
+  background: transparent;
+  color: #e6edf7;
+  font-family: inherit;
+  font-size: 15px;
+  font-weight: 500;
+  text-align: left;
+  border-radius: 12px;
+  cursor: pointer;
+  transition: background 0.12s ease;
+}
+.mt-sheet-item:hover { background: rgba(255, 255, 255, 0.06); }
+.mt-sheet-item .material-symbols-outlined { font-size: 20px; color: #db2777; }
+
+/* Settings row with an inline segmented control (e.g. translation). */
+.mt-sheet-row {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 12px;
+  padding: 10px 16px;
+  border-radius: 12px;
+}
+.mt-sheet-row-left {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+  color: #e6edf7;
+  font-size: 15px;
+  font-weight: 500;
+}
+.mt-sheet-row-left .material-symbols-outlined { font-size: 20px; color: #db2777; }
+.mt-sheet-version {
+  display: inline-flex;
+  padding: 3px;
+  gap: 2px;
+  background: rgba(255, 255, 255, 0.06);
+  border-radius: 999px;
+}
+.mt-sheet-ver {
+  padding: 6px 14px;
+  border: none;
+  border-radius: 999px;
+  background: transparent;
+  color: rgba(255, 255, 255, 0.55);
+  font-family: inherit;
+  font-size: 11px;
+  font-weight: 700;
+  letter-spacing: 0.5px;
+  cursor: pointer;
+}
+.mt-sheet-ver.active { background: #db2777; color: #fff; }
+.light .mt-sheet-row-left { color: #1a1a2e; }
+.light .mt-sheet-version { background: rgba(0, 0, 0, 0.06); }
+.light .mt-sheet-ver { color: rgba(0, 0, 0, 0.55); }
+
+@keyframes mtFadeIn { from { opacity: 0; } to { opacity: 1; } }
+@keyframes mtSheetIn { from { opacity: 0; transform: translate(-50%, -48%); } to { opacity: 1; transform: translate(-50%, -50%); } }
+@keyframes mtSheetInUp { from { opacity: 0; transform: translateY(14px); } to { opacity: 1; transform: translateY(0); } }
+
+/* Light mode overrides */
+.light .mt-bar > :is(.mt-prev, .mt-next) { background: rgba(0, 0, 0, 0.05); color: rgba(0, 0, 0, 0.65); }
+.light .mt-bar > :is(.mt-prev, .mt-next):hover { background: rgba(0, 0, 0, 0.08); }
+.light .mt-passage { background: rgba(0, 0, 0, 0.03); border-color: rgba(0, 0, 0, 0.08); color: #1a1a2e; }
+.light .mt-passage:hover { background: rgba(0, 0, 0, 0.05); border-color: rgba(0, 0, 0, 0.12); }
+.light .mt-passage .mt-chev { opacity: 0.5; }
+.light .mt-action { background: rgba(0, 0, 0, 0.03); border-color: rgba(0, 0, 0, 0.08); color: #1a1a2e; }
+.light .mt-action:hover { background: rgba(0, 0, 0, 0.06); }
+.light .mt-overflow { background: rgba(0, 0, 0, 0.03); border-color: rgba(0, 0, 0, 0.08); color: rgba(0, 0, 0, 0.6); }
+.light .mt-sheet-panel { background: #fff; border-color: rgba(0, 0, 0, 0.08); }
+.light .mt-sheet-item { color: #1a1a2e; }
+.light .mt-sheet-item:hover { background: rgba(0, 0, 0, 0.04); }

@@ -45,26 +45,93 @@
         <div class="splash-tagline">draw near to God</div>
       </div>
       <div class="main">
-        <div id="topActions" style="padding: 4rem 16px 0">
+        <div id="topActions" class="top-actions-bar" style="padding: 4rem 16px 0">
           <div id="dashBrandRow" class="dash-brand-row" hidden>
             <div id="dashBrand" class="dash-brand">devotion.</div>
+            <button id="dashBrowseBtn" class="dash-browse-btn" aria-label="Browse passages" title="Browse passages">
+              <span class="material-symbols-outlined">menu_book</span>
+            </button>
           </div>
-          <button id="homeBtn" class="secondary" hidden>
-            <span class="material-symbols-outlined">arrow_back_ios</span> Home
+          <div class="top-actions-reading">
+            <button id="homeBtn" class="secondary" hidden>
+              <span class="material-symbols-outlined">arrow_back_ios</span> Home
+            </button>
+            <div class="mt-actions" id="mtActions" hidden>
+              <button class="mt-action mt-listen" id="mtListen">
+                <span class="material-symbols-outlined">headphones</span>
+                Listen
+              </button>
+              <button class="mt-overflow" id="mtOverflow" aria-label="More actions">
+                <span class="material-symbols-outlined">more_horiz</span>
+              </button>
+            </div>
+          </div>
+        </div>
+        <!-- Revamped compact toolbar. Proxies to the (now hidden) full controls. -->
+        <div class="mt-bar" id="mtBar">
+          <button class="mt-prev" id="mtPrev" aria-label="Previous chapter" hidden>
+            <span class="material-symbols-outlined">navigate_before</span>
+          </button>
+          <button class="mt-passage" id="mtPassage">
+            <span id="mtPassageText">Select passage</span>
+            <span class="material-symbols-outlined mt-chev">expand_more</span>
+          </button>
+          <button class="mt-next" id="mtNext" aria-label="Next chapter" hidden>
+            <span class="material-symbols-outlined">navigate_next</span>
           </button>
         </div>
+        <!-- Overflow sheet (theme, bible search, notes toggle, translation) -->
+        <div class="mt-sheet" id="mtOverflowSheet" hidden>
+          <div class="mt-sheet-backdrop" id="mtOverflowBackdrop"></div>
+          <div class="mt-sheet-panel">
+            <div class="mt-sheet-row">
+              <div class="mt-sheet-row-left">
+                <span class="material-symbols-outlined">translate</span>
+                Translation
+              </div>
+              <div class="mt-sheet-version" id="mtSheetVersion">
+                <button class="mt-sheet-ver" data-ver="NASB">NASB</button>
+                <button class="mt-sheet-ver" data-ver="EASY">EASY</button>
+              </div>
+            </div>
+            <button class="mt-sheet-item" id="mtThemeToggle">
+              <span class="material-symbols-outlined">light_mode</span>
+              Toggle theme
+            </button>
+            <button class="mt-sheet-item" id="mtSearchBible">
+              <span class="material-symbols-outlined">search</span>
+              Search Bible
+            </button>
+            <button class="mt-sheet-item" id="mtNotesToggle">
+              <span class="material-symbols-outlined">edit_note</span>
+              Toggle all notes
+            </button>
+          </div>
+        </div>
+
         <div class="controls smart-header">
           <div class="control">
             <div class="control-label">Book</div>
             <select id="book"></select>
+            <button type="button" class="bc-picker-btn" id="bookPickerBtn">
+              <span id="bookPickerText">Select book</span>
+              <span class="material-symbols-outlined">expand_more</span>
+            </button>
           </div>
 
           <div class="control">
             <div class="control-label">Chapter</div>
             <select id="chapter"></select>
+            <button type="button" class="bc-picker-btn" id="chapterPickerBtn">
+              <span id="chapterPickerText">1</span>
+              <span class="material-symbols-outlined">expand_more</span>
+            </button>
           </div>
 
-          <div class="control">
+          <!-- Verse selector kept in DOM for JS that reads verseEl.value
+               (defaults to "" = all verses). Hidden visually per UX decision
+               — chapter is the meaningful navigation unit. -->
+          <div class="control" hidden>
             <div class="control-label">Verse</div>
             <select id="verse">
               <option value="">All verses</option>
@@ -105,26 +172,83 @@
             </button>
           </div>
 
-          <!-- Bible Search Modal -->
-          <div id="bibleSearchModal" class="bible-search-modal" hidden>
-            <div class="bible-search-bar">
-              <span class="material-symbols-outlined bible-search-icon">search</span>
-              <input type="search" id="bibleSearchInput" class="bible-search-input" placeholder="Search verse, keyword, or reference…" autocomplete="off" />
-              <button id="bibleSearchClose" class="bible-search-close">Cancel</button>
-            </div>
-            <div class="bible-search-hint" id="bibleSearchHint">Type at least 3 characters to search all verses</div>
-            <div class="bible-search-results" id="bibleSearchResults"></div>
-          </div>
 
-        
+        </div>
+
+        <!-- Book Picker bottom sheet -->
+        <div class="bc-sheet" id="bookPickerSheet" hidden>
+          <div class="bc-sheet-backdrop" data-close-bc></div>
+          <div class="bc-sheet-panel bc-sheet-book">
+            <div class="bc-sheet-header">
+              <div class="bc-sheet-title">Select Book</div>
+              <button class="bc-sheet-close" type="button" data-close-bc aria-label="Close">
+                <span class="material-symbols-outlined">close</span>
+              </button>
+            </div>
+            <button type="button" class="bc-current-passage" id="bookPickerCurrent" hidden>
+              <div class="bc-current-header">
+                <span class="material-icons bc-current-icon">book</span>
+                <span class="bc-current-label">Currently Reading</span>
+              </div>
+              <div class="bc-current-body">
+                <span class="bc-current-ref" id="bookPickerCurrentRef">—</span>
+                <span class="material-icons bc-current-chev">chevron_right</span>
+              </div>
+            </button>
+            <div class="bc-search">
+              <span class="material-symbols-outlined bc-search-icon">search</span>
+              <input type="text" id="bookPickerSearch" placeholder="Search books…" autocomplete="off">
+            </div>
+            <div class="bc-tabs" id="bookPickerTabs">
+              <button class="bc-tab" data-tab="OT">Old Testament</button>
+              <button class="bc-tab" data-tab="NT">New Testament</button>
+            </div>
+            <div class="bc-book-list" id="bookPickerList"></div>
+          </div>
+        </div>
+
+        <!-- Chapter Picker bottom sheet -->
+        <div class="bc-sheet" id="chapterPickerSheet" hidden>
+          <div class="bc-sheet-backdrop" data-close-bc></div>
+          <div class="bc-sheet-panel bc-sheet-chapter">
+            <div class="bc-sheet-header">
+              <div class="bc-sheet-label" id="chapterPickerLabel">SELECT CHAPTER</div>
+              <button class="bc-sheet-close" type="button" data-close-bc aria-label="Close">
+                <span class="material-symbols-outlined">close</span>
+              </button>
+            </div>
+            <div class="bc-chapter-grid" id="chapterPickerGrid"></div>
+          </div>
+        </div>
+
+        <!-- Bible Search Modal — lives outside .controls.smart-header so it's
+             not killed by the parent's display:none in the revamped toolbar. -->
+        <div id="bibleSearchModal" class="bible-search-modal" hidden>
+          <div class="bible-search-bar">
+            <span class="material-symbols-outlined bible-search-icon">search</span>
+            <input type="search" id="bibleSearchInput" class="bible-search-input" placeholder="Search verse, keyword, or reference…" autocomplete="off" />
+            <button id="bibleSearchClose" class="bible-search-close">Cancel</button>
+          </div>
+          <div class="bible-search-hint" id="bibleSearchHint">Type at least 3 characters to search all verses</div>
+          <div class="bible-search-results" id="bibleSearchResults"></div>
         </div>
 
         <div id="storyReflectRow" class="action-section hidden">
           <div class="action-left">
-            <div id="passageTitle" class="passage-title"></div>
-            <button id="reflectBtn" class="action-reflect-btn" onclick="openReflectModal()">
-              <span class="material-icons">volunteer_activism</span>
-              Reflect
+            <div class="passage-title-row">
+              <button type="button" id="passageTitle" class="passage-title" aria-label="Change passage"></button>
+              <div class="passage-nav-row">
+                <button class="passage-nav-btn" id="passageTitlePrev" aria-label="Previous chapter">
+                  <span class="material-symbols-outlined">navigate_before</span>
+                </button>
+                <button class="passage-nav-btn" id="passageTitleNext" aria-label="Next chapter">
+                  <span class="material-symbols-outlined">navigate_next</span>
+                </button>
+              </div>
+            </div>
+            <button id="studyBtn" class="action-reflect-btn" onclick="document.getElementById('canvasModeBtn')?.click()">
+              <span class="material-icons">auto_stories</span>
+              Study
             </button>
           </div>
           <!-- Story button removed — used image generation via Gemini. -->
@@ -144,7 +268,7 @@
           Select a verse, range, or chapter to see notes.
         </div>
         <button id="copyNotesBtn" style="margin-top: 12px">
-          📋 Copy Notes
+          <span class="material-symbols-outlined">content_copy</span> Copy Notes
         </button>
         <div id="notesCopyStatus"></div>
       </aside>
@@ -535,23 +659,49 @@
             <div class="cm-tail-spacer" aria-hidden="true"></div>
           </div>
         </div>
+        <div class="cm-fab-arc" id="cmFabArc" aria-hidden="true"></div>
+        <button class="cm-fab" id="cmFab" aria-label="Toggle scroll / highlight" data-current="pan">
+          <span class="material-symbols-outlined cm-fab-icon" id="cmFabIcon">pan_tool</span>
+        </button>
       </div>
 
       <div class="cm-popover" id="cmPopover" hidden>
-        <div class="cm-popover-swatches">
-          <button class="cm-pop-swatch" data-color="yellow" style="--sw:#ffe66b"></button>
-          <button class="cm-pop-swatch" data-color="pink"   style="--sw:#f9a8d4"></button>
-          <button class="cm-pop-swatch" data-color="blue"   style="--sw:#93c5fd"></button>
-          <button class="cm-pop-swatch" data-color="orange" style="--sw:#fdba74"></button>
-          <button class="cm-pop-swatch" data-color="green"  style="--sw:#bef264"></button>
+        <div class="cm-popover-row">
+          <div class="cm-popover-swatches">
+            <button class="cm-pop-swatch" data-color="yellow" style="--sw:#ffe66b"></button>
+            <button class="cm-pop-swatch" data-color="pink"   style="--sw:#f9a8d4"></button>
+            <button class="cm-pop-swatch" data-color="blue"   style="--sw:#93c5fd"></button>
+            <button class="cm-pop-swatch" data-color="orange" style="--sw:#fdba74"></button>
+            <button class="cm-pop-swatch" data-color="green"  style="--sw:#bef264"></button>
+          </div>
+          <div class="cm-popover-actions">
+            <button class="cm-pop-action" data-action="clear" title="Clear highlight">
+              <span class="material-symbols-outlined">ink_eraser</span>
+            </button>
+            <button class="cm-pop-action" data-action="copy" title="Copy verse">
+              <span class="material-symbols-outlined">content_copy</span>
+            </button>
+            <button class="cm-pop-action" data-action="note" title="Add note">
+              <span class="material-symbols-outlined">edit_note</span>
+            </button>
+          </div>
         </div>
-        <div class="cm-popover-actions">
-          <button class="cm-pop-action" data-action="clear" title="Clear highlight">
-            <span class="material-symbols-outlined">ink_eraser</span>
-          </button>
-          <button class="cm-pop-action" data-action="note" title="Add note">
-            <span class="material-symbols-outlined">edit_note</span>
-          </button>
+        <div class="cm-popover-secondary">
+          <button class="cm-pop-secondary-btn" data-action="context">Context</button>
+          <button class="cm-pop-secondary-btn" data-action="ask">Ask Question</button>
+        </div>
+      </div>
+
+      <!-- Light-mode AI popover for Context / Ask (renders fetchInlineQuickContext or toggleVerseChat) -->
+      <div class="cm-ai-modal light" id="cmAiModal" hidden>
+        <div class="cm-ai-card">
+          <div class="cm-ai-header">
+            <div class="cm-ai-ref" id="cmAiRef"></div>
+            <button class="cm-ai-close" id="cmAiClose" aria-label="Close">
+              <span class="material-symbols-outlined">close</span>
+            </button>
+          </div>
+          <div class="cm-ai-body" id="cmAiBody"></div>
         </div>
       </div>
 
