@@ -8506,7 +8506,19 @@ button#storyBtn { background: unset; }
   z-index: 3;
   flex-wrap: wrap;
 }
-.cm-tools { display: flex; gap: 6px; }
+.cm-tools { display: flex; gap: 6px; align-items: center; }
+.cm-mode-label {
+  font-size: 12px;
+  font-weight: 600;
+  letter-spacing: 0.02em;
+  color: rgba(0,0,0,0.45);
+  padding: 0 4px 0 8px;
+  user-select: none;
+  transition: color 0.15s ease;
+}
+.cm-mode-label[data-tool="highlight"] { color: #be185d; }
+.cm-mode-label[data-tool="eraser"]    { color: rgba(0,0,0,0.6); }
+
 .cm-tool-btn {
   width: 40px;
   height: 40px;

@@ -8701,9 +8701,15 @@ async function _imgcrShare() {
   });
 
   // ---------- Tool UI ----------
+  const MODE_LABELS = { pan: "Pan", highlight: "Highlighting", eraser: "Erasing" };
   function setTool(t) {
     tool = t;
     overlay.querySelectorAll(".cm-tool-btn").forEach((b) => b.classList.toggle("active", b.dataset.tool === t));
+    const modeLabel = overlay.querySelector("#cmModeLabel");
+    if (modeLabel) {
+      modeLabel.textContent = MODE_LABELS[t] || "";
+      modeLabel.dataset.tool = t;
+    }
     // Swatches highlight only while the highlight tool is active — in pan/eraser,
     // there's no selected color (no swatch should look pressed).
     const showSwatch = (t === "highlight");
@@ -9157,6 +9163,7 @@ async function _imgcrShare() {
     setTool("pan");
     scrollEl.scrollTop = 0;
   }
+
   function close() {
     closePopover();
     closeNoteView();
