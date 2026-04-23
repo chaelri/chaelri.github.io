@@ -9503,13 +9503,13 @@ async function _imgcrShare() {
     searchTerm = e.target.value.trim();
     renderBookList();
   });
-  [bookSheet, chapSheet].forEach(s => {
-    s?.addEventListener("click", (e) => {
-      if (e.target.closest("[data-close-bc]")) {
-        s.hidden = true;
-      }
-    });
-  });
+  // Close handlers — explicit per-sheet to avoid any delegation quirks.
+  bookSheet?.querySelectorAll("[data-close-bc]").forEach((el) =>
+    el.addEventListener("click", closeBookSheet)
+  );
+  chapSheet?.querySelectorAll("[data-close-bc]").forEach((el) =>
+    el.addEventListener("click", closeChapterSheet)
+  );
 
   // Keep picker labels in sync when the legacy dropdowns change from elsewhere
   // (e.g., prev/next chapter buttons, loadPassageById, dashboard shortcuts).
