@@ -8650,22 +8650,34 @@ button#storyBtn { background: unset; }
   z-index: 10100;
   font-family: "Google Sans Flex", "Google Sans", system-ui, sans-serif;
   font-weight: 600;
-  font-size: 14px;
-  letter-spacing: -0.01em;
+  font-size: 19px;
+  line-height: 1.25;
+  letter-spacing: 0.1px;
   color: #1a1a2e;
-  padding: 3px 8px;
-  border-radius: 6px;
-  box-shadow: 0 4px 12px rgba(0, 0, 0, 0.18),
-              0 1px 3px rgba(0, 0, 0, 0.12);
+  padding: 4px 10px;
+  border-radius: 7px;
+  box-shadow: 0 6px 16px rgba(0, 0, 0, 0.2),
+              0 2px 4px rgba(0, 0, 0, 0.14);
   white-space: nowrap;
   transform: translate(-50%, -18px) scale(1);
   opacity: 1;
   animation: cmEngageWordIn 0.32s cubic-bezier(0.22, 1, 0.36, 1);
 }
+@media (max-width: 600px) {
+  .cm-engage-word { font-size: 17px; }
+}
 @keyframes cmEngageWordIn {
   0%   { transform: translate(-50%, 0)     scale(0.7);  opacity: 0; }
   65%  { transform: translate(-50%, -14px) scale(1.12); opacity: 1; }
   100% { transform: translate(-50%, -18px) scale(1);    opacity: 1; }
+}
+.cm-engage-word.cm-engage-word-grow {
+  animation: cmEngageWordGrow 0.22s ease-out;
+}
+@keyframes cmEngageWordGrow {
+  0%   { transform: translate(-50%, -18px) scale(1);    }
+  50%  { transform: translate(-50%, -20px) scale(1.08); }
+  100% { transform: translate(-50%, -18px) scale(1);    }
 }
 .cm-engage-word.cm-engage-word-out {
   animation: cmEngageWordOut 0.55s cubic-bezier(0.22, 1, 0.36, 1) forwards;

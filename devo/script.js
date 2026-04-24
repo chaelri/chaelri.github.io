@@ -8987,38 +8987,114 @@ async function _imgcrShare() {
     }, LONG_PRESS_MS);
   });
 
-  // Floating stylized copy of a word that pops up, hangs at full opacity
-  // until the user lifts the finger, then fades out together with the
-  // rest. `activeLabels` tracks the pills spawned during the current
-  // stroke so we can drain them all in one sweep on release.
+  // Floating phrase pills that pop up as the stroke sweeps, then fade out
+  // in order on release. ALL phrases active in the current stroke remain
+  // open for extension — so if you highlight "the Lord", jump down, then
+  // come back up to "has" (adjacent to the earlier phrase), it still
+  // fuses. A new word can also bridge two phrases, merging them into one.
   const activeLabels = [];
+  const activePhrases = []; // [{ label, minIdx, maxIdx }] — all extensible
+
+  function updatePhraseLabel(phrase) {
+    const { label, minIdx, maxIdx } = phrase;
+    const parts = [];
+    for (let i = minIdx; i <= maxIdx; i++) {
+      const w = passageEl.querySelector(`.cm-word[data-idx="${i}"]`);
+      if (w) parts.push((w.textContent || "").trim());
+    }
+    label.textContent = parts.join(" ");
+
+    const first = passageEl.querySelector(`.cm-word[data-idx="${minIdx}"]`);
+    const last  = passageEl.querySelector(`.cm-word[data-idx="${maxIdx}"]`);
+    if (!first) return;
+    const r1 = first.getBoundingClientRect();
+    const r2 = last ? last.getBoundingClientRect() : r1;
+    const sameLine = Math.abs(r1.top - r2.top) < 6;
+    const centerX  = sameLine ? (r1.left + r2.right) / 2 : (r1.left + r1.width / 2);
+    const topY     = r1.top;
+    const halfW = label.offsetWidth / 2;
+    const clampedX = Math.max(halfW + 8, Math.min(centerX, window.innerWidth - halfW - 8));
+    label.style.left = clampedX + "px";
+    label.style.top  = topY + "px";
+  }
+
+  function pulsePhrase(phrase) {
+    phrase.label.classList.remove("cm-engage-word-grow");
+    void phrase.label.offsetWidth;
+    phrase.label.classList.add("cm-engage-word-grow");
+  }
+
+  function removePhrase(phrase) {
+    if (phrase.label.isConnected) phrase.label.remove();
+    const i = activePhrases.indexOf(phrase);
+    if (i >= 0) activePhrases.splice(i, 1);
+    const j = activeLabels.indexOf(phrase.label);
+    if (j >= 0) activeLabels.splice(j, 1);
+  }
+
   function spawnWordLabel(wordEl) {
     if (!wordEl || tool !== "highlight") return;
     const text = (wordEl.textContent || "").trim();
     if (!text) return;
+    const idx = +wordEl.dataset.idx;
     const hex = COLOR_HEX[color] || "#ffe66b";
-    const rect = wordEl.getBoundingClientRect();
-    const label = document.createElement("div");
-    label.className = "cm-engage-word";
-    label.textContent = text;
-    label.style.left = (rect.left + rect.width / 2) + "px";
-    label.style.top  = rect.top + "px";
-    label.style.background = hex;
-    document.body.appendChild(label);
-    activeLabels.push(label);
+    const wordY = wordEl.getBoundingClientRect().top;
 
     wordEl.classList.add("cm-word-engage");
     wordEl.addEventListener("animationend", () => wordEl.classList.remove("cm-word-engage"), { once: true });
+
+    const sameLineAs = (phrase) => {
+      const anchor = passageEl.querySelector(`.cm-word[data-idx="${phrase.minIdx}"]`);
+      if (!anchor) return false;
+      return Math.abs(anchor.getBoundingClientRect().top - wordY) < 6;
+    };
+
+    // Look across every active phrase for adjacency — not just the most
+    // recent. This is what makes "the Lord" + jump + "has" still fuse.
+    const adjacent = activePhrases.find(p =>
+      (idx === p.maxIdx + 1 || idx === p.minIdx - 1) && sameLineAs(p)
+    );
+
+    if (adjacent) {
+      if (idx === adjacent.maxIdx + 1) adjacent.maxIdx = idx;
+      else                             adjacent.minIdx = idx;
+
+      // Bridge: the new word may now touch another active phrase on the
+      // same line (e.g. had "the" and "has", user fills in "Lord"). Merge
+      // them into one pill so the display matches the fused highlight runs.
+      const bridge = activePhrases.find(p =>
+        p !== adjacent &&
+        (p.minIdx === adjacent.maxIdx + 1 || p.maxIdx === adjacent.minIdx - 1) &&
+        sameLineAs(p)
+      );
+      if (bridge) {
+        adjacent.minIdx = Math.min(adjacent.minIdx, bridge.minIdx);
+        adjacent.maxIdx = Math.max(adjacent.maxIdx, bridge.maxIdx);
+        removePhrase(bridge);
+      }
+
+      updatePhraseLabel(adjacent);
+      pulsePhrase(adjacent);
+      return;
+    }
+
+    // New phrase — no adjacency found.
+    const label = document.createElement("div");
+    label.className = "cm-engage-word";
+    label.style.background = hex;
+    document.body.appendChild(label);
+    activeLabels.push(label);
+    const phrase = { label, minIdx: idx, maxIdx: idx };
+    activePhrases.push(phrase);
+    updatePhraseLabel(phrase);
   }
+
   function fadeOutLabels() {
-    // FIFO: oldest label (first word touched in this stroke) fades first,
-    // newer ones cascade out behind it with a small stagger so the whole
-    // shower dissolves in the same sequence it bloomed.
-    const STAGGER_MS = 60;
+    // All labels fade out together on release — simpler, snappier.
     const labels = activeLabels.splice(0);
-    labels.forEach((label, i) => {
+    activePhrases.length = 0;
+    labels.forEach((label) => {
       if (!label.isConnected) return;
-      label.style.animationDelay = (i * STAGGER_MS) + "ms";
       label.classList.add("cm-engage-word-out");
       label.addEventListener("animationend", () => label.remove(), { once: true });
     });
