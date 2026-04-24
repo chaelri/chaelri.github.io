@@ -536,7 +536,7 @@ select:disabled {
   display: flex;
   align-items: center;
   justify-content: center;
-  z-index: 9999;
+  z-index: 10100;
 }
 
 /* Loading card */
@@ -1622,7 +1622,7 @@ html {
   inset: 0;
   background: rgba(15, 23, 42, 0.6);
   backdrop-filter: blur(4px);
-  z-index: 9999;
+  z-index: 10100;
   display: flex;
   justify-content: center;
   align-items: flex-end;
@@ -3592,7 +3592,7 @@ body.light {
   border-radius: 24px;
   padding: 10px 20px;
   font-size: 14px;
-  z-index: 9999;
+  z-index: 10100;
   white-space: nowrap;
   animation: notes-toast-in 0.2s ease;
 }
@@ -6475,7 +6475,7 @@ button#storyBtn { background: unset; }
   bottom: max(20px, env(safe-area-inset-bottom));
   left: 50%;
   transform: translateX(-50%) translateY(80px);
-  z-index: 9999;
+  z-index: 10100;
   display: flex;
   align-items: center;
   gap: 6px;
@@ -6753,7 +6753,7 @@ button#storyBtn { background: unset; }
 .sync-linked-overlay {
   position: fixed;
   inset: 0;
-  z-index: 9999;
+  z-index: 10100;
   display: flex;
   flex-direction: column;
   align-items: center;
@@ -7746,7 +7746,7 @@ button#storyBtn { background: unset; }
 .soap-list-panel {
   position: fixed;
   inset: 0;
-  z-index: 9999;
+  z-index: 10100;
   background: var(--bg, #0b1220);
   display: flex;
   flex-direction: column;
@@ -8135,7 +8135,7 @@ button#storyBtn { background: unset; }
 .imgcr-panel {
   position: fixed;
   inset: 0;
-  z-index: 9999;
+  z-index: 10100;
   background: var(--bg, #0b1220);
   display: flex;
   flex-direction: column;
@@ -8616,6 +8616,74 @@ button#storyBtn { background: unset; }
 .cm-fab:active { transform: scale(0.93); }
 .cm-fab-icon { font-size: 26px; line-height: 1; }
 .cm-fab[data-current="eraser"] { background: #475569; color: #fff; }
+
+/* Engage FX — subtle burst when long-press locks in stroke mode. Colors
+   are injected inline to match the active highlight swatch. z-index stays
+   above `.cm-overlay` (10050) so the layers float on top of the paper. */
+
+/* Subtle colored ripple at the touch point. Multiply-blended so it reads
+   on paper without looking painted. */
+.cm-engage-ripple {
+  position: fixed;
+  width: 36px;
+  height: 36px;
+  border-radius: 50%;
+  transform: translate(-50%, -50%) scale(0.25);
+  opacity: 0.5;
+  pointer-events: none;
+  z-index: 10100;
+  mix-blend-mode: multiply;
+  animation: cmEngageRipple 0.45s cubic-bezier(0.22, 1, 0.36, 1) forwards;
+}
+@keyframes cmEngageRipple {
+  0%   { transform: translate(-50%, -50%) scale(0.25); opacity: 0.5; }
+  100% { transform: translate(-50%, -50%) scale(2.6);  opacity: 0; }
+}
+
+/* Floating "maangas" word label — pops up from the pressed word, hangs
+   for a beat, then drifts and fades. Reads as a proud stamp of what was
+   just grabbed. Anchor `left/top` are set to the word's top-center; the
+   translate(-50%) in the animation centers the label horizontally over it. */
+.cm-engage-word {
+  position: fixed;
+  pointer-events: none;
+  z-index: 10100;
+  font-family: "Google Sans Flex", "Google Sans", system-ui, sans-serif;
+  font-weight: 600;
+  font-size: 14px;
+  letter-spacing: -0.01em;
+  color: #1a1a2e;
+  padding: 3px 8px;
+  border-radius: 6px;
+  box-shadow: 0 4px 12px rgba(0, 0, 0, 0.18),
+              0 1px 3px rgba(0, 0, 0, 0.12);
+  white-space: nowrap;
+  transform: translate(-50%, -18px) scale(1);
+  opacity: 1;
+  animation: cmEngageWordIn 0.32s cubic-bezier(0.22, 1, 0.36, 1);
+}
+@keyframes cmEngageWordIn {
+  0%   { transform: translate(-50%, 0)     scale(0.7);  opacity: 0; }
+  65%  { transform: translate(-50%, -14px) scale(1.12); opacity: 1; }
+  100% { transform: translate(-50%, -18px) scale(1);    opacity: 1; }
+}
+.cm-engage-word.cm-engage-word-out {
+  animation: cmEngageWordOut 0.55s cubic-bezier(0.22, 1, 0.36, 1) forwards;
+}
+@keyframes cmEngageWordOut {
+  0%   { transform: translate(-50%, -18px) scale(1);    opacity: 1; }
+  100% { transform: translate(-50%, -42px) scale(1.04); opacity: 0; }
+}
+
+/* Brief glow on the first word to confirm "you're painting this one."
+   `.cm-word` is display:inline so we animate box-shadow/filter instead of
+   transform (transforms don't apply to inline elements). */
+.cm-word.cm-word-engage { animation: cmWordEngage 0.32s ease-out; }
+@keyframes cmWordEngage {
+  0%   { box-shadow: 0 0 0 0 rgba(255, 230, 107, 0);   filter: brightness(1); }
+  40%  { box-shadow: 0 0 0 6px rgba(255, 230, 107, 0.55); filter: brightness(1.15); }
+  100% { box-shadow: 0 0 0 0 rgba(255, 230, 107, 0);   filter: brightness(1); }
+}
 
 /* Active-color dot — pinned to top-right of FAB in pan/eraser modes so the
    user always knows which color a tap-to-highlight will apply. Hidden in

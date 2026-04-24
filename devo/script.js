@@ -8441,7 +8441,7 @@ async function _imgcrShare() {
   // so mobile browsers can't steal the gesture mid-swipe.
   let pendingStroke = null;        // { x, y, pointerId }
   let longPressTimer = null;
-  const LONG_PRESS_MS = 200;
+  const LONG_PRESS_MS = 100;
   const LONG_PRESS_MOVE_MAX = 8;   // px before we abandon the hold
   function cancelLongPress() {
     if (longPressTimer) { clearTimeout(longPressTimer); longPressTimer = null; }
@@ -8913,6 +8913,7 @@ async function _imgcrShare() {
     const idx = +wordEl.dataset.idx;
     if (strokeTouched.has(idx)) return;
     strokeTouched.add(idx);
+    if (tool === "highlight") spawnWordLabel(wordEl);
     // Preview only — don't mutate state.highlights until the stroke is
     // released. That gives the "light while dragging, pops to full color
     // on release" feel.
@@ -8981,9 +8982,57 @@ async function _imgcrShare() {
       strokePointerId = pid;
       try { viewport.setPointerCapture(pid); } catch (_) {}
       try { navigator.vibrate && navigator.vibrate(12); } catch (_) {}
+      spawnEngageRipple(sx, sy);
       applyStrokeAt(sx, sy);
     }, LONG_PRESS_MS);
   });
+
+  // Floating stylized copy of a word that pops up, hangs at full opacity
+  // until the user lifts the finger, then fades out together with the
+  // rest. `activeLabels` tracks the pills spawned during the current
+  // stroke so we can drain them all in one sweep on release.
+  const activeLabels = [];
+  function spawnWordLabel(wordEl) {
+    if (!wordEl || tool !== "highlight") return;
+    const text = (wordEl.textContent || "").trim();
+    if (!text) return;
+    const hex = COLOR_HEX[color] || "#ffe66b";
+    const rect = wordEl.getBoundingClientRect();
+    const label = document.createElement("div");
+    label.className = "cm-engage-word";
+    label.textContent = text;
+    label.style.left = (rect.left + rect.width / 2) + "px";
+    label.style.top  = rect.top + "px";
+    label.style.background = hex;
+    document.body.appendChild(label);
+    activeLabels.push(label);
+
+    wordEl.classList.add("cm-word-engage");
+    wordEl.addEventListener("animationend", () => wordEl.classList.remove("cm-word-engage"), { once: true });
+  }
+  function fadeOutLabels() {
+    while (activeLabels.length) {
+      const label = activeLabels.pop();
+      if (!label.isConnected) continue;
+      label.classList.add("cm-engage-word-out");
+      label.addEventListener("animationend", () => label.remove(), { once: true });
+    }
+  }
+
+  // Engage feedback on long-press lock-in: subtle ripple at the touch
+  // point. The first word's floating label is spawned by applyStrokeAt
+  // (which fires for every new word the stroke touches, including the
+  // first), so we don't duplicate that here.
+  function spawnEngageRipple(cx, cy) {
+    const hex = COLOR_HEX[color] || "#ffe66b";
+    const ripple = document.createElement("div");
+    ripple.className = "cm-engage-ripple";
+    ripple.style.left = cx + "px";
+    ripple.style.top  = cy + "px";
+    ripple.style.background = hex;
+    document.body.appendChild(ripple);
+    ripple.addEventListener("animationend", () => ripple.remove(), { once: true });
+  }
 
   viewport.addEventListener("pointermove", (e) => {
     if (pendingStroke && e.pointerId === pendingStroke.pointerId) {
@@ -9014,6 +9063,7 @@ async function _imgcrShare() {
     if (!strokeActive) return;
     if (e && e.pointerId !== strokePointerId) return;
     try { viewport.releasePointerCapture(strokePointerId); } catch (_) {}
+    fadeOutLabels();
     const pre = snapshot();
     const committed = commitStroke();
     strokeActive = false;
@@ -9032,6 +9082,7 @@ async function _imgcrShare() {
   viewport.addEventListener("lostpointercapture", (e) => {
     if (strokeActive && e.pointerId === strokePointerId) {
       // Commit what the user touched — losing capture shouldn't lose work.
+      fadeOutLabels();
       const pre = snapshot();
       const committed = commitStroke();
       strokeActive = false;
@@ -9370,6 +9421,7 @@ async function _imgcrShare() {
     closeAiModal();
     closeArc();
     cancelLongPress();
+    fadeOutLabels();
     strokeActive = false;
     strokePointerId = null;
     strokeTouched = null;
