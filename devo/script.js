@@ -8966,6 +8966,7 @@ async function _imgcrShare() {
   // intent the way the old horizontal-swipe heuristic did.
   viewport.addEventListener("pointerdown", (e) => {
     if (e.target.closest(".cm-fab") || e.target.closest(".cm-fab-arc")) return;
+    if (e.target.closest(".cm-hint")) return;
     closePopover();
     if (e.target.closest(".cm-note-badge")) return;
     cancelLongPress();
@@ -8996,6 +8997,14 @@ async function _imgcrShare() {
     e.preventDefault();
     applyStrokeAt(e.clientX, e.clientY);
   });
+
+  // While a stroke is active, block the browser's native pan-y scroll so the
+  // user can drag in any direction (including across lines) without the
+  // gesture being stolen mid-stroke. Non-passive is required for
+  // preventDefault on touchmove to actually cancel scrolling on mobile.
+  viewport.addEventListener("touchmove", (e) => {
+    if (strokeActive) e.preventDefault();
+  }, { passive: false });
 
   function finishStroke(e) {
     // Tap (pointerdown → pointerup before long-press timer) → clear pending
@@ -9356,7 +9365,9 @@ async function _imgcrShare() {
     maybeShowHint();
   }
 
-  // First-time onboarding nudge. One-shot, localStorage-gated, auto-fades.
+  // Contextual nudge: shows for 3s on first open, dismisses on any tap on
+  // the passage (or on the × / auto-timeout). localStorage-gated so a
+  // returning user never sees it again once they've dismissed it.
   const HINT_KEY = "cm_hint_v1";
   let hintTimer = null;
   function maybeShowHint() {
@@ -9366,17 +9377,27 @@ async function _imgcrShare() {
     hint.hidden = false;
     hint.classList.remove("cm-hint-out");
     if (hintTimer) clearTimeout(hintTimer);
-    hintTimer = setTimeout(dismissHint, 6000);
+    hintTimer = setTimeout(dismissHint, 3500);
   }
-  function dismissHint() {
+  function dismissHint(persist = true) {
     const hint = document.getElementById("cmHint");
+    if (hintTimer) { clearTimeout(hintTimer); hintTimer = null; }
     if (!hint || hint.hidden) return;
     hint.classList.add("cm-hint-out");
     setTimeout(() => { hint.hidden = true; hint.classList.remove("cm-hint-out"); }, 220);
-    try { localStorage.setItem(HINT_KEY, "1"); } catch (_) {}
-    if (hintTimer) { clearTimeout(hintTimer); hintTimer = null; }
+    if (persist) { try { localStorage.setItem(HINT_KEY, "1"); } catch (_) {} }
   }
-  document.getElementById("cmHintDismiss")?.addEventListener("click", dismissHint);
+  document.getElementById("cmHintDismiss")?.addEventListener("click", (e) => {
+    e.stopPropagation();
+    dismissHint();
+  });
+  // Any interaction with the passage also dismisses the hint — it's a one-
+  // shot nudge, not a banner, so the moment the user starts using the canvas
+  // it gets out of the way.
+  viewport.addEventListener("pointerdown", () => {
+    const hint = document.getElementById("cmHint");
+    if (hint && !hint.hidden) dismissHint();
+  }, true);
 
   function close() {
     closePopover();
