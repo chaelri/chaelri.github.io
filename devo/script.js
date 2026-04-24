@@ -8441,7 +8441,7 @@ async function _imgcrShare() {
   // so mobile browsers can't steal the gesture mid-swipe.
   let pendingStroke = null;        // { x, y, pointerId }
   let longPressTimer = null;
-  const LONG_PRESS_MS = 350;
+  const LONG_PRESS_MS = 200;
   const LONG_PRESS_MOVE_MAX = 8;   // px before we abandon the hold
   function cancelLongPress() {
     if (longPressTimer) { clearTimeout(longPressTimer); longPressTimer = null; }
@@ -8966,7 +8966,6 @@ async function _imgcrShare() {
   // intent the way the old horizontal-swipe heuristic did.
   viewport.addEventListener("pointerdown", (e) => {
     if (e.target.closest(".cm-fab") || e.target.closest(".cm-fab-arc")) return;
-    if (e.target.closest(".cm-hint")) return;
     closePopover();
     if (e.target.closest(".cm-note-badge")) return;
     cancelLongPress();
@@ -9362,42 +9361,7 @@ async function _imgcrShare() {
     color = DEFAULT_COLOR;
     setTool("highlight");
     scrollEl.scrollTop = 0;
-    maybeShowHint();
   }
-
-  // Contextual nudge: shows for 3s on first open, dismisses on any tap on
-  // the passage (or on the × / auto-timeout). localStorage-gated so a
-  // returning user never sees it again once they've dismissed it.
-  const HINT_KEY = "cm_hint_v1";
-  let hintTimer = null;
-  function maybeShowHint() {
-    try { if (localStorage.getItem(HINT_KEY)) return; } catch (_) { return; }
-    const hint = document.getElementById("cmHint");
-    if (!hint) return;
-    hint.hidden = false;
-    hint.classList.remove("cm-hint-out");
-    if (hintTimer) clearTimeout(hintTimer);
-    hintTimer = setTimeout(dismissHint, 3500);
-  }
-  function dismissHint(persist = true) {
-    const hint = document.getElementById("cmHint");
-    if (hintTimer) { clearTimeout(hintTimer); hintTimer = null; }
-    if (!hint || hint.hidden) return;
-    hint.classList.add("cm-hint-out");
-    setTimeout(() => { hint.hidden = true; hint.classList.remove("cm-hint-out"); }, 220);
-    if (persist) { try { localStorage.setItem(HINT_KEY, "1"); } catch (_) {} }
-  }
-  document.getElementById("cmHintDismiss")?.addEventListener("click", (e) => {
-    e.stopPropagation();
-    dismissHint();
-  });
-  // Any interaction with the passage also dismisses the hint — it's a one-
-  // shot nudge, not a banner, so the moment the user starts using the canvas
-  // it gets out of the way.
-  viewport.addEventListener("pointerdown", () => {
-    const hint = document.getElementById("cmHint");
-    if (hint && !hint.hidden) dismissHint();
-  }, true);
 
   function close() {
     closePopover();
