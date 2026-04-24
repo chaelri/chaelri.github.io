@@ -8973,9 +8973,12 @@ async function _imgcrShare() {
       const absX = Math.abs(dx);
       const absY = Math.abs(dy);
       if (absX < GESTURE_MIN && absY < GESTURE_MIN) return; // still undecided
-      if (absX > absY) {
-        // Horizontal → commit to a stroke. Capture the pointer so continuing
-        // onto a second line (vertical motion) stays with us.
+      // Bias toward horizontal: only give up on a stroke when vertical clearly
+      // dominates. Finger wobble on phones often nudges dy above dx by a hair,
+      // which used to misclassify intended highlights as scrolls.
+      if (absY <= absX * 1.5) {
+        // Horizontal (or ambiguous) → commit to a stroke. Capture the pointer
+        // so continuing onto a second line (vertical motion) stays with us.
         const start = pendingStroke;
         pendingStroke = null;
         closeArc();
