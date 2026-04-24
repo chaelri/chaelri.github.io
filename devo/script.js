@@ -8429,11 +8429,16 @@ async function _imgcrShare() {
   let state = null;
   let stateKey = null;
   let currentInfo = null;     // { bookId, bookName, chapterNum, ... }
-  let tool = "pan";
+  let tool = "highlight";
   let color = DEFAULT_COLOR;
   let strokeActive = false;
   let strokeTouched = null;   // Set of word indices touched this stroke
   let strokePointerId = null;
+  // Smart-gesture gate: record pointerdown, then decide on first sufficient
+  // move whether it's a horizontal stroke (highlight/erase) or a vertical
+  // scroll (let the browser handle it via touch-action: pan-y).
+  let pendingStroke = null;   // { x, y, pointerId, target }
+  const GESTURE_MIN = 6;      // px before we commit to a direction
 
   // Undo/redo: snapshot state.highlights before each mutation. Capped to
   // avoid unbounded memory on heavy sessions.
@@ -8744,8 +8749,12 @@ async function _imgcrShare() {
   });
 
   // ---------- Tool UI ----------
-  const MODE_LABELS = { pan: "Pan", highlight: "Highlighting", eraser: "Erasing" };
+  // Pan is gone — smart gestures handle scroll vs stroke automatically.
+  // Only two tools now: highlight (horizontal swipe paints the color) and
+  // eraser (horizontal swipe removes). Vertical swipes always scroll.
+  const MODE_LABELS = { highlight: "Highlight", eraser: "Eraser" };
   function setTool(t) {
+    if (t !== "highlight" && t !== "eraser") t = "highlight";
     tool = t;
     overlay.querySelectorAll(".cm-tool-btn").forEach((b) => b.classList.toggle("active", b.dataset.tool === t));
     const modeLabel = overlay.querySelector("#cmModeLabel");
@@ -8753,16 +8762,13 @@ async function _imgcrShare() {
       modeLabel.textContent = MODE_LABELS[t] || "";
       modeLabel.dataset.tool = t;
     }
-    // Swatches highlight only while the highlight tool is active — in pan/eraser,
-    // there's no selected color (no swatch should look pressed).
     const showSwatch = (t === "highlight");
     overlay.querySelectorAll(".cm-swatch").forEach((s) => {
       s.classList.toggle("active", showSwatch && s.dataset.color === color);
     });
-    viewport.classList.remove("cm-tool-pan", "cm-tool-draw", "cm-tool-erase");
+    viewport.classList.remove("cm-tool-draw", "cm-tool-erase");
     if (t === "highlight") viewport.classList.add("cm-tool-draw");
-    else if (t === "eraser") viewport.classList.add("cm-tool-erase");
-    else viewport.classList.add("cm-tool-pan");
+    else viewport.classList.add("cm-tool-erase");
     // Keep FAB icon + color in sync with the active tool.
     if (fab) {
       fab.dataset.current = t;
@@ -8795,22 +8801,16 @@ async function _imgcrShare() {
   function renderArc() {
     if (!fabArc) return;
     fabArc.innerHTML = "";
-    const others = ARC_COLORS.filter(c => c.id !== color);
-    const items = [...others.map(c => ({ kind: "color", ...c })), { kind: "erase" }];
+    // 4 color chips — eraser no longer lives in the arc (FAB toggles it now).
+    const items = ARC_COLORS.filter(c => c.id !== color).map(c => ({ kind: "color", ...c }));
     const n = items.length;
     const isNarrow = window.innerWidth < 360;
     items.forEach((it, i) => {
       const btn = document.createElement("button");
-      btn.className = "cm-fab-arc-chip" + (it.kind === "erase" ? " cm-fab-arc-eraser" : " cm-fab-arc-color");
-      if (it.kind === "color") {
-        btn.dataset.color = it.id;
-        btn.style.setProperty("--sw", it.sw);
-        btn.setAttribute("aria-label", `Highlight ${it.id}`);
-      } else {
-        btn.dataset.action = "erase";
-        btn.innerHTML = '<span class="material-symbols-outlined">ink_eraser</span>';
-        btn.setAttribute("aria-label", "Eraser");
-      }
+      btn.className = "cm-fab-arc-chip cm-fab-arc-color";
+      btn.dataset.color = it.id;
+      btn.style.setProperty("--sw", it.sw);
+      btn.setAttribute("aria-label", `Highlight ${it.id}`);
       let dx, dy;
       if (isNarrow) {
         // Vertical stack above FAB — safer on phones < 360px wide.
@@ -8849,36 +8849,27 @@ async function _imgcrShare() {
   }
   function isArcOpen() { return fabArc?.classList.contains("cm-fab-arc-open"); }
 
-  // FAB tap:
-  //   pan → highlight + arc shown for 3s
-  //   stroke mode → pan + arc closes
+  // FAB tap: toggle highlight ↔ eraser. Arc (color picker) shows for 3s when
+  // re-entering highlight so the user can pick a color right away.
   fab?.addEventListener("click", () => {
-    if (tool === "pan") {
+    if (tool === "eraser") {
       setTool("highlight");
       openArc();
     } else {
-      setTool("pan");
+      setTool("eraser");
       closeArc();
     }
   });
 
-  // Arc chip tap: change color or switch to eraser, keep arc visible briefly.
+  // Arc chip tap: change color.
   fabArc?.addEventListener("click", (e) => {
     const chip = e.target.closest(".cm-fab-arc-chip");
     if (!chip) return;
-    if (chip.dataset.action === "erase") {
-      setTool("eraser");
-      // Eraser has a clear outcome; auto-collapse faster.
-      scheduleArcHide(800);
-    } else {
-      color = chip.dataset.color;
-      setTool("highlight");
-      // Re-render so the newly-current color disappears from the arc.
-      renderArc();
-      // Ensure the new chips animate in; the open class is still on.
-      void fabArc.offsetWidth;
-      scheduleArcHide(ARC_AUTOHIDE_MS);
-    }
+    color = chip.dataset.color;
+    setTool("highlight");
+    renderArc();
+    void fabArc.offsetWidth;
+    scheduleArcHide(ARC_AUTOHIDE_MS);
   });
   overlay.querySelectorAll(".cm-tool-btn").forEach((b) =>
     b.addEventListener("click", () => setTool(b.dataset.tool))
@@ -8959,36 +8950,59 @@ async function _imgcrShare() {
     }
   }
 
-  // ---------- Pointer on viewport ----------
-  // Single-pointer model: swipe = stroke in highlight/eraser mode, native
-  // scroll in pan mode. Use the bottom-right FAB to toggle between pan and
-  // highlight; eraser lives in the top toolbar.
+  // ---------- Pointer on viewport (smart gestures) ----------
+  // Touch-action: pan-y is on .cm-scroll, so vertical pans scroll natively
+  // while horizontal pans are delivered to us as pointer events. On
+  // pointerdown we *don't* commit to a stroke; we wait for the first
+  // pointermove past GESTURE_MIN to see which axis dominates:
+  //   horizontal-dominant → start highlight/erase stroke
+  //   vertical-dominant   → let native scroll handle it, stay out of the way
+  // Tap (no movement) falls through to the click listener → popover.
   viewport.addEventListener("pointerdown", (e) => {
-    // FAB + arc live inside the viewport — let their clicks through cleanly.
     if (e.target.closest(".cm-fab") || e.target.closest(".cm-fab-arc")) return;
     closePopover();
-    // Note badge → let click bubble to open the note view.
     if (e.target.closest(".cm-note-badge")) return;
-
-    if (tool === "highlight" || tool === "eraser") {
-      // Starting a stroke = user has made their choice; collapse arc if open.
-      closeArc();
-      e.preventDefault();
-      strokeActive = true;
-      strokeTouched = new Set();
-      strokePointerId = e.pointerId;
-      try { viewport.setPointerCapture(e.pointerId); } catch (_) {}
-      applyStrokeAt(e.clientX, e.clientY);
-    }
-    // pan mode: native scroll + click-to-popover handled below
+    pendingStroke = { x: e.clientX, y: e.clientY, pointerId: e.pointerId };
   });
 
   viewport.addEventListener("pointermove", (e) => {
+    // Direction decision phase
+    if (pendingStroke && e.pointerId === pendingStroke.pointerId) {
+      const dx = e.clientX - pendingStroke.x;
+      const dy = e.clientY - pendingStroke.y;
+      const absX = Math.abs(dx);
+      const absY = Math.abs(dy);
+      if (absX < GESTURE_MIN && absY < GESTURE_MIN) return; // still undecided
+      if (absX > absY) {
+        // Horizontal → commit to a stroke. Capture the pointer so continuing
+        // onto a second line (vertical motion) stays with us.
+        const start = pendingStroke;
+        pendingStroke = null;
+        closeArc();
+        strokeActive = true;
+        strokeTouched = new Set();
+        strokePointerId = e.pointerId;
+        try { viewport.setPointerCapture(e.pointerId); } catch (_) {}
+        e.preventDefault();
+        applyStrokeAt(start.x, start.y);
+        applyStrokeAt(e.clientX, e.clientY);
+      } else {
+        // Vertical → give up; browser scrolls via touch-action: pan-y.
+        pendingStroke = null;
+      }
+      return;
+    }
     if (!strokeActive || e.pointerId !== strokePointerId) return;
+    e.preventDefault();
     applyStrokeAt(e.clientX, e.clientY);
   });
 
   function finishStroke(e) {
+    // Tap (pointerdown → pointerup with no movement) → clear pending gate
+    // and let the click listener open the popover.
+    if (pendingStroke && e && e.pointerId === pendingStroke.pointerId) {
+      pendingStroke = null;
+    }
     if (!strokeActive) return;
     if (e && e.pointerId !== strokePointerId) return;
     try { viewport.releasePointerCapture(strokePointerId); } catch (_) {}
@@ -9025,17 +9039,17 @@ async function _imgcrShare() {
     }
   });
 
-  // Tap a word → highlight/note popover. Tap a note badge → view popover.
+  // Tap a word → popover. Tap a note badge → note view. Clicks only fire
+  // when there was no drag, so the smart-gesture stroke path never triggers
+  // this accidentally.
   passageEl.addEventListener("click", (e) => {
     const badge = e.target.closest(".cm-note-badge");
     if (badge) {
       e.stopPropagation();
       closePopover();
-      if (tool !== "pan") setTool("pan");
       openNoteView(+badge.dataset.wordIdx, badge);
       return;
     }
-    if (tool !== "pan") return;
     const w = e.target.closest(".cm-word");
     if (!w) return;
     openPopover(w);
@@ -9319,7 +9333,6 @@ async function _imgcrShare() {
       doRedo();
     } else if (e.key === "h" || e.key === "H") setTool("highlight");
     else if (e.key === "e" || e.key === "E") setTool("eraser");
-    else if (e.key === "p" || e.key === "P") setTool("pan");
   });
 
   // ---------- Open / close ----------
@@ -9337,8 +9350,8 @@ async function _imgcrShare() {
     resetHistory();
 
     overlay.hidden = false;
-    color = DEFAULT_COLOR; // remembered for when user activates highlight tool
-    setTool("pan");
+    color = DEFAULT_COLOR;
+    setTool("highlight");
     scrollEl.scrollTop = 0;
   }
 
@@ -9348,6 +9361,7 @@ async function _imgcrShare() {
     closeNoteInput();
     closeAiModal();
     closeArc();
+    pendingStroke = null;
     strokeActive = false;
     strokePointerId = null;
     strokeTouched = null;

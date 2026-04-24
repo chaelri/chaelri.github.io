@@ -8568,7 +8568,6 @@ button#storyBtn { background: unset; }
   position: relative;
   overflow: hidden;
 }
-.cm-viewport.cm-tool-pan    { cursor: auto; }
 .cm-viewport.cm-tool-draw   { cursor: crosshair; }
 .cm-viewport.cm-tool-erase  { cursor: cell; }
 .cm-viewport.cm-tool-text   { cursor: text; }
@@ -8587,10 +8586,10 @@ button#storyBtn { background: unset; }
   scrollbar-width: none; /* Firefox */
 }
 .cm-scroll::-webkit-scrollbar { display: none; } /* WebKit */
-/* When drawing / erasing / adding text, block native scroll so pointer events own the gesture. */
-.cm-viewport.cm-tool-draw  .cm-scroll,
-.cm-viewport.cm-tool-erase .cm-scroll,
-.cm-viewport.cm-tool-text  .cm-scroll { touch-action: none; }
+/* Smart gesture mode: `touch-action: pan-y` is always on, so vertical swipes
+   scroll natively and horizontal swipes are delivered to our pointer handlers
+   for highlighting/erasing. No mode-based override needed. */
+.cm-viewport.cm-tool-text .cm-scroll { touch-action: none; }
 
 /* Sticky bottom-right FAB — tap to toggle pan ↔ highlight quickly. Eraser
    stays in the top toolbar for deliberate access. */
@@ -8616,7 +8615,6 @@ button#storyBtn { background: unset; }
 }
 .cm-fab:active { transform: scale(0.93); }
 .cm-fab-icon { font-size: 26px; line-height: 1; }
-.cm-fab[data-current="pan"]    { background: #1a1a2e; color: #fff; }
 .cm-fab[data-current="eraser"] { background: #475569; color: #fff; }
 
 /* Active-color dot — pinned to top-right of FAB in pan/eraser modes so the

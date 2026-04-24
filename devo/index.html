@@ -641,16 +641,13 @@
 
       <div class="cm-toolbar">
         <div class="cm-tools">
-          <button class="cm-tool-btn active" data-tool="pan" title="Pan">
-            <span class="material-symbols-outlined">pan_tool</span>
-          </button>
-          <button class="cm-tool-btn" data-tool="highlight" title="Highlight">
+          <button class="cm-tool-btn active" data-tool="highlight" title="Highlight">
             <span class="material-symbols-outlined">ink_highlighter</span>
           </button>
           <button class="cm-tool-btn" data-tool="eraser" title="Eraser">
             <span class="material-symbols-outlined">ink_eraser</span>
           </button>
-          <span class="cm-mode-label" id="cmModeLabel" data-tool="pan">Pan</span>
+          <span class="cm-mode-label" id="cmModeLabel" data-tool="highlight">Highlight</span>
         </div>
         <div class="cm-swatches" id="cmSwatches">
           <button class="cm-swatch" data-color="yellow" style="--sw:#ffe66b"></button>
@@ -670,8 +667,8 @@
           </div>
         </div>
         <div class="cm-fab-arc" id="cmFabArc" aria-hidden="true"></div>
-        <button class="cm-fab" id="cmFab" aria-label="Toggle scroll / highlight" data-current="pan">
-          <span class="material-symbols-outlined cm-fab-icon" id="cmFabIcon">pan_tool</span>
+        <button class="cm-fab" id="cmFab" aria-label="Toggle highlight / eraser" data-current="highlight">
+          <span class="material-symbols-outlined cm-fab-icon" id="cmFabIcon">edit</span>
           <span class="cm-fab-color-dot" id="cmFabColorDot" aria-hidden="true"></span>
         </button>
       </div>
