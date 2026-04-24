@@ -8659,7 +8659,7 @@ button#storyBtn { background: unset; }
   box-shadow: 0 6px 16px rgba(0, 0, 0, 0.2),
               0 2px 4px rgba(0, 0, 0, 0.14);
   white-space: nowrap;
-  transform: translate(-50%, -18px) scale(1);
+  transform: translate(-50%, -34px) scale(1);
   opacity: 1;
   animation: cmEngageWordIn 0.32s cubic-bezier(0.22, 1, 0.36, 1);
 }
@@ -8668,23 +8668,23 @@ button#storyBtn { background: unset; }
 }
 @keyframes cmEngageWordIn {
   0%   { transform: translate(-50%, 0)     scale(0.7);  opacity: 0; }
-  65%  { transform: translate(-50%, -14px) scale(1.12); opacity: 1; }
-  100% { transform: translate(-50%, -18px) scale(1);    opacity: 1; }
+  65%  { transform: translate(-50%, -28px) scale(1.12); opacity: 1; }
+  100% { transform: translate(-50%, -34px) scale(1);    opacity: 1; }
 }
 .cm-engage-word.cm-engage-word-grow {
   animation: cmEngageWordGrow 0.22s ease-out;
 }
 @keyframes cmEngageWordGrow {
-  0%   { transform: translate(-50%, -18px) scale(1);    }
-  50%  { transform: translate(-50%, -20px) scale(1.08); }
-  100% { transform: translate(-50%, -18px) scale(1);    }
+  0%   { transform: translate(-50%, -34px) scale(1);    }
+  50%  { transform: translate(-50%, -37px) scale(1.08); }
+  100% { transform: translate(-50%, -34px) scale(1);    }
 }
 .cm-engage-word.cm-engage-word-out {
   animation: cmEngageWordOut 0.55s cubic-bezier(0.22, 1, 0.36, 1) forwards;
 }
 @keyframes cmEngageWordOut {
-  0%   { transform: translate(-50%, -18px) scale(1);    opacity: 1; }
-  100% { transform: translate(-50%, -42px) scale(1.04); opacity: 0; }
+  0%   { transform: translate(-50%, -34px) scale(1);    opacity: 1; }
+  100% { transform: translate(-50%, -60px) scale(1.04); opacity: 0; }
 }
 
 /* Brief glow on the first word to confirm "you're painting this one."
