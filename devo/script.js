@@ -9011,12 +9011,17 @@ async function _imgcrShare() {
     wordEl.addEventListener("animationend", () => wordEl.classList.remove("cm-word-engage"), { once: true });
   }
   function fadeOutLabels() {
-    while (activeLabels.length) {
-      const label = activeLabels.pop();
-      if (!label.isConnected) continue;
+    // FIFO: oldest label (first word touched in this stroke) fades first,
+    // newer ones cascade out behind it with a small stagger so the whole
+    // shower dissolves in the same sequence it bloomed.
+    const STAGGER_MS = 60;
+    const labels = activeLabels.splice(0);
+    labels.forEach((label, i) => {
+      if (!label.isConnected) return;
+      label.style.animationDelay = (i * STAGGER_MS) + "ms";
       label.classList.add("cm-engage-word-out");
       label.addEventListener("animationend", () => label.remove(), { once: true });
-    }
+    });
   }
 
   // Engage feedback on long-press lock-in: subtle ripple at the touch
