@@ -8434,11 +8434,19 @@ async function _imgcrShare() {
   let strokeActive = false;
   let strokeTouched = null;   // Set of word indices touched this stroke
   let strokePointerId = null;
-  // Smart-gesture gate: record pointerdown, then decide on first sufficient
-  // move whether it's a horizontal stroke (highlight/erase) or a vertical
-  // scroll (let the browser handle it via touch-action: pan-y).
-  let pendingStroke = null;   // { x, y, pointerId, target }
-  const GESTURE_MIN = 6;      // px before we commit to a direction
+  // Long-press to highlight: hold ~350ms without moving to engage stroke
+  // mode. Moving before the timer fires cancels it so `touch-action: pan-y`
+  // lets the browser scroll normally. Tap (quick down+up with no movement)
+  // falls through to the click listener → popover. No direction arbitration,
+  // so mobile browsers can't steal the gesture mid-swipe.
+  let pendingStroke = null;        // { x, y, pointerId }
+  let longPressTimer = null;
+  const LONG_PRESS_MS = 350;
+  const LONG_PRESS_MOVE_MAX = 8;   // px before we abandon the hold
+  function cancelLongPress() {
+    if (longPressTimer) { clearTimeout(longPressTimer); longPressTimer = null; }
+    pendingStroke = null;
+  }
 
   // Undo/redo: snapshot state.highlights before each mutation. Capped to
   // avoid unbounded memory on heavy sessions.
@@ -8950,49 +8958,38 @@ async function _imgcrShare() {
     }
   }
 
-  // ---------- Pointer on viewport (smart gestures) ----------
-  // Touch-action: pan-y is on .cm-scroll, so vertical pans scroll natively
-  // while horizontal pans are delivered to us as pointer events. On
-  // pointerdown we *don't* commit to a stroke; we wait for the first
-  // pointermove past GESTURE_MIN to see which axis dominates:
-  //   horizontal-dominant → start highlight/erase stroke
-  //   vertical-dominant   → let native scroll handle it, stay out of the way
-  // Tap (no movement) falls through to the click listener → popover.
+  // ---------- Pointer on viewport (long-press to highlight) ----------
+  // Down+hold (still) for LONG_PRESS_MS → engage stroke, haptic nudge, then
+  // any movement paints. Down+move (before the timer) → browser scrolls via
+  // `touch-action: pan-y`. Down+up (quick, no movement) → click fires →
+  // popover. Unambiguous, so the native scroll arbitration can't steal the
+  // intent the way the old horizontal-swipe heuristic did.
   viewport.addEventListener("pointerdown", (e) => {
     if (e.target.closest(".cm-fab") || e.target.closest(".cm-fab-arc")) return;
     closePopover();
     if (e.target.closest(".cm-note-badge")) return;
-    pendingStroke = { x: e.clientX, y: e.clientY, pointerId: e.pointerId };
+    cancelLongPress();
+    const sx = e.clientX, sy = e.clientY, pid = e.pointerId;
+    pendingStroke = { x: sx, y: sy, pointerId: pid };
+    longPressTimer = setTimeout(() => {
+      if (!pendingStroke || pendingStroke.pointerId !== pid) return;
+      pendingStroke = null;
+      longPressTimer = null;
+      closeArc();
+      strokeActive = true;
+      strokeTouched = new Set();
+      strokePointerId = pid;
+      try { viewport.setPointerCapture(pid); } catch (_) {}
+      try { navigator.vibrate && navigator.vibrate(12); } catch (_) {}
+      applyStrokeAt(sx, sy);
+    }, LONG_PRESS_MS);
   });
 
   viewport.addEventListener("pointermove", (e) => {
-    // Direction decision phase
     if (pendingStroke && e.pointerId === pendingStroke.pointerId) {
       const dx = e.clientX - pendingStroke.x;
       const dy = e.clientY - pendingStroke.y;
-      const absX = Math.abs(dx);
-      const absY = Math.abs(dy);
-      if (absX < GESTURE_MIN && absY < GESTURE_MIN) return; // still undecided
-      // Bias toward horizontal: only give up on a stroke when vertical clearly
-      // dominates. Finger wobble on phones often nudges dy above dx by a hair,
-      // which used to misclassify intended highlights as scrolls.
-      if (absY <= absX * 1.5) {
-        // Horizontal (or ambiguous) → commit to a stroke. Capture the pointer
-        // so continuing onto a second line (vertical motion) stays with us.
-        const start = pendingStroke;
-        pendingStroke = null;
-        closeArc();
-        strokeActive = true;
-        strokeTouched = new Set();
-        strokePointerId = e.pointerId;
-        try { viewport.setPointerCapture(e.pointerId); } catch (_) {}
-        e.preventDefault();
-        applyStrokeAt(start.x, start.y);
-        applyStrokeAt(e.clientX, e.clientY);
-      } else {
-        // Vertical → give up; browser scrolls via touch-action: pan-y.
-        pendingStroke = null;
-      }
+      if (Math.hypot(dx, dy) > LONG_PRESS_MOVE_MAX) cancelLongPress();
       return;
     }
     if (!strokeActive || e.pointerId !== strokePointerId) return;
@@ -9001,10 +8998,10 @@ async function _imgcrShare() {
   });
 
   function finishStroke(e) {
-    // Tap (pointerdown → pointerup with no movement) → clear pending gate
-    // and let the click listener open the popover.
+    // Tap (pointerdown → pointerup before long-press timer) → clear pending
+    // gate and let the click listener open the popover.
     if (pendingStroke && e && e.pointerId === pendingStroke.pointerId) {
-      pendingStroke = null;
+      cancelLongPress();
     }
     if (!strokeActive) return;
     if (e && e.pointerId !== strokePointerId) return;
@@ -9356,7 +9353,30 @@ async function _imgcrShare() {
     color = DEFAULT_COLOR;
     setTool("highlight");
     scrollEl.scrollTop = 0;
+    maybeShowHint();
   }
+
+  // First-time onboarding nudge. One-shot, localStorage-gated, auto-fades.
+  const HINT_KEY = "cm_hint_v1";
+  let hintTimer = null;
+  function maybeShowHint() {
+    try { if (localStorage.getItem(HINT_KEY)) return; } catch (_) { return; }
+    const hint = document.getElementById("cmHint");
+    if (!hint) return;
+    hint.hidden = false;
+    hint.classList.remove("cm-hint-out");
+    if (hintTimer) clearTimeout(hintTimer);
+    hintTimer = setTimeout(dismissHint, 6000);
+  }
+  function dismissHint() {
+    const hint = document.getElementById("cmHint");
+    if (!hint || hint.hidden) return;
+    hint.classList.add("cm-hint-out");
+    setTimeout(() => { hint.hidden = true; hint.classList.remove("cm-hint-out"); }, 220);
+    try { localStorage.setItem(HINT_KEY, "1"); } catch (_) {}
+    if (hintTimer) { clearTimeout(hintTimer); hintTimer = null; }
+  }
+  document.getElementById("cmHintDismiss")?.addEventListener("click", dismissHint);
 
   function close() {
     closePopover();
@@ -9364,7 +9384,7 @@ async function _imgcrShare() {
     closeNoteInput();
     closeAiModal();
     closeArc();
-    pendingStroke = null;
+    cancelLongPress();
     strokeActive = false;
     strokePointerId = null;
     strokeTouched = null;

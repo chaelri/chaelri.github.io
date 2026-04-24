@@ -8617,6 +8617,57 @@ button#storyBtn { background: unset; }
 .cm-fab-icon { font-size: 26px; line-height: 1; }
 .cm-fab[data-current="eraser"] { background: #475569; color: #fff; }
 
+/* First-time onboarding hint — floats above the paper, auto-fades, dismissible.
+   Shown once (localStorage) so it never nags a returning user. */
+.cm-hint {
+  position: absolute;
+  left: 50%;
+  bottom: calc(24px + env(safe-area-inset-bottom, 0px));
+  transform: translateX(-50%);
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  padding: 9px 8px 9px 12px;
+  background: rgba(26, 26, 46, 0.9);
+  color: #fff;
+  border-radius: 999px;
+  font-size: 13px;
+  line-height: 1.2;
+  box-shadow: 0 8px 22px rgba(0, 0, 0, 0.25), 0 2px 6px rgba(0, 0, 0, 0.15);
+  backdrop-filter: blur(6px);
+  -webkit-backdrop-filter: blur(6px);
+  z-index: 7;
+  max-width: calc(100vw - 32px);
+  white-space: nowrap;
+  animation: cmHintIn 0.25s ease-out;
+}
+.cm-hint-icon { font-size: 18px; opacity: 0.9; }
+.cm-hint-text { opacity: 0.95; }
+.cm-hint-dismiss {
+  background: none;
+  border: none;
+  color: #fff;
+  opacity: 0.7;
+  font-size: 18px;
+  line-height: 1;
+  cursor: pointer;
+  padding: 2px 6px;
+  border-radius: 50%;
+}
+.cm-hint-dismiss:hover { opacity: 1; background: rgba(255,255,255,0.1); }
+.cm-hint.cm-hint-out { animation: cmHintOut 0.22s ease-out forwards; }
+@keyframes cmHintIn {
+  from { opacity: 0; transform: translateX(-50%) translateY(10px); }
+  to   { opacity: 1; transform: translateX(-50%) translateY(0); }
+}
+@keyframes cmHintOut {
+  to { opacity: 0; transform: translateX(-50%) translateY(10px); }
+}
+@media (max-width: 400px) {
+  .cm-hint { font-size: 12px; padding: 8px 6px 8px 10px; }
+  .cm-hint-text { white-space: normal; }
+}
+
 /* Active-color dot — pinned to top-right of FAB in pan/eraser modes so the
    user always knows which color a tap-to-highlight will apply. Hidden in
    highlight mode since the FAB itself is already that color. */
