@@ -1270,6 +1270,28 @@ function startPendingTimeOutListener(date, logKey) {
   });
 }
 
+// Volunteer-initiated cancel of pending time-out
+if (document.getElementById("timeout-self-cancel-btn")) {
+  document.getElementById("timeout-self-cancel-btn").addEventListener("click", async () => {
+    const date = getPHDate();
+    const logKey = currentLogKey;
+    if (!logKey) { startQrScanner(); return; }
+
+    if (pendingTimeOutListener) { pendingTimeOutListener.off(); pendingTimeOutListener = null; }
+
+    try {
+      await db.ref(`logs/${date}/${logKey}`).update({ status: null });
+    } catch (e) {
+      console.error("Failed to cancel time-out:", e);
+    }
+
+    volunteerId = null;
+    volunteerName = null;
+    currentLogKey = null;
+    startQrScanner();
+  });
+}
+
 /**
  * Resets the application state to restart scanning.
  */
