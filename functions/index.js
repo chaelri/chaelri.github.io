@@ -2,11 +2,9 @@ const functions = require("firebase-functions");
 const admin = require("firebase-admin");
 const fetch = require("node-fetch");
 
-// Load your service account key
-const serviceAccount = require("./service-account.json");
-
+// In Firebase Functions, credentials are provided automatically by the runtime.
+// For local emulator dev, set GOOGLE_APPLICATION_CREDENTIALS to a local key.
 admin.initializeApp({
-  credential: admin.credential.cert(serviceAccount),
   databaseURL:
     "https://test-database-55379-default-rtdb.asia-southeast1.firebasedatabase.app",
 });
