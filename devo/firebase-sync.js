@@ -1,5 +1,12 @@
-// ── Firebase Realtime Database Sync (Charlie-only, secret activation) ──
-// Tap "devotion." logo 5 times to activate. Data syncs across devices via RTDB.
+// Firebase RTDB bootstrap. For Charlie (userName === "charlie"), localStorage
+// is replaced with an in-memory mirror backed by Firebase Realtime Database —
+// all reads/writes hit the mirror (instant, sync), writes also debounce-flush
+// to RTDB, and remote changes flow back via .on("value"). For everyone else
+// this file is a no-op and the app uses real localStorage as before.
+//
+// This file MUST load before script.js. script.js is injected dynamically
+// after the bootstrap settles so its top-level localStorage reads see the
+// mirror (already populated from RTDB).
 
 const FIREBASE_CONFIG = {
   apiKey: "AIzaSyB8ahT56WbEUaGAymsRNNA-DrfZnUnWIwk",
@@ -12,7 +19,6 @@ const FIREBASE_CONFIG = {
   measurementId: "G-1LSTC0N3NJ",
 };
 
-// Keys to sync — static keys that hold JSON objects/arrays/strings
 const SYNC_STATIC_KEYS = [
   "bibleFavorites",
   "bibleComments",
@@ -26,126 +32,54 @@ const SYNC_STATIC_KEYS = [
   "soap_prayer",
 ];
 
-// Dynamic key prefix for reflections and canvas highlights
 const SYNC_DYNAMIC_PREFIXES = ["reflection-", "devo.canvas."];
-
 const RTDB_PATH = "devo-sync";
+const BOOTSTRAP_KEY = "userName";
+const FB_WRITE_DEBOUNCE_MS = 400;
+
+// Capture the original localStorage before we shadow it. All references to
+// real persistence (e.g. userName boot identity) go through _realLs.
+const _realLs = window.localStorage;
 
 let _fbApp = null;
 let _fbDb = null;
-let _syncEnabled = false;
-let _ignoreRemoteUpdate = false;
-let _ignoreLocalUpdate = false;
-let _syncDebounceTimers = {};
+let _isCharlie = false;
+let _mirror = null;            // { [decodedKey]: stringValue }
+let _suppressFbWrites = false; // true while we apply remote changes locally
+let _writeTimers = {};
 
-// ── Secret tap activation ──
-let _secretTapBound = false;
-function _initSecretTap() {
-  if (_secretTapBound) return;
-  const brand = document.getElementById("dashBrand");
-  if (!brand) {
-    // Retry — element may not exist yet
-    setTimeout(_initSecretTap, 1000);
+// ── Boot ────────────────────────────────────────────────────────────────────
+(async function bootstrap() {
+  const name = (_realLs.getItem(BOOTSTRAP_KEY) || "").trim().toLowerCase();
+  _isCharlie = name === "charlie";
+
+  if (!_isCharlie) {
+    _injectAppScript();
     return;
   }
 
-  _secretTapBound = true;
-  let tapCount = 0;
-  let tapTimer = null;
-
-  brand.addEventListener("click", (e) => {
-    e.stopPropagation();
-    tapCount++;
-    clearTimeout(tapTimer);
-
-    if (tapCount >= 5) {
-      tapCount = 0;
-      if (_syncEnabled) {
-        _showSyncToast("Sync is active ✓");
-      } else {
-        // First check: name must be Charlie
-        const name = (localStorage.getItem("userName") || "").trim().toLowerCase();
-        if (name !== "charlie") return; // silently ignore
-        _showCharlieConfirm();
-      }
-      return;
-    }
-
-    tapTimer = setTimeout(() => { tapCount = 0; }, 1200);
-  });
-}
-
-// ── Charlie confirmation prompt ──
-function _showCharlieConfirm() {
-  const overlay = document.createElement("div");
-  overlay.className = "sync-linked-overlay";
-  overlay.innerHTML = `
-    <div class="sync-confirm-card">
-      <div class="sync-confirm-icon"><span class="material-icons">lock</span></div>
-      <div class="sync-confirm-title">Are you really Charlie?</div>
-      <div class="sync-confirm-sub">This enables cross-device sync for your data.</div>
-      <div class="sync-confirm-actions">
-        <button class="sync-confirm-btn yes" id="syncConfirmYes">Yes, it's me</button>
-        <button class="sync-confirm-btn no" id="syncConfirmNo">No</button>
-      </div>
-    </div>
-  `;
-  document.body.appendChild(overlay);
-
-  document.getElementById("syncConfirmYes").onclick = () => {
-    overlay.remove();
-    localStorage.setItem("_charlieMode", "true");
-    _showSyncLinkedAnimation();
-  };
-
-  document.getElementById("syncConfirmNo").onclick = () => {
-    overlay.classList.add("fade-out");
-    overlay.addEventListener("animationend", () => overlay.remove());
-    _showSyncToast("Nice try 😉");
-  };
-}
-
-// ── Sync linked animation (first-time activation) ──
-function _showSyncLinkedAnimation() {
-  const overlay = document.createElement("div");
-  overlay.className = "sync-linked-overlay";
-  overlay.innerHTML = `
-    <div class="sync-linked-check"><span class="material-icons">link</span></div>
-    <div class="sync-linked-text">Hey, Charlie</div>
-    <div class="sync-linked-sub">Your data is now syncing across devices</div>
-  `;
-  document.body.appendChild(overlay);
-
-  // Start sync in background while animation plays
-  _startSync();
-
-  // Dismiss after 2.5s
-  setTimeout(() => {
-    overlay.classList.add("fade-out");
-    overlay.addEventListener("animationend", () => overlay.remove());
-  }, 2500);
-}
-
-// ── Toast notification ──
-function _showSyncToast(msg) {
-  let toast = document.getElementById("syncToast");
-  if (!toast) {
-    toast = document.createElement("div");
-    toast.id = "syncToast";
-    toast.className = "sync-toast";
-    document.body.appendChild(toast);
+  // No sync splash — the regular "devotion." intro stays visible while we
+  // pull from Firebase in the background.
+  try {
+    await _initFirebase();
+    const merged = await _mergeOnBoot();
+    _mirror = _decodeAll(merged);
+    _installMirror();
+    _clearMigratedRealLs();
+    _listenForRemoteChanges();
+  } catch (err) {
+    console.error("Firebase bootstrap failed:", err);
   }
-  toast.textContent = msg;
-  toast.classList.remove("sync-toast-out");
-  toast.classList.add("sync-toast-in");
-  clearTimeout(toast._hideTimer);
-  toast._hideTimer = setTimeout(() => {
-    toast.classList.remove("sync-toast-in");
-    toast.classList.add("sync-toast-out");
-  }, 2500);
+  _injectAppScript();
+})();
+
+function _injectAppScript() {
+  const s = document.createElement("script");
+  s.src = "script.js";
+  document.body.appendChild(s);
 }
 
-// ── Load Firebase SDK dynamically ──
+// ── Firebase init ───────────────────────────────────────────────────────────
 function _loadScript(src) {
   return new Promise((resolve, reject) => {
     if (document.querySelector(`script[src="${src}"]`)) { resolve(); return; }
@@ -160,90 +94,180 @@ function _loadScript(src) {
 async function _initFirebase() {
   await _loadScript("https://www.gstatic.com/firebasejs/10.12.0/firebase-app-compat.js");
   await _loadScript("https://www.gstatic.com/firebasejs/10.12.0/firebase-database-compat.js");
-
-  if (!_fbApp) {
-    _fbApp = firebase.initializeApp(FIREBASE_CONFIG);
-  }
+  if (!_fbApp) _fbApp = firebase.initializeApp(FIREBASE_CONFIG);
   _fbDb = firebase.database();
 }
 
-// ── Start sync ──
-async function _startSync() {
-  try {
-    await _initFirebase();
+// ── Initial merge: pull remote, fold in any local data, push back ───────────
+async function _mergeOnBoot() {
+  const local = _readRealLsForSync();
+  const snap = await _fbDb.ref(RTDB_PATH).once("value");
+  const remote = snap.val() || {};
+  const merged = _mergeAll(local, remote);
+  // Only write if something changed to avoid pointless RTDB churn.
+  if (!_shallowEqual(merged, remote)) {
+    await _fbDb.ref(RTDB_PATH).set(merged);
+  }
+  return merged;
+}
 
-    // Initial push: upload all local data to RTDB
-    await _pushAllToRemote();
+function _shallowEqual(a, b) {
+  const ak = Object.keys(a), bk = Object.keys(b);
+  if (ak.length !== bk.length) return false;
+  for (const k of ak) if (a[k] !== b[k]) return false;
+  return true;
+}
 
-    // Listen for remote changes
-    _listenForRemoteChanges();
+function _readRealLsForSync() {
+  const out = {};
+  for (const key of SYNC_STATIC_KEYS) {
+    const v = _realLs.getItem(key);
+    if (v !== null) out[_encodeKey(key)] = v;
+  }
+  for (let i = 0; i < _realLs.length; i++) {
+    const k = _realLs.key(i);
+    if (k && SYNC_DYNAMIC_PREFIXES.some(p => k.startsWith(p))) {
+      out[_encodeKey(k)] = _realLs.getItem(k);
+    }
+  }
+  return out;
+}
 
-    // Monkey-patch localStorage for live sync
-    _patchLocalStorage();
+// Strip synced keys from real localStorage after the initial migration. The
+// mirror is now the working store. userName stays so the next boot detects
+// Charlie before Firebase loads.
+function _clearMigratedRealLs() {
+  const removeKeys = new Set();
+  for (const key of SYNC_STATIC_KEYS) {
+    if (key !== BOOTSTRAP_KEY) removeKeys.add(key);
+  }
+  for (let i = 0; i < _realLs.length; i++) {
+    const k = _realLs.key(i);
+    if (k && SYNC_DYNAMIC_PREFIXES.some(p => k.startsWith(p))) removeKeys.add(k);
+  }
+  // Legacy flag from the old 5-tap activation, no longer needed.
+  removeKeys.add("_charlieMode");
+  for (const k of removeKeys) _realLs.removeItem(k);
+}
 
-    _syncEnabled = true;
-    _showSyncToast("Sync connected ✓");
+// ── Install mirror as window.localStorage ───────────────────────────────────
+function _installMirror() {
+  const mirrorLs = {
+    getItem(key) { return key in _mirror ? _mirror[key] : null; },
+    setItem(key, value) {
+      const v = String(value);
+      if (_mirror[key] === v) return;
+      _mirror[key] = v;
+      // Mirror userName back to real LS so next page load detects Charlie
+      // before Firebase finishes loading.
+      if (key === BOOTSTRAP_KEY) _realLs.setItem(key, v);
+      if (_suppressFbWrites) return;
+      if (!_shouldSync(key)) return;
+      _scheduleFbWrite(key, v);
+    },
+    removeItem(key) {
+      if (!(key in _mirror)) return;
+      delete _mirror[key];
+      if (key === BOOTSTRAP_KEY) _realLs.removeItem(key);
+      if (_suppressFbWrites) return;
+      if (!_shouldSync(key)) return;
+      _fbDb.ref(`${RTDB_PATH}/${_encodeKey(key)}`).remove().catch(() => {});
+    },
+    clear() {
+      _mirror = {};
+    },
+    key(i) { return Object.keys(_mirror)[i] || null; },
+    get length() { return Object.keys(_mirror).length; },
+  };
 
-    // Refresh dashboard to reflect synced data
+  Object.defineProperty(window, "localStorage", {
+    configurable: true,
+    get() { return mirrorLs; },
+  });
+}
+
+function _shouldSync(key) {
+  return SYNC_STATIC_KEYS.includes(key) ||
+    SYNC_DYNAMIC_PREFIXES.some(p => key.startsWith(p));
+}
+
+function _scheduleFbWrite(key, value) {
+  const enc = _encodeKey(key);
+  clearTimeout(_writeTimers[enc]);
+  _writeTimers[enc] = setTimeout(() => {
+    _fbDb.ref(`${RTDB_PATH}/${enc}`).set(value).catch((err) => {
+      console.warn("RTDB write failed for", key, err);
+    });
+  }, FB_WRITE_DEBOUNCE_MS);
+}
+
+// ── Listen for remote changes ───────────────────────────────────────────────
+function _listenForRemoteChanges() {
+  _fbDb.ref(RTDB_PATH).on("value", (snap) => {
+    const remote = snap.val() || {};
+    const decoded = _decodeAll(remote);
+
+    const changedCanvasKeys = [];
+    let favoritesChanged = false;
+    let commentsChanged = false;
+    let anyChanged = false;
+
+    // Apply additions / updates.
+    for (const [key, val] of Object.entries(decoded)) {
+      if (_mirror[key] !== val) {
+        _mirror[key] = val;
+        anyChanged = true;
+        if (key.startsWith("devo.canvas.")) changedCanvasKeys.push(key);
+        if (key === "bibleFavorites") favoritesChanged = true;
+        if (key === "bibleComments") commentsChanged = true;
+      }
+    }
+    // Apply remote deletions.
+    for (const key of Object.keys(_mirror)) {
+      if (!(key in decoded)) {
+        delete _mirror[key];
+        anyChanged = true;
+        if (key.startsWith("devo.canvas.")) changedCanvasKeys.push(key);
+        if (key === "bibleFavorites") favoritesChanged = true;
+        if (key === "bibleComments") commentsChanged = true;
+      }
+    }
+
+    if (!anyChanged) return;
+
+    // Refresh in-memory globals declared in script.js.
+    if (favoritesChanged) {
+      try { favorites = JSON.parse(_mirror["bibleFavorites"] || "{}"); } catch {}
+    }
+    if (commentsChanged) {
+      try { comments = JSON.parse(_mirror["bibleComments"] || "{}"); } catch {}
+    }
+
+    if (changedCanvasKeys.length) {
+      window.dispatchEvent(new CustomEvent("devo:canvas-sync", { detail: { keys: changedCanvasKeys } }));
+    }
+
+    // Re-render dashboard if it's the visible view.
     const homeBtn = document.getElementById("homeBtn");
     if (homeBtn && homeBtn.style.display === "none" && typeof renderDashboard === "function") {
-      renderDashboard();
+      try { renderDashboard(); } catch {}
     }
-  } catch (err) {
-    console.error("Firebase sync error:", err);
-    _showSyncToast("Sync failed — check console");
-  }
+  });
 }
 
-// ── Push all local data to RTDB ──
-async function _pushAllToRemote() {
-  const data = {};
-
-  // Static keys
-  for (const key of SYNC_STATIC_KEYS) {
-    const val = localStorage.getItem(key);
-    if (val !== null) data[key] = val;
-  }
-
-  // Dynamic reflection keys
-  for (let i = 0; i < localStorage.length; i++) {
-    const key = localStorage.key(i);
-    if (SYNC_DYNAMIC_PREFIXES.some(p => key.startsWith(p))) {
-      // RTDB keys can't contain . # $ [ ] / so encode them
-      data[_encodeKey(key)] = localStorage.getItem(key);
-    }
-  }
-
-  // Merge with remote — don't overwrite, merge intelligently
-  const snapshot = await _fbDb.ref(RTDB_PATH).once("value");
-  const remote = snapshot.val() || {};
-
-  const merged = _mergeAll(data, remote);
-  await _fbDb.ref(RTDB_PATH).set(merged);
-
-  // Apply merged data back to local
-  _ignoreLocalUpdate = true;
-  _applyToLocal(merged);
-  _ignoreLocalUpdate = false;
-}
-
-// ── Merge logic ──
+// ── Merge logic (preserved from previous version) ───────────────────────────
 function _mergeAll(local, remote) {
   const allKeys = new Set([...Object.keys(local), ...Object.keys(remote)]);
   const merged = {};
-
   for (const key of allKeys) {
     const lVal = local[key];
     const rVal = remote[key];
-
     if (lVal === undefined) { merged[key] = rVal; continue; }
     if (rVal === undefined) { merged[key] = lVal; continue; }
 
     const decodedKey = _decodeKey(key);
-
-    // Smart merge for known object types
     if (decodedKey === "bibleFavorites" || decodedKey === "storySeenHistory") {
-      merged[key] = _mergeJsonObjects(lVal, rVal, "max"); // union, keep later timestamp
+      merged[key] = _mergeJsonObjects(lVal, rVal, "max");
     } else if (decodedKey === "bibleComments") {
       merged[key] = _mergeComments(lVal, rVal);
     } else if (decodedKey === "devotionStandaloneNotes") {
@@ -253,11 +277,9 @@ function _mergeAll(local, remote) {
     } else if (decodedKey.startsWith("devo.canvas.")) {
       merged[key] = _mergeCanvasState(lVal, rVal);
     } else {
-      // For simple strings, prefer local (the device you're on)
       merged[key] = lVal;
     }
   }
-
   return merged;
 }
 
@@ -266,16 +288,11 @@ function _mergeJsonObjects(a, b, strategy) {
     const objA = typeof a === "string" ? JSON.parse(a) : a || {};
     const objB = typeof b === "string" ? JSON.parse(b) : b || {};
     const merged = { ...objB, ...objA };
-
     if (strategy === "max") {
-      // For each key present in both, keep the larger value (later timestamp)
       for (const k of Object.keys(objB)) {
-        if (k in objA) {
-          merged[k] = Math.max(Number(objA[k]) || 0, Number(objB[k]) || 0);
-        }
+        if (k in objA) merged[k] = Math.max(Number(objA[k]) || 0, Number(objB[k]) || 0);
       }
     }
-
     return JSON.stringify(merged);
   } catch { return a || b; }
 }
@@ -285,20 +302,14 @@ function _mergeComments(a, b) {
     const objA = typeof a === "string" ? JSON.parse(a) : a || {};
     const objB = typeof b === "string" ? JSON.parse(b) : b || {};
     const merged = { ...objB };
-
     for (const [verseKey, notesA] of Object.entries(objA)) {
-      if (!merged[verseKey]) {
-        merged[verseKey] = notesA;
-      } else {
-        // Merge arrays by deduplicating on time
+      if (!merged[verseKey]) merged[verseKey] = notesA;
+      else {
         const existing = new Set(merged[verseKey].map(n => n.time));
-        for (const note of notesA) {
-          if (!existing.has(note.time)) merged[verseKey].push(note);
-        }
+        for (const note of notesA) if (!existing.has(note.time)) merged[verseKey].push(note);
         merged[verseKey].sort((a, b) => a.time - b.time);
       }
     }
-
     return JSON.stringify(merged);
   } catch { return a || b; }
 }
@@ -308,14 +319,10 @@ function _mergeStandaloneNotes(a, b) {
     const arrA = typeof a === "string" ? JSON.parse(a) : a || [];
     const arrB = typeof b === "string" ? JSON.parse(b) : b || [];
     const byId = {};
-
     for (const n of arrB) byId[n.id] = n;
     for (const n of arrA) {
-      if (!byId[n.id] || (n.updatedAt || 0) >= (byId[n.id].updatedAt || 0)) {
-        byId[n.id] = n;
-      }
+      if (!byId[n.id] || (n.updatedAt || 0) >= (byId[n.id].updatedAt || 0)) byId[n.id] = n;
     }
-
     return JSON.stringify(Object.values(byId).sort((a, b) => (b.updatedAt || 0) - (a.updatedAt || 0)));
   } catch { return a || b; }
 }
@@ -324,7 +331,6 @@ function _mergeCanvasState(a, b) {
   try {
     const objA = typeof a === "string" ? JSON.parse(a) : a || {};
     const objB = typeof b === "string" ? JSON.parse(b) : b || {};
-    // Union highlights by wordIdx; local wins on color conflict
     const highlights = { ...(objB.highlights || {}), ...(objA.highlights || {}) };
     return JSON.stringify({ highlights });
   } catch { return a || b; }
@@ -336,113 +342,21 @@ function _mergeSoapEntries(a, b) {
     const arrB = typeof b === "string" ? JSON.parse(b) : b || [];
     const byId = {};
     for (const e of arrB) byId[e.id] = e;
-    for (const e of arrA) byId[e.id] = e; // local wins on conflict
+    for (const e of arrA) byId[e.id] = e;
     return JSON.stringify(Object.values(byId).sort((a, b) => (b.time || 0) - (a.time || 0)));
   } catch { return a || b; }
 }
 
-// ── RTDB key encoding (can't use . # $ [ ] /) ──
+// ── Key encoding (RTDB disallows . # $ [ ] /) ───────────────────────────────
 function _encodeKey(key) { return key.replace(/\./g, "__DOT__").replace(/\//g, "__SL__"); }
 function _decodeKey(key) { return key.replace(/__DOT__/g, ".").replace(/__SL__/g, "/"); }
 
-// ── Apply remote data to localStorage ──
-function _applyToLocal(data) {
-  const changedCanvasKeys = [];
-  for (const [encodedKey, val] of Object.entries(data)) {
-    if (val === null || val === undefined) continue;
-    const key = _decodeKey(encodedKey);
-    const current = localStorage.getItem(key);
-    if (current !== val) {
-      localStorage.setItem(key, val);
-      if (key.startsWith("devo.canvas.")) changedCanvasKeys.push(key);
-    }
+function _decodeAll(encoded) {
+  const out = {};
+  for (const [k, v] of Object.entries(encoded)) {
+    if (v === null || v === undefined) continue;
+    out[_decodeKey(k)] = v;
   }
-
-  // Refresh in-memory globals from localStorage
-  try { favorites = JSON.parse(localStorage.getItem("bibleFavorites") || "{}"); } catch {}
-  try { comments = JSON.parse(localStorage.getItem("bibleComments") || "{}"); } catch {}
-
-  if (changedCanvasKeys.length) {
-    window.dispatchEvent(new CustomEvent("devo:canvas-sync", { detail: { keys: changedCanvasKeys } }));
-  }
+  return out;
 }
 
-// ── Listen for remote changes ──
-function _listenForRemoteChanges() {
-  _fbDb.ref(RTDB_PATH).on("value", (snapshot) => {
-    if (_ignoreRemoteUpdate) return;
-    const remote = snapshot.val();
-    if (!remote) return;
-
-    _ignoreLocalUpdate = true;
-    _applyToLocal(remote);
-    _ignoreLocalUpdate = false;
-
-    // Refresh dashboard if it's visible
-    const homeBtn = document.getElementById("homeBtn");
-    if (homeBtn && homeBtn.style.display === "none" && typeof renderDashboard === "function") {
-      renderDashboard();
-    }
-  });
-}
-
-// ── Monkey-patch localStorage.setItem for live outbound sync ──
-function _patchLocalStorage() {
-  const original = localStorage.setItem.bind(localStorage);
-
-  localStorage.setItem = function (key, value) {
-    original(key, value);
-
-    if (_ignoreLocalUpdate) return;
-    if (!_syncEnabled) return;
-
-    // Check if this key should sync
-    const shouldSync = SYNC_STATIC_KEYS.includes(key) ||
-      SYNC_DYNAMIC_PREFIXES.some(p => key.startsWith(p));
-
-    if (!shouldSync) return;
-
-    // Debounce writes (500ms)
-    const encodedKey = _encodeKey(key);
-    clearTimeout(_syncDebounceTimers[encodedKey]);
-    _syncDebounceTimers[encodedKey] = setTimeout(() => {
-      _ignoreRemoteUpdate = true;
-      _fbDb.ref(`${RTDB_PATH}/${encodedKey}`).set(value).then(() => {
-        _ignoreRemoteUpdate = false;
-      }).catch(() => {
-        _ignoreRemoteUpdate = false;
-      });
-    }, 500);
-  };
-
-  // Also patch removeItem for deletions
-  const originalRemove = localStorage.removeItem.bind(localStorage);
-  localStorage.removeItem = function (key) {
-    originalRemove(key);
-
-    if (_ignoreLocalUpdate || !_syncEnabled) return;
-
-    const shouldSync = SYNC_STATIC_KEYS.includes(key) ||
-      SYNC_DYNAMIC_PREFIXES.some(p => key.startsWith(p));
-
-    if (shouldSync) {
-      _fbDb.ref(`${RTDB_PATH}/${_encodeKey(key)}`).remove();
-    }
-  };
-}
-
-// ── Init on page load ──
-(function () {
-  // Set up secret tap regardless
-  if (document.readyState === "loading") {
-    document.addEventListener("DOMContentLoaded", _initSecretTap);
-  } else {
-    _initSecretTap();
-  }
-
-  // Auto-connect if Charlie mode was previously activated
-  if (localStorage.getItem("_charlieMode") === "true") {
-    // Small delay to let the main app initialize first
-    setTimeout(_startSync, 1500);
-  }
-})();

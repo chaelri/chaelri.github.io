@@ -3672,9 +3672,9 @@ updateControlStates();
 })();
 
 if ("serviceWorker" in navigator) {
-  window.addEventListener("load", () => {
-    navigator.serviceWorker.register("sw.js");
-  });
+  const _registerSw = () => navigator.serviceWorker.register("sw.js");
+  if (document.readyState === "complete") _registerSw();
+  else window.addEventListener("load", _registerSw);
 }
 
 // ── Push Notification Subscription ───────────────────────────────────────────
@@ -4170,7 +4170,11 @@ function _confirmDialog(message, onConfirm) {
   cancelBtn.onclick = close;
 }
 
-window.addEventListener("load", () => {
+// script.js may be dynamically injected by firebase-sync.js AFTER the window
+// `load` event has already fired (Charlie's pure-Firebase boot). In that case
+// `addEventListener("load", ...)` would never trigger — so check readyState
+// and run immediately if the page is already loaded.
+const _onAppLoad = () => {
   const splash = document.getElementById("app-splash");
 
   setTimeout(() => {
@@ -4179,7 +4183,9 @@ window.addEventListener("load", () => {
   }, 2000);
 
   initNotesApp();
-});
+};
+if (document.readyState === "complete") _onAppLoad();
+else window.addEventListener("load", _onAppLoad);
 
 const aiTextareas = document.querySelectorAll("#aiReflection textarea");
 
@@ -8413,6 +8419,13 @@ async function _imgcrShare() {
   const fabArc    = document.getElementById("cmFabArc");
   const fabColorDot = document.getElementById("cmFabColorDot");
   const COLOR_HEX = { yellow: "#ffe66b", pink: "#f9a8d4", blue: "#93c5fd", orange: "#fdba74", green: "#bef264" };
+  const COLOR_GLOW = {
+    yellow: "rgba(255, 230, 107, 0.55)",
+    pink:   "rgba(249, 168, 212, 0.55)",
+    blue:   "rgba(147, 197, 253, 0.55)",
+    orange: "rgba(253, 186, 116, 0.55)",
+    green:  "rgba(190, 242, 100, 0.55)",
+  };
   const noteModal = document.getElementById("cmNoteModal");
   const noteRef   = document.getElementById("cmNoteRef");
   const noteInput = document.getElementById("cmNoteInput");
@@ -8434,6 +8447,11 @@ async function _imgcrShare() {
   let strokeActive = false;
   let strokeTouched = null;   // Set of word indices touched this stroke
   let strokePointerId = null;
+  // After a long-press stroke ends, the browser still fires a synthesized
+  // `click` for the pointerdown/up pair (since the pointer didn't move
+  // enough to suppress it). That click would otherwise open the tap-popover
+  // — so we swallow exactly one click after any committed stroke.
+  let suppressNextClick = false;
   // Long-press to highlight: hold ~350ms without moving to engage stroke
   // mode. Moving before the timer fires cancels it so `touch-action: pan-y`
   // lets the browser scroll normally. Tap (quick down+up with no movement)
@@ -8967,6 +8985,10 @@ async function _imgcrShare() {
   // intent the way the old horizontal-swipe heuristic did.
   viewport.addEventListener("pointerdown", (e) => {
     if (e.target.closest(".cm-fab") || e.target.closest(".cm-fab-arc")) return;
+    // Any new gesture clears a stale suppress flag from a prior stroke that
+    // never produced a synthesized click (e.g. swipe highlight that ended
+    // off-target).
+    suppressNextClick = false;
     closePopover();
     if (e.target.closest(".cm-note-badge")) return;
     cancelLongPress();
@@ -9040,6 +9062,7 @@ async function _imgcrShare() {
     const hex = COLOR_HEX[color] || "#ffe66b";
     const wordY = wordEl.getBoundingClientRect().top;
 
+    wordEl.style.setProperty("--engage-glow", COLOR_GLOW[color] || COLOR_GLOW.yellow);
     wordEl.classList.add("cm-word-engage");
     wordEl.addEventListener("animationend", () => wordEl.classList.remove("cm-word-engage"), { once: true });
 
@@ -9150,6 +9173,9 @@ async function _imgcrShare() {
     strokeActive = false;
     strokePointerId = null;
     strokeTouched = null;
+    // The stroke engaged — eat the trailing click so single-word holds
+    // don't pop the tap-popover.
+    suppressNextClick = true;
     if (committed) {
       undoStack.push(pre);
       if (undoStack.length > HISTORY_MAX) undoStack.shift();
@@ -9169,6 +9195,7 @@ async function _imgcrShare() {
       strokeActive = false;
       strokePointerId = null;
       strokeTouched = null;
+      suppressNextClick = true;
       if (committed) {
         undoStack.push(pre);
         if (undoStack.length > HISTORY_MAX) undoStack.shift();
@@ -9179,10 +9206,15 @@ async function _imgcrShare() {
     }
   });
 
-  // Tap a word → popover. Tap a note badge → note view. Clicks only fire
-  // when there was no drag, so the smart-gesture stroke path never triggers
-  // this accidentally.
+  // Tap a word → popover. Tap a note badge → note view. A long-press stroke
+  // (even on a single word with no drag) sets `suppressNextClick` so we
+  // ignore the synthesized click that follows pointerup.
   passageEl.addEventListener("click", (e) => {
+    if (suppressNextClick) {
+      suppressNextClick = false;
+      e.stopPropagation();
+      return;
+    }
     const badge = e.target.closest(".cm-note-badge");
     if (badge) {
       e.stopPropagation();
@@ -9199,19 +9231,45 @@ async function _imgcrShare() {
   function openPopover(wordEl) {
     popover.hidden = false;
     popover.dataset.wordIdx = wordEl.dataset.idx;
+    // Mark the targeted word so the user can see which one the popover acts
+    // on. Re-add the class to retrigger the shake even when tapping the
+    // same target after a close.
+    passageEl.querySelectorAll(".cm-word-popover-target")
+      .forEach((el) => el.classList.remove("cm-word-popover-target"));
+    void wordEl.offsetWidth; // force reflow so the next class add restarts animation
+    wordEl.classList.add("cm-word-popover-target");
+
     const r = wordEl.getBoundingClientRect();
     const pw = popover.offsetWidth;
     const ph = popover.offsetHeight;
     let left = r.left + r.width / 2 - pw / 2;
     let top  = r.top - ph - 10;
-    if (top < 70) top = r.bottom + 10;
+    let side = "above";
+    if (top < 70) { top = r.bottom + 10; side = "below"; }
     left = Math.max(8, Math.min(left, window.innerWidth - pw - 8));
     popover.style.left = left + "px";
     popover.style.top  = top + "px";
+    popover.dataset.side = side;
+    // Retrigger the open animation on every open (e.g. tapping a different
+    // word while the popover is already visible).
+    popover.dataset.state = "";
+    void popover.offsetWidth;
+    popover.dataset.state = "open";
   }
   function closePopover() {
-    popover.hidden = true;
-    popover.dataset.wordIdx = "";
+    if (popover.hidden) return;
+    popover.dataset.state = "closing";
+    const finalize = () => {
+      popover.removeEventListener("animationend", finalize);
+      popover.hidden = true;
+      popover.dataset.wordIdx = "";
+      popover.dataset.state = "";
+      passageEl.querySelectorAll(".cm-word-popover-target")
+        .forEach((el) => el.classList.remove("cm-word-popover-target"));
+    };
+    popover.addEventListener("animationend", finalize);
+    // Safety net in case animationend doesn't fire.
+    setTimeout(() => { if (popover.dataset.state === "closing") finalize(); }, 260);
   }
 
   popover.addEventListener("click", (e) => {
@@ -9385,6 +9443,16 @@ async function _imgcrShare() {
       const prevScrollTop = scrollEl.scrollTop;
       scrollEl.scrollTop = 0;
 
+      // Add a temporary bottom padding for the export. cm-paper has
+      // padding-bottom: 0 by design (the tail-spacer normally provides the
+      // scroll buffer), so when the spacer is hidden, the last verse's
+      // margin-bottom collapses through paper's bottom edge and the final
+      // line-height fraction can clip at scrollHeight. Explicit padding both
+      // gives the photo breathing room AND keeps the last verse fully inside
+      // the measured height.
+      const prevPaperPadBottom = paperEl.style.paddingBottom;
+      paperEl.style.paddingBottom = "72px";
+
       // Force layout then read full natural dims of the paper (not the
       // clipped scroll viewport), so the whole chapter is captured.
       void paperEl.offsetHeight;
@@ -9402,6 +9470,7 @@ async function _imgcrShare() {
         windowHeight: fullH,
       });
 
+      paperEl.style.paddingBottom = prevPaperPadBottom;
       scrollEl.scrollTop = prevScrollTop;
       hideList.forEach((el, i) => { el.style.display = prevDisplays[i]; });
 

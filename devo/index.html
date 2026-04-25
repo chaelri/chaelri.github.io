@@ -666,11 +666,6 @@
             <div class="cm-tail-spacer" aria-hidden="true"></div>
           </div>
         </div>
-        <div class="cm-fab-arc" id="cmFabArc" aria-hidden="true"></div>
-        <button class="cm-fab" id="cmFab" aria-label="Toggle highlight / eraser" data-current="highlight">
-          <span class="material-symbols-outlined cm-fab-icon" id="cmFabIcon">edit</span>
-          <span class="cm-fab-color-dot" id="cmFabColorDot" aria-hidden="true"></span>
-        </button>
       </div>
 
       <div class="cm-popover" id="cmPopover" hidden>
@@ -751,7 +746,9 @@
 
     <script src="config.js" onerror="void 0"></script>
     <script src="bible-meta.js"></script>
-    <script src="script.js"></script>
+    <!-- firebase-sync.js bootstraps Charlie's pure-Firebase mode and then
+         dynamically injects script.js. For non-Charlie users it injects
+         script.js immediately and stays out of the way. -->
     <script src="firebase-sync.js"></script>
   </body>
 </html>

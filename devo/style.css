@@ -8692,9 +8692,29 @@ button#storyBtn { background: unset; }
    transform (transforms don't apply to inline elements). */
 .cm-word.cm-word-engage { animation: cmWordEngage 0.32s ease-out; }
 @keyframes cmWordEngage {
-  0%   { box-shadow: 0 0 0 0 rgba(255, 230, 107, 0);   filter: brightness(1); }
-  40%  { box-shadow: 0 0 0 6px rgba(255, 230, 107, 0.55); filter: brightness(1.15); }
-  100% { box-shadow: 0 0 0 0 rgba(255, 230, 107, 0);   filter: brightness(1); }
+  0%   { box-shadow: 0 0 0 0 var(--engage-glow, rgba(255, 230, 107, 0.55)); filter: brightness(1); }
+  40%  { box-shadow: 0 0 0 6px var(--engage-glow, rgba(255, 230, 107, 0.55)); filter: brightness(1.15); }
+  100% { box-shadow: 0 0 0 0 var(--engage-glow, rgba(255, 230, 107, 0.55)); filter: brightness(1); }
+}
+
+/* The word the popover is currently anchored to — shaken briefly on open
+   then held with an underline + slight bold so the user knows which word
+   "Context" / "Ask Question" will act on. inline-block is needed for the
+   transform-based shake (transforms don't apply to display:inline). */
+.cm-word.cm-word-popover-target {
+  display: inline-block;
+  text-decoration: underline;
+  text-decoration-thickness: 2px;
+  text-decoration-color: rgba(0, 0, 0, 0.55);
+  text-underline-offset: 3px;
+  font-weight: 600;
+  animation: cmWordPopShake 0.28s ease-out;
+}
+@keyframes cmWordPopShake {
+  0%   { transform: translateX(0); }
+  30%  { transform: translateX(-1.2px); }
+  60%  { transform: translateX(1.2px); }
+  100% { transform: translateX(0); }
 }
 
 /* Active-color dot — pinned to top-right of FAB in pan/eraser modes so the
@@ -9094,10 +9114,32 @@ button#storyBtn { background: unset; }
   gap: 8px;
   min-width: 280px;
   box-shadow: 0 10px 30px rgba(0,0,0,0.12);
-  animation: cmPopIn 0.18s ease;
+  opacity: 0;
+  transform: translateY(14px) scale(0.7);
+  transform-origin: 50% 100%; /* default: popover is above word, pop comes from below */
 }
 .cm-popover[hidden] { display: none !important; }
-@keyframes cmPopIn { from { opacity: 0; transform: translateY(4px) scale(0.96); } to { opacity: 1; transform: translateY(0) scale(1); } }
+.cm-popover[data-side="below"] { transform-origin: 50% 0%; }
+.cm-popover[data-state="open"]    { animation: cmPopInAbove 0.24s cubic-bezier(0.22, 1, 0.36, 1) forwards; }
+.cm-popover[data-side="below"][data-state="open"]    { animation-name: cmPopInBelow; }
+.cm-popover[data-state="closing"] { animation: cmPopOutAbove 0.2s cubic-bezier(0.4, 0, 0.2, 1) forwards; }
+.cm-popover[data-side="below"][data-state="closing"] { animation-name: cmPopOutBelow; }
+@keyframes cmPopInAbove {
+  from { opacity: 0; transform: translateY(12px) scale(0.82); }
+  to   { opacity: 1; transform: translateY(0)    scale(1); }
+}
+@keyframes cmPopInBelow {
+  from { opacity: 0; transform: translateY(-12px) scale(0.82); }
+  to   { opacity: 1; transform: translateY(0)     scale(1); }
+}
+@keyframes cmPopOutAbove {
+  from { opacity: 1; transform: translateY(0)   scale(1); }
+  to   { opacity: 0; transform: translateY(6px) scale(0.94); }
+}
+@keyframes cmPopOutBelow {
+  from { opacity: 1; transform: translateY(0)    scale(1); }
+  to   { opacity: 0; transform: translateY(-6px) scale(0.94); }
+}
 .cm-popover-row {
   display: flex;
   gap: 10px;
