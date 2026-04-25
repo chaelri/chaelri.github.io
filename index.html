@@ -2,111 +2,167 @@
 <html lang="en">
   <head>
     <meta charset="UTF-8" />
-    <meta
-      name="viewport"
-      content="width=device-width, initial-scale=1, maximum-scale=1"
-    />
-    <meta
-      http-equiv="Cache-Control"
-      content="no-cache, no-store, must-revalidate"
-    />
-    <meta http-equiv="Pragma" content="no-cache" />
-    <meta http-equiv="Expires" content="0" />
-
-    <title>Happy 4th Monthsary, Love!</title>
-    <link rel="stylesheet" href="styles.css" />
+    <meta name="viewport" content="width=device-width, initial-scale=1" />
+    <meta name="description" content="Charlie's projects — chaelri.github.io" />
+    <title>chaelri.github.io</title>
+    <link rel="icon" type="image/png" href="/monthsary/Chalee1.png" />
 
     <link rel="preconnect" href="https://fonts.googleapis.com" />
     <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
-
     <link
-      href="https://fonts.googleapis.com/css2?family=Open+Sans:wght@300;400;700&family=Pacifico&display=swap"
+      href="https://fonts.googleapis.com/css2?family=Funnel+Sans:wght@300;400;500;600;700&family=Pacifico&display=swap"
       rel="stylesheet"
     />
-    <link
-      href="https://fonts.googleapis.com/css2?family=Open+Sans:ital,wght@0,300..800;1,300..800&family=Pacifico&display=swap"
-      rel="stylesheet"
-    />
-    <link
-      href="https://fonts.googleapis.com/css2?family=Funnel+Sans:ital,wght@0,300..800;1,300..800&family=Open+Sans:ital,wght@0,300..800;1,300..800&display=swap"
-      rel="stylesheet"
-    />
-    <link rel="icon" type="image/png" href="Chalee1.png" />
+    <link rel="stylesheet" href="/styles.css" />
   </head>
   <body>
-    <!-- 🔹 Firebase Login Button -->
-    <div id="login-container">
-      <button id="googleSignIn">Sign in with Google</button>
+    <!-- Loader shown while we check ?redirect= -->
+    <div id="redirectLoader" class="redirect-loader hidden">
+      <p id="redirectMsg">Checking tunnel…</p>
     </div>
-    <section id="protected-content" style="display: none">
-      <div class="container">
-        <div class="online-wrapper">
-          <p id="online-status" class="zain-bold"></p>
-          <button id="sign-out-button">Sign Out</button>
+
+    <main id="hub" class="hub">
+      <header class="hub-header">
+        <h1 class="hub-title">chaelri<span class="dim">.github.io</span></h1>
+        <p class="hub-tag">Charlie's little corner of the internet 🛠️</p>
+      </header>
+
+      <section class="hub-section">
+        <h2 class="hub-h2">Active Projects</h2>
+        <div class="card-grid">
+          <a href="/devo/" class="card">
+            <span class="card-emoji">📖</span>
+            <span class="card-title">Devo</span>
+          </a>
+          <a href="/guard-exit-interview/" class="card">
+            <span class="card-emoji">🚪</span>
+            <span class="card-title">Guard Exit Interview</span>
+          </a>
+          <a href="/tayo/" class="card">
+            <span class="card-emoji">🤝</span>
+            <span class="card-title">Tayo</span>
+          </a>
+          <a href="/vm-management/" class="card">
+            <span class="card-emoji">🖥️</span>
+            <span class="card-title">VM Management</span>
+          </a>
+          <a href="/money/" class="card">
+            <span class="card-emoji">💰</span>
+            <span class="card-title">Money</span>
+          </a>
+          <a href="/horizon/" class="card">
+            <span class="card-emoji">🌅</span>
+            <span class="card-title">Horizon</span>
+          </a>
         </div>
+      </section>
 
-        <h1 class="pacifico-regular monthsary">Happy 4th monthsary, love!</h1>
-        <div class="zain-bold missmoko">Miss mo ko love? 🥹</div>
-
-        <div id="counter-container">
-          <img
-            src="Chalee1.png"
-            id="clickableImage"
-            class="clickable-image"
-            alt="Chalee"
-          />
-          <div id="floating-text-container"></div>
-          <div id="counter-text">Miss counter: <span id="counter"></span></div>
-          <!-- New section to display click timestamps -->
-          <div id="click-history-container">
-            <h3>Click History:</h3>
-            <ul id="click-history"></ul>
-          </div>
+      <section class="hub-section">
+        <h2 class="hub-h2">Wedding 💍</h2>
+        <div class="card-grid">
+          <a href="/weddingtest/" class="card">
+            <span class="card-emoji">💌</span>
+            <span class="card-title">Wedding Invitation</span>
+          </a>
+          <a href="/weddingtimeline/" class="card">
+            <span class="card-emoji">⏳</span>
+            <span class="card-title">Wedding Timeline</span>
+          </a>
+          <a href="/wedding100/" class="card">
+            <span class="card-emoji">💯</span>
+            <span class="card-title">Wedding 100</span>
+          </a>
+          <a href="/weddingbar/" class="card">
+            <span class="card-emoji">🍻</span>
+            <span class="card-title">Wedding Bar</span>
+          </a>
         </div>
-      </div>
-      <!-- Open Chat Button -->
-      <button id="openChat" class="chat-button">💬 Open Chat</button>
+      </section>
 
-      <!-- Chat Modal -->
-      <div id="chatModal" class="chat-modal">
-        <div class="chat-modal-content">
-          <span class="close-chat">&times;</span>
-          <h2>Chalee & Karlyy's Chat 💕</h2>
-          <!-- Chat Display -->
-          <div id="chatBox" class="chat-box"></div>
-
-          <!-- Real-time Typing Display -->
-          <div id="typingCharlie" class="typing-indicator"></div>
-          <div id="typingKarla" class="typing-indicator"></div>
-
-          <div class="send-message-wrapper">
-            <!-- Input Box -->
-            <textarea
-              id="messageInput"
-              placeholder="Type a message..."
-            ></textarea>
-
-            <!-- Send Button -->
-            <button id="sendMessage">Send</button>
-          </div>
+      <section class="hub-section">
+        <h2 class="hub-h2">Other</h2>
+        <div class="card-grid">
+          <a href="/anohana/" class="card">
+            <span class="card-emoji">🌸</span>
+            <span class="card-title">Anohana</span>
+          </a>
+          <a href="/bubududu/" class="card">
+            <span class="card-emoji">💞</span>
+            <span class="card-title">Bubududu</span>
+          </a>
+          <a href="/echoes/" class="card">
+            <span class="card-emoji">🎵</span>
+            <span class="card-title">Echoes</span>
+          </a>
+          <a href="/flux/" class="card">
+            <span class="card-emoji">⚡</span>
+            <span class="card-title">Flux</span>
+          </a>
+          <a href="/pray/" class="card">
+            <span class="card-emoji">🙏</span>
+            <span class="card-title">Pray</span>
+          </a>
         </div>
-      </div>
-    </section>
+      </section>
 
-    <script src="https://accounts.google.com/gsi/client" async defer></script>
-    <script type="module" src="script.js"></script>
+      <footer class="hub-footer">
+        <a href="/monthsary/" class="hub-monthsary">
+          💕 Where it all started — Charlie &amp; Karla
+        </a>
+      </footer>
+    </main>
 
-    <audio id="apaSound" preload="auto">
-      <source src="apa.mp3" type="audio/mpeg" />
-    </audio>
-    <audio id="ilySound" preload="auto">
-      <source src="ily.mp3" type="audio/mpeg" />
-    </audio>
-    <audio id="whoAmIToYouSound" preload="auto">
-      <source src="who am i to you.mp3" type="audio/mpeg" />
-    </audio>
-    <audio id="hmmmpSound" preload="auto">
-      <source src="hmmmp.mp3" type="audio/mpeg" />
-    </audio>
+    <script type="module">
+      import { initializeApp } from "https://www.gstatic.com/firebasejs/11.0.2/firebase-app.js";
+      import { getDatabase, ref, get } from "https://www.gstatic.com/firebasejs/11.0.2/firebase-database.js";
+
+      const firebaseConfig = {
+        apiKey: "AIzaSyB8ahT56WbEUaGAymsRNNA-DrfZnUnWIwk",
+        authDomain: "test-database-55379.firebaseapp.com",
+        databaseURL:
+          "https://test-database-55379-default-rtdb.asia-southeast1.firebasedatabase.app",
+        projectId: "test-database-55379",
+        storageBucket: "test-database-55379.firebasestorage.app",
+        messagingSenderId: "933688602756",
+        appId: "1:933688602756:web:392a3a4ce040cb9d4452d1",
+      };
+
+      const params = new URLSearchParams(window.location.search);
+      const serviceName = params.get("redirect");
+
+      if (serviceName) {
+        const hub = document.getElementById("hub");
+        const loader = document.getElementById("redirectLoader");
+        const msg = document.getElementById("redirectMsg");
+        hub.classList.add("hidden");
+        loader.classList.remove("hidden");
+
+        const app = initializeApp(firebaseConfig);
+        const db = getDatabase(app);
+
+        try {
+          const snap = await get(ref(db, `tunnel/${serviceName}URL`));
+          const tunnelURL = snap.val();
+          if (!tunnelURL) {
+            msg.textContent = `No active tunnel found for ${serviceName} 😴`;
+          } else {
+            let n = 3;
+            msg.textContent = `Redirecting to ${serviceName} in ${n}…`;
+            const tick = setInterval(() => {
+              n--;
+              if (n <= 0) {
+                clearInterval(tick);
+                window.location.href = tunnelURL;
+              } else {
+                msg.textContent = `Redirecting to ${serviceName} in ${n}…`;
+              }
+            }, 1000);
+          }
+        } catch (e) {
+          console.error(e);
+          msg.textContent = "Failed to connect to Firebase.";
+        }
+      }
+    </script>
   </body>
 </html>
