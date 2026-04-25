@@ -18,16 +18,17 @@
   <!-- Tailwind CSS via CDN -->
   <script src="https://cdn.tailwindcss.com"></script>
 
-  <!-- Firebase Realtime Database -->
+  <!-- Firebase Realtime Database + Auth -->
   <script src="https://www.gstatic.com/firebasejs/10.12.0/firebase-app-compat.js"></script>
   <script src="https://www.gstatic.com/firebasejs/10.12.0/firebase-database-compat.js"></script>
+  <script src="https://www.gstatic.com/firebasejs/10.12.0/firebase-auth-compat.js"></script>
 
   <!-- xlsx-js-style for colored Excel export -->
   <script src="https://cdn.jsdelivr.net/npm/xlsx-js-style@1.2.0/dist/xlsx.bundle.js"></script>
   <!-- Custom Styles -->
   <link rel="stylesheet" href="style.css" />
 </head>
-<body class="bg-slate-100 min-h-screen flex flex-col">
+<body class="bg-slate-100 min-h-screen flex flex-col readonly-mode">
 
   <!-- ===== SPLASH SCREEN ===== -->
   <div id="splash-screen">
@@ -79,7 +80,15 @@
           <span class="material-icons text-base">table_chart</span>
           <span class="hidden sm:inline">Export Excel</span>
         </button>
+        <div id="auth-control" class="flex items-center"></div>
       </div>
+    </div>
+    <!-- Mobile auth control (visible on mobile only, sits below header row) -->
+    <div id="auth-control-mobile" class="md:hidden flex justify-end px-4 pb-2"></div>
+    <!-- Read-only banner (only visible when body has .readonly-mode) -->
+    <div id="readonly-banner">
+      <span class="material-icons">visibility</span>
+      <span>View only — sign in as an authorized editor to make changes</span>
     </div>
   </header>
 

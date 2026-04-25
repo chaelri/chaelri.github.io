@@ -23,13 +23,98 @@ const firebaseConfig = {
 };
 firebase.initializeApp(firebaseConfig);
 const fbDb = firebase.database();
+const fbAuth = firebase.auth();
+
+// ─── AUTH / EDITOR ALLOWLIST ────────────────────────────────────────
+const ALLOWED_EDITORS = [
+  'wromantico603@gmail.com',
+  'kasromantico@gmail.com',
+  'charliecayno@gmail.com',
+];
+let currentUser = null;
+let isEditor = false;
+
+function applyEditorMode() {
+  document.body.classList.toggle('readonly-mode', !isEditor);
+  // Header height changes when banner appears/disappears — refresh CSS var.
+  if (typeof updateHeaderHeight === 'function') updateHeaderHeight();
+}
+
+function renderAuthControl() {
+  const desktop = document.getElementById('auth-control');
+  const mobile = document.getElementById('auth-control-mobile');
+  if (!desktop && !mobile) return;
+
+  let html;
+  if (currentUser) {
+    const fullName = currentUser.displayName || currentUser.email || 'User';
+    const firstName = fullName.split(' ')[0];
+    const initial = (fullName || '?')[0].toUpperCase();
+    const photo = currentUser.photoURL || '';
+    const avatarHtml = photo
+      ? `<img class="auth-avatar-img" src="${escHtml(photo)}" alt="" referrerpolicy="no-referrer" />`
+      : `<span class="auth-avatar">${escHtml(initial)}</span>`;
+    const tooltip = `${fullName} (${currentUser.email}) — ${isEditor ? 'editor access' : 'view only (not in editor list)'}`;
+
+    if (isEditor) {
+      html = `<button class="auth-btn auth-btn-editor" title="${escHtml(tooltip)}">
+        ${avatarHtml}
+        <span class="auth-label hidden lg:inline">${escHtml(fullName)}</span>
+        <span class="auth-label lg:hidden">${escHtml(firstName)}</span>
+        <span class="material-icons auth-signout-icon" title="Sign out">logout</span>
+      </button>`;
+    } else {
+      html = `<button class="auth-btn auth-btn-viewer" title="${escHtml(tooltip)}">
+        ${avatarHtml}
+        <span class="auth-label">${escHtml(firstName)} · view only</span>
+        <span class="material-icons auth-signout-icon" title="Sign out">logout</span>
+      </button>`;
+    }
+  } else {
+    html = `<button class="auth-btn auth-btn-signin" title="Editors: sign in to edit">
+      <span class="material-icons">login</span>
+      <span class="auth-label">Editor sign-in</span>
+    </button>`;
+  }
+
+  [desktop, mobile].forEach(el => {
+    if (!el) return;
+    el.innerHTML = html;
+    const btn = el.querySelector('.auth-btn');
+    if (!btn) return;
+    btn.addEventListener('click', (e) => {
+      if (currentUser) {
+        // Sign out (whole button does this when signed in)
+        fbAuth.signOut();
+      } else {
+        const provider = new firebase.auth.GoogleAuthProvider();
+        fbAuth.signInWithPopup(provider).catch(err => {
+          if (err && err.code !== 'auth/popup-closed-by-user') {
+            alert('Sign-in failed: ' + (err.message || err.code));
+          }
+        });
+      }
+    });
+  });
+}
+
+fbAuth.onAuthStateChanged(user => {
+  currentUser = user || null;
+  const email = (user && user.email || '').toLowerCase();
+  isEditor = !!user && ALLOWED_EDITORS.includes(email);
+  applyEditorMode();
+  renderAuthControl();
+});
 
 function getFirebaseRef() {
   return fbDb.ref('guard_exit_interview/' + currentCompany);
 }
 
 function saveToFirebase() {
-  getFirebaseRef().set(records);
+  if (!isEditor) return;
+  getFirebaseRef().set(records).catch(err => {
+    console.warn('Firebase write blocked:', err && err.message);
+  });
 }
 
 function loadFromFirebase() {
@@ -945,6 +1030,14 @@ function loadFromStorage() {
 }
 
 function saveToLocalStorage() {
+  if (!isEditor) {
+    // Non-editors: revert any in-memory mutation by re-rendering from Firebase cache.
+    // The Firebase listener is the source of truth; just refresh UI to discard stray edits.
+    renderAll();
+    if (currentView === 'summary') renderSummary();
+    if (currentView === 'table') renderTable();
+    return;
+  }
   localStorage.setItem(getStorageKey(), JSON.stringify(records));
   saveToFirebase();
   updateHeaderSubtitle();
@@ -1138,6 +1231,7 @@ function renderRecordList() {
 }
 
 function confirmDelete(idx) {
+  if (!isEditor) return;
   const r = records[idx];
   const name = (r.fullName && r.fullName.trim()) ? r.fullName.trim() : `Record #${String(idx + 1).padStart(4,'0')}`;
   showModal(
@@ -1154,6 +1248,7 @@ function confirmDelete(idx) {
 }
 
 function addRecord() {
+  if (!isEditor) return;
   records.push(blankRecord(records.length));
   activeRecordIdx = records.length - 1;
   activeSectionId = 'guard-info';

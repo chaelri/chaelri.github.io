@@ -1507,3 +1507,108 @@ body[data-company="moriah"] .mobile-back-btn { color: #7c3aed; }
   .company-tab .material-icons { font-size: 12px; }
   .bar-label { width: 80px; }
 }
+
+/* ===== AUTH CONTROL (sign-in / editor badge) ===== */
+.auth-btn {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  padding: 6px 10px;
+  border-radius: 8px;
+  font-size: 12px;
+  font-weight: 600;
+  color: #fff;
+  background: rgba(255, 255, 255, 0.10);
+  border: 1px solid rgba(255, 255, 255, 0.18);
+  transition: background 0.15s ease, border-color 0.15s ease;
+  cursor: pointer;
+  max-width: 220px;
+}
+.auth-btn:hover { background: rgba(255, 255, 255, 0.18); }
+.auth-btn .material-icons { font-size: 16px; }
+.auth-btn .auth-label {
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  max-width: 140px;
+}
+.auth-btn .auth-signout-icon {
+  opacity: 0.7;
+  margin-left: 2px;
+}
+.auth-btn:hover .auth-signout-icon { opacity: 1; }
+.auth-btn-editor {
+  background: rgba(16, 185, 129, 0.22);
+  border-color: rgba(16, 185, 129, 0.55);
+}
+.auth-btn-editor:hover { background: rgba(16, 185, 129, 0.32); }
+.auth-btn-viewer {
+  background: rgba(245, 158, 11, 0.22);
+  border-color: rgba(245, 158, 11, 0.55);
+}
+.auth-avatar {
+  width: 18px; height: 18px;
+  border-radius: 50%;
+  background: rgba(255, 255, 255, 0.85);
+  color: #0f172a;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  font-size: 11px;
+  font-weight: 700;
+  flex-shrink: 0;
+}
+.auth-avatar-img {
+  width: 20px; height: 20px;
+  border-radius: 50%;
+  object-fit: cover;
+  border: 1.5px solid rgba(255,255,255,0.65);
+  flex-shrink: 0;
+}
+
+/* ===== READ-ONLY MODE ===== */
+/* Hide all editor-only controls when not signed in as editor */
+body.readonly-mode #btn-new-record,
+body.readonly-mode .btn-delete-record,
+body.readonly-mode .btn-row-delete,
+body.readonly-mode .btn-table-add {
+  display: none !important;
+}
+
+/* Disable all form inputs / interactive option buttons */
+body.readonly-mode #form-content input,
+body.readonly-mode #form-content select,
+body.readonly-mode #form-content textarea,
+body.readonly-mode #form-content button:not(.section-nav-item):not(.header-tab):not(.company-tab):not(.mobile-nav-btn),
+body.readonly-mode #table-content input,
+body.readonly-mode #table-content select,
+body.readonly-mode #table-content textarea {
+  pointer-events: none !important;
+  background-color: #f8fafc !important;
+  color: #475569 !important;
+  cursor: not-allowed !important;
+}
+
+body.readonly-mode #form-content input::placeholder,
+body.readonly-mode #form-content textarea::placeholder { color: #94a3b8; }
+
+/* View-only banner — lives inside the header, so updateHeaderHeight()
+   picks up the extra height automatically and content layout stays correct. */
+#readonly-banner {
+  display: none;
+  align-items: center;
+  justify-content: center;
+  gap: 6px;
+  background: #fef3c7;
+  color: #78350f;
+  font-size: 12px;
+  font-weight: 600;
+  text-align: center;
+  padding: 4px 12px;
+  border-top: 1px solid #fcd34d;
+}
+#readonly-banner .material-icons { font-size: 14px; }
+body.readonly-mode #readonly-banner { display: flex; }
+@media (max-width: 640px) {
+  #readonly-banner { font-size: 11px; padding: 3px 8px; }
+}

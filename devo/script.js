@@ -9056,60 +9056,12 @@ async function _imgcrShare() {
 
   function spawnWordLabel(wordEl) {
     if (!wordEl || tool !== "highlight") return;
-    const text = (wordEl.textContent || "").trim();
-    if (!text) return;
-    const idx = +wordEl.dataset.idx;
-    const hex = COLOR_HEX[color] || "#ffe66b";
-    const wordY = wordEl.getBoundingClientRect().top;
-
+    // Floating word/phrase labels were redundant with the engage glow + the
+    // ripple. Now this function only fires the brief glow on the engaged
+    // word. The ripple still fires from the long-press handler.
     wordEl.style.setProperty("--engage-glow", COLOR_GLOW[color] || COLOR_GLOW.yellow);
     wordEl.classList.add("cm-word-engage");
     wordEl.addEventListener("animationend", () => wordEl.classList.remove("cm-word-engage"), { once: true });
-
-    const sameLineAs = (phrase) => {
-      const anchor = passageEl.querySelector(`.cm-word[data-idx="${phrase.minIdx}"]`);
-      if (!anchor) return false;
-      return Math.abs(anchor.getBoundingClientRect().top - wordY) < 6;
-    };
-
-    // Look across every active phrase for adjacency — not just the most
-    // recent. This is what makes "the Lord" + jump + "has" still fuse.
-    const adjacent = activePhrases.find(p =>
-      (idx === p.maxIdx + 1 || idx === p.minIdx - 1) && sameLineAs(p)
-    );
-
-    if (adjacent) {
-      if (idx === adjacent.maxIdx + 1) adjacent.maxIdx = idx;
-      else                             adjacent.minIdx = idx;
-
-      // Bridge: the new word may now touch another active phrase on the
-      // same line (e.g. had "the" and "has", user fills in "Lord"). Merge
-      // them into one pill so the display matches the fused highlight runs.
-      const bridge = activePhrases.find(p =>
-        p !== adjacent &&
-        (p.minIdx === adjacent.maxIdx + 1 || p.maxIdx === adjacent.minIdx - 1) &&
-        sameLineAs(p)
-      );
-      if (bridge) {
-        adjacent.minIdx = Math.min(adjacent.minIdx, bridge.minIdx);
-        adjacent.maxIdx = Math.max(adjacent.maxIdx, bridge.maxIdx);
-        removePhrase(bridge);
-      }
-
-      updatePhraseLabel(adjacent);
-      pulsePhrase(adjacent);
-      return;
-    }
-
-    // New phrase — no adjacency found.
-    const label = document.createElement("div");
-    label.className = "cm-engage-word";
-    label.style.background = hex;
-    document.body.appendChild(label);
-    activeLabels.push(label);
-    const phrase = { label, minIdx: idx, maxIdx: idx };
-    activePhrases.push(phrase);
-    updatePhraseLabel(phrase);
   }
 
   function fadeOutLabels() {
