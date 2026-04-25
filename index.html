@@ -1,5 +1,5 @@
 <!DOCTYPE html>
-<html lang="en">
+<html lang="en" class="dark">
   <head>
     <meta charset="UTF-8" />
     <meta name="viewport" content="width=device-width, initial-scale=1" />
@@ -7,110 +7,181 @@
     <title>chaelri.github.io</title>
     <link rel="icon" type="image/png" href="/monthsary/Chalee1.png" />
 
+    <!-- Fonts -->
     <link rel="preconnect" href="https://fonts.googleapis.com" />
     <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
     <link
       href="https://fonts.googleapis.com/css2?family=Funnel+Sans:wght@300;400;500;600;700&family=Pacifico&display=swap"
       rel="stylesheet"
     />
-    <link rel="stylesheet" href="/styles.css" />
+
+    <!-- Material Symbols (Google's icon font, same library MUI uses) -->
+    <link
+      rel="stylesheet"
+      href="https://fonts.googleapis.com/css2?family=Material+Symbols+Outlined:opsz,wght,FILL,GRAD@24,400,0,0"
+    />
+
+    <!-- Tailwind v4 (latest, browser build) -->
+    <script src="https://cdn.jsdelivr.net/npm/@tailwindcss/browser@4"></script>
+
+    <style type="text/tailwindcss">
+      @theme {
+        --font-sans: "Funnel Sans", ui-sans-serif, system-ui, sans-serif;
+        --font-display: "Pacifico", cursive;
+        --color-accent: #ff8ea3;
+      }
+      .material-symbols-outlined {
+        font-variation-settings: "FILL" 0, "wght" 400, "GRAD" 0, "opsz" 24;
+      }
+    </style>
   </head>
-  <body>
+  <body class="bg-zinc-950 text-zinc-100 font-sans antialiased min-h-screen">
     <!-- Loader shown while we check ?redirect= -->
-    <div id="redirectLoader" class="redirect-loader hidden">
-      <p id="redirectMsg">Checking tunnel…</p>
+    <div
+      id="redirectLoader"
+      class="hidden min-h-screen flex items-center justify-center text-center px-6"
+    >
+      <p id="redirectMsg" class="text-lg text-zinc-400">Checking tunnel…</p>
     </div>
 
-    <main id="hub" class="hub">
-      <header class="hub-header">
-        <h1 class="hub-title">chaelri<span class="dim">.github.io</span></h1>
-        <p class="hub-tag">Charlie's little corner of the internet 🛠️</p>
+    <main id="hub" class="max-w-5xl mx-auto px-6 py-14 sm:py-20">
+      <header class="text-center mb-14 sm:mb-20">
+        <h1 class="font-[Pacifico] text-4xl sm:text-5xl tracking-tight mb-2">
+          chaelri<span class="text-zinc-500 font-light">.github.io</span>
+        </h1>
+        <p class="text-zinc-400">Charlie's little corner of the internet</p>
       </header>
 
-      <section class="hub-section">
-        <h2 class="hub-h2">Active Projects</h2>
-        <div class="card-grid">
-          <a href="/devo/" class="card">
-            <span class="card-emoji">📖</span>
-            <span class="card-title">Devo</span>
+      <!-- Active Projects -->
+      <section class="mb-12">
+        <h2 class="text-xs font-semibold uppercase tracking-widest text-zinc-500 mb-4 pl-1">
+          Active Projects
+        </h2>
+        <div class="grid grid-cols-2 sm:grid-cols-3 gap-3">
+          <a href="/devo/" class="card-link">
+            <span class="material-symbols-outlined card-icon">menu_book</span>
+            <span class="card-text">Devo</span>
           </a>
-          <a href="/guard-exit-interview/" class="card">
-            <span class="card-emoji">🚪</span>
-            <span class="card-title">Guard Exit Interview</span>
+          <a href="/guard-exit-interview/" class="card-link">
+            <span class="material-symbols-outlined card-icon">badge</span>
+            <span class="card-text">Guard Exit Interview</span>
           </a>
-          <a href="/tayo/" class="card">
-            <span class="card-emoji">🤝</span>
-            <span class="card-title">Tayo</span>
+          <a href="/tayo/" class="card-link">
+            <span class="material-symbols-outlined card-icon">handshake</span>
+            <span class="card-text">Tayo</span>
           </a>
-          <a href="/vm-management/" class="card">
-            <span class="card-emoji">🖥️</span>
-            <span class="card-title">VM Management</span>
+          <a href="/vm-management/" class="card-link">
+            <span class="material-symbols-outlined card-icon">dns</span>
+            <span class="card-text">VM Management</span>
           </a>
-          <a href="/money/" class="card">
-            <span class="card-emoji">💰</span>
-            <span class="card-title">Money</span>
+          <a href="/money/" class="card-link">
+            <span class="material-symbols-outlined card-icon">payments</span>
+            <span class="card-text">Money</span>
           </a>
-          <a href="/horizon/" class="card">
-            <span class="card-emoji">🌅</span>
-            <span class="card-title">Horizon</span>
-          </a>
-        </div>
-      </section>
-
-      <section class="hub-section">
-        <h2 class="hub-h2">Wedding 💍</h2>
-        <div class="card-grid">
-          <a href="/weddingtest/" class="card">
-            <span class="card-emoji">💌</span>
-            <span class="card-title">Wedding Invitation</span>
-          </a>
-          <a href="/weddingtimeline/" class="card">
-            <span class="card-emoji">⏳</span>
-            <span class="card-title">Wedding Timeline</span>
-          </a>
-          <a href="/wedding100/" class="card">
-            <span class="card-emoji">💯</span>
-            <span class="card-title">Wedding 100</span>
-          </a>
-          <a href="/weddingbar/" class="card">
-            <span class="card-emoji">🍻</span>
-            <span class="card-title">Wedding Bar</span>
+          <a href="/horizon/" class="card-link">
+            <span class="material-symbols-outlined card-icon">landscape</span>
+            <span class="card-text">Horizon</span>
           </a>
         </div>
       </section>
 
-      <section class="hub-section">
-        <h2 class="hub-h2">Other</h2>
-        <div class="card-grid">
-          <a href="/anohana/" class="card">
-            <span class="card-emoji">🌸</span>
-            <span class="card-title">Anohana</span>
+      <!-- Wedding -->
+      <section class="mb-12">
+        <h2 class="text-xs font-semibold uppercase tracking-widest text-zinc-500 mb-4 pl-1">
+          Wedding · July 2, 2026
+        </h2>
+        <div class="grid grid-cols-2 sm:grid-cols-3 gap-3">
+          <a href="/weddingtest/" class="card-link">
+            <span class="material-symbols-outlined card-icon">mail</span>
+            <span class="card-text">Invitation</span>
           </a>
-          <a href="/bubududu/" class="card">
-            <span class="card-emoji">💞</span>
-            <span class="card-title">Bubududu</span>
+          <a href="/weddingtimeline/" class="card-link">
+            <span class="material-symbols-outlined card-icon">schedule</span>
+            <span class="card-text">Timeline</span>
           </a>
-          <a href="/echoes/" class="card">
-            <span class="card-emoji">🎵</span>
-            <span class="card-title">Echoes</span>
+          <a href="/wedding100/" class="card-link">
+            <span class="material-symbols-outlined card-icon">counter_1</span>
+            <span class="card-text">Wedding 100</span>
           </a>
-          <a href="/flux/" class="card">
-            <span class="card-emoji">⚡</span>
-            <span class="card-title">Flux</span>
-          </a>
-          <a href="/pray/" class="card">
-            <span class="card-emoji">🙏</span>
-            <span class="card-title">Pray</span>
+          <a href="/weddingbar/" class="card-link">
+            <span class="material-symbols-outlined card-icon">local_bar</span>
+            <span class="card-text">Wedding Bar</span>
           </a>
         </div>
       </section>
 
-      <footer class="hub-footer">
-        <a href="/monthsary/" class="hub-monthsary">
-          💕 Where it all started — Charlie &amp; Karla
+      <!-- Other -->
+      <section class="mb-12">
+        <h2 class="text-xs font-semibold uppercase tracking-widest text-zinc-500 mb-4 pl-1">
+          Other
+        </h2>
+        <div class="grid grid-cols-2 sm:grid-cols-3 gap-3">
+          <a href="/anohana/" class="card-link">
+            <span class="material-symbols-outlined card-icon">local_florist</span>
+            <span class="card-text">Anohana</span>
+          </a>
+          <a href="/bubududu/" class="card-link">
+            <span class="material-symbols-outlined card-icon">favorite</span>
+            <span class="card-text">Bubududu</span>
+          </a>
+          <a href="/echoes/" class="card-link">
+            <span class="material-symbols-outlined card-icon">graphic_eq</span>
+            <span class="card-text">Echoes</span>
+          </a>
+          <a href="/flux/" class="card-link">
+            <span class="material-symbols-outlined card-icon">bolt</span>
+            <span class="card-text">Flux</span>
+          </a>
+          <a href="/pray/" class="card-link">
+            <span class="material-symbols-outlined card-icon">church</span>
+            <span class="card-text">Pray</span>
+          </a>
+        </div>
+      </section>
+
+      <footer class="text-center mt-16 pt-8 border-t border-white/5">
+        <a
+          href="/monthsary/"
+          class="inline-flex items-center gap-2 px-5 py-2.5 rounded-full font-[Pacifico] text-[var(--color-accent)] hover:bg-[var(--color-accent)]/10 transition-colors"
+        >
+          <span class="material-symbols-outlined text-base">favorite</span>
+          Where it all started — Charlie &amp; Karla
         </a>
       </footer>
     </main>
+
+    <style>
+      .card-link {
+        display: flex;
+        align-items: center;
+        gap: 0.875rem;
+        padding: 1rem 1.125rem;
+        background: rgb(31 32 38);
+        border: 1px solid rgb(255 255 255 / 0.05);
+        border-radius: 0.875rem;
+        color: rgb(228 228 231);
+        text-decoration: none;
+        transition: background 0.15s ease, transform 0.15s ease,
+          border-color 0.15s ease;
+      }
+      .card-link:hover {
+        background: rgb(39 41 49);
+        border-color: rgb(255 255 255 / 0.12);
+        transform: translateY(-1px);
+      }
+      .card-icon {
+        font-size: 1.5rem;
+        color: rgb(161 161 170);
+        flex-shrink: 0;
+      }
+      .card-link:hover .card-icon {
+        color: rgb(244 114 182);
+      }
+      .card-text {
+        font-size: 0.95rem;
+        font-weight: 500;
+      }
+    </style>
 
     <script type="module">
       import { initializeApp } from "https://www.gstatic.com/firebasejs/11.0.2/firebase-app.js";

@@ -1,12 +1,12 @@
 // Import Firebase modules
-import { initializeApp } from "https://www.gstatic.com/firebasejs/9.6.1/firebase-app.js";
+import { initializeApp } from "https://www.gstatic.com/firebasejs/11.0.2/firebase-app.js";
 import {
   getAuth,
   GoogleAuthProvider,
   signInWithPopup,
   signOut as firebaseSignOut,
   onAuthStateChanged,
-} from "https://www.gstatic.com/firebasejs/9.6.1/firebase-auth.js";
+} from "https://www.gstatic.com/firebasejs/11.0.2/firebase-auth.js";
 import {
   getDatabase,
   ref,
@@ -15,7 +15,7 @@ import {
   get,
   push,
   remove,
-} from "https://www.gstatic.com/firebasejs/9.6.1/firebase-database.js";
+} from "https://www.gstatic.com/firebasejs/11.0.2/firebase-database.js";
 
 // Firebase configuration
 const firebaseConfig = {
@@ -490,14 +490,24 @@ function formatTime(timestamp) {
 }
 
 // Google Sign-In function
-document.getElementById("googleSignIn").addEventListener("click", async () => {
+const signInBtn = document.getElementById("googleSignIn");
+const signInStatus = document.getElementById("signInStatus");
+
+function setSignInStatus(text) {
+  if (signInStatus) signInStatus.textContent = text || "";
+}
+
+signInBtn.addEventListener("click", async () => {
+  setSignInStatus("");
+  signInBtn.disabled = true;
   try {
-    const result = await signInWithPopup(auth, provider);
+    const result = await signInWithPopup(auth, new GoogleAuthProvider());
     const user = result.user;
 
     if (!allowedEmails.includes(user.email)) {
-      alert("Access Denied: Your email is not authorized.");
       await firebaseSignOut(auth);
+      setSignInStatus("This page is just for Charlie & Karla 💕");
+      signInBtn.disabled = false;
       return;
     }
 
@@ -511,6 +521,8 @@ document.getElementById("googleSignIn").addEventListener("click", async () => {
     updateOnlineStatus(user.email, true);
   } catch (error) {
     console.error("Google Sign-In Failed:", error);
+    setSignInStatus("Sign-in failed. Try again.");
+    signInBtn.disabled = false;
   }
 });
 

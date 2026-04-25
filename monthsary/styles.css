@@ -3,6 +3,67 @@
   touch-action: manipulation;
 }
 
+/* ── Sign-in card (tayo-style smooth) ─────────────────── */
+.signin-card {
+  max-width: 360px;
+  margin: 80px auto;
+  padding: 32px 24px;
+  text-align: center;
+  background: rgba(255, 255, 255, 0.08);
+  backdrop-filter: blur(8px);
+  -webkit-backdrop-filter: blur(8px);
+  border-radius: 20px;
+  box-shadow: 0 8px 24px rgba(0, 0, 0, 0.15);
+  color: white;
+}
+.signin-title {
+  font-size: 1.6rem;
+  margin: 0 0 8px;
+  color: white;
+}
+.signin-subtitle {
+  margin: 0 0 24px;
+  font-family: "Open Sans", sans-serif;
+  font-size: 0.95rem;
+  opacity: 0.85;
+}
+.signin-btn {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  gap: 10px;
+  width: 100%;
+  padding: 12px 18px;
+  font-size: 15px;
+  font-family: "Open Sans", sans-serif !important;
+  font-weight: 500;
+  background: white;
+  color: #3c4043;
+  border: 0;
+  border-radius: 12px;
+  cursor: pointer;
+  box-shadow: 0 2px 6px rgba(0, 0, 0, 0.12);
+  transition: transform 0.15s ease, box-shadow 0.15s ease, opacity 0.15s ease;
+}
+.signin-btn:hover:not(:disabled) {
+  transform: translateY(-1px);
+  box-shadow: 0 4px 10px rgba(0, 0, 0, 0.18);
+}
+.signin-btn:active:not(:disabled) {
+  transform: translateY(0);
+}
+.signin-btn:disabled {
+  opacity: 0.6;
+  cursor: not-allowed;
+}
+.signin-status {
+  min-height: 1.2em;
+  margin: 14px 0 0;
+  font-family: "Open Sans", sans-serif;
+  font-size: 0.9rem;
+  color: #ffd2dc;
+}
+
 /* Hide the counter initially */
 #counter-container {
   display: none;
