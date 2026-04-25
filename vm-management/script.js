@@ -1285,12 +1285,10 @@ if (document.getElementById("timeout-self-cancel-btn")) {
       console.error("Failed to cancel time-out:", e);
     }
 
-    const waitingBlock = document.getElementById("timeout-waiting-block");
-    if (waitingBlock) waitingBlock.classList.remove("hidden");
-    document.getElementById("volunteer-name").textContent = volunteerName;
-    document.getElementById("time-in-btn").disabled = true;
-    document.getElementById("time-out-btn").disabled = false;
-    showStage("action");
+    volunteerId = null;
+    volunteerName = null;
+    currentLogKey = null;
+    startQrScanner();
   });
 }
 
