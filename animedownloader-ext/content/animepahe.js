@@ -369,7 +369,7 @@
           document.querySelector("#resolutionMenu .dropdown-item.active")?.dataset.src ||
           document.querySelector("#resolutionMenu .dropdown-item[data-src]")?.dataset.src ||
           null;
-        const currentEp = episodeBtn.innerText.match(/\d+/)[0];
+        const currentEp = episodeBtn.innerText.match(/\d+/)?.[0] || "1";
         const allEpLinks = Array.from(scrollArea.querySelectorAll("a.dropdown-item"));
 
         const epNumbers = allEpLinks.map((el) =>
@@ -1155,6 +1155,20 @@
         opacity: 0.6;
         text-shadow: none;
       }
+      .fl-ep-total {
+        font-size: 0.7rem;
+        font-weight: 600;
+        letter-spacing: 0.6px;
+        opacity: 0.55;
+        margin-top: 4px;
+        line-height: 1;
+        text-transform: none;
+        text-shadow: none;
+      }
+      .fl-ep-kicker-completed ~ .fl-ep-total {
+        color: #00e676;
+        opacity: 0.85;
+      }
       /* Genre chips under the title */
       .fl-genre-row {
         display: flex;
@@ -1400,6 +1414,23 @@
             if (kicker) {
               kicker.innerHTML = '<span class="fl-ep-kicker-line">Completed</span>';
               kicker.classList.add("fl-ep-kicker-completed");
+            }
+          }
+
+          // Episode total: append "/ N" under the big latest-episode number
+          // so the user can tell at a glance whether the show has more eps
+          // coming. AnimePahe's `.anime-info` exposes an "Episodes" row.
+          const epRow = (details?.info || []).find((r) =>
+            /^episodes?$/i.test((r.label || "").trim())
+          );
+          const epTotal = parseInt((epRow?.value || "").trim(), 10);
+          if (Number.isFinite(epTotal) && epTotal > 0) {
+            const epNumberCell = wrap.querySelector(".episode-number");
+            if (epNumberCell && !epNumberCell.querySelector(".fl-ep-total")) {
+              const totalEl = document.createElement("span");
+              totalEl.className = "fl-ep-total";
+              totalEl.textContent = `/ ${epTotal}`;
+              epNumberCell.appendChild(totalEl);
             }
           }
 
