@@ -909,6 +909,13 @@ function renderCommsView(map) {
     }
   });
 
+  // Pass 3: cross-batch reconciliation — a comms device in active AM use cannot be active in PM simultaneously
+  Object.keys(pmMap).forEach(code => {
+    if (amMap[code] && !amMap[code]._isPending) {
+      pmMap[code] = { ...pmMap[code], _isPending: true };
+    }
+  });
+
   function filterPill(label, currentFilter, batchKey, value, colorActive, colorInactive) {
     const isActive = currentFilter === value;
     return `<button class="comms-batch-filter text-[9px] px-1.5 py-0.5 rounded-full font-semibold transition ${isActive ? colorActive : colorInactive}" data-batch="${batchKey}" data-value="${value}">${label}</button>`;
