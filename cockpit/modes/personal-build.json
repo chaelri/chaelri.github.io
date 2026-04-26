@@ -1,0 +1,24 @@
+{
+  "id": "personal-build",
+  "label": "Build New",
+  "icon": "🏗️",
+  "category": "personal",
+  "workspace": "/Users/ccayno/Documents/chaelri.github.io",
+  "model": "opus",
+  "permission_mode": "plan",
+  "max_budget_usd": 10.00,
+  "effort": "high",
+  "add_dirs": ["/Users/ccayno/Documents/chaelri.github.io"],
+  "knowledge_files": [
+    "knowledge/devo/SUMMARY.md",
+    "knowledge/devo/ARCHITECTURE.md",
+    "knowledge/devo/KEY_FILES.md",
+    "knowledge/devo/PATTERNS.md",
+    "knowledge/devo/AI_FEATURES.md",
+    "knowledge/devo/TTS.md",
+    "knowledge/devo/COMMON_TASKS.md",
+    "knowledge/devo/DECISIONS.md"
+  ],
+  "append_system_prompt": "Greenfield build mode. Plan thoroughly, propose alternatives, then implement. Respond in Taglish.",
+  "allowed_tools": ["Read", "Edit", "Write", "Bash", "Glob", "Grep", "WebFetch"]
+}

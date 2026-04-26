@@ -1,0 +1,21 @@
+{
+  "id": "personal-feature",
+  "label": "Add Feature",
+  "icon": "✨",
+  "category": "personal",
+  "workspace": "/Users/ccayno/Documents/chaelri.github.io",
+  "model": "opus",
+  "permission_mode": "plan",
+  "max_budget_usd": 5.00,
+  "add_dirs": ["/Users/ccayno/Documents/chaelri.github.io"],
+  "knowledge_files": [
+    "knowledge/devo/SUMMARY.md",
+    "knowledge/devo/ARCHITECTURE.md",
+    "knowledge/devo/KEY_FILES.md",
+    "knowledge/devo/PATTERNS.md",
+    "knowledge/devo/COMMON_TASKS.md",
+    "knowledge/devo/DECISIONS.md"
+  ],
+  "append_system_prompt": "Feature-development mode. Plan-first: outline approach before writing code. Respond in Taglish.",
+  "allowed_tools": ["Read", "Edit", "Write", "Bash", "Glob", "Grep"]
+}

@@ -1,0 +1,18 @@
+{
+  "id": "personal-tweak",
+  "label": "Simple Tweak",
+  "icon": "🔧",
+  "category": "personal",
+  "workspace": "/Users/ccayno/Documents/chaelri.github.io",
+  "model": "sonnet",
+  "permission_mode": "default",
+  "max_budget_usd": 1.00,
+  "add_dirs": ["/Users/ccayno/Documents/chaelri.github.io"],
+  "knowledge_files": [
+    "knowledge/devo/SUMMARY.md",
+    "knowledge/devo/KEY_FILES.md",
+    "knowledge/devo/PATTERNS.md"
+  ],
+  "append_system_prompt": "Quick-tweak mode for the chaelri.github.io devo PWA. Respond in Taglish (casual Filipino + English).",
+  "allowed_tools": ["Read", "Edit", "Bash", "Glob", "Grep"]
+}

@@ -1,0 +1,11 @@
+{
+  "id": "personal-chat",
+  "label": "Random Q&A",
+  "icon": "🗨️",
+  "category": "personal",
+  "model": "haiku",
+  "permission_mode": "default",
+  "max_budget_usd": 0.50,
+  "no_session_persistence": false,
+  "append_system_prompt": "You are a casual conversation partner. Reply in Taglish (Filipino + English), youth-friendly tone. No file access needed — pure chat."
+}

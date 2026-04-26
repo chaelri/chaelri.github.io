@@ -1,0 +1,19 @@
+{
+  "id": "personal-bug",
+  "label": "Bug Fix",
+  "icon": "🐛",
+  "category": "personal",
+  "workspace": "/Users/ccayno/Documents/chaelri.github.io",
+  "model": "sonnet",
+  "permission_mode": "default",
+  "max_budget_usd": 2.00,
+  "add_dirs": ["/Users/ccayno/Documents/chaelri.github.io"],
+  "knowledge_files": [
+    "knowledge/devo/SUMMARY.md",
+    "knowledge/devo/ARCHITECTURE.md",
+    "knowledge/devo/KEY_FILES.md",
+    "knowledge/devo/PATTERNS.md"
+  ],
+  "append_system_prompt": "Bug-fix mode. Identify root cause before patching — don't paper over symptoms. Respond in Taglish.",
+  "allowed_tools": ["Read", "Edit", "Bash", "Glob", "Grep"]
+}

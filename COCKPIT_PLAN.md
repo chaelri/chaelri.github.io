@@ -1,9 +1,40 @@
-# Claude Code Web Cockpit — Plan (Parked)
+# Claude Code Web Cockpit — Plan
 
-**Status:** Parked. Build deferred until after `chaelri.github.io` cleanup.
+**Status:** Active build (unparked 2026-04-26). Path #1b architecture confirmed.
 **Owner:** Charlie (ccayno@azurtechnology.com)
 **Date Drafted:** 2026-04-26
 **Estimated Build Time:** ~12 hours (4 days × 3 hrs)
+
+## ⚠️ Architecture Pivot (2026-04-26)
+
+Original plan called for `claude-agent-sdk-python` reusing `~/.claude/.credentials.json` to bill against the Max subscription. **Verified: not viable.**
+
+- Anthropic banned subscription/OAuth auth for third-party SDK apps as of Feb 2026 (policy enforcement; Consumer ToS update). The Agent SDK only accepts `ANTHROPIC_API_KEY` with separate metered billing.
+- `~/.claude/.credentials.json` does not exist on macOS — Claude Code stores OAuth in Keychain.
+
+**Pivot — Path #1b:** Cockpit becomes a UI shell that subprocesses `claude -p` (headless mode). The `claude` binary uses Keychain auth and bills against the Max subscription. Cost-savings premise preserved.
+
+**Bonus discovery:** `claude -p` already exposes most "Smart Features" as built-in flags — `--max-budget-usd`, `--output-format stream-json`, `--model`, `--system-prompt`, `--add-dir`, `--allowed-tools`, `--permission-mode`, `--mcp-config`, `--session-id`, `--resume`, `--agents`. The cockpit shrinks ~30% in scope: it's a flag-mapper + UI, not an agent engine.
+
+## ⚠️ Architecture Pivot v2 (2026-04-27): Always-On Without the Cockpit
+
+The cockpit's `--append-system-prompt` knowledge-loading mechanism is now **redundant for `chaelri.github.io`** because:
+
+1. **Root `CLAUDE.md`** (this repo) auto-loads via Claude Code's built-in CLAUDE.md discovery, and `@-imports` the entire `knowledge/` tree
+2. **Per-project `<project>/CLAUDE.md`** files load deep MDs when working inside that subdirectory
+3. **`.claude/hooks/`** detect knowledge-MD staleness on every Edit/Write and surface notices on next session
+4. **`.claude/commands/sync-knowledge.md`** slash command provides the review-and-patch workflow
+
+**Net result:** Charlie can open Claude Code anywhere in this repo (no cockpit needed) and get:
+- Project orientation (hub map auto-loaded)
+- Agent + hook patterns (knowledge/cockpit/AGENTS.md, HOOKS.md)
+- Per-project deep context (when in subdir)
+- Auto-staleness detection
+- One-command sync workflow
+
+**The cockpit's remaining value** is the **budget meter + lockout + mode-based UI** — useful for cost-conscious sessions but optional for daily work.
+
+**See:** [knowledge/cockpit/AGENTS.md](knowledge/cockpit/AGENTS.md) for agent patterns, [knowledge/cockpit/HOOKS.md](knowledge/cockpit/HOOKS.md) for hook patterns.
 
 ---
 
@@ -44,25 +75,49 @@ If successful → **Max 5x (₱6,924/mo) becomes super comfortable**, vs current
                      ▼
 ┌─────────────────────────────────────────────────┐
 │  FastAPI Backend (Python)                       │
-│  • Mode router (loads correct system prompt)    │
-│  • Knowledge loader (injects MD files)          │
-│  • Auto-compact engine (token threshold)        │
-│  • Topic-switch detector (embedding similarity) │
+│  • Mode loader (mode JSON → CLI flag set)       │
+│  • Subprocess runner (spawns claude -p)         │
+│  • stream-json parser (forwards to WS clients)  │
+│  • Knowledge MD injector (--append-system-prompt│
+│    or concatenated into system-prompt-file)     │
 │  • Cost tracker (reads ~/.claude/projects/*)    │
-│  • Hard cap guard (blocks Opus at 90% weekly)   │
+│  • Hard cap guard (UI lockout + budget cap flag)│
 └────────────────────┬────────────────────────────┘
-                     │ uses
+                     │ spawns subprocess
                      ▼
 ┌─────────────────────────────────────────────────┐
-│  claude-agent-sdk-python                        │
-│  • Same auth as Claude Code (~/.claude/.creds)  │
-│  • Same Max 5x subscription                     │
-│  • Full tool access (Read, Edit, Bash, Glob...) │
+│  claude -p (Claude Code CLI, headless)          │
+│  • --output-format stream-json (NDJSON stream)  │
+│  • --model / --system-prompt / --add-dir        │
+│  • --allowed-tools / --permission-mode          │
+│  • --max-budget-usd / --session-id / --resume   │
+│  • --mcp-config / --agents                      │
+│  • Keychain auth → Max 5x subscription          │
 └─────────────────────────────────────────────────┘
 ```
 
 ### Auth model
-Uses Claude Agent SDK with existing Claude Code credentials at `~/.claude/.credentials.json`. **No separate API key needed.** All usage counts against current Max 5x subscription. Walang doble-billing.
+Cockpit invokes the existing `claude` CLI as a subprocess with `-p` (print/headless mode). The CLI reads OAuth from macOS Keychain (same as interactive use) and bills against the **Max 5x subscription**. **No `ANTHROPIC_API_KEY` set.** Walang doble-billing, walang separate API metering.
+
+Important: the Agent SDK path is explicitly *not* used because (a) it requires `ANTHROPIC_API_KEY` (separate metered billing), and (b) Anthropic's Feb 2026 ToS update bans third-party OAuth/subscription reuse.
+
+### CLI-flag → Cockpit-feature map
+Most "Smart Features" from earlier drafts are already built into `claude -p`. The cockpit composes flags rather than reimplementing logic:
+
+| Cockpit feature | `claude -p` flag |
+|---|---|
+| Per-mode model | `--model opus\|sonnet\|haiku` |
+| Per-mode system prompt | `--system-prompt` or `--append-system-prompt` |
+| Per-mode workspace | `--add-dir <path>` |
+| Per-mode tool gating | `--allowed-tools` / `--disallowed-tools` |
+| Permission strictness | `--permission-mode default\|acceptEdits\|bypassPermissions\|plan` |
+| Hard cap guard | `--max-budget-usd <N>` |
+| Streaming output | `--output-format stream-json --include-partial-messages` |
+| Session continuity | `--session-id <uuid>` / `--resume` |
+| MCP servers | `--mcp-config <file>` |
+| Custom agents | `--agents <json>` |
+| Reasoning depth | `--effort low\|medium\|high\|xhigh\|max` |
+| Skip auto-memory etc. | `--bare` (only relevant if we ever want full context isolation) |
 
 ---
 
@@ -152,7 +207,9 @@ Click "yes" → MD updates → next session walang re-investigation. **Compound 
 
 ## 🧠 Smart Features
 
-### 1. Auto Model Router
+> **Note (post-pivot):** Several of these become thin shims over `claude -p` flags rather than custom engines. Items marked **[CLI]** delegate to the binary; items marked **[cockpit]** are still real cockpit logic.
+
+### 1. Auto Model Router **[cockpit → CLI]**
 ```python
 def pick_model(prompt: str, mode: str, weekly_budget: dict) -> str:
     if weekly_budget["opus_used_pct"] > 0.85:
@@ -166,26 +223,29 @@ def pick_model(prompt: str, mode: str, weekly_budget: dict) -> str:
     return mode_default
 ```
 
-### 2. Auto-Compact Engine
-- Tracks token count per session
-- At 70k → background summarization, replaces old messages
+### 2. Auto-Compact Engine **[cockpit]**
+- Tracks token count per session via stream-json `usage` events
+- At 70k → spawn a separate `claude -p` summarization call, replace old messages with summary, start fresh `--session-id`
 - At 100k → force compact + warns user
 - Saves 40–60% of cache reads (the biggest current waste)
+- *Note:* Claude Code itself has `/compact`, but headless mode doesn't expose it — we orchestrate from the cockpit.
 
-### 3. Topic-Switch Detection
+### 3. Topic-Switch Detection **[cockpit, optional]**
 - Embedding similarity (using local model, e.g., MiniLM) between current prompt and last 5 messages
 - Big jump → "Detected topic switch — start new session?" prompt
 - Prevents 506M-token bloat sessions
+- *Defer to post-MVP* — heuristic (token count + idle gap) is good enough for v1.
 
-### 4. Live Budget Meter
+### 4. Live Budget Meter **[cockpit]**
 - Reads `~/.claude/projects/**/*.jsonl` every 30 seconds
 - Parses ccusage data for current week
 - Shows progress bars: Opus, Sonnet, Total weekly cap
 - Color coding: 🟢 < 60% → 🟡 60–85% → 🔴 > 85%
 - At 90% Opus → blocks Opus selection in UI, forces Sonnet/Haiku
 
-### 5. Hard Cap Guard
-At 95% weekly Opus → cockpit grays out Opus modes, only Sonnet/Haiku selectable. Prevents accidental overage that would push toward Max 20x upgrade.
+### 5. Hard Cap Guard **[cockpit + CLI]**
+- UI: at 95% weekly Opus → cockpit grays out Opus modes (cockpit logic).
+- CLI: every spawned `claude -p` gets `--max-budget-usd <remaining>` so the binary itself self-terminates if the cockpit's own check is bypassed.
 
 ---
 
@@ -240,13 +300,13 @@ At 95% weekly Opus → cockpit grays out Opus modes, only Sonnet/Haiku selectabl
 ## 🛠️ Tech Stack Summary
 
 ### Backend
-- **Python 3.11+**
+- **Python 3.12** (already installed at `/Users/ccayno/Documents/python/bin/python3`)
 - **FastAPI** — async web framework
 - **uvicorn** — ASGI server
-- **claude-agent-sdk** — official Anthropic SDK
-- **websockets** — streaming
+- **`claude` CLI subprocess** — invoked via `asyncio.create_subprocess_exec`, output parsed as NDJSON (`--output-format stream-json`). **Not the Agent SDK.**
+- **websockets** — streaming to browser
 - **sqlite3** — session history (built-in)
-- **sentence-transformers** (optional) — for topic-switch detection
+- **sentence-transformers** (deferred to post-MVP) — for topic-switch detection
 
 ### Frontend
 - HTML + Vanilla JS modules
@@ -318,9 +378,10 @@ chaelri.github.io/
 
 ### Day 1 — Backend MVP (4 hours)
 - [ ] Set up FastAPI project skeleton in `cockpit/`
-- [ ] Wire claude-agent-sdk with credentials check
-- [ ] Build basic chat endpoint with streaming
-- [ ] Test SDK auth uses Max 5x subscription (no API billing)
+- [ ] Build `runner.py`: async subprocess wrapper around `claude -p --output-format stream-json`, yields parsed events
+- [ ] Build `/api/chat` WebSocket endpoint: receives prompt + mode, spawns runner, forwards stream-json events to client
+- [ ] **Auth verification:** confirm runner works with no `ANTHROPIC_API_KEY` set; usage shows up in `~/.claude/projects/` jsonl (= Max subscription, not API key)
+- [ ] Test basic prompt → response end-to-end via wscat
 
 ### Day 2 — Frontend MVP (3 hours)
 - [ ] Single-page HTML with Tailwind + Material Web
@@ -352,13 +413,18 @@ chaelri.github.io/
 
 ## 🚧 Open Questions / Future Decisions
 
-### To resolve when building:
-1. **Topic-switch detection** — local embeddings (sentence-transformers) vs simpler heuristic (token count + time gap)?
+### Resolved by pivot (2026-04-26):
+- ~~**Auth model**~~ → `claude -p` subprocess, Keychain-backed, Max subscription billing.
+- ~~**MCP integration**~~ → `--mcp-config` flag passes through; existing servers Just Work.
+- ~~**Aggressive mode**~~ → `--permission-mode bypassPermissions` + `--max-budget-usd` per call (CLI does the gating).
+
+### Still to resolve when building:
+1. **Topic-switch detection** — defer to post-MVP. Start with heuristic (token count + idle gap).
 2. **Knowledge MD updates** — manual approval flow vs auto-merge with diff log?
-3. **Multi-session support** — single chat thread vs tabs per workspace?
-4. **Backup of conversations** — local SQLite only, or sync to file system?
-5. **MCP integration** — keep existing MCP servers usable inside cockpit?
-6. **Aggressive mode guard** — custom hook design for blocking dangerous ops?
+3. **Multi-session support** — single chat thread vs tabs per workspace? (Map to `--session-id` per tab.)
+4. **Backup of conversations** — local SQLite only, or sync to file system? (CLI already writes to `~/.claude/projects/`, so SQLite is duplication unless we want richer queries.)
+5. **stream-json schema stability** — the NDJSON event shape is undocumented and can change between Claude Code releases. Need to defensive-parse and version-pin or detect breakage.
+6. **Concurrent subprocesses** — multiple cockpit tabs each spawn their own `claude -p`. Confirm OK with Keychain (likely fine; Claude Code itself runs concurrent sessions).
 
 ### Future enhancements (post-MVP):
 - Voice input (browser SpeechRecognition API)
@@ -388,10 +454,10 @@ If achieved → **downgrade to Max 5x with confidence**.
 
 ## 📝 Notes for Future-Charlie / Future-Claude
 
-- **Why this is parked:** Cleanup ng `chaelri.github.io` first. Existing repo has accumulated commits ("asd", "h", quick fixes) and structure can be tightened before adding `cockpit/` + `knowledge/` folders.
-- **When to unpark:** After repo cleanup is done and structure is clear.
+- **Unparked 2026-04-26.** Repo is clean (no leftover quick-commit clutter at root); ready to add `cockpit/` + `knowledge/` folders.
+- **Architecture pivot:** SDK approach abandoned (Anthropic ToS Feb 2026 + missing `~/.claude/.credentials.json`). Cockpit now wraps `claude -p` subprocess. See top of file for full pivot rationale.
 - **Don't lose:** The mental model that *pre-loaded knowledge MDs are the biggest token-saver*, more than auto-routing or auto-compact. That insight is the core of this design.
-- **Reusability:** Once built, the cockpit pattern (modes + knowledge MDs + smart routing) is **portable to other projects**. Just copy the structure, fill in new knowledge MDs, redefine modes.
+- **Reusability:** Once built, the cockpit pattern (modes + knowledge MDs + flag-mapping over `claude -p`) is **portable to other projects**. Just copy the structure, fill in new knowledge MDs, redefine modes.
 
 ---
 

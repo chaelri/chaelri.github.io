@@ -75,3 +75,7 @@ devo/config.js
 # Firebase service account keys — never commit
 functions/service-account.json
 **/service-account.json
+
+# Claude Code runtime artifacts
+.claude/knowledge-stale.md
+.claude/settings.local.json
