@@ -1264,6 +1264,305 @@ function makeDetachmentFilterInput(currentValue, allOptions, onChange) {
   return wrap;
 }
 
+// ─── FILTER CHIPS + POPOVERS ─────────────────────────────────────────
+let _filterPopover = null;
+let _filterPopoverOutsideHandler = null;
+let _filterPopoverEscHandler = null;
+let _filterPopoverScrollHandler = null;
+let _filterPopoverAnchor = null;
+
+function closeFilterPopover() {
+  if (_filterPopover) { _filterPopover.remove(); _filterPopover = null; }
+  if (_filterPopoverAnchor) { _filterPopoverAnchor.classList.remove('filter-chip-open'); _filterPopoverAnchor = null; }
+  if (_filterPopoverOutsideHandler) { document.removeEventListener('mousedown', _filterPopoverOutsideHandler); _filterPopoverOutsideHandler = null; }
+  if (_filterPopoverEscHandler) { document.removeEventListener('keydown', _filterPopoverEscHandler); _filterPopoverEscHandler = null; }
+  if (_filterPopoverScrollHandler) { window.removeEventListener('resize', _filterPopoverScrollHandler); _filterPopoverScrollHandler = null; }
+}
+
+function _positionFilterPopover(pop, anchorEl) {
+  const rect = anchorEl.getBoundingClientRect();
+  const vw = window.innerWidth;
+  const vh = window.innerHeight;
+  const popRect = pop.getBoundingClientRect();
+  let top = rect.bottom + 6;
+  let left = rect.left;
+  if (left + popRect.width > vw - 8) left = Math.max(8, vw - popRect.width - 8);
+  if (top + popRect.height > vh - 8 && rect.top - popRect.height - 6 > 8) {
+    top = rect.top - popRect.height - 6;
+  }
+  pop.style.top = top + 'px';
+  pop.style.left = left + 'px';
+}
+
+function openFilterPopover(anchorEl, contentEl) {
+  closeFilterPopover();
+  const pop = document.createElement('div');
+  pop.className = 'filter-popover';
+  pop.appendChild(contentEl);
+  document.body.appendChild(pop);
+  _positionFilterPopover(pop, anchorEl);
+  anchorEl.classList.add('filter-chip-open');
+  _filterPopover = pop;
+  _filterPopoverAnchor = anchorEl;
+  setTimeout(() => {
+    _filterPopoverOutsideHandler = (e) => {
+      if (!pop.contains(e.target) && !anchorEl.contains(e.target)) closeFilterPopover();
+    };
+    _filterPopoverEscHandler = (e) => { if (e.key === 'Escape') closeFilterPopover(); };
+    _filterPopoverScrollHandler = () => _positionFilterPopover(pop, anchorEl);
+    document.addEventListener('mousedown', _filterPopoverOutsideHandler);
+    document.addEventListener('keydown', _filterPopoverEscHandler);
+    window.addEventListener('resize', _filterPopoverScrollHandler);
+  }, 0);
+  return pop;
+}
+
+function makeFilterChip({ icon, label, getValueText, getIsActive, onOpen, onClear }) {
+  const chip = document.createElement('button');
+  chip.type = 'button';
+  chip.className = 'filter-chip';
+  const refresh = () => {
+    const isActive = getIsActive();
+    chip.classList.toggle('filter-chip-active', isActive);
+    chip.innerHTML = `
+      ${icon ? `<span class="material-icons chip-icon">${icon}</span>` : ''}
+      <span class="chip-label">${escHtml(label)}:</span>
+      <span class="chip-value">${escHtml(getValueText())}</span>
+      <span class="material-icons chip-arrow">arrow_drop_down</span>
+      ${isActive && onClear ? '<span class="material-icons chip-clear" title="Clear">close</span>' : ''}
+    `;
+    const x = chip.querySelector('.chip-clear');
+    if (x && onClear) x.addEventListener('click', (e) => {
+      e.stopPropagation();
+      onClear();
+    });
+  };
+  chip.addEventListener('click', (e) => {
+    if (e.target.closest('.chip-clear')) return;
+    if (chip.classList.contains('filter-chip-open')) { closeFilterPopover(); return; }
+    onOpen(chip, refresh);
+  });
+  refresh();
+  return { element: chip, refresh };
+}
+
+function formatDateLabel(state) {
+  if (state.dateFrom || state.dateTo) {
+    const fmt = s => s || '…';
+    return `${fmt(state.dateFrom)} – ${fmt(state.dateTo)}`;
+  }
+  if (state.type === 'all') return 'All time';
+  if (state.type === 'annual') return String(state.year);
+  if (state.type === 'quarterly') return `Q${state.quarter} ${state.year}`;
+  if (state.type === 'monthly') {
+    const months = ['Jan','Feb','Mar','Apr','May','Jun','Jul','Aug','Sep','Oct','Nov','Dec'];
+    return `${months[state.month - 1]} ${state.year}`;
+  }
+  return 'All time';
+}
+function isDateFilterActive(state) {
+  return state.type !== 'all' || !!state.dateFrom || !!state.dateTo;
+}
+function formatBranchLabel(value) {
+  if (!value) return 'All';
+  return value.length > 28 ? value.slice(0, 26) + '…' : value;
+}
+
+function buildDatePopoverContent(state, onChange) {
+  const wrap = document.createElement('div');
+  wrap.className = 'filter-popover-content filter-popover-date';
+  const isCustom = !!state.dateFrom || !!state.dateTo;
+  const currentMode = isCustom ? 'custom' : state.type;
+  const modes = [
+    ['all', 'All time'], ['monthly', 'Monthly'], ['quarterly', 'Quarterly'],
+    ['annual', 'Annual'], ['custom', 'Custom']
+  ];
+  const tabRow = document.createElement('div');
+  tabRow.className = 'pp-tabs';
+  modes.forEach(([id, txt]) => {
+    const b = document.createElement('button');
+    b.type = 'button';
+    b.className = 'period-btn' + (currentMode === id ? ' active' : '');
+    b.textContent = txt;
+    b.addEventListener('click', () => {
+      if (id === 'custom') {
+        state.type = 'all';
+      } else {
+        state.type = id;
+        state.dateFrom = '';
+        state.dateTo = '';
+      }
+      onChange();
+    });
+    tabRow.appendChild(b);
+  });
+  wrap.appendChild(tabRow);
+
+  const ctrlRow = document.createElement('div');
+  ctrlRow.className = 'pp-ctrl-row';
+  if (currentMode !== 'all' && currentMode !== 'custom') {
+    const curYear = new Date().getFullYear();
+    const ySel = document.createElement('select');
+    ySel.className = 'period-select';
+    for (let y = curYear; y >= curYear - 5; y--) {
+      const o = document.createElement('option');
+      o.value = y; o.textContent = y;
+      if (y === state.year) o.selected = true;
+      ySel.appendChild(o);
+    }
+    ySel.addEventListener('change', () => { state.year = parseInt(ySel.value); onChange(); });
+    ctrlRow.appendChild(ySel);
+  }
+  if (currentMode === 'monthly') {
+    const months = ['Jan','Feb','Mar','Apr','May','Jun','Jul','Aug','Sep','Oct','Nov','Dec'];
+    const mSel = document.createElement('select');
+    mSel.className = 'period-select';
+    months.forEach((m, i) => {
+      const o = document.createElement('option');
+      o.value = i + 1; o.textContent = m;
+      if (i + 1 === state.month) o.selected = true;
+      mSel.appendChild(o);
+    });
+    mSel.addEventListener('change', () => { state.month = parseInt(mSel.value); onChange(); });
+    ctrlRow.appendChild(mSel);
+  }
+  if (currentMode === 'quarterly') {
+    const quarters = ['Q1 (Jan–Mar)','Q2 (Apr–Jun)','Q3 (Jul–Sep)','Q4 (Oct–Dec)'];
+    const qSel = document.createElement('select');
+    qSel.className = 'period-select';
+    quarters.forEach((q, i) => {
+      const o = document.createElement('option');
+      o.value = i + 1; o.textContent = q;
+      if (i + 1 === state.quarter) o.selected = true;
+      qSel.appendChild(o);
+    });
+    qSel.addEventListener('change', () => { state.quarter = parseInt(qSel.value); onChange(); });
+    ctrlRow.appendChild(qSel);
+  }
+  if (currentMode === 'custom') {
+    const from = document.createElement('input');
+    from.type = 'date'; from.className = 'period-date-input';
+    if (state.dateFrom) from.value = state.dateFrom;
+    from.addEventListener('change', () => { state.dateFrom = from.value; onChange(); });
+    const dash = document.createElement('span'); dash.className = 'pf-date-dash'; dash.textContent = '–';
+    const to = document.createElement('input');
+    to.type = 'date'; to.className = 'period-date-input';
+    if (state.dateTo) to.value = state.dateTo;
+    to.addEventListener('change', () => { state.dateTo = to.value; onChange(); });
+    ctrlRow.appendChild(from);
+    ctrlRow.appendChild(dash);
+    ctrlRow.appendChild(to);
+  }
+  if (ctrlRow.children.length) wrap.appendChild(ctrlRow);
+  return wrap;
+}
+
+function buildBranchPopoverContent(currentValue, allOptions, onCommit) {
+  const wrap = document.createElement('div');
+  wrap.className = 'filter-popover-content filter-popover-branch';
+  const dlId = `branch-popover-options-${++_detachmentFilterSeq}`;
+  const dl = document.createElement('datalist');
+  dl.id = dlId;
+  dl.innerHTML = allOptions.map(d => `<option value="${escHtml(d)}"></option>`).join('');
+  const inp = document.createElement('input');
+  inp.type = 'text';
+  inp.className = 'period-select branch-popover-input';
+  inp.setAttribute('list', dlId);
+  inp.placeholder = `Type to filter (${allOptions.length} branches)`;
+  inp.value = currentValue || '';
+  inp.autocomplete = 'off';
+  const tryCommit = () => {
+    const v = inp.value.trim();
+    if (v === '' || allOptions.includes(v)) { onCommit(v); return true; }
+    return false;
+  };
+  inp.addEventListener('input', (e) => {
+    const isPick = e.inputType === 'insertReplacementText' ||
+                   (!e.inputType && allOptions.includes(inp.value.trim()));
+    if (isPick) tryCommit();
+  });
+  inp.addEventListener('keydown', (e) => {
+    if (e.key === 'Enter') { e.preventDefault(); tryCommit(); }
+  });
+  wrap.appendChild(inp);
+  wrap.appendChild(dl);
+  setTimeout(() => inp.focus(), 50);
+  return wrap;
+}
+
+function updateResetButtonState() {
+  const tableReset = document.querySelector('#table-toolbar .btn-reset');
+  if (tableReset) {
+    const has = tablePeriod.type !== 'all' || tablePeriod.detachment || tablePeriod.dateFrom || tablePeriod.dateTo || (tableSearch && tableSearch.trim()) || tableSort.field;
+    tableReset.classList.toggle('has-filters', !!has);
+  }
+  const summaryReset = document.querySelector('.period-filter-bar .btn-reset');
+  if (summaryReset) {
+    const has = summaryPeriod.type !== 'all' || summaryPeriod.detachment || summaryPeriod.dateFrom || summaryPeriod.dateTo;
+    summaryReset.classList.toggle('has-filters', !!has);
+  }
+}
+
+function buildFilterChips(state, usedDetachments, onBodyRefresh) {
+  const row = document.createElement('div');
+  row.className = 'filter-chip-row';
+
+  let dateChipObj;
+  dateChipObj = makeFilterChip({
+    icon: 'event',
+    label: 'Date',
+    getValueText: () => formatDateLabel(state),
+    getIsActive: () => isDateFilterActive(state),
+    onOpen: (anchor, refresh) => {
+      const handlePopChange = () => {
+        refresh();
+        onBodyRefresh();
+        if (_filterPopover) {
+          _filterPopover.innerHTML = '';
+          _filterPopover.appendChild(buildDatePopoverContent(state, handlePopChange));
+        }
+      };
+      openFilterPopover(anchor, buildDatePopoverContent(state, handlePopChange));
+    },
+    onClear: () => {
+      state.type = 'all';
+      state.dateFrom = '';
+      state.dateTo = '';
+      dateChipObj.refresh();
+      closeFilterPopover();
+      onBodyRefresh();
+    },
+  });
+  row.appendChild(dateChipObj.element);
+
+  if (usedDetachments.length > 0) {
+    let branchChipObj;
+    branchChipObj = makeFilterChip({
+      icon: 'apartment',
+      label: 'Branch',
+      getValueText: () => formatBranchLabel(state.detachment),
+      getIsActive: () => !!state.detachment,
+      onOpen: (anchor) => {
+        openFilterPopover(anchor, buildBranchPopoverContent(state.detachment, usedDetachments, (v) => {
+          state.detachment = v;
+          branchChipObj.refresh();
+          closeFilterPopover();
+          onBodyRefresh();
+        }));
+      },
+      onClear: () => {
+        state.detachment = '';
+        branchChipObj.refresh();
+        closeFilterPopover();
+        onBodyRefresh();
+      },
+    });
+    row.appendChild(branchChipObj.element);
+  }
+
+  return row;
+}
+
 function makeTextareaField(label, fieldKey, value, placeholder = '') {
   const div = document.createElement('div');
   div.className = 'field-group';
@@ -1610,117 +1909,21 @@ function getTableRows() {
 }
 
 function renderTable(refocusSearch = false) {
+  closeFilterPopover();
   const toolbar = document.getElementById('table-toolbar');
   toolbar.innerHTML = '';
-  toolbar.style.cssText = 'display:flex;flex-direction:column;gap:0;padding:0;flex-shrink:0;';
+  toolbar.style.cssText = 'display:flex;flex-direction:column;align-items:stretch;justify-content:flex-start;gap:0;padding:0;flex-shrink:0;';
 
   const usedDetachments = [...new Set(records.filter(r => r.detachment).map(r => r.detachment))].sort();
-  const tBounds = getPeriodBounds(tablePeriod);
   const hasFilters = tablePeriod.type !== 'all' || tablePeriod.detachment || tablePeriod.dateFrom || tablePeriod.dateTo || tableSearch.trim() || tableSort.field || tableSort.dir === 'desc';
 
-  // ── Period row ───────────────────────────────────────────
-  const periodRow = document.createElement('div');
-  periodRow.className = 'pf-row';
-  const periodLbl = document.createElement('span');
-  periodLbl.className = 'pf-row-label';
-  periodLbl.textContent = 'Period:';
-  periodRow.appendChild(periodLbl);
-  const periodCtrl = document.createElement('div');
-  periodCtrl.className = 'pf-row-controls';
-  [['all','All'],['monthly','Monthly'],['quarterly','Quarterly'],['annual','Annual']].forEach(([t, txt]) => {
-    const b = document.createElement('button');
-    b.className = 'period-btn' + (tablePeriod.type === t ? ' active' : '');
-    b.textContent = txt;
-    b.addEventListener('click', () => { tablePeriod.type = t; tablePeriod.dateFrom = ''; tablePeriod.dateTo = ''; renderTable(); });
-    periodCtrl.appendChild(b);
-  });
-  if (tablePeriod.type !== 'all') {
-    const curYear = new Date().getFullYear();
-    const ySel = document.createElement('select');
-    ySel.className = 'period-select';
-    for (let y = curYear; y >= curYear - 5; y--) {
-      const o = document.createElement('option'); o.value = y; o.textContent = y;
-      if (y === tablePeriod.year) o.selected = true;
-      ySel.appendChild(o);
-    }
-    ySel.addEventListener('change', () => { tablePeriod.year = parseInt(ySel.value); tablePeriod.dateFrom = ''; tablePeriod.dateTo = ''; renderTable(); });
-    periodCtrl.appendChild(ySel);
-  }
-  if (tablePeriod.type === 'monthly') {
-    const mSel = document.createElement('select');
-    mSel.className = 'period-select';
-    ['Jan','Feb','Mar','Apr','May','Jun','Jul','Aug','Sep','Oct','Nov','Dec'].forEach((m, i) => {
-      const o = document.createElement('option'); o.value = i+1; o.textContent = m;
-      if (i+1 === tablePeriod.month) o.selected = true;
-      mSel.appendChild(o);
-    });
-    mSel.addEventListener('change', () => { tablePeriod.month = parseInt(mSel.value); tablePeriod.dateFrom = ''; tablePeriod.dateTo = ''; renderTable(); });
-    periodCtrl.appendChild(mSel);
-  }
-  if (tablePeriod.type === 'quarterly') {
-    const qSel = document.createElement('select');
-    qSel.className = 'period-select';
-    ['Q1 (Jan–Mar)','Q2 (Apr–Jun)','Q3 (Jul–Sep)','Q4 (Oct–Dec)'].forEach((q, i) => {
-      const o = document.createElement('option'); o.value = i+1; o.textContent = q;
-      if (i+1 === tablePeriod.quarter) o.selected = true;
-      qSel.appendChild(o);
-    });
-    qSel.addEventListener('change', () => { tablePeriod.quarter = parseInt(qSel.value); tablePeriod.dateFrom = ''; tablePeriod.dateTo = ''; renderTable(); });
-    periodCtrl.appendChild(qSel);
-  }
-  periodRow.appendChild(periodCtrl);
-  toolbar.appendChild(periodRow);
+  // ── Chip row (Date + Branch) ─────────────────────────────
+  const chipRow = buildFilterChips(tablePeriod, usedDetachments, () => renderTableBody());
+  toolbar.appendChild(chipRow);
 
-  // ── Date row ─────────────────────────────────────────────
-  const dateRow = document.createElement('div');
-  dateRow.className = 'pf-row';
-  const dateLbl = document.createElement('span');
-  dateLbl.className = 'pf-row-label';
-  dateLbl.textContent = 'Date:';
-  dateRow.appendChild(dateLbl);
-  const dateCtrl = document.createElement('div');
-  dateCtrl.className = 'pf-row-controls';
-  const drFrom = document.createElement('input');
-  drFrom.type = 'date'; drFrom.className = 'period-date-input'; drFrom.title = 'From date';
-  if (tBounds.min) drFrom.min = tBounds.min;
-  if (tBounds.max) drFrom.max = tBounds.max;
-  if (tablePeriod.dateFrom) drFrom.value = tablePeriod.dateFrom;
-  drFrom.addEventListener('change', () => { tablePeriod.dateFrom = drFrom.value; renderTableBody(); });
-  const drDash = document.createElement('span');
-  drDash.className = 'pf-date-dash'; drDash.textContent = '–';
-  const drTo = document.createElement('input');
-  drTo.type = 'date'; drTo.className = 'period-date-input'; drTo.title = 'To date';
-  if (tBounds.min) drTo.min = tBounds.min;
-  if (tBounds.max) drTo.max = tBounds.max;
-  if (tablePeriod.dateTo) drTo.value = tablePeriod.dateTo;
-  drTo.addEventListener('change', () => { tablePeriod.dateTo = drTo.value; renderTableBody(); });
-  dateCtrl.appendChild(drFrom); dateCtrl.appendChild(drDash); dateCtrl.appendChild(drTo);
-  dateRow.appendChild(dateCtrl);
-  toolbar.appendChild(dateRow);
-
-  // ── Branch row (typeahead filter) ───────────────────────
-  if (usedDetachments.length > 0) {
-    const branchRow = document.createElement('div');
-    branchRow.className = 'pf-row';
-    const branchLbl = document.createElement('span');
-    branchLbl.className = 'pf-row-label';
-    branchLbl.textContent = 'Branch:';
-    branchRow.appendChild(branchLbl);
-    const branchCtrl = document.createElement('div');
-    branchCtrl.className = 'pf-row-controls';
-    branchCtrl.appendChild(makeDetachmentFilterInput(
-      tablePeriod.detachment,
-      usedDetachments,
-      v => { tablePeriod.detachment = v; renderTable(); }
-    ));
-    branchRow.appendChild(branchCtrl);
-    toolbar.appendChild(branchRow);
-  }
-
-  // ── Footer: search + info + reset + actions ───────────────
-  const footer = document.createElement('div');
-  footer.className = 'pf-footer';
-  footer.style.cssText = 'flex-wrap:wrap;gap:6px;';
+  // ── Action row: search + count + reset + pin + add ───────
+  const action = document.createElement('div');
+  action.className = 'filter-action-row';
 
   const searchWrap = document.createElement('div');
   searchWrap.className = 'table-search-wrap';
@@ -1733,31 +1936,31 @@ function renderTable(refocusSearch = false) {
   searchInp.style.width = '100%';
   searchInp.placeholder = 'Search name, detachment, type…';
   searchInp.value = tableSearch;
-  searchInp.addEventListener('input', () => { tableSearch = searchInp.value; renderTable(true); });
+  searchInp.addEventListener('input', () => { tableSearch = searchInp.value; renderTableBody(); updateResetButtonState(); });
   searchWrap.appendChild(searchInp);
-  footer.appendChild(searchWrap);
+  action.appendChild(searchWrap);
 
   const filteredRows = getTableRows();
   const completedCount = records.filter(r => r.fullName && r.fullName.trim()).length;
   const shownText = filteredRows.length === records.length
-    ? `<strong>${records.length}</strong> record${records.length !== 1 ? 's' : ''}`
-    : `<strong>${filteredRows.length}</strong> of <strong>${records.length}</strong>`;
+    ? `<strong>${records.length}</strong> · ${completedCount} completed`
+    : `<strong>${filteredRows.length}</strong> of <strong>${records.length}</strong> · ${completedCount} completed`;
   const infoBadge = document.createElement('span');
   infoBadge.id = 'table-count-badge';
-  infoBadge.className = 'period-count-badge';
+  infoBadge.className = 'records-meta';
   infoBadge.innerHTML = shownText;
-  footer.appendChild(infoBadge);
+  action.appendChild(infoBadge);
 
   if (tableSort.field) {
     const sortBadge = document.createElement('span');
     sortBadge.className = 'filter-active-badge';
     sortBadge.innerHTML = `<span class="material-icons" style="font-size:10px;">sort</span>&nbsp;${escHtml(TABLE_COLUMNS.find(c => c.field === tableSort.field)?.label || tableSort.field)} ${tableSort.dir === 'asc' ? '↑' : '↓'}`;
-    footer.appendChild(sortBadge);
+    action.appendChild(sortBadge);
   }
 
   const resetBtn = document.createElement('button');
-  resetBtn.className = 'btn-table-reset' + (hasFilters ? ' has-filters' : '');
-  resetBtn.innerHTML = '<span class="material-icons">restart_alt</span> Reset';
+  resetBtn.className = 'btn-icon-only btn-reset' + (hasFilters ? ' has-filters' : '');
+  resetBtn.innerHTML = '<span class="material-icons">restart_alt</span>';
   resetBtn.title = 'Clear all filters and sorting';
   resetBtn.addEventListener('click', () => {
     tableSort = { field: null, dir: 'asc' };
@@ -1765,29 +1968,22 @@ function renderTable(refocusSearch = false) {
     tablePeriod = { type: 'all', year: new Date().getFullYear(), month: new Date().getMonth() + 1, quarter: Math.ceil((new Date().getMonth() + 1) / 3), detachment: '', dateFrom: '', dateTo: '' };
     renderTable();
   });
-  footer.appendChild(resetBtn);
+  action.appendChild(resetBtn);
 
   const stickyBtn = document.createElement('button');
-  stickyBtn.className = 'btn-sticky-toggle' + (stickyNameCol ? ' pinned' : '');
+  stickyBtn.className = 'btn-icon-only btn-pin' + (stickyNameCol ? ' pinned' : '');
   stickyBtn.innerHTML = `<span class="material-icons">push_pin</span>`;
   stickyBtn.title = stickyNameCol ? 'Unpin Name column' : 'Pin Name column';
   stickyBtn.addEventListener('click', () => { stickyNameCol = !stickyNameCol; renderTable(); });
-  footer.appendChild(stickyBtn);
+  action.appendChild(stickyBtn);
 
   const addBtn = document.createElement('button');
   addBtn.className = 'btn-table-add';
   addBtn.innerHTML = '<span class="material-icons">add</span> New Record';
   addBtn.addEventListener('click', () => { addRecord(); renderTable(); });
-  footer.appendChild(addBtn);
+  action.appendChild(addBtn);
 
-  toolbar.appendChild(footer);
-
-  // ── Info row (desktop hint) ──────────────────────────────
-  const hintRow = document.createElement('div');
-  hintRow.className = 'table-toolbar-row2';
-  hintRow.style.cssText = 'padding:4px 16px;border-top:1px solid #f1f5f9;';
-  hintRow.innerHTML = `<span class="table-toolbar-info"><span class="material-icons">table_view</span><span><strong>${completedCount}</strong> completed</span><span style="color:#cbd5e1;">·</span><span style="color:#94a3b8;font-size:11.5px;">Click cell to edit · Click header to sort</span></span>`;
-  toolbar.appendChild(hintRow);
+  toolbar.appendChild(action);
 
   // Restore search focus after re-render (prevents losing cursor on keystroke)
   if (refocusSearch) {
@@ -1809,6 +2005,7 @@ function renderTableBody() {
       ? `<strong>${records.length}</strong> record${records.length !== 1 ? 's' : ''}`
       : `<strong>${rows.length}</strong> of <strong>${records.length}</strong>`;
   }
+  updateResetButtonState();
 
   content.innerHTML = '';
   const table = document.createElement('table');
@@ -2209,149 +2406,40 @@ function getFilteredCompleted() {
 }
 
 function renderPeriodFilter() {
+  closeFilterPopover();
   const bar = document.createElement('div');
   bar.className = 'period-filter-bar';
 
-  // ── Row: Period ──
-  const periodRow = document.createElement('div');
-  periodRow.className = 'pf-row';
-  const periodLabel = document.createElement('span');
-  periodLabel.className = 'pf-row-label';
-  periodLabel.textContent = 'Period:';
-  periodRow.appendChild(periodLabel);
-
-  const periodControls = document.createElement('div');
-  periodControls.className = 'pf-row-controls';
-  [['all','All Time'],['monthly','Monthly'],['quarterly','Quarterly'],['annual','Annual']].forEach(([t, txt]) => {
-    const b = document.createElement('button');
-    b.className = 'period-btn' + (summaryPeriod.type === t ? ' active' : '');
-    b.textContent = txt;
-    b.addEventListener('click', () => { summaryPeriod.type = t; summaryPeriod.dateFrom = ''; summaryPeriod.dateTo = ''; renderSummary(); });
-    periodControls.appendChild(b);
-  });
-  if (summaryPeriod.type !== 'all') {
-    const curYear = new Date().getFullYear();
-    const ySel = document.createElement('select');
-    ySel.className = 'period-select';
-    for (let y = curYear; y >= curYear - 5; y--) {
-      const o = document.createElement('option');
-      o.value = y; o.textContent = y;
-      if (y === summaryPeriod.year) o.selected = true;
-      ySel.appendChild(o);
-    }
-    ySel.addEventListener('change', () => { summaryPeriod.year = parseInt(ySel.value); summaryPeriod.dateFrom = ''; summaryPeriod.dateTo = ''; renderSummary(); });
-    periodControls.appendChild(ySel);
-  }
-  if (summaryPeriod.type === 'monthly') {
-    const mSel = document.createElement('select');
-    mSel.className = 'period-select';
-    ['Jan','Feb','Mar','Apr','May','Jun','Jul','Aug','Sep','Oct','Nov','Dec'].forEach((m, i) => {
-      const o = document.createElement('option');
-      o.value = i+1; o.textContent = m;
-      if (i+1 === summaryPeriod.month) o.selected = true;
-      mSel.appendChild(o);
-    });
-    mSel.addEventListener('change', () => { summaryPeriod.month = parseInt(mSel.value); summaryPeriod.dateFrom = ''; summaryPeriod.dateTo = ''; renderSummary(); });
-    periodControls.appendChild(mSel);
-  }
-  if (summaryPeriod.type === 'quarterly') {
-    const qSel = document.createElement('select');
-    qSel.className = 'period-select';
-    ['Q1 (Jan–Mar)','Q2 (Apr–Jun)','Q3 (Jul–Sep)','Q4 (Oct–Dec)'].forEach((q, i) => {
-      const o = document.createElement('option');
-      o.value = i+1; o.textContent = q;
-      if (i+1 === summaryPeriod.quarter) o.selected = true;
-      qSel.appendChild(o);
-    });
-    qSel.addEventListener('change', () => { summaryPeriod.quarter = parseInt(qSel.value); summaryPeriod.dateFrom = ''; summaryPeriod.dateTo = ''; renderSummary(); });
-    periodControls.appendChild(qSel);
-  }
-  periodRow.appendChild(periodControls);
-  bar.appendChild(periodRow);
-
-  // ── Row: Date Range ──
-  const dateRow = document.createElement('div');
-  dateRow.className = 'pf-row';
-  const dateLabel = document.createElement('span');
-  dateLabel.className = 'pf-row-label';
-  dateLabel.textContent = 'Date:';
-  dateRow.appendChild(dateLabel);
-
-  const dateControls = document.createElement('div');
-  dateControls.className = 'pf-row-controls';
-  const bounds = getPeriodBounds(summaryPeriod);
-  const drFrom = document.createElement('input');
-  drFrom.type = 'date';
-  drFrom.className = 'period-date-input';
-  drFrom.title = 'From date';
-  if (bounds.min) drFrom.min = bounds.min;
-  if (bounds.max) drFrom.max = bounds.max;
-  if (summaryPeriod.dateFrom) drFrom.value = summaryPeriod.dateFrom;
-  drFrom.addEventListener('change', () => { summaryPeriod.dateFrom = drFrom.value; renderSummaryCharts(); });
-  const drDash = document.createElement('span');
-  drDash.className = 'pf-date-dash';
-  drDash.textContent = '–';
-  const drTo = document.createElement('input');
-  drTo.type = 'date';
-  drTo.className = 'period-date-input';
-  drTo.title = 'To date';
-  if (bounds.min) drTo.min = bounds.min;
-  if (bounds.max) drTo.max = bounds.max;
-  if (summaryPeriod.dateTo) drTo.value = summaryPeriod.dateTo;
-  drTo.addEventListener('change', () => { summaryPeriod.dateTo = drTo.value; renderSummaryCharts(); });
-  dateControls.appendChild(drFrom);
-  dateControls.appendChild(drDash);
-  dateControls.appendChild(drTo);
-  dateRow.appendChild(dateControls);
-  bar.appendChild(dateRow);
-
-  // ── Row: Branch ──
+  // ── Chip row (Date + Branch) ─────────────────────────────
   const usedDetachments = [...new Set(
     records.filter(r => r.fullName && r.fullName.trim() && r.detachment).map(r => r.detachment)
   )].sort();
-  if (usedDetachments.length > 0) {
-    const branchRow = document.createElement('div');
-    branchRow.className = 'pf-row';
-    const branchLabel = document.createElement('span');
-    branchLabel.className = 'pf-row-label';
-    branchLabel.textContent = 'Branch:';
-    branchRow.appendChild(branchLabel);
-    const branchControls = document.createElement('div');
-    branchControls.className = 'pf-row-controls';
-    branchControls.appendChild(makeDetachmentFilterInput(
-      summaryPeriod.detachment,
-      usedDetachments,
-      v => { summaryPeriod.detachment = v; renderSummary(); }
-    ));
-    branchRow.appendChild(branchControls);
-    bar.appendChild(branchRow);
-  }
+  const chipRow = buildFilterChips(summaryPeriod, usedDetachments, () => renderSummaryCharts());
+  bar.appendChild(chipRow);
 
-  // ── Footer: count badge + reset ──
-  const footer = document.createElement('div');
-  footer.className = 'pf-footer';
+  // ── Action row: count + reset ────────────────────────────
+  const action = document.createElement('div');
+  action.className = 'filter-action-row';
 
   const filtered = getFilteredCompleted();
   const badge = document.createElement('span');
   badge.id = 'summary-count-badge';
-  badge.className = 'period-count-badge';
-  badge.style.marginLeft = '0';
-  badge.textContent = `${filtered.length} record${filtered.length !== 1 ? 's' : ''}`;
-  footer.appendChild(badge);
+  badge.className = 'records-meta';
+  badge.innerHTML = `<strong>${filtered.length}</strong> record${filtered.length !== 1 ? 's' : ''}`;
+  action.appendChild(badge);
 
   const hasFilters = summaryPeriod.type !== 'all' || summaryPeriod.detachment || summaryPeriod.dateFrom || summaryPeriod.dateTo;
   const resetBtn = document.createElement('button');
-  resetBtn.className = 'btn-table-reset' + (hasFilters ? ' has-filters' : '');
-  resetBtn.innerHTML = '<span class="material-icons">restart_alt</span> Reset';
+  resetBtn.className = 'btn-icon-only btn-reset' + (hasFilters ? ' has-filters' : '');
+  resetBtn.innerHTML = '<span class="material-icons">restart_alt</span>';
   resetBtn.title = 'Clear all filters';
-  resetBtn.style.marginLeft = 'auto';
   resetBtn.addEventListener('click', () => {
     summaryPeriod = { type: 'all', year: new Date().getFullYear(), month: new Date().getMonth() + 1, quarter: Math.ceil((new Date().getMonth() + 1) / 3), detachment: '', dateFrom: '', dateTo: '' };
     renderSummary();
   });
-  footer.appendChild(resetBtn);
+  action.appendChild(resetBtn);
 
-  bar.appendChild(footer);
+  bar.appendChild(action);
   return bar;
 }
 
@@ -2369,7 +2457,8 @@ function renderSummaryCharts() {
 
   // Update count badge in filter toolbar if it exists
   const badge = document.getElementById('summary-count-badge');
-  if (badge) badge.textContent = `${completed.length} record${completed.length !== 1 ? 's' : ''}`;
+  if (badge) badge.innerHTML = `<strong>${completed.length}</strong> record${completed.length !== 1 ? 's' : ''}`;
+  updateResetButtonState();
 
   chartsDiv.appendChild(renderKPIs(completed));
   chartsDiv.appendChild(renderMonthlyTrendChart(completed));
@@ -3946,13 +4035,21 @@ function openSettingsModal() {
             <span>Manage Detachments</span>
           </div>
           <p class="settings-section-desc">Add or remove detachments. Changes sync across all devices.</p>
+          <label class="detachment-field-label" for="detachment-add-input">
+            <span class="material-icons">add_circle_outline</span>
+            <span>Add new</span>
+          </label>
           <form id="detachment-add-form" class="detachment-add-form" autocomplete="off">
-            <input type="text" id="detachment-add-input" placeholder="New detachment name…" required />
+            <input type="text" id="detachment-add-input" placeholder="Type a new detachment name…" required />
             <button type="submit"><span class="material-icons">add</span><span>Add</span></button>
           </form>
+          <label class="detachment-field-label" for="detachment-search-input">
+            <span class="material-icons">manage_search</span>
+            <span>Find existing</span>
+          </label>
           <div class="detachment-search-wrap">
             <span class="material-icons">search</span>
-            <input type="text" id="detachment-search-input" placeholder="Search detachments…" autocomplete="off" />
+            <input type="text" id="detachment-search-input" placeholder="Search the list below…" autocomplete="off" />
           </div>
           <div id="detachment-manager-list" class="detachment-list"></div>
         </section>

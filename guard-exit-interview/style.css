@@ -973,22 +973,26 @@ body {
   pointer-events: none;
 }
 .table-search {
-  height: 28px;
-  padding: 0 10px 0 28px;
-  border: 1.5px solid #e2e8f0;
-  border-radius: 6px;
+  height: 32px;
+  padding: 0 10px 0 30px;
+  border: 1px solid #e2e8f0;
+  border-radius: 8px;
   font-family: 'Inter', sans-serif;
-  font-size: 12px;
-  color: #374151;
-  background: #f8fafc;
+  font-size: 13px;
+  color: #0f172a;
+  background: #fff;
   outline: none;
   width: 200px;
   transition: border-color 0.15s, box-shadow 0.15s;
 }
+.table-search::placeholder { color: #94a3b8; }
 .table-search:focus {
-  border-color: #3b82f6;
-  box-shadow: 0 0 0 2px rgba(59,130,246,0.1);
-  background: #fff;
+  border-color: #93c5fd;
+  box-shadow: 0 0 0 3px rgba(59,130,246,0.12);
+}
+body[data-company="moriah"] .table-search:focus {
+  border-color: #c4b5fd;
+  box-shadow: 0 0 0 3px rgba(124,58,237,0.12);
 }
 
 /* Sortable column headers */
@@ -1613,6 +1617,249 @@ body.readonly-mode #readonly-banner { display: flex; }
   #readonly-banner { font-size: 11px; padding: 3px 8px; }
 }
 
+/* ===== FILTER CHIPS ===== */
+.filter-chip-row {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 8px;
+  align-items: center;
+  padding: 10px 16px;
+  border-bottom: 1px solid #f1f5f9;
+  background: #fff;
+}
+.filter-chip {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  padding: 6px 10px 6px 12px;
+  border-radius: 999px;
+  border: 1.5px solid #e2e8f0;
+  background: #fff;
+  color: #475569;
+  font-family: 'Inter', sans-serif;
+  font-size: 13px;
+  font-weight: 500;
+  cursor: pointer;
+  transition: background 0.12s, border-color 0.12s, color 0.12s, box-shadow 0.12s;
+  user-select: none;
+  max-width: 100%;
+}
+.filter-chip:hover {
+  border-color: #cbd5e1;
+  background: #f8fafc;
+}
+.filter-chip.filter-chip-open {
+  border-color: #3b82f6;
+  box-shadow: 0 0 0 3px rgba(59, 130, 246, 0.12);
+}
+.filter-chip.filter-chip-active {
+  background: #2563eb;
+  border-color: #2563eb;
+  color: #fff;
+  font-weight: 600;
+}
+.filter-chip.filter-chip-active:hover {
+  background: #1d4ed8;
+  border-color: #1d4ed8;
+}
+.filter-chip .chip-icon {
+  font-size: 16px;
+  color: #94a3b8;
+}
+.filter-chip.filter-chip-active .chip-icon {
+  color: rgba(255,255,255,0.85);
+}
+.filter-chip .chip-label {
+  font-weight: 600;
+  font-size: 12.5px;
+  letter-spacing: 0.01em;
+  opacity: 0.85;
+}
+.filter-chip .chip-value {
+  font-weight: 600;
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  max-width: 200px;
+}
+.filter-chip .chip-arrow {
+  font-size: 18px;
+  margin-left: -2px;
+  margin-right: -4px;
+  opacity: 0.7;
+}
+.filter-chip.filter-chip-active .chip-arrow {
+  display: none;
+}
+.filter-chip .chip-clear {
+  font-size: 16px;
+  margin-left: 2px;
+  margin-right: -4px;
+  padding: 2px;
+  border-radius: 50%;
+  transition: background 0.12s;
+}
+.filter-chip .chip-clear:hover {
+  background: rgba(255,255,255,0.20);
+}
+
+/* Moriah purple variant for active chip */
+body[data-company="moriah"] .filter-chip.filter-chip-active {
+  background: #7c3aed;
+  border-color: #7c3aed;
+}
+body[data-company="moriah"] .filter-chip.filter-chip-active:hover {
+  background: #6d28d9;
+  border-color: #6d28d9;
+}
+body[data-company="moriah"] .filter-chip.filter-chip-open {
+  border-color: #7c3aed;
+  box-shadow: 0 0 0 3px rgba(124, 58, 237, 0.12);
+}
+
+/* ===== FILTER POPOVER ===== */
+.filter-popover {
+  position: fixed;
+  z-index: 240;
+  background: #fff;
+  border: 1px solid #e2e8f0;
+  border-radius: 10px;
+  box-shadow: 0 12px 40px rgba(15, 23, 42, 0.18);
+  padding: 10px;
+  min-width: 220px;
+  max-width: min(420px, 92vw);
+  animation: filter-popover-in 0.14s cubic-bezier(0.4,0,0.2,1);
+}
+@keyframes filter-popover-in {
+  from { opacity: 0; transform: translateY(-4px); }
+  to { opacity: 1; transform: translateY(0); }
+}
+.filter-popover-content {
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+}
+.pp-tabs {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 4px;
+}
+.pp-tabs .period-btn {
+  flex: 0 0 auto;
+}
+.pp-ctrl-row {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: 6px;
+  padding-top: 4px;
+  border-top: 1px solid #f1f5f9;
+}
+.pp-ctrl-row .period-select,
+.pp-ctrl-row .period-date-input {
+  font-size: 13px;
+}
+.branch-popover-input {
+  width: 100%;
+  min-width: 240px;
+  padding: 8px 10px !important;
+  font-size: 13.5px !important;
+}
+.branch-popover-input:focus {
+  outline: none;
+  border-color: #3b82f6;
+  box-shadow: 0 0 0 3px rgba(59, 130, 246, 0.12);
+}
+
+/* ===== ACTION ROW (table + summary toolbars) ===== */
+.filter-action-row {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  padding: 8px 16px;
+  flex-wrap: wrap;
+  background: #fff;
+  border-top: 1px solid #f1f5f9;
+}
+.filter-action-row .btn-table-reset { margin-left: auto; }
+
+/* Records meta — small gray text replacing the old blue pill */
+.records-meta {
+  font-size: 12px;
+  color: #64748b;
+  font-weight: 500;
+  white-space: nowrap;
+}
+.records-meta strong {
+  color: #0f172a;
+  font-weight: 700;
+}
+
+/* Icon-only buttons (Reset + Pin) — uniform circular ghost style */
+.btn-icon-only {
+  width: 32px;
+  height: 32px;
+  border-radius: 8px;
+  border: 1px solid #e2e8f0;
+  background: #fff;
+  color: #64748b;
+  cursor: pointer;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  padding: 0;
+  flex-shrink: 0;
+  transition: background 0.12s, border-color 0.12s, color 0.12s;
+}
+.btn-icon-only:hover {
+  border-color: #cbd5e1;
+  background: #f8fafc;
+  color: #334155;
+}
+.btn-icon-only .material-icons { font-size: 16px; }
+
+/* Reset has orange tint when filters are active */
+.btn-reset.has-filters {
+  border-color: #fed7aa;
+  background: #fff7ed;
+  color: #ea580c;
+}
+.btn-reset.has-filters:hover {
+  border-color: #fdba74;
+  background: #ffedd5;
+  color: #c2410c;
+}
+
+/* Pin shows blue tint only when actually pinned */
+.btn-pin.pinned {
+  border-color: #93c5fd;
+  background: #eff6ff;
+  color: #2563eb;
+}
+body[data-company="moriah"] .btn-pin.pinned {
+  border-color: #c4b5fd;
+  background: #f5f3ff;
+  color: #7c3aed;
+}
+
+/* Mobile: chips stay legible, popover full-width */
+@media (max-width: 767px) {
+  .filter-chip-row {
+    padding: 8px 10px;
+    gap: 6px;
+  }
+  .filter-chip { font-size: 12.5px; padding: 6px 9px 6px 10px; }
+  .filter-chip .chip-value { max-width: 140px; }
+  .filter-popover {
+    left: 8px !important;
+    right: 8px;
+    width: calc(100vw - 16px);
+    max-width: none;
+  }
+  .branch-popover-input { min-width: 0; }
+  .filter-action-row .reset-text { display: none; }
+}
+
 /* ===== SETTINGS BUTTON (header) ===== */
 .header-settings-btn {
   background: rgba(255,255,255,0.10);
@@ -1717,6 +1964,29 @@ body[data-company="moriah"] .settings-section-title .material-icons { color: #6d
 }
 
 /* ===== DETACHMENT MANAGER ===== */
+.detachment-field-label {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  font-size: 11.5px;
+  font-weight: 700;
+  color: #475569;
+  text-transform: uppercase;
+  letter-spacing: 0.04em;
+  margin-bottom: 6px;
+}
+.detachment-field-label .material-icons {
+  font-size: 14px;
+  color: #64748b;
+}
+.detachment-field-label + .detachment-add-form,
+.detachment-field-label + .detachment-search-wrap {
+  margin-top: 0;
+}
+/* Spacer between the two labeled groups */
+.detachment-add-form + .detachment-field-label {
+  margin-top: 14px;
+}
 .detachment-add-form {
   display: flex;
   gap: 8px;
