@@ -80,6 +80,8 @@ let activeSearch = "";
 let activeSort = { key: "timein", dir: "desc" }; // key: "name"|"timein"|"duration"
 let compSort = { key: "timein", dir: "desc" }; // key: "name"|"segment"|"comms"|"timein"|"timeout"|"duration"
 let commsView = "grid"; // "grid" | "compact" | "list"
+let commsAmFilter = "all"; // "all" | "9AM" | "12NN"
+let commsPmFilter = "all"; // "all" | "3PM" | "6PM"
 let activeCommsMap = {};
 
 // All comms codes with their default assignment (role name)
@@ -857,14 +859,25 @@ function renderCommsView(map) {
       : "comms-view-btn w-7 h-7 rounded-md flex items-center justify-center transition text-neutral-500 hover:text-white hover:bg-neutral-800";
   });
 
-  // Split active comms into AM (9AM/12NN) and PM (3PM/6PM) batches
-  // Built from allLogs directly so same commsId can appear in both batches (different services)
+  // Build per-batch maps: two passes so pending time-in is handled separately from confirmed active
+  function matchesAM(svcs) {
+    return commsAmFilter === "all"
+      ? svcs.some(s => s === "9AM" || s === "12NN")
+      : svcs.includes(commsAmFilter);
+  }
+  function matchesPM(svcs) {
+    return commsPmFilter === "all"
+      ? svcs.some(s => s === "3PM" || s === "6PM")
+      : svcs.includes(commsPmFilter);
+  }
+
   const amMap = {}, pmMap = {}, amQueueMap = {}, pmQueueMap = {};
+
+  // Pass 1: confirmed active only (status null or "pending-out")
   Object.entries(allLogs).forEach(([key, log]) => {
-    if (log.timeOut) return;
+    if (log.timeOut || log.status === "pending") return;
     const svcs = log.services || [];
-    const isAM = svcs.some(s => s === "9AM" || s === "12NN");
-    const isPM = svcs.some(s => s === "3PM" || s === "6PM");
+    const isAM = matchesAM(svcs), isPM = matchesPM(svcs);
     if (log.commsId && log.commsId !== "NONE") {
       if (isAM) amMap[log.commsId] = { ...log, key };
       if (isPM) pmMap[log.commsId] = { ...log, key };
@@ -875,17 +888,65 @@ function renderCommsView(map) {
     }
   });
 
-  function batchHeader(label, count, colorClass) {
-    return `<div class="flex items-center gap-2 px-4 pt-3 pb-1.5">
+  // Pass 2: pending time-in — slot taken → queue; slot free → map with _isPending flag
+  Object.entries(allLogs).forEach(([key, log]) => {
+    if (log.timeOut || log.status !== "pending") return;
+    const svcs = log.services || [];
+    const isAM = matchesAM(svcs), isPM = matchesPM(svcs);
+    if (log.commsId && log.commsId !== "NONE") {
+      if (isAM) {
+        if (amMap[log.commsId]) { if (!amQueueMap[log.commsId]) amQueueMap[log.commsId] = { ...log, key }; }
+        else { amMap[log.commsId] = { ...log, key, _isPending: true }; }
+      }
+      if (isPM) {
+        if (pmMap[log.commsId]) { if (!pmQueueMap[log.commsId]) pmQueueMap[log.commsId] = { ...log, key }; }
+        else { pmMap[log.commsId] = { ...log, key, _isPending: true }; }
+      }
+    }
+    if (log.pendingCommsId) {
+      if (isAM && !amQueueMap[log.pendingCommsId]) amQueueMap[log.pendingCommsId] = { ...log, key };
+      if (isPM && !pmQueueMap[log.pendingCommsId]) pmQueueMap[log.pendingCommsId] = { ...log, key };
+    }
+  });
+
+  function filterPill(label, currentFilter, batchKey, value, colorActive, colorInactive) {
+    const isActive = currentFilter === value;
+    return `<button class="comms-batch-filter text-[9px] px-1.5 py-0.5 rounded-full font-semibold transition ${isActive ? colorActive : colorInactive}" data-batch="${batchKey}" data-value="${value}">${label}</button>`;
+  }
+
+  function batchHeader(label, count, colorClass, batchKey, filterOpts) {
+    const pills = filterOpts.map(f => filterPill(f.label, f.current, batchKey, f.value, f.colorActive, f.colorInactive)).join("");
+    return `<div class="flex items-center gap-2 px-4 pt-3 pb-1.5 flex-wrap">
       <span class="text-[10px] font-bold uppercase tracking-widest ${colorClass}">${label}</span>
       <span class="text-[10px] text-neutral-600 font-mono">${count}/${allComms.length} in use</span>
+      <div class="flex items-center gap-1 ml-auto">${pills}</div>
     </div>`;
   }
+
+  const amOpts = [
+    { label: "All", value: "all", current: commsAmFilter, colorActive: "bg-sky-500 text-white", colorInactive: "text-neutral-500 hover:text-sky-400" },
+    { label: "9AM", value: "9AM", current: commsAmFilter, colorActive: "bg-sky-500 text-white", colorInactive: "text-neutral-500 hover:text-sky-400" },
+    { label: "12NN", value: "12NN", current: commsAmFilter, colorActive: "bg-sky-500 text-white", colorInactive: "text-neutral-500 hover:text-sky-400" },
+  ];
+  const pmOpts = [
+    { label: "All", value: "all", current: commsPmFilter, colorActive: "bg-violet-500 text-white", colorInactive: "text-neutral-500 hover:text-violet-400" },
+    { label: "3PM", value: "3PM", current: commsPmFilter, colorActive: "bg-violet-500 text-white", colorInactive: "text-neutral-500 hover:text-violet-400" },
+    { label: "6PM", value: "6PM", current: commsPmFilter, colorActive: "bg-violet-500 text-white", colorInactive: "text-neutral-500 hover:text-violet-400" },
+  ];
 
   function gridCell(c, batchMap, queueMap) {
     const active = batchMap[c.code];
     const queued = queueMap[c.code];
     if (active) {
+      if (active._isPending) {
+        const displayName = volunteerNicknameMap[active.volunteerId] || (active.name || "").split(" ")[0];
+        return `<div class="rounded-lg border border-amber-500/40 bg-amber-500/5 p-2 flex flex-col items-center gap-1 min-w-0">
+          <span class="font-mono font-black text-amber-400 text-base leading-none">${c.code}</span>
+          <span class="text-[9px] text-neutral-500 text-center leading-tight truncate w-full">${c.assignment}</span>
+          <span class="text-[10px] font-semibold text-amber-300 text-center leading-tight truncate w-full">${displayName}</span>
+          <span class="text-[9px] text-amber-600 font-mono">pending</span>
+        </div>`;
+      }
       const since = active.timeIn ? calcDuration({ timeIn: active.timeIn }) : "—";
       const displayName = volunteerNicknameMap[active.volunteerId] || (active.name || "").split(" ")[0];
       const queuedName = queued ? (volunteerNicknameMap[queued.volunteerId] || (queued.name || "").split(" ")[0]) : null;
@@ -919,6 +980,14 @@ function renderCommsView(map) {
     const active = batchMap[c.code];
     const queued = queueMap[c.code];
     if (active) {
+      if (active._isPending) {
+        const displayName = volunteerNicknameMap[active.volunteerId] || (active.name || "").split(" ")[0];
+        return `<div class="rounded-md bg-amber-500/10 border border-amber-500/30 px-1.5 py-1.5 flex flex-col items-center gap-0.5 min-w-0">
+          <span class="font-mono font-black text-amber-400 text-xs leading-none">${c.code}</span>
+          <span class="text-[8px] text-amber-400 truncate w-full text-center leading-tight">${displayName}</span>
+          <span class="text-[7px] text-amber-700 font-mono">pending</span>
+        </div>`;
+      }
       const displayName = volunteerNicknameMap[active.volunteerId] || (active.name || "").split(" ")[0];
       const queuedName = queued ? (volunteerNicknameMap[queued.volunteerId] || (queued.name || "").split(" ")[0]) : null;
       return `<div class="rounded-md bg-green-500/10 border border-green-500/30 px-1.5 py-1.5 flex flex-col items-center gap-0.5 min-w-0">
@@ -944,6 +1013,16 @@ function renderCommsView(map) {
     const active = batchMap[c.code];
     const queued = queueMap[c.code];
     if (active) {
+      if (active._isPending) {
+        return `<tr class="hover:bg-neutral-800 transition duration-150 border-b border-neutral-800/50 opacity-75">
+          <td class="px-4 py-2"><span class="material-icons-round text-amber-500" style="font-size:9px">pending</span></td>
+          <td class="px-4 py-2"><span class="font-mono font-bold text-amber-400 text-xs">${c.code}</span></td>
+          <td class="px-4 py-2 text-neutral-400 text-xs">${c.assignment}</td>
+          <td class="px-4 py-2 text-xs"><span class="font-semibold text-amber-300">${active.name || "—"}</span><br/><span class="text-neutral-500">${active.role || ""}</span></td>
+          <td class="px-4 py-2 text-amber-700 text-xs font-mono">pending</td>
+          <td class="px-4 py-2"></td>
+        </tr>`;
+      }
       const since = active.timeIn ? calcDuration({ timeIn: active.timeIn }) : "—";
       const queuedName = queued ? (volunteerNicknameMap[queued.volunteerId] || (queued.name || "").split(" ")[0]) : null;
       return `<tr class="hover:bg-neutral-800 transition duration-150 border-b border-neutral-800/50">
@@ -975,6 +1054,17 @@ function renderCommsView(map) {
     </tr>`;
   }
 
+  function wireFilterBtns() {
+    content.querySelectorAll(".comms-batch-filter").forEach(btn => {
+      btn.addEventListener("click", () => {
+        const { batch, value } = btn.dataset;
+        if (batch === "am") commsAmFilter = value;
+        else if (batch === "pm") commsPmFilter = value;
+        renderCommsView(activeCommsMap);
+      });
+    });
+  }
+
   const divider = `<div class="border-t border-neutral-800/60 mx-2"></div>`;
   const listThead = `<thead><tr class="text-neutral-500 text-xs uppercase tracking-wider border-b border-neutral-800">
     <th class="px-4 py-2 text-left font-semibold w-6"></th>
@@ -987,27 +1077,30 @@ function renderCommsView(map) {
 
   if (commsView === "grid") {
     content.innerHTML =
-      batchHeader("AM Batch · 9AM & 12NN", Object.keys(amMap).length, "text-sky-400") +
+      batchHeader("AM Batch · 9AM & 12NN", Object.keys(amMap).length, "text-sky-400", "am", amOpts) +
       `<div class="px-4 pb-3 grid grid-cols-8 gap-2">${allComms.map(c => gridCell(c, amMap, amQueueMap)).join("")}</div>` +
       divider +
-      batchHeader("PM Batch · 3PM & 6PM", Object.keys(pmMap).length, "text-violet-400") +
+      batchHeader("PM Batch · 3PM & 6PM", Object.keys(pmMap).length, "text-violet-400", "pm", pmOpts) +
       `<div class="px-4 pb-3 grid grid-cols-8 gap-2">${allComms.map(c => gridCell(c, pmMap, pmQueueMap)).join("")}</div>`;
+    wireFilterBtns();
 
   } else if (commsView === "compact") {
     content.innerHTML =
-      batchHeader("AM Batch · 9AM & 12NN", Object.keys(amMap).length, "text-sky-400") +
+      batchHeader("AM Batch · 9AM & 12NN", Object.keys(amMap).length, "text-sky-400", "am", amOpts) +
       `<div class="px-3 pb-3 grid grid-cols-8 gap-1.5">${allComms.map(c => compactCell(c, amMap, amQueueMap)).join("")}</div>` +
       divider +
-      batchHeader("PM Batch · 3PM & 6PM", Object.keys(pmMap).length, "text-violet-400") +
+      batchHeader("PM Batch · 3PM & 6PM", Object.keys(pmMap).length, "text-violet-400", "pm", pmOpts) +
       `<div class="px-3 pb-3 grid grid-cols-8 gap-1.5">${allComms.map(c => compactCell(c, pmMap, pmQueueMap)).join("")}</div>`;
+    wireFilterBtns();
 
   } else {
     content.innerHTML =
-      batchHeader("AM Batch · 9AM & 12NN", Object.keys(amMap).length, "text-sky-400") +
+      batchHeader("AM Batch · 9AM & 12NN", Object.keys(amMap).length, "text-sky-400", "am", amOpts) +
       `<table class="w-full text-sm">${listThead}<tbody>${allComms.map(c => listRow(c, amMap, amQueueMap)).join("")}</tbody></table>` +
       divider +
-      batchHeader("PM Batch · 3PM & 6PM", Object.keys(pmMap).length, "text-violet-400") +
+      batchHeader("PM Batch · 3PM & 6PM", Object.keys(pmMap).length, "text-violet-400", "pm", pmOpts) +
       `<table class="w-full text-sm">${listThead}<tbody>${allComms.map(c => listRow(c, pmMap, pmQueueMap)).join("")}</tbody></table>`;
+    wireFilterBtns();
 
     content.querySelectorAll(".comms-history-btn").forEach((btn) => {
       btn.addEventListener("click", () => showCommsHistory(btn.dataset.comms));
