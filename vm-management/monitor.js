@@ -626,6 +626,21 @@ function renderTable() {
   document.getElementById("active-table-count").textContent = activeEntries.length ? `(${activeEntries.length})` : "";
   document.getElementById("no-active-message").classList.toggle("hidden", displayedActiveEntries.length > 0);
 
+  // Queue position info for each log key: pos and total for its commsId
+  const keyToQueueInfo = {};
+  {
+    const byCodeQ = {};
+    Object.entries(allLogs).forEach(([key, log]) => {
+      if (log.timeOut || !log.commsId || log.commsId === "NONE") return;
+      if (!byCodeQ[log.commsId]) byCodeQ[log.commsId] = [];
+      byCodeQ[log.commsId].push({ key, timeIn: log.timeIn });
+    });
+    Object.values(byCodeQ).forEach(group => {
+      group.sort((a, b) => (a.timeIn || "").localeCompare(b.timeIn || ""));
+      group.forEach((item, i) => { keyToQueueInfo[item.key] = { pos: i + 1, total: group.length }; });
+    });
+  }
+
   displayedActiveEntries.forEach((log) => {
     const row = document.createElement("tr");
     row.className = "hover:bg-neutral-800 transition duration-150";
@@ -643,10 +658,14 @@ function renderTable() {
     const commsBtn = log.commsId && log.commsId !== "NONE"
       ? `<button class="change-comms-btn group font-mono font-bold text-white bg-neutral-800 hover:bg-neutral-700 px-2 py-0.5 rounded text-xs transition flex items-center gap-1" data-key="${log.key}" data-comms="${log.commsId}" data-name="${log.name || ""}" data-volunteer="${log.volunteerId || ""}">${log.commsId}<span class="material-icons-round text-neutral-600 group-hover:text-neutral-300 transition" style="font-size:10px">edit</span></button>`
       : `<button class="change-comms-btn group text-neutral-600 hover:text-white transition flex items-center gap-1 text-xs" data-key="${log.key}" data-comms="" data-name="${log.name || ""}" data-volunteer="${log.volunteerId || ""}"><span>—</span><span class="material-icons-round text-neutral-700 group-hover:text-neutral-400 transition" style="font-size:10px">edit</span></button>`;
+    const qi = keyToQueueInfo[log.key];
+    const queuePosBadge = qi && qi.total > 1
+      ? `<div class="text-[9px] font-semibold font-mono mt-0.5 ${qi.pos === 1 ? "text-green-500" : "text-amber-400"}">${qi.pos === 1 ? "Active" : "Pending"} · ${qi.pos} of ${qi.total}</div>`
+      : "";
     const queueBadge = log.pendingCommsId
       ? `<div class="flex items-center gap-0.5 mt-0.5 text-[9px] font-semibold text-amber-400"><span class="material-icons-round" style="font-size:9px">hourglass_top</span><span>queued: ${log.pendingCommsId}</span></div>`
       : "";
-    commsTd.innerHTML = `<div>${commsBtn}${queueBadge}</div>`;
+    commsTd.innerHTML = `<div>${commsBtn}${queuePosBadge}${queueBadge}</div>`;
     row.appendChild(commsTd);
 
     row.appendChild(
@@ -880,7 +899,12 @@ function renderCommsView(map) {
   });
   Object.values(byCode).forEach(group => {
     group.sort((a, b) => (a.timeIn || "").localeCompare(b.timeIn || ""));
-    for (let i = 1; i < group.length; i++) group[i]._isPending = true;
+    const total = group.length;
+    group.forEach((log, i) => {
+      log._queuePos = i + 1;
+      log._queueTotal = total;
+      if (i > 0) log._isPending = true;
+    });
   });
 
   // Distribute into batch maps — first per batch (earliest timeIn) wins
@@ -933,21 +957,26 @@ function renderCommsView(map) {
     if (active) {
       if (active._isPending) {
         const displayName = volunteerNicknameMap[active.volunteerId] || (active.name || "").split(" ")[0];
+        const pPos = active._queuePos || 2;
+        const pTotal = active._queueTotal || 2;
         return `<div class="rounded-lg border border-amber-500/40 bg-amber-500/5 p-2 flex flex-col items-center gap-1 min-w-0">
           <span class="font-mono font-black text-amber-400 text-base leading-none">${c.code}</span>
           <span class="text-[9px] text-neutral-500 text-center leading-tight truncate w-full">${c.assignment}</span>
           <span class="text-[10px] font-semibold text-amber-300 text-center leading-tight truncate w-full">${displayName}</span>
-          <span class="text-[9px] text-amber-600 font-mono">pending</span>
+          <span class="text-[8px] font-bold text-amber-500 font-mono bg-amber-500/10 px-1.5 py-0.5 rounded-full">#${pPos} of ${pTotal}</span>
         </div>`;
       }
       const since = active.timeIn ? calcDuration({ timeIn: active.timeIn }) : "—";
       const displayName = volunteerNicknameMap[active.volunteerId] || (active.name || "").split(" ")[0];
       const queuedName = queued ? (volunteerNicknameMap[queued.volunteerId] || (queued.name || "").split(" ")[0]) : null;
+      const qTotal = active._queueTotal || 1;
+      const posBadge = qTotal > 1 ? `<span class="text-[8px] font-bold text-green-500 font-mono bg-green-500/10 px-1.5 py-0.5 rounded-full">#1 of ${qTotal}</span>` : "";
       return `<div class="rounded-lg border border-green-500/40 bg-green-500/5 p-2 flex flex-col items-center gap-1 min-w-0">
         <span class="font-mono font-black text-green-400 text-base leading-none">${c.code}</span>
         <span class="text-[9px] text-neutral-500 text-center leading-tight truncate w-full">${c.assignment}</span>
         <span class="text-[10px] font-semibold text-white text-center leading-tight truncate w-full">${displayName}</span>
         <span class="text-[9px] text-green-600 font-mono">${since}</span>
+        ${posBadge}
         ${queuedName ? `<span class="text-[8px] text-amber-400 font-semibold flex items-center gap-0.5"><span class="material-icons-round" style="font-size:8px">hourglass_top</span>${queuedName}</span>` : ""}
       </div>`;
     }
@@ -975,17 +1004,22 @@ function renderCommsView(map) {
     if (active) {
       if (active._isPending) {
         const displayName = volunteerNicknameMap[active.volunteerId] || (active.name || "").split(" ")[0];
+        const pPos = active._queuePos || 2;
+        const pTotal = active._queueTotal || 2;
         return `<div class="rounded-md bg-amber-500/10 border border-amber-500/30 px-1.5 py-1.5 flex flex-col items-center gap-0.5 min-w-0">
           <span class="font-mono font-black text-amber-400 text-xs leading-none">${c.code}</span>
           <span class="text-[8px] text-amber-400 truncate w-full text-center leading-tight">${displayName}</span>
-          <span class="text-[7px] text-amber-700 font-mono">pending</span>
+          <span class="text-[7px] font-bold text-amber-500 font-mono">#${pPos}/${pTotal}</span>
         </div>`;
       }
       const displayName = volunteerNicknameMap[active.volunteerId] || (active.name || "").split(" ")[0];
       const queuedName = queued ? (volunteerNicknameMap[queued.volunteerId] || (queued.name || "").split(" ")[0]) : null;
+      const qTotal = active._queueTotal || 1;
+      const posBadge = qTotal > 1 ? `<span class="text-[7px] font-bold text-green-500 font-mono">#1/${qTotal}</span>` : "";
       return `<div class="rounded-md bg-green-500/10 border border-green-500/30 px-1.5 py-1.5 flex flex-col items-center gap-0.5 min-w-0">
         <span class="font-mono font-black text-green-400 text-xs leading-none">${c.code}</span>
         <span class="text-[8px] text-neutral-400 truncate w-full text-center leading-tight">${displayName}</span>
+        ${posBadge}
         ${queuedName ? `<span class="text-[7px] text-amber-400 flex items-center gap-0.5"><span class="material-icons-round" style="font-size:7px">hourglass_top</span>${queuedName}</span>` : ""}
       </div>`;
     }
@@ -1007,9 +1041,11 @@ function renderCommsView(map) {
     const queued = queueMap[c.code];
     if (active) {
       if (active._isPending) {
+        const pPos = active._queuePos || 2;
+        const pTotal = active._queueTotal || 2;
         return `<tr class="hover:bg-neutral-800 transition duration-150 border-b border-neutral-800/50 opacity-75">
           <td class="px-4 py-2"><span class="material-icons-round text-amber-500" style="font-size:9px">pending</span></td>
-          <td class="px-4 py-2"><span class="font-mono font-bold text-amber-400 text-xs">${c.code}</span></td>
+          <td class="px-4 py-2"><span class="font-mono font-bold text-amber-400 text-xs">${c.code}</span><span class="text-[9px] font-bold text-amber-500 font-mono bg-amber-500/10 px-1.5 py-0.5 rounded-full ml-1">#${pPos} of ${pTotal}</span></td>
           <td class="px-4 py-2 text-neutral-400 text-xs">${c.assignment}</td>
           <td class="px-4 py-2 text-xs"><span class="font-semibold text-amber-300">${active.name || "—"}</span><br/><span class="text-neutral-500">${active.role || ""}</span></td>
           <td class="px-4 py-2 text-amber-700 text-xs font-mono">pending</td>
@@ -1018,9 +1054,11 @@ function renderCommsView(map) {
       }
       const since = active.timeIn ? calcDuration({ timeIn: active.timeIn }) : "—";
       const queuedName = queued ? (volunteerNicknameMap[queued.volunteerId] || (queued.name || "").split(" ")[0]) : null;
+      const qTotal = active._queueTotal || 1;
+      const posBadge = qTotal > 1 ? `<span class="text-[9px] font-bold text-green-500 font-mono bg-green-500/10 px-1.5 py-0.5 rounded-full ml-1">#1 of ${qTotal}</span>` : "";
       return `<tr class="hover:bg-neutral-800 transition duration-150 border-b border-neutral-800/50">
         <td class="px-4 py-2"><span class="inline-block w-2 h-2 rounded-full bg-green-400 animate-pulse"></span></td>
-        <td class="px-4 py-2"><button class="comms-history-btn font-mono font-bold text-white bg-neutral-800 hover:bg-neutral-700 px-2 py-0.5 rounded text-xs transition cursor-pointer" data-comms="${c.code}">${c.code}</button></td>
+        <td class="px-4 py-2"><button class="comms-history-btn font-mono font-bold text-white bg-neutral-800 hover:bg-neutral-700 px-2 py-0.5 rounded text-xs transition cursor-pointer" data-comms="${c.code}">${c.code}</button>${posBadge}</td>
         <td class="px-4 py-2 text-neutral-400 text-xs">${c.assignment}</td>
         <td class="px-4 py-2 text-xs"><span class="font-semibold text-white">${active.name || "—"}</span><br/><span class="text-neutral-500">${active.role || ""}</span>${queuedName ? `<br/><span class="text-[9px] text-amber-400 flex items-center gap-0.5 mt-0.5"><span class="material-icons-round" style="font-size:9px">hourglass_top</span>queued: ${queuedName}</span>` : ""}</td>
         <td class="px-4 py-2 font-mono text-green-400 text-xs">${since}</td>
