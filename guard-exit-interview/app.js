@@ -322,546 +322,68 @@ const EDUCATIONAL_ATTAINMENT_OPTIONS = [
   'Others',
 ];
 const LENGTH_OF_SERVICE_OPTIONS = ['','Less than 3 months','3–6 months','6–12 months','1–2 years','2–3 years','More than 3 years'];
-const DETACHMENT_OPTIONS = [
-  '',
-  'ACE HARDWARE - PAVIA',
-  'ACE HARDWARE PHILIPPINES INC (MOLINO)',
-  'ACE HARDWARE PHILS. INC. (Lapu-Lapu)',
-  'ACE HARDWARE PHILS. INC. (Mabolo)',
-  'ACE HARDWARE-SM CITY ILOILO',
-  'ADC - MULTI STORE CORP. (JMall Mandaue)',
-  'ADC - Metro Manila Shopping',
-  'ADC THE SM STORE - CALOOCAN DEPARO',
-  'ADC-Shopping Lane Cebu Corp.',
-  'ASIA PACIFIC COLLEGE',
-  'AUTO VAULT',
-  'Ace Hardware - City Mall Kalibo',
-  'Ace Hardware - Deca Mall',
-  'Ace Hardware - Delgado',
-  'Ace Hardware - Passi',
-  'Ace Hardware - Telabastagan',
-  'Ace Hardware Phils.-Subangdako Mandaue',
-  'Ace Hardware-City Mall Tagbak',
-  'Adidas - Grand Central',
-  'Adidas Shop (Mabolo)',
-  'Adidas Shop (SM Seaside)',
-  'Adidas Shop - SM City Iloilo',
-  'Averon Holdings Inc. (6780 Bldg.)',
-  'BDO - THE PODIUM CARPARK',
-  'BDO - THE PODIUM PERIMETER',
-  'BDO A PLACE-CORAL WAY',
-  'BDO A. ARNAIZ-PASEO',
-  'BDO A. ARNAIZ-SAN LORENZO VILLAGE',
-  'BDO ALFARO SALCEDO VILLAGE',
-  'BDO ASIA TOWER - PASEO',
-  'BDO AUGMENT',
-  'BDO AYALA - RUFINO',
-  'BDO AYALA AVE. PEOPLE SUPPORT',
-  'BDO AYALA AVE. SGV1 BLDG.',
-  'BDO AYALA AVENUE',
-  'BDO AYALA AVENUE 6780',
-  'BDO AYALA TRIANGLE 1',
-  'BDO BACLARAN',
-  'BDO BGC - 9th AVENUE',
-  'BDO BGC - BURGOS CIRCLE',
-  'BDO BGC - CRESCENT PARK WEST',
-  'BDO BGC - ECOTOWER',
-  'BDO BGC - FORT LEGENDS',
-  'BDO BGC - FORT VICTORIA',
-  'BDO BGC - GRAND HAMPTON TOWER',
-  'BDO BGC - INOZA TOWER',
-  'BDO BGC - J.Y CAMPOS CENTER',
-  'BDO BGC - MARKET MARKET',
-  'BDO BGC - ONE MCKINLEY PLACE',
-  'BDO BGC - ONE WORLD PLACE',
-  'BDO BGC - PHIL. STOCK EXCHANGE',
-  'BDO BGC - PICADILLY STAR',
-  'BDO BGC - PIONEER HOUSE',
-  'BDO BGC - SHANGRI-LA',
-  'BDO BGC - SHANGRI-LA 2',
-  'BDO BGC - ST. LUKES',
-  'BDO BGC - THE INFINITY TOWER',
-  'BDO BGC - UNIVERSITY PARKWAY',
-  'BDO BGC - UPTOWN PALAZZO',
-  'BDO BGC - WORLD PLAZA',
-  'BDO BICUTAN - BETTER LIVING',
-  'BDO BICUTAN - BETTER LIVING BICUTAN',
-  'BDO BICUTAN - DONA SOLEDAD AVE. EXT.',
-  'BDO BICUTAN - EAST SERVICE ROAD',
-  'BDO BICUTAN - SM CITY BICUTAN',
-  'BDO BICUTAN - SUN VALLEY',
-  'BDO BICUTAN - WALTERMART',
-  'BDO BICUTAN - WEST SERVICE ROAD',
-  'BDO BUENDIA - TAFT',
-  'BDO CASH & CARRY',
-  'BDO CHINO ROCES - DELA ROSA (One Oculus)',
-  'BDO CHINO ROCES V.A RUFINO',
-  'BDO CORPORATE CENTER MAKATI',
-  'BDO DELA ROSA - GALLARDO',
-  'BDO DELA ROSA - RADA',
-  'BDO DIAN - BUILDING',
-  'BDO DIAN GIL PUYAT',
-  'BDO Dr. A. SANTOS AVE - PUREGOLD EVACOM',
-  'BDO EDSA PASAY',
-  'BDO FIVE E-COM (Releasing Center)',
-  'BDO FIVE E-COM CENTER',
-  'BDO GC CORP. PLAZA - LEGASPI ST.',
-  'BDO GIL PUYAT - FILMORE',
-  'BDO GIL PUYAT - HARRISON',
-  'BDO GIL PUYAT - TAFT',
-  'BDO GREENBELT - PASEO DE ROXAS',
-  'BDO LEGASPI VILLAGE - C. PALANCA',
-  'BDO LEGASPI VILLAGE - GAMBOA',
-  'BDO LEGASPI VILLAGE - SALCEDO ST.',
-  'BDO LEVERIZA - LIBERTAD',
-  'BDO MACAPAGAL BLVD. - MERIDIAN PARK',
-  'BDO MACAPAGAL BLVD. - PEARL DRIVE',
-  'BDO MACAPAGAL BLVD. - W MALL',
-  'BDO MAKATI - DELA ROSA LEGASPI ST',
-  'BDO MAKATI - ESTEBAN',
-  'BDO MAKATI - PASAY ROAD',
-  'BDO MAKATI - SHANGRI-LA',
-  'BDO MAKATI AVENUE - AYALA',
-  'BDO MALL OF ASIA -  CASH HUB',
-  'BDO MALL OF ASIA -  SEA RESIDENCES',
-  'BDO MALL OF ASIA - ARMORED CAR',
-  'BDO MALL OF ASIA - S. MAISON',
-  'BDO MALL OF ASIA - SHELL RESIDENCES',
-  'BDO MALL OF ASIA - SHORE RESIDENCES',
-  'BDO MEDICAL PLAZA - LEGASPI VILLAGE',
-  'BDO MOA CAR DEPOT PASAY',
-  'BDO NAIA-3',
-  'BDO NEWPORT CITY',
-  'BDO NEWPORT CITY - PLAZA 66',
-  'BDO ONE E - COMCENTER',
-  'BDO PARANAQUE - AIRPORT ROAD',
-  'BDO PARANAQUE - ASEANA BUSINESS PARK MONARCH',
-  'BDO PARANAQUE - BACLARAN REDEMPTORIST ROAD',
-  'BDO PARANAQUE - CITY OF DREAMS',
-  'BDO PARANAQUE - LA HUERTA',
-  'BDO PARANAQUE - MACAPAGAL ASEANA 3',
-  'BDO PARANAQUE - MACAPAGAL BLVD. BAY AREA',
-  'BDO PARANAQUE - MOONWALK',
-  'BDO PARANAQUE - MOONWALK E. ROD. AVE.',
-  'BDO PARANAQUE - NAIA 1',
-  'BDO PARANAQUE - NAIA ROAD',
-  'BDO PARANAQUE - OKADA',
-  'BDO PARANAQUE - PASCOR DRIVE',
-  'BDO PARANAQUE - SOLAIRE MANILA RESORT',
-  'BDO PARANAQUE - SOLAIRE THE SHOPPES',
-  'BDO PARANAQUE - STO. NINO',
-  'BDO PASAY',
-  'BDO PASAY - DOMESTIC ROAD',
-  'BDO PASAY - TWO SHOPPING CENTER',
-  'BDO PASIG - PUREGOLD SAN JOAQUIN',
-  'BDO PATEROS - POBLACION',
-  'BDO PEREA PASEO',
-  'BDO RADA - LEGASPI VILLAGE',
-  'BDO RESORTS WORLD MANILA',
-  'BDO RESPONSE TEAM',
-  'BDO ROXAS BLVD. - BREEZE RESIDENCES',
-  'BDO ROXAS BLVD. - RADIANCE MANILA BAY',
-  'BDO SALCEDO - DELA ROSA',
-  'BDO SALCEDO - GAMBOA',
-  'BDO SAMPALOC - G. TUAZON',
-  'BDO SM HYPERMARKET - MAKATI',
-  'BDO SM MAKATI',
-  'BDO SM MALL OF ASIA - A',
-  'BDO SM MALL OF ASIA B',
-  'BDO SM RETAIL HQ Bldg. A',
-  'BDO SM RETAIL HQ Bldg. B',
-  'BDO SUCAT - SM CITY SUCAT A',
-  'BDO SUCAT - SM CITY SUCAT B',
-  'BDO SUCAT - WALTERMART',
-  'BDO TAFT LIBERTAD',
-  'BDO TAGIUG - SM AURA PREMIER',
-  'BDO TAGUIG - BAYANI ROAD',
-  'BDO TAGUIG - D\'ZIGNO TILE COMPANY (ROPA)',
-  'BDO TAGUIG - GRACE RESIDENCES',
-  'BDO TAGUIG - LEVI MARIANO AVENUE',
-  'BDO TAGUIG - MCKINLEY  WEST',
-  'BDO TAGUIG - MCKINLEY HILL',
-  'BDO TAGUIG - ONE PARK DRIVE',
-  'BDO TAGUIG - SM HYPERMARKET - FTI',
-  'BDO TAGUIG - VISTA MALL',
-  'BDO TAGUIG - WAREHOUSE',
-  'BDO THREE E-COM CENTER',
-  'BDO UPTOWN EASTGATE',
-  'BDO V. A RUFINO - SOTTO',
-  'BDO V. A RUFINO - TUSCAN',
-  'BDO V. A RUFINO - VALERO',
-  'BDO VALERO - SALCEDO VILLAGE',
-  'BDO VILLAR - SALCEDO VILLAGE',
-  'BDO WASHINGTON - GIL PUYAT',
-  'BDO-ADRIATICO - STA MONICA',
-  'BDO-BLUMENTRITT-LAONG LAAN',
-  'BDO-CBG OFFICE',
-  'BDO-COAST RESIDENCE R. BLVD',
-  'BDO-DAPITAN ST-A.H. LACSON',
-  'BDO-ESPANA',
-  'BDO-ESPANA BASILIO',
-  'BDO-ESPANA GRAND RESIDENCE',
-  'BDO-ESPANA-BLUMENTRITT',
-  'BDO-ESPANA-M. DELA FUENTE',
-  'BDO-INTRAMUROS',
-  'BDO-KAMAGONG',
-  'BDO-LEON GUINTO SAN ANDRES',
-  'BDO-LEON GUINTO-GEN.MALVAR',
-  'BDO-LUNETA - TM KALAW',
-  'BDO-MABINI-GEN.MALVAR',
-  'BDO-MALATE-ADRIATICO',
-  'BDO-MANILA OTIS',
-  'BDO-OLD STA MESA ALBINA',
-  'BDO-PABLO OCAMPO',
-  'BDO-PACO',
-  'BDO-PACO A. LINAO',
-  'BDO-PACO WAREHOUSE PROPERTY',
-  'BDO-PADRE FAURA MABINI',
-  'BDO-PADRE FAURA MABINI BLDG',
-  'BDO-PEDRO GIL MABINI',
-  'BDO-PEDRO GIL-ADRIATICO',
-  'BDO-PLAZA CALDERON - PEDRO GIL',
-  'BDO-PORT AREA - SOUTH HARBOR',
-  'BDO-QUIRINO PACO',
-  'BDO-ROBINSONS PLACE MANILA',
-  'BDO-ROXAS BLVD ADMIRAL',
-  'BDO-ROXAS BLVD R SALAS',
-  'BDO-SAN ANDRES',
-  'BDO-STA MESA P. SANCHEZ',
-  'BDO-STA MESA THE SILK RES',
-  'BDO-STA MESA V. MAPA',
-  'BDO-STA. ANA - XENTRO MALL',
-  'BDO-TAFT ESTRADA',
-  'BDO-TAFT J. NAKPIL',
-  'BDO-TAFT PEDRO GIL PGH',
-  'BDO-TAFT PRES. QUIRINO',
-  'BDO-TAFT VITO CRUZ',
-  'BDO-TAFT VITO CRUZ BLDG',
-  'BDO-TAFT VITO CRUZ CASH HUB',
-  'BDO-TM KALAW LUNETA BLDG',
-  'BDO-UN AVE J. BOCOBO BLDG',
-  'BDO-UN AVENUE',
-  'BDO-UN AVENUE - J.BOCOBO',
-  'BDO-UN AVENUE-TIMES PLAZA',
-  'BOCU - Ayala Center Cebu',
-  'Block Eighty Eight',
-  'CASAMIA FURNITURE INC.',
-  'CCF - EASTWOOD',
-  'CCF - Mandaue',
-  'CCF- IMUS',
-  'CCF- ROBINSON MANILA',
-  'CCF-BGC',
-  'CCF-Glorieta',
-  'CITI CENTER CONDO. CORPORATION-PASEO',
-  'CITI TOWER CONDOMINIUM-VALERO',
-  'CPU - Admin Back Porch',
-  'CPU - Admin Entrance',
-  'CPU - Butterfly Garden',
-  'CPU - Senior High School',
-  'Central Philippine University',
-  'City Time Square Iloilo',
-  'Colegio De Las Hijas De Jesus',
-  'DC - SM North EDSA (Annex)',
-  'DC - SM North Edsa (Tower)',
-  'DR. PEK ENG LIM RESIDENCE',
-  'Dyson - Manila',
-  'Dyson - SM City Cebu',
-  'Dyson - SM City Seaside',
-  'Dyson Iloilo',
-  'EREMEL FOOD INTERPRISES (Central Bloc)',
-  'EREMEL FOODS INTERPRISE (Kasambagan Cebu City)',
-  'EREMEL FOODS INTERPRISE (Park Mall)',
-  'EREMEL FOODS INTERPRISE (Pueblo Verde)',
-  'FAMILYHEALTH & BEAUTY CORP. -  AYALA MALL',
-  'FAMILYHEALTH & BEAUTY CORP. -  GUAGUA',
-  'FAMILYHEALTH & BEAUTY CORP. -  MAGALANG',
-  'FAMILYHEALTH & BEAUTY CORP. -  PEDRO GIL',
-  'FAMILYHEALTH & BEAUTY CORP. -  SAN ANDRES',
-  'FAMILYHEALTH & BEAUTY CORP. - CM Parola',
-  'FAMILYHEALTH & BEAUTY CORP. - City Mall Jaro',
-  'FAMILYHEALTH & BEAUTY CORP. - Edsa Monumento',
-  'FAMILYHEALTH & BEAUTY CORP. - GAISANO LA PAZ',
-  'FAMILYHEALTH & BEAUTY CORP. - KINGSMEN KALIBO',
-  'FAMILYHEALTH & BEAUTY CORP. - Mall 1',
-  'FAMILYHEALTH & BEAUTY CORP. - Mall 2',
-  'FAMILYHEALTH & BEAUTY CORP. - O-Town Square',
-  'FAMILYHEALTH & BEAUTY CORP. - PUREGOLD JARO',
-  'FAMILYHEALTH & BEAUTY CORP. - R SQUARE TAFT',
-  'FAMILYHEALTH & BEAUTY CORP. - Rob. Iloilo',
-  'FAMILYHEALTH & BEAUTY CORP. - Robinsons Place Manila',
-  'FAMILYHEALTH & BEAUTY CORP. - SACRED HEARTILOILO',
-  'FAMILYHEALTH & BEAUTY CORP. - San Jose Antique',
-  'FAMILYHEALTH & BEAUTY CORP. - Tanjay Negros Oriental',
-  'FAMILYHEALTH & BEAUTY CORP. - Yulo',
-  'Fabtech International Corp',
-  'Fabtech International Corp-Pasong Tamo',
-  'Familyhealth - St. Pauls Hospital',
-  'Familyhealth Buendia',
-  'Familyhealth Green Mall',
-  'Familyhealth LEU Bldg Dumaguete',
-  'Far East Broadcasting Company Phils.',
-  'Filamer Christian University',
-  'For Me - Consolacion',
-  'For Me - SM City Cebu',
-  'G.T.G.F - MARIKINA',
-  'G7 Heavylift & Logistics Corporation',
-  'GTGF FOOD CORPORATION',
-  'Global Pacific Distributor',
-  'Gruppo Dolci Inc.',
-  'HOMEBI TRADING INC.',
-  'HYPERMARKET BICUTAN',
-  'HYPERMARKET BUENDIA',
-  'HYPERMARKET DECA MALL',
-  'HYPERMARKET HEAD OFFICE',
-  'HYPERMARKET ROSALES',
-  'HYPERMARKET TVSA',
-  'INDUSTRIAL & COMMERCIAL BANK OF CHINA',
-  'Jollibest Fast Food Corp.-Delgado',
-  'LCSN Express Movers Inc',
-  'LCSN Express Movers Inc.',
-  'LH PARAGON INC (IT Center)',
-  'LH Paragon Inc. (Mactan Property)',
-  'MADISON SHOPPING CENTER (SM STORE - PAMPANGA)',
-  'MASTER SHOPPERS VENUE INC.',
-  'MATIMCO INC.',
-  'MEGA VALUE DRUG STORE III',
-  'MEGAVALUE DRUGSTORE 1',
-  'MINISO -  SM CITY SEASIDE',
-  'MINISO - MABOLO',
-  'MINISO - ROBINSON PLACE',
-  'MINISO - SM CITY ILOILO',
-  'MMSM Delgado (BTR)',
-  'MR. & MRS. FONG RESIDENCE (Corinthian Garden)',
-  'MULTI KITCHEN INC.',
-  'MULTI STORE CORP. (JMall Mandaue)',
-  'MULTI STORE CORP. (Mabolo)',
-  'MY SHOPPINGLANE CEBU CORP. (Consolacion)',
-  'MY SHOPPINGLANE CEBU CORP. (Seaside)',
-  'Manduriao Star Inc.',
-  'Manduriao Star Inc. (BTR)',
-  'Metro Manila Shopping Mecca, Corp.',
-  'Metro Parking Management (Philippines) Inc. Tower 2',
-  'Metro Parking Management (Philippines) Inc. Tower 3',
-  'Miniso Pink- SM City JMall',
-  'Miniso- Telabastagan',
-  'NTT Limited Philippines Branch',
-  'Oakridge - Benevola',
-  'Oakridge - Prime',
-  'Oakridge Business Park',
-  'Oakridge Business Park (Mantle Wood Town Phase 1)',
-  'Oakridge Business Park (OITC 2)',
-  'Oakridge Business Park (OITC 3)',
-  'Oakridge Business Park (Oak Tree Drive 2)',
-  'Oakridge Business Park (Parking System & Under Chassis Inspection)',
-  'Oakridge Business Park (Warehouse Supply-Mandaue 1)',
-  'Our Home (Warehouse)',
-  'Our Home - SM City Iloilo',
-  'Oxygen - Ayala Center',
-  'Oxygen - Consolacion',
-  'Oxygen - SM Mabolo',
-  'PENSHOPPE (Robinson Cebu)',
-  'PENSHOPPE (SM City Cebu NRA)',
-  'PENSHOPPE (SM Seaside)',
-  'PENSHOPPE - Ayala',
-  'PHARMA GENERICS INC.',
-  'Penshoppe - ALI MALL',
-  'Penshoppe - Ayala Mall Central Bloc',
-  'Penshoppe - Mall of Asia',
-  'Penshoppe - Perdice, Dumaguete',
-  'Penshoppe - ROBINSON ERMITA',
-  'Penshoppe - SM Bacolod',
-  'Penshoppe - SM City Iloilo',
-  'Penshoppe - SM City Pampanga',
-  'Penshoppe - SM MEGAMALL',
-  'Penshoppe - SM NORTH EDSA',
-  'Penshoppe - TRINOMA',
-  'Pet Express (Molino)',
-  'Pet Express - Grand Central',
-  'Pet Express - JMall',
-  'Puma - SM City Cebu',
-  'Puma - SM Seaside City Cebu',
-  'QUEEN CITY DEVELOPMENT BANK',
-  'Reebok - SM City Cebu',
-  'Reebok - SM Seaside City Cebu',
-  'Robinsons Cybergate Center Plaza',
-  'Robinsons Cybergate Center Tower 1',
-  'Robinsons Cybergate Center Tower 2',
-  'Robinsons Cybergate Center Tower 3',
-  'SAMGYUPSALAMAT',
-  'SAMGYUPSALAMAT (Incheon Food) - Ayala Mall',
-  'SAMGYUPSALAMAT (Incheon Food) - SM City Cebu',
-  'SAMGYUPSALAMAT (Incheon Food) - SM Seaside',
-  'SAVEMORE AMIGO (New Manela)',
-  'SAVEMORE APALIT (New Manela)',
-  'SAVEMORE EB Town Center',
-  'SAVEMORE MALHACAN  (New Manela)',
-  'SAVEMORE MEGA CENTER (New Manela)',
-  'SAVEMORE SAN SIMON PAMPANGA',
-  'SAVEMORE TELABASTAGAN ESSEL (New Site)',
-  'SAVEMORE-MUZON',
-  'SHINHAN BANK',
-  'SHOEPLIER INC.. (Warehouse)',
-  'SM CITY URDANETA',
-  'SM CITY URDANETA - CINEMA',
-  'SM CITY URDANETA - FOOD COURT',
-  'SM City Urdaneta ( Det. Commander)',
-  'SM Iloilo Terminal Market - Traffic/Perimeter',
-  'SM Land, Inc. (Concourse  Area)',
-  'SM Land, Inc. (EMB Area)',
-  'SM PRIME HOLDINGS INC. (NORTH EDSA)',
-  'SM PRIME HOLDINGS INC. (NORTH TOWER)',
-  'SM Prime Holdings (Annex) - Late Payroll',
-  'SM Pulilan - Carpark',
-  'SM RETAIL HEADQUARTERS',
-  'SM Store Molino - ADC',
-  'SMCI - DC',
-  'SMCI Cinema (SM City Iloilo)',
-  'SMCI Food Court (SM City Iloilo)',
-  'SMCI Mall Area (SM City Iloilo)',
-  'SMCI Traffic Control (SM City Iloilo)',
-  'SMCO ACACIA',
-  'SMCO ANONAS',
-  'SMCO BERKELEY',
-  'SMCO BROADWAY',
-  'SMCO CARTIMAR',
-  'SMCO GREEN RESIDENCE',
-  'SMCO HEAD OFFICE',
-  'SMCO KAWIT',
-  'SMCO MARCOS ALVAREZ LAS PINAS',
-  'SMCO MERIDIAN',
-  'SMCO MEZZA',
-  'SMCO NAGTAHAN',
-  'SMCO NOVALICHES 1',
-  'SMCO PARKWAY PLACE (NAVARRO)',
-  'SMCO SALAWAG',
-  'SMCO SALITRAN',
-  'SMCO STA. ANA',
-  'SMCO VENTURA MALL',
-  'SPORT CENTRAL - Grand Central',
-  'SPORTS CENTRAL - SM City Pampanga',
-  'STAR APPLIANCE (SM Molino)',
-  'STAR APPLIANCE - SM City Pampanga',
-  'STAR APPLIANCE CENTER INC. (JMall)',
-  'STAR APPLIANCE CENTER INC. (NRA)',
-  'STELLAR BUILDERS',
-  'SUPER SHOPPING MARKET INC. (A.S Fortuna)',
-  'SUPER SHOPPING MARKET INC. (Handumanan)',
-  'SUPER SHOPPING MARKET INC. (Jaro)',
-  'SUPER SHOPPING MARKET INC. (Lapu-Lapu)',
-  'SUPER SHOPPING MARKET INC. (Subangdako)',
-  'SUPER SHOPPING MARKET INC. - TERMINAL',
-  'SUPER VALUE INC. (Mabolo)',
-  'SUPER VALUE INC. (SM Seaside)',
-  'SUPERSHOPPING MARKET INC. (Kadiwa)',
-  'SUPERSHOPPING MARKET INC. (Molino Bacoor)',
-  'SUPERSHOPPING MARKET INC. (Tagaytay)',
-  'SURPLUS SHOP (Molino)',
-  'SURPLUS SHOP - Grand Central',
-  'SURPLUS SHOP - SM City Pampanga',
-  'SVI AURA',
-  'SVI HEAD OFFICE',
-  'SVI MAKATI',
-  'SVI ROSARIO',
-  'SVI SAN PABLO',
-  'SVI SM CITY MANILA',
-  'SVI SM STO TOMAS BATANGAS',
-  'SVI SOUTH MALL',
-  'SVI STA MESA',
-  'SVI TRECE',
-  'SVI-MEGAMALL B.',
-  'SVI-MEXICO PAMPANGA (New Manela)',
-  'SVI-SAN FERNANDO',
-  'SVI-SAN JOSE DELMONTE BULACAN (Manela)',
-  'SVI-TELABASTAGAN',
-  'Savemore - Bacolod',
-  'Savemore - Barotac',
-  'Savemore - Calinog',
-  'Savemore - City Mall Victorias',
-  'Savemore - Danao',
-  'Savemore - Dumaguete',
-  'Savemore - East',
-  'Savemore - Festivewalk',
-  'Savemore - Fortune Town',
-  'Savemore - GT MAll',
-  'Savemore - Jaro 1',
-  'Savemore - Jaro 2',
-  'Savemore - Kabangkalan',
-  'Savemore - Maribago',
-  'Savemore - Pajac',
-  'Savemore - Passi',
-  'Savemore - San Carlos',
-  'Savemore - Sta. Barbara',
-  'Savemore - Strata',
-  'Savemore - Warehouse Cab. (New Manela)',
-  'Savemore -Warehouse Calinog',
-  'Sports Central - Deparo',
-  'Sports Central - Mandurriao - Levi\'s',
-  'Star Appliance - Deparo',
-  'Star Appliance - Telabastagan',
-  'Star Appliance - Warehouse',
-  'Star Appliance Center - SM City Iloilo',
-  'Star Appliance Center - SM Delgado',
-  'Style Residences',
-  'Supervalue Inc - Bacolod',
-  'Supervalue Inc - Calajunan Iloilo',
-  'Supervalue Inc - Manduariao',
-  'Supervalue Inc - Roxas Capiz',
-  'Supervalue Inc - SM Delgado',
-  'Supervalue Inc - Warehouse Iloilo',
-  'Surplus Shop - SM City Delgado',
-  'Surplus Shop - SM City Diversion Rd.',
-  'Surplus Shop - Telabastagan',
-  'THE SM STORE - CALOOCAN DEPARO',
-  'THE SM STORE - GRAND CENTRAL',
-  'THE SM STORE - MOLINO',
-  'THE SM STORE - TELABASTAGAN',
-  'THE SM STORE - VALENZUELA',
-  'THE WOW GROUP  (Mandaue City)',
-  'Toy Kingdom - SM City Mandurriao',
-  'UPTREND DESIGNED CORP. (Consolacion)',
-  'UPTREND FASHION DESIGNED CORP. (Mabolo)',
-  'UPTREND FASHION DESIGNED CORP. (Park Mall)',
-  'Under Armour SM City Cebu NRA Cebu City',
-  'Uniqlo - Dumaguete',
-  'Uniqlo - SM City Cebu',
-  'Uniqlo - SM City Iloilo',
-  'Uptrend Fashion - SM Seaside City Cebu',
-  'WATSON -  WAREHOUSE 2',
-  'WATSON -  WAREHOUSE BINAN LAGUNA',
-  'WATSON - Blumentritt',
-  'WATSON - Grand Central',
-  'WATSON - HEAD OFFICE',
-  'WATSON - Molino',
-  'WATSON - Vista Mall',
-  'WATSONS- RFC Mall',
-  'WOW GROUP (Balintwak-AVSC)',
-  'WOW GROUP (Balintwak-IAJ)',
-  'WOW GROUP (Balintwak-SAR)',
-  'Watson - Lucky China Town',
-  'Watson - Vicas',
-  'Watson Beauty - Plaza Kalibo',
-  'Watson Beauty - SM City Diversion - Mall 1',
-  'Watson Drug - SM City Diversion - Mall 3',
-  'Watsons - Gamboa',
-  'Watsons - Osmena Kalibo',
-  'Watsons - Puregold Binan',
-  'Watsons Anglo Taft',
-  'Watsons Caticlan',
-  'Watsons Deparo',
-  'Watsons Guihulngan',
-  'Watsons Janiuay',
-  'Watsons Paco Mall',
-  'Watsons Rizal Blvd Dumaguete',
-  'Watsons Southport Builders Bldg',
-  'Watsons Tayuman',
-  'Watsons. - Guimaras',
-  'Winebest Marketing Corp.',
-  'Wow Group (EDSA - BCI)',
-  'Wow Group (Malabon AVSC)',
-  'Wow Group (Malabon-BCI)',
-  'Wow Group (Malabon-IAJ)',
-  'Wow Group (Malabon-MEVC)',
-];
+
+// ─── DETACHMENTS (Firebase-backed, editor-managed) ────────────────────
+let detachments = [];
+let detachmentsListener = null;
+
+function getDetachmentsRef() {
+  return fbDb.ref('guard_exit_interview_config/' + currentCompany + '/detachments');
+}
+
+function updateDetachmentDatalist() {
+  const dl = document.getElementById('detachment-options');
+  if (!dl) return;
+  dl.innerHTML = detachments.map(d => `<option value="${escHtml(d)}"></option>`).join('');
+}
+
+function loadDetachmentsFromFirebase() {
+  return getDetachmentsRef().once('value').then(snap => {
+    const val = snap.val();
+    detachments = Array.isArray(val) && val.length
+      ? val.slice().sort((a, b) => a.localeCompare(b))
+      : [];
+    updateDetachmentDatalist();
+  });
+}
+
+function startDetachmentsListener() {
+  if (detachmentsListener) detachmentsListener();
+  const ref = getDetachmentsRef();
+  const cb = ref.on('value', snap => {
+    const val = snap.val();
+    const next = Array.isArray(val) ? val.slice().sort((a, b) => a.localeCompare(b)) : [];
+    if (JSON.stringify(next) !== JSON.stringify(detachments)) {
+      detachments = next;
+      updateDetachmentDatalist();
+      // Refresh views that show the detachment list
+      if (currentView === 'table') renderTable();
+      if (currentView === 'summary') renderSummary();
+      const mgr = document.getElementById('detachment-manager-list');
+      if (mgr) renderDetachmentManager();
+    }
+  });
+  detachmentsListener = () => ref.off('value', cb);
+}
+
+function addDetachment(name) {
+  if (!isEditor) return Promise.reject('Not an editor');
+  const trimmed = String(name || '').trim();
+  if (!trimmed) return Promise.reject('Empty name');
+  if (detachments.some(d => d.toLowerCase() === trimmed.toLowerCase())) {
+    return Promise.reject('Already exists');
+  }
+  const next = [...detachments, trimmed].sort((a, b) => a.localeCompare(b));
+  return getDetachmentsRef().set(next);
+}
+
+function removeDetachment(name) {
+  if (!isEditor) return Promise.reject('Not an editor');
+  const next = detachments.filter(d => d !== name);
+  return getDetachmentsRef().set(next);
+}
+
+
 const IP_PAYROLL_FIELDS = [
   'My salary was paid regularly and on time',
   'Overtime/holiday pay was accurate',
@@ -970,6 +492,7 @@ function init() {
   renderAll();
   // Load from Firebase (overrides local if exists) + listen for changes
   loadFromFirebase().then(() => startFirebaseListener());
+  loadDetachmentsFromFirebase().then(() => startDetachmentsListener());
 
   // Dismiss splash after brief reveal
   const splash = document.getElementById('splash-screen');
@@ -987,6 +510,11 @@ function init() {
   document.getElementById('btn-export-csv').addEventListener('click', exportXLSX);
   document.getElementById('btn-company-manela').addEventListener('click', () => switchCompany('manela'));
   document.getElementById('btn-company-moriah').addEventListener('click', () => switchCompany('moriah'));
+
+  const settingsBtn = document.getElementById('btn-settings');
+  if (settingsBtn) settingsBtn.addEventListener('click', openSettingsModal);
+  const mobileSettingsBtn = document.getElementById('mobile-nav-settings');
+  if (mobileSettingsBtn) mobileSettingsBtn.addEventListener('click', openSettingsModal);
 
   // Set initial active state on company tabs
   document.getElementById('btn-company-manela').classList.toggle('active-company', currentCompany === 'manela');
@@ -1178,6 +706,7 @@ function switchCompany(id) {
     if (currentView === 'table') renderTable();
     // Re-sync Firebase for new company
     loadFromFirebase().then(() => startFirebaseListener());
+    loadDetachmentsFromFirebase().then(() => startDetachmentsListener());
     document.getElementById('btn-company-manela').classList.toggle('active-company', id === 'manela');
     document.getElementById('btn-company-moriah').classList.toggle('active-company', id === 'moriah');
     document.body.dataset.company = id;
@@ -1320,7 +849,7 @@ function renderGuardInfo(container, r) {
   grid.appendChild(makeTextField('Number of Previous Jobs', 'numPreviousJobs', r.numPreviousJobs, 'number', ''));
   grid.appendChild(makeTextField('Type(s) of Previous Job / Roles', 'typePreviousJob', r.typePreviousJob, 'text', 'e.g. Security Guard, Driver'));
   grid.appendChild(makeTextField('Rank / Position', 'rankPosition', r.rankPosition, 'text', 'e.g. Security Guard I'));
-  grid.appendChild(makeSelectField('Current Post / Detachment', 'detachment', r.detachment, DETACHMENT_OPTIONS));
+  grid.appendChild(makeDetachmentField('Current Post / Detachment', 'detachment', r.detachment));
   grid.appendChild(makeSelectField('Length of Service', 'lengthOfService', r.lengthOfService, LENGTH_OF_SERVICE_OPTIONS));
   grid.appendChild(makeSelectField('Type of Exit', 'typeOfExit', r.typeOfExit, ['', ...EXIT_TYPE_OPTIONS]));
   grid.appendChild(makeDateField('Date of Exit', 'dateOfExit', r.dateOfExit));
@@ -1329,6 +858,7 @@ function renderGuardInfo(container, r) {
   container.appendChild(card);
   wireTextInputs(container, r);
   wireSelects(container, r);
+  wireDetachmentInputs(container, r);
 }
 
 // ─── SECTION 2: INCOME & PAYROLL ─────────────────────────────────────
@@ -1636,6 +1166,104 @@ function makeSelectField(label, fieldKey, value, options) {
   return div;
 }
 
+function makeDetachmentField(label, fieldKey, value) {
+  const div = document.createElement('div');
+  div.className = 'field-group';
+  const v = value || '';
+  div.innerHTML = `
+    <label class="field-label">${escHtml(label)}</label>
+    <div class="detachment-input-wrap">
+      <input type="text" class="field-input" list="detachment-options"
+        data-typeahead="detachment" data-field-key="${escHtml(fieldKey)}"
+        value="${escHtml(v)}"
+        placeholder="Type to search…" autocomplete="off" />
+      <button type="button" class="detachment-input-clear" title="Clear"${v ? '' : ' style="display:none"'}>
+        <span class="material-icons">close</span>
+      </button>
+    </div>
+  `;
+  return div;
+}
+
+// Counter for unique scoped-datalist IDs
+let _detachmentFilterSeq = 0;
+
+function makeDetachmentFilterInput(currentValue, allOptions, onChange) {
+  const wrap = document.createElement('div');
+  wrap.className = 'detachment-filter-wrap';
+
+  // Scoped datalist — only branches that exist in current records
+  const dlId = `detachment-filter-options-${++_detachmentFilterSeq}`;
+  const dl = document.createElement('datalist');
+  dl.id = dlId;
+  dl.innerHTML = allOptions.map(d => `<option value="${escHtml(d)}"></option>`).join('');
+
+  const inp = document.createElement('input');
+  inp.type = 'text';
+  inp.className = 'period-select detachment-filter-input';
+  inp.setAttribute('list', dlId);
+  inp.placeholder = `All branches (${allOptions.length}) — type to filter`;
+  inp.value = currentValue || '';
+  inp.autocomplete = 'off';
+
+  const clearBtn = document.createElement('button');
+  clearBtn.type = 'button';
+  clearBtn.className = 'detachment-filter-clear';
+  clearBtn.title = 'Clear filter';
+  clearBtn.innerHTML = '<span class="material-icons">close</span>';
+
+  let lastCommitted = currentValue || '';
+  const refreshLock = () => {
+    const has = !!inp.value.trim();
+    inp.readOnly = has;
+    wrap.classList.toggle('locked', has);
+    clearBtn.style.display = has ? '' : 'none';
+  };
+  const tryCommit = () => {
+    const v = inp.value.trim();
+    if (v === '' || allOptions.includes(v)) {
+      if (v !== lastCommitted) {
+        lastCommitted = v;
+        onChange(v);
+      }
+      refreshLock();
+      return true;
+    }
+    return false;
+  };
+  // Datalist pick: 'input' fires with inputType "insertReplacementText" (some browsers leave empty)
+  inp.addEventListener('input', (e) => {
+    const isPick = e.inputType === 'insertReplacementText' ||
+                   (!e.inputType && allOptions.includes(inp.value.trim()));
+    if (isPick) tryCommit();
+  });
+  inp.addEventListener('change', () => {
+    if (!tryCommit()) {
+      inp.value = lastCommitted;
+      refreshLock();
+      showToast('Pick a branch from the list (only branches with records are shown).', 'error');
+    }
+  });
+  inp.addEventListener('keydown', (e) => {
+    if (e.key === 'Enter') { e.preventDefault(); inp.blur(); }
+  });
+
+  clearBtn.addEventListener('click', () => {
+    inp.value = '';
+    lastCommitted = '';
+    onChange('');
+    refreshLock();
+    inp.focus();
+  });
+
+  wrap.appendChild(inp);
+  wrap.appendChild(dl);
+  wrap.appendChild(clearBtn);
+  // Initial lock state
+  setTimeout(refreshLock, 0);
+  return wrap;
+}
+
 function makeTextareaField(label, fieldKey, value, placeholder = '') {
   const div = document.createElement('div');
   div.className = 'field-group';
@@ -1706,6 +1334,66 @@ function wireSelects(container, r) {
   });
 }
 
+function wireDetachmentInputs(container, r) {
+  container.querySelectorAll('input[data-typeahead="detachment"]').forEach(el => {
+    const fk = el.dataset.fieldKey;
+    const wrap = el.closest('.detachment-input-wrap');
+    const clearBtn = wrap ? wrap.querySelector('.detachment-input-clear') : null;
+
+    const refreshLock = () => {
+      const has = !!el.value.trim();
+      el.readOnly = has;
+      if (wrap) wrap.classList.toggle('locked', has);
+      if (clearBtn) clearBtn.style.display = has ? '' : 'none';
+    };
+
+    const tryCommit = () => {
+      const v = el.value.trim();
+      if (v === '' || detachments.includes(v)) {
+        if (r[fk] !== v) {
+          r[fk] = v;
+          saveToLocalStorage();
+          renderRecordList();
+        }
+        refreshLock();
+        return true;
+      }
+      return false;
+    };
+
+    // Datalist pick: 'input' fires with inputType "insertReplacementText" (or empty in some browsers)
+    el.addEventListener('input', (e) => {
+      const isPick = e.inputType === 'insertReplacementText' ||
+                     (!e.inputType && detachments.includes(el.value.trim()));
+      if (isPick) tryCommit();
+    });
+    el.addEventListener('change', () => {
+      if (!tryCommit()) {
+        el.value = r[fk] || '';
+        refreshLock();
+        showToast('Pick a detachment from the list, or add it in Settings.', 'error');
+      }
+    });
+    el.addEventListener('keydown', (e) => {
+      if (e.key === 'Enter') { e.preventDefault(); el.blur(); }
+    });
+
+    if (clearBtn) {
+      clearBtn.addEventListener('click', () => {
+        el.value = '';
+        r[fk] = '';
+        saveToLocalStorage();
+        renderRecordList();
+        refreshLock();
+        el.focus();
+      });
+    }
+
+    // Initial state — locked if a value is already set
+    refreshLock();
+  });
+}
+
 function wireScaleButtons(container, r) {
   container.querySelectorAll('button[data-field][data-val]').forEach(btn => {
     btn.addEventListener('click', () => {
@@ -1752,7 +1440,7 @@ const TABLE_COLUMNS = [
   { group: 'Guard Info', field: 'dateOfExit',          label: 'Exit Date',           type: 'date',   width: 110 },
   { group: 'Guard Info', field: 'typeOfExit',          label: 'Exit Type',           type: 'select', width: 100,
     options: ['', ...EXIT_TYPE_OPTIONS] },
-  { group: 'Guard Info', field: 'detachment',          label: 'Detachment',          type: 'select', width: 200, options: DETACHMENT_OPTIONS },
+  { group: 'Guard Info', field: 'detachment',          label: 'Detachment',          type: 'detachment', width: 200 },
   { group: 'Guard Info', field: 'rankPosition',        label: 'Rank/Position',       type: 'text',   width: 120 },
   { group: 'Guard Info', field: 'lengthOfService',     label: 'Tenure',              type: 'select', width: 120,
     options: LENGTH_OF_SERVICE_OPTIONS },
@@ -2010,7 +1698,7 @@ function renderTable(refocusSearch = false) {
   dateRow.appendChild(dateCtrl);
   toolbar.appendChild(dateRow);
 
-  // ── Branch row ───────────────────────────────────────────
+  // ── Branch row (typeahead filter) ───────────────────────
   if (usedDetachments.length > 0) {
     const branchRow = document.createElement('div');
     branchRow.className = 'pf-row';
@@ -2020,19 +1708,11 @@ function renderTable(refocusSearch = false) {
     branchRow.appendChild(branchLbl);
     const branchCtrl = document.createElement('div');
     branchCtrl.className = 'pf-row-controls';
-    const detSel = document.createElement('select');
-    detSel.className = 'period-select';
-    const allOpt = document.createElement('option');
-    allOpt.value = ''; allOpt.textContent = 'All branches';
-    if (!tablePeriod.detachment) allOpt.selected = true;
-    detSel.appendChild(allOpt);
-    usedDetachments.forEach(d => {
-      const o = document.createElement('option'); o.value = d; o.textContent = d;
-      if (d === tablePeriod.detachment) o.selected = true;
-      detSel.appendChild(o);
-    });
-    detSel.addEventListener('change', () => { tablePeriod.detachment = detSel.value; renderTable(); });
-    branchCtrl.appendChild(detSel);
+    branchCtrl.appendChild(makeDetachmentFilterInput(
+      tablePeriod.detachment,
+      usedDetachments,
+      v => { tablePeriod.detachment = v; renderTable(); }
+    ));
     branchRow.appendChild(branchCtrl);
     toolbar.appendChild(branchRow);
   }
@@ -2331,6 +2011,79 @@ function buildTableCell(col, r, rowIdx) {
     return sel;
   }
 
+  if (col.type === 'detachment') {
+    const wrap = document.createElement('div');
+    wrap.className = 'td-detachment-wrap';
+    wrap.style.minWidth = col.width + 'px';
+
+    const inp = document.createElement('input');
+    inp.type = 'text';
+    inp.className = 'td-input td-detachment-input';
+    inp.setAttribute('list', 'detachment-options');
+    inp.value = val || '';
+    inp.placeholder = '—';
+    inp.title = val || '';
+    inp.autocomplete = 'off';
+
+    const clearBtn = document.createElement('button');
+    clearBtn.type = 'button';
+    clearBtn.className = 'td-detachment-clear';
+    clearBtn.title = 'Clear';
+    clearBtn.innerHTML = '<span class="material-icons">close</span>';
+
+    const refreshLock = () => {
+      const has = !!inp.value.trim();
+      inp.readOnly = has;
+      wrap.classList.toggle('locked', has);
+      clearBtn.style.display = has ? '' : 'none';
+    };
+    const tryCommit = () => {
+      const v = inp.value.trim();
+      if (v === '' || detachments.includes(v)) {
+        if (r[col.field] !== v) {
+          r[col.field] = v;
+          inp.title = v;
+          saveToLocalStorage();
+          renderRecordList();
+        }
+        refreshLock();
+        return true;
+      }
+      return false;
+    };
+
+    inp.addEventListener('input', (e) => {
+      const isPick = e.inputType === 'insertReplacementText' ||
+                     (!e.inputType && detachments.includes(inp.value.trim()));
+      if (isPick) tryCommit();
+    });
+    inp.addEventListener('change', () => {
+      if (!tryCommit()) {
+        inp.value = r[col.field] || '';
+        inp.title = inp.value;
+        refreshLock();
+        showToast('Pick a detachment from the list, or add it in Settings.', 'error');
+      }
+    });
+    inp.addEventListener('keydown', (e) => {
+      if (e.key === 'Enter') { e.preventDefault(); inp.blur(); }
+    });
+    clearBtn.addEventListener('click', () => {
+      inp.value = '';
+      r[col.field] = '';
+      inp.title = '';
+      saveToLocalStorage();
+      renderRecordList();
+      refreshLock();
+      inp.focus();
+    });
+
+    wrap.appendChild(inp);
+    wrap.appendChild(clearBtn);
+    refreshLock();
+    return wrap;
+  }
+
   if (col.type === 'select') {
     const sel = document.createElement('select');
     sel.className = 'td-select';
@@ -2565,20 +2318,11 @@ function renderPeriodFilter() {
     branchRow.appendChild(branchLabel);
     const branchControls = document.createElement('div');
     branchControls.className = 'pf-row-controls';
-    const detSel = document.createElement('select');
-    detSel.className = 'period-select';
-    const allOpt = document.createElement('option');
-    allOpt.value = ''; allOpt.textContent = 'All branches';
-    if (!summaryPeriod.detachment) allOpt.selected = true;
-    detSel.appendChild(allOpt);
-    usedDetachments.forEach(d => {
-      const o = document.createElement('option');
-      o.value = d; o.textContent = d;
-      if (d === summaryPeriod.detachment) o.selected = true;
-      detSel.appendChild(o);
-    });
-    detSel.addEventListener('change', () => { summaryPeriod.detachment = detSel.value; renderSummary(); });
-    branchControls.appendChild(detSel);
+    branchControls.appendChild(makeDetachmentFilterInput(
+      summaryPeriod.detachment,
+      usedDetachments,
+      v => { summaryPeriod.detachment = v; renderSummary(); }
+    ));
     branchRow.appendChild(branchControls);
     bar.appendChild(branchRow);
   }
@@ -2803,24 +2547,31 @@ function renderExitReasonsChart(completed) {
   if (!completed.length) { section.appendChild(emptyState()); return section; }
 
   const catData = EXIT_REASON_CATEGORIES.map((cat, i) => {
-    const totalYes = cat.items.reduce((sum, label) => {
-      return sum + completed.filter(r => r[`er_${key(label)}`] === true).length;
-    }, 0);
-    return { label: cat.label, icon: cat.icon, totalYes, color: EXIT_REASON_PIE_COLORS[i] };
+    // Unique guards who checked at least one item in this category
+    const guardsAffected = completed.filter(r =>
+      cat.items.some(label => r[`er_${key(label)}`] === true)
+    ).length;
+    // Total checks across all items (a guard can contribute multiple)
+    const totalChecks = cat.items.reduce((sum, label) =>
+      sum + completed.filter(r => r[`er_${key(label)}`] === true).length, 0);
+    return { label: cat.label, icon: cat.icon, guardsAffected, totalChecks, color: EXIT_REASON_PIE_COLORS[i] };
   });
 
-  const grandTotal = catData.reduce((s, d) => s + d.totalYes, 0);
+  const grandTotal = catData.reduce((s, d) => s + d.totalChecks, 0);
   if (!grandTotal) { section.appendChild(emptyState('No exit reasons recorded yet')); return section; }
 
-  const sorted = [...catData].sort((a, b) => b.totalYes - a.totalYes);
+  // Sort by prevalence among guards, then by raw check intensity as tiebreak
+  const sorted = [...catData].sort((a, b) =>
+    b.guardsAffected - a.guardsAffected || b.totalChecks - a.totalChecks
+  );
 
   const wrapper = document.createElement('div');
   wrapper.className = 'flex flex-col md:flex-row gap-6 items-center';
 
-  // Build segment angle data
+  // Donut segments use totalChecks (intensity / category weight)
   let deg = 0;
-  const segments = catData.filter(d => d.totalYes > 0).map(d => {
-    const pct = d.totalYes / grandTotal * 100;
+  const segments = catData.filter(d => d.totalChecks > 0).map(d => {
+    const pct = d.totalChecks / grandTotal * 100;
     const start = deg;
     deg += pct * 3.6;
     return { ...d, pct, start, end: deg };
@@ -2867,9 +2618,9 @@ function renderExitReasonsChart(completed) {
   const showSegment = (p, s) => {
     svg.querySelectorAll('path').forEach(q => { q.style.opacity = '0.35'; q.style.transform = ''; });
     p.style.opacity = '1'; p.style.transform = 'scale(1.07)';
-    tMain.textContent = s.totalYes;
-    tSub.textContent = `${Math.round(s.pct)}%`;
-    tChecks.textContent = s.label.split(' ')[0];
+    tMain.textContent = s.guardsAffected;
+    tSub.textContent = guardCount ? `${Math.round(s.guardsAffected / guardCount * 100)}% of guards` : '0%';
+    tChecks.textContent = `${s.totalChecks} check${s.totalChecks !== 1 ? 's' : ''}`;
   };
   const showDefault = () => {
     svg.querySelectorAll('path').forEach(q => { q.style.opacity = '1'; q.style.transform = ''; });
@@ -2936,8 +2687,8 @@ function renderExitReasonsChart(completed) {
   const listDiv = document.createElement('div');
   listDiv.style.flex = '1';
   sorted.forEach((d, i) => {
-    const pct = Math.round(d.totalYes / grandTotal * 100);
-    const barPct = sorted[0].totalYes ? Math.round(d.totalYes / sorted[0].totalYes * 100) : 0;
+    const pct = guardCount ? Math.round(d.guardsAffected / guardCount * 100) : 0;
+    const barPct = sorted[0].guardsAffected ? Math.round(d.guardsAffected / sorted[0].guardsAffected * 100) : 0;
 
     if (i === 0) {
       // Top reason — highlighted callout
@@ -2956,7 +2707,7 @@ function renderExitReasonsChart(completed) {
           <div style="flex:1;height:10px;background:#f1f5f9;border-radius:999px;overflow:hidden;">
             <div class="bar-fill" style="background:${d.color};height:100%;border-radius:999px;width:0%" data-pct="100"></div>
           </div>
-          <span style="font-size:12px;font-weight:700;color:${d.color};">${d.totalYes} of ${guardCount} guard${guardCount !== 1 ? 's' : ''} · ${pct}%</span>
+          <span style="font-size:12px;font-weight:700;color:${d.color};">${d.guardsAffected} of ${guardCount} guard${guardCount !== 1 ? 's' : ''} · ${pct}%</span>
         </div>
       `;
       listDiv.appendChild(callout);
@@ -2969,7 +2720,7 @@ function renderExitReasonsChart(completed) {
           <span style="width:9px;height:9px;border-radius:50%;background:${d.color};flex-shrink:0;display:inline-block;"></span>
           <span class="material-icons" style="font-size:13px;color:#94a3b8;flex-shrink:0;">${d.icon}</span>
           <span class="bar-stacked-label">${escHtml(d.label)}</span>
-          <span class="bar-meta">${d.totalYes}/${guardCount} (${pct}%)</span>
+          <span class="bar-meta">${d.guardsAffected}/${guardCount} (${pct}%)</span>
         </div>
         <div class="bar-track">
           <div class="bar-fill" style="background:${d.color};width:0%" data-pct="${barPct}"></div>
@@ -4131,7 +3882,9 @@ function nullStr(v) { return v !== null && v !== undefined ? String(v) : ''; }
 function boolStr(v) { return v === true ? 'Yes' : v === false ? 'No' : ''; }
 
 // ─── MODAL ────────────────────────────────────────────────────────────
-function showModal(title, body, onConfirm) {
+function showModal(title, body, onConfirm, opts = {}) {
+  const confirmText = opts.confirmText || 'Delete';
+  const variant = opts.variant || 'danger'; // 'danger' | 'primary'
   const backdrop = document.createElement('div');
   backdrop.className = 'modal-backdrop';
   backdrop.innerHTML = `
@@ -4140,14 +3893,144 @@ function showModal(title, body, onConfirm) {
       <div class="modal-body">${escHtml(body)}</div>
       <div class="modal-actions">
         <button class="btn-modal-cancel">Cancel</button>
-        <button class="btn-modal-confirm">Delete</button>
+        <button class="btn-modal-confirm ${variant === 'primary' ? 'btn-modal-primary' : ''}">${escHtml(confirmText)}</button>
       </div>
     </div>
   `;
   document.body.appendChild(backdrop);
   backdrop.querySelector('.btn-modal-cancel').addEventListener('click', () => backdrop.remove());
-  backdrop.querySelector('.btn-modal-confirm').addEventListener('click', () => { backdrop.remove(); onConfirm(); });
+  backdrop.querySelector('.btn-modal-confirm').addEventListener('click', () => { backdrop.remove(); onConfirm && onConfirm(); });
   backdrop.addEventListener('click', (e) => { if (e.target === backdrop) backdrop.remove(); });
+}
+
+// ─── TOAST ────────────────────────────────────────────────────────────
+function showToast(message, type = 'info') {
+  let host = document.getElementById('toast-host');
+  if (!host) {
+    host = document.createElement('div');
+    host.id = 'toast-host';
+    document.body.appendChild(host);
+  }
+  const t = document.createElement('div');
+  t.className = `toast toast-${type}`;
+  t.innerHTML = `<span class="material-icons">${type === 'success' ? 'check_circle' : type === 'error' ? 'error' : 'info'}</span><span>${escHtml(message)}</span>`;
+  host.appendChild(t);
+  // Animate in
+  requestAnimationFrame(() => t.classList.add('toast-show'));
+  setTimeout(() => {
+    t.classList.remove('toast-show');
+    setTimeout(() => t.remove(), 250);
+  }, 2600);
+}
+
+// ─── DETACHMENT MANAGER (Settings Modal) ──────────────────────────────
+function openSettingsModal() {
+  if (!isEditor) return;
+  let panel = document.getElementById('settings-panel');
+  if (panel) { panel.classList.add('settings-open'); renderDetachmentManager(); return; }
+  panel = document.createElement('div');
+  panel.id = 'settings-panel';
+  panel.className = 'settings-panel';
+  panel.innerHTML = `
+    <div class="settings-backdrop"></div>
+    <div class="settings-sheet">
+      <div class="settings-header">
+        <span class="material-icons">settings</span>
+        <h2>Settings</h2>
+        <button class="settings-close" title="Close"><span class="material-icons">close</span></button>
+      </div>
+      <div class="settings-body">
+        <section class="settings-section">
+          <div class="settings-section-title">
+            <span class="material-icons">apartment</span>
+            <span>Manage Detachments</span>
+          </div>
+          <p class="settings-section-desc">Add or remove detachments. Changes sync across all devices.</p>
+          <form id="detachment-add-form" class="detachment-add-form" autocomplete="off">
+            <input type="text" id="detachment-add-input" placeholder="New detachment name…" required />
+            <button type="submit"><span class="material-icons">add</span><span>Add</span></button>
+          </form>
+          <div class="detachment-search-wrap">
+            <span class="material-icons">search</span>
+            <input type="text" id="detachment-search-input" placeholder="Search detachments…" autocomplete="off" />
+          </div>
+          <div id="detachment-manager-list" class="detachment-list"></div>
+        </section>
+      </div>
+    </div>
+  `;
+  document.body.appendChild(panel);
+  panel.querySelector('.settings-close').addEventListener('click', closeSettingsModal);
+  panel.querySelector('.settings-backdrop').addEventListener('click', closeSettingsModal);
+  panel.querySelector('#detachment-add-form').addEventListener('submit', (e) => {
+    e.preventDefault();
+    const inp = panel.querySelector('#detachment-add-input');
+    const name = inp.value.trim();
+    if (!name) return;
+    addDetachment(name)
+      .then(() => { inp.value = ''; showToast(`Added "${name}"`, 'success'); })
+      .catch(err => showToast(typeof err === 'string' ? err : 'Failed to add', 'error'));
+  });
+  panel.querySelector('#detachment-search-input').addEventListener('input', renderDetachmentManager);
+  requestAnimationFrame(() => panel.classList.add('settings-open'));
+  renderDetachmentManager();
+}
+
+function closeSettingsModal() {
+  const panel = document.getElementById('settings-panel');
+  if (!panel) return;
+  panel.classList.remove('settings-open');
+  setTimeout(() => panel.remove(), 220);
+}
+
+function renderDetachmentManager() {
+  const list = document.getElementById('detachment-manager-list');
+  if (!list) return;
+  const searchEl = document.getElementById('detachment-search-input');
+  const q = (searchEl ? searchEl.value : '').trim().toLowerCase();
+  const filtered = q
+    ? detachments.filter(d => d.toLowerCase().includes(q))
+    : detachments;
+  // Count usage per detachment in current company's records
+  const usage = {};
+  records.forEach(r => { if (r.detachment) usage[r.detachment] = (usage[r.detachment] || 0) + 1; });
+
+  if (!detachments.length) {
+    list.innerHTML = `<div class="detachment-empty">No detachments yet. Add one above to get started.</div>`;
+    return;
+  }
+  if (!filtered.length) {
+    list.innerHTML = `<div class="detachment-empty">No matches for "${escHtml(q)}".</div>`;
+    return;
+  }
+  list.innerHTML = filtered.map(d => {
+    const count = usage[d] || 0;
+    const usedBadge = count > 0
+      ? `<span class="detachment-usage" title="Used by ${count} record${count !== 1 ? 's' : ''}">${count}</span>`
+      : '';
+    return `
+      <div class="detachment-row" data-name="${escHtml(d)}">
+        <span class="detachment-name">${escHtml(d)}</span>
+        ${usedBadge}
+        <button class="detachment-delete" title="Remove detachment"><span class="material-icons">delete_outline</span></button>
+      </div>
+    `;
+  }).join('');
+  list.querySelectorAll('.detachment-delete').forEach(btn => {
+    btn.addEventListener('click', () => {
+      const row = btn.closest('.detachment-row');
+      const name = row.dataset.name;
+      const count = usage[name] || 0;
+      const warning = count > 0
+        ? `"${name}" is used by ${count} record${count !== 1 ? 's' : ''}. Removing it from the list does not change those records, but you won't be able to assign it to new ones. Continue?`
+        : `Remove "${name}" from the detachment list?`;
+      showModal('Remove Detachment?', warning, () => {
+        removeDetachment(name)
+          .then(() => showToast(`Removed "${name}"`, 'success'))
+          .catch(() => showToast('Failed to remove', 'error'));
+      }, { confirmText: 'Remove' });
+    });
+  });
 }
 
 // ─── UTILS ────────────────────────────────────────────────────────────

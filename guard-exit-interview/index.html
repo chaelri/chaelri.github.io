@@ -80,6 +80,9 @@
           <span class="material-icons text-base">table_chart</span>
           <span class="hidden sm:inline">Export Excel</span>
         </button>
+        <button id="btn-settings" class="header-settings-btn px-2 py-1.5 rounded text-sm font-medium flex items-center justify-center" title="Settings — manage detachments">
+          <span class="material-icons text-base">settings</span>
+        </button>
         <div id="auth-control" class="flex items-center"></div>
       </div>
     </div>
@@ -174,7 +177,14 @@
       <span class="material-icons">table_chart</span>
       <span>Export</span>
     </button>
+    <button class="mobile-nav-btn mobile-nav-editor-only" id="mobile-nav-settings">
+      <span class="material-icons">settings</span>
+      <span>Settings</span>
+    </button>
   </nav>
+
+  <!-- Shared datalist for detachment typeaheads (populated dynamically) -->
+  <datalist id="detachment-options"></datalist>
 
   <script src="app.js"></script>
 </body>
