@@ -228,7 +228,8 @@ function renderTable() {
   // Build a map: commsId -> active log (with key)
   activeCommsMap = {};
   Object.entries(allLogs).forEach(([key, log]) => {
-    if (!log.timeOut && log.commsId && log.commsId !== "NONE") {
+    if (!log.timeOut && log.commsId && log.commsId !== "NONE" &&
+        log.status !== "pending" && log.status !== "pending-out") {
       activeCommsMap[log.commsId] = { ...log, key };
     }
   });
@@ -340,6 +341,11 @@ function renderTable() {
         const noIdToggle = document.querySelector(`.pending-noid-toggle[data-key="${key}"]`);
         const noId = noIdToggle ? noIdToggle.dataset.checked === "true" : false;
 
+        // Capture whether comms is already held by a different confirmed volunteer
+        const commsAlreadyTaken = commsCode &&
+          activeCommsMap[commsCode] &&
+          activeCommsMap[commsCode].volunteerId !== volunteerId;
+
         try {
           // 1. Upgrade pending record to confirmed
           await db.ref(`logs/${todayDate}/${key}`).update({
@@ -348,8 +354,8 @@ function renderTable() {
             status: null, // Remove pending flag — now confirmed
           });
 
-          // 2. Update comms status if mapped
-          if (commsCode) {
+          // 2. Update comms status only if not already held by another active volunteer
+          if (commsCode && !commsAlreadyTaken) {
             await db.ref(`comms/${commsCode}`).update({
               status: "assigned",
               assignedTo: volunteerId,
@@ -633,11 +639,17 @@ function renderTable() {
     Object.entries(allLogs).forEach(([key, log]) => {
       if (log.timeOut || !log.commsId || log.commsId === "NONE") return;
       if (!byCodeQ[log.commsId]) byCodeQ[log.commsId] = [];
-      byCodeQ[log.commsId].push({ key, timeIn: log.timeIn });
+      byCodeQ[log.commsId].push({ key, timeIn: log.timeIn, name: log.name, volunteerId: log.volunteerId });
     });
     Object.values(byCodeQ).forEach(group => {
       group.sort((a, b) => (a.timeIn || "").localeCompare(b.timeIn || ""));
-      group.forEach((item, i) => { keyToQueueInfo[item.key] = { pos: i + 1, total: group.length }; });
+      group.forEach((item, i) => {
+        const nextItem = group[i + 1] || null;
+        const nextName = nextItem
+          ? (volunteerNicknameMap[nextItem.volunteerId] || (nextItem.name || "").split(" ")[0])
+          : null;
+        keyToQueueInfo[item.key] = { pos: i + 1, total: group.length, nextName };
+      });
     });
   }
 
@@ -660,7 +672,7 @@ function renderTable() {
       : `<button class="change-comms-btn group text-neutral-600 hover:text-white transition flex items-center gap-1 text-xs" data-key="${log.key}" data-comms="" data-name="${log.name || ""}" data-volunteer="${log.volunteerId || ""}"><span>—</span><span class="material-icons-round text-neutral-700 group-hover:text-neutral-400 transition" style="font-size:10px">edit</span></button>`;
     const qi = keyToQueueInfo[log.key];
     const queuePosBadge = qi && qi.total > 1
-      ? `<div class="text-[9px] font-semibold font-mono mt-0.5 ${qi.pos === 1 ? "text-green-500" : "text-amber-400"}">${qi.pos === 1 ? "Active" : "Pending"} · ${qi.pos} of ${qi.total}</div>`
+      ? `<div class="text-[9px] font-semibold font-mono mt-0.5 ${qi.pos === 1 ? "text-green-500" : "text-amber-400"}">${qi.pos === 1 ? "Active" : "Pending"} · ${qi.pos} of ${qi.total}${qi.pos === 1 && qi.nextName ? `<span class="text-neutral-500 font-normal"> · Next: <span class="text-amber-400">${qi.nextName}</span></span>` : ""}</div>`
       : "";
     const queueBadge = log.pendingCommsId
       ? `<div class="flex items-center gap-0.5 mt-0.5 text-[9px] font-semibold text-amber-400"><span class="material-icons-round" style="font-size:9px">hourglass_top</span><span>queued: ${log.pendingCommsId}</span></div>`
