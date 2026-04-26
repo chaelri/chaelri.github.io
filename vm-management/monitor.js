@@ -859,7 +859,7 @@ function renderCommsView(map) {
       : "comms-view-btn w-7 h-7 rounded-md flex items-center justify-center transition text-neutral-500 hover:text-white hover:bg-neutral-800";
   });
 
-  // Build per-batch maps: two passes so pending time-in is handled separately from confirmed active
+  // Build per-batch maps using FCFS: earliest timeIn across all batches wins the device
   function matchesAM(svcs) {
     return commsAmFilter === "all"
       ? svcs.some(s => s === "9AM" || s === "12NN")
@@ -871,49 +871,35 @@ function renderCommsView(map) {
       : svcs.includes(commsPmFilter);
   }
 
-  const amMap = {}, pmMap = {}, amQueueMap = {}, pmQueueMap = {};
-
-  // Pass 1: confirmed active only (status null or "pending-out")
+  // FCFS: group all non-timed-out commsId entries by code, sort by timeIn ascending
+  const byCode = {};
   Object.entries(allLogs).forEach(([key, log]) => {
-    if (log.timeOut || log.status === "pending") return;
-    const svcs = log.services || [];
-    const isAM = matchesAM(svcs), isPM = matchesPM(svcs);
-    if (log.commsId && log.commsId !== "NONE") {
-      if (isAM) amMap[log.commsId] = { ...log, key };
-      if (isPM) pmMap[log.commsId] = { ...log, key };
-    }
-    if (log.pendingCommsId) {
-      if (isAM) amQueueMap[log.pendingCommsId] = { ...log, key };
-      if (isPM) pmQueueMap[log.pendingCommsId] = { ...log, key };
-    }
+    if (log.timeOut || !log.commsId || log.commsId === "NONE") return;
+    if (!byCode[log.commsId]) byCode[log.commsId] = [];
+    byCode[log.commsId].push({ ...log, key });
+  });
+  Object.values(byCode).forEach(group => {
+    group.sort((a, b) => (a.timeIn || "").localeCompare(b.timeIn || ""));
+    for (let i = 1; i < group.length; i++) group[i]._isPending = true;
   });
 
-  // Pass 2: pending time-in — slot taken → queue; slot free → map with _isPending flag
-  Object.entries(allLogs).forEach(([key, log]) => {
-    if (log.timeOut || log.status !== "pending") return;
-    const svcs = log.services || [];
-    const isAM = matchesAM(svcs), isPM = matchesPM(svcs);
-    if (log.commsId && log.commsId !== "NONE") {
-      if (isAM) {
-        if (amMap[log.commsId]) { if (!amQueueMap[log.commsId]) amQueueMap[log.commsId] = { ...log, key }; }
-        else { amMap[log.commsId] = { ...log, key, _isPending: true }; }
-      }
-      if (isPM) {
-        if (pmMap[log.commsId]) { if (!pmQueueMap[log.commsId]) pmQueueMap[log.commsId] = { ...log, key }; }
-        else { pmMap[log.commsId] = { ...log, key, _isPending: true }; }
-      }
-    }
-    if (log.pendingCommsId) {
-      if (isAM && !amQueueMap[log.pendingCommsId]) amQueueMap[log.pendingCommsId] = { ...log, key };
-      if (isPM && !pmQueueMap[log.pendingCommsId]) pmQueueMap[log.pendingCommsId] = { ...log, key };
-    }
+  // Distribute into batch maps — first per batch (earliest timeIn) wins
+  const amMap = {}, pmMap = {};
+  Object.values(byCode).forEach(group => {
+    group.forEach(log => {
+      const svcs = log.services || [];
+      if (matchesAM(svcs) && !amMap[log.commsId]) amMap[log.commsId] = log;
+      if (matchesPM(svcs) && !pmMap[log.commsId]) pmMap[log.commsId] = log;
+    });
   });
 
-  // Pass 3: cross-batch reconciliation — a comms device in active AM use cannot be active in PM simultaneously
-  Object.keys(pmMap).forEach(code => {
-    if (amMap[code] && !amMap[code]._isPending) {
-      pmMap[code] = { ...pmMap[code], _isPending: true };
-    }
+  // Queue maps: pendingCommsId entries (waiting for a specific device to free up)
+  const amQueueMap = {}, pmQueueMap = {};
+  Object.entries(allLogs).forEach(([key, log]) => {
+    if (log.timeOut || !log.pendingCommsId) return;
+    const svcs = log.services || [];
+    if (matchesAM(svcs) && !amQueueMap[log.pendingCommsId]) amQueueMap[log.pendingCommsId] = { ...log, key };
+    if (matchesPM(svcs) && !pmQueueMap[log.pendingCommsId]) pmQueueMap[log.pendingCommsId] = { ...log, key };
   });
 
   function filterPill(label, currentFilter, batchKey, value, colorActive, colorInactive) {
