@@ -1586,38 +1586,135 @@ document.getElementById("download-xlsx-btn").addEventListener("click", async () 
       });
     }
 
-    // Sort by date desc, then timeIn desc
-    entries.sort((a, b) => {
+    // Compute FCFS queue positions per date + comms slot
+    const queueMap = {};
+    const queueGroups = {};
+    entries.forEach((e) => {
+      if (!e.commsId || e.commsId === "NONE") return;
+      const gk = `${e.date}|${e.commsId}`;
+      if (!queueGroups[gk]) queueGroups[gk] = [];
+      queueGroups[gk].push(e);
+    });
+    Object.values(queueGroups).forEach((group) => {
+      group.sort((a, b) => (a.timeIn || "").localeCompare(b.timeIn || ""));
+      group.forEach((e, i) => {
+        queueMap[`${e.date}|${e.commsId}|${e.key}`] = { pos: i + 1, total: group.length };
+      });
+    });
+
+    // Sort: date desc → first service time asc → comms asc → timeIn asc
+    const svcOrder = { "9AM": 1, "12NN": 2, "3PM": 3, "6PM": 4 };
+    const firstSvcRank = (svcs) =>
+      Array.isArray(svcs) && svcs.length ? Math.min(...svcs.map((s) => svcOrder[s] || 99)) : 99;
+    const sorted = [...entries].sort((a, b) => {
       if (a.date !== b.date) return b.date.localeCompare(a.date);
-      return (b.timeIn || "").localeCompare(a.timeIn || "");
+      const sr = firstSvcRank(a.services) - firstSvcRank(b.services);
+      if (sr !== 0) return sr;
+      if ((a.commsId || "") !== (b.commsId || "")) return (a.commsId || "").localeCompare(b.commsId || "");
+      return (a.timeIn || "").localeCompare(b.timeIn || "");
     });
 
-    // Build sheet data
-    const rows = entries.map((log) => ({
-      Date: log.date,
-      Volunteer: log.name || "",
-      Segment: log.segment || "",
-      Role: log.role || "",
-      Comms: log.commsId || "",
-      "Seg ID": log.numberedId || "",
-      "Time In": log.timeIn ? new Date(log.timeIn).toLocaleTimeString([], { hour: "2-digit", minute: "2-digit" }) : "",
-      "Time Out": log.timeOut ? new Date(log.timeOut).toLocaleTimeString([], { hour: "2-digit", minute: "2-digit" }) : "",
-      Duration: calcDuration(log),
-    }));
+    const fmtTime = (ts) =>
+      ts ? new Date(ts).toLocaleTimeString("en-PH", { hour: "2-digit", minute: "2-digit", hour12: true }) : "";
 
-    const ws = XLSX.utils.json_to_sheet(rows);
-    const wb = XLSX.utils.book_new();
-    XLSX.utils.book_append_sheet(wb, ws, "Logs");
+    // Build workbook with ExcelJS
+    const workbook = new ExcelJS.Workbook();
+    workbook.creator = "LiveProd VM Monitor";
+    workbook.created = new Date();
+    const ws = workbook.addWorksheet("Logs");
 
-    // Auto-size columns
-    const colWidths = Object.keys(rows[0] || {}).map((key) => {
-      const maxLen = Math.max(key.length, ...rows.map((r) => String(r[key] || "").length));
-      return { wch: Math.min(maxLen + 2, 30) };
+    ws.columns = [
+      { header: "Date",      key: "date",      width: 13 },
+      { header: "Volunteer", key: "volunteer",  width: 24 },
+      { header: "Segment",   key: "segment",    width: 16 },
+      { header: "Role",      key: "role",       width: 20 },
+      { header: "Services",  key: "services",   width: 14 },
+      { header: "Comms",     key: "comms",      width: 10 },
+      { header: "Queue #",   key: "queue",      width: 9  },
+      { header: "Status",    key: "status",     width: 12 },
+      { header: "Seg ID",    key: "segId",      width: 9  },
+      { header: "Time In",   key: "timeIn",     width: 11 },
+      { header: "Time Out",  key: "timeOut",    width: 11 },
+      { header: "Duration",  key: "duration",   width: 10 },
+    ];
+
+    // Header row styling
+    const headerRow = ws.getRow(1);
+    headerRow.height = 22;
+    headerRow.eachCell({ includeEmpty: true }, (cell) => {
+      cell.fill      = { type: "pattern", pattern: "solid", fgColor: { argb: "FF1F1F1F" } };
+      cell.font      = { bold: true, color: { argb: "FFFAFAFA" }, size: 10, name: "Calibri" };
+      cell.border    = { bottom: { style: "medium", color: { argb: "FF525252" } }, right: { style: "thin", color: { argb: "FF3F3F3F" } } };
+      cell.alignment = { vertical: "middle", horizontal: "center" };
     });
-    ws["!cols"] = colWidths;
 
-    XLSX.writeFile(wb, `LiveProd_Logs_${todayDate}.xlsx`);
-    showToast(`Downloaded ${rows.length} records`, "download", "text-green-400");
+    // Data rows
+    sorted.forEach((log, idx) => {
+      const qi     = queueMap[`${log.date}|${log.commsId}|${log.key}`];
+      const status = log.timeOut ? "Timed Out" : "Active";
+
+      const dataRow = ws.addRow({
+        date:      log.date,
+        volunteer: log.name || "",
+        segment:   log.segment || "",
+        role:      log.role || "",
+        services:  (log.services || []).join(", "),
+        comms:     log.commsId && log.commsId !== "NONE" ? log.commsId : "",
+        queue:     qi && qi.total > 1 ? qi.pos : "",
+        status,
+        segId:     log.numberedId || "",
+        timeIn:    fmtTime(log.timeIn),
+        timeOut:   fmtTime(log.timeOut),
+        duration:  calcDuration(log),
+      });
+      dataRow.height = 18;
+
+      // Alternating row background + base text style
+      const rowBg = idx % 2 === 0 ? "FF1C1C1C" : "FF171717";
+      dataRow.eachCell({ includeEmpty: true }, (cell) => {
+        cell.fill      = { type: "pattern", pattern: "solid", fgColor: { argb: rowBg } };
+        cell.font      = { color: { argb: "FFD4D4D4" }, size: 10, name: "Calibri" };
+        cell.alignment = { vertical: "middle" };
+        cell.border    = { bottom: { style: "hair", color: { argb: "FF2A2A2A" } } };
+      });
+
+      // Status column: green = Active, gray = Timed Out
+      const statusCell = dataRow.getCell("status");
+      statusCell.alignment = { vertical: "middle", horizontal: "center" };
+      if (status === "Active") {
+        statusCell.fill = { type: "pattern", pattern: "solid", fgColor: { argb: "FF14532D" } };
+        statusCell.font = { bold: true, color: { argb: "FF4ADE80" }, size: 10, name: "Calibri" };
+      } else {
+        statusCell.font = { color: { argb: "FF525252" }, size: 10, name: "Calibri" };
+      }
+
+      // Queue # column: amber for queued (pos > 1)
+      if (qi && qi.total > 1 && qi.pos > 1) {
+        const qCell = dataRow.getCell("queue");
+        qCell.font = { bold: true, color: { argb: "FFFBBF24" }, size: 10, name: "Calibri" };
+        qCell.alignment = { vertical: "middle", horizontal: "center" };
+      }
+    });
+
+    // Auto-filter across all header columns
+    ws.autoFilter = { from: { row: 1, column: 1 }, to: { row: 1 + sorted.length, column: 12 } };
+
+    // Freeze top row
+    ws.views = [{ state: "frozen", xSplit: 0, ySplit: 1 }];
+
+    // Write and trigger browser download
+    const buffer = await workbook.xlsx.writeBuffer();
+    const blob   = new Blob([buffer], { type: "application/vnd.openxmlformats-officedocument.spreadsheetml.sheet" });
+    const url    = URL.createObjectURL(blob);
+    const anchor = document.createElement("a");
+    anchor.href     = url;
+    anchor.download = `LiveProd_Logs_${todayDate}.xlsx`;
+    document.body.appendChild(anchor);
+    anchor.click();
+    document.body.removeChild(anchor);
+    URL.revokeObjectURL(url);
+
+    showToast(`Downloaded ${sorted.length} records`, "download", "text-green-400");
   } catch (err) {
     console.error("XLSX download error:", err);
     showToast("Failed to download", "error", "text-red-400");
