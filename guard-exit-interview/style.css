@@ -1942,10 +1942,19 @@ body.readonly-mode .mobile-nav-editor-only {
 .settings-close:hover { background: #e2e8f0; color: #0f172a; }
 .settings-body {
   flex: 1;
-  overflow-y: auto;
+  min-height: 0;
+  overflow: hidden;
   padding: 18px;
+  display: flex;
+  flex-direction: column;
 }
-.settings-section { margin-bottom: 20px; }
+.settings-section {
+  margin-bottom: 20px;
+  display: flex;
+  flex-direction: column;
+  min-height: 0;
+}
+.settings-section:last-child { margin-bottom: 0; flex: 1; }
 .settings-section-title {
   display: flex;
   align-items: center;
@@ -2061,7 +2070,8 @@ body[data-company="moriah"] .detachment-add-form button:hover { background: #7c3
 .detachment-list {
   border: 1px solid #e2e8f0;
   border-radius: 8px;
-  max-height: 50vh;
+  flex: 1;
+  min-height: 120px;
   overflow-y: auto;
   background: #fff;
 }
@@ -2298,7 +2308,7 @@ body[data-company="moriah"] .btn-modal-primary:hover { background: #7c3aed !impo
     max-height: 100vh;
     border-radius: 0;
   }
-  .detachment-list { max-height: calc(100vh - 280px); }
+  .detachment-list { min-height: 0; }
   /* Detachment typeahead needs more width than the period-select default cap */
   .detachment-filter-input {
     max-width: none !important;
