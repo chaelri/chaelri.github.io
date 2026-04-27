@@ -1,18 +1,41 @@
 # Guard Exit Interview Tracker — Decisions
 
-## 🚨 CRITICAL: Dual-Repo Deployment
+## 🚨 CRITICAL: Dual-Repo Deployment (Nested Git Repo)
 
-**Every change MUST be committed to BOTH:**
+`guard-exit-interview/` is a **nested git repository** living inside `chaelri.github.io/`. It has its own `.git/` directory and a different `origin` from the parent.
 
-1. **`chaelri.github.io`** (path: `/Users/ccayno/Documents/chaelri.github.io/guard-exit-interview/`) — GitHub Pages public hosting.
-2. **`guard-exit-tracker`** (separate repo) — Source of truth, primary development.
+| Repo | Working dir | Remote |
+|------|-------------|--------|
+| Outer (deploy surface) | `/Users/ccayno/Documents/chaelri.github.io/` | `chaelri/chaelri.github.io` |
+| Inner (dev hub) | `/Users/ccayno/Documents/chaelri.github.io/guard-exit-interview/` | `chaelri/guard-exit-tracker` |
 
-**Workflow:**
-1. Edit in `chaelri.github.io/guard-exit-interview/`
-2. Commit to local `guard-exit-tracker` worktree first
-3. Push to `guard-exit-tracker` upstream
-4. Sync changes to `chaelri.github.io` repo and push
-5. Verify both remotes have the commit
+**Verify before assuming the layout:**
+```bash
+git -C /Users/ccayno/Documents/chaelri.github.io/guard-exit-interview remote -v
+# → origin  https://github.com/chaelri/guard-exit-tracker.git
+```
+
+**Every change to files under `guard-exit-interview/` MUST land in BOTH remotes.** Use `-C` to scope each git command to the right repo:
+
+```bash
+GEI=/Users/ccayno/Documents/chaelri.github.io/guard-exit-interview
+ROOT=/Users/ccayno/Documents/chaelri.github.io
+
+# 1. Commit in inner (guard-exit-tracker)
+git -C "$GEI" add <files>
+git -C "$GEI" commit -m "..."
+CLAUDE_ALLOW_PUSH=1 git -C "$GEI" push origin main
+
+# 2. Commit in outer (chaelri.github.io). The outer repo sees the
+#    nested folder as a single "submodule-like" pointer change OR as
+#    untracked files depending on .gitignore — typically you'll re-add
+#    the same files at the outer level too.
+git -C "$ROOT" add guard-exit-interview/<files>
+git -C "$ROOT" commit -m "..."
+CLAUDE_ALLOW_PUSH=1 git -C "$ROOT" push origin main
+```
+
+**Common mistake:** running `git remote -v` at the repo root and seeing only `chaelri.github.io` — that does NOT mean `guard-exit-tracker` is missing. The nested repo's remote is only visible from inside `guard-exit-interview/`.
 
 **Rationale:**
 - Separation: `guard-exit-tracker` = dev hub, `chaelri.github.io` = deployment surface
