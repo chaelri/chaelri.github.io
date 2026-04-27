@@ -1,0 +1,132 @@
+/* ============================================================================
+   SNS DQ — minimal styles beyond Tailwind v4
+   ========================================================================= */
+
+/* Open Sauce Sans is also loaded at runtime via FontFace in app.js (so the
+   canvas can use it). These @font-face rules expose the same files to the DOM
+   so on-screen UI text matches. */
+@font-face {
+  font-family: "Open Sauce Sans";
+  src: url("assets/fonts/OpenSauceSans-Regular.ttf") format("truetype");
+  font-weight: 400;
+  font-style: normal;
+  font-display: swap;
+}
+@font-face {
+  font-family: "Open Sauce Sans";
+  src: url("assets/fonts/OpenSauceSans-SemiBold.ttf") format("truetype");
+  font-weight: 600;
+  font-style: normal;
+  font-display: swap;
+}
+@font-face {
+  font-family: "Open Sauce Sans";
+  src: url("assets/fonts/OpenSauceSans-Bold.ttf") format("truetype");
+  font-weight: 700;
+  font-style: normal;
+  font-display: swap;
+}
+@font-face {
+  font-family: "Open Sauce Sans";
+  src: url("assets/fonts/OpenSauceSans-BoldItalic.ttf") format("truetype");
+  font-weight: 700;
+  font-style: italic;
+  font-display: swap;
+}
+@font-face {
+  font-family: "Open Sauce Sans";
+  src: url("assets/fonts/OpenSauceSans-ExtraBold.ttf") format("truetype");
+  font-weight: 800;
+  font-style: normal;
+  font-display: swap;
+}
+@font-face {
+  font-family: "Open Sauce Sans";
+  src: url("assets/fonts/OpenSauceSans-ExtraBoldItalic.ttf") format("truetype");
+  font-weight: 800;
+  font-style: italic;
+  font-display: swap;
+}
+
+/* Buttons */
+.btn-primary {
+  display: inline-flex;
+  align-items: center;
+  gap: 0.5rem;
+  padding: 0.625rem 1.125rem;
+  background: rgb(244 244 245);
+  color: rgb(9 9 11);
+  border-radius: 0.75rem;
+  font-size: 0.875rem;
+  font-weight: 600;
+  border: 1px solid rgb(255 255 255 / 0.1);
+  transition: background 0.15s ease, transform 0.15s ease, opacity 0.15s ease;
+}
+.btn-primary:hover { background: rgb(255 255 255); }
+.btn-primary:active { transform: translateY(1px); }
+.btn-primary:disabled { opacity: 0.5; cursor: not-allowed; }
+
+.btn-ghost {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  gap: 0.4rem;
+  padding: 0.5rem 0.9rem;
+  background: rgb(31 32 38);
+  color: rgb(228 228 231);
+  border-radius: 0.75rem;
+  font-size: 0.8rem;
+  font-weight: 500;
+  border: 1px solid rgb(255 255 255 / 0.08);
+  transition: background 0.15s ease, border-color 0.15s ease, opacity 0.15s ease;
+}
+.btn-ghost:hover { background: rgb(39 41 49); border-color: rgb(255 255 255 / 0.14); }
+.btn-ghost:disabled { opacity: 0.4; cursor: not-allowed; }
+.btn-ghost:disabled:hover { background: rgb(31 32 38); border-color: rgb(255 255 255 / 0.08); }
+
+.icon-btn {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  width: 2.25rem;
+  height: 2.25rem;
+  border-radius: 0.625rem;
+  color: rgb(161 161 170);
+  transition: background 0.15s ease, color 0.15s ease;
+}
+.icon-btn:hover { background: rgb(255 255 255 / 0.05); color: rgb(244 244 245); }
+
+/* Range slider — slim & dark */
+input[type="range"] {
+  appearance: none;
+  height: 0.25rem;
+  background: rgb(63 63 70);
+  border-radius: 9999px;
+  outline: none;
+}
+input[type="range"]::-webkit-slider-thumb {
+  appearance: none;
+  width: 1rem;
+  height: 1rem;
+  border-radius: 9999px;
+  background: rgb(244 244 245);
+  cursor: pointer;
+  border: 0;
+}
+input[type="range"]:disabled { opacity: 0.4; cursor: not-allowed; }
+
+/* Help dialog: center on screen + soft fade-in */
+dialog {
+  margin: auto;
+  position: fixed;
+  inset: 0;
+}
+dialog[open] { animation: dialog-in 0.18s ease-out; }
+@keyframes dialog-in {
+  from { opacity: 0; transform: translateY(8px) scale(0.98); }
+  to { opacity: 1; transform: translateY(0) scale(1); }
+}
+
+/* Spin */
+@keyframes spin { to { transform: rotate(360deg); } }
+.animate-spin { animation: spin 0.9s linear infinite; }

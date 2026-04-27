@@ -1,6 +1,6 @@
 # Hub Project Index for chaelri.github.io
 
-**Last updated:** 2026-04-27
+**Last updated:** 2026-04-28
 **Scope:** Complete mapping of top-level directories + root files, with tech stack, deployment, status, and key entry points.
 
 ## Status Legend
@@ -49,6 +49,17 @@ Offboarding interview tracker for New Manela guards — captures exit data, expo
 - **Entry:** `index.html` (login + hidden content), `script.js` (auth + reveal logic), `styles.css`.
 - **Deploy:** GitHub Pages at `/monthsary/`.
 - **Quirks:** Recently rebuilt (Apr 26). Date-locked UI (won't fully render after Nov 11 unless overridden). Login gate restricts content to Charlie & Karla.
+
+### sns-dq/  🟢
+
+Discussion Questions image generator — paste questions, AI adds bold/italic emphasis (no rewording), renders onto the SNS template, copy/download/upload to Drive.
+
+- **Tech:** vanilla JS, Tailwind v4 (browser build), Material Symbols, Open Sauce Sans (Regular / Bold / BoldItalic served on canvas), PWA manifest with `share_target`. No service worker.
+- **Entry:** `index.html`, `app.js`, `style.css`, `manifest.json`, `assets/template.png` (1920×1080).
+- **Deploy:** GitHub Pages at `/sns-dq/`. Browser-only client.
+- **Server side:** `gemini-proxy/upload-drive` endpoint authenticates as charliecayno@gmail.com via stored OAuth refresh token (set up by `gemini-proxy/setup-drive-oauth.sh`). Service accounts can't write to consumer Drives — that's why the user-OAuth path. Drive folder ID hardcoded in proxy.
+- **Quirks:** Three-tier weight for emphasis (400/700/700-italic) settled after several iterations; layout pinned to measured pixel bounds of the pre-stamped header in `template.png`. AI output is reconciled run-by-run against the input so wording can never silently change.
+- **Full docs:** See `knowledge/sns-dq/SUMMARY.md` and `DECISIONS.md`.
 
 ### tayo/  🟢
 
@@ -244,7 +255,7 @@ Simple side-scrolling platformer (Bubu & Dudu) — canvas-based game.
 
 | Project | Hosting | Auto-deploy on push? |
 |---|---|---|
-| devo, monthsary, tayo, weddingtest, flux, pray, echoes, wedding100, weddingtimeline, horizon, money, anohana, bubududu | GitHub Pages subpath | ✅ |
+| devo, monthsary, tayo, sns-dq, weddingtest, flux, pray, echoes, wedding100, weddingtimeline, horizon, money, anohana, bubududu | GitHub Pages subpath | ✅ |
 | guard-exit-interview | GitHub Pages — **DUAL-REPO** (also push to `guard-exit-tracker`) | ✅ |
 | vm-management | GitHub Pages `/vm-management/` | ✅ |
 | weddingbar | Firebase Hosting (root via `firebase.json`) — also GH Pages `/weddingbar/` | `firebase deploy` |
