@@ -957,13 +957,17 @@ async function openReflectModal() {
   const bookName = bookEl.options[bookEl.selectedIndex]?.text || "";
   const chapter = chapterEl.value;
 
-  // Clone and clean the HTML — strip rogue styled tags and inline styles from AI
+  // Clone and clean the HTML — strip rogue styled tags and inline styles from AI.
+  // EXCEPTION: keep <span class="material-symbols-outlined"> (used by our retry-icon
+  // button) — those are app-controlled, not AI output, and removing them empties
+  // the icon glyph.
   const cleanHTML = reflectionEl.innerHTML
-    .replace(/<(strong|em|b|i|mark|span)[^>]*>(.*?)<\/\1>/gi, '$2')
+    .replace(/<(strong|em|b|i|mark)[^>]*>(.*?)<\/\1>/gi, '$2')
+    .replace(/<span(?![^>]*material-symbols-outlined)[^>]*>(.*?)<\/span>/gi, '$1')
     .replace(/\s*style="[^"]*"/gi, '');
 
   content.innerHTML = `
-    <div>
+    <div style="position:relative;">
       <div class="story-label">GUIDED REFLECTION</div>
       <div class="story-title">${bookName} ${chapter}</div>
       ${cleanHTML}
@@ -973,6 +977,37 @@ async function openReflectModal() {
     </div>`;
 
   modal.hidden = false;
+
+  // Wire the modal's retry button (innerHTML cloning loses the original handler).
+  const modalRetryBtn = content.querySelector(".ai-refl-retry");
+  if (modalRetryBtn && window.__aiPayload) {
+    modalRetryBtn.addEventListener("click", async (e) => {
+      e.stopPropagation();
+      if (modalRetryBtn.disabled) return;
+      modalRetryBtn.disabled = true;
+      modalRetryBtn.classList.add("ai-refl-retry-spinning");
+      try {
+        const existing = (await loadAIFromStorage()) || {};
+        await saveAIToStorage({ ...existing, reflectionHTML: null, answers: {} });
+        await renderAIReflectionQuestions(window.__aiPayload);
+        const updated = (await loadAIFromStorage()) || {};
+        await saveAIToStorage({
+          ...updated,
+          reflectionHTML:
+            reflectionEl.innerHTML !== "<p>Failed to generate reflection questions.</p>"
+              ? reflectionEl.innerHTML
+              : null,
+        });
+        // Re-open the modal so it picks up the fresh questions.
+        modal.hidden = true;
+        openReflectModal();
+      } catch (err) {
+        console.error("[reflection retry — modal]", err);
+        modalRetryBtn.disabled = false;
+        modalRetryBtn.classList.remove("ai-refl-retry-spinning");
+      }
+    });
+  }
 
   // Copy notes button
   document.getElementById("reflectCopyNotesBtn").onclick = async () => {

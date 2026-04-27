@@ -30,9 +30,10 @@ const SYNC_STATIC_KEYS = [
   "recentPassage",
   "soap_application",
   "soap_prayer",
+  "dashGreetingCacheV2",
 ];
 
-const SYNC_DYNAMIC_PREFIXES = ["reflection-", "devo.canvas."];
+const SYNC_DYNAMIC_PREFIXES = ["reflection-", "devo.canvas.", "chapterContext."];
 const RTDB_PATH = "devo-sync";
 const BOOTSTRAP_KEY = "userName";
 const FB_WRITE_DEBOUNCE_MS = 400;
@@ -47,31 +48,71 @@ let _isCharlie = false;
 let _mirror = null;            // { [decodedKey]: stringValue }
 let _suppressFbWrites = false; // true while we apply remote changes locally
 let _writeTimers = {};
+let _remoteListenerCb = null;  // saved so deactivation can detach it
 
 // ── Boot ────────────────────────────────────────────────────────────────────
 (async function bootstrap() {
   const name = (_realLs.getItem(BOOTSTRAP_KEY) || "").trim().toLowerCase();
-  _isCharlie = name === "charlie";
-
-  if (!_isCharlie) {
-    _injectAppScript();
-    return;
-  }
-
-  // No sync splash — the regular "devotion." intro stays visible while we
-  // pull from Firebase in the background.
-  try {
-    await _initFirebase();
-    const merged = await _mergeOnBoot();
-    _mirror = _decodeAll(merged);
-    _installMirror();
-    _clearMigratedRealLs();
-    _listenForRemoteChanges();
-  } catch (err) {
-    console.error("Firebase bootstrap failed:", err);
+  if (name === "charlie") {
+    try { await _activateCharlie(); }
+    catch (err) { console.error("Firebase bootstrap failed:", err); }
   }
   _injectAppScript();
 })();
+
+// In-place activation. Used by bootstrap (when userName is already "charlie"
+// at page load) AND by _showNamePrompt (when the user types "charlie"
+// mid-session and we want to enable RTDB sync without a page reload).
+async function _activateCharlie() {
+  if (_isCharlie) return; // idempotent
+  _isCharlie = true;
+  await _initFirebase();
+  const merged = await _mergeOnBoot();
+  _mirror = _decodeAll(merged);
+  _installMirror();
+  _clearMigratedRealLs();
+  _listenForRemoteChanges();
+  _refreshAppGlobals();
+}
+window.activateCharlieSync = _activateCharlie;
+
+// Tear the mirror back down without reloading. Used when the user switches
+// away from "charlie" via the name prompt. After this runs, window.localStorage
+// is real localStorage again, RTDB writes/listens are detached, and the app's
+// in-memory globals are reseeded from real LS (mostly empty post-clear).
+async function _deactivateCharlie() {
+  if (!_isCharlie) return;
+  if (_fbDb && _remoteListenerCb) {
+    try { _fbDb.ref(RTDB_PATH).off("value", _remoteListenerCb); } catch {}
+  }
+  _remoteListenerCb = null;
+  for (const t of Object.values(_writeTimers)) clearTimeout(t);
+  _writeTimers = {};
+  // Restore real localStorage on window. (configurable: true was set during
+  // install so we can redefine here.)
+  Object.defineProperty(window, "localStorage", {
+    configurable: true,
+    get() { return _realLs; },
+  });
+  _mirror = null;
+  _isCharlie = false;
+  _refreshAppGlobals();
+}
+window.deactivateCharlieSync = _deactivateCharlie;
+
+// After the mirror is installed (or torn down) mid-session, the in-memory
+// globals declared at the top of script chunks (favorites, comments) may be
+// stale relative to what window.localStorage now backs to. Reseed them and
+// trigger a dashboard re-render. We read through window.localStorage so this
+// works in both directions: post-activation it hits the mirror, post-
+// deactivation it hits real localStorage.
+function _refreshAppGlobals() {
+  try { if (typeof favorites !== "undefined") favorites = JSON.parse(localStorage.getItem("bibleFavorites") || "{}"); } catch {}
+  try { if (typeof comments  !== "undefined") comments  = JSON.parse(localStorage.getItem("bibleComments")  || "{}"); } catch {}
+  if (typeof renderDashboard === "function") {
+    try { renderDashboard(); } catch {}
+  }
+}
 
 function _injectAppScript() {
   // script.js is split into 10 ordered chunks under js/. They share the same
@@ -223,7 +264,7 @@ function _scheduleFbWrite(key, value) {
 
 // ── Listen for remote changes ───────────────────────────────────────────────
 function _listenForRemoteChanges() {
-  _fbDb.ref(RTDB_PATH).on("value", (snap) => {
+  _remoteListenerCb = (snap) => {
     const remote = snap.val() || {};
     const decoded = _decodeAll(remote);
 
@@ -272,7 +313,8 @@ function _listenForRemoteChanges() {
     if (homeBtn && homeBtn.style.display === "none" && typeof renderDashboard === "function") {
       try { renderDashboard(); } catch {}
     }
-  });
+  };
+  _fbDb.ref(RTDB_PATH).on("value", _remoteListenerCb);
 }
 
 // ── Merge logic (preserved from previous version) ───────────────────────────

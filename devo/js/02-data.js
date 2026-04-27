@@ -158,9 +158,20 @@ toggleModesBtn.onclick = () => {
   updateIcon();
 };
 
+// Dashboard theme toggle (next to the menu_book button). Proxies to the
+// existing #mode-toggle so all the light-mode logic stays in one place.
+const dashThemeBtn = document.getElementById("dashThemeBtn");
+if (dashThemeBtn) {
+  dashThemeBtn.onclick = () => toggleModesBtn.click();
+}
+
 function updateIcon() {
+  const next = isLightMode ? "dark_mode" : "light_mode";
   const icon = toggleModesBtn.querySelector("span");
-  icon.innerText = isLightMode ? "dark_mode" : "light_mode";
+  if (icon) icon.innerText = next;
+  // Keep the dashboard theme button's icon in sync.
+  const dashIcon = document.querySelector("#dashThemeBtn .material-symbols-outlined");
+  if (dashIcon) dashIcon.innerText = next;
 }
 
 function saveComments() {

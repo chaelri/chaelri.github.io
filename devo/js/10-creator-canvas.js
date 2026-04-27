@@ -394,6 +394,10 @@ async function _imgcrShare() {
   const paperEl   = document.getElementById("cmPaper");
   const passageTitleEl2 = document.getElementById("cmPassageTitle");
   const passageEl = document.getElementById("cmPassage");
+  const contextEl = document.getElementById("cmContext");
+  // Q&A thread for the current chapter view. Resets on every renderPassage
+  // (so leaving + re-entering a chapter starts a clean thread).
+  let _ctxThread = [];
   const popover   = document.getElementById("cmPopover");
   const fab       = document.getElementById("cmFab");
   const fabIcon   = document.getElementById("cmFabIcon");
@@ -516,6 +520,8 @@ async function _imgcrShare() {
   // ---------- Render passage ----------
   function renderPassage(info) {
     passageEl.innerHTML = "";
+    _ctxThread = [];
+    _renderContext(info);
     let wordIdx = 0;
     const verses = Object.entries(info.chapterContent)
       .map(([v, t]) => ({ v, t }))
@@ -550,6 +556,29 @@ async function _imgcrShare() {
         }
         wordIdx++;
       }
+      // Heart toggle pinned to the top-right of the verse block. Same store as
+      // the dashboard — toggleFavorite() / saveFavorites() update the global
+      // `favorites` map and (in Charlie mode) flow through to RTDB.
+      const favBtn = document.createElement("button");
+      favBtn.className = "cm-fav-btn";
+      favBtn.type = "button";
+      favBtn.setAttribute("aria-label", "Favorite verse");
+      const setFavIcon = () => {
+        const filled = typeof isFavorite === "function" && isFavorite(verseKey);
+        favBtn.classList.toggle("active", filled);
+        favBtn.innerHTML = `<span class="material-icons">${filled ? "favorite" : "favorite_border"}</span>`;
+      };
+      setFavIcon();
+      favBtn.addEventListener("click", (e) => {
+        e.stopPropagation();
+        if (typeof toggleFavorite === "function") {
+          toggleFavorite(verseKey);
+          setFavIcon();
+          favBtn.classList.add("cm-fav-pop");
+          setTimeout(() => favBtn.classList.remove("cm-fav-pop"), 320);
+        }
+      });
+      verseEl2.appendChild(favBtn);
       passageEl.appendChild(verseEl2);
     }
 
@@ -588,6 +617,222 @@ async function _imgcrShare() {
         w.appendChild(badge);
       }
     });
+  }
+
+  // ── Compact context accordion ─────────────────────────────────────────────
+  // Sits above the verses in canvas mode. Shows a 4-line AI summary
+  // (characters / setting / background / recap) cached per chapter in
+  // localStorage. Charlie's localStorage mirror auto-flushes the
+  // `chapterContext.` prefix to RTDB (see firebase-sync.js).
+  // Below the summary, a small "Ask…" input streams Q&A inline; the thread
+  // is session-only (cleared on each renderPassage).
+  const _ctxKey = (info) => `chapterContext.${info.bookId}-${info.chapterNum}`;
+
+  function _ctxBuildPrompt(info) {
+    const isChapterOne = String(info.chapterNum) === "1";
+    return [
+      `You are summarizing a Bible chapter for a quick context card. Be tight and useful.`,
+      `Book: ${info.bookName} — Chapter: ${info.chapterNum}.`,
+      `Output EXACTLY four lines, each starting with the bolded label as shown. No extras, no markdown bullets, no preamble.`,
+      `**Characters:** comma-separated key figures in this chapter (max ~6).`,
+      `**Setting:** time + place in 1 short clause.`,
+      `**Background:** 1–2 sentences on what's going on at this point in the book.`,
+      isChapterOne
+        ? `**What's just before:** Write "Opening of ${info.bookName}." and nothing else.`
+        : `**What's just before:** ONE sentence recapping the immediately prior chapter(s).`,
+      `Use plain English. Bold the labels with **double asterisks**. Total ≤90 words.`,
+    ].join(" ");
+  }
+
+  function _ctxAskPrompt(info, question, summaryText, thread) {
+    const prior = (thread || [])
+      .slice(-8) // keep last few turns to bound prompt size
+      .map((t) => `${t.role === "user" ? "USER" : "ASSISTANT"}: ${t.text}`)
+      .join("\n");
+    return [
+      `You are a patient Bible-study teacher answering questions about ${info.bookName} ${info.chapterNum}. Your job is to actually TEACH the user, not just spit a one-liner. Treat every question like the user genuinely wants to learn — explain the WHAT, the WHY, and a concrete example so it sticks.`,
+      `Always assume the question is about THIS chapter unless the user clearly asks otherwise.`,
+      `Existing context summary you can rely on:\n${summaryText || "(none)"}`,
+      prior ? `Conversation so far (oldest → newest):\n${prior}` : "",
+      `Smart-input rules — apply BEFORE answering:`,
+      `1. If a word in the question looks like a typo or near-spelling of a real biblical/animal/place term (e.g. "hoop" → "hoof", "Mosses" → "Moses"), gently correct it on the FIRST line: "Did you mean **<correct>**?" then answer about the corrected term.`,
+      `2. If the user mixes English with Filipino filler particles ("pala", "ba", "naman", "po", "kasi", "lang", "din", "rin", "yung", "talaga", "e", "nga"), strip them and answer the underlying question. Don't quote them back as if they were content.`,
+      `3. If the user types a single word or fragment, treat it as "what is/who is/where is …?" and answer accordingly using the chapter context.`,
+      `4. If the question is ambiguous, pick the most likely meaning given the chapter content and answer; only ask back if truly impossible.`,
+      `5. Use the conversation so far for pronouns and follow-ups ("what about him?" / "and then?") — resolve them silently from history.`,
+      `6. Detect CONFUSION SIGNALS like "di ko gets", "hindi ko gets", "i don't understand", "explain", "what is X", "ano ba yun", "paano", "why", "how", "huh", "wtf", or any phrasing that says the user wants more clarity. When you detect any of these, default to the LONGER teaching format below.`,
+      `Answer formats — choose ONE based on the question:`,
+      `• SHORT (2–3 sentences): when the user asks a plain factual question and clearly already knows the territory ("how many verses?", "who said X?").`,
+      `• TEACHING (4–7 sentences in 1–2 short paragraphs): when ANY confusion signal fires, when the user asks "what is X?" about a non-obvious term, or when the answer needs anchoring. Structure: (a) plain-language definition or correction, (b) a concrete real-world example or analogy when useful, (c) how it ties to ${info.bookName} ${info.chapterNum} specifically, (d) a brief "so what" if natural.`,
+      `Voice: warm, patient, like a friend explaining over coffee. No filler ("Great question!", "That's a fascinating…"). No hedging ("It is interesting to note that…"). Bold key terms with **double asterisks**. Plain English; if the user wrote Taglish you can mirror a casual Taglish tone in your reply.`,
+      `User question: "${question}"`,
+      AI_TONE,
+    ].filter(Boolean).join("\n\n");
+  }
+
+  function _renderContext(info) {
+    if (!contextEl) return;
+    contextEl.hidden = false;
+    contextEl.innerHTML = `
+      <button type="button" class="cm-ctx-head" aria-expanded="false">
+        <span class="material-symbols-outlined cm-ctx-head-icon">menu_book</span>
+        <span class="cm-ctx-head-label">Context · Ask</span>
+        <span class="material-symbols-outlined cm-ctx-head-chev">expand_more</span>
+      </button>
+      <div class="cm-ctx-panel">
+        <div class="cm-ctx-panel-inner">
+          <button type="button" class="cm-ctx-refresh" aria-label="Regenerate summary" title="Regenerate summary">
+            <span class="material-symbols-outlined">refresh</span>
+          </button>
+          <div class="cm-ctx-summary" data-state="loading">
+            <span class="cm-ctx-loader"><span class="gdot"></span><span class="gdot"></span><span class="gdot"></span></span>
+          </div>
+          <form class="cm-ctx-ask">
+            <input type="text" class="cm-ctx-ask-input" placeholder="Ask about this chapter…" autocomplete="off" />
+            <button type="submit" class="cm-ctx-ask-send" aria-label="Send">
+              <span class="material-symbols-outlined">arrow_upward</span>
+            </button>
+          </form>
+        </div>
+      </div>
+      <div class="cm-ctx-thread"></div>
+    `;
+
+    // Stop pointer/click events from bubbling into the canvas-mode draw/erase
+    // handlers on the viewport — those swallow clicks if a stroke is being
+    // tracked, which is why the accordion sometimes "won't close".
+    ["pointerdown", "pointerup", "click", "touchstart"].forEach((evt) => {
+      contextEl.addEventListener(evt, (e) => e.stopPropagation());
+    });
+
+    const head = contextEl.querySelector(".cm-ctx-head");
+    const panel = contextEl.querySelector(".cm-ctx-panel");
+    const summary = contextEl.querySelector(".cm-ctx-summary");
+    const askForm = contextEl.querySelector(".cm-ctx-ask");
+    const askInput = askForm.querySelector(".cm-ctx-ask-input");
+    const thread = contextEl.querySelector(".cm-ctx-thread");
+    const refreshBtn = contextEl.querySelector(".cm-ctx-refresh");
+
+    refreshBtn.addEventListener("click", (e) => {
+      e.stopPropagation();
+      // Bust the cache + re-fetch. Spin the icon while the request is in flight.
+      try { localStorage.removeItem(_ctxKey(info)); } catch {}
+      refreshBtn.classList.add("cm-ctx-refresh-spinning");
+      summary.dataset.state = "loading";
+      summary.innerHTML = `<span class="cm-ctx-loader"><span class="gdot"></span><span class="gdot"></span><span class="gdot"></span></span>`;
+      _ctxFetchSummary(info, summary).finally(() => {
+        refreshBtn.classList.remove("cm-ctx-refresh-spinning");
+      });
+    });
+
+    head.addEventListener("click", (e) => {
+      e.stopPropagation();
+      const willOpen = !panel.classList.contains("cm-ctx-panel--open");
+      panel.classList.toggle("cm-ctx-panel--open", willOpen);
+      head.setAttribute("aria-expanded", String(willOpen));
+      head.classList.toggle("cm-ctx-head-open", willOpen);
+      // Reset thread on every open — user requested fresh-start behavior
+      // ("pag inopen ulit dapat refreshed"). Summary stays cached because
+      // it's persisted; only the in-memory Q&A thread is wiped.
+      if (willOpen) {
+        _ctxThread = [];
+        thread.innerHTML = "";
+      }
+    });
+
+    askForm.addEventListener("submit", (e) => {
+      e.preventDefault();
+      e.stopPropagation();
+      const q = askInput.value.trim();
+      if (!q) return;
+      askInput.value = "";
+      _ctxAsk(info, q, summary, thread);
+    });
+
+    // Render cached summary if present, otherwise fetch.
+    const cached = (() => {
+      try { return localStorage.getItem(_ctxKey(info)); } catch { return null; }
+    })();
+    if (cached) {
+      _ctxRenderSummary(summary, cached);
+    } else {
+      _ctxFetchSummary(info, summary);
+    }
+  }
+
+  async function _ctxFetchSummary(info, summary) {
+    try {
+      const text = await callGemini(_ctxBuildPrompt(info));
+      const cleaned = (text || "").trim();
+      if (!cleaned) throw new Error("empty response");
+      try { localStorage.setItem(_ctxKey(info), cleaned); } catch {}
+      _ctxRenderSummary(summary, cleaned);
+    } catch (err) {
+      console.warn("Context summary failed:", err);
+      summary.dataset.state = "error";
+      summary.innerHTML = `<span class="cm-ctx-error">Couldn't load context. Tap to retry.</span>`;
+      summary.onclick = () => {
+        summary.onclick = null;
+        summary.dataset.state = "loading";
+        summary.innerHTML = `<span class="cm-ctx-loader"><span class="gdot"></span><span class="gdot"></span><span class="gdot"></span></span>`;
+        _ctxFetchSummary(info, summary);
+      };
+    }
+  }
+
+  function _ctxRenderSummary(summary, text) {
+    summary.dataset.state = "ready";
+    summary.innerHTML = (typeof mdToHTML === "function" ? mdToHTML(text) : text)
+      .replace(/<p>/g, "<p class=\"cm-ctx-line\">");
+  }
+
+  async function _ctxAsk(info, question, summary, thread) {
+    // Collapse all prior Q&A so only the new one is fully open. Tap an old
+    // question to reopen its answer.
+    thread.querySelectorAll(".cm-ctx-qa").forEach((el) => el.classList.add("cm-ctx-qa-collapsed"));
+
+    const priorThread = _ctxThread.slice(); // snapshot BEFORE pushing new turn
+    _ctxThread.push({ role: "user", text: question });
+
+    const qaWrap = document.createElement("div");
+    qaWrap.className = "cm-ctx-qa";
+    qaWrap.innerHTML = `
+      <button type="button" class="cm-ctx-q">
+        <span class="material-symbols-outlined">help</span>
+        <span class="cm-ctx-q-text"></span>
+        <span class="material-symbols-outlined cm-ctx-q-chev">expand_more</span>
+      </button>
+      <div class="cm-ctx-a">
+        <span class="cm-ctx-loader"><span class="gdot"></span><span class="gdot"></span><span class="gdot"></span></span>
+      </div>
+    `;
+    qaWrap.querySelector(".cm-ctx-q-text").textContent = question;
+
+    // Tap the question to toggle the answer's visibility.
+    qaWrap.querySelector(".cm-ctx-q").addEventListener("click", (e) => {
+      e.stopPropagation();
+      qaWrap.classList.toggle("cm-ctx-qa-collapsed");
+    });
+
+    thread.appendChild(qaWrap);
+    qaWrap.scrollIntoView({ behavior: "smooth", block: "nearest" });
+
+    const ansEl = qaWrap.querySelector(".cm-ctx-a");
+    const summaryText = summary.textContent || "";
+    try {
+      let full = "";
+      await callGeminiStream(
+        _ctxAskPrompt(info, question, summaryText, priorThread),
+        (_d, accum) => {
+          full = accum;
+          ansEl.innerHTML = (typeof mdToHTML === "function" ? mdToHTML(full) : full);
+        }
+      );
+      _ctxThread.push({ role: "assistant", text: full });
+    } catch (err) {
+      console.warn("Context ask failed:", err);
+      ansEl.innerHTML = `<span class="cm-ctx-error">Couldn't answer. Try again.</span>`;
+    }
   }
 
   // Adjacent same-color words fuse into a single bar:
@@ -1455,6 +1700,9 @@ async function _imgcrShare() {
   shareBtn?.addEventListener("click", exportPassageAsImage);
 
   // ---------- Keyboard ----------
+  // Color shortcuts: 1-5 map to swatches in toolbar order (matches index.html
+  // and the visible row). Picking a color also flips the tool to highlight.
+  const KEY_TO_COLOR = { "1": "yellow", "2": "pink", "3": "blue", "4": "orange", "5": "green" };
   document.addEventListener("keydown", (e) => {
     if (overlay.hidden) return;
     if (noteModal && !noteModal.hidden) return; // typing in note input
@@ -1463,6 +1711,10 @@ async function _imgcrShare() {
       if (e.key === "Escape") closeAiModal();
       return;
     }
+    // Don't intercept when the user is typing in any input/textarea
+    // (e.g. the context-accordion's "Ask about this chapter…" field).
+    const t = e.target;
+    if (t && (t.tagName === "INPUT" || t.tagName === "TEXTAREA" || t.isContentEditable)) return;
     if (e.key === "Escape") {
       if (!noteView.hidden) closeNoteView();
       else if (!popover.hidden) closePopover();
@@ -1475,6 +1727,12 @@ async function _imgcrShare() {
       doRedo();
     } else if (e.key === "h" || e.key === "H") setTool("highlight");
     else if (e.key === "e" || e.key === "E") setTool("eraser");
+    else if (KEY_TO_COLOR[e.key] && !e.metaKey && !e.ctrlKey && !e.altKey) {
+      // Picking a color implies "I want to highlight." Switch tool too.
+      e.preventDefault();
+      setTool("highlight");
+      setColor(KEY_TO_COLOR[e.key]);
+    }
   });
 
   // ---------- Open / close ----------
@@ -1491,10 +1749,63 @@ async function _imgcrShare() {
     renderPassage(info);
     resetHistory();
 
+    // Reveal the canvas behind a dramatic study-mode intro: a cream paper
+    // overlay covers the screen, the chapter title rises into the center,
+    // a yellow highlighter sweeps across it, then everything fades and the
+    // already-rendered canvas is exposed underneath. No zoom-in on the
+    // canvas itself — the intro IS the entry animation.
     overlay.hidden = false;
+    _playStudyIntro(`${info.bookName} ${info.chapterNum}`);
+
     color = DEFAULT_COLOR;
     setTool("highlight");
     scrollEl.scrollTop = 0;
+  }
+
+  // Cinematic study-mode intro — used by open(). Builds a one-shot DOM node,
+  // lets the CSS keyframes run for ~1.4s, then removes itself.
+  function _playStudyIntro(titleText) {
+    // Cancel any leftover intro from a rapid re-open.
+    document.querySelectorAll(".cm-intro").forEach((n) => n.remove());
+
+    const intro = document.createElement("div");
+    intro.className = "cm-intro";
+    intro.innerHTML = `
+      <div class="cm-intro-stage">
+        <div class="cm-intro-highlight"></div>
+        <span class="material-symbols-outlined cm-intro-marker">ink_highlighter</span>
+        <h1 class="cm-intro-title"></h1>
+      </div>
+    `;
+    intro.querySelector(".cm-intro-title").textContent = titleText;
+
+    // Pick a random highlight color from the swatch palette so the intro
+    // doesn't always look the same. Mirrors the 5 swatch hexes in index.html.
+    const palette = [
+      { mid: "255, 230, 107", edge: "255, 220, 80",  glow: "255, 200, 0" },   // yellow
+      { mid: "249, 168, 212", edge: "236, 145, 196", glow: "236, 110, 178" }, // pink
+      { mid: "147, 197, 253", edge: "120, 175, 245", glow:  "80, 150, 230" }, // blue
+      { mid: "253, 186, 116", edge: "245, 165,  90", glow: "230, 140,  60" }, // orange
+      { mid: "190, 242, 100", edge: "170, 225,  85", glow: "140, 200,  60" }, // green
+    ];
+    const pick = palette[Math.floor(Math.random() * palette.length)];
+    const hi = intro.querySelector(".cm-intro-highlight");
+    if (hi) {
+      hi.style.setProperty("--cm-hi-1", `rgba(${pick.mid}, 0.95)`);
+      hi.style.setProperty("--cm-hi-2", `rgba(${pick.edge}, 0.95)`);
+      hi.style.setProperty("--cm-hi-3", `rgba(${pick.mid}, 0.85)`);
+      hi.style.setProperty("--cm-hi-glow", `rgba(${pick.glow}, 0.22)`);
+    }
+
+    document.body.appendChild(intro);
+
+    // Belt-and-suspenders cleanup: remove on the wrapper's animationend, with
+    // a setTimeout fallback in case the listener doesn't fire.
+    const remove = () => intro.remove();
+    intro.addEventListener("animationend", (e) => {
+      if (e.target === intro) remove();
+    });
+    setTimeout(remove, 3800);
   }
 
   function close() {
@@ -1508,7 +1819,21 @@ async function _imgcrShare() {
     strokeActive = false;
     strokePointerId = null;
     strokeTouched = null;
-    overlay.hidden = true;
+    // Zoom-out transition — play the leaving animation, then actually hide
+    // the overlay after it finishes. Falls back to instant hide if anim
+    // doesn't fire (e.g. removed mid-flight).
+    overlay.classList.remove("view-enter");
+    overlay.classList.add("view-leaving");
+    let hidden = false;
+    const finalize = () => {
+      if (hidden) return;
+      hidden = true;
+      overlay.classList.remove("view-leaving");
+      overlay.hidden = true;
+      overlay.removeEventListener("animationend", finalize);
+    };
+    overlay.addEventListener("animationend", finalize, { once: true });
+    setTimeout(finalize, 320); // safety
   }
 
   btn?.addEventListener("click", open);
@@ -1715,7 +2040,14 @@ async function _imgcrShare() {
     renderBookList();
     renderCurrentPassage();
     bookSheet.hidden = false;
-    setTimeout(() => bookSearch?.focus(), 100);
+    // Only auto-focus the search input on devices where summoning a soft
+    // keyboard is unlikely (≥768px viewport, typically a laptop/iPad
+    // hardware-keyboard scenario). On phones, an immediate focus flashes
+    // the keyboard up and obscures the OT/NT tabs the user usually wants
+    // to browse first; let them tap the input themselves.
+    if (window.matchMedia && window.matchMedia("(min-width: 768px)").matches) {
+      setTimeout(() => bookSearch?.focus(), 100);
+    }
   }
 
   function renderCurrentPassage() {
@@ -1803,9 +2135,15 @@ async function _imgcrShare() {
       if (pc >= 1 && pc <= n) chapterSel.value = String(pc);
     }
     renderLabels();
+    // Force the soft keyboard to dismiss before chaining to the chapter
+    // sheet — otherwise on iOS the keyboard stays up and covers the chapter
+    // grid. Blurring the input AND the active element handles both the
+    // "user tapped while typing" and "input still has focus" cases.
+    if (bookSearch) bookSearch.blur();
+    if (document.activeElement && document.activeElement.blur) document.activeElement.blur();
     closeBookSheet();
     // Chain naturally into chapter pick — mirrors the mobile UX.
-    setTimeout(openChapterSheet, 160);
+    setTimeout(openChapterSheet, 220);
   }
   function selectChapter(n) {
     if (!chapterSel) return;

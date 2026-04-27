@@ -55,6 +55,7 @@ Content-Type: application/json
 | Verse Chat | `toggleVerseChat()` | 1600–1850+ | Dual: suggestions + stream | Multi-turn | History + chips |
 | Context Summary | `renderAIContextSummary()` | 2967–3056 | Dual: quick + full stream | Structured | Dual-card scaffold |
 | Reflection Questions | `renderAIReflectionQuestions()` | 3102–3280 | `fetch()` → proxy | RAW HTML output | Direct DOM |
+| Reflection Smart Retry | `_smartRetryReflections()` | 04-passage.js | `_fetchReflectionLis(count, excludeQuestions)` | Partial regen | In-place `<li>` swap |
 | Story Glance | `fetchStoryGlance()` | 6620–6645 | `callGemini()` | At-a-glance summary | Markdown |
 | Story Timeline | `fetchStoryTimeline()` | 6647–6695 | `callGemini()` | Narrative segments | JSON objects |
 | Story Closing | `fetchStoryClosing()` | 6698–6735 | `callGemini()` | Reflective close | Markdown |
@@ -90,6 +91,34 @@ Content-Type: application/json
 **Used by:** Story Timeline
 - Segment structure: `{ title, content: { quote, commentary }, imagePrompt }`
 - Serialized in IndexedDB cache
+
+## Reflection Questions — Smart Retry & New Covenant Rule
+
+**Files:** `js/04-passage.js` (helpers), `js/08-story.js` (reflect modal wiring), `style.css` (`.ai-refl-retry*`)
+
+### Pipeline
+1. **Prompt builder** — `_fetchReflectionLis({ book, chapter, versesText, count, excludeQuestions })` returns an array of detached `<li>` elements. Used by both initial render (count=3) and partial retry (count=N<3, excludeQuestions=already-answered).
+2. **Initial render** — `renderAIReflectionQuestions(payload)` calls `_fetchReflectionLis` with count=3, wraps the lis in `<ol>`, prepends the `.ai-refl-retry` button, wires verse-ref links + textarea input listeners, calls `initializeReflections`.
+3. **Cache restore** — when `runAIForCurrentPassage` finds cached HTML, it sets `mount.innerHTML` and calls `_ensureReflectionRetryUI(mount)` so the button + delegated handlers still attach (idempotent: safe to call repeatedly).
+4. **Smart retry click** — `_smartRetryReflections()`:
+   - Reads each `<li>`'s textarea value
+   - **0 unanswered** → button is already disabled (`.ai-refl-retry-done`, green); no-op
+   - **All N unanswered** → falls back to `_fullRetryReflections()` (cache busts, re-renders all 3)
+   - **1–2 unanswered** → fetches exactly `unanswered.length` new lis with explicit "DO NOT duplicate these already-answered questions" exclusion list, swaps them into the unanswered slots in `<ol>` via `replaceChild`. Re-keys textarea ids positionally, wires only the new textareas (existing have listeners), wires only new lis' verse-ref links, restores answers by id, persists fresh `mount.innerHTML` to IDB.
+5. **Reactive UI** — `_refreshRetryButtonState(mount)` runs after every keystroke (delegated `input` listener on `#aiReflection`). All 3 answered → disabled, green, tooltip "All questions answered ✓". Else enabled, pink, tooltip "Regenerate unanswered questions".
+
+### NEW COVENANT prompt rule
+The prompt has a non-negotiable section that:
+- Lists OT law categories that are NO LONGER BINDING (dietary, ceremonial purity, sacrificial, civil/theocratic, festival/Sabbath ceremonial) with proof-texts (Mark 7:19, Acts 10, Col 2:16, Heb 8–10, Rom 14:14, Gal 3:23–25)
+- Hard-forbids specific phrasings the AI tended to leak (e.g., "what unclean food will you avoid this week?", "what specific food choice will you make differently this week, reflecting God's call to be set apart?")
+- Provides four NT-faithful redirect angles (God's character / heart principle / Christ fulfillment / NT-parallel transfer)
+- Includes concrete BAD→GOOD rewrite pairs for Leviticus 11/16/19
+- Embeds a 3-step self-check the AI runs against each candidate question before emitting
+
+### Reflect modal integration (`08-story.js:openReflectModal`)
+- Clones `#aiReflection`'s innerHTML into `#reflectContent` (it's the same content displayed in a fullscreen modal)
+- Strip-regex `<(strong|em|b|i|mark)[^>]*>(.*?)<\/\1>/gi` removes AI's rogue inline styling **but spares** `<span class="material-symbols-outlined">` (otherwise the refresh icon glyph empties out and the button becomes invisible)
+- The cloned modal button gets its OWN click handler wired in `openReflectModal` (innerHTML cloning loses the source handler) → calls `_smartRetryReflections` → re-opens the modal so the new questions show
 
 ## Caching
 

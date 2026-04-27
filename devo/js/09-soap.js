@@ -245,17 +245,13 @@ function _saveSoapEntries(type, entries) {
   localStorage.setItem(_soapStorageKey(type), JSON.stringify(entries));
 }
 
-function _flushSoapToFirebase(type) {
-  if (typeof _fbDb === 'undefined' || !_fbDb || !_syncEnabled) return;
-  const key = _soapStorageKey(type);
-  const val = localStorage.getItem(key);
-  if (val === null) return;
-  const encodedKey = key.replace(/\./g, "__DOT__").replace(/\//g, "__SL__");
-  clearTimeout(_syncDebounceTimers[encodedKey]);
-  _ignoreRemoteUpdate = true;
-  _fbDb.ref(`${RTDB_PATH}/${encodedKey}`).set(val).then(() => {
-    _ignoreRemoteUpdate = false;
-  }).catch(() => { _ignoreRemoteUpdate = false; });
+function _flushSoapToFirebase(_type) {
+  // No-op under the new firebase-sync architecture (Apr 25 refactor):
+  // localStorage.setItem already flows through the mirror in Charlie mode,
+  // which debounce-flushes to RTDB automatically. The old globals this
+  // function used (_syncEnabled, _syncDebounceTimers, _ignoreRemoteUpdate)
+  // were removed when the bootstrap was rewritten. Kept as a stub so the
+  // existing callers don't blow up.
 }
 
 function _soapAPButtonsHTML(book, chapter, verse) {

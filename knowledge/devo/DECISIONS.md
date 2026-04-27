@@ -200,3 +200,50 @@ The original monolithic `script.js` benefitted from whole-file function hoisting
 **Fix**: All synchronous kickoff (`fetchBibleData()` / `loadBooks()` / `showDashboard()` / `updateControlStates()`, the recent-passage restore block, the `_onAppLoad` readyState trigger) was moved to `js/11-boot.js`, which loads last. By the time it executes, every function across every chunk is already in scope.
 
 **Service worker**: All chunks added to `sw.js` `CORE_ASSETS`; `DEPLOYMENT_ID` bumped to `v1.2.0-` to force cache refresh on the deploy.
+
+---
+
+## 15. Smart reflection retry + New Covenant prompt rule (2026-04-28)
+
+**Decision**: Replace the naive "regenerate everything" retry button with a smart retry that preserves answered questions and only regenerates the unanswered ones; AND tighten the prompt with a strict NEW COVENANT rule so OT ceremonial / dietary / sacrificial laws are never asked as still-binding obligations.
+
+**Why smart partial regen**:
+- Charlie kept losing real, thought-out answers when he wanted to swap *one* question that didn't land.
+- Full regen on a 3-of-3 prompt costs more tokens, and fresh AI questions don't honor the work the user already did.
+- New flow: read each `<li>`'s textarea value → if N=3 unanswered, fall back to full regen; if 0 unanswered, button is disabled with green "✓ All questions answered" tooltip; if 1–2 unanswered, fetch exactly N new questions with an explicit "DO NOT duplicate these already-answered questions" exclusion list and swap them into the unanswered slots in-place.
+- Answered Q+A pairs survive verbatim; existing textarea event-listeners survive (we only wire NEW textareas to avoid double-firing saves).
+
+**Why the covenant rule needed strengthening**:
+- First pass said "don't bind the reader to OT laws." AI still asked "what unclean food will you avoid this week?" on Leviticus 11.
+- Final rule: explicit hard-forbidden list of question patterns (matching the exact phrasings that leaked through), proof-text references (Mark 7:19, Acts 10, Col 2:16), four NT-faithful redirect angles (God's character / heart principle / Christ fulfillment / NT-parallel transfer), and concrete BAD→GOOD rewrite pairs for Leviticus 11/16/19. Plus a 3-step self-check the AI runs before emitting each question.
+
+**Implementation**:
+- Extracted `_fetchReflectionLis({ book, chapter, versesText, count, excludeQuestions })` so both `renderAIReflectionQuestions` (count=3, exclude=[]) and `_smartRetryReflections` (count=N<3, exclude=answeredQuestions) share the same prompt builder.
+- `_ensureReflectionRetryUI(mount)` is idempotent: on every innerHTML overwrite (fresh render, cache restore, retry re-render) it (a) ensures the button is in the DOM, (b) wires a delegated click handler on `#aiReflection`, (c) wires a delegated `input` handler that recomputes button state after every keystroke. Survives across cache-restores and modal clones.
+- Reflect modal (`openReflectModal` in `08-story.js`) clones `#aiReflection`'s innerHTML; the cleanHTML strip-regex was tightened so it wipes AI rogue spans but **not** `material-symbols-outlined` spans (otherwise the refresh icon glyph disappears). The modal independently re-wires its own retry button click → smart retry → re-open the modal so the new questions show.
+- Trade-off: extra plumbing vs. simpler "always full regen." Worth it because Charlie's answers are the user's actual reflection work — losing them on a misclick is a meaningful regression.
+
+**State indicator** (`.ai-refl-retry-done`):
+- Pink default → green when all 3 answered. Tooltip changes to "All questions answered ✓". Pure CSS swap, no icon font swap (Material glyphs render from textContent, not pseudo-elements — pseudo-element ::before content="check" doesn't actually swap the icon).
+
+---
+
+## 16. Letter-indicator keycap badges on canvas tools (2026-04-28)
+
+**Decision**: Add visible `H`/`E`/`1`–`5` keycap-style badges (12-13px, dark pill, bottom-right of each button) on the canvas-mode highlight tool, eraser tool, and 5 color swatches — desktop only.
+
+**Why**: native `title=` tooltips only show on hover, which mobile-touch users never see and even desktop users don't discover unless they hover-and-wait. Charlie wanted the shortcuts (`H`, `E`, `1`–`5`) DISCOVERABLE, not buried in tooltip-on-hover. CSS `::after` with hardcoded `content` selectors per `[data-tool]` / `[data-color]` keeps the badges in pure CSS — no HTML/JS plumbing.
+
+**Why desktop-only**: phones don't have keyboards, so the badges would be visual noise. Wrapped in `@media (min-width: 768px)`.
+
+**Trade-off**: hardcoded badge content per swatch color in CSS instead of `data-shortcut="1"` HTML attribute + `content: attr(data-shortcut)`. Both work; the CSS-only version is cleaner because the swatch HTML stays the canonical source for color, and shortcuts are tightly coupled to the JS `KEY_TO_COLOR` map anyway — when those change, both must update.
+
+---
+
+## 17. Random study-mode highlight color (2026-04-28)
+
+**Decision**: When canvas mode opens and plays the cinematic study intro (chapter title with marker sweep), pick a random highlight color from the 5-swatch palette instead of always yellow.
+
+**Why**: Charlie said the intro "always looked the same" — the highlight was hardcoded yellow even though the canvas itself supports 5 colors. Randomizing the intro color makes the moment feel less repetitive across chapters.
+
+**Implementation**: `_playStudyIntro` in `10-creator-canvas.js` rolls one of 5 color triplets (mid / edge / glow rgb tuples for yellow, pink, blue, orange, green) and sets `--cm-hi-1` / `--cm-hi-2` / `--cm-hi-3` / `--cm-hi-glow` CSS custom properties on `.cm-intro-highlight`. The CSS gradient + drop-shadow read from those vars; defaults are yellow if JS doesn't set them.

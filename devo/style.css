@@ -1104,19 +1104,28 @@ select:disabled {
 @media (min-width: 768px) {
   .dashboard-grid {
     grid-template-columns: 1fr 2fr;
-    align-items: start;
+    /* default align-items: stretch — Continue+Favorites column matches Notes height */
   }
 }
 
 .dashboard-section {
   margin-top: 30px;
   padding-bottom: 20px;
-  border-bottom: 1px solid rgba(255, 255, 255, 0.08);
   min-width: 0;
 }
 
-.dashboard-section:last-child {
-  border-bottom: none;
+/* Single horizontal rule below the Continue+Favorites / Notes row, spanning
+   both columns. Replaces the per-section border-bottom that produced two
+   misaligned underlines. */
+.dashboard-row-divider {
+  grid-column: 1 / -1;
+  margin: 0;
+  border: none;
+  border-top: 1px solid rgba(255, 255, 255, 0.08);
+  width: 100%;
+}
+.light .dashboard-row-divider {
+  border-top-color: rgba(0, 0, 0, 0.08);
 }
 
 .dashboard-section h3 {
@@ -1129,61 +1138,312 @@ select:disabled {
   gap: 8px;
 }
 
+/* Section h3 wraps the icon + label inside a single <span> so the right-side
+   nav (View all / prev-next chevrons) can sit at the opposite edge via
+   space-between. Make that wrap a flex row too so the icon and text share a
+   vertical center — material-icons glyphs have their own baseline that
+   otherwise drifts a couple px above the text. */
+.dashboard-section h3 > span {
+  display: inline-flex;
+  align-items: center;
+  gap: 8px;
+}
+.dashboard-section h3 .dashboard-icon {
+  display: inline-flex;
+  align-items: center;
+  line-height: 1;
+}
+
 .dashboard-icon {
   font-size: 1.2em;
   color: #db2777; /* Highlight icon */
   line-height: 1.4;
 }
 
-/* Favorites horizontal scroll */
-.dash-fav-scroll-wrap {
-  position: relative;
+/* ── View transitions ───────────────────────────────────────────────────────
+   Shared motion vocabulary for major navigation events:
+     • Dashboard ↔ Passage uses .view-enter on #output (drill-in: rise + fade).
+     • Canvas mode uses .view-enter on entry and .view-leaving on exit
+       (zoom in 0.96→1 / zoom out 1→0.96).
+   Same cubic-bezier(0.22, 1, 0.36, 1) easing across all of them so motions
+   feel like one app, not three. _playViewAnim() in js/01-core.js drives them. */
+@keyframes viewEnter {
+  from { opacity: 0; transform: translateY(14px); }
+  to   { opacity: 1; transform: translateY(0); }
 }
-.dash-fav-scroll-wrap::after {
-  content: '';
-  position: absolute;
-  top: 0; right: 0; bottom: 0;
-  width: 40px;
-  background: linear-gradient(to right, transparent, #0c1322);
-  pointer-events: none;
-  z-index: 1;
+@keyframes viewZoomIn {
+  from { opacity: 0; transform: scale(0.96); }
+  to   { opacity: 1; transform: scale(1); }
 }
-.light .dash-fav-scroll-wrap::after {
-  background: linear-gradient(to right, transparent, #faf9f6);
+@keyframes viewZoomOut {
+  from { opacity: 1; transform: scale(1); }
+  to   { opacity: 0; transform: scale(0.96); }
 }
-.dash-fav-scroll {
+
+#output.view-enter {
+  animation: viewEnter 320ms cubic-bezier(0.22, 1, 0.36, 1) both;
+  /* will-change isolates the paint to its own layer for the duration of the
+     animation; auto-resets after cleanup. */
+  will-change: opacity, transform;
+}
+
+#canvasModeOverlay.view-leaving {
+  animation: viewZoomOut 240ms cubic-bezier(0.4, 0, 1, 1) both;
+  will-change: opacity, transform;
+}
+
+/* ── Study-mode intro overlay ────────────────────────────────────────────────
+   Cinematic reveal when entering canvas/highlight mode: full-screen cream
+   paper covers the view, the chapter title rises into the center, a yellow
+   highlighter strokes across it left→right, then everything fades — exposing
+   the already-rendered canvas underneath. ~1.4s total. The wrapper's
+   animationend triggers cleanup in JS. */
+.cm-intro {
+  position: fixed;
+  inset: 0;
+  z-index: 10100; /* above #canvasModeOverlay (10050) */
+  background: #f5f2ea;
   display: flex;
-  gap: 8px;
-  overflow-x: auto;
-  padding-bottom: 4px;
-  padding-right: 32px;
-  -webkit-overflow-scrolling: touch;
-  scrollbar-width: none;
+  align-items: center;
+  justify-content: center;
+  pointer-events: none;
+  animation: cmIntroWrap 3600ms cubic-bezier(0.22, 1, 0.36, 1) both;
+  will-change: opacity;
 }
-.dash-fav-scroll::-webkit-scrollbar { display: none; }
-.dash-fav-chip {
-  flex-shrink: 0;
-  padding: 8px 14px;
-  border-radius: 8px;
-  background: rgba(219, 39, 119, 0.1);
-  border: none;
-  color: #db2777;
-  font-size: 13px;
-  font-weight: 800;
-  letter-spacing: -0.3px;
-  text-transform: uppercase;
-  cursor: pointer;
-  transition: all 0.15s ease;
+@keyframes cmIntroWrap {
+  0%   { opacity: 0; }
+  8%   { opacity: 1; }
+  82%  { opacity: 1; }
+  100% { opacity: 0; }
+}
+
+.cm-intro-stage {
+  position: relative;
+  display: inline-block;
+  padding: 0 24px;
+  max-width: 90vw;
+  /* Hoist the title's font size onto the stage so children (highlight bar
+     uses `0.96em`, marker icon uses `1em`) resolve against it instead of
+     against the body's 16px. Otherwise `0.96em` becomes ~15px → thin stripe.
+     Title now inherits this; no need to redeclare on .cm-intro-title. */
+  font-size: clamp(2.6rem, 9vw, 5rem);
+  line-height: 1.05;
+}
+
+.cm-intro-title {
+  font-family: "Editors Note", "EditorsNote-Italic", serif;
+  font-style: italic;
+  font-weight: 400;
+  font-size: 1em;
+  line-height: inherit;
+  color: #1a1a2e;
+  margin: 0;
+  position: relative;
+  z-index: 1;
   white-space: nowrap;
+  /* Title rises into place, holds, then drifts up & out. */
+  animation: cmIntroTitle 3600ms cubic-bezier(0.22, 1, 0.36, 1) both;
+  will-change: opacity, transform;
 }
-.dash-fav-chip:hover {
-  background: rgba(219, 39, 119, 0.18);
+@keyframes cmIntroTitle {
+  /* Pop fast (0% → 7% ≈ 250ms of the 3.6s timeline), then hold long so the
+     highlight keyframe (28% → 62%) does its sweep with the title already
+     fully visible. Title only drifts out at the very end. */
+  0%   { opacity: 0; transform: translateY(24px) scale(0.96); letter-spacing: -1px; }
+  7%   { opacity: 1; transform: translateY(0) scale(1); letter-spacing: 0; }
+  82%  { opacity: 1; transform: translateY(0) scale(1); letter-spacing: 0; }
+  100% { opacity: 0; transform: translateY(-12px) scale(0.99); }
 }
-.light .dash-fav-chip {
+
+.cm-intro-highlight {
+  position: absolute;
+  left: 8px;
+  right: 8px;
+  top: 52%;
+  /* Bigger! Covers the full glyph height so it reads like an actual marker
+     stroke painted across the title — the same way canvas-mode highlights
+     fill a word's bounding box. */
+  height: 0.96em;
+  /* Color triplet is set by JS via CSS custom props so each open randomizes
+     between the swatch palette (yellow / pink / blue / orange / green).
+     Defaults to yellow if JS doesn't set them. */
+  --cm-hi-1: rgba(255, 230, 107, 0.95);
+  --cm-hi-2: rgba(255, 220, 80, 0.95);
+  --cm-hi-3: rgba(255, 230, 107, 0.85);
+  --cm-hi-glow: rgba(255, 200, 0, 0.22);
+  background: linear-gradient(
+    90deg,
+    var(--cm-hi-1) 0%,
+    var(--cm-hi-2) 60%,
+    var(--cm-hi-3) 100%
+  );
+  border-radius: 6px;
+  transform-origin: left center;
+  transform: translateY(-50%) scaleX(0);
+  z-index: 0;
+  filter: drop-shadow(0 2px 4px var(--cm-hi-glow));
+  /* Slight rotation echoes a hand-drawn highlighter stroke. */
+  animation: cmIntroHighlight 3600ms cubic-bezier(0.45, 0, 0.55, 1) both;
+  will-change: transform, opacity;
+}
+@keyframes cmIntroHighlight {
+  0%, 22%   { transform: translateY(-50%) scaleX(0)   rotate(-0.8deg); opacity: 0; }
+  28%       { transform: translateY(-50%) scaleX(0)   rotate(-0.8deg); opacity: 0.95; }
+  62%       { transform: translateY(-50%) scaleX(1)   rotate(-0.8deg); opacity: 0.95; }
+  82%       { transform: translateY(-50%) scaleX(1)   rotate(-0.8deg); opacity: 0.95; }
+  100%      { transform: translateY(-50%) scaleX(1)   rotate(-0.8deg); opacity: 0; }
+}
+
+/* Highlighter marker icon — travels with the right edge of the sweep.
+   `left` interpolates from 8px (start of highlight) to calc(100% - 8px)
+   (end of highlight) over the same 28%–62% window the bar uses for scaleX,
+   so the icon visually "draws" the highlight as it crosses the title.
+   Specificity-bump (`span.cm-intro-marker.material-symbols-outlined`) plus
+   `!important` defeats Google's bundled `.material-symbols-outlined`
+   font-size and the CDN's `font-variation-settings` defaults. */
+span.cm-intro-marker.material-symbols-outlined {
+  position: absolute;
+  /* Pen tip lands at the vertical MIDDLE of the title row. The
+     translate(-50%, -100%) anchors the pen's bottom-center at the playhead,
+     then rotate(-22deg) tilts it. With top: 50% the tip sits dead-center;
+     the body extends upward from there, hovering over the title like a
+     real marker doing the stroke. */
+  top: 50%;
+  left: 8px;
+  /* Inherit from .cm-intro-stage so the icon scales with the title. ~1.2em
+     of the title size = a proper marker-tip presence next to the letters. */
+  font-size: 1.2em !important;
+  line-height: 1 !important;
+  color: #c83086;
+  z-index: 2;
+  pointer-events: none;
+  transform: translate(-50%, -100%) rotate(-22deg);
+  transform-origin: bottom center;
+  filter: drop-shadow(0 6px 14px rgba(200, 48, 134, 0.32));
+  animation: cmIntroMarker 3600ms cubic-bezier(0.45, 0, 0.55, 1) both;
+  will-change: left, opacity;
+}
+@keyframes cmIntroMarker {
+  0%, 22%   { left: 8px;                opacity: 0; }
+  28%       { left: 8px;                opacity: 1; }
+  62%       { left: calc(100% - 8px);   opacity: 1; }
+  82%       { left: calc(100% - 8px);   opacity: 1; }
+  100%      { left: calc(100% - 8px);   opacity: 0; }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .cm-intro,
+  .cm-intro-title,
+  .cm-intro-highlight,
+  .cm-intro-marker {
+    animation-duration: 0.01ms !important;
+  }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  #output.view-enter,
+  #canvasModeOverlay.view-enter,
+  #canvasModeOverlay.view-leaving {
+    animation: none !important;
+  }
+}
+
+/* Favorites — vertical list of compact rows (ref + 1-line verse preview) */
+.dash-fav-nav {
+  display: flex;
+  gap: 6px;
+  justify-content: flex-end;
+  flex-shrink: 0;
+}
+.dash-fav-nav-btn {
+  /* !important defeats the global `button { flex: 0 !important }` at line ~118
+     which would otherwise force flex-shrink: 1 / flex-basis: 0% and squash
+     these inside their flex container. */
+  flex: 0 0 32px !important;
+  width: 32px;
+  height: 32px;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  border: 1px solid rgba(219, 39, 119, 0.18);
   background: rgba(219, 39, 119, 0.08);
+  color: #db2777;
+  border-radius: 10px;
+  cursor: pointer;
+  transition: background 0.15s ease, border-color 0.15s ease, transform 0.12s ease;
+  padding: 0;
 }
-.light .dash-fav-chip:hover {
-  background: rgba(219, 39, 119, 0.15);
+.dash-fav-nav-btn:hover {
+  background: rgba(219, 39, 119, 0.18);
+  border-color: rgba(219, 39, 119, 0.36);
+}
+.dash-fav-nav-btn:active {
+  transform: scale(0.92);
+}
+.dash-fav-nav-btn .material-icons {
+  font-size: 20px;
+}
+.light .dash-fav-nav-btn {
+  background: rgba(219, 39, 119, 0.06);
+  border-color: rgba(219, 39, 119, 0.16);
+}
+.light .dash-fav-nav-btn:hover {
+  background: rgba(219, 39, 119, 0.13);
+  border-color: rgba(219, 39, 119, 0.3);
+}
+.dash-fav-list {
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+}
+.dash-fav-row {
+  padding: 10px 14px;
+  border-radius: 10px;
+  background: rgba(219, 39, 119, 0.08);
+  border: 1px solid rgba(219, 39, 119, 0.12);
+  cursor: pointer;
+  transition: background 0.15s ease, transform 0.15s ease, border-color 0.15s ease;
+}
+.dash-fav-row:hover {
+  background: rgba(219, 39, 119, 0.14);
+  border-color: rgba(219, 39, 119, 0.22);
+  transform: translateX(2px);
+}
+.dash-fav-row-ref {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  color: #db2777;
+  font-size: 12px;
+  font-weight: 800;
+  letter-spacing: -0.2px;
+  text-transform: uppercase;
+}
+.dash-fav-row-chev {
+  font-size: 18px !important;
+  opacity: 0.55;
+}
+.dash-fav-row-text {
+  margin-top: 4px;
+  color: rgba(229, 231, 235, 0.78);
+  font-size: 13.5px;
+  line-height: 1.45;
+  display: -webkit-box;
+  -webkit-line-clamp: 2;
+  -webkit-box-orient: vertical;
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+.light .dash-fav-row {
+  background: rgba(219, 39, 119, 0.06);
+  border-color: rgba(219, 39, 119, 0.14);
+}
+.light .dash-fav-row:hover {
+  background: rgba(219, 39, 119, 0.11);
+  border-color: rgba(219, 39, 119, 0.22);
+}
+.light .dash-fav-row-text {
+  color: rgba(31, 41, 55, 0.78);
 }
 
 .dashboard-list {
@@ -2025,6 +2285,57 @@ html {
 
 #aiReflection {
   font-weight: bold;
+  position: relative;
+}
+
+.ai-refl-retry {
+  position: absolute;
+  top: 0;
+  right: 0;
+  z-index: 2;
+  width: 32px;
+  height: 32px;
+  display: inline-flex !important;
+  align-items: center;
+  justify-content: center;
+  flex: 0 0 32px !important;
+  border: none !important;
+  background: rgba(219, 39, 119, 0.08) !important;
+  color: rgba(219, 39, 119, 0.85);
+  border-radius: 999px;
+  cursor: pointer;
+  padding: 0;
+  transition: background 0.2s ease, transform 0.2s ease;
+}
+.ai-refl-retry:hover {
+  background: rgba(219, 39, 119, 0.16) !important;
+  transform: rotate(-12deg);
+}
+.ai-refl-retry .material-symbols-outlined {
+  font-size: 18px;
+}
+.ai-refl-retry-spinning .material-symbols-outlined {
+  animation: cmCtxRefreshSpin 0.9s linear infinite;
+}
+.ai-refl-retry:disabled {
+  cursor: progress;
+}
+/* Disabled "all answered" state — mossy green so it reads as success rather
+   than a broken/in-progress button. Color change + native title tooltip
+   ("All questions answered ✓") is the cue. */
+.ai-refl-retry-done,
+.ai-refl-retry.ai-refl-retry-done:disabled {
+  cursor: not-allowed;
+  background: rgba(74, 222, 128, 0.18) !important;
+  color: rgba(34, 160, 90, 0.95);
+  opacity: 1;
+}
+.ai-refl-retry-done:hover {
+  transform: none;
+  background: rgba(74, 222, 128, 0.18) !important;
+}
+.light .ai-refl-retry {
+  background: rgba(219, 39, 119, 0.1) !important;
 }
 
 #toggleReflectionBtn {
@@ -3627,7 +3938,22 @@ body.light {
 .dash-notes-card:hover { background: rgba(255,255,255,0.07); }
 .dash-notes-card:active { background: #1c2850; }
 .dash-notes-card-date { font-size: 11px; opacity: 0.4; font-weight: 500; letter-spacing: 0.3px; margin-bottom: 6px; display: flex; align-items: center; gap: 4px; }
-.dash-notes-card-preview { font-size: 13px; line-height: 1.45; color: #c5d1f1; opacity: 0.8; }
+.dash-notes-card-preview {
+  font-size: 13px;
+  line-height: 1.45;
+  color: #c5d1f1;
+  opacity: 0.8;
+  /* Single-line truncation that adapts to the card's actual width: narrow
+     phone card → ~70 chars, wide desktop card → ~250+ chars before ellipsis.
+     The JS no longer hard-truncates at 80; that was cutting off mid-sentence
+     even when desktop had hundreds of unused pixels. */
+  display: -webkit-box;
+  -webkit-line-clamp: 1;
+  -webkit-box-orient: vertical;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  word-break: break-word;
+}
 .dash-notes-type-icon { font-size: 13px; color: #db2777; opacity: 1; }
 .dash-notes-type-label { font-size: 10px; font-weight: 700; letter-spacing: 0.5px; color: #db2777; opacity: 1; text-transform: uppercase; margin-left: 4px; }
 .light .dash-notes-type-icon { color: #db2777; }
@@ -4927,7 +5253,6 @@ body.light {
 }
 .light .dash-greeting-text { color: #0b1220; }
 .light .dash-greeting-date { color: rgba(0,0,0,0.5); opacity: 1; }
-.light .dashboard-section { border-color: rgba(0,0,0,0.08); }
 .light .dashboard-section h3 { color: #1a1a1a; }
 .light .nst-icon { color: #db2777; opacity: 1; }
 .light .nst-sub { color: rgba(0,0,0,0.5); opacity: 1; }
@@ -8448,10 +8773,12 @@ button#storyBtn { background: unset; }
   display: flex;
   flex-direction: column;
   overflow: hidden;
-  animation: cmFadeIn 0.2s ease;
+  /* The legacy `animation: cmFadeIn 0.2s ease` was removed because it
+     stacked on top of the new .view-enter zoom-in animation, producing a
+     visible double fade / flicker on open. The single .view-enter rule
+     (lines ~1190–1197) now owns canvas-mode entry motion. */
 }
 .cm-overlay[hidden] { display: none !important; }
-@keyframes cmFadeIn { from { opacity: 0; } to { opacity: 1; } }
 
 .cm-topbar {
   flex: none;
@@ -8547,16 +8874,69 @@ button#storyBtn { background: unset; }
   width: 30px;
   height: 30px;
   min-width: 30px;
-  flex: 0 0 30px;
+  /* `flex: 0 0 auto !important` defeats the global `button { flex: 0 !important }`
+     at line ~118 AND lets the explicit width/height (cascade-overridable in the
+     mobile media query) decide the size. Without this, the global rule pinned
+     flex-basis to 30px and the mobile `width: 26px` override produced 30×26
+     oblong swatches. The `background: !important` defeats `.light button {
+     background: white }` at line ~2169. See memory: feedback_devo_button_global_rule.md */
+  flex: 0 0 auto !important;
   aspect-ratio: 1 / 1;
   border-radius: 50%;
   border: 2px solid rgba(0,0,0,0.08);
-  background: var(--sw);
+  background: var(--sw) !important;
   cursor: pointer;
   padding: 0;
   transition: transform 0.12s ease, border-color 0.12s ease, box-shadow 0.12s ease;
 }
 .cm-swatch:hover, .cm-pop-swatch:hover { transform: scale(1.12); }
+
+/* ---------- Desktop keyboard-shortcut indicators (H / E / 1-5) ----------
+   Tiny "keycap" badges pinned to the bottom-right of each tool & swatch.
+   Hover-only tooltips weren't enough — Charlie wanted them VISIBLE so the
+   shortcut is discoverable without hovering.
+
+   Hidden under 768px because phones don't have keyboards and the badges
+   would just clutter the toolbar. */
+@media (min-width: 768px) {
+  .cm-tool-btn,
+  .cm-swatch {
+    position: relative;
+    overflow: visible;
+  }
+  .cm-tool-btn::after,
+  .cm-swatch::after {
+    position: absolute;
+    bottom: -5px;
+    right: -5px;
+    min-width: 14px;
+    height: 14px;
+    padding: 0 3px;
+    box-sizing: border-box;
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+    font: 700 9px/1 ui-monospace, "SF Mono", Menlo, monospace;
+    color: #fff;
+    background: rgba(20, 22, 38, 0.92);
+    border: 1px solid rgba(255, 255, 255, 0.14);
+    border-radius: 4px;
+    box-shadow: 0 1px 2px rgba(0, 0, 0, 0.18);
+    pointer-events: none;
+    letter-spacing: 0.02em;
+  }
+  .cm-tool-btn[data-tool="highlight"]::after { content: "H"; }
+  .cm-tool-btn[data-tool="eraser"]::after    { content: "E"; }
+  .cm-swatch[data-color="yellow"]::after { content: "1"; }
+  .cm-swatch[data-color="pink"]::after   { content: "2"; }
+  .cm-swatch[data-color="blue"]::after   { content: "3"; }
+  .cm-swatch[data-color="orange"]::after { content: "4"; }
+  .cm-swatch[data-color="green"]::after  { content: "5"; }
+}
+.light .cm-tool-btn::after,
+.light .cm-swatch::after {
+  background: rgba(20, 22, 38, 0.88);
+}
 .cm-swatch.active {
   border-color: #1a1a2e;
   transform: scale(1.15);
@@ -8814,11 +9194,46 @@ button#storyBtn { background: unset; }
   font-weight: 400;
   font-size: 3rem;
   line-height: 1.1;
-  color: #1a1a2e;
   margin: 6px 0 26px;
   padding: 0 8px;
   user-select: none;
+  -webkit-user-select: none;
   z-index: 1;
+  /* Same shimmer technique as the "devotion." brand logo (.dash-brand): a
+     wide gradient is clipped to the text glyphs and the position is animated
+     so a soft pink highlight glides through the deep navy. ease-in-out
+     alternate gives a calm, continuous breathing motion — no transform,
+     no pulse, just light passing through the letters.
+     `will-change` hoists the title to its own compositor layer so the
+     repaints from background-position never leak into surrounding paints. */
+  background: linear-gradient(
+    115deg,
+    #1a1a2e 25%,
+    #c83086 50%,
+    #1a1a2e 75%
+  );
+  background-size: 220% 220%;
+  background-position: 0% 50%;
+  -webkit-background-clip: text;
+  background-clip: text;
+  -webkit-text-fill-color: transparent;
+  color: transparent;
+  will-change: background-position;
+  animation: cmTitleShimmer 7s ease-in-out infinite alternate;
+}
+
+@keyframes cmTitleShimmer {
+  0%   { background-position: 0% 50%; }
+  100% { background-position: 100% 50%; }
+}
+
+/* Respect users who don't want background motion. */
+@media (prefers-reduced-motion: reduce) {
+  .cm-passage-title {
+    animation: none;
+    background-position: 50% 50%;
+    will-change: auto;
+  }
 }
 
 .cm-passage {
@@ -8832,6 +9247,333 @@ button#storyBtn { background: unset; }
   -webkit-user-select: none;
   z-index: 1;
 }
+
+/* ── Compact context accordion (canvas mode, above first verse) ─────────── */
+.cm-context {
+  margin: 0 0 18px;
+  font-family: "Google Sans Flex", "Google Sans", system-ui, sans-serif;
+  user-select: none;
+  -webkit-user-select: none;
+}
+
+/* Desktop: 2-column grid. Left column (head + summary panel) is capped at
+   320px wide; right column (Q&A thread) fills remaining width. The thread
+   sits next to the panel — i.e. in row 2 — so it aligns under the head pill
+   the same way a chat panel sits next to a sidebar. */
+@media (min-width: 768px) {
+  .cm-context {
+    display: grid;
+    grid-template-columns: 320px minmax(0, 1fr);
+    grid-template-areas:
+      "head    thread"
+      "panel   thread";
+    column-gap: 18px;
+    row-gap: 0;
+    align-items: start;
+  }
+  .cm-ctx-head { grid-area: head; }
+  .cm-ctx-panel { grid-area: panel; }
+  .cm-ctx-thread {
+    grid-area: thread;
+    /* Override the mobile `margin-top: 10px` — the thread no longer sits
+       under the ask form on desktop; it sits next to it. */
+    margin-top: 0;
+    align-self: stretch;
+    min-width: 0;
+  }
+  /* Mirror the panel-inner card style on the thread so the right column
+     visually balances the left and reads as a single chat panel. */
+  .cm-ctx-thread:not(:empty) {
+    padding: 12px 14px;
+    background: rgba(255, 255, 255, 0.55);
+    border: 1px solid rgba(0, 0, 0, 0.06);
+    border-radius: 14px;
+    backdrop-filter: blur(6px);
+  }
+}
+.cm-ctx-head {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  width: 100%;
+  padding: 7px 12px;
+  background: rgba(200, 48, 134, 0.06) !important;
+  border: 1px solid rgba(200, 48, 134, 0.18) !important;
+  border-radius: 999px;
+  color: #6b1a4a;
+  font-size: 12.5px;
+  font-weight: 600;
+  letter-spacing: 0.2px;
+  cursor: pointer;
+  flex: 0 0 auto !important;
+  transition: background 0.15s ease, border-color 0.15s ease;
+}
+.cm-ctx-head:hover {
+  background: rgba(200, 48, 134, 0.10) !important;
+  border-color: rgba(200, 48, 134, 0.28) !important;
+}
+.cm-ctx-head-icon { font-size: 16px !important; color: #c83086; }
+.cm-ctx-head-label { flex: 1 1 auto; text-align: left; }
+.cm-ctx-head-chev {
+  font-size: 18px !important;
+  color: rgba(200, 48, 134, 0.6);
+  transition: transform 0.2s ease;
+}
+.cm-ctx-head-open .cm-ctx-head-chev { transform: rotate(180deg); }
+
+/* Outer wrapper animates HEIGHT (via grid-template-rows 0fr→1fr) + opacity +
+   lift. Inner wrapper carries the actual padding/border/background and clips
+   overflow so the height interpolation stays clean. Opening reveals the
+   summary lines in a gentle stagger; closing eases everything back. */
+.cm-ctx-panel {
+  display: grid;
+  grid-template-rows: 0fr;
+  margin-top: 0;
+  opacity: 0;
+  transform: translateY(-10px);
+  pointer-events: none;
+  transition:
+    grid-template-rows 420ms cubic-bezier(0.22, 1, 0.36, 1),
+    margin-top 420ms cubic-bezier(0.22, 1, 0.36, 1),
+    opacity 280ms cubic-bezier(0.4, 0, 0.2, 1),
+    transform 420ms cubic-bezier(0.22, 1, 0.36, 1);
+}
+.cm-ctx-panel-inner {
+  position: relative;
+  overflow: hidden;
+  min-height: 0;
+  padding: 12px 14px;
+  background: rgba(255, 255, 255, 0.55);
+  border: 1px solid rgba(0, 0, 0, 0.06);
+  border-radius: 14px;
+  backdrop-filter: blur(6px);
+}
+
+/* Refresh icon — top-right of the panel. Floats above the summary so summary
+   innerHTML changes (loading → ready → error) don't disturb it. !important on
+   flex + background defuses the global button traps. */
+.cm-ctx-refresh {
+  position: absolute;
+  top: 8px;
+  right: 10px;
+  width: 28px;
+  height: 28px;
+  display: inline-flex !important;
+  align-items: center;
+  justify-content: center;
+  border: none !important;
+  background: transparent !important;
+  color: rgba(200, 48, 134, 0.55);
+  cursor: pointer;
+  border-radius: 50%;
+  flex: 0 0 28px !important;
+  padding: 0;
+  z-index: 2;
+  transition: background 0.15s ease, color 0.15s ease;
+}
+.cm-ctx-refresh:hover {
+  background: rgba(200, 48, 134, 0.12) !important;
+  color: #c83086;
+}
+.cm-ctx-refresh:active { transform: scale(0.92); }
+.cm-ctx-refresh .material-symbols-outlined {
+  font-size: 18px;
+  transition: transform 0.4s cubic-bezier(0.22, 1, 0.36, 1);
+}
+.cm-ctx-refresh-spinning .material-symbols-outlined {
+  animation: cmCtxRefreshSpin 0.9s linear infinite;
+}
+@keyframes cmCtxRefreshSpin {
+  from { transform: rotate(0deg); }
+  to   { transform: rotate(360deg); }
+}
+
+/* Make sure the summary doesn't tuck its first line under the refresh icon. */
+.cm-ctx-summary { padding-right: 36px; }
+.cm-ctx-panel--open {
+  grid-template-rows: 1fr;
+  margin-top: 8px;
+  opacity: 1;
+  transform: translateY(0);
+  pointer-events: auto;
+}
+
+/* Stagger the inner content — summary lines + ask form fade-up sequentially
+   on each open. `both` keeps the final state so the items don't snap back. */
+.cm-ctx-panel--open .cm-ctx-summary > *,
+.cm-ctx-panel--open .cm-ctx-ask {
+  animation: cmCtxLineIn 480ms cubic-bezier(0.22, 1, 0.36, 1) both;
+}
+.cm-ctx-panel--open .cm-ctx-summary > *:nth-child(1) { animation-delay: 120ms; }
+.cm-ctx-panel--open .cm-ctx-summary > *:nth-child(2) { animation-delay: 180ms; }
+.cm-ctx-panel--open .cm-ctx-summary > *:nth-child(3) { animation-delay: 240ms; }
+.cm-ctx-panel--open .cm-ctx-summary > *:nth-child(4) { animation-delay: 300ms; }
+.cm-ctx-panel--open .cm-ctx-summary > *:nth-child(5) { animation-delay: 360ms; }
+.cm-ctx-panel--open .cm-ctx-ask { animation-delay: 380ms; }
+
+@keyframes cmCtxLineIn {
+  from { opacity: 0; transform: translateY(8px); }
+  to   { opacity: 1; transform: translateY(0); }
+}
+
+/* Don't run animations for users who turn off motion. */
+@media (prefers-reduced-motion: reduce) {
+  .cm-ctx-panel,
+  .cm-ctx-panel--open .cm-ctx-summary > *,
+  .cm-ctx-panel--open .cm-ctx-ask {
+    transition-duration: 0ms !important;
+    animation: none !important;
+  }
+}
+
+.cm-ctx-summary {
+  font-size: 13px;
+  line-height: 1.5;
+  color: rgba(26, 26, 46, 0.85);
+}
+.cm-ctx-summary[data-state="loading"],
+.cm-ctx-summary[data-state="error"] {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  min-height: 28px;
+}
+.cm-ctx-summary p,
+.cm-ctx-summary .cm-ctx-line {
+  margin: 0 0 4px;
+}
+.cm-ctx-summary p:last-child,
+.cm-ctx-summary .cm-ctx-line:last-child { margin-bottom: 0; }
+.cm-ctx-summary strong { color: #c83086; font-weight: 700; }
+
+.cm-ctx-loader {
+  display: inline-flex;
+  align-items: center;
+  gap: 4px;
+}
+.cm-ctx-loader .gdot {
+  width: 5px;
+  height: 5px;
+  border-radius: 50%;
+  background: rgba(200, 48, 134, 0.5);
+  animation: cmCtxBlink 1.2s infinite ease-in-out;
+}
+.cm-ctx-loader .gdot:nth-child(2) { animation-delay: 0.15s; }
+.cm-ctx-loader .gdot:nth-child(3) { animation-delay: 0.3s; }
+@keyframes cmCtxBlink {
+  0%, 80%, 100% { opacity: 0.25; transform: scale(0.85); }
+  40%           { opacity: 1;    transform: scale(1); }
+}
+.cm-ctx-error { color: #b91c1c; font-size: 12.5px; cursor: pointer; }
+
+.cm-ctx-ask {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  margin-top: 10px;
+  padding: 4px 4px 4px 10px;
+  background: #fff;
+  border: 1px solid rgba(0, 0, 0, 0.08);
+  border-radius: 999px;
+  transition: border-color 0.15s ease, box-shadow 0.15s ease;
+}
+.cm-ctx-ask:focus-within {
+  border-color: rgba(200, 48, 134, 0.35);
+  box-shadow: 0 0 0 3px rgba(200, 48, 134, 0.08);
+}
+.cm-ctx-ask-input {
+  flex: 1 1 auto !important;
+  border: none !important;
+  /* `outline-color: transparent !important` defeats the global
+     `input:focus { box-shadow: ...blue glow... }` rule at style.css:101 that
+     was painting the blue ring inside the pink pill on iOS/Safari. */
+  outline: none !important;
+  background: transparent !important;
+  /* iOS auto-zooms <input> with font-size < 16px on focus. Pin to 16px. */
+  font-size: 16px;
+  padding: 6px 0;
+  color: #1a1a2e;
+  backdrop-filter: none;
+}
+.cm-ctx-ask-input:focus {
+  outline: none !important;
+  box-shadow: none !important;
+  border-color: transparent !important;
+}
+.cm-ctx-ask-input::placeholder { color: rgba(26, 26, 46, 0.4); font-size: 14px; }
+.cm-ctx-ask-send {
+  flex: 0 0 28px !important;
+  width: 28px;
+  height: 28px;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  border: none !important;
+  background: #c83086 !important;
+  color: #fff;
+  border-radius: 50%;
+  cursor: pointer;
+  padding: 0;
+  transition: background 0.15s ease, transform 0.15s ease;
+}
+.cm-ctx-ask-send:hover { background: #a91d6f !important; }
+.cm-ctx-ask-send:active { transform: scale(0.92); }
+.cm-ctx-ask-send .material-symbols-outlined { font-size: 16px !important; }
+
+.cm-ctx-thread:empty { display: none; }
+.cm-ctx-thread { margin-top: 10px; display: flex; flex-direction: column; gap: 8px; }
+.cm-ctx-qa {
+  display: flex;
+  flex-direction: column;
+  gap: 6px;
+  padding: 8px 10px;
+  background: rgba(200, 48, 134, 0.04);
+  border-radius: 10px;
+  transition: background 0.15s ease;
+}
+.cm-ctx-q {
+  display: flex !important;
+  align-items: flex-start;
+  gap: 6px;
+  width: 100%;
+  padding: 0 !important;
+  font-size: 12.5px;
+  font-weight: 600;
+  color: #6b1a4a;
+  background: transparent !important;
+  border: none !important;
+  cursor: pointer;
+  text-align: left;
+  flex: 0 0 auto !important;
+}
+.cm-ctx-q .material-symbols-outlined { font-size: 14px !important; margin-top: 1px; color: #c83086; }
+.cm-ctx-q-text { flex: 1 1 auto; line-height: 1.4; }
+.cm-ctx-q-chev {
+  font-size: 16px !important;
+  color: rgba(200, 48, 134, 0.55);
+  transition: transform 0.2s ease;
+  margin-top: 0 !important;
+}
+/* Default open state: chev points up (rotated). */
+.cm-ctx-qa:not(.cm-ctx-qa-collapsed) .cm-ctx-q-chev { transform: rotate(180deg); }
+
+.cm-ctx-a {
+  font-size: 13px;
+  line-height: 1.5;
+  color: rgba(26, 26, 46, 0.85);
+  max-height: 600px;
+  overflow: hidden;
+  transition: max-height 0.25s ease, opacity 0.2s ease, margin 0.2s ease;
+}
+.cm-ctx-qa-collapsed .cm-ctx-a {
+  max-height: 0;
+  opacity: 0;
+  margin: 0;
+}
+.cm-ctx-qa-collapsed { padding-bottom: 6px; }
+.cm-ctx-a p { margin: 0 0 4px; }
+.cm-ctx-a p:last-child { margin-bottom: 0; }
+.cm-ctx-a strong { color: #c83086; font-weight: 700; }
 .cm-verse { margin-bottom: 14px; }
 .cm-verse-num {
   display: inline;
@@ -8848,6 +9590,46 @@ button#storyBtn { background: unset; }
   letter-spacing: 0;
   user-select: none;
 }
+
+/* Heart toggle that flows inline at the end of each verse's text. Sits
+   immediately after the last word so short verses keep it tight; long verses
+   place it at the end of the last line.
+   Both !important defeat the global button traps:
+     • flex: 0 !important (style.css line ~118)
+     • .light button { background: white } (style.css line ~2169)
+   See memory: feedback_devo_button_global_rule.md */
+.cm-fav-btn {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  vertical-align: middle;
+  width: 22px;
+  height: 22px;
+  padding: 0;
+  margin-left: 4px;
+  border: none !important;
+  background: transparent !important;
+  color: rgba(200, 48, 134, 0.45);
+  cursor: pointer;
+  border-radius: 50%;
+  flex: 0 0 22px !important;
+  transition: color 0.15s ease, background 0.15s ease, transform 0.18s ease;
+}
+.cm-fav-btn:hover {
+  color: #c83086;
+  background: rgba(200, 48, 134, 0.10) !important;
+}
+.cm-fav-btn.active { color: #db2777; }
+.cm-fav-btn .material-icons { font-size: 16px; }
+.cm-fav-btn.cm-fav-pop { animation: cmFavPop 0.32s cubic-bezier(0.34, 1.56, 0.64, 1); }
+@keyframes cmFavPop {
+  0%   { transform: scale(1); }
+  40%  { transform: scale(1.4); }
+  100% { transform: scale(1); }
+}
+.light .cm-fav-btn { color: rgba(190, 24, 93, 0.45); }
+.light .cm-fav-btn:hover { color: #be185d; background: rgba(190, 24, 93, 0.08) !important; }
+.light .cm-fav-btn.active { color: #be185d; }
 
 /* Words live inline; highlight is a solid vivid color (no opacity dimming).
    Padding is kept constant so toggling a highlight never shifts the text. */
@@ -9573,7 +10355,11 @@ body.cfg-sheet-open.light .bc-picker-btn .material-symbols-outlined { color: rgb
   background: #1a2240;
   width: 100%;
   max-width: 560px;
-  max-height: 85vh;
+  /* `dvh` (dynamic viewport height) shrinks when the iOS keyboard pops up,
+     unlike `vh` which stays at the full screen height. With `dvh`, the sheet
+     is constrained to whatever space is actually visible above the keyboard,
+     so the search results / "No books match" line never gets covered. */
+  max-height: 85dvh;
   border-top-left-radius: 24px;
   border-top-right-radius: 24px;
   padding: 20px;
@@ -9581,6 +10367,10 @@ body.cfg-sheet-open.light .bc-picker-btn .material-symbols-outlined { color: rgb
   flex-direction: column;
   box-shadow: 0 -12px 40px rgba(0, 0, 0, 0.4);
   animation: bcSlideUp 0.28s cubic-bezier(0.2, 0.9, 0.3, 1);
+}
+/* Browsers without `dvh` support (older iOS) still get the legacy 85vh. */
+@supports not (height: 1dvh) {
+  .bc-sheet-panel { max-height: 85vh; }
 }
 @keyframes bcSlideUp {
   from { transform: translateY(100%); }
@@ -9948,6 +10738,11 @@ body.cfg-sheet-open.light .bc-picker-btn .material-symbols-outlined { color: rgb
   gap: 12px;
 }
 .dash-brand-row[hidden] { display: none !important; }
+.dash-brand-actions {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+}
 .dash-browse-btn {
   width: 40px;
   height: 40px;

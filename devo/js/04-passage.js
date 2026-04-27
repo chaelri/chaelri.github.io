@@ -76,13 +76,21 @@ IMPORTANT: Bold the key theological terms and important words using **double ast
 async function toggleVerseChat(key, book, chapter, verse, text, mountEl) {
   if (mountEl.querySelector(".verse-chat-wrapper")) {
     mountEl.innerHTML = "";
+    // Reset chat memory on close — user wants every reopen to start fresh
+    // ("pag inopen ulit dapat refreshed"). Suggestions/followups too.
+    delete verseChatHistories[key];
+    if (window._chatSuggestions) delete window._chatSuggestions[key];
+    if (window._chatFollowups) delete window._chatFollowups[key];
     return;
   }
 
-  const hasHistory = verseChatHistories[key]?.length > 0;
-  // Track suggestions and follow-ups per key
+  // Track suggestions and follow-ups per key.
   if (!window._chatSuggestions) window._chatSuggestions = {};
   if (!window._chatFollowups) window._chatFollowups = {};
+  // History always starts empty on open (we wiped it on the previous close,
+  // but be defensive in case the chat was first-opened in a stale path).
+  verseChatHistories[key] = [];
+  const hasHistory = false;
 
 
   mountEl.innerHTML = `
@@ -669,6 +677,7 @@ async function showDashboard() {
   document.querySelector(".layout").classList.add("layout-unset");
 
   await renderDashboard();
+  _playViewAnim(output, "view-enter");
 }
 
 function getVerseText(bookId, chapter, verse) {
@@ -824,18 +833,7 @@ async function renderDashboard() {
           </div>
         </div>
 
-        <h3><span class="material-icons dashboard-icon">favorite</span> Favorites</h3>
-        ${
-          favoritesKeys.length
-            ? `<div class="dash-fav-scroll-wrap"><div class="dash-fav-scroll">
-            ${favoritePassages
-              .map(
-                (item) => `<button class="dash-fav-chip" onclick="loadPassageById('${item.key}')">${formatKey(item.key)}</button>`
-              )
-              .join("")}
-          </div></div>`
-            : `<p class="empty-state">No favorite verses yet. Double-click a verse or tap the <span class="material-icons" style="font-size:1em; vertical-align:middle; color:#c83086;">favorite_border</span> icon to add one!</p>`
-        }
+        <div id="dashFavoritesContent">${_renderFavoritesContent(allFavoritePassages)}</div>
       </section>
 
       <!-- NOTES -->
@@ -851,7 +849,10 @@ async function renderDashboard() {
             .slice(0, 5);
           if (!allNotes.length) return `<p class="empty-state">No notes yet. Add notes to Bible verses, complete a Guided Reflection, or tap "View all" to write your first note.</p>`;
           return `<div class="dash-notes-list">${allNotes.map(n => {
-            const preview = n.preview.length > 80 ? n.preview.slice(0, 80) + "…" : n.preview;
+            // Pass a generous upper bound; the actual visual ellipsis is done
+            // by CSS line-clamp on .dash-notes-card-preview, which adapts to
+            // the card's real width — narrow on mobile, much wider on desktop.
+            const preview = n.preview.length > 400 ? n.preview.slice(0, 400) + "…" : n.preview;
             const dateStr = n.time ? new Date(n.time).toLocaleDateString("en-US", { month: "short", day: "numeric" }) : "";
             const label = n.type === "reflection" ? `<span class="dash-notes-type-label">Reflection</span>` : "";
             let onclick = `openNotesApp()`;
@@ -874,6 +875,9 @@ async function renderDashboard() {
       </section>
 
       ${/* "Create & Share" removed — opened the AI image creator. */ ""}
+
+      <!-- Single divider below the Continue+Favorites / Notes row -->
+      <hr class="dashboard-row-divider" />
 
       <!-- SOAP: APPLICATIONS & PRAYERS (combined) -->
       ${_renderSoapDashCombined()}
@@ -931,21 +935,44 @@ async function loadDashGreetingMsg() {
   const el = document.getElementById("dashGreetingMsg");
   if (!el) return;
 
-  // Show loading dots (show cached text as static fallback while fetching)
-  const cached = localStorage.getItem("dashGreetingCache");
-  if (cached) {
-    el.textContent = cached;
+  const name = getUserName();
+  const h = new Date().getHours();
+  const timeOfDay = h < 12 ? "morning" : h < 17 ? "afternoon" : "evening";
+  const today = new Date().toISOString().slice(0, 10); // YYYY-MM-DD
+  // One AI generation per (user, day, time-of-day) bucket. The greeting
+  // doesn't need to refresh on every dashboard render — those fire any time
+  // Firebase pushes a remote update, and a fresh prompt every time costs
+  // tokens AND looks twitchy. Bucket key changes ~3x/day.
+  const cacheKey = `${name}::${today}::${timeOfDay}`;
+
+  let cachedMsg = "";
+  let cacheHit = false;
+  try {
+    const raw = localStorage.getItem("dashGreetingCacheV2");
+    if (raw) {
+      const obj = JSON.parse(raw);
+      cachedMsg = obj.msg || "";
+      cacheHit = obj.key === cacheKey && !!cachedMsg;
+    }
+  } catch {}
+
+  // Cache hit → render and stop. No network, no typewriter (avoid re-animating
+  // on every renderDashboard tick).
+  if (cacheHit) {
+    el.textContent = cachedMsg;
+    el.style.opacity = "";
+    return;
+  }
+
+  // Cache miss → show stale msg dimmed (or loading dots) while we fetch.
+  if (cachedMsg) {
+    el.textContent = cachedMsg;
     el.style.opacity = "0.4";
   } else {
     el.innerHTML = `<span class="dash-greeting-glow-loader"><span class="gdot"></span><span class="gdot"></span><span class="gdot"></span></span>`;
   }
 
-  const name = getUserName();
-  const h = new Date().getHours();
-  const timeOfDay = h < 12 ? "morning" : h < 17 ? "afternoon" : "evening";
-
   const notesCtx = _getRecentNotesContext();
-
   const prompt = notesCtx
     ? `You are greeting ${name || "a friend"} in a Bible devotion app this ${timeOfDay}. Their recent reflections and notes: "${notesCtx.slice(0, 300)}". Write ONE sentence (max 18 words) referencing something from their notes. You may reference personal content (like people they mention) BUT never combine personal names with divine attributes or glory — that would be idolatry. Keep God's glory for God alone. Be warm, casual, like a close friend. No emojis, no guilt. Reply with ONLY the sentence.`
     : `Write ONE warm greeting sentence (max 15 words) for ${name || "a friend"} opening a Bible app this ${timeOfDay}. Casual, caring, like a friend. No emojis, no guilt. Reply with ONLY the sentence.`;
@@ -959,24 +986,74 @@ async function loadDashGreetingMsg() {
     const data = await res.json();
     const msg = data.candidates?.[0]?.content?.parts?.[0]?.text?.trim();
     if (msg) {
-      localStorage.setItem("dashGreetingCache", msg);
+      localStorage.setItem("dashGreetingCacheV2", JSON.stringify({ msg, key: cacheKey }));
       if (document.getElementById("dashGreetingMsg") === el) {
         el.style.opacity = "";
         _typewriterReveal(el, msg);
       }
-    } else if (cached) {
+    } else if (cachedMsg) {
       el.style.opacity = "";
     }
   } catch {
     // Keep showing cached if fetch fails
-    if (cached) { el.style.opacity = ""; }
+    if (cachedMsg) { el.style.opacity = ""; }
     else el.textContent = "";
   }
 }
 
+// Build the favorites section HTML. Pure function — takes the precomputed
+// allFavoritePassages list, reads the global favoritesPage, returns markup.
+// Used by both renderDashboard (initial render) and changeFavoritesPage
+// (swap-in-place so prev/next doesn't trigger the dashboard's fade-in
+// animation on every click).
+function _renderFavoritesContent(allFavoritePassages) {
+  const total = allFavoritePassages.length;
+  const lastPage = Math.max(0, Math.ceil(total / FAV_PAGE_SIZE) - 1);
+  if (favoritesPage > lastPage) favoritesPage = lastPage; // guard
+  const start = favoritesPage * FAV_PAGE_SIZE;
+  const pageItems = allFavoritePassages.slice(start, start + FAV_PAGE_SIZE);
+  const showNav = total > FAV_PAGE_SIZE;
+  const header = `
+    <h3 style="display:flex; justify-content:space-between; align-items:center; margin-bottom:12px;">
+      <span><span class="material-icons dashboard-icon">favorite</span> Favorites</span>
+      ${showNav ? `<div class="dash-fav-nav">
+        ${favoritesPage > 0 ? `<button class="dash-fav-nav-btn" onclick="changeFavoritesPage(-1)" aria-label="Previous favorites"><span class="material-icons">chevron_left</span></button>` : ""}
+        ${favoritesPage < lastPage ? `<button class="dash-fav-nav-btn" onclick="changeFavoritesPage(1)" aria-label="Next favorites"><span class="material-icons">chevron_right</span></button>` : ""}
+      </div>` : ""}
+    </h3>`;
+  const body = total
+    ? `<div class="dash-fav-list">
+        ${pageItems.map((item) => {
+          const ref = formatKey(item.key);
+          const raw = (item.verseText || "").replace(/\s+/g, " ").trim();
+          const preview = raw && raw !== "Verse text not found."
+            ? (raw.length > 110 ? raw.slice(0, 110) + "…" : raw)
+            : "";
+          return `<div class="dash-fav-row" onclick="loadPassageById('${item.key}')">
+            <div class="dash-fav-row-ref">${ref}<span class="material-icons dash-fav-row-chev">chevron_right</span></div>
+            ${preview ? `<div class="dash-fav-row-text">${_escHtml(preview)}</div>` : ""}
+          </div>`;
+        }).join("")}
+      </div>`
+    : `<p class="empty-state">No favorite verses yet. Double-click a verse or tap the <span class="material-icons" style="font-size:1em; vertical-align:middle; color:#c83086;">favorite_border</span> icon to add one!</p>`;
+  return header + body;
+}
+
 function changeFavoritesPage(delta) {
   favoritesPage = Math.max(0, favoritesPage + delta);
-  renderDashboard();
+  // Swap only the favorites section's content — re-rendering the whole
+  // dashboard would re-fire the section fade-in animations, which is jarring
+  // on what should feel like a tiny pagination interaction.
+  const mount = document.getElementById("dashFavoritesContent");
+  if (!mount) { renderDashboard(); return; } // fallback if dashboard not visible
+  const allFavoritePassages = Object.keys(favorites)
+    .sort((a, b) => favorites[b] - favorites[a])
+    .map((key) => {
+      const [bookId, chapter, verse] = key.split("-");
+      const verseToFetch = verse || "1";
+      return { key, verseText: getVerseText(bookId, chapter, verseToFetch), time: favorites[key] };
+    });
+  mount.innerHTML = _renderFavoritesContent(allFavoritePassages);
 }
 
 /* ---------- CHAPTERS ---------- */
@@ -1276,6 +1353,10 @@ async function loadPassage() {
 
     renderSummary();
     hideLoading();
+    // Drill-in transition: passage rises + fades into place after dashboard
+    // fades out. Same easing as the canvas overlay so all view-changes feel
+    // like one motion vocabulary.
+    _playViewAnim(output, "view-enter");
   } catch (err) {
     console.error(err);
     hideLoading();
@@ -1302,7 +1383,9 @@ async function runAIForCurrentPassage() {
     cached.reflectionHTML != "<p>Failed to generate reflection questions.</p>"
   ) {
     aiContextSummaryEl.innerHTML = cached.contextHTML;
-    document.getElementById("aiReflection").innerHTML = cached.reflectionHTML;
+    const reflMount = document.getElementById("aiReflection");
+    reflMount.innerHTML = cached.reflectionHTML;
+    _ensureReflectionRetryUI(reflMount);
     applyReflectionVisibility();
     _contextLoading = false;
     _reflectionLoading = false;
@@ -1575,16 +1658,245 @@ function summaryMdToHTML(text) {
   return html;
 }
 
-async function renderAIReflectionQuestions({ book, chapter, versesText }) {
+// Idempotent: ensures (a) the delegated retry-click handler is wired on
+// #aiReflection, (b) the .ai-refl-retry button exists in the DOM, and
+// (c) the button's enabled/tooltip state matches current answer count.
+function _ensureReflectionRetryUI(mount) {
+  if (!mount) return;
+
+  if (!mount.dataset.retryWired) {
+    mount.dataset.retryWired = "1";
+
+    // Click → smart retry: only regenerate questions WITHOUT an answer.
+    mount.addEventListener("click", async (e) => {
+      const btn = e.target.closest(".ai-refl-retry");
+      if (!btn || !mount.contains(btn)) return;
+      e.stopPropagation();
+      if (btn.disabled) return;
+      btn.disabled = true;
+      btn.classList.add("ai-refl-retry-spinning");
+      try {
+        await _smartRetryReflections();
+      } catch (err) {
+        console.error("[reflection retry]", err);
+      } finally {
+        const stillBtn = mount.querySelector(".ai-refl-retry");
+        if (stillBtn) stillBtn.classList.remove("ai-refl-retry-spinning");
+        _refreshRetryButtonState(mount);
+      }
+    });
+
+    // Input on any reflection textarea → recompute button state. Delegation
+    // means it works for textareas added later (partial regen creates new ones).
+    mount.addEventListener("input", (e) => {
+      if (e.target?.tagName === "TEXTAREA") _refreshRetryButtonState(mount);
+    });
+  }
+
+  if (!mount.querySelector(".ai-refl-retry")) {
+    const btn = document.createElement("button");
+    btn.type = "button";
+    btn.className = "ai-refl-retry";
+    btn.setAttribute("aria-label", "Regenerate reflection questions");
+    btn.title = "Regenerate questions";
+    btn.innerHTML = `<span class="material-symbols-outlined">refresh</span>`;
+    mount.insertBefore(btn, mount.firstChild);
+  }
+
+  _refreshRetryButtonState(mount);
+}
+
+// Reads the current answer state and updates the retry button:
+//   - all 3 textareas have non-empty values → disabled + tooltip "All
+//     questions answered"
+//   - otherwise → enabled + default tooltip
+function _refreshRetryButtonState(mount) {
+  if (!mount) return;
+  const btn = mount.querySelector(".ai-refl-retry");
+  if (!btn) return;
+  const tas = [...mount.querySelectorAll('textarea[id^="reflection-"]')];
+  if (tas.length === 0) {
+    btn.disabled = false;
+    btn.title = "Regenerate questions";
+    btn.classList.remove("ai-refl-retry-done");
+    return;
+  }
+  const allAnswered = tas.every((t) => (t.value || "").trim().length > 0);
+  if (allAnswered) {
+    btn.disabled = true;
+    btn.title = "All questions answered ✓";
+    btn.classList.add("ai-refl-retry-done");
+  } else {
+    btn.disabled = false;
+    btn.title = "Regenerate unanswered questions";
+    btn.classList.remove("ai-refl-retry-done");
+  }
+}
+
+// Smart retry: regenerates ONLY questions without an answer. Falls back to
+// full regen when no answers exist yet (or structure is missing).
+async function _smartRetryReflections() {
   const mount = document.getElementById("aiReflection");
-  mount.classList.add("ai-fade-in");
-  mount.innerHTML = `
-  <div class="ai-shimmer">
-    <div class="ai-shimmer-block"></div>
-    <div class="ai-shimmer-block"></div>
-    <div class="ai-shimmer-block short"></div>
-  </div>
-`;
+  if (!mount) return;
+  const payload = window.__aiPayload;
+  if (!payload) throw new Error("no aiPayload");
+
+  const ol = mount.querySelector("ol");
+  const lis = ol ? [...ol.children].filter((el) => el.tagName === "LI") : [];
+  if (!ol || lis.length === 0) {
+    // No structured questions yet — full regen.
+    return await _fullRetryReflections();
+  }
+
+  const slots = lis.map((li) => {
+    const ta = li.querySelector("textarea");
+    const question = li.querySelector("p")?.textContent?.trim() || "";
+    const answer = (ta?.value || "").trim();
+    return { li, ta, question, answer, answered: !!answer };
+  });
+
+  const unansweredIdx = slots
+    .map((s, i) => (s.answered ? -1 : i))
+    .filter((i) => i >= 0);
+
+  if (unansweredIdx.length === 0) return;
+  if (unansweredIdx.length === slots.length) {
+    return await _fullRetryReflections();
+  }
+
+  const answeredQuestions = slots.filter((s) => s.answered).map((s) => s.question);
+  const newLis = await _fetchReflectionLis({
+    book: payload.book,
+    chapter: payload.chapter,
+    versesText: payload.versesText,
+    count: unansweredIdx.length,
+    excludeQuestions: answeredQuestions,
+  });
+  if (!newLis || newLis.length === 0) {
+    return await _fullRetryReflections();
+  }
+
+  // Snapshot answers BEFORE swap so we can restore them after.
+  const answersById = {};
+  mount.querySelectorAll('textarea[id^="reflection-"]').forEach((ta) => {
+    if (ta.id && ta.value) answersById[ta.id] = ta.value;
+  });
+
+  // In-place swap. If AI returned fewer than requested, only swap what we got.
+  const swapCount = Math.min(unansweredIdx.length, newLis.length);
+  for (let n = 0; n < swapCount; n++) {
+    const targetIdx = unansweredIdx[n];
+    const targetLi = ol.children[targetIdx];
+    if (targetLi) ol.replaceChild(newLis[n], targetLi);
+  }
+
+  // Re-key textarea ids positionally (matches initializeReflections format).
+  mount.querySelectorAll("textarea").forEach((ta, i) => {
+    ta.id = `reflection-${devotionId()}-${i}`;
+  });
+
+  // Wire input listeners on the NEW textareas only (existing ones already
+  // have listeners from the previous initializeReflections pass). Wire link
+  // click handlers on new lis only.
+  for (let n = 0; n < swapCount; n++) {
+    const idx = unansweredIdx[n];
+    const li = ol.children[idx];
+    const ta = li.querySelector("textarea");
+    if (ta) _wireReflectionTextarea(ta);
+    li.querySelectorAll("a.reflection-link").forEach(_wireReflectionLink);
+  }
+
+  // Restore answers by id (preserved textareas stay populated; new ones
+  // don't have a saved value yet).
+  Object.entries(answersById).forEach(([id, value]) => {
+    const ta = mount.querySelector(`#${CSS.escape(id)}`);
+    if (ta) ta.value = value;
+  });
+
+  // Persist updated reflection HTML so a reload reflects the new state.
+  const updated = (await loadAIFromStorage()) || {};
+  await saveAIToStorage({
+    ...updated,
+    reflectionHTML:
+      mount.innerHTML !== "<p>Failed to generate reflection questions.</p>"
+        ? mount.innerHTML
+        : null,
+  });
+}
+
+// Full-regenerate path used when no answers exist or partial fails.
+async function _fullRetryReflections() {
+  const mount = document.getElementById("aiReflection");
+  if (!mount) return;
+  const payload = window.__aiPayload;
+  if (!payload) return;
+  const existing = (await loadAIFromStorage()) || {};
+  await saveAIToStorage({ ...existing, reflectionHTML: null, answers: {} });
+  await renderAIReflectionQuestions(payload);
+  const updated = (await loadAIFromStorage()) || {};
+  await saveAIToStorage({
+    ...updated,
+    reflectionHTML:
+      mount.innerHTML !== "<p>Failed to generate reflection questions.</p>"
+        ? mount.innerHTML
+        : null,
+  });
+}
+
+// Wires the input listener used by initializeReflections — extracted so we
+// can wire NEW textareas added during partial regen without re-wiring
+// existing ones (which would double-fire saves).
+function _wireReflectionTextarea(area) {
+  if (!area || area.dataset.wiredInput === "1") return;
+  area.dataset.wiredInput = "1";
+  const questionText = area.previousElementSibling?.textContent || "Question";
+  area.addEventListener("input", async () => {
+    const formattedEntry = `Q: ${questionText}\nA: ${area.value}`;
+    localStorage.setItem(area.id, formattedEntry);
+    localStorage.setItem(`reflection-time-${devotionId()}`, String(Date.now()));
+    if (typeof checkIfHasTextAreaAnswers === "function") checkIfHasTextAreaAnswers();
+    if (typeof _debouncedPushSync === "function") _debouncedPushSync();
+    const cachedAI = await loadAIFromStorage();
+    if (cachedAI) {
+      if (!cachedAI.answers) cachedAI.answers = {};
+      cachedAI.answers[area.id] = area.value;
+      await saveAIToStorage(cachedAI);
+    }
+  });
+}
+
+// Wires the verse-reference link click → smooth-scroll + glow.
+function _wireReflectionLink(link) {
+  if (!link || link.dataset.wired === "1") return;
+  link.dataset.wired = "1";
+  link.addEventListener("click", (e) => {
+    e.preventDefault();
+    const rawRef =
+      link.textContent.replace(/[^0-9,\-–\s]/g, "").trim() ||
+      (link.getAttribute("href")?.replace("#", "") || "");
+    const verseNum = rawRef.replace(/[^0-9]/g, " ").trim().split(/\s+/)[0];
+    if (!verseNum) return;
+    const allVerses = document.querySelectorAll("#output .verse");
+    const target = Array.from(allVerses).find(
+      (el) => el.querySelector(".verse-num")?.textContent?.trim() === verseNum,
+    );
+    const header = target?.querySelector(".verse-header") || target;
+    if (header) {
+      header.scrollIntoView({ behavior: "smooth", block: "center" });
+      header.classList.remove("verseGlow");
+      void header.offsetWidth;
+      header.classList.add("verseGlow");
+    }
+  });
+}
+
+// AI fetch for reflection <li> items. Returns an array of detached <li>
+// elements (so caller can swap them into an existing <ol>). Used by both
+// renderAIReflectionQuestions (count=3) and _smartRetryReflections (count<3).
+async function _fetchReflectionLis({ book, chapter, versesText, count = 3, excludeQuestions = [] }) {
+  const exclusionBlock = excludeQuestions.length
+    ? `\nALREADY-ASKED QUESTIONS (DO NOT duplicate, paraphrase, or rehash these — they have been answered already):\n${excludeQuestions.map((q) => `- ${q}`).join("\n")}\n`
+    : "";
 
   const prompt = `
 IMPORTANT OUTPUT RULES (STRICT):
@@ -1612,9 +1924,69 @@ You must NOT give answers.
 You must NOT speak as God.
 
 
-TASK:
-Generate EXACTLY 3 numbered questions based on the passage.
+COVENANT RULE (CRITICAL — NON-NEGOTIABLE — APPLIES TO ALL OLD TESTAMENT PASSAGES):
 
+The reader is a Christian living AFTER the resurrection of Jesus, under the NEW COVENANT (Hebrews 8–10, Acts 10:9–16, Mark 7:19, Galatians 3:23–25, Colossians 2:16–17, Romans 14:14, 1 Timothy 4:3–5).
+
+This means the following OT laws are NO LONGER BINDING on the reader:
+- Dietary laws (clean/unclean animals, food restrictions) — Jesus declared all foods clean (Mark 7:19; Acts 10:15)
+- Ceremonial purity laws (washing rituals, touching dead things, bodily-discharge rules)
+- Sacrificial laws (animal offerings, priestly rituals)
+- Civil/theocratic laws (stoning, ancient Israel's national legal code)
+- Festival and Sabbath ceremonial observance (Colossians 2:16)
+
+The reader is fully redeemed and FREE from these requirements. Therefore:
+
+⛔ HARD FORBIDDEN — NEVER ASK THESE QUESTION TYPES (zero tolerance):
+- "What unclean food will you avoid this week?"
+- "What food choice will you make differently this week, reflecting God's call to be set apart?"
+- "How will you keep yourself ceremonially clean…?"
+- "Which sacrifice / offering will you bring…?"
+- "How will you observe this purity / dietary / ritual law in your life today?"
+- ANY question that asks the reader to literally obey, perform, or modify their behavior to match an OT ceremonial / dietary / sacrificial / civil command.
+- ANY question that implies the reader is still under those laws.
+
+These questions are biblically WRONG for a NT believer. They contradict the gospel of grace and Christ's finished work. If you generate one, the question is rejected.
+
+✅ INSTEAD, redirect to one of these four NT-faithful angles:
+
+  1. CHARACTER OF GOD revealed by the law (His holiness, justice, care, distinction-making, attention to detail) → "What does this passage show you about who God is — and how does that shape your worship today?"
+
+  2. HEART PRINCIPLE behind the ceremony, applied to NT life (set-apart living, the seriousness of sin, costly devotion, separation from worldliness — NOT the literal ritual) → "Where in your life is God calling you to be 'set apart' in a way that honors Him — not in food, but in attitudes, relationships, or habits?"
+
+  3. CHRIST FULFILLMENT — how the OT shadow points to Jesus (the true sacrifice, the true priest, the true purity, the true Sabbath rest) → "Knowing Jesus fulfilled this law on your behalf, how does that change the way you carry guilt or strive for holiness this week?"
+
+  4. NT-PARALLEL TRANSFER — the OT principle re-expressed in NT moral terms (e.g., bodily holiness → 1 Cor 6:19–20; food laws → Romans 14 / 1 Cor 8 freedom-and-love; Sabbath → Hebrews 4 rest in Christ) → "How might you live out the heart of this passage — set-apart devotion to God — through love, integrity, or self-control today?"
+
+CONCRETE REWRITE EXAMPLES (study these — match this style):
+
+  Passage: Leviticus 11 (clean/unclean food)
+  ❌ BAD:  "What specific food choice will you make differently this week, reflecting God's call to be set apart?"
+  ✅ GOOD: "Jesus declared all foods clean — so what NON-food area of your life does God still call you to set apart for Him?"
+
+  Passage: Leviticus 11
+  ❌ BAD:  "What unclean food will you avoid?"
+  ✅ GOOD: "What does God's careful attention to clean vs. unclean reveal about His character — and how does that shape your awe of Him today?"
+
+  Passage: Leviticus 16 (Day of Atonement)
+  ❌ BAD:  "How will you bring a sin offering this week?"
+  ✅ GOOD: "Jesus is the true and final sacrifice — what guilt are you still carrying that He has already paid for?"
+
+  Passage: Leviticus 19 (holiness code)
+  ❌ BAD:  "How will you keep yourself ceremonially pure?"
+  ✅ GOOD: "What's one way you've been blending in with the world that God is asking you to live differently in?"
+
+SELF-CHECK BEFORE EMITTING EACH QUESTION:
+1. Does this question ask the reader to literally perform / observe / avoid something the OT ritual law commanded? → If YES, REWRITE. The reader is not under that law.
+2. Does the question imply the reader still needs to "keep" or "fulfill" a ceremonial / dietary / sacrificial requirement? → If YES, REWRITE. Christ fulfilled it.
+3. Does the question point to God's character, the heart-principle, Christ's fulfillment, or a NT-shaped application? → If YES, KEEP IT.
+
+For NT passages, universal moral commands (love, honesty, sexual purity, prayer, generosity, justice, the fruit of the Spirit), and creation/wisdom literature (Proverbs, Psalms, etc.), apply normally — this covenant rule only restricts OT ceremonial / dietary / sacrificial / civil law from being treated as still-binding.
+
+
+TASK:
+Generate EXACTLY ${count} numbered questions based on the passage.
+${exclusionBlock}
 
 CRITICAL LINKING RULE (MUST FOLLOW):
 - EVERY verse reference MUST be written as an <a> link
@@ -1633,8 +2005,8 @@ QUESTION STYLE (STRICT — FOLLOW EXACTLY):
 - ONE single idea per question. If you're tempted to use "considering…", "in light of…", "given that…" — STOP and split into two questions or pick one angle
 - Use plain, everyday English. A 16-year-old should understand every word without a dictionary
 - Prefer CONCRETE over abstract. "What would you do if…" beats "What does this teach you about…"
-- At least ONE of the 3 questions must name a specific action for THIS WEEK
-- VARY the opening — don't start all 3 questions with "What" or "How"
+- At least ONE question must name a specific action for THIS WEEK
+- VARY the opening — don't start every question with "What" or "How"
 
 BANNED WORDS / PHRASES (do not use any of these):
 - theological, implications, undeserving, unified, turning towards, in light of, considering, ultimate, collective response, encompassing, holistic, grapple, wrestle with, challenge your understanding, sovereign, providence, salvific, eschatological
@@ -1655,12 +2027,10 @@ GOOD EXAMPLES (write like these):
 BAD EXAMPLES (do NOT write like these):
 - "What does their collective response, from the common people to the king, teach you about the power of a unified turning towards God?" — too long, academic, multi-concept
 - "Considering God's ultimate compassion, how does this passage challenge your understanding of mercy, even to those who might seem undeserving?" — 3 concepts crammed in, jargon
-- "How does the king's decree reveal the nature of genuine repentance and its societal implications?" — stilted, theological, abstract
 
 PERSONALIZATION RULE (STRICT):
 - ALL questions MUST be directly addressed to the reader
 - Never use "people today", "believers", "society", "we as a community"
-- If a question could apply to a random stranger, rewrite it to be personal
 
 DO NOT:
 - Provide answers
@@ -1671,7 +2041,7 @@ DO NOT:
 STRUCTURE:
 - NO title
 - NO intro sentence
-- An <ol> with EXACTLY 3 <li> items
+- An <ol> with EXACTLY ${count} <li> items
 - Inside each <li>:
   - A single <p> containing the full question text (including the verse link)
   - A <textarea> immediately after the <p>
@@ -1683,76 +2053,71 @@ ${book} ${chapter}
 ${versesText}
 `;
 
+  const res = await fetch("https://gemini-proxy-668755364170.asia-southeast1.run.app", {
+    method: "POST",
+    headers: { "Content-Type": "application/json" },
+    body: JSON.stringify({ task: "summary", contents: [{ parts: [{ text: prompt }] }] }),
+  });
+  const data = await res.json();
+  let rawHTML = data.candidates?.[0]?.content?.parts?.[0]?.text || "";
+  if (!rawHTML) return [];
+
+  rawHTML = rawHTML.replace(/\s*style="[^"]*"/gi, "");
+  const tmp = document.createElement("div");
+  tmp.innerHTML = rawHTML;
+  tmp.querySelectorAll("li").forEach((li) => {
+    if (!li.querySelector("textarea")) {
+      const ta = document.createElement("textarea");
+      ta.setAttribute("placeholder", "Write your thoughts here...");
+      li.appendChild(ta);
+    }
+  });
+  tmp.querySelectorAll("ol > textarea, ul > textarea, div > textarea").forEach((ta) => {
+    if (!ta.closest("li")) ta.remove();
+  });
+  return [...tmp.querySelectorAll("li")];
+}
+
+async function renderAIReflectionQuestions({ book, chapter, versesText }) {
+  const mount = document.getElementById("aiReflection");
+  mount.classList.add("ai-fade-in");
+  _ensureReflectionRetryUI(mount);
+
+  mount.innerHTML = `
+  <div class="ai-shimmer">
+    <div class="ai-shimmer-block"></div>
+    <div class="ai-shimmer-block"></div>
+    <div class="ai-shimmer-block short"></div>
+  </div>
+`;
+
   try {
-    const res = await fetch(
-      "https://gemini-proxy-668755364170.asia-southeast1.run.app",
-      {
-        method: "POST",
-        headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({
-          task: "summary",
-          contents: [{ parts: [{ text: prompt }] }],
-        }),
-      },
-    );
-
-    const data = await res.json();
-    let rawHTML = data.candidates?.[0]?.content?.parts?.[0]?.text || "";
-    if (!rawHTML) { mount.innerHTML = "<p>Failed to generate reflection questions.</p>"; return true; }
-
-    // Post-process: strip inline styles and ensure each <li> has a textarea
-    rawHTML = rawHTML.replace(/\s*style="[^"]*"/gi, '');
-    const tmp = document.createElement("div");
-    tmp.innerHTML = rawHTML;
-    const listItems = tmp.querySelectorAll("li");
-    listItems.forEach(li => {
-      // If textarea is not inside this li, add one
-      if (!li.querySelector("textarea")) {
-        const ta = document.createElement("textarea");
-        ta.setAttribute("placeholder", "Write your thoughts here...");
-        li.appendChild(ta);
-      }
-    });
-    // Remove any stray textareas that ended up outside <li>
-    tmp.querySelectorAll("ol > textarea, ul > textarea, div > textarea").forEach(ta => {
-      if (!ta.closest("li")) ta.remove();
-    });
-    mount.innerHTML = tmp.innerHTML;
+    const lis = await _fetchReflectionLis({ book, chapter, versesText, count: 3 });
+    if (!lis || lis.length === 0) {
+      mount.innerHTML = "<p>Failed to generate reflection questions.</p>";
+      return true;
+    }
+    const olHtml = `<ol>${lis.map((li) => li.outerHTML).join("")}</ol>`;
+    mount.innerHTML = `
+      <button type="button" class="ai-refl-retry" aria-label="Regenerate reflection questions" title="Regenerate questions">
+        <span class="material-symbols-outlined">refresh</span>
+      </button>
+      ${olHtml}
+    `;
 
     setTimeout(restoreSavedReflectionAnswers, 0);
 
     mount.querySelectorAll("textarea").forEach((ta, i) => {
-      const id = `reflection-${devotionId()}-${i}`;
-      ta.id = id;
+      ta.id = `reflection-${devotionId()}-${i}`;
     });
 
-    // Make verse reference links clickable — scroll to & highlight verse
-    mount.querySelectorAll("a.reflection-link").forEach(link => {
-      link.addEventListener("click", e => {
-        e.preventDefault();
-        // Extract verse number from display text — AI sometimes puts wrong number in href
-        const rawRef = link.textContent.replace(/[^0-9,\-–\s]/g, "").trim() || (link.getAttribute("href")?.replace("#", "") || "");
-        // For inline scroll, use the first verse number
-        const verseNum = rawRef.replace(/[^0-9]/g, " ").trim().split(/\s+/)[0];
-        if (!verseNum) return;
-        const allVerses = document.querySelectorAll("#output .verse");
-        const target = Array.from(allVerses).find(el =>
-          el.querySelector(".verse-num")?.textContent?.trim() === verseNum
-        );
-        const header = target?.querySelector(".verse-header") || target;
-        if (header) {
-          header.scrollIntoView({ behavior: "smooth", block: "center" });
-          header.classList.remove("verseGlow");
-          void header.offsetWidth;
-          header.classList.add("verseGlow");
-        }
-      });
-    });
+    mount.querySelectorAll("a.reflection-link").forEach(_wireReflectionLink);
 
     initializeReflections();
+    _refreshRetryButtonState(mount);
   } catch (e) {
     console.error(e);
-    mount.innerHTML = "<p>Failed to generate reflection questions.</p>"; // More descriptive error on fetch failure
+    mount.innerHTML = "<p>Failed to generate reflection questions.</p>";
   }
   return true;
 }

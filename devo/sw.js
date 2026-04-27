@@ -1,6 +1,6 @@
 // sw.js — AGGRESSIVE cache refresh on new deployments (GitHub-safe)
 
-const DEPLOYMENT_ID = "v1.2.0-" + Date.now(); // Date.now() ensures a new cache on every SW update
+const DEPLOYMENT_ID = "v1.3.0-" + Date.now(); // Date.now() ensures a new cache on every SW update
 const CACHE_NAME = "dudu-devotion-" + DEPLOYMENT_ID;
 
 // Core app shell files (always refreshed). script.js was split into ordered
@@ -86,28 +86,48 @@ self.addEventListener("notificationclick", (event) => {
 // FETCH STRATEGY (VERY AGGRESSIVE):
 // - HTML → NETWORK ONLY (never trust cache)
 // - Everything else → NETWORK FIRST + overwrite cache
+//
+// Both branches MUST resolve to a real Response — `event.respondWith(undefined)`
+// throws "Failed to convert value to 'Response'" in Chrome. So every failure
+// path falls back through cache and finally to a synthetic offline Response.
 self.addEventListener("fetch", (event) => {
   const req = event.request;
 
   // Only handle GET requests (Cache API doesn't support POST/PUT/etc.)
   if (req.method !== "GET") return;
 
-  // HTML / navigation — ALWAYS NETWORK
+  // HTML / navigation — try network first; on failure, fall back to a cached
+  // app shell so the page still loads offline.
   if (req.mode === "navigate") {
-    event.respondWith(fetch(req, { cache: "no-store" }));
+    event.respondWith(
+      fetch(req, { cache: "no-store" }).catch(async () => {
+        return (
+          (await caches.match("./index.html")) ||
+          (await caches.match("./")) ||
+          new Response("Offline", { status: 503, statusText: "Offline" })
+        );
+      })
+    );
     return;
   }
 
-  // Static assets — network-first, overwrite cache
+  // Static assets — network-first, overwrite cache; on failure, fall back to
+  // cache; if both miss, return a synthetic 504 instead of `undefined`.
   event.respondWith(
     fetch(req)
       .then((res) => {
         const copy = res.clone();
-        caches.open(CACHE_NAME).then((cache) => {
-          cache.put(req, copy);
-        });
+        caches.open(CACHE_NAME).then((cache) => cache.put(req, copy));
         return res;
       })
-      .catch(() => caches.match(req))
+      .catch(async () => {
+        return (
+          (await caches.match(req)) ||
+          new Response("Offline and not cached", {
+            status: 504,
+            statusText: "Gateway Timeout",
+          })
+        );
+      })
   );
 });

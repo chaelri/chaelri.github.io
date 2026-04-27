@@ -849,7 +849,17 @@ function _showNamePrompt(onDone) {
   const submit = () => {
     const name = input.value.trim();
     if (!name) { input.focus(); return; }
+    const prev = (getUserName() || "").trim().toLowerCase();
+    const next = name.toLowerCase();
     localStorage.setItem("userName", name);
+    // Crossing the Charlie boundary either way: activate or deactivate the
+    // RTDB mirror in place. No page reload — firebase-sync.js exposes both
+    // activateCharlieSync and deactivateCharlieSync for mid-session swaps.
+    if (next === "charlie" && prev !== "charlie" && typeof window.activateCharlieSync === "function") {
+      window.activateCharlieSync().catch(err => console.error("Charlie sync activation failed:", err));
+    } else if (prev === "charlie" && next !== "charlie" && typeof window.deactivateCharlieSync === "function") {
+      window.deactivateCharlieSync().catch(err => console.error("Charlie sync deactivation failed:", err));
+    }
     screen.classList.remove("name-prompt-visible");
     screen.addEventListener("transitionend", () => { screen.hidden = true; }, { once: true });
     if (onDone) onDone(name);

@@ -6,8 +6,32 @@ window.addEventListener("unhandledrejection", function(e) {
   alert("Promise Error: " + (e.reason?.message || e.reason));
 });
 
-const FAV_PAGE_SIZE = 20;
+// Dashboard favorites: 3 per page, paginated with prev/next chevrons.
+const FAV_PAGE_SIZE = 3;
 let favoritesPage = 0;
+
+// ── View transitions ─────────────────────────────────────────────────────────
+// Tiny helper that plays a CSS animation by adding a class, then auto-cleans
+// it up on animationend. Used for dashboard↔passage drill-in transitions and
+// canvas-mode zoom in/out. Curve + durations are defined in style.css.
+function _playViewAnim(el, className, fallbackMs = 360) {
+  if (!el) return;
+  el.classList.remove("view-enter", "view-leaving");
+  // Force reflow so the next class addition retriggers the animation.
+  void el.offsetWidth;
+  el.classList.add(className);
+  let cleaned = false;
+  const cleanup = () => {
+    if (cleaned) return;
+    cleaned = true;
+    el.classList.remove(className);
+    el.removeEventListener("animationend", cleanup);
+  };
+  el.addEventListener("animationend", cleanup, { once: true });
+  // Safety fallback: if animationend never fires (e.g. element re-rendered
+  // mid-transition), strip the class manually.
+  setTimeout(cleanup, fallbackMs);
+}
 let currentVersion = localStorage.getItem("bibleVersion") || "NASB";
 let recentPassageId = localStorage.getItem("recentPassageId");
 let recentPassage = localStorage.getItem("recentPassage");

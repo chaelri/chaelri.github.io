@@ -48,9 +48,14 @@
         <div id="topActions" class="top-actions-bar" style="padding: 4rem 16px 0">
           <div id="dashBrandRow" class="dash-brand-row" hidden>
             <div id="dashBrand" class="dash-brand">devotion.</div>
-            <button id="dashBrowseBtn" class="dash-browse-btn" aria-label="Browse passages" title="Browse passages">
-              <span class="material-symbols-outlined">menu_book</span>
-            </button>
+            <div class="dash-brand-actions">
+              <button id="dashThemeBtn" class="dash-browse-btn" aria-label="Toggle theme" title="Toggle theme">
+                <span class="material-symbols-outlined">light_mode</span>
+              </button>
+              <button id="dashBrowseBtn" class="dash-browse-btn" aria-label="Browse passages" title="Browse passages">
+                <span class="material-symbols-outlined">menu_book</span>
+              </button>
+            </div>
           </div>
           <div class="top-actions-reading">
             <button id="homeBtn" class="secondary" hidden>
@@ -641,20 +646,20 @@
 
       <div class="cm-toolbar">
         <div class="cm-tools">
-          <button class="cm-tool-btn active" data-tool="highlight" title="Highlight">
+          <button class="cm-tool-btn active" data-tool="highlight" title="Highlight (H)">
             <span class="material-symbols-outlined">ink_highlighter</span>
           </button>
-          <button class="cm-tool-btn" data-tool="eraser" title="Eraser">
+          <button class="cm-tool-btn" data-tool="eraser" title="Eraser (E)">
             <span class="material-symbols-outlined">ink_eraser</span>
           </button>
           <span class="cm-mode-label" id="cmModeLabel" data-tool="highlight">Highlight</span>
         </div>
         <div class="cm-swatches" id="cmSwatches">
-          <button class="cm-swatch" data-color="yellow" style="--sw:#ffe66b"></button>
-          <button class="cm-swatch" data-color="pink"   style="--sw:#f9a8d4"></button>
-          <button class="cm-swatch" data-color="blue"   style="--sw:#93c5fd"></button>
-          <button class="cm-swatch" data-color="orange" style="--sw:#fdba74"></button>
-          <button class="cm-swatch" data-color="green"  style="--sw:#bef264"></button>
+          <button class="cm-swatch" data-color="yellow" style="--sw:#ffe66b" title="Yellow (1)" aria-label="Yellow (shortcut: 1)"></button>
+          <button class="cm-swatch" data-color="pink"   style="--sw:#f9a8d4" title="Pink (2)"   aria-label="Pink (shortcut: 2)"></button>
+          <button class="cm-swatch" data-color="blue"   style="--sw:#93c5fd" title="Blue (3)"   aria-label="Blue (shortcut: 3)"></button>
+          <button class="cm-swatch" data-color="orange" style="--sw:#fdba74" title="Orange (4)" aria-label="Orange (shortcut: 4)"></button>
+          <button class="cm-swatch" data-color="green"  style="--sw:#bef264" title="Green (5)"  aria-label="Green (shortcut: 5)"></button>
         </div>
       </div>
 
@@ -662,6 +667,7 @@
         <div class="cm-scroll" id="cmScroll">
           <div class="cm-paper" id="cmPaper">
             <div class="cm-passage-title" id="cmPassageTitle"></div>
+            <div class="cm-context" id="cmContext" hidden></div>
             <div class="cm-passage" id="cmPassage"></div>
             <div class="cm-tail-spacer" aria-hidden="true"></div>
           </div>
