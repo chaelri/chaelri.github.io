@@ -55,8 +55,10 @@ const els = {
   download: $("btn-download"),
   drive: $("btn-drive"),
   canvas: $("canvas"),
-  empty: $("canvas-empty"),
   loading: $("canvas-loading"),
+  layout: $("layout"),
+  previewSection: $("preview-section"),
+  btnNew: $("btn-new"),
   loadingText: $("loading-text"),
   status: $("status"),
   sizeMode: $("size-mode"),
@@ -100,32 +102,42 @@ function consumeShareTargetParams() {
 }
 
 // ----------------------------------------------------------------------------
-// Persistence — input + last formatted result survive reloads / PWA reopens
+// Layout state — centered single-column when empty, two-column when result.
+// Transitions smoothly via the View Transitions API where supported (modern
+// Chrome / Safari 18+); plain class swap as fallback.
 // ----------------------------------------------------------------------------
-const STORAGE = { input: "snsdq_input", formatted: "snsdq_last_formatted" };
+function applyLayout(showResult) {
+  if (showResult) {
+    els.layout.classList.remove("max-w-2xl");
+    els.layout.classList.add("max-w-6xl", "lg:grid-cols-2");
+    els.previewSection.classList.remove("hidden");
+  } else {
+    els.layout.classList.add("max-w-2xl");
+    els.layout.classList.remove("max-w-6xl", "lg:grid-cols-2");
+    els.previewSection.classList.add("hidden");
+    els.driveResult.classList.add("hidden");
+  }
+}
 
-let saveInputTimer;
-function persistInput() {
-  clearTimeout(saveInputTimer);
-  saveInputTimer = setTimeout(() => {
-    try { localStorage.setItem(STORAGE.input, els.input.value); } catch {}
-  }, 400);
+// Run a layout-mutating callback under a View Transition where supported,
+// returning a promise that resolves when the visual transition has settled.
+// Falls back to plain mutation + a ~360ms CSS transition wait.
+function transitionLayout(updateFn) {
+  if (document.startViewTransition) {
+    return document.startViewTransition(updateFn).finished.catch(() => {});
+  }
+  updateFn();
+  return new Promise((r) => setTimeout(r, 360));
 }
-function persistFormatted(formatted) {
-  try { localStorage.setItem(STORAGE.formatted, JSON.stringify(formatted)); } catch {}
-}
-function restoreSavedInput() {
-  const v = localStorage.getItem(STORAGE.input);
-  if (v) els.input.value = v;
-}
-function restoreLastFormatted() {
-  const raw = localStorage.getItem(STORAGE.formatted);
-  if (!raw) return null;
-  try {
-    const parsed = JSON.parse(raw);
-    if (parsed?.questions?.length) return parsed;
-  } catch {}
-  return null;
+
+function resetToEmpty() {
+  els.input.value = "";
+  lastFormatted = null;
+  els.driveResult.classList.add("hidden");
+  setStatus("");
+  transitionLayout(() => applyLayout(false));
+  syncInputButtons();
+  els.input.focus();
 }
 
 // ----------------------------------------------------------------------------
@@ -511,7 +523,6 @@ function renderToCanvas(parsed, opts = {}) {
     }
   }
 
-  els.empty.classList.add("hidden");
   return { fontSize: size };
 }
 
@@ -538,20 +549,60 @@ async function generate({ regen = false } = {}) {
     const aiOut = await formatWithGemini(questions);
     const reconciled = reconcileWithInput(aiOut, questions);
     lastFormatted = { ...reconciled, rawText: text };
-    persistFormatted(lastFormatted);
 
     const opts = {};
     if (!els.sizeMode.checked) opts.fontSize = parseInt(els.sizeManual.value, 10);
-    renderToCanvas(reconciled, opts);
 
-    enableActions(true);
+    // Layout swap + render in a single View Transition pass so the new
+    // snapshot includes the rendered canvas. We then wait for the visual
+    // transition to settle before firing confetti — otherwise the canvas
+    // wrap is still at its pre-transition (centered) position when
+    // getBoundingClientRect runs and the confetti spawns at the wrong x.
+    const settled = transitionLayout(() => {
+      applyLayout(true);
+      renderToCanvas(reconciled, opts);
+    });
+
+    syncInputButtons();
     setStatus("");
+    await settled;
+    celebrateReveal();
   } catch (e) {
     console.error(e);
     setStatus(`Error: ${e.message}`);
     throw e;
   } finally {
     setLoading(false);
+  }
+}
+
+// Subtle pop + green glow + confetti when a fresh result lands. Restoring
+// from localStorage on page load deliberately doesn't trigger this — only
+// genuine new generates / reformats.
+function celebrateReveal() {
+  const wrap = document.getElementById("canvas-wrap");
+  if (wrap) {
+    // Restart the animation if it's already running.
+    wrap.classList.remove("celebrate");
+    void wrap.offsetWidth;
+    wrap.classList.add("celebrate");
+    setTimeout(() => wrap.classList.remove("celebrate"), 1500);
+  }
+  if (typeof window.confetti === "function" && wrap) {
+    const rect = wrap.getBoundingClientRect();
+    const x = (rect.left + rect.width / 2) / window.innerWidth;
+    const y = (rect.top + rect.height * 0.35) / window.innerHeight;
+    window.confetti({
+      particleCount: 90,
+      spread: 75,
+      startVelocity: 38,
+      origin: { x, y },
+      colors: ["#10b981", "#34d399", "#a7f3d0", "#f4f4f5", "#ffffff"],
+      ticks: 200,
+      gravity: 1.1,
+      scalar: 0.9,
+      disableForReducedMotion: true,
+    });
   }
 }
 
@@ -562,19 +613,18 @@ function rerender() {
   renderToCanvas(lastFormatted, opts);
 }
 
-function enableActions(enabled) {
-  els.copy.disabled = !enabled;
-  els.download.disabled = !enabled;
-  els.drive.disabled = !enabled;
-  // Regen also depends on whether the textarea currently has content.
-  els.regen.disabled = !enabled || !els.input.value.trim();
-}
-
 function syncInputButtons() {
   const hasInput = !!els.input.value.trim();
   els.generate.disabled = !hasInput;
-  // Reformat needs both a prior result AND non-empty input.
-  els.regen.disabled = !hasInput || !lastFormatted;
+  // Reformat is hidden entirely until there's a prior result to reformat;
+  // once that exists, it's only disabled if the textarea is empty.
+  if (lastFormatted) {
+    els.regen.classList.remove("hidden");
+    els.regen.disabled = !hasInput;
+  } else {
+    els.regen.classList.add("hidden");
+    els.regen.disabled = true;
+  }
 }
 
 function setLoading(textOrFalse) {
@@ -744,17 +794,18 @@ els.input.addEventListener("keydown", (e) => {
   }
 });
 
-// Toggle Generate / Reformat + persist input as user types.
-els.input.addEventListener("input", () => {
-  syncInputButtons();
-  persistInput();
-});
+// Toggle Generate / Reformat as user types.
+els.input.addEventListener("input", syncInputButtons);
 
 // Custom-filename input updates the live preview hint.
 els.filename.addEventListener("input", updateFilenamePreview);
 
-// Initial state — share-target wins over localStorage; otherwise restore.
-if (!consumeShareTargetParams()) restoreSavedInput();
+// "+ New discussion questions" — clears input + result, returns to centered.
+els.btnNew.addEventListener("click", resetToEmpty);
+
+// Initial state: empty (no localStorage restore). Share-target may pre-fill.
+consumeShareTargetParams();
+applyLayout(false);
 syncInputButtons();
 updateFilenamePreview();
 
@@ -786,23 +837,6 @@ els.sizeManual.addEventListener("input", () => {
 els.help.addEventListener("click", () => els.helpModal.showModal());
 els.helpClose.addEventListener("click", () => els.helpModal.close());
 
-// Preload fonts + template in background so first generate is fast.
-// Also restore the last formatted result if there is one so a refresh /
-// PWA-reopen brings the preview back without having to regenerate.
-Promise.all([loadFonts(), loadTemplate()])
-  .then(() => {
-    const saved = restoreLastFormatted();
-    if (saved) {
-      lastFormatted = saved;
-      const opts = {};
-      if (!els.sizeMode.checked) opts.fontSize = parseInt(els.sizeManual.value, 10);
-      renderToCanvas(saved, opts);
-      enableActions(true);
-    } else {
-      // No saved render — show the bare template so the user sees the canvas.
-      const ctx = els.canvas.getContext("2d");
-      ctx.drawImage(templateImage, 0, 0, LAYOUT.width, LAYOUT.height);
-      els.empty.classList.add("hidden");
-    }
-  })
-  .catch((e) => console.warn("Preload failed", e));
+// Preload fonts + template in background so the first generate is fast.
+// Nothing rendered until the user actually generates a result.
+Promise.all([loadFonts(), loadTemplate()]).catch((e) => console.warn("Preload failed", e));

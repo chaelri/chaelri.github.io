@@ -84,6 +84,12 @@
 .btn-ghost:disabled { opacity: 0.4; cursor: not-allowed; }
 .btn-ghost:disabled:hover { background: rgb(31 32 38); border-color: rgb(255 255 255 / 0.08); }
 
+/* Tailwind's `.hidden { display: none }` is the same specificity as `.btn-*`
+   so the latter wins in source order — these compound selectors restore the
+   expected behaviour for our two custom button classes. */
+.btn-ghost.hidden,
+.btn-primary.hidden { display: none; }
+
 .icon-btn {
   display: inline-flex;
   align-items: center;
@@ -130,3 +136,97 @@ dialog[open] { animation: dialog-in 0.18s ease-out; }
 /* Spin */
 @keyframes spin { to { transform: rotate(360deg); } }
 .animate-spin { animation: spin 0.9s linear infinite; }
+
+/* Smooth max-width transition between centered (single-col) and expanded
+   (2-col) layouts. View Transitions handle most of the visual swap; this
+   covers browsers without it. */
+#layout {
+  transition: max-width 0.35s ease-out;
+}
+
+/* Custom scrollbar for the textarea — thin, dark, matches the surface. */
+#dq-input {
+  scrollbar-width: thin;
+  scrollbar-color: rgba(255, 255, 255, 0.14) transparent;
+}
+#dq-input::-webkit-scrollbar { width: 8px; }
+#dq-input::-webkit-scrollbar-track { background: transparent; }
+#dq-input::-webkit-scrollbar-thumb {
+  background: rgba(255, 255, 255, 0.12);
+  border-radius: 8px;
+  border: 2px solid transparent;
+  background-clip: padding-box;
+}
+#dq-input::-webkit-scrollbar-thumb:hover {
+  background: rgba(255, 255, 255, 0.22);
+  background-clip: padding-box;
+  border: 2px solid transparent;
+}
+
+/* View-transition smoothing for the layout swap. Crossfades + slides the
+   preview section in from the right; the input section stays put. */
+@supports (view-transition-name: foo) {
+  #preview-section { view-transition-name: preview-section; }
+  ::view-transition-old(preview-section),
+  ::view-transition-new(preview-section) {
+    animation-duration: 0.35s;
+    animation-timing-function: ease-out;
+  }
+}
+
+/* "New discussion questions" CTA — dashed-border "create new" pattern, set
+   apart from the Copy/Download/Drive ghost buttons so it reads as a distinct
+   "start a new one" affordance, not another action on the current result. */
+.btn-new {
+  display: flex;
+  align-items: center;
+  gap: 0.75rem;
+  width: 100%;
+  padding: 0.875rem 1rem 0.875rem 0.75rem;
+  border-radius: 0.875rem;
+  border: 1.5px dashed rgb(16 185 129 / 0.35);
+  background: linear-gradient(180deg, rgb(16 185 129 / 0.06) 0%, rgb(16 185 129 / 0.02) 100%);
+  color: rgb(167 243 208);
+  font-size: 0.875rem;
+  font-weight: 600;
+  letter-spacing: 0.01em;
+  transition: border-color 0.18s ease, background 0.18s ease, color 0.18s ease, transform 0.15s ease;
+}
+.btn-new:hover {
+  border-color: rgb(16 185 129 / 0.7);
+  border-style: solid;
+  background: linear-gradient(180deg, rgb(16 185 129 / 0.14) 0%, rgb(16 185 129 / 0.06) 100%);
+  color: rgb(209 250 229);
+}
+.btn-new:hover .btn-new__arrow { transform: translateX(3px); opacity: 1; }
+.btn-new:active { transform: translateY(1px); }
+.btn-new__icon {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  width: 2rem;
+  height: 2rem;
+  border-radius: 0.5rem;
+  background: rgb(16 185 129 / 0.18);
+  color: rgb(110 231 183);
+  flex-shrink: 0;
+}
+.btn-new__label { flex: 1; text-align: left; }
+.btn-new__arrow {
+  opacity: 0.55;
+  transition: transform 0.2s ease, opacity 0.2s ease;
+}
+
+/* Generate-success celebration: subtle scale pop + green ring fade-out.
+   Applied to #canvas-wrap right after a fresh render lands. */
+@keyframes celebrate-pop {
+  0%, 100% { transform: scale(1); }
+  40%      { transform: scale(1.022); }
+}
+@keyframes celebrate-glow {
+  0%   { box-shadow: 0 0 0 0 rgba(16, 185, 129, 0.55); border-color: rgba(16, 185, 129, 0.9); }
+  100% { box-shadow: 0 0 0 22px rgba(16, 185, 129, 0); border-color: rgba(255, 255, 255, 0.10); }
+}
+#canvas-wrap.celebrate {
+  animation: celebrate-pop 0.55s ease-out, celebrate-glow 1.4s ease-out;
+}
