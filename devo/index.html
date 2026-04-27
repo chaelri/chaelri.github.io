@@ -747,8 +747,9 @@
     <script src="config.js" onerror="void 0"></script>
     <script src="bible-meta.js"></script>
     <!-- firebase-sync.js bootstraps Charlie's pure-Firebase mode and then
-         dynamically injects script.js. For non-Charlie users it injects
-         script.js immediately and stays out of the way. -->
+         dynamically injects the js/*.js chunks (formerly one script.js,
+         now split into 10 ordered files). For non-Charlie users it injects
+         them immediately and stays out of the way. -->
     <script src="firebase-sync.js"></script>
   </body>
 </html>

@@ -22,15 +22,38 @@
 8. **Modals** (lines 348–610): `#modalOverlay/#modalContent` (cross-refs), `#storyModal` (story view), `#ttsImmersive` (immersive TTS), `#ttsPlayer` (inline player), `#imgCreatorPanel` (image creation).
 9. **Name & Dialog** (lines 327–346): Name prompt, confirm dialog.
 
-**Script Loading** (line ~800+): `<script src="firebase-sync.js"></script>` (loads first), then `script.js` is injected dynamically by firebase-sync.js.
+**Script Loading** (line ~800+): `<script src="firebase-sync.js"></script>` (loads first), then 10 ordered chunks under `js/` are injected dynamically by firebase-sync.js with `async=false`.
 
 ---
 
-### script.js (388,720 bytes, ~8881 lines)
+### js/ (split from former monolithic script.js, 9,881 lines)
 
-**Monolithic core**: Contains all verse loading, AI summaries, TTS, reflection, notes, SOAP, canvas, and story logic. Divided into logical sections by major comment headers and function groups.
+**The split rationale**: The original `script.js` was a single 388 KB / 9,881-line classic script. It was sliced into 10 contiguous files by line range — pure cut/paste, no logic changes. All files load as classic `<script>` tags via `firebase-sync.js` (`async=false`), sharing one script-global scope identical to the original. Cross-file references to globals (`comments`, `favorites`, `ttsQueue`, `bibleData`, `modalOverlay`, etc.) work unchanged.
 
-#### Sections (by grep of top-level functions and headers):
+**Load order is significant** — function declarations from earlier files are visible to later files via the shared global scope. Top-level executable statements (e.g. `updateIcon()` at file 02 line ~150, `fetchBibleData()` / `loadBooks()` / `showDashboard()` at file 05) only call functions defined in the same file (hoisting) or in earlier files (already loaded).
+
+#### File map
+
+| File | Original lines | Size | Responsibility |
+|------|----------------|------|---------------|
+| `js/01-core.js` | 1–533 | 533 | Globals, error handler, AI tone constant, `callGemini` / `callGeminiStream` / `_typeOut`, IndexedDB image+story cache, `mdToHTML` / `inlineMd` / `linkifyBibleRefs`, cross-ref peek, modal overlay refs, Strong's modal |
+| `js/02-data.js` | 534–819 | 286 | `fetchBibleData`, `bibleData` global, `openDB` (IndexedDB `dudu-devotion-db`), verse cache, `lockAppScroll`, reflection-visibility helpers, theme toggle (`updateIcon`), `comments` + `favorites` globals + `saveFavorites` / `isFavorite` / `toggleFavorite` |
+| `js/03-tts.js` | 820–1524 | 705 | Full TTS system — `TTS_VOICE`, semaphore, `_ttsSynthItem`, `_ttsPrepareLookahead`, word-span injection + highlight RAF loop, `ttsBuildQueue`, `playChapter`, `ttsPlayAt`, pause/prev/next, immersive pause-panel, ends with the (duplicate) `saveComments()` definition |
+| `js/04-passage.js` | 1525–3294 | 1770 | `resetAISections`, inline quick-context, `toggleVerseChat`, `renderChatHistory`, `fetchInlineDigDeeper`, `updatePassageTitle`, `updateControlStates`, dashboard (`renderDashboard`, dash clock), `loadPassage` / `loadPassageById`, `runAIForCurrentPassage`, `showLoading` / `hideLoading`, `renderAIContextSummary`, `renderAIReflectionQuestions`, `restoreSavedReflectionAnswers` |
+| `js/05-render-init.js` | 3295–4232 | 938 | `updateMetaIndicators`, `renderComments`, `toggleAllNotes`, `renderSummary`, scroll-top button, version pills, prev/next chapter buttons, TTS button wiring, push subscribe/unsubscribe (`_subscribePush`, `_handlePushToggle`, `_syncPushContext`), `initializeReflections` MutationObserver, smooth-scroll, name prompt, confirm dialog, top-of-app init calls (`fetchBibleData`, `loadBooks`, `showDashboard`, `updateControlStates`) |
+| `js/06-notes.js` | 4233–5325 | 1093 | Notes app — `showBackToNotesBubble`, `_getAllNotes`, `openNotesApp` / `closeNotesApp`, `_getSessions`, `_renderNotesList`, `_openSessionDetail`, `_shareSession`, note detail view, `_renderStandaloneEditor`, `_createNewNote` / `_updateStandaloneNote` / `_deleteStandaloneNote`, `initNotesApp` |
+| `js/07-immersive.js` | 5326–5822 | 497 | Immersive TTS overlay — `ttsImmersiveOpen` / `Close`, `_loadTtsImmersiveBg`, `_ttsImmStartPlayback`, scrubber, `ttsImmersiveUpdate`, `ttsImmReflectionOpen` / `Show`, `_immParseVerseRefs`, `_immShowVersePopup` |
+| `js/08-story.js` | 5823–7049 | 1227 | Story modal — `markStorySeen`, `openStoryModal` / `closeStoryModal`, `renderStorySlide`, navigation, `buildSlideHTML` / `buildGlanceHTML` / `buildMapHTML` / `buildSegmentHTML` / `buildScrapbookHTML` / `buildConversationHTML` / `buildTeachingHTML` / `buildContrastHTML` / `buildRecapHTML` / `buildReflectHTML`, story Gemini fetches (glance/timeline/closing/digDeeper), reflect modal (`openReflectModal` / `closeReflectModal`), verse peek (`openVersePeek`) |
+| `js/09-soap.js` | 7050–8019 | 970 | SOAP — categories, respond screen, dashboard combined view, stack cards, list panel, picker, verse popover, Firebase flush helpers |
+| `js/10-creator-canvas.js` | 8020–9881 | 1862 | Image creator (`openImageCreator`, mode switcher, generate, download, share), canvas mode IIFE (drawing/highlight/notes overlay), main-toolbar IIFE (proxy buttons over legacy controls), book/chapter picker IIFE (mobile bottom-sheet selectors) |
+
+#### Section anchor: original line ranges (for grep-by-line)
+
+The line ranges below are from the **original** `script.js`. Inside each split file, subtract the file's starting line to get the local line. For example, "loadPassageById line 2037" lives in `04-passage.js` at local line `2037 - 1525 + 1 = 513`.
+
+(Sections A–Q below preserve the original line-numbering for historical grep familiarity.)
+
+#### Sections (by grep of top-level functions and headers — ORIGINAL line numbers):
 
 **A. Utility & Proxy Layers (lines 1–600)**
 - **Gemini Proxy** (line 28): `_typeOut(text, onChunk)` (line 65) — streams text chunks.

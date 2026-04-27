@@ -3,18 +3,31 @@
 ## File Structure
 ```
 devo/
-├── index.html           (UI skeleton, modals & controls)
-├── script.js            (~8,881 lines: app logic)
-├── style.css            (~7,500 lines: styling)
-├── config.js            (270B: API keys)
-├── firebase-sync.js     (~350 lines: Firebase sync for Charlie)
-├── bible-meta.js        (book/chapter metadata)
-├── nasb2020.json        (~5.5MB: Bible data)
-├── easy2024.json        (~4.5MB: Bible data)
-├── manifest.json        (PWA manifest)
-├── sw.js                (Service worker)
-└── assets/icons/        (PWA icons)
+├── index.html              (UI skeleton, modals & controls)
+├── js/                     (app logic, split from former script.js)
+│   ├── 01-core.js          (~533 lines: globals, AI/Gemini, image cache, markdown, cross-ref, Strong's modal)
+│   ├── 02-data.js          (~286 lines: bible data load, IDB, scroll lock, theme, favorites/comments globals)
+│   ├── 03-tts.js           (~705 lines: full TTS system — synthesis, queue, playback, word highlight)
+│   ├── 04-passage.js       (~1770 lines: passage load, AI reflection/chat, summary, controls)
+│   ├── 05-render-init.js   (~938 lines: comments rendering, summary, init/event wiring, push)
+│   ├── 06-notes.js         (~1093 lines: notes app — sessions, detail view, standalone editor)
+│   ├── 07-immersive.js     (~497 lines: immersive TTS overlay)
+│   ├── 08-story.js         (~1227 lines: story modal, reflect modal, verse peek, story builders)
+│   ├── 09-soap.js          (~970 lines: SOAP screen, dashboard, list panel)
+│   ├── 10-creator-canvas.js (~1862 lines: image creator, canvas mode, main toolbar, book/chapter picker)
+│   └── 11-boot.js          (~22 lines: final kickoff — fetchBibleData/loadBooks/showDashboard/updateControlStates/_onAppLoad trigger; runs LAST so cross-file calls resolve)
+├── style.css               (~7,500 lines: styling)
+├── config.js               (270B: API keys)
+├── firebase-sync.js        (~380 lines: Firebase sync for Charlie + ordered injector for js/*.js)
+├── bible-meta.js           (book/chapter metadata)
+├── nasb2020.json           (~5.5MB: Bible data)
+├── easy2024.json           (~4.5MB: Bible data)
+├── manifest.json           (PWA manifest)
+├── sw.js                   (Service worker — caches all js/*.js chunks)
+└── assets/icons/           (PWA icons)
 ```
+
+**How the split works:** All 10 js/*.js files are classic `<script>` tags (not modules) injected by `firebase-sync.js` with `async = false`, so they share a single script-global scope identical to the former monolithic script.js. Cross-file globals (`comments`, `favorites`, `ttsQueue`, `bibleData`, etc.) work unchanged because top-level `let`/`const`/`function` declarations all go into the same lexical script-global environment.
 
 ## Storage Tiers
 

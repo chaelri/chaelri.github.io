@@ -1,5 +1,7 @@
 # Architectural Decisions & Rationale
 
+> **Note (2026-04-27):** The 9,881-line `devo/script.js` was split into 11 ordered chunks under `devo/js/`. Pure cut/paste, no logic changes — chunks load as classic `<script>` tags via `firebase-sync.js` (`async=false`) and share one script-global scope. The decisions below were unaffected by the split. See [`KEY_FILES.md`](KEY_FILES.md) for the line-range → file map and rationale.
+
 ## 1. No Framework (Vanilla JS)
 
 **Decision**: Build with plain JavaScript, no Vue/React/Svelte.
@@ -179,3 +181,22 @@
 **Investigation finding**: App uses **Google Cloud TTS**, not Kokoro. No `kokoro-js@1.2.1` or ONNX runtime dependencies found. Voice hardcoded to `en-US-Journey-D` (Google voice, line 820).
 
 **Likely reason**: Kokoro evaluated but rejected in favor of cloud TTS due to latency/performance (see decision #5).
+
+---
+
+## 14. Split script.js into ordered chunks (2026-04-27)
+
+**Decision**: Split the 388 KB / 9,881-line `script.js` into 11 ordered files under `devo/js/` (`01-core.js` … `11-boot.js`), loaded as classic `<script>` tags via `firebase-sync.js` with `async=false`.
+
+**Why classic scripts, not ES modules**:
+- `firebase-sync.js` already mutates `script.js`'s in-memory globals from outside (e.g. refreshes `comments` / `favorites` after remote RTDB updates). ES module scoping (top-level `let`/`const` not visible on `window`) would break this — would have required moving all shared state to a `state.js` module and rewriting cross-module access through explicit imports. Too much surface area for a maintainability refactor.
+- Classic `<script>` tags share one script-global lexical scope across files, so cross-file globals (`comments`, `favorites`, `ttsQueue`, `bibleData`, `modalOverlay`, etc.) work unchanged. Runtime is byte-equivalent to the former monolithic file.
+
+**Trade-off**: No real encapsulation — any chunk can still touch any global. That's the same as the status quo (single-script everything-on-window); the only thing the split buys is editability.
+
+**Hoisting trap encountered**:
+The original monolithic `script.js` benefitted from whole-file function hoisting: a top-level call at line 3650 (`showDashboard()`) could safely chain into `stopTTS()` → `ttsImmersiveClose()` (defined ~1700 lines later) because hoisting brought the later declarations into scope. After the split, hoisting only works **within a chunk** — so kickoff calls in early chunks broke when they reached forward into later chunks.
+
+**Fix**: All synchronous kickoff (`fetchBibleData()` / `loadBooks()` / `showDashboard()` / `updateControlStates()`, the recent-passage restore block, the `_onAppLoad` readyState trigger) was moved to `js/11-boot.js`, which loads last. By the time it executes, every function across every chunk is already in scope.
+
+**Service worker**: All chunks added to `sw.js` `CORE_ASSETS`; `DEPLOYMENT_ID` bumped to `v1.2.0-` to force cache refresh on the deploy.

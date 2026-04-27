@@ -1,4 +1,7 @@
 ## Overview
+
+> **Note (2026-04-27 split):** Line numbers reference the original monolithic `devo/script.js`. The TTS code now lives in `devo/js/03-tts.js` (synthesis, queue, playback, word highlight) and `devo/js/07-immersive.js` (immersive overlay). See [`KEY_FILES.md`](KEY_FILES.md) for the full map.
+
 Google Cloud Text-to-Speech with voice `en-US-Journey-D`, server-synthesized via the Gemini proxy at `https://gemini-proxy-668755364170.asia-southeast1.run.app`. The app synthesizes at request time (no pre-generated cache) and manages playback with word-level highlighting, immersive fullscreen mode, and a persistent player bar.
 
 ## Verse-to-Audio Flow

@@ -1,4 +1,7 @@
 ## Overview
+
+> **Note (2026-04-27 split):** Line numbers in playbooks below reference the original monolithic `devo/script.js`. Code now lives in 11 ordered chunks under `devo/js/`. When a step says "edit script.js around line X", use [`KEY_FILES.md`](KEY_FILES.md)'s line-range map to find the right `js/0N-*.js` file. The semantics are identical — chunks share one script-global scope.
+
 Step-by-step playbooks for common development tasks. All line numbers and element IDs from the actual `devo/` codebase. Follow existing patterns for consistency.
 
 ---

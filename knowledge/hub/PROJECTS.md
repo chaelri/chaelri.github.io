@@ -17,11 +17,11 @@
 
 Bible devotional progressive web app (PWA) — daily passages, AI explanations, drawing canvas, TTS, Firebase sync.
 
-- **Tech:** vanilla JS (~8,881 lines), CSS, PWA (service worker), Firebase RTDB, IndexedDB, Gemini API via proxy.
-- **Entry:** `index.html`, `script.js`, `style.css`, `firebase-sync.js` (Charlie-only sync), `manifest.json`.
+- **Tech:** vanilla JS (~9,881 lines split across 11 chunks under `devo/js/`), CSS, PWA (service worker), Firebase RTDB, IndexedDB, Gemini API via proxy.
+- **Entry:** `index.html`, `js/01-core.js` … `js/11-boot.js` (loaded in order by `firebase-sync.js` with `async=false`), `style.css`, `firebase-sync.js` (Charlie-only sync), `manifest.json`.
 - **Deploy:** GitHub Pages at `/devo/`.
-- **Quirks:** Uses NASB 2020 + Easy-to-Read JSON files (~10 MB total). AI calls go through `gemini-proxy/`. Firebase sync gates on `userName === "charlie"`.
-- **Full docs:** See `knowledge/devo/SUMMARY.md` and the other 7 MDs in `knowledge/devo/`.
+- **Quirks:** Uses NASB 2020 + Easy-to-Read JSON files (~10 MB total). AI calls go through `gemini-proxy/`. Firebase sync gates on `userName === "charlie"`. Synchronous cross-chunk calls only work via `js/11-boot.js` — earlier chunks must only DEFINE functions, never trigger forward chains.
+- **Full docs:** See `knowledge/devo/SUMMARY.md` and the other MDs in `knowledge/devo/`.
 
 ### devo-mobile/  🟡
 

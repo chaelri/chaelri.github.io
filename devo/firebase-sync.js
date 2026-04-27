@@ -74,9 +74,29 @@ let _writeTimers = {};
 })();
 
 function _injectAppScript() {
-  const s = document.createElement("script");
-  s.src = "script.js";
-  document.body.appendChild(s);
+  // script.js is split into 10 ordered chunks under js/. They share the same
+  // script-global scope as a single classic <script>, so cross-file globals
+  // (e.g. `comments`, `favorites`, `ttsQueue`) keep working unchanged. We set
+  // async=false on dynamically-inserted scripts to force in-order execution.
+  const files = [
+    "js/01-core.js",
+    "js/02-data.js",
+    "js/03-tts.js",
+    "js/04-passage.js",
+    "js/05-render-init.js",
+    "js/06-notes.js",
+    "js/07-immersive.js",
+    "js/08-story.js",
+    "js/09-soap.js",
+    "js/10-creator-canvas.js",
+    "js/11-boot.js",
+  ];
+  for (const src of files) {
+    const s = document.createElement("script");
+    s.src = src;
+    s.async = false;
+    document.body.appendChild(s);
+  }
 }
 
 // ── Firebase init ───────────────────────────────────────────────────────────

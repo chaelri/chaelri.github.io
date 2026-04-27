@@ -1,4 +1,7 @@
 ## Overview
+
+> **Note (2026-04-27 split):** Line numbers reference the original monolithic `devo/script.js`. AI helpers (`callGemini`, `callGeminiStream`, `_typeOut`, `mdToHTML`, image cache) now live in `devo/js/01-core.js`; reflection/chat/passage logic lives in `devo/js/04-passage.js`; story-related AI fetches live in `devo/js/08-story.js`. See [`KEY_FILES.md`](KEY_FILES.md) for the full map.
+
 The app integrates with Gemini API via a Cloud Run proxy at `https://gemini-proxy-668755364170.asia-southeast1.run.app`. All AI calls funnel through two patterns: **synchronous full-response** (`callGemini()`) and **client-side progressive reveal** (`callGeminiStream()` → `_typeOut()`). Image generation is currently disabled (line 181).
 
 **Proxy URL constant:** `GEMINI_PROXY = 'https://gemini-proxy-668755364170.asia-southeast1.run.app'` (line 16)

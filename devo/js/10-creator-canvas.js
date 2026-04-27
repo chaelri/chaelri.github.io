@@ -1,0 +1,1862 @@
+/* ═══════════════════════════════════════════════════════════════════════════
+   IMAGE CREATOR — Scene & Verse Card Generator
+   ═══════════════════════════════════════════════════════════════════════════ */
+
+let _imgcrMode = "scene";
+let _imgcrAspect = "9:16";
+let _imgcrLastDataUrl = null;
+
+function openImageCreator(mode) {
+  _imgcrMode = mode || "scene";
+  _imgcrLastDataUrl = null;
+  const panel = document.getElementById("imgCreatorPanel");
+  panel.hidden = false;
+  requestAnimationFrame(() => panel.classList.add("imgcr-open"));
+  document.getElementById("imgCreatorTitle").textContent = _imgcrMode === "scene" ? "Create Scene" : "Create Verse Card";
+  document.getElementById("imgcrModeScene").classList.toggle("active", _imgcrMode === "scene");
+  document.getElementById("imgcrModeVerse").classList.toggle("active", _imgcrMode === "verse");
+  document.getElementById("imgcrAspectRow").style.display = _imgcrMode === "scene" ? "flex" : "none";
+  _imgcrAspect = "9:16";
+  _imgcrPopulateBooks();
+  document.getElementById("imgcrPreview").innerHTML = "";
+  document.getElementById("imgcrActions").hidden = true;
+  document.getElementById("imgCreatorBack").onclick = closeImageCreator;
+  document.getElementById("imgcrModeScene").onclick = () => _imgcrSwitchMode("scene");
+  document.getElementById("imgcrModeVerse").onclick = () => _imgcrSwitchMode("verse");
+  document.getElementById("imgcrGenBtn").onclick = _imgcrGenerate;
+  document.querySelectorAll(".imgcr-aspect-btn").forEach(btn => {
+    btn.classList.toggle("active", btn.dataset.ratio === _imgcrAspect);
+    btn.onclick = () => {
+      document.querySelectorAll(".imgcr-aspect-btn").forEach(b => b.classList.remove("active"));
+      btn.classList.add("active");
+      _imgcrAspect = btn.dataset.ratio;
+    };
+  });
+  document.getElementById("imgcrDownload").onclick = _imgcrDownload;
+  document.getElementById("imgcrShare").onclick = _imgcrShare;
+}
+
+function closeImageCreator() {
+  const panel = document.getElementById("imgCreatorPanel");
+  panel.classList.remove("imgcr-open");
+  panel.addEventListener("transitionend", () => { panel.hidden = true; }, { once: true });
+}
+
+function _imgcrSwitchMode(mode) {
+  _imgcrMode = mode;
+  document.getElementById("imgCreatorTitle").textContent = mode === "scene" ? "Create Scene" : "Create Verse Card";
+  document.getElementById("imgcrModeScene").classList.toggle("active", mode === "scene");
+  document.getElementById("imgcrModeVerse").classList.toggle("active", mode === "verse");
+  document.getElementById("imgcrAspectRow").style.display = mode === "scene" ? "flex" : "none";
+  if (mode === "verse") _imgcrAspect = "9:16";
+}
+
+function _imgcrPopulateBooks() {
+  const bSel = document.getElementById("imgcrBook");
+  const cSel = document.getElementById("imgcrChapter");
+  const vSel = document.getElementById("imgcrVerse");
+  bSel.innerHTML = Object.keys(BIBLE_META).map(k => `<option value="${k}">${BIBLE_META[k].name}</option>`).join("");
+  if (bookEl?.value) bSel.value = bookEl.value;
+  const fillCh = () => {
+    const meta = BIBLE_META[bSel.value];
+    if (!meta) return;
+    cSel.innerHTML = meta.chapters.map((_, i) => `<option value="${i + 1}">${i + 1}</option>`).join("");
+    if (bSel.value === bookEl?.value && chapterEl?.value) cSel.value = chapterEl.value;
+    fillV();
+  };
+  const fillV = () => {
+    const meta = BIBLE_META[bSel.value];
+    if (!meta) return;
+    const count = meta.chapters[parseInt(cSel.value) - 1] || 30;
+    vSel.innerHTML = '<option value="">Whole chapter</option>' + Array.from({ length: count }, (_, i) => `<option value="${i + 1}">${i + 1}</option>`).join("");
+  };
+  bSel.onchange = fillCh;
+  cSel.onchange = fillV;
+  fillCh();
+}
+
+async function _imgcrGenerate() {
+  const btn = document.getElementById("imgcrGenBtn");
+  const preview = document.getElementById("imgcrPreview");
+  const actions = document.getElementById("imgcrActions");
+  const bookCode = document.getElementById("imgcrBook").value;
+  const chapter = document.getElementById("imgcrChapter").value;
+  const verse = document.getElementById("imgcrVerse").value;
+  const bookName = BIBLE_META[bookCode]?.name || bookCode;
+  btn.disabled = true;
+  btn.innerHTML = '<span class="material-icons">hourglass_top</span> Generating...';
+  actions.hidden = true;
+  const ratio = _imgcrMode === "verse" ? "9 / 16" : _imgcrAspect.replace(":", " / ");
+  preview.innerHTML = `<div class="imgcr-shimmer" style="aspect-ratio:${ratio}"></div>`;
+  try {
+    let dataUrl;
+    if (_imgcrMode === "scene") {
+      const prompt = buildScenePrompt(bookName, chapter, verse || null, "Highly detailed, dramatic, museum quality");
+      dataUrl = await callImageGen(prompt, _imgcrAspect);
+    } else {
+      dataUrl = await _imgcrBuildVerseCard(bookCode, bookName, chapter, verse);
+    }
+    _imgcrLastDataUrl = dataUrl;
+    preview.innerHTML = `<img src="${dataUrl}" alt="Generated image">`;
+    actions.hidden = false;
+  } catch {
+    preview.innerHTML = '<div style="text-align:center;color:rgba(255,255,255,0.3);padding:20px"><span class="material-icons" style="font-size:32px;display:block;margin-bottom:8px">error_outline</span>Failed to generate. Try again.</div>';
+  }
+  btn.disabled = false;
+  btn.innerHTML = '<span class="material-icons">auto_awesome</span> Generate';
+}
+
+async function _imgcrBuildVerseCard(bookCode, bookName, chapter, verse) {
+  let verseText = "", refLabel = bookName + " " + chapter;
+  if (verse) {
+    verseText = getVerseText(bookCode, chapter, verse);
+    refLabel = bookName + " " + chapter + ":" + verse;
+  } else {
+    const v1 = getVerseText(bookCode, chapter, "1");
+    const v2 = getVerseText(bookCode, chapter, "2");
+    verseText = v1 + (v2 && v2 !== "Verse text not found." ? " " + v2 : "");
+    refLabel = bookName + " " + chapter + ":1-2";
+  }
+  if (!verseText || verseText === "Verse text not found.") verseText = "The Lord is my shepherd; I shall not want.";
+
+  // Unique theme per passage so each verse gets a different design
+  const themes = ["soft golden light and warm earth tones", "cool blue twilight with silver accents", "warm sunset amber and deep burgundy", "gentle morning mist with sage greens", "deep indigo night sky with starlight", "rose gold and blush pink marble texture", "ocean teal with soft white foam patterns", "autumn bronze and deep forest green"];
+  const themeIdx = (bookCode.charCodeAt(0) + parseInt(chapter) + parseInt(verse || "0")) % themes.length;
+  const bgPrompt = "Abstract minimalist background for " + bookName + " " + chapter + (verse ? ":" + verse : "") + ". Style: " + themes[themeIdx] + ". Subtle light rays, elegant, modern, clean. No people, no objects, no text, no letters, no words.";
+  const bgDataUrl = await callImageGen(bgPrompt, "9:16");
+
+  const canvas = document.createElement("canvas");
+  canvas.width = 1080;
+  canvas.height = 1920;
+  const ctx = canvas.getContext("2d");
+
+  const bgImg = new Image();
+  await new Promise((res, rej) => { bgImg.onload = res; bgImg.onerror = rej; bgImg.src = bgDataUrl; });
+  ctx.drawImage(bgImg, 0, 0, 1080, 1920);
+
+  ctx.fillStyle = "rgba(0,0,0,0.35)";
+  ctx.fillRect(0, 0, 1080, 1920);
+
+  ctx.textAlign = "center";
+  const fs = verseText.length > 150 ? 48 : verseText.length > 80 ? 56 : 64;
+  const font = "300 " + fs + "px 'Google Sans Flex', 'Helvetica Neue', sans-serif";
+  ctx.font = font;
+  const maxW = 900, lh = fs * 1.5;
+  const words = verseText.split(" ");
+  const lines = [];
+  let cur = "";
+  for (const w of words) {
+    const test = cur ? cur + " " + w : w;
+    if (ctx.measureText(test).width > maxW && cur) { lines.push(cur); cur = w; }
+    else cur = test;
+  }
+  if (cur) lines.push(cur);
+
+  const totalH = lines.length * lh;
+  let y = (1920 - totalH) / 2 + fs;
+
+  ctx.font = "200 120px 'Google Sans Flex', serif";
+  ctx.fillStyle = "rgba(219,39,119,0.6)";
+  ctx.fillText("\u201C", 540, y - 50);
+
+  ctx.font = font;
+  ctx.fillStyle = "#ffffff";
+  for (const line of lines) { ctx.fillText(line, 540, y); y += lh; }
+
+  ctx.font = "600 36px 'Google Sans Flex', sans-serif";
+  ctx.fillStyle = "rgba(219,39,119,0.8)";
+  ctx.fillText(refLabel, 540, y + 40);
+
+  ctx.font = "400 28px 'Monsieur La Doulaise', cursive";
+  ctx.fillStyle = "rgba(255,255,255,0.25)";
+  ctx.fillText("devotion.", 540, 1860);
+
+  return canvas.toDataURL("image/png");
+}
+
+function _imgcrDownload() {
+  if (!_imgcrLastDataUrl) return;
+  const a = document.createElement("a");
+  a.href = _imgcrLastDataUrl;
+  a.download = "devotion-" + _imgcrMode + "-" + Date.now() + ".png";
+  a.click();
+}
+
+async function _imgcrShare() {
+  if (!_imgcrLastDataUrl) return;
+  try {
+    const res = await fetch(_imgcrLastDataUrl);
+    const blob = await res.blob();
+    const file = new File([blob], "devotion-" + _imgcrMode + ".png", { type: "image/png" });
+    if (navigator.share && navigator.canShare({ files: [file] })) {
+      await navigator.share({ files: [file], title: "Devotion" });
+    } else { _imgcrDownload(); }
+  } catch { _imgcrDownload(); }
+}
+
+// =============================================
+// BIBLE SEARCH — Full-text search across all books
+// =============================================
+(function initBibleSearch() {
+  const searchBtn = document.getElementById("bibleSearchBtn");
+  const modal = document.getElementById("bibleSearchModal");
+  const input = document.getElementById("bibleSearchInput");
+  const closeBtn = document.getElementById("bibleSearchClose");
+  const resultsEl = document.getElementById("bibleSearchResults");
+  const hintEl = document.getElementById("bibleSearchHint");
+  if (!searchBtn || !modal) return;
+
+  const BOOK_KEYS = Object.keys(BIBLE_META);
+  const MAX_RESULTS = 50;
+
+  function openSearch() {
+    modal.hidden = false;
+    requestAnimationFrame(() => {
+      modal.classList.add("open");
+      input.value = "";
+      resultsEl.innerHTML = "";
+      hintEl.textContent = "Type at least 3 characters to search all verses";
+      hintEl.hidden = false;
+      setTimeout(() => input.focus(), 100);
+    });
+  }
+
+  function closeSearch() {
+    modal.classList.remove("open");
+    input.blur();
+    setTimeout(() => { modal.hidden = true; }, 250);
+  }
+
+  searchBtn.onclick = async () => {
+    if (!bibleData) await fetchBibleData();
+    openSearch();
+  };
+  closeBtn.onclick = closeSearch;
+
+  // Parse verse reference like "John 3:16", "Gen 1", "1 Cor 13:4"
+  function parseRef(q) {
+    const m = q.match(/^(\d?\s?[a-zA-Z]+(?:\s[a-zA-Z]+)?)\s+(\d+)(?::(\d+))?$/);
+    if (!m) return null;
+    const rawBook = m[1].trim().toLowerCase();
+    const ch = parseInt(m[2]);
+    const v = m[3] ? parseInt(m[3]) : null;
+    // Match against BIBLE_META
+    for (const code of BOOK_KEYS) {
+      const name = BIBLE_META[code].name.toLowerCase();
+      if (name === rawBook || name.startsWith(rawBook) || code.toLowerCase() === rawBook) {
+        if (ch >= 1 && ch <= BIBLE_META[code].chapters.length) {
+          return { code, name: BIBLE_META[code].name, ch, v };
+        }
+      }
+    }
+    return null;
+  }
+
+  function highlight(text, query) {
+    if (!query || query.length < 3) return text;
+    const escaped = query.replace(/[.*+?^${}()|[\]\\]/g, "\\$&");
+    return text.replace(new RegExp(`(${escaped})`, "gi"), '<mark class="bible-search-mark">$1</mark>');
+  }
+
+  function renderResults(results, query) {
+    if (!results.length) {
+      resultsEl.innerHTML = `<div class="bible-search-empty">No results for "${query}"</div>`;
+      return;
+    }
+    resultsEl.innerHTML = results.map((r) => `
+      <div class="bible-search-result" data-id="${r.code}-${r.ch}-${r.v || ''}">
+        <div class="bible-search-ref">${r.name} ${r.ch}${r.v ? ':' + r.v : ''}</div>
+        <div class="bible-search-text">${highlight(r.text, query)}</div>
+      </div>
+    `).join("");
+
+    if (results.length >= MAX_RESULTS) {
+      resultsEl.innerHTML += `<div class="bible-search-cap">Showing first ${MAX_RESULTS} results</div>`;
+    }
+  }
+
+  function doSearch(q) {
+    q = q.trim();
+    if (q.length < 3) {
+      resultsEl.innerHTML = "";
+      hintEl.textContent = "Type at least 3 characters to search all verses";
+      hintEl.hidden = false;
+      return;
+    }
+    hintEl.hidden = true;
+
+    if (!bibleData) {
+      resultsEl.innerHTML = '<div class="bible-search-empty">Bible data not loaded. Try again.</div>';
+      return;
+    }
+
+    // 1. Try reference parse
+    const ref = parseRef(q);
+    if (ref) {
+      const bookName = BIBLE_META[ref.code].name.toUpperCase();
+      const chData = bibleData[bookName]?.[String(ref.ch)];
+      if (chData) {
+        const found = [];
+        if (ref.v) {
+          const text = chData[String(ref.v)];
+          if (text) found.push({ code: ref.code, name: ref.name, ch: ref.ch, v: ref.v, text });
+        } else {
+          for (const [vn, text] of Object.entries(chData)) {
+            if (vn.includes("-")) continue;
+            found.push({ code: ref.code, name: ref.name, ch: ref.ch, v: parseInt(vn), text });
+          }
+          found.sort((a, b) => a.v - b.v);
+        }
+        if (found.length) {
+          renderResults(found, q);
+          return;
+        }
+      }
+    }
+
+    // 2. Book name matches
+    const lower = q.toLowerCase();
+    const found = [];
+    for (const code of BOOK_KEYS) {
+      const meta = BIBLE_META[code];
+      if (meta.name.toLowerCase().startsWith(lower)) {
+        found.push({ code, name: meta.name, ch: 1, v: null, text: `${meta.name} — ${meta.chapters.length} chapters` });
+      }
+    }
+
+    // 3. Text content search
+    for (const code of BOOK_KEYS) {
+      if (found.length >= MAX_RESULTS) break;
+      const meta = BIBLE_META[code];
+      const bookData = bibleData[meta.name.toUpperCase()] || bibleData[meta.name];
+      if (!bookData) continue;
+      for (let ch = 1; ch <= meta.chapters.length; ch++) {
+        if (found.length >= MAX_RESULTS) break;
+        const chData = bookData[String(ch)];
+        if (!chData) continue;
+        for (const [vn, text] of Object.entries(chData)) {
+          if (vn.includes("-")) continue;
+          if (text.toLowerCase().includes(lower)) {
+            found.push({ code, name: meta.name, ch, v: parseInt(vn), text });
+            if (found.length >= MAX_RESULTS) break;
+          }
+        }
+      }
+    }
+
+    renderResults(found, q);
+  }
+
+  let _searchTimer = null;
+  input.addEventListener("input", () => {
+    clearTimeout(_searchTimer);
+    _searchTimer = setTimeout(() => doSearch(input.value), 200);
+  });
+
+  // Navigate on result click
+  resultsEl.addEventListener("click", (e) => {
+    const row = e.target.closest(".bible-search-result");
+    if (!row) return;
+    const id = row.dataset.id;
+    closeSearch();
+    const [bookCode, ch, v] = id.split("-");
+    loadPassageById(`${bookCode}-${ch}-`, v || null);
+  });
+
+  // Close on Escape
+  input.addEventListener("keydown", (e) => {
+    if (e.key === "Escape") closeSearch();
+  });
+})();
+
+/* =====================================================================
+ * CANVAS MODE — full-screen highlight / note / text view (paper bg, no scale)
+ * =====================================================================
+ * Per-passage state (localStorage key `devo.canvas.<book>-<chapter>`):
+ *   { highlights:{wordIdx:color}, notes:{wordIdx:text},
+ *     textBoxes:[{x,y,text}], gridOn }
+ * Highlight is applied LIVE as the pointer crosses a word (WYSIWYG — same
+ * color during swipe and after). Word hit-testing uses elementFromPoint.
+ * No pan/zoom transform → text stays crisp.
+ * =================================================================== */
+(function canvasMode() {
+  const overlay   = document.getElementById("canvasModeOverlay");
+  if (!overlay) return;
+  const btn       = document.getElementById("canvasModeBtn");
+  const closeBtn  = document.getElementById("cmCloseBtn");
+  const titleEl   = document.getElementById("cmTitle");
+  const clearBtn  = document.getElementById("cmClearBtn");
+  const undoBtn   = document.getElementById("cmUndoBtn");
+  const redoBtn   = document.getElementById("cmRedoBtn");
+  const shareBtn  = document.getElementById("cmShareBtn");
+  const viewport  = document.getElementById("cmViewport");
+  const scrollEl  = document.getElementById("cmScroll");
+  const paperEl   = document.getElementById("cmPaper");
+  const passageTitleEl2 = document.getElementById("cmPassageTitle");
+  const passageEl = document.getElementById("cmPassage");
+  const popover   = document.getElementById("cmPopover");
+  const fab       = document.getElementById("cmFab");
+  const fabIcon   = document.getElementById("cmFabIcon");
+  const fabArc    = document.getElementById("cmFabArc");
+  const fabColorDot = document.getElementById("cmFabColorDot");
+  const COLOR_HEX = { yellow: "#ffe66b", pink: "#f9a8d4", blue: "#93c5fd", orange: "#fdba74", green: "#bef264" };
+  const COLOR_GLOW = {
+    yellow: "rgba(255, 230, 107, 0.55)",
+    pink:   "rgba(249, 168, 212, 0.55)",
+    blue:   "rgba(147, 197, 253, 0.55)",
+    orange: "rgba(253, 186, 116, 0.55)",
+    green:  "rgba(190, 242, 100, 0.55)",
+  };
+  const noteModal = document.getElementById("cmNoteModal");
+  const noteRef   = document.getElementById("cmNoteRef");
+  const noteInput = document.getElementById("cmNoteInput");
+  const noteSave  = document.getElementById("cmNoteSave");
+  const noteCancel = document.getElementById("cmNoteCancel");
+  const noteView  = document.getElementById("cmNoteView");
+  const noteViewRef = document.getElementById("cmNoteViewRef");
+  const noteViewBody = document.getElementById("cmNoteViewBody");
+  const noteViewClose = document.getElementById("cmNoteViewClose");
+  const noteViewEdit = document.getElementById("cmNoteViewEdit");
+  const noteViewDelete = document.getElementById("cmNoteViewDelete");
+
+  const DEFAULT_COLOR = "yellow";
+  let state = null;
+  let stateKey = null;
+  let currentInfo = null;     // { bookId, bookName, chapterNum, ... }
+  let tool = "highlight";
+  let color = DEFAULT_COLOR;
+  let strokeActive = false;
+  let strokeTouched = null;   // Set of word indices touched this stroke
+  let strokePointerId = null;
+  // After a long-press stroke ends, the browser still fires a synthesized
+  // `click` for the pointerdown/up pair (since the pointer didn't move
+  // enough to suppress it). That click would otherwise open the tap-popover
+  // — so we swallow exactly one click after any committed stroke.
+  let suppressNextClick = false;
+  // Long-press to highlight: hold ~350ms without moving to engage stroke
+  // mode. Moving before the timer fires cancels it so `touch-action: pan-y`
+  // lets the browser scroll normally. Tap (quick down+up with no movement)
+  // falls through to the click listener → popover. No direction arbitration,
+  // so mobile browsers can't steal the gesture mid-swipe.
+  let pendingStroke = null;        // { x, y, pointerId }
+  let longPressTimer = null;
+  const LONG_PRESS_MS = 100;
+  const LONG_PRESS_MOVE_MAX = 8;   // px before we abandon the hold
+  function cancelLongPress() {
+    if (longPressTimer) { clearTimeout(longPressTimer); longPressTimer = null; }
+    pendingStroke = null;
+  }
+
+  // Undo/redo: snapshot state.highlights before each mutation. Capped to
+  // avoid unbounded memory on heavy sessions.
+  const HISTORY_MAX = 50;
+  let undoStack = [];
+  let redoStack = [];
+  function snapshot() { return JSON.parse(JSON.stringify(state.highlights || {})); }
+  function pushHistory() {
+    undoStack.push(snapshot());
+    if (undoStack.length > HISTORY_MAX) undoStack.shift();
+    redoStack = [];
+    refreshHistoryButtons();
+  }
+  function refreshHistoryButtons() {
+    if (undoBtn) undoBtn.disabled = undoStack.length === 0;
+    if (redoBtn) redoBtn.disabled = redoStack.length === 0;
+  }
+  function resetHistory() {
+    undoStack = [];
+    redoStack = [];
+    refreshHistoryButtons();
+  }
+  function doUndo() {
+    if (!undoStack.length) return;
+    redoStack.push(snapshot());
+    state.highlights = undoStack.pop();
+    saveState();
+    if (currentInfo) renderPassage(currentInfo);
+    refreshHistoryButtons();
+  }
+  function doRedo() {
+    if (!redoStack.length) return;
+    undoStack.push(snapshot());
+    state.highlights = redoStack.pop();
+    saveState();
+    if (currentInfo) renderPassage(currentInfo);
+    refreshHistoryButtons();
+  }
+
+  // ---------- Persistence ----------
+  function loadState(key) {
+    try {
+      const raw = localStorage.getItem(`devo.canvas.${key}`);
+      if (raw) {
+        const parsed = JSON.parse(raw);
+        return { highlights: parsed.highlights || {} };
+      }
+    } catch (_) {}
+    return { highlights: {} };
+  }
+  function saveState() {
+    if (!stateKey) return;
+    try { localStorage.setItem(`devo.canvas.${stateKey}`, JSON.stringify(state)); } catch (_) {}
+  }
+
+  // ---------- Passage info ----------
+  function getCurrentPassageInfo() {
+    const bookId = bookEl?.value;
+    const chapterNum = chapterEl?.value;
+    if (!bookId || !chapterNum || !bibleData) return null;
+    const bookName = BIBLE_META[bookId]?.name;
+    if (!bookName) return null;
+    const chapterContent = bibleData[bookName.toUpperCase()]?.[chapterNum];
+    if (!chapterContent) return null;
+    return { bookId, bookName, chapterNum, chapterContent, key: `${bookId}-${chapterNum}` };
+  }
+
+  // ---------- Render passage ----------
+  function renderPassage(info) {
+    passageEl.innerHTML = "";
+    let wordIdx = 0;
+    const verses = Object.entries(info.chapterContent)
+      .map(([v, t]) => ({ v, t }))
+      .sort((a, b) => parseInt(a.v) - parseInt(b.v));
+
+    for (const { v, t } of verses) {
+      const verseEl2 = document.createElement("div");
+      verseEl2.className = "cm-verse";
+      const num = document.createElement("span");
+      num.className = "cm-verse-num";
+      num.textContent = v;
+      verseEl2.appendChild(num);
+      const verseKey = keyOf(info.bookId, info.chapterNum, v);
+      const words = t.trim().replace(/\s+/g, " ").split(" ");
+      for (let i = 0; i < words.length; i++) {
+        const w = document.createElement("span");
+        w.className = "cm-word";
+        w.dataset.idx = wordIdx;
+        w.dataset.verseKey = verseKey;
+        w.dataset.verse = v;
+        w.textContent = words[i];
+        const c = state.highlights[wordIdx];
+        if (c) w.dataset.color = c;
+        verseEl2.appendChild(w);
+        if (i < words.length - 1) {
+          const gap = document.createElement("span");
+          gap.className = "cm-gap";
+          gap.dataset.left = wordIdx;
+          gap.dataset.right = wordIdx + 1;
+          gap.textContent = " ";
+          verseEl2.appendChild(gap);
+        }
+        wordIdx++;
+      }
+      passageEl.appendChild(verseEl2);
+    }
+
+    // Reflect button at the end — matches the styled one from the dashboard
+    // (pink volunteer_activism icon + pill button).
+    const reflectRow = document.createElement("div");
+    reflectRow.className = "cm-reflect-row";
+    const reflectBtn = document.createElement("button");
+    reflectBtn.className = "action-reflect-btn cm-reflect-btn";
+    reflectBtn.innerHTML = `<span class="material-icons">volunteer_activism</span>Reflect`;
+    reflectBtn.addEventListener("click", () => {
+      if (typeof openReflectModal === "function") openReflectModal();
+    });
+    reflectRow.appendChild(reflectBtn);
+    passageEl.appendChild(reflectRow);
+
+    refreshRuns();
+    refreshNoteBadges();
+  }
+
+  // Float a small badge ABOVE each noted word (absolute-positioned child),
+  // so it never breaks the inline reading flow.
+  function refreshNoteBadges() {
+    passageEl.querySelectorAll(".cm-note-badge").forEach((n) => n.remove());
+    passageEl.querySelectorAll(".cm-word").forEach((w) => {
+      const idx = +w.dataset.idx;
+      const vKey = w.dataset.verseKey;
+      const entries = (typeof comments !== "undefined" && comments[vKey]) || [];
+      if (entries.some((e) => e.wordIdx === idx)) {
+        const badge = document.createElement("span");
+        badge.className = "cm-note-badge";
+        badge.dataset.wordIdx = idx;
+        badge.innerHTML = '<span class="material-symbols-outlined">sticky_note_2</span>';
+        badge.setAttribute("aria-label", "View note");
+        w.classList.add("cm-word-has-note");
+        w.appendChild(badge);
+      }
+    });
+  }
+
+  // Adjacent same-color words fuse into a single bar:
+  //   - gap span colored when both sides share color
+  //   - .cm-run-l / .cm-run-r on words drop the joining side's radius
+  //
+  // The gap color also respects preview state: during a stroke, words get
+  // `data-preview-color` (lighter wash) and the connector between two such
+  // words should also wash light so the run looks continuous while dragging.
+  // Words being erased ignore their committed color for gap calculations so
+  // the gap disappears too (preview = "about to be gone").
+  function refreshRuns() {
+    const allWords = [...passageEl.querySelectorAll(".cm-word")];
+
+    // Effective color of a word for run/gap calculations:
+    //   - erase-preview → null (treat as uncolored)
+    //   - preview-color → that color (not yet committed)
+    //   - else committed data-color / state.highlights
+    function effective(w) {
+      if (!w) return null;
+      if (w.dataset.previewErase) return null;
+      if (w.dataset.previewColor) return w.dataset.previewColor;
+      return state.highlights[+w.dataset.idx] || null;
+    }
+    function isPreview(w) {
+      return !!(w && (w.dataset.previewColor || w.dataset.previewErase));
+    }
+
+    allWords.forEach((w, i) => {
+      w.classList.remove("cm-run-l", "cm-run-r");
+      const c = effective(w);
+      if (!c) return;
+      const prev = allWords[i - 1];
+      const next = allWords[i + 1];
+      if (prev && effective(prev) === c) w.classList.add("cm-run-l");
+      if (next && effective(next) === c) w.classList.add("cm-run-r");
+    });
+
+    passageEl.querySelectorAll(".cm-gap").forEach((g) => {
+      const leftW = passageEl.querySelector(`.cm-word[data-idx="${g.dataset.left}"]`);
+      const rightW = passageEl.querySelector(`.cm-word[data-idx="${g.dataset.right}"]`);
+      const cl = effective(leftW);
+      const cr = effective(rightW);
+      if (cl && cl === cr) {
+        if (isPreview(leftW) || isPreview(rightW)) {
+          g.dataset.previewColor = cl;
+          delete g.dataset.color;
+        } else {
+          g.dataset.color = cl;
+          delete g.dataset.previewColor;
+        }
+      } else {
+        delete g.dataset.color;
+        delete g.dataset.previewColor;
+      }
+    });
+  }
+
+  // ---------- Textboxes ----------
+  // ---------- Note input modal (writes to app's comments store) ----------
+  let pendingNote = null; // { wordIdx, verseKey, verseNum, bookName, chapterNum }
+
+  function openNoteInput(wordEl) {
+    const idx = +wordEl.dataset.idx;
+    const verseKey = wordEl.dataset.verseKey;
+    if (!verseKey) return;
+    const verseNum = wordEl.dataset.verse;
+    const bookName = currentInfo?.bookName || verseKey.split("-")[0];
+    const chapterNum = currentInfo?.chapterNum || verseKey.split("-")[1];
+    pendingNote = { wordIdx: idx, verseKey, verseNum, bookName, chapterNum };
+    const existing = (comments[verseKey] || []).find((e) => e.wordIdx === idx);
+    noteInput.value = existing ? existing.text : "";
+    noteRef.textContent = `${bookName} ${chapterNum}:${verseNum}`;
+    noteModal.hidden = false;
+    setTimeout(() => noteInput.focus(), 30);
+  }
+  function closeNoteInput() {
+    noteModal.hidden = true;
+    pendingNote = null;
+  }
+  noteSave.addEventListener("click", () => {
+    if (!pendingNote) return;
+    const text = noteInput.value.trim();
+    const { verseKey, wordIdx: idx } = pendingNote;
+    if (!text) {
+      // Empty save = delete existing
+      if (comments[verseKey]) {
+        const ei = comments[verseKey].findIndex((e) => e.wordIdx === idx);
+        if (ei !== -1) comments[verseKey].splice(ei, 1);
+        if (comments[verseKey].length === 0) delete comments[verseKey];
+        saveComments();
+        if (typeof _debouncedPushSync === "function") _debouncedPushSync();
+      }
+      closeNoteInput();
+      refreshNoteBadges();
+      return;
+    }
+    if (!comments[verseKey]) comments[verseKey] = [];
+    const existingIdx = comments[verseKey].findIndex((e) => e.wordIdx === idx);
+    const entry = { text, time: Date.now(), wordIdx: idx };
+    if (existingIdx !== -1) comments[verseKey][existingIdx] = entry;
+    else comments[verseKey].push(entry);
+    saveComments();
+    if (typeof _debouncedPushSync === "function") _debouncedPushSync();
+    closeNoteInput();
+    refreshNoteBadges();
+  });
+  noteCancel.addEventListener("click", closeNoteInput);
+  noteModal.addEventListener("click", (e) => {
+    if (e.target === noteModal) closeNoteInput();
+  });
+
+  // ---------- Note view popover ----------
+  function openNoteView(wordIdx, anchorEl) {
+    const w = passageEl.querySelector(`.cm-word[data-idx="${wordIdx}"]`);
+    if (!w) return;
+    const verseKey = w.dataset.verseKey;
+    const note = (comments[verseKey] || []).find((e) => e.wordIdx === wordIdx);
+    if (!note) return;
+    const verseNum = w.dataset.verse;
+    const bookName = currentInfo?.bookName || "";
+    const chapterNum = currentInfo?.chapterNum || "";
+    noteViewRef.textContent = `${bookName} ${chapterNum}:${verseNum}`;
+    noteViewBody.textContent = note.text;
+    noteView.dataset.wordIdx = wordIdx;
+    noteView.hidden = false;
+    // Position near the anchor (badge or word)
+    const r = (anchorEl || w).getBoundingClientRect();
+    const pw = noteView.offsetWidth;
+    const ph = noteView.offsetHeight;
+    let left = r.left + r.width / 2 - pw / 2;
+    let top = r.bottom + 10;
+    if (top + ph > window.innerHeight - 8) top = r.top - ph - 10;
+    left = Math.max(8, Math.min(left, window.innerWidth - pw - 8));
+    top = Math.max(8, top);
+    noteView.style.left = left + "px";
+    noteView.style.top = top + "px";
+  }
+  function closeNoteView() {
+    noteView.hidden = true;
+    noteView.dataset.wordIdx = "";
+  }
+  noteViewClose.addEventListener("click", closeNoteView);
+  noteViewEdit.addEventListener("click", () => {
+    const idx = +noteView.dataset.wordIdx;
+    const w = passageEl.querySelector(`.cm-word[data-idx="${idx}"]`);
+    closeNoteView();
+    if (w) openNoteInput(w);
+  });
+  noteViewDelete.addEventListener("click", () => {
+    const idx = +noteView.dataset.wordIdx;
+    const w = passageEl.querySelector(`.cm-word[data-idx="${idx}"]`);
+    if (!w) { closeNoteView(); return; }
+    const verseKey = w.dataset.verseKey;
+    _confirmDialog("Delete this note?", () => {
+      if (comments[verseKey]) {
+        const ei = comments[verseKey].findIndex((e) => e.wordIdx === idx);
+        if (ei !== -1) comments[verseKey].splice(ei, 1);
+        if (comments[verseKey].length === 0) delete comments[verseKey];
+        saveComments();
+        if (typeof _debouncedPushSync === "function") _debouncedPushSync();
+      }
+      closeNoteView();
+      refreshNoteBadges();
+    });
+  });
+
+  // ---------- Tool UI ----------
+  // Pan is gone — smart gestures handle scroll vs stroke automatically.
+  // Only two tools now: highlight (horizontal swipe paints the color) and
+  // eraser (horizontal swipe removes). Vertical swipes always scroll.
+  const MODE_LABELS = { highlight: "Highlight", eraser: "Eraser" };
+  function setTool(t) {
+    if (t !== "highlight" && t !== "eraser") t = "highlight";
+    tool = t;
+    overlay.querySelectorAll(".cm-tool-btn").forEach((b) => b.classList.toggle("active", b.dataset.tool === t));
+    const modeLabel = overlay.querySelector("#cmModeLabel");
+    if (modeLabel) {
+      modeLabel.textContent = MODE_LABELS[t] || "";
+      modeLabel.dataset.tool = t;
+    }
+    const showSwatch = (t === "highlight");
+    overlay.querySelectorAll(".cm-swatch").forEach((s) => {
+      s.classList.toggle("active", showSwatch && s.dataset.color === color);
+    });
+    viewport.classList.remove("cm-tool-draw", "cm-tool-erase");
+    if (t === "highlight") viewport.classList.add("cm-tool-draw");
+    else viewport.classList.add("cm-tool-erase");
+    // Keep FAB icon + color in sync with the active tool.
+    if (fab) {
+      fab.dataset.current = t;
+      if (t === "highlight") fab.dataset.color = color;
+      else delete fab.dataset.color;
+    }
+    if (fabColorDot) {
+      fabColorDot.style.setProperty("--active-color", COLOR_HEX[color] || COLOR_HEX.yellow);
+    }
+    if (fabIcon) {
+      fabIcon.textContent =
+        t === "highlight" ? "edit" :
+        t === "eraser"    ? "ink_eraser" :
+                            "pan_tool";
+    }
+  }
+
+  // ---------- Radial FAB arc (4 other colors + eraser) ----------
+  const ARC_COLORS = [
+    { id: "yellow", sw: "#ffe66b" },
+    { id: "pink",   sw: "#f9a8d4" },
+    { id: "blue",   sw: "#93c5fd" },
+    { id: "orange", sw: "#fdba74" },
+    { id: "green",  sw: "#bef264" },
+  ];
+  const ARC_RADIUS = 82;
+  const ARC_AUTOHIDE_MS = 3000;
+  let arcHideTimer = null;
+
+  function renderArc() {
+    if (!fabArc) return;
+    fabArc.innerHTML = "";
+    // 4 color chips — eraser no longer lives in the arc (FAB toggles it now).
+    const items = ARC_COLORS.filter(c => c.id !== color).map(c => ({ kind: "color", ...c }));
+    const n = items.length;
+    const isNarrow = window.innerWidth < 360;
+    items.forEach((it, i) => {
+      const btn = document.createElement("button");
+      btn.className = "cm-fab-arc-chip cm-fab-arc-color";
+      btn.dataset.color = it.id;
+      btn.style.setProperty("--sw", it.sw);
+      btn.setAttribute("aria-label", `Highlight ${it.id}`);
+      let dx, dy;
+      if (isNarrow) {
+        // Vertical stack above FAB — safer on phones < 360px wide.
+        dx = 0;
+        dy = -(i + 1) * 50;
+      } else {
+        // Quarter-arc from 12 o'clock → 9 o'clock (top → left).
+        const theta = (Math.PI / 2) * (i / (n - 1));
+        dx = -ARC_RADIUS * Math.sin(theta);
+        dy = -ARC_RADIUS * Math.cos(theta);
+      }
+      btn.style.setProperty("--dx", `${dx}px`);
+      btn.style.setProperty("--dy", `${dy}px`);
+      btn.style.setProperty("--i", i);
+      fabArc.appendChild(btn);
+    });
+  }
+  function openArc() {
+    if (!fabArc) return;
+    renderArc();
+    // Force a layout so the initial "scaled 0" state is committed before we
+    // add the open class; without this the transition sometimes skips.
+    void fabArc.offsetWidth;
+    fabArc.classList.add("cm-fab-arc-open");
+    scheduleArcHide(ARC_AUTOHIDE_MS);
+  }
+  function closeArc() {
+    if (!fabArc) return;
+    fabArc.classList.remove("cm-fab-arc-open");
+    clearTimeout(arcHideTimer);
+    arcHideTimer = null;
+  }
+  function scheduleArcHide(ms) {
+    clearTimeout(arcHideTimer);
+    arcHideTimer = setTimeout(closeArc, ms);
+  }
+  function isArcOpen() { return fabArc?.classList.contains("cm-fab-arc-open"); }
+
+  // FAB tap: toggle highlight ↔ eraser. Arc (color picker) shows for 3s when
+  // re-entering highlight so the user can pick a color right away.
+  fab?.addEventListener("click", () => {
+    if (tool === "eraser") {
+      setTool("highlight");
+      openArc();
+    } else {
+      setTool("eraser");
+      closeArc();
+    }
+  });
+
+  // Arc chip tap: change color.
+  fabArc?.addEventListener("click", (e) => {
+    const chip = e.target.closest(".cm-fab-arc-chip");
+    if (!chip) return;
+    color = chip.dataset.color;
+    setTool("highlight");
+    renderArc();
+    void fabArc.offsetWidth;
+    scheduleArcHide(ARC_AUTOHIDE_MS);
+  });
+  overlay.querySelectorAll(".cm-tool-btn").forEach((b) =>
+    b.addEventListener("click", () => setTool(b.dataset.tool))
+  );
+
+  function setColor(c) {
+    color = c;
+    // Clicking a swatch means "I want to highlight with this" → switch to highlight
+    // tool, which also refreshes swatch active state.
+    setTool("highlight");
+  }
+  overlay.querySelectorAll(".cm-swatch").forEach((s) =>
+    s.addEventListener("click", () => setColor(s.dataset.color))
+  );
+
+  // ---------- Word hit detection ----------
+  function wordAtPoint(clientX, clientY) {
+    const el = document.elementFromPoint(clientX, clientY);
+    if (!el) return null;
+    // Note badges sit inside words — if the pointer lands on a badge, ignore it
+    // for stroke purposes (stroke shouldn't fire on badges anyway, but belt-and-suspenders).
+    if (el.closest && el.closest(".cm-note-badge")) return null;
+    const w = el.closest && el.closest(".cm-word");
+    if (w) return w;
+    const gap = el.closest && el.closest(".cm-gap");
+    if (gap) return passageEl.querySelector(`.cm-word[data-idx="${gap.dataset.left}"]`);
+    return null;
+  }
+
+  function applyStrokeAt(cx, cy) {
+    const wordEl = wordAtPoint(cx, cy);
+    if (!wordEl) return;
+    const idx = +wordEl.dataset.idx;
+    if (strokeTouched.has(idx)) return;
+    strokeTouched.add(idx);
+    if (tool === "highlight") spawnWordLabel(wordEl);
+    // Preview only — don't mutate state.highlights until the stroke is
+    // released. That gives the "light while dragging, pops to full color
+    // on release" feel.
+    if (tool === "highlight") {
+      wordEl.dataset.previewColor = color;
+    } else if (tool === "eraser") {
+      if (idx in state.highlights) wordEl.dataset.previewErase = "1";
+    }
+    refreshRuns();  // keeps gap connectors in sync with the preview state
+  }
+
+  // Apply every previewed word to the real state + refresh the fused runs.
+  function commitStroke() {
+    if (!strokeTouched || strokeTouched.size === 0) return false;
+    for (const idx of strokeTouched) {
+      const wordEl = passageEl.querySelector(`.cm-word[data-idx="${idx}"]`);
+      if (!wordEl) continue;
+      if (wordEl.dataset.previewColor) {
+        const c = wordEl.dataset.previewColor;
+        state.highlights[idx] = c;
+        wordEl.dataset.color = c;
+        delete wordEl.dataset.previewColor;
+      }
+      if (wordEl.dataset.previewErase) {
+        delete state.highlights[idx];
+        delete wordEl.dataset.color;
+        delete wordEl.dataset.previewErase;
+      }
+    }
+    refreshRuns();
+    return true;
+  }
+
+  // Roll back preview without committing (used when a stroke is cancelled
+  // by some external signal — e.g. lost pointer capture with no pointerup).
+  function rollbackStroke() {
+    if (!strokeTouched) return;
+    for (const idx of strokeTouched) {
+      const wordEl = passageEl.querySelector(`.cm-word[data-idx="${idx}"]`);
+      if (!wordEl) continue;
+      delete wordEl.dataset.previewColor;
+      delete wordEl.dataset.previewErase;
+    }
+  }
+
+  // ---------- Pointer on viewport (long-press to highlight) ----------
+  // Down+hold (still) for LONG_PRESS_MS → engage stroke, haptic nudge, then
+  // any movement paints. Down+move (before the timer) → browser scrolls via
+  // `touch-action: pan-y`. Down+up (quick, no movement) → click fires →
+  // popover. Unambiguous, so the native scroll arbitration can't steal the
+  // intent the way the old horizontal-swipe heuristic did.
+  viewport.addEventListener("pointerdown", (e) => {
+    if (e.target.closest(".cm-fab") || e.target.closest(".cm-fab-arc")) return;
+    // Any new gesture clears a stale suppress flag from a prior stroke that
+    // never produced a synthesized click (e.g. swipe highlight that ended
+    // off-target).
+    suppressNextClick = false;
+    closePopover();
+    if (e.target.closest(".cm-note-badge")) return;
+    cancelLongPress();
+    const sx = e.clientX, sy = e.clientY, pid = e.pointerId;
+    pendingStroke = { x: sx, y: sy, pointerId: pid };
+    longPressTimer = setTimeout(() => {
+      if (!pendingStroke || pendingStroke.pointerId !== pid) return;
+      pendingStroke = null;
+      longPressTimer = null;
+      closeArc();
+      strokeActive = true;
+      strokeTouched = new Set();
+      strokePointerId = pid;
+      try { viewport.setPointerCapture(pid); } catch (_) {}
+      try { navigator.vibrate && navigator.vibrate(12); } catch (_) {}
+      spawnEngageRipple(sx, sy);
+      applyStrokeAt(sx, sy);
+    }, LONG_PRESS_MS);
+  });
+
+  // Floating phrase pills that pop up as the stroke sweeps, then fade out
+  // in order on release. ALL phrases active in the current stroke remain
+  // open for extension — so if you highlight "the Lord", jump down, then
+  // come back up to "has" (adjacent to the earlier phrase), it still
+  // fuses. A new word can also bridge two phrases, merging them into one.
+  const activeLabels = [];
+  const activePhrases = []; // [{ label, minIdx, maxIdx }] — all extensible
+
+  function updatePhraseLabel(phrase) {
+    const { label, minIdx, maxIdx } = phrase;
+    const parts = [];
+    for (let i = minIdx; i <= maxIdx; i++) {
+      const w = passageEl.querySelector(`.cm-word[data-idx="${i}"]`);
+      if (w) parts.push((w.textContent || "").trim());
+    }
+    label.textContent = parts.join(" ");
+
+    const first = passageEl.querySelector(`.cm-word[data-idx="${minIdx}"]`);
+    const last  = passageEl.querySelector(`.cm-word[data-idx="${maxIdx}"]`);
+    if (!first) return;
+    const r1 = first.getBoundingClientRect();
+    const r2 = last ? last.getBoundingClientRect() : r1;
+    const sameLine = Math.abs(r1.top - r2.top) < 6;
+    const centerX  = sameLine ? (r1.left + r2.right) / 2 : (r1.left + r1.width / 2);
+    const topY     = r1.top;
+    const halfW = label.offsetWidth / 2;
+    const clampedX = Math.max(halfW + 8, Math.min(centerX, window.innerWidth - halfW - 8));
+    label.style.left = clampedX + "px";
+    label.style.top  = topY + "px";
+  }
+
+  function pulsePhrase(phrase) {
+    phrase.label.classList.remove("cm-engage-word-grow");
+    void phrase.label.offsetWidth;
+    phrase.label.classList.add("cm-engage-word-grow");
+  }
+
+  function removePhrase(phrase) {
+    if (phrase.label.isConnected) phrase.label.remove();
+    const i = activePhrases.indexOf(phrase);
+    if (i >= 0) activePhrases.splice(i, 1);
+    const j = activeLabels.indexOf(phrase.label);
+    if (j >= 0) activeLabels.splice(j, 1);
+  }
+
+  function spawnWordLabel(wordEl) {
+    if (!wordEl || tool !== "highlight") return;
+    // Floating word/phrase labels were redundant with the engage glow + the
+    // ripple. Now this function only fires the brief glow on the engaged
+    // word. The ripple still fires from the long-press handler.
+    wordEl.style.setProperty("--engage-glow", COLOR_GLOW[color] || COLOR_GLOW.yellow);
+    wordEl.classList.add("cm-word-engage");
+    wordEl.addEventListener("animationend", () => wordEl.classList.remove("cm-word-engage"), { once: true });
+  }
+
+  function fadeOutLabels() {
+    // All labels fade out together on release — simpler, snappier.
+    const labels = activeLabels.splice(0);
+    activePhrases.length = 0;
+    labels.forEach((label) => {
+      if (!label.isConnected) return;
+      label.classList.add("cm-engage-word-out");
+      label.addEventListener("animationend", () => label.remove(), { once: true });
+    });
+  }
+
+  // Engage feedback on long-press lock-in: subtle ripple at the touch
+  // point. The first word's floating label is spawned by applyStrokeAt
+  // (which fires for every new word the stroke touches, including the
+  // first), so we don't duplicate that here.
+  function spawnEngageRipple(cx, cy) {
+    const hex = COLOR_HEX[color] || "#ffe66b";
+    const ripple = document.createElement("div");
+    ripple.className = "cm-engage-ripple";
+    ripple.style.left = cx + "px";
+    ripple.style.top  = cy + "px";
+    ripple.style.background = hex;
+    document.body.appendChild(ripple);
+    ripple.addEventListener("animationend", () => ripple.remove(), { once: true });
+  }
+
+  viewport.addEventListener("pointermove", (e) => {
+    if (pendingStroke && e.pointerId === pendingStroke.pointerId) {
+      const dx = e.clientX - pendingStroke.x;
+      const dy = e.clientY - pendingStroke.y;
+      if (Math.hypot(dx, dy) > LONG_PRESS_MOVE_MAX) cancelLongPress();
+      return;
+    }
+    if (!strokeActive || e.pointerId !== strokePointerId) return;
+    e.preventDefault();
+    applyStrokeAt(e.clientX, e.clientY);
+  });
+
+  // While a stroke is active, block the browser's native pan-y scroll so the
+  // user can drag in any direction (including across lines) without the
+  // gesture being stolen mid-stroke. Non-passive is required for
+  // preventDefault on touchmove to actually cancel scrolling on mobile.
+  viewport.addEventListener("touchmove", (e) => {
+    if (strokeActive) e.preventDefault();
+  }, { passive: false });
+
+  function finishStroke(e) {
+    // Tap (pointerdown → pointerup before long-press timer) → clear pending
+    // gate and let the click listener open the popover.
+    if (pendingStroke && e && e.pointerId === pendingStroke.pointerId) {
+      cancelLongPress();
+    }
+    if (!strokeActive) return;
+    if (e && e.pointerId !== strokePointerId) return;
+    try { viewport.releasePointerCapture(strokePointerId); } catch (_) {}
+    fadeOutLabels();
+    const pre = snapshot();
+    const committed = commitStroke();
+    strokeActive = false;
+    strokePointerId = null;
+    strokeTouched = null;
+    // The stroke engaged — eat the trailing click so single-word holds
+    // don't pop the tap-popover.
+    suppressNextClick = true;
+    if (committed) {
+      undoStack.push(pre);
+      if (undoStack.length > HISTORY_MAX) undoStack.shift();
+      redoStack = [];
+      refreshHistoryButtons();
+      saveState();
+    }
+  }
+  viewport.addEventListener("pointerup", finishStroke);
+  viewport.addEventListener("pointercancel", finishStroke);
+  viewport.addEventListener("lostpointercapture", (e) => {
+    if (strokeActive && e.pointerId === strokePointerId) {
+      // Commit what the user touched — losing capture shouldn't lose work.
+      fadeOutLabels();
+      const pre = snapshot();
+      const committed = commitStroke();
+      strokeActive = false;
+      strokePointerId = null;
+      strokeTouched = null;
+      suppressNextClick = true;
+      if (committed) {
+        undoStack.push(pre);
+        if (undoStack.length > HISTORY_MAX) undoStack.shift();
+        redoStack = [];
+        refreshHistoryButtons();
+        saveState();
+      }
+    }
+  });
+
+  // Tap a word → popover. Tap a note badge → note view. A long-press stroke
+  // (even on a single word with no drag) sets `suppressNextClick` so we
+  // ignore the synthesized click that follows pointerup.
+  passageEl.addEventListener("click", (e) => {
+    if (suppressNextClick) {
+      suppressNextClick = false;
+      e.stopPropagation();
+      return;
+    }
+    const badge = e.target.closest(".cm-note-badge");
+    if (badge) {
+      e.stopPropagation();
+      closePopover();
+      openNoteView(+badge.dataset.wordIdx, badge);
+      return;
+    }
+    const w = e.target.closest(".cm-word");
+    if (!w) return;
+    openPopover(w);
+  });
+
+  // ---------- Popover ----------
+  function openPopover(wordEl) {
+    popover.hidden = false;
+    popover.dataset.wordIdx = wordEl.dataset.idx;
+    // Mark the targeted word so the user can see which one the popover acts
+    // on. Re-add the class to retrigger the shake even when tapping the
+    // same target after a close.
+    passageEl.querySelectorAll(".cm-word-popover-target")
+      .forEach((el) => el.classList.remove("cm-word-popover-target"));
+    void wordEl.offsetWidth; // force reflow so the next class add restarts animation
+    wordEl.classList.add("cm-word-popover-target");
+
+    const r = wordEl.getBoundingClientRect();
+    const pw = popover.offsetWidth;
+    const ph = popover.offsetHeight;
+    let left = r.left + r.width / 2 - pw / 2;
+    let top  = r.top - ph - 10;
+    let side = "above";
+    if (top < 70) { top = r.bottom + 10; side = "below"; }
+    left = Math.max(8, Math.min(left, window.innerWidth - pw - 8));
+    popover.style.left = left + "px";
+    popover.style.top  = top + "px";
+    popover.dataset.side = side;
+    // Retrigger the open animation on every open (e.g. tapping a different
+    // word while the popover is already visible).
+    popover.dataset.state = "";
+    void popover.offsetWidth;
+    popover.dataset.state = "open";
+  }
+  function closePopover() {
+    if (popover.hidden) return;
+    popover.dataset.state = "closing";
+    const finalize = () => {
+      popover.removeEventListener("animationend", finalize);
+      popover.hidden = true;
+      popover.dataset.wordIdx = "";
+      popover.dataset.state = "";
+      passageEl.querySelectorAll(".cm-word-popover-target")
+        .forEach((el) => el.classList.remove("cm-word-popover-target"));
+    };
+    popover.addEventListener("animationend", finalize);
+    // Safety net in case animationend doesn't fire.
+    setTimeout(() => { if (popover.dataset.state === "closing") finalize(); }, 260);
+  }
+
+  popover.addEventListener("click", (e) => {
+    const idx = +popover.dataset.wordIdx;
+    const wordEl = passageEl.querySelector(`.cm-word[data-idx="${idx}"]`);
+    const swatch = e.target.closest(".cm-pop-swatch");
+    const action = e.target.closest(".cm-pop-action");
+    const secondary = e.target.closest(".cm-pop-secondary-btn");
+    if (swatch) {
+      const c = swatch.dataset.color;
+      if (state.highlights[idx] !== c) pushHistory();
+      state.highlights[idx] = c;
+      if (wordEl) wordEl.dataset.color = c;
+      refreshRuns();
+      saveState();
+      closePopover();
+      return;
+    }
+    if (action) {
+      const a = action.dataset.action;
+      if (a === "clear") {
+        if (idx in state.highlights) pushHistory();
+        delete state.highlights[idx];
+        if (wordEl) delete wordEl.dataset.color;
+        refreshRuns();
+        saveState();
+        closePopover();
+      } else if (a === "note") {
+        closePopover();
+        if (wordEl) openNoteInput(wordEl);
+      } else if (a === "copy") {
+        if (wordEl) copyVerseFromWord(wordEl);
+        closePopover();
+      }
+      return;
+    }
+    if (secondary) {
+      const a = secondary.dataset.action;
+      if (!wordEl) return;
+      closePopover();
+      if (a === "context") openAiModal(wordEl, "context");
+      else if (a === "ask") openAiModal(wordEl, "ask");
+    }
+  });
+
+  // ---------- Context / Ask Question modal ----------
+  const aiModal = document.getElementById("cmAiModal");
+  const aiRef   = document.getElementById("cmAiRef");
+  const aiBody  = document.getElementById("cmAiBody");
+  const aiClose = document.getElementById("cmAiClose");
+
+  function openAiModal(wordEl, kind) {
+    const verseNum = wordEl.dataset.verse;
+    const bookName = currentInfo?.bookName;
+    const chapterNum = currentInfo?.chapterNum;
+    const verseText = currentInfo?.chapterContent?.[verseNum];
+    if (!bookName || !chapterNum || !verseText) return;
+    const key = keyOf(currentInfo.bookId, chapterNum, verseNum);
+    aiRef.textContent = `${bookName} ${chapterNum}:${verseNum}`;
+    aiBody.innerHTML = "";
+    aiModal.hidden = false;
+    if (kind === "context") {
+      fetchInlineQuickContext({ book: bookName, chapter: chapterNum, verse: verseNum, text: verseText }, aiBody);
+    } else {
+      toggleVerseChat(key, bookName, chapterNum, verseNum, verseText, aiBody);
+    }
+  }
+  function closeAiModal() {
+    aiModal.hidden = true;
+    aiBody.innerHTML = "";
+  }
+  aiClose?.addEventListener("click", closeAiModal);
+  aiModal?.addEventListener("click", (e) => { if (e.target === aiModal) closeAiModal(); });
+
+  // ---------- Copy verse ----------
+  function cmToast(message) {
+    const t = document.createElement("div");
+    t.className = "cm-toast";
+    t.textContent = message;
+    document.body.appendChild(t);
+    setTimeout(() => t.remove(), 2000);
+  }
+  function copyVerseFromWord(wordEl) {
+    const verseNum = wordEl.dataset.verse;
+    const bookName = currentInfo?.bookName;
+    const chapterNum = currentInfo?.chapterNum;
+    const verseText = currentInfo?.chapterContent?.[verseNum];
+    if (!bookName || !chapterNum || !verseText) return;
+    const ref = `${bookName} ${chapterNum}:${verseNum}`;
+    const text = `${ref} — ${verseText.trim()}`;
+    const done = () => cmToast(`${ref} copied!`);
+    if (navigator.clipboard?.writeText) {
+      navigator.clipboard.writeText(text).then(done).catch(() => {
+        // Fallback — older iOS / insecure contexts.
+        const ta = document.createElement("textarea");
+        ta.value = text;
+        ta.style.position = "fixed";
+        ta.style.opacity = "0";
+        document.body.appendChild(ta);
+        ta.select();
+        try { document.execCommand("copy"); done(); } catch (_) {}
+        ta.remove();
+      });
+    } else {
+      const ta = document.createElement("textarea");
+      ta.value = text;
+      ta.style.position = "fixed";
+      ta.style.opacity = "0";
+      document.body.appendChild(ta);
+      ta.select();
+      try { document.execCommand("copy"); done(); } catch (_) {}
+      ta.remove();
+    }
+  }
+
+  document.addEventListener("click", (e) => {
+    if (overlay.hidden) return;
+    if (!popover.hidden && !popover.contains(e.target) && !e.target.closest(".cm-word")) closePopover();
+    if (!noteView.hidden && !noteView.contains(e.target) && !e.target.closest(".cm-note-badge")) closeNoteView();
+  });
+
+  // ---------- Grid / clear ----------
+  clearBtn.addEventListener("click", () => {
+    _confirmDialog("Clear all highlights on this canvas?", () => {
+      if (Object.keys(state.highlights).length) pushHistory();
+      state.highlights = {};
+      passageEl.querySelectorAll(".cm-word").forEach((w) => { delete w.dataset.color; });
+      refreshRuns();
+      saveState();
+    });
+  });
+
+  undoBtn?.addEventListener("click", doUndo);
+  redoBtn?.addEventListener("click", doRedo);
+
+  // ---------- Export passage → PNG ----------
+  let html2canvasPromise = null;
+  let exportInFlight = false;
+  function loadHtml2Canvas() {
+    if (window.html2canvas) return Promise.resolve(window.html2canvas);
+    if (html2canvasPromise) return html2canvasPromise;
+    html2canvasPromise = new Promise((resolve, reject) => {
+      const s = document.createElement("script");
+      s.src = "https://cdn.jsdelivr.net/npm/html2canvas@1.4.1/dist/html2canvas.min.js";
+      s.onload = () => resolve(window.html2canvas);
+      s.onerror = () => { html2canvasPromise = null; reject(new Error("Failed to load html2canvas")); };
+      document.head.appendChild(s);
+    });
+    return html2canvasPromise;
+  }
+
+  async function exportPassageAsImage() {
+    if (!paperEl || !currentInfo) return;
+    if (exportInFlight) return;
+    exportInFlight = true;
+    const oldLabel = shareBtn?.querySelector(".material-symbols-outlined")?.textContent;
+    try {
+      if (shareBtn) {
+        shareBtn.disabled = true;
+        const iconEl = shareBtn.querySelector(".material-symbols-outlined");
+        if (iconEl) iconEl.textContent = "hourglass_top";
+      }
+      const h2c = await loadHtml2Canvas();
+
+      // Hide elements that are interactive-only, not content.
+      const hideList = paperEl.querySelectorAll(".cm-reflect-row, .cm-tail-spacer");
+      const prevDisplays = [];
+      hideList.forEach((el) => { prevDisplays.push(el.style.display); el.style.display = "none"; });
+
+      // Scroll to top so html2canvas measures from the actual start.
+      const prevScrollTop = scrollEl.scrollTop;
+      scrollEl.scrollTop = 0;
+
+      // Add a temporary bottom padding for the export. cm-paper has
+      // padding-bottom: 0 by design (the tail-spacer normally provides the
+      // scroll buffer), so when the spacer is hidden, the last verse's
+      // margin-bottom collapses through paper's bottom edge and the final
+      // line-height fraction can clip at scrollHeight. Explicit padding both
+      // gives the photo breathing room AND keeps the last verse fully inside
+      // the measured height.
+      const prevPaperPadBottom = paperEl.style.paddingBottom;
+      paperEl.style.paddingBottom = "72px";
+
+      // Force layout then read full natural dims of the paper (not the
+      // clipped scroll viewport), so the whole chapter is captured.
+      void paperEl.offsetHeight;
+      const fullW = Math.ceil(paperEl.scrollWidth);
+      const fullH = Math.ceil(paperEl.scrollHeight);
+
+      const canvas = await h2c(paperEl, {
+        backgroundColor: "#f5f2ea",
+        scale: 2,
+        useCORS: true,
+        logging: false,
+        width: fullW,
+        height: fullH,
+        windowWidth: fullW,
+        windowHeight: fullH,
+      });
+
+      paperEl.style.paddingBottom = prevPaperPadBottom;
+      scrollEl.scrollTop = prevScrollTop;
+      hideList.forEach((el, i) => { el.style.display = prevDisplays[i]; });
+
+      const blob = await new Promise((res) => canvas.toBlob(res, "image/png"));
+      if (!blob) throw new Error("Could not create PNG");
+
+      const safeName = `${currentInfo.bookName}-${currentInfo.chapterNum}`
+        .toLowerCase().replace(/\s+/g, "-");
+      const filename = `${safeName}.png`;
+
+      // Mobile (touch-only device) → Web Share sheet (has Save to Photos,
+      // Messages, IG, etc). Desktop → straight download (share sheets there
+      // lack "Save to Downloads", so users end up stuck).
+      const isMobile = window.matchMedia("(pointer: coarse) and (hover: none)").matches;
+      const file = new File([blob], filename, { type: "image/png" });
+      if (isMobile && navigator.canShare?.({ files: [file] })) {
+        try {
+          await navigator.share({ files: [file], title: `${currentInfo.bookName} ${currentInfo.chapterNum}` });
+        } catch (err) {
+          if (err?.name !== "AbortError") downloadBlob(blob, filename);
+        }
+      } else {
+        downloadBlob(blob, filename);
+      }
+    } catch (err) {
+      console.error(err);
+      cmToast("Sorry, couldn't save image");
+    } finally {
+      exportInFlight = false;
+      if (shareBtn) {
+        shareBtn.disabled = false;
+        const iconEl = shareBtn.querySelector(".material-symbols-outlined");
+        if (iconEl && oldLabel) iconEl.textContent = oldLabel;
+      }
+    }
+  }
+
+  function downloadBlob(blob, filename) {
+    const url = URL.createObjectURL(blob);
+    const a = document.createElement("a");
+    a.href = url;
+    a.download = filename;
+    document.body.appendChild(a);
+    a.click();
+    a.remove();
+    setTimeout(() => URL.revokeObjectURL(url), 1000);
+  }
+
+  shareBtn?.addEventListener("click", exportPassageAsImage);
+
+  // ---------- Keyboard ----------
+  document.addEventListener("keydown", (e) => {
+    if (overlay.hidden) return;
+    if (noteModal && !noteModal.hidden) return; // typing in note input
+    if (aiModal && !aiModal.hidden) {
+      // Inside AI modal: only handle Escape to dismiss, never steal typing.
+      if (e.key === "Escape") closeAiModal();
+      return;
+    }
+    if (e.key === "Escape") {
+      if (!noteView.hidden) closeNoteView();
+      else if (!popover.hidden) closePopover();
+      else close();
+    } else if ((e.metaKey || e.ctrlKey) && (e.key === "z" || e.key === "Z")) {
+      e.preventDefault();
+      if (e.shiftKey) doRedo(); else doUndo();
+    } else if ((e.metaKey || e.ctrlKey) && (e.key === "y" || e.key === "Y")) {
+      e.preventDefault();
+      doRedo();
+    } else if (e.key === "h" || e.key === "H") setTool("highlight");
+    else if (e.key === "e" || e.key === "E") setTool("eraser");
+  });
+
+  // ---------- Open / close ----------
+  function open() {
+    const info = getCurrentPassageInfo();
+    if (!info) { alert("Load a passage first."); return; }
+    currentInfo = info;
+    stateKey = info.key;
+    state = loadState(stateKey);
+    const titleText = `${info.bookName} ${info.chapterNum}`;
+    titleEl.textContent = titleText;
+    passageTitleEl2.textContent = titleText;
+
+    renderPassage(info);
+    resetHistory();
+
+    overlay.hidden = false;
+    color = DEFAULT_COLOR;
+    setTool("highlight");
+    scrollEl.scrollTop = 0;
+  }
+
+  function close() {
+    closePopover();
+    closeNoteView();
+    closeNoteInput();
+    closeAiModal();
+    closeArc();
+    cancelLongPress();
+    fadeOutLabels();
+    strokeActive = false;
+    strokePointerId = null;
+    strokeTouched = null;
+    overlay.hidden = true;
+  }
+
+  btn?.addEventListener("click", open);
+  closeBtn.addEventListener("click", close);
+
+  // When Firebase sync applies remote canvas updates, refresh if the
+  // currently open canvas state changed out from under us.
+  window.addEventListener("devo:canvas-sync", (e) => {
+    if (overlay.hidden || !stateKey) return;
+    const keys = e.detail?.keys || [];
+    if (!keys.includes(`devo.canvas.${stateKey}`)) return;
+    state = loadState(stateKey);
+    if (currentInfo) renderPassage(currentInfo);
+  });
+})();
+
+/* =====================================================================
+ * REVAMPED MAIN TOOLBAR — thin proxy over the legacy controls
+ * =====================================================================
+ * The old .controls.smart-header is hidden and shown as a modal sheet
+ * only when the user taps the passage pill. Every button in the new
+ * toolbar forwards clicks to the original hidden button so all existing
+ * JS (which watches #book.value, #load.onclick, etc.) keeps working.
+ * =================================================================== */
+(function mainToolbar() {
+  const mtBar          = document.getElementById("mtBar");
+  const mtPassage      = document.getElementById("mtPassage");
+  const mtPassageText  = document.getElementById("mtPassageText");
+  const mtPrev         = document.getElementById("mtPrev");
+  const mtNext         = document.getElementById("mtNext");
+  const mtActions      = document.getElementById("mtActions");
+  const mtListen       = document.getElementById("mtListen");
+  const mtOverflow     = document.getElementById("mtOverflow");
+  const mtOverflowSheet = document.getElementById("mtOverflowSheet");
+  const mtOverflowBackdrop = document.getElementById("mtOverflowBackdrop");
+  const mtThemeToggle  = document.getElementById("mtThemeToggle");
+  const mtSearchBible  = document.getElementById("mtSearchBible");
+  const mtNotesToggle  = document.getElementById("mtNotesToggle");
+  if (!mtPassage) return;
+
+  const bookSel     = document.getElementById("book");
+  const chapterSel  = document.getElementById("chapter");
+  const loadBtn     = document.getElementById("load");
+  const prevOrigBtn = document.getElementById("prevChapterBtn");
+  const nextOrigBtn = document.getElementById("nextChapterBtn");
+  const ttsBtn      = document.getElementById("ttsPlayBtn");
+  const notesBtn    = document.getElementById("notesToggleBtn");
+  const themeBtn    = document.getElementById("mode-toggle");
+  const searchBtn   = document.getElementById("bibleSearchBtn");
+
+  function updatePassageText() {
+    const book = bookSel?.options[bookSel.selectedIndex]?.text?.trim();
+    const ch = chapterSel?.value;
+    mtPassageText.textContent = book && ch ? `${book} ${ch}` : "Select passage";
+  }
+
+  // Passage sheet (reveals the old dropdowns as a modal).
+  function openCfgSheet() { document.body.classList.add("cfg-sheet-open"); }
+  function closeCfgSheet() { document.body.classList.remove("cfg-sheet-open"); }
+  // Passage entry points all open the Book picker directly — the old
+   // intermediate "passage sheet" modal is gone. Chapter pick auto-loads.
+  function openBookDirectly() {
+    window._openBookPicker?.();
+  }
+  mtPassage.addEventListener("click", openBookDirectly);
+  document.getElementById("dashBrowseBtn")?.addEventListener("click", openBookDirectly);
+  // Big passage header itself is the primary navigator now.
+  document.getElementById("passageTitle")?.addEventListener("click", openBookDirectly);
+  // Passage title chevrons proxy to the legacy prev/next chapter buttons.
+  document.getElementById("passageTitlePrev")?.addEventListener("click", () =>
+    document.getElementById("prevChapterBtn")?.click()
+  );
+  document.getElementById("passageTitleNext")?.addEventListener("click", () =>
+    document.getElementById("nextChapterBtn")?.click()
+  );
+
+  // Close the sheet immediately on Search click, then fire the original
+  // loadBtn handler async. Awaiting first left the sheet open for the whole
+  // loadPassage() + runAIForCurrentPassage() cycle (several seconds).
+  if (loadBtn) {
+    const prev = loadBtn.onclick;
+    loadBtn.onclick = async function (...args) {
+      closeCfgSheet();
+      updatePassageText();
+      try {
+        if (prev) return await prev.apply(this, args);
+      } catch (err) { console.error(err); }
+    };
+  }
+  bookSel?.addEventListener("change", updatePassageText);
+  chapterSel?.addEventListener("change", updatePassageText);
+  updatePassageText();
+
+  // Chevron / action proxies
+  mtPrev?.addEventListener("click", () => prevOrigBtn?.click());
+  mtNext?.addEventListener("click", () => nextOrigBtn?.click());
+  mtListen?.addEventListener("click", () => ttsBtn?.click());
+
+  // Version toggle moved into the overflow sheet (Settings-ish row).
+  // Proxies taps to the original .version-pill buttons so all downstream JS
+  // still runs; mirrors the active state both ways.
+  const mtSheetVer = document.getElementById("mtSheetVersion");
+  function syncSheetVerPills() {
+    const active = document.querySelector(".version-pill.active")?.dataset.ver;
+    mtSheetVer?.querySelectorAll(".mt-sheet-ver").forEach(b => {
+      b.classList.toggle("active", b.dataset.ver === active);
+    });
+  }
+  mtSheetVer?.addEventListener("click", (e) => {
+    const btn = e.target.closest(".mt-sheet-ver");
+    if (!btn) return;
+    document.querySelector(`.version-pill[data-ver="${btn.dataset.ver}"]`)?.click();
+    setTimeout(syncSheetVerPills, 10);
+  });
+  document.querySelectorAll(".version-pill").forEach(p =>
+    p.addEventListener("click", () => setTimeout(syncSheetVerPills, 10))
+  );
+  syncSheetVerPills();
+
+  // Overflow sheet
+  function openOverflow() { mtOverflowSheet.hidden = false; }
+  function closeOverflow() { mtOverflowSheet.hidden = true; }
+  mtOverflow?.addEventListener("click", openOverflow);
+  mtOverflowBackdrop?.addEventListener("click", closeOverflow);
+  mtThemeToggle?.addEventListener("click", () => { themeBtn?.click(); closeOverflow(); });
+  mtSearchBible?.addEventListener("click", () => { searchBtn?.click(); closeOverflow(); });
+  mtNotesToggle?.addEventListener("click", () => { notesBtn?.click(); closeOverflow(); });
+
+  // Mirror the "hidden until passage loaded" behavior of the original buttons.
+  // Watch the ttsPlayBtn's class list — when loadBtn.click() unhides it, show
+  // our chevrons + action row.
+  function syncPassageLoadedState() {
+    const loaded = ttsBtn && !ttsBtn.classList.contains("hidden");
+    mtPrev.hidden = !loaded;
+    mtNext.hidden = !loaded;
+    mtActions.hidden = !loaded;
+  }
+  if (ttsBtn) {
+    new MutationObserver(syncPassageLoadedState)
+      .observe(ttsBtn, { attributes: true, attributeFilter: ["class"] });
+  }
+  syncPassageLoadedState();
+
+  // Reflect TTS playing state on the Listen pill.
+  function syncListenState() {
+    const playing = ttsBtn?.classList.contains("playing");
+    mtListen?.classList.toggle("playing", !!playing);
+  }
+  if (ttsBtn) {
+    new MutationObserver(syncListenState)
+      .observe(ttsBtn, { attributes: true, attributeFilter: ["class"] });
+  }
+})();
+
+/* =====================================================================
+ * BOOK / CHAPTER PICKER — mobile-inspired bottom-sheet selectors
+ * =====================================================================
+ * Replaces the native <select> UI inside the passage sheet. The selects
+ * stay in the DOM (and stay in sync) because the rest of the app reads
+ * bookEl.value / chapterEl.value directly.
+ * =================================================================== */
+(function bookChapterPicker() {
+  const bookBtn     = document.getElementById("bookPickerBtn");
+  const chapterBtn  = document.getElementById("chapterPickerBtn");
+  const bookText    = document.getElementById("bookPickerText");
+  const chapterText = document.getElementById("chapterPickerText");
+  const bookSheet   = document.getElementById("bookPickerSheet");
+  const chapSheet   = document.getElementById("chapterPickerSheet");
+  const bookList    = document.getElementById("bookPickerList");
+  const chapGrid    = document.getElementById("chapterPickerGrid");
+  const chapLabel   = document.getElementById("chapterPickerLabel");
+  const bookSearch  = document.getElementById("bookPickerSearch");
+  const bookTabs    = document.getElementById("bookPickerTabs");
+  if (!bookBtn || !chapterBtn) return;
+
+  const bookSel     = document.getElementById("book");
+  const chapterSel  = document.getElementById("chapter");
+  const META        = window.BIBLE_META || {};
+  const BOOK_ORDER  = Object.keys(META);
+  const OT = BOOK_ORDER.slice(0, 39);
+  const NT = BOOK_ORDER.slice(39);
+
+  let activeTab = "OT";
+  let searchTerm = "";
+
+  function fire(el, type) { el?.dispatchEvent(new Event(type, { bubbles: true })); }
+
+  function currentBookCode() { return bookSel?.value || ""; }
+  function currentChapterNum() { return parseInt(chapterSel?.value, 10) || 1; }
+
+  function renderLabels() {
+    const code = currentBookCode();
+    bookText.textContent = code ? (META[code]?.name || "Select book") : "Select book";
+    chapterText.textContent = currentChapterNum() ? String(currentChapterNum()) : "1";
+  }
+
+  function openBookSheet() {
+    // Default tab to whichever testament the current book belongs to.
+    const code = currentBookCode();
+    activeTab = code && NT.includes(code) ? "NT" : "OT";
+    searchTerm = "";
+    if (bookSearch) bookSearch.value = "";
+    updateTabsUI();
+    renderBookList();
+    renderCurrentPassage();
+    bookSheet.hidden = false;
+    setTimeout(() => bookSearch?.focus(), 100);
+  }
+
+  function renderCurrentPassage() {
+    const banner = document.getElementById("bookPickerCurrent");
+    const ref = document.getElementById("bookPickerCurrentRef");
+    if (!banner || !ref) return;
+    const code = currentBookCode();
+    const ch = currentChapterNum();
+    if (!code || !META[code]) {
+      banner.hidden = true;
+      return;
+    }
+    ref.textContent = `${META[code].name} ${ch}`;
+    banner.hidden = false;
+  }
+  function closeBookSheet() { bookSheet.hidden = true; }
+  function openChapterSheet() {
+    const code = currentBookCode();
+    if (!code) { openBookSheet(); return; }
+    chapLabel.textContent = `${(META[code]?.name || "").toUpperCase()} — SELECT CHAPTER`;
+    renderChapterGrid();
+    chapSheet.hidden = false;
+  }
+  function closeChapterSheet() { chapSheet.hidden = true; }
+
+  function updateTabsUI() {
+    bookTabs.querySelectorAll(".bc-tab").forEach(t => {
+      t.classList.toggle("active", t.dataset.tab === activeTab);
+    });
+  }
+
+  function renderBookList() {
+    bookList.innerHTML = "";
+    const list = searchTerm
+      ? BOOK_ORDER.filter(c => META[c].name.toLowerCase().includes(searchTerm.toLowerCase()))
+      : (activeTab === "OT" ? OT : NT);
+    if (!list.length) {
+      bookList.innerHTML = `<div class="bc-empty">No books match "${searchTerm}"</div>`;
+      return;
+    }
+    const current = currentBookCode();
+    for (const code of list) {
+      const row = document.createElement("div");
+      row.className = "bc-book-row" + (code === current ? " active" : "");
+      row.dataset.code = code;
+      row.innerHTML = `
+        <span class="bc-book-name">${META[code].name}</span>
+        <span class="bc-book-chapters">${META[code].chapters.length} chapters</span>
+      `;
+      row.addEventListener("click", () => selectBook(code));
+      bookList.appendChild(row);
+    }
+  }
+
+  function renderChapterGrid() {
+    chapGrid.innerHTML = "";
+    const code = currentBookCode();
+    const n = META[code]?.chapters?.length || 1;
+    const current = currentChapterNum();
+    for (let i = 1; i <= n; i++) {
+      const cell = document.createElement("button");
+      cell.type = "button";
+      cell.className = "bc-chapter-cell" + (i === current ? " active" : "");
+      cell.textContent = i;
+      cell.addEventListener("click", () => selectChapter(i));
+      chapGrid.appendChild(cell);
+    }
+  }
+
+  function selectBook(code) {
+    if (!bookSel) return;
+    // Preserve the currently-reading chapter when the user picks the SAME
+    // book (e.g. they opened the picker to change chapter and want to see
+    // the current chapter highlighted on the chapter grid). The legacy
+    // bookSel.onchange (loadChapters) rebuilds the #chapter <select> and
+    // resets it to "1" — so we save and restore manually.
+    const sameBook = bookSel.value === code;
+    const prevChapter = chapterSel?.value;
+    bookSel.value = code;
+    fire(bookSel, "change");  // legacy handler populates chapter dropdown
+    if (sameBook && prevChapter && chapterSel) {
+      // Only restore if the previous chapter is valid for this book.
+      const n = META[code]?.chapters?.length || 1;
+      const pc = parseInt(prevChapter, 10);
+      if (pc >= 1 && pc <= n) chapterSel.value = String(pc);
+    }
+    renderLabels();
+    closeBookSheet();
+    // Chain naturally into chapter pick — mirrors the mobile UX.
+    setTimeout(openChapterSheet, 160);
+  }
+  function selectChapter(n) {
+    if (!chapterSel) return;
+    chapterSel.value = String(n);
+    fire(chapterSel, "change");
+    renderLabels();
+    closeChapterSheet();
+    // Auto-load the passage — no more Search button in between.
+    document.getElementById("load")?.click();
+  }
+
+  // Expose the opener so the passage pill / dashboard browse button can hit
+  // it directly (skipping the deprecated passage-sheet modal).
+  window._openBookPicker = openBookSheet;
+
+  // Wiring
+  bookBtn.addEventListener("click", openBookSheet);
+  chapterBtn.addEventListener("click", openChapterSheet);
+  // "Currently reading" banner behavior is context-aware:
+   //   - from dashboard → navigate to that passage (close + load)
+   //   - from reading view → just dismiss (user is staying)
+  document.getElementById("bookPickerCurrent")?.addEventListener("click", () => {
+    closeBookSheet();
+    const onDashboard = document.querySelector(".layout")?.classList.contains("layout-unset");
+    if (onDashboard) document.getElementById("load")?.click();
+  });
+  bookTabs.addEventListener("click", (e) => {
+    const tab = e.target.closest(".bc-tab");
+    if (!tab) return;
+    activeTab = tab.dataset.tab;
+    searchTerm = "";
+    if (bookSearch) bookSearch.value = "";
+    updateTabsUI();
+    renderBookList();
+  });
+  bookSearch?.addEventListener("input", (e) => {
+    searchTerm = e.target.value.trim();
+    renderBookList();
+  });
+  // Close handlers — explicit per-sheet to avoid any delegation quirks.
+  bookSheet?.querySelectorAll("[data-close-bc]").forEach((el) =>
+    el.addEventListener("click", closeBookSheet)
+  );
+  chapSheet?.querySelectorAll("[data-close-bc]").forEach((el) =>
+    el.addEventListener("click", closeChapterSheet)
+  );
+
+  // Keep picker labels in sync when the legacy dropdowns change from elsewhere
+  // (e.g., prev/next chapter buttons, loadPassageById, dashboard shortcuts).
+  bookSel?.addEventListener("change", renderLabels);
+  chapterSel?.addEventListener("change", renderLabels);
+  renderLabels();
+})();
+

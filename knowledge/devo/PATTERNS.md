@@ -1,5 +1,7 @@
 ## Recurring Code Patterns
 
+> **Note (2026-04-27 split):** Line numbers reference the original monolithic `devo/script.js` (now deleted). The same code lives in 11 ordered chunks under `devo/js/`. See [`KEY_FILES.md`](KEY_FILES.md) for the line-range → file map.
+
 ### 1. localStorage Schema & Access Patterns
 
 **Static Keys** (script.js top-level, set early):

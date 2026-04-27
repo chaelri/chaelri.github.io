@@ -1,5 +1,7 @@
 ## System Architecture Overview
 
+> **Note (2026-04-27 split):** Line numbers throughout this doc reference the original monolithic `devo/script.js` (now deleted). The same code lives in 11 ordered chunks under `devo/js/` (`01-core.js` … `11-boot.js`). See [`KEY_FILES.md`](KEY_FILES.md) for the line-range → file map. All chunks load as classic `<script>` tags via `firebase-sync.js` and share one script-global scope, so the architecture below is unchanged.
+
 **Devotion** is a progressive web app (PWA) for Bible study with AI-powered reflection, text-to-speech, canvas notes, and SOAP journaling. The core app uses localStorage (or Firebase RTDB for Charlie) and IndexedDB, lazy-loads Bible data from JSON, and communicates with Gemini via a Google Cloud proxy for AI features.
 
 ### PWA Model & Service Worker Strategy
