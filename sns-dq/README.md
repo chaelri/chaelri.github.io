@@ -56,9 +56,9 @@ with three weight tiers:
 - `bold`   — Bold (700) — noun phrases that anchor the question
 - `italic` — Bold Italic (700 italic) — the central verb / adjective
 
-Layout area: `x = 168..1700, y = 280..1020` — measured against the template's
+Layout area: `x = 168..1700, y = 280..940` — measured against the template's
 pre-stamped header (which sits at x≈168..1099, y≈156..234). The "1." aligns
-with the "D" of "Discussion Questions:". Auto-fits font size between 36–64 px.
+with the "D" of "Discussion Questions:". Auto-fits font size between 36–104 px.
 Per-line greedy wrap with a hanging indent that aligns wrapped lines with the
 start of the question text (after `1. `).
 

@@ -56,6 +56,36 @@ Captures the non-obvious choices made while building the app, so future sessions
 
 **Why:** Charlie's existing manual exports use the full-month form. Matching it keeps Drive folder ordering / search behaviour consistent with his historical files.
 
+## Centered single-col input → 2-col reveal on first generate
+
+**Decision:** The page loads with `<main>` at `max-w-2xl mx-auto` (single column, centered). The preview section (`#preview-section`) is `hidden`. On a successful Generate, JS swaps the main grid to `max-w-6xl lg:grid-cols-2`, unhides the preview, and wraps the swap in `document.startViewTransition()` for a smooth crossfade-and-slide.
+
+**Why:** The empty preview pane on the right looked like dead space — every fresh load made the app feel half-broken until the user pasted and generated. Starting centered makes the empty state feel intentional ("this is the starting line"), and earning the second column on generate makes the reveal feel like a payoff. Also: on mobile, the layout is single-col anyway; the swap just unhides the preview underneath, which works without ceremony.
+
+**Fallback:** Browsers without View Transitions (older Firefox, etc.) still get the layout swap — just without the crossfade animation; a plain `max-width` CSS transition smooths the column change.
+
+## No localStorage persistence
+
+**Decision:** Page loads always start empty. There's no `STORAGE.input` / `STORAGE.formatted` anymore — `persistInput`, `persistFormatted`, `restoreSavedInput`, `restoreLastFormatted` were removed.
+
+**Why:** With the centered → 2-col reveal pattern, restoring a previous render on page load would skip the reveal animation and dump the user back into the wide layout immediately, defeating the whole intentional empty state. The old persistence existed because there was no "+ New" reset button — it was a workaround for "I want to start over." Now that resetToEmpty() exists and the empty state is the canonical starting point, persistence creates more friction than it removes (stale carry-over from yesterday's question, etc.). A user who needs the previous render can re-paste; the AI call is fast and free in practice.
+
+## Confetti fires on real generates only, not on reloads
+
+**Decision:** `celebrateReveal()` (green-glow ring + canvas-confetti burst) runs only at the end of `generate()` — never from any other code path. With persistence dropped, this is naturally enforced (there's no other path to a rendered canvas), but the function is still gated to make the intent explicit.
+
+**Why:** Celebration animations on every reload would feel obnoxious — they're meant to mark a successful AI call, not a navigation. canvas-confetti also respects `prefers-reduced-motion` via `disableForReducedMotion: true`.
+
+**Positioning detail:** The confetti origin is computed from `canvas-wrap.getBoundingClientRect()` *after* the View Transition's `.finished` promise resolves. If we fire while the transition is still animating, the bounding rect is at the pre-transition (centered) position and the confetti spawns wrong.
+
+## "+ New discussion questions" gets a distinct dashed-emerald CTA
+
+**Decision:** The reset button uses a custom `.btn-new` class — dashed emerald border (1.5px, `rgb(16 185 129 / 0.35)`), faint emerald gradient background, an icon chip on the left, and a label + arrow on the right. On hover, the dashes turn solid and the arrow nudges right.
+
+**Why:** The previous version used the same `.btn-ghost` style as Copy / Download / Drive sitting just above it. The button was *functionally* a state change ("start over"), but visually it read as "another action on this result." Charlie called this out from a screenshot — buttons that do different *kinds* of work shouldn't share the same treatment. The dashed-border-with-icon-chip pattern is the universal "create new" affordance (cf. Figma's "+ New file", Notion's "+ New page", etc.) and reads instantly as such.
+
+**The divider above** (`Start fresh` micro-label + hairline) reinforces the section break: everything above it acts on the current result; everything below it begins a new one.
+
 ## Drive folder is hardcoded server-side
 
 **Decision:** The proxy's `SNS_DQ_FOLDER_ID` is a const, not a request parameter.

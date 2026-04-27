@@ -16,6 +16,7 @@ sns-dq/
 ├── README.md             setup notes + Drive OAuth one-shot script reference
 └── assets/
     ├── template.png            1920×1080 pre-stamped template (header + logo)
+    ├── confetti.min.js         canvas-confetti (loaded as global, fires on reveal)
     ├── favicon.svg
     ├── icon-{180,192,512}.png  PWA icons
     └── fonts/
@@ -36,7 +37,10 @@ sns-dq/
 | `LAYOUT.contentX/Y/W/H` | `168 / 280 / 1532 / 660` | text rect — measured against the pre-stamped header |
 | `LAYOUT.fontSizeMin/Max` | `36 / 104` | auto-fit range; 104 lets short inputs scale up like the SNS reference |
 | `LAYOUT.itemGap` | `28` | px between numbered items |
-| `STORAGE.input` / `STORAGE.formatted` | `snsdq_input` / `snsdq_last_formatted` | localStorage keys |
+
+No localStorage persistence — every page load starts on the empty centered input.
+A previous version saved input + last formatted result; that was deliberately
+removed (see DECISIONS.md).
 
 ## Render contract (Gemini → canvas)
 
@@ -50,7 +54,12 @@ Per-question safety: `reconcileWithInput()` requires the concatenation of a ques
 
 ## Entry points / flows
 
-- **Generate / Reformat** → `splitQuestions(text)` → `formatWithGemini(arr)` → `reconcileWithInput` → `renderToCanvas` → `persistFormatted`.
+- **Initial state** → `<main id="layout">` is `max-w-2xl` (centered single-col); `#preview-section` is `hidden`. No localStorage restore. Reformat is hidden (not just disabled) until the first result lands.
+- **Generate / Reformat** → `splitQuestions(text)` → `formatWithGemini(arr)` → `reconcileWithInput` → `transitionLayout(() => { applyLayout(true); renderToCanvas(...) })` → `celebrateReveal()`.
+  - `applyLayout(true)` swaps `max-w-2xl` → `max-w-6xl lg:grid-cols-2` and unhides `#preview-section`.
+  - `transitionLayout()` wraps the swap in `document.startViewTransition()` where supported; falls back to plain mutation + ~360ms wait.
+  - `celebrateReveal()` plays a green-glow ring on `#canvas-wrap` + fires confetti centered on the canvas. Only triggered by genuine generates, never by reloads.
+- **"+ New discussion questions"** → `resetToEmpty()` clears input + result, hides `#preview-section`, transitions back to centered single-col.
 - **Copy / Download** → `canvasToBlob` → clipboard or `<a download>`.
 - **Drive** → `canvasToBlob` → base64 → `POST /upload-drive` (proxy auths as Charlie via OAuth refresh token, uploads to hardcoded folder, returns share link). See `gemini-proxy/index.js` for the server side.
 - **Share-target** → `consumeShareTargetParams()` reads `?text=&title=&url=` on load (only set when the OS opens the installed PWA from a share sheet) and prefills the textarea.
@@ -60,6 +69,7 @@ Per-question safety: `reconcileWithInput()` requires the concatenation of a ques
 
 - Tailwind v4 browser build (`@tailwindcss/browser@4`)
 - Material Symbols Outlined webfont
+- `canvas-confetti` vendored at `assets/confetti.min.js` (deferred, exposes `window.confetti`)
 - No Firebase, no service worker, no third-party JS otherwise.
 
 ## Hub root entry

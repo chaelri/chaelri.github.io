@@ -58,7 +58,7 @@ Discussion Questions image generator — paste questions, AI adds bold/italic em
 - **Entry:** `index.html`, `app.js`, `style.css`, `manifest.json`, `assets/template.png` (1920×1080).
 - **Deploy:** GitHub Pages at `/sns-dq/`. Browser-only client.
 - **Server side:** `gemini-proxy/upload-drive` endpoint authenticates as charliecayno@gmail.com via stored OAuth refresh token (set up by `gemini-proxy/setup-drive-oauth.sh`). Service accounts can't write to consumer Drives — that's why the user-OAuth path. Drive folder ID hardcoded in proxy.
-- **Quirks:** Three-tier weight for emphasis (400/700/700-italic) settled after several iterations; layout pinned to measured pixel bounds of the pre-stamped header in `template.png`. AI output is reconciled run-by-run against the input so wording can never silently change.
+- **Quirks:** Three-tier weight for emphasis (400/700/700-italic) settled after several iterations; layout pinned to measured pixel bounds of the pre-stamped header in `template.png`. AI output is reconciled run-by-run against the input so wording can never silently change. UX: starts centered single-col, expands to 2-col with View Transitions + confetti on the first successful Generate; no localStorage persistence (deliberate — every load is a clean slate, "+ New" resets back to centered).
 - **Full docs:** See `knowledge/sns-dq/SUMMARY.md` and `DECISIONS.md`.
 
 ### tayo/  🟢
