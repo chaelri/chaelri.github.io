@@ -377,6 +377,22 @@ function _edgeToClientShape(blob, timings) {
   return { url: URL.createObjectURL(blob), timepoints, words: edgeWords };
 }
 
+// ── Activity log (visible in the Audio Library "Activity" panel) ───────────
+// Circular buffer of recent TTS-synth events so Charlie can see exactly
+// what's happening: what hit the cache, what's queued, what failed, what's
+// retrying. Capped at 120 entries — older drop off the tail.
+const _TTS_LOG_MAX = 120;
+const _ttsLog = [];
+function _ttsLogPush(type, ref, message) {
+  _ttsLog.unshift({ type, ref: ref || null, message: message || "", time: Date.now() });
+  if (_ttsLog.length > _TTS_LOG_MAX) _ttsLog.length = _TTS_LOG_MAX;
+}
+function _ttsLogLabel(ref) {
+  if (!ref) return "verse";
+  const bookName = BIBLE_META?.[ref.book]?.name || ref.book || "?";
+  return `${bookName} ${ref.chapter || "?"}:${ref.verseNum || "?"}`;
+}
+
 async function ttsSynthesize(text, retries = 5, meta) {
   const cacheKey = `${TTS_VOICE.name}|${text}`;
 
@@ -386,9 +402,14 @@ async function ttsSynthesize(text, retries = 5, meta) {
   // network path rather than killing the whole synth pipeline.
   let cached = null;
   try { cached = await _getTtsAudio(cacheKey); } catch {}
-  if (cached?.blob) return _edgeToClientShape(cached.blob, cached.timings || []);
+  if (cached?.blob) {
+    _ttsLogPush("hit", meta, "cache hit");
+    return _edgeToClientShape(cached.blob, cached.timings || []);
+  }
 
+  _ttsLogPush("queued", meta, "waiting for slot");
   await _synthAcquire();
+  _ttsLogPush("started", meta, "synthesizing");
   try {
     for (let attempt = 0; attempt < retries; attempt++) {
       try {
@@ -406,13 +427,16 @@ async function ttsSynthesize(text, retries = 5, meta) {
         const blob = new Blob([bytes], { type: "audio/mpeg" });
         // Fire-and-forget IDB save; survives reload + offline replay for 3 days.
         _saveTtsAudio(cacheKey, blob, timings, meta);
+        _ttsLogPush("success", meta, attempt > 0 ? `done (after ${attempt + 1} tries)` : "done");
         return _edgeToClientShape(blob, timings);
       } catch (err) {
         if (attempt < retries - 1) {
           const base = err.message === "rate-limit" ? 2000 : 600;
           const delay = Math.min(base * Math.pow(1.8, attempt), 12000) + Math.random() * 800;
+          _ttsLogPush("retry", meta, `${err.message || "error"} — retry ${attempt + 2}/${retries}`);
           await new Promise(r => setTimeout(r, delay));
         } else {
+          _ttsLogPush("fail", meta, err.message || "exhausted retries");
           throw err;
         }
       }
@@ -490,18 +514,28 @@ const _downloadingBooks = new Set();
 // move smoothly even when chapters are partially cached.
 const _bookDlProgress = new Map(); // bookKey -> { cached, total }
 let _audioLibPollTimer = null;
+// Faster poll dedicated to the Activity panel — runs while the modal is
+// open so the log + queue counters update in near-real-time even when
+// nothing else is being re-rendered.
+let _audioLibActivityTimer = null;
 
 function openAudioLibrary() {
   const modal = document.getElementById("audioLibraryModal");
   if (!modal) return;
   modal.hidden = false;
   _renderAudioLibrary();
+  // Tick the activity panel every 500ms so the queue counter + log scroll
+  // smoothly while synth is in flight. Light: only updates the activity
+  // section, not the full book list.
+  if (_audioLibActivityTimer) clearInterval(_audioLibActivityTimer);
+  _audioLibActivityTimer = setInterval(_renderTtsActivity, 500);
 }
 
 function closeAudioLibrary() {
   const modal = document.getElementById("audioLibraryModal");
   if (modal) modal.hidden = true;
   if (_audioLibPollTimer) { clearInterval(_audioLibPollTimer); _audioLibPollTimer = null; }
+  if (_audioLibActivityTimer) { clearInterval(_audioLibActivityTimer); _audioLibActivityTimer = null; }
   // Clear the "downloading" UI state on close. Background downloads
   // continue (they're queued in the semaphore), but on reopen the user
   // sees a clean state and can re-click Download to resume polling.
@@ -525,7 +559,48 @@ function closeAudioLibrary() {
   });
 })();
 
+function _renderTtsActivity() {
+  const queueEl = document.getElementById("audioLibQueue");
+  const logEl = document.getElementById("audioLibLog");
+  if (queueEl) {
+    const inFlight = _synthSem.active;
+    const waiting = _synthSem.queue.length;
+    queueEl.textContent = inFlight || waiting
+      ? `${inFlight} synthing • ${waiting} queued`
+      : "idle";
+    queueEl.classList.toggle("audio-lib-queue-busy", inFlight > 0 || waiting > 0);
+  }
+  if (logEl) {
+    if (!_ttsLog.length) {
+      logEl.textContent = "No activity yet — open a chapter or hit Download to see synth events here.";
+      return;
+    }
+    const ICON = {
+      hit:     '<span class="material-symbols-outlined">bolt</span>',
+      queued:  '<span class="material-symbols-outlined">hourglass_empty</span>',
+      started: '<span class="material-symbols-outlined">cloud_sync</span>',
+      success: '<span class="material-symbols-outlined">check_circle</span>',
+      retry:   '<span class="material-symbols-outlined">restart_alt</span>',
+      fail:    '<span class="material-symbols-outlined">error</span>',
+    };
+    const rows = _ttsLog.slice(0, 60).map(e => {
+      const ts = new Date(e.time);
+      const stamp = `${String(ts.getHours()).padStart(2, "0")}:${String(ts.getMinutes()).padStart(2, "0")}:${String(ts.getSeconds()).padStart(2, "0")}`;
+      const ref = _ttsLogLabel(e.ref);
+      return `
+        <div class="audio-lib-log-row" data-type="${e.type}">
+          <span class="audio-lib-log-ic">${ICON[e.type] || ""}</span>
+          <span class="audio-lib-log-ts">${stamp}</span>
+          <span class="audio-lib-log-ref">${ref}</span>
+          <span class="audio-lib-log-msg">${e.message || ""}</span>
+        </div>`;
+    });
+    logEl.innerHTML = rows.join("");
+  }
+}
+
 async function _renderAudioLibrary(expandBook) {
+  _renderTtsActivity();
   const list = document.getElementById("audioLibList");
   const summary = document.getElementById("audioLibSummary");
   if (!list || !summary || !window.BIBLE_META) return;
