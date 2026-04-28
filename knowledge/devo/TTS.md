@@ -64,11 +64,25 @@ Cost: free-tier Cloud Run covers ~800 chapters/month for one user; Microsoft eat
 
 The 10-slot semaphore in `ttsSynthesize` caps in-flight count; cache hits are instant IDB reads. Spam-flipping 10 chapters queues ~300 calls that drain in the background. **3-day TTL** (`_TTS_MAX_AGE` in 01-core.js) keeps the IDB store from bloating; entries past 3d are purged on startup.
 
-IndexedDB schema (`devo-cache` DB, version 6):
+After firing the current chapter, `_ttsPrefetchChapter` schedules a 4-second-delayed call to `_ttsPrefetchSpecific(_nextChapterRef())` so the *next* chapter is also queued in the background. The delay lets the foreground (current) chapter win synth slots first; the next chapter then fills behind it. Result: when auto-advance fires (or the user manually flips), audio is already cached → silent transition.
+
+IndexedDB schema (`devo-cache` DB, version 7):
 ```js
 // _TTS_STORE = "tts"
-{ key: "en-US-BrianNeural|<text>", blob: Blob, timings: [{word, start, duration}, ...], time: <ms> }
+{
+  key: "en-US-BrianNeural|<text>",
+  blob: Blob,
+  timings: [{word, start, duration}, ...],
+  time: <ms>,
+  // Metadata threaded through ttsSynthesize → _saveTtsAudio so the Audio
+  // Library panel can group entries by book/chapter without parsing keys.
+  book: "GEN" | null,
+  chapter: "1" | null,
+  verseNum: "5" | null,
+}
 ```
+
+`_listTtsAudioEntries()` (01-core.js) returns `getAll()` of the store; the Audio Library uses it to compute per-book progress bars and per-chapter status.
 
 ## Word-level highlighting
 
@@ -102,8 +116,11 @@ Positioned `fixed; bottom: 18px; left: 50%`. Visibility gated entirely by `body.
 - ⏯ `#cmListenPauseBtn` → `pauseResumeTTS()` (icon flips between `pause` / `play_arrow` via `_cmListenBarUpdate()`)
 - ⏭ `#cmListenNextBtn` → `ttsNextVerse()`
 - 🔒 `#cmListenFollowBtn` → `cmTtsToggleAutoFollow()` (auto-scroll lock; persisted to `localStorage.devo.cmTtsAutoFollow`, default ON)
+- 🔁 `#cmListenAutoBtn` → `cmTtsToggleAutoAdvance()` (auto-advance to next chapter at end; persisted to `localStorage.devo.cmTtsAutoAdvance`, default OFF)
 - ✕ `#cmListenStopBtn` → `stopTTS()`
 - Verse counter `<cur>/<total>` rendered as three styled spans with `font-feature-settings: "frac" 0` so SF Mono doesn't auto-format `29/36` as a vulgar fraction.
+
+Auto-advance handler `_ttsCanvasAutoAdvance()` updates `bookEl`/`chapterEl` to next chapter ref, calls `loadPassage()`, then `window._cmReload()` to rerender canvas, then `playChapterInCanvas()` to resume. Wraps to next book; bails at end of Bible.
 
 ### Auto-scroll
 
@@ -153,6 +170,27 @@ Inside the canvas overlay, the user can switch passages without exiting:
 - **Tappable topbar title** — opens `window._openBookPicker()`. The book/chapter picker `.bc-sheet` was bumped to `z-index: 10200` so it sits above `.cm-overlay` (10050) and the listen bar (10080).
 
 After any passage swap, `loadBtn.onclick` wrapper calls `window._cmReload?.()` so the canvas paper re-renders the new chapter.
+
+## Audio Library panel
+
+Modal `#audioLibraryModal` rendered by `_renderAudioLibrary()` (03-tts.js). Opens via the canvas top-bar `library_music` icon (`#cmAudioLibBtn`). Lives at `z-index: 10300` — above the canvas overlay (10050), the listen bar (10080), and the book picker (10200) — so it's reachable from any state.
+
+Reads `_listTtsAudioEntries()` (01-core.js) — `getAll()` over `_TTS_STORE` — and groups by `entry.book` → `entry.chapter` → `Set(verseNum)`. Render shows:
+
+- Header summary: "X of Y chapters cached • 3-day cache"
+- One row per book (66 books, in BIBLE_META order):
+  - Book name + progress bar (cached chapters / total) + count badge
+  - Tap to expand — only one expanded at a time
+- Expanded book detail:
+  - Chapter grid (`grid-template-columns: repeat(auto-fill, minmax(34px, 1fr))`) — each cell is a clickable button
+    - `data-status="cached"` (full + >24h left): solid pink
+    - `data-status="expiring"` (full + ≤24h): soft pink wash
+    - `data-status="partial"` (some verses cached): pink tint
+    - `data-status="none"`: white/grey
+    - Hover scales 1.06; click navigates the app to that book/chapter and closes the modal
+  - **Download all chapters** button: iterates all chapters, awaits `_ttsPrefetchSpecific({ book, chapter })` for each. Already-cached verses are no-ops (cache check inside `ttsSynthesize`). Re-renders every 3 chapters so the progress bar climbs visibly.
+
+`_ttsPrefetchSpecific(ref)` reads `bibleData[BOOK_NAME][chapter]` directly (independent of which chapter is currently rendered), normalizes verse text the same way `loadPassage` does (so cache keys match), prepends the chapter title to v1, and queues each verse through `ttsSynthesize(speak, 5, meta)` with `meta = { book, chapter, verseNum }` so the IDB record has metadata for the panel.
 
 ## Constants
 

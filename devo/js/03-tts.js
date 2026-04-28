@@ -211,6 +211,41 @@ let _ttsInCanvas = false;
 const _CM_TTS_FOLLOW_KEY = "devo.cmTtsAutoFollow";
 let _cmTtsAutoFollow = localStorage.getItem(_CM_TTS_FOLLOW_KEY) !== "false";
 
+// Auto-advance: when chapter ends in canvas mode, automatically navigate to
+// the next chapter (or first chapter of next book) and resume playback.
+// Toggle via the repeat icon in the listen bar; persists in localStorage.
+const _CM_TTS_AUTO_KEY = "devo.cmTtsAutoAdvance";
+let _cmTtsAutoAdvance = localStorage.getItem(_CM_TTS_AUTO_KEY) === "true";
+
+function cmTtsToggleAutoAdvance() {
+  _cmTtsAutoAdvance = !_cmTtsAutoAdvance;
+  try { localStorage.setItem(_CM_TTS_AUTO_KEY, String(_cmTtsAutoAdvance)); } catch {}
+  _cmListenBarUpdate();
+}
+
+// End-of-chapter handler for canvas mode when auto-advance is on. Replicates
+// the prevChapterBtn/nextChapterBtn logic but kicks off canvas-mode playback
+// once the new passage is rendered. End-of-Bible just stops.
+async function _ttsCanvasAutoAdvance() {
+  const ref = _nextChapterRef();
+  if (!ref) return;
+  if (ref.book !== bookEl.value) {
+    bookEl.value = ref.book;
+    if (typeof loadChapters === "function") loadChapters();
+  }
+  chapterEl.value = ref.chapter;
+  if (verseEl) verseEl.value = "";
+  if (typeof loadPassage === "function") {
+    try { await loadPassage(); } catch {}
+  }
+  // Canvas reload happens via the loadBtn.onclick wrapper if applicable, but
+  // we're calling loadPassage directly. Re-render the canvas content too.
+  if (typeof window._cmReload === "function") window._cmReload();
+  // Brief tick so the new #output verses are mounted before queue rebuild.
+  await new Promise(r => setTimeout(r, 80));
+  if (typeof playChapterInCanvas === "function") playChapterInCanvas();
+}
+
 function _cmTtsScrollToCurrent() {
   if (!_ttsInCanvas || !_cmTtsAutoFollow) return;
   const item = ttsQueue[ttsIdx];
@@ -323,6 +358,13 @@ function _cmListenBarUpdate() {
       ? "Auto-scroll on — tap to scroll freely"
       : "Auto-scroll off — tap to follow current verse";
   }
+  const autoBtn = document.getElementById("cmListenAutoBtn");
+  if (autoBtn) {
+    autoBtn.classList.toggle("active", _cmTtsAutoAdvance);
+    autoBtn.title = _cmTtsAutoAdvance
+      ? "Auto-advance on — tap to stop at chapter end"
+      : "Auto-advance off — tap to keep going to next chapter";
+  }
 }
 
 function _edgeToClientShape(blob, timings) {
@@ -335,7 +377,7 @@ function _edgeToClientShape(blob, timings) {
   return { url: URL.createObjectURL(blob), timepoints, words: edgeWords };
 }
 
-async function ttsSynthesize(text, retries = 5) {
+async function ttsSynthesize(text, retries = 5, meta) {
   const cacheKey = `${TTS_VOICE.name}|${text}`;
 
   // Cache hit — instant return, no API call, no semaphore.
@@ -363,7 +405,7 @@ async function ttsSynthesize(text, retries = 5) {
         const bytes = Uint8Array.from(atob(audioBase64), c => c.charCodeAt(0));
         const blob = new Blob([bytes], { type: "audio/mpeg" });
         // Fire-and-forget IDB save; survives reload + offline replay for 3 days.
-        _saveTtsAudio(cacheKey, blob, timings);
+        _saveTtsAudio(cacheKey, blob, timings, meta);
         return _edgeToClientShape(blob, timings);
       } catch (err) {
         if (attempt < retries - 1) {
@@ -389,7 +431,8 @@ async function ttsSynthesize(text, retries = 5) {
 // background.
 function _ttsPrefetchChapter() {
   if (!window.__aiPayload?.versesText) return;
-  const bookName = BIBLE_META?.[bookEl?.value]?.name || "";
+  const bookKey = bookEl?.value;
+  const bookName = BIBLE_META?.[bookKey]?.name || "";
   const ch = chapterEl?.value || "";
   const prefix = (bookName && ch) ? `${bookName} ${ch}.` : "";
 
@@ -399,10 +442,202 @@ function _ttsPrefetchChapter() {
     // (e.g. "1. In the beginning..." → "In the beginning...").
     const text = lines[i].replace(/^\d[\d\-]*\.\s*/, "").trim();
     if (!text) continue;
+    const verseNumMatch = lines[i].match(/^(\d[\d\-]*)\.\s*/);
+    const verseNum = verseNumMatch ? verseNumMatch[1] : String(i + 1);
     const speak = (i === 0 && prefix) ? `${prefix} ${text}` : text;
+    const meta = { book: bookKey, chapter: ch, verseNum };
     // Cache check is inside ttsSynthesize, so already-cached chapters are a
     // no-op pair of IDB reads (one per verse).
-    ttsSynthesize(speak).catch(() => {});
+    ttsSynthesize(speak, 5, meta).catch(() => {});
+  }
+
+  // Eagerly prefetch the NEXT chapter too — settles a bit so the foreground
+  // (current) chapter wins synth slots first. Makes auto-advance + manual
+  // chapter-flip silent on cache miss.
+  setTimeout(() => _ttsPrefetchSpecific(_nextChapterRef()), 4000);
+}
+
+// Compute the next chapter reference (book/chapter) given the current
+// bookEl/chapterEl. Wraps to next book when chapter exhausts; returns null
+// at end of Bible.
+function _nextChapterRef() {
+  if (!bookEl?.value || !chapterEl?.value || !window.BIBLE_META) return null;
+  const bookKeys = Object.keys(BIBLE_META);
+  const bookIdx = bookKeys.indexOf(bookEl.value);
+  if (bookIdx < 0) return null;
+  const ch = parseInt(chapterEl.value);
+  const totalCh = BIBLE_META[bookEl.value].chapters.length;
+  if (ch < totalCh) return { book: bookEl.value, chapter: ch + 1 };
+  if (bookIdx < bookKeys.length - 1) return { book: bookKeys[bookIdx + 1], chapter: 1 };
+  return null; // end of Bible
+}
+
+// Prefetch every verse of an arbitrary chapter (book + chapter number). Used
+// by the eager next-chapter prefetch and by the Audio Library "Download book"
+// bulk action. Reads bibleData directly so it doesn't depend on the chapter
+// being currently rendered.
+// ── Audio Library panel ────────────────────────────────────────────────────
+// Per-book cache visibility + bulk download. Reads `_listTtsAudioEntries()`
+// (defined in 01-core.js), groups entries by book→chapter, and renders a
+// modal with progress bars and chapter status grids. "Download book" iterates
+// all chapters in a book and queues them through the existing 10-runner
+// semaphore — already-cached verses are no-ops.
+
+function openAudioLibrary() {
+  const modal = document.getElementById("audioLibraryModal");
+  if (!modal) return;
+  modal.hidden = false;
+  _renderAudioLibrary();
+}
+
+function closeAudioLibrary() {
+  const modal = document.getElementById("audioLibraryModal");
+  if (modal) modal.hidden = true;
+}
+
+async function _renderAudioLibrary() {
+  const list = document.getElementById("audioLibList");
+  const summary = document.getElementById("audioLibSummary");
+  if (!list || !summary || !window.BIBLE_META) return;
+
+  const entries = await _listTtsAudioEntries();
+  // Group: byBook[bookKey][chapterStr] = { verses: Set<verseNum>, oldest: ms }
+  const byBook = {};
+  for (const e of entries) {
+    if (!e.book || !e.chapter || !e.verseNum) continue;
+    const b = e.book, c = String(e.chapter);
+    if (!byBook[b]) byBook[b] = {};
+    if (!byBook[b][c]) byBook[b][c] = { verses: new Set(), oldest: Infinity };
+    byBook[b][c].verses.add(String(e.verseNum));
+    if (e.time < byBook[b][c].oldest) byBook[b][c].oldest = e.time;
+  }
+
+  const bookKeys = Object.keys(BIBLE_META);
+  let totalChapters = 0;
+  let cachedChapters = 0;
+  for (const b of bookKeys) {
+    totalChapters += BIBLE_META[b].chapters.length;
+    const m = byBook[b] || {};
+    cachedChapters += Object.keys(m).length;
+  }
+  summary.textContent = `${cachedChapters} of ${totalChapters} chapters cached • 3-day cache`;
+
+  const TTL_MS = 3 * 24 * 60 * 60 * 1000;
+  list.innerHTML = bookKeys.map(b => {
+    const meta = BIBLE_META[b];
+    const m = byBook[b] || {};
+    const chCount = meta.chapters.length;
+    const cached = Object.keys(m).length;
+    const pct = chCount ? Math.round((cached / chCount) * 100) : 0;
+    const cells = [];
+    for (let i = 1; i <= chCount; i++) {
+      const c = String(i);
+      const cd = m[c];
+      const expectedVerses = meta.chapters[i - 1];
+      let status = "none";
+      let title = `${meta.name} ${c} — not cached`;
+      if (cd) {
+        const full = cd.verses.size >= expectedVerses;
+        const expiresAt = cd.oldest + TTL_MS;
+        const hoursLeft = Math.max(0, Math.round((expiresAt - Date.now()) / 3600000));
+        status = full ? (hoursLeft <= 24 ? "expiring" : "cached") : "partial";
+        title = `${meta.name} ${c} — ${cd.verses.size}/${expectedVerses} verses, ~${hoursLeft}h left`;
+      }
+      cells.push(`<button class="audio-lib-ch" data-status="${status}" data-book="${b}" data-ch="${c}" title="${title}">${c}</button>`);
+    }
+    return `
+      <div class="audio-lib-book" data-book="${b}">
+        <button class="audio-lib-book-row" type="button" data-toggle-book="${b}">
+          <div class="audio-lib-book-name">${meta.name}</div>
+          <div class="audio-lib-book-prog">
+            <div class="audio-lib-book-bar"><div class="audio-lib-book-bar-fill" style="width:${pct}%"></div></div>
+            <div class="audio-lib-book-count">${cached}/${chCount}</div>
+          </div>
+        </button>
+        <div class="audio-lib-book-detail" hidden>
+          <div class="audio-lib-chapters">${cells.join("")}</div>
+          <button class="audio-lib-book-dl" type="button" data-dl-book="${b}">
+            <span class="material-symbols-outlined">download</span>
+            Download all chapters
+          </button>
+        </div>
+      </div>
+    `;
+  }).join("");
+
+  // Toggle book detail
+  list.querySelectorAll("[data-toggle-book]").forEach(btn => {
+    btn.addEventListener("click", () => {
+      const detail = btn.parentElement.querySelector(".audio-lib-book-detail");
+      if (!detail) return;
+      const willOpen = detail.hidden;
+      // Close other open ones for cleaner scrolling.
+      list.querySelectorAll(".audio-lib-book-detail").forEach(d => d.hidden = true);
+      detail.hidden = !willOpen;
+    });
+  });
+
+  // Per-book bulk download. Awaits each chapter's prefetch firing, but each
+  // call is itself fire-and-forget across verses, so this just ensures we
+  // queue chapter-by-chapter rather than blasting every chapter at once.
+  list.querySelectorAll("[data-dl-book]").forEach(btn => {
+    btn.addEventListener("click", async () => {
+      const book = btn.dataset.dlBook;
+      const meta = BIBLE_META[book];
+      if (!meta) return;
+      btn.disabled = true;
+      const oldHTML = btn.innerHTML;
+      btn.innerHTML = `<span class="material-symbols-outlined">hourglass_top</span>Downloading…`;
+      for (let i = 1; i <= meta.chapters.length; i++) {
+        await _ttsPrefetchSpecific({ book, chapter: i });
+        // Periodic re-render so the progress bar climbs visibly.
+        if (i % 3 === 0 || i === meta.chapters.length) await _renderAudioLibrary();
+      }
+      btn.innerHTML = oldHTML;
+      btn.disabled = false;
+    });
+  });
+
+  // Tap a chapter cell → navigate there + close modal.
+  list.querySelectorAll(".audio-lib-ch").forEach(btn => {
+    btn.addEventListener("click", () => {
+      const book = btn.dataset.book;
+      const ch = btn.dataset.ch;
+      if (!bookEl || !chapterEl) return;
+      if (bookEl.value !== book) {
+        bookEl.value = book;
+        if (typeof loadChapters === "function") loadChapters();
+      }
+      chapterEl.value = ch;
+      if (verseEl) verseEl.value = "";
+      closeAudioLibrary();
+      const loadBtn = document.getElementById("load");
+      if (loadBtn) loadBtn.click();
+      else if (typeof loadPassage === "function") loadPassage();
+    });
+  });
+}
+
+async function _ttsPrefetchSpecific(ref) {
+  if (!ref) return;
+  if (!bibleData && typeof fetchBibleData === "function") {
+    try { await fetchBibleData(); } catch {}
+  }
+  const bookName = BIBLE_META?.[ref.book]?.name?.toUpperCase();
+  const chapterData = bibleData?.[bookName]?.[ref.chapter];
+  if (!chapterData) return;
+  const titlePrefix = `${BIBLE_META[ref.book].name} ${ref.chapter}.`;
+  const verseEntries = Object.entries(chapterData)
+    .sort((a, b) => parseInt(a[0]) - parseInt(b[0]));
+  for (let i = 0; i < verseEntries.length; i++) {
+    const [verseNum, raw] = verseEntries[i];
+    const text = raw
+      .trim()
+      .replace(/([.,!?’])(?=[a-zA-Z0-9])/g, "$1 ")
+      .replace(/\s+/g, " ");
+    const speak = i === 0 ? `${titlePrefix} ${text}` : text;
+    const meta = { book: ref.book, chapter: String(ref.chapter), verseNum };
+    ttsSynthesize(speak, 5, meta).catch(() => {});
   }
 }
 
@@ -582,6 +817,13 @@ async function ttsPlayAt(index, gen) {
   document.getElementById("output")?.classList.add("tts-mode");
   ttsMark(item.el);
   ttsImmersiveUpdate(index);
+  // Visual state must update IMMEDIATELY on verse change — before awaiting
+  // synth / audio.play(). Otherwise on a verse-number jump there's a window
+  // where the old active verse keeps its class (= still bright) while the
+  // new one hasn't been marked yet → "the dim doesn't cover everything".
+  _cmMarkActiveVerse(item.verseNum);
+  _cmListenBarUpdate();
+  _cmTtsScrollToCurrent();
   const immPauseBtn = document.getElementById("ttsImmPauseBtn");
   const immLoadBar = document.getElementById("ttsImmLoadBar");
   if (!item.url) {
@@ -620,9 +862,6 @@ async function ttsPlayAt(index, gen) {
     _startWordHighlight(ttsAudio, item);
     ttsSetStatus(`${ttsIcon("graphic_eq")} ${item.verseNum} / ${ttsQueue.length}`);
     ttsNavUpdate();
-    _cmListenBarUpdate();
-    _cmTtsScrollToCurrent();
-    _cmMarkActiveVerse(item.verseNum);
     _updateMediaSession(item);
 
     ttsAudio.onended = () => {
@@ -817,10 +1056,11 @@ function ttsFinish() {
   player.classList.remove("tts-buffering", "tts-ready");
   const bar = document.getElementById("ttsProgressBar");
   if (bar) bar.style.width = "0%";
-  // Canvas mode: just stop. The immersive continue-prompt would cover the
-  // canvas, defeating the point of in-place playback.
+  // Canvas mode: short-circuit the immersive continue-prompt (would cover
+  // the canvas). If auto-advance is on, jump to next chapter and resume.
   if (wasCanvas) {
     ttsQueue = []; ttsIdx = -1;
+    if (_cmTtsAutoAdvance) _ttsCanvasAutoAdvance();
     return;
   }
   ttsShowContinuePrompt();

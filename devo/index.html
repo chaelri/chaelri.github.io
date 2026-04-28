@@ -635,6 +635,9 @@
           <button class="cm-icon-btn" id="cmRedoBtn" title="Redo" disabled>
             <span class="material-symbols-outlined">redo</span>
           </button>
+          <button class="cm-icon-btn" id="cmAudioLibBtn" title="Audio Library" aria-label="Audio Library">
+            <span class="material-symbols-outlined">library_music</span>
+          </button>
         </div>
       </div>
 
@@ -723,6 +726,9 @@
         <button id="cmListenFollowBtn" class="cm-listen-follow" type="button" aria-label="Auto-scroll" title="Auto-scroll to current verse">
           <span class="material-symbols-outlined">lock</span>
         </button>
+        <button id="cmListenAutoBtn" class="cm-listen-auto" type="button" aria-label="Auto-advance" title="Auto-advance to next chapter">
+          <span class="material-symbols-outlined">repeat</span>
+        </button>
         <button id="cmListenStopBtn" class="cm-listen-stop" type="button" aria-label="Stop" title="Stop">
           <span class="material-symbols-outlined">close</span>
         </button>
@@ -774,6 +780,24 @@
             </button>
           </div>
         </div>
+      </div>
+    </div>
+
+    <!-- Audio Library — per-book cache visibility + bulk download. Sits
+         outside #canvasModeOverlay so its z-index (10300) isn't bounded by
+         the overlay's stacking context. Reachable from the canvas top bar
+         via #cmAudioLibBtn. -->
+    <div class="audio-lib-modal" id="audioLibraryModal" hidden>
+      <div class="audio-lib-backdrop" data-close-lib></div>
+      <div class="audio-lib-panel">
+        <div class="audio-lib-header">
+          <div class="audio-lib-title">Audio Library</div>
+          <button class="audio-lib-close" type="button" data-close-lib aria-label="Close">
+            <span class="material-symbols-outlined">close</span>
+          </button>
+        </div>
+        <div class="audio-lib-summary" id="audioLibSummary">Loading…</div>
+        <div class="audio-lib-list" id="audioLibList"></div>
       </div>
     </div>
 

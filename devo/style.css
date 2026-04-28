@@ -9113,7 +9113,186 @@ body.tts-canvas-follow #cmPassage .cm-verse {
   transition: opacity 0.35s ease;
 }
 body.tts-canvas-follow #cmPassage .cm-verse:not(.cm-verse-tts-active) {
-  opacity: 0.35;
+  opacity: 0.35 !important;
+}
+
+/* ── Audio Library modal ───────────────────────────────────────────────────
+   Per-book cache visibility. Sits at z-index 10300 — above .cm-overlay
+   (10050), the listen bar (10080), and the book picker (10200) so it can
+   open while any of those are visible. */
+.audio-lib-modal {
+  position: fixed;
+  inset: 0;
+  z-index: 10300;
+  display: flex;
+  align-items: flex-end;
+  justify-content: center;
+}
+.audio-lib-modal[hidden] { display: none; }
+.audio-lib-backdrop {
+  position: absolute;
+  inset: 0;
+  background: rgba(20, 22, 38, 0.55);
+  backdrop-filter: blur(4px);
+  cursor: pointer;
+}
+.audio-lib-panel {
+  position: relative;
+  width: min(640px, 100%);
+  max-height: 88vh;
+  background: #fbfaf6;
+  border-radius: 18px 18px 0 0;
+  box-shadow: 0 -10px 40px rgba(0, 0, 0, 0.25);
+  display: flex;
+  flex-direction: column;
+  overflow: hidden;
+  animation: audioLibIn 0.22s ease;
+}
+@keyframes audioLibIn {
+  from { transform: translateY(40px); opacity: 0; }
+  to   { transform: translateY(0);    opacity: 1; }
+}
+.audio-lib-header {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 12px;
+  padding: 16px 18px 12px;
+  border-bottom: 1px solid rgba(0,0,0,0.06);
+}
+.audio-lib-title {
+  font: 600 17px/1.2 inherit;
+  color: #1a1a2e;
+}
+.audio-lib-close {
+  width: 36px !important;
+  height: 36px !important;
+  border-radius: 50%;
+  border: none;
+  background: rgba(0,0,0,0.05) !important;
+  color: rgba(0,0,0,0.6) !important;
+  cursor: pointer;
+  display: inline-flex !important;
+  align-items: center;
+  justify-content: center;
+  flex: 0 0 auto !important;
+  padding: 0 !important;
+}
+.audio-lib-close:hover { background: rgba(0,0,0,0.10) !important; }
+.audio-lib-close .material-symbols-outlined { font-size: 20px; }
+
+.audio-lib-summary {
+  padding: 10px 18px;
+  font-size: 13px;
+  color: rgba(0,0,0,0.55);
+  border-bottom: 1px solid rgba(0,0,0,0.05);
+}
+.audio-lib-list {
+  flex: 1;
+  overflow-y: auto;
+  padding: 4px 0 16px;
+}
+.audio-lib-book {
+  border-bottom: 1px solid rgba(0,0,0,0.05);
+}
+.audio-lib-book-row {
+  width: 100% !important;
+  display: flex !important;
+  align-items: center;
+  gap: 14px;
+  padding: 12px 18px !important;
+  background: transparent !important;
+  border: none;
+  cursor: pointer;
+  text-align: left;
+  flex: 1 1 auto !important;
+  transition: background 0.12s ease;
+}
+.audio-lib-book-row:hover { background: rgba(0,0,0,0.03) !important; }
+.audio-lib-book-name {
+  flex: 1;
+  font: 600 14px/1.2 inherit;
+  color: #1a1a2e;
+}
+.audio-lib-book-prog {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  flex: 0 0 auto;
+}
+.audio-lib-book-bar {
+  width: 70px;
+  height: 6px;
+  background: rgba(0,0,0,0.08);
+  border-radius: 3px;
+  overflow: hidden;
+}
+.audio-lib-book-bar-fill {
+  height: 100%;
+  background: #be185d;
+  border-radius: 3px;
+  transition: width 0.3s ease;
+}
+.audio-lib-book-count {
+  font: 500 12px/1 ui-monospace, "SF Mono", Menlo, monospace;
+  color: rgba(0,0,0,0.55);
+  min-width: 42px;
+  text-align: right;
+}
+
+.audio-lib-book-detail {
+  padding: 0 18px 16px;
+  background: rgba(0,0,0,0.02);
+}
+.audio-lib-chapters {
+  display: grid;
+  grid-template-columns: repeat(auto-fill, minmax(34px, 1fr));
+  gap: 6px;
+  padding: 12px 0;
+}
+.audio-lib-ch {
+  aspect-ratio: 1;
+  border-radius: 6px;
+  border: 1px solid rgba(0,0,0,0.08);
+  background: rgba(255,255,255,0.6) !important;
+  font: 600 11px/1 ui-monospace, "SF Mono", Menlo, monospace;
+  color: rgba(0,0,0,0.55) !important;
+  cursor: pointer;
+  flex: 0 0 auto !important;
+  padding: 0 !important;
+  display: inline-flex !important;
+  align-items: center;
+  justify-content: center;
+  transition: transform 0.12s ease;
+}
+.audio-lib-ch:hover { transform: scale(1.06); }
+.audio-lib-ch[data-status="cached"]   { background: #be185d !important; color: #fff !important; border-color: #be185d; }
+.audio-lib-ch[data-status="expiring"] { background: #f9a8d4 !important; color: #831843 !important; border-color: #f9a8d4; }
+.audio-lib-ch[data-status="partial"]  { background: rgba(190,24,93,0.18) !important; color: #be185d !important; border-color: rgba(190,24,93,0.3); }
+
+.audio-lib-book-dl {
+  width: 100%;
+  display: inline-flex !important;
+  align-items: center;
+  justify-content: center;
+  gap: 6px;
+  padding: 9px 12px !important;
+  border-radius: 10px;
+  border: 1px solid rgba(190,24,93,0.3);
+  background: rgba(190,24,93,0.08) !important;
+  color: #be185d !important;
+  font: 600 13px/1 inherit;
+  cursor: pointer;
+  flex: 1 1 auto !important;
+  transition: background 0.12s ease;
+}
+.audio-lib-book-dl:hover:not(:disabled) { background: rgba(190,24,93,0.14) !important; }
+.audio-lib-book-dl:disabled { opacity: 0.6; cursor: not-allowed; }
+.audio-lib-book-dl .material-symbols-outlined { font-size: 18px; }
+
+@media (min-width: 768px) {
+  .audio-lib-modal { align-items: center; }
+  .audio-lib-panel { border-radius: 18px; max-height: 80vh; }
 }
 
 /* ── Canvas-mode Listen mini-player (sticky bottom-center) ───────────────────
@@ -9167,10 +9346,12 @@ body.tts-canvas-active .cm-listen-bar {
 }
 .cm-listen-bar .cm-listen-pause:hover { background: #db2777 !important; }
 .cm-listen-bar .cm-listen-stop { color: rgba(255, 255, 255, 0.7) !important; }
-.cm-listen-bar .cm-listen-follow {
+.cm-listen-bar .cm-listen-follow,
+.cm-listen-bar .cm-listen-auto {
   color: rgba(255, 255, 255, 0.5) !important;
 }
-.cm-listen-bar .cm-listen-follow.active {
+.cm-listen-bar .cm-listen-follow.active,
+.cm-listen-bar .cm-listen-auto.active {
   color: #f9a8d4 !important;
   background: rgba(190, 24, 93, 0.18) !important;
 }

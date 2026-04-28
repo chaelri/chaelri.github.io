@@ -105,8 +105,9 @@ function _typeOut(text, onChunk) {
 /* ---------- SHARED: Generate Image via Proxy + IndexedDB Cache ---------- */
 const _imageCache = {};
 const _IMG_DB_NAME = "devo-cache";
-const _IMG_DB_VER = 6; // bumped to force tts-store recreation for users that
-                       // ran the v5 build that briefly dropped the tts store.
+const _IMG_DB_VER = 7; // tts entries now carry { book, chapter, verseNum }
+                       // metadata so the Audio Library panel can group by
+                       // book/chapter without parsing cache keys.
 const _IMG_STORE = "images";
 const _STORY_STORE = "stories";
 const _TTS_STORE = "tts";
@@ -213,13 +214,38 @@ async function _getTtsAudio(key) {
   } catch { return null; }
 }
 
-async function _saveTtsAudio(key, blob, timings) {
+async function _saveTtsAudio(key, blob, timings, meta) {
   try {
     const db = await _openImageDB();
     if (!db.objectStoreNames.contains(_TTS_STORE)) return;
     const tx = db.transaction(_TTS_STORE, "readwrite");
-    tx.objectStore(_TTS_STORE).put({ key, blob, timings: timings || [], time: Date.now() });
+    tx.objectStore(_TTS_STORE).put({
+      key,
+      blob,
+      timings: timings || [],
+      time: Date.now(),
+      // meta = { book, chapter, verseNum } — used by the Audio Library panel
+      // to enumerate cached chapters per book without re-parsing cache keys.
+      book: meta?.book ?? null,
+      chapter: meta?.chapter ?? null,
+      verseNum: meta?.verseNum ?? null,
+    });
   } catch {}
+}
+
+// Enumerate every TTS cache entry. Used by the Audio Library panel to compute
+// per-book/per-chapter cache progress + expiry. Returns the raw IDB records.
+async function _listTtsAudioEntries() {
+  try {
+    const db = await _openImageDB();
+    if (!db.objectStoreNames.contains(_TTS_STORE)) return [];
+    return new Promise((resolve) => {
+      const tx = db.transaction(_TTS_STORE, "readonly");
+      const req = tx.objectStore(_TTS_STORE).getAll();
+      req.onsuccess = () => resolve(req.result || []);
+      req.onerror = () => resolve([]);
+    });
+  } catch { return []; }
 }
 
 // Purge expired entries on startup
