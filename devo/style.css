@@ -8853,7 +8853,12 @@ button#storyBtn { background: unset; }
   color: rgba(0,0,0,0.4);
   font-weight: 400;
 }
-.cm-topbar-actions { display: flex; gap: 6px; flex: 0 0 auto; }
+/* margin-left: auto pushes the whole right-side action cluster to the far
+   end of the topbar, no matter how short or long the .cm-title is. Since
+   .cm-title was set to flex: 0 0 auto (fit-content), without this rule the
+   actions would sit immediately next to the title, leaving empty space on
+   the right. */
+.cm-topbar-actions { display: flex; gap: 6px; flex: 0 0 auto; margin-left: auto; align-items: center; }
 
 /* Display passage title row: ‹ Leviticus 11 ›. Lives inside the paper, so
    the chevrons are visible while reading without taking topbar real-estate.
