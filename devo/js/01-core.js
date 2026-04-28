@@ -113,9 +113,13 @@ const _STORY_STORE = "stories";
 const _TTS_STORE = "tts";
 const _IMG_MAX_AGE = 7 * 24 * 60 * 60 * 1000; // 7 days
 const _STORY_MAX_AGE = 7 * 24 * 60 * 60 * 1000; // 7 days
-const _TTS_MAX_AGE = 3 * 24 * 60 * 60 * 1000; // 3 days — short TTL so the DB
-                                              // doesn't bloat from chapter-flipping;
-                                              // a re-listen within 3 days is instant.
+// TTS audio is kept INDEFINITELY — once a verse is downloaded for this device
+// it stays cached. Synth cost is on Microsoft's free Read Aloud endpoint, not
+// ours, so the prior 3-day TTL was just churn for the user (re-downloading
+// the same chapters every few days). IndexedDB has effectively unlimited
+// per-origin quota on modern browsers; the user can clear it manually if
+// they ever need to.
+const _TTS_MAX_AGE = Infinity;
 
 function _openImageDB() {
   return new Promise((resolve, reject) => {
@@ -205,14 +209,10 @@ async function _getTtsAudio(key) {
         req.onsuccess = () => {
           const entry = req.result;
           if (entry && Date.now() - entry.time < _TTS_MAX_AGE) {
-            // Pass through metadata so callers can detect legacy entries
-            // (saved before the v7 metadata schema) and backfill on cache hit.
             resolve({
               blob: entry.blob,
               timings: entry.timings || [],
-              book: entry.book ?? null,
-              chapter: entry.chapter ?? null,
-              verseNum: entry.verseNum ?? null,
+              metas: _entryMetas(entry),
             });
           } else resolve(null);
         };
@@ -222,22 +222,86 @@ async function _getTtsAudio(key) {
   } catch { return null; }
 }
 
+// Many Bible verses share IDENTICAL text (e.g. "Now the Lord spoke to Moses,
+// saying," appears at Exo 6:10, 14:1, 31:1, 31:12 and dozens of other places).
+// The cache key is voice|text — same text → ONE IDB entry. Originally we
+// stored a single { book, chapter, verseNum } on the entry, so each new save
+// for a different verse with the same text overwrote the previous verse's
+// meta. The Audio Library counter then "lost" the previous verse — that's
+// the "biglang nawawala" / "nirereplace-an" bug. Fix: track metas as an array
+// so all verses that share the audio keep their entry in the metadata index.
+function _entryMetas(entry) {
+  if (!entry) return [];
+  if (Array.isArray(entry.metas)) return entry.metas;
+  // Legacy entry shape: top-level book/chapter/verseNum. Promote to a single-
+  // element metas array so callers only have to handle one shape.
+  if (entry.book || entry.verseNum) {
+    return [{ book: entry.book ?? null, chapter: entry.chapter ?? null, verseNum: entry.verseNum ?? null }];
+  }
+  return [];
+}
+
+function _metasInclude(metas, m) {
+  if (!m || !m.verseNum) return false;
+  return metas.some(x =>
+    x.book === m.book && String(x.chapter) === String(m.chapter) && String(x.verseNum) === String(m.verseNum)
+  );
+}
+
 async function _saveTtsAudio(key, blob, timings, meta) {
   try {
     const db = await _openImageDB();
     if (!db.objectStoreNames.contains(_TTS_STORE)) return;
+
+    // Single readwrite transaction: read existing entry, merge meta, put back.
+    // Doing both in one tx avoids the read-then-write race two transactions
+    // would expose. If two synth calls for the same cache key both finish at
+    // ~the same time, IDB serializes the readwrite transactions so each
+    // append sees the previous append's metas.
     const tx = db.transaction(_TTS_STORE, "readwrite");
-    tx.objectStore(_TTS_STORE).put({
+    const store = tx.objectStore(_TTS_STORE);
+    const existing = await new Promise((resolve) => {
+      const req = store.get(key);
+      req.onsuccess = () => resolve(req.result || null);
+      req.onerror = () => resolve(null);
+    });
+
+    const existingMetas = _entryMetas(existing);
+    const metas = existingMetas.slice();
+    if (meta && meta.verseNum && !_metasInclude(metas, meta)) {
+      metas.push({
+        book: meta.book ?? null,
+        chapter: meta.chapter != null ? String(meta.chapter) : null,
+        verseNum: String(meta.verseNum),
+      });
+    }
+
+    store.put({
       key,
       blob,
-      timings: timings || [],
+      timings: timings || (existing?.timings ?? []),
       time: Date.now(),
-      // meta = { book, chapter, verseNum } — used by the Audio Library panel
-      // to enumerate cached chapters per book without re-parsing cache keys.
-      book: meta?.book ?? null,
-      chapter: meta?.chapter ?? null,
-      verseNum: meta?.verseNum ?? null,
+      metas,
+      // Top-level fields kept for legacy code paths that may still read them
+      // (and so an entry inspected in DevTools Application tab still shows
+      // a "primary" verse). They mirror metas[0]; the metas array is truth.
+      book: metas[0]?.book ?? null,
+      chapter: metas[0]?.chapter ?? null,
+      verseNum: metas[0]?.verseNum ?? null,
     });
+  } catch {}
+}
+
+// Delete a specific TTS cache entry. Used by the Audio Library "stuck verse"
+// recovery path — when a verseNum has been missing from the metadata index
+// for many poll rounds, we suspect an orphan entry under a stale or no-meta
+// key. Deleting + re-synth guarantees a fresh entry with current meta.
+async function _deleteTtsAudio(key) {
+  try {
+    const db = await _openImageDB();
+    if (!db.objectStoreNames.contains(_TTS_STORE)) return;
+    const tx = db.transaction(_TTS_STORE, "readwrite");
+    tx.objectStore(_TTS_STORE).delete(key);
   } catch {}
 }
 

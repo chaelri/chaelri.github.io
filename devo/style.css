@@ -8817,11 +8817,14 @@ button#storyBtn { background: unset; }
 }
 /* Topbar title sits left, next to the back button. Tap to open the book
    picker. Caret hint after the text says "this is interactive". The
-   `flex: 1 1 auto !important` defeats the global `button { flex: 0
-   !important }` rule documented in CLAUDE.md memory — without it the
-   button shrinks to 0 width and shows nothing. */
+   `flex: 0 0 auto !important` is the override of the global `button { flex:
+   0 !important }` rule documented in CLAUDE.md memory — we want the click
+   target to fit the text + caret only (not stretch across the topbar).
+   Wrap content forced via inline-flex so trailing whitespace from the
+   ::after caret stays inside the same hover rect. */
 .cm-title {
-  flex: 1 1 auto !important;
+  flex: 0 0 auto !important;
+  max-width: 100%;
   min-width: 0;
   font: 600 15px/1.2 inherit;
   color: #1a1a2e;
@@ -8836,6 +8839,9 @@ button#storyBtn { background: unset; }
   border-radius: 8px;
   cursor: pointer;
   transition: background 0.15s ease;
+  display: inline-flex !important;
+  align-items: center;
+  width: auto !important;
 }
 .cm-title:hover { background: rgba(190,24,93,0.08) !important; }
 .cm-title::after {
@@ -9112,7 +9118,11 @@ body.tts-canvas-active .cm-verse-num {
 body.tts-canvas-follow #cmPassage .cm-verse {
   transition: opacity 0.35s ease;
 }
-body.tts-canvas-follow #cmPassage .cm-verse:not(.cm-verse-tts-active) {
+/* Dim the verse text but keep verse-num at full opacity so the tap-to-jump
+   affordance reads as obviously clickable even when the verse itself is
+   muted by auto-follow. Targets every direct/descendant child EXCEPT the
+   number — using :not() on the verse itself would dim everything inside it. */
+body.tts-canvas-follow #cmPassage .cm-verse:not(.cm-verse-tts-active) > *:not(.cm-verse-num) {
   opacity: 0.35 !important;
 }
 
@@ -9189,12 +9199,13 @@ body.tts-canvas-follow #cmPassage .cm-verse:not(.cm-verse-tts-active) {
 }
 
 /* Activity panel — collapsible <details> showing live queue stats + a
-   recent-events log. Dark theme inside so the streaming log feels like a
-   terminal/dev console embedded in the modal. */
+   recent-events log. Light theme matching the modal body; uses a faint
+   pink wash so the section is visually distinct without breaking from the
+   warm cream surface around it. */
 .audio-lib-activity {
-  background: rgba(20, 22, 38, 0.96);
-  color: #e2e8f0;
-  border-bottom: 1px solid rgba(0,0,0,0.05);
+  background: rgba(190, 24, 93, 0.04);
+  color: #1a1a2e;
+  border-bottom: 1px solid rgba(0,0,0,0.06);
 }
 .audio-lib-activity-summary {
   list-style: none;
@@ -9202,60 +9213,50 @@ body.tts-canvas-follow #cmPassage .cm-verse:not(.cm-verse-tts-active) {
   display: flex;
   align-items: center;
   gap: 10px;
-  padding: 10px 18px;
+  padding: 12px 18px;
   user-select: none;
 }
 .audio-lib-activity-summary::-webkit-details-marker { display: none; }
 .audio-lib-activity-summary::before {
   content: "›";
   font-size: 18px;
-  color: rgba(255,255,255,0.55);
+  color: rgba(0,0,0,0.4);
   transition: transform 0.18s ease;
   width: 12px;
 }
 .audio-lib-activity[open] .audio-lib-activity-summary::before { transform: rotate(90deg); }
 .audio-lib-activity-summary .material-symbols-outlined {
   font-size: 18px;
-  color: rgba(255,255,255,0.7);
+  color: #be185d;
 }
 .audio-lib-activity-label {
   font: 600 13px/1 inherit;
-  color: rgba(255,255,255,0.85);
+  color: #1a1a2e;
   letter-spacing: 0.02em;
 }
 .audio-lib-queue {
   margin-left: auto;
   font: 500 11px/1 ui-monospace, "SF Mono", Menlo, monospace;
   font-feature-settings: "frac" 0;
-  color: rgba(255,255,255,0.55);
-  padding: 3px 8px;
+  color: rgba(0,0,0,0.5);
+  padding: 4px 9px;
   border-radius: 999px;
-  background: rgba(255,255,255,0.06);
+  background: rgba(0,0,0,0.05);
 }
 .audio-lib-queue.audio-lib-queue-busy {
   color: #fff;
   background: #be185d;
+  box-shadow: 0 1px 4px rgba(190, 24, 93, 0.25);
 }
-.audio-lib-log-filter {
-  display: flex;
-  align-items: center;
-  gap: 6px;
-  padding: 6px 18px 4px;
-  font: 500 11px/1 ui-monospace, "SF Mono", Menlo, monospace;
-  color: rgba(255, 255, 255, 0.55);
-  cursor: pointer;
-}
-.audio-lib-log-filter input { accent-color: #be185d; cursor: pointer; }
-
 .audio-lib-log {
   max-height: 220px;
   overflow-y: auto;
-  padding: 6px 12px 12px;
+  padding: 4px 12px 12px;
   font: 500 11px/1.4 ui-monospace, "SF Mono", Menlo, monospace;
   font-feature-settings: "frac" 0;
-  color: rgba(255,255,255,0.6);
+  color: rgba(0,0,0,0.65);
 }
-.audio-lib-log:empty::before { content: "No activity yet."; opacity: 0.5; }
+.audio-lib-log:empty::before { content: "No activity yet."; color: rgba(0,0,0,0.4); }
 .audio-lib-log-row {
   display: grid;
   grid-template-columns: 18px 60px 1fr auto;
@@ -9265,16 +9266,16 @@ body.tts-canvas-follow #cmPassage .cm-verse:not(.cm-verse-tts-active) {
   border-radius: 4px;
 }
 .audio-lib-log-row + .audio-lib-log-row { margin-top: 1px; }
-.audio-lib-log-row[data-type="hit"]     { color: rgba(255,255,255,0.45); }
-.audio-lib-log-row[data-type="queued"]  { color: rgba(255,255,255,0.55); }
-.audio-lib-log-row[data-type="started"] { color: #93c5fd; }
-.audio-lib-log-row[data-type="success"] { color: #86efac; }
-.audio-lib-log-row[data-type="retry"]   { color: #fbbf24; background: rgba(251,191,36,0.07); }
-.audio-lib-log-row[data-type="fail"]    { color: #fca5a5; background: rgba(248,113,113,0.10); }
+.audio-lib-log-row[data-type="hit"]     { color: rgba(0,0,0,0.4); }
+.audio-lib-log-row[data-type="queued"]  { color: rgba(0,0,0,0.55); }
+.audio-lib-log-row[data-type="started"] { color: #be185d; }
+.audio-lib-log-row[data-type="success"] { color: #15803d; }
+.audio-lib-log-row[data-type="retry"]   { color: #b45309; background: rgba(245, 158, 11, 0.08); }
+.audio-lib-log-row[data-type="fail"]    { color: #b91c1c; background: rgba(220, 38, 38, 0.08); }
 .audio-lib-log-ic .material-symbols-outlined { font-size: 14px; vertical-align: middle; }
-.audio-lib-log-ts { color: rgba(255,255,255,0.35); }
+.audio-lib-log-ts { color: rgba(0,0,0,0.35); }
 .audio-lib-log-ref { font-weight: 600; }
-.audio-lib-log-msg { color: rgba(255,255,255,0.5); font-size: 10.5px; text-align: right; }
+.audio-lib-log-msg { color: rgba(0,0,0,0.45); font-size: 10.5px; text-align: right; }
 .audio-lib-list {
   flex: 1;
   overflow-y: auto;
@@ -9355,7 +9356,6 @@ body.tts-canvas-follow #cmPassage .cm-verse:not(.cm-verse-tts-active) {
 }
 .audio-lib-ch:hover { transform: scale(1.06); }
 .audio-lib-ch[data-status="cached"]   { background: #be185d !important; color: #fff !important; border-color: #be185d; }
-.audio-lib-ch[data-status="expiring"] { background: #f9a8d4 !important; color: #831843 !important; border-color: #f9a8d4; }
 .audio-lib-ch[data-status="partial"]  { background: rgba(190,24,93,0.18) !important; color: #be185d !important; border-color: rgba(190,24,93,0.3); }
 
 .audio-lib-book-dl {

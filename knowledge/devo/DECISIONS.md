@@ -308,3 +308,59 @@ The original monolithic `script.js` benefitted from whole-file function hoisting
 - Per-word soft pink wash (`.cm-word-tts-active`) stays as the read-along position marker.
 
 **Trade-off**: Loses the "decorative" feel of the dotted-border. Gain is a calmer, more read-friendly emphasis that respects column alignment.
+
+---
+
+## 20. Multi-meta TTS cache + permanent storage + dedupe (2026-04-28, evening session)
+
+**Decision**: Three coupled changes to the TTS audio cache to fix a long tail of "biglang nawawala" / "nirereplace-an" / queue-blowup bugs Charlie kept hitting in the Audio Library bulk-download flow.
+
+### 20a. Multi-meta entry shape
+
+The Bible has many verses with **identical text** — e.g. "Now the Lord spoke to Moses, saying," at Exodus 6:10 / 14:1 / 31:1 / 31:12, plus dozens more. Cache key was (and still is) `voice|text`, so all four hit one IDB record. Old schema stored `{book, chapter, verseNum}` at the top level — every save **overwrote** the previous verse's meta. Saving 31:12 made 6:10 disappear from the Audio Library counter; chapters that were 100% cached would flip back to "partial" the moment a duplicate-text verse from another chapter saved.
+
+Fix: store metas as an **array** on the entry (`metas: [{book, chapter, verseNum}, …]`). `_saveTtsAudio` now does the read+merge+write inside a single readwrite transaction (IDB serializes overlapping readwrites on the same store), so two parallel saves both end up in the array. `_metasInclude` deduplicates so calling save with an already-present meta is idempotent. Legacy entries (single top-level meta) auto-promote on read via `_entryMetas`.
+
+`_listTtsAudioEntries` consumers (book grouper in `_renderAudioLibrary`, per-book poll counter) now iterate `_entryMetas(e)` so every verse pointing at a shared audio shows up in the counter.
+
+Force-fresh path was REMOVED — it deleted the entire entry, which would have wiped all sharing verses' metas. The cache-hit-append on multi-meta is the correct cure for the "stuck verse" symptom anyway.
+
+### 20b. Permanent cache (no TTL)
+
+`_TTS_MAX_AGE = Infinity`. `_getTtsAudio`'s freshness check is always true; `_purgeExpiredCache`'s deletion check is never true. Once a verse is downloaded for the device, it stays.
+
+**Why**: synth cost is on Microsoft's free Read Aloud, not ours, so the prior 3-day TTL was just churn for the user (re-downloading the same chapters every few days). Charlie: "honestly do not do any expiry on this audio, so theres no need for a device to download it again". IndexedDB has effectively unlimited per-origin quota on modern browsers; user can clear site data if ever needed.
+
+UI consequences: removed `data-status="expiring"` chapter cell state, removed `~Xh left` tooltips, removed `• 3-day cache` summary suffix.
+
+### 20c. In-flight dedupe
+
+`_inflight = new Map<cacheKey, Promise>`. The Audio Library poll re-fires retries every 1.5s for missing verses. Without dedupe, those calls piled up faster than the 10-slot semaphore drained — within minutes the "waiting" counter reached >100k duplicates of the same texts. With dedupe: the second caller for an in-flight key just `await`s the lead caller's promise (no semaphore acquire, no queue entry) and registers its meta on the shared IDB entry post-resolve.
+
+**Trade-off**: One more layer between caller and the network. Worth it: queue stays bounded at <20 even mid-download.
+
+### 20d. Targeted retry + stuck detection
+
+Earlier the Audio Library poller re-fired `_ttsPrefetchSpecific(book, chapter)` for the entire chapter on every 1.5s tick — most calls cache-hit, but Charlie's "wala talaga nangyayare na" pointed out the loop hides which specific verse is failing. Now the poll diffs `expected verseNums (1..N)` against `have` (Set from metadata index) and computes the **exact** missing verseNums. `_ttsPrefetchSpecific` accepts an optional `onlyVerseNums: Set` and filters before iterating.
+
+Also added stuck-round tracking: a `Map<chapter, {signature, rounds}>` increments while the same missing set persists. After 2 polls (~3s), logs `[devo-tts] STUCK <book> <ch>` so the user can see exactly what's failing instead of staring at a counter that won't move.
+
+### 20e. Per-book pollers + survive close
+
+Was: single global `_audioLibPollTimer`; closing the modal killed it AND cleared `_downloadingBooks`. Re-opening or starting a second book wiped the first.
+
+Now: `_audioLibPollers` is a `Map<bookKey, intervalId>`. Each book's bulk download owns its own poller. Closing the modal stops only the activity-panel UI tick; per-book downloads keep ticking in the background. Multiple books download concurrently — they share the global 10-slot synth semaphore but neither cancels the other. Pollers self-clean when their book completes or hits the 10-min cap.
+
+`_renderAudioLibrary(expandBook)` sentinel semantics tightened so background re-renders don't yank the user's expansion: `undefined` → preserve, `null` → collapse all, `"<book>"` → expand. Charlie's rule: "if nakaclose na sha hayaan mo sha nakaclose wag mo agawin yung ginagawa ko".
+
+### 20f. Apostrophe regex bug
+
+`loadPassage:1167` and `_ttsPrefetchSpecific` both normalized verse text with `replace(/([.,!?'])(?=[a-zA-Z0-9])/g, "$1 ")` — the `'` (curly right single quote, U+2019) in the punct class matched possessives and inserted a space, producing `Aaron' s`, `Lord' s`, etc. This sent malformed text to TTS (read aloud weirdly), AND sometimes choked Microsoft's synth. Removed `'` from both regexes.
+
+### Files touched
+
+- `devo/js/01-core.js` — `_TTS_MAX_AGE = Infinity`; new `_deleteTtsAudio`, `_entryMetas`, `_metasInclude`; `_saveTtsAudio` rewritten as single-transaction read+merge+write with metas array.
+- `devo/js/03-tts.js` — `_inflight` Map dedupe in `ttsSynthesize`; targeted retry + stuck tracker in the bulk-download click handler; per-book `_audioLibPollers` Map; `_ttsPrefetchSpecific` accepts `onlyVerseNums` filter; cache-hit append-meta replaces the old single-meta backfill; force-fresh path removed; `_renderAudioLibrary` consumers iterate `_entryMetas`; sentinel semantics for `expandBook`.
+- `devo/js/04-passage.js` — apostrophe removed from punct class.
+- `devo/style.css` — Audio Library Activity panel re-themed light cream/pink; orphan `.audio-lib-ch[data-status="expiring"]` rule removed; orphan `.audio-lib-log-filter` rules removed; verse-num dim selector changed to `> *:not(.cm-verse-num)` so the tap-to-jump affordance stays full-opacity even when its parent verse is dimmed by auto-follow; `.cm-title` → `flex: 0 0 auto` / `width: auto` so the topbar passage button is fit-content (was stretching across the whole row).
+- `devo/index.html` — added `#mtAudioLibBtn` next to the Listen button; canvas listen icon swapped `graphic_eq` → `headphones` (matches the top-bar Listen); removed the "Show cache hits" toggle.

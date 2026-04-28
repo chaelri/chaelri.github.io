@@ -1164,7 +1164,7 @@ async function loadPassage() {
       verse: vNum, // Keep as string (e.g. "1-4")
       text: text
         .trim()
-        .replace(/([.,!?’])(?=[a-zA-Z0-9])/g, "$1 ")
+        .replace(/([.,!?])(?=[a-zA-Z0-9])/g, "$1 ")
         .replace(/\s+/g, " "),
     }));
 

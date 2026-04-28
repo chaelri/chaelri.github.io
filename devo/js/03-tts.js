@@ -29,7 +29,14 @@ function _synthReset() {
 // On-demand synthesis: synthesize a single item if not already done
 function _ttsSynthItem(item, gen) {
   if (item.ready) return item.ready; // already in-flight or done
-  item.ready = ttsSynthesize(item.ttsText || item.text).then(
+  // Pass meta so a cache-miss save during playback doesn't store an entry
+  // with null book/chapter/verseNum — that would lose the verse from the
+  // Audio Library metadata index AND let a no-meta save race overwrite a
+  // previously-saved entry with full meta (the "biglang nawawala" bug).
+  const meta = item.verseNum && bookEl?.value && chapterEl?.value
+    ? { book: bookEl.value, chapter: String(chapterEl.value), verseNum: String(item.verseNum) }
+    : undefined;
+  item.ready = ttsSynthesize(item.ttsText || item.text, 5, meta).then(
     ({ url, timepoints, words }) => {
       item.url = url;
       item.timepoints = timepoints;
@@ -393,69 +400,106 @@ function _ttsLogLabel(ref) {
   return `${bookName} ${ref.chapter || "?"}:${ref.verseNum || "?"}`;
 }
 
+// Per-cache-key in-flight dedupe. The Audio Library poller re-fires retries
+// every 1.5s for missing verses. Without dedupe, those calls pile up faster
+// than the 10-slot semaphore drains — within minutes the queue holds tens of
+// thousands of duplicate calls for the same texts. With dedupe, the SECOND
+// caller for an in-flight key just awaits the first call's promise (and
+// registers its meta on the shared IDB entry post-resolve), no extra slot
+// taken, no queue growth.
+const _inflight = new Map(); // cacheKey -> Promise<edgeShape>
+
+// Append `meta` to an entry's metas[] if not already there. Used by both the
+// cache-hit path and the dedupe-tail to ensure every caller's verse pointer
+// lands on the shared IDB entry. Async fire-and-forget — losing it just means
+// the next poll round will re-append, same end state.
+async function _registerMeta(cacheKey, meta) {
+  if (!meta || !meta.verseNum) return;
+  try {
+    const cached = await _getTtsAudio(cacheKey);
+    if (cached?.blob && !_metasInclude(cached.metas || [], meta)) {
+      _saveTtsAudio(cacheKey, cached.blob, cached.timings, meta);
+    }
+  } catch {}
+}
+
 async function ttsSynthesize(text, retries = 5, meta) {
   const cacheKey = `${TTS_VOICE.name}|${text}`;
   const refLabel = meta ? `${meta.book}-${meta.chapter}:${meta.verseNum}` : text.slice(0, 40);
 
-  // Cache hit — instant return, no API call, no semaphore.
+  // 1. Cache check — instant return on hit, no API call, no semaphore.
   let cached = null;
   try { cached = await _getTtsAudio(cacheKey); }
   catch (err) { console.warn("[devo-tts] cache read failed:", refLabel, err); }
   if (cached?.blob) {
-    // Legacy entries (cached before the v7 metadata schema) lack
-    // book/chapter/verseNum. Backfill it now while we have it from the
-    // call site — without this the Audio Library panel sees those entries
-    // as missing forever, and the bulk-download polling loops endlessly
-    // re-firing chapters whose verses are actually already saved.
-    if (meta && (!cached.book || !cached.verseNum)) {
-      console.log("[devo-tts] backfill meta", refLabel);
+    if (meta && meta.verseNum && !_metasInclude(cached.metas || [], meta)) {
+      console.log("[devo-tts] append meta", refLabel);
       _saveTtsAudio(cacheKey, cached.blob, cached.timings, meta);
     }
     _ttsLogPush("hit", meta, "already saved");
     return _edgeToClientShape(cached.blob, cached.timings || []);
   }
 
-  console.log("[devo-tts] queue", refLabel);
-  _ttsLogPush("queued", meta, "waiting");
-  await _synthAcquire();
-  console.log("[devo-tts] start", refLabel);
-  _ttsLogPush("started", meta, "downloading…");
-  try {
-    for (let attempt = 0; attempt < retries; attempt++) {
-      try {
-        const resp = await fetch(`${GEMINI_PROXY}/edge-tts`, {
-          method: "POST",
-          headers: { "Content-Type": "application/json" },
-          body: JSON.stringify({ text, voice: TTS_VOICE.name }),
-        });
+  // 2. Dedupe — if another caller already started synth for this exact text,
+  //    share its promise. Skip the semaphore entirely (the lead caller owns
+  //    the slot). After the shared synth resolves, append our meta to the
+  //    saved entry so multi-verse texts (e.g. "Now the Lord spoke to Moses,
+  //    saying," at Exo 6:10/14:1/31:1/31:12) all land in the metas[] index.
+  const existing = _inflight.get(cacheKey);
+  if (existing) {
+    _ttsLogPush("queued", meta, "waiting (shared)");
+    const result = await existing;
+    await _registerMeta(cacheKey, meta);
+    return result;
+  }
 
-        if (resp.status === 429) throw new Error("rate-limit");
-        if (!resp.ok) throw new Error(`api-${resp.status}`);
-
-        const { audioBase64, timings } = await resp.json();
-        const bytes = Uint8Array.from(atob(audioBase64), c => c.charCodeAt(0));
-        const blob = new Blob([bytes], { type: "audio/mpeg" });
-        // Fire-and-forget IDB save; survives reload + offline replay for 3 days.
-        _saveTtsAudio(cacheKey, blob, timings, meta);
-        console.log("[devo-tts] saved", refLabel, attempt > 0 ? `(try ${attempt + 1})` : "");
-        _ttsLogPush("success", meta, attempt > 0 ? `saved (try ${attempt + 1})` : "saved");
-        return _edgeToClientShape(blob, timings);
-      } catch (err) {
-        if (attempt < retries - 1) {
-          const base = err.message === "rate-limit" ? 2000 : 600;
-          const delay = Math.min(base * Math.pow(1.8, attempt), 12000) + Math.random() * 800;
-          console.warn("[devo-tts] retry", refLabel, err.message, `(${attempt + 2}/${retries})`);
-          _ttsLogPush("retry", meta, `retrying (${attempt + 2}/${retries})`);
-          await new Promise(r => setTimeout(r, delay));
-        } else {
-          console.error("[devo-tts] FAIL", refLabel, err.message);
-          _ttsLogPush("fail", meta, "couldn't download");
-          throw err;
+  // 3. We're the lead — start a fresh flight, register it, run synth, clean up.
+  const flight = (async () => {
+    console.log("[devo-tts] queue", refLabel);
+    _ttsLogPush("queued", meta, "waiting");
+    await _synthAcquire();
+    console.log("[devo-tts] start", refLabel);
+    _ttsLogPush("started", meta, "downloading…");
+    try {
+      for (let attempt = 0; attempt < retries; attempt++) {
+        try {
+          const resp = await fetch(`${GEMINI_PROXY}/edge-tts`, {
+            method: "POST",
+            headers: { "Content-Type": "application/json" },
+            body: JSON.stringify({ text, voice: TTS_VOICE.name }),
+          });
+          if (resp.status === 429) throw new Error("rate-limit");
+          if (!resp.ok) throw new Error(`api-${resp.status}`);
+          const { audioBase64, timings } = await resp.json();
+          const bytes = Uint8Array.from(atob(audioBase64), c => c.charCodeAt(0));
+          const blob = new Blob([bytes], { type: "audio/mpeg" });
+          _saveTtsAudio(cacheKey, blob, timings, meta);
+          console.log("[devo-tts] saved", refLabel, attempt > 0 ? `(try ${attempt + 1})` : "");
+          _ttsLogPush("success", meta, attempt > 0 ? `saved (try ${attempt + 1})` : "saved");
+          return _edgeToClientShape(blob, timings);
+        } catch (err) {
+          if (attempt < retries - 1) {
+            const base = err.message === "rate-limit" ? 2000 : 600;
+            const delay = Math.min(base * Math.pow(1.8, attempt), 12000) + Math.random() * 800;
+            console.warn("[devo-tts] retry", refLabel, err.message, `(${attempt + 2}/${retries})`);
+            _ttsLogPush("retry", meta, `retrying (${attempt + 2}/${retries})`);
+            await new Promise(r => setTimeout(r, delay));
+          } else {
+            console.error("[devo-tts] FAIL", refLabel, err.message);
+            _ttsLogPush("fail", meta, "couldn't download");
+            throw err;
+          }
         }
       }
+    } finally {
+      _synthRelease();
     }
+  })();
+  _inflight.set(cacheKey, flight);
+  try {
+    return await flight;
   } finally {
-    _synthRelease();
+    _inflight.delete(cacheKey);
   }
 }
 
@@ -521,12 +565,17 @@ function _nextChapterRef() {
 // semaphore — already-cached verses are no-ops.
 
 // Books currently in bulk download. Drives the per-book button label across
-// re-renders so the "Downloading…" state survives every refresh tick.
+// re-renders so the "Downloading…" state survives every refresh tick. Also
+// gates duplicate Download clicks while a book is in flight.
 const _downloadingBooks = new Set();
 // Per-book live progress (verse-level, not chapter-level) so the label can
 // move smoothly even when chapters are partially cached.
 const _bookDlProgress = new Map(); // bookKey -> { cached, total }
-let _audioLibPollTimer = null;
+// Per-book poll timers. Each book's bulk download has its OWN interval so
+// closing the modal mid-download or starting a second book doesn't kill the
+// first one. Downloads keep ticking in the background until the book is
+// fully cached or the 10-minute hard cap fires.
+const _audioLibPollers = new Map(); // bookKey -> intervalId
 // Faster poll dedicated to the Activity panel — runs while the modal is
 // open so the log + queue counters update in near-real-time even when
 // nothing else is being re-rendered.
@@ -547,12 +596,12 @@ function openAudioLibrary() {
 function closeAudioLibrary() {
   const modal = document.getElementById("audioLibraryModal");
   if (modal) modal.hidden = true;
-  if (_audioLibPollTimer) { clearInterval(_audioLibPollTimer); _audioLibPollTimer = null; }
+  // Stop the activity-panel UI tick (modal isn't visible). Per-book download
+  // pollers keep running in the background — closing the panel must NOT
+  // cancel an in-progress download (Charlie's "habang nagddownload kapag
+  // clinose ko dapat patuloy pa rin" rule). Pollers self-clean when the
+  // book finishes or hits the 10-min cap.
   if (_audioLibActivityTimer) { clearInterval(_audioLibActivityTimer); _audioLibActivityTimer = null; }
-  // Clear the "downloading" UI state on close. Background downloads
-  // continue (they're queued in the semaphore), but on reopen the user
-  // sees a clean state and can re-click Download to resume polling.
-  _downloadingBooks.clear();
 }
 
 // Wire entry points once on script eval. Dashboard, canvas, and the
@@ -562,6 +611,7 @@ function closeAudioLibrary() {
   const open = () => openAudioLibrary();
   document.getElementById("dashAudioLibBtn")?.addEventListener("click", open);
   document.getElementById("cmAudioLibBtn")?.addEventListener("click", open);
+  document.getElementById("mtAudioLibBtn")?.addEventListener("click", open);
   document.getElementById("mtAudioLib")?.addEventListener("click", () => {
     // Close the overflow sheet first so modal isn't hidden behind it.
     document.getElementById("mtOverflowSheet")?.setAttribute("hidden", "");
@@ -584,8 +634,10 @@ function _renderTtsActivity() {
     queueEl.classList.toggle("audio-lib-queue-busy", inFlight > 0 || waiting > 0);
   }
   if (logEl) {
-    const showHits = !!document.getElementById("audioLibShowHits")?.checked;
-    const filtered = showHits ? _ttsLog : _ttsLog.filter(e => e.type !== "hit");
+    // Cache hits are spammy and not actionable for Charlie — only show
+    // events that actually moved the needle (queue / start / retry / fail
+    // / success). The "Show cache hits" toggle was removed from the panel.
+    const filtered = _ttsLog.filter(e => e.type !== "hit");
     if (!filtered.length) {
       logEl.textContent = "No activity yet — open a chapter or tap Download to see verses come through.";
       return;
@@ -622,23 +674,35 @@ async function _renderAudioLibrary(expandBook) {
 
   const entries = await _listTtsAudioEntries();
   // Group: byBook[bookKey][chapterStr] = { verses: Set<verseNum>, oldest: ms }
+  // Each IDB entry can serve MULTIPLE verses (Bible has many duplicate-text
+  // verses, e.g. "Now the Lord spoke to Moses, saying," appears at Exo 6:10,
+  // 14:1, 31:1, 31:12). Iterate the entry's metas[] so every verse that
+  // shares the same audio shows up in the metadata index.
   const byBook = {};
   for (const e of entries) {
-    if (!e.book || !e.chapter || !e.verseNum) continue;
-    const b = e.book, c = String(e.chapter);
-    if (!byBook[b]) byBook[b] = {};
-    if (!byBook[b][c]) byBook[b][c] = { verses: new Set(), oldest: Infinity };
-    byBook[b][c].verses.add(String(e.verseNum));
-    if (e.time < byBook[b][c].oldest) byBook[b][c].oldest = e.time;
+    const metas = _entryMetas(e);
+    for (const m of metas) {
+      if (!m.book || !m.chapter || !m.verseNum) continue;
+      const b = m.book, c = String(m.chapter);
+      if (!byBook[b]) byBook[b] = {};
+      if (!byBook[b][c]) byBook[b][c] = { verses: new Set(), oldest: Infinity };
+      byBook[b][c].verses.add(String(m.verseNum));
+      if (e.time < byBook[b][c].oldest) byBook[b][c].oldest = e.time;
+    }
   }
 
   const bookKeys = Object.keys(BIBLE_META);
-  // Preserve expansion state across re-renders. If caller passed an explicit
-  // expandBook, use that; otherwise infer from the currently-visible detail.
-  if (!expandBook) {
+  // expandBook semantics:
+  //   undefined → preserve whatever the user currently has open (re-infer
+  //               from the live DOM). Used by background re-renders (download
+  //               poller, activity tick) so they don't yank the user's
+  //               attention to a different book.
+  //   null      → explicitly collapse everything (toggle-close path).
+  //   "<book>"  → expand that book (Download click, manual toggle-open).
+  if (expandBook === undefined) {
     const open = list.querySelector(".audio-lib-book-detail:not([hidden])")
       ?.closest(".audio-lib-book")?.dataset?.book;
-    if (open) expandBook = open;
+    expandBook = open || null;
   }
   let totalChapters = 0;
   let totalCached = 0; // count of fully-cached chapters across whole Bible
@@ -655,9 +719,8 @@ async function _renderAudioLibrary(expandBook) {
     fullByBook[b] = full;
     totalCached += full;
   }
-  summary.textContent = `${totalCached} of ${totalChapters} chapters fully cached • 3-day cache`;
+  summary.textContent = `${totalCached} of ${totalChapters} chapters fully cached`;
 
-  const TTL_MS = 3 * 24 * 60 * 60 * 1000;
   list.innerHTML = bookKeys.map(b => {
     const meta = BIBLE_META[b];
     const m = byBook[b] || {};
@@ -676,10 +739,8 @@ async function _renderAudioLibrary(expandBook) {
       let title = `${meta.name} ${c} — not cached`;
       if (cd) {
         const full = cd.verses.size >= expectedVerses;
-        const expiresAt = cd.oldest + TTL_MS;
-        const hoursLeft = Math.max(0, Math.round((expiresAt - Date.now()) / 3600000));
-        status = full ? (hoursLeft <= 24 ? "expiring" : "cached") : "partial";
-        title = `${meta.name} ${c} — ${cd.verses.size}/${expectedVerses} verses, ~${hoursLeft}h left`;
+        status = full ? "cached" : "partial";
+        title = `${meta.name} ${c} — ${cd.verses.size}/${expectedVerses} verses`;
       }
       cells.push(`<button class="audio-lib-ch" data-status="${status}" data-book="${b}" data-ch="${c}" title="${title}">${c}</button>`);
     }
@@ -737,14 +798,49 @@ async function _renderAudioLibrary(expandBook) {
           _ttsPrefetchSpecific({ book, chapter: i });
         }
       };
+      // Track stuck rounds per chapter so we can surface (and stop hammering)
+      // verses that fail repeatedly. Key: chapter int. Value: { signature, rounds }.
+      // signature is the missing-verseNums set joined; rounds increments while
+      // signature stays identical across polls.
+      const stuckTracker = new Map();
+      // After this many polls of the SAME verseNums missing, switch to
+      // force-fresh re-synth (delete orphan IDB entry + new API call). 2
+      // rounds ≈ 3s — enough to give an in-flight synth a chance to finish,
+      // but quick enough that a real stuck-on-cache-hit verse heals in <5s.
+      const STUCK_ROUND_LIMIT = 2;
       const fireIncompleteChapters = (grouped) => {
         const incomplete = [];
         for (let i = 1; i <= meta.chapters.length; i++) {
-          const have = grouped[String(i)]?.size || 0;
-          if (have < meta.chapters[i - 1]) {
-            incomplete.push(`${i}(${have}/${meta.chapters[i-1]})`);
-            _ttsPrefetchSpecific({ book, chapter: i });
+          const expected = meta.chapters[i - 1];
+          const have = grouped[String(i)] || new Set();
+          if (have.size >= expected) {
+            stuckTracker.delete(i);
+            continue;
           }
+          // Compute missing verseNums by intersecting expected verse range with
+          // what's actually in the metadata index. If the chapter has range
+          // keys (rare, parallel-passage form), that verse will simply never
+          // appear in `have` as "1" — fall through to enumerating from JSON
+          // keys via _ttsPrefetchSpecific's filter.
+          const missing = new Set();
+          for (let v = 1; v <= expected; v++) {
+            if (!have.has(String(v))) missing.add(String(v));
+          }
+          const sig = [...missing].sort((a, b) => +a - +b).join(",");
+          const prev = stuckTracker.get(i);
+          const rounds = prev?.signature === sig ? prev.rounds + 1 : 1;
+          stuckTracker.set(i, { signature: sig, rounds });
+
+          incomplete.push(`${i}(${have.size}/${expected})`);
+          if (rounds > STUCK_ROUND_LIMIT) {
+            console.warn("[devo-tts] STUCK", book, i, "rounds:", rounds, "missing:", sig);
+          }
+          // Targeted retry: fire ttsSynthesize ONLY for the verseNums that
+          // are absent from the metadata index. With multi-meta storage,
+          // every cache-hit will APPEND this verse's meta to the entry's
+          // metas[] (no overwrite, no force-delete) so duplicate-text verses
+          // share one audio blob without losing each other's index slot.
+          _ttsPrefetchSpecific({ book, chapter: i }, missing);
         }
         console.log("[devo-tts] fireIncomplete", book, "incomplete:", incomplete.join(",") || "none");
       };
@@ -752,16 +848,27 @@ async function _renderAudioLibrary(expandBook) {
       fireAllChapters();
       _renderAudioLibrary(book);
 
-      if (_audioLibPollTimer) clearInterval(_audioLibPollTimer);
+      // One poller per book. If a poller already exists for this book, leave
+      // it alone — the click is a no-op (the gate at line ~743 should have
+      // bounced the duplicate, but defend in depth). Different books each
+      // get their own interval so simultaneous downloads (e.g. Exodus +
+      // Leviticus) don't cancel each other.
+      if (_audioLibPollers.has(book)) return;
       const startTime = Date.now();
-      _audioLibPollTimer = setInterval(async () => {
+      const pollerId = setInterval(async () => {
         const entries = await _listTtsAudioEntries();
         const grouped = {};
         for (const e of entries) {
-          if (e.book !== book || !e.chapter || !e.verseNum) continue;
-          const c = String(e.chapter);
-          if (!grouped[c]) grouped[c] = new Set();
-          grouped[c].add(String(e.verseNum));
+          // Each entry may carry multiple metas (duplicate-text verses share
+          // one audio blob — see _entryMetas comment). Expand them all so the
+          // counter doesn't lose verses to cache-key collisions.
+          const metas = _entryMetas(e);
+          for (const m of metas) {
+            if (m.book !== book || !m.chapter || !m.verseNum) continue;
+            const c = String(m.chapter);
+            if (!grouped[c]) grouped[c] = new Set();
+            grouped[c].add(String(m.verseNum));
+          }
         }
         let totalCachedVerses = 0;
         for (let i = 1; i <= meta.chapters.length; i++) {
@@ -778,13 +885,20 @@ async function _renderAudioLibrary(expandBook) {
         if (!done) fireIncompleteChapters(grouped);
 
         if (done || timedOut) {
-          clearInterval(_audioLibPollTimer);
-          _audioLibPollTimer = null;
+          const id = _audioLibPollers.get(book);
+          if (id) clearInterval(id);
+          _audioLibPollers.delete(book);
           _downloadingBooks.delete(book);
         }
         _bookDlProgress.set(book, { cached: totalCachedVerses, total: totalVerses });
-        _renderAudioLibrary(book);
+        // Only re-render the modal if it's actually open. Pass NO argument so
+        // the render preserves the user's current expansion — if Charlie has
+        // Leviticus open while Exodus downloads in the background, we don't
+        // yank the panel back to Exodus on every poll tick.
+        const modal = document.getElementById("audioLibraryModal");
+        if (modal && !modal.hidden) _renderAudioLibrary();
       }, 1500);
+      _audioLibPollers.set(book, pollerId);
     });
   });
 
@@ -808,7 +922,12 @@ async function _renderAudioLibrary(expandBook) {
   });
 }
 
-async function _ttsPrefetchSpecific(ref) {
+// Prefetch a chapter's audio. When `onlyVerseNums` is null we fire every verse
+// (initial bulk download). When it's a Set, we fire ONLY those verseNums — used
+// by the retry-poll so a chapter with 1 missing verse retries that 1 verse, not
+// all 38. Retrying the whole chapter masks which specific verse is failing and
+// burns ~37× more cache reads per poll.
+async function _ttsPrefetchSpecific(ref, onlyVerseNums, opts) {
   if (!ref) { console.warn("[devo-tts] prefetch: no ref"); return; }
   if (!bibleData && typeof fetchBibleData === "function") {
     console.log("[devo-tts] prefetch: loading bibleData…");
@@ -824,16 +943,31 @@ async function _ttsPrefetchSpecific(ref) {
   const titlePrefix = `${BIBLE_META[ref.book].name} ${ref.chapter}.`;
   const verseEntries = Object.entries(chapterData)
     .sort((a, b) => parseInt(a[0]) - parseInt(b[0]));
-  console.log("[devo-tts] prefetch chapter", ref.book, ref.chapter, "verses:", verseEntries.length);
-  for (let i = 0; i < verseEntries.length; i++) {
-    const [verseNum, raw] = verseEntries[i];
+  const filtered = onlyVerseNums
+    ? verseEntries.filter(([verseNum]) => onlyVerseNums.has(String(verseNum)))
+    : verseEntries;
+  if (onlyVerseNums) {
+    console.log("[devo-tts] retry verses", ref.book, ref.chapter, [...onlyVerseNums].sort((a,b)=>+a-+b).join(","));
+  } else {
+    console.log("[devo-tts] prefetch chapter", ref.book, ref.chapter, "verses:", filtered.length);
+  }
+  for (let i = 0; i < filtered.length; i++) {
+    const [verseNum, raw] = filtered[i];
+    // Normalize the same way loadPassage does so cache keys align between the
+    // two prefetch paths. The earlier version included ’ (curly apostrophe) in
+    // the punct class, which mangled possessives ("Aaron’s" → "Aaron’ s") and
+    // sent malformed text to TTS — produces a wrong-sounding read AND sometimes
+    // chokes the downstream synth, leaving stuck verses that never cache.
     const text = raw
       .trim()
-      .replace(/([.,!?’])(?=[a-zA-Z0-9])/g, "$1 ")
+      .replace(/([.,!?])(?=[a-zA-Z0-9])/g, "$1 ")
       .replace(/\s+/g, " ");
-    const speak = i === 0 ? `${titlePrefix} ${text}` : text;
+    // The chapter-title prefix only belongs on verseNum "1" — when retrying a
+    // mid-chapter verse, do NOT prepend it (would produce a different cache
+    // key than the original full-chapter prefetch saved under).
+    const speak = String(verseNum) === "1" ? `${titlePrefix} ${text}` : text;
     const meta = { book: ref.book, chapter: String(ref.chapter), verseNum };
-    ttsSynthesize(speak, 5, meta).catch(() => {});
+    ttsSynthesize(speak, 5, meta, opts).catch(() => {});
   }
 }
 
@@ -1080,7 +1214,10 @@ async function ttsPlayAt(index, gen) {
       if (pauseBtn) { pauseBtn.innerHTML = '<span class="material-symbols-outlined">pause</span>'; pauseBtn.onclick = pauseResumeTTS; }
       if (immPauseBtn2) { immPauseBtn2.innerHTML = '<span class="material-symbols-outlined">pause</span>'; immPauseBtn2.onclick = pauseResumeTTS; }
       item.url = null;
-      item.ready = ttsSynthesize(item.text).then(
+      const retryMeta = item.verseNum && bookEl?.value && chapterEl?.value
+        ? { book: bookEl.value, chapter: String(chapterEl.value), verseNum: String(item.verseNum) }
+        : undefined;
+      item.ready = ttsSynthesize(item.text, 5, retryMeta).then(
         ({ url, timepoints, words }) => { item.url = url; item.timepoints = timepoints; item.words = words; },
         () => { item.url = null; }
       );

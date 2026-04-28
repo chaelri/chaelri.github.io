@@ -69,6 +69,9 @@
                 <span class="material-symbols-outlined">headphones</span>
                 Listen
               </button>
+              <button class="mt-overflow" id="mtAudioLibBtn" aria-label="Audio Library" title="Audio Library">
+                <span class="material-symbols-outlined">library_music</span>
+              </button>
               <button class="mt-overflow" id="mtOverflow" aria-label="More actions">
                 <span class="material-symbols-outlined">more_horiz</span>
               </button>
@@ -657,7 +660,7 @@
             <span class="material-symbols-outlined">ink_eraser</span>
           </button>
           <button class="cm-listen-btn" id="cmListenBtn" type="button" title="Listen (L)" aria-label="Listen to chapter">
-            <span class="material-symbols-outlined">graphic_eq</span>
+            <span class="material-symbols-outlined">headphones</span>
           </button>
           <span class="cm-mode-label" id="cmModeLabel" data-tool="highlight">Highlight</span>
         </div>
@@ -810,9 +813,6 @@
             <span class="audio-lib-activity-label">Activity</span>
             <span class="audio-lib-queue" id="audioLibQueue">idle</span>
           </summary>
-          <label class="audio-lib-log-filter">
-            <input type="checkbox" id="audioLibShowHits"> Show cache hits
-          </label>
           <div class="audio-lib-log" id="audioLibLog">No activity yet — open a chapter or hit Download to see synth events here.</div>
         </details>
         <div class="audio-lib-list" id="audioLibList"></div>
