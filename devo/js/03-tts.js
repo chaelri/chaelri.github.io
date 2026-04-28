@@ -483,6 +483,11 @@ function _nextChapterRef() {
 // all chapters in a book and queues them through the existing 10-runner
 // semaphore — already-cached verses are no-ops.
 
+// Books currently in bulk download. Drives the per-book button label across
+// re-renders so the "Downloading…" state survives every refresh tick.
+const _downloadingBooks = new Set();
+let _audioLibPollTimer = null;
+
 function openAudioLibrary() {
   const modal = document.getElementById("audioLibraryModal");
   if (!modal) return;
@@ -493,9 +498,31 @@ function openAudioLibrary() {
 function closeAudioLibrary() {
   const modal = document.getElementById("audioLibraryModal");
   if (modal) modal.hidden = true;
+  if (_audioLibPollTimer) { clearInterval(_audioLibPollTimer); _audioLibPollTimer = null; }
+  // Clear the "downloading" UI state on close. Background downloads
+  // continue (they're queued in the semaphore), but on reopen the user
+  // sees a clean state and can re-click Download to resume polling.
+  _downloadingBooks.clear();
 }
 
-async function _renderAudioLibrary() {
+// Wire entry points once on script eval. Dashboard, canvas, and the
+// overflow sheet all open the same modal. Close handler is delegated on
+// the modal itself so backdrop + close-button + icon-span clicks all work.
+(function _wireAudioLibraryEntryPoints() {
+  const open = () => openAudioLibrary();
+  document.getElementById("dashAudioLibBtn")?.addEventListener("click", open);
+  document.getElementById("cmAudioLibBtn")?.addEventListener("click", open);
+  document.getElementById("mtAudioLib")?.addEventListener("click", () => {
+    // Close the overflow sheet first so modal isn't hidden behind it.
+    document.getElementById("mtOverflowSheet")?.setAttribute("hidden", "");
+    open();
+  });
+  document.getElementById("audioLibraryModal")?.addEventListener("click", (e) => {
+    if (e.target.closest("[data-close-lib]")) closeAudioLibrary();
+  });
+})();
+
+async function _renderAudioLibrary(expandBook) {
   const list = document.getElementById("audioLibList");
   const summary = document.getElementById("audioLibSummary");
   if (!list || !summary || !window.BIBLE_META) return;
@@ -513,22 +540,40 @@ async function _renderAudioLibrary() {
   }
 
   const bookKeys = Object.keys(BIBLE_META);
-  let totalChapters = 0;
-  let cachedChapters = 0;
-  for (const b of bookKeys) {
-    totalChapters += BIBLE_META[b].chapters.length;
-    const m = byBook[b] || {};
-    cachedChapters += Object.keys(m).length;
+  // Preserve expansion state across re-renders. If caller passed an explicit
+  // expandBook, use that; otherwise infer from the currently-visible detail.
+  if (!expandBook) {
+    const open = list.querySelector(".audio-lib-book-detail:not([hidden])")
+      ?.closest(".audio-lib-book")?.dataset?.book;
+    if (open) expandBook = open;
   }
-  summary.textContent = `${cachedChapters} of ${totalChapters} chapters cached • 3-day cache`;
+  let totalChapters = 0;
+  let totalCached = 0; // count of fully-cached chapters across whole Bible
+  const fullByBook = {}; // bookKey -> count of fully-cached chapters
+  for (const b of bookKeys) {
+    const meta = BIBLE_META[b];
+    totalChapters += meta.chapters.length;
+    const m = byBook[b] || {};
+    let full = 0;
+    for (let i = 1; i <= meta.chapters.length; i++) {
+      const cd = m[String(i)];
+      if (cd && cd.verses.size >= meta.chapters[i - 1]) full++;
+    }
+    fullByBook[b] = full;
+    totalCached += full;
+  }
+  summary.textContent = `${totalCached} of ${totalChapters} chapters fully cached • 3-day cache`;
 
   const TTL_MS = 3 * 24 * 60 * 60 * 1000;
   list.innerHTML = bookKeys.map(b => {
     const meta = BIBLE_META[b];
     const m = byBook[b] || {};
     const chCount = meta.chapters.length;
-    const cached = Object.keys(m).length;
+    const cached = fullByBook[b] || 0;
     const pct = chCount ? Math.round((cached / chCount) * 100) : 0;
+    const isOpen = b === expandBook;
+    const isDownloading = _downloadingBooks.has(b);
+    const allDone = cached >= chCount;
     const cells = [];
     for (let i = 1; i <= chCount; i++) {
       const c = String(i);
@@ -545,6 +590,12 @@ async function _renderAudioLibrary() {
       }
       cells.push(`<button class="audio-lib-ch" data-status="${status}" data-book="${b}" data-ch="${c}" title="${title}">${c}</button>`);
     }
+    const dlLabel = isDownloading
+      ? `<span class="material-symbols-outlined">downloading</span>Downloading… ${cached}/${chCount}`
+      : (allDone
+          ? `<span class="material-symbols-outlined">check_circle</span>All chapters cached`
+          : `<span class="material-symbols-outlined">download</span>Download all chapters`);
+    const dlDisabled = isDownloading || allDone ? "disabled" : "";
     return `
       <div class="audio-lib-book" data-book="${b}">
         <button class="audio-lib-book-row" type="button" data-toggle-book="${b}">
@@ -554,47 +605,69 @@ async function _renderAudioLibrary() {
             <div class="audio-lib-book-count">${cached}/${chCount}</div>
           </div>
         </button>
-        <div class="audio-lib-book-detail" hidden>
+        <div class="audio-lib-book-detail" ${isOpen ? "" : "hidden"}>
           <div class="audio-lib-chapters">${cells.join("")}</div>
-          <button class="audio-lib-book-dl" type="button" data-dl-book="${b}">
-            <span class="material-symbols-outlined">download</span>
-            Download all chapters
-          </button>
+          <button class="audio-lib-book-dl" type="button" data-dl-book="${b}" ${dlDisabled}>${dlLabel}</button>
         </div>
       </div>
     `;
   }).join("");
 
-  // Toggle book detail
+  // Toggle book detail. Re-render with the new expanded book so its handlers
+  // (and the download button label, if it's downloading) re-bind cleanly.
   list.querySelectorAll("[data-toggle-book]").forEach(btn => {
     btn.addEventListener("click", () => {
+      const target = btn.dataset.toggleBook;
       const detail = btn.parentElement.querySelector(".audio-lib-book-detail");
-      if (!detail) return;
-      const willOpen = detail.hidden;
-      // Close other open ones for cleaner scrolling.
-      list.querySelectorAll(".audio-lib-book-detail").forEach(d => d.hidden = true);
-      detail.hidden = !willOpen;
+      const wasOpen = detail && !detail.hidden;
+      _renderAudioLibrary(wasOpen ? null : target);
     });
   });
 
-  // Per-book bulk download. Awaits each chapter's prefetch firing, but each
-  // call is itself fire-and-forget across verses, so this just ensures we
-  // queue chapter-by-chapter rather than blasting every chapter at once.
+  // Per-book bulk download. Kicks off all chapter prefetches at once, then
+  // polls IDB cache state every 1.5s and re-renders so the progress bar +
+  // chapter cells reflect actual download progress, not just queued count.
   list.querySelectorAll("[data-dl-book]").forEach(btn => {
     btn.addEventListener("click", async () => {
       const book = btn.dataset.dlBook;
       const meta = BIBLE_META[book];
-      if (!meta) return;
-      btn.disabled = true;
-      const oldHTML = btn.innerHTML;
-      btn.innerHTML = `<span class="material-symbols-outlined">hourglass_top</span>Downloading…`;
+      if (!meta || _downloadingBooks.has(book)) return;
+      _downloadingBooks.add(book);
+      // Queue every chapter's verses through ttsSynthesize via the 10-runner
+      // semaphore. _ttsPrefetchSpecific already returns immediately after
+      // queueing (it doesn't await each verse), so all chapters are in flight
+      // within milliseconds.
       for (let i = 1; i <= meta.chapters.length; i++) {
-        await _ttsPrefetchSpecific({ book, chapter: i });
-        // Periodic re-render so the progress bar climbs visibly.
-        if (i % 3 === 0 || i === meta.chapters.length) await _renderAudioLibrary();
+        _ttsPrefetchSpecific({ book, chapter: i });
       }
-      btn.innerHTML = oldHTML;
-      btn.disabled = false;
+      // Show "Downloading…" state immediately.
+      _renderAudioLibrary(book);
+      // Poll every 1.5s, re-rendering so the progress climbs. Stop when all
+      // chapters are fully cached or 5 min elapses (safety bail).
+      if (_audioLibPollTimer) clearInterval(_audioLibPollTimer);
+      const startTime = Date.now();
+      _audioLibPollTimer = setInterval(async () => {
+        const entries = await _listTtsAudioEntries();
+        let fullCount = 0;
+        const grouped = {};
+        for (const e of entries) {
+          if (e.book !== book || !e.chapter || !e.verseNum) continue;
+          const c = String(e.chapter);
+          if (!grouped[c]) grouped[c] = new Set();
+          grouped[c].add(String(e.verseNum));
+        }
+        for (let i = 1; i <= meta.chapters.length; i++) {
+          if ((grouped[String(i)]?.size || 0) >= meta.chapters[i - 1]) fullCount++;
+        }
+        const done = fullCount >= meta.chapters.length;
+        const timedOut = Date.now() - startTime > 5 * 60 * 1000;
+        if (done || timedOut) {
+          clearInterval(_audioLibPollTimer);
+          _audioLibPollTimer = null;
+          _downloadingBooks.delete(book);
+        }
+        _renderAudioLibrary(book);
+      }, 1500);
     });
   });
 

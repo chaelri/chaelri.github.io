@@ -1773,18 +1773,8 @@ async function _imgcrShare() {
     if (typeof cmTtsToggleAutoAdvance === "function") cmTtsToggleAutoAdvance();
   });
 
-  // Audio Library — opens a modal showing per-book cache progress + bulk
-  // download. Lives in the canvas top-bar but the modal is rendered outside
-  // the overlay so it can stay open even after canvas closes.
-  document.getElementById("cmAudioLibBtn")?.addEventListener("click", () => {
-    if (typeof openAudioLibrary === "function") openAudioLibrary();
-  });
-  document.querySelectorAll("[data-close-lib]").forEach(el => {
-    el.addEventListener("click", (e) => {
-      if (e.target.closest(".audio-lib-panel") && !e.target.matches("[data-close-lib]")) return;
-      if (typeof closeAudioLibrary === "function") closeAudioLibrary();
-    });
-  });
+  // Audio Library button wiring lives in 03-tts.js (covers all entry points
+  // — dashboard, canvas top bar, overflow sheet — in one place).
 
   // Canvas-side chapter nav. Stop any in-canvas TTS before swapping content
   // (the queue references the old chapter's DOM; letting it keep playing
