@@ -191,7 +191,7 @@ function playPrev() {
     </div>
     <div class="flex-1 min-w-0">
       <div class="flex items-center gap-2 mb-1">
-        <span class="prefall-tag">EP 00 · Special</span>
+        <span class="prefall-tag">EP 00 · Prologue</span>
         <span class="now-badge items-center gap-1 text-[9px] font-bold tracking-widest uppercase text-prefall-ice bg-prefall-blue/15 px-1.5 py-0.5 rounded-full">playing</span>
       </div>
       <div class="ep-title display-title text-base sm:text-lg font-semibold text-white leading-snug">${ep.title}</div>

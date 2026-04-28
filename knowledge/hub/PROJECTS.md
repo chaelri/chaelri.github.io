@@ -68,7 +68,7 @@ Episode viewer for *Towa no Yuugure / Dusk Beyond the End of the World* (P.A. Wo
 - **Tech:** vanilla JS, Tailwind (CDN), inline CSS, PWA, Google Drive iframe player.
 - **Entry:** `index.html`, `app.js`, `manifest.json`, `sw.js`, PIL-generated PNG icons.
 - **Deploy:** GitHub Pages at `/towa-no-yuugure/`.
-- **Quirks:** Same structural skeleton as `anohana/` but reskinned — warm orange/amber/violet "Dusk · 2238" palette for main 12 episodes, cool blue "Pre-Fall · 2038" palette for the EP 00 special card (placed at the END of the episode list, not the top). Pure CSS dusk-horizon poster, no cover image. Embers (warm dust) float straight up — no horizontal motion (would jitter the page width). `playEpisode(idx, { scroll: false })` skips scroll-to-nav on auto-resume from `localStorage.towa_last_ep`. Drive folder ID `1EfMvMTbEFj_v_15MMYhV7ucBM3TAauWn` (owned by charliecayno@gmail.com, uploaded via the same OAuth flow as sns-dq).
+- **Quirks:** Same structural skeleton as `anohana/` but reskinned — warm orange/amber/violet "Dusk · 2238" palette for main 12 episodes, cool blue "Pre-Fall · 2038" palette for the EP 00 prologue card (placed BEFORE Dusk · 2238 as the chronological start, not at the end). Pure CSS dusk-horizon poster, no cover image. Embers (warm dust) float straight up — no horizontal motion (would jitter the page width). `playEpisode(idx, { scroll: false })` skips scroll-to-nav on auto-resume from `localStorage.towa_last_ep`. Drive folder ID `1EfMvMTbEFj_v_15MMYhV7ucBM3TAauWn` (owned by charliecayno@gmail.com, uploaded via the same OAuth flow as sns-dq).
 - **Full docs:** `knowledge/towa-no-yuugure/SUMMARY.md`.
 
 ### tayo/  🟢
