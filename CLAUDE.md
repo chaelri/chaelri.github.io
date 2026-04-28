@@ -56,6 +56,7 @@ chaelri.github.io/
 ├── guard-exit-interview/   ← Guard offboarding tracker (active)
 ├── tayo/                   ← Charlie & Karla journal (active)
 ├── monthsary/              ← 4th monthsary page (active)
+├── towa-no-yuugure/        ← Towa no Yuugure episode viewer (sister to anohana)
 ├── weddingtest/            ← LIVE wedding invitation (despite the name)
 ├── gemini-proxy/           ← Cloud Run backend (used by devo, pray, others)
 ├── functions/              ← Firebase Cloud Functions (weddingbar push)

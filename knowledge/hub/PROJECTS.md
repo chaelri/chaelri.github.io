@@ -61,6 +61,16 @@ Discussion Questions image generator — paste questions, AI adds bold/italic em
 - **Quirks:** Three-tier weight for emphasis (400/700/700-italic) settled after several iterations; layout pinned to measured pixel bounds of the pre-stamped header in `template.png`. AI output is reconciled run-by-run against the input so wording can never silently change. UX: starts centered single-col, expands to 2-col with View Transitions + confetti on the first successful Generate; no localStorage persistence (deliberate — every load is a clean slate, "+ New" resets back to centered).
 - **Full docs:** See `knowledge/sns-dq/SUMMARY.md` and `DECISIONS.md`.
 
+### towa-no-yuugure/  🟢
+
+Episode viewer for *Towa no Yuugure / Dusk Beyond the End of the World* (P.A. Works, 2025) — sister project to `anohana/`.
+
+- **Tech:** vanilla JS, Tailwind (CDN), inline CSS, PWA, Google Drive iframe player.
+- **Entry:** `index.html`, `app.js`, `manifest.json`, `sw.js`, PIL-generated PNG icons.
+- **Deploy:** GitHub Pages at `/towa-no-yuugure/`.
+- **Quirks:** Same structural skeleton as `anohana/` but reskinned — warm orange/amber/violet "Dusk · 2238" palette for main 12 episodes, cool blue "Pre-Fall · 2038" palette for the EP 00 special card (placed at the END of the episode list, not the top). Pure CSS dusk-horizon poster, no cover image. Embers (warm dust) float straight up — no horizontal motion (would jitter the page width). `playEpisode(idx, { scroll: false })` skips scroll-to-nav on auto-resume from `localStorage.towa_last_ep`. Drive folder ID `1EfMvMTbEFj_v_15MMYhV7ucBM3TAauWn` (owned by charliecayno@gmail.com, uploaded via the same OAuth flow as sns-dq).
+- **Full docs:** `knowledge/towa-no-yuugure/SUMMARY.md`.
+
 ### tayo/  🟢
 
 Shared journal / mood-tracking app for Charlie & Karla — Firebase-backed, real-time sync.
@@ -255,7 +265,7 @@ Simple side-scrolling platformer (Bubu & Dudu) — canvas-based game.
 
 | Project | Hosting | Auto-deploy on push? |
 |---|---|---|
-| devo, monthsary, tayo, sns-dq, weddingtest, flux, pray, echoes, wedding100, weddingtimeline, horizon, money, anohana, bubududu | GitHub Pages subpath | ✅ |
+| devo, monthsary, tayo, sns-dq, weddingtest, towa-no-yuugure, flux, pray, echoes, wedding100, weddingtimeline, horizon, money, anohana, bubududu | GitHub Pages subpath | ✅ |
 | guard-exit-interview | GitHub Pages — **DUAL-REPO** (also push to `guard-exit-tracker`) | ✅ |
 | vm-management | GitHub Pages `/vm-management/` | ✅ |
 | weddingbar | Firebase Hosting (root via `firebase.json`) — also GH Pages `/weddingbar/` | `firebase deploy` |

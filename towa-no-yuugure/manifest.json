@@ -1,0 +1,13 @@
+{
+  "name": "Towa no Yuugure — Dusk Beyond the End of the World",
+  "short_name": "Towa",
+  "description": "Watch Towa no Yuugure episodes",
+  "start_url": "/towa-no-yuugure/",
+  "display": "standalone",
+  "background_color": "#0d0817",
+  "theme_color": "#0d0817",
+  "icons": [
+    { "src": "icon-192.png", "sizes": "192x192", "type": "image/png" },
+    { "src": "icon-512.png", "sizes": "512x512", "type": "image/png" }
+  ]
+}
