@@ -486,6 +486,9 @@ function _nextChapterRef() {
 // Books currently in bulk download. Drives the per-book button label across
 // re-renders so the "Downloading…" state survives every refresh tick.
 const _downloadingBooks = new Set();
+// Per-book live progress (verse-level, not chapter-level) so the label can
+// move smoothly even when chapters are partially cached.
+const _bookDlProgress = new Map(); // bookKey -> { cached, total }
 let _audioLibPollTimer = null;
 
 function openAudioLibrary() {
@@ -590,8 +593,9 @@ async function _renderAudioLibrary(expandBook) {
       }
       cells.push(`<button class="audio-lib-ch" data-status="${status}" data-book="${b}" data-ch="${c}" title="${title}">${c}</button>`);
     }
+    const prog = _bookDlProgress.get(b);
     const dlLabel = isDownloading
-      ? `<span class="material-symbols-outlined">downloading</span>Downloading… ${cached}/${chCount}`
+      ? `<span class="material-symbols-outlined">downloading</span>Downloading… ${prog ? `${prog.cached}/${prog.total} verses` : `${cached}/${chCount} chapters`}`
       : (allDone
           ? `<span class="material-symbols-outlined">check_circle</span>All chapters cached`
           : `<span class="material-symbols-outlined">download</span>Download all chapters`);
@@ -624,32 +628,44 @@ async function _renderAudioLibrary(expandBook) {
     });
   });
 
-  // Per-book bulk download. Kicks off all chapter prefetches at once, then
-  // polls IDB cache state every 1.5s and re-renders so the progress bar +
-  // chapter cells reflect actual download progress, not just queued count.
+  // Per-book bulk download. Kicks off chapter prefetches, polls IDB cache,
+  // and RE-FIRES prefetch on every poll for any still-incomplete chapter.
+  // ttsSynthesize already short-circuits cache hits, so this is cheap on
+  // already-cached verses and gives the missing ones a fresh retry — which
+  // matters because a few verses always drop on the first wave when we
+  // queue 800+ requests through Microsoft's anonymous endpoint.
   list.querySelectorAll("[data-dl-book]").forEach(btn => {
     btn.addEventListener("click", async () => {
       const book = btn.dataset.dlBook;
       const meta = BIBLE_META[book];
       if (!meta || _downloadingBooks.has(book)) return;
       _downloadingBooks.add(book);
-      // Queue every chapter's verses through ttsSynthesize via the 10-runner
-      // semaphore. _ttsPrefetchSpecific already returns immediately after
-      // queueing (it doesn't await each verse), so all chapters are in flight
-      // within milliseconds.
-      for (let i = 1; i <= meta.chapters.length; i++) {
-        _ttsPrefetchSpecific({ book, chapter: i });
-      }
-      // Show "Downloading…" state immediately.
+
+      const fireAllChapters = () => {
+        for (let i = 1; i <= meta.chapters.length; i++) {
+          _ttsPrefetchSpecific({ book, chapter: i });
+        }
+      };
+      const fireIncompleteChapters = (grouped) => {
+        for (let i = 1; i <= meta.chapters.length; i++) {
+          const have = grouped[String(i)]?.size || 0;
+          if (have < meta.chapters[i - 1]) {
+            _ttsPrefetchSpecific({ book, chapter: i });
+          }
+        }
+      };
+
+      fireAllChapters();
       _renderAudioLibrary(book);
-      // Poll every 1.5s, re-rendering so the progress climbs. Stop when all
-      // chapters are fully cached or 5 min elapses (safety bail).
+
       if (_audioLibPollTimer) clearInterval(_audioLibPollTimer);
       const startTime = Date.now();
+      let lastVerseCount = -1;
+      let stuckTicks = 0;
       _audioLibPollTimer = setInterval(async () => {
         const entries = await _listTtsAudioEntries();
-        let fullCount = 0;
         const grouped = {};
+        let totalCachedVerses = 0;
         for (const e of entries) {
           if (e.book !== book || !e.chapter || !e.verseNum) continue;
           const c = String(e.chapter);
@@ -657,15 +673,31 @@ async function _renderAudioLibrary(expandBook) {
           grouped[c].add(String(e.verseNum));
         }
         for (let i = 1; i <= meta.chapters.length; i++) {
-          if ((grouped[String(i)]?.size || 0) >= meta.chapters[i - 1]) fullCount++;
+          totalCachedVerses += Math.min(
+            grouped[String(i)]?.size || 0,
+            meta.chapters[i - 1],
+          );
         }
-        const done = fullCount >= meta.chapters.length;
-        const timedOut = Date.now() - startTime > 5 * 60 * 1000;
+        const totalVerses = meta.chapters.reduce((a, b) => a + b, 0);
+        const done = totalCachedVerses >= totalVerses;
+        const timedOut = Date.now() - startTime > 10 * 60 * 1000;
+        // No progress for ~7 ticks (~10s)? Re-fire incomplete chapters so
+        // any verses that dropped on the first wave get a fresh attempt.
+        if (totalCachedVerses === lastVerseCount) stuckTicks++;
+        else stuckTicks = 0;
+        lastVerseCount = totalCachedVerses;
+        if (!done && stuckTicks >= 7) {
+          fireIncompleteChapters(grouped);
+          stuckTicks = 0;
+        }
+
         if (done || timedOut) {
           clearInterval(_audioLibPollTimer);
           _audioLibPollTimer = null;
           _downloadingBooks.delete(book);
         }
+        // Stash live progress on the Set so render can display it.
+        _bookDlProgress.set(book, { cached: totalCachedVerses, total: totalVerses });
         _renderAudioLibrary(book);
       }, 1500);
     });
