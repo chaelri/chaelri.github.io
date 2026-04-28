@@ -111,12 +111,14 @@ Positioned `fixed; bottom: 18px; left: 50%`. Visibility gated entirely by `body.
 
 ### Visual emphasis
 
-Two layered cues on the current verse:
+Two cues on the current verse, with the verse-level cue gated by lock state:
 
-1. **Soft pink wash on the current word** — `.cm-word.cm-word-tts-active`: `background: rgba(190,24,93,0.20)`, dark text stays. No color flip = no per-word strobing.
-2. **Marching-ants dotted border on the current verse** — SVG `<rect>` injected into the verse via `_cmMarkActiveVerse(verseNum)`. CSS animates `stroke-dashoffset: 0 → -10` (1 dash cycle) at 0.9s linear infinite. Negative offset = dashes drift in the path's natural direction = clockwise around the rounded rect. Replaced an earlier 4-edge gradient trick that "tapyas"-clipped at corners.
+1. **Soft pink wash on the current word** — `.cm-word.cm-word-tts-active`: `background: rgba(190,24,93,0.20)`, dark text stays. No color flip = no per-word strobing. Always on while playing.
+2. **Dim inactive verses (auto-follow ON only)** — when `body.tts-canvas-follow` is set, every `.cm-verse:not(.cm-verse-tts-active)` fades to `opacity: 0.35`. The active verse stays at full opacity. No border, no padding bump → all verses keep identical layout, only brightness changes. When auto-follow is unlocked, the dim releases everywhere so free-scrolling reads naturally.
 
-The active verse also gets `padding: 20px 24px` so the text "loloob" deeply inside the dotted box. Neighbors push down naturally; auto-scroll re-centers the active verse.
+`_cmMarkActiveVerse(verseNum)` toggles the `.cm-verse-tts-active` class on the current verse — that's the hook the `:not()` selector uses for the dim. The body class is added in `playChapterInCanvas` (when `_cmTtsAutoFollow` is on) and toggled by `cmTtsToggleAutoFollow`.
+
+(Earlier iterations: marching-ants SVG border with stroke-dashoffset animation, plus a 20×24 padding bump on the active verse so text "looks deeper". Pulled because it caused layout shifts on neighbors and the bordered box never aligned cleanly with inactive verses' padding. The dim approach keeps every verse at identical layout — strictly opacity emphasis.)
 
 ## Lock-screen / background playback
 

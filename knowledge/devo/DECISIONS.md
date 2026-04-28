@@ -288,3 +288,23 @@ The original monolithic `script.js` benefitted from whole-file function hoisting
 - `_prefetchNextChapter` (post-chapter background prefetch of the *next* chapter) — superseded by per-load prefetch.
 - `tts-preview/` directory — was a Node-side baking experiment that got us to the Edge TTS decision; now obsolete.
 - `_TTS_STORE` was briefly dropped (DB v5) when we thought Edge synth was so fast caching was unnecessary; restored at v6 with 3-day TTL after Charlie's "save it nalang pala" decision.
+
+---
+
+## 19. Drop marching-ants verse border for opacity dim (2026-04-28, same day as #18)
+
+**Decision**: Remove the SVG marching-ants dotted border + 20×24 padding on the active verse (introduced earlier in #18). Replace with a simpler opacity dim: when `body.tts-canvas-follow` is set, every `.cm-verse:not(.cm-verse-tts-active)` fades to 0.35 opacity; the active verse stays at full brightness.
+
+**Why**:
+- The padded active verse never aligned cleanly with inactive verses' padding — the bordered box visibly broke the column rhythm.
+- Marching-ants animation + SVG injection added DOM/render work for marginal benefit.
+- Charlie's framing: "para simple yet align yung padding sa other verses" — keep all verses at identical layout, just dim the rest.
+- Dim only applies when auto-follow is LOCKED. Unlocked = user is free-scrolling, dimming would be annoying so it releases everywhere.
+
+**Implementation**:
+- `_cmMarkActiveVerse(verseNum)` no longer injects the `.cm-verse-ants-svg` element; just toggles the `.cm-verse-tts-active` class so the dim selector has a `:not()` target.
+- `playChapterInCanvas` adds `body.tts-canvas-follow` when `_cmTtsAutoFollow` is on; `_ttsCleanupMode` removes both `tts-canvas-active` and `tts-canvas-follow`. `cmTtsToggleAutoFollow` adds/removes it on user toggle.
+- All `.cm-verse-ants-svg` CSS gone. `.cm-verse.cm-verse-tts-active`'s padding/margin rules gone — class is now purely a CSS hook.
+- Per-word soft pink wash (`.cm-word-tts-active`) stays as the read-along position marker.
+
+**Trade-off**: Loses the "decorative" feel of the dotted-border. Gain is a calmer, more read-friendly emphasis that respects column alignment.

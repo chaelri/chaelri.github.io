@@ -227,37 +227,14 @@ function _cmTtsScrollToCurrent() {
 // wash — one scans the verse, the other tracks the word.
 function _cmMarkActiveVerse(verseNum) {
   if (!_ttsInCanvas) return;
-  // Clear previous active verse + its marching-ants SVG.
-  document.querySelectorAll("#cmPassage .cm-verse.cm-verse-tts-active").forEach(v => {
-    v.classList.remove("cm-verse-tts-active");
-    v.querySelector(".cm-verse-ants-svg")?.remove();
-  });
+  // Clear previous active marker. The class is what the "dim other verses"
+  // CSS uses as the :not() target — no SVG/border injection anymore.
+  document.querySelectorAll("#cmPassage .cm-verse.cm-verse-tts-active")
+    .forEach(v => v.classList.remove("cm-verse-tts-active"));
   if (verseNum == null) return;
   const w = document.querySelector(`#cmPassage .cm-word[data-verse="${verseNum}"]`);
   const verseEl = w?.closest(".cm-verse");
-  if (!verseEl) return;
-  verseEl.classList.add("cm-verse-tts-active");
-
-  // Inject an SVG <rect> with an animated stroke-dashoffset. Tracing a true
-  // rounded-rect path means the dashes follow the corner curves cleanly,
-  // unlike the flat edge-gradient trick which "tapyas"-clipped at corners.
-  const NS = "http://www.w3.org/2000/svg";
-  const svg = document.createElementNS(NS, "svg");
-  svg.setAttribute("class", "cm-verse-ants-svg");
-  svg.setAttribute("width", "100%");
-  svg.setAttribute("height", "100%");
-  // x/y/width/height as percentages — `calc()` isn't valid in SVG attrs, so
-  // we let the stroke straddle the rect edge and rely on `overflow: visible`
-  // (in CSS) to render the half-stroke just outside the SVG bounds.
-  const rect = document.createElementNS(NS, "rect");
-  rect.setAttribute("x", "0");
-  rect.setAttribute("y", "0");
-  rect.setAttribute("width", "100%");
-  rect.setAttribute("height", "100%");
-  rect.setAttribute("rx", "10");
-  rect.setAttribute("ry", "10");
-  svg.appendChild(rect);
-  verseEl.appendChild(svg);
+  if (verseEl) verseEl.classList.add("cm-verse-tts-active");
 }
 
 // ── Media Session API + visibility hooks ───────────────────────────────────
@@ -305,8 +282,10 @@ document.addEventListener("visibilitychange", () => {
 function cmTtsToggleAutoFollow() {
   _cmTtsAutoFollow = !_cmTtsAutoFollow;
   try { localStorage.setItem(_CM_TTS_FOLLOW_KEY, String(_cmTtsAutoFollow)); } catch {}
+  // Body class drives the "dim inactive verses" CSS — only applied while
+  // follow is locked, so unlocked free-scroll keeps full opacity everywhere.
+  document.body.classList.toggle("tts-canvas-follow", _cmTtsAutoFollow && _ttsInCanvas);
   _cmListenBarUpdate();
-  // Re-enabling snaps to the current verse so the user lands where they left.
   if (_cmTtsAutoFollow) _cmTtsScrollToCurrent();
 }
 
@@ -541,6 +520,7 @@ async function playChapterInCanvas(startVerse) {
   if (!ttsQueue.length) { _ttsInCanvas = false; return; }
 
   document.body.classList.add("tts-canvas-active");
+  if (_cmTtsAutoFollow) document.body.classList.add("tts-canvas-follow");
   document.getElementById("cmListenBtn")?.classList.add("active");
 
   _setupMediaSession();
@@ -790,9 +770,9 @@ function _ttsCleanupMode() {
   _ttsActiveWordItem = null;
   document.getElementById("output")?.classList.remove("tts-mode");
   _ttsInCanvas = false;
-  document.body.classList.remove("tts-canvas-active");
+  document.body.classList.remove("tts-canvas-active", "tts-canvas-follow");
   document.getElementById("cmListenBtn")?.classList.remove("active");
-  // Strip any active-verse marker from canvas so the border doesn't linger.
+  // Drop the active-verse class so the dim effect releases.
   document.querySelectorAll("#cmPassage .cm-verse.cm-verse-tts-active")
     .forEach(v => v.classList.remove("cm-verse-tts-active"));
   // Drop the lock-screen media session card when playback ends.
