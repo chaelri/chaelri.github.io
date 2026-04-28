@@ -403,13 +403,13 @@ async function ttsSynthesize(text, retries = 5, meta) {
   let cached = null;
   try { cached = await _getTtsAudio(cacheKey); } catch {}
   if (cached?.blob) {
-    _ttsLogPush("hit", meta, "cache hit");
+    _ttsLogPush("hit", meta, "already saved");
     return _edgeToClientShape(cached.blob, cached.timings || []);
   }
 
-  _ttsLogPush("queued", meta, "waiting for slot");
+  _ttsLogPush("queued", meta, "waiting");
   await _synthAcquire();
-  _ttsLogPush("started", meta, "synthesizing");
+  _ttsLogPush("started", meta, "downloading…");
   try {
     for (let attempt = 0; attempt < retries; attempt++) {
       try {
@@ -427,16 +427,16 @@ async function ttsSynthesize(text, retries = 5, meta) {
         const blob = new Blob([bytes], { type: "audio/mpeg" });
         // Fire-and-forget IDB save; survives reload + offline replay for 3 days.
         _saveTtsAudio(cacheKey, blob, timings, meta);
-        _ttsLogPush("success", meta, attempt > 0 ? `done (after ${attempt + 1} tries)` : "done");
+        _ttsLogPush("success", meta, attempt > 0 ? `saved (try ${attempt + 1})` : "saved");
         return _edgeToClientShape(blob, timings);
       } catch (err) {
         if (attempt < retries - 1) {
           const base = err.message === "rate-limit" ? 2000 : 600;
           const delay = Math.min(base * Math.pow(1.8, attempt), 12000) + Math.random() * 800;
-          _ttsLogPush("retry", meta, `${err.message || "error"} — retry ${attempt + 2}/${retries}`);
+          _ttsLogPush("retry", meta, `retrying (${attempt + 2}/${retries})`);
           await new Promise(r => setTimeout(r, delay));
         } else {
-          _ttsLogPush("fail", meta, err.message || "exhausted retries");
+          _ttsLogPush("fail", meta, "couldn't download");
           throw err;
         }
       }
@@ -566,13 +566,15 @@ function _renderTtsActivity() {
     const inFlight = _synthSem.active;
     const waiting = _synthSem.queue.length;
     queueEl.textContent = inFlight || waiting
-      ? `${inFlight} synthing • ${waiting} queued`
+      ? `${inFlight} downloading • ${waiting} waiting`
       : "idle";
     queueEl.classList.toggle("audio-lib-queue-busy", inFlight > 0 || waiting > 0);
   }
   if (logEl) {
-    if (!_ttsLog.length) {
-      logEl.textContent = "No activity yet — open a chapter or hit Download to see synth events here.";
+    const showHits = !!document.getElementById("audioLibShowHits")?.checked;
+    const filtered = showHits ? _ttsLog : _ttsLog.filter(e => e.type !== "hit");
+    if (!filtered.length) {
+      logEl.textContent = "No activity yet — open a chapter or tap Download to see verses come through.";
       return;
     }
     const ICON = {
@@ -583,7 +585,7 @@ function _renderTtsActivity() {
       retry:   '<span class="material-symbols-outlined">restart_alt</span>',
       fail:    '<span class="material-symbols-outlined">error</span>',
     };
-    const rows = _ttsLog.slice(0, 60).map(e => {
+    const rows = filtered.slice(0, 60).map(e => {
       const ts = new Date(e.time);
       const stamp = `${String(ts.getHours()).padStart(2, "0")}:${String(ts.getMinutes()).padStart(2, "0")}:${String(ts.getSeconds()).padStart(2, "0")}`;
       const ref = _ttsLogLabel(e.ref);
@@ -735,18 +737,16 @@ async function _renderAudioLibrary(expandBook) {
 
       if (_audioLibPollTimer) clearInterval(_audioLibPollTimer);
       const startTime = Date.now();
-      let lastVerseCount = -1;
-      let stuckTicks = 0;
       _audioLibPollTimer = setInterval(async () => {
         const entries = await _listTtsAudioEntries();
         const grouped = {};
-        let totalCachedVerses = 0;
         for (const e of entries) {
           if (e.book !== book || !e.chapter || !e.verseNum) continue;
           const c = String(e.chapter);
           if (!grouped[c]) grouped[c] = new Set();
           grouped[c].add(String(e.verseNum));
         }
+        let totalCachedVerses = 0;
         for (let i = 1; i <= meta.chapters.length; i++) {
           totalCachedVerses += Math.min(
             grouped[String(i)]?.size || 0,
@@ -756,22 +756,18 @@ async function _renderAudioLibrary(expandBook) {
         const totalVerses = meta.chapters.reduce((a, b) => a + b, 0);
         const done = totalCachedVerses >= totalVerses;
         const timedOut = Date.now() - startTime > 10 * 60 * 1000;
-        // No progress for ~7 ticks (~10s)? Re-fire incomplete chapters so
-        // any verses that dropped on the first wave get a fresh attempt.
-        if (totalCachedVerses === lastVerseCount) stuckTicks++;
-        else stuckTicks = 0;
-        lastVerseCount = totalCachedVerses;
-        if (!done && stuckTicks >= 7) {
-          fireIncompleteChapters(grouped);
-          stuckTicks = 0;
-        }
+
+        // Always re-fire incomplete chapters every poll (1.5s). Cached
+        // verses short-circuit instantly inside ttsSynthesize, so this is
+        // cheap on already-done chapters and gives missing verses a fresh
+        // attempt without waiting on a stuck-detector heuristic.
+        if (!done) fireIncompleteChapters(grouped);
 
         if (done || timedOut) {
           clearInterval(_audioLibPollTimer);
           _audioLibPollTimer = null;
           _downloadingBooks.delete(book);
         }
-        // Stash live progress on the Set so render can display it.
         _bookDlProgress.set(book, { cached: totalCachedVerses, total: totalVerses });
         _renderAudioLibrary(book);
       }, 1500);

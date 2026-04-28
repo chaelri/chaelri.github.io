@@ -9236,6 +9236,17 @@ body.tts-canvas-follow #cmPassage .cm-verse:not(.cm-verse-tts-active) {
   color: #fff;
   background: #be185d;
 }
+.audio-lib-log-filter {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  padding: 6px 18px 4px;
+  font: 500 11px/1 ui-monospace, "SF Mono", Menlo, monospace;
+  color: rgba(255, 255, 255, 0.55);
+  cursor: pointer;
+}
+.audio-lib-log-filter input { accent-color: #be185d; cursor: pointer; }
+
 .audio-lib-log {
   max-height: 220px;
   overflow-y: auto;
