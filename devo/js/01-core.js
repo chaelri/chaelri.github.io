@@ -205,7 +205,15 @@ async function _getTtsAudio(key) {
         req.onsuccess = () => {
           const entry = req.result;
           if (entry && Date.now() - entry.time < _TTS_MAX_AGE) {
-            resolve({ blob: entry.blob, timings: entry.timings || [] });
+            // Pass through metadata so callers can detect legacy entries
+            // (saved before the v7 metadata schema) and backfill on cache hit.
+            resolve({
+              blob: entry.blob,
+              timings: entry.timings || [],
+              book: entry.book ?? null,
+              chapter: entry.chapter ?? null,
+              verseNum: entry.verseNum ?? null,
+            });
           } else resolve(null);
         };
         req.onerror = () => resolve(null);

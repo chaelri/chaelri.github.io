@@ -402,6 +402,15 @@ async function ttsSynthesize(text, retries = 5, meta) {
   try { cached = await _getTtsAudio(cacheKey); }
   catch (err) { console.warn("[devo-tts] cache read failed:", refLabel, err); }
   if (cached?.blob) {
+    // Legacy entries (cached before the v7 metadata schema) lack
+    // book/chapter/verseNum. Backfill it now while we have it from the
+    // call site — without this the Audio Library panel sees those entries
+    // as missing forever, and the bulk-download polling loops endlessly
+    // re-firing chapters whose verses are actually already saved.
+    if (meta && (!cached.book || !cached.verseNum)) {
+      console.log("[devo-tts] backfill meta", refLabel);
+      _saveTtsAudio(cacheKey, cached.blob, cached.timings, meta);
+    }
     _ttsLogPush("hit", meta, "already saved");
     return _edgeToClientShape(cached.blob, cached.timings || []);
   }
