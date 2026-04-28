@@ -385,10 +385,8 @@ async function _imgcrShare() {
   const btn       = document.getElementById("canvasModeBtn");
   const closeBtn  = document.getElementById("cmCloseBtn");
   const titleEl   = document.getElementById("cmTitle");
-  const clearBtn  = document.getElementById("cmClearBtn");
   const undoBtn   = document.getElementById("cmUndoBtn");
   const redoBtn   = document.getElementById("cmRedoBtn");
-  const shareBtn  = document.getElementById("cmShareBtn");
   const viewport  = document.getElementById("cmViewport");
   const scrollEl  = document.getElementById("cmScroll");
   const paperEl   = document.getElementById("cmPaper");
@@ -580,6 +578,16 @@ async function _imgcrShare() {
       });
       verseEl2.appendChild(favBtn);
       passageEl.appendChild(verseEl2);
+
+      // Tap the verse number to jump TTS playback. If TTS isn't running yet,
+      // start canvas-mode playback at this verse. We deliberately put the jump
+      // affordance on the number (and not the words) so word-tap stays free
+      // for the existing popover.
+      num.addEventListener("click", (e) => {
+        e.stopPropagation();
+        if (typeof ttsJumpToVerse === "function" && ttsJumpToVerse(v)) return;
+        if (typeof playChapterInCanvas === "function") playChapterInCanvas(v);
+      });
     }
 
     // Reflect button at the end — matches the styled one from the dashboard
@@ -1569,135 +1577,8 @@ async function _imgcrShare() {
     if (!noteView.hidden && !noteView.contains(e.target) && !e.target.closest(".cm-note-badge")) closeNoteView();
   });
 
-  // ---------- Grid / clear ----------
-  clearBtn.addEventListener("click", () => {
-    _confirmDialog("Clear all highlights on this canvas?", () => {
-      if (Object.keys(state.highlights).length) pushHistory();
-      state.highlights = {};
-      passageEl.querySelectorAll(".cm-word").forEach((w) => { delete w.dataset.color; });
-      refreshRuns();
-      saveState();
-    });
-  });
-
   undoBtn?.addEventListener("click", doUndo);
   redoBtn?.addEventListener("click", doRedo);
-
-  // ---------- Export passage → PNG ----------
-  let html2canvasPromise = null;
-  let exportInFlight = false;
-  function loadHtml2Canvas() {
-    if (window.html2canvas) return Promise.resolve(window.html2canvas);
-    if (html2canvasPromise) return html2canvasPromise;
-    html2canvasPromise = new Promise((resolve, reject) => {
-      const s = document.createElement("script");
-      s.src = "https://cdn.jsdelivr.net/npm/html2canvas@1.4.1/dist/html2canvas.min.js";
-      s.onload = () => resolve(window.html2canvas);
-      s.onerror = () => { html2canvasPromise = null; reject(new Error("Failed to load html2canvas")); };
-      document.head.appendChild(s);
-    });
-    return html2canvasPromise;
-  }
-
-  async function exportPassageAsImage() {
-    if (!paperEl || !currentInfo) return;
-    if (exportInFlight) return;
-    exportInFlight = true;
-    const oldLabel = shareBtn?.querySelector(".material-symbols-outlined")?.textContent;
-    try {
-      if (shareBtn) {
-        shareBtn.disabled = true;
-        const iconEl = shareBtn.querySelector(".material-symbols-outlined");
-        if (iconEl) iconEl.textContent = "hourglass_top";
-      }
-      const h2c = await loadHtml2Canvas();
-
-      // Hide elements that are interactive-only, not content.
-      const hideList = paperEl.querySelectorAll(".cm-reflect-row, .cm-tail-spacer");
-      const prevDisplays = [];
-      hideList.forEach((el) => { prevDisplays.push(el.style.display); el.style.display = "none"; });
-
-      // Scroll to top so html2canvas measures from the actual start.
-      const prevScrollTop = scrollEl.scrollTop;
-      scrollEl.scrollTop = 0;
-
-      // Add a temporary bottom padding for the export. cm-paper has
-      // padding-bottom: 0 by design (the tail-spacer normally provides the
-      // scroll buffer), so when the spacer is hidden, the last verse's
-      // margin-bottom collapses through paper's bottom edge and the final
-      // line-height fraction can clip at scrollHeight. Explicit padding both
-      // gives the photo breathing room AND keeps the last verse fully inside
-      // the measured height.
-      const prevPaperPadBottom = paperEl.style.paddingBottom;
-      paperEl.style.paddingBottom = "72px";
-
-      // Force layout then read full natural dims of the paper (not the
-      // clipped scroll viewport), so the whole chapter is captured.
-      void paperEl.offsetHeight;
-      const fullW = Math.ceil(paperEl.scrollWidth);
-      const fullH = Math.ceil(paperEl.scrollHeight);
-
-      const canvas = await h2c(paperEl, {
-        backgroundColor: "#f5f2ea",
-        scale: 2,
-        useCORS: true,
-        logging: false,
-        width: fullW,
-        height: fullH,
-        windowWidth: fullW,
-        windowHeight: fullH,
-      });
-
-      paperEl.style.paddingBottom = prevPaperPadBottom;
-      scrollEl.scrollTop = prevScrollTop;
-      hideList.forEach((el, i) => { el.style.display = prevDisplays[i]; });
-
-      const blob = await new Promise((res) => canvas.toBlob(res, "image/png"));
-      if (!blob) throw new Error("Could not create PNG");
-
-      const safeName = `${currentInfo.bookName}-${currentInfo.chapterNum}`
-        .toLowerCase().replace(/\s+/g, "-");
-      const filename = `${safeName}.png`;
-
-      // Mobile (touch-only device) → Web Share sheet (has Save to Photos,
-      // Messages, IG, etc). Desktop → straight download (share sheets there
-      // lack "Save to Downloads", so users end up stuck).
-      const isMobile = window.matchMedia("(pointer: coarse) and (hover: none)").matches;
-      const file = new File([blob], filename, { type: "image/png" });
-      if (isMobile && navigator.canShare?.({ files: [file] })) {
-        try {
-          await navigator.share({ files: [file], title: `${currentInfo.bookName} ${currentInfo.chapterNum}` });
-        } catch (err) {
-          if (err?.name !== "AbortError") downloadBlob(blob, filename);
-        }
-      } else {
-        downloadBlob(blob, filename);
-      }
-    } catch (err) {
-      console.error(err);
-      cmToast("Sorry, couldn't save image");
-    } finally {
-      exportInFlight = false;
-      if (shareBtn) {
-        shareBtn.disabled = false;
-        const iconEl = shareBtn.querySelector(".material-symbols-outlined");
-        if (iconEl && oldLabel) iconEl.textContent = oldLabel;
-      }
-    }
-  }
-
-  function downloadBlob(blob, filename) {
-    const url = URL.createObjectURL(blob);
-    const a = document.createElement("a");
-    a.href = url;
-    a.download = filename;
-    document.body.appendChild(a);
-    a.click();
-    a.remove();
-    setTimeout(() => URL.revokeObjectURL(url), 1000);
-  }
-
-  shareBtn?.addEventListener("click", exportPassageAsImage);
 
   // ---------- Keyboard ----------
   // Color shortcuts: 1-5 map to swatches in toolbar order (matches index.html
@@ -1762,6 +1643,25 @@ async function _imgcrShare() {
     scrollEl.scrollTop = 0;
   }
 
+  // Re-render canvas content for the current bookEl/chapterEl values without
+  // replaying the open intro. Called when the user uses the canvas-side
+  // chapter chevrons or picks a new passage from the title-tap book picker.
+  function reload() {
+    if (overlay.hidden) return;
+    const info = getCurrentPassageInfo();
+    if (!info) return;
+    currentInfo = info;
+    stateKey = info.key;
+    state = loadState(stateKey);
+    const titleText = `${info.bookName} ${info.chapterNum}`;
+    titleEl.textContent = titleText;
+    passageTitleEl2.textContent = titleText;
+    renderPassage(info);
+    resetHistory();
+    scrollEl.scrollTop = 0;
+  }
+  window._cmReload = reload;
+
   // Cinematic study-mode intro — used by open(). Builds a one-shot DOM node,
   // lets the CSS keyframes run for ~1.4s, then removes itself.
   function _playStudyIntro(titleText) {
@@ -1819,6 +1719,10 @@ async function _imgcrShare() {
     strokeActive = false;
     strokePointerId = null;
     strokeTouched = null;
+    // Stop any in-canvas playback so audio doesn't keep going after exit.
+    if (typeof stopTTS === "function" && document.body.classList.contains("tts-canvas-active")) {
+      stopTTS();
+    }
     // Zoom-out transition — play the leaving animation, then actually hide
     // the overlay after it finishes. Falls back to instant hide if anim
     // doesn't fire (e.g. removed mid-flight).
@@ -1837,6 +1741,74 @@ async function _imgcrShare() {
   }
 
   btn?.addEventListener("click", open);
+
+  // Listen button: toggle canvas-mode TTS. Tap again to stop.
+  const cmListenBtn = document.getElementById("cmListenBtn");
+  cmListenBtn?.addEventListener("click", () => {
+    if (document.body.classList.contains("tts-canvas-active")) {
+      if (typeof stopTTS === "function") stopTTS();
+    } else if (typeof playChapterInCanvas === "function") {
+      playChapterInCanvas();
+    }
+  });
+
+  // Sticky mini-player buttons (prev / pause-play / next / stop). The bar's
+  // visibility is gated entirely by `body.tts-canvas-active` in CSS.
+  document.getElementById("cmListenPrevBtn")?.addEventListener("click", () => {
+    if (typeof ttsPrevVerse === "function") ttsPrevVerse();
+  });
+  document.getElementById("cmListenPauseBtn")?.addEventListener("click", () => {
+    if (typeof pauseResumeTTS === "function") pauseResumeTTS();
+  });
+  document.getElementById("cmListenNextBtn")?.addEventListener("click", () => {
+    if (typeof ttsNextVerse === "function") ttsNextVerse();
+  });
+  document.getElementById("cmListenStopBtn")?.addEventListener("click", () => {
+    if (typeof stopTTS === "function") stopTTS();
+  });
+  document.getElementById("cmListenFollowBtn")?.addEventListener("click", () => {
+    if (typeof cmTtsToggleAutoFollow === "function") cmTtsToggleAutoFollow();
+  });
+
+  // Canvas-side chapter nav. Stop any in-canvas TTS before swapping content
+  // (the queue references the old chapter's DOM; letting it keep playing
+  // breaks the highlight system). Reuse the legacy prev/next chapter button
+  // logic so we get the cross-book wraparound + verseEl reset for free, then
+  // call reload() once #output finishes re-rendering.
+  function _switchChapter(triggerBtnId) {
+    if (typeof stopTTS === "function" && document.body.classList.contains("tts-canvas-active")) {
+      stopTTS();
+    }
+    document.getElementById(triggerBtnId)?.click();
+    // The trigger fires loadPassage asynchronously; the loadBtn.onclick
+    // wrapper below also calls reload() once load completes, but we kick a
+    // short follow-up here in case the wrapper isn't reached for some flow.
+    setTimeout(reload, 250);
+  }
+  document.getElementById("cmPrevChBtn")?.addEventListener("click", () => _switchChapter("prevChapterBtn"));
+  document.getElementById("cmNextChBtn")?.addEventListener("click", () => _switchChapter("nextChapterBtn"));
+
+  // Tap chapter title → open the existing book picker bottom-sheet. When the
+  // user picks a passage, the picker triggers loadBtn.click() which our
+  // wrapper (further down) intercepts to reload the canvas.
+  titleEl?.addEventListener("click", () => {
+    if (typeof stopTTS === "function" && document.body.classList.contains("tts-canvas-active")) {
+      stopTTS();
+    }
+    if (typeof window._openBookPicker === "function") window._openBookPicker();
+  });
+
+  // Keyboard "L" → toggle canvas Listen (mirrors the H/E shortcuts). Only
+  // bind once and only fire while canvas is open + no input is focused.
+  document.addEventListener("keydown", (e) => {
+    if (overlay.hidden) return;
+    const tag = (e.target?.tagName || "").toLowerCase();
+    if (tag === "input" || tag === "textarea" || e.target?.isContentEditable) return;
+    if (e.key === "l" || e.key === "L") {
+      e.preventDefault();
+      cmListenBtn?.click();
+    }
+  });
   closeBtn.addEventListener("click", close);
 
   // When Firebase sync applies remote canvas updates, refresh if the
@@ -1919,7 +1891,14 @@ async function _imgcrShare() {
       closeCfgSheet();
       updatePassageText();
       try {
-        if (prev) return await prev.apply(this, args);
+        if (prev) {
+          const result = await prev.apply(this, args);
+          // If the canvas overlay is open, refresh its contents so the new
+          // passage replaces what's drawn on the paper. No-op when canvas
+          // isn't visible — reload() guards on overlay.hidden.
+          if (typeof window._cmReload === "function") window._cmReload();
+          return result;
+        }
       } catch (err) { console.error(err); }
     };
   }

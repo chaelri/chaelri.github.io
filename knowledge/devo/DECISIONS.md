@@ -247,3 +247,44 @@ The original monolithic `script.js` benefitted from whole-file function hoisting
 **Why**: Charlie said the intro "always looked the same" — the highlight was hardcoded yellow even though the canvas itself supports 5 colors. Randomizing the intro color makes the moment feel less repetitive across chapters.
 
 **Implementation**: `_playStudyIntro` in `10-creator-canvas.js` rolls one of 5 color triplets (mid / edge / glow rgb tuples for yellow, pink, blue, orange, green) and sets `--cm-hi-1` / `--cm-hi-2` / `--cm-hi-3` / `--cm-hi-glow` CSS custom properties on `.cm-intro-highlight`. The CSS gradient + drop-shadow read from those vars; defaults are yellow if JS doesn't set them.
+
+---
+
+## 18. Edge TTS swap + canvas listen mode (2026-04-28)
+
+**Decision**: Replace Google Cloud TTS (`en-US-Journey-D`, direct browser → `texttospeech.googleapis.com`) with Microsoft "Edge Read Aloud" (`en-US-BrianNeural`) routed through a new `POST /edge-tts` endpoint on `gemini-proxy/`. Bump synth concurrency from 4 → 10. Fire prefetch for the whole chapter on `loadPassage` instead of just on Listen-tap. Re-introduce the IndexedDB audio cache with a short 3-day TTL. Add a canvas-mode listen flow with a sticky mini-player, marching-ants verse border, and Media Session API integration.
+
+**Why the swap**:
+- Synthesis is ~10× faster (~150-300ms/verse vs. ~2s for Journey-D).
+- Microsoft's Edge Read Aloud endpoint is free; client no longer needs `GOOGLE_TTS_KEY`.
+- Real `WordBoundary` timings come back with the audio, so word-level highlighting uses true Edge timings (synthetic-timing heuristic stays as a fallback).
+- Cloud Run free tier covers ~800 chapters/month; Microsoft eats the synthesis cost.
+- Trade-off: `msedge-tts` uses Microsoft's undocumented internal endpoint via a public anonymous trusted token. If MS revokes it, we'd need to switch to a paid path. Not load-bearing for personal-use scope.
+
+**Why prefetch the whole chapter on load**:
+- Per-verse synthesis is so fast that the user finishing the on-screen verse-1 read takes longer than the entire chapter to synth. Tap-Listen feels instant.
+- 3-day TTL keeps IDB bounded even on chapter spam; cache hits are instant on revisits.
+- Even pathological flipping (10 chapters × 30 verses = ~300 calls) just queues behind the 10-slot semaphore.
+
+**Why canvas listen mode (separate from immersive)**:
+- The immersive overlay covers the canvas; defeats the point of read-along while highlighting/drawing.
+- Canvas mode keeps the paper visible; sticky mini-player at bottom-center provides ⏮ ⏯ ⏭ 🔒 (auto-follow toggle) ✕.
+- Auto-follow (default on) smooth-scrolls the canvas to keep the active verse centered. `localStorage.devo.cmTtsAutoFollow` persists the toggle. `visibilitychange` hook re-snaps to current verse when the user reopens the phone.
+- Active verse gets a marching-ants pink dotted border via injected SVG `<rect>` with animated `stroke-dashoffset` (clean rounded corners — earlier 4-edge gradient trick clipped at corners). Active word gets a soft `rgba(190,24,93,0.2)` wash with dark text staying — no per-word color flip, no strobing.
+- Active verse `padding: 20px 24px` so text "loloob" deep inside the dotted box; neighbors push down naturally and auto-scroll re-centers.
+
+**Media Session API**:
+- iOS Safari pauses audio on screen-lock unless the page registers as media. Wiring `navigator.mediaSession` makes the OS treat devo as a media app — audio keeps playing past chapter boundaries while the phone is asleep, lock screen shows verse metadata + ◀◀ ▶ ▶▶ controls, headphone buttons work.
+
+**Canvas chapter nav (no need to exit to switch passages)**:
+- ‹ / › chevrons flank the big italic passage title; proxy to legacy `#prevChapterBtn` / `#nextChapterBtn`.
+- Tappable topbar title opens `window._openBookPicker()`.
+- `loadBtn.onclick` wrapper now calls `window._cmReload?.()` so the canvas paper rerenders the new chapter without replaying the intro.
+- `.bc-sheet` z-index bumped 1005 → 10200 so the picker sits above `.cm-overlay` (10050) and the listen bar (10080).
+
+**Removed during this rewrite**:
+- Share-as-image (`cmShareBtn`, `html2canvas` plumbing, `exportPassageAsImage`, `downloadBlob`) — Charlie didn't use it.
+- Clear-all-highlights (`cmClearBtn`, `_confirmDialog` flow) — also unused.
+- `_prefetchNextChapter` (post-chapter background prefetch of the *next* chapter) — superseded by per-load prefetch.
+- `tts-preview/` directory — was a Node-side baking experiment that got us to the Edge TTS decision; now obsolete.
+- `_TTS_STORE` was briefly dropped (DB v5) when we thought Edge synth was so fast caching was unnecessary; restored at v6 with 3-day TTL after Charlie's "save it nalang pala" decision.

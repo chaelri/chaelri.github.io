@@ -627,19 +627,13 @@
         <button class="cm-icon-btn" id="cmCloseBtn" title="Close">
           <span class="material-symbols-outlined">arrow_back_ios_new</span>
         </button>
-        <div class="cm-title" id="cmTitle"></div>
+        <button class="cm-title" id="cmTitle" type="button" title="Pick passage" aria-label="Pick passage"></button>
         <div class="cm-topbar-actions">
           <button class="cm-icon-btn" id="cmUndoBtn" title="Undo" disabled>
             <span class="material-symbols-outlined">undo</span>
           </button>
           <button class="cm-icon-btn" id="cmRedoBtn" title="Redo" disabled>
             <span class="material-symbols-outlined">redo</span>
-          </button>
-          <button class="cm-icon-btn" id="cmShareBtn" title="Save as image">
-            <span class="material-symbols-outlined">ios_share</span>
-          </button>
-          <button class="cm-icon-btn" id="cmClearBtn" title="Clear all">
-            <span class="material-symbols-outlined">delete_sweep</span>
           </button>
         </div>
       </div>
@@ -651,6 +645,9 @@
           </button>
           <button class="cm-tool-btn" data-tool="eraser" title="Eraser (E)">
             <span class="material-symbols-outlined">ink_eraser</span>
+          </button>
+          <button class="cm-listen-btn" id="cmListenBtn" type="button" title="Listen (L)" aria-label="Listen to chapter">
+            <span class="material-symbols-outlined">graphic_eq</span>
           </button>
           <span class="cm-mode-label" id="cmModeLabel" data-tool="highlight">Highlight</span>
         </div>
@@ -666,7 +663,15 @@
       <div class="cm-viewport" id="cmViewport">
         <div class="cm-scroll" id="cmScroll">
           <div class="cm-paper" id="cmPaper">
-            <div class="cm-passage-title" id="cmPassageTitle"></div>
+            <div class="cm-passage-title-row">
+              <button class="cm-passage-nav-btn" id="cmPrevChBtn" type="button" aria-label="Previous chapter" title="Previous chapter">
+                <span class="material-symbols-outlined">chevron_left</span>
+              </button>
+              <div class="cm-passage-title" id="cmPassageTitle"></div>
+              <button class="cm-passage-nav-btn" id="cmNextChBtn" type="button" aria-label="Next chapter" title="Next chapter">
+                <span class="material-symbols-outlined">chevron_right</span>
+              </button>
+            </div>
             <div class="cm-context" id="cmContext" hidden></div>
             <div class="cm-passage" id="cmPassage"></div>
             <div class="cm-tail-spacer" aria-hidden="true"></div>
@@ -699,6 +704,28 @@
           <button class="cm-pop-secondary-btn" data-action="context">Context</button>
           <button class="cm-pop-secondary-btn" data-action="ask">Ask Question</button>
         </div>
+      </div>
+
+      <!-- Sticky Listen mini-player. Only renders when canvas-mode TTS is
+           active (gated by body.tts-canvas-active in CSS). Bottom-center
+           position dodges the radial FAB on the right. -->
+      <div class="cm-listen-bar" id="cmListenBar" role="toolbar" aria-label="Canvas listen controls">
+        <button id="cmListenPrevBtn" type="button" aria-label="Previous verse" title="Previous verse">
+          <span class="material-symbols-outlined">skip_previous</span>
+        </button>
+        <button id="cmListenPauseBtn" class="cm-listen-pause" type="button" aria-label="Pause" title="Pause / play">
+          <span class="material-symbols-outlined">pause</span>
+        </button>
+        <button id="cmListenNextBtn" type="button" aria-label="Next verse" title="Next verse">
+          <span class="material-symbols-outlined">skip_next</span>
+        </button>
+        <span class="cm-listen-verse" id="cmListenVerse"></span>
+        <button id="cmListenFollowBtn" class="cm-listen-follow" type="button" aria-label="Auto-scroll" title="Auto-scroll to current verse">
+          <span class="material-symbols-outlined">lock</span>
+        </button>
+        <button id="cmListenStopBtn" class="cm-listen-stop" type="button" aria-label="Stop" title="Stop">
+          <span class="material-symbols-outlined">close</span>
+        </button>
       </div>
 
       <!-- Light-mode AI popover for Context / Ask (renders fetchInlineQuickContext or toggleVerseChat) -->

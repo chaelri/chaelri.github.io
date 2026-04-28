@@ -1,183 +1,174 @@
-## Overview
+# Devo TTS — Architecture
 
-> **Note (2026-04-27 split):** Line numbers reference the original monolithic `devo/script.js`. The TTS code now lives in `devo/js/03-tts.js` (synthesis, queue, playback, word highlight) and `devo/js/07-immersive.js` (immersive overlay). See [`KEY_FILES.md`](KEY_FILES.md) for the full map.
+**Last major rewrite:** 2026-04-28 (Edge TTS swap + canvas listen mode).
 
-Google Cloud Text-to-Speech with voice `en-US-Journey-D`, server-synthesized via the Gemini proxy at `https://gemini-proxy-668755364170.asia-southeast1.run.app`. The app synthesizes at request time (no pre-generated cache) and manages playback with word-level highlighting, immersive fullscreen mode, and a persistent player bar.
+The TTS subsystem reads Bible passages aloud with word-level highlighting and lock-screen media controls. Synthesis happens on Microsoft's free "Edge Read Aloud" WebSocket, relayed through `gemini-proxy/`. Audio + Edge `WordBoundary` timings come back as JSON; client caches MP3 blobs in IndexedDB so re-listening within 3 days is offline-instant.
 
-## Verse-to-Audio Flow
+Two front-end modes:
+- **Immersive overlay** (`#ttsImmersive`) — full-screen, with intro screen, scrubber, pause panel, auto-reflection.
+- **Canvas mode** — playback while the user keeps drawing/highlighting; sticky mini-player at bottom-center, marching-ants dotted border around the current verse, soft pink wash on the current word.
 
-### 1. Synthesis Entry Points
-**`ttySynthesize(text, retries=10)` (lines 996–1039)**
-- Calls Google Cloud TTS REST API directly at `https://texttospeech.googleapis.com/v1/text:synthesize?key=${encodeURIComponent(key)}`
-- Requires `window.GOOGLE_TTS_KEY` or `localStorage.getItem("googleTtsKey")`
-- Request payload:
-  ```json
-  {
-    "input": { "text": "..." },
-    "voice": { /* TTS_VOICE constant */ },
-    "audioConfig": { "audioEncoding": "MP3" }
-  }
-  ```
-- Response: `{ audioContent: "<base64 MP3>" }`
-- Converts base64 to Uint8Array, creates Blob, returns object URL: `{ url, timepoints: [], words }`
-- Retries with exponential backoff (800ms base, 3s for rate-limit; max 30s delay, 1.5s jitter)
-- Errors: throws for auth/no-key; retries for network/rate-limit
+## Files
 
-### 2. Playback State Machine
-**Global vars (line 1049–1050)**
-- `let ttsQueue = []` — array of `{el, verseNum, text, ttsText, url, ready, timepoints, words, prefixWordCount}`
-- `let ttsIdx = -1` — current verse index
-- `let ttsPaused = false` — pause state
-- `let ttsGen = 0` — generation token to discard stale callbacks
-- `let ttsAudio = null` — HTMLAudioElement
-- `let _ttsReadyCount = 0` — synthesis progress tracker
+| File | Role |
+|---|---|
+| `devo/js/03-tts.js` | All TTS logic — synthesis, queue, playback, word highlight, canvas controller, Media Session |
+| `devo/js/07-immersive.js` | Immersive overlay UI (open/close, scrubber, reflection panel) |
+| `devo/js/01-core.js` | IDB cache (`_TTS_STORE`, `_getTtsAudio`, `_saveTtsAudio`) — 3-day TTL |
+| `devo/js/04-passage.js` | Calls `_ttsPrefetchChapter()` after `loadPassage()` finishes |
+| `devo/js/10-creator-canvas.js` | Wires the canvas Listen button + verse-num jump + close-canvas-stops-TTS |
+| `gemini-proxy/index.js` | `POST /edge-tts` — wraps `msedge-tts` Node WebSocket, returns `{ audioBase64, timings }` |
+| `gemini-proxy/package.json` | Adds `msedge-tts ^2.0.5` dep |
 
-**Queue Building (lines 1088–1120)**
-- `ttsBuildQueue()` extracts verses from DOM (line 1068; uses `window.__aiPayload?.versesText`)
-- Prepends chapter title if multi-verse (line 1095–1096)
-- Calculates verse range label for UI
+## Voice
 
-### 3. Semaphore-Based Synthesis Control
-**Lines 825–839**
-- `_synthAcquire()` — wait for synthesis slot (max concurrent via `_synthSem.max`, queued resolvers in `_synthSem.queue`)
-- `_synthRelease()` — free slot, dequeue next waiter
-- `_synthReset()` — clear semaphore on TTS abort
-
-**On-Demand Synthesis Loop (lines 843–871)**
-- `_ttsSynthItem(item, gen)` — synthesizes if not already `item.ready`; returns promise
-- `_ttsPrepareLookahead(index, gen)` — synthesizes current + 2 ahead (line 842: `TTS_LOOKAHEAD = 2`)
-- Caches result in `item.url`, `item.timepoints`, `item.words`
-- Updates progress bar live: `_ttsReadyCount / ttsQueue.length`
-
-## Word-Level Highlighting
-
-### 1. Timepoint Computation
-**`_computeSyntheticTimepoints(words, duration)` (lines 907–936)**
-- If TTS provider returns real timing marks, use them; else synthesize pseudo-timings
-- Each word weighted by letter count + punctuation "silence" (period = 3.2, comma = 1.5, etc.)
-- Allocate duration proportionally: 1.5% lead-in, 96.5% across words
-- Returns `[{ timeSeconds: 0.0 }, { timeSeconds: 0.5 }, ...]`
-
-### 2. Highlighting Runtime
-**`_startWordHighlight(audio, item)` (lines 938–990)**
-- Injects word spans into `.verse-content`: `<span class="tts-word" data-idx="0">word</span>`
-- Restores original on stop (via `_originalHTML` backup)
-- If timepoints missing, calls `_computeSyntheticTimepoints()` on `loadedmetadata`
-- RAF loop ticks on `audio.currentTime`, matches against `timepoints[i].timeSeconds`
-- Toggles `tts-word-active` class and `tts-imm-word-active` (immersive mode)
-- Accounts for chapter-title prefix: displays word index adjusted by `item.prefixWordCount`
-
-**`_stopWordHighlight()` (lines 992–994)**
-- Cancels RAF, clears highlights
-
-### 3. HTML Structure
-**Verse DOM (lines 2700–2719)**
-```html
-<div id="<verse_num>" class="verse-header">
-  <div class="verse-content">
-    <span class="verse-num">1</span>Text...
-    <span class="verse-meta-indicators">...</span>
-  </div>
-</div>
-<div class="verse-actions">
-  <button data-action="context">...</button>
-  <button data-action="ask">...</button>
-  <button data-action="note">...</button>
-</div>
+```js
+const TTS_VOICE = { name: "en-US-BrianNeural" };
 ```
 
-## Player Bar UI
+Default voice on both client and proxy. The proxy accepts an optional `voice` field on the request body if we ever want to A/B another Edge voice (e.g. `en-US-AndrewNeural`, `en-US-AriaNeural`).
 
-**Element: `#ttsPlayer` (line 355 in index.html)**
-- Classes: `tts-player` (hidden by default)
-- State classes: `tts-ready`, `tts-buffering` (added/removed during synthesis/playback)
+## Synthesis pipeline
 
-**Status Display (line 1166, 1194, 1261)**
-- `ttsSetStatus(text)` — updates `#ttsPlayerStatus`
-- Format: `"🎵 <verse_num> / <queue_length>"` or `"⏸ Verse <verse_num>"`
+### Client → Proxy
 
-**Playback Controls (lines 1244–1327)**
-- `pauseResumeTTS()` — toggle `ttsPaused`, pause/resume `ttsAudio`, update icon
-- `ttsPrevVerse()` / `ttsNextVerse()` — bounds-check, call `ttsPlayAt(index, gen)`
-- `ttsPlayAt(index, gen)` — core playback: sets `ttsIdx`, updates UI, awaits `_ttsPrepareLookahead()`, plays `ttsAudio`
+`ttsSynthesize(text)` (03-tts.js):
 
-**Stopping (line 1337–1351)**
-- `stopTTS()` — clears queue, hides player, resets highlight
+1. Compute cache key `${TTS_VOICE.name}|${text}`.
+2. Try `_getTtsAudio(cacheKey)` — instant return on hit; `_edgeToClientShape(blob, timings)` builds `{ url, timepoints, words }` from the cached MP3 + Edge WordBoundary array.
+3. On miss, acquire a slot from the **10-runner semaphore** (`_synthSem`). Wait if 10 in flight already.
+4. POST to `${GEMINI_PROXY}/edge-tts` with `{ text, voice }`.
+5. On 200, decode base64 → Blob, fire-and-forget `_saveTtsAudio(cacheKey, blob, timings)`, return shape.
+6. Retry up to 5× with exponential backoff (600ms base, 2s for rate-limit, max 12s).
 
-## Immersive TTS Overlay
+### Proxy → Microsoft
 
-**Element: `#ttsImmersive` (line 376 in index.html)**
+`POST /edge-tts` (gemini-proxy/index.js):
 
-### Opening
-**`ttsImmersiveOpen()` (lines 5327–5374)**
-- Shows `#ttsImmersive`, hides reflection panel
-- Sets passage title in `#ttsImmTitle`
-- Resets load bar `#ttsImmLoadBar` to 0%
-- Wires button clicks: prev/next/pause/close
-- Builds scrubber dots from queue length
+1. Validate body (`text` required, ≤5000 chars).
+2. Open `MsEdgeTTS` WebSocket, `setMetadata(voice, AUDIO_24KHZ_48KBITRATE_MONO_MP3, { wordBoundaryEnabled: true })`.
+3. `tts.toStream(text)` → `{ audioStream, metadataStream }`.
+4. `_consumeEdgeMetadata` parses each JSON metadata chunk into `{ word, start, duration }` (seconds, converted from Microsoft's 100ns ticks).
+5. `Promise.all([audioDone, metaDone])` — audio bytes concatenated to a Buffer.
+6. Return `{ audioBase64, timings }`. Always `tts.close()` in `finally`.
 
-**`_loadTtsImmersiveBg(bookName, ch)` (lines 5376–5396)**
-- Calls `callImageGen()` asynchronously (currently disabled in code: line 181)
-- Renders background image with fade-in transition
+Cost: free-tier Cloud Run covers ~800 chapters/month for one user; Microsoft eats the synthesis cost.
 
-### UI Components
-- `#ttsImmTitle` — passage label (e.g., "John 3")
-- `#ttsImmLoadBar` — progress bar (`width: N%`)
-- `#ttsImmStatusEl` — status text (e.g., "Preparing…")
-- `#ttsImmSlotPrev`, `#ttsImmSlotCur`, `#ttsImmSlotNext` — prev/current/next verse slots
-- `#ttsImmPrevBtn`, `#ttsImmNextBtn`, `#ttsImmPauseBtn`, `#ttsImmCloseBtn` — control buttons
-- `#ttsImmCurText` — current verse text (contains `.tts-imm-word` spans for highlighting)
-- `#ttsImmReflPanel` — reflection questions panel (hidden initially, shown post-playback)
-- `#ttsImmContextPanel` — background context (hidden during playback)
-- `.tts-imm-stage` and `.tts-imm-footer` — layout sections toggled for panels
+## Background prefetch (3-day cache)
 
-### Closing
-**`ttsImmersiveClose()` (lines 5398–5432)**
-- Hides `#ttsImmersive`
-- Resets all panel visibility, button disabled states
-- Clears double-tap state and auto-reflection timer
+`_ttsPrefetchChapter()` (03-tts.js) runs at the end of `loadPassage()` (04-passage.js):
 
-### Scrubber / Verse Navigation
-**`ttsImmersiveBuildScrubber()` (lines 5524–5539)**
-- Creates dots (one per verse in queue)
-- Divs with class `tts-imm-scrub-dot`, data-idx
-- Clickable to jump to verse
+1. Reads `window.__aiPayload.versesText`, splits on newlines.
+2. For each verse, strips the `"<n>. "` prefix and (for v1) prepends `"<Book> <Chapter>. "`.
+3. Fires `ttsSynthesize(text).catch(() => {})` for every verse — fire-and-forget.
 
-**`ttsImmersiveUpdate(index)` (lines 5540–5627)**
-- Updates active scrubber dot
-- Disables prev/next buttons at boundaries
-- Renders prev/cur/next verse text snapshots
+The 10-slot semaphore in `ttsSynthesize` caps in-flight count; cache hits are instant IDB reads. Spam-flipping 10 chapters queues ~300 calls that drain in the background. **3-day TTL** (`_TTS_MAX_AGE` in 01-core.js) keeps the IDB store from bloating; entries past 3d are purged on startup.
 
-### Double-Tap to Favorite
-**Lines 5367–5371**
-- `#ttsImmSlotCur` double-click toggles favorite
-- `_immHandleDoubleTap()` — tracks taps, calls `toggleFavorite(key)`
+IndexedDB schema (`devo-cache` DB, version 6):
+```js
+// _TTS_STORE = "tts"
+{ key: "en-US-BrianNeural|<text>", blob: Blob, timings: [{word, start, duration}, ...], time: <ms> }
+```
 
-## Web Audio Context
+## Word-level highlighting
 
-**Audio Element Lifecycle**
-- `ttsAudio` created fresh per playback session
-- `play()` → `_startWordHighlight()` begins RAF loop
-- `pause()` → RAF cancels, but audio is not destroyed
-- `currentTime` used for word sync (no custom AudioContext; native HTML5 audio)
+Real Edge `WordBoundary` timings drive the highlight RAF loop. `item.words` is Edge's tokenization (skips pure-punctuation tokens), `item.timepoints` is `[{ timeSeconds }]` for each token, `item.prefixWordCount` is the count of leading prefix words for verse 1 ("Genesis 1." → 2 tokens).
 
-**No explicit Web Audio API:**
-- Uses `<audio>` element's native playback
-- `HTMLAudioElement.play()`, `.pause()`, `.currentTime`, duration properties
-- Object URLs (from Blob) as `src`
+`_startWordHighlight(audio, item)`:
+- Finds active timing index `wi` where `pts[i].timeSeconds <= audio.currentTime`.
+- `displayIdx = wi - prefixWordCount` — verse-relative index for rendered spans.
+- Toggles class on three span sets:
+  - `#output .verse .tts-word` (main view) — by `displayIdx`
+  - `#ttsImmCurText .tts-imm-word` (immersive) — by `displayIdx`
+  - `#cmPassage .cm-word[data-verse="<n>"]` (canvas) — by `displayIdx`, list cached once per verse change
 
-## Error Handling
-- Auth errors (401/403) → throw immediately, stop retries
-- Rate-limit (429) → exponential backoff up to 30s
-- Network errors → backoff, max 10 attempts
-- Synthesis timeout → falls back to synthetic timepoints if provider fails
+`_injectWordSpans(item)` slices off the prefix words before rendering, so the chapter-title prefix never appears in the verse-content. Synthetic timings (`_computeSyntheticTimepoints`) are still the fallback when a cached entry has empty timings.
 
-## Storage & Caching
-- **IndexedDB**: Image cache (`_IMG_DB_NAME = "devo-cache"`, v3; 7-day TTL)
-- **localStorage**: No TTS cache; verses synthesized on demand each session
-- **Firebase**: No TTS data synced (only settings and notes)
+## Canvas listen mode (`_ttsInCanvas` flag)
+
+Entry point: `playChapterInCanvas(startVerse?)` (03-tts.js).
+
+Diff vs. `playChapter()`:
+- Skips `ttsImmContextOpen()` (no immersive intro screen — would cover the canvas).
+- Adds `body.tts-canvas-active` (gates the sticky mini-player + marching-ants CSS).
+- Sets `_ttsInCanvas = true`.
+- `ttsFinish()` short-circuits the immersive continue-prompt when `_ttsInCanvas`.
+
+### Sticky mini-player (`#cmListenBar`)
+
+Positioned `fixed; bottom: 18px; left: 50%`. Visibility gated entirely by `body.tts-canvas-active`. Buttons:
+
+- ⏮ `#cmListenPrevBtn` → `ttsPrevVerse()`
+- ⏯ `#cmListenPauseBtn` → `pauseResumeTTS()` (icon flips between `pause` / `play_arrow` via `_cmListenBarUpdate()`)
+- ⏭ `#cmListenNextBtn` → `ttsNextVerse()`
+- 🔒 `#cmListenFollowBtn` → `cmTtsToggleAutoFollow()` (auto-scroll lock; persisted to `localStorage.devo.cmTtsAutoFollow`, default ON)
+- ✕ `#cmListenStopBtn` → `stopTTS()`
+- Verse counter `<cur>/<total>` rendered as three styled spans with `font-feature-settings: "frac" 0` so SF Mono doesn't auto-format `29/36` as a vulgar fraction.
+
+### Auto-scroll
+
+`_cmTtsScrollToCurrent()` finds the `.cm-verse` containing the active word and `scrollIntoView({ block: "center", behavior: "smooth" })`. Called from `ttsPlayAt` after each verse change AND from a `visibilitychange` listener (so the canvas snaps back to the playing verse when the user reopens the phone).
+
+### Visual emphasis
+
+Two layered cues on the current verse:
+
+1. **Soft pink wash on the current word** — `.cm-word.cm-word-tts-active`: `background: rgba(190,24,93,0.20)`, dark text stays. No color flip = no per-word strobing.
+2. **Marching-ants dotted border on the current verse** — SVG `<rect>` injected into the verse via `_cmMarkActiveVerse(verseNum)`. CSS animates `stroke-dashoffset: 0 → -10` (1 dash cycle) at 0.9s linear infinite. Negative offset = dashes drift in the path's natural direction = clockwise around the rounded rect. Replaced an earlier 4-edge gradient trick that "tapyas"-clipped at corners.
+
+The active verse also gets `padding: 20px 24px` so the text "loloob" deeply inside the dotted box. Neighbors push down naturally; auto-scroll re-centers the active verse.
+
+## Lock-screen / background playback
+
+Media Session API integration so iOS/Android keep audio alive when the screen locks:
+
+```js
+function _setupMediaSession() {  // wired once on first play
+  navigator.mediaSession.setActionHandler("play", ...)
+  navigator.mediaSession.setActionHandler("pause", ...)
+  navigator.mediaSession.setActionHandler("previoustrack", () => ttsPrevVerse())
+  navigator.mediaSession.setActionHandler("nexttrack",     () => ttsNextVerse())
+}
+
+function _updateMediaSession(item) {  // called per verse
+  navigator.mediaSession.metadata = new MediaMetadata({
+    title: `<bookName> <ch>:<verseNum>`,
+    artist: "Devotion",
+    album: `<bookName> <ch>`,
+  });
+  navigator.mediaSession.playbackState = ttsPaused ? "paused" : "playing";
+}
+```
+
+Lock-screen card shows the current verse + ◀◀ ▶ ▶▶ controls; headphone buttons work; pause/play state syncs into the in-app bar via `_cmListenBarUpdate()`.
+
+Cleared in `_ttsCleanupMode()` (sets metadata = null, playbackState = "none").
+
+## Canvas top-bar nav
+
+Inside the canvas overlay, the user can switch passages without exiting:
+- **‹ / ›** chevrons flanking the big italic passage title — proxy to legacy `#prevChapterBtn` / `#nextChapterBtn` clicks; canvas content rerenders via `window._cmReload`.
+- **Tappable topbar title** — opens `window._openBookPicker()`. The book/chapter picker `.bc-sheet` was bumped to `z-index: 10200` so it sits above `.cm-overlay` (10050) and the listen bar (10080).
+
+After any passage swap, `loadBtn.onclick` wrapper calls `window._cmReload?.()` so the canvas paper re-renders the new chapter.
 
 ## Constants
-- `GEMINI_PROXY = 'https://gemini-proxy-668755364170.asia-southeast1.run.app'` (line 16)
-- `TTS_VOICE` — expected to be defined in config or inline (unknown — verify before relying)
-- `TTS_LOOKAHEAD = 2` (line 842)
+
+```js
+GEMINI_PROXY = "https://gemini-proxy-668755364170.asia-southeast1.run.app"  // 01-core.js
+TTS_VOICE = { name: "en-US-BrianNeural" }                                   // 03-tts.js
+EDGE_DEFAULT_VOICE = "en-US-BrianNeural"                                    // gemini-proxy/index.js
+_synthSem = { active: 0, max: 10, queue: [] }                               // 03-tts.js
+_TTS_MAX_AGE = 3 * 24 * 60 * 60 * 1000                                      // 01-core.js
+_IMG_DB_VER = 6                                                             // 01-core.js
+_CM_TTS_FOLLOW_KEY = "devo.cmTtsAutoFollow"                                 // 03-tts.js
+```
+
+## Why Edge TTS, not Google Cloud TTS?
+
+- ~10× faster synthesis (~150-300ms vs. ~2s per verse for Journey-D).
+- Microsoft's "Read Aloud" endpoint is free; no API key on the client.
+- Real `WordBoundary` timings come back with the audio — no need for the synthetic-timing heuristic except as a fallback.
+- Cloud Run free tier easily covers ~800 chapters/month for one user; the proxy is just a WebSocket relay.
+
+Trade-off: `msedge-tts` uses Microsoft's undocumented internal endpoint. If MS revokes the anonymous trusted token, we'd need to switch to a paid TTS path. Not load-bearing for the personal-use scope.

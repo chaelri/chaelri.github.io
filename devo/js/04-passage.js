@@ -1357,6 +1357,12 @@ async function loadPassage() {
     // fades out. Same easing as the canvas overlay so all view-changes feel
     // like one motion vocabulary.
     _playViewAnim(output, "view-enter");
+
+    // Background TTS prefetch — fire-and-forget. Cache hits are instant IDB
+    // reads; cache misses queue behind the 10-slot semaphore and stream into
+    // IDB so a later Listen tap is silent. 3-day TTL keeps DB size bounded
+    // even if the user spam-flips chapters.
+    if (typeof _ttsPrefetchChapter === "function") _ttsPrefetchChapter();
   } catch (err) {
     console.error(err);
     hideLoading();

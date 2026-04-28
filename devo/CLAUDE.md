@@ -24,7 +24,7 @@ This file auto-loads when Claude opens any session inside or below `chaelri.gith
 
 - **`script.js` was split (2026-04-27):** Code now lives in 11 ordered chunks under `devo/js/` (`01-core.js` … `11-boot.js`). They load as classic `<script>` tags via `firebase-sync.js` (`async=false`) and share one script-global scope, so cross-file globals work unchanged. See `KEY_FILES.md` for the line-range → file map. **Knowledge MD line numbers reference the pre-split monolithic file** — translate via the map.
 - **`11-boot.js` runs the kickoff** (`fetchBibleData`, `loadBooks`, `showDashboard`, `updateControlStates`, recent-passage restore, `_onAppLoad` trigger). Never put synchronous cross-file calls in earlier chunks — hoisting only works within a chunk, not across them.
-- **TTS is Google Cloud** (`en-US-Journey-D`), NOT Kokoro. Older memory may be stale.
+- **TTS is Microsoft Edge "Read Aloud"** via `gemini-proxy` `/edge-tts` endpoint (voice `en-US-BrianNeural`). Synthesis is ~10× faster than the old Google Journey-D path; entire chapter prefetched on `loadPassage` and cached in IndexedDB (3-day TTL). Old "Google Cloud TTS" / "Kokoro" memories are stale.
 - **Firebase sync gates on `userName === "charlie"`** — only Charlie's data mirrors to RTDB.
 - **Bible JSON files are large** (~10 MB total): `nasb2020.json`, `easy2024.json`. Lazy-loaded.
 - **No build step:** Vanilla JS, edit and reload.

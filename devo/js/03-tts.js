@@ -1,8 +1,15 @@
-const TTS_VOICE = { languageCode: "en-US", name: "en-US-Journey-D" };
+// Microsoft Edge "Read Aloud" voice (en-US-AndrewNeural) via the gemini-proxy
+// /edge-tts endpoint. Per-verse synthesis is ~100-300ms — roughly 10× faster
+// than the previous Google Journey-D path, which is why we now synth the WHOLE
+// chapter in parallel on Listen-tap instead of caching to IndexedDB.
+const TTS_VOICE = { name: "en-US-BrianNeural" };
 let _ttsReadyCount = 0;
 
-// Semaphore: max 2 concurrent TTS requests to stay under rate limits
-const _synthSem = { active: 0, max: 1, queue: [] };
+// Concurrency: 10 in-flight synthesis calls. Each call opens a fresh WebSocket
+// from Cloud Run to Microsoft's Edge endpoint. A 20-verse chapter drains in
+// ~2 batches × ~250ms ≈ ~500ms, so users tap Listen and the whole chapter is
+// ready before they finish reading the verse-1 intro on screen.
+const _synthSem = { active: 0, max: 10, queue: [] };
 function _synthAcquire() {
   if (_synthSem.active < _synthSem.max) { _synthSem.active++; return Promise.resolve(); }
   return new Promise(resolve => _synthSem.queue.push(resolve));
@@ -20,7 +27,6 @@ function _synthReset() {
 }
 
 // On-demand synthesis: synthesize a single item if not already done
-const TTS_LOOKAHEAD = 2;
 function _ttsSynthItem(item, gen) {
   if (item.ready) return item.ready; // already in-flight or done
   item.ready = ttsSynthesize(item.ttsText || item.text).then(
@@ -35,8 +41,9 @@ function _ttsSynthItem(item, gen) {
         bar.style.width = pct;
         const immBar = document.getElementById("ttsImmLoadBar");
         if (immBar) immBar.style.width = pct;
-        if (_ttsReadyCount === ttsQueue.length)
+        if (_ttsReadyCount === ttsQueue.length) {
           document.getElementById("ttsPlayer")?.classList.add("tts-ready");
+        }
       }
     },
     () => { item.url = null; }
@@ -44,11 +51,10 @@ function _ttsSynthItem(item, gen) {
   return item.ready;
 }
 
-// Kick off synthesis for current index + lookahead
-function _ttsPrepareLookahead(index, gen) {
-  for (let i = index; i < Math.min(index + TTS_LOOKAHEAD + 1, ttsQueue.length); i++) {
-    _ttsSynthItem(ttsQueue[i], gen);
-  }
+// Fire synthesis for every queued verse at once. The 10-slot semaphore caps
+// in-flight count, so this is safe even on a long chapter.
+function _ttsSynthAll(gen) {
+  for (const item of ttsQueue) _ttsSynthItem(item, gen);
 }
 
 function _escapeSSML(str) {
@@ -69,7 +75,11 @@ function _injectWordSpans(item) {
   const el = item.el?.querySelector(".verse-content");
   if (!el) return;
   item._originalHTML = el.innerHTML;
-  el.innerHTML = item.words.map((w, i) =>
+  // Edge timings include any chapter-title prefix on v1; skip those tokens
+  // so the rendered verse-content stays clean (no "Genesis 1" prepended).
+  const prefix = item.prefixWordCount || 0;
+  const visible = item.words.slice(prefix);
+  el.innerHTML = visible.map((w, i) =>
     `<span class="tts-word" data-idx="${i}">${w}</span>`
   ).join(" ");
 }
@@ -135,6 +145,12 @@ function _startWordHighlight(audio, item) {
     const pts = item.timepoints;
     if (!pts?.length) return;
     const prefix = item.prefixWordCount || 0;
+    // Canvas-mode word elements for the currently-playing verse. Cached once
+    // per-verse so the RAF loop just toggles class on a known list. Empty
+    // outside canvas mode.
+    const cmWords = _ttsInCanvas
+      ? [...document.querySelectorAll(`#cmPassage .cm-word[data-verse="${item.verseNum}"]`)]
+      : [];
     function tick() {
       const t = audio.currentTime;
       let wi = -1;
@@ -145,14 +161,21 @@ function _startWordHighlight(audio, item) {
       // that isn't rendered). Shift into display-word space for highlighting.
       const displayIdx = wi >= 0 ? wi - prefix : -1;
       if (el) {
+        // .verse-content spans are rendered without the prefix words, so
+        // index them by displayIdx (verse-relative), not wi (synth-side).
         el.querySelectorAll(".tts-word").forEach((s, i) =>
-          s.classList.toggle("tts-word-active", i === wi)
+          s.classList.toggle("tts-word-active", i === displayIdx)
         );
       }
       if (immEl) {
         immEl.querySelectorAll(".tts-imm-word").forEach((s, i) =>
           s.classList.toggle("tts-imm-word-active", i === displayIdx)
         );
+      }
+      if (cmWords.length) {
+        for (let i = 0; i < cmWords.length; i++) {
+          cmWords[i].classList.toggle("cm-word-tts-active", i === displayIdx);
+        }
       }
       if (!audio.paused && !audio.ended) _ttsWordRaf = requestAnimationFrame(tick);
     }
@@ -172,44 +195,201 @@ function _startWordHighlight(audio, item) {
 
 function _stopWordHighlight() {
   if (_ttsWordRaf) { cancelAnimationFrame(_ttsWordRaf); _ttsWordRaf = null; }
+  // Clear any lingering canvas-mode underline so it doesn't stick on pause.
+  document.querySelectorAll("#cmPassage .cm-word.cm-word-tts-active")
+    .forEach(w => w.classList.remove("cm-word-tts-active"));
 }
 
-async function ttsSynthesize(text, retries = 10) {
-  const key = window.GOOGLE_TTS_KEY || localStorage.getItem("googleTtsKey");
-  if (!key) throw new Error("no-key");
+// Canvas-mode flag — when true, playChapterInCanvas() routes playback without
+// the immersive overlay so the user keeps drawing/highlighting underneath.
+let _ttsInCanvas = false;
 
-  const words = text.split(/\s+/).filter(Boolean);
+// Auto-scroll: when on, the canvas viewport pins itself to the current verse
+// as TTS advances. Toggleable via the lock icon in the canvas Listen bar so
+// Charlie can disable it and scroll freely during playback. Persisted in
+// localStorage; defaults to ON since most listen sessions want follow.
+const _CM_TTS_FOLLOW_KEY = "devo.cmTtsAutoFollow";
+let _cmTtsAutoFollow = localStorage.getItem(_CM_TTS_FOLLOW_KEY) !== "false";
+
+function _cmTtsScrollToCurrent() {
+  if (!_ttsInCanvas || !_cmTtsAutoFollow) return;
+  const item = ttsQueue[ttsIdx];
+  if (!item) return;
+  const w = document.querySelector(`#cmPassage .cm-word[data-verse="${item.verseNum}"]`);
+  const verseEl = w?.closest(".cm-verse");
+  if (verseEl?.scrollIntoView) {
+    verseEl.scrollIntoView({ behavior: "smooth", block: "center" });
+  }
+}
+
+// Marching-ants pink dotted border around the currently-playing verse in
+// canvas mode. Big "you are here" cue layered ON TOP of the per-word soft
+// wash — one scans the verse, the other tracks the word.
+function _cmMarkActiveVerse(verseNum) {
+  if (!_ttsInCanvas) return;
+  // Clear previous active verse + its marching-ants SVG.
+  document.querySelectorAll("#cmPassage .cm-verse.cm-verse-tts-active").forEach(v => {
+    v.classList.remove("cm-verse-tts-active");
+    v.querySelector(".cm-verse-ants-svg")?.remove();
+  });
+  if (verseNum == null) return;
+  const w = document.querySelector(`#cmPassage .cm-word[data-verse="${verseNum}"]`);
+  const verseEl = w?.closest(".cm-verse");
+  if (!verseEl) return;
+  verseEl.classList.add("cm-verse-tts-active");
+
+  // Inject an SVG <rect> with an animated stroke-dashoffset. Tracing a true
+  // rounded-rect path means the dashes follow the corner curves cleanly,
+  // unlike the flat edge-gradient trick which "tapyas"-clipped at corners.
+  const NS = "http://www.w3.org/2000/svg";
+  const svg = document.createElementNS(NS, "svg");
+  svg.setAttribute("class", "cm-verse-ants-svg");
+  svg.setAttribute("width", "100%");
+  svg.setAttribute("height", "100%");
+  // x/y/width/height as percentages — `calc()` isn't valid in SVG attrs, so
+  // we let the stroke straddle the rect edge and rely on `overflow: visible`
+  // (in CSS) to render the half-stroke just outside the SVG bounds.
+  const rect = document.createElementNS(NS, "rect");
+  rect.setAttribute("x", "0");
+  rect.setAttribute("y", "0");
+  rect.setAttribute("width", "100%");
+  rect.setAttribute("height", "100%");
+  rect.setAttribute("rx", "10");
+  rect.setAttribute("ry", "10");
+  svg.appendChild(rect);
+  verseEl.appendChild(svg);
+}
+
+// ── Media Session API + visibility hooks ───────────────────────────────────
+// Without these, iOS Safari pauses audio the moment the screen locks. With
+// them, the OS treats devo as a media app: lock-screen shows the current
+// verse + ◀◀ ▶ ▶▶ controls, headphone buttons work, and audio keeps playing
+// past chapter boundaries while the phone is asleep.
+let _mediaSessionWired = false;
+function _setupMediaSession() {
+  if (!("mediaSession" in navigator) || _mediaSessionWired) return;
+  _mediaSessionWired = true;
+  try {
+    navigator.mediaSession.setActionHandler("play",  () => { if (ttsPaused) pauseResumeTTS(); });
+    navigator.mediaSession.setActionHandler("pause", () => { if (!ttsPaused) pauseResumeTTS(); });
+    navigator.mediaSession.setActionHandler("previoustrack", () => ttsPrevVerse());
+    navigator.mediaSession.setActionHandler("nexttrack",     () => ttsNextVerse());
+  } catch {}
+}
+
+function _updateMediaSession(item) {
+  if (!("mediaSession" in navigator) || !item) return;
+  try {
+    const bookName = BIBLE_META?.[bookEl?.value]?.name || "Devotion";
+    const ch = chapterEl?.value || "";
+    navigator.mediaSession.metadata = new MediaMetadata({
+      title:  `${bookName} ${ch}:${item.verseNum}`,
+      artist: "Devotion",
+      album:  `${bookName} ${ch}`,
+    });
+    navigator.mediaSession.playbackState = ttsPaused ? "paused" : "playing";
+  } catch {}
+}
+
+// When the user opens the phone again (or switches tabs back), snap the
+// canvas viewport to the verse currently being read — auto-scroll during
+// `visibilitychange:hidden` is a no-op in most browsers, so we replay it
+// once visibility returns.
+document.addEventListener("visibilitychange", () => {
+  if (document.hidden) return;
+  if (_ttsInCanvas && _cmTtsAutoFollow) {
+    setTimeout(_cmTtsScrollToCurrent, 100);
+  }
+});
+
+function cmTtsToggleAutoFollow() {
+  _cmTtsAutoFollow = !_cmTtsAutoFollow;
+  try { localStorage.setItem(_CM_TTS_FOLLOW_KEY, String(_cmTtsAutoFollow)); } catch {}
+  _cmListenBarUpdate();
+  // Re-enabling snaps to the current verse so the user lands where they left.
+  if (_cmTtsAutoFollow) _cmTtsScrollToCurrent();
+}
+
+// Sync the canvas Listen mini-player to the current TTS state. No-op when the
+// bar isn't rendered (i.e. canvas overlay isn't open).
+function _cmListenBarUpdate() {
+  if (!document.getElementById("cmListenBar")) return;
+  const verseLabel = document.getElementById("cmListenVerse");
+  const pauseBtn   = document.getElementById("cmListenPauseBtn");
+  const prevBtn    = document.getElementById("cmListenPrevBtn");
+  const nextBtn    = document.getElementById("cmListenNextBtn");
+  if (verseLabel) {
+    if (ttsQueue.length && ttsIdx >= 0) {
+      const cur = ttsQueue[ttsIdx]?.verseNum ?? "";
+      verseLabel.innerHTML =
+        `<span class="cm-listen-verse-cur">${cur}</span>` +
+        `<span class="cm-listen-verse-sep">/</span>` +
+        `<span class="cm-listen-verse-total">${ttsQueue.length}</span>`;
+    } else {
+      verseLabel.textContent = "";
+    }
+  }
+  if (pauseBtn) {
+    pauseBtn.innerHTML =
+      `<span class="material-symbols-outlined">${ttsPaused ? "play_arrow" : "pause"}</span>`;
+  }
+  if (prevBtn) prevBtn.disabled = ttsIdx <= 0;
+  if (nextBtn) nextBtn.disabled = ttsIdx >= ttsQueue.length - 1;
+  const followBtn = document.getElementById("cmListenFollowBtn");
+  if (followBtn) {
+    followBtn.classList.toggle("active", _cmTtsAutoFollow);
+    followBtn.innerHTML =
+      `<span class="material-symbols-outlined">${_cmTtsAutoFollow ? "lock" : "lock_open"}</span>`;
+    followBtn.title = _cmTtsAutoFollow
+      ? "Auto-scroll on — tap to scroll freely"
+      : "Auto-scroll off — tap to follow current verse";
+  }
+}
+
+function _edgeToClientShape(blob, timings) {
+  // Real WordBoundary timings from msedge-tts. `words` is Edge's tokenization
+  // of the FULL ttsText (so for v1 it includes the chapter-title prefix
+  // words). Caller's prefixWordCount tells the highlight loop how many
+  // leading words to skip when rendering spans into .verse-content.
+  const edgeWords = timings.map(t => t.word);
+  const timepoints = timings.map(t => ({ timeSeconds: t.start }));
+  return { url: URL.createObjectURL(blob), timepoints, words: edgeWords };
+}
+
+async function ttsSynthesize(text, retries = 5) {
+  const cacheKey = `${TTS_VOICE.name}|${text}`;
+
+  // Cache hit — instant return, no API call, no semaphore.
+  // Wrapped in try/catch because IDB plumbing can throw if the schema is
+  // mid-upgrade or the store is unexpectedly missing — fall through to the
+  // network path rather than killing the whole synth pipeline.
+  let cached = null;
+  try { cached = await _getTtsAudio(cacheKey); } catch {}
+  if (cached?.blob) return _edgeToClientShape(cached.blob, cached.timings || []);
 
   await _synthAcquire();
   try {
     for (let attempt = 0; attempt < retries; attempt++) {
       try {
-        const resp = await fetch(
-          `https://texttospeech.googleapis.com/v1/text:synthesize?key=${encodeURIComponent(key)}`,
-          {
-            method: "POST",
-            headers: { "Content-Type": "application/json" },
-            body: JSON.stringify({
-              input: { text },
-              voice: TTS_VOICE,
-              audioConfig: { audioEncoding: "MP3" },
-            }),
-          }
-        );
+        const resp = await fetch(`${GEMINI_PROXY}/edge-tts`, {
+          method: "POST",
+          headers: { "Content-Type": "application/json" },
+          body: JSON.stringify({ text, voice: TTS_VOICE.name }),
+        });
 
-        if (resp.status === 401 || resp.status === 403) throw new Error("auth");
         if (resp.status === 429) throw new Error("rate-limit");
         if (!resp.ok) throw new Error(`api-${resp.status}`);
 
-        const { audioContent } = await resp.json();
-        const bytes = Uint8Array.from(atob(audioContent), c => c.charCodeAt(0));
-        const url = URL.createObjectURL(new Blob([bytes], { type: "audio/mpeg" }));
-        return { url, timepoints: [], words };
+        const { audioBase64, timings } = await resp.json();
+        const bytes = Uint8Array.from(atob(audioBase64), c => c.charCodeAt(0));
+        const blob = new Blob([bytes], { type: "audio/mpeg" });
+        // Fire-and-forget IDB save; survives reload + offline replay for 3 days.
+        _saveTtsAudio(cacheKey, blob, timings);
+        return _edgeToClientShape(blob, timings);
       } catch (err) {
-        if (err.message === "auth" || err.message === "no-key") throw err;
         if (attempt < retries - 1) {
-          const base = err.message === "rate-limit" ? 3000 : 800;
-          const delay = Math.min(base * Math.pow(1.8, attempt), 30000) + Math.random() * 1500;
+          const base = err.message === "rate-limit" ? 2000 : 600;
+          const delay = Math.min(base * Math.pow(1.8, attempt), 12000) + Math.random() * 800;
           await new Promise(r => setTimeout(r, delay));
         } else {
           throw err;
@@ -221,8 +401,35 @@ async function ttsSynthesize(text, retries = 10) {
   }
 }
 
+// Fire-and-forget background prefetch for the current chapter. Called from
+// loadPassage so audio is cached by the time the user thinks to tap Listen
+// (or at the latest, by the time they finish reading the verse on screen).
+// Idempotent on revisits — every miss hits the proxy, every hit is instant
+// IDB read. Even if the user spam-flips through 10 chapters, this just
+// queues ~300 calls behind the 10-slot semaphore and they drain in the
+// background.
+function _ttsPrefetchChapter() {
+  if (!window.__aiPayload?.versesText) return;
+  const bookName = BIBLE_META?.[bookEl?.value]?.name || "";
+  const ch = chapterEl?.value || "";
+  const prefix = (bookName && ch) ? `${bookName} ${ch}.` : "";
+
+  const lines = window.__aiPayload.versesText.split("\n").filter(Boolean);
+  for (let i = 0; i < lines.length; i++) {
+    // Strip the leading verse-number prefix that __aiPayload uses internally
+    // (e.g. "1. In the beginning..." → "In the beginning...").
+    const text = lines[i].replace(/^\d[\d\-]*\.\s*/, "").trim();
+    if (!text) continue;
+    const speak = (i === 0 && prefix) ? `${prefix} ${text}` : text;
+    // Cache check is inside ttsSynthesize, so already-cached chapters are a
+    // no-op pair of IDB reads (one per verse).
+    ttsSynthesize(speak).catch(() => {});
+  }
+}
+
+// No API key needed — the proxy handles Microsoft's endpoint server-side.
 function ttsGetOrPromptKey() {
-  return !!(window.GOOGLE_TTS_KEY || localStorage.getItem("googleTtsKey"));
+  return true;
 }
 
 // ── Playback state ───────────────────────────────────────────────────────────
@@ -288,8 +495,9 @@ async function playChapter() {
   const bar = document.getElementById("ttsProgressBar");
   if (bar) bar.style.width = "0%";
 
-  // Pre-synthesize first few verses so playback starts fast
-  _ttsPrepareLookahead(0, gen);
+  // Fire synthesis for every verse in parallel — 10-slot semaphore caps
+  // in-flight count, so the whole chapter is ready in ~500ms-2s.
+  _ttsSynthAll(gen);
 
   // Set verse range indicator in immersive top bar
   const rangeEl = document.getElementById("ttsImmRange");
@@ -301,8 +509,65 @@ async function playChapter() {
       : `Verses ${first}–${last}`;
   }
 
+  // Lock-screen controls + metadata so iOS doesn't kill audio on screen lock.
+  _setupMediaSession();
+
   // Show context intro screen — user taps "Start Reading" to begin playback
   ttsImmContextOpen(gen);
+}
+
+// Canvas-mode equivalent of playChapter: same queue + synth pipeline, but
+// skips the immersive overlay and starts playback directly so the canvas
+// (with all its highlights and notes) stays visible. `startVerse` is the
+// optional verse-number string to begin at; defaults to verse 1.
+async function playChapterInCanvas(startVerse) {
+  if (!ttsGetOrPromptKey()) return;
+
+  ttsGen++;
+  const gen = ttsGen;
+  _ttsFinished = false;
+  _ttsInCanvas = true;
+
+  ttsQueue = ttsBuildQueue();
+
+  const _ttsBookName = BIBLE_META[bookEl?.value]?.name || "";
+  const _ttsCh = chapterEl?.value || "";
+  if (_ttsBookName && _ttsCh && ttsQueue.length > 0) {
+    const prefix = `${_ttsBookName} ${_ttsCh}.`;
+    ttsQueue[0].ttsText = `${prefix} ${ttsQueue[0].text}`;
+    ttsQueue[0].prefixWordCount = prefix.split(/\s+/).filter(Boolean).length;
+  }
+
+  if (!ttsQueue.length) { _ttsInCanvas = false; return; }
+
+  document.body.classList.add("tts-canvas-active");
+  document.getElementById("cmListenBtn")?.classList.add("active");
+
+  _setupMediaSession();
+  _ttsReadyCount = 0;
+  _ttsSynthAll(gen);
+
+  let startIdx = 0;
+  if (startVerse != null) {
+    const want = String(startVerse);
+    const idx = ttsQueue.findIndex(it => it.verseNum === want);
+    if (idx >= 0) startIdx = idx;
+  }
+  ttsIdx = -1;
+  ttsPlayAt(startIdx, gen);
+}
+
+// Jump TTS to a specific verse number. Returns true if a jump happened.
+// Used by the canvas verse-number tap; safe to call when no TTS is active.
+function ttsJumpToVerse(verseNum) {
+  if (!ttsQueue?.length) return false;
+  const want = String(verseNum);
+  const idx = ttsQueue.findIndex(it => it.verseNum === want);
+  if (idx < 0) return false;
+  ttsGen++;
+  if (ttsAudio) { ttsAudio.onended = null; ttsAudio.pause(); ttsAudio = null; }
+  ttsPlayAt(idx, ttsGen);
+  return true;
 }
 
 let _ttsPlaySeq = 0; // debounce sequence for rapid next/prev
@@ -348,8 +613,9 @@ async function ttsPlayAt(index, gen) {
   }
   document.getElementById("ttsPlayer")?.classList.add("tts-buffering");
 
-  // Synthesize this verse + lookahead on demand
-  _ttsPrepareLookahead(index, gen);
+  // Idempotent — every verse was already fired in playChapter; this just
+  // covers edge cases like manual ttsPlayAt jumps from outside playChapter.
+  _ttsSynthItem(item, gen);
 
   try {
     await _ttsSynthItem(item, gen); // instant if already done, else wait
@@ -374,6 +640,10 @@ async function ttsPlayAt(index, gen) {
     _startWordHighlight(ttsAudio, item);
     ttsSetStatus(`${ttsIcon("graphic_eq")} ${item.verseNum} / ${ttsQueue.length}`);
     ttsNavUpdate();
+    _cmListenBarUpdate();
+    _cmTtsScrollToCurrent();
+    _cmMarkActiveVerse(item.verseNum);
+    _updateMediaSession(item);
 
     ttsAudio.onended = () => {
       if (!ttsPaused && gen === ttsGen) ttsPlayAt(index + 1, gen);
@@ -440,7 +710,13 @@ function pauseResumeTTS() {
     if (btn) btn.innerHTML = '<span class="material-symbols-outlined">play_arrow</span>';
     if (immBtn) immBtn.innerHTML = '<span class="material-symbols-outlined">play_arrow</span>';
     ttsSetStatus(`${ttsIcon("pause")} Verse ${ttsQueue[ttsIdx]?.verseNum}`);
-    _ttsImmShowPausePanel();
+    // Pause panel covers the canvas, so skip it when listening in canvas mode.
+    if (!_ttsInCanvas) _ttsImmShowPausePanel();
+  }
+  _cmListenBarUpdate();
+  // Sync the lock-screen play/pause icon with the new state.
+  if ("mediaSession" in navigator) {
+    try { navigator.mediaSession.playbackState = ttsPaused ? "paused" : "playing"; } catch {}
   }
 }
 
@@ -513,6 +789,19 @@ function _ttsCleanupMode() {
   _restoreVerseText(_ttsActiveWordItem);
   _ttsActiveWordItem = null;
   document.getElementById("output")?.classList.remove("tts-mode");
+  _ttsInCanvas = false;
+  document.body.classList.remove("tts-canvas-active");
+  document.getElementById("cmListenBtn")?.classList.remove("active");
+  // Strip any active-verse marker from canvas so the border doesn't linger.
+  document.querySelectorAll("#cmPassage .cm-verse.cm-verse-tts-active")
+    .forEach(v => v.classList.remove("cm-verse-tts-active"));
+  // Drop the lock-screen media session card when playback ends.
+  if ("mediaSession" in navigator) {
+    try {
+      navigator.mediaSession.metadata = null;
+      navigator.mediaSession.playbackState = "none";
+    } catch {}
+  }
 }
 
 function stopTTS() {
@@ -536,6 +825,9 @@ function stopTTS() {
 
 function ttsFinish() {
   _ttsFinished = true;
+  // Capture the canvas flag before cleanup wipes it — controls whether we
+  // open the immersive continue-prompt or just stop quietly.
+  const wasCanvas = _ttsInCanvas;
   _ttsCleanupMode();
   if (ttsAudio) { ttsAudio.pause(); ttsAudio = null; }
   ttsPaused = false;
@@ -545,6 +837,12 @@ function ttsFinish() {
   player.classList.remove("tts-buffering", "tts-ready");
   const bar = document.getElementById("ttsProgressBar");
   if (bar) bar.style.width = "0%";
+  // Canvas mode: just stop. The immersive continue-prompt would cover the
+  // canvas, defeating the point of in-place playback.
+  if (wasCanvas) {
+    ttsQueue = []; ttsIdx = -1;
+    return;
+  }
   ttsShowContinuePrompt();
 }
 

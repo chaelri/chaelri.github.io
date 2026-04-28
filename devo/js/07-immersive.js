@@ -176,6 +176,10 @@ function ttsImmContextOpen(gen) {
           <span class="story-sparkle">✦</span>
         </div>
         <div class="tts-imm-loader-text">Preparing audio…</div>
+        <div class="tts-imm-loader-bar-wrap">
+          <div class="tts-imm-loader-bar" id="ttsImmLoaderBar"></div>
+        </div>
+        <div class="tts-imm-loader-count" id="ttsImmLoaderCount">0 / ${ttsQueue.length}</div>
       </div>`;
   }
   if (ctxPanel) ctxPanel.hidden = false;
@@ -184,9 +188,16 @@ function ttsImmContextOpen(gen) {
   const startBtn = document.getElementById("ttsImmContextStart");
   if (startBtn) startBtn.style.display = "none";
 
-  // Poll for first verse ready, then auto-start
+  // Poll for first verse ready, then auto-start. Also live-updates the
+  // loader bar + counter so the user sees verses landing during cold-start.
+  const loaderBar = document.getElementById("ttsImmLoaderBar");
+  const loaderCount = document.getElementById("ttsImmLoaderCount");
   const pollId = setInterval(() => {
     if (gen !== ttsGen) { clearInterval(pollId); return; }
+    if (loaderBar && ttsQueue.length) {
+      loaderBar.style.width = `${(_ttsReadyCount / ttsQueue.length) * 100}%`;
+    }
+    if (loaderCount) loaderCount.textContent = `${_ttsReadyCount} / ${ttsQueue.length}`;
     // Start as soon as the first verse is synthesized
     if (_ttsReadyCount >= 1) {
       clearInterval(pollId);

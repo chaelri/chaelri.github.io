@@ -105,11 +105,16 @@ function _typeOut(text, onChunk) {
 /* ---------- SHARED: Generate Image via Proxy + IndexedDB Cache ---------- */
 const _imageCache = {};
 const _IMG_DB_NAME = "devo-cache";
-const _IMG_DB_VER = 3; // bumped to invalidate old cached images with black bars
+const _IMG_DB_VER = 6; // bumped to force tts-store recreation for users that
+                       // ran the v5 build that briefly dropped the tts store.
 const _IMG_STORE = "images";
 const _STORY_STORE = "stories";
+const _TTS_STORE = "tts";
 const _IMG_MAX_AGE = 7 * 24 * 60 * 60 * 1000; // 7 days
 const _STORY_MAX_AGE = 7 * 24 * 60 * 60 * 1000; // 7 days
+const _TTS_MAX_AGE = 3 * 24 * 60 * 60 * 1000; // 3 days — short TTL so the DB
+                                              // doesn't bloat from chapter-flipping;
+                                              // a re-listen within 3 days is instant.
 
 function _openImageDB() {
   return new Promise((resolve, reject) => {
@@ -121,6 +126,10 @@ function _openImageDB() {
       db.createObjectStore(_IMG_STORE, { keyPath: "key" });
       if (!db.objectStoreNames.contains(_STORY_STORE)) {
         db.createObjectStore(_STORY_STORE, { keyPath: "key" });
+      }
+      // TTS audio cache (Edge MP3 + timings, keyed by `voice|text`).
+      if (!db.objectStoreNames.contains(_TTS_STORE)) {
+        db.createObjectStore(_TTS_STORE, { keyPath: "key" });
       }
     };
     req.onsuccess = () => resolve(req.result);
@@ -179,7 +188,41 @@ async function _saveStoryCache(key, data) {
   } catch {}
 }
 
-// Purge expired entries on startup (images: 1 day, stories: 7 days)
+/* ── TTS audio cache (Edge MP3 + Edge WordBoundary timings per verse) ──
+ * Stored as `{ key, blob, timings, time }`. timings is the raw Edge array
+ * `[{ word, start, duration }, ...]` — caller maps it to timepoints/words.
+ */
+
+async function _getTtsAudio(key) {
+  try {
+    const db = await _openImageDB();
+    if (!db.objectStoreNames.contains(_TTS_STORE)) return null;
+    return new Promise((resolve) => {
+      try {
+        const tx = db.transaction(_TTS_STORE, "readonly");
+        const req = tx.objectStore(_TTS_STORE).get(key);
+        req.onsuccess = () => {
+          const entry = req.result;
+          if (entry && Date.now() - entry.time < _TTS_MAX_AGE) {
+            resolve({ blob: entry.blob, timings: entry.timings || [] });
+          } else resolve(null);
+        };
+        req.onerror = () => resolve(null);
+      } catch { resolve(null); }
+    });
+  } catch { return null; }
+}
+
+async function _saveTtsAudio(key, blob, timings) {
+  try {
+    const db = await _openImageDB();
+    if (!db.objectStoreNames.contains(_TTS_STORE)) return;
+    const tx = db.transaction(_TTS_STORE, "readwrite");
+    tx.objectStore(_TTS_STORE).put({ key, blob, timings: timings || [], time: Date.now() });
+  } catch {}
+}
+
+// Purge expired entries on startup
 (async function _purgeExpiredCache() {
   try {
     const db = await _openImageDB();
@@ -195,6 +238,7 @@ async function _saveStoryCache(key, data) {
     };
     purge(_IMG_STORE, _IMG_MAX_AGE);
     purge(_STORY_STORE, _STORY_MAX_AGE);
+    purge(_TTS_STORE, _TTS_MAX_AGE);
   } catch {}
 })();
 

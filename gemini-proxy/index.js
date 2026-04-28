@@ -9,6 +9,7 @@
 import express from "express";
 import fetch from "node-fetch";
 import { Readable } from "stream";
+import { MsEdgeTTS, OUTPUT_FORMAT } from "msedge-tts";
 
 const app = express();
 // 10mb body cap so a base64-encoded 1920×1080 PNG (~2-3 MB raw → ~3-4 MB b64)
@@ -202,6 +203,94 @@ app.post("/upload-drive", async (req, res) => {
   } catch (e) {
     console.error("Upload error:", e);
     res.status(500).json({ error: e.message || "Upload failed" });
+  }
+});
+
+// ---------------------------------------------------------------------------
+// Edge TTS (devo) — Microsoft "Read Aloud" voice via msedge-tts WebSocket
+// ---------------------------------------------------------------------------
+// Devo calls this with a single verse; we open a WebSocket to Microsoft's
+// undocumented Edge readaloud endpoint, collect MP3 audio + WordBoundary
+// timings, and return them as JSON. Microsoft eats the synthesis cost; this
+// proxy is just a relay (~100-300ms per verse), well within Cloud Run free
+// tier even at 10× parallelism per chapter.
+const EDGE_DEFAULT_VOICE = "en-US-BrianNeural";
+
+function _consumeEdgeMetadata(metadataStream) {
+  const timings = [];
+  if (!metadataStream) return { timings, done: Promise.resolve() };
+
+  const tryParse = (raw) => {
+    if (!raw.trim()) return;
+    let obj;
+    try { obj = JSON.parse(raw); } catch { return; }
+    if (!obj?.Metadata) return;
+    for (const m of obj.Metadata) {
+      if (m?.Type === "WordBoundary" && m.Data?.text?.Text) {
+        timings.push({
+          word: m.Data.text.Text,
+          start: m.Data.Offset / 10_000_000,
+          duration: m.Data.Duration / 10_000_000,
+        });
+      }
+    }
+  };
+
+  metadataStream.on("data", (chunk) => {
+    const text = chunk.toString("utf8");
+    try { JSON.parse(text); tryParse(text); }
+    catch { for (const line of text.split(/\r?\n/)) tryParse(line); }
+  });
+
+  const done = new Promise((resolve) => {
+    metadataStream.on("end", resolve);
+    metadataStream.on("close", resolve);
+  });
+  return { timings, done };
+}
+
+app.post("/edge-tts", async (req, res) => {
+  let tts;
+  try {
+    const { text, voice } = req.body || {};
+    if (!text || typeof text !== "string") {
+      return res.status(400).json({ error: "text required" });
+    }
+    if (text.length > 5000) {
+      return res.status(413).json({ error: "text too long (>5000 chars)" });
+    }
+
+    tts = new MsEdgeTTS();
+    await tts.setMetadata(
+      voice || EDGE_DEFAULT_VOICE,
+      OUTPUT_FORMAT.AUDIO_24KHZ_48KBITRATE_MONO_MP3,
+      { wordBoundaryEnabled: true }
+    );
+
+    const { audioStream, metadataStream } = tts.toStream(text);
+    const { timings, done: metaDone } = _consumeEdgeMetadata(metadataStream);
+
+    const audioChunks = [];
+    audioStream.on("data", (chunk) => audioChunks.push(chunk));
+    const audioDone = new Promise((resolve, reject) => {
+      audioStream.on("end", resolve);
+      audioStream.on("close", resolve);
+      audioStream.on("error", reject);
+    });
+
+    await Promise.all([audioDone, metaDone]);
+
+    const audioBase64 = Buffer.concat(audioChunks).toString("base64");
+    res.json({ audioBase64, timings });
+  } catch (e) {
+    console.error("Edge TTS error:", e);
+    if (!res.headersSent) {
+      res.status(500).json({ error: e.message || "Edge TTS failed" });
+    }
+  } finally {
+    if (tts && typeof tts.close === "function") {
+      try { tts.close(); } catch {}
+    }
   }
 });
 
