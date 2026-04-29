@@ -806,8 +806,36 @@ async function renderDashboard() {
     updatedAt: r.updatedAt || Date.now(), // Fallback to current time if 0, so it displays something
   }));
 
+  // Game-feel ambient layer: floating pink motes drifting up across the
+  // dashboard area + twinkling sparkles scattered behind. Generated once per
+  // dashboard render with randomized CSS custom properties so each particle
+  // has its own duration/delay/path. All behind prefers-reduced-motion so
+  // users with that OS setting see a still page.
+  const moteCount = 18;
+  const twinkleCount = 10;
+  const motesHTML = Array.from({ length: moteCount }, () => {
+    const x = Math.random() * 100;
+    const dur = 9 + Math.random() * 12;       // 9–21s
+    const delay = -(Math.random() * 20);       // start mid-flight so the field is full from t=0
+    const scale = 0.55 + Math.random() * 0.95; // 0.55–1.5
+    const opacity = 0.18 + Math.random() * 0.42;
+    const drift = (Math.random() - 0.5) * 40;  // ±20px lateral drift
+    return `<span class="dash-ambient-mote" style="--m-x:${x}%;--m-d:${dur}s;--m-l:${delay}s;--m-s:${scale};--m-o:${opacity};--m-drift:${drift}px"></span>`;
+  }).join("");
+  const twinklesHTML = Array.from({ length: twinkleCount }, () => {
+    const x = Math.random() * 100;
+    const y = Math.random() * 100;
+    const dur = 3 + Math.random() * 4;         // 3–7s
+    const delay = -(Math.random() * 6);
+    const scale = 0.6 + Math.random() * 0.9;
+    return `<span class="dash-twinkle" style="--t-x:${x}%;--t-y:${y}%;--t-d:${dur}s;--t-l:${delay}s;--t-s:${scale}"></span>`;
+  }).join("");
+
   const dashboardHTML = `
   <div class="dashboard ai-fade-in">
+
+  <div class="dash-ambient" aria-hidden="true">${motesHTML}</div>
+  <div class="dash-twinkles" aria-hidden="true">${twinklesHTML}</div>
 
   <div class="dash-greeting">
     <div class="dash-greeting-top">
@@ -825,12 +853,14 @@ async function renderDashboard() {
       <section class="dashboard-section">
 
         <div id="continue-reading" class="hidden">
-          <h3><span class="material-icons dashboard-icon">book</span> Continue Reading?</h3>
-          <div onclick="loadPassageById('${recentPassageId}')" style="margin-bottom: 1rem; cursor: pointer">
-            <div class="dashboard-ref flex">
-            ${recentPassage} <span class="material-icons right">chevron_right</span>
+          <h3><span><span class="material-icons dashboard-icon dashboard-icon--book">book</span> Pick up where you left off</span></h3>
+          <button class="dash-continue-btn" onclick="loadPassageById('${recentPassageId}')" aria-label="Resume ${recentPassage}">
+            <div class="dash-continue-text">
+              <span class="dash-continue-ref">${recentPassage}</span>
+              <div id="dashContinueRecap" class="dash-continue-recap"></div>
             </div>
-          </div>
+            <span class="material-icons dash-continue-chev">arrow_forward</span>
+          </button>
         </div>
 
         <div id="dashFavoritesContent">${_renderFavoritesContent(allFavoritePassages)}</div>
@@ -839,7 +869,7 @@ async function renderDashboard() {
       <!-- NOTES -->
       <section class="dashboard-section">
         <h3 style="display:flex; justify-content:space-between; align-items:center; margin-bottom:12px;">
-          <span><span class="material-icons dashboard-icon">edit_note</span> Notes</span>
+          <span><span class="material-icons dashboard-icon dashboard-icon--notes">edit_note</span> Notes</span>
           <button class="dash-notes-open-btn" onclick="openNotesApp()">View all →</button>
         </h3>
         ${(() => {
@@ -848,13 +878,20 @@ async function renderDashboard() {
             .sort((a, b) => (b.time || 0) - (a.time || 0))
             .slice(0, 5);
           if (!allNotes.length) return `<p class="empty-state">No notes yet. Add notes to Bible verses, complete a Guided Reflection, or tap "View all" to write your first note.</p>`;
+          // Only show the type label when the visible set contains both
+          // reflections and verse notes — otherwise every row carries the same
+          // tag and it reads as visual noise.
+          const types = new Set(allNotes.map(n => n.type));
+          const showTypeLabel = types.size > 1;
           return `<div class="dash-notes-list">${allNotes.map(n => {
             // Pass a generous upper bound; the actual visual ellipsis is done
             // by CSS line-clamp on .dash-notes-card-preview, which adapts to
             // the card's real width — narrow on mobile, much wider on desktop.
             const preview = n.preview.length > 400 ? n.preview.slice(0, 400) + "…" : n.preview;
             const dateStr = n.time ? new Date(n.time).toLocaleDateString("en-US", { month: "short", day: "numeric" }) : "";
-            const label = n.type === "reflection" ? `<span class="dash-notes-type-label">Reflection</span>` : "";
+            const label = showTypeLabel
+              ? `<span class="dash-notes-type-label">${n.type === "reflection" ? "Reflection" : "Verse note"}</span>`
+              : "";
             let onclick = `openNotesApp()`;
             if (n.type === "verse" && n.verseKeys?.length) {
               const firstKey = n.verseKeys.sort((a,b) => {
@@ -891,6 +928,7 @@ async function renderDashboard() {
 
   if (recentPassageId) {
     document.getElementById("continue-reading")?.classList.remove("hidden");
+    loadDashContinueRecap();
   }
 
   loadDashGreetingMsg();
@@ -929,6 +967,49 @@ async function _loadDashFeaturedImage() {
     bg.style.backgroundImage = `url(${dataUrl})`;
     bg.classList.add("dash-featured-bg-loaded");
   } catch {}
+}
+
+// Short AI recap rendered under the "Pick up where you left off" ref. Cached
+// by passage id in localStorage under the `passageRecap-` prefix — that prefix
+// is in firebase-sync.js's SYNC_DYNAMIC_PREFIXES, so for Charlie the cache
+// rides the existing localStorage→RTDB mirror and the same recap shows up on
+// every device. For other users it's just plain localStorage.
+async function loadDashContinueRecap() {
+  const el = document.getElementById("dashContinueRecap");
+  if (!el || !recentPassageId) return;
+
+  const cacheKey = `passageRecap-${recentPassageId}`;
+  const cached = localStorage.getItem(cacheKey);
+  if (cached) {
+    el.textContent = cached;
+    el.classList.add("dash-continue-recap-ready");
+    return;
+  }
+
+  // Cache miss — show subtle dim loader, then fetch.
+  el.innerHTML = `<span class="dash-continue-recap-loader"><span class="rdot"></span><span class="rdot"></span><span class="rdot"></span></span>`;
+
+  const refLabel = recentPassage || recentPassageId;
+  const prompt = `Write ONE short, casual sentence (max 18 words) recapping what ${refLabel} is about, written for someone returning to it. No "this chapter" preamble — start with the substance. Reply with ONLY the sentence, no quotes, no emojis.`;
+
+  try {
+    const res = await fetch("https://gemini-proxy-668755364170.asia-southeast1.run.app", {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({ task: "summary", contents: [{ parts: [{ text: prompt }] }] }),
+    });
+    const data = await res.json();
+    const msg = data.candidates?.[0]?.content?.parts?.[0]?.text?.trim();
+    if (msg && document.getElementById("dashContinueRecap") === el) {
+      localStorage.setItem(cacheKey, msg);
+      el.textContent = msg;
+      el.classList.add("dash-continue-recap-ready");
+    } else if (document.getElementById("dashContinueRecap") === el) {
+      el.textContent = "";
+    }
+  } catch {
+    if (document.getElementById("dashContinueRecap") === el) el.textContent = "";
+  }
 }
 
 async function loadDashGreetingMsg() {
@@ -1015,10 +1096,11 @@ function _renderFavoritesContent(allFavoritePassages) {
   const showNav = total > FAV_PAGE_SIZE;
   const header = `
     <h3 style="display:flex; justify-content:space-between; align-items:center; margin-bottom:12px;">
-      <span><span class="material-icons dashboard-icon">favorite</span> Favorites</span>
-      ${showNav ? `<div class="dash-fav-nav">
-        ${favoritesPage > 0 ? `<button class="dash-fav-nav-btn" onclick="changeFavoritesPage(-1)" aria-label="Previous favorites"><span class="material-icons">chevron_left</span></button>` : ""}
-        ${favoritesPage < lastPage ? `<button class="dash-fav-nav-btn" onclick="changeFavoritesPage(1)" aria-label="Next favorites"><span class="material-icons">chevron_right</span></button>` : ""}
+      <span><span class="material-icons dashboard-icon dashboard-icon--fav">favorite</span> Favorites</span>
+      ${showNav ? `<div class="dash-fav-nav" aria-label="Favorites pagination">
+        <button class="dash-fav-nav-btn" onclick="changeFavoritesPage(-1)" aria-label="Previous favorites"${favoritesPage <= 0 ? ' disabled' : ''}><span class="material-icons">chevron_left</span></button>
+        <span class="dash-fav-nav-page">${favoritesPage + 1}/${lastPage + 1}</span>
+        <button class="dash-fav-nav-btn" onclick="changeFavoritesPage(1)" aria-label="Next favorites"${favoritesPage >= lastPage ? ' disabled' : ''}><span class="material-icons">chevron_right</span></button>
       </div>` : ""}
     </h3>`;
   const body = total

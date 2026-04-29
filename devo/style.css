@@ -1349,48 +1349,60 @@ span.cm-intro-marker.material-symbols-outlined {
 }
 
 /* Favorites — vertical list of compact rows (ref + 1-line verse preview) */
+/* Pagination controls: muted, page-chrome feel — small unfilled icon buttons
+   flanking a "page X / Y" indicator. Earlier they were 32px filled-pink pills
+   that read as primary CTAs and competed with section content. */
 .dash-fav-nav {
-  display: flex;
-  gap: 6px;
+  display: inline-flex;
+  align-items: center;
+  gap: 4px;
   justify-content: flex-end;
   flex-shrink: 0;
 }
 .dash-fav-nav-btn {
   /* !important defeats the global `button { flex: 0 !important }` at line ~118
-     which would otherwise force flex-shrink: 1 / flex-basis: 0% and squash
-     these inside their flex container. */
-  flex: 0 0 32px !important;
-  width: 32px;
-  height: 32px;
+     which would otherwise squash these inside their flex container. */
+  flex: 0 0 24px !important;
+  width: 24px;
+  height: 24px;
   display: inline-flex;
   align-items: center;
   justify-content: center;
-  border: 1px solid rgba(219, 39, 119, 0.18);
-  background: rgba(219, 39, 119, 0.08);
-  color: #db2777;
-  border-radius: 10px;
+  border: none;
+  background: transparent;
+  color: rgba(219, 39, 119, 0.65);
+  border-radius: 6px;
   cursor: pointer;
-  transition: background 0.15s ease, border-color 0.15s ease, transform 0.12s ease;
+  transition: background 0.15s ease, color 0.15s ease, transform 0.12s ease;
   padding: 0;
 }
-.dash-fav-nav-btn:hover {
-  background: rgba(219, 39, 119, 0.18);
-  border-color: rgba(219, 39, 119, 0.36);
+.dash-fav-nav-btn:hover:not(:disabled) {
+  background: rgba(219, 39, 119, 0.12);
+  color: #db2777;
 }
-.dash-fav-nav-btn:active {
-  transform: scale(0.92);
+.dash-fav-nav-btn:disabled {
+  opacity: 0.25;
+  cursor: default;
+}
+.dash-fav-nav-btn:active:not(:disabled) {
+  transform: scale(0.9);
 }
 .dash-fav-nav-btn .material-icons {
-  font-size: 20px;
+  font-size: 18px;
 }
-.light .dash-fav-nav-btn {
-  background: rgba(219, 39, 119, 0.06);
-  border-color: rgba(219, 39, 119, 0.16);
+.dash-fav-nav-page {
+  font-size: 10px;
+  font-weight: 700;
+  letter-spacing: 0.4px;
+  color: rgba(219, 39, 119, 0.7);
+  font-variant-numeric: tabular-nums;
+  min-width: 28px;
+  text-align: center;
+  user-select: none;
 }
-.light .dash-fav-nav-btn:hover {
-  background: rgba(219, 39, 119, 0.13);
-  border-color: rgba(219, 39, 119, 0.3);
-}
+.light .dash-fav-nav-btn { color: rgba(219, 39, 119, 0.7); }
+.light .dash-fav-nav-btn:hover:not(:disabled) { background: rgba(219, 39, 119, 0.1); }
+.light .dash-fav-nav-page { color: rgba(219, 39, 119, 0.75); }
 .dash-fav-list {
   display: flex;
   flex-direction: column;
@@ -1407,7 +1419,9 @@ span.cm-intro-marker.material-symbols-outlined {
 .dash-fav-row:hover {
   background: rgba(219, 39, 119, 0.14);
   border-color: rgba(219, 39, 119, 0.22);
-  transform: translateX(2px);
+  /* translateY (lift) instead of translateX so the idle bob animation can run
+     on the same property without fighting the hover state. Game-card feel. */
+  transform: translateY(-4px);
 }
 .dash-fav-row-ref {
   display: flex;
@@ -2369,6 +2383,189 @@ html {
   50% { transform: translateX(6px); }
 }
 
+/* ── Dashboard idle animations ──────────────────────────────────────────────
+   Section-icon character + ambient glow on the Continue Reading card +
+   gradient shimmer on the passage ref. Each section's icon gets its own
+   loop timing so they don't synchronize into one ticking metronome.
+
+   All wrapped in `prefers-reduced-motion: no-preference` so users with the OS
+   setting on get a still dashboard. */
+
+/* Heart — two-beat heartbeat (lub … dub … rest). */
+@keyframes dashHeartbeat {
+  0%, 65%, 100% { transform: scale(1); }
+  10%           { transform: scale(1.18); }
+  20%           { transform: scale(0.95); }
+  30%           { transform: scale(1.10); }
+  40%           { transform: scale(1); }
+}
+
+/* Book — slow inhale/exhale. */
+@keyframes dashBookBreathe {
+  0%, 100% { transform: scale(1);    opacity: 0.92; }
+  50%      { transform: scale(1.07); opacity: 1; }
+}
+
+/* edit_note — mostly still, tiny pen-twitch every cycle. */
+@keyframes dashNoteWobble {
+  0%, 88%, 100% { transform: rotate(0); }
+  91%           { transform: rotate(-5deg); }
+  94%           { transform: rotate(4deg); }
+  97%           { transform: rotate(-2deg); }
+}
+
+/* Continue Reading card — soft pink halo that breathes. */
+@keyframes dashContinueGlow {
+  0%, 100% { box-shadow: 0 0 0 0 rgba(219, 39, 119, 0); }
+  50%      { box-shadow: 0 0 26px 2px rgba(219, 39, 119, 0.18); }
+}
+
+@media (prefers-reduced-motion: no-preference) {
+  .dashboard-icon--fav,
+  .dashboard-icon--book,
+  .dashboard-icon--notes {
+    transform-origin: center;
+  }
+  .dashboard-icon--fav   { animation: dashHeartbeat   2.6s ease-in-out infinite; }
+  .dashboard-icon--book  { animation: dashBookBreathe 4.0s ease-in-out infinite; }
+  .dashboard-icon--notes { animation: dashNoteWobble  5.5s ease-in-out infinite; }
+
+  .dash-continue-btn {
+    animation: dashContinueGlow 4.5s ease-in-out infinite;
+  }
+  .dash-continue-ref {
+    animation: dashRefShimmer 5s ease-in-out infinite alternate;
+  }
+}
+
+/* Passage ref — slide the gradient back & forth so the pink shimmers like
+   the "devotion." brand wordmark. */
+@keyframes dashRefShimmer {
+  0%   { background-position:   0% 50%; }
+  100% { background-position: 100% 50%; }
+}
+
+/* ── Game-feel ambient layer ──────────────────────────────────────────────
+   Floating motes drifting up across the viewport, twinkling sparkles in
+   randomized positions, gentle card-bob on every list card with staggered
+   phases, periodic light-sheen sweep across cards (collectible-card vibe),
+   and a soft glow pulse on the greeting title. The dashboard feels like a
+   living game scene instead of a static read-only page.
+
+   The two ambient containers (.dash-ambient, .dash-twinkles) are
+   position:fixed inset:0 + pointer-events:none so they span the viewport
+   without blocking any interaction. They live inside .dashboard so they're
+   torn down automatically when the user navigates to a passage. */
+.dashboard { position: relative; }
+.dash-ambient,
+.dash-twinkles {
+  position: fixed;
+  inset: 0;
+  pointer-events: none;
+  overflow: hidden;
+  z-index: 0;
+  /* Don't block the dashboard's own fade-in animation. */
+  contain: layout paint;
+}
+/* Keep dashboard content above the ambient layer. */
+.dashboard > .dash-greeting,
+.dashboard > .dashboard-grid { position: relative; z-index: 1; }
+
+@media (prefers-reduced-motion: no-preference) {
+  /* Floating motes — small soft-edged pink dots that rise from the bottom
+     and fade out near the top. Each particle has its own duration / delay /
+     scale / opacity / lateral drift via inline custom properties so the
+     field never reads as a synchronized wave. */
+  .dash-ambient-mote {
+    position: absolute;
+    bottom: -6vh;
+    left: var(--m-x, 50%);
+    width: 5px;
+    height: 5px;
+    border-radius: 50%;
+    background: radial-gradient(circle,
+      rgba(255, 200, 230, 0.95) 0%,
+      rgba(219, 39, 119, 0.45) 55%,
+      transparent 100%);
+    filter: blur(0.5px);
+    opacity: 0;
+    transform: scale(var(--m-s, 1));
+    will-change: transform, opacity;
+    animation: dashMoteFloat var(--m-d, 12s) linear var(--m-l, 0s) infinite;
+  }
+  @keyframes dashMoteFloat {
+    0% {
+      transform: translate3d(0, 0, 0) scale(var(--m-s, 1));
+      opacity: 0;
+    }
+    8%  { opacity: var(--m-o, 0.4); }
+    50% {
+      transform: translate3d(calc(var(--m-drift, 0px) * 0.6), -55vh, 0) scale(var(--m-s, 1));
+    }
+    92% { opacity: var(--m-o, 0.4); }
+    100% {
+      transform: translate3d(var(--m-drift, 0px), -115vh, 0) scale(var(--m-s, 1));
+      opacity: 0;
+    }
+  }
+
+  /* Twinkles — quick fade-in/scale-up/fade-out blinks at random spots.
+     Eight per render, looping with offset start delays. */
+  .dash-twinkle {
+    position: absolute;
+    left: var(--t-x, 50%);
+    top: var(--t-y, 50%);
+    width: 3px;
+    height: 3px;
+    border-radius: 50%;
+    background: radial-gradient(circle,
+      rgba(255, 255, 255, 0.95) 0%,
+      rgba(244, 117, 168, 0.55) 50%,
+      transparent 100%);
+    box-shadow: 0 0 6px rgba(244, 117, 168, 0.5);
+    transform: scale(var(--t-s, 1));
+    opacity: 0;
+    animation: dashTwinkle var(--t-d, 4s) ease-in-out var(--t-l, 0s) infinite;
+  }
+  @keyframes dashTwinkle {
+    0%, 100% { opacity: 0; transform: scale(0.4); }
+    18%      { opacity: 0.85; transform: scale(1.25); }
+    35%      { opacity: 0; transform: scale(0.4); }
+  }
+
+  /* Card idle bob — every list card gently rises & falls. Staggered via
+     :nth-child so the column doesn't read as a synchronized wave. The
+     existing :hover translateY(-4px) overrides this since hover specificity
+     wins over the keyframed transform mid-cycle. */
+  @keyframes dashCardFloat {
+    0%, 100% { transform: translateY(0); }
+    50%      { transform: translateY(-3px); }
+  }
+  .dash-fav-row,
+  .dash-notes-card {
+    animation: dashCardFloat 6s ease-in-out infinite;
+  }
+  .dash-fav-list .dash-fav-row:nth-child(2n)   { animation-delay: -1.7s; animation-duration: 7s;   }
+  .dash-fav-list .dash-fav-row:nth-child(3n)   { animation-delay: -3.3s; animation-duration: 5.5s; }
+  .dash-fav-list .dash-fav-row:nth-child(4n)   { animation-delay: -2.4s; animation-duration: 6.5s; }
+  .dash-fav-list .dash-fav-row:nth-child(5n)   { animation-delay: -4.1s; animation-duration: 7.5s; }
+  .dash-notes-list .dash-notes-card:nth-child(2n) { animation-delay: -1.2s; animation-duration: 6.5s; }
+  .dash-notes-list .dash-notes-card:nth-child(3n) { animation-delay: -3.0s; animation-duration: 7.5s; }
+  .dash-notes-list .dash-notes-card:nth-child(4n) { animation-delay: -2.1s; animation-duration: 5.8s; }
+  .dash-notes-list .dash-notes-card:nth-child(5n) { animation-delay: -4.4s; animation-duration: 7s;   }
+
+  /* Greeting title — subtle pink/blue text-shadow that breathes. Tied to
+     the brand's two accent colors so the glow reads as the app's identity
+     rather than a generic effect. */
+  @keyframes dashTitleGlow {
+    0%, 100% { text-shadow: 0 0 0 rgba(219, 39, 119, 0); }
+    50%      { text-shadow:
+                 0 0 14px rgba(219, 39, 119, 0.28),
+                 0 0 32px rgba(123, 156, 247, 0.18); }
+  }
+  .dash-greeting-text { animation: dashTitleGlow 5.5s ease-in-out infinite; }
+}
+
 @font-face {
   font-family: "Editors Note";
   src: url("assets/EditorsNote-Italic.ttf") format("truetype");
@@ -2908,9 +3105,17 @@ body.light {
 .light .nvb-body { color: rgba(0,0,0,0.75); }
 .light .nvb-delete { background: rgba(0,0,0,0.08); color: rgba(0,0,0,0.4); }
 
-/* Dashboard notes cards */
-.light .dash-notes-card { background: #fff; box-shadow: 0 2px 8px rgba(0,0,0,0.08); }
-.light .dash-notes-card:hover { background: #f5f3f0; }
+/* Dashboard notes cards — match favorites' pink-tint card so both surfaces
+   read as one "recent activity" type. */
+.light .dash-notes-card {
+  background: rgba(219, 39, 119, 0.05);
+  border-color: rgba(219, 39, 119, 0.14);
+  box-shadow: none;
+}
+.light .dash-notes-card:hover {
+  background: rgba(219, 39, 119, 0.1);
+  border-color: rgba(219, 39, 119, 0.22);
+}
 .light .dash-notes-card-date { color: rgba(0,0,0,0.4); }
 .light .dash-notes-item-label { color: #db2777; }
 .light .dash-notes-item-more { color: rgba(0,0,0,0.3); }
@@ -3917,38 +4122,42 @@ body.light {
   background: none;
   border: none;
   color: #db2777;
-  font-size: 10px;
-  font-weight: 700;
-  letter-spacing: 1.5px;
-  text-transform: uppercase;
+  font-size: 12px;
+  font-weight: 600;
+  letter-spacing: 0.2px;
   cursor: pointer;
   white-space: nowrap;
   flex-shrink: 0;
   padding: 0;
 }
 .dash-notes-list { display: flex; flex-direction: column; gap: 8px; }
+/* Match the favorites card treatment so the eye reads both as the same kind
+   of "recent activity" surface. Same border + bg + hover translate-x. */
 .dash-notes-card {
-  background: rgba(255,255,255,0.04);
-  border: 1px solid rgba(255,255,255,0.06);
-  border-radius: 12px;
+  background: rgba(219, 39, 119, 0.06);
+  border: 1px solid rgba(219, 39, 119, 0.1);
+  border-radius: 10px;
   padding: 12px 14px;
   cursor: pointer;
-  transition: background 0.15s;
+  transition: background 0.15s ease, border-color 0.15s ease, transform 0.15s ease;
 }
-.dash-notes-card:hover { background: rgba(255,255,255,0.07); }
-.dash-notes-card:active { background: #1c2850; }
-.dash-notes-card-date { font-size: 11px; opacity: 0.4; font-weight: 500; letter-spacing: 0.3px; margin-bottom: 6px; display: flex; align-items: center; gap: 4px; }
+.dash-notes-card:hover {
+  background: rgba(219, 39, 119, 0.12);
+  border-color: rgba(219, 39, 119, 0.2);
+  /* translateY for game-card lift; matches favorites hover so idle bob can
+     share the transform property with hover. */
+  transform: translateY(-4px);
+}
+.dash-notes-card:active { background: rgba(219, 39, 119, 0.16); }
+.dash-notes-card-date { font-size: 11px; opacity: 0.55; font-weight: 500; letter-spacing: 0.3px; margin-bottom: 6px; display: flex; align-items: center; gap: 4px; }
 .dash-notes-card-preview {
-  font-size: 13px;
+  font-size: 13.5px;
   line-height: 1.45;
-  color: #c5d1f1;
-  opacity: 0.8;
-  /* Single-line truncation that adapts to the card's actual width: narrow
-     phone card → ~70 chars, wide desktop card → ~250+ chars before ellipsis.
-     The JS no longer hard-truncates at 80; that was cutting off mid-sentence
-     even when desktop had hundreds of unused pixels. */
+  color: rgba(229, 231, 235, 0.85);
+  /* Two-line clamp feels less abrupt than one-line; the card's actual width
+     still adapts the visible character count (narrow phone vs wide desktop). */
   display: -webkit-box;
-  -webkit-line-clamp: 1;
+  -webkit-line-clamp: 2;
   -webkit-box-orient: vertical;
   overflow: hidden;
   text-overflow: ellipsis;
@@ -5261,7 +5470,148 @@ body.light {
 
 /* Dashboard greeting */
 .dash-greeting {
-  padding: 8px 0 20px;
+  padding: 0 0 20px;
+}
+
+/* On dashboard the .top-actions-reading row is empty (homeBtn + mt-actions are
+   both hidden), but its 44px min-height was leaving a noticeable dead band
+   between the brand row and the greeting. Collapse it on the dashboard so
+   "Pick up where you left off" enters the fold sooner. */
+.layout.layout-unset .top-actions-reading {
+  min-height: 0;
+  display: none;
+}
+
+/* Continue Reading — explicit button affordance.
+   Old version was an italic Editors-Note title + chevron with no surface; now
+   it's a card-like button with hover + active states so it visually announces
+   "tap to resume". The italic Editors-Note treatment is preserved on the
+   passage ref text inside. */
+.dash-continue-btn {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 12px;
+  width: 100%;
+  padding: 12px 16px;
+  margin-bottom: 1rem;
+  background: rgba(219, 39, 119, 0.08) !important;
+  border: 1px solid rgba(219, 39, 119, 0.22);
+  border-radius: 14px;
+  color: inherit;
+  cursor: pointer;
+  text-align: left;
+  font-family: inherit;
+  transition: background 0.15s ease, border-color 0.15s ease, transform 0.15s ease;
+  /* defeats the global `button { flex: 0 !important }` trap */
+  flex: 0 0 auto !important;
+}
+.dash-continue-btn:hover {
+  background: rgba(219, 39, 119, 0.14) !important;
+  border-color: rgba(219, 39, 119, 0.4);
+  transform: translateY(-1px);
+}
+.dash-continue-btn:active {
+  transform: translateY(0);
+}
+.dash-continue-text {
+  flex: 1 1 auto;
+  min-width: 0;
+  display: flex;
+  flex-direction: column;
+  gap: 6px;
+}
+.dash-continue-ref {
+  font-family: "Editors Note", "EditorsNote-Italic", serif;
+  font-style: italic;
+  font-weight: 700;
+  font-size: clamp(1.4rem, 4vw, 1.85rem);
+  letter-spacing: -1px;
+  line-height: 1;
+  color: #db2777;
+  text-transform: uppercase;
+  display: block;
+  min-width: 0;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+  /* Gradient text fill — the idle animation slides background-position so the
+     pink reads as having ambient life. Solid color keeps as a fallback for
+     browsers without background-clip:text. */
+  background: linear-gradient(110deg, #db2777 0%, #f475a8 35%, #db2777 70%);
+  background-size: 200% auto;
+  -webkit-background-clip: text;
+  -webkit-text-fill-color: transparent;
+  background-clip: text;
+}
+/* AI-generated recap line under the ref. Empty by default so the card sits
+   tight; populated lazily by loadDashContinueRecap with subtle fade-in. */
+.dash-continue-recap {
+  font-size: 13px;
+  line-height: 1.45;
+  color: rgba(229, 231, 235, 0.62);
+  font-weight: 400;
+  letter-spacing: 0.1px;
+  /* Two-line max — keeps the card compact even for verbose AI output. */
+  display: -webkit-box;
+  -webkit-line-clamp: 2;
+  -webkit-box-orient: vertical;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  word-break: break-word;
+  /* No height/min-height while empty so the card stays tight before a recap
+     loads or while there's only the loader. */
+  min-height: 0;
+  opacity: 0;
+  transition: opacity 0.35s ease;
+}
+.dash-continue-recap:not(:empty) { opacity: 1; }
+.dash-continue-recap-ready { opacity: 1; }
+.light .dash-continue-recap { color: rgba(31, 41, 55, 0.72); }
+
+/* Pink loading dots while recap is being fetched (cache miss). Mirrors the
+   greeting glow loader's rhythm but smaller + pink so it reads as the
+   passage's idle dots, not the day's greeting dots. */
+.dash-continue-recap-loader {
+  display: inline-flex;
+  align-items: center;
+  gap: 4px;
+  padding: 2px 0;
+  opacity: 1;
+}
+.dash-continue-recap-loader .rdot {
+  width: 5px;
+  height: 5px;
+  border-radius: 50%;
+  background: rgba(219, 39, 119, 0.65);
+  animation: recapDotPulse 1.3s ease-in-out infinite;
+}
+.dash-continue-recap-loader .rdot:nth-child(2) { animation-delay: 0.18s; }
+.dash-continue-recap-loader .rdot:nth-child(3) { animation-delay: 0.36s; }
+@keyframes recapDotPulse {
+  0%, 100% { opacity: 0.25; transform: scale(0.7); }
+  50%      { opacity: 1;    transform: scale(1.1); }
+}
+.dash-continue-chev {
+  font-size: 22px !important;
+  color: #db2777;
+  flex: 0 0 auto;
+  opacity: 0.85;
+  /* Idle nudge — same animation the legacy "Continue Reading?" chevron had so
+     the card still telegraphs "tap to resume" passively. Hover keeps it running
+     and just bumps opacity. */
+  animation: nudgeRight 1.5s ease-in-out infinite;
+}
+.dash-continue-btn:hover .dash-continue-chev {
+  opacity: 1;
+}
+.light .dash-continue-btn {
+  background: rgba(219, 39, 119, 0.06) !important;
+  border-color: rgba(219, 39, 119, 0.18);
+}
+.light .dash-continue-btn:hover {
+  background: rgba(219, 39, 119, 0.12) !important;
+  border-color: rgba(219, 39, 119, 0.32);
 }
 .dash-greeting-text {
   font-size: 28px;
@@ -11508,3 +11858,34 @@ body.cfg-sheet-open.light .bc-picker-btn .material-symbols-outlined { color: rgb
 .light .mt-sheet-panel { background: #fff; border-color: rgba(0, 0, 0, 0.08); }
 .light .mt-sheet-item { color: #1a1a2e; }
 .light .mt-sheet-item:hover { background: rgba(0, 0, 0, 0.04); }
+
+/* Reading progress bar — fixed strip at top of viewport, tracks scroll
+   through the active reader (.layout in normal mode, #cmScroll in canvas
+   mode). Hidden on dashboard / when no passage is loaded. Sits under the
+   iOS status bar via env(safe-area-inset-top). */
+.read-progress-bar {
+  position: fixed;
+  top: env(safe-area-inset-top, 0px);
+  left: 0;
+  right: 0;
+  height: 3px;
+  background: rgba(255, 255, 255, 0.05);
+  z-index: 10500;
+  pointer-events: none;
+  opacity: 0;
+  transition: opacity 220ms ease;
+}
+.read-progress-bar.is-visible { opacity: 1; }
+.read-progress-fill {
+  height: 100%;
+  width: 0%;
+  background: linear-gradient(90deg, #c83086, #f472b6);
+  box-shadow: 0 0 6px rgba(200, 48, 134, 0.55);
+  transition: width 90ms linear;
+  border-radius: 0 2px 2px 0;
+}
+.light .read-progress-bar { background: rgba(0, 0, 0, 0.05); }
+.light .read-progress-fill {
+  background: linear-gradient(90deg, #be185d, #ec4899);
+  box-shadow: 0 0 6px rgba(190, 24, 93, 0.45);
+}

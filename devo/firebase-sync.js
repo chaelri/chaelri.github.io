@@ -33,7 +33,7 @@ const SYNC_STATIC_KEYS = [
   "dashGreetingCacheV2",
 ];
 
-const SYNC_DYNAMIC_PREFIXES = ["reflection-", "devo.canvas.", "chapterContext."];
+const SYNC_DYNAMIC_PREFIXES = ["reflection-", "devo.canvas.", "chapterContext.", "passageRecap-"];
 const RTDB_PATH = "devo-sync";
 const BOOTSTRAP_KEY = "userName";
 const FB_WRITE_DEBOUNCE_MS = 400;

@@ -242,6 +242,61 @@ scrollTopBtn.onclick = () => {
   layoutEl.scrollTo({ top: 0, behavior: "smooth" });
 };
 
+/* ---------- READING PROGRESS BAR ----------
+   Tracks scroll through the active reader (.layout in normal mode,
+   #cmScroll in canvas/highlight mode). Hidden on dashboard. */
+(function setupReadProgress() {
+  const bar = document.getElementById("readProgressBar");
+  const fill = document.getElementById("readProgressFill");
+  if (!bar || !fill || !layoutEl) return;
+  const cmOverlay = document.getElementById("canvasModeOverlay");
+  let cmScroll = null;
+  let raf = 0;
+
+  function compute() {
+    raf = 0;
+    const cmOpen = cmOverlay && !cmOverlay.hidden;
+    if (cmOpen && !cmScroll) cmScroll = document.getElementById("cmScroll");
+    const scroller = cmOpen ? cmScroll : layoutEl;
+    const reading = cmOpen || !layoutEl.classList.contains("layout-unset");
+    if (!reading || !scroller) {
+      bar.classList.remove("is-visible");
+      fill.style.width = "0%";
+      return;
+    }
+    const max = scroller.scrollHeight - scroller.clientHeight;
+    const pct = max > 0 ? Math.min(100, Math.max(0, (scroller.scrollTop / max) * 100)) : 0;
+    fill.style.width = pct.toFixed(2) + "%";
+    bar.classList.add("is-visible");
+  }
+  function schedule() {
+    if (raf) return;
+    raf = requestAnimationFrame(compute);
+  }
+
+  layoutEl.addEventListener("scroll", schedule, { passive: true });
+  window.addEventListener("resize", schedule);
+
+  // #cmScroll exists from boot (it's static markup), bind once.
+  cmScroll = document.getElementById("cmScroll");
+  if (cmScroll) cmScroll.addEventListener("scroll", schedule, { passive: true });
+
+  // Recompute when the layout flips between dashboard (.layout-unset) and
+  // reading mode, and when the canvas overlay opens/closes.
+  new MutationObserver(schedule).observe(layoutEl, {
+    attributes: true,
+    attributeFilter: ["class"],
+  });
+  if (cmOverlay) {
+    new MutationObserver(schedule).observe(cmOverlay, {
+      attributes: true,
+      attributeFilter: ["hidden"],
+    });
+  }
+
+  schedule();
+})();
+
 /* ---------- EVENTS ---------- */
 bookEl.onchange = loadChapters;
 chapterEl.onchange = loadVerses;

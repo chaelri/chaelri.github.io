@@ -6,8 +6,8 @@ window.addEventListener("unhandledrejection", function(e) {
   alert("Promise Error: " + (e.reason?.message || e.reason));
 });
 
-// Dashboard favorites: 3 per page, paginated with prev/next chevrons.
-const FAV_PAGE_SIZE = 3;
+// Dashboard favorites: 5 per page, paginated with prev/next chevrons.
+const FAV_PAGE_SIZE = 5;
 let favoritesPage = 0;
 
 // ── View transitions ─────────────────────────────────────────────────────────
