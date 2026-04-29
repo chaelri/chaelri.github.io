@@ -42,7 +42,7 @@
 - **Opt-in for one user**: Doesn't complicate the app for general users
 - **Transparent abstraction**: Script.js code unchanged; firebase-sync.js handles mirroring
 
-**Implementation**:
+**Implementation** (original Charlie-only — superseded by decision #21 multi-user):
 - Check if `userName === "charlie"` at boot
 - Replace `window.localStorage` with in-memory mirror backed by RTDB
 - Debounce-flush writes to RTDB (400ms)
@@ -364,3 +364,69 @@ Now: `_audioLibPollers` is a `Map<bookKey, intervalId>`. Each book's bulk downlo
 - `devo/js/04-passage.js` — apostrophe removed from punct class.
 - `devo/style.css` — Audio Library Activity panel re-themed light cream/pink; orphan `.audio-lib-ch[data-status="expiring"]` rule removed; orphan `.audio-lib-log-filter` rules removed; verse-num dim selector changed to `> *:not(.cm-verse-num)` so the tap-to-jump affordance stays full-opacity even when its parent verse is dimmed by auto-follow; `.cm-title` → `flex: 0 0 auto` / `width: auto` so the topbar passage button is fit-content (was stretching across the whole row).
 - `devo/index.html` — added `#mtAudioLibBtn` next to the Listen button; canvas listen icon swapped `graphic_eq` → `headphones` (matches the top-bar Listen); removed the "Show cache hits" toggle.
+
+---
+
+## 21. Multi-user firebase sync — Karla added (2026-04-29)
+
+**Decision**: Generalize `firebase-sync.js` from "Charlie-only" to "any user in `SYNC_USERS`". Add Karla as the second supported user with her own private RTDB path.
+
+**Why**:
+- Charlie & Karla each use the devo app for their own private Bible study. Reflections, notes, prayer entries, and SOAP journals are personal — they should NOT pool into a shared dataset.
+- Karla wants the same cross-device sync benefit Charlie's had since 2026-04-25 (pick up reading on phone after starting on laptop, etc.).
+- The mirror logic itself is user-agnostic (it just shadows localStorage and pipes writes to a path); the only thing that varies per user is the RTDB path. So generalizing was a small refactor, not a rewrite.
+
+**Implementation**:
+- `SYNC_USERS = { charlie: "devo-sync", karla: "devo-sync-karla" }` keyed by lowercase userName. Charlie's path stays as `devo-sync` for back-compat — no migration of his existing data.
+- Replaced `_isCharlie` flag + hardcoded `RTDB_PATH` constant with `_syncUser` (active user) + `_syncPath` (resolved per-user path) state.
+- `_activateCharlie` → `_activateSyncFor(user)` (parameterized). If a different sync user is active when activate is called, `_deactivateSync()` runs first to tear down the old mirror/listener/timers — so charlie ↔ karla swap works mid-session without a page reload.
+- Public API: `window.activateSyncForUser(name)` + `window.deactivateSync()`. Back-compat shims: `window.activateCharlieSync` / `window.activateKarlaSync` both delegate to `activateSyncForUser`.
+- `js/05-render-init.js` `_showNamePrompt`: replaced single-name "charlie" boundary check with a `SYNC_USERS = ["charlie", "karla"]` array + activate/deactivate-or-swap logic. Adding more users requires extending both this array AND the firebase-sync `SYNC_USERS` map.
+
+**Trade-off**: Two separate RTDB roots means slightly more storage, but each is bounded by one user's working set so it's negligible. No cross-user data leakage by construction (different paths = different `.on("value")` listeners = different snapshots). If we ever wanted shared data (e.g., a shared "we read this together" feature), we'd add a third path like `devo-sync-shared` and write to both from each user's mirror.
+
+**Files touched**:
+- `devo/firebase-sync.js` — bootstrap, activate, deactivate, mirror install, write/listen all parameterized on `_syncPath`.
+- `devo/js/05-render-init.js` — name-prompt swap logic.
+
+---
+
+## 22. Dashboard polish + AI Continue-Reading recap + idle game-feel layer (2026-04-29)
+
+**Decision**: Major dashboard pass — visual harmony, AI-generated recap on the Continue Reading card, and a subtle ambient-motion layer that makes the dashboard feel alive without being distracting.
+
+**Why**: The dashboard had become a static read-only list of recent items. Charlie wanted (a) clearer CTAs ("Pick up where you left off" instead of "Continue Reading?"), (b) a recap of what the resumed chapter is actually about (so re-entry doesn't require remembering), (c) ambient motion so the page doesn't read as dead.
+
+**Visual harmony**:
+- Notes cards re-themed to match Favorites' pink-tint card surface so both columns read as one kind of "recent activity".
+- Notes cap raised to 5 (was 3), 2-line preview clamp; type label only renders when the visible set is mixed (otherwise every row tagging "REFLECTION" was noise).
+- Favorites: `FAV_PAGE_SIZE` 3 → 5 (cuts paginator from 63 → 38 pages); paginator buttons re-styled as muted ghost icons + "n/total" indicator instead of bright pink filled CTAs.
+- Continue Reading: italic ref + chevron + halo card-button instead of bare text; sentence-case "Pick up where you left off" header with `dashboard-icon--book` hook.
+- Top-right icons got self-explanatory aria-label/title (e.g. "Audio library — manage downloaded chapters").
+- Hidden empty `.top-actions-reading` row on dashboard so the greeting and CTA enter the fold sooner.
+
+**AI Continue-Reading recap**:
+- New `loadDashContinueRecap()` fetches a one-sentence recap of the resumed passage from gemini-proxy. Cache key `passageRecap-${recentPassageId}` lives in localStorage.
+- `passageRecap-` was added to `SYNC_DYNAMIC_PREFIXES` in `firebase-sync.js`, so for sync users (Charlie, Karla) the recap rides the existing mirror — same recap on every device, no regeneration. For non-sync users it's plain localStorage (still no regen on revisit).
+- Cache miss shows a pink three-dot loader; failures don't poison the cache so the next visit retries.
+
+**Idle game-feel layer** (all gated by `prefers-reduced-motion: no-preference`):
+- **Floating motes** — 18 randomized pink dots drifting up across the viewport, each with own duration (9-21s), delay, scale, opacity, lateral drift via inline CSS variables. Negative start delays so the field is full from t=0.
+- **Twinkles** — 10 sparkle dots blinking at random positions (3-7s loops).
+- **Section icons** — `dashboard-icon--fav` heart heartbeat (2.6s lub-dub), `dashboard-icon--book` slow breath (4s), `dashboard-icon--notes` pen-twitch (5.5s, mostly still).
+- **Continue card** — `dashContinueGlow` 4.5s breathing pink halo via `box-shadow`; `nudgeRight` chevron loop continues; ref has gradient text-fill that slides via `dashRefShimmer` (charlie called the LEVITICUS shimmer good — keep it).
+- **Greeting title** — slow pink+blue text-shadow breath (the brand's two accent colors).
+
+**Things explicitly removed during this pass**:
+- **Card sheen sweep** — Charlie hated the diagonal light streak across cards ("ew remove the shimmer"). Removed the `::after` overlay + `dashCardSheen` keyframes + `position: relative; overflow: hidden` shim on cards.
+- **Card idle bob** — Charlie said the random translateY oscillation made him dizzy ("ayaw ko pala na randomly moving yung tiles nakakahilo"). Removed `dashCardFloat` keyframes + animation + nth-child stagger overrides. Hover state on cards stays at translateY(-4px) lift (no random motion involved).
+
+**Reading progress bar** (separate, from earlier in the day): `#readProgressBar` + fill at the bottom of the layout. Tracks `.layout` scroll in normal mode and `#cmScroll` in canvas mode; hidden on dashboard (`.layout-unset`). MutationObserver re-evaluates on layout flips and canvas open/close.
+
+**Files touched**:
+- `devo/js/01-core.js` — `FAV_PAGE_SIZE` 3 → 5.
+- `devo/js/04-passage.js` — Continue Reading button restructure, `dashContinueRecap` mount, `loadDashContinueRecap` next to `loadDashGreetingMsg`, ambient layer injection (motes + twinkles HTML), section icon modifier classes (`dashboard-icon--book/fav/notes`), notes slice 5, mixed-type label gate.
+- `devo/js/05-render-init.js` — reading progress bar setup.
+- `devo/firebase-sync.js` — `passageRecap-` added to `SYNC_DYNAMIC_PREFIXES`.
+- `devo/index.html` — top-right icon labels expanded; `#readProgressBar` markup.
+- `devo/style.css` — dashboard polish + idle keyframes + ambient containers + reading progress bar.

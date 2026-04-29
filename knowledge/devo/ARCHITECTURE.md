@@ -52,32 +52,39 @@ The app registers a **service worker** (`sw.js`) with an aggressive cache-refres
   - Key: `window.GOOGLE_TTS_KEY`.
   - TTS synthesis for verse playback via Web Audio API.
 
-- **Firebase Realtime Database** (Charlie-only):
-  - RTDB at `https://test-database-55379-default-rtdb.asia-southeast1.firebasedatabase.app` (firebase-sync.js:14).
-  - Syncs data under path `devo-sync` in RTDB.
+- **Firebase Realtime Database** (per-user sync, supported users: Charlie + Karla as of 2026-04-29):
+  - RTDB at `https://test-database-55379-default-rtdb.asia-southeast1.firebasedatabase.app` (firebase-sync.js:17).
+  - Each sync user has their OWN path so personal devotions stay private:
+    - Charlie → `devo-sync` (legacy path, kept stable for back-compat)
+    - Karla → `devo-sync-karla`
+  - Add new users by extending `SYNC_USERS = { charlie, karla, ... }` in firebase-sync.js.
   - See below for details.
 
 ### Security Model: localStorage Scope & Authentication
 
 **No Authentication**:
 - The app has **no login or auth system**. User identity is a name (`userName` localStorage key).
-- Charlie's Firebase sync is detected by checking `userName === "charlie"` (firebase-sync.js:54).
+- Firebase sync activates if `userName.toLowerCase()` is a key in `SYNC_USERS` (firebase-sync.js:44–47); currently `{ charlie, karla }`.
 
 **localStorage Scope**:
 - All data is scoped to domain (app URL).
 - Data is **unencrypted** and readable by any script on the origin.
 - Private data (notes, reflections) is visible to users sharing a browser profile.
 
-**Firebase Sync (Charlie-Only)**:
-- Enabled if `userName === "charlie"` (firebase-sync.js:54).
-- localStorage is **shadowed** by an in-memory mirror backed by Firebase RTDB (firebase-sync.js:154–187).
-- Mirror syncs these static keys (firebase-sync.js:22–33):
-  - `bibleFavorites`, `bibleComments`, `devotionStandaloneNotes`, `storySeenHistory`, `userName`, `bibleVersion`, `recentPassageId`, `recentPassage`, `soap_application`, `soap_prayer`.
-- Dynamic prefixes synced:
+**Firebase Sync (per-user mirror)**:
+- Enabled when `userName.toLowerCase() in SYNC_USERS` (firebase-sync.js bootstrap).
+- localStorage is **shadowed** by an in-memory mirror backed by Firebase RTDB.
+- Mirror syncs these static keys (firebase-sync.js `SYNC_STATIC_KEYS`):
+  - `bibleFavorites`, `bibleComments`, `devotionStandaloneNotes`, `storySeenHistory`, `userName`, `bibleVersion`, `recentPassageId`, `recentPassage`, `soap_application`, `soap_prayer`, `dashGreetingCacheV2`.
+- Dynamic prefixes synced (`SYNC_DYNAMIC_PREFIXES`):
   - `reflection-*` (reflection responses)
   - `devo.canvas.*` (canvas sketches)
-- **Debounced writes**: 400ms (firebase-sync.js:38, `FB_WRITE_DEBOUNCE_MS`).
-- **Remote listen**: Firebase listener re-renders globals and triggers dashboard refresh if visible (firebase-sync.js:205–256).
+  - `chapterContext.*` (chapter context cache)
+  - `passageRecap-*` (Continue Reading AI recap cache, added 2026-04-29)
+- **Debounced writes**: 400ms (`FB_WRITE_DEBOUNCE_MS`).
+- **Remote listen**: Firebase listener re-renders globals and triggers dashboard refresh if visible.
+- **Mid-session swap** (charlie ↔ karla via name prompt): `_activateSyncFor(user)` tears down the previous user's mirror first, then activates the new user's path. No page reload required.
+- **Public API**: `window.activateSyncForUser(user)`, `window.deactivateSync()`, plus back-compat shims `window.activateCharlieSync` / `window.activateKarlaSync`.
 
 ### Service Worker Cache Strategy
 

@@ -1,8 +1,11 @@
-// Firebase RTDB bootstrap. For Charlie (userName === "charlie"), localStorage
-// is replaced with an in-memory mirror backed by Firebase Realtime Database —
-// all reads/writes hit the mirror (instant, sync), writes also debounce-flush
-// to RTDB, and remote changes flow back via .on("value"). For everyone else
-// this file is a no-op and the app uses real localStorage as before.
+// Firebase RTDB bootstrap. For supported sync users (Charlie, Karla),
+// localStorage is replaced with an in-memory mirror backed by Firebase
+// Realtime Database — all reads/writes hit the mirror (instant, sync),
+// writes also debounce-flush to RTDB, and remote changes flow back via
+// .on("value"). Each sync user gets their OWN RTDB path so personal
+// devotions, notes, reflections stay private to their account / devices.
+// For everyone else this file is a no-op and the app uses real
+// localStorage as before.
 //
 // This file MUST load before script.js. script.js is injected dynamically
 // after the bootstrap settles so its top-level localStorage reads see the
@@ -34,7 +37,15 @@ const SYNC_STATIC_KEYS = [
 ];
 
 const SYNC_DYNAMIC_PREFIXES = ["reflection-", "devo.canvas.", "chapterContext.", "passageRecap-"];
-const RTDB_PATH = "devo-sync";
+
+// Per-user RTDB path map. Charlie's path is the legacy "devo-sync" so his
+// existing data stays at the root we've always used (no migration needed).
+// Karla gets her own scoped path. Add additional users here by name.
+const SYNC_USERS = {
+  charlie: "devo-sync",
+  karla:   "devo-sync-karla",
+};
+
 const BOOTSTRAP_KEY = "userName";
 const FB_WRITE_DEBOUNCE_MS = 400;
 
@@ -44,7 +55,8 @@ const _realLs = window.localStorage;
 
 let _fbApp = null;
 let _fbDb = null;
-let _isCharlie = false;
+let _syncUser = null;          // lowercase name of the active sync user, or null
+let _syncPath = null;          // resolved RTDB path for the active user
 let _mirror = null;            // { [decodedKey]: stringValue }
 let _suppressFbWrites = false; // true while we apply remote changes locally
 let _writeTimers = {};
@@ -53,19 +65,30 @@ let _remoteListenerCb = null;  // saved so deactivation can detach it
 // ── Boot ────────────────────────────────────────────────────────────────────
 (async function bootstrap() {
   const name = (_realLs.getItem(BOOTSTRAP_KEY) || "").trim().toLowerCase();
-  if (name === "charlie") {
-    try { await _activateCharlie(); }
+  if (name && name in SYNC_USERS) {
+    try { await _activateSyncFor(name); }
     catch (err) { console.error("Firebase bootstrap failed:", err); }
   }
   _injectAppScript();
 })();
 
-// In-place activation. Used by bootstrap (when userName is already "charlie"
-// at page load) AND by _showNamePrompt (when the user types "charlie"
-// mid-session and we want to enable RTDB sync without a page reload).
-async function _activateCharlie() {
-  if (_isCharlie) return; // idempotent
-  _isCharlie = true;
+// In-place activation for a specific sync user. Used by bootstrap (when the
+// userName is already a known sync user at page load) AND by _showNamePrompt
+// (when the user types charlie/karla mid-session and we want to enable RTDB
+// sync without a page reload).
+async function _activateSyncFor(user) {
+  const lower = (user || "").trim().toLowerCase();
+  const path = SYNC_USERS[lower];
+  if (!path) {
+    console.warn("Unknown sync user:", user);
+    return;
+  }
+  if (_syncUser === lower) return; // idempotent — already active for this user
+  // If a different user is active, tear them down first so the mirror /
+  // listener / write timers belong to exactly one user at any time.
+  if (_syncUser) await _deactivateSync();
+  _syncUser = lower;
+  _syncPath = path;
   await _initFirebase();
   const merged = await _mergeOnBoot();
   _mirror = _decodeAll(merged);
@@ -74,16 +97,21 @@ async function _activateCharlie() {
   _listenForRemoteChanges();
   _refreshAppGlobals();
 }
-window.activateCharlieSync = _activateCharlie;
+window.activateSyncForUser = _activateSyncFor;
+
+// Backwards-compat shims so any older references / cockpit modes still work.
+window.activateCharlieSync = () => _activateSyncFor("charlie");
+window.activateKarlaSync   = () => _activateSyncFor("karla");
 
 // Tear the mirror back down without reloading. Used when the user switches
-// away from "charlie" via the name prompt. After this runs, window.localStorage
-// is real localStorage again, RTDB writes/listens are detached, and the app's
-// in-memory globals are reseeded from real LS (mostly empty post-clear).
-async function _deactivateCharlie() {
-  if (!_isCharlie) return;
-  if (_fbDb && _remoteListenerCb) {
-    try { _fbDb.ref(RTDB_PATH).off("value", _remoteListenerCb); } catch {}
+// away from a sync user via the name prompt. After this runs,
+// window.localStorage is real localStorage again, RTDB writes/listens are
+// detached, and the app's in-memory globals are reseeded from real LS
+// (mostly empty post-clear).
+async function _deactivateSync() {
+  if (!_syncUser) return;
+  if (_fbDb && _remoteListenerCb && _syncPath) {
+    try { _fbDb.ref(_syncPath).off("value", _remoteListenerCb); } catch {}
   }
   _remoteListenerCb = null;
   for (const t of Object.values(_writeTimers)) clearTimeout(t);
@@ -95,10 +123,13 @@ async function _deactivateCharlie() {
     get() { return _realLs; },
   });
   _mirror = null;
-  _isCharlie = false;
+  _syncUser = null;
+  _syncPath = null;
   _refreshAppGlobals();
 }
-window.deactivateCharlieSync = _deactivateCharlie;
+window.deactivateSync = _deactivateSync;
+window.deactivateCharlieSync = _deactivateSync; // backwards-compat
+window.deactivateKarlaSync   = _deactivateSync; // symmetric API for Karla
 
 // After the mirror is installed (or torn down) mid-session, the in-memory
 // globals declared at the top of script chunks (favorites, comments) may be
@@ -162,12 +193,12 @@ async function _initFirebase() {
 // ── Initial merge: pull remote, fold in any local data, push back ───────────
 async function _mergeOnBoot() {
   const local = _readRealLsForSync();
-  const snap = await _fbDb.ref(RTDB_PATH).once("value");
+  const snap = await _fbDb.ref(_syncPath).once("value");
   const remote = snap.val() || {};
   const merged = _mergeAll(local, remote);
   // Only write if something changed to avoid pointless RTDB churn.
   if (!_shallowEqual(merged, remote)) {
-    await _fbDb.ref(RTDB_PATH).set(merged);
+    await _fbDb.ref(_syncPath).set(merged);
   }
   return merged;
 }
@@ -196,7 +227,7 @@ function _readRealLsForSync() {
 
 // Strip synced keys from real localStorage after the initial migration. The
 // mirror is now the working store. userName stays so the next boot detects
-// Charlie before Firebase loads.
+// the sync user before Firebase loads.
 function _clearMigratedRealLs() {
   const removeKeys = new Set();
   for (const key of SYNC_STATIC_KEYS) {
@@ -219,8 +250,8 @@ function _installMirror() {
       const v = String(value);
       if (_mirror[key] === v) return;
       _mirror[key] = v;
-      // Mirror userName back to real LS so next page load detects Charlie
-      // before Firebase finishes loading.
+      // Mirror userName back to real LS so next page load detects the sync
+      // user before Firebase finishes loading.
       if (key === BOOTSTRAP_KEY) _realLs.setItem(key, v);
       if (_suppressFbWrites) return;
       if (!_shouldSync(key)) return;
@@ -232,7 +263,7 @@ function _installMirror() {
       if (key === BOOTSTRAP_KEY) _realLs.removeItem(key);
       if (_suppressFbWrites) return;
       if (!_shouldSync(key)) return;
-      _fbDb.ref(`${RTDB_PATH}/${_encodeKey(key)}`).remove().catch(() => {});
+      _fbDb.ref(`${_syncPath}/${_encodeKey(key)}`).remove().catch(() => {});
     },
     clear() {
       _mirror = {};
@@ -256,7 +287,7 @@ function _scheduleFbWrite(key, value) {
   const enc = _encodeKey(key);
   clearTimeout(_writeTimers[enc]);
   _writeTimers[enc] = setTimeout(() => {
-    _fbDb.ref(`${RTDB_PATH}/${enc}`).set(value).catch((err) => {
+    _fbDb.ref(`${_syncPath}/${enc}`).set(value).catch((err) => {
       console.warn("RTDB write failed for", key, err);
     });
   }, FB_WRITE_DEBOUNCE_MS);
@@ -314,7 +345,7 @@ function _listenForRemoteChanges() {
       try { renderDashboard(); } catch {}
     }
   };
-  _fbDb.ref(RTDB_PATH).on("value", _remoteListenerCb);
+  _fbDb.ref(_syncPath).on("value", _remoteListenerCb);
 }
 
 // ── Merge logic (preserved from previous version) ───────────────────────────

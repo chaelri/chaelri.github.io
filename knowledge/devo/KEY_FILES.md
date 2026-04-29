@@ -204,27 +204,36 @@ window.PUSH_SERVER_URL = "https://gemini-proxy-668755364170.asia-southeast1.run.
 
 ---
 
-### firebase-sync.js (13,095 bytes, ~350 lines)
+### firebase-sync.js (~430 lines)
 
-**Purpose**: Bootstrap layer for Charlie-only Firebase RTDB sync. Runs before script.js.
+**Purpose**: Bootstrap layer for multi-user Firebase RTDB sync (Charlie + Karla as of 2026-04-29). Runs before the app scripts inject. Each sync user has their OWN RTDB path, so devotions/notes/reflections stay private to their account / devices.
 
 **Flow**:
-1. **Check identity** (line 52): If `userName === "charlie"` (from real localStorage before Firebase loads), initialize Firebase and create an in-memory mirror.
-2. **Merge on boot** (line 102): Pull remote state from RTDB, fold in any local data, push merged result back.
-3. **Install mirror** (line 154): Shadow window.localStorage with proxy object that reads/writes to the mirror, debounce-flushes to RTDB.
-4. **Listen for remote** (line 205): `.on("value")` listener applies remote changes, re-parses JSON globals, and triggers UI refresh.
+1. **Check identity** (bootstrap IIFE): If `userName.toLowerCase() in SYNC_USERS`, call `_activateSyncFor(name)`.
+2. **Resolve path**: `_syncPath = SYNC_USERS[name]` — Charlie → `"devo-sync"` (legacy, kept stable for back-compat), Karla → `"devo-sync-karla"`.
+3. **Merge on boot** (`_mergeOnBoot`): Pull remote state from `_syncPath`, fold in any local data, push merged result back.
+4. **Install mirror** (`_installMirror`): Shadow window.localStorage with proxy object that reads/writes to the mirror, debounce-flushes to RTDB at `_syncPath`.
+5. **Listen for remote** (`_listenForRemoteChanges`): `.on("value")` at `_syncPath` applies remote changes, re-parses JSON globals, triggers UI refresh.
+6. **Mid-session swap**: If a different sync user is currently active, `_activateSyncFor` calls `_deactivateSync()` first to tear down the old mirror/listener/timers before activating the new path. No page reload needed for charlie ↔ karla swaps.
 
 **Key Constants**:
-- `SYNC_STATIC_KEYS` (line 22): bibleFavorites, bibleComments, devotionStandaloneNotes, storySeenHistory, userName, bibleVersion, recentPassageId, recentPassage, soap_application, soap_prayer.
-- `SYNC_DYNAMIC_PREFIXES` (line 35): "reflection-", "devo.canvas.".
-- `RTDB_PATH` (line 36): "devo-sync".
-- `FB_WRITE_DEBOUNCE_MS` (line 38): 400.
+- `SYNC_STATIC_KEYS`: `bibleFavorites`, `bibleComments`, `devotionStandaloneNotes`, `storySeenHistory`, `userName`, `bibleVersion`, `recentPassageId`, `recentPassage`, `soap_application`, `soap_prayer`, `dashGreetingCacheV2`.
+- `SYNC_DYNAMIC_PREFIXES`: `"reflection-"`, `"devo.canvas."`, `"chapterContext."`, `"passageRecap-"`.
+- `SYNC_USERS`: `{ charlie: "devo-sync", karla: "devo-sync-karla" }` — extend here to add more users.
+- `FB_WRITE_DEBOUNCE_MS`: 400.
 
-**Merge strategies** (lines 259–298):
+**Public API (window globals)**:
+- `activateSyncForUser(name)` — generic activation; safe to call mid-session (handles user swaps internally).
+- `deactivateSync()` — tear down whatever user is active.
+- `activateCharlieSync()` / `activateKarlaSync()` — back-compat shims; both delegate to `activateSyncForUser`.
+- `deactivateCharlieSync` / `deactivateKarlaSync` — back-compat shims pointing at `deactivateSync`.
+
+**Merge strategies** (preserved across users):
 - Favorites/storySeenHistory: `max` (take highest value).
 - Comments: Merge by verse key, keep all entries.
 - Canvas: Latest wins.
-- Standalone notes: Merge by ID, latest updatedAt wins.
+- Standalone notes: Merge by ID, latest `updatedAt` wins.
+- SOAP entries: Merge by ID.
 
 ---
 

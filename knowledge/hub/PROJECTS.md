@@ -1,6 +1,6 @@
 # Hub Project Index for chaelri.github.io
 
-**Last updated:** 2026-04-28
+**Last updated:** 2026-04-29
 **Scope:** Complete mapping of top-level directories + root files, with tech stack, deployment, status, and key entry points.
 
 ## Status Legend
@@ -18,9 +18,9 @@
 Bible devotional progressive web app (PWA) — daily passages, AI explanations, drawing canvas, TTS, Firebase sync.
 
 - **Tech:** vanilla JS (~9,881 lines split across 11 chunks under `devo/js/`), CSS, PWA (service worker), Firebase RTDB, IndexedDB, Gemini API via proxy.
-- **Entry:** `index.html`, `js/01-core.js` … `js/11-boot.js` (loaded in order by `firebase-sync.js` with `async=false`), `style.css`, `firebase-sync.js` (Charlie-only sync), `manifest.json`.
+- **Entry:** `index.html`, `js/01-core.js` … `js/11-boot.js` (loaded in order by `firebase-sync.js` with `async=false`), `style.css`, `firebase-sync.js` (multi-user sync — Charlie + Karla), `manifest.json`.
 - **Deploy:** GitHub Pages at `/devo/`.
-- **Quirks:** Uses NASB 2020 + Easy-to-Read JSON files (~10 MB total). AI calls go through `gemini-proxy/`. Firebase sync gates on `userName === "charlie"`. Synchronous cross-chunk calls only work via `js/11-boot.js` — earlier chunks must only DEFINE functions, never trigger forward chains.
+- **Quirks:** Uses NASB 2020 + Easy-to-Read JSON files (~10 MB total). AI calls go through `gemini-proxy/`. Firebase sync activates when `userName.toLowerCase()` is in `SYNC_USERS = { charlie, karla }`; each user has their own RTDB path (Charlie: `devo-sync`, Karla: `devo-sync-karla`) so devotions stay private. Synchronous cross-chunk calls only work via `js/11-boot.js` — earlier chunks must only DEFINE functions, never trigger forward chains.
 - **Full docs:** See `knowledge/devo/SUMMARY.md` and the other MDs in `knowledge/devo/`.
 
 ### devo-mobile/  🟡

@@ -907,13 +907,17 @@ function _showNamePrompt(onDone) {
     const prev = (getUserName() || "").trim().toLowerCase();
     const next = name.toLowerCase();
     localStorage.setItem("userName", name);
-    // Crossing the Charlie boundary either way: activate or deactivate the
-    // RTDB mirror in place. No page reload — firebase-sync.js exposes both
-    // activateCharlieSync and deactivateCharlieSync for mid-session swaps.
-    if (next === "charlie" && prev !== "charlie" && typeof window.activateCharlieSync === "function") {
-      window.activateCharlieSync().catch(err => console.error("Charlie sync activation failed:", err));
-    } else if (prev === "charlie" && next !== "charlie" && typeof window.deactivateCharlieSync === "function") {
-      window.deactivateCharlieSync().catch(err => console.error("Charlie sync deactivation failed:", err));
+    // Crossing the sync-user boundary in any direction: firebase-sync.js's
+    // activateSyncForUser handles both fresh activation AND swapping (it
+    // tears down the previous mirror first). Deactivation is the explicit
+    // off path. No page reload required for any transition.
+    const SYNC_USERS = ["charlie", "karla"];
+    const prevIsSync = SYNC_USERS.includes(prev);
+    const nextIsSync = SYNC_USERS.includes(next);
+    if (nextIsSync && next !== prev && typeof window.activateSyncForUser === "function") {
+      window.activateSyncForUser(next).catch(err => console.error("Sync activation failed:", err));
+    } else if (prevIsSync && !nextIsSync && typeof window.deactivateSync === "function") {
+      window.deactivateSync().catch(err => console.error("Sync deactivation failed:", err));
     }
     screen.classList.remove("name-prompt-visible");
     screen.addEventListener("transitionend", () => { screen.hidden = true; }, { once: true });

@@ -424,15 +424,39 @@ self.addEventListener("fetch", (event) => {
 
 ---
 
-### 11. Firebase Sync Mirror Pattern (Charlie-only)
+### 11. Firebase Sync Mirror Pattern (per-user — Charlie + Karla as of 2026-04-29)
 
-**Detection**:
+**Detection** (bootstrap IIFE in firebase-sync.js):
 ```javascript
+const SYNC_USERS = {
+  charlie: "devo-sync",        // legacy path — kept stable for charlie's existing data
+  karla:   "devo-sync-karla",  // private to karla's account/devices
+};
 const name = (_realLs.getItem(BOOTSTRAP_KEY) || "").trim().toLowerCase();
-_isCharlie = name === "charlie";  // line 54 firebase-sync.js
+if (name && name in SYNC_USERS) await _activateSyncFor(name);
 ```
 
-**Mirror proxy**:
+**Activation** (parameterized — handles fresh-activate AND swap):
+```javascript
+async function _activateSyncFor(user) {
+  const lower = (user || "").trim().toLowerCase();
+  const path = SYNC_USERS[lower];
+  if (!path) return;
+  if (_syncUser === lower) return;   // idempotent
+  if (_syncUser) await _deactivateSync();  // tear previous user down first
+  _syncUser = lower;
+  _syncPath = path;                  // every RTDB op uses _syncPath
+  await _initFirebase();
+  const merged = await _mergeOnBoot();
+  _mirror = _decodeAll(merged);
+  _installMirror();
+  _clearMigratedRealLs();
+  _listenForRemoteChanges();
+  _refreshAppGlobals();
+}
+```
+
+**Mirror proxy** (unchanged — same shape for any sync user):
 ```javascript
 const mirrorLs = {
   getItem(key) { return key in _mirror ? _mirror[key] : null; },
@@ -442,7 +466,7 @@ const mirrorLs = {
     _mirror[key] = v;
     if (_suppressFbWrites) return;
     if (!_shouldSync(key)) return;
-    _scheduleFbWrite(key, v);  // debounce 400ms
+    _scheduleFbWrite(key, v);  // writes to `${_syncPath}/${enc}`, 400ms debounce
   },
   removeItem(key) { /* ... */ },
 };
@@ -452,15 +476,13 @@ Object.defineProperty(window, "localStorage", {
 });
 ```
 
-**Remote listen**:
+**Remote listen** (path is now `_syncPath`):
 ```javascript
-_fbDb.ref(RTDB_PATH).on("value", (snap) => {
+_fbDb.ref(_syncPath).on("value", (snap) => {
   const remote = snap.val() || {};
   const decoded = _decodeAll(remote);
   for (const [key, val] of Object.entries(decoded)) {
-    if (_mirror[key] !== val) {
-      _mirror[key] = val;
-    }
+    if (_mirror[key] !== val) _mirror[key] = val;
   }
   for (const key of Object.keys(_mirror)) {
     if (!(key in decoded)) delete _mirror[key];
@@ -470,3 +492,5 @@ _fbDb.ref(RTDB_PATH).on("value", (snap) => {
   }
 });
 ```
+
+**Adding a new sync user**: extend `SYNC_USERS = { ..., newName: "devo-sync-newname" }`, and add the lowercase name to the `SYNC_USERS` array in `_showNamePrompt` (`js/05-render-init.js`) so the swap logic recognizes it.

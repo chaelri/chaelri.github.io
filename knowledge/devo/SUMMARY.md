@@ -35,7 +35,7 @@ devo/
 |-------|------|-------|
 | localStorage | settings, favorites, comments, notes | Client (origin-locked) |
 | IndexedDB (devo-cache) | images, stories (7-day cache) | Client |
-| Firebase RTDB | synced localStorage (Charlie only) | Cloud (devo-sync path) |
+| Firebase RTDB | synced localStorage (Charlie + Karla, per-user paths) | Cloud (`devo-sync` for Charlie, `devo-sync-karla` for Karla) |
 
 ## Key Global Variables
 
