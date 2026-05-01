@@ -1,0 +1,1347 @@
+<!doctype html>
+<html lang="en" class="dark">
+<head>
+  <meta charset="utf-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1" />
+  <title>DIY Auto Clicker Bot — Build Reference</title>
+
+  <link rel="preconnect" href="https://fonts.googleapis.com" />
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
+  <link href="https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700;800&family=JetBrains+Mono:wght@400;500&display=swap" rel="stylesheet" />
+  <link href="https://fonts.googleapis.com/css2?family=Material+Symbols+Outlined:opsz,wght,FILL,GRAD@24,400,0,0" rel="stylesheet" />
+
+  <script src="https://cdn.jsdelivr.net/npm/@tailwindcss/browser@4"></script>
+
+  <style>
+    :root { color-scheme: dark; }
+    html, body { background: #07080b; }
+    body {
+      font-family: 'Inter', system-ui, -apple-system, sans-serif;
+      background-image:
+        radial-gradient(ellipse 60% 50% at 20% -10%, rgba(99,102,241,0.18), transparent 60%),
+        radial-gradient(ellipse 50% 40% at 90% 10%, rgba(168,85,247,0.12), transparent 60%);
+      background-attachment: fixed;
+    }
+    code, pre, .mono { font-family: 'JetBrains Mono', ui-monospace, monospace; }
+    .material-symbols-outlined { font-variation-settings: 'FILL' 0, 'wght' 400, 'GRAD' 0, 'opsz' 24; vertical-align: middle; }
+
+    /* Card */
+    .card {
+      background: linear-gradient(180deg, rgba(255,255,255,0.025), rgba(255,255,255,0.012));
+      border: 1px solid rgba(255,255,255,0.06);
+      border-radius: 16px;
+    }
+
+    /* Glow utilities */
+    .glow-indigo { box-shadow: 0 0 24px -4px rgba(99,102,241,0.5); }
+    .text-glow { text-shadow: 0 0 18px rgba(99,102,241,0.6); }
+
+    /* Animated dash flow */
+    @keyframes flowDash { to { stroke-dashoffset: -36; } }
+    .flow { stroke-dasharray: 6 12; animation: flowDash 1.4s linear infinite; }
+
+    /* Pin marker pulse */
+    @keyframes pinPulse {
+      0%, 100% { transform: scale(1); opacity: 0.9; }
+      50% { transform: scale(1.25); opacity: 1; }
+    }
+    .pin-pulse { transform-origin: center; animation: pinPulse 2.4s ease-in-out infinite; }
+
+    /* Wire base */
+    .wire { fill: none; stroke-linecap: round; stroke-linejoin: round; }
+
+    /* Active wire highlight */
+    .wire-active { filter: drop-shadow(0 0 6px currentColor); }
+
+    /* Solenoid plunger animation */
+    .plunger {
+      transition: transform 80ms cubic-bezier(0.22, 1, 0.36, 1);
+    }
+    .plunger.push {
+      transform: translateX(28px);
+      transition: transform 50ms cubic-bezier(0.4, 0, 0.4, 1);
+    }
+    .button-target {
+      transition: transform 60ms ease-out, box-shadow 60ms ease-out;
+    }
+    .button-target.pressed {
+      transform: scale(0.96);
+      box-shadow: inset 0 4px 14px rgba(0,0,0,0.5);
+    }
+
+    /* GPIO LED */
+    .gpio-led {
+      transition: background 80ms ease, box-shadow 80ms ease;
+      background: #1f2937;
+      box-shadow: inset 0 0 4px rgba(0,0,0,0.6);
+    }
+    .gpio-led.on {
+      background: #34d399;
+      box-shadow: 0 0 10px #34d399, 0 0 24px rgba(52,211,153,0.5);
+    }
+
+    /* Code block */
+    pre.code {
+      background: #0a0c12;
+      border: 1px solid rgba(255,255,255,0.06);
+      border-radius: 12px;
+      padding: 18px 20px;
+      overflow-x: auto;
+      font-size: 12.5px;
+      line-height: 1.65;
+      color: #c9d1d9;
+      tab-size: 2;
+    }
+    .tok-kw { color: #ff7b72; }
+    .tok-str { color: #a5d6ff; }
+    .tok-num { color: #79c0ff; }
+    .tok-com { color: #6e7681; font-style: italic; }
+    .tok-fn  { color: #d2a8ff; }
+    .tok-typ { color: #ffa657; }
+
+    /* Section anchor offset for sticky nav */
+    .section { scroll-margin-top: 80px; }
+
+    /* Nav active */
+    .nav-link.active {
+      color: #fff;
+      background: rgba(255,255,255,0.06);
+    }
+
+    /* Checklist */
+    .check-item .check-box {
+      width: 20px; height: 20px; border-radius: 6px;
+      border: 1.5px solid rgba(255,255,255,0.18);
+      flex-shrink: 0; display: grid; place-items: center;
+      transition: all 120ms ease;
+    }
+    .check-item.done .check-box {
+      background: linear-gradient(135deg, #6366f1, #a855f7);
+      border-color: transparent;
+    }
+    .check-item.done .check-box .material-symbols-outlined { opacity: 1; transform: scale(1); }
+    .check-item .check-box .material-symbols-outlined { opacity: 0; transform: scale(0.5); transition: all 120ms ease; font-size: 14px; color: white; }
+    .check-item.done .check-label { color: rgba(255,255,255,0.4); text-decoration: line-through; }
+
+    /* Hardware photo */
+    .photo {
+      filter: drop-shadow(0 14px 36px rgba(0,0,0,0.6)) drop-shadow(0 0 1px rgba(255,255,255,0.05));
+    }
+
+    /* Ripple */
+    @keyframes ripple {
+      0%   { transform: scale(0.4); opacity: 0.7; }
+      100% { transform: scale(2.4); opacity: 0; }
+    }
+    .ripple { animation: ripple 600ms ease-out forwards; transform-origin: center; }
+
+    /* Subtle grid background for hardware view */
+    .grid-bg {
+      background-image:
+        linear-gradient(rgba(255,255,255,0.025) 1px, transparent 1px),
+        linear-gradient(90deg, rgba(255,255,255,0.025) 1px, transparent 1px);
+      background-size: 32px 32px;
+    }
+
+    /* hide scrollbar (cosmetic) */
+    .no-scrollbar::-webkit-scrollbar { display: none; }
+    .no-scrollbar { scrollbar-width: none; }
+
+    /* details/summary chevron */
+    details > summary { list-style: none; cursor: pointer; }
+    details > summary::-webkit-details-marker { display: none; }
+    details[open] .chev { transform: rotate(180deg); }
+    .chev { transition: transform 200ms ease; }
+  </style>
+</head>
+<body class="text-slate-300 antialiased">
+
+<!-- ============== NAV ============== -->
+<nav class="sticky top-0 z-40 backdrop-blur-xl bg-[#07080b]/75 border-b border-white/[0.06]">
+  <div class="max-w-6xl mx-auto px-4 sm:px-6 h-14 flex items-center justify-between">
+    <a href="#top" class="flex items-center gap-2.5 group">
+      <div class="w-8 h-8 rounded-lg bg-gradient-to-br from-indigo-500 to-purple-600 grid place-items-center glow-indigo">
+        <span class="material-symbols-outlined text-white" style="font-size:18px">smart_button</span>
+      </div>
+      <span class="font-semibold text-white tracking-tight">Auto Clicker Bot</span>
+      <span class="text-xs text-slate-500 hidden sm:inline">· build reference</span>
+    </a>
+
+    <div class="hidden md:flex items-center gap-1 text-sm">
+      <a href="#overview" data-nav class="nav-link px-3 py-1.5 rounded-md text-slate-400 hover:text-white transition-colors">Overview</a>
+      <a href="#hardware" data-nav class="nav-link px-3 py-1.5 rounded-md text-slate-400 hover:text-white transition-colors">Hardware</a>
+      <a href="#wiring"   data-nav class="nav-link px-3 py-1.5 rounded-md text-slate-400 hover:text-white transition-colors">Wiring</a>
+      <a href="#demo"     data-nav class="nav-link px-3 py-1.5 rounded-md text-slate-400 hover:text-white transition-colors">Demo</a>
+      <a href="#code"     data-nav class="nav-link px-3 py-1.5 rounded-md text-slate-400 hover:text-white transition-colors">Code</a>
+      <a href="#checklist" data-nav class="nav-link px-3 py-1.5 rounded-md text-slate-400 hover:text-white transition-colors">Checklist</a>
+    </div>
+
+    <button id="navOpen" aria-label="menu" class="md:hidden text-slate-300 hover:text-white p-2">
+      <span class="material-symbols-outlined">menu</span>
+    </button>
+  </div>
+  <div id="navMobile" class="hidden md:hidden px-4 pb-3 space-y-1 text-sm border-t border-white/5">
+    <a href="#overview" class="block px-3 py-2 rounded-md text-slate-300 hover:bg-white/5">Overview</a>
+    <a href="#hardware" class="block px-3 py-2 rounded-md text-slate-300 hover:bg-white/5">Hardware</a>
+    <a href="#wiring"   class="block px-3 py-2 rounded-md text-slate-300 hover:bg-white/5">Wiring</a>
+    <a href="#demo"     class="block px-3 py-2 rounded-md text-slate-300 hover:bg-white/5">Demo</a>
+    <a href="#code"     class="block px-3 py-2 rounded-md text-slate-300 hover:bg-white/5">Code</a>
+    <a href="#checklist" class="block px-3 py-2 rounded-md text-slate-300 hover:bg-white/5">Checklist</a>
+  </div>
+</nav>
+
+<!-- ============== HERO ============== -->
+<header id="top" class="max-w-6xl mx-auto px-4 sm:px-6 pt-16 pb-12 text-center">
+  <div class="inline-flex items-center gap-2 px-3 py-1 rounded-full bg-white/[0.04] border border-white/[0.06] text-xs text-slate-400 mb-6">
+    <span class="w-1.5 h-1.5 bg-emerald-400 rounded-full"></span>
+    Hardware on the way · 4 parts · 0 soldering
+  </div>
+  <h1 class="text-4xl sm:text-6xl font-bold tracking-tight text-white mb-4">
+    DIY <span class="bg-gradient-to-r from-indigo-300 via-purple-300 to-pink-300 bg-clip-text text-transparent">SwitchBot</span>
+  </h1>
+  <p class="text-base sm:text-lg text-slate-400 max-w-2xl mx-auto mb-10">
+    A WiFi-controlled robot that physically presses buttons on command.
+    Trigger it from anywhere via Firebase — AC remote, PC power, light switches.
+  </p>
+  <div class="grid grid-cols-2 sm:grid-cols-4 gap-3 max-w-3xl mx-auto">
+    <div class="card p-4 text-left">
+      <div class="text-2xl font-semibold text-white">4 <span class="text-sm text-slate-500 font-normal">parts</span></div>
+      <div class="text-xs text-slate-500 mt-1">ESP32 · MOSFET · solenoid · USB-C</div>
+    </div>
+    <div class="card p-4 text-left">
+      <div class="text-2xl font-semibold text-white">6 <span class="text-sm text-slate-500 font-normal">connections</span></div>
+      <div class="text-xs text-slate-500 mt-1">3 jumpers · 2 screws · 1 USB</div>
+    </div>
+    <div class="card p-4 text-left">
+      <div class="text-2xl font-semibold text-white">200 <span class="text-sm text-slate-500 font-normal">ms</span></div>
+      <div class="text-xs text-slate-500 mt-1">click pulse duration</div>
+    </div>
+    <div class="card p-4 text-left">
+      <div class="text-2xl font-semibold text-white">1 <span class="text-sm text-slate-500 font-normal">sec</span></div>
+      <div class="text-xs text-slate-500 mt-1">Firebase poll interval</div>
+    </div>
+  </div>
+</header>
+
+<!-- ============== OVERVIEW ============== -->
+<section id="overview" class="section max-w-6xl mx-auto px-4 sm:px-6 py-16">
+  <div class="mb-10">
+    <div class="text-xs uppercase tracking-[0.2em] text-indigo-400 mb-2">01 · Overview</div>
+    <h2 class="text-3xl font-bold text-white">How a click travels</h2>
+    <p class="text-slate-400 mt-2 max-w-xl">Phone tap → cloud database → ESP32 polls → MOSFET switches → solenoid pushes the button physically.</p>
+  </div>
+
+  <div class="card p-6 sm:p-8 overflow-x-auto no-scrollbar">
+    <div class="min-w-[760px]">
+      <svg viewBox="0 0 1000 220" class="w-full h-auto" role="img" aria-label="Data flow diagram">
+        <defs>
+          <linearGradient id="flowGrad" x1="0" x2="1" y1="0" y2="0">
+            <stop offset="0%"  stop-color="#6366f1"/>
+            <stop offset="50%" stop-color="#a855f7"/>
+            <stop offset="100%" stop-color="#ec4899"/>
+          </linearGradient>
+          <filter id="softGlow" x="-50%" y="-50%" width="200%" height="200%">
+            <feGaussianBlur stdDeviation="3" result="blur"/>
+            <feMerge><feMergeNode in="blur"/><feMergeNode in="SourceGraphic"/></feMerge>
+          </filter>
+        </defs>
+
+        <!-- connection lines (evenly spaced: 100 / 300 / 500 / 700 / 900) -->
+        <g stroke="url(#flowGrad)" stroke-width="2" fill="none" opacity="0.4">
+          <path d="M 134 110 L 266 110"/>
+          <path d="M 334 110 L 466 110"/>
+          <path d="M 534 110 L 666 110"/>
+          <path d="M 734 110 L 866 110"/>
+        </g>
+        <g stroke="url(#flowGrad)" stroke-width="2" fill="none" stroke-dasharray="6 8" opacity="0.7">
+          <path d="M 134 110 L 266 110"/>
+          <path d="M 334 110 L 466 110"/>
+          <path d="M 534 110 L 666 110"/>
+          <path d="M 734 110 L 866 110"/>
+        </g>
+
+        <!-- nodes (uniform r=34, 200px spacing) -->
+        <!-- 1 phone -->
+        <g transform="translate(100 110)">
+          <circle r="34" fill="#0d1018" stroke="rgba(99,102,241,0.5)" stroke-width="1.5"/>
+          <circle r="34" fill="rgba(99,102,241,0.08)"/>
+          <text text-anchor="middle" dominant-baseline="central" fill="#cbd5e1" font-family="Material Symbols Outlined" font-size="26">phone_iphone</text>
+          <text y="60" text-anchor="middle" fill="#fff" font-size="13" font-weight="600">Phone</text>
+          <text y="76" text-anchor="middle" fill="#64748b" font-size="11">tap button</text>
+        </g>
+
+        <!-- 2 firebase -->
+        <g transform="translate(300 110)">
+          <circle r="34" fill="#0d1018" stroke="rgba(168,85,247,0.5)" stroke-width="1.5"/>
+          <circle r="34" fill="rgba(168,85,247,0.08)"/>
+          <text text-anchor="middle" dominant-baseline="central" fill="#cbd5e1" font-family="Material Symbols Outlined" font-size="26">cloud</text>
+          <text y="60" text-anchor="middle" fill="#fff" font-size="13" font-weight="600">Firebase RTDB</text>
+          <text y="76" text-anchor="middle" fill="#64748b" font-size="11">/autoclicker/command</text>
+        </g>
+
+        <!-- 3 esp32 -->
+        <g transform="translate(500 110)">
+          <circle r="34" fill="#0d1018" stroke="rgba(236,72,153,0.5)" stroke-width="1.5"/>
+          <circle r="34" fill="rgba(236,72,153,0.08)"/>
+          <text text-anchor="middle" dominant-baseline="central" fill="#cbd5e1" font-family="Material Symbols Outlined" font-size="26">memory</text>
+          <text y="60" text-anchor="middle" fill="#fff" font-size="13" font-weight="600">ESP32-C3</text>
+          <text y="76" text-anchor="middle" fill="#64748b" font-size="11">poll @ 1Hz · GPIO3 200ms</text>
+        </g>
+
+        <!-- 4 mosfet -->
+        <g transform="translate(700 110)">
+          <circle r="34" fill="#0d1018" stroke="rgba(245,158,11,0.5)" stroke-width="1.5"/>
+          <circle r="34" fill="rgba(245,158,11,0.08)"/>
+          <text text-anchor="middle" dominant-baseline="central" fill="#cbd5e1" font-family="Material Symbols Outlined" font-size="26">bolt</text>
+          <text y="60" text-anchor="middle" fill="#fff" font-size="13" font-weight="600">IRF520</text>
+          <text y="76" text-anchor="middle" fill="#64748b" font-size="11">switches 5V load</text>
+        </g>
+
+        <!-- 5 solenoid -->
+        <g transform="translate(900 110)">
+          <circle r="34" fill="#0d1018" stroke="rgba(52,211,153,0.5)" stroke-width="1.5"/>
+          <circle r="34" fill="rgba(52,211,153,0.08)"/>
+          <text text-anchor="middle" dominant-baseline="central" fill="#cbd5e1" font-family="Material Symbols Outlined" font-size="26">ads_click</text>
+          <text y="60" text-anchor="middle" fill="#fff" font-size="13" font-weight="600">Solenoid</text>
+          <text y="76" text-anchor="middle" fill="#64748b" font-size="11">presses real button</text>
+        </g>
+
+        <!-- protocol labels above lines (centered between nodes: 200/400/600/800) -->
+        <g fill="#64748b" font-size="10" text-anchor="middle" font-family="JetBrains Mono">
+          <text x="200" y="98">HTTPS · set()</text>
+          <text x="400" y="98">HTTPS · GET</text>
+          <text x="600" y="98">3.3V · digital</text>
+          <text x="800" y="98">5V · 400mA</text>
+        </g>
+      </svg>
+    </div>
+
+    <div class="grid grid-cols-1 md:grid-cols-3 gap-3 mt-8">
+      <div class="bg-white/[0.02] border border-white/5 rounded-xl p-4">
+        <div class="flex items-center gap-2 text-indigo-300 mb-1">
+          <span class="material-symbols-outlined" style="font-size:18px">touch_app</span>
+          <span class="text-xs font-medium uppercase tracking-wider">Trigger</span>
+        </div>
+        <div class="text-sm text-slate-300">Phone web app writes a string (<code class="text-indigo-300">"click"</code>) to one Firebase path.</div>
+      </div>
+      <div class="bg-white/[0.02] border border-white/5 rounded-xl p-4">
+        <div class="flex items-center gap-2 text-purple-300 mb-1">
+          <span class="material-symbols-outlined" style="font-size:18px">sync</span>
+          <span class="text-xs font-medium uppercase tracking-wider">Poll</span>
+        </div>
+        <div class="text-sm text-slate-300">ESP32 reads that path every 1s via REST. When non-empty, it acts and clears.</div>
+      </div>
+      <div class="bg-white/[0.02] border border-white/5 rounded-xl p-4">
+        <div class="flex items-center gap-2 text-pink-300 mb-1">
+          <span class="material-symbols-outlined" style="font-size:18px">bolt</span>
+          <span class="text-xs font-medium uppercase tracking-wider">Actuate</span>
+        </div>
+        <div class="text-sm text-slate-300">GPIO3 → MOSFET gate → solenoid coil. 200ms HIGH = one button press.</div>
+      </div>
+    </div>
+  </div>
+</section>
+
+<!-- ============== HARDWARE ============== -->
+<section id="hardware" class="section max-w-6xl mx-auto px-4 sm:px-6 py-16">
+  <div class="mb-10">
+    <div class="text-xs uppercase tracking-[0.2em] text-indigo-400 mb-2">02 · Hardware</div>
+    <h2 class="text-3xl font-bold text-white">Top-down view</h2>
+    <p class="text-slate-400 mt-2 max-w-xl">Three modules, five wires, plug in USB-C. Tap a part to see what it does.</p>
+  </div>
+
+  <!-- Photo composition -->
+  <div class="card p-3 sm:p-6 grid-bg overflow-hidden">
+    <div class="relative w-full" style="aspect-ratio: 1100/780;">
+      <svg viewBox="0 0 1100 780" class="absolute inset-0 w-full h-full" font-family="Inter, system-ui, sans-serif">
+        <defs>
+          <filter id="wireGlow" x="-50%" y="-50%" width="200%" height="200%">
+            <feGaussianBlur stdDeviation="3" result="b"/>
+            <feMerge><feMergeNode in="b"/><feMergeNode in="SourceGraphic"/></feMerge>
+          </filter>
+        </defs>
+
+        <!-- ============ TITLES (top, dark area, clearly outside any photo) ============ -->
+        <text x="160" y="30" text-anchor="middle" fill="#ffffff" font-size="18" font-weight="700">ESP32-C3 SuperMini</text>
+        <text x="160" y="50" text-anchor="middle" fill="#94a3b8" font-size="12" font-family="JetBrains Mono">22.5 × 18 mm · USB-C · WiFi</text>
+
+        <text x="920" y="30" text-anchor="middle" fill="#ffffff" font-size="18" font-weight="700">IRF520 MOSFET</text>
+        <text x="920" y="50" text-anchor="middle" fill="#94a3b8" font-size="12" font-family="JetBrains Mono">switches 5V load · flyback diode</text>
+
+        <!-- USB-C power badge (centered between component titles) -->
+        <g transform="translate(440 16)">
+          <rect width="220" height="30" rx="15" fill="rgba(99,102,241,0.15)" stroke="rgba(129,140,248,0.5)" stroke-width="1"/>
+          <text x="110" y="20" text-anchor="middle" fill="#c7d2fe" font-size="12" font-family="JetBrains Mono">USB-C 5V powers everything</text>
+        </g>
+
+        <!-- ============ PHOTOS (directly on dark grid bg) ============ -->
+        <image href="assets/esp32-c3.jpeg" x="40" y="70" width="240" height="330"
+               preserveAspectRatio="xMidYMid meet"/>
+
+        <image href="assets/mosfet.jpeg" x="800" y="80" width="240" height="223"
+               preserveAspectRatio="xMidYMid meet"/>
+
+        <image href="assets/solenoid.jpeg" x="340" y="430" width="380" height="285"
+               preserveAspectRatio="xMidYMid meet"/>
+
+        <!-- Solenoid title (below photo, in clean dark area) -->
+        <text x="530" y="745" text-anchor="middle" fill="#ffffff" font-size="18" font-weight="700">5V Mini Push Solenoid</text>
+        <text x="530" y="765" text-anchor="middle" fill="#94a3b8" font-size="12" font-family="JetBrains Mono">3–5 mm stroke · 200 g push · ~400 mA pulse</text>
+
+        <!-- ============ WIRES: ESP32 → MOSFET (3 jumpers, landing on actual pin pads) ============ -->
+        <g fill="none" stroke-linecap="round">
+          <!-- GPIO3 (green) — ESP32 pin 4 (GP3) → MOSFET SIG -->
+          <path d="M 129 392 C 240 200, 720 170, 941 295" stroke="#22c55e" stroke-width="3.5" filter="url(#wireGlow)" opacity="0.95"/>
+          <!-- GND — ESP32 pin 8 → MOSFET GND -->
+          <path d="M 215 392 C 350 240, 770 200, 980 295" stroke="#475569" stroke-width="3.5"/>
+          <path d="M 215 392 C 350 240, 770 200, 980 295" stroke="#94a3b8" stroke-width="1.2" opacity="0.55"/>
+          <!-- 5V (red) — ESP32 pin 9 (rightmost) → MOSFET VCC -->
+          <path d="M 237 392 C 380 280, 800 240, 961 295" stroke="#ef4444" stroke-width="3.5" filter="url(#wireGlow)" opacity="0.95"/>
+        </g>
+
+        <!-- ============ WIRES: Solenoid leads → MOSFET V+/V- (continuation of photo wires) ============ -->
+        <g fill="none" stroke-linecap="round">
+          <path d="M 700 445 C 720 320, 820 180, 851 90" stroke="#dc2626" stroke-width="3" filter="url(#wireGlow)" opacity="0.95"/>
+          <path d="M 710 450 C 760 340, 860 180, 878 90" stroke="#1f2937" stroke-width="3"/>
+          <path d="M 710 450 C 760 340, 860 180, 878 90" stroke="#94a3b8" stroke-width="1" opacity="0.5"/>
+        </g>
+
+        <!-- ============ ESP32 pin dots + labels ============ -->
+        <g>
+          <circle cx="129" cy="392" r="6" fill="#22c55e" stroke="#0a0c12" stroke-width="2"/>
+          <circle cx="215" cy="392" r="6" fill="#1f2937" stroke="#94a3b8" stroke-width="2"/>
+          <circle cx="237" cy="392" r="6" fill="#ef4444" stroke="#0a0c12" stroke-width="2"/>
+        </g>
+        <g font-family="JetBrains Mono" font-size="13" font-weight="500">
+          <text x="129" y="423" text-anchor="middle" fill="#86efac">GPIO3</text>
+          <text x="190" y="423" text-anchor="middle" fill="#cbd5e1">GND</text>
+          <text x="262" y="423" text-anchor="middle" fill="#fca5a5">5V</text>
+          <line x1="215" y1="398" x2="195" y2="412" stroke="#475569" stroke-width="0.8"/>
+          <line x1="237" y1="398" x2="258" y2="412" stroke="#475569" stroke-width="0.8"/>
+        </g>
+
+        <!-- ============ MOSFET header pin dots + labels ============ -->
+        <g>
+          <circle cx="941" cy="295" r="6" fill="#22c55e" stroke="#0a0c12" stroke-width="2"/>
+          <circle cx="961" cy="295" r="6" fill="#ef4444" stroke="#0a0c12" stroke-width="2"/>
+          <circle cx="980" cy="295" r="6" fill="#1f2937" stroke="#94a3b8" stroke-width="2"/>
+        </g>
+        <g font-family="JetBrains Mono" font-size="13" font-weight="500">
+          <text x="912" y="328" text-anchor="middle" fill="#86efac">SIG</text>
+          <text x="961" y="348" text-anchor="middle" fill="#fca5a5">VCC</text>
+          <text x="1010" y="328" text-anchor="middle" fill="#cbd5e1">GND</text>
+          <line x1="941" y1="301" x2="922" y2="318" stroke="#475569" stroke-width="0.8"/>
+          <line x1="961" y1="301" x2="961" y2="338" stroke="#475569" stroke-width="0.8"/>
+          <line x1="980" y1="301" x2="998" y2="318" stroke="#475569" stroke-width="0.8"/>
+        </g>
+
+        <!-- ============ MOSFET screw-terminal dots + labels ============ -->
+        <g>
+          <circle cx="851" cy="90" r="6" fill="#dc2626" stroke="#0a0c12" stroke-width="2"/>
+          <circle cx="878" cy="90" r="6" fill="#1f2937" stroke="#94a3b8" stroke-width="2"/>
+        </g>
+        <g font-family="JetBrains Mono" font-size="13" font-weight="500">
+          <text x="828" y="80" text-anchor="middle" fill="#fca5a5">V+</text>
+          <text x="900" y="80" text-anchor="middle" fill="#cbd5e1">V−</text>
+          <line x1="848" y1="86" x2="836" y2="78" stroke="#475569" stroke-width="0.8"/>
+          <line x1="881" y1="86" x2="893" y2="78" stroke="#475569" stroke-width="0.8"/>
+        </g>
+
+        <!-- ============ Solenoid lead dots ============ -->
+        <g>
+          <circle cx="700" cy="445" r="6" fill="#dc2626" stroke="#0a0c12" stroke-width="2"/>
+          <circle cx="710" cy="450" r="6" fill="#1f2937" stroke="#94a3b8" stroke-width="2"/>
+        </g>
+      </svg>
+    </div>
+
+    <!-- Legend -->
+    <div class="mt-6 flex flex-wrap gap-x-6 gap-y-2 text-xs text-slate-400">
+      <div class="flex items-center gap-2"><span class="w-3 h-3 rounded-full bg-red-500"></span>5V power</div>
+      <div class="flex items-center gap-2"><span class="w-3 h-3 rounded-full bg-slate-600 border border-slate-500"></span>GND</div>
+      <div class="flex items-center gap-2"><span class="w-3 h-3 rounded-full bg-green-500"></span>GPIO3 control signal</div>
+      <div class="flex items-center gap-2"><span class="w-3 h-3 rounded-full border border-dashed border-slate-500"></span>solenoid leads → screw terminals</div>
+    </div>
+  </div>
+
+  <!-- Component cards -->
+  <div class="grid grid-cols-1 md:grid-cols-3 gap-4 mt-8">
+    <div class="card p-5">
+      <div class="flex items-center gap-3 mb-3">
+        <div class="w-10 h-10 rounded-lg bg-indigo-500/15 grid place-items-center">
+          <span class="material-symbols-outlined text-indigo-300">memory</span>
+        </div>
+        <div>
+          <div class="text-white font-medium">ESP32-C3 SuperMini</div>
+          <div class="text-xs text-slate-500">brain · WiFi · USB-C</div>
+        </div>
+      </div>
+      <ul class="text-xs text-slate-400 space-y-1">
+        <li>• 13 pins · 22.5 × 18 mm</li>
+        <li>• Arduino IDE → REST poll loop</li>
+        <li>• Pins used: <span class="text-slate-200 mono">5V · GND · GPIO3</span></li>
+      </ul>
+    </div>
+    <div class="card p-5">
+      <div class="flex items-center gap-3 mb-3">
+        <div class="w-10 h-10 rounded-lg bg-orange-500/15 grid place-items-center">
+          <span class="material-symbols-outlined text-orange-300">bolt</span>
+        </div>
+        <div>
+          <div class="text-white font-medium">IRF520 MOSFET module</div>
+          <div class="text-xs text-slate-500">switch · flyback diode</div>
+        </div>
+      </div>
+      <ul class="text-xs text-slate-400 space-y-1">
+        <li>• 3 input pins: <span class="mono">VCC · GND · SIG</span></li>
+        <li>• 2 screw terminals: <span class="mono">V+ · V−</span></li>
+        <li>• Onboard flyback diode protects ESP32</li>
+      </ul>
+    </div>
+    <div class="card p-5">
+      <div class="flex items-center gap-3 mb-3">
+        <div class="w-10 h-10 rounded-lg bg-emerald-500/15 grid place-items-center">
+          <span class="material-symbols-outlined text-emerald-300">ads_click</span>
+        </div>
+        <div>
+          <div class="text-white font-medium">5V mini push solenoid</div>
+          <div class="text-xs text-slate-500">actuator · 200 g push</div>
+        </div>
+      </div>
+      <ul class="text-xs text-slate-400 space-y-1">
+        <li>• 3–5 mm stroke · ~400 mA pulse</li>
+        <li>• 2 wires → screw terminals</li>
+        <li>• Polarity insensitive on this coil</li>
+      </ul>
+    </div>
+  </div>
+
+  <!-- ===== Connection map (schematic pin-to-pin) ===== -->
+  <div class="card p-6 sm:p-8 mt-8">
+    <div class="mb-6">
+      <h3 class="text-lg font-semibold text-white">Connection map</h3>
+      <p class="text-sm text-slate-400 mt-1">Each line is one wire. Pin names match the badges in the cards above and the rows of the wiring table below.</p>
+    </div>
+
+    <div class="overflow-x-auto no-scrollbar">
+      <svg viewBox="0 0 820 300" class="w-full min-w-[640px] h-auto" font-family="Inter, system-ui, sans-serif">
+        <defs>
+          <filter id="cmGlow" x="-50%" y="-50%" width="200%" height="200%">
+            <feGaussianBlur stdDeviation="2.5" result="b"/>
+            <feMerge><feMergeNode in="b"/><feMergeNode in="SourceGraphic"/></feMerge>
+          </filter>
+        </defs>
+
+        <!-- ===== Component boxes ===== -->
+        <!-- ESP32 -->
+        <rect x="40" y="40" width="190" height="220" rx="14" fill="rgba(99,102,241,0.05)" stroke="rgba(129,140,248,0.4)" stroke-width="1"/>
+        <text x="135" y="70" text-anchor="middle" fill="#fff" font-size="14" font-weight="700">ESP32-C3</text>
+        <text x="135" y="86" text-anchor="middle" fill="#94a3b8" font-size="10" font-family="JetBrains Mono">SuperMini</text>
+
+        <!-- MOSFET -->
+        <rect x="320" y="40" width="200" height="220" rx="14" fill="rgba(245,158,11,0.05)" stroke="rgba(251,146,60,0.4)" stroke-width="1"/>
+        <text x="420" y="70" text-anchor="middle" fill="#fff" font-size="14" font-weight="700">IRF520 MOSFET</text>
+        <text x="420" y="86" text-anchor="middle" fill="#94a3b8" font-size="10" font-family="JetBrains Mono">module</text>
+        <!-- subtle internal divider showing two pin groups -->
+        <line x1="370" y1="100" x2="370" y2="240" stroke="rgba(255,255,255,0.04)" stroke-dasharray="2 4"/>
+        <line x1="470" y1="100" x2="470" y2="240" stroke="rgba(255,255,255,0.04)" stroke-dasharray="2 4"/>
+
+        <!-- Solenoid -->
+        <rect x="610" y="40" width="170" height="220" rx="14" fill="rgba(52,211,153,0.05)" stroke="rgba(110,231,183,0.4)" stroke-width="1"/>
+        <text x="695" y="70" text-anchor="middle" fill="#fff" font-size="14" font-weight="700">Solenoid</text>
+        <text x="695" y="86" text-anchor="middle" fill="#94a3b8" font-size="10" font-family="JetBrains Mono">5V mini push</text>
+
+        <!-- ===== Wires (drawn UNDER pin dots so dots stay crisp) ===== -->
+        <g fill="none" stroke-width="3" stroke-linecap="round">
+          <!-- 5V → VCC -->
+          <line x1="230" y1="130" x2="320" y2="130" stroke="#ef4444"/>
+          <!-- GND → GND -->
+          <line x1="230" y1="170" x2="320" y2="170" stroke="#64748b"/>
+          <!-- GPIO3 → SIG -->
+          <line x1="230" y1="210" x2="320" y2="210" stroke="#22c55e"/>
+
+          <!-- V+ → wire 1 -->
+          <line x1="520" y1="140" x2="610" y2="140" stroke="#dc2626"/>
+          <!-- V− → wire 2 -->
+          <line x1="520" y1="200" x2="610" y2="200" stroke="#64748b"/>
+        </g>
+
+        <!-- ===== ESP32 pins (right edge) ===== -->
+        <g font-family="JetBrains Mono" font-size="12" font-weight="500">
+          <text x="218" y="134" text-anchor="end" fill="#fca5a5">5V</text>
+          <circle cx="230" cy="130" r="5" fill="#ef4444" stroke="#0a0c12" stroke-width="2"/>
+
+          <text x="218" y="174" text-anchor="end" fill="#cbd5e1">GND</text>
+          <circle cx="230" cy="170" r="5" fill="#1f2937" stroke="#94a3b8" stroke-width="2"/>
+
+          <text x="218" y="214" text-anchor="end" fill="#86efac">GPIO3</text>
+          <circle cx="230" cy="210" r="5" fill="#22c55e" stroke="#0a0c12" stroke-width="2"/>
+        </g>
+
+        <!-- ===== MOSFET LEFT pins (header — facing ESP32) ===== -->
+        <g font-family="JetBrains Mono" font-size="12" font-weight="500">
+          <circle cx="320" cy="130" r="5" fill="#ef4444" stroke="#0a0c12" stroke-width="2"/>
+          <text x="332" y="134" text-anchor="start" fill="#fca5a5">VCC</text>
+
+          <circle cx="320" cy="170" r="5" fill="#1f2937" stroke="#94a3b8" stroke-width="2"/>
+          <text x="332" y="174" text-anchor="start" fill="#cbd5e1">GND</text>
+
+          <circle cx="320" cy="210" r="5" fill="#22c55e" stroke="#0a0c12" stroke-width="2"/>
+          <text x="332" y="214" text-anchor="start" fill="#86efac">SIG</text>
+        </g>
+
+        <!-- ===== MOSFET RIGHT pins (screw terminals — facing solenoid) ===== -->
+        <g font-family="JetBrains Mono" font-size="12" font-weight="500">
+          <text x="508" y="144" text-anchor="end" fill="#fca5a5">V+</text>
+          <circle cx="520" cy="140" r="5" fill="#dc2626" stroke="#0a0c12" stroke-width="2"/>
+
+          <text x="508" y="204" text-anchor="end" fill="#cbd5e1">V−</text>
+          <circle cx="520" cy="200" r="5" fill="#1f2937" stroke="#94a3b8" stroke-width="2"/>
+        </g>
+
+        <!-- ===== Solenoid pins (left edge) ===== -->
+        <g font-family="JetBrains Mono" font-size="12" font-weight="500">
+          <circle cx="610" cy="140" r="5" fill="#dc2626" stroke="#0a0c12" stroke-width="2"/>
+          <text x="622" y="144" text-anchor="start" fill="#fca5a5">wire 1</text>
+
+          <circle cx="610" cy="200" r="5" fill="#1f2937" stroke="#94a3b8" stroke-width="2"/>
+          <text x="622" y="204" text-anchor="start" fill="#cbd5e1">wire 2</text>
+        </g>
+
+        <!-- Sub-section labels above MOSFET pin groups -->
+        <text x="345" y="108" text-anchor="middle" fill="#64748b" font-size="9" font-family="JetBrains Mono">3-pin header</text>
+        <text x="495" y="108" text-anchor="middle" fill="#64748b" font-size="9" font-family="JetBrains Mono">screw terminals</text>
+      </svg>
+    </div>
+
+    <!-- legend repeating colors → wire purpose -->
+    <div class="mt-6 grid grid-cols-2 sm:grid-cols-5 gap-3 text-xs">
+      <div class="flex items-center gap-2"><span class="w-3 h-3 rounded-full bg-red-500"></span><span class="text-slate-400">5V → VCC</span></div>
+      <div class="flex items-center gap-2"><span class="w-3 h-3 rounded-full bg-slate-500"></span><span class="text-slate-400">GND → GND</span></div>
+      <div class="flex items-center gap-2"><span class="w-3 h-3 rounded-full bg-green-500"></span><span class="text-slate-400">GPIO3 → SIG</span></div>
+      <div class="flex items-center gap-2"><span class="w-3 h-3 rounded-full bg-red-700"></span><span class="text-slate-400">V+ → wire 1</span></div>
+      <div class="flex items-center gap-2"><span class="w-3 h-3 rounded-full bg-slate-800 ring-1 ring-slate-500"></span><span class="text-slate-400">V− → wire 2</span></div>
+    </div>
+  </div>
+</section>
+
+<!-- ============== WIRING TABLE ============== -->
+<section id="wiring" class="section max-w-6xl mx-auto px-4 sm:px-6 py-16">
+  <div class="mb-10">
+    <div class="text-xs uppercase tracking-[0.2em] text-indigo-400 mb-2">03 · Wiring</div>
+    <h2 class="text-3xl font-bold text-white">All six connections</h2>
+    <p class="text-slate-400 mt-2 max-w-xl">Three jumper wires, two screw-terminal twists, one USB-C plug. No soldering.</p>
+  </div>
+
+  <div class="card overflow-hidden">
+    <div class="overflow-x-auto">
+      <table class="w-full text-sm">
+        <thead class="bg-white/[0.02] text-slate-400 text-xs uppercase tracking-wider">
+          <tr>
+            <th class="text-left px-5 py-3 font-medium">#</th>
+            <th class="text-left px-5 py-3 font-medium">Connection</th>
+            <th class="text-left px-5 py-3 font-medium">From</th>
+            <th class="text-left px-5 py-3 font-medium">To</th>
+            <th class="text-left px-5 py-3 font-medium">Wire</th>
+            <th class="text-left px-5 py-3 font-medium">Method</th>
+          </tr>
+        </thead>
+        <tbody class="divide-y divide-white/[0.05]" id="wireTable">
+          <!-- rows injected by JS -->
+        </tbody>
+      </table>
+    </div>
+  </div>
+
+  <div class="mt-6 grid grid-cols-1 sm:grid-cols-2 gap-4">
+    <div class="card p-5 flex gap-4">
+      <span class="material-symbols-outlined text-amber-300 mt-0.5">warning</span>
+      <div class="text-sm">
+        <div class="text-white font-medium mb-1">Polarity check</div>
+        <div class="text-slate-400">5V → VCC and GND → GND must not be swapped. The header pin order on the MOSFET is silkscreened — read it before plugging.</div>
+      </div>
+    </div>
+    <div class="card p-5 flex gap-4">
+      <span class="material-symbols-outlined text-indigo-300 mt-0.5">info</span>
+      <div class="text-sm">
+        <div class="text-white font-medium mb-1">Screw torque</div>
+        <div class="text-slate-400">Snug, not gorilla-tight. Tug-test each solenoid lead after tightening — it should not pull free.</div>
+      </div>
+    </div>
+  </div>
+</section>
+
+<!-- ============== DEMO ============== -->
+<section id="demo" class="section max-w-6xl mx-auto px-4 sm:px-6 py-16">
+  <div class="mb-10">
+    <div class="text-xs uppercase tracking-[0.2em] text-indigo-400 mb-2">04 · Demo</div>
+    <h2 class="text-3xl font-bold text-white">Click animation</h2>
+    <p class="text-slate-400 mt-2 max-w-xl">Tap the button — see what 200 ms of GPIO3 HIGH looks like at the solenoid.</p>
+  </div>
+
+  <div class="card p-6 sm:p-10">
+    <div class="grid grid-cols-1 lg:grid-cols-[1fr_auto] gap-8 items-center">
+      <!-- left: animation stage -->
+      <div class="relative bg-gradient-to-b from-white/[0.02] to-transparent rounded-xl border border-white/5 p-6 sm:p-10 min-h-[260px] grid-bg overflow-hidden">
+        <svg viewBox="0 0 600 220" class="w-full h-auto cursor-pointer select-none" id="demoSvg">
+          <!-- baseline / table -->
+          <line x1="20" y1="170" x2="580" y2="170" stroke="rgba(255,255,255,0.08)" stroke-width="1"/>
+
+          <!-- solenoid body -->
+          <g transform="translate(120 90)">
+            <rect x="0" y="0" width="110" height="60" rx="6" fill="#1f2937" stroke="#475569" stroke-width="1.5"/>
+            <rect x="6" y="6" width="98" height="48" rx="4" fill="#0f172a"/>
+            <!-- coil winding lines -->
+            <g stroke="#334155" stroke-width="1">
+              <line x1="14" y1="6" x2="14" y2="54"/>
+              <line x1="22" y1="6" x2="22" y2="54"/>
+              <line x1="30" y1="6" x2="30" y2="54"/>
+              <line x1="38" y1="6" x2="38" y2="54"/>
+              <line x1="46" y1="6" x2="46" y2="54"/>
+              <line x1="54" y1="6" x2="54" y2="54"/>
+              <line x1="62" y1="6" x2="62" y2="54"/>
+              <line x1="70" y1="6" x2="70" y2="54"/>
+              <line x1="78" y1="6" x2="78" y2="54"/>
+              <line x1="86" y1="6" x2="86" y2="54"/>
+              <line x1="94" y1="6" x2="94" y2="54"/>
+            </g>
+            <!-- mounting tabs -->
+            <rect x="-6" y="10" width="6" height="40" fill="#475569"/>
+            <rect x="110" y="10" width="6" height="40" fill="#475569"/>
+            <!-- wires -->
+            <path d="M 0 30 C -30 30, -40 60, -60 60" stroke="#dc2626" stroke-width="2" fill="none"/>
+            <path d="M 0 40 C -30 40, -40 70, -60 70" stroke="#0f172a" stroke-width="2" fill="none"/>
+            <path d="M 0 40 C -30 40, -40 70, -60 70" stroke="#94a3b8" stroke-width="0.8" fill="none" opacity="0.5"/>
+          </g>
+
+          <!-- plunger -->
+          <g class="plunger" id="plunger">
+            <rect x="226" y="105" width="80" height="30" rx="2" fill="#cbd5e1"/>
+            <rect x="226" y="105" width="80" height="30" rx="2" fill="url(#plungerGrad)" opacity="0.6"/>
+            <rect x="304" y="110" width="14" height="20" rx="3" fill="#94a3b8"/>
+            <line x1="226" y1="120" x2="318" y2="120" stroke="#475569" stroke-width="0.5"/>
+          </g>
+          <defs>
+            <linearGradient id="plungerGrad" x1="0" y1="0" x2="0" y2="1">
+              <stop offset="0%" stop-color="#fff" stop-opacity="0.5"/>
+              <stop offset="100%" stop-color="#000" stop-opacity="0.2"/>
+            </linearGradient>
+          </defs>
+
+          <!-- target button -->
+          <g id="btnTarget">
+            <rect x="356" y="100" width="80" height="80" rx="10" fill="#1e293b" stroke="#334155" stroke-width="1.5"/>
+            <circle cx="396" cy="140" r="22" fill="#0f172a" stroke="#475569" stroke-width="1.5" class="button-target" id="btnCircle"/>
+            <text x="396" y="146" text-anchor="middle" fill="#cbd5e1" font-size="16" font-family="Material Symbols Outlined">power_settings_new</text>
+            <text x="396" y="200" text-anchor="middle" fill="#64748b" font-size="11" font-family="JetBrains Mono">target</text>
+          </g>
+
+          <!-- ripple group (will be populated on click) -->
+          <g id="rippleHost"></g>
+
+          <!-- timing label -->
+          <text x="20" y="30" fill="#64748b" font-size="10" font-family="JetBrains Mono">PULSE</text>
+          <rect x="20" y="36" width="180" height="6" rx="3" fill="rgba(255,255,255,0.05)"/>
+          <rect x="20" y="36" width="0" height="6" rx="3" fill="url(#flowGrad)" id="pulseBar"/>
+          <text x="20" y="60" fill="#64748b" font-size="10" font-family="JetBrains Mono" id="pulseLabel">idle</text>
+        </svg>
+      </div>
+
+      <!-- right: controls -->
+      <div class="flex flex-col gap-4 w-full lg:w-72">
+        <button id="triggerBtn"
+          class="group relative w-full px-5 py-4 rounded-xl text-white font-medium
+                 bg-gradient-to-br from-indigo-500 to-purple-600 hover:from-indigo-400 hover:to-purple-500
+                 transition-all glow-indigo">
+          <div class="flex items-center justify-center gap-2">
+            <span class="material-symbols-outlined">touch_app</span>
+            <span>Trigger click</span>
+          </div>
+          <div class="text-xs opacity-70 mt-0.5">simulates digitalWrite(3, HIGH)</div>
+        </button>
+
+        <button id="triggerDouble"
+          class="group relative w-full px-5 py-4 rounded-xl text-slate-200 font-medium bg-white/[0.04] border border-white/[0.08]
+                 hover:bg-white/[0.07] transition-all">
+          <div class="flex items-center justify-center gap-2">
+            <span class="material-symbols-outlined">ads_click</span>
+            <span>Double click</span>
+          </div>
+          <div class="text-xs opacity-70 mt-0.5">two pulses, 150 ms apart</div>
+        </button>
+
+        <div class="card p-4 space-y-3">
+          <div class="flex items-center justify-between text-xs">
+            <span class="text-slate-500 mono">GPIO3</span>
+            <span class="text-slate-400 mono" id="gpioState">LOW · 0V</span>
+          </div>
+          <div class="flex items-center gap-3">
+            <div class="gpio-led w-4 h-4 rounded-full" id="gpioLed"></div>
+            <div class="flex-1 h-1.5 bg-white/[0.05] rounded-full overflow-hidden">
+              <div id="gpioFill" class="h-full bg-gradient-to-r from-indigo-500 to-emerald-400 rounded-full transition-all duration-100" style="width:0%"></div>
+            </div>
+          </div>
+
+          <div class="border-t border-white/5 pt-3 text-xs space-y-1.5">
+            <div class="flex justify-between"><span class="text-slate-500">Pulse</span><span class="text-slate-300 mono">200 ms</span></div>
+            <div class="flex justify-between"><span class="text-slate-500">Click count</span><span class="text-slate-300 mono" id="clickCount">0</span></div>
+            <div class="flex justify-between"><span class="text-slate-500">Last cmd</span><span class="text-slate-300 mono" id="lastCmd">—</span></div>
+          </div>
+        </div>
+      </div>
+    </div>
+  </div>
+</section>
+
+<!-- ============== CODE ============== -->
+<section id="code" class="section max-w-6xl mx-auto px-4 sm:px-6 py-16">
+  <div class="mb-10">
+    <div class="text-xs uppercase tracking-[0.2em] text-indigo-400 mb-2">05 · Code</div>
+    <h2 class="text-3xl font-bold text-white">Firmware & remote</h2>
+    <p class="text-slate-400 mt-2 max-w-xl">Two files. Paste the firmware into Arduino IDE, host the phone HTML anywhere.</p>
+  </div>
+
+  <!-- ===== Live phone-remote preview (iframe) ===== -->
+  <div class="card p-6 sm:p-8 mb-6">
+    <div class="flex flex-wrap items-center justify-between gap-3 mb-5">
+      <div>
+        <h3 class="text-lg font-semibold text-white flex items-center gap-2">
+          <span class="material-symbols-outlined text-emerald-300">phone_iphone</span>
+          Phone remote · live
+        </h3>
+        <p class="text-sm text-slate-400 mt-1">Tapping a button writes to <span class="mono text-slate-300">/autoclicker/command</span> for real — the ESP32 will fire if it's online.</p>
+      </div>
+      <a href="phone/" target="_blank" rel="noopener"
+         class="inline-flex items-center gap-1.5 text-xs px-3 py-2 rounded-lg bg-white/[0.04] border border-white/[0.06] text-slate-300 hover:bg-white/[0.07] hover:text-white transition-colors">
+        <span class="material-symbols-outlined" style="font-size:14px">open_in_new</span>
+        Open in new tab
+      </a>
+    </div>
+
+    <div class="flex justify-center">
+      <!-- Phone-shaped frame -->
+      <div class="relative bg-[#0a0c12] rounded-[44px] border border-white/[0.08] p-2 shadow-2xl shadow-indigo-500/10"
+           style="width: 100%; max-width: 380px;">
+        <!-- side buttons (cosmetic) -->
+        <div class="absolute top-24 -left-[3px] w-[3px] h-12 bg-white/10 rounded-l-sm"></div>
+        <div class="absolute top-44 -left-[3px] w-[3px] h-16 bg-white/10 rounded-l-sm"></div>
+        <div class="absolute top-32 -right-[3px] w-[3px] h-20 bg-white/10 rounded-r-sm"></div>
+        <!-- dynamic island -->
+        <div class="absolute top-3 left-1/2 -translate-x-1/2 w-24 h-6 bg-black rounded-full z-10"></div>
+        <!-- iframe (the actual remote) -->
+        <iframe
+          src="phone/index.html"
+          class="w-full rounded-[36px] block bg-[#07080b]"
+          style="height: 720px; border: 0;"
+          loading="lazy"
+          allow="autoplay"
+          title="Phone remote — live"></iframe>
+        <!-- home indicator -->
+        <div class="absolute bottom-2.5 left-1/2 -translate-x-1/2 w-28 h-1 bg-white/30 rounded-full"></div>
+      </div>
+    </div>
+
+    <p class="text-xs text-slate-500 text-center mt-4">
+      <span class="mono">phone/index.html</span> · runs Tailwind v4 + Firebase v10 SDK with anonymous auth
+    </p>
+  </div>
+
+  <div class="space-y-4">
+    <details class="card overflow-hidden" open>
+      <summary class="flex items-center justify-between gap-3 px-5 py-4 hover:bg-white/[0.02]">
+        <div class="flex items-center gap-3">
+          <span class="material-symbols-outlined text-pink-300">memory</span>
+          <div>
+            <div class="text-white font-medium">Arduino firmware <span class="text-slate-500 font-normal">— autoclicker.ino</span></div>
+            <div class="text-xs text-slate-500">REST polling · ESP32-C3 Dev Module</div>
+          </div>
+        </div>
+        <span class="material-symbols-outlined text-slate-400 chev">expand_more</span>
+      </summary>
+      <div class="px-5 pb-5">
+        <pre class="code" data-lang="cpp" id="codeArduino">#include &lt;WiFi.h&gt;
+#include &lt;HTTPClient.h&gt;
+
+const char* WIFI_SSID = "YOUR_WIFI";
+const char* WIFI_PASS = "YOUR_PASS";
+const char* DB_URL =
+  "https://test-database-55379-default-rtdb.asia-southeast1.firebasedatabase.app"
+  "/autoclicker/command.json";
+
+const int SOLENOID_PIN = 3;     // GPIO3 → MOSFET SIG
+const int CLICK_MS     = 200;   // pulse width per press
+const int POLL_MS      = 1000;  // Firebase poll interval
+
+void setup() {
+  Serial.begin(115200);
+  pinMode(SOLENOID_PIN, OUTPUT);
+  digitalWrite(SOLENOID_PIN, LOW);
+
+  WiFi.begin(WIFI_SSID, WIFI_PASS);
+  while (WiFi.status() != WL_CONNECTED) { delay(300); Serial.print("."); }
+  Serial.println("\nWiFi connected: " + WiFi.localIP().toString());
+}
+
+void click(int times) {
+  for (int i = 0; i &lt; times; i++) {
+    digitalWrite(SOLENOID_PIN, HIGH);
+    delay(CLICK_MS);
+    digitalWrite(SOLENOID_PIN, LOW);
+    if (i &lt; times - 1) delay(150);
+  }
+}
+
+void clearCommand() {
+  HTTPClient http;
+  http.begin(DB_URL);
+  http.addHeader("Content-Type", "application/json");
+  http.PUT("\"\"");   // empty string clears
+  http.end();
+}
+
+void loop() {
+  if (WiFi.status() != WL_CONNECTED) {
+    WiFi.reconnect();
+    delay(POLL_MS);
+    return;
+  }
+
+  HTTPClient http;
+  http.begin(DB_URL);
+  int code = http.GET();
+
+  if (code == 200) {
+    String body = http.getString();
+    body.replace("\"", "");
+    body.trim();
+
+    if (body == "click")            { click(1);  clearCommand(); }
+    else if (body == "double")      { click(2);  clearCommand(); }
+    else if (body.startsWith("auto_")) {
+      int n = body.substring(5).toInt();
+      if (n &gt; 0 &amp;&amp; n &lt;= 50) { click(n); clearCommand(); }
+    }
+  }
+  http.end();
+  delay(POLL_MS);
+}</pre>
+      </div>
+    </details>
+
+    <details class="card overflow-hidden">
+      <summary class="flex items-center justify-between gap-3 px-5 py-4 hover:bg-white/[0.02]">
+        <div class="flex items-center gap-3">
+          <span class="material-symbols-outlined text-indigo-300">phone_iphone</span>
+          <div>
+            <div class="text-white font-medium">Phone remote <span class="text-slate-500 font-normal">— index.html</span></div>
+            <div class="text-xs text-slate-500">Firebase v10 SDK · 4 buttons</div>
+          </div>
+        </div>
+        <span class="material-symbols-outlined text-slate-400 chev">expand_more</span>
+      </summary>
+      <div class="px-5 pb-5">
+        <pre class="code" data-lang="html" id="codeHtml">&lt;!doctype html&gt;
+&lt;html lang="en" class="dark"&gt;
+&lt;head&gt;
+  &lt;meta charset="utf-8"&gt;
+  &lt;meta name="viewport" content="width=device-width, initial-scale=1, maximum-scale=1"&gt;
+  &lt;meta name="theme-color" content="#07080b"&gt;
+  &lt;title&gt;Bot Remote&lt;/title&gt;
+
+  &lt;link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;700;800&display=swap" rel="stylesheet"&gt;
+  &lt;link href="https://fonts.googleapis.com/css2?family=Material+Symbols+Outlined" rel="stylesheet"&gt;
+  &lt;script src="https://cdn.jsdelivr.net/npm/@tailwindcss/browser@4"&gt;&lt;/script&gt;
+&lt;/head&gt;
+&lt;body class="min-h-screen bg-[#07080b] text-slate-200" style="font-family:'Inter',system-ui"&gt;
+  &lt;div class="max-w-md mx-auto px-5 py-7 flex flex-col min-h-screen"&gt;
+
+    &lt;header class="flex items-center gap-2.5"&gt;
+      &lt;div class="w-9 h-9 rounded-xl bg-gradient-to-br from-indigo-500 to-purple-600 grid place-items-center"&gt;
+        &lt;span class="material-symbols-outlined text-white"&gt;smart_button&lt;/span&gt;
+      &lt;/div&gt;
+      &lt;span class="font-semibold text-white"&gt;Bot Remote&lt;/span&gt;
+    &lt;/header&gt;
+
+    &lt;!-- one big circular button, centered --&gt;
+    &lt;div class="flex-1 flex items-center justify-center py-6"&gt;
+      &lt;button id="clickBtn"
+        class="relative w-64 h-64 rounded-full grid place-items-center text-white
+               bg-gradient-to-br from-indigo-500 to-purple-600
+               hover:from-indigo-400 hover:to-purple-500
+               shadow-[0_20px_60px_-15px_rgba(99,102,241,0.7)]
+               active:scale-95 transition-transform"&gt;
+        &lt;div class="absolute inset-3 rounded-full border border-white/15"&gt;&lt;/div&gt;
+        &lt;div class="text-center"&gt;
+          &lt;span class="material-symbols-outlined block" style="font-size:64px"&gt;touch_app&lt;/span&gt;
+          &lt;div class="font-extrabold tracking-[0.18em] text-xl mt-1"&gt;CLICK&lt;/div&gt;
+          &lt;div class="text-white/60 text-[11px] mt-1"&gt;200 ms press&lt;/div&gt;
+        &lt;/div&gt;
+      &lt;/button&gt;
+    &lt;/div&gt;
+
+    &lt;div class="rounded-2xl bg-white/[0.03] border border-white/[0.05] px-4 py-3 text-xs text-slate-400"&gt;
+      &lt;span id="statusText"&gt;tap the button&lt;/span&gt;
+    &lt;/div&gt;
+  &lt;/div&gt;
+
+  &lt;script type="module"&gt;
+    import { initializeApp }       from "https://www.gstatic.com/firebasejs/10.7.0/firebase-app.js";
+    import { getDatabase, ref, set } from "https://www.gstatic.com/firebasejs/10.7.0/firebase-database.js";
+    import { getAuth, signInAnonymously } from "https://www.gstatic.com/firebasejs/10.7.0/firebase-auth.js";
+
+    const app = initializeApp({
+      apiKey: "AIzaSyB8ahT56WbEUaGAymsRNNA-DrfZnUnWIwk",
+      authDomain: "test-database-55379.firebaseapp.com",
+      databaseURL: "https://test-database-55379-default-rtdb.asia-southeast1.firebasedatabase.app",
+      projectId: "test-database-55379"
+    });
+    const db = getDatabase(app);
+    signInAnonymously(getAuth(app));
+
+    clickBtn.addEventListener("click", async () =&gt; {
+      if (navigator.vibrate) navigator.vibrate(15);
+      statusText.textContent = "sending…";
+      await set(ref(db, "autoclicker/command"), "click");
+      statusText.textContent = "sent · ESP32 will fire within ~1 s";
+    });
+  &lt;/script&gt;
+&lt;/body&gt;
+&lt;/html&gt;</pre>
+      </div>
+    </details>
+
+    <details class="card overflow-hidden">
+      <summary class="flex items-center justify-between gap-3 px-5 py-4 hover:bg-white/[0.02]">
+        <div class="flex items-center gap-3">
+          <span class="material-symbols-outlined text-amber-300">key</span>
+          <div>
+            <div class="text-white font-medium">Firebase config <span class="text-slate-500 font-normal">— project: test-database-55379</span></div>
+            <div class="text-xs text-slate-500">RTDB region: asia-southeast1</div>
+          </div>
+        </div>
+        <span class="material-symbols-outlined text-slate-400 chev">expand_more</span>
+      </summary>
+      <div class="px-5 pb-5">
+        <pre class="code" data-lang="js" id="codeFirebase">// Firebase — already configured ✓
+//
+// Project : test-database-55379  ·  asia-southeast1
+// Path    : /autoclicker/command
+// Auth    : anonymous (enabled)
+//
+// The phone remote and ESP32 firmware both connect to
+// the same RTDB. Nothing to set up — just upload the
+// firmware, open the phone page, and tap.</pre>
+        <p class="text-xs text-slate-500 mt-3">RTDB rules: set <code class="text-slate-300">.read</code>/<code class="text-slate-300">.write</code> to <code class="text-slate-300">true</code> for <code class="text-slate-300">/autoclicker/command</code> while testing. Lock down once it works.</p>
+      </div>
+    </details>
+  </div>
+</section>
+
+<!-- ============== CHECKLIST ============== -->
+<section id="checklist" class="section max-w-6xl mx-auto px-4 sm:px-6 py-16">
+  <div class="mb-10">
+    <div class="text-xs uppercase tracking-[0.2em] text-indigo-400 mb-2">06 · Checklist</div>
+    <h2 class="text-3xl font-bold text-white">Build steps</h2>
+    <p class="text-slate-400 mt-2 max-w-xl">Tick items as you go. Resets on reload — this is a reference doc, not a save file.</p>
+  </div>
+
+  <div class="card p-2">
+    <div class="flex items-center justify-between px-4 py-3 border-b border-white/5">
+      <div class="text-sm text-slate-400">Progress</div>
+      <div class="flex items-center gap-3">
+        <div class="w-32 h-1.5 bg-white/5 rounded-full overflow-hidden">
+          <div id="progressBar" class="h-full bg-gradient-to-r from-indigo-500 to-purple-500 transition-all duration-300" style="width:0%"></div>
+        </div>
+        <span class="text-sm text-slate-200 mono"><span id="progressText">0 / 0</span></span>
+      </div>
+    </div>
+    <ul id="checklistItems" class="divide-y divide-white/[0.04]"></ul>
+  </div>
+</section>
+
+<!-- ============== FOOTER ============== -->
+<footer class="max-w-6xl mx-auto px-4 sm:px-6 py-12 text-center text-xs text-slate-600">
+  <div class="flex items-center justify-center gap-2 mb-2">
+    <span class="material-symbols-outlined" style="font-size:14px">code</span>
+    <span>chaelri.github.io / autoclicker</span>
+  </div>
+  <div>Reference document. Update as the build evolves.</div>
+</footer>
+
+<script>
+// ===========================================================================
+// Wiring table data
+// ===========================================================================
+const wires = [
+  { i: 1, type: 'Power',  from: ['ESP32', '5V'],     to: ['MOSFET', 'VCC'], color: '#ef4444', name: 'red',   method: 'Jumper wire' },
+  { i: 2, type: 'Ground', from: ['ESP32', 'GND'],    to: ['MOSFET', 'GND'], color: '#475569', name: 'black', method: 'Jumper wire' },
+  { i: 3, type: 'Signal', from: ['ESP32', 'GPIO3'],  to: ['MOSFET', 'SIG'], color: '#22c55e', name: 'green', method: 'Jumper wire' },
+  { i: 4, type: 'Load+',  from: ['Solenoid', 'wire 1'], to: ['MOSFET', 'V+'], color: '#dc2626', name: 'red',   method: 'Screw terminal' },
+  { i: 5, type: 'Load−',  from: ['Solenoid', 'wire 2'], to: ['MOSFET', 'V−'], color: '#0f172a', name: 'black', method: 'Screw terminal' },
+  { i: 6, type: 'Power',  from: ['USB-C charger', '5V'], to: ['ESP32', 'USB-C'], color: '#a855f7', name: 'cable', method: 'Plug' },
+];
+
+const tbody = document.getElementById('wireTable');
+tbody.innerHTML = wires.map(w => `
+  <tr class="hover:bg-white/[0.02] transition-colors">
+    <td class="px-5 py-3.5 text-slate-500 mono">${w.i}</td>
+    <td class="px-5 py-3.5">
+      <span class="text-xs px-2 py-0.5 rounded-md bg-white/[0.04] border border-white/[0.06] text-slate-300">${w.type}</span>
+    </td>
+    <td class="px-5 py-3.5">
+      <div class="text-slate-200">${w.from[0]}</div>
+      <div class="text-xs text-slate-500 mono">${w.from[1]}</div>
+    </td>
+    <td class="px-5 py-3.5">
+      <div class="text-slate-200">${w.to[0]}</div>
+      <div class="text-xs text-slate-500 mono">${w.to[1]}</div>
+    </td>
+    <td class="px-5 py-3.5">
+      <div class="flex items-center gap-2">
+        <span class="w-3 h-3 rounded-full ring-1 ring-white/10" style="background:${w.color}"></span>
+        <span class="text-slate-300 capitalize">${w.name}</span>
+      </div>
+    </td>
+    <td class="px-5 py-3.5 text-slate-400">${w.method}</td>
+  </tr>
+`).join('');
+
+// ===========================================================================
+// Build checklist
+// ===========================================================================
+const steps = [
+  { g: 'Parts',      t: 'Verify all parts arrived: ESP32-C3 SuperMini, IRF520 module, 5V solenoid, USB-C cable, 5 jumper wires (M-M)' },
+  { g: 'Parts',      t: 'Confirm ESP32 has header pins soldered (most ship pre-soldered — check yours)' },
+  { g: 'Firmware',   t: 'Install Arduino IDE 2.x and add ESP32 board package via Boards Manager (search "esp32")' },
+  { g: 'Firmware',   t: 'Plug ESP32 into laptop via USB-C; select board "ESP32C3 Dev Module" + correct port' },
+  { g: 'Firmware',   t: 'Paste firmware code; fill WiFi SSID/password; install ArduinoJson library if missing' },
+  { g: 'Firmware',   t: 'Upload sketch; open Serial Monitor at 115200 — confirm "WiFi connected"' },
+  { g: 'Wiring',     t: 'Wire ESP32 5V → MOSFET VCC (red jumper)' },
+  { g: 'Wiring',     t: 'Wire ESP32 GND → MOSFET GND (black jumper)' },
+  { g: 'Wiring',     t: 'Wire ESP32 GPIO3 → MOSFET SIG (green jumper)' },
+  { g: 'Wiring',     t: 'Insert solenoid wire 1 into MOSFET V+ screw terminal; tighten with flathead' },
+  { g: 'Wiring',     t: 'Insert solenoid wire 2 into MOSFET V− screw terminal; tighten with flathead' },
+  { g: 'Wiring',     t: 'Tug-test all 5 wires — none should pull free' },
+  { g: 'Test',       t: 'Plug USB-C charger into ESP32; observe ESP32 power LED on' },
+  { g: 'Test',       t: 'Open phone web app; tap "Click" — solenoid should push within ~1 second' },
+  { g: 'Test',       t: 'Tap "Double" and "Auto x5"; verify counts and clean retraction between presses' },
+  { g: 'Mount',      t: 'Position solenoid plunger over target button; secure with double-sided foam tape' },
+  { g: 'Mount',      t: 'Verify travel: plunger fully presses but does not bottom-out the button mechanism' },
+];
+
+const cl = document.getElementById('checklistItems');
+const groups = {};
+steps.forEach(s => { (groups[s.g] = groups[s.g] || []).push(s); });
+
+let html = '';
+Object.entries(groups).forEach(([g, items]) => {
+  html += `<li class="px-4 py-2 text-[10px] uppercase tracking-[0.2em] text-slate-500 bg-white/[0.015]">${g}</li>`;
+  items.forEach((s, i) => {
+    html += `
+      <li class="check-item flex items-start gap-3 px-4 py-3 hover:bg-white/[0.015] cursor-pointer transition-colors">
+        <span class="check-box mt-0.5">
+          <span class="material-symbols-outlined">check</span>
+        </span>
+        <span class="check-label text-sm text-slate-200 flex-1">${s.t}</span>
+      </li>
+    `;
+  });
+});
+cl.innerHTML = html;
+
+const items = cl.querySelectorAll('.check-item');
+const progressBar = document.getElementById('progressBar');
+const progressText = document.getElementById('progressText');
+function updateProgress() {
+  const total = items.length;
+  const done = cl.querySelectorAll('.check-item.done').length;
+  progressBar.style.width = (done / total * 100) + '%';
+  progressText.textContent = `${done} / ${total}`;
+}
+items.forEach(li => {
+  li.addEventListener('click', () => {
+    li.classList.toggle('done');
+    updateProgress();
+  });
+});
+updateProgress();
+
+// ===========================================================================
+// Click animation demo
+// ===========================================================================
+const triggerBtn  = document.getElementById('triggerBtn');
+const triggerDbl  = document.getElementById('triggerDouble');
+const plunger     = document.getElementById('plunger');
+const btnCircle   = document.getElementById('btnCircle');
+const gpioLed     = document.getElementById('gpioLed');
+const gpioState   = document.getElementById('gpioState');
+const gpioFill    = document.getElementById('gpioFill');
+const pulseBar    = document.getElementById('pulseBar');
+const pulseLabel  = document.getElementById('pulseLabel');
+const clickCountEl = document.getElementById('clickCount');
+const lastCmdEl   = document.getElementById('lastCmd');
+const rippleHost  = document.getElementById('rippleHost');
+
+let clickTotal = 0;
+let busy = false;
+
+function setGpio(high) {
+  if (high) {
+    gpioLed.classList.add('on');
+    gpioState.textContent = 'HIGH · 3.3V';
+    gpioState.style.color = '#86efac';
+    gpioFill.style.width = '100%';
+  } else {
+    gpioLed.classList.remove('on');
+    gpioState.textContent = 'LOW · 0V';
+    gpioState.style.color = '';
+    gpioFill.style.width = '0%';
+  }
+}
+
+function pushOnce() {
+  return new Promise(resolve => {
+    setGpio(true);
+    pulseLabel.textContent = 'GPIO3 HIGH · 200 ms';
+
+    // pulse bar fill anim (animate width attribute via rAF)
+    pulseBar.setAttribute('width', '0');
+    const start = performance.now();
+    function tick(t) {
+      const p = Math.max(0, Math.min(1, (t - start) / 200));
+      pulseBar.setAttribute('width', (p * 180).toFixed(1));
+      if (p < 1) requestAnimationFrame(tick);
+    }
+    requestAnimationFrame(tick);
+
+    // plunger push
+    setTimeout(() => plunger.classList.add('push'), 30);
+
+    // button press visual + ripple
+    setTimeout(() => {
+      btnCircle.classList.add('pressed');
+      const r = document.createElementNS('http://www.w3.org/2000/svg', 'circle');
+      r.setAttribute('cx', '396');
+      r.setAttribute('cy', '140');
+      r.setAttribute('r', '22');
+      r.setAttribute('fill', 'none');
+      r.setAttribute('stroke', '#a855f7');
+      r.setAttribute('stroke-width', '2');
+      r.setAttribute('class', 'ripple');
+      rippleHost.appendChild(r);
+      setTimeout(() => r.remove(), 700);
+    }, 80);
+
+    // release
+    setTimeout(() => {
+      plunger.classList.remove('push');
+      btnCircle.classList.remove('pressed');
+      setGpio(false);
+      pulseBar.setAttribute('width', '0');
+      pulseLabel.textContent = 'idle';
+      clickTotal++;
+      clickCountEl.textContent = clickTotal;
+      resolve();
+    }, 230);
+  });
+}
+
+async function fireClicks(n, label) {
+  if (busy) return;
+  busy = true;
+  triggerBtn.disabled = triggerDbl.disabled = true;
+  triggerBtn.style.opacity = triggerDbl.style.opacity = '0.6';
+  lastCmdEl.textContent = label;
+  for (let i = 0; i < n; i++) {
+    await pushOnce();
+    if (i < n - 1) await new Promise(r => setTimeout(r, 150));
+  }
+  busy = false;
+  triggerBtn.disabled = triggerDbl.disabled = false;
+  triggerBtn.style.opacity = triggerDbl.style.opacity = '';
+}
+
+triggerBtn.addEventListener('click', () => fireClicks(1, '"click"'));
+document.getElementById('demoSvg').addEventListener('click', () => fireClicks(1, '"click"'));
+triggerDbl.addEventListener('click', () => fireClicks(2, '"double"'));
+
+// ===========================================================================
+// Mobile nav
+// ===========================================================================
+document.getElementById('navOpen').addEventListener('click', () => {
+  document.getElementById('navMobile').classList.toggle('hidden');
+});
+document.querySelectorAll('#navMobile a').forEach(a => {
+  a.addEventListener('click', () => document.getElementById('navMobile').classList.add('hidden'));
+});
+
+// nav active state on scroll
+const navLinks = document.querySelectorAll('[data-nav]');
+const sections = ['overview','hardware','wiring','demo','code','checklist'].map(id => document.getElementById(id));
+function syncNav() {
+  const y = window.scrollY + 120;
+  let active = sections[0]?.id;
+  for (const s of sections) { if (s && s.offsetTop <= y) active = s.id; }
+  navLinks.forEach(a => a.classList.toggle('active', a.getAttribute('href') === '#' + active));
+}
+document.addEventListener('scroll', syncNav, { passive: true });
+syncNav();
+
+// ===========================================================================
+// Code blocks (light syntax highlighting on pre.code blocks)
+// Source code lives directly in the <pre> elements (entity-encoded for HTML).
+// ===========================================================================
+
+function escapeHtml(s) {
+  return s.replace(/[&<>]/g, c => ({ '&':'&amp;', '<':'&lt;', '>':'&gt;' }[c]));
+}
+
+function highlight(src, lang) {
+  let s = escapeHtml(src);
+
+  // Placeholder-based tokenization: every match is replaced with \u0001<i>\u0001
+  // so subsequent passes can't re-match the spans we emit (the bug that
+  // produced "class=class=" garbage in the rendered output).
+  const stash = [];
+  const tok = (cls, text) => {
+    const i = stash.length;
+    stash.push('<span class="' + cls + '">' + text + '</span>');
+    return '\u0001' + i + '\u0001';
+  };
+
+  // 1. comments
+  s = s.replace(/(\/\/[^\n]*)/g, m => tok('tok-com', m));
+  // 2. strings (double or single quoted, with escaped content)
+  s = s.replace(/("(?:[^"\\\n]|\\.)*"|'(?:[^'\\\n]|\\.)*')/g, m => tok('tok-str', m));
+  // 3. numbers
+  s = s.replace(/\b(\d+(?:\.\d+)?)\b/g, m => tok('tok-num', m));
+  // 4. keywords
+  const kw = (lang === 'cpp')
+    ? ['if','else','for','while','return','void','int','const','char','bool','true','false','class','struct','include','define']
+    : ['const','let','var','function','return','if','else','for','while','import','export','from','async','await','new','class','this','window','document'];
+  kw.forEach(k => {
+    s = s.replace(new RegExp('(?<![\\w])' + k + '(?![\\w])', 'g'), m => tok('tok-kw', m));
+  });
+  // 5. function calls (rough)
+  s = s.replace(/\b([A-Za-z_][\w]*)(?=\s*\()/g, m => {
+    if (/^(if|for|while|return|switch|catch)$/.test(m)) return m;
+    return tok('tok-fn', m);
+  });
+
+  // restore placeholders → actual span markup
+  return s.replace(/\u0001(\d+)\u0001/g, (_, i) => stash[+i]);
+}
+
+// Highlight every <pre class="code"> in place — read entity-decoded textContent,
+// run the highlighter, write back as innerHTML.
+document.querySelectorAll('pre.code').forEach(pre => {
+  const lang = pre.dataset.lang || 'js';
+  const src  = pre.textContent;
+  pre.innerHTML = highlight(src, lang);
+});
+
+console.log('autoclicker: scripts loaded ✓');
+
+</script>
+</body>
+</html>

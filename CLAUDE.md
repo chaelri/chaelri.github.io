@@ -49,6 +49,7 @@ chaelri.github.io/
 │   ├── tayo/                   ← 5 MDs for the journal app
 │   ├── weddingtest/            ← 5 MDs for the LIVE wedding invitation
 │   ├── monthsary/              ← 3 MDs for 4th monthsary page
+│   ├── autoclicker/            ← 3 MDs for DIY WiFi SwitchBot build reference
 │   └── <12 more parked projects>/SUMMARY.md
 ├── cockpit/                ← local web cockpit (FastAPI + claude -p subprocess)
 ├── devo/                   ← Bible devotional PWA
@@ -57,6 +58,7 @@ chaelri.github.io/
 ├── tayo/                   ← Charlie & Karla journal (active)
 ├── monthsary/              ← 4th monthsary page (active)
 ├── towa-no-yuugure/        ← Towa no Yuugure episode viewer (sister to anohana)
+├── autoclicker/            ← DIY WiFi auto-clicker build reference + live phone remote
 ├── weddingtest/            ← LIVE wedding invitation (despite the name)
 ├── gemini-proxy/           ← Cloud Run backend (used by devo, pray, others)
 ├── functions/              ← Firebase Cloud Functions (weddingbar push)

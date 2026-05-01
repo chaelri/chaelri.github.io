@@ -1,6 +1,6 @@
 # Hub Project Index for chaelri.github.io
 
-**Last updated:** 2026-04-29
+**Last updated:** 2026-05-02
 **Scope:** Complete mapping of top-level directories + root files, with tech stack, deployment, status, and key entry points.
 
 ## Status Legend
@@ -12,6 +12,22 @@
 ---
 
 ## Active Projects
+
+### autoclicker/  🟢
+
+DIY WiFi auto-clicker build reference + live phone remote — ESP32-C3 + IRF520 + 5V solenoid SwitchBot. Single-page site documents hardware, wiring, firmware; phone subdir is the live remote.
+
+- **Tech:** vanilla HTML/CSS/JS, Tailwind v4 (browser CDN, no build), Firebase v10 SDK (RTDB + anonymous Auth), Inter + JetBrains Mono + Material Symbols Outlined.
+- **Entry:** `index.html` (~1,347 lines — overview/hardware/wiring/demo/code/checklist), `phone/index.html` (~166 lines — live big-button remote), `assets/*.jpeg` (top-down part photos).
+- **Deploy:** GitHub Pages at `/autoclicker/`. Phone remote at `/autoclicker/phone/`.
+- **Firmware:** Out-of-repo Arduino sketch on ESP32-C3 SuperMini; canonical source duplicated verbatim in the Code section. Polls `/autoclicker/command` at 1 Hz, fires GPIO3 HIGH for 200 ms, clears the field.
+- **Quirks:**
+  - **Demo section is animation-only** — `Trigger click` / `Double click` simulate the GPIO pulse in SVG, they do NOT touch Firebase. Only `phone/index.html` writes for real.
+  - Shares Firebase project `test-database-55379` (asia-southeast1) with other repo apps; uses path `/autoclicker/command`.
+  - Firebase web API key in `phone/index.html` is intentional — it's a public client config, not a secret.
+  - Wires/checklist render from `wires[]` and `steps[]` arrays — edit data, not DOM.
+  - Section IDs (`overview/hardware/wiring/demo/code/checklist`) are load-bearing for `syncNav()` scroll-spy.
+- **Full docs:** See `knowledge/autoclicker/SUMMARY.md`, `ARCHITECTURE.md`, `KEY_FILES.md`.
 
 ### devo/  🟢
 
@@ -265,7 +281,7 @@ Simple side-scrolling platformer (Bubu & Dudu) — canvas-based game.
 
 | Project | Hosting | Auto-deploy on push? |
 |---|---|---|
-| devo, monthsary, tayo, sns-dq, weddingtest, towa-no-yuugure, flux, pray, echoes, wedding100, weddingtimeline, horizon, money, anohana, bubududu | GitHub Pages subpath | ✅ |
+| devo, monthsary, tayo, sns-dq, weddingtest, towa-no-yuugure, autoclicker, flux, pray, echoes, wedding100, weddingtimeline, horizon, money, anohana, bubududu | GitHub Pages subpath | ✅ |
 | guard-exit-interview | GitHub Pages — **DUAL-REPO** (also push to `guard-exit-tracker`) | ✅ |
 | vm-management | GitHub Pages `/vm-management/` | ✅ |
 | weddingbar | Firebase Hosting (root via `firebase.json`) — also GH Pages `/weddingbar/` | `firebase deploy` |
