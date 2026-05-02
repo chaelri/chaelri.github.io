@@ -971,9 +971,14 @@ async function openReflectModal() {
       <div class="story-label">GUIDED REFLECTION</div>
       <div class="story-title">${bookName} ${chapter}</div>
       ${cleanHTML}
-      <button class="reflect-copy-notes-btn" id="reflectCopyNotesBtn">
-        <span class="material-symbols-outlined" style="font-size:18px;vertical-align:middle;margin-right:6px;">content_copy</span>Copy Notes
-      </button>
+      <div class="reflect-actions-row">
+        <button class="reflect-copy-notes-btn" id="reflectCopyNotesBtn">
+          <span class="material-symbols-outlined" style="font-size:18px;vertical-align:middle;margin-right:6px;">content_copy</span>Copy Notes
+        </button>
+        <button class="reflect-share-notes-btn" id="reflectShareNotesBtn">
+          <span class="material-symbols-outlined" style="font-size:18px;vertical-align:middle;margin-right:6px;">ios_share</span>Share to Notes
+        </button>
+      </div>
     </div>`;
 
   modal.hidden = false;
@@ -1016,6 +1021,12 @@ async function openReflectModal() {
     btn.textContent = "✅ Copied!";
     setTimeout(() => { btn.innerHTML = '<span class="material-symbols-outlined" style="font-size:18px;vertical-align:middle;margin-right:6px;">content_copy</span>Copy Notes'; }, 2000);
   };
+
+  // Share to Notes — bundle all answered reflections (multi-chapter) and fire share sheet
+  const reflectShareBtn = document.getElementById("reflectShareNotesBtn");
+  if (reflectShareBtn && typeof _openShareDevoModal === "function") {
+    reflectShareBtn.onclick = () => _openShareDevoModal();
+  }
 
   // Convert any remaining plain-text verse refs (v. 5, vv. 2-3) into clickable links
   content.querySelectorAll("li p").forEach(p => {

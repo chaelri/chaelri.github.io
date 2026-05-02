@@ -395,6 +395,210 @@ function _shareSession(session) {
   });
 }
 
+// Share devotion (multi-chapter Q&A) to Apple Notes / share sheet.
+// Bundles every reflection-* localStorage entry with a non-empty answer,
+// grouped by book + chapter, formatted to match Charlie's iCloud Notes pattern.
+function _collectDevoReflections() {
+  const groups = {};
+  // Use Web Storage API key(i)/length so this works with the Firebase-sync
+  // mirror too (mirror exposes length/key/getItem but NOT Object.keys).
+  const keys = [];
+  const len = localStorage.length || 0;
+  for (let i = 0; i < len; i++) {
+    const k = localStorage.key(i);
+    if (k) keys.push(k);
+  }
+  for (const key of keys) {
+    if (!key.startsWith("reflection-")) continue;
+    if (key.startsWith("reflection-time-")) continue;
+    const value = localStorage.getItem(key);
+    if (!value) continue;
+    const aIdx = value.indexOf("\nA: ");
+    if (aIdx < 0) continue;
+    const question = value.slice(0, aIdx).replace(/^Q:\s*/, "").trim();
+    const answer = value.slice(aIdx + 4).trim();
+    if (!answer) continue;
+    const stripped = key.slice("reflection-".length);
+    const parts = stripped.split("-");
+    if (parts.length < 4) continue;
+    const index = parseInt(parts[parts.length - 1], 10);
+    const verse = parts[parts.length - 2];
+    const chapter = parts[parts.length - 3];
+    const book = parts.slice(0, parts.length - 3).join("-");
+    if (!book || !chapter) continue;
+    const passageId = `${book}-${chapter}-${verse}`;
+    if (!groups[passageId]) {
+      const t = parseInt(localStorage.getItem(`reflection-time-${passageId}`) || "0", 10);
+      groups[passageId] = { book, chapter, verse, items: [], lastTime: t };
+    }
+    groups[passageId].items.push({ index: isNaN(index) ? 0 : index, question, answer });
+  }
+  for (const k of Object.keys(groups)) {
+    groups[k].items.sort((a, b) => a.index - b.index);
+  }
+  const bookOrder = (window.BIBLE_META && Object.keys(window.BIBLE_META)) || [];
+  return Object.values(groups).sort((a, b) => {
+    const ai = bookOrder.indexOf(a.book);
+    const bi = bookOrder.indexOf(b.book);
+    if (ai !== bi) return ai - bi;
+    const ac = parseInt(a.chapter, 10) || 0;
+    const bc = parseInt(b.chapter, 10) || 0;
+    if (ac !== bc) return ac - bc;
+    return (parseInt(a.verse, 10) || 0) - (parseInt(b.verse, 10) || 0);
+  });
+}
+
+function _devoShareGroupLabel(g) {
+  const meta = window.BIBLE_META && window.BIBLE_META[g.book];
+  const bookName = meta?.name || g.book;
+  return g.verse ? `${bookName} ${g.chapter}:${g.verse}` : `${bookName} ${g.chapter}`;
+}
+
+function _devoShareIsToday(ms) {
+  if (!ms) return false;
+  const start = new Date();
+  start.setHours(0, 0, 0, 0);
+  return ms >= start.getTime();
+}
+
+function _devoShareFormatTitle(isoDate) {
+  const [y, m, d] = isoDate.split("-").map(n => parseInt(n, 10));
+  if (!y || !m || !d) return "Devotion";
+  const dt = new Date(y, m - 1, d);
+  const months = ["January","February","March","April","May","June","July","August","September","October","November","December"];
+  return `${months[dt.getMonth()]} ${dt.getDate()} Devotion`;
+}
+
+function _devoShareBuildText(title, groups) {
+  let out = `${title}\n\n`;
+  groups.forEach((g, gi) => {
+    out += `${_devoShareGroupLabel(g)} Notes\n\n`;
+    g.items.forEach(({ question, answer }, i) => {
+      out += `Q: ${question}\nA: ${answer}`;
+      if (i < g.items.length - 1) out += "\n\n";
+    });
+    if (gi < groups.length - 1) out += "\n\n";
+  });
+  return out;
+}
+
+function _devoShareToast(msg) {
+  const toast = document.createElement("div");
+  toast.className = "notes-toast";
+  toast.textContent = msg;
+  document.body.appendChild(toast);
+  setTimeout(() => toast.remove(), 2200);
+}
+
+function _openShareDevoModal() {
+  const overlay = document.getElementById("modalOverlay");
+  const content = document.getElementById("modalContent");
+  if (!overlay || !content) return;
+
+  const groups = _collectDevoReflections();
+  if (groups.length === 0) {
+    _devoShareToast("No answered reflections yet");
+    return;
+  }
+
+  const today = new Date();
+  const pad = n => String(n).padStart(2, "0");
+  const todayIso = `${today.getFullYear()}-${pad(today.getMonth() + 1)}-${pad(today.getDate())}`;
+
+  const escapeHtml = s => String(s).replace(/[&<>"']/g, c => ({"&":"&amp;","<":"&lt;",">":"&gt;",'"':"&quot;","'":"&#39;"}[c]));
+
+  const rowsHtml = groups.map((g, i) => {
+    const checked = _devoShareIsToday(g.lastTime) ? "checked" : "";
+    const sub = g.lastTime
+      ? new Date(g.lastTime).toLocaleDateString("en-US", { month: "short", day: "numeric" })
+      : "no timestamp";
+    return `
+      <label class="devo-share-row">
+        <input type="checkbox" data-share-idx="${i}" ${checked}>
+        <span class="devo-share-row-label">
+          <span class="devo-share-row-title">${escapeHtml(_devoShareGroupLabel(g))}</span>
+          <span class="devo-share-row-sub">${g.items.length} answer${g.items.length === 1 ? "" : "s"} · ${escapeHtml(sub)}</span>
+        </span>
+      </label>`;
+  }).join("");
+
+  content.innerHTML = `
+    <div class="devo-share-modal">
+      <h3 class="devo-share-title">Share to Notes</h3>
+      <p class="devo-share-help">Default is today. Tweak if you're logging for an earlier day.</p>
+      <label class="devo-share-date-label">
+        <span>Date</span>
+        <input type="date" id="devoShareDate" value="${todayIso}">
+      </label>
+      <div class="devo-share-list-label">Chapters</div>
+      <div class="devo-share-list">${rowsHtml}</div>
+      <div class="devo-share-actions">
+        <button class="devo-share-cancel" type="button" id="devoShareCancel">Cancel</button>
+        <button class="devo-share-go" type="button" id="devoShareGo">Share</button>
+      </div>
+    </div>`;
+
+  overlay.hidden = false;
+
+  const close = () => { overlay.hidden = true; };
+  const cancelBtn = content.querySelector("#devoShareCancel");
+  const goBtn = content.querySelector("#devoShareGo");
+  if (cancelBtn) cancelBtn.onclick = close;
+  if (goBtn) {
+    goBtn.onclick = async () => {
+      const dateInput = content.querySelector("#devoShareDate");
+      const checkboxes = content.querySelectorAll('input[type="checkbox"][data-share-idx]');
+      const picked = [];
+      checkboxes.forEach(cb => {
+        if (cb.checked) {
+          const idx = parseInt(cb.dataset.shareIdx, 10);
+          if (!isNaN(idx) && groups[idx]) picked.push(groups[idx]);
+        }
+      });
+      if (picked.length === 0) {
+        _devoShareToast("Pick at least one chapter");
+        return;
+      }
+      const title = _devoShareFormatTitle(dateInput?.value || todayIso);
+      const text = _devoShareBuildText(title, picked);
+      close();
+      try {
+        if (navigator.share) {
+          await navigator.share({ title, text });
+        } else if (navigator.clipboard) {
+          await navigator.clipboard.writeText(text);
+          _devoShareToast("Share unavailable — copied to clipboard");
+        } else {
+          _devoShareToast("Sharing not supported on this device");
+        }
+      } catch (err) {
+        if (err && err.name === "AbortError") return;
+        try {
+          if (navigator.clipboard) {
+            await navigator.clipboard.writeText(text);
+            _devoShareToast("Share failed — copied to clipboard");
+          }
+        } catch {}
+      }
+    };
+  }
+}
+
+(function _wireShareDevoBtn() {
+  const attach = () => {
+    const btn = document.getElementById("shareDevoBtn");
+    if (btn && !btn._devoShareWired) {
+      btn._devoShareWired = true;
+      btn.addEventListener("click", _openShareDevoModal);
+    }
+  };
+  if (document.readyState === "loading") {
+    document.addEventListener("DOMContentLoaded", attach);
+  } else {
+    attach();
+  }
+})();
+
 function _openNoteDetail(note) {
   _notesActiveId = note.id;
   const detailView = document.getElementById("notesDetailView");
