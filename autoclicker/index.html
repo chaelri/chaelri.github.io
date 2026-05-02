@@ -388,22 +388,26 @@
         <text x="530" y="745" text-anchor="middle" fill="#ffffff" font-size="18" font-weight="700">5V Mini Push Solenoid</text>
         <text x="530" y="765" text-anchor="middle" fill="#94a3b8" font-size="12" font-family="JetBrains Mono">3–5 mm stroke · 200 g push · ~400 mA pulse</text>
 
-        <!-- ============ WIRES: ESP32 → Relay (3 jumpers, landing on actual pin pads) ============ -->
+        <!-- ============ WIRES: ESP32 → Relay input pins (right side of module) ============ -->
         <g fill="none" stroke-linecap="round">
-          <!-- GPIO3 (green) — ESP32 pin 4 (GP3) → Relay IN -->
-          <path d="M 129 392 C 240 200, 720 170, 941 295" stroke="#22c55e" stroke-width="3.5" filter="url(#wireGlow)" opacity="0.95"/>
-          <!-- GND — ESP32 GND → Relay GND -->
-          <path d="M 215 392 C 350 240, 770 200, 980 295" stroke="#475569" stroke-width="3.5"/>
-          <path d="M 215 392 C 350 240, 770 200, 980 295" stroke="#94a3b8" stroke-width="1.2" opacity="0.55"/>
-          <!-- 5V (red) — ESP32 5V → Relay VCC -->
-          <path d="M 237 392 C 380 280, 800 240, 961 295" stroke="#ef4444" stroke-width="3.5" filter="url(#wireGlow)" opacity="0.95"/>
+          <!-- 5V (red) — ESP32 5V → Relay VCC (top-right of module) -->
+          <path d="M 237 392 C 400 290, 880 90, 1020 130" stroke="#ef4444" stroke-width="3.5" filter="url(#wireGlow)" opacity="0.95"/>
+          <!-- GND (gray) — ESP32 GND → Relay GND (mid-right) -->
+          <path d="M 215 392 C 380 300, 870 130, 1020 165" stroke="#475569" stroke-width="3.5"/>
+          <path d="M 215 392 C 380 300, 870 130, 1020 165" stroke="#94a3b8" stroke-width="1.2" opacity="0.55"/>
+          <!-- GPIO3 (green) — ESP32 GPIO3 → Relay IN (bottom-right) -->
+          <path d="M 129 392 C 320 320, 860 180, 1020 200" stroke="#22c55e" stroke-width="3.5" filter="url(#wireGlow)" opacity="0.95"/>
+          <!-- 5V (sandwich, dark red) — ESP32 5V → Relay COM screw (left side of module) -->
+          <path d="M 237 392 C 480 380, 720 280, 825 215" stroke="#dc2626" stroke-width="3.5" stroke-dasharray="6 4" filter="url(#wireGlow)" opacity="0.95"/>
         </g>
 
-        <!-- ============ WIRES: Solenoid leads → Relay COM/NO (continuation of photo wires) ============ -->
+        <!-- ============ WIRES: Solenoid → Relay NO screw + back to ESP32 GND ============ -->
         <g fill="none" stroke-linecap="round">
-          <path d="M 700 445 C 720 320, 820 180, 851 90" stroke="#dc2626" stroke-width="3" filter="url(#wireGlow)" opacity="0.95"/>
-          <path d="M 710 450 C 760 340, 860 180, 878 90" stroke="#1f2937" stroke-width="3"/>
-          <path d="M 710 450 C 760 340, 860 180, 878 90" stroke="#94a3b8" stroke-width="1" opacity="0.5"/>
+          <!-- Solenoid wire 1 (bare red) → Relay NO screw (left side of module) -->
+          <path d="M 700 445 C 740 320, 800 220, 825 175" stroke="#fca5a5" stroke-width="3" filter="url(#wireGlow)" opacity="0.95"/>
+          <!-- Solenoid wire 2 (bare black) → ESP32 GND (sandwich return — long swoop back) -->
+          <path d="M 710 450 C 600 530, 320 470, 215 408" stroke="#1f2937" stroke-width="3" stroke-dasharray="6 4"/>
+          <path d="M 710 450 C 600 530, 320 470, 215 408" stroke="#94a3b8" stroke-width="1" stroke-dasharray="6 4" opacity="0.5"/>
         </g>
 
         <!-- ============ ESP32 pin dots + labels ============ -->
@@ -420,36 +424,39 @@
           <line x1="237" y1="398" x2="258" y2="412" stroke="#475569" stroke-width="0.8"/>
         </g>
 
-        <!-- ============ Relay header pin dots + labels ============ -->
+        <!-- ============ Relay INPUT pins — RIGHT side of module ============ -->
         <g>
-          <circle cx="941" cy="295" r="6" fill="#22c55e" stroke="#0a0c12" stroke-width="2"/>
-          <circle cx="961" cy="295" r="6" fill="#ef4444" stroke="#0a0c12" stroke-width="2"/>
-          <circle cx="980" cy="295" r="6" fill="#1f2937" stroke="#94a3b8" stroke-width="2"/>
+          <circle cx="1020" cy="130" r="6" fill="#ef4444" stroke="#0a0c12" stroke-width="2"/>
+          <circle cx="1020" cy="165" r="6" fill="#1f2937" stroke="#94a3b8" stroke-width="2"/>
+          <circle cx="1020" cy="200" r="6" fill="#22c55e" stroke="#0a0c12" stroke-width="2"/>
         </g>
         <g font-family="JetBrains Mono" font-size="13" font-weight="500">
-          <text x="912" y="328" text-anchor="middle" fill="#86efac">IN</text>
-          <text x="961" y="348" text-anchor="middle" fill="#fca5a5">VCC</text>
-          <text x="1010" y="328" text-anchor="middle" fill="#cbd5e1">GND</text>
-          <line x1="941" y1="301" x2="922" y2="318" stroke="#475569" stroke-width="0.8"/>
-          <line x1="961" y1="301" x2="961" y2="338" stroke="#475569" stroke-width="0.8"/>
-          <line x1="980" y1="301" x2="998" y2="318" stroke="#475569" stroke-width="0.8"/>
+          <text x="1056" y="134" text-anchor="start" fill="#fca5a5">VCC</text>
+          <text x="1056" y="169" text-anchor="start" fill="#cbd5e1">GND</text>
+          <text x="1056" y="204" text-anchor="start" fill="#86efac">IN</text>
+          <line x1="1026" y1="130" x2="1052" y2="130" stroke="#475569" stroke-width="0.8"/>
+          <line x1="1026" y1="165" x2="1052" y2="165" stroke="#475569" stroke-width="0.8"/>
+          <line x1="1026" y1="200" x2="1052" y2="200" stroke="#475569" stroke-width="0.8"/>
         </g>
 
-        <!-- ============ Relay screw-terminal dots + labels ============ -->
+        <!-- ============ Relay SCREW terminals — LEFT side of module ============ -->
         <g>
-          <circle cx="851" cy="90" r="6" fill="#dc2626" stroke="#0a0c12" stroke-width="2"/>
-          <circle cx="878" cy="90" r="6" fill="#1f2937" stroke="#94a3b8" stroke-width="2"/>
+          <circle cx="825" cy="175" r="6" fill="#fca5a5" stroke="#0a0c12" stroke-width="2"/>
+          <circle cx="825" cy="215" r="6" fill="#dc2626" stroke="#0a0c12" stroke-width="2"/>
+          <circle cx="825" cy="255" r="6" fill="#1f2937" stroke="#475569" stroke-width="2" opacity="0.55"/>
         </g>
         <g font-family="JetBrains Mono" font-size="13" font-weight="500">
-          <text x="828" y="80" text-anchor="middle" fill="#fca5a5">COM</text>
-          <text x="900" y="80" text-anchor="middle" fill="#cbd5e1">NO</text>
-          <line x1="848" y1="86" x2="836" y2="78" stroke="#475569" stroke-width="0.8"/>
-          <line x1="881" y1="86" x2="893" y2="78" stroke="#475569" stroke-width="0.8"/>
+          <text x="789" y="179" text-anchor="end" fill="#fca5a5">NO</text>
+          <text x="789" y="219" text-anchor="end" fill="#fca5a5">COM</text>
+          <text x="789" y="259" text-anchor="end" fill="#64748b">NC</text>
+          <line x1="819" y1="175" x2="793" y2="175" stroke="#475569" stroke-width="0.8"/>
+          <line x1="819" y1="215" x2="793" y2="215" stroke="#475569" stroke-width="0.8"/>
+          <line x1="819" y1="255" x2="793" y2="255" stroke="#475569" stroke-width="0.8" opacity="0.5"/>
         </g>
 
         <!-- ============ Solenoid lead dots ============ -->
         <g>
-          <circle cx="700" cy="445" r="6" fill="#dc2626" stroke="#0a0c12" stroke-width="2"/>
+          <circle cx="700" cy="445" r="6" fill="#fca5a5" stroke="#0a0c12" stroke-width="2"/>
           <circle cx="710" cy="450" r="6" fill="#1f2937" stroke="#94a3b8" stroke-width="2"/>
         </g>
       </svg>
@@ -457,10 +464,12 @@
 
     <!-- Legend -->
     <div class="mt-6 flex flex-wrap gap-x-6 gap-y-2 text-xs text-slate-400">
-      <div class="flex items-center gap-2"><span class="w-3 h-3 rounded-full bg-red-500"></span>5V power</div>
-      <div class="flex items-center gap-2"><span class="w-3 h-3 rounded-full bg-slate-600 border border-slate-500"></span>GND</div>
-      <div class="flex items-center gap-2"><span class="w-3 h-3 rounded-full bg-green-500"></span>GPIO3 control signal</div>
-      <div class="flex items-center gap-2"><span class="w-3 h-3 rounded-full border border-dashed border-slate-500"></span>solenoid leads → screw terminals</div>
+      <div class="flex items-center gap-2"><span class="w-3 h-3 rounded-full bg-red-500"></span>5V → VCC (jumper)</div>
+      <div class="flex items-center gap-2"><span class="w-3 h-3 rounded-full bg-red-700"></span>5V → COM (sandwich · dashed)</div>
+      <div class="flex items-center gap-2"><span class="w-3 h-3 rounded-full bg-slate-600 border border-slate-500"></span>GND → GND</div>
+      <div class="flex items-center gap-2"><span class="w-3 h-3 rounded-full bg-green-500"></span>GPIO3 → IN</div>
+      <div class="flex items-center gap-2"><span class="w-3 h-3 rounded-full bg-pink-200"></span>solenoid wire 1 → NO</div>
+      <div class="flex items-center gap-2"><span class="w-3 h-3 rounded-full bg-slate-800 ring-1 ring-slate-500"></span>wire 2 → ESP32 GND (sandwich · dashed)</div>
     </div>
   </div>
 
@@ -553,55 +562,62 @@
 
         <!-- ===== Wires (drawn UNDER pin dots so dots stay crisp) ===== -->
         <g fill="none" stroke-width="3" stroke-linecap="round">
-          <!-- 5V → VCC -->
-          <line x1="230" y1="130" x2="320" y2="130" stroke="#ef4444"/>
-          <!-- GND → GND -->
-          <line x1="230" y1="170" x2="320" y2="170" stroke="#64748b"/>
-          <!-- GPIO3 → IN -->
-          <line x1="230" y1="210" x2="320" y2="210" stroke="#22c55e"/>
+          <!-- ESP32 5V → Relay VCC -->
+          <line x1="230" y1="120" x2="320" y2="120" stroke="#ef4444"/>
+          <!-- ESP32 GND → Relay GND -->
+          <line x1="230" y1="155" x2="320" y2="155" stroke="#64748b"/>
+          <!-- ESP32 GPIO3 → Relay IN -->
+          <line x1="230" y1="190" x2="320" y2="190" stroke="#22c55e"/>
 
-          <!-- COM (5V from ESP32 sandwich) → wire 1 via NO -->
-          <line x1="520" y1="140" x2="610" y2="140" stroke="#dc2626"/>
-          <!-- ESP32 GND ← wire 2 (sandwiched at ESP32 GND, not via relay) -->
-          <line x1="520" y1="200" x2="610" y2="200" stroke="#64748b" stroke-dasharray="4 4"/>
+          <!-- ESP32 5V (sandwich) → Relay COM screw — long curve via top of relay -->
+          <path d="M 230 120 C 250 50, 480 30, 520 130" stroke="#dc2626" stroke-width="3" stroke-dasharray="5 4" fill="none"/>
+
+          <!-- Relay NO → Solenoid wire 1 -->
+          <line x1="520" y1="170" x2="610" y2="140" stroke="#fca5a5"/>
+
+          <!-- Solenoid wire 2 → ESP32 GND (sandwich return — long swoop under) -->
+          <path d="M 610 200 C 480 290, 260 280, 230 165" stroke="#64748b" stroke-width="3" stroke-dasharray="5 4" fill="none"/>
         </g>
 
         <!-- ===== ESP32 pins (right edge) ===== -->
         <g font-family="JetBrains Mono" font-size="12" font-weight="500">
-          <text x="218" y="134" text-anchor="end" fill="#fca5a5">5V</text>
-          <circle cx="230" cy="130" r="5" fill="#ef4444" stroke="#0a0c12" stroke-width="2"/>
+          <text x="218" y="124" text-anchor="end" fill="#fca5a5">5V</text>
+          <circle cx="230" cy="120" r="5" fill="#ef4444" stroke="#0a0c12" stroke-width="2"/>
 
-          <text x="218" y="174" text-anchor="end" fill="#cbd5e1">GND</text>
-          <circle cx="230" cy="170" r="5" fill="#1f2937" stroke="#94a3b8" stroke-width="2"/>
+          <text x="218" y="159" text-anchor="end" fill="#cbd5e1">GND</text>
+          <circle cx="230" cy="155" r="5" fill="#1f2937" stroke="#94a3b8" stroke-width="2"/>
 
-          <text x="218" y="214" text-anchor="end" fill="#86efac">GPIO3</text>
-          <circle cx="230" cy="210" r="5" fill="#22c55e" stroke="#0a0c12" stroke-width="2"/>
+          <text x="218" y="194" text-anchor="end" fill="#86efac">GPIO3</text>
+          <circle cx="230" cy="190" r="5" fill="#22c55e" stroke="#0a0c12" stroke-width="2"/>
         </g>
 
-        <!-- ===== Relay LEFT pins (header — facing ESP32) ===== -->
+        <!-- ===== Relay LEFT pins (input header — facing ESP32) ===== -->
         <g font-family="JetBrains Mono" font-size="12" font-weight="500">
-          <circle cx="320" cy="130" r="5" fill="#ef4444" stroke="#0a0c12" stroke-width="2"/>
-          <text x="332" y="134" text-anchor="start" fill="#fca5a5">VCC</text>
+          <circle cx="320" cy="120" r="5" fill="#ef4444" stroke="#0a0c12" stroke-width="2"/>
+          <text x="332" y="124" text-anchor="start" fill="#fca5a5">VCC</text>
 
-          <circle cx="320" cy="170" r="5" fill="#1f2937" stroke="#94a3b8" stroke-width="2"/>
-          <text x="332" y="174" text-anchor="start" fill="#cbd5e1">GND</text>
+          <circle cx="320" cy="155" r="5" fill="#1f2937" stroke="#94a3b8" stroke-width="2"/>
+          <text x="332" y="159" text-anchor="start" fill="#cbd5e1">GND</text>
 
-          <circle cx="320" cy="210" r="5" fill="#22c55e" stroke="#0a0c12" stroke-width="2"/>
-          <text x="332" y="214" text-anchor="start" fill="#86efac">IN</text>
+          <circle cx="320" cy="190" r="5" fill="#22c55e" stroke="#0a0c12" stroke-width="2"/>
+          <text x="332" y="194" text-anchor="start" fill="#86efac">IN</text>
         </g>
 
         <!-- ===== Relay RIGHT pins (screw terminals — facing solenoid) ===== -->
         <g font-family="JetBrains Mono" font-size="12" font-weight="500">
-          <text x="508" y="144" text-anchor="end" fill="#fca5a5">COM</text>
-          <circle cx="520" cy="140" r="5" fill="#dc2626" stroke="#0a0c12" stroke-width="2"/>
+          <text x="508" y="134" text-anchor="end" fill="#fca5a5">COM</text>
+          <circle cx="520" cy="130" r="5" fill="#dc2626" stroke="#0a0c12" stroke-width="2"/>
 
-          <text x="508" y="204" text-anchor="end" fill="#cbd5e1">NO</text>
-          <circle cx="520" cy="200" r="5" fill="#fca5a5" stroke="#0a0c12" stroke-width="2"/>
+          <text x="508" y="174" text-anchor="end" fill="#fca5a5">NO</text>
+          <circle cx="520" cy="170" r="5" fill="#fca5a5" stroke="#0a0c12" stroke-width="2"/>
+
+          <text x="508" y="214" text-anchor="end" fill="#64748b">NC</text>
+          <circle cx="520" cy="210" r="5" fill="#1f2937" stroke="#475569" stroke-width="2" opacity="0.5"/>
         </g>
 
         <!-- ===== Solenoid pins (left edge) ===== -->
         <g font-family="JetBrains Mono" font-size="12" font-weight="500">
-          <circle cx="610" cy="140" r="5" fill="#dc2626" stroke="#0a0c12" stroke-width="2"/>
+          <circle cx="610" cy="140" r="5" fill="#fca5a5" stroke="#0a0c12" stroke-width="2"/>
           <text x="622" y="144" text-anchor="start" fill="#fca5a5">wire 1</text>
 
           <circle cx="610" cy="200" r="5" fill="#1f2937" stroke="#94a3b8" stroke-width="2"/>
@@ -609,7 +625,7 @@
         </g>
 
         <!-- Sub-section labels above relay pin groups -->
-        <text x="345" y="108" text-anchor="middle" fill="#64748b" font-size="9" font-family="JetBrains Mono">3-pin header</text>
+        <text x="345" y="108" text-anchor="middle" fill="#64748b" font-size="9" font-family="JetBrains Mono">input header</text>
         <text x="495" y="108" text-anchor="middle" fill="#64748b" font-size="9" font-family="JetBrains Mono">screw terminals</text>
       </svg>
     </div>
