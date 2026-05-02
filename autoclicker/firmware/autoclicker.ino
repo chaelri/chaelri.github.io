@@ -31,14 +31,17 @@ const char* DB_URL =
   "/autoclicker/command.json";
 
 // --- Pin / timing ------------------------------------------------------------
-const int SOLENOID_PIN = 3;     // GPIO3 -> MOSFET SIG
+const int SOLENOID_PIN = 3;     // GPIO3 -> MOSFET SIG (drives the solenoid)
+const int LED_PIN      = 8;     // GPIO8 -> onboard blue LED (active LOW)
 const int CLICK_MS     = 200;   // pulse width per press
 const int POLL_MS      = 1000;  // Firebase poll interval
 
 void setup() {
   Serial.begin(115200);
   pinMode(SOLENOID_PIN, OUTPUT);
+  pinMode(LED_PIN, OUTPUT);
   digitalWrite(SOLENOID_PIN, LOW);
+  digitalWrite(LED_PIN, HIGH);   // LED off (active LOW: HIGH = off)
 
   Serial.print("Connecting to WiFi");
   WiFi.begin(WIFI_SSID, WIFI_PASS);
@@ -50,8 +53,10 @@ void setup() {
 void click(int times) {
   for (int i = 0; i < times; i++) {
     digitalWrite(SOLENOID_PIN, HIGH);
+    digitalWrite(LED_PIN, LOW);    // LED on (active LOW)
     delay(CLICK_MS);
     digitalWrite(SOLENOID_PIN, LOW);
+    digitalWrite(LED_PIN, HIGH);   // LED off
     if (i < times - 1) delay(150);
   }
 }
