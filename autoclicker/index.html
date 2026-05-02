@@ -378,7 +378,7 @@
         <image href="assets/esp32-c3.jpeg" x="40" y="70" width="240" height="330"
                preserveAspectRatio="xMidYMid meet"/>
 
-        <image href="assets/mosfet.jpeg" x="800" y="80" width="240" height="223"
+        <image href="assets/relay.png" x="800" y="80" width="240" height="223"
                preserveAspectRatio="xMidYMid meet"/>
 
         <image href="assets/solenoid.jpeg" x="340" y="430" width="380" height="285"
@@ -388,18 +388,18 @@
         <text x="530" y="745" text-anchor="middle" fill="#ffffff" font-size="18" font-weight="700">5V Mini Push Solenoid</text>
         <text x="530" y="765" text-anchor="middle" fill="#94a3b8" font-size="12" font-family="JetBrains Mono">3–5 mm stroke · 200 g push · ~400 mA pulse</text>
 
-        <!-- ============ WIRES: ESP32 → MOSFET (3 jumpers, landing on actual pin pads) ============ -->
+        <!-- ============ WIRES: ESP32 → Relay (3 jumpers, landing on actual pin pads) ============ -->
         <g fill="none" stroke-linecap="round">
-          <!-- GPIO3 (green) — ESP32 pin 4 (GP3) → MOSFET SIG -->
+          <!-- GPIO3 (green) — ESP32 pin 4 (GP3) → Relay IN -->
           <path d="M 129 392 C 240 200, 720 170, 941 295" stroke="#22c55e" stroke-width="3.5" filter="url(#wireGlow)" opacity="0.95"/>
-          <!-- GND — ESP32 pin 8 → MOSFET GND -->
+          <!-- GND — ESP32 GND → Relay GND -->
           <path d="M 215 392 C 350 240, 770 200, 980 295" stroke="#475569" stroke-width="3.5"/>
           <path d="M 215 392 C 350 240, 770 200, 980 295" stroke="#94a3b8" stroke-width="1.2" opacity="0.55"/>
-          <!-- 5V (red) — ESP32 pin 9 (rightmost) → MOSFET VCC -->
+          <!-- 5V (red) — ESP32 5V → Relay VCC -->
           <path d="M 237 392 C 380 280, 800 240, 961 295" stroke="#ef4444" stroke-width="3.5" filter="url(#wireGlow)" opacity="0.95"/>
         </g>
 
-        <!-- ============ WIRES: Solenoid leads → MOSFET V+/V- (continuation of photo wires) ============ -->
+        <!-- ============ WIRES: Solenoid leads → Relay COM/NO (continuation of photo wires) ============ -->
         <g fill="none" stroke-linecap="round">
           <path d="M 700 445 C 720 320, 820 180, 851 90" stroke="#dc2626" stroke-width="3" filter="url(#wireGlow)" opacity="0.95"/>
           <path d="M 710 450 C 760 340, 860 180, 878 90" stroke="#1f2937" stroke-width="3"/>
