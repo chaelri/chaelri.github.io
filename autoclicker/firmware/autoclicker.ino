@@ -7,12 +7,34 @@
 // On "auto_N" -> N pulses (1..50)
 // After firing, clears the command field with an empty string.
 //
-// Wiring:
-//   ESP32 5V    -> MOSFET VCC   (red)
-//   ESP32 GND   -> MOSFET GND   (black)
-//   ESP32 GPIO3 -> MOSFET SIG   (green)
-//   Solenoid    -> MOSFET V+ / V-
-//   USB-C 5V/2A -> ESP32
+// Switch element: 5V 1-channel relay module with optocoupler.
+// IRF520 MOSFET module was tried first but failed — the ESP32-C3 GPIO is
+// 3.3V and the IRF520 needs ~4–10 V Vgs to fully saturate. The relay's
+// optocoupler input is happy with a 3.3 V drive, so this swap removes
+// the level-shift problem entirely.
+//
+// Wiring (no soldering — male jumper pins press-fit into ESP32 holes):
+//
+//   ESP32 5V hole:
+//     - red jumper #1 -> Relay VCC pin
+//     - red jumper #2 (sandwiched) -> Relay COM screw   (load supply)
+//   ESP32 GND hole:
+//     - black jumper -> Relay GND pin
+//     - solenoid wire 2 (bare, sandwiched with black pin) -> ESP32 GND
+//   ESP32 GPIO3 hole:
+//     - green jumper -> Relay IN pin
+//   Relay NO screw:
+//     - solenoid wire 1 (bare)
+//   Relay NC screw: empty
+//   USB-C charger -> ESP32 USB-C
+//
+// When IN is asserted, the coil energizes and COM connects to NO. That
+// puts +5 V on solenoid wire 1; wire 2 is permanently at GND, so the
+// coil energizes and the plunger fires.
+//
+// Polarity: most cheap optocoupler relay boards are Active-HIGH. If yours
+// is Active-LOW (some are — solenoid fires at boot, or fires while idle),
+// flip ACTIVE_LOW below to true and re-upload.
 //
 // Board: "ESP32C3 Dev Module"   USB CDC On Boot: Enabled
 // Baud:  115200
@@ -20,7 +42,6 @@
 
 #include <WiFi.h>
 #include <HTTPClient.h>
-#include "driver/gpio.h"   // TEMP: for GPIO drive strength boost
 
 // --- WiFi --------------------------------------------------------------------
 const char* WIFI_SSID = "CAYNO";
@@ -32,24 +53,23 @@ const char* DB_URL =
   "/autoclicker/command.json";
 
 // --- Pin / timing ------------------------------------------------------------
-const int SOLENOID_PIN = 3;     // GPIO3 -> MOSFET SIG (drives the solenoid)
-const int LED_PIN      = 8;     // GPIO8 -> onboard blue LED (active LOW)
-const int CLICK_MS     = 200;   // pulse width per press
-const int POLL_MS      = 1000;  // Firebase poll interval
+const int RELAY_PIN = 3;     // GPIO3 -> Relay IN
+const int LED_PIN   = 8;     // GPIO8 -> onboard blue LED (active LOW, mirrors pulse)
+const int CLICK_MS  = 200;   // pulse width per press
+const int POLL_MS   = 1000;  // Firebase poll interval
+
+// Flip to true if your relay module is Active-LOW (solenoid fires at boot
+// or behaves inverted with the default).
+const bool ACTIVE_LOW = false;
+
+inline int relayOn()  { return ACTIVE_LOW ? LOW  : HIGH; }
+inline int relayOff() { return ACTIVE_LOW ? HIGH : LOW;  }
 
 void setup() {
   Serial.begin(115200);
-
-  // ===== TEMP: GPIO3 drive strength boost (~10mA -> ~40mA max) =====
-  // Trying to give the IRF520 gate more current during transitions.
-  // Real fix is a logic-level MOSFET or relay module — this is a long shot.
-  // Remove this block once we move to a relay module.
-  gpio_set_drive_capability((gpio_num_t)SOLENOID_PIN, GPIO_DRIVE_CAP_3);
-  // ==================================================================
-
-  pinMode(SOLENOID_PIN, OUTPUT);
+  pinMode(RELAY_PIN, OUTPUT);
   pinMode(LED_PIN, OUTPUT);
-  digitalWrite(SOLENOID_PIN, LOW);
+  digitalWrite(RELAY_PIN, relayOff());
   digitalWrite(LED_PIN, HIGH);   // LED off (active LOW: HIGH = off)
 
   Serial.print("Connecting to WiFi");
@@ -61,10 +81,10 @@ void setup() {
 
 void click(int times) {
   for (int i = 0; i < times; i++) {
-    digitalWrite(SOLENOID_PIN, HIGH);
+    digitalWrite(RELAY_PIN, relayOn());
     digitalWrite(LED_PIN, LOW);    // LED on (active LOW)
     delay(CLICK_MS);
-    digitalWrite(SOLENOID_PIN, LOW);
+    digitalWrite(RELAY_PIN, relayOff());
     digitalWrite(LED_PIN, HIGH);   // LED off
     if (i < times - 1) delay(150);
   }

@@ -206,11 +206,11 @@
   <div class="grid grid-cols-2 sm:grid-cols-4 gap-3 max-w-3xl mx-auto">
     <div class="card p-4 text-left">
       <div class="text-2xl font-semibold text-white">4 <span class="text-sm text-slate-500 font-normal">parts</span></div>
-      <div class="text-xs text-slate-500 mt-1">ESP32 · MOSFET · solenoid · USB-C</div>
+      <div class="text-xs text-slate-500 mt-1">ESP32 · 5V relay · solenoid · USB-C</div>
     </div>
     <div class="card p-4 text-left">
-      <div class="text-2xl font-semibold text-white">6 <span class="text-sm text-slate-500 font-normal">connections</span></div>
-      <div class="text-xs text-slate-500 mt-1">3 jumpers · 2 screws · 1 USB</div>
+      <div class="text-2xl font-semibold text-white">7 <span class="text-sm text-slate-500 font-normal">connections</span></div>
+      <div class="text-xs text-slate-500 mt-1">4 jumpers · 2 screws · 1 USB</div>
     </div>
     <div class="card p-4 text-left">
       <div class="text-2xl font-semibold text-white">200 <span class="text-sm text-slate-500 font-normal">ms</span></div>
@@ -228,7 +228,7 @@
   <div class="mb-10">
     <div class="text-xs uppercase tracking-[0.2em] text-indigo-400 mb-2">01 · Overview</div>
     <h2 class="text-3xl font-bold text-white">How a click travels</h2>
-    <p class="text-slate-400 mt-2 max-w-xl">Phone tap → cloud database → ESP32 polls → MOSFET switches → solenoid pushes the button physically.</p>
+    <p class="text-slate-400 mt-2 max-w-xl">Phone tap → cloud database → ESP32 polls → relay clicks → solenoid pushes the button physically.</p>
   </div>
 
   <div class="card p-6 sm:p-8 overflow-x-auto no-scrollbar">
@@ -288,13 +288,13 @@
           <text y="76" text-anchor="middle" fill="#64748b" font-size="11">poll @ 1Hz · GPIO3 200ms</text>
         </g>
 
-        <!-- 4 mosfet -->
+        <!-- 4 relay -->
         <g transform="translate(700 110)">
           <circle r="34" fill="#0d1018" stroke="rgba(245,158,11,0.5)" stroke-width="1.5"/>
           <circle r="34" fill="rgba(245,158,11,0.08)"/>
-          <text text-anchor="middle" dominant-baseline="central" fill="#cbd5e1" font-family="Material Symbols Outlined" font-size="26">bolt</text>
-          <text y="60" text-anchor="middle" fill="#fff" font-size="13" font-weight="600">IRF520</text>
-          <text y="76" text-anchor="middle" fill="#64748b" font-size="11">switches 5V load</text>
+          <text text-anchor="middle" dominant-baseline="central" fill="#cbd5e1" font-family="Material Symbols Outlined" font-size="26">power</text>
+          <text y="60" text-anchor="middle" fill="#fff" font-size="13" font-weight="600">5V Relay</text>
+          <text y="76" text-anchor="middle" fill="#64748b" font-size="11">NO closes on 3.3V drive</text>
         </g>
 
         <!-- 5 solenoid -->
@@ -336,7 +336,7 @@
           <span class="material-symbols-outlined" style="font-size:18px">bolt</span>
           <span class="text-xs font-medium uppercase tracking-wider">Actuate</span>
         </div>
-        <div class="text-sm text-slate-300">GPIO3 → MOSFET gate → solenoid coil. 200ms HIGH = one button press.</div>
+        <div class="text-sm text-slate-300">GPIO3 → relay coil → COM/NO closes → solenoid fires. 200ms HIGH = one button press.</div>
       </div>
     </div>
   </div>
@@ -347,7 +347,7 @@
   <div class="mb-10">
     <div class="text-xs uppercase tracking-[0.2em] text-indigo-400 mb-2">02 · Hardware</div>
     <h2 class="text-3xl font-bold text-white">Top-down view</h2>
-    <p class="text-slate-400 mt-2 max-w-xl">Three modules, five wires, plug in USB-C. Tap a part to see what it does.</p>
+    <p class="text-slate-400 mt-2 max-w-xl">Three modules, four jumpers + screw terminals, plug in USB-C. Tap a part to see what it does.</p>
   </div>
 
   <!-- Photo composition -->
@@ -365,8 +365,8 @@
         <text x="160" y="30" text-anchor="middle" fill="#ffffff" font-size="18" font-weight="700">ESP32-C3 SuperMini</text>
         <text x="160" y="50" text-anchor="middle" fill="#94a3b8" font-size="12" font-family="JetBrains Mono">22.5 × 18 mm · USB-C · WiFi</text>
 
-        <text x="920" y="30" text-anchor="middle" fill="#ffffff" font-size="18" font-weight="700">IRF520 MOSFET</text>
-        <text x="920" y="50" text-anchor="middle" fill="#94a3b8" font-size="12" font-family="JetBrains Mono">switches 5V load · flyback diode</text>
+        <text x="920" y="30" text-anchor="middle" fill="#ffffff" font-size="18" font-weight="700">5V Relay Module</text>
+        <text x="920" y="50" text-anchor="middle" fill="#94a3b8" font-size="12" font-family="JetBrains Mono">optocoupler · 1-channel · NO/COM/NC</text>
 
         <!-- USB-C power badge (centered between component titles) -->
         <g transform="translate(440 16)">
@@ -420,14 +420,14 @@
           <line x1="237" y1="398" x2="258" y2="412" stroke="#475569" stroke-width="0.8"/>
         </g>
 
-        <!-- ============ MOSFET header pin dots + labels ============ -->
+        <!-- ============ Relay header pin dots + labels ============ -->
         <g>
           <circle cx="941" cy="295" r="6" fill="#22c55e" stroke="#0a0c12" stroke-width="2"/>
           <circle cx="961" cy="295" r="6" fill="#ef4444" stroke="#0a0c12" stroke-width="2"/>
           <circle cx="980" cy="295" r="6" fill="#1f2937" stroke="#94a3b8" stroke-width="2"/>
         </g>
         <g font-family="JetBrains Mono" font-size="13" font-weight="500">
-          <text x="912" y="328" text-anchor="middle" fill="#86efac">SIG</text>
+          <text x="912" y="328" text-anchor="middle" fill="#86efac">IN</text>
           <text x="961" y="348" text-anchor="middle" fill="#fca5a5">VCC</text>
           <text x="1010" y="328" text-anchor="middle" fill="#cbd5e1">GND</text>
           <line x1="941" y1="301" x2="922" y2="318" stroke="#475569" stroke-width="0.8"/>
@@ -435,14 +435,14 @@
           <line x1="980" y1="301" x2="998" y2="318" stroke="#475569" stroke-width="0.8"/>
         </g>
 
-        <!-- ============ MOSFET screw-terminal dots + labels ============ -->
+        <!-- ============ Relay screw-terminal dots + labels ============ -->
         <g>
           <circle cx="851" cy="90" r="6" fill="#dc2626" stroke="#0a0c12" stroke-width="2"/>
           <circle cx="878" cy="90" r="6" fill="#1f2937" stroke="#94a3b8" stroke-width="2"/>
         </g>
         <g font-family="JetBrains Mono" font-size="13" font-weight="500">
-          <text x="828" y="80" text-anchor="middle" fill="#fca5a5">V+</text>
-          <text x="900" y="80" text-anchor="middle" fill="#cbd5e1">V−</text>
+          <text x="828" y="80" text-anchor="middle" fill="#fca5a5">COM</text>
+          <text x="900" y="80" text-anchor="middle" fill="#cbd5e1">NO</text>
           <line x1="848" y1="86" x2="836" y2="78" stroke="#475569" stroke-width="0.8"/>
           <line x1="881" y1="86" x2="893" y2="78" stroke="#475569" stroke-width="0.8"/>
         </g>
@@ -485,17 +485,17 @@
     <div class="card p-5">
       <div class="flex items-center gap-3 mb-3">
         <div class="w-10 h-10 rounded-lg bg-orange-500/15 grid place-items-center">
-          <span class="material-symbols-outlined text-orange-300">bolt</span>
+          <span class="material-symbols-outlined text-orange-300">power</span>
         </div>
         <div>
-          <div class="text-white font-medium">IRF520 MOSFET module</div>
-          <div class="text-xs text-slate-500">switch · flyback diode</div>
+          <div class="text-white font-medium">5V relay module (1-ch)</div>
+          <div class="text-xs text-slate-500">optocoupler · audible click</div>
         </div>
       </div>
       <ul class="text-xs text-slate-400 space-y-1">
-        <li>• 3 input pins: <span class="mono">VCC · GND · SIG</span></li>
-        <li>• 2 screw terminals: <span class="mono">V+ · V−</span></li>
-        <li>• Onboard flyback diode protects ESP32</li>
+        <li>• 3 input pins: <span class="mono">VCC · GND · IN</span></li>
+        <li>• 3 screw terminals: <span class="mono">COM · NO · NC</span></li>
+        <li>• 3.3 V drive is plenty — no level shift needed</li>
       </ul>
     </div>
     <div class="card p-5">
@@ -538,9 +538,9 @@
         <text x="135" y="70" text-anchor="middle" fill="#fff" font-size="14" font-weight="700">ESP32-C3</text>
         <text x="135" y="86" text-anchor="middle" fill="#94a3b8" font-size="10" font-family="JetBrains Mono">SuperMini</text>
 
-        <!-- MOSFET -->
+        <!-- Relay -->
         <rect x="320" y="40" width="200" height="220" rx="14" fill="rgba(245,158,11,0.05)" stroke="rgba(251,146,60,0.4)" stroke-width="1"/>
-        <text x="420" y="70" text-anchor="middle" fill="#fff" font-size="14" font-weight="700">IRF520 MOSFET</text>
+        <text x="420" y="70" text-anchor="middle" fill="#fff" font-size="14" font-weight="700">5V Relay</text>
         <text x="420" y="86" text-anchor="middle" fill="#94a3b8" font-size="10" font-family="JetBrains Mono">module</text>
         <!-- subtle internal divider showing two pin groups -->
         <line x1="370" y1="100" x2="370" y2="240" stroke="rgba(255,255,255,0.04)" stroke-dasharray="2 4"/>
@@ -557,13 +557,13 @@
           <line x1="230" y1="130" x2="320" y2="130" stroke="#ef4444"/>
           <!-- GND → GND -->
           <line x1="230" y1="170" x2="320" y2="170" stroke="#64748b"/>
-          <!-- GPIO3 → SIG -->
+          <!-- GPIO3 → IN -->
           <line x1="230" y1="210" x2="320" y2="210" stroke="#22c55e"/>
 
-          <!-- V+ → wire 1 -->
+          <!-- COM (5V from ESP32 sandwich) → wire 1 via NO -->
           <line x1="520" y1="140" x2="610" y2="140" stroke="#dc2626"/>
-          <!-- V− → wire 2 -->
-          <line x1="520" y1="200" x2="610" y2="200" stroke="#64748b"/>
+          <!-- ESP32 GND ← wire 2 (sandwiched at ESP32 GND, not via relay) -->
+          <line x1="520" y1="200" x2="610" y2="200" stroke="#64748b" stroke-dasharray="4 4"/>
         </g>
 
         <!-- ===== ESP32 pins (right edge) ===== -->
@@ -578,7 +578,7 @@
           <circle cx="230" cy="210" r="5" fill="#22c55e" stroke="#0a0c12" stroke-width="2"/>
         </g>
 
-        <!-- ===== MOSFET LEFT pins (header — facing ESP32) ===== -->
+        <!-- ===== Relay LEFT pins (header — facing ESP32) ===== -->
         <g font-family="JetBrains Mono" font-size="12" font-weight="500">
           <circle cx="320" cy="130" r="5" fill="#ef4444" stroke="#0a0c12" stroke-width="2"/>
           <text x="332" y="134" text-anchor="start" fill="#fca5a5">VCC</text>
@@ -587,16 +587,16 @@
           <text x="332" y="174" text-anchor="start" fill="#cbd5e1">GND</text>
 
           <circle cx="320" cy="210" r="5" fill="#22c55e" stroke="#0a0c12" stroke-width="2"/>
-          <text x="332" y="214" text-anchor="start" fill="#86efac">SIG</text>
+          <text x="332" y="214" text-anchor="start" fill="#86efac">IN</text>
         </g>
 
-        <!-- ===== MOSFET RIGHT pins (screw terminals — facing solenoid) ===== -->
+        <!-- ===== Relay RIGHT pins (screw terminals — facing solenoid) ===== -->
         <g font-family="JetBrains Mono" font-size="12" font-weight="500">
-          <text x="508" y="144" text-anchor="end" fill="#fca5a5">V+</text>
+          <text x="508" y="144" text-anchor="end" fill="#fca5a5">COM</text>
           <circle cx="520" cy="140" r="5" fill="#dc2626" stroke="#0a0c12" stroke-width="2"/>
 
-          <text x="508" y="204" text-anchor="end" fill="#cbd5e1">V−</text>
-          <circle cx="520" cy="200" r="5" fill="#1f2937" stroke="#94a3b8" stroke-width="2"/>
+          <text x="508" y="204" text-anchor="end" fill="#cbd5e1">NO</text>
+          <circle cx="520" cy="200" r="5" fill="#fca5a5" stroke="#0a0c12" stroke-width="2"/>
         </g>
 
         <!-- ===== Solenoid pins (left edge) ===== -->
@@ -608,7 +608,7 @@
           <text x="622" y="204" text-anchor="start" fill="#cbd5e1">wire 2</text>
         </g>
 
-        <!-- Sub-section labels above MOSFET pin groups -->
+        <!-- Sub-section labels above relay pin groups -->
         <text x="345" y="108" text-anchor="middle" fill="#64748b" font-size="9" font-family="JetBrains Mono">3-pin header</text>
         <text x="495" y="108" text-anchor="middle" fill="#64748b" font-size="9" font-family="JetBrains Mono">screw terminals</text>
       </svg>
@@ -616,11 +616,11 @@
 
     <!-- legend repeating colors → wire purpose -->
     <div class="mt-6 grid grid-cols-2 sm:grid-cols-5 gap-3 text-xs">
-      <div class="flex items-center gap-2"><span class="w-3 h-3 rounded-full bg-red-500"></span><span class="text-slate-400">5V → VCC</span></div>
-      <div class="flex items-center gap-2"><span class="w-3 h-3 rounded-full bg-slate-500"></span><span class="text-slate-400">GND → GND</span></div>
-      <div class="flex items-center gap-2"><span class="w-3 h-3 rounded-full bg-green-500"></span><span class="text-slate-400">GPIO3 → SIG</span></div>
-      <div class="flex items-center gap-2"><span class="w-3 h-3 rounded-full bg-red-700"></span><span class="text-slate-400">V+ → wire 1</span></div>
-      <div class="flex items-center gap-2"><span class="w-3 h-3 rounded-full bg-slate-800 ring-1 ring-slate-500"></span><span class="text-slate-400">V− → wire 2</span></div>
+      <div class="flex items-center gap-2"><span class="w-3 h-3 rounded-full bg-red-500"></span><span class="text-slate-400">5V → VCC + COM</span></div>
+      <div class="flex items-center gap-2"><span class="w-3 h-3 rounded-full bg-slate-500"></span><span class="text-slate-400">GND → GND + wire 2</span></div>
+      <div class="flex items-center gap-2"><span class="w-3 h-3 rounded-full bg-green-500"></span><span class="text-slate-400">GPIO3 → IN</span></div>
+      <div class="flex items-center gap-2"><span class="w-3 h-3 rounded-full bg-red-700"></span><span class="text-slate-400">NO → wire 1</span></div>
+      <div class="flex items-center gap-2"><span class="w-3 h-3 rounded-full bg-slate-800 ring-1 ring-slate-500"></span><span class="text-slate-400">wire 2 sandwiched at ESP32 GND</span></div>
     </div>
   </div>
 </section>
@@ -629,8 +629,8 @@
 <section id="wiring" class="section max-w-6xl mx-auto px-4 sm:px-6 py-16">
   <div class="mb-10">
     <div class="text-xs uppercase tracking-[0.2em] text-indigo-400 mb-2">03 · Wiring</div>
-    <h2 class="text-3xl font-bold text-white">All six connections</h2>
-    <p class="text-slate-400 mt-2 max-w-xl">Three jumper wires, two screw-terminal twists, one USB-C plug. No soldering.</p>
+    <h2 class="text-3xl font-bold text-white">All seven connections</h2>
+    <p class="text-slate-400 mt-2 max-w-xl">Four jumper wires (two of them sandwiched at the ESP32 5V hole), two solenoid leads, one USB-C plug. No soldering.</p>
   </div>
 
   <div class="card overflow-hidden">
@@ -658,7 +658,7 @@
       <span class="material-symbols-outlined text-amber-300 mt-0.5">warning</span>
       <div class="text-sm">
         <div class="text-white font-medium mb-1">Polarity check</div>
-        <div class="text-slate-400">5V → VCC and GND → GND must not be swapped. The header pin order on the MOSFET is silkscreened — read it before plugging.</div>
+        <div class="text-slate-400">5V → VCC and GND → GND must not be swapped. The header pin order on the relay module is silkscreened — read it before plugging.</div>
       </div>
     </div>
     <div class="card p-5 flex gap-4">
@@ -868,14 +868,22 @@ const char* DB_URL =
   "https://test-database-55379-default-rtdb.asia-southeast1.firebasedatabase.app"
   "/autoclicker/command.json";
 
-const int SOLENOID_PIN = 3;     // GPIO3 → MOSFET SIG
-const int CLICK_MS     = 200;   // pulse width per press
-const int POLL_MS      = 1000;  // Firebase poll interval
+const int RELAY_PIN = 3;     // GPIO3 → Relay IN
+const int LED_PIN   = 8;     // GPIO8 → onboard blue LED (active LOW)
+const int CLICK_MS  = 200;   // pulse width per press
+const int POLL_MS   = 1000;  // Firebase poll interval
+
+// Flip to true if your relay is Active-LOW (fires at boot or inverted).
+const bool ACTIVE_LOW = false;
+inline int relayOn()  { return ACTIVE_LOW ? LOW  : HIGH; }
+inline int relayOff() { return ACTIVE_LOW ? HIGH : LOW;  }
 
 void setup() {
   Serial.begin(115200);
-  pinMode(SOLENOID_PIN, OUTPUT);
-  digitalWrite(SOLENOID_PIN, LOW);
+  pinMode(RELAY_PIN, OUTPUT);
+  pinMode(LED_PIN, OUTPUT);
+  digitalWrite(RELAY_PIN, relayOff());
+  digitalWrite(LED_PIN, HIGH);   // LED off (active LOW)
 
   WiFi.begin(WIFI_SSID, WIFI_PASS);
   while (WiFi.status() != WL_CONNECTED) { delay(300); Serial.print("."); }
@@ -884,9 +892,11 @@ void setup() {
 
 void click(int times) {
   for (int i = 0; i &lt; times; i++) {
-    digitalWrite(SOLENOID_PIN, HIGH);
+    digitalWrite(RELAY_PIN, relayOn());
+    digitalWrite(LED_PIN, LOW);
     delay(CLICK_MS);
-    digitalWrite(SOLENOID_PIN, LOW);
+    digitalWrite(RELAY_PIN, relayOff());
+    digitalWrite(LED_PIN, HIGH);
     if (i &lt; times - 1) delay(150);
   }
 }
@@ -1073,12 +1083,13 @@ void loop() {
 // Wiring table data
 // ===========================================================================
 const wires = [
-  { i: 1, type: 'Power',  from: ['ESP32', '5V'],     to: ['MOSFET', 'VCC'], color: '#ef4444', name: 'red',   method: 'Jumper wire' },
-  { i: 2, type: 'Ground', from: ['ESP32', 'GND'],    to: ['MOSFET', 'GND'], color: '#475569', name: 'black', method: 'Jumper wire' },
-  { i: 3, type: 'Signal', from: ['ESP32', 'GPIO3'],  to: ['MOSFET', 'SIG'], color: '#22c55e', name: 'green', method: 'Jumper wire' },
-  { i: 4, type: 'Load+',  from: ['Solenoid', 'wire 1'], to: ['MOSFET', 'V+'], color: '#dc2626', name: 'red',   method: 'Screw terminal' },
-  { i: 5, type: 'Load−',  from: ['Solenoid', 'wire 2'], to: ['MOSFET', 'V−'], color: '#0f172a', name: 'black', method: 'Screw terminal' },
-  { i: 6, type: 'Power',  from: ['USB-C charger', '5V'], to: ['ESP32', 'USB-C'], color: '#a855f7', name: 'cable', method: 'Plug' },
+  { i: 1, type: 'Power',  from: ['ESP32', '5V'],     to: ['Relay', 'VCC'],     color: '#ef4444', name: 'red',   method: 'Jumper wire' },
+  { i: 2, type: 'Power',  from: ['ESP32', '5V (sandwich)'], to: ['Relay', 'COM screw'], color: '#dc2626', name: 'red',   method: 'Jumper + screw' },
+  { i: 3, type: 'Ground', from: ['ESP32', 'GND'],    to: ['Relay', 'GND'],     color: '#475569', name: 'black', method: 'Jumper wire' },
+  { i: 4, type: 'Signal', from: ['ESP32', 'GPIO3'],  to: ['Relay', 'IN'],      color: '#22c55e', name: 'green', method: 'Jumper wire' },
+  { i: 5, type: 'Load+',  from: ['Solenoid', 'wire 1'], to: ['Relay', 'NO screw'], color: '#fca5a5', name: 'bare',  method: 'Screw terminal' },
+  { i: 6, type: 'Return', from: ['Solenoid', 'wire 2'], to: ['ESP32', 'GND (sandwich)'], color: '#0f172a', name: 'bare',  method: 'Press-fit' },
+  { i: 7, type: 'Power',  from: ['USB-C charger', '5V'], to: ['ESP32', 'USB-C'], color: '#a855f7', name: 'cable', method: 'Plug' },
 ];
 
 const tbody = document.getElementById('wireTable');
@@ -1110,20 +1121,22 @@ tbody.innerHTML = wires.map(w => `
 // Build checklist
 // ===========================================================================
 const steps = [
-  { g: 'Parts',      t: 'Verify all parts arrived: ESP32-C3 SuperMini, IRF520 module, 5V solenoid, USB-C cable, 5 jumper wires (M-M)' },
-  { g: 'Parts',      t: 'Confirm ESP32 has header pins soldered (most ship pre-soldered — check yours)' },
+  { g: 'Parts',      t: 'Verify all parts arrived: ESP32-C3 SuperMini, 5V 1-channel relay module (with optocoupler), 5V solenoid, USB-C cable, 4+ M-F jumper wires' },
+  { g: 'Parts',      t: 'ESP32 ships without headers — that is fine. We press-fit male jumper pins directly into the through-holes (no soldering)' },
   { g: 'Firmware',   t: 'Install Arduino IDE 2.x and add ESP32 board package via Boards Manager (search "esp32")' },
-  { g: 'Firmware',   t: 'Plug ESP32 into laptop via USB-C; select board "ESP32C3 Dev Module" + correct port' },
-  { g: 'Firmware',   t: 'Paste firmware code; fill WiFi SSID/password; install ArduinoJson library if missing' },
-  { g: 'Firmware',   t: 'Upload sketch; open Serial Monitor at 115200 — confirm "WiFi connected"' },
-  { g: 'Wiring',     t: 'Wire ESP32 5V → MOSFET VCC (red jumper)' },
-  { g: 'Wiring',     t: 'Wire ESP32 GND → MOSFET GND (black jumper)' },
-  { g: 'Wiring',     t: 'Wire ESP32 GPIO3 → MOSFET SIG (green jumper)' },
-  { g: 'Wiring',     t: 'Insert solenoid wire 1 into MOSFET V+ screw terminal; tighten with flathead' },
-  { g: 'Wiring',     t: 'Insert solenoid wire 2 into MOSFET V− screw terminal; tighten with flathead' },
-  { g: 'Wiring',     t: 'Tug-test all 5 wires — none should pull free' },
+  { g: 'Firmware',   t: 'Plug ESP32 into laptop via USB-C; select board "ESP32C3 Dev Module" + correct port; set USB CDC On Boot: Enabled' },
+  { g: 'Firmware',   t: 'Open autoclicker/firmware/autoclicker.ino; fill WiFi SSID/password; upload' },
+  { g: 'Firmware',   t: 'Open Serial Monitor at 115200 — confirm "WiFi connected: ..."' },
+  { g: 'Wiring',     t: 'Insert red jumper #1 male pin into ESP32 5V hole; female end onto Relay VCC pin' },
+  { g: 'Wiring',     t: 'Insert red jumper #2 male pin into ESP32 5V hole alongside jumper #1 (sandwich); female end into Relay COM screw, tighten' },
+  { g: 'Wiring',     t: 'Insert black jumper male pin into ESP32 GND hole; female end onto Relay GND pin' },
+  { g: 'Wiring',     t: 'Insert green jumper male pin into ESP32 GPIO3 hole; female end onto Relay IN pin' },
+  { g: 'Wiring',     t: 'Insert solenoid wire 1 (bare) into Relay NO screw terminal; tighten with flathead' },
+  { g: 'Wiring',     t: 'Sandwich solenoid wire 2 (bare) into ESP32 GND hole alongside the black jumper pin' },
+  { g: 'Wiring',     t: 'Tug-test all wires — none should pull free' },
   { g: 'Test',       t: 'Plug USB-C charger into ESP32; observe ESP32 power LED on' },
-  { g: 'Test',       t: 'Open phone web app; tap "Click" — solenoid should push within ~1 second' },
+  { g: 'Test',       t: 'Open phone web app or iOS Shortcut; tap "Click" — relay should click audibly and solenoid push within ~1 second' },
+  { g: 'Test',       t: 'If the solenoid fires at boot or behaves inverted, set ACTIVE_LOW = true in the firmware and re-upload' },
   { g: 'Test',       t: 'Tap "Double" and "Auto x5"; verify counts and clean retraction between presses' },
   { g: 'Mount',      t: 'Position solenoid plunger over target button; secure with double-sided foam tape' },
   { g: 'Mount',      t: 'Verify travel: plunger fully presses but does not bottom-out the button mechanism' },
