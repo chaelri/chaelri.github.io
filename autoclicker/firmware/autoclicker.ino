@@ -20,6 +20,7 @@
 
 #include <WiFi.h>
 #include <HTTPClient.h>
+#include "driver/gpio.h"   // TEMP: for GPIO drive strength boost
 
 // --- WiFi --------------------------------------------------------------------
 const char* WIFI_SSID = "CAYNO";
@@ -38,6 +39,14 @@ const int POLL_MS      = 1000;  // Firebase poll interval
 
 void setup() {
   Serial.begin(115200);
+
+  // ===== TEMP: GPIO3 drive strength boost (~10mA -> ~40mA max) =====
+  // Trying to give the IRF520 gate more current during transitions.
+  // Real fix is a logic-level MOSFET or relay module — this is a long shot.
+  // Remove this block once we move to a relay module.
+  gpio_set_drive_capability((gpio_num_t)SOLENOID_PIN, GPIO_DRIVE_CAP_3);
+  // ==================================================================
+
   pinMode(SOLENOID_PIN, OUTPUT);
   pinMode(LED_PIN, OUTPUT);
   digitalWrite(SOLENOID_PIN, LOW);
