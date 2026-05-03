@@ -84,21 +84,82 @@ const slug = (s) => String(s).toLowerCase().replace(/\s+/g, "-");
 function show(id) { $(id)?.classList.remove("hidden"); }
 function hide(id) { $(id)?.classList.add("hidden"); }
 
-// Tiny markdown-ish renderer for descriptions/comments. Handles **bold**, `code`,
-// line breaks, and bare URLs. Not a full markdown engine — keeps the bundle tiny.
+// Markdown-ish renderer for descriptions/comments. Handles backslash escapes
+// (Bitbucket's flavor escapes parens/underscores aggressively), **bold**,
+// inline `code`, [text](url) links, bullet/numbered lists, headings, code fences.
+// Not a full CommonMark engine — small enough to embed.
 function mdInline(s) {
   let out = escapeHtml(String(s ?? ""));
-  out = out.replace(/`([^`]+)`/g, '<code class="px-1 py-0.5 bg-zinc-800 rounded text-pink-300 text-[12px]">$1</code>');
-  out = out.replace(/\*\*([^*]+)\*\*/g, "<strong>$1</strong>");
-  out = out.replace(/(https?:\/\/[^\s<]+)/g, '<a href="$1" target="_blank" rel="noopener" class="text-pink-400 hover:underline">$1</a>');
+  // Strip markdown backslash-escapes so `\(`, `\_`, `\+` render as their literal char.
+  out = out.replace(/\\([\\`*_{}\[\]()#+\-.!|>~])/g, "$1");
+  // Inline code first (so its content is preserved as-is)
+  out = out.replace(/`([^`\n]+)`/g, '<code class="px-1 py-0.5 bg-zinc-800 rounded text-pink-300 text-[12px]">$1</code>');
+  // Bold
+  out = out.replace(/\*\*([^*\n]+)\*\*/g, "<strong>$1</strong>");
+  // Italic (*foo*) — guard against ** and avoid matching across newlines / inside code tags
+  out = out.replace(/(^|[^*])\*([^*\n<]+)\*(?!\*)/g, "$1<em>$2</em>");
+  // Markdown links [text](url) — handle mailto / http / relative
+  out = out.replace(/\[([^\]\n]+)\]\(([^)\s]+)\)/g, (_, txt, url) => {
+    const safeUrl = url.replace(/"/g, "%22");
+    if (/^mailto:/i.test(safeUrl)) return `<a href="${safeUrl}" class="text-pink-400 hover:underline">${txt}</a>`;
+    if (/^https?:\/\//i.test(safeUrl)) return `<a href="${safeUrl}" target="_blank" rel="noopener" class="text-pink-400 hover:underline">${txt}</a>`;
+    return `<a href="${safeUrl}" class="text-pink-400 hover:underline">${txt}</a>`;
+  });
+  // Bare URLs (skip ones already inside an href)
+  out = out.replace(/(^|[\s(])(https?:\/\/[^\s<)]+)/g, '$1<a href="$2" target="_blank" rel="noopener" class="text-pink-400 hover:underline">$2</a>');
   return out;
 }
+
 function mdBlock(s) {
-  // Preserve double-newline paragraph breaks; single newlines → <br>.
-  return String(s ?? "")
-    .split(/\n\s*\n/)
-    .map((p) => `<p>${mdInline(p).replace(/\n/g, "<br>")}</p>`)
-    .join("");
+  const text = String(s ?? "").replace(/\r\n?/g, "\n");
+  const blocks = text.split(/\n\s*\n/);
+  const out = [];
+  for (const raw of blocks) {
+    const blk = raw.replace(/\s+$/g, "");
+    if (!blk.trim()) continue;
+    const lines = blk.split("\n");
+
+    // Code fence: ```...```
+    if (/^```/.test(blk)) {
+      const stripped = blk.replace(/^```[\w]*\n?/, "").replace(/\n?```$/, "");
+      out.push(`<pre class="bg-zinc-900 border border-zinc-800 rounded-md p-2.5 my-2 overflow-x-auto text-[12px]"><code class="text-zinc-200 font-mono">${escapeHtml(stripped)}</code></pre>`);
+      continue;
+    }
+
+    // Heading (single-line block starting with #)
+    const h = blk.match(/^(#{1,6})\s+(.+)$/);
+    if (h && lines.length === 1) {
+      const lvl = h[1].length;
+      const sizes = ["", "text-base", "text-base", "text-sm", "text-sm", "text-sm", "text-sm"];
+      out.push(`<h${lvl} class="${sizes[lvl]} font-semibold text-zinc-100 mt-3 mb-1">${mdInline(h[2])}</h${lvl}>`);
+      continue;
+    }
+
+    // Unordered list (every line is "* …" or "- …" or "+ …")
+    if (lines.every((l) => /^\s*[*\-+]\s+/.test(l))) {
+      const items = lines.map((l) => l.replace(/^\s*[*\-+]\s+/, ""));
+      out.push(`<ul class="list-disc pl-5 my-2 space-y-1">${items.map((i) => `<li>${mdInline(i)}</li>`).join("")}</ul>`);
+      continue;
+    }
+
+    // Ordered list
+    if (lines.every((l) => /^\s*\d+\.\s+/.test(l))) {
+      const items = lines.map((l) => l.replace(/^\s*\d+\.\s+/, ""));
+      out.push(`<ol class="list-decimal pl-5 my-2 space-y-1">${items.map((i) => `<li>${mdInline(i)}</li>`).join("")}</ol>`);
+      continue;
+    }
+
+    // Blockquote
+    if (lines.every((l) => /^>\s?/.test(l))) {
+      const inner = lines.map((l) => l.replace(/^>\s?/, "")).join("\n");
+      out.push(`<blockquote class="border-l-2 border-pink-500/40 pl-3 my-2 text-zinc-400">${mdInline(inner).replace(/\n/g, "<br>")}</blockquote>`);
+      continue;
+    }
+
+    // Default: paragraph, single newlines → <br>
+    out.push(`<p>${mdInline(blk).replace(/\n/g, "<br>")}</p>`);
+  }
+  return out.join("");
 }
 
 function relativeTime(date) {
@@ -229,11 +290,11 @@ function jiraCardHtml(it) {
             <div class="detail-section-label">Description</div>
             ${it.description
               ? `<div class="detail-body">${mdBlock(it.description)}</div>`
-              : `<div class="text-[12px] text-zinc-500 italic">Description not fetched yet — Phase 2 wires this from <code class="text-pink-300 not-italic">acli jira workitem view</code>.</div>`}
+              : `<div class="text-[12px] text-zinc-500 italic">No description.</div>`}
           </div>
           <div>
             <div class="detail-section-label">Comments <span class="text-zinc-600 font-normal">(${it.comments?.length || 0})</span></div>
-            ${it.comments?.length ? commentsBlockHtml(it.comments) : `<div class="text-[12px] text-zinc-500 italic">Comments not fetched yet.</div>`}
+            ${it.comments?.length ? commentsBlockHtml(it.comments) : `<div class="text-[12px] text-zinc-500 italic">No comments yet.</div>`}
           </div>
           <div class="flex justify-end">
             <a href="${escapeHtml(it.url || "#")}" target="_blank" rel="noopener" class="open-external" onclick="event.stopPropagation();">
@@ -312,7 +373,7 @@ function bbCardHtml(pr) {
             <div class="detail-section-label">Description</div>
             ${pr.description
               ? `<div class="detail-body">${mdBlock(pr.description)}</div>`
-              : `<div class="text-[12px] text-zinc-500 italic">Description not fetched yet — Phase 2 wires the Bitbucket PR detail API.</div>`}
+              : `<div class="text-[12px] text-zinc-500 italic">No description.</div>`}
           </div>
           <div>
             <div class="detail-section-label">Reviewers</div>
@@ -320,7 +381,7 @@ function bbCardHtml(pr) {
           </div>
           <div>
             <div class="detail-section-label">Comments <span class="text-zinc-600 font-normal">(${pr.comments?.length || 0})</span></div>
-            ${pr.comments?.length ? commentsBlockHtml(pr.comments) : `<div class="text-[12px] text-zinc-500 italic">Comments not fetched yet.</div>`}
+            ${pr.comments?.length ? commentsBlockHtml(pr.comments) : `<div class="text-[12px] text-zinc-500 italic">No comments yet.</div>`}
           </div>
           <div class="flex justify-end">
             <a href="${escapeHtml(pr.url || "#")}" target="_blank" rel="noopener" class="open-external" onclick="event.stopPropagation();">
