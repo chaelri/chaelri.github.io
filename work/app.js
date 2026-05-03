@@ -30,156 +30,28 @@ const ALLOWED_EMAIL = "charliecayno@gmail.com";
 const app = initializeApp(firebaseConfig);
 const auth = getAuth(app);
 
-// ---------- Sample data (rich) ----------
+// ---------- Placeholder data — only fields cron actually captures today ----------
+// Description / comments / branch / stats / labels are intentionally absent —
+// the cron script doesn't fetch them yet. The UI will show empty states.
+// Phase 2 wires acli jira workitem view + bitbucket PR/activity API to fill these.
 const SAMPLE_DATA = {
   generatedAt: "2026-05-03T08:50:15+08:00",
   date: "2026-05-03",
-  topOfMind: [
-    "PR #1280 stale 10d — no reviewer approvals, oldest open PR",
-    "CRUX-1998 On-Hold — Marsh cert wordings ordering, needs unblock decision",
-    "3 Referred quotes in CruxQA (TE…3904/3905/3906) — review backlog",
-  ],
+  topOfMind: [],
   jira: {
     assigned: [
-      {
-        key: "CRUX-1998",
-        type: "Story",
-        status: "On-Hold",
-        priority: "Low",
-        summary: "Marsh cert: custom wordings appear after core cert",
-        url: "https://azurtechnology.atlassian.net/browse/CRUX-1998",
-        description:
-          "When generating Marsh certs, the custom wordings block is rendering **after** the core cert details. Expected order is custom wordings BEFORE the core cert so the customer reads the policy-specific overrides first.\n\nReproduces on Marsh-bound policies with > 3 layers, both NB and renewal flows. Likely the template merge order in `CertGenerator.cls`.",
-        labels: ["cert", "marsh"],
-        assignee: "Charlie Cayno",
-        reporter: "Curt T",
-        created: "2026-04-15T03:14:00+00:00",
-        updated: "2026-05-01T07:22:00+00:00",
-        comments: [
-          { author: "Curt T", body: "I think the merge order swap is in CertGenerator.cls:234. Try moving customWordings.merge() before coreCert.merge().", created: "2026-04-30T02:11:00+00:00" },
-          { author: "Charlie Cayno", body: "Tried that — broke 12 unit tests because customWordings depends on coreCert.policyId being set first. Need to extract policyId resolution earlier.", created: "2026-05-01T07:22:00+00:00" },
-        ],
-      },
-      {
-        key: "CRUX-1995",
-        type: "Story",
-        status: "To Do",
-        priority: "Low",
-        summary: "GC Certificate: update reinsurance certificate template",
-        url: "https://azurtechnology.atlassian.net/browse/CRUX-1995",
-        description:
-          "Reinsurance section on GC certificate template needs updated wording per legal team's Q1 2026 review. New copy in attached doc.\n\nApplies to GC binder only — Marsh/Lloyd's templates already updated in CRUX-1923.",
-        labels: ["cert", "gc"],
-        assignee: "Charlie Cayno",
-        reporter: "Legal-Ops",
-        created: "2026-04-12T09:00:00+00:00",
-        updated: "2026-04-12T09:00:00+00:00",
-        comments: [],
-      },
-      {
-        key: "CRUX-2032",
-        type: "Story",
-        status: "To Do",
-        priority: "Low",
-        summary: "Generate revised GC certificate template on bind for QuoteBox API user",
-        url: "https://azurtechnology.atlassian.net/browse/CRUX-2032",
-        description:
-          "Once CRUX-1995 lands, the QuoteBox API path needs to pick up the revised GC cert template at bind time. Currently QuoteBox path bypasses the template registry and uses a hard-coded snapshot.\n\nPotentially blocked by CRUX-1995 (need the new template merged first).",
-        labels: ["cert", "gc", "quotebox-api"],
-        assignee: "Charlie Cayno",
-        reporter: "Curt T",
-        created: "2026-04-28T11:30:00+00:00",
-        updated: "2026-04-28T11:30:00+00:00",
-        comments: [
-          { author: "Curt T", body: "Sequencing this AFTER CRUX-1995. Don't start until that one merges.", created: "2026-04-28T11:30:00+00:00" },
-        ],
-      },
+      { key: "CRUX-1998", type: "Story", status: "On-Hold", priority: "Low", summary: "Marsh cert: custom wordings appear after core cert", url: "https://azurtechnology.atlassian.net/browse/CRUX-1998" },
+      { key: "CRUX-1995", type: "Story", status: "To Do", priority: "Low", summary: "GC Certificate: update reinsurance certificate template", url: "https://azurtechnology.atlassian.net/browse/CRUX-1995" },
+      { key: "CRUX-2032", type: "Story", status: "To Do", priority: "Low", summary: "Generate revised GC certificate template on bind for QuoteBox API user", url: "https://azurtechnology.atlassian.net/browse/CRUX-2032" },
     ],
     recent24h: [],
   },
   bitbucket: {
     mine: [
-      {
-        id: 1280,
-        title: "CRUX-1939: Map '9987 - ROW ex UK - Core Market' binder name to ROW ex UK (CRX9987) picklist",
-        url: "https://bitbucket.org/truffengers/crux-underwriting/pull-requests/1280",
-        ageDays: 10,
-        createdAt: "2026-04-23T17:18:22+00:00",
-        updatedAt: "2026-04-30T05:12:00+00:00",
-        description:
-          "Maps the legacy binder name `9987 - ROW ex UK - Core Market` to the new picklist value `CRX9987` in the binder selector. Reporting downstream filters on the picklist enum, so unmapped legacy names were dropping out of dashboards.\n\nTested 3 quotes — all routed correctly.",
-        branch: "feature/CRUX-1939",
-        destBranch: "develop",
-        reviewers: [
-          { name: "Curt T", approved: false },
-          { name: "Rayson L", approved: false },
-        ],
-        approvals: 0,
-        comments: [
-          { author: "Rayson L", body: "Should this also handle 9988 / 9989 from the same migration?", created: "2026-04-25T03:00:00+00:00" },
-          { author: "Charlie Cayno", body: "9988/9989 are in CRUX-2031 (next PR up). Keeping this one focused on 9987.", created: "2026-04-25T04:10:00+00:00" },
-        ],
-        stats: { commits: 3, filesChanged: 2, additions: 24, deletions: 8 },
-      },
-      {
-        id: 1286,
-        title: "CRUX-2031: Add DnB option to Cedant Code Type picklist",
-        url: "https://bitbucket.org/truffengers/crux-underwriting/pull-requests/1286",
-        ageDays: 6,
-        createdAt: "2026-04-27T08:00:00+00:00",
-        updatedAt: "2026-04-27T08:00:00+00:00",
-        description:
-          "Adds `DnB` (Dun & Bradstreet) as a Cedant Code Type picklist value, requested by the Marsh ops team for new bordereaux mapping. Picklist updated; no schema or controller changes needed.",
-        branch: "feature/CRUX-2031",
-        destBranch: "develop",
-        reviewers: [
-          { name: "Curt T", approved: false },
-          { name: "Rayson L", approved: false },
-        ],
-        approvals: 0,
-        comments: [],
-        stats: { commits: 1, filesChanged: 1, additions: 3, deletions: 0 },
-      },
-      {
-        id: 1287,
-        title: "CRUX-2036: Non-Standard Form S&T wrap referral rule (broker-agnostic)",
-        url: "https://bitbucket.org/truffengers/crux-underwriting/pull-requests/1287",
-        ageDays: 6,
-        createdAt: "2026-04-27T12:09:00+00:00",
-        updatedAt: "2026-04-28T02:00:00+00:00",
-        description:
-          "Adds a broker-agnostic referral rule for **Non-Standard Form S&T wrap** policies. Previously the rule was scoped to specific brokers via `RuleScope__c.broker`; now triggers regardless of broker so all S&T wrap quotes route to the right underwriter.\n\nReplaces 4 broker-specific rules (CRUX-1842/-1857/-1903/-1944) with a single rule.",
-        branch: "feature/CRUX-2036",
-        destBranch: "develop",
-        reviewers: [
-          { name: "Curt T", approved: false },
-          { name: "Rayson L", approved: false },
-        ],
-        approvals: 0,
-        comments: [
-          { author: "Rayson L", body: "What happens to the 4 broker-specific rules — kept disabled, or deleted? Want to make sure we have an audit trail.", created: "2026-04-28T02:00:00+00:00" },
-        ],
-        stats: { commits: 2, filesChanged: 3, additions: 31, deletions: 87 },
-      },
-      {
-        id: 1288,
-        title: "CRUX-2033: Map QuoteBox policyFormType/wordingsApplicable to Crux fields",
-        url: "https://bitbucket.org/truffengers/crux-underwriting/pull-requests/1288",
-        ageDays: 5,
-        createdAt: "2026-04-28T05:22:51+00:00",
-        updatedAt: "2026-04-28T05:22:51+00:00",
-        description:
-          "Maps QuoteBox API request fields `policyFormType` and `wordingsApplicable` onto Crux's internal `Policy_Form_Type__c` and `Wording_Applicable__c` fields. Required for incoming QuoteBox quotes to land with the correct cert template hooks.\n\nNo behaviour change for non-QuoteBox flows.",
-        branch: "feature/CRUX-2033",
-        destBranch: "develop",
-        reviewers: [
-          { name: "Curt T", approved: false },
-          { name: "Rayson L", approved: false },
-        ],
-        approvals: 0,
-        comments: [],
-        stats: { commits: 1, filesChanged: 2, additions: 18, deletions: 0 },
-      },
+      { id: 1280, title: "CRUX-1939: Map '9987 - ROW ex UK - Core Market' binder name to ROW ex UK (CRX9987) picklist", url: "https://bitbucket.org/truffengers/crux-underwriting/pull-requests/1280", ageDays: 10, reviewers: [{ name: "Curt T", approved: false }, { name: "Rayson L", approved: false }], approvals: 0 },
+      { id: 1286, title: "CRUX-2031: Add DnB option to Cedant Code Type picklist", url: "https://bitbucket.org/truffengers/crux-underwriting/pull-requests/1286", ageDays: 6, reviewers: [{ name: "Curt T", approved: false }, { name: "Rayson L", approved: false }], approvals: 0 },
+      { id: 1287, title: "CRUX-2036: Non-Standard Form S&T wrap referral rule (broker-agnostic)", url: "https://bitbucket.org/truffengers/crux-underwriting/pull-requests/1287", ageDays: 6, reviewers: [{ name: "Curt T", approved: false }, { name: "Rayson L", approved: false }], approvals: 0 },
+      { id: 1288, title: "CRUX-2033: Map QuoteBox policyFormType/wordingsApplicable to Crux fields", url: "https://bitbucket.org/truffengers/crux-underwriting/pull-requests/1288", ageDays: 5, reviewers: [{ name: "Curt T", approved: false }, { name: "Rayson L", approved: false }], approvals: 0 },
     ],
     reviewing: [],
   },
@@ -197,10 +69,7 @@ const SAMPLE_DATA = {
       ],
     },
   },
-  notes: [
-    "All 4 open PRs assigned to Curt + Rayson, zero approvals — chase reviewers",
-    "GC Certificate work (CRUX-1995/2032) both To Do — sequencing question",
-  ],
+  notes: [],
 };
 
 // ---------- DOM helpers ----------
@@ -352,14 +221,15 @@ function jiraCardHtml(it) {
             <span class="meta-cell"><span class="meta-key">Updated</span>${it.updated ? relativeTime(it.updated) : "—"}</span>
             <span class="meta-cell"><span class="meta-key">Created</span>${it.created ? dateOnly(it.created) : "—"}</span>
           </div>
-          ${it.description ? `
-            <div>
-              <div class="detail-section-label">Description</div>
-              <div class="detail-body">${mdBlock(it.description)}</div>
-            </div>` : ""}
+          <div>
+            <div class="detail-section-label">Description</div>
+            ${it.description
+              ? `<div class="detail-body">${mdBlock(it.description)}</div>`
+              : `<div class="text-[12px] text-zinc-500 italic">Description not fetched yet — Phase 2 wires this from <code class="text-pink-300 not-italic">acli jira workitem view</code>.</div>`}
+          </div>
           <div>
             <div class="detail-section-label">Comments <span class="text-zinc-600 font-normal">(${it.comments?.length || 0})</span></div>
-            ${commentsBlockHtml(it.comments)}
+            ${it.comments?.length ? commentsBlockHtml(it.comments) : `<div class="text-[12px] text-zinc-500 italic">Comments not fetched yet.</div>`}
           </div>
           <div class="flex justify-end">
             <a href="${escapeHtml(it.url || "#")}" target="_blank" rel="noopener" class="open-external" onclick="event.stopPropagation();">
@@ -434,18 +304,19 @@ function bbCardHtml(pr) {
             ${stats.filesChanged != null ? `<span class="meta-cell"><span class="meta-key">Files</span>${stats.filesChanged}</span>` : ""}
             ${stats.additions != null ? `<span class="meta-cell"><span class="meta-key">Δ</span><span class="text-emerald-400">+${stats.additions}</span> <span class="text-rose-400">-${stats.deletions || 0}</span></span>` : ""}
           </div>
-          ${pr.description ? `
-            <div>
-              <div class="detail-section-label">Description</div>
-              <div class="detail-body">${mdBlock(pr.description)}</div>
-            </div>` : ""}
+          <div>
+            <div class="detail-section-label">Description</div>
+            ${pr.description
+              ? `<div class="detail-body">${mdBlock(pr.description)}</div>`
+              : `<div class="text-[12px] text-zinc-500 italic">Description not fetched yet — Phase 2 wires the Bitbucket PR detail API.</div>`}
+          </div>
           <div>
             <div class="detail-section-label">Reviewers</div>
             <div class="reviewer-list">${reviewerListHtml(pr.reviewers)}</div>
           </div>
           <div>
             <div class="detail-section-label">Comments <span class="text-zinc-600 font-normal">(${pr.comments?.length || 0})</span></div>
-            ${commentsBlockHtml(pr.comments)}
+            ${pr.comments?.length ? commentsBlockHtml(pr.comments) : `<div class="text-[12px] text-zinc-500 italic">Comments not fetched yet.</div>`}
           </div>
           <div class="flex justify-end">
             <a href="${escapeHtml(pr.url || "#")}" target="_blank" rel="noopener" class="open-external" onclick="event.stopPropagation();">
