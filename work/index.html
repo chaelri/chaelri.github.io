@@ -81,6 +81,41 @@
       </div>
     </div>
 
+    <!-- PAT setup screen (one-time) -->
+    <div id="patScreen" class="hidden fixed inset-0 flex items-center justify-center bg-zinc-950 z-40 px-6">
+      <div class="max-w-md w-full">
+        <div class="mx-auto w-16 h-16 rounded-2xl bg-gradient-to-br from-pink-600 to-rose-700 grid place-items-center shadow-xl shadow-pink-900/30 mb-6">
+          <span class="material-symbols-outlined text-white text-3xl">vpn_key</span>
+        </div>
+        <h1 class="text-xl font-bold mb-2 text-center">One-time setup</h1>
+        <p id="patScreenMsg" class="text-zinc-400 text-sm leading-relaxed mb-5 text-center">
+          Paste a GitHub fine-grained personal access token with <strong class="text-zinc-200">Read</strong> access to <code class="text-pink-300">chaelri/chaelri-work</code>. Stored only in this browser's localStorage.
+        </p>
+        <details class="text-xs text-zinc-500 mb-4 leading-relaxed">
+          <summary class="cursor-pointer hover:text-zinc-300 select-none">How to generate one</summary>
+          <ol class="list-decimal pl-5 mt-2 space-y-1">
+            <li>Go to <a href="https://github.com/settings/personal-access-tokens/new" target="_blank" class="text-pink-400 hover:underline">github.com/settings/personal-access-tokens/new</a></li>
+            <li>Token name: <code>work-brief</code>, expiration ~90 days</li>
+            <li>Resource owner: <code>chaelri</code></li>
+            <li>Repository access: <strong>Only select repositories</strong> → <code>chaelri-work</code></li>
+            <li>Permissions → Repository → <strong>Contents: Read</strong> + <strong>Metadata: Read</strong></li>
+            <li>Generate token, copy <code>github_pat_…</code>, paste below</li>
+          </ol>
+        </details>
+        <input
+          type="password"
+          id="patInput"
+          placeholder="github_pat_…"
+          autocomplete="off"
+          spellcheck="false"
+          class="w-full px-4 py-3 rounded-xl bg-zinc-900 border border-zinc-800 focus:border-pink-500 focus:outline-none text-zinc-200 text-sm font-mono"
+        />
+        <p id="patError" class="hidden mt-2 text-xs text-rose-400"></p>
+        <button id="patSubmit" class="w-full mt-4 px-5 py-3 rounded-xl bg-gradient-to-r from-pink-600 to-rose-700 text-white font-medium text-sm hover:opacity-90 transition active:scale-[0.99]">Save token</button>
+        <button id="patSignOut" class="w-full mt-2 px-5 py-2 text-xs text-zinc-500 hover:text-zinc-300 transition">Sign out instead</button>
+      </div>
+    </div>
+
     <!-- Access denied (signed in but wrong account) -->
     <div id="deniedScreen" class="hidden fixed inset-0 flex items-center justify-center bg-zinc-950 z-40 px-6">
       <div class="max-w-sm w-full text-center">
@@ -119,6 +154,13 @@
           >
             <span class="material-symbols-outlined text-[18px]">refresh</span>
             <span class="hidden sm:inline">Refresh</span>
+          </button>
+          <button
+            id="resetPatBtn"
+            class="inline-flex items-center gap-1.5 px-3 py-2 rounded-lg bg-zinc-900 hover:bg-zinc-800 border border-zinc-800 text-zinc-300 text-xs font-medium transition"
+            title="Update GitHub token"
+          >
+            <span class="material-symbols-outlined text-[18px]">vpn_key</span>
           </button>
           <button
             id="signOutBtn"
@@ -200,6 +242,6 @@
       </footer>
     </main>
 
-    <script type="module" src="app.js?v=4"></script>
+    <script type="module" src="app.js?v=5"></script>
   </body>
 </html>

@@ -26,6 +26,10 @@ const firebaseConfig = {
 };
 
 const ALLOWED_EMAIL = "charliecayno@gmail.com";
+const GH_OWNER = "chaelri";
+const GH_REPO = "chaelri-work";
+const GH_PATH = "briefs";
+const PAT_STORAGE_KEY = "workBriefGhPat";
 
 const app = initializeApp(firebaseConfig);
 const auth = getAuth(app);
@@ -408,8 +412,74 @@ function renderAll(data) {
   renderNotes(data.notes);
 }
 
+// ---------- GitHub Contents API for fetching briefs from chaelri-work ----------
+function getPat() {
+  return localStorage.getItem(PAT_STORAGE_KEY) || "";
+}
+function setPat(v) {
+  if (v) localStorage.setItem(PAT_STORAGE_KEY, v);
+  else localStorage.removeItem(PAT_STORAGE_KEY);
+}
+
+async function ghFetch(path, accept = "application/vnd.github+json") {
+  const pat = getPat();
+  if (!pat) throw new Error("NO_PAT");
+  const url = `https://api.github.com/repos/${GH_OWNER}/${GH_REPO}/contents/${path}`;
+  const res = await fetch(url, {
+    headers: {
+      Authorization: `token ${pat}`,
+      Accept: accept,
+      "X-GitHub-Api-Version": "2022-11-28",
+    },
+  });
+  if (res.status === 401 || res.status === 403) {
+    throw new Error("BAD_PAT");
+  }
+  if (res.status === 404) {
+    throw new Error("NOT_FOUND");
+  }
+  if (!res.ok) {
+    throw new Error(`GH_HTTP_${res.status}`);
+  }
+  return res;
+}
+
+async function loadLatestBriefJson() {
+  // 1. List briefs/ directory
+  const listRes = await ghFetch(GH_PATH);
+  const items = await listRes.json();
+  const jsons = items
+    .filter((i) => i.type === "file" && i.name.endsWith(".json"))
+    .sort((a, b) => b.name.localeCompare(a.name)); // YYYY-MM-DD sorts as text ✓
+  if (jsons.length === 0) throw new Error("NO_BRIEFS_YET");
+  const latest = jsons[0];
+
+  // 2. Fetch its raw content
+  const rawRes = await ghFetch(`${GH_PATH}/${latest.name}`, "application/vnd.github.raw");
+  const data = await rawRes.json();
+  return { data, filename: latest.name };
+}
+
 async function loadBrief() {
-  return SAMPLE_DATA;
+  const pat = getPat();
+  if (!pat) {
+    showPatScreen();
+    throw new Error("NO_PAT");
+  }
+  try {
+    const { data } = await loadLatestBriefJson();
+    return data;
+  } catch (err) {
+    if (err.message === "BAD_PAT") {
+      showPatScreen("Token rejected by GitHub. Generate a new fine-grained token (read access to chaelri/chaelri-work) and paste below.");
+      throw err;
+    }
+    if (err.message === "NO_PAT") {
+      showPatScreen();
+      throw err;
+    }
+    throw err;
+  }
 }
 
 async function refreshDashboard() {
@@ -419,11 +489,36 @@ async function refreshDashboard() {
     const data = await loadBrief();
     renderAll(data);
   } catch (err) {
+    if (err.message === "NO_PAT" || err.message === "BAD_PAT") {
+      // Already showed PAT screen
+      return;
+    }
+    if (err.message === "NOT_FOUND" || err.message === "NO_BRIEFS_YET") {
+      console.warn("No briefs yet — showing sample fallback");
+      renderAll(SAMPLE_DATA);
+      $("footerStatus").textContent = "No briefs in chaelri-work yet — showing sample. Run `wbrief` on your laptop to generate today's.";
+      return;
+    }
     console.error("loadBrief failed", err);
     $("footerStatus").textContent = `Load failed: ${err.message || err}`;
   } finally {
     btn?.classList.remove("spinning");
   }
+}
+
+function showPatScreen(msg) {
+  hide("dashboard"); hide("deniedScreen"); hide("signInScreen"); hide("bootScreen");
+  show("patScreen");
+  if (msg) {
+    $("patScreenMsg").innerHTML = `<span class="text-rose-400">${escapeHtml(msg)}</span>`;
+  }
+  // Pre-fill if we already have one (so user can correct it)
+  const existing = getPat();
+  if (existing) $("patInput").value = existing;
+  setTimeout(() => $("patInput")?.focus(), 50);
+}
+function hidePatScreen() {
+  hide("patScreen");
 }
 
 // Expand-in-place via event delegation (works after rerender too)
@@ -446,16 +541,16 @@ function resolveEmail(user) {
 async function gateAndShow(user) {
   const email = resolveEmail(user);
   if (email !== ALLOWED_EMAIL) {
-    hide("dashboard"); hide("signInScreen"); hide("bootScreen"); show("deniedScreen");
+    hide("dashboard"); hide("signInScreen"); hide("bootScreen"); hide("patScreen"); show("deniedScreen");
     $("deniedMsg").textContent = `Signed in as ${email || user?.displayName || "(no email shared)"}. This dashboard is locked to ${ALLOWED_EMAIL}.`;
     return;
   }
-  hide("bootScreen"); hide("signInScreen"); hide("deniedScreen"); show("dashboard");
+  hide("bootScreen"); hide("signInScreen"); hide("deniedScreen"); hide("patScreen"); show("dashboard");
   await refreshDashboard();
 }
 
 function showSignIn() {
-  hide("bootScreen"); hide("dashboard"); hide("deniedScreen"); show("signInScreen");
+  hide("bootScreen"); hide("dashboard"); hide("deniedScreen"); hide("patScreen"); show("signInScreen");
 }
 
 onAuthStateChanged(auth, (user) => user ? gateAndShow(user) : showSignIn());
@@ -479,6 +574,49 @@ $("signInBtn").addEventListener("click", async () => {
 $("deniedSignOut").addEventListener("click", () => signOut(auth));
 $("signOutBtn").addEventListener("click", () => signOut(auth));
 $("refreshBtn").addEventListener("click", refreshDashboard);
+$("resetPatBtn").addEventListener("click", () => {
+  setPat("");
+  showPatScreen("Paste a fresh fine-grained PAT (read access to chaelri/chaelri-work).");
+});
+
+$("patSubmit").addEventListener("click", async () => {
+  const errEl = $("patError");
+  errEl.classList.add("hidden");
+  const v = $("patInput").value.trim();
+  if (!v) {
+    errEl.textContent = "Paste a token first.";
+    errEl.classList.remove("hidden");
+    return;
+  }
+  // Quick smoke test against /repos/{owner}/{repo}
+  try {
+    const res = await fetch(`https://api.github.com/repos/${GH_OWNER}/${GH_REPO}`, {
+      headers: { Authorization: `token ${v}`, Accept: "application/vnd.github+json" },
+    });
+    if (res.status === 401 || res.status === 403) {
+      errEl.textContent = "GitHub rejected this token. Check scopes (Contents: Read on chaelri-work).";
+      errEl.classList.remove("hidden");
+      return;
+    }
+    if (!res.ok) {
+      errEl.textContent = `GitHub HTTP ${res.status}. Try again.`;
+      errEl.classList.remove("hidden");
+      return;
+    }
+    setPat(v);
+    hidePatScreen();
+    show("dashboard");
+    await refreshDashboard();
+  } catch (e) {
+    errEl.textContent = `Network error: ${e.message || e}`;
+    errEl.classList.remove("hidden");
+  }
+});
+
+$("patSignOut").addEventListener("click", () => {
+  setPat("");
+  signOut(auth);
+});
 
 // ---------- Service worker ----------
 if ("serviceWorker" in navigator) {
