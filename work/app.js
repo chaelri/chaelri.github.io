@@ -410,13 +410,23 @@ async function refreshDashboard() {
 }
 
 // ---------- Auth flow ----------
+function resolveEmail(user) {
+  // Firebase sometimes returns user.email as null for Google sign-in
+  // (privacy / scope quirks). Fall back to providerData entries.
+  if (user?.email) return user.email.toLowerCase();
+  const fromProvider = user?.providerData?.find((p) => p?.email)?.email;
+  return fromProvider ? fromProvider.toLowerCase() : null;
+}
+
 async function gateAndShow(user) {
-  if (user.email !== ALLOWED_EMAIL) {
+  const email = resolveEmail(user);
+  if (email !== ALLOWED_EMAIL) {
     hide("dashboard");
     hide("signInScreen");
     hide("bootScreen");
     show("deniedScreen");
-    $("deniedMsg").textContent = `Signed in as ${user.email}. This dashboard is locked to ${ALLOWED_EMAIL}.`;
+    const shown = email || user?.displayName || "(no email shared)";
+    $("deniedMsg").textContent = `Signed in as ${shown}. This dashboard is locked to ${ALLOWED_EMAIL}.`;
     return;
   }
   hide("bootScreen");
@@ -445,7 +455,11 @@ $("signInBtn").addEventListener("click", async () => {
   const errEl = $("signInError");
   errEl.classList.add("hidden");
   try {
-    await signInWithPopup(auth, new GoogleAuthProvider());
+    const provider = new GoogleAuthProvider();
+    provider.addScope("email");
+    provider.addScope("profile");
+    provider.setCustomParameters({ prompt: "select_account" });
+    await signInWithPopup(auth, provider);
   } catch (err) {
     console.error("sign-in error", err);
     errEl.textContent = err.message || "Sign-in failed.";
