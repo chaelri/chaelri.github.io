@@ -1,7 +1,9 @@
 // chaelri.github.io/work/app.js
 // Phase 1: Firebase Auth gate (Google Sign-in, locked to charliecayno@gmail.com)
-//          + render dashboard from sample data baked into this file.
-// Phase 2 (next): replace SAMPLE_DATA reads with Firebase RTDB at /work-brief/{uid}/{date}.
+//          + rich rendering (description / comments / reviewer state) from sample data.
+// Phase 2 (next): replace SAMPLE_DATA reads with Firebase RTDB at /work-brief/{uid}/{date},
+//          and update ~/bin/work-brief.sh to fetch the rich payload (jira issue view,
+//          bitbucket pullrequest activity) and POST to a gemini-proxy endpoint.
 
 import { initializeApp } from "https://www.gstatic.com/firebasejs/11.0.2/firebase-app.js";
 import {
@@ -11,15 +13,11 @@ import {
   onAuthStateChanged,
   signOut,
 } from "https://www.gstatic.com/firebasejs/11.0.2/firebase-auth.js";
-// import { getDatabase, ref, get } from "https://www.gstatic.com/firebasejs/11.0.2/firebase-database.js";
-//   ↑ uncomment in Phase 2 when we wire the live data path
 
-// ---------- Firebase config (shared with rest of chaelri.github.io) ----------
 const firebaseConfig = {
   apiKey: "AIzaSyB8ahT56WbEUaGAymsRNNA-DrfZnUnWIwk",
   authDomain: "test-database-55379.firebaseapp.com",
-  databaseURL:
-    "https://test-database-55379-default-rtdb.asia-southeast1.firebasedatabase.app",
+  databaseURL: "https://test-database-55379-default-rtdb.asia-southeast1.firebasedatabase.app",
   projectId: "test-database-55379",
   storageBucket: "test-database-55379.firebasestorage.app",
   messagingSenderId: "933688602756",
@@ -31,9 +29,8 @@ const ALLOWED_EMAIL = "charliecayno@gmail.com";
 
 const app = initializeApp(firebaseConfig);
 const auth = getAuth(app);
-// const db = getDatabase(app);
 
-// ---------- Sample data (Phase 1 placeholder — replaced by RTDB read in Phase 2) ----------
+// ---------- Sample data (rich) ----------
 const SAMPLE_DATA = {
   generatedAt: "2026-05-03T08:50:15+08:00",
   date: "2026-05-03",
@@ -51,6 +48,17 @@ const SAMPLE_DATA = {
         priority: "Low",
         summary: "Marsh cert: custom wordings appear after core cert",
         url: "https://azurtechnology.atlassian.net/browse/CRUX-1998",
+        description:
+          "When generating Marsh certs, the custom wordings block is rendering **after** the core cert details. Expected order is custom wordings BEFORE the core cert so the customer reads the policy-specific overrides first.\n\nReproduces on Marsh-bound policies with > 3 layers, both NB and renewal flows. Likely the template merge order in `CertGenerator.cls`.",
+        labels: ["cert", "marsh"],
+        assignee: "Charlie Cayno",
+        reporter: "Curt T",
+        created: "2026-04-15T03:14:00+00:00",
+        updated: "2026-05-01T07:22:00+00:00",
+        comments: [
+          { author: "Curt T", body: "I think the merge order swap is in CertGenerator.cls:234. Try moving customWordings.merge() before coreCert.merge().", created: "2026-04-30T02:11:00+00:00" },
+          { author: "Charlie Cayno", body: "Tried that — broke 12 unit tests because customWordings depends on coreCert.policyId being set first. Need to extract policyId resolution earlier.", created: "2026-05-01T07:22:00+00:00" },
+        ],
       },
       {
         key: "CRUX-1995",
@@ -59,6 +67,14 @@ const SAMPLE_DATA = {
         priority: "Low",
         summary: "GC Certificate: update reinsurance certificate template",
         url: "https://azurtechnology.atlassian.net/browse/CRUX-1995",
+        description:
+          "Reinsurance section on GC certificate template needs updated wording per legal team's Q1 2026 review. New copy in attached doc.\n\nApplies to GC binder only — Marsh/Lloyd's templates already updated in CRUX-1923.",
+        labels: ["cert", "gc"],
+        assignee: "Charlie Cayno",
+        reporter: "Legal-Ops",
+        created: "2026-04-12T09:00:00+00:00",
+        updated: "2026-04-12T09:00:00+00:00",
+        comments: [],
       },
       {
         key: "CRUX-2032",
@@ -67,6 +83,16 @@ const SAMPLE_DATA = {
         priority: "Low",
         summary: "Generate revised GC certificate template on bind for QuoteBox API user",
         url: "https://azurtechnology.atlassian.net/browse/CRUX-2032",
+        description:
+          "Once CRUX-1995 lands, the QuoteBox API path needs to pick up the revised GC cert template at bind time. Currently QuoteBox path bypasses the template registry and uses a hard-coded snapshot.\n\nPotentially blocked by CRUX-1995 (need the new template merged first).",
+        labels: ["cert", "gc", "quotebox-api"],
+        assignee: "Charlie Cayno",
+        reporter: "Curt T",
+        created: "2026-04-28T11:30:00+00:00",
+        updated: "2026-04-28T11:30:00+00:00",
+        comments: [
+          { author: "Curt T", body: "Sequencing this AFTER CRUX-1995. Don't start until that one merges.", created: "2026-04-28T11:30:00+00:00" },
+        ],
       },
     ],
     recent24h: [],
@@ -78,32 +104,81 @@ const SAMPLE_DATA = {
         title: "CRUX-1939: Map '9987 - ROW ex UK - Core Market' binder name to ROW ex UK (CRX9987) picklist",
         url: "https://bitbucket.org/truffengers/crux-underwriting/pull-requests/1280",
         ageDays: 10,
-        reviewers: ["Curt", "Rayson"],
+        createdAt: "2026-04-23T17:18:22+00:00",
+        updatedAt: "2026-04-30T05:12:00+00:00",
+        description:
+          "Maps the legacy binder name `9987 - ROW ex UK - Core Market` to the new picklist value `CRX9987` in the binder selector. Reporting downstream filters on the picklist enum, so unmapped legacy names were dropping out of dashboards.\n\nTested 3 quotes — all routed correctly.",
+        branch: "feature/CRUX-1939",
+        destBranch: "develop",
+        reviewers: [
+          { name: "Curt T", approved: false },
+          { name: "Rayson L", approved: false },
+        ],
         approvals: 0,
+        comments: [
+          { author: "Rayson L", body: "Should this also handle 9988 / 9989 from the same migration?", created: "2026-04-25T03:00:00+00:00" },
+          { author: "Charlie Cayno", body: "9988/9989 are in CRUX-2031 (next PR up). Keeping this one focused on 9987.", created: "2026-04-25T04:10:00+00:00" },
+        ],
+        stats: { commits: 3, filesChanged: 2, additions: 24, deletions: 8 },
       },
       {
         id: 1286,
         title: "CRUX-2031: Add DnB option to Cedant Code Type picklist",
         url: "https://bitbucket.org/truffengers/crux-underwriting/pull-requests/1286",
         ageDays: 6,
-        reviewers: ["Curt", "Rayson"],
+        createdAt: "2026-04-27T08:00:00+00:00",
+        updatedAt: "2026-04-27T08:00:00+00:00",
+        description:
+          "Adds `DnB` (Dun & Bradstreet) as a Cedant Code Type picklist value, requested by the Marsh ops team for new bordereaux mapping. Picklist updated; no schema or controller changes needed.",
+        branch: "feature/CRUX-2031",
+        destBranch: "develop",
+        reviewers: [
+          { name: "Curt T", approved: false },
+          { name: "Rayson L", approved: false },
+        ],
         approvals: 0,
+        comments: [],
+        stats: { commits: 1, filesChanged: 1, additions: 3, deletions: 0 },
       },
       {
         id: 1287,
         title: "CRUX-2036: Non-Standard Form S&T wrap referral rule (broker-agnostic)",
         url: "https://bitbucket.org/truffengers/crux-underwriting/pull-requests/1287",
         ageDays: 6,
-        reviewers: ["Curt", "Rayson"],
+        createdAt: "2026-04-27T12:09:00+00:00",
+        updatedAt: "2026-04-28T02:00:00+00:00",
+        description:
+          "Adds a broker-agnostic referral rule for **Non-Standard Form S&T wrap** policies. Previously the rule was scoped to specific brokers via `RuleScope__c.broker`; now triggers regardless of broker so all S&T wrap quotes route to the right underwriter.\n\nReplaces 4 broker-specific rules (CRUX-1842/-1857/-1903/-1944) with a single rule.",
+        branch: "feature/CRUX-2036",
+        destBranch: "develop",
+        reviewers: [
+          { name: "Curt T", approved: false },
+          { name: "Rayson L", approved: false },
+        ],
         approvals: 0,
+        comments: [
+          { author: "Rayson L", body: "What happens to the 4 broker-specific rules — kept disabled, or deleted? Want to make sure we have an audit trail.", created: "2026-04-28T02:00:00+00:00" },
+        ],
+        stats: { commits: 2, filesChanged: 3, additions: 31, deletions: 87 },
       },
       {
         id: 1288,
         title: "CRUX-2033: Map QuoteBox policyFormType/wordingsApplicable to Crux fields",
         url: "https://bitbucket.org/truffengers/crux-underwriting/pull-requests/1288",
         ageDays: 5,
-        reviewers: ["Curt", "Rayson"],
+        createdAt: "2026-04-28T05:22:51+00:00",
+        updatedAt: "2026-04-28T05:22:51+00:00",
+        description:
+          "Maps QuoteBox API request fields `policyFormType` and `wordingsApplicable` onto Crux's internal `Policy_Form_Type__c` and `Wording_Applicable__c` fields. Required for incoming QuoteBox quotes to land with the correct cert template hooks.\n\nNo behaviour change for non-QuoteBox flows.",
+        branch: "feature/CRUX-2033",
+        destBranch: "develop",
+        reviewers: [
+          { name: "Curt T", approved: false },
+          { name: "Rayson L", approved: false },
+        ],
         approvals: 0,
+        comments: [],
+        stats: { commits: 1, filesChanged: 2, additions: 18, deletions: 0 },
       },
     ],
     reviewing: [],
@@ -136,27 +211,25 @@ const slug = (s) => String(s).toLowerCase().replace(/\s+/g, "-");
 function show(id) { $(id)?.classList.remove("hidden"); }
 function hide(id) { $(id)?.classList.add("hidden"); }
 
-// ---------- Render: header ----------
-function renderHeader(data) {
-  const d = new Date(data.date + "T00:00:00");
-  const niceDate = d.toLocaleDateString("en-US", {
-    weekday: "long", month: "long", day: "numeric", year: "numeric",
-  });
-  $("hdrDate").textContent = niceDate;
-
-  const gen = data.generatedAt ? new Date(data.generatedAt) : null;
-  if (gen) {
-    const rel = relativeTime(gen);
-    const time = gen.toLocaleTimeString("en-US", { hour: "numeric", minute: "2-digit" });
-    $("hdrUpdated").textContent = `Updated ${rel} · ${time}`;
-    $("footerStatus").textContent = `Generated at ${gen.toLocaleString("en-US")}`;
-  } else {
-    $("hdrUpdated").textContent = "No timestamp on this brief";
-  }
+// Tiny markdown-ish renderer for descriptions/comments. Handles **bold**, `code`,
+// line breaks, and bare URLs. Not a full markdown engine — keeps the bundle tiny.
+function mdInline(s) {
+  let out = escapeHtml(String(s ?? ""));
+  out = out.replace(/`([^`]+)`/g, '<code class="px-1 py-0.5 bg-zinc-800 rounded text-pink-300 text-[12px]">$1</code>');
+  out = out.replace(/\*\*([^*]+)\*\*/g, "<strong>$1</strong>");
+  out = out.replace(/(https?:\/\/[^\s<]+)/g, '<a href="$1" target="_blank" rel="noopener" class="text-pink-400 hover:underline">$1</a>');
+  return out;
+}
+function mdBlock(s) {
+  // Preserve double-newline paragraph breaks; single newlines → <br>.
+  return String(s ?? "")
+    .split(/\n\s*\n/)
+    .map((p) => `<p>${mdInline(p).replace(/\n/g, "<br>")}</p>`)
+    .join("");
 }
 
 function relativeTime(date) {
-  const diffMs = Date.now() - date.getTime();
+  const diffMs = Date.now() - new Date(date).getTime();
   const m = Math.round(diffMs / 60000);
   if (m < 1) return "just now";
   if (m < 60) return `${m}m ago`;
@@ -165,20 +238,45 @@ function relativeTime(date) {
   const d = Math.round(h / 24);
   return `${d}d ago`;
 }
+function dateOnly(d) {
+  if (!d) return "";
+  return new Date(d).toLocaleDateString("en-US", { month: "short", day: "numeric" });
+}
+
+// Track which cards are expanded
+const expandedCards = new Set();
+function toggleExpand(id) {
+  if (expandedCards.has(id)) expandedCards.delete(id);
+  else expandedCards.add(id);
+  document.querySelectorAll(`[data-card-id="${id}"]`).forEach((el) => {
+    el.classList.toggle("is-expanded", expandedCards.has(id));
+  });
+}
+
+// ---------- Render: header ----------
+function renderHeader(data) {
+  const d = new Date(data.date + "T00:00:00");
+  $("hdrDate").textContent = d.toLocaleDateString("en-US", {
+    weekday: "long", month: "long", day: "numeric", year: "numeric",
+  });
+  const gen = data.generatedAt ? new Date(data.generatedAt) : null;
+  if (gen) {
+    $("hdrUpdated").textContent = `Updated ${relativeTime(gen)} · ${gen.toLocaleTimeString("en-US", { hour: "numeric", minute: "2-digit" })}`;
+    $("footerStatus").textContent = `Generated at ${gen.toLocaleString("en-US")}`;
+  } else {
+    $("hdrUpdated").textContent = "No timestamp on this brief";
+  }
+}
 
 // ---------- Render: top of mind ----------
 function renderTopOfMind(items) {
   const mount = $("topOfMind");
-  if (!items || items.length === 0) {
-    mount.innerHTML = `<div class="empty">Nothing flagged today.</div>`;
-    return;
-  }
+  if (!items?.length) { mount.innerHTML = `<div class="empty">Nothing flagged today.</div>`; return; }
   mount.innerHTML = items.map((t) => `
     <div class="tom-row fade-in">
       <span class="material-symbols-outlined">arrow_right</span>
-      <span>${escapeHtml(t)}</span>
-    </div>
-  `).join("");
+      <span>${mdInline(t)}</span>
+    </div>`).join("");
 }
 
 // ---------- Render: jira ----------
@@ -191,58 +289,10 @@ function statusKey(s) {
   if (v === "to do" || v === "open" || v === "backlog") return "todo";
   return "default";
 }
-function priorityKey(p) {
-  return String(p || "").toLowerCase();
-}
+const priorityKey = (p) => String(p || "").toLowerCase();
 
-function renderJira(jira) {
-  const list = jira?.assigned || [];
-  const recent = jira?.recent24h || [];
-  $("jiraCount").textContent = list.length ? `${list.length} active` : "";
-
-  const mount = $("jiraList");
-  if (list.length === 0) {
-    mount.innerHTML = `<div class="empty">No assigned issues.</div>`;
-  } else {
-    mount.innerHTML = list.map((it) => `
-      <a href="${escapeHtml(it.url || "#")}" target="_blank" rel="noopener" class="card block px-4 py-3 group fade-in">
-        <div class="flex items-start gap-3">
-          <span class="priority-dot mt-2" data-priority="${priorityKey(it.priority)}" title="${escapeHtml(it.priority || "")}"></span>
-          <div class="min-w-0 flex-1">
-            <div class="flex items-center flex-wrap gap-2 mb-1">
-              <span class="font-mono text-[11px] tracking-tight text-pink-300 font-semibold">${escapeHtml(it.key)}</span>
-              <span class="status-pill" data-status="${statusKey(it.status)}">${escapeHtml(it.status || "?")}</span>
-              ${it.type ? `<span class="text-[10.5px] uppercase tracking-wider text-zinc-500">${escapeHtml(it.type)}</span>` : ""}
-            </div>
-            <div class="text-sm text-zinc-200 leading-snug group-hover:text-white">${escapeHtml(it.summary || "")}</div>
-          </div>
-          <span class="material-symbols-outlined text-zinc-600 text-[18px] mt-1 group-hover:text-pink-400 transition">open_in_new</span>
-        </div>
-      </a>
-    `).join("");
-  }
-
-  // Recent
-  if (recent.length) {
-    show("jiraRecentWrap");
-    $("jiraRecent").innerHTML = recent.map((it) => `
-      <a href="${escapeHtml(it.url || "#")}" target="_blank" rel="noopener" class="card block px-3.5 py-2.5">
-        <div class="flex items-center gap-2 flex-wrap">
-          <span class="font-mono text-[11px] text-pink-300 font-semibold">${escapeHtml(it.key)}</span>
-          <span class="status-pill" data-status="${statusKey(it.status)}">${escapeHtml(it.status || "?")}</span>
-          <span class="text-xs text-zinc-300 truncate flex-1">${escapeHtml(it.summary || "")}</span>
-        </div>
-      </a>
-    `).join("");
-  } else {
-    hide("jiraRecentWrap");
-  }
-}
-
-// ---------- Render: bitbucket ----------
 function avatarFor(name) {
   const initials = String(name || "?").trim().split(/\s+/).map(s => s[0]).join("").slice(0, 2).toUpperCase();
-  // deterministic color from name
   const colors = [
     "linear-gradient(135deg,#6366f1,#3b82f6)",
     "linear-gradient(135deg,#10b981,#059669)",
@@ -251,38 +301,160 @@ function avatarFor(name) {
     "linear-gradient(135deg,#a855f7,#7c3aed)",
     "linear-gradient(135deg,#06b6d4,#0891b2)",
   ];
-  let hash = 0;
-  for (const ch of String(name || "")) hash = (hash * 31 + ch.charCodeAt(0)) >>> 0;
-  const bg = colors[hash % colors.length];
-  return `<span class="avatar" style="background:${bg}" title="${escapeHtml(name)}">${escapeHtml(initials)}</span>`;
+  let h = 0;
+  for (const ch of String(name || "")) h = (h * 31 + ch.charCodeAt(0)) >>> 0;
+  return `<span class="avatar" style="background:${colors[h % colors.length]}" title="${escapeHtml(name)}">${escapeHtml(initials)}</span>`;
 }
 
-function prCardHtml(pr) {
-  const stale = pr.ageDays >= 7;
-  const reviewers = (pr.reviewers || []).map(avatarFor).join("");
-  const approvalsBadge = pr.approvals > 0
-    ? `<span class="text-[11px] font-medium text-emerald-400 inline-flex items-center gap-1"><span class="material-symbols-outlined text-[14px]">check_circle</span>${pr.approvals} approval${pr.approvals === 1 ? "" : "s"}</span>`
-    : `<span class="text-[11px] text-zinc-500 inline-flex items-center gap-1"><span class="material-symbols-outlined text-[14px]">pending</span>0 approvals</span>`;
+function commentsBlockHtml(comments) {
+  if (!comments?.length) return `<div class="text-[12px] text-zinc-500 italic">No comments yet.</div>`;
   return `
-    <a href="${escapeHtml(pr.url || "#")}" target="_blank" rel="noopener" class="card block px-4 py-3 group fade-in">
-      <div class="flex items-start gap-3">
-        <div class="min-w-0 flex-1">
-          <div class="flex items-center gap-2 mb-1.5 flex-wrap">
-            <span class="font-mono text-[11px] tracking-tight text-emerald-300 font-semibold">#${pr.id}</span>
-            <span class="age-chip" data-stale="${stale ? 1 : 0}">
-              <span class="material-symbols-outlined text-[12px]">schedule</span>${pr.ageDays}d
-            </span>
-            ${approvalsBadge}
+    <div class="comments-list">
+      ${comments.map((c) => `
+        <div class="comment-row">
+          ${avatarFor(c.author)}
+          <div class="min-w-0 flex-1">
+            <div class="flex items-baseline gap-2 mb-0.5">
+              <span class="text-[12px] font-semibold text-zinc-200">${escapeHtml(c.author || "?")}</span>
+              <span class="text-[10.5px] text-zinc-500" title="${escapeHtml(c.created || "")}">${c.created ? relativeTime(c.created) : ""}</span>
+            </div>
+            <div class="text-[13px] text-zinc-300 leading-relaxed prose-tight">${mdInline(c.body || "")}</div>
           </div>
-          <div class="text-sm text-zinc-200 leading-snug mb-2 group-hover:text-white">${escapeHtml(pr.title || "")}</div>
-          <div class="flex items-center gap-1">
-            ${reviewers || `<span class="text-[11px] text-zinc-500">No reviewers</span>`}
+        </div>`).join("")}
+    </div>`;
+}
+
+function jiraCardHtml(it) {
+  const id = `jira-${it.key}`;
+  const expanded = expandedCards.has(id);
+  return `
+    <div data-card-id="${id}" class="card detail-card ${expanded ? "is-expanded" : ""} fade-in" data-expand>
+      <div class="card-summary px-4 py-3 cursor-pointer" data-expand-trigger>
+        <div class="flex items-start gap-3">
+          <span class="priority-dot mt-2" data-priority="${priorityKey(it.priority)}" title="${escapeHtml(it.priority || "")}"></span>
+          <div class="min-w-0 flex-1">
+            <div class="flex items-center flex-wrap gap-2 mb-1">
+              <span class="font-mono text-[11px] tracking-tight text-pink-300 font-semibold">${escapeHtml(it.key)}</span>
+              <span class="status-pill" data-status="${statusKey(it.status)}">${escapeHtml(it.status || "?")}</span>
+              ${it.type ? `<span class="text-[10.5px] uppercase tracking-wider text-zinc-500">${escapeHtml(it.type)}</span>` : ""}
+              ${it.labels?.length ? it.labels.map(l => `<span class="label-chip">${escapeHtml(l)}</span>`).join("") : ""}
+            </div>
+            <div class="text-sm text-zinc-200 leading-snug">${escapeHtml(it.summary || "")}</div>
+          </div>
+          <span class="expand-chevron material-symbols-outlined text-zinc-500 text-[20px] mt-1">expand_more</span>
+        </div>
+      </div>
+      <div class="card-detail">
+        <div class="px-4 pb-4 pt-1 space-y-4 border-t border-zinc-800/60">
+          <div class="meta-row">
+            <span class="meta-cell"><span class="meta-key">Assignee</span>${escapeHtml(it.assignee || "—")}</span>
+            <span class="meta-cell"><span class="meta-key">Reporter</span>${escapeHtml(it.reporter || "—")}</span>
+            <span class="meta-cell"><span class="meta-key">Updated</span>${it.updated ? relativeTime(it.updated) : "—"}</span>
+            <span class="meta-cell"><span class="meta-key">Created</span>${it.created ? dateOnly(it.created) : "—"}</span>
+          </div>
+          ${it.description ? `
+            <div>
+              <div class="detail-section-label">Description</div>
+              <div class="detail-body">${mdBlock(it.description)}</div>
+            </div>` : ""}
+          <div>
+            <div class="detail-section-label">Comments <span class="text-zinc-600 font-normal">(${it.comments?.length || 0})</span></div>
+            ${commentsBlockHtml(it.comments)}
+          </div>
+          <div class="flex justify-end">
+            <a href="${escapeHtml(it.url || "#")}" target="_blank" rel="noopener" class="open-external" onclick="event.stopPropagation();">
+              <span class="material-symbols-outlined text-[14px]">open_in_new</span> Open in Jira
+            </a>
           </div>
         </div>
-        <span class="material-symbols-outlined text-zinc-600 text-[18px] mt-1 group-hover:text-emerald-400 transition">open_in_new</span>
       </div>
-    </a>
-  `;
+    </div>`;
+}
+
+function renderJira(jira) {
+  const list = jira?.assigned || [];
+  const recent = jira?.recent24h || [];
+  $("jiraCount").textContent = list.length ? `${list.length} active` : "";
+  $("jiraList").innerHTML = list.length
+    ? list.map(jiraCardHtml).join("")
+    : `<div class="empty">No assigned issues.</div>`;
+
+  if (recent.length) {
+    show("jiraRecentWrap");
+    $("jiraRecent").innerHTML = recent.map(jiraCardHtml).join("");
+  } else {
+    hide("jiraRecentWrap");
+  }
+}
+
+// ---------- Render: bitbucket ----------
+function reviewerListHtml(reviewers) {
+  if (!reviewers?.length) return `<span class="text-[11px] text-zinc-500">No reviewers</span>`;
+  return reviewers.map((r) => {
+    const approved = r.approved;
+    const cls = approved ? "reviewer-row approved" : "reviewer-row pending";
+    const icon = approved ? "check_circle" : "pending";
+    return `<span class="${cls}">${avatarFor(r.name)}<span class="text-[12px]">${escapeHtml(r.name)}</span><span class="material-symbols-outlined text-[14px]">${icon}</span></span>`;
+  }).join("");
+}
+
+function bbCardHtml(pr) {
+  const id = `bb-${pr.id}`;
+  const expanded = expandedCards.has(id);
+  const stale = pr.ageDays >= 7;
+  const reviewerAvatars = (pr.reviewers || []).map((r) => avatarFor(r.name)).join("");
+  const stats = pr.stats || {};
+  return `
+    <div data-card-id="${id}" class="card detail-card ${expanded ? "is-expanded" : ""} fade-in" data-expand>
+      <div class="card-summary px-4 py-3 cursor-pointer" data-expand-trigger>
+        <div class="flex items-start gap-3">
+          <div class="min-w-0 flex-1">
+            <div class="flex items-center gap-2 mb-1.5 flex-wrap">
+              <span class="font-mono text-[11px] tracking-tight text-emerald-300 font-semibold">#${pr.id}</span>
+              <span class="age-chip" data-stale="${stale ? 1 : 0}">
+                <span class="material-symbols-outlined text-[12px]">schedule</span>${pr.ageDays}d
+              </span>
+              ${pr.approvals > 0
+                ? `<span class="text-[11px] font-medium text-emerald-400 inline-flex items-center gap-1"><span class="material-symbols-outlined text-[14px]">check_circle</span>${pr.approvals} approval${pr.approvals === 1 ? "" : "s"}</span>`
+                : `<span class="text-[11px] text-zinc-500 inline-flex items-center gap-1"><span class="material-symbols-outlined text-[14px]">pending</span>0 approvals</span>`}
+              ${pr.comments?.length ? `<span class="text-[11px] text-zinc-500 inline-flex items-center gap-1"><span class="material-symbols-outlined text-[14px]">forum</span>${pr.comments.length}</span>` : ""}
+            </div>
+            <div class="text-sm text-zinc-200 leading-snug mb-2">${escapeHtml(pr.title || "")}</div>
+            <div class="flex items-center gap-1">${reviewerAvatars}</div>
+          </div>
+          <span class="expand-chevron material-symbols-outlined text-zinc-500 text-[20px] mt-1">expand_more</span>
+        </div>
+      </div>
+      <div class="card-detail">
+        <div class="px-4 pb-4 pt-1 space-y-4 border-t border-zinc-800/60">
+          <div class="meta-row">
+            <span class="meta-cell"><span class="meta-key">Branch</span><code class="text-pink-300">${escapeHtml(pr.branch || "?")}</code> → <code class="text-zinc-400">${escapeHtml(pr.destBranch || "?")}</code></span>
+            <span class="meta-cell"><span class="meta-key">Updated</span>${pr.updatedAt ? relativeTime(pr.updatedAt) : "—"}</span>
+            ${stats.commits != null ? `<span class="meta-cell"><span class="meta-key">Commits</span>${stats.commits}</span>` : ""}
+            ${stats.filesChanged != null ? `<span class="meta-cell"><span class="meta-key">Files</span>${stats.filesChanged}</span>` : ""}
+            ${stats.additions != null ? `<span class="meta-cell"><span class="meta-key">Δ</span><span class="text-emerald-400">+${stats.additions}</span> <span class="text-rose-400">-${stats.deletions || 0}</span></span>` : ""}
+          </div>
+          ${pr.description ? `
+            <div>
+              <div class="detail-section-label">Description</div>
+              <div class="detail-body">${mdBlock(pr.description)}</div>
+            </div>` : ""}
+          <div>
+            <div class="detail-section-label">Reviewers</div>
+            <div class="reviewer-list">${reviewerListHtml(pr.reviewers)}</div>
+          </div>
+          <div>
+            <div class="detail-section-label">Comments <span class="text-zinc-600 font-normal">(${pr.comments?.length || 0})</span></div>
+            ${commentsBlockHtml(pr.comments)}
+          </div>
+          <div class="flex justify-end">
+            <a href="${escapeHtml(pr.url || "#")}" target="_blank" rel="noopener" class="open-external" onclick="event.stopPropagation();">
+              <span class="material-symbols-outlined text-[14px]">open_in_new</span> Open in Bitbucket
+            </a>
+          </div>
+        </div>
+      </div>
+    </div>`;
 }
 
 function renderBitbucket(bb) {
@@ -291,48 +463,31 @@ function renderBitbucket(bb) {
   const total = mine.length + reviewing.length;
   $("bbCount").textContent = total ? `${total} open` : "";
 
-  if (mine.length === 0 && reviewing.length === 0) {
-    $("bbMineWrap").classList.remove("hidden");
+  if (total === 0) {
+    show("bbMineWrap");
     $("bbMine").innerHTML = `<div class="empty">No open PRs. 🎉</div>`;
     hide("bbReviewingWrap");
     return;
   }
-
   if (mine.length) {
     show("bbMineWrap");
-    $("bbMine").innerHTML = mine.map(prCardHtml).join("");
-  } else {
-    hide("bbMineWrap");
-  }
+    $("bbMine").innerHTML = mine.map(bbCardHtml).join("");
+  } else hide("bbMineWrap");
   if (reviewing.length) {
     show("bbReviewingWrap");
-    $("bbReviewing").innerHTML = reviewing.map(prCardHtml).join("");
-  } else {
-    hide("bbReviewingWrap");
-  }
+    $("bbReviewing").innerHTML = reviewing.map(bbCardHtml).join("");
+  } else hide("bbReviewingWrap");
 }
 
 // ---------- Render: salesforce ----------
 function renderSalesforce(sf) {
   const mount = $("sfList");
   const orgs = Object.keys(sf || {});
-  if (orgs.length === 0) {
-    mount.innerHTML = `<div class="empty">No Salesforce data.</div>`;
-    return;
-  }
-
-  // Filter to orgs that actually have data
-  const withData = orgs.filter((o) => {
-    const cs = sf[o]?.cases?.length || 0;
-    const qs = sf[o]?.quotes?.length || 0;
-    return cs + qs > 0;
-  });
-
+  const withData = orgs.filter((o) => (sf[o]?.cases?.length || 0) + (sf[o]?.quotes?.length || 0) > 0);
   if (withData.length === 0) {
     mount.innerHTML = `<div class="empty">No open Cases or recent Quotes across queried orgs.</div>`;
     return;
   }
-
   mount.innerHTML = withData.map((org) => {
     const cs = sf[org].cases || [];
     const qs = sf[org].quotes || [];
@@ -341,15 +496,13 @@ function renderSalesforce(sf) {
         <span class="font-mono text-[11px] text-cyan-300 font-semibold w-20 shrink-0">${escapeHtml(c.caseNumber || c.CaseNumber || "")}</span>
         <span class="status-pill" data-status="${statusKey(c.status || c.Status)}">${escapeHtml(c.status || c.Status || "?")}</span>
         <span class="text-zinc-300 truncate">${escapeHtml(c.subject || c.Subject || "")}</span>
-      </div>
-    `).join("") : "";
+      </div>`).join("") : "";
     const qsHtml = qs.length ? qs.map((q) => `
       <div class="flex items-center gap-2.5 py-1.5 text-sm">
         <span class="font-mono text-[11px] text-cyan-300 font-semibold w-32 shrink-0 truncate">${escapeHtml(q.name || q.Name || "")}</span>
         <span class="status-pill" data-status="${slug(q.status || q.Status)}">${escapeHtml(q.status || q.Status || "?")}</span>
         <span class="text-zinc-400 text-xs">${escapeHtml(q.type || "")}</span>
-      </div>
-    `).join("") : "";
+      </div>`).join("") : "";
 
     return `
       <div class="org-card fade-in">
@@ -363,21 +516,15 @@ function renderSalesforce(sf) {
         ${cs.length ? `<div class="text-[11px] uppercase tracking-wider text-zinc-500 mb-1.5">Cases</div>${csHtml}` : ""}
         ${cs.length && qs.length ? `<div class="h-px bg-zinc-800 my-3"></div>` : ""}
         ${qs.length ? `<div class="text-[11px] uppercase tracking-wider text-zinc-500 mb-1.5">Recent Quotes (last 7d)</div>${qsHtml}` : ""}
-      </div>
-    `;
+      </div>`;
   }).join("");
 }
 
 // ---------- Render: notes ----------
 function renderNotes(notes) {
-  if (!notes || notes.length === 0) {
-    hide("notesSection");
-    return;
-  }
+  if (!notes?.length) { hide("notesSection"); return; }
   show("notesSection");
-  $("notesList").innerHTML = notes.map((n) => `
-    <div class="card px-4 py-2.5 text-sm text-zinc-300 fade-in">${escapeHtml(n)}</div>
-  `).join("");
+  $("notesList").innerHTML = notes.map((n) => `<div class="card px-4 py-2.5 text-sm text-zinc-300 fade-in">${mdInline(n)}</div>`).join("");
 }
 
 // ---------- Top-level render ----------
@@ -391,7 +538,6 @@ function renderAll(data) {
 }
 
 async function loadBrief() {
-  // Phase 1: just use sample. Phase 2: read from RTDB.
   return SAMPLE_DATA;
 }
 
@@ -409,47 +555,39 @@ async function refreshDashboard() {
   }
 }
 
-// ---------- Auth flow ----------
+// Expand-in-place via event delegation (works after rerender too)
+document.addEventListener("click", (e) => {
+  // If the user clicked the external link inside a detail card, don't toggle.
+  if (e.target.closest(".open-external")) return;
+  const trigger = e.target.closest("[data-expand-trigger]");
+  if (!trigger) return;
+  const card = trigger.closest("[data-card-id]");
+  if (!card) return;
+  toggleExpand(card.dataset.cardId);
+});
+
+// ---------- Auth ----------
 function resolveEmail(user) {
-  // Firebase sometimes returns user.email as null for Google sign-in
-  // (privacy / scope quirks). Fall back to providerData entries.
   if (user?.email) return user.email.toLowerCase();
-  const fromProvider = user?.providerData?.find((p) => p?.email)?.email;
-  return fromProvider ? fromProvider.toLowerCase() : null;
+  return user?.providerData?.find((p) => p?.email)?.email?.toLowerCase() || null;
 }
 
 async function gateAndShow(user) {
   const email = resolveEmail(user);
   if (email !== ALLOWED_EMAIL) {
-    hide("dashboard");
-    hide("signInScreen");
-    hide("bootScreen");
-    show("deniedScreen");
-    const shown = email || user?.displayName || "(no email shared)";
-    $("deniedMsg").textContent = `Signed in as ${shown}. This dashboard is locked to ${ALLOWED_EMAIL}.`;
+    hide("dashboard"); hide("signInScreen"); hide("bootScreen"); show("deniedScreen");
+    $("deniedMsg").textContent = `Signed in as ${email || user?.displayName || "(no email shared)"}. This dashboard is locked to ${ALLOWED_EMAIL}.`;
     return;
   }
-  hide("bootScreen");
-  hide("signInScreen");
-  hide("deniedScreen");
-  show("dashboard");
+  hide("bootScreen"); hide("signInScreen"); hide("deniedScreen"); show("dashboard");
   await refreshDashboard();
 }
 
 function showSignIn() {
-  hide("bootScreen");
-  hide("dashboard");
-  hide("deniedScreen");
-  show("signInScreen");
+  hide("bootScreen"); hide("dashboard"); hide("deniedScreen"); show("signInScreen");
 }
 
-onAuthStateChanged(auth, (user) => {
-  if (user) {
-    gateAndShow(user);
-  } else {
-    showSignIn();
-  }
-});
+onAuthStateChanged(auth, (user) => user ? gateAndShow(user) : showSignIn());
 
 $("signInBtn").addEventListener("click", async () => {
   const errEl = $("signInError");
