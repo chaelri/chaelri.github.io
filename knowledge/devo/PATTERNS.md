@@ -38,12 +38,26 @@ const raw = localStorage.getItem(`devo.canvas.${key}`);  // line 8510
 localStorage.setItem(`devo.canvas.${stateKey}`, JSON.stringify(state));  // line 8520
 ```
 
-**SOAP entries**:
+**Free-form journals** (replaces the deleted SOAP system as of 2026-05-05):
 ```javascript
-function _soapStorageKey(type) { return `soap_${type}`; }  // line 7288
-const entries = JSON.parse(localStorage.getItem(_soapStorageKey(type)) || "[]");  // line 7291
-localStorage.setItem(_soapStorageKey(type), JSON.stringify(entries));  // line 7294
+// Three parallel journals: obedience (with status/notes), gratitude (free text),
+// prayers (free text). All live in 04-passage.js. Mirror the same shape:
+const _OBED_JOURNAL_KEY = "obedienceJournal";   // [{id, ts, text, status, notes?}]
+const _GRAT_JOURNAL_KEY = "gratitudeJournal";   // [{id, ts, text}]
+const _PRAY_JOURNAL_KEY = "prayersJournal";     // [{id, ts, text}]
+
+function _getPrayersEntries() {
+  try { const arr = JSON.parse(localStorage.getItem(_PRAY_JOURNAL_KEY) || "[]");
+        return Array.isArray(arr) ? arr : []; } catch { return []; }
+}
+function _addPrayerEntry(entry) {
+  const arr = _getPrayersEntries();
+  arr.unshift(entry);                    // newest first
+  while (arr.length > 500) arr.pop();    // bounded
+  localStorage.setItem(_PRAY_JOURNAL_KEY, JSON.stringify(arr));
+}
 ```
+All three keys are in `firebase-sync.js` `SYNC_STATIC_KEYS` and the `devo:journal-sync` event re-renders the live modal in place when remote data lands.
 
 **Standalone notes** (array in one key):
 ```javascript

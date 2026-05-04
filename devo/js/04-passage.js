@@ -13,6 +13,11 @@ function resetAISections() {
     reflection.innerHTML = "";
     reflection.style.display = "none";
   }
+  const ntEcho = document.getElementById("ntEchoCard");
+  if (ntEcho) {
+    ntEcho.innerHTML = "";
+    ntEcho.hidden = true;
+  }
 }
 
 async function fetchInlineQuickContext(
@@ -367,7 +372,6 @@ async function fetchInlineDigDeeper({ book, chapter, verse, text }, mountEl) {
   mountEl.querySelector('.ai-card-close').onclick = () => { mountEl.innerHTML = ''; };
 
   const verseText = text || '';
-  const passage = `${book} ${chapter}${verse ? ':' + verse : ''}`;
 
   try {
     // Build the final card shell immediately so streaming has a text target.
@@ -382,18 +386,13 @@ async function fetchInlineDigDeeper({ book, chapter, verse, text }, mountEl) {
           <button class="ai-card-close" title="Close">✕</button>
         </div>
         <div class="ai-md-content" id="dig-deeper-stream">${sparkleLoaderHTML('Digging deeper…')}</div>
-        <div class="soap-respond-row" hidden>
-          <button class="soap-respond-btn" data-passage="${_escHtml(passage)}">
-            <span class="material-icons">edit_note</span> Respond
-          </button>
-        </div>
       </div>
     </div>`;
     mountEl.querySelector('.ai-card-close').onclick = () => { mountEl.innerHTML = ''; };
 
     const streamEl = mountEl.querySelector('#dig-deeper-stream');
 
-    const aiText = await callGeminiStream(
+    await callGeminiStream(
       `You are a premium Bible study tool. ${AI_TONE}
 
 ${book} ${chapter}:${verse}: "${verseText}"
@@ -419,13 +418,6 @@ STRICT: No greetings. No "this verse tells us". No padding. Start with #### Orig
       }
     );
 
-    // Reveal the Respond button once streaming finishes
-    const respondRow = mountEl.querySelector('.soap-respond-row');
-    if (respondRow) respondRow.hidden = false;
-    const respondBtn = mountEl.querySelector('.soap-respond-btn');
-    if (respondBtn) {
-      respondBtn.onclick = () => openSoapScreen(passage, aiText);
-    }
   } catch (err) {
     console.error(err);
     mountEl.innerHTML = `<div class="inline-ai-card dig-deeper">
@@ -660,6 +652,11 @@ async function showDashboard() {
     reflection.innerHTML = "";
     reflection.style.display = "none";
   }
+  // Clean up the NT-echo card so the dashboard render starts from a clean
+  // state. Lives inside the hidden .summary aside; resetting keeps state
+  // sane for the next passage load.
+  const ntEcho = document.getElementById("ntEchoCard");
+  if (ntEcho) { ntEcho.innerHTML = ""; ntEcho.hidden = true; }
 
   summaryEl.innerHTML = "";
   copyNotesBtn.style.display = "none";
@@ -843,6 +840,27 @@ async function renderDashboard() {
       <button class="dash-name-edit-btn" onclick="_showNamePrompt(() => renderDashboard())" title="Edit name"><span class="material-icons">edit</span></button>
     </div>
     <div id="dashGreetingMsg" class="dash-greeting-msg"></div>
+    <div id="dashProvCard" class="dash-prov-card"></div>
+    <div class="dash-journal-row">
+      <button type="button" id="dashObedLink" class="dash-journal-link dash-journal-link--obed dash-journal-link-empty" onclick="openObedienceJournal()">
+        <span class="material-symbols-outlined">menu_book</span>
+        <span>Obedience journal</span>
+        <span id="dashObedCount" class="dash-journal-count"></span>
+        <span class="material-symbols-outlined dash-journal-arrow">arrow_forward</span>
+      </button>
+      <button type="button" id="dashGratLink" class="dash-journal-link dash-journal-link--grat dash-journal-link-empty" onclick="openGratitudeJournal()">
+        <span class="material-symbols-outlined">favorite</span>
+        <span>Gratitude journal</span>
+        <span id="dashGratCount" class="dash-journal-count"></span>
+        <span class="material-symbols-outlined dash-journal-arrow">arrow_forward</span>
+      </button>
+      <button type="button" id="dashPrayLink" class="dash-journal-link dash-journal-link--pray dash-journal-link-empty" onclick="openPrayersJournal()">
+        <span class="material-symbols-outlined">volunteer_activism</span>
+        <span>Prayers</span>
+        <span id="dashPrayCount" class="dash-journal-count"></span>
+        <span class="material-symbols-outlined dash-journal-arrow">arrow_forward</span>
+      </button>
+    </div>
   </div>
 
   ${/* Daily featured story removed — was driving image-gen costs. */ ""}
@@ -913,12 +931,6 @@ async function renderDashboard() {
 
       ${/* "Create & Share" removed — opened the AI image creator. */ ""}
 
-      <!-- Single divider below the Continue+Favorites / Notes row -->
-      <hr class="dashboard-row-divider" />
-
-      <!-- SOAP: APPLICATIONS & PRAYERS (combined) -->
-      ${_renderSoapDashCombined()}
-
       ${/* Daily Reminder section removed — it relied on Cloud Scheduler + Gemini personalization. */ ""}
       </div>
       </div>
@@ -932,9 +944,10 @@ async function renderDashboard() {
   }
 
   loadDashGreetingMsg();
-
-  // Bind SOAP A&P dashboard interactions
-  _bindSoapDashboard();
+  loadDashProverb();
+  _refreshObedienceJournalLink();
+  _refreshGratitudeJournalLink();
+  _refreshPrayersJournalLink();
 }
 
 function _typewriterReveal(el, msg) {
@@ -1457,6 +1470,11 @@ async function loadPassage() {
 async function runAIForCurrentPassage() {
   if (!window.__aiPayload) return;
 
+  // NT-echo card has its own per-chapter cache (independent of the IDB AI
+  // cache), so kick it off here regardless of whether the context/reflection
+  // pair is cached. Fire-and-forget — the card renders into its own slot.
+  loadNtEcho();
+
   // Set loading flags synchronously before any await so playChapter()/ttsImmContextOpen()
   // always sees them as true when TTS opens the context screen right after this call.
   _contextLoading = true;
@@ -1859,6 +1877,8 @@ async function _smartRetryReflections() {
     versesText: payload.versesText,
     count: unansweredIdx.length,
     excludeQuestions: answeredQuestions,
+    recentPriorQs: _getRecentReflQs(),
+    angles: _pickAnglesForPassage(payload.book, payload.chapter),
   });
   if (!newLis || newLis.length === 0) {
     return await _fullRetryReflections();
@@ -1978,13 +1998,211 @@ function _wireReflectionLink(link) {
   });
 }
 
+// Old Testament book IDs in BIBLE_META. Used to gate features that only make
+// sense on OT chapters (e.g. NT-echo card, which surfaces the NT passage that
+// fulfills or echoes the OT one).
+const _OT_BOOK_IDS = new Set([
+  "GEN","EXO","LEV","NUM","DEU",
+  "JOS","JDG","RUT","1SA","2SA","1KI","2KI","1CH","2CH","EZR","NEH","EST",
+  "JOB","PSA","PRO","ECC","SNG",
+  "ISA","JER","LAM","EZK","DAN",
+  "HOS","JOL","AMO","OBA","JON","MIC","NAM","HAB","ZEP","HAG","ZEC","MAL",
+]);
+
+// NT-echo card: looks up the single most relevant New Testament passage that
+// fulfills or comments on the current OT chapter (e.g. Lev → Hebrews 7-10,
+// Genesis covenants → Romans 4). Cached by chapter (not verse) since the echo
+// applies to the whole chapter; key prefix `ntEcho-` is in
+// SYNC_DYNAMIC_PREFIXES so for sync users it rides the existing
+// localStorage→RTDB mirror.
+async function loadNtEcho() {
+  const card = document.getElementById("ntEchoCard");
+  if (!card) return;
+
+  const payload = window.__aiPayload;
+  if (!payload || !payload.book || !payload.chapter) {
+    card.hidden = true;
+    return;
+  }
+
+  // payload.book is the all-caps book NAME (e.g. "LEVITICUS") set by
+  // loadPassage. _bookNameToId resolves it back to the BIBLE_META key.
+  const bookId = _bookNameToId(payload.book);
+  if (!bookId || !_OT_BOOK_IDS.has(bookId)) {
+    card.hidden = true;
+    return;
+  }
+
+  const cacheKey = `ntEcho-${bookId}-${payload.chapter}`;
+  const cached = localStorage.getItem(cacheKey);
+  if (cached) {
+    try {
+      const obj = JSON.parse(cached);
+      _renderNtEchoCard(card, obj);
+      return;
+    } catch {}
+  }
+
+  // Loading state — same dot-loader the dashboard recap uses.
+  card.hidden = false;
+  card.innerHTML = `
+    <div class="nt-echo-label"><span class="material-symbols-outlined">link</span> Looking for the NT echo…</div>
+    <div class="nt-echo-loader"><span class="rdot"></span><span class="rdot"></span><span class="rdot"></span></div>
+  `;
+
+  const bookName = (window.BIBLE_META?.[bookId]?.name) || payload.book;
+  const prompt = `For the Old Testament chapter ${bookName} ${payload.chapter}, identify the single most directly relevant New Testament passage that FULFILLS, COMMENTS ON, or ECHOES its content.
+
+Examples of strong matches:
+- Leviticus sacrifice/priesthood → Hebrews 7–10
+- Genesis covenant with Abraham → Romans 4 or Galatians 3
+- Israel's wilderness → 1 Corinthians 10
+- Day of Atonement → Hebrews 9
+- Passover → 1 Corinthians 5:7 or John 1:29
+- Tabernacle / temple → Hebrews 8–9 or John 2
+- Davidic kingship → Acts 2 / Hebrews 1
+- Suffering servant prophecies → 1 Peter 2 / Acts 8
+
+Reply with ONLY a JSON object on a single line. No markdown, no code fences, no explanation around it.
+
+JSON shape:
+{"book":"<full NT book name>","chapter":<integer>,"startVerse":<integer>,"endVerse":<integer>,"note":"<one short sentence — max 24 words — explaining in casual gospel-centered tone WHY this NT passage is the echo. No 'this passage' / 'this chapter'. No academic words. No emojis. Address the reader as 'you' if natural.>"}
+
+Now produce the JSON for ${bookName} ${payload.chapter}:`;
+
+  try {
+    const res = await fetch("https://gemini-proxy-668755364170.asia-southeast1.run.app", {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({ task: "summary", contents: [{ parts: [{ text: prompt }] }] }),
+    });
+    const data = await res.json();
+    let raw = (data.candidates?.[0]?.content?.parts?.[0]?.text || "").trim();
+    raw = raw.replace(/^```(?:json)?\s*/i, "").replace(/\s*```$/i, "").trim();
+
+    // Some responses prepend prose before the JSON — slice from first { to last }.
+    const firstBrace = raw.indexOf("{");
+    const lastBrace = raw.lastIndexOf("}");
+    if (firstBrace >= 0 && lastBrace > firstBrace) {
+      raw = raw.slice(firstBrace, lastBrace + 1);
+    }
+    const obj = JSON.parse(raw);
+    if (!obj.book || !obj.chapter || !obj.note) throw new Error("incomplete echo");
+
+    localStorage.setItem(cacheKey, JSON.stringify(obj));
+
+    // Only render if the user is still on the same chapter (they may have
+    // navigated away while the request was in flight).
+    if (window.__aiPayload?.book === payload.book && window.__aiPayload?.chapter === payload.chapter) {
+      _renderNtEchoCard(card, obj);
+    }
+  } catch (err) {
+    console.warn("[nt-echo] fetch failed:", err?.message || err);
+    card.hidden = true;
+  }
+}
+
+function _renderNtEchoCard(card, data) {
+  const { book, chapter, startVerse, endVerse, note } = data || {};
+  if (!book || !chapter || !note) { card.hidden = true; return; }
+
+  const sv = Number(startVerse) || 1;
+  const ev = Number(endVerse) || sv;
+  const refLabel = ev > sv ? `${book} ${chapter}:${sv}–${ev}` : `${book} ${chapter}:${sv}`;
+
+  card.hidden = false;
+  card.innerHTML = `
+    <div class="nt-echo-label"><span class="material-symbols-outlined">link</span> NT echo</div>
+    <div class="nt-echo-ref">${_escHtml(refLabel)}</div>
+    <div class="nt-echo-note">${_escHtml(note)}</div>
+    <button class="nt-echo-read-btn" type="button">
+      Read this <span class="material-symbols-outlined">arrow_forward</span>
+    </button>
+  `;
+  const btn = card.querySelector(".nt-echo-read-btn");
+  if (btn) {
+    btn.onclick = () => {
+      const targetBookId = _bookNameToId(book);
+      if (!targetBookId) return;
+      // loadPassageById takes "BOOK-CHAPTER-VERSE"; pass the start verse so the
+      // glow animation lands on the relevant verse when the chapter renders.
+      loadPassageById(`${targetBookId}-${chapter}-${sv}`);
+    };
+  }
+}
+
+// Five reflection angles the prompt rotates through so consecutive chapters
+// don't all hit the same shape. _pickAnglesForPassage picks 3 of these
+// deterministically per book+chapter so retries on the same chapter use the
+// same angle mix (the AI rephrases within them) but neighboring chapters get
+// distinctly different mixes.
+const _REFLECTION_ANGLES = [
+  { id: "character", label: "CHARACTER OF GOD",      desc: "What this passage reveals about who God is — His holiness, mercy, justice, attention, or love. The question should make the reader pause on God Himself, not their own behavior." },
+  { id: "heart",     label: "HEART PRINCIPLE",       desc: "The underlying heart-attitude the passage exposes or invites — pride, fear, trust, complacency, longing. Names a real internal posture, not a moral lesson." },
+  { id: "christ",    label: "CHRIST FULFILLMENT",    desc: "How Jesus completes, fulfills, or replaces what is pictured here (especially for OT shadows — sacrifice, priest, purity, rest, kingdom). Connects the chapter to the gospel without making the reader perform OT ritual." },
+  { id: "identity",  label: "IDENTITY IN CHRIST",    desc: "Who the reader is now in light of this passage and the gospel — beloved, forgiven, adopted, sealed, free. Reframes the OT command from 'must I' to 'who am I'." },
+  { id: "prayer",    label: "PRAYER-SHAPED",         desc: "A question the reader could pray honestly in one breath — surfaces a felt confession, a longing, a thanksgiving, or a cry. Language should be visceral, not polished." },
+];
+
+function _hashStr(s) {
+  let h = 0;
+  for (let i = 0; i < (s || "").length; i++) h = ((h << 5) - h + s.charCodeAt(i)) | 0;
+  return Math.abs(h);
+}
+
+function _pickAnglesForPassage(book, chapter) {
+  const seed = _hashStr(`${book || ""}-${chapter || ""}`);
+  const pool = [..._REFLECTION_ANGLES];
+  const picked = [];
+  for (let i = 0; i < 3 && pool.length; i++) {
+    const idx = (Math.floor(seed / Math.pow(7, i))) % pool.length;
+    picked.push(pool.splice(idx, 1)[0]);
+  }
+  return picked;
+}
+
+// Rolling buffer of the last ~15 reflection questions the user has seen
+// across recent chapters. Passed to the prompt as "RECENTLY ASKED" so the AI
+// varies tone/openings/angles from them. Cross-chapter scope: this is what
+// stops the Leviticus 23 → 24 → 25 questions from feeling identical.
+const _RECENT_REFL_KEY = "devo.recentReflQs";
+const _RECENT_REFL_MAX = 15;
+
+function _getRecentReflQs() {
+  try {
+    const raw = localStorage.getItem(_RECENT_REFL_KEY);
+    if (!raw) return [];
+    const arr = JSON.parse(raw);
+    return Array.isArray(arr) ? arr.filter((s) => typeof s === "string") : [];
+  } catch { return []; }
+}
+
+function _appendRecentReflQs(questions) {
+  if (!questions || !questions.length) return;
+  const arr = _getRecentReflQs();
+  for (const q of questions) {
+    const t = (q || "").trim();
+    if (!t) continue;
+    arr.push(t);
+  }
+  while (arr.length > _RECENT_REFL_MAX) arr.shift();
+  try { localStorage.setItem(_RECENT_REFL_KEY, JSON.stringify(arr)); } catch {}
+}
+
 // AI fetch for reflection <li> items. Returns an array of detached <li>
 // elements (so caller can swap them into an existing <ol>). Used by both
 // renderAIReflectionQuestions (count=3) and _smartRetryReflections (count<3).
-async function _fetchReflectionLis({ book, chapter, versesText, count = 3, excludeQuestions = [] }) {
+async function _fetchReflectionLis({ book, chapter, versesText, count = 3, excludeQuestions = [], recentPriorQs = [], angles = null }) {
   const exclusionBlock = excludeQuestions.length
     ? `\nALREADY-ASKED QUESTIONS (DO NOT duplicate, paraphrase, or rehash these — they have been answered already):\n${excludeQuestions.map((q) => `- ${q}`).join("\n")}\n`
     : "";
+
+  const priorBlock = recentPriorQs.length
+    ? `\nRECENTLY ASKED ACROSS THE READER'S PRIOR CHAPTERS (vary tone, opening words, sentence shape, and angle from these — DO NOT echo their phrasings):\n${recentPriorQs.map((q) => `- ${q}`).join("\n")}\n`
+    : "";
+
+  const pickedAngles = angles && angles.length === 3 ? angles : _pickAnglesForPassage(book, chapter);
+  const angleBlock = `\nREQUIRED ANGLE COVERAGE FOR THIS BATCH (each numbered question must clearly land on ONE of these angles; ALL three angles must appear across the ${count > 1 ? count : 3}-question set):\n${pickedAngles.map((a, i) => `${i + 1}. ${a.label} — ${a.desc}`).join("\n")}\n`;
 
   const prompt = `
 IMPORTANT OUTPUT RULES (STRICT):
@@ -2074,7 +2292,13 @@ For NT passages, universal moral commands (love, honesty, sexual purity, prayer,
 
 TASK:
 Generate EXACTLY ${count} numbered questions based on the passage.
-${exclusionBlock}
+${angleBlock}${exclusionBlock}${priorBlock}
+FRESHNESS RULE (STRICT — defeats user fatigue from reading similar OT chapters back-to-back):
+- Across THIS batch, the 3 questions must use AT LEAST 2 DIFFERENT opening words. Don't open all three with "What" / "How" / "Where".
+- Sentence shapes within this batch must differ — don't make all three follow the same "X — and Y?" or "What's one Z?" template.
+- If RECENTLY-ASKED-ACROSS-PRIOR-CHAPTERS is present above, your questions must read distinctly from those — different angle, different opening, different rhythm. Avoid stock phrases the AI tends to lean on (e.g., "set apart", "what does this reveal about", "reflect on", "consider how", "wrestle with").
+- Each question must feel earned by THIS specific chapter — name a concrete detail (a person, an action, an object, a number, a place) from the passage so the question can't have been asked of any other chapter.
+
 
 CRITICAL LINKING RULE (MUST FOLLOW):
 - EVERY verse reference MUST be written as an <a> link
@@ -2180,11 +2404,22 @@ async function renderAIReflectionQuestions({ book, chapter, versesText }) {
 `;
 
   try {
-    const lis = await _fetchReflectionLis({ book, chapter, versesText, count: 3 });
+    const recentPriorQs = _getRecentReflQs();
+    const angles = _pickAnglesForPassage(book, chapter);
+    const lis = await _fetchReflectionLis({ book, chapter, versesText, count: 3, recentPriorQs, angles });
     if (!lis || lis.length === 0) {
       mount.innerHTML = "<p>Failed to generate reflection questions.</p>";
       return true;
     }
+    // Track the new questions in the cross-chapter rolling buffer so the next
+    // chapter's prompt knows to vary from them. Only the initial render writes
+    // here — retries operate within a single chapter and shouldn't pollute the
+    // cross-chapter signal.
+    const newQuestionTexts = lis
+      .map((li) => li.querySelector("p")?.textContent?.trim())
+      .filter(Boolean);
+    _appendRecentReflQs(newQuestionTexts);
+
     const olHtml = `<ol>${lis.map((li) => li.outerHTML).join("")}</ol>`;
     mount.innerHTML = `
       <button type="button" class="ai-refl-retry" aria-label="Regenerate reflection questions" title="Regenerate questions">
@@ -2220,4 +2455,977 @@ async function restoreSavedReflectionAnswers() {
     }
   });
 }
+
+// =============================================================================
+// DASH PROVERB NUGGET — small inline dashboard card. AI picks one practical
+// Proverbs topic + the matching verse + a concrete one-line application.
+// Refreshable on tap; cache also auto-expires every 8 hours so the nugget
+// rotates ~3× per day on its own without any user action.
+// =============================================================================
+
+const _DASH_PROV_KEY = "dashProverbCache";
+const _DASH_PROV_TTL_MS = 8 * 60 * 60 * 1000; // 8 hours
+
+// Rolling buffer of the last N verse refs we've shown — fed to the prompt as
+// an exclusion list so the AI doesn't keep landing on the same Proverbs verses
+// (it has a strong bias toward famous ones like 3:5–6, 13:20, 23:22 etc).
+const _RECENT_PROV_REFS_KEY = "dashProverbRecentRefs";
+const _RECENT_PROV_REFS_MAX = 12;
+
+function _getRecentProvRefs() {
+  try {
+    const raw = localStorage.getItem(_RECENT_PROV_REFS_KEY);
+    if (!raw) return [];
+    const arr = JSON.parse(raw);
+    return Array.isArray(arr) ? arr : [];
+  } catch { return []; }
+}
+
+function _appendRecentProvRef(ref) {
+  if (!ref) return;
+  const arr = _getRecentProvRefs();
+  arr.push(ref);
+  while (arr.length > _RECENT_PROV_REFS_MAX) arr.shift();
+  try { localStorage.setItem(_RECENT_PROV_REFS_KEY, JSON.stringify(arr)); } catch {}
+}
+
+async function loadDashProverb(forceFresh = false) {
+  const card = document.getElementById("dashProvCard");
+  if (!card) return;
+
+  if (forceFresh) {
+    try { localStorage.removeItem(_DASH_PROV_KEY); } catch {}
+  } else {
+    const cached = localStorage.getItem(_DASH_PROV_KEY);
+    if (cached) {
+      try {
+        const obj = JSON.parse(cached);
+        const fresh = obj && obj.data && obj.ts && (Date.now() - obj.ts) < _DASH_PROV_TTL_MS;
+        if (fresh) {
+          // The cached payload only stores coordinates (topic, chapter,
+          // startVerse, endVerse, apply). Re-resolve text + ref from the
+          // currently-active Bible JSON so version flips (NASB ↔ Easy)
+          // automatically pick up the right wording.
+          const resolved = await _resolveProverbForRender(obj.data);
+          if (resolved) {
+            _renderDashProverb(card, resolved);
+            return;
+          }
+        }
+      } catch {}
+    }
+  }
+
+  card.innerHTML = `
+    <div class="dash-prov-loader">
+      <span class="rdot"></span><span class="rdot"></span><span class="rdot"></span>
+    </div>
+  `;
+
+  // Retry loop — the proverb card is ambient/idle UI, so we shouldn't ever
+  // show "Couldn't load" unless the network is genuinely down. Each attempt
+  // re-rolls a random chapter so a single bad chapter pick (or a flaky
+  // Gemini response) doesn't poison subsequent tries. Backoff caps at ~8s
+  // and gives up only after MAX_TRIES; the final fallback keeps the same
+  // try-again button behavior we had before.
+  const MAX_TRIES = 6;
+  const baseDelay = 700;
+
+  for (let attempt = 0; attempt < MAX_TRIES; attempt++) {
+    // If we know the browser is offline, wait until it comes back rather
+    // than burning retries against guaranteed failures.
+    if (typeof navigator !== "undefined" && navigator.onLine === false) {
+      await new Promise((resolve) => {
+        const onBack = () => { window.removeEventListener("online", onBack); resolve(); };
+        window.addEventListener("online", onBack);
+      });
+    }
+
+    // Force breadth across all of Proverbs (31 chapters, ~915 verses) by
+    // pre-rolling a random chapter client-side and telling the AI to pull
+    // from it. Each retry re-rolls so a "verse missing" failure doesn't
+    // loop on the same chapter forever.
+    const randomChapter = Math.floor(Math.random() * 31) + 1;
+    const recentRefs = _getRecentProvRefs();
+    const lastTopic = localStorage.getItem("dashProverbLastTopic") || "";
+
+    const exclusionLines = [];
+    if (recentRefs.length) {
+      exclusionLines.push(`DO NOT use any of these recently-shown verse refs (pick something different): ${recentRefs.join(", ")}.`);
+    }
+    if (lastTopic) {
+      exclusionLines.push(`Avoid this recently-shown topic: "${lastTopic}". Pick a clearly different angle.`);
+    }
+    const exclusionBlock = exclusionLines.length ? `\n${exclusionLines.join("\n")}\n` : "";
+
+    const prompt = `Pick ONE simple, practical topic from the book of Proverbs that a young adult Christian could apply TODAY. We will pull the actual verse text from a local Bible JSON afterward — so all you need to give us is COORDINATES (chapter + verse range) plus the topic name and a one-line application.
+
+CHAPTER LOCK: Pick verse(s) SPECIFICALLY from Proverbs chapter ${randomChapter}. (The chapter is pre-rolled at random to force breadth across the whole book instead of the same famous verses.) Pick a single verse if a single verse stands; pick a range of 2–3 verses only if they form one tight thought.
+${exclusionBlock}
+If chapter ${randomChapter} truly has no usable verse for a young adult NT believer (rare — almost every Proverbs chapter has actionable wisdom), you may pick from the closest neighboring chapter; but DEFAULT to staying inside chapter ${randomChapter}.
+
+Topic should be specific and practical — examples of variety: patience, restraint, integrity in small things, what you laugh at, contentment, listening before speaking, generosity, anger, the tongue, hard work, pride, money, planning, parents, neighbors, the heart, fear of the Lord, choosing friends.
+
+Return ONLY this JSON object on a single line. No markdown, no code fences, no preamble:
+
+{"topic":"<2–3 word topic in Title Case>","chapter":<integer>,"startVerse":<integer>,"endVerse":<integer>,"apply":"<one short concrete sentence — max 22 words — naming a SPECIFIC thing to do today; casual; an actual action, NOT 'reflect on...' or 'consider how...'>"}
+
+Notes on the JSON:
+- "chapter" is an integer (the Proverbs chapter you picked; should equal ${randomChapter} unless the rare neighbor-chapter fallback is needed).
+- "startVerse" and "endVerse" are integers. If you're picking one verse, set endVerse equal to startVerse.
+- DO NOT include the verse text. We pull it locally.
+
+Example shape:
+{"topic":"The Tongue","chapter":18,"startVerse":21,"endVerse":21,"apply":"Send one true encouragement to someone before lunch. Notice what shifts in you afterward."}
+
+Now produce the JSON for Proverbs chapter ${randomChapter}:`;
+
+    try {
+      const text = await callGemini(prompt);
+      let raw = (text || "").trim().replace(/^```(?:json)?\s*/i, "").replace(/\s*```$/i, "").trim();
+      const firstBrace = raw.indexOf("{");
+      const lastBrace = raw.lastIndexOf("}");
+      if (firstBrace >= 0 && lastBrace > firstBrace) raw = raw.slice(firstBrace, lastBrace + 1);
+      const obj = JSON.parse(raw);
+
+      const chapter = Math.max(1, Math.min(31, parseInt(obj.chapter, 10) || 0));
+      const startVerse = Math.max(1, parseInt(obj.startVerse, 10) || 0);
+      const endVerse = Math.max(startVerse, parseInt(obj.endVerse, 10) || startVerse);
+      if (!obj.topic || !chapter || !startVerse || !obj.apply) throw new Error("incomplete coords");
+
+      // Coords-only payload. Verse text is pulled from bibleData on render
+      // (and re-pulled if the user flips between NASB and Easy mid-session).
+      const data = {
+        topic: String(obj.topic).trim(),
+        chapter,
+        startVerse,
+        endVerse,
+        apply: String(obj.apply).trim(),
+      };
+
+      const resolved = await _resolveProverbForRender(data);
+      if (!resolved) throw new Error("verse missing in bibleData");
+
+      try {
+        localStorage.setItem(_DASH_PROV_KEY, JSON.stringify({ data, ts: Date.now() }));
+        localStorage.setItem("dashProverbLastTopic", data.topic);
+      } catch {}
+      _appendRecentProvRef(resolved.ref);
+
+      if (document.getElementById("dashProvCard") === card) {
+        _renderDashProverb(card, resolved);
+      }
+      return;
+    } catch (err) {
+      console.warn(`[dash-proverb] attempt ${attempt + 1}/${MAX_TRIES} failed`, err?.message || err);
+      // If the dashboard re-rendered while we were mid-flight, the loader
+      // card we're holding has been replaced — bail out without writing.
+      if (document.getElementById("dashProvCard") !== card) return;
+      // Last attempt — fall through to the failure card below.
+      if (attempt === MAX_TRIES - 1) break;
+      // Exponential backoff, capped at 8s. Capped low because the proverb
+      // card is ambient and we want the user to see a result while they're
+      // still on the dashboard.
+      const delay = Math.min(8000, baseDelay * Math.pow(1.7, attempt));
+      await new Promise((resolve) => setTimeout(resolve, delay));
+    }
+  }
+
+  if (document.getElementById("dashProvCard") !== card) return;
+  card.innerHTML = `<p class="dash-prov-fail">Couldn't load — <button type="button" class="dash-prov-fail-retry">try again</button></p>`;
+  card.querySelector(".dash-prov-fail-retry")?.addEventListener("click", () => loadDashProverb(true));
+}
+
+// Resolves coords-only payload to the renderable shape the card expects.
+// Pulls the verse text from the currently-loaded Bible JSON (bibleData)
+// so version flips automatically pick up the new wording.
+async function _resolveProverbForRender(coords) {
+  if (!coords || !coords.chapter || !coords.startVerse) return null;
+
+  if (!bibleData) {
+    try { await fetchBibleData(); } catch {}
+  }
+  const provBook = bibleData?.["PROVERBS"];
+  if (!provBook) return null;
+
+  const chData = provBook[String(coords.chapter)];
+  if (!chData) return null;
+
+  const sv = coords.startVerse;
+  const ev = Math.max(sv, coords.endVerse || sv);
+  const verseTexts = [];
+  for (let v = sv; v <= ev; v++) {
+    const t = chData[String(v)];
+    if (!t) break;
+    // bibleData has pilcrow markers (¶) at the start of some verses to mark
+    // paragraph breaks. They're not part of the actual text — strip them.
+    const cleaned = String(t)
+      .replace(/^[¶\s]+/, "")
+      .replace(/\s¶\s/g, " ")
+      .trim()
+      .replace(/\s+/g, " ");
+    verseTexts.push(cleaned);
+  }
+  if (verseTexts.length === 0) return null;
+
+  const text = verseTexts.join(" ");
+  const ref = ev > sv ? `Proverbs ${coords.chapter}:${sv}–${ev}` : `Proverbs ${coords.chapter}:${sv}`;
+
+  return {
+    topic: coords.topic,
+    ref,
+    text,
+    apply: coords.apply,
+  };
+}
+
+function _renderDashProverb(card, data) {
+  // Wrap in a .dash-prov-inner so the swap animation targets ONLY the card's
+  // content, not the card frame. The card itself stays put; only the body
+  // fades on refresh.
+  card.innerHTML = `
+    <div class="dash-prov-inner">
+      <div class="dash-prov-header">
+        <span class="dash-prov-topic">${_escHtml(data.ref)}</span>
+        <button type="button" class="dash-prov-refresh" title="Different proverb" aria-label="Different proverb">
+          <span class="material-symbols-outlined">refresh</span>
+        </button>
+      </div>
+      <blockquote class="dash-prov-verse">
+        <span class="dash-prov-text">${_escHtml(data.text)}</span>
+      </blockquote>
+      <div class="dash-prov-apply">
+        <span class="dash-prov-apply-label">Apply today:</span>
+        <span class="dash-prov-apply-text">${_escHtml(data.apply)}</span>
+      </div>
+      <div class="dash-prov-cta">
+        <button type="button" class="dash-prov-commit dash-prov-commit--done" data-status="done">
+          <span class="material-symbols-outlined">check</span>
+          <span>I did this</span>
+        </button>
+        <button type="button" class="dash-prov-commit dash-prov-commit--todo" data-status="todo">
+          <span class="material-symbols-outlined">schedule</span>
+          <span>I'll do this</span>
+        </button>
+      </div>
+    </div>
+  `;
+  card.querySelector(".dash-prov-refresh")?.addEventListener("click", () => loadDashProverb(true));
+  card.querySelectorAll(".dash-prov-commit").forEach((btn) => {
+    btn.addEventListener("click", () => _showProvCommitForm(card, data, btn.dataset.status));
+  });
+}
+
+// Replace the inner CTA with a small note form. Cancel returns to the default
+// card; Save logs the entry with the chosen status (done | todo) and shows
+// the saved state with an Undo affordance.
+function _showProvCommitForm(card, data, status) {
+  const inner = card.querySelector(".dash-prov-inner");
+  if (!inner) return;
+  const cta = inner.querySelector(".dash-prov-cta");
+  if (!cta) return;
+
+  const isDone = status === "done";
+  const labelHtml = isDone
+    ? `What did you do? <span class="dash-prov-done-optional">(optional — just for your journal)</span>`
+    : `Want to add a note? <span class="dash-prov-done-optional">(optional — you can add follow-ups later)</span>`;
+  const placeholder = isDone
+    ? "e.g. called my mom, listened more than I talked, sent that thank-you message..."
+    : "e.g. plan to call this weekend, want to think about who first...";
+  const saveIcon = isDone ? "bookmark_add" : "schedule";
+  const saveLabel = isDone ? "Save to journal" : "Save to To Do";
+
+  cta.outerHTML = `
+    <div class="dash-prov-done-form" data-status="${status}">
+      <label class="dash-prov-done-label">${labelHtml}</label>
+      <textarea class="dash-prov-done-input" rows="2" placeholder="${placeholder}"></textarea>
+      <div class="dash-prov-done-form-actions">
+        <button type="button" class="dash-prov-done-cancel">Cancel</button>
+        <button type="button" class="dash-prov-done-save">
+          <span class="material-symbols-outlined">${saveIcon}</span>
+          ${saveLabel}
+        </button>
+      </div>
+    </div>
+  `;
+  const ta = inner.querySelector(".dash-prov-done-input");
+  ta?.focus();
+  // Mirror the auto-grow pattern the reflect-modal textareas use
+  // (08-story.js:1127). The global autoExpand() resets via
+  // `style.height = "inherit"` which inflates inside flex-column parents;
+  // "auto" is what works.
+  if (ta) {
+    ta.style.overflowY = "hidden";
+    const grow = () => {
+      ta.style.height = "auto";
+      ta.style.height = ta.scrollHeight + "px";
+    };
+    grow();
+    ta.addEventListener("input", grow);
+    requestAnimationFrame(grow);
+  }
+  inner.querySelector(".dash-prov-done-cancel")?.addEventListener("click", () => _renderDashProverb(card, data));
+  inner.querySelector(".dash-prov-done-save")?.addEventListener("click", () => {
+    const txt = (ta?.value || "").trim();
+    const now = Date.now();
+    const id = `obed-${now}-${Math.random().toString(36).slice(2, 7)}`;
+    const entry = {
+      id,
+      ts: now,
+      status,
+      doneTs: status === "done" ? now : null,
+      topic: data.topic,
+      ref: data.ref,
+      verseText: data.text,
+      applyText: data.apply,
+      thread: txt ? [{ id: `${id}-n0`, ts: now, text: txt }] : [],
+    };
+    _addObedienceEntry(entry);
+    _showProvSavedState(card, data, entry.id, status);
+    _refreshObedienceJournalLink();
+  });
+  // Save on Cmd/Ctrl+Enter for fast journaling.
+  ta?.addEventListener("keydown", (e) => {
+    if ((e.metaKey || e.ctrlKey) && e.key === "Enter") {
+      inner.querySelector(".dash-prov-done-save")?.click();
+    }
+  });
+}
+
+function _showProvSavedState(card, data, entryId, status) {
+  const inner = card.querySelector(".dash-prov-inner");
+  if (!inner) return;
+  const isDone = status === "done";
+  const icon = isDone ? "check_circle" : "schedule";
+  const title = isDone ? "Logged. Done." : "Saved to To Do.";
+  const sub = isDone
+    ? "It's in your obedience journal."
+    : "Follow up anytime — add notes or mark done from the journal.";
+  inner.innerHTML = `
+    <div class="dash-prov-saved" data-status="${status}">
+      <span class="material-symbols-outlined dash-prov-saved-icon">${icon}</span>
+      <div class="dash-prov-saved-text">
+        <div class="dash-prov-saved-title">${_escHtml(title)}</div>
+        <div class="dash-prov-saved-sub">${_escHtml(sub)}</div>
+      </div>
+      <button type="button" class="dash-prov-saved-undo">Undo</button>
+    </div>
+  `;
+  inner.querySelector(".dash-prov-saved-undo")?.addEventListener("click", () => {
+    _deleteObedienceEntry(entryId);
+    _refreshObedienceJournalLink();
+    _renderDashProverb(card, data);
+  });
+}
+
+// =============================================================================
+// OBEDIENCE JOURNAL — running log of what Charlie's actually done in response
+// to the daily Proverbs nuggets. Stored locally + synced via Firebase so both
+// devices see the same journal. Viewable in a modal opened from the small link
+// below the proverb card.
+// =============================================================================
+
+const _OBED_JOURNAL_KEY = "obedienceJournal";
+const _OBED_JOURNAL_MAX = 200; // hard cap; FIFO-trim oldest if exceeded.
+
+function _getObedienceJournal() {
+  try {
+    const raw = localStorage.getItem(_OBED_JOURNAL_KEY);
+    if (!raw) return [];
+    const arr = JSON.parse(raw);
+    return Array.isArray(arr) ? arr.map(_normalizeObedEntry) : [];
+  } catch { return []; }
+}
+
+// Migrate legacy entries (single `didText` string, no status) into the new
+// shape (status + thread). Done in-memory on read; persisted shape gets
+// upgraded on the next save.
+function _normalizeObedEntry(e) {
+  if (!e || typeof e !== "object") return e;
+  if (!e.status) {
+    e.status = "done";
+    e.doneTs = e.doneTs || e.ts || Date.now();
+  }
+  if (!Array.isArray(e.thread)) {
+    e.thread = e.didText
+      ? [{ id: `${e.id}-n0`, ts: e.ts || Date.now(), text: String(e.didText) }]
+      : [];
+  }
+  delete e.didText;
+  return e;
+}
+
+function _saveObedienceJournal(arr) {
+  try { localStorage.setItem(_OBED_JOURNAL_KEY, JSON.stringify(arr)); } catch {}
+}
+
+function _addObedienceEntry(entry) {
+  const arr = _getObedienceJournal();
+  arr.unshift(_normalizeObedEntry(entry)); // newest first
+  while (arr.length > _OBED_JOURNAL_MAX) arr.pop();
+  _saveObedienceJournal(arr);
+  return arr;
+}
+
+function _deleteObedienceEntry(id) {
+  const arr = _getObedienceJournal().filter((e) => e.id !== id);
+  _saveObedienceJournal(arr);
+  return arr;
+}
+
+function _setObedienceStatus(id, status) {
+  const arr = _getObedienceJournal();
+  const idx = arr.findIndex((e) => e.id === id);
+  if (idx < 0) return;
+  arr[idx].status = status;
+  arr[idx].doneTs = status === "done" ? Date.now() : null;
+  _saveObedienceJournal(arr);
+}
+
+function _appendObedienceNote(id, text) {
+  const arr = _getObedienceJournal();
+  const idx = arr.findIndex((e) => e.id === id);
+  if (idx < 0) return;
+  if (!Array.isArray(arr[idx].thread)) arr[idx].thread = [];
+  arr[idx].thread.push({
+    id: `${id}-n${arr[idx].thread.length}-${Date.now()}`,
+    ts: Date.now(),
+    text: String(text),
+  });
+  _saveObedienceJournal(arr);
+}
+
+function _refreshObedienceJournalLink() {
+  const link = document.getElementById("dashObedLink");
+  const countEl = document.getElementById("dashObedCount");
+  if (!link || !countEl) return;
+  const n = _getObedienceJournal().length;
+  countEl.textContent = n > 0 ? `${n}` : "";
+  link.classList.toggle("dash-obed-link-empty", n === 0);
+}
+
+function openObedienceJournal() {
+  const overlay = document.getElementById("modalOverlay");
+  const content = document.getElementById("modalContent");
+  if (!overlay || !content) return;
+
+  const entries = _getObedienceJournal();
+  const todos = entries.filter((e) => e.status !== "done");
+  const dones = entries.filter((e) => e.status === "done");
+
+  const body = entries.length === 0
+    ? `<div class="obed-empty">
+         <span class="material-symbols-outlined">menu_book</span>
+         <p>No entries yet.</p>
+         <p class="obed-empty-sub">Tap "I did this" or "I'll do this" on a Proverb to start logging — a running record of how you've been answering God in the small things.</p>
+       </div>`
+    : `
+      <section class="obed-section obed-section--todo">
+        <h3 class="obed-section-title">
+          <span class="material-symbols-outlined">schedule</span>
+          To Do
+          <span class="obed-section-count">${todos.length}</span>
+        </h3>
+        ${todos.length
+          ? `<ul class="obed-list">${todos.map(_renderObedienceEntry).join("")}</ul>`
+          : `<p class="obed-section-empty">Nothing pending.</p>`
+        }
+      </section>
+      <section class="obed-section obed-section--done">
+        <h3 class="obed-section-title">
+          <span class="material-symbols-outlined">check_circle</span>
+          Done
+          <span class="obed-section-count">${dones.length}</span>
+        </h3>
+        ${dones.length
+          ? `<ul class="obed-list">${dones.map(_renderObedienceEntry).join("")}</ul>`
+          : `<p class="obed-section-empty">Nothing here yet.</p>`
+        }
+      </section>
+    `;
+
+  content.innerHTML = `
+    <div class="obed-modal">
+      <header class="obed-modal-header">
+        <span class="obed-eyebrow">Obedience Journal</span>
+        <h2 class="obed-title">What you're answering God with</h2>
+        <p class="obed-sub">Each Proverb you commit to lands here. Add follow-up notes, mark Done, or move things back to To Do — it's a thread, not a one-shot.</p>
+      </header>
+      ${body}
+    </div>
+  `;
+  overlay.hidden = false;
+
+  // Delegated click handler for per-entry actions.
+  content.addEventListener("click", _handleObedAction);
+}
+
+function _handleObedAction(e) {
+  const btn = e.target.closest("[data-obed-action]");
+  if (!btn) return;
+  const action = btn.dataset.obedAction;
+  const id = btn.dataset.id;
+  if (!action || !id) return;
+
+  if (action === "delete") {
+    _deleteObedienceEntry(id);
+  } else if (action === "mark-done") {
+    _setObedienceStatus(id, "done");
+  } else if (action === "mark-todo") {
+    _setObedienceStatus(id, "todo");
+  } else if (action === "add-note") {
+    _showObedAddNoteForm(id);
+    return; // no full re-render — inline form
+  } else {
+    return;
+  }
+  _refreshObedienceJournalLink();
+  openObedienceJournal();
+}
+
+// Inline note form per entry. Replaces the entry's actions row with a small
+// textarea + Save / Cancel; saving appends to the thread and re-renders the
+// modal so the new note shows in chronological order.
+function _showObedAddNoteForm(entryId) {
+  const li = document.querySelector(`.obed-item[data-id="${entryId}"]`);
+  if (!li || li.querySelector(".obed-note-form")) return;
+  const actions = li.querySelector(".obed-item-actions");
+  if (!actions) return;
+
+  const form = document.createElement("div");
+  form.className = "obed-note-form";
+  form.innerHTML = `
+    <textarea class="obed-note-input" placeholder="Update — what did you do, try, or feel about it?" rows="2"></textarea>
+    <div class="obed-note-form-actions">
+      <button type="button" class="obed-note-cancel">Cancel</button>
+      <button type="button" class="obed-note-save">
+        <span class="material-symbols-outlined">add</span>
+        Add note
+      </button>
+    </div>
+  `;
+  actions.parentNode.insertBefore(form, actions);
+  actions.style.display = "none";
+
+  const ta = form.querySelector(".obed-note-input");
+  ta.style.overflowY = "hidden";
+  const growNote = () => {
+    ta.style.height = "auto";
+    ta.style.height = ta.scrollHeight + "px";
+  };
+  growNote();
+  ta.addEventListener("input", growNote);
+  requestAnimationFrame(growNote);
+  ta.focus();
+
+  const close = () => {
+    form.remove();
+    actions.style.display = "";
+  };
+  const save = () => {
+    const txt = (ta.value || "").trim();
+    if (!txt) { close(); return; }
+    _appendObedienceNote(entryId, txt);
+    _refreshObedienceJournalLink();
+    openObedienceJournal();
+  };
+
+  form.querySelector(".obed-note-cancel").addEventListener("click", close);
+  form.querySelector(".obed-note-save").addEventListener("click", save);
+  ta.addEventListener("keydown", (e) => {
+    if ((e.metaKey || e.ctrlKey) && e.key === "Enter") save();
+  });
+}
+
+function closeObedienceJournal() {
+  const overlay = document.getElementById("modalOverlay");
+  if (overlay) overlay.hidden = true;
+}
+
+// Strip pilcrow paragraph markers from cached verse text. Old journal entries
+// were saved before _resolveProverbForRender stripped them, so this cleans
+// them up at render time too.
+function _stripPilcrow(s) {
+  return String(s || "")
+    .replace(/^[¶\s]+/, "")
+    .replace(/\s¶\s/g, " ")
+    .replace(/\s+/g, " ")
+    .trim();
+}
+
+function _formatObedDate(ts) {
+  const d = new Date(ts);
+  const date = d.toLocaleDateString("en-US", { month: "short", day: "numeric" });
+  const time = d.toLocaleTimeString("en-US", { hour: "numeric", minute: "2-digit" });
+  return `${date} · ${time}`;
+}
+
+function _renderObedienceEntry(e) {
+  const isDone = e.status === "done";
+  const created = _formatObedDate(e.ts);
+  const completed = isDone && e.doneTs ? _formatObedDate(e.doneTs) : null;
+
+  const threadHtml = (e.thread || []).map((t) => `
+    <div class="obed-thread-note">
+      <span class="obed-thread-date">${_formatObedDate(t.ts)}</span>
+      <span class="obed-thread-text">${_escHtml(t.text)}</span>
+    </div>
+  `).join("");
+
+  return `
+    <li class="obed-item" data-id="${_escHtml(e.id)}" data-status="${e.status}">
+      <div class="obed-item-row">
+        <span class="obed-item-topic">${_escHtml(e.ref || e.topic || "")}</span>
+        <span class="obed-item-date">${created}${completed && completed !== created ? ` → ${completed}` : ""}</span>
+        <button type="button" class="obed-delete-btn" data-obed-action="delete" data-id="${_escHtml(e.id)}" aria-label="Delete entry" title="Delete entry">
+          <span class="material-symbols-outlined">close</span>
+        </button>
+      </div>
+      <blockquote class="obed-item-verse">${_escHtml(_stripPilcrow(e.verseText || ""))}</blockquote>
+      <div class="obed-item-apply"><span class="obed-label">Call:</span> ${_escHtml(e.applyText || "")}</div>
+      ${threadHtml ? `<div class="obed-thread">${threadHtml}</div>` : ""}
+      <div class="obed-item-actions">
+        <button type="button" class="obed-action-btn obed-action-add" data-obed-action="add-note" data-id="${_escHtml(e.id)}">
+          <span class="material-symbols-outlined">add</span>
+          Add note
+        </button>
+        ${isDone
+          ? `<button type="button" class="obed-action-btn obed-action-revert" data-obed-action="mark-todo" data-id="${_escHtml(e.id)}">
+              <span class="material-symbols-outlined">undo</span>
+              Move to To Do
+            </button>`
+          : `<button type="button" class="obed-action-btn obed-action-done" data-obed-action="mark-done" data-id="${_escHtml(e.id)}">
+              <span class="material-symbols-outlined">check</span>
+              Mark done
+            </button>`
+        }
+      </div>
+    </li>
+  `;
+}
+
+// =============================================================================
+// GRATITUDE JOURNAL — free-form list of random things Charlie's thankful for.
+// Different from the obedience journal: no Proverb tie-in, just open-ended
+// thanks. Modal has an always-on input at the top + the running list below.
+// =============================================================================
+
+const _GRAT_JOURNAL_KEY = "gratitudeJournal";
+const _GRAT_JOURNAL_MAX = 500;
+
+function _getGratitudeEntries() {
+  try {
+    const raw = localStorage.getItem(_GRAT_JOURNAL_KEY);
+    if (!raw) return [];
+    const arr = JSON.parse(raw);
+    return Array.isArray(arr) ? arr : [];
+  } catch { return []; }
+}
+
+function _saveGratitudeEntries(arr) {
+  try { localStorage.setItem(_GRAT_JOURNAL_KEY, JSON.stringify(arr)); } catch {}
+}
+
+function _addGratitudeEntry(entry) {
+  const arr = _getGratitudeEntries();
+  arr.unshift(entry); // newest first
+  while (arr.length > _GRAT_JOURNAL_MAX) arr.pop();
+  _saveGratitudeEntries(arr);
+  return arr;
+}
+
+function _deleteGratitudeEntry(id) {
+  const arr = _getGratitudeEntries().filter((e) => e.id !== id);
+  _saveGratitudeEntries(arr);
+  return arr;
+}
+
+function _refreshGratitudeJournalLink() {
+  const link = document.getElementById("dashGratLink");
+  const countEl = document.getElementById("dashGratCount");
+  if (!link || !countEl) return;
+  const n = _getGratitudeEntries().length;
+  countEl.textContent = n > 0 ? `${n}` : "";
+  link.classList.toggle("dash-journal-link-empty", n === 0);
+}
+
+function openGratitudeJournal() {
+  const overlay = document.getElementById("modalOverlay");
+  const content = document.getElementById("modalContent");
+  if (!overlay || !content) return;
+
+  const entries = _getGratitudeEntries();
+  const listBody = entries.length === 0
+    ? `<div class="grat-empty">
+         <span class="material-symbols-outlined">favorite</span>
+         <p>Nothing here yet.</p>
+         <p class="grat-empty-sub">Type the smallest thing — coffee, a friend, that you woke up. Anything you're grateful for.</p>
+       </div>`
+    : `<ul class="grat-list">${entries.map(_renderGratitudeEntry).join("")}</ul>`;
+
+  content.innerHTML = `
+    <div class="grat-modal">
+      <header class="grat-modal-header">
+        <span class="grat-eyebrow">Gratitude Journal</span>
+        <h2 class="grat-title">Things you're thankful for</h2>
+        <p class="grat-sub">Random thanks, big or small. Add as many as you want.</p>
+      </header>
+      <div class="grat-add">
+        <textarea class="grat-add-input" placeholder="I'm thankful for..." rows="2"></textarea>
+        <div class="grat-add-row">
+          <span class="grat-add-hint">⌘/Ctrl+Enter to save</span>
+          <button type="button" class="grat-add-save">
+            <span class="material-symbols-outlined">add</span>
+            Add to journal
+          </button>
+        </div>
+      </div>
+      ${listBody}
+    </div>
+  `;
+  overlay.hidden = false;
+
+  // Wire add input — same auto-grow pattern the reflect-modal textareas use.
+  // Direct "auto" → scrollHeight (NOT the global autoExpand which uses
+  // "inherit" and breaks inside flex-column parents).
+  const ta = content.querySelector(".grat-add-input");
+  if (ta) {
+    ta.style.overflowY = "hidden";
+    const growGrat = () => {
+      ta.style.height = "auto";
+      ta.style.height = ta.scrollHeight + "px";
+    };
+    growGrat();
+    ta.addEventListener("input", growGrat);
+    requestAnimationFrame(growGrat);
+    ta.focus();
+
+    const trySave = () => {
+      const txt = (ta.value || "").trim();
+      if (!txt) return;
+      _addGratitudeEntry({
+        id: `grat-${Date.now()}-${Math.random().toString(36).slice(2, 7)}`,
+        ts: Date.now(),
+        text: txt,
+      });
+      _refreshGratitudeJournalLink();
+      openGratitudeJournal(); // re-render the modal with the new entry
+    };
+    ta.addEventListener("keydown", (e) => {
+      if ((e.metaKey || e.ctrlKey) && e.key === "Enter") trySave();
+    });
+    content.querySelector(".grat-add-save")?.addEventListener("click", trySave);
+  }
+
+  content.querySelectorAll(".grat-delete-btn").forEach((btn) => {
+    btn.onclick = () => {
+      const id = btn.dataset.id;
+      if (!id) return;
+      _deleteGratitudeEntry(id);
+      _refreshGratitudeJournalLink();
+      openGratitudeJournal();
+    };
+  });
+}
+
+function _renderGratitudeEntry(e) {
+  const date = new Date(e.ts).toLocaleDateString("en-US", { month: "short", day: "numeric", year: "numeric" });
+  const time = new Date(e.ts).toLocaleTimeString("en-US", { hour: "numeric", minute: "2-digit" });
+  return `
+    <li class="grat-item">
+      <div class="grat-item-row">
+        <span class="grat-item-date">${date} · ${time}</span>
+        <button type="button" class="grat-delete-btn" data-id="${_escHtml(e.id)}" aria-label="Delete entry" title="Delete entry">
+          <span class="material-symbols-outlined">close</span>
+        </button>
+      </div>
+      <div class="grat-item-text">${_escHtml(e.text)}</div>
+    </li>
+  `;
+}
+
+// =============================================================================
+// PRAYERS JOURNAL — free-form list of prayer requests. Mirrors the gratitude
+// journal pattern (open-ended add input on top, list below). Replaces the old
+// SOAP "Prayer" feature which lived inside Dig Deeper.
+// =============================================================================
+
+const _PRAY_JOURNAL_KEY = "prayersJournal";
+const _PRAY_JOURNAL_MAX = 500;
+
+function _getPrayersEntries() {
+  try {
+    const raw = localStorage.getItem(_PRAY_JOURNAL_KEY);
+    if (!raw) return [];
+    const arr = JSON.parse(raw);
+    return Array.isArray(arr) ? arr : [];
+  } catch { return []; }
+}
+
+function _savePrayersEntries(arr) {
+  try { localStorage.setItem(_PRAY_JOURNAL_KEY, JSON.stringify(arr)); } catch {}
+}
+
+function _addPrayerEntry(entry) {
+  const arr = _getPrayersEntries();
+  arr.unshift(entry);
+  while (arr.length > _PRAY_JOURNAL_MAX) arr.pop();
+  _savePrayersEntries(arr);
+  return arr;
+}
+
+function _deletePrayerEntry(id) {
+  const arr = _getPrayersEntries().filter((e) => e.id !== id);
+  _savePrayersEntries(arr);
+  return arr;
+}
+
+function _refreshPrayersJournalLink() {
+  const link = document.getElementById("dashPrayLink");
+  const countEl = document.getElementById("dashPrayCount");
+  if (!link || !countEl) return;
+  const n = _getPrayersEntries().length;
+  countEl.textContent = n > 0 ? `${n}` : "";
+  link.classList.toggle("dash-journal-link-empty", n === 0);
+}
+
+function openPrayersJournal() {
+  const overlay = document.getElementById("modalOverlay");
+  const content = document.getElementById("modalContent");
+  if (!overlay || !content) return;
+
+  const entries = _getPrayersEntries();
+  const listBody = entries.length === 0
+    ? `<div class="grat-empty">
+         <span class="material-symbols-outlined">volunteer_activism</span>
+         <p>Nothing here yet.</p>
+         <p class="grat-empty-sub">Write a prayer — for yourself, family, ministry, or anything on your heart.</p>
+       </div>`
+    : `<ul class="grat-list">${entries.map(_renderPrayerEntry).join("")}</ul>`;
+
+  content.innerHTML = `
+    <div class="grat-modal pray-modal">
+      <header class="grat-modal-header">
+        <span class="grat-eyebrow">Prayers</span>
+        <h2 class="grat-title">Prayer requests</h2>
+        <p class="grat-sub">Lift them up. Keep them in front of you. Add as many as you want.</p>
+      </header>
+      <div class="grat-add">
+        <textarea class="grat-add-input" placeholder="Lord, I pray..." rows="2"></textarea>
+        <div class="grat-add-row">
+          <span class="grat-add-hint">⌘/Ctrl+Enter to save</span>
+          <button type="button" class="grat-add-save">
+            <span class="material-symbols-outlined">add</span>
+            Add prayer
+          </button>
+        </div>
+      </div>
+      ${listBody}
+    </div>
+  `;
+  overlay.hidden = false;
+
+  const ta = content.querySelector(".grat-add-input");
+  if (ta) {
+    ta.style.overflowY = "hidden";
+    const growPray = () => {
+      ta.style.height = "auto";
+      ta.style.height = ta.scrollHeight + "px";
+    };
+    growPray();
+    ta.addEventListener("input", growPray);
+    requestAnimationFrame(growPray);
+    ta.focus();
+
+    const trySave = () => {
+      const txt = (ta.value || "").trim();
+      if (!txt) return;
+      _addPrayerEntry({
+        id: `pray-${Date.now()}-${Math.random().toString(36).slice(2, 7)}`,
+        ts: Date.now(),
+        text: txt,
+      });
+      _refreshPrayersJournalLink();
+      openPrayersJournal();
+    };
+    ta.addEventListener("keydown", (e) => {
+      if ((e.metaKey || e.ctrlKey) && e.key === "Enter") trySave();
+    });
+    content.querySelector(".grat-add-save")?.addEventListener("click", trySave);
+  }
+
+  content.querySelectorAll(".grat-delete-btn").forEach((btn) => {
+    btn.onclick = () => {
+      const id = btn.dataset.id;
+      if (!id) return;
+      _deletePrayerEntry(id);
+      _refreshPrayersJournalLink();
+      openPrayersJournal();
+    };
+  });
+}
+
+function _renderPrayerEntry(e) {
+  const date = new Date(e.ts).toLocaleDateString("en-US", { month: "short", day: "numeric", year: "numeric" });
+  const time = new Date(e.ts).toLocaleTimeString("en-US", { hour: "numeric", minute: "2-digit" });
+  return `
+    <li class="grat-item">
+      <div class="grat-item-row">
+        <span class="grat-item-date">${date} · ${time}</span>
+        <button type="button" class="grat-delete-btn" data-id="${_escHtml(e.id)}" aria-label="Delete prayer" title="Delete prayer">
+          <span class="material-symbols-outlined">close</span>
+        </button>
+      </div>
+      <div class="grat-item-text">${_escHtml(e.text)}</div>
+    </li>
+  `;
+}
+
+// Real-time journal sync — fired by firebase-sync.js when remote obedience,
+// gratitude, or prayers journal data lands. Refreshes the dashboard pill counts
+// and, if the matching modal is open, re-renders its contents in place so
+// Charlie ↔ Karla edits flow live without a page reload.
+window.addEventListener("devo:journal-sync", (e) => {
+  const keys = (e?.detail?.keys) || [];
+  const overlay = document.getElementById("modalOverlay");
+  const content = document.getElementById("modalContent");
+  const modalOpen = overlay && !overlay.hidden && content;
+
+  if (keys.includes("obedienceJournal")) {
+    _refreshObedienceJournalLink();
+    if (modalOpen && content.querySelector(".obed-modal")) {
+      // Preserve any in-progress inline note form before re-render.
+      const draft = content.querySelector(".obed-note-form .obed-note-input")?.value || "";
+      const draftEntryId = content.querySelector(".obed-note-form")?.closest(".obed-item")?.dataset.id;
+      openObedienceJournal();
+      if (draft && draftEntryId) {
+        // Re-open the inline note form on the same entry and restore the draft.
+        _showObedAddNoteForm(draftEntryId);
+        const ta = document.querySelector(`.obed-item[data-id="${draftEntryId}"] .obed-note-input`);
+        if (ta) ta.value = draft;
+      }
+    }
+  }
+
+  if (keys.includes("gratitudeJournal")) {
+    _refreshGratitudeJournalLink();
+    if (modalOpen && content.querySelector(".grat-modal:not(.pray-modal)")) {
+      const draft = content.querySelector(".grat-add-input")?.value || "";
+      openGratitudeJournal();
+      const ta = document.querySelector(".grat-add-input");
+      if (ta && draft) ta.value = draft;
+    }
+  }
+
+  if (keys.includes("prayersJournal")) {
+    _refreshPrayersJournalLink();
+    if (modalOpen && content.querySelector(".pray-modal")) {
+      const draft = content.querySelector(".grat-add-input")?.value || "";
+      openPrayersJournal();
+      const ta = document.querySelector(".pray-modal .grat-add-input");
+      if (ta && draft) ta.value = draft;
+    }
+  }
+});
+
 

@@ -197,45 +197,75 @@ function closeMyModal() {
 
 ---
 
-## 5. Add a SOAP Entry Type or Category
+## 5. Add a New Free-Form Journal (mirrors Obedience / Gratitude / Prayers)
 
-**Files:** `script.js`, `firebase-sync.js`
+**Files:** `js/04-passage.js`, `firebase-sync.js`
 
-**Current structure:**
-- Types: `"application"`, `"prayer"` (line 7054)
-- Categories: "God", "Family", "Work/School", "Ministry", "Others" (line 7054)
-- Storage key: `"soap_${type}"` (line ~7300)
+**Replaces the old SOAP guide** — SOAP was deleted 2026-05-05. The current pattern is three parallel journals, each living in `04-passage.js`, with a pink dashboard pill in `dash-journal-row` and a modal that opens via `#modalOverlay` / `#modalContent`. The Prayers journal added 2026-05-05 is the cleanest reference because it's the simplest of the three (free text, no status/notes).
 
-**Steps:**
+**Current structure (all in `04-passage.js`):**
+- `_OBED_JOURNAL_KEY = "obedienceJournal"` — entries: `{id, ts, text, status: "todo"|"done", notes?: [...]}`
+- `_GRAT_JOURNAL_KEY = "gratitudeJournal"` — entries: `{id, ts, text}`
+- `_PRAY_JOURNAL_KEY = "prayersJournal"` — entries: `{id, ts, text}`
 
-5a. Add new category (script.js, line 7054):
+**Steps to add a new journal:**
+
+5a. Define helpers in `04-passage.js` (mirror the Prayers block):
 ```javascript
-const SOAP_CATEGORIES = [
-  "God", "Family", "Work/School", "Ministry", "Others", "Finances"  // ADD
-];
+const _MYJ_JOURNAL_KEY = "myjJournal";
+const _MYJ_JOURNAL_MAX = 500;
+
+function _getMyjEntries() { /* same shape as _getPrayersEntries */ }
+function _saveMyjEntries(arr) { /* localStorage.setItem */ }
+function _addMyjEntry(entry) { /* unshift + cap at MAX */ }
+function _deleteMyjEntry(id) { /* filter by id */ }
+function _refreshMyjJournalLink() { /* update count badge + empty class */ }
+
+function openMyjJournal() {
+  // Build modal markup using the .grat-modal / .grat-* class structure
+  // for free reuse of the existing pink-themed modal styling. Add a
+  // .myj-modal modifier if you want unique tweaks.
+}
+
+function _renderMyjEntry(e) { /* one <li> per entry */ }
 ```
 
-5b. Add new type (if desired):
+5b. Add the dashboard pill in `renderDashboard` (`04-passage.js`, in `.dash-journal-row`):
 ```javascript
-const SOAP_TYPES = ["application", "prayer", "reflection"];  // NEW
-```
-
-5c. Update button rendering (line 7310, `_soapAPButtonsHTML()`):
-```javascript
-<button class="soap-ap-btn soap-ap-btn--reflection" data-soap-type="reflection">
-  <span class="material-icons">lightbulb</span> Reflection
+<button type="button" id="dashMyjLink" class="dash-journal-link dash-journal-link--myj dash-journal-link-empty" onclick="openMyjJournal()">
+  <span class="material-symbols-outlined">your_icon</span>
+  <span>My journal</span>
+  <span id="dashMyjCount" class="dash-journal-count"></span>
+  <span class="material-symbols-outlined dash-journal-arrow">arrow_forward</span>
 </button>
 ```
+Plus call `_refreshMyjJournalLink()` near the other `_refresh*JournalLink()` calls.
 
-5d. Register storage key (firebase-sync.js, lines 22–35):
+5c. Wire Firebase sync in `firebase-sync.js`:
 ```javascript
 const SYNC_STATIC_KEYS = [
   // ... existing ...
-  "soap_reflection",  // ADD THIS
+  "myjJournal",  // ADD THIS
 ];
+// And in the noteJournalKey handler in _listenForRemoteChanges:
+if (k === "obedienceJournal" || k === "gratitudeJournal" || k === "prayersJournal" || k === "myjJournal")
+  changedJournalKeys.push(k);
 ```
 
-**Flow:** User taps "Prayer" → `_appendSoapPicker()` opens (7337) → picks category → writes text → saves to `_getSoapEntries("prayer")` (7393) → card rendered (7398)
+5d. Wire the live re-render in the `devo:journal-sync` event listener (bottom of `04-passage.js`):
+```javascript
+if (keys.includes("myjJournal")) {
+  _refreshMyjJournalLink();
+  if (modalOpen && content.querySelector(".myj-modal")) {
+    const draft = content.querySelector(".myj-add-input")?.value || "";
+    openMyjJournal();
+    const ta = document.querySelector(".myj-modal .myj-add-input");
+    if (ta && draft) ta.value = draft;
+  }
+}
+```
+
+**Flow:** User taps the pill → `openMyjJournal()` builds the modal in `#modalContent` → user types in a textarea → save handler calls `_addMyjEntry` (which writes to localStorage, mirrored to RTDB by `firebase-sync.js`'s `setItem` proxy) → `_refreshMyjJournalLink()` updates the dashboard count badge → modal re-opens to show the new entry.
 
 ---
 
@@ -383,7 +413,7 @@ git push
 | localStorage | script.js (1–50), firebase-sync.js | getItem/setItem | kebab-case keys |
 | AI Prompt | script.js | callGemini / callGeminiStream | `window.__aiPayload` |
 | Modal | HTML, script.js, CSS | openXxx / closeXxx | `#modalOverlay` or dedicated |
-| SOAP | script.js (7054+), firebase-sync.js | _getSoapEntries | SOAP_CATEGORIES, types |
+| Free-form journal | js/04-passage.js, firebase-sync.js | _getPrayersEntries / _getGratitudeEntries / _getObedienceJournal | dashJournalRow, SYNC_STATIC_KEYS |
 | Verse Action | script.js (2712–2790) | Button handler | `.verse-action-btn` data-action |
 | Immersive | HTML (376), script.js (5327–5432) | ttsImmersiveOpen/Close | `#ttsImm*` IDs |
 | Deploy | sw.js (3) | DEPLOYMENT_ID | Date.now() suffix |

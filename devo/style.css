@@ -2437,7 +2437,8 @@ html {
   .dash-continue-btn {
     animation: dashContinueGlow 4.5s ease-in-out infinite;
   }
-  .dash-continue-ref {
+  .dash-continue-ref,
+  .dash-prov-topic {
     animation: dashRefShimmer 5s ease-in-out infinite alternate;
   }
 }
@@ -5614,6 +5615,1168 @@ body.light {
   0%, 100% { opacity: 0.25; transform: scale(0.7); }
   50%      { opacity: 1;    transform: scale(1.1); }
 }
+
+/* NT-echo card — sidebar slot between context summary and reflection. Surfaces
+   the most relevant NT passage that fulfills/echoes the current OT chapter
+   (e.g. Lev → Hebrews 7-10). Soft pink-tinted to read as related-but-secondary
+   content, with a Read button that loads the linked NT passage directly. */
+.nt-echo-card {
+  margin: 14px 0 18px;
+  padding: 14px 16px;
+  border: 1px solid rgba(219, 39, 119, 0.22);
+  border-radius: 14px;
+  background: linear-gradient(180deg, rgba(219, 39, 119, 0.08), rgba(219, 39, 119, 0.04));
+  display: flex;
+  flex-direction: column;
+  gap: 6px;
+  animation: ntEchoFadeIn 0.4s ease-out;
+}
+/* `display: flex` above wins over the default `[hidden] { display: none }`
+   user-agent rule, so we need to win explicitly when the card is hidden
+   (e.g. on NT chapters where the echo doesn't apply). */
+.nt-echo-card[hidden] { display: none !important; }
+@keyframes ntEchoFadeIn {
+  from { opacity: 0; transform: translateY(4px); }
+  to   { opacity: 1; transform: translateY(0); }
+}
+.nt-echo-label {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  font-size: 11px;
+  font-weight: 600;
+  letter-spacing: 0.08em;
+  text-transform: uppercase;
+  color: #db2777;
+  opacity: 0.85;
+}
+.nt-echo-label .material-symbols-outlined {
+  font-size: 15px;
+}
+.nt-echo-ref {
+  font-family: "Playfair Display", Georgia, serif;
+  font-style: italic;
+  font-size: 18px;
+  color: #fbcfe8;
+  letter-spacing: 0.01em;
+}
+.light .nt-echo-ref { color: #9d174d; }
+.nt-echo-note {
+  font-size: 13.5px;
+  line-height: 1.55;
+  color: rgba(229, 231, 235, 0.86);
+}
+.light .nt-echo-note { color: rgba(31, 41, 55, 0.82); }
+.nt-echo-read-btn {
+  align-self: flex-start;
+  margin-top: 4px;
+  padding: 6px 12px 6px 14px;
+  border: 1px solid rgba(219, 39, 119, 0.35);
+  border-radius: 999px;
+  background: rgba(219, 39, 119, 0.12);
+  color: #fbcfe8;
+  font-size: 12.5px;
+  font-weight: 500;
+  cursor: pointer;
+  display: inline-flex;
+  align-items: center;
+  gap: 4px;
+  transition: background 0.18s ease, border-color 0.18s ease, transform 0.18s ease;
+}
+.nt-echo-read-btn:hover {
+  background: rgba(219, 39, 119, 0.22);
+  border-color: rgba(219, 39, 119, 0.55);
+  transform: translateX(2px);
+}
+.nt-echo-read-btn .material-symbols-outlined {
+  font-size: 16px;
+}
+.light .nt-echo-read-btn { color: #9d174d; }
+.nt-echo-loader {
+  display: inline-flex;
+  align-items: center;
+  gap: 4px;
+  padding: 4px 0;
+}
+.nt-echo-loader .rdot {
+  width: 5px;
+  height: 5px;
+  border-radius: 50%;
+  background: rgba(219, 39, 119, 0.65);
+  animation: recapDotPulse 1.3s ease-in-out infinite;
+}
+.nt-echo-loader .rdot:nth-child(2) { animation-delay: 0.18s; }
+.nt-echo-loader .rdot:nth-child(3) { animation-delay: 0.36s; }
+
+
+/* Dashboard Proverbs nugget — small inline card under the greeting message.
+   Compact: topic chip, one verse, one applicable action. Refresh button picks
+   a different one. Cached per calendar day. */
+.dash-prov-card {
+  margin: 14px 0 0;
+  padding: 13px 14px 12px;
+  border: 1px solid rgba(219, 39, 119, 0.20);
+  border-radius: 12px;
+  background: linear-gradient(180deg, rgba(219, 39, 119, 0.07), rgba(219, 39, 119, 0.03));
+  max-width: 540px;
+}
+.dash-prov-card:empty { display: none; }
+/* Inner wrapper holds the actual content; gets re-rendered on every refresh.
+   The fade-in lives on this wrapper so only the body animates, not the card
+   frame around it. */
+.dash-prov-inner {
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+  animation: dashProvSwap 0.32s ease-out;
+}
+@keyframes dashProvSwap {
+  from { opacity: 0; transform: translateY(3px); }
+  to   { opacity: 1; transform: translateY(0); }
+}
+.dash-prov-header {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 8px;
+}
+.dash-prov-topic {
+  font-family: "Editors Note", "EditorsNote-Italic", serif;
+  font-style: italic;
+  font-weight: 700;
+  font-size: clamp(1.4rem, 4vw, 1.85rem);
+  letter-spacing: -1px;
+  line-height: 1;
+  text-transform: uppercase;
+  color: #db2777;
+  display: block;
+  min-width: 0;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+  /* Gradient text fill — same shimmer treatment as .dash-continue-ref so the
+     proverb ref reads with the same ambient brand life. Solid color falls back
+     for browsers without background-clip:text. */
+  background: linear-gradient(110deg, #db2777 0%, #f475a8 35%, #db2777 70%);
+  background-size: 200% auto;
+  -webkit-background-clip: text;
+  -webkit-text-fill-color: transparent;
+  background-clip: text;
+}
+.dash-prov-refresh {
+  width: 24px;
+  height: 24px;
+  border-radius: 50% !important;
+  border: 1px solid rgba(219, 39, 119, 0.30) !important;
+  background: rgba(219, 39, 119, 0.10) !important;
+  color: #fbcfe8 !important;
+  cursor: pointer;
+  display: inline-flex !important;
+  align-items: center;
+  justify-content: center;
+  padding: 0 !important;
+  flex: 0 0 auto !important;
+  transition: background 0.18s ease, border-color 0.18s ease, transform 0.4s ease;
+}
+.dash-prov-refresh:hover {
+  background: rgba(219, 39, 119, 0.22) !important;
+  border-color: rgba(219, 39, 119, 0.55) !important;
+  transform: rotate(60deg);
+}
+.dash-prov-refresh .material-symbols-outlined { font-size: 14px; }
+.light .dash-prov-refresh { color: #9d174d !important; }
+.dash-prov-verse {
+  margin: 0;
+  padding: 0 0 0 14px;
+  border-left: 4px solid rgba(219, 39, 119, 0.55);
+  font-family: inherit;
+  font-style: normal;
+  font-size: 14.5px;
+  line-height: 1.55;
+  color: rgba(229, 231, 235, 0.92);
+}
+.dash-prov-text { display: block; }
+.light .dash-prov-verse { color: rgba(31, 41, 55, 0.88); }
+.dash-prov-apply {
+  font-size: 13px;
+  line-height: 1.55;
+  color: rgba(229, 231, 235, 0.86);
+}
+.dash-prov-apply-label {
+  font-weight: 700;
+  color: #db2777;
+  margin-right: 4px;
+  text-transform: uppercase;
+  font-size: 11px;
+  letter-spacing: 0.10em;
+}
+.light .dash-prov-apply { color: rgba(31, 41, 55, 0.88); }
+.dash-prov-loader {
+  display: inline-flex;
+  align-items: center;
+  gap: 4px;
+  padding: 4px 0;
+}
+.dash-prov-loader .rdot {
+  width: 5px;
+  height: 5px;
+  border-radius: 50%;
+  background: rgba(219, 39, 119, 0.65);
+  animation: recapDotPulse 1.3s ease-in-out infinite;
+}
+.dash-prov-loader .rdot:nth-child(2) { animation-delay: 0.18s; }
+.dash-prov-loader .rdot:nth-child(3) { animation-delay: 0.36s; }
+.dash-prov-fail {
+  font-size: 13px;
+  color: rgba(229, 231, 235, 0.65);
+  margin: 0;
+}
+.dash-prov-fail-retry {
+  background: none !important;
+  border: none !important;
+  color: #db2777 !important;
+  text-decoration: underline;
+  cursor: pointer;
+  padding: 0 !important;
+  font: inherit !important;
+}
+
+/* CTA row on the proverb card — "I did this" (filled-on-hover) + "I'll do
+   this" (always quiet outline). Two buttons sit side by side and wrap on
+   narrow viewports. */
+.dash-prov-cta {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 6px;
+  margin-top: 4px;
+}
+.dash-prov-commit {
+  display: inline-flex !important;
+  align-items: center;
+  gap: 6px;
+  padding: 7px 14px 7px 12px !important;
+  border: 1px solid rgba(219, 39, 119, 0.45) !important;
+  border-radius: 999px !important;
+  background: rgba(219, 39, 119, 0.10) !important;
+  color: #fbcfe8 !important;
+  font-size: 12.5px;
+  font-weight: 500;
+  cursor: pointer;
+  flex: 0 0 auto !important;
+  transition: background 0.18s ease, border-color 0.18s ease, transform 0.18s ease;
+}
+.dash-prov-commit .material-symbols-outlined { font-size: 16px; }
+.dash-prov-commit--done:hover {
+  background: rgba(219, 39, 119, 0.85) !important;
+  border-color: rgba(219, 39, 119, 0.95) !important;
+  color: white !important;
+  transform: translateY(-1px);
+}
+.dash-prov-commit--todo {
+  background: transparent !important;
+  border-color: rgba(219, 39, 119, 0.30) !important;
+  color: rgba(229, 231, 235, 0.78) !important;
+}
+.dash-prov-commit--todo:hover {
+  background: rgba(219, 39, 119, 0.12) !important;
+  border-color: rgba(219, 39, 119, 0.55) !important;
+  color: #fbcfe8 !important;
+  transform: translateY(-1px);
+}
+.light .dash-prov-commit { color: #9d174d !important; }
+.light .dash-prov-commit--done:hover { color: white !important; }
+.light .dash-prov-commit--todo { color: rgba(31, 41, 55, 0.72) !important; }
+.light .dash-prov-commit--todo:hover { color: #9d174d !important; }
+
+/* Inline form: "what did you do?" textarea + Save / Cancel. Replaces the CTA
+   when the user taps "I did this". */
+.dash-prov-done-form {
+  display: flex;
+  flex-direction: column;
+  gap: 7px;
+  margin-top: 4px;
+  animation: dashProvSwap 0.22s ease-out;
+}
+.dash-prov-done-label {
+  font-size: 11px;
+  font-weight: 600;
+  letter-spacing: 0.06em;
+  text-transform: uppercase;
+  color: rgba(219, 39, 119, 0.85);
+}
+.dash-prov-done-optional {
+  text-transform: none;
+  letter-spacing: 0;
+  font-weight: 400;
+  color: rgba(229, 231, 235, 0.55);
+  margin-left: 4px;
+}
+.light .dash-prov-done-optional { color: rgba(31, 41, 55, 0.55); }
+.dash-prov-done-input {
+  /* Global rule has `textarea { flex: 1 }` — and our parent .dash-prov-done-form
+     is display:flex/column. That made the flex algorithm own main-axis sizing
+     and ignored the inline JS `style.height`, so the textarea never grew.
+     Override with flex: 0 0 auto so the inline height + scrollHeight wins. */
+  flex: 0 0 auto !important;
+  width: 100%;
+  min-height: 56px;
+  height: auto;
+  padding: 9px 11px;
+  border: 1px solid rgba(219, 39, 119, 0.22);
+  border-radius: 10px;
+  background: rgba(0, 0, 0, 0.20);
+  color: inherit;
+  font-family: inherit;
+  font-size: 13.5px;
+  line-height: 1.5;
+  resize: none;
+  overflow: hidden;
+  box-sizing: border-box;
+  outline: none;
+  -webkit-tap-highlight-color: transparent;
+  transition: border-color 0.18s ease, background 0.18s ease;
+}
+.dash-prov-done-input:focus,
+.dash-prov-done-input:focus-visible {
+  outline: none !important;
+  box-shadow: none !important;
+  border-color: rgba(219, 39, 119, 0.55);
+  background: rgba(0, 0, 0, 0.28);
+}
+.dash-prov-done-input::-webkit-scrollbar { display: none; }
+.light .dash-prov-done-input {
+  background: white;
+  border-color: rgba(219, 39, 119, 0.18);
+}
+.light .dash-prov-done-input:focus { background: white; border-color: rgba(219, 39, 119, 0.55); }
+.dash-prov-done-form-actions {
+  display: flex;
+  justify-content: flex-end;
+  gap: 8px;
+}
+.dash-prov-done-cancel,
+.dash-prov-done-save {
+  padding: 7px 13px !important;
+  border-radius: 999px !important;
+  font-size: 12.5px !important;
+  font-weight: 500 !important;
+  cursor: pointer;
+  display: inline-flex !important;
+  align-items: center;
+  gap: 5px;
+  flex: 0 0 auto !important;
+  transition: background 0.18s ease, border-color 0.18s ease, transform 0.18s ease;
+}
+.dash-prov-done-cancel {
+  border: 1px solid rgba(229, 231, 235, 0.18) !important;
+  background: transparent !important;
+  color: rgba(229, 231, 235, 0.7) !important;
+}
+.dash-prov-done-cancel:hover {
+  background: rgba(229, 231, 235, 0.06) !important;
+  color: rgba(229, 231, 235, 0.95) !important;
+}
+.light .dash-prov-done-cancel { color: rgba(31, 41, 55, 0.7) !important; border-color: rgba(31, 41, 55, 0.15) !important; }
+.dash-prov-done-save {
+  border: 1px solid rgba(219, 39, 119, 0.95) !important;
+  background: rgba(219, 39, 119, 0.85) !important;
+  color: white !important;
+}
+.dash-prov-done-save:hover {
+  background: #db2777 !important;
+  transform: translateY(-1px);
+}
+.dash-prov-done-save .material-symbols-outlined { font-size: 16px; }
+
+/* Saved confirmation: replaces the inner card content with a calm green-pink
+   acknowledgment + Undo. */
+.dash-prov-saved {
+  display: flex;
+  align-items: center;
+  gap: 11px;
+  padding: 14px 4px;
+  animation: dashProvSwap 0.32s ease-out;
+}
+.dash-prov-saved-icon {
+  font-size: 28px !important;
+  color: #db2777;
+  flex: 0 0 auto;
+}
+.dash-prov-saved-text {
+  flex: 1 1 auto;
+  display: flex;
+  flex-direction: column;
+  gap: 2px;
+}
+.dash-prov-saved-title {
+  font-size: 14px;
+  font-weight: 600;
+  color: #fbcfe8;
+}
+.dash-prov-saved-sub {
+  font-size: 12.5px;
+  color: rgba(229, 231, 235, 0.65);
+}
+.light .dash-prov-saved-title { color: #9d174d; }
+.light .dash-prov-saved-sub { color: rgba(31, 41, 55, 0.65); }
+.dash-prov-saved-undo {
+  background: none !important;
+  border: 1px solid rgba(229, 231, 235, 0.18) !important;
+  color: rgba(229, 231, 235, 0.65) !important;
+  padding: 5px 11px !important;
+  border-radius: 999px !important;
+  font-size: 12px;
+  cursor: pointer;
+  flex: 0 0 auto !important;
+  transition: background 0.18s ease, color 0.18s ease;
+}
+.dash-prov-saved-undo:hover {
+  background: rgba(229, 231, 235, 0.08) !important;
+  color: rgba(229, 231, 235, 0.92) !important;
+}
+.light .dash-prov-saved-undo { color: rgba(31, 41, 55, 0.65) !important; border-color: rgba(31, 41, 55, 0.15) !important; }
+
+/* Dashboard journal pills — Obedience + Gratitude side-by-side. Wrap on
+   narrow viewports. Each is a small pink-outline pill with an icon, label,
+   count badge, and a nudging arrow. */
+.dash-journal-row {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 8px;
+  margin: 10px 0 0;
+}
+.dash-journal-link {
+  display: inline-flex !important;
+  align-items: center;
+  gap: 7px;
+  padding: 7px 13px 7px 12px !important;
+  border: 1px solid rgba(219, 39, 119, 0.22) !important;
+  border-radius: 999px !important;
+  background: transparent !important;
+  color: rgba(229, 231, 235, 0.72);
+  font-size: 12.5px;
+  font-weight: 500;
+  cursor: pointer;
+  text-align: left;
+  flex: 0 0 auto !important;
+  transition: background 0.18s ease, border-color 0.18s ease, color 0.18s ease;
+}
+.dash-journal-link:hover {
+  background: rgba(219, 39, 119, 0.10) !important;
+  border-color: rgba(219, 39, 119, 0.45) !important;
+  color: #fbcfe8;
+}
+.dash-journal-link .material-symbols-outlined { font-size: 16px; color: #db2777; }
+.dash-journal-arrow { font-size: 14px !important; opacity: 0.7; transition: transform 0.18s ease, opacity 0.18s ease; }
+.dash-journal-link:hover .dash-journal-arrow { transform: translateX(2px); opacity: 1; }
+.dash-journal-count {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  min-width: 20px;
+  height: 18px;
+  padding: 0 6px;
+  border-radius: 999px;
+  background: rgba(219, 39, 119, 0.85);
+  color: white;
+  font-size: 11px;
+  font-weight: 700;
+  line-height: 1;
+}
+.dash-journal-count:empty { display: none; }
+.dash-journal-link-empty { opacity: 0.55; }
+.dash-journal-link-empty:hover { opacity: 1; }
+.light .dash-journal-link { color: rgba(31, 41, 55, 0.72); }
+.light .dash-journal-link:hover { color: #9d174d; }
+
+/* Obedience Journal modal — list of saved entries. Renders inside the global
+   #modalContent / #modalOverlay pair so it gets the existing backdrop +
+   click-outside-to-close behavior. */
+.obed-modal {
+  width: 100%;
+  max-width: 640px;
+  max-height: calc(100vh - 80px);
+  overflow-y: auto;
+  padding: 0;
+}
+.obed-modal-header {
+  position: sticky;
+  top: 0;
+  background: linear-gradient(180deg, rgba(40, 14, 36, 0.96), rgba(40, 14, 36, 0.88));
+  backdrop-filter: blur(8px);
+  -webkit-backdrop-filter: blur(8px);
+  padding: 22px 24px 18px;
+  border-bottom: 1px solid rgba(219, 39, 119, 0.15);
+  display: flex;
+  flex-direction: column;
+  gap: 4px;
+  z-index: 2;
+}
+.light .obed-modal-header {
+  background: linear-gradient(180deg, rgba(255, 250, 246, 0.96), rgba(255, 242, 246, 0.88));
+}
+.obed-eyebrow {
+  font-size: 11px;
+  letter-spacing: 0.16em;
+  text-transform: uppercase;
+  color: #db2777;
+  font-weight: 700;
+}
+.obed-title {
+  margin: 0;
+  font-family: "Playfair Display", Georgia, serif;
+  font-size: 22px;
+  font-weight: 500;
+  color: #fce7f3;
+  line-height: 1.25;
+}
+.light .obed-title { color: #831843; }
+.obed-sub {
+  margin: 0;
+  font-size: 13px;
+  color: rgba(229, 231, 235, 0.65);
+}
+.light .obed-sub { color: rgba(31, 41, 55, 0.65); }
+.obed-modal-close {
+  position: absolute !important;
+  top: 14px;
+  right: 14px;
+  width: 32px;
+  height: 32px;
+  border-radius: 50% !important;
+  background: rgba(219, 39, 119, 0.12) !important;
+  border: 1px solid rgba(219, 39, 119, 0.25) !important;
+  color: #fbcfe8 !important;
+  cursor: pointer;
+  display: inline-flex !important;
+  align-items: center;
+  justify-content: center;
+  padding: 0 !important;
+  flex: 0 0 auto !important;
+  transition: background 0.18s ease;
+}
+.obed-modal-close:hover { background: rgba(219, 39, 119, 0.25) !important; }
+.obed-modal-close .material-symbols-outlined { font-size: 18px; }
+.light .obed-modal-close { color: #9d174d !important; }
+.obed-list {
+  list-style: none;
+  margin: 0;
+  padding: 14px 24px 24px;
+  display: flex;
+  flex-direction: column;
+  gap: 12px;
+}
+.obed-item {
+  padding: 14px 16px 12px;
+  border: 1px solid rgba(219, 39, 119, 0.18);
+  border-radius: 12px;
+  background: rgba(219, 39, 119, 0.04);
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+  transition: border-color 0.18s ease, background 0.18s ease;
+}
+.obed-item:hover {
+  border-color: rgba(219, 39, 119, 0.35);
+  background: rgba(219, 39, 119, 0.07);
+}
+.light .obed-item {
+  background: rgba(255, 255, 255, 0.7);
+  border-color: rgba(219, 39, 119, 0.18);
+}
+.obed-item-row {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  flex-wrap: wrap;
+}
+.obed-item-topic {
+  font-size: 11px;
+  font-weight: 700;
+  letter-spacing: 0.14em;
+  text-transform: uppercase;
+  color: #db2777;
+  flex: 1 1 auto;
+}
+.obed-item-date {
+  font-size: 11.5px;
+  color: rgba(229, 231, 235, 0.55);
+  font-variant-numeric: tabular-nums;
+}
+.light .obed-item-date { color: rgba(31, 41, 55, 0.55); }
+.obed-delete-btn {
+  width: 22px;
+  height: 22px;
+  border-radius: 50% !important;
+  border: 1px solid transparent !important;
+  background: transparent !important;
+  color: rgba(229, 231, 235, 0.4) !important;
+  cursor: pointer;
+  display: inline-flex !important;
+  align-items: center;
+  justify-content: center;
+  padding: 0 !important;
+  flex: 0 0 auto !important;
+  transition: background 0.18s ease, color 0.18s ease, border-color 0.18s ease;
+}
+.obed-delete-btn:hover {
+  background: rgba(220, 38, 38, 0.18) !important;
+  border-color: rgba(220, 38, 38, 0.4) !important;
+  color: #fca5a5 !important;
+}
+.obed-delete-btn .material-symbols-outlined { font-size: 14px; }
+.obed-item-verse {
+  margin: 0;
+  padding: 0 0 0 11px;
+  border-left: 2px solid rgba(219, 39, 119, 0.30);
+  font-family: "Playfair Display", Georgia, serif;
+  font-style: italic;
+  font-size: 13.5px;
+  line-height: 1.5;
+  color: rgba(229, 231, 235, 0.85);
+  display: flex;
+  flex-direction: column;
+  gap: 2px;
+}
+.obed-item-verse-text { display: block; }
+.obed-item-verse-ref {
+  display: block;
+  font-style: normal;
+  font-family: "Inter", system-ui, sans-serif;
+  font-size: 11px;
+  color: rgba(219, 39, 119, 0.85);
+  font-weight: 500;
+}
+.light .obed-item-verse { color: rgba(31, 41, 55, 0.82); }
+.light .obed-item-verse-ref { color: #9d174d; }
+.obed-item-apply,
+.obed-item-did {
+  font-size: 13px;
+  line-height: 1.55;
+  color: rgba(229, 231, 235, 0.85);
+}
+.light .obed-item-apply, .light .obed-item-did { color: rgba(31, 41, 55, 0.85); }
+.obed-label {
+  font-size: 10.5px;
+  font-weight: 700;
+  letter-spacing: 0.10em;
+  text-transform: uppercase;
+  color: #db2777;
+  margin-right: 5px;
+}
+.obed-item-did-empty { color: rgba(229, 231, 235, 0.45); }
+.light .obed-item-did-empty { color: rgba(31, 41, 55, 0.50); }
+.obed-empty {
+  padding: 36px 28px;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  text-align: center;
+  gap: 10px;
+}
+.obed-empty .material-symbols-outlined {
+  font-size: 36px;
+  color: rgba(219, 39, 119, 0.65);
+}
+.obed-empty p {
+  margin: 0;
+  font-size: 14px;
+  color: rgba(229, 231, 235, 0.85);
+  max-width: 380px;
+  line-height: 1.5;
+}
+.obed-empty-sub {
+  font-size: 12.5px !important;
+  color: rgba(229, 231, 235, 0.55) !important;
+}
+.light .obed-empty p { color: rgba(31, 41, 55, 0.85); }
+.light .obed-empty-sub { color: rgba(31, 41, 55, 0.6) !important; }
+
+@media (max-width: 520px) {
+  .obed-modal-header { padding: 18px 18px 14px; }
+  .obed-list { padding: 12px 16px 18px; }
+  .obed-title { font-size: 19px; }
+}
+
+/* Two-section split: To Do + Done. Each section has a label + count and its
+   own list (or an empty hint if the section is empty). */
+.obed-section {
+  padding: 14px 14px 6px;
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+}
+.obed-section-title {
+  margin: 0;
+  display: flex;
+  align-items: center;
+  gap: 7px;
+  font-size: 12px;
+  letter-spacing: 0.12em;
+  text-transform: uppercase;
+  font-weight: 700;
+  color: #db2777;
+}
+.obed-section-title .material-symbols-outlined { font-size: 17px; }
+.obed-section-count {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  min-width: 20px;
+  height: 18px;
+  padding: 0 6px;
+  border-radius: 999px;
+  background: rgba(219, 39, 119, 0.85);
+  color: white;
+  font-size: 11px;
+  font-weight: 700;
+  line-height: 1;
+  letter-spacing: 0;
+}
+.obed-section-empty {
+  margin: 0 0 8px;
+  font-size: 12.5px;
+  color: rgba(229, 231, 235, 0.5);
+  font-style: italic;
+}
+.light .obed-section-empty { color: rgba(31, 41, 55, 0.5); }
+.obed-section .obed-list { padding: 0; }
+.obed-section + .obed-section { border-top: 1px solid rgba(219, 39, 119, 0.10); padding-top: 16px; }
+
+
+/* Topic chip now also embeds the verse ref inline. */
+.obed-item-ref-inline {
+  font-weight: 500;
+  color: rgba(229, 231, 235, 0.55);
+  letter-spacing: 0.02em;
+  text-transform: none;
+}
+.light .obed-item-ref-inline { color: rgba(31, 41, 55, 0.55); }
+
+/* Drop the trailing-ref styling from the entry's verse — the ref is in the
+   chip header now. */
+.obed-item-verse {
+  margin: 0;
+  padding: 0 0 0 12px;
+  border-left: 4px solid rgba(219, 39, 119, 0.45);
+  font-family: inherit;
+  font-style: normal;
+  font-size: 13.5px;
+  line-height: 1.55;
+  color: rgba(229, 231, 235, 0.85);
+}
+.light .obed-item-verse { color: rgba(31, 41, 55, 0.82); }
+
+/* Thread of follow-up notes — small dated rows below the entry. */
+.obed-thread {
+  display: flex;
+  flex-direction: column;
+  gap: 6px;
+  padding: 8px 10px;
+  background: rgba(219, 39, 119, 0.05);
+  border-radius: 8px;
+}
+.obed-thread-note {
+  display: flex;
+  flex-direction: column;
+  gap: 2px;
+  font-size: 12.5px;
+  line-height: 1.5;
+}
+.obed-thread-date {
+  font-size: 10.5px;
+  font-weight: 600;
+  letter-spacing: 0.04em;
+  color: rgba(219, 39, 119, 0.85);
+  text-transform: uppercase;
+}
+.obed-thread-text {
+  color: rgba(229, 231, 235, 0.92);
+  white-space: pre-wrap;
+  word-wrap: break-word;
+}
+.light .obed-thread { background: rgba(219, 39, 119, 0.04); }
+.light .obed-thread-text { color: rgba(31, 41, 55, 0.88); }
+
+/* Per-entry actions row */
+.obed-item-actions {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 6px;
+  margin-top: 2px;
+}
+.obed-action-btn {
+  display: inline-flex !important;
+  align-items: center;
+  gap: 4px;
+  padding: 5px 11px 5px 9px !important;
+  border-radius: 999px !important;
+  font-size: 12px !important;
+  font-weight: 500 !important;
+  cursor: pointer;
+  flex: 0 0 auto !important;
+  transition: background 0.18s ease, border-color 0.18s ease, transform 0.18s ease;
+}
+.obed-action-btn .material-symbols-outlined { font-size: 14px; }
+.obed-action-add {
+  background: transparent !important;
+  border: 1px solid rgba(229, 231, 235, 0.18) !important;
+  color: rgba(229, 231, 235, 0.72) !important;
+}
+.obed-action-add:hover {
+  background: rgba(229, 231, 235, 0.08) !important;
+  color: rgba(229, 231, 235, 0.95) !important;
+}
+.obed-action-done {
+  background: rgba(219, 39, 119, 0.12) !important;
+  border: 1px solid rgba(219, 39, 119, 0.45) !important;
+  color: #fbcfe8 !important;
+}
+.obed-action-done:hover {
+  background: rgba(219, 39, 119, 0.85) !important;
+  border-color: rgba(219, 39, 119, 0.95) !important;
+  color: white !important;
+}
+.obed-action-revert {
+  background: transparent !important;
+  border: 1px solid rgba(219, 39, 119, 0.30) !important;
+  color: rgba(229, 231, 235, 0.72) !important;
+}
+.obed-action-revert:hover {
+  background: rgba(219, 39, 119, 0.10) !important;
+  border-color: rgba(219, 39, 119, 0.55) !important;
+  color: #fbcfe8 !important;
+}
+.light .obed-action-add { color: rgba(31, 41, 55, 0.72) !important; border-color: rgba(31, 41, 55, 0.15) !important; }
+.light .obed-action-done { color: #9d174d !important; }
+.light .obed-action-revert { color: rgba(31, 41, 55, 0.72) !important; }
+
+/* Inline "+ Add note" form within an entry */
+.obed-note-form {
+  display: flex;
+  flex-direction: column;
+  gap: 6px;
+  padding: 8px 0 4px;
+}
+.obed-note-input {
+  /* Override global `textarea { flex: 1 }` — see .dash-prov-done-input note. */
+  flex: 0 0 auto !important;
+  width: 100%;
+  min-height: 52px;
+  height: auto;
+  padding: 9px 11px;
+  border: 1px solid rgba(219, 39, 119, 0.22);
+  border-radius: 10px;
+  background: rgba(0, 0, 0, 0.20);
+  color: inherit;
+  font-family: inherit;
+  font-size: 13px;
+  line-height: 1.5;
+  resize: none;
+  overflow: hidden;
+  box-sizing: border-box;
+  outline: none;
+  -webkit-tap-highlight-color: transparent;
+  transition: border-color 0.18s ease, background 0.18s ease;
+}
+.obed-note-input:focus,
+.obed-note-input:focus-visible {
+  outline: none !important;
+  box-shadow: none !important;
+  border-color: rgba(219, 39, 119, 0.55);
+  background: rgba(0, 0, 0, 0.28);
+}
+.obed-note-input::-webkit-scrollbar { display: none; }
+.light .obed-note-input {
+  background: white;
+  border-color: rgba(219, 39, 119, 0.18);
+}
+.light .obed-note-input:focus { background: white; border-color: rgba(219, 39, 119, 0.55); }
+.obed-note-form-actions {
+  display: flex;
+  justify-content: flex-end;
+  gap: 6px;
+}
+.obed-note-cancel,
+.obed-note-save {
+  padding: 6px 12px !important;
+  border-radius: 999px !important;
+  font-size: 12px !important;
+  font-weight: 500 !important;
+  cursor: pointer;
+  display: inline-flex !important;
+  align-items: center;
+  gap: 4px;
+  flex: 0 0 auto !important;
+  transition: background 0.18s ease, border-color 0.18s ease;
+}
+.obed-note-cancel {
+  border: 1px solid rgba(229, 231, 235, 0.18) !important;
+  background: transparent !important;
+  color: rgba(229, 231, 235, 0.7) !important;
+}
+.obed-note-cancel:hover { background: rgba(229, 231, 235, 0.08) !important; color: rgba(229, 231, 235, 0.95) !important; }
+.obed-note-save {
+  border: 1px solid rgba(219, 39, 119, 0.95) !important;
+  background: rgba(219, 39, 119, 0.85) !important;
+  color: white !important;
+}
+.obed-note-save:hover { background: #db2777 !important; }
+.obed-note-save .material-symbols-outlined { font-size: 14px; }
+.light .obed-note-cancel { color: rgba(31, 41, 55, 0.7) !important; border-color: rgba(31, 41, 55, 0.15) !important; }
+
+@media (max-width: 520px) {
+  .obed-section { padding: 12px 16px 4px; }
+}
+
+/* Gratitude Journal modal — input form on top, list below. Same modal frame
+   as the obedience journal but with an always-visible add field instead of a
+   read-only header. */
+.grat-modal {
+  width: 100%;
+  max-width: 640px;
+  max-height: calc(100vh - 80px);
+  overflow-y: auto;
+  padding: 0;
+}
+.grat-modal-header {
+  position: sticky;
+  top: 0;
+  background: linear-gradient(180deg, rgba(40, 14, 36, 0.96), rgba(40, 14, 36, 0.88));
+  backdrop-filter: blur(8px);
+  -webkit-backdrop-filter: blur(8px);
+  padding: 22px 60px 16px 24px;
+  border-bottom: 1px solid rgba(219, 39, 119, 0.15);
+  display: flex;
+  flex-direction: column;
+  gap: 4px;
+  z-index: 2;
+}
+/* Re-skin the global close button when it sits over the gratitude / prayers
+   modal so it visually belongs to the pink-toned header instead of floating
+   awkwardly over the rounded corner. */
+#modalContent:has(.grat-modal) .modal-close {
+  top: 18px;
+  right: 18px;
+  background: rgba(219, 39, 119, 0.14);
+  border: 1px solid rgba(219, 39, 119, 0.28);
+  color: #fbcfe8;
+  z-index: 3;
+}
+#modalContent:has(.grat-modal) .modal-close:hover {
+  background: rgba(219, 39, 119, 0.28);
+}
+.light #modalContent:has(.grat-modal) .modal-close {
+  background: rgba(219, 39, 119, 0.10);
+  border-color: rgba(219, 39, 119, 0.32);
+  color: #9d174d;
+}
+.light .grat-modal-header {
+  background: linear-gradient(180deg, rgba(255, 250, 246, 0.96), rgba(255, 242, 246, 0.88));
+}
+.grat-eyebrow {
+  font-size: 11px;
+  letter-spacing: 0.16em;
+  text-transform: uppercase;
+  color: #db2777;
+  font-weight: 700;
+}
+.grat-title {
+  margin: 0;
+  font-family: "Playfair Display", Georgia, serif;
+  font-size: 22px;
+  font-weight: 500;
+  color: #fce7f3;
+  line-height: 1.25;
+}
+.light .grat-title { color: #831843; }
+.grat-sub {
+  margin: 0;
+  font-size: 13px;
+  color: rgba(229, 231, 235, 0.65);
+}
+.light .grat-sub { color: rgba(31, 41, 55, 0.65); }
+
+/* Add-entry form lives just below the header. Always-visible textarea so
+   adding is one tap + type. */
+.grat-add {
+  padding: 14px 14px 4px;
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+  border-bottom: 1px solid rgba(219, 39, 119, 0.10);
+}
+.grat-add-input {
+  /* Override global `textarea { flex: 1 }` — see .dash-prov-done-input note. */
+  flex: 0 0 auto !important;
+  width: 100%;
+  min-height: 52px;
+  height: auto;
+  padding: 11px 13px;
+  border: 1px solid rgba(219, 39, 119, 0.22);
+  border-radius: 12px;
+  background: rgba(0, 0, 0, 0.20);
+  color: inherit;
+  font-family: inherit;
+  font-size: 14px;
+  line-height: 1.5;
+  resize: none;
+  overflow: hidden;
+  box-sizing: border-box;
+  outline: none;
+  -webkit-tap-highlight-color: transparent;
+  transition: border-color 0.18s ease, background 0.18s ease;
+}
+.grat-add-input:focus,
+.grat-add-input:focus-visible {
+  outline: none !important;
+  box-shadow: none !important;
+  border-color: rgba(219, 39, 119, 0.55);
+  background: rgba(0, 0, 0, 0.28);
+}
+.grat-add-input::-webkit-scrollbar { display: none; }
+.light .grat-add-input {
+  background: white;
+  border-color: rgba(219, 39, 119, 0.18);
+}
+.light .grat-add-input:focus { background: white; border-color: rgba(219, 39, 119, 0.55); }
+.grat-add-row {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 8px;
+  padding-bottom: 12px;
+}
+.grat-add-hint {
+  font-size: 11px;
+  color: rgba(229, 231, 235, 0.45);
+  letter-spacing: 0.02em;
+}
+.light .grat-add-hint { color: rgba(31, 41, 55, 0.55); }
+.grat-add-save {
+  display: inline-flex !important;
+  align-items: center;
+  gap: 5px;
+  padding: 7px 14px 7px 12px !important;
+  border: 1px solid rgba(219, 39, 119, 0.95) !important;
+  border-radius: 999px !important;
+  background: rgba(219, 39, 119, 0.85) !important;
+  color: white !important;
+  font-size: 13px;
+  font-weight: 500;
+  cursor: pointer;
+  flex: 0 0 auto !important;
+  transition: background 0.18s ease, transform 0.18s ease;
+}
+.grat-add-save:hover {
+  background: #db2777 !important;
+  transform: translateY(-1px);
+}
+.grat-add-save .material-symbols-outlined { font-size: 16px; }
+
+.grat-list {
+  list-style: none;
+  margin: 0;
+  padding: 14px 24px 24px;
+  display: flex;
+  flex-direction: column;
+  gap: 10px;
+}
+.grat-item {
+  padding: 12px 14px;
+  border: 1px solid rgba(219, 39, 119, 0.18);
+  border-radius: 12px;
+  background: rgba(219, 39, 119, 0.04);
+  display: flex;
+  flex-direction: column;
+  gap: 6px;
+  transition: border-color 0.18s ease, background 0.18s ease;
+}
+.grat-item:hover {
+  border-color: rgba(219, 39, 119, 0.35);
+  background: rgba(219, 39, 119, 0.07);
+}
+.light .grat-item {
+  background: rgba(255, 255, 255, 0.7);
+  border-color: rgba(219, 39, 119, 0.18);
+}
+.grat-item-row {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+}
+.grat-item-date {
+  flex: 1 1 auto;
+  font-size: 11.5px;
+  color: rgba(229, 231, 235, 0.55);
+  font-variant-numeric: tabular-nums;
+}
+.light .grat-item-date { color: rgba(31, 41, 55, 0.55); }
+.grat-delete-btn {
+  width: 22px;
+  height: 22px;
+  border-radius: 50% !important;
+  border: 1px solid transparent !important;
+  background: transparent !important;
+  color: rgba(229, 231, 235, 0.4) !important;
+  cursor: pointer;
+  display: inline-flex !important;
+  align-items: center;
+  justify-content: center;
+  padding: 0 !important;
+  flex: 0 0 auto !important;
+  transition: background 0.18s ease, color 0.18s ease, border-color 0.18s ease;
+}
+.grat-delete-btn:hover {
+  background: rgba(220, 38, 38, 0.18) !important;
+  border-color: rgba(220, 38, 38, 0.4) !important;
+  color: #fca5a5 !important;
+}
+.grat-delete-btn .material-symbols-outlined { font-size: 14px; }
+.grat-item-text {
+  font-size: 14px;
+  line-height: 1.55;
+  color: rgba(229, 231, 235, 0.92);
+  white-space: pre-wrap;
+  word-wrap: break-word;
+}
+.light .grat-item-text { color: rgba(31, 41, 55, 0.88); }
+
+.grat-empty {
+  padding: 32px 28px 36px;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  text-align: center;
+  gap: 10px;
+}
+.grat-empty .material-symbols-outlined {
+  font-size: 32px;
+  color: rgba(219, 39, 119, 0.65);
+}
+.grat-empty p {
+  margin: 0;
+  font-size: 14px;
+  color: rgba(229, 231, 235, 0.85);
+  max-width: 380px;
+  line-height: 1.5;
+}
+.grat-empty-sub {
+  font-size: 12.5px !important;
+  color: rgba(229, 231, 235, 0.55) !important;
+}
+.light .grat-empty p { color: rgba(31, 41, 55, 0.85); }
+.light .grat-empty-sub { color: rgba(31, 41, 55, 0.6) !important; }
+
+@media (max-width: 520px) {
+  .grat-modal-header { padding: 18px 52px 12px 18px; }
+  .grat-add { padding: 12px 12px 4px; }
+  .grat-list { padding: 12px 16px 18px; }
+  .grat-title { font-size: 19px; }
+  #modalContent:has(.grat-modal) .modal-close { top: 14px; right: 14px; }
+}
+
+
 .dash-continue-chev {
   font-size: 22px !important;
   color: #db2777;

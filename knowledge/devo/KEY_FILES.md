@@ -44,7 +44,7 @@
 | `js/06-notes.js` | 4233–5325 | 1093 | Notes app — `showBackToNotesBubble`, `_getAllNotes`, `openNotesApp` / `closeNotesApp`, `_getSessions`, `_renderNotesList`, `_openSessionDetail`, `_shareSession`, note detail view, `_renderStandaloneEditor`, `_createNewNote` / `_updateStandaloneNote` / `_deleteStandaloneNote`, `initNotesApp` |
 | `js/07-immersive.js` | 5326–5822 | 497 | Immersive TTS overlay — `ttsImmersiveOpen` / `Close`, `_loadTtsImmersiveBg`, `_ttsImmStartPlayback`, scrubber, `ttsImmersiveUpdate`, `ttsImmReflectionOpen` / `Show`, `_immParseVerseRefs`, `_immShowVersePopup` |
 | `js/08-story.js` | 5823–7049 | 1227 | Story modal — `markStorySeen`, `openStoryModal` / `closeStoryModal`, `renderStorySlide`, navigation, `buildSlideHTML` / `buildGlanceHTML` / `buildMapHTML` / `buildSegmentHTML` / `buildScrapbookHTML` / `buildConversationHTML` / `buildTeachingHTML` / `buildContrastHTML` / `buildRecapHTML` / `buildReflectHTML`, story Gemini fetches (glance/timeline/closing/digDeeper), reflect modal (`openReflectModal` / `closeReflectModal`), verse peek (`openVersePeek`) |
-| `js/09-soap.js` | 7050–8019 | 970 | SOAP — categories, respond screen, dashboard combined view, stack cards, list panel, picker, verse popover, Firebase flush helpers |
+| `js/09-soap.js` | _deleted_ | _deleted_ | **REMOVED 2026-05-05** along with the SOAP "Application & Prayer" feature. Dig-Deeper Respond button + dashboard SOAP section are gone. Replaced by free-form `prayersJournal` (in `04-passage.js`) reachable from a 3rd dashboard pill next to Obedience + Gratitude. |
 | `js/10-creator-canvas.js` | 8020–9881 | 1862 | Image creator (`openImageCreator`, mode switcher, generate, download, share), canvas mode IIFE (drawing/highlight/notes overlay), main-toolbar IIFE (proxy buttons over legacy controls), book/chapter picker IIFE (mobile bottom-sheet selectors) |
 
 #### Section anchor: original line ranges (for grep-by-line)
@@ -151,16 +151,13 @@ The line ranges below are from the **original** `script.js`. Inside each split f
 **N. Verse Peek & Cross-Refs (lines 6901–7056)**
 - **Peek functions** (line 6925): `openVersePeek()` — inline popup for verse lookup.
 
-**O. SOAP Dashboard & Screen (lines 7062–7930)**
-- **Main entry** (line 7062): `openSoapScreen()`.
-- **Rendering** (line 7094): `_renderSoapScreenContent()`, `_soapScreenEntryHTML()` (line 7250).
-- **Storage** (line 7288): `_soapStorageKey()`, `_getSoapEntries()` (line 7290), `_saveSoapEntries()` (line 7293), `_flushSoapToFirebase()` (line 7297).
-- **SOAP buttons & picker** (line 7310): `_soapAPButtonsHTML()`, `_bindSoapAPButtons()` (line 7324), `_appendSoapPicker()` (line 7337).
-- **Dashboard combined** (line 7456): `_renderSoapDashCombined()`.
-- **Stack navigation** (line 7525): `_getFilteredSoapEntries()`, `_renderSoapStackCard()` (line 7530).
-- **Event binding** (line 7635): `_rebuildSoapCombinedPills()`, `_bindSoapCombinedPills()` (line 7635), `_bindSoapStackNav()` (line 7652), `_bindSoapDashboard()` (line 7681).
-- **List panel** (line 7713): `openSoapListPanel()`, `closeSoapListPanel()` (line 7732).
-- **Verse links** (line 7892): `_bindSoapPassageLinks()`, `_parsePassageString()` (line 7901), `_showSoapVersePopover()` (line 7925).
+**O. ~~SOAP Dashboard & Screen~~ — DELETED 2026-05-05.**
+The SOAP "Application & Prayer" system was removed entirely:
+- `js/09-soap.js` deleted; `#soapListPanel` + `#soapScreen` markup pulled from `index.html`; `js/09-soap.js` removed from `sw.js` CORE_ASSETS and `firebase-sync.js` injector; `soap_application` / `soap_prayer` removed from `SYNC_STATIC_KEYS` and the `_mergeSoapEntries` merger deleted.
+- Dig-Deeper Respond button + `openSoapScreen` binding removed from both `04-passage.js` (verse-level) and `08-story.js` (passage-level).
+- `_renderSoapDashCombined()` + `_bindSoapDashboard()` calls removed from `renderDashboard`.
+- The free-form **Prayers journal** (in `04-passage.js`, key `prayersJournal`, helpers `openPrayersJournal` / `_addPrayerEntry` / `_deletePrayerEntry` / `_refreshPrayersJournalLink` / `_renderPrayerEntry`) is the spiritual successor — a third pill in `dash-journal-row` next to Obedience + Gratitude that opens a free-form list modal mirroring the gratitude pattern (no categories, no SOAP toggle). Reuses `.grat-modal` styles via a `.pray-modal` modifier.
+- Old localStorage data in `soap_application` / `soap_prayer` is no longer read or written and can be ignored. The legacy keys are still present in some users' RTDB until manually cleared.
 
 **P. Image Creator (lines 8028–8200)**
 - **Open/close** (line 8028): `openImageCreator()`, `closeImageCreator()` (line 8058).
@@ -186,7 +183,7 @@ The line ranges below are from the **original** `script.js`. Inside each split f
 - **Notes app** (`.notes-app`, `.notes-list-view`, `.notes-detail-view`).
 - **TTS player** (`.tts-player`, `.tts-immersive` with stage layout).
 - **Canvas mode** (`.canvas-*`, drawing controls).
-- **SOAP dashboard** (`.soap-*` classes for combined pill view, stack cards).
+- **Dashboard journal pills** (`.dash-journal-row`, `.dash-journal-link`, `.dash-journal-link--obed/--grat/--pray`) — three pink-outline pills above the dashboard grid. (Note: `.soap-*` rules still exist as orphan CSS — harmless dead weight, the SOAP feature was removed 2026-05-05.)
 - **Animations** (`.verseGlow` flash, `.ai-fade-in`, typing effects).
 - **Dark/light theme** via CSS variables and `body.light-mode` / `body.dark-mode` toggling.
 
@@ -217,7 +214,7 @@ window.PUSH_SERVER_URL = "https://gemini-proxy-668755364170.asia-southeast1.run.
 6. **Mid-session swap**: If a different sync user is currently active, `_activateSyncFor` calls `_deactivateSync()` first to tear down the old mirror/listener/timers before activating the new path. No page reload needed for charlie ↔ karla swaps.
 
 **Key Constants**:
-- `SYNC_STATIC_KEYS`: `bibleFavorites`, `bibleComments`, `devotionStandaloneNotes`, `storySeenHistory`, `userName`, `bibleVersion`, `recentPassageId`, `recentPassage`, `soap_application`, `soap_prayer`, `dashGreetingCacheV2`.
+- `SYNC_STATIC_KEYS`: `bibleFavorites`, `bibleComments`, `devotionStandaloneNotes`, `storySeenHistory`, `userName`, `bibleVersion`, `recentPassageId`, `recentPassage`, `dashGreetingCacheV2`, `obedienceJournal`, `gratitudeJournal`, `prayersJournal`. (Legacy `soap_application` / `soap_prayer` were removed when the SOAP feature was deleted on 2026-05-05.)
 - `SYNC_DYNAMIC_PREFIXES`: `"reflection-"`, `"devo.canvas."`, `"chapterContext."`, `"passageRecap-"`.
 - `SYNC_USERS`: `{ charlie: "devo-sync", karla: "devo-sync-karla" }` — extend here to add more users.
 - `FB_WRITE_DEBOUNCE_MS`: 400.
@@ -233,7 +230,7 @@ window.PUSH_SERVER_URL = "https://gemini-proxy-668755364170.asia-southeast1.run.
 - Comments: Merge by verse key, keep all entries.
 - Canvas: Latest wins.
 - Standalone notes: Merge by ID, latest `updatedAt` wins.
-- SOAP entries: Merge by ID.
+- (SOAP entries had a Merge-by-ID strategy via `_mergeSoapEntries` — both the function and the conditional were removed 2026-05-05 when the SOAP feature was deleted. Journal arrays — `obedienceJournal` / `gratitudeJournal` / `prayersJournal` — fall through to the `lVal` default branch in `_mergeKeys`, i.e. "local wins" on conflict; conflicts in practice are rare because each device debounce-flushes its own writes back to RTDB.)
 
 ---
 

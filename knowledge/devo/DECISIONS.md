@@ -430,3 +430,78 @@ Now: `_audioLibPollers` is a `Map<bookKey, intervalId>`. Each book's bulk downlo
 - `devo/firebase-sync.js` — `passageRecap-` added to `SYNC_DYNAMIC_PREFIXES`.
 - `devo/index.html` — top-right icon labels expanded; `#readProgressBar` markup.
 - `devo/style.css` — dashboard polish + idle keyframes + ambient containers + reading progress bar.
+
+---
+
+## 23. SOAP feature deletion + free-form Prayers journal (2026-05-05)
+
+**Decision**: Delete the entire SOAP "Application & Prayer" subsystem and replace its prayer half with a free-form **Prayers journal** that mirrors the existing Gratitude pattern.
+
+**Why SOAP was pulled**:
+- Charlie's framing: *"its not feasible and usable anymore"*. The SOAP screen + dashboard combined view (the Application/Prayer columns with stack cards + All/God/Family/Ministry pills) added a lot of UI surface for very little payoff. Charlie's actual journaling habit had migrated to the Obedience + Gratitude pattern (open input on top, list below, no categories).
+- The 5-category gating (`God / Family / Work-School / Ministry / Others`) added friction for entries that didn't naturally fit one bucket. Free-text journals don't ask the user to label first.
+- The SOAP "Respond" button on Dig Deeper sat at the bottom of the AI study card and was the only entry path — easy to miss. The new dashboard journal pills sit on the home screen right under the greeting, so they're always one tap away regardless of which passage is loaded.
+
+**What changed (single coordinated removal + add)**:
+- Deleted `devo/js/09-soap.js` outright (~970 lines).
+- `index.html`: removed `#soapListPanel` + `#soapScreen` panels.
+- `sw.js`: dropped `js/09-soap.js` from `CORE_ASSETS`; bumped `DEPLOYMENT_ID` v1.18.0 → v1.19.0 to force the cache flip.
+- `firebase-sync.js`: removed `js/09-soap.js` from the injector list, removed `soap_application` / `soap_prayer` from `SYNC_STATIC_KEYS`, deleted `_mergeSoapEntries` and the `decodedKey === "soap_application" || decodedKey === "soap_prayer"` branch in `_mergeKeys`.
+- `js/04-passage.js`: removed the `soap-respond-row` div + `openSoapScreen` binding from `fetchInlineDigDeeper`; removed `_renderSoapDashCombined()` rendering + `_bindSoapDashboard()` invocation from `renderDashboard`.
+- `js/08-story.js`: same Respond-button removal from the passage-level Dig Deeper card.
+- Added Prayers helpers in `js/04-passage.js` (mirroring the Gratitude block): `_PRAY_JOURNAL_KEY = "prayersJournal"`, `_getPrayersEntries`, `_savePrayersEntries`, `_addPrayerEntry`, `_deletePrayerEntry`, `_refreshPrayersJournalLink`, `openPrayersJournal` (uses `volunteer_activism` icon, "Lord, I pray..." placeholder), `_renderPrayerEntry`.
+- Added a third pill `#dashPrayLink` to `.dash-journal-row` between Gratitude and the right-edge.
+- `firebase-sync.js`: added `prayersJournal` to `SYNC_STATIC_KEYS` AND extended the `noteJournalKey` handler in `_listenForRemoteChanges` so live re-renders include the prayers modal. The `devo:journal-sync` event listener in `04-passage.js` got a third branch for `prayersJournal` that preserves draft input across re-renders.
+- Reused the existing `.grat-modal` / `.grat-list` / `.grat-add` CSS for the Prayers modal via a `.pray-modal` class modifier on the outer wrapper. The gratitude listener checks `.grat-modal:not(.pray-modal)` so cross-modal re-renders don't fire wrong handlers.
+
+**Trade-offs / leftover state**:
+- `style.css` still contains all `.soap-*` rules as orphan CSS (~thousands of lines). Harmless dead weight, kept to avoid a sprawling cleanup PR. Can be pruned later if file size becomes a concern.
+- Existing `soap_application` / `soap_prayer` entries remain in users' localStorage and RTDB. They're never read or written anymore, so they decay quietly. NOT migrated into `prayersJournal` because (a) the SOAP entries had a different shape (`{id, category, text, passage, time}` vs. the new `{id, ts, text}`) and the user signaled they wanted a fresh start; (b) migrating across categories would have required arbitrary mapping decisions.
+- The Prayers journal does NOT carry the verse passage that triggered it — unlike SOAP entries which were always linked to the passage open in Dig Deeper. This is intentional: free-form means free-form, not "respond to verse X". Users who want the verse-attached pattern still have verse Comments (`bibleComments`).
+
+**Modal X-button polish (same day, related fix)**:
+The global `.modal-close` (`top: 16px; right: 16px` of `#modalContent`) visually clipped the gratitude/prayers modal's pink corner because the modal pane and the X both sat in the same padding strip. Fixed with a `:has()` rule: `#modalContent:has(.grat-modal) .modal-close` repositions to `top: 18px; right: 18px` and skins the bg pink-tinted (`rgba(219, 39, 119, 0.14)` + matching border) so the button reads as part of the header. The `.grat-modal-header` also got `padding-right: 60px` (52px on mobile) reserved so the title text never runs under the X.
+
+**Files touched**:
+- `devo/js/09-soap.js` — deleted.
+- `devo/js/04-passage.js` — Dig-Deeper Respond removed; dashboard SOAP section removed; Prayers journal block + dashboard pill added; `devo:journal-sync` listener extended.
+- `devo/js/08-story.js` — Dig-Deeper Respond removed (passage-level path).
+- `devo/index.html` — `#soapListPanel` + `#soapScreen` panels removed.
+- `devo/sw.js` — `DEPLOYMENT_ID` bump + `js/09-soap.js` removed from CORE_ASSETS.
+- `devo/firebase-sync.js` — injector list, `SYNC_STATIC_KEYS`, `_mergeSoapEntries`, `noteJournalKey`, `_mergeKeys` SOAP branch all updated; `prayersJournal` added to sync.
+- `devo/style.css` — `.grat-modal-header` right padding + `:has(.grat-modal) .modal-close` skin.
+
+---
+
+## 24. Auto-retrying daily-Proverb card (2026-05-05)
+
+**Decision**: Replace the single-attempt + "Couldn't load — try again" failure path on the home-screen Proverb card with an automatic retry loop (up to 6 attempts, exponential backoff capped at ~8s), re-rolling a fresh random Proverbs chapter on every retry. The user-facing "try again" card only renders if the network is genuinely down for the full retry window.
+
+**Why**: Charlie's framing: *"i should never be seeing this in proverbs, it should be always finding one until it finds one. unless internet is really bad"*. The Proverb card is ambient/idle UI — it's the first thing on the home screen, alongside the greeting. Any kind of error chrome reads as "the app is broken" even when the actual cause is a single transient Gemini call (a malformed JSON response, a chapter where the AI picked an out-of-range verse, a rate-limit blip, etc.). Each of those failure modes was already retry-able by clicking the manual button — so the click was redundant work the app should be doing automatically.
+
+**Implementation in `js/04-passage.js` `loadDashProverb`**:
+- Replaced the one-shot `try / catch / show error card` with a `for` loop over `MAX_TRIES = 6` attempts.
+- **Re-roll every attempt**: each iteration recomputes `randomChapter = Math.floor(Math.random() * 31) + 1` so a single bad chapter pick (e.g. AI returned a verse that's not in the local Bible JSON) doesn't loop forever on the same chapter. Same for the recent-refs / last-topic exclusions — they're recomputed each iteration so a fix-up retry doesn't pick the just-failed verse.
+- **Exponential backoff**, capped low (`Math.min(8000, 700 * 1.7^attempt)` ≈ 700ms / 1.2s / 2.0s / 3.4s / 5.8s / 8s). Total budget ~21s across 6 tries — keeps the user on the dashboard for a result rather than burning minutes on a doomed attempt.
+- **Offline awareness**: at the top of each iteration, if `navigator.onLine === false`, `await` a one-shot `online` event listener instead of burning retries against guaranteed failures. So when wifi flaps and reconnects, the card resumes immediately.
+- **Bail-on-navigate**: each iteration checks `document.getElementById("dashProvCard") === card` before rendering — if the user navigated away (or another `renderDashboard()` call swapped the card frame), the in-flight retry loop returns silently instead of rendering into the wrong card.
+- The "Couldn't load — try again" failure card is only rendered after all 6 attempts fail AND the card is still mounted. When it does appear, the manual button still calls `loadDashProverb(true)` which kicks off another full retry loop, so the user gets the same robustness on a manual click.
+
+**Trade-offs**: Slightly more API spend on consistently-failing cells (worst case 6× the call cost of one bad load). Acceptable because (a) Gemini is the cheap path here and (b) the prior single-attempt was producing a visible error chrome on transient failures that should have been a non-event. The exponential backoff also limits total per-load spend on persistent failures.
+
+**Files touched**:
+- `devo/js/04-passage.js` — `loadDashProverb` retry loop.
+
+---
+
+## 25. Proverb-ref restyle to match Continue-Reading shimmer (2026-05-05)
+
+**Decision**: Style `.dash-prov-topic` (the verse reference at the top of the daily Proverb card, e.g. "PROVERBS 30:8-9") identically to `.dash-continue-ref` — italic Editor's Note serif, gradient pink fill, clamp-sized, with the `dashRefShimmer` ambient animation under `prefers-reduced-motion: no-preference`.
+
+**Why**: Visual consistency. The home screen has two "verse reference" surfaces — the Continue Reading card and the Proverb card. Before today, they used radically different type treatments: the Continue Reading ref was the big italic serif with the slow gradient shimmer (set up in decision #22), while the Proverb topic was a small uppercase 11px pink eyebrow line. Charlie wanted them to read as siblings: *"basically same css were doing in this dash-continue-ref"*.
+
+**Trade-off**: The Proverb header is slightly busier now because the title is bigger and shimmers — but it's still constrained to the small Proverb card and the shimmer cycles slowly (5s alternate), so it doesn't compete with the Continue Reading shimmer above it. The two shimmers are out of phase by definition since they animate independently.
+
+**Files touched**:
+- `devo/style.css` — `.dash-prov-topic` rule rewritten with the gradient + clamp + italic serif; the existing `@keyframes dashRefShimmer` block was extended to apply to both selectors (`.dash-continue-ref, .dash-prov-topic`).
+

@@ -1,6 +1,6 @@
 // sw.js — AGGRESSIVE cache refresh on new deployments (GitHub-safe)
 
-const DEPLOYMENT_ID = "v1.13.4-" + Date.now(); // Date.now() ensures a new cache on every SW update
+const DEPLOYMENT_ID = "v1.19.0-" + Date.now(); // Date.now() ensures a new cache on every SW update
 const CACHE_NAME = "dudu-devotion-" + DEPLOYMENT_ID;
 
 // Core app shell files (always refreshed). script.js was split into ordered
@@ -21,7 +21,6 @@ const CORE_ASSETS = [
   "./js/06-notes.js",
   "./js/07-immersive.js",
   "./js/08-story.js",
-  "./js/09-soap.js",
   "./js/10-creator-canvas.js",
   "./js/11-boot.js",
   "./icons/icon-192.png",

@@ -243,7 +243,6 @@ async function fetchStoryDigDeeper(book, chapter, verses, mountEl) {
   mountEl.querySelector('.ai-card-close').onclick = () => { mountEl.innerHTML = ''; };
 
   const passageText = _getVersesText(book, chapter, verses);
-  const passage = `${book} ${chapter}:${verses}`;
   try {
     const aiText = await callGemini(`You are a premium Bible study tool. ${AI_TONE}
 
@@ -277,18 +276,9 @@ STRICT: No greetings. No padding. Start with #### Key Themes immediately.`);
           <button class="ai-card-close" title="Close">✕</button>
         </div>
         <div class="ai-md-content">${mdToHTML(aiText)}</div>
-        <div class="soap-respond-row">
-          <button class="soap-respond-btn" data-passage="${_escHtml(passage)}">
-            <span class="material-icons">edit_note</span> Respond
-          </button>
-        </div>
       </div>
     </div>`;
     mountEl.querySelector('.ai-card-close').onclick = () => { mountEl.innerHTML = ''; };
-    const respondBtn = mountEl.querySelector('.soap-respond-btn');
-    if (respondBtn) {
-      respondBtn.onclick = () => openSoapScreen(passage, aiText);
-    }
   } catch {
     mountEl.innerHTML = `<div class="inline-ai-card dig-deeper">
     ${_digDeeperEffectsHTML()}

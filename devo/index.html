@@ -287,6 +287,10 @@
         <div id="summaryContent">
           Select a verse, range, or chapter to see notes.
         </div>
+        <!-- NT-echo card: only renders for OT chapters. Shows the matching NT
+             passage that comments on / fulfills the OT one, with a Read button
+             that loads it directly. Cached per chapter in localStorage. -->
+        <div id="ntEchoCard" class="nt-echo-card" hidden></div>
         <!-- Reflection Q&A renders inline here, directly below summaryContent,
              so the user sees questions immediately without a click. -->
         <div id="aiReflection"></div>
@@ -549,6 +553,7 @@
       </div>
     </div>
 
+
     <!-- IMAGE CREATOR PANEL -->
     <div id="imgCreatorPanel" class="imgcr-panel" hidden>
       <div class="imgcr-bar">
@@ -602,48 +607,6 @@
             <span class="material-icons">share</span> Share
           </button>
         </div>
-      </div>
-    </div>
-
-    <!-- SOAP List Panel (All Applications / All Prayers) -->
-    <div id="soapListPanel" class="soap-list-panel" hidden>
-      <div class="soap-list-bar">
-        <button class="soap-list-back" id="soapListBack">
-          <span class="material-symbols-outlined">arrow_back_ios</span>
-        </button>
-        <div class="soap-list-bar-info">
-          <span class="material-icons soap-list-bar-icon" id="soapListIcon"></span>
-          <span class="soap-list-bar-title" id="soapListTitle"></span>
-          <span class="soap-list-bar-count" id="soapListCount"></span>
-        </div>
-      </div>
-      <div class="soap-list-pills" id="soapListPills"></div>
-      <div class="soap-list-scroll" id="soapListScroll">
-        <div class="soap-list-sticky-top" id="soapListStickyTop">
-          <div class="soap-list-hero" id="soapListHero"></div>
-          <div class="soap-list-divider" id="soapListDivider" hidden>
-            <span class="soap-list-divider-label">All entries</span>
-          </div>
-        </div>
-        <div class="soap-list-items" id="soapListItems"></div>
-        <div class="soap-list-empty" id="soapListEmpty" hidden>
-          <span class="material-icons soap-list-empty-icon">inbox</span>
-          <p>No entries yet</p>
-        </div>
-      </div>
-    </div>
-
-    <!-- Respond Screen (Application / Prayer) -->
-    <div id="soapScreen" class="soap-screen" hidden>
-      <div class="soap-screen-bar">
-        <button class="soap-screen-back" id="soapScreenBack">
-          <span class="material-symbols-outlined">arrow_back_ios</span>
-        </button>
-        <span class="soap-screen-title" id="soapScreenTitle"></span>
-      </div>
-      <div class="soap-screen-scroll" id="soapScreenScroll">
-        <div class="soap-screen-ref" id="soapScreenRef"></div>
-        <div class="soap-screen-body" id="soapScreenBody"></div>
       </div>
     </div>
 

@@ -31,12 +31,17 @@ const SYNC_STATIC_KEYS = [
   "bibleVersion",
   "recentPassageId",
   "recentPassage",
-  "soap_application",
-  "soap_prayer",
   "dashGreetingCacheV2",
+  "obedienceJournal",
+  "gratitudeJournal",
+  "prayersJournal",
 ];
 
-const SYNC_DYNAMIC_PREFIXES = ["reflection-", "devo.canvas.", "chapterContext.", "passageRecap-"];
+const SYNC_DYNAMIC_PREFIXES = ["reflection-", "devo.canvas.", "chapterContext.", "passageRecap-", "ntEcho-"];
+// NOTE: `dashProverb*` keys are intentionally NOT synced. Syncing them would
+// echo every refresh back through the Firebase listener and trigger a full
+// renderDashboard() (= the whole-dashboard fade-in). The proverb's an 8-hour
+// rotating snippet — per-device cache is fine.
 
 // Per-user RTDB path map. Charlie's path is the legacy "devo-sync" so his
 // existing data stays at the root we've always used (no migration needed).
@@ -159,7 +164,6 @@ function _injectAppScript() {
     "js/06-notes.js",
     "js/07-immersive.js",
     "js/08-story.js",
-    "js/09-soap.js",
     "js/10-creator-canvas.js",
     "js/11-boot.js",
   ];
@@ -300,9 +304,16 @@ function _listenForRemoteChanges() {
     const decoded = _decodeAll(remote);
 
     const changedCanvasKeys = [];
+    const changedJournalKeys = [];
     let favoritesChanged = false;
     let commentsChanged = false;
     let anyChanged = false;
+    let nonJournalChanged = false;
+
+    const noteJournalKey = (k) => {
+      if (k === "obedienceJournal" || k === "gratitudeJournal" || k === "prayersJournal") changedJournalKeys.push(k);
+      else nonJournalChanged = true;
+    };
 
     // Apply additions / updates.
     for (const [key, val] of Object.entries(decoded)) {
@@ -312,6 +323,7 @@ function _listenForRemoteChanges() {
         if (key.startsWith("devo.canvas.")) changedCanvasKeys.push(key);
         if (key === "bibleFavorites") favoritesChanged = true;
         if (key === "bibleComments") commentsChanged = true;
+        noteJournalKey(key);
       }
     }
     // Apply remote deletions.
@@ -322,6 +334,7 @@ function _listenForRemoteChanges() {
         if (key.startsWith("devo.canvas.")) changedCanvasKeys.push(key);
         if (key === "bibleFavorites") favoritesChanged = true;
         if (key === "bibleComments") commentsChanged = true;
+        noteJournalKey(key);
       }
     }
 
@@ -338,10 +351,19 @@ function _listenForRemoteChanges() {
     if (changedCanvasKeys.length) {
       window.dispatchEvent(new CustomEvent("devo:canvas-sync", { detail: { keys: changedCanvasKeys } }));
     }
+    // Real-time journal updates: dispatch a targeted event so any open
+    // obedience/gratitude modal can re-render in place WITHOUT triggering the
+    // whole dashboard fade. The dashboard pill counts get refreshed by the
+    // listener too. This is the path that lets Charlie's edits show up live
+    // on Karla's device (and vice versa).
+    if (changedJournalKeys.length) {
+      window.dispatchEvent(new CustomEvent("devo:journal-sync", { detail: { keys: changedJournalKeys } }));
+    }
 
-    // Re-render dashboard if it's the visible view.
+    // Re-render dashboard ONLY if a non-journal key changed; pure-journal
+    // updates avoid the heavy whole-page fade.
     const homeBtn = document.getElementById("homeBtn");
-    if (homeBtn && homeBtn.style.display === "none" && typeof renderDashboard === "function") {
+    if (nonJournalChanged && homeBtn && homeBtn.style.display === "none" && typeof renderDashboard === "function") {
       try { renderDashboard(); } catch {}
     }
   };
@@ -365,8 +387,6 @@ function _mergeAll(local, remote) {
       merged[key] = _mergeComments(lVal, rVal);
     } else if (decodedKey === "devotionStandaloneNotes") {
       merged[key] = _mergeStandaloneNotes(lVal, rVal);
-    } else if (decodedKey === "soap_application" || decodedKey === "soap_prayer") {
-      merged[key] = _mergeSoapEntries(lVal, rVal);
     } else if (decodedKey.startsWith("devo.canvas.")) {
       merged[key] = _mergeCanvasState(lVal, rVal);
     } else {
@@ -426,17 +446,6 @@ function _mergeCanvasState(a, b) {
     const objB = typeof b === "string" ? JSON.parse(b) : b || {};
     const highlights = { ...(objB.highlights || {}), ...(objA.highlights || {}) };
     return JSON.stringify({ highlights });
-  } catch { return a || b; }
-}
-
-function _mergeSoapEntries(a, b) {
-  try {
-    const arrA = typeof a === "string" ? JSON.parse(a) : a || [];
-    const arrB = typeof b === "string" ? JSON.parse(b) : b || [];
-    const byId = {};
-    for (const e of arrB) byId[e.id] = e;
-    for (const e of arrA) byId[e.id] = e;
-    return JSON.stringify(Object.values(byId).sort((a, b) => (b.time || 0) - (a.time || 0)));
   } catch { return a || b; }
 }
 
