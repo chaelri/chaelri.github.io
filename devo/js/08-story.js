@@ -972,13 +972,14 @@ async function openReflectModal() {
       <div class="story-title">${bookName} ${chapter}</div>
       ${cleanHTML}
       <div class="reflect-actions-row">
-        <button class="reflect-copy-notes-btn" id="reflectCopyNotesBtn">
-          <span class="material-symbols-outlined" style="font-size:18px;vertical-align:middle;margin-right:6px;">content_copy</span>Copy Notes
+        <button class="devo-copy-btn" id="reflectCopyNotesBtn" type="button">
+          <span class="material-symbols-outlined">content_copy</span> Copy Notes
         </button>
-        <button class="reflect-share-notes-btn" id="reflectShareNotesBtn">
-          <span class="material-symbols-outlined" style="font-size:18px;vertical-align:middle;margin-right:6px;">ios_share</span>Share to Notes
+        <button class="share-devo-btn" id="reflectShareNotesBtn" type="button">
+          <span class="material-symbols-outlined">ios_share</span> Share to Notes
         </button>
       </div>
+      <div class="reflect-copy-status" id="reflectCopyStatus"></div>
     </div>`;
 
   modal.hidden = false;
@@ -1014,18 +1015,60 @@ async function openReflectModal() {
     });
   }
 
-  // Copy notes button
+  // Copy notes — fire the sidebar handler (which writes to clipboard) and
+  // surface feedback as a green Material-icon pill below the row, matching
+  // the sidebar's #notesCopyStatus toast.
   document.getElementById("reflectCopyNotesBtn").onclick = async () => {
-    const btn = document.getElementById("reflectCopyNotesBtn");
     await copyNotesBtn.onclick?.();
-    btn.textContent = "✅ Copied!";
-    setTimeout(() => { btn.innerHTML = '<span class="material-symbols-outlined" style="font-size:18px;vertical-align:middle;margin-right:6px;">content_copy</span>Copy Notes'; }, 2000);
+    const statusEl = document.getElementById("reflectCopyStatus");
+    if (statusEl) {
+      statusEl.innerHTML =
+        '<span class="material-symbols-outlined">check_circle</span>'
+        + '<span>Notes copied to clipboard</span>';
+      setTimeout(() => { statusEl.innerHTML = ""; }, 2000);
+    }
   };
 
-  // Share to Notes — bundle all answered reflections (multi-chapter) and fire share sheet
+  // Share to Notes — direct share of THIS passage's reflection only.
+  // Inside the reflect modal the user is reading one specific chapter, so
+  // surfacing the multi-chapter picker is noise. Build the share payload
+  // from the current __aiPayload book/chapter and fire the share sheet.
   const reflectShareBtn = document.getElementById("reflectShareNotesBtn");
-  if (reflectShareBtn && typeof _openShareDevoModal === "function") {
-    reflectShareBtn.onclick = () => _openShareDevoModal();
+  if (reflectShareBtn) {
+    reflectShareBtn.onclick = async () => {
+      const payload = window.__aiPayload || {};
+      const currentBookName = String(payload.book || "").toUpperCase();
+      const currentChapter = String(payload.chapter || "");
+      const groups = (typeof _collectDevoReflections === "function" ? _collectDevoReflections() : []);
+      const matches = groups.filter(g => {
+        const meta = window.BIBLE_META && window.BIBLE_META[g.book];
+        const name = (meta?.name || g.book || "").toUpperCase();
+        return name === currentBookName && String(g.chapter) === currentChapter;
+      });
+      if (!matches.length) {
+        if (typeof _devoShareToast === "function") _devoShareToast("No answered reflections to share yet");
+        return;
+      }
+      const today = new Date();
+      const pad = n => String(n).padStart(2, "0");
+      const todayIso = `${today.getFullYear()}-${pad(today.getMonth() + 1)}-${pad(today.getDate())}`;
+      const title = _devoShareFormatTitle(todayIso);
+      const text = _devoShareBuildText(title, matches);
+      try {
+        if (navigator.share) {
+          await navigator.share({ title, text });
+        } else if (navigator.clipboard) {
+          await navigator.clipboard.writeText(text);
+          _devoShareToast("Share unavailable — copied to clipboard");
+        } else {
+          _devoShareToast("Sharing not supported on this device");
+        }
+      } catch (err) {
+        if (err && err.name !== "AbortError") {
+          _devoShareToast("Couldn't share — try again");
+        }
+      }
+    };
   }
 
   // Convert any remaining plain-text verse refs (v. 5, vv. 2-3) into clickable links

@@ -153,7 +153,7 @@ let hasCurrentComments = false;
 /* ---------- SUMMARY ---------- */
 function renderSummary() {
   summaryEl.innerHTML = "";
-  notesCopyStatusEl.textContent = "";
+  notesCopyStatusEl.innerHTML = "";
   copyNotesBtn.style.display = "none";
 
   applyReflectionVisibility();
@@ -257,13 +257,14 @@ scrollTopBtn.onclick = () => {
     raf = 0;
     const cmOpen = cmOverlay && !cmOverlay.hidden;
     if (cmOpen && !cmScroll) cmScroll = document.getElementById("cmScroll");
-    const scroller = cmOpen ? cmScroll : layoutEl;
-    const reading = cmOpen || !layoutEl.classList.contains("layout-unset");
-    if (!reading || !scroller) {
+    // Only show in canvas/highlight mode — in normal reading mode the bar
+    // is visual noise per Charlie. Hidden on dashboard too.
+    if (!cmOpen || !cmScroll) {
       bar.classList.remove("is-visible");
       fill.style.width = "0%";
       return;
     }
+    const scroller = cmScroll;
     const max = scroller.scrollHeight - scroller.clientHeight;
     const pct = max > 0 ? Math.min(100, Math.max(0, (scroller.scrollTop / max) * 100)) : 0;
     fill.style.width = pct.toFixed(2) + "%";

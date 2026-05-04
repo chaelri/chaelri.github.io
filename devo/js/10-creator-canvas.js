@@ -2006,6 +2006,10 @@ async function _imgcrShare() {
 
   let activeTab = "OT";
   let searchTerm = "";
+  // Audio-library-style accordion: only one book can be expanded at a time;
+  // tapping its row reveals the chapter grid inline directly underneath
+  // (instead of opening a separate chapter sheet).
+  let expandedBook = null;
 
   function fire(el, type) { el?.dispatchEvent(new Event(type, { bubbles: true })); }
 
@@ -2018,22 +2022,31 @@ async function _imgcrShare() {
     chapterText.textContent = currentChapterNum() ? String(currentChapterNum()) : "1";
   }
 
-  function openBookSheet() {
+  function openBookSheet({ expand = null } = {}) {
     // Default tab to whichever testament the current book belongs to.
     const code = currentBookCode();
     activeTab = code && NT.includes(code) ? "NT" : "OT";
     searchTerm = "";
     if (bookSearch) bookSearch.value = "";
+    expandedBook = expand;
     updateTabsUI();
     renderBookList();
     renderCurrentPassage();
     bookSheet.hidden = false;
+    // If we auto-expanded the current book, scroll its accordion row into
+    // view so the user lands on the chapters they were just reading.
+    if (expandedBook) {
+      requestAnimationFrame(() => {
+        const wrap = bookList.querySelector(`.bc-book[data-code="${expandedBook}"]`);
+        wrap?.scrollIntoView({ block: "start", behavior: "auto" });
+      });
+    }
     // Only auto-focus the search input on devices where summoning a soft
     // keyboard is unlikely (≥768px viewport, typically a laptop/iPad
     // hardware-keyboard scenario). On phones, an immediate focus flashes
     // the keyboard up and obscures the OT/NT tabs the user usually wants
     // to browse first; let them tap the input themselves.
-    if (window.matchMedia && window.matchMedia("(min-width: 768px)").matches) {
+    if (!expandedBook && window.matchMedia && window.matchMedia("(min-width: 768px)").matches) {
       setTimeout(() => bookSearch?.focus(), 100);
     }
   }
@@ -2052,14 +2065,6 @@ async function _imgcrShare() {
     banner.hidden = false;
   }
   function closeBookSheet() { bookSheet.hidden = true; }
-  function openChapterSheet() {
-    const code = currentBookCode();
-    if (!code) { openBookSheet(); return; }
-    chapLabel.textContent = `${(META[code]?.name || "").toUpperCase()} — SELECT CHAPTER`;
-    renderChapterGrid();
-    chapSheet.hidden = false;
-  }
-  function closeChapterSheet() { chapSheet.hidden = true; }
 
   function updateTabsUI() {
     bookTabs.querySelectorAll(".bc-tab").forEach(t => {
@@ -2077,69 +2082,74 @@ async function _imgcrShare() {
       return;
     }
     const current = currentBookCode();
+    const curCh = currentChapterNum();
     for (const code of list) {
+      const wrap = document.createElement("div");
+      wrap.className = "bc-book";
+      wrap.dataset.code = code;
+
       const row = document.createElement("div");
-      row.className = "bc-book-row" + (code === current ? " active" : "");
-      row.dataset.code = code;
+      row.className = "bc-book-row"
+        + (code === current ? " active" : "")
+        + (code === expandedBook ? " expanded" : "");
       row.innerHTML = `
         <span class="bc-book-name">${META[code].name}</span>
         <span class="bc-book-chapters">${META[code].chapters.length} chapters</span>
       `;
-      row.addEventListener("click", () => selectBook(code));
-      bookList.appendChild(row);
+      row.addEventListener("click", () => toggleBookExpansion(code));
+      wrap.appendChild(row);
+
+      if (code === expandedBook) {
+        const detail = document.createElement("div");
+        detail.className = "bc-book-detail";
+        const grid = document.createElement("div");
+        grid.className = "bc-chapter-grid";
+        const n = META[code]?.chapters?.length || 1;
+        const activeChapter = (code === current) ? curCh : 0;
+        for (let i = 1; i <= n; i++) {
+          const cell = document.createElement("button");
+          cell.type = "button";
+          cell.className = "bc-chapter-cell" + (i === activeChapter ? " active" : "");
+          cell.textContent = i;
+          cell.addEventListener("click", (e) => {
+            e.stopPropagation();
+            selectBookAndChapter(code, i);
+          });
+          grid.appendChild(cell);
+        }
+        detail.appendChild(grid);
+        wrap.appendChild(detail);
+      }
+
+      bookList.appendChild(wrap);
     }
   }
 
-  function renderChapterGrid() {
-    chapGrid.innerHTML = "";
-    const code = currentBookCode();
-    const n = META[code]?.chapters?.length || 1;
-    const current = currentChapterNum();
-    for (let i = 1; i <= n; i++) {
-      const cell = document.createElement("button");
-      cell.type = "button";
-      cell.className = "bc-chapter-cell" + (i === current ? " active" : "");
-      cell.textContent = i;
-      cell.addEventListener("click", () => selectChapter(i));
-      chapGrid.appendChild(cell);
+  function toggleBookExpansion(code) {
+    expandedBook = (expandedBook === code) ? null : code;
+    renderBookList();
+    if (expandedBook) {
+      // Keep the just-tapped row + its newly-revealed chapter grid in view.
+      requestAnimationFrame(() => {
+        const wrap = bookList.querySelector(`.bc-book[data-code="${expandedBook}"]`);
+        wrap?.scrollIntoView({ block: "nearest", behavior: "smooth" });
+      });
     }
   }
 
-  function selectBook(code) {
+  function selectBookAndChapter(code, n) {
     if (!bookSel) return;
-    // Preserve the currently-reading chapter when the user picks the SAME
-    // book (e.g. they opened the picker to change chapter and want to see
-    // the current chapter highlighted on the chapter grid). The legacy
-    // bookSel.onchange (loadChapters) rebuilds the #chapter <select> and
-    // resets it to "1" — so we save and restore manually.
-    const sameBook = bookSel.value === code;
-    const prevChapter = chapterSel?.value;
     bookSel.value = code;
-    fire(bookSel, "change");  // legacy handler populates chapter dropdown
-    if (sameBook && prevChapter && chapterSel) {
-      // Only restore if the previous chapter is valid for this book.
-      const n = META[code]?.chapters?.length || 1;
-      const pc = parseInt(prevChapter, 10);
-      if (pc >= 1 && pc <= n) chapterSel.value = String(pc);
+    fire(bookSel, "change"); // legacy loadChapters populates chapter dropdown
+    if (chapterSel) {
+      chapterSel.value = String(n);
+      fire(chapterSel, "change");
     }
     renderLabels();
-    // Force the soft keyboard to dismiss before chaining to the chapter
-    // sheet — otherwise on iOS the keyboard stays up and covers the chapter
-    // grid. Blurring the input AND the active element handles both the
-    // "user tapped while typing" and "input still has focus" cases.
     if (bookSearch) bookSearch.blur();
     if (document.activeElement && document.activeElement.blur) document.activeElement.blur();
     closeBookSheet();
-    // Chain naturally into chapter pick — mirrors the mobile UX.
-    setTimeout(openChapterSheet, 220);
-  }
-  function selectChapter(n) {
-    if (!chapterSel) return;
-    chapterSel.value = String(n);
-    fire(chapterSel, "change");
-    renderLabels();
-    closeChapterSheet();
-    // Auto-load the passage — no more Search button in between.
+    // Auto-load — no Search button in the new accordion flow.
     document.getElementById("load")?.click();
   }
 
@@ -2148,11 +2158,13 @@ async function _imgcrShare() {
   window._openBookPicker = openBookSheet;
 
   // Wiring
-  bookBtn.addEventListener("click", openBookSheet);
-  chapterBtn.addEventListener("click", openChapterSheet);
+  bookBtn.addEventListener("click", () => openBookSheet());
+  // Tapping the chapter pill jumps straight into the current book's chapter
+  // grid — open the picker with that book auto-expanded.
+  chapterBtn.addEventListener("click", () => openBookSheet({ expand: currentBookCode() }));
   // "Currently reading" banner behavior is context-aware:
-   //   - from dashboard → navigate to that passage (close + load)
-   //   - from reading view → just dismiss (user is staying)
+  //   - from dashboard → navigate to that passage (close + load)
+  //   - from reading view → just dismiss (user is staying)
   document.getElementById("bookPickerCurrent")?.addEventListener("click", () => {
     closeBookSheet();
     const onDashboard = document.querySelector(".layout")?.classList.contains("layout-unset");
@@ -2164,19 +2176,18 @@ async function _imgcrShare() {
     activeTab = tab.dataset.tab;
     searchTerm = "";
     if (bookSearch) bookSearch.value = "";
+    expandedBook = null;
     updateTabsUI();
     renderBookList();
   });
   bookSearch?.addEventListener("input", (e) => {
     searchTerm = e.target.value.trim();
+    expandedBook = null;
     renderBookList();
   });
   // Close handlers — explicit per-sheet to avoid any delegation quirks.
   bookSheet?.querySelectorAll("[data-close-bc]").forEach((el) =>
     el.addEventListener("click", closeBookSheet)
-  );
-  chapSheet?.querySelectorAll("[data-close-bc]").forEach((el) =>
-    el.addEventListener("click", closeChapterSheet)
   );
 
   // Keep picker labels in sync when the legacy dropdowns change from elsewhere

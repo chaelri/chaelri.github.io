@@ -132,9 +132,14 @@ let reflectionVisible =
   JSON.parse(localStorage.getItem("reflectionVisible")) ?? false;
 
 function applyReflectionVisibility() {
-  // Reflection is now in the Reflect modal — always keep sidebar version hidden
+  // Reflection now renders inline in the sidebar — always visible so the
+  // user sees questions immediately without a click. The toggle button is
+  // permanently hidden (kept in DOM for any legacy listeners).
   const el = document.getElementById("aiReflection");
-  if (el) el.style.display = "none";
+  if (el) {
+    el.hidden = false;
+    el.style.display = "";
+  }
   const btn = document.getElementById("toggleReflectionBtn");
   if (btn) btn.style.display = "none";
 }
@@ -235,8 +240,10 @@ copyNotesBtn.onclick = async () => {
   }
 
   await navigator.clipboard.writeText(lines.join("\n"));
-  notesCopyStatusEl.textContent = "✅ Notes copied to clipboard";
-  setTimeout(() => (notesCopyStatusEl.textContent = ""), 2000);
+  notesCopyStatusEl.innerHTML =
+    '<span class="material-symbols-outlined">check_circle</span>'
+    + '<span>Notes copied to clipboard</span>';
+  setTimeout(() => (notesCopyStatusEl.innerHTML = ""), 2000);
 };
 
 let titleForGemini = "";

@@ -261,10 +261,16 @@
                 </button>
               </div>
             </div>
-            <button id="studyBtn" class="action-reflect-btn" onclick="document.getElementById('canvasModeBtn')?.click()">
-              <span class="material-icons">auto_stories</span>
-              Study
-            </button>
+            <div class="action-buttons-row">
+              <button id="studyBtn" class="action-reflect-btn" onclick="document.getElementById('canvasModeBtn')?.click()">
+                <span class="material-icons">auto_stories</span>
+                Study
+              </button>
+              <button id="passageReflectBtn" class="action-reflect-btn" onclick="openReflectModal()">
+                <span class="material-icons">volunteer_activism</span>
+                Reflect
+              </button>
+            </div>
           </div>
           <!-- Story button removed — used image generation via Gemini. -->
 
@@ -276,18 +282,22 @@
       <aside class="summary">
         <div id="aiContextSummary" hidden></div>
         <button id="toggleReflectionBtn" hidden></button>
-        <div id="aiReflection" hidden></div>
         <div id="summaryTitle" class="summary-title" hidden></div>
 
         <div id="summaryContent">
           Select a verse, range, or chapter to see notes.
         </div>
-        <button id="copyNotesBtn" style="margin-top: 12px">
-          <span class="material-symbols-outlined">content_copy</span> Copy Notes
-        </button>
-        <button id="shareDevoBtn" class="share-devo-btn" type="button">
-          <span class="material-symbols-outlined">ios_share</span> Share to Notes
-        </button>
+        <!-- Reflection Q&A renders inline here, directly below summaryContent,
+             so the user sees questions immediately without a click. -->
+        <div id="aiReflection"></div>
+        <div class="reflect-actions-row" id="sidebarActionsRow">
+          <button id="copyNotesBtn" class="devo-copy-btn" type="button">
+            <span class="material-symbols-outlined">content_copy</span> Copy Notes
+          </button>
+          <button id="shareDevoBtn" class="share-devo-btn" type="button">
+            <span class="material-symbols-outlined">ios_share</span> Share to Notes
+          </button>
+        </div>
         <div id="notesCopyStatus"></div>
       </aside>
     </div>

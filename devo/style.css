@@ -2089,7 +2089,11 @@ html {
   display: none;
   align-items: center;
   justify-content: center;
-  z-index: 10000;
+  /* 10400 sits above .story-modal/.reflect-modal (10100), .bc-sheet picker
+     (10200), and the audio library (10300) so action modals (Share to Notes,
+     cross-ref peek, Strong's, etc.) launched FROM within those screens
+     surface on top instead of being trapped underneath. */
+  z-index: 10400;
   padding: 20px;
 }
 
@@ -2655,6 +2659,45 @@ body.light {
 
 .light .summary-note {
   box-shadow: 0 4px 12px rgb(0 0 0 / 5%);
+}
+
+/* "Notes copied to clipboard" toast — green success pill with Material
+   check_circle icon, only visible while there's content. Used in two
+   places: sidebar (#notesCopyStatus) and reflection modal
+   (.reflect-copy-status). !important on color overrides the global
+   `.light #notesCopyStatus { color: black }` trap so green stays in
+   light mode. */
+#notesCopyStatus,
+.reflect-copy-status { display: none; }
+#notesCopyStatus:not(:empty),
+.reflect-copy-status:not(:empty) {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  margin-top: 8px;
+  padding: 6px 12px;
+  border-radius: 999px;
+  background: rgba(34, 197, 94, 0.18);
+  border: 1px solid rgba(34, 197, 94, 0.32);
+  color: #4ade80 !important;
+  font-size: 13px;
+  font-weight: 600;
+  animation: notesCopyIn 0.18s ease;
+}
+#notesCopyStatus .material-symbols-outlined,
+.reflect-copy-status .material-symbols-outlined {
+  font-size: 16px;
+  font-variation-settings: "FILL" 1;
+}
+@keyframes notesCopyIn {
+  from { opacity: 0; transform: translateY(-3px); }
+  to   { opacity: 1; transform: translateY(0); }
+}
+.light #notesCopyStatus:not(:empty),
+.light .reflect-copy-status:not(:empty) {
+  background: rgba(34, 197, 94, 0.12);
+  border-color: rgba(34, 197, 94, 0.3);
+  color: #15803d !important;
 }
 
 .light button.primary {
@@ -5865,37 +5908,45 @@ body.light {
   padding: 0 !important;
 }
 
-/* Reflect button — fits left column width */
-.action-reflect-btn {
+/* Action buttons row (Study, Reflect) — side-by-side pills matching the
+   .mt-action "Listen" pill style for visual consistency. */
+.action-buttons-row {
   display: flex;
+  gap: 8px;
+  flex-wrap: wrap;
+}
+.action-reflect-btn {
+  display: inline-flex !important;
   align-items: center;
   justify-content: center;
   gap: 8px;
-  width: 100%;
-  max-width: 420px;
-  padding: 12px 0;
-  border: 1px solid rgba(255,255,255,0.08);
-  border-radius: 12px;
-  background: rgba(255,255,255,0.04);
+  flex: 1 1 auto !important;
+  height: 44px;
+  padding: 0 16px !important;
+  border: 1px solid rgba(255, 255, 255, 0.08);
+  border-radius: 22px !important;
+  background: rgba(255, 255, 255, 0.04);
   color: #e6edf7;
-  font-size: 14px;
-  font-weight: 700;
+  font-family: inherit;
+  font-size: 14px !important;
+  font-weight: 700 !important;
   letter-spacing: 0.3px;
   cursor: pointer;
-  transition: all 0.2s;
+  transition: background 0.15s ease, border-color 0.15s ease;
 }
-.action-reflect-btn .material-icons { font-size: 16px; color: #db2777; }
+.action-reflect-btn .material-icons { font-size: 18px; color: #db2777; }
 .action-reflect-btn:hover {
-  background: rgba(255,255,255,0.07);
-  border-color: rgba(255,255,255,0.12);
+  background: rgba(255, 255, 255, 0.08);
+  border-color: rgba(255, 255, 255, 0.14);
 }
 .light .action-reflect-btn {
-  border-color: rgba(0,0,0,0.08);
-  background: rgba(0,0,0,0.02);
+  border-color: rgba(0, 0, 0, 0.08);
+  background: rgba(0, 0, 0, 0.03);
   color: #1a1a2e;
 }
 .light .action-reflect-btn:hover {
-  background: rgba(0,0,0,0.04);
+  background: rgba(0, 0, 0, 0.06);
+  border-color: rgba(0, 0, 0, 0.14);
 }
 
 /* Reflect button at end of passage */
@@ -7037,50 +7088,18 @@ button#storyBtn { background: unset; }
   gap: 10px;
   margin-top: 18px;
 }
-.reflect-copy-notes-btn,
-.reflect-share-notes-btn {
-  flex: 0 0 auto !important;
-}
-.reflect-share-notes-btn {
-  display: inline-flex;
+/* Reflection-modal Copy + Share reuse the sidebar's .devo-copy-btn and
+   .share-devo-btn — single source of truth, no duplicate styling. The
+   sidebar's .share-devo-btn carries margin-top: 8px to space it below
+   #copyNotesBtn in the stacked sidebar layout; in the modal's horizontal
+   flex row that pushes it visibly lower than Copy, so zero it out here. */
+.reflect-actions-row {
   align-items: center;
-  background: linear-gradient(135deg, #be185d, #ec4899) !important;
-  color: white !important;
-  border: 1px solid transparent;
-  border-radius: 12px;
-  padding: 10px 18px;
-  font-size: 14px;
-  font-weight: 600;
-  font-family: inherit;
-  cursor: pointer;
-  transition: transform 120ms ease, box-shadow 160ms ease;
 }
-.reflect-share-notes-btn:hover {
-  transform: translateY(-1px);
-  box-shadow: 0 4px 14px rgba(190, 24, 93, 0.35);
+.reflect-actions-row .devo-copy-btn,
+.reflect-actions-row .share-devo-btn {
+  margin-top: 0 !important;
 }
-.light .reflect-share-notes-btn {
-  background: linear-gradient(135deg, #be185d, #ec4899) !important;
-  color: white !important;
-}
-.reflect-copy-notes-btn {
-  display: inline-flex;
-  align-items: center;
-  background: rgba(255,255,255,0.08);
-  color: rgba(255,255,255,0.7);
-  border: 1px solid rgba(255,255,255,0.1);
-  border-radius: 12px;
-  padding: 10px 18px;
-  font-size: 14px;
-  font-weight: 600;
-  font-family: inherit;
-  cursor: pointer;
-  margin-top: 16px;
-  transition: background 0.15s, color 0.15s;
-}
-.reflect-copy-notes-btn:hover { background: rgba(255,255,255,0.14); color: #fff; }
-.light .reflect-copy-notes-btn { background: rgba(0,0,0,0.04); color: #5a6478; border-color: rgba(0,0,0,0.08); }
-.light .reflect-copy-notes-btn:hover { background: rgba(0,0,0,0.08); color: #1a1a2e; }
 
 .light .summary-quick-card { background: #e8ecf2; }
 .light .summary-quick-label { color: rgba(0,0,0,0.4); }
@@ -11233,6 +11252,10 @@ body.cfg-sheet-open.light .bc-picker-btn:hover { background: rgba(0, 0, 0, 0.06)
 body.cfg-sheet-open.light .bc-picker-btn .material-symbols-outlined { color: rgba(0, 0, 0, 0.45); }
 
 /* ===== BOOK / CHAPTER PICKER BOTTOM SHEETS ========================== */
+/* Book/Chapter picker — Audio-Library-style structure, TOP-anchored so the
+   panel stays visible when the soft keyboard pops up on phones (slides
+   down from the top edge). Dark theme by default; .light overrides apply
+   the cream/pink palette in light mode. */
 .bc-sheet {
   position: fixed;
   inset: 0;
@@ -11240,7 +11263,7 @@ body.cfg-sheet-open.light .bc-picker-btn .material-symbols-outlined { color: rgb
      so the book/chapter picker is reachable while canvas mode is open. */
   z-index: 10200;
   display: flex;
-  align-items: flex-end;
+  align-items: flex-start;
   justify-content: center;
 }
 .bc-sheet[hidden] { display: none !important; }
@@ -11248,46 +11271,45 @@ body.cfg-sheet-open.light .bc-picker-btn .material-symbols-outlined { color: rgb
   position: absolute;
   inset: 0;
   background: rgba(0, 0, 0, 0.65);
-  backdrop-filter: blur(3px);
+  backdrop-filter: blur(4px);
   animation: mtFadeIn 0.18s ease;
 }
 .bc-sheet-panel {
   position: relative;
   background: #1a2240;
   width: 100%;
-  max-width: 560px;
-  /* `dvh` (dynamic viewport height) shrinks when the iOS keyboard pops up,
-     unlike `vh` which stays at the full screen height. With `dvh`, the sheet
-     is constrained to whatever space is actually visible above the keyboard,
-     so the search results / "No books match" line never gets covered. */
+  max-width: 640px;
+  /* `dvh` shrinks when the iOS keyboard pops up so the panel + its content
+     stay constrained to the visible area above the keyboard. */
   max-height: 85dvh;
-  border-top-left-radius: 24px;
-  border-top-right-radius: 24px;
-  padding: 20px;
+  border-bottom-left-radius: 18px;
+  border-bottom-right-radius: 18px;
+  padding: 0;
   display: flex;
   flex-direction: column;
-  box-shadow: 0 -12px 40px rgba(0, 0, 0, 0.4);
-  animation: bcSlideUp 0.28s cubic-bezier(0.2, 0.9, 0.3, 1);
+  overflow: hidden;
+  box-shadow: 0 12px 40px rgba(0, 0, 0, 0.4);
+  animation: bcSlideDown 0.22s ease;
 }
-/* Browsers without `dvh` support (older iOS) still get the legacy 85vh. */
 @supports not (height: 1dvh) {
   .bc-sheet-panel { max-height: 85vh; }
 }
-@keyframes bcSlideUp {
-  from { transform: translateY(100%); }
-  to   { transform: translateY(0); }
+@keyframes bcSlideDown {
+  from { transform: translateY(-40px); opacity: 0; }
+  to   { transform: translateY(0);     opacity: 1; }
 }
 .bc-sheet-header {
   display: flex;
   align-items: center;
   justify-content: space-between;
-  margin-bottom: 14px;
+  gap: 12px;
+  padding: 16px 18px 12px;
+  border-bottom: 1px solid rgba(255, 255, 255, 0.06);
 }
 .bc-sheet-title {
-  font-size: 20px;
-  font-weight: 700;
+  font: 600 17px/1.2 inherit;
   color: #e6edf7;
-  letter-spacing: -0.3px;
+  letter-spacing: -0.2px;
 }
 .bc-sheet-label {
   font-size: 11px;
@@ -11297,18 +11319,21 @@ body.cfg-sheet-open.light .bc-picker-btn .material-symbols-outlined { color: rgb
   text-transform: uppercase;
 }
 .bc-sheet-close {
-  width: 32px;
-  height: 32px;
-  border: none;
-  background: transparent;
-  color: rgba(255, 255, 255, 0.5);
+  width: 36px !important;
+  height: 36px !important;
   border-radius: 50%;
+  border: none;
+  background: rgba(255, 255, 255, 0.05) !important;
+  color: rgba(255, 255, 255, 0.6) !important;
   cursor: pointer;
-  display: inline-flex;
+  display: inline-flex !important;
   align-items: center;
   justify-content: center;
+  flex: 0 0 auto !important;
+  padding: 0 !important;
 }
-.bc-sheet-close:hover { background: rgba(255, 255, 255, 0.06); color: #e6edf7; }
+.bc-sheet-close:hover { background: rgba(255, 255, 255, 0.10) !important; color: #e6edf7 !important; }
+.bc-sheet-close .material-symbols-outlined { font-size: 20px; }
 
 /* Book picker — search + OT/NT + list */
 .bc-search {
@@ -11319,7 +11344,7 @@ body.cfg-sheet-open.light .bc-picker-btn .material-symbols-outlined { color: rgb
   background: rgba(11, 18, 32, 0.6);
   border: 1px solid rgba(255, 255, 255, 0.06);
   border-radius: 12px;
-  margin-bottom: 12px;
+  margin: 12px 18px 10px;
 }
 .bc-search-icon { font-size: 20px; color: rgba(255, 255, 255, 0.4); }
 .bc-search input {
@@ -11342,8 +11367,6 @@ body.cfg-sheet-open.light .bc-picker-btn .material-symbols-outlined { color: rgb
   border: none !important;
 }
 .bc-search input::placeholder { color: rgba(255, 255, 255, 0.35); }
-/* Keep the search wrapper visually stable when the inner input is focused
-   (no browser- or global-rule-injected focus glow). */
 .bc-search:focus-within { box-shadow: none; border-color: rgba(255, 255, 255, 0.06); }
 
 .bc-tabs {
@@ -11354,7 +11377,7 @@ body.cfg-sheet-open.light .bc-picker-btn .material-symbols-outlined { color: rgb
   background: rgba(11, 18, 32, 0.6);
   border: 1px solid rgba(255, 255, 255, 0.06);
   border-radius: 12px;
-  margin-bottom: 14px;
+  margin: 0 18px 12px;
 }
 .bc-tab {
   padding: 10px 12px;
@@ -11378,17 +11401,23 @@ body.cfg-sheet-open.light .bc-picker-btn .material-symbols-outlined { color: rgb
   flex: 1;
   min-height: 0;
   overflow-y: auto;
-  padding-bottom: max(8px, env(safe-area-inset-bottom, 0px));
+  padding: 0 6px max(8px, env(safe-area-inset-bottom, 0px));
   scrollbar-width: thin;
   scrollbar-color: rgba(255, 255, 255, 0.15) transparent;
 }
 .bc-book-list::-webkit-scrollbar { width: 6px; }
 .bc-book-list::-webkit-scrollbar-thumb { background: rgba(255, 255, 255, 0.15); border-radius: 3px; }
+/* Accordion wrapper — each book row + (optional) inline chapter grid live
+   inside a .bc-book, mirroring the audio library's .audio-lib-book pattern. */
+.bc-book {
+  border-bottom: 1px solid rgba(255, 255, 255, 0.04);
+}
+.bc-book:last-child { border-bottom: none; }
 .bc-book-row {
   display: flex;
   align-items: center;
   justify-content: space-between;
-  padding: 14px 12px;
+  padding: 12px 14px;
   border-radius: 10px;
   cursor: pointer;
   transition: background 0.1s ease;
@@ -11396,9 +11425,10 @@ body.cfg-sheet-open.light .bc-picker-btn .material-symbols-outlined { color: rgb
 .bc-book-row:hover { background: rgba(255, 255, 255, 0.04); }
 .bc-book-row.active { background: rgba(219, 39, 119, 0.12); }
 .bc-book-row.active .bc-book-name { color: #db2777; font-weight: 700; }
+.bc-book-row.expanded { background: rgba(255, 255, 255, 0.05); }
+.bc-book-row.expanded.active { background: rgba(219, 39, 119, 0.18); }
 .bc-book-name {
-  font-size: 15px;
-  font-weight: 500;
+  font: 600 14px/1.2 inherit;
   color: #e6edf7;
 }
 .bc-book-chapters {
@@ -11406,16 +11436,36 @@ body.cfg-sheet-open.light .bc-picker-btn .material-symbols-outlined { color: rgb
   color: rgba(255, 255, 255, 0.4);
 }
 
-/* Chapter picker — numbered grid */
+/* Inline chapter detail — shown directly under the tapped book row. */
+.bc-book-detail {
+  padding: 0 14px 12px;
+  background: rgba(255, 255, 255, 0.02);
+  animation: bcDetailIn 0.18s ease;
+}
+@keyframes bcDetailIn {
+  from { opacity: 0; transform: translateY(-4px); }
+  to   { opacity: 1; transform: translateY(0); }
+}
+
+/* Chapter grid — used both inside .bc-book-detail (compact, no extra
+   padding) and in the legacy chapter sheet (kept for any direct callers). */
 .bc-chapter-grid {
   display: grid;
   grid-template-columns: repeat(auto-fill, minmax(56px, 1fr));
   gap: 8px;
   overflow-y: auto;
-  padding-bottom: max(8px, env(safe-area-inset-bottom, 0px));
-  margin-top: 6px;
+  padding: 12px 18px max(12px, env(safe-area-inset-bottom, 0px));
   scrollbar-width: thin;
   scrollbar-color: rgba(255, 255, 255, 0.15) transparent;
+}
+.bc-book-detail .bc-chapter-grid {
+  padding: 10px 0 4px;
+  grid-template-columns: repeat(auto-fill, minmax(44px, 1fr));
+  gap: 6px;
+}
+.bc-book-detail .bc-chapter-cell {
+  font-size: 13px;
+  border-radius: 8px;
 }
 .bc-chapter-grid::-webkit-scrollbar { width: 6px; }
 .bc-chapter-grid::-webkit-scrollbar-thumb { background: rgba(255, 255, 255, 0.15); border-radius: 3px; }
@@ -11434,7 +11484,7 @@ body.cfg-sheet-open.light .bc-picker-btn .material-symbols-outlined { color: rgb
   cursor: pointer;
   transition: background 0.1s ease, border-color 0.1s ease, transform 0.08s ease;
 }
-.bc-chapter-cell:hover { background: rgba(255, 255, 255, 0.07); border-color: rgba(255, 255, 255, 0.16); }
+.bc-chapter-cell:hover { background: rgba(255, 255, 255, 0.07); border-color: rgba(255, 255, 255, 0.16); transform: scale(1.04); }
 .bc-chapter-cell:active { transform: scale(0.95); }
 .bc-chapter-cell.active {
   background: #db2777;
@@ -11449,23 +11499,38 @@ body.cfg-sheet-open.light .bc-picker-btn .material-symbols-outlined { color: rgb
   font-size: 14px;
 }
 
-/* Light mode overrides */
-.light .bc-sheet-panel { background: #fff; }
+/* Light-mode overrides — cream/pink palette matching the audio library. */
+.light .bc-sheet-backdrop { background: rgba(20, 22, 38, 0.55); }
+.light .bc-sheet-panel { background: #fbfaf6; box-shadow: 0 12px 40px rgba(0, 0, 0, 0.25); }
+.light .bc-sheet-header { border-bottom-color: rgba(0, 0, 0, 0.06); }
 .light .bc-sheet-title { color: #1a1a2e; }
 .light .bc-sheet-label { color: rgba(0, 0, 0, 0.45); }
-.light .bc-sheet-close { color: rgba(0, 0, 0, 0.5); }
-.light .bc-sheet-close:hover { background: rgba(0, 0, 0, 0.06); color: #1a1a2e; }
+.light .bc-sheet-close { background: rgba(0, 0, 0, 0.05) !important; color: rgba(0, 0, 0, 0.6) !important; }
+.light .bc-sheet-close:hover { background: rgba(0, 0, 0, 0.10) !important; color: #1a1a2e !important; }
 .light .bc-search { background: rgba(0, 0, 0, 0.03); border-color: rgba(0, 0, 0, 0.06); }
 .light .bc-search-icon { color: rgba(0, 0, 0, 0.4); }
 .light .bc-search input { color: #1a1a2e; }
 .light .bc-search input::placeholder { color: rgba(0, 0, 0, 0.35); }
+.light .bc-search:focus-within { border-color: rgba(0, 0, 0, 0.06); }
 .light .bc-tabs { background: rgba(0, 0, 0, 0.03); border-color: rgba(0, 0, 0, 0.06); }
 .light .bc-tab { color: rgba(0, 0, 0, 0.55); }
-.light .bc-book-row:hover { background: rgba(0, 0, 0, 0.04); }
+.light .bc-tab.active { background: #be185d; }
+.light .bc-book-list,
+.light .bc-chapter-grid { scrollbar-color: rgba(0, 0, 0, 0.15) transparent; }
+.light .bc-book-list::-webkit-scrollbar-thumb,
+.light .bc-chapter-grid::-webkit-scrollbar-thumb { background: rgba(0, 0, 0, 0.15); }
+.light .bc-book { border-bottom-color: rgba(0, 0, 0, 0.04); }
+.light .bc-book-row:hover { background: rgba(0, 0, 0, 0.03); }
+.light .bc-book-row.active { background: rgba(190, 24, 93, 0.08); }
+.light .bc-book-row.active .bc-book-name { color: #be185d; }
+.light .bc-book-row.expanded { background: rgba(0, 0, 0, 0.04); }
+.light .bc-book-row.expanded.active { background: rgba(190, 24, 93, 0.12); }
 .light .bc-book-name { color: #1a1a2e; }
 .light .bc-book-chapters { color: rgba(0, 0, 0, 0.45); }
-.light .bc-chapter-cell { background: rgba(0, 0, 0, 0.03); border-color: rgba(0, 0, 0, 0.08); color: #1a1a2e; }
+.light .bc-book-detail { background: rgba(0, 0, 0, 0.02); }
+.light .bc-chapter-cell { background: rgba(255, 255, 255, 0.6); border-color: rgba(0, 0, 0, 0.08); color: #1a1a2e; }
 .light .bc-chapter-cell:hover { background: rgba(0, 0, 0, 0.06); border-color: rgba(0, 0, 0, 0.14); }
+.light .bc-chapter-cell.active { background: #be185d; border-color: #be185d; color: #fff; }
 .light .bc-empty { color: rgba(0, 0, 0, 0.4); }
 
 .mt-bar {
@@ -11559,18 +11624,32 @@ body.cfg-sheet-open.light .bc-picker-btn .material-symbols-outlined { color: rgb
 }
 .light .passage-nav-btn:hover { background: rgba(0, 0, 0, 0.08); color: #1a1a2e; }
 
-/* Copy Notes button: align the Material icon with the label. */
-#copyNotesBtn {
+/* Copy Notes button — shared between sidebar (#copyNotesBtn) and the
+   reflection modal. Paired with .share-devo-btn — they must render at
+   IDENTICAL height. Explicit height + box-sizing locks that down so
+   font-inheritance / border-width drift can't pull them apart. */
+.devo-copy-btn,
+.share-devo-btn {
+  box-sizing: border-box !important;
+  height: 42px !important;
+}
+.devo-copy-btn {
   display: inline-flex !important;
   align-items: center;
+  justify-content: center;
   gap: 8px;
-  padding: 10px 18px !important;
+  padding: 0 18px !important;
   border-radius: 12px !important;
-  font-size: 14px;
-  font-weight: 600;
+  font-family: inherit;
+  font-size: 14px !important;
+  font-weight: 600 !important;
+  line-height: 1 !important;
   flex: 0 0 auto !important;
+  cursor: pointer;
 }
-#copyNotesBtn .material-symbols-outlined { font-size: 18px; }
+.devo-copy-btn .material-symbols-outlined { font-size: 18px; line-height: 1; }
+.devo-copy-btn .material-symbols-outlined,
+.share-devo-btn .material-symbols-outlined { vertical-align: middle; }
 
 /* "Currently reading" card — matches the dashboard "Continue Reading?" card
    so navigation context is visually consistent app-wide. Stacked layout:
@@ -11579,11 +11658,12 @@ body.cfg-sheet-open.light .bc-picker-btn .material-symbols-outlined { color: rgb
   display: flex;
   flex-direction: column;
   gap: 6px;
-  width: 100%;
+  width: calc(100% - 36px);
   padding: 14px 16px;
-  margin-bottom: 14px;
-  background: rgba(219, 39, 119, 0.08);
-  border: 1px solid rgba(219, 39, 119, 0.25);
+  margin: 12px 18px 4px;
+  /* !important needed to survive `.light button { background: white }` global trap. */
+  background: rgba(219, 39, 119, 0.10) !important;
+  border: 1px solid rgba(219, 39, 119, 0.28);
   border-radius: 12px;
   cursor: pointer;
   font-family: inherit;
@@ -11591,8 +11671,8 @@ body.cfg-sheet-open.light .bc-picker-btn .material-symbols-outlined { color: rgb
   transition: background 0.15s ease, border-color 0.15s ease;
 }
 .bc-current-passage:hover {
-  background: rgba(219, 39, 119, 0.14);
-  border-color: rgba(219, 39, 119, 0.4);
+  background: rgba(219, 39, 119, 0.16) !important;
+  border-color: rgba(219, 39, 119, 0.45);
 }
 .bc-current-passage[hidden] { display: none !important; }
 
@@ -11633,8 +11713,13 @@ body.cfg-sheet-open.light .bc-picker-btn .material-symbols-outlined { color: rgb
   margin-left: 2px;
 }
 
+/* Light-mode overrides for "Currently Reading" card */
+.light .bc-current-passage { background: rgba(190, 24, 93, 0.06) !important; border-color: rgba(190, 24, 93, 0.22); }
+.light .bc-current-passage:hover { background: rgba(190, 24, 93, 0.12) !important; border-color: rgba(190, 24, 93, 0.4); }
+.light .bc-current-icon { color: #be185d; }
 .light .bc-current-label { color: #1a1a2e; }
-.light .bc-current-passage { background: rgba(219, 39, 119, 0.06); }
+.light .bc-current-ref { color: #be185d; }
+.light .bc-current-chev { color: #be185d; }
 
 /* Dashboard browse icon (next to the "devotion." brand). */
 .dash-brand-row {
@@ -11912,15 +11997,17 @@ body.cfg-sheet-open.light .bc-picker-btn .material-symbols-outlined { color: rgb
   flex: 0 0 auto !important;
   display: inline-flex !important;
   align-items: center;
+  justify-content: center;
   gap: 8px;
-  padding: 10px 18px;
-  font-size: 14px;
-  font-weight: 600;
+  padding: 0 18px !important;
+  font-family: inherit;
+  font-size: 14px !important;
+  font-weight: 600 !important;
+  line-height: 1 !important;
   border: 1px solid rgba(190, 24, 93, 0.35);
-  border-radius: 12px;
+  border-radius: 12px !important;
   background: linear-gradient(135deg, rgba(190, 24, 93, 0.18), rgba(236, 72, 153, 0.18)) !important;
   color: inherit;
-  font: inherit;
   cursor: pointer;
   transition: background 160ms ease, transform 120ms ease, box-shadow 160ms ease;
 }
@@ -11961,7 +12048,8 @@ body.cfg-sheet-open.light .bc-picker-btn .material-symbols-outlined { color: rgb
   font-size: 0.85rem;
   font-weight: 500;
 }
-.devo-share-date-label input[type="date"] {
+.devo-share-date-label input[type="date"],
+.devo-share-date-label input[type="text"] {
   padding: 9px 12px;
   border-radius: 8px;
   border: 1px solid rgba(190, 24, 93, 0.3);
@@ -11969,7 +12057,8 @@ body.cfg-sheet-open.light .bc-picker-btn .material-symbols-outlined { color: rgb
   color: inherit;
   font: inherit;
 }
-.light .devo-share-date-label input[type="date"] {
+.light .devo-share-date-label input[type="date"],
+.light .devo-share-date-label input[type="text"] {
   background: white;
   border-color: rgba(190, 24, 93, 0.4);
   color: #1a1a1a;
@@ -12000,11 +12089,49 @@ body.cfg-sheet-open.light .bc-picker-btn .material-symbols-outlined { color: rgb
   transition: background 120ms ease;
 }
 .devo-share-row:hover { background: rgba(190, 24, 93, 0.08); }
+/* Custom circular checkbox — matches the pink theme. !important on
+   flex/padding/width/height needed to override the global
+   `input, button, textarea { flex: 1; padding: 12px 14px; font-size: 16px }`
+   rule, which otherwise stretches the box into an oblong. */
 .devo-share-row input[type="checkbox"] {
-  width: 18px; height: 18px;
-  accent-color: #be185d;
+  appearance: none;
+  -webkit-appearance: none;
+  width: 22px !important;
+  height: 22px !important;
+  flex: 0 0 22px !important;
+  padding: 0 !important;
+  font-size: 0;
+  border-radius: 50%;
+  border: 2px solid rgba(255, 255, 255, 0.25);
+  background: transparent;
   cursor: pointer;
-  flex: 0 0 auto;
+  position: relative;
+  margin: 0;
+  box-sizing: border-box;
+  transition: background 140ms ease, border-color 140ms ease, transform 120ms ease;
+}
+.devo-share-row input[type="checkbox"]:hover { border-color: rgba(219, 39, 119, 0.55); }
+.devo-share-row input[type="checkbox"]:checked {
+  background: #db2777;
+  border-color: #db2777;
+}
+.devo-share-row input[type="checkbox"]:checked::after {
+  content: "";
+  position: absolute;
+  left: 50%;
+  top: 47%;
+  width: 5px;
+  height: 9px;
+  border: solid #fff;
+  border-width: 0 2px 2px 0;
+  transform: translate(-50%, -50%) rotate(45deg);
+}
+.devo-share-row input[type="checkbox"]:active { transform: scale(0.92); }
+.light .devo-share-row input[type="checkbox"] { border-color: rgba(0, 0, 0, 0.22); }
+.light .devo-share-row input[type="checkbox"]:hover { border-color: rgba(190, 24, 93, 0.55); }
+.light .devo-share-row input[type="checkbox"]:checked {
+  background: #be185d;
+  border-color: #be185d;
 }
 .devo-share-row-label {
   display: flex;

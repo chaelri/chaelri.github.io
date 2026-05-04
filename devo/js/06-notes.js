@@ -504,6 +504,7 @@ function _openShareDevoModal() {
   const today = new Date();
   const pad = n => String(n).padStart(2, "0");
   const todayIso = `${today.getFullYear()}-${pad(today.getMonth() + 1)}-${pad(today.getDate())}`;
+  const defaultTitle = _devoShareFormatTitle(todayIso);
 
   const escapeHtml = s => String(s).replace(/[&<>"']/g, c => ({"&":"&amp;","<":"&lt;",">":"&gt;",'"':"&quot;","'":"&#39;"}[c]));
 
@@ -525,10 +526,10 @@ function _openShareDevoModal() {
   content.innerHTML = `
     <div class="devo-share-modal">
       <h3 class="devo-share-title">Share to Notes</h3>
-      <p class="devo-share-help">Default is today. Tweak if you're logging for an earlier day.</p>
+      <p class="devo-share-help">Tweak the title before sharing if you'd like.</p>
       <label class="devo-share-date-label">
-        <span>Date</span>
-        <input type="date" id="devoShareDate" value="${todayIso}">
+        <span>Title</span>
+        <input type="text" id="devoShareTitleInput" value="${escapeHtml(defaultTitle)}" autocomplete="off">
       </label>
       <div class="devo-share-list-label">Chapters</div>
       <div class="devo-share-list">${rowsHtml}</div>
@@ -546,7 +547,7 @@ function _openShareDevoModal() {
   if (cancelBtn) cancelBtn.onclick = close;
   if (goBtn) {
     goBtn.onclick = async () => {
-      const dateInput = content.querySelector("#devoShareDate");
+      const titleInput = content.querySelector("#devoShareTitleInput");
       const checkboxes = content.querySelectorAll('input[type="checkbox"][data-share-idx]');
       const picked = [];
       checkboxes.forEach(cb => {
@@ -559,12 +560,12 @@ function _openShareDevoModal() {
         _devoShareToast("Pick at least one chapter");
         return;
       }
-      const title = _devoShareFormatTitle(dateInput?.value || todayIso);
+      const title = (titleInput?.value || "").trim() || defaultTitle;
       const text = _devoShareBuildText(title, picked);
       close();
       try {
         if (navigator.share) {
-          await navigator.share({ title, text });
+          await navigator.share({ text });
         } else if (navigator.clipboard) {
           await navigator.clipboard.writeText(text);
           _devoShareToast("Share unavailable — copied to clipboard");
