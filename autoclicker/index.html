@@ -876,10 +876,14 @@
       </summary>
       <div class="px-5 pb-5">
         <pre class="code" data-lang="cpp" id="codeArduino">#include &lt;WiFi.h&gt;
+#include &lt;WiFiMulti.h&gt;
 #include &lt;HTTPClient.h&gt;
 
-const char* WIFI_SSID = "YOUR_WIFI";
-const char* WIFI_PASS = "YOUR_PASS";
+// Add as many networks as you want — WiFiMulti picks the strongest visible one.
+// iPhone hotspot: enable Settings → Personal Hotspot → Maximize Compatibility
+// (the ESP32-C3 is 2.4 GHz only; modern iPhones default to 5 GHz).
+WiFiMulti wifiMulti;
+
 const char* DB_URL =
   "https://test-database-55379-default-rtdb.asia-southeast1.firebasedatabase.app"
   "/autoclicker/command.json";
@@ -901,9 +905,11 @@ void setup() {
   digitalWrite(RELAY_PIN, relayOff());
   digitalWrite(LED_PIN, HIGH);   // LED off (active LOW)
 
-  WiFi.begin(WIFI_SSID, WIFI_PASS);
-  while (WiFi.status() != WL_CONNECTED) { delay(300); Serial.print("."); }
-  Serial.println("\nWiFi connected: " + WiFi.localIP().toString());
+  wifiMulti.addAP("CAYNO", "lokomoko");
+  wifiMulti.addAP("Charlie's iPhone", "charile24");
+
+  while (wifiMulti.run() != WL_CONNECTED) { delay(300); Serial.print("."); }
+  Serial.println("\nWiFi connected: " + WiFi.SSID() + " · " + WiFi.localIP().toString());
 }
 
 void click(int times) {
@@ -926,8 +932,7 @@ void clearCommand() {
 }
 
 void loop() {
-  if (WiFi.status() != WL_CONNECTED) {
-    WiFi.reconnect();
+  if (wifiMulti.run() != WL_CONNECTED) {
     delay(POLL_MS);
     return;
   }

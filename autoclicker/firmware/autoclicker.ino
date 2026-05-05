@@ -41,11 +41,15 @@
 // ===========================================================================
 
 #include <WiFi.h>
+#include <WiFiMulti.h>
 #include <HTTPClient.h>
 
 // --- WiFi --------------------------------------------------------------------
-const char* WIFI_SSID = "CAYNO";
-const char* WIFI_PASS = "lokomoko";
+// Add as many networks as you want — WiFiMulti picks the strongest visible one.
+// iPhone hotspot note: Personal Hotspot defaults to 5 GHz on modern iPhones, but
+// the ESP32-C3 is 2.4 GHz only. Turn ON Settings → Personal Hotspot → Maximize
+// Compatibility so the hotspot broadcasts on 2.4 GHz.
+WiFiMulti wifiMulti;
 
 // --- Firebase RTDB -----------------------------------------------------------
 const char* DB_URL =
@@ -72,11 +76,13 @@ void setup() {
   digitalWrite(RELAY_PIN, relayOff());
   digitalWrite(LED_PIN, HIGH);   // LED off (active LOW: HIGH = off)
 
+  wifiMulti.addAP("CAYNO", "lokomoko");
+  wifiMulti.addAP("Charlie's iPhone", "charile24");
+
   Serial.print("Connecting to WiFi");
-  WiFi.begin(WIFI_SSID, WIFI_PASS);
-  while (WiFi.status() != WL_CONNECTED) { delay(300); Serial.print("."); }
+  while (wifiMulti.run() != WL_CONNECTED) { delay(300); Serial.print("."); }
   Serial.println();
-  Serial.println("WiFi connected: " + WiFi.localIP().toString());
+  Serial.println("WiFi connected: " + WiFi.SSID() + " · " + WiFi.localIP().toString());
 }
 
 void click(int times) {
@@ -99,8 +105,7 @@ void clearCommand() {
 }
 
 void loop() {
-  if (WiFi.status() != WL_CONNECTED) {
-    WiFi.reconnect();
+  if (wifiMulti.run() != WL_CONNECTED) {
     delay(POLL_MS);
     return;
   }
