@@ -77,7 +77,7 @@ void setup() {
   digitalWrite(LED_PIN, HIGH);   // LED off (active LOW: HIGH = off)
 
   wifiMulti.addAP("CAYNO", "lokomoko");
-  wifiMulti.addAP("Charlie's iPhone", "charile24");
+  wifiMulti.addAP("Charlie's iPhone", "charlie24");
 
   Serial.print("Connecting to WiFi");
   while (wifiMulti.run() != WL_CONNECTED) { delay(300); Serial.print("."); }
