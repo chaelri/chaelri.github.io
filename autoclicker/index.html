@@ -205,16 +205,16 @@
   </p>
   <div class="grid grid-cols-2 sm:grid-cols-4 gap-3 max-w-3xl mx-auto">
     <div class="card p-4 text-left">
-      <div class="text-2xl font-semibold text-white">4 <span class="text-sm text-slate-500 font-normal">parts</span></div>
-      <div class="text-xs text-slate-500 mt-1">ESP32 · 5V relay · solenoid · USB-C</div>
+      <div class="text-2xl font-semibold text-white">3 <span class="text-sm text-slate-500 font-normal">parts</span></div>
+      <div class="text-xs text-slate-500 mt-1">ESP32 · MG90S servo · USB-C powerbank</div>
     </div>
     <div class="card p-4 text-left">
-      <div class="text-2xl font-semibold text-white">7 <span class="text-sm text-slate-500 font-normal">connections</span></div>
-      <div class="text-xs text-slate-500 mt-1">4 jumpers · 2 screws · 1 USB</div>
+      <div class="text-2xl font-semibold text-white">3 <span class="text-sm text-slate-500 font-normal">jumpers</span></div>
+      <div class="text-xs text-slate-500 mt-1">signal · 5V · GND · plus 1 USB-C</div>
     </div>
     <div class="card p-4 text-left">
-      <div class="text-2xl font-semibold text-white">200 <span class="text-sm text-slate-500 font-normal">ms</span></div>
-      <div class="text-xs text-slate-500 mt-1">click pulse duration</div>
+      <div class="text-2xl font-semibold text-white">300 <span class="text-sm text-slate-500 font-normal">ms</span></div>
+      <div class="text-xs text-slate-500 mt-1">servo press hold time</div>
     </div>
     <div class="card p-4 text-left">
       <div class="text-2xl font-semibold text-white">1 <span class="text-sm text-slate-500 font-normal">sec</span></div>
@@ -228,7 +228,7 @@
   <div class="mb-10">
     <div class="text-xs uppercase tracking-[0.2em] text-indigo-400 mb-2">01 · Overview</div>
     <h2 class="text-3xl font-bold text-white">How a click travels</h2>
-    <p class="text-slate-400 mt-2 max-w-xl">Phone tap → cloud database → ESP32 polls → relay clicks → solenoid pushes the button physically.</p>
+    <p class="text-slate-400 mt-2 max-w-xl">Phone tap → cloud database → ESP32 polls → servo arm sweeps down → button gets tapped physically.</p>
   </div>
 
   <div class="card p-6 sm:p-8 overflow-x-auto no-scrollbar">
@@ -285,7 +285,7 @@
           <circle r="34" fill="rgba(236,72,153,0.08)"/>
           <text text-anchor="middle" dominant-baseline="central" fill="#cbd5e1" font-family="Material Symbols Outlined" font-size="26">memory</text>
           <text y="60" text-anchor="middle" fill="#fff" font-size="13" font-weight="600">ESP32-C3</text>
-          <text y="76" text-anchor="middle" fill="#64748b" font-size="11">poll @ 1Hz · GPIO3 200ms</text>
+          <text y="76" text-anchor="middle" fill="#64748b" font-size="11">poll @ 1Hz · GPIO3 1000ms</text>
         </g>
 
         <!-- 4 relay -->
@@ -336,7 +336,7 @@
           <span class="material-symbols-outlined" style="font-size:18px">bolt</span>
           <span class="text-xs font-medium uppercase tracking-wider">Actuate</span>
         </div>
-        <div class="text-sm text-slate-300">GPIO3 → relay coil → COM/NO closes → solenoid fires. 200ms HIGH = one button press.</div>
+        <div class="text-sm text-slate-300">GPIO3 → relay coil → COM/NO closes → solenoid fires. 1000ms HIGH = one button press.</div>
       </div>
     </div>
   </div>
@@ -654,7 +654,7 @@
   <div class="mb-10">
     <div class="text-xs uppercase tracking-[0.2em] text-indigo-400 mb-2">03 · Wiring</div>
     <h2 class="text-3xl font-bold text-white">All seven connections</h2>
-    <p class="text-slate-400 mt-2 max-w-xl">Three signal-side jumpers, the solenoid permanently at +5V on the relay's VCC pin shaft, and a bridge wire that lets the relay open/close the GND return path. Low-side switching — no soldering.</p>
+    <p class="text-slate-400 mt-2 max-w-xl">Three jumpers — signal, 5V, GND — straight from ESP32 to the servo's three leads. No relay, no MOSFET, no flyback diode. Powerbank powers both ESP32 and servo on the same rail.</p>
   </div>
 
   <div class="card overflow-hidden">
@@ -700,7 +700,7 @@
   <div class="mb-10">
     <div class="text-xs uppercase tracking-[0.2em] text-indigo-400 mb-2">04 · Demo</div>
     <h2 class="text-3xl font-bold text-white">Click animation</h2>
-    <p class="text-slate-400 mt-2 max-w-xl">Tap the button — see what 200 ms of GPIO3 HIGH looks like at the solenoid.</p>
+    <p class="text-slate-400 mt-2 max-w-xl">Tap the button — animation shows the servo sweep cycle (REST → PRESS → REST). The plunger drawing below is a stand-in until the SVG is redrawn for the new servo build.</p>
   </div>
 
   <div class="card p-6 sm:p-10">
@@ -807,7 +807,7 @@
           </div>
 
           <div class="border-t border-white/5 pt-3 text-xs space-y-1.5">
-            <div class="flex justify-between"><span class="text-slate-500">Pulse</span><span class="text-slate-300 mono">200 ms</span></div>
+            <div class="flex justify-between"><span class="text-slate-500">Pulse</span><span class="text-slate-300 mono">1000 ms</span></div>
             <div class="flex justify-between"><span class="text-slate-500">Click count</span><span class="text-slate-300 mono" id="clickCount">0</span></div>
             <div class="flex justify-between"><span class="text-slate-500">Last cmd</span><span class="text-slate-300 mono" id="lastCmd">—</span></div>
           </div>
@@ -887,6 +887,7 @@
 #include &lt;WiFiMulti.h&gt;
 #include &lt;HTTPClient.h&gt;
 #include &lt;WebServer.h&gt;
+#include &lt;ESP32Servo.h&gt;
 
 // Three trigger paths:
 //   1. Phone remote (online)    → writes "click" to Firebase, ESP32 polls
@@ -894,6 +895,7 @@
 //   3. SoftAP fallback (offline) → broadcasts "AutoClicker-AP" if no WiFi
 WiFiMulti wifiMulti;
 WebServer server(80);
+Servo finger;
 bool inSoftAP = false;
 
 const char* AP_SSID = "AutoClicker-AP";
@@ -904,14 +906,13 @@ const char* DB_URL =
   "https://test-database-55379-default-rtdb.asia-southeast1.firebasedatabase.app"
   "/autoclicker/command.json";
 
-const int RELAY_PIN = 3;
-const int LED_PIN   = 8;
-const int CLICK_MS  = 200;
-const int POLL_MS   = 1000;
-
-const bool ACTIVE_LOW = false;
-inline int relayOn()  { return ACTIVE_LOW ? LOW  : HIGH; }
-inline int relayOff() { return ACTIVE_LOW ? HIGH : LOW;  }
+const int SERVO_PIN     = 3;     // GPIO3 → servo signal (orange)
+const int LED_PIN       = 8;     // onboard blue LED (active LOW)
+const int REST_ANGLE    = 0;     // arm raised
+const int PRESS_ANGLE   = 35;    // arm pressed (tune per build)
+const int PRESS_HOLD_MS = 300;
+const int RELEASE_MS    = 200;
+const int POLL_MS       = 1000;
 
 // Inline HTML/CSS for the built-in click UI — no CDN deps so it works offline
 // in SoftAP mode. ~150 lines of dark-slate + amber-glow custom CSS, omitted
@@ -924,11 +925,12 @@ const char INDEX_HTML[] PROGMEM = R"rawliteral(
 
 void click(int times) {
   for (int i = 0; i &lt; times; i++) {
-    digitalWrite(RELAY_PIN, relayOn());
     digitalWrite(LED_PIN, LOW);
-    delay(CLICK_MS);
-    digitalWrite(RELAY_PIN, relayOff());
+    finger.write(PRESS_ANGLE);
+    delay(PRESS_HOLD_MS);
+    finger.write(REST_ANGLE);
     digitalWrite(LED_PIN, HIGH);
+    delay(RELEASE_MS);
     if (i &lt; times - 1) delay(150);
   }
 }
@@ -962,9 +964,12 @@ void startSoftAP() {
 
 void setup() {
   Serial.begin(115200);
-  pinMode(RELAY_PIN, OUTPUT);
+
+  finger.setPeriodHertz(50);
+  finger.attach(SERVO_PIN, 500, 2400);
+  finger.write(REST_ANGLE);
+
   pinMode(LED_PIN, OUTPUT);
-  digitalWrite(RELAY_PIN, relayOff());
   digitalWrite(LED_PIN, HIGH);
 
   wifiMulti.addAP("CAYNO", "lokomoko");
@@ -1053,7 +1058,7 @@ void loop() {
         &lt;div class="text-center"&gt;
           &lt;span class="material-symbols-outlined block" style="font-size:64px"&gt;touch_app&lt;/span&gt;
           &lt;div class="font-extrabold tracking-[0.18em] text-xl mt-1"&gt;CLICK&lt;/div&gt;
-          &lt;div class="text-white/60 text-[11px] mt-1"&gt;200 ms press&lt;/div&gt;
+          &lt;div class="text-white/60 text-[11px] mt-1"&gt;1000 ms press&lt;/div&gt;
         &lt;/div&gt;
       &lt;/button&gt;
     &lt;/div&gt;
@@ -1152,13 +1157,10 @@ void loop() {
 // Wiring table data
 // ===========================================================================
 const wires = [
-  { i: 1, type: 'Power',  from: ['ESP32', '5V'],            to: ['Relay', 'VCC pin'],     color: '#ef4444', name: 'red',   method: 'Jumper wire' },
-  { i: 2, type: 'Ground', from: ['ESP32', 'GND'],           to: ['Relay', 'GND pin'],     color: '#475569', name: 'black', method: 'Jumper wire' },
-  { i: 3, type: 'Signal', from: ['ESP32', 'GPIO3'],         to: ['Relay', 'IN pin'],      color: '#22c55e', name: 'green', method: 'Jumper wire' },
-  { i: 4, type: 'Load+',  from: ['Solenoid', 'wire 1'],     to: ['Relay', 'VCC pin shaft'], color: '#fca5a5', name: 'bare',  method: 'Wrap around pin' },
-  { i: 5, type: 'Load−',  from: ['Solenoid', 'wire 2'],     to: ['Relay', 'COM screw'],   color: '#0f172a', name: 'bare',  method: 'Screw terminal' },
-  { i: 6, type: 'Bridge', from: ['Relay', 'NO screw'],      to: ['Relay', 'GND pin shaft'], color: '#475569', name: 'gray', method: 'Wrap + screw' },
-  { i: 7, type: 'Power',  from: ['USB-C charger', '5V'],    to: ['ESP32', 'USB-C'],       color: '#a855f7', name: 'cable', method: 'Plug' },
+  { i: 1, type: 'Signal', from: ['ESP32', 'GPIO3'],         to: ['Servo', 'signal (orange)'], color: '#22c55e', name: 'orange', method: 'Jumper wire' },
+  { i: 2, type: 'Power',  from: ['ESP32', '5V'],            to: ['Servo', 'VCC (red)'],       color: '#ef4444', name: 'red',    method: 'Jumper wire' },
+  { i: 3, type: 'Ground', from: ['ESP32', 'GND'],           to: ['Servo', 'GND (brown)'],     color: '#475569', name: 'brown',  method: 'Jumper wire' },
+  { i: 4, type: 'Power',  from: ['USB-C powerbank', '5V'],  to: ['ESP32', 'USB-C'],           color: '#a855f7', name: 'cable',  method: 'Plug' },
 ];
 
 const tbody = document.getElementById('wireTable');
@@ -1190,25 +1192,24 @@ tbody.innerHTML = wires.map(w => `
 // Build checklist
 // ===========================================================================
 const steps = [
-  { g: 'Parts',      t: 'Verify all parts arrived: ESP32-C3 SuperMini, 5V 1-channel relay module (with optocoupler), 5V solenoid, USB-C cable, 4+ M-F jumper wires' },
-  { g: 'Parts',      t: 'ESP32 ships without headers — that is fine. We press-fit male jumper pins directly into the through-holes (no soldering)' },
+  { g: 'Parts',      t: 'Verify all parts arrived: ESP32-C3 SuperMini, MG90S micro-servo (metal-gear), USB-C powerbank/charger, 3 M-F jumper wires' },
+  { g: 'Parts',      t: 'ESP32 ships without headers — that is fine. Press-fit male jumper pins directly into the through-holes (no soldering)' },
   { g: 'Firmware',   t: 'Install Arduino IDE 2.x and add ESP32 board package via Boards Manager (search "esp32")' },
+  { g: 'Firmware',   t: 'Library Manager → install "ESP32Servo" by Kevin Harrington (NOT the classic Servo.h — that one does not run on ESP32-C3)' },
   { g: 'Firmware',   t: 'Plug ESP32 into laptop via USB-C; select board "ESP32C3 Dev Module" + correct port; set USB CDC On Boot: Enabled' },
-  { g: 'Firmware',   t: 'Open autoclicker/firmware/autoclicker.ino; fill WiFi SSID/password; upload' },
+  { g: 'Firmware',   t: 'Open autoclicker/firmware/autoclicker.ino; confirm WiFi credentials in setup(); upload' },
   { g: 'Firmware',   t: 'Open Serial Monitor at 115200 — confirm "WiFi connected: ..."' },
-  { g: 'Wiring',     t: 'Insert red jumper male pin into ESP32 5V hole; female end onto Relay VCC pin' },
-  { g: 'Wiring',     t: 'Insert black jumper male pin into ESP32 GND hole; female end onto Relay GND pin' },
-  { g: 'Wiring',     t: 'Insert green jumper male pin into ESP32 GPIO3 hole; female end onto Relay IN pin' },
-  { g: 'Wiring',     t: 'Wrap solenoid wire 1 (bare) tightly around Relay VCC pin shaft (just below the red jumper female socket) — solenoid is now permanently at +5V on this end' },
-  { g: 'Wiring',     t: 'Insert solenoid wire 2 (bare) into Relay COM screw terminal; tighten with flathead' },
-  { g: 'Wiring',     t: 'Bridge wire: wrap a stripped wire end tightly around Relay GND pin shaft (just below the black jumper female socket), clamp the other end into Relay NO screw — when relay clicks, this completes the GND return path' },
-  { g: 'Wiring',     t: 'Tug-test all wires — none should pull free' },
-  { g: 'Test',       t: 'Plug USB-C charger into ESP32; observe ESP32 power LED on' },
-  { g: 'Test',       t: 'Open phone web app or iOS Shortcut; tap "Click" — relay should click audibly and solenoid push within ~1 second' },
-  { g: 'Test',       t: 'If the solenoid fires at boot or behaves inverted, set ACTIVE_LOW = true in the firmware and re-upload' },
-  { g: 'Test',       t: 'Tap "Double" and "Auto x5"; verify counts and clean retraction between presses' },
-  { g: 'Mount',      t: 'Position solenoid plunger over target button; secure with double-sided foam tape' },
-  { g: 'Mount',      t: 'Verify travel: plunger fully presses but does not bottom-out the button mechanism' },
+  { g: 'Wiring',     t: 'Insert orange (signal) jumper male pin into ESP32 GPIO3 hole; female end onto servo signal pin' },
+  { g: 'Wiring',     t: 'Insert red (VCC) jumper male pin into ESP32 5V hole; female end onto servo red wire' },
+  { g: 'Wiring',     t: 'Insert brown (GND) jumper male pin into ESP32 GND hole; female end onto servo brown wire' },
+  { g: 'Wiring',     t: 'Tug-test all 3 jumpers — none should pull free' },
+  { g: 'Test',       t: 'Plug USB-C powerbank into ESP32; servo should snap to REST_ANGLE (0°) on boot' },
+  { g: 'Test',       t: 'Open phone web app or http://<esp32-ip>/ on the same WiFi; tap "Click" — servo arm sweeps to PRESS_ANGLE and back within ~1 second' },
+  { g: 'Test',       t: 'If the press is too soft, raise PRESS_ANGLE in 5° steps and re-upload. If the arm slams or stalls (buzzing), lower it' },
+  { g: 'Test',       t: 'Tap "Double" and "Auto x5"; verify counts and clean return to rest between presses' },
+  { g: 'Mount',      t: 'Glue or tape a chopstick / popsicle stick / 3D-printed arm onto the servo horn — this is the "finger" that taps the button' },
+  { g: 'Mount',      t: 'Position servo so the finger lands squarely on the target button at PRESS_ANGLE; secure servo body with double-sided foam tape' },
+  { g: 'Mount',      t: 'For a phone/tablet touchscreen: wrap aluminum foil around the finger tip, run a thin wire from the foil to ESP32 GND so the screen registers the tap' },
 ];
 
 const cl = document.getElementById('checklistItems');
@@ -1284,13 +1285,13 @@ function setGpio(high) {
 function pushOnce() {
   return new Promise(resolve => {
     setGpio(true);
-    pulseLabel.textContent = 'GPIO3 HIGH · 200 ms';
+    pulseLabel.textContent = 'GPIO3 HIGH · 1000 ms';
 
     // pulse bar fill anim (animate width attribute via rAF)
     pulseBar.setAttribute('width', '0');
     const start = performance.now();
     function tick(t) {
-      const p = Math.max(0, Math.min(1, (t - start) / 200));
+      const p = Math.max(0, Math.min(1, (t - start) / 1000));
       pulseBar.setAttribute('width', (p * 180).toFixed(1));
       if (p < 1) requestAnimationFrame(tick);
     }
@@ -1324,7 +1325,7 @@ function pushOnce() {
       clickTotal++;
       clickCountEl.textContent = clickTotal;
       resolve();
-    }, 230);
+    }, 1030);
   });
 }
 

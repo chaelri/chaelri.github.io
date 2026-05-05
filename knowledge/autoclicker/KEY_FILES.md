@@ -62,14 +62,34 @@ Self-contained — no external JS bundle. Tailwind v4 via CDN.
 
 Status state machine: `idle` (slate dot) → `send` (amber, "sending click…") → `ok` (emerald, "sent — ESP32 will fire within ~1 s") | `err` (rose).
 
-This file is **the live remote** — every change here ships to `/autoclicker/phone/` immediately and a tap will fire Charlie's real solenoid if it's powered.
+This file is **the live remote** — every change here ships to `/autoclicker/phone/` immediately and a tap will fire Charlie's real servo if it's powered.
+
+> **Subtitle copy is stale:** still says "1000 ms press". Functionally fine — the live remote only writes `"click"` to RTDB; the firmware decides press timing (`PRESS_HOLD_MS = 300`). Update the copy when convenient.
 
 ## `assets/`
 
 | File | Used in |
 |---|---|
-| `esp32-c3.jpeg` | Hardware section photo collage (left, ~89 KB) |
-| `mosfet.jpeg` | Hardware section photo collage (right, ~67 KB) |
-| `solenoid.jpeg` | Hardware section photo collage (~35 KB) |
+| `esp32-c3.jpeg` | Hardware section photo collage (~89 KB) |
+| `mosfet.jpeg` | **Legacy** — still referenced by hardware SVG, will be removed when the section is redrawn for servo (~67 KB) |
+| `solenoid.jpeg` | **Legacy** — same (~35 KB) |
 
-Photos are positioned over a `.grid-bg` SVG; wire-overlay paths are hand-drawn to land on each photo's actual pin pads — replacing the photos requires re-tuning the wire `<path>` coordinates around lines 393–408 and the pin-dot label coordinates around lines 411–457.
+Photos are positioned over a `.grid-bg` SVG; wire-overlay paths are hand-drawn to land on each photo's actual pin pads. When redrawing the hardware section for the MG90S servo build, swap in a servo photo, retune the wire `<path>` coordinates around lines 393–408, and rewrite the pin-dot label coordinates around lines 411–457. The data-driven `wires[]` array (now 4 entries) is the source of truth for the connection list.
+
+## `firmware/autoclicker.ino` — canonical Arduino sketch (~330 lines)
+
+| Lines | Block | Purpose |
+|---|---|---|
+| 1–48 | Header comment | Trigger paths, wiring diagram, power notes, library requirement (`ESP32Servo` by Kevin Harrington) |
+| 50–55 | `#include`s | WiFi, WiFiMulti, HTTPClient, WebServer, ESP32Servo |
+| 60–76 | Globals | WiFi, SoftAP creds, DB URL, pins, angles, timings |
+| 78–84 | Servo + WebServer + state | `Servo finger;` + `WebServer server(80);` + `inSoftAP` flag |
+| 88–277 | `INDEX_HTML[]` PROGMEM | Full inline web UI — dark-slate body, amber CLICK button with halo + pulse-ring, JetBrains-Mono status pill, `fetch('/click')` |
+| 279–289 | `void click(int times)` | Press loop — sweep to PRESS_ANGLE, hold, return to REST_ANGLE, optional 150 ms inter-press gap |
+| 291–297 | `void clearCommand()` | PUT `""` to RTDB after firing |
+| 299–300 | `handleRoot` / `handleClick` | Web server handlers |
+| 302–322 | `startSoftAP` / `tryStation` | WiFi state machine — try station mode for 15 s, fall back to SoftAP on timeout |
+| 324–347 | `void setup()` | Servo attach, WiFi join attempt, SoftAP fallback, web server routes |
+| 349–378 | `void loop()` | `server.handleClient()` + 1 Hz Firebase poll (station mode only) |
+
+**Tuning knobs** (re-upload to change): `REST_ANGLE`, `PRESS_ANGLE`, `PRESS_HOLD_MS`. Everything else is wiring/protocol and shouldn't need touching.

@@ -11,37 +11,30 @@
 //                                 Connect from your phone, open
 //                                 http://192.168.4.1/, tap the button.
 //
-// Switch element: 5V 1-channel relay module with optocoupler.
+// Switch element: MG90S micro-servo (metal-gear). Fires a tap by sweeping a
+// short stick / stylus from REST_ANGLE down to PRESS_ANGLE and back.
 //
-// Wiring (no soldering — LOW-SIDE switching: relay opens/closes GND path):
+// Wiring (no soldering — three jumpers only):
 //
-//   ESP32 5V hole   -> red jumper -> Relay VCC pin           (one wire per hole)
-//   ESP32 GND hole  -> black jumper -> Relay GND pin
-//   ESP32 GPIO3     -> green jumper -> Relay IN pin
+//   Servo signal (orange) -> ESP32 GPIO3
+//   Servo VCC    (red)    -> ESP32 5V
+//   Servo GND    (brown)  -> ESP32 GND
 //
-//   Relay VCC pin shaft (below the female socket) -> solenoid wire 1
-//     wrapped tightly                          (solenoid permanently at +5V)
-//   Relay GND pin shaft (below the female socket) -> bridge wire wrapped
-//     tightly, clamped into Relay NO screw     (GND return for the load)
-//   Relay COM screw -> solenoid wire 2 (bare, screw-clamped)
-//   Relay NC screw  : empty
-//   USB-C charger   -> ESP32 USB-C
+//   USB-C charger / powerbank -> ESP32 USB-C
 //
-// How it fires: solenoid wire 1 is permanently at +5V. At idle, COM-NO is
-// open, so wire 2 floats — no current, solenoid silent. On "click", the
-// relay coil energizes, COM-NO closes, wire 2 is pulled to GND through
-// the bridge to the GND pin shaft, the coil energizes, plunger fires.
-// 200 ms later GPIO3 returns LOW, COM-NO opens, current stops.
+// Power note: MG90S draws ~250–400 mA while moving, ~50 mA while holding.
+// A normal USB-C powerbank (2 A) handles both ESP32 and servo on the same
+// rail with margin. To avoid stall current (a servo physically blocked from
+// reaching its target angle keeps pulling 700 mA+), keep PRESS_ANGLE within
+// a few degrees of REST_ANGLE — just enough travel to push the button.
 //
-// Why low-side: high-side switching needed a bridge from VCC pin -> COM
-// screw plus solenoid wire 2 returning to GND. Some relay modules ship
-// with a flaky NO contact pair on the +5V side. Switching the GND path
-// instead bypasses that exact failure mode. Functionally identical
-// click-on-tap behavior; same firmware logic.
+// Library: ESP32Servo (Arduino IDE Library Manager → search "ESP32Servo" by
+// Kevin Harrington). Do NOT use the classic AVR Servo.h — it does not work
+// on ESP32-C3.
 //
-// Polarity: most cheap optocoupler relay boards are Active-HIGH. If yours
-// is Active-LOW (solenoid fires at boot or behaves inverted), flip
-// ACTIVE_LOW below to true and re-upload.
+// Tuning: REST_ANGLE / PRESS_ANGLE / PRESS_HOLD_MS are the only knobs you
+// should touch. If the press is too soft, raise PRESS_ANGLE in 5° steps.
+// If it overshoots and rams the button, lower it.
 //
 // Board: "ESP32C3 Dev Module"   USB CDC On Boot: Enabled
 // Baud:  115200
@@ -51,6 +44,7 @@
 #include <WiFiMulti.h>
 #include <HTTPClient.h>
 #include <WebServer.h>
+#include <ESP32Servo.h>
 
 // --- WiFi --------------------------------------------------------------------
 // Add as many networks as you want — WiFiMulti picks the strongest visible one.
@@ -69,16 +63,16 @@ const char* DB_URL =
   "https://test-database-55379-default-rtdb.asia-southeast1.firebasedatabase.app"
   "/autoclicker/command.json";
 
-// --- Pin / timing ------------------------------------------------------------
-const int RELAY_PIN = 3;     // GPIO3 -> Relay IN
-const int LED_PIN   = 8;     // GPIO8 -> onboard blue LED (active LOW, mirrors pulse)
-const int CLICK_MS  = 200;   // pulse width per press
-const int POLL_MS   = 1000;  // Firebase poll interval
+// --- Pins / timing -----------------------------------------------------------
+const int SERVO_PIN     = 3;     // GPIO3 -> servo signal (orange)
+const int LED_PIN       = 8;     // GPIO8 -> onboard blue LED (active LOW)
+const int REST_ANGLE    = 0;     // arm raised, not touching button
+const int PRESS_ANGLE   = 35;    // arm pressed down on button (tune per build)
+const int PRESS_HOLD_MS = 300;   // how long the press is held
+const int RELEASE_MS    = 200;   // settle time after returning to REST
+const int POLL_MS       = 1000;  // Firebase poll interval
 
-const bool ACTIVE_LOW = false;
-inline int relayOn()  { return ACTIVE_LOW ? LOW  : HIGH; }
-inline int relayOff() { return ACTIVE_LOW ? HIGH : LOW;  }
-
+Servo finger;
 WebServer server(80);
 bool inSoftAP = false;
 unsigned long lastFiredAt = 0;
@@ -240,7 +234,7 @@ const char INDEX_HTML[] PROGMEM = R"rawliteral(
       <div class="halo"></div>
       <button class="click-btn" id="clickBtn" aria-label="Fire one click">
         <span class="label">Click</span>
-        <span class="sub">200 MS PULSE</span>
+        <span class="sub">SERVO PRESS</span>
       </button>
       <span class="ring" id="ring"></span>
     </div>
@@ -278,11 +272,12 @@ btn.addEventListener('click',async()=>{
 
 void click(int times) {
   for (int i = 0; i < times; i++) {
-    digitalWrite(RELAY_PIN, relayOn());
-    digitalWrite(LED_PIN, LOW);
-    delay(CLICK_MS);
-    digitalWrite(RELAY_PIN, relayOff());
-    digitalWrite(LED_PIN, HIGH);
+    digitalWrite(LED_PIN, LOW);          // LED on (active LOW) during press
+    finger.write(PRESS_ANGLE);
+    delay(PRESS_HOLD_MS);
+    finger.write(REST_ANGLE);
+    digitalWrite(LED_PIN, HIGH);         // LED off
+    delay(RELEASE_MS);                   // let arm settle before next press
     if (i < times - 1) delay(150);
   }
   lastFiredAt = millis();
@@ -323,10 +318,15 @@ bool tryStation() {
 
 void setup() {
   Serial.begin(115200);
-  pinMode(RELAY_PIN, OUTPUT);
+
+  // Servo init — attach to GPIO3 with standard 500–2400 us pulse range.
+  // ESP32Servo allocates one of the four LEDC PWM channels under the hood.
+  finger.setPeriodHertz(50);            // standard 50 Hz hobby-servo PWM
+  finger.attach(SERVO_PIN, 500, 2400);
+  finger.write(REST_ANGLE);             // park at rest immediately
+
   pinMode(LED_PIN, OUTPUT);
-  digitalWrite(RELAY_PIN, relayOff());
-  digitalWrite(LED_PIN, HIGH);
+  digitalWrite(LED_PIN, HIGH);          // LED off (active LOW)
 
   wifiMulti.addAP("CAYNO", "lokomoko");
   wifiMulti.addAP("Charlie's iPhone", "charlie24");

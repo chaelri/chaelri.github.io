@@ -15,17 +15,18 @@
 
 ### autoclicker/  🟢
 
-DIY WiFi auto-clicker build reference + live phone remote — ESP32-C3 + IRF520 + 5V solenoid SwitchBot. Single-page site documents hardware, wiring, firmware; phone subdir is the live remote.
+DIY WiFi auto-clicker build reference + live phone remote — ESP32-C3 + MG90S servo SwitchBot (migrated from relay+solenoid 2026-05-06). Single-page site documents hardware, wiring, firmware; phone subdir is the live remote.
 
 - **Tech:** vanilla HTML/CSS/JS, Tailwind v4 (browser CDN, no build), Firebase v10 SDK (RTDB + anonymous Auth), Inter + JetBrains Mono + Material Symbols Outlined.
-- **Entry:** `index.html` (~1,347 lines — overview/hardware/wiring/demo/code/checklist), `phone/index.html` (~166 lines — live big-button remote), `assets/*.jpeg` (top-down part photos).
+- **Entry:** `index.html` (~1,330 lines — overview/hardware/wiring/demo/code/checklist), `firmware/autoclicker.ino` (canonical Arduino sketch, in-repo), `phone/index.html` (~166 lines — live big-button remote), `assets/*.jpeg` (top-down part photos; mosfet/solenoid jpegs are legacy from old build).
 - **Deploy:** GitHub Pages at `/autoclicker/`. Phone remote at `/autoclicker/phone/`.
-- **Firmware:** Out-of-repo Arduino sketch on ESP32-C3 SuperMini; canonical source duplicated verbatim in the Code section. Polls `/autoclicker/command` at 1 Hz, fires GPIO3 HIGH for 200 ms, clears the field.
+- **Firmware:** `firmware/autoclicker.ino` (canonical, in-repo) — uses `ESP32Servo` library (Kevin Harrington — install via Library Manager; AVR `Servo.h` does not run on ESP32-C3). Three trigger paths: Firebase poll (online), local web UI on port 80 (same WiFi), SoftAP fallback `AutoClicker-AP` (offline). On `click`: sweeps GPIO3 servo from `REST_ANGLE` (0°) to `PRESS_ANGLE` (35°), holds 300 ms, returns. Tuning knobs: `REST_ANGLE` / `PRESS_ANGLE` / `PRESS_HOLD_MS`.
 - **Quirks:**
   - **Demo section is animation-only** — `Trigger click` / `Double click` simulate the GPIO pulse in SVG, they do NOT touch Firebase. Only `phone/index.html` writes for real.
+  - **SVG visuals are stale** — overview flow, hardware photo collage, and demo plunger animation still depict the old relay+solenoid build pending redesign for the servo. Firmware + wiring table + checklist + hero stats are accurate.
   - Shares Firebase project `test-database-55379` (asia-southeast1) with other repo apps; uses path `/autoclicker/command`.
   - Firebase web API key in `phone/index.html` is intentional — it's a public client config, not a secret.
-  - Wires/checklist render from `wires[]` and `steps[]` arrays — edit data, not DOM.
+  - Wires/checklist render from `wires[]` (now 4 entries) and `steps[]` arrays — edit data, not DOM.
   - Section IDs (`overview/hardware/wiring/demo/code/checklist`) are load-bearing for `syncNav()` scroll-spy.
 - **Full docs:** See `knowledge/autoclicker/SUMMARY.md`, `ARCHITECTURE.md`, `KEY_FILES.md`.
 
