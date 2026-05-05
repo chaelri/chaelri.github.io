@@ -878,39 +878,41 @@
         <pre class="code" data-lang="cpp" id="codeArduino">#include &lt;WiFi.h&gt;
 #include &lt;WiFiMulti.h&gt;
 #include &lt;HTTPClient.h&gt;
+#include &lt;WebServer.h&gt;
 
-// Add as many networks as you want — WiFiMulti picks the strongest visible one.
-// iPhone hotspot: enable Settings → Personal Hotspot → Maximize Compatibility
-// (the ESP32-C3 is 2.4 GHz only; modern iPhones default to 5 GHz).
+// Three trigger paths:
+//   1. Phone remote (online)    → writes "click" to Firebase, ESP32 polls
+//   2. Local web UI (online)    → http://&lt;esp32-ip&gt;/ on the same WiFi
+//   3. SoftAP fallback (offline) → broadcasts "AutoClicker-AP" if no WiFi
 WiFiMulti wifiMulti;
+WebServer server(80);
+bool inSoftAP = false;
+
+const char* AP_SSID = "AutoClicker-AP";
+const char* AP_PASS = "click1234";
+const unsigned long WIFI_CONNECT_TIMEOUT_MS = 15000;
 
 const char* DB_URL =
   "https://test-database-55379-default-rtdb.asia-southeast1.firebasedatabase.app"
   "/autoclicker/command.json";
 
-const int RELAY_PIN = 3;     // GPIO3 → Relay IN
-const int LED_PIN   = 8;     // GPIO8 → onboard blue LED (active LOW)
-const int CLICK_MS  = 200;   // pulse width per press
-const int POLL_MS   = 1000;  // Firebase poll interval
+const int RELAY_PIN = 3;
+const int LED_PIN   = 8;
+const int CLICK_MS  = 200;
+const int POLL_MS   = 1000;
 
-// Flip to true if your relay is Active-LOW (fires at boot or inverted).
 const bool ACTIVE_LOW = false;
 inline int relayOn()  { return ACTIVE_LOW ? LOW  : HIGH; }
 inline int relayOff() { return ACTIVE_LOW ? HIGH : LOW;  }
 
-void setup() {
-  Serial.begin(115200);
-  pinMode(RELAY_PIN, OUTPUT);
-  pinMode(LED_PIN, OUTPUT);
-  digitalWrite(RELAY_PIN, relayOff());
-  digitalWrite(LED_PIN, HIGH);   // LED off (active LOW)
-
-  wifiMulti.addAP("CAYNO", "lokomoko");
-  wifiMulti.addAP("Charlie's iPhone", "charlie24");
-
-  while (wifiMulti.run() != WL_CONNECTED) { delay(300); Serial.print("."); }
-  Serial.println("\nWiFi connected: " + WiFi.SSID() + " · " + WiFi.localIP().toString());
-}
+// Inline HTML/CSS for the built-in click UI — no CDN deps so it works offline
+// in SoftAP mode. ~150 lines of dark-slate + amber-glow custom CSS, omitted
+// here for brevity. See autoclicker/firmware/autoclicker.ino on GitHub for
+// the full PROGMEM literal.
+const char INDEX_HTML[] PROGMEM = R"rawliteral(
+  &lt;!-- dark-slate body, big amber CLICK button with halo + pulse-ring,
+       JetBrains-Mono status pill, fetch('/click'). Fully offline-capable. --&gt;
+)rawliteral";
 
 void click(int times) {
   for (int i = 0; i &lt; times; i++) {
@@ -923,38 +925,76 @@ void click(int times) {
   }
 }
 
+void handleRoot()  { server.send_P(200, "text/html; charset=utf-8", INDEX_HTML); }
+void handleClick() { click(1); server.send(200, "application/json", "{\"ok\":true}"); }
+
 void clearCommand() {
   HTTPClient http;
   http.begin(DB_URL);
   http.addHeader("Content-Type", "application/json");
-  http.PUT("\"\"");   // empty string clears
+  http.PUT("\"\"");
   http.end();
 }
 
+bool tryStation() {
+  WiFi.mode(WIFI_STA);
+  unsigned long t0 = millis();
+  while (wifiMulti.run() != WL_CONNECTED &amp;&amp; millis() - t0 &lt; WIFI_CONNECT_TIMEOUT_MS) {
+    delay(300);
+  }
+  return WiFi.status() == WL_CONNECTED;
+}
+
+void startSoftAP() {
+  WiFi.mode(WIFI_AP);
+  WiFi.softAP(AP_SSID, AP_PASS);
+  inSoftAP = true;
+  Serial.println("SoftAP IP: " + WiFi.softAPIP().toString());
+}
+
+void setup() {
+  Serial.begin(115200);
+  pinMode(RELAY_PIN, OUTPUT);
+  pinMode(LED_PIN, OUTPUT);
+  digitalWrite(RELAY_PIN, relayOff());
+  digitalWrite(LED_PIN, HIGH);
+
+  wifiMulti.addAP("CAYNO", "lokomoko");
+  wifiMulti.addAP("Charlie's iPhone", "charlie24");
+
+  if (!tryStation()) startSoftAP();
+
+  server.on("/", handleRoot);
+  server.on("/click", HTTP_POST, handleClick);
+  server.on("/click", HTTP_GET, handleClick);
+  server.onNotFound(handleRoot);
+  server.begin();
+}
+
 void loop() {
-  if (wifiMulti.run() != WL_CONNECTED) {
-    delay(POLL_MS);
-    return;
-  }
+  server.handleClient();
 
-  HTTPClient http;
-  http.begin(DB_URL);
-  int code = http.GET();
+  // Firebase polling only when connected to WiFi (not in SoftAP)
+  static unsigned long lastPoll = 0;
+  if (!inSoftAP &amp;&amp; millis() - lastPoll &gt;= POLL_MS) {
+    lastPoll = millis();
+    if (wifiMulti.run() != WL_CONNECTED) return;
 
-  if (code == 200) {
-    String body = http.getString();
-    body.replace("\"", "");
-    body.trim();
-
-    if (body == "click")            { click(1);  clearCommand(); }
-    else if (body == "double")      { click(2);  clearCommand(); }
-    else if (body.startsWith("auto_")) {
-      int n = body.substring(5).toInt();
-      if (n &gt; 0 &amp;&amp; n &lt;= 50) { click(n); clearCommand(); }
+    HTTPClient http;
+    http.begin(DB_URL);
+    if (http.GET() == 200) {
+      String body = http.getString();
+      body.replace("\"", ""); body.trim();
+      if (body == "click")           { click(1); clearCommand(); }
+      else if (body == "double")     { click(2); clearCommand(); }
+      else if (body.startsWith("auto_")) {
+        int n = body.substring(5).toInt();
+        if (n &gt; 0 &amp;&amp; n &lt;= 50) { click(n); clearCommand(); }
+      }
     }
+    http.end();
   }
-  http.end();
-  delay(POLL_MS);
+  delay(2);
 }</pre>
       </div>
     </details>
