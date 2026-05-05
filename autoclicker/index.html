@@ -465,11 +465,11 @@
     <!-- Legend -->
     <div class="mt-6 flex flex-wrap gap-x-6 gap-y-2 text-xs text-slate-400">
       <div class="flex items-center gap-2"><span class="w-3 h-3 rounded-full bg-red-500"></span>5V → VCC (jumper)</div>
-      <div class="flex items-center gap-2"><span class="w-3 h-3 rounded-full bg-red-700"></span>5V → COM (sandwich · dashed)</div>
+      <div class="flex items-center gap-2"><span class="w-3 h-3 rounded-full bg-red-700"></span>VCC pin shaft → COM (bridge · dashed)</div>
       <div class="flex items-center gap-2"><span class="w-3 h-3 rounded-full bg-slate-600 border border-slate-500"></span>GND → GND</div>
       <div class="flex items-center gap-2"><span class="w-3 h-3 rounded-full bg-green-500"></span>GPIO3 → IN</div>
       <div class="flex items-center gap-2"><span class="w-3 h-3 rounded-full bg-pink-200"></span>solenoid wire 1 → NO</div>
-      <div class="flex items-center gap-2"><span class="w-3 h-3 rounded-full bg-slate-800 ring-1 ring-slate-500"></span>wire 2 → ESP32 GND (sandwich · dashed)</div>
+      <div class="flex items-center gap-2"><span class="w-3 h-3 rounded-full bg-slate-800 ring-1 ring-slate-500"></span>wire 2 → GND pin shaft (wrap · dashed)</div>
     </div>
   </div>
 
@@ -632,11 +632,11 @@
 
     <!-- legend repeating colors → wire purpose -->
     <div class="mt-6 grid grid-cols-2 sm:grid-cols-5 gap-3 text-xs">
-      <div class="flex items-center gap-2"><span class="w-3 h-3 rounded-full bg-red-500"></span><span class="text-slate-400">5V → VCC + COM</span></div>
-      <div class="flex items-center gap-2"><span class="w-3 h-3 rounded-full bg-slate-500"></span><span class="text-slate-400">GND → GND + wire 2</span></div>
+      <div class="flex items-center gap-2"><span class="w-3 h-3 rounded-full bg-red-500"></span><span class="text-slate-400">ESP32 5V → VCC pin</span></div>
+      <div class="flex items-center gap-2"><span class="w-3 h-3 rounded-full bg-slate-500"></span><span class="text-slate-400">ESP32 GND → GND pin</span></div>
       <div class="flex items-center gap-2"><span class="w-3 h-3 rounded-full bg-green-500"></span><span class="text-slate-400">GPIO3 → IN</span></div>
-      <div class="flex items-center gap-2"><span class="w-3 h-3 rounded-full bg-red-700"></span><span class="text-slate-400">NO → wire 1</span></div>
-      <div class="flex items-center gap-2"><span class="w-3 h-3 rounded-full bg-slate-800 ring-1 ring-slate-500"></span><span class="text-slate-400">wire 2 sandwiched at ESP32 GND</span></div>
+      <div class="flex items-center gap-2"><span class="w-3 h-3 rounded-full bg-red-700"></span><span class="text-slate-400">VCC pin shaft → COM (bridge)</span></div>
+      <div class="flex items-center gap-2"><span class="w-3 h-3 rounded-full bg-slate-800 ring-1 ring-slate-500"></span><span class="text-slate-400">wire 2 wraps GND pin shaft</span></div>
     </div>
   </div>
 </section>
@@ -646,7 +646,7 @@
   <div class="mb-10">
     <div class="text-xs uppercase tracking-[0.2em] text-indigo-400 mb-2">03 · Wiring</div>
     <h2 class="text-3xl font-bold text-white">All seven connections</h2>
-    <p class="text-slate-400 mt-2 max-w-xl">Four jumper wires (two of them sandwiched at the ESP32 5V hole), two solenoid leads, one USB-C plug. No soldering.</p>
+    <p class="text-slate-400 mt-2 max-w-xl">Three signal-side jumpers (one wire per ESP32 hole — no fights), one bridge wire from the relay's VCC pin shaft to the COM screw, two solenoid leads, one USB-C plug. No soldering.</p>
   </div>
 
   <div class="card overflow-hidden">
@@ -1144,13 +1144,13 @@ void loop() {
 // Wiring table data
 // ===========================================================================
 const wires = [
-  { i: 1, type: 'Power',  from: ['ESP32', '5V'],     to: ['Relay', 'VCC'],     color: '#ef4444', name: 'red',   method: 'Jumper wire' },
-  { i: 2, type: 'Power',  from: ['ESP32', '5V (sandwich)'], to: ['Relay', 'COM screw'], color: '#dc2626', name: 'red',   method: 'Jumper + screw' },
-  { i: 3, type: 'Ground', from: ['ESP32', 'GND'],    to: ['Relay', 'GND'],     color: '#475569', name: 'black', method: 'Jumper wire' },
-  { i: 4, type: 'Signal', from: ['ESP32', 'GPIO3'],  to: ['Relay', 'IN'],      color: '#22c55e', name: 'green', method: 'Jumper wire' },
-  { i: 5, type: 'Load+',  from: ['Solenoid', 'wire 1'], to: ['Relay', 'NO screw'], color: '#fca5a5', name: 'bare',  method: 'Screw terminal' },
-  { i: 6, type: 'Return', from: ['Solenoid', 'wire 2'], to: ['ESP32', 'GND (sandwich)'], color: '#0f172a', name: 'bare',  method: 'Press-fit' },
-  { i: 7, type: 'Power',  from: ['USB-C charger', '5V'], to: ['ESP32', 'USB-C'], color: '#a855f7', name: 'cable', method: 'Plug' },
+  { i: 1, type: 'Power',  from: ['ESP32', '5V'],            to: ['Relay', 'VCC pin'],   color: '#ef4444', name: 'red',   method: 'Jumper wire' },
+  { i: 2, type: 'Ground', from: ['ESP32', 'GND'],           to: ['Relay', 'GND pin'],   color: '#475569', name: 'black', method: 'Jumper wire' },
+  { i: 3, type: 'Signal', from: ['ESP32', 'GPIO3'],         to: ['Relay', 'IN pin'],    color: '#22c55e', name: 'green', method: 'Jumper wire' },
+  { i: 4, type: 'Bridge', from: ['Relay', 'VCC pin shaft'], to: ['Relay', 'COM screw'], color: '#dc2626', name: 'red',   method: 'Wrap + screw' },
+  { i: 5, type: 'Load+',  from: ['Solenoid', 'wire 1'],     to: ['Relay', 'NO screw'],  color: '#fca5a5', name: 'bare',  method: 'Screw terminal' },
+  { i: 6, type: 'Return', from: ['Solenoid', 'wire 2'],     to: ['Relay', 'GND pin shaft'], color: '#0f172a', name: 'bare', method: 'Wrap around pin' },
+  { i: 7, type: 'Power',  from: ['USB-C charger', '5V'],    to: ['ESP32', 'USB-C'],     color: '#a855f7', name: 'cable', method: 'Plug' },
 ];
 
 const tbody = document.getElementById('wireTable');
@@ -1188,12 +1188,12 @@ const steps = [
   { g: 'Firmware',   t: 'Plug ESP32 into laptop via USB-C; select board "ESP32C3 Dev Module" + correct port; set USB CDC On Boot: Enabled' },
   { g: 'Firmware',   t: 'Open autoclicker/firmware/autoclicker.ino; fill WiFi SSID/password; upload' },
   { g: 'Firmware',   t: 'Open Serial Monitor at 115200 — confirm "WiFi connected: ..."' },
-  { g: 'Wiring',     t: 'Insert red jumper #1 male pin into ESP32 5V hole; female end onto Relay VCC pin' },
-  { g: 'Wiring',     t: 'Insert red jumper #2 male pin into ESP32 5V hole alongside jumper #1 (sandwich); female end into Relay COM screw, tighten' },
+  { g: 'Wiring',     t: 'Insert red jumper male pin into ESP32 5V hole; female end onto Relay VCC pin' },
   { g: 'Wiring',     t: 'Insert black jumper male pin into ESP32 GND hole; female end onto Relay GND pin' },
   { g: 'Wiring',     t: 'Insert green jumper male pin into ESP32 GPIO3 hole; female end onto Relay IN pin' },
+  { g: 'Wiring',     t: 'Bridge wire: wrap a stripped wire end tightly around Relay VCC pin shaft (just below the female socket), clamp the other end into Relay COM screw — supplies +5V to the load side' },
   { g: 'Wiring',     t: 'Insert solenoid wire 1 (bare) into Relay NO screw terminal; tighten with flathead' },
-  { g: 'Wiring',     t: 'Sandwich solenoid wire 2 (bare) into ESP32 GND hole alongside the black jumper pin' },
+  { g: 'Wiring',     t: 'Wrap solenoid wire 2 (bare) tightly around Relay GND pin shaft (just below the female socket) — completes the return path through the relay GND back to ESP32 GND' },
   { g: 'Wiring',     t: 'Tug-test all wires — none should pull free' },
   { g: 'Test',       t: 'Plug USB-C charger into ESP32; observe ESP32 power LED on' },
   { g: 'Test',       t: 'Open phone web app or iOS Shortcut; tap "Click" — relay should click audibly and solenoid push within ~1 second' },

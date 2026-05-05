@@ -13,20 +13,25 @@
 //
 // Switch element: 5V 1-channel relay module with optocoupler.
 //
-// Wiring (no soldering — male jumper pins press-fit into ESP32 holes):
+// Wiring (no soldering — share at the relay's pin shafts, not at the ESP32):
 //
-//   ESP32 5V hole:
-//     - red jumper #1 -> Relay VCC pin
-//     - red jumper #2 (sandwiched) -> Relay COM screw   (load supply)
-//   ESP32 GND hole:
-//     - black jumper -> Relay GND pin
-//     - solenoid wire 2 (bare, sandwiched with black pin) -> ESP32 GND
-//   ESP32 GPIO3 hole:
-//     - green jumper -> Relay IN pin
-//   Relay NO screw:
-//     - solenoid wire 1 (bare)
-//   Relay NC screw: empty
-//   USB-C charger -> ESP32 USB-C
+//   ESP32 5V hole   -> red jumper -> Relay VCC pin           (one wire per hole)
+//   ESP32 GND hole  -> black jumper -> Relay GND pin
+//   ESP32 GPIO3     -> green jumper -> Relay IN pin
+//
+//   Relay VCC pin shaft (below the female socket) -> bridge wire wrapped
+//     tightly, clamped into Relay COM screw    (+5V to the load side)
+//   Relay GND pin shaft (below the female socket) -> solenoid wire 2 wrapped
+//     tightly                                  (return path through relay GND)
+//   Relay NO screw  -> solenoid wire 1 (bare, screw-clamped)
+//   Relay NC screw  : empty
+//   USB-C charger   -> ESP32 USB-C
+//
+// Why this shape: the ESP32 has only one 5V hole and one GND hole. Sharing
+// each with two wires via "sandwich" tricks is unreliable. Instead, we run
+// one jumper from each ESP32 hole to the matching relay pin, and do the
+// "share" at the relay's exposed pin shaft (long, easy to wrap) or screw
+// terminal (clamps tightly). All connections become reliable hand-tight.
 //
 // Polarity: most cheap optocoupler relay boards are Active-HIGH. If yours
 // is Active-LOW (solenoid fires at boot or behaves inverted), flip
