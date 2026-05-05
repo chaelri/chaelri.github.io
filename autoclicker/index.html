@@ -397,18 +397,19 @@
           <path d="M 215 392 C 380 300, 870 130, 1020 165" stroke="#94a3b8" stroke-width="1.2" opacity="0.55"/>
           <!-- GPIO3 (green) — ESP32 GPIO3 → Relay IN (bottom-right) -->
           <path d="M 129 392 C 320 320, 860 180, 1020 200" stroke="#22c55e" stroke-width="3.5" filter="url(#wireGlow)" opacity="0.95"/>
-          <!-- BRIDGE (dark red, dashed) — Relay VCC pin shaft → Relay COM screw -->
-          <!-- short curve over the top of the relay module, NOT going back to ESP32 -->
-          <path d="M 1020 130 C 1010 110, 940 120, 885 235" stroke="#dc2626" stroke-width="3.5" stroke-dasharray="6 4" filter="url(#wireGlow)" opacity="0.95"/>
+          <!-- BRIDGE (gray, dashed) — Relay NO screw → Relay GND pin shaft -->
+          <!-- short curve over the relay's top edge, NOT going back to ESP32 -->
+          <path d="M 878 220 C 940 180, 1010 150, 1020 165" stroke="#475569" stroke-width="3.5" stroke-dasharray="6 4"/>
+          <path d="M 878 220 C 940 180, 1010 150, 1020 165" stroke="#94a3b8" stroke-width="1" stroke-dasharray="6 4" opacity="0.5"/>
         </g>
 
-        <!-- ============ WIRES: Solenoid → Relay NO screw + Relay GND pin shaft ============ -->
+        <!-- ============ WIRES: Solenoid → Relay VCC pin shaft + COM screw ============ -->
         <g fill="none" stroke-linecap="round">
-          <!-- Solenoid wire 1 (bare red) → Relay NO screw (top screw of the 3) -->
-          <path d="M 700 445 C 740 340, 820 260, 878 220" stroke="#fca5a5" stroke-width="3" filter="url(#wireGlow)" opacity="0.95"/>
-          <!-- Solenoid wire 2 (bare, dashed) → Relay GND pin shaft (wraps around the pin) -->
-          <path d="M 710 450 C 800 410, 940 280, 1020 165" stroke="#1f2937" stroke-width="3" stroke-dasharray="6 4"/>
-          <path d="M 710 450 C 800 410, 940 280, 1020 165" stroke="#94a3b8" stroke-width="1" stroke-dasharray="6 4" opacity="0.5"/>
+          <!-- Solenoid wire 1 (bare, dashed) → Relay VCC pin shaft (permanently +5V) -->
+          <path d="M 700 445 C 800 340, 940 220, 1020 130" stroke="#fca5a5" stroke-width="3" stroke-dasharray="6 4" filter="url(#wireGlow)" opacity="0.95"/>
+          <!-- Solenoid wire 2 (bare dark) → Relay COM screw (middle of 3 screws) -->
+          <path d="M 710 450 C 760 360, 830 290, 885 235" stroke="#1f2937" stroke-width="3"/>
+          <path d="M 710 450 C 760 360, 830 290, 885 235" stroke="#94a3b8" stroke-width="1" opacity="0.5"/>
         </g>
 
         <!-- ============ ESP32 pin dots + labels ============ -->
@@ -442,13 +443,16 @@
 
         <!-- ============ Relay SCREW terminals — center-front of module (3 stacked screws) ============ -->
         <g>
-          <circle cx="878" cy="220" r="6" fill="#fca5a5" stroke="#0a0c12" stroke-width="2"/>
-          <circle cx="885" cy="235" r="6" fill="#dc2626" stroke="#0a0c12" stroke-width="2"/>
+          <!-- NO screw: receives the bridge wire to GND pin shaft -->
+          <circle cx="878" cy="220" r="6" fill="#475569" stroke="#0a0c12" stroke-width="2"/>
+          <!-- COM screw: receives solenoid wire 2 -->
+          <circle cx="885" cy="235" r="6" fill="#1f2937" stroke="#94a3b8" stroke-width="2"/>
+          <!-- NC screw: empty -->
           <circle cx="892" cy="252" r="6" fill="#1f2937" stroke="#475569" stroke-width="2" opacity="0.55"/>
         </g>
         <g font-family="JetBrains Mono" font-size="13" font-weight="500">
-          <text x="800" y="194" text-anchor="end" fill="#fca5a5">NO</text>
-          <text x="800" y="232" text-anchor="end" fill="#fca5a5">COM</text>
+          <text x="800" y="194" text-anchor="end" fill="#cbd5e1">NO</text>
+          <text x="800" y="232" text-anchor="end" fill="#cbd5e1">COM</text>
           <text x="800" y="270" text-anchor="end" fill="#64748b">NC</text>
           <line x1="804" y1="190" x2="872" y2="220" stroke="#475569" stroke-width="0.8"/>
           <line x1="804" y1="228" x2="879" y2="235" stroke="#475569" stroke-width="0.8"/>
@@ -457,7 +461,9 @@
 
         <!-- ============ Solenoid lead dots ============ -->
         <g>
+          <!-- wire 1: wraps to VCC pin shaft (always +5V) -->
           <circle cx="700" cy="445" r="6" fill="#fca5a5" stroke="#0a0c12" stroke-width="2"/>
+          <!-- wire 2: clamps in COM screw (switched GND) -->
           <circle cx="710" cy="450" r="6" fill="#1f2937" stroke="#94a3b8" stroke-width="2"/>
         </g>
       </svg>
@@ -466,11 +472,11 @@
     <!-- Legend -->
     <div class="mt-6 flex flex-wrap gap-x-6 gap-y-2 text-xs text-slate-400">
       <div class="flex items-center gap-2"><span class="w-3 h-3 rounded-full bg-red-500"></span>5V → VCC (jumper)</div>
-      <div class="flex items-center gap-2"><span class="w-3 h-3 rounded-full bg-red-700"></span>VCC pin shaft → COM (bridge · dashed)</div>
+      <div class="flex items-center gap-2"><span class="w-3 h-3 rounded-full bg-pink-200"></span>solenoid wire 1 → VCC pin shaft (wrap · dashed)</div>
       <div class="flex items-center gap-2"><span class="w-3 h-3 rounded-full bg-slate-600 border border-slate-500"></span>GND → GND</div>
       <div class="flex items-center gap-2"><span class="w-3 h-3 rounded-full bg-green-500"></span>GPIO3 → IN</div>
-      <div class="flex items-center gap-2"><span class="w-3 h-3 rounded-full bg-pink-200"></span>solenoid wire 1 → NO</div>
-      <div class="flex items-center gap-2"><span class="w-3 h-3 rounded-full bg-slate-800 ring-1 ring-slate-500"></span>wire 2 → GND pin shaft (wrap · dashed)</div>
+      <div class="flex items-center gap-2"><span class="w-3 h-3 rounded-full bg-slate-800 ring-1 ring-slate-500"></span>solenoid wire 2 → COM screw</div>
+      <div class="flex items-center gap-2"><span class="w-3 h-3 rounded-full bg-slate-500"></span>NO screw → GND pin shaft (bridge · dashed)</div>
     </div>
   </div>
 
@@ -570,14 +576,15 @@
           <!-- ESP32 GPIO3 → Relay IN pin -->
           <line x1="230" y1="190" x2="320" y2="190" stroke="#22c55e"/>
 
-          <!-- BRIDGE: Relay VCC pin shaft → Relay COM screw (internal to relay) -->
-          <path d="M 320 120 C 360 80, 480 80, 520 130" stroke="#dc2626" stroke-width="3" stroke-dasharray="5 4" fill="none"/>
+          <!-- Solenoid wire 1 → Relay VCC pin shaft (wraps the pin, permanently at +5V) -->
+          <path d="M 610 140 C 540 100, 380 90, 320 120" stroke="#fca5a5" stroke-width="3" stroke-dasharray="5 4" fill="none"/>
 
-          <!-- Relay NO → Solenoid wire 1 -->
-          <line x1="520" y1="170" x2="610" y2="140" stroke="#fca5a5"/>
+          <!-- Solenoid wire 2 → Relay COM screw -->
+          <line x1="610" y1="200" x2="520" y2="130" stroke="#1f2937"/>
+          <line x1="610" y1="200" x2="520" y2="130" stroke="#94a3b8" stroke-width="1" opacity="0.6"/>
 
-          <!-- Solenoid wire 2 → Relay GND pin shaft (wraps the pin, current returns through black jumper to ESP32 GND) -->
-          <path d="M 610 200 C 540 240, 380 220, 320 155" stroke="#64748b" stroke-width="3" stroke-dasharray="5 4" fill="none"/>
+          <!-- BRIDGE: Relay NO screw → Relay GND pin shaft -->
+          <path d="M 520 170 C 470 220, 380 230, 320 155" stroke="#64748b" stroke-width="3" stroke-dasharray="5 4" fill="none"/>
         </g>
 
         <!-- ===== ESP32 pins (right edge) ===== -->
@@ -606,11 +613,11 @@
 
         <!-- ===== Relay RIGHT pins (screw terminals — facing solenoid) ===== -->
         <g font-family="JetBrains Mono" font-size="12" font-weight="500">
-          <text x="508" y="134" text-anchor="end" fill="#fca5a5">COM</text>
-          <circle cx="520" cy="130" r="5" fill="#dc2626" stroke="#0a0c12" stroke-width="2"/>
+          <text x="508" y="134" text-anchor="end" fill="#cbd5e1">COM</text>
+          <circle cx="520" cy="130" r="5" fill="#1f2937" stroke="#94a3b8" stroke-width="2"/>
 
-          <text x="508" y="174" text-anchor="end" fill="#fca5a5">NO</text>
-          <circle cx="520" cy="170" r="5" fill="#fca5a5" stroke="#0a0c12" stroke-width="2"/>
+          <text x="508" y="174" text-anchor="end" fill="#cbd5e1">NO</text>
+          <circle cx="520" cy="170" r="5" fill="#475569" stroke="#0a0c12" stroke-width="2"/>
 
           <text x="508" y="214" text-anchor="end" fill="#64748b">NC</text>
           <circle cx="520" cy="210" r="5" fill="#1f2937" stroke="#475569" stroke-width="2" opacity="0.5"/>
@@ -636,8 +643,8 @@
       <div class="flex items-center gap-2"><span class="w-3 h-3 rounded-full bg-red-500"></span><span class="text-slate-400">ESP32 5V → VCC pin</span></div>
       <div class="flex items-center gap-2"><span class="w-3 h-3 rounded-full bg-slate-500"></span><span class="text-slate-400">ESP32 GND → GND pin</span></div>
       <div class="flex items-center gap-2"><span class="w-3 h-3 rounded-full bg-green-500"></span><span class="text-slate-400">GPIO3 → IN</span></div>
-      <div class="flex items-center gap-2"><span class="w-3 h-3 rounded-full bg-red-700"></span><span class="text-slate-400">VCC pin shaft → COM (bridge)</span></div>
-      <div class="flex items-center gap-2"><span class="w-3 h-3 rounded-full bg-slate-800 ring-1 ring-slate-500"></span><span class="text-slate-400">wire 2 wraps GND pin shaft</span></div>
+      <div class="flex items-center gap-2"><span class="w-3 h-3 rounded-full bg-pink-200"></span><span class="text-slate-400">wire 1 wraps VCC pin shaft</span></div>
+      <div class="flex items-center gap-2"><span class="w-3 h-3 rounded-full bg-slate-600"></span><span class="text-slate-400">NO screw → GND pin shaft (bridge)</span></div>
     </div>
   </div>
 </section>
@@ -647,7 +654,7 @@
   <div class="mb-10">
     <div class="text-xs uppercase tracking-[0.2em] text-indigo-400 mb-2">03 · Wiring</div>
     <h2 class="text-3xl font-bold text-white">All seven connections</h2>
-    <p class="text-slate-400 mt-2 max-w-xl">Three signal-side jumpers (one wire per ESP32 hole — no fights), one bridge wire from the relay's VCC pin shaft to the COM screw, two solenoid leads, one USB-C plug. No soldering.</p>
+    <p class="text-slate-400 mt-2 max-w-xl">Three signal-side jumpers, the solenoid permanently at +5V on the relay's VCC pin shaft, and a bridge wire that lets the relay open/close the GND return path. Low-side switching — no soldering.</p>
   </div>
 
   <div class="card overflow-hidden">
@@ -1145,13 +1152,13 @@ void loop() {
 // Wiring table data
 // ===========================================================================
 const wires = [
-  { i: 1, type: 'Power',  from: ['ESP32', '5V'],            to: ['Relay', 'VCC pin'],   color: '#ef4444', name: 'red',   method: 'Jumper wire' },
-  { i: 2, type: 'Ground', from: ['ESP32', 'GND'],           to: ['Relay', 'GND pin'],   color: '#475569', name: 'black', method: 'Jumper wire' },
-  { i: 3, type: 'Signal', from: ['ESP32', 'GPIO3'],         to: ['Relay', 'IN pin'],    color: '#22c55e', name: 'green', method: 'Jumper wire' },
-  { i: 4, type: 'Bridge', from: ['Relay', 'VCC pin shaft'], to: ['Relay', 'COM screw'], color: '#dc2626', name: 'red',   method: 'Wrap + screw' },
-  { i: 5, type: 'Load+',  from: ['Solenoid', 'wire 1'],     to: ['Relay', 'NO screw'],  color: '#fca5a5', name: 'bare',  method: 'Screw terminal' },
-  { i: 6, type: 'Return', from: ['Solenoid', 'wire 2'],     to: ['Relay', 'GND pin shaft'], color: '#0f172a', name: 'bare', method: 'Wrap around pin' },
-  { i: 7, type: 'Power',  from: ['USB-C charger', '5V'],    to: ['ESP32', 'USB-C'],     color: '#a855f7', name: 'cable', method: 'Plug' },
+  { i: 1, type: 'Power',  from: ['ESP32', '5V'],            to: ['Relay', 'VCC pin'],     color: '#ef4444', name: 'red',   method: 'Jumper wire' },
+  { i: 2, type: 'Ground', from: ['ESP32', 'GND'],           to: ['Relay', 'GND pin'],     color: '#475569', name: 'black', method: 'Jumper wire' },
+  { i: 3, type: 'Signal', from: ['ESP32', 'GPIO3'],         to: ['Relay', 'IN pin'],      color: '#22c55e', name: 'green', method: 'Jumper wire' },
+  { i: 4, type: 'Load+',  from: ['Solenoid', 'wire 1'],     to: ['Relay', 'VCC pin shaft'], color: '#fca5a5', name: 'bare',  method: 'Wrap around pin' },
+  { i: 5, type: 'Load−',  from: ['Solenoid', 'wire 2'],     to: ['Relay', 'COM screw'],   color: '#0f172a', name: 'bare',  method: 'Screw terminal' },
+  { i: 6, type: 'Bridge', from: ['Relay', 'NO screw'],      to: ['Relay', 'GND pin shaft'], color: '#475569', name: 'gray', method: 'Wrap + screw' },
+  { i: 7, type: 'Power',  from: ['USB-C charger', '5V'],    to: ['ESP32', 'USB-C'],       color: '#a855f7', name: 'cable', method: 'Plug' },
 ];
 
 const tbody = document.getElementById('wireTable');
@@ -1192,9 +1199,9 @@ const steps = [
   { g: 'Wiring',     t: 'Insert red jumper male pin into ESP32 5V hole; female end onto Relay VCC pin' },
   { g: 'Wiring',     t: 'Insert black jumper male pin into ESP32 GND hole; female end onto Relay GND pin' },
   { g: 'Wiring',     t: 'Insert green jumper male pin into ESP32 GPIO3 hole; female end onto Relay IN pin' },
-  { g: 'Wiring',     t: 'Bridge wire: wrap a stripped wire end tightly around Relay VCC pin shaft (just below the female socket), clamp the other end into Relay COM screw — supplies +5V to the load side' },
-  { g: 'Wiring',     t: 'Insert solenoid wire 1 (bare) into Relay NO screw terminal; tighten with flathead' },
-  { g: 'Wiring',     t: 'Wrap solenoid wire 2 (bare) tightly around Relay GND pin shaft (just below the female socket) — completes the return path through the relay GND back to ESP32 GND' },
+  { g: 'Wiring',     t: 'Wrap solenoid wire 1 (bare) tightly around Relay VCC pin shaft (just below the red jumper female socket) — solenoid is now permanently at +5V on this end' },
+  { g: 'Wiring',     t: 'Insert solenoid wire 2 (bare) into Relay COM screw terminal; tighten with flathead' },
+  { g: 'Wiring',     t: 'Bridge wire: wrap a stripped wire end tightly around Relay GND pin shaft (just below the black jumper female socket), clamp the other end into Relay NO screw — when relay clicks, this completes the GND return path' },
   { g: 'Wiring',     t: 'Tug-test all wires — none should pull free' },
   { g: 'Test',       t: 'Plug USB-C charger into ESP32; observe ESP32 power LED on' },
   { g: 'Test',       t: 'Open phone web app or iOS Shortcut; tap "Click" — relay should click audibly and solenoid push within ~1 second' },
