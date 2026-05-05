@@ -20,19 +20,21 @@ Self-contained — no external JS bundle. Tailwind v4 via CDN.
 | 1062–1067 | FOOTER | Minimal credits |
 | 1070+ | `<script>` | All client logic — see below |
 
-### Demo SVG IDs (line ~700–745)
+### Demo SVG IDs
 
 - `#demoSvg` — outer SVG (clicking it also fires once)
-- `#plunger` — solenoid plunger; `.push` class translates +28px
+- `#servoArm` — swing arm group; `.swing` class rotates +15° around `transform-origin: 250px 120px`
 - `#btnCircle` — target button visual; `.pressed` class shrinks + inset shadow
-- `#gpioLed` — round indicator dot; `.on` glows green
-- `#gpioState` — text "LOW · 0V" / "HIGH · 3.3V"
-- `#gpioFill` — gradient bar
-- `#pulseBar` — SVG rect; width animated 0→180 px over 200 ms via rAF
-- `#pulseLabel` — "idle" / "GPIO3 HIGH · 200 ms"
-- `#rippleHost` — SVG `<g>` parent for ripple circles
-- `#triggerBtn` — primary button (icon + "Trigger click" + subtitle)
-- `#triggerDouble` — secondary button, same shape (icon + "Double click" + "two pulses, 150 ms apart")
+- `#gpioLed` — round indicator dot, retained ID for JS compatibility but styled via `.servo-led` class; `.on` glows green
+- `#gpioState` — text "REST · 0°" / "PRESS · 35°"
+- `#gpioFill` — angle bar fill
+- `#pulseBar` — SVG rect; width animated 0→180 px over 300 ms (matches firmware `PRESS_HOLD_MS`)
+- `#pulseLabel` — "idle" / "SERVO PRESS · 300 ms"
+- `#rippleHost` — SVG `<g>` parent for ripple circles on button
+- `#triggerBtn` — primary button (icon + "Trigger click" + "simulates finger.write(35)")
+- `#triggerDouble` — secondary button (icon + "Double click" + "two presses, 150 ms apart")
+
+> Element IDs `#gpioLed`, `#gpioState`, `#gpioFill` were kept verbatim from the old relay-era markup to minimize JS churn — they're now bound to servo state in JS (renamed to `servoLed`, `servoState`, `angleFill` locally). The CSS class moved from `.gpio-led` to `.servo-led`.
 
 ### Bottom `<script>` (line ~1070–1345)
 
@@ -48,7 +50,7 @@ Self-contained — no external JS bundle. Tailwind v4 via CDN.
 
 ### Quirks worth flagging
 
-- `pushOnce()` resolves at 230 ms (200 ms HIGH + 30 ms tail) — the 150 ms inter-press gap in `fireClicks(2)` thus produces a total 610 ms cycle for "double".
+- `pushOnce()` resolves at 530 ms (300 ms PRESS hold + 200 ms settle + 30 ms swing-in tail) — the 150 ms inter-press gap in `fireClicks(2)` thus produces ~1.2 s total cycle for "double", matching the firmware's actual press-train timing.
 - Highlighter uses `\u0001<i>\u0001` placeholders specifically to avoid the bug where re-running a regex against already-emitted `<span class="…">` would produce `class=class=…` artifacts.
 - `clearCommand()` in the firmware uses `PUT "\"\""` (the JSON value `""`) — sending `null` instead would delete the field, which is fine but breaks the "command exists, currently empty" mental model.
 
@@ -71,10 +73,10 @@ This file is **the live remote** — every change here ships to `/autoclicker/ph
 | File | Used in |
 |---|---|
 | `esp32-c3.jpeg` | Hardware section photo collage (~89 KB) |
-| `mosfet.jpeg` | **Legacy** — still referenced by hardware SVG, will be removed when the section is redrawn for servo (~67 KB) |
+| `mosfet.jpeg` | **Legacy** — no longer referenced anywhere; safe to delete (~67 KB) |
 | `solenoid.jpeg` | **Legacy** — same (~35 KB) |
 
-Photos are positioned over a `.grid-bg` SVG; wire-overlay paths are hand-drawn to land on each photo's actual pin pads. When redrawing the hardware section for the MG90S servo build, swap in a servo photo, retune the wire `<path>` coordinates around lines 393–408, and rewrite the pin-dot label coordinates around lines 411–457. The data-driven `wires[]` array (now 4 entries) is the source of truth for the connection list.
+The hardware section currently has the ESP32 photo on the left and an illustrated MG90S box drawn directly in SVG on the right (no servo photo yet). When a real top-down servo photo is available, drop it into `assets/`, replace the illustrated `<g transform="translate(820 110)">` block in the photo-composition SVG with an `<image>` element, and the `wires[]` array stays as the source of truth for the connection list (now 4 entries).
 
 ## `firmware/autoclicker.ino` — canonical Arduino sketch (~330 lines)
 

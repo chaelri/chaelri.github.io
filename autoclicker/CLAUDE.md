@@ -1,14 +1,16 @@
 # autoclicker/ — Project Context for Claude
 
-Build-reference site for Charlie's DIY WiFi auto-clicker (ESP32-C3 + IRF520 + 5V solenoid). Documents hardware, wiring, firmware, and serves the live phone remote that tells the bot to fire.
+Build-reference site for Charlie's DIY WiFi auto-clicker (ESP32-C3 + MG90S servo, migrated from relay+solenoid 2026-05-06). Documents hardware, wiring, firmware, and serves the live phone remote that tells the bot to fire.
 
 ## Quick map
 
 ```
 autoclicker/
 ├── index.html          ← single-page build reference (hero, overview, hardware, wiring, demo, code, checklist)
-├── phone/index.html    ← live remote — taps write "click" to Firebase RTDB; ESP32 polls and fires solenoid
-└── assets/             ← top-down photos of esp32-c3, mosfet, solenoid (used in Hardware section)
+├── firmware/
+│   └── autoclicker.ino ← canonical Arduino sketch (in-repo) — uses ESP32Servo library
+├── phone/index.html    ← live remote — taps write "click" to Firebase RTDB; ESP32 polls and sweeps the servo
+└── assets/             ← esp32-c3.jpeg used in Hardware. mosfet.jpeg / solenoid.jpeg are legacy (no longer referenced)
 ```
 
 ## Auto-loaded knowledge

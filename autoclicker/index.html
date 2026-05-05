@@ -53,13 +53,14 @@
     /* Active wire highlight */
     .wire-active { filter: drop-shadow(0 0 6px currentColor); }
 
-    /* Solenoid plunger animation */
-    .plunger {
-      transition: transform 80ms cubic-bezier(0.22, 1, 0.36, 1);
+    /* Servo arm sweep animation */
+    .servo-arm {
+      transform-origin: 250px 120px;
+      transition: transform 220ms cubic-bezier(0.22, 1, 0.36, 1);
     }
-    .plunger.push {
-      transform: translateX(28px);
-      transition: transform 50ms cubic-bezier(0.4, 0, 0.4, 1);
+    .servo-arm.swing {
+      transform: rotate(15deg);
+      transition: transform 180ms cubic-bezier(0.4, 0, 0.4, 1);
     }
     .button-target {
       transition: transform 60ms ease-out, box-shadow 60ms ease-out;
@@ -69,13 +70,13 @@
       box-shadow: inset 0 4px 14px rgba(0,0,0,0.5);
     }
 
-    /* GPIO LED */
-    .gpio-led {
+    /* Servo angle indicator dot */
+    .servo-led {
       transition: background 80ms ease, box-shadow 80ms ease;
       background: #1f2937;
       box-shadow: inset 0 0 4px rgba(0,0,0,0.6);
     }
-    .gpio-led.on {
+    .servo-led.on {
       background: #34d399;
       box-shadow: 0 0 10px #34d399, 0 0 24px rgba(52,211,153,0.5);
     }
@@ -233,7 +234,7 @@
 
   <div class="card p-6 sm:p-8 overflow-x-auto no-scrollbar">
     <div class="min-w-[760px]">
-      <svg viewBox="0 0 1000 220" class="w-full h-auto" role="img" aria-label="Data flow diagram">
+      <svg viewBox="0 0 800 220" class="w-full h-auto" role="img" aria-label="Data flow diagram">
         <defs>
           <linearGradient id="flowGrad" x1="0" x2="1" y1="0" y2="0">
             <stop offset="0%"  stop-color="#6366f1"/>
@@ -246,18 +247,16 @@
           </filter>
         </defs>
 
-        <!-- connection lines (evenly spaced: 100 / 300 / 500 / 700 / 900) -->
+        <!-- connection lines (evenly spaced: 100 / 300 / 500 / 700) -->
         <g stroke="url(#flowGrad)" stroke-width="2" fill="none" opacity="0.4">
           <path d="M 134 110 L 266 110"/>
           <path d="M 334 110 L 466 110"/>
           <path d="M 534 110 L 666 110"/>
-          <path d="M 734 110 L 866 110"/>
         </g>
         <g stroke="url(#flowGrad)" stroke-width="2" fill="none" stroke-dasharray="6 8" opacity="0.7">
           <path d="M 134 110 L 266 110"/>
           <path d="M 334 110 L 466 110"/>
           <path d="M 534 110 L 666 110"/>
-          <path d="M 734 110 L 866 110"/>
         </g>
 
         <!-- nodes (uniform r=34, 200px spacing) -->
@@ -285,33 +284,23 @@
           <circle r="34" fill="rgba(236,72,153,0.08)"/>
           <text text-anchor="middle" dominant-baseline="central" fill="#cbd5e1" font-family="Material Symbols Outlined" font-size="26">memory</text>
           <text y="60" text-anchor="middle" fill="#fff" font-size="13" font-weight="600">ESP32-C3</text>
-          <text y="76" text-anchor="middle" fill="#64748b" font-size="11">poll @ 1Hz · GPIO3 1000ms</text>
+          <text y="76" text-anchor="middle" fill="#64748b" font-size="11">poll @ 1Hz · ESP32Servo</text>
         </g>
 
-        <!-- 4 relay -->
+        <!-- 4 servo -->
         <g transform="translate(700 110)">
-          <circle r="34" fill="#0d1018" stroke="rgba(245,158,11,0.5)" stroke-width="1.5"/>
-          <circle r="34" fill="rgba(245,158,11,0.08)"/>
-          <text text-anchor="middle" dominant-baseline="central" fill="#cbd5e1" font-family="Material Symbols Outlined" font-size="26">power</text>
-          <text y="60" text-anchor="middle" fill="#fff" font-size="13" font-weight="600">5V Relay</text>
-          <text y="76" text-anchor="middle" fill="#64748b" font-size="11">NO closes on 3.3V drive</text>
-        </g>
-
-        <!-- 5 solenoid -->
-        <g transform="translate(900 110)">
           <circle r="34" fill="#0d1018" stroke="rgba(52,211,153,0.5)" stroke-width="1.5"/>
           <circle r="34" fill="rgba(52,211,153,0.08)"/>
-          <text text-anchor="middle" dominant-baseline="central" fill="#cbd5e1" font-family="Material Symbols Outlined" font-size="26">ads_click</text>
-          <text y="60" text-anchor="middle" fill="#fff" font-size="13" font-weight="600">Solenoid</text>
-          <text y="76" text-anchor="middle" fill="#64748b" font-size="11">presses real button</text>
+          <text text-anchor="middle" dominant-baseline="central" fill="#cbd5e1" font-family="Material Symbols Outlined" font-size="26">rotate_right</text>
+          <text y="60" text-anchor="middle" fill="#fff" font-size="13" font-weight="600">MG90S Servo</text>
+          <text y="76" text-anchor="middle" fill="#64748b" font-size="11">arm sweeps to 35°</text>
         </g>
 
-        <!-- protocol labels above lines (centered between nodes: 200/400/600/800) -->
+        <!-- protocol labels above lines (centered between nodes: 200/400/600) -->
         <g fill="#64748b" font-size="10" text-anchor="middle" font-family="JetBrains Mono">
           <text x="200" y="98">HTTPS · set()</text>
           <text x="400" y="98">HTTPS · GET</text>
-          <text x="600" y="98">3.3V · digital</text>
-          <text x="800" y="98">5V · 400mA</text>
+          <text x="600" y="98">PWM · 50 Hz</text>
         </g>
       </svg>
     </div>
@@ -336,7 +325,7 @@
           <span class="material-symbols-outlined" style="font-size:18px">bolt</span>
           <span class="text-xs font-medium uppercase tracking-wider">Actuate</span>
         </div>
-        <div class="text-sm text-slate-300">GPIO3 → relay coil → COM/NO closes → solenoid fires. 1000ms HIGH = one button press.</div>
+        <div class="text-sm text-slate-300">GPIO3 → ESP32Servo PWM → MG90S sweeps to 35° for 300 ms → arm presses the button → returns to 0°.</div>
       </div>
     </div>
   </div>
@@ -347,26 +336,30 @@
   <div class="mb-10">
     <div class="text-xs uppercase tracking-[0.2em] text-indigo-400 mb-2">02 · Hardware</div>
     <h2 class="text-3xl font-bold text-white">Top-down view</h2>
-    <p class="text-slate-400 mt-2 max-w-xl">Three modules, four jumpers + screw terminals, plug in USB-C. Tap a part to see what it does.</p>
+    <p class="text-slate-400 mt-2 max-w-xl">Two parts, three jumpers, plug in USB-C. The servo runs off the same 5V rail as the ESP32 — no separate supply.</p>
   </div>
 
   <!-- Photo composition -->
   <div class="card p-3 sm:p-6 grid-bg overflow-hidden">
-    <div class="relative w-full" style="aspect-ratio: 1100/780;">
-      <svg viewBox="0 0 1100 780" class="absolute inset-0 w-full h-full" font-family="Inter, system-ui, sans-serif">
+    <div class="relative w-full" style="aspect-ratio: 1100/520;">
+      <svg viewBox="0 0 1100 520" class="absolute inset-0 w-full h-full" font-family="Inter, system-ui, sans-serif">
         <defs>
           <filter id="wireGlow" x="-50%" y="-50%" width="200%" height="200%">
             <feGaussianBlur stdDeviation="3" result="b"/>
             <feMerge><feMergeNode in="b"/><feMergeNode in="SourceGraphic"/></feMerge>
           </filter>
+          <linearGradient id="servoBody" x1="0" y1="0" x2="0" y2="1">
+            <stop offset="0%"  stop-color="#1d4ed8"/>
+            <stop offset="100%" stop-color="#0c1d4d"/>
+          </linearGradient>
         </defs>
 
-        <!-- ============ TITLES (top, dark area, clearly outside any photo) ============ -->
+        <!-- ============ TITLES ============ -->
         <text x="160" y="30" text-anchor="middle" fill="#ffffff" font-size="18" font-weight="700">ESP32-C3 SuperMini</text>
         <text x="160" y="50" text-anchor="middle" fill="#94a3b8" font-size="12" font-family="JetBrains Mono">22.5 × 18 mm · USB-C · WiFi</text>
 
-        <text x="920" y="30" text-anchor="middle" fill="#ffffff" font-size="18" font-weight="700">5V Relay Module</text>
-        <text x="920" y="50" text-anchor="middle" fill="#94a3b8" font-size="12" font-family="JetBrains Mono">optocoupler · 1-channel · NO/COM/NC</text>
+        <text x="900" y="30" text-anchor="middle" fill="#ffffff" font-size="18" font-weight="700">MG90S Micro-Servo</text>
+        <text x="900" y="50" text-anchor="middle" fill="#94a3b8" font-size="12" font-family="JetBrains Mono">22.8 × 12.2 × 28.5 mm · metal-gear</text>
 
         <!-- USB-C power badge (centered between component titles) -->
         <g transform="translate(440 16)">
@@ -374,109 +367,82 @@
           <text x="110" y="20" text-anchor="middle" fill="#c7d2fe" font-size="12" font-family="JetBrains Mono">USB-C 5V powers everything</text>
         </g>
 
-        <!-- ============ PHOTOS (directly on dark grid bg) ============ -->
+        <!-- ============ ESP32 PHOTO ============ -->
         <image href="assets/esp32-c3.jpeg" x="40" y="70" width="240" height="330"
                preserveAspectRatio="xMidYMid meet"/>
 
-        <image href="assets/relay.png" x="800" y="80" width="240" height="223"
-               preserveAspectRatio="xMidYMid meet"/>
+        <!-- ============ ILLUSTRATED MG90S (no photo yet, drawn in SVG) ============ -->
+        <g transform="translate(820 110)">
+          <!-- mounting flanges (left + right) -->
+          <rect x="-18" y="40" width="22" height="80" rx="3" fill="#1e3a8a" opacity="0.85"/>
+          <rect x="156" y="40" width="22" height="80" rx="3" fill="#1e3a8a" opacity="0.85"/>
+          <circle cx="-7"  cy="60"  r="3.5" fill="#0a0c12"/>
+          <circle cx="-7"  cy="100" r="3.5" fill="#0a0c12"/>
+          <circle cx="167" cy="60"  r="3.5" fill="#0a0c12"/>
+          <circle cx="167" cy="100" r="3.5" fill="#0a0c12"/>
 
-        <image href="assets/solenoid.jpeg" x="340" y="430" width="380" height="285"
-               preserveAspectRatio="xMidYMid meet"/>
+          <!-- main body -->
+          <rect x="0" y="0" width="160" height="160" rx="8" fill="url(#servoBody)" stroke="#1e3a8a" stroke-width="1.5"/>
+          <!-- top label panel -->
+          <rect x="20" y="20" width="120" height="40" rx="4" fill="rgba(255,255,255,0.06)" stroke="rgba(255,255,255,0.08)"/>
+          <text x="80" y="42" text-anchor="middle" fill="#bfdbfe" font-size="14" font-weight="700" font-family="Inter">MG90S</text>
+          <text x="80" y="55" text-anchor="middle" fill="#93c5fd" font-size="9" font-family="JetBrains Mono">9G · 180°</text>
 
-        <!-- Solenoid title (below photo, in clean dark area) -->
-        <text x="530" y="745" text-anchor="middle" fill="#ffffff" font-size="18" font-weight="700">5V Mini Push Solenoid</text>
-        <text x="530" y="765" text-anchor="middle" fill="#94a3b8" font-size="12" font-family="JetBrains Mono">3–5 mm stroke · 200 g push · ~400 mA pulse</text>
+          <!-- output shaft / horn -->
+          <circle cx="80" cy="100" r="22" fill="#0c1d4d" stroke="#1e3a8a" stroke-width="2"/>
+          <circle cx="80" cy="100" r="14" fill="#1e293b"/>
+          <rect x="40" y="96" width="80" height="8" rx="3" fill="#cbd5e1" stroke="#475569" stroke-width="0.8"/>
+          <circle cx="80" cy="100" r="3" fill="#0a0c12"/>
 
-        <!-- ============ WIRES: ESP32 → Relay input pins (right side of module) ============ -->
-        <g fill="none" stroke-linecap="round">
-          <!-- 5V (red) — ESP32 5V → Relay VCC (top-right of module) -->
-          <path d="M 237 392 C 400 290, 880 90, 1020 130" stroke="#ef4444" stroke-width="3.5" filter="url(#wireGlow)" opacity="0.95"/>
-          <!-- GND (gray) — ESP32 GND → Relay GND (mid-right) -->
-          <path d="M 215 392 C 380 300, 870 130, 1020 165" stroke="#475569" stroke-width="3.5"/>
-          <path d="M 215 392 C 380 300, 870 130, 1020 165" stroke="#94a3b8" stroke-width="1.2" opacity="0.55"/>
-          <!-- GPIO3 (green) — ESP32 GPIO3 → Relay IN (bottom-right) -->
-          <path d="M 129 392 C 320 320, 860 180, 1020 200" stroke="#22c55e" stroke-width="3.5" filter="url(#wireGlow)" opacity="0.95"/>
-          <!-- BRIDGE (gray, dashed) — Relay NO screw → Relay GND pin shaft -->
-          <!-- short curve over the relay's top edge, NOT going back to ESP32 -->
-          <path d="M 878 220 C 940 180, 1010 150, 1020 165" stroke="#475569" stroke-width="3.5" stroke-dasharray="6 4"/>
-          <path d="M 878 220 C 940 180, 1010 150, 1020 165" stroke="#94a3b8" stroke-width="1" stroke-dasharray="6 4" opacity="0.5"/>
+          <!-- wire pigtail exit (left side) -->
+          <rect x="-2" y="125" width="14" height="22" fill="#0a0c12" rx="2"/>
         </g>
 
-        <!-- ============ WIRES: Solenoid → Relay VCC pin shaft + COM screw ============ -->
+        <!-- ============ WIRES: ESP32 → Servo (3 jumpers, gentle bezier) ============ -->
         <g fill="none" stroke-linecap="round">
-          <!-- Solenoid wire 1 (bare, dashed) → Relay VCC pin shaft (permanently +5V) -->
-          <path d="M 700 445 C 800 340, 940 220, 1020 130" stroke="#fca5a5" stroke-width="3" stroke-dasharray="6 4" filter="url(#wireGlow)" opacity="0.95"/>
-          <!-- Solenoid wire 2 (bare dark) → Relay COM screw (middle of 3 screws) -->
-          <path d="M 710 450 C 760 360, 830 290, 885 235" stroke="#1f2937" stroke-width="3"/>
-          <path d="M 710 450 C 760 360, 830 290, 885 235" stroke="#94a3b8" stroke-width="1" opacity="0.5"/>
+          <!-- 5V (red) — ESP32 5V → Servo VCC -->
+          <path d="M 237 392 C 500 320, 700 250, 818 235" stroke="#ef4444" stroke-width="3.5" filter="url(#wireGlow)" opacity="0.95"/>
+          <!-- GND (brown) — ESP32 GND → Servo GND -->
+          <path d="M 215 392 C 460 340, 690 270, 818 252" stroke="#78350f" stroke-width="3.5"/>
+          <path d="M 215 392 C 460 340, 690 270, 818 252" stroke="#a16207" stroke-width="1.2" opacity="0.55"/>
+          <!-- GPIO3 (orange) — ESP32 GPIO3 → Servo signal -->
+          <path d="M 129 392 C 360 360, 670 290, 818 268" stroke="#f97316" stroke-width="3.5" filter="url(#wireGlow)" opacity="0.95"/>
         </g>
 
         <!-- ============ ESP32 pin dots + labels ============ -->
         <g>
-          <circle cx="129" cy="392" r="6" fill="#22c55e" stroke="#0a0c12" stroke-width="2"/>
-          <circle cx="215" cy="392" r="6" fill="#1f2937" stroke="#94a3b8" stroke-width="2"/>
+          <circle cx="129" cy="392" r="6" fill="#f97316" stroke="#0a0c12" stroke-width="2"/>
+          <circle cx="215" cy="392" r="6" fill="#78350f" stroke="#a16207" stroke-width="2"/>
           <circle cx="237" cy="392" r="6" fill="#ef4444" stroke="#0a0c12" stroke-width="2"/>
         </g>
         <g font-family="JetBrains Mono" font-size="13" font-weight="500">
-          <text x="129" y="423" text-anchor="middle" fill="#86efac">GPIO3</text>
-          <text x="190" y="423" text-anchor="middle" fill="#cbd5e1">GND</text>
+          <text x="129" y="423" text-anchor="middle" fill="#fdba74">GPIO3</text>
+          <text x="190" y="423" text-anchor="middle" fill="#fcd34d">GND</text>
           <text x="262" y="423" text-anchor="middle" fill="#fca5a5">5V</text>
           <line x1="215" y1="398" x2="195" y2="412" stroke="#475569" stroke-width="0.8"/>
           <line x1="237" y1="398" x2="258" y2="412" stroke="#475569" stroke-width="0.8"/>
         </g>
 
-        <!-- ============ Relay INPUT pins — RIGHT side of module ============ -->
+        <!-- ============ Servo wire endpoints (left edge of body) ============ -->
         <g>
-          <circle cx="1020" cy="130" r="6" fill="#ef4444" stroke="#0a0c12" stroke-width="2"/>
-          <circle cx="1020" cy="165" r="6" fill="#1f2937" stroke="#94a3b8" stroke-width="2"/>
-          <circle cx="1020" cy="200" r="6" fill="#22c55e" stroke="#0a0c12" stroke-width="2"/>
+          <circle cx="818" cy="235" r="6" fill="#ef4444" stroke="#0a0c12" stroke-width="2"/>
+          <circle cx="818" cy="252" r="6" fill="#78350f" stroke="#a16207" stroke-width="2"/>
+          <circle cx="818" cy="268" r="6" fill="#f97316" stroke="#0a0c12" stroke-width="2"/>
         </g>
         <g font-family="JetBrains Mono" font-size="13" font-weight="500">
-          <text x="1056" y="134" text-anchor="start" fill="#fca5a5">VCC</text>
-          <text x="1056" y="169" text-anchor="start" fill="#cbd5e1">GND</text>
-          <text x="1056" y="204" text-anchor="start" fill="#86efac">IN</text>
-          <line x1="1026" y1="130" x2="1052" y2="130" stroke="#475569" stroke-width="0.8"/>
-          <line x1="1026" y1="165" x2="1052" y2="165" stroke="#475569" stroke-width="0.8"/>
-          <line x1="1026" y1="200" x2="1052" y2="200" stroke="#475569" stroke-width="0.8"/>
-        </g>
-
-        <!-- ============ Relay SCREW terminals — center-front of module (3 stacked screws) ============ -->
-        <g>
-          <!-- NO screw: receives the bridge wire to GND pin shaft -->
-          <circle cx="878" cy="220" r="6" fill="#475569" stroke="#0a0c12" stroke-width="2"/>
-          <!-- COM screw: receives solenoid wire 2 -->
-          <circle cx="885" cy="235" r="6" fill="#1f2937" stroke="#94a3b8" stroke-width="2"/>
-          <!-- NC screw: empty -->
-          <circle cx="892" cy="252" r="6" fill="#1f2937" stroke="#475569" stroke-width="2" opacity="0.55"/>
-        </g>
-        <g font-family="JetBrains Mono" font-size="13" font-weight="500">
-          <text x="800" y="194" text-anchor="end" fill="#cbd5e1">NO</text>
-          <text x="800" y="232" text-anchor="end" fill="#cbd5e1">COM</text>
-          <text x="800" y="270" text-anchor="end" fill="#64748b">NC</text>
-          <line x1="804" y1="190" x2="872" y2="220" stroke="#475569" stroke-width="0.8"/>
-          <line x1="804" y1="228" x2="879" y2="235" stroke="#475569" stroke-width="0.8"/>
-          <line x1="804" y1="266" x2="886" y2="252" stroke="#475569" stroke-width="0.8" opacity="0.5"/>
-        </g>
-
-        <!-- ============ Solenoid lead dots ============ -->
-        <g>
-          <!-- wire 1: wraps to VCC pin shaft (always +5V) -->
-          <circle cx="700" cy="445" r="6" fill="#fca5a5" stroke="#0a0c12" stroke-width="2"/>
-          <!-- wire 2: clamps in COM screw (switched GND) -->
-          <circle cx="710" cy="450" r="6" fill="#1f2937" stroke="#94a3b8" stroke-width="2"/>
+          <text x="810" y="239" text-anchor="end" fill="#fca5a5">red · VCC</text>
+          <text x="810" y="256" text-anchor="end" fill="#fcd34d">brown · GND</text>
+          <text x="810" y="272" text-anchor="end" fill="#fdba74">orange · signal</text>
         </g>
       </svg>
     </div>
 
     <!-- Legend -->
     <div class="mt-6 flex flex-wrap gap-x-6 gap-y-2 text-xs text-slate-400">
-      <div class="flex items-center gap-2"><span class="w-3 h-3 rounded-full bg-red-500"></span>5V → VCC (jumper)</div>
-      <div class="flex items-center gap-2"><span class="w-3 h-3 rounded-full bg-pink-200"></span>solenoid wire 1 → VCC pin shaft (wrap · dashed)</div>
-      <div class="flex items-center gap-2"><span class="w-3 h-3 rounded-full bg-slate-600 border border-slate-500"></span>GND → GND</div>
-      <div class="flex items-center gap-2"><span class="w-3 h-3 rounded-full bg-green-500"></span>GPIO3 → IN</div>
-      <div class="flex items-center gap-2"><span class="w-3 h-3 rounded-full bg-slate-800 ring-1 ring-slate-500"></span>solenoid wire 2 → COM screw</div>
-      <div class="flex items-center gap-2"><span class="w-3 h-3 rounded-full bg-slate-500"></span>NO screw → GND pin shaft (bridge · dashed)</div>
+      <div class="flex items-center gap-2"><span class="w-3 h-3 rounded-full bg-orange-500"></span>GPIO3 → signal (orange)</div>
+      <div class="flex items-center gap-2"><span class="w-3 h-3 rounded-full bg-red-500"></span>5V → VCC (red)</div>
+      <div class="flex items-center gap-2"><span class="w-3 h-3 rounded-full" style="background:#78350f"></span>GND → GND (brown)</div>
+      <div class="flex items-center gap-2"><span class="w-3 h-3 rounded-full bg-indigo-400"></span>USB-C powers ESP32 + servo on the same rail</div>
     </div>
   </div>
 
@@ -500,34 +466,34 @@
     </div>
     <div class="card p-5">
       <div class="flex items-center gap-3 mb-3">
-        <div class="w-10 h-10 rounded-lg bg-orange-500/15 grid place-items-center">
-          <span class="material-symbols-outlined text-orange-300">power</span>
+        <div class="w-10 h-10 rounded-lg bg-emerald-500/15 grid place-items-center">
+          <span class="material-symbols-outlined text-emerald-300">rotate_right</span>
         </div>
         <div>
-          <div class="text-white font-medium">5V relay module (1-ch)</div>
-          <div class="text-xs text-slate-500">optocoupler · audible click</div>
+          <div class="text-white font-medium">MG90S micro-servo</div>
+          <div class="text-xs text-slate-500">actuator · metal-gear · 9 g</div>
         </div>
       </div>
       <ul class="text-xs text-slate-400 space-y-1">
-        <li>• 3 input pins: <span class="mono">VCC · GND · IN</span></li>
-        <li>• 3 screw terminals: <span class="mono">COM · NO · NC</span></li>
-        <li>• 3.3 V drive is plenty — no level shift needed</li>
+        <li>• 3 wires: <span class="mono">orange · red · brown</span></li>
+        <li>• 0–180° sweep · ~0.1 s / 60° at 5 V</li>
+        <li>• ~250–400 mA moving · ~50 mA holding</li>
       </ul>
     </div>
     <div class="card p-5">
       <div class="flex items-center gap-3 mb-3">
-        <div class="w-10 h-10 rounded-lg bg-emerald-500/15 grid place-items-center">
-          <span class="material-symbols-outlined text-emerald-300">ads_click</span>
+        <div class="w-10 h-10 rounded-lg bg-indigo-500/15 grid place-items-center">
+          <span class="material-symbols-outlined text-indigo-300">battery_charging_full</span>
         </div>
         <div>
-          <div class="text-white font-medium">5V mini push solenoid</div>
-          <div class="text-xs text-slate-500">actuator · 200 g push</div>
+          <div class="text-white font-medium">USB-C powerbank / 5 V charger</div>
+          <div class="text-xs text-slate-500">power · single rail</div>
         </div>
       </div>
       <ul class="text-xs text-slate-400 space-y-1">
-        <li>• 3–5 mm stroke · ~400 mA pulse</li>
-        <li>• 2 wires → screw terminals</li>
-        <li>• Polarity insensitive on this coil</li>
+        <li>• Any ≥ 1 A USB-C source works</li>
+        <li>• Powers ESP32 + servo together</li>
+        <li>• No separate supply or buck converter</li>
       </ul>
     </div>
   </div>
@@ -540,7 +506,7 @@
     </div>
 
     <div class="overflow-x-auto no-scrollbar">
-      <svg viewBox="0 0 820 300" class="w-full min-w-[640px] h-auto" font-family="Inter, system-ui, sans-serif">
+      <svg viewBox="0 0 620 280" class="w-full min-w-[520px] h-auto" font-family="Inter, system-ui, sans-serif">
         <defs>
           <filter id="cmGlow" x="-50%" y="-50%" width="200%" height="200%">
             <feGaussianBlur stdDeviation="2.5" result="b"/>
@@ -550,101 +516,61 @@
 
         <!-- ===== Component boxes ===== -->
         <!-- ESP32 -->
-        <rect x="40" y="40" width="190" height="220" rx="14" fill="rgba(99,102,241,0.05)" stroke="rgba(129,140,248,0.4)" stroke-width="1"/>
+        <rect x="40" y="40" width="190" height="200" rx="14" fill="rgba(99,102,241,0.05)" stroke="rgba(129,140,248,0.4)" stroke-width="1"/>
         <text x="135" y="70" text-anchor="middle" fill="#fff" font-size="14" font-weight="700">ESP32-C3</text>
         <text x="135" y="86" text-anchor="middle" fill="#94a3b8" font-size="10" font-family="JetBrains Mono">SuperMini</text>
 
-        <!-- Relay -->
-        <rect x="320" y="40" width="200" height="220" rx="14" fill="rgba(245,158,11,0.05)" stroke="rgba(251,146,60,0.4)" stroke-width="1"/>
-        <text x="420" y="70" text-anchor="middle" fill="#fff" font-size="14" font-weight="700">5V Relay</text>
-        <text x="420" y="86" text-anchor="middle" fill="#94a3b8" font-size="10" font-family="JetBrains Mono">module</text>
-        <!-- subtle internal divider showing two pin groups -->
-        <line x1="370" y1="100" x2="370" y2="240" stroke="rgba(255,255,255,0.04)" stroke-dasharray="2 4"/>
-        <line x1="470" y1="100" x2="470" y2="240" stroke="rgba(255,255,255,0.04)" stroke-dasharray="2 4"/>
-
-        <!-- Solenoid -->
-        <rect x="610" y="40" width="170" height="220" rx="14" fill="rgba(52,211,153,0.05)" stroke="rgba(110,231,183,0.4)" stroke-width="1"/>
-        <text x="695" y="70" text-anchor="middle" fill="#fff" font-size="14" font-weight="700">Solenoid</text>
-        <text x="695" y="86" text-anchor="middle" fill="#94a3b8" font-size="10" font-family="JetBrains Mono">5V mini push</text>
+        <!-- Servo -->
+        <rect x="400" y="40" width="180" height="200" rx="14" fill="rgba(52,211,153,0.05)" stroke="rgba(110,231,183,0.4)" stroke-width="1"/>
+        <text x="490" y="70" text-anchor="middle" fill="#fff" font-size="14" font-weight="700">MG90S</text>
+        <text x="490" y="86" text-anchor="middle" fill="#94a3b8" font-size="10" font-family="JetBrains Mono">micro-servo</text>
 
         <!-- ===== Wires (drawn UNDER pin dots so dots stay crisp) ===== -->
         <g fill="none" stroke-width="3" stroke-linecap="round">
-          <!-- ESP32 5V → Relay VCC pin -->
-          <line x1="230" y1="120" x2="320" y2="120" stroke="#ef4444"/>
-          <!-- ESP32 GND → Relay GND pin -->
-          <line x1="230" y1="155" x2="320" y2="155" stroke="#64748b"/>
-          <!-- ESP32 GPIO3 → Relay IN pin -->
-          <line x1="230" y1="190" x2="320" y2="190" stroke="#22c55e"/>
-
-          <!-- Solenoid wire 1 → Relay VCC pin shaft (wraps the pin, permanently at +5V) -->
-          <path d="M 610 140 C 540 100, 380 90, 320 120" stroke="#fca5a5" stroke-width="3" stroke-dasharray="5 4" fill="none"/>
-
-          <!-- Solenoid wire 2 → Relay COM screw -->
-          <line x1="610" y1="200" x2="520" y2="130" stroke="#1f2937"/>
-          <line x1="610" y1="200" x2="520" y2="130" stroke="#94a3b8" stroke-width="1" opacity="0.6"/>
-
-          <!-- BRIDGE: Relay NO screw → Relay GND pin shaft -->
-          <path d="M 520 170 C 470 220, 380 230, 320 155" stroke="#64748b" stroke-width="3" stroke-dasharray="5 4" fill="none"/>
+          <!-- ESP32 5V → Servo VCC -->
+          <line x1="230" y1="130" x2="400" y2="130" stroke="#ef4444"/>
+          <!-- ESP32 GND → Servo GND -->
+          <line x1="230" y1="170" x2="400" y2="170" stroke="#78350f"/>
+          <line x1="230" y1="170" x2="400" y2="170" stroke="#a16207" stroke-width="1" opacity="0.6"/>
+          <!-- ESP32 GPIO3 → Servo signal -->
+          <line x1="230" y1="210" x2="400" y2="210" stroke="#f97316"/>
         </g>
 
         <!-- ===== ESP32 pins (right edge) ===== -->
         <g font-family="JetBrains Mono" font-size="12" font-weight="500">
-          <text x="218" y="124" text-anchor="end" fill="#fca5a5">5V</text>
-          <circle cx="230" cy="120" r="5" fill="#ef4444" stroke="#0a0c12" stroke-width="2"/>
+          <text x="218" y="134" text-anchor="end" fill="#fca5a5">5V</text>
+          <circle cx="230" cy="130" r="5" fill="#ef4444" stroke="#0a0c12" stroke-width="2"/>
 
-          <text x="218" y="159" text-anchor="end" fill="#cbd5e1">GND</text>
-          <circle cx="230" cy="155" r="5" fill="#1f2937" stroke="#94a3b8" stroke-width="2"/>
+          <text x="218" y="174" text-anchor="end" fill="#fcd34d">GND</text>
+          <circle cx="230" cy="170" r="5" fill="#78350f" stroke="#a16207" stroke-width="2"/>
 
-          <text x="218" y="194" text-anchor="end" fill="#86efac">GPIO3</text>
-          <circle cx="230" cy="190" r="5" fill="#22c55e" stroke="#0a0c12" stroke-width="2"/>
+          <text x="218" y="214" text-anchor="end" fill="#fdba74">GPIO3</text>
+          <circle cx="230" cy="210" r="5" fill="#f97316" stroke="#0a0c12" stroke-width="2"/>
         </g>
 
-        <!-- ===== Relay LEFT pins (input header — facing ESP32) ===== -->
+        <!-- ===== Servo pins (left edge) ===== -->
         <g font-family="JetBrains Mono" font-size="12" font-weight="500">
-          <circle cx="320" cy="120" r="5" fill="#ef4444" stroke="#0a0c12" stroke-width="2"/>
-          <text x="332" y="124" text-anchor="start" fill="#fca5a5">VCC</text>
+          <circle cx="400" cy="130" r="5" fill="#ef4444" stroke="#0a0c12" stroke-width="2"/>
+          <text x="412" y="134" text-anchor="start" fill="#fca5a5">red · VCC</text>
 
-          <circle cx="320" cy="155" r="5" fill="#1f2937" stroke="#94a3b8" stroke-width="2"/>
-          <text x="332" y="159" text-anchor="start" fill="#cbd5e1">GND</text>
+          <circle cx="400" cy="170" r="5" fill="#78350f" stroke="#a16207" stroke-width="2"/>
+          <text x="412" y="174" text-anchor="start" fill="#fcd34d">brown · GND</text>
 
-          <circle cx="320" cy="190" r="5" fill="#22c55e" stroke="#0a0c12" stroke-width="2"/>
-          <text x="332" y="194" text-anchor="start" fill="#86efac">IN</text>
+          <circle cx="400" cy="210" r="5" fill="#f97316" stroke="#0a0c12" stroke-width="2"/>
+          <text x="412" y="214" text-anchor="start" fill="#fdba74">orange · signal</text>
         </g>
 
-        <!-- ===== Relay RIGHT pins (screw terminals — facing solenoid) ===== -->
-        <g font-family="JetBrains Mono" font-size="12" font-weight="500">
-          <text x="508" y="134" text-anchor="end" fill="#cbd5e1">COM</text>
-          <circle cx="520" cy="130" r="5" fill="#1f2937" stroke="#94a3b8" stroke-width="2"/>
-
-          <text x="508" y="174" text-anchor="end" fill="#cbd5e1">NO</text>
-          <circle cx="520" cy="170" r="5" fill="#475569" stroke="#0a0c12" stroke-width="2"/>
-
-          <text x="508" y="214" text-anchor="end" fill="#64748b">NC</text>
-          <circle cx="520" cy="210" r="5" fill="#1f2937" stroke="#475569" stroke-width="2" opacity="0.5"/>
-        </g>
-
-        <!-- ===== Solenoid pins (left edge) ===== -->
-        <g font-family="JetBrains Mono" font-size="12" font-weight="500">
-          <circle cx="610" cy="140" r="5" fill="#fca5a5" stroke="#0a0c12" stroke-width="2"/>
-          <text x="622" y="144" text-anchor="start" fill="#fca5a5">wire 1</text>
-
-          <circle cx="610" cy="200" r="5" fill="#1f2937" stroke="#94a3b8" stroke-width="2"/>
-          <text x="622" y="204" text-anchor="start" fill="#cbd5e1">wire 2</text>
-        </g>
-
-        <!-- Sub-section labels above relay pin groups -->
-        <text x="345" y="108" text-anchor="middle" fill="#64748b" font-size="9" font-family="JetBrains Mono">input header</text>
-        <text x="495" y="108" text-anchor="middle" fill="#64748b" font-size="9" font-family="JetBrains Mono">screw terminals</text>
+        <!-- Sub-section labels -->
+        <text x="135" y="105" text-anchor="middle" fill="#64748b" font-size="9" font-family="JetBrains Mono">power + 1 GPIO out</text>
+        <text x="490" y="105" text-anchor="middle" fill="#64748b" font-size="9" font-family="JetBrains Mono">3-wire pigtail</text>
       </svg>
     </div>
 
     <!-- legend repeating colors → wire purpose -->
-    <div class="mt-6 grid grid-cols-2 sm:grid-cols-5 gap-3 text-xs">
-      <div class="flex items-center gap-2"><span class="w-3 h-3 rounded-full bg-red-500"></span><span class="text-slate-400">ESP32 5V → VCC pin</span></div>
-      <div class="flex items-center gap-2"><span class="w-3 h-3 rounded-full bg-slate-500"></span><span class="text-slate-400">ESP32 GND → GND pin</span></div>
-      <div class="flex items-center gap-2"><span class="w-3 h-3 rounded-full bg-green-500"></span><span class="text-slate-400">GPIO3 → IN</span></div>
-      <div class="flex items-center gap-2"><span class="w-3 h-3 rounded-full bg-pink-200"></span><span class="text-slate-400">wire 1 wraps VCC pin shaft</span></div>
-      <div class="flex items-center gap-2"><span class="w-3 h-3 rounded-full bg-slate-600"></span><span class="text-slate-400">NO screw → GND pin shaft (bridge)</span></div>
+    <div class="mt-6 grid grid-cols-2 sm:grid-cols-3 gap-3 text-xs">
+      <div class="flex items-center gap-2"><span class="w-3 h-3 rounded-full bg-orange-500"></span><span class="text-slate-400">GPIO3 → signal (orange)</span></div>
+      <div class="flex items-center gap-2"><span class="w-3 h-3 rounded-full bg-red-500"></span><span class="text-slate-400">5V → VCC (red)</span></div>
+      <div class="flex items-center gap-2"><span class="w-3 h-3 rounded-full" style="background:#78350f"></span><span class="text-slate-400">GND → GND (brown)</span></div>
     </div>
   </div>
 </section>
@@ -653,7 +579,7 @@
 <section id="wiring" class="section max-w-6xl mx-auto px-4 sm:px-6 py-16">
   <div class="mb-10">
     <div class="text-xs uppercase tracking-[0.2em] text-indigo-400 mb-2">03 · Wiring</div>
-    <h2 class="text-3xl font-bold text-white">All seven connections</h2>
+    <h2 class="text-3xl font-bold text-white">All four connections</h2>
     <p class="text-slate-400 mt-2 max-w-xl">Three jumpers — signal, 5V, GND — straight from ESP32 to the servo's three leads. No relay, no MOSFET, no flyback diode. Powerbank powers both ESP32 and servo on the same rail.</p>
   </div>
 
@@ -681,15 +607,15 @@
     <div class="card p-5 flex gap-4">
       <span class="material-symbols-outlined text-amber-300 mt-0.5">warning</span>
       <div class="text-sm">
-        <div class="text-white font-medium mb-1">Polarity check</div>
-        <div class="text-slate-400">5V → VCC and GND → GND must not be swapped. The header pin order on the relay module is silkscreened — read it before plugging.</div>
+        <div class="text-white font-medium mb-1">Polarity matters</div>
+        <div class="text-slate-400">Servo wire colors are the rule: <span class="mono text-red-300">red</span> → ESP32 5V, <span class="mono text-amber-300">brown</span> → GND, <span class="mono text-orange-300">orange</span> → GPIO3. Swapping red and brown can release the magic smoke.</div>
       </div>
     </div>
     <div class="card p-5 flex gap-4">
       <span class="material-symbols-outlined text-indigo-300 mt-0.5">info</span>
       <div class="text-sm">
-        <div class="text-white font-medium mb-1">Screw torque</div>
-        <div class="text-slate-400">Snug, not gorilla-tight. Tug-test each solenoid lead after tightening — it should not pull free.</div>
+        <div class="text-white font-medium mb-1">Tuning the press</div>
+        <div class="text-slate-400">After upload, raise <span class="mono">PRESS_ANGLE</span> in 5° steps if the press is too soft, lower it if the arm slams or buzzes (stalled). Default 35° lands most buttons cleanly.</div>
       </div>
     </div>
   </div>
@@ -700,7 +626,7 @@
   <div class="mb-10">
     <div class="text-xs uppercase tracking-[0.2em] text-indigo-400 mb-2">04 · Demo</div>
     <h2 class="text-3xl font-bold text-white">Click animation</h2>
-    <p class="text-slate-400 mt-2 max-w-xl">Tap the button — animation shows the servo sweep cycle (REST → PRESS → REST). The plunger drawing below is a stand-in until the SVG is redrawn for the new servo build.</p>
+    <p class="text-slate-400 mt-2 max-w-xl">Tap the button — see the servo sweep from REST (0°) to PRESS (35°), tap the target, and return.</p>
   </div>
 
   <div class="card p-6 sm:p-10">
@@ -708,49 +634,48 @@
       <!-- left: animation stage -->
       <div class="relative bg-gradient-to-b from-white/[0.02] to-transparent rounded-xl border border-white/5 p-6 sm:p-10 min-h-[260px] grid-bg overflow-hidden">
         <svg viewBox="0 0 600 220" class="w-full h-auto cursor-pointer select-none" id="demoSvg">
+          <defs>
+            <linearGradient id="demoServoBody" x1="0" y1="0" x2="0" y2="1">
+              <stop offset="0%"  stop-color="#1d4ed8"/>
+              <stop offset="100%" stop-color="#0c1d4d"/>
+            </linearGradient>
+            <linearGradient id="demoArm" x1="0" y1="0" x2="0" y2="1">
+              <stop offset="0%"  stop-color="#e2e8f0"/>
+              <stop offset="100%" stop-color="#94a3b8"/>
+            </linearGradient>
+          </defs>
+
           <!-- baseline / table -->
           <line x1="20" y1="170" x2="580" y2="170" stroke="rgba(255,255,255,0.08)" stroke-width="1"/>
 
-          <!-- solenoid body -->
-          <g transform="translate(120 90)">
-            <rect x="0" y="0" width="110" height="60" rx="6" fill="#1f2937" stroke="#475569" stroke-width="1.5"/>
-            <rect x="6" y="6" width="98" height="48" rx="4" fill="#0f172a"/>
-            <!-- coil winding lines -->
-            <g stroke="#334155" stroke-width="1">
-              <line x1="14" y1="6" x2="14" y2="54"/>
-              <line x1="22" y1="6" x2="22" y2="54"/>
-              <line x1="30" y1="6" x2="30" y2="54"/>
-              <line x1="38" y1="6" x2="38" y2="54"/>
-              <line x1="46" y1="6" x2="46" y2="54"/>
-              <line x1="54" y1="6" x2="54" y2="54"/>
-              <line x1="62" y1="6" x2="62" y2="54"/>
-              <line x1="70" y1="6" x2="70" y2="54"/>
-              <line x1="78" y1="6" x2="78" y2="54"/>
-              <line x1="86" y1="6" x2="86" y2="54"/>
-              <line x1="94" y1="6" x2="94" y2="54"/>
-            </g>
-            <!-- mounting tabs -->
-            <rect x="-6" y="10" width="6" height="40" fill="#475569"/>
-            <rect x="110" y="10" width="6" height="40" fill="#475569"/>
-            <!-- wires -->
-            <path d="M 0 30 C -30 30, -40 60, -60 60" stroke="#dc2626" stroke-width="2" fill="none"/>
-            <path d="M 0 40 C -30 40, -40 70, -60 70" stroke="#0f172a" stroke-width="2" fill="none"/>
-            <path d="M 0 40 C -30 40, -40 70, -60 70" stroke="#94a3b8" stroke-width="0.8" fill="none" opacity="0.5"/>
+          <!-- servo body (left) -->
+          <g transform="translate(120 80)">
+            <!-- mounting flanges -->
+            <rect x="-12" y="10" width="14" height="60" rx="2" fill="#1e3a8a" opacity="0.85"/>
+            <rect x="110" y="10" width="14" height="60" rx="2" fill="#1e3a8a" opacity="0.85"/>
+            <!-- main body -->
+            <rect x="0" y="0" width="110" height="80" rx="6" fill="url(#demoServoBody)" stroke="#1e3a8a" stroke-width="1.5"/>
+            <!-- top label -->
+            <rect x="14" y="10" width="82" height="22" rx="3" fill="rgba(255,255,255,0.06)" stroke="rgba(255,255,255,0.08)"/>
+            <text x="55" y="25" text-anchor="middle" fill="#bfdbfe" font-size="11" font-weight="700" font-family="Inter">MG90S</text>
+            <!-- pigtail wires (left side) -->
+            <path d="M 0 50 C -20 50, -30 70, -50 75" stroke="#f97316" stroke-width="2" fill="none"/>
+            <path d="M 0 56 C -20 56, -30 78, -50 84" stroke="#ef4444" stroke-width="2" fill="none"/>
+            <path d="M 0 62 C -20 62, -30 86, -50 92" stroke="#78350f" stroke-width="2" fill="none"/>
           </g>
 
-          <!-- plunger -->
-          <g class="plunger" id="plunger">
-            <rect x="226" y="105" width="80" height="30" rx="2" fill="#cbd5e1"/>
-            <rect x="226" y="105" width="80" height="30" rx="2" fill="url(#plungerGrad)" opacity="0.6"/>
-            <rect x="304" y="110" width="14" height="20" rx="3" fill="#94a3b8"/>
-            <line x1="226" y1="120" x2="318" y2="120" stroke="#475569" stroke-width="0.5"/>
+          <!-- swing arm (pivots around horn at 250,120) -->
+          <g class="servo-arm" id="servoArm">
+            <!-- arm bar -->
+            <rect x="250" y="115" width="140" height="10" rx="3" fill="url(#demoArm)" stroke="#475569" stroke-width="0.8"/>
+            <!-- finger tip (touches button) -->
+            <circle cx="392" cy="120" r="6" fill="#fbbf24" stroke="#0a0c12" stroke-width="1.5"/>
+            <!-- screw line down arm -->
+            <line x1="258" y1="120" x2="384" y2="120" stroke="#64748b" stroke-width="0.5"/>
           </g>
-          <defs>
-            <linearGradient id="plungerGrad" x1="0" y1="0" x2="0" y2="1">
-              <stop offset="0%" stop-color="#fff" stop-opacity="0.5"/>
-              <stop offset="100%" stop-color="#000" stop-opacity="0.2"/>
-            </linearGradient>
-          </defs>
+          <!-- horn / pivot disc (drawn on top of arm base) -->
+          <circle cx="250" cy="120" r="9" fill="#0c1d4d" stroke="#1e3a8a" stroke-width="1.5"/>
+          <circle cx="250" cy="120" r="3" fill="#0a0c12"/>
 
           <!-- target button -->
           <g id="btnTarget">
@@ -764,7 +689,7 @@
           <g id="rippleHost"></g>
 
           <!-- timing label -->
-          <text x="20" y="30" fill="#64748b" font-size="10" font-family="JetBrains Mono">PULSE</text>
+          <text x="20" y="30" fill="#64748b" font-size="10" font-family="JetBrains Mono">PRESS</text>
           <rect x="20" y="36" width="180" height="6" rx="3" fill="rgba(255,255,255,0.05)"/>
           <rect x="20" y="36" width="0" height="6" rx="3" fill="url(#flowGrad)" id="pulseBar"/>
           <text x="20" y="60" fill="#64748b" font-size="10" font-family="JetBrains Mono" id="pulseLabel">idle</text>
@@ -781,7 +706,7 @@
             <span class="material-symbols-outlined">touch_app</span>
             <span>Trigger click</span>
           </div>
-          <div class="text-xs opacity-70 mt-0.5">simulates digitalWrite(3, HIGH)</div>
+          <div class="text-xs opacity-70 mt-0.5">simulates finger.write(35)</div>
         </button>
 
         <button id="triggerDouble"
@@ -791,23 +716,23 @@
             <span class="material-symbols-outlined">ads_click</span>
             <span>Double click</span>
           </div>
-          <div class="text-xs opacity-70 mt-0.5">two pulses, 150 ms apart</div>
+          <div class="text-xs opacity-70 mt-0.5">two presses, 150 ms apart</div>
         </button>
 
         <div class="card p-4 space-y-3">
           <div class="flex items-center justify-between text-xs">
-            <span class="text-slate-500 mono">GPIO3</span>
-            <span class="text-slate-400 mono" id="gpioState">LOW · 0V</span>
+            <span class="text-slate-500 mono">Servo</span>
+            <span class="text-slate-400 mono" id="gpioState">REST · 0°</span>
           </div>
           <div class="flex items-center gap-3">
-            <div class="gpio-led w-4 h-4 rounded-full" id="gpioLed"></div>
+            <div class="servo-led w-4 h-4 rounded-full" id="gpioLed"></div>
             <div class="flex-1 h-1.5 bg-white/[0.05] rounded-full overflow-hidden">
               <div id="gpioFill" class="h-full bg-gradient-to-r from-indigo-500 to-emerald-400 rounded-full transition-all duration-100" style="width:0%"></div>
             </div>
           </div>
 
           <div class="border-t border-white/5 pt-3 text-xs space-y-1.5">
-            <div class="flex justify-between"><span class="text-slate-500">Pulse</span><span class="text-slate-300 mono">1000 ms</span></div>
+            <div class="flex justify-between"><span class="text-slate-500">Press hold</span><span class="text-slate-300 mono">300 ms</span></div>
             <div class="flex justify-between"><span class="text-slate-500">Click count</span><span class="text-slate-300 mono" id="clickCount">0</span></div>
             <div class="flex justify-between"><span class="text-slate-500">Last cmd</span><span class="text-slate-300 mono" id="lastCmd">—</span></div>
           </div>
@@ -1058,7 +983,7 @@ void loop() {
         &lt;div class="text-center"&gt;
           &lt;span class="material-symbols-outlined block" style="font-size:64px"&gt;touch_app&lt;/span&gt;
           &lt;div class="font-extrabold tracking-[0.18em] text-xl mt-1"&gt;CLICK&lt;/div&gt;
-          &lt;div class="text-white/60 text-[11px] mt-1"&gt;1000 ms press&lt;/div&gt;
+          &lt;div class="text-white/60 text-[11px] mt-1"&gt;servo press&lt;/div&gt;
         &lt;/div&gt;
       &lt;/button&gt;
     &lt;/div&gt;
@@ -1254,11 +1179,11 @@ updateProgress();
 // ===========================================================================
 const triggerBtn  = document.getElementById('triggerBtn');
 const triggerDbl  = document.getElementById('triggerDouble');
-const plunger     = document.getElementById('plunger');
+const servoArm    = document.getElementById('servoArm');
 const btnCircle   = document.getElementById('btnCircle');
-const gpioLed     = document.getElementById('gpioLed');
-const gpioState   = document.getElementById('gpioState');
-const gpioFill    = document.getElementById('gpioFill');
+const servoLed    = document.getElementById('gpioLed');
+const servoState  = document.getElementById('gpioState');
+const angleFill   = document.getElementById('gpioFill');
 const pulseBar    = document.getElementById('pulseBar');
 const pulseLabel  = document.getElementById('pulseLabel');
 const clickCountEl = document.getElementById('clickCount');
@@ -1268,39 +1193,39 @@ const rippleHost  = document.getElementById('rippleHost');
 let clickTotal = 0;
 let busy = false;
 
-function setGpio(high) {
-  if (high) {
-    gpioLed.classList.add('on');
-    gpioState.textContent = 'HIGH · 3.3V';
-    gpioState.style.color = '#86efac';
-    gpioFill.style.width = '100%';
+function setServo(pressed) {
+  if (pressed) {
+    servoLed.classList.add('on');
+    servoState.textContent = 'PRESS · 35°';
+    servoState.style.color = '#86efac';
+    angleFill.style.width = '100%';
   } else {
-    gpioLed.classList.remove('on');
-    gpioState.textContent = 'LOW · 0V';
-    gpioState.style.color = '';
-    gpioFill.style.width = '0%';
+    servoLed.classList.remove('on');
+    servoState.textContent = 'REST · 0°';
+    servoState.style.color = '';
+    angleFill.style.width = '0%';
   }
 }
 
 function pushOnce() {
   return new Promise(resolve => {
-    setGpio(true);
-    pulseLabel.textContent = 'GPIO3 HIGH · 1000 ms';
+    setServo(true);
+    pulseLabel.textContent = 'SERVO PRESS · 300 ms';
 
-    // pulse bar fill anim (animate width attribute via rAF)
+    // pulse bar fill anim — matches firmware PRESS_HOLD_MS (300)
     pulseBar.setAttribute('width', '0');
     const start = performance.now();
     function tick(t) {
-      const p = Math.max(0, Math.min(1, (t - start) / 1000));
+      const p = Math.max(0, Math.min(1, (t - start) / 300));
       pulseBar.setAttribute('width', (p * 180).toFixed(1));
       if (p < 1) requestAnimationFrame(tick);
     }
     requestAnimationFrame(tick);
 
-    // plunger push
-    setTimeout(() => plunger.classList.add('push'), 30);
+    // arm swing down to PRESS_ANGLE
+    setTimeout(() => servoArm.classList.add('swing'), 30);
 
-    // button press visual + ripple
+    // button press visual + ripple (lands once arm has swung)
     setTimeout(() => {
       btnCircle.classList.add('pressed');
       const r = document.createElementNS('http://www.w3.org/2000/svg', 'circle');
@@ -1313,19 +1238,19 @@ function pushOnce() {
       r.setAttribute('class', 'ripple');
       rippleHost.appendChild(r);
       setTimeout(() => r.remove(), 700);
-    }, 80);
+    }, 200);
 
-    // release
+    // release — total cycle: 300 ms hold + 200 ms settle, matching firmware
     setTimeout(() => {
-      plunger.classList.remove('push');
+      servoArm.classList.remove('swing');
       btnCircle.classList.remove('pressed');
-      setGpio(false);
+      setServo(false);
       pulseBar.setAttribute('width', '0');
       pulseLabel.textContent = 'idle';
       clickTotal++;
       clickCountEl.textContent = clickTotal;
       resolve();
-    }, 1030);
+    }, 530);
   });
 }
 

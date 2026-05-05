@@ -1,7 +1,7 @@
 # autoclicker/ — Summary
 
 **Last updated:** 2026-05-06
-**Status:** 🟢 Active (build migrated from relay+solenoid to MG90S servo on 2026-05-06; firmware + data-driven sections updated, SVG visuals pending redesign)
+**Status:** 🟢 Active (build migrated from relay+solenoid to MG90S servo on 2026-05-06; firmware, data-driven sections, and all SVG visuals updated)
 
 DIY WiFi auto-clicker build reference + live phone remote. Single-page site documents how to build a 3-part SwitchBot (ESP32-C3 + MG90S micro-servo + USB-C powerbank) that physically presses buttons on command via Firebase RTDB. Earlier versions used a 5V relay + 5V solenoid; that path was abandoned because cheap 5V solenoids don't generate enough force to register a press.
 
@@ -14,8 +14,8 @@ autoclicker/
 │   └── autoclicker.ino      (~330 lines — canonical Arduino sketch; WiFiMulti + SoftAP fallback + built-in /click web UI + Firebase polling + ESP32Servo)
 ├── phone/index.html         (~166 lines — live remote button; Firebase v10 SDK, anon auth, writes "click" to RTDB)
 └── assets/
-    ├── esp32-c3.jpeg        (still used in hardware section photo collage)
-    ├── mosfet.jpeg          (legacy — referenced by old hardware SVG that hasn't been redrawn yet)
+    ├── esp32-c3.jpeg        (used in hardware section photo collage)
+    ├── mosfet.jpeg          (legacy — no longer referenced; safe to delete)
     └── solenoid.jpeg        (legacy — same)
 ```
 
@@ -34,10 +34,10 @@ GitHub Pages at `/autoclicker/` (auto-publishes on push to `main`). Phone remote
 
 | ID | Heading | What it shows |
 |---|---|---|
-| `overview` | "How a click travels" | **Pending redesign** — currently still shows 5-node flow including MOSFET + Solenoid; should become 4-node (Phone → Firebase → ESP32 → Servo) |
-| `hardware` | "Top-down view" + connection map | **Pending redesign** — currently still photo collage of ESP32 + relay + solenoid + abstract relay schematic |
-| `wiring` | "All four connections" | Data-driven table (`wires[]` array) — now 3 jumpers (signal/5V/GND) + 1 USB-C |
-| `demo` | "Click animation" | **Pending redesign** — currently still SVG of solenoid plunger; should become servo arm sweep |
+| `overview` | "How a click travels" | 4-node SVG flow diagram: Phone → Firebase → ESP32 → MG90S Servo (PWM 50 Hz) |
+| `hardware` | "Top-down view" + connection map | ESP32-C3 photo on the left, illustrated MG90S box on the right (drawn in SVG; no servo photo yet), three wires connecting them. Abstract pin-to-pin schematic below shows ESP32 5V/GND/GPIO3 → servo red/brown/orange |
+| `wiring` | "All four connections" | Data-driven table (`wires[]` array) — 3 jumpers (signal/5V/GND) + 1 USB-C |
+| `demo` | "Click animation" | SVG-only simulation — illustrated MG90S body on the left with a swing arm rotating around its horn; arm sweeps 0° → 15° (visual stand-in for 35°) onto the target button. Powered by `.servo-arm.swing` CSS rotation. **No Firebase calls.** |
 | `code` | "Firmware & remote" | Live iframe of `phone/index.html` framed as a phone, plus collapsible `<details>` with Arduino sketch + phone HTML + Firebase config |
 | `checklist` | "Build steps" | Data-driven checklist (`steps[]` array) grouped by Parts / Firmware / Wiring / Test / Mount with progress bar |
 

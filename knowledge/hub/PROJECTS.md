@@ -23,7 +23,7 @@ DIY WiFi auto-clicker build reference + live phone remote — ESP32-C3 + MG90S s
 - **Firmware:** `firmware/autoclicker.ino` (canonical, in-repo) — uses `ESP32Servo` library (Kevin Harrington — install via Library Manager; AVR `Servo.h` does not run on ESP32-C3). Three trigger paths: Firebase poll (online), local web UI on port 80 (same WiFi), SoftAP fallback `AutoClicker-AP` (offline). On `click`: sweeps GPIO3 servo from `REST_ANGLE` (0°) to `PRESS_ANGLE` (35°), holds 300 ms, returns. Tuning knobs: `REST_ANGLE` / `PRESS_ANGLE` / `PRESS_HOLD_MS`.
 - **Quirks:**
   - **Demo section is animation-only** — `Trigger click` / `Double click` simulate the GPIO pulse in SVG, they do NOT touch Firebase. Only `phone/index.html` writes for real.
-  - **SVG visuals are stale** — overview flow, hardware photo collage, and demo plunger animation still depict the old relay+solenoid build pending redesign for the servo. Firmware + wiring table + checklist + hero stats are accurate.
+  - **SVG visuals are now servo-aligned** (overview flow has 4 nodes ending at MG90S; hardware section shows ESP32 photo + illustrated MG90S box drawn in SVG; demo animates a swinging arm rotating around the servo horn).
   - Shares Firebase project `test-database-55379` (asia-southeast1) with other repo apps; uses path `/autoclicker/command`.
   - Firebase web API key in `phone/index.html` is intentional — it's a public client config, not a secret.
   - Wires/checklist render from `wires[]` (now 4 entries) and `steps[]` arrays — edit data, not DOM.
