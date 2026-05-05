@@ -397,17 +397,18 @@
           <path d="M 215 392 C 380 300, 870 130, 1020 165" stroke="#94a3b8" stroke-width="1.2" opacity="0.55"/>
           <!-- GPIO3 (green) — ESP32 GPIO3 → Relay IN (bottom-right) -->
           <path d="M 129 392 C 320 320, 860 180, 1020 200" stroke="#22c55e" stroke-width="3.5" filter="url(#wireGlow)" opacity="0.95"/>
-          <!-- 5V (sandwich, dark red) — ESP32 5V → Relay COM screw (middle of 3 screws) -->
-          <path d="M 237 392 C 480 380, 720 320, 885 235" stroke="#dc2626" stroke-width="3.5" stroke-dasharray="6 4" filter="url(#wireGlow)" opacity="0.95"/>
+          <!-- BRIDGE (dark red, dashed) — Relay VCC pin shaft → Relay COM screw -->
+          <!-- short curve over the top of the relay module, NOT going back to ESP32 -->
+          <path d="M 1020 130 C 1010 110, 940 120, 885 235" stroke="#dc2626" stroke-width="3.5" stroke-dasharray="6 4" filter="url(#wireGlow)" opacity="0.95"/>
         </g>
 
-        <!-- ============ WIRES: Solenoid → Relay NO screw + back to ESP32 GND ============ -->
+        <!-- ============ WIRES: Solenoid → Relay NO screw + Relay GND pin shaft ============ -->
         <g fill="none" stroke-linecap="round">
           <!-- Solenoid wire 1 (bare red) → Relay NO screw (top screw of the 3) -->
           <path d="M 700 445 C 740 340, 820 260, 878 220" stroke="#fca5a5" stroke-width="3" filter="url(#wireGlow)" opacity="0.95"/>
-          <!-- Solenoid wire 2 (bare black) → ESP32 GND (sandwich return — long swoop back) -->
-          <path d="M 710 450 C 600 530, 320 470, 215 408" stroke="#1f2937" stroke-width="3" stroke-dasharray="6 4"/>
-          <path d="M 710 450 C 600 530, 320 470, 215 408" stroke="#94a3b8" stroke-width="1" stroke-dasharray="6 4" opacity="0.5"/>
+          <!-- Solenoid wire 2 (bare, dashed) → Relay GND pin shaft (wraps around the pin) -->
+          <path d="M 710 450 C 800 410, 940 280, 1020 165" stroke="#1f2937" stroke-width="3" stroke-dasharray="6 4"/>
+          <path d="M 710 450 C 800 410, 940 280, 1020 165" stroke="#94a3b8" stroke-width="1" stroke-dasharray="6 4" opacity="0.5"/>
         </g>
 
         <!-- ============ ESP32 pin dots + labels ============ -->
@@ -562,21 +563,21 @@
 
         <!-- ===== Wires (drawn UNDER pin dots so dots stay crisp) ===== -->
         <g fill="none" stroke-width="3" stroke-linecap="round">
-          <!-- ESP32 5V → Relay VCC -->
+          <!-- ESP32 5V → Relay VCC pin -->
           <line x1="230" y1="120" x2="320" y2="120" stroke="#ef4444"/>
-          <!-- ESP32 GND → Relay GND -->
+          <!-- ESP32 GND → Relay GND pin -->
           <line x1="230" y1="155" x2="320" y2="155" stroke="#64748b"/>
-          <!-- ESP32 GPIO3 → Relay IN -->
+          <!-- ESP32 GPIO3 → Relay IN pin -->
           <line x1="230" y1="190" x2="320" y2="190" stroke="#22c55e"/>
 
-          <!-- ESP32 5V (sandwich) → Relay COM screw — long curve via top of relay -->
-          <path d="M 230 120 C 250 50, 480 30, 520 130" stroke="#dc2626" stroke-width="3" stroke-dasharray="5 4" fill="none"/>
+          <!-- BRIDGE: Relay VCC pin shaft → Relay COM screw (internal to relay) -->
+          <path d="M 320 120 C 360 80, 480 80, 520 130" stroke="#dc2626" stroke-width="3" stroke-dasharray="5 4" fill="none"/>
 
           <!-- Relay NO → Solenoid wire 1 -->
           <line x1="520" y1="170" x2="610" y2="140" stroke="#fca5a5"/>
 
-          <!-- Solenoid wire 2 → ESP32 GND (sandwich return — long swoop under) -->
-          <path d="M 610 200 C 480 290, 260 280, 230 165" stroke="#64748b" stroke-width="3" stroke-dasharray="5 4" fill="none"/>
+          <!-- Solenoid wire 2 → Relay GND pin shaft (wraps the pin, current returns through black jumper to ESP32 GND) -->
+          <path d="M 610 200 C 540 240, 380 220, 320 155" stroke="#64748b" stroke-width="3" stroke-dasharray="5 4" fill="none"/>
         </g>
 
         <!-- ===== ESP32 pins (right edge) ===== -->
