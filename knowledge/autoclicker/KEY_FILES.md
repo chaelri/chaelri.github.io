@@ -68,15 +68,14 @@ This file is **the live remote** — every change here ships to `/autoclicker/ph
 
 > **Subtitle copy is stale:** still says "1000 ms press". Functionally fine — the live remote only writes `"click"` to RTDB; the firmware decides press timing (`PRESS_HOLD_MS = 300`). Update the copy when convenient.
 
-## `assets/`
+## `assets/` — **removed 2026-05-06**
 
-| File | Used in |
-|---|---|
-| `esp32-c3.jpeg` | Hardware section photo collage (~89 KB) |
-| `mosfet.jpeg` | **Legacy** — no longer referenced anywhere; safe to delete (~67 KB) |
-| `solenoid.jpeg` | **Legacy** — same (~35 KB) |
+The folder previously held `esp32-c3.jpeg`, `relay.png`, and `solenoid.jpeg`. All three were deleted when the hardware section migrated to fully hand-drawn SVG. Don't reintroduce — the page intentionally avoids binary asset dependencies so the whole build reference is one HTML file.
 
-The hardware section currently has the ESP32 photo on the left and an illustrated MG90S box drawn directly in SVG on the right (no servo photo yet). When a real top-down servo photo is available, drop it into `assets/`, replace the illustrated `<g transform="translate(820 110)">` block in the photo-composition SVG with an `<image>` element, and the `wires[]` array stays as the source of truth for the connection list (now 4 entries).
+To change a component's appearance, edit the inline SVG directly:
+- **ESP32-C3 group** in `index.html` hardware section: `<g transform="translate(140 80)">` — PCB body, USB-C protrusion, ESP32-C3 chip, crystal, BOOT/RST buttons, status LED, PCB antenna meander, and 16 pin pads (top + bottom edges, 5V/GND/IO3 highlighted with their wire colors).
+- **MG90S group** in same section: `<g transform="translate(620 360)">` — mounting flanges with screw holes, body rectangle with `url(#servoBody)` gradient, MG90S label panel, output shaft with splined center + horn, 3-wire pigtail emerging from the top edge.
+- **Demo MG90S** in the demo section is a smaller illustrated body using the same `url(#demoServoBody)` gradient with a `.servo-arm.swing` class for animated rotation.
 
 ## `firmware/autoclicker.ino` — canonical Arduino sketch (~330 lines)
 

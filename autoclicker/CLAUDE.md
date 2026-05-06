@@ -9,9 +9,10 @@ autoclicker/
 ├── index.html          ← single-page build reference (hero, overview, hardware, wiring, demo, code, checklist)
 ├── firmware/
 │   └── autoclicker.ino ← canonical Arduino sketch (in-repo) — uses ESP32Servo library
-├── phone/index.html    ← live remote — taps write "click" to Firebase RTDB; ESP32 polls and sweeps the servo
-└── assets/             ← esp32-c3.jpeg used in Hardware. mosfet.jpeg / solenoid.jpeg are legacy (no longer referenced)
+└── phone/index.html    ← live remote — taps write "click" to Firebase RTDB; ESP32 polls and sweeps the servo
 ```
+
+**Hardware visuals are 100% hand-drawn SVG** — no `<image>` tags, no asset files. ESP32-C3 and MG90S are illustrated top-down inside `index.html`'s hardware section. To change the look, edit the SVG directly; there's nothing to upload.
 
 ## Auto-loaded knowledge
 

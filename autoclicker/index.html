@@ -339,100 +339,196 @@
     <p class="text-slate-400 mt-2 max-w-xl">Two parts, three jumpers, plug in USB-C. The servo runs off the same 5V rail as the ESP32 — no separate supply.</p>
   </div>
 
-  <!-- Photo composition -->
+  <!-- Top-down hand-drawn SVG composition (no photos) -->
   <div class="card p-3 sm:p-6 grid-bg overflow-hidden">
-    <div class="relative w-full" style="aspect-ratio: 1100/520;">
-      <svg viewBox="0 0 1100 520" class="absolute inset-0 w-full h-full" font-family="Inter, system-ui, sans-serif">
+    <div class="relative w-full" style="aspect-ratio: 1100/560;">
+      <svg viewBox="0 0 1100 560" class="absolute inset-0 w-full h-full" font-family="Inter, system-ui, sans-serif">
         <defs>
           <filter id="wireGlow" x="-50%" y="-50%" width="200%" height="200%">
             <feGaussianBlur stdDeviation="3" result="b"/>
             <feMerge><feMergeNode in="b"/><feMergeNode in="SourceGraphic"/></feMerge>
           </filter>
+          <linearGradient id="pcbGrad" x1="0" y1="0" x2="0" y2="1">
+            <stop offset="0%"  stop-color="#064e3b"/>
+            <stop offset="100%" stop-color="#022c22"/>
+          </linearGradient>
           <linearGradient id="servoBody" x1="0" y1="0" x2="0" y2="1">
-            <stop offset="0%"  stop-color="#1d4ed8"/>
+            <stop offset="0%"  stop-color="#1e40af"/>
             <stop offset="100%" stop-color="#0c1d4d"/>
           </linearGradient>
+          <radialGradient id="hornShine" cx="0.4" cy="0.4">
+            <stop offset="0%"  stop-color="#f1f5f9"/>
+            <stop offset="100%" stop-color="#94a3b8"/>
+          </radialGradient>
         </defs>
 
         <!-- ============ TITLES ============ -->
-        <text x="160" y="30" text-anchor="middle" fill="#ffffff" font-size="18" font-weight="700">ESP32-C3 SuperMini</text>
-        <text x="160" y="50" text-anchor="middle" fill="#94a3b8" font-size="12" font-family="JetBrains Mono">22.5 × 18 mm · USB-C · WiFi</text>
+        <text x="300" y="30" text-anchor="middle" fill="#ffffff" font-size="18" font-weight="700">ESP32-C3 SuperMini</text>
+        <text x="300" y="50" text-anchor="middle" fill="#94a3b8" font-size="12" font-family="JetBrains Mono">22.5 × 18 mm · top view</text>
 
-        <text x="900" y="30" text-anchor="middle" fill="#ffffff" font-size="18" font-weight="700">MG90S Micro-Servo</text>
-        <text x="900" y="50" text-anchor="middle" fill="#94a3b8" font-size="12" font-family="JetBrains Mono">22.8 × 12.2 × 28.5 mm · metal-gear</text>
+        <text x="800" y="30" text-anchor="middle" fill="#ffffff" font-size="18" font-weight="700">MG90S Micro-Servo</text>
+        <text x="800" y="50" text-anchor="middle" fill="#94a3b8" font-size="12" font-family="JetBrains Mono">22.8 × 12.2 × 28.5 mm · top view</text>
 
-        <!-- USB-C power badge (centered between component titles) -->
-        <g transform="translate(440 16)">
-          <rect width="220" height="30" rx="15" fill="rgba(99,102,241,0.15)" stroke="rgba(129,140,248,0.5)" stroke-width="1"/>
-          <text x="110" y="20" text-anchor="middle" fill="#c7d2fe" font-size="12" font-family="JetBrains Mono">USB-C 5V powers everything</text>
+        <!-- ============ ESP32-C3 SuperMini (top-down, hand-drawn) ============ -->
+        <g transform="translate(140 80)">
+          <!-- USB-C connector protrusion (left short edge) -->
+          <rect x="-22" y="68" width="22" height="44" rx="3" fill="#9ca3af" stroke="#475569" stroke-width="0.8"/>
+          <rect x="-18" y="74" width="14" height="32" rx="2" fill="#1e293b"/>
+          <line x1="-18" y1="84" x2="-4" y2="84" stroke="#0a0c12" stroke-width="0.8"/>
+          <line x1="-18" y1="96" x2="-4" y2="96" stroke="#0a0c12" stroke-width="0.8"/>
+          <text x="-11" y="135" text-anchor="middle" fill="#94a3b8" font-size="9" font-family="JetBrains Mono">USB-C</text>
+
+          <!-- USB cable hint going off-canvas -->
+          <path d="M -22 90 C -60 90, -100 90, -130 90" stroke="#a855f7" stroke-width="3" fill="none" stroke-linecap="round" opacity="0.4"/>
+          <text x="-128" y="84" text-anchor="end" fill="#c4b5fd" font-size="10" font-family="JetBrains Mono">to powerbank</text>
+
+          <!-- PCB main body -->
+          <rect x="0" y="0" width="320" height="180" rx="6" fill="url(#pcbGrad)" stroke="#15803d" stroke-width="1.2"/>
+          <!-- inner silkscreen border -->
+          <rect x="6" y="6" width="308" height="168" rx="4" fill="none" stroke="rgba(255,255,255,0.05)" stroke-dasharray="2 3"/>
+
+          <!-- ESP32-C3 chip (QFN package) -->
+          <rect x="120" y="60" width="60" height="60" rx="2" fill="#0a0a0a" stroke="#475569" stroke-width="0.8"/>
+          <text x="150" y="86" text-anchor="middle" fill="#94a3b8" font-size="9" font-family="Inter" font-weight="700">ESP32-C3</text>
+          <text x="150" y="98" text-anchor="middle" fill="#64748b" font-size="6.5" font-family="JetBrains Mono">FN8</text>
+          <!-- chip pin1 dot -->
+          <circle cx="125" cy="65" r="1.2" fill="#fbbf24"/>
+
+          <!-- Crystal oscillator -->
+          <rect x="195" y="78" width="24" height="14" rx="2" fill="#9ca3af" stroke="#475569" stroke-width="0.6"/>
+          <text x="207" y="89" text-anchor="middle" fill="#1e293b" font-size="6" font-family="JetBrains Mono">40MHz</text>
+
+          <!-- Boot/RST buttons -->
+          <rect x="232" y="74" width="14" height="14" rx="1" fill="#1f2937" stroke="#475569" stroke-width="0.6"/>
+          <text x="239" y="100" text-anchor="middle" fill="#64748b" font-size="6" font-family="JetBrains Mono">B</text>
+          <rect x="252" y="74" width="14" height="14" rx="1" fill="#1f2937" stroke="#475569" stroke-width="0.6"/>
+          <text x="259" y="100" text-anchor="middle" fill="#64748b" font-size="6" font-family="JetBrains Mono">R</text>
+
+          <!-- Status LED (blue) -->
+          <circle cx="80" cy="34" r="3.5" fill="#3b82f6"/>
+          <circle cx="80" cy="34" r="6" fill="rgba(59,130,246,0.25)"/>
+
+          <!-- PCB antenna (meander pattern, right short edge inside the board) -->
+          <path d="M 280 25 L 308 25 L 308 35 L 280 35 L 280 45 L 308 45 L 308 55 L 280 55 L 280 65 L 308 65 L 308 75 L 280 75 L 280 85 L 308 85 L 308 95 L 280 95 L 280 105 L 308 105 L 308 115 L 280 115 L 280 125 L 308 125 L 308 135 L 280 135 L 280 145 L 308 145 L 308 155 L 280 155"
+                fill="none" stroke="#fbbf24" stroke-width="1.6" stroke-linecap="square"/>
+          <text x="294" y="170" text-anchor="middle" fill="#a16207" font-size="6.5" font-family="JetBrains Mono">ANT</text>
+
+          <!-- Top-edge pin pads (8 pads at y=2..7) — non-highlighted, subdued -->
+          <g fill="#fbbf24" opacity="0.55">
+            <rect x="20" y="-3" width="8" height="6" rx="1.5"/>
+            <rect x="55" y="-3" width="8" height="6" rx="1.5"/>
+            <rect x="90" y="-3" width="8" height="6" rx="1.5"/>
+            <rect x="125" y="-3" width="8" height="6" rx="1.5"/>
+            <rect x="160" y="-3" width="8" height="6" rx="1.5"/>
+            <rect x="195" y="-3" width="8" height="6" rx="1.5"/>
+            <rect x="230" y="-3" width="8" height="6" rx="1.5"/>
+            <rect x="265" y="-3" width="8" height="6" rx="1.5"/>
+          </g>
+          <g font-family="JetBrains Mono" font-size="7" fill="#64748b" text-anchor="middle">
+            <text x="24" y="-8">G</text>
+            <text x="59" y="-8">IO9</text>
+            <text x="94" y="-8">IO8</text>
+            <text x="129" y="-8">IO7</text>
+            <text x="164" y="-8">IO6</text>
+            <text x="199" y="-8">IO5</text>
+            <text x="234" y="-8">IO10</text>
+            <text x="269" y="-8">IO20</text>
+          </g>
+
+          <!-- Bottom-edge pin pads (8 pads at y=177..183) — 5V, GND, IO3 highlighted -->
+          <g>
+            <!-- 5V (highlighted red) -->
+            <rect x="20" y="177" width="8" height="6" rx="1.5" fill="#ef4444"/>
+            <circle cx="24" cy="180" r="9" fill="none" stroke="#ef4444" stroke-width="1.2" opacity="0.7"/>
+            <!-- GND (highlighted brown) -->
+            <rect x="55" y="177" width="8" height="6" rx="1.5" fill="#78350f"/>
+            <circle cx="59" cy="180" r="9" fill="none" stroke="#a16207" stroke-width="1.2" opacity="0.7"/>
+            <!-- 3V3 -->
+            <rect x="90" y="177" width="8" height="6" rx="1.5" fill="#fbbf24" opacity="0.55"/>
+            <!-- IO4 -->
+            <rect x="125" y="177" width="8" height="6" rx="1.5" fill="#fbbf24" opacity="0.55"/>
+            <!-- IO3 (highlighted orange) -->
+            <rect x="160" y="177" width="8" height="6" rx="1.5" fill="#f97316"/>
+            <circle cx="164" cy="180" r="9" fill="none" stroke="#f97316" stroke-width="1.2" opacity="0.7"/>
+            <!-- IO2, IO1, IO0 -->
+            <rect x="195" y="177" width="8" height="6" rx="1.5" fill="#fbbf24" opacity="0.55"/>
+            <rect x="230" y="177" width="8" height="6" rx="1.5" fill="#fbbf24" opacity="0.55"/>
+            <rect x="265" y="177" width="8" height="6" rx="1.5" fill="#fbbf24" opacity="0.55"/>
+          </g>
+          <g font-family="JetBrains Mono" font-size="7" text-anchor="middle">
+            <text x="24" y="195" fill="#fca5a5" font-weight="700">5V</text>
+            <text x="59" y="195" fill="#fcd34d" font-weight="700">GND</text>
+            <text x="94" y="195" fill="#64748b">3V3</text>
+            <text x="129" y="195" fill="#64748b">IO4</text>
+            <text x="164" y="195" fill="#fdba74" font-weight="700">IO3</text>
+            <text x="199" y="195" fill="#64748b">IO2</text>
+            <text x="234" y="195" fill="#64748b">IO1</text>
+            <text x="269" y="195" fill="#64748b">IO0</text>
+          </g>
         </g>
 
-        <!-- ============ ESP32 PHOTO ============ -->
-        <image href="assets/esp32-c3.jpeg" x="40" y="70" width="240" height="330"
-               preserveAspectRatio="xMidYMid meet"/>
+        <!-- ============ MG90S Micro-Servo (top-down, hand-drawn) ============ -->
+        <g transform="translate(620 360)">
+          <!-- Mounting flanges (extend left + right beyond the body) -->
+          <rect x="-40" y="32" width="40" height="56" rx="3" fill="#1e3a8a"/>
+          <rect x="320" y="32" width="40" height="56" rx="3" fill="#1e3a8a"/>
+          <!-- Screw holes on flanges -->
+          <circle cx="-22" cy="44" r="4" fill="#0a0c12" stroke="#475569" stroke-width="0.5"/>
+          <circle cx="-22" cy="76" r="4" fill="#0a0c12" stroke="#475569" stroke-width="0.5"/>
+          <circle cx="342" cy="44" r="4" fill="#0a0c12" stroke="#475569" stroke-width="0.5"/>
+          <circle cx="342" cy="76" r="4" fill="#0a0c12" stroke="#475569" stroke-width="0.5"/>
 
-        <!-- ============ ILLUSTRATED MG90S (no photo yet, drawn in SVG) ============ -->
-        <g transform="translate(820 110)">
-          <!-- mounting flanges (left + right) -->
-          <rect x="-18" y="40" width="22" height="80" rx="3" fill="#1e3a8a" opacity="0.85"/>
-          <rect x="156" y="40" width="22" height="80" rx="3" fill="#1e3a8a" opacity="0.85"/>
-          <circle cx="-7"  cy="60"  r="3.5" fill="#0a0c12"/>
-          <circle cx="-7"  cy="100" r="3.5" fill="#0a0c12"/>
-          <circle cx="167" cy="60"  r="3.5" fill="#0a0c12"/>
-          <circle cx="167" cy="100" r="3.5" fill="#0a0c12"/>
+          <!-- Main body (top-down, rectangular) -->
+          <rect x="0" y="0" width="320" height="120" rx="6" fill="url(#servoBody)" stroke="#1e3a8a" stroke-width="1.5"/>
 
-          <!-- main body -->
-          <rect x="0" y="0" width="160" height="160" rx="8" fill="url(#servoBody)" stroke="#1e3a8a" stroke-width="1.5"/>
-          <!-- top label panel -->
-          <rect x="20" y="20" width="120" height="40" rx="4" fill="rgba(255,255,255,0.06)" stroke="rgba(255,255,255,0.08)"/>
-          <text x="80" y="42" text-anchor="middle" fill="#bfdbfe" font-size="14" font-weight="700" font-family="Inter">MG90S</text>
-          <text x="80" y="55" text-anchor="middle" fill="#93c5fd" font-size="9" font-family="JetBrains Mono">9G · 180°</text>
+          <!-- Top label panel -->
+          <rect x="100" y="14" width="120" height="32" rx="3" fill="rgba(255,255,255,0.07)" stroke="rgba(255,255,255,0.1)"/>
+          <text x="160" y="32" text-anchor="middle" fill="#bfdbfe" font-size="14" font-weight="800" font-family="Inter" letter-spacing="1">MG90S</text>
+          <text x="160" y="42" text-anchor="middle" fill="#93c5fd" font-size="7" font-family="JetBrains Mono">METAL GEAR · 9G</text>
 
-          <!-- output shaft / horn -->
-          <circle cx="80" cy="100" r="22" fill="#0c1d4d" stroke="#1e3a8a" stroke-width="2"/>
-          <circle cx="80" cy="100" r="14" fill="#1e293b"/>
-          <rect x="40" y="96" width="80" height="8" rx="3" fill="#cbd5e1" stroke="#475569" stroke-width="0.8"/>
-          <circle cx="80" cy="100" r="3" fill="#0a0c12"/>
+          <!-- Output shaft (round on top face) — placed near right end -->
+          <circle cx="240" cy="75" r="22" fill="#0c1d4d" stroke="#1e3a8a" stroke-width="1.5"/>
+          <circle cx="240" cy="75" r="16" fill="#1e293b"/>
+          <!-- splined shaft texture -->
+          <g stroke="#475569" stroke-width="0.6" fill="none" opacity="0.7">
+            <line x1="240" y1="60" x2="240" y2="90"/>
+            <line x1="225" y1="75" x2="255" y2="75"/>
+            <line x1="229" y1="64" x2="251" y2="86"/>
+            <line x1="251" y1="64" x2="229" y2="86"/>
+          </g>
+          <!-- horn (single-arm shown rotated) -->
+          <rect x="240" y="71" width="60" height="8" rx="2" fill="url(#hornShine)" stroke="#475569" stroke-width="0.5" transform="rotate(-30 240 75)"/>
+          <circle cx="240" cy="75" r="4" fill="#0a0c12"/>
+          <text x="240" y="115" text-anchor="middle" fill="#93c5fd" font-size="7" font-family="JetBrains Mono">OUTPUT SHAFT</text>
 
-          <!-- wire pigtail exit (left side) -->
-          <rect x="-2" y="125" width="14" height="22" fill="#0a0c12" rx="2"/>
+          <!-- Wire pigtail emerges from TOP edge near LEFT short side, 3 wires bundled -->
+          <rect x="38" y="-6" width="46" height="10" rx="2" fill="#0a0c12"/>
+          <text x="61" y="-12" text-anchor="middle" fill="#93c5fd" font-size="7" font-family="JetBrains Mono">PIGTAIL</text>
+
+          <!-- Three wires inside the bundle (curving out from top) -->
+          <path d="M 46 -2 C 46 -30, 50 -50, 60 -70" stroke="#ef4444" stroke-width="3" fill="none" stroke-linecap="round" filter="url(#wireGlow)"/>
+          <path d="M 60 -2 C 60 -30, 70 -50, 90 -75" stroke="#78350f" stroke-width="3" fill="none" stroke-linecap="round"/>
+          <path d="M 60 -2 C 60 -30, 70 -50, 90 -75" stroke="#a16207" stroke-width="1" fill="none" stroke-linecap="round" opacity="0.6"/>
+          <path d="M 76 -2 C 76 -30, 100 -50, 130 -80" stroke="#f97316" stroke-width="3" fill="none" stroke-linecap="round" filter="url(#wireGlow)"/>
         </g>
 
-        <!-- ============ WIRES: ESP32 → Servo (3 jumpers, gentle bezier) ============ -->
+        <!-- ============ WIRES: ESP32 bottom-edge pins → Servo pigtail ============ -->
+        <!-- 5V red — ESP32 (164, 263) → Servo pigtail entry (680, 285) -->
         <g fill="none" stroke-linecap="round">
-          <!-- 5V (red) — ESP32 5V → Servo VCC -->
-          <path d="M 237 392 C 500 320, 700 250, 818 235" stroke="#ef4444" stroke-width="3.5" filter="url(#wireGlow)" opacity="0.95"/>
-          <!-- GND (brown) — ESP32 GND → Servo GND -->
-          <path d="M 215 392 C 460 340, 690 270, 818 252" stroke="#78350f" stroke-width="3.5"/>
-          <path d="M 215 392 C 460 340, 690 270, 818 252" stroke="#a16207" stroke-width="1.2" opacity="0.55"/>
-          <!-- GPIO3 (orange) — ESP32 GPIO3 → Servo signal -->
-          <path d="M 129 392 C 360 360, 670 290, 818 268" stroke="#f97316" stroke-width="3.5" filter="url(#wireGlow)" opacity="0.95"/>
+          <!-- 5V (red) -->
+          <path d="M 164 263 C 200 320, 500 280, 680 285" stroke="#ef4444" stroke-width="4" filter="url(#wireGlow)" opacity="0.95"/>
+          <!-- GND (brown core + lighter highlight) -->
+          <path d="M 199 263 C 240 330, 540 285, 680 290" stroke="#78350f" stroke-width="4"/>
+          <path d="M 199 263 C 240 330, 540 285, 680 290" stroke="#a16207" stroke-width="1.4" opacity="0.55"/>
+          <!-- GPIO3 (orange) -->
+          <path d="M 304 263 C 380 320, 580 290, 696 285" stroke="#f97316" stroke-width="4" filter="url(#wireGlow)" opacity="0.95"/>
         </g>
 
-        <!-- ============ ESP32 pin dots + labels ============ -->
-        <g>
-          <circle cx="129" cy="392" r="6" fill="#f97316" stroke="#0a0c12" stroke-width="2"/>
-          <circle cx="215" cy="392" r="6" fill="#78350f" stroke="#a16207" stroke-width="2"/>
-          <circle cx="237" cy="392" r="6" fill="#ef4444" stroke="#0a0c12" stroke-width="2"/>
-        </g>
-        <g font-family="JetBrains Mono" font-size="13" font-weight="500">
-          <text x="129" y="423" text-anchor="middle" fill="#fdba74">GPIO3</text>
-          <text x="190" y="423" text-anchor="middle" fill="#fcd34d">GND</text>
-          <text x="262" y="423" text-anchor="middle" fill="#fca5a5">5V</text>
-          <line x1="215" y1="398" x2="195" y2="412" stroke="#475569" stroke-width="0.8"/>
-          <line x1="237" y1="398" x2="258" y2="412" stroke="#475569" stroke-width="0.8"/>
-        </g>
-
-        <!-- ============ Servo wire endpoints (left edge of body) ============ -->
-        <g>
-          <circle cx="818" cy="235" r="6" fill="#ef4444" stroke="#0a0c12" stroke-width="2"/>
-          <circle cx="818" cy="252" r="6" fill="#78350f" stroke="#a16207" stroke-width="2"/>
-          <circle cx="818" cy="268" r="6" fill="#f97316" stroke="#0a0c12" stroke-width="2"/>
-        </g>
-        <g font-family="JetBrains Mono" font-size="13" font-weight="500">
-          <text x="810" y="239" text-anchor="end" fill="#fca5a5">red · VCC</text>
-          <text x="810" y="256" text-anchor="end" fill="#fcd34d">brown · GND</text>
-          <text x="810" y="272" text-anchor="end" fill="#fdba74">orange · signal</text>
+        <!-- Wire labels along the route -->
+        <g font-family="JetBrains Mono" font-size="11" fill="#cbd5e1">
+          <text x="370" y="306" text-anchor="middle" fill="#fca5a5">red · VCC</text>
+          <text x="430" y="332" text-anchor="middle" fill="#fcd34d">brown · GND</text>
+          <text x="490" y="306" text-anchor="middle" fill="#fdba74">orange · signal</text>
         </g>
       </svg>
     </div>

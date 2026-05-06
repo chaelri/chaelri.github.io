@@ -18,7 +18,7 @@
 DIY WiFi auto-clicker build reference + live phone remote — ESP32-C3 + MG90S servo SwitchBot (migrated from relay+solenoid 2026-05-06). Single-page site documents hardware, wiring, firmware; phone subdir is the live remote.
 
 - **Tech:** vanilla HTML/CSS/JS, Tailwind v4 (browser CDN, no build), Firebase v10 SDK (RTDB + anonymous Auth), Inter + JetBrains Mono + Material Symbols Outlined.
-- **Entry:** `index.html` (~1,330 lines — overview/hardware/wiring/demo/code/checklist), `firmware/autoclicker.ino` (canonical Arduino sketch, in-repo), `phone/index.html` (~166 lines — live big-button remote), `assets/*.jpeg` (top-down part photos; mosfet/solenoid jpegs are legacy from old build).
+- **Entry:** `index.html` (~1,330 lines — overview/hardware/wiring/demo/code/checklist; all visuals hand-drawn inline SVG, no image dependencies), `firmware/autoclicker.ino` (canonical Arduino sketch, in-repo), `phone/index.html` (~166 lines — live big-button remote).
 - **Deploy:** GitHub Pages at `/autoclicker/`. Phone remote at `/autoclicker/phone/`.
 - **Firmware:** `firmware/autoclicker.ino` (canonical, in-repo) — uses `ESP32Servo` library (Kevin Harrington — install via Library Manager; AVR `Servo.h` does not run on ESP32-C3). Three trigger paths: Firebase poll (online), local web UI on port 80 (same WiFi), SoftAP fallback `AutoClicker-AP` (offline). On `click`: sweeps GPIO3 servo from `REST_ANGLE` (0°) to `PRESS_ANGLE` (35°), holds 300 ms, returns. Tuning knobs: `REST_ANGLE` / `PRESS_ANGLE` / `PRESS_HOLD_MS`.
 - **Quirks:**

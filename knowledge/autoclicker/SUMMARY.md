@@ -12,12 +12,10 @@ autoclicker/
 ├── index.html               (~1,330 lines — full build reference; sections: overview, hardware, wiring, demo, code, checklist)
 ├── firmware/
 │   └── autoclicker.ino      (~330 lines — canonical Arduino sketch; WiFiMulti + SoftAP fallback + built-in /click web UI + Firebase polling + ESP32Servo)
-├── phone/index.html         (~166 lines — live remote button; Firebase v10 SDK, anon auth, writes "click" to RTDB)
-└── assets/
-    ├── esp32-c3.jpeg        (used in hardware section photo collage)
-    ├── mosfet.jpeg          (legacy — no longer referenced; safe to delete)
-    └── solenoid.jpeg        (legacy — same)
+└── phone/index.html         (~166 lines — live remote button; Firebase v10 SDK, anon auth, writes "click" to RTDB)
 ```
+
+The `assets/` folder was removed 2026-05-06 — every visual on the page is now hand-drawn SVG (top-down ESP32-C3 + MG90S in the hardware section, illustrated MG90S in the demo section). No image files are needed.
 
 ## Tech
 
@@ -35,7 +33,7 @@ GitHub Pages at `/autoclicker/` (auto-publishes on push to `main`). Phone remote
 | ID | Heading | What it shows |
 |---|---|---|
 | `overview` | "How a click travels" | 4-node SVG flow diagram: Phone → Firebase → ESP32 → MG90S Servo (PWM 50 Hz) |
-| `hardware` | "Top-down view" + connection map | ESP32-C3 photo on the left, illustrated MG90S box on the right (drawn in SVG; no servo photo yet), three wires connecting them. Abstract pin-to-pin schematic below shows ESP32 5V/GND/GPIO3 → servo red/brown/orange |
+| `hardware` | "Top-down view" + connection map | Both components drawn top-down as inline SVG (no images). ESP32-C3 with USB-C protrusion, ESP32 chip, antenna meander, and 16 pin pads (5V/GND/IO3 highlighted on the bottom edge); MG90S with mounting flanges, output shaft + horn, top label, and 3-wire pigtail. Wires drop from ESP32 bottom-edge pins down to the servo's pigtail. Abstract pin-to-pin schematic below shows the same connections in box form. |
 | `wiring` | "All four connections" | Data-driven table (`wires[]` array) — 3 jumpers (signal/5V/GND) + 1 USB-C |
 | `demo` | "Click animation" | SVG-only simulation — illustrated MG90S body on the left with a swing arm rotating around its horn; arm sweeps 0° → 15° (visual stand-in for 35°) onto the target button. Powered by `.servo-arm.swing` CSS rotation. **No Firebase calls.** |
 | `code` | "Firmware & remote" | Live iframe of `phone/index.html` framed as a phone, plus collapsible `<details>` with Arduino sketch + phone HTML + Firebase config |
