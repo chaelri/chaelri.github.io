@@ -1,6 +1,6 @@
 # Hub Project Index for chaelri.github.io
 
-**Last updated:** 2026-05-02
+**Last updated:** 2026-05-08
 **Scope:** Complete mapping of top-level directories + root files, with tech stack, deployment, status, and key entry points.
 
 ## Status Legend
@@ -29,6 +29,24 @@ DIY WiFi auto-clicker build reference + live phone remote — ESP32-C3 + MG90S s
   - Wires/checklist render from `wires[]` (now 4 entries) and `steps[]` arrays — edit data, not DOM.
   - Section IDs (`overview/hardware/wiring/demo/code/checklist`) are load-bearing for `syncNav()` scroll-spy.
 - **Full docs:** See `knowledge/autoclicker/SUMMARY.md`, `ARCHITECTURE.md`, `KEY_FILES.md`.
+
+### aircon/  🟢
+
+DIY WiFi aircon controller — sister project to autoclicker. ESP32-C3 + 940 nm IR LED replaces Charlie's TCL TAC-09CSA/KEI remote entirely; phone web remote writes desired state to Firebase RTDB; ESP32 polls and pulses TCL112AC IR codes at the aircon.
+
+- **Tech:** vanilla HTML/CSS/JS, Tailwind v4 (browser CDN, no build), Firebase v10 SDK (RTDB + anonymous Auth), Inter + JetBrains Mono + Material Symbols Outlined. Color palette: sky/cyan/teal (deliberately distinct from autoclicker's indigo/purple/pink).
+- **Entry:** `index.html` (~1,000 lines — overview/hardware/wiring/demo/code/checklist; all visuals hand-drawn inline SVG, no image dependencies), `firmware/aircon.ino` (canonical Arduino sketch, in-repo), `phone/index.html` (~250 lines — live remote with power/temp±/mode chips/fan chips).
+- **Deploy:** GitHub Pages at `/aircon/`. Phone remote at `/aircon/phone/`.
+- **Firmware:** `firmware/aircon.ino` — uses `IRremoteESP8266` library (David Conran et al — install via Arduino Library Manager; runs on ESP32 too despite the name). The `IRTcl112Ac` class encodes the full TCL split-AC state. Three trigger paths: Firebase poll (online), local web UI on port 80 (same WiFi), SoftAP fallback `Aircon-AP` (offline). On any state change: parses JSON, mutates `AcState`, calls `ac.send()` which generates the 38 kHz / 112-bit blink pattern on GPIO3.
+- **Quirks:**
+  - **Two RTDB paths:** `/aircon/command` (transient — phone writes desired state, ESP32 reads + clears) and `/aircon/state` (authoritative — ESP32 mirrors after every send). Same two-path pattern as autoclicker.
+  - **No transistor in the BOM** — IR LED driven directly from GPIO3 through a 100 Ω current-limit resistor. Range is ~2-3 m line-of-sight; fine for a wall-mount near the aircon. Add a 2N2222 transistor later if cross-room range is needed.
+  - **No TSOP4838 receiver in the BOM** — TCL112AC is pre-supported in the library, so no learning step is needed for Charlie's TAC-09CSA/KEI. Receiver is only needed for unsupported TCL models.
+  - **Demo section is animation-only** — `Power on` / `Temp +1` flash the LED + spawn 4 staggered IR ripples + wake the aircon LCD in SVG; they do NOT touch Firebase. Only `phone/index.html` writes for real.
+  - **Send full state on every press** — TCL aircons expect a complete state frame per IR transmission, not deltas. The library + the phone remote both honor this.
+  - Shares Firebase project `test-database-55379` (asia-southeast1) with autoclicker, weddingbar, echoes, etc. RTDB rules: `.read`/`.write` = `true` for `/aircon/*` while testing.
+  - Section IDs (`overview/hardware/wiring/demo/code/checklist`) are load-bearing for `syncNav()` scroll-spy — same skeleton as autoclicker.
+- **Full docs:** See `knowledge/aircon/SUMMARY.md`, `ARCHITECTURE.md`, `KEY_FILES.md`.
 
 ### devo/  🟢
 
@@ -282,7 +300,7 @@ Simple side-scrolling platformer (Bubu & Dudu) — canvas-based game.
 
 | Project | Hosting | Auto-deploy on push? |
 |---|---|---|
-| devo, monthsary, tayo, sns-dq, weddingtest, towa-no-yuugure, autoclicker, flux, pray, echoes, wedding100, weddingtimeline, horizon, money, anohana, bubududu | GitHub Pages subpath | ✅ |
+| devo, monthsary, tayo, sns-dq, weddingtest, towa-no-yuugure, autoclicker, aircon, flux, pray, echoes, wedding100, weddingtimeline, horizon, money, anohana, bubududu | GitHub Pages subpath | ✅ |
 | guard-exit-interview | GitHub Pages — **DUAL-REPO** (also push to `guard-exit-tracker`) | ✅ |
 | vm-management | GitHub Pages `/vm-management/` | ✅ |
 | weddingbar | Firebase Hosting (root via `firebase.json`) — also GH Pages `/weddingbar/` | `firebase deploy` |
