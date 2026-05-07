@@ -214,8 +214,8 @@
       <div class="text-xs text-slate-500 mt-1">signal · 5V · GND · plus 1 USB-C</div>
     </div>
     <div class="card p-4 text-left">
-      <div class="text-2xl font-semibold text-white">300 <span class="text-sm text-slate-500 font-normal">ms</span></div>
-      <div class="text-xs text-slate-500 mt-1">servo press hold time</div>
+      <div class="text-2xl font-semibold text-white">180 <span class="text-sm text-slate-500 font-normal">ms</span></div>
+      <div class="text-xs text-slate-500 mt-1">servo push burst</div>
     </div>
     <div class="card p-4 text-left">
       <div class="text-2xl font-semibold text-white">1 <span class="text-sm text-slate-500 font-normal">sec</span></div>
@@ -229,7 +229,7 @@
   <div class="mb-10">
     <div class="text-xs uppercase tracking-[0.2em] text-indigo-400 mb-2">01 · Overview</div>
     <h2 class="text-3xl font-bold text-white">How a click travels</h2>
-    <p class="text-slate-400 mt-2 max-w-xl">Phone tap → cloud database → ESP32 polls → servo arm sweeps down → button gets tapped physically.</p>
+    <p class="text-slate-400 mt-2 max-w-xl">Phone tap → cloud database → ESP32 polls → servo arm bursts onto the button → bursts back to rest.</p>
   </div>
 
   <div class="card p-6 sm:p-8 overflow-x-auto no-scrollbar">
@@ -292,8 +292,8 @@
           <circle r="34" fill="#0d1018" stroke="rgba(52,211,153,0.5)" stroke-width="1.5"/>
           <circle r="34" fill="rgba(52,211,153,0.08)"/>
           <text text-anchor="middle" dominant-baseline="central" fill="#cbd5e1" font-family="Material Symbols Outlined" font-size="26">rotate_right</text>
-          <text y="60" text-anchor="middle" fill="#fff" font-size="13" font-weight="600">MG90S Servo</text>
-          <text y="76" text-anchor="middle" fill="#64748b" font-size="11">arm sweeps to 35°</text>
+          <text y="60" text-anchor="middle" fill="#fff" font-size="13" font-weight="600">MG90S 360°</text>
+          <text y="76" text-anchor="middle" fill="#64748b" font-size="11">push burst · hold · return</text>
         </g>
 
         <!-- protocol labels above lines (centered between nodes: 200/400/600) -->
@@ -325,7 +325,7 @@
           <span class="material-symbols-outlined" style="font-size:18px">bolt</span>
           <span class="text-xs font-medium uppercase tracking-wider">Actuate</span>
         </div>
-        <div class="text-sm text-slate-300">GPIO3 → ESP32Servo PWM → MG90S sweeps to 35° for 300 ms → arm presses the button → returns to 0°.</div>
+        <div class="text-sm text-slate-300">GPIO3 → ESP32Servo PWM → 1300 µs burst rotates arm onto button → 1500 µs holds → 1700 µs burst returns it to rest.</div>
       </div>
     </div>
   </div>
@@ -528,14 +528,14 @@
         <g font-family="JetBrains Mono" font-size="11" fill="#cbd5e1">
           <text x="370" y="306" text-anchor="middle" fill="#fca5a5">red · VCC</text>
           <text x="430" y="332" text-anchor="middle" fill="#fcd34d">brown · GND</text>
-          <text x="490" y="306" text-anchor="middle" fill="#fdba74">orange · signal</text>
+          <text x="490" y="306" text-anchor="middle" fill="#fdba74">orange/yellow · signal</text>
         </g>
       </svg>
     </div>
 
     <!-- Legend -->
     <div class="mt-6 flex flex-wrap gap-x-6 gap-y-2 text-xs text-slate-400">
-      <div class="flex items-center gap-2"><span class="w-3 h-3 rounded-full bg-orange-500"></span>GPIO3 → signal (orange)</div>
+      <div class="flex items-center gap-2"><span class="w-3 h-3 rounded-full bg-orange-500"></span>GPIO3 → signal (orange/yellow)</div>
       <div class="flex items-center gap-2"><span class="w-3 h-3 rounded-full bg-red-500"></span>5V → VCC (red)</div>
       <div class="flex items-center gap-2"><span class="w-3 h-3 rounded-full" style="background:#78350f"></span>GND → GND (brown)</div>
       <div class="flex items-center gap-2"><span class="w-3 h-3 rounded-full bg-indigo-400"></span>USB-C powers ESP32 + servo on the same rail</div>
@@ -571,9 +571,9 @@
         </div>
       </div>
       <ul class="text-xs text-slate-400 space-y-1">
-        <li>• 3 wires: <span class="mono">orange · red · brown</span></li>
-        <li>• 0–180° sweep · ~0.1 s / 60° at 5 V</li>
-        <li>• ~250–400 mA moving · ~50 mA holding</li>
+        <li>• 3 wires: <span class="mono">orange/yellow · red · brown</span></li>
+        <li>• 360° continuous rotation · pulse = speed/direction</li>
+        <li>• ~250–400 mA moving · ~5–10 mA stopped</li>
       </ul>
     </div>
     <div class="card p-5">
@@ -653,7 +653,7 @@
           <text x="412" y="174" text-anchor="start" fill="#fcd34d">brown · GND</text>
 
           <circle cx="400" cy="210" r="5" fill="#f97316" stroke="#0a0c12" stroke-width="2"/>
-          <text x="412" y="214" text-anchor="start" fill="#fdba74">orange · signal</text>
+          <text x="412" y="214" text-anchor="start" fill="#fdba74">orange/yellow · signal</text>
         </g>
 
         <!-- Sub-section labels -->
@@ -664,7 +664,7 @@
 
     <!-- legend repeating colors → wire purpose -->
     <div class="mt-6 grid grid-cols-2 sm:grid-cols-3 gap-3 text-xs">
-      <div class="flex items-center gap-2"><span class="w-3 h-3 rounded-full bg-orange-500"></span><span class="text-slate-400">GPIO3 → signal (orange)</span></div>
+      <div class="flex items-center gap-2"><span class="w-3 h-3 rounded-full bg-orange-500"></span><span class="text-slate-400">GPIO3 → signal (orange/yellow)</span></div>
       <div class="flex items-center gap-2"><span class="w-3 h-3 rounded-full bg-red-500"></span><span class="text-slate-400">5V → VCC (red)</span></div>
       <div class="flex items-center gap-2"><span class="w-3 h-3 rounded-full" style="background:#78350f"></span><span class="text-slate-400">GND → GND (brown)</span></div>
     </div>
@@ -704,14 +704,14 @@
       <span class="material-symbols-outlined text-amber-300 mt-0.5">warning</span>
       <div class="text-sm">
         <div class="text-white font-medium mb-1">Polarity matters</div>
-        <div class="text-slate-400">Servo wire colors are the rule: <span class="mono text-red-300">red</span> → ESP32 5V, <span class="mono text-amber-300">brown</span> → GND, <span class="mono text-orange-300">orange</span> → GPIO3. Swapping red and brown can release the magic smoke.</div>
+        <div class="text-slate-400">Servo wire colors are the rule: <span class="mono text-red-300">red</span> → ESP32 5V, <span class="mono text-amber-300">brown</span> → GND, <span class="mono text-orange-300">orange/yellow</span> → GPIO3 (signal wire is orange on most MG90S, yellow on some clones). Swapping red and brown can release the magic smoke.</div>
       </div>
     </div>
     <div class="card p-5 flex gap-4">
       <span class="material-symbols-outlined text-indigo-300 mt-0.5">info</span>
       <div class="text-sm">
         <div class="text-white font-medium mb-1">Tuning the press</div>
-        <div class="text-slate-400">After upload, raise <span class="mono">PRESS_ANGLE</span> in 5° steps if the press is too soft, lower it if the arm slams or buzzes (stalled). Default 35° lands most buttons cleanly.</div>
+        <div class="text-slate-400">CR servos rarely stop at exactly 1500 µs — first nudge <span class="mono">STOP_US</span> (1480..1520) until the horn truly idles. Then tune <span class="mono">PUSH_MS</span> for travel and <span class="mono">HOLD_MS</span> for press depth. If the arm spins the wrong way, swap <span class="mono">PUSH_US</span> and <span class="mono">RETURN_US</span>.</div>
       </div>
     </div>
   </div>
@@ -722,7 +722,7 @@
   <div class="mb-10">
     <div class="text-xs uppercase tracking-[0.2em] text-indigo-400 mb-2">04 · Demo</div>
     <h2 class="text-3xl font-bold text-white">Click animation</h2>
-    <p class="text-slate-400 mt-2 max-w-xl">Tap the button — see the servo sweep from REST (0°) to PRESS (35°), tap the target, and return.</p>
+    <p class="text-slate-400 mt-2 max-w-xl">Tap the button — watch a 1300 µs burst rotate the arm onto the target, hold at 1500 µs, then a 1700 µs burst takes it back to rest.</p>
   </div>
 
   <div class="card p-6 sm:p-10">
@@ -802,7 +802,7 @@
             <span class="material-symbols-outlined">touch_app</span>
             <span>Trigger click</span>
           </div>
-          <div class="text-xs opacity-70 mt-0.5">simulates finger.write(35)</div>
+          <div class="text-xs opacity-70 mt-0.5">simulates writeMicroseconds(1300)</div>
         </button>
 
         <button id="triggerDouble"
@@ -818,7 +818,7 @@
         <div class="card p-4 space-y-3">
           <div class="flex items-center justify-between text-xs">
             <span class="text-slate-500 mono">Servo</span>
-            <span class="text-slate-400 mono" id="gpioState">REST · 0°</span>
+            <span class="text-slate-400 mono" id="gpioState">STOP · 1500 µs</span>
           </div>
           <div class="flex items-center gap-3">
             <div class="servo-led w-4 h-4 rounded-full" id="gpioLed"></div>
@@ -828,7 +828,7 @@
           </div>
 
           <div class="border-t border-white/5 pt-3 text-xs space-y-1.5">
-            <div class="flex justify-between"><span class="text-slate-500">Press hold</span><span class="text-slate-300 mono">300 ms</span></div>
+            <div class="flex justify-between"><span class="text-slate-500">Push burst</span><span class="text-slate-300 mono">180 ms</span></div>
             <div class="flex justify-between"><span class="text-slate-500">Click count</span><span class="text-slate-300 mono" id="clickCount">0</span></div>
             <div class="flex justify-between"><span class="text-slate-500">Last cmd</span><span class="text-slate-300 mono" id="lastCmd">—</span></div>
           </div>
@@ -927,11 +927,16 @@ const char* DB_URL =
   "https://test-database-55379-default-rtdb.asia-southeast1.firebasedatabase.app"
   "/autoclicker/command.json";
 
-const int SERVO_PIN     = 3;     // GPIO3 → servo signal (orange)
+const int SERVO_PIN     = 3;     // GPIO3 → servo signal (orange/yellow)
 const int LED_PIN       = 8;     // onboard blue LED (active LOW)
-const int REST_ANGLE    = 0;     // arm raised
-const int PRESS_ANGLE   = 35;    // arm pressed (tune per build)
-const int PRESS_HOLD_MS = 300;
+
+// 360° continuous-rotation servo: pulse width = speed + direction (not angle)
+const int STOP_US       = 1500;  // neutral — tune 1480..1520 if the horn creeps
+const int PUSH_US       = 1300;  // press direction (swap with RETURN_US if reversed)
+const int RETURN_US     = 1700;  // lift direction
+const int PUSH_MS       = 180;   // burst onto button
+const int HOLD_MS       = 120;   // hold pressed
+const int RETURN_MS     = 180;   // burst back (mirror of PUSH_MS)
 const int RELEASE_MS    = 200;
 const int POLL_MS       = 1000;
 
@@ -947,9 +952,13 @@ const char INDEX_HTML[] PROGMEM = R"rawliteral(
 void click(int times) {
   for (int i = 0; i &lt; times; i++) {
     digitalWrite(LED_PIN, LOW);
-    finger.write(PRESS_ANGLE);
-    delay(PRESS_HOLD_MS);
-    finger.write(REST_ANGLE);
+    finger.writeMicroseconds(PUSH_US);    // burst onto button
+    delay(PUSH_MS);
+    finger.writeMicroseconds(STOP_US);    // hold pressed
+    delay(HOLD_MS);
+    finger.writeMicroseconds(RETURN_US);  // burst back
+    delay(RETURN_MS);
+    finger.writeMicroseconds(STOP_US);    // park at rest
     digitalWrite(LED_PIN, HIGH);
     delay(RELEASE_MS);
     if (i &lt; times - 1) delay(150);
@@ -988,7 +997,7 @@ void setup() {
 
   finger.setPeriodHertz(50);
   finger.attach(SERVO_PIN, 500, 2400);
-  finger.write(REST_ANGLE);
+  finger.writeMicroseconds(STOP_US);    // motor stopped at boot
 
   pinMode(LED_PIN, OUTPUT);
   digitalWrite(LED_PIN, HIGH);
@@ -1178,7 +1187,7 @@ void loop() {
 // Wiring table data
 // ===========================================================================
 const wires = [
-  { i: 1, type: 'Signal', from: ['ESP32', 'GPIO3'],         to: ['Servo', 'signal (orange)'], color: '#22c55e', name: 'orange', method: 'Jumper wire' },
+  { i: 1, type: 'Signal', from: ['ESP32', 'GPIO3'],         to: ['Servo', 'signal (orange/yellow)'], color: '#22c55e', name: 'orange/yellow', method: 'Jumper wire' },
   { i: 2, type: 'Power',  from: ['ESP32', '5V'],            to: ['Servo', 'VCC (red)'],       color: '#ef4444', name: 'red',    method: 'Jumper wire' },
   { i: 3, type: 'Ground', from: ['ESP32', 'GND'],           to: ['Servo', 'GND (brown)'],     color: '#475569', name: 'brown',  method: 'Jumper wire' },
   { i: 4, type: 'Power',  from: ['USB-C powerbank', '5V'],  to: ['ESP32', 'USB-C'],           color: '#a855f7', name: 'cable',  method: 'Plug' },
@@ -1220,16 +1229,17 @@ const steps = [
   { g: 'Firmware',   t: 'Plug ESP32 into laptop via USB-C; select board "ESP32C3 Dev Module" + correct port; set USB CDC On Boot: Enabled' },
   { g: 'Firmware',   t: 'Open autoclicker/firmware/autoclicker.ino; confirm WiFi credentials in setup(); upload' },
   { g: 'Firmware',   t: 'Open Serial Monitor at 115200 — confirm "WiFi connected: ..."' },
-  { g: 'Wiring',     t: 'Insert orange (signal) jumper male pin into ESP32 GPIO3 hole; female end onto servo signal pin' },
+  { g: 'Wiring',     t: 'Insert signal jumper (orange or yellow on the servo pigtail) male pin into ESP32 GPIO3 hole; female end onto servo signal pin' },
   { g: 'Wiring',     t: 'Insert red (VCC) jumper male pin into ESP32 5V hole; female end onto servo red wire' },
   { g: 'Wiring',     t: 'Insert brown (GND) jumper male pin into ESP32 GND hole; female end onto servo brown wire' },
   { g: 'Wiring',     t: 'Tug-test all 3 jumpers — none should pull free' },
-  { g: 'Test',       t: 'Plug USB-C powerbank into ESP32; servo should snap to REST_ANGLE (0°) on boot' },
-  { g: 'Test',       t: 'Open phone web app or http://<esp32-ip>/ on the same WiFi; tap "Click" — servo arm sweeps to PRESS_ANGLE and back within ~1 second' },
-  { g: 'Test',       t: 'If the press is too soft, raise PRESS_ANGLE in 5° steps and re-upload. If the arm slams or stalls (buzzing), lower it' },
+  { g: 'Test',       t: 'Plug USB-C powerbank into ESP32; servo should hold still (motor stopped at STOP_US neutral) on boot' },
+  { g: 'Test',       t: 'If the horn slowly creeps at boot, nudge STOP_US by ±20 µs (try 1480 or 1520) and re-upload until it truly idles' },
+  { g: 'Test',       t: 'Open phone web app or http://<esp32-ip>/ on the same WiFi; tap "Click" — arm bursts onto target, holds, bursts back to rest within ~1 second' },
+  { g: 'Test',       t: 'If the arm spins the wrong way on press, swap PUSH_US and RETURN_US in firmware. If travel is too short, raise PUSH_MS / RETURN_MS together (keep them equal so it lands back home)' },
   { g: 'Test',       t: 'Tap "Double" and "Auto x5"; verify counts and clean return to rest between presses' },
   { g: 'Mount',      t: 'Glue or tape a chopstick / popsicle stick / 3D-printed arm onto the servo horn — this is the "finger" that taps the button' },
-  { g: 'Mount',      t: 'Position servo so the finger lands squarely on the target button at PRESS_ANGLE; secure servo body with double-sided foam tape' },
+  { g: 'Mount',      t: 'Position servo so the finger lands squarely on the target button at the end of one push burst; add a soft mechanical stop (foam pad / 3D-printed tab) at rest position so drift over many clicks bumps the arm home' },
   { g: 'Mount',      t: 'For a phone/tablet touchscreen: wrap aluminum foil around the finger tip, run a thin wire from the foil to ESP32 GND so the screen registers the tap' },
 ];
 
@@ -1292,12 +1302,12 @@ let busy = false;
 function setServo(pressed) {
   if (pressed) {
     servoLed.classList.add('on');
-    servoState.textContent = 'PRESS · 35°';
+    servoState.textContent = 'PUSH · 1300 µs';
     servoState.style.color = '#86efac';
     angleFill.style.width = '100%';
   } else {
     servoLed.classList.remove('on');
-    servoState.textContent = 'REST · 0°';
+    servoState.textContent = 'STOP · 1500 µs';
     servoState.style.color = '';
     angleFill.style.width = '0%';
   }
@@ -1306,19 +1316,19 @@ function setServo(pressed) {
 function pushOnce() {
   return new Promise(resolve => {
     setServo(true);
-    pulseLabel.textContent = 'SERVO PRESS · 300 ms';
+    pulseLabel.textContent = 'PUSH BURST · 180 ms';
 
-    // pulse bar fill anim — matches firmware PRESS_HOLD_MS (300)
+    // pulse bar fill anim — matches firmware PUSH_MS (180)
     pulseBar.setAttribute('width', '0');
     const start = performance.now();
     function tick(t) {
-      const p = Math.max(0, Math.min(1, (t - start) / 300));
+      const p = Math.max(0, Math.min(1, (t - start) / 180));
       pulseBar.setAttribute('width', (p * 180).toFixed(1));
       if (p < 1) requestAnimationFrame(tick);
     }
     requestAnimationFrame(tick);
 
-    // arm swing down to PRESS_ANGLE
+    // arm swing onto the button
     setTimeout(() => servoArm.classList.add('swing'), 30);
 
     // button press visual + ripple (lands once arm has swung)

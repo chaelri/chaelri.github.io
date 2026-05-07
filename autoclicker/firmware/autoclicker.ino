@@ -11,30 +11,45 @@
 //                                 Connect from your phone, open
 //                                 http://192.168.4.1/, tap the button.
 //
-// Switch element: MG90S micro-servo (metal-gear). Fires a tap by sweeping a
-// short stick / stylus from REST_ANGLE down to PRESS_ANGLE and back.
+// Switch element: continuous-rotation (360°) micro-servo. Unlike a positional
+// servo, pulse width controls SPEED + DIRECTION, not angle. To press a button
+// we run brief timed bursts:
+//
+//   PUSH_US   for PUSH_MS    -> arm rotates ONTO the button
+//   STOP_US   for HOLD_MS    -> arm holds against the button (motor stopped)
+//   RETURN_US for RETURN_MS  -> arm rotates BACK to rest
+//   STOP_US   (idle)         -> motor stopped at rest position
 //
 // Wiring (no soldering — three jumpers only):
 //
-//   Servo signal (orange) -> ESP32 GPIO3
-//   Servo VCC    (red)    -> ESP32 5V
-//   Servo GND    (brown)  -> ESP32 GND
+//   Servo signal (orange or yellow) -> ESP32 GPIO3
+//   Servo VCC    (red)              -> ESP32 5V
+//   Servo GND    (brown)            -> ESP32 GND
 //
 //   USB-C charger / powerbank -> ESP32 USB-C
 //
-// Power note: MG90S draws ~250–400 mA while moving, ~50 mA while holding.
-// A normal USB-C powerbank (2 A) handles both ESP32 and servo on the same
-// rail with margin. To avoid stall current (a servo physically blocked from
-// reaching its target angle keeps pulling 700 mA+), keep PRESS_ANGLE within
-// a few degrees of REST_ANGLE — just enough travel to push the button.
+// Power note: a 360° MG90S draws ~250–400 mA while moving, ~5–10 mA while
+// stopped at neutral. A normal USB-C powerbank (2 A) handles both ESP32 and
+// servo on the same rail with margin. Keep PUSH_MS short enough that the arm
+// doesn't ram into a hard stop and stall (stall current is 700 mA+).
 //
 // Library: ESP32Servo (Arduino IDE Library Manager → search "ESP32Servo" by
 // Kevin Harrington). Do NOT use the classic AVR Servo.h — it does not work
 // on ESP32-C3.
 //
-// Tuning: REST_ANGLE / PRESS_ANGLE / PRESS_HOLD_MS are the only knobs you
-// should touch. If the press is too soft, raise PRESS_ANGLE in 5° steps.
-// If it overshoots and rams the button, lower it.
+// Tuning order:
+//   1. STOP_US — adjust 1480..1520 until the horn truly stops at idle. Cheap
+//      CR servos rarely stop at exactly 1500 (they "creep" slowly).
+//   2. PUSH_US / RETURN_US — if the arm spins the wrong way on press, swap
+//      these two values. Keep them symmetric around STOP_US.
+//   3. PUSH_MS / RETURN_MS — burst length. Longer burst = more travel. Keep
+//      them equal so the arm lands back at rest after each cycle.
+//   4. HOLD_MS — how long the arm stays pressed (100–150 ms is plenty).
+//
+// CR-servo gotcha: there is NO position feedback. Over many clicks, even a
+// tiny PUSH/RETURN time mismatch makes the arm drift. Add a soft mechanical
+// stop (foam pad, 3D-printed tab) at the rest position so each cycle bumps
+// back to a known location.
 //
 // Board: "ESP32C3 Dev Module"   USB CDC On Boot: Enabled
 // Baud:  115200
@@ -64,12 +79,19 @@ const char* DB_URL =
   "/autoclicker/command.json";
 
 // --- Pins / timing -----------------------------------------------------------
-const int SERVO_PIN     = 3;     // GPIO3 -> servo signal (orange)
+const int SERVO_PIN     = 3;     // GPIO3 -> servo signal (orange/yellow)
 const int LED_PIN       = 8;     // GPIO8 -> onboard blue LED (active LOW)
-const int REST_ANGLE    = 0;     // arm raised, not touching button
-const int PRESS_ANGLE   = 35;    // arm pressed down on button (tune per build)
-const int PRESS_HOLD_MS = 300;   // how long the press is held
-const int RELEASE_MS    = 200;   // settle time after returning to REST
+
+// Continuous-rotation servo: pulse width = speed + direction. STOP_US is the
+// neutral pulse where the motor is supposed to be still. PUSH/RETURN sit on
+// either side of it; the further from STOP_US, the faster the rotation.
+const int STOP_US       = 1500;  // neutral — try 1480..1520 if horn creeps
+const int PUSH_US       = 1300;  // press direction (swap with RETURN_US if reversed)
+const int RETURN_US     = 1700;  // lift direction
+const int PUSH_MS       = 180;   // burst duration onto the button
+const int HOLD_MS       = 120;   // hold pressed against the button
+const int RETURN_MS     = 180;   // mirror of PUSH_MS so arm lands back at rest
+const int RELEASE_MS    = 200;   // settle before next press
 const int POLL_MS       = 1000;  // Firebase poll interval
 
 Servo finger;
@@ -272,12 +294,16 @@ btn.addEventListener('click',async()=>{
 
 void click(int times) {
   for (int i = 0; i < times; i++) {
-    digitalWrite(LED_PIN, LOW);          // LED on (active LOW) during press
-    finger.write(PRESS_ANGLE);
-    delay(PRESS_HOLD_MS);
-    finger.write(REST_ANGLE);
-    digitalWrite(LED_PIN, HIGH);         // LED off
-    delay(RELEASE_MS);                   // let arm settle before next press
+    digitalWrite(LED_PIN, LOW);                  // LED on (active LOW) during press
+    finger.writeMicroseconds(PUSH_US);           // burst toward the button
+    delay(PUSH_MS);
+    finger.writeMicroseconds(STOP_US);           // hold pressed (motor stopped)
+    delay(HOLD_MS);
+    finger.writeMicroseconds(RETURN_US);         // burst back toward rest
+    delay(RETURN_MS);
+    finger.writeMicroseconds(STOP_US);           // park at rest
+    digitalWrite(LED_PIN, HIGH);                 // LED off
+    delay(RELEASE_MS);                           // settle before next press
     if (i < times - 1) delay(150);
   }
   lastFiredAt = millis();
@@ -323,7 +349,7 @@ void setup() {
   // ESP32Servo allocates one of the four LEDC PWM channels under the hood.
   finger.setPeriodHertz(50);            // standard 50 Hz hobby-servo PWM
   finger.attach(SERVO_PIN, 500, 2400);
-  finger.write(REST_ANGLE);             // park at rest immediately
+  finger.writeMicroseconds(STOP_US);    // motor stopped at boot
 
   pinMode(LED_PIN, OUTPUT);
   digitalWrite(LED_PIN, HIGH);          // LED off (active LOW)
