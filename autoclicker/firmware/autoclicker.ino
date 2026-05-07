@@ -81,9 +81,20 @@ const char* AP_PASS = "click1234";   // must be >= 8 chars for WPA2
 const unsigned long WIFI_CONNECT_TIMEOUT_MS = 15000;  // 15 s before falling to SoftAP
 
 // --- Firebase RTDB -----------------------------------------------------------
+// Two paths:
+//   /autoclicker/command — transient signal. Phone writes a string ("press",
+//                          "release", "toggle", "click"); firmware acts on it
+//                          and clears it back to "".
+//   /autoclicker/state   — authoritative latched state (boolean). Firmware
+//                          writes here AFTER every action so any subscriber
+//                          (phone remote, dashboards) sees the truth in real
+//                          time, regardless of which platform triggered it.
 const char* DB_URL =
   "https://test-database-55379-default-rtdb.asia-southeast1.firebasedatabase.app"
   "/autoclicker/command.json";
+const char* STATE_URL =
+  "https://test-database-55379-default-rtdb.asia-southeast1.firebasedatabase.app"
+  "/autoclicker/state.json";
 
 // --- Pins / timing -----------------------------------------------------------
 const int SERVO_PIN     = 3;     // GPIO3 -> servo signal (orange/yellow)
@@ -355,10 +366,22 @@ clickBtn.addEventListener('click',async()=>{
 </html>
 )rawliteral";
 
+// Publish the current latched state to Firebase so any remote (phone, web
+// dashboard) reflects the truth in real time. No-op when offline / SoftAP.
+void publishState() {
+  if (inSoftAP || WiFi.status() != WL_CONNECTED) return;
+  HTTPClient http;
+  http.begin(STATE_URL);
+  http.addHeader("Content-Type", "application/json");
+  http.PUT(isPressed ? "true" : "false");
+  http.end();
+}
+
 // --- Press / release / toggle state machine ---------------------------------
 // The arm is LATCHED. doPress() bursts forward and parks (motor off, button
 // holds the arm). doRelease() bursts the equal-and-opposite amount, returning
-// the arm exactly to its starting position.
+// the arm exactly to its starting position. Both publish the new state to
+// Firebase so subscribers update immediately.
 void doPress() {
   if (isPressed) return;                         // already pressed — no-op
   digitalWrite(LED_PIN, LOW);                    // LED on while pressed
@@ -367,6 +390,7 @@ void doPress() {
   finger.writeMicroseconds(STOP_US);             // motor off — arm stays put
   isPressed = true;
   lastFiredAt = millis();
+  publishState();
   Serial.println("press   -> isPressed=true");
 }
 
@@ -378,6 +402,7 @@ void doRelease() {
   digitalWrite(LED_PIN, HIGH);                   // LED off
   isPressed = false;
   lastFiredAt = millis();
+  publishState();
   Serial.println("release -> isPressed=false");
 }
 
@@ -473,6 +498,9 @@ void setup() {
 
   String ip = inSoftAP ? WiFi.softAPIP().toString() : WiFi.localIP().toString();
   Serial.println("Web UI: http://" + ip + "/");
+
+  // Publish initial released state so any subscriber starts in sync
+  publishState();
 }
 
 void loop() {

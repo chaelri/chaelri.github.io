@@ -926,6 +926,9 @@ const unsigned long WIFI_CONNECT_TIMEOUT_MS = 15000;
 const char* DB_URL =
   "https://test-database-55379-default-rtdb.asia-southeast1.firebasedatabase.app"
   "/autoclicker/command.json";
+const char* STATE_URL =
+  "https://test-database-55379-default-rtdb.asia-southeast1.firebasedatabase.app"
+  "/autoclicker/state.json";
 
 const int SERVO_PIN     = 3;     // GPIO3 → servo signal (orange/yellow)
 const int LED_PIN       = 8;     // onboard blue LED (active LOW)
@@ -950,6 +953,16 @@ const char INDEX_HTML[] PROGMEM = R"rawliteral(
        JetBrains-Mono status pill, fetch('/click'). Fully offline-capable. --&gt;
 )rawliteral";
 
+// Publish authoritative state to Firebase so subscribers update live
+void publishState() {
+  if (inSoftAP || WiFi.status() != WL_CONNECTED) return;
+  HTTPClient http;
+  http.begin(STATE_URL);
+  http.addHeader("Content-Type", "application/json");
+  http.PUT(isPressed ? "true" : "false");
+  http.end();
+}
+
 void doPress() {
   if (isPressed) return;
   digitalWrite(LED_PIN, LOW);
@@ -957,6 +970,7 @@ void doPress() {
   delay(PUSH_MS);
   finger.writeMicroseconds(STOP_US);    // motor off — arm stays put
   isPressed = true;
+  publishState();
 }
 
 void doRelease() {
@@ -966,6 +980,7 @@ void doRelease() {
   finger.writeMicroseconds(STOP_US);    // motor off at rest
   digitalWrite(LED_PIN, HIGH);
   isPressed = false;
+  publishState();
 }
 
 void doToggle() { isPressed ? doRelease() : doPress(); }

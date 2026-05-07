@@ -168,9 +168,9 @@
       setTimeout(() => r.remove(), 700);
     }
 
-    // Local toggle state — phone is the "intent owner". The ESP32 is idempotent
-    // (doPress no-ops if already pressed) so a refresh that resets isOn=false
-    // resyncs naturally on the next tap.
+    // Authoritative latched state — read live from Firebase, written by ESP32
+    // after every action. Reflects truth regardless of which platform triggered
+    // (this phone, the local web UI, the firmware's own button, etc.).
     let isOn = false;
     function applyState(on) {
       isOn = on;
@@ -179,6 +179,16 @@
       btnLabel.textContent = on ? "PRESSED" : "PRESS";
       btnSub.textContent   = on ? "tap to release" : "tap to engage";
     }
+
+    onValue(ref(db, "autoclicker/state"), snap => {
+      const pressed = snap.val() === true;
+      applyState(pressed);
+      // Only nudge status text if we weren't mid-send; keep "sending" / "failed"
+      // states visible until the next user action.
+      if (!statusText.textContent.includes("…") && !statusText.textContent.includes("failed")) {
+        setStatus("ok", pressed ? "pressed — held" : "released");
+      }
+    });
 
     async function sendCmd(cmd) {
       try {
@@ -196,23 +206,22 @@
       if (navigator.vibrate) navigator.vibrate(15);
       spawnRipple();
       const next = !isOn;
+      // Optimistic UI — Firebase listener will confirm or correct
+      applyState(next);
       setStatus("send", next ? "engaging…" : "releasing…");
       const ok = await sendCmd(next ? "press" : "release");
-      if (ok) {
-        applyState(next);
-        setStatus("ok", next ? "pressed — held" : "released");
+      if (!ok) {
+        // revert optimistic flip on send failure
+        applyState(!next);
       }
     });
 
     clickBtn.addEventListener("click", async () => {
       if (navigator.vibrate) navigator.vibrate(10);
       setStatus("send", "single click…");
-      const ok = await sendCmd("click");
-      if (ok) {
-        // click always ends in released state on the firmware
-        applyState(false);
-        setStatus("ok", "clicked");
-      }
+      await sendCmd("click");
+      // For a single click the Firebase /state listener ends up at false again
+      // automatically once the firmware finishes the press→hold→release cycle.
     });
   </script>
 </body>
