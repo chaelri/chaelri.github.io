@@ -31,16 +31,23 @@
       vertical-align: middle;
     }
 
-    /* Big click button */
-    .click-btn { transition: transform 90ms cubic-bezier(0.22,1,0.36,1); will-change: transform; }
+    /* Big toggle button */
+    .click-btn { transition: transform 90ms cubic-bezier(0.22,1,0.36,1), background 280ms ease, box-shadow 280ms ease; will-change: transform; }
     .click-btn:active { transform: scale(0.94); transition-duration: 60ms; }
+
+    /* Pressed (latched) state — red/orange engage glow */
+    .click-btn.on {
+      background-image: linear-gradient(to bottom right, #ef4444, #b91c1c) !important;
+      box-shadow: 0 20px 60px -15px rgba(239,68,68,0.7), inset 0 1px 0 rgba(255,255,255,0.15);
+    }
 
     /* Ambient glow behind button */
     @keyframes pulseGlow {
       0%, 100% { opacity: 0.55; transform: scale(1); }
       50%      { opacity: 0.75; transform: scale(1.06); }
     }
-    .ambient-glow { animation: pulseGlow 3.6s ease-in-out infinite; }
+    .ambient-glow { animation: pulseGlow 3.6s ease-in-out infinite; transition: background 280ms ease; }
+    .ambient-glow.on { background-image: linear-gradient(to bottom right, rgba(239,68,68,0.45), rgba(249,115,22,0.35)) !important; }
 
     /* Tap ripple */
     @keyframes ripple {
@@ -69,16 +76,16 @@
     </header>
 
     <!-- big circle button — vertically centered -->
-    <div class="flex-1 flex items-center justify-center py-6">
+    <div class="flex-1 flex flex-col items-center justify-center py-6 gap-6">
       <div class="relative">
         <!-- ambient glow halo -->
-        <div class="ambient-glow absolute -inset-10 rounded-full bg-gradient-to-br from-indigo-500/30 to-purple-600/30 blur-3xl pointer-events-none"></div>
+        <div id="ambientGlow" class="ambient-glow absolute -inset-10 rounded-full bg-gradient-to-br from-indigo-500/30 to-purple-600/30 blur-3xl pointer-events-none"></div>
 
         <!-- ripple host (sits ON the button) -->
         <div id="rippleHost" class="absolute inset-0 rounded-full overflow-hidden pointer-events-none"></div>
 
-        <button id="clickBtn"
-          aria-label="Send click command"
+        <button id="toggleBtn"
+          aria-label="Toggle servo press"
           class="click-btn relative w-64 h-64 rounded-full grid place-items-center
                  bg-gradient-to-br from-indigo-500 to-purple-600
                  hover:from-indigo-400 hover:to-purple-500
@@ -86,12 +93,23 @@
           <!-- inner ring -->
           <div class="absolute inset-3 rounded-full border border-white/15 pointer-events-none"></div>
           <div class="text-center select-none">
-            <span class="material-symbols-outlined text-white block" style="font-size:64px">touch_app</span>
-            <div class="text-white font-extrabold tracking-[0.18em] text-xl mt-1">CLICK</div>
-            <div class="text-white/60 text-[11px] mt-1 mono">servo press</div>
+            <span id="btnIcon" class="material-symbols-outlined text-white block" style="font-size:64px">touch_app</span>
+            <div id="btnLabel" class="text-white font-extrabold tracking-[0.18em] text-xl mt-1">PRESS</div>
+            <div id="btnSub" class="text-white/60 text-[11px] mt-1 mono">tap to engage</div>
           </div>
         </button>
       </div>
+
+      <!-- secondary momentary-click button -->
+      <button id="clickBtn"
+        aria-label="Send single click command"
+        class="inline-flex items-center gap-2 px-5 py-2.5 rounded-full
+               bg-white/[0.04] border border-white/[0.08] text-slate-300
+               hover:bg-white/[0.08] hover:text-white active:scale-95 transition-all
+               text-xs uppercase tracking-[0.18em] font-semibold">
+        <span class="material-symbols-outlined" style="font-size:18px">ads_click</span>
+        single click
+      </button>
     </div>
 
     <!-- status footer -->
@@ -104,7 +122,7 @@
     </div>
 
     <p class="text-[10px] text-slate-600 mt-4 text-center">
-      Charlie's DIY auto-clicker · ESP32-C3 + MG90S servo
+      Charlie's DIY auto-clicker · ESP32-C3 + MG90S 360° servo
     </p>
   </div>
 
@@ -126,7 +144,9 @@
     const $ = id => document.getElementById(id);
     const connDot   = $("connDot"),   connText   = $("connText");
     const statusDot = $("statusDot"), statusText = $("statusText"), lastTime = $("lastTime");
-    const btn       = $("clickBtn"),  rippleHost = $("rippleHost");
+    const toggleBtn = $("toggleBtn"), clickBtn   = $("clickBtn");
+    const rippleHost = $("rippleHost"), ambientGlow = $("ambientGlow");
+    const btnLabel  = $("btnLabel"),  btnSub    = $("btnSub");
 
     // online indicator
     onValue(ref(db, ".info/connected"), snap => {
@@ -148,17 +168,50 @@
       setTimeout(() => r.remove(), 700);
     }
 
-    btn.addEventListener("click", async () => {
-      if (navigator.vibrate) navigator.vibrate(15);
-      spawnRipple();
-      setStatus("send", "sending click…");
+    // Local toggle state — phone is the "intent owner". The ESP32 is idempotent
+    // (doPress no-ops if already pressed) so a refresh that resets isOn=false
+    // resyncs naturally on the next tap.
+    let isOn = false;
+    function applyState(on) {
+      isOn = on;
+      toggleBtn.classList.toggle("on", on);
+      ambientGlow.classList.toggle("on", on);
+      btnLabel.textContent = on ? "PRESSED" : "PRESS";
+      btnSub.textContent   = on ? "tap to release" : "tap to engage";
+    }
+
+    async function sendCmd(cmd) {
       try {
-        await set(ref(db, "autoclicker/command"), "click");
-        setStatus("ok", "sent — ESP32 will fire within ~1 s");
+        await set(ref(db, "autoclicker/command"), cmd);
         lastTime.textContent = new Date().toLocaleTimeString();
+        return true;
       } catch (err) {
         console.error(err);
         setStatus("err", "failed: " + (err.message || err.code || err));
+        return false;
+      }
+    }
+
+    toggleBtn.addEventListener("click", async () => {
+      if (navigator.vibrate) navigator.vibrate(15);
+      spawnRipple();
+      const next = !isOn;
+      setStatus("send", next ? "engaging…" : "releasing…");
+      const ok = await sendCmd(next ? "press" : "release");
+      if (ok) {
+        applyState(next);
+        setStatus("ok", next ? "pressed — held" : "released");
+      }
+    });
+
+    clickBtn.addEventListener("click", async () => {
+      if (navigator.vibrate) navigator.vibrate(10);
+      setStatus("send", "single click…");
+      const ok = await sendCmd("click");
+      if (ok) {
+        // click always ends in released state on the firmware
+        applyState(false);
+        setStatus("ok", "clicked");
       }
     });
   </script>

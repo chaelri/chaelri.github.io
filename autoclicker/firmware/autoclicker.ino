@@ -1,24 +1,33 @@
 // ===========================================================================
 // autoclicker.ino — ESP32-C3 SuperMini firmware for the DIY WiFi auto-clicker
 // ---------------------------------------------------------------------------
-// THREE WAYS TO TRIGGER A CLICK:
-//   1. Phone remote (online)   -> writes "click" to Firebase RTDB; firmware
-//                                 polls /autoclicker/command every 1 s.
+// TWO ACTION MODES:
+//   click   -> momentary press: forward burst, brief hold, mirrored return.
+//              Always ends back at rest. Use for "tap this button once."
+//   toggle  -> latched press: stays engaged until you toggle off again.
+//              Use for "hold this button down" (keys, reset switches, etc.).
+//   press / release -> explicit on / off (alternative to toggle).
+//
+// THREE WAYS TO TRIGGER (any of the above commands):
+//   1. Phone remote (online)   -> writes the command string to Firebase RTDB;
+//                                 firmware polls /autoclicker/command every 1 s.
 //   2. Local web UI (online)   -> any device on the same WiFi opens
-//                                 http://<esp32-ip>/ and taps the big button.
+//                                 http://<esp32-ip>/ and taps either button.
 //   3. SoftAP fallback (offline) -> if no known WiFi is reachable, the ESP32
 //                                 broadcasts its own network "AutoClicker-AP".
-//                                 Connect from your phone, open
-//                                 http://192.168.4.1/, tap the button.
 //
-// Switch element: continuous-rotation (360°) micro-servo. Unlike a positional
-// servo, pulse width controls SPEED + DIRECTION, not angle. To press a button
-// we run brief timed bursts:
+// Switch element: continuous-rotation (360°) micro-servo. Pulse width controls
+// SPEED + DIRECTION, not angle. The press cycle is a state machine:
 //
-//   PUSH_US   for PUSH_MS    -> arm rotates ONTO the button
-//   STOP_US   for HOLD_MS    -> arm holds against the button (motor stopped)
-//   RETURN_US for RETURN_MS  -> arm rotates BACK to rest
-//   STOP_US   (idle)         -> motor stopped at rest position
+//   isPressed=false + press   -> burst PUSH_US for PUSH_MS, then STOP_US.
+//                                Motor is off; arm stays where it landed
+//                                because the button mechanically holds it.
+//                                isPressed becomes true.
+//   isPressed=true  + release -> burst RETURN_US for RETURN_MS (same time as
+//                                PUSH_MS, opposite direction → arm lands back
+//                                at rest), then STOP_US. isPressed becomes false.
+//   toggle                    -> flips whichever state is current.
+//   No idle drain: motor is OFF (STOP_US) the whole time you're not bursting.
 //
 // Wiring (no soldering — three jumpers only):
 //
@@ -28,28 +37,26 @@
 //
 //   USB-C charger / powerbank -> ESP32 USB-C
 //
-// Power note: a 360° MG90S draws ~250–400 mA while moving, ~5–10 mA while
-// stopped at neutral. A normal USB-C powerbank (2 A) handles both ESP32 and
-// servo on the same rail with margin. Keep PUSH_MS short enough that the arm
-// doesn't ram into a hard stop and stall (stall current is 700 mA+).
+// Power note: a 360° MG90S draws ~250–400 mA while bursting, ~5–10 mA while
+// stopped at neutral. A normal USB-C powerbank (2 A) handles ESP32 + servo
+// on one rail with margin. Keep PUSH_MS short enough that the arm doesn't
+// ram into a hard stop and stall (stall current is 700 mA+).
 //
 // Library: ESP32Servo (Arduino IDE Library Manager → search "ESP32Servo" by
-// Kevin Harrington). Do NOT use the classic AVR Servo.h — it does not work
-// on ESP32-C3.
+// Kevin Harrington). Do NOT use the classic AVR Servo.h.
 //
 // Tuning order:
 //   1. STOP_US — adjust 1480..1520 until the horn truly stops at idle. Cheap
-//      CR servos rarely stop at exactly 1500 (they "creep" slowly).
+//      CR servos rarely stop at exactly 1500.
 //   2. PUSH_US / RETURN_US — if the arm spins the wrong way on press, swap
 //      these two values. Keep them symmetric around STOP_US.
-//   3. PUSH_MS / RETURN_MS — burst length. Longer burst = more travel. Keep
-//      them equal so the arm lands back at rest after each cycle.
-//   4. HOLD_MS — how long the arm stays pressed (100–150 ms is plenty).
+//   3. PUSH_MS / RETURN_MS — burst length controls how far the arm travels.
+//      Longer = more push depth / more torque against the button. KEEP THEM
+//      EQUAL so release lands the arm back where it started.
 //
-// CR-servo gotcha: there is NO position feedback. Over many clicks, even a
-// tiny PUSH/RETURN time mismatch makes the arm drift. Add a soft mechanical
-// stop (foam pad, 3D-printed tab) at the rest position so each cycle bumps
-// back to a known location.
+// CR-servo gotcha: there is NO position feedback. If PUSH and RETURN times
+// drift apart, the arm walks. Add a soft mechanical stop (foam pad, 3D-
+// printed tab) at the rest position so each release bumps back home.
 //
 // Board: "ESP32C3 Dev Module"   USB CDC On Boot: Enabled
 // Baud:  115200
@@ -87,16 +94,15 @@ const int LED_PIN       = 8;     // GPIO8 -> onboard blue LED (active LOW)
 // either side of it; the further from STOP_US, the faster the rotation.
 const int STOP_US       = 1500;  // neutral — try 1480..1520 if horn creeps
 const int PUSH_US       = 1300;  // press direction (swap with RETURN_US if reversed)
-const int RETURN_US     = 1700;  // lift direction
-const int PUSH_MS       = 180;   // burst duration onto the button
-const int HOLD_MS       = 120;   // hold pressed against the button
-const int RETURN_MS     = 180;   // mirror of PUSH_MS so arm lands back at rest
-const int RELEASE_MS    = 200;   // settle before next press
+const int RETURN_US     = 1700;  // release direction
+const int PUSH_MS       = 280;   // burst duration onto the button — longer = more travel/torque
+const int RETURN_MS     = 280;   // MUST equal PUSH_MS so release lands at rest
 const int POLL_MS       = 1000;  // Firebase poll interval
 
 Servo finger;
 WebServer server(80);
 bool inSoftAP = false;
+bool isPressed = false;            // latched press state (toggle target)
 unsigned long lastFiredAt = 0;
 
 // --- Built-in web UI (served at "/" in both station and SoftAP modes) --------
@@ -244,6 +250,16 @@ const char INDEX_HTML[] PROGMEM = R"rawliteral(
   .status.ok .status-dot{background:#34d399;box-shadow:0 0 10px #34d399}
   .status.err{color:#f87171;border-color:rgba(248,113,113,.3)}
   .status.err .status-dot{background:#f87171;box-shadow:0 0 10px #f87171}
+  .secondary-btn{
+    margin:0 auto 1rem;display:inline-flex;align-items:center;gap:.5rem;
+    padding:.65rem 1.4rem;border-radius:999px;
+    background:rgba(99,102,241,.15);border:1px solid rgba(129,140,248,.35);
+    color:#c7d2fe;font-family:inherit;font-size:.78rem;font-weight:600;
+    letter-spacing:.18em;text-transform:uppercase;cursor:pointer;
+    transition:background .2s,color .2s,transform .1s;
+    z-index:1;
+  }
+  .secondary-btn:active{transform:scale(.96);background:rgba(99,102,241,.25);color:#fff}
 </style>
 </head>
 <body>
@@ -253,35 +269,82 @@ const char INDEX_HTML[] PROGMEM = R"rawliteral(
   </header>
   <main>
     <div class="stage">
-      <div class="halo"></div>
-      <button class="click-btn" id="clickBtn" aria-label="Fire one click">
-        <span class="label">Click</span>
-        <span class="sub">SERVO PRESS</span>
+      <div class="halo" id="halo"></div>
+      <button class="click-btn" id="toggleBtn" aria-label="Toggle servo press">
+        <span class="label" id="btnLabel">PRESS</span>
+        <span class="sub" id="btnSub">tap to engage</span>
       </button>
       <span class="ring" id="ring"></span>
     </div>
   </main>
+  <button class="secondary-btn" id="clickBtn" aria-label="Single momentary click">
+    <span class="material-symbols-outlined" style="font-size:18px;vertical-align:middle">ads_click</span>
+    <span style="vertical-align:middle">single click</span>
+  </button>
   <footer>
     <span class="status" id="status">
       <span class="status-dot"></span>
-      <span id="statusText">idle</span>
+      <span id="statusText">released</span>
     </span>
   </footer>
 <script>
-const btn=document.getElementById('clickBtn');
+const btn=document.getElementById('toggleBtn');
+const halo=document.getElementById('halo');
 const ring=document.getElementById('ring');
 const status=document.getElementById('status');
 const statusText=document.getElementById('statusText');
+const btnLabel=document.getElementById('btnLabel');
+const btnSub=document.getElementById('btnSub');
 function setStatus(s,t){status.className='status '+s;statusText.textContent=t;}
+function applyState(pressed){
+  if(pressed){
+    btn.style.background='radial-gradient(circle at 32% 28%,#fca5a5 0%,#ef4444 35%,#b91c1c 65%,#7f1d1d 100%)';
+    halo.style.background='radial-gradient(circle,rgba(239,68,68,.22) 0%,rgba(239,68,68,0) 60%)';
+    btnLabel.textContent='PRESSED';
+    btnSub.textContent='tap to release';
+  }else{
+    btn.style.background='';
+    halo.style.background='';
+    btnLabel.textContent='PRESS';
+    btnSub.textContent='tap to engage';
+  }
+}
+async function syncState(){
+  try{
+    const r=await fetch('/state');
+    if(!r.ok)return;
+    const j=await r.json();
+    applyState(!!j.pressed);
+    setStatus('',j.pressed?'pressed':'released');
+  }catch(e){}
+}
+syncState();
 btn.addEventListener('click',async()=>{
   if(navigator.vibrate)navigator.vibrate(15);
   ring.classList.remove('fire');void ring.offsetWidth;ring.classList.add('fire');
-  setStatus('send','firing');
+  setStatus('send','toggling');
+  try{
+    const r=await fetch('/toggle',{method:'POST'});
+    if(!r.ok)throw new Error(r.status);
+    const j=await r.json();
+    applyState(!!j.pressed);
+    setStatus('ok',j.pressed?'pressed':'released');
+  }catch(e){
+    setStatus('err','failed');
+    setTimeout(()=>setStatus('','idle'),1800);
+  }
+});
+const clickBtn=document.getElementById('clickBtn');
+clickBtn.addEventListener('click',async()=>{
+  if(navigator.vibrate)navigator.vibrate(10);
+  setStatus('send','clicking');
   try{
     const r=await fetch('/click',{method:'POST'});
     if(!r.ok)throw new Error(r.status);
-    setStatus('ok','fired');
-    setTimeout(()=>setStatus('','idle'),1100);
+    const j=await r.json();
+    applyState(!!j.pressed);
+    setStatus('ok','clicked');
+    setTimeout(()=>setStatus('','released'),900);
   }catch(e){
     setStatus('err','failed');
     setTimeout(()=>setStatus('','idle'),1800);
@@ -292,21 +355,45 @@ btn.addEventListener('click',async()=>{
 </html>
 )rawliteral";
 
-void click(int times) {
-  for (int i = 0; i < times; i++) {
-    digitalWrite(LED_PIN, LOW);                  // LED on (active LOW) during press
-    finger.writeMicroseconds(PUSH_US);           // burst toward the button
-    delay(PUSH_MS);
-    finger.writeMicroseconds(STOP_US);           // hold pressed (motor stopped)
-    delay(HOLD_MS);
-    finger.writeMicroseconds(RETURN_US);         // burst back toward rest
-    delay(RETURN_MS);
-    finger.writeMicroseconds(STOP_US);           // park at rest
-    digitalWrite(LED_PIN, HIGH);                 // LED off
-    delay(RELEASE_MS);                           // settle before next press
-    if (i < times - 1) delay(150);
-  }
+// --- Press / release / toggle state machine ---------------------------------
+// The arm is LATCHED. doPress() bursts forward and parks (motor off, button
+// holds the arm). doRelease() bursts the equal-and-opposite amount, returning
+// the arm exactly to its starting position.
+void doPress() {
+  if (isPressed) return;                         // already pressed — no-op
+  digitalWrite(LED_PIN, LOW);                    // LED on while pressed
+  finger.writeMicroseconds(PUSH_US);             // burst onto the button
+  delay(PUSH_MS);
+  finger.writeMicroseconds(STOP_US);             // motor off — arm stays put
+  isPressed = true;
   lastFiredAt = millis();
+  Serial.println("press   -> isPressed=true");
+}
+
+void doRelease() {
+  if (!isPressed) return;                        // already released — no-op
+  finger.writeMicroseconds(RETURN_US);           // mirrored burst back to rest
+  delay(RETURN_MS);
+  finger.writeMicroseconds(STOP_US);             // motor off at rest
+  digitalWrite(LED_PIN, HIGH);                   // LED off
+  isPressed = false;
+  lastFiredAt = millis();
+  Serial.println("release -> isPressed=false");
+}
+
+void doToggle() { isPressed ? doRelease() : doPress(); }
+
+// Momentary click: force a full press-then-release cycle that always ends
+// back at rest. If we're already latched-pressed, release first to start
+// from a known state. CLICK_HOLD_MS is short — just enough for the button
+// to register the press.
+const int CLICK_HOLD_MS = 150;
+void doClick() {
+  if (isPressed) doRelease();
+  doPress();
+  delay(CLICK_HOLD_MS);
+  doRelease();
+  Serial.println("click   -> momentary cycle");
 }
 
 void clearCommand() {
@@ -317,8 +404,17 @@ void clearCommand() {
   http.end();
 }
 
-void handleRoot()  { server.send_P(200, "text/html; charset=utf-8", INDEX_HTML); }
-void handleClick() { click(1); server.send(200, "application/json", "{\"ok\":true}"); }
+void sendState() {
+  String body = String("{\"pressed\":") + (isPressed ? "true" : "false") + "}";
+  server.send(200, "application/json", body);
+}
+
+void handleRoot()    { server.send_P(200, "text/html; charset=utf-8", INDEX_HTML); }
+void handlePress()   { doPress();   sendState(); }
+void handleRelease() { doRelease(); sendState(); }
+void handleToggle()  { doToggle();  sendState(); }
+void handleClick()   { doClick();   sendState(); }
+void handleStateGet(){ sendState(); }
 
 void startSoftAP() {
   WiFi.mode(WIFI_AP);
@@ -363,8 +459,15 @@ void setup() {
   }
 
   server.on("/", handleRoot);
-  server.on("/click", HTTP_POST, handleClick);
-  server.on("/click", HTTP_GET, handleClick);
+  server.on("/press",   HTTP_POST, handlePress);
+  server.on("/press",   HTTP_GET,  handlePress);
+  server.on("/release", HTTP_POST, handleRelease);
+  server.on("/release", HTTP_GET,  handleRelease);
+  server.on("/toggle",  HTTP_POST, handleToggle);
+  server.on("/toggle",  HTTP_GET,  handleToggle);
+  server.on("/click",   HTTP_POST, handleClick);
+  server.on("/click",   HTTP_GET,  handleClick);
+  server.on("/state",   HTTP_GET,  handleStateGet);
   server.onNotFound(handleRoot);   // captive-portal-ish: any unknown URL serves the UI
   server.begin();
 
@@ -390,12 +493,10 @@ void loop() {
       body.trim();
       if (body.length() > 0) Serial.println(">>> received: " + body);
 
-      if (body == "click")           { click(1); clearCommand(); }
-      else if (body == "double")     { click(2); clearCommand(); }
-      else if (body.startsWith("auto_")) {
-        int n = body.substring(5).toInt();
-        if (n > 0 && n <= 50) { click(n); clearCommand(); }
-      }
+      if      (body == "press")    { doPress();   clearCommand(); }
+      else if (body == "release")  { doRelease(); clearCommand(); }
+      else if (body == "toggle")   { doToggle();  clearCommand(); }
+      else if (body == "click")    { doClick();   clearCommand(); }
     }
     http.end();
   }

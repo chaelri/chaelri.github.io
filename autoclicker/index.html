@@ -214,7 +214,7 @@
       <div class="text-xs text-slate-500 mt-1">signal · 5V · GND · plus 1 USB-C</div>
     </div>
     <div class="card p-4 text-left">
-      <div class="text-2xl font-semibold text-white">180 <span class="text-sm text-slate-500 font-normal">ms</span></div>
+      <div class="text-2xl font-semibold text-white">280 <span class="text-sm text-slate-500 font-normal">ms</span></div>
       <div class="text-xs text-slate-500 mt-1">servo push burst</div>
     </div>
     <div class="card p-4 text-left">
@@ -325,7 +325,7 @@
           <span class="material-symbols-outlined" style="font-size:18px">bolt</span>
           <span class="text-xs font-medium uppercase tracking-wider">Actuate</span>
         </div>
-        <div class="text-sm text-slate-300">GPIO3 → ESP32Servo PWM → 1300 µs burst rotates arm onto button → 1500 µs holds → 1700 µs burst returns it to rest.</div>
+        <div class="text-sm text-slate-300">GPIO3 → ESP32Servo PWM. <strong>Toggle</strong>: 1300 µs burst engages, motor stops, arm latched. Tap again → mirrored 1700 µs burst back to rest. <strong>Single click</strong>: same press, ~150 ms hold, auto-return.</div>
       </div>
     </div>
   </div>
@@ -711,7 +711,7 @@
       <span class="material-symbols-outlined text-indigo-300 mt-0.5">info</span>
       <div class="text-sm">
         <div class="text-white font-medium mb-1">Tuning the press</div>
-        <div class="text-slate-400">CR servos rarely stop at exactly 1500 µs — first nudge <span class="mono">STOP_US</span> (1480..1520) until the horn truly idles. Then tune <span class="mono">PUSH_MS</span> for travel and <span class="mono">HOLD_MS</span> for press depth. If the arm spins the wrong way, swap <span class="mono">PUSH_US</span> and <span class="mono">RETURN_US</span>.</div>
+        <div class="text-slate-400">CR servos rarely stop at exactly 1500 µs — first nudge <span class="mono">STOP_US</span> (1480..1520) until the horn truly idles. Then tune <span class="mono">PUSH_MS</span> / <span class="mono">RETURN_MS</span> together for travel (longer = deeper press). If the arm spins the wrong way on press, swap <span class="mono">PUSH_US</span> and <span class="mono">RETURN_US</span>.</div>
       </div>
     </div>
   </div>
@@ -722,7 +722,7 @@
   <div class="mb-10">
     <div class="text-xs uppercase tracking-[0.2em] text-indigo-400 mb-2">04 · Demo</div>
     <h2 class="text-3xl font-bold text-white">Click animation</h2>
-    <p class="text-slate-400 mt-2 max-w-xl">Tap the button — watch a 1300 µs burst rotate the arm onto the target, hold at 1500 µs, then a 1700 µs burst takes it back to rest.</p>
+    <p class="text-slate-400 mt-2 max-w-xl">Two modes: <strong>Toggle</strong> latches the arm down and stays there until tapped again. <strong>Single click</strong> presses, briefly holds, then auto-returns to rest.</p>
   </div>
 
   <div class="card p-6 sm:p-10">
@@ -799,20 +799,20 @@
                  bg-gradient-to-br from-indigo-500 to-purple-600 hover:from-indigo-400 hover:to-purple-500
                  transition-all glow-indigo">
           <div class="flex items-center justify-center gap-2">
-            <span class="material-symbols-outlined">touch_app</span>
-            <span>Trigger click</span>
+            <span class="material-symbols-outlined" id="triggerBtnIcon">toggle_off</span>
+            <span id="triggerBtnLabel">Toggle press</span>
           </div>
-          <div class="text-xs opacity-70 mt-0.5">simulates writeMicroseconds(1300)</div>
+          <div class="text-xs opacity-70 mt-0.5" id="triggerBtnSub">latches on/off — stays pressed until tapped again</div>
         </button>
 
-        <button id="triggerDouble"
+        <button id="triggerSingle"
           class="group relative w-full px-5 py-4 rounded-xl text-slate-200 font-medium bg-white/[0.04] border border-white/[0.08]
                  hover:bg-white/[0.07] transition-all">
           <div class="flex items-center justify-center gap-2">
             <span class="material-symbols-outlined">ads_click</span>
-            <span>Double click</span>
+            <span>Single click</span>
           </div>
-          <div class="text-xs opacity-70 mt-0.5">two presses, 150 ms apart</div>
+          <div class="text-xs opacity-70 mt-0.5">momentary — auto-returns to rest</div>
         </button>
 
         <div class="card p-4 space-y-3">
@@ -828,7 +828,7 @@
           </div>
 
           <div class="border-t border-white/5 pt-3 text-xs space-y-1.5">
-            <div class="flex justify-between"><span class="text-slate-500">Push burst</span><span class="text-slate-300 mono">180 ms</span></div>
+            <div class="flex justify-between"><span class="text-slate-500">Push burst</span><span class="text-slate-300 mono">280 ms</span></div>
             <div class="flex justify-between"><span class="text-slate-500">Click count</span><span class="text-slate-300 mono" id="clickCount">0</span></div>
             <div class="flex justify-between"><span class="text-slate-500">Last cmd</span><span class="text-slate-300 mono" id="lastCmd">—</span></div>
           </div>
@@ -933,12 +933,13 @@ const int LED_PIN       = 8;     // onboard blue LED (active LOW)
 // 360° continuous-rotation servo: pulse width = speed + direction (not angle)
 const int STOP_US       = 1500;  // neutral — tune 1480..1520 if the horn creeps
 const int PUSH_US       = 1300;  // press direction (swap with RETURN_US if reversed)
-const int RETURN_US     = 1700;  // lift direction
-const int PUSH_MS       = 180;   // burst onto button
-const int HOLD_MS       = 120;   // hold pressed
-const int RETURN_MS     = 180;   // burst back (mirror of PUSH_MS)
-const int RELEASE_MS    = 200;
+const int RETURN_US     = 1700;  // release direction
+const int PUSH_MS       = 280;   // burst onto button — longer = more travel/torque
+const int RETURN_MS     = 280;   // MUST equal PUSH_MS so release lands at rest
+const int CLICK_HOLD_MS = 150;   // momentary-click hold time
 const int POLL_MS       = 1000;
+
+bool isPressed = false;          // latched state for toggle
 
 // Inline HTML/CSS for the built-in click UI — no CDN deps so it works offline
 // in SoftAP mode. ~150 lines of dark-slate + amber-glow custom CSS, omitted
@@ -949,24 +950,45 @@ const char INDEX_HTML[] PROGMEM = R"rawliteral(
        JetBrains-Mono status pill, fetch('/click'). Fully offline-capable. --&gt;
 )rawliteral";
 
-void click(int times) {
-  for (int i = 0; i &lt; times; i++) {
-    digitalWrite(LED_PIN, LOW);
-    finger.writeMicroseconds(PUSH_US);    // burst onto button
-    delay(PUSH_MS);
-    finger.writeMicroseconds(STOP_US);    // hold pressed
-    delay(HOLD_MS);
-    finger.writeMicroseconds(RETURN_US);  // burst back
-    delay(RETURN_MS);
-    finger.writeMicroseconds(STOP_US);    // park at rest
-    digitalWrite(LED_PIN, HIGH);
-    delay(RELEASE_MS);
-    if (i &lt; times - 1) delay(150);
-  }
+void doPress() {
+  if (isPressed) return;
+  digitalWrite(LED_PIN, LOW);
+  finger.writeMicroseconds(PUSH_US);    // burst onto button
+  delay(PUSH_MS);
+  finger.writeMicroseconds(STOP_US);    // motor off — arm stays put
+  isPressed = true;
 }
 
-void handleRoot()  { server.send_P(200, "text/html; charset=utf-8", INDEX_HTML); }
-void handleClick() { click(1); server.send(200, "application/json", "{\"ok\":true}"); }
+void doRelease() {
+  if (!isPressed) return;
+  finger.writeMicroseconds(RETURN_US);  // mirrored burst back
+  delay(RETURN_MS);
+  finger.writeMicroseconds(STOP_US);    // motor off at rest
+  digitalWrite(LED_PIN, HIGH);
+  isPressed = false;
+}
+
+void doToggle() { isPressed ? doRelease() : doPress(); }
+
+void doClick() {
+  // Momentary click: always ends back at rest
+  if (isPressed) doRelease();
+  doPress();
+  delay(CLICK_HOLD_MS);
+  doRelease();
+}
+
+void sendState() {
+  String body = String("{\"pressed\":") + (isPressed ? "true" : "false") + "}";
+  server.send(200, "application/json", body);
+}
+
+void handleRoot()    { server.send_P(200, "text/html; charset=utf-8", INDEX_HTML); }
+void handlePress()   { doPress();   sendState(); }
+void handleRelease() { doRelease(); sendState(); }
+void handleToggle()  { doToggle();  sendState(); }
+void handleClick()   { doClick();   sendState(); }
+void handleStateGet(){ sendState(); }
 
 void clearCommand() {
   HTTPClient http;
@@ -1008,8 +1030,11 @@ void setup() {
   if (!tryStation()) startSoftAP();
 
   server.on("/", handleRoot);
-  server.on("/click", HTTP_POST, handleClick);
-  server.on("/click", HTTP_GET, handleClick);
+  server.on("/press",   HTTP_POST, handlePress);
+  server.on("/release", HTTP_POST, handleRelease);
+  server.on("/toggle",  HTTP_POST, handleToggle);
+  server.on("/click",   HTTP_POST, handleClick);
+  server.on("/state",   HTTP_GET,  handleStateGet);
   server.onNotFound(handleRoot);
   server.begin();
 }
@@ -1028,12 +1053,10 @@ void loop() {
     if (http.GET() == 200) {
       String body = http.getString();
       body.replace("\"", ""); body.trim();
-      if (body == "click")           { click(1); clearCommand(); }
-      else if (body == "double")     { click(2); clearCommand(); }
-      else if (body.startsWith("auto_")) {
-        int n = body.substring(5).toInt();
-        if (n &gt; 0 &amp;&amp; n &lt;= 50) { click(n); clearCommand(); }
-      }
+      if      (body == "press")    { doPress();   clearCommand(); }
+      else if (body == "release")  { doRelease(); clearCommand(); }
+      else if (body == "toggle")   { doToggle();  clearCommand(); }
+      else if (body == "click")    { doClick();   clearCommand(); }
     }
     http.end();
   }
@@ -1235,8 +1258,9 @@ const steps = [
   { g: 'Wiring',     t: 'Tug-test all 3 jumpers — none should pull free' },
   { g: 'Test',       t: 'Plug USB-C powerbank into ESP32; servo should hold still (motor stopped at STOP_US neutral) on boot' },
   { g: 'Test',       t: 'If the horn slowly creeps at boot, nudge STOP_US by ±20 µs (try 1480 or 1520) and re-upload until it truly idles' },
-  { g: 'Test',       t: 'Open phone web app or http://<esp32-ip>/ on the same WiFi; tap "Click" — arm bursts onto target, holds, bursts back to rest within ~1 second' },
-  { g: 'Test',       t: 'If the arm spins the wrong way on press, swap PUSH_US and RETURN_US in firmware. If travel is too short, raise PUSH_MS / RETURN_MS together (keep them equal so it lands back home)' },
+  { g: 'Test',       t: 'Open phone web app or http://<esp32-ip>/ on the same WiFi; tap "single click" — arm bursts onto target, holds briefly, bursts back to rest within ~1 second' },
+  { g: 'Test',       t: 'Tap the big PRESS button to latch ON (arm stays pressed). Tap again to release — same burst time, opposite direction, lands at rest' },
+  { g: 'Test',       t: 'If the arm spins the wrong way on press, swap PUSH_US and RETURN_US in firmware. If travel is too short, raise PUSH_MS / RETURN_MS together (keep them equal so release lands back home)' },
   { g: 'Test',       t: 'Tap "Double" and "Auto x5"; verify counts and clean return to rest between presses' },
   { g: 'Mount',      t: 'Glue or tape a chopstick / popsicle stick / 3D-printed arm onto the servo horn — this is the "finger" that taps the button' },
   { g: 'Mount',      t: 'Position servo so the finger lands squarely on the target button at the end of one push burst; add a soft mechanical stop (foam pad / 3D-printed tab) at rest position so drift over many clicks bumps the arm home' },
@@ -1281,10 +1305,13 @@ items.forEach(li => {
 updateProgress();
 
 // ===========================================================================
-// Click animation demo
+// Demo — toggle (latch) + single click (momentary auto-return)
 // ===========================================================================
-const triggerBtn  = document.getElementById('triggerBtn');
-const triggerDbl  = document.getElementById('triggerDouble');
+const triggerBtn       = document.getElementById('triggerBtn');
+const triggerSingle    = document.getElementById('triggerSingle');
+const triggerBtnIcon   = document.getElementById('triggerBtnIcon');
+const triggerBtnLabel  = document.getElementById('triggerBtnLabel');
+const triggerBtnSub    = document.getElementById('triggerBtnSub');
 const servoArm    = document.getElementById('servoArm');
 const btnCircle   = document.getElementById('btnCircle');
 const servoLed    = document.getElementById('gpioLed');
@@ -1298,6 +1325,10 @@ const rippleHost  = document.getElementById('rippleHost');
 
 let clickTotal = 0;
 let busy = false;
+let isPressedDemo = false;
+const PUSH_BURST_MS = 280;     // matches firmware PUSH_MS
+const RETURN_BURST_MS = 280;   // matches firmware RETURN_MS
+const CLICK_HOLD_MS = 150;     // matches firmware CLICK_HOLD_MS
 
 function setServo(pressed) {
   if (pressed) {
@@ -1313,71 +1344,100 @@ function setServo(pressed) {
   }
 }
 
-function pushOnce() {
-  return new Promise(resolve => {
-    setServo(true);
-    pulseLabel.textContent = 'PUSH BURST · 180 ms';
+function ripple() {
+  const r = document.createElementNS('http://www.w3.org/2000/svg', 'circle');
+  r.setAttribute('cx', '396');
+  r.setAttribute('cy', '140');
+  r.setAttribute('r', '22');
+  r.setAttribute('fill', 'none');
+  r.setAttribute('stroke', '#a855f7');
+  r.setAttribute('stroke-width', '2');
+  r.setAttribute('class', 'ripple');
+  rippleHost.appendChild(r);
+  setTimeout(() => r.remove(), 700);
+}
 
-    // pulse bar fill anim — matches firmware PUSH_MS (180)
-    pulseBar.setAttribute('width', '0');
-    const start = performance.now();
+function animateBurst(ms, label) {
+  pulseLabel.textContent = label;
+  pulseBar.setAttribute('width', '0');
+  const start = performance.now();
+  return new Promise(resolve => {
     function tick(t) {
-      const p = Math.max(0, Math.min(1, (t - start) / 180));
+      const p = Math.max(0, Math.min(1, (t - start) / ms));
       pulseBar.setAttribute('width', (p * 180).toFixed(1));
       if (p < 1) requestAnimationFrame(tick);
+      else resolve();
     }
     requestAnimationFrame(tick);
-
-    // arm swing onto the button
-    setTimeout(() => servoArm.classList.add('swing'), 30);
-
-    // button press visual + ripple (lands once arm has swung)
-    setTimeout(() => {
-      btnCircle.classList.add('pressed');
-      const r = document.createElementNS('http://www.w3.org/2000/svg', 'circle');
-      r.setAttribute('cx', '396');
-      r.setAttribute('cy', '140');
-      r.setAttribute('r', '22');
-      r.setAttribute('fill', 'none');
-      r.setAttribute('stroke', '#a855f7');
-      r.setAttribute('stroke-width', '2');
-      r.setAttribute('class', 'ripple');
-      rippleHost.appendChild(r);
-      setTimeout(() => r.remove(), 700);
-    }, 200);
-
-    // release — total cycle: 300 ms hold + 200 ms settle, matching firmware
-    setTimeout(() => {
-      servoArm.classList.remove('swing');
-      btnCircle.classList.remove('pressed');
-      setServo(false);
-      pulseBar.setAttribute('width', '0');
-      pulseLabel.textContent = 'idle';
-      clickTotal++;
-      clickCountEl.textContent = clickTotal;
-      resolve();
-    }, 530);
   });
 }
 
-async function fireClicks(n, label) {
-  if (busy) return;
-  busy = true;
-  triggerBtn.disabled = triggerDbl.disabled = true;
-  triggerBtn.style.opacity = triggerDbl.style.opacity = '0.6';
-  lastCmdEl.textContent = label;
-  for (let i = 0; i < n; i++) {
-    await pushOnce();
-    if (i < n - 1) await new Promise(r => setTimeout(r, 150));
-  }
-  busy = false;
-  triggerBtn.disabled = triggerDbl.disabled = false;
-  triggerBtn.style.opacity = triggerDbl.style.opacity = '';
+function setToggleVisual(on) {
+  isPressedDemo = on;
+  triggerBtnIcon.textContent  = on ? 'toggle_on' : 'toggle_off';
+  triggerBtnLabel.textContent = on ? 'Release press' : 'Toggle press';
+  triggerBtnSub.textContent   = on
+    ? 'currently latched — tap to mirror back to rest'
+    : 'latches on/off — stays pressed until tapped again';
 }
 
-triggerBtn.addEventListener('click', () => fireClicks(1, '"click"'));
-document.getElementById('demoSvg').addEventListener('click', () => fireClicks(1, '"click"'));
-triggerDbl.addEventListener('click', () => fireClicks(2, '"double"'));
+async function doPressDemo() {
+  setServo(true);
+  setTimeout(() => servoArm.classList.add('swing'), 30);
+  setTimeout(() => { btnCircle.classList.add('pressed'); ripple(); }, 220);
+  await animateBurst(PUSH_BURST_MS, 'PUSH BURST · 280 ms');
+  pulseLabel.textContent = 'PRESSED · motor stopped';
+}
+
+async function doReleaseDemo() {
+  pulseBar.setAttribute('width', '0');
+  await animateBurst(RETURN_BURST_MS, 'RETURN BURST · 280 ms');
+  servoArm.classList.remove('swing');
+  btnCircle.classList.remove('pressed');
+  setServo(false);
+  pulseLabel.textContent = 'idle';
+}
+
+async function handleToggle() {
+  if (busy) return;
+  busy = true;
+  triggerBtn.disabled = triggerSingle.disabled = true;
+  triggerBtn.style.opacity = triggerSingle.style.opacity = '0.6';
+  if (!isPressedDemo) {
+    lastCmdEl.textContent = '"press"';
+    await doPressDemo();
+    setToggleVisual(true);
+  } else {
+    lastCmdEl.textContent = '"release"';
+    await doReleaseDemo();
+    setToggleVisual(false);
+  }
+  busy = false;
+  triggerBtn.disabled = triggerSingle.disabled = false;
+  triggerBtn.style.opacity = triggerSingle.style.opacity = '';
+}
+
+async function handleSingleClick() {
+  if (busy) return;
+  busy = true;
+  triggerBtn.disabled = triggerSingle.disabled = true;
+  triggerBtn.style.opacity = triggerSingle.style.opacity = '0.6';
+  lastCmdEl.textContent = '"click"';
+  // Always start from rest in the demo (firmware doClick releases first if needed)
+  if (isPressedDemo) { await doReleaseDemo(); setToggleVisual(false); }
+  await doPressDemo();
+  await new Promise(r => setTimeout(r, CLICK_HOLD_MS));
+  await doReleaseDemo();
+  clickTotal++;
+  clickCountEl.textContent = clickTotal;
+  busy = false;
+  triggerBtn.disabled = triggerSingle.disabled = false;
+  triggerBtn.style.opacity = triggerSingle.style.opacity = '';
+}
+
+triggerBtn.addEventListener('click', handleToggle);
+triggerSingle.addEventListener('click', handleSingleClick);
+document.getElementById('demoSvg').addEventListener('click', handleSingleClick);
 
 // ===========================================================================
 // Mobile nav
