@@ -95,8 +95,8 @@ const int LED_PIN       = 8;     // GPIO8 -> onboard blue LED (active LOW)
 const int STOP_US       = 1500;  // neutral — try 1480..1520 if horn creeps
 const int PUSH_US       = 1300;  // press direction (swap with RETURN_US if reversed)
 const int RETURN_US     = 1700;  // release direction
-const int PUSH_MS       = 380;   // burst duration onto the button — longer = more travel/torque
-const int RETURN_MS     = 380;   // MUST equal PUSH_MS so release lands at rest
+const int PUSH_MS       = 450;   // burst duration onto the button — longer = more travel/torque
+const int RETURN_MS     = 450;   // MUST equal PUSH_MS so release lands at rest
 const int POLL_MS       = 1000;  // Firebase poll interval
 
 Servo finger;
