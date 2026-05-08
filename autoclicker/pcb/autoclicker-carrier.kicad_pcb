@@ -1,0 +1,327 @@
+(kicad_pcb
+	(version 20240108)
+	(generator "claude-pcb-export")
+	(generator_version "1.0")
+
+	(general
+		(thickness 1.6)
+		(legacy_teardrops no)
+	)
+
+	(paper "A4")
+
+	(title_block
+		(title "AutoClicker Carrier")
+		(date "2026-05-08")
+		(rev "v1.0")
+		(company "ccayno")
+	)
+
+	(layers
+		(0 "F.Cu" signal)
+		(31 "B.Cu" signal)
+		(32 "B.Adhes" user "B.Adhesive")
+		(33 "F.Adhes" user "F.Adhesive")
+		(34 "B.Paste" user)
+		(35 "F.Paste" user)
+		(36 "B.SilkS" user "B.Silkscreen")
+		(37 "F.SilkS" user "F.Silkscreen")
+		(38 "B.Mask" user)
+		(39 "F.Mask" user)
+		(40 "Dwgs.User" user "User.Drawings")
+		(41 "Cmts.User" user "User.Comments")
+		(42 "Eco1.User" user "User.Eco1")
+		(43 "Eco2.User" user "User.Eco2")
+		(44 "Edge.Cuts" user)
+		(45 "Margin" user)
+		(46 "B.CrtYd" user "B.Courtyard")
+		(47 "F.CrtYd" user "F.Courtyard")
+		(48 "B.Fab" user)
+		(49 "F.Fab" user)
+	)
+
+	(setup
+		(pad_to_mask_clearance 0)
+		(allow_soldermask_bridges_in_footprints no)
+		(pcbplotparams
+			(layerselection 0x00010fc_ffffffff)
+			(plot_on_all_layers_selection 0x0000000_00000000)
+			(disableapertmacros no)
+			(usegerberextensions no)
+			(usegerberattributes yes)
+			(usegerberadvancedattributes yes)
+			(creategerberjobfile yes)
+			(dashed_line_dash_ratio 12.000000)
+			(dashed_line_gap_ratio 3.000000)
+			(svgprecision 4)
+			(plotframeref no)
+			(mode 1)
+			(useauxorigin no)
+			(hpglpennumber 1)
+			(hpglpenspeed 20)
+			(hpglpendiameter 15.000000)
+			(pdf_front_fp_property_popups yes)
+			(pdf_back_fp_property_popups yes)
+			(dxfpolygonmode yes)
+			(dxfimperialunits yes)
+			(dxfusepcbnewfont yes)
+			(psnegative no)
+			(psa4output no)
+			(plotreference yes)
+			(plotvalue yes)
+			(plotinvisibletext no)
+			(sketchpadsonfab no)
+			(subtractmaskfromsilk no)
+			(outputformat 1)
+			(mirror no)
+			(drillshape 1)
+			(scaleselection 1)
+			(outputdirectory "gerber/")
+		)
+	)
+
+	(net 0 "")
+	(net 1 "+5V")
+	(net 2 "GND")
+	(net 3 "SIG")
+	(net 4 "LED_A")
+
+	; ============================================================
+	; Mounting holes (M2, Ø 2.2 mm, NPTH)
+	; ============================================================
+	(footprint "MountingHole:MountingHole_2.2mm_M2"
+		(layer "F.Cu") (uuid "a0000000-0000-0000-0000-000000000001") (at 3 3)
+		(attr exclude_from_pos_files exclude_from_bom)
+		(property "Reference" "H1" (at 0 -3 0) (layer "F.SilkS") (uuid "a0000000-0000-0000-0000-000000000002") (effects (font (size 1 1) (thickness 0.15))))
+		(property "Value" "M2" (at 0 3 0) (layer "F.Fab") (uuid "a0000000-0000-0000-0000-000000000003") (effects (font (size 1 1) (thickness 0.15))))
+		(property "Footprint" "" (at 0 0) (unlocked yes) (layer "F.Fab") (hide yes) (uuid "a0000000-0000-0000-0000-000000000004") (effects (font (size 1.27 1.27) (thickness 0.15))))
+		(property "Datasheet" "" (at 0 0) (unlocked yes) (layer "F.Fab") (hide yes) (uuid "a0000000-0000-0000-0000-000000000005") (effects (font (size 1.27 1.27) (thickness 0.15))))
+		(property "Description" "Mounting Hole" (at 0 0) (unlocked yes) (layer "F.Fab") (hide yes) (uuid "a0000000-0000-0000-0000-000000000006") (effects (font (size 1.27 1.27) (thickness 0.15))))
+		(pad "" np_thru_hole circle (at 0 0) (size 2.2 2.2) (drill 2.2) (layers "F&B.Cu" "*.Mask") (uuid "a0000000-0000-0000-0000-000000000007"))
+	)
+	(footprint "MountingHole:MountingHole_2.2mm_M2"
+		(layer "F.Cu") (uuid "a0000000-0000-0000-0000-000000000011") (at 37 3)
+		(attr exclude_from_pos_files exclude_from_bom)
+		(property "Reference" "H2" (at 0 -3 0) (layer "F.SilkS") (uuid "a0000000-0000-0000-0000-000000000012") (effects (font (size 1 1) (thickness 0.15))))
+		(property "Value" "M2" (at 0 3 0) (layer "F.Fab") (uuid "a0000000-0000-0000-0000-000000000013") (effects (font (size 1 1) (thickness 0.15))))
+		(property "Footprint" "" (at 0 0) (unlocked yes) (layer "F.Fab") (hide yes) (uuid "a0000000-0000-0000-0000-000000000014") (effects (font (size 1.27 1.27) (thickness 0.15))))
+		(property "Datasheet" "" (at 0 0) (unlocked yes) (layer "F.Fab") (hide yes) (uuid "a0000000-0000-0000-0000-000000000015") (effects (font (size 1.27 1.27) (thickness 0.15))))
+		(property "Description" "Mounting Hole" (at 0 0) (unlocked yes) (layer "F.Fab") (hide yes) (uuid "a0000000-0000-0000-0000-000000000016") (effects (font (size 1.27 1.27) (thickness 0.15))))
+		(pad "" np_thru_hole circle (at 0 0) (size 2.2 2.2) (drill 2.2) (layers "F&B.Cu" "*.Mask") (uuid "a0000000-0000-0000-0000-000000000017"))
+	)
+	(footprint "MountingHole:MountingHole_2.2mm_M2"
+		(layer "F.Cu") (uuid "a0000000-0000-0000-0000-000000000021") (at 3 22)
+		(attr exclude_from_pos_files exclude_from_bom)
+		(property "Reference" "H3" (at 0 -3 0) (layer "F.SilkS") (uuid "a0000000-0000-0000-0000-000000000022") (effects (font (size 1 1) (thickness 0.15))))
+		(property "Value" "M2" (at 0 3 0) (layer "F.Fab") (uuid "a0000000-0000-0000-0000-000000000023") (effects (font (size 1 1) (thickness 0.15))))
+		(property "Footprint" "" (at 0 0) (unlocked yes) (layer "F.Fab") (hide yes) (uuid "a0000000-0000-0000-0000-000000000024") (effects (font (size 1.27 1.27) (thickness 0.15))))
+		(property "Datasheet" "" (at 0 0) (unlocked yes) (layer "F.Fab") (hide yes) (uuid "a0000000-0000-0000-0000-000000000025") (effects (font (size 1.27 1.27) (thickness 0.15))))
+		(property "Description" "Mounting Hole" (at 0 0) (unlocked yes) (layer "F.Fab") (hide yes) (uuid "a0000000-0000-0000-0000-000000000026") (effects (font (size 1.27 1.27) (thickness 0.15))))
+		(pad "" np_thru_hole circle (at 0 0) (size 2.2 2.2) (drill 2.2) (layers "F&B.Cu" "*.Mask") (uuid "a0000000-0000-0000-0000-000000000027"))
+	)
+	(footprint "MountingHole:MountingHole_2.2mm_M2"
+		(layer "F.Cu") (uuid "a0000000-0000-0000-0000-000000000031") (at 37 22)
+		(attr exclude_from_pos_files exclude_from_bom)
+		(property "Reference" "H4" (at 0 -3 0) (layer "F.SilkS") (uuid "a0000000-0000-0000-0000-000000000032") (effects (font (size 1 1) (thickness 0.15))))
+		(property "Value" "M2" (at 0 3 0) (layer "F.Fab") (uuid "a0000000-0000-0000-0000-000000000033") (effects (font (size 1 1) (thickness 0.15))))
+		(property "Footprint" "" (at 0 0) (unlocked yes) (layer "F.Fab") (hide yes) (uuid "a0000000-0000-0000-0000-000000000034") (effects (font (size 1.27 1.27) (thickness 0.15))))
+		(property "Datasheet" "" (at 0 0) (unlocked yes) (layer "F.Fab") (hide yes) (uuid "a0000000-0000-0000-0000-000000000035") (effects (font (size 1.27 1.27) (thickness 0.15))))
+		(property "Description" "Mounting Hole" (at 0 0) (unlocked yes) (layer "F.Fab") (hide yes) (uuid "a0000000-0000-0000-0000-000000000036") (effects (font (size 1.27 1.27) (thickness 0.15))))
+		(pad "" np_thru_hole circle (at 0 0) (size 2.2 2.2) (drill 2.2) (layers "F&B.Cu" "*.Mask") (uuid "a0000000-0000-0000-0000-000000000037"))
+	)
+
+	; ============================================================
+	; J1 — ESP32-C3 SuperMini top-row socket (1×8 horizontal, 2.54 mm pitch)
+	; Footprint origin at pad 1; pads laid out along +x axis.
+	; Pad 1 = 5V, Pad 2 = GND, Pad 5 = GPIO3 (= SIG)
+	; ============================================================
+	(footprint "Custom:PinSocket_1x08_Horizontal"
+		(layer "F.Cu") (uuid "b1000000-0000-0000-0000-000000000001") (at 8.61 4)
+		(descr "Pin socket, 1x08, 2.54mm pitch, horizontal layout")
+		(property "Reference" "J1" (at 8.89 -2.6 0) (layer "F.SilkS") (uuid "b1000000-0000-0000-0000-000000000002") (effects (font (size 1 1) (thickness 0.15))))
+		(property "Value" "SuperMini top" (at 8.89 -1.4 0) (layer "F.Fab") (uuid "b1000000-0000-0000-0000-000000000003") (effects (font (size 0.8 0.8) (thickness 0.12))))
+		(property "Footprint" "" (at 0 0) (unlocked yes) (layer "F.Fab") (hide yes) (uuid "b1000000-0000-0000-0000-000000000004") (effects (font (size 1.27 1.27) (thickness 0.15))))
+		(property "Datasheet" "" (at 0 0) (unlocked yes) (layer "F.Fab") (hide yes) (uuid "b1000000-0000-0000-0000-000000000005") (effects (font (size 1.27 1.27) (thickness 0.15))))
+		(property "Description" "Pin socket, 1x08, 2.54mm" (at 0 0) (unlocked yes) (layer "F.Fab") (hide yes) (uuid "b1000000-0000-0000-0000-000000000006") (effects (font (size 1.27 1.27) (thickness 0.15))))
+		(attr through_hole)
+		(fp_line (start -1.27 -1.27) (end 19.05 -1.27) (stroke (width 0.12) (type solid)) (layer "F.SilkS") (uuid "b1000000-0000-0000-0000-000000000050"))
+		(fp_line (start -1.27  1.27) (end 19.05  1.27) (stroke (width 0.12) (type solid)) (layer "F.SilkS") (uuid "b1000000-0000-0000-0000-000000000051"))
+		(fp_line (start -1.27 -1.27) (end -1.27  1.27) (stroke (width 0.12) (type solid)) (layer "F.SilkS") (uuid "b1000000-0000-0000-0000-000000000052"))
+		(fp_line (start 19.05 -1.27) (end 19.05  1.27) (stroke (width 0.12) (type solid)) (layer "F.SilkS") (uuid "b1000000-0000-0000-0000-000000000053"))
+		(pad "1" thru_hole rect (at 0     0) (size 1.7 1.7) (drill 1) (layers "*.Cu" "*.Mask") (net 1 "+5V") (pintype "passive") (uuid "b1000000-0000-0000-0000-000000000010"))
+		(pad "2" thru_hole oval (at 2.54  0) (size 1.7 1.7) (drill 1) (layers "*.Cu" "*.Mask") (net 2 "GND") (pintype "passive") (uuid "b1000000-0000-0000-0000-000000000011"))
+		(pad "3" thru_hole oval (at 5.08  0) (size 1.7 1.7) (drill 1) (layers "*.Cu" "*.Mask") (pintype "passive") (uuid "b1000000-0000-0000-0000-000000000012"))
+		(pad "4" thru_hole oval (at 7.62  0) (size 1.7 1.7) (drill 1) (layers "*.Cu" "*.Mask") (pintype "passive") (uuid "b1000000-0000-0000-0000-000000000013"))
+		(pad "5" thru_hole oval (at 10.16 0) (size 1.7 1.7) (drill 1) (layers "*.Cu" "*.Mask") (net 3 "SIG") (pintype "passive") (uuid "b1000000-0000-0000-0000-000000000014"))
+		(pad "6" thru_hole oval (at 12.7  0) (size 1.7 1.7) (drill 1) (layers "*.Cu" "*.Mask") (pintype "passive") (uuid "b1000000-0000-0000-0000-000000000015"))
+		(pad "7" thru_hole oval (at 15.24 0) (size 1.7 1.7) (drill 1) (layers "*.Cu" "*.Mask") (pintype "passive") (uuid "b1000000-0000-0000-0000-000000000016"))
+		(pad "8" thru_hole oval (at 17.78 0) (size 1.7 1.7) (drill 1) (layers "*.Cu" "*.Mask") (pintype "passive") (uuid "b1000000-0000-0000-0000-000000000017"))
+	)
+
+	; ============================================================
+	; J2 — ESP32-C3 SuperMini bottom-row socket (1×8 horizontal, no nets)
+	; ============================================================
+	(footprint "Custom:PinSocket_1x08_Horizontal"
+		(layer "F.Cu") (uuid "b2000000-0000-0000-0000-000000000001") (at 8.61 21.78)
+		(descr "Pin socket, 1x08, 2.54mm pitch, horizontal layout")
+		(property "Reference" "J2" (at 8.89 2.6 0) (layer "F.SilkS") (uuid "b2000000-0000-0000-0000-000000000002") (effects (font (size 1 1) (thickness 0.15))))
+		(property "Value" "SuperMini bot" (at 8.89 1.4 0) (layer "F.Fab") (uuid "b2000000-0000-0000-0000-000000000003") (effects (font (size 0.8 0.8) (thickness 0.12))))
+		(property "Footprint" "" (at 0 0) (unlocked yes) (layer "F.Fab") (hide yes) (uuid "b2000000-0000-0000-0000-000000000004") (effects (font (size 1.27 1.27) (thickness 0.15))))
+		(property "Datasheet" "" (at 0 0) (unlocked yes) (layer "F.Fab") (hide yes) (uuid "b2000000-0000-0000-0000-000000000005") (effects (font (size 1.27 1.27) (thickness 0.15))))
+		(property "Description" "Pin socket, 1x08, 2.54mm" (at 0 0) (unlocked yes) (layer "F.Fab") (hide yes) (uuid "b2000000-0000-0000-0000-000000000006") (effects (font (size 1.27 1.27) (thickness 0.15))))
+		(attr through_hole)
+		(fp_line (start -1.27 -1.27) (end 19.05 -1.27) (stroke (width 0.12) (type solid)) (layer "F.SilkS") (uuid "b2000000-0000-0000-0000-000000000050"))
+		(fp_line (start -1.27  1.27) (end 19.05  1.27) (stroke (width 0.12) (type solid)) (layer "F.SilkS") (uuid "b2000000-0000-0000-0000-000000000051"))
+		(fp_line (start -1.27 -1.27) (end -1.27  1.27) (stroke (width 0.12) (type solid)) (layer "F.SilkS") (uuid "b2000000-0000-0000-0000-000000000052"))
+		(fp_line (start 19.05 -1.27) (end 19.05  1.27) (stroke (width 0.12) (type solid)) (layer "F.SilkS") (uuid "b2000000-0000-0000-0000-000000000053"))
+		(pad "1" thru_hole rect (at 0     0) (size 1.7 1.7) (drill 1) (layers "*.Cu" "*.Mask") (pintype "passive") (uuid "b2000000-0000-0000-0000-000000000010"))
+		(pad "2" thru_hole oval (at 2.54  0) (size 1.7 1.7) (drill 1) (layers "*.Cu" "*.Mask") (pintype "passive") (uuid "b2000000-0000-0000-0000-000000000011"))
+		(pad "3" thru_hole oval (at 5.08  0) (size 1.7 1.7) (drill 1) (layers "*.Cu" "*.Mask") (pintype "passive") (uuid "b2000000-0000-0000-0000-000000000012"))
+		(pad "4" thru_hole oval (at 7.62  0) (size 1.7 1.7) (drill 1) (layers "*.Cu" "*.Mask") (pintype "passive") (uuid "b2000000-0000-0000-0000-000000000013"))
+		(pad "5" thru_hole oval (at 10.16 0) (size 1.7 1.7) (drill 1) (layers "*.Cu" "*.Mask") (pintype "passive") (uuid "b2000000-0000-0000-0000-000000000014"))
+		(pad "6" thru_hole oval (at 12.7  0) (size 1.7 1.7) (drill 1) (layers "*.Cu" "*.Mask") (pintype "passive") (uuid "b2000000-0000-0000-0000-000000000015"))
+		(pad "7" thru_hole oval (at 15.24 0) (size 1.7 1.7) (drill 1) (layers "*.Cu" "*.Mask") (pintype "passive") (uuid "b2000000-0000-0000-0000-000000000016"))
+		(pad "8" thru_hole oval (at 17.78 0) (size 1.7 1.7) (drill 1) (layers "*.Cu" "*.Mask") (pintype "passive") (uuid "b2000000-0000-0000-0000-000000000017"))
+	)
+
+	; ============================================================
+	; J3 — JST-PH 3-pin servo connector (vertical, 2.0 mm pitch)
+	; Pin 1 = 5V, Pin 2 = SIG, Pin 3 = GND
+	; ============================================================
+	(footprint "Connector_JST:JST_PH_S3B-PH-K_1x03_P2.00mm_Vertical"
+		(layer "F.Cu") (uuid "c1000000-0000-0000-0000-000000000001") (at 32 11.5)
+		(descr "JST PH series, 3-pin, vertical")
+		(property "Reference" "J3" (at -3 0 0) (layer "F.SilkS") (uuid "c1000000-0000-0000-0000-000000000002") (effects (font (size 1 1) (thickness 0.15))))
+		(property "Value" "Servo" (at 3 0 90) (layer "F.Fab") (uuid "c1000000-0000-0000-0000-000000000003") (effects (font (size 1 1) (thickness 0.15))))
+		(property "Footprint" "" (at 0 0) (unlocked yes) (layer "F.Fab") (hide yes) (uuid "c1000000-0000-0000-0000-000000000004") (effects (font (size 1.27 1.27) (thickness 0.15))))
+		(property "Datasheet" "" (at 0 0) (unlocked yes) (layer "F.Fab") (hide yes) (uuid "c1000000-0000-0000-0000-000000000005") (effects (font (size 1.27 1.27) (thickness 0.15))))
+		(property "Description" "JST PH 3-pin" (at 0 0) (unlocked yes) (layer "F.Fab") (hide yes) (uuid "c1000000-0000-0000-0000-000000000006") (effects (font (size 1.27 1.27) (thickness 0.15))))
+		(attr through_hole)
+		(fp_line (start -2.1 -3.5) (end  2.1 -3.5) (stroke (width 0.12) (type solid)) (layer "F.SilkS") (uuid "c1000000-0000-0000-0000-000000000050"))
+		(fp_line (start  2.1 -3.5) (end  2.1  3.5) (stroke (width 0.12) (type solid)) (layer "F.SilkS") (uuid "c1000000-0000-0000-0000-000000000051"))
+		(fp_line (start  2.1  3.5) (end -2.1  3.5) (stroke (width 0.12) (type solid)) (layer "F.SilkS") (uuid "c1000000-0000-0000-0000-000000000052"))
+		(fp_line (start -2.1  3.5) (end -2.1 -3.5) (stroke (width 0.12) (type solid)) (layer "F.SilkS") (uuid "c1000000-0000-0000-0000-000000000053"))
+		(pad "1" thru_hole rect (at 0 -2) (size 1.55 1.55) (drill 0.85) (layers "*.Cu" "*.Mask") (net 1 "+5V") (pintype "passive") (uuid "c1000000-0000-0000-0000-000000000010"))
+		(pad "2" thru_hole oval (at 0  0) (size 1.55 1.55) (drill 0.85) (layers "*.Cu" "*.Mask") (net 3 "SIG") (pintype "passive") (uuid "c1000000-0000-0000-0000-000000000011"))
+		(pad "3" thru_hole oval (at 0  2) (size 1.55 1.55) (drill 0.85) (layers "*.Cu" "*.Mask") (net 2 "GND") (pintype "passive") (uuid "c1000000-0000-0000-0000-000000000012"))
+	)
+
+	; ============================================================
+	; C1 — 470 µF / 16 V electrolytic, 5 mm lead pitch
+	; ============================================================
+	(footprint "Capacitor_THT:CP_Radial_D8.0mm_P5.00mm"
+		(layer "F.Cu") (uuid "c2000000-0000-0000-0000-000000000001") (at 34.5 18.5)
+		(descr "Through-hole radial electrolytic, D8mm, P5mm")
+		(property "Reference" "C1" (at 0 -5 0) (layer "F.SilkS") (uuid "c2000000-0000-0000-0000-000000000002") (effects (font (size 1 1) (thickness 0.15))))
+		(property "Value" "470µF/16V" (at 0 5 0) (layer "F.Fab") (uuid "c2000000-0000-0000-0000-000000000003") (effects (font (size 1 1) (thickness 0.15))))
+		(property "Footprint" "" (at 0 0) (unlocked yes) (layer "F.Fab") (hide yes) (uuid "c2000000-0000-0000-0000-000000000004") (effects (font (size 1.27 1.27) (thickness 0.15))))
+		(property "Datasheet" "" (at 0 0) (unlocked yes) (layer "F.Fab") (hide yes) (uuid "c2000000-0000-0000-0000-000000000005") (effects (font (size 1.27 1.27) (thickness 0.15))))
+		(property "Description" "Electrolytic 470µF" (at 0 0) (unlocked yes) (layer "F.Fab") (hide yes) (uuid "c2000000-0000-0000-0000-000000000006") (effects (font (size 1.27 1.27) (thickness 0.15))))
+		(attr through_hole)
+		(fp_circle (center 0 0) (end 4 0) (stroke (width 0.12) (type solid)) (fill none) (layer "F.SilkS") (uuid "c2000000-0000-0000-0000-000000000050"))
+		(fp_text user "+" (at -2.5 -1.6) (layer "F.SilkS") (uuid "c2000000-0000-0000-0000-000000000060") (effects (font (size 1 1) (thickness 0.15))))
+		(pad "1" thru_hole rect (at -2.5 0) (size 2 2) (drill 1) (layers "*.Cu" "*.Mask") (net 1 "+5V") (pintype "passive") (uuid "c2000000-0000-0000-0000-000000000010"))
+		(pad "2" thru_hole oval (at  2.5 0) (size 2 2) (drill 1) (layers "*.Cu" "*.Mask") (net 2 "GND") (pintype "passive") (uuid "c2000000-0000-0000-0000-000000000011"))
+	)
+
+	; ============================================================
+	; R1 — 330 Ω current-limit resistor (vertical, 2.54 mm pitch)
+	; ============================================================
+	(footprint "Resistor_THT:R_Axial_DIN0207_L6.3mm_D2.5mm_P2.54mm_Vertical"
+		(layer "F.Cu") (uuid "d1000000-0000-0000-0000-000000000001") (at 33 3.5)
+		(descr "Axial resistor, 1/4W, vertical, P2.54mm")
+		(property "Reference" "R1" (at 0 -2 0) (layer "F.SilkS") (uuid "d1000000-0000-0000-0000-000000000002") (effects (font (size 1 1) (thickness 0.15))))
+		(property "Value" "330Ω" (at 0 2 0) (layer "F.Fab") (uuid "d1000000-0000-0000-0000-000000000003") (effects (font (size 1 1) (thickness 0.15))))
+		(property "Footprint" "" (at 0 0) (unlocked yes) (layer "F.Fab") (hide yes) (uuid "d1000000-0000-0000-0000-000000000004") (effects (font (size 1.27 1.27) (thickness 0.15))))
+		(property "Datasheet" "" (at 0 0) (unlocked yes) (layer "F.Fab") (hide yes) (uuid "d1000000-0000-0000-0000-000000000005") (effects (font (size 1.27 1.27) (thickness 0.15))))
+		(property "Description" "Resistor 330Ω 1/4W" (at 0 0) (unlocked yes) (layer "F.Fab") (hide yes) (uuid "d1000000-0000-0000-0000-000000000006") (effects (font (size 1.27 1.27) (thickness 0.15))))
+		(attr through_hole)
+		(pad "1" thru_hole rect (at -1 0) (size 1.7 1.7) (drill 0.85) (layers "*.Cu" "*.Mask") (net 1 "+5V") (pintype "passive") (uuid "d1000000-0000-0000-0000-000000000010"))
+		(pad "2" thru_hole oval (at  1 0) (size 1.7 1.7) (drill 0.85) (layers "*.Cu" "*.Mask") (net 4 "LED_A") (pintype "passive") (uuid "d1000000-0000-0000-0000-000000000011"))
+	)
+
+	; ============================================================
+	; D1 — 5 mm red status LED
+	; ============================================================
+	(footprint "LED_THT:LED_D5.0mm"
+		(layer "F.Cu") (uuid "d2000000-0000-0000-0000-000000000001") (at 37 3.5)
+		(descr "5mm round LED, vertical, P2.54mm")
+		(property "Reference" "D1" (at 0 -2 0) (layer "F.SilkS") (uuid "d2000000-0000-0000-0000-000000000002") (effects (font (size 1 1) (thickness 0.15))))
+		(property "Value" "RED" (at 0 2 0) (layer "F.Fab") (uuid "d2000000-0000-0000-0000-000000000003") (effects (font (size 1 1) (thickness 0.15))))
+		(property "Footprint" "" (at 0 0) (unlocked yes) (layer "F.Fab") (hide yes) (uuid "d2000000-0000-0000-0000-000000000004") (effects (font (size 1.27 1.27) (thickness 0.15))))
+		(property "Datasheet" "" (at 0 0) (unlocked yes) (layer "F.Fab") (hide yes) (uuid "d2000000-0000-0000-0000-000000000005") (effects (font (size 1.27 1.27) (thickness 0.15))))
+		(property "Description" "5mm Red LED" (at 0 0) (unlocked yes) (layer "F.Fab") (hide yes) (uuid "d2000000-0000-0000-0000-000000000006") (effects (font (size 1.27 1.27) (thickness 0.15))))
+		(attr through_hole)
+		(fp_circle (center 0 0) (end 2.5 0) (stroke (width 0.12) (type solid)) (fill none) (layer "F.SilkS") (uuid "d2000000-0000-0000-0000-000000000050"))
+		(fp_text user "K" (at 1 -1.7) (layer "F.SilkS") (uuid "d2000000-0000-0000-0000-000000000060") (effects (font (size 0.8 0.8) (thickness 0.15))))
+		(pad "1" thru_hole rect (at -1 0) (size 1.7 1.7) (drill 0.85) (layers "*.Cu" "*.Mask") (net 4 "LED_A") (pintype "passive") (uuid "d2000000-0000-0000-0000-000000000010"))
+		(pad "2" thru_hole oval (at  1 0) (size 1.7 1.7) (drill 0.85) (layers "*.Cu" "*.Mask") (net 2 "GND") (pintype "passive") (uuid "d2000000-0000-0000-0000-000000000011"))
+	)
+
+	; ============================================================
+	; Edge.Cuts — 40 × 25 mm board outline
+	; ============================================================
+	(gr_line (start  0  0) (end 40  0) (stroke (width 0.05) (type default)) (layer "Edge.Cuts") (uuid "e0000000-0000-0000-0000-000000000001"))
+	(gr_line (start 40  0) (end 40 25) (stroke (width 0.05) (type default)) (layer "Edge.Cuts") (uuid "e0000000-0000-0000-0000-000000000002"))
+	(gr_line (start 40 25) (end  0 25) (stroke (width 0.05) (type default)) (layer "Edge.Cuts") (uuid "e0000000-0000-0000-0000-000000000003"))
+	(gr_line (start  0 25) (end  0  0) (stroke (width 0.05) (type default)) (layer "Edge.Cuts") (uuid "e0000000-0000-0000-0000-000000000004"))
+
+	; ============================================================
+	; Silkscreen text (front)
+	; ============================================================
+	(gr_text "AUTOCLICKER" (at 17.5 13.0 0) (layer "F.SilkS") (uuid "f0000000-0000-0000-0000-000000000001")
+		(effects (font (size 1.6 1.6) (thickness 0.3) (bold yes)) (justify left))
+	)
+	(gr_text "v1.0 · ccayno" (at 17.5 14.8 0) (layer "F.SilkS") (uuid "f0000000-0000-0000-0000-000000000002")
+		(effects (font (size 0.8 0.8) (thickness 0.15)) (justify left))
+	)
+	(gr_text "5V" (at 29.4 9.5 0) (layer "F.SilkS") (uuid "f0000000-0000-0000-0000-000000000003")
+		(effects (font (size 0.7 0.7) (thickness 0.12)) (justify right))
+	)
+	(gr_text "SIG" (at 29.4 11.5 0) (layer "F.SilkS") (uuid "f0000000-0000-0000-0000-000000000004")
+		(effects (font (size 0.7 0.7) (thickness 0.12)) (justify right))
+	)
+	(gr_text "GND" (at 29.4 13.5 0) (layer "F.SilkS") (uuid "f0000000-0000-0000-0000-000000000005")
+		(effects (font (size 0.7 0.7) (thickness 0.12)) (justify right))
+	)
+	(gr_text "USB-C →" (at 8.61 7.0 0) (layer "F.SilkS") (uuid "f0000000-0000-0000-0000-000000000006")
+		(effects (font (size 0.7 0.7) (thickness 0.12)) (justify left))
+	)
+	(gr_text "PWR" (at 35 6.5 0) (layer "F.SilkS") (uuid "f0000000-0000-0000-0000-000000000007")
+		(effects (font (size 0.7 0.7) (thickness 0.12)))
+	)
+	(gr_text "GPIO3" (at 18.77 1.0 0) (layer "F.SilkS") (uuid "f0000000-0000-0000-0000-000000000008")
+		(effects (font (size 0.6 0.6) (thickness 0.1)))
+	)
+
+	; ============================================================
+	; Copper traces — F.Cu (top)
+	; +5V
+	; ============================================================
+	(segment (start 8.61  4)    (end 8.61  2)    (width 0.4) (layer "F.Cu") (net 1) (uuid "1a000000-0000-0000-0000-000000000001"))
+	(segment (start 8.61  2)    (end 35    2)    (width 0.4) (layer "F.Cu") (net 1) (uuid "1a000000-0000-0000-0000-000000000002"))
+	(segment (start 35    2)    (end 35    9.5)  (width 0.4) (layer "F.Cu") (net 1) (uuid "1a000000-0000-0000-0000-000000000003"))
+	(segment (start 35    9.5)  (end 32    9.5)  (width 0.4) (layer "F.Cu") (net 1) (uuid "1a000000-0000-0000-0000-000000000004"))
+	(segment (start 35    9.5)  (end 35    16)   (width 0.4) (layer "F.Cu") (net 1) (uuid "1a000000-0000-0000-0000-000000000005"))
+	(segment (start 35    16)   (end 32    16)   (width 0.4) (layer "F.Cu") (net 1) (uuid "1a000000-0000-0000-0000-000000000006"))
+	(segment (start 32    16)   (end 32    18.5) (width 0.4) (layer "F.Cu") (net 1) (uuid "1a000000-0000-0000-0000-000000000007"))
+	; +5V branch to R1
+	(segment (start 32    2)    (end 32    3.5)  (width 0.4) (layer "F.Cu") (net 1) (uuid "1a000000-0000-0000-0000-000000000008"))
+
+	; SIG (GPIO3 → JST pin 2)
+	(segment (start 18.77 4)    (end 18.77 9)    (width 0.4) (layer "F.Cu") (net 3) (uuid "1b000000-0000-0000-0000-000000000001"))
+	(segment (start 18.77 9)    (end 30    9)    (width 0.4) (layer "F.Cu") (net 3) (uuid "1b000000-0000-0000-0000-000000000002"))
+	(segment (start 30    9)    (end 30    11.5) (width 0.4) (layer "F.Cu") (net 3) (uuid "1b000000-0000-0000-0000-000000000003"))
+	(segment (start 30    11.5) (end 32    11.5) (width 0.4) (layer "F.Cu") (net 3) (uuid "1b000000-0000-0000-0000-000000000004"))
+
+	; LED_A (R1.2 → D1.A) — short link at y=3.5
+	(segment (start 34    3.5)  (end 36    3.5)  (width 0.4) (layer "F.Cu") (net 4) (uuid "1c000000-0000-0000-0000-000000000001"))
+
+	; ============================================================
+	; Copper traces — B.Cu (bottom). GND backbone.
+	; ============================================================
+	(segment (start 11.15 4)    (end 11.15 13.5) (width 0.4) (layer "B.Cu") (net 2) (uuid "1d000000-0000-0000-0000-000000000001"))
+	(segment (start 11.15 13.5) (end 38    13.5) (width 0.4) (layer "B.Cu") (net 2) (uuid "1d000000-0000-0000-0000-000000000002"))
+	(segment (start 38    13.5) (end 38    3.5)  (width 0.4) (layer "B.Cu") (net 2) (uuid "1d000000-0000-0000-0000-000000000003"))
+	(segment (start 37    13.5) (end 37    18.5) (width 0.4) (layer "B.Cu") (net 2) (uuid "1d000000-0000-0000-0000-000000000004"))
+)

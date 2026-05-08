@@ -1,0 +1,183 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<!--
+  AutoClicker Carrier PCB v1.0
+  Carrier board for ESP32-C3 SuperMini + MG90S servo.
+
+  Scale  : 1 SVG unit = 1 mm (true 1:1)
+  Outline : 40.0 × 25.0 mm
+  Layers  : 2 (top + bottom copper, top silkscreen, top solder mask)
+  Mount   : 4 × M2 holes (Ø 2.2 mm), 3.0 mm in from each corner
+  Headers : 2 × 1×8 socket strips, 17.78 mm pitch (0.7"), 2.54 mm pin spacing
+  Power   : USB-C is on the SuperMini module (protrudes off the LEFT edge)
+  Servo   : JST-PH 3-pin (2.0 mm pitch), GND / +5V / SIG (matches MG90S pigtail)
+  Filter  : 470 µF 16 V electrolytic across 5V/GND, 5.0 mm lead pitch
+  Status  : 5 mm red LED + 330 Ω resistor on the +5V rail
+  Silk    : white "AUTOCLICKER · v1.0" + pin labels + corner fiducials
+
+  Use this file as a starting point — open in Inkscape, export individual
+  layers as DXF, import into KiCad PcbNew via File ▸ Import ▸ Graphics.
+-->
+<svg xmlns="http://www.w3.org/2000/svg"
+     viewBox="-5 -5 50 35"
+     width="40mm" height="25mm"
+     font-family="Inter, system-ui, sans-serif">
+
+  <defs>
+    <linearGradient id="pcb" x1="0" y1="0" x2="0" y2="1">
+      <stop offset="0%"  stop-color="#0d6b3a"/>
+      <stop offset="100%" stop-color="#073d22"/>
+    </linearGradient>
+    <radialGradient id="pad" cx="0.4" cy="0.4">
+      <stop offset="0%"  stop-color="#fde68a"/>
+      <stop offset="100%" stop-color="#b45309"/>
+    </radialGradient>
+  </defs>
+
+  <!-- ===== board outline (40 × 25 mm, 1.5 mm corner radius) ===== -->
+  <rect x="0" y="0" width="40" height="25" rx="1.5" fill="url(#pcb)" stroke="#022c1a" stroke-width="0.15"/>
+
+  <!-- inner silkscreen rectangle -->
+  <rect x="1" y="1" width="38" height="23" rx="1" fill="none"
+        stroke="rgba(255,255,255,0.08)" stroke-width="0.1" stroke-dasharray="0.6 0.4"/>
+
+  <!-- ===== mounting holes (M2, Ø 2.2 mm) ===== -->
+  <g fill="#0a0c12" stroke="#94a3b8" stroke-width="0.12">
+    <circle cx="3"  cy="3"  r="1.1"/>
+    <circle cx="37" cy="3"  r="1.1"/>
+    <circle cx="3"  cy="22" r="1.1"/>
+    <circle cx="37" cy="22" r="1.1"/>
+  </g>
+
+  <!-- ===== ESP32-C3 SuperMini socket footprint =====
+       Two rows of 8 plated through-holes, 2.54 mm pitch, 17.78 mm row spacing.
+       Row 1 (top of SuperMini): y = 4   (5V GND ... GPIO labels)
+       Row 2 (bot of SuperMini): y = 21.78
+       First hole at x = 8.61, last at x = 26.39 (centered horizontally)
+  -->
+  <g fill="url(#pad)" stroke="#7c2d12" stroke-width="0.06">
+    <!-- top row -->
+    <circle cx="8.61"  cy="4" r="0.85"/>
+    <circle cx="11.15" cy="4" r="0.85"/>
+    <circle cx="13.69" cy="4" r="0.85"/>
+    <circle cx="16.23" cy="4" r="0.85"/>
+    <circle cx="18.77" cy="4" r="0.85"/>
+    <circle cx="21.31" cy="4" r="0.85"/>
+    <circle cx="23.85" cy="4" r="0.85"/>
+    <circle cx="26.39" cy="4" r="0.85"/>
+    <!-- bottom row -->
+    <circle cx="8.61"  cy="21.78" r="0.85"/>
+    <circle cx="11.15" cy="21.78" r="0.85"/>
+    <circle cx="13.69" cy="21.78" r="0.85"/>
+    <circle cx="16.23" cy="21.78" r="0.85"/>
+    <circle cx="18.77" cy="21.78" r="0.85"/>
+    <circle cx="21.31" cy="21.78" r="0.85"/>
+    <circle cx="23.85" cy="21.78" r="0.85"/>
+    <circle cx="26.39" cy="21.78" r="0.85"/>
+  </g>
+  <!-- inner barrels (drill, Ø 1.0 mm) -->
+  <g fill="#0a0c12">
+    <circle cx="8.61"  cy="4" r="0.5"/><circle cx="11.15" cy="4" r="0.5"/>
+    <circle cx="13.69" cy="4" r="0.5"/><circle cx="16.23" cy="4" r="0.5"/>
+    <circle cx="18.77" cy="4" r="0.5"/><circle cx="21.31" cy="4" r="0.5"/>
+    <circle cx="23.85" cy="4" r="0.5"/><circle cx="26.39" cy="4" r="0.5"/>
+    <circle cx="8.61"  cy="21.78" r="0.5"/><circle cx="11.15" cy="21.78" r="0.5"/>
+    <circle cx="13.69" cy="21.78" r="0.5"/><circle cx="16.23" cy="21.78" r="0.5"/>
+    <circle cx="18.77" cy="21.78" r="0.5"/><circle cx="21.31" cy="21.78" r="0.5"/>
+    <circle cx="23.85" cy="21.78" r="0.5"/><circle cx="26.39" cy="21.78" r="0.5"/>
+  </g>
+
+  <!-- silkscreen rectangle showing where the SuperMini module sits -->
+  <rect x="7.5" y="3" width="20" height="20"
+        fill="none" stroke="rgba(255,255,255,0.4)" stroke-width="0.1" stroke-dasharray="0.4 0.3"/>
+
+  <!-- ===== JST-PH 3-pin servo connector =====
+       2.0 mm pitch, vertical, on the right edge.
+       Pins at x = 32, y = 9.5 / 11.5 / 13.5
+       Drill Ø 0.9 mm, pad Ø 1.6 mm
+  -->
+  <g fill="url(#pad)" stroke="#7c2d12" stroke-width="0.06">
+    <circle cx="32" cy="9.5"  r="0.8"/>
+    <circle cx="32" cy="11.5" r="0.8"/>
+    <circle cx="32" cy="13.5" r="0.8"/>
+  </g>
+  <g fill="#0a0c12">
+    <circle cx="32" cy="9.5"  r="0.45"/>
+    <circle cx="32" cy="11.5" r="0.45"/>
+    <circle cx="32" cy="13.5" r="0.45"/>
+  </g>
+  <!-- silkscreen outline of JST housing -->
+  <rect x="30" y="8" width="4.2" height="7"
+        fill="none" stroke="rgba(255,255,255,0.55)" stroke-width="0.12"/>
+  <text x="32.1" y="7.4" text-anchor="middle" font-size="0.9" fill="#fff">J1 · SERVO</text>
+
+  <!-- ===== 470 µF cap pads (5 mm pitch, drill 1.0 mm) ===== -->
+  <g fill="url(#pad)" stroke="#7c2d12" stroke-width="0.06">
+    <circle cx="32" cy="18.5" r="0.95"/>
+    <circle cx="37" cy="18.5" r="0.95"/>
+  </g>
+  <g fill="#0a0c12">
+    <circle cx="32" cy="18.5" r="0.5"/>
+    <circle cx="37" cy="18.5" r="0.5"/>
+  </g>
+  <!-- silkscreen "+" mark next to positive lead -->
+  <text x="32" y="20.6" text-anchor="middle" font-size="0.85" fill="#fff">+</text>
+  <text x="37" y="20.6" text-anchor="middle" font-size="0.85" fill="#fff">−</text>
+  <!-- cap body outline circle -->
+  <circle cx="34.5" cy="18.5" r="2.6"
+          fill="none" stroke="rgba(255,255,255,0.35)" stroke-width="0.1"/>
+
+  <!-- ===== Status LED + resistor pads (top-left corner) ===== -->
+  <g fill="url(#pad)" stroke="#7c2d12" stroke-width="0.06">
+    <circle cx="32" cy="3.5" r="0.7"/>
+    <circle cx="34" cy="3.5" r="0.7"/>
+    <circle cx="36" cy="3.5" r="0.7"/>
+    <circle cx="38" cy="3.5" r="0.7"/>
+  </g>
+  <g fill="#0a0c12">
+    <circle cx="32" cy="3.5" r="0.4"/><circle cx="34" cy="3.5" r="0.4"/>
+    <circle cx="36" cy="3.5" r="0.4"/><circle cx="38" cy="3.5" r="0.4"/>
+  </g>
+  <text x="35" y="2.4" text-anchor="middle" font-size="0.85" fill="#fff">PWR LED</text>
+
+  <!-- ===== copper traces (top layer, simplified) ===== -->
+  <g fill="none" stroke="#fbbf24" stroke-width="0.4" stroke-linecap="round" opacity="0.85">
+    <!-- 5V: ESP32 5V pin (top row, leftmost) → cap (+) → JST pin1 -->
+    <path d="M 8.61 4 L 8.61 6 L 30 6 L 30 9.5 L 32 9.5"/>
+    <path d="M 30 6 L 32 18.5"/>
+    <!-- GND: ESP32 GND (top row, 2nd) → cap (−) → JST pin3 -->
+    <path d="M 11.15 4 L 11.15 7 L 28.5 7 L 28.5 13.5 L 32 13.5"/>
+    <path d="M 28.5 7 L 37 7 L 37 18.5"/>
+    <!-- SIG: GPIO3 (top row, position 5 from left → IO3 on SuperMini map) → JST pin2 -->
+    <path d="M 18.77 4 L 18.77 8 L 30.5 8 L 30.5 11.5 L 32 11.5"/>
+  </g>
+
+  <!-- ===== silkscreen labels ===== -->
+  <g font-family="JetBrains Mono, monospace" fill="#ffffff">
+    <text x="20" y="13" text-anchor="middle" font-size="1.4" font-weight="700">AUTOCLICKER</text>
+    <text x="20" y="14.6" text-anchor="middle" font-size="0.9">v1.0 · ccayno</text>
+    <!-- pin label 5V at top-row pos 1 -->
+    <text x="8.61"  y="2.4" text-anchor="middle" font-size="0.75">5V</text>
+    <text x="11.15" y="2.4" text-anchor="middle" font-size="0.75">G</text>
+    <text x="13.69" y="2.4" text-anchor="middle" font-size="0.75">3.3</text>
+    <text x="16.23" y="2.4" text-anchor="middle" font-size="0.75">4</text>
+    <text x="18.77" y="2.4" text-anchor="middle" font-size="0.75" fill="#fde68a">3</text>
+    <text x="21.31" y="2.4" text-anchor="middle" font-size="0.75">2</text>
+    <text x="23.85" y="2.4" text-anchor="middle" font-size="0.75">1</text>
+    <text x="26.39" y="2.4" text-anchor="middle" font-size="0.75">0</text>
+    <!-- bottom row pin labels -->
+    <text x="8.61"  y="23.6" text-anchor="middle" font-size="0.75">5</text>
+    <text x="11.15" y="23.6" text-anchor="middle" font-size="0.75">6</text>
+    <text x="13.69" y="23.6" text-anchor="middle" font-size="0.75">7</text>
+    <text x="16.23" y="23.6" text-anchor="middle" font-size="0.75">8</text>
+    <text x="18.77" y="23.6" text-anchor="middle" font-size="0.75">9</text>
+    <text x="21.31" y="23.6" text-anchor="middle" font-size="0.75">10</text>
+    <text x="23.85" y="23.6" text-anchor="middle" font-size="0.75">20</text>
+    <text x="26.39" y="23.6" text-anchor="middle" font-size="0.75">21</text>
+  </g>
+
+  <!-- USB-C protrusion arrow (silkscreen hint) -->
+  <g stroke="rgba(255,255,255,0.35)" stroke-width="0.12" fill="none">
+    <path d="M 7.5 11 L 4 11 L 4 14 L 7.5 14"/>
+  </g>
+  <text x="5.5" y="16.2" text-anchor="middle" font-size="0.7" fill="rgba(255,255,255,0.55)">USB-C →</text>
+</svg>
