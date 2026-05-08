@@ -1,0 +1,886 @@
+<!doctype html>
+<html lang="en">
+  <head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1" />
+    <title>Charlie & Karla — Wedding Invitation (Print)</title>
+    <link rel="preconnect" href="https://fonts.googleapis.com" />
+    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
+    <link
+      href="https://fonts.googleapis.com/css2?family=Cormorant+Garamond:ital,wght@0,400;0,500;0,600;1,400&family=Playfair+Display:ital,wght@0,400;0,500;0,600;1,400&family=Inter:wght@400;500;600;700&display=swap"
+      rel="stylesheet"
+    />
+    <style>
+      :root {
+        --sage: #7b8a5b;
+        --sage-deep: #5b6a3f;
+        --cream: #fbf6e9;
+        --paper: #f9f3df;
+        --ink: #3d3a2a;
+        --muted: #8a8770;
+        --rule: #c4be9f;
+        --accent: #c2b178;
+      }
+
+      * {
+        box-sizing: border-box;
+        margin: 0;
+        padding: 0;
+      }
+
+      html,
+      body {
+        background: #ddd;
+        font-family: "Inter", system-ui, sans-serif;
+        color: var(--ink);
+        -webkit-font-smoothing: antialiased;
+      }
+
+      .serif {
+        font-family: "Playfair Display", "Cormorant Garamond", serif;
+      }
+
+      /* Page sizing — 5"×7" portrait, mirrors the reference JPEG aspect */
+      .page {
+        width: 5in;
+        height: 7in;
+        position: relative;
+        overflow: hidden;
+        background: var(--cream);
+        background-image:
+          radial-gradient(
+            ellipse at 50% 40%,
+            #fffaf0 0%,
+            var(--cream) 60%,
+            #f1e9d4 100%
+          );
+        margin: 24px auto;
+        box-shadow: 0 6px 24px rgba(0, 0, 0, 0.12);
+        page-break-after: always;
+      }
+
+      .page::before {
+        /* paper grain */
+        content: "";
+        position: absolute;
+        inset: 0;
+        background-image:
+          radial-gradient(rgba(120, 100, 60, 0.05) 1px, transparent 1px),
+          radial-gradient(rgba(120, 100, 60, 0.04) 1px, transparent 1px);
+        background-size: 7px 7px, 13px 13px;
+        background-position: 0 0, 4px 4px;
+        opacity: 0.7;
+        pointer-events: none;
+        z-index: 0;
+      }
+
+      /* Inner border removed — the floral wreath is the frame */
+
+      /* Page 1 — full-bleed designed JPEG */
+      .p1-bleed {
+        background: #fff;
+      }
+      .p1-bleed img {
+        position: absolute;
+        inset: 0;
+        width: 100%;
+        height: 100%;
+        object-fit: cover;
+        object-position: center;
+        display: block;
+      }
+
+      /* Floral corner pieces — small, tucked into the corners so type stays clear */
+      .floral {
+        position: absolute;
+        pointer-events: none;
+        z-index: 1;
+        filter: saturate(0.92) contrast(0.96);
+        opacity: 0.95;
+      }
+      /* Page 1 — corners (compact, well outside the text safe zone) */
+      .floral.tl {
+        top: -60px;
+        left: -58px;
+        width: 130px;
+        transform: rotate(-6deg);
+      }
+      .floral.tr {
+        top: -62px;
+        right: -58px;
+        width: 128px;
+        transform: scaleX(-1) rotate(-6deg);
+      }
+      .floral.br {
+        bottom: -60px;
+        right: -58px;
+        width: 130px;
+        transform: rotate(178deg);
+      }
+      .floral.bl {
+        bottom: -60px;
+        left: -58px;
+        width: 128px;
+        transform: rotate(180deg) scaleX(-1);
+      }
+      /* Top + bottom center accents */
+      .floral.top-mid {
+        top: -78px;
+        left: 50%;
+        width: 92px;
+        transform: translateX(-50%) rotate(-2deg);
+        opacity: 0.9;
+      }
+      .floral.bottom-mid {
+        bottom: -74px;
+        left: 50%;
+        width: 92px;
+        transform: translateX(-50%) rotate(180deg);
+        opacity: 0.9;
+      }
+      /* Top/bottom edge bridges — fill horizontal gaps */
+      .floral.tl-bridge {
+        top: -64px;
+        left: 21%;
+        width: 88px;
+        transform: rotate(-4deg);
+        opacity: 0.88;
+      }
+      .floral.tr-bridge {
+        top: -64px;
+        right: 21%;
+        width: 88px;
+        transform: scaleX(-1) rotate(-4deg);
+        opacity: 0.88;
+      }
+      .floral.bl-bridge {
+        bottom: -62px;
+        left: 21%;
+        width: 86px;
+        transform: rotate(180deg) scaleX(-1);
+        opacity: 0.88;
+      }
+      .floral.br-bridge {
+        bottom: -62px;
+        right: 21%;
+        width: 86px;
+        transform: rotate(180deg);
+        opacity: 0.88;
+      }
+      /* Side garland — 4 accents per side, brought closer with bigger elements */
+      .floral.side-1L {
+        top: 16%;
+        left: -48px;
+        width: 112px;
+        transform: rotate(-14deg);
+        opacity: 0.88;
+      }
+      .floral.side-1R {
+        top: 16%;
+        right: -50px;
+        width: 108px;
+        transform: scaleX(-1) rotate(-14deg);
+        opacity: 0.88;
+      }
+      .floral.side-2L {
+        top: 34%;
+        left: -50px;
+        width: 108px;
+        transform: rotate(-26deg);
+        opacity: 0.84;
+      }
+      .floral.side-2R {
+        top: 34%;
+        right: -52px;
+        width: 102px;
+        transform: scaleX(-1) rotate(-26deg);
+        opacity: 0.84;
+      }
+      .floral.side-3L {
+        top: 52%;
+        left: -50px;
+        width: 108px;
+        transform: rotate(-18deg);
+        opacity: 0.84;
+      }
+      .floral.side-3R {
+        top: 52%;
+        right: -52px;
+        width: 102px;
+        transform: scaleX(-1) rotate(-18deg);
+        opacity: 0.84;
+      }
+      .floral.side-4L {
+        top: 70%;
+        left: -48px;
+        width: 112px;
+        transform: rotate(-28deg);
+        opacity: 0.88;
+      }
+      .floral.side-4R {
+        top: 70%;
+        right: -50px;
+        width: 108px;
+        transform: scaleX(-1) rotate(-28deg);
+        opacity: 0.88;
+      }
+
+      /* Page 1 layout — three groups, evenly distributed
+         Top + bottom padding kept generous so text stays
+         clear of the floral border on all sides */
+      .p1 .content {
+        position: relative;
+        z-index: 2;
+        height: 100%;
+        display: flex;
+        flex-direction: column;
+        align-items: center;
+        justify-content: space-between;
+        text-align: center;
+        padding: 0.95in 0.55in 0.95in;
+      }
+      .p1 .hero-top,
+      .p1 .hero-middle,
+      .p1 .hero-bottom {
+        display: flex;
+        flex-direction: column;
+        align-items: center;
+        width: 100%;
+      }
+
+      .rings {
+        margin-bottom: 0.16in;
+        opacity: 0.85;
+      }
+      .rings svg {
+        width: 50px;
+        height: auto;
+      }
+
+      .monogram-mark {
+        width: 70px;
+        height: auto;
+        opacity: 0.92;
+        margin-bottom: 0.22in;
+        filter: drop-shadow(0 1px 2px rgba(60, 50, 30, 0.15));
+      }
+      .monogram-seal {
+        width: 38px;
+        height: auto;
+        opacity: 0.85;
+        display: block;
+        margin: 6px auto 0;
+      }
+      .p2-monogram {
+        width: 32px;
+        height: auto;
+        opacity: 0.78;
+        display: block;
+        margin: 0 auto 6px;
+      }
+
+      .invite-label {
+        font-family: "Inter", sans-serif;
+        font-size: 10px;
+        letter-spacing: 0.32em;
+        text-transform: uppercase;
+        color: #9a957f;
+        margin-bottom: 0.36in;
+        font-weight: 400;
+      }
+      .invite-label strong {
+        font-weight: 700;
+        color: var(--sage-deep);
+        letter-spacing: 0.32em;
+      }
+
+      .couple-line {
+        font-family: "Playfair Display", serif;
+        font-size: 52px;
+        line-height: 1;
+        letter-spacing: 0.005em;
+        color: #1f1d18;
+        font-weight: 400;
+        font-style: normal;
+        white-space: nowrap;
+      }
+      .couple-line .amp {
+        color: var(--sage);
+        font-style: italic;
+        font-weight: 400;
+        margin: 0 10px;
+      }
+
+      .full-names {
+        margin-top: 0.18in;
+        font-family: "Inter", sans-serif;
+        font-size: 8.5px;
+        letter-spacing: 0.22em;
+        text-transform: uppercase;
+        color: #807d6a;
+        font-weight: 400;
+        display: flex;
+        align-items: center;
+        justify-content: center;
+        gap: 14px;
+        white-space: nowrap;
+      }
+      .full-names span {
+        white-space: nowrap;
+      }
+      .full-names .pipe {
+        color: var(--rule);
+        font-weight: 300;
+        margin: 0 4px;
+      }
+
+      .divider-rule {
+        height: 1px;
+        background: var(--rule);
+        width: 78%;
+        max-width: 3.6in;
+      }
+      .divider-rule.top {
+        margin: 0.28in auto 0.28in;
+      }
+      .divider-rule.bottom {
+        margin: 0.28in auto 0.16in;
+      }
+
+      .date-line {
+        font-family: "Playfair Display", serif;
+        font-style: italic;
+        font-size: 28px;
+        color: #2a2820;
+        font-weight: 400;
+        line-height: 1.1;
+      }
+      .venue-line {
+        font-family: "Inter", sans-serif;
+        font-size: 10.5px;
+        letter-spacing: 0.28em;
+        text-transform: uppercase;
+        color: #7c7965;
+        font-weight: 500;
+        margin-top: 0.13in;
+      }
+      .venue-line .dot {
+        color: var(--accent);
+        margin: 0 8px;
+      }
+      .venue-sub {
+        font-family: "Inter", sans-serif;
+        font-size: 8.5px;
+        letter-spacing: 0.24em;
+        text-transform: uppercase;
+        color: var(--muted);
+        margin-top: 6px;
+      }
+
+      .date-row {
+        margin-top: 0.42in;
+        display: flex;
+        align-items: center;
+        justify-content: center;
+        gap: 12px;
+        width: 92%;
+      }
+      .date-side {
+        font-family: "Inter", sans-serif;
+        font-size: 12px;
+        letter-spacing: 0.3em;
+        text-transform: uppercase;
+        color: var(--ink);
+        font-weight: 500;
+        white-space: nowrap;
+      }
+      .date-rule {
+        flex: 1;
+        height: 1px;
+        background: var(--rule);
+        max-width: 0.7in;
+      }
+      .date-num {
+        font-family: "Playfair Display", serif;
+        font-size: 38px;
+        color: var(--sage-deep);
+        line-height: 1;
+        font-weight: 500;
+        padding: 0 4px;
+      }
+
+      .year {
+        font-family: "Playfair Display", serif;
+        font-size: 18px;
+        color: var(--sage);
+        margin-top: 6px;
+        letter-spacing: 0.12em;
+      }
+
+      .ceremony-block {
+        margin-top: 0.5in;
+      }
+      .ceremony-line {
+        font-family: "Playfair Display", serif;
+        font-style: italic;
+        font-size: 22px;
+        color: var(--muted);
+        margin-bottom: 4px;
+      }
+      .ceremony-time {
+        font-family: "Playfair Display", serif;
+        font-size: 22px;
+        color: var(--sage-deep);
+        letter-spacing: 0.04em;
+      }
+      .ceremony-time .dot {
+        color: var(--accent);
+        margin: 0 6px;
+      }
+      .ceremony-venue {
+        font-family: "Inter", sans-serif;
+        font-size: 11px;
+        letter-spacing: 0.28em;
+        text-transform: uppercase;
+        color: var(--muted);
+        margin-top: 8px;
+      }
+
+      /* Page 2 — smaller florals, tucked tight so they never overlap text */
+      .p2 .floral.tl {
+        top: -64px;
+        left: -58px;
+        width: 145px;
+      }
+      .p2 .floral.tr {
+        top: -64px;
+        right: -58px;
+        width: 140px;
+      }
+      .p2 .floral.br {
+        bottom: -68px;
+        right: -58px;
+        width: 135px;
+      }
+      .p2 .floral.bl {
+        bottom: -68px;
+        left: -58px;
+        width: 130px;
+      }
+
+      /* Page 2 layout */
+      .p2 .content {
+        position: relative;
+        z-index: 2;
+        height: 100%;
+        padding: 0.34in 0.34in 0.26in;
+        text-align: center;
+        display: flex;
+        flex-direction: column;
+      }
+
+      .p2 .header {
+        margin-bottom: 0.08in;
+      }
+      .p2 .header .label {
+        font-family: "Inter", sans-serif;
+        font-size: 8px;
+        letter-spacing: 0.32em;
+        text-transform: uppercase;
+        color: var(--sage);
+        font-weight: 600;
+        margin-bottom: 2px;
+      }
+      .p2 .header h1 {
+        font-family: "Playfair Display", serif;
+        font-size: 20px;
+        font-style: italic;
+        color: var(--sage-deep);
+        font-weight: 500;
+        line-height: 1.1;
+      }
+      .p2 .header .micro {
+        font-family: "Inter", sans-serif;
+        font-size: 7px;
+        letter-spacing: 0.22em;
+        text-transform: uppercase;
+        color: var(--muted);
+        margin-top: 3px;
+      }
+
+      .section {
+        margin-top: 0.07in;
+      }
+      .section-title {
+        font-family: "Playfair Display", serif;
+        font-style: italic;
+        font-size: 11px;
+        color: var(--sage);
+        margin-bottom: 3px;
+        letter-spacing: 0.06em;
+      }
+      .section-title::before,
+      .section-title::after {
+        content: "—";
+        margin: 0 7px;
+        color: var(--rule);
+        font-style: normal;
+      }
+
+      .role-label {
+        font-family: "Inter", sans-serif;
+        font-size: 6.5px;
+        letter-spacing: 0.26em;
+        text-transform: uppercase;
+        color: var(--sage);
+        font-weight: 700;
+        margin-bottom: 1px;
+      }
+
+      .name-line,
+      .pair-line {
+        font-family: "Playfair Display", serif;
+        font-size: 9.5px;
+        color: var(--ink);
+        line-height: 1.35;
+      }
+      .pair-line {
+        font-size: 9px;
+        white-space: nowrap;
+      }
+      .pair-line .amp {
+        color: var(--accent);
+        font-style: italic;
+        margin: 0 3px;
+        font-weight: 400;
+      }
+
+      .grid-2 {
+        display: grid;
+        grid-template-columns: 1fr 1fr;
+        gap: 2px 16px;
+        max-width: 4.1in;
+        margin: 0 auto;
+      }
+      .grid-3 {
+        display: grid;
+        grid-template-columns: repeat(3, 1fr);
+        gap: 2px 10px;
+      }
+
+      .pairs-grid {
+        display: grid;
+        grid-template-columns: 1fr 1fr;
+        column-gap: 12px;
+        row-gap: 2px;
+        max-width: 4.4in;
+        margin: 0 auto;
+      }
+
+      .star {
+        color: var(--accent);
+        font-weight: 600;
+        margin-left: 1px;
+      }
+
+      .footnote {
+        margin-top: auto;
+        padding-top: 0.12in;
+        font-family: "Inter", sans-serif;
+        font-size: 6.5px;
+        line-height: 1.5;
+        color: var(--muted);
+        letter-spacing: 0.02em;
+        text-align: center;
+        padding-left: 0.1in;
+        padding-right: 0.1in;
+      }
+      .footnote .legend-row {
+        display: flex;
+        gap: 10px;
+        flex-wrap: wrap;
+        justify-content: center;
+        margin-top: 2px;
+      }
+      .footnote .legend-row span {
+        white-space: nowrap;
+      }
+      .footnote strong {
+        color: var(--sage-deep);
+        font-weight: 600;
+      }
+
+      /* Print rules */
+      @media print {
+        html,
+        body {
+          background: white;
+        }
+        .page {
+          margin: 0;
+          box-shadow: none;
+          page-break-after: always;
+        }
+        @page {
+          size: 5in 7in;
+          margin: 0;
+        }
+        .toolbar {
+          display: none !important;
+        }
+      }
+
+      .toolbar {
+        position: fixed;
+        top: 12px;
+        right: 12px;
+        z-index: 9999;
+        background: white;
+        border: 1px solid #ccc;
+        padding: 8px 12px;
+        border-radius: 8px;
+        font-family: "Inter", sans-serif;
+        font-size: 12px;
+        box-shadow: 0 4px 12px rgba(0, 0, 0, 0.08);
+      }
+      .toolbar button {
+        background: var(--sage);
+        color: white;
+        border: 0;
+        padding: 6px 12px;
+        border-radius: 6px;
+        cursor: pointer;
+        font-size: 12px;
+        font-family: inherit;
+      }
+    </style>
+  </head>
+  <body>
+    <div class="toolbar">
+      <button onclick="window.print()">Print / Save as PDF</button>
+      <span style="color: #888; margin-left: 8px"
+        >5" × 7" · 2 pages · back-to-back</span
+      >
+    </div>
+
+    <!-- ============================== PAGE 1 — FRONT (designed JPEG) ============================== -->
+    <div class="page p1-bleed">
+      <img
+        src="./assets/wedding-invitation-front.jpeg"
+        alt="Charlie & Karla wedding invitation front"
+      />
+    </div>
+
+    <!-- ============================== PAGE 2 — BACK ============================== -->
+    <div class="page p2">
+      <img src="./assets/9.png" class="floral tl" alt="" />
+      <img src="./assets/8.png" class="floral tr" alt="" />
+      <img src="./assets/5.png" class="floral br" alt="" />
+      <img src="./assets/7.png" class="floral bl" alt="" />
+
+      <div class="content">
+        <div class="header">
+          <img
+            src="./assets/monogram.png"
+            alt="Charlie & Karla monogram"
+            class="p2-monogram"
+          />
+          <div class="label">— With Our Beloved —</div>
+          <h1>The Wedding Party</h1>
+          <div class="micro">
+            Charlie &amp; Karla &middot; 2 July 2026 &middot; CCF East Ortigas
+          </div>
+        </div>
+
+        <!-- PARENTS -->
+        <div class="section">
+          <div class="section-title">Parents</div>
+          <div class="grid-2">
+            <div>
+              <div class="role-label">Parents of the Groom</div>
+              <div class="name-line">
+                Fernando <span class="amp">&amp;</span> Arlene Cayno
+              </div>
+            </div>
+            <div>
+              <div class="role-label">Parents of the Bride</div>
+              <div class="name-line">
+                Wilfredo <span class="amp">&amp;</span> Honey Dawn Romantico
+              </div>
+            </div>
+          </div>
+        </div>
+
+        <!-- OFFICIANT + MAJOR ATTENDANTS -->
+        <div class="section">
+          <div class="section-title">Officiant &amp; Major Attendants</div>
+          <div class="grid-3">
+            <div>
+              <div class="role-label">Officiant</div>
+              <div class="name-line">Ptr. Julius Rayala</div>
+            </div>
+            <div>
+              <div class="role-label">Maid of Honor</div>
+              <div class="name-line">Heleaena Luv Romantico</div>
+            </div>
+            <div>
+              <div class="role-label">Best Man</div>
+              <div class="name-line">Charles Michael Cayno</div>
+            </div>
+          </div>
+        </div>
+
+        <!-- PRINCIPAL SPONSORS -->
+        <div class="section">
+          <div class="section-title">Ninangs &amp; Ninongs</div>
+          <div class="pairs-grid">
+            <!-- Row 1 -->
+            <div class="pair-line">
+              Mary Grace Francisco              <span class="amp">&amp;</span>
+              Sherill Obillo            </div>
+            <div class="pair-line">
+              Manny &amp; Lissa Apostol
+            </div>
+
+            <!-- Row 2 -->
+            <div class="pair-line">
+              Alvin &amp; Mary Fatima Francisco
+            </div>
+            <div class="pair-line">
+              Rey Morante &amp; Jennifer Francisco
+            </div>
+
+            <!-- Row 3 -->
+            <div class="pair-line">
+              Amante              <span class="amp">&amp;</span>
+              Aylene Andal            </div>
+            <div class="pair-line">
+              Christian              <span class="amp">&amp;</span>
+              Maui Rochell Ilao            </div>
+
+            <!-- Row 4 -->
+            <div class="pair-line">
+              Vanie Madrazo              <span class="amp">&amp;</span>
+              Atty. Judith Zamora            </div>
+            <div class="pair-line">
+              Alexis Miguel              <span class="amp">&amp;</span>
+              Carmela Dawn Perez            </div>
+
+            <!-- Row 5 -->
+            <div class="pair-line">
+              Zhardo &amp; Cristina Nofiel
+            </div>
+            <div class="pair-line">
+              Kharl John              <span class="amp">&amp;</span>
+              Jael Beatrice Rayala            </div>
+
+            <!-- Row 6 -->
+            <div class="pair-line">
+              Melvin              <span class="amp">&amp;</span>
+              Jerdin Catanghal            </div>
+            <div class="pair-line">
+              Aldine &amp; Sharmaine Mercado
+            </div>
+
+            <!-- Row 7 (last pair, full-width centered via span) -->
+            <div
+              class="pair-line"
+              style="grid-column: 1 / span 2; text-align: center"
+            >
+              Ivan John              <span class="amp">&amp;</span>
+              Sheniah Anne Gomez            </div>
+          </div>
+        </div>
+
+        <!-- BRIDESMAIDS / GROOMSMEN -->
+        <div class="section">
+          <div class="section-title">Bridesmaids &amp; Groomsmen</div>
+          <div class="grid-2">
+            <div>
+              <div class="role-label">Bridesmaids</div>
+              <div class="name-line">Camille Cayabyab</div>
+              <div class="name-line">Mitzi Marzan</div>
+              <div class="name-line">Angelica Macalalad</div>
+              <div class="name-line">Quiana Bernardo</div>
+              <div class="name-line">Alyssa Moira Mangubat</div>
+              <div class="name-line">Diane Faith Adviento</div>
+            </div>
+            <div>
+              <div class="role-label">Groomsmen</div>
+              <div class="name-line">King David Gomez</div>
+              <div class="name-line">James Patacsil</div>
+              <div class="name-line">Peter Carl Pardo</div>
+              <div class="name-line">Matt Joshua Cabezas</div>
+              <div class="name-line">Albert Kobe Serrano</div>
+              <div class="name-line">Eutemio Josef Romantico</div>
+            </div>
+          </div>
+        </div>
+
+        <!-- SECONDARY SPONSORS -->
+        <div class="section">
+          <div class="section-title">Secondary Sponsors</div>
+          <div class="grid-3">
+            <div>
+              <div class="role-label">Candle</div>
+              <div class="name-line">
+                Chloe Obillo <span class="amp">&amp;</span> Vince Francisco
+              </div>
+            </div>
+            <div>
+              <div class="role-label">Veil</div>
+              <div class="name-line">
+                Cayla Ochoa <span class="amp">&amp;</span> Raiñer John Alabado
+              </div>
+            </div>
+            <div>
+              <div class="role-label">Coin</div>
+              <div class="name-line">
+                Annika Meraña <span class="amp">&amp;</span> Cy Matthieu Cayno
+              </div>
+            </div>
+          </div>
+          <div
+            class="grid-3"
+            style="margin-top: 6px; max-width: 3.2in; margin-left: auto; margin-right: auto; grid-template-columns: repeat(2, 1fr);"
+          >
+            <div class="name-line">Clettes Obillo</div>
+            <div class="name-line">Joshua Obillo</div>
+          </div>
+        </div>
+
+        <!-- BEARERS / FLOWER GIRLS -->
+        <div class="section">
+          <div class="section-title">Bearers &amp; Flower Girls</div>
+          <div class="grid-3">
+            <div>
+              <div class="role-label">Bible Bearer</div>
+              <div class="name-line">Lance Ailen Grey Francisco</div>
+            </div>
+            <div>
+              <div class="role-label">Ring Bearer</div>
+              <div class="name-line">Pierce Raven Francisco</div>
+            </div>
+            <div>
+              <div class="role-label">Flower Boys &amp; Girls</div>
+              <div class="name-line">Jonathan Primo Manalo</div>
+              <div class="name-line">Minea Obillo</div>
+              <div class="name-line">Shehani Hiraya Gomez</div>
+              <div class="name-line">Sienna Bri Catanghal</div>
+            </div>
+          </div>
+        </div>
+
+        <!-- CLOSING FLOURISH -->
+        <div class="footnote">
+          <img
+            src="./assets/monogram.png"
+            alt=""
+            class="monogram-seal"
+            aria-hidden="true"
+          />
+        </div>
+      </div>
+    </div>
+  </body>
+</html>
