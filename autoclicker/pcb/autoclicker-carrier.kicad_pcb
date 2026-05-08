@@ -85,10 +85,6 @@
 	(net 2 "GND")
 	(net 3 "SIG")
 	(net 4 "LED_A")
-
-	; ============================================================
-	; Mounting holes (M2, Ø 2.2 mm, NPTH)
-	; ============================================================
 	(footprint "MountingHole:MountingHole_2.2mm_M2"
 		(layer "F.Cu") (uuid "a0000000-0000-0000-0000-000000000001") (at 3 3)
 		(attr exclude_from_pos_files exclude_from_bom)
@@ -129,12 +125,6 @@
 		(property "Description" "Mounting Hole" (at 0 0) (unlocked yes) (layer "F.Fab") (hide yes) (uuid "a0000000-0000-0000-0000-000000000036") (effects (font (size 1.27 1.27) (thickness 0.15))))
 		(pad "" np_thru_hole circle (at 0 0) (size 2.2 2.2) (drill 2.2) (layers "F&B.Cu" "*.Mask") (uuid "a0000000-0000-0000-0000-000000000037"))
 	)
-
-	; ============================================================
-	; J1 — ESP32-C3 SuperMini top-row socket (1×8 horizontal, 2.54 mm pitch)
-	; Footprint origin at pad 1; pads laid out along +x axis.
-	; Pad 1 = 5V, Pad 2 = GND, Pad 5 = GPIO3 (= SIG)
-	; ============================================================
 	(footprint "Custom:PinSocket_1x08_Horizontal"
 		(layer "F.Cu") (uuid "b1000000-0000-0000-0000-000000000001") (at 8.61 4)
 		(descr "Pin socket, 1x08, 2.54mm pitch, horizontal layout")
@@ -157,10 +147,6 @@
 		(pad "7" thru_hole oval (at 15.24 0) (size 1.7 1.7) (drill 1) (layers "*.Cu" "*.Mask") (pintype "passive") (uuid "b1000000-0000-0000-0000-000000000016"))
 		(pad "8" thru_hole oval (at 17.78 0) (size 1.7 1.7) (drill 1) (layers "*.Cu" "*.Mask") (pintype "passive") (uuid "b1000000-0000-0000-0000-000000000017"))
 	)
-
-	; ============================================================
-	; J2 — ESP32-C3 SuperMini bottom-row socket (1×8 horizontal, no nets)
-	; ============================================================
 	(footprint "Custom:PinSocket_1x08_Horizontal"
 		(layer "F.Cu") (uuid "b2000000-0000-0000-0000-000000000001") (at 8.61 21.78)
 		(descr "Pin socket, 1x08, 2.54mm pitch, horizontal layout")
@@ -183,11 +169,6 @@
 		(pad "7" thru_hole oval (at 15.24 0) (size 1.7 1.7) (drill 1) (layers "*.Cu" "*.Mask") (pintype "passive") (uuid "b2000000-0000-0000-0000-000000000016"))
 		(pad "8" thru_hole oval (at 17.78 0) (size 1.7 1.7) (drill 1) (layers "*.Cu" "*.Mask") (pintype "passive") (uuid "b2000000-0000-0000-0000-000000000017"))
 	)
-
-	; ============================================================
-	; J3 — JST-PH 3-pin servo connector (vertical, 2.0 mm pitch)
-	; Pin 1 = 5V, Pin 2 = SIG, Pin 3 = GND
-	; ============================================================
 	(footprint "Connector_JST:JST_PH_S3B-PH-K_1x03_P2.00mm_Vertical"
 		(layer "F.Cu") (uuid "c1000000-0000-0000-0000-000000000001") (at 32 11.5)
 		(descr "JST PH series, 3-pin, vertical")
@@ -205,10 +186,6 @@
 		(pad "2" thru_hole oval (at 0  0) (size 1.55 1.55) (drill 0.85) (layers "*.Cu" "*.Mask") (net 3 "SIG") (pintype "passive") (uuid "c1000000-0000-0000-0000-000000000011"))
 		(pad "3" thru_hole oval (at 0  2) (size 1.55 1.55) (drill 0.85) (layers "*.Cu" "*.Mask") (net 2 "GND") (pintype "passive") (uuid "c1000000-0000-0000-0000-000000000012"))
 	)
-
-	; ============================================================
-	; C1 — 470 µF / 16 V electrolytic, 5 mm lead pitch
-	; ============================================================
 	(footprint "Capacitor_THT:CP_Radial_D8.0mm_P5.00mm"
 		(layer "F.Cu") (uuid "c2000000-0000-0000-0000-000000000001") (at 34.5 18.5)
 		(descr "Through-hole radial electrolytic, D8mm, P5mm")
@@ -223,10 +200,6 @@
 		(pad "1" thru_hole rect (at -2.5 0) (size 2 2) (drill 1) (layers "*.Cu" "*.Mask") (net 1 "+5V") (pintype "passive") (uuid "c2000000-0000-0000-0000-000000000010"))
 		(pad "2" thru_hole oval (at  2.5 0) (size 2 2) (drill 1) (layers "*.Cu" "*.Mask") (net 2 "GND") (pintype "passive") (uuid "c2000000-0000-0000-0000-000000000011"))
 	)
-
-	; ============================================================
-	; R1 — 330 Ω current-limit resistor (vertical, 2.54 mm pitch)
-	; ============================================================
 	(footprint "Resistor_THT:R_Axial_DIN0207_L6.3mm_D2.5mm_P2.54mm_Vertical"
 		(layer "F.Cu") (uuid "d1000000-0000-0000-0000-000000000001") (at 33 3.5)
 		(descr "Axial resistor, 1/4W, vertical, P2.54mm")
@@ -239,10 +212,6 @@
 		(pad "1" thru_hole rect (at -1 0) (size 1.7 1.7) (drill 0.85) (layers "*.Cu" "*.Mask") (net 1 "+5V") (pintype "passive") (uuid "d1000000-0000-0000-0000-000000000010"))
 		(pad "2" thru_hole oval (at  1 0) (size 1.7 1.7) (drill 0.85) (layers "*.Cu" "*.Mask") (net 4 "LED_A") (pintype "passive") (uuid "d1000000-0000-0000-0000-000000000011"))
 	)
-
-	; ============================================================
-	; D1 — 5 mm red status LED
-	; ============================================================
 	(footprint "LED_THT:LED_D5.0mm"
 		(layer "F.Cu") (uuid "d2000000-0000-0000-0000-000000000001") (at 37 3.5)
 		(descr "5mm round LED, vertical, P2.54mm")
@@ -257,18 +226,10 @@
 		(pad "1" thru_hole rect (at -1 0) (size 1.7 1.7) (drill 0.85) (layers "*.Cu" "*.Mask") (net 4 "LED_A") (pintype "passive") (uuid "d2000000-0000-0000-0000-000000000010"))
 		(pad "2" thru_hole oval (at  1 0) (size 1.7 1.7) (drill 0.85) (layers "*.Cu" "*.Mask") (net 2 "GND") (pintype "passive") (uuid "d2000000-0000-0000-0000-000000000011"))
 	)
-
-	; ============================================================
-	; Edge.Cuts — 40 × 25 mm board outline
-	; ============================================================
 	(gr_line (start  0  0) (end 40  0) (stroke (width 0.05) (type default)) (layer "Edge.Cuts") (uuid "e0000000-0000-0000-0000-000000000001"))
 	(gr_line (start 40  0) (end 40 25) (stroke (width 0.05) (type default)) (layer "Edge.Cuts") (uuid "e0000000-0000-0000-0000-000000000002"))
 	(gr_line (start 40 25) (end  0 25) (stroke (width 0.05) (type default)) (layer "Edge.Cuts") (uuid "e0000000-0000-0000-0000-000000000003"))
 	(gr_line (start  0 25) (end  0  0) (stroke (width 0.05) (type default)) (layer "Edge.Cuts") (uuid "e0000000-0000-0000-0000-000000000004"))
-
-	; ============================================================
-	; Silkscreen text (front)
-	; ============================================================
 	(gr_text "AUTOCLICKER" (at 17.5 13.0 0) (layer "F.SilkS") (uuid "f0000000-0000-0000-0000-000000000001")
 		(effects (font (size 1.6 1.6) (thickness 0.3) (bold yes)) (justify left))
 	)
@@ -293,11 +254,6 @@
 	(gr_text "GPIO3" (at 18.77 1.0 0) (layer "F.SilkS") (uuid "f0000000-0000-0000-0000-000000000008")
 		(effects (font (size 0.6 0.6) (thickness 0.1)))
 	)
-
-	; ============================================================
-	; Copper traces — F.Cu (top)
-	; +5V
-	; ============================================================
 	(segment (start 8.61  4)    (end 8.61  2)    (width 0.4) (layer "F.Cu") (net 1) (uuid "1a000000-0000-0000-0000-000000000001"))
 	(segment (start 8.61  2)    (end 35    2)    (width 0.4) (layer "F.Cu") (net 1) (uuid "1a000000-0000-0000-0000-000000000002"))
 	(segment (start 35    2)    (end 35    9.5)  (width 0.4) (layer "F.Cu") (net 1) (uuid "1a000000-0000-0000-0000-000000000003"))
@@ -305,21 +261,12 @@
 	(segment (start 35    9.5)  (end 35    16)   (width 0.4) (layer "F.Cu") (net 1) (uuid "1a000000-0000-0000-0000-000000000005"))
 	(segment (start 35    16)   (end 32    16)   (width 0.4) (layer "F.Cu") (net 1) (uuid "1a000000-0000-0000-0000-000000000006"))
 	(segment (start 32    16)   (end 32    18.5) (width 0.4) (layer "F.Cu") (net 1) (uuid "1a000000-0000-0000-0000-000000000007"))
-	; +5V branch to R1
 	(segment (start 32    2)    (end 32    3.5)  (width 0.4) (layer "F.Cu") (net 1) (uuid "1a000000-0000-0000-0000-000000000008"))
-
-	; SIG (GPIO3 → JST pin 2)
 	(segment (start 18.77 4)    (end 18.77 9)    (width 0.4) (layer "F.Cu") (net 3) (uuid "1b000000-0000-0000-0000-000000000001"))
 	(segment (start 18.77 9)    (end 30    9)    (width 0.4) (layer "F.Cu") (net 3) (uuid "1b000000-0000-0000-0000-000000000002"))
 	(segment (start 30    9)    (end 30    11.5) (width 0.4) (layer "F.Cu") (net 3) (uuid "1b000000-0000-0000-0000-000000000003"))
 	(segment (start 30    11.5) (end 32    11.5) (width 0.4) (layer "F.Cu") (net 3) (uuid "1b000000-0000-0000-0000-000000000004"))
-
-	; LED_A (R1.2 → D1.A) — short link at y=3.5
 	(segment (start 34    3.5)  (end 36    3.5)  (width 0.4) (layer "F.Cu") (net 4) (uuid "1c000000-0000-0000-0000-000000000001"))
-
-	; ============================================================
-	; Copper traces — B.Cu (bottom). GND backbone.
-	; ============================================================
 	(segment (start 11.15 4)    (end 11.15 13.5) (width 0.4) (layer "B.Cu") (net 2) (uuid "1d000000-0000-0000-0000-000000000001"))
 	(segment (start 11.15 13.5) (end 38    13.5) (width 0.4) (layer "B.Cu") (net 2) (uuid "1d000000-0000-0000-0000-000000000002"))
 	(segment (start 38    13.5) (end 38    3.5)  (width 0.4) (layer "B.Cu") (net 2) (uuid "1d000000-0000-0000-0000-000000000003"))
