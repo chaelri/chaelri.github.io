@@ -136,6 +136,20 @@
         <span id="statusText" class="mono text-slate-400 flex-1 truncate">tap a button to send</span>
         <span class="mono text-slate-600 text-[10px]" id="lastTime"></span>
       </div>
+      <div class="px-4 py-3 border-t border-white/[0.05] grid grid-cols-3 gap-2 text-[10px] mono uppercase tracking-[0.16em] text-slate-500">
+        <div>
+          <div class="text-slate-600">last cmd</div>
+          <div class="text-slate-300 text-xs normal-case tracking-normal mt-0.5" id="diagCmd">—</div>
+        </div>
+        <div>
+          <div class="text-slate-600">duration</div>
+          <div class="text-slate-300 text-xs normal-case tracking-normal mt-0.5" id="diagMs">—</div>
+        </div>
+        <div>
+          <div class="text-slate-600">IR witnessed</div>
+          <div class="text-xs normal-case tracking-normal mt-0.5" id="diagEdges">—</div>
+        </div>
+      </div>
     </div>
 
     <p class="text-[10px] text-slate-600 mt-4 text-center">
@@ -174,10 +188,37 @@
       statusText.textContent = msg;
     }
 
+    const diagCmd   = $("diagCmd");
+    const diagMs    = $("diagMs");
+    const diagEdges = $("diagEdges");
+
     onValue(ref(db, "aircon/state"), snap => {
       const v = snap.val();
       if (!v || typeof v !== "object" || !v.last) return;
-      setStatus("ok", "sent " + v.last);
+      const edges = v.edges | 0, ms = v.send_ms | 0;
+      diagCmd.textContent   = v.last + (v.count ? "  #" + v.count : "");
+      diagMs.textContent    = ms ? ms + " ms" : "—";
+
+      let verdictText, verdictColor, statusState, statusMsg;
+      if (edges > 50) {
+        verdictText  = "✓ " + edges + " edges";
+        verdictColor = "text-emerald-300";
+        statusState  = "ok";
+        statusMsg    = "sent " + v.last + " · IR confirmed";
+      } else if (edges > 0) {
+        verdictText  = "⚠ " + edges + " edges (weak)";
+        verdictColor = "text-amber-300";
+        statusState  = "ok";
+        statusMsg    = "sent " + v.last + " · weak signal";
+      } else {
+        verdictText  = "✗ 0 edges";
+        verdictColor = "text-rose-300";
+        statusState  = "err";
+        statusMsg    = "no IR detected — LED dead or TSOP not wired";
+      }
+      diagEdges.className = "text-xs normal-case tracking-normal mt-0.5 " + verdictColor;
+      diagEdges.textContent = verdictText;
+      setStatus(statusState, statusMsg);
     });
 
     async function fire(cmd, haptic) {

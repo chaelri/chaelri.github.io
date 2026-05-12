@@ -60,20 +60,36 @@ const char* STATE_URL =
   "/aircon/state.json";
 
 // --- Pins / timing -----------------------------------------------------------
-const int IR_LED_PIN = 3;
-const int LED_PIN    = 8;     // onboard blue LED, active LOW
-const int POLL_MS    = 1000;
-const uint16_t IR_CARRIER_HZ        = 38;
-const uint16_t kInterBurstGapMs     = 50;  // delay between frame 1 and frame 2
+const int IR_LED_PIN          = 3;     // GPIO3 -> 100 ohm -> IR LED anode
+const int LED_PIN             = 8;     // onboard blue LED, active LOW
+const int TSOP_WITNESS_PIN    = 2;     // OPTIONAL TSOP4838 OUT -> GPIO2. If
+                                       // wired, every send is hardware-
+                                       // witnessed: TSOP sees the LED's own
+                                       // pulses and we count falling edges.
+                                       // If not wired, GPIO2 floats HIGH via
+                                       // internal pull-up; edge count stays
+                                       // at 0 and the phone UI prints
+                                       // "no IR detected (TSOP not connected?)"
+const int POLL_MS             = 1000;
+const uint16_t IR_CARRIER_HZ      = 38;
+const uint16_t kInterBurstGapMs   = 50;
 
 IRsend irsend(IR_LED_PIN);
 WebServer server(80);
 bool inSoftAP = false;
-String lastCmd = "";
+String   lastCmd     = "";
+uint32_t lastSendMs  = 0;     // wall-clock duration of last sendRaw pair
+uint32_t lastEdges   = 0;     // # of falling edges the TSOP saw during it
+uint32_t sendCount   = 0;
+
+volatile uint32_t irEdgeCount = 0;
+void IRAM_ATTR onIrEdge() { irEdgeCount++; }
 
 // --- IR send -----------------------------------------------------------------
 // Every supported button: replay handshake (frame 1) + button-specific payload
 // (frame 2) with a 50 ms inter-burst gap. Matches what the real remote does.
+// If the TSOP4838 is wired on GPIO2 as a witness, we measure how many falling
+// edges fired during the send — non-zero == IR physically emitted.
 bool sendCommand(const String& cmd) {
   const uint16_t* payload = nullptr;
   uint16_t payloadLen = 0;
@@ -85,20 +101,37 @@ bool sendCommand(const String& cmd) {
   else if (cmd == "swing")     { payload = SWING_RAW;     payloadLen = SWING_LEN; }
   else                         { return false; }
 
+  irEdgeCount = 0;
+  uint32_t t0 = millis();
+
   digitalWrite(LED_PIN, LOW);
   irsend.sendRaw(FRAME1_RAW, FRAME1_LEN, IR_CARRIER_HZ);
   delay(kInterBurstGapMs);
   irsend.sendRaw(payload, payloadLen, IR_CARRIER_HZ);
   digitalWrite(LED_PIN, HIGH);
 
-  lastCmd = cmd;
-  Serial.println("IR sent -> " + cmd);
+  uint32_t t1 = millis();
+
+  lastCmd    = cmd;
+  lastSendMs = t1 - t0;
+  lastEdges  = irEdgeCount;
+  sendCount++;
+
+  Serial.printf("IR sent -> %s | %u ms | %u edges witnessed\n",
+                cmd.c_str(), (unsigned)lastSendMs, (unsigned)lastEdges);
   return true;
 }
 
 // --- Publish current state to Firebase /aircon/state -------------------------
 String stateJson() {
-  return String("{\"last\":\"") + lastCmd + "\"}";
+  String s = "{";
+  s += "\"last\":\"";  s += lastCmd;             s += "\",";
+  s += "\"send_ms\":"; s += String(lastSendMs);  s += ",";
+  s += "\"edges\":";   s += String(lastEdges);   s += ",";
+  s += "\"count\":";   s += String(sendCount);   s += ",";
+  s += "\"ts\":";      s += String(millis());
+  s += "}";
+  return s;
 }
 void publishState() {
   if (inSoftAP || WiFi.status() != WL_CONNECTED) return;
@@ -196,13 +229,19 @@ const char INDEX_HTML[] PROGMEM = R"rawliteral(
 </footer>
 <script>
 const $=id=>document.getElementById(id);
+function fmtVerdict(j){
+  const e=j.edges|0, ms=j.send_ms|0;
+  if(e>50) return "OK · IR confirmed ("+e+" edges, "+ms+"ms)";
+  if(e>0)  return "weak · only "+e+" edges in "+ms+"ms";
+  return "NO IR detected ("+ms+"ms) — TSOP not wired? or LED dead?";
+}
 async function fire(cmd){
   $("statusText").textContent="sending "+cmd+"...";
   try{
     const r=await fetch("/set",{method:"POST",headers:{"Content-Type":"application/json"},body:JSON.stringify({cmd})});
     const j=await r.json();
-    $("lastPill").textContent=j.last||cmd;
-    $("statusText").textContent="sent "+cmd;
+    $("lastPill").textContent=(j.last||cmd)+" #"+(j.count|0);
+    $("statusText").textContent=fmtVerdict(j);
   }catch(e){$("statusText").textContent="failed";}
 }
 $("powerOnBtn").addEventListener("click",()=>fire("power_on"));
@@ -264,6 +303,11 @@ void setup() {
 
   pinMode(LED_PIN, OUTPUT);
   digitalWrite(LED_PIN, HIGH);
+
+  // TSOP4838 self-witness: idle HIGH via internal pull-up, drops LOW each
+  // time it detects 38 kHz carrier. We count falling edges during sends.
+  pinMode(TSOP_WITNESS_PIN, INPUT_PULLUP);
+  attachInterrupt(digitalPinToInterrupt(TSOP_WITNESS_PIN), onIrEdge, FALLING);
 
   wifiMulti.addAP("CAYNO", "lokomoko");
   wifiMulti.addAP("Charlie's iPhone", "charlie24");
