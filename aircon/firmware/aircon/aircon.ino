@@ -142,11 +142,8 @@ void publishState() {
   http.end();
 }
 
-// --- Apply a command body ----------------------------------------------------
-// Accepts EITHER of:
-//   {"cmd":"click"}   — the phone remote / cockpit shape
-//   "click"           — bare JSON string, what iPhone Shortcuts writes by
-//                       default when you do "Set value in Firebase"
+// --- Apply a JSON command body -----------------------------------------------
+// Schema: {"cmd":"click"}
 String extractStr(const String& body, const char* key) {
   String pat = String("\"") + key + "\":\"";
   int i = body.indexOf(pat);
@@ -158,15 +155,6 @@ String extractStr(const String& body, const char* key) {
 }
 void applyCommand(const String& body) {
   String cmd = extractStr(body, "cmd");
-
-  // Fallback: body is a bare quoted string like `"click"`. Strip the quotes.
-  if (cmd.length() == 0) {
-    String t = body; t.trim();
-    if (t.length() >= 2 && t.startsWith("\"") && t.endsWith("\"")) {
-      cmd = t.substring(1, t.length() - 1);
-    }
-  }
-
   if (cmd.length() == 0) return;
   if (sendCommand(cmd)) publishState();
 }
