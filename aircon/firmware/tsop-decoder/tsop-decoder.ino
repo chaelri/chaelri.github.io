@@ -52,7 +52,11 @@
 
 const uint16_t TSOP_PIN           = 2;     // GPIO2 — TSOP OUT
 const uint16_t kCaptureBufferSize = 1024;  // big enough for any aircon frame
-const uint8_t  kTimeout           = 50;    // ms between frames
+const uint8_t  kTimeout           = 150;   // ms — TCL remotes re-transmit the
+                                           // same frame ~50-100 ms after the
+                                           // first; raising the timeout folds
+                                           // both bursts into one capture so
+                                           // each button press prints once.
 const uint16_t kMinUnknownSize    = 12;    // min length to even try decoding
 
 IRrecv irrecv(TSOP_PIN, kCaptureBufferSize, kTimeout, true);
