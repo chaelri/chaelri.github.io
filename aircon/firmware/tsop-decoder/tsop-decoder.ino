@@ -50,18 +50,19 @@
 #include <IRrecv.h>
 #include <IRutils.h>
 
-const uint16_t TSOP_PIN           = 2;     // GPIO2 — TSOP OUT
-const uint16_t kCaptureBufferSize = 1024;  // big enough for any aircon frame
-const uint8_t  kTimeout           = 150;   // ms — TCL remotes re-transmit the
-                                           // same frame ~50-100 ms after the
-                                           // first; raising the timeout folds
-                                           // both bursts into one capture so
-                                           // each button press prints once.
-const uint16_t kMinUnknownSize    = 12;    // min length to even try decoding
+const uint16_t TSOP_PIN             = 2;    // GPIO2 — TSOP OUT
+const uint16_t kCaptureBufferSize   = 1024; // big enough for any aircon frame
+const uint8_t  kTimeout             = 250;  // ms — bumped to absorb TCL's
+                                            // inter-frame gap (uint8_t max).
+const uint16_t kMinUnknownSize      = 12;   // min length to even try decoding
+const uint32_t kRepeatSuppressMs    = 500;  // drop UNKNOWN captures arriving
+                                            // within this window of a clean
+                                            // decode — they're TCL repeats.
 
 IRrecv irrecv(TSOP_PIN, kCaptureBufferSize, kTimeout, true);
 decode_results results;
-uint32_t pressCount = 0;
+uint32_t pressCount  = 0;
+uint32_t lastDecodeMs = 0;
 
 // Suggested press order — print at startup so Charlie can tick them off as
 // he goes. Covers every distinct state field the TCL remote can produce.
@@ -124,6 +125,19 @@ void setup() {
 
 void loop() {
   if (!irrecv.decode(&results)) return;
+
+  // Drop UNKNOWN repeats that arrive right after a clean decode — TCL remotes
+  // transmit each frame twice and the second burst loses its header in the
+  // buffer split, so it decodes as UNKNOWN. We want one print per press.
+  bool isUnknown = (results.decode_type == UNKNOWN);
+  bool isRepeatArtifact = isUnknown &&
+                          lastDecodeMs > 0 &&
+                          (millis() - lastDecodeMs) < kRepeatSuppressMs;
+  if (isRepeatArtifact) {
+    irrecv.resume();
+    return;
+  }
+  lastDecodeMs = millis();
 
   pressCount++;
   Serial.println();
