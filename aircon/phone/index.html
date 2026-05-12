@@ -31,23 +31,17 @@
       vertical-align: middle;
     }
 
-    /* Big power button */
-    .power-btn { transition: transform 90ms cubic-bezier(0.22,1,0.36,1), background 280ms ease, box-shadow 280ms ease; will-change: transform; }
-    .power-btn:active { transform: scale(0.94); transition-duration: 60ms; }
+    /* Big action buttons */
+    .action-btn { transition: transform 90ms cubic-bezier(0.22,1,0.36,1), box-shadow 220ms ease; will-change: transform; }
+    .action-btn:active { transform: scale(0.94); transition-duration: 60ms; }
+    .action-btn:disabled { opacity: 0.5; pointer-events: none; }
 
-    /* On state — sky/cyan glow */
-    .power-btn.on {
-      background-image: linear-gradient(to bottom right, #38bdf8, #0369a1) !important;
-      box-shadow: 0 20px 60px -15px rgba(14,165,233,0.7), inset 0 1px 0 rgba(255,255,255,0.18);
-    }
-
-    /* Ambient glow behind button */
+    /* Ambient glow */
     @keyframes pulseGlow {
       0%, 100% { opacity: 0.55; transform: scale(1); }
-      50%      { opacity: 0.78; transform: scale(1.07); }
+      50%      { opacity: 0.78; transform: scale(1.06); }
     }
-    .ambient-glow { animation: pulseGlow 3.6s ease-in-out infinite; transition: background 280ms ease; }
-    .ambient-glow.on { background-image: linear-gradient(to bottom right, rgba(14,165,233,0.45), rgba(34,211,238,0.35)) !important; }
+    .ambient-glow { animation: pulseGlow 4s ease-in-out infinite; }
 
     /* Tap ripple */
     @keyframes ripple {
@@ -60,31 +54,21 @@
     .step-btn { transition: transform 90ms ease, background 200ms ease; }
     .step-btn:active { transform: scale(0.92); }
 
-    /* Mode/fan chips */
-    .chip { transition: all 200ms ease; }
-    .chip.active {
-      background: linear-gradient(135deg, rgba(14,165,233,0.35), rgba(34,211,238,0.25));
-      border-color: rgba(103,232,249,0.5);
-      color: #cffafe;
-    }
-    .chip:active { transform: scale(0.95); }
-
-    /* Sending pulse on temp number */
-    @keyframes sendPulse { 0%,100% { opacity: 1 } 50% { opacity: 0.4 } }
+    /* Sending pulse */
+    @keyframes sendPulse { 0%,100% { opacity: 1 } 50% { opacity: 0.5 } }
     .sending { animation: sendPulse 600ms ease-in-out infinite; }
   </style>
 </head>
 <body class="min-h-screen text-slate-200 antialiased">
   <div class="max-w-md mx-auto px-5 pt-7 pb-7 min-h-screen flex flex-col">
 
-    <!-- header -->
     <header class="flex items-center gap-2.5">
       <div class="w-9 h-9 rounded-xl bg-gradient-to-br from-sky-500 to-cyan-600 grid place-items-center shadow-lg shadow-sky-500/30">
         <span class="material-symbols-outlined text-white" style="font-size:20px">ac_unit</span>
       </div>
       <div>
         <div class="font-semibold text-white leading-tight">Aircon Remote</div>
-        <div class="text-[11px] text-slate-500 mono">TCL TAC-09CSA · 112AC</div>
+        <div class="text-[11px] text-slate-500 mono">TAC-09CSA · Raw IR</div>
       </div>
       <span class="ml-auto inline-flex items-center gap-1.5 text-[10px] uppercase tracking-wider text-slate-500">
         <span id="connDot" class="w-1.5 h-1.5 rounded-full bg-slate-600"></span>
@@ -92,69 +76,60 @@
       </span>
     </header>
 
-    <!-- temp display + steppers -->
     <div class="flex-1 flex flex-col items-center justify-center py-6 gap-7">
-      <div class="flex items-center gap-5">
-        <button id="tempDown"
-          class="step-btn w-14 h-14 rounded-full grid place-items-center text-xl font-light text-cyan-300
-                 bg-white/[0.04] border border-cyan-400/20 hover:bg-cyan-400/10">
-          <span class="material-symbols-outlined">remove</span>
-        </button>
-        <div class="text-center">
-          <div class="flex items-baseline gap-1 leading-none">
-            <span id="tempVal" class="text-7xl font-extralight text-white tabular-nums" style="letter-spacing:-0.04em">24</span>
-            <span class="text-2xl text-cyan-300 font-light">°C</span>
-          </div>
-          <div class="text-[10px] mono uppercase tracking-[0.22em] text-slate-500 mt-2" id="modeLabel">cool</div>
-        </div>
-        <button id="tempUp"
-          class="step-btn w-14 h-14 rounded-full grid place-items-center text-xl font-light text-cyan-300
-                 bg-white/[0.04] border border-cyan-400/20 hover:bg-cyan-400/10">
-          <span class="material-symbols-outlined">add</span>
-        </button>
-      </div>
 
-      <!-- big power button -->
-      <div class="relative">
-        <div id="ambientGlow" class="ambient-glow absolute -inset-10 rounded-full bg-gradient-to-br from-slate-600/30 to-slate-700/30 blur-3xl pointer-events-none"></div>
-        <div id="rippleHost" class="absolute inset-0 rounded-full overflow-hidden pointer-events-none"></div>
-        <button id="powerBtn"
-          aria-label="Toggle aircon power"
-          class="power-btn relative w-44 h-44 rounded-full grid place-items-center
+      <!-- POWER ON / POWER OFF row -->
+      <div class="grid grid-cols-2 gap-4 w-full">
+        <div class="relative">
+          <div class="ambient-glow absolute -inset-4 rounded-3xl bg-gradient-to-br from-sky-500/40 to-cyan-500/30 blur-2xl pointer-events-none"></div>
+          <button id="powerOnBtn"
+            class="action-btn relative w-full h-28 rounded-3xl grid place-items-center
+                   bg-gradient-to-br from-sky-400 to-sky-700
+                   shadow-[0_20px_50px_-12px_rgba(14,165,233,0.6),inset_0_1px_0_rgba(255,255,255,0.18)]">
+            <div class="text-center select-none">
+              <span class="material-symbols-outlined text-white block" style="font-size:36px">power_settings_new</span>
+              <div class="text-white font-bold tracking-[0.18em] text-xs mt-1">POWER ON</div>
+            </div>
+          </button>
+        </div>
+        <button id="powerOffBtn"
+          class="action-btn relative w-full h-28 rounded-3xl grid place-items-center
                  bg-gradient-to-br from-slate-600 to-slate-800
-                 shadow-[0_20px_60px_-15px_rgba(0,0,0,0.6),inset_0_1px_0_rgba(255,255,255,0.08)]">
-          <div class="absolute inset-3 rounded-full border border-white/10 pointer-events-none"></div>
+                 shadow-[0_12px_30px_-12px_rgba(0,0,0,0.6),inset_0_1px_0_rgba(255,255,255,0.06)]">
           <div class="text-center select-none">
-            <span class="material-symbols-outlined text-white block" style="font-size:48px">power_settings_new</span>
-            <div id="powerLabel" class="text-white font-extrabold tracking-[0.18em] text-base mt-0.5">OFF</div>
+            <span class="material-symbols-outlined text-slate-300 block" style="font-size:36px">power_off</span>
+            <div class="text-slate-300 font-bold tracking-[0.18em] text-xs mt-1">POWER OFF</div>
           </div>
         </button>
       </div>
 
-      <!-- mode chips -->
-      <div>
-        <div class="text-[10px] mono uppercase tracking-[0.22em] text-slate-500 mb-2 text-center">mode</div>
-        <div class="flex flex-wrap justify-center gap-2" id="modeRow">
-          <button class="chip px-3.5 py-2 rounded-full text-xs font-semibold uppercase tracking-[0.14em] text-slate-400 bg-white/[0.04] border border-white/[0.08]" data-mode="cool">cool</button>
-          <button class="chip px-3.5 py-2 rounded-full text-xs font-semibold uppercase tracking-[0.14em] text-slate-400 bg-white/[0.04] border border-white/[0.08]" data-mode="dry">dry</button>
-          <button class="chip px-3.5 py-2 rounded-full text-xs font-semibold uppercase tracking-[0.14em] text-slate-400 bg-white/[0.04] border border-white/[0.08]" data-mode="fan">fan</button>
-          <button class="chip px-3.5 py-2 rounded-full text-xs font-semibold uppercase tracking-[0.14em] text-slate-400 bg-white/[0.04] border border-white/[0.08]" data-mode="auto">auto</button>
+      <!-- TEMP +/- row -->
+      <div class="flex flex-col items-center gap-3">
+        <div class="text-[10px] mono uppercase tracking-[0.22em] text-slate-500">Temperature</div>
+        <div class="flex items-center gap-6">
+          <button id="tempDown"
+            class="step-btn w-20 h-20 rounded-full grid place-items-center text-3xl font-light text-cyan-300
+                   bg-white/[0.04] border border-cyan-400/20 hover:bg-cyan-400/10">
+            <span class="material-symbols-outlined" style="font-size:32px">remove</span>
+          </button>
+          <button id="tempUp"
+            class="step-btn w-20 h-20 rounded-full grid place-items-center text-3xl font-light text-cyan-300
+                   bg-white/[0.04] border border-cyan-400/20 hover:bg-cyan-400/10">
+            <span class="material-symbols-outlined" style="font-size:32px">add</span>
+          </button>
         </div>
       </div>
 
-      <!-- fan chips -->
-      <div>
-        <div class="text-[10px] mono uppercase tracking-[0.22em] text-slate-500 mb-2 text-center">fan</div>
-        <div class="flex flex-wrap justify-center gap-2" id="fanRow">
-          <button class="chip px-3.5 py-2 rounded-full text-xs font-semibold uppercase tracking-[0.14em] text-slate-400 bg-white/[0.04] border border-white/[0.08]" data-fan="auto">auto</button>
-          <button class="chip px-3.5 py-2 rounded-full text-xs font-semibold uppercase tracking-[0.14em] text-slate-400 bg-white/[0.04] border border-white/[0.08]" data-fan="low">low</button>
-          <button class="chip px-3.5 py-2 rounded-full text-xs font-semibold uppercase tracking-[0.14em] text-slate-400 bg-white/[0.04] border border-white/[0.08]" data-fan="med">med</button>
-          <button class="chip px-3.5 py-2 rounded-full text-xs font-semibold uppercase tracking-[0.14em] text-slate-400 bg-white/[0.04] border border-white/[0.08]" data-fan="high">high</button>
-        </div>
-      </div>
+      <!-- SWING -->
+      <button id="swingBtn"
+        class="action-btn px-7 py-4 rounded-full text-sm font-semibold uppercase tracking-[0.16em] text-cyan-100
+               bg-gradient-to-br from-cyan-500/20 to-sky-600/20 border border-cyan-400/30
+               inline-flex items-center gap-2.5">
+        <span class="material-symbols-outlined" style="font-size:22px">swap_vert</span>
+        Swing
+      </button>
     </div>
 
-    <!-- status footer -->
     <div class="rounded-2xl bg-white/[0.03] border border-white/[0.05] overflow-hidden">
       <div class="px-4 py-3 flex items-center gap-3 text-xs">
         <span id="statusDot" class="w-2 h-2 rounded-full bg-slate-600"></span>
@@ -186,12 +161,7 @@
     const $ = id => document.getElementById(id);
     const connDot   = $("connDot"),   connText   = $("connText");
     const statusDot = $("statusDot"), statusText = $("statusText"), lastTime = $("lastTime");
-    const powerBtn  = $("powerBtn"),  powerLabel = $("powerLabel");
-    const tempVal   = $("tempVal"),   modeLabel  = $("modeLabel");
-    const tempUp    = $("tempUp"),    tempDown   = $("tempDown");
-    const rippleHost = $("rippleHost"), ambientGlow = $("ambientGlow");
 
-    // online indicator
     onValue(ref(db, ".info/connected"), snap => {
       const ok = snap.val() === true;
       connDot.className = "w-1.5 h-1.5 rounded-full " + (ok ? "bg-emerald-400" : "bg-slate-600");
@@ -204,98 +174,29 @@
       statusText.textContent = msg;
     }
 
-    function spawnRipple() {
-      const r = document.createElement("div");
-      r.className = "ripple absolute inset-0 rounded-full bg-white/25";
-      rippleHost.appendChild(r);
-      setTimeout(() => r.remove(), 700);
-    }
-
-    // Authoritative state — read live from Firebase, written by ESP32 after
-    // every IR send. Reflects truth regardless of which platform triggered.
-    let s = { power: false, mode: "cool", temp: 24, fan: "auto", swing: false };
-
-    function render() {
-      tempVal.textContent = s.temp;
-      modeLabel.textContent = s.mode;
-      powerLabel.textContent = s.power ? "ON" : "OFF";
-      powerBtn.classList.toggle("on", s.power);
-      ambientGlow.classList.toggle("on", s.power);
-      document.querySelectorAll("[data-mode]").forEach(b =>
-        b.classList.toggle("active", b.dataset.mode === s.mode));
-      document.querySelectorAll("[data-fan]").forEach(b =>
-        b.classList.toggle("active", b.dataset.fan === s.fan));
-    }
-
     onValue(ref(db, "aircon/state"), snap => {
       const v = snap.val();
-      if (!v || typeof v !== "object") return;
-      s = { ...s, ...v };
-      render();
-      if (!statusText.textContent.includes("…") && !statusText.textContent.includes("failed")) {
-        setStatus("ok", `${s.power ? "on" : "off"} · ${s.mode} · ${s.temp}°C · fan ${s.fan}`);
-      }
+      if (!v || typeof v !== "object" || !v.last) return;
+      setStatus("ok", "sent " + v.last);
     });
 
-    async function sendCmd() {
+    async function fire(cmd, haptic) {
+      if (navigator.vibrate) navigator.vibrate(haptic || 8);
+      setStatus("send", "sending " + cmd + "…");
       try {
-        tempVal.classList.add("sending");
-        await set(ref(db, "aircon/command"), s);
+        await set(ref(db, "aircon/command"), { cmd });
         lastTime.textContent = new Date().toLocaleTimeString();
-        setStatus("send", "sending IR…");
-        return true;
       } catch (err) {
         console.error(err);
         setStatus("err", "failed: " + (err.message || err.code || err));
-        return false;
-      } finally {
-        setTimeout(() => tempVal.classList.remove("sending"), 600);
       }
     }
 
-    powerBtn.addEventListener("click", async () => {
-      if (navigator.vibrate) navigator.vibrate(15);
-      spawnRipple();
-      s.power = !s.power;
-      render();
-      await sendCmd();
-    });
-
-    tempUp.addEventListener("click", async () => {
-      if (s.temp >= 30) return;
-      if (navigator.vibrate) navigator.vibrate(8);
-      s.temp += 1;
-      render();
-      await sendCmd();
-    });
-
-    tempDown.addEventListener("click", async () => {
-      if (s.temp <= 16) return;
-      if (navigator.vibrate) navigator.vibrate(8);
-      s.temp -= 1;
-      render();
-      await sendCmd();
-    });
-
-    document.querySelectorAll("[data-mode]").forEach(b => {
-      b.addEventListener("click", async () => {
-        if (navigator.vibrate) navigator.vibrate(8);
-        s.mode = b.dataset.mode;
-        render();
-        await sendCmd();
-      });
-    });
-
-    document.querySelectorAll("[data-fan]").forEach(b => {
-      b.addEventListener("click", async () => {
-        if (navigator.vibrate) navigator.vibrate(8);
-        s.fan = b.dataset.fan;
-        render();
-        await sendCmd();
-      });
-    });
-
-    render();
+    $("powerOnBtn") .addEventListener("click", () => fire("power_on",  15));
+    $("powerOffBtn").addEventListener("click", () => fire("power_off", 15));
+    $("tempUp")    .addEventListener("click", () => fire("temp_up",    8));
+    $("tempDown")  .addEventListener("click", () => fire("temp_down",  8));
+    $("swingBtn")  .addEventListener("click", () => fire("swing",      8));
   </script>
 </body>
 </html>
