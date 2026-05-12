@@ -1,19 +1,24 @@
 // ===========================================================================
 // aircon.ino — ESP32-C3 SuperMini firmware for the DIY WiFi aircon controller.
-//              SERVO-PRESS version.
+//              CONTINUOUS-ROTATION SERVO version (SG90 360°).
 // ---------------------------------------------------------------------------
 // What this does:
-//   The ESP32 drives an SG90 hobby servo. The servo's arm physically presses
-//   the POWER button on the real TCL remote (or the aircon's panel button)
-//   on command. POWER is a toggle, so one "click" command flips the aircon
-//   between on and off — same as the original autoclicker pattern.
+//   The ESP32 drives a continuous-rotation SG90 servo. On "click", the servo
+//   bursts forward (PUSH_US) for PUSH_MS to physically depress the POWER
+//   button on the real TCL remote, briefly waits so the button registers,
+//   then bursts in the opposite direction (RETURN_US) for the same duration
+//   to bring the arm back to rest.
 //
-// Why pivoted from IR LED:
-//   The IR LED transmitter wouldn't fire reliably even under direct DC power
-//   in the previous build; sniffing also showed the TAC-09CSA/KEI uses a
-//   proprietary two-burst protocol with frame alignment that's brittle to
-//   replay. A servo press of the real remote bypasses all of that — same
-//   approach that's already proven in autoclicker/.
+//   Continuous-rotation servos do NOT take angle values. Instead:
+//     - writeMicroseconds(1500) = STOP (motor off)
+//     - writeMicroseconds(1000) = full speed one way
+//     - writeMicroseconds(2000) = full speed the other way
+//   So the amount of travel is controlled by HOW LONG you hold a non-1500
+//   pulse, not by an angle. To rotate further: increase PUSH_MS / RETURN_MS.
+//   PUSH_MS and RETURN_MS MUST be equal so the arm lands back at rest.
+//
+//   If the servo rotates the WRONG direction on press, just swap the values
+//   of PUSH_US and RETURN_US below. No rewiring needed.
 //
 // THREE WAYS TO TRIGGER (every command goes through the same path):
 //   1. Phone remote (online)     -> writes {"cmd":"click"} to Firebase RTDB
@@ -23,16 +28,12 @@
 //   3. SoftAP fallback (offline) -> if no known WiFi joins within 15 s, the
 //                                   ESP32 broadcasts "Aircon-AP".
 //
-// Supported command:
-//   click  — sweeps the servo from REST_ANGLE to PRESS_ANGLE, holds, returns.
+// Wiring (SG90 360° continuous-rotation):
+//   ESP32 5V    -> SG90 RED    (Vcc)
+//   ESP32 GND   -> SG90 BROWN  (GND)
+//   ESP32 GPIO3 -> SG90 ORANGE/YELLOW (signal)
 //
-// Wiring (SG90 servo):
-//   ESP32 5V   (USB rail)  -> SG90 RED   (Vcc)
-//   ESP32 GND              -> SG90 BROWN (GND)
-//   ESP32 GPIO3            -> SG90 ORANGE/YELLOW (signal)
-//
-// Library: ESP32Servo by Kevin Harrington (Arduino IDE Library Manager —
-// search "ESP32Servo"). The stock AVR Servo.h does NOT run on ESP32-C3.
+// Library: ESP32Servo by Kevin Harrington (Arduino IDE Library Manager).
 //
 // Board: "ESP32C3 Dev Module"   USB CDC On Boot: Enabled
 // Baud:  115200
@@ -61,31 +62,52 @@ const char* STATE_URL =
   "/aircon/state.json";
 
 // --- Pins / timing -----------------------------------------------------------
-const int SERVO_PIN     = 3;     // GPIO3 -> SG90 signal wire (orange/yellow)
+const int SERVO_PIN     = 3;     // GPIO3 -> SG90 signal (orange/yellow)
 const int LED_PIN       = 8;     // onboard blue LED, active LOW
 const int POLL_MS       = 1000;
 
-// Servo geometry — tune for your physical mount.
-const int  REST_ANGLE       = 0;    // arm parked, NOT touching the button
-const int  PRESS_ANGLE      = 45;   // arm fully depressing the button
-const int  PRESS_HOLD_MS    = 300;  // hold-down time so the remote registers
-const int  RETURN_SETTLE_MS = 200;  // wait after return before declaring done
+// Continuous-rotation servo pulses (microseconds). Tune only if needed:
+//   STOP_US:   1500 is the spec neutral. If the arm creeps when "stopped",
+//              nudge by ±10 (try 1490 / 1510) until it sits still.
+//   PUSH_US:   below STOP_US = one direction at full speed.
+//   RETURN_US: above STOP_US = the other direction at full speed.
+//   If servo rotates the WRONG way on press, SWAP PUSH_US and RETURN_US.
+const int STOP_US       = 1500;
+const int PUSH_US       = 1000;
+const int RETURN_US     = 2000;
 
-Servo servo;
+// Travel duration (how far the arm sweeps). Continuous-rotation SG90 spec
+// is ~60 RPM = 360°/sec = ~167 µs per degree of travel at full speed.
+// 700 ms ≈ 120° of rotation (Charlie's "90° + a bit more for the press").
+// MUST be equal so the arm lands back at rest after press+release.
+const int PUSH_MS       = 700;
+const int RETURN_MS     = 700;
+
+// How long to keep the arm depressed on the button so the IR remote
+// registers the press electronically. 300 ms is plenty for any remote.
+const int CLICK_HOLD_MS = 300;
+
+Servo finger;
 WebServer server(80);
 bool inSoftAP = false;
 String   lastCmd     = "";
 uint32_t lastClickMs = 0;
 uint32_t clickCount  = 0;
 
-// --- Servo press -------------------------------------------------------------
+// --- Click cycle: push -> hold -> return -> stop ----------------------------
 void doClick() {
-  digitalWrite(LED_PIN, LOW);          // blue LED on while pressing
+  digitalWrite(LED_PIN, LOW);
   uint32_t t0 = millis();
-  servo.write(PRESS_ANGLE);
-  delay(PRESS_HOLD_MS);
-  servo.write(REST_ANGLE);
-  delay(RETURN_SETTLE_MS);
+
+  finger.writeMicroseconds(PUSH_US);     // burst onto the button
+  delay(PUSH_MS);
+  finger.writeMicroseconds(STOP_US);     // motor off — arm pressed on button
+  delay(CLICK_HOLD_MS);                  // hold so remote registers the press
+
+  finger.writeMicroseconds(RETURN_US);   // mirrored burst back to rest
+  delay(RETURN_MS);
+  finger.writeMicroseconds(STOP_US);     // motor off at rest
+
   uint32_t t1 = millis();
   digitalWrite(LED_PIN, HIGH);
 
@@ -248,11 +270,13 @@ bool tryStation() {
 void setup() {
   Serial.begin(115200);
 
-  // Servo init — ESP32Servo uses LEDC. Standard SG90 pulse range works.
+  // Servo init — ESP32Servo uses LEDC, 50 Hz hobby-servo PWM. Standard
+  // pulse range 500-2400 µs covers both positional and 360° continuous-
+  // rotation servos.
   ESP32PWM::allocateTimer(0);
-  servo.setPeriodHertz(50);
-  servo.attach(SERVO_PIN, 500, 2400);
-  servo.write(REST_ANGLE);
+  finger.setPeriodHertz(50);
+  finger.attach(SERVO_PIN, 500, 2400);
+  finger.writeMicroseconds(STOP_US);    // motor stopped at boot
 
   pinMode(LED_PIN, OUTPUT);
   digitalWrite(LED_PIN, HIGH);
