@@ -53,17 +53,23 @@
 
 const uint16_t TSOP_PIN             = 2;    // GPIO2 — TSOP OUT
 const uint16_t kCaptureBufferSize   = 1024; // big enough for any aircon frame
-const uint8_t  kTimeout             = 250;  // ms — bumped to absorb TCL's
-                                            // inter-frame gap (uint8_t max).
+const uint8_t  kTimeout             = 35;   // ms — kept LOW on purpose so the
+                                            // TAC-09CSA's multi-burst frames
+                                            // split cleanly. We group them
+                                            // back together in software (see
+                                            // kNewPressGapMs below).
 const uint16_t kMinUnknownSize      = 12;   // min length to even try decoding
-const uint32_t kRepeatSuppressMs    = 500;  // drop UNKNOWN captures arriving
-                                            // within this window of a clean
-                                            // decode — they're TCL repeats.
+const uint32_t kNewPressGapMs       = 800;  // gap between captures longer than
+                                            // this counts as a NEW physical
+                                            // press; anything within it is
+                                            // labeled "frame 2/3/…" of the
+                                            // same press.
 
 IRrecv irrecv(TSOP_PIN, kCaptureBufferSize, kTimeout, true);
 decode_results results;
-uint32_t pressCount  = 0;
+uint32_t pressCount   = 0;
 uint32_t lastDecodeMs = 0;
+uint32_t frameInPress = 0;
 
 // Suggested press order — print at startup so Charlie can tick them off as
 // he goes. Covers every distinct state field the TCL remote can produce.
@@ -127,24 +133,27 @@ void setup() {
 void loop() {
   if (!irrecv.decode(&results)) return;
 
-  // Drop UNKNOWN repeats that arrive right after a clean decode — TCL remotes
-  // transmit each frame twice and the second burst loses its header in the
-  // buffer split, so it decodes as UNKNOWN. We want one print per press.
-  bool isUnknown = (results.decode_type == UNKNOWN);
-  bool isRepeatArtifact = isUnknown &&
-                          lastDecodeMs > 0 &&
-                          (millis() - lastDecodeMs) < kRepeatSuppressMs;
-  if (isRepeatArtifact) {
-    irrecv.resume();
-    return;
+  // Group bursts that arrive close together as ONE physical press. The
+  // TAC-09CSA/KEI sends a "header" burst (identical for every button) and a
+  // separate "payload" burst (button-specific) within ~50-300 ms. We need
+  // BOTH — the payload burst is where TEMP/MODE/SWING actually live.
+  uint32_t now = millis();
+  bool newPress = (lastDecodeMs == 0) || ((now - lastDecodeMs) > kNewPressGapMs);
+  if (newPress) {
+    pressCount++;
+    frameInPress = 1;
+  } else {
+    frameInPress++;
   }
-  lastDecodeMs = millis();
+  lastDecodeMs = now;
 
-  pressCount++;
   Serial.println();
   Serial.print("===== Press #");
   Serial.print(pressCount);
-  if (pressCount <= PRESS_LIST_N) {
+  Serial.print("  (frame ");
+  Serial.print(frameInPress);
+  Serial.print(")");
+  if (pressCount <= PRESS_LIST_N && frameInPress == 1) {
     Serial.print("  (expected: ");
     Serial.print(PRESS_LIST[pressCount - 1]);
     Serial.print(")");
