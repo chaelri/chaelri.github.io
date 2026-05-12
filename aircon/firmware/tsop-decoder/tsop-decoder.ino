@@ -49,6 +49,7 @@
 #include <IRremoteESP8266.h>
 #include <IRrecv.h>
 #include <IRutils.h>
+#include <IRac.h>  // IRAcUtils::resultAcToString lives here, not in IRutils.h
 
 const uint16_t TSOP_PIN             = 2;    // GPIO2 — TSOP OUT
 const uint16_t kCaptureBufferSize   = 1024; // big enough for any aircon frame
