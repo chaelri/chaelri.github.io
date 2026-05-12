@@ -1,34 +1,38 @@
 // ===========================================================================
-// aircon.ino — ESP32-C3 SuperMini firmware for the DIY WiFi aircon controller
+// aircon.ino — ESP32-C3 SuperMini firmware for the DIY WiFi aircon controller.
+//              SERVO-PRESS version.
 // ---------------------------------------------------------------------------
 // What this does:
-//   The ESP32 BECOMES Charlie's TCL aircon remote. It pulses an IR LED at
-//   38 kHz in the exact two-burst pattern the aircon expects, replaying
-//   raw captures sniffed from the real TAC-09CSA/KEI remote with a TSOP4838.
+//   The ESP32 drives an SG90 hobby servo. The servo's arm physically presses
+//   the POWER button on the real TCL remote (or the aircon's panel button)
+//   on command. POWER is a toggle, so one "click" command flips the aircon
+//   between on and off — same as the original autoclicker pattern.
 //
-//   We do NOT use IRTcl112Ac — sniffing revealed the KEI variant sends a
-//   handshake + button-specific payload, and the library only knows the
-//   handshake. So aircon_ir_codes.h carries the exact raw timings for each
-//   button, and IRsend::sendRaw replays them verbatim.
+// Why pivoted from IR LED:
+//   The IR LED transmitter wouldn't fire reliably even under direct DC power
+//   in the previous build; sniffing also showed the TAC-09CSA/KEI uses a
+//   proprietary two-burst protocol with frame alignment that's brittle to
+//   replay. A servo press of the real remote bypasses all of that — same
+//   approach that's already proven in autoclicker/.
 //
-// THREE WAYS TO TRIGGER (any command goes through the same path):
-//   1. Phone remote (online)     -> writes {"cmd":"..."} to Firebase RTDB at
-//                                   /aircon/command. Firmware polls every 1 s.
+// THREE WAYS TO TRIGGER (every command goes through the same path):
+//   1. Phone remote (online)     -> writes {"cmd":"click"} to Firebase RTDB
+//                                   at /aircon/command. Firmware polls every 1 s.
 //   2. Local web UI (online)     -> any device on the same WiFi opens
-//                                   http://<esp32-ip>/ — five tap buttons.
+//                                   http://<esp32-ip>/ — one tap button.
 //   3. SoftAP fallback (offline) -> if no known WiFi joins within 15 s, the
 //                                   ESP32 broadcasts "Aircon-AP".
 //
-// Supported commands (the only ones Charlie cares about):
-//   power_on  power_off  temp_up  temp_down  swing
+// Supported command:
+//   click  — sweeps the servo from REST_ANGLE to PRESS_ANGLE, holds, returns.
 //
-// Wiring:
-//   GPIO3 -> 100 ohm resistor -> IR LED anode (long leg, +)
-//   GND   ----------------------> IR LED cathode (short leg, -)
-//   USB-C wall charger -> ESP32 USB-C
+// Wiring (SG90 servo):
+//   ESP32 5V   (USB rail)  -> SG90 RED   (Vcc)
+//   ESP32 GND              -> SG90 BROWN (GND)
+//   ESP32 GPIO3            -> SG90 ORANGE/YELLOW (signal)
 //
-// Library: IRremoteESP8266 (Arduino IDE Library Manager). We only use IRsend
-// from it — the AC-specific classes are unused.
+// Library: ESP32Servo by Kevin Harrington (Arduino IDE Library Manager —
+// search "ESP32Servo"). The stock AVR Servo.h does NOT run on ESP32-C3.
 //
 // Board: "ESP32C3 Dev Module"   USB CDC On Boot: Enabled
 // Baud:  115200
@@ -38,10 +42,7 @@
 #include <WiFiMulti.h>
 #include <HTTPClient.h>
 #include <WebServer.h>
-#include <IRremoteESP8266.h>
-#include <IRsend.h>
-
-#include "aircon_ir_codes.h"
+#include <ESP32Servo.h>
 
 // --- WiFi --------------------------------------------------------------------
 WiFiMulti wifiMulti;
@@ -60,76 +61,53 @@ const char* STATE_URL =
   "/aircon/state.json";
 
 // --- Pins / timing -----------------------------------------------------------
-const int IR_LED_PIN          = 3;     // GPIO3 -> 100 ohm -> IR LED anode
-const int LED_PIN             = 8;     // onboard blue LED, active LOW
-const int TSOP_WITNESS_PIN    = 2;     // OPTIONAL TSOP4838 OUT -> GPIO2. If
-                                       // wired, every send is hardware-
-                                       // witnessed: TSOP sees the LED's own
-                                       // pulses and we count falling edges.
-                                       // If not wired, GPIO2 floats HIGH via
-                                       // internal pull-up; edge count stays
-                                       // at 0 and the phone UI prints
-                                       // "no IR detected (TSOP not connected?)"
-const int POLL_MS             = 1000;
-const uint16_t IR_CARRIER_HZ      = 38;
-const uint16_t kInterBurstGapMs   = 50;
+const int SERVO_PIN     = 3;     // GPIO3 -> SG90 signal wire (orange/yellow)
+const int LED_PIN       = 8;     // onboard blue LED, active LOW
+const int POLL_MS       = 1000;
 
-IRsend irsend(IR_LED_PIN);
+// Servo geometry — tune for your physical mount.
+const int  REST_ANGLE       = 0;    // arm parked, NOT touching the button
+const int  PRESS_ANGLE      = 45;   // arm fully depressing the button
+const int  PRESS_HOLD_MS    = 300;  // hold-down time so the remote registers
+const int  RETURN_SETTLE_MS = 200;  // wait after return before declaring done
+
+Servo servo;
 WebServer server(80);
 bool inSoftAP = false;
 String   lastCmd     = "";
-uint32_t lastSendMs  = 0;     // wall-clock duration of last sendRaw pair
-uint32_t lastEdges   = 0;     // # of falling edges the TSOP saw during it
-uint32_t sendCount   = 0;
+uint32_t lastClickMs = 0;
+uint32_t clickCount  = 0;
 
-volatile uint32_t irEdgeCount = 0;
-void IRAM_ATTR onIrEdge() { irEdgeCount++; }
-
-// --- IR send -----------------------------------------------------------------
-// Every supported button: replay handshake (frame 1) + button-specific payload
-// (frame 2) with a 50 ms inter-burst gap. Matches what the real remote does.
-// If the TSOP4838 is wired on GPIO2 as a witness, we measure how many falling
-// edges fired during the send — non-zero == IR physically emitted.
-bool sendCommand(const String& cmd) {
-  const uint16_t* payload = nullptr;
-  uint16_t payloadLen = 0;
-
-  if      (cmd == "power_on")  { payload = POWER_ON_RAW;  payloadLen = POWER_ON_LEN; }
-  else if (cmd == "power_off") { payload = POWER_OFF_RAW; payloadLen = POWER_OFF_LEN; }
-  else if (cmd == "temp_up")   { payload = TEMP_UP_RAW;   payloadLen = TEMP_UP_LEN; }
-  else if (cmd == "temp_down") { payload = TEMP_DOWN_RAW; payloadLen = TEMP_DOWN_LEN; }
-  else if (cmd == "swing")     { payload = SWING_RAW;     payloadLen = SWING_LEN; }
-  else                         { return false; }
-
-  irEdgeCount = 0;
+// --- Servo press -------------------------------------------------------------
+void doClick() {
+  digitalWrite(LED_PIN, LOW);          // blue LED on while pressing
   uint32_t t0 = millis();
-
-  digitalWrite(LED_PIN, LOW);
-  irsend.sendRaw(FRAME1_RAW, FRAME1_LEN, IR_CARRIER_HZ);
-  delay(kInterBurstGapMs);
-  irsend.sendRaw(payload, payloadLen, IR_CARRIER_HZ);
+  servo.write(PRESS_ANGLE);
+  delay(PRESS_HOLD_MS);
+  servo.write(REST_ANGLE);
+  delay(RETURN_SETTLE_MS);
+  uint32_t t1 = millis();
   digitalWrite(LED_PIN, HIGH);
 
-  uint32_t t1 = millis();
+  lastCmd     = "click";
+  lastClickMs = t1 - t0;
+  clickCount++;
+  Serial.printf("CLICK -> %u ms (#%u)\n",
+                (unsigned)lastClickMs, (unsigned)clickCount);
+}
 
-  lastCmd    = cmd;
-  lastSendMs = t1 - t0;
-  lastEdges  = irEdgeCount;
-  sendCount++;
-
-  Serial.printf("IR sent -> %s | %u ms | %u edges witnessed\n",
-                cmd.c_str(), (unsigned)lastSendMs, (unsigned)lastEdges);
-  return true;
+bool sendCommand(const String& cmd) {
+  if (cmd == "click") { doClick(); return true; }
+  return false;
 }
 
 // --- Publish current state to Firebase /aircon/state -------------------------
 String stateJson() {
   String s = "{";
-  s += "\"last\":\"";  s += lastCmd;             s += "\",";
-  s += "\"send_ms\":"; s += String(lastSendMs);  s += ",";
-  s += "\"edges\":";   s += String(lastEdges);   s += ",";
-  s += "\"count\":";   s += String(sendCount);   s += ",";
-  s += "\"ts\":";      s += String(millis());
+  s += "\"last\":\"";    s += lastCmd;             s += "\",";
+  s += "\"click_ms\":";  s += String(lastClickMs); s += ",";
+  s += "\"count\":";     s += String(clickCount);  s += ",";
+  s += "\"ts\":";        s += String(millis());
   s += "}";
   return s;
 }
@@ -143,7 +121,7 @@ void publishState() {
 }
 
 // --- Apply a JSON command body -----------------------------------------------
-// Schema: {"cmd":"power_on" | "power_off" | "temp_up" | "temp_down" | "swing"}
+// Schema: {"cmd":"click"}
 String extractStr(const String& body, const char* key) {
   String pat = String("\"") + key + "\":\"";
   int i = body.indexOf(pat);
@@ -174,32 +152,21 @@ const char INDEX_HTML[] PROGMEM = R"rawliteral(
   body{background:radial-gradient(1200px 800px at 50% -10%,#0c4a6e 0%,#0b1220 55%,#020617 100%);
        color:#e2e8f0;font-family:-apple-system,BlinkMacSystemFont,"Inter","Segoe UI",sans-serif;
        min-height:100dvh;display:flex;flex-direction:column;align-items:center;
-       padding:env(safe-area-inset-top) 1.25rem env(safe-area-inset-bottom);overflow:hidden}
+       padding:env(safe-area-inset-top) 1.25rem env(safe-area-inset-bottom)}
   header{width:100%;padding:1.25rem 0 .5rem;display:flex;justify-content:space-between;align-items:center}
   .brand{font-size:.78rem;letter-spacing:.22em;text-transform:uppercase;color:#cbd5e1;font-weight:600}
   .pill{font-size:.65rem;letter-spacing:.18em;text-transform:uppercase;color:#67e8f9;
        padding:.35rem .7rem;border-radius:999px;border:1px solid rgba(103,232,249,.25);background:rgba(8,47,73,.5)}
   main{flex:1;display:flex;flex-direction:column;align-items:center;justify-content:center;gap:1.5rem;width:100%;max-width:22rem}
-  .row{display:flex;gap:1rem;width:100%;justify-content:center}
-  .power{flex:1;height:5rem;border-radius:1.25rem;border:none;cursor:pointer;color:#fff;
-       font-family:inherit;font-size:.78rem;letter-spacing:.2em;text-transform:uppercase;font-weight:700;
-       transition:transform .1s}
-  .power.on{background:radial-gradient(circle at 32% 28%,#7dd3fc 0%,#0ea5e9 40%,#075985 100%);
-       box-shadow:inset 0 -8px 16px rgba(0,0,0,.35),0 10px 24px -8px rgba(14,165,233,.5)}
-  .power.off{background:radial-gradient(circle at 32% 28%,#475569 0%,#1e293b 60%,#0f172a 100%);
-       box-shadow:inset 0 -6px 14px rgba(0,0,0,.5),0 6px 16px -8px rgba(0,0,0,.4)}
-  .power:active{transform:scale(.96)}
-  .step-row{display:flex;gap:1rem;align-items:center}
-  .step{width:5rem;height:5rem;border-radius:50%;border:1px solid rgba(103,232,249,.25);
-       background:rgba(8,47,73,.4);color:#67e8f9;font-size:1.8rem;font-weight:600;cursor:pointer;
-       transition:transform .1s,background .2s}
-  .step:active{transform:scale(.92);background:rgba(8,47,73,.7)}
-  .step-label{font-size:.7rem;letter-spacing:.2em;text-transform:uppercase;color:#94a3b8;font-weight:600}
-  .swing{padding:.85rem 1.6rem;border-radius:999px;border:1px solid rgba(148,163,184,.18);
-       background:rgba(15,23,42,.5);color:#cbd5e1;font-size:.75rem;font-weight:600;
-       text-transform:uppercase;letter-spacing:.16em;cursor:pointer;transition:all .2s;
-       display:inline-flex;gap:.5rem;align-items:center}
-  .swing:active{transform:scale(.95)}
+  .click-btn{width:12rem;height:12rem;border-radius:50%;border:none;cursor:pointer;color:#fff;
+       background:radial-gradient(circle at 32% 28%,#7dd3fc 0%,#0ea5e9 40%,#075985 100%);
+       box-shadow:0 0 0 1px rgba(255,255,255,.08) inset,0 18px 50px -10px rgba(14,165,233,.55),
+                  inset 0 -12px 26px rgba(0,0,0,.35),inset 0 8px 18px rgba(255,255,255,.22);
+       font-family:inherit;font-size:.95rem;letter-spacing:.2em;text-transform:uppercase;font-weight:800;
+       display:flex;flex-direction:column;align-items:center;justify-content:center;gap:.4rem;
+       transition:transform .1s ease}
+  .click-btn:active{transform:scale(.96)}
+  .hint{font-size:.7rem;color:#94a3b8;letter-spacing:.12em;text-transform:uppercase}
   footer{width:100%;padding:1rem 0 1.5rem}
   .status{display:inline-flex;align-items:center;gap:.55rem;padding:.55rem 1.1rem;border-radius:999px;
        background:rgba(15,23,42,.7);border:1px solid rgba(148,163,184,.15);
@@ -209,46 +176,28 @@ const char INDEX_HTML[] PROGMEM = R"rawliteral(
 </head>
 <body>
 <header>
-  <div class="brand">Aircon · Raw IR</div>
+  <div class="brand">Aircon · Servo</div>
   <div class="pill" id="lastPill">idle</div>
 </header>
 <main>
-  <div class="row">
-    <button class="power on"  id="powerOnBtn">Power On</button>
-    <button class="power off" id="powerOffBtn">Power Off</button>
-  </div>
-  <div class="step-row">
-    <button class="step" id="tempDown">−</button>
-    <div class="step-label">Temp</div>
-    <button class="step" id="tempUp">+</button>
-  </div>
-  <button class="swing" id="swingBtn">Swing</button>
+  <button class="click-btn" id="clickBtn">Power</button>
+  <div class="hint">tap to press the remote's power button</div>
 </main>
 <footer style="display:flex;justify-content:center">
   <span class="status"><span class="status-dot"></span><span id="statusText">ready</span></span>
 </footer>
 <script>
 const $=id=>document.getElementById(id);
-function fmtVerdict(j){
-  const e=j.edges|0, ms=j.send_ms|0;
-  if(e>50) return "OK · IR confirmed ("+e+" edges, "+ms+"ms)";
-  if(e>0)  return "weak · only "+e+" edges in "+ms+"ms";
-  return "NO IR detected ("+ms+"ms) — TSOP not wired? or LED dead?";
-}
-async function fire(cmd){
-  $("statusText").textContent="sending "+cmd+"...";
+async function fire(){
+  $("statusText").textContent="clicking...";
   try{
-    const r=await fetch("/set",{method:"POST",headers:{"Content-Type":"application/json"},body:JSON.stringify({cmd})});
+    const r=await fetch("/set",{method:"POST",headers:{"Content-Type":"application/json"},body:JSON.stringify({cmd:"click"})});
     const j=await r.json();
-    $("lastPill").textContent=(j.last||cmd)+" #"+(j.count|0);
-    $("statusText").textContent=fmtVerdict(j);
+    $("lastPill").textContent="click #"+(j.count|0);
+    $("statusText").textContent="clicked · "+(j.click_ms|0)+" ms";
   }catch(e){$("statusText").textContent="failed";}
 }
-$("powerOnBtn").addEventListener("click",()=>fire("power_on"));
-$("powerOffBtn").addEventListener("click",()=>fire("power_off"));
-$("tempUp").addEventListener("click",()=>fire("temp_up"));
-$("tempDown").addEventListener("click",()=>fire("temp_down"));
-$("swingBtn").addEventListener("click",()=>fire("swing"));
+$("clickBtn").addEventListener("click",fire);
 </script>
 </body>
 </html>
@@ -299,15 +248,14 @@ bool tryStation() {
 void setup() {
   Serial.begin(115200);
 
-  irsend.begin();
+  // Servo init — ESP32Servo uses LEDC. Standard SG90 pulse range works.
+  ESP32PWM::allocateTimer(0);
+  servo.setPeriodHertz(50);
+  servo.attach(SERVO_PIN, 500, 2400);
+  servo.write(REST_ANGLE);
 
   pinMode(LED_PIN, OUTPUT);
   digitalWrite(LED_PIN, HIGH);
-
-  // TSOP4838 self-witness: idle HIGH via internal pull-up, drops LOW each
-  // time it detects 38 kHz carrier. We count falling edges during sends.
-  pinMode(TSOP_WITNESS_PIN, INPUT_PULLUP);
-  attachInterrupt(digitalPinToInterrupt(TSOP_WITNESS_PIN), onIrEdge, FALLING);
 
   wifiMulti.addAP("CAYNO", "lokomoko");
   wifiMulti.addAP("Charlie's iPhone", "charlie24");

@@ -20,8 +20,8 @@
     body {
       font-family: 'Inter', system-ui, -apple-system, sans-serif;
       background-image:
-        radial-gradient(ellipse 70% 50% at 50% 60%, rgba(14,165,233,0.20), transparent 60%),
-        radial-gradient(ellipse 60% 40% at 80% 100%, rgba(34,211,238,0.13), transparent 60%);
+        radial-gradient(ellipse 70% 50% at 50% 60%, rgba(14,165,233,0.22), transparent 60%),
+        radial-gradient(ellipse 60% 40% at 80% 100%, rgba(34,211,238,0.14), transparent 60%);
       background-attachment: fixed;
       overscroll-behavior: none;
     }
@@ -31,32 +31,28 @@
       vertical-align: middle;
     }
 
-    /* Big action buttons */
-    .action-btn { transition: transform 90ms cubic-bezier(0.22,1,0.36,1), box-shadow 220ms ease; will-change: transform; }
-    .action-btn:active { transform: scale(0.94); transition-duration: 60ms; }
-    .action-btn:disabled { opacity: 0.5; pointer-events: none; }
+    .power-btn {
+      transition: transform 90ms cubic-bezier(0.22,1,0.36,1), box-shadow 280ms ease;
+      will-change: transform;
+      background-image: linear-gradient(to bottom right, #38bdf8, #0369a1);
+      box-shadow: 0 24px 70px -15px rgba(14,165,233,0.65), inset 0 1px 0 rgba(255,255,255,0.22), inset 0 -10px 24px rgba(0,0,0,0.30);
+    }
+    .power-btn:active { transform: scale(0.94); transition-duration: 60ms; }
 
-    /* Ambient glow */
     @keyframes pulseGlow {
       0%, 100% { opacity: 0.55; transform: scale(1); }
-      50%      { opacity: 0.78; transform: scale(1.06); }
+      50%      { opacity: 0.85; transform: scale(1.08); }
     }
-    .ambient-glow { animation: pulseGlow 4s ease-in-out infinite; }
+    .ambient-glow { animation: pulseGlow 3.6s ease-in-out infinite; }
 
-    /* Tap ripple */
     @keyframes ripple {
       0%   { transform: scale(0.55); opacity: 0.55; }
-      100% { transform: scale(1.9);  opacity: 0; }
+      100% { transform: scale(1.95); opacity: 0; }
     }
-    .ripple { animation: ripple 650ms ease-out forwards; transform-origin: center; }
+    .ripple { animation: ripple 700ms ease-out forwards; transform-origin: center; }
 
-    /* Step buttons */
-    .step-btn { transition: transform 90ms ease, background 200ms ease; }
-    .step-btn:active { transform: scale(0.92); }
-
-    /* Sending pulse */
-    @keyframes sendPulse { 0%,100% { opacity: 1 } 50% { opacity: 0.5 } }
-    .sending { animation: sendPulse 600ms ease-in-out infinite; }
+    @keyframes pressFlash { 0%,100% { opacity: 1 } 50% { opacity: 0.55 } }
+    .clicking { animation: pressFlash 400ms ease-in-out 2; }
   </style>
 </head>
 <body class="min-h-screen text-slate-200 antialiased">
@@ -68,7 +64,7 @@
       </div>
       <div>
         <div class="font-semibold text-white leading-tight">Aircon Remote</div>
-        <div class="text-[11px] text-slate-500 mono">TAC-09CSA · Raw IR</div>
+        <div class="text-[11px] text-slate-500 mono">SG90 servo · 1 button</div>
       </div>
       <span class="ml-auto inline-flex items-center gap-1.5 text-[10px] uppercase tracking-wider text-slate-500">
         <span id="connDot" class="w-1.5 h-1.5 rounded-full bg-slate-600"></span>
@@ -76,84 +72,45 @@
       </span>
     </header>
 
-    <div class="flex-1 flex flex-col items-center justify-center py-6 gap-7">
-
-      <!-- POWER ON / POWER OFF row -->
-      <div class="grid grid-cols-2 gap-4 w-full">
-        <div class="relative">
-          <div class="ambient-glow absolute -inset-4 rounded-3xl bg-gradient-to-br from-sky-500/40 to-cyan-500/30 blur-2xl pointer-events-none"></div>
-          <button id="powerOnBtn"
-            class="action-btn relative w-full h-28 rounded-3xl grid place-items-center
-                   bg-gradient-to-br from-sky-400 to-sky-700
-                   shadow-[0_20px_50px_-12px_rgba(14,165,233,0.6),inset_0_1px_0_rgba(255,255,255,0.18)]">
-            <div class="text-center select-none">
-              <span class="material-symbols-outlined text-white block" style="font-size:36px">power_settings_new</span>
-              <div class="text-white font-bold tracking-[0.18em] text-xs mt-1">POWER ON</div>
-            </div>
-          </button>
-        </div>
-        <button id="powerOffBtn"
-          class="action-btn relative w-full h-28 rounded-3xl grid place-items-center
-                 bg-gradient-to-br from-slate-600 to-slate-800
-                 shadow-[0_12px_30px_-12px_rgba(0,0,0,0.6),inset_0_1px_0_rgba(255,255,255,0.06)]">
+    <div class="flex-1 flex flex-col items-center justify-center gap-6">
+      <div class="relative">
+        <div class="ambient-glow absolute -inset-12 rounded-full bg-gradient-to-br from-sky-500/40 to-cyan-500/30 blur-3xl pointer-events-none"></div>
+        <div id="rippleHost" class="absolute inset-0 rounded-full overflow-hidden pointer-events-none"></div>
+        <button id="powerBtn"
+          aria-label="Press aircon power button"
+          class="power-btn relative w-56 h-56 rounded-full grid place-items-center">
+          <div class="absolute inset-3 rounded-full border border-white/15 pointer-events-none"></div>
           <div class="text-center select-none">
-            <span class="material-symbols-outlined text-slate-300 block" style="font-size:36px">power_off</span>
-            <div class="text-slate-300 font-bold tracking-[0.18em] text-xs mt-1">POWER OFF</div>
+            <span class="material-symbols-outlined text-white block" id="powerIcon" style="font-size:64px">power_settings_new</span>
+            <div class="text-white font-extrabold tracking-[0.2em] text-base mt-1">POWER</div>
           </div>
         </button>
       </div>
-
-      <!-- TEMP +/- row -->
-      <div class="flex flex-col items-center gap-3">
-        <div class="text-[10px] mono uppercase tracking-[0.22em] text-slate-500">Temperature</div>
-        <div class="flex items-center gap-6">
-          <button id="tempDown"
-            class="step-btn w-20 h-20 rounded-full grid place-items-center text-3xl font-light text-cyan-300
-                   bg-white/[0.04] border border-cyan-400/20 hover:bg-cyan-400/10">
-            <span class="material-symbols-outlined" style="font-size:32px">remove</span>
-          </button>
-          <button id="tempUp"
-            class="step-btn w-20 h-20 rounded-full grid place-items-center text-3xl font-light text-cyan-300
-                   bg-white/[0.04] border border-cyan-400/20 hover:bg-cyan-400/10">
-            <span class="material-symbols-outlined" style="font-size:32px">add</span>
-          </button>
-        </div>
+      <div class="text-[11px] text-slate-500 mono uppercase tracking-[0.2em]">
+        tap to physically press the remote
       </div>
-
-      <!-- SWING -->
-      <button id="swingBtn"
-        class="action-btn px-7 py-4 rounded-full text-sm font-semibold uppercase tracking-[0.16em] text-cyan-100
-               bg-gradient-to-br from-cyan-500/20 to-sky-600/20 border border-cyan-400/30
-               inline-flex items-center gap-2.5">
-        <span class="material-symbols-outlined" style="font-size:22px">swap_vert</span>
-        Swing
-      </button>
     </div>
 
     <div class="rounded-2xl bg-white/[0.03] border border-white/[0.05] overflow-hidden">
       <div class="px-4 py-3 flex items-center gap-3 text-xs">
         <span id="statusDot" class="w-2 h-2 rounded-full bg-slate-600"></span>
-        <span id="statusText" class="mono text-slate-400 flex-1 truncate">tap a button to send</span>
+        <span id="statusText" class="mono text-slate-400 flex-1 truncate">tap the button to click</span>
         <span class="mono text-slate-600 text-[10px]" id="lastTime"></span>
       </div>
-      <div class="px-4 py-3 border-t border-white/[0.05] grid grid-cols-3 gap-2 text-[10px] mono uppercase tracking-[0.16em] text-slate-500">
+      <div class="px-4 py-3 border-t border-white/[0.05] grid grid-cols-2 gap-2 text-[10px] mono uppercase tracking-[0.16em] text-slate-500">
         <div>
-          <div class="text-slate-600">last cmd</div>
-          <div class="text-slate-300 text-xs normal-case tracking-normal mt-0.5" id="diagCmd">—</div>
+          <div class="text-slate-600">click count</div>
+          <div class="text-slate-300 text-sm normal-case tracking-normal mt-0.5" id="diagCount">—</div>
         </div>
         <div>
-          <div class="text-slate-600">duration</div>
-          <div class="text-slate-300 text-xs normal-case tracking-normal mt-0.5" id="diagMs">—</div>
-        </div>
-        <div>
-          <div class="text-slate-600">IR witnessed</div>
-          <div class="text-xs normal-case tracking-normal mt-0.5" id="diagEdges">—</div>
+          <div class="text-slate-600">last duration</div>
+          <div class="text-slate-300 text-sm normal-case tracking-normal mt-0.5" id="diagMs">—</div>
         </div>
       </div>
     </div>
 
     <p class="text-[10px] text-slate-600 mt-4 text-center">
-      Charlie's DIY aircon controller · ESP32-C3 + 940nm IR LED
+      Charlie's DIY aircon controller · ESP32-C3 + SG90 servo
     </p>
   </div>
 
@@ -175,6 +132,8 @@
     const $ = id => document.getElementById(id);
     const connDot   = $("connDot"),   connText   = $("connText");
     const statusDot = $("statusDot"), statusText = $("statusText"), lastTime = $("lastTime");
+    const powerBtn  = $("powerBtn"),  powerIcon  = $("powerIcon"),  rippleHost = $("rippleHost");
+    const diagCount = $("diagCount"), diagMs     = $("diagMs");
 
     onValue(ref(db, ".info/connected"), snap => {
       const ok = snap.val() === true;
@@ -188,56 +147,40 @@
       statusText.textContent = msg;
     }
 
-    const diagCmd   = $("diagCmd");
-    const diagMs    = $("diagMs");
-    const diagEdges = $("diagEdges");
+    function spawnRipple() {
+      const r = document.createElement("div");
+      r.className = "ripple absolute inset-0 rounded-full bg-white/30";
+      rippleHost.appendChild(r);
+      setTimeout(() => r.remove(), 750);
+    }
 
     onValue(ref(db, "aircon/state"), snap => {
       const v = snap.val();
-      if (!v || typeof v !== "object" || !v.last) return;
-      const edges = v.edges | 0, ms = v.send_ms | 0;
-      diagCmd.textContent   = v.last + (v.count ? "  #" + v.count : "");
-      diagMs.textContent    = ms ? ms + " ms" : "—";
-
-      let verdictText, verdictColor, statusState, statusMsg;
-      if (edges > 50) {
-        verdictText  = "✓ " + edges + " edges";
-        verdictColor = "text-emerald-300";
-        statusState  = "ok";
-        statusMsg    = "sent " + v.last + " · IR confirmed";
-      } else if (edges > 0) {
-        verdictText  = "⚠ " + edges + " edges (weak)";
-        verdictColor = "text-amber-300";
-        statusState  = "ok";
-        statusMsg    = "sent " + v.last + " · weak signal";
-      } else {
-        verdictText  = "✗ 0 edges";
-        verdictColor = "text-rose-300";
-        statusState  = "err";
-        statusMsg    = "no IR detected — LED dead or TSOP not wired";
+      if (!v || typeof v !== "object") return;
+      diagCount.textContent = (v.count|0) ? "#" + (v.count|0) : "—";
+      diagMs.textContent    = (v.click_ms|0) ? (v.click_ms|0) + " ms" : "—";
+      if (v.last === "click" && (v.count|0) > 0) {
+        setStatus("ok", "clicked · " + (v.click_ms|0) + " ms");
       }
-      diagEdges.className = "text-xs normal-case tracking-normal mt-0.5 " + verdictColor;
-      diagEdges.textContent = verdictText;
-      setStatus(statusState, statusMsg);
     });
 
-    async function fire(cmd, haptic) {
-      if (navigator.vibrate) navigator.vibrate(haptic || 8);
-      setStatus("send", "sending " + cmd + "…");
+    async function fire() {
+      if (navigator.vibrate) navigator.vibrate(20);
+      spawnRipple();
+      powerIcon.classList.add("clicking");
+      setStatus("send", "pressing remote button…");
       try {
-        await set(ref(db, "aircon/command"), { cmd });
+        await set(ref(db, "aircon/command"), { cmd: "click" });
         lastTime.textContent = new Date().toLocaleTimeString();
       } catch (err) {
         console.error(err);
         setStatus("err", "failed: " + (err.message || err.code || err));
+      } finally {
+        setTimeout(() => powerIcon.classList.remove("clicking"), 900);
       }
     }
 
-    $("powerOnBtn") .addEventListener("click", () => fire("power_on",  15));
-    $("powerOffBtn").addEventListener("click", () => fire("power_off", 15));
-    $("tempUp")    .addEventListener("click", () => fire("temp_up",    8));
-    $("tempDown")  .addEventListener("click", () => fire("temp_down",  8));
-    $("swingBtn")  .addEventListener("click", () => fire("swing",      8));
+    powerBtn.addEventListener("click", fire);
   </script>
 </body>
 </html>
