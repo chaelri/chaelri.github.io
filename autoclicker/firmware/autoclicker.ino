@@ -8,19 +8,18 @@
 //              Use for "hold this button down" (keys, reset switches, etc.).
 //   press / release -> explicit on / off (alternative to toggle).
 //
-// FOUR WAYS TO TRIGGER (any of the above commands):
+// THREE WAYS TO TRIGGER (any of the above commands):
 //   1. Phone remote (online)   -> writes the command string to Firebase RTDB;
-//                                 firmware polls /autoclicker/command every 1 s.
+//                                 firmware listens on a long-lived REST stream
+//                                 (Server-Sent Events) so commands land within
+//                                 one round-trip (~50-150 ms typical).
 //   2. Local web UI (online)   -> any device on the same WiFi opens
 //                                 http://<esp32-ip>/ and taps either button.
 //   3. SoftAP fallback (offline) -> if no known WiFi is reachable, the ESP32
 //                                 broadcasts its own network "AutoClicker-AP".
-//   4. Bluetooth LE (fast path) -> phone connects to "AutoClicker-BLE" and
-//                                 writes the command string to the GATT
-//                                 characteristic. ~20-80 ms vs ~300-800 ms for
-//                                 the Firebase poll path. On iOS open the
-//                                 phone remote in Bluefy (App Store) — Safari
-//                                 blocks Web Bluetooth.
+//                                 Meanwhile it keeps scanning for known WiFi
+//                                 and upgrades back to station mode when one
+//                                 reappears.
 //
 // Switch element: continuous-rotation (360°) micro-servo. Pulse width controls
 // SPEED + DIRECTION, not angle. The press cycle is a state machine:
@@ -70,13 +69,10 @@
 
 #include <WiFi.h>
 #include <WiFiMulti.h>
+#include <WiFiClientSecure.h>
 #include <HTTPClient.h>
 #include <WebServer.h>
 #include <ESP32Servo.h>
-#include <BLEDevice.h>
-#include <BLEServer.h>
-#include <BLEUtils.h>
-#include <BLE2902.h>
 
 // --- WiFi --------------------------------------------------------------------
 // Add as many networks as you want — WiFiMulti picks the strongest visible one.
@@ -90,18 +86,6 @@ const char* AP_SSID = "AutoClicker-AP";
 const char* AP_PASS = "click1234";   // must be >= 8 chars for WPA2
 const unsigned long WIFI_CONNECT_TIMEOUT_MS = 15000;  // 15 s before falling to SoftAP
 
-// --- Bluetooth LE (fast direct path) -----------------------------------------
-// Optional fast command channel. A connected phone writes "press" / "release" /
-// "toggle" / "click" directly to the GATT characteristic instead of going
-// phone -> Firebase -> ESP32 poll. ~20-80 ms vs ~300-800 ms typical.
-//
-// UUIDs are arbitrary v4 values — keep them in sync with phone/index.html. The
-// ESP32-C3's single 2.4 GHz radio time-slices between WiFi and BLE; both coexist
-// at the cost of a small WiFi latency hit. Acceptable for our 1 s Firebase poll.
-const char* BLE_DEVICE_NAME   = "AutoClicker-BLE";
-const char* BLE_SERVICE_UUID  = "4fafc201-1fb5-459e-8fcc-c5c9c331914b";
-const char* BLE_CMD_CHAR_UUID = "beb5483e-36e1-4688-b7f5-ea07361b26a8";
-
 // --- Firebase RTDB -----------------------------------------------------------
 // Two paths:
 //   /autoclicker/command — transient signal. Phone writes a string ("press",
@@ -111,12 +95,21 @@ const char* BLE_CMD_CHAR_UUID = "beb5483e-36e1-4688-b7f5-ea07361b26a8";
 //                          writes here AFTER every action so any subscriber
 //                          (phone remote, dashboards) sees the truth in real
 //                          time, regardless of which platform triggered it.
+const char* FB_HOST   = "test-database-55379-default-rtdb.asia-southeast1.firebasedatabase.app";
 const char* DB_URL =
   "https://test-database-55379-default-rtdb.asia-southeast1.firebasedatabase.app"
   "/autoclicker/command.json";
 const char* STATE_URL =
   "https://test-database-55379-default-rtdb.asia-southeast1.firebasedatabase.app"
   "/autoclicker/state.json";
+
+// --- Realtime command stream -------------------------------------------------
+// Long-lived HTTPS connection to Firebase that delivers Server-Sent Events the
+// moment /autoclicker/command changes. Replaces 1 Hz polling for end-to-end
+// latency of one round-trip (~50-150 ms) instead of 0-1000 ms wait + handshake.
+WiFiClientSecure streamClient;
+unsigned long lastStreamAttempt = 0;
+const unsigned long STREAM_RECONNECT_MS = 1500;  // backoff after a drop
 
 // --- Pins / timing -----------------------------------------------------------
 const int SERVO_PIN     = 3;     // GPIO3 -> servo signal (orange/yellow)
@@ -130,7 +123,6 @@ const int PUSH_US       = 1000;  // press direction (swap with RETURN_US if reve
 const int RETURN_US     = 2000;  // release direction
 const int PUSH_MS       = 450;   // burst duration onto the button — longer = more travel/torque
 const int RETURN_MS     = 450;   // MUST equal PUSH_MS so release lands at rest
-const int POLL_MS       = 1000;  // Firebase poll interval
 
 Servo finger;
 WebServer server(80);
@@ -497,38 +489,59 @@ bool tryStation() {
   return false;
 }
 
-// --- BLE GATT command channel -----------------------------------------------
-// One writable characteristic accepts the same string commands as the Firebase
-// path. Both WRITE (with response) and WRITE_NR (without) are advertised so the
-// phone can pick the faster fire-and-forget variant.
-class BLECmdCB : public BLECharacteristicCallbacks {
-  void onWrite(BLECharacteristic* c) override {
-    // Newer ESP32 Arduino cores return Arduino String, not std::string.
-    String v = c->getValue();
-    if (v.length() == 0) return;
-    Serial.print(">>> BLE received: "); Serial.println(v);
-    if      (v == "press")   doPress();
-    else if (v == "release") doRelease();
-    else if (v == "toggle")  doToggle();
-    else if (v == "click")   doClick();
+// --- Firebase command stream -------------------------------------------------
+// Open one HTTPS connection, ask for Server-Sent Events on the command path,
+// and leave it open. Firebase pushes "put"/"patch" events the instant the
+// value changes — we react immediately. setInsecure() skips cert validation
+// because /autoclicker/command holds no secrets and TLS handshake time
+// matters more than identity verification for this use case.
+void connectStream() {
+  streamClient.stop();
+  streamClient.setInsecure();
+  streamClient.setTimeout(15000);
+  if (!streamClient.connect(FB_HOST, 443)) {
+    Serial.println("Stream connect failed");
+    return;
   }
-};
+  String req =
+    String("GET /autoclicker/command.json HTTP/1.1\r\n") +
+    "Host: " + FB_HOST + "\r\n" +
+    "Accept: text/event-stream\r\n" +
+    "Cache-Control: no-cache\r\n" +
+    "Connection: keep-alive\r\n\r\n";
+  streamClient.print(req);
+  Serial.println("Stream connected — listening for commands");
+}
 
-void startBLE() {
-  BLEDevice::init(BLE_DEVICE_NAME);
-  BLEServer* server = BLEDevice::createServer();
-  BLEService* svc = server->createService(BLE_SERVICE_UUID);
-  BLECharacteristic* ch = svc->createCharacteristic(
-    BLE_CMD_CHAR_UUID,
-    BLECharacteristic::PROPERTY_WRITE | BLECharacteristic::PROPERTY_WRITE_NR
-  );
-  ch->setCallbacks(new BLECmdCB());
-  svc->start();
-  BLEAdvertising* adv = BLEDevice::getAdvertising();
-  adv->addServiceUUID(BLE_SERVICE_UUID);
-  adv->setScanResponse(true);
-  BLEDevice::startAdvertising();
-  Serial.println("BLE up: device=" + String(BLE_DEVICE_NAME));
+// Parse one SSE data line and act on recognised commands. Firebase frames
+// each event as:
+//   event: put
+//   data: {"path":"/","data":"click"}
+// We only care about the value of "data" inside that JSON. Ignore null /
+// empty / non-matching strings (those come from clearCommand() PUTs).
+void handleStreamData(const String& line) {
+  int p = line.indexOf("\"data\":");
+  if (p < 0) return;
+  String val = line.substring(p + 7);
+  val.trim();
+  if (val.endsWith("}")) val = val.substring(0, val.length() - 1);
+  val.trim();
+  val.replace("\"", "");
+  val.trim();
+  if (val.length() == 0 || val == "null") return;
+  Serial.println(">>> stream received: " + val);
+  if      (val == "press")    { doPress();   clearCommand(); }
+  else if (val == "release")  { doRelease(); clearCommand(); }
+  else if (val == "toggle")   { doToggle();  clearCommand(); }
+  else if (val == "click")    { doClick();   clearCommand(); }
+}
+
+void processStream() {
+  while (streamClient.connected() && streamClient.available()) {
+    String line = streamClient.readStringUntil('\n');
+    line.trim();
+    if (line.startsWith("data:")) handleStreamData(line.substring(5));
+  }
 }
 
 void setup() {
@@ -551,6 +564,12 @@ void setup() {
     startSoftAP();
   }
 
+  // Kill modem sleep. ESP32 normally power-cycles the radio between beacons
+  // (~100 ms cadence) which can add jitter to outgoing requests and stretch
+  // wake-from-idle to a few hundred ms. We do not care about battery here —
+  // device is wall-powered — so keep the radio fully awake always.
+  WiFi.setSleep(false);
+
   server.on("/", handleRoot);
   server.on("/press",   HTTP_POST, handlePress);
   server.on("/press",   HTTP_GET,  handlePress);
@@ -567,12 +586,12 @@ void setup() {
   String ip = inSoftAP ? WiFi.softAPIP().toString() : WiFi.localIP().toString();
   Serial.println("Web UI: http://" + ip + "/");
 
-  // Bring up BLE alongside WiFi. Coexists on the single radio at a small WiFi
-  // latency cost; both trigger paths remain live.
-  startBLE();
-
   // Publish initial released state so any subscriber starts in sync
   publishState();
+
+  // Open the Firebase command stream if we have internet — otherwise the
+  // loop() reconnect logic will pick it up when WiFi comes back.
+  if (!inSoftAP) connectStream();
 }
 
 void loop() {
@@ -594,28 +613,17 @@ void loop() {
     }
   }
 
-  // Firebase polling only in station mode (SoftAP has no internet)
-  static unsigned long lastPoll = 0;
-  if (!inSoftAP && millis() - lastPoll >= POLL_MS) {
-    lastPoll = millis();
-    if (wifiMulti.run() != WL_CONNECTED) return;
-
-    HTTPClient http;
-    http.begin(DB_URL);
-    int code = http.GET();
-    if (code == 200) {
-      String body = http.getString();
-      body.replace("\"", "");
-      body.trim();
-      if (body.length() > 0) Serial.println(">>> received: " + body);
-
-      if      (body == "press")    { doPress();   clearCommand(); }
-      else if (body == "release")  { doRelease(); clearCommand(); }
-      else if (body == "toggle")   { doToggle();  clearCommand(); }
-      else if (body == "click")    { doClick();   clearCommand(); }
+  // Firebase command stream — drain incoming SSE bytes if connected, else
+  // reconnect with a short backoff. No polling: events are pushed, not pulled,
+  // so the only latency floor is the network round-trip.
+  if (!inSoftAP) {
+    if (streamClient.connected()) {
+      processStream();
+    } else if (millis() - lastStreamAttempt >= STREAM_RECONNECT_MS) {
+      lastStreamAttempt = millis();
+      if (WiFi.status() == WL_CONNECTED) connectStream();
     }
-    http.end();
   }
 
-  delay(2);  // keep web server responsive
+  delay(1);  // tiny yield — keep loop tight; setSleep(false) handles the rest
 }
