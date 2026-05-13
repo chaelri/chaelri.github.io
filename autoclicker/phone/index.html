@@ -767,17 +767,71 @@
 
       rec.addEventListener('start', () => setListeningUI(true));
 
-      voiceBtn.addEventListener('click', () => {
-        if (navigator.vibrate) navigator.vibrate(8);
-        if (userWantsOn) {
-          userWantsOn = false;
-          try { rec.stop(); } catch (_) {}
-          setListeningUI(false);
-          window.__keepAwake.dropConsumer();
-        } else {
-          userWantsOn = true;
-          try { rec.start(); } catch (_) {}
-          window.__keepAwake.addConsumer();
+      // iOS Safari quirk: SpeechRecognition.start() does NOT trigger the mic
+      // permission prompt. Calling getUserMedia first does. So we explicitly
+      // request mic on the first tap, immediately release the temporary
+      // stream, and let SpeechRecognition open its own. Without this, iOS
+      // users tap "listen" and nothing visibly happens — the request just
+      // never makes it past the missing permission gate.
+      function bridgeStatus(state, msg) {
+        const b = window.__autoclicker;
+        if (b && b.setStatus) b.setStatus(state, msg);
+      }
+
+      let micPermissionRequested = false;
+      async function ensureMicPermission() {
+        if (micPermissionRequested) return true;
+        if (!navigator.mediaDevices || !navigator.mediaDevices.getUserMedia) {
+          // Old browser — let rec.start() take its chances.
+          micPermissionRequested = true;
+          return true;
+        }
+        try {
+          const probe = await navigator.mediaDevices.getUserMedia({ audio: true });
+          probe.getTracks().forEach(t => t.stop());
+          micPermissionRequested = true;
+          return true;
+        } catch (e) {
+          setVoiceState('error', 'mic blocked');
+          bridgeStatus('err', 'mic blocked — allow in site settings');
+          return false;
+        }
+      }
+
+      let voiceBusy = false;
+      voiceBtn.addEventListener('click', async () => {
+        if (voiceBusy) return;
+        voiceBusy = true;
+        try {
+          if (navigator.vibrate) navigator.vibrate(8);
+          if (userWantsOn) {
+            userWantsOn = false;
+            try { rec.stop(); } catch (_) {}
+            setListeningUI(false);
+            window.__keepAwake.dropConsumer();
+          } else {
+            const granted = await ensureMicPermission();
+            if (!granted) return;
+            userWantsOn = true;
+            // Optimistically flip the UI — iOS sometimes delays the `start`
+            // event long enough that the button feels dead otherwise.
+            setListeningUI(true);
+            try {
+              rec.start();
+            } catch (e) {
+              // InvalidStateError = already started; treat as success.
+              if (!/InvalidStateError/.test(String(e))) {
+                userWantsOn = false;
+                setListeningUI(false);
+                setVoiceState('error', 'start failed');
+                bridgeStatus('err', 'voice start failed: ' + (e.message || e));
+                return;
+              }
+            }
+            window.__keepAwake.addConsumer();
+          }
+        } finally {
+          voiceBusy = false;
         }
       });
 
