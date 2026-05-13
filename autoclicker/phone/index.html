@@ -55,6 +55,27 @@
       100% { transform: scale(1.9);  opacity: 0; }
     }
     .ripple { animation: ripple 650ms ease-out forwards; transform-origin: center; }
+
+    /* Voice mic pulse + bars */
+    @keyframes micPulseRing {
+      0%   { transform: scale(0.85); opacity: 0.5; }
+      80%  { transform: scale(1.5);  opacity: 0; }
+      100% { transform: scale(1.5);  opacity: 0; }
+    }
+    .mic-ring {
+      position: absolute; inset: -6px; border-radius: 9999px;
+      background: radial-gradient(circle, rgba(236,72,153,0.45), rgba(168,85,247,0.18) 60%, transparent 75%);
+      animation: micPulseRing 1.8s ease-out infinite;
+      pointer-events: none;
+    }
+    .mic-ring.delay { animation-delay: 0.9s; }
+
+    @keyframes vuBar { 0%,100% { transform: scaleY(0.35); } 50% { transform: scaleY(1); } }
+    .vu-bar { transform-origin: center; animation: vuBar 0.9s ease-in-out infinite; }
+
+    /* Transcript reveal */
+    .panel { transition: max-height 320ms ease, opacity 240ms ease, margin 240ms ease; }
+    .panel.collapsed { max-height: 0; opacity: 0; margin: 0; pointer-events: none; overflow: hidden; }
   </style>
 </head>
 <body class="min-h-screen text-slate-200 antialiased">
@@ -100,17 +121,129 @@
         </button>
       </div>
 
-      <!-- secondary momentary-click button -->
-      <button id="clickBtn"
-        aria-label="Send single click command"
-        class="inline-flex items-center gap-2 px-5 py-2.5 rounded-full
-               bg-white/[0.04] border border-white/[0.08] text-slate-300
-               hover:bg-white/[0.08] hover:text-white active:scale-95 transition-all
-               text-xs uppercase tracking-[0.18em] font-semibold">
-        <span class="material-symbols-outlined" style="font-size:18px">ads_click</span>
-        single click
-      </button>
+      <!-- voice + clap toggles -->
+      <div class="flex items-center gap-3 flex-wrap justify-center">
+        <button id="voiceBtn"
+          aria-label="Toggle voice listening"
+          class="relative inline-flex items-center gap-2 px-5 py-2.5 rounded-full
+                 bg-white/[0.04] border border-white/[0.08] text-slate-300
+                 hover:bg-white/[0.08] hover:text-white active:scale-95 transition-all
+                 text-xs uppercase tracking-[0.18em] font-semibold">
+          <span id="voiceRing1" class="mic-ring hidden"></span>
+          <span id="voiceRing2" class="mic-ring delay hidden"></span>
+          <span id="voiceIcon" class="material-symbols-outlined relative" style="font-size:18px">mic</span>
+          <span id="voiceLabel" class="relative">listen</span>
+        </button>
+
+        <button id="clapBtn"
+          aria-label="Toggle clap detection"
+          class="relative inline-flex items-center gap-2 px-5 py-2.5 rounded-full
+                 bg-white/[0.04] border border-white/[0.08] text-slate-300
+                 hover:bg-white/[0.08] hover:text-white active:scale-95 transition-all
+                 text-xs uppercase tracking-[0.18em] font-semibold">
+          <span class="material-symbols-outlined relative" style="font-size:18px">pan_tool</span>
+          <span id="clapLabel" class="relative">clap</span>
+          <span id="clapCount" class="hidden mono text-[10px] text-slate-500 ml-0.5"></span>
+        </button>
+      </div>
     </div>
+
+    <!-- voice transcript panel — collapsed by default -->
+    <div id="voicePanel" class="panel collapsed rounded-2xl bg-white/[0.03] border border-white/[0.05] mb-3 overflow-hidden" style="max-height: 280px;">
+      <div class="flex items-center gap-2 px-4 py-2.5 border-b border-white/5">
+        <div id="voiceStateDot" class="w-2 h-2 rounded-full bg-slate-600"></div>
+        <span id="voiceState" class="text-[11px] uppercase tracking-[0.18em] text-slate-400 flex-1">idle</span>
+        <div id="vuStrip" class="flex items-end gap-1 h-3 opacity-0 transition-opacity">
+          <span class="vu-bar w-0.5 h-full rounded-full bg-indigo-400" style="animation-delay:0s"></span>
+          <span class="vu-bar w-0.5 h-full rounded-full bg-purple-400" style="animation-delay:0.1s"></span>
+          <span class="vu-bar w-0.5 h-full rounded-full bg-pink-400"   style="animation-delay:0.2s"></span>
+          <span class="vu-bar w-0.5 h-full rounded-full bg-purple-400" style="animation-delay:0.3s"></span>
+          <span class="vu-bar w-0.5 h-full rounded-full bg-indigo-400" style="animation-delay:0.4s"></span>
+        </div>
+        <select id="voiceLang" aria-label="recognition language"
+          class="text-[10px] mono px-2 py-1 rounded-md bg-white/[0.04] border border-white/[0.06] text-slate-300 focus:outline-none focus:border-indigo-400/40">
+          <option value="fil-PH">fil-PH</option>
+          <option value="tl-PH">tl-PH</option>
+          <option value="en-PH">en-PH</option>
+          <option value="en-US">en-US</option>
+        </select>
+        <button id="voiceClearBtn"
+          class="ml-1 text-[10px] mono px-2 py-1 rounded-md bg-white/[0.04] border border-white/[0.06] text-slate-400 hover:bg-white/[0.07]">
+          clear
+        </button>
+      </div>
+      <div id="transcriptBox"
+           class="px-4 py-3 text-sm leading-relaxed text-slate-100 overflow-y-auto"
+           style="max-height: 220px; min-height: 96px;">
+        <span id="transcriptEmpty" class="text-slate-500 italic">Listening…</span>
+        <span id="transcriptFinal" class="whitespace-pre-wrap"></span>
+        <span id="transcriptInterim" class="text-slate-400 italic"></span>
+      </div>
+    </div>
+
+    <!-- intent panel — collapses with voice panel -->
+    <div id="intentPanel" class="panel collapsed rounded-2xl bg-white/[0.03] border border-white/[0.05] mb-3 overflow-hidden" style="max-height: 240px;">
+      <div class="flex items-center gap-2 px-4 py-2.5 border-b border-white/5">
+        <span id="intentDot" class="w-2 h-2 rounded-full bg-slate-600"></span>
+        <span class="text-[11px] uppercase tracking-[0.18em] text-slate-400 flex-1">Intent</span>
+        <span id="intentBadge" class="text-[10px] mono px-2 py-0.5 rounded-md bg-white/[0.04] border border-white/[0.06] text-slate-400">—</span>
+      </div>
+      <div class="px-4 py-2.5">
+        <div class="text-slate-500 text-[10px] uppercase tracking-[0.15em] mb-1">Last match</div>
+        <div id="intentLast" class="text-slate-300 text-sm italic">waiting for keywords…</div>
+      </div>
+      <ul id="intentHistory" class="px-4 pb-3 text-[11px] mono text-slate-400 space-y-1 overflow-y-auto" style="max-height: 90px;"></ul>
+    </div>
+
+    <!-- keyword editor — add/remove trigger phrases -->
+    <details id="kwPanel" class="rounded-2xl bg-white/[0.03] border border-white/[0.05] mb-3 overflow-hidden">
+      <summary class="px-4 py-2.5 flex items-center gap-2 cursor-pointer hover:bg-white/[0.02] select-none list-none">
+        <span class="material-symbols-outlined text-slate-400" style="font-size:18px">tune</span>
+        <span class="text-[11px] uppercase tracking-[0.18em] text-slate-400 flex-1">Keywords</span>
+        <span class="text-[10px] mono text-slate-500" id="kwSummary">— open · — close</span>
+        <span class="material-symbols-outlined text-slate-500 chev" style="font-size:18px">expand_more</span>
+      </summary>
+      <div class="px-4 pb-4 pt-3 space-y-4 border-t border-white/5">
+
+        <!-- OPEN group -->
+        <div>
+          <div class="flex items-center gap-2 mb-2">
+            <span class="w-2 h-2 rounded-full bg-emerald-400"></span>
+            <span class="text-[11px] uppercase tracking-[0.18em] text-emerald-300 flex-1">Open · press</span>
+          </div>
+          <div id="kwOpenList" class="flex flex-wrap gap-1.5 mb-2"></div>
+          <form id="kwOpenForm" class="flex gap-2" autocomplete="off">
+            <input id="kwOpenInput" type="text" placeholder="add open keyword…"
+              class="flex-1 bg-white/[0.04] border border-white/[0.08] rounded-md px-3 py-1.5 text-sm text-slate-200 placeholder:text-slate-600 focus:outline-none focus:border-emerald-400/40">
+            <button type="submit"
+              class="px-3 py-1.5 rounded-md bg-emerald-400/15 border border-emerald-400/40 text-emerald-300 text-[11px] uppercase tracking-wider font-semibold active:scale-95 transition-transform">
+              add
+            </button>
+          </form>
+        </div>
+
+        <!-- CLOSE group -->
+        <div>
+          <div class="flex items-center gap-2 mb-2">
+            <span class="w-2 h-2 rounded-full bg-rose-400"></span>
+            <span class="text-[11px] uppercase tracking-[0.18em] text-rose-300 flex-1">Close · release</span>
+          </div>
+          <div id="kwCloseList" class="flex flex-wrap gap-1.5 mb-2"></div>
+          <form id="kwCloseForm" class="flex gap-2" autocomplete="off">
+            <input id="kwCloseInput" type="text" placeholder="add close keyword…"
+              class="flex-1 bg-white/[0.04] border border-white/[0.08] rounded-md px-3 py-1.5 text-sm text-slate-200 placeholder:text-slate-600 focus:outline-none focus:border-rose-400/40">
+            <button type="submit"
+              class="px-3 py-1.5 rounded-md bg-rose-400/15 border border-rose-400/40 text-rose-300 text-[11px] uppercase tracking-wider font-semibold active:scale-95 transition-transform">
+              add
+            </button>
+          </form>
+        </div>
+
+        <button id="kwReset" class="text-[11px] text-slate-500 hover:text-slate-300 underline underline-offset-2">
+          reset to defaults
+        </button>
+      </div>
+    </details>
 
     <!-- status footer -->
     <div class="rounded-2xl bg-white/[0.03] border border-white/[0.05] overflow-hidden">
@@ -144,7 +277,7 @@
     const $ = id => document.getElementById(id);
     const connDot   = $("connDot"),   connText   = $("connText");
     const statusDot = $("statusDot"), statusText = $("statusText"), lastTime = $("lastTime");
-    const toggleBtn = $("toggleBtn"), clickBtn   = $("clickBtn");
+    const toggleBtn = $("toggleBtn");
     const rippleHost = $("rippleHost"), ambientGlow = $("ambientGlow");
     const btnLabel  = $("btnLabel"),  btnSub    = $("btnSub");
 
@@ -216,13 +349,563 @@
       }
     });
 
-    clickBtn.addEventListener("click", async () => {
-      if (navigator.vibrate) navigator.vibrate(10);
-      setStatus("send", "single click…");
-      await sendCmd("click");
-      // For a single click the Firebase /state listener ends up at false again
-      // automatically once the firmware finishes the press→hold→release cycle.
-    });
+    // Bridge so the (non-module) voice script can drive the servo + share
+    // keyword storage with Firebase through this module's already-imported SDK.
+    window.__autoclicker = {
+      isOn: () => isOn,
+      sendCmd,
+      setStatus,
+      spawnRipple,
+      applyState,
+      watchKeywords: (cb) => onValue(ref(db, "autoclicker/keywords"), snap => cb(snap.val())),
+      saveKeywords:  (data) => set(ref(db, "autoclicker/keywords"), data),
+    };
+  </script>
+
+  <script>
+    // Always-on speech-to-text. Just transcribes — trigger words come next.
+    (() => {
+      const SR = window.SpeechRecognition || window.webkitSpeechRecognition;
+      const voiceBtn   = document.getElementById('voiceBtn');
+      const voiceIcon  = document.getElementById('voiceIcon');
+      const voiceLabel = document.getElementById('voiceLabel');
+      const voiceRing1 = document.getElementById('voiceRing1');
+      const voiceRing2 = document.getElementById('voiceRing2');
+      const voicePanel = document.getElementById('voicePanel');
+      const voiceState = document.getElementById('voiceState');
+      const voiceStateDot = document.getElementById('voiceStateDot');
+      const vuStrip = document.getElementById('vuStrip');
+      const finalEl   = document.getElementById('transcriptFinal');
+      const interimEl = document.getElementById('transcriptInterim');
+      const emptyEl   = document.getElementById('transcriptEmpty');
+      const transcriptBox = document.getElementById('transcriptBox');
+      const clearBtn  = document.getElementById('voiceClearBtn');
+      const intentPanel = document.getElementById('intentPanel');
+      const intentDot   = document.getElementById('intentDot');
+      const intentBadge = document.getElementById('intentBadge');
+      const intentLast  = document.getElementById('intentLast');
+      const intentHistory = document.getElementById('intentHistory');
+
+      // -- Keyword editor (Firebase-synced) ----------------------------------
+      const kwOpenList   = document.getElementById('kwOpenList');
+      const kwCloseList  = document.getElementById('kwCloseList');
+      const kwOpenForm   = document.getElementById('kwOpenForm');
+      const kwCloseForm  = document.getElementById('kwCloseForm');
+      const kwOpenInput  = document.getElementById('kwOpenInput');
+      const kwCloseInput = document.getElementById('kwCloseInput');
+      const kwReset      = document.getElementById('kwReset');
+      const kwSummary    = document.getElementById('kwSummary');
+
+      const KW_DEFAULTS = {
+        open:  ['buksan', 'buksan mo', 'sindihan', 'open', 'turn on', 'light on', 'ilaw on', 'press'],
+        close: ['patayin', 'patayin mo', 'isara', 'close', 'turn off', 'light off', 'ilaw off', 'release'],
+      };
+      const LS_KEY = 'autoclicker_voice_keywords';
+
+      let kwOpen  = [];
+      let kwClose = [];
+
+      function loadFromLocal() {
+        try {
+          const raw = localStorage.getItem(LS_KEY);
+          if (!raw) return null;
+          const v = JSON.parse(raw);
+          if (Array.isArray(v.open) && Array.isArray(v.close)) return v;
+        } catch (_) {}
+        return null;
+      }
+      function persistLocal() {
+        try { localStorage.setItem(LS_KEY, JSON.stringify({ open: kwOpen, close: kwClose })); } catch (_) {}
+      }
+
+      function escapeRegex(s)  { return s.replace(/[.*+?^${}()|[\]\\]/g, '\\$&'); }
+      function escapeHtml(s)   { return s.replace(/[&<>"']/g, c => ({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[c])); }
+      function dedupClean(arr) {
+        const seen = new Set();
+        return arr.map(x => x.trim()).filter(x => x && !seen.has(x.toLowerCase()) && seen.add(x.toLowerCase()));
+      }
+
+      function renderChips() {
+        const chip = (kw, intent) => {
+          const color = intent === 'open' ? 'emerald' : 'rose';
+          return `<span class="inline-flex items-center gap-1 pl-2.5 pr-1 py-1 rounded-md bg-white/[0.04] border border-white/[0.08] text-[12px] text-slate-200">
+            <span>${escapeHtml(kw)}</span>
+            <button data-kw="${escapeHtml(kw)}" data-intent="${intent}" aria-label="remove" class="kw-del w-5 h-5 grid place-items-center text-slate-500 hover:text-${color}-300 rounded-sm hover:bg-white/5">
+              <span class="material-symbols-outlined" style="font-size:14px">close</span>
+            </button>
+          </span>`;
+        };
+        kwOpenList.innerHTML  = kwOpen.length  ? kwOpen.map(k => chip(k, 'open')).join('')   : '<span class="text-[11px] italic text-slate-600">no open keywords yet</span>';
+        kwCloseList.innerHTML = kwClose.length ? kwClose.map(k => chip(k, 'close')).join('') : '<span class="text-[11px] italic text-slate-600">no close keywords yet</span>';
+        kwSummary.textContent = `${kwOpen.length} open · ${kwClose.length} close`;
+        document.querySelectorAll('.kw-del').forEach(btn => {
+          btn.addEventListener('click', (e) => {
+            e.preventDefault(); e.stopPropagation();
+            const kw = btn.dataset.kw, intent = btn.dataset.intent;
+            if (intent === 'open')  kwOpen  = kwOpen.filter(k => k !== kw);
+            else                    kwClose = kwClose.filter(k => k !== kw);
+            saveAndRender();
+          });
+        });
+      }
+
+      // Save to Firebase (primary) and localStorage (offline cache).
+      let saving = false;
+      function saveAndRender() {
+        kwOpen  = dedupClean(kwOpen);
+        kwClose = dedupClean(kwClose);
+        persistLocal();
+        renderChips();
+        const bridge = window.__autoclicker;
+        if (bridge && bridge.saveKeywords) {
+          saving = true;
+          bridge.saveKeywords({ open: kwOpen, close: kwClose })
+            .catch(err => console.warn('keyword save failed:', err))
+            .finally(() => { saving = false; });
+        }
+      }
+
+      // Seed from local cache first so the UI never starts blank, then let
+      // Firebase be authoritative — when its onValue fires it overrides local.
+      const cached = loadFromLocal();
+      if (cached) { kwOpen = cached.open.slice(); kwClose = cached.close.slice(); }
+      else        { kwOpen = KW_DEFAULTS.open.slice(); kwClose = KW_DEFAULTS.close.slice(); }
+      renderChips();
+
+      function adoptRemote(data) {
+        if (saving) return;
+        if (!data || !Array.isArray(data.open) || !Array.isArray(data.close)) {
+          // Nothing in Firebase yet — push current/default set up.
+          saveAndRender();
+          return;
+        }
+        kwOpen  = dedupClean(data.open);
+        kwClose = dedupClean(data.close);
+        persistLocal();
+        renderChips();
+      }
+
+      // Hook up Firebase sync if the bridge is ready; otherwise retry shortly.
+      function attachKeywordSync(retries = 30) {
+        const bridge = window.__autoclicker;
+        if (bridge && bridge.watchKeywords) {
+          bridge.watchKeywords(adoptRemote);
+        } else if (retries > 0) {
+          setTimeout(() => attachKeywordSync(retries - 1), 200);
+        }
+      }
+      attachKeywordSync();
+
+      // Add / reset handlers
+      kwOpenForm.addEventListener('submit', (e) => {
+        e.preventDefault();
+        const v = kwOpenInput.value.trim();
+        if (!v) return;
+        kwOpen.push(v);
+        kwOpenInput.value = '';
+        saveAndRender();
+      });
+      kwCloseForm.addEventListener('submit', (e) => {
+        e.preventDefault();
+        const v = kwCloseInput.value.trim();
+        if (!v) return;
+        kwClose.push(v);
+        kwCloseInput.value = '';
+        saveAndRender();
+      });
+      kwReset.addEventListener('click', (e) => {
+        e.preventDefault();
+        kwOpen  = KW_DEFAULTS.open.slice();
+        kwClose = KW_DEFAULTS.close.slice();
+        saveAndRender();
+      });
+
+      // -- Classification ----------------------------------------------------
+      function matchAny(text, list, intentName) {
+        let best = { intent: null, match: null, index: -1 };
+        for (const kw of list) {
+          if (!kw) continue;
+          const re = new RegExp(`\\b${escapeRegex(kw)}\\b`, 'i');
+          const m = text.match(re);
+          if (m && m.index > best.index) best = { intent: intentName, match: m[0], index: m.index };
+        }
+        return best;
+      }
+      function classify(text) {
+        const o = matchAny(text, kwOpen,  'open');
+        const c = matchAny(text, kwClose, 'close');
+        // pick whichever was LAST in the utterance (latest user wish wins)
+        const winner = (o.index >= c.index) ? o : c;
+        return winner.intent ? winner : null;
+      }
+
+      // -- Execute on intent: actually fire the servo via the Firebase bridge
+      // Dedup strategy: skip if the same intent+match was just fired within
+      // 1.5 s (catches Web Speech re-emitting the same interim/final), but
+      // allow a DIFFERENT intent/match through almost immediately (only a
+      // 150 ms floor) so the bot doesn't feel "tamad" after each execute.
+      let lastExecSig = '';
+      let lastExecAt  = 0;
+      function executeIntent(intent, matchedPhrase) {
+        const bridge = window.__autoclicker;
+        if (!bridge) return false;
+        const now = Date.now();
+        const sig = intent + ':' + matchedPhrase.toLowerCase();
+        if (sig === lastExecSig && (now - lastExecAt) < 1500) return false;
+        if ((now - lastExecAt) < 150) return false;
+        // No-op transitions: already in target state.
+        if (intent === 'open'  && bridge.isOn())  return false;
+        if (intent === 'close' && !bridge.isOn()) return false;
+        lastExecSig = sig;
+        lastExecAt  = now;
+        const cmd = intent === 'open' ? 'press' : 'release';
+        bridge.applyState(intent === 'open');
+        bridge.spawnRipple();
+        bridge.setStatus('send', `voice → ${cmd} ("${matchedPhrase}")`);
+        // Defer the network write a tick so it doesn't block the audio thread
+        // (some phones lag the mic stream while the fetch is in flight).
+        setTimeout(() => {
+          bridge.sendCmd(cmd).then(ok => {
+            if (!ok) bridge.applyState(intent !== 'open');
+          });
+        }, 0);
+        // Wipe the transcript so the next command starts on a clean slate —
+        // history is preserved in the INTENT panel below.
+        finalEl.textContent = '';
+        interimEl.textContent = '';
+        emptyEl.classList.remove('hidden');
+        // Skip the post-execute vibration — on some Android phones the haptic
+        // motor briefly interrupts the mic input, which is exactly the "tamad
+        // na makinig" feeling. The press-button haptic on the big toggle is
+        // still there for manual taps.
+        return true;
+      }
+
+      function applyIntent(text) {
+        const c = classify(text);
+        if (!c) return;
+        const isOpen = c.intent === 'open';
+        const dotClass   = isOpen ? 'bg-emerald-400' : 'bg-rose-400';
+        const badgeClass = isOpen
+          ? 'text-emerald-300 border-emerald-400/40 bg-emerald-400/10'
+          : 'text-rose-300 border-rose-400/40 bg-rose-400/10';
+        intentDot.className   = 'w-2 h-2 rounded-full ' + dotClass;
+        intentBadge.className = 'text-[10px] mono px-2 py-0.5 rounded-md border ' + badgeClass;
+        intentBadge.textContent = isOpen ? 'OPEN' : 'CLOSE';
+        intentLast.classList.remove('italic');
+        const sameAsWhole = text.toLowerCase() === c.match.toLowerCase();
+        intentLast.innerHTML = sameAsWhole
+          ? `matched <span class="mono ${isOpen ? 'text-emerald-300' : 'text-rose-300'}">"${escapeHtml(c.match)}"</span>`
+          : `matched <span class="mono ${isOpen ? 'text-emerald-300' : 'text-rose-300'}">"${escapeHtml(c.match)}"</span> in <span class="text-slate-400">"${escapeHtml(text)}"</span>`;
+
+        const fired = executeIntent(c.intent, c.match);
+
+        const li = document.createElement('li');
+        const t = new Date().toTimeString().slice(0, 8);
+        li.innerHTML = `<span class="text-slate-600">${t}</span> <span class="${isOpen ? 'text-emerald-300' : 'text-rose-300'} font-semibold">${isOpen ? 'OPEN ' : 'CLOSE'}</span> <span class="text-slate-400">${escapeHtml(text)}</span>${fired ? '' : ' <span class="text-slate-600">(skipped)</span>'}`;
+        intentHistory.prepend(li);
+        while (intentHistory.children.length > 5) intentHistory.lastChild.remove();
+      }
+
+      function setVoiceState(state, label) {
+        const map = {
+          idle:    'bg-slate-600',
+          listen:  'bg-emerald-400',
+          error:   'bg-rose-500',
+          unsupp:  'bg-slate-600'
+        };
+        voiceStateDot.className = 'w-2 h-2 rounded-full ' + (map[state] || 'bg-slate-600');
+        voiceState.textContent = label;
+      }
+
+      if (!SR) {
+        voiceBtn.disabled = true;
+        voiceBtn.classList.add('opacity-50', 'cursor-not-allowed');
+        voiceLabel.textContent = 'no mic api';
+        return;
+      }
+
+      const rec = new SR();
+      rec.continuous = true;
+      rec.interimResults = true;
+      rec.maxAlternatives = 1;
+
+      // Language — defaults to fil-PH (Charlie primarily speaks Filipino).
+      // Persisted in localStorage, re-applied on every start().
+      const LS_LANG_KEY = 'autoclicker_voice_lang';
+      const voiceLangSelect = document.getElementById('voiceLang');
+      const savedLang = (() => {
+        try { return localStorage.getItem(LS_LANG_KEY) || 'fil-PH'; }
+        catch (_) { return 'fil-PH'; }
+      })();
+      voiceLangSelect.value = savedLang;
+      rec.lang = savedLang;
+      voiceLangSelect.addEventListener('change', () => {
+        const v = voiceLangSelect.value;
+        rec.lang = v;
+        try { localStorage.setItem(LS_LANG_KEY, v); } catch (_) {}
+        // If currently listening, force a clean restart so the new language
+        // actually takes effect (Web Speech locks lang at start time).
+        if (userWantsOn) {
+          try { rec.stop(); } catch (_) {}
+          // onend will auto-restart with the new lang.
+        }
+      });
+
+      let userWantsOn = false;
+      let starting = false;
+
+      function setListeningUI(on) {
+        voiceIcon.textContent = on ? 'graphic_eq' : 'mic';
+        voiceLabel.textContent = on ? 'listening' : 'listen';
+        voiceBtn.classList.toggle('bg-white/[0.04]', !on);
+        voiceBtn.classList.toggle('border-white/[0.08]', !on);
+        voiceBtn.classList.toggle('text-slate-300', !on);
+        if (on) {
+          voiceBtn.style.background = 'linear-gradient(to bottom right, rgba(168,85,247,0.35), rgba(236,72,153,0.35))';
+          voiceBtn.style.borderColor = 'rgba(236,72,153,0.4)';
+          voiceBtn.style.color = '#fff';
+        } else {
+          voiceBtn.style.background = '';
+          voiceBtn.style.borderColor = '';
+          voiceBtn.style.color = '';
+        }
+        voiceRing1.classList.toggle('hidden', !on);
+        voiceRing2.classList.toggle('hidden', !on);
+        voicePanel.classList.toggle('collapsed', !on);
+        intentPanel.classList.toggle('collapsed', !on);
+        vuStrip.style.opacity = on ? '1' : '0';
+        setVoiceState(on ? 'listen' : 'idle', on ? 'listening' : 'idle');
+      }
+
+      function appendFinal(text) {
+        const t = (text || '').trim();
+        if (!t) return;
+        emptyEl.classList.add('hidden');
+        finalEl.textContent += (finalEl.textContent ? ' ' : '') + t;
+        transcriptBox.scrollTop = transcriptBox.scrollHeight;
+      }
+
+      rec.addEventListener('result', (ev) => {
+        let interim = '';
+        for (let i = ev.resultIndex; i < ev.results.length; i++) {
+          const r = ev.results[i];
+          const txt = r[0].transcript.trim();
+          if (r.isFinal) {
+            appendFinal(txt);
+            applyIntent(txt);   // classify on finalized utterance
+          } else {
+            interim += (interim ? ' ' : '') + txt;
+          }
+        }
+        if (interim) {
+          emptyEl.classList.add('hidden');
+          interimEl.textContent = (finalEl.textContent ? ' ' : '') + interim;
+          // Classify interim too so detection fires the moment a keyword is
+          // recognized, not after the recognizer decides the utterance is
+          // done. Dedup is in executeIntent so we never double-fire.
+          applyIntent(interim);
+        } else {
+          interimEl.textContent = '';
+        }
+      });
+
+      rec.addEventListener('error', (ev) => {
+        if (ev.error === 'no-speech' || ev.error === 'aborted') return;
+        if (ev.error === 'not-allowed' || ev.error === 'service-not-allowed') {
+          userWantsOn = false;
+          setListeningUI(false);
+          setVoiceState('error', 'mic blocked');
+          return;
+        }
+        if (ev.error === 'audio-capture') {
+          setVoiceState('error', 'no mic');
+          return;
+        }
+        setVoiceState('error', 'error: ' + ev.error);
+      });
+
+      rec.addEventListener('end', () => {
+        interimEl.textContent = '';
+        if (userWantsOn && !starting) {
+          starting = true;
+          // Fast restart — 60 ms is enough for Chrome/Safari to settle. Any
+          // longer feels "tamad" between Web Speech's ~60 s auto-stops.
+          setTimeout(() => {
+            try { rec.start(); } catch (_) {}
+            starting = false;
+          }, 60);
+        } else {
+          setListeningUI(false);
+        }
+      });
+
+      rec.addEventListener('start', () => setListeningUI(true));
+
+      voiceBtn.addEventListener('click', () => {
+        if (navigator.vibrate) navigator.vibrate(8);
+        if (userWantsOn) {
+          userWantsOn = false;
+          try { rec.stop(); } catch (_) {}
+          setListeningUI(false);
+        } else {
+          userWantsOn = true;
+          try { rec.start(); } catch (_) {}
+        }
+      });
+
+      clearBtn.addEventListener('click', () => {
+        finalEl.textContent = '';
+        interimEl.textContent = '';
+        emptyEl.classList.remove('hidden');
+        intentDot.className   = 'w-2 h-2 rounded-full bg-slate-600';
+        intentBadge.className = 'text-[10px] mono px-2 py-0.5 rounded-md bg-white/[0.04] border border-white/[0.06] text-slate-400';
+        intentBadge.textContent = '—';
+        intentLast.classList.add('italic');
+        intentLast.textContent = 'waiting for keywords…';
+        intentHistory.innerHTML = '';
+      });
+    })();
+
+    // ===========================================================================
+    // Clap detector — separate Web Audio path (independent of SpeechRecognition).
+    // A clap is detected as a sharp amplitude spike: peak above THRESHOLD AND
+    // a sudden rise from the previous frame above RISE. Refractory prevents
+    // re-trigger on the decay tail. Each detected clap toggles press/release.
+    // ===========================================================================
+    (() => {
+      const clapBtn   = document.getElementById('clapBtn');
+      const clapLabel = document.getElementById('clapLabel');
+      const clapCount = document.getElementById('clapCount');
+      const AudioCtx  = window.AudioContext || window.webkitAudioContext;
+      const hasMic    = !!(navigator.mediaDevices && navigator.mediaDevices.getUserMedia);
+
+      if (!hasMic || !AudioCtx) {
+        clapBtn.disabled = true;
+        clapBtn.classList.add('opacity-50', 'cursor-not-allowed');
+        clapLabel.textContent = 'no audio api';
+        return;
+      }
+
+      // Tuning — picked to ignore normal speech (peaks ~0.3–0.45) and
+      // catch sharp handclaps (peaks 0.6–1.0 with a fast attack).
+      const THRESHOLD    = 0.6;
+      const RISE         = 0.35;
+      const REFRACTORY   = 600; // ms — ignore subsequent peaks
+      const FRAME_BUF    = 1024;
+
+      let enabled = false, count = 0;
+      let stream = null, ctx = null, analyser = null, rafId = null;
+      let lastPeak = 0, lastClapAt = 0;
+
+      function setClapUI(on) {
+        clapLabel.textContent = on ? 'listening' : 'clap';
+        if (on) {
+          clapBtn.style.background  = 'linear-gradient(to bottom right, rgba(245,158,11,0.35), rgba(236,72,153,0.35))';
+          clapBtn.style.borderColor = 'rgba(245,158,11,0.4)';
+          clapBtn.style.color = '#fff';
+          clapCount.classList.remove('hidden');
+          clapCount.textContent = count ? `× ${count}` : '';
+        } else {
+          clapBtn.style.background  = '';
+          clapBtn.style.borderColor = '';
+          clapBtn.style.color = '';
+          clapCount.classList.add('hidden');
+        }
+      }
+
+      function flash() {
+        if (clapBtn.animate) {
+          clapBtn.animate(
+            [{ transform: 'scale(1)' }, { transform: 'scale(1.12)' }, { transform: 'scale(1)' }],
+            { duration: 220, easing: 'ease-out' }
+          );
+        }
+      }
+
+      function onClap() {
+        count++;
+        clapCount.textContent = `× ${count}`;
+        flash();
+        const bridge = window.__autoclicker;
+        if (!bridge) return;
+        const wantPress = !bridge.isOn();
+        const cmd = wantPress ? 'press' : 'release';
+        bridge.applyState(wantPress);
+        bridge.spawnRipple();
+        bridge.setStatus('send', `clap → ${cmd}`);
+        setTimeout(() => {
+          bridge.sendCmd(cmd).then(ok => {
+            if (!ok) bridge.applyState(!wantPress);
+          });
+        }, 0);
+      }
+
+      async function start() {
+        try {
+          stream = await navigator.mediaDevices.getUserMedia({
+            audio: { echoCancellation: false, noiseSuppression: false, autoGainControl: false }
+          });
+        } catch (e) {
+          console.warn('clap: mic denied', e);
+          return false;
+        }
+        ctx = new AudioCtx();
+        if (ctx.state === 'suspended') { try { await ctx.resume(); } catch (_) {} }
+        const src = ctx.createMediaStreamSource(stream);
+        analyser = ctx.createAnalyser();
+        analyser.fftSize = FRAME_BUF;
+        src.connect(analyser);
+        const buf = new Uint8Array(analyser.fftSize);
+        lastPeak = 0;
+        const loop = () => {
+          if (!enabled) return;
+          analyser.getByteTimeDomainData(buf);
+          let peak = 0;
+          for (let i = 0; i < buf.length; i++) {
+            const v = Math.abs(buf[i] - 128) / 128;
+            if (v > peak) peak = v;
+          }
+          const now = performance.now();
+          if (
+            peak > THRESHOLD &&
+            (peak - lastPeak) > RISE &&
+            (now - lastClapAt) > REFRACTORY
+          ) {
+            lastClapAt = now;
+            onClap();
+          }
+          lastPeak = peak;
+          rafId = requestAnimationFrame(loop);
+        };
+        loop();
+        return true;
+      }
+
+      function stop() {
+        if (rafId) cancelAnimationFrame(rafId);
+        rafId = null;
+        analyser = null;
+        if (ctx)    { ctx.close().catch(() => {}); ctx = null; }
+        if (stream) { stream.getTracks().forEach(t => t.stop()); stream = null; }
+      }
+
+      clapBtn.addEventListener('click', async () => {
+        if (enabled) {
+          enabled = false;
+          stop();
+          setClapUI(false);
+        } else {
+          enabled = true;
+          setClapUI(true);
+          const ok = await start();
+          if (!ok) {
+            enabled = false;
+            setClapUI(false);
+          }
+        }
+      });
+    })();
   </script>
 </body>
 </html>
