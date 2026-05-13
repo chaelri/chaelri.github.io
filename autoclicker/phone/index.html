@@ -363,6 +363,31 @@
   </script>
 
   <script>
+    // -------------------------------------------------------------------------
+    // Shared wake-lock manager — keeps the screen on while voice OR clap is
+    // active. Wake locks auto-release whenever the page becomes hidden, so we
+    // re-acquire on every visibilitychange too.
+    // -------------------------------------------------------------------------
+    window.__keepAwake = (() => {
+      let consumers = 0;
+      let sentinel = null;
+      async function acquire() {
+        if (!('wakeLock' in navigator)) return;
+        try { sentinel = await navigator.wakeLock.request('screen'); }
+        catch (_) { sentinel = null; }
+      }
+      async function release() {
+        if (sentinel) { try { await sentinel.release(); } catch (_) {} sentinel = null; }
+      }
+      document.addEventListener('visibilitychange', () => {
+        if (document.visibilityState === 'visible' && consumers > 0 && !sentinel) acquire();
+      });
+      return {
+        addConsumer: () => { consumers++; if (consumers === 1) acquire(); },
+        dropConsumer: () => { consumers = Math.max(0, consumers - 1); if (consumers === 0) release(); },
+      };
+    })();
+
     // Always-on speech-to-text. Just transcribes — trigger words come next.
     (() => {
       const SR = window.SpeechRecognition || window.webkitSpeechRecognition;
@@ -748,8 +773,20 @@
           userWantsOn = false;
           try { rec.stop(); } catch (_) {}
           setListeningUI(false);
+          window.__keepAwake.dropConsumer();
         } else {
           userWantsOn = true;
+          try { rec.start(); } catch (_) {}
+          window.__keepAwake.addConsumer();
+        }
+      });
+
+      // When the tab is hidden, Web Speech often pauses on its own and emits
+      // 'end' — our auto-restart will keep trying, but if Chrome refused to
+      // start while hidden, we'll get back here when the tab becomes visible
+      // and attempt one more start.
+      document.addEventListener('visibilitychange', () => {
+        if (document.visibilityState === 'visible' && userWantsOn) {
           try { rec.start(); } catch (_) {}
         }
       });
@@ -795,7 +832,7 @@
       const FRAME_BUF    = 1024;
 
       let enabled = false, count = 0;
-      let stream = null, ctx = null, analyser = null, rafId = null;
+      let stream = null, ctx = null, processor = null, muteGain = null;
       let lastPeak = 0, lastClapAt = 0;
 
       function setClapUI(on) {
@@ -853,17 +890,25 @@
         ctx = new AudioCtx();
         if (ctx.state === 'suspended') { try { await ctx.resume(); } catch (_) {} }
         const src = ctx.createMediaStreamSource(stream);
-        analyser = ctx.createAnalyser();
-        analyser.fftSize = FRAME_BUF;
-        src.connect(analyser);
-        const buf = new Uint8Array(analyser.fftSize);
+        // ScriptProcessorNode is deprecated but universally supported and runs
+        // on the audio thread — unlike requestAnimationFrame, it keeps firing
+        // when the tab is hidden, which is exactly the "still listen when I
+        // move out of the tab" behavior we want.
+        processor = ctx.createScriptProcessor(FRAME_BUF, 1, 1);
+        // It must be connected to destination to fire — route through a muted
+        // gain so we don't echo the mic back through the speaker.
+        muteGain = ctx.createGain();
+        muteGain.gain.value = 0;
+        src.connect(processor);
+        processor.connect(muteGain);
+        muteGain.connect(ctx.destination);
         lastPeak = 0;
-        const loop = () => {
+        processor.onaudioprocess = (e) => {
           if (!enabled) return;
-          analyser.getByteTimeDomainData(buf);
+          const buf = e.inputBuffer.getChannelData(0); // Float32, [-1, 1]
           let peak = 0;
           for (let i = 0; i < buf.length; i++) {
-            const v = Math.abs(buf[i] - 128) / 128;
+            const v = Math.abs(buf[i]);
             if (v > peak) peak = v;
           }
           const now = performance.now();
@@ -873,21 +918,20 @@
             (now - lastClapAt) > REFRACTORY
           ) {
             lastClapAt = now;
-            onClap();
+            // Defer to the UI thread — DOM/Firebase work has no business
+            // happening on the audio thread.
+            setTimeout(onClap, 0);
           }
           lastPeak = peak;
-          rafId = requestAnimationFrame(loop);
         };
-        loop();
         return true;
       }
 
       function stop() {
-        if (rafId) cancelAnimationFrame(rafId);
-        rafId = null;
-        analyser = null;
-        if (ctx)    { ctx.close().catch(() => {}); ctx = null; }
-        if (stream) { stream.getTracks().forEach(t => t.stop()); stream = null; }
+        if (processor) { processor.onaudioprocess = null; processor.disconnect(); processor = null; }
+        if (muteGain)  { muteGain.disconnect(); muteGain = null; }
+        if (ctx)       { ctx.close().catch(() => {}); ctx = null; }
+        if (stream)    { stream.getTracks().forEach(t => t.stop()); stream = null; }
       }
 
       clapBtn.addEventListener('click', async () => {
@@ -895,6 +939,7 @@
           enabled = false;
           stop();
           setClapUI(false);
+          window.__keepAwake.dropConsumer();
         } else {
           enabled = true;
           setClapUI(true);
@@ -902,6 +947,8 @@
           if (!ok) {
             enabled = false;
             setClapUI(false);
+          } else {
+            window.__keepAwake.addConsumer();
           }
         }
       });
