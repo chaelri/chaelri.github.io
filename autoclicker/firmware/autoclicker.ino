@@ -126,7 +126,6 @@ const int RETURN_MS     = 450;   // MUST equal PUSH_MS so release lands at rest
 
 Servo finger;
 WebServer server(80);
-bool inSoftAP = false;
 bool isPressed = false;            // latched press state (toggle target)
 unsigned long lastFiredAt = 0;
 
@@ -381,9 +380,10 @@ clickBtn.addEventListener('click',async()=>{
 )rawliteral";
 
 // Publish the current latched state to Firebase so any remote (phone, web
-// dashboard) reflects the truth in real time. No-op when offline / SoftAP.
+// dashboard) reflects the truth in real time. No-op when the station radio
+// has no internet (SoftAP is always up alongside, but it can't reach Firebase).
 void publishState() {
-  if (inSoftAP || WiFi.status() != WL_CONNECTED) return;
+  if (WiFi.status() != WL_CONNECTED) return;
   HTTPClient http;
   http.begin(STATE_URL);
   http.addHeader("Content-Type", "application/json");
@@ -455,38 +455,26 @@ void handleToggle()  { doToggle();  sendState(); }
 void handleClick()   { doClick();   sendState(); }
 void handleStateGet(){ sendState(); }
 
-void startSoftAP() {
-  // AP_STA dual mode: keep broadcasting AutoClicker-AP for offline control AND
-  // let the station radio keep scanning for known networks in the background.
-  // Single radio means the AP briefly hops channels during STA scans/associates;
-  // that's fine — clients reconnect automatically.
+// Bring up SoftAP + station simultaneously. The ESP32-C3's single 2.4 GHz radio
+// time-slices between AP beacons and STA scan/data; both stay live always. The
+// AP is permanent — phones can always join AutoClicker-AP for direct local
+// control, regardless of whether the upstream WiFi is reachable.
+void startWiFiDualMode() {
   WiFi.mode(WIFI_AP_STA);
   WiFi.softAP(AP_SSID, AP_PASS);
-  inSoftAP = true;
   Serial.println("SoftAP up: SSID=" + String(AP_SSID) + " · IP=" + WiFi.softAPIP().toString());
-}
 
-void stopSoftAP() {
-  WiFi.softAPdisconnect(true);
-  WiFi.mode(WIFI_STA);
-  inSoftAP = false;
-  Serial.println("SoftAP down — fully on station: " + WiFi.SSID() + " · " + WiFi.localIP().toString());
-  publishState();   // we're online again — push current state to Firebase
-}
-
-bool tryStation() {
-  WiFi.mode(WIFI_STA);
-  Serial.print("Connecting to WiFi");
+  Serial.print("Connecting to known WiFi");
   unsigned long t0 = millis();
   while (wifiMulti.run() != WL_CONNECTED && millis() - t0 < WIFI_CONNECT_TIMEOUT_MS) {
     delay(300); Serial.print(".");
   }
   Serial.println();
   if (WiFi.status() == WL_CONNECTED) {
-    Serial.println("WiFi connected: " + WiFi.SSID() + " · " + WiFi.localIP().toString());
-    return true;
+    Serial.println("Station connected: " + WiFi.SSID() + " · " + WiFi.localIP().toString());
+  } else {
+    Serial.println("No known WiFi yet — staying on SoftAP, will keep retrying in background");
   }
-  return false;
 }
 
 // --- Firebase command stream -------------------------------------------------
@@ -559,10 +547,7 @@ void setup() {
   wifiMulti.addAP("CAYNO", "lokomoko");
   wifiMulti.addAP("Charlie's iPhone", "charlie24");
 
-  if (!tryStation()) {
-    Serial.println("No known WiFi reachable — starting SoftAP fallback");
-    startSoftAP();
-  }
+  startWiFiDualMode();
 
   // Kill modem sleep. ESP32 normally power-cycles the radio between beacons
   // (~100 ms cadence) which can add jitter to outgoing requests and stretch
@@ -583,46 +568,54 @@ void setup() {
   server.onNotFound(handleRoot);   // captive-portal-ish: any unknown URL serves the UI
   server.begin();
 
-  String ip = inSoftAP ? WiFi.softAPIP().toString() : WiFi.localIP().toString();
-  Serial.println("Web UI: http://" + ip + "/");
+  // Both interfaces serve the same web UI. AP_IP is always reachable; STA_IP
+  // exists only after a successful join.
+  Serial.println("Web UI (SoftAP): http://" + WiFi.softAPIP().toString() + "/");
+  if (WiFi.status() == WL_CONNECTED) {
+    Serial.println("Web UI (station): http://" + WiFi.localIP().toString() + "/");
+  }
 
   // Publish initial released state so any subscriber starts in sync
   publishState();
 
   // Open the Firebase command stream if we have internet — otherwise the
-  // loop() reconnect logic will pick it up when WiFi comes back.
-  if (!inSoftAP) connectStream();
+  // loop() reconnect logic will pick it up when station comes back.
+  if (WiFi.status() == WL_CONNECTED) connectStream();
 }
 
 void loop() {
   server.handleClient();
 
-  // While in SoftAP, keep scanning for a known WiFi (CAYNO, iPhone hotspot,
-  // anything in wifiMulti). When one shows up, drop the AP and run pure
-  // station. wifiMulti.run() does a scan + associate; it briefly blocks the
-  // web server (~2-8 s), so we only retry every STA_RETRY_MS.
+  // Track station presence. SoftAP is always up, so the only thing we gate on
+  // is whether the upstream WiFi (CAYNO / iPhone) is currently joined.
+  const bool staConnected = (WiFi.status() == WL_CONNECTED);
+
+  // Background reconnect when station has dropped (or never came up). The
+  // wifiMulti.run() call does a scan + associate inline; it briefly blocks
+  // the web server (~2-8 s), so we throttle the attempts.
   static unsigned long lastStaRetry = 0;
-  const unsigned long STA_RETRY_MS = 20000;   // try every 20 s
-  if (inSoftAP && millis() - lastStaRetry >= STA_RETRY_MS) {
+  const unsigned long STA_RETRY_MS = 20000;
+  if (!staConnected && millis() - lastStaRetry >= STA_RETRY_MS) {
     lastStaRetry = millis();
-    Serial.println("SoftAP active — scanning for known WiFi…");
+    Serial.println("Station down — scanning for known WiFi…");
     if (wifiMulti.run() == WL_CONNECTED) {
-      stopSoftAP();
-    } else {
-      Serial.println("No known WiFi yet — staying on SoftAP");
+      Serial.println("Station connected: " + WiFi.SSID() + " · " + WiFi.localIP().toString());
+      publishState();   // resync state now that we're online again
     }
   }
 
-  // Firebase command stream — drain incoming SSE bytes if connected, else
-  // reconnect with a short backoff. No polling: events are pushed, not pulled,
-  // so the only latency floor is the network round-trip.
-  if (!inSoftAP) {
+  // Firebase command stream — drain incoming SSE bytes when station is up,
+  // else (re)connect with a short backoff. No polling: events are pushed, not
+  // pulled, so the only latency floor is the network round-trip.
+  if (staConnected) {
     if (streamClient.connected()) {
       processStream();
     } else if (millis() - lastStreamAttempt >= STREAM_RECONNECT_MS) {
       lastStreamAttempt = millis();
-      if (WiFi.status() == WL_CONNECTED) connectStream();
+      connectStream();
     }
+  } else if (streamClient.connected()) {
+    streamClient.stop();   // tidy up — station went away
   }
 
   delay(1);  // tiny yield — keep loop tight; setSleep(false) handles the rest
