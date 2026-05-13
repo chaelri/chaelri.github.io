@@ -503,9 +503,10 @@ bool tryStation() {
 // phone can pick the faster fire-and-forget variant.
 class BLECmdCB : public BLECharacteristicCallbacks {
   void onWrite(BLECharacteristic* c) override {
-    std::string v = c->getValue();
-    if (v.empty()) return;
-    Serial.print(">>> BLE received: "); Serial.println(v.c_str());
+    // Newer ESP32 Arduino cores return Arduino String, not std::string.
+    String v = c->getValue();
+    if (v.length() == 0) return;
+    Serial.print(">>> BLE received: "); Serial.println(v);
     if      (v == "press")   doPress();
     else if (v == "release") doRelease();
     else if (v == "toggle")  doToggle();
