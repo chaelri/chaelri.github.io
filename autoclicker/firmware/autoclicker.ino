@@ -72,6 +72,7 @@
 #include <WiFiClientSecure.h>
 #include <HTTPClient.h>
 #include <WebServer.h>
+#include <Preferences.h>
 #include <ESP32Servo.h>
 
 // --- WiFi --------------------------------------------------------------------
@@ -126,6 +127,7 @@ const int RETURN_MS     = 450;   // MUST equal PUSH_MS so release lands at rest
 
 Servo finger;
 WebServer server(80);
+Preferences preferences;           // NVS-backed storage for user-saved WiFi creds
 bool isPressed = false;            // latched press state (toggle target)
 unsigned long lastFiredAt = 0;
 
@@ -284,6 +286,57 @@ const char INDEX_HTML[] PROGMEM = R"rawliteral(
     z-index:1;
   }
   .secondary-btn:active{transform:scale(.96);background:rgba(99,102,241,.25);color:#fff}
+  /* WiFi setup */
+  details.wifi{
+    width:100%;max-width:22rem;margin:0 auto 1rem;
+    background:rgba(15,23,42,.55);border:1px solid rgba(148,163,184,.15);
+    border-radius:.75rem;padding:.5rem .9rem;backdrop-filter:blur(6px);
+    font-size:.75rem;z-index:1;
+  }
+  details.wifi summary{
+    cursor:pointer;list-style:none;display:flex;align-items:center;gap:.55rem;
+    color:#cbd5e1;letter-spacing:.18em;text-transform:uppercase;
+    font-weight:600;font-size:.65rem;padding:.3rem 0;
+  }
+  details.wifi summary::-webkit-details-marker{display:none}
+  details.wifi summary::after{
+    content:"›";margin-left:auto;font-size:1rem;opacity:.55;
+    transform:rotate(90deg);transition:transform .2s;
+  }
+  details.wifi[open] summary::after{transform:rotate(270deg)}
+  details.wifi .row{display:flex;gap:.4rem;margin-top:.5rem}
+  details.wifi input{
+    flex:1;min-width:0;background:rgba(0,0,0,.3);
+    border:1px solid rgba(148,163,184,.2);color:#e2e8f0;
+    padding:.5rem .65rem;border-radius:.45rem;
+    font-family:inherit;font-size:.78rem;
+  }
+  details.wifi input:focus{outline:none;border-color:rgba(249,115,22,.5)}
+  details.wifi button{
+    background:rgba(249,115,22,.18);border:1px solid rgba(249,115,22,.4);
+    color:#fed7aa;padding:.5rem .8rem;border-radius:.45rem;
+    font-family:inherit;font-size:.65rem;font-weight:700;
+    letter-spacing:.14em;text-transform:uppercase;cursor:pointer;
+    white-space:nowrap;
+  }
+  details.wifi button:active{transform:scale(.96);background:rgba(249,115,22,.28)}
+  details.wifi button:disabled{opacity:.5;cursor:wait}
+  .wifi-list{
+    margin-top:.6rem;display:flex;flex-direction:column;gap:.25rem;
+    max-height:11rem;overflow:auto;
+  }
+  .wifi-list .item{
+    display:flex;justify-content:space-between;align-items:center;gap:.5rem;
+    padding:.4rem .6rem;border-radius:.4rem;background:rgba(255,255,255,.04);
+    cursor:pointer;font-family:'JetBrains Mono',ui-monospace,monospace;
+    font-size:.7rem;color:#cbd5e1;
+  }
+  .wifi-list .item:hover,.wifi-list .item.sel{background:rgba(249,115,22,.16)}
+  .wifi-list .ssid{overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
+  .wifi-list .meta{color:#94a3b8;flex-shrink:0;font-size:.65rem}
+  .wifi-msg{margin-top:.55rem;font-size:.68rem;color:#94a3b8;min-height:1em}
+  .wifi-msg.ok{color:#34d399}
+  .wifi-msg.err{color:#f87171}
 </style>
 </head>
 <body>
@@ -305,6 +358,19 @@ const char INDEX_HTML[] PROGMEM = R"rawliteral(
     <span class="material-symbols-outlined" style="font-size:18px;vertical-align:middle">ads_click</span>
     <span style="vertical-align:middle">single click</span>
   </button>
+  <details class="wifi">
+    <summary>WiFi setup</summary>
+    <div class="row">
+      <input id="ssidInput" placeholder="SSID" autocomplete="off" autocapitalize="none" spellcheck="false" />
+      <button id="scanBtn" type="button">Scan</button>
+    </div>
+    <div class="wifi-list" id="wifiList"></div>
+    <div class="row">
+      <input id="passInput" type="password" placeholder="password" autocomplete="off" />
+      <button id="saveBtn" type="button">Save</button>
+    </div>
+    <div id="wifiMsg" class="wifi-msg">enter an SSID or scan to pick one</div>
+  </details>
   <footer>
     <span class="status" id="status">
       <span class="status-dot"></span>
@@ -373,6 +439,60 @@ clickBtn.addEventListener('click',async()=>{
     setStatus('err','failed');
     setTimeout(()=>setStatus('','idle'),1800);
   }
+});
+
+// --- WiFi setup -----------------------------------------------------------
+// Scan nearby networks, let the user pick one, save credentials. The save
+// hits POST /wifi which persists the SSID/password to NVS and adds it to
+// the wifiMulti pool — next station retry picks it up automatically.
+const ssidInput=document.getElementById('ssidInput');
+const passInput=document.getElementById('passInput');
+const wifiList =document.getElementById('wifiList');
+const wifiMsg  =document.getElementById('wifiMsg');
+const scanBtn  =document.getElementById('scanBtn');
+const saveBtn  =document.getElementById('saveBtn');
+function setMsg(t,cls){wifiMsg.textContent=t;wifiMsg.className='wifi-msg '+(cls||'');}
+scanBtn.addEventListener('click',async()=>{
+  scanBtn.disabled=true;setMsg('scanning…');
+  try{
+    const r=await fetch('/scan');
+    if(!r.ok)throw new Error('HTTP '+r.status);
+    const list=await r.json();
+    list.sort((a,b)=>b.rssi-a.rssi);
+    wifiList.innerHTML='';
+    list.forEach(n=>{
+      const div=document.createElement('div');
+      div.className='item';
+      const ssid=document.createElement('span');
+      ssid.className='ssid';ssid.textContent=n.ssid||'(hidden)';
+      const meta=document.createElement('span');
+      meta.className='meta';meta.textContent=n.rssi+' dBm'+(n.open?' · open':'');
+      div.appendChild(ssid);div.appendChild(meta);
+      div.addEventListener('click',()=>{
+        ssidInput.value=n.ssid;
+        document.querySelectorAll('.wifi-list .item.sel').forEach(el=>el.classList.remove('sel'));
+        div.classList.add('sel');
+        passInput.focus();
+      });
+      wifiList.appendChild(div);
+    });
+    setMsg(list.length+' networks found · tap one to pick','ok');
+  }catch(e){setMsg('scan failed: '+e.message,'err');}
+  finally{scanBtn.disabled=false;}
+});
+saveBtn.addEventListener('click',async()=>{
+  const ssid=ssidInput.value.trim();
+  const pass=passInput.value;
+  if(!ssid){setMsg('enter an SSID first','err');return;}
+  saveBtn.disabled=true;setMsg('saving…');
+  try{
+    const body=new URLSearchParams({ssid,pass});
+    const r=await fetch('/wifi',{method:'POST',body,headers:{'Content-Type':'application/x-www-form-urlencoded'}});
+    if(!r.ok)throw new Error('HTTP '+r.status);
+    setMsg('saved — ESP32 will try this WiFi on next reconnect (~20 s)','ok');
+    passInput.value='';
+  }catch(e){setMsg('save failed: '+e.message,'err');}
+  finally{saveBtn.disabled=false;}
 });
 </script>
 </body>
@@ -454,6 +574,46 @@ void handleRelease() { doRelease(); sendState(); }
 void handleToggle()  { doToggle();  sendState(); }
 void handleClick()   { doClick();   sendState(); }
 void handleStateGet(){ sendState(); }
+
+// Scan nearby WiFi networks and return them as JSON. Blocks for ~2-4 s while
+// the radio sweeps channels; clients on AutoClicker-AP may see a brief beacon
+// gap, which mainstream supplicants tolerate without reconnecting.
+void handleScan() {
+  int n = WiFi.scanNetworks(false, true);   // sync, include hidden
+  String json = "[";
+  for (int i = 0; i < n; i++) {
+    if (i > 0) json += ",";
+    String ssid = WiFi.SSID(i);
+    ssid.replace("\\", "\\\\");
+    ssid.replace("\"", "\\\"");
+    json += "{\"ssid\":\"" + ssid + "\",";
+    json += "\"rssi\":" + String(WiFi.RSSI(i)) + ",";
+    json += "\"open\":" + String(WiFi.encryptionType(i) == WIFI_AUTH_OPEN ? "true" : "false") + "}";
+  }
+  json += "]";
+  server.send(200, "application/json", json);
+  WiFi.scanDelete();
+}
+
+// Persist a user-chosen network to NVS and add it to wifiMulti so the next
+// background reconnect picks it up. Only one user slot — saving again
+// overwrites. Hardcoded networks (CAYNO / iPhone) remain in the pool too.
+void handleWifiSave() {
+  String ssid = server.arg("ssid");
+  String pass = server.arg("pass");
+  ssid.trim();
+  if (ssid.length() == 0) {
+    server.send(400, "application/json", "{\"ok\":false,\"error\":\"empty ssid\"}");
+    return;
+  }
+  preferences.begin("wifi", false);
+  preferences.putString("ssid", ssid);
+  preferences.putString("pass", pass);
+  preferences.end();
+  wifiMulti.addAP(ssid.c_str(), pass.c_str());
+  server.send(200, "application/json", "{\"ok\":true}");
+  Serial.println("Saved user WiFi: " + ssid);
+}
 
 // Bring up SoftAP + station simultaneously. The ESP32-C3's single 2.4 GHz radio
 // time-slices between AP beacons and STA scan/data; both stay live always. The
@@ -547,6 +707,18 @@ void setup() {
   wifiMulti.addAP("CAYNO", "lokomoko");
   wifiMulti.addAP("Charlie's iPhone", "charlie24");
 
+  // Pull a user-saved network out of NVS (if any) and stack it onto wifiMulti.
+  // Added LAST so it's preferred when both it and a hardcoded network are
+  // visible — wifiMulti picks the strongest, but addAP order biases ties.
+  preferences.begin("wifi", true);
+  String savedSsid = preferences.getString("ssid", "");
+  String savedPass = preferences.getString("pass", "");
+  preferences.end();
+  if (savedSsid.length() > 0) {
+    wifiMulti.addAP(savedSsid.c_str(), savedPass.c_str());
+    Serial.println("Loaded saved WiFi: " + savedSsid);
+  }
+
   startWiFiDualMode();
 
   // Kill modem sleep. ESP32 normally power-cycles the radio between beacons
@@ -565,6 +737,8 @@ void setup() {
   server.on("/click",   HTTP_POST, handleClick);
   server.on("/click",   HTTP_GET,  handleClick);
   server.on("/state",   HTTP_GET,  handleStateGet);
+  server.on("/scan",    HTTP_GET,  handleScan);
+  server.on("/wifi",    HTTP_POST, handleWifiSave);
   server.onNotFound(handleRoot);   // captive-portal-ish: any unknown URL serves the UI
   server.begin();
 
