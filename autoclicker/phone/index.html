@@ -811,19 +811,36 @@
       const isIOS = /iPad|iPhone|iPod/.test(navigator.userAgent)
         || (navigator.platform === 'MacIntel' && 'ontouchend' in document);
 
-      // Keep the mic stream OPEN for the whole listening session. iOS treats
-      // a closed mic as "session done" and refuses to re-grant permission to
-      // SpeechRecognition on the auto-restart, which is what causes the
-      // listener to silently auto-close after one utterance.
+      // Two strategies, picked at runtime:
+      //
+      //   non-iOS (Chrome/Edge/Firefox/Android): keep a parallel getUserMedia
+      //   stream open the whole session. SpeechRecognition uses its own
+      //   internal mic; the parallel stream powers clap detection.
+      //
+      //   iOS Safari: only use the parallel stream to PROBE for permission,
+      //   then release it. iOS only allows one active capture session per
+      //   origin — holding a parallel stream while SpeechRecognition tries
+      //   to capture causes recognition to silently fail / auto-close. Clap
+      //   detection is disabled on iOS as a trade-off so voice is reliable.
       let micHoldStream = null;
+      let micPermissionGranted = false;
       async function ensureMicPermission() {
-        if (micHoldStream) return true;
+        if (micHoldStream || micPermissionGranted) return true;
         if (!navigator.mediaDevices || !navigator.mediaDevices.getUserMedia) return true;
         try {
-          micHoldStream = await navigator.mediaDevices.getUserMedia({
+          const stream = await navigator.mediaDevices.getUserMedia({
             audio: { echoCancellation: false, noiseSuppression: false, autoGainControl: false }
           });
-          startClapDetection();
+          micPermissionGranted = true;
+          if (isIOS) {
+            // Release immediately — iOS will keep the permission granted for
+            // SpeechRecognition's own capture.
+            stream.getTracks().forEach(t => t.stop());
+            bridgeStatus('idle', 'iOS: voice only (claps disabled)');
+          } else {
+            micHoldStream = stream;
+            startClapDetection();
+          }
           return true;
         } catch (e) {
           setVoiceState('error', 'mic blocked');
