@@ -750,22 +750,59 @@
         setVoiceState('error', 'error: ' + ev.error);
       });
 
+      // Robust auto-restart: schedule with backoff. iOS Safari ignores
+      // continuous=true and stops after each utterance, so we MUST keep
+      // restarting. If start() fails (often InvalidStateError during the
+      // tear-down window), we retry with longer delays.
+      let restartAttempts = 0;
+      let pendingRestart = null;
+      function scheduleRestart(initialDelay) {
+        if (!userWantsOn || starting || pendingRestart) return;
+        const baseDelay = initialDelay != null
+          ? initialDelay
+          : (isIOS ? 250 : 80);
+        const delay = Math.min(baseDelay + restartAttempts * 200, 2500);
+        starting = true;
+        pendingRestart = setTimeout(() => {
+          pendingRestart = null;
+          try {
+            rec.start();
+            // start() succeeded — reset on the 'start' event, not here.
+          } catch (e) {
+            starting = false;
+            // InvalidStateError means it's already running — that's fine.
+            if (/InvalidStateError/.test(String(e))) {
+              restartAttempts = 0;
+              return;
+            }
+            restartAttempts++;
+            if (restartAttempts > 12) {
+              // Give up and surface it — something is fundamentally wrong.
+              userWantsOn = false;
+              setListeningUI(false);
+              setVoiceState('error', 'restart failed');
+              bridgeStatus('err', 'voice gave up after retries');
+              return;
+            }
+            scheduleRestart();
+          }
+        }, delay);
+      }
+
       rec.addEventListener('end', () => {
         interimEl.textContent = '';
-        if (userWantsOn && !starting) {
-          starting = true;
-          // Fast restart — 60 ms is enough for Chrome/Safari to settle. Any
-          // longer feels "tamad" between Web Speech's ~60 s auto-stops.
-          setTimeout(() => {
-            try { rec.start(); } catch (_) {}
-            starting = false;
-          }, 60);
+        if (userWantsOn) {
+          scheduleRestart();
         } else {
           setListeningUI(false);
         }
       });
 
-      rec.addEventListener('start', () => setListeningUI(true));
+      rec.addEventListener('start', () => {
+        starting = false;
+        restartAttempts = 0;
+        setListeningUI(true);
+      });
 
       // iOS Safari quirk: SpeechRecognition.start() does NOT trigger the mic
       // permission prompt. Calling getUserMedia first does. So we explicitly
@@ -778,24 +815,30 @@
         if (b && b.setStatus) b.setStatus(state, msg);
       }
 
-      let micPermissionRequested = false;
+      const isIOS = /iPad|iPhone|iPod/.test(navigator.userAgent)
+        || (navigator.platform === 'MacIntel' && 'ontouchend' in document);
+
+      // Keep the mic stream OPEN for the whole listening session. iOS treats
+      // a closed mic as "session done" and refuses to re-grant permission to
+      // SpeechRecognition on the auto-restart, which is what causes the
+      // listener to silently auto-close after one utterance.
+      let micHoldStream = null;
       async function ensureMicPermission() {
-        if (micPermissionRequested) return true;
-        if (!navigator.mediaDevices || !navigator.mediaDevices.getUserMedia) {
-          // Old browser — let rec.start() take its chances.
-          micPermissionRequested = true;
-          return true;
-        }
+        if (micHoldStream) return true;
+        if (!navigator.mediaDevices || !navigator.mediaDevices.getUserMedia) return true;
         try {
-          const probe = await navigator.mediaDevices.getUserMedia({ audio: true });
-          probe.getTracks().forEach(t => t.stop());
-          micPermissionRequested = true;
+          micHoldStream = await navigator.mediaDevices.getUserMedia({ audio: true });
           return true;
         } catch (e) {
           setVoiceState('error', 'mic blocked');
           bridgeStatus('err', 'mic blocked — allow in site settings');
           return false;
         }
+      }
+      function releaseMicHold() {
+        if (!micHoldStream) return;
+        micHoldStream.getTracks().forEach(t => t.stop());
+        micHoldStream = null;
       }
 
       let voiceBusy = false;
@@ -806,7 +849,9 @@
           if (navigator.vibrate) navigator.vibrate(8);
           if (userWantsOn) {
             userWantsOn = false;
+            if (pendingRestart) { clearTimeout(pendingRestart); pendingRestart = null; }
             try { rec.stop(); } catch (_) {}
+            releaseMicHold();
             setListeningUI(false);
             window.__keepAwake.dropConsumer();
           } else {
@@ -838,10 +883,10 @@
       // When the tab is hidden, Web Speech often pauses on its own and emits
       // 'end' — our auto-restart will keep trying, but if Chrome refused to
       // start while hidden, we'll get back here when the tab becomes visible
-      // and attempt one more start.
+      // and route a fresh attempt through scheduleRestart.
       document.addEventListener('visibilitychange', () => {
         if (document.visibilityState === 'visible' && userWantsOn) {
-          try { rec.start(); } catch (_) {}
+          scheduleRestart(50);
         }
       });
 
