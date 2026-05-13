@@ -80,8 +80,8 @@ const int RETURN_US     = 2000;
 // is ~60 RPM = 360°/sec = ~167 µs per degree of travel at full speed.
 // 700 ms ≈ 120° of rotation (Charlie's "90° + a bit more for the press").
 // MUST be equal so the arm lands back at rest after press+release.
-const int PUSH_MS       = 700;
-const int RETURN_MS     = 700;
+const int PUSH_MS       = 200;
+const int RETURN_MS     = 150;
 
 // How long to keep the arm depressed on the button so the IR remote
 // registers the press electronically. 300 ms is plenty for any remote.
