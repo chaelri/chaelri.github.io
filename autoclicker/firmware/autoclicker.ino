@@ -8,13 +8,19 @@
 //              Use for "hold this button down" (keys, reset switches, etc.).
 //   press / release -> explicit on / off (alternative to toggle).
 //
-// THREE WAYS TO TRIGGER (any of the above commands):
+// FOUR WAYS TO TRIGGER (any of the above commands):
 //   1. Phone remote (online)   -> writes the command string to Firebase RTDB;
 //                                 firmware polls /autoclicker/command every 1 s.
 //   2. Local web UI (online)   -> any device on the same WiFi opens
 //                                 http://<esp32-ip>/ and taps either button.
 //   3. SoftAP fallback (offline) -> if no known WiFi is reachable, the ESP32
 //                                 broadcasts its own network "AutoClicker-AP".
+//   4. Bluetooth LE (fast path) -> phone connects to "AutoClicker-BLE" and
+//                                 writes the command string to the GATT
+//                                 characteristic. ~20-80 ms vs ~300-800 ms for
+//                                 the Firebase poll path. On iOS open the
+//                                 phone remote in Bluefy (App Store) — Safari
+//                                 blocks Web Bluetooth.
 //
 // Switch element: continuous-rotation (360°) micro-servo. Pulse width controls
 // SPEED + DIRECTION, not angle. The press cycle is a state machine:
@@ -67,6 +73,10 @@
 #include <HTTPClient.h>
 #include <WebServer.h>
 #include <ESP32Servo.h>
+#include <BLEDevice.h>
+#include <BLEServer.h>
+#include <BLEUtils.h>
+#include <BLE2902.h>
 
 // --- WiFi --------------------------------------------------------------------
 // Add as many networks as you want — WiFiMulti picks the strongest visible one.
@@ -79,6 +89,18 @@ WiFiMulti wifiMulti;
 const char* AP_SSID = "AutoClicker-AP";
 const char* AP_PASS = "click1234";   // must be >= 8 chars for WPA2
 const unsigned long WIFI_CONNECT_TIMEOUT_MS = 15000;  // 15 s before falling to SoftAP
+
+// --- Bluetooth LE (fast direct path) -----------------------------------------
+// Optional fast command channel. A connected phone writes "press" / "release" /
+// "toggle" / "click" directly to the GATT characteristic instead of going
+// phone -> Firebase -> ESP32 poll. ~20-80 ms vs ~300-800 ms typical.
+//
+// UUIDs are arbitrary v4 values — keep them in sync with phone/index.html. The
+// ESP32-C3's single 2.4 GHz radio time-slices between WiFi and BLE; both coexist
+// at the cost of a small WiFi latency hit. Acceptable for our 1 s Firebase poll.
+const char* BLE_DEVICE_NAME   = "AutoClicker-BLE";
+const char* BLE_SERVICE_UUID  = "4fafc201-1fb5-459e-8fcc-c5c9c331914b";
+const char* BLE_CMD_CHAR_UUID = "beb5483e-36e1-4688-b7f5-ea07361b26a8";
 
 // --- Firebase RTDB -----------------------------------------------------------
 // Two paths:
@@ -442,10 +464,22 @@ void handleClick()   { doClick();   sendState(); }
 void handleStateGet(){ sendState(); }
 
 void startSoftAP() {
-  WiFi.mode(WIFI_AP);
+  // AP_STA dual mode: keep broadcasting AutoClicker-AP for offline control AND
+  // let the station radio keep scanning for known networks in the background.
+  // Single radio means the AP briefly hops channels during STA scans/associates;
+  // that's fine — clients reconnect automatically.
+  WiFi.mode(WIFI_AP_STA);
   WiFi.softAP(AP_SSID, AP_PASS);
   inSoftAP = true;
   Serial.println("SoftAP up: SSID=" + String(AP_SSID) + " · IP=" + WiFi.softAPIP().toString());
+}
+
+void stopSoftAP() {
+  WiFi.softAPdisconnect(true);
+  WiFi.mode(WIFI_STA);
+  inSoftAP = false;
+  Serial.println("SoftAP down — fully on station: " + WiFi.SSID() + " · " + WiFi.localIP().toString());
+  publishState();   // we're online again — push current state to Firebase
 }
 
 bool tryStation() {
@@ -461,6 +495,39 @@ bool tryStation() {
     return true;
   }
   return false;
+}
+
+// --- BLE GATT command channel -----------------------------------------------
+// One writable characteristic accepts the same string commands as the Firebase
+// path. Both WRITE (with response) and WRITE_NR (without) are advertised so the
+// phone can pick the faster fire-and-forget variant.
+class BLECmdCB : public BLECharacteristicCallbacks {
+  void onWrite(BLECharacteristic* c) override {
+    std::string v = c->getValue();
+    if (v.empty()) return;
+    Serial.print(">>> BLE received: "); Serial.println(v.c_str());
+    if      (v == "press")   doPress();
+    else if (v == "release") doRelease();
+    else if (v == "toggle")  doToggle();
+    else if (v == "click")   doClick();
+  }
+};
+
+void startBLE() {
+  BLEDevice::init(BLE_DEVICE_NAME);
+  BLEServer* server = BLEDevice::createServer();
+  BLEService* svc = server->createService(BLE_SERVICE_UUID);
+  BLECharacteristic* ch = svc->createCharacteristic(
+    BLE_CMD_CHAR_UUID,
+    BLECharacteristic::PROPERTY_WRITE | BLECharacteristic::PROPERTY_WRITE_NR
+  );
+  ch->setCallbacks(new BLECmdCB());
+  svc->start();
+  BLEAdvertising* adv = BLEDevice::getAdvertising();
+  adv->addServiceUUID(BLE_SERVICE_UUID);
+  adv->setScanResponse(true);
+  BLEDevice::startAdvertising();
+  Serial.println("BLE up: device=" + String(BLE_DEVICE_NAME));
 }
 
 void setup() {
@@ -499,12 +566,32 @@ void setup() {
   String ip = inSoftAP ? WiFi.softAPIP().toString() : WiFi.localIP().toString();
   Serial.println("Web UI: http://" + ip + "/");
 
+  // Bring up BLE alongside WiFi. Coexists on the single radio at a small WiFi
+  // latency cost; both trigger paths remain live.
+  startBLE();
+
   // Publish initial released state so any subscriber starts in sync
   publishState();
 }
 
 void loop() {
   server.handleClient();
+
+  // While in SoftAP, keep scanning for a known WiFi (CAYNO, iPhone hotspot,
+  // anything in wifiMulti). When one shows up, drop the AP and run pure
+  // station. wifiMulti.run() does a scan + associate; it briefly blocks the
+  // web server (~2-8 s), so we only retry every STA_RETRY_MS.
+  static unsigned long lastStaRetry = 0;
+  const unsigned long STA_RETRY_MS = 20000;   // try every 20 s
+  if (inSoftAP && millis() - lastStaRetry >= STA_RETRY_MS) {
+    lastStaRetry = millis();
+    Serial.println("SoftAP active — scanning for known WiFi…");
+    if (wifiMulti.run() == WL_CONNECTED) {
+      stopSoftAP();
+    } else {
+      Serial.println("No known WiFi yet — staying on SoftAP");
+    }
+  }
 
   // Firebase polling only in station mode (SoftAP has no internet)
   static unsigned long lastPoll = 0;

@@ -101,6 +101,20 @@
       </span>
     </header>
 
+    <!-- BLE fast-path row: when connected, taps skip Firebase and write straight
+         to the ESP32 over Bluetooth (~20-80 ms vs ~300-800 ms). On iOS, this
+         button only works inside Bluefy — Safari blocks Web Bluetooth. -->
+    <div class="flex items-center justify-between mt-2.5 px-1">
+      <div class="inline-flex items-center gap-1.5 text-[10px] uppercase tracking-wider text-slate-500">
+        <span id="bleDot" class="w-1.5 h-1.5 rounded-full bg-slate-600"></span>
+        <span id="bleText">BLE off</span>
+      </div>
+      <button id="bleBtn"
+        class="text-[10px] mono px-2.5 py-1 rounded-md bg-white/[0.04] border border-white/[0.08] text-slate-300 hover:bg-white/[0.08] active:scale-95 transition-all uppercase tracking-wider">
+        Connect BT
+      </button>
+    </div>
+
     <!-- big circle button — vertically centered -->
     <div class="flex-1 flex flex-col items-center justify-center py-6 gap-6">
       <div class="relative">
@@ -273,6 +287,90 @@
     const toggleBtn = $("toggleBtn");
     const rippleHost = $("rippleHost"), ambientGlow = $("ambientGlow");
     const btnLabel  = $("btnLabel"),  btnSub    = $("btnSub");
+    const bleDot    = $("bleDot"),    bleText    = $("bleText"),    bleBtn  = $("bleBtn");
+
+    // ---- Bluetooth LE fast path ------------------------------------------
+    // Optional direct channel to the ESP32. When a phone is connected over BLE,
+    // sendCmd() writes the command string straight to the GATT characteristic
+    // (single hop, ~20-80 ms) instead of going phone -> Firebase -> ESP32 poll
+    // (~300-800 ms). State sync still flows back through Firebase because the
+    // ESP32 publishes /autoclicker/state after every action, so the toggle UI
+    // remains accurate even when BLE is the trigger path.
+    //
+    // UUIDs must match firmware/autoclicker.ino (BLE_SERVICE_UUID / _CHAR_UUID).
+    //
+    // Browser support: Chrome/Edge/Android Chrome have Web Bluetooth natively.
+    // iOS Safari does NOT — open this page in Bluefy (free, App Store) on iOS.
+    const BLE_SERVICE_UUID  = '4fafc201-1fb5-459e-8fcc-c5c9c331914b';
+    const BLE_CMD_CHAR_UUID = 'beb5483e-36e1-4688-b7f5-ea07361b26a8';
+
+    let bleDevice = null;
+    let bleCmdChar = null;
+    const bleEncoder = new TextEncoder();
+
+    function setBleUI(state, label) {
+      const map = {
+        off:        ['bg-slate-600',    'text-slate-500'],
+        connecting: ['bg-amber-400',    'text-amber-300'],
+        on:         ['bg-emerald-400',  'text-emerald-300'],
+        err:        ['bg-rose-500',     'text-rose-300'],
+      };
+      const [dotClass, textClass] = map[state] || map.off;
+      bleDot.className  = 'w-1.5 h-1.5 rounded-full ' + dotClass;
+      bleText.className = 'inline-flex items-center gap-1.5 text-[10px] uppercase tracking-wider ' + textClass;
+      bleText.textContent = label;
+      bleBtn.textContent = state === 'on' ? 'Disconnect' : 'Connect BT';
+    }
+
+    function bleIsLive() {
+      return !!(bleCmdChar && bleDevice && bleDevice.gatt && bleDevice.gatt.connected);
+    }
+
+    function onBleDisconnect() {
+      bleCmdChar = null;
+      setBleUI('off', 'BLE off');
+    }
+
+    async function bleConnect() {
+      if (!navigator.bluetooth) {
+        setBleUI('err', 'no Web BT');
+        setStatus('err', 'iOS Safari has no Web BT — open this page in Bluefy');
+        return;
+      }
+      setBleUI('connecting', 'choosing…');
+      try {
+        const device = await navigator.bluetooth.requestDevice({
+          filters: [{ name: 'AutoClicker-BLE' }],
+          optionalServices: [BLE_SERVICE_UUID],
+        });
+        device.addEventListener('gattserverdisconnected', onBleDisconnect);
+        setBleUI('connecting', 'connecting…');
+        const server = await device.gatt.connect();
+        const svc    = await server.getPrimaryService(BLE_SERVICE_UUID);
+        bleCmdChar = await svc.getCharacteristic(BLE_CMD_CHAR_UUID);
+        bleDevice = device;
+        setBleUI('on', 'BLE direct');
+        setStatus('ok', 'BLE connected — fast path');
+      } catch (e) {
+        // User cancelled the chooser → don't scream about it.
+        if (/cancelled|NotFoundError/i.test(String(e.message || e.name || e))) {
+          setBleUI('off', 'BLE off');
+        } else {
+          setBleUI('err', 'BLE failed');
+          setStatus('err', 'BLE: ' + (e.message || e));
+        }
+      }
+    }
+
+    function bleDisconnect() {
+      try { if (bleDevice && bleDevice.gatt && bleDevice.gatt.connected) bleDevice.gatt.disconnect(); } catch (_) {}
+      onBleDisconnect();
+    }
+
+    bleBtn.addEventListener('click', () => {
+      if (bleIsLive()) bleDisconnect();
+      else             bleConnect();
+    });
 
     // online indicator
     onValue(ref(db, ".info/connected"), snap => {
@@ -317,6 +415,18 @@
     });
 
     async function sendCmd(cmd) {
+      // Fast path: write straight to the ESP32 over BLE. If the write fails,
+      // mark BLE dead and fall through to Firebase so the press still lands.
+      if (bleIsLive()) {
+        try {
+          await bleCmdChar.writeValueWithoutResponse(bleEncoder.encode(cmd));
+          lastTime.textContent = new Date().toLocaleTimeString();
+          return true;
+        } catch (e) {
+          console.warn('BLE write failed, falling back to Firebase:', e);
+          onBleDisconnect();
+        }
+      }
       try {
         await set(ref(db, "autoclicker/command"), cmd);
         lastTime.textContent = new Date().toLocaleTimeString();
