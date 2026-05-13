@@ -126,31 +126,19 @@
         </button>
       </div>
 
-      <!-- voice + clap toggles -->
-      <div class="flex items-center gap-3 flex-wrap justify-center">
-        <button id="voiceBtn"
-          aria-label="Toggle voice listening"
-          class="relative inline-flex items-center gap-2 px-5 py-2.5 rounded-full
-                 bg-white/[0.04] border border-white/[0.08] text-slate-300
-                 hover:bg-white/[0.08] hover:text-white active:scale-95 transition-all
-                 text-xs uppercase tracking-[0.18em] font-semibold">
-          <span id="voiceRing1" class="mic-ring hidden"></span>
-          <span id="voiceRing2" class="mic-ring delay hidden"></span>
-          <span id="voiceIcon" class="material-symbols-outlined relative" style="font-size:18px">mic</span>
-          <span id="voiceLabel" class="relative">listen</span>
-        </button>
-
-        <button id="clapBtn"
-          aria-label="Toggle clap detection"
-          class="relative inline-flex items-center gap-2 px-5 py-2.5 rounded-full
-                 bg-white/[0.04] border border-white/[0.08] text-slate-300
-                 hover:bg-white/[0.08] hover:text-white active:scale-95 transition-all
-                 text-xs uppercase tracking-[0.18em] font-semibold">
-          <span class="material-symbols-outlined relative" style="font-size:18px">pan_tool</span>
-          <span id="clapLabel" class="relative">clap</span>
-          <span id="clapCount" class="hidden mono text-[10px] text-slate-500 ml-0.5"></span>
-        </button>
-      </div>
+      <!-- voice toggle (also detects claps when listening) -->
+      <button id="voiceBtn"
+        aria-label="Toggle voice + clap listening"
+        class="relative inline-flex items-center gap-2 px-6 py-2.5 rounded-full
+               bg-white/[0.04] border border-white/[0.08] text-slate-300
+               hover:bg-white/[0.08] hover:text-white active:scale-95 transition-all
+               text-xs uppercase tracking-[0.18em] font-semibold">
+        <span id="voiceRing1" class="mic-ring hidden"></span>
+        <span id="voiceRing2" class="mic-ring delay hidden"></span>
+        <span id="voiceIcon" class="material-symbols-outlined relative" style="font-size:18px">mic</span>
+        <span id="voiceLabel" class="relative">listen</span>
+        <span id="clapCount" class="hidden mono text-[10px] text-slate-400/80 ml-0.5"></span>
+      </button>
     </div>
 
     <!-- voice transcript panel — collapsed by default -->
@@ -832,7 +820,10 @@
         if (micHoldStream) return true;
         if (!navigator.mediaDevices || !navigator.mediaDevices.getUserMedia) return true;
         try {
-          micHoldStream = await navigator.mediaDevices.getUserMedia({ audio: true });
+          micHoldStream = await navigator.mediaDevices.getUserMedia({
+            audio: { echoCancellation: false, noiseSuppression: false, autoGainControl: false }
+          });
+          startClapDetection();
           return true;
         } catch (e) {
           setVoiceState('error', 'mic blocked');
@@ -841,9 +832,93 @@
         }
       }
       function releaseMicHold() {
+        stopClapDetection();
         if (!micHoldStream) return;
         micHoldStream.getTracks().forEach(t => t.stop());
         micHoldStream = null;
+      }
+
+      // ---- Clap detector (shares micHoldStream with SpeechRecognition) ----
+      // Sharp amplitude transient + sudden rise + refractory. Each detected
+      // clap toggles press/release through the same Firebase path the big
+      // button uses.
+      const ClapAudioCtx  = window.AudioContext || window.webkitAudioContext;
+      const CLAP_THRESHOLD  = 0.6;
+      const CLAP_RISE       = 0.35;
+      const CLAP_REFRACTORY = 600;   // ms
+      const CLAP_FRAME_BUF  = 1024;
+      const clapCountEl     = document.getElementById('clapCount');
+      let clapAudioCtx = null, clapProcessor = null, clapMuteGain = null;
+      let lastClapPeak = 0, lastClapAt = 0, clapCount = 0;
+
+      function startClapDetection() {
+        if (!micHoldStream || clapAudioCtx || !ClapAudioCtx) return;
+        try {
+          clapAudioCtx = new ClapAudioCtx();
+          if (clapAudioCtx.state === 'suspended') { clapAudioCtx.resume().catch(()=>{}); }
+          const src = clapAudioCtx.createMediaStreamSource(micHoldStream);
+          // ScriptProcessorNode runs on the audio thread and keeps firing in
+          // background tabs — important for "still listens when I switch out".
+          clapProcessor = clapAudioCtx.createScriptProcessor(CLAP_FRAME_BUF, 1, 1);
+          clapMuteGain = clapAudioCtx.createGain();
+          clapMuteGain.gain.value = 0;
+          src.connect(clapProcessor);
+          clapProcessor.connect(clapMuteGain);
+          clapMuteGain.connect(clapAudioCtx.destination);
+          lastClapPeak = 0;
+          clapProcessor.onaudioprocess = (e) => {
+            const buf = e.inputBuffer.getChannelData(0);
+            let peak = 0;
+            for (let i = 0; i < buf.length; i++) {
+              const v = Math.abs(buf[i]);
+              if (v > peak) peak = v;
+            }
+            const now = performance.now();
+            if (
+              peak > CLAP_THRESHOLD &&
+              (peak - lastClapPeak) > CLAP_RISE &&
+              (now - lastClapAt) > CLAP_REFRACTORY
+            ) {
+              lastClapAt = now;
+              setTimeout(onClap, 0);  // off the audio thread
+            }
+            lastClapPeak = peak;
+          };
+        } catch (err) {
+          console.warn('clap detect setup failed:', err);
+        }
+      }
+
+      function stopClapDetection() {
+        if (clapProcessor) { clapProcessor.onaudioprocess = null; clapProcessor.disconnect(); clapProcessor = null; }
+        if (clapMuteGain)  { clapMuteGain.disconnect(); clapMuteGain = null; }
+        if (clapAudioCtx)  { clapAudioCtx.close().catch(()=>{}); clapAudioCtx = null; }
+        lastClapPeak = 0;
+        clapCount = 0;
+        if (clapCountEl) {
+          clapCountEl.classList.add('hidden');
+          clapCountEl.textContent = '';
+        }
+      }
+
+      function onClap() {
+        clapCount++;
+        if (clapCountEl) {
+          clapCountEl.classList.remove('hidden');
+          clapCountEl.textContent = `· 👏 ${clapCount}`;
+        }
+        const bridge = window.__autoclicker;
+        if (!bridge) return;
+        const wantPress = !bridge.isOn();
+        const cmd = wantPress ? 'press' : 'release';
+        bridge.applyState(wantPress);
+        bridge.spawnRipple();
+        bridge.setStatus('send', `clap → ${cmd}`);
+        setTimeout(() => {
+          bridge.sendCmd(cmd).then(ok => {
+            if (!ok) bridge.applyState(!wantPress);
+          });
+        }, 0);
       }
 
       let voiceBusy = false;
@@ -908,155 +983,6 @@
       });
     })();
 
-    // ===========================================================================
-    // Clap detector — separate Web Audio path (independent of SpeechRecognition).
-    // A clap is detected as a sharp amplitude spike: peak above THRESHOLD AND
-    // a sudden rise from the previous frame above RISE. Refractory prevents
-    // re-trigger on the decay tail. Each detected clap toggles press/release.
-    // ===========================================================================
-    (() => {
-      const clapBtn   = document.getElementById('clapBtn');
-      const clapLabel = document.getElementById('clapLabel');
-      const clapCount = document.getElementById('clapCount');
-      const AudioCtx  = window.AudioContext || window.webkitAudioContext;
-      const hasMic    = !!(navigator.mediaDevices && navigator.mediaDevices.getUserMedia);
-
-      if (!hasMic || !AudioCtx) {
-        clapBtn.disabled = true;
-        clapBtn.classList.add('opacity-50', 'cursor-not-allowed');
-        clapLabel.textContent = 'no audio api';
-        return;
-      }
-
-      // Tuning — picked to ignore normal speech (peaks ~0.3–0.45) and
-      // catch sharp handclaps (peaks 0.6–1.0 with a fast attack).
-      const THRESHOLD    = 0.6;
-      const RISE         = 0.35;
-      const REFRACTORY   = 600; // ms — ignore subsequent peaks
-      const FRAME_BUF    = 1024;
-
-      let enabled = false, count = 0;
-      let stream = null, ctx = null, processor = null, muteGain = null;
-      let lastPeak = 0, lastClapAt = 0;
-
-      function setClapUI(on) {
-        clapLabel.textContent = on ? 'listening' : 'clap';
-        if (on) {
-          clapBtn.style.background  = 'linear-gradient(to bottom right, rgba(245,158,11,0.35), rgba(236,72,153,0.35))';
-          clapBtn.style.borderColor = 'rgba(245,158,11,0.4)';
-          clapBtn.style.color = '#fff';
-          clapCount.classList.remove('hidden');
-          clapCount.textContent = count ? `× ${count}` : '';
-        } else {
-          clapBtn.style.background  = '';
-          clapBtn.style.borderColor = '';
-          clapBtn.style.color = '';
-          clapCount.classList.add('hidden');
-        }
-      }
-
-      function flash() {
-        if (clapBtn.animate) {
-          clapBtn.animate(
-            [{ transform: 'scale(1)' }, { transform: 'scale(1.12)' }, { transform: 'scale(1)' }],
-            { duration: 220, easing: 'ease-out' }
-          );
-        }
-      }
-
-      function onClap() {
-        count++;
-        clapCount.textContent = `× ${count}`;
-        flash();
-        const bridge = window.__autoclicker;
-        if (!bridge) return;
-        const wantPress = !bridge.isOn();
-        const cmd = wantPress ? 'press' : 'release';
-        bridge.applyState(wantPress);
-        bridge.spawnRipple();
-        bridge.setStatus('send', `clap → ${cmd}`);
-        setTimeout(() => {
-          bridge.sendCmd(cmd).then(ok => {
-            if (!ok) bridge.applyState(!wantPress);
-          });
-        }, 0);
-      }
-
-      async function start() {
-        try {
-          stream = await navigator.mediaDevices.getUserMedia({
-            audio: { echoCancellation: false, noiseSuppression: false, autoGainControl: false }
-          });
-        } catch (e) {
-          console.warn('clap: mic denied', e);
-          return false;
-        }
-        ctx = new AudioCtx();
-        if (ctx.state === 'suspended') { try { await ctx.resume(); } catch (_) {} }
-        const src = ctx.createMediaStreamSource(stream);
-        // ScriptProcessorNode is deprecated but universally supported and runs
-        // on the audio thread — unlike requestAnimationFrame, it keeps firing
-        // when the tab is hidden, which is exactly the "still listen when I
-        // move out of the tab" behavior we want.
-        processor = ctx.createScriptProcessor(FRAME_BUF, 1, 1);
-        // It must be connected to destination to fire — route through a muted
-        // gain so we don't echo the mic back through the speaker.
-        muteGain = ctx.createGain();
-        muteGain.gain.value = 0;
-        src.connect(processor);
-        processor.connect(muteGain);
-        muteGain.connect(ctx.destination);
-        lastPeak = 0;
-        processor.onaudioprocess = (e) => {
-          if (!enabled) return;
-          const buf = e.inputBuffer.getChannelData(0); // Float32, [-1, 1]
-          let peak = 0;
-          for (let i = 0; i < buf.length; i++) {
-            const v = Math.abs(buf[i]);
-            if (v > peak) peak = v;
-          }
-          const now = performance.now();
-          if (
-            peak > THRESHOLD &&
-            (peak - lastPeak) > RISE &&
-            (now - lastClapAt) > REFRACTORY
-          ) {
-            lastClapAt = now;
-            // Defer to the UI thread — DOM/Firebase work has no business
-            // happening on the audio thread.
-            setTimeout(onClap, 0);
-          }
-          lastPeak = peak;
-        };
-        return true;
-      }
-
-      function stop() {
-        if (processor) { processor.onaudioprocess = null; processor.disconnect(); processor = null; }
-        if (muteGain)  { muteGain.disconnect(); muteGain = null; }
-        if (ctx)       { ctx.close().catch(() => {}); ctx = null; }
-        if (stream)    { stream.getTracks().forEach(t => t.stop()); stream = null; }
-      }
-
-      clapBtn.addEventListener('click', async () => {
-        if (enabled) {
-          enabled = false;
-          stop();
-          setClapUI(false);
-          window.__keepAwake.dropConsumer();
-        } else {
-          enabled = true;
-          setClapUI(true);
-          const ok = await start();
-          if (!ok) {
-            enabled = false;
-            setClapUI(false);
-          } else {
-            window.__keepAwake.addConsumer();
-          }
-        }
-      });
-    })();
   </script>
 </body>
 </html>
