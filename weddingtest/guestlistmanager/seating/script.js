@@ -3,7 +3,9 @@ import {
   getDatabase,
   ref,
   onValue,
+  set,
 } from "https://www.gstatic.com/firebasejs/10.7.1/firebase-database.js";
+import { tagDef } from "../tags.js";
 
 const firebaseConfig = {
   apiKey: "AIzaSyBNPdSYJXuzvmdEHIeHGkbPmFnZxUq1lAg",
@@ -19,162 +21,19 @@ const firebaseConfig = {
 const app = initializeApp(firebaseConfig);
 const db = getDatabase(app);
 
-// ---------- Pre-seeded table arrangement (per Charlie's wedding-setup layout, 2026-05-14) ----------
-// Order in `members` reflects seat order at the table (seat 1, seat 2, …).
-const TABLE_SEEDS = [
-  {
-    id: "vip1",
-    name: "VIP Table 1 — Cayno",
-    capacity: 13,
-    members: [
-      "Fernando Cayno",
-      "Arlene Cayno",
-      "Mary Grace Francisco",
-      "Sherill Obillo",
-      "Cristina Nofiel",
-      "Zhardo Nofiel",
-      "Alexis Perez",
-      "Carmela Perez",
-      "Aldine Mercado",
-      "Sharmaine Mercado",
-      "Jerdin Catanghal",
-      "Melvin Catanghal",
-    ],
-  },
-  {
-    id: "vip2",
-    name: "VIP Table 2 — Romantico",
-    capacity: 12,
-    members: [
-      "Wilfredo Romantico",
-      "Honey Dawn Romantico",
-      "Aylene Andal",
-      "Amante Andal",
-      "Vanie Madrazo",
-      "Judith Zamora",
-      "Maui Rochell Ilao",
-      "Christian Ilao",
-      "Ivan John Gomez",
-      "Sheniah Gomez",
-      "Jael Rayala",
-      "Kharl John Rayala",
-    ],
-  },
-  {
-    id: "table3",
-    name: "Table 3",
-    capacity: 10,
-    members: [
-      "Heleaena Luv Romantico",
-      "Quiana Bernardo",
-      "Camille Cayabyab",
-      "Mitzi Marzan",
-      "Angelica Macalalad",
-      "Annika Meraña",
-      "Alyssa Moira Mangubat",
-      "Diane Faith Adviento",
-      "Eutemio Josef Romantico",
-    ],
-  },
-  {
-    id: "table4",
-    name: "Table 4",
-    capacity: 10,
-    members: [
-      "Charles Cayno",
-      "Cy Matthieu Cayno",
-      "Joshua Obillo",
-      "King David Gomez",
-      "James Patacsil",
-      "Peter Carl Pardo",
-      "Matt Joshua Cabezas",
-      "Albert Kobe Serrano",
-      "Rainer John Alabado",
-    ],
-  },
-  {
-    id: "table5",
-    name: "Table 5",
-    capacity: 10,
-    members: [
-      "Mercedes Castillo",
-      "Elvie Asuncion",
-      "Christine Joy Dais",
-      "Vangie Dais",
-      "Lanie Basmayor",
-      "Leopoldo Ventura",
-      "Milagros Ventura",
-      "Erly Cruz",
-      "Merla Cruz",
-      "Melody Calimlim",
-    ],
-  },
-  {
-    id: "table6",
-    name: "Table 6",
-    capacity: 10,
-    members: [
-      "Maria Karmina Lopez",
-      "Coleen Anne Astilla",
-      "Joanne Marie Orola",
-      "Erickson Miguel Montoya",
-      "Gabriel Gersaniba",
-      "Carlos Romero",
-      "Vivian Franz Escorido",
-      "Yan Christine Lao",
-      "Jose Eduardo De Vera",
-      "Mikhail Luigi Agbing",
-    ],
-  },
-  {
-    id: "table7",
-    name: "Table 7",
-    capacity: 10,
-    members: [
-      "Julyen Figueroa",
-      "Arnel Figueroa",
-      "Aaron Aculado",
-      "Marchie Salamanca",
-      "Leo Aculado",
-      "Mae Aculado",
-      "John Jun Aculado",
-      "Fairy Joy Albarado",
-    ],
-  },
-  {
-    id: "table8",
-    name: "Table 8",
-    capacity: 10,
-    members: [
-      "Marla Del Rosario",
-      "Albergino Del Rosario",
-      "Herbert Ungriano",
-      "Severino Hernandez III",
-      "Vienly Jane Noche",
-      "Cassandra Lee Hufalar",
-      "Katherine Guevarra",
-    ],
-  },
-  {
-    id: "kids",
-    name: "Kids Table",
-    capacity: 10,
-    members: [
-      "Lance Ailen Grey Francisco",
-      "Pierce Raven Francisco",
-      "Minea Obillo",
-      "Chloe Obillo",
-      "Cayla Ochoa",
-    ],
-  },
-];
-
 // ---------- State ----------
 let allGuests = [];
 let groups = [];
-const STORAGE_KEY = "ck_seating_groups_v2";
+const STORAGE_KEY = "ck_seating_groups_v2"; // kept only as a local cache
 const DEFAULT_CAPACITY = 10;
 let pickedChipEl = null;
+
+// Firebase sync wiring
+const seatingRef = ref(db, "seatingGroups");
+let seatingLoaded = false;
+let latestSeatingFromFirebase = null;
+let suppressEchoes = 0; // increments before our own writes to ignore the round-trip
+let pendingWriteTimer = null;
 
 let guestsLoaded = false;
 let rsvpsLoaded = false;
@@ -193,9 +52,26 @@ onValue(ref(db, "rsvps"), (snap) => {
   rsvpsLoaded = true;
   tryHydrate();
 });
+onValue(seatingRef, (snap) => {
+  if (suppressEchoes > 0) {
+    suppressEchoes--;
+    return;
+  }
+  latestSeatingFromFirebase = snap.val();
+  seatingLoaded = true;
+  // If we've already hydrated and a remote update comes in, refresh local state.
+  if (hasHydrated && latestSeatingFromFirebase && Array.isArray(latestSeatingFromFirebase.groups)) {
+    groups = normalizeGroups(latestSeatingFromFirebase.groups);
+    localStorage.setItem(STORAGE_KEY, JSON.stringify(groups));
+    reResolveMissing();
+    render();
+    setSyncStatus("Synced");
+  }
+  tryHydrate();
+});
 
 function tryHydrate() {
-  if (!guestsLoaded || !rsvpsLoaded) return;
+  if (!guestsLoaded || !rsvpsLoaded || !seatingLoaded) return;
   allGuests = Object.entries(latestGuests).map(([id, g]) => {
     const r = latestRsvps.find(
       (x) => x.guestName?.toLowerCase() === g.name.toLowerCase()
@@ -207,6 +83,7 @@ function tryHydrate() {
       status: r ? r.attending : "pending",
       role: g.role || "guest",
       noCount: g.noCount === true,
+      tags: Array.isArray(g.tags) ? g.tags : [],
     };
   });
 
@@ -220,47 +97,52 @@ function tryHydrate() {
 }
 
 function loadGroups() {
+  // Priority: Firebase > localStorage cache > empty. There is NO hardcoded seed.
+  // Firebase is the source of truth across devices.
+  if (
+    latestSeatingFromFirebase &&
+    Array.isArray(latestSeatingFromFirebase.groups) &&
+    latestSeatingFromFirebase.groups.length > 0
+  ) {
+    groups = normalizeGroups(latestSeatingFromFirebase.groups);
+    localStorage.setItem(STORAGE_KEY, JSON.stringify(groups));
+    reResolveMissing();
+    setSyncStatus("Synced");
+    return;
+  }
+
+  // Firebase empty → one-time migration from localStorage to Firebase so any
+  // pre-Firebase work is preserved across devices.
   const saved = localStorage.getItem(STORAGE_KEY);
   if (saved) {
     try {
-      groups = JSON.parse(saved);
-      // Backfill missing fields for older saves
-      groups.forEach((g) => {
-        if (!Array.isArray(g.memberIds)) g.memberIds = [];
-        if (!Array.isArray(g.memberMissing)) g.memberMissing = [];
-        if (typeof g.capacity !== "number") g.capacity = DEFAULT_CAPACITY;
-      });
-      // One-time migration: VIP 1 was originally seeded at 12 but needs 13
-      // (pastor added). Don't shrink if the user has manually set it higher.
-      const vip1 = groups.find((g) => g.id === "vip1");
-      if (vip1 && vip1.capacity < 13) {
-        vip1.capacity = 13;
-        persist();
+      const parsed = JSON.parse(saved);
+      if (Array.isArray(parsed) && parsed.length > 0) {
+        groups = normalizeGroups(parsed);
+        reResolveMissing();
+        console.log(
+          `[seating] Migrating ${groups.length} tables from localStorage → Firebase`
+        );
+        pushToFirebase();
+        return;
       }
-      reResolveMissing();
-      return;
     } catch (e) {
-      console.warn("Saved groups corrupt, seeding fresh");
+      console.warn("Saved groups corrupt, starting empty", e);
     }
   }
-  groups = TABLE_SEEDS.map(seedToGroup);
+
+  // Truly fresh state — start empty. User adds tables manually.
+  groups = [];
 }
 
-function seedToGroup(seed) {
-  const memberIds = [];
-  const memberMissing = [];
-  for (const name of seed.members) {
-    const g = findGuestByName(name);
-    if (g) memberIds.push(g.id);
-    else memberMissing.push(name);
-  }
-  return {
-    id: seed.id,
-    name: seed.name,
-    capacity: seed.capacity || DEFAULT_CAPACITY,
-    memberIds,
-    memberMissing,
-  };
+function normalizeGroups(input) {
+  return input.map((g) => ({
+    id: g.id || `g_${Date.now()}_${Math.random().toString(36).slice(2, 7)}`,
+    name: g.name || "Untitled",
+    capacity: typeof g.capacity === "number" ? g.capacity : DEFAULT_CAPACITY,
+    memberIds: Array.isArray(g.memberIds) ? g.memberIds : [],
+    memberMissing: Array.isArray(g.memberMissing) ? g.memberMissing : [],
+  }));
 }
 
 function normalizeName(s) {
@@ -304,6 +186,30 @@ function reResolveMissing() {
 
 function persist() {
   localStorage.setItem(STORAGE_KEY, JSON.stringify(groups));
+  // Debounce Firebase writes so rapid drag-drops collapse into one round trip.
+  setSyncStatus("Saving…");
+  if (pendingWriteTimer) clearTimeout(pendingWriteTimer);
+  pendingWriteTimer = setTimeout(pushToFirebase, 250);
+}
+
+function pushToFirebase() {
+  pendingWriteTimer = null;
+  suppressEchoes++;
+  set(seatingRef, {
+    groups,
+    savedAt: new Date().toISOString(),
+  })
+    .then(() => setSyncStatus("Synced"))
+    .catch((err) => {
+      console.error("[seating] Firebase write failed:", err);
+      setSyncStatus("⚠ Sync failed — check rules");
+      toast("⚠ Firebase save failed — check console");
+    });
+}
+
+function setSyncStatus(text) {
+  const el = document.getElementById("syncStatus");
+  if (el) el.textContent = text;
 }
 
 // ---------- Render ----------
@@ -341,9 +247,18 @@ function buildChip(g) {
   chip.draggable = true;
   chip.dataset.guestId = g.id;
   chip.title = g.noCount ? "Lap child — not counted in food/pax" : "";
+  const tagPills = (g.tags || [])
+    .map((id) => tagDef(id))
+    .filter(Boolean)
+    .map(
+      (t) =>
+        `<span class="tag-pill" style="background:${t.bg};color:${t.fg}" title="${t.label}"><span class="d" style="background:${t.dot}"></span>${t.label}</span>`
+    )
+    .join("");
   chip.innerHTML = `
     <span class="dot ${g.side}"></span>
     <span class="name">${escapeHtml(g.name)}</span>
+    ${tagPills}
     ${
       g.noCount
         ? `<span class="status lap">lap</span>`
@@ -569,19 +484,6 @@ document.getElementById("addGroupBtn").addEventListener("click", () => {
   });
   persist();
   render();
-});
-
-document.getElementById("resetBtn").addEventListener("click", () => {
-  if (
-    !confirm(
-      "Reset all tables back to the original seeded layout (VIP 1, VIP 2, Tables 3–8, Kids)? Local changes will be lost."
-    )
-  )
-    return;
-  groups = TABLE_SEEDS.map(seedToGroup);
-  persist();
-  render();
-  toast("Reset to VIP seed");
 });
 
 function toast(msg) {

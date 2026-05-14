@@ -14,6 +14,7 @@ import {
   uploadBytes,
   getDownloadURL,
 } from "https://www.gstatic.com/firebasejs/10.7.1/firebase-storage.js";
+import { TAG_DEFS, tagDef } from "./tags.js";
 
 const firebaseConfig = {
   apiKey: "AIzaSyBNPdSYJXuzvmdEHIeHGkbPmFnZxUq1lAg",
@@ -113,6 +114,7 @@ function init() {
           photoUrl: guest.photoUrl || "",
           marchingOrder: guest.marchingOrder || 0,
           noCount: guest.noCount === true,
+          tags: Array.isArray(guest.tags) ? guest.tags : [],
         };
       });
       render();
@@ -208,6 +210,14 @@ function render() {
                         ? `<span class="text-[8px] bg-amber-100 text-amber-700 px-1.5 py-0.5 rounded font-bold uppercase tracking-tighter" title="Lap child — not counted in food">Lap</span>`
                         : ""
                     }
+                    ${(guest.tags || [])
+                      .map((id) => tagDef(id))
+                      .filter(Boolean)
+                      .map(
+                        (t) =>
+                          `<span class="text-[8px] px-1.5 py-0.5 rounded font-bold uppercase tracking-tighter" style="background:${t.bg};color:${t.fg}">${t.label}</span>`
+                      )
+                      .join("")}
                 </div>
                 ${
                   guest.submittedAt
@@ -520,6 +530,17 @@ window.openEditModal = (id) => {
                         </div>
                     </label>
                 </div>
+                <div class="md:col-span-2 space-y-2">
+                    <label class="text-[9px] uppercase tracking-widest text-stone-400 font-bold">Tags <span class="text-stone-300 normal-case font-normal lowercase">(tap to toggle)</span></label>
+                    <div id="editTags" class="flex flex-wrap gap-2">
+                        ${TAG_DEFS.map((t) => {
+                          const on = (guest.tags || []).includes(t.id);
+                          return `<button type="button" data-tag="${t.id}" class="edit-tag-pill" data-active="${on ? "1" : "0"}" style="--tag-bg:${t.bg};--tag-fg:${t.fg};--tag-dot:${t.dot}">
+                            <span class="dot"></span>${t.label}
+                          </button>`;
+                        }).join("")}
+                    </div>
+                </div>
             </div>
 
             <div class="pt-2">
@@ -542,6 +563,14 @@ window.openEditModal = (id) => {
       reader.readAsDataURL(file);
     }
   };
+
+  // Tag pill toggles
+  document.querySelectorAll(".edit-tag-pill").forEach((pill) => {
+    pill.onclick = () => {
+      const cur = pill.dataset.active === "1";
+      pill.dataset.active = cur ? "0" : "1";
+    };
+  });
 };
 
 async function compressImage(file) {
@@ -588,13 +617,16 @@ window.saveGuestEdit = async (id) => {
   const age = document.getElementById("editAge").value.trim();
   const marchingOrder = parseInt(document.getElementById("editMarchingOrder").value) || 0;
   const noCount = document.getElementById("editNoCount").checked;
+  const tags = [...document.querySelectorAll(".edit-tag-pill")]
+    .filter((p) => p.dataset.active === "1")
+    .map((p) => p.dataset.tag);
   const photoInput = document.getElementById("photoInput");
 
   if (!name) return;
   btn.disabled = true;
   btn.innerHTML = `<span class="material-icons animate-spin text-sm">sync</span>`;
 
-  let updateData = { name, nickname, role, gender, age, marchingOrder, noCount };
+  let updateData = { name, nickname, role, gender, age, marchingOrder, noCount, tags };
 
   if (photoInput.files[0]) {
     const compressedBlob = await compressImage(photoInput.files[0]);
