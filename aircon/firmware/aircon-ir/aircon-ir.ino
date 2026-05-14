@@ -49,6 +49,7 @@
 #include <WiFiMulti.h>
 #include <HTTPClient.h>
 #include <WebServer.h>
+#include <Preferences.h>
 #include <IRremoteESP8266.h>
 #include <IRsend.h>
 #include <IRrecv.h>
@@ -107,7 +108,7 @@ const bool LIBRARY_INVERT     = false;
 // ~1 in 5 frames decodes cleanly on a same-kit receiver. Sending several
 // repeats per press gives the AC multiple chances to catch one clean frame.
 // 5 repeats == 6 transmissions total per command, ~1 s in the air.
-const uint16_t IR_REPEATS = 5;
+const uint16_t IR_REPEATS = 8;
 
 // --- Self-verify (RX listens to our own TX) ---------------------------------
 // When true and an IR receiver is wired to RX_VERIFY_PIN, the firmware polls
@@ -116,7 +117,15 @@ const uint16_t IR_REPEATS = 5;
 // clean TCL112AC vs. UNKNOWN at the receiver end of the kit.
 const bool     RX_VERIFY        = true;
 const uint16_t RX_VERIFY_PIN    = 2;     // IR receiver OUT (same kit)
-const uint16_t RX_LISTEN_MS     = 2000;  // listen window after each send
+const uint16_t RX_LISTEN_MS     = 1500;  // listen window after each send
+
+// --- State persistence (NVS) -----------------------------------------------
+// The 14-byte AC state survives reboots. If the ESP32 resets between
+// commands, we reload the last-sent state so e.g. a temp_up after power_on
+// still has Power: On.
+Preferences prefs;
+const char* kPrefsNamespace = "aircon";
+const char* kPrefsStateKey  = "state";
 
 // --- AC controller (library) -------------------------------------------------
 IRTcl112Ac ac(IR_LED_PIN, LIBRARY_INVERT, LIBRARY_MODULATION);
@@ -197,7 +206,12 @@ const uint16_t POWER_ON_F2[] = {
 // The real remote sends a Type-2 preamble frame before the Type-1 state frame.
 // Most TCL split-ACs obey the state frame alone, but if Charlie's TAC-09CSA/KEI
 // turns out to need the preamble, flip this to true and we'll send it first.
-const bool SEND_PREAMBLE = false;
+// The real TCL remote sends a Type-2 preamble frame, gap, then the state.
+// Earlier tries with this OFF (and an ON path that corrupted the preamble's
+// checksum via the library) didn't make the AC respond. This time we send
+// the preamble through rawIrsend.sendTcl112Ac which preserves the bytes
+// verbatim (no checksum recalc).
+const bool SEND_PREAMBLE = true;
 const uint8_t kTclPreamble[14] = {
   0x23, 0xCB, 0x26, 0x02, 0x00, 0x40, 0x00,
   0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x65
@@ -224,9 +238,29 @@ const uint8_t POWER_ON_STATE[kTcl112AcStateLength] = {
   0x05, 0x00, 0x00, 0x00, 0x88, 0xD0
 };
 
+void persistState() {
+  prefs.begin(kPrefsNamespace, /*readOnly=*/false);
+  prefs.putBytes(kPrefsStateKey, ac.getRaw(), kTcl112AcStateLength);
+  prefs.end();
+}
+
 void setupAcDefaults() {
-  ac.setRaw(POWER_ON_STATE, kTcl112AcStateLength);
-  ac.off();   // we want to boot powered-off — phone explicitly sends power_on
+  // Try to restore the last state from NVS first. If nothing was saved yet
+  // (first boot ever), fall back to the captured POWER_ON_STATE with power
+  // toggled off so the phone explicitly sends power_on to start.
+  uint8_t loaded[kTcl112AcStateLength];
+  prefs.begin(kPrefsNamespace, /*readOnly=*/true);
+  size_t got = prefs.getBytes(kPrefsStateKey, loaded, kTcl112AcStateLength);
+  prefs.end();
+
+  if (got == kTcl112AcStateLength) {
+    ac.setRaw(loaded, kTcl112AcStateLength);
+    Serial.println("AC state restored from NVS.");
+  } else {
+    ac.setRaw(POWER_ON_STATE, kTcl112AcStateLength);
+    ac.off();
+    Serial.println("AC state initialized to factory defaults (no NVS yet).");
+  }
 }
 
 // --- Send the current AC state out the IR LED -------------------------------
@@ -235,16 +269,12 @@ void sendIR() {
   uint32_t t0 = millis();
 
   if (SEND_PREAMBLE) {
-    // Stash whatever state the library currently holds, send the constant
-    // preamble bytes, then restore state so ac.send() sends what we want.
-    uint8_t savedState[kTcl112AcStateLength];
-    memcpy(savedState, ac.getRaw(), kTcl112AcStateLength);
-
-    ac.setRaw(kTclPreamble, kTcl112AcStateLength);
-    ac.send(/*repeat=*/0);
+    // Fire the Type-2 preamble bytes verbatim — the captured 0x65 checksum
+    // must be transmitted as-is, NOT recomputed. rawIrsend.sendTcl112Ac()
+    // bypasses the IRTcl112Ac checksum logic and treats the 14 bytes as
+    // an opaque payload to wrap in TCL112AC framing.
+    rawIrsend.sendTcl112Ac(kTclPreamble, kTcl112AcStateLength, /*repeat=*/0);
     delay(25);
-
-    ac.setRaw(savedState, kTcl112AcStateLength);
   }
 
   ac.send(IR_REPEATS);   // many repeats — see comment on IR_REPEATS
@@ -252,6 +282,25 @@ void sendIR() {
   lastDurationMs = millis() - t0;
   sendCount++;
   digitalWrite(STATUS_LED, HIGH);
+
+  // Persist state so a reboot mid-session doesn't lose Power/Temp/Swing.
+  persistState();
+
+  // Print TX info FIRST so it's chronologically before the RX poll output.
+  Serial.printf("IR %s -> %u ms (#%u)\n",
+                lastCmd.c_str(),
+                (unsigned)lastDurationMs,
+                (unsigned)sendCount);
+  Serial.print("  bytes : ");
+  uint8_t* raw = ac.getRaw();
+  for (uint16_t i = 0; i < kTcl112AcStateLength; i++) {
+    if (raw[i] < 0x10) Serial.print('0');
+    Serial.print(raw[i], HEX);
+    Serial.print(' ');
+  }
+  Serial.println();
+  Serial.print("  decode: ");
+  Serial.println(ac.toString());
 
   // --- Self-verify: drain the RX buffer and print what we heard ourselves
   // emit. The receiver is on the same ESP32; while ac.send() was running,
@@ -291,27 +340,6 @@ void sendIR() {
     Serial.printf("  rx summary: %u captures, %u clean TCL112AC matches\n",
                   (unsigned)rxCount, (unsigned)rxClean);
   }
-
-  Serial.printf("IR %s -> %u ms (#%u)\n",
-                lastCmd.c_str(),
-                (unsigned)lastDurationMs,
-                (unsigned)sendCount);
-
-  // Dump the exact 14 bytes we just transmitted. Compare these to the Frame-2
-  // bytes from the sniff log — they should match for the same command:
-  //   power_on  expected: 23 CB 26 01 00 24 03 07 05 00 00 00 88 D0
-  //   temp_up   expected: 23 CB 26 01 00 24 03 06 05 00 00 00 88 CF  (temp 25)
-  //   swing on  expected: 23 CB 26 01 00 24 03 07 3D 00 00 00 88 08
-  Serial.print("  bytes : ");
-  uint8_t* raw = ac.getRaw();
-  for (uint16_t i = 0; i < kTcl112AcStateLength; i++) {
-    if (raw[i] < 0x10) Serial.print('0');
-    Serial.print(raw[i], HEX);
-    Serial.print(' ');
-  }
-  Serial.println();
-  Serial.print("  decode: ");
-  Serial.println(ac.toString());
 }
 
 void rawReplayPowerOn() {
@@ -346,7 +374,17 @@ bool sendCommand(const String& cmd) {
   } else if (cmd == "temp_down") {
     ac.setTemp(ac.getTemp() - 1);      // library clamps to its kTcl112AcTempMin
   } else if (cmd == "swing") {
-    ac.setSwingVertical(!ac.getSwingVertical());
+    // The library's setSwingVertical(true) sets SwingV mode to 1 (Highest
+    // only), but the captured "SWING" button sets mode 7 (full vertical
+    // sweep) — byte[8] bits 3-5 = 0b111. So toggle that 3-bit field
+    // directly: off (0b000) <-> swing (0b111).
+    uint8_t* state = ac.getRaw();
+    uint8_t  swingV = (state[8] >> 3) & 0x07;
+    if (swingV == 0) {
+      state[8] = (state[8] & ~0x38) | (0x07 << 3);
+    } else {
+      state[8] &= ~0x38;
+    }
   } else {
     return false;
   }
