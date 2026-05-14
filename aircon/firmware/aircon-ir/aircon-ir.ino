@@ -104,11 +104,15 @@ const int      POLL_MS    = 1000;
 const bool LIBRARY_MODULATION = true;
 const bool LIBRARY_INVERT     = false;
 
-// Per-command IR send repeats. The bare-LED transmitter is jittery — only
-// ~1 in 5 frames decodes cleanly on a same-kit receiver. Sending several
-// repeats per press gives the AC multiple chances to catch one clean frame.
-// 5 repeats == 6 transmissions total per command, ~1 s in the air.
-const uint16_t IR_REPEATS = 8;
+// Per-command IR pair repeats. A "pair" is one preamble + one state frame,
+// matching exactly what the real TCL remote sends for one button press. We
+// send the pair multiple times per command so a jittery frame still gets a
+// retry, but each retry starts with a fresh preamble — the AC always sees
+// "preamble → state → quiet" sequences like it does from the real remote,
+// not "preamble → state → state → state ..." which seems to confuse it.
+const uint16_t IR_PAIR_REPEATS = 3;
+const uint16_t IR_PREAMBLE_TO_STATE_GAP_MS = 25;  // gap inside one pair
+const uint16_t IR_PAIR_TO_PAIR_GAP_MS = 150;       // gap between pairs
 
 // --- Self-verify (RX listens to our own TX) ---------------------------------
 // When true and an IR receiver is wired to RX_VERIFY_PIN, the firmware polls
@@ -268,16 +272,19 @@ void sendIR() {
   digitalWrite(STATUS_LED, LOW);
   uint32_t t0 = millis();
 
-  if (SEND_PREAMBLE) {
-    // Fire the Type-2 preamble bytes verbatim — the captured 0x65 checksum
-    // must be transmitted as-is, NOT recomputed. rawIrsend.sendTcl112Ac()
-    // bypasses the IRTcl112Ac checksum logic and treats the 14 bytes as
-    // an opaque payload to wrap in TCL112AC framing.
-    rawIrsend.sendTcl112Ac(kTclPreamble, kTcl112AcStateLength, /*repeat=*/0);
-    delay(25);
+  // Each iteration mimics one button press on the real remote: preamble
+  // frame, short gap, state frame, then a longer quiet before the next
+  // "press". Doing this N times gives the AC several independent chances
+  // to catch a clean pair while NEVER stacking state frames without a
+  // preceding preamble (which is what previous runs were doing).
+  for (uint16_t i = 0; i < IR_PAIR_REPEATS; i++) {
+    if (i > 0) delay(IR_PAIR_TO_PAIR_GAP_MS);
+    if (SEND_PREAMBLE) {
+      rawIrsend.sendTcl112Ac(kTclPreamble, kTcl112AcStateLength, /*repeat=*/0);
+      delay(IR_PREAMBLE_TO_STATE_GAP_MS);
+    }
+    ac.send(/*repeat=*/0);
   }
-
-  ac.send(IR_REPEATS);   // many repeats — see comment on IR_REPEATS
 
   lastDurationMs = millis() - t0;
   sendCount++;
