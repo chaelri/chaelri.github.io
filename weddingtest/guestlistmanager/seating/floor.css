@@ -1,0 +1,193 @@
+/* ---------- Canvas ---------- */
+.floor-canvas {
+  position: relative;
+  width: 100%;
+  height: calc(100vh - 200px);
+  min-height: 600px;
+  background-color: #faf9f6;
+  background-image: radial-gradient(rgba(0, 0, 0, 0.06) 1px, transparent 1px);
+  background-size: 24px 24px;
+  border: 1px solid #e7e5e4;
+  border-radius: 16px;
+  overflow: auto;
+}
+.floor-canvas-inner {
+  position: relative;
+  width: 1800px;
+  height: 1400px;
+}
+
+/* ---------- Stage ---------- */
+.floor-stage {
+  position: absolute;
+  left: 50%;
+  top: 24px;
+  transform: translateX(-50%);
+  width: min(80%, 1000px);
+  height: 64px;
+  background: linear-gradient(180deg, rgba(123, 138, 91, 0.12), rgba(123, 138, 91, 0.28));
+  border: 2px dashed #7b8a5b;
+  border-radius: 12px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  gap: 8px;
+  font-family: "Playfair Display", serif;
+  font-style: italic;
+  font-size: 16px;
+  color: #5a6740;
+  letter-spacing: 0.25em;
+  pointer-events: none;
+  user-select: none;
+}
+
+/* ---------- Table cards ---------- */
+.floor-table {
+  position: absolute;
+  background: white;
+  border: 2px solid #d6d3d1;
+  padding: 10px 12px;
+  cursor: grab;
+  user-select: none;
+  box-shadow: 0 2px 8px rgba(0, 0, 0, 0.04);
+  touch-action: none;
+  transition: box-shadow 0.15s, border-color 0.15s;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  text-align: center;
+}
+.floor-table:hover {
+  border-color: #7b8a5b;
+  box-shadow: 0 4px 12px rgba(123, 138, 91, 0.18);
+}
+.floor-table.dragging {
+  cursor: grabbing;
+  z-index: 10;
+  box-shadow: 0 8px 24px rgba(0, 0, 0, 0.15);
+  border-color: #7b8a5b;
+}
+.floor-table.expanded {
+  z-index: 20;
+  box-shadow: 0 12px 32px rgba(0, 0, 0, 0.18);
+  border-color: #7b8a5b;
+}
+
+.floor-table-name {
+  font-family: "Playfair Display", serif;
+  font-style: italic;
+  font-size: 14px;
+  color: #1c1917;
+  line-height: 1.15;
+}
+.floor-table-meta {
+  font-size: 9px;
+  color: #78716c;
+  text-transform: uppercase;
+  letter-spacing: 0.1em;
+  margin-top: 2px;
+  font-weight: 700;
+}
+.floor-table-meta.full {
+  color: #15803d;
+}
+.floor-table-meta.over {
+  color: #b91c1c;
+}
+
+/* ---------- Shapes ---------- */
+/* Round — default for regular tables */
+.floor-table.shape-round {
+  width: 130px;
+  height: 130px;
+  border-radius: 50%;
+}
+/* Long rectangle — VIP tables (head table style) */
+.floor-table.shape-rect-wide {
+  width: 220px;
+  height: 90px;
+  border-radius: 12px;
+}
+/* Small square — Kids table */
+.floor-table.shape-square {
+  width: 110px;
+  height: 110px;
+  border-radius: 12px;
+}
+/* Couple seat — narrow rectangle highlighted */
+.floor-table.shape-couple {
+  width: 150px;
+  height: 70px;
+  border-radius: 10px;
+  background: #fff7ed;
+  border-color: #fb923c;
+}
+.floor-table.shape-couple .floor-table-name {
+  color: #c2410c;
+}
+
+/* ---------- Expanded seat list ---------- */
+.floor-table-members {
+  display: none;
+  margin-top: 8px;
+  font-size: 11px;
+  color: #44403c;
+  text-align: left;
+  max-width: 220px;
+  max-height: 280px;
+  overflow-y: auto;
+  padding: 6px 8px;
+  background: #faf9f6;
+  border-radius: 8px;
+  border: 1px solid #e7e5e4;
+}
+.floor-table.expanded {
+  height: auto !important;
+  width: auto !important;
+  min-width: 200px;
+  padding: 12px 14px;
+}
+.floor-table.expanded.shape-round,
+.floor-table.expanded.shape-square,
+.floor-table.expanded.shape-rect-wide,
+.floor-table.expanded.shape-couple {
+  border-radius: 14px;
+}
+.floor-table.expanded .floor-table-members {
+  display: block;
+}
+.floor-table-members ol {
+  margin: 0;
+  padding-left: 22px;
+  list-style: decimal;
+}
+.floor-table-members li {
+  padding: 2px 0;
+  line-height: 1.4;
+}
+.floor-table-members li.missing {
+  color: #b91c1c;
+}
+.floor-table-members li.lap {
+  color: #b45309;
+  font-style: italic;
+}
+
+/* ---------- Stage indicator on each table ---------- */
+.floor-stage-indicator {
+  position: absolute;
+  top: -10px;
+  left: 50%;
+  transform: translateX(-50%);
+  font-size: 8px;
+  font-weight: 700;
+  letter-spacing: 0.15em;
+  text-transform: uppercase;
+  color: #7b8a5b;
+  background: #faf9f6;
+  padding: 1px 6px;
+  border-radius: 999px;
+  pointer-events: none;
+  white-space: nowrap;
+}
