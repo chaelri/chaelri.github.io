@@ -101,6 +101,72 @@ const bool LIBRARY_INVERT     = false;
 // --- AC controller (library) -------------------------------------------------
 IRTcl112Ac ac(IR_LED_PIN, LIBRARY_INVERT, LIBRARY_MODULATION);
 
+// Separate IRsend for raw-replay diagnostic mode (same pin / flags as the
+// IRTcl112Ac instance, so they emit the same kind of signal).
+IRsend rawIrsend(IR_LED_PIN, LIBRARY_INVERT, LIBRARY_MODULATION);
+
+// --- Diagnostic: raw replay of captured POWER-ON timings --------------------
+// When TEST_RAW_REPLAY_POWER_ON is true, the "power_on" command bypasses the
+// library entirely and replays the EXACT mark/space timings captured from
+// Charlie's real TCL remote during the last sniff session. If the real remote
+// turns the AC on, this should too. If it doesn't, the problem is in the IR
+// transmitter hardware path (module type, polarity, LED strength, distance,
+// aim) — no firmware change will fix it.
+const bool TEST_RAW_REPLAY_POWER_ON = true;
+
+// Frame 1 of POWER ON (Type-2 preamble, captured 2026-05-15)
+const uint16_t POWER_ON_F1[] = {
+  3072, 1630,  436, 1150,  440, 1146,  466,  352,  442,  378,
+   440,  380,  464, 1122,  526,  258,  558,  264,  554, 1062,
+   530, 1056,  532,  246,  574, 1054,  530,  248,  572,  246,
+   574, 1054,  532, 1054,  530,  248,  572, 1056,  530, 1056,
+   528,  252,  568,  252,  568, 1056,  528,  254,  566,  252,
+   566,  252,  568, 1056,  528,  256,  564,  254,  564,  254,
+   564,  256,  564,  252,  566,  254,  564,  254,  566,  252,
+   566,  254,  564,  254,  564,  254,  566,  254,  566,  252,
+   566,  254,  564,  254,  564,  254,  564,  254,  564,  254,
+   564,  254,  564,  254,  564, 1058,  528,  256,  562,  258,
+   562,  256,  562,  258,  562,  258,  562,  256,  562,  256,
+   562,  256,  562,  258,  562,  256,  562,  258,  562,  258,
+   560,  258,  560,  258,  562,  256,  562,  256,  562,  256,
+   562,  256,  564,  256,  562,  256,  562,  256,  562,  256,
+   562,  256,  564,  254,  564,  254,  566,  250,  568,  252,
+   568,  250,  568,  250,  570,  248,  572,  248,  572,  246,
+   572,  246,  572,  246,  572,  248,  568,  252,  566,  252,
+   560,  266,  524,  322,  470,  354,  462,  356,  462,  356,
+   486,  330,  464,  356,  468,  350,  462,  356,  462,  356,
+   462,  356,  462,  270,  576,  328,  466,  356,  488,  328,
+   466,  356,  486,  328,  492,  326,  492,  326,  494,  326,
+   494, 1070,  516,  324,  494, 1070,  514,  288,  530,  324,
+   494, 1074,  512, 1094,  490,  326,  492
+};
+// Frame 2 of POWER ON (Type-1 state — Power:On, Cool, 24°C, Fan High, …)
+const uint16_t POWER_ON_F2[] = {
+  3098, 1578,  512, 1074,  512, 1074,  512,  292,  524,  294,
+   524,  296,  522, 1076,  510,  294,  524,  296,  522, 1076,
+   510, 1076,  508,  298,  520, 1078,  498,  314,  516,  298,
+   496, 1122,  486, 1100,  486,  302,  516, 1100,  462, 1122,
+   464,  334,  484,  336,  482, 1124,  462,  336,  482,  336,
+   482, 1124,  464,  336,  482,  336,  482,  338,  482,  336,
+   482,  336,  482,  336,  482,  338,  482,  336,  482,  336,
+   482,  336,  482,  336,  482,  336,  484,  336,  480,  338,
+   486,  334,  480,  338,  480,  338,  498, 1108,  462,  338,
+   480,  338,  480, 1124,  462,  338,  480,  338,  480, 1122,
+   462, 1124,  462,  340,  480,  360,  458,  360,  460,  360,
+   458,  360,  460,  360,  464, 1118,  462, 1124,  462, 1124,
+   462,  360,  460,  360,  458,  360,  458,  360,  458,  360,
+   458, 1124,  462,  360,  458, 1124,  462,  360,  458,  360,
+   460,  360,  458,  360,  458,  360,  460,  360,  458,  360,
+   460,  360,  458,  360,  458,  360,  458,  360,  458,  360,
+   458,  360,  458,  360,  458,  360,  458,  360,  458,  360,
+   458,  360,  458,  360,  458,  360,  458,  360,  458,  360,
+   458,  360,  458,  362,  456,  362,  456,  362,  456,  364,
+   456,  362,  456,  362,  456,  362,  456,  362,  456,  362,
+   456,  364,  454, 1130,  456,  364,  454,  364,  454,  366,
+   454, 1132,  452,  366,  452,  366,  452,  366,  450,  368,
+   452, 1160,  426,  368,  450, 1160,  422, 1164,  420
+};
+
 // --- Optional preamble pass --------------------------------------------------
 // The real remote sends a Type-2 preamble frame before the Type-1 state frame.
 // Most TCL split-ACs obey the state frame alone, but if Charlie's TAC-09CSA/KEI
@@ -179,7 +245,29 @@ void sendIR() {
   Serial.println(ac.toString());
 }
 
+void rawReplayPowerOn() {
+  digitalWrite(STATUS_LED, LOW);
+  uint32_t t0 = millis();
+
+  rawIrsend.sendRaw(POWER_ON_F1, sizeof(POWER_ON_F1) / sizeof(POWER_ON_F1[0]), 38);
+  delay(25);
+  rawIrsend.sendRaw(POWER_ON_F2, sizeof(POWER_ON_F2) / sizeof(POWER_ON_F2[0]), 38);
+
+  lastDurationMs = millis() - t0;
+  sendCount++;
+  digitalWrite(STATUS_LED, HIGH);
+  Serial.printf("IR power_on (RAW REPLAY) -> %u ms (#%u)\n",
+                (unsigned)lastDurationMs, (unsigned)sendCount);
+  Serial.println("  (replaying captured timings byte-for-byte — if this doesn't");
+  Serial.println("   work, the issue is the IR transmitter hardware, not code)");
+}
+
 bool sendCommand(const String& cmd) {
+  if (cmd == "power_on" && TEST_RAW_REPLAY_POWER_ON) {
+    lastCmd = cmd;
+    rawReplayPowerOn();
+    return true;
+  }
   if (cmd == "power_on") {
     ac.on();
   } else if (cmd == "power_off") {
@@ -360,6 +448,7 @@ void setup() {
   Serial.begin(115200);
 
   ac.begin();
+  rawIrsend.begin();
   setupAcDefaults();
 
   pinMode(STATUS_LED, OUTPUT);
