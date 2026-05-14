@@ -276,45 +276,51 @@ function render() {
     tableBody.appendChild(row);
   });
 
-  // --- STATS LOGIC (Uses allData regardless of role) ---
-  const entourageOnly = allData.filter(
+  // --- STATS LOGIC ---
+  // Lap children are excluded from every headcount stat. They get their own
+  // row below.
+  const countable = allData.filter((g) => !g.noCount);
+  const entourageOnly = countable.filter(
     (g) =>
       g.role &&
       g.role.toLowerCase() !== "guest" &&
       g.role.toLowerCase() !== "none"
   );
 
-  // stat-total: Expected (Yes + Pending) across entire DB
-  document.getElementById("stat-total").innerText = allData.filter(
+  document.getElementById("stat-total").innerText = countable.filter(
     (g) => g.status === "yes" || g.status === "pending"
   ).length;
 
-  document.getElementById("stat-yes").innerText = allData.filter(
+  document.getElementById("stat-yes").innerText = countable.filter(
     (g) => g.status === "yes"
   ).length;
 
-  document.getElementById("stat-no").innerText = allData.filter(
+  document.getElementById("stat-no").innerText = countable.filter(
     (g) => g.status === "no"
   ).length;
 
-  document.getElementById("stat-pending").innerText = allData.filter(
+  document.getElementById("stat-pending").innerText = countable.filter(
     (g) => g.status === "pending"
   ).length;
 
-  document.getElementById("stat-karla").innerText = allData.filter(
+  document.getElementById("stat-karla").innerText = countable.filter(
     (g) => g.side === "karla"
   ).length;
 
-  document.getElementById("stat-charlie").innerText = allData.filter(
+  document.getElementById("stat-charlie").innerText = countable.filter(
     (g) => g.side === "charlie"
   ).length;
 
-  document.getElementById("stat-both").innerText = allData.filter(
+  document.getElementById("stat-both").innerText = countable.filter(
     (g) => g.side === "both"
   ).length;
 
   document.getElementById("stat-entourage-count").innerText =
     entourageOnly.length;
+
+  document.getElementById("stat-lap").innerText = allData.filter(
+    (g) => g.noCount
+  ).length;
 
   document
     .querySelectorAll(".status-select")
