@@ -1,19 +1,75 @@
+/* ---------- Page chrome (minimal, full-bleed) ---------- */
+body.floor-fullscreen {
+  overflow: hidden;
+}
+.floor-page {
+  position: fixed;
+  inset: 0;
+  background-color: #faf9f6;
+  overflow: hidden;
+}
+.floor-toolbar {
+  position: fixed;
+  top: 14px;
+  right: 14px;
+  display: flex;
+  gap: 14px;
+  align-items: center;
+  background: rgba(255, 255, 255, 0.92);
+  backdrop-filter: blur(8px);
+  padding: 8px 16px;
+  border-radius: 999px;
+  border: 1px solid #e7e5e4;
+  box-shadow: 0 4px 16px rgba(0, 0, 0, 0.06);
+  z-index: 100;
+  font-family: "Inter", sans-serif;
+}
+.floor-toolbar > * {
+  font-size: 10px;
+  font-weight: 700;
+  letter-spacing: 0.1em;
+  text-transform: uppercase;
+  color: #57534e;
+  background: transparent;
+  border: none;
+  cursor: pointer;
+  padding: 4px 6px;
+}
+.floor-toolbar > a {
+  text-decoration: none;
+}
+.floor-toolbar > *:hover {
+  color: #1c1917;
+}
+.floor-toolbar #syncStatus {
+  color: #7b8a5b;
+  cursor: default;
+}
+.floor-titlebar {
+  position: fixed;
+  top: 14px;
+  left: 20px;
+  z-index: 100;
+  font-family: "Playfair Display", serif;
+  font-style: italic;
+  font-size: 22px;
+  color: #7b8a5b;
+  text-shadow: 0 1px 2px rgba(255, 255, 255, 0.8);
+  pointer-events: none;
+}
+
 /* ---------- Canvas ---------- */
 .floor-canvas {
-  position: relative;
-  width: 100%;
-  height: calc(100vh - 200px);
-  min-height: 600px;
+  position: absolute;
+  inset: 0;
   background-color: #faf9f6;
   background-image: radial-gradient(rgba(0, 0, 0, 0.06) 1px, transparent 1px);
   background-size: 24px 24px;
-  border: 1px solid #e7e5e4;
-  border-radius: 16px;
   overflow: auto;
 }
 .floor-canvas-inner {
   position: relative;
-  width: 1800px;
+  width: 2000px;
   height: 1400px;
 }
 
@@ -21,22 +77,22 @@
 .floor-stage {
   position: absolute;
   left: 50%;
-  top: 24px;
+  top: 60px;
   transform: translateX(-50%);
-  width: min(80%, 1000px);
-  height: 64px;
+  width: min(80%, 1100px);
+  height: 70px;
   background: linear-gradient(180deg, rgba(123, 138, 91, 0.12), rgba(123, 138, 91, 0.28));
   border: 2px dashed #7b8a5b;
-  border-radius: 12px;
+  border-radius: 14px;
   display: flex;
   align-items: center;
   justify-content: center;
-  gap: 8px;
+  gap: 10px;
   font-family: "Playfair Display", serif;
   font-style: italic;
-  font-size: 16px;
+  font-size: 18px;
   color: #5a6740;
-  letter-spacing: 0.25em;
+  letter-spacing: 0.3em;
   pointer-events: none;
   user-select: none;
 }
@@ -46,7 +102,6 @@
   position: absolute;
   background: white;
   border: 2px solid #d6d3d1;
-  padding: 10px 12px;
   cursor: grab;
   user-select: none;
   box-shadow: 0 2px 8px rgba(0, 0, 0, 0.04);
@@ -73,13 +128,18 @@
   box-shadow: 0 12px 32px rgba(0, 0, 0, 0.18);
   border-color: #7b8a5b;
 }
+.floor-table.drop-target {
+  border-color: #7b8a5b;
+  background: #f0f4e8;
+}
 
 .floor-table-name {
   font-family: "Playfair Display", serif;
   font-style: italic;
-  font-size: 14px;
+  font-size: 13px;
   color: #1c1917;
   line-height: 1.15;
+  padding: 0 6px;
 }
 .floor-table-meta {
   font-size: 9px;
@@ -97,25 +157,25 @@
 }
 
 /* ---------- Shapes ---------- */
-/* Round — default for regular tables */
+/* Round — regular tables (10 seats) */
 .floor-table.shape-round {
   width: 130px;
   height: 130px;
   border-radius: 50%;
 }
-/* Long rectangle — VIP tables (head table style) */
-.floor-table.shape-rect-wide {
-  width: 220px;
-  height: 90px;
+/* Tall rectangle — VIP head tables (vertical) */
+.floor-table.shape-rect-tall {
+  width: 100px;
+  height: 240px;
   border-radius: 12px;
 }
-/* Small square — Kids table */
+/* Square — Kids table */
 .floor-table.shape-square {
-  width: 110px;
-  height: 110px;
+  width: 120px;
+  height: 120px;
   border-radius: 12px;
 }
-/* Couple seat — narrow rectangle highlighted */
+/* Couple seat */
 .floor-table.shape-couple {
   width: 150px;
   height: 70px;
@@ -125,6 +185,53 @@
 }
 .floor-table.shape-couple .floor-table-name {
   color: #c2410c;
+}
+
+/* ---------- Chairs (rendered as children of each table) ---------- */
+.floor-chair {
+  position: absolute;
+  width: 26px;
+  height: 26px;
+  background: white;
+  border: 1.5px solid #a8a29e;
+  border-radius: 50%;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  font-size: 10px;
+  font-weight: 700;
+  color: #44403c;
+  cursor: grab;
+  user-select: none;
+  z-index: 5;
+  touch-action: none;
+  transform: translate(-50%, -50%);
+  transition: border-color 0.15s, background 0.15s;
+  font-variant-numeric: tabular-nums;
+}
+.floor-chair:hover {
+  border-color: #7b8a5b;
+  background: #f0f4e8;
+  z-index: 6;
+}
+.floor-chair.dragging {
+  cursor: grabbing;
+  z-index: 200;
+  box-shadow: 0 6px 18px rgba(0, 0, 0, 0.25);
+  background: #7b8a5b;
+  color: white;
+  border-color: #6a784d;
+  transition: none;
+}
+.floor-chair.lap {
+  background: #fffbeb;
+  border-color: #fcd34d;
+  border-style: dashed;
+}
+.floor-chair.drop-target {
+  background: #7b8a5b22;
+  border-color: #7b8a5b;
+  border-width: 2px;
 }
 
 /* ---------- Expanded seat list ---------- */
@@ -145,17 +252,20 @@
 .floor-table.expanded {
   height: auto !important;
   width: auto !important;
-  min-width: 200px;
+  min-width: 220px;
   padding: 12px 14px;
 }
 .floor-table.expanded.shape-round,
 .floor-table.expanded.shape-square,
-.floor-table.expanded.shape-rect-wide,
+.floor-table.expanded.shape-rect-tall,
 .floor-table.expanded.shape-couple {
   border-radius: 14px;
 }
 .floor-table.expanded .floor-table-members {
   display: block;
+}
+.floor-table.expanded .floor-chair {
+  display: none; /* hide chairs in expanded mode — list is enough */
 }
 .floor-table-members ol {
   margin: 0;
@@ -174,20 +284,130 @@
   font-style: italic;
 }
 
-/* ---------- Stage indicator on each table ---------- */
-.floor-stage-indicator {
-  position: absolute;
-  top: -10px;
-  left: 50%;
-  transform: translateX(-50%);
-  font-size: 8px;
+/* ---------- Pool of unassigned guests (bottom strip) ---------- */
+.floor-pool {
+  position: fixed;
+  left: 0;
+  right: 0;
+  bottom: 0;
+  z-index: 90;
+  background: rgba(255, 255, 255, 0.96);
+  backdrop-filter: blur(8px);
+  border-top: 1px solid #e7e5e4;
+  box-shadow: 0 -4px 16px rgba(0, 0, 0, 0.06);
+  max-height: 180px;
+  display: flex;
+  flex-direction: column;
+  transition: transform 0.25s ease;
+}
+.floor-pool.collapsed {
+  transform: translateY(calc(100% - 36px));
+}
+.floor-pool.drop-target {
+  background: rgba(123, 138, 91, 0.12);
+  border-top-color: #7b8a5b;
+}
+.floor-pool-header {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  padding: 8px 16px;
+  border-bottom: 1px solid #f5f5f4;
+  font-size: 10px;
   font-weight: 700;
-  letter-spacing: 0.15em;
   text-transform: uppercase;
-  color: #7b8a5b;
-  background: #faf9f6;
-  padding: 1px 6px;
+  letter-spacing: 0.1em;
+  color: #57534e;
+  cursor: pointer;
+  user-select: none;
+}
+.floor-pool-title {
+  font-family: "Playfair Display", serif;
+  font-style: italic;
+  font-size: 14px;
+  letter-spacing: 0.04em;
+  color: #1c1917;
+  text-transform: none;
+  font-weight: 700;
+}
+.floor-pool-count {
+  background: #7b8a5b;
+  color: white;
   border-radius: 999px;
-  pointer-events: none;
+  padding: 2px 9px;
+  font-size: 10px;
+  font-weight: 700;
+}
+.floor-pool-hint {
+  color: #a8a29e;
+  font-weight: 500;
+  letter-spacing: 0.06em;
+  font-size: 10px;
+  text-transform: none;
+}
+.floor-pool-caret {
+  font-size: 18px;
+  color: #78716c;
+  transition: transform 0.25s ease;
+}
+.floor-pool.collapsed .floor-pool-caret {
+  transform: rotate(180deg);
+}
+.floor-pool-chips {
+  flex: 1;
+  overflow-x: auto;
+  overflow-y: hidden;
+  display: flex;
+  gap: 6px;
+  padding: 10px 16px 14px;
+  align-items: center;
+  scroll-behavior: smooth;
+}
+.floor-pool-chip {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  padding: 6px 12px;
+  background: white;
+  border: 1.5px solid #d6d3d1;
+  border-radius: 999px;
+  font-size: 12px;
+  font-weight: 500;
+  color: #44403c;
+  cursor: grab;
+  user-select: none;
+  touch-action: none;
+  flex-shrink: 0;
   white-space: nowrap;
+  transition: border-color 0.15s, box-shadow 0.15s;
+}
+.floor-pool-chip:hover {
+  border-color: #7b8a5b;
+}
+.floor-pool-chip.dragging {
+  cursor: grabbing;
+  z-index: 200;
+  box-shadow: 0 6px 18px rgba(0, 0, 0, 0.25);
+  border-color: #7b8a5b;
+  background: #f0f4e8;
+}
+.floor-pool-chip .dot {
+  width: 7px;
+  height: 7px;
+  border-radius: 50%;
+  flex-shrink: 0;
+}
+.floor-pool-chip .dot.karla {
+  background: #ec4899;
+}
+.floor-pool-chip .dot.charlie {
+  background: #3b82f6;
+}
+.floor-pool-chip .dot.both {
+  background: #a855f7;
+}
+
+/* Reserve room at the bottom of the canvas for the pool strip */
+.floor-fullscreen .floor-canvas {
+  bottom: 180px;
 }

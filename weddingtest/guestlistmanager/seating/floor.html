@@ -16,55 +16,40 @@
     <link rel="stylesheet" href="./style.css" />
     <link rel="stylesheet" href="./floor.css" />
   </head>
-  <body class="bg-[#faf9f6] min-h-screen">
-    <nav class="p-4 bg-white border-b border-stone-200 sticky top-0 z-50">
-      <div class="max-w-7xl mx-auto flex justify-between items-center">
-        <h1 class="serif italic text-xl md:text-2xl text-[#7b8a5b]">
-          Floor View
-        </h1>
-        <div class="flex items-center gap-4">
-          <span
-            id="syncStatus"
-            class="text-[10px] uppercase tracking-widest text-stone-400 font-bold hidden md:inline"
-            >Connecting…</span
-          >
-          <button
-            id="resetLayoutBtn"
-            class="text-[10px] uppercase tracking-widest text-stone-400 hover:text-stone-800"
-            title="Auto-arrange tables in a default grid"
-          >Auto-arrange</button>
-          <a
-            href="./index.html"
-            class="text-[10px] uppercase tracking-widest text-stone-400 hover:text-stone-800"
-            >← Arranger</a
-          >
-        </div>
+  <body class="floor-fullscreen">
+    <div class="floor-page">
+      <div class="floor-titlebar">Floor View</div>
+      <div class="floor-toolbar">
+        <span id="syncStatus">Connecting…</span>
+        <button id="togglePoolBtn" title="Show / hide unassigned guests">Pool</button>
+        <a href="./index.html">← Arranger</a>
       </div>
-    </nav>
-
-    <main class="max-w-7xl mx-auto p-4 md:p-6">
-      <p
-        class="text-[11px] md:text-xs text-stone-500 mb-4 md:mb-6 max-w-3xl leading-relaxed"
-      >
-        Drag tables to mirror your venue. <strong>Click a table</strong> to see
-        its seat list. Stage is up top — orient tables so seat 1 faces stage
-        where possible. Shapes are automatic: VIPs are wide rectangles, Kids is
-        a square, regular tables are round.
-      </p>
 
       <div id="canvas" class="floor-canvas">
-        <div id="stage" class="floor-stage">
-          <span class="material-icons-outlined" style="font-size:14px">arrow_upward</span>
-          <span>STAGE</span>
+        <div class="floor-canvas-inner">
+          <div id="stage" class="floor-stage">
+            <span class="material-icons-outlined" style="font-size: 16px">arrow_upward</span>
+            <span>STAGE</span>
+          </div>
         </div>
-        <div id="tables"></div>
       </div>
-    </main>
 
-    <div
-      id="toast"
-      class="fixed bottom-4 right-4 bg-stone-800 text-white px-4 py-2 rounded-lg text-xs uppercase tracking-widest opacity-0 transition-opacity pointer-events-none z-50"
-    ></div>
+      <div id="pool" class="floor-pool">
+        <div class="floor-pool-header" id="poolHeader">
+          <span class="floor-pool-title">Unassigned</span>
+          <span class="floor-pool-count" id="poolCount">0</span>
+          <span class="floor-pool-hint hidden md:inline">Drag a name onto any chair to seat them</span>
+          <span style="flex: 1"></span>
+          <span id="poolCaret" class="material-icons-outlined floor-pool-caret">expand_more</span>
+        </div>
+        <div id="poolChips" class="floor-pool-chips"></div>
+      </div>
+
+      <div
+        id="toast"
+        class="fixed bottom-24 right-4 bg-stone-800 text-white px-4 py-2 rounded-lg text-xs uppercase tracking-widest opacity-0 transition-opacity pointer-events-none z-50"
+      ></div>
+    </div>
 
     <script type="module" src="./floor.js"></script>
   </body>
