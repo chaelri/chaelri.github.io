@@ -76,10 +76,12 @@ IRrecv irrecv(kRecvPin, kCaptureBufferSize, kTimeout, /*save_buffer=*/true);
 decode_results results;
 
 // --- Capture state ----------------------------------------------------------
-int16_t   pressIdx     = -1;     // -1 = none yet; otherwise 0..kSeqLen-1 (or beyond = extra)
-uint8_t   frameCount   = 0;
+int16_t   pressIdx      = -1;    // -1 = none yet; otherwise 0..kSeqLen-1 (or beyond = extra)
+uint8_t   frameCount    = 0;
 uint32_t  lastCaptureMs = 0;
-bool      announced    = true;   // true = "previous press already wrapped up"
+bool      announced     = true;  // true = "previous press already wrapped up"
+uint32_t  totalCaptures = 0;     // monotonic counter for heartbeat diagnostics
+uint32_t  lastHbMs      = 0;
 
 void announceNext(uint8_t nextIdx) {
   if (nextIdx >= kSeqLen) return;
@@ -189,23 +191,58 @@ void setup() {
   while (!Serial && millis() < 5000) delay(50);
   delay(500);
 
+  // Drive the receiver pin with an internal pullup as well — most modules
+  // already have one, but it's free insurance against a floating input.
+  pinMode(kRecvPin, INPUT_PULLUP);
+
   irrecv.setUnknownThreshold(kMinUnknownSize);
   irrecv.setTolerance(kTolerancePercentage);
-  irrecv.enableIRIn();
+  irrecv.enableIRIn(/*pullup=*/true);
+
+  // --- One-shot wiring sanity check -----------------------------------------
+  delay(100);
+  int initialState = digitalRead(kRecvPin);
+  Serial.println();
+  Serial.printf("[diag] GPIO%u initial state: %s\n",
+                (unsigned)kRecvPin,
+                initialState == HIGH
+                  ? "HIGH (idle — receiver looks wired right)"
+                  : "LOW  (UNUSUAL — should idle HIGH; check VCC/OUT/GND wiring)");
+  Serial.println();
 
   printBanner();
 }
 
 void loop() {
+  uint32_t nowMs = millis();
+
+  // Heartbeat — prints every 3 s, but only when nothing is being captured,
+  // so it doesn't clutter the log mid-press. Gives you proof the sketch is
+  // alive and a live read of the receiver pin so you can rule out wiring.
+  bool quietForHb = (lastCaptureMs == 0) || (nowMs - lastCaptureMs > 1500);
+  if (quietForHb && (nowMs - lastHbMs > 3000)) {
+    lastHbMs = nowMs;
+    int pinState = digitalRead(kRecvPin);
+    Serial.printf("[hb t=%us] GPIO%u=%s   captures=%u   waiting for: %s\n",
+                  (unsigned)(nowMs / 1000),
+                  (unsigned)kRecvPin,
+                  pinState ? "HIGH (idle)" : "LOW  (active!)",
+                  (unsigned)totalCaptures,
+                  (pressIdx + 1 < (int16_t)kSeqLen)
+                    ? kSequence[pressIdx + 1 < 0 ? 0 : pressIdx + 1].btn
+                    : "(done)");
+  }
+
   // Background: if a press hasn't been "wrapped up" yet and the line went
   // quiet for kPressCompleteMs, announce that the press is done and prompt
   // the user for the next one. This is what gives the live per-press feedback.
-  if (pressIdx >= 0 && !announced && (millis() - lastCaptureMs) > kPressCompleteMs) {
+  if (pressIdx >= 0 && !announced && (nowMs - lastCaptureMs) > kPressCompleteMs) {
     announcePressComplete();
     announced = true;
   }
 
   if (!irrecv.decode(&results)) return;
+  totalCaptures++;
 
   uint32_t now = millis();
   bool firstEver = (pressIdx < 0);
