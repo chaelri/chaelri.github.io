@@ -1,0 +1,295 @@
+<!doctype html>
+<html lang="en" class="dark">
+<head>
+  <meta charset="utf-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1, maximum-scale=1, user-scalable=no" />
+  <meta name="theme-color" content="#07080b" />
+  <meta name="apple-mobile-web-app-capable" content="yes" />
+  <meta name="apple-mobile-web-app-status-bar-style" content="black-translucent" />
+  <title>IR Absorb</title>
+
+  <link rel="preconnect" href="https://fonts.googleapis.com" />
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
+  <link href="https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700;800&family=JetBrains+Mono:wght@400;500&display=swap" rel="stylesheet" />
+  <link href="https://fonts.googleapis.com/css2?family=Material+Symbols+Outlined:opsz,wght,FILL,GRAD@24,400,0,0" rel="stylesheet" />
+  <script src="https://cdn.jsdelivr.net/npm/@tailwindcss/browser@4"></script>
+
+  <style>
+    :root { color-scheme: dark; }
+    html, body { background: #07080b; }
+    body {
+      font-family: 'Inter', system-ui, -apple-system, sans-serif;
+      background-image:
+        radial-gradient(ellipse 70% 50% at 50% -10%, rgba(168,85,247,0.22), transparent 60%),
+        radial-gradient(ellipse 60% 40% at 80% 110%, rgba(236,72,153,0.14), transparent 60%);
+      background-attachment: fixed;
+      overscroll-behavior: none;
+    }
+    .mono { font-family: 'JetBrains Mono', ui-monospace, monospace; }
+    .material-symbols-outlined {
+      font-variation-settings: 'FILL' 0, 'wght' 400, 'GRAD' 0, 'opsz' 24;
+      vertical-align: middle;
+    }
+
+    .card { transition: transform 120ms ease, box-shadow 200ms ease; }
+    .card:active { transform: scale(0.99); }
+
+    .pulse-new {
+      animation: pulseNew 1.4s ease-out 2;
+    }
+    @keyframes pulseNew {
+      0%   { box-shadow: 0 0 0 0 rgba(168,85,247,0.45); }
+      100% { box-shadow: 0 0 0 14px rgba(168,85,247,0); }
+    }
+
+    @keyframes pressFlash { 0%,100% { opacity:1 } 50% { opacity:0.55 } }
+    .firing { animation: pressFlash 220ms ease-in-out 3; }
+
+    .name-input {
+      background: transparent;
+      border: none;
+      color: white;
+      font-weight: 700;
+      font-size: 1.05rem;
+      outline: none;
+      width: 100%;
+    }
+    .name-input::placeholder { color: rgba(148,163,184,0.6); font-style: italic; font-weight: 500; }
+    .name-input:focus { background: rgba(255,255,255,0.05); border-radius: 4px; padding: 2px 4px; margin: -2px -4px; }
+  </style>
+</head>
+<body class="min-h-screen text-slate-200 antialiased">
+  <div class="max-w-md mx-auto px-5 pt-7 pb-10 min-h-screen flex flex-col">
+
+    <header class="flex items-center gap-3">
+      <div class="w-10 h-10 rounded-xl bg-gradient-to-br from-fuchsia-500 to-purple-600 grid place-items-center shadow-lg shadow-fuchsia-500/30">
+        <span class="material-symbols-outlined text-white" style="font-size:22px">settings_remote</span>
+      </div>
+      <div class="flex-1 min-w-0">
+        <div class="font-semibold text-white leading-tight">IR Absorb</div>
+        <div class="text-[11px] text-slate-500 mono truncate">point any remote at the RX</div>
+      </div>
+      <span class="inline-flex items-center gap-1.5 text-[10px] uppercase tracking-wider text-slate-500 shrink-0">
+        <span id="connDot" class="w-1.5 h-1.5 rounded-full bg-slate-600"></span>
+        <span id="connText">connecting</span>
+      </span>
+    </header>
+
+    <!-- Status / counter strip -->
+    <div class="mt-5 rounded-2xl bg-white/[0.03] border border-white/[0.05] overflow-hidden">
+      <div class="px-4 py-3 flex items-center gap-3 text-xs">
+        <span id="statusDot" class="w-2 h-2 rounded-full bg-slate-600"></span>
+        <span id="statusText" class="mono text-slate-400 flex-1 truncate">waiting for activity</span>
+      </div>
+      <div class="grid grid-cols-2 gap-px bg-white/[0.05] border-t border-white/[0.05]">
+        <div class="bg-[#0b0c11] px-4 py-3">
+          <div class="text-[10px] mono uppercase tracking-[0.16em] text-slate-500">absorbed</div>
+          <div class="text-slate-200 text-lg font-semibold mt-0.5" id="diagCaptures">0</div>
+        </div>
+        <div class="bg-[#0b0c11] px-4 py-3">
+          <div class="text-[10px] mono uppercase tracking-[0.16em] text-slate-500">replayed</div>
+          <div class="text-slate-200 text-lg font-semibold mt-0.5" id="diagReplays">0</div>
+        </div>
+      </div>
+    </div>
+
+    <!-- "press a remote at the RX" hint when empty -->
+    <div id="emptyHint" class="mt-8 hidden">
+      <div class="rounded-2xl border border-dashed border-white/15 bg-white/[0.02] px-5 py-10 text-center">
+        <span class="material-symbols-outlined text-fuchsia-300/70" style="font-size:48px">settings_remote</span>
+        <div class="text-slate-200 font-semibold mt-3">No captures yet</div>
+        <div class="text-[12px] text-slate-500 mt-1.5 leading-snug">
+          Point any IR remote at the RX module and press a button.<br>
+          It'll show up here automatically.
+        </div>
+      </div>
+    </div>
+
+    <!-- The list of captures -->
+    <main id="captureList" class="flex-1 mt-5 space-y-3"></main>
+
+    <!-- Clear-all -->
+    <div class="mt-6 flex justify-center">
+      <button id="clearAllBtn"
+        class="text-[10px] uppercase tracking-[0.18em] text-slate-500 hover:text-rose-400 transition px-3 py-1.5 rounded">
+        Clear all captures
+      </button>
+    </div>
+
+    <p class="text-[10px] text-slate-600 mt-4 text-center">
+      Charlie's universal IR copier · ESP32-C3 + RX/TX module pair
+    </p>
+  </div>
+
+  <!-- Template for one capture card -->
+  <template id="cardTpl">
+    <div class="card rounded-2xl bg-white/[0.04] border border-white/[0.06] p-4" data-id="">
+      <div class="flex items-start gap-3">
+        <div class="w-9 h-9 rounded-xl bg-gradient-to-br from-purple-500/30 to-fuchsia-500/30 border border-purple-400/20 grid place-items-center shrink-0">
+          <span class="material-symbols-outlined text-purple-200" style="font-size:18px">radio_button_checked</span>
+        </div>
+        <div class="flex-1 min-w-0">
+          <input class="name-input" type="text" placeholder="Tap to name this capture..." data-field="name" />
+          <div class="text-[10px] mono uppercase tracking-[0.14em] text-slate-500 mt-1 flex flex-wrap gap-x-3 gap-y-0.5">
+            <span data-field="proto">—</span>
+            <span data-field="bits">—</span>
+            <span data-field="rawLen">—</span>
+            <span data-field="time">—</span>
+          </div>
+        </div>
+      </div>
+      <div class="mt-3 flex gap-2">
+        <button class="flex-1 rounded-xl py-3 bg-gradient-to-r from-fuchsia-500 to-purple-600 text-white font-bold text-sm tracking-[0.18em] uppercase shadow-lg shadow-fuchsia-500/25" data-action="tx">
+          <span class="material-symbols-outlined align-middle mr-1" style="font-size:18px">send</span>Transmit
+        </button>
+        <button class="px-3 rounded-xl bg-white/[0.04] border border-white/[0.06] text-slate-400 hover:text-rose-400 hover:border-rose-500/30 transition" data-action="del" aria-label="Delete capture">
+          <span class="material-symbols-outlined" style="font-size:18px">delete</span>
+        </button>
+      </div>
+    </div>
+  </template>
+
+  <script type="module">
+    import { initializeApp }       from "https://www.gstatic.com/firebasejs/10.7.0/firebase-app.js";
+    import { getDatabase, ref, set, update, remove, onValue }
+                                   from "https://www.gstatic.com/firebasejs/10.7.0/firebase-database.js";
+    import { getAuth, signInAnonymously }
+                                   from "https://www.gstatic.com/firebasejs/10.7.0/firebase-auth.js";
+
+    const app = initializeApp({
+      apiKey: "AIzaSyB8ahT56WbEUaGAymsRNNA-DrfZnUnWIwk",
+      authDomain: "test-database-55379.firebaseapp.com",
+      databaseURL: "https://test-database-55379-default-rtdb.asia-southeast1.firebasedatabase.app",
+      projectId: "test-database-55379"
+    });
+    const db   = getDatabase(app);
+    const auth = getAuth(app);
+    signInAnonymously(auth).catch(e => console.warn("anon signin failed:", e));
+
+    const $ = id => document.getElementById(id);
+    const connDot   = $("connDot"),    connText    = $("connText");
+    const statusDot = $("statusDot"),  statusText  = $("statusText");
+    const list      = $("captureList"), emptyHint   = $("emptyHint");
+    const diagCaps  = $("diagCaptures"), diagReps   = $("diagReplays");
+
+    // Live online dot
+    onValue(ref(db, ".info/connected"), snap => {
+      const ok = snap.val() === true;
+      connDot.className = "w-1.5 h-1.5 rounded-full " + (ok ? "bg-emerald-400" : "bg-slate-600");
+      connText.textContent = ok ? "online" : "offline";
+    });
+
+    // ESP32-side state mirror
+    onValue(ref(db, "ir-absorb/state"), snap => {
+      const v = snap.val();
+      if (!v) return;
+      diagReps.textContent = (v.replayCount|0);
+    });
+
+    // ----- Captures list ----------------------------------------------------
+    const tpl = document.getElementById("cardTpl");
+    const knownIds = new Set();
+    const stateColors = { send:"bg-amber-400", ok:"bg-emerald-400", err:"bg-rose-500", idle:"bg-slate-600" };
+    function setStatus(state, msg) {
+      statusDot.className = "w-2 h-2 rounded-full " + stateColors[state];
+      statusText.textContent = msg;
+    }
+
+    function fmtTime(ts) {
+      if (!ts) return "—";
+      const d = new Date(ts);
+      const now = Date.now();
+      const diffSec = Math.floor((now - ts) / 1000);
+      if (diffSec < 5)   return "just now";
+      if (diffSec < 60)  return diffSec + "s ago";
+      if (diffSec < 3600) return Math.floor(diffSec/60) + "m ago";
+      if (diffSec < 86400) return d.toLocaleTimeString();
+      return d.toLocaleDateString() + " " + d.toLocaleTimeString();
+    }
+
+    function renderCard(id, data) {
+      const node = tpl.content.cloneNode(true);
+      const card = node.querySelector(".card");
+      card.dataset.id = id;
+
+      const nameInput = card.querySelector('input[data-field="name"]');
+      nameInput.value = data.name || "";
+      nameInput.placeholder = "Tap to name this capture...";
+
+      // Auto-save on blur
+      nameInput.addEventListener("blur", () => {
+        const newName = nameInput.value.trim();
+        if (newName !== (data.name || "")) {
+          update(ref(db, `ir-absorb/captures/${id}`), { name: newName }).catch(console.warn);
+        }
+      });
+      nameInput.addEventListener("keydown", e => {
+        if (e.key === "Enter") nameInput.blur();
+      });
+
+      card.querySelector('[data-field="proto"]').textContent = data.protocol || "?";
+      card.querySelector('[data-field="bits"]').textContent  = (data.bits|0) + "b";
+      card.querySelector('[data-field="rawLen"]').textContent = "raw " + (data.rawLen|0);
+      card.querySelector('[data-field="time"]').textContent  = fmtTime(data.capturedAt);
+
+      // Transmit
+      card.querySelector('[data-action="tx"]').addEventListener("click", async (e) => {
+        if (navigator.vibrate) navigator.vibrate(20);
+        e.currentTarget.classList.add("firing");
+        setStatus("send", "transmitting " + (data.name || "capture") + "...");
+        try {
+          await set(ref(db, "ir-absorb/command"), { txId: id, ts: Date.now() });
+          setStatus("ok", "queued for replay");
+        } catch (err) {
+          setStatus("err", "failed: " + (err.message || err));
+        } finally {
+          setTimeout(() => e.currentTarget.classList.remove("firing"), 700);
+        }
+      });
+
+      // Delete
+      card.querySelector('[data-action="del"]').addEventListener("click", async () => {
+        if (!confirm(`Delete "${data.name || "this capture"}"?`)) return;
+        try {
+          await remove(ref(db, `ir-absorb/captures/${id}`));
+        } catch (err) {
+          setStatus("err", "delete failed: " + (err.message || err));
+        }
+      });
+
+      // Pulse animation for newly added cards
+      if (!knownIds.has(id)) {
+        card.classList.add("pulse-new");
+        knownIds.add(id);
+      }
+
+      return card;
+    }
+
+    onValue(ref(db, "ir-absorb/captures"), snap => {
+      const v = snap.val() || {};
+      const entries = Object.entries(v).map(([id, data]) => ({ id, ...data }));
+      entries.sort((a, b) => (b.capturedAt || 0) - (a.capturedAt || 0));
+
+      diagCaps.textContent = entries.length;
+      emptyHint.classList.toggle("hidden", entries.length > 0);
+      list.innerHTML = "";
+      entries.forEach(entry => {
+        list.appendChild(renderCard(entry.id, entry));
+      });
+    });
+
+    // Clear-all
+    document.getElementById("clearAllBtn").addEventListener("click", async () => {
+      if (!confirm("Delete ALL captures? This can't be undone.")) return;
+      try {
+        await remove(ref(db, "ir-absorb/captures"));
+        knownIds.clear();
+        setStatus("ok", "cleared all captures");
+      } catch (err) {
+        setStatus("err", "clear failed: " + (err.message || err));
+      }
+    });
+  </script>
+</body>
+</html>
