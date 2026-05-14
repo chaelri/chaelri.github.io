@@ -36,6 +36,8 @@ let searchTerm = "";
 let filterSide = "all";
 let filterStatus = "all";
 let filterInvited = "all";
+let hidePending = false;
+let hideNo = false;
 let currentPage = 1;
 
 // "guest" is the identifier for regular guests
@@ -134,11 +136,15 @@ function render() {
       filterStatus === "all" || item.status === filterStatus;
     const matchesInvited =
       filterInvited === "all" || item.invited === filterInvited;
+    const passesHidePending = !hidePending || item.status !== "pending";
+    const passesHideNo = !hideNo || item.status !== "no";
     return (
       matchesSearch &&
       matchesSide &&
       matchesStatus &&
-      matchesInvited
+      matchesInvited &&
+      passesHidePending &&
+      passesHideNo
     );
   });
 
@@ -725,6 +731,18 @@ document.getElementById("filterStatus").onchange = (e) => {
 
 document.getElementById("filterInvited").onchange = (e) => {
   filterInvited = e.target.value;
+  currentPage = 1;
+  render();
+};
+
+document.getElementById("hidePending").onchange = (e) => {
+  hidePending = e.target.checked;
+  currentPage = 1;
+  render();
+};
+
+document.getElementById("hideNo").onchange = (e) => {
+  hideNo = e.target.checked;
   currentPage = 1;
   render();
 };
