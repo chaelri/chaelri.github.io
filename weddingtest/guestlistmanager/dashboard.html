@@ -242,7 +242,8 @@
                 <input
                   type="checkbox"
                   id="hidePending"
-                  class="w-4 h-4 rounded border-stone-300 text-[#7b8a5b] focus:ring-[#7b8a5b]"
+                  class="w-4 h-4 rounded border-stone-300 accent-[#7b8a5b] focus:ring-[#7b8a5b]"
+                  style="accent-color: #7b8a5b"
                 />
                 <span class="text-xs text-stone-600">Hide pending</span>
               </label>
@@ -250,7 +251,8 @@
                 <input
                   type="checkbox"
                   id="hideNo"
-                  class="w-4 h-4 rounded border-stone-300 text-[#7b8a5b] focus:ring-[#7b8a5b]"
+                  class="w-4 h-4 rounded border-stone-300 accent-[#7b8a5b] focus:ring-[#7b8a5b]"
+                  style="accent-color: #7b8a5b"
                 />
                 <span class="text-xs text-stone-600">Hide no</span>
               </label>
@@ -449,6 +451,18 @@
               ></tbody>
             </table>
           </div>
+          <div class="px-4 py-4 flex flex-col items-center gap-2 border-t border-stone-100">
+            <div
+              id="final-pagination-container"
+              class="flex justify-center items-center gap-1.5"
+            ></div>
+            <div
+              id="final-page-indicator"
+              class="text-[10px] uppercase tracking-widest text-stone-400 font-bold"
+            >
+              Page 0 of 0
+            </div>
+          </div>
         </div>
       </div>
 
@@ -504,6 +518,18 @@
                 class="text-sm text-stone-600"
               ></tbody>
             </table>
+          </div>
+          <div class="px-4 py-4 flex flex-col items-center gap-2 border-t border-stone-100">
+            <div
+              id="visitor-pagination-container"
+              class="flex justify-center items-center gap-1.5"
+            ></div>
+            <div
+              id="visitor-page-indicator"
+              class="text-[10px] uppercase tracking-widest text-stone-400 font-bold"
+            >
+              Page 0 of 0
+            </div>
           </div>
         </div>
       </div>

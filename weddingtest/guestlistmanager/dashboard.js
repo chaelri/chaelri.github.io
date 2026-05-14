@@ -436,7 +436,7 @@ modalOverlay.onclick = (e) => {
 window.openEditModal = (id) => {
   const guest = allData.find((g) => g.id === id);
   showModal(`
-        <div class="p-6 space-y-4 max-h-[80vh] overflow-y-auto">
+        <div class="p-6 space-y-4">
             <div class="flex justify-between items-center">
                 <h3 class="serif text-xl italic text-stone-800">Edit Profile</h3>
                 <button onclick="closeModal()" class="text-stone-400 hover:text-stone-600"><span class="material-icons">close</span></button>
@@ -513,7 +513,7 @@ window.openEditModal = (id) => {
                     <label class="flex items-center gap-3 p-3 bg-stone-50 border border-stone-100 rounded-xl cursor-pointer hover:border-[#7b8a5b] transition">
                         <input type="checkbox" id="editNoCount" ${
                           guest.noCount ? "checked" : ""
-                        } class="w-4 h-4 rounded border-stone-300 text-[#7b8a5b] focus:ring-[#7b8a5b]">
+                        } class="w-4 h-4 rounded border-stone-300 accent-[#7b8a5b] focus:ring-[#7b8a5b]" style="accent-color: #7b8a5b">
                         <div class="flex-1">
                             <div class="text-sm font-medium text-stone-700">Lap child — not counted in food</div>
                             <div class="text-[10px] text-stone-400 mt-0.5">Still takes a seat & is searchable in seating, but excluded from the table's pax count.</div>
@@ -755,10 +755,11 @@ document.getElementById("addGuestForm").onsubmit = async (e) => {
   input.value = "";
 };
 
+let _visitorCache = {};
 function initVisitorLogs() {
   onValue(ref(db, "visitorLogs"), (snapshot) => {
-    const data = snapshot.val() || {};
-    renderVisitorLogs(data);
+    _visitorCache = snapshot.val() || {};
+    renderVisitorLogs(_visitorCache);
   });
 }
 
@@ -771,7 +772,13 @@ function renderVisitorLogs(data) {
     "unique-visitor-badge"
   ).innerText = `${entries.length} Total Visitors`;
 
-  entries.forEach((visitor) => {
+  const totalPages = Math.ceil(entries.length / VISITOR_PER_PAGE);
+  if (visitorCurrentPage > totalPages && totalPages > 0) visitorCurrentPage = totalPages;
+  if (visitorCurrentPage < 1) visitorCurrentPage = 1;
+  const startIdx = (visitorCurrentPage - 1) * VISITOR_PER_PAGE;
+  const pageEntries = entries.slice(startIdx, startIdx + VISITOR_PER_PAGE);
+
+  pageEntries.forEach((visitor) => {
     const row = document.createElement("tr");
     row.className =
       "border-b border-stone-50 hover:bg-stone-50/80 transition cursor-default";
@@ -805,6 +812,18 @@ function renderVisitorLogs(data) {
         `;
     tableBody.appendChild(row);
   });
+
+  buildMiniPagination(
+    "visitor-pagination-container",
+    "visitor-page-indicator",
+    totalPages,
+    visitorCurrentPage,
+    (p) => {
+      visitorCurrentPage = p;
+      renderVisitorLogs(_visitorCache);
+    }
+  );
+
   updateMapMarkers(data);
 }
 
@@ -857,20 +876,73 @@ async function updateVenueWeather() {
   }
 }
 
+// Page state for sub-tables that paginate independently of the main guest grid.
+let finalCurrentPage = 1;
+let visitorCurrentPage = 1;
+const FINAL_PER_PAGE = 5;
+const VISITOR_PER_PAGE = 10;
+
+function buildMiniPagination(containerId, indicatorId, totalPages, current, onChange) {
+  const container = document.getElementById(containerId);
+  const indicator = document.getElementById(indicatorId);
+  if (!container || !indicator) return;
+  container.innerHTML = "";
+  indicator.innerText = totalPages === 0
+    ? "Page 0 of 0"
+    : `Page ${current} of ${totalPages}`;
+  if (totalPages <= 1) return;
+
+  const prev = document.createElement("button");
+  prev.className = "pag-btn";
+  prev.innerHTML = `<span class="material-icons" style="font-size:14px;">chevron_left</span>`;
+  prev.disabled = current === 1;
+  prev.onclick = () => onChange(current - 1);
+  container.appendChild(prev);
+
+  // Compact window of up to 5 pages around the current page
+  const windowSize = 5;
+  let start = Math.max(1, current - Math.floor(windowSize / 2));
+  let end = Math.min(totalPages, start + windowSize - 1);
+  start = Math.max(1, end - windowSize + 1);
+  for (let p = start; p <= end; p++) {
+    const btn = document.createElement("button");
+    btn.className = `pag-btn ${p === current ? "active" : ""}`;
+    btn.innerText = p;
+    btn.onclick = () => onChange(p);
+    container.appendChild(btn);
+  }
+
+  const next = document.createElement("button");
+  next.className = "pag-btn";
+  next.innerHTML = `<span class="material-icons" style="font-size:14px;">chevron_right</span>`;
+  next.disabled = current === totalPages;
+  next.onclick = () => onChange(current + 1);
+  container.appendChild(next);
+}
+
 function renderFinalList() {
   const finalListBody = document.getElementById("finalGuestTableBody");
   finalListBody.innerHTML = "";
+  // Exclude lap children — they're not counted toward the confirmed guest total.
   const confirmedGuests = allData
-    .filter((g) => g.status === "yes")
+    .filter((g) => g.status === "yes" && !g.noCount)
     .sort((a, b) => new Date(b.submittedAt) - new Date(a.submittedAt));
   document.getElementById(
     "final-count-badge"
   ).innerText = `${confirmedGuests.length} Confirmed Guests`;
   if (confirmedGuests.length === 0) {
     finalListBody.innerHTML = `<tr><td colspan="3" class="p-8 text-center text-stone-400 italic">No confirmed guests yet...</td></tr>`;
+    buildMiniPagination("final-pagination-container", "final-page-indicator", 0, 0, () => {});
     return;
   }
-  confirmedGuests.forEach((guest) => {
+
+  const totalPages = Math.ceil(confirmedGuests.length / FINAL_PER_PAGE);
+  if (finalCurrentPage > totalPages) finalCurrentPage = totalPages;
+  if (finalCurrentPage < 1) finalCurrentPage = 1;
+  const startIdx = (finalCurrentPage - 1) * FINAL_PER_PAGE;
+  const pageRows = confirmedGuests.slice(startIdx, startIdx + FINAL_PER_PAGE);
+
+  pageRows.forEach((guest) => {
     const row = document.createElement("tr");
     row.className = "border-b border-stone-50 transition";
     row.innerHTML = `<td class="p-4 font-semibold text-stone-800" data-label="Confirmed">${
@@ -885,6 +957,17 @@ function renderFinalList() {
     })}</td><td class="p-4 text-right" data-label="Status"><span class="bg-green-100 text-green-700 px-2 py-1 rounded text-[10px] font-bold uppercase tracking-widest">Attending</span></td>`;
     finalListBody.appendChild(row);
   });
+
+  buildMiniPagination(
+    "final-pagination-container",
+    "final-page-indicator",
+    totalPages,
+    finalCurrentPage,
+    (p) => {
+      finalCurrentPage = p;
+      renderFinalList();
+    }
+  );
 }
 
 function renderEntourage() {
