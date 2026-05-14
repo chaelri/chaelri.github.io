@@ -74,8 +74,32 @@ const uint16_t IR_LED_PIN = 3;     // GPIO3 -> IR transmitter module DAT
 const int      STATUS_LED = 8;     // onboard blue LED, active LOW
 const int      POLL_MS    = 1000;
 
+// --- IR transmitter module quirks --------------------------------------------
+// 3-pin IR transmitter modules come in two flavors:
+//
+//   A) "Smart" / "active" modules (KY-005 etc.) — have an onboard 38 kHz
+//      oscillator + driver transistor. You feed them a logic-level signal
+//      (HIGH = pulse the LED at 38 kHz, LOW = LED off). Most 3-pin "combo
+//      kits" sold with a receiver are this kind.
+//      ==> LIBRARY_MODULATION must be FALSE (otherwise the library's 38 kHz
+//          and the module's 38 kHz fight each other and the AC sees garbage).
+//
+//   B) "Dumb" / "passive" modules — just an IR LED with a current-limit
+//      resistor on a breakout. You have to generate the 38 kHz carrier
+//      yourself.
+//      ==> LIBRARY_MODULATION must be TRUE.
+//
+// Symptom of getting this wrong: the IR LED visibly blinks on every send
+// (because some signal IS coming out) but the AC ignores it. That's exactly
+// what we're seeing — flipping this to false is the most likely fix.
+//
+// If you switch this and the AC still ignores, try LIBRARY_INVERT = true
+// (some modules treat LOW input as "LED on" instead of HIGH).
+const bool LIBRARY_MODULATION = false;
+const bool LIBRARY_INVERT     = false;
+
 // --- AC controller (library) -------------------------------------------------
-IRTcl112Ac ac(IR_LED_PIN);
+IRTcl112Ac ac(IR_LED_PIN, LIBRARY_INVERT, LIBRARY_MODULATION);
 
 // --- Optional preamble pass --------------------------------------------------
 // The real remote sends a Type-2 preamble frame before the Type-1 state frame.
@@ -133,11 +157,26 @@ void sendIR() {
   sendCount++;
   digitalWrite(STATUS_LED, HIGH);
 
-  Serial.printf("IR %s -> %u ms (#%u) | state: %s\n",
+  Serial.printf("IR %s -> %u ms (#%u)\n",
                 lastCmd.c_str(),
                 (unsigned)lastDurationMs,
-                (unsigned)sendCount,
-                ac.toString().c_str());
+                (unsigned)sendCount);
+
+  // Dump the exact 14 bytes we just transmitted. Compare these to the Frame-2
+  // bytes from the sniff log — they should match for the same command:
+  //   power_on  expected: 23 CB 26 01 00 24 03 07 05 00 00 00 88 D0
+  //   temp_up   expected: 23 CB 26 01 00 24 03 06 05 00 00 00 88 CF  (temp 25)
+  //   swing on  expected: 23 CB 26 01 00 24 03 07 3D 00 00 00 88 08
+  Serial.print("  bytes : ");
+  uint8_t* raw = ac.getRaw();
+  for (uint16_t i = 0; i < kTcl112AcStateLength; i++) {
+    if (raw[i] < 0x10) Serial.print('0');
+    Serial.print(raw[i], HEX);
+    Serial.print(' ');
+  }
+  Serial.println();
+  Serial.print("  decode: ");
+  Serial.println(ac.toString());
 }
 
 bool sendCommand(const String& cmd) {
