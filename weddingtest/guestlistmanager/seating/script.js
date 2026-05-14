@@ -384,18 +384,11 @@ function renderGroups() {
     const card = document.createElement("div");
     card.className = "group-card";
     card.dataset.groupId = grp.id;
-    // Count only counted (non-lap) members toward capacity.
-    const lapCount = grp.memberIds.reduce((n, id) => {
-      const g = allGuests.find((x) => x.id === id);
-      return n + (g && g.noCount ? 1 : 0);
-    }, 0);
-    const countedTotal =
-      grp.memberIds.length - lapCount + (grp.memberMissing?.length || 0);
+    const total = grp.memberIds.length + (grp.memberMissing?.length || 0);
     const cap = grp.capacity || DEFAULT_CAPACITY;
-    const over = countedTotal > cap;
-    const full = countedTotal === cap;
+    const over = total > cap;
+    const full = total === cap;
     const countClass = over ? "over" : full ? "full" : "";
-    const lapSuffix = lapCount > 0 ? ` +${lapCount} lap` : "";
     card.innerHTML = `
       <div class="group-header">
         <input class="group-name" value="${escapeHtml(
@@ -404,7 +397,7 @@ function renderGroups() {
         <div class="group-meta">
           <span class="group-count ${countClass}" data-edit-capacity data-group-id="${
       grp.id
-    }" title="Click to change capacity. Lap children don't count toward pax.">${countedTotal} / ${cap} pax${lapSuffix}</span>
+    }" title="Click to change capacity">${total} / ${cap} pax</span>
           <span class="material-icons-outlined group-delete" data-group-id="${
             grp.id
           }" title="Delete group">delete_outline</span>
