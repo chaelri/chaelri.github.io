@@ -95,8 +95,17 @@ const int      POLL_MS    = 1000;
 //
 // If you switch this and the AC still ignores, try LIBRARY_INVERT = true
 // (some modules treat LOW input as "LED on" instead of HIGH).
-const bool LIBRARY_MODULATION = false;
+// Loopback test confirmed: module is the "dumb" type (no internal carrier),
+// so the library MUST modulate at 38 kHz. INVERT doesn't matter for this
+// module — leaving it false.
+const bool LIBRARY_MODULATION = true;
 const bool LIBRARY_INVERT     = false;
+
+// Per-command IR send repeats. The bare-LED transmitter is jittery — only
+// ~1 in 5 frames decodes cleanly on a same-kit receiver. Sending several
+// repeats per press gives the AC multiple chances to catch one clean frame.
+// 5 repeats == 6 transmissions total per command, ~1 s in the air.
+const uint16_t IR_REPEATS = 5;
 
 // --- AC controller (library) -------------------------------------------------
 IRTcl112Ac ac(IR_LED_PIN, LIBRARY_INVERT, LIBRARY_MODULATION);
@@ -112,7 +121,7 @@ IRsend rawIrsend(IR_LED_PIN, LIBRARY_INVERT, LIBRARY_MODULATION);
 // turns the AC on, this should too. If it doesn't, the problem is in the IR
 // transmitter hardware path (module type, polarity, LED strength, distance,
 // aim) — no firmware change will fix it.
-const bool TEST_RAW_REPLAY_POWER_ON = true;
+const bool TEST_RAW_REPLAY_POWER_ON = false;
 
 // Frame 1 of POWER ON (Type-2 preamble, captured 2026-05-15)
 const uint16_t POWER_ON_F1[] = {
@@ -184,19 +193,23 @@ String    lastCmd         = "";
 uint32_t  lastDurationMs  = 0;
 uint32_t  sendCount       = 0;
 
-// --- Defaults applied at boot (chosen to match the captured POWER-ON state) -
+// --- Defaults applied at boot ----------------------------------------------
+// We load the captured POWER_ON state byte-for-byte via setRaw rather than
+// using the library's setMode/setTemp/setFan/etc. setters. Reason: those
+// setters leave stale bits from the library's reset defaults (byte[8] had
+// 0x40 from SwingV's Middle default, byte[12] missed the 0x88 Light flag).
+// Going raw guarantees the encoded frame matches the sniffed Frame-2 to
+// the bit. From this baseline, the library's incremental setters
+// (setTemp, setSwingVertical, on/off) work fine — they only touch one or
+// two specific bits, so the rest of our hand-loaded state survives.
+const uint8_t POWER_ON_STATE[kTcl112AcStateLength] = {
+  0x23, 0xCB, 0x26, 0x01, 0x00, 0x24, 0x03, 0x07,
+  0x05, 0x00, 0x00, 0x00, 0x88, 0xD0
+};
+
 void setupAcDefaults() {
-  ac.setMode(kTcl112AcCool);
-  ac.setTemp(24);                  // °C
-  ac.setFan(kTcl112AcFanHigh);     // matches captured Fan: 5 (High)
-  ac.setSwingVertical(false);      // 0 (Auto)
-  ac.setSwingHorizontal(true);     // matches captured Swing(H): On
-  ac.setLight(true);               // matches captured Light: On
-  ac.setEcono(false);
-  ac.setHealth(false);
-  ac.setTurbo(false);
-  ac.setQuiet(false);
-  ac.off();                         // start powered off; phone explicitly turns on
+  ac.setRaw(POWER_ON_STATE, kTcl112AcStateLength);
+  ac.off();   // we want to boot powered-off — phone explicitly sends power_on
 }
 
 // --- Send the current AC state out the IR LED -------------------------------
@@ -217,7 +230,7 @@ void sendIR() {
     ac.setRaw(savedState, kTcl112AcStateLength);
   }
 
-  ac.send();   // default repeat sends one state frame, then a second copy
+  ac.send(IR_REPEATS);   // many repeats — see comment on IR_REPEATS
 
   lastDurationMs = millis() - t0;
   sendCount++;
