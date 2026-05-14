@@ -247,10 +247,18 @@ void pollCommand() {
   if (body.length() <= 4 || body == "null" || body == "\"\"") return;
 
   String txId = extractStr(body, "txId");
-  if (txId.length() == 0) return;
+  if (txId.length() == 0) {
+    clearCommand();   // malformed command — clear it so we don't loop
+    return;
+  }
+
+  // CLEAR THE COMMAND BEFORE EXECUTING. If executeReplay crashes mid-HTTP
+  // or the txId points to a deleted capture, the next poll must see an
+  // empty command — otherwise the firmware retries forever and never gets
+  // to service new IR captures.
+  clearCommand();
 
   executeReplay(txId);
-  clearCommand();
   publishState();
 }
 
