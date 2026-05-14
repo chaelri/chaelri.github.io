@@ -105,14 +105,30 @@ const bool LIBRARY_MODULATION = true;
 const bool LIBRARY_INVERT     = false;
 
 // Per-command IR pair repeats. A "pair" is one preamble + one state frame,
-// matching exactly what the real TCL remote sends for one button press. We
-// send the pair multiple times per command so a jittery frame still gets a
-// retry, but each retry starts with a fresh preamble — the AC always sees
-// "preamble → state → quiet" sequences like it does from the real remote,
-// not "preamble → state → state → state ..." which seems to confuse it.
+// matching exactly what the real TCL remote sends for one button press.
 const uint16_t IR_PAIR_REPEATS = 3;
 const uint16_t IR_PREAMBLE_TO_STATE_GAP_MS = 25;  // gap inside one pair
 const uint16_t IR_PAIR_TO_PAIR_GAP_MS = 150;       // gap between pairs
+
+// --- Manual 38 kHz carrier via LEDC (33% duty) ------------------------------
+// The IRremoteESP8266 library hardcodes a 50% carrier duty cycle. Real TCL
+// remotes use ~33% duty, and the AC's TSOP1838-class IR receiver has a
+// strict bandpass filter that rejects 50% as "not a remote signal" — even
+// at point-blank distance, no beep, nothing. So we abandon the library's
+// transmitter path entirely and bit-bang the carrier ourselves via ESP32-C3
+// LEDC PWM at exactly 33% duty, then use delayMicroseconds for the
+// mark/space envelope.
+//
+// (Library is still used as a state-bytes buffer — setMode/setTemp/setRaw
+// keep the 14 state bytes coherent and recompute the checksum.)
+//
+// LEDC API note: this uses the Arduino-ESP32 v2.x channel-based API. On
+// v3.0+ replace ledcSetup+ledcAttachPin with the new ledcAttach(pin, freq,
+// res) call.
+const uint8_t  LEDC_CH        = 0;
+const uint32_t LEDC_FREQ_HZ   = 38000;
+const uint8_t  LEDC_RES_BITS  = 8;
+const uint8_t  LEDC_DUTY_ON   = 85;   // 85/255 = 33.3% — matches real TCL remote
 
 // --- Self-verify (RX listens to our own TX) ---------------------------------
 // When true and an IR receiver is wired to RX_VERIFY_PIN, the firmware polls
@@ -270,23 +286,52 @@ void setupAcDefaults() {
   }
 }
 
+// --- Manual carrier + TCL112AC frame transmit -------------------------------
+void setupManualCarrier() {
+  ledcSetup(LEDC_CH, LEDC_FREQ_HZ, LEDC_RES_BITS);
+  ledcAttachPin(IR_LED_PIN, LEDC_CH);
+  ledcWrite(LEDC_CH, 0);   // start with carrier off
+}
+
+inline void mMark(uint32_t us) {
+  ledcWrite(LEDC_CH, LEDC_DUTY_ON);
+  delayMicroseconds(us);
+}
+
+inline void mSpace(uint32_t us) {
+  ledcWrite(LEDC_CH, 0);
+  delayMicroseconds(us);
+}
+
+// Send one TCL112AC frame (14 bytes) byte-for-byte, LSB first within each
+// byte, at the standard TCL112AC mark/space timings.
+void manualSendFrame(const uint8_t* data, size_t bytes) {
+  mMark(3000);
+  mSpace(1650);
+  for (size_t i = 0; i < bytes; i++) {
+    for (uint8_t b = 0; b < 8; b++) {
+      mMark(500);
+      mSpace((data[i] >> b) & 1 ? 1052 : 325);
+    }
+  }
+  mMark(500);
+  ledcWrite(LEDC_CH, 0);   // carrier explicitly OFF at end of frame
+}
+
 // --- Send the current AC state out the IR LED -------------------------------
 void sendIR() {
   digitalWrite(STATUS_LED, LOW);
   uint32_t t0 = millis();
 
-  // Each iteration mimics one button press on the real remote: preamble
-  // frame, short gap, state frame, then a longer quiet before the next
-  // "press". Doing this N times gives the AC several independent chances
-  // to catch a clean pair while NEVER stacking state frames without a
-  // preceding preamble (which is what previous runs were doing).
+  uint8_t* stateBytes = ac.getRaw();   // forces checksum recalc
+
   for (uint16_t i = 0; i < IR_PAIR_REPEATS; i++) {
     if (i > 0) delay(IR_PAIR_TO_PAIR_GAP_MS);
     if (SEND_PREAMBLE) {
-      rawIrsend.sendTcl112Ac(kTclPreamble, kTcl112AcStateLength, /*repeat=*/0);
+      manualSendFrame(kTclPreamble, kTcl112AcStateLength);
       delay(IR_PREAMBLE_TO_STATE_GAP_MS);
     }
-    ac.send(/*repeat=*/0);
+    manualSendFrame(stateBytes, kTcl112AcStateLength);
   }
 
   lastDurationMs = millis() - t0;
@@ -564,8 +609,11 @@ bool tryStation() {
 void setup() {
   Serial.begin(115200);
 
-  ac.begin();
-  rawIrsend.begin();
+  // Skip ac.begin()/rawIrsend.begin() — we don't use the library's transmit
+  // path. The IRTcl112Ac instance is only used as a state-bytes buffer
+  // (setRaw / setMode / setTemp / getRaw); the actual IR carrier is driven
+  // by our own LEDC PWM at 33% duty.
+  setupManualCarrier();
   setupAcDefaults();
 
   if (RX_VERIFY) {
