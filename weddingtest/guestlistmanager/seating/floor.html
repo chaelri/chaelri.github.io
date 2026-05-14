@@ -18,31 +18,58 @@
   </head>
   <body class="floor-fullscreen">
     <div class="floor-page">
-      <div class="floor-titlebar">Floor View</div>
       <div class="floor-toolbar">
+        <button id="toolbarToggleBtn" class="floor-toolbar-icon" title="Toggle toolbar">
+          <span class="material-icons-outlined">more_horiz</span>
+        </button>
         <span id="syncStatus">Connecting…</span>
+        <div class="floor-toolbar-search">
+          <span class="material-icons-outlined">search</span>
+          <input id="searchInput" type="text" placeholder="Search guests…" autocomplete="off" />
+        </div>
+        <button id="zoomOutBtn" title="Zoom out" class="floor-toolbar-icon">
+          <span class="material-icons-outlined">remove</span>
+        </button>
+        <span id="zoomLabel" class="floor-toolbar-zoom">100%</span>
+        <button id="zoomInBtn" title="Zoom in" class="floor-toolbar-icon">
+          <span class="material-icons-outlined">add</span>
+        </button>
+        <button id="toggleViewBtn" title="View-only mode (hide chairs, click table to see seat list)">View</button>
+        <button id="toggleSidesBtn" title="Show / hide side indicators (C / K / CK)">Sides</button>
         <button id="togglePoolBtn" title="Show / hide unassigned guests">Pool</button>
         <a href="./index.html">← Arranger</a>
       </div>
 
+      <aside id="pool" class="floor-pool">
+        <div class="floor-pool-header">
+          <div class="floor-pool-headline">
+            <span class="floor-pool-eyebrow">Floor View</span>
+            <span class="floor-pool-title">Unassigned</span>
+          </div>
+          <span class="floor-pool-count" id="poolCount">0</span>
+          <button id="poolCollapseBtn" class="floor-pool-collapse" title="Collapse panel">
+            <span class="material-icons-outlined">chevron_left</span>
+          </button>
+        </div>
+        <div class="floor-pool-hint">Drag a name onto any chair to seat them</div>
+        <div id="poolChips" class="floor-pool-chips"></div>
+      </aside>
+
       <div id="canvas" class="floor-canvas">
-        <div class="floor-canvas-inner">
-          <div id="stage" class="floor-stage">
-            <span class="material-icons-outlined" style="font-size: 16px">arrow_upward</span>
-            <span>STAGE</span>
+        <div id="canvasSizer" class="floor-canvas-sizer">
+          <div class="floor-canvas-inner">
+            <div id="stage" class="floor-stage">
+              <span class="material-icons-outlined" style="font-size: 16px">arrow_upward</span>
+              <span>STAGE</span>
+            </div>
           </div>
         </div>
       </div>
 
-      <div id="pool" class="floor-pool">
-        <div class="floor-pool-header" id="poolHeader">
-          <span class="floor-pool-title">Unassigned</span>
-          <span class="floor-pool-count" id="poolCount">0</span>
-          <span class="floor-pool-hint hidden md:inline">Drag a name onto any chair to seat them</span>
-          <span style="flex: 1"></span>
-          <span id="poolCaret" class="material-icons-outlined floor-pool-caret">expand_more</span>
-        </div>
-        <div id="poolChips" class="floor-pool-chips"></div>
+      <div id="pickBanner" class="floor-pick-banner hidden">
+        <span class="material-icons-outlined">touch_app</span>
+        <span>Moving <strong class="pick-name"></strong> — click a new seat or table</span>
+        <button id="pickCancelBtn" class="pick-cancel">Cancel</button>
       </div>
 
       <div
