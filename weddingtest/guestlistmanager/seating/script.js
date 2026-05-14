@@ -24,7 +24,12 @@ const db = getDatabase(app);
 // ---------- State ----------
 let allGuests = [];
 let groups = [];
-const STORAGE_KEY = "ck_seating_groups_v2"; // kept only as a local cache
+// Two keys on purpose:
+// - STORAGE_KEY: the pre-Firebase snapshot from each browser. NEVER overwritten
+//   by the current code. Used as a last-resort recovery source.
+// - CACHE_KEY: the live cache that mirrors Firebase. Written on every save.
+const STORAGE_KEY = "ck_seating_groups_v2";
+const CACHE_KEY = "ck_seating_cache";
 const DEFAULT_CAPACITY = 10;
 let pickedChipEl = null;
 
@@ -98,37 +103,38 @@ function tryHydrate() {
 }
 
 function loadGroups() {
-  // Priority: Firebase > localStorage cache > empty. There is NO hardcoded seed.
-  // Firebase is the source of truth across devices.
+  // Priority: Firebase > CACHE_KEY (live cache) > STORAGE_KEY (pre-migration
+  // backup) > empty. The pre-Firebase STORAGE_KEY is NEVER overwritten by
+  // this code path, so it remains a safety net.
   if (
     latestSeatingFromFirebase &&
     Array.isArray(latestSeatingFromFirebase.groups) &&
     latestSeatingFromFirebase.groups.length > 0
   ) {
     groups = normalizeGroups(latestSeatingFromFirebase.groups);
-    localStorage.setItem(STORAGE_KEY, JSON.stringify(groups));
+    localStorage.setItem(CACHE_KEY, JSON.stringify(groups)); // cache only
     reResolveMissing();
     setSyncStatus("Synced");
     return;
   }
 
-  // Firebase empty → one-time migration from localStorage to Firebase so any
-  // pre-Firebase work is preserved across devices.
-  const saved = localStorage.getItem(STORAGE_KEY);
-  if (saved) {
+  // Firebase empty → try local backups in order: cache, then pre-migration.
+  for (const key of [CACHE_KEY, STORAGE_KEY]) {
+    const saved = localStorage.getItem(key);
+    if (!saved) continue;
     try {
       const parsed = JSON.parse(saved);
       if (Array.isArray(parsed) && parsed.length > 0) {
         groups = normalizeGroups(parsed);
         reResolveMissing();
         console.log(
-          `[seating] Migrating ${groups.length} tables from localStorage → Firebase`
+          `[seating] Restored ${groups.length} tables from local '${key}' → pushing to Firebase`
         );
         pushToFirebase();
         return;
       }
     } catch (e) {
-      console.warn("Saved groups corrupt, starting empty", e);
+      console.warn(`Saved '${key}' corrupt, skipping`, e);
     }
   }
 
@@ -186,8 +192,8 @@ function reResolveMissing() {
 }
 
 function persist() {
-  localStorage.setItem(STORAGE_KEY, JSON.stringify(groups));
-  // Debounce Firebase writes so rapid drag-drops collapse into one round trip.
+  // Write to live CACHE only — pre-migration STORAGE_KEY stays frozen as backup.
+  localStorage.setItem(CACHE_KEY, JSON.stringify(groups));
   setSyncStatus("Saving…");
   if (pendingWriteTimer) clearTimeout(pendingWriteTimer);
   pendingWriteTimer = setTimeout(pushToFirebase, 250);
@@ -505,6 +511,81 @@ document.getElementById("searchInput").addEventListener("input", renderPool);
 document.getElementById("filterSide").addEventListener("change", renderPool);
 document.getElementById("filterStatus").addEventListener("change", renderPool);
 document.getElementById("clearPickBtn").addEventListener("click", clearPick);
+
+document.getElementById("backupBtn").addEventListener("click", () => {
+  const summarize = (raw, label) => {
+    if (!raw) return `• ${label}: (none)`;
+    try {
+      const parsed = JSON.parse(raw);
+      if (!Array.isArray(parsed) || !parsed.length)
+        return `• ${label}: (empty)`;
+      const totalMembers = parsed.reduce(
+        (n, g) =>
+          n +
+          (Array.isArray(g.memberIds) ? g.memberIds.length : 0) +
+          (Array.isArray(g.memberMissing) ? g.memberMissing.length : 0),
+        0
+      );
+      return `• ${label}: ${parsed.length} tables, ${totalMembers} members`;
+    } catch {
+      return `• ${label}: (corrupt)`;
+    }
+  };
+
+  const v2Raw = localStorage.getItem(STORAGE_KEY);
+  const cacheRaw = localStorage.getItem(CACHE_KEY);
+  const liveCount = groups.length;
+  const liveMembers = groups.reduce(
+    (n, g) =>
+      n +
+      g.memberIds.length +
+      (Array.isArray(g.memberMissing) ? g.memberMissing.length : 0),
+    0
+  );
+
+  const message = [
+    "LOCAL BACKUPS ON THIS DEVICE:",
+    summarize(v2Raw, "Pre-Firebase (v2)"),
+    summarize(cacheRaw, "Live cache"),
+    "",
+    `CURRENT FIREBASE: ${liveCount} tables, ${liveMembers} members`,
+    "",
+    "Which backup do you want to restore?",
+    "  - OK  → push the pre-Firebase v2 backup to Firebase",
+    "  - Cancel → do nothing",
+    "",
+    "This will OVERWRITE the current Firebase data.",
+  ].join("\n");
+
+  if (!v2Raw) {
+    alert(
+      "No pre-Firebase backup found on this device.\n\n" +
+        `Current Firebase: ${liveCount} tables, ${liveMembers} members.\n` +
+        "Live cache: " +
+        summarize(cacheRaw, "").replace("• : ", "") +
+        "\n\nIf you expected to see a backup, check that you're on the same browser where you originally edited."
+    );
+    return;
+  }
+
+  if (!confirm(message)) return;
+
+  try {
+    const parsed = JSON.parse(v2Raw);
+    if (!Array.isArray(parsed) || !parsed.length) {
+      alert("Backup is empty — nothing to restore.");
+      return;
+    }
+    groups = normalizeGroups(parsed);
+    reResolveMissing();
+    pushToFirebase();
+    render();
+    toast("Backup restored → Firebase");
+  } catch (e) {
+    alert("Backup is corrupt and can't be parsed.");
+    console.error(e);
+  }
+});
 
 document.getElementById("addGroupBtn").addEventListener("click", () => {
   const id = "g_" + Date.now();
