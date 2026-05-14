@@ -76,9 +76,9 @@
 const uint16_t kRecvPin            = 2;     // GPIO2 -> IR receiver OUT
 const uint32_t kBaudRate           = 115200;
 const uint16_t kCaptureBufferSize  = 1024;  // entries; TCL frames are ~230
-const uint8_t  kTimeoutMs          = 15;    // ms idle = end-of-frame (per-frame, not per-press)
+const uint8_t  kTimeout          = 15;    // ms idle = end-of-frame (per-frame, not per-press)
 const uint16_t kMinUnknownSize     = 12;    // ignore noise shorter than this
-const uint8_t  kTolerancePercent   = kTolerance;  // library default (~25%)
+const uint8_t  kTolerancePercentage   = kTolerance;  // library default (~25%)
 const uint32_t kPressGapMs         = 200;   // ms idle = new press (frames are <50 ms apart)
 
 // --- Sequence config (5 buttons × 3 presses × 2 frames = 30 captures) -------
@@ -86,7 +86,7 @@ const char* kButtons[]      = { "POWER ON", "POWER OFF", "TEMP +1", "TEMP -1", "
 const uint8_t kButtonCount  = sizeof(kButtons) / sizeof(kButtons[0]);
 const uint8_t kPressesPerBtn = 3;
 
-IRrecv irrecv(kRecvPin, kCaptureBufferSize, kTimeoutMs, /*save_buffer=*/true);
+IRrecv irrecv(kRecvPin, kCaptureBufferSize, kTimeout, /*save_buffer=*/true);
 decode_results results;
 
 uint32_t lastCaptureMs = 0;
@@ -123,7 +123,7 @@ void setup() {
   delay(500);
 
   irrecv.setUnknownThreshold(kMinUnknownSize);
-  irrecv.setTolerance(kTolerancePercent);
+  irrecv.setTolerance(kTolerancePercentage);
   irrecv.enableIRIn();
 
   printBanner();
