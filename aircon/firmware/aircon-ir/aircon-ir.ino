@@ -122,10 +122,7 @@ const uint16_t IR_PAIR_TO_PAIR_GAP_MS = 150;       // gap between pairs
 // (Library is still used as a state-bytes buffer — setMode/setTemp/setRaw
 // keep the 14 state bytes coherent and recompute the checksum.)
 //
-// LEDC API note: this uses the Arduino-ESP32 v2.x channel-based API. On
-// v3.0+ replace ledcSetup+ledcAttachPin with the new ledcAttach(pin, freq,
-// res) call.
-const uint8_t  LEDC_CH        = 0;
+// LEDC API: this uses Arduino-ESP32 v3.x (ledcAttach + ledcWrite(pin, duty)).
 const uint32_t LEDC_FREQ_HZ   = 38000;
 const uint8_t  LEDC_RES_BITS  = 8;
 const uint8_t  LEDC_DUTY_ON   = 85;   // 85/255 = 33.3% — matches real TCL remote
@@ -288,18 +285,17 @@ void setupAcDefaults() {
 
 // --- Manual carrier + TCL112AC frame transmit -------------------------------
 void setupManualCarrier() {
-  ledcSetup(LEDC_CH, LEDC_FREQ_HZ, LEDC_RES_BITS);
-  ledcAttachPin(IR_LED_PIN, LEDC_CH);
-  ledcWrite(LEDC_CH, 0);   // start with carrier off
+  ledcAttach(IR_LED_PIN, LEDC_FREQ_HZ, LEDC_RES_BITS);
+  ledcWrite(IR_LED_PIN, 0);   // start with carrier off
 }
 
 inline void mMark(uint32_t us) {
-  ledcWrite(LEDC_CH, LEDC_DUTY_ON);
+  ledcWrite(IR_LED_PIN, LEDC_DUTY_ON);
   delayMicroseconds(us);
 }
 
 inline void mSpace(uint32_t us) {
-  ledcWrite(LEDC_CH, 0);
+  ledcWrite(IR_LED_PIN, 0);
   delayMicroseconds(us);
 }
 
@@ -315,7 +311,7 @@ void manualSendFrame(const uint8_t* data, size_t bytes) {
     }
   }
   mMark(500);
-  ledcWrite(LEDC_CH, 0);   // carrier explicitly OFF at end of frame
+  ledcWrite(IR_LED_PIN, 0);   // carrier explicitly OFF at end of frame
 }
 
 // --- Send the current AC state out the IR LED -------------------------------
