@@ -1,43 +1,48 @@
 // ===========================================================================
 // aircon-ir.ino — ESP32-C3 SuperMini firmware for the IR-LED aircon remote.
-//                 RAW-TIMING REPLAY version (no protocol encoder).
+//                 LIBRARY-ENCODED version (uses IRTcl112Ac).
 // ---------------------------------------------------------------------------
-// What this does:
-//   Drives an IR transmitter module (GND / VCC / DAT — the DAT pin gets
-//   modulated at 38 kHz by the IRremoteESP8266 library, the module has the
-//   carrier + current-limit resistor + LED on board) at Charlie's TCL
-//   TAC-09CSA/KEI aircon. Each command replays the two raw frames captured
-//   from the real remote (state frame + button-code frame), byte-for-byte.
+// Why this isn't raw-replay anymore:
+//   The first round of "raw timing" captures came from a cheap receiver that
+//   truncated the second frame of each press. The library couldn't decode
+//   them (they showed up as UNKNOWN at 107–110 bits instead of the proper
+//   TCL112AC at 112 bits). Replaying those corrupt frames at the AC produced
+//   nothing useful.
 //
-//   Why raw instead of IRTcl112Ac.send():
-//     - Frame 1 is standard TCL112AC and the library encodes it correctly.
-//     - Frame 2 is an UNKNOWN protocol the library can't decode/encode. The
-//       AC needs BOTH frames to obey a button. So we replay both verbatim.
+//   The re-sniff with a better receiver showed the real protocol:
+//     * Frame 1 = a constant Type-2 preamble — same for every button press,
+//                 carries no state.
+//     * Frame 2 = a Type-1 state frame — carries the full new AC state
+//                 (Power, Mode, Temp, Fan, Swing, etc.).
 //
-// Five commands, mapped to the captured presses from tsop-decoder.ino:
-//   power_on   = Press #1   (POWER ON)
-//   power_off  = Press #16  (POWER OFF)
-//   temp_up    = Press #7   (TEMP +1)
-//   temp_down  = Press #8   (TEMP -1)
-//   swing      = Press #13  (SWING vertical)
+//   The IRTcl112Ac library encodes a clean Type-1 state frame natively.
+//   Every command mutates the library's internal state and calls send().
+//   No raw arrays, no preamble — just a clean 112-bit TCL112AC frame.
 //
-// THREE WAYS TO TRIGGER (each one ends in the same sendCommand() path):
-//   1. Phone remote (online)     -> writes {"cmd":"power_on"} to RTDB at
-//                                   /aircon/ir/command. Firmware polls 1 Hz.
-//   2. Local web UI (online)     -> any device on the same WiFi opens
-//                                   http://<esp32-ip>/ — 5 buttons.
-//   3. SoftAP fallback (offline) -> if no known WiFi joins within 15 s, the
-//                                   ESP32 broadcasts "Aircon-IR-AP".
+//   If for some reason this AC needs the preamble first, flip SEND_PREAMBLE
+//   to true below and we'll send the captured preamble bytes ahead of the
+//   state frame.
 //
-// Wiring (IR transmitter module — 3 pins, GND / VCC / DAT):
+// FIVE COMMANDS (same RTDB schema as before — phone-ir/ remote works as-is):
+//   {"cmd":"power_on"}   -> ac.on()
+//   {"cmd":"power_off"}  -> ac.off()
+//   {"cmd":"temp_up"}    -> ac.setTemp(ac.getTemp() + 1)
+//   {"cmd":"temp_down"}  -> ac.setTemp(ac.getTemp() - 1)
+//   {"cmd":"swing"}      -> ac.setSwingVertical(!ac.getSwingVertical())
+//
+// THREE WAYS TO TRIGGER (each one ends in sendCommand()):
+//   1. Phone remote  -> /aircon/ir/command on RTDB, polled at 1 Hz
+//   2. Local web UI  -> http://<esp32-ip>/  five buttons
+//   3. SoftAP fallback "Aircon-IR-AP" if no known WiFi within 15 s
+//
+// Wiring (3-pin IR transmitter module):
 //   ESP32 5V    -> module VCC
 //   ESP32 GND   -> module GND
-//   ESP32 GPIO3 -> module DAT  (carrier-modulated signal)
+//   ESP32 GPIO3 -> module DAT
 //
-// Library: IRremoteESP8266 by David Conran et al (Arduino IDE Library Manager).
-//
-// Board: "ESP32C3 Dev Module"   USB CDC On Boot: Enabled
-// Baud:  115200
+// Library: IRremoteESP8266 by David Conran et al. (Arduino IDE Library Manager).
+// Board:   "ESP32C3 Dev Module"   USB CDC On Boot: Enabled
+// Baud:    115200
 // ===========================================================================
 
 #include <WiFi.h>
@@ -46,6 +51,7 @@
 #include <WebServer.h>
 #include <IRremoteESP8266.h>
 #include <IRsend.h>
+#include <ir_Tcl.h>
 
 // --- WiFi --------------------------------------------------------------------
 WiFiMulti wifiMulti;
@@ -64,323 +70,106 @@ const char* STATE_URL =
   "/aircon/ir/state.json";
 
 // --- Pins / timing -----------------------------------------------------------
-const uint16_t IR_LED_PIN  = 3;     // GPIO3 -> module DAT
-const int      STATUS_LED  = 8;     // onboard blue LED, active LOW
-const int      POLL_MS     = 1000;
-const uint16_t IR_CARRIER  = 38;    // kHz
-const uint16_t FRAME_GAP_MS = 25;   // inter-frame gap between F1 and F2
+const uint16_t IR_LED_PIN = 3;     // GPIO3 -> IR transmitter module DAT
+const int      STATUS_LED = 8;     // onboard blue LED, active LOW
+const int      POLL_MS    = 1000;
 
-IRsend irsend(IR_LED_PIN);
+// --- AC controller (library) -------------------------------------------------
+IRTcl112Ac ac(IR_LED_PIN);
+
+// --- Optional preamble pass --------------------------------------------------
+// The real remote sends a Type-2 preamble frame before the Type-1 state frame.
+// Most TCL split-ACs obey the state frame alone, but if Charlie's TAC-09CSA/KEI
+// turns out to need the preamble, flip this to true and we'll send it first.
+const bool SEND_PREAMBLE = false;
+const uint8_t kTclPreamble[14] = {
+  0x23, 0xCB, 0x26, 0x02, 0x00, 0x40, 0x00,
+  0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x65
+};
+
+// --- Runtime state -----------------------------------------------------------
 WebServer server(80);
 bool      inSoftAP        = false;
 String    lastCmd         = "";
 uint32_t  lastDurationMs  = 0;
 uint32_t  sendCount       = 0;
 
-// ===========================================================================
-// === Captured raw IR timings (microseconds, alternating mark/space) ========
-// === All carriers are 38 kHz. Frame 1 = TCL112AC state. Frame 2 = button. ==
-// ===========================================================================
+// --- Defaults applied at boot (chosen to match the captured POWER-ON state) -
+void setupAcDefaults() {
+  ac.setMode(kTcl112AcCool);
+  ac.setTemp(24);                  // °C
+  ac.setFan(kTcl112AcFanHigh);     // matches captured Fan: 5 (High)
+  ac.setSwingVertical(false);      // 0 (Auto)
+  ac.setSwingHorizontal(true);     // matches captured Swing(H): On
+  ac.setLight(true);               // matches captured Light: On
+  ac.setEcono(false);
+  ac.setHealth(false);
+  ac.setTurbo(false);
+  ac.setQuiet(false);
+  ac.off();                         // start powered off; phone explicitly turns on
+}
 
-// --- POWER ON (Press #1) ---------------------------------------------------
-const uint16_t IR_POWER_ON_F1[] = {
-  3046, 1618,  462, 1120,  462, 1120,  460,  354,  462,  356,
-   460,  356,  460, 1120,  488,  330,  488,  328,  490, 1090,
-   492, 1090,  492,  326,  490, 1088,  518,  328,  464,  326,
-   490, 1088,  494, 1086,  494,  326,  490, 1088,  492, 1090,
-   490,  352,  462,  354,  460, 1120,  458,  358,  456,  360,
-   454,  364,  452, 1128,  452,  388,  426,  390,  426,  390,
-   426,  390,  426,  390,  426,  390,  426,  390,  426,  388,
-   426,  390,  426,  390,  426,  390,  426,  390,  426,  390,
-   426,  390,  426,  390,  426,  390,  432,  384,  426,  390,
-   426,  390,  426,  390,  426, 1130,  450,  366,  450,  388,
-   426,  366,  450,  366,  450,  366,  450,  366,  450,  390,
-   426,  390,  426,  390,  426,  366,  450,  390,  426,  366,
-   450,  390,  426,  390,  426,  390,  426,  390,  426,  390,
-   426,  390,  426,  388,  426,  390,  426,  390,  426,  390,
-   428,  388,  426,  390,  426,  390,  426,  388,  426,  390,
-   426,  390,  426,  390,  426,  390,  426,  390,  426,  388,
-   426,  390,  426,  390,  426,  390,  426,  390,  426,  390,
-   426,  390,  426,  390,  426,  390,  426,  390,  426,  390,
-   426,  390,  426,  390,  426,  390,  426,  390,  426,  390,
-   426,  390,  426,  390,  426,  390,  426,  390,  426,  390,
-   426,  390,  426,  390,  426,  390,  426,  390,  426,  390,
-   426, 1154,  426,  390,  426, 1130,  450,  364,  452,  364,
-   450, 1130,  452, 1128,  452,  364,  456
-};
-const uint16_t IR_POWER_ON_F2[] = {
-   388,  426, 1130,  450,  364,  452,  364,  450, 1130,  452,
-  1128,  452,  364,  452, 1128,  452,  390,  426,  388,  426,
-  1130,  452, 1128,  452,  364,  452, 1128,  452, 1128,  452,
-   388,  426,  390,  426, 1130,  450,  366,  450,  364,  452,
-  1128,  452,  364,  452,  364,  452,  364,  452,  364,  450,
-   364,  452,  364,  452,  364,  452,  364,  450,  364,  452,
-   364,  452,  364,  452,  364,  450,  364,  452,  364,  452,
-   364,  452,  364,  452,  364,  452, 1128,  452,  364,  452,
-   364,  452, 1128,  452,  388,  426,  390,  426, 1130,  450,
-   366,  450,  366,  450,  364,  450,  366,  450,  366,  450,
-   364,  450,  366,  450, 1130,  450, 1128,  452, 1128,  452,
-   364,  452,  364,  452,  364,  452,  364,  450,  364,  452,
-  1128,  452, 1128,  452,  364,  452, 1128,  452, 1128,  452,
-  1128,  452,  364,  452,  364,  450,  364,  452,  364,  452,
-   364,  452,  364,  452,  364,  452,  364,  450,  364,  452,
-   364,  452,  364,  452,  364,  452,  364,  452,  364,  450,
-   364,  452,  364,  452,  364,  450,  364,  452,  364,  450,
-   364,  452,  364,  452,  364,  450,  364,  452,  364,  450,
-   364,  452,  364,  452,  364,  450,  364,  452,  364,  450,
-   366,  450,  364,  452,  364,  450,  364,  450,  366,  450,
-   364,  452,  364,  450, 1130,  450, 1128,  452, 1128,  452,
-  1128,  452, 1128,  452,  388,  426
-};
-
-// --- POWER OFF (Press #16) -------------------------------------------------
-const uint16_t IR_POWER_OFF_F1[] = {
-  3044, 1618,  462, 1118,  462, 1120,  462,  356,  460,  356,
-   460,  356,  462, 1118,  462,  354,  462,  354,  460, 1118,
-   462, 1118,  462,  354,  462, 1116,  464,  382,  434,  382,
-   488, 1064,  492, 1088,  492,  326,  488, 1090,  490, 1090,
-   490,  352,  462,  354,  460, 1120,  460,  358,  456,  360,
-   454,  364,  452, 1130,  450,  368,  448,  366,  450,  366,
-   450,  366,  450,  366,  450,  366,  450,  366,  450,  366,
-   450,  366,  450,  366,  450,  366,  450,  366,  450,  366,
-   450,  366,  450,  366,  450,  366,  450,  366,  450,  366,
-   450,  390,  426,  366,  450,  366,  450,  390,  426, 1130,
-   450,  366,  450,  366,  450,  366,  450,  366,  450,  366,
-   450,  366,  450,  364,  450,  366,  450,  366,  450,  366,
-   450,  366,  450,  366,  450,  366,  450,  366,  450,  366,
-   450,  366,  450,  366,  450,  366,  450,  366,  450,  366,
-   450,  366,  450,  366,  450,  366,  450,  366,  450,  366,
-   450,  366,  450,  366,  450,  366,  450,  366,  450,  366,
-   450,  366,  450,  366,  450,  366,  450,  366,  450,  366,
-   450,  366,  450,  366,  450,  366,  450,  366,  450,  366,
-   450,  366,  450,  366,  450,  366,  450,  366,  450,  390,
-   426,  366,  450,  366,  450,  390,  426,  390,  426,  366,
-   450,  366,  450,  390,  426,  366,  450,  390,  426,  390,
-   426,  390,  426,  390,  426,  390,  426,  366,  450, 1132,
-   450,  366,  450, 1130,  452,  364,  452,  364,  450, 1130,
-   452, 1128,  452,  366,  450
-};
-const uint16_t IR_POWER_OFF_F2[] = {
-  1128,  450,  366,  450,  366,  450, 1130,  450, 1130,  452,
-   364,  450, 1130,  452,  366,  450,  390,  426, 1130,  450,
-  1130,  452,  364,  452, 1128,  452, 1130,  450,  364,  452,
-   366,  450, 1128,  452,  366,  450,  366,  450, 1130,  452,
-   364,  452,  364,  452,  364,  450,  366,  450,  366,  450,
-   364,  452,  364,  452,  364,  450,  366,  450,  366,  450,
-   366,  450,  364,  450,  366,  450,  364,  452,  364,  450,
-   366,  450,  366,  450,  366,  450,  364,  450,  366,  450,
-  1130,  450,  364,  452,  364,  452, 1128,  452,  366,  450,
-   366,  450,  366,  450,  366,  450,  366,  450,  366,  450,
-   366,  450,  366,  450,  366,  450,  366,  450,  366,  450,
-  1130,  450,  366,  450,  366,  450,  364,  452,  364,  450,
-  1130,  450, 1130,  452,  364,  450,  366,  450,  390,  426,
-   390,  426,  390,  426,  390,  426,  366,  450,  390,  426,
-   390,  426,  390,  426,  390,  426,  390,  426,  390,  426,
-   390,  426,  390,  426,  390,  426,  390,  426,  390,  426,
-   390,  426,  390,  426,  390,  426,  390,  426,  390,  426,
-   390,  426,  390,  426,  390,  426,  390,  426,  390,  426,
-   390,  426,  390,  426,  390,  426,  390,  426,  390,  426,
-   390,  426,  390,  426, 1130,  450,  366,  450,  366,  450,
-   366,  450,  366,  450,  366,  450, 1130,  450,  366,  450
-};
-
-// --- TEMP +1 (Press #7) ----------------------------------------------------
-const uint16_t IR_TEMP_UP_F1[] = {
-  3074, 1588,  490, 1090,  490, 1090,  490,  326,  490,  326,
-   490,  326,  490, 1090,  492,  326,  490,  326,  490, 1088,
-   494, 1088,  494,  326,  514, 1062,  494,  326,  490,  326,
-   490, 1088,  492, 1088,  492,  352,  464, 1090,  490, 1092,
-   488,  354,  460,  356,  458, 1122,  456,  360,  454,  362,
-   452,  390,  426, 1130,  452,  366,  450,  366,  454,  360,
-   452,  364,  450,  370,  446,  366,  450,  366,  450,  366,
-   450,  388,  428,  388,  428,  366,  450,  366,  450,  366,
-   450,  390,  426,  366,  450,  390,  426,  366,  450,  388,
-   428,  388,  426, 1130,  450,  364,  452,  364,  452,  364,
-   450,  366,  450,  366,  450,  366,  450,  364,  452,  364,
-   450,  366,  450,  366,  448,  366,  450,  366,  450,  366,
-   450,  366,  450,  364,  450,  366,  450,  366,  450,  366,
-   450,  366,  450,  366,  450,  366,  450,  366,  450,  390,
-   426,  390,  426,  366,  450,  366,  450,  366,  450,  390,
-   426,  390,  426,  390,  426,  390,  426,  390,  426,  366,
-   450,  390,  426,  390,  426,  388,  426,  390,  426,  390,
-   426,  390,  426,  388,  426,  390,  426,  390,  426,  390,
-   426,  388,  426,  390,  426,  390,  426,  390,  426,  390,
-   426,  390,  426,  390,  426,  388,  426,  390,  426,  390,
-   426,  390,  426,  390,  426,  390,  426,  390,  426, 1154,
-   426,  388,  426, 1130,  450,  366,  450,  366,  450, 1128,
-   452, 1128,  452,  364,  452
-};
-const uint16_t IR_TEMP_UP_F2[] = {
-   426, 1130,  452,  364,  450,  366,  450, 1130,  450, 1130,
-   452,  364,  452, 1128,  452,  364,  450,  366,  450, 1130,
-   450, 1128,  452,  364,  452, 1128,  452, 1128,  452,  364,
-   452,  364,  452, 1128,  452,  366,  450,  366,  450, 1130,
-   450,  366,  450,  366,  450,  364,  452,  364,  450,  366,
-   450,  364,  452,  364,  452,  364,  450,  364,  452,  364,
-   450,  366,  450,  364,  452,  366,  450,  364,  450,  364,
-   452,  364,  452,  364,  450, 1128,  452,  364,  452,  364,
-   452, 1128,  452,  364,  452,  364,  452, 1128,  452,  364,
-   450,  366,  450,  364,  450,  366,  450,  366,  450,  388,
-   426,  390,  426, 1130,  450, 1128,  452, 1128,  452,  364,
-   452,  364,  452,  364,  452,  364,  452,  364,  452, 1128,
-   452, 1128,  452,  364,  452, 1128,  452, 1128,  452, 1128,
-   450,  364,  452,  364,  450,  366,  450,  364,  452,  364,
-   450,  366,  450,  364,  450,  366,  450,  364,  452,  364,
-   450,  366,  450,  364,  450,  366,  450,  364,  452,  364,
-   450,  366,  450,  364,  450,  364,  452,  364,  450,  366,
-   450,  364,  450,  366,  450,  364,  450,  366,  450,  364,
-   450,  366,  450,  364,  452,  364,  450,  366,  450,  364,
-   450,  366,  450,  364,  450,  366,  450,  364,  450,  366,
-   450,  364,  450, 1130,  450, 1128,  452, 1128,  452, 1128,
-   452, 1128,  452,  364,  452
-};
-
-// --- TEMP -1 (Press #8) ----------------------------------------------------
-const uint16_t IR_TEMP_DOWN_F1[] = {
-  3046, 1618,  460, 1118,  464, 1118,  488,  328,  488,  328,
-   488,  328,  490, 1090,  490,  326,  490,  326,  490, 1088,
-   492, 1088,  492,  326,  490, 1088,  518,  326,  464,  326,
-   490, 1088,  494, 1088,  494,  326,  488, 1090,  490, 1090,
-   488,  354,  462,  354,  460, 1120,  458,  360,  454,  362,
-   452,  364,  450, 1130,  452,  364,  452,  364,  452,  364,
-   452,  364,  452,  364,  452,  364,  452,  364,  452,  364,
-   452,  364,  450,  366,  450,  366,  450,  364,  452,  364,
-   452,  364,  452,  364,  452,  364,  452,  364,  452,  364,
-   452,  364,  452,  364,  450, 1130,  452,  364,  452,  364,
-   452,  364,  452,  364,  452,  364,  452,  364,  452,  364,
-   452,  364,  452,  364,  452,  364,  452,  364,  452,  364,
-   452,  364,  452,  364,  452,  364,  452,  364,  452,  364,
-   452,  364,  452,  364,  450,  364,  452,  364,  452,  364,
-   452,  364,  452,  364,  450,  364,  452,  364,  452,  364,
-   452,  364,  452,  364,  450,  366,  450,  364,  452,  364,
-   452,  364,  450,  364,  452,  364,  452,  364,  452,  364,
-   450,  366,  450,  364,  452,  364,  452,  364,  450,  366,
-   450,  366,  450,  364,  452,  364,  450,  366,  450,  366,
-   450,  364,  452,  364,  452,  364,  450,  366,  450,  364,
-   452,  388,  426,  366,  450,  366,  450, 1128,  452,  364,
-   452, 1128,  452,  364,  452,  364,  452, 1128,  452, 1128,
-   452,  364,  450
-};
-const uint16_t IR_TEMP_DOWN_F2[] = {
-   426, 1130,  450,  366,  450,  366,  450, 1128,  452, 1130,
-   452,  364,  452, 1128,  452,  388,  426,  390,  426, 1130,
-   450, 1130,  452,  364,  452, 1128,  452, 1128,  452,  364,
-   452,  364,  452, 1128,  452,  388,  426,  390,  426, 1130,
-   450,  366,  450,  366,  450,  366,  450,  364,  450,  366,
-   450,  366,  450,  364,  452,  364,  450,  366,  450,  366,
-   450,  364,  450,  366,  450,  366,  450,  364,  452,  364,
-   450,  366,  450,  366,  450, 1130,  452,  364,  452,  366,
-   450, 1128,  452,  364,  452,  364,  452, 1128,  452,  388,
-   426,  390,  426,  390,  426,  388,  426,  390,  426,  390,
-   426,  388,  426,  390,  426,  390,  426,  388,  426, 1130,
-   450,  366,  450,  366,  450,  388,  426,  366,  450, 1128,
-   452, 1128,  452,  364,  452, 1128,  452, 1130,  450, 1130,
-   450,  364,  452,  364,  452,  364,  452,  364,  452,  364,
-   452,  364,  450,  364,  452,  364,  452,  364,  450,  364,
-   452,  364,  452,  364,  450,  364,  452,  364,  452,  364,
-   450,  364,  452,  364,  450,  364,  452,  364,  450,  366,
-   450,  364,  452,  364,  450,  366,  450,  364,  452,  364,
-   450,  366,  450,  364,  452,  364,  450,  366,  450,  364,
-   450,  366,  450,  364,  450,  366,  450,  366,  450, 1128,
-   452,  364,  452, 1128,  452, 1128,  452, 1128,  452, 1128,
-   452, 1128,  452,  364,  452
-};
-
-// --- SWING (Press #13) -----------------------------------------------------
-const uint16_t IR_SWING_F1[] = {
-  3068, 1594,  486, 1094,  488, 1094,  486,  332,  484,  332,
-   462,  354,  462, 1118,  462,  354,  462,  356,  460, 1118,
-   464, 1118,  464,  382,  434, 1116,  464,  382,  436,  380,
-   434, 1116,  464, 1118,  464,  382,  434, 1118,  464, 1118,
-   462,  382,  460,  356,  460, 1120,  460,  358,  458,  360,
-   456,  360,  454, 1128,  452,  390,  426,  390,  426,  390,
-   426,  390,  426,  390,  426,  390,  426,  390,  426,  390,
-   426,  390,  426,  390,  426,  390,  426,  390,  426,  390,
-   426,  390,  426,  390,  426,  390,  426,  390,  426,  390,
-   426,  390,  426,  390,  426,  390,  426,  390,  426, 1156,
-   426,  390,  426,  390,  426,  390,  426,  390,  426,  390,
-   426,  390,  426,  390,  426,  390,  426,  390,  426,  390,
-   426,  390,  426,  390,  426,  390,  426,  390,  426,  390,
-   426,  390,  426,  390,  426,  390,  426,  390,  426,  390,
-   426,  390,  426,  390,  426,  390,  426,  390,  426,  390,
-   426,  390,  426,  390,  426,  390,  426,  390,  426,  390,
-   426,  390,  426,  390,  426,  390,  426,  390,  426,  390,
-   426,  390,  426,  390,  426,  390,  426,  390,  426,  390,
-   426,  390,  426,  390,  426,  390,  426,  390,  426,  390,
-   426,  390,  426,  390,  426,  390,  426,  390,  426,  390,
-   426,  390,  426,  390,  426,  390,  426,  390,  426,  390,
-   426,  390,  426,  390,  426, 1154,  426,  366,  450, 1130,
-   450,  364,  450,  366,  450, 1130,  450, 1130,  450,  366,
-   450
-};
-const uint16_t IR_SWING_F2[] = {
-   426,  390,  426,  390,  426, 1156,  426,  390,  426,  390,
-   426, 1130,  450, 1130,  452,  364,  450, 1130,  452,  390,
-   426,  390,  426, 1130,  450, 1130,  450,  366,  450, 1130,
-   450, 1130,  450,  366,  450,  366,  450, 1130,  452,  364,
-   450,  366,  450, 1130,  452,  390,  426,  390,  426,  390,
-   426,  390,  426,  390,  426,  390,  426,  390,  426,  390,
-   426,  390,  426,  390,  426,  390,  426,  390,  426,  390,
-   426,  390,  426,  390,  426,  390,  426,  390,  426,  390,
-   426,  390,  426, 1130,  450,  366,  450,  366,  450, 1130,
-   450,  366,  450,  366,  450, 1130,  456,  362,  450,  366,
-   450,  370,  446,  366,  450,  364,  450,  366,  450,  366,
-   450,  364,  450,  366,  450,  366,  450, 1128,  452,  366,
-   450,  366,  450,  366,  450,  366,  450, 1130,  450, 1128,
-   452,  390,  426,  390,  426,  390,  426,  390,  426,  390,
-   426,  390,  426,  390,  426,  390,  426,  390,  426,  390,
-   426,  390,  426,  390,  426,  390,  426,  390,  426,  394,
-   422,  390,  426,  390,  426,  390,  426,  390,  426,  390,
-   426,  390,  426,  390,  426,  390,  426,  390,  426,  390,
-   426,  390,  426,  390,  426,  390,  426,  390,  426,  390,
-   426,  390,  424,  390,  426,  390,  426,  390,  426,  390,
-   426,  390,  426,  390,  424,  390,  426,  390,  426,  390,
-   424,  390,  426,  390,  424, 1156,  426,  390,  426, 1132,
-   450,  366,  450,  390,  426,  366,  450, 1130,  450,  366,
-   450
-};
-
-// ===========================================================================
-// === Send one captured command (frame 1 + 25 ms gap + frame 2) =============
-// ===========================================================================
-void sendPair(const uint16_t* f1, size_t f1_len,
-              const uint16_t* f2, size_t f2_len,
-              const char* label) {
+// --- Send the current AC state out the IR LED -------------------------------
+void sendIR() {
   digitalWrite(STATUS_LED, LOW);
   uint32_t t0 = millis();
 
-  irsend.sendRaw(f1, f1_len, IR_CARRIER);
-  delay(FRAME_GAP_MS);
-  irsend.sendRaw(f2, f2_len, IR_CARRIER);
+  if (SEND_PREAMBLE) {
+    // Stash whatever state the library currently holds, send the constant
+    // preamble bytes, then restore state so ac.send() sends what we want.
+    uint8_t savedState[kTcl112AcStateLength];
+    memcpy(savedState, ac.getRaw(), kTcl112AcStateLength);
+
+    ac.setRaw(kTclPreamble, kTcl112AcStateLength);
+    ac.send(/*repeat=*/0);
+    delay(25);
+
+    ac.setRaw(savedState, kTcl112AcStateLength);
+  }
+
+  ac.send();   // default repeat sends one state frame, then a second copy
 
   lastDurationMs = millis() - t0;
   sendCount++;
-  lastCmd = String(label);
   digitalWrite(STATUS_LED, HIGH);
-  Serial.printf("IR %s -> %u ms (#%u)\n",
-                label, (unsigned)lastDurationMs, (unsigned)sendCount);
+
+  Serial.printf("IR %s -> %u ms (#%u) | state: %s\n",
+                lastCmd.c_str(),
+                (unsigned)lastDurationMs,
+                (unsigned)sendCount,
+                ac.toString().c_str());
 }
 
-#define SEND_IR(f1, f2, label) \
-  sendPair((f1), sizeof(f1)/sizeof((f1)[0]), (f2), sizeof(f2)/sizeof((f2)[0]), (label))
-
 bool sendCommand(const String& cmd) {
-  if      (cmd == "power_on")  SEND_IR(IR_POWER_ON_F1,   IR_POWER_ON_F2,   "power_on");
-  else if (cmd == "power_off") SEND_IR(IR_POWER_OFF_F1,  IR_POWER_OFF_F2,  "power_off");
-  else if (cmd == "temp_up")   SEND_IR(IR_TEMP_UP_F1,    IR_TEMP_UP_F2,    "temp_up");
-  else if (cmd == "temp_down") SEND_IR(IR_TEMP_DOWN_F1,  IR_TEMP_DOWN_F2,  "temp_down");
-  else if (cmd == "swing")     SEND_IR(IR_SWING_F1,      IR_SWING_F2,      "swing");
-  else return false;
+  if (cmd == "power_on") {
+    ac.on();
+  } else if (cmd == "power_off") {
+    ac.off();
+  } else if (cmd == "temp_up") {
+    ac.setTemp(ac.getTemp() + 1);      // library clamps to its kTcl112AcTempMax
+  } else if (cmd == "temp_down") {
+    ac.setTemp(ac.getTemp() - 1);      // library clamps to its kTcl112AcTempMin
+  } else if (cmd == "swing") {
+    ac.setSwingVertical(!ac.getSwingVertical());
+  } else {
+    return false;
+  }
+
+  lastCmd = cmd;
+  sendIR();
   return true;
 }
 
 // --- Publish current state to Firebase /aircon/ir/state ---------------------
 String stateJson() {
   String s = "{";
-  s += "\"last\":\"";       s += lastCmd;                  s += "\",";
-  s += "\"duration_ms\":";  s += String(lastDurationMs);   s += ",";
-  s += "\"count\":";        s += String(sendCount);        s += ",";
-  s += "\"ts\":";           s += String(millis());
+  s += "\"last\":\"";        s += lastCmd;                  s += "\",";
+  s += "\"duration_ms\":";   s += String(lastDurationMs);   s += ",";
+  s += "\"count\":";         s += String(sendCount);        s += ",";
+  s += "\"power\":";         s += (ac.getPower() ? "true" : "false"); s += ",";
+  s += "\"temp\":";          s += String((int)ac.getTemp());          s += ",";
+  s += "\"swing\":";         s += (ac.getSwingVertical() ? "true" : "false"); s += ",";
+  s += "\"ts\":";            s += String(millis());
   s += "}";
   return s;
 }
@@ -457,7 +246,7 @@ const char INDEX_HTML[] PROGMEM = R"rawliteral(
     <button class="btn btn-off" data-cmd="power_off">Power Off</button>
   </div>
   <div class="row">
-    <button class="btn btn-warm" data-cmd="temp_down">Temp −</button>
+    <button class="btn btn-warm" data-cmd="temp_down">Temp &minus;</button>
     <button class="btn btn-warm" data-cmd="temp_up">Temp +</button>
   </div>
   <div class="row">
@@ -475,7 +264,7 @@ async function fire(cmd){
     const r=await fetch("/set",{method:"POST",headers:{"Content-Type":"application/json"},body:JSON.stringify({cmd})});
     const j=await r.json();
     $("lastPill").textContent=j.last+" · #"+(j.count|0);
-    $("statusText").textContent=(j.last||"sent")+" · "+(j.duration_ms|0)+" ms";
+    $("statusText").textContent=(j.last||"sent")+" · "+(j.duration_ms|0)+" ms · temp "+(j.temp|0)+"\u00B0C";
   }catch(e){$("statusText").textContent="failed";}
 }
 document.querySelectorAll("button[data-cmd]").forEach(b=>{
@@ -531,7 +320,8 @@ bool tryStation() {
 void setup() {
   Serial.begin(115200);
 
-  irsend.begin();
+  ac.begin();
+  setupAcDefaults();
 
   pinMode(STATUS_LED, OUTPUT);
   digitalWrite(STATUS_LED, HIGH);
