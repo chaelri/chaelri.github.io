@@ -119,7 +119,10 @@ const uint16_t IR_PAIR_TO_PAIR_GAP_MS = 150;       // gap between pairs
 // the receiver for ~2 s after every command and prints what it picked up.
 // Lets us confirm in real-time whether the bytes we just sent decoded as
 // clean TCL112AC vs. UNKNOWN at the receiver end of the kit.
-const bool     RX_VERIFY        = true;
+// Temporarily disabling — the IRrecv ISR running on the same ESP32-C3 might
+// share RMT resources with IRsend and subtly corrupt the TX carrier timing.
+// Flip back to true once we know the AC is responding cleanly.
+const bool     RX_VERIFY        = false;
 const uint16_t RX_VERIFY_PIN    = 2;     // IR receiver OUT (same kit)
 const uint16_t RX_LISTEN_MS     = 1500;  // listen window after each send
 
