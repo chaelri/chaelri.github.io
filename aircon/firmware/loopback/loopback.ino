@@ -47,6 +47,7 @@
 #include <IRsend.h>
 #include <IRrecv.h>
 #include <IRutils.h>
+#include <ir_Tcl.h>
 
 // --- Pins -------------------------------------------------------------------
 const uint16_t TX_PIN = 3;   // IR transmitter DAT
@@ -64,8 +65,15 @@ const uint32_t SEND_INTERVAL_MS = 4000;
 //   4. MODULATION=false, INVERT=true    (inverted-polarity smart module)
 //
 // For each combo, watch whether RX prints "TCL112AC" + matching state bytes.
-const bool LIBRARY_MODULATION = true;
+const bool LIBRARY_MODULATION = true;   // confirmed: TX module is "dumb" type
 const bool LIBRARY_INVERT     = false;
+
+// What to send each cycle:
+//   true  -> let the IRTcl112Ac library encode POWER_ON to spec timings.
+//   false -> replay the captured raw timings from the original sniff session
+//            (these get reported as UNKNOWN because TSOP receivers strip
+//            ~100us off every mark, so replaying them goes out of spec).
+const bool USE_LIBRARY_ENCODING = true;
 
 // --- IR receiver / capture --------------------------------------------------
 const uint16_t kCaptureBufferSize = 1024;
@@ -73,8 +81,9 @@ const uint8_t  kTimeout           = 15;
 const uint16_t kMinUnknownSize    = 12;
 const uint8_t  kTolerancePercentage = kTolerance;
 
-IRsend irsend(TX_PIN, LIBRARY_INVERT, LIBRARY_MODULATION);
-IRrecv irrecv(RX_PIN, kCaptureBufferSize, kTimeout, /*save_buffer=*/true);
+IRsend     irsend(TX_PIN, LIBRARY_INVERT, LIBRARY_MODULATION);
+IRTcl112Ac ac    (TX_PIN, LIBRARY_INVERT, LIBRARY_MODULATION);
+IRrecv     irrecv(RX_PIN, kCaptureBufferSize, kTimeout, /*save_buffer=*/true);
 decode_results results;
 
 // === Captured POWER_ON raw timings from the most recent sniff ==============
@@ -170,18 +179,32 @@ void printRxResult() {
 void fireTransmitter() {
   sendCount++;
   Serial.println();
-  Serial.printf("[TX #%u, t=%us]  firing POWER_ON raw timings out GPIO%u "
-                "(mod=%s, inv=%s)\n",
-                (unsigned)sendCount, (unsigned)(millis() / 1000),
-                (unsigned)TX_PIN,
-                LIBRARY_MODULATION ? "true" : "false",
-                LIBRARY_INVERT     ? "true" : "false");
-  irsend.sendRaw(POWER_ON_F1, sizeof(POWER_ON_F1) / sizeof(POWER_ON_F1[0]), 38);
-  delay(25);
-  irsend.sendRaw(POWER_ON_F2, sizeof(POWER_ON_F2) / sizeof(POWER_ON_F2[0]), 38);
-  Serial.println("  TX done. If RX picks it up you'll see two [RX #...] entries");
-  Serial.println("  within ~1 s. If nothing shows up after 3-4 fires, RX isn't");
-  Serial.println("  seeing what TX emits => transmitter hardware path is bad.");
+  if (USE_LIBRARY_ENCODING) {
+    Serial.printf("[TX #%u, t=%us]  firing POWER_ON via IRTcl112Ac LIBRARY "
+                  "encoding (mod=%s, inv=%s)\n",
+                  (unsigned)sendCount, (unsigned)(millis() / 1000),
+                  LIBRARY_MODULATION ? "true" : "false",
+                  LIBRARY_INVERT     ? "true" : "false");
+    Serial.print("  bytes : ");
+    uint8_t* bytes = ac.getRaw();
+    for (uint16_t i = 0; i < kTcl112AcStateLength; i++) {
+      if (bytes[i] < 0x10) Serial.print('0');
+      Serial.print(bytes[i], HEX);
+      Serial.print(' ');
+    }
+    Serial.println();
+    Serial.println("  (expected after decode: 23 CB 26 01 00 24 03 07 05 00 00 00 88 D0)");
+    ac.send();
+  } else {
+    Serial.printf("[TX #%u, t=%us]  firing POWER_ON raw timings (mod=%s, inv=%s)\n",
+                  (unsigned)sendCount, (unsigned)(millis() / 1000),
+                  LIBRARY_MODULATION ? "true" : "false",
+                  LIBRARY_INVERT     ? "true" : "false");
+    irsend.sendRaw(POWER_ON_F1, sizeof(POWER_ON_F1) / sizeof(POWER_ON_F1[0]), 38);
+    delay(50);
+    irsend.sendRaw(POWER_ON_F2, sizeof(POWER_ON_F2) / sizeof(POWER_ON_F2[0]), 38);
+  }
+  Serial.println("  TX done. Watch for the next [RX ...] entry within ~1 s.");
 }
 
 void setup() {
@@ -196,10 +219,29 @@ void setup() {
 
   irsend.begin();
 
+  // Set up the library state to match the captured POWER_ON sniff —
+  // when ac.send() fires, it should encode bytes 23 CB 26 01 00 24 03 07
+  // 05 00 00 00 88 D0 (matching what the real remote sent).
+  ac.begin();
+  ac.setMode(kTcl112AcCool);
+  ac.setTemp(24);
+  ac.setFan(kTcl112AcFanHigh);
+  ac.setSwingVertical(false);
+  ac.setSwingHorizontal(true);
+  ac.setLight(true);
+  ac.setEcono(false);
+  ac.setHealth(false);
+  ac.setTurbo(false);
+  ac.setQuiet(false);
+  ac.on();
+
   Serial.println();
   Serial.println("====================================================================");
   Serial.println(" IR Loopback Test — TX(GPIO3)  -->  RX(GPIO2)");
   Serial.println("====================================================================");
+  Serial.printf (" TX mode  : %s\n",
+                 USE_LIBRARY_ENCODING ? "IRTcl112Ac library encoding (spec timings)"
+                                      : "raw replay of captured timings");
   Serial.printf (" TX flags : MODULATION=%s, INVERT=%s\n",
                  LIBRARY_MODULATION ? "true" : "false",
                  LIBRARY_INVERT     ? "true" : "false");
