@@ -53,7 +53,15 @@ decode_results results;
 // --- IR transmitter (manual 38 kHz / 33% duty via LEDC) ---------------------
 const uint32_t TX_CARRIER_FREQ_HZ = 38000;
 const uint8_t  TX_CARRIER_RES     = 8;
-const uint8_t  TX_CARRIER_DUTY    = 85;   // 85/255 ≈ 33.3%
+const uint8_t  TX_CARRIER_DUTY    = 127;  // 127/255 ≈ 50%  (was 33% — bumped
+                                          // to put more light per cycle so
+                                          // weaker IR receivers can trigger)
+
+// On replay, cut the raw-timings array at the first "very long" space —
+// anything over this is the post-frame quiet + a potential partial repeat
+// code that got captured by the RX. Replaying that tail tends to confuse
+// receivers; the frame alone is what we want.
+const uint16_t REPLAY_TRIM_AFTER_SPACE_US = 15000;
 
 // Buffer for the raw timings we replay. 700 entries covers basically every
 // consumer IR remote (NEC ~67, AC remotes ~250-300).
@@ -82,12 +90,27 @@ inline void mSpace(uint32_t us) {
 
 void replayRaw(uint16_t* timings, size_t count) {
   digitalWrite(STATUS_LED, LOW);
-  for (size_t i = 0; i < count; i++) {
-    if (i % 2 == 0) mMark(timings[i]);     // even index = mark
-    else            mSpace(timings[i]);     // odd index = space
+
+  // Find the effective frame end: stop before any space longer than the
+  // trim threshold (those are inter-frame gaps + partial repeat codes
+  // that just sneak in at the tail of the capture buffer).
+  size_t end = count;
+  for (size_t i = 1; i < count; i += 2) {  // odd indices are spaces
+    if (timings[i] >= REPLAY_TRIM_AFTER_SPACE_US) {
+      end = i;   // stop just before the long space (don't send mark/space at i)
+      break;
+    }
+  }
+
+  for (size_t i = 0; i < end; i++) {
+    if (i % 2 == 0) mMark(timings[i]);
+    else            mSpace(timings[i]);
   }
   ledcWrite(TX_PIN, 0);
   digitalWrite(STATUS_LED, HIGH);
+
+  Serial.printf("  replayRaw: sent %u of %u timings (trimmed long-space tail)\n",
+                (unsigned)end, (unsigned)count);
 }
 
 // === Push a capture to Firebase =============================================
