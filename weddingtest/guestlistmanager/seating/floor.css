@@ -132,6 +132,7 @@ body.pool-collapsed .floor-canvas {
   position: relative;
   width: 2000px;
   height: 1400px;
+  margin: 0 auto;
 }
 .floor-canvas-inner {
   position: absolute;
