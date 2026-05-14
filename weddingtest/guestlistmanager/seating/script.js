@@ -274,11 +274,14 @@ function buildPairPill(g) {
   )}</span>`;
 }
 
-function buildChip(g) {
+function buildChip(g, opts = {}) {
+  const { seatNumber = null, groupId = null } = opts;
   const chip = document.createElement("div");
   chip.className = "guest-chip" + (g.noCount ? " lap" : "");
   chip.draggable = true;
   chip.dataset.guestId = g.id;
+  if (seatNumber != null) chip.dataset.seat = seatNumber;
+  if (groupId != null) chip.dataset.groupId = groupId;
   chip.title = g.noCount ? "Lap child — not counted in food/pax" : "";
   const tagPills = (g.tags || [])
     .map((id) => tagDef(id))
@@ -288,7 +291,10 @@ function buildChip(g) {
         `<span class="tag-pill" style="background:${t.bg};color:${t.fg}" title="${t.label}"><span class="d" style="background:${t.dot}"></span>${t.label}</span>`
     )
     .join("");
+  const seatBadge =
+    seatNumber != null ? `<span class="seat-num">${seatNumber}</span>` : "";
   chip.innerHTML = `
+    ${seatBadge}
     <span class="dot ${g.side}"></span>
     <span class="name">${escapeHtml(g.name)}</span>
     ${tagPills}
@@ -305,8 +311,41 @@ function buildChip(g) {
     e.dataTransfer.effectAllowed = "move";
   });
   chip.addEventListener("dragend", () => chip.classList.remove("dragging"));
+
+  // Chips inside a group act as insertion targets (insert BEFORE this seat).
+  if (groupId != null) {
+    chip.addEventListener("dragover", (e) => {
+      e.preventDefault();
+      e.stopPropagation();
+      e.dataTransfer.dropEffect = "move";
+      chip.classList.add("drop-before");
+    });
+    chip.addEventListener("dragleave", () => chip.classList.remove("drop-before"));
+    chip.addEventListener("drop", (e) => {
+      e.preventDefault();
+      e.stopPropagation();
+      chip.classList.remove("drop-before");
+      const guestId = e.dataTransfer.getData("text/plain");
+      if (!guestId) return;
+      const targetIndex = parseInt(chip.dataset.seat, 10) - 1;
+      moveGuestToPosition(guestId, groupId, targetIndex);
+    });
+  }
+
   chip.addEventListener("click", (e) => {
     e.stopPropagation();
+    // Tap-to-pick / tap-to-drop-before workflow for touch.
+    if (
+      pickedChipEl &&
+      pickedChipEl !== chip &&
+      groupId != null &&
+      seatNumber != null
+    ) {
+      const guestId = pickedChipEl.dataset.guestId;
+      moveGuestToPosition(guestId, groupId, seatNumber - 1);
+      clearPick();
+      return;
+    }
     pickChip(chip);
   });
   return chip;
@@ -359,10 +398,13 @@ function renderGroups() {
     }"></div>
     `;
     const zone = card.querySelector(".group-zone");
-    for (const id of grp.memberIds) {
+    grp.memberIds.forEach((id, i) => {
       const g = allGuests.find((x) => x.id === id);
-      if (g) zone.appendChild(buildChip(g));
-    }
+      if (g)
+        zone.appendChild(
+          buildChip(g, { seatNumber: i + 1, groupId: grp.id })
+        );
+    });
     for (const name of grp.memberMissing || []) {
       zone.appendChild(buildMissingChip(name, grp.id));
     }
@@ -473,6 +515,24 @@ function moveGuest(guestId, targetGroupId) {
       target.memberIds.push(guestId);
     }
   }
+  persist();
+  render();
+}
+
+function moveGuestToPosition(guestId, targetGroupId, targetIndex) {
+  // Remove first so the position math is consistent whether the guest was
+  // in the same target group (reorder) or elsewhere (cross-table move).
+  for (const g of groups) {
+    g.memberIds = g.memberIds.filter((id) => id !== guestId);
+  }
+  const target = groups.find((g) => g.id === targetGroupId);
+  if (!target) {
+    persist();
+    render();
+    return;
+  }
+  const idx = Math.max(0, Math.min(targetIndex, target.memberIds.length));
+  target.memberIds.splice(idx, 0, guestId);
   persist();
   render();
 }

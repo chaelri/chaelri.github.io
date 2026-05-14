@@ -40,6 +40,24 @@ body {
 .guest-chip.dragging {
   opacity: 0.35;
 }
+.guest-chip .seat-num {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  min-width: 18px;
+  height: 18px;
+  padding: 0 5px;
+  border-radius: 999px;
+  background: #1c1917;
+  color: #fff;
+  font-size: 10px;
+  font-weight: 700;
+  flex-shrink: 0;
+  font-variant-numeric: tabular-nums;
+}
+.guest-chip.drop-before {
+  box-shadow: -3px 0 0 0 #7b8a5b, 0 1px 4px rgba(123, 138, 91, 0.25);
+}
 .guest-chip.picked {
   background: #7b8a5b;
   color: white;
