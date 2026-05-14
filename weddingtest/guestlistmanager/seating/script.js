@@ -573,36 +573,6 @@ document.getElementById("filterSide").addEventListener("change", renderPool);
 document.getElementById("filterStatus").addEventListener("change", renderPool);
 document.getElementById("clearPickBtn").addEventListener("click", clearPick);
 
-document.getElementById("renumberBtn").addEventListener("click", () => {
-  // Renumber every group whose name is exactly "Table <number>" so they go
-  // 3, 4, 5… sequentially in their current array order. VIP / Kids / any
-  // custom names are left alone.
-  const numericPattern = /^Table\s+(\d+)$/i;
-  const numericGroups = groups.filter((g) => numericPattern.test(g.name));
-  if (!numericGroups.length) {
-    toast("No numeric tables to renumber");
-    return;
-  }
-  // Start numbering at 3 by convention (VIP 1 + VIP 2 hold the lower slots
-  // in the printable). If you want a different start, click again — we keep
-  // it idempotent on the array order.
-  if (
-    !confirm(
-      `Renumber ${numericGroups.length} numeric table(s) sequentially starting at 3?\n\nCustom names (VIP, Kids, etc.) are untouched.`
-    )
-  )
-    return;
-  let next = 3;
-  for (const g of groups) {
-    if (numericPattern.test(g.name)) {
-      g.name = `Table ${next++}`;
-    }
-  }
-  persist();
-  render();
-  toast("Tables renumbered");
-});
-
 document.getElementById("addGroupBtn").addEventListener("click", () => {
   const id = "g_" + Date.now();
   const num = groups.length + 1;
