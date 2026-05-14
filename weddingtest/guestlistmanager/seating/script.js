@@ -398,11 +398,11 @@ function renderGroups() {
           }" title="Delete group">delete_outline</span>
         </div>
       </div>
-      <div class="group-zone ${
-        /vip/i.test(grp.name) || grp.capacity >= 11 ? "two-col" : ""
-      } ${full && !over ? "is-full" : ""} ${
-      over ? "is-over" : ""
-    }" data-droppable="group" data-group-id="${grp.id}"></div>
+      <div class="group-zone two-col ${
+        full && !over ? "is-full" : ""
+      } ${over ? "is-over" : ""}" data-droppable="group" data-group-id="${
+      grp.id
+    }"></div>
     `;
     const zone = card.querySelector(".group-zone");
     grp.memberIds.forEach((id, i) => {
