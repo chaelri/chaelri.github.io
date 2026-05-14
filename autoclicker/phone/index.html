@@ -255,7 +255,7 @@
   <script type="module">
     import { initializeApp }       from "https://www.gstatic.com/firebasejs/10.7.0/firebase-app.js";
     import { getDatabase, ref, set, onValue } from "https://www.gstatic.com/firebasejs/10.7.0/firebase-database.js";
-    import { getAuth, signInAnonymously }     from "https://www.gstatic.com/firebasejs/10.7.0/firebase-auth.js";
+    import { getAuth, signInAnonymously, onAuthStateChanged } from "https://www.gstatic.com/firebasejs/10.7.0/firebase-auth.js";
 
     const app = initializeApp({
       apiKey: "AIzaSyB8ahT56WbEUaGAymsRNNA-DrfZnUnWIwk",
@@ -265,6 +265,15 @@
     });
     const db   = getDatabase(app);
     const auth = getAuth(app);
+
+    // Firebase RTDB writes can fail silently if they fire before anonymous
+    // auth settles. Gate every set() behind this promise so the first save
+    // after a fresh page load doesn't get dropped on the floor.
+    const authReady = new Promise(resolve => {
+      const unsub = onAuthStateChanged(auth, user => {
+        if (user) { unsub(); resolve(user); }
+      });
+    });
     signInAnonymously(auth).catch(e => console.warn("anon signin failed:", e));
 
     const $ = id => document.getElementById(id);
@@ -318,6 +327,7 @@
 
     async function sendCmd(cmd) {
       try {
+        await authReady;
         await set(ref(db, "autoclicker/command"), cmd);
         lastTime.textContent = new Date().toLocaleTimeString();
         return true;
@@ -350,8 +360,15 @@
       setStatus,
       spawnRipple,
       applyState,
-      watchKeywords: (cb) => onValue(ref(db, "autoclicker/keywords"), snap => cb(snap.val())),
-      saveKeywords:  (data) => set(ref(db, "autoclicker/keywords"), data),
+      // Subscribe after auth so the first onValue fire reflects actual
+      // permissions, not a pre-auth "denied" pass that returns null.
+      watchKeywords: (cb) => {
+        authReady.then(() => onValue(ref(db, "autoclicker/keywords"), snap => cb(snap.val())));
+      },
+      saveKeywords:  async (data) => {
+        await authReady;
+        return set(ref(db, "autoclicker/keywords"), data);
+      },
     };
   </script>
 
@@ -492,13 +509,13 @@
 
       function adoptRemote(data) {
         if (saving) return;
-        if (!data || !Array.isArray(data.open) || !Array.isArray(data.close)) {
-          // Nothing in Firebase yet — push current/default set up.
-          saveAndRender();
-          return;
-        }
-        kwOpen  = dedupClean(data.open);
-        kwClose = dedupClean(data.close);
+        // Never overwrite Firebase from this read path. If the node is empty
+        // (null) just leave local state alone — the next user action will
+        // populate Firebase. If the node has a partial shape, accept what's
+        // there and keep local for the missing half so we don't blow it away.
+        if (!data) return;
+        if (Array.isArray(data.open))  kwOpen  = dedupClean(data.open);
+        if (Array.isArray(data.close)) kwClose = dedupClean(data.close);
         persistLocal();
         renderChips();
       }
