@@ -41,6 +41,12 @@ let hidePending = false;
 let hideNo = false;
 let currentPage = 1;
 
+function escapeAttr(s) {
+  return String(s || "").replace(/[&<>"']/g, (c) =>
+    ({ "&": "&amp;", "<": "&lt;", ">": "&gt;", '"': "&quot;", "'": "&#39;" }[c])
+  );
+}
+
 // "guest" is the identifier for regular guests
 const ENTOURAGE_ROLES = [
   "guest",
@@ -115,6 +121,7 @@ function init() {
           marchingOrder: guest.marchingOrder || 0,
           noCount: guest.noCount === true,
           tags: Array.isArray(guest.tags) ? guest.tags : [],
+          pairWith: guest.pairWith || "",
         };
       });
       render();
@@ -218,6 +225,18 @@ function render() {
                           `<span class="text-[8px] px-1.5 py-0.5 rounded font-bold uppercase tracking-tighter" style="background:${t.bg};color:${t.fg}">${t.label}</span>`
                       )
                       .join("")}
+                    ${(() => {
+                      if (!guest.pairWith) return "";
+                      const partner = allData.find(
+                        (g) => g.id === guest.pairWith
+                      );
+                      if (!partner) return "";
+                      return `<span class="inline-flex items-center gap-1 text-[8px] bg-rose-50 text-rose-700 px-1.5 py-0.5 rounded font-bold uppercase tracking-tighter" title="Paired with ${escapeAttr(
+                        partner.name
+                      )}"><span class="material-icons" style="font-size:9px">favorite</span>${escapeAttr(
+                        partner.name.split(" ")[0]
+                      )}</span>`;
+                    })()}
                 </div>
                 ${
                   guest.submittedAt
@@ -541,6 +560,27 @@ window.openEditModal = (id) => {
                         }).join("")}
                     </div>
                 </div>
+                <div class="md:col-span-2 space-y-1">
+                    <label class="text-[9px] uppercase tracking-widest text-stone-400 font-bold">Sits With <span class="text-stone-300 normal-case font-normal lowercase">(bf/gf, plus-one, etc. — leave empty for none)</span></label>
+                    <input type="text" id="editPairWith" list="pairWithList" placeholder="Type a name…"
+                        value="${
+                          guest.pairWith
+                            ? escapeAttr(
+                                (allData.find((g) => g.id === guest.pairWith) || {}).name || ""
+                              )
+                            : ""
+                        }"
+                        class="w-full p-3 bg-stone-50 border border-stone-100 rounded-xl text-sm outline-none focus:ring-1 focus:ring-[#7b8a5b]">
+                    <datalist id="pairWithList">
+                        ${allData
+                          .filter((g) => g.id !== guest.id)
+                          .map(
+                            (g) =>
+                              `<option value="${escapeAttr(g.name)}"></option>`
+                          )
+                          .join("")}
+                    </datalist>
+                </div>
             </div>
 
             <div class="pt-2">
@@ -620,13 +660,33 @@ window.saveGuestEdit = async (id) => {
   const tags = [...document.querySelectorAll(".edit-tag-pill")]
     .filter((p) => p.dataset.active === "1")
     .map((p) => p.dataset.tag);
+  const pairNameRaw = document.getElementById("editPairWith").value.trim();
+  let newPairId = "";
+  if (pairNameRaw) {
+    const target = pairNameRaw.toLowerCase();
+    const match = allData.find(
+      (g) => g.id !== id && g.name.toLowerCase() === target
+    );
+    if (match) newPairId = match.id;
+    // If user typed something that didn't match, fail soft: treat as empty.
+  }
   const photoInput = document.getElementById("photoInput");
 
   if (!name) return;
   btn.disabled = true;
   btn.innerHTML = `<span class="material-icons animate-spin text-sm">sync</span>`;
 
-  let updateData = { name, nickname, role, gender, age, marchingOrder, noCount, tags };
+  let updateData = {
+    name,
+    nickname,
+    role,
+    gender,
+    age,
+    marchingOrder,
+    noCount,
+    tags,
+    pairWith: newPairId,
+  };
 
   if (photoInput.files[0]) {
     const compressedBlob = await compressImage(photoInput.files[0]);
@@ -636,7 +696,29 @@ window.saveGuestEdit = async (id) => {
     updateData.photoUrl = downloadURL;
   }
 
-  await update(ref(db, `guestList/${id}`), updateData);
+  // Symmetric pair management:
+  // - If this guest had a previous partner that's now removed/changed,
+  //   clear the old partner's pairWith too.
+  // - If a new partner is set, write the reverse link AND clear that
+  //   partner's previous link if they were paired with someone else.
+  const currentGuest = allData.find((g) => g.id === id) || {};
+  const prevPairId = currentGuest.pairWith || "";
+  const tasks = [update(ref(db, `guestList/${id}`), updateData)];
+
+  if (prevPairId && prevPairId !== newPairId) {
+    tasks.push(update(ref(db, `guestList/${prevPairId}`), { pairWith: "" }));
+  }
+  if (newPairId) {
+    const newPartner = allData.find((g) => g.id === newPairId);
+    if (newPartner && newPartner.pairWith && newPartner.pairWith !== id) {
+      tasks.push(
+        update(ref(db, `guestList/${newPartner.pairWith}`), { pairWith: "" })
+      );
+    }
+    tasks.push(update(ref(db, `guestList/${newPairId}`), { pairWith: id }));
+  }
+
+  await Promise.all(tasks);
   closeModal();
 };
 

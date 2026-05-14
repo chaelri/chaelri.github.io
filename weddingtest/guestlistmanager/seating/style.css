@@ -109,6 +109,30 @@ body {
   border-radius: 50%;
   flex-shrink: 0;
 }
+.guest-chip .pair-pill {
+  display: inline-flex;
+  align-items: center;
+  gap: 3px;
+  font-size: 9px;
+  font-weight: 700;
+  padding: 1px 6px 1px 4px;
+  border-radius: 999px;
+  text-transform: uppercase;
+  letter-spacing: 0.04em;
+  flex-shrink: 0;
+}
+.guest-chip .pair-pill.neutral {
+  background: #f1f5f9;
+  color: #475569;
+}
+.guest-chip .pair-pill.together {
+  background: #dcfce7;
+  color: #15803d;
+}
+.guest-chip .pair-pill.split {
+  background: #fef3c7;
+  color: #b45309;
+}
 .guest-chip.missing {
   background: #fef2f2;
   border-color: #fecaca;

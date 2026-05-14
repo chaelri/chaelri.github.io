@@ -84,6 +84,7 @@ function tryHydrate() {
       role: g.role || "guest",
       noCount: g.noCount === true,
       tags: Array.isArray(g.tags) ? g.tags : [],
+      pairWith: g.pairWith || "",
     };
   });
 
@@ -241,6 +242,38 @@ function renderPool() {
   document.getElementById("totalCount").textContent = unassignedAll.length;
 }
 
+function findGroupOfGuest(guestId) {
+  return groups.find((grp) => grp.memberIds.includes(guestId)) || null;
+}
+
+function buildPairPill(g) {
+  if (!g.pairWith) return "";
+  const partner = allGuests.find((x) => x.id === g.pairWith);
+  if (!partner) return "";
+  const myGroup = findGroupOfGuest(g.id);
+  const partnerGroup = findGroupOfGuest(partner.id);
+  const firstName = partner.name.split(" ")[0];
+  let state = "neutral";
+  let title = `Paired with ${partner.name} — not seated yet`;
+  if (myGroup && partnerGroup) {
+    if (myGroup.id === partnerGroup.id) {
+      state = "together";
+      title = `✓ At the same table as ${partner.name}`;
+    } else {
+      state = "split";
+      title = `⚠ Paired with ${partner.name} (in ${partnerGroup.name})`;
+    }
+  } else if (partnerGroup) {
+    state = "split";
+    title = `⚠ Paired with ${partner.name} (in ${partnerGroup.name})`;
+  }
+  return `<span class="pair-pill ${state}" title="${escapeHtml(
+    title
+  )}"><span class="material-icons" style="font-size:10px">favorite</span>${escapeHtml(
+    firstName
+  )}</span>`;
+}
+
 function buildChip(g) {
   const chip = document.createElement("div");
   chip.className = "guest-chip" + (g.noCount ? " lap" : "");
@@ -259,6 +292,7 @@ function buildChip(g) {
     <span class="dot ${g.side}"></span>
     <span class="name">${escapeHtml(g.name)}</span>
     ${tagPills}
+    ${buildPairPill(g)}
     ${
       g.noCount
         ? `<span class="status lap">lap</span>`
