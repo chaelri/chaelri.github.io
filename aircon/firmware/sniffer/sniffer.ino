@@ -1,21 +1,18 @@
 // ===========================================================================
 // sniffer.ino — re-capture Charlie's TCL TAC-09CSA/KEI remote with a known-
-//               good IR receiver. 15 presses total, auto-labelled, live
+//               good IR receiver. 5 presses total (one per button), live
 //               per-press confirmation so you can copy/paste at the end.
 // ---------------------------------------------------------------------------
-// What's different vs. the first capture session:
-//   * POWER is a single toggle button on the remote — you can't press
-//     "POWER ON" 3 times consecutively; pressing POWER alternates the AC
-//     between ON and OFF. So the sequence is now 6 POWER presses that
-//     alternate ON/OFF (gives us 3 turn-ON captures and 3 turn-OFF captures),
-//     followed by 3 each of TEMP+, TEMP-, SWING. 15 total presses.
+// Capture plan:
+//   Press 1: POWER (turns the AC ON — assumes AC starts OFF)
+//   Press 2: TEMP +
+//   Press 3: TEMP -
+//   Press 4: SWING
+//   Press 5: POWER (turns the AC back OFF)
 //
-//   * Live per-press logging — after each press finishes (detected by a
-//     ~800 ms quiet period), the sketch prints "[OK] Press N/15 captured"
-//     and tells you exactly which button to press next, so you can see in
-//     real time whether each press got through. The full log stays in the
-//     Serial Monitor scrollback so you can copy-paste the whole thing at
-//     the end.
+//   After each press the sketch prints "[OK] Press N/5 captured" and shows
+//   which button to press next. Full log stays in the Serial Monitor
+//   scrollback so you can copy/paste everything at the end.
 //
 // HARDWARE
 //   1× VS1838B / TSOP4838 IR receiver module (OUT/GND/VCC, no resistor).
@@ -61,27 +58,17 @@ const uint8_t  kTolerancePercentage  = kTolerance;
 const uint32_t kPressGapMs       = 200;   // quiet ms = new press (frames <50ms apart)
 const uint32_t kPressCompleteMs  = 800;   // quiet ms = press is done -> announce
 
-// --- The expected sequence: 15 presses, in order ---------------------------
+// --- The expected sequence: 5 presses, in order ----------------------------
 struct PressEntry {
   const char* btn;      // which button on the remote
   const char* action;   // what this press should do
 };
 const PressEntry kSequence[] = {
-  { "POWER",  "turn AC ON   (1 of 3 ON captures)"  },
-  { "POWER",  "turn AC OFF  (1 of 3 OFF captures)" },
-  { "POWER",  "turn AC ON   (2 of 3 ON captures)"  },
-  { "POWER",  "turn AC OFF  (2 of 3 OFF captures)" },
-  { "POWER",  "turn AC ON   (3 of 3 ON captures)"  },
-  { "POWER",  "turn AC OFF  (3 of 3 OFF captures)" },
-  { "TEMP +", "raise temp   (1 of 3)" },
-  { "TEMP +", "raise temp   (2 of 3)" },
-  { "TEMP +", "raise temp   (3 of 3)" },
-  { "TEMP -", "lower temp   (1 of 3)" },
-  { "TEMP -", "lower temp   (2 of 3)" },
-  { "TEMP -", "lower temp   (3 of 3)" },
-  { "SWING",  "toggle swing (1 of 3)" },
-  { "SWING",  "toggle swing (2 of 3)" },
-  { "SWING",  "toggle swing (3 of 3)" },
+  { "POWER",  "turn AC ON  (AC must start OFF)" },
+  { "TEMP +", "raise the temperature by 1" },
+  { "TEMP -", "lower the temperature by 1" },
+  { "SWING",  "toggle vertical swing" },
+  { "POWER",  "turn AC OFF" },
 };
 const uint8_t kSeqLen = sizeof(kSequence) / sizeof(kSequence[0]);
 
@@ -107,22 +94,23 @@ void announceNext(uint8_t nextIdx) {
 void printBanner() {
   Serial.println();
   Serial.println("====================================================================");
-  Serial.println(" Aircon IR Sniffer — TCL TAC-09CSA/KEI re-capture (15 presses)");
+  Serial.println(" Aircon IR Sniffer — TCL TAC-09CSA/KEI re-capture (5 presses)");
   Serial.println("====================================================================");
   Serial.printf (" Receiver pin     : GPIO%u\n", kRecvPin);
   Serial.printf (" New-press gap    : >%u ms\n", (unsigned)kPressGapMs);
   Serial.printf (" Press-done quiet : >%u ms\n", (unsigned)kPressCompleteMs);
   Serial.println();
-  Serial.println(" BEFORE YOU START: turn the AC OFF (use the remote facing AWAY");
-  Serial.println(" from the sniffer). The sequence assumes you'll start from OFF.");
+  Serial.println(" BEFORE YOU START: turn the AC OFF (point the remote AWAY from");
+  Serial.println(" the sniffer). The sequence assumes you'll start from OFF.");
   Serial.println();
-  Serial.println(" Plan (POWER alternates because it's a toggle):");
-  Serial.println("   #1-6   POWER × 6  (alternates ON/OFF/ON/OFF/ON/OFF)");
-  Serial.println("   #7-9   TEMP +  × 3");
-  Serial.println("   #10-12 TEMP -  × 3");
-  Serial.println("   #13-15 SWING   × 3");
+  Serial.println(" Plan — one click per button, in this order:");
+  Serial.println("   #1  POWER   -> turn AC ON");
+  Serial.println("   #2  TEMP +  -> raise temp");
+  Serial.println("   #3  TEMP -  -> lower temp");
+  Serial.println("   #4  SWING   -> toggle vertical swing");
+  Serial.println("   #5  POWER   -> turn AC OFF");
   Serial.println();
-  Serial.println(" After each press you'll see a '[OK] Press N/15 captured' line.");
+  Serial.println(" After each press you'll see a '[OK] Press N/5 captured' line.");
   Serial.println(" Wait for it before pressing the next button.");
   Serial.println();
   announceNext(0);
@@ -181,16 +169,16 @@ void announcePressComplete() {
     } else {
       Serial.println();
       Serial.println("====================================================================");
-      Serial.println(" *** ALL 15 PRESSES CAPTURED ***");
+      Serial.println(" *** ALL 5 PRESSES CAPTURED ***");
       Serial.println(" Scroll up, select the entire log from the first banner to here,");
       Serial.println(" copy it, and paste it back. Done.");
       Serial.println("====================================================================");
       Serial.println();
     }
   } else {
-    // We're past press 15 — user pressed extras. Just acknowledge.
+    // We're past press 5 — user pressed extras. Just acknowledge.
     Serial.printf("[..] Extra press #%u captured (%u frame%s). "
-                  "All 15 planned presses were already logged above.\n",
+                  "All 5 planned presses were already logged above.\n",
                   (unsigned)(pressIdx + 1),
                   (unsigned)frameCount, frameCount == 1 ? "" : "s");
   }
@@ -235,7 +223,7 @@ void loop() {
                     (unsigned)(pressIdx + 1), (unsigned)kSeqLen,
                     kSequence[pressIdx].btn, kSequence[pressIdx].action);
     } else {
-      Serial.printf(" EXTRA PRESS #%u  (beyond the 15-press plan)\n",
+      Serial.printf(" EXTRA PRESS #%u  (beyond the 5-press plan)\n",
                     (unsigned)(pressIdx + 1));
     }
     Serial.println("====================================================================");
