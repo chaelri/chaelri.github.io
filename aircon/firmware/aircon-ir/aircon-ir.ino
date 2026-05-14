@@ -51,6 +51,8 @@
 #include <WebServer.h>
 #include <IRremoteESP8266.h>
 #include <IRsend.h>
+#include <IRrecv.h>
+#include <IRutils.h>
 #include <ir_Tcl.h>
 
 // --- WiFi --------------------------------------------------------------------
@@ -107,12 +109,27 @@ const bool LIBRARY_INVERT     = false;
 // 5 repeats == 6 transmissions total per command, ~1 s in the air.
 const uint16_t IR_REPEATS = 5;
 
+// --- Self-verify (RX listens to our own TX) ---------------------------------
+// When true and an IR receiver is wired to RX_VERIFY_PIN, the firmware polls
+// the receiver for ~2 s after every command and prints what it picked up.
+// Lets us confirm in real-time whether the bytes we just sent decoded as
+// clean TCL112AC vs. UNKNOWN at the receiver end of the kit.
+const bool     RX_VERIFY        = true;
+const uint16_t RX_VERIFY_PIN    = 2;     // IR receiver OUT (same kit)
+const uint16_t RX_LISTEN_MS     = 2000;  // listen window after each send
+
 // --- AC controller (library) -------------------------------------------------
 IRTcl112Ac ac(IR_LED_PIN, LIBRARY_INVERT, LIBRARY_MODULATION);
 
 // Separate IRsend for raw-replay diagnostic mode (same pin / flags as the
 // IRTcl112Ac instance, so they emit the same kind of signal).
 IRsend rawIrsend(IR_LED_PIN, LIBRARY_INVERT, LIBRARY_MODULATION);
+
+// Receiver used for self-verify mode (listens to our own TX). 1024-entry
+// buffer + 15 ms timeout + save_buffer=true is the standard config from
+// the loopback sketch.
+IRrecv irrecv(RX_VERIFY_PIN, 1024, /*timeout_ms=*/15, /*save_buffer=*/true);
+decode_results rxResults;
 
 // --- Diagnostic: raw replay of captured POWER-ON timings --------------------
 // When TEST_RAW_REPLAY_POWER_ON is true, the "power_on" command bypasses the
@@ -235,6 +252,45 @@ void sendIR() {
   lastDurationMs = millis() - t0;
   sendCount++;
   digitalWrite(STATUS_LED, HIGH);
+
+  // --- Self-verify: drain the RX buffer and print what we heard ourselves
+  // emit. The receiver is on the same ESP32; while ac.send() was running,
+  // the IRrecv ISR was buffering each frame the LED put out. We just decode
+  // every buffered frame now and compare it to what we intended to send.
+  if (RX_VERIFY) {
+    uint8_t* sentBytes = ac.getRaw();
+    uint8_t  rxCount = 0;
+    uint8_t  rxClean = 0;
+    uint32_t pollEnd = millis() + RX_LISTEN_MS;
+    while (millis() < pollEnd) {
+      if (irrecv.decode(&rxResults)) {
+        rxCount++;
+        bool isTcl   = (rxResults.decode_type == TCL112AC && rxResults.bits == 112);
+        bool matches = false;
+        if (isTcl) {
+          matches = (memcmp(rxResults.state, sentBytes, kTcl112AcStateLength) == 0);
+          rxClean += matches ? 1 : 0;
+        }
+        Serial.printf("  rx#%u %s%s ",
+                      (unsigned)rxCount,
+                      isTcl ? "TCL112AC" : "UNKNOWN ",
+                      matches ? " MATCH" : "");
+        if (isTcl) {
+          for (uint16_t i = 0; i < kTcl112AcStateLength; i++) {
+            if (rxResults.state[i] < 0x10) Serial.print('0');
+            Serial.print(rxResults.state[i], HEX);
+            Serial.print(' ');
+          }
+        } else {
+          Serial.printf("(bits=%u)", rxResults.bits);
+        }
+        Serial.println();
+      }
+      delay(1);
+    }
+    Serial.printf("  rx summary: %u captures, %u clean TCL112AC matches\n",
+                  (unsigned)rxCount, (unsigned)rxClean);
+  }
 
   Serial.printf("IR %s -> %u ms (#%u)\n",
                 lastCmd.c_str(),
@@ -463,6 +519,13 @@ void setup() {
   ac.begin();
   rawIrsend.begin();
   setupAcDefaults();
+
+  if (RX_VERIFY) {
+    pinMode(RX_VERIFY_PIN, INPUT_PULLUP);
+    irrecv.enableIRIn(/*pullup=*/true);
+    Serial.printf("RX self-verify enabled on GPIO%u — will log decoded "
+                  "frames after every send.\n", (unsigned)RX_VERIFY_PIN);
+  }
 
   pinMode(STATUS_LED, OUTPUT);
   digitalWrite(STATUS_LED, HIGH);
