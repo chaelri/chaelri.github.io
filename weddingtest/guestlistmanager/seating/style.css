@@ -270,6 +270,14 @@ body {
   background: #f0f4e8;
   border-color: #7b8a5b;
 }
+.group-zone.two-col {
+  display: grid;
+  grid-template-columns: 1fr 1fr;
+  gap: 6px;
+}
+.group-zone.two-col .guest-chip {
+  width: 100%;
+}
 .group-zone.pick-target {
   cursor: pointer;
 }
