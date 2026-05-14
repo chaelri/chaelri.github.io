@@ -110,6 +110,7 @@ function init() {
           age: guest.age || "",
           photoUrl: guest.photoUrl || "",
           marchingOrder: guest.marchingOrder || 0,
+          noCount: guest.noCount === true,
         };
       });
       render();
@@ -192,8 +193,13 @@ function render() {
                         : ""
                     }
                     ${
-                      guest.role && guest.role !== 'guest' 
+                      guest.role && guest.role !== 'guest'
                         ? `<span class="text-[8px] bg-[#7b8a5b]/10 text-[#7b8a5b] px-1.5 py-0.5 rounded font-bold uppercase tracking-tighter">${guest.role}</span>`
+                        : ""
+                    }
+                    ${
+                      guest.noCount
+                        ? `<span class="text-[8px] bg-amber-100 text-amber-700 px-1.5 py-0.5 rounded font-bold uppercase tracking-tighter" title="Lap child — not counted in food">Lap</span>`
                         : ""
                     }
                 </div>
@@ -490,6 +496,18 @@ window.openEditModal = (id) => {
                       guest.marchingOrder || 0
                     }" class="w-full p-3 bg-stone-50 border border-stone-100 rounded-xl text-sm outline-none focus:ring-1 focus:ring-[#7b8a5b]">
                 </div>
+                <div class="md:col-span-2 space-y-1">
+                    <label class="text-[9px] uppercase tracking-widest text-stone-400 font-bold">Counting</label>
+                    <label class="flex items-center gap-3 p-3 bg-stone-50 border border-stone-100 rounded-xl cursor-pointer hover:border-[#7b8a5b] transition">
+                        <input type="checkbox" id="editNoCount" ${
+                          guest.noCount ? "checked" : ""
+                        } class="w-4 h-4 rounded border-stone-300 text-[#7b8a5b] focus:ring-[#7b8a5b]">
+                        <div class="flex-1">
+                            <div class="text-sm font-medium text-stone-700">Lap child — not counted in food</div>
+                            <div class="text-[10px] text-stone-400 mt-0.5">Still takes a seat & is searchable in seating, but excluded from the table's pax count.</div>
+                        </div>
+                    </label>
+                </div>
             </div>
 
             <div class="pt-2">
@@ -557,13 +575,14 @@ window.saveGuestEdit = async (id) => {
   const gender = document.getElementById("editGender").value;
   const age = document.getElementById("editAge").value.trim();
   const marchingOrder = parseInt(document.getElementById("editMarchingOrder").value) || 0;
+  const noCount = document.getElementById("editNoCount").checked;
   const photoInput = document.getElementById("photoInput");
 
   if (!name) return;
   btn.disabled = true;
   btn.innerHTML = `<span class="material-icons animate-spin text-sm">sync</span>`;
 
-  let updateData = { name, nickname, role, gender, age, marchingOrder };
+  let updateData = { name, nickname, role, gender, age, marchingOrder, noCount };
 
   if (photoInput.files[0]) {
     const compressedBlob = await compressImage(photoInput.files[0]);
