@@ -219,21 +219,17 @@ void setup() {
 
   irsend.begin();
 
-  // Set up the library state to match the captured POWER_ON sniff —
-  // when ac.send() fires, it should encode bytes 23 CB 26 01 00 24 03 07
-  // 05 00 00 00 88 D0 (matching what the real remote sent).
+  // Load the captured POWER_ON state byte-for-byte. We use setRaw instead of
+  // the setMode/setTemp/etc setters because those leave stale bits from the
+  // library's reset defaults (e.g. byte[8] had 0x40 from SwingV's Middle
+  // default, byte[12] was missing 0x80). Going raw guarantees the encoded
+  // frame matches the sniffed Frame-2 to the bit.
+  const uint8_t POWER_ON_STATE[kTcl112AcStateLength] = {
+    0x23, 0xCB, 0x26, 0x01, 0x00, 0x24, 0x03, 0x07,
+    0x05, 0x00, 0x00, 0x00, 0x88, 0xD0
+  };
   ac.begin();
-  ac.setMode(kTcl112AcCool);
-  ac.setTemp(24);
-  ac.setFan(kTcl112AcFanHigh);
-  ac.setSwingVertical(false);
-  ac.setSwingHorizontal(true);
-  ac.setLight(true);
-  ac.setEcono(false);
-  ac.setHealth(false);
-  ac.setTurbo(false);
-  ac.setQuiet(false);
-  ac.on();
+  ac.setRaw(POWER_ON_STATE, kTcl112AcStateLength);
 
   Serial.println();
   Serial.println("====================================================================");
@@ -248,8 +244,9 @@ void setup() {
   Serial.printf (" Cadence  : fires POWER_ON every %u ms\n",
                  (unsigned)SEND_INTERVAL_MS);
   Serial.println();
-  Serial.println(" Aim the TX and RX modules at each other from 10-30 cm apart.");
-  Serial.println(" Don't put them in direct contact (RX will saturate).");
+  Serial.println(" Aim TX and RX at each other from 30-50 cm apart this time.");
+  Serial.println(" (At <20 cm the RX often saturates from the direct LED light");
+  Serial.println("  and reports UNKNOWN even when the TX signal is clean.)");
   Serial.println();
   Serial.println(" Watch the log:");
   Serial.println("   * TX fires every 4 s.");
