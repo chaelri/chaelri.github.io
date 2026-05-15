@@ -616,20 +616,37 @@ function buildCopyButton(g, cap) {
 function buildEditButton(g) {
   const btn = document.createElement("button");
   btn.className = "floor-table-edit";
-  btn.title = "Rename table";
+  btn.title = "Edit table name & capacity";
   btn.innerHTML = '<span class="material-icons-outlined">edit</span>';
   btn.addEventListener("pointerdown", (e) => e.stopPropagation());
   btn.addEventListener("click", (e) => {
     e.stopPropagation();
-    const current = g.name || "";
-    const next = window.prompt("Rename table:", current);
-    if (next == null) return;
-    const trimmed = next.trim();
-    if (!trimmed || trimmed === current) return;
-    g.name = trimmed;
+    let changed = false;
+
+    const currentName = g.name || "";
+    const nextName = window.prompt("Rename table:", currentName);
+    if (nextName != null) {
+      const trimmed = nextName.trim();
+      if (trimmed && trimmed !== currentName) {
+        g.name = trimmed;
+        changed = true;
+      }
+    }
+
+    const currentCap = typeof g.capacity === "number" ? g.capacity : DEFAULT_CAPACITY;
+    const nextCap = window.prompt("Number of seats:", String(currentCap));
+    if (nextCap != null) {
+      const n = parseInt(nextCap, 10);
+      if (Number.isFinite(n) && n > 0 && n !== currentCap) {
+        g.capacity = n;
+        changed = true;
+      }
+    }
+
+    if (!changed) return;
     persist();
     tryRender();
-    toast("Renamed ✓");
+    toast("Saved ✓");
   });
   return btn;
 }
