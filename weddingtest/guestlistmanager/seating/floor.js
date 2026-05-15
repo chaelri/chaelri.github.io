@@ -123,6 +123,7 @@ onValue(ref(db, "guestList"), (snap) => {
     noCount: g.noCount === true,
     tags: Array.isArray(g.tags) ? g.tags : [],
     gender: g.gender || "",
+    role: g.role || "guest",
   }));
   guestsLoaded = true;
   mergeRsvpStatus();
@@ -365,6 +366,42 @@ function buildViewModeList(g, cap, title, subtitle) {
   return wrap;
 }
 
+// Maps a guest's `role` value to a coarse color group used by the
+// "Roles" toggle. Keeping this small means the legend stays readable.
+function roleGroupFor(role) {
+  switch (role) {
+    case "Bride":
+    case "Groom":
+      return "couple";
+    case "Parent of Bride":
+    case "Parent of Groom":
+      return "parent";
+    case "Officiant":
+      return "officiant";
+    case "Maid of Honor":
+    case "Best Man":
+      return "major";
+    case "Bridesmaid":
+    case "Groomsman":
+      return "party";
+    case "Principal Sponsor":
+      return "principal";
+    case "Secondary Sponsor":
+    case "Secondary Sponsor (Veil)":
+    case "Secondary Sponsor (Coin)":
+    case "Secondary Sponsor (Candle)":
+      return "secondary";
+    case "Bible Bearer":
+    case "Ring Bearer":
+      return "bearer";
+    case "Flower Boy":
+    case "Flower Girl":
+      return "flower";
+    default:
+      return "guest";
+  }
+}
+
 function renderSortKey(g) {
   const name = (g.name || "").toLowerCase();
   if (name.includes("couple")) return [0, 0];
@@ -466,11 +503,13 @@ function renderTables() {
           : guest.gender === "Female"
           ? "gender-female"
           : "gender-unknown";
+        const roleGroup = occupied ? roleGroupFor(guest.role) : "";
         chair.className = [
           "floor-chair",
           occupied ? "occupied" : "empty",
           side ? `side-${side}` : "",
           genderClass,
+          roleGroup ? `role-${roleGroup}` : "",
           guest && guest.noCount ? "lap" : "",
           matches ? "search-match" : "",
         ]
@@ -1306,6 +1345,16 @@ if (localStorage.getItem(SIDES_FLAG) === "1") {
 document.getElementById("toggleSidesBtn").addEventListener("click", () => {
   const hidden = document.body.classList.toggle("sides-hidden");
   localStorage.setItem(SIDES_FLAG, hidden ? "1" : "0");
+});
+
+// Color chairs by entourage role instead of gender.
+const ROLES_FLAG = "floor:rolesMode";
+if (localStorage.getItem(ROLES_FLAG) === "1") {
+  document.body.classList.add("roles-mode");
+}
+document.getElementById("toggleRolesBtn").addEventListener("click", () => {
+  const on = document.body.classList.toggle("roles-mode");
+  localStorage.setItem(ROLES_FLAG, on ? "1" : "0");
 });
 
 // View-only mode: hide chair pills, click a table for a clean seat-list popover.
