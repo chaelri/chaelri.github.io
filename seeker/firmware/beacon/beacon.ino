@@ -39,7 +39,7 @@
 // ===== EDIT THIS: the Finder board's MAC address =====================
 //  Get this by running mac_printer.ino on the Finder.
 //  Replace the six bytes below.
-uint8_t FINDER_MAC[6] = { 0xAA, 0xBB, 0xCC, 0xDD, 0xEE, 0xFF };
+uint8_t FINDER_MAC[6] = { 0x70, 0xAF, 0x09, 0x3B, 0xD1, 0xEC };
 
 // ===== Pins / timing knobs ===========================================
 const int      LED_PIN              = 8;     // onboard LED (active LOW)
@@ -65,9 +65,9 @@ bool     finderHeard = false;
 // ===== Callbacks =====================================================
 
 // Sent callback — useful for debugging only; we don't gate on this.
-void onDataSent(const uint8_t *mac, esp_now_send_status_t status) {
-  // Uncomment for debugging:
-  // Serial.printf("[send] %s\n", status == ESP_NOW_SEND_SUCCESS ? "OK" : "FAIL");
+void onDataSent(const wifi_tx_info_t *tx_info, esp_now_send_status_t status) {
+  // Logic remains the same, the compiler just needs these specific parameter types
+  // Serial.println(status == ESP_NOW_SEND_SUCCESS ? "Delivery Success" : "Delivery Fail");
 }
 
 // Receive callback — Finder sends back a 1-byte ack.

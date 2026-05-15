@@ -50,7 +50,7 @@
 #include <Preferences.h>
 
 // ===== EDIT THIS: the Beacon board's MAC address =====================
-uint8_t BEACON_MAC[6] = { 0x11, 0x22, 0x33, 0x44, 0x55, 0x66 };
+uint8_t BEACON_MAC[6] = { 0xDC, 0x06, 0x75, 0x67, 0xCC, 0xCC };
 
 // ===== Calibration constants — easy editable defaults ================
 // Override at runtime by long-pressing BOOT at 1 m and saving to NVS.
