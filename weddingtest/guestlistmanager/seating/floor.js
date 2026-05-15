@@ -1219,13 +1219,22 @@ function handleAssignDrop(guestId, dropTargetEl, sourceGroupId) {
 }
 
 function moveGuestToPosition(guestId, targetGroupId, targetIndex) {
-  // Replace the guest's old slot with an empty placeholder so the other
-  // members keep their seats. Trailing empties get trimmed below.
+  // Remember where the guest is moving FROM so we can swap if the
+  // target seat is occupied.
+  let sourceGroup = null;
+  let sourceIdx = -1;
   for (const g of groups) {
-    for (let i = 0; i < g.memberIds.length; i++) {
-      if (g.memberIds[i] === guestId) g.memberIds[i] = "";
+    const idx = g.memberIds.indexOf(guestId);
+    if (idx >= 0) {
+      sourceGroup = g;
+      sourceIdx = idx;
+      break;
     }
   }
+  // Clear the source slot with a placeholder so the other members
+  // keep their seats. Trailing empties get trimmed below.
+  if (sourceGroup) sourceGroup.memberIds[sourceIdx] = "";
+
   const target = groups.find((g) => g.id === targetGroupId);
   if (!target) {
     persist();
@@ -1233,6 +1242,12 @@ function moveGuestToPosition(guestId, targetGroupId, targetIndex) {
     return;
   }
   const cap = target.capacity || DEFAULT_CAPACITY;
+
+  const placeAt = (idx, id) => {
+    while (target.memberIds.length < idx) target.memberIds.push("");
+    if (target.memberIds.length === idx) target.memberIds.push(id);
+    else target.memberIds[idx] = id;
+  };
 
   if (!Number.isFinite(targetIndex)) {
     // Fill first empty seat (a gap, then the end).
@@ -1247,16 +1262,17 @@ function moveGuestToPosition(guestId, targetGroupId, targetIndex) {
     if (!placed) target.memberIds.push(guestId);
   } else {
     const idx = Math.max(0, Math.min(targetIndex, cap - 1));
-    // Pad with empty-string placeholders so trailing seats can hold a guest
-    // even when earlier seats are empty (Firebase preserves "" in arrays).
-    while (target.memberIds.length < idx) target.memberIds.push("");
-    if (target.memberIds.length === idx) {
-      target.memberIds.push(guestId);
-    } else if (!target.memberIds[idx]) {
-      target.memberIds[idx] = guestId;
+    const occupant = target.memberIds[idx];
+    if (!occupant) {
+      placeAt(idx, guestId);
+    } else if (sourceGroup) {
+      // Swap with the existing occupant — guest goes to the target
+      // seat, occupant goes to the now-empty source seat.
+      placeAt(idx, guestId);
+      sourceGroup.memberIds[sourceIdx] = occupant;
     } else {
-      // Target seat is occupied. Prefer reusing an empty slot anywhere
-      // in the table so the cap is never exceeded by an insert-shift.
+      // No source (came from pool). Prefer the first empty slot to
+      // avoid bumping the existing occupant off the table.
       let placed = false;
       for (let i = 0; i < cap; i++) {
         if (!target.memberIds[i]) {
@@ -1270,20 +1286,18 @@ function moveGuestToPosition(guestId, targetGroupId, targetIndex) {
         placed = true;
       }
       if (!placed) {
-        // Truly over capacity — fall back to shift-right and let the
-        // user notice via the "X / Y" meta turning red.
+        // Truly full — shift-right and let the red X / Y badge flag it.
         target.memberIds.splice(idx, 0, guestId);
       }
     }
   }
 
   // Trim trailing empties so length tracks the highest-occupied seat.
-  while (
-    target.memberIds.length &&
-    !target.memberIds[target.memberIds.length - 1]
-  ) {
-    target.memberIds.pop();
-  }
+  const trim = (arr) => {
+    while (arr.length && !arr[arr.length - 1]) arr.pop();
+  };
+  trim(target.memberIds);
+  if (sourceGroup && sourceGroup !== target) trim(sourceGroup.memberIds);
 
   persist();
   tryRender();
