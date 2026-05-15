@@ -176,6 +176,40 @@ body.pool-collapsed .floor-canvas {
   user-select: none;
 }
 
+/* ---------- Floral corner accents (decorative only) ---------- */
+.floor-floral {
+  position: absolute;
+  width: 260px;
+  height: auto;
+  opacity: 0.32;
+  pointer-events: none;
+  user-select: none;
+  z-index: 0;
+}
+.floor-floral.floral-tl {
+  top: -30px;
+  left: -30px;
+  transform: rotate(-12deg);
+}
+.floor-floral.floral-tr {
+  top: -30px;
+  right: -30px;
+  transform: scaleX(-1) rotate(-12deg);
+}
+.floor-floral.floral-bl {
+  bottom: -30px;
+  left: -30px;
+  transform: rotate(180deg) scaleX(-1);
+}
+.floor-floral.floral-br {
+  bottom: -30px;
+  right: -30px;
+  transform: rotate(180deg);
+}
+body.view-mode .floor-floral {
+  display: none !important;
+}
+
 /* ---------- Entrance arch (bottom of canvas, mirrors the stage) ---------- */
 .floor-entrance {
   position: absolute;
