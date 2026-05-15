@@ -441,6 +441,7 @@ function renderTables() {
       <div class="floor-table-meta ${metaClass}">${total} / ${cap}</div>
     `;
     card.appendChild(buildMemberGrid(g, { viewMode: inViewMode }));
+    card.appendChild(buildEditButton(g));
     card.appendChild(buildCopyButton(g, cap));
     card.appendChild(buildCloseButton(g));
     enableTableDrag(card, g);
@@ -569,6 +570,27 @@ function buildCopyButton(g, cap) {
       document.body.removeChild(ta);
       toast("Copied ✓");
     }
+  });
+  return btn;
+}
+
+function buildEditButton(g) {
+  const btn = document.createElement("button");
+  btn.className = "floor-table-edit";
+  btn.title = "Rename table";
+  btn.innerHTML = '<span class="material-icons-outlined">edit</span>';
+  btn.addEventListener("pointerdown", (e) => e.stopPropagation());
+  btn.addEventListener("click", (e) => {
+    e.stopPropagation();
+    const current = g.name || "";
+    const next = window.prompt("Rename table:", current);
+    if (next == null) return;
+    const trimmed = next.trim();
+    if (!trimmed || trimmed === current) return;
+    g.name = trimmed;
+    persist();
+    tryRender();
+    toast("Renamed ✓");
   });
   return btn;
 }

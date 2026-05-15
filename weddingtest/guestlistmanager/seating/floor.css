@@ -760,7 +760,8 @@ body:not(.view-mode) .floor-view-list {
   cursor: default;
 }
 .floor-table-close,
-.floor-table-copy {
+.floor-table-copy,
+.floor-table-edit {
   display: none;
   position: absolute;
   top: 8px;
@@ -783,16 +784,22 @@ body:not(.view-mode) .floor-view-list {
 .floor-table-copy {
   right: 40px;
 }
+.floor-table-edit {
+  right: 72px;
+}
 .floor-table.expanded .floor-table-close,
-.floor-table.expanded .floor-table-copy {
+.floor-table.expanded .floor-table-copy,
+.floor-table.expanded .floor-table-edit {
   display: inline-flex;
 }
-.floor-table-copy:hover {
+.floor-table-copy:hover,
+.floor-table-edit:hover {
   color: #1c1917;
   background: #f5f5f4;
   border-color: #d6d3d1;
 }
-.floor-table-copy .material-icons-outlined {
+.floor-table-copy .material-icons-outlined,
+.floor-table-edit .material-icons-outlined {
   font-size: 14px;
 }
 .floor-table-close:hover {
