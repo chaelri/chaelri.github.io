@@ -272,16 +272,44 @@ body.pool-collapsed .floor-canvas {
   border-radius: 999px;
   background: #fff7ed;
   border-color: #fb923c;
+  overflow: hidden;
+  position: absolute;
 }
-.floor-table.shape-couple .floor-table-name {
+.floor-table.shape-couple .floor-couple-photos {
+  position: absolute;
+  inset: 0;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  gap: 14px;
+  pointer-events: none;
+}
+.floor-table.shape-couple .floor-couple-avatar {
+  width: 46px;
+  height: 46px;
+  border-radius: 50%;
+  object-fit: cover;
+  border: 2px solid white;
+  box-shadow: 0 1px 4px rgba(0, 0, 0, 0.2);
+}
+.floor-table.shape-couple .floor-table-name,
+.floor-table.shape-couple .floor-table-meta {
+  display: none;
+}
+/* Show the label/count again when the user expands the card. */
+.floor-table.shape-couple.expanded .floor-couple-photos {
+  display: none;
+}
+.floor-table.shape-couple.expanded .floor-table-name,
+.floor-table.shape-couple.expanded .floor-table-meta {
+  display: block;
   color: #c2410c;
-  font-size: 11px;
+}
+.floor-table.shape-couple.expanded .floor-table-name {
+  font-size: 16px;
   font-weight: 800;
   letter-spacing: 0.22em;
   text-transform: uppercase;
-}
-.floor-table.shape-couple .floor-table-meta {
-  color: #c2410c;
 }
 /* Couple chairs don't need the C / K letter — the couple's sides are obvious. */
 .floor-table.shape-couple .floor-chair.occupied::before {

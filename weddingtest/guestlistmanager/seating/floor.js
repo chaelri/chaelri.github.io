@@ -124,6 +124,7 @@ onValue(ref(db, "guestList"), (snap) => {
     tags: Array.isArray(g.tags) ? g.tags : [],
     gender: g.gender || "",
     role: g.role || "guest",
+    photoUrl: g.photoUrl || "",
   }));
   guestsLoaded = true;
   mergeRsvpStatus();
@@ -473,7 +474,24 @@ function renderTables() {
     const subtitleHtml = subtitle
       ? `<div class="floor-table-sublabel">${escapeHtml(subtitle)}</div>`
       : "";
+    let couplePhotoHtml = "";
+    if (isCouple) {
+      const avatars = g.memberIds
+        .map((id) => allGuests.find((x) => x.id === id))
+        .filter((p) => p && p.photoUrl)
+        .map(
+          (p) =>
+            `<img class="floor-couple-avatar" src="${escapeHtml(
+              p.photoUrl
+            )}" alt="${escapeHtml(p.name)}" />`
+        )
+        .join("");
+      if (avatars) {
+        couplePhotoHtml = `<div class="floor-couple-photos">${avatars}</div>`;
+      }
+    }
     card.innerHTML = `
+      ${couplePhotoHtml}
       <div class="floor-table-name${subtitle ? " is-stacked" : ""}">${escapeHtml(title)}</div>
       ${subtitleHtml}
       <div class="floor-table-meta ${metaClass}">${total} / ${cap}</div>
