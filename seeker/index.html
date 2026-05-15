@@ -1,0 +1,1435 @@
+<!doctype html>
+<html lang="en" class="dark">
+<head>
+  <meta charset="utf-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1" />
+  <title>Seeker · DIY hide-and-seek proximity finder</title>
+
+  <link rel="preconnect" href="https://fonts.googleapis.com" />
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
+  <link href="https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700;800&family=JetBrains+Mono:wght@400;500&display=swap" rel="stylesheet" />
+  <link href="https://fonts.googleapis.com/css2?family=Material+Symbols+Outlined:opsz,wght,FILL,GRAD@24,400,0,0" rel="stylesheet" />
+
+  <script src="https://cdn.jsdelivr.net/npm/@tailwindcss/browser@4"></script>
+
+  <style>
+    :root { color-scheme: dark; }
+    html, body { background: #07080b; }
+    body {
+      font-family: 'Inter', system-ui, -apple-system, sans-serif;
+      background-image:
+        radial-gradient(ellipse 60% 50% at 15% -10%, rgba(16,185,129,0.16), transparent 60%),
+        radial-gradient(ellipse 50% 40% at 85% 5%, rgba(251,191,36,0.10), transparent 60%),
+        radial-gradient(ellipse 60% 40% at 50% 100%, rgba(244,63,94,0.08), transparent 60%);
+      background-attachment: fixed;
+    }
+    code, pre, .mono { font-family: 'JetBrains Mono', ui-monospace, monospace; }
+    .material-symbols-outlined { font-variation-settings: 'FILL' 0, 'wght' 400, 'GRAD' 0, 'opsz' 24; vertical-align: middle; }
+
+    .card {
+      background: linear-gradient(180deg, rgba(255,255,255,0.025), rgba(255,255,255,0.012));
+      border: 1px solid rgba(255,255,255,0.06);
+      border-radius: 16px;
+    }
+    .glow-em  { box-shadow: 0 0 24px -4px rgba(16,185,129,0.45); }
+    .glow-am  { box-shadow: 0 0 24px -4px rgba(251,191,36,0.45); }
+    .glow-ro  { box-shadow: 0 0 24px -4px rgba(244,63,94,0.45); }
+    .text-glow-em { text-shadow: 0 0 18px rgba(16,185,129,0.55); }
+
+    /* Section anchor offset for sticky nav */
+    .section { scroll-margin-top: 80px; }
+
+    /* Nav active */
+    .nav-link.active { color: #fff; background: rgba(255,255,255,0.06); }
+
+    /* Code block */
+    pre.code {
+      background: #0a0c12;
+      border: 1px solid rgba(255,255,255,0.06);
+      border-radius: 12px;
+      padding: 18px 20px;
+      overflow-x: auto;
+      font-size: 12.5px;
+      line-height: 1.65;
+      color: #c9d1d9;
+      tab-size: 2;
+    }
+    .tok-kw { color: #ff7b72; }
+    .tok-str { color: #a5d6ff; }
+    .tok-num { color: #79c0ff; }
+    .tok-com { color: #6e7681; font-style: italic; }
+    .tok-fn  { color: #d2a8ff; }
+    .tok-typ { color: #ffa657; }
+    .tok-pp  { color: #f8c555; }
+
+    /* Animated radio waves */
+    @keyframes wavePulse {
+      0%   { r: 14; opacity: 0.65; }
+      80%  { opacity: 0; }
+      100% { r: 180; opacity: 0; }
+    }
+    .wave-arc {
+      animation: wavePulse 2.8s ease-out infinite;
+      transform-origin: center;
+      fill: none;
+      stroke-width: 1.6;
+    }
+    .wave-arc.w1 { animation-delay: 0s; }
+    .wave-arc.w2 { animation-delay: 0.9s; }
+    .wave-arc.w3 { animation-delay: 1.8s; }
+
+    /* Heartbeat LED */
+    @keyframes heartbeat {
+      0%, 30%, 100% { opacity: 0.4; transform: scale(1); }
+      8%, 18%       { opacity: 1;   transform: scale(1.18); }
+    }
+    .heartbeat { transform-origin: center; animation: heartbeat 1.6s ease-in-out infinite; }
+    .heartbeat-fast { animation: heartbeat 0.55s ease-in-out infinite; }
+
+    /* Flow arrows */
+    @keyframes flowDash { to { stroke-dashoffset: -36; } }
+    .flow { stroke-dasharray: 6 12; animation: flowDash 1.6s linear infinite; }
+
+    /* Hot/cold gradient bar */
+    .hotcold-bar {
+      background: linear-gradient(90deg,
+        #38bdf8 0%, #38bdf8 20%,
+        #60a5fa 35%, #fbbf24 55%,
+        #f97316 75%, #f43f5e 100%);
+      border-radius: 999px;
+      box-shadow: inset 0 1px 3px rgba(0,0,0,0.4), 0 0 30px rgba(244,63,94,0.18);
+    }
+    .hotcold-marker {
+      transition: left 250ms cubic-bezier(0.22, 1, 0.36, 1);
+    }
+
+    /* Mini OLED preview */
+    .oled-screen {
+      background: #050608;
+      border: 2px solid #1f2937;
+      border-radius: 6px;
+      box-shadow: inset 0 0 10px rgba(165,180,252,0.06);
+    }
+    .oled-text { font-family: 'JetBrains Mono', ui-monospace, monospace; color: #e5e7eb; }
+    @keyframes oledFlicker {
+      0%, 100% { opacity: 0.96; }
+      50%      { opacity: 1; }
+    }
+    .oled-on { animation: oledFlicker 4s ease-in-out infinite; }
+
+    /* Checklist */
+    .check-item .check-box {
+      width: 20px; height: 20px; border-radius: 6px;
+      border: 1.5px solid rgba(255,255,255,0.18);
+      flex-shrink: 0; display: grid; place-items: center;
+      transition: all 120ms ease;
+    }
+    .check-item.done .check-box {
+      background: linear-gradient(135deg, #10b981, #fbbf24);
+      border-color: transparent;
+    }
+    .check-item.done .check-box .material-symbols-outlined { opacity: 1; transform: scale(1); }
+    .check-item .check-box .material-symbols-outlined { opacity: 0; transform: scale(0.5); transition: all 120ms ease; font-size: 14px; color: white; }
+    .check-item.done .check-label { color: rgba(255,255,255,0.4); text-decoration: line-through; }
+
+    /* Subtle grid background for hardware view */
+    .grid-bg {
+      background-image:
+        linear-gradient(rgba(255,255,255,0.025) 1px, transparent 1px),
+        linear-gradient(90deg, rgba(255,255,255,0.025) 1px, transparent 1px);
+      background-size: 32px 32px;
+    }
+
+    /* details/summary */
+    details > summary { list-style: none; cursor: pointer; }
+    details > summary::-webkit-details-marker { display: none; }
+    details[open] .chev { transform: rotate(180deg); }
+    .chev { transition: transform 200ms ease; }
+
+    /* hide scrollbar (cosmetic) */
+    .no-scrollbar::-webkit-scrollbar { display: none; }
+    .no-scrollbar { scrollbar-width: none; }
+  </style>
+</head>
+<body class="text-slate-300 antialiased">
+
+<!-- ============== NAV ============== -->
+<nav class="sticky top-0 z-40 backdrop-blur-xl bg-[#07080b]/75 border-b border-white/[0.06]">
+  <div class="max-w-6xl mx-auto px-4 sm:px-6 h-14 flex items-center justify-between">
+    <a href="#top" class="flex items-center gap-2.5 group">
+      <div class="w-8 h-8 rounded-lg bg-gradient-to-br from-emerald-500 to-amber-500 grid place-items-center glow-em">
+        <span class="material-symbols-outlined text-white" style="font-size:18px">radar</span>
+      </div>
+      <span class="font-semibold text-white tracking-tight">Seeker</span>
+      <span class="text-xs text-slate-500 hidden sm:inline">· proximity finder</span>
+    </a>
+
+    <div class="hidden md:flex items-center gap-1 text-sm">
+      <a href="#overview"  data-nav class="nav-link px-3 py-1.5 rounded-md text-slate-400 hover:text-white transition-colors">Overview</a>
+      <a href="#hardware"  data-nav class="nav-link px-3 py-1.5 rounded-md text-slate-400 hover:text-white transition-colors">Hardware</a>
+      <a href="#wiring"    data-nav class="nav-link px-3 py-1.5 rounded-md text-slate-400 hover:text-white transition-colors">Wiring</a>
+      <a href="#math"      data-nav class="nav-link px-3 py-1.5 rounded-md text-slate-400 hover:text-white transition-colors">Math</a>
+      <a href="#demo"      data-nav class="nav-link px-3 py-1.5 rounded-md text-slate-400 hover:text-white transition-colors">Demo</a>
+      <a href="#code"      data-nav class="nav-link px-3 py-1.5 rounded-md text-slate-400 hover:text-white transition-colors">Code</a>
+      <a href="#checklist" data-nav class="nav-link px-3 py-1.5 rounded-md text-slate-400 hover:text-white transition-colors">Build</a>
+    </div>
+
+    <button id="navOpen" aria-label="menu" class="md:hidden text-slate-300 hover:text-white p-2">
+      <span class="material-symbols-outlined">menu</span>
+    </button>
+  </div>
+  <div id="navMobile" class="hidden md:hidden px-4 pb-3 space-y-1 text-sm border-t border-white/5">
+    <a href="#overview"  class="block px-3 py-2 rounded-md text-slate-300 hover:bg-white/5">Overview</a>
+    <a href="#hardware"  class="block px-3 py-2 rounded-md text-slate-300 hover:bg-white/5">Hardware</a>
+    <a href="#wiring"    class="block px-3 py-2 rounded-md text-slate-300 hover:bg-white/5">Wiring</a>
+    <a href="#math"      class="block px-3 py-2 rounded-md text-slate-300 hover:bg-white/5">Math</a>
+    <a href="#demo"      class="block px-3 py-2 rounded-md text-slate-300 hover:bg-white/5">Demo</a>
+    <a href="#code"      class="block px-3 py-2 rounded-md text-slate-300 hover:bg-white/5">Code</a>
+    <a href="#checklist" class="block px-3 py-2 rounded-md text-slate-300 hover:bg-white/5">Build</a>
+  </div>
+</nav>
+
+<!-- ============== HERO ============== -->
+<header id="top" class="max-w-6xl mx-auto px-4 sm:px-6 pt-16 pb-12 text-center">
+  <div class="inline-flex items-center gap-2 px-3 py-1 rounded-full bg-white/[0.04] border border-white/[0.06] text-xs text-slate-400 mb-6">
+    <span class="w-1.5 h-1.5 bg-emerald-400 rounded-full"></span>
+    Two ESP32-C3 boards · ESP-NOW · 0 soldering
+  </div>
+  <h1 class="text-4xl sm:text-6xl font-bold tracking-tight text-white mb-4">
+    DIY <span class="bg-gradient-to-r from-emerald-300 via-amber-300 to-rose-300 bg-clip-text text-transparent">Seeker</span>
+  </h1>
+  <p class="text-slate-400 max-w-2xl mx-auto text-base sm:text-lg">
+    Hide one board. Carry the other. Watch the distance shrink as you get closer —
+    a tiny radar built from two <span class="text-emerald-300/90">ESP32-C3 Super Minis</span>
+    talking over <span class="text-amber-300/90">ESP-NOW</span>.
+  </p>
+
+  <!-- Hero illustration: two boards with radio waves between -->
+  <div class="mt-10 max-w-4xl mx-auto">
+    <div class="card p-6 sm:p-8 grid-bg">
+      <svg viewBox="0 0 800 280" class="w-full h-auto">
+        <defs>
+          <linearGradient id="emAm" x1="0" x2="1">
+            <stop offset="0%"  stop-color="#10b981"/>
+            <stop offset="100%" stop-color="#fbbf24"/>
+          </linearGradient>
+          <linearGradient id="beaconPcb" x1="0" x2="0" y1="0" y2="1">
+            <stop offset="0%"  stop-color="#1f1f24"/>
+            <stop offset="100%" stop-color="#0d0d10"/>
+          </linearGradient>
+          <linearGradient id="finderPcb" x1="0" x2="0" y1="0" y2="1">
+            <stop offset="0%"  stop-color="#4c1d95"/>
+            <stop offset="100%" stop-color="#2e1065"/>
+          </linearGradient>
+          <radialGradient id="ledRed" cx="0.5" cy="0.5" r="0.5">
+            <stop offset="0%"  stop-color="#fca5a5"/>
+            <stop offset="60%" stop-color="#dc2626"/>
+            <stop offset="100%" stop-color="#7f1d1d"/>
+          </radialGradient>
+          <radialGradient id="ledBlue" cx="0.5" cy="0.5" r="0.5">
+            <stop offset="0%"  stop-color="#bfdbfe"/>
+            <stop offset="60%" stop-color="#3b82f6"/>
+            <stop offset="100%" stop-color="#1e3a8a"/>
+          </radialGradient>
+        </defs>
+
+        <!-- Beacon (left, black PCB, no OLED) -->
+        <g transform="translate(80 90)">
+          <rect width="180" height="100" rx="10" fill="url(#beaconPcb)" stroke="#3f3f46" stroke-width="1"/>
+          <!-- USB-C bump -->
+          <rect x="170" y="35" width="22" height="30" rx="3" fill="#27272a" stroke="#3f3f46"/>
+          <!-- ESP32 chip -->
+          <rect x="48" y="34" width="42" height="42" rx="2" fill="#0a0a0a" stroke="#52525b"/>
+          <text x="69" y="59" text-anchor="middle" fill="#71717a" font-size="9" font-family="JetBrains Mono">C3</text>
+          <!-- Antenna meander -->
+          <path d="M 14 38 L 26 38 L 26 44 L 14 44 L 14 50 L 26 50 L 26 56 L 14 56 L 14 62 L 26 62"
+                fill="none" stroke="#fbbf24" stroke-width="1.5"/>
+          <!-- BOOT + RST buttons -->
+          <rect x="105" y="40" width="14" height="14" rx="2" fill="#27272a" stroke="#52525b"/>
+          <rect x="125" y="40" width="14" height="14" rx="2" fill="#27272a" stroke="#52525b"/>
+          <!-- Onboard LED (heartbeat) -->
+          <circle class="heartbeat" cx="115" cy="74" r="3.2" fill="url(#ledRed)"/>
+          <!-- Pin pads bottom -->
+          <g fill="#facc15">
+            <circle cx="20"  cy="96" r="2.4"/>
+            <circle cx="40"  cy="96" r="2.4"/>
+            <circle cx="60"  cy="96" r="2.4"/>
+            <circle cx="80"  cy="96" r="2.4"/>
+            <circle cx="100" cy="96" r="2.4"/>
+            <circle cx="120" cy="96" r="2.4"/>
+            <circle cx="140" cy="96" r="2.4"/>
+            <circle cx="160" cy="96" r="2.4"/>
+          </g>
+          <text x="90" y="-10" text-anchor="middle" fill="#a3a3a3" font-size="11" font-weight="600">BEACON</text>
+          <text x="90" y="115" text-anchor="middle" fill="#71717a" font-size="9" font-family="JetBrains Mono">hidden somewhere</text>
+        </g>
+
+        <!-- Radio waves (between boards) -->
+        <g transform="translate(400 140)">
+          <circle class="wave-arc w1" cx="0" cy="0" r="14" stroke="#10b981"/>
+          <circle class="wave-arc w2" cx="0" cy="0" r="14" stroke="#fbbf24"/>
+          <circle class="wave-arc w3" cx="0" cy="0" r="14" stroke="#f43f5e"/>
+          <circle cx="0" cy="0" r="3.5" fill="#fff"/>
+        </g>
+
+        <!-- Finder (right, purple PCB, with OLED) -->
+        <g transform="translate(540 90)">
+          <rect width="180" height="100" rx="10" fill="url(#finderPcb)" stroke="#6d28d9" stroke-width="1"/>
+          <!-- USB-C bump -->
+          <rect x="170" y="35" width="22" height="30" rx="3" fill="#5b21b6" stroke="#7c3aed"/>
+          <!-- ESP32 chip -->
+          <rect x="120" y="34" width="32" height="32" rx="2" fill="#0a0a0a" stroke="#7c3aed"/>
+          <text x="136" y="55" text-anchor="middle" fill="#a78bfa" font-size="8" font-family="JetBrains Mono">C3</text>
+          <!-- OLED display -->
+          <rect x="14" y="22" width="86" height="48" rx="3" fill="#040508" stroke="#1f2937" stroke-width="1.4"/>
+          <text x="57" y="42" text-anchor="middle" fill="#e5e7eb" font-size="14" font-weight="700" font-family="JetBrains Mono">3.2m</text>
+          <text x="57" y="55" text-anchor="middle" fill="#a3a3a3" font-size="6" font-family="JetBrains Mono">-67dBm</text>
+          <text x="57" y="65" text-anchor="middle" fill="#fbbf24" font-size="7" font-weight="700">WARM</text>
+          <!-- BOOT button -->
+          <rect x="108" y="76" width="12" height="12" rx="2" fill="#5b21b6" stroke="#7c3aed"/>
+          <!-- Onboard LED (faster heartbeat — Finder is hearing!) -->
+          <circle class="heartbeat-fast" cx="100" cy="80" r="3" fill="url(#ledBlue)"/>
+          <!-- Pin pads bottom -->
+          <g fill="#fbbf24">
+            <circle cx="22"  cy="96" r="2.4"/>
+            <circle cx="42"  cy="96" r="2.4"/>
+            <circle cx="62"  cy="96" r="2.4"/>
+            <circle cx="82"  cy="96" r="2.4"/>
+            <circle cx="102" cy="96" r="2.4"/>
+            <circle cx="122" cy="96" r="2.4"/>
+            <circle cx="142" cy="96" r="2.4"/>
+            <circle cx="162" cy="96" r="2.4"/>
+          </g>
+          <text x="90" y="-10" text-anchor="middle" fill="#c4b5fd" font-size="11" font-weight="600">FINDER</text>
+          <text x="90" y="115" text-anchor="middle" fill="#a78bfa" font-size="9" font-family="JetBrains Mono">you carry this</text>
+        </g>
+      </svg>
+
+      <div class="grid grid-cols-2 sm:grid-cols-4 gap-3 mt-2">
+        <div class="card p-3 text-center">
+          <div class="text-2xl font-bold text-white">2</div>
+          <div class="text-[10px] text-slate-500 uppercase tracking-wider">boards</div>
+        </div>
+        <div class="card p-3 text-center">
+          <div class="text-2xl font-bold text-emerald-300">10<span class="text-sm text-slate-500">/s</span></div>
+          <div class="text-[10px] text-slate-500 uppercase tracking-wider">packets</div>
+        </div>
+        <div class="card p-3 text-center">
+          <div class="text-2xl font-bold text-amber-300">~150<span class="text-sm text-slate-500">m</span></div>
+          <div class="text-[10px] text-slate-500 uppercase tracking-wider">open range</div>
+        </div>
+        <div class="card p-3 text-center">
+          <div class="text-2xl font-bold text-rose-300">0</div>
+          <div class="text-[10px] text-slate-500 uppercase tracking-wider">soldering</div>
+        </div>
+      </div>
+    </div>
+  </div>
+</header>
+
+<!-- ============== OVERVIEW ============== -->
+<section id="overview" class="section max-w-6xl mx-auto px-4 sm:px-6 py-16">
+  <div class="text-center mb-10">
+    <div class="text-xs font-medium text-emerald-300 uppercase tracking-widest mb-2">Step 1 · Concept</div>
+    <h2 class="text-3xl sm:text-4xl font-bold text-white mb-3">How the signal travels</h2>
+    <p class="text-slate-400 max-w-2xl mx-auto">
+      The Beacon shouts a short packet ten times a second. The Finder hears it,
+      measures how loud it was, and converts loudness into a distance estimate.
+    </p>
+  </div>
+
+  <div class="card p-6 sm:p-8">
+    <svg viewBox="0 0 900 220" class="w-full h-auto">
+      <defs>
+        <marker id="arrowEm" viewBox="0 0 10 10" refX="9" refY="5" markerWidth="6" markerHeight="6" orient="auto">
+          <path d="M 0 0 L 10 5 L 0 10 z" fill="#10b981"/>
+        </marker>
+      </defs>
+
+      <!-- 5 nodes -->
+      <g>
+        <!-- Node 1: Beacon -->
+        <g transform="translate(20 60)">
+          <rect width="140" height="100" rx="14" fill="#0f1419" stroke="#10b981" stroke-width="1.5"/>
+          <text x="70" y="28" text-anchor="middle" fill="#10b981" font-size="11" font-weight="700">BEACON</text>
+          <g transform="translate(40 38)">
+            <rect width="60" height="40" rx="4" fill="#1f1f24" stroke="#52525b"/>
+            <circle cx="50" cy="30" r="2.4" fill="#fca5a5"/>
+            <rect x="8" y="10" width="14" height="14" rx="1" fill="#0a0a0a" stroke="#71717a"/>
+            <text x="15" y="20" text-anchor="middle" fill="#71717a" font-size="6">C3</text>
+          </g>
+          <text x="70" y="90" text-anchor="middle" fill="#94a3b8" font-size="9" font-family="JetBrains Mono">esp_now_send()</text>
+        </g>
+
+        <!-- Arrow 1 -->
+        <path d="M 165 110 L 215 110" class="flow" stroke="#10b981" stroke-width="2" fill="none" marker-end="url(#arrowEm)"/>
+        <text x="190" y="100" text-anchor="middle" fill="#10b981" font-size="9" font-weight="600">10×/s</text>
+
+        <!-- Node 2: ESP-NOW packet -->
+        <g transform="translate(225 60)">
+          <rect width="150" height="100" rx="14" fill="#0f1419" stroke="#fbbf24" stroke-width="1.5"/>
+          <text x="75" y="28" text-anchor="middle" fill="#fbbf24" font-size="11" font-weight="700">ESP-NOW</text>
+          <!-- Packet visualization -->
+          <g transform="translate(20 40)">
+            <rect width="110" height="36" rx="4" fill="#1c1917" stroke="#78350f"/>
+            <text x="55" y="14" text-anchor="middle" fill="#fbbf24" font-size="7" font-family="JetBrains Mono">{ seq, ms }</text>
+            <text x="55" y="28" text-anchor="middle" fill="#a3a3a3" font-size="6" font-family="JetBrains Mono">8 bytes · 2.4 GHz</text>
+          </g>
+          <text x="75" y="90" text-anchor="middle" fill="#94a3b8" font-size="9" font-family="JetBrains Mono">peer-to-peer radio</text>
+        </g>
+
+        <!-- Arrow 2 -->
+        <path d="M 380 110 L 430 110" class="flow" stroke="#10b981" stroke-width="2" fill="none" marker-end="url(#arrowEm)"/>
+
+        <!-- Node 3: RSSI capture -->
+        <g transform="translate(440 60)">
+          <rect width="150" height="100" rx="14" fill="#0f1419" stroke="#fb923c" stroke-width="1.5"/>
+          <text x="75" y="28" text-anchor="middle" fill="#fb923c" font-size="11" font-weight="700">RSSI</text>
+          <g transform="translate(15 38)">
+            <!-- Signal bar visual -->
+            <rect x="0"  y="20" width="8" height="6"  rx="1" fill="#fb923c"/>
+            <rect x="14" y="14" width="8" height="12" rx="1" fill="#fb923c"/>
+            <rect x="28" y="8"  width="8" height="18" rx="1" fill="#fb923c"/>
+            <rect x="42" y="2"  width="8" height="24" rx="1" fill="#fb923c"/>
+            <text x="80" y="14" fill="#e5e7eb" font-size="10" font-family="JetBrains Mono">-67</text>
+            <text x="80" y="26" fill="#71717a" font-size="7" font-family="JetBrains Mono">dBm</text>
+          </g>
+          <text x="75" y="90" text-anchor="middle" fill="#94a3b8" font-size="9" font-family="JetBrains Mono">rx_ctrl-&gt;rssi</text>
+        </g>
+
+        <!-- Arrow 3 -->
+        <path d="M 595 110 L 645 110" class="flow" stroke="#10b981" stroke-width="2" fill="none" marker-end="url(#arrowEm)"/>
+
+        <!-- Node 4: Smoothing -->
+        <g transform="translate(655 60)">
+          <rect width="100" height="100" rx="14" fill="#0f1419" stroke="#f43f5e" stroke-width="1.5"/>
+          <text x="50" y="28" text-anchor="middle" fill="#f43f5e" font-size="11" font-weight="700">AVG-15</text>
+          <g transform="translate(18 38)">
+            <polyline points="0,30 8,22 14,28 20,16 28,20 36,12 44,18 52,8 60,14"
+                      fill="none" stroke="#f43f5e" stroke-width="1.5"/>
+            <polyline points="0,18 8,17 14,19 20,17 28,16 36,15 44,16 52,14 60,13"
+                      fill="none" stroke="#fff" stroke-width="1.5"/>
+          </g>
+          <text x="50" y="90" text-anchor="middle" fill="#94a3b8" font-size="8" font-family="JetBrains Mono">rolling mean</text>
+        </g>
+
+        <!-- Arrow 4 -->
+        <path d="M 760 110 L 810 110" class="flow" stroke="#10b981" stroke-width="2" fill="none" marker-end="url(#arrowEm)"/>
+
+        <!-- Node 5: OLED -->
+        <g transform="translate(820 60)">
+          <rect width="70" height="100" rx="14" fill="#0f1419" stroke="#a78bfa" stroke-width="1.5"/>
+          <text x="35" y="28" text-anchor="middle" fill="#a78bfa" font-size="11" font-weight="700">OLED</text>
+          <g transform="translate(8 38)">
+            <rect width="54" height="32" rx="2" fill="#040508" stroke="#1f2937"/>
+            <text x="27" y="14" text-anchor="middle" fill="#e5e7eb" font-size="10" font-weight="700" font-family="JetBrains Mono">3.2m</text>
+            <text x="27" y="26" text-anchor="middle" fill="#fbbf24" font-size="6" font-weight="700">WARM</text>
+          </g>
+          <text x="35" y="90" text-anchor="middle" fill="#94a3b8" font-size="7" font-family="JetBrains Mono">72×40</text>
+        </g>
+      </g>
+    </svg>
+
+    <div class="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-5 gap-3 mt-6">
+      <div class="card p-4">
+        <div class="text-emerald-400 font-semibold text-sm mb-1">1 · Broadcast</div>
+        <div class="text-xs text-slate-400 leading-relaxed">Beacon sends an 8-byte packet every 100 ms. No WiFi network needed — ESP-NOW is direct radio.</div>
+      </div>
+      <div class="card p-4">
+        <div class="text-amber-400 font-semibold text-sm mb-1">2 · Travel</div>
+        <div class="text-xs text-slate-400 leading-relaxed">2.4 GHz radio waves carry the packet. Walls + bodies absorb energy — the further, the quieter.</div>
+      </div>
+      <div class="card p-4">
+        <div class="text-orange-400 font-semibold text-sm mb-1">3 · Capture</div>
+        <div class="text-xs text-slate-400 leading-relaxed">Finder reads the RSSI from the radio's rx-control header. Higher (closer to 0) = stronger.</div>
+      </div>
+      <div class="card p-4">
+        <div class="text-rose-400 font-semibold text-sm mb-1">4 · Smooth</div>
+        <div class="text-xs text-slate-400 leading-relaxed">RSSI jitters even when still. Rolling average of the last 15 readings hides the wobble.</div>
+      </div>
+      <div class="card p-4">
+        <div class="text-violet-300 font-semibold text-sm mb-1">5 · Display</div>
+        <div class="text-xs text-slate-400 leading-relaxed">Log-distance model converts smoothed dBm → metres. Pushed to the 72×40 OLED with a hot/cold tag.</div>
+      </div>
+    </div>
+  </div>
+</section>
+
+<!-- ============== HARDWARE ============== -->
+<section id="hardware" class="section max-w-6xl mx-auto px-4 sm:px-6 py-16">
+  <div class="text-center mb-10">
+    <div class="text-xs font-medium text-amber-300 uppercase tracking-widest mb-2">Step 2 · Hardware</div>
+    <h2 class="text-3xl sm:text-4xl font-bold text-white mb-3">Two boards, hand-drawn</h2>
+    <p class="text-slate-400 max-w-2xl mx-auto">
+      Both are ESP32-C3 Super Minis. Only difference: the Finder has a 0.42″ OLED soldered on.
+      No external components — battery + USB-C is enough.
+    </p>
+  </div>
+
+  <div class="grid grid-cols-1 lg:grid-cols-2 gap-6">
+    <!-- BEACON board (black PCB) -->
+    <div class="card p-6">
+      <div class="flex items-center justify-between mb-4">
+        <div>
+          <div class="text-xs text-slate-500 uppercase tracking-widest">Board A</div>
+          <div class="text-xl font-semibold text-emerald-300">Beacon</div>
+        </div>
+        <div class="px-2 py-1 rounded-md bg-emerald-500/10 border border-emerald-500/30 text-xs text-emerald-300">no display</div>
+      </div>
+
+      <svg viewBox="0 0 360 220" class="w-full h-auto">
+        <rect x="20" y="40" width="320" height="160" rx="14" fill="url(#beaconPcbHw)" stroke="#3f3f46" stroke-width="1.5"/>
+        <defs>
+          <linearGradient id="beaconPcbHw" x1="0" x2="0" y1="0" y2="1">
+            <stop offset="0%"  stop-color="#1f1f24"/>
+            <stop offset="100%" stop-color="#09090b"/>
+          </linearGradient>
+        </defs>
+        <!-- USB-C bump (right side) -->
+        <rect x="320" y="105" width="32" height="36" rx="3" fill="#27272a" stroke="#3f3f46"/>
+        <rect x="324" y="113" width="22" height="20" rx="1.5" fill="#000"/>
+        <!-- ESP32-C3 chip (centre) -->
+        <rect x="140" y="100" width="60" height="60" rx="2" fill="#0a0a0a" stroke="#52525b"/>
+        <text x="170" y="135" text-anchor="middle" fill="#71717a" font-size="11" font-family="JetBrains Mono">ESP32-C3</text>
+        <!-- Crystal -->
+        <rect x="210" y="105" width="22" height="10" rx="2" fill="#27272a" stroke="#52525b"/>
+        <!-- Antenna meander (left edge) -->
+        <path d="M 38 60 L 60 60 L 60 70 L 38 70 L 38 80 L 60 80 L 60 90 L 38 90 L 38 100 L 60 100 L 60 110 L 38 110"
+              fill="none" stroke="#fbbf24" stroke-width="2"/>
+        <text x="49" y="135" text-anchor="middle" fill="#fbbf24" font-size="8" font-family="JetBrains Mono">ANT</text>
+        <!-- BOOT + RST -->
+        <rect x="220" y="135" width="20" height="20" rx="2.5" fill="#27272a" stroke="#52525b"/>
+        <rect x="248" y="135" width="20" height="20" rx="2.5" fill="#27272a" stroke="#52525b"/>
+        <text x="230" y="172" text-anchor="middle" fill="#71717a" font-size="8">BOOT</text>
+        <text x="258" y="172" text-anchor="middle" fill="#71717a" font-size="8">RST</text>
+        <!-- Onboard LED (red, heartbeat) -->
+        <circle class="heartbeat" cx="280" cy="60" r="5" fill="url(#ledRed)"/>
+        <text x="280" y="48" text-anchor="middle" fill="#fca5a5" font-size="8" font-family="JetBrains Mono">LED (GPIO8)</text>
+        <!-- Pin labels bottom -->
+        <g font-family="JetBrains Mono" font-size="9" fill="#a3a3a3">
+          <text x="48"  y="195" text-anchor="middle">21</text>
+          <text x="78"  y="195" text-anchor="middle">20</text>
+          <text x="108" y="195" text-anchor="middle">B</text>
+          <text x="138" y="195" text-anchor="middle">PWR</text>
+          <text x="218" y="195" text-anchor="middle">3.3</text>
+          <text x="248" y="195" text-anchor="middle">G</text>
+          <text x="278" y="195" text-anchor="middle">5V</text>
+        </g>
+        <!-- Title -->
+        <text x="180" y="25" text-anchor="middle" fill="#e5e7eb" font-size="12" font-weight="700">top-down · ESP32-C3 Super Mini</text>
+      </svg>
+
+      <ul class="text-sm text-slate-400 space-y-2 mt-4">
+        <li class="flex items-start gap-2">
+          <span class="text-emerald-400 mt-0.5">•</span>
+          <div><span class="text-white">Onboard LED on GPIO 8</span> — active LOW. Slow blink = no Finder; fast blink = Finder in range.</div>
+        </li>
+        <li class="flex items-start gap-2">
+          <span class="text-emerald-400 mt-0.5">•</span>
+          <div><span class="text-white">No external parts</span> — just power and run. A USB-C powerbank turns it into a hideable battery-powered beacon.</div>
+        </li>
+      </ul>
+    </div>
+
+    <!-- FINDER board (purple PCB) -->
+    <div class="card p-6">
+      <div class="flex items-center justify-between mb-4">
+        <div>
+          <div class="text-xs text-slate-500 uppercase tracking-widest">Board B</div>
+          <div class="text-xl font-semibold text-violet-300">Finder</div>
+        </div>
+        <div class="px-2 py-1 rounded-md bg-violet-500/10 border border-violet-500/30 text-xs text-violet-300">0.42″ OLED</div>
+      </div>
+
+      <svg viewBox="0 0 360 220" class="w-full h-auto">
+        <defs>
+          <linearGradient id="finderPcbHw" x1="0" x2="0" y1="0" y2="1">
+            <stop offset="0%"  stop-color="#5b21b6"/>
+            <stop offset="100%" stop-color="#3b0764"/>
+          </linearGradient>
+        </defs>
+        <rect x="20" y="40" width="320" height="160" rx="14" fill="url(#finderPcbHw)" stroke="#7c3aed" stroke-width="1.5"/>
+        <!-- USB-C bump (right) -->
+        <rect x="320" y="105" width="32" height="36" rx="3" fill="#4c1d95" stroke="#7c3aed"/>
+        <rect x="324" y="113" width="22" height="20" rx="1.5" fill="#000"/>
+        <!-- OLED display (left half) -->
+        <rect x="42" y="60" width="160" height="90" rx="4" fill="#040508" stroke="#1f2937" stroke-width="1.4"/>
+        <text x="122" y="100" text-anchor="middle" fill="#e5e7eb" font-size="26" font-weight="700" font-family="JetBrains Mono">3.2m</text>
+        <text x="122" y="118" text-anchor="middle" fill="#a3a3a3" font-size="10" font-family="JetBrains Mono">-67dBm</text>
+        <text x="122" y="138" text-anchor="middle" fill="#fbbf24" font-size="13" font-weight="700">WARM</text>
+        <text x="122" y="55" text-anchor="middle" fill="#a78bfa" font-size="7" font-family="JetBrains Mono">72×40 SSD1306</text>
+        <!-- ESP32-C3 chip (right of OLED) -->
+        <rect x="218" y="100" width="50" height="50" rx="2" fill="#0a0a0a" stroke="#7c3aed"/>
+        <text x="243" y="130" text-anchor="middle" fill="#a78bfa" font-size="9" font-family="JetBrains Mono">C3</text>
+        <!-- BOOT button (calibrate) -->
+        <rect x="280" y="105" width="22" height="22" rx="3" fill="#4c1d95" stroke="#a78bfa" stroke-width="1.4"/>
+        <text x="291" y="143" text-anchor="middle" fill="#a78bfa" font-size="8" font-weight="700">BOOT</text>
+        <text x="291" y="155" text-anchor="middle" fill="#a78bfa" font-size="6" font-family="JetBrains Mono">GPIO 9</text>
+        <!-- Onboard LED (blue, fast heartbeat) -->
+        <circle class="heartbeat-fast" cx="305" cy="65" r="5" fill="url(#ledBlue)"/>
+        <text x="305" y="53" text-anchor="middle" fill="#bfdbfe" font-size="8" font-family="JetBrains Mono">LED (GPIO8)</text>
+        <!-- Pin labels bottom -->
+        <g font-family="JetBrains Mono" font-size="9" fill="#c4b5fd">
+          <text x="48"  y="195" text-anchor="middle">3</text>
+          <text x="78"  y="195" text-anchor="middle">4</text>
+          <text x="108" y="195" text-anchor="middle">5</text>
+          <text x="138" y="195" text-anchor="middle">6</text>
+          <text x="168" y="195" text-anchor="middle">7</text>
+          <text x="198" y="195" text-anchor="middle">8</text>
+          <text x="228" y="195" text-anchor="middle">9</text>
+          <text x="258" y="195" text-anchor="middle">10</text>
+        </g>
+        <!-- I2C pin highlights -->
+        <circle cx="108" cy="180" r="5" fill="none" stroke="#fbbf24" stroke-width="1.5"/>
+        <circle cx="138" cy="180" r="5" fill="none" stroke="#fbbf24" stroke-width="1.5"/>
+        <text x="123" y="215" text-anchor="middle" fill="#fbbf24" font-size="8" font-family="JetBrains Mono">SDA · SCL (pre-wired to OLED)</text>
+        <!-- Title -->
+        <text x="180" y="25" text-anchor="middle" fill="#e5e7eb" font-size="12" font-weight="700">top-down · ESP32-C3 + 0.42″ OLED</text>
+      </svg>
+
+      <ul class="text-sm text-slate-400 space-y-2 mt-4">
+        <li class="flex items-start gap-2">
+          <span class="text-amber-400 mt-0.5">•</span>
+          <div><span class="text-white">OLED is pre-wired</span> via I²C on GPIO 5 (SDA) + GPIO 6 (SCL). The 72×40 panel sits inside a larger SSD1306 frame.</div>
+        </li>
+        <li class="flex items-start gap-2">
+          <span class="text-amber-400 mt-0.5">•</span>
+          <div><span class="text-white">BOOT button on GPIO 9</span> doubles as the user button. Short press = reset average. Long press (1.5 s) = recalibrate.</div>
+        </li>
+        <li class="flex items-start gap-2">
+          <span class="text-rose-400 mt-0.5">•</span>
+          <div><span class="text-white">OLED blank?</span> Some clones rewire the bus. Try <code class="text-rose-300">SDA = 6, SCL = 7</code> in <code>finder.ino</code>.</div>
+        </li>
+      </ul>
+    </div>
+  </div>
+
+  <!-- BOM -->
+  <div class="card p-6 mt-6">
+    <h3 class="text-lg font-semibold text-white mb-4 flex items-center gap-2">
+      <span class="material-symbols-outlined text-emerald-400">inventory_2</span>
+      Bill of materials
+    </h3>
+    <div class="overflow-x-auto">
+      <table class="w-full text-sm">
+        <thead class="text-xs text-slate-500 uppercase tracking-wider border-b border-white/[0.06]">
+          <tr>
+            <th class="text-left py-2 pr-4">Qty</th>
+            <th class="text-left py-2 pr-4">Part</th>
+            <th class="text-left py-2 pr-4">Role</th>
+            <th class="text-left py-2 pr-4">Notes</th>
+          </tr>
+        </thead>
+        <tbody class="text-slate-300">
+          <tr class="border-b border-white/[0.04]">
+            <td class="py-3 pr-4 text-emerald-300 mono">1</td>
+            <td class="py-3 pr-4 font-medium">ESP32-C3 Super Mini (plain)</td>
+            <td class="py-3 pr-4">Beacon</td>
+            <td class="py-3 pr-4 text-slate-500 text-xs">No OLED. Black PCB in the photo.</td>
+          </tr>
+          <tr class="border-b border-white/[0.04]">
+            <td class="py-3 pr-4 text-violet-300 mono">1</td>
+            <td class="py-3 pr-4 font-medium">ESP32-C3 Super Mini w/ 0.42″ OLED</td>
+            <td class="py-3 pr-4">Finder</td>
+            <td class="py-3 pr-4 text-slate-500 text-xs">Sometimes labelled "EGG" / "0.42 LCD". 72×40 SSD1306.</td>
+          </tr>
+          <tr class="border-b border-white/[0.04]">
+            <td class="py-3 pr-4 text-amber-300 mono">2</td>
+            <td class="py-3 pr-4 font-medium">USB-C cable</td>
+            <td class="py-3 pr-4">Power + flashing</td>
+            <td class="py-3 pr-4 text-slate-500 text-xs">Data-capable, not power-only.</td>
+          </tr>
+          <tr class="border-b border-white/[0.04]">
+            <td class="py-3 pr-4 text-slate-300 mono">2</td>
+            <td class="py-3 pr-4 font-medium">USB-C powerbank <span class="text-slate-500">(optional)</span></td>
+            <td class="py-3 pr-4">Untethered use</td>
+            <td class="py-3 pr-4 text-slate-500 text-xs">Any ~5 V output. ESP32-C3 draws ~80 mA peak.</td>
+          </tr>
+        </tbody>
+      </table>
+    </div>
+  </div>
+</section>
+
+<!-- ============== WIRING ============== -->
+<section id="wiring" class="section max-w-6xl mx-auto px-4 sm:px-6 py-16">
+  <div class="text-center mb-10">
+    <div class="text-xs font-medium text-orange-300 uppercase tracking-widest mb-2">Step 3 · Wiring</div>
+    <h2 class="text-3xl sm:text-4xl font-bold text-white mb-3">…actually, none.</h2>
+    <p class="text-slate-400 max-w-2xl mx-auto">
+      Everything you need is already on each board. The Finder's OLED is pre-soldered
+      to the ESP32's I²C bus. The Beacon doesn't need anything plugged in at all.
+      Plug each board into USB, and you're wired.
+    </p>
+  </div>
+
+  <div class="card p-6">
+    <div class="overflow-x-auto">
+      <table class="w-full text-sm">
+        <thead class="text-xs text-slate-500 uppercase tracking-wider border-b border-white/[0.06]">
+          <tr>
+            <th class="text-left py-2 pr-4">Board</th>
+            <th class="text-left py-2 pr-4">Pin</th>
+            <th class="text-left py-2 pr-4">Connected to</th>
+            <th class="text-left py-2 pr-4">Role</th>
+            <th class="text-left py-2 pr-4">You wire it?</th>
+          </tr>
+        </thead>
+        <tbody id="wiringTable" class="text-slate-300"></tbody>
+      </table>
+    </div>
+  </div>
+</section>
+
+<!-- ============== MATH ============== -->
+<section id="math" class="section max-w-6xl mx-auto px-4 sm:px-6 py-16">
+  <div class="text-center mb-10">
+    <div class="text-xs font-medium text-rose-300 uppercase tracking-widest mb-2">Step 4 · The math</div>
+    <h2 class="text-3xl sm:text-4xl font-bold text-white mb-3">From dBm to metres</h2>
+    <p class="text-slate-400 max-w-2xl mx-auto">
+      RSSI (received signal strength indicator) is measured in dBm — a logarithmic unit.
+      Closer to 0 = stronger signal. We map it to distance using the
+      <em class="text-rose-200/90">log-distance path loss model</em>.
+    </p>
+  </div>
+
+  <div class="grid grid-cols-1 lg:grid-cols-2 gap-6">
+    <div class="card p-6">
+      <div class="text-sm text-slate-500 uppercase tracking-widest mb-3">The formula</div>
+      <div class="mono text-center text-lg sm:text-xl text-white bg-black/40 rounded-xl p-5 border border-white/5">
+        distance = 10<sup class="text-emerald-300">((MP − RSSI) / (10 · N))</sup>
+      </div>
+      <div class="mt-5 space-y-3 text-sm">
+        <div class="flex items-start gap-3">
+          <span class="mono text-emerald-300 w-12 shrink-0">MP</span>
+          <div class="text-slate-400"><span class="text-white">Measured Power</span> — the RSSI you got when the boards were exactly 1 m apart. Default <span class="mono text-emerald-300">-50 dBm</span>.</div>
+        </div>
+        <div class="flex items-start gap-3">
+          <span class="mono text-amber-300 w-12 shrink-0">N</span>
+          <div class="text-slate-400"><span class="text-white">Path-loss exponent</span> — how quickly signal fades in your environment. Default <span class="mono text-amber-300">2.5</span>.</div>
+        </div>
+        <div class="flex items-start gap-3">
+          <span class="mono text-rose-300 w-12 shrink-0">RSSI</span>
+          <div class="text-slate-400">The smoothed RSSI value the Finder just measured.</div>
+        </div>
+      </div>
+    </div>
+
+    <div class="card p-6">
+      <div class="text-sm text-slate-500 uppercase tracking-widest mb-3">Pick N for your space</div>
+      <div class="space-y-3">
+        <div class="flex items-center gap-3 p-3 rounded-lg bg-white/[0.02] border border-white/[0.04]">
+          <span class="mono text-sky-300 text-lg w-12 text-center">2.0</span>
+          <div class="flex-1">
+            <div class="text-white text-sm">Free space</div>
+            <div class="text-xs text-slate-500">Outdoor, line of sight, no obstacles</div>
+          </div>
+        </div>
+        <div class="flex items-center gap-3 p-3 rounded-lg bg-emerald-500/5 border border-emerald-500/20">
+          <span class="mono text-emerald-300 text-lg w-12 text-center">2.5</span>
+          <div class="flex-1">
+            <div class="text-white text-sm">Indoor (default)</div>
+            <div class="text-xs text-slate-500">Single floor, light walls, furniture</div>
+          </div>
+        </div>
+        <div class="flex items-center gap-3 p-3 rounded-lg bg-white/[0.02] border border-white/[0.04]">
+          <span class="mono text-amber-300 text-lg w-12 text-center">3.0</span>
+          <div class="flex-1">
+            <div class="text-white text-sm">Heavy indoor</div>
+            <div class="text-xs text-slate-500">Multiple walls, doors, partial concrete</div>
+          </div>
+        </div>
+        <div class="flex items-center gap-3 p-3 rounded-lg bg-white/[0.02] border border-white/[0.04]">
+          <span class="mono text-rose-300 text-lg w-12 text-center">4.0+</span>
+          <div class="flex-1">
+            <div class="text-white text-sm">Hard environment</div>
+            <div class="text-xs text-slate-500">Concrete, metal, multiple floors</div>
+          </div>
+        </div>
+      </div>
+    </div>
+  </div>
+
+  <!-- Accuracy note -->
+  <div class="card p-5 mt-6 border-amber-500/20 bg-amber-500/[0.03]" style="border-color: rgba(251, 191, 36, 0.2);">
+    <div class="flex items-start gap-3">
+      <span class="material-symbols-outlined text-amber-400 mt-0.5">warning</span>
+      <div class="text-sm text-slate-300">
+        <div class="font-semibold text-amber-200 mb-1">Realistic accuracy expectations</div>
+        <ul class="space-y-1 text-slate-400 leading-relaxed">
+          <li>• <span class="text-white">Line of sight, calibrated:</span> ±1–2 m up to ~20 m</li>
+          <li>• <span class="text-white">Through one wall:</span> ±3–5 m (your N is now wrong by ~0.5)</li>
+          <li>• <span class="text-white">Through multiple walls / floors:</span> direction-only — distance number is fiction, but "closer / further" still works</li>
+          <li>• <span class="text-white">Hand placement:</span> covering the antenna with your palm easily moves RSSI by 10 dB. Hold the Finder by the USB-C end.</li>
+        </ul>
+      </div>
+    </div>
+  </div>
+</section>
+
+<!-- ============== DEMO ============== -->
+<section id="demo" class="section max-w-6xl mx-auto px-4 sm:px-6 py-16">
+  <div class="text-center mb-10">
+    <div class="text-xs font-medium text-violet-300 uppercase tracking-widest mb-2">Step 5 · Demo</div>
+    <h2 class="text-3xl sm:text-4xl font-bold text-white mb-3">Play with the model</h2>
+    <p class="text-slate-400 max-w-2xl mx-auto">
+      Drag the slider to simulate moving the Finder. Watch how RSSI, the distance estimate,
+      and the on-screen hot/cold label change together. Tweak MP and N to see how
+      sensitive the math is.
+    </p>
+  </div>
+
+  <div class="card p-6 sm:p-8">
+    <!-- Top row: knobs -->
+    <div class="grid grid-cols-1 sm:grid-cols-2 gap-4 mb-6">
+      <div>
+        <div class="flex items-center justify-between mb-1">
+          <label class="text-xs uppercase tracking-widest text-slate-500">Measured Power (MP)</label>
+          <span id="mpVal" class="mono text-emerald-300 text-sm">-50 dBm</span>
+        </div>
+        <input id="mpSlider" type="range" min="-70" max="-30" value="-50" step="1" class="w-full accent-emerald-500"/>
+      </div>
+      <div>
+        <div class="flex items-center justify-between mb-1">
+          <label class="text-xs uppercase tracking-widest text-slate-500">Path-loss N</label>
+          <span id="nVal" class="mono text-amber-300 text-sm">2.5</span>
+        </div>
+        <input id="nSlider" type="range" min="18" max="40" value="25" step="1" class="w-full accent-amber-500"/>
+      </div>
+    </div>
+
+    <!-- Distance slider (RSSI input) -->
+    <div class="mb-6">
+      <div class="flex items-center justify-between mb-2">
+        <label class="text-xs uppercase tracking-widest text-slate-500">Simulated RSSI (drag me)</label>
+        <span id="rssiVal" class="mono text-rose-300 text-sm">-67 dBm</span>
+      </div>
+      <input id="rssiSlider" type="range" min="-95" max="-30" value="-67" step="1" class="w-full accent-rose-500"/>
+
+      <!-- Hot/cold bar -->
+      <div class="mt-4 relative">
+        <div class="hotcold-bar h-3 w-full"></div>
+        <div id="marker" class="hotcold-marker absolute -top-1.5" style="left: 50%;">
+          <div class="w-6 h-6 bg-white rounded-full shadow-lg border-2 border-slate-900 -translate-x-1/2"></div>
+        </div>
+        <div class="flex justify-between text-[10px] text-slate-500 uppercase tracking-widest mt-2 mono">
+          <span class="text-sky-300">cold</span>
+          <span>cool</span>
+          <span class="text-amber-300">warm</span>
+          <span class="text-orange-300">hot</span>
+          <span class="text-rose-300">burning</span>
+        </div>
+      </div>
+    </div>
+
+    <!-- Result: OLED preview + readouts -->
+    <div class="grid grid-cols-1 sm:grid-cols-2 gap-6 items-center">
+      <!-- Mini OLED -->
+      <div class="flex justify-center">
+        <div class="oled-screen oled-on px-4 py-3" style="width: 280px; aspect-ratio: 72/40;">
+          <div class="oled-text text-center text-3xl font-bold leading-none" id="oledDist">3.2m</div>
+          <div class="oled-text text-center text-xs text-slate-400 mt-1" id="oledRssi">-67dBm</div>
+          <div class="oled-text text-center text-sm font-bold mt-1" id="oledLabel" style="color: #fbbf24;">WARM</div>
+        </div>
+      </div>
+
+      <!-- Numbers -->
+      <div class="space-y-3">
+        <div class="flex items-center justify-between p-3 rounded-lg bg-white/[0.02] border border-white/[0.04]">
+          <div class="text-xs text-slate-500 uppercase tracking-widest">Distance</div>
+          <div id="numDist" class="mono text-white text-2xl font-bold">3.2 m</div>
+        </div>
+        <div class="flex items-center justify-between p-3 rounded-lg bg-white/[0.02] border border-white/[0.04]">
+          <div class="text-xs text-slate-500 uppercase tracking-widest">Smoothed RSSI</div>
+          <div id="numRssi" class="mono text-rose-300 text-2xl font-bold">-67 dBm</div>
+        </div>
+        <div class="flex items-center justify-between p-3 rounded-lg bg-white/[0.02] border border-white/[0.04]">
+          <div class="text-xs text-slate-500 uppercase tracking-widest">Status</div>
+          <div id="numLabel" class="mono text-amber-300 text-xl font-bold">WARM</div>
+        </div>
+        <div class="text-[11px] text-slate-500 italic px-1">
+          Note: this is the math only. Real RSSI bounces around even when neither board moves —
+          that's what the 15-sample rolling average smooths out.
+        </div>
+      </div>
+    </div>
+  </div>
+</section>
+
+<!-- ============== CODE ============== -->
+<section id="code" class="section max-w-6xl mx-auto px-4 sm:px-6 py-16">
+  <div class="text-center mb-10">
+    <div class="text-xs font-medium text-emerald-300 uppercase tracking-widest mb-2">Step 6 · Code</div>
+    <h2 class="text-3xl sm:text-4xl font-bold text-white mb-3">Three Arduino sketches</h2>
+    <p class="text-slate-400 max-w-2xl mx-auto">
+      Upload <code class="text-emerald-300">mac_printer.ino</code> first to learn each board's MAC.
+      Paste those into <code class="text-amber-300">beacon.ino</code> and
+      <code class="text-rose-300">finder.ino</code>, then upload to the matching board.
+    </p>
+  </div>
+
+  <div class="space-y-4">
+    <!-- MAC printer -->
+    <details class="card">
+      <summary class="flex items-center justify-between p-5">
+        <div class="flex items-center gap-3">
+          <span class="material-symbols-outlined text-emerald-400">tag</span>
+          <div>
+            <div class="font-semibold text-white">mac_printer.ino</div>
+            <div class="text-xs text-slate-500">Run on BOTH boards once — prints MAC over Serial @ 115200</div>
+          </div>
+        </div>
+        <span class="material-symbols-outlined chev text-slate-400">expand_more</span>
+      </summary>
+      <div class="px-5 pb-5">
+        <pre class="code" id="codeMac"></pre>
+      </div>
+    </details>
+
+    <!-- Beacon -->
+    <details class="card">
+      <summary class="flex items-center justify-between p-5">
+        <div class="flex items-center gap-3">
+          <span class="material-symbols-outlined text-amber-400">cell_tower</span>
+          <div>
+            <div class="font-semibold text-white">beacon.ino</div>
+            <div class="text-xs text-slate-500">Upload to Board A — broadcasts 10×/s, LED blinks status</div>
+          </div>
+        </div>
+        <span class="material-symbols-outlined chev text-slate-400">expand_more</span>
+      </summary>
+      <div class="px-5 pb-5">
+        <pre class="code" id="codeBeacon"></pre>
+      </div>
+    </details>
+
+    <!-- Finder -->
+    <details class="card">
+      <summary class="flex items-center justify-between p-5">
+        <div class="flex items-center gap-3">
+          <span class="material-symbols-outlined text-rose-400">explore</span>
+          <div>
+            <div class="font-semibold text-white">finder.ino</div>
+            <div class="text-xs text-slate-500">Upload to Board B — receives, smooths, displays, button-calibrates</div>
+          </div>
+        </div>
+        <span class="material-symbols-outlined chev text-slate-400">expand_more</span>
+      </summary>
+      <div class="px-5 pb-5">
+        <pre class="code" id="codeFinder"></pre>
+      </div>
+    </details>
+  </div>
+
+  <!-- IDE settings card -->
+  <div class="card p-6 mt-6">
+    <h3 class="text-base font-semibold text-white mb-3 flex items-center gap-2">
+      <span class="material-symbols-outlined text-amber-400">settings</span>
+      Arduino IDE settings — both boards
+    </h3>
+    <div class="grid grid-cols-1 sm:grid-cols-2 gap-3 text-sm mono">
+      <div class="flex justify-between p-3 rounded bg-black/30"><span class="text-slate-500">Board</span><span class="text-white">ESP32C3 Dev Module</span></div>
+      <div class="flex justify-between p-3 rounded bg-black/30"><span class="text-slate-500">USB CDC On Boot</span><span class="text-emerald-300">Enabled</span></div>
+      <div class="flex justify-between p-3 rounded bg-black/30"><span class="text-slate-500">CPU Frequency</span><span class="text-white">160 MHz</span></div>
+      <div class="flex justify-between p-3 rounded bg-black/30"><span class="text-slate-500">Flash Size</span><span class="text-white">4MB (32Mb)</span></div>
+      <div class="flex justify-between p-3 rounded bg-black/30"><span class="text-slate-500">Partition Scheme</span><span class="text-white">Default 4MB w/ spiffs</span></div>
+      <div class="flex justify-between p-3 rounded bg-black/30"><span class="text-slate-500">Upload Speed</span><span class="text-white">921600</span></div>
+    </div>
+    <div class="mt-4 p-3 rounded-lg bg-rose-500/[0.05] border border-rose-500/20 text-xs text-rose-200">
+      <span class="font-semibold">⚠ Required:</span> Arduino-ESP32 core <span class="mono">≥ 3.0.0</span>.
+      The ESP-NOW recv-callback signature changed between v2.x and v3.x. With v2.x you'll see
+      <span class="mono">invalid conversion from 'void(*)(const esp_now_recv_info_t*…'</span>.
+      Update via <span class="mono">Boards Manager → esp32 by Espressif Systems</span>.
+    </div>
+    <div class="mt-2 p-3 rounded-lg bg-amber-500/[0.05] border border-amber-500/20 text-xs text-amber-200">
+      <span class="font-semibold">📚 Required library:</span>
+      <span class="mono">U8g2</span> by Oliver Kraus, installed via Library Manager.
+      Preferences is built-in.
+    </div>
+  </div>
+</section>
+
+<!-- ============== CHECKLIST ============== -->
+<section id="checklist" class="section max-w-6xl mx-auto px-4 sm:px-6 py-16">
+  <div class="text-center mb-10">
+    <div class="text-xs font-medium text-emerald-300 uppercase tracking-widest mb-2">Step 7 · Build</div>
+    <h2 class="text-3xl sm:text-4xl font-bold text-white mb-3">Bring it up, end-to-end</h2>
+    <p class="text-slate-400 max-w-2xl mx-auto">Tick each box as you go. The progress bar saves to localStorage so you can pick up where you left off.</p>
+  </div>
+
+  <div class="card p-6">
+    <div class="flex items-center justify-between mb-5">
+      <div>
+        <div class="text-xs text-slate-500 uppercase tracking-widest">Progress</div>
+        <div class="text-xl font-semibold text-white"><span id="progressNum">0</span> / <span id="progressTotal">0</span></div>
+      </div>
+      <button id="resetBtn" class="text-xs text-slate-500 hover:text-rose-400 transition-colors">
+        <span class="material-symbols-outlined" style="font-size: 14px; vertical-align: middle;">refresh</span>
+        reset
+      </button>
+    </div>
+    <div class="w-full h-1.5 bg-white/[0.04] rounded-full overflow-hidden mb-6">
+      <div id="progressBar" class="h-full bg-gradient-to-r from-emerald-400 via-amber-400 to-rose-400 transition-all duration-300" style="width: 0%;"></div>
+    </div>
+
+    <div id="checklistBody" class="space-y-6"></div>
+  </div>
+</section>
+
+<!-- ============== FOOTER ============== -->
+<footer class="max-w-6xl mx-auto px-4 sm:px-6 py-12 text-center text-xs text-slate-600">
+  <div class="flex items-center justify-center gap-2 mb-2">
+    <span class="w-1 h-1 bg-emerald-500 rounded-full"></span>
+    <span class="mono">seeker · diy proximity radar</span>
+    <span class="w-1 h-1 bg-amber-500 rounded-full"></span>
+  </div>
+  <div>Sister to <a href="/autoclicker/" class="hover:text-emerald-400">autoclicker</a> &amp; <a href="/aircon/" class="hover:text-sky-400">aircon</a> — same ESP32-C3 platform, different shape.</div>
+</footer>
+
+<!-- ====================================================== -->
+<!--    Embedded .ino sources (kept here so the doc page is  -->
+<!--    self-contained; canonical copies live in firmware/). -->
+<!-- ====================================================== -->
+<pre id="src-mac" style="display:none">// Seeker · MAC Address Printer
+// Upload to BOTH boards. Open Serial Monitor at 115200 baud.
+// Copy each printed MAC into the matching .ino (BEACON_MAC / FINDER_MAC).
+
+#include &lt;WiFi.h&gt;
+
+void setup() {
+  Serial.begin(115200);
+  delay(1500);
+  WiFi.mode(WIFI_STA);
+
+  Serial.println();
+  Serial.println("=============================================");
+  Serial.println("  SEEKER · MAC printer");
+  Serial.println("=============================================");
+  Serial.print  ("  MAC address: ");
+  Serial.println(WiFi.macAddress());
+  Serial.println();
+  Serial.println("  Copy the bytes above (AA:BB:CC:DD:EE:FF)");
+  Serial.println("  into the matching .ino as: { 0xAA, 0xBB, ... }");
+  Serial.println("=============================================");
+}
+
+void loop() {
+  delay(5000);
+  Serial.print("MAC: ");
+  Serial.println(WiFi.macAddress());
+}
+</pre>
+
+<pre id="src-beacon" style="display:none">// Seeker · BEACON  (Board A — no OLED)
+// Broadcasts ESP-NOW packets at 10 Hz. LED slow-blinks alone, fast-blinks when Finder is hearing.
+// REQUIRES Arduino-ESP32 core v3.x (recv-callback signature changed in v3).
+
+#include &lt;WiFi.h&gt;
+#include &lt;esp_now.h&gt;
+#include &lt;esp_wifi.h&gt;
+
+// ===== EDIT THIS: Finder's MAC (from mac_printer.ino) =====
+uint8_t FINDER_MAC[6] = { 0xAA, 0xBB, 0xCC, 0xDD, 0xEE, 0xFF };
+
+const int      LED_PIN              = 8;
+const uint32_t BROADCAST_INTERVAL   = 100;   // ms (10 Hz)
+const uint32_t ACK_TIMEOUT_MS       = 3000;
+const uint32_t BLINK_FAST_PERIOD_MS = 250;
+const uint32_t BLINK_SLOW_PERIOD_MS = 1000;
+
+struct __attribute__((packed)) BeaconPacket {
+  uint32_t seq;
+  uint32_t ms;
+};
+
+BeaconPacket pkt   = {0, 0};
+uint32_t lastSendMs = 0;
+uint32_t lastAckMs  = 0;
+bool     finderHeard = false;
+
+void onDataSent(const uint8_t *mac, esp_now_send_status_t status) { }
+
+// v3.x recv-callback signature — `info` carries src_addr + rx_ctrl.
+void onDataRecv(const esp_now_recv_info_t *info, const uint8_t *data, int len) {
+  lastAckMs    = millis();
+  finderHeard  = true;
+}
+
+void setup() {
+  pinMode(LED_PIN, OUTPUT);
+  digitalWrite(LED_PIN, HIGH);
+  Serial.begin(115200);
+  delay(500);
+
+  WiFi.mode(WIFI_STA);
+  WiFi.disconnect();
+
+  if (esp_now_init() != ESP_OK) {
+    Serial.println("ESP-NOW init failed");
+    while (true) delay(1000);
+  }
+  esp_now_register_send_cb(onDataSent);
+  esp_now_register_recv_cb(onDataRecv);
+
+  esp_now_peer_info_t peer = {};
+  memcpy(peer.peer_addr, FINDER_MAC, 6);
+  peer.channel = 0; peer.encrypt = false;
+  esp_now_add_peer(&amp;peer);
+
+  Serial.printf("beacon ready · my MAC: %s\n", WiFi.macAddress().c_str());
+}
+
+void loop() {
+  uint32_t now = millis();
+
+  if (now - lastSendMs &gt;= BROADCAST_INTERVAL) {
+    lastSendMs = now;
+    pkt.seq++;
+    pkt.ms = now;
+    esp_now_send(FINDER_MAC, (uint8_t *)&amp;pkt, sizeof(pkt));
+  }
+
+  if (finderHeard &amp;&amp; (now - lastAckMs &gt; ACK_TIMEOUT_MS)) finderHeard = false;
+
+  uint32_t period = finderHeard ? BLINK_FAST_PERIOD_MS : BLINK_SLOW_PERIOD_MS;
+  bool ledOn = ((now / (period / 2)) % 2) == 0;
+  digitalWrite(LED_PIN, ledOn ? LOW : HIGH);   // active LOW
+}
+</pre>
+
+<pre id="src-finder" style="display:none">// Seeker · FINDER  (Board B — has the 0.42" OLED)
+// Receives ESP-NOW, smooths RSSI, draws distance on the 72×40 OLED.
+// REQUIRES: Arduino-ESP32 core v3.x  +  U8g2 library.
+
+#include &lt;WiFi.h&gt;
+#include &lt;esp_now.h&gt;
+#include &lt;esp_wifi.h&gt;
+#include &lt;Wire.h&gt;
+#include &lt;U8g2lib.h&gt;
+#include &lt;Preferences.h&gt;
+
+// ===== EDIT THIS: Beacon's MAC =====
+uint8_t BEACON_MAC[6] = { 0x11, 0x22, 0x33, 0x44, 0x55, 0x66 };
+
+// ===== Tuning =====
+float MEASURED_POWER = -50.0f;
+float N_FACTOR       =  2.5f;
+
+const int LED_PIN = 8;
+const int BTN_PIN = 9;     // BOOT
+const int SDA_PIN = 5;     // try 6 if OLED is blank
+const int SCL_PIN = 6;     // try 7 if OLED is blank
+
+U8G2_SSD1306_72X40_ER_F_HW_I2C oled(U8G2_R0, U8X8_PIN_NONE);
+
+const int   SAMPLES        = 15;
+const uint32_t SIGNAL_TIMEOUT = 1500;
+int rssiBuf[SAMPLES] = {0};
+int rssiIdx = 0, rssiCount = 0;
+uint32_t lastPacketMs = 0;
+
+// button
+const uint32_t LONG_PRESS_MS = 1500;
+bool     btnLast = HIGH;
+uint32_t btnDownMs = 0;
+bool     longFired = false;
+
+// calibration
+const uint32_t CALIB_DURATION_MS = 5000;
+bool     calibActive = false;
+uint32_t calibStartMs = 0;
+long     calibSum = 0;
+int      calibCount = 0;
+
+Preferences prefs;
+
+void onDataRecv(const esp_now_recv_info_t *info, const uint8_t *data, int len) {
+  int rssi = info-&gt;rx_ctrl-&gt;rssi;
+  lastPacketMs = millis();
+
+  rssiBuf[rssiIdx] = rssi;
+  rssiIdx = (rssiIdx + 1) % SAMPLES;
+  if (rssiCount &lt; SAMPLES) rssiCount++;
+
+  if (calibActive) { calibSum += rssi; calibCount++; }
+
+  uint8_t ack = 0x01;
+  esp_now_send(info-&gt;src_addr, &amp;ack, 1);   // tell beacon we hear it
+}
+
+float averageRssi() {
+  if (rssiCount == 0) return 0;
+  long s = 0;
+  for (int i = 0; i &lt; rssiCount; i++) s += rssiBuf[i];
+  return (float)s / rssiCount;
+}
+
+float rssiToDistance(float rssi) {
+  return powf(10.0f, (MEASURED_POWER - rssi) / (10.0f * N_FACTOR));
+}
+
+const char *hotColdLabel(float d) {
+  if (d &lt; 0.5f)  return "BURNING";
+  if (d &lt; 1.5f)  return "HOT";
+  if (d &lt; 4.0f)  return "WARM";
+  if (d &lt; 10.0f) return "COOL";
+  return "COLD";
+}
+
+// ... drawScreen() + handleButton() + setup() + loop() — see firmware/finder.ino for the full file.
+</pre>
+
+<script>
+/* ====================================================
+   Data: wiring table + checklist
+   ==================================================== */
+const wires = [
+  { board: "Beacon",  pin: "USB-C",           to: "USB-C cable",         role: "5 V power + flash",     diy: false, color: "emerald" },
+  { board: "Beacon",  pin: "GPIO 8 (onboard LED)", to: "internal trace",  role: "status indicator",      diy: false, color: "emerald" },
+  { board: "Finder",  pin: "USB-C",           to: "USB-C cable",         role: "5 V power + flash",     diy: false, color: "violet" },
+  { board: "Finder",  pin: "GPIO 5 (SDA)",    to: "OLED data",            role: "I²C — pre-wired on PCB", diy: false, color: "violet" },
+  { board: "Finder",  pin: "GPIO 6 (SCL)",    to: "OLED clock",           role: "I²C — pre-wired on PCB", diy: false, color: "violet" },
+  { board: "Finder",  pin: "GPIO 9 (BOOT)",   to: "tactile button",       role: "reset / 1 m calibrate",  diy: false, color: "amber" },
+  { board: "Finder",  pin: "GPIO 8 (onboard LED)", to: "internal trace",  role: "heartbeat",              diy: false, color: "violet" },
+];
+
+const steps = [
+  { group: "Parts",       text: "Two ESP32-C3 Super Minis on hand — one plain, one with 0.42″ OLED" },
+  { group: "Parts",       text: "Two USB-C data cables (not power-only)" },
+  { group: "Toolchain",   text: "Arduino IDE installed (2.x or 1.8.x)" },
+  { group: "Toolchain",   text: "ESP32 core ≥ 3.0.0 added via Boards Manager (search 'esp32')" },
+  { group: "Toolchain",   text: "U8g2 library installed via Library Manager (search 'U8g2')" },
+  { group: "Toolchain",   text: "Board target: ESP32C3 Dev Module · USB CDC On Boot = Enabled" },
+  { group: "MAC discovery", text: "Plug Beacon → upload mac_printer.ino → Serial Monitor @ 115200 → note its MAC" },
+  { group: "MAC discovery", text: "Plug Finder → upload mac_printer.ino → Serial Monitor @ 115200 → note its MAC" },
+  { group: "Flash",       text: "Paste Finder's MAC into FINDER_MAC[] inside beacon.ino" },
+  { group: "Flash",       text: "Paste Beacon's MAC into BEACON_MAC[] inside finder.ino" },
+  { group: "Flash",       text: "Upload beacon.ino → Beacon" },
+  { group: "Flash",       text: "Upload finder.ino → Finder" },
+  { group: "Smoke test",  text: "Power both boards. Finder OLED should show a distance within 2 s" },
+  { group: "Smoke test",  text: "Beacon's onboard LED switches from slow → fast blink (Finder is hearing)" },
+  { group: "Calibrate",   text: "Place the two boards exactly 1 m apart, line of sight" },
+  { group: "Calibrate",   text: "Long-press BOOT (1.5 s) on Finder → 'CALIBRATE @1m' for 5 s → done" },
+  { group: "Calibrate",   text: "Confirm Serial shows 'MEASURED_POWER = … saved to NVS'" },
+  { group: "Calibrate",   text: "Walk to 5 m — distance reads roughly 5 ± 1 m (else tweak N_FACTOR)" },
+  { group: "Play",        text: "Tape the Beacon under a chair / in a drawer. Hunt with the Finder." },
+];
+
+/* ====================================================
+   Wiring table render
+   ==================================================== */
+(function() {
+  const tbody = document.getElementById('wiringTable');
+  const colorMap = {
+    emerald: 'text-emerald-300',
+    violet:  'text-violet-300',
+    amber:   'text-amber-300',
+  };
+  tbody.innerHTML = wires.map(w => `
+    <tr class="border-b border-white/[0.04]">
+      <td class="py-3 pr-4 font-medium ${colorMap[w.color] || ''}">${w.board}</td>
+      <td class="py-3 pr-4 mono text-sm">${w.pin}</td>
+      <td class="py-3 pr-4 text-slate-400">${w.to}</td>
+      <td class="py-3 pr-4 text-slate-400 text-xs">${w.role}</td>
+      <td class="py-3 pr-4 text-xs">${w.diy
+        ? '<span class="text-amber-300">YES</span>'
+        : '<span class="text-emerald-400">already done</span>'}</td>
+    </tr>
+  `).join('');
+})();
+
+/* ====================================================
+   Checklist render + persistence
+   ==================================================== */
+(function() {
+  const STORAGE_KEY = 'seekerChecklist';
+  let done = JSON.parse(localStorage.getItem(STORAGE_KEY) || '{}');
+  const body = document.getElementById('checklistBody');
+  const grouped = {};
+  steps.forEach((s, i) => { (grouped[s.group] = grouped[s.group] || []).push({ ...s, i }); });
+
+  body.innerHTML = Object.entries(grouped).map(([group, items]) => `
+    <div>
+      <div class="text-xs uppercase tracking-widest text-slate-500 mb-2">${group}</div>
+      <div class="space-y-2">
+        ${items.map(it => `
+          <div class="check-item flex items-start gap-3 cursor-pointer p-2 rounded-lg hover:bg-white/[0.02] transition-colors ${done[it.i] ? 'done' : ''}" data-idx="${it.i}">
+            <div class="check-box mt-0.5"><span class="material-symbols-outlined">check</span></div>
+            <div class="check-label text-sm text-slate-300 leading-relaxed">${it.text}</div>
+          </div>
+        `).join('')}
+      </div>
+    </div>
+  `).join('');
+
+  function updateProgress() {
+    const total = steps.length;
+    const count = Object.values(done).filter(Boolean).length;
+    document.getElementById('progressNum').textContent   = count;
+    document.getElementById('progressTotal').textContent = total;
+    document.getElementById('progressBar').style.width   = `${(count / total) * 100}%`;
+  }
+  updateProgress();
+
+  body.addEventListener('click', e => {
+    const item = e.target.closest('.check-item');
+    if (!item) return;
+    const idx = item.dataset.idx;
+    done[idx] = !done[idx];
+    if (!done[idx]) delete done[idx];
+    item.classList.toggle('done');
+    localStorage.setItem(STORAGE_KEY, JSON.stringify(done));
+    updateProgress();
+  });
+
+  document.getElementById('resetBtn').addEventListener('click', () => {
+    done = {};
+    localStorage.removeItem(STORAGE_KEY);
+    document.querySelectorAll('.check-item').forEach(el => el.classList.remove('done'));
+    updateProgress();
+  });
+})();
+
+/* ====================================================
+   Demo: RSSI → distance simulator
+   ==================================================== */
+(function() {
+  const mp = document.getElementById('mpSlider');
+  const n  = document.getElementById('nSlider');
+  const r  = document.getElementById('rssiSlider');
+
+  const mpVal = document.getElementById('mpVal');
+  const nVal  = document.getElementById('nVal');
+  const rVal  = document.getElementById('rssiVal');
+
+  const oledDist  = document.getElementById('oledDist');
+  const oledRssi  = document.getElementById('oledRssi');
+  const oledLabel = document.getElementById('oledLabel');
+  const numDist   = document.getElementById('numDist');
+  const numRssi   = document.getElementById('numRssi');
+  const numLabel  = document.getElementById('numLabel');
+  const marker    = document.getElementById('marker');
+
+  function labelFor(d) {
+    if (d < 0.5)  return ['BURNING', '#f43f5e'];
+    if (d < 1.5)  return ['HOT',     '#fb923c'];
+    if (d < 4.0)  return ['WARM',    '#fbbf24'];
+    if (d < 10.0) return ['COOL',    '#60a5fa'];
+    return            ['COLD',    '#38bdf8'];
+  }
+
+  function recompute() {
+    const MP = parseFloat(mp.value);
+    const N  = parseFloat(n.value)  / 10;     // slider 18..40 → 1.8..4.0
+    const R  = parseFloat(r.value);
+    const dist = Math.pow(10, (MP - R) / (10 * N));
+    const distClamped = Math.min(99.9, Math.max(0, dist));
+    const [lbl, col] = labelFor(distClamped);
+
+    mpVal.textContent = `${MP} dBm`;
+    nVal.textContent  = N.toFixed(1);
+    rVal.textContent  = `${R} dBm`;
+
+    const distStr = distClamped < 10 ? distClamped.toFixed(1) : distClamped.toFixed(0);
+    oledDist.textContent  = `${distStr}m`;
+    oledRssi.textContent  = `${R}dBm`;
+    oledLabel.textContent = lbl;
+    oledLabel.style.color = col;
+
+    numDist.textContent  = `${distStr} m`;
+    numRssi.textContent  = `${R} dBm`;
+    numLabel.textContent = lbl;
+    numLabel.style.color = col;
+
+    // Marker position: stronger RSSI → further left (hot/burning side)
+    // RSSI range -95..-30 maps to 100%..0% along the bar
+    const pct = Math.max(0, Math.min(100, ((R - (-95)) / ((-30) - (-95))) * 100));
+    marker.style.left = `${pct}%`;
+  }
+
+  [mp, n, r].forEach(s => s.addEventListener('input', recompute));
+  recompute();
+})();
+
+/* ====================================================
+   Mobile nav toggle + scroll-spy
+   ==================================================== */
+(function() {
+  const openBtn   = document.getElementById('navOpen');
+  const mobileNav = document.getElementById('navMobile');
+  openBtn.addEventListener('click', () => mobileNav.classList.toggle('hidden'));
+  mobileNav.querySelectorAll('a').forEach(a => {
+    a.addEventListener('click', () => mobileNav.classList.add('hidden'));
+  });
+
+  const links = [...document.querySelectorAll('[data-nav]')];
+  function syncNav() {
+    const y = window.scrollY + 100;
+    let active = links[0];
+    for (const a of links) {
+      const sec = document.querySelector(a.getAttribute('href'));
+      if (sec && sec.offsetTop <= y) active = a;
+    }
+    links.forEach(a => a.classList.toggle('active', a === active));
+  }
+  window.addEventListener('scroll', syncNav, { passive: true });
+  syncNav();
+})();
+
+/* ====================================================
+   Tiny C/C++ syntax highlighter
+   ==================================================== */
+(function() {
+  const KW = new Set([
+    'void','int','long','float','double','bool','char','const','static','if','else','for','while',
+    'return','true','false','struct','class','public','private','typedef','sizeof','break','continue',
+    'switch','case','default','do','new','delete','this','nullptr','NULL','HIGH','LOW','INPUT','OUTPUT',
+    'INPUT_PULLUP','include','define'
+  ]);
+  const TYP = new Set(['uint8_t','uint16_t','uint32_t','int8_t','int16_t','int32_t','size_t','String','BeaconPacket','Preferences','WiFi']);
+
+  function escapeHtml(s) {
+    return s.replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;');
+  }
+  function highlight(src) {
+    // Use placeholders to avoid double-replacement
+    const tokens = [];
+    function tok(cls, text) { tokens.push({cls, text}); return `\u0001${tokens.length - 1}\u0001`; }
+
+    let s = src;
+    // Comments
+    s = s.replace(/\/\/[^\n]*/g, m => tok('com', m));
+    s = s.replace(/\/\*[\s\S]*?\*\//g, m => tok('com', m));
+    // Strings
+    s = s.replace(/"(?:[^"\\]|\\.)*"/g, m => tok('str', m));
+    // Preprocessor lines
+    s = s.replace(/^\s*#[a-zA-Z]+/gm, m => tok('pp', m));
+    // Numbers
+    s = s.replace(/\b0x[0-9a-fA-F]+\b|\b\d+\.?\d*[fL]?\b/g, m => tok('num', m));
+    // Identifiers (keyword / type / function)
+    s = s.replace(/\b([A-Za-z_][A-Za-z0-9_]*)\b(\s*\()?/g, (full, ident, paren) => {
+      if (KW.has(ident)) return tok('kw', ident) + (paren || '');
+      if (TYP.has(ident)) return tok('typ', ident) + (paren || '');
+      if (paren) return tok('fn', ident) + paren;
+      return ident;
+    });
+
+    s = escapeHtml(s).replace(/\u0001(\d+)\u0001/g, (_, i) => {
+      const t = tokens[+i];
+      return `<span class="tok-${t.cls}">${escapeHtml(t.text)}</span>`;
+    });
+    return s;
+  }
+
+  const apply = (srcId, targetId) => {
+    const src = document.getElementById(srcId).textContent;
+    document.getElementById(targetId).innerHTML = highlight(src);
+  };
+  apply('src-mac',    'codeMac');
+  apply('src-beacon', 'codeBeacon');
+  apply('src-finder', 'codeFinder');
+})();
+</script>
+
+</body>
+</html>
