@@ -40,7 +40,7 @@ const ZOOM_MAX = 1.5;
 const ZOOM_STEP = 0.1;
 const ZOOM_STEP_WHEEL = 0.04;
 const CANVAS_W = 2000;
-const CANVAS_H = 1400;
+const CANVAS_H = 1600;
 const POOL_WIDTH = 300;
 let searchQuery = "";
 

@@ -131,7 +131,7 @@ body.pool-collapsed .floor-canvas {
 .floor-canvas-sizer {
   position: relative;
   width: 2000px;
-  height: 1400px;
+  height: 1600px;
   margin: 0 auto;
 }
 .floor-canvas-inner {
@@ -139,7 +139,7 @@ body.pool-collapsed .floor-canvas {
   top: 0;
   left: 0;
   width: 2000px;
-  height: 1400px;
+  height: 1600px;
   transform-origin: 0 0;
 }
 
@@ -166,6 +166,57 @@ body.pool-collapsed .floor-canvas {
   letter-spacing: 0.3em;
   pointer-events: none;
   user-select: none;
+}
+
+/* ---------- Entrance arch (bottom of canvas, mirrors the stage) ---------- */
+.floor-entrance {
+  position: absolute;
+  left: 50%;
+  bottom: 60px;
+  transform: translateX(-50%);
+  width: min(60%, 720px);
+  height: 110px;
+  border: 2px dashed #b08968;
+  border-bottom: none;
+  border-radius: 200px 200px 0 0;
+  background: linear-gradient(
+    180deg,
+    rgba(176, 137, 104, 0.04),
+    rgba(176, 137, 104, 0.18)
+  );
+  display: flex;
+  align-items: flex-end;
+  justify-content: center;
+  gap: 10px;
+  padding-bottom: 14px;
+  font-family: "Inter", sans-serif;
+  font-style: normal;
+  font-weight: 700;
+  font-size: 13px;
+  letter-spacing: 0.3em;
+  color: #6b4423;
+  pointer-events: none;
+  user-select: none;
+  z-index: 0;
+}
+
+/* ---------- Aisle (faint dotted line connecting entrance to stage) ---------- */
+.floor-aisle {
+  position: absolute;
+  left: 50%;
+  top: 140px;
+  bottom: 180px;
+  width: 0;
+  border-left: 2px dotted rgba(176, 137, 104, 0.22);
+  transform: translateX(-1px);
+  pointer-events: none;
+  z-index: 0;
+}
+
+/* Hide entrance + aisle in printable view-mode (only stage carries over). */
+body.view-mode .floor-entrance,
+body.view-mode .floor-aisle {
+  display: none !important;
 }
 
 /* ---------- Table cards ---------- */
@@ -474,6 +525,62 @@ body.roles-mode .floor-chair.occupied.role-guest {
   background: #78716c; /* neutral stone */
   border-color: #57534e;
 }
+
+/* ---------- Floating roles legend (only visible when Roles toggle is on) ---------- */
+.floor-roles-legend {
+  display: none;
+  position: fixed;
+  right: 16px;
+  bottom: 16px;
+  background: rgba(255, 255, 255, 0.96);
+  backdrop-filter: blur(8px);
+  border: 1px solid #e7e5e4;
+  border-radius: 12px;
+  padding: 12px 14px 10px;
+  box-shadow: 0 6px 20px rgba(0, 0, 0, 0.08);
+  font-family: "Inter", sans-serif;
+  font-size: 11px;
+  color: #44403c;
+  z-index: 60;
+  max-width: 220px;
+}
+body.roles-mode .floor-roles-legend {
+  display: block;
+}
+.floor-roles-legend-title {
+  font-weight: 800;
+  font-size: 10px;
+  letter-spacing: 0.18em;
+  text-transform: uppercase;
+  color: #1c1917;
+  margin-bottom: 8px;
+}
+.floor-roles-legend .legend-item {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  padding: 3px 0;
+  font-weight: 500;
+  white-space: nowrap;
+}
+.floor-roles-legend .legend-item .swatch {
+  display: inline-block;
+  width: 12px;
+  height: 12px;
+  border-radius: 50%;
+  flex-shrink: 0;
+  border: 1px solid rgba(0, 0, 0, 0.08);
+}
+.floor-roles-legend .legend-item.role-couple .swatch { background: #9333ea; }
+.floor-roles-legend .legend-item.role-parent .swatch { background: #d97706; }
+.floor-roles-legend .legend-item.role-officiant .swatch { background: #1c1917; }
+.floor-roles-legend .legend-item.role-major .swatch { background: #ca8a04; }
+.floor-roles-legend .legend-item.role-party .swatch { background: #059669; }
+.floor-roles-legend .legend-item.role-principal .swatch { background: #0891b2; }
+.floor-roles-legend .legend-item.role-secondary .swatch { background: #0ea5e9; }
+.floor-roles-legend .legend-item.role-bearer .swatch { background: #e11d48; }
+.floor-roles-legend .legend-item.role-flower .swatch { background: #ec4899; }
+.floor-roles-legend .legend-item.role-guest .swatch { background: #78716c; }
 
 /* ---------- View-only mode (printable layout: table + list in flex rows) ---------- */
 body.view-mode #canvasSizer {
