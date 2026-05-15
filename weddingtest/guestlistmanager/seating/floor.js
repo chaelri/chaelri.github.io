@@ -461,7 +461,8 @@ function renderTables() {
     if (expandedGroupId === g.id) card.classList.add("expanded");
 
     const total =
-      g.memberIds.length + (g.memberMissing ? g.memberMissing.length : 0);
+      g.memberIds.filter(Boolean).length +
+      (g.memberMissing ? g.memberMissing.length : 0);
     const isCouple = shape === "couple";
     const cap = isCouple ? 2 : g.capacity || DEFAULT_CAPACITY;
     const metaClass = total > cap ? "over" : total === cap ? "full" : "";
@@ -674,6 +675,7 @@ function buildMemberGrid(g, opts = {}) {
   grid.className = "floor-pool-section-chips two-col";
 
   g.memberIds.forEach((id, i) => {
+    if (!id) return; // empty placeholder seat — skip in the chip grid
     const guest = allGuests.find((x) => x.id === id);
     if (guest) {
       grid.appendChild(
@@ -1239,8 +1241,25 @@ function moveGuestToPosition(guestId, targetGroupId, targetIndex) {
     } else if (!target.memberIds[idx]) {
       target.memberIds[idx] = guestId;
     } else {
-      // Occupied — shift right (rarely hit; empty-only drop zones).
-      target.memberIds.splice(idx, 0, guestId);
+      // Target seat is occupied. Prefer reusing an empty slot anywhere
+      // in the table so the cap is never exceeded by an insert-shift.
+      let placed = false;
+      for (let i = 0; i < cap; i++) {
+        if (!target.memberIds[i]) {
+          target.memberIds[i] = guestId;
+          placed = true;
+          break;
+        }
+      }
+      if (!placed && target.memberIds.length < cap) {
+        target.memberIds.push(guestId);
+        placed = true;
+      }
+      if (!placed) {
+        // Truly over capacity — fall back to shift-right and let the
+        // user notice via the "X / Y" meta turning red.
+        target.memberIds.splice(idx, 0, guestId);
+      }
     }
   }
 
