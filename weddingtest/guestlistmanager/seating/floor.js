@@ -201,13 +201,10 @@ function updateSeatedCount() {
   const el = document.getElementById("seatedCount");
   if (!el) return;
   let seated = 0;
-  let totalCap = 0;
   for (const g of groups) {
     seated += g.memberIds.filter(Boolean).length;
-    totalCap += g.capacity || DEFAULT_CAPACITY;
   }
-  el.textContent = `Seated ${seated} / ${totalCap}`;
-  el.classList.toggle("full", seated >= totalCap && totalCap > 0);
+  el.textContent = `Seated ${seated}`;
 }
 
 // ---------- Persistence ----------

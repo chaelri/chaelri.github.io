@@ -64,10 +64,6 @@ body.floor-fullscreen {
   cursor: default;
   font-variant-numeric: tabular-nums;
 }
-.floor-toolbar-seated.full {
-  background: #d1fae5;
-  color: #065f46 !important;
-}
 .floor-toolbar-icon {
   display: inline-flex;
   align-items: center;
