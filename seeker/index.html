@@ -594,7 +594,7 @@
         </li>
         <li class="flex items-start gap-2">
           <span class="text-amber-400 mt-0.5">•</span>
-          <div><span class="text-white">BOOT button on GPIO 9</span> doubles as the user button. Short press = reset average. Long press (1.5 s) = recalibrate.</div>
+          <div><span class="text-white">BOOT button on GPIO 9</span> doubles as the user button. Short press = reset average. Long press (1.5 s) = enter the multi-distance calibration wizard (1 m, 3 m, 6 m, 10 m).</div>
         </li>
         <li class="flex items-start gap-2">
           <span class="text-rose-400 mt-0.5">•</span>
@@ -1189,7 +1189,7 @@ const wires = [
   { board: "Finder",  pin: "USB-C",           to: "USB-C cable",         role: "5 V power + flash",     diy: false, color: "violet" },
   { board: "Finder",  pin: "GPIO 5 (SDA)",    to: "OLED data",            role: "I²C — pre-wired on PCB", diy: false, color: "violet" },
   { board: "Finder",  pin: "GPIO 6 (SCL)",    to: "OLED clock",           role: "I²C — pre-wired on PCB", diy: false, color: "violet" },
-  { board: "Finder",  pin: "GPIO 9 (BOOT)",   to: "tactile button",       role: "reset / 1 m calibrate",  diy: false, color: "amber" },
+  { board: "Finder",  pin: "GPIO 9 (BOOT)",   to: "tactile button",       role: "short=reset · long=calibrate wizard",  diy: false, color: "amber" },
   { board: "Finder",  pin: "GPIO 8 (onboard LED)", to: "internal trace",  role: "heartbeat",              diy: false, color: "violet" },
 ];
 
@@ -1208,10 +1208,12 @@ const steps = [
   { group: "Flash",       text: "Upload finder.ino → Finder" },
   { group: "Smoke test",  text: "Power both boards. Finder OLED should show a distance within 2 s" },
   { group: "Smoke test",  text: "Beacon's onboard LED switches from slow → fast blink (Finder is hearing)" },
-  { group: "Calibrate",   text: "Place the two boards exactly 1 m apart, line of sight" },
-  { group: "Calibrate",   text: "Long-press BOOT (1.5 s) on Finder → 'CALIBRATE @1m' for 5 s → done" },
-  { group: "Calibrate",   text: "Confirm Serial shows 'MEASURED_POWER = … saved to NVS'" },
-  { group: "Calibrate",   text: "Walk to 5 m — distance reads roughly 5 ± 1 m (else tweak N_FACTOR)" },
+  { group: "Calibrate",   text: "Pick a clear straight path, ~10 m long with line of sight" },
+  { group: "Calibrate",   text: "Long-press BOOT (1.5 s) on Finder → wizard starts at step 1/4" },
+  { group: "Calibrate",   text: "Stand at 1 m, short-press BOOT → wait 2.5 s → step 2/4 shows '3m'" },
+  { group: "Calibrate",   text: "Repeat at 3 m, 6 m, 10 m (or your chosen distances)" },
+  { group: "Calibrate",   text: "On the last step the OLED shows 'SAVED · MP · N' → fit is in NVS" },
+  { group: "Calibrate",   text: "Walk to 5 m — distance should read 5 ± 1 m. If 'BAD FIT', re-run wizard" },
   { group: "Play",        text: "Tape the Beacon under a chair / in a drawer. Hunt with the Finder." },
 ];
 

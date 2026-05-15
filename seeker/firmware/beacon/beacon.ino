@@ -21,14 +21,13 @@
 //    Flash Size:       4MB
 //    Partition:        Default 4MB with spiffs
 //
-//  Compile requirements (IMPORTANT — read or you'll get errors):
-//    • Arduino-ESP32 core v3.0.0 or newer.
-//      The ESP-NOW recv callback signature changed between v2.x and v3.x:
-//        v3.x:  void cb(const esp_now_recv_info_t *info, const uint8_t *data, int len)
-//        v2.x:  void cb(const uint8_t *mac,             const uint8_t *data, int len)
-//      This sketch uses the v3.x signature. If you see an error like
-//        "invalid conversion from 'void(*)(const esp_now_recv_info_t*, ...'"
-//      then go to Boards Manager → "esp32 by Espressif Systems" → install 3.0.0+.
+//  Compile requirements (read or you'll get errors):
+//    • Arduino-ESP32 core v3.1.0 or newer.
+//      Both ESP-NOW callback signatures changed between v2.x and v3.1+:
+//        send-cb v3.1+: void cb(const wifi_tx_info_t   *tx_info, esp_now_send_status_t)
+//        recv-cb v3.1+: void cb(const esp_now_recv_info_t *info, const uint8_t *data, int len)
+//      If either signature errors, update via
+//        Boards Manager → "esp32 by Espressif Systems" → install 3.1.0+.
 //    • No external libraries — everything used here is built into the ESP32 core.
 // =====================================================================
 
@@ -48,6 +47,14 @@ const uint32_t ACK_TIMEOUT_MS       = 3000;  // Finder counts as "out of range" 
 const uint32_t BLINK_FAST_PERIOD_MS = 250;   // when Finder is hearing us
 const uint32_t BLINK_SLOW_PERIOD_MS = 1000;  // when alone
 
+// ===== TX-power boost (option #1 from the roadmap) ===================
+// Higher TX power → more range + more stable RSSI through walls.
+// Value is in 0.25 dBm units. Range 8 (= 2 dBm) … 84 (= 21 dBm).
+//   80 = 20 dBm   (safe, near-max on most C3 chips — recommended)
+//   84 = 21 dBm   (chip-level max; may be clamped on some boards)
+// IMPORTANT: BOTH Beacon and Finder should use the same value.
+const int8_t TX_POWER = 80;
+
 // ===== Packet shape ==================================================
 // Keep this small — ESP-NOW packets up to 250 bytes are allowed but smaller
 // = faster + less radio congestion.
@@ -64,18 +71,19 @@ bool     finderHeard = false;
 
 // ===== Callbacks =====================================================
 
-// Sent callback — useful for debugging only; we don't gate on this.
+// Sent callback — v3.1+ signature (wifi_tx_info_t replaces the bare MAC).
+// Used only for optional debug logging; we don't gate any logic on it.
 void onDataSent(const wifi_tx_info_t *tx_info, esp_now_send_status_t status) {
-  // Logic remains the same, the compiler just needs these specific parameter types
-  // Serial.println(status == ESP_NOW_SEND_SUCCESS ? "Delivery Success" : "Delivery Fail");
+  // Uncomment for debugging:
+  // Serial.println(status == ESP_NOW_SEND_SUCCESS ? "ack OK" : "ack fail");
 }
 
-// Receive callback — Finder sends back a 1-byte ack.
-// Signature matches Arduino-ESP32 core v3.x (newer info struct).
+// Receive callback — Finder echoes a 1-byte ack so we know it's hearing us.
+// v3.x signature: info struct carries src_addr + rx_ctrl (with rssi).
 void onDataRecv(const esp_now_recv_info_t *info, const uint8_t *data, int len) {
   // Any reply from the Finder counts — content doesn't matter.
-  lastAckMs    = millis();
-  finderHeard  = true;
+  lastAckMs   = millis();
+  finderHeard = true;
 }
 
 // ===== Setup =========================================================
@@ -91,6 +99,17 @@ void setup() {
   // STA mode is mandatory for ESP-NOW.
   WiFi.mode(WIFI_STA);
   WiFi.disconnect();
+
+  // ---- TX-power boost ----
+  // Must be called AFTER WiFi is up (WiFi.mode starts the radio).
+  esp_err_t txErr = esp_wifi_set_max_tx_power(TX_POWER);
+  if (txErr == ESP_OK) {
+    Serial.printf("[seeker · beacon] TX power set to %d (= %.2f dBm)\n",
+                  TX_POWER, TX_POWER * 0.25f);
+  } else {
+    Serial.printf("[seeker · beacon] TX power set FAILED (err 0x%x) — using default\n",
+                  txErr);
+  }
 
   if (esp_now_init() != ESP_OK) {
     Serial.println("[seeker · beacon] ESP-NOW init FAILED — halting");
