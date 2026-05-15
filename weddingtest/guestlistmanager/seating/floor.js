@@ -1203,8 +1203,12 @@ function handleAssignDrop(guestId, dropTargetEl, sourceGroupId) {
 }
 
 function moveGuestToPosition(guestId, targetGroupId, targetIndex) {
+  // Replace the guest's old slot with an empty placeholder so the other
+  // members keep their seats. Trailing empties get trimmed below.
   for (const g of groups) {
-    g.memberIds = g.memberIds.filter((id) => id !== guestId);
+    for (let i = 0; i < g.memberIds.length; i++) {
+      if (g.memberIds[i] === guestId) g.memberIds[i] = "";
+    }
   }
   const target = groups.find((g) => g.id === targetGroupId);
   if (!target) {
@@ -1212,8 +1216,42 @@ function moveGuestToPosition(guestId, targetGroupId, targetIndex) {
     tryRender();
     return;
   }
-  const idx = Math.max(0, Math.min(targetIndex, target.memberIds.length));
-  target.memberIds.splice(idx, 0, guestId);
+  const cap = target.capacity || DEFAULT_CAPACITY;
+
+  if (!Number.isFinite(targetIndex)) {
+    // Fill first empty seat (a gap, then the end).
+    let placed = false;
+    for (let i = 0; i < cap; i++) {
+      if (!target.memberIds[i]) {
+        target.memberIds[i] = guestId;
+        placed = true;
+        break;
+      }
+    }
+    if (!placed) target.memberIds.push(guestId);
+  } else {
+    const idx = Math.max(0, Math.min(targetIndex, cap - 1));
+    // Pad with empty-string placeholders so trailing seats can hold a guest
+    // even when earlier seats are empty (Firebase preserves "" in arrays).
+    while (target.memberIds.length < idx) target.memberIds.push("");
+    if (target.memberIds.length === idx) {
+      target.memberIds.push(guestId);
+    } else if (!target.memberIds[idx]) {
+      target.memberIds[idx] = guestId;
+    } else {
+      // Occupied — shift right (rarely hit; empty-only drop zones).
+      target.memberIds.splice(idx, 0, guestId);
+    }
+  }
+
+  // Trim trailing empties so length tracks the highest-occupied seat.
+  while (
+    target.memberIds.length &&
+    !target.memberIds[target.memberIds.length - 1]
+  ) {
+    target.memberIds.pop();
+  }
+
   persist();
   tryRender();
 }
