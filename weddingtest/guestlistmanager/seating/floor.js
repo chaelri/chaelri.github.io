@@ -674,25 +674,39 @@ function buildMemberGrid(g, opts = {}) {
   const grid = document.createElement("div");
   grid.className = "floor-pool-section-chips two-col";
 
-  g.memberIds.forEach((id, i) => {
-    if (!id) return; // empty placeholder seat — skip in the chip grid
-    const guest = allGuests.find((x) => x.id === id);
-    if (guest) {
-      grid.appendChild(
-        buildSidebarChip(guest, {
-          seat: i + 1,
-          groupId: g.id,
-          compact: true,
-          showStatus: !!opts.viewMode,
-        })
-      );
+  const cap = g.capacity || DEFAULT_CAPACITY;
+  const totalSlots = Math.max(g.memberIds.length, cap);
+  for (let i = 0; i < totalSlots; i++) {
+    const id = g.memberIds[i];
+    if (id) {
+      const guest = allGuests.find((x) => x.id === id);
+      if (guest) {
+        grid.appendChild(
+          buildSidebarChip(guest, {
+            seat: i + 1,
+            groupId: g.id,
+            compact: true,
+            showStatus: !!opts.viewMode,
+          })
+        );
+      } else {
+        const miss = document.createElement("div");
+        miss.className = "floor-pool-chip compact missing";
+        miss.textContent = `(unknown id ${id})`;
+        grid.appendChild(miss);
+      }
     } else {
-      const miss = document.createElement("div");
-      miss.className = "floor-pool-chip compact missing";
-      miss.textContent = `(unknown id ${id})`;
-      grid.appendChild(miss);
+      // Empty placeholder seat — clickable/droppable.
+      const slot = document.createElement("div");
+      slot.className = "floor-pool-chip compact empty-slot";
+      slot.dataset.groupId = g.id;
+      slot.dataset.seat = i + 1;
+      slot.innerHTML =
+        `<span class="seat-num">${i + 1}</span>` +
+        `<span class="name empty-label">empty</span>`;
+      grid.appendChild(slot);
     }
-  });
+  }
   (g.memberMissing || []).forEach((name) => {
     const miss = document.createElement("div");
     miss.className = "floor-pool-chip compact missing";

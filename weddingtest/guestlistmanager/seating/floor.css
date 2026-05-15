@@ -806,6 +806,22 @@ body:not(.view-mode) .floor-view-list {
   color: #b91c1c;
   cursor: default;
 }
+.floor-pool-chip.empty-slot {
+  background: #faf9f6;
+  border-style: dashed;
+  border-color: #d6d3d1;
+  color: #a8a29e;
+  cursor: default;
+}
+.floor-pool-chip.empty-slot .empty-label {
+  font-style: italic;
+  color: #a8a29e;
+}
+.floor-pool-chip.empty-slot.drop-target {
+  background: #f0f4e8;
+  border-color: #7b8a5b;
+  color: #1c1917;
+}
 .floor-table-close,
 .floor-table-copy,
 .floor-table-edit {
