@@ -56,6 +56,18 @@ body.floor-fullscreen {
   color: #7b8a5b;
   cursor: default;
 }
+.floor-toolbar-seated {
+  background: #f5f5f4;
+  color: #1c1917 !important;
+  padding: 4px 10px !important;
+  border-radius: 999px;
+  cursor: default;
+  font-variant-numeric: tabular-nums;
+}
+.floor-toolbar-seated.full {
+  background: #d1fae5;
+  color: #065f46 !important;
+}
 .floor-toolbar-icon {
   display: inline-flex;
   align-items: center;
