@@ -136,8 +136,8 @@ const unsigned long BTN_DEBOUNCE_MS = 30;   // ignore bounces < 30 ms
 const int STOP_US       = 1500;  // neutral — try 1480..1520 if horn creeps
 const int PUSH_US       = 1000;  // press direction (swap with RETURN_US if reversed)
 const int RETURN_US     = 2000;  // release direction
-const int PUSH_MS       = 450;   // burst duration onto the button — longer = more travel/torque
-const int RETURN_MS     = 450;   // MUST equal PUSH_MS so release lands at rest
+const int PUSH_MS       = 150;   // burst duration onto the button — longer = more travel/torque
+const int RETURN_MS     = 150;   // MUST equal PUSH_MS so release lands at rest
 
 Servo finger;
 WebServer server(80);
