@@ -34,7 +34,7 @@ No `assets/` folder, no image files. All hardware visuals are inline SVG: ESP32-
 - **Auth:** No authentication on the device — the Firebase RTDB rules currently allow public read/write on `/autoclicker/*` and `/aircon/*` for testing. Locked-down rules would require swapping the firmware to use a service-account ID-token flow.
 - **Firmware:** Canonical source at `firmware/pocket-remote.ino`. Uses:
   - **U8g2** (oliverkraus, Library Manager) — drives the SSD1306 controller in its 72×40 visible window.
-  - **WiFiMulti** — same hardcoded SSID pool as autoclicker/aircon (`CAYNO` + `Charlie's iPhone`) so the remote roams.
+  - **WiFiMulti** — same hardcoded SSID pool as autoclicker/aircon (`CAYNO` + `Chaelri`) so the remote roams.
   - **HTTPClient** — single PUT per tap; `http.begin(httpsURL)` uses the built-in insecure client (no cert pinning).
   - **Preferences** — mode (LIGHTS / AIRCON) persists in NVS so it survives reboots and the cell going flat.
   - No Firebase SDK, no JSON parser, no Servo / IR library. Tiny sketch.

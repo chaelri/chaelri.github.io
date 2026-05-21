@@ -767,7 +767,7 @@ void setup() {
   pinMode(BTN_PIN, INPUT_PULLUP);
 
   wifiMulti.addAP("CAYNO", "lokomoko");
-  wifiMulti.addAP("Charlie's iPhone", "charlie24");
+  wifiMulti.addAP("Chaelri", "charlie24");
 
   // Pull a user-saved network out of NVS (if any) and stack it onto wifiMulti.
   // Added LAST so it's preferred when both it and a hardcoded network are

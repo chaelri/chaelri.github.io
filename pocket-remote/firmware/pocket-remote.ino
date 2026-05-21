@@ -302,7 +302,7 @@ void setup() {
   loadMode();
 
   wifiMulti.addAP("CAYNO", "lokomoko");
-  wifiMulti.addAP("Charlie's iPhone", "charlie24");
+  wifiMulti.addAP("Chaelri", "charlie24");
 
   WiFi.mode(WIFI_STA);
 

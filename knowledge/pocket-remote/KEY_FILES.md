@@ -86,7 +86,7 @@ enum Mode { MODE_LIGHTS = 0, MODE_AIRCON = 1 };
 
 - `TAP_MAX_MS` / `HOLD_MS` — adjust if the button feels too sensitive or too laggy
 - `STATUS_HOLD_MS` — how long transient OLED messages stick
-- WiFi SSIDs in `setup()` — match Charlie's environment (currently `CAYNO` + `Charlie's iPhone`, same as autoclicker/aircon)
+- WiFi SSIDs in `setup()` — match Charlie's environment (currently `CAYNO` + `Chaelri`, same as autoclicker/aircon)
 
 ### Quirks worth flagging
 

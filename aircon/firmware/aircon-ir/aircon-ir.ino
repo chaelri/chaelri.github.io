@@ -623,7 +623,7 @@ void setup() {
   digitalWrite(STATUS_LED, HIGH);
 
   wifiMulti.addAP("CAYNO", "lokomoko");
-  wifiMulti.addAP("Charlie's iPhone", "charlie24");
+  wifiMulti.addAP("Chaelri", "charlie24");
 
   // WiFi station mode first; SoftAP only if no known network shows up.
   if (!tryStation()) startSoftAP();

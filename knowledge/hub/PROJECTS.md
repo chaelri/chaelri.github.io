@@ -66,7 +66,7 @@ Battery-powered hand-held WiFi remote for **both** `autoclicker/` and `aircon/`.
   - **Button state machine** decomposes one press into tap vs hold: tap fires on release if held < 500 ms and no hold has fired; hold fires the moment press duration crosses 800 ms (not on release), so feedback is immediate.
   - **Mode is NVS-persisted** under namespace `remote`, key `mode` (uint8). Survives reboots and flat-battery shutdowns.
   - **Modem sleep is the default** (~20–30 mA average → ~12–24 h battery). Do NOT call `WiFi.setSleep(false)` here — the autoclicker firmware does that because it's wall-powered, this remote isn't.
-  - **No SoftAP fallback, no local web UI.** OLED + button is the whole interface. WiFi credentials are hardcoded — same SSID pool as autoclicker/aircon (`CAYNO` + `Charlie's iPhone`).
+  - **No SoftAP fallback, no local web UI.** OLED + button is the whole interface. WiFi credentials are hardcoded — same SSID pool as autoclicker/aircon (`CAYNO` + `Chaelri`).
   - **`Wire.setPins(5, 6)` must run BEFORE `oled.begin()`** — U8g2 starts I²C on default pins otherwise and the OLED stays blank.
   - **Color palette is amber + emerald** (distinct from autoclicker's indigo/purple and aircon's sky/cyan).
 - **Full docs:** See `knowledge/pocket-remote/SUMMARY.md`, `ARCHITECTURE.md`, `KEY_FILES.md`.
