@@ -153,10 +153,16 @@ void drawScreen() {
 
   const char* modeLabel = (currentMode == MODE_LIGHTS) ? "LIGHTS" : "AIRCON";
 
-  // ---- Row 1 (y=7): time (left) + mode (right) -----------------------------
-  char timeBuf[8];
-  if (haveTime) snprintf(timeBuf, sizeof(timeBuf), "%02d:%02d", lt.tm_hour, lt.tm_min);
-  else          strcpy(timeBuf, "--:--");
+  // ---- Row 1 (y=7): time (left, 12 h w/ AM/PM) + mode (right) -------------
+  char timeBuf[12];
+  if (haveTime) {
+    int h12 = lt.tm_hour % 12;
+    if (h12 == 0) h12 = 12;
+    const char* ampm = (lt.tm_hour < 12) ? "AM" : "PM";
+    snprintf(timeBuf, sizeof(timeBuf), "%d:%02d %s", h12, lt.tm_min, ampm);
+  } else {
+    strcpy(timeBuf, "--:--");
+  }
   oled.drawStr(0, 7, timeBuf);
   int mw = oled.getStrWidth(modeLabel);
   oled.drawStr(72 - mw, 7, modeLabel);
@@ -169,7 +175,10 @@ void drawScreen() {
   } else {
     strcpy(row2, "syncing time...");
   }
-  oled.drawStr(0, 17, row2);
+  {
+    int w = oled.getStrWidth(row2);
+    oled.drawStr((72 - w) / 2, 17, row2);
+  }
 
   // ---- Row 3 (y=27): days until 2026-07-02 PHT -----------------------------
   // mktime() interprets the struct tm as local time, which (after configTime
@@ -194,7 +203,10 @@ void drawScreen() {
   } else {
     row3[0] = '\0';
   }
-  if (row3[0]) oled.drawStr(0, 27, row3);
+  if (row3[0]) {
+    int w = oled.getStrWidth(row3);
+    oled.drawStr((72 - w) / 2, 27, row3);
+  }
 
   // ---- Row 4 (y=37): transient status or WiFi fallback ---------------------
   String row4;
