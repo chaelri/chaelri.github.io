@@ -59,6 +59,8 @@ chaelri.github.io/
 ├── monthsary/              ← 4th monthsary page (active)
 ├── towa-no-yuugure/        ← Towa no Yuugure episode viewer (sister to anohana)
 ├── autoclicker/            ← DIY WiFi auto-clicker build reference + live phone remote
+├── aircon/                 ← DIY WiFi aircon controller (servo on the original remote)
+├── pocket-remote/          ← Battery-powered ESP32-C3+OLED remote for autoclicker + aircon
 ├── weddingtest/            ← LIVE wedding invitation (despite the name)
 ├── gemini-proxy/           ← Cloud Run backend (used by devo, pray, others)
 ├── functions/              ← Firebase Cloud Functions (weddingbar push)

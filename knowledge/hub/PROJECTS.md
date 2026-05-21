@@ -1,6 +1,6 @@
 # Hub Project Index for chaelri.github.io
 
-**Last updated:** 2026-05-08
+**Last updated:** 2026-05-21
 **Scope:** Complete mapping of top-level directories + root files, with tech stack, deployment, status, and key entry points.
 
 ## Status Legend
@@ -48,6 +48,28 @@ DIY WiFi aircon controller — sister project to autoclicker. ESP32-C3 + 940 nm 
   - Shares Firebase project `test-database-55379` (asia-southeast1) with autoclicker, weddingbar, echoes, etc. RTDB rules: `.read`/`.write` = `true` for `/aircon/*` while testing.
   - Section IDs (`overview/hardware/wiring/demo/code/checklist`) are load-bearing for `syncNav()` scroll-spy — same skeleton as autoclicker.
 - **Full docs:** See `knowledge/aircon/SUMMARY.md`, `ARCHITECTURE.md`, `KEY_FILES.md`.
+
+### pocket-remote/  🟢
+
+Battery-powered hand-held WiFi remote for **both** `autoclicker/` and `aircon/`. Three modules stacked (ESP32-C3 + 0.42" OLED + TP4056 + LiPo 1000 mAh). One BOOT button: **tap to fire** the current mode, **hold ≥800 ms to flip** between CLICK and AC modes. Mode persisted in NVS. USB-C charging via TP4056; usable while plugged in.
+
+- **Tech:** vanilla HTML/CSS/JS (browser-Tailwind v4, no build) for the docs site; firmware uses `U8g2` for the OLED, `HTTPClient` for Firebase HTTPS PUTs, `Preferences` for NVS-backed mode, `WiFiMulti` for roaming. No Firebase SDK, no servo / IR library — pure pass-through to the existing sibling devices.
+- **Entry:** `index.html` (~640 lines — overview/hardware/wiring/demo/code/checklist; all visuals hand-drawn inline SVG, no image dependencies), `firmware/pocket-remote.ino` (~330 lines, canonical Arduino sketch).
+- **Deploy:** GitHub Pages at `/pocket-remote/`. No phone-remote subpath — the physical device IS the remote.
+- **Firmware:** Single sketch. Writes to **existing** RTDB paths used by the sibling phone remotes — `"toggle"` to `/autoclicker/command` in CLICK mode, `{"cmd":"click"}` to `/aircon/command` in AC mode. Receiving firmware can't tell the difference between a phone tap and a pocket-remote tap.
+- **Hardware quirks:**
+  - **No MT3608 boost converter** in the BOM. Battery (3.0–4.2 V via TP4056 OUT+) feeds the ESP32 `5V` pin directly; the onboard 3.3 V LDO handles the range with ~250 mV headroom. Below ~3.5 V the OLED starts to flicker — that's the "charge me" cue.
+  - **Battery-sense divider:** 220 kΩ + 100 kΩ from TP4056 `OUT+` → GPIO0 (ADC1_CH0) midpoint → GND. Drives the `%` on the OLED via a linear `3.30 V = 0 %`, `4.15 V = 100 %` map.
+  - **Use-while-charging** works because of the TP4056+DW01 protection variant — USB-C powers the load and tops up the cell at the same time.
+  - **Don't connect OUT+ to the V3 pin** — 4.2 V exceeds the 3.3 V LDO output spec. Load-bearing warning on the docs page.
+- **Firmware quirks:**
+  - **Button state machine** decomposes one press into tap vs hold: tap fires on release if held < 500 ms and no hold has fired; hold fires the moment press duration crosses 800 ms (not on release), so feedback is immediate.
+  - **Mode is NVS-persisted** under namespace `remote`, key `mode` (uint8). Survives reboots and flat-battery shutdowns.
+  - **Modem sleep is the default** (~20–30 mA average → ~12–24 h battery). Do NOT call `WiFi.setSleep(false)` here — the autoclicker firmware does that because it's wall-powered, this remote isn't.
+  - **No SoftAP fallback, no local web UI.** OLED + button is the whole interface. WiFi credentials are hardcoded — same SSID pool as autoclicker/aircon (`CAYNO` + `Charlie's iPhone`).
+  - **`Wire.setPins(5, 6)` must run BEFORE `oled.begin()`** — U8g2 starts I²C on default pins otherwise and the OLED stays blank.
+  - **Color palette is amber + emerald** (distinct from autoclicker's indigo/purple and aircon's sky/cyan).
+- **Full docs:** See `knowledge/pocket-remote/SUMMARY.md`, `ARCHITECTURE.md`, `KEY_FILES.md`.
 
 ### devo/  🟢
 
@@ -302,7 +324,7 @@ Simple side-scrolling platformer (Bubu & Dudu) — canvas-based game.
 
 | Project | Hosting | Auto-deploy on push? |
 |---|---|---|
-| devo, monthsary, tayo, sns-dq, weddingtest, towa-no-yuugure, autoclicker, aircon, flux, pray, echoes, wedding100, weddingtimeline, horizon, money, anohana, bubududu | GitHub Pages subpath | ✅ |
+| devo, monthsary, tayo, sns-dq, weddingtest, towa-no-yuugure, autoclicker, aircon, pocket-remote, flux, pray, echoes, wedding100, weddingtimeline, horizon, money, anohana, bubududu | GitHub Pages subpath | ✅ |
 | guard-exit-interview | GitHub Pages — **DUAL-REPO** (also push to `guard-exit-tracker`) | ✅ |
 | vm-management | GitHub Pages `/vm-management/` | ✅ |
 | weddingbar | Firebase Hosting (root via `firebase.json`) — also GH Pages `/weddingbar/` | `firebase deploy` |
