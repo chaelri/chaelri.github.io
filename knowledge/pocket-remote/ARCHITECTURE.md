@@ -69,21 +69,13 @@ Why not press-and-hold-repeat for taps: nobody asked for it, and the autoclicker
         BOOT btn ─────┤ GPIO9  (INPUT_PULLUP)    │
         OLED      ────┤ GPIO5  (SDA, internal)   │
         OLED      ────┤ GPIO6  (SCL, internal)   │
-                      │ GPIO0  ◄── ADC1_CH0      │
                       │                          │
                 ┌─────┤ 5V                       │
                 │     │ GD                       │
                 │     │ V3 (regulated 3.3 V) ── DO NOT CONNECT TO BATTERY
                 │     └──────────────────────────┘
                 │
-   220kΩ─┬─100kΩ─GND
-         │
-         │      (battery sense midpoint)
-         │
-         ├──── to GPIO0 (V_bat / 3.2)
-         │
-         │
-   ┌─────┴─────────────────┐
+   ┌────────────┴──────────┐
    │ TP4056 + DW01         │       USB-C in ←── any phone charger
    │                       │
    │  USB-C ── charging in │
@@ -110,12 +102,11 @@ Why not press-and-hold-repeat for taps: nobody asked for it, and the autoclicker
 | `5V` | — | Battery rail in (from TP4056 OUT+) |
 | `GD` | — | Common ground (from TP4056 OUT−) |
 | `V3` | — | **Do not connect** — 4.2 V battery exceeds 3.3 V LDO output spec |
-| `0` | GPIO0 | Battery sense (ADC1_CH0) |
 | Internal | GPIO5 | OLED SDA |
 | Internal | GPIO6 | OLED SCL |
 | Internal | GPIO8 | Onboard PWR LED (red, lit whenever device is powered) |
 
-GPIO1, 2, 3, 4, 7, 10 are unused — available for future expansion (e.g. a second tactile button, a haptic motor driver, a status RGB LED).
+GPIO0, 1, 2, 3, 4, 7, 10 are unused — available for future expansion (e.g. a second tactile button, a haptic motor driver, a status RGB LED, or re-adding the battery sense divider on GPIO0).
 
 ## Firmware layer
 
@@ -125,7 +116,6 @@ Key globals:
 
 ```cpp
 const int BTN_PIN  = 9;       // BOOT button
-const int VBAT_PIN = 0;       // ADC1_CH0
 const int OLED_SDA = 5;
 const int OLED_SCL = 6;
 
@@ -134,20 +124,15 @@ const unsigned long TAP_MAX_MS   = 500;
 const unsigned long HOLD_MS      = 800;
 const unsigned long STATUS_HOLD_MS = 2500;
 
-const float VBAT_FULL  = 4.15f;
-const float VBAT_EMPTY = 3.30f;
-const int   VBAT_SAMPLES = 8;
-
 enum Mode { MODE_CLICK = 0, MODE_AC = 1 };
 ```
 
 Loop body (in order, per iteration):
 
 1. `readButton()` — debounced GPIO9 read. Tap fires on release; hold fires on threshold crossing.
-2. `sampleBattery()` — rolling ADC average every `BAT_INTERVAL_MS` (5 s). Updates `batPercent` and marks `needsRedraw`.
-3. Auto-clear of the bottom status line after `STATUS_HOLD_MS` (2.5 s) — transient messages don't sit forever.
-4. WiFi recovery — if `WiFi.status() != WL_CONNECTED`, throttled `wifiMulti.run()` every 10 s.
-5. `drawScreen()` — only when `needsRedraw` is set. The 72×40 buffer is flushed in one I²C transaction.
+2. Auto-clear of the bottom status line after `STATUS_HOLD_MS` (2.5 s) — transient messages don't sit forever.
+3. WiFi recovery — if `WiFi.status() != WL_CONNECTED`, throttled `wifiMulti.run()` every 10 s.
+4. `drawScreen()` — only when `needsRedraw` is set. The 72×40 buffer is flushed in one I²C transaction.
 
 ## Why this shape
 

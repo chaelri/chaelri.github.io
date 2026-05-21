@@ -352,8 +352,8 @@
         <!-- OLED screen -->
         <rect x="130" y="60" width="50" height="40" rx="3" fill="#000" stroke="#fde68a" stroke-width="0.5" />
         <rect x="135" y="65" width="40" height="30" fill="url(#oledScreen)" opacity="0.85" />
-        <text x="155" y="79" text-anchor="middle" fill="#fde68a" font-size="7" font-weight="700">&gt;CLICK</text>
-        <text x="155" y="89" text-anchor="middle" fill="#fbbf24" font-size="5">87%</text>
+        <text x="155" y="83" text-anchor="middle" fill="#fde68a" font-size="8" font-weight="700">&gt;CLICK</text>
+        <text x="155" y="92" text-anchor="middle" fill="#fbbf24" font-size="4">ready</text>
 
         <!-- BOOT button (top-left) -->
         <g transform="translate(28 50)">
@@ -448,63 +448,6 @@
         <path d="M-12 -6 C -50 -20, -90 -20, -110 0" class="wire" stroke="#fde68a" stroke-width="1.5" fill="none" stroke-dasharray="3 3" />
       </g>
 
-      <!-- ============================================================== -->
-      <!-- Battery sense divider — actual schematic, not just a text label -->
-      <!-- Chain: TP4056 OUT+ → 220 kΩ → midpoint (GPIO0) → 100 kΩ → GND   -->
-      <!-- ============================================================== -->
-      <g transform="translate(782 170)">
-        <!-- Title -->
-        <text x="0" y="-12" text-anchor="middle" fill="#10b981" font-size="11" font-weight="700">Battery sense</text>
-        <text x="0" y="-2"  text-anchor="middle" fill="#94a3b8" font-size="8">V_bat ÷ 3.2 → ADC1_CH0</text>
-
-        <!-- Top junction (wire from OUT+ arrives here) -->
-        <circle cx="0" cy="6" r="2.5" fill="#10b981" />
-
-        <!-- Top lead -->
-        <line x1="0" y1="6" x2="0" y2="18" stroke="#10b981" stroke-width="1.8" />
-
-        <!-- 220 kΩ resistor body (vertical, axial) with red-red-yellow-gold bands -->
-        <rect x="-9" y="18" width="18" height="44" rx="3" fill="#e7c39a" stroke="#92400e" stroke-width="0.6" />
-        <rect x="-9" y="22" width="18" height="3" fill="#dc2626" />
-        <rect x="-9" y="28" width="18" height="3" fill="#dc2626" />
-        <rect x="-9" y="34" width="18" height="3" fill="#eab308" />
-        <rect x="-9" y="54" width="18" height="3" fill="#d4a373" />
-        <text x="14" y="44" fill="#10b981" font-size="9" font-family="JetBrains Mono">220 kΩ</text>
-
-        <!-- Lead from 220k to midpoint -->
-        <line x1="0" y1="62" x2="0" y2="76" stroke="#10b981" stroke-width="1.8" />
-
-        <!-- Midpoint junction with branch to GPIO0 -->
-        <circle cx="0" cy="76" r="3" fill="#fde68a" stroke="#92400e" stroke-width="0.5" />
-        <line x1="0" y1="76" x2="-26" y2="76" stroke="#fde68a" stroke-width="1.8" />
-        <polygon points="-26,72 -34,76 -26,80" fill="#fde68a" />
-        <text x="-38" y="79" text-anchor="end" fill="#fde68a" font-size="8" font-weight="700" font-family="JetBrains Mono">→ GPIO0</text>
-
-        <!-- Lead from midpoint to 100k -->
-        <line x1="0" y1="76" x2="0" y2="90" stroke="#10b981" stroke-width="1.8" />
-
-        <!-- 100 kΩ resistor body (vertical) with brown-black-yellow-gold bands -->
-        <rect x="-9" y="90"  width="18" height="44" rx="3" fill="#e7c39a" stroke="#92400e" stroke-width="0.6" />
-        <rect x="-9" y="94"  width="18" height="3" fill="#a16207" />
-        <rect x="-9" y="100" width="18" height="3" fill="#000000" />
-        <rect x="-9" y="106" width="18" height="3" fill="#eab308" />
-        <rect x="-9" y="126" width="18" height="3" fill="#d4a373" />
-        <text x="14" y="116" fill="#10b981" font-size="9" font-family="JetBrains Mono">100 kΩ</text>
-
-        <!-- Bottom lead -->
-        <line x1="0" y1="134" x2="0" y2="146" stroke="#10b981" stroke-width="1.8" />
-
-        <!-- Bottom junction (wire to GND continues from here) -->
-        <circle cx="0" cy="146" r="2.5" fill="#10b981" />
-      </g>
-
-      <!-- Sense wire: TP4056 OUT+ → divider TOP -->
-      <path d="M606 267 C 660 260, 720 220, 760 195 C 770 188, 778 180, 782 176"
-            class="wire" stroke="#10b981" stroke-width="2" fill="none" stroke-dasharray="4 3" />
-
-      <!-- Sense wire: divider BOTTOM → back to OUT- (GND return) -->
-      <path d="M782 316 C 780 330, 720 340, 660 330 C 630 324, 614 322, 606 320"
-            class="wire" stroke="#10b981" stroke-width="2" fill="none" stroke-dasharray="4 3" />
     </svg>
 
     <div class="grid sm:grid-cols-3 gap-4 mt-8 text-sm">
@@ -537,11 +480,12 @@
 <section id="wiring" class="section max-w-6xl mx-auto px-4 sm:px-6 py-16">
   <div class="mb-10">
     <div class="text-xs uppercase tracking-[0.18em] text-amber-300 mb-2">Wiring</div>
-    <h2 class="text-3xl sm:text-4xl font-bold text-white tracking-tight">Six connections in total</h2>
+    <h2 class="text-3xl sm:text-4xl font-bold text-white tracking-tight">Four connections in total</h2>
     <p class="text-slate-400 mt-3 max-w-2xl">
-      Four wires for the power chain, plus two resistors for the battery sense divider.
-      No MT3608 — we skip the boost and let the ESP32's onboard 3.3 V LDO handle the
-      battery voltage range directly.
+      Four wires for the power chain, plus the USB-C charge cable. No resistors, no
+      MT3608 — the ESP32's onboard 3.3 V LDO handles the battery voltage range
+      directly. The OLED itself is the low-battery indicator: when it starts to
+      flicker around ~3.5 V, plug the TP4056 in.
     </p>
   </div>
 
@@ -600,18 +544,12 @@
           <g transform="translate(36 60)">
             <rect width="288" height="160" rx="6" fill="#000" />
 
-            <!-- Top status row: WiFi bars + battery -->
+            <!-- Top status row: WiFi bars only (battery sense removed) -->
             <g class="oled-top">
-              <!-- WiFi bars (4 bars at left) -->
               <rect x="8"  y="32" width="8" height="8"  class="oled-pixel" />
               <rect x="20" y="24" width="8" height="16" class="oled-pixel" />
               <rect x="32" y="16" width="8" height="24" class="oled-pixel" />
               <rect x="44" y="8"  width="8" height="32" class="oled-pixel" />
-              <!-- Battery icon -->
-              <rect x="170" y="14" width="56" height="28" fill="none" stroke="#fde68a" stroke-width="2" />
-              <rect x="226" y="22" width="8"  height="12" class="oled-pixel" />
-              <rect id="batFill" x="174" y="18" width="40" height="20" class="oled-pixel" />
-              <text id="batText" x="244" y="36" fill="#fde68a" font-family="JetBrains Mono" font-size="20" font-weight="700">87%</text>
             </g>
 
             <!-- Middle: big mode label -->
@@ -652,18 +590,6 @@
             </div>
           </button>
 
-          <button id="demoDrain" class="w-full card p-5 text-left hover:bg-white/5 transition-colors group">
-            <div class="flex items-center gap-3">
-              <div class="w-10 h-10 rounded-lg bg-slate-500/15 border border-slate-500/30 grid place-items-center">
-                <span class="material-symbols-outlined text-slate-300" style="font-size:20px">battery_3_bar</span>
-              </div>
-              <div class="flex-1">
-                <div class="text-white font-semibold group-hover:text-slate-200 transition-colors">Drain</div>
-                <div class="text-xs text-slate-500">Step the simulated battery down 10%</div>
-              </div>
-              <span class="text-[10px] mono text-slate-500">demo only</span>
-            </div>
-          </button>
         </div>
 
         <div class="mt-6 card p-4 text-xs text-slate-400 leading-relaxed">
@@ -755,32 +681,6 @@
     </div>
   </details>
 
-  <details class="card overflow-hidden mb-4">
-    <summary class="px-6 py-4 flex items-center gap-3 hover:bg-white/[0.02]">
-      <span class="material-symbols-outlined text-amber-300" style="font-size:20px">battery_charging_full</span>
-      <div class="flex-1">
-        <div class="text-white font-semibold">Battery ADC + percent map</div>
-        <div class="text-xs text-slate-500">220k + 100k divider on GPIO0</div>
-      </div>
-      <span class="material-symbols-outlined text-slate-500 chev">expand_more</span>
-    </summary>
-    <div class="px-6 pb-6">
-<pre class="code"><span class="tok-kw">const float</span> VBAT_FULL  = <span class="tok-num">4.15f</span>;
-<span class="tok-kw">const float</span> VBAT_EMPTY = <span class="tok-num">3.30f</span>;
-
-<span class="tok-kw">float</span> <span class="tok-fn">readBatteryVolts</span>() {
-  <span class="tok-kw">long</span> sum = <span class="tok-num">0</span>;
-  <span class="tok-kw">for</span> (<span class="tok-kw">int</span> i = <span class="tok-num">0</span>; i &lt; VBAT_SAMPLES; i++) {
-    sum += <span class="tok-fn">analogRead</span>(VBAT_PIN);
-    <span class="tok-fn">delay</span>(<span class="tok-num">2</span>);
-  }
-  <span class="tok-kw">float</span> raw  = sum / (<span class="tok-kw">float</span>)VBAT_SAMPLES;
-  <span class="tok-kw">float</span> vadc = raw * (<span class="tok-num">3.3f</span> / <span class="tok-num">4095.0f</span>);
-  <span class="tok-kw">return</span> vadc * <span class="tok-num">3.2f</span>;     <span class="tok-com">// divider: (220k+100k)/100k = 3.2</span>
-}</pre>
-    </div>
-  </details>
-
   <p class="text-sm text-slate-500 mt-6">
     Full source: <a href="firmware/pocket-remote.ino" class="text-amber-300 hover:text-amber-200 underline">firmware/pocket-remote.ino</a>
   </p>
@@ -822,7 +722,6 @@
     { from: 'LiPo − (black lead)',       to: 'TP4056 B−',         wire: 'black, soldered',   notes: 'Battery negative terminal' },
     { from: 'TP4056 OUT+',               to: 'ESP32 5V',          wire: 'yellow jumper',     notes: 'Hits the onboard LDO; never connect to V3' },
     { from: 'TP4056 OUT−',               to: 'ESP32 GD (GND)',    wire: 'black jumper',      notes: 'Common ground for both boards' },
-    { from: 'TP4056 OUT+ → 220 kΩ → GPIO0', to: '— and — GPIO0 → 100 kΩ → GND', wire: '2× 0.25 W resistors', notes: 'Divides V_bat by 3.2 so ADC stays under 1.31 V' },
     { from: 'USB-C cable (any phone charger)', to: 'TP4056 USB-C', wire: 'USB-C ↔ USB-C',     notes: 'Charges + runs the device. NOT the ESP32 port.' },
   ];
 
@@ -841,7 +740,6 @@
     { section: 'Parts',    text: 'ESP32-C3 + 0.42" OLED dev board (01space-style)' },
     { section: 'Parts',    text: 'TP4056 + DW01 charger/protection module (USB-C)' },
     { section: 'Parts',    text: 'LiPo 3.7 V 1000 mAh (102050 form factor)' },
-    { section: 'Parts',    text: '220 kΩ and 100 kΩ resistors (0.25 W) for the battery divider' },
     { section: 'Parts',    text: 'Hookup wire — red / black / yellow, ~24 AWG' },
 
     { section: 'Firmware', text: 'Install Arduino IDE 2.x + ESP32 board support (Espressif)' },
@@ -855,12 +753,10 @@
     { section: 'Wiring',   text: 'Solder LiPo + to TP4056 B+ and LiPo − to B−' },
     { section: 'Wiring',   text: 'Jumper TP4056 OUT+ to ESP32 5V (yellow)' },
     { section: 'Wiring',   text: 'Jumper TP4056 OUT− to ESP32 GD (black)' },
-    { section: 'Wiring',   text: 'Solder 220 kΩ + 100 kΩ divider, midpoint to GPIO0' },
     { section: 'Wiring',   text: 'Insulate all exposed pads with kapton or heat-shrink' },
 
     { section: 'Test',     text: 'Plug a USB-C charger into the TP4056 — CHRG LED on' },
     { section: 'Test',     text: 'OLED boots into the "Pocket Remote · ready" screen' },
-    { section: 'Test',     text: 'Battery % matches a multimeter reading at the cell' },
     { section: 'Test',     text: 'Tap BOOT → autoclicker servo fires (CLICK mode is default)' },
     { section: 'Test',     text: 'Hold BOOT ≥800 ms → OLED flips to ">AC" and persists across reboot' },
     { section: 'Test',     text: 'Tap BOOT in AC mode → aircon fires power-toggle' },
@@ -935,17 +831,11 @@
   const oledMode   = document.getElementById('oledMode');
   const oledStatus = document.getElementById('oledStatus');
   const oledSvg    = document.getElementById('oledSvg');
-  const batFill    = document.getElementById('batFill');
-  const batText    = document.getElementById('batText');
 
   let demoMode = 'CLICK';  // 'CLICK' | 'AC'
-  let demoBat  = 87;
 
   function renderOled() {
     oledMode.textContent = '>' + demoMode;
-    const pct = Math.max(0, Math.min(100, demoBat));
-    batText.textContent = pct + '%';
-    batFill.setAttribute('width', String(Math.round(40 * pct / 100)));
   }
 
   function flashStatus(text) {
@@ -963,12 +853,6 @@
     demoMode = (demoMode === 'CLICK') ? 'AC' : 'CLICK';
     renderOled();
     flashStatus('-> ' + demoMode);
-  });
-
-  document.getElementById('demoDrain').addEventListener('click', () => {
-    demoBat = (demoBat <= 10) ? 100 : demoBat - 10;
-    renderOled();
-    flashStatus('battery ' + demoBat + '%');
   });
 
   renderOled();

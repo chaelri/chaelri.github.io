@@ -3,7 +3,7 @@
 **Last updated:** 2026-05-21
 **Status:** 🟢 Active (initial build — battery-powered hand-held remote that targets both autoclicker and aircon over Firebase)
 
-A keychain-sized WiFi remote built from three off-the-shelf modules. One BOOT button on the ESP32-C3 dev board drives both of Charlie's existing Firebase-controlled devices — tap to fire the current mode, hold to switch modes. The 0.42" OLED shows WiFi signal, battery percent, the current mode, and a transient status line. USB-C charging via TP4056; works while plugged in.
+A keychain-sized WiFi remote built from three off-the-shelf modules. One BOOT button on the ESP32-C3 dev board drives both of Charlie's existing Firebase-controlled devices — tap to fire the current mode, hold to switch modes. The 0.42" OLED shows WiFi signal, the current mode, and a transient status line. **No fuel gauge / battery percent** — the OLED flickering around 3.5 V is the cue to charge; the TP4056's DW01 cuts the cell at 3.0 V before damage. USB-C charging via TP4056; works while plugged in.
 
 Sibling project to `autoclicker/` and `aircon/`. Uses **identical Firebase payloads** to those projects' phone remotes — the receiving firmware on each target device can't tell whether a tap came from a phone or from the pocket remote.
 
@@ -51,7 +51,7 @@ GitHub Pages at `/pocket-remote/` (auto-publishes on push to `main`). No phone-r
 - **Demo is fake-only.** Tap / Hold / Drain animate the OLED mock and nothing else. Only the physical device writes to Firebase.
 - **No MT3608 in the BOM.** The boost converter is deliberately skipped — see the wiring section's warning card. Battery → TP4056 → ESP32 5V pin directly; the onboard LDO handles 3.0–4.2 V with margin until ~3.5 V, at which point the OLED starts to flicker and serves as the "charge me" cue.
 - **No transistor, no flyback diode, no MOSFET** — there's nothing inductive to drive. The only active components are the three boards.
-- **Battery sense divider uses 220 kΩ + 100 kΩ** so the midpoint sits at V_bat / 3.2 (~1.31 V at full charge). High-impedance to minimize idle drain; the ESP32-C3 ADC handles the load.
+- **No battery fuel gauge.** The divider was deliberately removed — the OLED itself indicates low battery by flickering around ~3.5 V when the LDO starts to drop out. Two fewer solder joints, smaller stack, and the TP4056's DW01 still cuts at 3.0 V to protect the cell.
 - **Mode is persisted in NVS** under the namespace `remote`, key `mode` (uint8: 0 = CLICK, 1 = AC). Reads on boot, writes on every hold. Survives flat-battery shutdowns because NVS is in onboard flash.
 - **Modem sleep is intentionally left at the Arduino-ESP32 default** (light sleep between beacons → ~20–30 mA average) so battery life sits around 12–24 hours. Don't call `WiFi.setSleep(false)` here like the autoclicker firmware does — it's wall-powered, this remote isn't.
 - **No SoftAP fallback.** Unlike autoclicker/aircon, the pocket remote has no local web UI and no captive-portal recovery path. If WiFi is unreachable the OLED shows "no wifi" and that's it.
@@ -78,7 +78,7 @@ GitHub Pages at `/pocket-remote/` (auto-publishes on push to `main`). No phone-r
 - No phone-remote sub-page (the device replaces the phone, not augments it).
 - No local web UI on the device — the OLED + button is the whole interface.
 - No SoftAP fallback when WiFi is unavailable — surfaces "no wifi" on the OLED and waits.
-- No battery telemetry uplink to Firebase.
+- No battery telemetry, no on-device fuel gauge — the divider was tried then removed for simplicity.
 - No deep sleep / RTC GPIO wakeup. Always-on with modem sleep is the v1 power profile. Deep sleep would push battery life from ~12 h to several days but adds a ~3–5 s connect-on-press latency.
 - No haptics (board has no vibration motor).
 - No voice / clap / keyword bridge (the autoclicker phone remote handles those; this is the bare-bones path).

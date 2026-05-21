@@ -56,16 +56,12 @@ Header comment documents the trigger model (one button, tap vs hold), the Fireba
 
 ```cpp
 const int BTN_PIN  = 9;       // BOOT button on the dev board
-const int VBAT_PIN = 0;       // ADC1_CH0 — battery sense divider midpoint
 const int OLED_SDA = 5;
 const int OLED_SCL = 6;
 const unsigned long DEBOUNCE_MS  = 30;
 const unsigned long TAP_MAX_MS   = 500;
 const unsigned long HOLD_MS      = 800;
 const unsigned long STATUS_HOLD_MS = 2500;
-const float VBAT_FULL  = 4.15f;
-const float VBAT_EMPTY = 3.30f;
-const int   VBAT_SAMPLES = 8;
 enum Mode { MODE_CLICK = 0, MODE_AC = 1 };
 ```
 
@@ -74,32 +70,26 @@ enum Mode { MODE_CLICK = 0, MODE_AC = 1 };
 | Function | Purpose |
 |---|---|
 | `loadMode()` / `saveMode()` | NVS-backed persistence under namespace `remote`, key `mode` (uint8) |
-| `readBatteryVolts()` | Average `VBAT_SAMPLES` ADC reads, scale by `3.3 / 4095`, multiply by 3.2 (the divider ratio for 220 kΩ + 100 kΩ) |
-| `sampleBattery()` | Throttled wrapper around `readBatteryVolts()` — updates `batPercent` every `BAT_INTERVAL_MS` (5 s), maps to a linear percent between `VBAT_EMPTY` and `VBAT_FULL` |
 | `drawWiFiBars(x, y)` | 4-bar WiFi glyph based on current RSSI thresholds (−55 / −65 / −75 dBm) |
-| `drawBatteryIcon(x, y, pct)` | 14×7 px battery body + 2 px nub, proportional fill |
-| `drawScreen()` | Full OLED redraw: top status row + big centered mode label + bottom status line. One I²C transaction. |
+| `drawScreen()` | Full OLED redraw: WiFi bars top-left + big centered mode label + bottom status line. One I²C transaction. |
 | `setStatus(s)` | Update the bottom-row text and mark `needsRedraw = true` |
 | `putJson(url, body)` | Single HTTPS PUT via `HTTPClient`. Returns true on 2xx. |
 | `fireClick()` / `fireAC()` | Thin wrappers over `putJson()` with the canonical payloads |
 | `doTap()` | Sends the current mode's payload, surfaces the result on the OLED |
 | `doHold()` | Flips `currentMode`, saves it, surfaces the new mode on the OLED |
 | `readButton()` | Debounced state machine — see ARCHITECTURE.md for the decision table |
-| `setup()` | OLED splash → button pin setup → ADC config → `loadMode()` → WiFiMulti setup → WiFi join attempt (15 s timeout) → initial `sampleBattery()` + `drawScreen()` |
-| `loop()` | `readButton()` + `sampleBattery()` + auto-clear status + WiFi recovery + conditional redraw |
+| `setup()` | OLED splash → button pin setup → `loadMode()` → WiFiMulti setup → WiFi join attempt (15 s timeout) → initial `drawScreen()` |
+| `loop()` | `readButton()` + auto-clear status + WiFi recovery + conditional redraw |
 
 ### Tuning knobs (re-upload to change)
 
 - `TAP_MAX_MS` / `HOLD_MS` — adjust if the button feels too sensitive or too laggy
 - `STATUS_HOLD_MS` — how long transient OLED messages stick
-- `VBAT_FULL` / `VBAT_EMPTY` — calibrate against a multimeter reading
-- `BAT_INTERVAL_MS` — battery sample cadence (5 s default)
 - WiFi SSIDs in `setup()` — match Charlie's environment (currently `CAYNO` + `Charlie's iPhone`, same as autoclicker/aircon)
 
 ### Quirks worth flagging
 
-- **Battery percent map is linear.** LiPo discharge is non-linear (flat plateau between ~3.7–4.0 V, then steep cliff). A linear 3.30 → 4.15 V → 0 → 100 % map under-reports in the middle plateau and over-reports near empty. Good enough as a "should I charge?" indicator; don't trust the absolute number.
-- **ADC calibration is approximate.** Default `analogRead(...) * (3.3 / 4095)` is rough. For a properly calibrated reading, swap in `analogReadMilliVolts(VBAT_PIN)` (uses the eFuse calibration) and divide by 1000 before applying the 3.2× divider scaler.
+- **No battery sense.** The `VBAT_PIN` / `analogRead` path was removed in favor of zero parts. Low-battery cue is OLED flicker around ~3.5 V; the TP4056 DW01 still cuts the cell at 3.0 V to protect the chemistry. If you ever want it back, GPIO0 is still free.
 - **Modem sleep is implicit.** Don't add `WiFi.setSleep(false)` here — the autoclicker firmware does that because it's wall-powered. This remote needs the default light-sleep behavior for ~12–24 h battery.
 - **No SoftAP fallback / no /scan endpoint.** Unlike autoclicker (which has a built-in WiFi setup web UI), pocket-remote is closed — credentials must be hardcoded and the device reflashed to change them. Trade-off: smaller sketch, no second hardcoded SSID for "Pocket-Remote-AP", no OLED-driven captive portal UX.
 - **`http.begin(url)` with an HTTPS URL** uses the built-in insecure client. We don't construct a `WiFiClientSecure` because cert pinning is overkill for non-sensitive payloads and burns flash.

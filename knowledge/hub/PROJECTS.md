@@ -59,7 +59,7 @@ Battery-powered hand-held WiFi remote for **both** `autoclicker/` and `aircon/`.
 - **Firmware:** Single sketch. Writes to **existing** RTDB paths used by the sibling phone remotes — `"toggle"` to `/autoclicker/command` in CLICK mode, `{"cmd":"click"}` to `/aircon/command` in AC mode. Receiving firmware can't tell the difference between a phone tap and a pocket-remote tap.
 - **Hardware quirks:**
   - **No MT3608 boost converter** in the BOM. Battery (3.0–4.2 V via TP4056 OUT+) feeds the ESP32 `5V` pin directly; the onboard 3.3 V LDO handles the range with ~250 mV headroom. Below ~3.5 V the OLED starts to flicker — that's the "charge me" cue.
-  - **Battery-sense divider:** 220 kΩ + 100 kΩ from TP4056 `OUT+` → GPIO0 (ADC1_CH0) midpoint → GND. Drives the `%` on the OLED via a linear `3.30 V = 0 %`, `4.15 V = 100 %` map.
+  - **No battery sense divider either.** The 220 kΩ + 100 kΩ chain that fed GPIO0 was tried, then dropped — the OLED flicker is the indicator, and the TP4056 DW01 still cuts the cell at 3.0 V to protect it. Four wires + USB-C, no resistors.
   - **Use-while-charging** works because of the TP4056+DW01 protection variant — USB-C powers the load and tops up the cell at the same time.
   - **Don't connect OUT+ to the V3 pin** — 4.2 V exceeds the 3.3 V LDO output spec. Load-bearing warning on the docs page.
 - **Firmware quirks:**

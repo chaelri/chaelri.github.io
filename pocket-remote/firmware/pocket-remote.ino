@@ -24,9 +24,13 @@
 //   LiPo 3.7 V 1000 mAh  ->  TP4056 B+/B-           (protection + charging)
 //   TP4056 OUT+/OUT-     ->  ESP32-C3 5V / GD       (LDO drops to 3.3 V)
 //   USB-C charge cable   ->  TP4056 USB-C           (NOT the ESP32's own port)
-//   Battery sense        ->  220 kohm + 100 kohm    (V_bat/3.2 -> GPIO0/ADC1_CH0)
 //   BOOT button          ->  GPIO9, INPUT_PULLUP    (already on the board)
 //   OLED                 ->  GPIO5 (SDA) / GPIO6 (SCL), already on the board
+//
+// No battery sense / fuel gauge. Charlie's "low-battery indicator" is the
+// OLED itself: below ~3.5 V the LDO starts dropping out and the screen
+// flickers, which is the cue to plug in the TP4056's USB-C. The DW01 cuts
+// the cell at 3.0 V before anything bad happens.
 //
 // You CAN keep using the device while it is plugged in -- the TP4056 with the
 // DW01 protection IC powers the load and tops the battery up at the same time.
@@ -80,21 +84,10 @@ const int OLED_SCL = 6;
 
 // --- Pins / timing -----------------------------------------------------------
 const int BTN_PIN       = 9;       // BOOT button (active LOW, INPUT_PULLUP)
-const int VBAT_PIN      = 0;       // GPIO0 / ADC1_CH0  <- battery sense divider
 const unsigned long DEBOUNCE_MS  = 30;
 const unsigned long TAP_MAX_MS   = 500;   // anything shorter than this is a tap
 const unsigned long HOLD_MS      = 800;   // crossing this while still pressed = hold
 const unsigned long STATUS_HOLD_MS = 2500; // how long the bottom-row status sticks
-
-// Battery divider math.  V_adc = V_bat * (R_bot / (R_top + R_bot)) = V_bat / 3.2
-// when R_top=220k, R_bot=100k.  ADC is 12-bit (0..4095) with attenuation_11db
-// reading roughly 150 mV..3.1 V linearly -> use a calibrated scalar below.
-// Empirical: a fully-charged 4.2 V cell reads ~1640..1700 raw with this divider.
-// If your divider resistors are different, re-tune VBAT_FULL_RAW / VBAT_EMPTY_RAW
-// by reading raw values at known voltages.
-const float VBAT_FULL    = 4.15f;
-const float VBAT_EMPTY   = 3.30f;
-const int   VBAT_SAMPLES = 8;     // rolling average over N reads
 
 // Operating modes ------------------------------------------------------------
 enum Mode { MODE_CLICK = 0, MODE_AC = 1 };
@@ -114,11 +107,6 @@ String        statusMsg     = "ready";
 unsigned long statusSetAt   = 0;
 bool          needsRedraw   = true;
 
-// Battery cache --------------------------------------------------------------
-float         batPercent    = -1.0f;
-unsigned long lastBatRead   = 0;
-const unsigned long BAT_INTERVAL_MS = 5000;
-
 // ----------------------------------------------------------------------------
 // NVS-backed mode persistence
 // ----------------------------------------------------------------------------
@@ -136,38 +124,7 @@ void saveMode() {
 }
 
 // ----------------------------------------------------------------------------
-// Battery -- ADC read + voltage divider + percent map.
-// LiPo discharge is non-linear but a flat linear map (3.30 V = 0 %, 4.15 V =
-// 100 %) is good enough for a glanceable indicator. Rolling average smooths
-// the noise that ESP32-C3's ADC famously injects.
-// ----------------------------------------------------------------------------
-float readBatteryVolts() {
-  long sum = 0;
-  for (int i = 0; i < VBAT_SAMPLES; i++) {
-    sum += analogRead(VBAT_PIN);
-    delay(2);
-  }
-  float raw = sum / (float)VBAT_SAMPLES;
-  // ESP32-C3 ADC at default attenuation_11db: ~150 mV..3.1 V linear-ish.
-  // Use 3.3 V / 4095 as the rough scaler -- precise calibration is a TODO.
-  float vadc = raw * (3.3f / 4095.0f);
-  // Divider ratio: V_bat = V_adc * (R_top + R_bot) / R_bot = V_adc * 3.2
-  return vadc * 3.2f;
-}
-
-void sampleBattery() {
-  if (millis() - lastBatRead < BAT_INTERVAL_MS && batPercent >= 0) return;
-  lastBatRead = millis();
-  float v = readBatteryVolts();
-  float pct = (v - VBAT_EMPTY) / (VBAT_FULL - VBAT_EMPTY) * 100.0f;
-  if (pct < 0)   pct = 0;
-  if (pct > 100) pct = 100;
-  batPercent = pct;
-  needsRedraw = true;
-}
-
-// ----------------------------------------------------------------------------
-// OLED rendering -- 72x40 visible area. Keep it punchy: top status row,
+// OLED rendering -- 72x40 visible area. Keep it punchy: WiFi bars top-left,
 // big centered mode label, single bottom status line.
 // ----------------------------------------------------------------------------
 void drawWiFiBars(int x, int y) {
@@ -190,28 +147,14 @@ void drawWiFiBars(int x, int y) {
   }
 }
 
-void drawBatteryIcon(int x, int y, int pct) {
-  // 14 px wide battery body + 2 px nub. Fills proportionally to pct.
-  int w = 14;
-  int h = 7;
-  oled.drawFrame(x, y, w, h);
-  oled.drawBox(x + w, y + 2, 2, 3);
-  int fill = (pct * (w - 2)) / 100;
-  if (fill > 0) oled.drawBox(x + 1, y + 1, fill, h - 2);
-}
-
 void drawScreen() {
   oled.clearBuffer();
 
-  // --- Top row: WiFi bars (left) + battery icon + percent text (right)
+  // --- Top row: WiFi bars (top-left), small mode-name hint to the right.
+  // We have ~62 px of horizontal room next to the bars now that the battery
+  // icon is gone -- but a tiny WiFi-only indicator is less visual noise than
+  // a stretched second widget. Leave it sparse.
   drawWiFiBars(0, 9);   // baseline at y=9, bars grow upward
-  int pct = (int)(batPercent + 0.5f);
-  if (pct < 0) pct = 0;
-  drawBatteryIcon(30, 1, pct);
-  oled.setFont(u8g2_font_5x7_tf);
-  char pctbuf[8];
-  snprintf(pctbuf, sizeof(pctbuf), "%d%%", pct);
-  oled.drawStr(50, 8, pctbuf);
 
   // --- Middle: big mode label, centered
   oled.setFont(u8g2_font_helvB12_tf);
@@ -350,10 +293,6 @@ void setup() {
 
   pinMode(BTN_PIN, INPUT_PULLUP);
 
-  // ESP32-C3 ADC: 12-bit, default attenuation_11db reads ~150 mV..3.1 V.
-  analogReadResolution(12);
-  analogSetPinAttenuation(VBAT_PIN, ADC_11db);
-
   loadMode();
 
   // Same WiFi list as autoclicker/aircon so the remote roams onto whichever
@@ -382,13 +321,11 @@ void setup() {
     setStatus("no wifi");
   }
 
-  sampleBattery();
   drawScreen();
 }
 
 void loop() {
   readButton();
-  sampleBattery();
 
   // Auto-clear the bottom status line after STATUS_HOLD_MS so transient
   // messages don't sit on screen forever. The "ready" idle text reappears
