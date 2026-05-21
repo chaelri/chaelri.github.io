@@ -36,11 +36,12 @@ After firing, the firmware PUTs an empty string back so the next poll doesn't re
 
 ## Trigger paths
 
-The firmware exposes three independent ways to fire a click. All three end up calling the same `click(n)` function:
+The firmware exposes four independent ways to fire a click. All four end up calling either `doToggle()` or `doClick()` (same press/release state machine underneath):
 
-1. **Firebase remote (online, internet-reachable).** Phone client at `/autoclicker/phone/` writes `"click"` to RTDB. ESP32 polls every 1 s. Works from anywhere.
-2. **Local web UI (online, same WiFi).** ESP32 runs a `WebServer` on port 80 with an inline HTML/CSS click button at `/`. Any device on the same network can `fetch('/click')`. Sub-second latency, no internet needed.
+1. **Firebase remote (online, internet-reachable).** Phone client at `/autoclicker/phone/` writes a command string (`"click"`/`"press"`/`"release"`/`"toggle"`) to RTDB. ESP32 listens on a long-lived SSE stream so commands land within one round-trip (~50–150 ms). Works from anywhere.
+2. **Local web UI (online, same WiFi).** ESP32 runs a `WebServer` on port 80 with an inline HTML/CSS UI at `/`. Any device on the same network can `fetch('/click')` or `fetch('/toggle', {method:'POST'})`. Sub-second latency, no internet needed.
 3. **SoftAP fallback (offline).** If no known WiFi joins within 15 s, ESP32 spins up its own AP `AutoClicker-AP` (password `click1234`). Phone connects → opens `http://192.168.4.1/` → same UI as path 2. Internet not required.
+4. **Physical button (always).** 6×6×5 mm 2-pin tactile pushbutton wired between **GPIO4** and **GND**. `readButton()` runs in `loop()` alongside `server.handleClient()`, with software debounce (30 ms). Each HIGH→LOW edge calls `doToggle()`. Works in every mode — no WiFi, no AP, no UI required.
 
 ## Data layer
 
@@ -89,11 +90,10 @@ Canonical source: `autoclicker/firmware/autoclicker.ino`. ESP32-C3 SuperMini, Ar
 ```cpp
 const int SERVO_PIN     = 3;     // GPIO3 → servo signal (orange)
 const int LED_PIN       = 8;     // onboard blue LED, active LOW
-const int REST_ANGLE    = 0;     // arm raised
-const int PRESS_ANGLE   = 35;    // arm pressed (tune)
-const int PRESS_HOLD_MS = 300;
-const int RELEASE_MS    = 200;
-const int POLL_MS       = 1000;
+const int BTN_PIN       = 4;     // GPIO4 → tactile pushbutton (other lead → GND)
+const unsigned long BTN_DEBOUNCE_MS = 30;
+// servo timing knobs (continuous-rotation, not angle): STOP_US, PUSH_US,
+// RETURN_US, PUSH_MS, RETURN_MS, CLICK_HOLD_MS
 ```
 
 Loop:
@@ -114,8 +114,9 @@ REST polling (not the Firebase Arduino SDK) keeps the sketch under flash budget 
 | ESP32-C3 SuperMini | WiFi MCU; runs firmware; provides 3.3 V GPIO + 5 V passthrough from USB-C |
 | MG90S micro-servo (metal-gear) | Actuator — sweeps an attached "finger" (chopstick / popsicle stick / 3D-printed arm) onto the target button. Metal gears tolerate brief stalls. |
 | USB-C powerbank or 5 V/2 A charger | Single power source for both ESP32 and servo on the same rail |
+| 6×6×5 mm tactile pushbutton (2-pin) | Always-on local trigger. Pin 1 → GPIO4, pin 2 → any GND pad. `INPUT_PULLUP` + 30 ms software debounce; each press calls `doToggle()`. |
 
-Four connections total (3 jumpers + 1 USB-C) — see `wires[]` in `index.html`.
+Six wired connections total (3 servo jumpers + 2 button leads + 1 USB-C) — see `wires[]` in `index.html`.
 
 For capacitive touchscreens (phone/tablet), wrap aluminum foil around the finger tip and connect a thin wire from the foil to ESP32 GND so the screen registers the tap.
 
@@ -126,4 +127,6 @@ For capacitive touchscreens (phone/tablet), wrap aluminum foil around the finger
 - **Why MG90S not SG90:** metal gears survive accidental stalls when PRESS_ANGLE is set too aggressively. SG90 (plastic gears) strips its teeth in that scenario. Cost difference is ~₱70.
 - **Why servo not solenoid+relay:** 5V solenoids are mechanically weak and unreliable; adding a relay/MOSFET multiplies failure points and connections. Servo gives software-tunable press depth, software-tunable hold time, three wires, single 5V rail, no inductive load.
 - **Why GPIO3:** ESP32-C3 SuperMini exposes GPIO3 on a corner pad with no boot-strapping conflict; works fine as a servo PWM output via ESP32Servo + LEDC.
+- **Why GPIO4 for the button:** adjacent pad to GPIO3 (clean wire routing on the bottom edge), no boot-strapping conflict, free of other peripherals in this build. INPUT_PULLUP makes a single-resistor-free 2-wire button possible.
+- **Why a physical button:** local fail-safe. Firebase needs internet, the local web UI needs WiFi (or SoftAP + a connected client). A wired pushbutton works the instant the device is powered, regardless of network state. Same `doToggle()` entry point as the web UI's big PRESS button, so all paths converge on one state machine.
 - **Why a built-in web UI in addition to Firebase:** lets the device function fully offline (SoftAP) and sub-second on the same LAN, without depending on the cloud round-trip for the common case.

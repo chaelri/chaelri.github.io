@@ -18,16 +18,17 @@
 DIY WiFi auto-clicker build reference + live phone remote — ESP32-C3 + MG90S servo SwitchBot (migrated from relay+solenoid 2026-05-06). Single-page site documents hardware, wiring, firmware; phone subdir is the live remote.
 
 - **Tech:** vanilla HTML/CSS/JS, Tailwind v4 (browser CDN, no build), Firebase v10 SDK (RTDB + anonymous Auth), Inter + JetBrains Mono + Material Symbols Outlined.
-- **Entry:** `index.html` (~1,330 lines — overview/hardware/wiring/demo/code/checklist; all visuals hand-drawn inline SVG, no image dependencies), `firmware/autoclicker.ino` (canonical Arduino sketch, in-repo), `phone/index.html` (~166 lines — live big-button remote).
+- **Entry:** `index.html` (overview/hardware/wiring/pcb/demo/code/checklist; all visuals hand-drawn inline SVG, no image dependencies), `firmware/autoclicker.ino` (canonical Arduino sketch, in-repo), `phone/index.html` (~166 lines — live big-button remote).
 - **Deploy:** GitHub Pages at `/autoclicker/`. Phone remote at `/autoclicker/phone/`.
-- **Firmware:** `firmware/autoclicker.ino` (canonical, in-repo) — uses `ESP32Servo` library (Kevin Harrington — install via Library Manager; AVR `Servo.h` does not run on ESP32-C3). Three trigger paths: Firebase poll (online), local web UI on port 80 (same WiFi), SoftAP fallback `AutoClicker-AP` (offline). On `click`: sweeps GPIO3 servo from `REST_ANGLE` (0°) to `PRESS_ANGLE` (35°), holds 300 ms, returns. Tuning knobs: `REST_ANGLE` / `PRESS_ANGLE` / `PRESS_HOLD_MS`.
+- **Firmware:** `firmware/autoclicker.ino` (canonical, in-repo) — uses `ESP32Servo` library (Kevin Harrington — install via Library Manager; AVR `Servo.h` does not run on ESP32-C3). **Four trigger paths**: Firebase SSE stream (online, primary), local web UI on port 80 (same WiFi), SoftAP fallback `AutoClicker-AP` (offline), and a **6×6×5 mm tactile pushbutton on GPIO4** added 2026-05-19 (always-on, no network needed — `INPUT_PULLUP` + 30 ms debounce; each press calls `doToggle()`, mirroring the big PRESS button in the web UI). Continuous-rotation servo: PWM pulse = speed/direction. Tuning knobs: `STOP_US`, `PUSH_US`/`RETURN_US`, `PUSH_MS`/`RETURN_MS`, `CLICK_HOLD_MS`, `BTN_DEBOUNCE_MS`.
 - **Quirks:**
   - **Demo section is animation-only** — `Trigger click` / `Double click` simulate the GPIO pulse in SVG, they do NOT touch Firebase. Only `phone/index.html` writes for real.
-  - **SVG visuals are now servo-aligned** (overview flow has 4 nodes ending at MG90S; hardware section shows ESP32 photo + illustrated MG90S box drawn in SVG; demo animates a swinging arm rotating around the servo horn).
-  - Shares Firebase project `test-database-55379` (asia-southeast1) with other repo apps; uses path `/autoclicker/command`.
+  - **SVG visuals are servo-aligned** with the button visible: hardware top-down shows ESP32 + MG90S + the tactile button hand-drawn in SVG, with cyan IO4 highlight and two button wires routed to the ESP32's bottom edge.
+  - **Physical button shares ESP32 GND with the servo brown wire** — same pad fans out to two wires (visualized as a Y-junction in the connection-map SVG). The C3 SuperMini also exposes a top-edge `G` pad if you'd rather not stack.
+  - Shares Firebase project `test-database-55379` (asia-southeast1) with other repo apps; uses paths `/autoclicker/command` (transient) and `/autoclicker/state` (authoritative latched state).
   - Firebase web API key in `phone/index.html` is intentional — it's a public client config, not a secret.
-  - Wires/checklist render from `wires[]` (now 4 entries) and `steps[]` arrays — edit data, not DOM.
-  - Section IDs (`overview/hardware/wiring/demo/code/checklist`) are load-bearing for `syncNav()` scroll-spy.
+  - Wires/checklist render from `wires[]` (now **6 entries**) and `steps[]` arrays — edit data, not DOM.
+  - Section IDs (`overview/hardware/wiring/pcb/demo/code/checklist`) are load-bearing for `syncNav()` scroll-spy.
 - **Full docs:** See `knowledge/autoclicker/SUMMARY.md`, `ARCHITECTURE.md`, `KEY_FILES.md`.
 
 ### aircon/  🟢

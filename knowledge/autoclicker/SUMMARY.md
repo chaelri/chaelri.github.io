@@ -1,9 +1,9 @@
 # autoclicker/ — Summary
 
-**Last updated:** 2026-05-06
-**Status:** 🟢 Active (build migrated from relay+solenoid to MG90S servo on 2026-05-06; firmware, data-driven sections, and all SVG visuals updated)
+**Last updated:** 2026-05-19
+**Status:** 🟢 Active (build migrated from relay+solenoid to MG90S servo on 2026-05-06; tactile pushbutton on GPIO4 added 2026-05-19 as a 4th always-on local trigger)
 
-DIY WiFi auto-clicker build reference + live phone remote. Single-page site documents how to build a 3-part SwitchBot (ESP32-C3 + MG90S micro-servo + USB-C powerbank) that physically presses buttons on command via Firebase RTDB. Earlier versions used a 5V relay + 5V solenoid; that path was abandoned because cheap 5V solenoids don't generate enough force to register a press.
+DIY WiFi auto-clicker build reference + live phone remote. Single-page site documents how to build a 4-part SwitchBot (ESP32-C3 + MG90S micro-servo + USB-C powerbank + tactile pushbutton) that physically presses buttons on command via Firebase RTDB, the local web UI, the SoftAP fallback, or a wired-in pushbutton. Earlier versions used a 5V relay + 5V solenoid; that path was abandoned because cheap 5V solenoids don't generate enough force to register a press.
 
 ## File structure
 
@@ -42,12 +42,13 @@ GitHub Pages at `/autoclicker/` (auto-publishes on push to `main`). Phone remote
 ## Conventions / quirks
 
 - **Demo is fake-only.** `Trigger click` and `Double click` simulate the GPIO pulse in SVG — they don't write to Firebase. Only `phone/index.html` writes for real.
-- **Servo tuning knobs** live in `firmware/autoclicker.ino`: `REST_ANGLE` (default 0°), `PRESS_ANGLE` (default 35°), `PRESS_HOLD_MS` (default 300). Re-upload to change.
-- **Power:** servo's red wire ties into the ESP32's 5V pin — single USB-C powerbank powers both. MG90S draws ~250–400 mA moving, well under powerbank budget. Small `PRESS_ANGLE` and short `PRESS_HOLD_MS` keep stall current brief if the arm is blocked.
-- **Pin labels in SVGs are colored** to match the wires: green/orange = signal, red = 5V, dark = GND.
+- **Servo tuning knobs** live in `firmware/autoclicker.ino`: `STOP_US` (default 1500), `PUSH_US`/`RETURN_US`, `PUSH_MS`/`RETURN_MS`, `CLICK_HOLD_MS`. Re-upload to change.
+- **Power:** servo's red wire ties into the ESP32's 5V pin — single USB-C powerbank powers both. MG90S draws ~250–400 mA moving, well under powerbank budget.
+- **Physical button:** 6×6×5 mm 2-pin tactile pushbutton wired between **GPIO4** and **GND**. Firmware uses `INPUT_PULLUP` + 30 ms software debounce; each press triggers `doToggle()` (mirrors the big PRESS button in the built-in web UI). Works even when WiFi is offline because it's read in the same `loop()` body as the local web UI.
+- **Pin labels in SVGs are colored** to match the wires: orange = servo signal, red = 5V, brown = GND, **cyan = GPIO4 (button)**.
 - **No secrets:** Firebase web API key is a public client config. Don't try to hide it — that's not how Firebase web auth works.
 - **Mobile nav** (`#navOpen` / `#navMobile`) duplicates the desktop links and auto-closes on link click.
-- **Active nav state** is computed in `syncNav()` from `window.scrollY` against section `offsetTop` — section IDs `overview/hardware/wiring/demo/code/checklist` are load-bearing.
+- **Active nav state** is computed in `syncNav()` from `window.scrollY` against section `offsetTop` — section IDs `overview/hardware/wiring/pcb/demo/code/checklist` are load-bearing.
 
 ## Why we ditched the relay+solenoid
 

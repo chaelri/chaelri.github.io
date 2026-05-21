@@ -8,7 +8,7 @@
 //              Use for "hold this button down" (keys, reset switches, etc.).
 //   press / release -> explicit on / off (alternative to toggle).
 //
-// THREE WAYS TO TRIGGER (any of the above commands):
+// FOUR WAYS TO TRIGGER (any of the above commands):
 //   1. Phone remote (online)   -> writes the command string to Firebase RTDB;
 //                                 firmware listens on a long-lived REST stream
 //                                 (Server-Sent Events) so commands land within
@@ -24,6 +24,11 @@
 //                                 a station network comes back, so the single
 //                                 radio is dedicated to station traffic in the
 //                                 normal case (no AP_STA overhead).
+//   4. Physical button (always) -> 6x6x5 tactile pushbutton between GPIO4 and
+//                                 GND, with INPUT_PULLUP. Each press toggles
+//                                 the latched state (doToggle), exactly like
+//                                 the big PRESS button in the built-in web UI.
+//                                 Works in any mode — no WiFi needed.
 //
 // Switch element: continuous-rotation (360°) micro-servo. Pulse width controls
 // SPEED + DIRECTION, not angle. The press cycle is a state machine:
@@ -38,11 +43,14 @@
 //   toggle                    -> flips whichever state is current.
 //   No idle drain: motor is OFF (STOP_US) the whole time you're not bursting.
 //
-// Wiring (no soldering — three jumpers only):
+// Wiring (three servo jumpers + two button leads):
 //
 //   Servo signal (orange or yellow) -> ESP32 GPIO3
 //   Servo VCC    (red)              -> ESP32 5V
 //   Servo GND    (brown)            -> ESP32 GND
+//
+//   Tactile button pin 1            -> ESP32 GPIO4
+//   Tactile button pin 2            -> ESP32 GND (any GND pad)
 //
 //   USB-C charger / powerbank -> ESP32 USB-C
 //
@@ -119,6 +127,8 @@ const unsigned long STREAM_RECONNECT_MS = 1500;  // backoff after a drop
 // --- Pins / timing -----------------------------------------------------------
 const int SERVO_PIN     = 3;     // GPIO3 -> servo signal (orange/yellow)
 const int LED_PIN       = 8;     // GPIO8 -> onboard blue LED (active LOW)
+const int BTN_PIN       = 4;     // GPIO4 -> tactile pushbutton (other lead -> GND)
+const unsigned long BTN_DEBOUNCE_MS = 30;   // ignore bounces < 30 ms
 
 // Continuous-rotation servo: pulse width = speed + direction. STOP_US is the
 // neutral pulse where the motor is supposed to be still. PUSH/RETURN sit on
@@ -714,6 +724,32 @@ void processStream() {
   }
 }
 
+// --- Physical button --------------------------------------------------------
+// Polled once per loop() iteration. Tracks the last stable reading and the
+// timestamp of the most recent edge; only a HIGH->LOW transition that has
+// settled for BTN_DEBOUNCE_MS counts as a real press. Mirrors the big PRESS
+// button in the built-in web UI -> press once to latch, press again to release.
+void readButton() {
+  static int lastStableLevel = HIGH;
+  static int lastReadLevel   = HIGH;
+  static unsigned long lastEdgeAt = 0;
+
+  int level = digitalRead(BTN_PIN);
+  if (level != lastReadLevel) {
+    lastReadLevel = level;
+    lastEdgeAt = millis();
+    return;                            // wait for the bounce window to close
+  }
+  if (millis() - lastEdgeAt < BTN_DEBOUNCE_MS) return;
+  if (level == lastStableLevel) return;
+
+  lastStableLevel = level;
+  if (level == LOW) {                  // fresh press (active-LOW)
+    Serial.println(">>> physical button pressed -> toggle");
+    doToggle();
+  }
+}
+
 void setup() {
   Serial.begin(115200);
 
@@ -725,6 +761,10 @@ void setup() {
 
   pinMode(LED_PIN, OUTPUT);
   digitalWrite(LED_PIN, HIGH);          // LED off (active LOW)
+
+  // Tactile button: one lead to GPIO4, other lead to GND. INPUT_PULLUP holds
+  // the line HIGH at idle; a press shorts it to GND -> reads LOW.
+  pinMode(BTN_PIN, INPUT_PULLUP);
 
   wifiMulti.addAP("CAYNO", "lokomoko");
   wifiMulti.addAP("Charlie's iPhone", "charlie24");
@@ -783,6 +823,7 @@ void setup() {
 
 void loop() {
   server.handleClient();
+  readButton();
 
   // While the SoftAP fallback is active, keep scanning for a known WiFi in
   // the background. The wifiMulti.run() call does a scan + associate inline;

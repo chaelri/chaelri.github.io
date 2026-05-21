@@ -213,7 +213,7 @@
 <header id="top" class="max-w-6xl mx-auto px-4 sm:px-6 pt-16 pb-12 text-center">
   <div class="inline-flex items-center gap-2 px-3 py-1 rounded-full bg-white/[0.04] border border-white/[0.06] text-xs text-slate-400 mb-6">
     <span class="w-1.5 h-1.5 bg-emerald-400 rounded-full"></span>
-    Hardware on the way · 4 parts · 0 soldering
+    Hardware on the way · 5 parts · button + servo
   </div>
   <h1 class="text-4xl sm:text-6xl font-bold tracking-tight text-white mb-4">
     DIY <span class="bg-gradient-to-r from-indigo-300 via-purple-300 to-pink-300 bg-clip-text text-transparent">SwitchBot</span>
@@ -224,12 +224,12 @@
   </p>
   <div class="grid grid-cols-2 sm:grid-cols-4 gap-3 max-w-3xl mx-auto">
     <div class="card p-4 text-left">
-      <div class="text-2xl font-semibold text-white">3 <span class="text-sm text-slate-500 font-normal">parts</span></div>
-      <div class="text-xs text-slate-500 mt-1">ESP32 · MG90S servo · USB-C powerbank</div>
+      <div class="text-2xl font-semibold text-white">4 <span class="text-sm text-slate-500 font-normal">parts</span></div>
+      <div class="text-xs text-slate-500 mt-1">ESP32 · MG90S servo · powerbank · tactile button</div>
     </div>
     <div class="card p-4 text-left">
-      <div class="text-2xl font-semibold text-white">3 <span class="text-sm text-slate-500 font-normal">jumpers</span></div>
-      <div class="text-xs text-slate-500 mt-1">signal · 5V · GND · plus 1 USB-C</div>
+      <div class="text-2xl font-semibold text-white">5 <span class="text-sm text-slate-500 font-normal">jumpers</span></div>
+      <div class="text-xs text-slate-500 mt-1">3 servo + 2 button · plus 1 USB-C</div>
     </div>
     <div class="card p-4 text-left">
       <div class="text-2xl font-semibold text-white">450 <span class="text-sm text-slate-500 font-normal">ms</span></div>
@@ -354,7 +354,7 @@
   <div class="mb-10">
     <div class="text-xs uppercase tracking-[0.2em] text-indigo-400 mb-2">02 · Hardware</div>
     <h2 class="text-3xl font-bold text-white">Top-down view</h2>
-    <p class="text-slate-400 mt-2 max-w-xl">Two parts, three jumpers, plug in USB-C. The servo runs off the same 5V rail as the ESP32 — no separate supply.</p>
+    <p class="text-slate-400 mt-2 max-w-xl">Three parts, five jumpers, plug in USB-C. The servo runs off the same 5V rail as the ESP32, and a tactile pushbutton hangs off GPIO4 for an always-works local trigger — no WiFi required.</p>
   </div>
 
   <!-- Top-down hand-drawn SVG composition (no photos) -->
@@ -463,8 +463,9 @@
             <circle cx="59" cy="180" r="9" fill="none" stroke="#a16207" stroke-width="1.2" opacity="0.7"/>
             <!-- 3V3 -->
             <rect x="90" y="177" width="8" height="6" rx="1.5" fill="#fbbf24" opacity="0.55"/>
-            <!-- IO4 -->
-            <rect x="125" y="177" width="8" height="6" rx="1.5" fill="#fbbf24" opacity="0.55"/>
+            <!-- IO4 (highlighted cyan — button signal) -->
+            <rect x="125" y="177" width="8" height="6" rx="1.5" fill="#22d3ee"/>
+            <circle cx="129" cy="180" r="9" fill="none" stroke="#22d3ee" stroke-width="1.2" opacity="0.7"/>
             <!-- IO3 (highlighted orange) -->
             <rect x="160" y="177" width="8" height="6" rx="1.5" fill="#f97316"/>
             <circle cx="164" cy="180" r="9" fill="none" stroke="#f97316" stroke-width="1.2" opacity="0.7"/>
@@ -477,7 +478,7 @@
             <text x="24" y="195" fill="#fca5a5" font-weight="700">5V</text>
             <text x="59" y="195" fill="#fcd34d" font-weight="700">GND</text>
             <text x="94" y="195" fill="#64748b">3V3</text>
-            <text x="129" y="195" fill="#64748b">IO4</text>
+            <text x="129" y="195" fill="#67e8f9" font-weight="700">IO4</text>
             <text x="164" y="195" fill="#fdba74" font-weight="700">IO3</text>
             <text x="199" y="195" fill="#64748b">IO2</text>
             <text x="234" y="195" fill="#64748b">IO1</text>
@@ -530,7 +531,31 @@
           <path d="M 76 -2 C 76 -30, 100 -50, 130 -80" stroke="#f97316" stroke-width="3" fill="none" stroke-linecap="round" filter="url(#wireGlow)"/>
         </g>
 
-        <!-- ============ WIRES: ESP32 bottom-edge pins → Servo pigtail ============ -->
+        <!-- ============ Tactile pushbutton (6×6×5 mm, top-down) ============ -->
+        <!-- Sits between ESP32 (above) and servo (lower right). Two leads:
+             pin 1 (right) → GPIO4, pin 2 (left) → GND. INPUT_PULLUP on the
+             ESP32 side, so a press shorts the line LOW. -->
+        <g transform="translate(170 320)">
+          <!-- metal retainer frame (top + bottom thin strips) -->
+          <rect x="0" y="-2" width="60" height="3" fill="#9ca3af" stroke="#475569" stroke-width="0.4"/>
+          <rect x="0" y="35" width="60" height="3" fill="#9ca3af" stroke="#475569" stroke-width="0.4"/>
+          <!-- black plastic body -->
+          <rect x="0" y="0" width="60" height="36" rx="1.5" fill="#1f2937" stroke="#0a0c12" stroke-width="0.8"/>
+          <!-- inner ring + cap -->
+          <circle cx="30" cy="18" r="13" fill="#0a0c12" stroke="#374151" stroke-width="0.6"/>
+          <circle cx="30" cy="18" r="9"  fill="#1f2937"/>
+          <circle cx="30" cy="18" r="3"  fill="#374151"/>
+          <!-- two leads sticking out left + right (cyan = GPIO4, dark = GND) -->
+          <rect x="-12" y="16"  width="12" height="4" fill="#cbd5e1" stroke="#64748b" stroke-width="0.4"/>
+          <rect x="60"  y="16"  width="12" height="4" fill="#cbd5e1" stroke="#64748b" stroke-width="0.4"/>
+          <!-- labels -->
+          <text x="30" y="56" text-anchor="middle" fill="#ffffff" font-size="12" font-weight="700">Pushbutton</text>
+          <text x="30" y="69" text-anchor="middle" fill="#94a3b8" font-size="8" font-family="JetBrains Mono">2-pin · 6×6×5 mm tactile</text>
+          <text x="-14" y="13" text-anchor="end"   fill="#fcd34d" font-size="8" font-family="JetBrains Mono" font-weight="700">to GND</text>
+          <text x="74"  y="13" text-anchor="start" fill="#67e8f9" font-size="8" font-family="JetBrains Mono" font-weight="700">to IO4</text>
+        </g>
+
+        <!-- ============ WIRES: ESP32 bottom-edge pins → Servo pigtail + Button leads ============ -->
         <!-- 5V red — ESP32 (164, 263) → Servo pigtail entry (680, 285) -->
         <g fill="none" stroke-linecap="round">
           <!-- 5V (red) -->
@@ -540,6 +565,11 @@
           <path d="M 199 263 C 240 330, 540 285, 680 290" stroke="#a16207" stroke-width="1.4" opacity="0.55"/>
           <!-- GPIO3 (orange) -->
           <path d="M 304 263 C 380 320, 580 290, 696 285" stroke="#f97316" stroke-width="4" filter="url(#wireGlow)" opacity="0.95"/>
+          <!-- Button GND  — ESP32 GND pad (199, 263) → button left lead (158, 336) -->
+          <path d="M 199 263 C 195 290, 175 310, 158 336" stroke="#78350f" stroke-width="3.2"/>
+          <path d="M 199 263 C 195 290, 175 310, 158 336" stroke="#a16207" stroke-width="1.2" opacity="0.55"/>
+          <!-- Button IO4 — ESP32 IO4 pad (269, 263) → button right lead (242, 336) -->
+          <path d="M 269 263 C 268 286, 256 312, 242 336" stroke="#22d3ee" stroke-width="3.2" filter="url(#wireGlow)" opacity="0.95"/>
         </g>
 
         <!-- Wire labels along the route -->
@@ -547,21 +577,23 @@
           <text x="370" y="306" text-anchor="middle" fill="#fca5a5">red · VCC</text>
           <text x="430" y="332" text-anchor="middle" fill="#fcd34d">brown · GND</text>
           <text x="490" y="306" text-anchor="middle" fill="#fdba74">orange/yellow · signal</text>
+          <text x="262" y="306" text-anchor="start"  fill="#67e8f9">IO4 · button</text>
         </g>
       </svg>
     </div>
 
     <!-- Legend -->
     <div class="mt-6 flex flex-wrap gap-x-6 gap-y-2 text-xs text-slate-400">
-      <div class="flex items-center gap-2"><span class="w-3 h-3 rounded-full bg-orange-500"></span>GPIO3 → signal (orange/yellow)</div>
-      <div class="flex items-center gap-2"><span class="w-3 h-3 rounded-full bg-red-500"></span>5V → VCC (red)</div>
-      <div class="flex items-center gap-2"><span class="w-3 h-3 rounded-full" style="background:#78350f"></span>GND → GND (brown)</div>
+      <div class="flex items-center gap-2"><span class="w-3 h-3 rounded-full bg-orange-500"></span>GPIO3 → servo signal (orange/yellow)</div>
+      <div class="flex items-center gap-2"><span class="w-3 h-3 rounded-full bg-red-500"></span>5V → servo VCC (red)</div>
+      <div class="flex items-center gap-2"><span class="w-3 h-3 rounded-full" style="background:#78350f"></span>GND → servo brown + button pin 2</div>
+      <div class="flex items-center gap-2"><span class="w-3 h-3 rounded-full" style="background:#22d3ee"></span>GPIO4 → button pin 1 (INPUT_PULLUP)</div>
       <div class="flex items-center gap-2"><span class="w-3 h-3 rounded-full bg-indigo-400"></span>USB-C powers ESP32 + servo on the same rail</div>
     </div>
   </div>
 
   <!-- Component cards -->
-  <div class="grid grid-cols-1 md:grid-cols-3 gap-4 mt-8">
+  <div class="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-4 mt-8">
     <div class="card p-5">
       <div class="flex items-center gap-3 mb-3">
         <div class="w-10 h-10 rounded-lg bg-indigo-500/15 grid place-items-center">
@@ -575,7 +607,7 @@
       <ul class="text-xs text-slate-400 space-y-1">
         <li>• 13 pins · 22.5 × 18 mm</li>
         <li>• Arduino IDE → REST poll loop</li>
-        <li>• Pins used: <span class="text-slate-200 mono">5V · GND · GPIO3</span></li>
+        <li>• Pins used: <span class="text-slate-200 mono">5V · GND · GPIO3 · GPIO4</span></li>
       </ul>
     </div>
     <div class="card p-5">
@@ -610,6 +642,22 @@
         <li>• No separate supply or buck converter</li>
       </ul>
     </div>
+    <div class="card p-5">
+      <div class="flex items-center gap-3 mb-3">
+        <div class="w-10 h-10 rounded-lg bg-cyan-500/15 grid place-items-center">
+          <span class="material-symbols-outlined text-cyan-300">smart_button</span>
+        </div>
+        <div>
+          <div class="text-white font-medium">Tactile pushbutton</div>
+          <div class="text-xs text-slate-500">local trigger · 2-pin · 6×6×5</div>
+        </div>
+      </div>
+      <ul class="text-xs text-slate-400 space-y-1">
+        <li>• 2 leads: one to <span class="mono">GPIO4</span>, one to <span class="mono">GND</span></li>
+        <li>• Active LOW · INPUT_PULLUP · 30 ms debounce</li>
+        <li>• Each press = toggle (latch / release)</li>
+      </ul>
+    </div>
   </div>
 
   <!-- ===== Connection map (schematic pin-to-pin) ===== -->
@@ -620,7 +668,7 @@
     </div>
 
     <div class="overflow-x-auto no-scrollbar">
-      <svg viewBox="0 0 620 280" class="w-full min-w-[520px] h-auto" font-family="Inter, system-ui, sans-serif">
+      <svg viewBox="0 0 620 400" class="w-full min-w-[520px] h-auto" font-family="Inter, system-ui, sans-serif">
         <defs>
           <filter id="cmGlow" x="-50%" y="-50%" width="200%" height="200%">
             <feGaussianBlur stdDeviation="2.5" result="b"/>
@@ -629,15 +677,20 @@
         </defs>
 
         <!-- ===== Component boxes ===== -->
-        <!-- ESP32 -->
-        <rect x="40" y="40" width="190" height="200" rx="14" fill="rgba(99,102,241,0.05)" stroke="rgba(129,140,248,0.4)" stroke-width="1"/>
+        <!-- ESP32 (taller — holds 4 pin rows) -->
+        <rect x="40" y="40" width="190" height="320" rx="14" fill="rgba(99,102,241,0.05)" stroke="rgba(129,140,248,0.4)" stroke-width="1"/>
         <text x="135" y="70" text-anchor="middle" fill="#fff" font-size="14" font-weight="700">ESP32-C3</text>
         <text x="135" y="86" text-anchor="middle" fill="#94a3b8" font-size="10" font-family="JetBrains Mono">SuperMini</text>
 
-        <!-- Servo -->
+        <!-- Servo (top right) -->
         <rect x="400" y="40" width="180" height="200" rx="14" fill="rgba(52,211,153,0.05)" stroke="rgba(110,231,183,0.4)" stroke-width="1"/>
         <text x="490" y="70" text-anchor="middle" fill="#fff" font-size="14" font-weight="700">MG90S</text>
         <text x="490" y="86" text-anchor="middle" fill="#94a3b8" font-size="10" font-family="JetBrains Mono">micro-servo</text>
+
+        <!-- Pushbutton (bottom right) -->
+        <rect x="400" y="260" width="180" height="100" rx="14" fill="rgba(34,211,238,0.05)" stroke="rgba(103,232,249,0.4)" stroke-width="1"/>
+        <text x="490" y="290" text-anchor="middle" fill="#fff" font-size="14" font-weight="700">Pushbutton</text>
+        <text x="490" y="306" text-anchor="middle" fill="#94a3b8" font-size="10" font-family="JetBrains Mono">2-pin · 6×6×5</text>
 
         <!-- ===== Wires (drawn UNDER pin dots so dots stay crisp) ===== -->
         <g fill="none" stroke-width="3" stroke-linecap="round">
@@ -648,7 +701,15 @@
           <line x1="230" y1="170" x2="400" y2="170" stroke="#a16207" stroke-width="1" opacity="0.6"/>
           <!-- ESP32 GPIO3 → Servo signal -->
           <line x1="230" y1="210" x2="400" y2="210" stroke="#f97316"/>
+          <!-- ESP32 GPIO4 → Button pin 1 (signal) -->
+          <path d="M 230 280 C 310 280, 320 320, 400 320" stroke="#22d3ee"/>
+          <!-- ESP32 GND (shared) → Button pin 2 — same pad, branches downward -->
+          <path d="M 230 170 C 270 170, 280 200, 280 230 L 280 340 C 280 340, 320 340, 400 340" stroke="#78350f"/>
+          <path d="M 230 170 C 270 170, 280 200, 280 230 L 280 340 C 280 340, 320 340, 400 340" stroke="#a16207" stroke-width="1" opacity="0.6"/>
         </g>
+
+        <!-- GND branch junction node (visual cue that one pad feeds two wires) -->
+        <circle cx="280" cy="170" r="3.5" fill="#fcd34d" stroke="#0a0c12" stroke-width="1.5"/>
 
         <!-- ===== ESP32 pins (right edge) ===== -->
         <g font-family="JetBrains Mono" font-size="12" font-weight="500">
@@ -660,6 +721,9 @@
 
           <text x="218" y="214" text-anchor="end" fill="#fdba74">GPIO3</text>
           <circle cx="230" cy="210" r="5" fill="#f97316" stroke="#0a0c12" stroke-width="2"/>
+
+          <text x="218" y="284" text-anchor="end" fill="#67e8f9">GPIO4</text>
+          <circle cx="230" cy="280" r="5" fill="#22d3ee" stroke="#0a0c12" stroke-width="2"/>
         </g>
 
         <!-- ===== Servo pins (left edge) ===== -->
@@ -674,17 +738,28 @@
           <text x="412" y="214" text-anchor="start" fill="#fdba74">orange/yellow · signal</text>
         </g>
 
+        <!-- ===== Button pins (left edge) ===== -->
+        <g font-family="JetBrains Mono" font-size="12" font-weight="500">
+          <circle cx="400" cy="320" r="5" fill="#22d3ee" stroke="#0a0c12" stroke-width="2"/>
+          <text x="412" y="324" text-anchor="start" fill="#67e8f9">pin 1 · signal</text>
+
+          <circle cx="400" cy="340" r="5" fill="#78350f" stroke="#a16207" stroke-width="2"/>
+          <text x="412" y="344" text-anchor="start" fill="#fcd34d">pin 2 · GND</text>
+        </g>
+
         <!-- Sub-section labels -->
-        <text x="135" y="105" text-anchor="middle" fill="#64748b" font-size="9" font-family="JetBrains Mono">power + 1 GPIO out</text>
+        <text x="135" y="105" text-anchor="middle" fill="#64748b" font-size="9" font-family="JetBrains Mono">power + 2 GPIO out</text>
         <text x="490" y="105" text-anchor="middle" fill="#64748b" font-size="9" font-family="JetBrains Mono">3-wire pigtail</text>
+        <text x="280" y="190" text-anchor="middle" fill="#fcd34d" font-size="8" font-family="JetBrains Mono">GND tap</text>
       </svg>
     </div>
 
     <!-- legend repeating colors → wire purpose -->
     <div class="mt-6 grid grid-cols-2 sm:grid-cols-3 gap-3 text-xs">
-      <div class="flex items-center gap-2"><span class="w-3 h-3 rounded-full bg-orange-500"></span><span class="text-slate-400">GPIO3 → signal (orange/yellow)</span></div>
-      <div class="flex items-center gap-2"><span class="w-3 h-3 rounded-full bg-red-500"></span><span class="text-slate-400">5V → VCC (red)</span></div>
-      <div class="flex items-center gap-2"><span class="w-3 h-3 rounded-full" style="background:#78350f"></span><span class="text-slate-400">GND → GND (brown)</span></div>
+      <div class="flex items-center gap-2"><span class="w-3 h-3 rounded-full bg-orange-500"></span><span class="text-slate-400">GPIO3 → servo signal</span></div>
+      <div class="flex items-center gap-2"><span class="w-3 h-3 rounded-full bg-red-500"></span><span class="text-slate-400">5V → servo VCC</span></div>
+      <div class="flex items-center gap-2"><span class="w-3 h-3 rounded-full" style="background:#78350f"></span><span class="text-slate-400">GND → servo + button pin 2</span></div>
+      <div class="flex items-center gap-2"><span class="w-3 h-3 rounded-full" style="background:#22d3ee"></span><span class="text-slate-400">GPIO4 → button pin 1</span></div>
     </div>
   </div>
 </section>
@@ -693,8 +768,8 @@
 <section id="wiring" class="section max-w-6xl mx-auto px-4 sm:px-6 py-16">
   <div class="mb-10">
     <div class="text-xs uppercase tracking-[0.2em] text-indigo-400 mb-2">03 · Wiring</div>
-    <h2 class="text-3xl font-bold text-white">All four connections</h2>
-    <p class="text-slate-400 mt-2 max-w-xl">Three jumpers — signal, 5V, GND — straight from ESP32 to the servo's three leads. No relay, no MOSFET, no flyback diode. Powerbank powers both ESP32 and servo on the same rail.</p>
+    <h2 class="text-3xl font-bold text-white">All six connections</h2>
+    <p class="text-slate-400 mt-2 max-w-xl">Three servo jumpers (signal, 5V, GND), two tactile-button leads (GPIO4 + GND), and the USB-C cable. No relay, no MOSFET, no flyback diode. The powerbank feeds ESP32 and servo on the same rail; the button shares a GND pad.</p>
   </div>
 
   <div class="card overflow-hidden">
@@ -1409,10 +1484,11 @@
 #include &lt;WebServer.h&gt;
 #include &lt;ESP32Servo.h&gt;
 
-// Three trigger paths:
+// Four trigger paths:
 //   1. Phone remote (online)    → writes "click" to Firebase, ESP32 polls
 //   2. Local web UI (online)    → http://&lt;esp32-ip&gt;/ on the same WiFi
 //   3. SoftAP fallback (offline) → broadcasts "AutoClicker-AP" if no WiFi
+//   4. Physical button (always) → 6×6×5 tactile between GPIO4 + GND
 WiFiMulti wifiMulti;
 WebServer server(80);
 Servo finger;
@@ -1431,6 +1507,8 @@ const char* STATE_URL =
 
 const int SERVO_PIN     = 3;     // GPIO3 → servo signal (orange/yellow)
 const int LED_PIN       = 8;     // onboard blue LED (active LOW)
+const int BTN_PIN       = 4;     // GPIO4 → tactile pushbutton (other lead → GND)
+const unsigned long BTN_DEBOUNCE_MS = 30;
 
 // 360° continuous-rotation servo: pulse width = speed + direction (not angle)
 const int STOP_US       = 1500;  // neutral — tune 1480..1520 if the horn creeps
@@ -1497,6 +1575,20 @@ void sendState() {
   server.send(200, "application/json", body);
 }
 
+// Physical button — INPUT_PULLUP, active LOW. HIGH→LOW edge that has settled
+// for BTN_DEBOUNCE_MS triggers doToggle(), mirroring the big web-UI button.
+void readButton() {
+  static int lastStableLevel = HIGH;
+  static int lastReadLevel   = HIGH;
+  static unsigned long lastEdgeAt = 0;
+  int level = digitalRead(BTN_PIN);
+  if (level != lastReadLevel) { lastReadLevel = level; lastEdgeAt = millis(); return; }
+  if (millis() - lastEdgeAt &lt; BTN_DEBOUNCE_MS) return;
+  if (level == lastStableLevel) return;
+  lastStableLevel = level;
+  if (level == LOW) doToggle();
+}
+
 void handleRoot()    { server.send_P(200, "text/html; charset=utf-8", INDEX_HTML); }
 void handlePress()   { doPress();   sendState(); }
 void handleRelease() { doRelease(); sendState(); }
@@ -1538,6 +1630,8 @@ void setup() {
   pinMode(LED_PIN, OUTPUT);
   digitalWrite(LED_PIN, HIGH);
 
+  pinMode(BTN_PIN, INPUT_PULLUP);       // physical button on GPIO4
+
   wifiMulti.addAP("CAYNO", "lokomoko");
   wifiMulti.addAP("Charlie's iPhone", "charlie24");
 
@@ -1555,6 +1649,7 @@ void setup() {
 
 void loop() {
   server.handleClient();
+  readButton();    // physical button — toggle on press
 
   // Firebase polling only when connected to WiFi (not in SoftAP)
   static unsigned long lastPoll = 0;
@@ -1724,10 +1819,12 @@ void loop() {
 // Wiring table data
 // ===========================================================================
 const wires = [
-  { i: 1, type: 'Signal', from: ['ESP32', 'GPIO3'],         to: ['Servo', 'signal (orange/yellow)'], color: '#22c55e', name: 'orange/yellow', method: 'Jumper wire' },
+  { i: 1, type: 'Signal', from: ['ESP32', 'GPIO3'],         to: ['Servo', 'signal (orange/yellow)'], color: '#f97316', name: 'orange/yellow', method: 'Jumper wire' },
   { i: 2, type: 'Power',  from: ['ESP32', '5V'],            to: ['Servo', 'VCC (red)'],       color: '#ef4444', name: 'red',    method: 'Jumper wire' },
-  { i: 3, type: 'Ground', from: ['ESP32', 'GND'],           to: ['Servo', 'GND (brown)'],     color: '#475569', name: 'brown',  method: 'Jumper wire' },
-  { i: 4, type: 'Power',  from: ['USB-C powerbank', '5V'],  to: ['ESP32', 'USB-C'],           color: '#a855f7', name: 'cable',  method: 'Plug' },
+  { i: 3, type: 'Ground', from: ['ESP32', 'GND'],           to: ['Servo', 'GND (brown)'],     color: '#78350f', name: 'brown',  method: 'Jumper wire' },
+  { i: 4, type: 'Signal', from: ['ESP32', 'GPIO4'],         to: ['Tactile button', 'pin 1'],  color: '#22d3ee', name: 'cyan',   method: 'Jumper or solder' },
+  { i: 5, type: 'Ground', from: ['ESP32', 'GND'],           to: ['Tactile button', 'pin 2'],  color: '#475569', name: 'black',  method: 'Jumper or solder' },
+  { i: 6, type: 'Power',  from: ['USB-C powerbank', '5V'],  to: ['ESP32', 'USB-C'],           color: '#a855f7', name: 'cable',  method: 'Plug' },
 ];
 
 const tbody = document.getElementById('wireTable');
@@ -1779,7 +1876,7 @@ tbody.innerHTML = wires.map(w => `
 // Build checklist
 // ===========================================================================
 const steps = [
-  { g: 'Parts',      t: 'Verify all parts arrived: ESP32-C3 SuperMini, MG90S micro-servo (metal-gear), USB-C powerbank/charger, 3 M-F jumper wires' },
+  { g: 'Parts',      t: 'Verify all parts arrived: ESP32-C3 SuperMini, MG90S micro-servo (metal-gear), USB-C powerbank/charger, 3 M-F jumper wires, 6×6×5 mm tactile pushbutton + 2 short wires (or 2 more jumpers)' },
   { g: 'Parts',      t: 'ESP32 ships without headers — that is fine. Press-fit male jumper pins directly into the through-holes (no soldering)' },
   { g: 'Firmware',   t: 'Install Arduino IDE 2.x and add ESP32 board package via Boards Manager (search "esp32")' },
   { g: 'Firmware',   t: 'Library Manager → install "ESP32Servo" by Kevin Harrington (NOT the classic Servo.h — that one does not run on ESP32-C3)' },
@@ -1789,15 +1886,18 @@ const steps = [
   { g: 'Wiring',     t: 'Insert signal jumper (orange or yellow on the servo pigtail) male pin into ESP32 GPIO3 hole; female end onto servo signal pin' },
   { g: 'Wiring',     t: 'Insert red (VCC) jumper male pin into ESP32 5V hole; female end onto servo red wire' },
   { g: 'Wiring',     t: 'Insert brown (GND) jumper male pin into ESP32 GND hole; female end onto servo brown wire' },
-  { g: 'Wiring',     t: 'Tug-test all 3 jumpers — none should pull free' },
+  { g: 'Wiring',     t: 'Tactile button: solder a short wire to each of the 2 pins (or press-fit into a mini breadboard). One lead → ESP32 GPIO4, the other → any free ESP32 GND pad' },
+  { g: 'Wiring',     t: 'Tug-test all jumpers — none should pull free, including both button leads' },
   { g: 'Test',       t: 'Plug USB-C powerbank into ESP32; servo should hold still (motor stopped at STOP_US neutral) on boot' },
   { g: 'Test',       t: 'If the horn slowly creeps at boot, nudge STOP_US by ±20 µs (try 1480 or 1520) and re-upload until it truly idles' },
   { g: 'Test',       t: 'Open phone web app or http://<esp32-ip>/ on the same WiFi; tap "single click" — arm bursts onto target, holds briefly, bursts back to rest within ~1 second' },
   { g: 'Test',       t: 'Tap the big PRESS button to latch ON (arm stays pressed). Tap again to release — same burst time, opposite direction, lands at rest' },
+  { g: 'Test',       t: 'Press the physical button on GPIO4 — arm should latch ON; press again to release. Mirrors the big web-UI toggle and works even with WiFi off' },
   { g: 'Test',       t: 'If the arm spins the wrong way on press, swap PUSH_US and RETURN_US in firmware. If travel is too short, raise PUSH_MS / RETURN_MS together (keep them equal so release lands back home)' },
   { g: 'Test',       t: 'Tap "Double" and "Auto x5"; verify counts and clean return to rest between presses' },
   { g: 'Mount',      t: 'Glue or tape a chopstick / popsicle stick / 3D-printed arm onto the servo horn — this is the "finger" that taps the button' },
   { g: 'Mount',      t: 'Position servo so the finger lands squarely on the target button at the end of one push burst; add a soft mechanical stop (foam pad / 3D-printed tab) at rest position so drift over many clicks bumps the arm home' },
+  { g: 'Mount',      t: 'Mount the tactile button somewhere reachable on the enclosure (lid or side). 6×6×5 mm caps sit ~5 mm above the body, so a 1 mm hole + glue-from-inside is the cleanest fit. Taller caps (6×6×7+) clear thicker lids' },
   { g: 'Mount',      t: 'For a phone/tablet touchscreen: wrap aluminum foil around the finger tip, run a thin wire from the foil to ESP32 GND so the screen registers the tap' },
 ];
 
