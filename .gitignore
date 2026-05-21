@@ -76,6 +76,10 @@ devo/config.js
 functions/service-account.json
 **/service-account.json
 
+# Drive OAuth — local refresh token + client secret, never commit
+gemini-proxy/.drive-creds.json
+gemini-proxy/.drive-client.json
+
 # Claude Code runtime artifacts
 .claude/knowledge-stale.md
 .claude/settings.local.json

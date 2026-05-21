@@ -161,16 +161,17 @@ Local web UI for Claude Code CLI — mode-based workflows, knowledge-MD pre-load
 
 ### gemini-proxy/  🟢
 
-Backend proxy for Gemini API — used by devo (explanations), pray (intercession AI), and others.
+Backend proxy for Gemini API — used by devo (explanations), pray (intercession AI), and others. Also hosts the `/upload-drive` endpoint used by sns-dq, and locally hosts the `drive-helper.mjs` Drive CLI for read/write tasks outside the `drive.file` scope.
 
 - **Tech:** Node.js (Express), node-fetch, Google Cloud Run (asia-southeast1, project 668755364170), Firestore (push subs), Cloud Scheduler.
-- **Entry:** `index.js`, `package.json`, `Dockerfile`, `DEPLOY.md` (full setup guide).
-- **Deploy:** Cloud Run (asia-southeast1). Daily 3 PM PHT trigger via Cloud Scheduler.
+- **Entry:** `index.js`, `package.json`, `Dockerfile`, `DEPLOY.md` (full setup guide), `drive-helper.mjs` (local CLI — see `knowledge/drive-helper/SUMMARY.md`).
+- **Deploy:** Cloud Run (asia-southeast1). Daily 3 PM PHT trigger via Cloud Scheduler. `drive-helper.mjs` is local-only.
 - **Quirks:**
   - Provides `/send-reminder` endpoint (Cloud Scheduler-driven daily reminders)
   - Stores push subscriptions in Firestore
   - Free tier eligible
   - **Never commit `GEMINI_API_KEY`** — use environment variables at deploy time
+  - **Drive auth split:** the deployed `/upload-drive` endpoint uses the **`drive.file`** scope (per-file, set up by `setup-drive-oauth.sh`, refresh token in Cloud Run env vars). The local `drive-helper.mjs` uses a separate OAuth client (Desktop type, in Testing mode) with the **full `drive`** scope — needed because `drive.file` can't see files the app didn't create. Local creds in `gemini-proxy/.drive-client.json` + `gemini-proxy/.drive-creds.json` (both gitignored).
 
 ### functions/  🟡
 
