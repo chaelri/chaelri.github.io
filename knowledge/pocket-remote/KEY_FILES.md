@@ -23,7 +23,8 @@ Self-contained — no external JS bundle. Tailwind v4 via CDN.
 ### Demo SVG IDs
 
 - `#oledSvg` — outer SVG; gets the `.oled-press` class for ~700 ms after Tap / Hold / Drain
-- `#oledMode` — large text in the middle (`>CLICK` or `>AC`)
+- `#oledTime` / `#oledMode` — top row: time on the left, mode label (`LIGHTS` / `AIRCON`) right-aligned
+- `#oledDate` / `#oledCountdown` — middle rows: `Thu, May 21` and `in 42 days`
 - `#oledStatus` — status line in the bottom row (auto-reverts to `ready` after 2.2 s)
 - `#batFill` — battery fill rectangle width animates between 0–40 px proportional to `demoBat`
 - `#batText` — battery percent text (right of the icon)
@@ -62,7 +63,7 @@ const unsigned long DEBOUNCE_MS  = 30;
 const unsigned long TAP_MAX_MS   = 500;
 const unsigned long HOLD_MS      = 800;
 const unsigned long STATUS_HOLD_MS = 2500;
-enum Mode { MODE_CLICK = 0, MODE_AC = 1 };
+enum Mode { MODE_LIGHTS = 0, MODE_AIRCON = 1 };
 ```
 
 ### Functions (file order)

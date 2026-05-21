@@ -10,22 +10,22 @@
    │ readButton(): debounced state machine on GPIO9
    │
    ├─ TAP   (<500 ms)
-   │   │ currentMode == CLICK?
+   │   │ currentMode == LIGHTS?
    │   │   ▼
    │   │   HTTP PUT  /autoclicker/command.json   body: "toggle"
    │   │
-   │   │ currentMode == AC?
+   │   │ currentMode == AIRCON?
    │   │   ▼
    │   │   HTTP PUT  /aircon/command.json        body: {"cmd":"click"}
    │   │
-   │   └─ Update OLED bottom row: "sent CLICK" / "sent AC" / "send failed" / "no wifi"
+   │   └─ Flash row 4 of the OLED: "sent" / "fail" / "no wifi"
    │
    └─ HOLD  (>=800 ms while still pressed)
        │
        ▼
-       Flip currentMode  (CLICK <-> AC)
+       Flip currentMode  (LIGHTS <-> AIRCON)
        Write new mode to NVS (Preferences key "mode")
-       Update OLED big label + bottom row: "-> CLICK" / "-> AC"
+       Update OLED row 1 (mode label) + flash row 4: "-> LIGHTS" / "-> AIRCON"
 ```
 
 Once the PUT lands, each target device reacts exactly as it would to its own phone remote:
@@ -53,7 +53,7 @@ Why not press-and-hold-repeat for taps: nobody asked for it, and the autoclicker
 
 - **Firebase project:** `test-database-55379` (asia-southeast1). No new paths — the pocket remote writes to existing ones.
 - **Paths it writes to:**
-  - `/autoclicker/command` ← bare JSON string `"toggle"` (CLICK mode taps)
+  - `/autoclicker/command` ← bare JSON string `"toggle"` (LIGHTS mode taps)
   - `/aircon/command` ← JSON object `{"cmd":"click"}` (AC mode taps)
 - **Paths it does NOT read:** `/autoclicker/state` and `/aircon/state` exist as mirrors but the pocket remote ignores them. If a future v2 wants the OLED to show "armed / disarmed" for the autoclicker (so you know whether your tap was a press or release), it would subscribe to `/autoclicker/state` via SSE the way the autoclicker firmware does on `/autoclicker/command`.
 - **Auth:** Currently open RTDB rules. If those tighten, the firmware would need to obtain an ID token (anonymous sign-in via the REST endpoint `https://identitytoolkit.googleapis.com/v1/accounts:signUp`) and append `?auth=<id_token>` to each PUT.
@@ -124,7 +124,7 @@ const unsigned long TAP_MAX_MS   = 500;
 const unsigned long HOLD_MS      = 800;
 const unsigned long STATUS_HOLD_MS = 2500;
 
-enum Mode { MODE_CLICK = 0, MODE_AC = 1 };
+enum Mode { MODE_LIGHTS = 0, MODE_AIRCON = 1 };  // NVS uint8 values preserved
 ```
 
 Loop body (in order, per iteration):
@@ -138,7 +138,7 @@ Loop body (in order, per iteration):
 
 - **Why one firmware sketch for two targets, instead of two devices:** Charlie already has the autoclicker phone remote and the aircon phone remote. A second pocket device per target would mean two builds, two batteries, two USB-C cables. One pocket remote with mode-switching is the right ergonomic choice for "I'm holding it anyway, let me also hit the aircon."
 - **Why a state machine with hold-on-threshold instead of hold-on-release:** Hold-on-release means the user has to wait for their finger lift before knowing the mode flipped. Hold-on-threshold gives a snappy "yes, the OLED just changed" the moment they cross 800 ms, even if their thumb stays on the button.
-- **Why poll-style status auto-clear (2.5 s) instead of permanent:** The bottom row is for transient feedback ("sent CLICK", "send failed"). Leaving it forever would mean the OLED reads stale info between taps. Reverting to "ready" makes the device-is-idle state visually obvious.
+- **Why transient-status auto-clear (2.5 s) instead of permanent:** The bottom row is for short-lived feedback ("sent", "fail", "-> AIRCON"). Leaving it forever would mean the OLED reads stale info between taps. After 2.5 s the row falls back to a WiFi-derived default — empty when online, `no wifi` when offline.
 - **Why sample battery at 5 s instead of every loop:** ADC reads aren't free (~16 µs each × 8 samples = ~128 µs) and the LiPo voltage doesn't change meaningfully in 5 s. Cheap, smooth indicator.
 - **Why no haptics on the pocket remote:** The board has no vibration motor and adding one means a transistor + flyback diode + new GPIO. The OLED status flash + the tactile click of the BOOT button itself are the feedback.
 - **Why the OLED bottom row is 5×7 font but the mode label is helvB12:** Mode label needs to be readable across the room ("which mode am I in?"). Status row is glanceable detail — fits more characters per pixel.

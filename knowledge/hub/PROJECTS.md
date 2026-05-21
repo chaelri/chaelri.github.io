@@ -51,7 +51,7 @@ DIY WiFi aircon controller — sister project to autoclicker. ESP32-C3 + 940 nm 
 
 ### pocket-remote/  🟢
 
-Battery-powered hand-held WiFi remote for **both** `autoclicker/` and `aircon/`. Three modules stacked (ESP32-C3 + 0.42" OLED + TP4056 + LiPo 1000 mAh). One BOOT button: **tap to fire** the current mode, **hold ≥800 ms to flip** between CLICK and AC modes. Mode persisted in NVS. USB-C charging via TP4056; usable while plugged in.
+Battery-powered hand-held WiFi remote for **both** `autoclicker/` and `aircon/`. Three modules stacked (ESP32-C3 + 0.42" OLED + TP4056 + LiPo 1000 mAh). One BOOT button: **tap to fire** the current mode, **hold ≥800 ms to flip** between LIGHTS and AIRCON modes. Mode persisted in NVS. OLED shows Manila time + day/date + days-until-wedding (2026-07-02) + transient `sent` / `fail` status. USB-C charging via TP4056; usable while plugged in.
 
 - **Tech:** vanilla HTML/CSS/JS (browser-Tailwind v4, no build) for the docs site; firmware uses `U8g2` for the OLED, `HTTPClient` for Firebase HTTPS PUTs, `Preferences` for NVS-backed mode, `WiFiMulti` for roaming. No Firebase SDK, no servo / IR library — pure pass-through to the existing sibling devices.
 - **Entry:** `index.html` (~640 lines — overview/hardware/wiring/demo/code/checklist; all visuals hand-drawn inline SVG, no image dependencies), `firmware/pocket-remote.ino` (~330 lines, canonical Arduino sketch).

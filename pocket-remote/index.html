@@ -349,11 +349,14 @@
         <rect x="280" y="74" width="14" height="12" fill="#0f172a" />
         <text x="281" y="118" fill="#94a3b8" font-size="7">USB-C</text>
 
-        <!-- OLED screen -->
+        <!-- OLED screen — tiny mock of the live layout -->
         <rect x="130" y="60" width="50" height="40" rx="3" fill="#000" stroke="#fde68a" stroke-width="0.5" />
         <rect x="135" y="65" width="40" height="30" fill="url(#oledScreen)" opacity="0.85" />
-        <text x="155" y="83" text-anchor="middle" fill="#fde68a" font-size="8" font-weight="700">&gt;CLICK</text>
-        <text x="155" y="92" text-anchor="middle" fill="#fbbf24" font-size="4">ready</text>
+        <text x="137" y="72" fill="#fde68a" font-size="5" font-weight="700">14:32</text>
+        <text x="173" y="72" text-anchor="end" fill="#fde68a" font-size="5" font-weight="700">LIGHTS</text>
+        <text x="137" y="80" fill="#fbbf24" font-size="4">Thu, May 21</text>
+        <text x="137" y="87" fill="#fbbf24" font-size="4">in 42 days</text>
+        <text x="155" y="94" text-anchor="middle" fill="#10b981" font-size="4">sent</text>
 
         <!-- BOOT button (top-left) -->
         <g transform="translate(28 50)">
@@ -544,19 +547,23 @@
           <g transform="translate(36 60)">
             <rect width="288" height="160" rx="6" fill="#000" />
 
-            <!-- Top status row: WiFi bars only (battery sense removed) -->
-            <g class="oled-top">
-              <rect x="8"  y="32" width="8" height="8"  class="oled-pixel" />
-              <rect x="20" y="24" width="8" height="16" class="oled-pixel" />
-              <rect x="32" y="16" width="8" height="24" class="oled-pixel" />
-              <rect x="44" y="8"  width="8" height="32" class="oled-pixel" />
-            </g>
+            <!-- Row 1 (y=28 in scaled coords ~ y=7 in real OLED): time left, mode right -->
+            <text id="oledTime" x="8"   y="32" fill="#fde68a"
+                  font-family="JetBrains Mono" font-size="22" font-weight="700">14:32</text>
+            <text id="oledMode" x="280" y="32" text-anchor="end" fill="#fde68a"
+                  font-family="JetBrains Mono" font-size="22" font-weight="700">LIGHTS</text>
 
-            <!-- Middle: big mode label -->
-            <text id="oledMode" x="144" y="98" text-anchor="middle" fill="#fde68a" font-family="Inter" font-size="36" font-weight="800" letter-spacing="3">&gt;CLICK</text>
+            <!-- Row 2 (y=68 ~ y=17): day-of-week + date -->
+            <text id="oledDate" x="8" y="68" fill="#fbbf24"
+                  font-family="JetBrains Mono" font-size="18">Thu, May 21</text>
 
-            <!-- Bottom: status line -->
-            <text id="oledStatus" class="oled-bottom" x="144" y="148" text-anchor="middle" fill="#fbbf24" font-family="JetBrains Mono" font-size="18">ready</text>
+            <!-- Row 3 (y=108 ~ y=27): countdown to Jul 2, 2026 -->
+            <text id="oledCountdown" x="8" y="108" fill="#fbbf24"
+                  font-family="JetBrains Mono" font-size="18">in 42 days</text>
+
+            <!-- Row 4 (y=148 ~ y=37): transient status (centered) -->
+            <text id="oledStatus" class="oled-bottom" x="144" y="148" text-anchor="middle"
+                  fill="#10b981" font-family="JetBrains Mono" font-size="18"></text>
           </g>
         </svg>
       </div>
@@ -584,7 +591,7 @@
               </div>
               <div class="flex-1">
                 <div class="text-white font-semibold group-hover:text-emerald-300 transition-colors">Hold</div>
-                <div class="text-xs text-slate-500">Flip mode CLICK ↔ AC</div>
+                <div class="text-xs text-slate-500">Flip mode LIGHTS ↔ AIRCON</div>
               </div>
               <span class="text-[10px] mono text-slate-500">≥ 800 ms</span>
             </div>
@@ -676,8 +683,8 @@
   <span class="tok-kw">return</span> (code &gt;= <span class="tok-num">200</span> &amp;&amp; code &lt; <span class="tok-num">300</span>);
 }
 
-<span class="tok-kw">bool</span> <span class="tok-fn">fireClick</span>() { <span class="tok-kw">return</span> <span class="tok-fn">putJson</span>(CLICK_URL, <span class="tok-str">"\"toggle\""</span>); }
-<span class="tok-kw">bool</span> <span class="tok-fn">fireAC</span>()    { <span class="tok-kw">return</span> <span class="tok-fn">putJson</span>(AC_URL,    <span class="tok-str">"{\"cmd\":\"click\"}"</span>); }</pre>
+<span class="tok-kw">bool</span> <span class="tok-fn">fireLights</span>() { <span class="tok-kw">return</span> <span class="tok-fn">putJson</span>(CLICK_URL, <span class="tok-str">"\"toggle\""</span>); }
+<span class="tok-kw">bool</span> <span class="tok-fn">fireAircon</span>() { <span class="tok-kw">return</span> <span class="tok-fn">putJson</span>(AC_URL,    <span class="tok-str">"{\"cmd\":\"click\"}"</span>); }</pre>
     </div>
   </details>
 
@@ -757,9 +764,10 @@
 
     { section: 'Test',     text: 'Plug a USB-C charger into the TP4056 — CHRG LED on' },
     { section: 'Test',     text: 'OLED boots into the "Pocket Remote · ready" screen' },
-    { section: 'Test',     text: 'Tap BOOT → autoclicker servo fires (CLICK mode is default)' },
-    { section: 'Test',     text: 'Hold BOOT ≥800 ms → OLED flips to ">AC" and persists across reboot' },
-    { section: 'Test',     text: 'Tap BOOT in AC mode → aircon fires power-toggle' },
+    { section: 'Test',     text: 'Tap BOOT → autoclicker servo fires (LIGHTS mode is default)' },
+    { section: 'Test',     text: 'Hold BOOT ≥800 ms → mode label flips to AIRCON and persists across reboot' },
+    { section: 'Test',     text: 'Tap BOOT in AIRCON mode → aircon fires power-toggle' },
+    { section: 'Test',     text: 'OLED time updates every minute once NTP syncs' },
 
     { section: 'Enclose',  text: 'Stack ESP32 + TP4056 + LiPo into a 3D-printed pocket case' },
     { section: 'Enclose',  text: 'Cut a window for the OLED and the BOOT button' },
@@ -828,34 +836,80 @@
   syncNav();
 
   // ---- OLED preview demo -------------------------------------------------
-  const oledMode   = document.getElementById('oledMode');
-  const oledStatus = document.getElementById('oledStatus');
-  const oledSvg    = document.getElementById('oledSvg');
+  const oledTime      = document.getElementById('oledTime');
+  const oledMode      = document.getElementById('oledMode');
+  const oledDate      = document.getElementById('oledDate');
+  const oledCountdown = document.getElementById('oledCountdown');
+  const oledStatus    = document.getElementById('oledStatus');
+  const oledSvg       = document.getElementById('oledSvg');
 
-  let demoMode = 'CLICK';  // 'CLICK' | 'AC'
+  let demoMode = 'LIGHTS';  // 'LIGHTS' | 'AIRCON'
+
+  const DOW = ['Sun','Mon','Tue','Wed','Thu','Fri','Sat'];
+  const MON = ['Jan','Feb','Mar','Apr','May','Jun','Jul','Aug','Sep','Oct','Nov','Dec'];
+
+  function pad2(n) { return n < 10 ? '0' + n : String(n); }
+
+  function manilaNow() {
+    // Compose the parts in the Asia/Manila zone explicitly so the demo reads
+    // the same on a phone in any timezone.
+    const parts = new Intl.DateTimeFormat('en-US', {
+      timeZone: 'Asia/Manila', year: 'numeric', month: 'numeric', day: 'numeric',
+      hour: '2-digit', minute: '2-digit', weekday: 'short', hour12: false,
+    }).formatToParts(new Date());
+    const get = t => parts.find(p => p.type === t)?.value || '';
+    return {
+      year:  +get('year'),
+      month: +get('month'),
+      day:   +get('day'),
+      hour:  +get('hour') % 24,
+      min:   +get('minute'),
+      dow:   get('weekday'),
+    };
+  }
+
+  function daysUntilWedding(p) {
+    // 2026-07-02 PHT as a UTC instant: 16:00 UTC on 2026-07-01.
+    const target = Date.UTC(2026, 6, 2) - 8 * 3600 * 1000;
+    const today  = Date.UTC(p.year, p.month - 1, p.day) - 8 * 3600 * 1000;
+    return Math.round((target - today) / 86400000);
+  }
+
+  function countdownText(days) {
+    if (days > 1)  return 'in ' + days + ' days';
+    if (days === 1) return 'tomorrow!';
+    if (days === 0) return 'WEDDING DAY';
+    return '+' + (-days) + 'd married';
+  }
 
   function renderOled() {
-    oledMode.textContent = '>' + demoMode;
+    const p = manilaNow();
+    oledTime.textContent      = pad2(p.hour) + ':' + pad2(p.min);
+    oledMode.textContent      = demoMode;
+    oledDate.textContent      = p.dow + ', ' + MON[p.month - 1] + ' ' + p.day;
+    oledCountdown.textContent = countdownText(daysUntilWedding(p));
   }
 
   function flashStatus(text) {
     oledStatus.textContent = text;
     oledSvg.classList.add('oled-press');
     setTimeout(() => oledSvg.classList.remove('oled-press'), 700);
-    setTimeout(() => { oledStatus.textContent = 'ready'; }, 2200);
+    setTimeout(() => { oledStatus.textContent = ''; }, 2200);
   }
 
   document.getElementById('demoTap').addEventListener('click', () => {
-    flashStatus('sent ' + demoMode);
+    flashStatus('sent');
   });
 
   document.getElementById('demoHold').addEventListener('click', () => {
-    demoMode = (demoMode === 'CLICK') ? 'AC' : 'CLICK';
+    demoMode = (demoMode === 'LIGHTS') ? 'AIRCON' : 'LIGHTS';
     renderOled();
     flashStatus('-> ' + demoMode);
   });
 
   renderOled();
+  // Tick the clock once a minute so the preview stays honest.
+  setInterval(renderOled, 60000);
 </script>
 
 </body>

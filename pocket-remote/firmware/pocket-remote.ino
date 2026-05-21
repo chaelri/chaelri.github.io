@@ -9,17 +9,26 @@
 //
 // ONE BUTTON (the board's built-in BOOT button on GPIO9) does both jobs:
 //
-//   TAP  (<500 ms)  -> fire the current mode (CLICK or AC).
-//   HOLD (>=800 ms) -> flip the mode (CLICK <-> AC). The new mode is
+//   TAP  (<500 ms)  -> fire the current mode (LIGHTS or AIRCON).
+//   HOLD (>=800 ms) -> flip the mode (LIGHTS <-> AIRCON). The new mode is
 //                      persisted in NVS so it survives reboots and brown-outs.
 //
-// What the 72x40 OLED shows:
+// What the 72x40 OLED shows (live, refreshes every minute so the clock ticks):
 //
-//   Row 0  : WiFi bars + battery percent
-//   Row 1+ : Big mode label   ">CLICK" or ">AC"
-//   Bottom : Last action / result (e.g. "sent OK · 12:34" or "no wifi")
+//   Row 1 (y=7):  HH:MM ............... LIGHTS   <- time left, mode right
+//   Row 2 (y=17): Thu, May 21                    <- day-of-week + date
+//   Row 3 (y=27): in 42 days                     <- countdown to 2026-07-02 (Charlie's wedding)
+//   Row 4 (y=37): [transient: "sent" / "no wifi" / etc.]
 //
-// Hardware (single rail, USB-C chargeable):
+// All four rows use the u8g2_font_5x7_tf bitmap font (5x7 px glyphs, ~6 px
+// advance) so the line spacing comes out to 10 px and the whole stack lands
+// inside the 40 px visible area with a 3 px top/bottom margin.
+//
+// Time is pulled via NTP after WiFi associates. Philippines doesn't observe
+// DST so the GMT offset is a static +8 hours. Until NTP settles the time
+// rows show "syncing time..." (which gracefully covers the cold-boot window).
+//
+// Hardware (single rail, USB-C chargeable, no battery sense, no boost):
 //
 //   LiPo 3.7 V 1000 mAh  ->  TP4056 B+/B-           (protection + charging)
 //   TP4056 OUT+/OUT-     ->  ESP32-C3 5V / GD       (LDO drops to 3.3 V)
@@ -27,21 +36,8 @@
 //   BOOT button          ->  GPIO9, INPUT_PULLUP    (already on the board)
 //   OLED                 ->  GPIO5 (SDA) / GPIO6 (SCL), already on the board
 //
-// No battery sense / fuel gauge. Charlie's "low-battery indicator" is the
-// OLED itself: below ~3.5 V the LDO starts dropping out and the screen
-// flickers, which is the cue to plug in the TP4056's USB-C. The DW01 cuts
-// the cell at 3.0 V before anything bad happens.
-//
 // You CAN keep using the device while it is plugged in -- the TP4056 with the
 // DW01 protection IC powers the load and tops the battery up at the same time.
-// If the load draw exceeds the charge current, the battery still slowly drains;
-// it never sees less than 3.0 V (protection cutoff) or more than 4.2 V.
-//
-// Skipping the MT3608 boost is deliberate. The ESP32-C3's onboard 3.3 V LDO
-// drops only ~250 mV, so a fully-charged 4.2 V cell -> 3.95 V on the 3.3 V
-// rail with margin. Below ~3.5 V the LDO starts to drop out; the user will
-// notice OLED flicker and that is the cue to charge. The TP4056 still kills
-// the cell at 3.0 V to keep the chemistry healthy.
 //
 // Board: "ESP32C3 Dev Module"   USB CDC On Boot: Enabled
 // Baud:  115200
@@ -53,19 +49,12 @@
 #include <Preferences.h>
 #include <Wire.h>
 #include <U8g2lib.h>
+#include <time.h>
 
 // --- WiFi --------------------------------------------------------------------
-// Same network pool as the autoclicker and aircon firmwares so the remote
-// roams onto whichever known WiFi (or Charlie's iPhone hotspot) is currently
-// strongest. iPhone hotspot must have "Maximize Compatibility" ON so it
-// broadcasts on 2.4 GHz -- the ESP32-C3 radio is 2.4 GHz only.
 WiFiMulti wifiMulti;
 
 // --- Firebase RTDB endpoints -------------------------------------------------
-// Both devices live under the same project (test-database-55379, asia-southeast1).
-// Sending to /autoclicker/command and /aircon/command mirrors exactly what
-// their respective phone remotes write today, so the firmware on each device
-// reacts as if a real human tapped its phone UI.
 const char* CLICK_URL =
   "https://test-database-55379-default-rtdb.asia-southeast1.firebasedatabase.app"
   "/autoclicker/command.json";
@@ -74,123 +63,159 @@ const char* AC_URL =
   "/aircon/command.json";
 
 // --- OLED --------------------------------------------------------------------
-// 01space ESP32-C3 + 0.42" OLED board: SSD1306 controller wired to GPIO5 (SDA)
-// and GPIO6 (SCL). The visible window is 72x40 pixels even though the
-// controller can address 128x64; U8g2's 72x40 constructor handles the column
-// offset automatically.
 U8G2_SSD1306_72X40_ER_F_HW_I2C oled(U8G2_R0, U8X8_PIN_NONE);
 const int OLED_SDA = 5;
 const int OLED_SCL = 6;
 
 // --- Pins / timing -----------------------------------------------------------
 const int BTN_PIN       = 9;       // BOOT button (active LOW, INPUT_PULLUP)
-const unsigned long DEBOUNCE_MS  = 30;
-const unsigned long TAP_MAX_MS   = 500;   // anything shorter than this is a tap
-const unsigned long HOLD_MS      = 800;   // crossing this while still pressed = hold
-const unsigned long STATUS_HOLD_MS = 2500; // how long the bottom-row status sticks
+const unsigned long DEBOUNCE_MS    = 30;
+const unsigned long TAP_MAX_MS     = 500;
+const unsigned long HOLD_MS        = 800;
+const unsigned long STATUS_HOLD_MS = 2500;
+
+// --- Wedding countdown target (2026-07-02 PHT) -------------------------------
+// Charlie + Karla's wedding day. Day-zero shows "WEDDING DAY", anything past
+// shows "+Nd married" so the device stays useful past the date.
+const int WED_YEAR  = 2026;
+const int WED_MONTH = 7;    // 1-based for readability; converted at use site
+const int WED_DAY   = 2;
 
 // Operating modes ------------------------------------------------------------
-enum Mode { MODE_CLICK = 0, MODE_AC = 1 };
-Mode currentMode = MODE_CLICK;
+// NVS uint8: 0 = LIGHTS (was MODE_CLICK in earlier sketches), 1 = AIRCON.
+// The numeric values are preserved across the rename so existing NVS state
+// from earlier firmware versions still loads correctly.
+enum Mode { MODE_LIGHTS = 0, MODE_AIRCON = 1 };
+Mode currentMode = MODE_LIGHTS;
 
 Preferences prefs;
 
 // Button state machine --------------------------------------------------------
-bool          btnPressed   = false;       // debounced state
+bool          btnPressed   = false;
 unsigned long btnDownAt    = 0;
 unsigned long btnLastEdge  = 0;
 int           btnLastLevel = HIGH;
-bool          holdFired    = false;       // true once the hold action ran for this press
+bool          holdFired    = false;
 
-// OLED status text (bottom row) ----------------------------------------------
-String        statusMsg     = "ready";
-unsigned long statusSetAt   = 0;
-bool          needsRedraw   = true;
+// OLED status (bottom row) ----------------------------------------------------
+// Transient messages (sent / fail / mode flip) win for STATUS_HOLD_MS, then
+// the row reverts to a WiFi-derived default ("" when online, "no wifi" when
+// offline). This keeps the bottom row meaningful without it being chatty.
+String        transientMsg   = "";
+unsigned long transientUntil = 0;
+bool          needsRedraw    = true;
 
 // ----------------------------------------------------------------------------
 // NVS-backed mode persistence
 // ----------------------------------------------------------------------------
 void loadMode() {
-  prefs.begin("remote", true);   // read-only
-  uint8_t m = prefs.getUChar("mode", MODE_CLICK);
+  prefs.begin("remote", true);
+  uint8_t m = prefs.getUChar("mode", MODE_LIGHTS);
   prefs.end();
-  currentMode = (m == MODE_AC) ? MODE_AC : MODE_CLICK;
+  currentMode = (m == MODE_AIRCON) ? MODE_AIRCON : MODE_LIGHTS;
 }
 
 void saveMode() {
-  prefs.begin("remote", false);  // read-write
+  prefs.begin("remote", false);
   prefs.putUChar("mode", (uint8_t)currentMode);
   prefs.end();
 }
 
 // ----------------------------------------------------------------------------
-// OLED rendering -- 72x40 visible area. Keep it punchy: WiFi bars top-left,
-// big centered mode label, single bottom status line.
+// Transient status helper -- "sent", "fail", "-> AIRCON", etc. expire after
+// STATUS_HOLD_MS and the row falls back to a WiFi-derived default.
 // ----------------------------------------------------------------------------
-void drawWiFiBars(int x, int y) {
-  // Crude 4-bar WiFi glyph driven by current RSSI. Each bar is 2 px wide.
-  int rssi  = WiFi.RSSI();          // 0 when not connected (= no bars)
-  bool up   = (WiFi.status() == WL_CONNECTED);
-  int bars  = 0;
-  if (up) {
-    if      (rssi >= -55) bars = 4;
-    else if (rssi >= -65) bars = 3;
-    else if (rssi >= -75) bars = 2;
-    else                  bars = 1;
-  }
-  for (int i = 0; i < 4; i++) {
-    int h = 2 + i * 2;        // 2, 4, 6, 8
-    int bx = x + i * 3;
-    int by = y - h;
-    if (i < bars) oled.drawBox(bx, by, 2, h);
-    else          oled.drawFrame(bx, by, 2, h);
-  }
+void flashStatus(const String& s) {
+  transientMsg   = s;
+  transientUntil = millis() + STATUS_HOLD_MS;
+  needsRedraw    = true;
 }
+
+// ----------------------------------------------------------------------------
+// OLED rendering -- 5x7 font for all four rows. Time row left-aligned, mode
+// label right-aligned so they read as two distinct things at a glance.
+// ----------------------------------------------------------------------------
+static const char* DOW_NAMES[] = {"Sun","Mon","Tue","Wed","Thu","Fri","Sat"};
+static const char* MON_NAMES[] = {"Jan","Feb","Mar","Apr","May","Jun","Jul",
+                                  "Aug","Sep","Oct","Nov","Dec"};
 
 void drawScreen() {
   oled.clearBuffer();
-
-  // --- Top row: WiFi bars (top-left), small mode-name hint to the right.
-  // We have ~62 px of horizontal room next to the bars now that the battery
-  // icon is gone -- but a tiny WiFi-only indicator is less visual noise than
-  // a stretched second widget. Leave it sparse.
-  drawWiFiBars(0, 9);   // baseline at y=9, bars grow upward
-
-  // --- Middle: big mode label, centered
-  oled.setFont(u8g2_font_helvB12_tf);
-  const char* label = (currentMode == MODE_CLICK) ? ">CLICK" : ">AC";
-  int lw = oled.getStrWidth(label);
-  oled.drawStr((72 - lw) / 2, 26, label);
-
-  // --- Bottom: status line (truncated to fit)
   oled.setFont(u8g2_font_5x7_tf);
-  // 5x7 font: 72 / 5 = ~14 chars max. Trim to be safe.
-  String s = statusMsg;
-  if (s.length() > 14) s = s.substring(0, 14);
-  int sw = oled.getStrWidth(s.c_str());
-  oled.drawStr((72 - sw) / 2, 39, s.c_str());
+
+  time_t now = time(nullptr);
+  struct tm lt;
+  // Epoch > 2023-11 sentinel means NTP has synced. Pre-sync, time() returns
+  // a small number (seconds since boot or the 1970 epoch) and we surface
+  // "syncing time..." instead of nonsense like "00:00 Thu, Jan 1".
+  bool haveTime = (now > 1700000000);
+  if (haveTime) localtime_r(&now, &lt);
+
+  const char* modeLabel = (currentMode == MODE_LIGHTS) ? "LIGHTS" : "AIRCON";
+
+  // ---- Row 1 (y=7): time (left) + mode (right) -----------------------------
+  char timeBuf[8];
+  if (haveTime) snprintf(timeBuf, sizeof(timeBuf), "%02d:%02d", lt.tm_hour, lt.tm_min);
+  else          strcpy(timeBuf, "--:--");
+  oled.drawStr(0, 7, timeBuf);
+  int mw = oled.getStrWidth(modeLabel);
+  oled.drawStr(72 - mw, 7, modeLabel);
+
+  // ---- Row 2 (y=17): day-of-week + date ------------------------------------
+  char row2[20];
+  if (haveTime) {
+    snprintf(row2, sizeof(row2), "%s, %s %d",
+             DOW_NAMES[lt.tm_wday], MON_NAMES[lt.tm_mon], lt.tm_mday);
+  } else {
+    strcpy(row2, "syncing time...");
+  }
+  oled.drawStr(0, 17, row2);
+
+  // ---- Row 3 (y=27): days until 2026-07-02 PHT -----------------------------
+  // mktime() interprets the struct tm as local time, which (after configTime
+  // with a +8 h offset) is PHT. We zero today's clock too so both sides of
+  // the subtraction are midnights and the diff is whole days.
+  char row3[20];
+  if (haveTime) {
+    struct tm today = lt;
+    today.tm_hour = 0; today.tm_min = 0; today.tm_sec = 0; today.tm_isdst = 0;
+    time_t todayMid = mktime(&today);
+    struct tm target = {0};
+    target.tm_year  = WED_YEAR  - 1900;
+    target.tm_mon   = WED_MONTH - 1;     // tm_mon is 0-indexed
+    target.tm_mday  = WED_DAY;
+    target.tm_isdst = 0;
+    time_t targetMid = mktime(&target);
+    long days = (long)((targetMid - todayMid) / 86400);
+    if      (days  > 1) snprintf(row3, sizeof(row3), "in %ld days", days);
+    else if (days == 1) strcpy(row3, "tomorrow!");
+    else if (days == 0) strcpy(row3, "WEDDING DAY");
+    else                snprintf(row3, sizeof(row3), "+%ldd married", -days);
+  } else {
+    row3[0] = '\0';
+  }
+  if (row3[0]) oled.drawStr(0, 27, row3);
+
+  // ---- Row 4 (y=37): transient status or WiFi fallback ---------------------
+  String row4;
+  if (transientUntil > millis() && transientMsg.length() > 0) {
+    row4 = transientMsg;
+  } else if (WiFi.status() != WL_CONNECTED) {
+    row4 = "no wifi";
+  } else {
+    row4 = "";
+  }
+  if (row4.length() > 0) {
+    if (row4.length() > 14) row4 = row4.substring(0, 14);
+    int sw = oled.getStrWidth(row4.c_str());
+    oled.drawStr((72 - sw) / 2, 37, row4.c_str());
+  }
 
   oled.sendBuffer();
 }
 
-void setStatus(const String& s) {
-  statusMsg   = s;
-  statusSetAt = millis();
-  needsRedraw = true;
-}
-
 // ----------------------------------------------------------------------------
-// Firebase writes -- one PUT per tap. Both endpoints accept the same shape
-// their phone remotes use today, so each target device sees the command as
-// if a human had tapped its on-screen button.
-//
-//   Autoclicker: writes the bare JSON string "toggle"
-//                -> firmware flips its latched press/release state.
-//   Aircon:      writes {"cmd":"click"}
-//                -> firmware does one push-hold-return on the power button.
-//
-// Returns true on HTTP 200, false otherwise. Caller decides what to surface
-// on the OLED.
+// Firebase writes
 // ----------------------------------------------------------------------------
 bool putJson(const char* url, const char* body) {
   if (WiFi.status() != WL_CONNECTED) return false;
@@ -202,50 +227,33 @@ bool putJson(const char* url, const char* body) {
   return (code >= 200 && code < 300);
 }
 
-bool fireClick() { return putJson(CLICK_URL, "\"toggle\""); }
-bool fireAC()    { return putJson(AC_URL,    "{\"cmd\":\"click\"}"); }
+bool fireLights() { return putJson(CLICK_URL, "\"toggle\""); }
+bool fireAircon() { return putJson(AC_URL,    "{\"cmd\":\"click\"}"); }
 
 // ----------------------------------------------------------------------------
-// Tap / hold dispatch -- driven by the button state machine in readButton().
+// Tap / hold dispatch
 // ----------------------------------------------------------------------------
 void doTap() {
   if (WiFi.status() != WL_CONNECTED) {
-    setStatus("no wifi");
+    flashStatus("no wifi");
     return;
   }
-  setStatus("sending...");
-  drawScreen();   // redraw immediately so the user sees feedback during the PUT
-  bool ok = (currentMode == MODE_CLICK) ? fireClick() : fireAC();
-  if (ok) {
-    char buf[16];
-    snprintf(buf, sizeof(buf), "sent %s",
-             (currentMode == MODE_CLICK) ? "CLICK" : "AC");
-    setStatus(buf);
-  } else {
-    setStatus("send failed");
-  }
+  flashStatus("sending...");
+  drawScreen();    // immediate feedback during the PUT (~100-300 ms)
+  bool ok = (currentMode == MODE_LIGHTS) ? fireLights() : fireAircon();
+  flashStatus(ok ? "sent" : "fail");
 }
 
 void doHold() {
-  currentMode = (currentMode == MODE_CLICK) ? MODE_AC : MODE_CLICK;
+  currentMode = (currentMode == MODE_LIGHTS) ? MODE_AIRCON : MODE_LIGHTS;
   saveMode();
-  setStatus(currentMode == MODE_CLICK ? "-> CLICK" : "-> AC");
-  Serial.printf("Mode toggled to %s\n",
-                currentMode == MODE_CLICK ? "CLICK" : "AC");
+  flashStatus(currentMode == MODE_LIGHTS ? "-> LIGHTS" : "-> AIRCON");
+  Serial.printf("Mode flipped to %s\n",
+                currentMode == MODE_LIGHTS ? "LIGHTS" : "AIRCON");
 }
 
 // ----------------------------------------------------------------------------
-// Button polling. Active-LOW on GPIO9 (the BOOT button), INPUT_PULLUP.
-//
-//   - Debounce: only accept a level change if it has been stable for
-//     DEBOUNCE_MS. Cheap tactiles bounce for ~5..15 ms; 30 ms is forgiving.
-//   - On press edge: remember the timestamp, clear holdFired.
-//   - On release edge: if NO hold has fired and the press was shorter than
-//     TAP_MAX_MS, treat it as a tap.
-//   - While still pressed: the moment the press duration crosses HOLD_MS,
-//     fire the hold action and latch holdFired so the release becomes a
-//     no-op. This is the standard "tap vs hold" decomposition; the user
-//     gets immediate hold feedback rather than waiting for the release.
+// Button polling -- debounced tap / hold state machine on GPIO9 (BOOT).
 // ----------------------------------------------------------------------------
 void readButton() {
   int level = digitalRead(BTN_PIN);
@@ -280,7 +288,6 @@ void readButton() {
 void setup() {
   Serial.begin(115200);
 
-  // OLED first so we can show progress while WiFi is connecting.
   Wire.setPins(OLED_SDA, OLED_SCL);
   oled.begin();
   oled.setBusClock(400000);
@@ -292,19 +299,12 @@ void setup() {
   oled.sendBuffer();
 
   pinMode(BTN_PIN, INPUT_PULLUP);
-
   loadMode();
 
-  // Same WiFi list as autoclicker/aircon so the remote roams onto whichever
-  // known network is currently the strongest, including Charlie's iPhone
-  // hotspot when out of the house.
   wifiMulti.addAP("CAYNO", "lokomoko");
   wifiMulti.addAP("Charlie's iPhone", "charlie24");
 
   WiFi.mode(WIFI_STA);
-  // Modem sleep (default Arduino-ESP32 behavior) -- the radio naps between
-  // beacons, dropping average current from ~80 mA to ~20-30 mA. Critical for
-  // a battery-powered device. Don't call WiFi.setSleep(false) here.
 
   unsigned long t0 = millis();
   while (wifiMulti.run() != WL_CONNECTED && millis() - t0 < 15000) {
@@ -315,10 +315,11 @@ void setup() {
   if (WiFi.status() == WL_CONNECTED) {
     Serial.printf("WiFi: %s  IP: %s\n",
                   WiFi.SSID().c_str(), WiFi.localIP().toString().c_str());
-    setStatus("ready");
+    // NTP: Manila is GMT+8, no DST. Pool + Google as fallback so a flaky
+    // pool server doesn't leave the clock stuck on "syncing time...".
+    configTime(8 * 3600, 0, "pool.ntp.org", "time.google.com");
   } else {
     Serial.println("WiFi join failed -- will keep retrying in loop()");
-    setStatus("no wifi");
   }
 
   drawScreen();
@@ -327,16 +328,28 @@ void setup() {
 void loop() {
   readButton();
 
-  // Auto-clear the bottom status line after STATUS_HOLD_MS so transient
-  // messages don't sit on screen forever. The "ready" idle text reappears
-  // until the next tap.
-  if (statusMsg != "ready" && millis() - statusSetAt > STATUS_HOLD_MS) {
-    setStatus("ready");
+  // Auto-redraw when the minute changes so the on-screen clock ticks live.
+  // Cheaper than a 1 Hz timer: we just compare against the last-rendered
+  // minute and flag a redraw if it has rolled over.
+  static int lastDrawnMin = -1;
+  time_t now = time(nullptr);
+  if (now > 1700000000) {
+    struct tm lt;
+    localtime_r(&now, &lt);
+    if (lt.tm_min != lastDrawnMin) {
+      lastDrawnMin = lt.tm_min;
+      needsRedraw = true;
+    }
   }
 
-  // Cheap recovery if WiFi drops while we're sitting around -- wifiMulti
-  // re-associates on call. Throttled so we don't hammer the radio when
-  // every network is genuinely out of range.
+  // Expire transient status (sent / fail / mode flip) back to the WiFi
+  // default so the bottom row doesn't sit on stale text.
+  if (transientUntil > 0 && millis() > transientUntil) {
+    transientUntil = 0;
+    needsRedraw    = true;
+  }
+
+  // Cheap WiFi recovery -- wifiMulti.run() re-associates if it can.
   static unsigned long lastWifiCheck = 0;
   if (WiFi.status() != WL_CONNECTED && millis() - lastWifiCheck > 10000) {
     lastWifiCheck = millis();

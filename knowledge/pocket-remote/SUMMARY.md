@@ -3,7 +3,16 @@
 **Last updated:** 2026-05-21
 **Status:** 🟢 Active (initial build — battery-powered hand-held remote that targets both autoclicker and aircon over Firebase)
 
-A keychain-sized WiFi remote built from three off-the-shelf modules. One BOOT button on the ESP32-C3 dev board drives both of Charlie's existing Firebase-controlled devices — tap to fire the current mode, hold to switch modes. The 0.42" OLED shows WiFi signal, the current mode, and a transient status line. **No fuel gauge / battery percent** — the OLED flickering around 3.5 V is the cue to charge; the TP4056's DW01 cuts the cell at 3.0 V before damage. USB-C charging via TP4056; works while plugged in.
+A keychain-sized WiFi remote built from three off-the-shelf modules. One BOOT button on the ESP32-C3 dev board drives both of Charlie's existing Firebase-controlled devices — tap to fire the current mode, hold to switch modes.
+
+The 0.42" OLED shows, on four rows of `u8g2_font_5x7_tf`:
+
+1. `HH:MM` (Manila time) on the left, current mode label (`LIGHTS` or `AIRCON`) right-aligned.
+2. Day-of-week + date (e.g. `Thu, May 21`).
+3. Days until Charlie's wedding (`in 42 days` / `tomorrow!` / `WEDDING DAY` / `+Nd married`).
+4. Transient status, centered: `sent` / `fail` / `-> AIRCON` / `no wifi` — auto-clears after 2.5 s back to a WiFi-derived default.
+
+Time comes from NTP (`configTime(8*3600, 0, ...)`) the moment WiFi associates. Until it syncs the time rows show `syncing time...`. **No fuel gauge / battery percent** — the OLED flickering around 3.5 V is the cue to charge; the TP4056's DW01 cuts the cell at 3.0 V before damage. **No WiFi bars** either — Charlie said he already knows when he's online; the bottom row surfacing `no wifi` is enough. USB-C charging via TP4056; works while plugged in.
 
 Sibling project to `autoclicker/` and `aircon/`. Uses **identical Firebase payloads** to those projects' phone remotes — the receiving firmware on each target device can't tell whether a tap came from a phone or from the pocket remote.
 
@@ -27,7 +36,7 @@ No `assets/` folder, no image files. All hardware visuals are inline SVG: ESP32-
   - **U8g2** (oliverkraus, Library Manager) — drives the SSD1306 controller in its 72×40 visible window.
   - **WiFiMulti** — same hardcoded SSID pool as autoclicker/aircon (`CAYNO` + `Charlie's iPhone`) so the remote roams.
   - **HTTPClient** — single PUT per tap; `http.begin(httpsURL)` uses the built-in insecure client (no cert pinning).
-  - **Preferences** — mode (CLICK / AC) persists in NVS so it survives reboots and the cell going flat.
+  - **Preferences** — mode (LIGHTS / AIRCON) persists in NVS so it survives reboots and the cell going flat.
   - No Firebase SDK, no JSON parser, no Servo / IR library. Tiny sketch.
 
 ## Deploy
@@ -52,7 +61,7 @@ GitHub Pages at `/pocket-remote/` (auto-publishes on push to `main`). No phone-r
 - **No MT3608 in the BOM.** The boost converter is deliberately skipped — see the wiring section's warning card. Battery → TP4056 → ESP32 5V pin directly; the onboard LDO handles 3.0–4.2 V with margin until ~3.5 V, at which point the OLED starts to flicker and serves as the "charge me" cue.
 - **No transistor, no flyback diode, no MOSFET** — there's nothing inductive to drive. The only active components are the three boards.
 - **No battery fuel gauge.** The divider was deliberately removed — the OLED itself indicates low battery by flickering around ~3.5 V when the LDO starts to drop out. Two fewer solder joints, smaller stack, and the TP4056's DW01 still cuts at 3.0 V to protect the cell.
-- **Mode is persisted in NVS** under the namespace `remote`, key `mode` (uint8: 0 = CLICK, 1 = AC). Reads on boot, writes on every hold. Survives flat-battery shutdowns because NVS is in onboard flash.
+- **Mode is persisted in NVS** under the namespace `remote`, key `mode` (uint8: 0 = LIGHTS, 1 = AIRCON). Reads on boot, writes on every hold. Survives flat-battery shutdowns because NVS is in onboard flash. The numeric values are preserved from the earlier CLICK/AC naming so old NVS state still loads correctly.
 - **Modem sleep is intentionally left at the Arduino-ESP32 default** (light sleep between beacons → ~20–30 mA average) so battery life sits around 12–24 hours. Don't call `WiFi.setSleep(false)` here like the autoclicker firmware does — it's wall-powered, this remote isn't.
 - **No SoftAP fallback.** Unlike autoclicker/aircon, the pocket remote has no local web UI and no captive-portal recovery path. If WiFi is unreachable the OLED shows "no wifi" and that's it.
 - **Section IDs drive the sticky nav** (`overview`, `hardware`, `wiring`, `demo`, `code`, `checklist`). Renaming any breaks scroll-active state in `syncNav()`.
@@ -63,13 +72,13 @@ GitHub Pages at `/pocket-remote/` (auto-publishes on push to `main`). No phone-r
 - **Why TP4056 with DW01 protection (not raw TP4056):** The DW01 + dual-MOSFET pair on the protection variant gives 3.0 V undervoltage cutoff + 4.2 V overvoltage cutoff + ~3 A overcurrent. Critical for a pocket device you might forget on a charger or run flat.
 - **Why skip the MT3608:** Adds a 5th board, an ~85–90% efficient boost stage, and a calibration step (must trim to 5 V before connecting or the ESP32 fries). The ESP32-C3's onboard LDO already handles the LiPo voltage range; the tradeoff is that the bottom ~⅓ of the cell becomes flaky. For a remote that's charged nightly, that's acceptable.
 - **Why one button (BOOT) does both jobs:** Tap vs hold gives two actions per button. Adding a second tactile would mean wires, a hole in the enclosure, and one more failure point. BOOT is already there with a debounced ESP32-C3 implementation.
-- **Why persist mode in NVS instead of always defaulting to CLICK:** The remote should "remember" the last device you used. If you set it to AC last night and grab it again to turn the aircon off in the morning, it should still be in AC mode without you having to hold-toggle.
+- **Why persist mode in NVS instead of always defaulting to LIGHTS:** The remote should "remember" the last device you used. If you set it to AIRCON last night and grab it again to turn the aircon off in the morning, it should still be in AIRCON mode without you having to hold-toggle.
 - **Why write the same payloads as the phone remotes:** No firmware changes needed on the target devices. Autoclicker still flips its latched state on `"toggle"`; aircon still does one push-hold-return on `{"cmd":"click"}`. Pocket remote = drop-in replacement for the phone tab.
 - **Why no battery percent in Firebase:** Battery state belongs on the device, not in the cloud. Writing it every 5 s would burn the radio (more uplink than the actual remote function uses). The OLED is the only consumer.
 
 ## Related projects
 
-- **`../autoclicker/`** — direct sister. Pocket remote's CLICK mode writes the same `"toggle"` value to `/autoclicker/command` that the autoclicker phone remote's big PRESS button does.
+- **`../autoclicker/`** — direct sister. Pocket remote's LIGHTS mode writes the same `"toggle"` value to `/autoclicker/command` that the autoclicker phone remote's big PRESS button does.
 - **`../aircon/`** — direct sister. Pocket remote's AC mode writes the same `{"cmd":"click"}` JSON to `/aircon/command` that the aircon phone remote's POWER button does.
 - Shares Firebase project `test-database-55379` (asia-southeast1) with all of Charlie's repo apps. RTDB paths are namespaced.
 
