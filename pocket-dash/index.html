@@ -260,7 +260,7 @@
       <g transform="translate(720 140)">
         <rect width="160" height="80" rx="18" fill="url(#gradAC)" opacity="0.92" />
         <text x="80" y="35" text-anchor="middle" fill="#fff" font-size="13" font-weight="700" letter-spacing="2">AIRCON</text>
-        <text x="80" y="54" text-anchor="middle" fill="rgba(255,255,255,0.85)" font-size="10">B4 → {cmd:"power"}</text>
+        <text x="80" y="54" text-anchor="middle" fill="rgba(255,255,255,0.85)" font-size="10">B4 → {cmd:"click"}</text>
         <text x="80" y="69" text-anchor="middle" fill="rgba(255,255,255,0.85)" font-size="10">IR LED toggles TCL split</text>
       </g>
       <!-- Tayo -->
@@ -946,7 +946,7 @@ Screen current = CLOCK;
 }
 
 <span class="tok-kw">bool</span> <span class="tok-fn">fireLights</span>() { <span class="tok-kw">return</span> <span class="tok-fn">putJson</span>(CLICK_URL, <span class="tok-str">"\"toggle\""</span>); }
-<span class="tok-kw">bool</span> <span class="tok-fn">fireAircon</span>() { <span class="tok-kw">return</span> <span class="tok-fn">putJson</span>(AC_URL,    <span class="tok-str">"{\"cmd\":\"power\"}"</span>); }
+<span class="tok-kw">bool</span> <span class="tok-fn">fireAircon</span>() { <span class="tok-kw">return</span> <span class="tok-fn">putJson</span>(AC_URL,    <span class="tok-str">"{\"cmd\":\"click\"}"</span>); }
 
 <span class="tok-com">// Mood ping: POST so RTDB auto-generates a push-id child key.</span>
 <span class="tok-kw">bool</span> <span class="tok-fn">sendMood</span>(<span class="tok-kw">int</span> idx) {

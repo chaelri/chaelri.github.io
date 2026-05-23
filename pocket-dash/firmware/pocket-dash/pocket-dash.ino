@@ -8,7 +8,7 @@
 //                           on MOOD  tap = next face,  hold = send to /tayo/moods
 //                           on CLOCK = no-op
 //   B3 (GPIO3)  LIGHTS   -> always fires "toggle" -> /autoclicker/command
-//   B4 (GPIO4)  AIRCON   -> always fires {"cmd":"power"} -> /aircon/command
+//   B4 (GPIO4)  AIRCON   -> always fires {"cmd":"click"} -> /aircon/command
 //
 // 0.42" SSD1306 OLED is on the same I2C pins as the autoclicker/pocket-remote
 // boards (GPIO5 SDA / GPIO6 SCL). Blue onboard LED is on GPIO8 (active LOW).
@@ -409,7 +409,7 @@ bool postJson(const char* url, const char* body) {
 }
 
 bool fireLights() { return putJson(CLICK_URL, "\"toggle\""); }
-bool fireAircon() { return putJson(AC_URL,    "{\"cmd\":\"power\"}"); }
+bool fireAircon() { return putJson(AC_URL,    "{\"cmd\":\"click\"}"); }
 
 bool sendMood(int idx) {
   // RTDB server timestamp -- replaced by epoch-millis server-side, so the
