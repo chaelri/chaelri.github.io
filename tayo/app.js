@@ -4,7 +4,7 @@
 
 import { initializeApp } from "https://www.gstatic.com/firebasejs/11.0.2/firebase-app.js";
 import { getAuth, GoogleAuthProvider, signInWithPopup, onAuthStateChanged, signOut } from "https://www.gstatic.com/firebasejs/11.0.2/firebase-auth.js";
-import { getDatabase, ref, set, get, update, onValue, onDisconnect, serverTimestamp, remove } from "https://www.gstatic.com/firebasejs/11.0.2/firebase-database.js";
+import { getDatabase, ref, set, get, update, onValue, onDisconnect, serverTimestamp, remove, push } from "https://www.gstatic.com/firebasejs/11.0.2/firebase-database.js";
 import { getStorage, ref as storageRef, uploadBytes, getDownloadURL, deleteObject } from "https://www.gstatic.com/firebasejs/11.0.2/firebase-storage.js";
 
 const firebaseConfig = {
@@ -2326,6 +2326,238 @@ $("journal-hint").addEventListener("click", () => {
 });
 
 $("journal-close").addEventListener("click", () => $("journal").classList.remove("open"));
+
+// ═══════════════════════════════════════
+//  MOODS FEED — pocket-dash + tayo pings
+// ═══════════════════════════════════════
+// Emotion keys mirror the pocket-dash firmware (uppercase ASCII so the device's
+// 5x7 OLED font can render them). Emoji + color are tayo-side display only.
+const MOOD_DEFS = {
+  "HAPPY":    { emoji: "😊", label: "Happy",    color: "#fbbf24" },
+  "IN LOVE":  { emoji: "🥰", label: "In love",  color: "#f472b6" },
+  "SLEEPY":   { emoji: "😴", label: "Sleepy",   color: "#a78bfa" },
+  "NEED HUG": { emoji: "🥺", label: "Need hug", color: "#fda4af" },
+  "SAD":      { emoji: "😢", label: "Sad",      color: "#60a5fa" },
+  "ANGRY":    { emoji: "😠", label: "Angry",    color: "#ef4444" },
+};
+const MOOD_ORDER = ["HAPPY", "IN LOVE", "SLEEPY", "NEED HUG", "SAD", "ANGRY"];
+const MOOD_USERS = ["charlie", "karla"];
+
+const moodsCache = { charlie: {}, karla: {} };
+let activeJournalTab = "convos";   // "convos" | "moods"
+
+MOOD_USERS.forEach((person) => {
+  onValue(ref(db, `tayo/moods/${person}`), (snap) => {
+    moodsCache[person] = snap.val() || {};
+    if (activeJournalTab === "moods" && $("journal").classList.contains("open")) {
+      renderMoodsFeed();
+    }
+  });
+});
+
+function escapeHtml(s) {
+  return String(s).replace(/[&<>"']/g, c => ({ "&":"&amp;", "<":"&lt;", ">":"&gt;", '"':"&quot;", "'":"&#39;" }[c]));
+}
+
+function dayKey(ts) {
+  const d = new Date(ts);
+  return `${d.getFullYear()}-${String(d.getMonth()+1).padStart(2,"0")}-${String(d.getDate()).padStart(2,"0")}`;
+}
+function dayLabel(ts) {
+  const d = new Date(ts);
+  const today = new Date();
+  const yest  = new Date(); yest.setDate(today.getDate() - 1);
+  const sameDay = (a, b) =>
+    a.getFullYear() === b.getFullYear() &&
+    a.getMonth() === b.getMonth() &&
+    a.getDate() === b.getDate();
+  if (sameDay(d, today)) return "Today";
+  if (sameDay(d, yest))  return "Yesterday";
+  return d.toLocaleDateString(undefined, { weekday: "long", month: "short", day: "numeric" });
+}
+
+function renderMoodPinger() {
+  const me = (myIdentity === "karla") ? "Karla" : "Charlie";
+  $("mood-pinger-label").textContent = `How are you, ${me}?`;
+  const grid = $("mood-pinger-grid");
+  grid.innerHTML = MOOD_ORDER.map((key) => {
+    const m = MOOD_DEFS[key];
+    return `<button class="mood-btn" data-mood="${key}">
+      <span class="mood-btn-emoji">${m.emoji}</span>
+      <span class="mood-btn-label">${m.label}</span>
+    </button>`;
+  }).join("");
+
+  grid.querySelectorAll(".mood-btn").forEach((btn) => {
+    btn.addEventListener("click", async () => {
+      const key    = btn.dataset.mood;
+      const status = $("mood-pinger-status");
+      status.className = "mood-pinger-status";
+      status.textContent = "sending...";
+      try {
+        await push(ref(db, `tayo/moods/${myIdentity}`), {
+          emotion: key,
+          ts: serverTimestamp(),
+          source: "tayo-pwa",
+        });
+        btn.classList.add("sent");
+        status.className = "mood-pinger-status ok";
+        status.textContent = `sent ${MOOD_DEFS[key].label.toLowerCase()}`;
+        setTimeout(() => btn.classList.remove("sent"), 1400);
+        setTimeout(() => {
+          status.textContent = "";
+          status.className = "mood-pinger-status";
+        }, 2400);
+      } catch (err) {
+        status.className = "mood-pinger-status fail";
+        status.textContent = "failed — try again";
+      }
+    });
+  });
+}
+
+function renderMoodsFeed() {
+  const list = $("moods-list");
+  if (!list) return;
+
+  // Merge both users into one chronological list (newest first).
+  const merged = [];
+  MOOD_USERS.forEach((person) => {
+    const nodes = moodsCache[person] || {};
+    Object.entries(nodes).forEach(([id, entry]) => {
+      if (!entry || !entry.emotion) return;
+      merged.push({ id, person, ...entry });
+    });
+  });
+  merged.sort((a, b) => (b.ts || 0) - (a.ts || 0));
+
+  if (!merged.length) {
+    list.innerHTML = `<p class="mood-empty">No mood pings yet. Tap a face above to add the first one.</p>`;
+    return;
+  }
+
+  let lastDay = "";
+  list.innerHTML = merged.map((e) => {
+    const def = MOOD_DEFS[e.emotion] || { emoji: "💭", label: e.emotion, color: "#998e8e" };
+    const personLabel = e.person === "charlie" ? "Charlie" : "Karla";
+    const ts = typeof e.ts === "number" ? e.ts : Date.now();
+
+    let dayHeader = "";
+    const dk = dayKey(ts);
+    if (dk !== lastDay) {
+      lastDay = dk;
+      dayHeader = `<div class="mood-day-header">${dayLabel(ts)}</div>`;
+    }
+
+    const canDelete = (e.person === myIdentity);
+    const delBtn = canDelete
+      ? `<button class="mood-card-del" data-person="${e.person}" data-id="${e.id}" title="Delete"><span class="material-symbols-rounded">delete</span></button>`
+      : "";
+
+    const source = e.source ? `<span class="mood-via">· via ${escapeHtml(e.source)}</span>` : "";
+
+    const comments = e.comments || {};
+    const commentList = Object.entries(comments)
+      .map(([cid, c]) => ({ cid, ...c }))
+      .sort((a, b) => (a.ts || 0) - (b.ts || 0));
+    const commentsHTML = commentList.map((c) => {
+      const cWho = c.who === "charlie" ? "Charlie" : "Karla";
+      const cTs  = typeof c.ts === "number" ? c.ts : Date.now();
+      const ownsComment = (c.who === myIdentity);
+      const cDel = ownsComment
+        ? `<button class="mood-comment-del" data-person="${e.person}" data-mood="${e.id}" data-cid="${c.cid}" title="Delete"><span class="material-symbols-rounded">close</span></button>`
+        : "";
+      return `<div class="mood-comment">
+        <span class="mood-comment-name">${cWho}</span>
+        <span class="mood-comment-body">${escapeHtml(c.text || "")}<span class="mood-comment-time">${timeAgo(cTs)}</span></span>
+        ${cDel}
+      </div>`;
+    }).join("");
+
+    const meLabel = myIdentity === "charlie" ? "Charlie" : "Karla";
+
+    return `${dayHeader}
+      <div class="mood-card" style="--mood-color:${def.color}">
+        <div class="mood-card-top">
+          <div class="mood-card-emoji">${def.emoji}</div>
+          <div class="mood-card-meta">
+            <div class="mood-card-label">${def.label}</div>
+            <div class="mood-card-sub">${personLabel} · ${timeAgo(ts)}${source}</div>
+          </div>
+          ${delBtn}
+        </div>
+        <div class="mood-comments">${commentsHTML}</div>
+        <div class="mood-comment-add">
+          <input class="mood-comment-input" data-person="${e.person}" data-mood="${e.id}" type="text" placeholder="Comment as ${meLabel}..." />
+          <button class="mood-comment-send" data-person="${e.person}" data-mood="${e.id}">Send</button>
+        </div>
+      </div>`;
+  }).join("");
+
+  // Delete a mood ping (only on your own).
+  list.querySelectorAll(".mood-card-del").forEach((btn) => {
+    btn.addEventListener("click", async () => {
+      if (!confirm("Delete this mood ping?")) return;
+      await remove(ref(db, `tayo/moods/${btn.dataset.person}/${btn.dataset.id}`));
+    });
+  });
+
+  // Add comment (button click or Enter).
+  list.querySelectorAll(".mood-comment-add").forEach((row) => {
+    const input = row.querySelector(".mood-comment-input");
+    const send  = row.querySelector(".mood-comment-send");
+    const submit = async () => {
+      const text = input.value.trim();
+      if (!text) return;
+      send.disabled = true;
+      try {
+        const commentsRef = ref(db, `tayo/moods/${send.dataset.person}/${send.dataset.mood}/comments`);
+        await push(commentsRef, { who: myIdentity, text, ts: serverTimestamp() });
+        input.value = "";
+      } finally {
+        send.disabled = false;
+      }
+    };
+    send.addEventListener("click", submit);
+    input.addEventListener("keydown", (ev) => { if (ev.key === "Enter") submit(); });
+  });
+
+  // Delete own comments.
+  list.querySelectorAll(".mood-comment-del").forEach((btn) => {
+    btn.addEventListener("click", async () => {
+      const { person, mood, cid } = btn.dataset;
+      await remove(ref(db, `tayo/moods/${person}/${mood}/comments/${cid}`));
+    });
+  });
+}
+
+function setJournalTab(tab) {
+  activeJournalTab = tab;
+  document.querySelectorAll("#journal-tabs .j-tab").forEach((b) => {
+    b.classList.toggle("active", b.dataset.tab === tab);
+  });
+  const convos = $("journal-list");
+  const moods  = $("moods-feed");
+  if (tab === "moods") {
+    convos.classList.add("hidden");
+    moods.classList.remove("hidden");
+    $("journal-subtitle").textContent = "How we're feeling";
+    renderMoodPinger();
+    renderMoodsFeed();
+  } else {
+    convos.classList.remove("hidden");
+    moods.classList.add("hidden");
+    // Subtitle for convos is set by the journal-hint click handler.
+  }
+}
+
+document.querySelectorAll("#journal-tabs .j-tab").forEach((btn) => {
+  btn.addEventListener("click", () => setJournalTab(btn.dataset.tab));
+});
+
+// Snap back to "Conversations" every time the journal panel is reopened so
+// the user starts in a predictable state.
+$("journal-hint").addEventListener("click", () => setJournalTab("convos"));
 
 function timeAgo(ts) {
   const diff = Date.now() - ts;

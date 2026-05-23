@@ -230,7 +230,22 @@
       <button class="close-btn" id="journal-close">&larr; back</button>
       <h2>Our Journal</h2>
       <p class="journal-subtitle" id="journal-subtitle"></p>
+
+      <div class="journal-tabs" id="journal-tabs">
+        <button class="j-tab active" data-tab="convos">Conversations</button>
+        <button class="j-tab" data-tab="moods">Moods</button>
+      </div>
+
       <div id="journal-list"></div>
+
+      <div id="moods-feed" class="hidden">
+        <div class="mood-pinger">
+          <div class="mood-pinger-label" id="mood-pinger-label">How are you?</div>
+          <div class="mood-pinger-grid" id="mood-pinger-grid"></div>
+          <div class="mood-pinger-status" id="mood-pinger-status"></div>
+        </div>
+        <div id="moods-list"></div>
+      </div>
     </div>
 
     <!-- History (reusing journal for now) -->
