@@ -185,8 +185,8 @@
       <div class="text-xs text-slate-500 mt-1">autoclicker · aircon · tayo</div>
     </div>
     <div class="card p-4 text-left">
-      <div class="text-2xl font-semibold text-white">USB-C <span class="text-sm text-slate-500 font-normal">charge</span></div>
-      <div class="text-xs text-slate-500 mt-1">use while plugged in</div>
+      <div class="text-2xl font-semibold text-white">USB-C <span class="text-sm text-slate-500 font-normal">powered</span></div>
+      <div class="text-xs text-slate-500 mt-1">from any mini powerbank</div>
     </div>
   </div>
 </header>
@@ -299,13 +299,15 @@
 <section id="hardware" class="section max-w-6xl mx-auto px-4 sm:px-6 py-16">
   <div class="mb-10">
     <div class="text-xs uppercase tracking-[0.18em] text-fuchsia-300 mb-2">Hardware</div>
-    <h2 class="text-3xl sm:text-4xl font-bold text-white tracking-tight">One dev board, four buttons, a battery</h2>
+    <h2 class="text-3xl sm:text-4xl font-bold text-white tracking-tight">One dev board, four buttons, a powerbank</h2>
     <p class="text-slate-400 mt-3 max-w-2xl">
       ESP32-C3 SuperMini with the 0.42" OLED soldered on — same I²C pinout
       (GPIO5/6) and onboard blue LED (GPIO8) as the autoclicker. Four 6×6×5 mm
       tactile buttons hang off GPIO 0/1/3/4 to GND with the internal pull-ups
-      handling the resistor side. No transistor, no boost converter, no learning
-      step — just five wires plus a USB-C charger.
+      handling the resistor side. Power is a USB-C mini powerbank plugged
+      straight into the ESP32's own USB-C port — no TP4056, no LiPo, no boost
+      converter, no transistor. The diagram below also shows the optional
+      LiPo + TP4056 stack from pocket-remote if you want untethered runtime.
     </p>
   </div>
 
@@ -552,17 +554,17 @@
       </div>
       <div class="card p-4">
         <div class="flex items-center gap-2 mb-1">
-          <span class="w-2 h-2 rounded-full bg-sky-400"></span>
-          <div class="text-white font-semibold">TP4056 + DW01</div>
+          <span class="w-2 h-2 rounded-full bg-emerald-400"></span>
+          <div class="text-white font-semibold">USB-C mini powerbank</div>
         </div>
-        <div class="text-slate-400">USB-C charge in, protected 3.0–4.2 V out. Use-while-charging works.</div>
+        <div class="text-slate-400">Any 5 V powerbank with USB-C out → ESP32-C3's USB-C in. Done.</div>
       </div>
       <div class="card p-4">
         <div class="flex items-center gap-2 mb-1">
           <span class="w-2 h-2 rounded-full bg-slate-400"></span>
-          <div class="text-white font-semibold">LiPo 102050 · 1000 mAh</div>
+          <div class="text-white font-semibold">Optional: LiPo + TP4056</div>
         </div>
-        <div class="text-slate-400">~12–24 h with WiFi modem sleep. Charges to 4.2 V via TP4056.</div>
+        <div class="text-slate-400">If you want a self-contained build later, mirror pocket-remote's stack.</div>
       </div>
     </div>
   </div>
@@ -572,12 +574,13 @@
 <section id="wiring" class="section max-w-6xl mx-auto px-4 sm:px-6 py-16">
   <div class="mb-10">
     <div class="text-xs uppercase tracking-[0.18em] text-fuchsia-300 mb-2">Wiring</div>
-    <h2 class="text-3xl sm:text-4xl font-bold text-white tracking-tight">Power chain + four button legs</h2>
+    <h2 class="text-3xl sm:text-4xl font-bold text-white tracking-tight">Four button legs + a USB-C cable</h2>
     <p class="text-slate-400 mt-3 max-w-2xl">
-      Four power wires from pocket-remote, plus eight short wires to land the
-      tactile buttons. Every button has the same pattern: one leg to its GPIO,
-      the other leg to the shared GND rail (the ESP32's <code class="mono text-fuchsia-300">GD</code> pad fans out).
-      No external resistors — <code class="mono text-fuchsia-300">INPUT_PULLUP</code> in firmware does the job.
+      Eight short wires land the tactile buttons, plus one USB-C cable from a
+      mini powerbank into the ESP32's own port. Every button has the same
+      pattern: one leg to its GPIO, the other leg to the shared GND rail (the
+      ESP32's <code class="mono text-fuchsia-300">GD</code> pad fans out). No external resistors —
+      <code class="mono text-fuchsia-300">INPUT_PULLUP</code> in firmware does the job.
     </p>
   </div>
 
@@ -600,15 +603,14 @@
 
   <div class="mt-6 card p-5 text-sm leading-relaxed">
     <div class="flex items-center gap-2 text-fuchsia-300 font-semibold mb-2">
-      <span class="material-symbols-outlined" style="font-size:18px">priority_high</span>
-      About GPIO 0 and GPIO 9
+      <span class="material-symbols-outlined" style="font-size:18px">bolt</span>
+      Powering it
     </div>
     <p class="text-slate-400">
-      Both GPIO 0 and GPIO 9 are <strong>strapping pins</strong> on the ESP32-C3 — they're sampled at reset to
-      decide whether to enter the bootloader. Using GPIO 0 as a normal button is fine
-      <em>as long as it isn't held down during reset/power-on</em>. The built-in BOOT button (on GPIO 9)
-      stays available for flashing. If you ever press B1 (MODE) while the board is rebooting and it
-      enters bootloader mode, just unplug and plug back in.
+      Plug any USB-C mini powerbank into the ESP32-C3's own USB-C port — 5 V goes
+      through the onboard LDO and the OLED + radio run happily. The button pins
+      GPIO 0, 1, 3 and 4 are all clean general-purpose I/O on the C3 (the strapping
+      pins are GPIO 2, 8 and 9 — we deliberately avoid them or only drive 8 as an output).
     </p>
   </div>
 </section>
@@ -965,8 +967,7 @@ Screen current = CLOCK;
   </details>
 
   <p class="text-sm text-slate-500 mt-6">
-    Full source: <a href="firmware/pocket-dash.ino" class="text-fuchsia-300 hover:text-fuchsia-200 underline">firmware/pocket-dash.ino</a>
-    <span class="text-slate-600">(coming next — landing page first, then the sketch)</span>
+    Full source: <a href="firmware/pocket-dash/pocket-dash.ino" class="text-fuchsia-300 hover:text-fuchsia-200 underline">firmware/pocket-dash/pocket-dash.ino</a>
   </p>
 </section>
 
@@ -1003,19 +1004,15 @@ Screen current = CLOCK;
 <script>
   // ---- Wiring table data --------------------------------------------------
   const wires = [
-    { from: 'LiPo + (red lead)',         to: 'TP4056 B+',         wire: 'red, soldered',     notes: 'Battery positive terminal' },
-    { from: 'LiPo − (black lead)',       to: 'TP4056 B−',         wire: 'black, soldered',   notes: 'Battery negative terminal' },
-    { from: 'TP4056 OUT+',               to: 'ESP32 5V',          wire: 'yellow jumper',     notes: 'Hits the onboard LDO; never connect to V3' },
-    { from: 'TP4056 OUT−',               to: 'ESP32 GD (GND)',    wire: 'black jumper',      notes: 'Common ground rail — fans out to all four buttons' },
-    { from: 'B1 leg A',                  to: 'ESP32 GPIO 0',      wire: 'thin jumper',       notes: 'MODE — cycles screens. Strapping pin; never hold during reset.' },
-    { from: 'B1 leg B',                  to: 'GND rail',          wire: 'thin jumper',       notes: 'Shared ground' },
+    { from: 'B1 leg A',                  to: 'ESP32 GPIO 0',      wire: 'thin jumper',       notes: 'MODE — cycles screens' },
+    { from: 'B1 leg B',                  to: 'ESP32 GD (GND)',    wire: 'thin jumper',       notes: 'Shared ground rail' },
     { from: 'B2 leg A',                  to: 'ESP32 GPIO 1',      wire: 'thin jumper',       notes: 'ACTION — start/stop timer, cycle mood, hold = send' },
     { from: 'B2 leg B',                  to: 'GND rail',          wire: 'thin jumper',       notes: 'Shared ground' },
     { from: 'B3 leg A',                  to: 'ESP32 GPIO 3',      wire: 'thin jumper',       notes: 'LIGHTS — one tap fires autoclicker from any screen' },
     { from: 'B3 leg B',                  to: 'GND rail',          wire: 'thin jumper',       notes: 'Shared ground' },
     { from: 'B4 leg A',                  to: 'ESP32 GPIO 4',      wire: 'thin jumper',       notes: 'AIRCON — one tap toggles aircon power from any screen' },
     { from: 'B4 leg B',                  to: 'GND rail',          wire: 'thin jumper',       notes: 'Shared ground' },
-    { from: 'USB-C cable (any phone charger)', to: 'TP4056 USB-C', wire: 'USB-C ↔ USB-C',     notes: 'Charges + runs the device. NOT the ESP32 port.' },
+    { from: 'USB-C mini powerbank',      to: 'ESP32-C3 USB-C',    wire: 'USB-C ↔ USB-C',     notes: 'Powers the whole device. No charger circuit needed.' },
   ];
 
   const tbody = document.getElementById('wireBody');
@@ -1031,42 +1028,39 @@ Screen current = CLOCK;
   // ---- Checklist data -----------------------------------------------------
   const steps = [
     { section: 'Parts',    text: 'ESP32-C3 SuperMini with built-in 0.42" OLED' },
-    { section: 'Parts',    text: 'TP4056 + DW01 charger/protection module (USB-C)' },
-    { section: 'Parts',    text: 'LiPo 3.7 V 1000 mAh (102050 form factor)' },
     { section: 'Parts',    text: '4× tactile button 6×6×5 mm (through-hole)' },
-    { section: 'Parts',    text: 'Hookup wire — red / black / yellow / thin signal, ~28–30 AWG for buttons' },
+    { section: 'Parts',    text: 'USB-C mini powerbank (any 5 V output)' },
+    { section: 'Parts',    text: 'USB-C ↔ USB-C cable (short)' },
+    { section: 'Parts',    text: 'Hookup wire — ~28–30 AWG signal wire for the buttons' },
 
     { section: 'Firmware', text: 'Install Arduino IDE 2.x + ESP32 board support (Espressif)' },
     { section: 'Firmware', text: 'Install U8g2 library (oliverkraus) via Library Manager' },
-    { section: 'Firmware', text: 'Open firmware/pocket-dash.ino' },
+    { section: 'Firmware', text: 'Open firmware/pocket-dash/pocket-dash.ino' },
     { section: 'Firmware', text: 'Confirm board: "ESP32C3 Dev Module", USB CDC On Boot: Enabled' },
     { section: 'Firmware', text: 'Edit the WiFi SSIDs/passwords if different from autoclicker/aircon' },
-    { section: 'Firmware', text: 'Upload via the ESP32-C3 USB-C (not the TP4056 USB-C)' },
+    { section: 'Firmware', text: 'Upload via the ESP32-C3 USB-C' },
     { section: 'Firmware', text: 'Verify Serial monitor shows "WiFi: ... IP: ..."' },
 
-    { section: 'Wiring',   text: 'Solder LiPo + to TP4056 B+ and LiPo − to B−' },
-    { section: 'Wiring',   text: 'Jumper TP4056 OUT+ to ESP32 5V (yellow)' },
-    { section: 'Wiring',   text: 'Jumper TP4056 OUT− to ESP32 GD (black) — this is the shared GND rail' },
-    { section: 'Wiring',   text: 'B1: GPIO 0 ↔ button ↔ GND rail' },
+    { section: 'Wiring',   text: 'B1: GPIO 0 ↔ button ↔ ESP32 GD (GND)' },
     { section: 'Wiring',   text: 'B2: GPIO 1 ↔ button ↔ GND rail' },
     { section: 'Wiring',   text: 'B3: GPIO 3 ↔ button ↔ GND rail' },
     { section: 'Wiring',   text: 'B4: GPIO 4 ↔ button ↔ GND rail' },
     { section: 'Wiring',   text: 'Insulate all exposed pads with kapton or heat-shrink' },
 
-    { section: 'Test',     text: 'Plug a USB-C charger into the TP4056 — CHRG LED on' },
+    { section: 'Test',     text: 'Plug the powerbank into the ESP32-C3 USB-C — OLED lights up' },
     { section: 'Test',     text: 'OLED boots into the Clock screen by default' },
     { section: 'Test',     text: 'Tap B1 → screen flips to Timer (5:00), tap again → Mood face' },
     { section: 'Test',     text: 'On Timer screen: tap B2 → countdown starts; tap again → pauses' },
     { section: 'Test',     text: 'Hold B2 (≥800 ms) on Timer → resets to 5:00' },
     { section: 'Test',     text: 'Let the timer hit 0:00 — OLED inverts repeatedly + blue LED flashes; any button dismisses' },
-    { section: 'Test',     text: 'On Mood screen: tap B2 → next face; hold B2 → "sent 💛" toast' },
+    { section: 'Test',     text: 'On Mood screen: tap B2 → next face; hold B2 → "sent mood" toast' },
     { section: 'Test',     text: 'Tap B3 from any screen → autoclicker servo fires' },
     { section: 'Test',     text: 'Tap B4 from any screen → aircon toggles power' },
-    { section: 'Test',     text: 'Reboot — last-used screen restores from NVS' },
+    { section: 'Test',     text: 'Reboot — last-used screen + mood face restore from NVS' },
 
-    { section: 'Enclose',  text: 'Stack ESP32 + TP4056 + LiPo into a 3D-printed pocket case' },
+    { section: 'Enclose',  text: 'Tuck the ESP32 + 4 buttons into a 3D-printed pocket case' },
     { section: 'Enclose',  text: 'Cut an OLED window + four button holes (labels B1–B4)' },
-    { section: 'Enclose',  text: 'Expose the TP4056 USB-C on the side for charging' },
+    { section: 'Enclose',  text: 'Route the USB-C cable out one edge so the powerbank can dangle' },
   ];
 
   const listEl = document.getElementById('checklist');
