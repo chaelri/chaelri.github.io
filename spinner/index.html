@@ -1,0 +1,344 @@
+<!doctype html>
+<html lang="en" class="dark">
+<head>
+  <meta charset="utf-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1, maximum-scale=1, user-scalable=no" />
+  <meta name="theme-color" content="#07080b" />
+  <meta name="apple-mobile-web-app-capable" content="yes" />
+  <meta name="apple-mobile-web-app-status-bar-style" content="black-translucent" />
+  <title>Spinner Remote</title>
+
+  <link rel="preconnect" href="https://fonts.googleapis.com" />
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
+  <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700;800&family=JetBrains+Mono:wght@400;500&display=swap" rel="stylesheet" />
+  <link href="https://fonts.googleapis.com/css2?family=Material+Symbols+Outlined:opsz,wght,FILL,GRAD@24,400,0,0" rel="stylesheet" />
+  <script src="https://cdn.jsdelivr.net/npm/@tailwindcss/browser@4"></script>
+
+  <style>
+    :root { color-scheme: dark; }
+    html, body { background: #07080b; }
+    body {
+      font-family: 'Inter', system-ui, -apple-system, sans-serif;
+      background-image:
+        radial-gradient(ellipse 70% 50% at 50% 60%, rgba(20,184,166,0.22), transparent 60%),
+        radial-gradient(ellipse 60% 40% at 80% 100%, rgba(16,185,129,0.15), transparent 60%);
+      background-attachment: fixed;
+      overscroll-behavior: none;
+    }
+    .mono { font-family: 'JetBrains Mono', ui-monospace, monospace; }
+    .material-symbols-outlined {
+      font-variation-settings: 'FILL' 0, 'wght' 400, 'GRAD' 0, 'opsz' 24;
+      vertical-align: middle;
+    }
+
+    /* Big toggle button */
+    .toggle-btn { transition: transform 90ms cubic-bezier(0.22,1,0.36,1), background 280ms ease, box-shadow 280ms ease; will-change: transform; }
+    .toggle-btn:active { transform: scale(0.94); transition-duration: 60ms; }
+
+    /* ON state - bright teal/emerald engage glow */
+    .toggle-btn.on {
+      background-image: linear-gradient(to bottom right, #14b8a6, #059669) !important;
+      box-shadow: 0 20px 60px -15px rgba(20,184,166,0.75), inset 0 1px 0 rgba(255,255,255,0.15);
+    }
+
+    /* Ambient glow halo behind button */
+    @keyframes pulseGlow {
+      0%, 100% { opacity: 0.55; transform: scale(1); }
+      50%      { opacity: 0.78; transform: scale(1.06); }
+    }
+    .ambient-glow { animation: pulseGlow 3.6s ease-in-out infinite; transition: background 280ms ease; }
+    .ambient-glow.on { background-image: linear-gradient(to bottom right, rgba(20,184,166,0.45), rgba(16,185,129,0.35)) !important; }
+
+    /* Spinning icon while ON */
+    @keyframes spinCW  { from { transform: rotate(0); }      to { transform: rotate(360deg); } }
+    @keyframes spinCCW { from { transform: rotate(0); }      to { transform: rotate(-360deg); } }
+    .spinning-cw  { animation: spinCW  var(--spinDur, 1.2s) linear infinite; }
+    .spinning-ccw { animation: spinCCW var(--spinDur, 1.2s) linear infinite; }
+
+    /* Slider styling - tailwind doesn't reach native range internals */
+    input[type=range] {
+      -webkit-appearance: none; appearance: none;
+      background: transparent; width: 100%;
+    }
+    input[type=range]::-webkit-slider-runnable-track {
+      height: 8px; border-radius: 9999px;
+      background: linear-gradient(to right, #14b8a6 var(--pct,50%), rgba(255,255,255,0.08) var(--pct,50%));
+    }
+    input[type=range]::-moz-range-track {
+      height: 8px; border-radius: 9999px;
+      background: linear-gradient(to right, #14b8a6 var(--pct,50%), rgba(255,255,255,0.08) var(--pct,50%));
+    }
+    input[type=range]::-webkit-slider-thumb {
+      -webkit-appearance: none; appearance: none;
+      height: 20px; width: 20px; border-radius: 9999px; margin-top: -6px;
+      background: #fff; box-shadow: 0 4px 12px rgba(20,184,166,0.6), 0 0 0 4px rgba(20,184,166,0.18);
+      cursor: pointer;
+    }
+    input[type=range]::-moz-range-thumb {
+      height: 20px; width: 20px; border-radius: 9999px; border: 0;
+      background: #fff; box-shadow: 0 4px 12px rgba(20,184,166,0.6), 0 0 0 4px rgba(20,184,166,0.18);
+      cursor: pointer;
+    }
+
+    /* Direction segment pills */
+    .seg-btn { transition: background 180ms ease, color 180ms ease, transform 80ms ease; }
+    .seg-btn:active { transform: scale(0.97); }
+    .seg-btn.active {
+      background: linear-gradient(to bottom right, rgba(20,184,166,0.35), rgba(16,185,129,0.35));
+      color: #fff;
+      border-color: rgba(20,184,166,0.55);
+    }
+  </style>
+</head>
+<body class="min-h-screen text-slate-200 antialiased">
+  <div class="max-w-md mx-auto px-5 pt-7 pb-7 min-h-screen flex flex-col">
+
+    <!-- header -->
+    <header class="flex items-center gap-2.5">
+      <div class="w-9 h-9 rounded-xl bg-gradient-to-br from-teal-500 to-emerald-600 grid place-items-center shadow-lg shadow-teal-500/30">
+        <span class="material-symbols-outlined text-white" style="font-size:20px">autorenew</span>
+      </div>
+      <div>
+        <div class="font-semibold text-white leading-tight">Spinner Remote</div>
+        <div class="text-[11px] text-slate-500 mono">test-database-55379 / spinner</div>
+      </div>
+      <span class="ml-auto inline-flex items-center gap-1.5 text-[10px] uppercase tracking-wider text-slate-500">
+        <span id="connDot" class="w-1.5 h-1.5 rounded-full bg-slate-600"></span>
+        <span id="connText">connecting</span>
+      </span>
+    </header>
+
+    <!-- big circle toggle -->
+    <div class="flex-1 flex flex-col items-center justify-center py-6 gap-7">
+      <div class="relative">
+        <div id="ambientGlow" class="ambient-glow absolute -inset-10 rounded-full bg-gradient-to-br from-teal-500/30 to-emerald-600/30 blur-3xl pointer-events-none"></div>
+
+        <button id="toggleBtn"
+          aria-label="Toggle spinner on/off"
+          class="toggle-btn relative w-60 h-60 rounded-full grid place-items-center
+                 bg-gradient-to-br from-slate-700 to-slate-800
+                 shadow-[0_20px_60px_-15px_rgba(15,23,42,0.7),inset_0_1px_0_rgba(255,255,255,0.15)]">
+          <div class="absolute inset-3 rounded-full border border-white/15 pointer-events-none"></div>
+          <div class="text-center select-none">
+            <span id="btnIcon" class="material-symbols-outlined text-white block" style="font-size:64px">power_settings_new</span>
+            <div id="btnLabel" class="text-white font-extrabold tracking-[0.22em] text-xl mt-1">OFF</div>
+            <div id="btnSub" class="text-white/60 text-[11px] mt-1 mono">tap to start</div>
+          </div>
+        </button>
+      </div>
+
+      <!-- direction segmented control -->
+      <div class="w-full">
+        <div class="text-[10px] uppercase tracking-[0.18em] text-slate-500 mb-2 mono text-center">direction</div>
+        <div class="grid grid-cols-2 gap-2">
+          <button id="dirCW" data-dir="cw" class="seg-btn rounded-2xl py-3 bg-white/[0.04] border border-white/[0.08] text-slate-300 flex items-center justify-center gap-2">
+            <span class="material-symbols-outlined" style="font-size:20px">rotate_right</span>
+            <span class="text-sm font-semibold tracking-wider">CW</span>
+          </button>
+          <button id="dirCCW" data-dir="ccw" class="seg-btn rounded-2xl py-3 bg-white/[0.04] border border-white/[0.08] text-slate-300 flex items-center justify-center gap-2">
+            <span class="material-symbols-outlined" style="font-size:20px">rotate_left</span>
+            <span class="text-sm font-semibold tracking-wider">CCW</span>
+          </button>
+        </div>
+      </div>
+
+      <!-- speed slider -->
+      <div class="w-full">
+        <div class="flex items-baseline justify-between mb-2">
+          <div class="text-[10px] uppercase tracking-[0.18em] text-slate-500 mono">speed</div>
+          <div id="speedReadout" class="mono text-2xl font-bold text-white">50<span class="text-slate-500 text-sm">%</span></div>
+        </div>
+        <input id="speedSlider" type="range" min="0" max="100" step="1" value="50" />
+        <div class="flex justify-between text-[10px] text-slate-600 mono mt-1">
+          <span>slow</span>
+          <span>fast</span>
+        </div>
+      </div>
+    </div>
+
+    <!-- status footer -->
+    <div class="rounded-2xl bg-white/[0.03] border border-white/[0.05] overflow-hidden">
+      <div class="px-4 py-3 flex items-center gap-3 text-xs">
+        <span id="statusDot" class="w-2 h-2 rounded-full bg-slate-600"></span>
+        <span id="statusText" class="mono text-slate-400 flex-1 truncate">tap to spin</span>
+        <span class="mono text-slate-600 text-[10px]" id="lastTime"></span>
+      </div>
+    </div>
+
+    <p class="text-[10px] text-slate-600 mt-4 text-center">
+      Charlie's DIY 360 spinner / ESP32-C3 + continuous-rotation servo
+    </p>
+  </div>
+
+  <script type="module">
+    import { initializeApp } from "https://www.gstatic.com/firebasejs/10.7.0/firebase-app.js";
+    import { getDatabase, ref, set, update, onValue } from "https://www.gstatic.com/firebasejs/10.7.0/firebase-database.js";
+    import { getAuth, signInAnonymously, onAuthStateChanged } from "https://www.gstatic.com/firebasejs/10.7.0/firebase-auth.js";
+
+    const app = initializeApp({
+      apiKey: "AIzaSyB8ahT56WbEUaGAymsRNNA-DrfZnUnWIwk",
+      authDomain: "test-database-55379.firebaseapp.com",
+      databaseURL: "https://test-database-55379-default-rtdb.asia-southeast1.firebasedatabase.app",
+      projectId: "test-database-55379"
+    });
+    const db   = getDatabase(app);
+    const auth = getAuth(app);
+
+    // Gate every write until anonymous auth has settled - same pattern as
+    // autoclicker. Without this, the first save after a cold page load can
+    // silently fail because anonymous sign-in is still in flight.
+    const authReady = new Promise(resolve => {
+      const unsub = onAuthStateChanged(auth, user => { if (user) { unsub(); resolve(user); } });
+    });
+    signInAnonymously(auth).catch(e => console.warn("anon signin failed:", e));
+
+    const $ = id => document.getElementById(id);
+    const connDot = $("connDot"), connText = $("connText");
+    const statusDot = $("statusDot"), statusText = $("statusText"), lastTime = $("lastTime");
+    const toggleBtn = $("toggleBtn"), ambientGlow = $("ambientGlow");
+    const btnIcon = $("btnIcon"), btnLabel = $("btnLabel"), btnSub = $("btnSub");
+    const dirCWBtn = $("dirCW"), dirCCWBtn = $("dirCCW");
+    const speedSlider = $("speedSlider"), speedReadout = $("speedReadout");
+
+    // ---- Local mirror of /spinner/state. We render off this object and Firebase
+    // is authoritative - any change there overwrites our local copy. We push
+    // changes back via update() so we only ever modify the field the user touched.
+    let state = { on: false, direction: "cw", speed: 50 };
+    let suppressNextRender = false;  // skip render when we just wrote it ourselves
+
+    // ---- Connection indicator ------------------------------------------------
+    onValue(ref(db, ".info/connected"), snap => {
+      const ok = snap.val() === true;
+      connDot.className = "w-1.5 h-1.5 rounded-full " + (ok ? "bg-emerald-400" : "bg-slate-600");
+      connText.textContent = ok ? "online" : "offline";
+    });
+
+    // ---- Render full UI off local state -------------------------------------
+    function render() {
+      // Big button
+      toggleBtn.classList.toggle("on", state.on);
+      ambientGlow.classList.toggle("on", state.on);
+      btnLabel.textContent = state.on ? "ON" : "OFF";
+      btnSub.textContent   = state.on ? "tap to stop" : "tap to start";
+      btnIcon.textContent  = state.on ? "autorenew" : "power_settings_new";
+      // Spin the icon at a speed inversely proportional to slider %, but only
+      // when ON. Clamp to a sane range so 1% doesn't take a full minute.
+      btnIcon.classList.remove("spinning-cw", "spinning-ccw");
+      if (state.on && state.speed > 0) {
+        const dur = (2.4 - (state.speed / 100) * 2.1).toFixed(2);  // 0.3 .. 2.4 s
+        btnIcon.style.setProperty("--spinDur", dur + "s");
+        btnIcon.classList.add(state.direction === "cw" ? "spinning-cw" : "spinning-ccw");
+      }
+
+      // Direction pills
+      dirCWBtn.classList.toggle("active",  state.direction === "cw");
+      dirCCWBtn.classList.toggle("active", state.direction === "ccw");
+
+      // Speed slider + readout
+      speedSlider.value = state.speed;
+      speedSlider.style.setProperty("--pct", state.speed + "%");
+      speedReadout.innerHTML = state.speed + '<span class="text-slate-500 text-sm">%</span>';
+    }
+    render();
+
+    // ---- Status footer helper -----------------------------------------------
+    const statusColors = { send:"bg-amber-400", ok:"bg-emerald-400", err:"bg-rose-500", idle:"bg-slate-600" };
+    function setStatus(kind, msg) {
+      statusDot.className = "w-2 h-2 rounded-full " + (statusColors[kind] || "bg-slate-600");
+      statusText.textContent = msg;
+    }
+
+    // ---- Subscribe to /spinner/state ----------------------------------------
+    // Firebase wins any conflict. We always rebuild local state from the
+    // snapshot so partial writes (e.g. only "speed") still leave the other
+    // fields intact thanks to update() semantics.
+    authReady.then(() => {
+      onValue(ref(db, "spinner/state"), snap => {
+        const v = snap.val();
+        if (!v) {
+          // First-ever load - push our defaults so the ESP32 has something to read.
+          set(ref(db, "spinner/state"), state).catch(e => console.warn("seed failed:", e));
+          return;
+        }
+        state.on        = v.on        === true;
+        state.direction = v.direction === "ccw" ? "ccw" : "cw";
+        state.speed     = Math.max(0, Math.min(100, Number(v.speed) || 0));
+        if (suppressNextRender) { suppressNextRender = false; return; }
+        render();
+        setStatus("ok", state.on ? `spinning ${state.direction.toUpperCase()} ${state.speed}%` : "stopped");
+      });
+    });
+
+    // ---- Push a single-field update -----------------------------------------
+    // We use update() so concurrent edits in different fields don't clobber
+    // each other (rare here since it's single-user, but the pattern is right).
+    async function pushPatch(patch, statusMsg) {
+      try {
+        await authReady;
+        setStatus("send", statusMsg || "sending...");
+        await update(ref(db, "spinner/state"), patch);
+        lastTime.textContent = new Date().toLocaleTimeString();
+        setStatus("ok", "sent");
+      } catch (err) {
+        console.error(err);
+        setStatus("err", "failed: " + (err.message || err.code || err));
+      }
+    }
+
+    // ---- UI handlers --------------------------------------------------------
+    toggleBtn.addEventListener("click", () => {
+      if (navigator.vibrate) navigator.vibrate(15);
+      const next = !state.on;
+      state.on = next;     // optimistic flip - Firebase confirms or corrects
+      render();
+      pushPatch({ on: next }, next ? "starting..." : "stopping...");
+    });
+
+    function pickDir(dir) {
+      if (state.direction === dir) return;
+      if (navigator.vibrate) navigator.vibrate(8);
+      state.direction = dir;
+      render();
+      pushPatch({ direction: dir }, dir === "cw" ? "CW..." : "CCW...");
+    }
+    dirCWBtn.addEventListener("click",  () => pickDir("cw"));
+    dirCCWBtn.addEventListener("click", () => pickDir("ccw"));
+
+    // Slider: throttle writes so the user can drag freely without flooding RTDB.
+    // We render locally on every input event (responsive feel), but only flush
+    // to Firebase every ~150 ms and once more on release.
+    let pendingSpeed = null;
+    let speedTimer = null;
+    const SPEED_THROTTLE_MS = 150;
+    function scheduleSpeedWrite() {
+      if (speedTimer) return;
+      speedTimer = setTimeout(() => {
+        speedTimer = null;
+        if (pendingSpeed == null) return;
+        const v = pendingSpeed;
+        pendingSpeed = null;
+        pushPatch({ speed: v }, "speed " + v + "%");
+      }, SPEED_THROTTLE_MS);
+    }
+    speedSlider.addEventListener("input", () => {
+      const v = Math.max(0, Math.min(100, Number(speedSlider.value)));
+      state.speed = v;
+      speedReadout.innerHTML = v + '<span class="text-slate-500 text-sm">%</span>';
+      speedSlider.style.setProperty("--pct", v + "%");
+      // Keep the icon's spin speed in sync while dragging
+      if (state.on && v > 0) {
+        const dur = (2.4 - (v / 100) * 2.1).toFixed(2);
+        btnIcon.style.setProperty("--spinDur", dur + "s");
+      }
+      pendingSpeed = v;
+      scheduleSpeedWrite();
+    });
+    speedSlider.addEventListener("change", () => {
+      // Final commit on release - cancel the throttle timer and write now.
+      if (speedTimer) { clearTimeout(speedTimer); speedTimer = null; }
+      const v = Math.max(0, Math.min(100, Number(speedSlider.value)));
+      pushPatch({ speed: v }, "speed " + v + "%");
+    });
+  </script>
+</body>
+</html>
