@@ -1,0 +1,1400 @@
+<!doctype html>
+<html lang="en" class="dark">
+<head>
+  <meta charset="utf-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1" />
+  <title>Pocket Dash — Build Reference</title>
+
+  <link rel="preconnect" href="https://fonts.googleapis.com" />
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
+  <link href="https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700;800&family=JetBrains+Mono:wght@400;500&display=swap" rel="stylesheet" />
+  <link href="https://fonts.googleapis.com/css2?family=Material+Symbols+Outlined:opsz,wght,FILL,GRAD@24,400,0,0" rel="stylesheet" />
+
+  <script src="https://cdn.jsdelivr.net/npm/@tailwindcss/browser@4"></script>
+
+  <style>
+    :root { color-scheme: dark; }
+    html, body { background: #07080b; }
+    body {
+      font-family: 'Inter', system-ui, -apple-system, sans-serif;
+      background-image:
+        radial-gradient(ellipse 60% 50% at 20% -10%, rgba(217,70,239,0.18), transparent 60%),
+        radial-gradient(ellipse 50% 40% at 90% 10%, rgba(139,92,246,0.14), transparent 60%);
+      background-attachment: fixed;
+    }
+    code, pre, .mono { font-family: 'JetBrains Mono', ui-monospace, monospace; }
+    .material-symbols-outlined { font-variation-settings: 'FILL' 0, 'wght' 400, 'GRAD' 0, 'opsz' 24; vertical-align: middle; }
+
+    .card {
+      background: linear-gradient(180deg, rgba(255,255,255,0.025), rgba(255,255,255,0.012));
+      border: 1px solid rgba(255,255,255,0.06);
+      border-radius: 16px;
+    }
+
+    .glow-fuchsia { box-shadow: 0 0 24px -4px rgba(217,70,239,0.5); }
+    .glow-violet  { box-shadow: 0 0 24px -4px rgba(139,92,246,0.5); }
+    .text-glow    { text-shadow: 0 0 18px rgba(232,121,249,0.6); }
+
+    @keyframes flowDash { to { stroke-dashoffset: -36; } }
+    .flow { stroke-dasharray: 6 12; animation: flowDash 1.4s linear infinite; }
+
+    .wire { fill: none; stroke-linecap: round; stroke-linejoin: round; }
+
+    pre.code {
+      background: #0a0c12;
+      border: 1px solid rgba(255,255,255,0.06);
+      border-radius: 12px;
+      padding: 18px 20px;
+      overflow-x: auto;
+      font-size: 12.5px;
+      line-height: 1.65;
+      color: #c9d1d9;
+      tab-size: 2;
+    }
+    .tok-kw { color: #ff7b72; }
+    .tok-str { color: #a5d6ff; }
+    .tok-num { color: #79c0ff; }
+    .tok-com { color: #6e7681; font-style: italic; }
+    .tok-fn  { color: #d2a8ff; }
+    .tok-typ { color: #ffa657; }
+
+    .section { scroll-margin-top: 80px; }
+
+    .nav-link.active {
+      color: #fff;
+      background: rgba(255,255,255,0.06);
+    }
+
+    .check-item .check-box {
+      width: 20px; height: 20px; border-radius: 6px;
+      border: 1.5px solid rgba(255,255,255,0.18);
+      flex-shrink: 0; display: grid; place-items: center;
+      transition: all 120ms ease;
+    }
+    .check-item.done .check-box {
+      background: linear-gradient(135deg, #d946ef, #8b5cf6);
+      border-color: transparent;
+    }
+    .check-item.done .check-box .material-symbols-outlined { opacity: 1; transform: scale(1); }
+    .check-item .check-box .material-symbols-outlined { opacity: 0; transform: scale(0.5); transition: all 120ms ease; font-size: 14px; color: white; }
+    .check-item.done .check-label { color: rgba(255,255,255,0.4); text-decoration: line-through; }
+
+    .grid-bg {
+      background-image:
+        linear-gradient(rgba(255,255,255,0.025) 1px, transparent 1px),
+        linear-gradient(90deg, rgba(255,255,255,0.025) 1px, transparent 1px);
+      background-size: 32px 32px;
+    }
+
+    /* OLED preview animations */
+    @keyframes oledBlink { 0%,100% { opacity: 1 } 50% { opacity: 0.55 } }
+    .oled-press .oled-bottom { animation: oledBlink 250ms ease-in-out 2; }
+
+    /* Inverted flash for timer-done */
+    @keyframes oledInvert {
+      0%, 100% { fill: #000; }
+      50%      { fill: #fde68a; }
+    }
+    .oled-flash .oled-canvas { animation: oledInvert 280ms ease-in-out infinite; }
+    .oled-flash .oled-text { fill: #000 !important; }
+
+    /* Blue LED pulse */
+    @keyframes ledPulse {
+      0%, 100% { fill: #1e3a8a; filter: drop-shadow(0 0 0 transparent); }
+      50%      { fill: #60a5fa; filter: drop-shadow(0 0 6px #60a5fa); }
+    }
+    .led-pulse { animation: ledPulse 280ms ease-in-out infinite; }
+
+    /* Mood face pop-in */
+    @keyframes facePop {
+      0%   { transform: scale(0.8); opacity: 0; }
+      100% { transform: scale(1);   opacity: 1; }
+    }
+    .face-pop { animation: facePop 180ms ease-out; transform-origin: center; transform-box: fill-box; }
+
+    details > summary { list-style: none; cursor: pointer; }
+    details > summary::-webkit-details-marker { display: none; }
+    details[open] .chev { transform: rotate(180deg); }
+    .chev { transition: transform 200ms ease; }
+
+    .no-scrollbar::-webkit-scrollbar { display: none; }
+    .no-scrollbar { scrollbar-width: none; }
+  </style>
+</head>
+<body class="text-slate-300 antialiased">
+
+<!-- ============== NAV ============== -->
+<nav class="sticky top-0 z-40 backdrop-blur-xl bg-[#07080b]/75 border-b border-white/[0.06]">
+  <div class="max-w-6xl mx-auto px-4 sm:px-6 h-14 flex items-center justify-between">
+    <a href="#top" class="flex items-center gap-2.5 group">
+      <div class="w-8 h-8 rounded-lg bg-gradient-to-br from-fuchsia-500 to-violet-500 grid place-items-center glow-fuchsia">
+        <span class="material-symbols-outlined text-white" style="font-size:18px">dashboard</span>
+      </div>
+      <span class="font-semibold text-white tracking-tight">Pocket Dash</span>
+      <span class="text-xs text-slate-500 hidden sm:inline">· build reference</span>
+    </a>
+
+    <div class="hidden md:flex items-center gap-1 text-sm">
+      <a href="#overview"  data-nav class="nav-link px-3 py-1.5 rounded-md text-slate-400 hover:text-white transition-colors">Overview</a>
+      <a href="#hardware"  data-nav class="nav-link px-3 py-1.5 rounded-md text-slate-400 hover:text-white transition-colors">Hardware</a>
+      <a href="#wiring"    data-nav class="nav-link px-3 py-1.5 rounded-md text-slate-400 hover:text-white transition-colors">Wiring</a>
+      <a href="#demo"      data-nav class="nav-link px-3 py-1.5 rounded-md text-slate-400 hover:text-white transition-colors">Demo</a>
+      <a href="#code"      data-nav class="nav-link px-3 py-1.5 rounded-md text-slate-400 hover:text-white transition-colors">Code</a>
+      <a href="#checklist" data-nav class="nav-link px-3 py-1.5 rounded-md text-slate-400 hover:text-white transition-colors">Checklist</a>
+    </div>
+
+    <button id="navOpen" aria-label="menu" class="md:hidden text-slate-300 hover:text-white p-2">
+      <span class="material-symbols-outlined">menu</span>
+    </button>
+  </div>
+  <div id="navMobile" class="hidden md:hidden px-4 pb-3 space-y-1 text-sm border-t border-white/5">
+    <a href="#overview"  class="block px-3 py-2 rounded-md text-slate-300 hover:bg-white/5">Overview</a>
+    <a href="#hardware"  class="block px-3 py-2 rounded-md text-slate-300 hover:bg-white/5">Hardware</a>
+    <a href="#wiring"    class="block px-3 py-2 rounded-md text-slate-300 hover:bg-white/5">Wiring</a>
+    <a href="#demo"      class="block px-3 py-2 rounded-md text-slate-300 hover:bg-white/5">Demo</a>
+    <a href="#code"      class="block px-3 py-2 rounded-md text-slate-300 hover:bg-white/5">Code</a>
+    <a href="#checklist" class="block px-3 py-2 rounded-md text-slate-300 hover:bg-white/5">Checklist</a>
+  </div>
+</nav>
+
+<!-- ============== HERO ============== -->
+<header id="top" class="max-w-6xl mx-auto px-4 sm:px-6 pt-16 pb-12 text-center">
+  <div class="inline-flex items-center gap-2 px-3 py-1 rounded-full bg-white/[0.04] border border-white/[0.06] text-xs text-slate-400 mb-6">
+    <span class="w-1.5 h-1.5 bg-fuchsia-400 rounded-full"></span>
+    Battery-powered · 4 buttons · 3 screens · sibling toggles
+  </div>
+  <h1 class="text-4xl sm:text-6xl font-bold tracking-tight text-white mb-4">
+    <span class="bg-gradient-to-r from-fuchsia-300 via-rose-300 to-violet-300 bg-clip-text text-transparent">Pocket</span> Dash
+  </h1>
+  <p class="text-base sm:text-lg text-slate-400 max-w-2xl mx-auto mb-10">
+    A keychain-sized WiFi handheld with a built-in OLED and four tactile buttons.
+    Clock, 5-minute timer, mood ping to <span class="text-fuchsia-300">tayo</span>, plus instant
+    one-tap toggles for lights and aircon — from any screen.
+  </p>
+  <div class="grid grid-cols-2 sm:grid-cols-4 gap-3 max-w-3xl mx-auto">
+    <div class="card p-4 text-left">
+      <div class="text-2xl font-semibold text-white">3 <span class="text-sm text-slate-500 font-normal">screens</span></div>
+      <div class="text-xs text-slate-500 mt-1">Clock · Timer · Mood</div>
+    </div>
+    <div class="card p-4 text-left">
+      <div class="text-2xl font-semibold text-white">4 <span class="text-sm text-slate-500 font-normal">buttons</span></div>
+      <div class="text-xs text-slate-500 mt-1">MODE · ACTION · LIGHTS · AIRCON</div>
+    </div>
+    <div class="card p-4 text-left">
+      <div class="text-2xl font-semibold text-white">3 <span class="text-sm text-slate-500 font-normal">targets</span></div>
+      <div class="text-xs text-slate-500 mt-1">autoclicker · aircon · tayo</div>
+    </div>
+    <div class="card p-4 text-left">
+      <div class="text-2xl font-semibold text-white">USB-C <span class="text-sm text-slate-500 font-normal">charge</span></div>
+      <div class="text-xs text-slate-500 mt-1">use while plugged in</div>
+    </div>
+  </div>
+</header>
+
+<!-- ============== OVERVIEW ============== -->
+<section id="overview" class="section max-w-6xl mx-auto px-4 sm:px-6 py-16">
+  <div class="mb-10">
+    <div class="text-xs uppercase tracking-[0.18em] text-fuchsia-300 mb-2">Overview</div>
+    <h2 class="text-3xl sm:text-4xl font-bold text-white tracking-tight">Where each tap goes</h2>
+    <p class="text-slate-400 mt-3 max-w-2xl">
+      Three targets, three Firebase paths. Sibling toggles (lights, aircon) write the
+      same payload the phone remotes use, so the existing devices can't tell the
+      difference. Mood pings drop into <code class="mono text-fuchsia-300">/tayo/moods/charlie</code>
+      and surface in the Tayo PWA feed.
+    </p>
+  </div>
+
+  <div class="card p-6 sm:p-10 grid-bg">
+    <svg viewBox="0 0 1100 340" class="w-full">
+      <defs>
+        <marker id="arrowFuchsia" viewBox="0 0 10 10" refX="6" refY="5" markerWidth="6" markerHeight="6" orient="auto-start-reverse">
+          <path d="M0,0 L10,5 L0,10 z" fill="#e879f9" />
+        </marker>
+        <linearGradient id="gradDash" x1="0" y1="0" x2="1" y2="1">
+          <stop offset="0%" stop-color="#d946ef" />
+          <stop offset="100%" stop-color="#a21caf" />
+        </linearGradient>
+        <linearGradient id="gradFB" x1="0" y1="0" x2="1" y2="1">
+          <stop offset="0%" stop-color="#8b5cf6" />
+          <stop offset="100%" stop-color="#6d28d9" />
+        </linearGradient>
+        <linearGradient id="gradClick" x1="0" y1="0" x2="1" y2="1">
+          <stop offset="0%" stop-color="#10b981" />
+          <stop offset="100%" stop-color="#059669" />
+        </linearGradient>
+        <linearGradient id="gradAC" x1="0" y1="0" x2="1" y2="1">
+          <stop offset="0%" stop-color="#0ea5e9" />
+          <stop offset="100%" stop-color="#0369a1" />
+        </linearGradient>
+        <linearGradient id="gradTayo" x1="0" y1="0" x2="1" y2="1">
+          <stop offset="0%" stop-color="#f472b6" />
+          <stop offset="100%" stop-color="#be185d" />
+        </linearGradient>
+      </defs>
+
+      <!-- Pocket-dash node -->
+      <g transform="translate(40 110)">
+        <rect width="170" height="120" rx="18" fill="url(#gradDash)" opacity="0.92" />
+        <text x="85" y="55" text-anchor="middle" fill="#fff" font-size="14" font-weight="700" letter-spacing="2">POCKET</text>
+        <text x="85" y="75" text-anchor="middle" fill="#fff" font-size="14" font-weight="700" letter-spacing="2">DASH</text>
+        <text x="85" y="100" text-anchor="middle" fill="rgba(255,255,255,0.7)" font-size="11">4 btn · OLED · LED</text>
+      </g>
+
+      <!-- Firebase -->
+      <g transform="translate(300 110)">
+        <rect width="180" height="120" rx="18" fill="url(#gradFB)" opacity="0.92" />
+        <text x="90" y="48" text-anchor="middle" fill="#fff" font-size="14" font-weight="700" letter-spacing="2">FIREBASE</text>
+        <text x="90" y="70" text-anchor="middle" fill="rgba(255,255,255,0.85)" font-size="10">/autoclicker/command</text>
+        <text x="90" y="86" text-anchor="middle" fill="rgba(255,255,255,0.85)" font-size="10">/aircon/command</text>
+        <text x="90" y="102" text-anchor="middle" fill="rgba(255,255,255,0.85)" font-size="10">/tayo/moods/charlie</text>
+      </g>
+
+      <!-- Autoclicker -->
+      <g transform="translate(720 20)">
+        <rect width="160" height="80" rx="18" fill="url(#gradClick)" opacity="0.92" />
+        <text x="80" y="35" text-anchor="middle" fill="#fff" font-size="13" font-weight="700" letter-spacing="2">AUTOCLICKER</text>
+        <text x="80" y="54" text-anchor="middle" fill="rgba(255,255,255,0.85)" font-size="10">B3 → "toggle"</text>
+        <text x="80" y="69" text-anchor="middle" fill="rgba(255,255,255,0.85)" font-size="10">servo nudges light switch</text>
+      </g>
+      <!-- Aircon -->
+      <g transform="translate(720 140)">
+        <rect width="160" height="80" rx="18" fill="url(#gradAC)" opacity="0.92" />
+        <text x="80" y="35" text-anchor="middle" fill="#fff" font-size="13" font-weight="700" letter-spacing="2">AIRCON</text>
+        <text x="80" y="54" text-anchor="middle" fill="rgba(255,255,255,0.85)" font-size="10">B4 → {cmd:"power"}</text>
+        <text x="80" y="69" text-anchor="middle" fill="rgba(255,255,255,0.85)" font-size="10">IR LED toggles TCL split</text>
+      </g>
+      <!-- Tayo -->
+      <g transform="translate(720 260)">
+        <rect width="160" height="80" rx="18" fill="url(#gradTayo)" opacity="0.92" />
+        <text x="80" y="35" text-anchor="middle" fill="#fff" font-size="13" font-weight="700" letter-spacing="2">TAYO</text>
+        <text x="80" y="54" text-anchor="middle" fill="rgba(255,255,255,0.85)" font-size="10">B2 hold → {emotion}</text>
+        <text x="80" y="69" text-anchor="middle" fill="rgba(255,255,255,0.85)" font-size="10">surfaces in Moods Feed</text>
+      </g>
+
+      <!-- Wires -->
+      <path d="M210 170 L300 170" class="wire flow" stroke="#e879f9" stroke-width="3" marker-end="url(#arrowFuchsia)" />
+      <path d="M480 150 C 580 100, 620  70, 720  60" class="wire flow" stroke="#e879f9" stroke-width="3" marker-end="url(#arrowFuchsia)" />
+      <path d="M480 170 C 580 175, 620 180, 720 180" class="wire flow" stroke="#e879f9" stroke-width="3" marker-end="url(#arrowFuchsia)" />
+      <path d="M480 190 C 580 240, 620 270, 720 300" class="wire flow" stroke="#e879f9" stroke-width="3" marker-end="url(#arrowFuchsia)" />
+    </svg>
+
+    <div class="grid sm:grid-cols-3 gap-4 mt-8 text-sm">
+      <div class="card p-4">
+        <div class="text-fuchsia-300 font-semibold mb-1">1. Tap on any screen</div>
+        <div class="text-slate-400">B3/B4 always work — sibling toggles aren't gated by what screen you're on.</div>
+      </div>
+      <div class="card p-4">
+        <div class="text-fuchsia-300 font-semibold mb-1">2. HTTPS PUT</div>
+        <div class="text-slate-400">One REST write to Firebase. Lights & aircon use the same payload as the phone remotes.</div>
+      </div>
+      <div class="card p-4">
+        <div class="text-violet-300 font-semibold mb-1">3. Target reacts</div>
+        <div class="text-slate-400">Servo / IR / Moods Feed responds within ~150–1000 ms.</div>
+      </div>
+    </div>
+  </div>
+</section>
+
+<!-- ============== HARDWARE ============== -->
+<section id="hardware" class="section max-w-6xl mx-auto px-4 sm:px-6 py-16">
+  <div class="mb-10">
+    <div class="text-xs uppercase tracking-[0.18em] text-fuchsia-300 mb-2">Hardware</div>
+    <h2 class="text-3xl sm:text-4xl font-bold text-white tracking-tight">One dev board, four buttons, a battery</h2>
+    <p class="text-slate-400 mt-3 max-w-2xl">
+      ESP32-C3 SuperMini with the 0.42" OLED soldered on — same I²C pinout
+      (GPIO5/6) and onboard blue LED (GPIO8) as the autoclicker. Four 6×6×5 mm
+      tactile buttons hang off GPIO 0/1/3/4 to GND with the internal pull-ups
+      handling the resistor side. No transistor, no boost converter, no learning
+      step — just five wires plus a USB-C charger.
+    </p>
+  </div>
+
+  <div class="card p-6 sm:p-10 grid-bg">
+    <svg viewBox="0 0 900 600" class="w-full">
+      <defs>
+        <linearGradient id="pcbPurple" x1="0" y1="0" x2="0" y2="1">
+          <stop offset="0%" stop-color="#3b1f5e" />
+          <stop offset="100%" stop-color="#241039" />
+        </linearGradient>
+        <linearGradient id="pcbBlue" x1="0" y1="0" x2="0" y2="1">
+          <stop offset="0%" stop-color="#1e3a8a" />
+          <stop offset="100%" stop-color="#0c1f4a" />
+        </linearGradient>
+        <linearGradient id="batBody" x1="0" y1="0" x2="0" y2="1">
+          <stop offset="0%" stop-color="#cbd5e1" />
+          <stop offset="100%" stop-color="#94a3b8" />
+        </linearGradient>
+        <radialGradient id="oledScreen" cx="50%" cy="50%" r="50%">
+          <stop offset="0%" stop-color="#fcd34d" stop-opacity="1" />
+          <stop offset="100%" stop-color="#92400e" stop-opacity="0.4" />
+        </radialGradient>
+      </defs>
+
+      <!-- ESP32-C3 + OLED board (top) -->
+      <g transform="translate(40 30)">
+        <!-- PCB -->
+        <rect width="320" height="170" rx="10" fill="url(#pcbPurple)" stroke="#5b21b6" stroke-width="1" />
+        <text x="160" y="20" text-anchor="middle" fill="#c4b5fd" font-size="9" letter-spacing="1.5">ESP32-C3 SuperMini · built-in 0.42" OLED</text>
+
+        <!-- Top edge pin pads -->
+        <g fill="#fde68a">
+          <rect x="14" y="0"  width="10" height="4" />
+          <rect x="34" y="0"  width="10" height="4" />
+          <rect x="54" y="0"  width="10" height="4" />
+          <rect x="74" y="0"  width="10" height="4" />
+          <rect x="94" y="0"  width="10" height="4" />
+          <rect x="114" y="0" width="10" height="4" />
+          <rect x="134" y="0" width="10" height="4" />
+          <rect x="154" y="0" width="10" height="4" />
+        </g>
+        <g fill="#cbd5e1" font-size="7" text-anchor="middle">
+          <text x="19" y="-4">V5</text>
+          <text x="39" y="-4">GD</text>
+          <text x="59" y="-4">V3</text>
+          <text x="79" y="-4">RX</text>
+          <text x="99" y="-4">TX</text>
+          <!-- B1 = GPIO0, B2 = GPIO1, label fuchsia -->
+          <text x="119" y="-4" fill="#e879f9" font-weight="700">0</text>
+          <text x="139" y="-4" fill="#e879f9" font-weight="700">1</text>
+          <text x="159" y="-4">2</text>
+        </g>
+
+        <!-- Bottom edge pin pads -->
+        <g fill="#fde68a">
+          <rect x="14" y="166" width="10" height="4" />
+          <rect x="34" y="166" width="10" height="4" />
+          <rect x="54" y="166" width="10" height="4" />
+          <rect x="74" y="166" width="10" height="4" />
+          <rect x="94" y="166" width="10" height="4" />
+          <rect x="114" y="166" width="10" height="4" />
+          <rect x="134" y="166" width="10" height="4" />
+          <rect x="154" y="166" width="10" height="4" />
+        </g>
+        <g fill="#cbd5e1" font-size="7" text-anchor="middle">
+          <!-- B3 = GPIO3, B4 = GPIO4 (fuchsia) -->
+          <text x="19" y="182" fill="#e879f9" font-weight="700">3</text>
+          <text x="39" y="182" fill="#e879f9" font-weight="700">4</text>
+          <text x="59" y="182">5</text>
+          <text x="79" y="182">6</text>
+          <text x="99" y="182">7</text>
+          <!-- LED (GPIO8) highlighted blue -->
+          <text x="119" y="182" fill="#60a5fa" font-weight="700">8</text>
+          <text x="139" y="182">9</text>
+          <text x="159" y="182">10</text>
+        </g>
+
+        <!-- USB-C on right edge -->
+        <rect x="310" y="65" width="22" height="36" rx="4" fill="#1f2937" stroke="#6b7280" />
+        <rect x="320" y="77" width="14" height="12" fill="#0f172a" />
+        <text x="321" y="120" fill="#94a3b8" font-size="7">USB-C</text>
+
+        <!-- OLED screen — tiny mock of the live layout -->
+        <rect x="135" y="50" width="80" height="60" rx="3" fill="#000" stroke="#fde68a" stroke-width="0.5" />
+        <rect x="140" y="55" width="70" height="50" fill="url(#oledScreen)" opacity="0.85" />
+        <text x="175" y="75" text-anchor="middle" fill="#fde68a" font-size="11" font-weight="700">2:32</text>
+        <text x="175" y="88" text-anchor="middle" fill="#fbbf24" font-size="5">Thu May 21</text>
+        <text x="175" y="98" text-anchor="middle" fill="#10b981" font-size="5">in 42 days</text>
+
+        <!-- Built-in BOOT (reserved as a future settings escape — not wired in firmware) -->
+        <g transform="translate(28 50)">
+          <rect x="-8" y="-8" width="16" height="16" rx="2" fill="#71717a" />
+          <circle r="5" fill="#27272a" />
+          <circle r="3" fill="#52525b" />
+          <text x="0" y="-12" text-anchor="middle" fill="#94a3b8" font-size="6">BOOT</text>
+        </g>
+        <!-- Built-in RST -->
+        <g transform="translate(28 130)">
+          <rect x="-8" y="-8" width="16" height="16" rx="2" fill="#71717a" />
+          <circle r="5" fill="#27272a" />
+          <text x="0" y="20" text-anchor="middle" fill="#94a3b8" font-size="6">RST</text>
+        </g>
+
+        <!-- Onboard blue LED -->
+        <circle cx="240" cy="120" r="3" fill="#1e3a8a" />
+        <text x="240" y="135" text-anchor="middle" fill="#60a5fa" font-size="6" font-weight="700">LED · 8</text>
+
+        <!-- PWR red dot -->
+        <circle cx="100" cy="46" r="2.5" fill="#ef4444" />
+        <text x="100" y="38" text-anchor="middle" fill="#94a3b8" font-size="6">PWR</text>
+      </g>
+
+      <!-- 4 Tactile buttons row (below the PCB) -->
+      <g transform="translate(40 240)">
+        <text x="160" y="-6" text-anchor="middle" fill="#e879f9" font-size="10" font-weight="700" letter-spacing="1.5">FOUR TACTILE BUTTONS · 6×6×5 mm</text>
+
+        <!-- B1 -->
+        <g transform="translate(0 0)">
+          <rect width="74" height="48" rx="8" fill="#0f1117" stroke="#3b3247" />
+          <rect x="20" y="10" width="34" height="28" rx="4" fill="#1f2937" stroke="#6b7280" />
+          <circle cx="37" cy="24" r="9" fill="#27272a" stroke="#52525b" />
+          <circle cx="37" cy="24" r="5" fill="#3f3f46" />
+          <text x="37" y="62" text-anchor="middle" fill="#e879f9" font-size="9" font-weight="700">B1 · MODE</text>
+          <text x="37" y="74" text-anchor="middle" fill="#94a3b8" font-size="7">GPIO 0 ↔ GND</text>
+        </g>
+        <!-- B2 -->
+        <g transform="translate(82 0)">
+          <rect width="74" height="48" rx="8" fill="#0f1117" stroke="#3b3247" />
+          <rect x="20" y="10" width="34" height="28" rx="4" fill="#1f2937" stroke="#6b7280" />
+          <circle cx="37" cy="24" r="9" fill="#27272a" stroke="#52525b" />
+          <circle cx="37" cy="24" r="5" fill="#3f3f46" />
+          <text x="37" y="62" text-anchor="middle" fill="#e879f9" font-size="9" font-weight="700">B2 · ACTION</text>
+          <text x="37" y="74" text-anchor="middle" fill="#94a3b8" font-size="7">GPIO 1 ↔ GND</text>
+        </g>
+        <!-- B3 -->
+        <g transform="translate(164 0)">
+          <rect width="74" height="48" rx="8" fill="#0f1117" stroke="#3b3247" />
+          <rect x="20" y="10" width="34" height="28" rx="4" fill="#1f2937" stroke="#6b7280" />
+          <circle cx="37" cy="24" r="9" fill="#27272a" stroke="#52525b" />
+          <circle cx="37" cy="24" r="5" fill="#3f3f46" />
+          <text x="37" y="62" text-anchor="middle" fill="#e879f9" font-size="9" font-weight="700">B3 · LIGHTS</text>
+          <text x="37" y="74" text-anchor="middle" fill="#94a3b8" font-size="7">GPIO 3 ↔ GND</text>
+        </g>
+        <!-- B4 -->
+        <g transform="translate(246 0)">
+          <rect width="74" height="48" rx="8" fill="#0f1117" stroke="#3b3247" />
+          <rect x="20" y="10" width="34" height="28" rx="4" fill="#1f2937" stroke="#6b7280" />
+          <circle cx="37" cy="24" r="9" fill="#27272a" stroke="#52525b" />
+          <circle cx="37" cy="24" r="5" fill="#3f3f46" />
+          <text x="37" y="62" text-anchor="middle" fill="#e879f9" font-size="9" font-weight="700">B4 · AIRCON</text>
+          <text x="37" y="74" text-anchor="middle" fill="#94a3b8" font-size="7">GPIO 4 ↔ GND</text>
+        </g>
+      </g>
+
+      <!-- Button-to-PCB wires (fuchsia, flowing) -->
+      <g>
+        <!-- B1 (GPIO0) → pad index 6 (top, fuchsia '0' label) at top edge x ~159 y=30 -->
+        <path d="M 78 240 C 78 220, 159 60, 159 34" class="wire flow" stroke="#e879f9" stroke-width="1.5" />
+        <!-- B2 (GPIO1) → pad index 7 -->
+        <path d="M 160 240 C 160 230, 179 60, 179 34" class="wire flow" stroke="#e879f9" stroke-width="1.5" />
+        <!-- B3 (GPIO3) → bottom-edge pad index 0 (x~59 y~200) -->
+        <path d="M 242 240 C 242 232, 59 220, 59 200" class="wire flow" stroke="#e879f9" stroke-width="1.5" />
+        <!-- B4 (GPIO4) → bottom-edge pad index 1 (x~79) -->
+        <path d="M 324 240 C 324 232, 79 220, 79 200" class="wire flow" stroke="#e879f9" stroke-width="1.5" />
+      </g>
+
+      <!-- TP4056 charger (middle right) -->
+      <g transform="translate(430 280)">
+        <rect width="200" height="100" rx="8" fill="url(#pcbBlue)" stroke="#1d4ed8" stroke-width="1" />
+        <text x="100" y="16" text-anchor="middle" fill="#bfdbfe" font-size="9" letter-spacing="1.2">TP4056 · USB-C charger</text>
+
+        <!-- USB-C on left edge -->
+        <rect x="-22" y="32" width="22" height="36" rx="4" fill="#1f2937" stroke="#6b7280" />
+        <rect x="-16" y="44" width="14" height="12" fill="#0f172a" />
+        <text x="-11" y="84" fill="#94a3b8" font-size="7" text-anchor="middle">USB-C</text>
+
+        <!-- B+/B- pads -->
+        <rect x="14" y="46" width="14" height="14" fill="#ef4444" />
+        <text x="21" y="56" text-anchor="middle" fill="#fff" font-size="8" font-weight="700">B+</text>
+        <rect x="14" y="74" width="14" height="14" fill="#1e293b" stroke="#64748b" />
+        <text x="21" y="84" text-anchor="middle" fill="#fff" font-size="8" font-weight="700">B-</text>
+
+        <!-- OUT+/OUT- pads -->
+        <rect x="172" y="20" width="14" height="14" fill="#fde68a" />
+        <text x="179" y="30" text-anchor="middle" fill="#1f2937" font-size="7" font-weight="700">OUT+</text>
+        <rect x="172" y="76" width="14" height="14" fill="#1e293b" stroke="#64748b" />
+        <text x="179" y="86" text-anchor="middle" fill="#fff" font-size="7" font-weight="700">OUT-</text>
+
+        <rect x="60" y="35" width="22" height="22" fill="#0f172a" stroke="#475569" />
+        <text x="71" y="65" text-anchor="middle" fill="#94a3b8" font-size="6">TP4056</text>
+
+        <rect x="106" y="35" width="22" height="22" fill="#0f172a" stroke="#475569" />
+        <text x="117" y="65" text-anchor="middle" fill="#94a3b8" font-size="6">DW01</text>
+
+        <circle cx="146" cy="42" r="2.5" fill="#f97316" />
+        <text x="146" y="36" text-anchor="middle" fill="#94a3b8" font-size="5">CHRG</text>
+        <circle cx="146" cy="56" r="2.5" fill="#10b981" />
+        <text x="146" y="68" text-anchor="middle" fill="#94a3b8" font-size="5">FULL</text>
+      </g>
+
+      <!-- LiPo battery (bottom) -->
+      <g transform="translate(140 480)">
+        <rect width="240" height="80" rx="6" fill="url(#batBody)" stroke="#64748b" stroke-width="1" />
+        <rect x="10" y="14" width="220" height="52" rx="2" fill="#f8fafc" opacity="0.45" />
+        <text x="120" y="40" text-anchor="middle" fill="#1f2937" font-size="11" font-weight="700">LiPo 3.7V 1000 mAh</text>
+        <text x="120" y="55" text-anchor="middle" fill="#475569" font-size="8">102050 · 3-wire (BMS pre-installed)</text>
+        <path d="M40 0 L40 -25" stroke="#ef4444" stroke-width="3" fill="none" />
+        <path d="M55 0 L55 -25" stroke="#1e293b" stroke-width="3" fill="none" />
+        <text x="40" y="-30" text-anchor="middle" fill="#ef4444" font-size="7" font-weight="700">+</text>
+        <text x="55" y="-30" text-anchor="middle" fill="#94a3b8" font-size="7" font-weight="700">-</text>
+      </g>
+
+      <!-- Battery to TP4056 wires -->
+      <path d="M180 455 L180 440 C 180 420, 380 420, 444 336" class="wire" stroke="#ef4444" stroke-width="2.5" />
+      <path d="M195 455 L195 432 C 195 412, 395 412, 444 364" class="wire" stroke="#1e293b" stroke-width="2.5" />
+
+      <!-- TP4056 OUT to ESP32 wires -->
+      <path d="M616 300 C 670 300, 700 230, 700 180 C 700 120, 280 120, 215 190" class="wire" stroke="#fde68a" stroke-width="2.5" />
+      <path d="M616 356 C 670 356, 720 240, 720 160 C 720 110, 300 110, 235 190" class="wire" stroke="#1e293b" stroke-width="2.5" />
+
+      <!-- Wire labels -->
+      <g fill="#94a3b8" font-size="8">
+        <text x="280" y="425" text-anchor="middle">+ (red)  battery to B+</text>
+        <text x="350" y="405" text-anchor="middle">- (black) battery to B-</text>
+        <text x="500" y="135" text-anchor="middle">OUT+ → ESP32 5V (yellow)</text>
+        <text x="540" y="105" text-anchor="middle">OUT- → ESP32 GD (black)</text>
+      </g>
+    </svg>
+
+    <div class="grid sm:grid-cols-4 gap-4 mt-8 text-sm">
+      <div class="card p-4">
+        <div class="flex items-center gap-2 mb-1">
+          <span class="w-2 h-2 rounded-full bg-fuchsia-400"></span>
+          <div class="text-white font-semibold">ESP32-C3 SuperMini + OLED</div>
+        </div>
+        <div class="text-slate-400">0.42" SSD1306 on GPIO5/6. Blue LED on GPIO8 (active-LOW). Avoid GPIO9 (BOOT strap).</div>
+      </div>
+      <div class="card p-4">
+        <div class="flex items-center gap-2 mb-1">
+          <span class="w-2 h-2 rounded-full bg-fuchsia-400"></span>
+          <div class="text-white font-semibold">4× tactile button</div>
+        </div>
+        <div class="text-slate-400">6×6×5 mm momentary. Each leg: GPIO ↔ GND. <code class="mono text-fuchsia-300">INPUT_PULLUP</code> handles the pull-up.</div>
+      </div>
+      <div class="card p-4">
+        <div class="flex items-center gap-2 mb-1">
+          <span class="w-2 h-2 rounded-full bg-sky-400"></span>
+          <div class="text-white font-semibold">TP4056 + DW01</div>
+        </div>
+        <div class="text-slate-400">USB-C charge in, protected 3.0–4.2 V out. Use-while-charging works.</div>
+      </div>
+      <div class="card p-4">
+        <div class="flex items-center gap-2 mb-1">
+          <span class="w-2 h-2 rounded-full bg-slate-400"></span>
+          <div class="text-white font-semibold">LiPo 102050 · 1000 mAh</div>
+        </div>
+        <div class="text-slate-400">~12–24 h with WiFi modem sleep. Charges to 4.2 V via TP4056.</div>
+      </div>
+    </div>
+  </div>
+</section>
+
+<!-- ============== WIRING ============== -->
+<section id="wiring" class="section max-w-6xl mx-auto px-4 sm:px-6 py-16">
+  <div class="mb-10">
+    <div class="text-xs uppercase tracking-[0.18em] text-fuchsia-300 mb-2">Wiring</div>
+    <h2 class="text-3xl sm:text-4xl font-bold text-white tracking-tight">Power chain + four button legs</h2>
+    <p class="text-slate-400 mt-3 max-w-2xl">
+      Four power wires from pocket-remote, plus eight short wires to land the
+      tactile buttons. Every button has the same pattern: one leg to its GPIO,
+      the other leg to the shared GND rail (the ESP32's <code class="mono text-fuchsia-300">GD</code> pad fans out).
+      No external resistors — <code class="mono text-fuchsia-300">INPUT_PULLUP</code> in firmware does the job.
+    </p>
+  </div>
+
+  <div class="card overflow-hidden">
+    <div class="overflow-x-auto no-scrollbar">
+      <table class="w-full text-sm">
+        <thead class="bg-white/[0.04] text-xs uppercase tracking-wider text-slate-400">
+          <tr>
+            <th class="text-left px-5 py-3">#</th>
+            <th class="text-left px-5 py-3">From</th>
+            <th class="text-left px-5 py-3">To</th>
+            <th class="text-left px-5 py-3">Wire / part</th>
+            <th class="text-left px-5 py-3">Notes</th>
+          </tr>
+        </thead>
+        <tbody id="wireBody" class="divide-y divide-white/[0.04]"></tbody>
+      </table>
+    </div>
+  </div>
+
+  <div class="mt-6 card p-5 text-sm leading-relaxed">
+    <div class="flex items-center gap-2 text-fuchsia-300 font-semibold mb-2">
+      <span class="material-symbols-outlined" style="font-size:18px">priority_high</span>
+      About GPIO 0 and GPIO 9
+    </div>
+    <p class="text-slate-400">
+      Both GPIO 0 and GPIO 9 are <strong>strapping pins</strong> on the ESP32-C3 — they're sampled at reset to
+      decide whether to enter the bootloader. Using GPIO 0 as a normal button is fine
+      <em>as long as it isn't held down during reset/power-on</em>. The built-in BOOT button (on GPIO 9)
+      stays available for flashing. If you ever press B1 (MODE) while the board is rebooting and it
+      enters bootloader mode, just unplug and plug back in.
+    </p>
+  </div>
+</section>
+
+<!-- ============== DEMO ============== -->
+<section id="demo" class="section max-w-6xl mx-auto px-4 sm:px-6 py-16">
+  <div class="mb-10">
+    <div class="text-xs uppercase tracking-[0.18em] text-fuchsia-300 mb-2">Demo</div>
+    <h2 class="text-3xl sm:text-4xl font-bold text-white tracking-tight">OLED preview</h2>
+    <p class="text-slate-400 mt-3 max-w-2xl">
+      Animation only — no Firebase calls. Use the simulated buttons to flip
+      between the three screens, run the 5-minute timer (sped up ×60 for the
+      preview), or cycle through mood faces. B3/B4 fire from any screen.
+    </p>
+  </div>
+
+  <div class="card p-6 sm:p-10 grid-bg">
+    <div class="grid md:grid-cols-2 gap-10 items-center">
+      <!-- OLED illustration -->
+      <div class="relative">
+        <svg id="oledSvg" viewBox="0 0 360 260" class="w-full max-w-md mx-auto">
+          <!-- Frame -->
+          <rect x="20" y="20" width="320" height="200" rx="16" fill="#0b0d10" stroke="rgba(255,255,255,0.12)" stroke-width="1.5" />
+          <text x="180" y="48" text-anchor="middle" fill="#475569" font-size="9" letter-spacing="2">0.42" SSD1306 · 72x40</text>
+
+          <!-- Visible OLED area (scaled up from 72x40 → 288x160) -->
+          <g transform="translate(36 60)">
+            <rect class="oled-canvas" width="288" height="160" rx="6" fill="#000" />
+
+            <!-- ===== CLOCK screen ===== -->
+            <g id="screenClock">
+              <text id="oledClockTime" class="oled-text" x="144" y="74" text-anchor="middle"
+                    fill="#fde68a" font-family="JetBrains Mono" font-size="48" font-weight="700">2:32 PM</text>
+              <text id="oledClockDate" class="oled-text" x="144" y="108" text-anchor="middle"
+                    fill="#fbbf24" font-family="JetBrains Mono" font-size="18">Thu, May 21</text>
+              <text id="oledClockCount" class="oled-text" x="144" y="140" text-anchor="middle"
+                    fill="#fbbf24" font-family="JetBrains Mono" font-size="16">in 42 days</text>
+            </g>
+
+            <!-- ===== TIMER screen ===== -->
+            <g id="screenTimer" style="display:none">
+              <text class="oled-text" x="144" y="42" text-anchor="middle" fill="#a78bfa"
+                    font-family="JetBrains Mono" font-size="16" font-weight="700" letter-spacing="3">TIMER</text>
+              <text id="oledTimerDigits" class="oled-text" x="144" y="100" text-anchor="middle"
+                    fill="#fde68a" font-family="JetBrains Mono" font-size="56" font-weight="700">5:00</text>
+              <text id="oledTimerHint" class="oled-text" x="144" y="140" text-anchor="middle"
+                    fill="#94a3b8" font-family="JetBrains Mono" font-size="13">tap B2 to start</text>
+            </g>
+
+            <!-- ===== MOOD screen ===== -->
+            <g id="screenMood" style="display:none">
+              <text class="oled-text" x="144" y="34" text-anchor="middle" fill="#f472b6"
+                    font-family="JetBrains Mono" font-size="14" font-weight="700" letter-spacing="3">HOW R U?</text>
+
+              <!-- Face area at center -->
+              <g id="oledFace" transform="translate(108 50)">
+                <!-- happy face baseline -->
+                <circle cx="36" cy="36" r="32" fill="none" stroke="#fde68a" stroke-width="3" />
+                <circle id="moodEyeL" cx="26" cy="30" r="3" fill="#fde68a" />
+                <circle id="moodEyeR" cx="46" cy="30" r="3" fill="#fde68a" />
+                <path id="moodMouth" d="M 22 44 Q 36 54 50 44" fill="none" stroke="#fde68a" stroke-width="3" stroke-linecap="round" />
+                <!-- optional extras (z, hearts, etc) -->
+                <g id="moodExtras"></g>
+              </g>
+
+              <text id="oledMoodLabel" class="oled-text" x="144" y="148" text-anchor="middle" fill="#fda4af"
+                    font-family="JetBrains Mono" font-size="15" font-weight="700">HAPPY</text>
+            </g>
+
+            <!-- Transient status line (toast over the bottom) -->
+            <g id="oledToast" style="display:none">
+              <rect x="0" y="130" width="288" height="30" fill="#000" opacity="0.85" />
+              <text id="oledToastText" class="oled-text oled-bottom" x="144" y="150" text-anchor="middle"
+                    fill="#10b981" font-family="JetBrains Mono" font-size="16" font-weight="700"></text>
+            </g>
+          </g>
+
+          <!-- Blue LED indicator (right of OLED frame) -->
+          <g transform="translate(335 132)">
+            <circle id="blueLed" r="5" fill="#1e3a8a" />
+            <text x="0" y="22" text-anchor="middle" fill="#60a5fa" font-size="8" font-weight="700">LED</text>
+          </g>
+        </svg>
+      </div>
+
+      <!-- Controls -->
+      <div>
+        <div class="grid grid-cols-2 gap-3">
+          <button id="btnB1" class="card p-4 text-left hover:bg-white/5 transition-colors group">
+            <div class="flex items-center gap-2.5">
+              <div class="w-9 h-9 rounded-lg bg-fuchsia-500/15 border border-fuchsia-500/30 grid place-items-center">
+                <span class="material-symbols-outlined text-fuchsia-300" style="font-size:18px">swap_horiz</span>
+              </div>
+              <div class="flex-1 min-w-0">
+                <div class="text-white font-semibold text-sm group-hover:text-fuchsia-300 transition-colors">B1 · MODE</div>
+                <div class="text-[10px] text-slate-500">cycle screens</div>
+              </div>
+            </div>
+          </button>
+
+          <button id="btnB2" class="card p-4 text-left hover:bg-white/5 transition-colors group">
+            <div class="flex items-center gap-2.5">
+              <div class="w-9 h-9 rounded-lg bg-violet-500/15 border border-violet-500/30 grid place-items-center">
+                <span class="material-symbols-outlined text-violet-300" style="font-size:18px">touch_app</span>
+              </div>
+              <div class="flex-1 min-w-0">
+                <div class="text-white font-semibold text-sm group-hover:text-violet-300 transition-colors">B2 · ACTION</div>
+                <div class="text-[10px] text-slate-500">tap / hold = send</div>
+              </div>
+            </div>
+          </button>
+
+          <button id="btnB3" class="card p-4 text-left hover:bg-white/5 transition-colors group">
+            <div class="flex items-center gap-2.5">
+              <div class="w-9 h-9 rounded-lg bg-emerald-500/15 border border-emerald-500/30 grid place-items-center">
+                <span class="material-symbols-outlined text-emerald-300" style="font-size:18px">lightbulb</span>
+              </div>
+              <div class="flex-1 min-w-0">
+                <div class="text-white font-semibold text-sm group-hover:text-emerald-300 transition-colors">B3 · LIGHTS</div>
+                <div class="text-[10px] text-slate-500">autoclicker toggle</div>
+              </div>
+            </div>
+          </button>
+
+          <button id="btnB4" class="card p-4 text-left hover:bg-white/5 transition-colors group">
+            <div class="flex items-center gap-2.5">
+              <div class="w-9 h-9 rounded-lg bg-sky-500/15 border border-sky-500/30 grid place-items-center">
+                <span class="material-symbols-outlined text-sky-300" style="font-size:18px">ac_unit</span>
+              </div>
+              <div class="flex-1 min-w-0">
+                <div class="text-white font-semibold text-sm group-hover:text-sky-300 transition-colors">B4 · AIRCON</div>
+                <div class="text-[10px] text-slate-500">power toggle</div>
+              </div>
+            </div>
+          </button>
+        </div>
+
+        <div class="mt-5 grid grid-cols-2 gap-3 text-xs">
+          <button id="btnB2Hold" class="card p-3 text-left hover:bg-white/5 transition-colors group">
+            <div class="flex items-center gap-2">
+              <span class="material-symbols-outlined text-rose-300" style="font-size:16px">send</span>
+              <div>
+                <div class="text-white text-xs font-semibold group-hover:text-rose-300 transition-colors">B2 HOLD (≥800 ms)</div>
+                <div class="text-[10px] text-slate-500">on Mood: send to tayo</div>
+              </div>
+            </div>
+          </button>
+          <button id="btnB2HoldReset" class="card p-3 text-left hover:bg-white/5 transition-colors group">
+            <div class="flex items-center gap-2">
+              <span class="material-symbols-outlined text-amber-300" style="font-size:16px">restart_alt</span>
+              <div>
+                <div class="text-white text-xs font-semibold group-hover:text-amber-300 transition-colors">B2 HOLD (Timer)</div>
+                <div class="text-[10px] text-slate-500">reset to 5:00</div>
+              </div>
+            </div>
+          </button>
+        </div>
+
+        <div class="mt-5 card p-4 text-xs text-slate-400 leading-relaxed">
+          <strong class="text-white">Tip:</strong> the timer runs ×60 here so you don't
+          have to wait 5 minutes for the screen to flash. On the real device,
+          ticks are 1 second.
+        </div>
+      </div>
+    </div>
+  </div>
+</section>
+
+<!-- ============== CODE ============== -->
+<section id="code" class="section max-w-6xl mx-auto px-4 sm:px-6 py-16">
+  <div class="mb-10">
+    <div class="text-xs uppercase tracking-[0.18em] text-fuchsia-300 mb-2">Code</div>
+    <h2 class="text-3xl sm:text-4xl font-bold text-white tracking-tight">Firmware</h2>
+    <p class="text-slate-400 mt-3 max-w-2xl">
+      One Arduino sketch at <code class="mono text-fuchsia-300">firmware/pocket-dash.ino</code>. Uses
+      <code class="mono text-fuchsia-300">U8g2</code> for the OLED, <code class="mono text-fuchsia-300">HTTPClient</code> for Firebase,
+      and <code class="mono text-fuchsia-300">Preferences</code> for the current screen index that persists across reboots.
+    </p>
+  </div>
+
+  <details class="card overflow-hidden mb-4" open>
+    <summary class="px-6 py-4 flex items-center gap-3 hover:bg-white/[0.02]">
+      <span class="material-symbols-outlined text-fuchsia-300" style="font-size:20px">code</span>
+      <div class="flex-1">
+        <div class="text-white font-semibold">Four-button scan with tap / hold dispatch</div>
+        <div class="text-xs text-slate-500">Same shape per button — debounce + tap-on-release / hold-on-cross</div>
+      </div>
+      <span class="material-symbols-outlined text-slate-500 chev">expand_more</span>
+    </summary>
+    <div class="px-6 pb-6">
+<pre class="code"><span class="tok-com">// All four buttons share a struct so we never duplicate the state machine.</span>
+<span class="tok-com">// B1/B2 emit both tap and hold events; B3/B4 only need tap.</span>
+<span class="tok-kw">struct</span> Btn {
+  <span class="tok-kw">uint8_t</span>       pin;
+  <span class="tok-kw">int</span>           lastLevel;
+  <span class="tok-kw">bool</span>          pressed;
+  <span class="tok-kw">bool</span>          holdFired;
+  <span class="tok-kw">unsigned long</span> lastEdge;
+  <span class="tok-kw">unsigned long</span> downAt;
+};
+
+Btn B[<span class="tok-num">4</span>] = {
+  { <span class="tok-num">0</span>, HIGH, <span class="tok-kw">false</span>, <span class="tok-kw">false</span>, <span class="tok-num">0</span>, <span class="tok-num">0</span> },   <span class="tok-com">// B1 MODE</span>
+  { <span class="tok-num">1</span>, HIGH, <span class="tok-kw">false</span>, <span class="tok-kw">false</span>, <span class="tok-num">0</span>, <span class="tok-num">0</span> },   <span class="tok-com">// B2 ACTION</span>
+  { <span class="tok-num">3</span>, HIGH, <span class="tok-kw">false</span>, <span class="tok-kw">false</span>, <span class="tok-num">0</span>, <span class="tok-num">0</span> },   <span class="tok-com">// B3 LIGHTS</span>
+  { <span class="tok-num">4</span>, HIGH, <span class="tok-kw">false</span>, <span class="tok-kw">false</span>, <span class="tok-num">0</span>, <span class="tok-num">0</span> },   <span class="tok-com">// B4 AIRCON</span>
+};
+
+<span class="tok-kw">const unsigned long</span> DEBOUNCE_MS = <span class="tok-num">25</span>;
+<span class="tok-kw">const unsigned long</span> TAP_MAX_MS  = <span class="tok-num">500</span>;
+<span class="tok-kw">const unsigned long</span> HOLD_MS     = <span class="tok-num">800</span>;
+
+<span class="tok-kw">void</span> <span class="tok-fn">scanButtons</span>() {
+  <span class="tok-kw">unsigned long</span> now = <span class="tok-fn">millis</span>();
+  <span class="tok-kw">for</span> (<span class="tok-kw">int</span> i = <span class="tok-num">0</span>; i &lt; <span class="tok-num">4</span>; ++i) {
+    Btn&amp; b = B[i];
+    <span class="tok-kw">int</span> level = <span class="tok-fn">digitalRead</span>(b.pin);
+    <span class="tok-kw">if</span> (level != b.lastLevel) { b.lastLevel = level; b.lastEdge = now; <span class="tok-kw">continue</span>; }
+    <span class="tok-kw">if</span> (now - b.lastEdge &lt; DEBOUNCE_MS) <span class="tok-kw">continue</span>;
+
+    <span class="tok-kw">bool</span> nowPressed = (level == LOW);
+    <span class="tok-kw">if</span> (nowPressed != b.pressed) {
+      b.pressed = nowPressed;
+      <span class="tok-kw">if</span> (b.pressed) { b.downAt = now; b.holdFired = <span class="tok-kw">false</span>; }
+      <span class="tok-kw">else if</span> (!b.holdFired &amp;&amp; (now - b.downAt) &lt;= TAP_MAX_MS) <span class="tok-fn">dispatchTap</span>(i);
+    } <span class="tok-kw">else if</span> (b.pressed &amp;&amp; !b.holdFired &amp;&amp; (now - b.downAt) &gt;= HOLD_MS) {
+      b.holdFired = <span class="tok-kw">true</span>;
+      <span class="tok-fn">dispatchHold</span>(i);
+    }
+  }
+}</pre>
+    </div>
+  </details>
+
+  <details class="card overflow-hidden mb-4">
+    <summary class="px-6 py-4 flex items-center gap-3 hover:bg-white/[0.02]">
+      <span class="material-symbols-outlined text-fuchsia-300" style="font-size:20px">view_carousel</span>
+      <div class="flex-1">
+        <div class="text-white font-semibold">Screen state machine</div>
+        <div class="text-xs text-slate-500">B1 cycles. B2 acts within the current screen. B3/B4 are screen-agnostic.</div>
+      </div>
+      <span class="material-symbols-outlined text-slate-500 chev">expand_more</span>
+    </summary>
+    <div class="px-6 pb-6">
+<pre class="code"><span class="tok-kw">enum</span> Screen { CLOCK, TIMER, MOOD, SCREEN_COUNT };
+Screen current = CLOCK;
+
+<span class="tok-kw">void</span> <span class="tok-fn">dispatchTap</span>(<span class="tok-kw">int</span> i) {
+  <span class="tok-kw">switch</span> (i) {
+    <span class="tok-kw">case</span> <span class="tok-num">0</span>: current = (Screen)((current + <span class="tok-num">1</span>) % SCREEN_COUNT); <span class="tok-fn">saveScreen</span>(); <span class="tok-kw">break</span>;
+    <span class="tok-kw">case</span> <span class="tok-num">1</span>: <span class="tok-fn">actionTap</span>();   <span class="tok-kw">break</span>;   <span class="tok-com">// context-dependent</span>
+    <span class="tok-kw">case</span> <span class="tok-num">2</span>: <span class="tok-fn">fireLights</span>();  <span class="tok-kw">break</span>;   <span class="tok-com">// any screen</span>
+    <span class="tok-kw">case</span> <span class="tok-num">3</span>: <span class="tok-fn">fireAircon</span>();  <span class="tok-kw">break</span>;   <span class="tok-com">// any screen</span>
+  }
+}
+
+<span class="tok-kw">void</span> <span class="tok-fn">actionTap</span>() {
+  <span class="tok-kw">switch</span> (current) {
+    <span class="tok-kw">case</span> CLOCK: <span class="tok-kw">break</span>;                          <span class="tok-com">// no-op on the clock</span>
+    <span class="tok-kw">case</span> TIMER: <span class="tok-fn">timerToggle</span>(); <span class="tok-kw">break</span>;            <span class="tok-com">// start ↔ pause</span>
+    <span class="tok-kw">case</span> MOOD:  moodIdx = (moodIdx + <span class="tok-num">1</span>) % MOOD_COUNT; <span class="tok-kw">break</span>;
+  }
+}
+
+<span class="tok-kw">void</span> <span class="tok-fn">dispatchHold</span>(<span class="tok-kw">int</span> i) {
+  <span class="tok-kw">if</span> (i != <span class="tok-num">1</span>) <span class="tok-kw">return</span>;   <span class="tok-com">// only B2 has hold</span>
+  <span class="tok-kw">switch</span> (current) {
+    <span class="tok-kw">case</span> CLOCK: <span class="tok-kw">break</span>;
+    <span class="tok-kw">case</span> TIMER: <span class="tok-fn">timerReset</span>(); <span class="tok-kw">break</span>;
+    <span class="tok-kw">case</span> MOOD:  <span class="tok-fn">sendMood</span>(moodIdx); <span class="tok-kw">break</span>;
+  }
+}</pre>
+    </div>
+  </details>
+
+  <details class="card overflow-hidden mb-4">
+    <summary class="px-6 py-4 flex items-center gap-3 hover:bg-white/[0.02]">
+      <span class="material-symbols-outlined text-fuchsia-300" style="font-size:20px">timer</span>
+      <div class="flex-1">
+        <div class="text-white font-semibold">Timer with OLED-invert + blue-LED finish flash</div>
+        <div class="text-xs text-slate-500">5:00 countdown · flashes until any button dismisses</div>
+      </div>
+      <span class="material-symbols-outlined text-slate-500 chev">expand_more</span>
+    </summary>
+    <div class="px-6 pb-6">
+<pre class="code"><span class="tok-kw">unsigned long</span> timerEndMs = <span class="tok-num">0</span>;   <span class="tok-com">// 0 = idle</span>
+<span class="tok-kw">bool</span>          timerDone  = <span class="tok-kw">false</span>;
+
+<span class="tok-kw">void</span> <span class="tok-fn">timerToggle</span>() {
+  <span class="tok-kw">if</span> (timerDone) { <span class="tok-fn">timerReset</span>(); <span class="tok-kw">return</span>; }
+  <span class="tok-kw">if</span> (timerEndMs == <span class="tok-num">0</span>) timerEndMs = <span class="tok-fn">millis</span>() + <span class="tok-num">5</span> * <span class="tok-num">60</span> * <span class="tok-num">1000UL</span>;
+  <span class="tok-kw">else</span>                   timerEndMs = <span class="tok-num">0</span>;   <span class="tok-com">// pause -> back to idle (5:00)</span>
+}
+<span class="tok-kw">void</span> <span class="tok-fn">timerReset</span>() { timerEndMs = <span class="tok-num">0</span>; timerDone = <span class="tok-kw">false</span>; }
+
+<span class="tok-kw">void</span> <span class="tok-fn">timerTick</span>() {
+  <span class="tok-kw">if</span> (timerEndMs &amp;&amp; <span class="tok-fn">millis</span>() &gt;= timerEndMs) {
+    timerEndMs = <span class="tok-num">0</span>;
+    timerDone  = <span class="tok-kw">true</span>;
+  }
+  <span class="tok-kw">if</span> (timerDone) {
+    <span class="tok-kw">bool</span> on = ((<span class="tok-fn">millis</span>() / <span class="tok-num">280</span>) % <span class="tok-num">2</span>) == <span class="tok-num">0</span>;
+    <span class="tok-fn">digitalWrite</span>(LED_PIN, on ? LOW : HIGH);    <span class="tok-com">// GPIO8 is active-LOW</span>
+    oled.<span class="tok-fn">setDrawColor</span>(on ? <span class="tok-num">0</span> : <span class="tok-num">1</span>);             <span class="tok-com">// invert pixels each frame</span>
+    <span class="tok-fn">drawTimerScreen</span>(<span class="tok-str">"TIME UP"</span>);
+  }
+}</pre>
+    </div>
+  </details>
+
+  <details class="card overflow-hidden mb-4">
+    <summary class="px-6 py-4 flex items-center gap-3 hover:bg-white/[0.02]">
+      <span class="material-symbols-outlined text-fuchsia-300" style="font-size:20px">cloud_upload</span>
+      <div class="flex-1">
+        <div class="text-white font-semibold">Firebase PUTs — three targets</div>
+        <div class="text-xs text-slate-500">Lights, aircon, and mood pings all reuse the same helper</div>
+      </div>
+      <span class="material-symbols-outlined text-slate-500 chev">expand_more</span>
+    </summary>
+    <div class="px-6 pb-6">
+<pre class="code"><span class="tok-kw">const char</span>* CLICK_URL = <span class="tok-str">"https://test-database-55379-default-rtdb.asia-southeast1.firebasedatabase.app/autoclicker/command.json"</span>;
+<span class="tok-kw">const char</span>* AC_URL    = <span class="tok-str">"https://test-database-55379-default-rtdb.asia-southeast1.firebasedatabase.app/aircon/command.json"</span>;
+<span class="tok-kw">const char</span>* MOOD_BASE = <span class="tok-str">"https://test-database-55379-default-rtdb.asia-southeast1.firebasedatabase.app/tayo/moods/charlie"</span>;
+
+<span class="tok-kw">bool</span> <span class="tok-fn">putJson</span>(<span class="tok-kw">const char</span>* url, <span class="tok-kw">const char</span>* body) {
+  <span class="tok-kw">if</span> (WiFi.<span class="tok-fn">status</span>() != WL_CONNECTED) <span class="tok-kw">return</span> <span class="tok-kw">false</span>;
+  HTTPClient http;
+  <span class="tok-kw">if</span> (!http.<span class="tok-fn">begin</span>(url)) <span class="tok-kw">return</span> <span class="tok-kw">false</span>;
+  http.<span class="tok-fn">addHeader</span>(<span class="tok-str">"Content-Type"</span>, <span class="tok-str">"application/json"</span>);
+  <span class="tok-kw">int</span> code = http.<span class="tok-fn">PUT</span>(body);
+  http.<span class="tok-fn">end</span>();
+  <span class="tok-kw">return</span> (code &gt;= <span class="tok-num">200</span> &amp;&amp; code &lt; <span class="tok-num">300</span>);
+}
+
+<span class="tok-kw">bool</span> <span class="tok-fn">fireLights</span>() { <span class="tok-kw">return</span> <span class="tok-fn">putJson</span>(CLICK_URL, <span class="tok-str">"\"toggle\""</span>); }
+<span class="tok-kw">bool</span> <span class="tok-fn">fireAircon</span>() { <span class="tok-kw">return</span> <span class="tok-fn">putJson</span>(AC_URL,    <span class="tok-str">"{\"cmd\":\"power\"}"</span>); }
+
+<span class="tok-com">// Mood ping: POST so RTDB auto-generates a push-id child key.</span>
+<span class="tok-kw">bool</span> <span class="tok-fn">sendMood</span>(<span class="tok-kw">int</span> idx) {
+  <span class="tok-kw">const char</span>* name = MOODS[idx].name;
+  <span class="tok-kw">char</span> body[<span class="tok-num">128</span>];
+  <span class="tok-fn">snprintf</span>(body, <span class="tok-kw">sizeof</span>(body),
+    <span class="tok-str">"{\"emotion\":\"%s\",\"ts\":%lu,\"source\":\"pocket-dash\"}"</span>,
+    name, (<span class="tok-kw">unsigned long</span>)<span class="tok-fn">time</span>(<span class="tok-kw">nullptr</span>));
+  <span class="tok-kw">char</span> url[<span class="tok-num">200</span>];
+  <span class="tok-fn">snprintf</span>(url, <span class="tok-kw">sizeof</span>(url), <span class="tok-str">"%s.json"</span>, MOOD_BASE);
+  HTTPClient http; http.<span class="tok-fn">begin</span>(url);
+  http.<span class="tok-fn">addHeader</span>(<span class="tok-str">"Content-Type"</span>, <span class="tok-str">"application/json"</span>);
+  <span class="tok-kw">int</span> code = http.<span class="tok-fn">POST</span>(body);
+  http.<span class="tok-fn">end</span>();
+  <span class="tok-kw">return</span> (code &gt;= <span class="tok-num">200</span> &amp;&amp; code &lt; <span class="tok-num">300</span>);
+}</pre>
+    </div>
+  </details>
+
+  <p class="text-sm text-slate-500 mt-6">
+    Full source: <a href="firmware/pocket-dash.ino" class="text-fuchsia-300 hover:text-fuchsia-200 underline">firmware/pocket-dash.ino</a>
+    <span class="text-slate-600">(coming next — landing page first, then the sketch)</span>
+  </p>
+</section>
+
+<!-- ============== CHECKLIST ============== -->
+<section id="checklist" class="section max-w-6xl mx-auto px-4 sm:px-6 py-16">
+  <div class="mb-10">
+    <div class="text-xs uppercase tracking-[0.18em] text-fuchsia-300 mb-2">Checklist</div>
+    <h2 class="text-3xl sm:text-4xl font-bold text-white tracking-tight">Build steps</h2>
+    <p class="text-slate-400 mt-3 max-w-2xl">Tap to tick. Progress persists in localStorage.</p>
+  </div>
+
+  <div class="card p-5 sm:p-8">
+    <div class="mb-6">
+      <div class="flex items-center justify-between mb-2">
+        <span class="text-xs uppercase tracking-wider text-slate-500">Progress</span>
+        <span id="progressLabel" class="text-xs mono text-slate-400">0 / 0</span>
+      </div>
+      <div class="h-1.5 bg-white/[0.05] rounded-full overflow-hidden">
+        <div id="progressBar" class="h-full bg-gradient-to-r from-fuchsia-400 to-violet-400 transition-all duration-300" style="width: 0%"></div>
+      </div>
+    </div>
+    <div id="checklist" class="space-y-6"></div>
+  </div>
+</section>
+
+<footer class="max-w-6xl mx-auto px-4 sm:px-6 py-10 text-center text-xs text-slate-600">
+  Sister project to
+  <a href="../pocket-remote/" class="text-fuchsia-300 hover:text-fuchsia-200">pocket-remote</a>,
+  <a href="../autoclicker/"   class="text-fuchsia-300 hover:text-fuchsia-200">autoclicker</a> and
+  <a href="../aircon/"        class="text-fuchsia-300 hover:text-fuchsia-200">aircon</a>
+  — Charlie's DIY family.
+</footer>
+
+<script>
+  // ---- Wiring table data --------------------------------------------------
+  const wires = [
+    { from: 'LiPo + (red lead)',         to: 'TP4056 B+',         wire: 'red, soldered',     notes: 'Battery positive terminal' },
+    { from: 'LiPo − (black lead)',       to: 'TP4056 B−',         wire: 'black, soldered',   notes: 'Battery negative terminal' },
+    { from: 'TP4056 OUT+',               to: 'ESP32 5V',          wire: 'yellow jumper',     notes: 'Hits the onboard LDO; never connect to V3' },
+    { from: 'TP4056 OUT−',               to: 'ESP32 GD (GND)',    wire: 'black jumper',      notes: 'Common ground rail — fans out to all four buttons' },
+    { from: 'B1 leg A',                  to: 'ESP32 GPIO 0',      wire: 'thin jumper',       notes: 'MODE — cycles screens. Strapping pin; never hold during reset.' },
+    { from: 'B1 leg B',                  to: 'GND rail',          wire: 'thin jumper',       notes: 'Shared ground' },
+    { from: 'B2 leg A',                  to: 'ESP32 GPIO 1',      wire: 'thin jumper',       notes: 'ACTION — start/stop timer, cycle mood, hold = send' },
+    { from: 'B2 leg B',                  to: 'GND rail',          wire: 'thin jumper',       notes: 'Shared ground' },
+    { from: 'B3 leg A',                  to: 'ESP32 GPIO 3',      wire: 'thin jumper',       notes: 'LIGHTS — one tap fires autoclicker from any screen' },
+    { from: 'B3 leg B',                  to: 'GND rail',          wire: 'thin jumper',       notes: 'Shared ground' },
+    { from: 'B4 leg A',                  to: 'ESP32 GPIO 4',      wire: 'thin jumper',       notes: 'AIRCON — one tap toggles aircon power from any screen' },
+    { from: 'B4 leg B',                  to: 'GND rail',          wire: 'thin jumper',       notes: 'Shared ground' },
+    { from: 'USB-C cable (any phone charger)', to: 'TP4056 USB-C', wire: 'USB-C ↔ USB-C',     notes: 'Charges + runs the device. NOT the ESP32 port.' },
+  ];
+
+  const tbody = document.getElementById('wireBody');
+  tbody.innerHTML = wires.map((w, i) => `
+    <tr class="hover:bg-white/[0.02]">
+      <td class="px-5 py-3 text-fuchsia-300 font-semibold mono text-xs">${String(i + 1).padStart(2, '0')}</td>
+      <td class="px-5 py-3 text-white">${w.from}</td>
+      <td class="px-5 py-3 text-slate-300">${w.to}</td>
+      <td class="px-5 py-3 text-slate-400 mono text-xs">${w.wire}</td>
+      <td class="px-5 py-3 text-slate-500 text-xs">${w.notes}</td>
+    </tr>`).join('');
+
+  // ---- Checklist data -----------------------------------------------------
+  const steps = [
+    { section: 'Parts',    text: 'ESP32-C3 SuperMini with built-in 0.42" OLED' },
+    { section: 'Parts',    text: 'TP4056 + DW01 charger/protection module (USB-C)' },
+    { section: 'Parts',    text: 'LiPo 3.7 V 1000 mAh (102050 form factor)' },
+    { section: 'Parts',    text: '4× tactile button 6×6×5 mm (through-hole)' },
+    { section: 'Parts',    text: 'Hookup wire — red / black / yellow / thin signal, ~28–30 AWG for buttons' },
+
+    { section: 'Firmware', text: 'Install Arduino IDE 2.x + ESP32 board support (Espressif)' },
+    { section: 'Firmware', text: 'Install U8g2 library (oliverkraus) via Library Manager' },
+    { section: 'Firmware', text: 'Open firmware/pocket-dash.ino' },
+    { section: 'Firmware', text: 'Confirm board: "ESP32C3 Dev Module", USB CDC On Boot: Enabled' },
+    { section: 'Firmware', text: 'Edit the WiFi SSIDs/passwords if different from autoclicker/aircon' },
+    { section: 'Firmware', text: 'Upload via the ESP32-C3 USB-C (not the TP4056 USB-C)' },
+    { section: 'Firmware', text: 'Verify Serial monitor shows "WiFi: ... IP: ..."' },
+
+    { section: 'Wiring',   text: 'Solder LiPo + to TP4056 B+ and LiPo − to B−' },
+    { section: 'Wiring',   text: 'Jumper TP4056 OUT+ to ESP32 5V (yellow)' },
+    { section: 'Wiring',   text: 'Jumper TP4056 OUT− to ESP32 GD (black) — this is the shared GND rail' },
+    { section: 'Wiring',   text: 'B1: GPIO 0 ↔ button ↔ GND rail' },
+    { section: 'Wiring',   text: 'B2: GPIO 1 ↔ button ↔ GND rail' },
+    { section: 'Wiring',   text: 'B3: GPIO 3 ↔ button ↔ GND rail' },
+    { section: 'Wiring',   text: 'B4: GPIO 4 ↔ button ↔ GND rail' },
+    { section: 'Wiring',   text: 'Insulate all exposed pads with kapton or heat-shrink' },
+
+    { section: 'Test',     text: 'Plug a USB-C charger into the TP4056 — CHRG LED on' },
+    { section: 'Test',     text: 'OLED boots into the Clock screen by default' },
+    { section: 'Test',     text: 'Tap B1 → screen flips to Timer (5:00), tap again → Mood face' },
+    { section: 'Test',     text: 'On Timer screen: tap B2 → countdown starts; tap again → pauses' },
+    { section: 'Test',     text: 'Hold B2 (≥800 ms) on Timer → resets to 5:00' },
+    { section: 'Test',     text: 'Let the timer hit 0:00 — OLED inverts repeatedly + blue LED flashes; any button dismisses' },
+    { section: 'Test',     text: 'On Mood screen: tap B2 → next face; hold B2 → "sent 💛" toast' },
+    { section: 'Test',     text: 'Tap B3 from any screen → autoclicker servo fires' },
+    { section: 'Test',     text: 'Tap B4 from any screen → aircon toggles power' },
+    { section: 'Test',     text: 'Reboot — last-used screen restores from NVS' },
+
+    { section: 'Enclose',  text: 'Stack ESP32 + TP4056 + LiPo into a 3D-printed pocket case' },
+    { section: 'Enclose',  text: 'Cut an OLED window + four button holes (labels B1–B4)' },
+    { section: 'Enclose',  text: 'Expose the TP4056 USB-C on the side for charging' },
+  ];
+
+  const listEl = document.getElementById('checklist');
+  const progressBar = document.getElementById('progressBar');
+  const progressLabel = document.getElementById('progressLabel');
+  const LS_KEY = 'pocket_dash_checklist_v1';
+  const done = new Set(JSON.parse(localStorage.getItem(LS_KEY) || '[]'));
+
+  function persistDone() { localStorage.setItem(LS_KEY, JSON.stringify([...done])); }
+  function updateProgress() {
+    const total = steps.length;
+    progressBar.style.width = (done.size / total * 100).toFixed(1) + '%';
+    progressLabel.textContent = `${done.size} / ${total}`;
+  }
+
+  function render() {
+    const grouped = {};
+    steps.forEach((s, i) => { (grouped[s.section] ||= []).push({ ...s, idx: i }); });
+    listEl.innerHTML = Object.entries(grouped).map(([section, items]) => `
+      <div>
+        <div class="text-xs uppercase tracking-[0.18em] text-fuchsia-300 mb-2">${section}</div>
+        <div class="space-y-2">
+          ${items.map(it => `
+            <label class="check-item flex items-center gap-3 p-3 rounded-lg hover:bg-white/[0.02] cursor-pointer ${done.has(it.idx) ? 'done' : ''}" data-idx="${it.idx}">
+              <span class="check-box">
+                <span class="material-symbols-outlined">check</span>
+              </span>
+              <span class="check-label text-sm text-slate-300">${it.text}</span>
+            </label>`).join('')}
+        </div>
+      </div>`).join('');
+
+    listEl.querySelectorAll('.check-item').forEach(el => {
+      el.addEventListener('click', () => {
+        const idx = parseInt(el.dataset.idx, 10);
+        if (done.has(idx)) done.delete(idx); else done.add(idx);
+        el.classList.toggle('done');
+        persistDone();
+        updateProgress();
+      });
+    });
+  }
+  render();
+  updateProgress();
+
+  // ---- Mobile nav --------------------------------------------------------
+  const navOpen = document.getElementById('navOpen');
+  const navMobile = document.getElementById('navMobile');
+  navOpen?.addEventListener('click', () => navMobile.classList.toggle('hidden'));
+  navMobile?.querySelectorAll('a').forEach(a => a.addEventListener('click', () => navMobile.classList.add('hidden')));
+
+  // ---- Scroll-spy --------------------------------------------------------
+  const navLinks = document.querySelectorAll('[data-nav]');
+  const sections = ['overview', 'hardware', 'wiring', 'demo', 'code', 'checklist'].map(id => document.getElementById(id));
+  function syncNav() {
+    const y = window.scrollY + 120;
+    let active = sections[0];
+    sections.forEach(s => { if (s && s.offsetTop <= y) active = s; });
+    navLinks.forEach(a => a.classList.toggle('active', a.getAttribute('href') === '#' + active.id));
+  }
+  window.addEventListener('scroll', syncNav, { passive: true });
+  syncNav();
+
+  // =====================================================================
+  // OLED demo state machine
+  // =====================================================================
+  const SCREENS = ['CLOCK', 'TIMER', 'MOOD'];
+  let screenIdx  = 0;
+
+  // Cached DOM refs
+  const screenClock = document.getElementById('screenClock');
+  const screenTimer = document.getElementById('screenTimer');
+  const screenMood  = document.getElementById('screenMood');
+  const oledSvg     = document.getElementById('oledSvg');
+
+  const oledClockTime  = document.getElementById('oledClockTime');
+  const oledClockDate  = document.getElementById('oledClockDate');
+  const oledClockCount = document.getElementById('oledClockCount');
+
+  const oledTimerDigits = document.getElementById('oledTimerDigits');
+  const oledTimerHint   = document.getElementById('oledTimerHint');
+
+  const oledFace      = document.getElementById('oledFace');
+  const oledMoodLabel = document.getElementById('oledMoodLabel');
+  const moodEyeL      = document.getElementById('moodEyeL');
+  const moodEyeR      = document.getElementById('moodEyeR');
+  const moodMouth     = document.getElementById('moodMouth');
+  const moodExtras    = document.getElementById('moodExtras');
+
+  const oledToast     = document.getElementById('oledToast');
+  const oledToastText = document.getElementById('oledToastText');
+
+  const blueLed = document.getElementById('blueLed');
+
+  // ---- Clock -------------------------------------------------------------
+  const DOW = ['Sun','Mon','Tue','Wed','Thu','Fri','Sat'];
+  const MON = ['Jan','Feb','Mar','Apr','May','Jun','Jul','Aug','Sep','Oct','Nov','Dec'];
+
+  function pad2(n) { return n < 10 ? '0' + n : String(n); }
+
+  function manilaNow() {
+    const parts = new Intl.DateTimeFormat('en-US', {
+      timeZone: 'Asia/Manila', year: 'numeric', month: 'numeric', day: 'numeric',
+      hour: '2-digit', minute: '2-digit', second: '2-digit', weekday: 'short', hour12: false,
+    }).formatToParts(new Date());
+    const get = t => parts.find(p => p.type === t)?.value || '';
+    return {
+      year:  +get('year'),
+      month: +get('month'),
+      day:   +get('day'),
+      hour:  +get('hour') % 24,
+      min:   +get('minute'),
+      sec:   +get('second'),
+      dow:   get('weekday'),
+    };
+  }
+
+  function daysUntilWedding(p) {
+    const target = Date.UTC(2026, 6, 2) - 8 * 3600 * 1000;
+    const today  = Date.UTC(p.year, p.month - 1, p.day) - 8 * 3600 * 1000;
+    return Math.round((target - today) / 86400000);
+  }
+  function countdownText(d) {
+    if (d > 1)  return 'in ' + d + ' days';
+    if (d === 1) return 'tomorrow!';
+    if (d === 0) return 'WEDDING DAY';
+    return '+' + (-d) + 'd married';
+  }
+
+  function renderClock() {
+    const p = manilaNow();
+    const h12 = (p.hour % 12) || 12;
+    const ampm = p.hour < 12 ? 'AM' : 'PM';
+    oledClockTime.textContent  = h12 + ':' + pad2(p.min) + ' ' + ampm;
+    oledClockDate.textContent  = p.dow + ', ' + MON[p.month - 1] + ' ' + p.day;
+    oledClockCount.textContent = countdownText(daysUntilWedding(p));
+  }
+
+  // ---- Timer -------------------------------------------------------------
+  // Sped up ×60 for the preview: every animation-frame second = 1 minute of real countdown.
+  let timerEnd  = 0;        // performance.now() ms in preview time; 0 = idle
+  let timerDone = false;
+  const PREVIEW_TOTAL_MS = 5 * 1000; // visually represents 5:00 over 5 real seconds
+
+  function timerToggle() {
+    if (timerDone) { timerReset(); return; }
+    if (timerEnd === 0) timerEnd = performance.now() + PREVIEW_TOTAL_MS;
+    else                timerEnd = 0;
+  }
+  function timerReset() { timerEnd = 0; timerDone = false; oledSvg.classList.remove('oled-flash'); blueLed.classList.remove('led-pulse'); }
+
+  function renderTimer() {
+    let remainMs = 0;
+    if (timerEnd > 0) {
+      remainMs = Math.max(0, timerEnd - performance.now());
+      if (remainMs === 0) { timerDone = true; timerEnd = 0; }
+    } else if (timerDone) {
+      remainMs = 0;
+    } else {
+      remainMs = PREVIEW_TOTAL_MS;
+    }
+
+    // Map remainMs (0..5000) to real 5:00..0:00
+    const realSeconds = Math.ceil(remainMs / PREVIEW_TOTAL_MS * 5 * 60);
+    const mm = Math.floor(realSeconds / 60);
+    const ss = realSeconds % 60;
+    oledTimerDigits.textContent = mm + ':' + pad2(ss);
+
+    if (timerDone) {
+      oledTimerDigits.textContent = 'TIME UP';
+      oledTimerDigits.setAttribute('font-size', '36');
+      oledTimerHint.textContent   = 'tap any to dismiss';
+      oledSvg.classList.add('oled-flash');
+      blueLed.classList.add('led-pulse');
+    } else {
+      oledTimerDigits.setAttribute('font-size', '56');
+      oledSvg.classList.remove('oled-flash');
+      blueLed.classList.remove('led-pulse');
+      if (timerEnd > 0)      oledTimerHint.textContent = 'running · tap B2 to pause';
+      else                   oledTimerHint.textContent = 'tap B2 to start';
+    }
+  }
+
+  // ---- Mood --------------------------------------------------------------
+  const MOODS = [
+    { name: 'HAPPY',   eyes: 'dots',     mouth: 'M 22 44 Q 36 54 50 44',         extras: '' },
+    { name: 'SAD',     eyes: 'dots',     mouth: 'M 22 50 Q 36 38 50 50',         extras: '' },
+    { name: 'IN LOVE', eyes: 'hearts',   mouth: 'M 22 44 Q 36 54 50 44',         extras: '' },
+    { name: 'SLEEPY',  eyes: 'closed',   mouth: 'M 28 46 Q 36 50 44 46',         extras: 'z' },
+    { name: 'ANGRY',   eyes: 'slanted',  mouth: 'M 24 48 L 48 48',               extras: 'brows' },
+    { name: 'NEED HUG',eyes: 'dots',     mouth: 'M 22 44 Q 36 56 50 44',         extras: 'arms' },
+  ];
+  let moodIdx = 0;
+
+  function drawHeart(cx, cy, scale = 1, color = '#fda4af') {
+    const s = scale;
+    const d = `M ${cx} ${cy + 4*s}
+               C ${cx - 6*s} ${cy - 2*s}, ${cx - 6*s} ${cy - 6*s}, ${cx - 3*s} ${cy - 6*s}
+               C ${cx - 1*s} ${cy - 6*s}, ${cx} ${cy - 4*s}, ${cx} ${cy - 3*s}
+               C ${cx} ${cy - 4*s}, ${cx + 1*s} ${cy - 6*s}, ${cx + 3*s} ${cy - 6*s}
+               C ${cx + 6*s} ${cy - 6*s}, ${cx + 6*s} ${cy - 2*s}, ${cx} ${cy + 4*s} Z`;
+    return `<path d="${d}" fill="${color}" />`;
+  }
+
+  function renderMood() {
+    const m = MOODS[moodIdx];
+    oledMoodLabel.textContent = m.name;
+
+    // Eyes: replace by re-drawing the two eye nodes
+    if (m.eyes === 'dots') {
+      moodEyeL.setAttribute('r', '3'); moodEyeL.setAttribute('fill', '#fde68a');
+      moodEyeR.setAttribute('r', '3'); moodEyeR.setAttribute('fill', '#fde68a');
+      moodEyeL.style.display = ''; moodEyeR.style.display = '';
+    } else if (m.eyes === 'hearts') {
+      moodEyeL.style.display = 'none'; moodEyeR.style.display = 'none';
+    } else if (m.eyes === 'closed') {
+      moodEyeL.setAttribute('r', '1'); moodEyeR.setAttribute('r', '1');
+      moodEyeL.style.display = ''; moodEyeR.style.display = '';
+    } else if (m.eyes === 'slanted') {
+      moodEyeL.style.display = 'none'; moodEyeR.style.display = 'none';
+    }
+
+    moodMouth.setAttribute('d', m.mouth);
+
+    let extras = '';
+    if (m.eyes === 'hearts') {
+      extras += drawHeart(26, 30, 1, '#fda4af');
+      extras += drawHeart(46, 30, 1, '#fda4af');
+    }
+    if (m.eyes === 'closed') {
+      extras += `<line x1="20" y1="30" x2="32" y2="30" stroke="#fde68a" stroke-width="3" stroke-linecap="round" />`;
+      extras += `<line x1="40" y1="30" x2="52" y2="30" stroke="#fde68a" stroke-width="3" stroke-linecap="round" />`;
+    }
+    if (m.eyes === 'slanted') {
+      extras += `<line x1="20" y1="26" x2="32" y2="32" stroke="#fde68a" stroke-width="3" stroke-linecap="round" />`;
+      extras += `<line x1="52" y1="26" x2="40" y2="32" stroke="#fde68a" stroke-width="3" stroke-linecap="round" />`;
+    }
+    if (m.extras === 'z') {
+      extras += `<text x="58" y="14" fill="#fde68a" font-family="JetBrains Mono" font-size="12" font-weight="700">z</text>`;
+      extras += `<text x="65" y="22" fill="#fde68a" font-family="JetBrains Mono" font-size="9">z</text>`;
+    }
+    if (m.extras === 'brows') {
+      extras += `<line x1="16" y1="20" x2="32" y2="24" stroke="#fda4af" stroke-width="3" stroke-linecap="round" />`;
+      extras += `<line x1="56" y1="20" x2="40" y2="24" stroke="#fda4af" stroke-width="3" stroke-linecap="round" />`;
+    }
+    if (m.extras === 'arms') {
+      extras += `<path d="M -2 50 Q 8 38 14 46" fill="none" stroke="#fda4af" stroke-width="3" stroke-linecap="round" />`;
+      extras += `<path d="M 74 50 Q 64 38 58 46" fill="none" stroke="#fda4af" stroke-width="3" stroke-linecap="round" />`;
+    }
+    moodExtras.innerHTML = extras;
+
+    // Pop the face on each cycle
+    oledFace.classList.remove('face-pop');
+    void oledFace.getBoundingClientRect(); // reflow
+    oledFace.classList.add('face-pop');
+  }
+
+  // ---- Screen swap -------------------------------------------------------
+  function showScreen(name) {
+    screenClock.style.display = (name === 'CLOCK') ? '' : 'none';
+    screenTimer.style.display = (name === 'TIMER') ? '' : 'none';
+    screenMood.style.display  = (name === 'MOOD')  ? '' : 'none';
+    if (name === 'CLOCK') renderClock();
+    if (name === 'TIMER') renderTimer();
+    if (name === 'MOOD')  renderMood();
+  }
+
+  function cycleScreen() {
+    // If timer is flashing, any button dismisses first
+    if (timerDone) { timerReset(); return; }
+    screenIdx = (screenIdx + 1) % SCREENS.length;
+    showScreen(SCREENS[screenIdx]);
+  }
+
+  function actionTap() {
+    if (timerDone) { timerReset(); return; }
+    const screen = SCREENS[screenIdx];
+    if (screen === 'TIMER')     timerToggle();
+    else if (screen === 'MOOD') { moodIdx = (moodIdx + 1) % MOODS.length; renderMood(); }
+    // CLOCK = no-op
+  }
+
+  function actionHold() {
+    if (timerDone) { timerReset(); return; }
+    const screen = SCREENS[screenIdx];
+    if (screen === 'TIMER')      { timerReset(); flashToast('reset 5:00'); }
+    else if (screen === 'MOOD')  { flashToast('sent ' + MOODS[moodIdx].name.toLowerCase(), '#fda4af'); }
+  }
+
+  // ---- Toast / status ----------------------------------------------------
+  function flashToast(text, color = '#10b981') {
+    oledToastText.textContent = text;
+    oledToastText.setAttribute('fill', color);
+    oledToast.style.display = '';
+    oledSvg.classList.add('oled-press');
+    clearTimeout(flashToast._t1);
+    clearTimeout(flashToast._t2);
+    flashToast._t1 = setTimeout(() => oledSvg.classList.remove('oled-press'), 700);
+    flashToast._t2 = setTimeout(() => { oledToast.style.display = 'none'; }, 2000);
+  }
+
+  // ---- Wire button buttons ----------------------------------------------
+  document.getElementById('btnB1').addEventListener('click', cycleScreen);
+  document.getElementById('btnB2').addEventListener('click', actionTap);
+  document.getElementById('btnB3').addEventListener('click', () => {
+    if (timerDone) { timerReset(); return; }
+    flashToast('sent lights', '#86efac');
+  });
+  document.getElementById('btnB4').addEventListener('click', () => {
+    if (timerDone) { timerReset(); return; }
+    flashToast('sent aircon', '#7dd3fc');
+  });
+  document.getElementById('btnB2Hold').addEventListener('click', actionHold);
+  document.getElementById('btnB2HoldReset').addEventListener('click', actionHold);
+
+  // ---- Render loop -------------------------------------------------------
+  showScreen('CLOCK');
+  setInterval(() => {
+    const s = SCREENS[screenIdx];
+    if (s === 'CLOCK') renderClock();
+    if (s === 'TIMER') renderTimer();
+  }, 1000);
+
+  // Higher-frequency redraw while the timer is running so digits feel live
+  setInterval(() => {
+    if (SCREENS[screenIdx] === 'TIMER' && (timerEnd > 0 || timerDone)) renderTimer();
+  }, 100);
+</script>
+
+</body>
+</html>
