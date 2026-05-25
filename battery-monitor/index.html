@@ -1,0 +1,997 @@
+<!doctype html>
+<html lang="en" class="dark">
+<head>
+  <meta charset="utf-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1" />
+  <title>Battery Monitor — Build Reference</title>
+
+  <link rel="preconnect" href="https://fonts.googleapis.com" />
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
+  <link href="https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700;800&family=JetBrains+Mono:wght@400;500&display=swap" rel="stylesheet" />
+  <link href="https://fonts.googleapis.com/css2?family=Material+Symbols+Outlined:opsz,wght,FILL,GRAD@24,400,0,0" rel="stylesheet" />
+
+  <script src="https://cdn.jsdelivr.net/npm/@tailwindcss/browser@4"></script>
+
+  <style>
+    :root { color-scheme: dark; }
+    html, body { background: #07080b; }
+    body {
+      font-family: 'Inter', system-ui, -apple-system, sans-serif;
+      background-image:
+        radial-gradient(ellipse 60% 50% at 20% -10%, rgba(244,63,94,0.18), transparent 60%),
+        radial-gradient(ellipse 50% 40% at 90% 10%, rgba(132,204,22,0.14), transparent 60%);
+      background-attachment: fixed;
+    }
+    code, pre, .mono { font-family: 'JetBrains Mono', ui-monospace, monospace; }
+    .material-symbols-outlined { font-variation-settings: 'FILL' 0, 'wght' 400, 'GRAD' 0, 'opsz' 24; vertical-align: middle; }
+
+    .card {
+      background: linear-gradient(180deg, rgba(255,255,255,0.025), rgba(255,255,255,0.012));
+      border: 1px solid rgba(255,255,255,0.06);
+      border-radius: 16px;
+    }
+
+    .glow-rose { box-shadow: 0 0 24px -4px rgba(244,63,94,0.5); }
+    .glow-lime { box-shadow: 0 0 24px -4px rgba(132,204,22,0.5); }
+    .text-glow { text-shadow: 0 0 18px rgba(251,113,133,0.6); }
+
+    @keyframes flowDash { to { stroke-dashoffset: -36; } }
+    .flow { stroke-dasharray: 6 12; animation: flowDash 1.4s linear infinite; }
+
+    .wire { fill: none; stroke-linecap: round; stroke-linejoin: round; }
+
+    pre.code {
+      background: #0a0c12;
+      border: 1px solid rgba(255,255,255,0.06);
+      border-radius: 12px;
+      padding: 18px 20px;
+      overflow-x: auto;
+      font-size: 12.5px;
+      line-height: 1.65;
+      color: #c9d1d9;
+      tab-size: 2;
+    }
+    .tok-kw  { color: #ff7b72; }
+    .tok-str { color: #a5d6ff; }
+    .tok-num { color: #79c0ff; }
+    .tok-com { color: #6e7681; font-style: italic; }
+    .tok-fn  { color: #d2a8ff; }
+    .tok-typ { color: #ffa657; }
+
+    .section { scroll-margin-top: 80px; }
+
+    .nav-link.active {
+      color: #fff;
+      background: rgba(255,255,255,0.06);
+    }
+
+    .check-item .check-box {
+      width: 20px; height: 20px; border-radius: 6px;
+      border: 1.5px solid rgba(255,255,255,0.18);
+      flex-shrink: 0; display: grid; place-items: center;
+      transition: all 120ms ease;
+    }
+    .check-item.done .check-box {
+      background: linear-gradient(135deg, #f43f5e, #84cc16);
+      border-color: transparent;
+    }
+    .check-item.done .check-box .material-symbols-outlined { opacity: 1; transform: scale(1); }
+    .check-item .check-box .material-symbols-outlined { opacity: 0; transform: scale(0.5); transition: all 120ms ease; font-size: 14px; color: white; }
+    .check-item.done .check-label { color: rgba(255,255,255,0.4); text-decoration: line-through; }
+
+    .grid-bg {
+      background-image:
+        linear-gradient(rgba(255,255,255,0.025) 1px, transparent 1px),
+        linear-gradient(90deg, rgba(255,255,255,0.025) 1px, transparent 1px);
+      background-size: 32px 32px;
+    }
+
+    /* Battery bar in the demo — width is driven by JS, transition gives it a smooth fill */
+    .bat-fill { transition: width 700ms ease-out, fill 200ms ease; }
+
+    /* Lightning bolt blink while charging */
+    @keyframes boltBlink { 0%, 60% { opacity: 1 } 70%, 100% { opacity: 0.15 } }
+    .bolt-anim { animation: boltBlink 1s ease-in-out infinite; }
+
+    details > summary { list-style: none; cursor: pointer; }
+    details > summary::-webkit-details-marker { display: none; }
+    details[open] .chev { transform: rotate(180deg); }
+    .chev { transition: transform 200ms ease; }
+
+    .no-scrollbar::-webkit-scrollbar { display: none; }
+    .no-scrollbar { scrollbar-width: none; }
+  </style>
+</head>
+<body class="text-slate-300 antialiased">
+
+<!-- ============== NAV ============== -->
+<nav class="sticky top-0 z-40 backdrop-blur-xl bg-[#07080b]/75 border-b border-white/[0.06]">
+  <div class="max-w-6xl mx-auto px-4 sm:px-6 h-14 flex items-center justify-between">
+    <a href="#top" class="flex items-center gap-2.5 group">
+      <div class="w-8 h-8 rounded-lg bg-gradient-to-br from-rose-500 to-lime-500 grid place-items-center glow-rose">
+        <span class="material-symbols-outlined text-white" style="font-size:18px">battery_charging_full</span>
+      </div>
+      <span class="font-semibold text-white tracking-tight">Battery Monitor</span>
+      <span class="text-xs text-slate-500 hidden sm:inline">· build reference</span>
+    </a>
+
+    <div class="hidden md:flex items-center gap-1 text-sm">
+      <a href="#overview" data-nav class="nav-link px-3 py-1.5 rounded-md text-slate-400 hover:text-white transition-colors">Overview</a>
+      <a href="#hardware" data-nav class="nav-link px-3 py-1.5 rounded-md text-slate-400 hover:text-white transition-colors">Hardware</a>
+      <a href="#wiring"   data-nav class="nav-link px-3 py-1.5 rounded-md text-slate-400 hover:text-white transition-colors">Wiring</a>
+      <a href="#demo"     data-nav class="nav-link px-3 py-1.5 rounded-md text-slate-400 hover:text-white transition-colors">Demo</a>
+      <a href="#code"     data-nav class="nav-link px-3 py-1.5 rounded-md text-slate-400 hover:text-white transition-colors">Code</a>
+      <a href="#checklist" data-nav class="nav-link px-3 py-1.5 rounded-md text-slate-400 hover:text-white transition-colors">Checklist</a>
+    </div>
+
+    <button id="navOpen" aria-label="menu" class="md:hidden text-slate-300 hover:text-white p-2">
+      <span class="material-symbols-outlined">menu</span>
+    </button>
+  </div>
+  <div id="navMobile" class="hidden md:hidden px-4 pb-3 space-y-1 text-sm border-t border-white/5">
+    <a href="#overview" class="block px-3 py-2 rounded-md text-slate-300 hover:bg-white/5">Overview</a>
+    <a href="#hardware" class="block px-3 py-2 rounded-md text-slate-300 hover:bg-white/5">Hardware</a>
+    <a href="#wiring"   class="block px-3 py-2 rounded-md text-slate-300 hover:bg-white/5">Wiring</a>
+    <a href="#demo"     class="block px-3 py-2 rounded-md text-slate-300 hover:bg-white/5">Demo</a>
+    <a href="#code"     class="block px-3 py-2 rounded-md text-slate-300 hover:bg-white/5">Code</a>
+    <a href="#checklist" class="block px-3 py-2 rounded-md text-slate-300 hover:bg-white/5">Checklist</a>
+  </div>
+</nav>
+
+<!-- ============== HERO ============== -->
+<header id="top" class="max-w-6xl mx-auto px-4 sm:px-6 pt-16 pb-12 text-center">
+  <div class="inline-flex items-center gap-2 px-3 py-1 rounded-full bg-white/[0.04] border border-white/[0.06] text-xs text-slate-400 mb-6">
+    <span class="w-1.5 h-1.5 bg-rose-400 rounded-full"></span>
+    Battery-powered · USB-C charging · Live clock + battery %
+  </div>
+  <h1 class="text-4xl sm:text-6xl font-bold tracking-tight text-white mb-4">
+    <span class="bg-gradient-to-r from-rose-300 via-pink-300 to-lime-300 bg-clip-text text-transparent">Battery</span> Monitor
+  </h1>
+  <p class="text-base sm:text-lg text-slate-400 max-w-2xl mx-auto mb-10">
+    A keychain-sized desk widget. ESP32-C3 with a built-in 0.42" OLED reads its own LiPo
+    over a voltage divider, watches the TP4056's <code class="mono text-rose-300">CHRG</code> pad for charge state,
+    and shows the time + battery percentage at a glance.
+  </p>
+  <div class="grid grid-cols-2 sm:grid-cols-4 gap-3 max-w-3xl mx-auto">
+    <div class="card p-4 text-left">
+      <div class="text-2xl font-semibold text-white">3 <span class="text-sm text-slate-500 font-normal">modules</span></div>
+      <div class="text-xs text-slate-500 mt-1">ESP32-C3+OLED · TP4056 · LiPo 1000 mAh</div>
+    </div>
+    <div class="card p-4 text-left">
+      <div class="text-2xl font-semibold text-white">2 <span class="text-sm text-slate-500 font-normal">sensors</span></div>
+      <div class="text-xs text-slate-500 mt-1">ADC divider + CHRG pin</div>
+    </div>
+    <div class="card p-4 text-left">
+      <div class="text-2xl font-semibold text-white">72×40 <span class="text-sm text-slate-500 font-normal">OLED</span></div>
+      <div class="text-xs text-slate-500 mt-1">Clock · % · charging icon</div>
+    </div>
+    <div class="card p-4 text-left">
+      <div class="text-2xl font-semibold text-white">USB-C <span class="text-sm text-slate-500 font-normal">charge</span></div>
+      <div class="text-xs text-slate-500 mt-1">use while plugged in</div>
+    </div>
+  </div>
+</header>
+
+<!-- ============== OVERVIEW ============== -->
+<section id="overview" class="section max-w-6xl mx-auto px-4 sm:px-6 py-16">
+  <div class="mb-10">
+    <div class="text-xs uppercase tracking-[0.18em] text-rose-300 mb-2">Overview</div>
+    <h2 class="text-3xl sm:text-4xl font-bold text-white tracking-tight">How a reading is taken</h2>
+    <p class="text-slate-400 mt-3 max-w-2xl">
+      The ESP32-C3 reads two cheap signals every second and paints them on the
+      72×40 OLED. NTP gives us the clock; a 220k/100k resistor divider gives us
+      the battery voltage; the TP4056's open-drain CHRG pad tells us whether
+      USB-C is actually charging the cell.
+    </p>
+  </div>
+
+  <div class="card p-6 sm:p-10 grid-bg">
+    <svg viewBox="0 0 1100 280" class="w-full">
+      <defs>
+        <marker id="arrowRose" viewBox="0 0 10 10" refX="6" refY="5" markerWidth="6" markerHeight="6" orient="auto-start-reverse">
+          <path d="M0,0 L10,5 L0,10 z" fill="#fb7185" />
+        </marker>
+        <linearGradient id="gradBat" x1="0" y1="0" x2="1" y2="1">
+          <stop offset="0%" stop-color="#f43f5e" />
+          <stop offset="100%" stop-color="#be123c" />
+        </linearGradient>
+        <linearGradient id="gradTp" x1="0" y1="0" x2="1" y2="1">
+          <stop offset="0%" stop-color="#f97316" />
+          <stop offset="100%" stop-color="#c2410c" />
+        </linearGradient>
+        <linearGradient id="gradEsp" x1="0" y1="0" x2="1" y2="1">
+          <stop offset="0%" stop-color="#84cc16" />
+          <stop offset="100%" stop-color="#4d7c0f" />
+        </linearGradient>
+        <linearGradient id="gradOled" x1="0" y1="0" x2="1" y2="1">
+          <stop offset="0%" stop-color="#facc15" />
+          <stop offset="100%" stop-color="#ca8a04" />
+        </linearGradient>
+      </defs>
+
+      <!-- LiPo cell -->
+      <g transform="translate(40 80)">
+        <rect width="160" height="120" rx="18" fill="url(#gradBat)" opacity="0.92" />
+        <text x="80" y="55" text-anchor="middle" fill="#fff" font-size="14" font-weight="700" letter-spacing="2">LiPo CELL</text>
+        <text x="80" y="78" text-anchor="middle" fill="rgba(255,255,255,0.78)" font-size="11">3.7 V · 1000 mAh</text>
+        <text x="80" y="98" text-anchor="middle" fill="rgba(255,255,255,0.6)" font-size="10">3.30 – 4.20 V live</text>
+      </g>
+
+      <!-- TP4056 -->
+      <g transform="translate(290 80)">
+        <rect width="160" height="120" rx="18" fill="url(#gradTp)" opacity="0.92" />
+        <text x="80" y="55" text-anchor="middle" fill="#fff" font-size="14" font-weight="700" letter-spacing="2">TP4056</text>
+        <text x="80" y="78" text-anchor="middle" fill="rgba(255,255,255,0.78)" font-size="11">charge + DW01 protect</text>
+        <text x="80" y="98" text-anchor="middle" fill="rgba(255,255,255,0.6)" font-size="10">CHRG pad → ESP</text>
+      </g>
+
+      <!-- ESP32-C3 -->
+      <g transform="translate(540 80)">
+        <rect width="160" height="120" rx="18" fill="url(#gradEsp)" opacity="0.92" />
+        <text x="80" y="55" text-anchor="middle" fill="#fff" font-size="14" font-weight="700" letter-spacing="2">ESP32-C3</text>
+        <text x="80" y="78" text-anchor="middle" fill="rgba(255,255,255,0.85)" font-size="11">ADC · GPIO · WiFi NTP</text>
+        <text x="80" y="98" text-anchor="middle" fill="rgba(255,255,255,0.65)" font-size="10">reads · samples · paints</text>
+      </g>
+
+      <!-- OLED -->
+      <g transform="translate(870 60)">
+        <rect width="190" height="160" rx="18" fill="url(#gradOled)" opacity="0.95" />
+        <text x="95" y="32" text-anchor="middle" fill="#422006" font-size="13" font-weight="700" letter-spacing="2">0.42" OLED</text>
+        <rect x="20" y="48" width="150" height="92" rx="6" fill="#1a1407" />
+        <text x="95" y="76" text-anchor="middle" fill="#facc15" font-family="JetBrains Mono" font-size="18" font-weight="700">2:32 PM</text>
+        <text x="95" y="94" text-anchor="middle" fill="#fbbf24" font-family="JetBrains Mono" font-size="11">Mon May 25</text>
+        <g transform="translate(40 112)">
+          <rect x="0" y="0" width="36" height="18" rx="2" fill="none" stroke="#84cc16" stroke-width="1.5" />
+          <rect x="38" y="6" width="4" height="6" fill="#84cc16" />
+          <rect x="3" y="3" width="22" height="12" fill="#84cc16" />
+          <text x="58" y="14" fill="#a3e635" font-family="JetBrains Mono" font-size="11" font-weight="700">62%</text>
+        </g>
+      </g>
+
+      <!-- Wires -->
+      <path d="M200 140 L290 140" class="wire flow" stroke="#fb7185" stroke-width="3" marker-end="url(#arrowRose)" />
+      <path d="M450 140 L540 140" class="wire flow" stroke="#fb7185" stroke-width="3" marker-end="url(#arrowRose)" />
+      <path d="M700 140 L870 140" class="wire flow" stroke="#fb7185" stroke-width="3" marker-end="url(#arrowRose)" />
+    </svg>
+
+    <div class="grid sm:grid-cols-3 gap-4 mt-8 text-sm">
+      <div class="card p-4">
+        <div class="text-rose-300 font-semibold mb-1">1. Power flows</div>
+        <div class="text-slate-400">LiPo runs the device through the TP4056; USB-C tops up the cell while in use.</div>
+      </div>
+      <div class="card p-4">
+        <div class="text-rose-300 font-semibold mb-1">2. ESP samples</div>
+        <div class="text-slate-400">ADC1_CH3 reads the divider 16× per tick; GPIO4 watches CHRG.</div>
+      </div>
+      <div class="card p-4">
+        <div class="text-lime-300 font-semibold mb-1">3. OLED paints</div>
+        <div class="text-slate-400">Three-row layout: clock, date, battery icon + percent + state.</div>
+      </div>
+    </div>
+  </div>
+</section>
+
+<!-- ============== HARDWARE ============== -->
+<section id="hardware" class="section max-w-6xl mx-auto px-4 sm:px-6 py-16">
+  <div class="mb-10">
+    <div class="text-xs uppercase tracking-[0.18em] text-rose-300 mb-2">Hardware</div>
+    <h2 class="text-3xl sm:text-4xl font-bold text-white tracking-tight">Three boards + two resistors</h2>
+    <p class="text-slate-400 mt-3 max-w-2xl">
+      Stacked top-to-bottom: ESP32-C3 + 0.42" OLED dev board, TP4056 USB-C
+      charger / protection, and the LiPo cell. The only extra parts are the
+      two 1/4 W resistors that form the battery-sense divider.
+    </p>
+  </div>
+
+  <div class="card p-6 sm:p-10 grid-bg">
+    <svg viewBox="0 0 900 560" class="w-full">
+      <defs>
+        <linearGradient id="pcbRose" x1="0" y1="0" x2="0" y2="1">
+          <stop offset="0%" stop-color="#5b1828" />
+          <stop offset="100%" stop-color="#2c0a15" />
+        </linearGradient>
+        <linearGradient id="pcbBlue" x1="0" y1="0" x2="0" y2="1">
+          <stop offset="0%" stop-color="#1e3a8a" />
+          <stop offset="100%" stop-color="#0c1f4a" />
+        </linearGradient>
+        <linearGradient id="batBody" x1="0" y1="0" x2="0" y2="1">
+          <stop offset="0%" stop-color="#cbd5e1" />
+          <stop offset="100%" stop-color="#94a3b8" />
+        </linearGradient>
+        <radialGradient id="oledScreen" cx="50%" cy="50%" r="50%">
+          <stop offset="0%" stop-color="#fcd34d" stop-opacity="1" />
+          <stop offset="100%" stop-color="#92400e" stop-opacity="0.4" />
+        </radialGradient>
+      </defs>
+
+      <!-- ESP32-C3 + OLED board (top) -->
+      <g transform="translate(60 30)">
+        <rect width="280" height="160" rx="10" fill="url(#pcbRose)" stroke="#9f1239" stroke-width="1" />
+        <text x="140" y="20" text-anchor="middle" fill="#fda4af" font-size="9" letter-spacing="1.5">ESP32-C3 · 0.42" OLED</text>
+
+        <!-- Top edge pin pads -->
+        <g fill="#fde68a">
+          <rect x="14" y="0"  width="10" height="4" />
+          <rect x="34" y="0"  width="10" height="4" />
+          <rect x="54" y="0"  width="10" height="4" />
+          <rect x="74" y="0"  width="10" height="4" />
+          <rect x="94" y="0"  width="10" height="4" />
+          <rect x="114" y="0" width="10" height="4" />
+          <rect x="134" y="0" width="10" height="4" />
+          <rect x="154" y="0" width="10" height="4" />
+        </g>
+        <g fill="#cbd5e1" font-size="7" text-anchor="middle">
+          <text x="19" y="-4">V5</text><text x="39" y="-4">GD</text><text x="59" y="-4">V3</text>
+          <text x="79" y="-4">RX</text><text x="99" y="-4">TX</text><text x="119" y="-4">0</text>
+          <text x="139" y="-4">1</text><text x="159" y="-4">2</text>
+        </g>
+
+        <!-- Bottom edge pin pads — GPIO3 (ADC) and GPIO4 (CHRG) highlighted -->
+        <g fill="#fde68a">
+          <rect x="14" y="156" width="10" height="4" />
+          <rect x="34" y="156" width="10" height="4" />
+          <rect x="54" y="156" width="10" height="4" />
+          <rect x="74" y="156" width="10" height="4" />
+          <rect x="94" y="156" width="10" height="4" />
+          <rect x="114" y="156" width="10" height="4" />
+          <rect x="134" y="156" width="10" height="4" />
+          <rect x="154" y="156" width="10" height="4" />
+        </g>
+        <g fill="#cbd5e1" font-size="7" text-anchor="middle">
+          <text x="19" y="172" fill="#fda4af" font-weight="700">3</text>
+          <text x="39" y="172">10</text><text x="59" y="172" fill="#a3e635" font-weight="700">4</text>
+          <text x="79" y="172">5</text><text x="99" y="172">6</text>
+          <text x="119" y="172">7</text><text x="139" y="172">8</text>
+          <text x="159" y="172">9</text>
+        </g>
+
+        <!-- USB-C on right edge -->
+        <rect x="270" y="62" width="22" height="36" rx="4" fill="#1f2937" stroke="#6b7280" />
+        <rect x="280" y="74" width="14" height="12" fill="#0f172a" />
+        <text x="281" y="118" fill="#94a3b8" font-size="7">USB-C</text>
+
+        <!-- OLED screen — preview of the live layout -->
+        <rect x="130" y="60" width="50" height="40" rx="3" fill="#000" stroke="#fde68a" stroke-width="0.5" />
+        <rect x="135" y="65" width="40" height="30" fill="url(#oledScreen)" opacity="0.85" />
+        <text x="155" y="73" text-anchor="middle" fill="#fde68a" font-size="6" font-weight="700">2:32 PM</text>
+        <text x="155" y="81" text-anchor="middle" fill="#fbbf24" font-size="4">Mon May 25</text>
+        <!-- tiny battery icon -->
+        <rect x="139" y="86" width="16" height="6" rx="0.5" fill="none" stroke="#a3e635" stroke-width="0.6" />
+        <rect x="155" y="88" width="1.5" height="2" fill="#a3e635" />
+        <rect x="140" y="87" width="10" height="4" fill="#a3e635" />
+        <text x="165" y="91" fill="#a3e635" font-size="5" font-weight="700">62%</text>
+
+        <!-- Status LEDs -->
+        <circle cx="100" cy="46" r="2.5" fill="#ef4444" />
+        <text x="100" y="38" text-anchor="middle" fill="#94a3b8" font-size="6">PWR</text>
+      </g>
+
+      <!-- Voltage divider — sits between the boards as its own little block -->
+      <g transform="translate(380 230)">
+        <rect width="160" height="80" rx="10" fill="#0f172a" stroke="#475569" />
+        <text x="80" y="14" text-anchor="middle" fill="#cbd5e1" font-size="9" letter-spacing="1.2">battery-sense divider</text>
+
+        <!-- 220k resistor (top) -->
+        <line x1="20" y1="36" x2="40" y2="36" stroke="#cbd5e1" stroke-width="1.5" />
+        <rect x="40" y="30" width="40" height="12" fill="#1e293b" stroke="#94a3b8" />
+        <text x="60" y="40" text-anchor="middle" fill="#fda4af" font-size="8" font-weight="700">220k</text>
+        <line x1="80" y1="36" x2="100" y2="36" stroke="#cbd5e1" stroke-width="1.5" />
+
+        <!-- Tap node -->
+        <circle cx="100" cy="36" r="3" fill="#a3e635" />
+        <text x="106" y="32" fill="#a3e635" font-size="8" font-weight="700">→ GPIO3</text>
+
+        <!-- 100k resistor (bottom) -->
+        <line x1="100" y1="36" x2="100" y2="50" stroke="#cbd5e1" stroke-width="1.5" />
+        <rect x="80" y="50" width="40" height="12" fill="#1e293b" stroke="#94a3b8" />
+        <text x="100" y="60" text-anchor="middle" fill="#fda4af" font-size="8" font-weight="700">100k</text>
+        <line x1="100" y1="62" x2="100" y2="72" stroke="#cbd5e1" stroke-width="1.5" />
+
+        <!-- Labels at the rails -->
+        <text x="14"  y="32" text-anchor="end" fill="#fda4af" font-size="8" font-weight="700">BAT+</text>
+        <text x="100" y="78" text-anchor="middle" fill="#94a3b8" font-size="8" font-weight="700">GND</text>
+      </g>
+
+      <!-- TP4056 charger (middle right) -->
+      <g transform="translate(420 380)">
+        <rect width="200" height="100" rx="8" fill="url(#pcbBlue)" stroke="#1d4ed8" stroke-width="1" />
+        <text x="100" y="16" text-anchor="middle" fill="#bfdbfe" font-size="9" letter-spacing="1.2">TP4056 · USB-C charger</text>
+
+        <rect x="-22" y="32" width="22" height="36" rx="4" fill="#1f2937" stroke="#6b7280" />
+        <rect x="-16" y="44" width="14" height="12" fill="#0f172a" />
+        <text x="-11" y="84" fill="#94a3b8" font-size="7" text-anchor="middle">USB-C</text>
+
+        <rect x="14" y="46" width="14" height="14" fill="#ef4444" />
+        <text x="21" y="56" text-anchor="middle" fill="#fff" font-size="8" font-weight="700">B+</text>
+        <rect x="14" y="74" width="14" height="14" fill="#1e293b" stroke="#64748b" />
+        <text x="21" y="84" text-anchor="middle" fill="#fff" font-size="8" font-weight="700">B-</text>
+
+        <rect x="172" y="20" width="14" height="14" fill="#fde68a" />
+        <text x="179" y="30" text-anchor="middle" fill="#1f2937" font-size="7" font-weight="700">OUT+</text>
+        <rect x="172" y="76" width="14" height="14" fill="#1e293b" stroke="#64748b" />
+        <text x="179" y="86" text-anchor="middle" fill="#fff" font-size="7" font-weight="700">OUT-</text>
+
+        <rect x="60" y="35" width="22" height="22" fill="#0f172a" stroke="#475569" />
+        <text x="71" y="65" text-anchor="middle" fill="#94a3b8" font-size="6">TP4056</text>
+        <rect x="106" y="35" width="22" height="22" fill="#0f172a" stroke="#475569" />
+        <text x="117" y="65" text-anchor="middle" fill="#94a3b8" font-size="6">DW01</text>
+
+        <!-- CHRG pad highlighted in lime — this is the magic pin -->
+        <circle cx="146" cy="42" r="3" fill="#a3e635" stroke="#84cc16" stroke-width="1" />
+        <text x="146" y="36" text-anchor="middle" fill="#a3e635" font-size="6" font-weight="700">CHRG</text>
+        <circle cx="146" cy="56" r="2.5" fill="#10b981" />
+        <text x="146" y="68" text-anchor="middle" fill="#94a3b8" font-size="5">FULL</text>
+      </g>
+
+      <!-- LiPo battery (bottom) -->
+      <g transform="translate(80 460)">
+        <rect width="240" height="80" rx="6" fill="url(#batBody)" stroke="#64748b" stroke-width="1" />
+        <rect x="10" y="14" width="220" height="52" rx="2" fill="#f8fafc" opacity="0.45" />
+        <text x="120" y="40" text-anchor="middle" fill="#1f2937" font-size="11" font-weight="700">LiPo 3.7V 1000 mAh</text>
+        <text x="120" y="55" text-anchor="middle" fill="#475569" font-size="8">102050 · 3-wire (BMS pre-installed)</text>
+        <path d="M40 0 L40 -25" stroke="#ef4444" stroke-width="3" fill="none" />
+        <path d="M55 0 L55 -25" stroke="#1e293b" stroke-width="3" fill="none" />
+        <text x="40" y="-30" text-anchor="middle" fill="#ef4444" font-size="7" font-weight="700">+</text>
+        <text x="55" y="-30" text-anchor="middle" fill="#94a3b8" font-size="7" font-weight="700">-</text>
+      </g>
+
+      <!-- Wires: battery to TP4056 B+/B- -->
+      <path d="M120 435 L120 410 C 120 395, 380 395, 434 426" class="wire" stroke="#ef4444" stroke-width="2.5" />
+      <path d="M135 435 L135 405 C 135 388, 395 388, 434 454" class="wire" stroke="#1e293b" stroke-width="2.5" />
+
+      <!-- Wires: TP4056 OUT+ -> ESP32 5V; OUT- -> ESP32 GD -->
+      <path d="M606 400 C 720 400, 760 290, 760 180 C 760 100, 290 95, 215 188" class="wire" stroke="#fde68a" stroke-width="2.5" />
+      <path d="M606 456 C 740 456, 780 320, 780 200 C 780 110, 300 105, 235 188" class="wire" stroke="#1e293b" stroke-width="2.5" />
+
+      <!-- Divider top -> TP4056 OUT+ (taps the same rail) -->
+      <path d="M380 266 C 320 266, 320 380, 360 410 C 400 430, 430 400, 434 414" class="wire" stroke="#fda4af" stroke-width="1.5" stroke-dasharray="4 4" />
+      <!-- Divider tap -> ESP32 GPIO3 -->
+      <path d="M480 266 C 520 230, 200 210, 79 192" class="wire" stroke="#a3e635" stroke-width="1.8" />
+      <!-- Divider GND -> ESP32 GD -->
+      <path d="M480 308 C 580 320, 600 270, 510 240 C 380 220, 280 200, 235 188" class="wire" stroke="#1e293b" stroke-width="1.5" stroke-dasharray="4 4" />
+      <!-- CHRG -> ESP32 GPIO4 -->
+      <path d="M566 422 C 480 320, 280 280, 99 192" class="wire" stroke="#a3e635" stroke-width="1.8" />
+
+      <!-- Callouts -->
+      <g transform="translate(700 100)">
+        <text x="0" y="0" fill="#a3e635" font-size="11" font-weight="700">CHRG → GPIO4</text>
+        <text x="0" y="14" fill="#94a3b8" font-size="9">INPUT_PULLUP</text>
+        <text x="0" y="28" fill="#94a3b8" font-size="9">LOW while charging</text>
+      </g>
+      <g transform="translate(120 220)">
+        <text x="0" y="0" fill="#fda4af" font-size="11" font-weight="700">Divider</text>
+        <text x="0" y="14" fill="#94a3b8" font-size="9">220k / 100k = 0.3125</text>
+        <text x="0" y="28" fill="#94a3b8" font-size="9">V_bat = V_pin × 3.20</text>
+      </g>
+
+      <g fill="#94a3b8" font-size="8">
+        <text x="270" y="395" text-anchor="middle">+ (red)  battery to B+</text>
+        <text x="350" y="378" text-anchor="middle">- (black) battery to B-</text>
+        <text x="500" y="135" text-anchor="middle">OUT+ → ESP32 5V (yellow)</text>
+        <text x="540" y="105" text-anchor="middle">OUT- → ESP32 GD (black)</text>
+      </g>
+    </svg>
+
+    <div class="grid sm:grid-cols-3 gap-4 mt-8 text-sm">
+      <div class="card p-4">
+        <div class="flex items-center gap-2 mb-1">
+          <span class="w-2 h-2 rounded-full bg-rose-400"></span>
+          <div class="text-white font-semibold">ESP32-C3 + 0.42" OLED</div>
+        </div>
+        <div class="text-slate-400">01space-style dev board. SSD1306 wired internally on GPIO5/6. GPIO3 + GPIO4 free for sense.</div>
+      </div>
+      <div class="card p-4">
+        <div class="flex items-center gap-2 mb-1">
+          <span class="w-2 h-2 rounded-full bg-sky-400"></span>
+          <div class="text-white font-semibold">TP4056 + DW01</div>
+        </div>
+        <div class="text-slate-400">USB-C charge in, protected 3.0–4.2 V out. CHRG pad doubles as a charge-state signal.</div>
+      </div>
+      <div class="card p-4">
+        <div class="flex items-center gap-2 mb-1">
+          <span class="w-2 h-2 rounded-full bg-lime-400"></span>
+          <div class="text-white font-semibold">220k + 100k resistors</div>
+        </div>
+        <div class="text-slate-400">1/4 W metal-film. Total 320k draw → ~13 µA continuous from the cell. Negligible.</div>
+      </div>
+    </div>
+  </div>
+</section>
+
+<!-- ============== WIRING ============== -->
+<section id="wiring" class="section max-w-6xl mx-auto px-4 sm:px-6 py-16">
+  <div class="mb-10">
+    <div class="text-xs uppercase tracking-[0.18em] text-rose-300 mb-2">Wiring</div>
+    <h2 class="text-3xl sm:text-4xl font-bold text-white tracking-tight">Six connections in total</h2>
+    <p class="text-slate-400 mt-3 max-w-2xl">
+      Four wires for the power chain, plus two thin signal wires for the
+      battery-sense tap and the CHRG line. The OLED is already wired on the
+      dev board, so no I²C jumpers to run.
+    </p>
+  </div>
+
+  <div class="card overflow-hidden">
+    <div class="overflow-x-auto no-scrollbar">
+      <table class="w-full text-sm">
+        <thead class="bg-white/[0.04] text-xs uppercase tracking-wider text-slate-400">
+          <tr>
+            <th class="text-left px-5 py-3">#</th>
+            <th class="text-left px-5 py-3">From</th>
+            <th class="text-left px-5 py-3">To</th>
+            <th class="text-left px-5 py-3">Wire / part</th>
+            <th class="text-left px-5 py-3">Notes</th>
+          </tr>
+        </thead>
+        <tbody id="wireBody" class="divide-y divide-white/[0.04]"></tbody>
+      </table>
+    </div>
+  </div>
+
+  <div class="mt-6 card p-5 text-sm leading-relaxed">
+    <div class="flex items-center gap-2 text-rose-300 font-semibold mb-2">
+      <span class="material-symbols-outlined" style="font-size:18px">priority_high</span>
+      Before plugging the ESP32 in
+    </div>
+    <p class="text-slate-400">
+      The TP4056 output sits at whatever the LiPo is at (3.0–4.2 V). That is safe to put
+      on the ESP32's <code class="mono text-rose-300">5V</code> pin — the onboard LDO drops it to 3.3 V with
+      ~250 mV of headroom. Do <strong>not</strong> connect it to the <code class="mono text-rose-300">V3</code> pin; 4.2 V on the
+      regulated 3.3 V rail exceeds the chip's spec.
+    </p>
+  </div>
+</section>
+
+<!-- ============== DEMO ============== -->
+<section id="demo" class="section max-w-6xl mx-auto px-4 sm:px-6 py-16">
+  <div class="mb-10">
+    <div class="text-xs uppercase tracking-[0.18em] text-rose-300 mb-2">Demo</div>
+    <h2 class="text-3xl sm:text-4xl font-bold text-white tracking-tight">OLED preview</h2>
+    <p class="text-slate-400 mt-3 max-w-2xl">
+      Animation only — no hardware required. The clock ticks in Manila time;
+      tap the buttons to simulate plugging USB-C in, hitting 100%, or pulling
+      the cable and letting the cell drain.
+    </p>
+  </div>
+
+  <div class="card p-6 sm:p-10 grid-bg">
+    <div class="grid md:grid-cols-2 gap-10 items-center">
+      <!-- OLED illustration (scaled 4× from real 72×40) -->
+      <div class="relative">
+        <svg id="oledSvg" viewBox="0 0 360 240" class="w-full max-w-md mx-auto">
+          <rect x="20" y="20" width="320" height="200" rx="16" fill="#0b0d10" stroke="rgba(255,255,255,0.12)" stroke-width="1.5" />
+          <text x="180" y="48" text-anchor="middle" fill="#475569" font-size="9" letter-spacing="2">0.42" SSD1306 · 72×40</text>
+
+          <g transform="translate(36 60)">
+            <rect width="288" height="160" rx="6" fill="#000" />
+
+            <!-- Row 1 (y=40 ~ y=10 real): time HH:MM AM/PM centered -->
+            <text id="oledTime" x="144" y="40" text-anchor="middle" fill="#fde68a"
+                  font-family="JetBrains Mono" font-size="26" font-weight="700">12:00 PM</text>
+
+            <!-- Row 2 (y=80 ~ y=22 real): date centered -->
+            <text id="oledDate" x="144" y="84" text-anchor="middle" fill="#fbbf24"
+                  font-family="JetBrains Mono" font-size="18">Mon May 25</text>
+
+            <!-- Row 3 (y=128 ~ y=37 real): battery icon + % + state -->
+            <g transform="translate(0 108)">
+              <!-- Icon outline (scaled from 18×10 real → 72×40 here) -->
+              <rect x="6" y="0" width="72" height="40" rx="3" fill="none" stroke="#a3e635" stroke-width="2" />
+              <rect x="78" y="12" width="8" height="16" fill="#a3e635" />
+              <!-- Fill bar (width driven by JS) -->
+              <rect id="batFill" class="bat-fill" x="10" y="4" width="60" height="32" fill="#a3e635" />
+              <!-- Bolt overlay (shown only when charging) -->
+              <g id="bolt" class="hidden">
+                <polygon class="bolt-anim" points="38,2 30,22 42,22 34,38 50,16 38,16"
+                         fill="#facc15" stroke="#000" stroke-width="1.5" />
+              </g>
+              <!-- Percent text -->
+              <text id="oledPct" x="100" y="30" fill="#a3e635"
+                    font-family="JetBrains Mono" font-size="26" font-weight="700">100%</text>
+              <!-- State glyph (CHG / FULL) -->
+              <text id="oledState" x="280" y="30" text-anchor="end" fill="#fde68a"
+                    font-family="JetBrains Mono" font-size="22" font-weight="700"></text>
+            </g>
+          </g>
+        </svg>
+      </div>
+
+      <!-- Controls -->
+      <div>
+        <div class="space-y-3">
+          <button id="demoCharge" class="w-full card p-5 text-left hover:bg-white/5 transition-colors group">
+            <div class="flex items-center gap-3">
+              <div class="w-10 h-10 rounded-lg bg-lime-500/15 border border-lime-500/30 grid place-items-center">
+                <span class="material-symbols-outlined text-lime-300" style="font-size:20px">bolt</span>
+              </div>
+              <div class="flex-1">
+                <div class="text-white font-semibold group-hover:text-lime-300 transition-colors">Plug in USB-C</div>
+                <div class="text-xs text-slate-500">CHRG goes LOW → bolt animates, % climbs</div>
+              </div>
+              <span class="text-[10px] mono text-slate-500">charging</span>
+            </div>
+          </button>
+
+          <button id="demoFull" class="w-full card p-5 text-left hover:bg-white/5 transition-colors group">
+            <div class="flex items-center gap-3">
+              <div class="w-10 h-10 rounded-lg bg-emerald-500/15 border border-emerald-500/30 grid place-items-center">
+                <span class="material-symbols-outlined text-emerald-300" style="font-size:20px">battery_full</span>
+              </div>
+              <div class="flex-1">
+                <div class="text-white font-semibold group-hover:text-emerald-300 transition-colors">Hit 100%</div>
+                <div class="text-xs text-slate-500">CHRG floats HIGH, pct ≥ 95% → "FULL"</div>
+              </div>
+              <span class="text-[10px] mono text-slate-500">full</span>
+            </div>
+          </button>
+
+          <button id="demoDrain" class="w-full card p-5 text-left hover:bg-white/5 transition-colors group">
+            <div class="flex items-center gap-3">
+              <div class="w-10 h-10 rounded-lg bg-rose-500/15 border border-rose-500/30 grid place-items-center">
+                <span class="material-symbols-outlined text-rose-300" style="font-size:20px">power_off</span>
+              </div>
+              <div class="flex-1">
+                <div class="text-white font-semibold group-hover:text-rose-300 transition-colors">Unplug</div>
+                <div class="text-xs text-slate-500">Running on the cell — % drifts down slowly</div>
+              </div>
+              <span class="text-[10px] mono text-slate-500">discharging</span>
+            </div>
+          </button>
+        </div>
+
+        <div class="mt-6 card p-4 text-xs text-slate-400 leading-relaxed">
+          <strong class="text-white">Note:</strong> the bar color turns lime above 50%, amber 20–50%, rose below 20%.
+          The real firmware redraws once per second.
+        </div>
+      </div>
+    </div>
+  </div>
+</section>
+
+<!-- ============== CODE ============== -->
+<section id="code" class="section max-w-6xl mx-auto px-4 sm:px-6 py-16">
+  <div class="mb-10">
+    <div class="text-xs uppercase tracking-[0.18em] text-rose-300 mb-2">Code</div>
+    <h2 class="text-3xl sm:text-4xl font-bold text-white tracking-tight">Firmware</h2>
+    <p class="text-slate-400 mt-3 max-w-2xl">
+      One Arduino sketch in <code class="mono text-rose-300">firmware/battery-monitor/battery-monitor.ino</code>. Uses
+      <code class="mono text-rose-300">U8g2</code> for the OLED, <code class="mono text-rose-300">analogReadMilliVolts</code> for the
+      eFuse-calibrated ADC, and <code class="mono text-rose-300">configTime</code> + NTP for the clock.
+    </p>
+  </div>
+
+  <details class="card overflow-hidden mb-4" open>
+    <summary class="px-6 py-4 flex items-center gap-3 hover:bg-white/[0.02]">
+      <span class="material-symbols-outlined text-rose-300" style="font-size:20px">bolt</span>
+      <div class="flex-1">
+        <div class="text-white font-semibold">Battery read + percent mapping</div>
+        <div class="text-xs text-slate-500">16 samples averaged, divider compensated, clamped 0–100%</div>
+      </div>
+      <span class="material-symbols-outlined text-slate-500 chev">expand_more</span>
+    </summary>
+    <div class="px-6 pb-6">
+<pre class="code"><span class="tok-com">// Divider: V_pin = V_bat * 100k / (220k + 100k) = V_bat * 0.3125</span>
+<span class="tok-com">// V_BAT_FULL/EMPTY are the endpoints we map 0..100% across.</span>
+<span class="tok-kw">const float</span> DIVIDER_RATIO = <span class="tok-num">3.20f</span>;
+<span class="tok-kw">const float</span> V_BAT_FULL   = <span class="tok-num">4.20f</span>;
+<span class="tok-kw">const float</span> V_BAT_EMPTY  = <span class="tok-num">3.30f</span>;
+
+<span class="tok-kw">float</span> <span class="tok-fn">readBatteryVolts</span>() {
+  <span class="tok-kw">uint32_t</span> acc = <span class="tok-num">0</span>;
+  <span class="tok-kw">for</span> (<span class="tok-kw">int</span> i = <span class="tok-num">0</span>; i &lt; <span class="tok-num">16</span>; i++) {
+    acc += <span class="tok-fn">analogReadMilliVolts</span>(BAT_ADC_PIN);
+    <span class="tok-fn">delay</span>(<span class="tok-num">2</span>);
+  }
+  <span class="tok-kw">float</span> vPin = (acc / <span class="tok-num">16.0f</span>) / <span class="tok-num">1000.0f</span>;
+  <span class="tok-kw">return</span> vPin * DIVIDER_RATIO;
+}
+
+<span class="tok-kw">int</span> <span class="tok-fn">voltsToPercent</span>(<span class="tok-kw">float</span> v) {
+  <span class="tok-kw">float</span> pct = (v - V_BAT_EMPTY) / (V_BAT_FULL - V_BAT_EMPTY) * <span class="tok-num">100.0f</span>;
+  <span class="tok-kw">if</span> (pct &lt; <span class="tok-num">0</span>)   pct = <span class="tok-num">0</span>;
+  <span class="tok-kw">if</span> (pct &gt; <span class="tok-num">100</span>) pct = <span class="tok-num">100</span>;
+  <span class="tok-kw">return</span> (<span class="tok-kw">int</span>)(pct + <span class="tok-num">0.5f</span>);
+}</pre>
+    </div>
+  </details>
+
+  <details class="card overflow-hidden mb-4">
+    <summary class="px-6 py-4 flex items-center gap-3 hover:bg-white/[0.02]">
+      <span class="material-symbols-outlined text-rose-300" style="font-size:20px">power</span>
+      <div class="flex-1">
+        <div class="text-white font-semibold">Charging detection (TP4056 CHRG)</div>
+        <div class="text-xs text-slate-500">Open-drain pad + INPUT_PULLUP = one wire, no transistor</div>
+      </div>
+      <span class="material-symbols-outlined text-slate-500 chev">expand_more</span>
+    </summary>
+    <div class="px-6 pb-6">
+<pre class="code"><span class="tok-com">// INPUT_PULLUP + open-drain CHRG: LOW means a charge cycle is active.</span>
+<span class="tok-com">// When the cell is full the TP4056 stops driving CHRG, so it floats HIGH</span>
+<span class="tok-com">// and we read HIGH (= not charging, possibly "full" depending on V_bat).</span>
+<span class="tok-fn">pinMode</span>(CHRG_PIN, INPUT_PULLUP);
+
+<span class="tok-kw">bool</span> <span class="tok-fn">isCharging</span>() {
+  <span class="tok-kw">return</span> <span class="tok-fn">digitalRead</span>(CHRG_PIN) == LOW;
+}</pre>
+    </div>
+  </details>
+
+  <details class="card overflow-hidden mb-4">
+    <summary class="px-6 py-4 flex items-center gap-3 hover:bg-white/[0.02]">
+      <span class="material-symbols-outlined text-rose-300" style="font-size:20px">grid_view</span>
+      <div class="flex-1">
+        <div class="text-white font-semibold">Three-row OLED layout</div>
+        <div class="text-xs text-slate-500">Time, date, battery — 72×40 is tight</div>
+      </div>
+      <span class="material-symbols-outlined text-slate-500 chev">expand_more</span>
+    </summary>
+    <div class="px-6 pb-6">
+<pre class="code"><span class="tok-com">// Row 1 (y=10): time HH:MM AM/PM in 6x10 font, centered</span>
+oled.<span class="tok-fn">setFont</span>(u8g2_font_6x10_tf);
+<span class="tok-fn">snprintf</span>(timeBuf, <span class="tok-kw">sizeof</span>(timeBuf), <span class="tok-str">"%d:%02d %s"</span>, h12, lt.tm_min, ampm);
+<span class="tok-kw">int</span> w = oled.<span class="tok-fn">getStrWidth</span>(timeBuf);
+oled.<span class="tok-fn">drawStr</span>((<span class="tok-num">72</span> - w) / <span class="tok-num">2</span>, <span class="tok-num">10</span>, timeBuf);
+
+<span class="tok-com">// Row 2 (y=22): date in 5x7 font, centered</span>
+oled.<span class="tok-fn">setFont</span>(u8g2_font_5x7_tf);
+<span class="tok-fn">snprintf</span>(row2, <span class="tok-kw">sizeof</span>(row2), <span class="tok-str">"%s %s %d"</span>,
+         DOW_NAMES[lt.tm_wday], MON_NAMES[lt.tm_mon], lt.tm_mday);
+
+<span class="tok-com">// Row 3 (y=37): icon left, percent middle, "CHG"/"FULL" right</span>
+<span class="tok-fn">drawBatteryIcon</span>(<span class="tok-num">0</span>, <span class="tok-num">28</span>, pct);
+<span class="tok-kw">if</span> (charging) <span class="tok-fn">drawBolt</span>(<span class="tok-num">0</span>, <span class="tok-num">28</span>, frame);
+oled.<span class="tok-fn">drawStr</span>(<span class="tok-num">24</span>, <span class="tok-num">37</span>, pctBuf);</pre>
+    </div>
+  </details>
+
+  <p class="text-sm text-slate-500 mt-6">
+    Full source: <a href="firmware/battery-monitor/battery-monitor.ino" class="text-rose-300 hover:text-rose-200 underline">firmware/battery-monitor/battery-monitor.ino</a>
+  </p>
+</section>
+
+<!-- ============== CHECKLIST ============== -->
+<section id="checklist" class="section max-w-6xl mx-auto px-4 sm:px-6 py-16">
+  <div class="mb-10">
+    <div class="text-xs uppercase tracking-[0.18em] text-rose-300 mb-2">Checklist</div>
+    <h2 class="text-3xl sm:text-4xl font-bold text-white tracking-tight">Build steps</h2>
+    <p class="text-slate-400 mt-3 max-w-2xl">Tap to tick. Progress persists in localStorage.</p>
+  </div>
+
+  <div class="card p-5 sm:p-8">
+    <div class="mb-6">
+      <div class="flex items-center justify-between mb-2">
+        <span class="text-xs uppercase tracking-wider text-slate-500">Progress</span>
+        <span id="progressLabel" class="text-xs mono text-slate-400">0 / 0</span>
+      </div>
+      <div class="h-1.5 bg-white/[0.05] rounded-full overflow-hidden">
+        <div id="progressBar" class="h-full bg-gradient-to-r from-rose-400 to-lime-400 transition-all duration-300" style="width: 0%"></div>
+      </div>
+    </div>
+    <div id="checklist" class="space-y-6"></div>
+  </div>
+</section>
+
+<footer class="max-w-6xl mx-auto px-4 sm:px-6 py-10 text-center text-xs text-slate-600">
+  Sister project to
+  <a href="../autoclicker/" class="text-rose-300 hover:text-rose-200">autoclicker</a>,
+  <a href="../aircon/" class="text-rose-300 hover:text-rose-200">aircon</a>, and
+  <a href="../pocket-remote/" class="text-rose-300 hover:text-rose-200">pocket-remote</a>
+  — Charlie's DIY family.
+</footer>
+
+<script>
+  // ---- Wiring table data --------------------------------------------------
+  const wires = [
+    { from: 'LiPo + (red lead)',          to: 'TP4056 B+',                 wire: 'red, soldered',           notes: 'Battery positive terminal' },
+    { from: 'LiPo − (black lead)',        to: 'TP4056 B−',                 wire: 'black, soldered',         notes: 'Battery negative terminal' },
+    { from: 'TP4056 OUT+',                to: 'ESP32 5V',                  wire: 'yellow jumper',           notes: 'Hits the onboard LDO; never connect to V3' },
+    { from: 'TP4056 OUT−',                to: 'ESP32 GD (GND)',            wire: 'black jumper',            notes: 'Common ground for both boards' },
+    { from: 'TP4056 OUT+',                to: '220k → GPIO3 → 100k → GND', wire: '2× 1/4 W resistor',       notes: 'Divider tap to GPIO3 (ADC1_CH3). ~13 µA draw.' },
+    { from: 'TP4056 CHRG pad',            to: 'ESP32 GPIO4',               wire: 'thin signal wire',        notes: 'Open-drain; INPUT_PULLUP on ESP32 side reads LOW while charging' },
+    { from: 'USB-C cable',                to: 'TP4056 USB-C',              wire: 'USB-C ↔ USB-C',           notes: 'Charges + runs the device. NOT the ESP32 port.' },
+  ];
+
+  const tbody = document.getElementById('wireBody');
+  tbody.innerHTML = wires.map((w, i) => `
+    <tr class="hover:bg-white/[0.02]">
+      <td class="px-5 py-3 text-rose-300 font-semibold mono text-xs">${String(i + 1).padStart(2, '0')}</td>
+      <td class="px-5 py-3 text-white">${w.from}</td>
+      <td class="px-5 py-3 text-slate-300">${w.to}</td>
+      <td class="px-5 py-3 text-slate-400 mono text-xs">${w.wire}</td>
+      <td class="px-5 py-3 text-slate-500 text-xs">${w.notes}</td>
+    </tr>`).join('');
+
+  // ---- Checklist data -----------------------------------------------------
+  const steps = [
+    { section: 'Parts',    text: 'ESP32-C3 + 0.42" OLED dev board (01space-style)' },
+    { section: 'Parts',    text: 'TP4056 + DW01 charger/protection module (USB-C)' },
+    { section: 'Parts',    text: 'LiPo 3.7 V 1000 mAh (102050 form factor)' },
+    { section: 'Parts',    text: '220 kΩ + 100 kΩ resistors (1/4 W, 1% metal-film)' },
+    { section: 'Parts',    text: 'Hookup wire — red / black / yellow + 2× thin signal' },
+
+    { section: 'Firmware', text: 'Install Arduino IDE 2.x + ESP32 board support (Espressif)' },
+    { section: 'Firmware', text: 'Install U8g2 library (oliverkraus) via Library Manager' },
+    { section: 'Firmware', text: 'Open firmware/battery-monitor/battery-monitor.ino' },
+    { section: 'Firmware', text: 'Confirm board: "ESP32C3 Dev Module", USB CDC On Boot: Enabled' },
+    { section: 'Firmware', text: 'Edit the WiFi SSIDs/passwords if needed' },
+    { section: 'Firmware', text: 'Upload via the ESP32-C3 USB-C (not the TP4056 USB-C)' },
+    { section: 'Firmware', text: 'Verify Serial monitor shows "WiFi: ... IP: ..." and V/pct/chg' },
+
+    { section: 'Wiring',   text: 'Solder LiPo + to TP4056 B+ and LiPo − to B−' },
+    { section: 'Wiring',   text: 'Jumper TP4056 OUT+ to ESP32 5V (yellow)' },
+    { section: 'Wiring',   text: 'Jumper TP4056 OUT− to ESP32 GD (black)' },
+    { section: 'Wiring',   text: 'Build the 220k / 100k divider; tap to GPIO3' },
+    { section: 'Wiring',   text: 'Solder a thin wire from TP4056 CHRG pad to GPIO4' },
+    { section: 'Wiring',   text: 'Insulate all exposed pads with kapton or heat-shrink' },
+
+    { section: 'Test',     text: 'Plug a USB-C charger into the TP4056 — CHRG LED on' },
+    { section: 'Test',     text: 'OLED boots into the "Battery Monitor · booting" screen' },
+    { section: 'Test',     text: 'Within ~5 s, time + date + battery % appear' },
+    { section: 'Test',     text: 'OLED shows "CHG" + animated bolt while plugged in' },
+    { section: 'Test',     text: 'Unplug USB-C → bolt disappears, % drifts down over hours' },
+    { section: 'Test',     text: 'Let it charge to 100% → "FULL" label appears' },
+    { section: 'Test',     text: 'Check with a multimeter: voltage matches the on-screen %' },
+
+    { section: 'Enclose',  text: 'Stack ESP32 + TP4056 + LiPo into a 3D-printed case' },
+    { section: 'Enclose',  text: 'Cut a window for the OLED' },
+    { section: 'Enclose',  text: 'Expose the TP4056 USB-C on the side for charging' },
+  ];
+
+  const listEl = document.getElementById('checklist');
+  const progressBar = document.getElementById('progressBar');
+  const progressLabel = document.getElementById('progressLabel');
+  const LS_KEY = 'battery_monitor_checklist_v1';
+  const done = new Set(JSON.parse(localStorage.getItem(LS_KEY) || '[]'));
+
+  function persistDone() { localStorage.setItem(LS_KEY, JSON.stringify([...done])); }
+  function updateProgress() {
+    const total = steps.length;
+    progressBar.style.width = (done.size / total * 100).toFixed(1) + '%';
+    progressLabel.textContent = `${done.size} / ${total}`;
+  }
+
+  function render() {
+    const grouped = {};
+    steps.forEach((s, i) => { (grouped[s.section] ||= []).push({ ...s, idx: i }); });
+    listEl.innerHTML = Object.entries(grouped).map(([section, items]) => `
+      <div>
+        <div class="text-xs uppercase tracking-[0.18em] text-rose-300 mb-2">${section}</div>
+        <div class="space-y-2">
+          ${items.map(it => `
+            <label class="check-item flex items-center gap-3 p-3 rounded-lg hover:bg-white/[0.02] cursor-pointer ${done.has(it.idx) ? 'done' : ''}" data-idx="${it.idx}">
+              <span class="check-box">
+                <span class="material-symbols-outlined">check</span>
+              </span>
+              <span class="check-label text-sm text-slate-300">${it.text}</span>
+            </label>`).join('')}
+        </div>
+      </div>`).join('');
+
+    listEl.querySelectorAll('.check-item').forEach(el => {
+      el.addEventListener('click', () => {
+        const idx = parseInt(el.dataset.idx, 10);
+        if (done.has(idx)) done.delete(idx); else done.add(idx);
+        el.classList.toggle('done');
+        persistDone();
+        updateProgress();
+      });
+    });
+  }
+  render();
+  updateProgress();
+
+  // ---- Mobile nav --------------------------------------------------------
+  const navOpen = document.getElementById('navOpen');
+  const navMobile = document.getElementById('navMobile');
+  navOpen?.addEventListener('click', () => navMobile.classList.toggle('hidden'));
+  navMobile?.querySelectorAll('a').forEach(a => a.addEventListener('click', () => navMobile.classList.add('hidden')));
+
+  // ---- Scroll-spy for desktop nav ----------------------------------------
+  const navLinks = document.querySelectorAll('[data-nav]');
+  const sections = ['overview', 'hardware', 'wiring', 'demo', 'code', 'checklist'].map(id => document.getElementById(id));
+  function syncNav() {
+    const y = window.scrollY + 120;
+    let active = sections[0];
+    sections.forEach(s => { if (s && s.offsetTop <= y) active = s; });
+    navLinks.forEach(a => a.classList.toggle('active', a.getAttribute('href') === '#' + active.id));
+  }
+  window.addEventListener('scroll', syncNav, { passive: true });
+  syncNav();
+
+  // ---- OLED preview demo -------------------------------------------------
+  const oledTime  = document.getElementById('oledTime');
+  const oledDate  = document.getElementById('oledDate');
+  const oledPct   = document.getElementById('oledPct');
+  const oledState = document.getElementById('oledState');
+  const batFill   = document.getElementById('batFill');
+  const bolt      = document.getElementById('bolt');
+
+  // simulation state: pct % + boolean charging flag, drifts every tick
+  let simPct = 62;
+  let simChg = false;
+
+  const DOW = ['Sun','Mon','Tue','Wed','Thu','Fri','Sat'];
+  const MON = ['Jan','Feb','Mar','Apr','May','Jun','Jul','Aug','Sep','Oct','Nov','Dec'];
+
+  function pad2(n) { return n < 10 ? '0' + n : String(n); }
+
+  function manilaNow() {
+    const parts = new Intl.DateTimeFormat('en-US', {
+      timeZone: 'Asia/Manila', year: 'numeric', month: 'numeric', day: 'numeric',
+      hour: '2-digit', minute: '2-digit', weekday: 'short', hour12: false,
+    }).formatToParts(new Date());
+    const get = t => parts.find(p => p.type === t)?.value || '';
+    return {
+      year:  +get('year'),
+      month: +get('month'),
+      day:   +get('day'),
+      hour:  +get('hour') % 24,
+      min:   +get('minute'),
+      dow:   get('weekday'),
+    };
+  }
+
+  function fillColor(pct) {
+    if (pct < 20) return '#f43f5e';   // rose
+    if (pct < 50) return '#f59e0b';   // amber
+    return '#a3e635';                  // lime
+  }
+
+  function renderOled() {
+    const p = manilaNow();
+    const h12 = (p.hour % 12) || 12;
+    const ampm = p.hour < 12 ? 'AM' : 'PM';
+    oledTime.textContent = h12 + ':' + pad2(p.min) + ' ' + ampm;
+    oledDate.textContent = p.dow + ' ' + MON[p.month - 1] + ' ' + p.day;
+
+    oledPct.textContent = simPct + '%';
+    // 60 px = full bar at 100%. simPct in [0,100].
+    const w = Math.max(0, Math.min(60, (60 * simPct / 100)));
+    batFill.setAttribute('width', w);
+    batFill.setAttribute('fill', fillColor(simPct));
+    oledPct.setAttribute('fill', fillColor(simPct));
+
+    if (simChg) {
+      bolt.classList.remove('hidden');
+      oledState.textContent = 'CHG';
+    } else if (simPct >= 95) {
+      bolt.classList.add('hidden');
+      oledState.textContent = 'FULL';
+    } else {
+      bolt.classList.add('hidden');
+      oledState.textContent = '';
+    }
+  }
+
+  // Simulation loop -- inches the percent every 400 ms in the chosen direction.
+  let simTimer = null;
+  function startSim(dir) {
+    if (simTimer) clearInterval(simTimer);
+    simTimer = setInterval(() => {
+      simPct = Math.max(0, Math.min(100, simPct + dir));
+      renderOled();
+    }, 400);
+  }
+
+  document.getElementById('demoCharge').addEventListener('click', () => {
+    simChg = true;
+    startSim(+2);
+  });
+  document.getElementById('demoFull').addEventListener('click', () => {
+    simChg = false;
+    simPct = 100;
+    if (simTimer) { clearInterval(simTimer); simTimer = null; }
+    renderOled();
+  });
+  document.getElementById('demoDrain').addEventListener('click', () => {
+    simChg = false;
+    startSim(-1);
+  });
+
+  renderOled();
+  // Tick the clock once a minute so the preview stays honest even if no
+  // demo button has been pressed.
+  setInterval(renderOled, 60000);
+</script>
+
+</body>
+</html>
