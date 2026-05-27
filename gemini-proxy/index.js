@@ -89,9 +89,14 @@ app.post("/", async (req, res) => {
 // to this service as env vars:
 //   DRIVE_OAUTH_CLIENT_ID, DRIVE_OAUTH_CLIENT_SECRET, DRIVE_OAUTH_REFRESH_TOKEN
 //
-// One hardcoded folder; this endpoint can ONLY write to that folder.
-const SNS_DQ_FOLDER_ID = "1O34ndqW8eTvcZvtfHKl-cqcbsCzTfWBo";
-const SAFE_FILENAME_RE = /^[\w .,()\-+&'’]+\.png$/i;
+// Hardcoded folder safelist — clients pass `app` to pick the destination.
+// Adding a new app = add a row here + redeploy. Anything not in this map is rejected.
+const DRIVE_FOLDERS = {
+  sns_dq: "1O34ndqW8eTvcZvtfHKl-cqcbsCzTfWBo",
+  collaterals: "1IJWFdaSe8xSuqK-FJEJjMzhyqnOBQNhW",
+};
+const DEFAULT_APP = "sns_dq";
+const SAFE_FILENAME_RE = /^[\w .,()\-+&'’]+\.(png|pdf)$/i;
 
 let driveTokenCache = { token: null, expiresAt: 0 };
 async function getDriveAccessToken() {
@@ -129,28 +134,35 @@ async function getDriveAccessToken() {
 
 app.post("/upload-drive", async (req, res) => {
   try {
-    const { filename, imageBase64 } = req.body || {};
+    const { filename, imageBase64, app: appKey } = req.body || {};
     if (!filename || !imageBase64) {
       return res.status(400).json({ error: "filename and imageBase64 required" });
     }
     if (!SAFE_FILENAME_RE.test(filename)) {
-      return res.status(400).json({ error: "invalid filename (must end in .png, alphanum + basic punctuation)" });
+      return res.status(400).json({ error: "invalid filename (must end in .png or .pdf, alphanum + basic punctuation)" });
     }
     if (imageBase64.length > 8 * 1024 * 1024) {
       return res.status(413).json({ error: "image too large (>6MB raw)" });
     }
+    const folderKey = appKey || DEFAULT_APP;
+    const folderId = DRIVE_FOLDERS[folderKey];
+    if (!folderId) {
+      return res.status(400).json({ error: `unknown app "${folderKey}" (allowed: ${Object.keys(DRIVE_FOLDERS).join(", ")})` });
+    }
+    const isPdf = filename.toLowerCase().endsWith(".pdf");
+    const contentMime = isPdf ? "application/pdf" : "image/png";
 
     const buffer = Buffer.from(imageBase64, "base64");
 
     const token = await getDriveAccessToken();
 
     // Multipart upload to Drive (single-request multipart/related)
-    const boundary = "snsdq-" + Math.random().toString(36).slice(2);
-    const metadata = { name: filename, mimeType: "image/png", parents: [SNS_DQ_FOLDER_ID] };
+    const boundary = "drvup-" + Math.random().toString(36).slice(2);
+    const metadata = { name: filename, mimeType: contentMime, parents: [folderId] };
     const body = Buffer.concat([
       Buffer.from(
         `--${boundary}\r\nContent-Type: application/json; charset=UTF-8\r\n\r\n${JSON.stringify(metadata)}\r\n` +
-        `--${boundary}\r\nContent-Type: image/png\r\nContent-Transfer-Encoding: binary\r\n\r\n`
+        `--${boundary}\r\nContent-Type: ${contentMime}\r\nContent-Transfer-Encoding: binary\r\n\r\n`
       ),
       buffer,
       Buffer.from(`\r\n--${boundary}--`),

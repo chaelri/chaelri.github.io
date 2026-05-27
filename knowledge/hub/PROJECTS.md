@@ -1,6 +1,6 @@
 # Hub Project Index for chaelri.github.io
 
-**Last updated:** 2026-05-21
+**Last updated:** 2026-05-27
 **Scope:** Complete mapping of top-level directories + root files, with tech stack, deployment, status, and key entry points.
 
 ## Status Legend
@@ -70,6 +70,23 @@ Battery-powered hand-held WiFi remote for **both** `autoclicker/` and `aircon/`.
   - **`Wire.setPins(5, 6)` must run BEFORE `oled.begin()`** — U8g2 starts I²C on default pins otherwise and the OLED stays blank.
   - **Color palette is amber + emerald** (distinct from autoclicker's indigo/purple and aircon's sky/cyan).
 - **Full docs:** See `knowledge/pocket-remote/SUMMARY.md`, `ARCHITECTURE.md`, `KEY_FILES.md`.
+
+### collaterals/  🟢
+
+Print-ready wedding collaterals studio for Charlie & Karla (July 2, 2026) — seven SVG-rendered templates with editable fields, live preview, PNG export, and one-click Drive upload to a shared folder for the printer.
+
+- **Tech:** vanilla JS ESM (no build), pure SVG rendering, browser localStorage, Google Fonts (Playfair Display / Dancing Script / Great Vibes / Inter), Material Symbols Outlined. Vendored `qrcode-generator@1.4.4` for table-number QR codes.
+- **Entry:** `index.html` (dashboard — 7 cards + progress bar + Drive folder shortcut), `app.js` (dashboard logic), `style.css` (shared), `shared/{design,state,editor,export,drive,qrcode}.js`, `templates/<name>/{index.html,app.js}` for each of: name-cards, menu, table-numbers, money-envelopes, mirror-chart, monogram, invitation.
+- **Deploy:** GitHub Pages at `/collaterals/`.
+- **Drive folder:** `1IJWFdaSe8xSuqK-FJEJjMzhyqnOBQNhW` under charliecayno@gmail.com. Created via the new `drive-helper.mjs mkdir` command.
+- **Proxy contract:** `/upload-drive` now takes an optional `app` field (`sns_dq` or `collaterals`). Adding new apps = add a row to `DRIVE_FOLDERS` in `gemini-proxy/index.js` + redeploy. Filename regex now also accepts `.pdf` in addition to `.png`.
+- **Quirks:**
+  - **Pure SVG rendering** — every template builds an SVG string from state, renders as innerHTML for preview, serializes for PNG export. `shared/export.js` injects a Google Fonts `@import` into the cloned SVG before rasterizing so headline fonts resolve.
+  - **State shape**: localStorage key `collaterals:v1` = `{ status: { id: pending|in_progress|ready|printed }, data: { id: { ... } } }`. Status pills are visible on the dashboard; the progress bar weights `in_progress=0.4`, `ready=0.85`, `printed=1.0`.
+  - **Couple defaults** (names, monogram, date, hashtag) all centralized in `shared/design.js` as the `COUPLE` constant — single source of truth.
+  - **Mirror chart export** at scale 5 = 2400×6000 px (24″×60″ at ~100 DPI). The other templates use 2.5–4 scale for ~300 DPI on their respective physical sizes.
+  - **Templates do NOT depend on each other** — each `templates/<name>/app.js` is self-contained other than its imports from `shared/`. Adding an 8th template = `mkdir templates/<name>/`, write its two files, and add an entry to `TEMPLATES` in `shared/state.js`.
+- **Full docs:** See `knowledge/collaterals/SUMMARY.md`.
 
 ### devo/  🟢
 
@@ -324,7 +341,7 @@ Simple side-scrolling platformer (Bubu & Dudu) — canvas-based game.
 
 | Project | Hosting | Auto-deploy on push? |
 |---|---|---|
-| devo, monthsary, tayo, sns-dq, weddingtest, towa-no-yuugure, autoclicker, aircon, pocket-remote, flux, pray, echoes, wedding100, weddingtimeline, horizon, money, anohana, bubududu | GitHub Pages subpath | ✅ |
+| devo, monthsary, tayo, sns-dq, weddingtest, towa-no-yuugure, autoclicker, aircon, pocket-remote, collaterals, flux, pray, echoes, wedding100, weddingtimeline, horizon, money, anohana, bubududu | GitHub Pages subpath | ✅ |
 | guard-exit-interview | GitHub Pages — **DUAL-REPO** (also push to `guard-exit-tracker`) | ✅ |
 | vm-management | GitHub Pages `/vm-management/` | ✅ |
 | weddingbar | Firebase Hosting (root via `firebase.json`) — also GH Pages `/weddingbar/` | `firebase deploy` |

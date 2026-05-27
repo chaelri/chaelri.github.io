@@ -19,6 +19,7 @@
 //   node drive-helper.mjs ls <folderId>                   list a folder
 //   node drive-helper.mjs get <fileId> [outPath]          download a file
 //   node drive-helper.mjs put <localPath> <folderId>      upload a file
+//   node drive-helper.mjs mkdir <name> [parentId]         create a folder
 //
 // Folder ID = the chunk after /folders/ in the share URL.
 // ============================================================================
@@ -222,14 +223,39 @@ async function cmdPut(localPath, folderId) {
   console.log(`Uploaded → ${j.webViewLink} (id=${j.id})`);
 }
 
+async function cmdMkdir(name, parentId) {
+  if (!name) throw new Error("usage: mkdir <name> [parentId]");
+  const token = await accessToken();
+  const metadata = {
+    name,
+    mimeType: "application/vnd.google-apps.folder",
+    ...(parentId ? { parents: [parentId] } : {}),
+  };
+  const r = await fetch(
+    "https://www.googleapis.com/drive/v3/files?supportsAllDrives=true&fields=id,name,webViewLink",
+    {
+      method: "POST",
+      headers: {
+        ...authHeaders(token),
+        "Content-Type": "application/json",
+      },
+      body: JSON.stringify(metadata),
+    }
+  );
+  if (!r.ok) throw new Error(`mkdir failed: ${r.status} ${await r.text()}`);
+  const j = await r.json();
+  console.log(`Created → ${j.webViewLink} (id=${j.id})`);
+}
+
 const [, , cmd, ...rest] = process.argv;
 try {
   if (cmd === "auth") await cmdAuth();
   else if (cmd === "ls") await cmdLs(rest[0]);
   else if (cmd === "get") await cmdGet(rest[0], rest[1]);
   else if (cmd === "put") await cmdPut(rest[0], rest[1]);
+  else if (cmd === "mkdir") await cmdMkdir(rest[0], rest[1]);
   else {
-    console.log("commands: auth | ls <folderId> | get <fileId> [out] | put <localPath> <folderId>");
+    console.log("commands: auth | ls <folderId> | get <fileId> [out] | put <localPath> <folderId> | mkdir <name> [parentId]");
     process.exit(1);
   }
 } catch (e) {

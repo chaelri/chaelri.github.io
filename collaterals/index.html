@@ -1,0 +1,66 @@
+<!doctype html>
+<html lang="en">
+  <head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover" />
+    <title>Wedding Collaterals — Charlie &amp; Karla</title>
+    <meta name="theme-color" content="#faf9f6" />
+    <link rel="icon" href="../weddingtest/assets/favicon.ico" />
+
+    <link rel="preconnect" href="https://fonts.googleapis.com" />
+    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
+    <link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Playfair+Display:ital,wght@0,400;0,700;1,400&family=Inter:wght@300;400;500;600&family=Dancing+Script:wght@500;700&display=swap" />
+    <link rel="stylesheet" href="https://fonts.googleapis.com/icon?family=Material+Symbols+Outlined" />
+    <link rel="stylesheet" href="style.css" />
+  </head>
+  <body>
+    <header class="max-w-5xl mx-auto px-6 py-8" style="max-width:1100px;margin:0 auto;padding:32px 24px 18px">
+      <div style="display:flex;justify-content:space-between;align-items:flex-end;gap:16px;flex-wrap:wrap">
+        <div>
+          <div style="font-family:'Dancing Script',cursive;font-size:1.25rem;color:var(--sage-deep);line-height:1">Charlie &amp; Karla</div>
+          <h1 class="font-serif" style="font-size:2.2rem;letter-spacing:-0.01em;margin-top:2px;line-height:1.1">Wedding Collaterals Studio</h1>
+          <p style="color:var(--ink-soft);font-size:0.88rem;margin-top:6px">Print-ready templates for the day · July 2, 2026</p>
+        </div>
+        <a href="../" style="color:var(--ink-faint);font-size:0.82rem;display:inline-flex;align-items:center;gap:4px;text-decoration:none">
+          <span class="material-symbols-outlined" style="font-size:18px">arrow_back</span>
+          back to hub
+        </a>
+      </div>
+
+      <!-- Progress bar -->
+      <section style="margin-top:28px;background:white;border:1px solid var(--border);border-radius:18px;padding:18px 20px">
+        <div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:10px;flex-wrap:wrap;gap:8px">
+          <div style="font-size:0.78rem;text-transform:uppercase;letter-spacing:0.1em;color:var(--ink-faint);font-weight:600">Overall progress</div>
+          <div id="progress-summary" style="font-size:0.82rem;color:var(--ink-soft)">— of 7 ready</div>
+        </div>
+        <div class="progress-track"><div id="progress-fill" class="progress-fill" style="width:0%"></div></div>
+        <div id="progress-pct" style="font-family:'Playfair Display',serif;font-size:1.8rem;font-weight:700;margin-top:10px">0%</div>
+        <div style="font-size:0.78rem;color:var(--ink-faint);margin-top:4px">
+          Mark each piece <em>in progress</em>, <em>ready</em>, or <em>printed</em> from its editor — the bar climbs automatically.
+        </div>
+      </section>
+    </header>
+
+    <main style="max-width:1100px;margin:0 auto;padding:6px 24px 80px">
+      <div id="card-grid" style="display:grid;grid-template-columns:repeat(auto-fit,minmax(240px,1fr));gap:18px"></div>
+
+      <section style="margin-top:48px;background:var(--sage-soft);border-radius:18px;padding:24px;display:flex;gap:14px;align-items:flex-start;flex-wrap:wrap">
+        <span class="material-symbols-outlined" style="color:var(--sage-deep)">cloud_done</span>
+        <div style="flex:1;min-width:240px">
+          <div class="font-serif" style="font-size:1.05rem;font-weight:700">Drive folder</div>
+          <p style="font-size:0.85rem;color:var(--ink-soft);margin-top:4px;line-height:1.5">
+            Every "Upload to Drive" lands in the same shared folder, ready to send to the printer.
+          </p>
+        </div>
+        <a id="drive-folder-link" href="#" target="_blank" rel="noopener" class="btn btn-ghost" style="margin-top:2px">
+          <span class="material-symbols-outlined" style="font-size:18px">open_in_new</span>
+          Open folder
+        </a>
+      </section>
+    </main>
+
+    <div id="toast" class="toast"><span id="toast-msg"></span></div>
+
+    <script type="module" src="app.js"></script>
+  </body>
+</html>
