@@ -701,8 +701,14 @@ export async function mountEditor(cfg) {
     return sanitizeFilename(cfg.exportPrefix || cfg.title || "Collateral");
   }
   function fnameFor(line) {
-    const first = String(line || "").split(BATCH_SEP)[0].trim() || "blank";
-    return `${fnamePrefix()} — ${sanitizeFilename(first.slice(0, 60))}.png`;
+    const parts = String(line || "")
+      .split(BATCH_SEP)
+      .map((s) => s.trim())
+      .filter(Boolean);
+    const tag = parts.length
+      ? parts.map((p) => sanitizeFilename(p.slice(0, 60))).join(" — ")
+      : "blank";
+    return `${fnamePrefix()} — ${tag}.png`;
   }
   function zonesFromState() {
     return zonesArr.map((z) => ({ ...z, ...state.zones[z.id] }));
