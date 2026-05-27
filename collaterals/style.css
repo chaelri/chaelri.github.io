@@ -469,6 +469,19 @@ body {
   padding: 16px;
   border-radius: 14px;
   gap: 12px;
+  position: sticky;
+  top: 16px;
+  align-self: start;
+  max-height: calc(100vh - 32px);
+  overflow-y: auto;
+}
+/* Single-column layout (mobile / narrow): sticky becomes obnoxious. */
+@media (max-width: 880px) {
+  .editor-compact .preview-pane {
+    position: static;
+    max-height: none;
+    overflow-y: visible;
+  }
 }
 .editor-compact .preview-pane .preview-stage {
   padding: 8px;
