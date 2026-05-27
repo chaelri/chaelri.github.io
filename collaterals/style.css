@@ -296,6 +296,23 @@ body {
 /* ===== Compact editor — minimalist density ============================== */
 /* Scoped under .editor-compact so the dashboard / other pages are untouched. */
 
+/* Hard reset for every form control in the editor — defeats user-agent defaults
+   (content-box on <input>) so width:100% + padding never pushes children past
+   their grid column. min-width:0 lets grid items actually shrink to the
+   declared column width instead of using their intrinsic content width. */
+.editor-compact,
+.editor-compact * {
+  box-sizing: border-box !important;
+}
+.editor-compact input,
+.editor-compact textarea,
+.editor-compact select,
+.editor-compact button {
+  max-width: 100% !important;
+  min-width: 0 !important;
+}
+.editor-compact .row > * { min-width: 0 !important; }
+
 .editor-compact .field-block {
   padding: 12px 14px;
   border-radius: 12px;
