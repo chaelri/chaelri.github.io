@@ -33,5 +33,11 @@ mountEditor({
     icon: "group",
     handler: fetchSeatingBatchText,
   },
+  // Tent-fold print preview: blank white top half + designed bottom half,
+  // subtle dotted fold line at the seam.
+  printLayout: {
+    type: "tent-fold",
+    label: "Print version",
+  },
   exportPrefix: "Name Card",
 });

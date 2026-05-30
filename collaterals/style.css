@@ -493,6 +493,7 @@ body {
   justify-content: space-between;
   width: 100%;
   gap: 12px;
+  flex-wrap: wrap;
 }
 .editor-compact .preview-toolbar .label {
   font-size: 0.7rem;
@@ -501,6 +502,9 @@ body {
   color: var(--ink-faint);
   font-weight: 600;
 }
+.editor-compact .preview-toolbar .label + .toggle {
+  margin-left: auto;
+}
 .editor-compact .preview-toolbar .toggle {
   display: inline-flex;
   align-items: center;
@@ -508,4 +512,9 @@ body {
   font-size: 0.74rem;
   color: var(--ink-soft);
   cursor: pointer;
+}
+.editor-compact .preview-toolbar .toggle input:disabled + * ,
+.editor-compact .preview-toolbar .toggle:has(input:disabled) {
+  opacity: 0.45;
+  cursor: not-allowed;
 }

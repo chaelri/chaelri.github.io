@@ -119,25 +119,45 @@ function zoneTextSVG(zone, text) {
                 fill="${zone.color}">${tspans}</text>`;
 }
 
-function buildSVG({ bgUrl, canvas, zones, texts, editing = false, accent = "#7b8a5b", noBg = false }) {
+function buildSVG({ bgUrl, canvas, zones, texts, editing = false, accent = "#7b8a5b", noBg = false, printLayout = null }) {
   const { w, h } = canvas;
+  // Tent-fold = design lives in the bottom half, blank white panel up top,
+  // subtle dotted fold line at the seam. Used by name cards for print output.
+  const isTent = printLayout?.type === "tent-fold";
+  const outH = isTent ? h * 2 : h;
+  const yOffset = isTent ? h : 0;
+
   const bg = noBg
     ? ""
     : bgUrl
-      ? `<image href="${bgUrl}" x="0" y="0" width="${w}" height="${h}" preserveAspectRatio="xMidYMid slice"/>`
-      : `<rect x="0" y="0" width="${w}" height="${h}" fill="#f3eedf"/>
-         <text x="${w/2}" y="${h/2}" text-anchor="middle" dominant-baseline="middle"
+      ? `<image href="${bgUrl}" x="0" y="${yOffset}" width="${w}" height="${h}" preserveAspectRatio="xMidYMid slice"/>`
+      : `<rect x="0" y="${yOffset}" width="${w}" height="${h}" fill="#f3eedf"/>
+         <text x="${w/2}" y="${yOffset + h/2}" text-anchor="middle" dominant-baseline="middle"
                font-family="Inter, sans-serif" font-size="${Math.max(18, w * 0.025)}" fill="#9a948a">
            Upload your Canva PNG to start (${w} × ${h} px)
          </text>`;
 
-  // Text layers are always present (even when empty) so the drag handler can
-  // mutate them in place without rebuilding the SVG.
-  const textLayers = zones.map((z, i) =>
-    `<g data-role="text-layer" data-z="${i}">${texts[i] ? zoneTextSVG(z, texts[i]) : ""}</g>`
-  ).join("");
+  const tentTop = isTent
+    ? `<rect x="0" y="0" width="${w}" height="${h}" fill="#ffffff"/>`
+    : "";
 
-  const editLayers = editing
+  const foldLine = isTent
+    ? `<line x1="${w * 0.02}" y1="${h}" x2="${w * 0.98}" y2="${h}"
+              stroke="#bdbdbd" stroke-width="${Math.max(1, w * 0.0014)}"
+              stroke-dasharray="${Math.max(5, w * 0.009)} ${Math.max(5, w * 0.009)}"
+              stroke-linecap="round" opacity="0.7"/>`
+    : "";
+
+  // Text layers are always present (even when empty) so the drag handler can
+  // mutate them in place without rebuilding the SVG. In tent mode the zones
+  // shift down by the original canvas height.
+  const textLayers = zones.map((z, i) => {
+    const zPlaced = isTent ? { ...z, y: z.y + h } : z;
+    return `<g data-role="text-layer" data-z="${i}">${texts[i] ? zoneTextSVG(zPlaced, texts[i]) : ""}</g>`;
+  }).join("");
+
+  // Editing chrome only makes sense in the design view, not in print preview.
+  const editLayers = (editing && !isTent)
     ? zones.map((z, i) =>
         `<rect data-role="edit-border" data-z="${i}"
                x="${z.x}" y="${z.y}" width="${z.w}" height="${z.h}"
@@ -148,10 +168,12 @@ function buildSVG({ bgUrl, canvas, zones, texts, editing = false, accent = "#7b8
     : "";
 
   return `<svg xmlns="http://www.w3.org/2000/svg" xmlns:xlink="http://www.w3.org/1999/xlink"
-               viewBox="0 0 ${w} ${h}" width="${w}" height="${h}"
+               viewBox="0 0 ${w} ${outH}" width="${w}" height="${outH}"
                style="max-width:100%;height:auto;display:block">
+            ${tentTop}
             ${bg}
             ${textLayers}
+            ${foldLine}
             ${editLayers}
           </svg>`;
 }
@@ -431,8 +453,9 @@ function editorHTML(cfg, zonesArr) {
       </div>
       <div class="preview-pane">
         <div class="preview-toolbar">
-          <span class="label">Preview · ${cfg.canvas.w} × ${cfg.canvas.h}</span>
+          <span class="label" id="ed-preview-label">Preview · ${cfg.canvas.w} × ${cfg.canvas.h}</span>
           <label class="toggle"><input id="ed-show-chrome" type="checkbox" checked/> Edit boxes</label>
+          ${cfg.printLayout ? `<label class="toggle"><input id="ed-print-mode" type="checkbox"/> ${escapeXML(cfg.printLayout.label || "Print version")}</label>` : ""}
         </div>
         <div id="ed-stage" class="preview-stage" style="min-height:420px;width:100%"></div>
       </div>
@@ -476,6 +499,10 @@ export async function mountEditor(cfg) {
   let showChrome = (() => {
     try { return localStorage.getItem(chromeKey) !== "0"; } catch { return true; }
   })();
+  const printKey = `collaterals:${cfg.templateId}:print-mode`;
+  let printMode = !!cfg.printLayout && (() => {
+    try { return localStorage.getItem(printKey) === "1"; } catch { return false; }
+  })();
 
   // ---- restore ----
   Object.assign(state, normalizeState(getTemplateData(cfg.templateId), defaults, zonesArr));
@@ -497,6 +524,8 @@ export async function mountEditor(cfg) {
   const bgClear    = $("ed-bg-clear");
   const stage      = $("ed-stage");
   const chromeCk   = $("ed-show-chrome");
+  const printCk    = $("ed-print-mode");
+  const previewLbl = $("ed-preview-label");
   const batchTA    = $("ed-batch");
   const prevBtn    = $("ed-prev");
   const nextBtn    = $("ed-next");
@@ -569,6 +598,40 @@ export async function mountEditor(cfg) {
     try { localStorage.setItem(chromeKey, showChrome ? "1" : "0"); } catch {}
     render();
   });
+
+  // ---- print-version toggle (tent-fold) ----
+  if (printCk) {
+    printCk.checked = printMode;
+    chromeCk.disabled = printMode;
+    syncPreviewLabel();
+    printCk.addEventListener("change", () => {
+      printMode = printCk.checked;
+      try { localStorage.setItem(printKey, printMode ? "1" : "0"); } catch {}
+      chromeCk.disabled = printMode;
+      syncPreviewLabel();
+      render();
+    });
+  }
+  function syncPreviewLabel() {
+    if (!previewLbl) return;
+    const ec = effectiveCanvas();
+    previewLbl.textContent = `Preview · ${ec.w} × ${ec.h}`;
+  }
+  function effectiveCanvas() {
+    if (printMode && cfg.printLayout?.type === "tent-fold") {
+      return { w: cfg.canvas.w, h: cfg.canvas.h * 2 };
+    }
+    return cfg.canvas;
+  }
+  function bgRectForPrint() {
+    if (printMode && cfg.printLayout?.type === "tent-fold") {
+      return { x: 0, y: cfg.canvas.h, w: cfg.canvas.w, h: cfg.canvas.h };
+    }
+    return null;
+  }
+  function activePrintLayout() {
+    return printMode ? cfg.printLayout : null;
+  }
 
   // ---- per-zone style controls ----
   const refreshFns = {};
@@ -723,7 +786,7 @@ export async function mountEditor(cfg) {
     const wrap = document.createElement("div");
     wrap.innerHTML = buildSVG({
       bgUrl: null, canvas: cfg.canvas, zones: zonesFromState(),
-      texts, editing: false, noBg: true,
+      texts, editing: false, noBg: true, printLayout: activePrintLayout(),
     });
     return wrap.querySelector("svg");
   }
@@ -738,7 +801,8 @@ export async function mountEditor(cfg) {
     const tag = parts.length
       ? parts.map((p) => sanitizeFilename(p.slice(0, 60))).join(" — ")
       : "blank";
-    return `${fnamePrefix()} — ${tag}.png`;
+    const suffix = printMode ? " (print)" : "";
+    return `${fnamePrefix()} — ${tag}${suffix}.png`;
   }
   function zonesFromState() {
     return zonesArr.map((z) => ({ ...z, ...state.zones[z.id] }));
@@ -750,7 +814,8 @@ export async function mountEditor(cfg) {
       const tag = cfg.batchMode ? (currentBatch()[state.previewIdx] || "blank") : (texts[0] || "blank");
       await composeToDownload({
         bgDataUrl: bgUrl, textSvgEl: textOnlySvg(texts),
-        canvas: cfg.canvas, scale: exportScale(), filename: fnameFor(tag),
+        canvas: effectiveCanvas(), scale: exportScale(), filename: fnameFor(tag),
+        bgRect: bgRectForPrint(),
       });
       showToast("Downloaded");
     } catch (e) { console.error(e); showToast("Download failed", "err"); }
@@ -762,7 +827,8 @@ export async function mountEditor(cfg) {
       const tag = cfg.batchMode ? (currentBatch()[state.previewIdx] || "blank") : (texts[0] || "blank");
       const blob = await composeToPngBlob({
         bgDataUrl: bgUrl, textSvgEl: textOnlySvg(texts),
-        canvas: cfg.canvas, scale: exportScale(),
+        canvas: effectiveCanvas(), scale: exportScale(),
+        bgRect: bgRectForPrint(),
       });
       const j = await uploadPngBlob(blob, fnameFor(tag));
       try { await navigator.clipboard.writeText(j.link); } catch {}
@@ -779,7 +845,8 @@ export async function mountEditor(cfg) {
           showToast(`Downloading ${i + 1}/${lines.length}…`);
           await composeToDownload({
             bgDataUrl: bgUrl, textSvgEl: textOnlySvg(textsFor(i)),
-            canvas: cfg.canvas, scale: exportScale(), filename: fnameFor(lines[i]),
+            canvas: effectiveCanvas(), scale: exportScale(), filename: fnameFor(lines[i]),
+            bgRect: bgRectForPrint(),
           });
           await new Promise((r) => setTimeout(r, 120));
         }
@@ -796,7 +863,8 @@ export async function mountEditor(cfg) {
           showToast(`Uploading ${i + 1}/${lines.length}…`);
           const blob = await composeToPngBlob({
             bgDataUrl: bgUrl, textSvgEl: textOnlySvg(textsFor(i)),
-            canvas: cfg.canvas, scale: exportScale(),
+            canvas: effectiveCanvas(), scale: exportScale(),
+            bgRect: bgRectForPrint(),
           });
           await uploadPngBlob(blob, fnameFor(lines[i]));
         }
@@ -812,9 +880,12 @@ export async function mountEditor(cfg) {
     const zonesLive = zonesFromState();
     stage.innerHTML = buildSVG({
       bgUrl, canvas: cfg.canvas, zones: zonesLive, texts,
-      editing: showChrome,
+      editing: showChrome && !printMode,
+      printLayout: activePrintLayout(),
     });
-    if (!showChrome) return;
+    // Drag handles are tied to the design view (1050×600 coords). They'd be
+    // off in tent layout, so skip them entirely when print mode is on.
+    if (!showChrome || printMode) return;
     const svgEl = stage.querySelector("svg");
     if (!svgEl) return;
     attachZonesDrag({

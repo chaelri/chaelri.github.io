@@ -97,7 +97,7 @@ async function ensureFontStyleInSvg(svgNode) {
 // OOM. Height follows the canvas aspect ratio. The text SVG is then drawn
 // over the canvas at the same output size — text stays crisp at any scale,
 // background stays at its own native sharpness.
-export async function composeToPngBlob({ bgDataUrl, textSvgEl, canvas: cnv, scale = 1 } = {}) {
+export async function composeToPngBlob({ bgDataUrl, textSvgEl, canvas: cnv, scale = 1, bgRect = null } = {}) {
   const MAX_DIM = 16000;
   let bgImg = null;
   let bgW = cnv.w, bgH = cnv.h;
@@ -134,7 +134,13 @@ export async function composeToPngBlob({ bgDataUrl, textSvgEl, canvas: cnv, scal
   ctx.fillRect(0, 0, outW, outH);
 
   if (bgImg) {
-    ctx.drawImage(bgImg, 0, 0, outW, outH);
+    // bgRect (in canvas units) lets the caller place the bg PNG inside a
+    // larger output (e.g., tent-fold print layout puts the design in the
+    // bottom half and leaves the top half white).
+    const r = bgRect || { x: 0, y: 0, w: cnv.w, h: cnv.h };
+    const sx = outW / cnv.w;
+    const sy = outH / cnv.h;
+    ctx.drawImage(bgImg, r.x * sx, r.y * sy, r.w * sx, r.h * sy);
   }
 
   // Text-only SVG → Image → drawn on top.
@@ -161,8 +167,8 @@ export async function composeToPngBlob({ bgDataUrl, textSvgEl, canvas: cnv, scal
   return await new Promise((res) => canvas.toBlob(res, "image/png", 1));
 }
 
-export async function composeToDownload({ bgDataUrl, textSvgEl, canvas: cnv, scale = 1, filename }) {
-  const blob = await composeToPngBlob({ bgDataUrl, textSvgEl, canvas: cnv, scale });
+export async function composeToDownload({ bgDataUrl, textSvgEl, canvas: cnv, scale = 1, filename, bgRect = null }) {
+  const blob = await composeToPngBlob({ bgDataUrl, textSvgEl, canvas: cnv, scale, bgRect });
   const url = URL.createObjectURL(blob);
   const a = document.createElement("a");
   a.href = url;
