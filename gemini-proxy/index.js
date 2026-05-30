@@ -306,11 +306,152 @@ function sheetsHeaders(token) {
   };
 }
 
-// Write one row's cells. Body: { tab, row, cols, values }
+function normalizeSheetLabel(s) {
+  return String(s || "").trim().replace(/\s+/g, " ").toLowerCase();
+}
+
+// Read column A of `tab` and return every non-blank row as { label, row } in
+// sheet order. The browser uses this to keep its label→row map fresh; the
+// /sheets-update + /sheets-delete-row endpoints also use it to resolve a
+// label to a current row even if the sheet was edited mid-flight.
+async function fetchColumnA(token, tab) {
+  const escaped = tab.replace(/'/g, "''");
+  const tabRef = /[\s']/.test(tab) ? `'${escaped}'` : escaped;
+  const url = `https://sheets.googleapis.com/v4/spreadsheets/${WEDDING_SHEET_ID}/values/${encodeURIComponent(`${tabRef}!A1:A500`)}`;
+  const r = await fetch(url, { headers: sheetsHeaders(token) });
+  if (!r.ok) throw new Error(`column A read failed: ${r.status}`);
+  const j = await r.json();
+  const out = [];
+  (j.values || []).forEach((cells, i) => {
+    const v = (cells[0] || "").toString();
+    if (v.trim()) out.push({ label: v, row: i + 1 });
+  });
+  return out;
+}
+
+// Find every row whose column-A label matches `label` (case- and
+// whitespace-insensitive). May return 0, 1, or more rows.
+async function findRowsByLabel(token, tab, label) {
+  const entries = await fetchColumnA(token, tab);
+  const norm = normalizeSheetLabel(label);
+  return entries.filter((e) => normalizeSheetLabel(e.label) === norm).map((e) => e.row);
+}
+
+// Resolve { row, label } → an actual row in the sheet. When `label` is
+// provided we look it up live so a row-drift between browser fetch and write
+// can't cause us to clobber the wrong cell. When the label is ambiguous
+// (e.g. "SHOES" appears twice in CHECKLIST), we prefer the match closest to
+// the provided `row` hint. Falls back to the raw `row` if no label given or
+// no match found (so empty-A continuation rows like SDE slots 2-4 still work).
+async function resolveRow(token, tab, { row, label }) {
+  if (label) {
+    const matches = await findRowsByLabel(token, tab, label);
+    if (matches.length === 1) return matches[0];
+    if (matches.length > 1 && Number.isInteger(row)) {
+      matches.sort((a, b) => Math.abs(a - row) - Math.abs(b - row));
+      return matches[0];
+    }
+    if (matches.length === 0 && !Number.isInteger(row)) {
+      throw new Error(`label "${label}" not found in ${tab}`);
+    }
+  }
+  return row;
+}
+
+let _sheetIdCache = null;
+async function getSheetIdMap(token) {
+  if (_sheetIdCache) return _sheetIdCache;
+  const url = `https://sheets.googleapis.com/v4/spreadsheets/${WEDDING_SHEET_ID}?fields=sheets.properties(sheetId,title)`;
+  const r = await fetch(url, { headers: sheetsHeaders(token) });
+  if (!r.ok) throw new Error(`spreadsheets.get failed: ${r.status}`);
+  const j = await r.json();
+  const map = {};
+  for (const s of j.sheets || []) {
+    map[s.properties.title] = s.properties.sheetId;
+  }
+  _sheetIdCache = map;
+  return map;
+}
+
+// Return label→row mappings for every tracked tab. Browser polls this on each
+// tick so it always knows the current row for every label.
+app.post("/sheets-labels", async (_req, res) => {
+  try {
+    const token = await getSheetsAccessToken();
+    const labels = {};
+    for (const tab of Object.keys(SHEET_ACCESS)) {
+      const entries = await fetchColumnA(token, tab);
+      // For ambiguous labels (e.g. SHOES, PERFUME in CHECKLIST) we return
+      // every match so the browser can pick by closest-row.
+      const byLabel = {};
+      for (const { label, row } of entries) {
+        const key = label;
+        (byLabel[key] = byLabel[key] || []).push(row);
+      }
+      labels[tab] = byLabel;
+    }
+    res.json({ labels });
+  } catch (e) {
+    console.error("sheets-labels error:", e);
+    res.status(500).json({ error: e.message || "sheets-labels failed" });
+  }
+});
+
+// Delete a single row in the sheet. Body: { tab, row?, label? }
+// At least one of `row` and `label` must be given. Uses Sheets batchUpdate
+// with a deleteDimension request so subsequent rows shift up.
+app.post("/sheets-delete-row", async (req, res) => {
+  try {
+    const { tab, row, label } = req.body || {};
+    const access = SHEET_ACCESS[tab];
+    if (!access) return res.status(400).json({ error: `tab "${tab}" not in safelist` });
+    if (!Number.isInteger(row) && !label) {
+      return res.status(400).json({ error: "row or label required" });
+    }
+    const token = await getSheetsAccessToken();
+    const resolved = await resolveRow(token, tab, { row, label });
+    if (!Number.isInteger(resolved) || resolved < 2 || resolved > 500) {
+      return res.status(400).json({ error: "could not resolve a valid row to delete" });
+    }
+    const sheetMap = await getSheetIdMap(token);
+    const sheetId = sheetMap[tab];
+    if (sheetId == null) return res.status(500).json({ error: `sheetId for "${tab}" not found` });
+    const url = `https://sheets.googleapis.com/v4/spreadsheets/${WEDDING_SHEET_ID}:batchUpdate`;
+    const r = await fetch(url, {
+      method: "POST",
+      headers: { ...sheetsHeaders(token), "Content-Type": "application/json" },
+      body: JSON.stringify({
+        requests: [{
+          deleteDimension: {
+            range: {
+              sheetId,
+              dimension: "ROWS",
+              startIndex: resolved - 1, // 0-indexed, inclusive
+              endIndex: resolved,        // 0-indexed, exclusive
+            },
+          },
+        }],
+      }),
+    });
+    if (!r.ok) {
+      const text = await r.text();
+      return res.status(502).json({ error: `delete failed (${r.status}): ${text.slice(0, 300)}` });
+    }
+    res.json({ deletedRow: resolved, tab });
+  } catch (e) {
+    console.error("sheets-delete-row error:", e);
+    res.status(500).json({ error: e.message || "sheets-delete-row failed" });
+  }
+});
+
+// Write one row's cells. Body: { tab, row, cols, values, label? }
 //   values is a 1D array of strings matching cols.length.
+//   If `label` is supplied we look it up in column A so we still hit the
+//   right cell even if the sheet's row numbering has drifted since the
+//   browser last refreshed.
 app.post("/sheets-update", async (req, res) => {
   try {
-    const { tab, row, cols, values } = req.body || {};
+    const { tab, row, cols, values, label } = req.body || {};
     const err = validateSheetItem({ tab, row, cols });
     if (err) return res.status(400).json({ error: err });
     if (!Array.isArray(values) || values.length !== cols.length) {
@@ -320,8 +461,12 @@ app.post("/sheets-update", async (req, res) => {
       if (typeof v !== "string") return res.status(400).json({ error: "values must be strings" });
       if (v.length > 2000) return res.status(400).json({ error: "value too long (>2000 chars)" });
     }
-    const range = a1RangeFor({ tab, row, cols });
     const token = await getSheetsAccessToken();
+    const resolvedRow = await resolveRow(token, tab, { row, label });
+    if (!Number.isInteger(resolvedRow)) {
+      return res.status(404).json({ error: `could not resolve a row (label="${label || "?"}", row=${row})` });
+    }
+    const range = a1RangeFor({ tab, row: resolvedRow, cols });
     const url = `https://sheets.googleapis.com/v4/spreadsheets/${WEDDING_SHEET_ID}/values/${encodeURIComponent(range)}?valueInputOption=USER_ENTERED`;
     const r = await fetch(url, {
       method: "PUT",
@@ -334,7 +479,7 @@ app.post("/sheets-update", async (req, res) => {
       return res.status(502).json({ error: `Sheets update failed (${r.status}): ${text.slice(0, 300)}` });
     }
     const j = await r.json();
-    res.json({ updatedRange: j.updatedRange, updatedCells: j.updatedCells });
+    res.json({ updatedRange: j.updatedRange, updatedCells: j.updatedCells, resolvedRow });
   } catch (e) {
     console.error("sheets-update error:", e);
     res.status(500).json({ error: e.message || "sheets-update failed" });

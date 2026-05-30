@@ -6,11 +6,41 @@ import { fbGet, fbSet, fbSubscribe } from "../shared/firebase-sync.js";
 
 const DETAILS_KEY = "_details";
 
-// Two-way sync endpoints on gemini-proxy. /sheets-update writes one row's
-// cells (web → sheet, fires on edit). /sheets-read batch-reads the same
-// cells back (sheet → web, polled every 30s).
+// Two-way sync endpoints on gemini-proxy:
+//   /sheets-labels       → returns current label→row map per tab
+//   /sheets-read         → batch-reads cell values
+//   /sheets-update       → writes one row's cells (accepts label for live row lookup)
+//   /sheets-delete-row   → deletes a row by label or row number
 const SHEETS_PROXY = "https://gemini-proxy-668755364170.asia-southeast1.run.app";
 const SHEET_POLL_INTERVAL_MS = 30_000;
+
+// Live label→row mapping per tab, refreshed by refreshLiveLabels() on every
+// poll. The map's value is an array of rows because labels can repeat within
+// a tab (e.g. SHOES + PERFUME appear under both Bride and Groom checklists).
+let _liveLabels = {};
+
+function normalizeSheetLabel(s) {
+  return String(s || "").trim().replace(/\s+/g, " ").toLowerCase();
+}
+
+// Resolve item → current row in the sheet. Returns null when the item's
+// label is no longer in the sheet at all (deleted). Falls back to item.row
+// when there's no label or label lookup hasn't run yet.
+function currentRowFor(item) {
+  if (!item.sheetLabel) return item.row;
+  const tabMap = _liveLabels[item.tab];
+  if (!tabMap) return item.row; // labels not yet fetched
+  const lookup = normalizeSheetLabel(item.sheetLabel);
+  let matches = [];
+  for (const [label, rows] of Object.entries(tabMap)) {
+    if (normalizeSheetLabel(label) === lookup) matches = matches.concat(rows);
+  }
+  if (matches.length === 0) return null; // deleted from sheet
+  if (matches.length === 1) return matches[0];
+  // Multiple matches — pick the one closest to the item's original row hint.
+  matches.sort((a, b) => Math.abs(a - item.row) - Math.abs(b - item.row));
+  return matches[0];
+}
 
 // Unanswered cells in the wedding planning sheet
 // (https://docs.google.com/spreadsheets/d/1AhowIveOjjVy73F6_x4c5ajsZXJE5wpu-tuLGQYIQzk).
@@ -21,14 +51,19 @@ const SHEET_POLL_INTERVAL_MS = 30_000;
 // nothing drifts between the UI and the future sync-to-sheet script.
 //
 // Add/remove items as the sheet evolves — the form rebuilds from this list.
+// `sheetLabel` is the exact text in column A of that row — used to look the
+// row up live on every poll so write/read still hits the right cell even
+// after rows are inserted, deleted, or reordered in the spreadsheet. `row`
+// becomes a fallback hint only (used for ambiguous duplicate labels like
+// SHOES / PERFUME, and for label-less continuation rows like SDE slots).
 const SHEET_QUESTIONS = [
   {
     section: "Songs — ceremony",
     icon: "church",
     meta: "SONGLIST tab · title in B, link in C",
     items: [
-      { id: "song-entourage",     tab: "SONGLIST", row: 2, cols: ["B", "C"], label: "Entourage song",     placeholders: ["Song title", "Link (optional)"] },
-      { id: "song-bridal-march",  tab: "SONGLIST", row: 3, cols: ["B", "C"], label: "Bridal march song",  placeholders: ["Song title", "Link (optional)"] },
+      { id: "song-entourage",     tab: "SONGLIST", row: 2, cols: ["B", "C"], sheetLabel: "ENTOURAGE SONG",     label: "Entourage song",     placeholders: ["Song title", "Link (optional)"] },
+      { id: "song-bridal-march",  tab: "SONGLIST", row: 3, cols: ["B", "C"], sheetLabel: "BRIDAL MARCH SONG", label: "Bridal march song",  placeholders: ["Song title", "Link (optional)"] },
     ],
   },
   {
@@ -36,14 +71,14 @@ const SHEET_QUESTIONS = [
     icon: "queue_music",
     meta: "SONGLIST tab · title in B, link in C",
     items: [
-      { id: "song-entrance-team-bride", tab: "SONGLIST", row: 6,  cols: ["B", "C"], label: "Entrance — Team Bride",                          placeholders: ["Song title", "Link (optional)"] },
-      { id: "song-team-bride-dance",    tab: "SONGLIST", row: 7,  cols: ["B", "C"], label: "Team Bride dance",                               placeholders: ["Song title", "Link (optional)"] },
-      { id: "song-entrance-team-groom", tab: "SONGLIST", row: 8,  cols: ["B", "C"], label: "Entrance — Team Groom",                          placeholders: ["Song title", "Link (optional)"] },
-      { id: "song-team-groom-dance",    tab: "SONGLIST", row: 9,  cols: ["B", "C"], label: "Team Groom dance",                               placeholders: ["Song title", "Link (optional)"] },
-      { id: "song-entrance-couple",     tab: "SONGLIST", row: 10, cols: ["B", "C"], label: "Entrance of the couple",                         placeholders: ["Song title", "Link (optional)"] },
-      { id: "song-intro-parents",       tab: "SONGLIST", row: 11, cols: ["B", "C"], label: "Introduction — parents of bride & groom",        placeholders: ["Song title", "Link (optional)"] },
-      { id: "song-intro-sponsors",      tab: "SONGLIST", row: 12, cols: ["B", "C"], label: "Introduction — principal sponsors & other guests", placeholders: ["Song title", "Link (optional)"] },
-      { id: "song-game-1",              tab: "SONGLIST", row: 13, cols: ["B", "C"], label: "Game #1 — couple trivia with prizes",            placeholders: ["Song title", "Link (optional)"] },
+      { id: "song-entrance-team-bride", tab: "SONGLIST", row: 6,  cols: ["B", "C"], sheetLabel: "ENTRANCE SONG FOR TEAM BRIDE",                              label: "Entrance — Team Bride",                       placeholders: ["Song title", "Link (optional)"] },
+      { id: "song-team-bride-dance",    tab: "SONGLIST", row: 7,  cols: ["B", "C"], sheetLabel: "TEAM BRIDE DANCE",                                          label: "Team Bride dance",                            placeholders: ["Song title", "Link (optional)"] },
+      { id: "song-entrance-team-groom", tab: "SONGLIST", row: 8,  cols: ["B", "C"], sheetLabel: "ENTRANCE SONG FOR TEAM GROOM",                              label: "Entrance — Team Groom",                       placeholders: ["Song title", "Link (optional)"] },
+      { id: "song-team-groom-dance",    tab: "SONGLIST", row: 9,  cols: ["B", "C"], sheetLabel: "TEAM GROOM DANCE",                                          label: "Team Groom dance",                            placeholders: ["Song title", "Link (optional)"] },
+      { id: "song-entrance-couple",     tab: "SONGLIST", row: 10, cols: ["B", "C"], sheetLabel: "ENTRANCE SONG OF THE COUPLE",                               label: "Entrance of the couple",                      placeholders: ["Song title", "Link (optional)"] },
+      { id: "song-intro-parents",       tab: "SONGLIST", row: 11, cols: ["B", "C"], sheetLabel: "INTRODUCTION OF THE PARENTS OF THE BRIDE AND GROOM",        label: "Introduction — parents of bride & groom",     placeholders: ["Song title", "Link (optional)"] },
+      { id: "song-intro-sponsors",      tab: "SONGLIST", row: 12, cols: ["B", "C"], sheetLabel: "INTRODUCTION OF PRINCIPAL SPONSORS AND ACKNOWLEDGEMENT OF OTHER GUESTS", label: "Introduction — principal sponsors & other guests", placeholders: ["Song title", "Link (optional)"] },
+      { id: "song-game-1",              tab: "SONGLIST", row: 13, cols: ["B", "C"], sheetLabel: "GAME #1 - COUPLE TRIVIA QUESTIONS WITH PRIZES",             label: "Game #1 — couple trivia with prizes",         placeholders: ["Song title", "Link (optional)"] },
     ],
   },
   {
@@ -51,16 +86,15 @@ const SHEET_QUESTIONS = [
     icon: "celebration",
     meta: "SONGLIST tab · title in B, link in C",
     items: [
-      { id: "song-buffet",                 tab: "SONGLIST", row: 14, cols: ["B", "C"], label: "Buffet time",                              placeholders: ["Song title", "Link (optional)"] },
-      { id: "song-mother-son-dance",       tab: "SONGLIST", row: 15, cols: ["B", "C"], label: "Mother & son dance",                       placeholders: ["Song title", "Link (optional)"] },
-      { id: "song-father-daughter-dance",  tab: "SONGLIST", row: 16, cols: ["B", "C"], label: "Father & daughter dance",                  placeholders: ["Song title", "Link (optional)"] },
-      { id: "song-couples-first-dance",    tab: "SONGLIST", row: 17, cols: ["B", "C"], label: "Couple's first dance",                     placeholders: ["Song title", "Link (optional)"] },
-      { id: "song-cake-cutting",           tab: "SONGLIST", row: 18, cols: ["B", "C"], label: "Cake cutting & wine toasting",             placeholders: ["Song title", "Link (optional)"] },
-      { id: "song-first-dance-first-song", tab: "SONGLIST", row: 19, cols: ["B", "C"], label: "First dance / first song",                 placeholders: ["Song title", "Link (optional)"] },
-      { id: "song-game-2",                 tab: "SONGLIST", row: 21, cols: ["B", "C"], label: "Game #2 (optional)",                       placeholders: ["Song title", "Link (optional)"] },
-      { id: "song-messages-for-couple",    tab: "SONGLIST", row: 22, cols: ["B", "C"], label: "Messages for the couple (well wishers — MOH, BFFs)", placeholders: ["Song title", "Link (optional)"] },
-      { id: "song-message-from-couple",    tab: "SONGLIST", row: 23, cols: ["B", "C"], label: "Message from the couple",                  placeholders: ["Song title", "Link (optional)"] },
-      { id: "song-closing",                tab: "SONGLIST", row: 24, cols: ["B", "C"], label: "Closing",                                  placeholders: ["Song title", "Link (optional)"] },
+      { id: "song-buffet",                tab: "SONGLIST", row: 14, cols: ["B", "C"], sheetLabel: "BUFFET TIME",                                          label: "Buffet time",                              placeholders: ["Song title", "Link (optional)"] },
+      { id: "song-mother-son-dance",      tab: "SONGLIST", row: 15, cols: ["B", "C"], sheetLabel: "MOTHER AND SON DANCE",                                 label: "Mother & son dance",                       placeholders: ["Song title", "Link (optional)"] },
+      { id: "song-father-daughter-dance", tab: "SONGLIST", row: 16, cols: ["B", "C"], sheetLabel: "FATHER AND DAUGHTER DANCE",                            label: "Father & daughter dance",                  placeholders: ["Song title", "Link (optional)"] },
+      { id: "song-couples-first-dance",   tab: "SONGLIST", row: 17, cols: ["B", "C"], sheetLabel: "COUPLE'S FIRST DANCE",                                 label: "Couple's first dance",                     placeholders: ["Song title", "Link (optional)"] },
+      { id: "song-cake-cutting",          tab: "SONGLIST", row: 18, cols: ["B", "C"], sheetLabel: "CAKE CUTTING & WINE TOASTING CEREMONY",                label: "Cake cutting & wine toasting",             placeholders: ["Song title", "Link (optional)"] },
+      { id: "song-game-2",                tab: "SONGLIST", row: 19, cols: ["B", "C"], sheetLabel: "GAME #2 (OPTIONAL)",                                   label: "Game #2 (optional)",                       placeholders: ["Song title", "Link (optional)"] },
+      { id: "song-messages-for-couple",   tab: "SONGLIST", row: 20, cols: ["B", "C"], sheetLabel: "MESSAGES FOR THE COUPLE (WELL WISHERS –MOH, BFFS)",    label: "Messages for the couple (well wishers — MOH, BFFs)", placeholders: ["Song title", "Link (optional)"] },
+      { id: "song-message-from-couple",   tab: "SONGLIST", row: 21, cols: ["B", "C"], sheetLabel: "MESSAGE FROM THE COUPLE",                              label: "Message from the couple",                  placeholders: ["Song title", "Link (optional)"] },
+      { id: "song-closing",               tab: "SONGLIST", row: 22, cols: ["B", "C"], sheetLabel: "CLOSING",                                              label: "Closing",                                  placeholders: ["Song title", "Link (optional)"] },
     ],
   },
   {
@@ -68,10 +102,14 @@ const SHEET_QUESTIONS = [
     icon: "movie",
     meta: "SONGLIST tab · title in B, link/description in C",
     items: [
-      { id: "song-sde-1", tab: "SONGLIST", row: 27, cols: ["B", "C"], label: "SDE — slot 1",  placeholders: ["Song title", "Link or description"] },
-      { id: "song-sde-2", tab: "SONGLIST", row: 28, cols: ["B", "C"], label: "SDE — slot 2",  placeholders: ["Song title", "Link or description"] },
-      { id: "song-sde-3", tab: "SONGLIST", row: 29, cols: ["B", "C"], label: "SDE — slot 3",  placeholders: ["Song title", "Link or description"] },
-      { id: "song-sde-4", tab: "SONGLIST", row: 30, cols: ["B", "C"], label: "SDE — slot 4",  placeholders: ["Song title", "Link or description"] },
+      // Slot 1 has the section label in column A. Slots 2-4 are continuation
+      // rows (column A is blank) — they get looked up by row only, so they
+      // can drift if the user inserts/deletes rows mid-section. Acceptable
+      // since they're at the end of the tab.
+      { id: "song-sde-1", tab: "SONGLIST", row: 25, cols: ["B", "C"], sheetLabel: "SAME DAY EDIT SONG", label: "SDE — slot 1", placeholders: ["Song title", "Link or description"] },
+      { id: "song-sde-2", tab: "SONGLIST", row: 26, cols: ["B", "C"],                                   label: "SDE — slot 2", placeholders: ["Song title", "Link or description"] },
+      { id: "song-sde-3", tab: "SONGLIST", row: 27, cols: ["B", "C"],                                   label: "SDE — slot 3", placeholders: ["Song title", "Link or description"] },
+      { id: "song-sde-4", tab: "SONGLIST", row: 28, cols: ["B", "C"],                                   label: "SDE — slot 4", placeholders: ["Song title", "Link or description"] },
     ],
   },
   {
@@ -79,18 +117,18 @@ const SHEET_QUESTIONS = [
     icon: "checklist",
     meta: "CHECKLIST tab · status in column C",
     items: [
-      { id: "ck-candle-long",       tab: "CHECKLIST", row: 2,  cols: ["C"], label: "Candle long (2 pcs)",     placeholders: ["e.g. ready / ordered / not yet"] },
-      { id: "ck-unity-candle",      tab: "CHECKLIST", row: 3,  cols: ["C"], label: "Unity candle",            placeholders: ["status"] },
-      { id: "ck-veil",              tab: "CHECKLIST", row: 4,  cols: ["C"], label: "Veil",                    placeholders: ["status"] },
-      { id: "ck-arras",             tab: "CHECKLIST", row: 5,  cols: ["C"], label: "Arras",                   placeholders: ["status"] },
-      { id: "ck-cord",              tab: "CHECKLIST", row: 6,  cols: ["C"], label: "Cord",                    placeholders: ["status"] },
-      { id: "ck-bible",             tab: "CHECKLIST", row: 7,  cols: ["C"], label: "Bible",                   placeholders: ["status"] },
-      { id: "ck-wedding-vows",      tab: "CHECKLIST", row: 8,  cols: ["C"], label: "Wedding vows",            placeholders: ["status"] },
-      { id: "ck-wedding-rings",     tab: "CHECKLIST", row: 9,  cols: ["C"], label: "Wedding rings",           placeholders: ["status"] },
-      { id: "ck-copy-invitation",   tab: "CHECKLIST", row: 10, cols: ["C"], label: "Copy of invitation",      placeholders: ["status"] },
-      { id: "ck-entourage-flowers", tab: "CHECKLIST", row: 11, cols: ["C"], label: "Entourage flowers",       placeholders: ["status"] },
-      { id: "ck-wedding-wands",     tab: "CHECKLIST", row: 12, cols: ["C"], label: "Wedding wands",           placeholders: ["status"] },
-      { id: "ck-bubble-guns",       tab: "CHECKLIST", row: 13, cols: ["C"], label: "Bubble guns (2)",         placeholders: ["status"] },
+      { id: "ck-candle-long",       tab: "CHECKLIST", row: 2,  cols: ["C"], sheetLabel: "candle long 2pcs",      label: "Candle long (2 pcs)",  placeholders: ["e.g. ready / ordered / not yet"] },
+      { id: "ck-unity-candle",      tab: "CHECKLIST", row: 3,  cols: ["C"], sheetLabel: "unity candle",          label: "Unity candle",         placeholders: ["status"] },
+      { id: "ck-veil",              tab: "CHECKLIST", row: 4,  cols: ["C"], sheetLabel: "VEIL",                  label: "Veil",                 placeholders: ["status"] },
+      { id: "ck-arras",             tab: "CHECKLIST", row: 5,  cols: ["C"], sheetLabel: "ARRAS",                 label: "Arras",                placeholders: ["status"] },
+      { id: "ck-cord",              tab: "CHECKLIST", row: 6,  cols: ["C"], sheetLabel: "CORD",                  label: "Cord",                 placeholders: ["status"] },
+      { id: "ck-bible",             tab: "CHECKLIST", row: 7,  cols: ["C"], sheetLabel: "BIBLE",                 label: "Bible",                placeholders: ["status"] },
+      { id: "ck-wedding-vows",      tab: "CHECKLIST", row: 8,  cols: ["C"], sheetLabel: "WEDDING VOWS",          label: "Wedding vows",         placeholders: ["status"] },
+      { id: "ck-wedding-rings",     tab: "CHECKLIST", row: 9,  cols: ["C"], sheetLabel: "WEDDING RINGS",         label: "Wedding rings",        placeholders: ["status"] },
+      { id: "ck-copy-invitation",   tab: "CHECKLIST", row: 10, cols: ["C"], sheetLabel: "COPY OF INVITATION",    label: "Copy of invitation",   placeholders: ["status"] },
+      { id: "ck-entourage-flowers", tab: "CHECKLIST", row: 11, cols: ["C"], sheetLabel: "ENTOURAGE FLOWERS",     label: "Entourage flowers",    placeholders: ["status"] },
+      { id: "ck-wedding-wands",     tab: "CHECKLIST", row: 12, cols: ["C"], sheetLabel: "WEDDING WANDS",         label: "Wedding wands",        placeholders: ["status"] },
+      { id: "ck-bubble-guns",       tab: "CHECKLIST", row: 13, cols: ["C"], sheetLabel: "2 BUBBLE GUNS",         label: "Bubble guns (2)",      placeholders: ["status"] },
     ],
   },
   {
@@ -98,27 +136,30 @@ const SHEET_QUESTIONS = [
     icon: "celebration",
     meta: "CHECKLIST tab · status in column C",
     items: [
-      { id: "ck-money-prosperity-box",  tab: "CHECKLIST", row: 16, cols: ["C"], label: "Money / prosperity box",          placeholders: ["status"] },
-      { id: "ck-money-envelopes",       tab: "CHECKLIST", row: 17, cols: ["C"], label: "Money envelopes / pins / clips",  placeholders: ["status"] },
-      { id: "ck-prizes",                tab: "CHECKLIST", row: 18, cols: ["C"], label: "Prizes",                          placeholders: ["status"] },
-      { id: "ck-pens",                  tab: "CHECKLIST", row: 19, cols: ["C"], label: "Pens",                            placeholders: ["status"] },
-      { id: "ck-souvenirs-sponsors",    tab: "CHECKLIST", row: 20, cols: ["C"], label: "Souvenirs for sponsors",          placeholders: ["status"] },
-      { id: "ck-souvenirs-guest",       tab: "CHECKLIST", row: 21, cols: ["C"], label: "Souvenirs for guests",            placeholders: ["status"] },
+      { id: "ck-money-prosperity-box",  tab: "CHECKLIST", row: 16, cols: ["C"], sheetLabel: "MONEY PROSPERITY BOX",              label: "Money / prosperity box",         placeholders: ["status"] },
+      { id: "ck-money-envelopes",       tab: "CHECKLIST", row: 17, cols: ["C"], sheetLabel: "MONEY ENVELOPES/pins/wooden clips", label: "Money envelopes / pins / clips", placeholders: ["status"] },
+      { id: "ck-prizes",                tab: "CHECKLIST", row: 18, cols: ["C"], sheetLabel: "PRIZES",                            label: "Prizes",                         placeholders: ["status"] },
+      { id: "ck-pens",                  tab: "CHECKLIST", row: 19, cols: ["C"], sheetLabel: "PENS",                              label: "Pens",                           placeholders: ["status"] },
+      { id: "ck-souvenirs-sponsors",    tab: "CHECKLIST", row: 20, cols: ["C"], sheetLabel: "souvenirs for sponsors",            label: "Souvenirs for sponsors",         placeholders: ["status"] },
+      { id: "ck-souvenirs-guest",       tab: "CHECKLIST", row: 21, cols: ["C"], sheetLabel: "souvenirs for guest",               label: "Souvenirs for guests",           placeholders: ["status"] },
     ],
   },
   {
     section: "Bride's essentials for photoshoot",
     icon: "favorite",
+    // SHOES (row 25) and PERFUME (row 30) are ambiguous — they also appear in
+    // the Groom's section. The row hint here disambiguates via the
+    // closest-row heuristic on the server side.
     meta: "CHECKLIST tab · status in column C",
     items: [
-      { id: "ck-bride-robe",            tab: "CHECKLIST", row: 23, cols: ["C"], label: "Robe",            placeholders: ["status"] },
-      { id: "ck-bride-gown",            tab: "CHECKLIST", row: 24, cols: ["C"], label: "Gown",            placeholders: ["status"] },
-      { id: "ck-bride-shoes",           tab: "CHECKLIST", row: 25, cols: ["C"], label: "Shoes",           placeholders: ["status"] },
-      { id: "ck-bride-sandals",         tab: "CHECKLIST", row: 26, cols: ["C"], label: "Sandals",         placeholders: ["status"] },
-      { id: "ck-bride-engagement-ring", tab: "CHECKLIST", row: 27, cols: ["C"], label: "Engagement ring", placeholders: ["status"] },
-      { id: "ck-bride-earrings",        tab: "CHECKLIST", row: 28, cols: ["C"], label: "Earrings",        placeholders: ["status"] },
-      { id: "ck-bride-bouquet",         tab: "CHECKLIST", row: 29, cols: ["C"], label: "Bridal bouquet",  placeholders: ["status"] },
-      { id: "ck-bride-perfume",         tab: "CHECKLIST", row: 30, cols: ["C"], label: "Perfume",         placeholders: ["status"] },
+      { id: "ck-bride-robe",            tab: "CHECKLIST", row: 23, cols: ["C"], sheetLabel: "ROBE",            label: "Robe",            placeholders: ["status"] },
+      { id: "ck-bride-gown",            tab: "CHECKLIST", row: 24, cols: ["C"], sheetLabel: "GOWN",            label: "Gown",            placeholders: ["status"] },
+      { id: "ck-bride-shoes",           tab: "CHECKLIST", row: 25, cols: ["C"], sheetLabel: "SHOES",           label: "Shoes",           placeholders: ["status"] },
+      { id: "ck-bride-sandals",         tab: "CHECKLIST", row: 26, cols: ["C"], sheetLabel: "SANDALS",         label: "Sandals",         placeholders: ["status"] },
+      { id: "ck-bride-engagement-ring", tab: "CHECKLIST", row: 27, cols: ["C"], sheetLabel: "ENGAGEMENT RING", label: "Engagement ring", placeholders: ["status"] },
+      { id: "ck-bride-earrings",        tab: "CHECKLIST", row: 28, cols: ["C"], sheetLabel: "EARRINGS",        label: "Earrings",        placeholders: ["status"] },
+      { id: "ck-bride-bouquet",         tab: "CHECKLIST", row: 29, cols: ["C"], sheetLabel: "BRIDAL BOUQUET",  label: "Bridal bouquet",  placeholders: ["status"] },
+      { id: "ck-bride-perfume",         tab: "CHECKLIST", row: 30, cols: ["C"], sheetLabel: "PERFUME",         label: "Perfume",         placeholders: ["status"] },
     ],
   },
   {
@@ -126,12 +167,12 @@ const SHEET_QUESTIONS = [
     icon: "person",
     meta: "CHECKLIST tab · status in column C",
     items: [
-      { id: "ck-groom-suit",        tab: "CHECKLIST", row: 32, cols: ["C"], label: "Suit",        placeholders: ["status"] },
-      { id: "ck-groom-shoes",       tab: "CHECKLIST", row: 33, cols: ["C"], label: "Shoes",       placeholders: ["status"] },
-      { id: "ck-groom-belt",        tab: "CHECKLIST", row: 34, cols: ["C"], label: "Belt",        placeholders: ["status"] },
-      { id: "ck-groom-watch",       tab: "CHECKLIST", row: 35, cols: ["C"], label: "Watch",       placeholders: ["status"] },
-      { id: "ck-groom-perfume",     tab: "CHECKLIST", row: 36, cols: ["C"], label: "Perfume",     placeholders: ["status"] },
-      { id: "ck-groom-boutonniere", tab: "CHECKLIST", row: 37, cols: ["C"], label: "Boutonniere", placeholders: ["status"] },
+      { id: "ck-groom-suit",        tab: "CHECKLIST", row: 32, cols: ["C"], sheetLabel: "SUIT",        label: "Suit",        placeholders: ["status"] },
+      { id: "ck-groom-shoes",       tab: "CHECKLIST", row: 33, cols: ["C"], sheetLabel: "SHOES",       label: "Shoes",       placeholders: ["status"] },
+      { id: "ck-groom-belt",        tab: "CHECKLIST", row: 34, cols: ["C"], sheetLabel: "BELT",        label: "Belt",        placeholders: ["status"] },
+      { id: "ck-groom-watch",       tab: "CHECKLIST", row: 35, cols: ["C"], sheetLabel: "WATCH",       label: "Watch",       placeholders: ["status"] },
+      { id: "ck-groom-perfume",     tab: "CHECKLIST", row: 36, cols: ["C"], sheetLabel: "PERFUME",     label: "Perfume",     placeholders: ["status"] },
+      { id: "ck-groom-boutonniere", tab: "CHECKLIST", row: 37, cols: ["C"], sheetLabel: "BOUTONNIERE", label: "Boutonniere", placeholders: ["status"] },
     ],
   },
   {
@@ -139,13 +180,13 @@ const SHEET_QUESTIONS = [
     icon: "luggage",
     meta: "CHECKLIST tab · status in column C",
     items: [
-      { id: "ck-bag-tissue",       tab: "CHECKLIST", row: 39, cols: ["C"], label: "Tissue",                          placeholders: ["status"] },
-      { id: "ck-bag-wet-wipes",    tab: "CHECKLIST", row: 40, cols: ["C"], label: "Wet wipes",                       placeholders: ["status"] },
-      { id: "ck-bag-alcohol",      tab: "CHECKLIST", row: 41, cols: ["C"], label: "Alcohol",                         placeholders: ["status"] },
-      { id: "ck-bag-candy-mint",   tab: "CHECKLIST", row: 42, cols: ["C"], label: "Candy / mint",                    placeholders: ["status"] },
-      { id: "ck-bag-water",        tab: "CHECKLIST", row: 43, cols: ["C"], label: "Bottled water (straw for bride)", placeholders: ["status"] },
-      { id: "ck-bag-mini-fan",     tab: "CHECKLIST", row: 44, cols: ["C"], label: "Mini electric fan",               placeholders: ["status"] },
-      { id: "ck-bag-sanitary",     tab: "CHECKLIST", row: 45, cols: ["C"], label: "Sanitary napkin (bride)",         placeholders: ["status"] },
+      { id: "ck-bag-tissue",       tab: "CHECKLIST", row: 39, cols: ["C"], sheetLabel: "TISSUE",                              label: "Tissue",                          placeholders: ["status"] },
+      { id: "ck-bag-wet-wipes",    tab: "CHECKLIST", row: 40, cols: ["C"], sheetLabel: "WET WIPES",                           label: "Wet wipes",                       placeholders: ["status"] },
+      { id: "ck-bag-alcohol",      tab: "CHECKLIST", row: 41, cols: ["C"], sheetLabel: "ALCOHOL",                             label: "Alcohol",                         placeholders: ["status"] },
+      { id: "ck-bag-candy-mint",   tab: "CHECKLIST", row: 42, cols: ["C"], sheetLabel: "CANDY/MINT",                          label: "Candy / mint",                    placeholders: ["status"] },
+      { id: "ck-bag-water",        tab: "CHECKLIST", row: 43, cols: ["C"], sheetLabel: "BOTTLED WATER  (WITH STRAW FOR BRIDE)", label: "Bottled water (straw for bride)", placeholders: ["status"] },
+      { id: "ck-bag-mini-fan",     tab: "CHECKLIST", row: 44, cols: ["C"], sheetLabel: "MINI ELECTRICFAN",                    label: "Mini electric fan",               placeholders: ["status"] },
+      { id: "ck-bag-sanitary",     tab: "CHECKLIST", row: 45, cols: ["C"], sheetLabel: "SANITARY NAPKIN (FOR BRIDE)",         label: "Sanitary napkin (bride)",         placeholders: ["status"] },
     ],
   },
   {
@@ -153,12 +194,12 @@ const SHEET_QUESTIONS = [
     icon: "call",
     meta: "SUPPLIER'S LIST tab · phone in column D",
     items: [
-      { id: "sup-catering-phone",   tab: "SUPPLIER'S LIST", row: 3,  cols: ["D"], label: "Catering — phone (Sac B Catering, Ms. Jean Rachel Luna)", placeholders: ["09xx-xxx-xxxx"] },
-      { id: "sup-sounds-phone",     tab: "SUPPLIER'S LIST", row: 6,  cols: ["D"], label: "Sounds / Lights / Prod / Tech — phone (Kuya Marco)",      placeholders: ["09xx-xxx-xxxx"] },
-      { id: "sup-photo-video-phone",tab: "SUPPLIER'S LIST", row: 8,  cols: ["D"], label: "Photo & video team — phone (Jath and Yhen PV)",           placeholders: ["09xx-xxx-xxxx"] },
-      { id: "sup-cake-phone",       tab: "SUPPLIER'S LIST", row: 9,  cols: ["D"], label: "Cake — phone (Sac B Catering)",                            placeholders: ["09xx-xxx-xxxx"] },
-      { id: "sup-venue-phone",      tab: "SUPPLIER'S LIST", row: 10, cols: ["D"], label: "Venue bldg admin — phone (Kuya Kester Catindig)",          placeholders: ["09xx-xxx-xxxx"] },
-      { id: "sup-crew-meal-phone",  tab: "SUPPLIER'S LIST", row: 16, cols: ["D"], label: "Crew meal — phone (CCF host team)",                        placeholders: ["09xx-xxx-xxxx"] },
+      { id: "sup-catering-phone",    tab: "SUPPLIER'S LIST", row: 3,  cols: ["D"], sheetLabel: "CATERING",                  label: "Catering — phone (Sac B Catering, Ms. Jean Rachel Luna)", placeholders: ["09xx-xxx-xxxx"] },
+      { id: "sup-sounds-phone",      tab: "SUPPLIER'S LIST", row: 6,  cols: ["D"], sheetLabel: "SOUNDS, LIGHTS, PROD, TECH", label: "Sounds / Lights / Prod / Tech — phone (Kuya Marco)",      placeholders: ["09xx-xxx-xxxx"] },
+      { id: "sup-photo-video-phone", tab: "SUPPLIER'S LIST", row: 8,  cols: ["D"], sheetLabel: "PHOTO AND VIDEO TEAM",      label: "Photo & video team — phone (Jath and Yhen PV)",           placeholders: ["09xx-xxx-xxxx"] },
+      { id: "sup-cake-phone",        tab: "SUPPLIER'S LIST", row: 9,  cols: ["D"], sheetLabel: "CAKE",                      label: "Cake — phone (Sac B Catering)",                           placeholders: ["09xx-xxx-xxxx"] },
+      { id: "sup-venue-phone",       tab: "SUPPLIER'S LIST", row: 10, cols: ["D"], sheetLabel: "VENUE BLDG ADMIN",          label: "Venue bldg admin — phone (Kuya Kester Catindig)",         placeholders: ["09xx-xxx-xxxx"] },
+      { id: "sup-crew-meal-phone",   tab: "SUPPLIER'S LIST", row: 16, cols: ["D"], sheetLabel: "CREW MEAL",                 label: "Crew meal — phone (CCF host team)",                       placeholders: ["09xx-xxx-xxxx"] },
     ],
   },
   {
@@ -166,16 +207,16 @@ const SHEET_QUESTIONS = [
     icon: "schedule",
     meta: "SUPPLIER'S LIST tab · arrival in column E",
     items: [
-      { id: "sup-sounds-arrival",       tab: "SUPPLIER'S LIST", row: 6,  cols: ["E"], label: "Sounds / Lights / Prod / Tech — arrival", placeholders: ["e.g. 5:00 AM"] },
-      { id: "sup-photo-video-arrival",  tab: "SUPPLIER'S LIST", row: 8,  cols: ["E"], label: "Photo & video team — arrival",            placeholders: ["e.g. 5:00 AM"] },
-      { id: "sup-cake-arrival",         tab: "SUPPLIER'S LIST", row: 9,  cols: ["E"], label: "Cake — arrival",                          placeholders: ["e.g. 10:00 AM"] },
-      { id: "sup-venue-arrival",        tab: "SUPPLIER'S LIST", row: 10, cols: ["E"], label: "Venue bldg admin — arrival",              placeholders: ["e.g. 4:30 AM"] },
-      { id: "sup-selfie-mirror1-arrival",tab: "SUPPLIER'S LIST", row: 11, cols: ["E"], label: "Selfie mirror #1 — arrival",             placeholders: ["e.g. 11:00 AM"] },
-      { id: "sup-grazing-arrival",      tab: "SUPPLIER'S LIST", row: 12, cols: ["E"], label: "Grazing table #1 — arrival",              placeholders: ["e.g. 11:00 AM"] },
-      { id: "sup-photoman-arrival",     tab: "SUPPLIER'S LIST", row: 13, cols: ["E"], label: "Photoman — arrival",                      placeholders: ["e.g. 11:00 AM"] },
-      { id: "sup-selfie-mirror2-arrival",tab: "SUPPLIER'S LIST", row: 14, cols: ["E"], label: "Selfie mirror #2 — arrival",             placeholders: ["e.g. 11:00 AM"] },
-      { id: "sup-guest-gift-arrival",   tab: "SUPPLIER'S LIST", row: 15, cols: ["E"], label: "Guest gift — arrival",                    placeholders: ["e.g. 11:00 AM"] },
-      { id: "sup-crew-meal-arrival",    tab: "SUPPLIER'S LIST", row: 16, cols: ["E"], label: "Crew meal — arrival",                     placeholders: ["e.g. 11:00 AM"] },
+      { id: "sup-sounds-arrival",        tab: "SUPPLIER'S LIST", row: 6,  cols: ["E"], sheetLabel: "SOUNDS, LIGHTS, PROD, TECH", label: "Sounds / Lights / Prod / Tech — arrival", placeholders: ["e.g. 5:00 AM"] },
+      { id: "sup-photo-video-arrival",   tab: "SUPPLIER'S LIST", row: 8,  cols: ["E"], sheetLabel: "PHOTO AND VIDEO TEAM",       label: "Photo & video team — arrival",            placeholders: ["e.g. 5:00 AM"] },
+      { id: "sup-cake-arrival",          tab: "SUPPLIER'S LIST", row: 9,  cols: ["E"], sheetLabel: "CAKE",                       label: "Cake — arrival",                          placeholders: ["e.g. 10:00 AM"] },
+      { id: "sup-venue-arrival",         tab: "SUPPLIER'S LIST", row: 10, cols: ["E"], sheetLabel: "VENUE BLDG ADMIN",           label: "Venue bldg admin — arrival",              placeholders: ["e.g. 4:30 AM"] },
+      { id: "sup-selfie-mirror1-arrival", tab: "SUPPLIER'S LIST", row: 11, cols: ["E"], sheetLabel: "SELFIE MIRROR #1",          label: "Selfie mirror #1 — arrival",              placeholders: ["e.g. 11:00 AM"] },
+      { id: "sup-grazing-arrival",       tab: "SUPPLIER'S LIST", row: 12, cols: ["E"], sheetLabel: "GRAZING TABLE #1",           label: "Grazing table #1 — arrival",              placeholders: ["e.g. 11:00 AM"] },
+      { id: "sup-photoman-arrival",      tab: "SUPPLIER'S LIST", row: 13, cols: ["E"], sheetLabel: "PHOTOMAN",                   label: "Photoman — arrival",                      placeholders: ["e.g. 11:00 AM"] },
+      { id: "sup-selfie-mirror2-arrival", tab: "SUPPLIER'S LIST", row: 14, cols: ["E"], sheetLabel: "SELFIE MIRROR #2",          label: "Selfie mirror #2 — arrival",              placeholders: ["e.g. 11:00 AM"] },
+      { id: "sup-guest-gift-arrival",    tab: "SUPPLIER'S LIST", row: 15, cols: ["E"], sheetLabel: "GUEST GIFT",                 label: "Guest gift — arrival",                    placeholders: ["e.g. 11:00 AM"] },
+      { id: "sup-crew-meal-arrival",     tab: "SUPPLIER'S LIST", row: 16, cols: ["E"], sheetLabel: "CREW MEAL",                  label: "Crew meal — arrival",                     placeholders: ["e.g. 11:00 AM"] },
     ],
   },
 ];
@@ -223,8 +264,6 @@ const GROUPS = [
     fields: [
       { id: "officiant",                label: "Officiating Minister",                 type: "text",     hint: "Pastor / minister leading the ceremony" },
       { id: "honoringParentsSpeaker",   label: "Honoring Parents — speaker(s)",        type: "text" },
-      { id: "communionDuringCeremony",  label: "Communion / Lord's Supper during ceremony?", type: "select",
-        options: ["", "Yes — couple only", "Yes — couple + congregation", "No", "Still deciding"] },
     ],
   },
   {
@@ -270,11 +309,8 @@ const GROUPS = [
     title: "Reception — Music & Moments",
     fields: [
       { id: "firstDanceChoreo",         label: "First dance — choreographed?",         type: "select",   options: ["", "Yes — with choreo", "No — freestyle", "Still deciding"] },
-      { id: "cocktailMusic",            label: "Cocktail hour music (12:00–12:30 PM)", type: "text",     hint: "Background music as guests arrive at reception" },
-      { id: "bouquetTossSong",          label: "Bouquet toss song",                    type: "text" },
       { id: "closingSong",              label: "Closing song / song number",           type: "text",     hint: "Upbeat — guests get up and dance" },
       { id: "exitDance",                label: "Flash-mob exit dance — yes/no + song", type: "textarea", hint: "e.g. Yes — APT. by Bruno Mars × Rosé" },
-      { id: "memoryVideoStatus",        label: "Memory video / AVP — status",          type: "text",     hint: "Who edits + when it plays" },
     ],
   },
   {
@@ -286,15 +322,8 @@ const GROUPS = [
       { id: "preProgramGamePrizes",     label: "Pre-program game prizes",              type: "textarea", hint: "Name That Tune / Trivia during cocktail hour" },
     ],
   },
-  {
-    id: "reception-experience",
-    title: "Reception — Guest Experience",
-    fields: [
-      { id: "dressCodeGuests",          label: "Dress code for guests",                type: "text",     hint: "Formal? Semi-formal? Theme colors?" },
-      { id: "sendOffStyle",             label: "Send-off style (end of reception)",    type: "select",
-        options: ["", "Sparklers", "Bubbles", "Petals", "Confetti", "Guests holding sparklers (tunnel)", "No formal send-off", "Still deciding"] },
-    ],
-  },
+  // (Reception — Guest Experience: dress code + send-off style decided with
+  // the coordinator and live in the sheet now, so the whole group is gone.)
 
   {
     id: "couple-trivia",
@@ -310,13 +339,6 @@ const GROUPS = [
       { id: "firstDateSpot",            label: "First date location",                  type: "text" },
       { id: "memorableTrip",            label: "Most memorable trip together",         type: "text" },
       { id: "favoriteSnack",            label: "Favorite shared snack / drink",        type: "text" },
-      { id: "charlieJob",               label: "Charlie's work / day job",             type: "text" },
-      { id: "karlaJob",                 label: "Karla's work / day job",               type: "text" },
-      { id: "firstILoveYou",            label: "First 'I love you' — who + where",     type: "text" },
-      { id: "favoriteShow",             label: "Favorite shared show / movie",         type: "text" },
-      { id: "insideJoke",               label: "Inside joke / shared catchphrase",     type: "text" },
-      { id: "lifeVerse",                label: "Couple's life verse / Bible passage",  type: "text",     hint: "Mentioned by host or printed on monogram" },
-      { id: "honeymoonDestination",     label: "Honeymoon destination (private if you want)", type: "text" },
       { id: "otherFunFacts",            label: "Other fun facts for the host",         type: "textarea" },
     ],
   },
@@ -333,21 +355,21 @@ const GROUPS = [
     id: "suppliers",
     title: "Suppliers to acknowledge at closing",
     fields: [
+      // Supplier roster lives in the SUPPLIER'S LIST sheet tab now — the
+      // fields below are just for "acknowledge at closing" extras that
+      // weren't captured there (e.g. videographer, SDE, HMUA personalised
+      // thanks). Photoman, gown, tux, rings, bridal car removed because
+      // they're already tracked in the sheet.
       { id: "supplierCatering",         label: "Catering",                             type: "text" },
       { id: "supplierCake",             label: "Cake",                                 type: "text" },
       { id: "supplierSound",            label: "Sound / DJ",                           type: "text" },
       { id: "supplierPhoto",            label: "Photographer (formal)",                type: "text",     hint: "e.g. Jath & Yen" },
-      { id: "supplierPhotoman",         label: "Photoman (roving / candid)",           type: "text",     hint: "e.g. MI6 — sponsored by Ninong Melvin + Ninang Jerdin Catanghal" },
       { id: "supplierVideo",            label: "Videographer",                         type: "text" },
       { id: "supplierSDE",              label: "Same-Day Edit team",                   type: "text" },
       { id: "supplierHMUA",             label: "HMUA",                                 type: "text" },
       { id: "supplierFlorist",          label: "Florist / stylist",                    type: "text" },
       { id: "supplierLights",           label: "Lights / LED wall",                    type: "text" },
       { id: "supplierPhotobooth",       label: "Photobooth (or 'none')",               type: "text" },
-      { id: "supplierGown",             label: "Bride's gown — designer / supplier",   type: "text" },
-      { id: "supplierTuxBarong",        label: "Groom's tux / barong — supplier",      type: "text" },
-      { id: "supplierRings",            label: "Wedding rings — jeweler",              type: "text" },
-      { id: "supplierBridalCar",        label: "Bridal car / transportation",          type: "text" },
       { id: "supplierOther",            label: "Other suppliers + special thanks",     type: "textarea" },
     ],
   },
@@ -457,20 +479,7 @@ const SUGGESTIONS = {
   ],
 
   // ----- Reception — Music & Moments
-  cocktailMusic: [
-    "Acoustic worship covers playlist",
-    "Lo-fi worship beats",
-    "Norah Jones / Michael Bublé jazz lounge",
-    "James Wong Christian mashup (looped)",
-    "Bossa nova worship covers",
-  ],
-  bouquetTossSong: [
-    "Single Ladies — Beyoncé",
-    "Marry You — Bruno Mars",
-    "Wannabe — Spice Girls",
-    "Can't Get Enough of Your Love — Barry White",
-    "Hot in Herre — Nelly",
-  ],
+  // (cocktailMusic + bouquetTossSong removed — handled in SONGLIST sheet.)
   // Upbeat 80s / disco / dance party hits per Charlie's "tayoy magsayaw" brief
   closingSong: [
     "Dancing Queen — ABBA",
@@ -494,12 +503,7 @@ const SUGGESTIONS = {
     "Yes — Pamilya Ko by KZ Tandingan",
     "Skip — couple exits to upbeat playlist instead",
   ],
-  memoryVideoStatus: [
-    "Edited by couple — plays during cocktail hour",
-    "Edited by Jath & Yen — plays during dinner",
-    "Edited by couple — plays before SDE",
-    "Not yet started — Jath & Yen confirming timeline",
-  ],
+  // (memoryVideoStatus removed — coordinator handles AVP timeline.)
 
   // ----- Reception — Games & Prizes
   coupleTriviaPrizes: [
@@ -518,14 +522,8 @@ const SUGGESTIONS = {
     "Trivia warm-up — 10 sets of ₱100 cash",
   ],
 
-  // ----- Reception — Guest Experience
-  dressCodeGuests: [
-    "Semi-formal — burgundy / sage / cream encouraged",
-    "Formal — long gown / coat & tie",
-    "Garden formal",
-    "Cocktail attire",
-    "No theme — come as you are",
-  ],
+  // (Reception — Guest Experience suggestions removed: dress code +
+  // send-off style decided with the coordinator.)
 
   // ----- Couple Story (for host & games)
   endearment: [
@@ -566,52 +564,9 @@ const SUGGESTIONS = {
     "Coffee + pandesal",
     "Sushi / Japanese",
   ],
-  charlieJob: [
-    "Senior Salesforce LWC developer (Azur Technology)",
-    "Software engineer",
-    "Web developer",
-  ],
-  karlaJob: [
-    "Aventus",
-    "Real estate (Aventus)",
-    "Sales / business development",
-  ],
-  firstILoveYou: [
-    "Charlie said it first — at our first date in Antipolo",
-    "Karla said it first — at home",
-    "We said it together",
-    "Charlie said it first — November 1, 2024 when we made it official",
-  ],
-  favoriteShow: [
-    "How I Met Your Mother",
-    "Friends",
-    "Stranger Things",
-    "Studio Ghibli films",
-    "K-drama marathon nights",
-    "Anime — Anohana / Towa no Yuugure",
-  ],
-  insideJoke: [
-    "Bubu & Dudu (Bubududu) inside joke",
-    "Couple meme / catchphrase only we get",
-    "Pet phrase from a movie / show we love",
-  ],
-  lifeVerse: [
-    "Ecclesiastes 4:9–12 — Two are better than one",
-    "Joshua 24:15 — As for me and my household, we will serve the Lord",
-    "1 Corinthians 13:4–7 — Love is patient, love is kind",
-    "Proverbs 3:5–6 — Trust in the Lord with all your heart",
-    "Jeremiah 29:11 — For I know the plans I have for you",
-    "Philippians 4:13 — I can do all things through Christ",
-  ],
-  honeymoonDestination: [
-    "Local — Boracay / Palawan / Siargao",
-    "Japan",
-    "Korea",
-    "Bali",
-    "Europe",
-    "Surprise destination",
-    "Private — keeping it to ourselves",
-  ],
+  // (Couple Story chips for the host-trivia fields removed: charlieJob,
+  // karlaJob, firstILoveYou, favoriteShow, insideJoke, lifeVerse,
+  // honeymoonDestination — already covered with the coordinator.)
   otherFunFacts: [
     "Charlie codes for fun — built this collaterals studio himself",
     "Karla works in real estate — Aventus",
@@ -634,44 +589,19 @@ const SUGGESTIONS = {
   supplierCake:      ["Sac B Catering"],
   supplierSound:     ["CCF Tech Team"],
   supplierPhoto:     ["Jath & Yen"],
-  supplierPhotoman:  ["MI6 — sponsored by Ninong Melvin + Ninang Jerdin Catanghal"],
   supplierVideo:     ["Jath & Yen"],
   supplierSDE:       ["Jath & Yen"],
   supplierHMUA:      ["Beyouthiful by Niks"],
   supplierFlorist:   ["James Patacsil + Heleaena Luv Romantico"],
   supplierLights:    ["CCF Tech Team"],
   supplierPhotobooth:["none — Photoman MI6 covers candids"],
+  // (supplierPhotoman, supplierGown, supplierTuxBarong, supplierRings,
+  // supplierBridalCar removed — tracked in the SUPPLIER'S LIST sheet now.)
   supplierOther: [
     "M&M Coordination Team — actual on-the-day coordinator",
     "Therese Galasa — CCF church coordinator (special thanks)",
     "Ate Carmela & Kuya Alexis — wedding-planning help",
     "Christian & Maui Ilao — D-group leaders of the newly-wed",
-  ],
-  supplierGown: [
-    "Veluz Reyes",
-    "Hannah Kong",
-    "Mak Tumang",
-    "Custom — local designer (TBD)",
-    "Rented from a bridal shop",
-  ],
-  supplierTuxBarong: [
-    "Francis Libiran",
-    "Custom-tailored barong",
-    "John Pradel",
-    "Rented suit",
-  ],
-  supplierRings: [
-    "Suy Jewelry",
-    "Janrey Jewelry",
-    "Gold & Honey",
-    "Family heirloom rings",
-    "Custom-designed by couple",
-  ],
-  supplierBridalCar: [
-    "Vintage car rental",
-    "Family-owned car",
-    "Borrowed from a friend",
-    "Bridal car supplier (TBD)",
   ],
 };
 
@@ -1288,13 +1218,6 @@ function renderReceptionPreview() {
     ["First date location", v("firstDateSpot")],
     ["Most memorable trip", v("memorableTrip")],
     ["Favorite shared snack / drink", v("favoriteSnack")],
-    ["Charlie's day job", v("charlieJob")],
-    ["Karla's day job", v("karlaJob")],
-    ["First 'I love you'", v("firstILoveYou")],
-    ["Favorite show / movie", v("favoriteShow")],
-    ["Inside joke / catchphrase", v("insideJoke")],
-    ["Life verse", v("lifeVerse")],
-    ["Honeymoon destination", v("honeymoonDestination")],
     ["Other fun facts", v("otherFunFacts")],
   ];
 
@@ -1303,17 +1226,12 @@ function renderReceptionPreview() {
     ["Cake", v("supplierCake")],
     ["Sound / DJ", v("supplierSound")],
     ["Photographer (formal)", v("supplierPhoto")],
-    ["Photoman (roving)", v("supplierPhotoman", "MI6 — sponsored by Catanghal")],
     ["Videographer", v("supplierVideo")],
     ["Same-Day Edit", v("supplierSDE")],
     ["HMUA", v("supplierHMUA")],
     ["Florist / stylist", v("supplierFlorist")],
     ["Lights / LED wall", v("supplierLights")],
     ["Photobooth", v("supplierPhotobooth")],
-    ["Bride's gown", v("supplierGown")],
-    ["Groom's tux / barong", v("supplierTuxBarong")],
-    ["Wedding rings", v("supplierRings")],
-    ["Bridal car", v("supplierBridalCar")],
     ["OTD Coordinator", "M&M Coordination Team"],
     ["CCF Church Coordinator", "Therese Galasa"],
   ];
@@ -1399,20 +1317,32 @@ function scheduleSheetWrite(fieldId) {
 
 async function pushItemToSheet(item) {
   const values = item.cols.map((_, i) => String(state[fieldIdFor(item, i)] || ""));
+  const row = currentRowFor(item);
+  if (row == null) {
+    setSheetSyncPill("err", `row for "${item.label}" was deleted from sheet`);
+    return;
+  }
   _sheetSyncInFlight.add(item.id);
   setSheetSyncPill("saving", "saving to sheet…");
   try {
     const r = await fetch(`${SHEETS_PROXY}/sheets-update`, {
       method: "POST",
       headers: { "Content-Type": "application/json" },
-      body: JSON.stringify({ tab: item.tab, row: item.row, cols: item.cols, values }),
+      body: JSON.stringify({
+        tab: item.tab,
+        row,
+        cols: item.cols,
+        values,
+        // label triggers server-side row lookup so even mid-write drift can't
+        // hit the wrong cell.
+        ...(item.sheetLabel ? { label: item.sheetLabel } : {}),
+      }),
     });
     if (!r.ok) {
       const t = await r.text().catch(() => "");
       throw new Error(`HTTP ${r.status}: ${t.slice(0, 120)}`);
     }
     setSheetSyncPill("saved", "synced to sheet");
-    // Track the value the sheet now holds so the poller won't echo it back.
     item.cols.forEach((_, i) => {
       _lastSeenSheetValue.set(fieldIdFor(item, i), values[i]);
     });
@@ -1429,6 +1359,71 @@ async function pushItemToSheet(item) {
   }
 }
 
+// Refresh the label→row map for every tracked tab. Cards whose labels can no
+// longer be found get a 'deleted' class so they fade out.
+async function refreshLiveLabels() {
+  try {
+    const r = await fetch(`${SHEETS_PROXY}/sheets-labels`, {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: "{}",
+    });
+    if (!r.ok) return;
+    const j = await r.json();
+    _liveLabels = j.labels || {};
+    // Update visibility for cards whose item's label has vanished from sheet.
+    SHEET_ITEMS.forEach((item) => {
+      if (!item.sheetLabel) return;
+      const card = document.querySelector(`.sheet-q[data-q="${cssEscape(item.id)}"]`);
+      if (!card) return;
+      const found = currentRowFor(item) != null;
+      card.classList.toggle("deleted", !found);
+    });
+  } catch (e) {
+    // Network blip — next poll will try again.
+  }
+}
+
+// Delete a row in the sheet by item. Used by the × button on each card.
+async function deleteItemFromSheet(item) {
+  const row = currentRowFor(item);
+  if (row == null && !item.sheetLabel) {
+    setSheetSyncPill("err", `cannot resolve row for "${item.label}"`);
+    return;
+  }
+  setSheetSyncPill("saving", "deleting row…");
+  try {
+    const r = await fetch(`${SHEETS_PROXY}/sheets-delete-row`, {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({
+        tab: item.tab,
+        ...(typeof row === "number" ? { row } : {}),
+        ...(item.sheetLabel ? { label: item.sheetLabel } : {}),
+      }),
+    });
+    if (!r.ok) {
+      const t = await r.text().catch(() => "");
+      throw new Error(`HTTP ${r.status}: ${t.slice(0, 160)}`);
+    }
+    setSheetSyncPill("saved", "row deleted");
+    // Wipe local state for this item's fields so the row stays gone.
+    item.cols.forEach((_, i) => {
+      const fid = fieldIdFor(item, i);
+      delete state[fid];
+      _lastSeenSheetValue.delete(fid);
+    });
+    try { fbSet(DETAILS_KEY, state); } catch {}
+    // Refresh labels immediately so the card shows the new state without
+    // waiting for the next 30s poll tick.
+    await refreshLiveLabels();
+    rerenderSheetQuestionStatuses();
+  } catch (err) {
+    console.warn("delete-row failed for", item.id, err);
+    setSheetSyncPill("err", "delete failed");
+  }
+}
+
 // Tracks the cell value we last *observed* the sheet holding — either because
 // we just wrote it, or because the poller just read it. The poller skips
 // updating local state if the sheet value matches this (no-op echo).
@@ -1436,14 +1431,32 @@ const _lastSeenSheetValue = new Map();
 
 async function pollSheetOnce() {
   try {
-    const items = SHEET_ITEMS.map(({ tab, row, cols }) => ({ tab, row, cols }));
+    // Step 1: refresh the live label→row map. If this fails we keep using the
+    // last-known map; if it succeeds the rest of the function (and the next
+    // user edit) hits accurate rows even after sheet edits.
+    await refreshLiveLabels();
+    // Step 2: build read requests using the *current* row for each item.
+    const items = SHEET_ITEMS.map((it) => {
+      const row = currentRowFor(it);
+      return row != null ? { tab: it.tab, row, cols: it.cols } : null;
+    });
+    const validItems = items.filter(Boolean);
+    if (validItems.length === 0) return;
     const r = await fetch(`${SHEETS_PROXY}/sheets-read`, {
       method: "POST",
       headers: { "Content-Type": "application/json" },
-      body: JSON.stringify({ items }),
+      body: JSON.stringify({ items: validItems }),
     });
     if (!r.ok) return; // soft-fail; next tick will retry
     const { results } = await r.json();
+    // Re-align results to the original SHEET_ITEMS order — items with no
+    // live row got null in our request, so we need to skip them when
+    // walking results.
+    const aligned = [];
+    let resultIdx = 0;
+    for (const reqEntry of items) {
+      aligned.push(reqEntry ? results[resultIdx++] : null);
+    }
     const active = document.activeElement;
     const activeId = active && active.dataset ? active.dataset.field : null;
     let changed = false;
@@ -1577,6 +1590,19 @@ function renderSheetQuestions() {
   root.querySelectorAll("[data-field]").forEach((el) => {
     el.addEventListener("input", onFieldChange);
   });
+  // Delete buttons — confirm, then call /sheets-delete-row.
+  root.addEventListener("click", (e) => {
+    const btn = e.target.closest("[data-delete-q]");
+    if (!btn) return;
+    const itemId = btn.dataset.deleteQ;
+    const item = SHEET_ITEMS.find((x) => x.id === itemId);
+    if (!item) return;
+    const ok = window.confirm(
+      `Delete this row from the spreadsheet?\n\n"${item.label}"\n\nThis removes the row entirely — rows below shift up. Can be undone in the sheet via Ctrl+Z.`
+    );
+    if (!ok) return;
+    deleteItemFromSheet(item);
+  });
   // Keep the per-card "filled" tint + per-section counter in sync as the user
   // types. We hook the section root so we don't add per-input listeners.
   root.addEventListener("input", (e) => {
@@ -1619,7 +1645,13 @@ function renderItemCard(item) {
   const colsClass = item.cols.length > 1 ? " sheet-q-row-multi" : "";
   return `
     <div class="sheet-q${filled ? " filled" : ""}" data-q="${escapeHtml(item.id)}">
-      <div class="sheet-q-label">${escapeHtml(item.label)}</div>
+      <div class="sheet-q-head">
+        <div class="sheet-q-label">${escapeHtml(item.label)}</div>
+        <button type="button" class="sheet-q-delete" data-delete-q="${escapeHtml(item.id)}"
+                title="Delete this row from the spreadsheet" aria-label="Delete row">
+          <span class="material-symbols-outlined">close</span>
+        </button>
+      </div>
       <div class="sheet-q-row${colsClass}">${inputs}</div>
       <div class="sheet-q-dest">${escapeHtml(destLabel(item))}</div>
     </div>

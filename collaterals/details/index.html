@@ -551,6 +551,48 @@
         color: var(--ink-faint);
         letter-spacing: 0.02em;
       }
+      .sheet-q-head {
+        display: flex;
+        align-items: center;
+        justify-content: space-between;
+        gap: 8px;
+      }
+      .sheet-q-delete {
+        display: inline-flex;
+        align-items: center;
+        justify-content: center;
+        width: 26px;
+        height: 26px;
+        border: 1px solid transparent;
+        background: transparent;
+        border-radius: 8px;
+        color: var(--ink-faint);
+        cursor: pointer;
+        padding: 0;
+        opacity: 0.5;
+        transition: opacity 0.15s ease, background-color 0.15s ease, color 0.15s ease;
+      }
+      .sheet-q:hover .sheet-q-delete { opacity: 1; }
+      .sheet-q-delete:hover {
+        background: #f8d8d2;
+        color: #993529;
+        border-color: #f8d8d2;
+      }
+      .sheet-q-delete .material-symbols-outlined { font-size: 18px; }
+      .sheet-q.deleted {
+        opacity: 0.45;
+        background: #faf4f0;
+        border-color: #e7d8d2;
+      }
+      .sheet-q.deleted::after {
+        content: "row no longer in sheet — value will not sync";
+        font-family: "Inter", sans-serif;
+        font-size: 0.72rem;
+        color: #993529;
+        font-style: italic;
+        margin-top: -2px;
+      }
+      .sheet-q.deleted input { pointer-events: none; }
     </style>
   </head>
   <body>
