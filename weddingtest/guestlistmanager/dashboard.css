@@ -258,3 +258,84 @@ th {
   flex-shrink: 0;
 }
 
+
+/* ---------- RSVP Tracker ---------- */
+.rsvp-stat-card {
+  background: white;
+  border: 1px solid #e7e5e4;
+  border-radius: 10px;
+  padding: 10px 12px;
+  display: flex;
+  flex-direction: column;
+  gap: 2px;
+  cursor: pointer;
+  transition: border-color 0.15s ease, transform 0.12s ease;
+}
+.rsvp-stat-card:hover { border-color: #7b8a5b; transform: translateY(-1px); }
+.rsvp-stat-card .stat-label {
+  font-size: 0.62rem;
+  text-transform: uppercase;
+  letter-spacing: 0.1em;
+  color: #a8a29e;
+  font-weight: 700;
+}
+.rsvp-stat-card .stat-value {
+  font-family: "Playfair Display", serif;
+  font-size: 1.5rem;
+  font-weight: 700;
+  color: #2a2723;
+  line-height: 1.1;
+}
+.rsvp-stat-card.active { border-color: #7b8a5b; background: #f6f4ec; }
+
+.rsvp-chip {
+  font-size: 0.72rem;
+  font-weight: 600;
+  padding: 5px 11px;
+  border-radius: 999px;
+  border: 1px solid #e7e5e4;
+  background: white;
+  color: #57534e;
+  cursor: pointer;
+  transition: all 0.15s ease;
+}
+.rsvp-chip:hover { border-color: #7b8a5b; color: #2a2723; }
+.rsvp-chip.active { background: #7b8a5b; color: white; border-color: #7b8a5b; }
+
+.rsvp-row { border-bottom: 1px solid #f5f4f0; }
+.rsvp-row:hover { background: #fafaf8; }
+
+.rsvp-badge {
+  display: inline-flex; align-items: center; gap: 4px;
+  font-size: 0.66rem; font-weight: 700;
+  text-transform: uppercase; letter-spacing: 0.06em;
+  padding: 3px 8px; border-radius: 999px;
+}
+.rsvp-badge.yes     { background: #dcefd8; color: #3b6630; }
+.rsvp-badge.no      { background: #f8d8d2; color: #993529; }
+.rsvp-badge.maybe   { background: #fef3df; color: #a07000; }
+.rsvp-badge.pending { background: #f3efe9; color: #6b6660; }
+
+.rsvp-source {
+  display: inline-flex; align-items: center; gap: 4px;
+  font-size: 0.64rem; font-weight: 600;
+  text-transform: uppercase; letter-spacing: 0.06em;
+  padding: 2px 7px; border-radius: 6px;
+}
+.rsvp-source.web    { background: #e0e7ee; color: #2e4159; }
+.rsvp-source.manual { background: #f1e8f5; color: #604970; }
+.rsvp-source.none   { background: transparent; color: #a8a29e; font-style: italic; }
+
+.rsvp-quick-btn {
+  font-size: 0.62rem; font-weight: 700;
+  text-transform: uppercase; letter-spacing: 0.05em;
+  padding: 4px 8px; border-radius: 6px;
+  border: 1px solid #e7e5e4; background: white; color: #57534e;
+  cursor: pointer; margin-left: 4px;
+  transition: all 0.12s ease;
+}
+.rsvp-quick-btn:hover { border-color: #7b8a5b; color: #2a2723; }
+.rsvp-quick-btn.set-yes:hover     { background: #dcefd8; border-color: #7b8a5b; color: #3b6630; }
+.rsvp-quick-btn.set-no:hover      { background: #f8d8d2; border-color: #c98a82; color: #993529; }
+.rsvp-quick-btn.set-maybe:hover   { background: #fef3df; border-color: #d6a13a; color: #a07000; }
+.rsvp-quick-btn.set-pending:hover { background: #f3efe9; border-color: #a8a29e; color: #57534e; }

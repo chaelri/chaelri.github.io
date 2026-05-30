@@ -103,9 +103,16 @@ function init() {
       const rsvps = Object.values(rsvpSnap.val() || {});
 
       allData = Object.entries(guests).map(([id, guest]) => {
-        const response = rsvps.find(
-          (r) => r.guestName.toLowerCase() === guest.name.toLowerCase()
-        );
+        // Take the LATEST response by submittedAt so manual overrides win
+        // when there are also website RSVPs for the same name.
+        const matches = rsvps
+          .filter((r) => r.guestName && r.guestName.toLowerCase() === guest.name.toLowerCase())
+          .sort((a, b) => new Date(b.submittedAt || 0) - new Date(a.submittedAt || 0));
+        const response = matches[0];
+        // Whether the LATEST response was a manual entry (dashboard) vs a
+        // real website RSVP (Discord webhook also fired). The dashboard
+        // writes `manual: true` on manual updates; website pushes don't.
+        const source = response ? (response.manual ? "manual" : "web") : "none";
         return {
           id,
           name: guest.name,
@@ -113,6 +120,7 @@ function init() {
           side: guest.side || "both",
           status: response ? response.attending : "pending",
           submittedAt: response ? response.submittedAt : null,
+          rsvpSource: source,
           invited: guest.invited || "no",
           role: guest.role || "guest",
           gender: guest.gender || "",
@@ -382,6 +390,7 @@ function render() {
   renderPagination(totalPages);
   renderFinalList();
   renderEntourage();
+  renderRsvpTracker();
 }
 
 function renderPagination(totalPages) {
@@ -1083,6 +1092,152 @@ function renderFinalList() {
     }
   );
 }
+
+// ----- RSVP Tracker -------------------------------------------------------
+// Lets Charlie + Karla finalize the list before the June 1 deadline. Shows
+// who responded via the website, who they marked manually, and who still
+// needs a nudge. State is driven entirely by allData[].
+let rsvpFilter = "follow-up";
+let rsvpSearch = "";
+
+function rsvpBucket(g) {
+  // Bucket used by both the stat cards and the filter chips.
+  if (g.invited !== "yes") return "not-invited";
+  if (g.status === "yes") return g.rsvpSource === "manual" ? "yes-manual" : "yes-web";
+  if (g.status === "no") return "no";
+  if (g.status === "maybe") return "maybe";
+  return "pending";
+}
+
+function renderRsvpTracker() {
+  const body = document.getElementById("rsvpTrackerBody");
+  const cards = document.getElementById("rsvp-stat-cards");
+  const empty = document.getElementById("rsvp-empty");
+  if (!body || !cards) return;
+
+  const invited = allData.filter((g) => g.invited === "yes");
+
+  // ----- Stat cards
+  const counts = { pending: 0, "yes-web": 0, "yes-manual": 0, no: 0, maybe: 0 };
+  for (const g of invited) {
+    const b = rsvpBucket(g);
+    if (b in counts) counts[b]++;
+  }
+  const followUp = counts.pending; // pending invited guests need follow-up
+
+  const STAT_CARDS = [
+    { key: "follow-up", label: "Need Follow-up", value: followUp, hint: "Pending invited guests" },
+    { key: "yes-web",   label: "Yes · Website", value: counts["yes-web"], hint: "Came in via the site" },
+    { key: "yes-manual",label: "Yes · Manual",  value: counts["yes-manual"], hint: "Marked by Karla / Charlie" },
+    { key: "no",        label: "Declined",      value: counts.no, hint: "Not attending" },
+    { key: "maybe",     label: "Maybe",         value: counts.maybe, hint: "Still deciding" },
+  ];
+  cards.innerHTML = STAT_CARDS.map((s) => `
+    <div class="rsvp-stat-card ${rsvpFilter === s.key ? "active" : ""}" data-card="${s.key}">
+      <div class="stat-label">${s.label}</div>
+      <div class="stat-value">${s.value}</div>
+      <div class="text-[10px] text-stone-400 mt-0.5">${s.hint}</div>
+    </div>
+  `).join("");
+  cards.querySelectorAll(".rsvp-stat-card").forEach((el) => {
+    el.addEventListener("click", () => {
+      rsvpFilter = el.dataset.card;
+      renderRsvpTracker();
+    });
+  });
+
+  // ----- Filter chips
+  document.querySelectorAll(".rsvp-chip").forEach((el) => {
+    el.classList.toggle("active", el.dataset.filter === rsvpFilter);
+    el.onclick = () => { rsvpFilter = el.dataset.filter; renderRsvpTracker(); };
+  });
+
+  // ----- Search input (lazy-bind once)
+  const searchEl = document.getElementById("rsvp-search");
+  if (searchEl && !searchEl.dataset.bound) {
+    searchEl.dataset.bound = "1";
+    searchEl.addEventListener("input", (e) => {
+      rsvpSearch = e.target.value.toLowerCase().trim();
+      renderRsvpTracker();
+    });
+  }
+  if (searchEl) searchEl.value = rsvpSearch;
+
+  // ----- Apply filter + search
+  let rows = invited;
+  if (rsvpFilter === "follow-up" || rsvpFilter === "pending") {
+    rows = rows.filter((g) => rsvpBucket(g) === "pending");
+  } else if (rsvpFilter !== "all") {
+    rows = rows.filter((g) => rsvpBucket(g) === rsvpFilter);
+  }
+  if (rsvpSearch) {
+    rows = rows.filter(
+      (g) => g.name.toLowerCase().includes(rsvpSearch) ||
+             (g.nickname || "").toLowerCase().includes(rsvpSearch)
+    );
+  }
+  // Sort: pending first (oldest invitation), then by response date desc
+  rows.sort((a, b) => {
+    const sa = a.submittedAt ? new Date(a.submittedAt).getTime() : 0;
+    const sb = b.submittedAt ? new Date(b.submittedAt).getTime() : 0;
+    if (a.status === "pending" && b.status !== "pending") return -1;
+    if (b.status === "pending" && a.status !== "pending") return 1;
+    return sb - sa || a.name.localeCompare(b.name);
+  });
+
+  empty.classList.toggle("hidden", rows.length > 0);
+  body.innerHTML = rows.map((g) => rsvpRowHtml(g)).join("");
+}
+
+function rsvpRowHtml(g) {
+  const status = g.status || "pending";
+  const sideClr = g.side === "karla" ? "text-rose-500"
+                : g.side === "charlie" ? "text-sky-600" : "text-stone-500";
+  const when = g.submittedAt
+    ? new Date(g.submittedAt).toLocaleString("en-US", {
+        month: "short", day: "numeric", hour: "2-digit", minute: "2-digit",
+      })
+    : "—";
+  const sourceBadge = g.rsvpSource === "web"
+    ? `<span class="rsvp-source web"><span class="material-icons" style="font-size:11px">public</span>Website</span>`
+    : g.rsvpSource === "manual"
+    ? `<span class="rsvp-source manual"><span class="material-icons" style="font-size:11px">edit</span>Manual</span>`
+    : `<span class="rsvp-source none">no response yet</span>`;
+  const statusLabel = status === "yes" ? "Attending"
+    : status === "no" ? "Declined"
+    : status === "maybe" ? "Maybe" : "Pending";
+  // Quick-mark buttons — exclude the current status to keep the UI tidy.
+  const quickButton = (val, label, cls) => status === val
+    ? ""
+    : `<button class="rsvp-quick-btn ${cls}" data-set="${val}" data-name="${escapeAttr(g.name)}">${label}</button>`;
+  return `
+    <tr class="rsvp-row">
+      <td class="p-3">
+        <div class="font-semibold text-stone-800">${g.name}</div>
+        ${g.nickname ? `<div class="text-[10px] text-stone-400">"${g.nickname}"</div>` : ""}
+      </td>
+      <td class="p-3 text-[10px] uppercase tracking-widest font-bold ${sideClr}">${g.side}</td>
+      <td class="p-3"><span class="rsvp-badge ${status}">${statusLabel}</span></td>
+      <td class="p-3">${sourceBadge}</td>
+      <td class="p-3 text-xs text-stone-500">${when}</td>
+      <td class="p-3 text-right whitespace-nowrap">
+        ${quickButton("yes",     "Yes",     "set-yes")}
+        ${quickButton("no",      "No",      "set-no")}
+        ${quickButton("maybe",   "Maybe",   "set-maybe")}
+        ${quickButton("pending", "Reset",   "set-pending")}
+      </td>
+    </tr>
+  `;
+}
+
+// Delegated handler for the quick-mark buttons (works across re-renders).
+document.addEventListener("click", (e) => {
+  const btn = e.target.closest(".rsvp-quick-btn");
+  if (!btn) return;
+  const name = btn.dataset.name;
+  const next = btn.dataset.set;
+  if (name && next) window.updateManualStatus(name, next);
+});
 
 function renderEntourage() {
   const gallery = document.getElementById("entourage-container");

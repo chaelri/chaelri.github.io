@@ -401,6 +401,65 @@
         </div>
       </div>
 
+      <!-- RSVP TRACKER (follow-up view) -->
+      <div class="mt-12 mb-12 lg:col-span-4">
+        <div class="bg-[#7b8a5b] p-6 rounded-t-2xl shadow-sm border border-[#6a784d]">
+          <div class="flex justify-between items-center text-white flex-wrap gap-2">
+            <div>
+              <h2 class="serif text-xl italic">RSVP Tracker</h2>
+              <p class="text-[10px] uppercase tracking-widest opacity-80 mt-1">
+                Who said yes via the site · who needs a follow-up · who Karla &amp; Charlie marked manually
+              </p>
+            </div>
+            <div id="rsvp-deadline-badge" class="bg-white/20 px-4 py-2 rounded-full text-xs font-bold uppercase tracking-tighter">
+              Deadline: June 1
+            </div>
+          </div>
+        </div>
+
+        <!-- Stat cards -->
+        <div class="bg-stone-50/50 border-x border-stone-100 px-4 py-4">
+          <div id="rsvp-stat-cards" class="grid grid-cols-2 md:grid-cols-5 gap-2"></div>
+        </div>
+
+        <!-- Filter chips -->
+        <div class="bg-white border-x border-stone-100 px-4 py-3 flex flex-wrap gap-2 items-center">
+          <span class="text-[9px] uppercase tracking-widest text-stone-400 font-bold mr-1">Filter</span>
+          <button class="rsvp-chip active" data-filter="follow-up">Need Follow-up</button>
+          <button class="rsvp-chip" data-filter="all">All Invited</button>
+          <button class="rsvp-chip" data-filter="pending">Pending</button>
+          <button class="rsvp-chip" data-filter="yes-web">Yes · Website</button>
+          <button class="rsvp-chip" data-filter="yes-manual">Yes · Manual</button>
+          <button class="rsvp-chip" data-filter="no">Declined</button>
+          <button class="rsvp-chip" data-filter="maybe">Maybe</button>
+          <div class="ml-auto">
+            <input id="rsvp-search" type="text" placeholder="Search name…" class="bg-stone-50 border border-stone-200 rounded-md px-3 py-1.5 text-xs text-stone-700 placeholder-stone-400 focus:outline-none focus:border-[#7b8a5b] w-44" />
+          </div>
+        </div>
+
+        <!-- Table -->
+        <div class="bg-white rounded-b-2xl shadow-sm border border-stone-100 overflow-hidden">
+          <div class="overflow-x-auto">
+            <table class="w-full text-left border-collapse">
+              <thead>
+                <tr class="bg-stone-50 border-b border-stone-100">
+                  <th class="p-3 text-[10px] uppercase tracking-widest text-stone-500 font-bold">Guest</th>
+                  <th class="p-3 text-[10px] uppercase tracking-widest text-stone-500 font-bold">Side</th>
+                  <th class="p-3 text-[10px] uppercase tracking-widest text-stone-500 font-bold">Status</th>
+                  <th class="p-3 text-[10px] uppercase tracking-widest text-stone-500 font-bold">Source</th>
+                  <th class="p-3 text-[10px] uppercase tracking-widest text-stone-500 font-bold">When</th>
+                  <th class="p-3 text-right text-[10px] uppercase tracking-widest text-stone-500 font-bold">Quick Mark</th>
+                </tr>
+              </thead>
+              <tbody id="rsvpTrackerBody" class="text-sm text-stone-700"></tbody>
+            </table>
+          </div>
+          <div id="rsvp-empty" class="hidden p-8 text-center text-stone-400 italic">
+            No guests match this filter.
+          </div>
+        </div>
+      </div>
+
       <!-- FINAL CONFIRMED LIST SECTION -->
       <div class="mt-12 mb-12 lg:col-span-4">
         <div
