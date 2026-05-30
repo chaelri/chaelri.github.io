@@ -339,3 +339,31 @@ th {
 .rsvp-quick-btn.set-no:hover      { background: #f8d8d2; border-color: #c98a82; color: #993529; }
 .rsvp-quick-btn.set-maybe:hover   { background: #fef3df; border-color: #d6a13a; color: #a07000; }
 .rsvp-quick-btn.set-pending:hover { background: #f3efe9; border-color: #a8a29e; color: #57534e; }
+
+/* Followed-up checkbox in the RSVP Tracker */
+.rsvp-followup {
+  display: inline-flex;
+  cursor: pointer;
+  user-select: none;
+}
+.rsvp-followup input { display: none; }
+.rsvp-followup-box {
+  width: 18px; height: 18px;
+  border-radius: 5px;
+  border: 1.5px solid #d6d3d1;
+  background: white;
+  position: relative;
+  transition: all 0.15s ease;
+}
+.rsvp-followup:hover .rsvp-followup-box { border-color: #7b8a5b; }
+.rsvp-followup input:checked + .rsvp-followup-box {
+  background: #7b8a5b; border-color: #7b8a5b;
+}
+.rsvp-followup input:checked + .rsvp-followup-box::after {
+  content: ""; position: absolute;
+  left: 5px; top: 1px;
+  width: 5px; height: 10px;
+  border: solid white;
+  border-width: 0 2px 2px 0;
+  transform: rotate(45deg);
+}

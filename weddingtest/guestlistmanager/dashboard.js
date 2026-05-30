@@ -4,6 +4,7 @@ import {
   ref,
   push,
   set,
+  get,
   onValue,
   remove,
   update,
@@ -109,10 +110,11 @@ function init() {
           .filter((r) => r.guestName && r.guestName.toLowerCase() === guest.name.toLowerCase())
           .sort((a, b) => new Date(b.submittedAt || 0) - new Date(a.submittedAt || 0));
         const response = matches[0];
-        // Whether the LATEST response was a manual entry (dashboard) vs a
-        // real website RSVP (Discord webhook also fired). The dashboard
-        // writes `manual: true` on manual updates; website pushes don't.
-        const source = response ? (response.manual ? "manual" : "web") : "none";
+        // Source is STICKY: once a guest has ever submitted via the website
+        // (any non-manual entry), their source stays "web" — quick-marking
+        // from the dashboard just changes the status, not the origin tag.
+        const hasWebEntry = matches.some((r) => r.manual !== true);
+        const source = hasWebEntry ? "web" : (response ? "manual" : "none");
         return {
           id,
           name: guest.name,
@@ -130,6 +132,7 @@ function init() {
           noCount: guest.noCount === true,
           tags: Array.isArray(guest.tags) ? guest.tags : [],
           pairWith: guest.pairWith || "",
+          followedUp: guest.followedUp === true,
         };
       });
       render();
@@ -791,29 +794,48 @@ If may other questions, chat nalang din. Thanks!`;
 };
 
 // --- ACTIONS ---
+// Quick-mark logic: preserve a guest's ORIGINAL website RSVP (Discord-fed
+// entry) and only manage the manual-override layer on top of it.
+//
+//   - new status === "pending"    → wipe manual entries only (revert to whatever
+//                                   the website said, or truly pending if none)
+//   - new status matches website  → wipe manual entries (no override needed)
+//   - new status differs          → wipe existing manual entries + push one new
+//                                   manual entry with the chosen status
+//
+// Net effect: the Source badge stays "Website" as long as the guest ever
+// RSVP'd via the site, even after Charlie/Karla quick-mark from the dashboard.
 window.updateManualStatus = async (guestName, newStatus) => {
   const rsvpRef = ref(db, "rsvps");
-  onValue(
-    rsvpRef,
-    async (snap) => {
-      const data = snap.val();
-      if (data) {
-        Object.entries(data).forEach(([key, val]) => {
-          if (val.guestName.toLowerCase() === guestName.toLowerCase())
-            remove(ref(db, `rsvps/${key}`));
-        });
-      }
-    },
-    { onlyOnce: true }
+  const snap = await get(rsvpRef);
+  const data = snap.val() || {};
+  const entries = Object.entries(data)
+    .filter(([, v]) => (v.guestName || "").toLowerCase() === guestName.toLowerCase())
+    .map(([key, v]) => ({ key, ...v }));
+
+  // Latest website (non-manual) RSVP, if any
+  const webEntry = entries
+    .filter((e) => e.manual !== true)
+    .sort((a, b) => new Date(b.submittedAt || 0) - new Date(a.submittedAt || 0))[0];
+
+  // Remove all manual entries for this guest (we'll rewrite below if needed)
+  await Promise.all(
+    entries
+      .filter((e) => e.manual === true)
+      .map((e) => remove(ref(db, `rsvps/${e.key}`)))
   );
-  if (newStatus !== "pending") {
-    await push(ref(db, "rsvps"), {
-      guestName,
-      attending: newStatus,
-      submittedAt: new Date().toISOString(),
-      manual: true,
-    });
-  }
+
+  // If resetting OR the new status already matches the website RSVP, leave it
+  // as just the website entry — no manual override needed.
+  if (newStatus === "pending") return;
+  if (webEntry && webEntry.attending === newStatus) return;
+
+  await push(ref(db, "rsvps"), {
+    guestName,
+    attending: newStatus,
+    submittedAt: new Date().toISOString(),
+    manual: true,
+  });
 };
 
 window.editGuestName = async (id, oldName) => {
@@ -1123,10 +1145,13 @@ function renderRsvpTracker() {
     const b = rsvpBucket(g);
     if (b in counts) counts[b]++;
   }
-  const followUp = counts.pending; // pending invited guests need follow-up
+  // "Need Follow-up" = pending invited guests we HAVEN'T chased yet
+  const followUp = invited.filter(
+    (g) => rsvpBucket(g) === "pending" && !g.followedUp
+  ).length;
 
   const STAT_CARDS = [
-    { key: "follow-up", label: "Need Follow-up", value: followUp, hint: "Pending invited guests" },
+    { key: "follow-up", label: "Need Follow-up", value: followUp, hint: "Pending · not yet chased" },
     { key: "yes-web",   label: "Yes · Website", value: counts["yes-web"], hint: "Came in via the site" },
     { key: "yes-manual",label: "Yes · Manual",  value: counts["yes-manual"], hint: "Marked by Karla / Charlie" },
     { key: "no",        label: "Declined",      value: counts.no, hint: "Not attending" },
@@ -1165,7 +1190,10 @@ function renderRsvpTracker() {
 
   // ----- Apply filter + search
   let rows = invited;
-  if (rsvpFilter === "follow-up" || rsvpFilter === "pending") {
+  if (rsvpFilter === "follow-up") {
+    // Need Follow-up = pending AND not yet followed up by us
+    rows = rows.filter((g) => rsvpBucket(g) === "pending" && !g.followedUp);
+  } else if (rsvpFilter === "pending") {
     rows = rows.filter((g) => rsvpBucket(g) === "pending");
   } else if (rsvpFilter !== "all") {
     rows = rows.filter((g) => rsvpBucket(g) === rsvpFilter);
@@ -1210,6 +1238,11 @@ function rsvpRowHtml(g) {
   const quickButton = (val, label, cls) => status === val
     ? ""
     : `<button class="rsvp-quick-btn ${cls}" data-set="${val}" data-name="${escapeAttr(g.name)}">${label}</button>`;
+  const followedUpCell = `
+    <label class="rsvp-followup">
+      <input type="checkbox" data-followup-id="${g.id}" ${g.followedUp ? "checked" : ""} />
+      <span class="rsvp-followup-box"></span>
+    </label>`;
   return `
     <tr class="rsvp-row">
       <td class="p-3">
@@ -1220,6 +1253,7 @@ function rsvpRowHtml(g) {
       <td class="p-3"><span class="rsvp-badge ${status}">${statusLabel}</span></td>
       <td class="p-3">${sourceBadge}</td>
       <td class="p-3 text-xs text-stone-500">${when}</td>
+      <td class="p-3 text-center">${followedUpCell}</td>
       <td class="p-3 text-right whitespace-nowrap">
         ${quickButton("yes",     "Yes",     "set-yes")}
         ${quickButton("no",      "No",      "set-no")}
@@ -1237,6 +1271,15 @@ document.addEventListener("click", (e) => {
   const name = btn.dataset.name;
   const next = btn.dataset.set;
   if (name && next) window.updateManualStatus(name, next);
+});
+
+// Delegated handler for the "Followed Up" checkbox in the RSVP Tracker.
+document.addEventListener("change", (e) => {
+  const cb = e.target.closest("[data-followup-id]");
+  if (!cb) return;
+  const id = cb.dataset.followupId;
+  if (!id) return;
+  set(ref(db, `guestList/${id}/followedUp`), cb.checked);
 });
 
 function renderEntourage() {
