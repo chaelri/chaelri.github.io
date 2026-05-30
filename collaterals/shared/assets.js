@@ -126,17 +126,29 @@ export async function getAsset(key) {
     return cached.dataUrl;
   }
   // No local cache — pull from Firebase if anyone has uploaded.
+  const remote = await fbAssetGet(key).catch((e) => {
+    console.warn("getAsset RTDB read failed", key, e);
+    return null;
+  });
+  if (!remote?.url) return null;
+  // Try to fetch+convert to a data URL so canvas export works. If the bucket
+  // CORS isn't configured for fetch, this throws — fall back to the raw URL
+  // (which still renders fine in <img> and SVG <image> tags for display).
   try {
-    const remote = await fbAssetGet(key);
-    if (remote?.url) {
-      const dataUrl = await fetchAsDataUrl(remote.url);
-      await idbPut(key, { ...remote, dataUrl, savedAt: Date.now() });
-      return dataUrl;
-    }
+    const dataUrl = await fetchAsDataUrl(remote.url);
+    await idbPut(key, { ...remote, dataUrl, savedAt: Date.now() });
+    return dataUrl;
   } catch (e) {
-    console.warn("getAsset remote fetch failed", key, e);
+    console.warn(
+      "getAsset: CORS fetch failed — using download URL for display only. " +
+      "Run `gsutil cors set cors.json gs://test-database-55379.firebasestorage.app` " +
+      "to enable cross-device export.",
+      key, e,
+    );
+    // Cache the URL alone so subsequent gets don't re-hit RTDB.
+    await idbPut(key, { ...remote, dataUrl: null, savedAt: Date.now() });
+    return remote.url;
   }
-  return null;
 }
 
 async function hydrateFromRemote(key, remote) {
