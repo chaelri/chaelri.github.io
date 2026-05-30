@@ -166,6 +166,9 @@ function computePlacements({ designCanvas, printLayout }) {
             x1: tileLeft + dw * 0.02, y1: tileTop + dh,
             x2: tileLeft + dw * 0.98, y2: tileTop + dh,
           },
+          // Trim-cut border around the full tent-fold flat (1050×1200) so
+          // each card can be cut precisely without leaving gutter margin.
+          border: { x: tileLeft, y: tileTop, w: dw, h: tileH },
         });
       }
     }
@@ -240,14 +243,27 @@ function buildSVG({ bgUrl, designCanvas, zones, tilesTexts, editing = false, acc
 
   // Cut indicators: longer dashes than the fold line, edge-to-edge, so the
   // printer reads them as "slice here" not "fold here". Lines are described
-  // by generic endpoints so they can run horizontally or vertically.
-  const cutLines = (cuts || []).map((c) => {
-    const dim = Math.max(sw, sh);
-    const ds1 = Math.max(28, dim * 0.014);
-    const ds2 = Math.max(12, dim * 0.006);
-    return `<line x1="${c.x1}" y1="${c.y1}" x2="${c.x2}" y2="${c.y2}"
-                  stroke="#8c8c8c" stroke-width="${Math.max(1.2, dim * 0.0007)}"
-                  stroke-dasharray="${ds1} ${ds2}" opacity="0.55"/>`;
+  // by generic endpoints so they can run horizontally or vertically. Per-tile
+  // borders give a precise trim guide around each card's outer boundary.
+  const dim = Math.max(sw, sh);
+  const cutDash1 = Math.max(28, dim * 0.014);
+  const cutDash2 = Math.max(12, dim * 0.006);
+  const cutStroke = Math.max(1.2, dim * 0.0007);
+  // Sheet-spanning separators between cards use red so they're visually
+  // distinct from the per-card gray border guides — the printer can't
+  // confuse "main quadrant split" with "trim around each card".
+  const cutLines = (cuts || []).map((c) =>
+    `<line x1="${c.x1}" y1="${c.y1}" x2="${c.x2}" y2="${c.y2}"
+           stroke="#d32f2f" stroke-width="${cutStroke}"
+           stroke-dasharray="${cutDash1} ${cutDash2}" opacity="0.75"/>`
+  ).join("");
+  const borderCuts = tiles.map((t, i) => {
+    if (!t.border) return "";
+    if (isMultiTile && !hasContent(i)) return "";
+    const { x, y, w, h } = t.border;
+    return `<rect x="${x}" y="${y}" width="${w}" height="${h}"
+                  fill="none" stroke="#8c8c8c" stroke-width="${cutStroke}"
+                  stroke-dasharray="${cutDash1} ${cutDash2}" opacity="0.55"/>`;
   }).join("");
 
   // Editing chrome only renders in the design view (single tile, no tent).
@@ -270,6 +286,7 @@ function buildSVG({ bgUrl, designCanvas, zones, tilesTexts, editing = false, acc
             ${textLayers}
             ${foldLines}
             ${cutLines}
+            ${borderCuts}
             ${editLayers}
           </svg>`;
 }
