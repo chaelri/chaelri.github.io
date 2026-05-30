@@ -44,15 +44,8 @@ function parseTableLabel(name) {
   return (i >= 0 ? name.slice(0, i) : name).trim().toUpperCase();
 }
 
-// "Julie Sagun"        → "Julie"
-// "Atty. Judith Zamora"→ "Judith"  (skip leading honorific)
-// "Mary Grace Francisco" → "Mary"  (compound first names get truncated;
-//                                   Charlie can edit those rows by hand).
-const HONORIFICS = /^(atty\.?|dr\.?|mr\.?|mrs\.?|ms\.?|sir|ma'?am|engr\.?|hon\.?|rev\.?|fr\.?|sr\.?|prof\.?)$/i;
-function firstNameOf(fullName) {
-  const tokens = String(fullName || "").trim().split(/\s+/);
-  while (tokens.length && HONORIFICS.test(tokens[0])) tokens.shift();
-  return tokens[0] || String(fullName || "");
+function fullNameOf(fullName) {
+  return String(fullName || "").trim().replace(/\s+/g, " ");
 }
 
 export async function fetchSeating() {
@@ -85,14 +78,14 @@ export async function fetchSeating() {
       const name = g?.name;
       if (!name) continue;
       if (rsvpByName.get(name.toLowerCase()) !== "yes") continue;
-      rows.push(`${firstNameOf(name)}${tail}`);
+      rows.push(`${fullNameOf(name)}${tail}`);
     }
     // memberMissing holds raw name strings the matcher couldn't link to a
     // guestList row — still worth including if they RSVP'd yes by name.
     for (const rawName of (group?.memberMissing || [])) {
       if (!rawName) continue;
       if (rsvpByName.get(String(rawName).toLowerCase()) !== "yes") continue;
-      rows.push(`${firstNameOf(rawName)}${tail}`);
+      rows.push(`${fullNameOf(rawName)}${tail}`);
     }
   }
   return rows;
