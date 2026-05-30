@@ -33,11 +33,11 @@ mountEditor({
     icon: "group",
     handler: fetchSeatingBatchText,
   },
-  // Tent-fold print preview: blank white top half + designed bottom half,
-  // subtle dotted fold line at the seam.
+  // Print version: A4 portrait at 300 DPI (2480×3508), 2×2 grid of tent-fold
+  // cards with subtle cut indicators down the middle and across the centre.
   printLayout: {
-    type: "tent-fold",
-    label: "Print version",
+    type: "a4-tent-4up",
+    label: "Print version · A4 (4-up)",
   },
   exportPrefix: "Name Card",
 });

@@ -119,61 +119,157 @@ function zoneTextSVG(zone, text) {
                 fill="${zone.color}">${tspans}</text>`;
 }
 
-function buildSVG({ bgUrl, canvas, zones, texts, editing = false, accent = "#7b8a5b", noBg = false, printLayout = null }) {
-  const { w, h } = canvas;
-  // Tent-fold = design lives in the bottom half, blank white panel up top,
-  // subtle dotted fold line at the seam. Used by name cards for print output.
-  const isTent = printLayout?.type === "tent-fold";
-  const outH = isTent ? h * 2 : h;
-  const yOffset = isTent ? h : 0;
+// Placements describe how the (per-tile) design canvas tiles onto an output
+// sheet. The design view = one tile at origin, no tent/fold. Tent-fold = one
+// tile shifted down by the design height, with a blank tent top + fold line.
+// A4 2-up = two tent-fold tiles stacked centred on an A4-300DPI sheet, plus a
+// cut indicator between them.
+function computePlacements({ designCanvas, printLayout }) {
+  const { w: dw, h: dh } = designCanvas;
+  if (!printLayout) {
+    return {
+      sheet: { w: dw, h: dh },
+      tiles: [{ x: 0, y: 0, tent: null, fold: null }],
+      cuts: [],
+    };
+  }
+  if (printLayout.type === "tent-fold") {
+    return {
+      sheet: { w: dw, h: dh * 2 },
+      tiles: [{
+        x: 0, y: dh,
+        tent: { x: 0, y: 0, w: dw, h: dh },
+        fold: { x1: dw * 0.02, y1: dh, x2: dw * 0.98, y2: dh },
+      }],
+      cuts: [],
+    };
+  }
+  if (printLayout.type === "a4-tent-4up") {
+    // A4 portrait at 300 DPI · 2×2 grid of tent-fold cards.
+    const sheetW = 2480, sheetH = 3508;
+    const tileH = dh * 2;
+    // Gutters between cards so the cut indicators sit in clean white space.
+    const gap = 30;
+    const cols = 2, rows = 2;
+    const xStart = Math.round((sheetW - cols * dw - (cols - 1) * gap) / 2);
+    const yStart = Math.round((sheetH - rows * tileH - (rows - 1) * gap) / 2);
+    const tiles = [];
+    for (let r = 0; r < rows; r++) {
+      for (let c = 0; c < cols; c++) {
+        const tileLeft = xStart + c * (dw + gap);
+        const tileTop = yStart + r * (tileH + gap);
+        tiles.push({
+          x: tileLeft,
+          y: tileTop + dh,
+          tent: { x: tileLeft, y: tileTop, w: dw, h: dh },
+          fold: {
+            x1: tileLeft + dw * 0.02, y1: tileTop + dh,
+            x2: tileLeft + dw * 0.98, y2: tileTop + dh,
+          },
+        });
+      }
+    }
+    return {
+      sheet: { w: sheetW, h: sheetH },
+      tiles,
+      cuts: [
+        // Horizontal cut between row 0 and row 1
+        { x1: 0, y1: yStart + tileH + gap / 2, x2: sheetW, y2: yStart + tileH + gap / 2 },
+        // Vertical cut between col 0 and col 1
+        { x1: xStart + dw + gap / 2, y1: 0, x2: xStart + dw + gap / 2, y2: sheetH },
+      ],
+    };
+  }
+  return {
+    sheet: { w: dw, h: dh },
+    tiles: [{ x: 0, y: 0, tent: null, fold: null }],
+    cuts: [],
+  };
+}
 
-  const bg = noBg
-    ? ""
-    : bgUrl
-      ? `<image href="${bgUrl}" x="0" y="${yOffset}" width="${w}" height="${h}" preserveAspectRatio="xMidYMid slice"/>`
-      : `<rect x="0" y="${yOffset}" width="${w}" height="${h}" fill="#f3eedf"/>
-         <text x="${w/2}" y="${yOffset + h/2}" text-anchor="middle" dominant-baseline="middle"
-               font-family="Inter, sans-serif" font-size="${Math.max(18, w * 0.025)}" fill="#9a948a">
-           Upload your Canva PNG to start (${w} × ${h} px)
-         </text>`;
+function buildSVG({ bgUrl, designCanvas, zones, tilesTexts, editing = false, accent = "#7b8a5b", noBg = false, placements }) {
+  const { sheet, tiles, cuts } = placements;
+  const { w: sw, h: sh } = sheet;
+  const { w: dw, h: dh } = designCanvas;
+  const isMultiTile = tiles.length > 1;
 
-  const tentTop = isTent
-    ? `<rect x="0" y="0" width="${w}" height="${h}" fill="#ffffff"/>`
-    : "";
+  const hasContent = (i) => (tilesTexts[i] || []).some((s) => s && String(s).trim().length > 0);
 
-  const foldLine = isTent
-    ? `<line x1="${w * 0.02}" y1="${h}" x2="${w * 0.98}" y2="${h}"
-              stroke="#bdbdbd" stroke-width="${Math.max(1, w * 0.0014)}"
-              stroke-dasharray="${Math.max(5, w * 0.009)} ${Math.max(5, w * 0.009)}"
-              stroke-linecap="round" opacity="0.7"/>`
-    : "";
-
-  // Text layers are always present (even when empty) so the drag handler can
-  // mutate them in place without rebuilding the SVG. In tent mode the zones
-  // shift down by the original canvas height.
-  const textLayers = zones.map((z, i) => {
-    const zPlaced = isTent ? { ...z, y: z.y + h } : z;
-    return `<g data-role="text-layer" data-z="${i}">${texts[i] ? zoneTextSVG(zPlaced, texts[i]) : ""}</g>`;
+  // Tent white panels — painted before the bg so the bg image sits cleanly
+  // on top in the design half and the tent top stays pure white.
+  const tentTops = tiles.map((t, i) => {
+    if (!t.tent) return "";
+    if (isMultiTile && !hasContent(i)) return "";
+    return `<rect x="${t.tent.x}" y="${t.tent.y}" width="${t.tent.w}" height="${t.tent.h}" fill="#ffffff"/>`;
   }).join("");
 
-  // Editing chrome only makes sense in the design view, not in print preview.
-  const editLayers = (editing && !isTent)
+  const bgLayers = noBg
+    ? ""
+    : tiles.map((t, i) => {
+        if (isMultiTile && !hasContent(i)) return "";
+        if (bgUrl) {
+          return `<image href="${bgUrl}" x="${t.x}" y="${t.y}" width="${dw}" height="${dh}" preserveAspectRatio="xMidYMid slice"/>`;
+        }
+        // Placeholder shown once (tile 0) when no bg uploaded.
+        if (isMultiTile && i !== 0) return "";
+        return `<rect x="${t.x}" y="${t.y}" width="${dw}" height="${dh}" fill="#f3eedf"/>
+                <text x="${t.x + dw/2}" y="${t.y + dh/2}" text-anchor="middle" dominant-baseline="middle"
+                      font-family="Inter, sans-serif" font-size="${Math.max(18, dw * 0.025)}" fill="#9a948a">
+                  Upload your Canva PNG to start (${dw} × ${dh} px)
+                </text>`;
+      }).join("");
+
+  // Text layers: zones are stored in design coords, each tile shifts them.
+  const textLayers = tiles.map((t, ti) => {
+    const tileTexts = tilesTexts[ti] || [];
+    return zones.map((z, zi) => {
+      const txt = tileTexts[zi];
+      const zPlaced = { ...z, x: z.x + t.x, y: z.y + t.y };
+      return `<g data-role="text-layer" data-z="${zi}" data-tile="${ti}">${txt ? zoneTextSVG(zPlaced, txt) : ""}</g>`;
+    }).join("");
+  }).join("");
+
+  const foldLines = tiles.map((t, i) => {
+    if (!t.fold) return "";
+    if (isMultiTile && !hasContent(i)) return "";
+    return `<line x1="${t.fold.x1}" y1="${t.fold.y1}" x2="${t.fold.x2}" y2="${t.fold.y2}"
+                  stroke="#bdbdbd" stroke-width="${Math.max(1, dw * 0.0014)}"
+                  stroke-dasharray="${Math.max(5, dw * 0.009)} ${Math.max(5, dw * 0.009)}"
+                  stroke-linecap="round" opacity="0.7"/>`;
+  }).join("");
+
+  // Cut indicators: longer dashes than the fold line, edge-to-edge, so the
+  // printer reads them as "slice here" not "fold here". Lines are described
+  // by generic endpoints so they can run horizontally or vertically.
+  const cutLines = (cuts || []).map((c) => {
+    const dim = Math.max(sw, sh);
+    const ds1 = Math.max(28, dim * 0.014);
+    const ds2 = Math.max(12, dim * 0.006);
+    return `<line x1="${c.x1}" y1="${c.y1}" x2="${c.x2}" y2="${c.y2}"
+                  stroke="#8c8c8c" stroke-width="${Math.max(1.2, dim * 0.0007)}"
+                  stroke-dasharray="${ds1} ${ds2}" opacity="0.55"/>`;
+  }).join("");
+
+  // Editing chrome only renders in the design view (single tile, no tent).
+  const isDesignView = tiles.length === 1 && !tiles[0].tent;
+  const editLayers = (editing && isDesignView)
     ? zones.map((z, i) =>
         `<rect data-role="edit-border" data-z="${i}"
                x="${z.x}" y="${z.y}" width="${z.w}" height="${z.h}"
                fill="rgba(123,138,91,0.06)" stroke="${accent}"
-               stroke-width="${Math.max(1.5, w * 0.002)}"
-               stroke-dasharray="${Math.max(8, w * 0.012)} ${Math.max(6, w * 0.008)}"/>`
+               stroke-width="${Math.max(1.5, dw * 0.002)}"
+               stroke-dasharray="${Math.max(8, dw * 0.012)} ${Math.max(6, dw * 0.008)}"/>`
       ).join("")
     : "";
 
   return `<svg xmlns="http://www.w3.org/2000/svg" xmlns:xlink="http://www.w3.org/1999/xlink"
-               viewBox="0 0 ${w} ${outH}" width="${w}" height="${outH}"
+               viewBox="0 0 ${sw} ${sh}" width="${sw}" height="${sh}"
                style="max-width:100%;height:auto;display:block">
-            ${tentTop}
-            ${bg}
+            ${tentTops}
+            ${bgLayers}
             ${textLayers}
-            ${foldLine}
+            ${foldLines}
+            ${cutLines}
             ${editLayers}
           </svg>`;
 }
@@ -610,6 +706,7 @@ export async function mountEditor(cfg) {
       chromeCk.disabled = printMode;
       syncPreviewLabel();
       render();
+      updateCounter();
     });
   }
   function syncPreviewLabel() {
@@ -617,20 +714,31 @@ export async function mountEditor(cfg) {
     const ec = effectiveCanvas();
     previewLbl.textContent = `Preview · ${ec.w} × ${ec.h}`;
   }
-  function effectiveCanvas() {
-    if (printMode && cfg.printLayout?.type === "tent-fold") {
-      return { w: cfg.canvas.w, h: cfg.canvas.h * 2 };
-    }
-    return cfg.canvas;
-  }
-  function bgRectForPrint() {
-    if (printMode && cfg.printLayout?.type === "tent-fold") {
-      return { x: 0, y: cfg.canvas.h, w: cfg.canvas.w, h: cfg.canvas.h };
-    }
-    return null;
-  }
   function activePrintLayout() {
     return printMode ? cfg.printLayout : null;
+  }
+  function placementsForActive() {
+    return computePlacements({
+      designCanvas: cfg.canvas,
+      printLayout: activePrintLayout(),
+    });
+  }
+  function effectiveCanvas() {
+    return placementsForActive().sheet;
+  }
+  function tilesPerSheet() {
+    return placementsForActive().tiles.length;
+  }
+  function bgRectsForSheet(sheetIdx) {
+    if (!printMode) return null;
+    const placements = placementsForActive();
+    const tilesTexts = tilesTextsForSheet(sheetIdx);
+    const rects = [];
+    placements.tiles.forEach((t, ti) => {
+      const has = (tilesTexts[ti] || []).some((s) => s && String(s).trim().length > 0);
+      if (has) rects.push({ x: t.x, y: t.y, w: cfg.canvas.w, h: cfg.canvas.h });
+    });
+    return rects.length ? rects : null;
   }
 
   // ---- per-zone style controls ----
@@ -704,21 +812,49 @@ export async function mountEditor(cfg) {
   function currentBatch() {
     return (state.batch || "").split(/\n/).map((s) => s).filter((s) => s.trim().length > 0);
   }
-  function textsFor(idx) {
+  // Texts for a single guest index (or single-zone defaults when not batch).
+  function textsForGuest(idx) {
     if (cfg.batchMode) {
       const lines = currentBatch();
-      if (!lines.length) return zonesArr.map(() => "");
-      const i = Math.max(0, Math.min(idx ?? state.previewIdx, lines.length - 1));
-      const segs = lines[i].split(BATCH_SEP).map((s) => s.trim());
+      if (!lines.length || idx == null || idx < 0 || idx >= lines.length) {
+        return zonesArr.map(() => "");
+      }
+      const segs = lines[idx].split(BATCH_SEP).map((s) => s.trim());
       return zonesArr.map((_, k) => segs[k] || "");
     }
     return zonesArr.map((z) => state.values[z.id] || "");
   }
+  // Texts per tile for a given sheet. In design view, one tile = current guest.
+  // In print mode, N tiles = N consecutive guests starting at sheetIdx * N.
+  function tilesTextsForSheet(sheetIdx) {
+    const n = tilesPerSheet();
+    if (n <= 1) return [textsForGuest(sheetIdx ?? state.previewIdx)];
+    const sIdx = sheetIdx ?? currentSheetIndex();
+    return Array.from({ length: n }, (_, t) => textsForGuest(sIdx * n + t));
+  }
+  function sheetCount() {
+    if (!cfg.batchMode) return 1;
+    const total = currentBatch().length;
+    if (!total) return 0;
+    return Math.ceil(total / tilesPerSheet());
+  }
+  function currentSheetIndex() {
+    return Math.floor(state.previewIdx / tilesPerSheet());
+  }
   function updateCounter() {
     if (!counter) return;
-    const total = currentBatch().length;
-    const idx = Math.min(state.previewIdx, Math.max(0, total - 1));
-    counter.textContent = total ? `${idx + 1} of ${total}` : "— of —";
+    const lines = currentBatch();
+    if (!lines.length) { counter.textContent = "— of —"; return; }
+    if (printMode && tilesPerSheet() > 1) {
+      const total = sheetCount();
+      const s = Math.min(currentSheetIndex(), Math.max(0, total - 1));
+      const first = s * tilesPerSheet() + 1;
+      const last = Math.min(first + tilesPerSheet() - 1, lines.length);
+      counter.textContent = `Sheet ${s + 1} of ${total} · ${first}–${last}`;
+    } else {
+      const idx = Math.min(state.previewIdx, Math.max(0, lines.length - 1));
+      counter.textContent = `${idx + 1} of ${lines.length}`;
+    }
   }
 
   if (cfg.batchMode) {
@@ -756,13 +892,25 @@ export async function mountEditor(cfg) {
     prevBtn.addEventListener("click", () => {
       const total = currentBatch().length;
       if (!total) return;
-      state.previewIdx = (state.previewIdx - 1 + total) % total;
+      if (printMode && tilesPerSheet() > 1) {
+        const sCount = sheetCount();
+        const s = (currentSheetIndex() - 1 + sCount) % sCount;
+        state.previewIdx = s * tilesPerSheet();
+      } else {
+        state.previewIdx = (state.previewIdx - 1 + total) % total;
+      }
       persist(); render(); updateCounter();
     });
     nextBtn.addEventListener("click", () => {
       const total = currentBatch().length;
       if (!total) return;
-      state.previewIdx = (state.previewIdx + 1) % total;
+      if (printMode && tilesPerSheet() > 1) {
+        const sCount = sheetCount();
+        const s = (currentSheetIndex() + 1) % sCount;
+        state.previewIdx = s * tilesPerSheet();
+      } else {
+        state.previewIdx = (state.previewIdx + 1) % total;
+      }
       persist(); render(); updateCounter();
     });
     updateCounter();
@@ -782,26 +930,49 @@ export async function mountEditor(cfg) {
   // Text-only SVG (transparent background) — the bg PNG is composed directly
   // onto the canvas in export.js, avoiding the double-resampling that
   // happened when the bg was embedded inside the SVG.
-  function textOnlySvg(texts) {
+  function textOnlySvgForSheet(sheetIdx) {
     const wrap = document.createElement("div");
     wrap.innerHTML = buildSVG({
-      bgUrl: null, canvas: cfg.canvas, zones: zonesFromState(),
-      texts, editing: false, noBg: true, printLayout: activePrintLayout(),
+      bgUrl: null,
+      designCanvas: cfg.canvas,
+      zones: zonesFromState(),
+      tilesTexts: tilesTextsForSheet(sheetIdx),
+      editing: false,
+      noBg: true,
+      placements: placementsForActive(),
     });
     return wrap.querySelector("svg");
   }
   function fnamePrefix() {
     return sanitizeFilename(cfg.exportPrefix || cfg.title || "Collateral");
   }
-  function fnameFor(line) {
+  function fnameForGuestLine(line) {
     const parts = String(line || "")
       .split(BATCH_SEP)
       .map((s) => s.trim())
       .filter(Boolean);
-    const tag = parts.length
+    return parts.length
       ? parts.map((p) => sanitizeFilename(p.slice(0, 60))).join(" — ")
       : "blank";
+  }
+  function fnameForSheet(sheetIdx) {
     const suffix = printMode ? " (print)" : "";
+    const n = tilesPerSheet();
+    if (!cfg.batchMode || n <= 1) {
+      const line = cfg.batchMode ? (currentBatch()[sheetIdx] || "") : "";
+      return `${fnamePrefix()} — ${fnameForGuestLine(line)}${suffix}.png`;
+    }
+    const lines = currentBatch();
+    const baseIdx = sheetIdx * n;
+    const names = [];
+    for (let t = 0; t < n; t++) {
+      const idx = baseIdx + t;
+      if (idx < lines.length) {
+        const first = (lines[idx].split(BATCH_SEP)[0] || "").trim();
+        names.push(sanitizeFilename(first.slice(0, 50)) || `tile${t + 1}`);
+      }
+    }
+    const tag = names.length ? names.join(" + ") : "blank";
     return `${fnamePrefix()} — ${tag}${suffix}.png`;
   }
   function zonesFromState() {
@@ -810,12 +981,14 @@ export async function mountEditor(cfg) {
 
   dlBtn.addEventListener("click", async () => {
     try {
-      const texts = textsFor();
-      const tag = cfg.batchMode ? (currentBatch()[state.previewIdx] || "blank") : (texts[0] || "blank");
+      const s = currentSheetIndex();
       await composeToDownload({
-        bgDataUrl: bgUrl, textSvgEl: textOnlySvg(texts),
-        canvas: effectiveCanvas(), scale: exportScale(), filename: fnameFor(tag),
-        bgRect: bgRectForPrint(),
+        bgDataUrl: bgUrl,
+        textSvgEl: textOnlySvgForSheet(s),
+        canvas: effectiveCanvas(),
+        scale: exportScale(),
+        filename: fnameForSheet(s),
+        bgRects: bgRectsForSheet(s),
       });
       showToast("Downloaded");
     } catch (e) { console.error(e); showToast("Download failed", "err"); }
@@ -823,14 +996,15 @@ export async function mountEditor(cfg) {
   upBtn.addEventListener("click", async () => {
     try {
       showToast("Uploading…");
-      const texts = textsFor();
-      const tag = cfg.batchMode ? (currentBatch()[state.previewIdx] || "blank") : (texts[0] || "blank");
+      const s = currentSheetIndex();
       const blob = await composeToPngBlob({
-        bgDataUrl: bgUrl, textSvgEl: textOnlySvg(texts),
-        canvas: effectiveCanvas(), scale: exportScale(),
-        bgRect: bgRectForPrint(),
+        bgDataUrl: bgUrl,
+        textSvgEl: textOnlySvgForSheet(s),
+        canvas: effectiveCanvas(),
+        scale: exportScale(),
+        bgRects: bgRectsForSheet(s),
       });
-      const j = await uploadPngBlob(blob, fnameFor(tag));
+      const j = await uploadPngBlob(blob, fnameForSheet(s));
       try { await navigator.clipboard.writeText(j.link); } catch {}
       showToast("Uploaded · link copied");
       window.open(j.link, "_blank", "noopener");
@@ -838,37 +1012,42 @@ export async function mountEditor(cfg) {
   });
   if (dlAllBtn) {
     dlAllBtn.addEventListener("click", async () => {
-      const lines = currentBatch();
-      if (!lines.length) { showToast("List is empty", "err"); return; }
+      const total = sheetCount();
+      if (!total) { showToast("List is empty", "err"); return; }
       try {
-        for (let i = 0; i < lines.length; i++) {
-          showToast(`Downloading ${i + 1}/${lines.length}…`);
+        for (let s = 0; s < total; s++) {
+          showToast(`Downloading ${s + 1}/${total}…`);
           await composeToDownload({
-            bgDataUrl: bgUrl, textSvgEl: textOnlySvg(textsFor(i)),
-            canvas: effectiveCanvas(), scale: exportScale(), filename: fnameFor(lines[i]),
-            bgRect: bgRectForPrint(),
+            bgDataUrl: bgUrl,
+            textSvgEl: textOnlySvgForSheet(s),
+            canvas: effectiveCanvas(),
+            scale: exportScale(),
+            filename: fnameForSheet(s),
+            bgRects: bgRectsForSheet(s),
           });
           await new Promise((r) => setTimeout(r, 120));
         }
-        showToast(`Downloaded ${lines.length} PNGs`);
+        showToast(`Downloaded ${total} ${total === 1 ? "PNG" : "PNGs"}`);
       } catch (e) { console.error(e); showToast("Batch download failed", "err"); }
     });
   }
   if (upAllBtn) {
     upAllBtn.addEventListener("click", async () => {
-      const lines = currentBatch();
-      if (!lines.length) { showToast("List is empty", "err"); return; }
+      const total = sheetCount();
+      if (!total) { showToast("List is empty", "err"); return; }
       try {
-        for (let i = 0; i < lines.length; i++) {
-          showToast(`Uploading ${i + 1}/${lines.length}…`);
+        for (let s = 0; s < total; s++) {
+          showToast(`Uploading ${s + 1}/${total}…`);
           const blob = await composeToPngBlob({
-            bgDataUrl: bgUrl, textSvgEl: textOnlySvg(textsFor(i)),
-            canvas: effectiveCanvas(), scale: exportScale(),
-            bgRect: bgRectForPrint(),
+            bgDataUrl: bgUrl,
+            textSvgEl: textOnlySvgForSheet(s),
+            canvas: effectiveCanvas(),
+            scale: exportScale(),
+            bgRects: bgRectsForSheet(s),
           });
-          await uploadPngBlob(blob, fnameFor(lines[i]));
+          await uploadPngBlob(blob, fnameForSheet(s));
         }
-        showToast(`Uploaded ${lines.length} to Drive`, "ok", 4000);
+        showToast(`Uploaded ${total} to Drive`, "ok", 4000);
         window.open(COLLATERALS_FOLDER_URL, "_blank", "noopener");
       } catch (e) { console.error(e); showToast(e.message || "Batch upload failed", "err", 4000); }
     });
@@ -876,20 +1055,23 @@ export async function mountEditor(cfg) {
 
   // ---- render + drag ----
   function render() {
-    const texts = textsFor();
     const zonesLive = zonesFromState();
+    const placements = placementsForActive();
+    const tilesTexts = tilesTextsForSheet();
     stage.innerHTML = buildSVG({
-      bgUrl, canvas: cfg.canvas, zones: zonesLive, texts,
+      bgUrl,
+      designCanvas: cfg.canvas,
+      zones: zonesLive,
+      tilesTexts,
       editing: showChrome && !printMode,
-      printLayout: activePrintLayout(),
+      placements,
     });
-    // Drag handles are tied to the design view (1050×600 coords). They'd be
-    // off in tent layout, so skip them entirely when print mode is on.
+    // Drag handles only exist in the design view (single tile at origin).
     if (!showChrome || printMode) return;
     const svgEl = stage.querySelector("svg");
     if (!svgEl) return;
     attachZonesDrag({
-      svgEl, canvas: cfg.canvas, zones: zonesLive, texts,
+      svgEl, canvas: cfg.canvas, zones: zonesLive, texts: tilesTexts[0] || [],
       onCommit: (idx, z) => {
         const zoneId = zonesArr[idx].id;
         state.zones[zoneId] = { ...state.zones[zoneId], ...z };
