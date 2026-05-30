@@ -798,13 +798,10 @@ function renderTodo() {
   const emptiesOnly = visible.filter((f) => !isFilled(state[f.id]));
 
   if (visible.length === 0) {
-    card.hidden = false;
-    countEl.textContent = "0";
-    pluralEl.textContent = "s";
-    list.innerHTML = `<div class="todo-empty">
-        <span class="material-symbols-outlined" style="font-size:18px">check_circle</span>
-        Everything's filled in. 🎉 Nice work.
-      </div>`;
+    // Everything's filled in — collapse the panel out of the page entirely
+    // so the dashboard reads clean once the wedding details are done.
+    card.hidden = true;
+    list.innerHTML = "";
     return;
   }
   card.hidden = false;

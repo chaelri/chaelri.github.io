@@ -609,36 +609,165 @@ async function copyTableNames(group) {
   }
 }
 
+// Google Sheets accepts pasted HTML and preserves inline styles (borders,
+// backgrounds, alignment, font weight). We write both rich HTML (preferred)
+// and a TSV fallback to the clipboard so the paste picks up formatting.
+// The ALPHABETICAL NAME column is a single ARRAYFORMULA in the first data
+// row that fills the rest of the column from the NAME column automatically —
+// no per-row formula needed, and the user can keep typing names into the
+// sheet and watch the alpha column update live.
+const SEATING_EXPORT_FORMULA =
+  '=ARRAYFORMULA(IF(B2:B="","",IFERROR(REGEXEXTRACT(B2:B,"\\S+$")&", "&REGEXEXTRACT(B2:B,"^.+(?=\\s+\\S+$)"),B2:B)))';
+
+function escapeHtmlForCell(s) {
+  return String(s).replace(/[&<>"']/g, (c) => ({
+    "&": "&amp;",
+    "<": "&lt;",
+    ">": "&gt;",
+    '"': "&quot;",
+    "'": "&#39;",
+  }[c]));
+}
+
+function buildSeatingExport(g, cap) {
+  const tableName = (g.name || "Table").toString().trim();
+  const rows = [];
+  for (let i = 0; i < cap; i++) {
+    const id = g.memberIds[i];
+    const guest = id ? allGuests.find((x) => x.id === id) : null;
+    rows.push({ seat: i + 1, name: guest ? guest.name : "" });
+  }
+
+  // Plain TSV fallback (no formulas — Sheets parses tab-separated text)
+  const tsvLines = [
+    tableName,
+    "",
+    ["SEAT", "NAME", "ALPHABETICAL NAME"].join("\t"),
+  ];
+  rows.forEach((r, idx) => {
+    const alpha = idx === 0 ? SEATING_EXPORT_FORMULA : "";
+    tsvLines.push([r.seat, r.name, alpha].join("\t"));
+  });
+  const tsv = tsvLines.join("\n");
+
+  // Rich HTML (styled table)
+  const SAGE = "#7b8a5b";
+  const SAGE_DEEP = "#5e6b44";
+  const BORDER = "#c8c2b7";
+  const SEAT_BG = "#f4f1ea";
+  const EMPTY_BG = "#faf9f6";
+  const INK = "#2a2723";
+  const STONE = "#a8a29e";
+
+  const titleTd = `<td colspan="3" style="background:${SAGE_DEEP};color:#ffffff;padding:10px 14px;font-weight:700;font-size:13pt;letter-spacing:0.05em;text-align:center;border:1px solid ${SAGE_DEEP};font-family:Calibri,Arial,sans-serif">${escapeHtmlForCell(
+    tableName.toUpperCase(),
+  )}</td>`;
+
+  const thStyle =
+    `background:${SAGE};color:#ffffff;border:1px solid ${SAGE_DEEP};` +
+    `padding:8px 12px;font-weight:700;font-size:10pt;letter-spacing:0.06em;` +
+    `font-family:Calibri,Arial,sans-serif`;
+  const headerRow = `
+    <tr>
+      <th style="${thStyle};text-align:center;width:60px">SEAT</th>
+      <th style="${thStyle};text-align:left">NAME</th>
+      <th style="${thStyle};text-align:left">ALPHABETICAL NAME</th>
+    </tr>`;
+
+  const dataRows = rows
+    .map((r, idx) => {
+      const isEmpty = !r.name;
+      const nameBg = isEmpty ? EMPTY_BG : "#ffffff";
+      const nameFg = isEmpty ? STONE : INK;
+      const nameCell = isEmpty
+        ? ""
+        : escapeHtmlForCell(r.name);
+      // Only the FIRST data row gets the array formula. Sheets fills the
+      // remaining alpha cells automatically. Leaving the rest blank is what
+      // ARRAYFORMULA needs (it errors if downstream cells already have data).
+      // We do NOT html-escape the formula — Sheets needs the raw `=` and `"`
+      // characters to parse it.
+      const alphaContent = idx === 0 ? SEATING_EXPORT_FORMULA : "";
+      const alphaBg = isEmpty && idx !== 0 ? EMPTY_BG : "#ffffff";
+      return `
+        <tr>
+          <td style="border:1px solid ${BORDER};padding:7px 12px;text-align:center;font-weight:700;background:${SEAT_BG};color:${INK};font-size:11pt;font-family:Calibri,Arial,sans-serif;width:60px">${r.seat}</td>
+          <td style="border:1px solid ${BORDER};padding:7px 14px;text-align:left;background:${nameBg};color:${nameFg};font-size:11pt;font-family:Calibri,Arial,sans-serif">${nameCell}</td>
+          <td style="border:1px solid ${BORDER};padding:7px 14px;text-align:left;background:${alphaBg};color:${INK};font-size:11pt;font-family:Calibri,Arial,sans-serif">${alphaContent}</td>
+        </tr>`;
+    })
+    .join("");
+
+  const html =
+    `<meta charset="utf-8">` +
+    `<table style="border-collapse:collapse;font-family:Calibri,Arial,sans-serif">` +
+    `<tr>${titleTd}</tr>` +
+    headerRow +
+    dataRows +
+    `</table>`;
+
+  return { html, tsv };
+}
+
+async function writeRichClipboard(html, tsv) {
+  // Preferred path: write both MIME types so Google Sheets picks the HTML.
+  if (navigator.clipboard && typeof window.ClipboardItem === "function") {
+    try {
+      await navigator.clipboard.write([
+        new window.ClipboardItem({
+          "text/html": new Blob([html], { type: "text/html" }),
+          "text/plain": new Blob([tsv], { type: "text/plain" }),
+        }),
+      ]);
+      return true;
+    } catch (e) {
+      console.warn("clipboard.write failed, falling back", e);
+    }
+  }
+  // Fallback 1: copy via contenteditable host so HTML is preserved on paste.
+  try {
+    const host = document.createElement("div");
+    host.contentEditable = "true";
+    host.innerHTML = html;
+    host.style.position = "fixed";
+    host.style.left = "-9999px";
+    host.style.top = "0";
+    document.body.appendChild(host);
+    const range = document.createRange();
+    range.selectNodeContents(host);
+    const sel = window.getSelection();
+    sel.removeAllRanges();
+    sel.addRange(range);
+    const ok = document.execCommand("copy");
+    sel.removeAllRanges();
+    document.body.removeChild(host);
+    if (ok) return true;
+  } catch (e) {
+    console.warn("execCommand HTML copy failed, falling back to plain", e);
+  }
+  // Fallback 2: plain TSV.
+  const ta = document.createElement("textarea");
+  ta.value = tsv;
+  ta.style.position = "fixed";
+  ta.style.opacity = "0";
+  document.body.appendChild(ta);
+  ta.select();
+  document.execCommand("copy");
+  document.body.removeChild(ta);
+  return true;
+}
+
 function buildCopyButton(g, cap) {
   const btn = document.createElement("button");
   btn.className = "floor-table-copy";
-  btn.title = "Copy seat list (paste into Sheets)";
+  btn.title = "Copy seat list (paste into Sheets — keeps borders + colors)";
   btn.innerHTML = '<span class="material-icons-outlined">content_copy</span>';
   btn.addEventListener("pointerdown", (e) => e.stopPropagation());
   btn.addEventListener("click", async (e) => {
     e.stopPropagation();
-    const lines = [];
-    for (let i = 0; i < cap; i++) {
-      const id = g.memberIds[i];
-      const guest = id ? allGuests.find((x) => x.id === id) : null;
-      lines.push(`${i + 1}\t${guest ? guest.name : ""}`);
-    }
-    const tsv = lines.join("\n");
-    try {
-      await navigator.clipboard.writeText(tsv);
-      toast("Copied ✓");
-    } catch {
-      // Fallback: textarea + execCommand
-      const ta = document.createElement("textarea");
-      ta.value = tsv;
-      ta.style.position = "fixed";
-      ta.style.opacity = "0";
-      document.body.appendChild(ta);
-      ta.select();
-      document.execCommand("copy");
-      document.body.removeChild(ta);
-      toast("Copied ✓");
-    }
+    const { html, tsv } = buildSeatingExport(g, cap);
+    await writeRichClipboard(html, tsv);
+    toast("Copied with formatting ✓");
   });
   return btn;
 }
