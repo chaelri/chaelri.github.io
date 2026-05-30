@@ -42,6 +42,21 @@
     </header>
 
     <main style="max-width:1100px;margin:0 auto;padding:6px 24px 80px">
+      <a id="details-panel" href="details/" style="display:flex;gap:16px;align-items:center;background:linear-gradient(180deg,#fdf6e7 0%,#fbeed1 100%);border:1px solid #e8d8a8;border-radius:18px;padding:18px 20px;margin-bottom:22px;text-decoration:none;color:inherit;transition:transform 0.18s ease, box-shadow 0.18s ease">
+        <div style="width:44px;height:44px;border-radius:12px;background:#fff5dc;color:#a07000;display:inline-flex;align-items:center;justify-content:center;flex-shrink:0">
+          <span class="material-symbols-outlined">checklist_rtl</span>
+        </div>
+        <div style="flex:1;min-width:0">
+          <div class="font-serif" style="font-size:1.1rem;font-weight:700;letter-spacing:-0.01em">Program Details — Fill in the TBDs</div>
+          <p style="font-size:0.82rem;color:var(--ink-soft);margin-top:2px;line-height:1.45">Officiant, music, intermissions, prizes, suppliers, and trivia for the host. Saves live to Firebase for both of us.</p>
+          <div style="margin-top:10px;display:flex;align-items:center;gap:10px;flex-wrap:wrap">
+            <div class="progress-track" style="flex:1;min-width:120px;max-width:280px;background:#f1e5c2"><div id="details-fill" class="progress-fill" style="width:0%;background:linear-gradient(90deg,#d6a13a,#a07000)"></div></div>
+            <div id="details-summary" style="font-size:0.78rem;color:#7a5a10;font-weight:600">— of — filled</div>
+          </div>
+        </div>
+        <span class="material-symbols-outlined" style="color:#a07000">arrow_forward</span>
+      </a>
+
       <div id="card-grid" style="display:grid;grid-template-columns:repeat(auto-fit,minmax(240px,1fr));gap:18px"></div>
 
       <section style="margin-top:48px;background:var(--sage-soft);border-radius:18px;padding:24px;display:flex;gap:14px;align-items:flex-start;flex-wrap:wrap">

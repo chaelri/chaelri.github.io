@@ -2,6 +2,41 @@
 
 import { TEMPLATES, getAllStatus, getProgressPct } from "./shared/state.js";
 import { COLLATERALS_FOLDER_URL } from "./shared/drive.js";
+import { fbGet, fbSubscribe } from "./shared/firebase-sync.js";
+
+// Field IDs used by the Program Details page (collaterals/details/app.js).
+// Duplicated here so the dashboard can show a live filled-count without
+// importing the form module (which would pull in render code we don't need).
+const DETAILS_FIELDS = [
+  // Ceremony — People & Flow
+  "officiant","honoringParentsSpeaker","communionDuringCeremony",
+  // Ceremony — Music
+  "welcomingMusic1","welcomingMusic2","chargingPSMusic",
+  // Ceremony — Setup
+  "entranceArch","aisleRunner","symbolsTableProvider","candleStylingProvider",
+  // Pictorial
+  "pictorialExtras",
+  // Reception — People
+  "host","receptionOpeningPrayer","brideIntermissionPerformer","groomIntermissionPerformer",
+  // Reception — Music & Moments
+  "firstDanceChoreo","cocktailMusic","bouquetTossSong","closingSong","exitDance","memoryVideoStatus",
+  // Reception — Games & Prizes
+  "coupleTriviaPrizes","bringMeToJerusalemPrizes","preProgramGamePrizes",
+  // Reception — Guest Experience
+  "dressCodeGuests","sendOffStyle",
+  // Couple Story
+  "endearment","petNames","whereTheyMet","bfgfAnniversary","yearsTogether",
+  "proposalLocation","proposalDate","firstDateSpot","memorableTrip","favoriteSnack",
+  "charlieJob","karlaJob","firstILoveYou","favoriteShow","insideJoke","lifeVerse",
+  "honeymoonDestination","otherFunFacts",
+  // Well-wishers
+  "wellWishersSpecial",
+  // Suppliers
+  "supplierCatering","supplierCake","supplierSound","supplierPhoto","supplierPhotoman",
+  "supplierVideo","supplierSDE","supplierHMUA","supplierFlorist","supplierLights",
+  "supplierPhotobooth","supplierGown","supplierTuxBarong","supplierRings","supplierBridalCar",
+  "supplierOther",
+];
 
 const SUBS = {
   "name-cards":      "Place cards with each guest's name · wildflower border",
@@ -56,6 +91,28 @@ function renderProgress() {
 }
 
 document.getElementById("drive-folder-link").href = COLLATERALS_FOLDER_URL;
+
+function renderDetailsProgress(remote) {
+  const total = DETAILS_FIELDS.length;
+  const data = remote && typeof remote === "object" ? remote : {};
+  const filled = DETAILS_FIELDS.filter((k) => typeof data[k] === "string" && data[k].trim().length > 0).length;
+  const pct = Math.round((filled / total) * 100);
+  const fillEl = document.getElementById("details-fill");
+  const sumEl = document.getElementById("details-summary");
+  if (fillEl) fillEl.style.width = pct + "%";
+  if (sumEl) sumEl.textContent = `${filled} of ${total} filled · ${pct}%`;
+}
+
+(async () => {
+  try {
+    const remote = await fbGet("_details");
+    renderDetailsProgress(remote);
+  } catch (e) {
+    console.warn("details progress load failed", e);
+    renderDetailsProgress(null);
+  }
+  fbSubscribe("_details", renderDetailsProgress);
+})();
 
 renderCards();
 renderProgress();
