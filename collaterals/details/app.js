@@ -1005,7 +1005,7 @@ function renderCeremonyPreview() {
 
       <div class="prog-h">SINGSPIRATION — 9:45 AM</div>
       <p class="note">Before the processional starts</p>
-      <p>Music: GOODNESS OF GOD instrumental (5 mins)</p>
+      <p>Music: BEEN SO GOOD instrumental (5 mins)</p>
 
       <div class="prog-divider">—  10:00 AM CEREMONY STARTS  —</div>
 
