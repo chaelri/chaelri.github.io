@@ -1024,6 +1024,11 @@ function renderCeremonyPreview() {
       <ul>
         ${PRINCIPAL_SPONSORS.map(([m, w]) => `<li>${escapeHtml(m)}  &  ${escapeHtml(w)}</li>`).join("")}
       </ul>
+      <p class="note" style="font-size:0.82rem;margin-top:-6px">
+        Mr. Joshua Obillo &amp; Mr. Clettes Obillo walk with the principal
+        sponsors during the processional, but their actual role is
+        <b>Special Secondary Sponsors</b> — see the dedicated section below.
+      </p>
 
       <p><b>Secondary Sponsors</b></p>
       <div class="lineup-row"><span class="lineup-role">Candle:</span> Mr. Vince Francisco & Ms. Chloe Obillo</div>
