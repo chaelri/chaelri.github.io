@@ -67,22 +67,52 @@ function normalizeZones(cfg) {
 
 // === Rendering ============================================================
 
+let _measureCtx = null;
+function measureLineWidth(line, fontSize, zone) {
+  if (!_measureCtx) _measureCtx = document.createElement("canvas").getContext("2d");
+  const style = zone.italic ? "italic" : "normal";
+  const weight = zone.weight || 400;
+  _measureCtx.font = `${style} ${weight} ${fontSize}px "${zone.fontFamily}", Georgia, serif`;
+  let w = _measureCtx.measureText(line).width;
+  const ls = Number(zone.letterSpacing) || 0;
+  if (ls) w += ls * Math.max(0, line.length - 1);
+  return w;
+}
+
+// Auto-fit: zone.fontSize is the *preferred* size. If any line overflows the
+// zone width, shrink uniformly so the longest line fits. Never up-scale.
+// Script fonts (Sacramento, Great Vibes) need fonts.ready before measurement
+// is accurate — mountEditor re-renders on fonts.ready to refresh.
+function fitFontSize(lines, zone) {
+  const target = zone.fontSize;
+  let maxW = 0;
+  for (const l of lines) {
+    if (!l) continue;
+    const w = measureLineWidth(l, target, zone);
+    if (w > maxW) maxW = w;
+  }
+  if (maxW <= zone.w || maxW === 0) return target;
+  // 0.98 safety margin — canvas measurement isn't pixel-perfect vs SVG render.
+  return target * (zone.w / maxW) * 0.98;
+}
+
 function zoneTextSVG(zone, text) {
   const lines = String(text || "").split(/\n/);
   const anchor = zone.align === "left" ? "start" : zone.align === "right" ? "end" : "middle";
   const tx = zone.align === "left" ? zone.x
            : zone.align === "right" ? zone.x + zone.w
            : zone.x + zone.w / 2;
-  const lineH = zone.fontSize * (zone.lineHeight || 1.15);
+  const fontSize = fitFontSize(lines, zone);
+  const lineH = fontSize * (zone.lineHeight || 1.15);
   const totalH = lineH * lines.length;
   // Approximate vertical center: top of first cap-line.
-  const topY = zone.y + zone.h / 2 - totalH / 2 + zone.fontSize * 0.82;
+  const topY = zone.y + zone.h / 2 - totalH / 2 + fontSize * 0.82;
   const tspans = lines.map((l, i) =>
     `<tspan x="${tx}" dy="${i === 0 ? 0 : lineH}">${escapeXML(l)}</tspan>`
   ).join("");
   return `<text x="${tx}" y="${topY}" text-anchor="${anchor}"
                 font-family="${zone.fontFamily}, Georgia, serif"
-                font-size="${zone.fontSize}"
+                font-size="${fontSize}"
                 font-weight="${zone.weight || 400}"
                 font-style="${zone.italic ? "italic" : "normal"}"
                 letter-spacing="${zone.letterSpacing || 0}"
@@ -799,6 +829,13 @@ export async function mountEditor(cfg) {
     });
   }
   render();
+
+  // Auto-fit uses canvas measureText, which falls back to a generic font until
+  // the script faces (Sacramento, Great Vibes…) finish loading. Re-render once
+  // they're ready so the first preview reflects the real metrics.
+  if (document.fonts?.ready) {
+    document.fonts.ready.then(() => render()).catch(() => {});
+  }
 
   function persist() {
     const snapshot = JSON.parse(JSON.stringify(state));
