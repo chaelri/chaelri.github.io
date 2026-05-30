@@ -219,6 +219,171 @@ app.post("/upload-drive", async (req, res) => {
 });
 
 // ---------------------------------------------------------------------------
+// Wedding planning sheet — two-way sync for collaterals/details/
+// ---------------------------------------------------------------------------
+// The collaterals/details page asks Charlie + Karla to fill in cells from
+// their wedding sheet (SONGLIST, CHECKLIST, SUPPLIER'S LIST tabs). Two
+// endpoints back it:
+//   POST /sheets-update  → write a row's cells (web → sheet, instant)
+//   POST /sheets-read    → batch-get the same cells back (sheet → web, polled)
+//
+// Auth: separate refresh token with `spreadsheets` scope (the existing
+// DRIVE_OAUTH_* token only has `drive.file`, which can't see files the app
+// didn't create). Set up by gemini-proxy/setup-sheets-oauth.sh.
+//
+// Safelist below restricts which tab + column combinations can be written
+// or read. Anything else is rejected with 400.
+
+const WEDDING_SHEET_ID = "1AhowIveOjjVy73F6_x4c5ajsZXJE5wpu-tuLGQYIQzk";
+const SHEETS_QUOTA_PROJECT = "gen-lang-client-0614956024";
+
+const SHEET_ACCESS = {
+  "SONGLIST":        { cols: new Set(["B", "C"]) },
+  "CHECKLIST":       { cols: new Set(["C"]) },
+  "SUPPLIER'S LIST": { cols: new Set(["D", "E"]) },
+};
+
+function validateSheetItem(item) {
+  if (!item || typeof item !== "object") return "item missing";
+  const { tab, row, cols } = item;
+  const access = SHEET_ACCESS[tab];
+  if (!access) return `tab "${tab}" not in safelist`;
+  if (!Number.isInteger(row) || row < 1 || row > 500) return `row ${row} out of range`;
+  if (!Array.isArray(cols) || cols.length === 0 || cols.length > 4) return "cols must be 1-4";
+  for (const c of cols) {
+    if (typeof c !== "string" || !/^[A-Z]$/.test(c)) return `bad column "${c}"`;
+    if (!access.cols.has(c)) return `column ${c} not writable on ${tab}`;
+  }
+  return null;
+}
+
+function a1RangeFor(item) {
+  // Quote sheet names that have spaces/apostrophes; escape inner apostrophes
+  // per A1-notation rules ('SUPPLIER''S LIST'!D3).
+  const escaped = item.tab.replace(/'/g, "''");
+  const tabPart = /[\s']/.test(item.tab) ? `'${escaped}'` : escaped;
+  const start = `${item.cols[0]}${item.row}`;
+  const end   = `${item.cols[item.cols.length - 1]}${item.row}`;
+  return item.cols.length === 1 ? `${tabPart}!${start}` : `${tabPart}!${start}:${end}`;
+}
+
+let sheetsTokenCache = { token: null, expiresAt: 0 };
+async function getSheetsAccessToken() {
+  if (sheetsTokenCache.token && Date.now() < sheetsTokenCache.expiresAt - 60_000) {
+    return sheetsTokenCache.token;
+  }
+  const cid  = process.env.SHEETS_OAUTH_CLIENT_ID;
+  const csec = process.env.SHEETS_OAUTH_CLIENT_SECRET;
+  const rt   = process.env.SHEETS_OAUTH_REFRESH_TOKEN;
+  if (!cid || !csec || !rt) {
+    throw new Error("Sheets OAuth not configured. Run gemini-proxy/setup-sheets-oauth.sh.");
+  }
+  const r = await fetch("https://oauth2.googleapis.com/token", {
+    method: "POST",
+    headers: { "Content-Type": "application/x-www-form-urlencoded" },
+    body: new URLSearchParams({
+      client_id: cid,
+      client_secret: csec,
+      refresh_token: rt,
+      grant_type: "refresh_token",
+    }),
+  });
+  if (!r.ok) {
+    throw new Error(`Sheets OAuth refresh failed (${r.status}): ${(await r.text()).slice(0, 200)}`);
+  }
+  const data = await r.json();
+  sheetsTokenCache = {
+    token: data.access_token,
+    expiresAt: Date.now() + (data.expires_in || 3600) * 1000,
+  };
+  return data.access_token;
+}
+
+function sheetsHeaders(token) {
+  return {
+    Authorization: `Bearer ${token}`,
+    "x-goog-user-project": SHEETS_QUOTA_PROJECT,
+  };
+}
+
+// Write one row's cells. Body: { tab, row, cols, values }
+//   values is a 1D array of strings matching cols.length.
+app.post("/sheets-update", async (req, res) => {
+  try {
+    const { tab, row, cols, values } = req.body || {};
+    const err = validateSheetItem({ tab, row, cols });
+    if (err) return res.status(400).json({ error: err });
+    if (!Array.isArray(values) || values.length !== cols.length) {
+      return res.status(400).json({ error: "values must be a 1D array matching cols.length" });
+    }
+    for (const v of values) {
+      if (typeof v !== "string") return res.status(400).json({ error: "values must be strings" });
+      if (v.length > 2000) return res.status(400).json({ error: "value too long (>2000 chars)" });
+    }
+    const range = a1RangeFor({ tab, row, cols });
+    const token = await getSheetsAccessToken();
+    const url = `https://sheets.googleapis.com/v4/spreadsheets/${WEDDING_SHEET_ID}/values/${encodeURIComponent(range)}?valueInputOption=USER_ENTERED`;
+    const r = await fetch(url, {
+      method: "PUT",
+      headers: { ...sheetsHeaders(token), "Content-Type": "application/json" },
+      body: JSON.stringify({ values: [values] }),
+    });
+    if (!r.ok) {
+      const text = await r.text();
+      console.error("Sheets update failed:", r.status, text);
+      return res.status(502).json({ error: `Sheets update failed (${r.status}): ${text.slice(0, 300)}` });
+    }
+    const j = await r.json();
+    res.json({ updatedRange: j.updatedRange, updatedCells: j.updatedCells });
+  } catch (e) {
+    console.error("sheets-update error:", e);
+    res.status(500).json({ error: e.message || "sheets-update failed" });
+  }
+});
+
+// Batch-read multiple cells. Body: { items: [{ tab, row, cols }, ...] }
+// Returns: { results: [{ tab, row, cols, values: [...] }, ...] } in input order.
+app.post("/sheets-read", async (req, res) => {
+  try {
+    const { items } = req.body || {};
+    if (!Array.isArray(items) || items.length === 0) {
+      return res.status(400).json({ error: "items array required" });
+    }
+    if (items.length > 200) {
+      return res.status(400).json({ error: "too many items (>200)" });
+    }
+    for (const it of items) {
+      const err = validateSheetItem(it);
+      if (err) return res.status(400).json({ error: err });
+    }
+    const ranges = items.map(a1RangeFor);
+    const token  = await getSheetsAccessToken();
+    const qs = ranges.map((r) => `ranges=${encodeURIComponent(r)}`).join("&");
+    const url = `https://sheets.googleapis.com/v4/spreadsheets/${WEDDING_SHEET_ID}/values:batchGet?${qs}`;
+    const r = await fetch(url, { headers: sheetsHeaders(token) });
+    if (!r.ok) {
+      const text = await r.text();
+      console.error("Sheets read failed:", r.status, text);
+      return res.status(502).json({ error: `Sheets read failed (${r.status}): ${text.slice(0, 300)}` });
+    }
+    const j = await r.json();
+    const valueRanges = j.valueRanges || [];
+    const results = items.map((it, i) => {
+      const vr = valueRanges[i];
+      const row = vr?.values?.[0] || [];
+      // Pad with "" so the array length always matches cols (Sheets trims
+      // trailing empties from the response).
+      const values = it.cols.map((_, k) => typeof row[k] === "string" ? row[k] : "");
+      return { tab: it.tab, row: it.row, cols: it.cols, values };
+    });
+    res.json({ results });
+  } catch (e) {
+    console.error("sheets-read error:", e);
+    res.status(500).json({ error: e.message || "sheets-read failed" });
+  }
+});
+
+// ---------------------------------------------------------------------------
 // Edge TTS (devo) — Microsoft "Read Aloud" voice via msedge-tts WebSocket
 // ---------------------------------------------------------------------------
 // Devo calls this with a single verse; we open a WebSocket to Microsoft's

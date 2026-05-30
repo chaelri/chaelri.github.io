@@ -6,6 +6,12 @@ import { fbGet, fbSet, fbSubscribe } from "../shared/firebase-sync.js";
 
 const DETAILS_KEY = "_details";
 
+// Two-way sync endpoints on gemini-proxy. /sheets-update writes one row's
+// cells (web → sheet, fires on edit). /sheets-read batch-reads the same
+// cells back (sheet → web, polled every 30s).
+const SHEETS_PROXY = "https://gemini-proxy-668755364170.asia-southeast1.run.app";
+const SHEET_POLL_INTERVAL_MS = 30_000;
+
 // Unanswered cells in the wedding planning sheet
 // (https://docs.google.com/spreadsheets/d/1AhowIveOjjVy73F6_x4c5ajsZXJE5wpu-tuLGQYIQzk).
 //
@@ -159,6 +165,17 @@ function fieldIdFor(item, colIdx) {
   if (item.id.startsWith("song-") && item.cols[colIdx] === "B") return `${item.id}-title`;
   if (item.id.startsWith("song-") && item.cols[colIdx] === "C") return `${item.id}-link`;
   return `${item.id}-${item.cols[colIdx].toLowerCase()}`;
+}
+
+// Reverse lookup: which SHEET_ITEMS entry owns this field id?
+const _fieldToItem = new Map();
+function itemForField(fieldId) {
+  if (_fieldToItem.size === 0) {
+    for (const it of SHEET_ITEMS) {
+      it.cols.forEach((_, i) => _fieldToItem.set(fieldIdFor(it, i), it));
+    }
+  }
+  return _fieldToItem.get(fieldId) || null;
 }
 
 // ---------------------------------------------------------------------------
@@ -1325,6 +1342,132 @@ function renderPreviews() {
 let saveTimer = null;
 let isRemoteUpdate = false; // skip echoing remote pushes back
 
+// ---- two-way Sheets sync (web → sheet on edit; sheet → web on poll) ------
+function setSheetSyncPill(kind, text) {
+  const pill = document.getElementById("sheet-sync-pill");
+  if (!pill) return;
+  pill.className = `sync-pill ${kind}`;
+  pill.style.display = kind ? "inline-flex" : "none";
+  const t = document.getElementById("sheet-sync-pill-text");
+  if (t) t.textContent = text;
+}
+
+// Per-item debounce so rapid title+link edits coalesce into one PUT.
+const _sheetWriteTimers = new Map();
+const _sheetSyncInFlight = new Set();
+function scheduleSheetWrite(fieldId) {
+  const item = itemForField(fieldId);
+  if (!item) return;
+  clearTimeout(_sheetWriteTimers.get(item.id));
+  _sheetWriteTimers.set(item.id, setTimeout(() => pushItemToSheet(item), 600));
+}
+
+async function pushItemToSheet(item) {
+  const values = item.cols.map((_, i) => String(state[fieldIdFor(item, i)] || ""));
+  _sheetSyncInFlight.add(item.id);
+  setSheetSyncPill("saving", "saving to sheet…");
+  try {
+    const r = await fetch(`${SHEETS_PROXY}/sheets-update`, {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({ tab: item.tab, row: item.row, cols: item.cols, values }),
+    });
+    if (!r.ok) {
+      const t = await r.text().catch(() => "");
+      throw new Error(`HTTP ${r.status}: ${t.slice(0, 120)}`);
+    }
+    setSheetSyncPill("saved", "synced to sheet");
+    // Track the value the sheet now holds so the poller won't echo it back.
+    item.cols.forEach((_, i) => {
+      _lastSeenSheetValue.set(fieldIdFor(item, i), values[i]);
+    });
+  } catch (err) {
+    console.warn("sheet sync failed for", item.id, err);
+    setSheetSyncPill("err", "sheet sync failed — will retry");
+  } finally {
+    _sheetSyncInFlight.delete(item.id);
+    if (_sheetSyncInFlight.size === 0) {
+      setTimeout(() => {
+        if (_sheetSyncInFlight.size === 0) setSheetSyncPill("", "");
+      }, 1500);
+    }
+  }
+}
+
+// Tracks the cell value we last *observed* the sheet holding — either because
+// we just wrote it, or because the poller just read it. The poller skips
+// updating local state if the sheet value matches this (no-op echo).
+const _lastSeenSheetValue = new Map();
+
+async function pollSheetOnce() {
+  try {
+    const items = SHEET_ITEMS.map(({ tab, row, cols }) => ({ tab, row, cols }));
+    const r = await fetch(`${SHEETS_PROXY}/sheets-read`, {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({ items }),
+    });
+    if (!r.ok) return; // soft-fail; next tick will retry
+    const { results } = await r.json();
+    const active = document.activeElement;
+    const activeId = active && active.dataset ? active.dataset.field : null;
+    let changed = false;
+    for (let i = 0; i < results.length; i++) {
+      const item = SHEET_ITEMS[i];
+      const remote = results[i];
+      if (!item || !remote) continue;
+      item.cols.forEach((_, ci) => {
+        const fid = fieldIdFor(item, ci);
+        const sheetVal = String(remote.values?.[ci] ?? "");
+        // Don't clobber the field the user is currently typing in.
+        if (fid === activeId) return;
+        // No-op if the local value already matches what the sheet says.
+        const localVal = String(state[fid] || "");
+        if (sheetVal === localVal) return;
+        // Don't echo a value we just pushed (race between PUT response and poll).
+        if (_lastSeenSheetValue.get(fid) === sheetVal && sheetVal === localVal) return;
+        state[fid] = sheetVal;
+        // Mirror into any visible inputs bearing the same data-field.
+        document.querySelectorAll(`[data-field="${fid}"]`).forEach((el) => {
+          if (el !== active && el.value !== sheetVal) el.value = sheetVal;
+        });
+        _lastSeenSheetValue.set(fid, sheetVal);
+        changed = true;
+      });
+    }
+    if (changed) {
+      // Persist merged state to Firebase so the other user picks it up faster.
+      try { fbSet(DETAILS_KEY, state); } catch {}
+      // Re-render sheet-question panel filled/counter UI in place.
+      rerenderSheetQuestionStatuses();
+    }
+  } catch (e) {
+    // Network blips are fine — next interval will pick up.
+  }
+}
+
+function rerenderSheetQuestionStatuses() {
+  const root = document.getElementById("sheet-questions");
+  if (!root) return;
+  for (const sec of SHEET_QUESTIONS) {
+    const filled = sec.items.filter(isItemFilled).length;
+    const secEl = root.querySelector(`.sheet-section[data-section="${cssEscape(sec.section)}"]`);
+    if (!secEl) continue;
+    const counter = secEl.querySelector(".sheet-section-counter");
+    if (counter) {
+      counter.textContent = `${filled} / ${sec.items.length}`;
+      counter.classList.toggle("done", filled === sec.items.length);
+    }
+    for (const item of sec.items) {
+      const card = secEl.querySelector(`.sheet-q[data-q="${cssEscape(item.id)}"]`);
+      if (card) card.classList.toggle("filled", isItemFilled(item));
+    }
+  }
+}
+function cssEscape(s) {
+  return String(s).replace(/["\\]/g, "\\$&");
+}
+
 function onFieldChange(e) {
   const id = e.target.dataset.field;
   state[id] = e.target.value;
@@ -1365,6 +1508,8 @@ function onFieldChange(e) {
   // (otherwise it would steal focus while typing). renderProgress() handles
   // the rest of the UI updates (counters, dots, previews).
   renderProgress();
+  // If this field is mapped to a sheet cell, debounce a write to the sheet.
+  if (itemForField(id)) scheduleSheetWrite(id);
 }
 
 // Render every section in SHEET_QUESTIONS into #sheet-questions. Each section
@@ -1514,6 +1659,11 @@ function mergeRemoteIntoState(remote) {
       collapseBtn.setAttribute("aria-expanded", String(!isCollapsed));
     });
   }
+
+  // Kick off the sheet → web poll loop. First read happens immediately so the
+  // form shows the latest sheet values on load; then every 30s thereafter.
+  pollSheetOnce();
+  setInterval(pollSheetOnce, SHEET_POLL_INTERVAL_MS);
 
   // Live sync for any future remote writes.
   fbSubscribe(DETAILS_KEY, (remote) => {
