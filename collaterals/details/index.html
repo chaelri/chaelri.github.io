@@ -431,6 +431,58 @@
         color: var(--ink-faint);
         opacity: 0.7;
       }
+
+      /* Songs-to-pick blocks ----------------------------------------------- */
+      .song-pick {
+        background: white;
+        border: 1px solid var(--border);
+        border-radius: 14px;
+        padding: 12px 14px;
+        margin-bottom: 10px;
+        display: flex;
+        flex-direction: column;
+        gap: 8px;
+        transition: background-color 0.18s ease, border-color 0.18s ease;
+      }
+      .song-pick.filled {
+        background: var(--sage-soft);
+        border-color: var(--sage-deep);
+      }
+      .song-pick .song-label {
+        font-family: "Inter", sans-serif;
+        font-size: 0.85rem;
+        font-weight: 600;
+        color: var(--ink);
+        letter-spacing: 0.01em;
+      }
+      .song-pick .song-row {
+        display: grid;
+        grid-template-columns: 1fr 1.4fr;
+        gap: 8px;
+      }
+      @media (max-width: 640px) {
+        .song-pick .song-row { grid-template-columns: 1fr; }
+      }
+      .song-pick input {
+        padding: 8px 12px;
+        border: 1px solid var(--border);
+        border-radius: 10px;
+        background: white;
+        font-family: "Inter", sans-serif;
+        font-size: 0.9rem;
+        color: var(--ink);
+        box-sizing: border-box;
+        width: 100%;
+      }
+      .song-pick input:focus {
+        outline: none;
+        border-color: var(--sage-deep);
+        box-shadow: 0 0 0 3px var(--sage-soft);
+      }
+      .song-pick input::placeholder {
+        color: var(--ink-faint);
+        opacity: 0.7;
+      }
     </style>
   </head>
   <body>
@@ -515,6 +567,18 @@
           data-field="notes-for-claude"
           rows="10"
           placeholder="e.g. swap reception palette to coral, add a transportation note for guests from QC, move ninang & ninong before principal sponsors, change the entourage music to acoustic…"></textarea>
+      </section>
+
+      <!-- Sourced from the SONGLIST tab in the wedding sheet. Title + link
+           per moment; once filled, ask Claude to push the answers back to
+           the spreadsheet so the coords team sees them. -->
+      <section class="preview-section">
+        <h2 class="preview-section-title">
+          <span class="material-symbols-outlined">queue_music</span>
+          Songs still to pick
+          <span class="preview-section-hint">— from the SONGLIST tab of your wedding sheet; ask Claude to sync back when ready</span>
+        </h2>
+        <div id="songs-to-pick"></div>
       </section>
     </div>
 

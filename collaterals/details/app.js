@@ -6,6 +6,24 @@ import { fbGet, fbSet, fbSubscribe } from "../shared/firebase-sync.js";
 
 const DETAILS_KEY = "_details";
 
+// Songs still to pick, sourced from the SONGLIST tab of the wedding sheet
+// (Sheet ID 1AhowIveOjjVy73F6_x4c5ajsZXJE5wpu-tuLGQYIQzk, gid 1980572171).
+// `row` is the 1-based row in SONGLIST where columns B (title) and C (link)
+// are still blank — used by the offline sync script that pushes answers back.
+// Add or remove entries here as the sheet changes; the form rebuilds from it.
+const SONGS_TO_PICK = [
+  { id: "intro-sponsors",                row: 12, label: "Introduction of Principal Sponsors & Other Guests" },
+  { id: "first-dance-first-song",        row: 19, label: "First Dance / First Song" },
+  { id: "money-dance",                   row: 20, label: "Money Dance / Prosperity Box" },
+  { id: "game-2",                        row: 21, label: "Game #2 (optional)" },
+  { id: "bride-relatives-intermission",  row: 22, label: "Bride's Relatives Intermission" },
+  { id: "groom-relatives-intermission",  row: 23, label: "Groom's Relatives Intermission & Garter Ceremony" },
+  { id: "messages-for-couple",           row: 24, label: "Messages for the Couple (MOH, BFFs)" },
+  { id: "bouquet-catching",              row: 25, label: "Bouquet Catching" },
+  { id: "message-from-couple",           row: 29, label: "Message from the Couple" },
+  { id: "closing",                       row: 30, label: "Closing" },
+];
+
 // ---------------------------------------------------------------------------
 // Field definitions (the source of truth for the form)
 // ---------------------------------------------------------------------------
@@ -1212,6 +1230,43 @@ function onFieldChange(e) {
   renderProgress();
 }
 
+// Render the "Songs still to pick" panel into #songs-to-pick. Each entry in
+// SONGS_TO_PICK becomes a small block with two inputs (title + link). They
+// share the onFieldChange pipeline, so values land in Firebase the same way
+// the rest of the form does — Charlie can later sync them back to the sheet
+// via a separate node script that knows the row numbers.
+function renderSongsToPick() {
+  const root = document.getElementById("songs-to-pick");
+  if (!root) return;
+  root.innerHTML = SONGS_TO_PICK.map((s) => {
+    const titleId = `song-${s.id}-title`;
+    const linkId  = `song-${s.id}-link`;
+    const title   = state[titleId] || "";
+    const link    = state[linkId]  || "";
+    const filled  = title.trim().length > 0;
+    return `
+      <div class="song-pick${filled ? " filled" : ""}" data-song="${s.id}">
+        <div class="song-label">${escapeHtml(s.label)}</div>
+        <div class="song-row">
+          <input type="text" placeholder="Song title"
+                 data-field="${titleId}" value="${escapeHtml(title)}"/>
+          <input type="text" placeholder="Spotify / TikTok / YouTube link (optional)"
+                 data-field="${linkId}" value="${escapeHtml(link)}"/>
+        </div>
+      </div>
+    `;
+  }).join("");
+  root.querySelectorAll("[data-field]").forEach((el) => {
+    el.addEventListener("input", onFieldChange);
+  });
+  // Toggle the "filled" tint when the title goes empty/non-empty.
+  root.addEventListener("input", (e) => {
+    if (!e.target.dataset.field?.endsWith("-title")) return;
+    const block = e.target.closest(".song-pick");
+    if (block) block.classList.toggle("filled", e.target.value.trim().length > 0);
+  });
+}
+
 function setSyncPill(kind, text) {
   const pill = document.getElementById("sync-pill");
   pill.className = `sync-pill ${kind}`;
@@ -1268,6 +1323,8 @@ function mergeRemoteIntoState(remote) {
     notesEl.value = state["notes-for-claude"] || "";
     notesEl.addEventListener("input", onFieldChange);
   }
+
+  renderSongsToPick();
 
   // To-do card collapse toggle
   const collapseBtn = document.getElementById("todo-collapse");
