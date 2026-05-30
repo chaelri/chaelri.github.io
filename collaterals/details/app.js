@@ -741,6 +741,15 @@ function renderProgress() {
   document.getElementById("dp-fill").style.width = pct + "%";
   document.getElementById("dp-pct").textContent = pct + "%";
   document.getElementById("dp-summary").textContent = `${filled} of ${TOTAL} fields filled`;
+  // When everything's filled, collapse the WHOLE editing surface — progress
+  // card + the group accordion list. The live preview pages below stay
+  // visible (that's the readable artifact). If Charlie needs to edit again,
+  // we'll re-show them deliberately.
+  const allDone = filled === TOTAL;
+  const card = document.getElementById("progress-card");
+  if (card) card.hidden = allDone;
+  const formRoot = document.getElementById("form-root");
+  if (formRoot) formRoot.hidden = allDone;
 
   // Refresh per-group counters and per-field dots without re-rendering inputs
   // (so the user doesn't lose focus while typing).
