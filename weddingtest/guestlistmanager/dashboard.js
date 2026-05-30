@@ -1119,7 +1119,7 @@ function renderFinalList() {
 // Lets Charlie + Karla finalize the list before the June 1 deadline. Shows
 // who responded via the website, who they marked manually, and who still
 // needs a nudge. State is driven entirely by allData[].
-let rsvpFilter = "follow-up";
+let rsvpFilter = "all";
 let rsvpSearch = "";
 
 function rsvpBucket(g) {
@@ -1145,17 +1145,10 @@ function renderRsvpTracker() {
     const b = rsvpBucket(g);
     if (b in counts) counts[b]++;
   }
-  // "Need Follow-up" = pending invited guests we HAVEN'T chased yet
-  const followUp = invited.filter(
-    (g) => rsvpBucket(g) === "pending" && !g.followedUp
-  ).length;
-
   const STAT_CARDS = [
-    { key: "follow-up", label: "Need Follow-up", value: followUp, hint: "Pending · not yet chased" },
-    { key: "yes-web",   label: "Yes · Website", value: counts["yes-web"], hint: "Came in via the site" },
-    { key: "yes-manual",label: "Yes · Manual",  value: counts["yes-manual"], hint: "Marked by Karla / Charlie" },
-    { key: "no",        label: "Declined",      value: counts.no, hint: "Not attending" },
-    { key: "maybe",     label: "Maybe",         value: counts.maybe, hint: "Still deciding" },
+    { key: "yes-web",    label: "Yes · Website", value: counts["yes-web"],    hint: "Came in via the site" },
+    { key: "yes-manual", label: "Yes · Manual",  value: counts["yes-manual"], hint: "Marked by Karla / Charlie" },
+    { key: "no",         label: "Declined",      value: counts.no,            hint: "Not attending" },
   ];
   cards.innerHTML = STAT_CARDS.map((s) => `
     <div class="rsvp-stat-card ${rsvpFilter === s.key ? "active" : ""}" data-card="${s.key}">
@@ -1190,12 +1183,7 @@ function renderRsvpTracker() {
 
   // ----- Apply filter + search
   let rows = invited;
-  if (rsvpFilter === "follow-up") {
-    // Need Follow-up = pending AND not yet followed up by us
-    rows = rows.filter((g) => rsvpBucket(g) === "pending" && !g.followedUp);
-  } else if (rsvpFilter === "pending") {
-    rows = rows.filter((g) => rsvpBucket(g) === "pending");
-  } else if (rsvpFilter !== "all") {
+  if (rsvpFilter !== "all") {
     rows = rows.filter((g) => rsvpBucket(g) === rsvpFilter);
   }
   if (rsvpSearch) {
