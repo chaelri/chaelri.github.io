@@ -406,6 +406,31 @@
       .sync-pill.saving { background: #fef3df; color: #a07000; }
       .sync-pill.saved  { background: #e3efd5; color: #4f6630; }
       .sync-pill.err    { background: #f8d8d2; color: #993529; }
+
+      /* Notes-for-Claude box ----------------------------------------------- */
+      .notes-textarea {
+        width: 100%;
+        min-height: 200px;
+        padding: 14px 16px;
+        border: 1px solid var(--border);
+        border-radius: 16px;
+        background: white;
+        font-family: "Inter", sans-serif;
+        font-size: 0.95rem;
+        line-height: 1.55;
+        color: var(--ink);
+        resize: vertical;
+        box-sizing: border-box;
+      }
+      .notes-textarea:focus {
+        outline: none;
+        border-color: var(--sage-deep);
+        box-shadow: 0 0 0 3px var(--sage-soft);
+      }
+      .notes-textarea::placeholder {
+        color: var(--ink-faint);
+        opacity: 0.7;
+      }
     </style>
   </head>
   <body>
@@ -473,6 +498,23 @@
           </summary>
           <div class="preview-body" id="preview-reception-body"></div>
         </details>
+      </section>
+
+      <!-- Free-text notes box. Whatever Charlie & Karla type here syncs to
+           both of them via Firebase and is the canonical place for "tweaks
+           we want done to the docx files or this page." -->
+      <section class="preview-section">
+        <h2 class="preview-section-title">
+          <span class="material-symbols-outlined">edit_note</span>
+          Tots &amp; suggestions
+          <span class="preview-section-hint">— jot down tweaks for the docx files or this detail page; syncs between you and Karla</span>
+        </h2>
+        <textarea
+          id="notes-for-claude"
+          class="notes-textarea"
+          data-field="notes-for-claude"
+          rows="10"
+          placeholder="e.g. swap reception palette to coral, add a transportation note for guests from QC, move ninang & ninong before principal sponsors, change the entourage music to acoustic…"></textarea>
       </section>
     </div>
 

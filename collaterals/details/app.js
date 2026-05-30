@@ -577,11 +577,15 @@ function renderForm() {
 
 function onChipClick(e) {
   e.preventDefault();
+  e.stopPropagation(); // don't bubble into the to-do item's collapse handler
   const chip = e.currentTarget;
-  const wrap = chip.closest("[data-field-wrap]");
+  // Chips live in two places: the main form (.field[data-field-wrap]) AND the
+  // inline to-do editor (.todo-item[data-todo]). Find whichever container
+  // wraps this chip and grab its <input/textarea> by data-field.
+  const wrap = chip.closest("[data-field-wrap], [data-todo]");
   if (!wrap) return;
-  const id = wrap.dataset.fieldWrap;
   const input = wrap.querySelector("[data-field]");
+  if (!input) return;
   const mode = chip.parentElement.dataset.mode || "replace";
   const text = chip.dataset.suggest;
   if (mode === "append") {
@@ -1255,6 +1259,15 @@ function mergeRemoteIntoState(remote) {
   }
   renderForm();
   setSyncPill("saved", "synced");
+
+  // Free-text notes box lives outside the form schema but still rides the
+  // same field-save pipeline (onFieldChange writes to state + Firebase,
+  // mergeRemoteIntoState updates any [data-field] on remote changes).
+  const notesEl = document.getElementById("notes-for-claude");
+  if (notesEl) {
+    notesEl.value = state["notes-for-claude"] || "";
+    notesEl.addEventListener("input", onFieldChange);
+  }
 
   // To-do card collapse toggle
   const collapseBtn = document.getElementById("todo-collapse");

@@ -43,6 +43,12 @@ function ensureInit() {
   return _db;
 }
 
+// Shared by sibling modules (e.g. firebase-storage.js) so we don't double-init.
+export function getFbApp() {
+  ensureInit();
+  return _app;
+}
+
 const ROOT = "collaterals";
 
 export async function fbGet(templateId) {
@@ -76,4 +82,26 @@ export function fbSubscribe(templateId, cb) {
   return onValue(ref(db, `${ROOT}/${templateId}`), (snap) => {
     if (snap.exists()) cb(snap.val());
   });
+}
+
+// Asset-URL index: maps an asset key (e.g. "name-cards:bg") to its Firebase
+// Storage download URL so any device can fetch the same uploaded image.
+// Path: /collaterals/_assets/<key> → { url, path, savedAt }
+export async function fbAssetGet(key) {
+  const db = ensureInit();
+  const safe = key.replace(/[.#$/\[\]]/g, "_");
+  const snap = await get(child(ref(db), `${ROOT}/_assets/${safe}`));
+  return snap.exists() ? snap.val() : null;
+}
+
+export async function fbAssetSet(key, meta) {
+  const db = ensureInit();
+  const safe = key.replace(/[.#$/\[\]]/g, "_");
+  await set(ref(db, `${ROOT}/_assets/${safe}`), meta);
+}
+
+export async function fbAssetClear(key) {
+  const db = ensureInit();
+  const safe = key.replace(/[.#$/\[\]]/g, "_");
+  await set(ref(db, `${ROOT}/_assets/${safe}`), null);
 }
