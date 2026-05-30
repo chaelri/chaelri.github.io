@@ -6,23 +6,160 @@ import { fbGet, fbSet, fbSubscribe } from "../shared/firebase-sync.js";
 
 const DETAILS_KEY = "_details";
 
-// Songs still to pick, sourced from the SONGLIST tab of the wedding sheet
-// (Sheet ID 1AhowIveOjjVy73F6_x4c5ajsZXJE5wpu-tuLGQYIQzk, gid 1980572171).
-// `row` is the 1-based row in SONGLIST where columns B (title) and C (link)
-// are still blank — used by the offline sync script that pushes answers back.
-// Add or remove entries here as the sheet changes; the form rebuilds from it.
-const SONGS_TO_PICK = [
-  { id: "intro-sponsors",                row: 12, label: "Introduction of Principal Sponsors & Other Guests" },
-  { id: "first-dance-first-song",        row: 19, label: "First Dance / First Song" },
-  { id: "money-dance",                   row: 20, label: "Money Dance / Prosperity Box" },
-  { id: "game-2",                        row: 21, label: "Game #2 (optional)" },
-  { id: "bride-relatives-intermission",  row: 22, label: "Bride's Relatives Intermission" },
-  { id: "groom-relatives-intermission",  row: 23, label: "Groom's Relatives Intermission & Garter Ceremony" },
-  { id: "messages-for-couple",           row: 24, label: "Messages for the Couple (MOH, BFFs)" },
-  { id: "bouquet-catching",              row: 25, label: "Bouquet Catching" },
-  { id: "message-from-couple",           row: 29, label: "Message from the Couple" },
-  { id: "closing",                       row: 30, label: "Closing" },
+// Unanswered cells in the wedding planning sheet
+// (https://docs.google.com/spreadsheets/d/1AhowIveOjjVy73F6_x4c5ajsZXJE5wpu-tuLGQYIQzk).
+//
+// Each item maps to a single row in a named tab. `cols` lists the columns
+// being written; the form renders one input per column. The destination
+// caption ("→ SONGLIST · B19:C19") is computed from { tab, row, cols } so
+// nothing drifts between the UI and the future sync-to-sheet script.
+//
+// Add/remove items as the sheet evolves — the form rebuilds from this list.
+const SHEET_QUESTIONS = [
+  {
+    section: "Songs",
+    icon: "queue_music",
+    meta: "SONGLIST tab · title in B, link in C",
+    items: [
+      { id: "song-intro-sponsors",               tab: "SONGLIST", row: 12, cols: ["B", "C"], label: "Introduction of Principal Sponsors & Other Guests", placeholders: ["Song title", "Spotify / TikTok / YouTube link (optional)"] },
+      { id: "song-first-dance-first-song",       tab: "SONGLIST", row: 19, cols: ["B", "C"], label: "First Dance / First Song",                          placeholders: ["Song title", "Link (optional)"] },
+      { id: "song-money-dance",                  tab: "SONGLIST", row: 20, cols: ["B", "C"], label: "Money Dance / Prosperity Box",                      placeholders: ["Song title", "Link (optional)"] },
+      { id: "song-game-2",                       tab: "SONGLIST", row: 21, cols: ["B", "C"], label: "Game #2 (optional)",                                placeholders: ["Song title", "Link (optional)"] },
+      { id: "song-bride-relatives-intermission", tab: "SONGLIST", row: 22, cols: ["B", "C"], label: "Bride's Relatives Intermission",                    placeholders: ["Song title", "Link (optional)"] },
+      { id: "song-groom-relatives-intermission", tab: "SONGLIST", row: 23, cols: ["B", "C"], label: "Groom's Relatives Intermission & Garter Ceremony",  placeholders: ["Song title", "Link (optional)"] },
+      { id: "song-messages-for-couple",          tab: "SONGLIST", row: 24, cols: ["B", "C"], label: "Messages for the Couple (MOH, BFFs)",               placeholders: ["Song title", "Link (optional)"] },
+      { id: "song-bouquet-catching",             tab: "SONGLIST", row: 25, cols: ["B", "C"], label: "Bouquet Catching",                                  placeholders: ["Song title", "Link (optional)"] },
+      { id: "song-message-from-couple",          tab: "SONGLIST", row: 29, cols: ["B", "C"], label: "Message from the Couple",                           placeholders: ["Song title", "Link (optional)"] },
+      { id: "song-closing",                      tab: "SONGLIST", row: 30, cols: ["B", "C"], label: "Closing",                                           placeholders: ["Song title", "Link (optional)"] },
+    ],
+  },
+  {
+    section: "Ceremony / photoshoot checklist",
+    icon: "checklist",
+    meta: "CHECKLIST tab · status in column C",
+    items: [
+      { id: "ck-candle-long",       tab: "CHECKLIST", row: 2,  cols: ["C"], label: "Candle long (2 pcs)",     placeholders: ["e.g. ready / ordered / not yet"] },
+      { id: "ck-unity-candle",      tab: "CHECKLIST", row: 3,  cols: ["C"], label: "Unity candle",            placeholders: ["status"] },
+      { id: "ck-veil",              tab: "CHECKLIST", row: 4,  cols: ["C"], label: "Veil",                    placeholders: ["status"] },
+      { id: "ck-arras",             tab: "CHECKLIST", row: 5,  cols: ["C"], label: "Arras",                   placeholders: ["status"] },
+      { id: "ck-cord",              tab: "CHECKLIST", row: 6,  cols: ["C"], label: "Cord",                    placeholders: ["status"] },
+      { id: "ck-bible",             tab: "CHECKLIST", row: 7,  cols: ["C"], label: "Bible",                   placeholders: ["status"] },
+      { id: "ck-wedding-vows",      tab: "CHECKLIST", row: 8,  cols: ["C"], label: "Wedding vows",            placeholders: ["status"] },
+      { id: "ck-wedding-rings",     tab: "CHECKLIST", row: 9,  cols: ["C"], label: "Wedding rings",           placeholders: ["status"] },
+      { id: "ck-copy-invitation",   tab: "CHECKLIST", row: 10, cols: ["C"], label: "Copy of invitation",      placeholders: ["status"] },
+      { id: "ck-entourage-flowers", tab: "CHECKLIST", row: 11, cols: ["C"], label: "Entourage flowers",       placeholders: ["status"] },
+      { id: "ck-wedding-wands",     tab: "CHECKLIST", row: 12, cols: ["C"], label: "Wedding wands",           placeholders: ["status"] },
+      { id: "ck-bubble-guns",       tab: "CHECKLIST", row: 13, cols: ["C"], label: "Bubble guns (2)",         placeholders: ["status"] },
+    ],
+  },
+  {
+    section: "Reception checklist",
+    icon: "celebration",
+    meta: "CHECKLIST tab · status in column C",
+    items: [
+      { id: "ck-money-prosperity-box",  tab: "CHECKLIST", row: 16, cols: ["C"], label: "Money / prosperity box",          placeholders: ["status"] },
+      { id: "ck-money-envelopes",       tab: "CHECKLIST", row: 17, cols: ["C"], label: "Money envelopes / pins / clips",  placeholders: ["status"] },
+      { id: "ck-prizes",                tab: "CHECKLIST", row: 18, cols: ["C"], label: "Prizes",                          placeholders: ["status"] },
+      { id: "ck-pens",                  tab: "CHECKLIST", row: 19, cols: ["C"], label: "Pens",                            placeholders: ["status"] },
+      { id: "ck-souvenirs-sponsors",    tab: "CHECKLIST", row: 20, cols: ["C"], label: "Souvenirs for sponsors",          placeholders: ["status"] },
+      { id: "ck-souvenirs-guest",       tab: "CHECKLIST", row: 21, cols: ["C"], label: "Souvenirs for guests",            placeholders: ["status"] },
+    ],
+  },
+  {
+    section: "Bride's essentials for photoshoot",
+    icon: "favorite",
+    meta: "CHECKLIST tab · status in column C",
+    items: [
+      { id: "ck-bride-robe",            tab: "CHECKLIST", row: 23, cols: ["C"], label: "Robe",            placeholders: ["status"] },
+      { id: "ck-bride-gown",            tab: "CHECKLIST", row: 24, cols: ["C"], label: "Gown",            placeholders: ["status"] },
+      { id: "ck-bride-shoes",           tab: "CHECKLIST", row: 25, cols: ["C"], label: "Shoes",           placeholders: ["status"] },
+      { id: "ck-bride-sandals",         tab: "CHECKLIST", row: 26, cols: ["C"], label: "Sandals",         placeholders: ["status"] },
+      { id: "ck-bride-engagement-ring", tab: "CHECKLIST", row: 27, cols: ["C"], label: "Engagement ring", placeholders: ["status"] },
+      { id: "ck-bride-earrings",        tab: "CHECKLIST", row: 28, cols: ["C"], label: "Earrings",        placeholders: ["status"] },
+      { id: "ck-bride-bouquet",         tab: "CHECKLIST", row: 29, cols: ["C"], label: "Bridal bouquet",  placeholders: ["status"] },
+      { id: "ck-bride-perfume",         tab: "CHECKLIST", row: 30, cols: ["C"], label: "Perfume",         placeholders: ["status"] },
+    ],
+  },
+  {
+    section: "Groom's essentials",
+    icon: "person",
+    meta: "CHECKLIST tab · status in column C",
+    items: [
+      { id: "ck-groom-suit",        tab: "CHECKLIST", row: 32, cols: ["C"], label: "Suit",        placeholders: ["status"] },
+      { id: "ck-groom-shoes",       tab: "CHECKLIST", row: 33, cols: ["C"], label: "Shoes",       placeholders: ["status"] },
+      { id: "ck-groom-belt",        tab: "CHECKLIST", row: 34, cols: ["C"], label: "Belt",        placeholders: ["status"] },
+      { id: "ck-groom-watch",       tab: "CHECKLIST", row: 35, cols: ["C"], label: "Watch",       placeholders: ["status"] },
+      { id: "ck-groom-perfume",     tab: "CHECKLIST", row: 36, cols: ["C"], label: "Perfume",     placeholders: ["status"] },
+      { id: "ck-groom-boutonniere", tab: "CHECKLIST", row: 37, cols: ["C"], label: "Boutonniere", placeholders: ["status"] },
+    ],
+  },
+  {
+    section: "Couple's bag kit",
+    icon: "luggage",
+    meta: "CHECKLIST tab · status in column C",
+    items: [
+      { id: "ck-bag-tissue",       tab: "CHECKLIST", row: 39, cols: ["C"], label: "Tissue",                          placeholders: ["status"] },
+      { id: "ck-bag-wet-wipes",    tab: "CHECKLIST", row: 40, cols: ["C"], label: "Wet wipes",                       placeholders: ["status"] },
+      { id: "ck-bag-alcohol",      tab: "CHECKLIST", row: 41, cols: ["C"], label: "Alcohol",                         placeholders: ["status"] },
+      { id: "ck-bag-candy-mint",   tab: "CHECKLIST", row: 42, cols: ["C"], label: "Candy / mint",                    placeholders: ["status"] },
+      { id: "ck-bag-water",        tab: "CHECKLIST", row: 43, cols: ["C"], label: "Bottled water (straw for bride)", placeholders: ["status"] },
+      { id: "ck-bag-mini-fan",     tab: "CHECKLIST", row: 44, cols: ["C"], label: "Mini electric fan",               placeholders: ["status"] },
+      { id: "ck-bag-sanitary",     tab: "CHECKLIST", row: 45, cols: ["C"], label: "Sanitary napkin (bride)",         placeholders: ["status"] },
+    ],
+  },
+  {
+    section: "Suppliers — missing phone numbers",
+    icon: "call",
+    meta: "SUPPLIER'S LIST tab · phone in column D",
+    items: [
+      { id: "sup-catering-phone",   tab: "SUPPLIER'S LIST", row: 3,  cols: ["D"], label: "Catering — phone (Sac B Catering, Ms. Jean Rachel Luna)", placeholders: ["09xx-xxx-xxxx"] },
+      { id: "sup-sounds-phone",     tab: "SUPPLIER'S LIST", row: 6,  cols: ["D"], label: "Sounds / Lights / Prod / Tech — phone (Kuya Marco)",      placeholders: ["09xx-xxx-xxxx"] },
+      { id: "sup-photo-video-phone",tab: "SUPPLIER'S LIST", row: 8,  cols: ["D"], label: "Photo & video team — phone (Jath and Yhen PV)",           placeholders: ["09xx-xxx-xxxx"] },
+      { id: "sup-cake-phone",       tab: "SUPPLIER'S LIST", row: 9,  cols: ["D"], label: "Cake — phone (Sac B Catering)",                            placeholders: ["09xx-xxx-xxxx"] },
+      { id: "sup-venue-phone",      tab: "SUPPLIER'S LIST", row: 10, cols: ["D"], label: "Venue bldg admin — phone (Kuya Kester Catindig)",          placeholders: ["09xx-xxx-xxxx"] },
+      { id: "sup-crew-meal-phone",  tab: "SUPPLIER'S LIST", row: 16, cols: ["D"], label: "Crew meal — phone (CCF host team)",                        placeholders: ["09xx-xxx-xxxx"] },
+    ],
+  },
+  {
+    section: "Suppliers — missing arrival times",
+    icon: "schedule",
+    meta: "SUPPLIER'S LIST tab · arrival in column E",
+    items: [
+      { id: "sup-sounds-arrival",       tab: "SUPPLIER'S LIST", row: 6,  cols: ["E"], label: "Sounds / Lights / Prod / Tech — arrival", placeholders: ["e.g. 5:00 AM"] },
+      { id: "sup-photo-video-arrival",  tab: "SUPPLIER'S LIST", row: 8,  cols: ["E"], label: "Photo & video team — arrival",            placeholders: ["e.g. 5:00 AM"] },
+      { id: "sup-cake-arrival",         tab: "SUPPLIER'S LIST", row: 9,  cols: ["E"], label: "Cake — arrival",                          placeholders: ["e.g. 10:00 AM"] },
+      { id: "sup-venue-arrival",        tab: "SUPPLIER'S LIST", row: 10, cols: ["E"], label: "Venue bldg admin — arrival",              placeholders: ["e.g. 4:30 AM"] },
+      { id: "sup-selfie-mirror1-arrival",tab: "SUPPLIER'S LIST", row: 11, cols: ["E"], label: "Selfie mirror #1 — arrival",             placeholders: ["e.g. 11:00 AM"] },
+      { id: "sup-grazing-arrival",      tab: "SUPPLIER'S LIST", row: 12, cols: ["E"], label: "Grazing table #1 — arrival",              placeholders: ["e.g. 11:00 AM"] },
+      { id: "sup-photoman-arrival",     tab: "SUPPLIER'S LIST", row: 13, cols: ["E"], label: "Photoman — arrival",                      placeholders: ["e.g. 11:00 AM"] },
+      { id: "sup-selfie-mirror2-arrival",tab: "SUPPLIER'S LIST", row: 14, cols: ["E"], label: "Selfie mirror #2 — arrival",             placeholders: ["e.g. 11:00 AM"] },
+      { id: "sup-guest-gift-arrival",   tab: "SUPPLIER'S LIST", row: 15, cols: ["E"], label: "Guest gift — arrival",                    placeholders: ["e.g. 11:00 AM"] },
+      { id: "sup-crew-meal-arrival",    tab: "SUPPLIER'S LIST", row: 16, cols: ["E"], label: "Crew meal — arrival",                     placeholders: ["e.g. 11:00 AM"] },
+    ],
+  },
 ];
+
+// Flat list — convenient for both rendering and sync logic.
+const SHEET_ITEMS = SHEET_QUESTIONS.flatMap((g) => g.items);
+
+// Build the destination caption shown under each question.
+function destLabel(item) {
+  const first = `${item.cols[0]}${item.row}`;
+  const last  = `${item.cols[item.cols.length - 1]}${item.row}`;
+  const range = item.cols.length === 1 ? first : `${first}:${last}`;
+  return `→ ${item.tab} · ${range}`;
+}
+
+// Field id used for each column input. id-row-col matches the on-disk
+// state shape so existing answers persist through this refactor.
+function fieldIdFor(item, colIdx) {
+  if (item.cols.length === 1) return item.id;
+  // For song-* items the old shape used "-title" / "-link" suffixes — keep
+  // those names so existing answers (e.g. "First Dance" title/link) survive.
+  if (item.id.startsWith("song-") && item.cols[colIdx] === "B") return `${item.id}-title`;
+  if (item.id.startsWith("song-") && item.cols[colIdx] === "C") return `${item.id}-link`;
+  return `${item.id}-${item.cols[colIdx].toLowerCase()}`;
+}
 
 // ---------------------------------------------------------------------------
 // Field definitions (the source of truth for the form)
@@ -1230,41 +1367,83 @@ function onFieldChange(e) {
   renderProgress();
 }
 
-// Render the "Songs still to pick" panel into #songs-to-pick. Each entry in
-// SONGS_TO_PICK becomes a small block with two inputs (title + link). They
-// share the onFieldChange pipeline, so values land in Firebase the same way
-// the rest of the form does — Charlie can later sync them back to the sheet
-// via a separate node script that knows the row numbers.
-function renderSongsToPick() {
-  const root = document.getElementById("songs-to-pick");
+// Render every section in SHEET_QUESTIONS into #sheet-questions. Each section
+// becomes a collapsible <details>; each question is a card with one input per
+// column plus a small destination caption ("→ SONGLIST · B19:C19"). All
+// inputs share the onFieldChange pipeline, so values land in Firebase the
+// same way the rest of the form does.
+function renderSheetQuestions() {
+  const root = document.getElementById("sheet-questions");
   if (!root) return;
-  root.innerHTML = SONGS_TO_PICK.map((s) => {
-    const titleId = `song-${s.id}-title`;
-    const linkId  = `song-${s.id}-link`;
-    const title   = state[titleId] || "";
-    const link    = state[linkId]  || "";
-    const filled  = title.trim().length > 0;
+  root.innerHTML = SHEET_QUESTIONS.map((g) => {
+    const total  = g.items.length;
+    const filled = g.items.filter(isItemFilled).length;
     return `
-      <div class="song-pick${filled ? " filled" : ""}" data-song="${s.id}">
-        <div class="song-label">${escapeHtml(s.label)}</div>
-        <div class="song-row">
-          <input type="text" placeholder="Song title"
-                 data-field="${titleId}" value="${escapeHtml(title)}"/>
-          <input type="text" placeholder="Spotify / TikTok / YouTube link (optional)"
-                 data-field="${linkId}" value="${escapeHtml(link)}"/>
+      <details class="sheet-section" data-section="${escapeHtml(g.section)}">
+        <summary>
+          <span class="sheet-section-head">
+            <span class="material-symbols-outlined">${escapeHtml(g.icon || "list_alt")}</span>
+            <span class="sheet-section-title">${escapeHtml(g.section)}</span>
+          </span>
+          <span class="sheet-section-counter ${filled === total ? "done" : ""}">${filled} / ${total}</span>
+        </summary>
+        <div class="sheet-section-meta">${escapeHtml(g.meta)}</div>
+        <div class="sheet-q-list">
+          ${g.items.map(renderItemCard).join("")}
         </div>
-      </div>
+      </details>
     `;
   }).join("");
   root.querySelectorAll("[data-field]").forEach((el) => {
     el.addEventListener("input", onFieldChange);
   });
-  // Toggle the "filled" tint when the title goes empty/non-empty.
+  // Keep the per-card "filled" tint + per-section counter in sync as the user
+  // types. We hook the section root so we don't add per-input listeners.
   root.addEventListener("input", (e) => {
-    if (!e.target.dataset.field?.endsWith("-title")) return;
-    const block = e.target.closest(".song-pick");
-    if (block) block.classList.toggle("filled", e.target.value.trim().length > 0);
+    if (!e.target.dataset?.field) return;
+    const card    = e.target.closest(".sheet-q");
+    const section = e.target.closest(".sheet-section");
+    if (card) {
+      const itemId = card.dataset.q;
+      const item   = SHEET_ITEMS.find((x) => x.id === itemId);
+      if (item) card.classList.toggle("filled", isItemFilled(item));
+    }
+    if (section) {
+      const sec = SHEET_QUESTIONS.find((x) => x.section === section.dataset.section);
+      const counter = section.querySelector(".sheet-section-counter");
+      if (sec && counter) {
+        const filled = sec.items.filter(isItemFilled).length;
+        counter.textContent = `${filled} / ${sec.items.length}`;
+        counter.classList.toggle("done", filled === sec.items.length);
+      }
+    }
   });
+}
+
+function isItemFilled(item) {
+  // A question counts as answered when its first (primary) column has text.
+  // For songs that's the title; for status rows that's the status text.
+  const primaryField = fieldIdFor(item, 0);
+  return String(state[primaryField] || "").trim().length > 0;
+}
+
+function renderItemCard(item) {
+  const filled = isItemFilled(item);
+  const inputs = item.cols.map((_, i) => {
+    const fid = fieldIdFor(item, i);
+    const val = state[fid] || "";
+    const ph  = item.placeholders?.[i] || "";
+    return `<input type="text" data-field="${fid}" value="${escapeHtml(val)}"
+                   placeholder="${escapeHtml(ph)}"/>`;
+  }).join("");
+  const colsClass = item.cols.length > 1 ? " sheet-q-row-multi" : "";
+  return `
+    <div class="sheet-q${filled ? " filled" : ""}" data-q="${escapeHtml(item.id)}">
+      <div class="sheet-q-label">${escapeHtml(item.label)}</div>
+      <div class="sheet-q-row${colsClass}">${inputs}</div>
+      <div class="sheet-q-dest">${escapeHtml(destLabel(item))}</div>
+    </div>
+  `;
 }
 
 function setSyncPill(kind, text) {
@@ -1324,7 +1503,7 @@ function mergeRemoteIntoState(remote) {
     notesEl.addEventListener("input", onFieldChange);
   }
 
-  renderSongsToPick();
+  renderSheetQuestions();
 
   // To-do card collapse toggle
   const collapseBtn = document.getElementById("todo-collapse");

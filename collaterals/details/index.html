@@ -432,38 +432,100 @@
         opacity: 0.7;
       }
 
-      /* Songs-to-pick blocks ----------------------------------------------- */
-      .song-pick {
+      /* Sheet-question sections + cards ------------------------------------ */
+      .sheet-section {
         background: white;
         border: 1px solid var(--border);
-        border-radius: 14px;
-        padding: 12px 14px;
-        margin-bottom: 10px;
+        border-radius: 16px;
+        margin-bottom: 12px;
+        overflow: hidden;
+      }
+      .sheet-section > summary {
+        cursor: pointer;
+        list-style: none;
+        padding: 14px 18px;
+        display: flex;
+        align-items: center;
+        justify-content: space-between;
+        gap: 10px;
+        font-family: "Playfair Display", Georgia, serif;
+        font-size: 1.02rem;
+        font-weight: 700;
+        letter-spacing: -0.01em;
+      }
+      .sheet-section > summary::-webkit-details-marker { display: none; }
+      .sheet-section-head {
+        display: inline-flex;
+        align-items: center;
+        gap: 10px;
+      }
+      .sheet-section-head .material-symbols-outlined {
+        font-size: 22px;
+        color: var(--sage-deep);
+        background: var(--sage-soft);
+        border-radius: 10px;
+        padding: 4px;
+      }
+      .sheet-section-counter {
+        font-family: "Inter", sans-serif;
+        font-size: 0.78rem;
+        font-weight: 600;
+        color: var(--ink-soft);
+        background: var(--sage-soft);
+        border-radius: 999px;
+        padding: 3px 10px;
+        letter-spacing: 0.02em;
+      }
+      .sheet-section-counter.done {
+        background: #e3efd5;
+        color: #4f6630;
+      }
+      .sheet-section-meta {
+        font-family: "Inter", sans-serif;
+        font-size: 0.72rem;
+        color: var(--ink-faint);
+        padding: 0 18px 8px;
+        letter-spacing: 0.02em;
+      }
+      .sheet-q-list {
+        padding: 0 14px 14px;
+        display: flex;
+        flex-direction: column;
+        gap: 10px;
+      }
+      .sheet-q {
+        background: #faf7ef;
+        border: 1px solid var(--border);
+        border-radius: 12px;
+        padding: 10px 12px;
         display: flex;
         flex-direction: column;
         gap: 8px;
         transition: background-color 0.18s ease, border-color 0.18s ease;
       }
-      .song-pick.filled {
+      .sheet-q.filled {
         background: var(--sage-soft);
         border-color: var(--sage-deep);
       }
-      .song-pick .song-label {
+      .sheet-q-label {
         font-family: "Inter", sans-serif;
         font-size: 0.85rem;
         font-weight: 600;
         color: var(--ink);
         letter-spacing: 0.01em;
       }
-      .song-pick .song-row {
+      .sheet-q-row {
         display: grid;
-        grid-template-columns: 1fr 1.4fr;
+        grid-template-columns: 1fr;
         gap: 8px;
       }
-      @media (max-width: 640px) {
-        .song-pick .song-row { grid-template-columns: 1fr; }
+      .sheet-q-row.sheet-q-row-multi {
+        grid-template-columns: 1fr 1.4fr;
       }
-      .song-pick input {
+      @media (max-width: 640px) {
+        .sheet-q-row.sheet-q-row-multi { grid-template-columns: 1fr; }
+      }
+      .sheet-q input {
         padding: 8px 12px;
         border: 1px solid var(--border);
         border-radius: 10px;
@@ -474,14 +536,20 @@
         box-sizing: border-box;
         width: 100%;
       }
-      .song-pick input:focus {
+      .sheet-q input:focus {
         outline: none;
         border-color: var(--sage-deep);
         box-shadow: 0 0 0 3px var(--sage-soft);
       }
-      .song-pick input::placeholder {
+      .sheet-q input::placeholder {
         color: var(--ink-faint);
         opacity: 0.7;
+      }
+      .sheet-q-dest {
+        font-family: "JetBrains Mono", ui-monospace, monospace;
+        font-size: 0.7rem;
+        color: var(--ink-faint);
+        letter-spacing: 0.02em;
       }
     </style>
   </head>
@@ -569,16 +637,16 @@
           placeholder="e.g. swap reception palette to coral, add a transportation note for guests from QC, move ninang & ninong before principal sponsors, change the entourage music to acoustic…"></textarea>
       </section>
 
-      <!-- Sourced from the SONGLIST tab in the wedding sheet. Title + link
-           per moment; once filled, ask Claude to push the answers back to
-           the spreadsheet so the coords team sees them. -->
+      <!-- Sheet-driven question groups: every unanswered cell across the
+           wedding planning sheet's tabs. Each card shows where the answer
+           will land. Ask Claude to push the answers back when you're ready. -->
       <section class="preview-section">
         <h2 class="preview-section-title">
-          <span class="material-symbols-outlined">queue_music</span>
-          Songs still to pick
-          <span class="preview-section-hint">— from the SONGLIST tab of your wedding sheet; ask Claude to sync back when ready</span>
+          <span class="material-symbols-outlined">list_alt</span>
+          Still to answer from the sheet
+          <span class="preview-section-hint">— grouped by section; each card shows the destination cell in the wedding sheet</span>
         </h2>
-        <div id="songs-to-pick"></div>
+        <div id="sheet-questions"></div>
       </section>
     </div>
 
