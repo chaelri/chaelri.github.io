@@ -590,17 +590,22 @@ document.getElementById("rsvpForm").onsubmit = async (e) => {
       attending: attendanceVal,
       submittedAt: new Date().toISOString(),
     });
-    // Mirror the response into the guestList's finalChecked flag so it
-    // shows up immediately in the dashboard's Final Check column + the
-    // "Final Yes" filter, without Charlie having to click anything.
-    // Yes → checked (locked-in attendee). No → unchecked.
+    // Mirror the response into the guestList so the dashboard reflects it
+    // immediately, without Charlie or Karla having to flip any toggles:
+    //   - finalChecked = (attending === "yes"). Yes locks them into the
+    //     Final Yes set; No clears any prior lock-in.
+    //   - followedUp = true. The guest just responded on their own, so the
+    //     follow-up task is done regardless of yes/no.
     const guestId = guestIdByName.get(typedName.toLowerCase());
     if (guestId) {
       try {
-        await set(ref(db, `guestList/${guestId}/finalChecked`), attendanceVal === "yes");
+        await Promise.all([
+          set(ref(db, `guestList/${guestId}/finalChecked`), attendanceVal === "yes"),
+          set(ref(db, `guestList/${guestId}/followedUp`), true),
+        ]);
       } catch (mirrorErr) {
         // Non-fatal — RSVP itself already succeeded. Log and continue.
-        console.warn("finalChecked mirror failed:", mirrorErr);
+        console.warn("guestList mirror failed:", mirrorErr);
       }
     }
   } catch (error) {
