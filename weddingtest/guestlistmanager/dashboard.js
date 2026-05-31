@@ -1119,19 +1119,31 @@ function renderFinalList() {
 // Lets Charlie + Karla finalize the list before the June 1 deadline. Shows
 // who responded via the website, who they marked manually, and who still
 // needs a nudge. State is driven entirely by allData[].
-let rsvpFilter = "all";       // status chip
-let rsvpSide   = "all";       // side chip (Karla / Charlie / Both / All)
-let rsvpSearch = "";
-let rsvpPage   = 1;
+let rsvpFilter   = "all";     // status chip
+let rsvpSide     = "all";     // side chip (Karla / Charlie / Both / All)
+let rsvpFollowup = "all";     // followed-up chip (all / yes / no)
+let rsvpSearch   = "";
+let rsvpPage     = 1;
 let rsvpPageSize = 50;        // 0 = show all
 
 function rsvpBucket(g) {
-  // Bucket used by both the stat cards and the filter chips.
+  // Bucket used by both the stat cards and the filter chips. "final-yes" is
+  // a synthetic bucket layered on top of yes-* so the Final-Yes chip works
+  // without breaking the existing yes-web / yes-manual split — a guest can
+  // only fall in final-yes if their RSVP is yes AND finalChecked is true.
   if (g.invited !== "yes") return "not-invited";
   if (g.status === "yes") return g.rsvpSource === "manual" ? "yes-manual" : "yes-web";
   if (g.status === "no") return "no";
-  if (g.status === "maybe") return "maybe";
   return "pending";
+}
+
+// Final-Yes is a cross-cut of bucket + finalChecked, applied as an extra
+// filter (not a bucket replacement) so the existing stat cards stay
+// accurate.
+function passesRsvpFilter(g) {
+  if (rsvpFilter === "all") return true;
+  if (rsvpFilter === "final-yes") return g.status === "yes" && g.finalChecked === true;
+  return rsvpBucket(g) === rsvpFilter;
 }
 
 function renderRsvpTracker() {
@@ -1143,7 +1155,7 @@ function renderRsvpTracker() {
   const invited = allData.filter((g) => g.invited === "yes");
 
   // ----- Stat cards
-  const counts = { pending: 0, "yes-web": 0, "yes-manual": 0, no: 0, maybe: 0 };
+  const counts = { pending: 0, "yes-web": 0, "yes-manual": 0, no: 0 };
   for (const g of invited) {
     const b = rsvpBucket(g);
     if (b in counts) counts[b]++;
@@ -1187,6 +1199,16 @@ function renderRsvpTracker() {
     };
   });
 
+  // ----- Followed-up filter chips (All / Yes / No)
+  document.querySelectorAll(".rsvp-followup-chip").forEach((el) => {
+    el.classList.toggle("active", el.dataset.followup === rsvpFollowup);
+    el.onclick = () => {
+      rsvpFollowup = el.dataset.followup;
+      rsvpPage = 1;
+      renderRsvpTracker();
+    };
+  });
+
   // ----- Search input (lazy-bind once)
   const searchEl = document.getElementById("rsvp-search");
   if (searchEl && !searchEl.dataset.bound) {
@@ -1213,11 +1235,14 @@ function renderRsvpTracker() {
 
   // ----- Apply filters + search
   let rows = invited;
-  if (rsvpFilter !== "all") {
-    rows = rows.filter((g) => rsvpBucket(g) === rsvpFilter);
-  }
+  rows = rows.filter(passesRsvpFilter);
   if (rsvpSide !== "all") {
     rows = rows.filter((g) => g.side === rsvpSide);
+  }
+  if (rsvpFollowup === "yes") {
+    rows = rows.filter((g) => g.followedUp === true);
+  } else if (rsvpFollowup === "no") {
+    rows = rows.filter((g) => g.followedUp !== true);
   }
   if (rsvpSearch) {
     rows = rows.filter(
@@ -1315,18 +1340,23 @@ function rsvpRowHtml(g) {
     : `<span class="rsvp-source none">no response yet</span>`;
   const statusLabel = status === "yes" ? "Attending"
     : status === "no" ? "Declined"
-    : status === "maybe" ? "Maybe" : "Pending";
-  // Quick-mark buttons — exclude the current status to keep the UI tidy.
-  const quickButton = (val, label, cls) => status === val
-    ? ""
-    : `<button class="rsvp-quick-btn ${cls}" data-set="${val}" data-name="${escapeAttr(g.name)}">${label}</button>`;
+    : "Pending";
   const followedUpCell = `
     <label class="rsvp-followup">
       <input type="checkbox" data-followup-id="${g.id}" ${g.followedUp ? "checked" : ""} />
       <span class="rsvp-followup-box"></span>
     </label>`;
+  // Final Check: a definitive "this guest's status is locked in, don't bug
+  // me again" toggle. Pairs with the Final-Yes filter chip so Charlie can
+  // surface only fully-confirmed attendees.
+  const finalCheckCell = `
+    <label class="rsvp-followup" title="Lock in this guest's final status">
+      <input type="checkbox" data-finalcheck-id="${g.id}" ${g.finalChecked ? "checked" : ""} />
+      <span class="rsvp-followup-box"></span>
+    </label>`;
+  const rowClass = g.finalChecked ? "rsvp-row final-checked" : "rsvp-row";
   return `
-    <tr class="rsvp-row">
+    <tr class="${rowClass}">
       <td class="p-3">
         <div class="font-semibold text-stone-800">${g.name}</div>
         ${g.nickname ? `<div class="text-[10px] text-stone-400">"${g.nickname}"</div>` : ""}
@@ -1336,32 +1366,25 @@ function rsvpRowHtml(g) {
       <td class="p-3">${sourceBadge}</td>
       <td class="p-3 text-xs text-stone-500">${when}</td>
       <td class="p-3 text-center">${followedUpCell}</td>
-      <td class="p-3 text-right whitespace-nowrap">
-        ${quickButton("yes",     "Yes",     "set-yes")}
-        ${quickButton("no",      "No",      "set-no")}
-        ${quickButton("maybe",   "Maybe",   "set-maybe")}
-        ${quickButton("pending", "Reset",   "set-pending")}
-      </td>
+      <td class="p-3 text-center">${finalCheckCell}</td>
     </tr>
   `;
 }
 
-// Delegated handler for the quick-mark buttons (works across re-renders).
-document.addEventListener("click", (e) => {
-  const btn = e.target.closest(".rsvp-quick-btn");
-  if (!btn) return;
-  const name = btn.dataset.name;
-  const next = btn.dataset.set;
-  if (name && next) window.updateManualStatus(name, next);
-});
-
-// Delegated handler for the "Followed Up" checkbox in the RSVP Tracker.
+// Delegated handler for the "Followed Up" + "Final Check" checkboxes.
+// Both write straight to RTDB under guestList/<id>/<field>.
 document.addEventListener("change", (e) => {
-  const cb = e.target.closest("[data-followup-id]");
-  if (!cb) return;
-  const id = cb.dataset.followupId;
-  if (!id) return;
-  set(ref(db, `guestList/${id}/followedUp`), cb.checked);
+  const followup = e.target.closest("[data-followup-id]");
+  if (followup) {
+    const id = followup.dataset.followupId;
+    if (id) set(ref(db, `guestList/${id}/followedUp`), followup.checked);
+    return;
+  }
+  const finalCheck = e.target.closest("[data-finalcheck-id]");
+  if (finalCheck) {
+    const id = finalCheck.dataset.finalcheckId;
+    if (id) set(ref(db, `guestList/${id}/finalChecked`), finalCheck.checked);
+  }
 });
 
 function renderEntourage() {

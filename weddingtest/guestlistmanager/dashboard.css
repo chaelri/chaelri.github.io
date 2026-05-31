@@ -318,6 +318,26 @@ th {
 .rsvp-side-chip:hover { border-color: #a8a29e; color: #2a2723; }
 .rsvp-side-chip.active { background: #2a2723; color: white; border-color: #2a2723; }
 
+/* Followed-up filter chips — amber palette so they read as a separate axis
+   again, distinct from sage status chips and dark side chips. */
+.rsvp-followup-chip {
+  font-size: 0.7rem;
+  font-weight: 600;
+  padding: 4px 10px;
+  border-radius: 999px;
+  border: 1px solid #e7e5e4;
+  background: white;
+  color: #57534e;
+  cursor: pointer;
+  transition: all 0.15s ease;
+}
+.rsvp-followup-chip:hover { border-color: #d49b3f; color: #2a2723; }
+.rsvp-followup-chip.active { background: #c98a00; color: white; border-color: #c98a00; }
+
+/* Final-checked row: subtle sage-tint so locked-in attendees stand out. */
+.rsvp-row.final-checked { background: #f3f6ec; }
+.rsvp-row.final-checked:hover { background: #ecf0e0; }
+
 /* Pagination buttons. */
 .rsvp-page-btn {
   min-width: 28px;

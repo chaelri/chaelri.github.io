@@ -181,6 +181,7 @@
             <button class="rsvp-chip" data-filter="yes-manual">Yes · Manual</button>
             <button class="rsvp-chip" data-filter="no">Declined</button>
             <button class="rsvp-chip" data-filter="pending">Pending</button>
+            <button class="rsvp-chip" data-filter="final-yes">Final Yes ✓</button>
             <div class="ml-auto flex items-center gap-3">
               <input id="rsvp-search" type="text" placeholder="Search name…" class="bg-stone-50 border border-stone-200 rounded-md px-3 py-1.5 text-xs text-stone-700 placeholder-stone-400 focus:outline-none focus:border-[#7b8a5b] w-44" />
               <select id="rsvp-page-size" class="bg-stone-50 border border-stone-200 rounded-md px-2 py-1.5 text-xs text-stone-700 focus:outline-none focus:border-[#7b8a5b]">
@@ -198,6 +199,12 @@
             <button class="rsvp-side-chip" data-side="charlie">Charlie</button>
             <button class="rsvp-side-chip" data-side="both">Both</button>
           </div>
+          <div class="flex flex-wrap gap-2 items-center">
+            <span class="text-[9px] uppercase tracking-widest text-stone-400 font-bold mr-1">Followed up</span>
+            <button class="rsvp-followup-chip active" data-followup="all">All</button>
+            <button class="rsvp-followup-chip" data-followup="yes">Followed up</button>
+            <button class="rsvp-followup-chip" data-followup="no">Not yet</button>
+          </div>
         </div>
 
         <!-- Table -->
@@ -212,7 +219,7 @@
                   <th class="p-3 text-[10px] uppercase tracking-widest text-stone-500 font-bold">Source</th>
                   <th class="p-3 text-[10px] uppercase tracking-widest text-stone-500 font-bold">When</th>
                   <th class="p-3 text-center text-[10px] uppercase tracking-widest text-stone-500 font-bold">Followed Up</th>
-                  <th class="p-3 text-right text-[10px] uppercase tracking-widest text-stone-500 font-bold">Quick Mark</th>
+                  <th class="p-3 text-center text-[10px] uppercase tracking-widest text-stone-500 font-bold">Final Check</th>
                 </tr>
               </thead>
               <tbody id="rsvpTrackerBody" class="text-sm text-stone-700"></tbody>
