@@ -280,11 +280,14 @@ th {
   font-weight: 700;
 }
 .rsvp-stat-card .stat-value {
-  font-family: "Playfair Display", serif;
-  font-size: 1.5rem;
+  /* Matches the top-of-page stat cards (KARLA / CHARLIE / BOTH) — inherits
+     the Inter body font and uses the same sans-serif weight + size. */
+  font-family: inherit;
+  font-size: 1.875rem;  /* mirrors Tailwind md:text-3xl on the top cards */
   font-weight: 700;
   color: #2a2723;
   line-height: 1.1;
+  letter-spacing: -0.01em;
 }
 .rsvp-stat-card.active { border-color: #7b8a5b; background: #f6f4ec; }
 /* Final Yes card — sage tint always-on so the headline locked-in count
