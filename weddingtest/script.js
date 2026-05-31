@@ -23,6 +23,9 @@ const firebaseConfig = {
 const app = initializeApp(firebaseConfig);
 const db = getDatabase(app);
 let masterGuestList = [];
+// name (lowercased) → guestList id. Used to write back to guestList/<id>/
+// finalChecked when a website RSVP comes in.
+const guestIdByName = new Map();
 let scrollYMemory = 0; // Where we store your scroll position
 let currentImagesArray = [];
 let currentImgIndex = 0;
@@ -439,8 +442,14 @@ document.addEventListener("DOMContentLoaded", () => {
 
 // --- 2. FIREBASE & RSVP ---
 get(child(ref(db), "guestList")).then((snapshot) => {
-  if (snapshot.exists())
-    masterGuestList = Object.values(snapshot.val()).map((g) => g.name);
+  if (!snapshot.exists()) return;
+  const guests = snapshot.val();
+  masterGuestList = Object.values(guests).map((g) => g.name);
+  // Build a name→id lookup so the RSVP submit handler can mirror the
+  // response into guestList/<id>/finalChecked.
+  for (const [id, g] of Object.entries(guests)) {
+    if (g?.name) guestIdByName.set(String(g.name).toLowerCase(), id);
+  }
 });
 
 // --- SMART RSVP TYPEAHEAD ---
@@ -581,6 +590,19 @@ document.getElementById("rsvpForm").onsubmit = async (e) => {
       attending: attendanceVal,
       submittedAt: new Date().toISOString(),
     });
+    // Mirror the response into the guestList's finalChecked flag so it
+    // shows up immediately in the dashboard's Final Check column + the
+    // "Final Yes" filter, without Charlie having to click anything.
+    // Yes → checked (locked-in attendee). No → unchecked.
+    const guestId = guestIdByName.get(typedName.toLowerCase());
+    if (guestId) {
+      try {
+        await set(ref(db, `guestList/${guestId}/finalChecked`), attendanceVal === "yes");
+      } catch (mirrorErr) {
+        // Non-fatal — RSVP itself already succeeded. Log and continue.
+        console.warn("finalChecked mirror failed:", mirrorErr);
+      }
+    }
   } catch (error) {
     console.error("Submission failed:", error);
     alert("Something went wrong. Please try again!");
