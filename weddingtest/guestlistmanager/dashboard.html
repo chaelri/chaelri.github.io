@@ -151,6 +151,88 @@
         </div>
       </div>
 
+      <!-- RSVP TRACKER (finalization view) — top-level priority view -->
+      <div class="mt-2 mb-12">
+        <div class="bg-[#7b8a5b] p-6 rounded-t-2xl shadow-sm border border-[#6a784d]">
+          <div class="flex justify-between items-center text-white flex-wrap gap-2">
+            <div>
+              <h2 class="serif text-xl italic">RSVP Tracker</h2>
+              <p class="text-[10px] uppercase tracking-widest opacity-80 mt-1">
+                Yes via the site · Yes marked manually · Declined
+              </p>
+            </div>
+            <div id="rsvp-deadline-badge" class="bg-white/20 px-4 py-2 rounded-full text-xs font-bold uppercase tracking-tighter">
+              Finalizing
+            </div>
+          </div>
+        </div>
+
+        <!-- Stat cards -->
+        <div class="bg-stone-50/50 border-x border-stone-100 px-4 py-4">
+          <div id="rsvp-stat-cards" class="grid grid-cols-1 md:grid-cols-3 gap-2"></div>
+        </div>
+
+        <!-- Filter chips -->
+        <div class="bg-white border-x border-stone-100 px-4 py-3 flex flex-col gap-2">
+          <div class="flex flex-wrap gap-2 items-center">
+            <span class="text-[9px] uppercase tracking-widest text-stone-400 font-bold mr-1">Status</span>
+            <button class="rsvp-chip active" data-filter="all">All Invited</button>
+            <button class="rsvp-chip" data-filter="yes-web">Yes · Website</button>
+            <button class="rsvp-chip" data-filter="yes-manual">Yes · Manual</button>
+            <button class="rsvp-chip" data-filter="no">Declined</button>
+            <button class="rsvp-chip" data-filter="pending">Pending</button>
+            <div class="ml-auto flex items-center gap-3">
+              <input id="rsvp-search" type="text" placeholder="Search name…" class="bg-stone-50 border border-stone-200 rounded-md px-3 py-1.5 text-xs text-stone-700 placeholder-stone-400 focus:outline-none focus:border-[#7b8a5b] w-44" />
+              <select id="rsvp-page-size" class="bg-stone-50 border border-stone-200 rounded-md px-2 py-1.5 text-xs text-stone-700 focus:outline-none focus:border-[#7b8a5b]">
+                <option value="25">25 / page</option>
+                <option value="50" selected>50 / page</option>
+                <option value="100">100 / page</option>
+                <option value="0">Show all</option>
+              </select>
+            </div>
+          </div>
+          <div class="flex flex-wrap gap-2 items-center">
+            <span class="text-[9px] uppercase tracking-widest text-stone-400 font-bold mr-1">Side</span>
+            <button class="rsvp-side-chip active" data-side="all">All sides</button>
+            <button class="rsvp-side-chip" data-side="karla">Karla</button>
+            <button class="rsvp-side-chip" data-side="charlie">Charlie</button>
+            <button class="rsvp-side-chip" data-side="both">Both</button>
+          </div>
+        </div>
+
+        <!-- Table -->
+        <div class="bg-white rounded-b-2xl shadow-sm border border-stone-100 overflow-hidden">
+          <div class="overflow-x-auto">
+            <table class="w-full text-left border-collapse">
+              <thead>
+                <tr class="bg-stone-50 border-b border-stone-100">
+                  <th class="p-3 text-[10px] uppercase tracking-widest text-stone-500 font-bold">Guest</th>
+                  <th class="p-3 text-[10px] uppercase tracking-widest text-stone-500 font-bold">Side</th>
+                  <th class="p-3 text-[10px] uppercase tracking-widest text-stone-500 font-bold">Status</th>
+                  <th class="p-3 text-[10px] uppercase tracking-widest text-stone-500 font-bold">Source</th>
+                  <th class="p-3 text-[10px] uppercase tracking-widest text-stone-500 font-bold">When</th>
+                  <th class="p-3 text-center text-[10px] uppercase tracking-widest text-stone-500 font-bold">Followed Up</th>
+                  <th class="p-3 text-right text-[10px] uppercase tracking-widest text-stone-500 font-bold">Quick Mark</th>
+                </tr>
+              </thead>
+              <tbody id="rsvpTrackerBody" class="text-sm text-stone-700"></tbody>
+            </table>
+          </div>
+          <div id="rsvp-empty" class="hidden p-8 text-center text-stone-400 italic">
+            No guests match this filter.
+          </div>
+          <!-- Pagination footer -->
+          <div class="border-t border-stone-100 px-4 py-3 flex flex-col md:flex-row items-center justify-between gap-3">
+            <div id="rsvp-page-indicator" class="text-[10px] uppercase tracking-widest text-stone-400 font-bold">
+              Page 0 of 0
+            </div>
+            <div id="rsvp-pagination" class="flex flex-wrap justify-center items-center gap-1.5">
+              <!-- JS injected page buttons -->
+            </div>
+          </div>
+        </div>
+      </div>
+
       <div class="grid grid-cols-1 lg:grid-cols-4 gap-8">
         <!-- LEFT COLUMN -->
         <div class="lg:col-span-1 space-y-6">
@@ -327,64 +409,6 @@
                 ></tbody>
               </table>
             </div>
-          </div>
-        </div>
-      </div>
-
-      <!-- RSVP TRACKER (finalization view) -->
-      <div class="mt-12 mb-12 lg:col-span-4">
-        <div class="bg-[#7b8a5b] p-6 rounded-t-2xl shadow-sm border border-[#6a784d]">
-          <div class="flex justify-between items-center text-white flex-wrap gap-2">
-            <div>
-              <h2 class="serif text-xl italic">RSVP Tracker</h2>
-              <p class="text-[10px] uppercase tracking-widest opacity-80 mt-1">
-                Yes via the site · Yes marked manually · Declined
-              </p>
-            </div>
-            <div id="rsvp-deadline-badge" class="bg-white/20 px-4 py-2 rounded-full text-xs font-bold uppercase tracking-tighter">
-              Finalizing
-            </div>
-          </div>
-        </div>
-
-        <!-- Stat cards -->
-        <div class="bg-stone-50/50 border-x border-stone-100 px-4 py-4">
-          <div id="rsvp-stat-cards" class="grid grid-cols-1 md:grid-cols-3 gap-2"></div>
-        </div>
-
-        <!-- Filter chips -->
-        <div class="bg-white border-x border-stone-100 px-4 py-3 flex flex-wrap gap-2 items-center">
-          <span class="text-[9px] uppercase tracking-widest text-stone-400 font-bold mr-1">Filter</span>
-          <button class="rsvp-chip active" data-filter="all">All Invited</button>
-          <button class="rsvp-chip" data-filter="yes-web">Yes · Website</button>
-          <button class="rsvp-chip" data-filter="yes-manual">Yes · Manual</button>
-          <button class="rsvp-chip" data-filter="no">Declined</button>
-          <button class="rsvp-chip" data-filter="pending">Pending</button>
-          <div class="ml-auto">
-            <input id="rsvp-search" type="text" placeholder="Search name…" class="bg-stone-50 border border-stone-200 rounded-md px-3 py-1.5 text-xs text-stone-700 placeholder-stone-400 focus:outline-none focus:border-[#7b8a5b] w-44" />
-          </div>
-        </div>
-
-        <!-- Table -->
-        <div class="bg-white rounded-b-2xl shadow-sm border border-stone-100 overflow-hidden">
-          <div class="overflow-x-auto">
-            <table class="w-full text-left border-collapse">
-              <thead>
-                <tr class="bg-stone-50 border-b border-stone-100">
-                  <th class="p-3 text-[10px] uppercase tracking-widest text-stone-500 font-bold">Guest</th>
-                  <th class="p-3 text-[10px] uppercase tracking-widest text-stone-500 font-bold">Side</th>
-                  <th class="p-3 text-[10px] uppercase tracking-widest text-stone-500 font-bold">Status</th>
-                  <th class="p-3 text-[10px] uppercase tracking-widest text-stone-500 font-bold">Source</th>
-                  <th class="p-3 text-[10px] uppercase tracking-widest text-stone-500 font-bold">When</th>
-                  <th class="p-3 text-center text-[10px] uppercase tracking-widest text-stone-500 font-bold">Followed Up</th>
-                  <th class="p-3 text-right text-[10px] uppercase tracking-widest text-stone-500 font-bold">Quick Mark</th>
-                </tr>
-              </thead>
-              <tbody id="rsvpTrackerBody" class="text-sm text-stone-700"></tbody>
-            </table>
-          </div>
-          <div id="rsvp-empty" class="hidden p-8 text-center text-stone-400 italic">
-            No guests match this filter.
           </div>
         </div>
       </div>

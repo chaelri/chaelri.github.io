@@ -302,6 +302,55 @@ th {
 .rsvp-chip:hover { border-color: #7b8a5b; color: #2a2723; }
 .rsvp-chip.active { background: #7b8a5b; color: white; border-color: #7b8a5b; }
 
+/* Side-filter chips (Karla / Charlie / Both) — neutral palette so they
+   read as a separate axis from the status filter above. */
+.rsvp-side-chip {
+  font-size: 0.7rem;
+  font-weight: 600;
+  padding: 4px 10px;
+  border-radius: 999px;
+  border: 1px solid #e7e5e4;
+  background: white;
+  color: #57534e;
+  cursor: pointer;
+  transition: all 0.15s ease;
+}
+.rsvp-side-chip:hover { border-color: #a8a29e; color: #2a2723; }
+.rsvp-side-chip.active { background: #2a2723; color: white; border-color: #2a2723; }
+
+/* Pagination buttons. */
+.rsvp-page-btn {
+  min-width: 28px;
+  height: 28px;
+  padding: 0 8px;
+  border-radius: 6px;
+  border: 1px solid #e7e5e4;
+  background: white;
+  color: #57534e;
+  font-size: 0.74rem;
+  font-weight: 600;
+  cursor: pointer;
+  transition: all 0.15s ease;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+}
+.rsvp-page-btn:hover:not(:disabled) { border-color: #7b8a5b; color: #2a2723; }
+.rsvp-page-btn.active {
+  background: #7b8a5b;
+  color: white;
+  border-color: #7b8a5b;
+}
+.rsvp-page-btn:disabled {
+  opacity: 0.4;
+  cursor: not-allowed;
+}
+.rsvp-page-ellipsis {
+  font-size: 0.74rem;
+  color: #a8a29e;
+  padding: 0 4px;
+}
+
 .rsvp-row { border-bottom: 1px solid #f5f4f0; }
 .rsvp-row:hover { background: #fafaf8; }
 

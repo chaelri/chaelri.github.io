@@ -1119,8 +1119,11 @@ function renderFinalList() {
 // Lets Charlie + Karla finalize the list before the June 1 deadline. Shows
 // who responded via the website, who they marked manually, and who still
 // needs a nudge. State is driven entirely by allData[].
-let rsvpFilter = "all";
+let rsvpFilter = "all";       // status chip
+let rsvpSide   = "all";       // side chip (Karla / Charlie / Both / All)
 let rsvpSearch = "";
+let rsvpPage   = 1;
+let rsvpPageSize = 50;        // 0 = show all
 
 function rsvpBucket(g) {
   // Bucket used by both the stat cards and the filter chips.
@@ -1164,10 +1167,24 @@ function renderRsvpTracker() {
     });
   });
 
-  // ----- Filter chips
+  // ----- Status filter chips
   document.querySelectorAll(".rsvp-chip").forEach((el) => {
     el.classList.toggle("active", el.dataset.filter === rsvpFilter);
-    el.onclick = () => { rsvpFilter = el.dataset.filter; renderRsvpTracker(); };
+    el.onclick = () => {
+      rsvpFilter = el.dataset.filter;
+      rsvpPage = 1;
+      renderRsvpTracker();
+    };
+  });
+
+  // ----- Side filter chips (Karla / Charlie / Both / All)
+  document.querySelectorAll(".rsvp-side-chip").forEach((el) => {
+    el.classList.toggle("active", el.dataset.side === rsvpSide);
+    el.onclick = () => {
+      rsvpSide = el.dataset.side;
+      rsvpPage = 1;
+      renderRsvpTracker();
+    };
   });
 
   // ----- Search input (lazy-bind once)
@@ -1176,15 +1193,31 @@ function renderRsvpTracker() {
     searchEl.dataset.bound = "1";
     searchEl.addEventListener("input", (e) => {
       rsvpSearch = e.target.value.toLowerCase().trim();
+      rsvpPage = 1;
       renderRsvpTracker();
     });
   }
   if (searchEl) searchEl.value = rsvpSearch;
 
-  // ----- Apply filter + search
+  // ----- Page-size selector (lazy-bind once)
+  const pageSizeEl = document.getElementById("rsvp-page-size");
+  if (pageSizeEl && !pageSizeEl.dataset.bound) {
+    pageSizeEl.dataset.bound = "1";
+    pageSizeEl.addEventListener("change", (e) => {
+      rsvpPageSize = Number(e.target.value) || 0;
+      rsvpPage = 1;
+      renderRsvpTracker();
+    });
+  }
+  if (pageSizeEl) pageSizeEl.value = String(rsvpPageSize);
+
+  // ----- Apply filters + search
   let rows = invited;
   if (rsvpFilter !== "all") {
     rows = rows.filter((g) => rsvpBucket(g) === rsvpFilter);
+  }
+  if (rsvpSide !== "all") {
+    rows = rows.filter((g) => g.side === rsvpSide);
   }
   if (rsvpSearch) {
     rows = rows.filter(
@@ -1202,7 +1235,68 @@ function renderRsvpTracker() {
   });
 
   empty.classList.toggle("hidden", rows.length > 0);
-  body.innerHTML = rows.map((g) => rsvpRowHtml(g)).join("");
+
+  // ----- Pagination — slice rows + draw the page-button strip.
+  const total = rows.length;
+  const pageSize = rsvpPageSize > 0 ? rsvpPageSize : Math.max(total, 1);
+  const pageCount = Math.max(1, Math.ceil(total / pageSize));
+  if (rsvpPage > pageCount) rsvpPage = pageCount;
+  if (rsvpPage < 1) rsvpPage = 1;
+  const start = (rsvpPage - 1) * pageSize;
+  const visible = rsvpPageSize > 0 ? rows.slice(start, start + pageSize) : rows;
+  body.innerHTML = visible.map((g) => rsvpRowHtml(g)).join("");
+  renderRsvpPagination(total, pageCount);
+}
+
+// Sliding-window pagination strip. Shows first / last / current ± 2 with
+// ellipses, plus prev / next arrows. Skips the strip entirely if "Show all"
+// is on or the result set fits in a single page.
+function renderRsvpPagination(total, pageCount) {
+  const indicator = document.getElementById("rsvp-page-indicator");
+  const strip = document.getElementById("rsvp-pagination");
+  if (!indicator || !strip) return;
+  if (rsvpPageSize === 0 || total === 0) {
+    indicator.textContent = total === 0
+      ? "No results"
+      : `Showing all ${total}`;
+    strip.innerHTML = "";
+    return;
+  }
+  const pageSize = rsvpPageSize;
+  const start = (rsvpPage - 1) * pageSize + 1;
+  const end = Math.min(rsvpPage * pageSize, total);
+  indicator.textContent = `Showing ${start}–${end} of ${total} · Page ${rsvpPage} of ${pageCount}`;
+
+  if (pageCount <= 1) {
+    strip.innerHTML = "";
+    return;
+  }
+
+  const win = new Set([1, pageCount, rsvpPage - 1, rsvpPage, rsvpPage + 1]);
+  if (rsvpPage <= 3) [1, 2, 3, 4, 5].forEach((p) => win.add(p));
+  if (rsvpPage >= pageCount - 2) [pageCount - 4, pageCount - 3, pageCount - 2, pageCount - 1, pageCount].forEach((p) => win.add(p));
+  const pages = [...win].filter((p) => p >= 1 && p <= pageCount).sort((a, b) => a - b);
+
+  const parts = [];
+  parts.push(`<button class="rsvp-page-btn" data-page="${rsvpPage - 1}" ${rsvpPage === 1 ? "disabled" : ""}>‹</button>`);
+  let prev = 0;
+  for (const p of pages) {
+    if (p - prev > 1) parts.push(`<span class="rsvp-page-ellipsis">…</span>`);
+    parts.push(`<button class="rsvp-page-btn ${p === rsvpPage ? "active" : ""}" data-page="${p}">${p}</button>`);
+    prev = p;
+  }
+  parts.push(`<button class="rsvp-page-btn" data-page="${rsvpPage + 1}" ${rsvpPage === pageCount ? "disabled" : ""}>›</button>`);
+  strip.innerHTML = parts.join("");
+
+  strip.querySelectorAll(".rsvp-page-btn").forEach((btn) => {
+    btn.onclick = () => {
+      const p = Number(btn.dataset.page);
+      if (Number.isInteger(p) && p >= 1 && p <= pageCount) {
+        rsvpPage = p;
+        renderRsvpTracker();
+      }
+    };
+  });
 }
 
 function rsvpRowHtml(g) {
