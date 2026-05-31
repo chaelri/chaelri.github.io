@@ -133,6 +133,10 @@ function init() {
           tags: Array.isArray(guest.tags) ? guest.tags : [],
           pairWith: guest.pairWith || "",
           followedUp: guest.followedUp === true,
+          // Final Check is set either manually via the dashboard checkbox or
+          // automatically when a website RSVP comes in (yes → true,
+          // no → false). Default to false so unchecked rows render correctly.
+          finalChecked: guest.finalChecked === true,
         };
       });
       render();
@@ -1155,15 +1159,18 @@ function renderRsvpTracker() {
   const invited = allData.filter((g) => g.invited === "yes");
 
   // ----- Stat cards
-  const counts = { pending: 0, "yes-web": 0, "yes-manual": 0, no: 0 };
+  const counts = { pending: 0, "yes-web": 0, "yes-manual": 0, no: 0, "final-yes": 0 };
   for (const g of invited) {
     const b = rsvpBucket(g);
     if (b in counts) counts[b]++;
+    // Final Yes is a cross-cut, not a bucket — count it separately.
+    if (g.status === "yes" && g.finalChecked === true) counts["final-yes"]++;
   }
   const STAT_CARDS = [
     { key: "yes-web",    label: "Yes · Website", value: counts["yes-web"],    hint: "Came in via the site" },
     { key: "yes-manual", label: "Yes · Manual",  value: counts["yes-manual"], hint: "Marked by Karla / Charlie" },
     { key: "no",         label: "Declined",      value: counts.no,            hint: "Not attending" },
+    { key: "final-yes",  label: "Final Yes ✓",   value: counts["final-yes"],  hint: "Locked-in attendees" },
   ];
   cards.innerHTML = STAT_CARDS.map((s) => `
     <div class="rsvp-stat-card ${rsvpFilter === s.key ? "active" : ""}" data-card="${s.key}">

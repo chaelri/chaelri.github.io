@@ -287,6 +287,18 @@ th {
   line-height: 1.1;
 }
 .rsvp-stat-card.active { border-color: #7b8a5b; background: #f6f4ec; }
+/* Final Yes card — sage tint always-on so the headline locked-in count
+   reads as the primary metric. */
+.rsvp-stat-card[data-card="final-yes"] {
+  background: #eef2e2;
+  border-color: #7b8a5b;
+}
+.rsvp-stat-card[data-card="final-yes"] .stat-label { color: #4f6630; }
+.rsvp-stat-card[data-card="final-yes"] .stat-value { color: #2f3d1e; }
+.rsvp-stat-card[data-card="final-yes"].active {
+  background: #e3efd5;
+  box-shadow: inset 0 0 0 2px #7b8a5b;
+}
 
 .rsvp-chip {
   font-size: 0.72rem;
