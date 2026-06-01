@@ -27,7 +27,7 @@ const fbAuth = firebase.auth();
 
 // ─── AUTH / EDITOR ALLOWLIST ────────────────────────────────────────
 const ALLOWED_EDITORS = [
-  'wromantico603@gmail.com',
+  'willy23.mgc@gmail.com',
   'kasromantico@gmail.com',
   'charliecayno@gmail.com',
 ];

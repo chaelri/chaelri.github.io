@@ -66,7 +66,7 @@ body.readonly-mode       // Class applied when !isEditor
 
 ## ALLOWED_EDITORS
 ```javascript
-['wromantico603@gmail.com', 'kasromantico@gmail.com', 'charliecayno@gmail.com']
+['willy23.mgc@gmail.com', 'kasromantico@gmail.com', 'charliecayno@gmail.com']
 ```
 Non-editors: view-only, create/delete/edit hidden, inputs disabled.
 
