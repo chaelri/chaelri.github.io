@@ -1570,6 +1570,106 @@ body[data-company="moriah"] .mobile-back-btn { color: #7c3aed; }
   flex-shrink: 0;
 }
 
+/* ===== EMAIL/PASSWORD SIGN-IN POPOVER ===== */
+.auth-popover {
+  position: absolute;
+  width: 280px;
+  background: #ffffff;
+  color: #0f172a;
+  border-radius: 12px;
+  box-shadow: 0 18px 40px rgba(15, 23, 42, 0.28), 0 2px 6px rgba(15, 23, 42, 0.12);
+  border: 1px solid #e2e8f0;
+  padding: 14px;
+  z-index: 9999;
+  font-size: 13px;
+  animation: authPopFadeIn 0.14s ease;
+}
+@keyframes authPopFadeIn {
+  from { opacity: 0; transform: translateY(-4px); }
+  to   { opacity: 1; transform: translateY(0); }
+}
+.auth-popover-title {
+  font-size: 14px;
+  font-weight: 700;
+  color: #0f172a;
+  margin-bottom: 10px;
+}
+.auth-popover-label {
+  display: block;
+  font-size: 11px;
+  font-weight: 600;
+  color: #64748b;
+  text-transform: uppercase;
+  letter-spacing: 0.04em;
+  margin: 8px 0 4px;
+}
+.auth-popover-input {
+  width: 100%;
+  padding: 8px 10px;
+  font-size: 16px; /* prevent iOS zoom */
+  border: 1px solid #cbd5e1;
+  border-radius: 7px;
+  background: #f8fafc;
+  color: #0f172a;
+  transition: border-color 0.15s ease, background 0.15s ease;
+  box-sizing: border-box;
+}
+.auth-popover-input:focus {
+  outline: none;
+  border-color: #1e3a8a;
+  background: #ffffff;
+}
+body[data-company="moriah"] .auth-popover-input:focus { border-color: #6d28d9; }
+.auth-popover-error {
+  margin-top: 10px;
+  padding: 8px 10px;
+  background: #fef2f2;
+  color: #991b1b;
+  border: 1px solid #fecaca;
+  border-radius: 7px;
+  font-size: 12px;
+  line-height: 1.35;
+}
+.auth-popover-actions {
+  display: flex;
+  justify-content: flex-end;
+  gap: 8px;
+  margin-top: 12px;
+}
+.auth-popover-btn {
+  padding: 7px 14px;
+  font-size: 12px;
+  font-weight: 600;
+  border-radius: 7px;
+  cursor: pointer;
+  border: 1px solid transparent;
+  transition: background 0.15s ease, border-color 0.15s ease, color 0.15s ease;
+}
+.auth-popover-btn-secondary {
+  background: #f1f5f9;
+  color: #475569;
+  border-color: #e2e8f0;
+}
+.auth-popover-btn-secondary:hover { background: #e2e8f0; }
+.auth-popover-btn-primary {
+  background: #1e3a8a;
+  color: #ffffff;
+}
+.auth-popover-btn-primary:hover { background: #1e40af; }
+.auth-popover-btn-primary:disabled {
+  background: #94a3b8;
+  cursor: not-allowed;
+}
+body[data-company="moriah"] .auth-popover-btn-primary { background: #6d28d9; }
+body[data-company="moriah"] .auth-popover-btn-primary:hover { background: #7c3aed; }
+
+@media (max-width: 767px) {
+  .auth-popover {
+    width: calc(100vw - 24px);
+    max-width: 320px;
+  }
+}
+
 /* ===== READ-ONLY MODE ===== */
 /* Hide all editor-only controls when not signed in as editor */
 body.readonly-mode #btn-new-record,

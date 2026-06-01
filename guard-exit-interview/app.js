@@ -48,7 +48,7 @@ function renderAuthControl() {
   let html;
   if (currentUser) {
     const fullName = currentUser.displayName || currentUser.email || 'User';
-    const firstName = fullName.split(' ')[0];
+    const firstName = fullName.split('@')[0].split(' ')[0];
     const initial = (fullName || '?')[0].toUpperCase();
     const photo = currentUser.photoURL || '';
     const avatarHtml = photo
@@ -84,18 +84,122 @@ function renderAuthControl() {
     if (!btn) return;
     btn.addEventListener('click', (e) => {
       if (currentUser) {
-        // Sign out (whole button does this when signed in)
         fbAuth.signOut();
       } else {
-        const provider = new firebase.auth.GoogleAuthProvider();
-        fbAuth.signInWithPopup(provider).catch(err => {
-          if (err && err.code !== 'auth/popup-closed-by-user') {
-            alert('Sign-in failed: ' + (err.message || err.code));
-          }
-        });
+        openSignInPopover(btn);
       }
     });
   });
+}
+
+// ─── EMAIL/PASSWORD SIGN-IN POPOVER ─────────────────────────────────
+const LAST_EMAIL_KEY = 'gei_last_signin_email';
+
+function openSignInPopover(anchorBtn) {
+  closeSignInPopover();
+
+  const lastEmail = localStorage.getItem(LAST_EMAIL_KEY) || '';
+  const pop = document.createElement('div');
+  pop.id = 'auth-popover';
+  pop.className = 'auth-popover';
+  pop.innerHTML = `
+    <div class="auth-popover-title">Editor sign-in</div>
+    <label class="auth-popover-label">Email</label>
+    <input id="auth-popover-email" type="email" autocomplete="username" inputmode="email"
+           class="auth-popover-input" placeholder="you@example.com" value="${escHtml(lastEmail)}" />
+    <label class="auth-popover-label">Password</label>
+    <input id="auth-popover-password" type="password" autocomplete="current-password"
+           class="auth-popover-input" placeholder="••••••••" />
+    <div id="auth-popover-error" class="auth-popover-error" hidden></div>
+    <div class="auth-popover-actions">
+      <button id="auth-popover-cancel" class="auth-popover-btn auth-popover-btn-secondary">Cancel</button>
+      <button id="auth-popover-submit" class="auth-popover-btn auth-popover-btn-primary">Sign in</button>
+    </div>
+  `;
+  document.body.appendChild(pop);
+
+  // Position under the anchor button (right-aligned to it)
+  const rect = anchorBtn.getBoundingClientRect();
+  const popWidth = 280;
+  const top = rect.bottom + window.scrollY + 8;
+  let left = rect.right + window.scrollX - popWidth;
+  if (left < 8) left = 8;
+  if (left + popWidth > window.innerWidth - 8) left = window.innerWidth - popWidth - 8;
+  pop.style.top = top + 'px';
+  pop.style.left = left + 'px';
+
+  const emailInput = pop.querySelector('#auth-popover-email');
+  const passInput = pop.querySelector('#auth-popover-password');
+  const errEl = pop.querySelector('#auth-popover-error');
+  const submitBtn = pop.querySelector('#auth-popover-submit');
+  const cancelBtn = pop.querySelector('#auth-popover-cancel');
+
+  setTimeout(() => (lastEmail ? passInput : emailInput).focus(), 30);
+
+  const showError = (msg) => {
+    errEl.textContent = msg;
+    errEl.hidden = false;
+  };
+
+  const doSignIn = () => {
+    const email = emailInput.value.trim().toLowerCase();
+    const password = passInput.value;
+    if (!email || !password) {
+      showError('Email and password are required.');
+      return;
+    }
+    submitBtn.disabled = true;
+    submitBtn.textContent = 'Signing in…';
+    errEl.hidden = true;
+    fbAuth.signInWithEmailAndPassword(email, password)
+      .then(() => {
+        localStorage.setItem(LAST_EMAIL_KEY, email);
+        closeSignInPopover();
+      })
+      .catch(err => {
+        submitBtn.disabled = false;
+        submitBtn.textContent = 'Sign in';
+        const code = (err && err.code) || '';
+        let msg = (err && err.message) || 'Sign-in failed.';
+        if (code === 'auth/wrong-password' || code === 'auth/invalid-credential' || code === 'auth/invalid-login-credentials') {
+          msg = 'Wrong email or password.';
+        } else if (code === 'auth/user-not-found') {
+          msg = 'No account for that email. Ask Charlie to create one.';
+        } else if (code === 'auth/too-many-requests') {
+          msg = 'Too many attempts. Wait a moment and try again.';
+        } else if (code === 'auth/network-request-failed') {
+          msg = 'Network error. Check your connection.';
+        } else if (code === 'auth/operation-not-allowed') {
+          msg = 'Email/password sign-in is not enabled in Firebase. Enable it in the console.';
+        }
+        showError(msg);
+      });
+  };
+
+  submitBtn.addEventListener('click', doSignIn);
+  cancelBtn.addEventListener('click', closeSignInPopover);
+  [emailInput, passInput].forEach(inp => {
+    inp.addEventListener('keydown', (e) => {
+      if (e.key === 'Enter') { e.preventDefault(); doSignIn(); }
+      else if (e.key === 'Escape') { e.preventDefault(); closeSignInPopover(); }
+    });
+  });
+
+  setTimeout(() => document.addEventListener('mousedown', onOutsideClick), 0);
+}
+
+function onOutsideClick(e) {
+  const pop = document.getElementById('auth-popover');
+  if (!pop) return;
+  if (pop.contains(e.target)) return;
+  if (e.target.closest('.auth-btn-signin')) return;
+  closeSignInPopover();
+}
+
+function closeSignInPopover() {
+  const pop = document.getElementById('auth-popover');
+  if (pop) pop.remove();
+  document.removeEventListener('mousedown', onOutsideClick);
 }
 
 fbAuth.onAuthStateChanged(user => {
