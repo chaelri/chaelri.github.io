@@ -529,13 +529,17 @@ th {
 .rsvp-need.need-followup { background: #fef3df; color: #a07000; }
 .rsvp-need.need-final    { background: #e0e7ee; color: #2e4159; }
 
-/* Followed-up checkbox in the RSVP Tracker */
+/* Followed-up / Final-check checkbox visual — shared between the table row
+   (.rsvp-followup) and the Remaining card view (.rsvp-card-toggle). The
+   :checked + .rsvp-followup-box selector is intentionally unscoped so both
+   wrappers light up the box from the same rule. */
 .rsvp-followup {
   display: inline-flex;
   cursor: pointer;
   user-select: none;
 }
-.rsvp-followup input { display: none; }
+.rsvp-followup input,
+.rsvp-card-toggle input { display: none; }
 .rsvp-followup-box {
   width: 18px; height: 18px;
   border-radius: 5px;
@@ -544,11 +548,12 @@ th {
   position: relative;
   transition: all 0.15s ease;
 }
-.rsvp-followup:hover .rsvp-followup-box { border-color: #7b8a5b; }
-.rsvp-followup input:checked + .rsvp-followup-box {
+.rsvp-followup:hover .rsvp-followup-box,
+.rsvp-card-toggle:hover .rsvp-followup-box { border-color: #7b8a5b; }
+input:checked + .rsvp-followup-box {
   background: #7b8a5b; border-color: #7b8a5b;
 }
-.rsvp-followup input:checked + .rsvp-followup-box::after {
+input:checked + .rsvp-followup-box::after {
   content: ""; position: absolute;
   left: 5px; top: 1px;
   width: 5px; height: 10px;
