@@ -334,9 +334,13 @@ function render() {
   });
 
   // --- STATS LOGIC ---
-  // Lap children are excluded from every headcount stat. They get their own
-  // row below.
-  const countable = allData.filter((g) => !g.noCount);
+  // Headcount cards count only invited, non-lap-child guests, so the top
+  // stats line up with the RSVP Tracker buckets (which also gate on
+  // invited === "yes"). Lap children get their own row below; guests still
+  // being considered (invited !== "yes") are intentionally out of the totals.
+  const countable = allData.filter(
+    (g) => !g.noCount && g.invited === "yes"
+  );
   const entourageOnly = countable.filter(
     (g) =>
       g.role &&
