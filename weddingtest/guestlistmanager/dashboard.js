@@ -1159,6 +1159,13 @@ function rsvpBucket(g) {
 function passesRsvpFilter(g) {
   if (rsvpFilter === "all") return true;
   if (rsvpFilter === "final-yes") return g.status === "yes" && g.finalChecked === true;
+  // "Remaining" = the punch list. Guests who still need an action from
+  // Charlie / Karla: either they haven't responded (pending → needs a
+  // follow-up nudge) or they said yes but haven't been locked in yet
+  // (needs a final attendance check). Declined and Final-Yes are done.
+  if (rsvpFilter === "remaining") {
+    return g.status === "pending" || (g.status === "yes" && g.finalChecked !== true);
+  }
   return rsvpBucket(g) === rsvpFilter;
 }
 
@@ -1278,8 +1285,6 @@ function renderRsvpTracker() {
     return sb - sa || a.name.localeCompare(b.name);
   });
 
-  empty.classList.toggle("hidden", rows.length > 0);
-
   // ----- Pagination — slice rows + draw the page-button strip.
   const total = rows.length;
   const pageSize = rsvpPageSize > 0 ? rsvpPageSize : Math.max(total, 1);
@@ -1288,7 +1293,28 @@ function renderRsvpTracker() {
   if (rsvpPage < 1) rsvpPage = 1;
   const start = (rsvpPage - 1) * pageSize;
   const visible = rsvpPageSize > 0 ? rows.slice(start, start + pageSize) : rows;
-  body.innerHTML = visible.map((g) => rsvpRowHtml(g)).join("");
+
+  // ----- Card view ↔ Table view. The Remaining filter renders as a grid of
+  // action cards (followed-up + final-check toggles inline) so Charlie + Karla
+  // can clear the punch list at a glance. All other filters use the table.
+  const isCardView = rsvpFilter === "remaining";
+  const tableWrap = document.getElementById("rsvpTrackerTableWrap");
+  const cardsWrap = document.getElementById("rsvpTrackerCards");
+  const cardsGrid = document.getElementById("rsvp-cards-grid");
+  const cardsEmpty = document.getElementById("rsvp-cards-empty");
+  if (tableWrap && cardsWrap) {
+    tableWrap.classList.toggle("hidden", isCardView);
+    cardsWrap.classList.toggle("hidden", !isCardView);
+  }
+  if (isCardView) {
+    body.innerHTML = "";
+    empty.classList.add("hidden");
+    if (cardsGrid) cardsGrid.innerHTML = visible.map((g) => rsvpCardHtml(g)).join("");
+    if (cardsEmpty) cardsEmpty.classList.toggle("hidden", rows.length > 0);
+  } else {
+    empty.classList.toggle("hidden", rows.length > 0);
+    body.innerHTML = visible.map((g) => rsvpRowHtml(g)).join("");
+  }
   renderRsvpPagination(total, pageCount);
 }
 
@@ -1387,6 +1413,55 @@ function rsvpRowHtml(g) {
       <td class="p-3 text-center">${followedUpCell}</td>
       <td class="p-3 text-center">${finalCheckCell}</td>
     </tr>
+  `;
+}
+
+// Card view for the Remaining punch list. Same data + same checkbox event
+// hooks as the table row (data-followup-id + data-finalcheck-id), so the
+// delegated change handler below picks both UIs up without any new wiring.
+// Each card surfaces the *reason* it's on the punch list as a small badge:
+//   - status === "pending"           → "NEEDS RESPONSE" (no RSVP yet, nudge them)
+//   - status === "yes" && !final     → "NEEDS FINAL CHECK" (said yes, confirm)
+function rsvpCardHtml(g) {
+  const sideClr = g.side === "karla" ? "text-rose-500"
+                : g.side === "charlie" ? "text-sky-600" : "text-stone-500";
+  const status = g.status || "pending";
+  const statusLabel = status === "yes" ? "Attending" : status === "no" ? "Declined" : "Pending";
+  const needsBadge = status === "pending"
+    ? `<span class="rsvp-need need-followup">Needs response</span>`
+    : `<span class="rsvp-need need-final">Needs final check</span>`;
+  const when = g.submittedAt
+    ? new Date(g.submittedAt).toLocaleString("en-US", {
+        month: "short", day: "numeric", hour: "2-digit", minute: "2-digit",
+      })
+    : "—";
+  return `
+    <div class="rsvp-card">
+      <div class="rsvp-card-head">
+        <div class="rsvp-card-name">
+          <div class="serif text-base font-semibold text-stone-800">${g.name}</div>
+          ${g.nickname ? `<div class="text-[10px] text-stone-400 italic">"${g.nickname}"</div>` : ""}
+        </div>
+        ${needsBadge}
+      </div>
+      <div class="rsvp-card-meta">
+        <span class="text-[10px] uppercase tracking-widest font-bold ${sideClr}">${g.side}</span>
+        <span class="rsvp-badge ${status}">${statusLabel}</span>
+        <span class="text-[10px] text-stone-400">${when}</span>
+      </div>
+      <div class="rsvp-card-actions">
+        <label class="rsvp-card-toggle">
+          <input type="checkbox" data-followup-id="${g.id}" ${g.followedUp ? "checked" : ""} />
+          <span class="rsvp-followup-box"></span>
+          <span>Followed up</span>
+        </label>
+        <label class="rsvp-card-toggle" title="Lock in this guest's final status">
+          <input type="checkbox" data-finalcheck-id="${g.id}" ${g.finalChecked ? "checked" : ""} />
+          <span class="rsvp-followup-box"></span>
+          <span>Final check</span>
+        </label>
+      </div>
+    </div>
   `;
 }
 

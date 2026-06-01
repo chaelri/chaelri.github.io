@@ -470,6 +470,65 @@ th {
 .rsvp-quick-btn.set-maybe:hover   { background: #fef3df; border-color: #d6a13a; color: #a07000; }
 .rsvp-quick-btn.set-pending:hover { background: #f3efe9; border-color: #a8a29e; color: #57534e; }
 
+/* ----- Remaining card view (RSVP Tracker punch list) -----
+   Activated by the Remaining filter chip. Same data + same toggle hooks
+   as the table row, just laid out as an action card so Charlie + Karla
+   can clear the follow-up / final-check list at a glance. */
+.rsvp-card {
+  display: flex;
+  flex-direction: column;
+  gap: 10px;
+  padding: 14px;
+  background: white;
+  border: 1px solid #e7e5e4;
+  border-radius: 12px;
+  transition: border-color 0.15s ease, transform 0.12s ease;
+}
+.rsvp-card:hover { border-color: #7b8a5b; transform: translateY(-1px); }
+.rsvp-card-head {
+  display: flex;
+  align-items: flex-start;
+  justify-content: space-between;
+  gap: 10px;
+}
+.rsvp-card-meta {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  flex-wrap: wrap;
+}
+.rsvp-card-actions {
+  display: flex;
+  gap: 14px;
+  flex-wrap: wrap;
+  padding-top: 8px;
+  border-top: 1px dashed #f0eee9;
+}
+.rsvp-card-toggle {
+  display: inline-flex;
+  align-items: center;
+  gap: 8px;
+  cursor: pointer;
+  user-select: none;
+  font-size: 0.72rem;
+  font-weight: 600;
+  color: #57534e;
+}
+.rsvp-card-toggle input { display: none; }
+.rsvp-need {
+  display: inline-flex;
+  align-items: center;
+  font-size: 0.6rem;
+  font-weight: 700;
+  text-transform: uppercase;
+  letter-spacing: 0.06em;
+  padding: 3px 8px;
+  border-radius: 999px;
+  white-space: nowrap;
+}
+.rsvp-need.need-followup { background: #fef3df; color: #a07000; }
+.rsvp-need.need-final    { background: #e0e7ee; color: #2e4159; }
+
 /* Followed-up checkbox in the RSVP Tracker */
 .rsvp-followup {
   display: inline-flex;
