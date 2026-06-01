@@ -1084,13 +1084,17 @@ function buildMiniPagination(containerId, indicatorId, totalPages, current, onCh
 function renderFinalList() {
   const finalListBody = document.getElementById("finalGuestTableBody");
   finalListBody.innerHTML = "";
-  // Exclude lap children — they're not counted toward the confirmed guest total.
+  // Mirror the Tracker's Final Yes ✓ bucket — invited + status yes +
+  // finalChecked. Lap children stay in (they're real attendees, just
+  // off the food count); they get a Lap tag in the row for clarity.
   const confirmedGuests = allData
-    .filter((g) => g.status === "yes" && !g.noCount)
+    .filter(
+      (g) => g.invited === "yes" && g.status === "yes" && g.finalChecked === true
+    )
     .sort((a, b) => new Date(b.submittedAt) - new Date(a.submittedAt));
   document.getElementById(
     "final-count-badge"
-  ).innerText = `${confirmedGuests.length} Confirmed Guests`;
+  ).innerText = `${confirmedGuests.length} Final Yes`;
   if (confirmedGuests.length === 0) {
     finalListBody.innerHTML = `<tr><td colspan="3" class="p-8 text-center text-stone-400 italic">No confirmed guests yet...</td></tr>`;
     buildMiniPagination("final-pagination-container", "final-page-indicator", 0, 0, () => {});
@@ -1138,6 +1142,7 @@ function renderFinalList() {
 let rsvpFilter   = "all";     // status chip
 let rsvpSide     = "all";     // side chip (Karla / Charlie / Both / All)
 let rsvpFollowup = "all";     // followed-up chip (all / yes / no)
+let rsvpLap      = "all";     // lap-children chip (all / only / exclude)
 let rsvpSearch   = "";
 let rsvpPage     = 1;
 let rsvpPageSize = 50;        // 0 = show all
@@ -1235,6 +1240,19 @@ function renderRsvpTracker() {
     };
   });
 
+  // ----- Lap-children filter chips (All / Just laps / Exclude). Lap children
+  // (noCount=true) are real attendees but excluded from food/seating totals.
+  // Separate axis so Charlie can isolate or hide them without disturbing the
+  // status / side / followed-up filters.
+  document.querySelectorAll(".rsvp-lap-chip").forEach((el) => {
+    el.classList.toggle("active", el.dataset.lap === rsvpLap);
+    el.onclick = () => {
+      rsvpLap = el.dataset.lap;
+      rsvpPage = 1;
+      renderRsvpTracker();
+    };
+  });
+
   // ----- Search input (lazy-bind once)
   const searchEl = document.getElementById("rsvp-search");
   if (searchEl && !searchEl.dataset.bound) {
@@ -1269,6 +1287,11 @@ function renderRsvpTracker() {
     rows = rows.filter((g) => g.followedUp === true);
   } else if (rsvpFollowup === "no") {
     rows = rows.filter((g) => g.followedUp !== true);
+  }
+  if (rsvpLap === "only") {
+    rows = rows.filter((g) => g.noCount === true);
+  } else if (rsvpLap === "exclude") {
+    rows = rows.filter((g) => g.noCount !== true);
   }
   if (rsvpSearch) {
     rows = rows.filter(

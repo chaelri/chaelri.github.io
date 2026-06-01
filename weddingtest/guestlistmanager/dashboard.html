@@ -145,6 +145,12 @@
             <button class="rsvp-followup-chip" data-followup="yes">Followed up</button>
             <button class="rsvp-followup-chip" data-followup="no">Not yet</button>
           </div>
+          <div class="flex flex-wrap gap-2 items-center">
+            <span class="text-[9px] uppercase tracking-widest text-stone-400 font-bold mr-1">Lap children</span>
+            <button class="rsvp-lap-chip active" data-lap="all">All</button>
+            <button class="rsvp-lap-chip" data-lap="only">Just laps</button>
+            <button class="rsvp-lap-chip" data-lap="exclude">Exclude</button>
+          </div>
         </div>
 
         <!-- Card view — surfaces only when the Remaining filter is active.
@@ -186,6 +192,46 @@
             </div>
             <div id="rsvp-pagination" class="flex flex-wrap justify-center items-center gap-1.5">
               <!-- JS injected page buttons -->
+            </div>
+          </div>
+        </div>
+      </div>
+
+      <!-- THE OFFICIAL GUEST LIST — sits directly under the RSVP Tracker so
+           Charlie + Karla can see who's locked in (Final Yes ✓) right after
+           the punch list. Same baseline as the Tracker's Final-Yes bucket. -->
+      <div class="mt-2 mb-12">
+        <div class="bg-[#7b8a5b] p-6 rounded-t-2xl shadow-sm border border-[#6a784d]">
+          <div class="flex justify-between items-center text-white">
+            <div>
+              <h2 class="serif text-xl italic">The Official Guest List</h2>
+              <p class="text-[10px] uppercase tracking-widest opacity-80 mt-1">
+                Final Yes ✓ — locked-in attendees from the RSVP Tracker
+              </p>
+            </div>
+            <div id="final-count-badge"
+                 class="bg-white/20 px-4 py-2 rounded-full text-xs font-bold uppercase tracking-tighter">
+              0 Final Yes
+            </div>
+          </div>
+        </div>
+        <div class="bg-white rounded-b-2xl shadow-sm border border-stone-100 overflow-hidden">
+          <div class="overflow-x-auto">
+            <table class="w-full text-left border-collapse">
+              <thead>
+                <tr class="bg-stone-50 border-b border-stone-100">
+                  <th class="p-4 text-[10px] uppercase tracking-widest text-stone-500 font-bold">Confirmed Name</th>
+                  <th class="p-4 text-[10px] uppercase tracking-widest text-stone-500 font-bold">Response Date</th>
+                  <th class="p-4 text-[10px] uppercase tracking-widest text-stone-500 font-bold text-right">Status</th>
+                </tr>
+              </thead>
+              <tbody id="finalGuestTableBody" class="text-sm text-stone-600"></tbody>
+            </table>
+          </div>
+          <div class="px-4 py-4 flex flex-col items-center gap-2 border-t border-stone-100">
+            <div id="final-pagination-container" class="flex justify-center items-center gap-1.5"></div>
+            <div id="final-page-indicator" class="text-[10px] uppercase tracking-widest text-stone-400 font-bold">
+              Page 0 of 0
             </div>
           </div>
         </div>
@@ -437,71 +483,6 @@
                 class="text-xs text-stone-600"
               ></tbody>
             </table>
-          </div>
-        </div>
-      </div>
-
-      <!-- FINAL CONFIRMED LIST SECTION -->
-      <div class="mt-12 mb-12 lg:col-span-4">
-        <div
-          class="bg-[#7b8a5b] p-6 rounded-t-2xl shadow-sm border border-[#6a784d]"
-        >
-          <div class="flex justify-between items-center text-white">
-            <div>
-              <h2 class="serif text-xl italic">The Official Guest List</h2>
-              <p class="text-[10px] uppercase tracking-widest opacity-80 mt-1">
-                Confirmed & Expected Guests
-              </p>
-            </div>
-            <div
-              id="final-count-badge"
-              class="bg-white/20 px-4 py-2 rounded-full text-xs font-bold uppercase tracking-tighter"
-            >
-              0 Confirmed
-            </div>
-          </div>
-        </div>
-        <div
-          class="bg-white rounded-b-2xl shadow-sm border border-stone-100 overflow-hidden"
-        >
-          <div class="overflow-x-auto">
-            <table class="w-full text-left border-collapse">
-              <thead>
-                <tr class="bg-stone-50 border-b border-stone-100">
-                  <th
-                    class="p-4 text-[10px] uppercase tracking-widest text-stone-500 font-bold"
-                  >
-                    Confirmed Name
-                  </th>
-                  <th
-                    class="p-4 text-[10px] uppercase tracking-widest text-stone-500 font-bold"
-                  >
-                    Response Date
-                  </th>
-                  <th
-                    class="p-4 text-[10px] uppercase tracking-widest text-stone-500 font-bold text-right"
-                  >
-                    Status
-                  </th>
-                </tr>
-              </thead>
-              <tbody
-                id="finalGuestTableBody"
-                class="text-sm text-stone-600"
-              ></tbody>
-            </table>
-          </div>
-          <div class="px-4 py-4 flex flex-col items-center gap-2 border-t border-stone-100">
-            <div
-              id="final-pagination-container"
-              class="flex justify-center items-center gap-1.5"
-            ></div>
-            <div
-              id="final-page-indicator"
-              class="text-[10px] uppercase tracking-widest text-stone-400 font-bold"
-            >
-              Page 0 of 0
-            </div>
           </div>
         </div>
       </div>
