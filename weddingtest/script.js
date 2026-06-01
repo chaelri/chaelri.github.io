@@ -441,6 +441,12 @@ document.addEventListener("DOMContentLoaded", () => {
 });
 
 // --- 2. FIREBASE & RSVP ---
+// Tolerant name match: trim, collapse internal whitespace, lowercase.
+// Stops trailing spaces / double-spaces in either typed input or stored
+// guestList records from causing false "name not found" rejections.
+const normalizeName = (s) =>
+  String(s || "").trim().replace(/\s+/g, " ").toLowerCase();
+
 get(child(ref(db), "guestList")).then((snapshot) => {
   if (!snapshot.exists()) return;
   const guests = snapshot.val();
@@ -448,7 +454,7 @@ get(child(ref(db), "guestList")).then((snapshot) => {
   // Build a name→id lookup so the RSVP submit handler can mirror the
   // response into guestList/<id>/finalChecked.
   for (const [id, g] of Object.entries(guests)) {
-    if (g?.name) guestIdByName.set(String(g.name).toLowerCase(), id);
+    if (g?.name) guestIdByName.set(normalizeName(g.name), id);
   }
 });
 
@@ -463,8 +469,9 @@ nameInput.addEventListener("input", function () {
   if (!val || val.length < 2) return;
 
   currentFocus = -1;
+  const needle = normalizeName(val);
   const matches = masterGuestList.filter((n) =>
-    n.toLowerCase().includes(val.toLowerCase())
+    normalizeName(n).includes(needle)
   );
 
   if (matches.length > 0) {
@@ -552,9 +559,8 @@ document.getElementById("rsvpForm").onsubmit = async (e) => {
   currentGuestName = typedName;
 
   // 1. Check if name is in master list
-  const isValid = masterGuestList.some(
-    (n) => n.toLowerCase() === typedName.toLowerCase()
-  );
+  const typedKey = normalizeName(typedName);
+  const isValid = masterGuestList.some((n) => normalizeName(n) === typedKey);
 
   if (!isValid) {
     nameInput.classList.add("border-error", "shake");
@@ -596,7 +602,7 @@ document.getElementById("rsvpForm").onsubmit = async (e) => {
     //     Final Yes set; No clears any prior lock-in.
     //   - followedUp = true. The guest just responded on their own, so the
     //     follow-up task is done regardless of yes/no.
-    const guestId = guestIdByName.get(typedName.toLowerCase());
+    const guestId = guestIdByName.get(typedKey);
     if (guestId) {
       try {
         await Promise.all([
