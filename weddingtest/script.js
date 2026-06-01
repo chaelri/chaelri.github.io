@@ -554,7 +554,7 @@ document.addEventListener("click", (e) => {
 document.getElementById("rsvpForm").onsubmit = async (e) => {
   e.preventDefault();
 
-  const typedName = nameInput.value.trim();
+  const typedName = nameInput.value.trim().replace(/\s+/g, " ");
   const attendanceVal = document.getElementById("attendance").value;
   currentGuestName = typedName;
 

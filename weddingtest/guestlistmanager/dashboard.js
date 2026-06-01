@@ -48,6 +48,12 @@ function escapeAttr(s) {
   );
 }
 
+// Match rsvp.guestName ↔ guestList.name even when one side has stray spaces
+// (trailing, leading, or doubled-internal). Mirrors the same helper in
+// weddingtest/script.js so the dashboard read is tolerant of legacy records.
+const normalizeName = (s) =>
+  String(s || "").trim().replace(/\s+/g, " ").toLowerCase();
+
 // "guest" is the identifier for regular guests
 const ENTOURAGE_ROLES = [
   "guest",
@@ -106,8 +112,9 @@ function init() {
       allData = Object.entries(guests).map(([id, guest]) => {
         // Take the LATEST response by submittedAt so manual overrides win
         // when there are also website RSVPs for the same name.
+        const guestKey = normalizeName(guest.name);
         const matches = rsvps
-          .filter((r) => r.guestName && r.guestName.toLowerCase() === guest.name.toLowerCase())
+          .filter((r) => r.guestName && normalizeName(r.guestName) === guestKey)
           .sort((a, b) => new Date(b.submittedAt || 0) - new Date(a.submittedAt || 0));
         const response = matches[0];
         // Source is STICKY: once a guest has ever submitted via the website
@@ -813,8 +820,9 @@ window.updateManualStatus = async (guestName, newStatus) => {
   const rsvpRef = ref(db, "rsvps");
   const snap = await get(rsvpRef);
   const data = snap.val() || {};
+  const guestKey = normalizeName(guestName);
   const entries = Object.entries(data)
-    .filter(([, v]) => (v.guestName || "").toLowerCase() === guestName.toLowerCase())
+    .filter(([, v]) => normalizeName(v.guestName) === guestKey)
     .map(([key, v]) => ({ key, ...v }));
 
   // Latest website (non-manual) RSVP, if any
