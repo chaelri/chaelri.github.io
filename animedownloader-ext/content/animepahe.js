@@ -325,6 +325,21 @@
     const isAuto =
       new URLSearchParams(window.location.search).get("auto") === "true";
 
+    // Early tab-title update so the browser tab shows "EP N · Title"
+    // even before the nuke UI renders (or if it never does). Stops itself
+    // once set; nuke UI also sets <title> below so this is just for the
+    // pre-nuke window and for the native-player fallback.
+    const titleUpdater = setInterval(() => {
+      const titleEl = document.querySelector(".theatre-info h1 a[title]");
+      const epBtn = document.getElementById("episodeMenu");
+      const animeTitle = titleEl?.getAttribute("title");
+      const ep = epBtn?.innerText.match(/\d+/)?.[0];
+      if (animeTitle && ep) {
+        document.title = `EP ${ep} · ${animeTitle}`;
+        clearInterval(titleUpdater);
+      }
+    }, 200);
+
     const findData = setInterval(() => {
       const dlMenu = document.getElementById("pickDownload");
       const scrollArea = document.querySelector("#scrollArea");
@@ -495,7 +510,7 @@
 
     document.documentElement.innerHTML = `
 <head>
-  <title>${data.title}</title>
+  <title>EP ${data.epNum} · ${data.title}</title>
   <link href="https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600&display=swap" rel="stylesheet">
   <style>
     :root {
