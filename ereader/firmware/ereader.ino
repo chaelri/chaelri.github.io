@@ -78,7 +78,10 @@ Adafruit_NeoPixel rgb(1, RGB_PIN, NEO_GRB + NEO_KHZ800);
 Preferences prefs;
 
 // -------------------- STATE --------------------
-enum Mode : uint8_t { MODE_BOOK = 0, MODE_CHAPTER = 1, MODE_READING = 2 };
+// Both enums hoisted up here so Arduino IDE's auto-prototype
+// injector can resolve them in forward-declared function signatures.
+enum Mode    : uint8_t { MODE_BOOK = 0, MODE_CHAPTER = 1, MODE_READING = 2 };
+enum Gesture : uint8_t { G_NONE = 0, G_TAP, G_DOUBLE, G_HOLD };
 Mode     mode       = MODE_BOOK;
 uint16_t bookIdx    = 0;
 uint16_t chapterIdx = 0;
@@ -689,8 +692,6 @@ void render() {
 // ============================================================
 //   GESTURE DETECTOR
 // ============================================================
-enum Gesture : uint8_t { G_NONE = 0, G_TAP, G_DOUBLE, G_HOLD };
-
 bool     btnWasPressed = false;
 uint32_t btnPressStart = 0;
 uint32_t lastReleaseMs = 0;
