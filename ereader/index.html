@@ -861,7 +861,7 @@ void loop() {
     <div class="w-full h-2 rounded-full bg-white/[0.06] overflow-hidden mb-6">
       <div id="progressBar" class="h-full bg-gradient-to-r from-amber-500 to-rose-500 transition-all" style="width:0%"></div>
     </div>
-    <div id="checklist" class="space-y-6"></div>
+    <div id="checklistList" class="space-y-6"></div>
   </div>
 </section>
 
@@ -953,7 +953,7 @@ void loop() {
     },
   ];
 
-  const cl = document.getElementById("checklist");
+  const cl = document.getElementById("checklistList");
   const STORAGE_KEY = "ereader_checklist_v1";
   const checkedSet = new Set(JSON.parse(localStorage.getItem(STORAGE_KEY) || "[]"));
   let totalItems = 0;
