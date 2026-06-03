@@ -57,10 +57,14 @@
 #include <ArduinoJson.h>
 
 // -------------------- PINS --------------------
-static const int SDA_PIN = 5;
-static const int SCL_PIN = 6;
-static const int BTN_PIN = 9;      // BOOT button — INPUT_PULLUP, active LOW
-static const int LED_PIN = 8;      // on-board blue LED (active-LOW on most variants)
+static const int SDA_PIN     = 5;
+static const int SCL_PIN     = 6;
+static const int BTN_PIN     = 9;  // BOOT button — INPUT_PULLUP, active LOW
+static const int BTN_PIN_ALT = 0;  // optional external tactile button to GND.
+                                   // GPIO 0 is a strapping pin: do NOT hold
+                                   // this button during power-on / reset, or
+                                   // the C3 enters download mode.
+static const int LED_PIN     = 8;  // on-board blue LED (active-LOW on most variants)
 
 // -------------------- GESTURE TIMING --------------------
 static const uint32_t DEBOUNCE_MS = 25;
@@ -563,7 +567,8 @@ bool     isSecondPress = false;   // current press is the "second tap" of a doub
 
 Gesture readButton() {
   uint32_t now = millis();
-  bool pressed = (digitalRead(BTN_PIN) == LOW);
+  bool pressed = (digitalRead(BTN_PIN) == LOW) ||
+                 (digitalRead(BTN_PIN_ALT) == LOW);
 
   if (pressed && !btnWasPressed) {
     // If a press starts inside the double-tap window, this is the
@@ -691,7 +696,8 @@ void setup() {
 
   killOnboardLED();
 
-  pinMode(BTN_PIN, INPUT_PULLUP);
+  pinMode(BTN_PIN,     INPUT_PULLUP);
+  pinMode(BTN_PIN_ALT, INPUT_PULLUP);
 
   Wire.setPins(SDA_PIN, SCL_PIN);
   Wire.setClock(400000);
