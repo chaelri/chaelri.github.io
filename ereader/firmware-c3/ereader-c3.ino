@@ -192,6 +192,18 @@ bool connectWiFi() {
 //   buffering more than a few bytes.
 // ============================================================
 
+// Show + log a scanner bail so the catch-all in setup() doesn't
+// hide which path failed. Used by every silent `return false`.
+#define SCAN_FAIL(sr_, http_) do { \
+  Serial.printf("scan bail L%d pos=%u\n", __LINE__, (unsigned)(sr_).absPos); \
+  char _l[12], _p[16]; \
+  snprintf(_l, sizeof(_l), "L%d", __LINE__); \
+  snprintf(_p, sizeof(_p), "@%u", (unsigned)(sr_).absPos); \
+  bootScreen("scan err", _l, _p); \
+  (http_).end(); \
+  return false; \
+} while (0)
+
 // Pulls one byte. Returns -1 on timeout or EOF.
 static int sgetc(StreamReader& sr) {
   uint32_t t0 = millis();
@@ -290,40 +302,42 @@ bool indexNasbStreaming() {
 
   totalBooks = 0;
 
+  Serial.printf("idx: heap before scan = %u\n", (unsigned)ESP.getFreeHeap());
+
   int c = sgetcSkipWs(sr);
-  if (c != '{') { http.end(); return false; }
+  if (c != '{') SCAN_FAIL(sr, http);
 
   while (true) {
     c = sgetcSkipWs(sr);
-    if (c < 0)            { http.end(); return false; }
-    if (c == '}')         { http.end(); return true; }
+    if (c < 0)            SCAN_FAIL(sr, http);
+    if (c == '}')         { http.end(); Serial.printf("idx: ok, books=%u\n", totalBooks); return true; }
     if (c == ',')         continue;
-    if (c != '"')         { http.end(); return false; }
-    if (totalBooks >= 66) { http.end(); return false; }
+    if (c != '"')         SCAN_FAIL(sr, http);
+    if (totalBooks >= 66) SCAN_FAIL(sr, http);
 
     Book& bk = books[totalBooks];
-    if (!sreadStringInto(sr, bk.name, sizeof(bk.name))) { http.end(); return false; }
+    if (!sreadStringInto(sr, bk.name, sizeof(bk.name))) SCAN_FAIL(sr, http);
     bk.chapterCount = 0;
 
     c = sgetcSkipWs(sr);
-    if (c != ':') { http.end(); return false; }
+    if (c != ':') SCAN_FAIL(sr, http);
     c = sgetcSkipWs(sr);
-    if (c != '{') { http.end(); return false; }
+    if (c != '{') SCAN_FAIL(sr, http);
 
     while (true) {
       c = sgetcSkipWs(sr);
-      if (c < 0)    { http.end(); return false; }
+      if (c < 0)    SCAN_FAIL(sr, http);
       if (c == '}') break;
       if (c == ',') continue;
-      if (c != '"') { http.end(); return false; }
+      if (c != '"') SCAN_FAIL(sr, http);
 
-      if (!sskipString(sr)) { http.end(); return false; }
+      if (!sskipString(sr)) SCAN_FAIL(sr, http);
       c = sgetcSkipWs(sr);
-      if (c != ':') { http.end(); return false; }
+      if (c != ':') SCAN_FAIL(sr, http);
       c = sgetcSkipWs(sr);
-      if (c != '{') { http.end(); return false; }
+      if (c != '{') SCAN_FAIL(sr, http);
 
-      if (bk.chapterCount >= 150) { http.end(); return false; }
+      if (bk.chapterCount >= 150) SCAN_FAIL(sr, http);
       uint32_t chapStart = sr.absPos - 1;
 
       int  depth = 1;
@@ -331,7 +345,7 @@ bool indexNasbStreaming() {
       bool inEsc = false;
       while (depth > 0) {
         int b = sgetc(sr);
-        if (b < 0) { http.end(); return false; }
+        if (b < 0) SCAN_FAIL(sr, http);
         if (inStr) {
           if (inEsc)     { inEsc = false; continue; }
           if (b == '\\') { inEsc = true;  continue; }
@@ -778,8 +792,10 @@ void setup() {
   if (!connectWiFi()) return;
 
   bootScreen("Indexing", "streaming");
+  Serial.printf("idx: heap pre-idx = %u\n", (unsigned)ESP.getFreeHeap());
   if (!indexNasbStreaming()) {
-    bootScreen("ERR", "index/dl", "fail");
+    // Specific failure screen already showing — leave it visible
+    // (heap alloc / HTTP begin / Download HTTP code / scan err L# @pos).
     return;
   }
   char line[16];
