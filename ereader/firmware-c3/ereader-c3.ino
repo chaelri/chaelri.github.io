@@ -263,26 +263,27 @@ static bool sskipString(StreamReader& sr) {
 }
 
 bool indexNasbStreaming() {
-  if (!rawChapterBuf) {
-    rawChapterBuf = (char*) malloc(RAW_CHAP_CAP);
-    if (!rawChapterBuf) {
-      bootScreen("ERR", "heap alloc", "fail");
-      return false;
-    }
-  }
+  // Note: rawChapterBuf is NOT allocated here. mbedTLS needs ~40-50 KB
+  // working heap during the handshake; holding the 48 KB chapter buffer
+  // at the same time tips the C3 (~150 KB free heap after WiFi) over the
+  // edge and the handshake bails with HTTPC_ERROR_CONNECTION_REFUSED.
+  // Lazy alloc happens in fetchChapterRange instead.
 
   WiFiClientSecure client;
   client.setInsecure();
+  client.setHandshakeTimeout(15);    // C3 mbedTLS is slow — give it room
 
   HTTPClient http;
   http.setReuse(false);
   http.setTimeout(30000);
+  Serial.printf("idx: heap pre-begin = %u\n", (unsigned)ESP.getFreeHeap());
   if (!http.begin(client, NASB_URL)) {
     bootScreen("HTTP", "begin fail");
     return false;
   }
   http.setFollowRedirects(HTTPC_FORCE_FOLLOW_REDIRECTS);
 
+  Serial.printf("idx: heap pre-GET = %u\n", (unsigned)ESP.getFreeHeap());
   int code = http.GET();
   if (code != HTTP_CODE_OK) {
     char msg[16];
@@ -372,6 +373,7 @@ bool fetchChapterRange(uint32_t start, uint32_t len, char* out, size_t outCap) {
 
   WiFiClientSecure client;
   client.setInsecure();
+  client.setHandshakeTimeout(15);
 
   HTTPClient http;
   http.setReuse(false);
@@ -508,6 +510,20 @@ void buildChapter() {
     computePageBreaks();
     pageIdx = 0;
     return;
+  }
+
+  // Lazy-alloc the chapter buffer here, not during indexing — frees the
+  // C3 heap so mbedTLS has elbow room during the index pass's handshake.
+  if (!rawChapterBuf) {
+    rawChapterBuf = (char*) malloc(RAW_CHAP_CAP);
+    if (!rawChapterBuf) {
+      const char* m = "heap alloc fail";
+      appendAscii(m, strlen(m));
+      chapterBuf[chapterLen] = 0;
+      computePageBreaks();
+      pageIdx = 0;
+      return;
+    }
   }
 
   oled.clearBuffer();
