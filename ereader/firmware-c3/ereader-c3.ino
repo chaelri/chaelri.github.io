@@ -173,11 +173,41 @@ static void bookSlug(const char* name, char* out, size_t outCap) {
 }
 
 // ============================================================
-//   HTTP HELPER  ─ GET a URL into rawChapterBuf, return bytes read
+//   PROGRESS UI for in-flight fetches
 // ============================================================
-// Returns 0 on any failure. Caller already populated `label` for the
-// bootScreen if it wants to display a specific error context.
-static size_t httpGetIntoBuf(const char* url) {
+static void drawFetchProgress(const char* l1, const char* l2,
+                              uint32_t cur, uint32_t total) {
+  oled.clearBuffer();
+  oled.setFont(u8g2_font_5x7_tf);
+  if (l1) oled.drawStr(0, 7,  l1);
+  if (l2) oled.drawStr(0, 15, l2);
+  if (total > 0) {
+    char pct[8];
+    int  p = (int)((uint64_t)cur * 100 / total);
+    snprintf(pct, sizeof(pct), "%d%%", p);
+    int pw = oled.getStrWidth(pct);
+    oled.drawStr((72 - pw) / 2, 25, pct);
+    oled.drawFrame(0, 30, 72, 8);
+    int w = (int)((uint64_t)cur * 70 / total);
+    if (w > 70) w = 70;
+    oled.drawBox(1, 31, w, 6);
+  } else {
+    // unknown content-length — just spin a dot count
+    char dots[8];
+    int n = ((millis() / 250) % 4);
+    snprintf(dots, sizeof(dots), "%.*s", n, "...");
+    oled.drawStr(0, 30, dots);
+  }
+  oled.sendBuffer();
+}
+
+// ============================================================
+//   HTTP HELPER  ─ GET a URL into rawChapterBuf, return bytes read.
+//   If labels are non-null, draws a progress bar while bytes arrive.
+// ============================================================
+static size_t httpGetIntoBuf(const char* url,
+                             const char* progL1 = nullptr,
+                             const char* progL2 = nullptr) {
   WiFiClientSecure client;
   client.setInsecure();
   client.setHandshakeTimeout(15);
@@ -200,8 +230,10 @@ static size_t httpGetIntoBuf(const char* url) {
 
   int total = http.getSize();
   WiFiClient* stream = http.getStreamPtr();
-  size_t   got = 0;
-  uint32_t t0  = millis();
+  size_t   got      = 0;
+  uint32_t t0       = millis();
+  uint32_t lastDraw = 0;
+  if (progL1) drawFetchProgress(progL1, progL2, 0, (uint32_t)(total > 0 ? total : 0));
   while ((total < 0 || (int)got < total) && got + 1 < RAW_CHAP_CAP) {
     if (stream->available() > 0) {
       int r = stream->readBytes(rawChapterBuf + got,
@@ -212,6 +244,11 @@ static size_t httpGetIntoBuf(const char* url) {
     } else {
       if (millis() - t0 > 10000) break;
       delay(1);
+    }
+    if (progL1 && millis() - lastDraw > 80) {
+      drawFetchProgress(progL1, progL2, (uint32_t)got,
+                        (uint32_t)(total > 0 ? total : 0));
+      lastDraw = millis();
     }
   }
   rawChapterBuf[got] = 0;
@@ -254,14 +291,30 @@ bool fetchIndex() {
 }
 
 // ============================================================
-//   CHAPTER FETCH  ─ one GET per chapter; returns bytes in buf, or 0
+//   CHAPTER FETCH  ─ one GET per chapter, with progress + retry
 // ============================================================
 size_t fetchChapter(const char* bookName, uint16_t chapNum1) {
   char slug[24];
   bookSlug(bookName, slug, sizeof(slug));
   char url[128];
   snprintf(url, sizeof(url), "%s/%s/%u.json", NASB_BASE, slug, chapNum1);
-  return httpGetIntoBuf(url);
+
+  // "GEN 3" style label for the progress screen
+  char label2[16];
+  char code[4] = {0};
+  for (int i = 0; i < 3 && bookName[i]; i++) code[i] = bookName[i];
+  snprintf(label2, sizeof(label2), "%s %u", code, chapNum1);
+
+  for (int attempt = 1; attempt <= 3; attempt++) {
+    size_t n = httpGetIntoBuf(url, "loading", label2);
+    if (n > 0) return n;
+    Serial.printf("chap fetch attempt %d failed\n", attempt);
+    if (attempt < 3) {
+      bootScreen("retry", label2);
+      delay(400);
+    }
+  }
+  return 0;
 }
 
 // ============================================================
@@ -353,11 +406,6 @@ void buildChapter() {
   if (bookIdx >= totalBooks) return;
   Book& bk = books[bookIdx];
   if (chapterIdx >= bk.chapterCount) return;
-
-  oled.clearBuffer();
-  oled.setFont(u8g2_font_5x7_tf);
-  oled.drawStr(0, 23, "loading...");
-  oled.sendBuffer();
 
   size_t rawLen = fetchChapter(bk.name, chapterIdx + 1);
   if (rawLen == 0) {
@@ -576,7 +624,14 @@ void onDouble() {
       bookIdx = (bookIdx + totalBooks - 1) % totalBooks;
       break;
     case MODE_CHAPTER:
-      chapterIdx = (chapterIdx + books[bookIdx].chapterCount - 1) % books[bookIdx].chapterCount;
+      // Previous at chapter 1 escapes up to BOOK mode instead of
+      // wrapping to the last chapter — that gives a way back without
+      // another gesture.
+      if (chapterIdx > 0) {
+        chapterIdx--;
+      } else {
+        mode = MODE_BOOK;
+      }
       break;
     case MODE_READING:
       if (pageIdx > 0) {
