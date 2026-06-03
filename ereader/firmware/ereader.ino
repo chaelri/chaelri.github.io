@@ -90,6 +90,18 @@ uint16_t pageIdx    = 0;
 static const size_t RAW_CHAP_CAP = 96UL * 1024UL;
 char* rawChapterBuf = nullptr;
 
+// -------------------- STREAM READER --------------------
+// Declared up here so Arduino IDE's auto-prototype injector
+// (which forward-declares every free function at the top of the
+// .ino) can resolve `StreamReader&` parameters below.
+struct StreamReader {
+  WiFiClient* stream;
+  HTTPClient* http;
+  uint32_t    absPos;        // bytes consumed so far
+  uint32_t    total;         // 0 if chunked/unknown
+  uint32_t    lastDraw;
+};
+
 // -------------------- BOOK / CHAPTER OFFSET TABLE --------------------
 struct ChapterSlice { uint32_t start; uint32_t len; };
 struct Book {
@@ -189,13 +201,6 @@ bool connectWiFi() {
 //   buffering more than a few bytes. Offsets are absolute in the
 //   source file; reused later as HTTP Range arguments.
 // ============================================================
-struct StreamReader {
-  WiFiClient* stream;
-  HTTPClient* http;
-  uint32_t    absPos;        // bytes consumed so far
-  uint32_t    total;         // 0 if chunked/unknown
-  uint32_t    lastDraw;
-};
 
 // Pulls one byte. Returns -1 on timeout or EOF.
 static int sgetc(StreamReader& sr) {
