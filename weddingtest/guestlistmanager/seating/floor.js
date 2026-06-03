@@ -171,13 +171,30 @@ onValue(seatingRef, (snap) => {
   tryRender();
 });
 
+function normalizeRsvpName(s) {
+  return String(s || "")
+    .normalize("NFD")
+    .replace(/[\u0300-\u036f]/g, "")
+    .toLowerCase()
+    .replace(/[.,'"`]/g, "")
+    .replace(/\s+/g, " ")
+    .trim();
+}
+
 function mergeRsvpStatus() {
   if (!guestsLoaded || !rsvpsLoaded) return;
   for (const g of allGuests) {
-    const r = latestRsvps.find(
-      (x) => x.guestName?.toLowerCase() === g.name.toLowerCase()
-    );
-    g.status = r ? r.attending : "pending";
+    // Match the dashboard: latest RSVP by submittedAt wins, so manual
+    // "Declined" overrides beat the older website "Yes". Otherwise stale-yes
+    // guests slip through isFinalYes and don't render red.
+    const key = normalizeRsvpName(g.name);
+    const matches = latestRsvps
+      .filter((r) => r.guestName && normalizeRsvpName(r.guestName) === key)
+      .sort(
+        (a, b) =>
+          new Date(b.submittedAt || 0) - new Date(a.submittedAt || 0)
+      );
+    g.status = matches[0] ? matches[0].attending : "pending";
   }
 }
 

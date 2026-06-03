@@ -73,9 +73,17 @@ onValue(seatingRef, (snap) => {
 function tryHydrate() {
   if (!guestsLoaded || !rsvpsLoaded || !seatingLoaded) return;
   allGuests = Object.entries(latestGuests).map(([id, g]) => {
-    const r = latestRsvps.find(
-      (x) => x.guestName?.toLowerCase() === g.name.toLowerCase()
-    );
+    // Match the dashboard: take the LATEST RSVP by submittedAt so a manual
+    // "Declined" override beats the older website "Yes". `.find()` was wrong
+    // here — it returned the first match, leaving stale-yes guests un-flagged.
+    const guestKey = normalizeName(g.name);
+    const matches = latestRsvps
+      .filter((r) => r.guestName && normalizeName(r.guestName) === guestKey)
+      .sort(
+        (a, b) =>
+          new Date(b.submittedAt || 0) - new Date(a.submittedAt || 0)
+      );
+    const r = matches[0];
     return {
       id,
       name: g.name,
