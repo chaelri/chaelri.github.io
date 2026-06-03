@@ -491,6 +491,10 @@ void computePageBreaks() {
     if (lineLen + needed <= READ_COLS) {
       lineLen += needed;
       i = wordEnd;
+      // Eat trailing spaces so the next iteration lands on a real word,
+      // otherwise `i` parks on a space and lineLen ticks up by 1 per
+      // phantom iteration until the line fills — caps each page at ~3 words.
+      while (i < chapterLen && chapterBuf[i] == ' ') i++;
       continue;
     }
 
