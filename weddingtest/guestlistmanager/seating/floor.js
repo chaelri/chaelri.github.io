@@ -125,11 +125,18 @@ onValue(ref(db, "guestList"), (snap) => {
     gender: g.gender || "",
     role: g.role || "guest",
     photoUrl: g.photoUrl || "",
+    finalChecked: g.finalChecked === true,
   }));
   guestsLoaded = true;
   mergeRsvpStatus();
   tryRender();
 });
+
+// Source of truth for who is allowed to be seated. Matches the dashboard's
+// "Final Yes" filter: RSVP'd yes AND finalChecked.
+function isFinalYes(g) {
+  return !!g && g.status === "yes" && g.finalChecked === true;
+}
 
 function cycleGender(guestId) {
   const g = allGuests.find((x) => x.id === guestId);
@@ -534,6 +541,7 @@ function renderTables() {
           ? "gender-female"
           : "gender-unknown";
         const roleGroup = occupied ? roleGroupFor(guest.role) : "";
+        const notFinal = occupied && !isFinalYes(guest);
         chair.className = [
           "floor-chair",
           occupied ? "occupied" : "empty",
@@ -542,6 +550,7 @@ function renderTables() {
           roleGroup ? `role-${roleGroup}` : "",
           guest && guest.noCount ? "lap" : "",
           matches ? "search-match" : "",
+          notFinal ? "not-final" : "",
         ]
           .filter(Boolean)
           .join(" ");
@@ -883,7 +892,8 @@ function buildMemberGrid(g, opts = {}) {
 }
 
 // ---------- Render: pool sidebar (unassigned + per-table sections) ----------
-const RSVP_SEATABLE = new Set(["yes", "maybe"]);
+// Pool only ever shows Final-Yes guests. Anyone else who's still in a group
+// renders red in the canvas and per-table list, draggable out only.
 
 function buildSidebarChip(guest, opts = {}) {
   const chip = document.createElement("div");
@@ -894,6 +904,12 @@ function buildSidebarChip(guest, opts = {}) {
     guest.name.toLowerCase().includes(searchQuery)
   ) {
     chip.classList.add("search-match");
+  }
+  // Per-table chips that show a non-Final-Yes guest get the red treatment
+  // so the user can spot them in the sidebar too, not just on the canvas.
+  if (opts.groupId && !isFinalYes(guest)) {
+    chip.classList.add("not-final");
+    chip.title = "Not in Final Yes — drag out to remove";
   }
   chip.dataset.guestId = guest.id;
   if (opts.groupId) chip.dataset.groupId = opts.groupId;
@@ -964,9 +980,9 @@ function renderPool() {
   const assigned = new Set();
   groups.forEach((g) => g.memberIds.forEach((id) => assigned.add(id)));
 
-  // Unassigned = not in any group AND RSVP'd yes/maybe (skip No + Pending)
+  // Unassigned = not in any group AND in Final-Yes (locked-in attendees).
   const unassigned = allGuests
-    .filter((g) => !assigned.has(g.id) && RSVP_SEATABLE.has(g.status))
+    .filter((g) => !assigned.has(g.id) && isFinalYes(g))
     .sort((a, b) => a.name.localeCompare(b.name));
 
   document.getElementById("poolCount").textContent = unassigned.length;
@@ -1377,6 +1393,15 @@ function handleAssignDrop(guestId, dropTargetEl, sourceGroupId) {
 }
 
 function moveGuestToPosition(guestId, targetGroupId, targetIndex) {
+  // Non-Final-Yes guests are locked: they can be dragged out (unassignGuest),
+  // but any seat-to-seat move is rejected. Charlie can clear them but can't
+  // accidentally reseat them.
+  const guest = allGuests.find((x) => x.id === guestId);
+  if (guest && !isFinalYes(guest)) {
+    toast("Not in Final Yes — drag out to remove");
+    tryRender();
+    return;
+  }
   // Remember where the guest is moving FROM so we can swap if the
   // target seat is occupied.
   let sourceGroup = null;
@@ -1421,8 +1446,16 @@ function moveGuestToPosition(guestId, targetGroupId, targetIndex) {
   } else {
     const idx = Math.max(0, Math.min(targetIndex, cap - 1));
     const occupant = target.memberIds[idx];
+    const occupantGuest = occupant
+      ? allGuests.find((x) => x.id === occupant)
+      : null;
     if (!occupant) {
       placeAt(idx, guestId);
+    } else if (occupantGuest && !isFinalYes(occupantGuest)) {
+      // Dropping a Final-Yes guest onto a red-occupied seat = replace.
+      // Red guest gets removed outright (never hops to another seat).
+      placeAt(idx, guestId);
+      // sourceGroup's slot is already cleared above — nothing to swap in.
     } else if (sourceGroup) {
       // Swap with the existing occupant — guest goes to the target
       // seat, occupant goes to the now-empty source seat.

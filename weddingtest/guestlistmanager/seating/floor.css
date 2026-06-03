@@ -902,6 +902,44 @@ body:not(.view-mode) .floor-view-list {
   border-style: dashed !important;
   color: #92400e !important;
 }
+/* Seated guest who didn't make the Final-Yes cut.
+   !important so it overrides gender/roles fills; pulses softly so the eye
+   is drawn to it for cleanup. Can only be removed, not re-seated. */
+.floor-chair.occupied.not-final {
+  background: #dc2626 !important;
+  border-color: #7f1d1d !important;
+  color: #ffffff !important;
+  box-shadow: 0 0 0 2px rgba(220, 38, 38, 0.25),
+    0 2px 6px rgba(220, 38, 38, 0.35) !important;
+  animation: notFinalPulse 2.2s ease-in-out infinite;
+}
+.floor-chair.occupied.not-final .chair-seat {
+  background: #7f1d1d;
+}
+.floor-chair.occupied.not-final .chair-name {
+  text-decoration: line-through;
+  text-decoration-thickness: 1.25px;
+  text-decoration-color: rgba(255, 255, 255, 0.7);
+}
+@keyframes notFinalPulse {
+  0%, 100% {
+    box-shadow: 0 0 0 2px rgba(220, 38, 38, 0.25),
+      0 2px 6px rgba(220, 38, 38, 0.35);
+  }
+  50% {
+    box-shadow: 0 0 0 4px rgba(220, 38, 38, 0.35),
+      0 2px 10px rgba(220, 38, 38, 0.55);
+  }
+}
+/* View-mode keeps the printable list clean — drop the pulse + redness so
+   it doesn't bleed onto the seat-number circles when printing. */
+body.view-mode .floor-chair.occupied.not-final {
+  background: white !important;
+  color: #1c1917 !important;
+  border-color: #1c1917 !important;
+  box-shadow: none !important;
+  animation: none;
+}
 .floor-chair.drop-target {
   background: #7b8a5b22 !important;
   border-color: #7b8a5b !important;
@@ -982,6 +1020,22 @@ body:not(.view-mode) .floor-view-list {
   border-color: #fca5a5;
   color: #b91c1c;
   cursor: default;
+}
+/* Sidebar chip variant of the "not in Final-Yes" flag. Same red language
+   as the canvas chair so the two stay visually linked. */
+.floor-pool-chip.not-final {
+  background: #fee2e2;
+  border-color: #dc2626;
+  color: #7f1d1d;
+}
+.floor-pool-chip.not-final .name {
+  text-decoration: line-through;
+  text-decoration-color: rgba(220, 38, 38, 0.6);
+  text-decoration-thickness: 1.25px;
+}
+.floor-pool-chip.not-final:hover {
+  background: #fecaca;
+  border-color: #b91c1c;
 }
 .floor-pool-chip.empty-slot {
   background: #faf9f6;

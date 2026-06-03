@@ -85,6 +85,7 @@ function tryHydrate() {
       noCount: g.noCount === true,
       tags: Array.isArray(g.tags) ? g.tags : [],
       pairWith: g.pairWith || "",
+      finalChecked: g.finalChecked === true,
     };
   });
 
@@ -230,17 +231,25 @@ function isAssigned(id) {
   return groups.some((g) => g.memberIds.includes(id));
 }
 
+// Source of truth for who is allowed in the pool / allowed to be seated.
+// Matches the dashboard's "Final Yes" definition: RSVP'd yes AND finalChecked.
+function isFinalYes(g) {
+  return !!g && g.status === "yes" && g.finalChecked === true;
+}
+
 function renderPool() {
   const pool = document.getElementById("pool");
   const search = document.getElementById("searchInput").value.toLowerCase().trim();
   const side = document.getElementById("filterSide").value;
-  const status = document.getElementById("filterStatus").value;
   pool.innerHTML = "";
 
-  const unassignedAll = allGuests.filter((g) => !isAssigned(g.id));
+  // Pool only ever shows Final-Yes guests. Anyone else who's currently in
+  // a group renders red in the group cards and can only be removed.
+  const unassignedAll = allGuests.filter(
+    (g) => !isAssigned(g.id) && isFinalYes(g)
+  );
   const unassigned = unassignedAll
     .filter((g) => side === "all" || g.side === side)
-    .filter((g) => status === "all" || g.status === status)
     .filter((g) => !search || g.name.toLowerCase().includes(search))
     .sort((a, b) => a.name.localeCompare(b.name));
 
@@ -284,12 +293,24 @@ function buildPairPill(g) {
 function buildChip(g, opts = {}) {
   const { seatNumber = null, groupId = null } = opts;
   const chip = document.createElement("div");
-  chip.className = "guest-chip" + (g.noCount ? " lap" : "");
+  // Seated guests who didn't make the Final-Yes cut get flagged red so they
+  // stand out for removal. Pool chips are always Final-Yes, so the flag only
+  // ever shows up inside group cards.
+  const seated = groupId != null;
+  const notFinal = seated && !isFinalYes(g);
+  chip.className =
+    "guest-chip" +
+    (g.noCount ? " lap" : "") +
+    (notFinal ? " not-final" : "");
   chip.draggable = true;
   chip.dataset.guestId = g.id;
   if (seatNumber != null) chip.dataset.seat = seatNumber;
   if (groupId != null) chip.dataset.groupId = groupId;
-  chip.title = g.noCount ? "Lap child — not counted in food/pax" : "";
+  if (notFinal) {
+    chip.title = "Not in Final Yes — drag out of the seat to remove";
+  } else {
+    chip.title = g.noCount ? "Lap child — not counted in food/pax" : "";
+  }
   const tagPills = (g.tags || [])
     .map((id) => tagDef(id))
     .filter(Boolean)
@@ -513,6 +534,14 @@ function wireGroupEvents() {
 }
 
 function moveGuest(guestId, targetGroupId) {
+  // Non-Final-Yes guests can be dragged out (targetGroupId == null) but
+  // cannot land on another seat. This is what locks the "red" chips so
+  // Charlie can clear them without accidentally re-seating them.
+  const guest = allGuests.find((x) => x.id === guestId);
+  if (targetGroupId && guest && !isFinalYes(guest)) {
+    toast("Not in Final Yes — drag out of the seat to remove");
+    return;
+  }
   for (const g of groups) {
     g.memberIds = g.memberIds.filter((id) => id !== guestId);
   }
@@ -527,6 +556,11 @@ function moveGuest(guestId, targetGroupId) {
 }
 
 function moveGuestToPosition(guestId, targetGroupId, targetIndex) {
+  const guest = allGuests.find((x) => x.id === guestId);
+  if (guest && !isFinalYes(guest)) {
+    toast("Not in Final Yes — drag out of the seat to remove");
+    return;
+  }
   // Remove first so the position math is consistent whether the guest was
   // in the same target group (reorder) or elsewhere (cross-table move).
   for (const g of groups) {
@@ -570,7 +604,6 @@ function clearPick() {
 // ---------- Controls ----------
 document.getElementById("searchInput").addEventListener("input", renderPool);
 document.getElementById("filterSide").addEventListener("change", renderPool);
-document.getElementById("filterStatus").addEventListener("change", renderPool);
 document.getElementById("clearPickBtn").addEventListener("click", clearPick);
 
 document.getElementById("addGroupBtn").addEventListener("click", () => {

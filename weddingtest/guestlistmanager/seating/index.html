@@ -66,26 +66,21 @@
                 placeholder="Search a name…"
                 class="w-full p-2 border border-stone-100 rounded bg-stone-50 text-sm focus:outline-none focus:ring-1 focus:ring-[#7b8a5b]"
               />
-              <div class="grid grid-cols-2 gap-2">
-                <select
-                  id="filterSide"
-                  class="p-2 border border-stone-100 rounded bg-stone-50 text-xs focus:outline-none"
-                >
-                  <option value="all">All sides</option>
-                  <option value="karla">Karla</option>
-                  <option value="charlie">Charlie</option>
-                  <option value="both">Both</option>
-                </select>
-                <select
-                  id="filterStatus"
-                  class="p-2 border border-stone-100 rounded bg-stone-50 text-xs focus:outline-none"
-                >
-                  <option value="yes" selected>Yes</option>
-                  <option value="all">All RSVP</option>
-                  <option value="pending">Pending</option>
-                  <option value="no">No</option>
-                </select>
-              </div>
+              <select
+                id="filterSide"
+                class="w-full p-2 border border-stone-100 rounded bg-stone-50 text-xs focus:outline-none"
+              >
+                <option value="all">All sides</option>
+                <option value="karla">Karla</option>
+                <option value="charlie">Charlie</option>
+                <option value="both">Both</option>
+              </select>
+              <p
+                class="text-[10px] text-stone-500 leading-snug px-1"
+              >
+                Pool shows <strong class="text-[#7b8a5b]">Final-Yes</strong> guests only.
+                Seated guests not in Final-Yes appear <strong class="text-red-700">red</strong> — drag them out to remove.
+              </p>
               <button
                 id="clearPickBtn"
                 class="w-full py-1.5 rounded bg-[#7b8a5b] text-white text-[10px] uppercase tracking-widest font-bold hidden"

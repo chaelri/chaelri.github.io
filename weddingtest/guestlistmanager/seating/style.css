@@ -156,6 +156,28 @@ body {
   border-color: #fecaca;
   color: #991b1b;
 }
+/* Seated guest who didn't make the Final-Yes cut.
+   Visually loud so it stands out for removal; can't be re-seated. */
+.guest-chip.not-final {
+  background: #fee2e2;
+  border: 1.5px solid #dc2626;
+  color: #7f1d1d;
+  box-shadow: inset 0 0 0 1px rgba(220, 38, 38, 0.15);
+}
+.guest-chip.not-final .name {
+  text-decoration: line-through;
+  text-decoration-color: rgba(220, 38, 38, 0.55);
+  text-decoration-thickness: 1.5px;
+}
+.guest-chip.not-final:hover {
+  border-color: #b91c1c;
+  background: #fecaca;
+  box-shadow: 0 1px 4px rgba(220, 38, 38, 0.25);
+}
+.guest-chip.not-final .status {
+  background: #fecaca;
+  color: #7f1d1d;
+}
 .guest-chip.lap {
   border-style: dashed;
   border-color: #fcd34d;
