@@ -78,11 +78,13 @@ uint16_t bookIdx    = 0;
 uint16_t chapterIdx = 0;
 uint16_t pageIdx    = 0;
 
-// -------------------- RAW CHAPTER BUFFER (heap) --------------------
-// C3 has no PSRAM — this lives in regular SRAM. ESP32-C3 has ~200 KB
-// free heap after WiFi + TLS; 48 KB is comfortable.
-static const size_t RAW_CHAP_CAP = 48UL * 1024UL;
-char* rawChapterBuf = nullptr;
+// -------------------- RAW CHAPTER BUFFER (BSS) --------------------
+// Largest NASB chapter (Ps 119) is ~15 KB raw JSON; 24 KB is plenty.
+// Kept as a static global rather than malloc'd because the C3 heap
+// fragments after WiFi + TLS + index, and a contiguous 48 KB block
+// would fail to allocate.
+static const size_t RAW_CHAP_CAP = 24UL * 1024UL;
+char rawChapterBuf[RAW_CHAP_CAP];
 
 // -------------------- STREAM READER --------------------
 // Declared up here for the same auto-prototype reason as the enums.
@@ -510,20 +512,6 @@ void buildChapter() {
     computePageBreaks();
     pageIdx = 0;
     return;
-  }
-
-  // Lazy-alloc the chapter buffer here, not during indexing — frees the
-  // C3 heap so mbedTLS has elbow room during the index pass's handshake.
-  if (!rawChapterBuf) {
-    rawChapterBuf = (char*) malloc(RAW_CHAP_CAP);
-    if (!rawChapterBuf) {
-      const char* m = "heap alloc fail";
-      appendAscii(m, strlen(m));
-      chapterBuf[chapterLen] = 0;
-      computePageBreaks();
-      pageIdx = 0;
-      return;
-    }
   }
 
   oled.clearBuffer();
