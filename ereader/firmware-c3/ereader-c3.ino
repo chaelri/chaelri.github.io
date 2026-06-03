@@ -9,10 +9,14 @@
 //     BTN  =  GPIO 9     →  BOOT button (active LOW, INPUT_PULLUP)
 //     LED  =  GPIO 8     →  built-in blue user LED — silenced
 //
-//   Same one-button UI as the S3 build:
-//     tap        →  forward  (next book / chapter / page)
-//     double-tap →  backward (prev)
-//     hold ≥600ms →  advance / back one level (BOOK ↔ CHAPTER ↔ READING)
+//   One-button UI:
+//     tap                  →  forward  (next book / chapter / page)
+//     double-tap           →  backward (prev — wraps within current level)
+//     hold ≥600ms          →  forward one level (BOOK→CHAPTER→READING,
+//                             READING→CHAPTER as a back convenience)
+//     tap-then-press-hold  →  escape up one level (CHAPTER→BOOK, READING→
+//                             CHAPTER) — works from any position, no need
+//                             to navigate to the first chapter first
 //
 //   Bible source: pre-split into per-chapter JSON files hosted on
 //   GitHub Pages so the firmware never has to stream the 4.4 MB
@@ -77,7 +81,7 @@ Preferences prefs;
 
 // -------------------- STATE --------------------
 enum Mode    : uint8_t { MODE_BOOK = 0, MODE_CHAPTER = 1, MODE_READING = 2 };
-enum Gesture : uint8_t { G_NONE = 0, G_TAP, G_DOUBLE, G_HOLD };
+enum Gesture : uint8_t { G_NONE = 0, G_TAP, G_DOUBLE, G_HOLD, G_DOUBLE_HOLD };
 Mode     mode       = MODE_BOOK;
 uint16_t bookIdx    = 0;
 uint16_t chapterIdx = 0;
@@ -555,12 +559,18 @@ uint32_t btnPressStart = 0;
 uint32_t lastReleaseMs = 0;
 bool     pendingTap    = false;
 bool     holdFired     = false;
+bool     isSecondPress = false;   // current press is the "second tap" of a double
 
 Gesture readButton() {
   uint32_t now = millis();
   bool pressed = (digitalRead(BTN_PIN) == LOW);
 
   if (pressed && !btnWasPressed) {
+    // If a press starts inside the double-tap window, this is the
+    // second tap — held long enough it becomes G_DOUBLE_HOLD, released
+    // quickly it becomes G_DOUBLE.
+    isSecondPress = (pendingTap && (now - lastReleaseMs) <= DOUBLE_MS);
+    if (isSecondPress) pendingTap = false;
     btnPressStart = now;
     btnWasPressed = true;
     holdFired = false;
@@ -569,17 +579,17 @@ Gesture readButton() {
 
   if (btnWasPressed && !holdFired && (now - btnPressStart) >= HOLD_MS) {
     holdFired = true;
-    return G_HOLD;
+    return isSecondPress ? G_DOUBLE_HOLD : G_HOLD;
   }
 
   if (!pressed && btnWasPressed) {
     uint32_t dur = now - btnPressStart;
     btnWasPressed = false;
-    if (dur < DEBOUNCE_MS) return G_NONE;
-    if (holdFired)         return G_NONE;
+    if (dur < DEBOUNCE_MS) { isSecondPress = false; return G_NONE; }
+    if (holdFired)         { isSecondPress = false; return G_NONE; }
 
-    if (pendingTap && (now - lastReleaseMs) <= DOUBLE_MS) {
-      pendingTap = false;
+    if (isSecondPress) {
+      isSecondPress = false;
       return G_DOUBLE;
     }
     pendingTap    = true;
@@ -624,14 +634,7 @@ void onDouble() {
       bookIdx = (bookIdx + totalBooks - 1) % totalBooks;
       break;
     case MODE_CHAPTER:
-      // Previous at chapter 1 escapes up to BOOK mode instead of
-      // wrapping to the last chapter — that gives a way back without
-      // another gesture.
-      if (chapterIdx > 0) {
-        chapterIdx--;
-      } else {
-        mode = MODE_BOOK;
-      }
+      chapterIdx = (chapterIdx + books[bookIdx].chapterCount - 1) % books[bookIdx].chapterCount;
       break;
     case MODE_READING:
       if (pageIdx > 0) {
@@ -659,6 +662,16 @@ void onHold() {
     case MODE_READING:
       mode = MODE_CHAPTER;
       break;
+  }
+}
+
+void onDoubleHold() {
+  // Tap-then-press-and-hold escapes up one level — works from any
+  // chapter, no need to navigate to chapter 1 first.
+  switch (mode) {
+    case MODE_CHAPTER: mode = MODE_BOOK;    break;
+    case MODE_READING: mode = MODE_CHAPTER; break;
+    case MODE_BOOK:                         break;  // already top
   }
 }
 
@@ -717,9 +730,10 @@ void setup() {
 void loop() {
   Gesture g = readButton();
   if (g != G_NONE) {
-    if      (g == G_TAP)    onTap();
-    else if (g == G_DOUBLE) onDouble();
-    else if (g == G_HOLD)   onHold();
+    if      (g == G_TAP)         onTap();
+    else if (g == G_DOUBLE)      onDouble();
+    else if (g == G_HOLD)        onHold();
+    else if (g == G_DOUBLE_HOLD) onDoubleHold();
     render();
     savePos();
   }
