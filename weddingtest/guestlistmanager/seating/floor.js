@@ -338,7 +338,7 @@ function formatTableTitle(rawName) {
 }
 
 // ---------- Default table positions ----------
-// Top-down layout: Stage → Couple → VIPs → Kids → Tables 3-13.
+// Top-down layout: Stage → Couple → VIPs → Kids → Tables 1-11.
 function defaultPositionFor(group, index) {
   const canvasW = 2000;
   const cx = canvasW / 2;
@@ -357,10 +357,10 @@ function defaultPositionFor(group, index) {
     // 120 wide → x = cx - 60.
     return { x: cx - 60, y: 700 };
   }
-  // Regular tables 3-13: 4-4-3 grid centered under everything.
+  // Regular tables 1-11: 4-4-3 grid centered under everything.
   const m = name.match(/table\s*(\d+)/);
-  const num = m ? parseInt(m[1], 10) : index + 3;
-  const seq = Math.max(0, num - 3); // 0..10 for tables 3..13
+  const num = m ? parseInt(m[1], 10) : index + 1;
+  const seq = Math.max(0, num - 1); // 0..10 for tables 1..11
   const dx = 220;
   let row, col, rowCount;
   if (seq < 4) {
@@ -458,7 +458,7 @@ function renderTables() {
     .forEach((el) => el.remove());
   const inViewMode = document.body.classList.contains("view-mode");
 
-  // View mode reads top→bottom like a printout: Couple → VIPs → Kids → Tables 3-13.
+  // View mode reads top→bottom like a printout: Couple → VIPs → Kids → Tables 1-11.
   const renderList = inViewMode
     ? [...groups].sort((a, b) => {
         const [ap, an] = renderSortKey(a);
