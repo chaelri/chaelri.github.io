@@ -14,13 +14,20 @@
 //     double-tap →  backward (prev)
 //     hold ≥600ms →  advance / back one level (BOOK ↔ CHAPTER ↔ READING)
 //
-//   Bible source: streamed ONLINE at boot from
-//     https://chaelri.github.io/devo/nasb2020.json   (~4.4 MB)
-//   The streaming scanner walks the HTTPS body byte-by-byte and
-//   builds a (book, chapter) → byte slice table on the fly. Per
-//   chapter, an HTTP Range request pulls just that slice (~3-40 KB)
-//   into a 48 KB heap buffer that ArduinoJson parses. NO PSRAM
-//   required — fits in regular SRAM on the C3.
+//   Bible source: pre-split into per-chapter JSON files hosted on
+//   GitHub Pages so the firmware never has to stream the 4.4 MB
+//   master file or do Range requests.
+//
+//     Index:   https://chaelri.github.io/devo/nasb-split/index.json
+//                                 → {"GENESIS":50,"EXODUS":40,...}
+//     Chapter: https://chaelri.github.io/devo/nasb-split/<slug>/<n>.json
+//                                 → {"1":"...","2":"...",...}
+//
+//   `<slug>` is the book name lowercased with spaces → '-'
+//   (GENESIS → genesis, 1 KINGS → 1-kings, SONG OF SOLOMON → song-of-solomon).
+//
+//   Boot: one ~5 KB GET for the index. Page-turn that crosses a
+//   chapter: one ~3-15 KB GET for that chapter. No PSRAM needed.
 //
 //   Required Arduino board options (Tools menu):
 //     Board:            "ESP32C3 Dev Module"
@@ -56,21 +63,19 @@ static const uint32_t DEBOUNCE_MS = 25;
 static const uint32_t DOUBLE_MS   = 280;
 static const uint32_t HOLD_MS     = 600;
 
-// -------------------- WIFI / SOURCE URL --------------------
+// -------------------- WIFI / SOURCE URLS --------------------
 WiFiMulti wifiMulti;
 static const uint32_t WIFI_CONNECT_TIMEOUT_MS = 20000;
-static const char* NASB_URL = "https://chaelri.github.io/devo/nasb2020.json";
+static const char* NASB_BASE  = "https://chaelri.github.io/devo/nasb-split";
+static const char* INDEX_URL  = "https://chaelri.github.io/devo/nasb-split/index.json";
 
 // -------------------- DISPLAY --------------------
-// 0.42" 72×40 SSD1306-class OLED soldered to the C3 SuperMini board.
 U8G2_SSD1306_72X40_ER_F_HW_I2C oled(U8G2_R0, U8X8_PIN_NONE);
 
 // -------------------- NVS --------------------
 Preferences prefs;
 
 // -------------------- STATE --------------------
-// Hoisted up here so Arduino IDE's auto-prototype injector can
-// resolve them in forward-declared function signatures below.
 enum Mode    : uint8_t { MODE_BOOK = 0, MODE_CHAPTER = 1, MODE_READING = 2 };
 enum Gesture : uint8_t { G_NONE = 0, G_TAP, G_DOUBLE, G_HOLD };
 Mode     mode       = MODE_BOOK;
@@ -78,37 +83,24 @@ uint16_t bookIdx    = 0;
 uint16_t chapterIdx = 0;
 uint16_t pageIdx    = 0;
 
-// -------------------- RAW CHAPTER BUFFER (BSS) --------------------
-// Largest NASB chapter (Ps 119) is ~15 KB raw JSON; 24 KB is plenty.
-// Kept as a static global rather than malloc'd because the C3 heap
-// fragments after WiFi + TLS + index, and a contiguous 48 KB block
-// would fail to allocate.
+// -------------------- RAW JSON BUFFER (BSS) --------------------
+// Reused for both the index fetch and per-chapter fetches. Largest
+// NASB chapter (Ps 119) is ~15 KB; 24 KB is plenty of headroom.
 static const size_t RAW_CHAP_CAP = 24UL * 1024UL;
 char rawChapterBuf[RAW_CHAP_CAP];
 
-// -------------------- STREAM READER --------------------
-// Declared up here for the same auto-prototype reason as the enums.
-struct StreamReader {
-  WiFiClient* stream;
-  HTTPClient* http;
-  uint32_t    absPos;        // bytes consumed so far
-  uint32_t    total;         // 0 if chunked/unknown
-  uint32_t    lastDraw;
-};
-
-// -------------------- BOOK / CHAPTER OFFSET TABLE --------------------
-struct ChapterSlice { uint32_t start; uint32_t len; };
+// -------------------- BOOK TABLE --------------------
+// No byte offsets needed anymore — each chapter is its own URL.
 struct Book {
-  char         name[20];                 // longest is "SONG OF SOLOMON" (15)
-  uint16_t     chapterCount;
-  ChapterSlice chapters[150];            // Psalms = 150 chapters
+  char     name[20];          // longest "SONG OF SOLOMON" (15 chars)
+  uint16_t chapterCount;
 };
 Book     books[66];
 uint16_t totalBooks = 0;
 
 // -------------------- CURRENT CHAPTER BUFFER --------------------
 static const size_t CHAPTER_CAP = 16384;
-static const size_t MAX_PAGES   = 256;     // tiny screen → more pages per chapter
+static const size_t MAX_PAGES   = 256;
 char     chapterBuf[CHAPTER_CAP];
 size_t   chapterLen = 0;
 uint16_t pageStarts[MAX_PAGES];
@@ -131,29 +123,6 @@ void bootScreen(const char* l1, const char* l2 = nullptr,
   if (l2) oled.drawStr(0, 15, l2);
   if (l3) oled.drawStr(0, 23, l3);
   if (l4) oled.drawStr(0, 31, l4);
-  oled.sendBuffer();
-}
-
-void bootProgress(const char* label, uint32_t cur, uint32_t total) {
-  oled.clearBuffer();
-  oled.setFont(u8g2_font_5x7_tf);
-  oled.drawStr(0, 7, label);
-  char line[16];
-  if (total > 0) {
-    int pct = (int)((uint64_t)cur * 100 / total);
-    snprintf(line, sizeof(line), "%d%%", pct);
-    oled.drawStr(0, 15, line);
-    snprintf(line, sizeof(line), "%uK/%uK",
-             (unsigned)(cur / 1024), (unsigned)(total / 1024));
-    oled.drawStr(0, 23, line);
-    oled.drawFrame(0, 33, 72, 5);
-    int w = (int)((uint64_t)cur * 70 / total);
-    if (w > 70) w = 70;
-    oled.drawBox(1, 34, w, 3);
-  } else {
-    snprintf(line, sizeof(line), "%uK", (unsigned)(cur / 1024));
-    oled.drawStr(0, 15, line);
-  }
   oled.sendBuffer();
 }
 
@@ -189,190 +158,26 @@ bool connectWiFi() {
 }
 
 // ============================================================
-//   STREAMING SCANNER  ─  pull JSON bytes off the HTTPS stream
-//   and build a (book, chapter) → byte slice table without ever
-//   buffering more than a few bytes.
+//   BOOK NAME → URL SLUG
+//   Matches devo/split-nasb.py's slugify(): lowercase + spaces → '-'.
 // ============================================================
-
-// Show + log a scanner bail so the catch-all in setup() doesn't
-// hide which path failed. Used by every silent `return false`.
-#define SCAN_FAIL(sr_, http_) do { \
-  Serial.printf("scan bail L%d pos=%u\n", __LINE__, (unsigned)(sr_).absPos); \
-  char _l[12], _p[16]; \
-  snprintf(_l, sizeof(_l), "L%d", __LINE__); \
-  snprintf(_p, sizeof(_p), "@%u", (unsigned)(sr_).absPos); \
-  bootScreen("scan err", _l, _p); \
-  (http_).end(); \
-  return false; \
-} while (0)
-
-// Pulls one byte. Returns -1 on timeout or EOF.
-static int sgetc(StreamReader& sr) {
-  uint32_t t0 = millis();
-  while (true) {
-    if (sr.stream->available() > 0) {
-      int c = sr.stream->read();
-      if (c < 0) continue;
-      sr.absPos++;
-      if (millis() - sr.lastDraw > 250) {
-        bootProgress("Indexing", sr.absPos,
-                     sr.total > 0 ? sr.total : 4500000);
-        sr.lastDraw = millis();
-      }
-      return c;
-    }
-    if (!sr.http->connected() && sr.stream->available() == 0) return -1;
-    if (millis() - t0 > 10000) return -1;
-    delay(1);
-  }
-}
-
-static int sgetcSkipWs(StreamReader& sr) {
-  while (true) {
-    int c = sgetc(sr);
-    if (c < 0) return -1;
-    if (c == ' ' || c == '\n' || c == '\r' || c == '\t') continue;
-    return c;
-  }
-}
-
-static bool sreadStringInto(StreamReader& sr, char* out, size_t outCap) {
+static void bookSlug(const char* name, char* out, size_t outCap) {
   size_t w = 0;
-  bool esc = false;
-  while (true) {
-    int c = sgetc(sr);
-    if (c < 0) return false;
-    if (esc) {
-      if (w + 1 < outCap) out[w++] = (char)c;
-      esc = false;
-      continue;
-    }
-    if (c == '\\') { esc = true; continue; }
-    if (c == '"')  { out[w] = 0; return true; }
-    if (w + 1 < outCap) out[w++] = (char)c;
+  for (size_t i = 0; name[i] && w + 1 < outCap; i++) {
+    char c = name[i];
+    if (c == ' ')      c = '-';
+    else if (c >= 'A' && c <= 'Z') c = c + ('a' - 'A');
+    out[w++] = c;
   }
-}
-
-static bool sskipString(StreamReader& sr) {
-  bool esc = false;
-  while (true) {
-    int c = sgetc(sr);
-    if (c < 0) return false;
-    if (esc) { esc = false; continue; }
-    if (c == '\\') { esc = true; continue; }
-    if (c == '"')  return true;
-  }
-}
-
-bool indexNasbStreaming() {
-  // Note: rawChapterBuf is NOT allocated here. mbedTLS needs ~40-50 KB
-  // working heap during the handshake; holding the 48 KB chapter buffer
-  // at the same time tips the C3 (~150 KB free heap after WiFi) over the
-  // edge and the handshake bails with HTTPC_ERROR_CONNECTION_REFUSED.
-  // Lazy alloc happens in fetchChapterRange instead.
-
-  WiFiClientSecure client;
-  client.setInsecure();
-  client.setHandshakeTimeout(15);    // C3 mbedTLS is slow — give it room
-
-  HTTPClient http;
-  http.setReuse(false);
-  http.setTimeout(30000);
-  Serial.printf("idx: heap pre-begin = %u\n", (unsigned)ESP.getFreeHeap());
-  if (!http.begin(client, NASB_URL)) {
-    bootScreen("HTTP", "begin fail");
-    return false;
-  }
-  http.setFollowRedirects(HTTPC_FORCE_FOLLOW_REDIRECTS);
-
-  Serial.printf("idx: heap pre-GET = %u\n", (unsigned)ESP.getFreeHeap());
-  int code = http.GET();
-  if (code != HTTP_CODE_OK) {
-    char msg[16];
-    snprintf(msg, sizeof(msg), "HTTP %d", code);
-    bootScreen("Download", "failed", msg);
-    http.end();
-    return false;
-  }
-
-  StreamReader sr;
-  sr.stream   = http.getStreamPtr();
-  sr.http     = &http;
-  sr.absPos   = 0;
-  sr.total    = (uint32_t)(http.getSize() > 0 ? http.getSize() : 0);
-  sr.lastDraw = millis();
-  bootProgress("Indexing", 0, sr.total > 0 ? sr.total : 4500000);
-
-  totalBooks = 0;
-
-  Serial.printf("idx: heap before scan = %u\n", (unsigned)ESP.getFreeHeap());
-
-  int c = sgetcSkipWs(sr);
-  if (c != '{') SCAN_FAIL(sr, http);
-
-  while (true) {
-    c = sgetcSkipWs(sr);
-    if (c < 0)            SCAN_FAIL(sr, http);
-    if (c == '}')         { http.end(); Serial.printf("idx: ok, books=%u\n", totalBooks); return true; }
-    if (c == ',')         continue;
-    if (c != '"')         SCAN_FAIL(sr, http);
-    if (totalBooks >= 66) SCAN_FAIL(sr, http);
-
-    Book& bk = books[totalBooks];
-    if (!sreadStringInto(sr, bk.name, sizeof(bk.name))) SCAN_FAIL(sr, http);
-    bk.chapterCount = 0;
-
-    c = sgetcSkipWs(sr);
-    if (c != ':') SCAN_FAIL(sr, http);
-    c = sgetcSkipWs(sr);
-    if (c != '{') SCAN_FAIL(sr, http);
-
-    while (true) {
-      c = sgetcSkipWs(sr);
-      if (c < 0)    SCAN_FAIL(sr, http);
-      if (c == '}') break;
-      if (c == ',') continue;
-      if (c != '"') SCAN_FAIL(sr, http);
-
-      if (!sskipString(sr)) SCAN_FAIL(sr, http);
-      c = sgetcSkipWs(sr);
-      if (c != ':') SCAN_FAIL(sr, http);
-      c = sgetcSkipWs(sr);
-      if (c != '{') SCAN_FAIL(sr, http);
-
-      if (bk.chapterCount >= 150) SCAN_FAIL(sr, http);
-      uint32_t chapStart = sr.absPos - 1;
-
-      int  depth = 1;
-      bool inStr = false;
-      bool inEsc = false;
-      while (depth > 0) {
-        int b = sgetc(sr);
-        if (b < 0) SCAN_FAIL(sr, http);
-        if (inStr) {
-          if (inEsc)     { inEsc = false; continue; }
-          if (b == '\\') { inEsc = true;  continue; }
-          if (b == '"')  { inStr = false; continue; }
-        } else {
-          if      (b == '"') inStr = true;
-          else if (b == '{') depth++;
-          else if (b == '}') depth--;
-        }
-      }
-      bk.chapters[bk.chapterCount].start = chapStart;
-      bk.chapters[bk.chapterCount].len   = sr.absPos - chapStart;
-      bk.chapterCount++;
-    }
-    totalBooks++;
-  }
+  out[w] = 0;
 }
 
 // ============================================================
-//   PER-CHAPTER FETCH (HTTP Range request)
+//   HTTP HELPER  ─ GET a URL into rawChapterBuf, return bytes read
 // ============================================================
-bool fetchChapterRange(uint32_t start, uint32_t len, char* out, size_t outCap) {
-  if (len + 1 > outCap) return false;
-
+// Returns 0 on any failure. Caller already populated `label` for the
+// bootScreen if it wants to display a specific error context.
+static size_t httpGetIntoBuf(const char* url) {
   WiFiClientSecure client;
   client.setInsecure();
   client.setHandshakeTimeout(15);
@@ -380,27 +185,27 @@ bool fetchChapterRange(uint32_t start, uint32_t len, char* out, size_t outCap) {
   HTTPClient http;
   http.setReuse(false);
   http.setTimeout(15000);
-  if (!http.begin(client, NASB_URL)) return false;
-
-  char rangeHdr[40];
-  snprintf(rangeHdr, sizeof(rangeHdr), "bytes=%lu-%lu",
-           (unsigned long)start, (unsigned long)(start + len - 1));
-  http.addHeader("Range", rangeHdr);
+  if (!http.begin(client, url)) {
+    Serial.printf("http begin fail: %s\n", url);
+    return 0;
+  }
   http.setFollowRedirects(HTTPC_FORCE_FOLLOW_REDIRECTS);
 
   int code = http.GET();
-  if (code != 206) {
-    Serial.printf("Range HTTP %d (want 206)\n", code);
+  if (code != HTTP_CODE_OK) {
+    Serial.printf("HTTP %d for %s\n", code, url);
     http.end();
-    return false;
+    return 0;
   }
 
+  int total = http.getSize();
   WiFiClient* stream = http.getStreamPtr();
   size_t   got = 0;
   uint32_t t0  = millis();
-  while (got < len) {
+  while ((total < 0 || (int)got < total) && got + 1 < RAW_CHAP_CAP) {
     if (stream->available() > 0) {
-      int r = stream->readBytes(out + got, len - got);
+      int r = stream->readBytes(rawChapterBuf + got,
+                                RAW_CHAP_CAP - 1 - got);
       if (r > 0) { got += r; t0 = millis(); }
     } else if (!http.connected() && stream->available() == 0) {
       break;
@@ -409,9 +214,54 @@ bool fetchChapterRange(uint32_t start, uint32_t len, char* out, size_t outCap) {
       delay(1);
     }
   }
-  out[got] = 0;
+  rawChapterBuf[got] = 0;
   http.end();
-  return got == len;
+  return got;
+}
+
+// ============================================================
+//   INDEX FETCH  ─ one ~5 KB GET, populates books[]
+// ============================================================
+bool fetchIndex() {
+  bootScreen("Fetching", "index");
+  size_t n = httpGetIntoBuf(INDEX_URL);
+  if (n == 0) {
+    bootScreen("idx HTTP", "fail");
+    return false;
+  }
+
+  JsonDocument doc;
+  DeserializationError err = deserializeJson(doc, rawChapterBuf, n);
+  if (err) {
+    Serial.printf("idx parse err: %s\n", err.c_str());
+    bootScreen("idx parse", "fail", err.c_str());
+    return false;
+  }
+
+  JsonObject obj = doc.as<JsonObject>();
+  totalBooks = 0;
+  for (JsonPair kv : obj) {
+    if (totalBooks >= 66) break;
+    const char* n2 = kv.key().c_str();
+    Book& bk = books[totalBooks];
+    strncpy(bk.name, n2, sizeof(bk.name) - 1);
+    bk.name[sizeof(bk.name) - 1] = 0;
+    bk.chapterCount = kv.value().as<uint16_t>();
+    totalBooks++;
+  }
+  Serial.printf("idx: %u books\n", totalBooks);
+  return totalBooks > 0;
+}
+
+// ============================================================
+//   CHAPTER FETCH  ─ one GET per chapter; returns bytes in buf, or 0
+// ============================================================
+size_t fetchChapter(const char* bookName, uint16_t chapNum1) {
+  char slug[24];
+  bookSlug(bookName, slug, sizeof(slug));
+  char url[128];
+  snprintf(url, sizeof(url), "%s/%s/%u.json", NASB_BASE, slug, chapNum1);
+  return httpGetIntoBuf(url);
 }
 
 // ============================================================
@@ -503,23 +353,14 @@ void buildChapter() {
   if (bookIdx >= totalBooks) return;
   Book& bk = books[bookIdx];
   if (chapterIdx >= bk.chapterCount) return;
-  ChapterSlice& slice = bk.chapters[chapterIdx];
-
-  if (slice.len + 1 > RAW_CHAP_CAP) {
-    const char* m = "chap too big";
-    appendAscii(m, strlen(m));
-    chapterBuf[chapterLen] = 0;
-    computePageBreaks();
-    pageIdx = 0;
-    return;
-  }
 
   oled.clearBuffer();
   oled.setFont(u8g2_font_5x7_tf);
   oled.drawStr(0, 23, "loading...");
   oled.sendBuffer();
 
-  if (!fetchChapterRange(slice.start, slice.len, rawChapterBuf, RAW_CHAP_CAP)) {
+  size_t rawLen = fetchChapter(bk.name, chapterIdx + 1);
+  if (rawLen == 0) {
     const char* m = "fetch error";
     appendAscii(m, strlen(m));
     chapterBuf[chapterLen] = 0;
@@ -529,9 +370,9 @@ void buildChapter() {
   }
 
   JsonDocument doc;
-  DeserializationError err = deserializeJson(doc, rawChapterBuf, slice.len);
+  DeserializationError err = deserializeJson(doc, rawChapterBuf, rawLen);
   if (err) {
-    Serial.printf("JSON err: %s\n", err.c_str());
+    Serial.printf("chap JSON err: %s\n", err.c_str());
     const char* m = "parse error";
     appendAscii(m, strlen(m));
     chapterBuf[chapterLen] = 0;
@@ -572,7 +413,6 @@ void renderBookSelect() {
   int hdrW = oled.getStrWidth(hdr);
   oled.drawStr(72 - hdrW, 7, hdr);
 
-  // Try a couple of fonts; pick the largest that fits the 72 px width.
   const char* name = books[bookIdx].name;
   const uint8_t* fonts[] = {
     u8g2_font_helvB10_tr,
@@ -598,7 +438,6 @@ void renderChapterSelect() {
   oled.clearBuffer();
   oled.setFont(u8g2_font_5x7_tf);
 
-  // Book name top, may need to truncate to fit 72 px.
   const char* name = books[bookIdx].name;
   oled.drawStr(0, 7, name);
 
@@ -795,17 +634,12 @@ void setup() {
 
   if (!connectWiFi()) return;
 
-  bootScreen("Indexing", "streaming");
-  Serial.printf("idx: heap pre-idx = %u\n", (unsigned)ESP.getFreeHeap());
-  if (!indexNasbStreaming()) {
-    // Specific failure screen already showing — leave it visible
-    // (heap alloc / HTTP begin / Download HTTP code / scan err L# @pos).
-    return;
-  }
+  if (!fetchIndex()) return;     // leave whichever error screen is showing
+
   char line[16];
   snprintf(line, sizeof(line), "%u books", totalBooks);
   bootScreen("NASB OK", line);
-  delay(600);
+  delay(500);
 
   prefs.begin("ereader", false);
   mode       = (Mode)prefs.getUChar("mode", MODE_BOOK);
