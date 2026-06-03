@@ -14,38 +14,61 @@
 //     double-tap →  backward (prev)
 //     hold ≥600ms →  advance / back one level (BOOK ↔ CHAPTER ↔ READING)
 //
-//   Data: /nasb.bin in LittleFS, produced by `node tools/pack-nasb.mjs --nt`
-//   Format: see pack-nasb.mjs header comment.
+//   Bible source: fetched ONLINE at boot from
+//     https://chaelri.github.io/devo/nasb2020.json   (~4.4 MB)
+//   The whole JSON is held in PSRAM. A tiny scanner builds a
+//   `(book, chapter) → byte slice` offset table; per-chapter rendering
+//   re-parses just that slice with ArduinoJson. No LittleFS, no
+//   pre-packed binary, no upload-data step.
+//
+//   Required Arduino board options (Tools menu):
+//     Board:            "ESP32S3 Dev Module"
+//     PSRAM:            "OPI PSRAM"   (or "QSPI PSRAM" — match your variant)
+//     USB CDC On Boot:  "Enabled"
+//     Flash Size:       "8MB" / "16MB" (whatever your board has)
+//     Partition Scheme: any with ≥ 1 MB APP region (default works)
 //
 //   Libraries (install via Arduino Library Manager):
-//     - U8g2          (oliver kraus)
-//     - LittleFS      (bundled with esp32 core ≥ 2.0)
-//     - Preferences   (bundled)
-//
-//   Board: "ESP32S3 Dev Module"  (or your specific SuperMini variant)
-//   Partition Scheme: choose one with a ≥ 1.5 MB SPIFFS/FFAT region
-//                     ("No OTA (1MB APP / 3MB SPIFFS)" works for the NT build)
+//     - U8g2                (oliver kraus)
+//     - ArduinoJson  ≥ 7.0  (bblanchon)        ← v7 API, no capacity arg
+//     - Adafruit NeoPixel   (used only to silence the onboard RGB LED)
+//     - Preferences         (bundled)
+//     - WiFi / HTTPClient / WiFiClientSecure   (bundled with esp32 core)
 //
 // ============================================================
 
 #include <Wire.h>
 #include <U8g2lib.h>
-#include <LittleFS.h>
 #include <Preferences.h>
+#include <WiFi.h>
+#include <WiFiMulti.h>
+#include <WiFiClientSecure.h>
+#include <HTTPClient.h>
+#include <ArduinoJson.h>
+#include <Adafruit_NeoPixel.h>
 
 // -------------------- PINS --------------------
 static const int SDA_PIN = 8;
 static const int SCL_PIN = 9;
 static const int BTN_PIN = 4;
+static const int RGB_PIN = 48;     // onboard WS2812 (ESP32-S3 SuperMini)
 
 // -------------------- GESTURE TIMING --------------------
 static const uint32_t DEBOUNCE_MS = 25;
 static const uint32_t DOUBLE_MS   = 280;
 static const uint32_t HOLD_MS     = 600;
 
+// -------------------- WIFI / SOURCE URL --------------------
+WiFiMulti wifiMulti;
+static const uint32_t WIFI_CONNECT_TIMEOUT_MS = 20000;
+static const char* NASB_URL = "https://chaelri.github.io/devo/nasb2020.json";
+
 // -------------------- DISPLAY --------------------
 // 0.91" 128×32 SSD1306, hardware I²C, full-buffer mode
 U8G2_SSD1306_128X32_UNIVISION_F_HW_I2C oled(U8G2_R0, U8X8_PIN_NONE);
+
+// onboard RGB; we only use this to force it OFF
+Adafruit_NeoPixel rgb(1, RGB_PIN, NEO_GRB + NEO_KHZ800);
 
 // -------------------- NVS --------------------
 Preferences prefs;
@@ -57,25 +80,24 @@ uint16_t bookIdx    = 0;
 uint16_t chapterIdx = 0;
 uint16_t pageIdx    = 0;
 
-// -------------------- NASB.BIN INDEX --------------------
-struct BookEntry {
-  char     name[16];        // null-terminated ASCII
-  uint16_t chapterCount;
-  uint32_t firstChapter;    // index into chapter table
-};
+// -------------------- JSON BUFFER (PSRAM) --------------------
+static const size_t JSON_BUF_SIZE = 5UL * 1024UL * 1024UL;   // 5 MB headroom for the 4.4 MB file
+char*  jsonBuf = nullptr;
+size_t jsonLen = 0;
 
-File     nasbFile;
-uint16_t totalBooks         = 0;
-uint32_t totalChapters      = 0;
-uint32_t totalVerses        = 0;
-uint32_t chapterTableOffset = 0;
-uint32_t verseTableOffset   = 0;
-uint32_t textBlobOffset     = 0;
-BookEntry books[80];         // headroom for full Bible (66) + slack
+// -------------------- BOOK / CHAPTER OFFSET TABLE --------------------
+struct ChapterSlice { uint32_t start; uint32_t len; };
+struct Book {
+  char         name[20];                 // longest is "SONG OF SOLOMON" (15)
+  uint16_t     chapterCount;
+  ChapterSlice chapters[150];            // Psalms = 150 chapters
+};
+Book     books[66];
+uint16_t totalBooks = 0;
 
 // -------------------- CURRENT CHAPTER BUFFER --------------------
-static const size_t CHAPTER_CAP = 8192;     // longest NASB chapter < 4 KB
-static const size_t MAX_PAGES   = 96;       // longest chapter (Ps 119) ≈ 50 pages
+static const size_t CHAPTER_CAP = 16384;    // longest NASB chapter (Ps 119) ≈ 11-12 KB after expansion
+static const size_t MAX_PAGES   = 192;      // Ps 119 ≈ 150 pages at 25×3
 char     chapterBuf[CHAPTER_CAP];
 size_t   chapterLen = 0;
 uint16_t pageStarts[MAX_PAGES];
@@ -88,84 +110,299 @@ static const int READ_COLS = 25;
 static const int READ_ROWS = 3;
 
 // ============================================================
-//   LE byte helpers
+//   BOOT SCREEN HELPERS
 // ============================================================
-static inline uint16_t LE16(const uint8_t* p) { return p[0] | (p[1] << 8); }
-static inline uint32_t LE32(const uint8_t* p) {
-  return (uint32_t)p[0] | ((uint32_t)p[1] << 8) | ((uint32_t)p[2] << 16) | ((uint32_t)p[3] << 24);
+void bootScreen(const char* l1, const char* l2 = nullptr, const char* l3 = nullptr) {
+  oled.clearBuffer();
+  oled.setFont(u8g2_font_6x10_tf);
+  if (l1) oled.drawStr(0, 10, l1);
+  if (l2) oled.drawStr(0, 20, l2);
+  if (l3) oled.drawStr(0, 30, l3);
+  oled.sendBuffer();
+}
+
+void bootProgress(const char* label, uint32_t cur, uint32_t total) {
+  oled.clearBuffer();
+  oled.setFont(u8g2_font_6x10_tf);
+  oled.drawStr(0, 10, label);
+  char line[24];
+  if (total > 0) {
+    int pct = (int)((uint64_t)cur * 100 / total);
+    snprintf(line, sizeof(line), "%d%%  %uK / %uK", pct,
+             (unsigned)(cur / 1024), (unsigned)(total / 1024));
+    oled.drawStr(0, 20, line);
+    // progress bar
+    oled.drawFrame(0, 24, 128, 6);
+    int w = (int)((uint64_t)cur * 126 / total);
+    if (w > 126) w = 126;
+    oled.drawBox(1, 25, w, 4);
+  } else {
+    snprintf(line, sizeof(line), "%uK", (unsigned)(cur / 1024));
+    oled.drawStr(0, 20, line);
+  }
+  oled.sendBuffer();
 }
 
 // ============================================================
-//   LOAD INDEX
+//   ONBOARD LED — OFF
 // ============================================================
-bool loadNasb() {
-  if (!LittleFS.begin(false)) {
-    Serial.println("LittleFS mount failed");
+void killOnboardLED() {
+  rgb.begin();
+  rgb.setBrightness(0);
+  rgb.clear();
+  rgb.show();              // pushes a "0,0,0" frame so the WS2812 latches dark
+}
+
+// ============================================================
+//   WIFI
+// ============================================================
+bool connectWiFi() {
+  WiFi.mode(WIFI_STA);
+  wifiMulti.addAP("CAYNO",   "lokomoko");
+  wifiMulti.addAP("Chaelri", "charlie24");
+
+  bootScreen("WiFi:", "connecting...");
+  uint32_t t0 = millis();
+  while (wifiMulti.run() != WL_CONNECTED && millis() - t0 < WIFI_CONNECT_TIMEOUT_MS) {
+    delay(250);
+  }
+  if (WiFi.status() != WL_CONNECTED) {
+    bootScreen("WiFi: FAILED", "no known SSID", "rebooting...");
+    delay(2500);
+    ESP.restart();
     return false;
   }
-  nasbFile = LittleFS.open("/nasb.bin", "r");
-  if (!nasbFile) {
-    Serial.println("/nasb.bin missing");
-    return false;
-  }
-
-  uint8_t header[32];
-  if (nasbFile.read(header, 32) != 32) return false;
-  if (header[0] != 'N' || header[1] != 'S' || header[2] != 'B' || header[3] != '1') {
-    Serial.println("Bad magic");
-    return false;
-  }
-  totalBooks         = LE16(header + 4);
-  totalChapters      = LE32(header + 8);
-  totalVerses        = LE32(header + 12);
-  uint32_t bookTblOff = LE32(header + 16);
-  chapterTableOffset  = LE32(header + 20);
-  verseTableOffset    = LE32(header + 24);
-  textBlobOffset      = LE32(header + 28);
-
-  if (totalBooks > sizeof(books) / sizeof(books[0])) {
-    Serial.println("Too many books for static table");
-    return false;
-  }
-
-  // Read book table into RAM
-  nasbFile.seek(bookTblOff);
-  uint8_t entry[32];
-  for (uint16_t i = 0; i < totalBooks; i++) {
-    if (nasbFile.read(entry, 32) != 32) return false;
-    memcpy(books[i].name, entry, 16);
-    books[i].name[15]      = 0;                  // ensure null
-    books[i].chapterCount  = LE16(entry + 16);
-    books[i].firstChapter  = LE32(entry + 20);
-  }
-
-  Serial.printf("Loaded NASB: %u books, %u chapters, %u verses\n",
-                totalBooks, totalChapters, totalVerses);
+  char line[24];
+  snprintf(line, sizeof(line), "%s", WiFi.SSID().c_str());
+  bootScreen("WiFi: OK", line, WiFi.localIP().toString().c_str());
   return true;
 }
 
-// Look up one chapter's verse_count + first_verse index
-struct ChapterInfo { uint32_t verseCount; uint32_t firstVerse; };
+// ============================================================
+//   DOWNLOAD JSON INTO PSRAM
+// ============================================================
+bool downloadNasb() {
+  if (!psramFound()) {
+    bootScreen("ERROR:", "no PSRAM", "use 8MB variant");
+    return false;
+  }
+  jsonBuf = (char*) ps_malloc(JSON_BUF_SIZE);
+  if (!jsonBuf) {
+    bootScreen("ERROR:", "PSRAM alloc fail");
+    return false;
+  }
 
-ChapterInfo readChapterInfo(uint16_t b, uint16_t c) {
-  uint32_t globalCh = books[b].firstChapter + c;
-  uint32_t off = chapterTableOffset + globalCh * 12;
-  nasbFile.seek(off);
-  uint8_t buf[12];
-  nasbFile.read(buf, 12);
-  ChapterInfo info;
-  info.verseCount = LE32(buf + 0);
-  info.firstVerse = LE32(buf + 4);
-  return info;
+  WiFiClientSecure client;
+  client.setInsecure();              // GitHub Pages cert verification skipped — public asset
+
+  HTTPClient http;
+  http.setReuse(false);
+  http.setTimeout(30000);
+  if (!http.begin(client, NASB_URL)) {
+    bootScreen("HTTP: begin fail");
+    return false;
+  }
+  // GitHub Pages may 301 http→https; we already use https, but keep follow-on safe.
+  http.setFollowRedirects(HTTPC_FORCE_FOLLOW_REDIRECTS);
+
+  int code = http.GET();
+  if (code != HTTP_CODE_OK) {
+    char msg[24];
+    snprintf(msg, sizeof(msg), "HTTP %d", code);
+    bootScreen("Download failed", msg);
+    http.end();
+    return false;
+  }
+
+  int total = http.getSize();          // -1 if chunked
+  WiFiClient* stream = http.getStreamPtr();
+
+  bootProgress("Downloading NASB", 0, total > 0 ? total : 4500000);
+
+  jsonLen = 0;
+  uint8_t buf[2048];
+  uint32_t lastDraw = millis();
+  while (http.connected() && (total < 0 || (int)jsonLen < total)) {
+    int avail = stream->available();
+    if (avail > 0) {
+      int want = avail > (int)sizeof(buf) ? (int)sizeof(buf) : avail;
+      int r = stream->readBytes(buf, want);
+      if (r <= 0) break;
+      if (jsonLen + r >= JSON_BUF_SIZE - 1) {
+        bootScreen("ERROR:", "JSON > 5 MB", "raise buffer");
+        http.end();
+        return false;
+      }
+      memcpy(jsonBuf + jsonLen, buf, r);
+      jsonLen += r;
+      if (millis() - lastDraw > 250) {
+        bootProgress("Downloading NASB", jsonLen, total > 0 ? total : 4500000);
+        lastDraw = millis();
+      }
+    } else {
+      delay(2);
+    }
+  }
+  jsonBuf[jsonLen] = 0;
+  http.end();
+
+  Serial.printf("Downloaded %u bytes\n", (unsigned)jsonLen);
+  return jsonLen > 0;
+}
+
+// ============================================================
+//   JSON SCANNER → BOOK / CHAPTER OFFSET TABLE
+// ============================================================
+static inline void skipWs(const char* s, size_t& i, size_t n) {
+  while (i < n) {
+    char c = s[i];
+    if (c == ' ' || c == '\t' || c == '\n' || c == '\r') i++;
+    else break;
+  }
+}
+
+// Read a JSON string key into `out`. Advances i past the closing quote.
+// Handles simple backslash escapes (\" \\ etc.) — Bible book/chapter keys
+// don't contain unicode escapes so this is sufficient.
+static bool readJsonKey(const char* s, size_t& i, size_t n, char* out, size_t outCap) {
+  if (i >= n || s[i] != '"') return false;
+  i++;
+  size_t w = 0;
+  while (i < n && s[i] != '"') {
+    if (s[i] == '\\' && i + 1 < n) {
+      i++;                         // skip the backslash; copy escaped char raw
+    }
+    if (w < outCap - 1) out[w++] = s[i];
+    i++;
+  }
+  if (i >= n) return false;
+  i++;                             // past closing "
+  out[w] = 0;
+  return true;
+}
+
+// Given s[i] == '{', advance i to one past the matching '}'.
+static bool skipJsonObject(const char* s, size_t& i, size_t n) {
+  if (i >= n || s[i] != '{') return false;
+  int depth = 0;
+  bool inStr = false;
+  for (; i < n; i++) {
+    char c = s[i];
+    if (inStr) {
+      if (c == '\\') { i++; continue; }
+      if (c == '"')  inStr = false;
+    } else {
+      if      (c == '"') inStr = true;
+      else if (c == '{') depth++;
+      else if (c == '}') {
+        depth--;
+        if (depth == 0) { i++; return true; }
+      }
+    }
+  }
+  return false;
+}
+
+bool indexNasb() {
+  totalBooks = 0;
+  size_t i = 0;
+  skipWs(jsonBuf, i, jsonLen);
+  if (i >= jsonLen || jsonBuf[i] != '{') return false;
+  i++;
+
+  while (i < jsonLen) {
+    skipWs(jsonBuf, i, jsonLen);
+    if (i >= jsonLen) return false;
+    if (jsonBuf[i] == '}') return true;        // end of root
+    if (jsonBuf[i] == ',') { i++; continue; }
+    if (jsonBuf[i] != '"') return false;
+    if (totalBooks >= 66) return false;
+
+    Book& bk = books[totalBooks];
+    if (!readJsonKey(jsonBuf, i, jsonLen, bk.name, sizeof(bk.name))) return false;
+    bk.chapterCount = 0;
+
+    skipWs(jsonBuf, i, jsonLen);
+    if (i >= jsonLen || jsonBuf[i] != ':') return false;
+    i++;
+    skipWs(jsonBuf, i, jsonLen);
+    if (i >= jsonLen || jsonBuf[i] != '{') return false;
+    i++;                                        // past '{' of book value
+
+    while (i < jsonLen) {
+      skipWs(jsonBuf, i, jsonLen);
+      if (i >= jsonLen) return false;
+      if (jsonBuf[i] == '}') { i++; break; }    // end of book
+      if (jsonBuf[i] == ',') { i++; continue; }
+      if (jsonBuf[i] != '"') return false;
+
+      char chapKey[8];
+      if (!readJsonKey(jsonBuf, i, jsonLen, chapKey, sizeof(chapKey))) return false;
+      skipWs(jsonBuf, i, jsonLen);
+      if (i >= jsonLen || jsonBuf[i] != ':') return false;
+      i++;
+      skipWs(jsonBuf, i, jsonLen);
+      if (i >= jsonLen || jsonBuf[i] != '{') return false;
+
+      if (bk.chapterCount >= 150) return false;
+      size_t chapStart = i;
+      if (!skipJsonObject(jsonBuf, i, jsonLen)) return false;
+      bk.chapters[bk.chapterCount].start = (uint32_t)chapStart;
+      bk.chapters[bk.chapterCount].len   = (uint32_t)(i - chapStart);
+      bk.chapterCount++;
+    }
+    totalBooks++;
+  }
+  return false;
+}
+
+// ============================================================
+//   UTF-8 → ASCII transcoder (for the 5x7 font)
+// ============================================================
+static inline void appendCh(char c) {
+  if (chapterLen + 1 < CHAPTER_CAP) chapterBuf[chapterLen++] = c;
+}
+
+static void appendAscii(const char* s, size_t len) {
+  for (size_t i = 0; i < len; i++) {
+    unsigned char c = (unsigned char)s[i];
+    if (c < 0x80) { appendCh((char)c); continue; }
+
+    // 3-byte: E2 80 .. → general-punctuation block (curly quotes, dashes, ellipsis)
+    if (c == 0xE2 && i + 2 < len && (unsigned char)s[i+1] == 0x80) {
+      unsigned char t = (unsigned char)s[i+2];
+      switch (t) {
+        case 0x98: appendCh('\''); i += 2; continue;   // '
+        case 0x99: appendCh('\''); i += 2; continue;   // '
+        case 0x9C: appendCh('"');  i += 2; continue;   // "
+        case 0x9D: appendCh('"');  i += 2; continue;   // "
+        case 0x93: appendCh('-');  i += 2; continue;   // –
+        case 0x94: appendCh('-');  i += 2; continue;   // —
+        case 0xA6:                                    // …
+          appendCh('.'); appendCh('.'); appendCh('.');
+          i += 2; continue;
+        default:   appendCh('?');  i += 2; continue;
+      }
+    }
+
+    // 2-byte (C0–DF): mostly NBSP / Latin-1 → space or '?'
+    if ((c & 0xE0) == 0xC0) {
+      if (i + 1 < len && (unsigned char)s[i+1] == 0xA0) appendCh(' ');
+      else appendCh('?');
+      i += 1; continue;
+    }
+    // other 3-byte (E0–EF)
+    if ((c & 0xF0) == 0xE0) { appendCh('?'); i += 2; continue; }
+    // 4-byte (F0–F7)
+    if ((c & 0xF8) == 0xF0) { appendCh('?'); i += 3; continue; }
+    // stray continuation byte
+  }
 }
 
 // ============================================================
 //   BUILD CHAPTER TEXT  +  PAGINATE
 // ============================================================
 void computePageBreaks() {
-  // Greedy word-wrap: each line ≤ READ_COLS, READ_ROWS lines per page.
-  // pageStarts[0..totalPages-1] holds the byte offset into chapterBuf
-  // where each page begins.
   totalPages = 0;
   pageStarts[totalPages++] = 0;
 
@@ -174,17 +411,14 @@ void computePageBreaks() {
   size_t i      = 0;
 
   while (i < chapterLen) {
-    // skip leading spaces at start of a line
     if (lineLen == 0) {
       while (i < chapterLen && chapterBuf[i] == ' ') i++;
       if (i >= chapterLen) break;
     }
-    // find next word boundary
     size_t wordEnd = i;
     while (wordEnd < chapterLen && chapterBuf[wordEnd] != ' ') wordEnd++;
     int wordLen = wordEnd - i;
 
-    // word fits on current line?
     int needed = (lineLen == 0) ? wordLen : (1 + wordLen);
     if (lineLen + needed <= READ_COLS) {
       lineLen += needed;
@@ -192,11 +426,9 @@ void computePageBreaks() {
       continue;
     }
 
-    // doesn't fit → line break
     linesUsed++;
     lineLen = 0;
     if (linesUsed >= READ_ROWS) {
-      // page break — next page starts at current position (after any leading spaces)
       size_t pageStart = i;
       while (pageStart < chapterLen && chapterBuf[pageStart] == ' ') pageStart++;
       if (totalPages < MAX_PAGES && pageStart < chapterLen) {
@@ -204,41 +436,47 @@ void computePageBreaks() {
       }
       linesUsed = 0;
     }
-    // word is too wide for a line → hard-break (rare with READ_COLS=25)
     if (wordLen > READ_COLS) {
       lineLen = READ_COLS;
       i += READ_COLS;
     }
-    // else: leave i alone, loop re-attempts on new line
   }
   if (totalPages == 0) totalPages = 1;
 }
 
 void buildChapter() {
   chapterLen = 0;
-  ChapterInfo info = readChapterInfo(bookIdx, chapterIdx);
+  if (bookIdx >= totalBooks) return;
+  Book& bk = books[bookIdx];
+  if (chapterIdx >= bk.chapterCount) return;
+  ChapterSlice& slice = bk.chapters[chapterIdx];
 
-  for (uint32_t v = 0; v < info.verseCount; v++) {
-    // read verse table entry
-    uint8_t ve[8];
-    nasbFile.seek(verseTableOffset + (info.firstVerse + v) * 8);
-    nasbFile.read(ve, 8);
-    uint32_t textOff = LE32(ve + 0);
-    uint32_t textLen = LE32(ve + 4);
+  // Parse just the chapter object: { "1": "...", "2": "...", ... }
+  JsonDocument doc;
+  DeserializationError err = deserializeJson(doc, jsonBuf + slice.start, slice.len);
+  if (err) {
+    Serial.printf("JSON err: %s\n", err.c_str());
+    const char* m = "parse error";
+    appendAscii(m, strlen(m));
+    chapterBuf[chapterLen] = 0;
+    computePageBreaks();
+    pageIdx = 0;
+    return;
+  }
 
-    // prefix: " N " (single leading space for separation, then number, then space)
+  JsonObject obj = doc.as<JsonObject>();
+  bool first = true;
+  for (JsonPair kv : obj) {
+    const char* numStr = kv.key().c_str();
+    const char* text   = kv.value().as<const char*>();
+    if (!text) continue;
+
     char prefix[8];
-    int plen = snprintf(prefix, sizeof(prefix), "%s%u ",
-                        (v == 0 ? "" : "  "), (unsigned)(v + 1));
-    if (chapterLen + plen + textLen >= CHAPTER_CAP) break;   // safety stop
-
-    memcpy(chapterBuf + chapterLen, prefix, plen);
-    chapterLen += plen;
-
-    // read verse text
-    nasbFile.seek(textBlobOffset + textOff);
-    nasbFile.read((uint8_t*)(chapterBuf + chapterLen), textLen);
-    chapterLen += textLen;
+    int plen = snprintf(prefix, sizeof(prefix), "%s%s ",
+                        first ? "" : "  ", numStr);
+    first = false;
+    for (int p = 0; p < plen; p++) appendCh(prefix[p]);
+    appendAscii(text, strlen(text));
   }
   chapterBuf[chapterLen] = 0;
 
@@ -249,7 +487,6 @@ void buildChapter() {
 // ============================================================
 //   RENDERING
 // ============================================================
-// header bar (top 8 px, inverted)
 void drawHeader(const char* text) {
   oled.setDrawColor(1);
   oled.drawBox(0, 0, 128, 9);
@@ -266,7 +503,6 @@ void renderBookSelect() {
   snprintf(hdr, sizeof(hdr), "BOOK  %u / %u", bookIdx + 1, totalBooks);
   drawHeader(hdr);
 
-  // body: book name, big & centered. Auto-fit font width.
   const char* name = books[bookIdx].name;
   const uint8_t* fonts[] = {
     u8g2_font_logisoso16_tr,
@@ -279,7 +515,6 @@ void renderBookSelect() {
     int w = oled.getStrWidth(name);
     if (w <= 124) {
       int x = (128 - w) / 2;
-      // baseline near bottom of body region (9..31): pick y by font ascent
       int y = 9 + ((23 + oled.getAscent()) / 2);
       if (y > 31) y = 31;
       oled.drawStr(x, y, name);
@@ -310,8 +545,6 @@ void renderChapterSelect() {
 void renderReadingPage() {
   oled.clearBuffer();
 
-  // header: short book code + chapter + verse-of-page marker
-  // produce a 3-letter book code (first 3 of name)
   char code[4] = { 0 };
   for (int i = 0; i < 3 && books[bookIdx].name[i]; i++) code[i] = books[bookIdx].name[i];
   char hdr[24];
@@ -319,7 +552,6 @@ void renderReadingPage() {
            pageIdx + 1, totalPages);
   drawHeader(hdr);
 
-  // body: 3 rows × 25 cols, word-wrap from pageStarts[pageIdx]
   oled.setFont(u8g2_font_5x7_tf);
 
   size_t start = pageStarts[pageIdx];
@@ -327,11 +559,9 @@ void renderReadingPage() {
 
   size_t i = start;
   for (int row = 0; row < READ_ROWS && i < end; row++) {
-    // skip leading spaces
     while (i < end && chapterBuf[i] == ' ') i++;
     if (i >= end) break;
 
-    // greedily collect words until line is full
     char line[READ_COLS + 1];
     int  ll = 0;
     while (i < end && ll < READ_COLS) {
@@ -350,7 +580,7 @@ void renderReadingPage() {
     }
     line[ll] = 0;
 
-    int y = 9 + 7 + row * 8;     // baseline at 16, 24, 31
+    int y = 9 + 7 + row * 8;
     if (y > 31) y = 31;
     oled.drawStr(0, y, line);
   }
@@ -381,7 +611,6 @@ Gesture readButton() {
   uint32_t now = millis();
   bool pressed = (digitalRead(BTN_PIN) == LOW);
 
-  // rising edge
   if (pressed && !btnWasPressed) {
     btnPressStart = now;
     btnWasPressed = true;
@@ -389,18 +618,16 @@ Gesture readButton() {
     return G_NONE;
   }
 
-  // long-press fires immediately at the threshold (don't wait for release)
   if (btnWasPressed && !holdFired && (now - btnPressStart) >= HOLD_MS) {
     holdFired = true;
     return G_HOLD;
   }
 
-  // falling edge
   if (!pressed && btnWasPressed) {
     uint32_t dur = now - btnPressStart;
     btnWasPressed = false;
     if (dur < DEBOUNCE_MS) return G_NONE;
-    if (holdFired)         return G_NONE;        // already fired on threshold
+    if (holdFired)         return G_NONE;
 
     if (pendingTap && (now - lastReleaseMs) <= DOUBLE_MS) {
       pendingTap = false;
@@ -408,10 +635,9 @@ Gesture readButton() {
     }
     pendingTap    = true;
     lastReleaseMs = now;
-    return G_NONE;                                // wait to see if a double follows
+    return G_NONE;
   }
 
-  // pending tap timed out → commit as single tap
   if (pendingTap && (now - lastReleaseMs) > DOUBLE_MS) {
     pendingTap = false;
     return G_TAP;
@@ -435,7 +661,6 @@ void onTap() {
       if (pageIdx + 1 < totalPages) {
         pageIdx++;
       } else {
-        // auto-advance to next chapter (same book; wraps)
         chapterIdx = (chapterIdx + 1) % books[bookIdx].chapterCount;
         pageIdx = 0;
         buildChapter();
@@ -495,6 +720,8 @@ void setup() {
   Serial.begin(115200);
   delay(100);
 
+  killOnboardLED();                       // shut up the blinking blue WS2812
+
   pinMode(BTN_PIN, INPUT_PULLUP);
 
   Wire.setPins(SDA_PIN, SCL_PIN);
@@ -502,19 +729,20 @@ void setup() {
 
   oled.begin();
   oled.setContrast(180);
-  oled.setFont(u8g2_font_6x10_tf);
-  oled.clearBuffer();
-  oled.drawStr(0, 12, "Bible E-Reader");
-  oled.drawStr(0, 26, "Loading NASB...");
-  oled.sendBuffer();
+  bootScreen("Bible E-Reader", "booting...");
 
-  if (!loadNasb()) {
-    oled.clearBuffer();
-    oled.drawStr(0, 12, "NASB not found.");
-    oled.drawStr(0, 26, "Upload /nasb.bin");
-    oled.sendBuffer();
+  if (!connectWiFi())                 return;
+  if (!downloadNasb())                return;
+
+  bootScreen("Indexing NASB", "scanning books...");
+  if (!indexNasb()) {
+    bootScreen("ERROR:", "JSON index fail");
     return;
   }
+  char line[24];
+  snprintf(line, sizeof(line), "%u books OK", totalBooks);
+  bootScreen("NASB loaded", line);
+  delay(600);
 
   prefs.begin("ereader", false);
   mode       = (Mode)prefs.getUChar("mode", MODE_BOOK);

@@ -169,15 +169,15 @@
 <header id="top" class="max-w-6xl mx-auto px-4 sm:px-6 pt-16 pb-12 text-center">
   <div class="inline-flex items-center gap-2 px-3 py-1 rounded-full bg-white/[0.04] border border-white/[0.06] text-xs text-slate-400 mb-6">
     <span class="w-1.5 h-1.5 bg-amber-400 rounded-full"></span>
-    Pocket scripture · 3 parts · 1 button · NASB 2020 on-device
+    Pocket scripture · 3 parts · 1 button · NASB 2020 over WiFi @ boot
   </div>
   <h1 class="text-4xl sm:text-6xl font-bold tracking-tight text-white mb-4">
     DIY <span class="serif italic bg-gradient-to-r from-amber-200 via-orange-300 to-rose-300 bg-clip-text text-transparent">Bible E-Reader</span>
   </h1>
   <p class="text-base sm:text-lg text-slate-400 max-w-2xl mx-auto mb-10">
-    A pocket-sized scripture reader that runs entirely on-device — no WiFi, no cloud.
+    A pocket-sized scripture reader. Pulls the NASB 2020 JSON once over WiFi
+    at boot (~4.4 MB into PSRAM), then runs straight from RAM.
     Tap to turn the page, double-tap to go back, hold to jump levels.
-    NASB 2020 stored on the chip itself.
   </p>
   <div class="grid grid-cols-2 sm:grid-cols-4 gap-3 max-w-3xl mx-auto">
     <div class="card p-4 text-left">
@@ -189,12 +189,12 @@
       <div class="text-xs text-slate-500 mt-1">4 OLED + 2 button · plus 1 USB-C</div>
     </div>
     <div class="card p-4 text-left">
-      <div class="text-2xl font-semibold text-white">4 <span class="text-sm text-slate-500 font-normal">MB flash</span></div>
-      <div class="text-xs text-slate-500 mt-1">packed NASB binary · LittleFS</div>
+      <div class="text-2xl font-semibold text-white">5 <span class="text-sm text-slate-500 font-normal">MB PSRAM</span></div>
+      <div class="text-xs text-slate-500 mt-1">NASB JSON in RAM · no LittleFS</div>
     </div>
     <div class="card p-4 text-left">
       <div class="text-2xl font-semibold text-white">66 <span class="text-sm text-slate-500 font-normal">books</span></div>
-      <div class="text-xs text-slate-500 mt-1">Genesis → Revelation · offline</div>
+      <div class="text-xs text-slate-500 mt-1">Genesis → Revelation · fetched @ boot</div>
     </div>
   </div>
 </header>
@@ -248,9 +248,9 @@
         <g transform="translate(500 110)">
           <circle r="34" fill="#0d1018" stroke="rgba(250,204,21,0.55)" stroke-width="1.5"/>
           <circle r="34" fill="rgba(250,204,21,0.08)"/>
-          <text text-anchor="middle" dominant-baseline="central" fill="#cbd5e1" font-family="Material Symbols Outlined" font-size="26">menu_book</text>
-          <text y="60" text-anchor="middle" fill="#fff" font-size="13" font-weight="600">LittleFS</text>
-          <text y="76" text-anchor="middle" fill="#64748b" font-size="11">packed NASB · seek</text>
+          <text text-anchor="middle" dominant-baseline="central" fill="#cbd5e1" font-family="Material Symbols Outlined" font-size="26">cloud_download</text>
+          <text y="60" text-anchor="middle" fill="#fff" font-size="13" font-weight="600">WiFi → PSRAM</text>
+          <text y="76" text-anchor="middle" fill="#64748b" font-size="11">NASB JSON @ boot · 4.4 MB</text>
         </g>
 
         <g transform="translate(700 110)">
@@ -263,7 +263,7 @@
 
         <g fill="#64748b" font-size="10" text-anchor="middle" font-family="JetBrains Mono">
           <text x="200" y="98">GPIO 4 · INPUT_PULLUP</text>
-          <text x="400" y="98">read · seek · render</text>
+          <text x="400" y="98">fetch · parse · render</text>
           <text x="600" y="98">I²C @ 400 kHz</text>
         </g>
       </svg>
@@ -289,7 +289,7 @@
           <span class="material-symbols-outlined" style="font-size:18px">touch_double</span>
           <span class="text-xs font-medium uppercase tracking-wider">Hold</span>
         </div>
-        <div class="text-sm text-slate-300">≥ 600 ms hold = select / advance to the next level. From <span class="text-amber-300">READING</span>, hold takes you back to the chapter picker. Hold ≥ 2 s anywhere = home (BOOK).</div>
+        <div class="text-sm text-slate-300">≥ 600 ms hold = select / advance to the next level. <span class="text-amber-300">BOOK</span> → <span class="text-amber-300">CHAPTER</span> → <span class="text-amber-300">READING</span>; from READING, hold takes you back to the chapter picker.</div>
       </div>
     </div>
   </div>
@@ -690,8 +690,8 @@
 <section id="demo" class="section max-w-6xl mx-auto px-4 sm:px-6 py-16">
   <div class="mb-10">
     <div class="text-xs uppercase tracking-[0.2em] text-amber-400 mb-2">04 · Demo</div>
-    <h2 class="text-3xl font-bold text-white">State machine preview</h2>
-    <p class="text-slate-400 mt-2 max-w-xl">Animation only — no firmware here. Use the buttons (or your keyboard: <span class="mono">space</span> = tap, <span class="mono">d</span> = double-tap, <span class="mono">h</span> = hold) to walk through what the real OLED will show.</p>
+    <h2 class="text-3xl font-bold text-white">One button. Three gestures.</h2>
+    <p class="text-slate-400 mt-2 max-w-xl">Mouse/touch the big button below and try the real timing thresholds: any release &lt; 280 ms after another release = <span class="text-rose-300">double-tap</span>; hold ≥ 600 ms = <span class="text-yellow-300">hold</span>; anything else = <span class="text-amber-300">tap</span>. The same gesture detector runs on the ESP32. Keyboard: <span class="mono">space</span> taps, <span class="mono">d</span> double-taps, <span class="mono">h</span> holds.</p>
   </div>
 
   <div class="card p-6 sm:p-8 grid-bg">
@@ -713,35 +713,65 @@
         </div>
         <div class="text-xs text-slate-500 mono">128 × 32 px · scaled 3×</div>
         <div class="text-sm text-amber-300 mono" id="demoMode">mode: BOOK</div>
+        <div class="text-xs mono" id="demoLastGesture" style="color:#64748b">last gesture: —</div>
       </div>
 
-      <!-- ===== Gesture controls ===== -->
-      <div class="space-y-3">
-        <button id="btnTap" class="btn-tactile w-full card p-4 flex items-center gap-3 hover:bg-white/[0.04] transition">
-          <span class="material-symbols-outlined text-amber-300">arrow_forward</span>
-          <div class="text-left flex-1">
-            <div class="text-white font-medium">Tap</div>
-            <div class="text-xs text-slate-500">Forward (next book / chapter / page)</div>
+      <!-- ===== Single tactile button + legend ===== -->
+      <div class="space-y-5">
+        <!-- The button -->
+        <button id="bigBtn"
+                class="btn-tactile w-full select-none flex flex-col items-center justify-center gap-3 py-10 rounded-2xl
+                       bg-gradient-to-b from-white/[0.04] to-white/[0.01]
+                       border border-white/10 hover:border-white/20 transition active:from-white/[0.07]"
+                aria-label="Tactile button — tap, double-tap, or hold">
+          <div class="relative">
+            <!-- ring -->
+            <div class="w-20 h-20 rounded-full grid place-items-center
+                        bg-gradient-to-b from-slate-700 to-slate-900
+                        border border-white/15 shadow-inner shadow-black/40">
+              <div id="bigBtnCap" class="w-12 h-12 rounded-full
+                                          bg-gradient-to-b from-slate-500 to-slate-700
+                                          border border-slate-900 shadow-md shadow-black/30
+                                          transition-transform duration-75"></div>
+            </div>
+            <!-- hold ring indicator -->
+            <svg id="holdRing" class="absolute inset-0 -m-2 w-24 h-24 pointer-events-none" viewBox="0 0 100 100">
+              <circle cx="50" cy="50" r="46" fill="none" stroke="rgba(250,204,21,0.85)" stroke-width="3"
+                      stroke-dasharray="289" stroke-dashoffset="289" stroke-linecap="round"
+                      transform="rotate(-90 50 50)" style="transition: stroke-dashoffset 60ms linear;"/>
+            </svg>
           </div>
-          <span class="text-xs text-slate-600 mono">space</span>
+          <div class="text-xs text-slate-500 mono">press · release · hold</div>
         </button>
-        <button id="btnDouble" class="btn-tactile w-full card p-4 flex items-center gap-3 hover:bg-white/[0.04] transition">
-          <span class="material-symbols-outlined text-rose-300">arrow_back</span>
-          <div class="text-left flex-1">
-            <div class="text-white font-medium">Double-tap</div>
-            <div class="text-xs text-slate-500">Backward (prev)</div>
+
+        <!-- Legend (no longer clickable — it's just a key) -->
+        <div class="space-y-2">
+          <div class="card p-3 flex items-center gap-3">
+            <span class="material-symbols-outlined text-amber-300" style="font-size:18px">arrow_forward</span>
+            <div class="text-left flex-1">
+              <div class="text-white text-sm font-medium">Tap</div>
+              <div class="text-xs text-slate-500">Forward (next book / chapter / page)</div>
+            </div>
+            <span class="text-xs text-slate-600 mono">&lt; 600 ms</span>
           </div>
-          <span class="text-xs text-slate-600 mono">d</span>
-        </button>
-        <button id="btnHold" class="btn-tactile w-full card p-4 flex items-center gap-3 hover:bg-white/[0.04] transition">
-          <span class="material-symbols-outlined text-yellow-300">touch_double</span>
-          <div class="text-left flex-1">
-            <div class="text-white font-medium">Hold (≥600 ms)</div>
-            <div class="text-xs text-slate-500">Advance / go back a level</div>
+          <div class="card p-3 flex items-center gap-3">
+            <span class="material-symbols-outlined text-rose-300" style="font-size:18px">arrow_back</span>
+            <div class="text-left flex-1">
+              <div class="text-white text-sm font-medium">Double-tap</div>
+              <div class="text-xs text-slate-500">Backward (prev)</div>
+            </div>
+            <span class="text-xs text-slate-600 mono">≤ 280 ms gap</span>
           </div>
-          <span class="text-xs text-slate-600 mono">h</span>
-        </button>
-        <button id="btnReset" class="w-full text-xs text-slate-500 hover:text-slate-300 transition py-2">↺ reset to BOOK</button>
+          <div class="card p-3 flex items-center gap-3">
+            <span class="material-symbols-outlined text-yellow-300" style="font-size:18px">touch_double</span>
+            <div class="text-left flex-1">
+              <div class="text-white text-sm font-medium">Hold</div>
+              <div class="text-xs text-slate-500">Advance / go back a level</div>
+            </div>
+            <span class="text-xs text-slate-600 mono">≥ 600 ms</span>
+          </div>
+          <button id="btnReset" class="w-full text-xs text-slate-500 hover:text-slate-300 transition py-2">↺ reset to BOOK</button>
+        </div>
       </div>
     </div>
   </div>
@@ -752,43 +782,65 @@
   <div class="mb-10">
     <div class="text-xs uppercase tracking-[0.2em] text-amber-400 mb-2">05 · Code</div>
     <h2 class="text-3xl font-bold text-white">Firmware sketch</h2>
-    <p class="text-slate-400 mt-2 max-w-xl">Skeleton only — full Arduino sketch (with U8g2 rendering, NVS-backed state, and the packed-NASB seek logic) will land in <span class="mono">firmware/ereader.ino</span> once we agree on the data-packing format.</p>
+    <p class="text-slate-400 mt-2 max-w-xl">Full sketch lives at <span class="mono">firmware/ereader.ino</span>. Boots → WiFi → HTTPS GET <span class="mono">chaelri.github.io/devo/nasb2020.json</span> into 5 MB PSRAM → a tiny scanner builds a <span class="mono">(book, chapter) → byte slice</span> table → ArduinoJson parses only the active chapter on demand. Outline below.</p>
   </div>
 
   <div class="card p-5">
-    <pre class="code">// ereader.ino — sketch outline
+    <pre class="code">// ereader.ino — outline (see firmware/ereader.ino for the full sketch)
 #include &lt;U8g2lib.h&gt;
-#include &lt;LittleFS.h&gt;
+#include &lt;WiFi.h&gt;
+#include &lt;WiFiMulti.h&gt;
+#include &lt;WiFiClientSecure.h&gt;
+#include &lt;HTTPClient.h&gt;
+#include &lt;ArduinoJson.h&gt;          // v7+
+#include &lt;Adafruit_NeoPixel.h&gt;    // only to silence the onboard RGB
 #include &lt;Preferences.h&gt;
 
-const int SDA_PIN = 8;
-const int SCL_PIN = 9;
-const int BTN_PIN = 4;          // tactile button to GND
+const int SDA_PIN = 8, SCL_PIN = 9, BTN_PIN = 4, RGB_PIN = 48;
+const char* NASB_URL = "https://chaelri.github.io/devo/nasb2020.json";
 
 U8G2_SSD1306_128X32_UNIVISION_F_HW_I2C oled(U8G2_R0, U8X8_PIN_NONE);
+Adafruit_NeoPixel rgb(1, RGB_PIN, NEO_GRB + NEO_KHZ800);
+WiFiMulti wifiMulti;
 Preferences prefs;
 
-enum Mode { BOOK, CHAPTER, READING };
-Mode mode = BOOK;
-uint8_t bookIdx = 0;             // 0..65
-uint8_t chapterIdx = 0;          // 0..N-1 of current book
-uint16_t pageIdx = 0;            // page within current chapter
+char*  jsonBuf = nullptr;          // 5 MB in PSRAM, holds the whole file
+size_t jsonLen = 0;
+
+struct ChapterSlice { uint32_t start, len; };
+struct Book { char name[20]; uint16_t chapterCount; ChapterSlice chapters[150]; };
+Book books[66];
+uint16_t totalBooks = 0;
 
 void setup() {
+  rgb.begin(); rgb.clear(); rgb.show();   // kill the blinking blue LED
   pinMode(BTN_PIN, INPUT_PULLUP);
-  Wire.setPins(SDA_PIN, SCL_PIN);
-  oled.begin();
-  LittleFS.begin();
+  Wire.setPins(SDA_PIN, SCL_PIN); oled.begin();
+
+  wifiMulti.addAP("CAYNO", "lokomoko");
+  wifiMulti.addAP("Chaelri", "charlie24");
+  WiFi.mode(WIFI_STA);
+  while (wifiMulti.run() != WL_CONNECTED) delay(250);
+
+  jsonBuf = (char*) ps_malloc(5 * 1024 * 1024);
+  downloadNasb();                   // HTTPS GET → jsonBuf, with progress bar
+  indexNasb();                      // scan to (book, chapter) byte slices
+
   prefs.begin("ereader", false);
-  bookIdx    = prefs.getUChar("book", 0);
-  chapterIdx = prefs.getUChar("chap", 0);
-  pageIdx    = prefs.getUShort("page", 0);
+  /* restore mode / bookIdx / chapterIdx / pageIdx from NVS */
   render();
 }
 
+void buildChapter() {
+  ChapterSlice s = books[bookIdx].chapters[chapterIdx];
+  JsonDocument doc;
+  deserializeJson(doc, jsonBuf + s.start, s.len);   // parse just the slice
+  // iterate verse keys → flatten UTF-8 → ASCII into chapterBuf → paginate
+}
+
 void loop() {
-  Gesture g = readButton();      // NONE / TAP / DOUBLE / HOLD
-  if (g != NONE) { handle(g); render(); savePos(); }
+  Gesture g = readButton();         // NONE / TAP / DOUBLE / HOLD (same thresholds as the demo above)
+  if (g != G_NONE) { handle(g); render(); savePos(); }
 }</pre>
   </div>
 </section>
@@ -871,9 +923,10 @@ void loop() {
       items: [
         "Install Arduino IDE 2.x + esp32 board package (Espressif ≥ 3.0)",
         "Add U8g2 library (oliverkraus)",
-        "Install ESP32-LittleFS-Plugin for filesystem upload",
-        "Convert nasb2020.json → packed binary (script TBD)",
-        "Upload packed binary to LittleFS partition",
+        "Add ArduinoJson library (bblanchon, ≥ 7.0)",
+        "Add Adafruit NeoPixel library (used only to silence the onboard RGB)",
+        "Tools → Board: ESP32S3 Dev Module · PSRAM: OPI PSRAM (or QSPI — match your variant)",
+        "Edit WiFi creds in setup() if your home SSID isn't CAYNO / Chaelri",
       ]
     },
     { section: "Wiring",
@@ -889,10 +942,13 @@ void loop() {
     },
     { section: "Test",
       items: [
-        "Power via USB-C, expect \"Hello\" splash on OLED",
+        "Power via USB-C, expect \"Bible E-Reader · booting...\" on OLED",
+        "WiFi step: shows SSID + IP within ~3 s",
+        "Download bar fills to 100% (~5-15 s for 4.4 MB)",
+        "Onboard blue RGB LED stays OFF the whole time",
         "Tap button → screen advances book name",
         "Hold ≥ 600 ms → enters chapter picker",
-        "Reset (replug) → resumes at last book/chapter/page",
+        "Replug → resumes at last book/chapter/page (NVS)",
       ]
     },
   ];
@@ -1004,26 +1060,130 @@ void loop() {
     renderDemo();
   }
 
-  function pressFlash(el) {
-    el.classList.add("pressed");
-    setTimeout(() => el.classList.remove("pressed"), 120);
+  // ============ REAL ONE-BUTTON GESTURE DETECTOR ============
+  // Mirrors the firmware thresholds exactly:
+  //   DEBOUNCE_MS = 25, DOUBLE_MS = 280, HOLD_MS = 600.
+  const DEBOUNCE_MS = 25, DOUBLE_MS = 280, HOLD_MS = 600;
+
+  const bigBtn       = document.getElementById("bigBtn");
+  const bigBtnCap    = document.getElementById("bigBtnCap");
+  const holdRing     = document.getElementById("holdRing").querySelector("circle");
+  const RING_CIRC    = 289;   // 2πr at r=46
+  const lastGesture  = document.getElementById("demoLastGesture");
+  const btnReset     = document.getElementById("btnReset");
+
+  let isDown = false, downAt = 0, holdFired = false, holdTimer = null;
+  let pendingTap = false, pendingTapTimer = null, lastReleaseAt = 0;
+  let ringRaf = null;
+
+  function setCapPressed(pressed) {
+    bigBtnCap.style.transform = pressed ? "translateY(2px) scale(0.94)" : "";
   }
 
-  const btnTap = document.getElementById("btnTap");
-  const btnDouble = document.getElementById("btnDouble");
-  const btnHold = document.getElementById("btnHold");
-  const btnReset = document.getElementById("btnReset");
+  function startRing() {
+    cancelAnimationFrame(ringRaf);
+    const t0 = performance.now();
+    const tick = (now) => {
+      const elapsed = now - t0;
+      const frac = Math.min(elapsed / HOLD_MS, 1);
+      holdRing.style.strokeDashoffset = String(RING_CIRC * (1 - frac));
+      if (isDown && frac < 1) ringRaf = requestAnimationFrame(tick);
+    };
+    ringRaf = requestAnimationFrame(tick);
+  }
+  function resetRing() {
+    cancelAnimationFrame(ringRaf);
+    holdRing.style.strokeDashoffset = String(RING_CIRC);
+  }
 
-  btnTap.addEventListener("click", () => { pressFlash(btnTap); gesture("TAP"); });
-  btnDouble.addEventListener("click", () => { pressFlash(btnDouble); gesture("DOUBLE"); });
-  btnHold.addEventListener("click", () => { pressFlash(btnHold); gesture("HOLD"); });
-  btnReset.addEventListener("click", () => { demo.mode = "BOOK"; demo.book = 0; demo.chapter = 0; demo.page = 0; renderDemo(); });
+  function flashGesture(kind) {
+    const color = kind === "TAP"    ? "#fbbf24"
+                : kind === "DOUBLE" ? "#fb7185"
+                :                     "#facc15";
+    lastGesture.style.color = color;
+    lastGesture.textContent = `last gesture: ${kind}`;
+  }
 
+  function onPress() {
+    if (isDown) return;
+    isDown    = true;
+    downAt    = performance.now();
+    holdFired = false;
+    setCapPressed(true);
+    startRing();
+    holdTimer = setTimeout(() => {
+      if (!isDown) return;
+      holdFired = true;
+      flashGesture("HOLD");
+      gesture("HOLD");
+    }, HOLD_MS);
+  }
+
+  function onRelease() {
+    if (!isDown) return;
+    isDown = false;
+    setCapPressed(false);
+    resetRing();
+    clearTimeout(holdTimer); holdTimer = null;
+
+    const dur = performance.now() - downAt;
+    if (dur < DEBOUNCE_MS) return;   // bouncy press
+    if (holdFired) return;           // HOLD already fired on the timer
+
+    const now = performance.now();
+    if (pendingTap && (now - lastReleaseAt) <= DOUBLE_MS) {
+      pendingTap = false;
+      clearTimeout(pendingTapTimer); pendingTapTimer = null;
+      flashGesture("DOUBLE");
+      gesture("DOUBLE");
+    } else {
+      pendingTap    = true;
+      lastReleaseAt = now;
+      clearTimeout(pendingTapTimer);
+      pendingTapTimer = setTimeout(() => {
+        if (!pendingTap) return;
+        pendingTap = false;
+        flashGesture("TAP");
+        gesture("TAP");
+      }, DOUBLE_MS + 5);
+    }
+  }
+
+  bigBtn.addEventListener("pointerdown", (e) => { e.preventDefault(); bigBtn.setPointerCapture(e.pointerId); onPress(); });
+  bigBtn.addEventListener("pointerup",   (e) => { onRelease(); });
+  bigBtn.addEventListener("pointercancel", () => { onRelease(); });
+  bigBtn.addEventListener("contextmenu",   (e) => e.preventDefault());   // suppress long-press menu on mobile
+  bigBtn.addEventListener("click",         (e) => e.preventDefault());   // we drive everything off pointer events
+
+  btnReset.addEventListener("click", () => {
+    demo.mode = "BOOK"; demo.book = 0; demo.chapter = 0; demo.page = 0;
+    flashGesture("RESET");
+    renderDemo();
+  });
+
+  // ===== Keyboard shortcuts simulate a real press/release cycle =====
+  const keyDownAt = {};
   document.addEventListener("keydown", (e) => {
     if (e.target.tagName === "INPUT" || e.target.tagName === "TEXTAREA") return;
-    if (e.key === " ") { e.preventDefault(); pressFlash(btnTap); gesture("TAP"); }
-    else if (e.key.toLowerCase() === "d") { pressFlash(btnDouble); gesture("DOUBLE"); }
-    else if (e.key.toLowerCase() === "h") { pressFlash(btnHold); gesture("HOLD"); }
+    if (e.repeat) return;
+    if (e.key === " ") {
+      e.preventDefault();
+      keyDownAt[" "] = performance.now();
+      onPress();
+    } else if (e.key.toLowerCase() === "d") {
+      // synthesize: press / release / press / release with ~150 ms gap
+      const gap = 150;
+      onPress(); setTimeout(onRelease, 30);
+      setTimeout(onPress, 30 + gap);
+      setTimeout(onRelease, 30 + gap + 30);
+    } else if (e.key.toLowerCase() === "h") {
+      // synthesize a 700 ms hold
+      onPress();
+      setTimeout(onRelease, HOLD_MS + 80);
+    }
+  });
+  document.addEventListener("keyup", (e) => {
+    if (e.key === " " && keyDownAt[" "] !== undefined) { onRelease(); delete keyDownAt[" "]; }
   });
 
   // ============ NAV ============
