@@ -14,12 +14,15 @@
 //     double-tap →  backward (prev)
 //     hold ≥600ms →  advance / back one level (BOOK ↔ CHAPTER ↔ READING)
 //
-//   Bible source: fetched ONLINE at boot from
+//   Bible source: streamed ONLINE at boot from
 //     https://chaelri.github.io/devo/nasb2020.json   (~4.4 MB)
-//   The whole JSON is held in PSRAM. A tiny scanner builds a
-//   `(book, chapter) → byte slice` offset table; per-chapter rendering
-//   re-parses just that slice with ArduinoJson. No LittleFS, no
-//   pre-packed binary, no upload-data step.
+//   The full JSON is NEVER buffered. A streaming scanner walks the
+//   HTTPS body byte-by-byte and builds a `(book, chapter) → byte
+//   slice` offset table on the fly. Per-chapter rendering then issues
+//   an HTTP Range request for just that slice (~3-40 KB) into a small
+//   PSRAM buffer, and ArduinoJson parses it. Fits on N8R2 (2 MB
+//   PSRAM) variants. No LittleFS, no pre-packed binary, no upload-
+//   data step. GitHub Pages (Fastly) honors `Range:` on static files.
 //
 //   Required Arduino board options (Tools menu):
 //     Board:            "ESP32S3 Dev Module"
@@ -80,10 +83,12 @@ uint16_t bookIdx    = 0;
 uint16_t chapterIdx = 0;
 uint16_t pageIdx    = 0;
 
-// -------------------- JSON BUFFER (PSRAM) --------------------
-static const size_t JSON_BUF_SIZE = 5UL * 1024UL * 1024UL;   // 5 MB headroom for the 4.4 MB file
-char*  jsonBuf = nullptr;
-size_t jsonLen = 0;
+// -------------------- RAW CHAPTER BUFFER (PSRAM) --------------------
+// Holds the raw JSON bytes for ONE chapter, pulled per-page via
+// HTTP Range. Longest chapter (Ps 119) is ~30-40 KB; 96 KB gives
+// generous headroom and still fits in 2 MB PSRAM (N8R2).
+static const size_t RAW_CHAP_CAP = 96UL * 1024UL;
+char* rawChapterBuf = nullptr;
 
 // -------------------- BOOK / CHAPTER OFFSET TABLE --------------------
 struct ChapterSlice { uint32_t start; uint32_t len; };
@@ -179,17 +184,92 @@ bool connectWiFi() {
 }
 
 // ============================================================
-//   DOWNLOAD JSON INTO PSRAM
+//   STREAMING SCANNER  ─  pull JSON bytes off the HTTPS stream
+//   and build a (book, chapter) → byte slice table without ever
+//   buffering more than a few bytes. Offsets are absolute in the
+//   source file; reused later as HTTP Range arguments.
 // ============================================================
-bool downloadNasb() {
+struct StreamReader {
+  WiFiClient* stream;
+  HTTPClient* http;
+  uint32_t    absPos;        // bytes consumed so far
+  uint32_t    total;         // 0 if chunked/unknown
+  uint32_t    lastDraw;
+};
+
+// Pulls one byte. Returns -1 on timeout or EOF.
+static int sgetc(StreamReader& sr) {
+  uint32_t t0 = millis();
+  while (true) {
+    if (sr.stream->available() > 0) {
+      int c = sr.stream->read();
+      if (c < 0) continue;
+      sr.absPos++;
+      if (millis() - sr.lastDraw > 250) {
+        bootProgress("Indexing NASB", sr.absPos,
+                     sr.total > 0 ? sr.total : 4500000);
+        sr.lastDraw = millis();
+      }
+      return c;
+    }
+    if (!sr.http->connected() && sr.stream->available() == 0) return -1;
+    if (millis() - t0 > 10000) return -1;
+    delay(1);
+  }
+}
+
+// Pulls the next non-whitespace byte.
+static int sgetcSkipWs(StreamReader& sr) {
+  while (true) {
+    int c = sgetc(sr);
+    if (c < 0) return -1;
+    if (c == ' ' || c == '\n' || c == '\r' || c == '\t') continue;
+    return c;
+  }
+}
+
+// Reads a JSON string into `out` (the opening quote must already
+// have been consumed). Advances past the closing quote.
+static bool sreadStringInto(StreamReader& sr, char* out, size_t outCap) {
+  size_t w = 0;
+  bool esc = false;
+  while (true) {
+    int c = sgetc(sr);
+    if (c < 0) return false;
+    if (esc) {
+      if (w + 1 < outCap) out[w++] = (char)c;
+      esc = false;
+      continue;
+    }
+    if (c == '\\') { esc = true; continue; }
+    if (c == '"')  { out[w] = 0; return true; }
+    if (w + 1 < outCap) out[w++] = (char)c;
+  }
+}
+
+// Skips a JSON string (opening quote already consumed).
+static bool sskipString(StreamReader& sr) {
+  bool esc = false;
+  while (true) {
+    int c = sgetc(sr);
+    if (c < 0) return false;
+    if (esc) { esc = false; continue; }
+    if (c == '\\') { esc = true; continue; }
+    if (c == '"')  return true;
+  }
+}
+
+bool indexNasbStreaming() {
   if (!psramFound()) {
     bootScreen("ERROR:", "no PSRAM", "use 8MB variant");
     return false;
   }
-  jsonBuf = (char*) ps_malloc(JSON_BUF_SIZE);
-  if (!jsonBuf) {
-    bootScreen("ERROR:", "PSRAM alloc fail");
-    return false;
+  if (!rawChapterBuf) {
+    rawChapterBuf = (char*) ps_malloc(RAW_CHAP_CAP);
+    if (!rawChapterBuf) {
+      bootScreen("ERROR:", "PSRAM alloc fail");
+      return false;
+    }
   }
 
   WiFiClientSecure client;
@@ -202,7 +282,6 @@ bool downloadNasb() {
     bootScreen("HTTP: begin fail");
     return false;
   }
-  // GitHub Pages may 301 http→https; we already use https, but keep follow-on safe.
   http.setFollowRedirects(HTTPC_FORCE_FOLLOW_REDIRECTS);
 
   int code = http.GET();
@@ -214,146 +293,120 @@ bool downloadNasb() {
     return false;
   }
 
-  int total = http.getSize();          // -1 if chunked
-  WiFiClient* stream = http.getStreamPtr();
+  StreamReader sr;
+  sr.stream   = http.getStreamPtr();
+  sr.http     = &http;
+  sr.absPos   = 0;
+  sr.total    = (uint32_t)(http.getSize() > 0 ? http.getSize() : 0);
+  sr.lastDraw = millis();
+  bootProgress("Indexing NASB", 0, sr.total > 0 ? sr.total : 4500000);
 
-  bootProgress("Downloading NASB", 0, total > 0 ? total : 4500000);
-
-  jsonLen = 0;
-  uint8_t buf[2048];
-  uint32_t lastDraw = millis();
-  while (http.connected() && (total < 0 || (int)jsonLen < total)) {
-    int avail = stream->available();
-    if (avail > 0) {
-      int want = avail > (int)sizeof(buf) ? (int)sizeof(buf) : avail;
-      int r = stream->readBytes(buf, want);
-      if (r <= 0) break;
-      if (jsonLen + r >= JSON_BUF_SIZE - 1) {
-        bootScreen("ERROR:", "JSON > 5 MB", "raise buffer");
-        http.end();
-        return false;
-      }
-      memcpy(jsonBuf + jsonLen, buf, r);
-      jsonLen += r;
-      if (millis() - lastDraw > 250) {
-        bootProgress("Downloading NASB", jsonLen, total > 0 ? total : 4500000);
-        lastDraw = millis();
-      }
-    } else {
-      delay(2);
-    }
-  }
-  jsonBuf[jsonLen] = 0;
-  http.end();
-
-  Serial.printf("Downloaded %u bytes\n", (unsigned)jsonLen);
-  return jsonLen > 0;
-}
-
-// ============================================================
-//   JSON SCANNER → BOOK / CHAPTER OFFSET TABLE
-// ============================================================
-static inline void skipWs(const char* s, size_t& i, size_t n) {
-  while (i < n) {
-    char c = s[i];
-    if (c == ' ' || c == '\t' || c == '\n' || c == '\r') i++;
-    else break;
-  }
-}
-
-// Read a JSON string key into `out`. Advances i past the closing quote.
-// Handles simple backslash escapes (\" \\ etc.) — Bible book/chapter keys
-// don't contain unicode escapes so this is sufficient.
-static bool readJsonKey(const char* s, size_t& i, size_t n, char* out, size_t outCap) {
-  if (i >= n || s[i] != '"') return false;
-  i++;
-  size_t w = 0;
-  while (i < n && s[i] != '"') {
-    if (s[i] == '\\' && i + 1 < n) {
-      i++;                         // skip the backslash; copy escaped char raw
-    }
-    if (w < outCap - 1) out[w++] = s[i];
-    i++;
-  }
-  if (i >= n) return false;
-  i++;                             // past closing "
-  out[w] = 0;
-  return true;
-}
-
-// Given s[i] == '{', advance i to one past the matching '}'.
-static bool skipJsonObject(const char* s, size_t& i, size_t n) {
-  if (i >= n || s[i] != '{') return false;
-  int depth = 0;
-  bool inStr = false;
-  for (; i < n; i++) {
-    char c = s[i];
-    if (inStr) {
-      if (c == '\\') { i++; continue; }
-      if (c == '"')  inStr = false;
-    } else {
-      if      (c == '"') inStr = true;
-      else if (c == '{') depth++;
-      else if (c == '}') {
-        depth--;
-        if (depth == 0) { i++; return true; }
-      }
-    }
-  }
-  return false;
-}
-
-bool indexNasb() {
   totalBooks = 0;
-  size_t i = 0;
-  skipWs(jsonBuf, i, jsonLen);
-  if (i >= jsonLen || jsonBuf[i] != '{') return false;
-  i++;
 
-  while (i < jsonLen) {
-    skipWs(jsonBuf, i, jsonLen);
-    if (i >= jsonLen) return false;
-    if (jsonBuf[i] == '}') return true;        // end of root
-    if (jsonBuf[i] == ',') { i++; continue; }
-    if (jsonBuf[i] != '"') return false;
-    if (totalBooks >= 66) return false;
+  int c = sgetcSkipWs(sr);
+  if (c != '{') { http.end(); return false; }
+
+  while (true) {
+    c = sgetcSkipWs(sr);
+    if (c < 0)            { http.end(); return false; }
+    if (c == '}')         { http.end(); return true; }     // end of root
+    if (c == ',')         continue;
+    if (c != '"')         { http.end(); return false; }
+    if (totalBooks >= 66) { http.end(); return false; }
 
     Book& bk = books[totalBooks];
-    if (!readJsonKey(jsonBuf, i, jsonLen, bk.name, sizeof(bk.name))) return false;
+    if (!sreadStringInto(sr, bk.name, sizeof(bk.name))) { http.end(); return false; }
     bk.chapterCount = 0;
 
-    skipWs(jsonBuf, i, jsonLen);
-    if (i >= jsonLen || jsonBuf[i] != ':') return false;
-    i++;
-    skipWs(jsonBuf, i, jsonLen);
-    if (i >= jsonLen || jsonBuf[i] != '{') return false;
-    i++;                                        // past '{' of book value
+    c = sgetcSkipWs(sr);
+    if (c != ':') { http.end(); return false; }
+    c = sgetcSkipWs(sr);
+    if (c != '{') { http.end(); return false; }
 
-    while (i < jsonLen) {
-      skipWs(jsonBuf, i, jsonLen);
-      if (i >= jsonLen) return false;
-      if (jsonBuf[i] == '}') { i++; break; }    // end of book
-      if (jsonBuf[i] == ',') { i++; continue; }
-      if (jsonBuf[i] != '"') return false;
+    while (true) {
+      c = sgetcSkipWs(sr);
+      if (c < 0)    { http.end(); return false; }
+      if (c == '}') break;                                  // end of book
+      if (c == ',') continue;
+      if (c != '"') { http.end(); return false; }
 
-      char chapKey[8];
-      if (!readJsonKey(jsonBuf, i, jsonLen, chapKey, sizeof(chapKey))) return false;
-      skipWs(jsonBuf, i, jsonLen);
-      if (i >= jsonLen || jsonBuf[i] != ':') return false;
-      i++;
-      skipWs(jsonBuf, i, jsonLen);
-      if (i >= jsonLen || jsonBuf[i] != '{') return false;
+      if (!sskipString(sr)) { http.end(); return false; }   // chapter key — discarded
+      c = sgetcSkipWs(sr);
+      if (c != ':') { http.end(); return false; }
+      c = sgetcSkipWs(sr);
+      if (c != '{') { http.end(); return false; }
 
-      if (bk.chapterCount >= 150) return false;
-      size_t chapStart = i;
-      if (!skipJsonObject(jsonBuf, i, jsonLen)) return false;
-      bk.chapters[bk.chapterCount].start = (uint32_t)chapStart;
-      bk.chapters[bk.chapterCount].len   = (uint32_t)(i - chapStart);
+      if (bk.chapterCount >= 150) { http.end(); return false; }
+      uint32_t chapStart = sr.absPos - 1;                   // '{' is the previous byte
+
+      int  depth   = 1;
+      bool inStr   = false;
+      bool inEsc   = false;
+      while (depth > 0) {
+        int b = sgetc(sr);
+        if (b < 0) { http.end(); return false; }
+        if (inStr) {
+          if (inEsc)     { inEsc = false; continue; }
+          if (b == '\\') { inEsc = true;  continue; }
+          if (b == '"')  { inStr = false; continue; }
+        } else {
+          if      (b == '"') inStr = true;
+          else if (b == '{') depth++;
+          else if (b == '}') depth--;
+        }
+      }
+      bk.chapters[bk.chapterCount].start = chapStart;
+      bk.chapters[bk.chapterCount].len   = sr.absPos - chapStart;
       bk.chapterCount++;
     }
     totalBooks++;
   }
-  return false;
+}
+
+// ============================================================
+//   PER-CHAPTER FETCH (HTTP Range request)
+// ============================================================
+bool fetchChapterRange(uint32_t start, uint32_t len, char* out, size_t outCap) {
+  if (len + 1 > outCap) return false;
+
+  WiFiClientSecure client;
+  client.setInsecure();
+
+  HTTPClient http;
+  http.setReuse(false);
+  http.setTimeout(15000);
+  if (!http.begin(client, NASB_URL)) return false;
+
+  char rangeHdr[40];
+  snprintf(rangeHdr, sizeof(rangeHdr), "bytes=%lu-%lu",
+           (unsigned long)start, (unsigned long)(start + len - 1));
+  http.addHeader("Range", rangeHdr);
+  http.setFollowRedirects(HTTPC_FORCE_FOLLOW_REDIRECTS);
+
+  int code = http.GET();
+  if (code != 206 /* Partial Content */) {
+    Serial.printf("Range HTTP %d (want 206)\n", code);
+    http.end();
+    return false;
+  }
+
+  WiFiClient* stream = http.getStreamPtr();
+  size_t   got = 0;
+  uint32_t t0  = millis();
+  while (got < len) {
+    if (stream->available() > 0) {
+      int r = stream->readBytes(out + got, len - got);
+      if (r > 0) { got += r; t0 = millis(); }
+    } else if (!http.connected() && stream->available() == 0) {
+      break;
+    } else {
+      if (millis() - t0 > 10000) break;
+      delay(1);
+    }
+  }
+  out[got] = 0;
+  http.end();
+  return got == len;
 }
 
 // ============================================================
@@ -451,9 +504,34 @@ void buildChapter() {
   if (chapterIdx >= bk.chapterCount) return;
   ChapterSlice& slice = bk.chapters[chapterIdx];
 
+  if (slice.len + 1 > RAW_CHAP_CAP) {
+    const char* m = "chap too big";
+    appendAscii(m, strlen(m));
+    chapterBuf[chapterLen] = 0;
+    computePageBreaks();
+    pageIdx = 0;
+    return;
+  }
+
+  // Crossing a chapter boundary triggers a WiFi Range request; flash
+  // a tiny "loading..." line so the page-turn doesn't look frozen.
+  oled.clearBuffer();
+  oled.setFont(u8g2_font_5x7_tf);
+  oled.drawStr(0, 16, "loading...");
+  oled.sendBuffer();
+
+  if (!fetchChapterRange(slice.start, slice.len, rawChapterBuf, RAW_CHAP_CAP)) {
+    const char* m = "fetch error";
+    appendAscii(m, strlen(m));
+    chapterBuf[chapterLen] = 0;
+    computePageBreaks();
+    pageIdx = 0;
+    return;
+  }
+
   // Parse just the chapter object: { "1": "...", "2": "...", ... }
   JsonDocument doc;
-  DeserializationError err = deserializeJson(doc, jsonBuf + slice.start, slice.len);
+  DeserializationError err = deserializeJson(doc, rawChapterBuf, slice.len);
   if (err) {
     Serial.printf("JSON err: %s\n", err.c_str());
     const char* m = "parse error";
@@ -731,12 +809,11 @@ void setup() {
   oled.setContrast(180);
   bootScreen("Bible E-Reader", "booting...");
 
-  if (!connectWiFi())                 return;
-  if (!downloadNasb())                return;
+  if (!connectWiFi()) return;
 
-  bootScreen("Indexing NASB", "scanning books...");
-  if (!indexNasb()) {
-    bootScreen("ERROR:", "JSON index fail");
+  bootScreen("Indexing NASB", "streaming...");
+  if (!indexNasbStreaming()) {
+    bootScreen("ERROR:", "index/dl fail");
     return;
   }
   char line[24];
