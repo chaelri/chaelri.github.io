@@ -55,6 +55,7 @@ static const int SDA_PIN = 8;
 static const int SCL_PIN = 9;
 static const int BTN_PIN = 4;
 static const int RGB_PIN = 48;     // onboard WS2812 (ESP32-S3 SuperMini)
+static const int BLUE_LED_PIN = 15; // separate blue user LED, opposite the RGB on most clones
 
 // -------------------- GESTURE TIMING --------------------
 static const uint32_t DEBOUNCE_MS = 25;
@@ -168,6 +169,12 @@ void killOnboardLED() {
   rgb.setBrightness(0);
   rgb.clear();
   rgb.show();              // pushes a "0,0,0" frame so the WS2812 latches dark
+
+  // Separate blue user LED (the one opposite the RGB, near USB-C).
+  // GPIO 15 is the common pin on generic ESP32-S3 SuperMini clones.
+  // If your board uses a different pin (try 13, 21, or 47), change BLUE_LED_PIN.
+  pinMode(BLUE_LED_PIN, OUTPUT);
+  digitalWrite(BLUE_LED_PIN, LOW);
 }
 
 // ============================================================
