@@ -504,6 +504,11 @@ function editorHTML(cfg, zonesArr) {
       <span class="material-symbols-outlined">download</span>
       Download all
     </button>
+    ${cfg.printLayout ? `
+    <button type="button" id="ed-pdf-all" class="btn btn-ghost">
+      <span class="material-symbols-outlined">picture_as_pdf</span>
+      Download A4 PDF
+    </button>` : ""}
     <button type="button" id="ed-up-all" class="btn btn-primary">
       <span class="material-symbols-outlined">cloud_upload</span>
       Upload all to Drive
@@ -646,6 +651,7 @@ export async function mountEditor(cfg) {
   const dlBtn      = $("ed-dl");
   const upBtn      = $("ed-up");
   const dlAllBtn   = $("ed-dl-all");
+  const pdfAllBtn  = $("ed-pdf-all");
   const upAllBtn   = $("ed-up-all");
   const qualitySel = $("ed-quality");
   const singleTAs  = zonesArr.map((_, i) => $(`ed-single-${i}`));
@@ -1046,6 +1052,50 @@ export async function mountEditor(cfg) {
         }
         showToast(`Downloaded ${total} ${total === 1 ? "PNG" : "PNGs"}`);
       } catch (e) { console.error(e); showToast("Batch download failed", "err"); }
+    });
+  }
+  if (pdfAllBtn) {
+    pdfAllBtn.addEventListener("click", async () => {
+      // PDF only makes sense in print-layout mode (one A4 sheet per page).
+      // Force it on temporarily so sheetCount + sheet helpers all use the 4-up layout.
+      const wasPrintMode = printMode;
+      printMode = true;
+      const total = sheetCount();
+      if (!total) {
+        printMode = wasPrintMode;
+        showToast("List is empty", "err");
+        return;
+      }
+      try {
+        showToast("Loading PDF library…");
+        const { jsPDF } = await import("https://esm.sh/jspdf@2.5.2");
+        const pdf = new jsPDF({ unit: "mm", format: "a4", orientation: "portrait", compress: true });
+        for (let s = 0; s < total; s++) {
+          showToast(`Rendering ${s + 1}/${total}…`);
+          const blob = await composeToPngBlob({
+            bgDataUrl: bgUrl,
+            textSvgEl: textOnlySvgForSheet(s),
+            canvas: effectiveCanvas(),
+            scale: 1, // 1× of 2480×3508 ≈ 300 DPI A4
+            bgRects: bgRectsForSheet(s),
+          });
+          const dataUrl = await new Promise((res, rej) => {
+            const r = new FileReader();
+            r.onload = () => res(String(r.result));
+            r.onerror = rej;
+            r.readAsDataURL(blob);
+          });
+          if (s > 0) pdf.addPage();
+          pdf.addImage(dataUrl, "PNG", 0, 0, 210, 297, undefined, "FAST");
+        }
+        pdf.save(`${fnamePrefix()} — A4 print sheets.pdf`);
+        showToast(`PDF saved · ${total} ${total === 1 ? "page" : "pages"}`);
+      } catch (e) {
+        console.error(e);
+        showToast(e.message || "PDF generation failed", "err", 4000);
+      } finally {
+        printMode = wasPrintMode;
+      }
     });
   }
   if (upAllBtn) {
