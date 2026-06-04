@@ -2207,6 +2207,7 @@ async function _imgcrShare() {
   const overlay   = document.getElementById("arcadeMode");
   const openBtn   = document.getElementById("mtArcadeBtn");
   const closeBtn  = document.getElementById("arcadeClose");
+  const themeBtn  = document.getElementById("arcadeTheme");
   const prevBtn   = document.getElementById("arcadePrev");
   const nextBtn   = document.getElementById("arcadeNext");
   const stage     = document.getElementById("arcadeStage");
@@ -2216,6 +2217,20 @@ async function _imgcrShare() {
   const passageEl = document.getElementById("arcadePassage");
   const counterEl = document.getElementById("arcadeCounter");
   if (!overlay || !openBtn) return;
+
+  const THEME_KEY = "devo.arcadeTheme";
+  function applyTheme(t) {
+    overlay.dataset.theme = t;
+    const icon = themeBtn?.querySelector(".material-symbols-outlined");
+    if (icon) icon.textContent = t === "eink" ? "dark_mode" : "auto_stories";
+  }
+  applyTheme(localStorage.getItem(THEME_KEY) === "eink" ? "eink" : "dark");
+  themeBtn?.addEventListener("click", (e) => {
+    e.stopPropagation();
+    const next = overlay.dataset.theme === "eink" ? "dark" : "eink";
+    applyTheme(next);
+    try { localStorage.setItem(THEME_KEY, next); } catch {}
+  });
 
   let verses = [];   // [{ num, text }]
   let pages = [];    // flat [{ vIdx, num, text }] — one entry per paginated screen
