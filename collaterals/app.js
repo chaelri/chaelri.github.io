@@ -41,7 +41,7 @@ const DETAILS_FIELDS = [
 const SUBS = {
   "name-cards":      "Place cards with each guest's name · wildflower border",
   "menu":            "Starter · Main · Dessert printable menu cards",
-  "table-numbers":   "Triangle prism table marker with QR for photo upload",
+  "table-numbers":   "Card per table — family headline + numbered guest list, A4 cut-out sheet for the mirror",
   "money-envelopes": "Ready-to-cut wedding-day envelopes with guest fields",
   "mirror-chart":    "2 × 5 ft seating chart for the mirror display",
   "monogram":        "C & K monogram still — for the LED visual / signage",

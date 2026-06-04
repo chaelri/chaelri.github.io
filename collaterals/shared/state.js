@@ -10,7 +10,7 @@ const STATE_KEY = "collaterals:v1";
 export const TEMPLATES = [
   { id: "name-cards",      label: "Name Cards",     icon: "badge",            path: "templates/name-cards/" },
   { id: "menu",            label: "Menu",           icon: "restaurant_menu",  path: "templates/menu/" },
-  { id: "table-numbers",   label: "Table Numbers",  icon: "tag",              path: "templates/table-numbers/" },
+  { id: "table-numbers",   label: "Table Numbers",  icon: "view_module",      path: "templates/table-numbers/" },
   { id: "money-envelopes", label: "Money Envelopes",icon: "mail",             path: "templates/money-envelopes/" },
   { id: "mirror-chart",    label: "Mirror Seating", icon: "view_quilt",       path: "templates/mirror-chart/" },
   { id: "monogram",        label: "Monogram (LED)", icon: "favorite",         path: "templates/monogram/" },
