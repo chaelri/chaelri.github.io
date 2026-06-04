@@ -1187,7 +1187,7 @@ function renderReceptionPreview() {
     ["2:00 – 2:05 PM",
      "TRIVIA GAME (LEDWALL)",
      "Game show stinger",
-     "Hosted by Bryan Bustillo\nPrizes: luxury-paper-bag DIY pool"],
+     `Hosted by Bryan Bustillo\nPrizes: ${v("coupleTriviaPrizes")}`],
     ["2:05 – 2:10 PM",
      "BRING ME TO JERUSALEM",
      "High-energy bring-me playlist",
