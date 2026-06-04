@@ -1782,16 +1782,20 @@ window.closeWeddingBar = () => {
 // =============================================
 // TRAJECTORY VIEW — Horizon-style month cards
 // =============================================
-// PH TRAIN Law 2023+ tax computation (valid through 2026)
-// Gov deductions (employee share, all hit caps): SSS ₱1,750 + PhilHealth ₱2,500 + Pag-IBIG ₱200 = ₱4,450/mo
-// 125K: taxable ₱120,550 → 25% bracket → tax ₱22,013 → net ₱98,537
-// 185K: taxable ₱180,550 → 30% bracket → tax ₱37,707 → net ₱142,843
-// 210K: taxable ₱205,550 → 30% bracket → tax ₱45,207 → net ₱160,343
+// PH TRAIN Law 2023+ tax computation (still current for 2026 — no rate changes)
+// Gov deductions (employee share, all hit caps at this salary level):
+//   SSS ₱1,750 (5% of max MSC ₱35K) + PhilHealth ₱2,500 (2.5% of max basic ₱100K) + Pag-IBIG ₱200 = ₱4,450/mo
+// 125K Azur: taxable ₱120,550 → 25% bracket → tax ₱22,013 → net ₱98,537
+// New job — ₱175K basic + ₱10K communication allowance:
+//   Option A (comm allowance TAXABLE — typical PH employer default):
+//     taxable ₱180,550 → 30% bracket → tax ₱37,707 → net ₱142,843
+//   Option B (comm allowance NON-TAXABLE — only if employer classifies it that way):
+//     taxable ₱170,550 → 30% bracket → tax ₱34,707 → net basic ₱135,843 + ₱10K untaxed = ₱145,843
 const TRAJ_NET_125K = 98_537;
-const TRAJ_NET_185K = 142_843;
-const TRAJ_NET_210K = 160_343;
-const TRAJ_BUMP_185K = TRAJ_NET_185K - TRAJ_NET_125K; // +₱44,306/mo
-const TRAJ_BUMP_210K = TRAJ_NET_210K - TRAJ_NET_125K; // +₱61,806/mo
+const TRAJ_NET_OPT_A = 142_843;
+const TRAJ_NET_OPT_B = 145_843;
+const TRAJ_BUMP_OPT_A = TRAJ_NET_OPT_A - TRAJ_NET_125K; // +₱44,306/mo
+const TRAJ_BUMP_OPT_B = TRAJ_NET_OPT_B - TRAJ_NET_125K; // +₱47,306/mo
 
 // Editable living expenses — persisted to Firebase under appData.trajectorySettings
 const TRAJ_DEFAULTS = {
@@ -1824,7 +1828,7 @@ async function saveTrajSettings() {
   await syncSet(dbRef, appData);
 }
 
-let trajSalary = 125000;
+let trajSalary = "azur"; // "azur" | "optA" | "optB"
 
 // Family support reduction (same logic as Horizon)
 // Expenses with "bahay" or "contribution" in name = family household contributions
@@ -1866,10 +1870,10 @@ window.setTrajSalary = (val) => {
   trajSalary = val;
   const toggle = document.getElementById("traj-salary-toggle");
   toggle.classList.remove("pos-1", "pos-2");
-  if (val === 185000) toggle.classList.add("pos-1");
-  else if (val === 210000) toggle.classList.add("pos-2");
+  if (val === "optA") toggle.classList.add("pos-1");
+  else if (val === "optB") toggle.classList.add("pos-2");
   document.querySelectorAll(".traj-sal-chip").forEach((btn) => {
-    btn.classList.toggle("active", btn.dataset.sal === String(val / 1000));
+    btn.classList.toggle("active", btn.dataset.sal === val);
   });
   renderTrajectory();
 };
@@ -2004,8 +2008,8 @@ function renderTrajectory() {
     const isProjected = !hasData || (year > startYear);
 
     // Apply salary toggle
-    const income = trajSalary === 210000 ? baseIncome + TRAJ_BUMP_210K
-                 : trajSalary === 185000 ? baseIncome + TRAJ_BUMP_185K
+    const income = trajSalary === "optB" ? baseIncome + TRAJ_BUMP_OPT_B
+                 : trajSalary === "optA" ? baseIncome + TRAJ_BUMP_OPT_A
                  : baseIncome;
 
     // Rent starts May (index 4) — moving in before wedding
