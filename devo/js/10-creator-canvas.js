@@ -2197,3 +2197,183 @@ async function _imgcrShare() {
   renderLabels();
 })();
 
+/* =====================================================================
+ * Arcade mode — Tomb-of-the-Mask-vibe one-verse-per-tap viewer.
+ * Tap the card (or the right zone, or arrow-right, or swipe-left) to
+ * advance; left zone / arrow-left / swipe-right to back up. Esc closes.
+ * Reads from #output .verse so NASB↔EASY toggles flow through.
+ * =================================================================== */
+(function arcadeMode() {
+  const overlay   = document.getElementById("arcadeMode");
+  const openBtn   = document.getElementById("mtArcadeBtn");
+  const closeBtn  = document.getElementById("arcadeClose");
+  const prevBtn   = document.getElementById("arcadePrev");
+  const nextBtn   = document.getElementById("arcadeNext");
+  const stage     = document.getElementById("arcadeStage");
+  const card      = document.getElementById("arcadeCard");
+  const tagEl     = document.getElementById("arcadeCardTag");
+  const textEl    = document.getElementById("arcadeCardText");
+  const passageEl = document.getElementById("arcadePassage");
+  const counterEl = document.getElementById("arcadeCounter");
+  if (!overlay || !openBtn) return;
+
+  let verses = [];   // [{ num, text }]
+  let pages = [];    // flat [{ vIdx, num, text }] — one entry per paginated screen
+  let pIdx = 0;
+
+  function readVerses() {
+    return [...document.querySelectorAll("#output .verse")].map((v, i) => {
+      const num = v.querySelector(".verse-num")?.textContent?.trim() || String(i + 1);
+      const content = v.querySelector(".verse-content");
+      let text = "";
+      if (content) {
+        const clone = content.cloneNode(true);
+        clone.querySelectorAll(
+          ".verse-num, .verse-meta-indicators, .heart-icon, .inline-ai-mount, .comments, .verse-actions, button"
+        ).forEach(n => n.remove());
+        text = clone.textContent.replace(/\s+/g, " ").trim();
+      }
+      return { num, text };
+    }).filter(v => v.text);
+  }
+
+  function passageLabel() {
+    const bookSel = document.getElementById("book");
+    const ch = document.getElementById("chapter")?.value;
+    const book = bookSel?.options?.[bookSel.selectedIndex]?.text?.trim();
+    if (book && ch) return `${book} ${ch}`;
+    return (document.getElementById("mtPassageText")?.textContent?.trim() || "—");
+  }
+
+  // Greedy paginate each verse into chunks that fit textEl without overflow.
+  // Binary-search the largest word slice whose rendered height ≤ box height.
+  function paginate() {
+    pages = [];
+    if (!verses.length) return;
+    const rect = textEl.getBoundingClientRect();
+    const cs = window.getComputedStyle(textEl);
+    const measure = document.createElement("div");
+    measure.style.cssText = [
+      "position:fixed",
+      "left:-9999px",
+      "top:0",
+      "visibility:hidden",
+      `width:${rect.width}px`,
+      `font-size:${cs.fontSize}`,
+      `line-height:${cs.lineHeight}`,
+      `font-family:${cs.fontFamily}`,
+      `font-weight:${cs.fontWeight}`,
+      `letter-spacing:${cs.letterSpacing}`,
+      "word-wrap:break-word",
+      "white-space:normal",
+    ].join(";");
+    document.body.appendChild(measure);
+    const maxH = rect.height;
+
+    for (let vi = 0; vi < verses.length; vi++) {
+      const words = verses[vi].text.split(" ");
+      let start = 0;
+      while (start < words.length) {
+        let lo = start + 1, hi = words.length, last = lo;
+        while (lo <= hi) {
+          const mid = (lo + hi) >> 1;
+          measure.textContent = words.slice(start, mid).join(" ");
+          if (measure.scrollHeight <= maxH) { last = mid; lo = mid + 1; }
+          else { hi = mid - 1; }
+        }
+        if (last <= start) last = start + 1; // guarantee progress
+        pages.push({ vIdx: vi, num: verses[vi].num, text: words.slice(start, last).join(" ") });
+        start = last;
+      }
+    }
+    measure.remove();
+  }
+
+  function render() {
+    if (!pages.length) {
+      tagEl.textContent = "—";
+      textEl.textContent = "Load a passage first.";
+      counterEl.textContent = "0/0";
+      prevBtn.disabled = true;
+      nextBtn.disabled = true;
+      return;
+    }
+    const p = pages[pIdx];
+    tagEl.textContent = `VERSE ${String(p.num).padStart(2, "0")}`;
+    textEl.textContent = p.text;
+    counterEl.textContent = `${p.vIdx + 1}/${verses.length}`;
+    prevBtn.disabled = pIdx <= 0;
+    nextBtn.disabled = pIdx >= pages.length - 1;
+    card.classList.remove("swapping");
+    void card.offsetWidth;
+    card.classList.add("swapping");
+  }
+
+  function open() {
+    verses = readVerses();
+    passageEl.textContent = passageLabel().toUpperCase();
+    pIdx = 0;
+    overlay.hidden = false;
+    overlay.setAttribute("aria-hidden", "false");
+    document.body.classList.add("arcade-open");
+    // Need the modal painted to measure textEl; defer one frame.
+    requestAnimationFrame(() => { paginate(); render(); });
+  }
+
+  function close() {
+    overlay.hidden = true;
+    overlay.setAttribute("aria-hidden", "true");
+    document.body.classList.remove("arcade-open");
+  }
+
+  function go(delta) {
+    if (!pages.length) return;
+    const ni = Math.min(pages.length - 1, Math.max(0, pIdx + delta));
+    if (ni === pIdx) return;
+    pIdx = ni;
+    render();
+  }
+
+  // Re-paginate on resize. Keep the user roughly in place by remembering
+  // which verse they were on; reset to page 0 of that verse.
+  let resizeT = null;
+  window.addEventListener("resize", () => {
+    if (overlay.hidden) return;
+    clearTimeout(resizeT);
+    resizeT = setTimeout(() => {
+      const currentVIdx = pages[pIdx]?.vIdx ?? 0;
+      paginate();
+      pIdx = pages.findIndex(p => p.vIdx === currentVIdx);
+      if (pIdx < 0) pIdx = 0;
+      render();
+    }, 150);
+  });
+
+  openBtn.addEventListener("click", open);
+  closeBtn?.addEventListener("click", close);
+  prevBtn?.addEventListener("click", (e) => { e.stopPropagation(); go(-1); });
+  nextBtn?.addEventListener("click", (e) => { e.stopPropagation(); go(1); });
+
+  // Tap anywhere on the card = next.
+  card?.addEventListener("click", () => go(1));
+
+  document.addEventListener("keydown", (e) => {
+    if (overlay.hidden) return;
+    if (e.key === "Escape") { close(); e.preventDefault(); return; }
+    if (e.key === "ArrowRight" || e.key === " ") { go(1); e.preventDefault(); return; }
+    if (e.key === "ArrowLeft") { go(-1); e.preventDefault(); return; }
+  });
+
+  // Touch swipe on the stage (horizontal-dominant swipe of >40 px).
+  let touchStartX = 0, touchStartY = 0;
+  stage?.addEventListener("touchstart", (e) => {
+    touchStartX = e.touches[0].clientX;
+    touchStartY = e.touches[0].clientY;
+  }, { passive: true });
+  stage?.addEventListener("touchend", (e) => {
+    const dx = e.changedTouches[0].clientX - touchStartX;
+    const dy = e.changedTouches[0].clientY - touchStartY;
+    if (Math.abs(dx) > 40 && Math.abs(dx) > Math.abs(dy)) go(dx < 0 ? 1 : -1);
+  }, { passive: true });
+})();
+

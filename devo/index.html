@@ -69,6 +69,9 @@
                 <span class="material-symbols-outlined">headphones</span>
                 Listen
               </button>
+              <button class="mt-overflow" id="mtArcadeBtn" aria-label="Verse arcade — one verse at a time" title="Verse arcade — one verse at a time">
+                <span class="material-symbols-outlined">grid_view</span>
+              </button>
               <button class="mt-overflow" id="mtAudioLibBtn" aria-label="Audio Library" title="Audio Library">
                 <span class="material-symbols-outlined">library_music</span>
               </button>
@@ -795,6 +798,42 @@
           <div class="audio-lib-log" id="audioLibLog">No activity yet — open a chapter or hit Download to see synth events here.</div>
         </details>
         <div class="audio-lib-list" id="audioLibList"></div>
+      </div>
+    </div>
+
+    <!-- Arcade mode — Tomb-of-the-Mask-vibe one-verse-per-tap viewer.
+         Pixel-grid stage, scanline overlay, neon corner studs. Tap card
+         or right zone = next; left zone or arrow-left = prev. Reads
+         verses from #output so NASB/EASY toggles flow through. -->
+    <div class="arcade-mode" id="arcadeMode" hidden aria-hidden="true">
+      <div class="arcade-hud">
+        <div class="arcade-passage" id="arcadePassage">—</div>
+        <div class="arcade-counter" id="arcadeCounter">0/0</div>
+        <button class="arcade-close" id="arcadeClose" type="button" aria-label="Close arcade">
+          <span class="material-symbols-outlined">close</span>
+        </button>
+      </div>
+      <div class="arcade-stage" id="arcadeStage">
+        <button class="arcade-zone arcade-zone-prev" id="arcadePrev" type="button" aria-label="Previous verse">
+          <span class="material-symbols-outlined">chevron_left</span>
+        </button>
+        <div class="arcade-card" id="arcadeCard">
+          <div class="arcade-card-scan"></div>
+          <span class="arcade-card-corner arcade-card-corner-tl"></span>
+          <span class="arcade-card-corner arcade-card-corner-tr"></span>
+          <span class="arcade-card-corner arcade-card-corner-bl"></span>
+          <span class="arcade-card-corner arcade-card-corner-br"></span>
+          <div class="arcade-card-tag" id="arcadeCardTag">VERSE 01</div>
+          <div class="arcade-card-text" id="arcadeCardText"></div>
+        </div>
+        <button class="arcade-zone arcade-zone-next" id="arcadeNext" type="button" aria-label="Next verse">
+          <span class="material-symbols-outlined">chevron_right</span>
+        </button>
+      </div>
+      <div class="arcade-foot">
+        <span class="arcade-foot-key">&larr;</span>
+        <span class="arcade-foot-hint">tap &middot; swipe &middot; arrows</span>
+        <span class="arcade-foot-key">&rarr;</span>
       </div>
     </div>
 

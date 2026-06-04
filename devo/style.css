@@ -13344,3 +13344,141 @@ body.cfg-sheet-open.light .bc-picker-btn .material-symbols-outlined { color: rgb
   border-color: transparent;
 }
 .devo-share-go:hover { transform: translateY(-1px); box-shadow: 0 4px 14px rgba(190, 24, 93, 0.35); }
+
+/* ============================================================
+ * Arcade mode — minimal black-and-white one-verse-per-tap viewer.
+ * Small centered square card. No color, no decoration.
+ * ============================================================ */
+.arcade-mode {
+  position: fixed;
+  inset: 0;
+  z-index: 10350;
+  background: #000;
+  display: grid;
+  place-items: center;
+  font-family: ui-sans-serif, system-ui, -apple-system, "Helvetica Neue", sans-serif;
+  color: #fff;
+  overflow: hidden;
+  animation: arcadeIn 180ms ease-out;
+}
+.arcade-mode[hidden] { display: none; }
+
+.arcade-hud {
+  position: absolute;
+  top: 0;
+  left: 0;
+  right: 0;
+  display: flex;
+  align-items: center;
+  gap: 12px;
+  padding: 14px 18px;
+  font-size: 11px;
+  letter-spacing: 0.16em;
+  text-transform: uppercase;
+  color: rgba(255, 255, 255, 0.55);
+}
+.arcade-passage {
+  flex: 1;
+  min-width: 0;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+.arcade-counter {
+  font-variant-numeric: tabular-nums;
+  font-feature-settings: "frac" 0;
+}
+.arcade-close {
+  width: 28px;
+  height: 28px;
+  background: transparent;
+  border: 0;
+  color: rgba(255, 255, 255, 0.55);
+  display: grid;
+  place-items: center;
+  cursor: pointer;
+  padding: 0;
+  transition: color 120ms;
+}
+.arcade-close:hover { color: #fff; }
+.arcade-close .material-symbols-outlined { font-size: 20px; }
+
+.arcade-stage {
+  position: relative;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  gap: 14px;
+}
+.arcade-zone {
+  background: transparent;
+  border: 0;
+  cursor: pointer;
+  display: grid;
+  place-items: center;
+  color: rgba(255, 255, 255, 0.35);
+  padding: 8px;
+  transition: color 120ms;
+  -webkit-tap-highlight-color: transparent;
+}
+.arcade-zone:hover:not(:disabled) { color: #fff; }
+.arcade-zone:disabled { color: rgba(255, 255, 255, 0.10); cursor: not-allowed; }
+.arcade-zone .material-symbols-outlined { font-size: 24px; }
+
+.arcade-card {
+  position: relative;
+  width: 280px;
+  height: 280px;
+  background: #000;
+  border: 1px solid rgba(255, 255, 255, 0.6);
+  padding: 18px 20px;
+  display: flex;
+  flex-direction: column;
+  gap: 10px;
+  overflow: hidden;
+  cursor: pointer;
+  -webkit-tap-highlight-color: transparent;
+}
+.arcade-card-scan,
+.arcade-card-corner { display: none; }
+
+.arcade-card-tag {
+  font-size: 10px;
+  letter-spacing: 0.22em;
+  color: rgba(255, 255, 255, 0.6);
+  text-transform: uppercase;
+  font-weight: 500;
+}
+.arcade-card-text {
+  flex: 1;
+  font-size: 15px;
+  line-height: 1.5;
+  color: #fff;
+  overflow: hidden;
+  word-wrap: break-word;
+}
+
+.arcade-foot { display: none; }
+
+@keyframes arcadeIn {
+  from { opacity: 0; }
+  to   { opacity: 1; }
+}
+@keyframes arcadeCardSwap {
+  from { opacity: 0; }
+  to   { opacity: 1; }
+}
+.arcade-card.swapping .arcade-card-text,
+.arcade-card.swapping .arcade-card-tag {
+  animation: arcadeCardSwap 160ms ease-out;
+}
+
+body.arcade-open { overflow: hidden; }
+
+@media (max-width: 600px) {
+  .arcade-card { width: 260px; height: 260px; padding: 16px 18px; }
+  .arcade-card-text { font-size: 14px; }
+  .arcade-zone { padding: 6px; }
+  .arcade-zone .material-symbols-outlined { font-size: 22px; }
+  .arcade-stage { gap: 8px; }
+}
