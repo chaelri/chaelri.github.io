@@ -1786,16 +1786,10 @@ window.closeWeddingBar = () => {
 // Gov deductions (employee share, all hit caps at this salary level):
 //   SSS ₱1,750 (5% of max MSC ₱35K) + PhilHealth ₱2,500 (2.5% of max basic ₱100K) + Pag-IBIG ₱200 = ₱4,450/mo
 // 125K Azur: taxable ₱120,550 → 25% bracket → tax ₱22,013 → net ₱98,537
-// New job — ₱175K basic + ₱10K communication allowance:
-//   Option A (comm allowance TAXABLE — typical PH employer default):
-//     taxable ₱180,550 → 30% bracket → tax ₱37,707 → net ₱142,843
-//   Option B (comm allowance NON-TAXABLE — only if employer classifies it that way):
-//     taxable ₱170,550 → 30% bracket → tax ₱34,707 → net basic ₱135,843 + ₱10K untaxed = ₱145,843
+// New job ₱195K package: taxable ₱190,550 → 30% bracket → tax ₱40,707 → net ₱149,843
 const TRAJ_NET_125K = 98_537;
-const TRAJ_NET_OPT_A = 142_843;
-const TRAJ_NET_OPT_B = 145_843;
-const TRAJ_BUMP_OPT_A = TRAJ_NET_OPT_A - TRAJ_NET_125K; // +₱44,306/mo
-const TRAJ_BUMP_OPT_B = TRAJ_NET_OPT_B - TRAJ_NET_125K; // +₱47,306/mo
+const TRAJ_NET_NEW = 149_843;
+const TRAJ_BUMP_NEW = TRAJ_NET_NEW - TRAJ_NET_125K; // +₱51,306/mo
 
 // Editable living expenses — persisted to Firebase under appData.trajectorySettings
 const TRAJ_DEFAULTS = {
@@ -1828,7 +1822,7 @@ async function saveTrajSettings() {
   await syncSet(dbRef, appData);
 }
 
-let trajSalary = "azur"; // "azur" | "optA" | "optB"
+let trajSalary = "azur"; // "azur" | "new"
 
 // Family support reduction (same logic as Horizon)
 // Expenses with "bahay" or "contribution" in name = family household contributions
@@ -1869,9 +1863,8 @@ const fmtT = (v) => "₱" + Math.round(v || 0).toLocaleString("en-PH");
 window.setTrajSalary = (val) => {
   trajSalary = val;
   const toggle = document.getElementById("traj-salary-toggle");
-  toggle.classList.remove("pos-1", "pos-2");
-  if (val === "optA") toggle.classList.add("pos-1");
-  else if (val === "optB") toggle.classList.add("pos-2");
+  toggle.classList.remove("pos-1");
+  if (val === "new") toggle.classList.add("pos-1");
   document.querySelectorAll(".traj-sal-chip").forEach((btn) => {
     btn.classList.toggle("active", btn.dataset.sal === val);
   });
@@ -2008,9 +2001,7 @@ function renderTrajectory() {
     const isProjected = !hasData || (year > startYear);
 
     // Apply salary toggle
-    const income = trajSalary === "optB" ? baseIncome + TRAJ_BUMP_OPT_B
-                 : trajSalary === "optA" ? baseIncome + TRAJ_BUMP_OPT_A
-                 : baseIncome;
+    const income = trajSalary === "new" ? baseIncome + TRAJ_BUMP_NEW : baseIncome;
 
     // Rent starts May (index 4) — moving in before wedding
     // Living expenses start July (index 6) — after wedding
