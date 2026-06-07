@@ -141,11 +141,19 @@
   //    download-start / close. No navigation — the current page stays put.
   // ───────────────────────────────────────────────────────────────────────
 
+  // Sentinel returned when Cloudflare/animepahe rate-limits us (Error 1015 or
+  // 429). The outer batch aborts on this — retrying just deepens the ban.
+  const RATE_LIMITED = Symbol("rate-limited");
+
   async function fetchEpisodeDownloadInfo(episodeUrl) {
     try {
       const res = await fetch(episodeUrl, { credentials: "same-origin" });
+      if (res.status === 429 || res.status === 403) return RATE_LIMITED;
       if (!res.ok) return null;
       const html = await res.text();
+      if (/Error\s*1015|You are being rate limited|Just a moment\.\.\./i.test(html)) {
+        return RATE_LIMITED;
+      }
       const doc = new DOMParser().parseFromString(html, "text/html");
       const dlMenu = doc.getElementById("pickDownload");
       if (!dlMenu) return null;
@@ -164,6 +172,7 @@
       return null;
     }
   }
+  fetchEpisodeDownloadInfo.RATE_LIMITED = RATE_LIMITED;
 
   function showAutoPilotPanel(animeTitle, todoEpisodes) {
     const existing = document.getElementById("autopilot-panel");
@@ -288,24 +297,32 @@
 
     const sleep = (ms) => new Promise((r) => setTimeout(r, ms));
 
+    // Strict serial + ≥1.2s gap. animepahe rate-limits aggressively (CF
+    // Error 1015 = temp ban) so parallel + bursty retries make it worse, not
+    // better. One retry per episode is the max — anything more compounds
+    // the rate-limit on transient failures and gets us banned for real.
+    const PER_FETCH_GAP_MS = 1200;
+    const RETRY_GAP_MS = 2500;
+    let aborted = false;
+
     const fetchOne = async (ep) => {
       if (ep.num === data.epNum) {
         completed += 1;
         report();
         return data.downloadUrl ? { downloadUrl: data.downloadUrl, ep: ep.num } : null;
       }
-      // Retry with backoff: a single rate-limit / CF blip would otherwise
-      // silently drop the episode. 3 attempts × (300, 900, 2400ms) is enough
-      // to ride through transient hiccups without grinding the whole batch.
-      const delays = [300, 900, 2400];
-      for (let attempt = 0; attempt < delays.length; attempt++) {
+      for (let attempt = 0; attempt < 2; attempt++) {
         const info = await fetchEpisodeDownloadInfo(ep.url);
+        if (info === fetchEpisodeDownloadInfo.RATE_LIMITED) {
+          aborted = true;
+          return null; // signal caller — do NOT keep hammering
+        }
         if (info?.downloadUrl) {
           completed += 1;
           report();
           return { downloadUrl: info.downloadUrl, ep: ep.num };
         }
-        await sleep(delays[attempt] + Math.random() * 200);
+        if (attempt === 0) await sleep(RETRY_GAP_MS + Math.random() * 400);
       }
       completed += 1;
       report();
@@ -313,14 +330,21 @@
       return null;
     };
 
-    // Drop concurrency from 4 → 2 to stay under animepahe's rate-limit
-    // threshold. Pair with the retry above and we get ~12/12 instead of 8/12.
-    const CONCURRENCY = 2;
-    for (let i = 0; i < todo.length; i += CONCURRENCY) {
+    for (let i = 0; i < todo.length; i++) {
       if (panel.dataset.cancelled) return;
-      const chunk = todo.slice(i, i + CONCURRENCY);
-      const results = await Promise.all(chunk.map(fetchOne));
-      for (const r of results) if (r) items.push(r);
+      const r = await fetchOne(todo[i]);
+      if (r) items.push(r);
+      if (aborted) {
+        // Mark every untouched ep as failed so the user sees where we stopped.
+        for (let j = i; j < todo.length; j++) markPanelChip(panel, todo[j].num, "failed");
+        setPanelStatus(
+          panel,
+          "Rate-limited by animepahe — wait ~30 min before retrying"
+        );
+        if (!items.length) return;
+        break;
+      }
+      if (i < todo.length - 1) await sleep(PER_FETCH_GAP_MS);
     }
 
     if (!items.length) {
