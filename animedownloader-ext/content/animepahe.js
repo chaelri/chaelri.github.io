@@ -297,12 +297,15 @@
 
     const sleep = (ms) => new Promise((r) => setTimeout(r, ms));
 
-    // Strict serial + ≥1.2s gap. animepahe rate-limits aggressively (CF
-    // Error 1015 = temp ban) so parallel + bursty retries make it worse, not
-    // better. One retry per episode is the max — anything more compounds
-    // the rate-limit on transient failures and gets us banned for real.
-    const PER_FETCH_GAP_MS = 1200;
-    const RETRY_GAP_MS = 2500;
+    // CHILL MODE — strict serial, no retries, 4-6s human-paced gap with jitter.
+    // animepahe.pw rate-limits aggressively (CF Error 1015 = real temp IP ban,
+    // ~30 min). Retrying or going fast deepens the ban, so we go slow:
+    //   - one shot per episode (no retry on failure — just mark failed)
+    //   - 4s base + 0-2s random jitter between fetches → ~50-70s for 12 eps
+    //   - abort the whole batch the moment we see ANY CF rate-limit signal
+    // Worst case: a single ep fails silently. We can re-run the batch later.
+    const PER_FETCH_GAP_MS = 4000;
+    const JITTER_MAX_MS = 2000;
     let aborted = false;
 
     const fetchOne = async (ep) => {
@@ -311,21 +314,16 @@
         report();
         return data.downloadUrl ? { downloadUrl: data.downloadUrl, ep: ep.num } : null;
       }
-      for (let attempt = 0; attempt < 2; attempt++) {
-        const info = await fetchEpisodeDownloadInfo(ep.url);
-        if (info === fetchEpisodeDownloadInfo.RATE_LIMITED) {
-          aborted = true;
-          return null; // signal caller — do NOT keep hammering
-        }
-        if (info?.downloadUrl) {
-          completed += 1;
-          report();
-          return { downloadUrl: info.downloadUrl, ep: ep.num };
-        }
-        if (attempt === 0) await sleep(RETRY_GAP_MS + Math.random() * 400);
+      const info = await fetchEpisodeDownloadInfo(ep.url);
+      if (info === fetchEpisodeDownloadInfo.RATE_LIMITED) {
+        aborted = true;
+        return null; // do NOT keep hammering — back off immediately
       }
       completed += 1;
       report();
+      if (info?.downloadUrl) {
+        return { downloadUrl: info.downloadUrl, ep: ep.num };
+      }
       markPanelChip(panel, ep.num, "failed");
       return null;
     };
@@ -335,7 +333,6 @@
       const r = await fetchOne(todo[i]);
       if (r) items.push(r);
       if (aborted) {
-        // Mark every untouched ep as failed so the user sees where we stopped.
         for (let j = i; j < todo.length; j++) markPanelChip(panel, todo[j].num, "failed");
         setPanelStatus(
           panel,
@@ -344,7 +341,9 @@
         if (!items.length) return;
         break;
       }
-      if (i < todo.length - 1) await sleep(PER_FETCH_GAP_MS);
+      if (i < todo.length - 1) {
+        await sleep(PER_FETCH_GAP_MS + Math.random() * JITTER_MAX_MS);
+      }
     }
 
     if (!items.length) {
