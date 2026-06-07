@@ -13388,8 +13388,7 @@ body.cfg-sheet-open.light .bc-picker-btn .material-symbols-outlined { color: rgb
   font-variant-numeric: tabular-nums;
   font-feature-settings: "frac" 0;
 }
-.arcade-close,
-.arcade-theme {
+.arcade-close {
   width: 28px;
   height: 28px;
   background: transparent;
@@ -13401,10 +13400,8 @@ body.cfg-sheet-open.light .bc-picker-btn .material-symbols-outlined { color: rgb
   padding: 0;
   transition: color 120ms;
 }
-.arcade-close:hover,
-.arcade-theme:hover { color: #fff; }
-.arcade-close .material-symbols-outlined,
-.arcade-theme .material-symbols-outlined { font-size: 20px; }
+.arcade-close:hover { color: #fff; }
+.arcade-close .material-symbols-outlined { font-size: 20px; }
 
 .arcade-stage {
   position: relative;
@@ -13485,20 +13482,3 @@ body.arcade-open { overflow: hidden; }
   .arcade-zone .material-symbols-outlined { font-size: 22px; }
   .arcade-stage { gap: 8px; }
 }
-
-/* E-ink theme — warm cream paper, dark warm-grey ink, no glow. */
-.arcade-mode[data-theme="eink"] { background: #d9d2bd; color: #1f1a14; }
-.arcade-mode[data-theme="eink"] .arcade-hud { color: rgba(31, 26, 20, 0.6); }
-.arcade-mode[data-theme="eink"] .arcade-close,
-.arcade-mode[data-theme="eink"] .arcade-theme { color: rgba(31, 26, 20, 0.6); }
-.arcade-mode[data-theme="eink"] .arcade-close:hover,
-.arcade-mode[data-theme="eink"] .arcade-theme:hover { color: #1f1a14; }
-.arcade-mode[data-theme="eink"] .arcade-zone { color: rgba(31, 26, 20, 0.35); }
-.arcade-mode[data-theme="eink"] .arcade-zone:hover:not(:disabled) { color: #1f1a14; }
-.arcade-mode[data-theme="eink"] .arcade-zone:disabled { color: rgba(31, 26, 20, 0.12); }
-.arcade-mode[data-theme="eink"] .arcade-card {
-  background: #d9d2bd;
-  border-color: #1f1a14;
-}
-.arcade-mode[data-theme="eink"] .arcade-card-tag { color: rgba(31, 26, 20, 0.55); }
-.arcade-mode[data-theme="eink"] .arcade-card-text { color: #1f1a14; }
