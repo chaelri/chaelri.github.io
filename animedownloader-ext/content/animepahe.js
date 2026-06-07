@@ -286,17 +286,36 @@
     const report = () =>
       setPanelStatus(panel, `Fetching links… ${completed} / ${todo.length}`);
 
+    const sleep = (ms) => new Promise((r) => setTimeout(r, ms));
+
     const fetchOne = async (ep) => {
-      const url =
-        ep.num === data.epNum
-          ? data.downloadUrl
-          : (await fetchEpisodeDownloadInfo(ep.url))?.downloadUrl;
+      if (ep.num === data.epNum) {
+        completed += 1;
+        report();
+        return data.downloadUrl ? { downloadUrl: data.downloadUrl, ep: ep.num } : null;
+      }
+      // Retry with backoff: a single rate-limit / CF blip would otherwise
+      // silently drop the episode. 3 attempts × (300, 900, 2400ms) is enough
+      // to ride through transient hiccups without grinding the whole batch.
+      const delays = [300, 900, 2400];
+      for (let attempt = 0; attempt < delays.length; attempt++) {
+        const info = await fetchEpisodeDownloadInfo(ep.url);
+        if (info?.downloadUrl) {
+          completed += 1;
+          report();
+          return { downloadUrl: info.downloadUrl, ep: ep.num };
+        }
+        await sleep(delays[attempt] + Math.random() * 200);
+      }
       completed += 1;
       report();
-      return url ? { downloadUrl: url, ep: ep.num } : null;
+      markPanelChip(panel, ep.num, "failed");
+      return null;
     };
 
-    const CONCURRENCY = 4;
+    // Drop concurrency from 4 → 2 to stay under animepahe's rate-limit
+    // threshold. Pair with the retry above and we get ~12/12 instead of 8/12.
+    const CONCURRENCY = 2;
     for (let i = 0; i < todo.length; i += CONCURRENCY) {
       if (panel.dataset.cancelled) return;
       const chunk = todo.slice(i, i + CONCURRENCY);
@@ -307,6 +326,10 @@
     if (!items.length) {
       setPanelStatus(panel, "Failed to fetch download links");
       return;
+    }
+    if (items.length < todo.length) {
+      const missed = todo.length - items.length;
+      setPanelStatus(panel, `Queued ${items.length} of ${todo.length} (${missed} link-fetch failed)`);
     }
 
     chrome.runtime.sendMessage({
