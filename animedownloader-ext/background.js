@@ -93,26 +93,51 @@ function cancelBatch() {
   batch.active = false;
 }
 
+// Cap concurrent in-flight download tabs. Opening all tabs at once causes
+// Chrome's Memory Saver / background-tab throttle to discard or freeze the
+// surplus — symptom: only the first ~8 episodes actually download. Worker
+// pool: N workers, each opens a tab and waits for it to close (download
+// started → auto-close via downloads.onCreated, or hard timeout) before
+// grabbing the next item.
+const CONCURRENT_TABS = 3;
+const TAB_TIMEOUT_MS = 90000;
+
 async function fireAll(items) {
   batch.active = true;
-  for (const item of items) {
-    if (batch.cancelled) break;
-    reportBatchProgress("start", item.ep);
-    try {
-      await markEpDownloaded(batch.animeId, item.ep, batch.animeTitle, batch.poster);
-      const tab = await chrome.tabs.create({ url: item.downloadUrl, active: false });
-      batch.tabToEp.set(tab.id, item.ep);
-      await trackTab(tab.id, { animeId: batch.animeId, animeTitle: batch.animeTitle });
-      if (batch.animeId && batch.animeTitle) {
-        groupDownloadTab(tab.id, batch.animeId, batch.animeTitle).catch(() => {});
+  let cursor = 0;
+
+  const worker = async () => {
+    while (cursor < items.length) {
+      if (batch.cancelled) return;
+      const item = items[cursor++];
+      reportBatchProgress("start", item.ep);
+      let tabId = null;
+      try {
+        await markEpDownloaded(batch.animeId, item.ep, batch.animeTitle, batch.poster);
+        const tab = await chrome.tabs.create({ url: item.downloadUrl, active: false });
+        tabId = tab.id;
+        batch.tabToEp.set(tab.id, item.ep);
+        await trackTab(tab.id, { animeId: batch.animeId, animeTitle: batch.animeTitle });
+        if (batch.animeId && batch.animeTitle) {
+          groupDownloadTab(tab.id, batch.animeId, batch.animeTitle).catch(() => {});
+        }
+      } catch (e) {
+        batch.done += 1;
+        reportBatchProgress("failed", item.ep);
+        continue;
       }
-    } catch (e) {
-      batch.done += 1;
-      reportBatchProgress("failed", item.ep);
+      // Block this worker until the tab closes (download started → auto-close)
+      // or the timeout fires. Keeps in-flight count ≤ CONCURRENT_TABS so Chrome
+      // doesn't discard background tabs.
+      await waitForTabClose(tabId, TAB_TIMEOUT_MS);
     }
+  };
+
+  const workers = [];
+  for (let i = 0; i < Math.min(CONCURRENT_TABS, items.length); i++) {
+    workers.push(worker());
   }
-  // All tabs fired — Chrome handles the actual page-load queueing itself.
-  // Completion is tracked lazily via tabs.onRemoved below.
+  await Promise.all(workers);
   maybeMarkComplete();
 }
 
