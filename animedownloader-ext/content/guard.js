@@ -35,6 +35,41 @@
   // Dynamic: matches any placement-queue global regardless of hash
   const AD_GLOBAL_RE = /^\$insert.+\$$|placement-queue[a-f0-9]+/i;
 
+  // Cloudflare assets are ALWAYS trusted — challenge pages need Turnstile,
+  // /cdn-cgi/ challenge platform scripts, and same-origin /cdn-cgi/l/ navigations
+  // to complete verification. Without this whitelist, the guard breaks CF's
+  // verify loop and the page bounces forever.
+  const isCloudflareUrl = (url) => {
+    try {
+      const u = new URL(url, location.href);
+      return (
+        u.host === "challenges.cloudflare.com" ||
+        u.host.endsWith(".cloudflare.com") ||
+        u.pathname.startsWith("/cdn-cgi/")
+      );
+    } catch (e) {
+      return false;
+    }
+  };
+
+  // Detect a live Cloudflare interstitial. Title is the most reliable signal;
+  // DOM markers cover edge cases where the title hasn't been parsed yet.
+  let _cfActive = false;
+  const detectCloudflareChallenge = () => {
+    try {
+      const t = document.title || "";
+      if (/^Just a moment/i.test(t)) return true;
+      if (document.querySelector(
+        "#challenge-running, #challenge-form, #challenge-stage, #cf-please-wait, " +
+        ".cf-browser-verification, .cf-challenge-running, .cf-im-under-attack"
+      )) return true;
+      if (document.querySelector(
+        'script[src*="challenges.cloudflare.com"], script[src*="/cdn-cgi/challenge-platform/"]'
+      )) return true;
+    } catch (e) {}
+    return false;
+  };
+
   const sameSite = (url) => {
     try {
       const u = new URL(url, location.href);
@@ -67,18 +102,18 @@
       Object.defineProperty(LocProto, "href", {
         configurable: false,
         get() { return hrefDesc.get.call(this); },
-        set(val) { if (sameSite(val)) hrefDesc.set.call(this, val); },
+        set(val) { if (sameSite(val) || isCloudflareUrl(val) || _cfActive) hrefDesc.set.call(this, val); },
       });
     }
     const origAssign = LocProto.assign;
     const origReplace = LocProto.replace;
     Object.defineProperty(LocProto, "assign", {
       configurable: false,
-      value: function (val) { if (sameSite(val)) return origAssign.call(this, val); },
+      value: function (val) { if (sameSite(val) || isCloudflareUrl(val) || _cfActive) return origAssign.call(this, val); },
     });
     Object.defineProperty(LocProto, "replace", {
       configurable: false,
-      value: function (val) { if (sameSite(val)) return origReplace.call(this, val); },
+      value: function (val) { if (sameSite(val) || isCloudflareUrl(val) || _cfActive) return origReplace.call(this, val); },
     });
   } catch (e) {}
 
@@ -89,9 +124,11 @@
   // ── (1) Neuter any third-party <script> before execution ──
   const neuterThirdPartyScript = (s) => {
     if (!SCRIPT_BLOCK_ENABLED) return false;
+    if (_cfActive) return false;
     const src = s.src || s.getAttribute("src") || "";
     if (!src) return false; // inline scripts are whitelisted implicitly
     if (sameSite(src)) return false;
+    if (isCloudflareUrl(src)) return false; // never block CF challenge assets
     try { s.type = "blocked/javascript"; } catch (e) {}
     try { s.removeAttribute("src"); } catch (e) {}
     safeRemove(s);
@@ -103,6 +140,7 @@
     if (!n || n.nodeType !== 1) return false;
     if (n.parentNode !== document.documentElement) return false;
     if (n === document.head || n === document.body) return false;
+    if (_cfActive) return false;
     return true;
   };
 
@@ -154,6 +192,7 @@
     "pointerdown", "pointerup", "touchstart", "touchend", "contextmenu",
   ];
   const block = (e) => {
+    if (_cfActive) return; // CF verify button / Turnstile widget must receive clicks
     const host = document.getElementById("nuke-body");
     if (host && host.contains(e.target)) return;
     e.stopImmediatePropagation();
@@ -171,6 +210,11 @@
 
   // ── Watchdog every 300ms — idempotent re-arm + sweep ──
   setInterval(() => {
+    // Re-check CF challenge state every tick. Title/DOM markers are reliable
+    // by the first tick (300ms after document_start).
+    _cfActive = detectCloudflareChallenge();
+    if (_cfActive) return; // stand down entirely while CF verifies
+
     attachBlockers();
     try { window.open = function () { return null; }; } catch (e) {}
     ["onclick", "onmousedown", "onmouseup", "onauxclick", "onpointerdown"].forEach((p) => {
