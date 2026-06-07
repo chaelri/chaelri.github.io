@@ -52,8 +52,12 @@
     });
   }
 
-  // Fetch anime details (synopsis + cover image) from the /anime/{id} page.
-  // Cached in animeHistory so we only fetch once per anime.
+  // Anime details (synopsis + cover + info panel) — CACHE-ONLY.
+  // Previously this fetched `/anime/{id}` on demand and hammered animepahe,
+  // contributing to Cloudflare Error 1015 (rate-limit IP ban). We've removed
+  // the network fetch entirely: if we already have cached data from a prior
+  // session, we surface it; otherwise the caller just gets {} and the UI
+  // gracefully hides the synopsis/cover/info blocks.
   function getAnimeDetails(animeId) {
     return new Promise((resolve) => {
       if (!animeId) return resolve({});
@@ -66,71 +70,7 @@
             details: cached.details,
           });
         }
-
-        fetch(`/anime/${animeId}`, { credentials: "same-origin" })
-          .then((r) => (r.ok ? r.text() : Promise.reject()))
-          .then((html) => {
-            const doc = new DOMParser().parseFromString(html, "text/html");
-
-            // Synopsis
-            let synopsis = null;
-            for (const sel of [".anime-synopsis", ".anime-summary", ".anime-description"]) {
-              const el = doc.querySelector(sel);
-              const text = (el?.textContent || "").trim();
-              if (text && text.length > 20) { synopsis = text; break; }
-            }
-
-            // Cover image — AnimePahe stores it on .anime-cover[data-src]
-            let cover = null;
-            const coverSrc = doc.querySelector(".anime-cover[data-src]")?.getAttribute("data-src");
-            if (coverSrc) cover = coverSrc.startsWith("//") ? "https:" + coverSrc : coverSrc;
-
-            // Info panel — label/value pairs from .anime-info > p
-            const info = [];
-            doc.querySelectorAll(".anime-info > p").forEach((p) => {
-              if (p.classList.contains("external-links")) return;
-              const strong = p.querySelector("strong");
-              if (!strong) return;
-              const label = strong.textContent.trim().replace(/:\s*$/, "").trim();
-              const innerLink = strong.querySelector("a");
-              const clone = p.cloneNode(true);
-              clone.querySelector("strong")?.remove();
-              const trailing = clone.textContent.replace(/\s+/g, " ").trim();
-              let value = innerLink ? innerLink.textContent.trim() : "";
-              value = [value, trailing].filter(Boolean).join(" ").trim();
-              if (label && value) info.push({ label, value });
-            });
-
-            // Genres
-            const genres = Array.from(doc.querySelectorAll(".anime-genre li a"))
-              .map((a) => ({ name: a.textContent.trim(), url: a.getAttribute("href") }))
-              .filter((g) => g.name);
-
-            // External links (AniList, MAL, etc.)
-            const externals = Array.from(doc.querySelectorAll(".external-links a"))
-              .map((a) => {
-                const href = a.getAttribute("href") || "";
-                return {
-                  name: a.textContent.trim(),
-                  url: href.startsWith("//") ? "https:" + href : href,
-                };
-              })
-              .filter((e) => e.name && e.url);
-
-            const details = { info, genres, externals };
-
-            chrome.storage.local.get(["animeHistory"], (r2) => {
-              const h = r2.animeHistory || {};
-              const a = h[animeId] || { downloaded: [] };
-              a.synopsis = synopsis || null;
-              a.cover = cover || null;
-              a.details = details;
-              h[animeId] = a;
-              chrome.storage.local.set({ animeHistory: h });
-            });
-            resolve({ synopsis, cover, details });
-          })
-          .catch(() => resolve({}));
+        resolve({});
       });
     });
   }
@@ -140,39 +80,6 @@
   //    parallel, hand the queue to background for sequential tab-open /
   //    download-start / close. No navigation — the current page stays put.
   // ───────────────────────────────────────────────────────────────────────
-
-  // Sentinel returned when Cloudflare/animepahe rate-limits us (Error 1015 or
-  // 429). The outer batch aborts on this — retrying just deepens the ban.
-  const RATE_LIMITED = Symbol("rate-limited");
-
-  async function fetchEpisodeDownloadInfo(episodeUrl) {
-    try {
-      const res = await fetch(episodeUrl, { credentials: "same-origin" });
-      if (res.status === 429 || res.status === 403) return RATE_LIMITED;
-      if (!res.ok) return null;
-      const html = await res.text();
-      if (/Error\s*1015|You are being rate limited|Just a moment\.\.\./i.test(html)) {
-        return RATE_LIMITED;
-      }
-      const doc = new DOMParser().parseFromString(html, "text/html");
-      const dlMenu = doc.getElementById("pickDownload");
-      if (!dlMenu) return null;
-      const dlLinks = Array.from(dlMenu.querySelectorAll("a.dropdown-item"))
-        .filter((a) => {
-          const badge = a.querySelector(".badge-warning");
-          return !badge?.innerText?.toLowerCase().includes("eng");
-        })
-        .sort((a, b) => {
-          const ap = parseInt(a.innerText.match(/(\d+)p/)?.[1] || 0);
-          const bp = parseInt(b.innerText.match(/(\d+)p/)?.[1] || 0);
-          return bp - ap;
-        });
-      return dlLinks[0] ? { downloadUrl: dlLinks[0].href } : null;
-    } catch (e) {
-      return null;
-    }
-  }
-  fetchEpisodeDownloadInfo.RATE_LIMITED = RATE_LIMITED;
 
   function showAutoPilotPanel(animeTitle, todoEpisodes) {
     const existing = document.getElementById("autopilot-panel");
