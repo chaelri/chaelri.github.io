@@ -251,7 +251,7 @@
     const todo = data.episodes.slice(activeIdx);
 
     const panel = showAutoPilotPanel(data.title, todo);
-    setPanelStatus(panel, `Fetching links… 0 / ${todo.length}`);
+    setPanelStatus(panel, `Queueing ${todo.length} episodes…`);
 
     // Listen for progress from background. Attach once per panel.
     chrome.runtime.onMessage.addListener(function onBatchMsg(msg) {
@@ -288,72 +288,23 @@
       }
     });
 
-    // Parallel-fetch download URLs (throttled) — the current episode's URL is
-    // already in data.downloadUrl so we reuse it without a network round-trip.
-    const items = [];
-    let completed = 0;
-    const report = () =>
-      setPanelStatus(panel, `Fetching links… ${completed} / ${todo.length}`);
-
-    const sleep = (ms) => new Promise((r) => setTimeout(r, ms));
-
-    // CHILL MODE — strict serial, no retries, 4-6s human-paced gap with jitter.
-    // animepahe.pw rate-limits aggressively (CF Error 1015 = real temp IP ban,
-    // ~30 min). Retrying or going fast deepens the ban, so we go slow:
-    //   - one shot per episode (no retry on failure — just mark failed)
-    //   - 4s base + 0-2s random jitter between fetches → ~50-70s for 12 eps
-    //   - abort the whole batch the moment we see ANY CF rate-limit signal
-    // Worst case: a single ep fails silently. We can re-run the batch later.
-    const PER_FETCH_GAP_MS = 4000;
-    const JITTER_MAX_MS = 2000;
-    let aborted = false;
-
-    const fetchOne = async (ep) => {
-      if (ep.num === data.epNum) {
-        completed += 1;
-        report();
-        return data.downloadUrl ? { downloadUrl: data.downloadUrl, ep: ep.num } : null;
+    // No pre-fetch. Each /play/ page already exposes its own #pickDownload
+    // link — the child tab will extract it itself (see isBulkChild fast-path
+    // in animePaheClicker). The current episode's downloadUrl (pahe.win) is
+    // already in hand, so it skips even the /play/ load.
+    //
+    // This avoids the burst of 11 same-origin /play/ fetches that tripped
+    // Cloudflare's Error 1015 rate-limiter. Each child tab is a normal
+    // browser navigation (full cookies, full CF clearance) and they open
+    // 3 at a time via background's worker pool — gentle on animepahe.
+    const items = todo.map((ep) => {
+      if (ep.num === data.epNum && data.downloadUrl) {
+        return { downloadUrl: data.downloadUrl, ep: ep.num };
       }
-      const info = await fetchEpisodeDownloadInfo(ep.url);
-      if (info === fetchEpisodeDownloadInfo.RATE_LIMITED) {
-        aborted = true;
-        return null; // do NOT keep hammering — back off immediately
-      }
-      completed += 1;
-      report();
-      if (info?.downloadUrl) {
-        return { downloadUrl: info.downloadUrl, ep: ep.num };
-      }
-      markPanelChip(panel, ep.num, "failed");
-      return null;
-    };
-
-    for (let i = 0; i < todo.length; i++) {
-      if (panel.dataset.cancelled) return;
-      const r = await fetchOne(todo[i]);
-      if (r) items.push(r);
-      if (aborted) {
-        for (let j = i; j < todo.length; j++) markPanelChip(panel, todo[j].num, "failed");
-        setPanelStatus(
-          panel,
-          "Rate-limited by animepahe — wait ~30 min before retrying"
-        );
-        if (!items.length) return;
-        break;
-      }
-      if (i < todo.length - 1) {
-        await sleep(PER_FETCH_GAP_MS + Math.random() * JITTER_MAX_MS);
-      }
-    }
-
-    if (!items.length) {
-      setPanelStatus(panel, "Failed to fetch download links");
-      return;
-    }
-    if (items.length < todo.length) {
-      const missed = todo.length - items.length;
-      setPanelStatus(panel, `Queued ${items.length} of ${todo.length} (${missed} link-fetch failed)`);
-    }
+      const childUrl =
+        ep.url + (ep.url.includes("?") ? "&" : "?") + "bulk_child=1";
+      return { downloadUrl: childUrl, ep: ep.num };
+    });
 
     chrome.runtime.sendMessage({
       action: "batchDownload",
@@ -368,8 +319,14 @@
   // ── PLAYER PAGE: extract best download link, open it, navigate to next ──
 
   function animePaheClicker() {
-    const isAuto =
-      new URLSearchParams(window.location.search).get("auto") === "true";
+    const params = new URLSearchParams(window.location.search);
+    const isAuto = params.get("auto") === "true";
+    // bulk_child=1 means this tab was opened by a parent bulk auto-pilot.
+    // We don't render the nuke UI or fetch anything — we just extract the
+    // best download link straight from this page's #pickDownload and navigate
+    // to pahe.win. The download flow takes over from there and the tab gets
+    // auto-closed by background.js when chrome.downloads.onCreated fires.
+    const isBulkChild = params.get("bulk_child") === "1";
 
     // Early tab-title update so the browser tab shows "EP N · Title"
     // even before the nuke UI renders (or if it never does). Stops itself
@@ -391,6 +348,26 @@
       const scrollArea = document.querySelector("#scrollArea");
       const infoArea = document.querySelector(".theatre-info");
       const episodeBtn = document.getElementById("episodeMenu");
+
+      // Bulk-child fast path: only #pickDownload needs to be ready. Don't wait
+      // for scrollArea / infoArea / episodeBtn — this tab is throwaway.
+      if (isBulkChild && dlMenu) {
+        clearInterval(findData);
+        const best = Array.from(dlMenu.querySelectorAll("a.dropdown-item"))
+          .filter(
+            (a) =>
+              !a.querySelector(".badge-warning")?.innerText.toLowerCase().includes("eng")
+          )
+          .sort(
+            (a, b) =>
+              parseInt(b.innerText.match(/(\d+)p/)?.[1] || 0) -
+              parseInt(a.innerText.match(/(\d+)p/)?.[1] || 0)
+          )[0];
+        if (best?.href) {
+          window.location.href = best.href;
+        }
+        return;
+      }
 
       if (dlMenu && scrollArea && infoArea && episodeBtn) {
         clearInterval(findData);
