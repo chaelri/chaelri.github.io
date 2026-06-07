@@ -65,8 +65,11 @@ const batch = {
   total: 0,
   done: 0,
   active: false,
-  tabToEp: new Map(),
   cancelled: false,
+  currentEp: null,
+  currentTabId: null,
+  currentDownloadId: null,
+  pendingSettle: null, // callback installed by downloadOneEpisode; receives "complete" | "interrupted" | "timeout" | "no-download" | "cancelled"
 };
 
 function enqueueBatch(msg, originTabId) {
@@ -77,89 +80,105 @@ function enqueueBatch(msg, originTabId) {
   batch.total = (msg.items || []).length;
   batch.done = 0;
   batch.cancelled = false;
-  batch.tabToEp.clear();
+  batch.currentEp = null;
+  batch.currentTabId = null;
+  batch.currentDownloadId = null;
+  batch.pendingSettle = null;
   fireAll(msg.items || []);
 }
 
 function cancelBatch() {
   batch.cancelled = true;
-  for (const id of batch.tabToEp.keys()) {
-    chrome.tabs.remove(id).catch(() => {});
-  }
-  batch.tabToEp.clear();
+  if (batch.currentTabId) chrome.tabs.remove(batch.currentTabId).catch(() => {});
+  if (batch.pendingSettle) batch.pendingSettle("cancelled");
   reportBatchProgress("cancelled");
   batch.total = 0;
   batch.done = 0;
   batch.active = false;
+  batch.currentEp = null;
+  batch.currentTabId = null;
+  batch.currentDownloadId = null;
+  batch.pendingSettle = null;
 }
 
-// Cap concurrent in-flight download tabs. Opening all tabs at once causes
-// Chrome's Memory Saver / background-tab throttle to discard or freeze the
-// surplus — symptom: only the first ~8 episodes actually download. Worker
-// pool: N workers, each opens a tab and waits for it to close (download
-// started → auto-close via downloads.onCreated, or hard timeout) before
-// grabbing the next item.
-const CONCURRENT_TABS = 3;
-const TAB_TIMEOUT_MS = 90000;
+// Strict serial mode — open one tab, wait for that episode's file download
+// to fully complete (chrome.downloads state="complete"), THEN move on.
+// Cloudflare became sticky on animepahe so the previous worker pool (3
+// concurrent) tripped 1015 even with the per-tab gap; staying truly serial
+// gives the host minutes of breathing room between API hits.
+const START_TIMEOUT_MS = 60_000;       // 1 min to actually kick off the download
+const COMPLETE_TIMEOUT_MS = 30 * 60_000; // 30 min cap per episode file
 
 async function fireAll(items) {
   batch.active = true;
-  let cursor = 0;
-
-  const worker = async () => {
-    while (cursor < items.length) {
-      if (batch.cancelled) return;
-      const item = items[cursor++];
-      reportBatchProgress("start", item.ep);
-      let tabId = null;
-      try {
-        await markEpDownloaded(batch.animeId, item.ep, batch.animeTitle, batch.poster);
-        const tab = await chrome.tabs.create({ url: item.downloadUrl, active: false });
-        tabId = tab.id;
-        batch.tabToEp.set(tab.id, item.ep);
-        await trackTab(tab.id, { animeId: batch.animeId, animeTitle: batch.animeTitle });
-        if (batch.animeId && batch.animeTitle) {
-          groupDownloadTab(tab.id, batch.animeId, batch.animeTitle).catch(() => {});
-        }
-      } catch (e) {
-        batch.done += 1;
-        reportBatchProgress("failed", item.ep);
-        continue;
-      }
-      // Block this worker until the tab closes (download started → auto-close)
-      // or the timeout fires. Keeps in-flight count ≤ CONCURRENT_TABS so Chrome
-      // doesn't discard background tabs.
-      await waitForTabClose(tabId, TAB_TIMEOUT_MS);
+  for (const item of items) {
+    if (batch.cancelled) return;
+    batch.currentEp = item.ep;
+    reportBatchProgress("start", item.ep);
+    try {
+      await markEpDownloaded(batch.animeId, item.ep, batch.animeTitle, batch.poster);
+    } catch (e) {}
+    const result = await downloadOneEpisode(item);
+    if (batch.cancelled) return;
+    batch.done += 1;
+    if (result === "complete") {
+      reportBatchProgress("done", item.ep);
+    } else {
+      reportBatchProgress("failed", item.ep);
     }
-  };
-
-  const workers = [];
-  for (let i = 0; i < Math.min(CONCURRENT_TABS, items.length); i++) {
-    workers.push(worker());
+    batch.currentEp = null;
+    batch.currentTabId = null;
+    batch.currentDownloadId = null;
+    batch.pendingSettle = null;
   }
-  await Promise.all(workers);
-  maybeMarkComplete();
-}
-
-// When a batch-tab closes (either via our auto-close on download start, or
-// kwik.js safety timeout), tick up completion and forward to the UI.
-chrome.tabs.onRemoved.addListener((tabId) => {
-  const ep = batch.tabToEp.get(tabId);
-  if (ep === undefined) return;
-  batch.tabToEp.delete(tabId);
-  batch.done += 1;
-  reportBatchProgress("done", ep);
-  maybeMarkComplete();
-});
-
-function maybeMarkComplete() {
-  if (batch.cancelled) return;
-  if (batch.active && batch.tabToEp.size === 0 && batch.done >= batch.total) {
+  if (!batch.cancelled) {
     batch.active = false;
     reportBatchProgress("complete");
     batch.total = 0;
     batch.done = 0;
   }
+}
+
+function downloadOneEpisode(item) {
+  return new Promise(async (resolve) => {
+    let settled = false;
+    let startTimer = null;
+    let completeTimer = null;
+
+    const settle = (reason) => {
+      if (settled) return;
+      settled = true;
+      clearTimeout(startTimer);
+      clearTimeout(completeTimer);
+      // Tab is usually already closed by kwik.js's 5s timer + the
+      // downloads.onCreated auto-close — this is the belt-and-suspenders kill.
+      if (batch.currentTabId) chrome.tabs.remove(batch.currentTabId).catch(() => {});
+      resolve(reason);
+    };
+
+    // Called by the global downloads.onCreated listener the moment Chrome
+    // registers OUR download. Promotes start-phase → complete-phase watchdog.
+    const onDownloadStart = () => {
+      clearTimeout(startTimer);
+      completeTimer = setTimeout(() => settle("timeout"), COMPLETE_TIMEOUT_MS);
+    };
+
+    batch.pendingSettle = settle;
+    batch._onDownloadStart = onDownloadStart;
+
+    startTimer = setTimeout(() => settle("no-download"), START_TIMEOUT_MS);
+
+    try {
+      const tab = await chrome.tabs.create({ url: item.downloadUrl, active: false });
+      batch.currentTabId = tab.id;
+      await trackTab(tab.id, { animeId: batch.animeId, animeTitle: batch.animeTitle });
+      if (batch.animeId && batch.animeTitle) {
+        groupDownloadTab(tab.id, batch.animeId, batch.animeTitle).catch(() => {});
+      }
+    } catch (e) {
+      settle("tab-error");
+    }
+  });
 }
 
 function reportBatchProgress(status, ep) {
@@ -171,25 +190,6 @@ function reportBatchProgress(status, ep) {
     done: batch.done,
     total: batch.total,
   }).catch(() => {});
-}
-
-function waitForTabClose(tabId, timeoutMs) {
-  return new Promise((resolve) => {
-    let settled = false;
-    const settle = () => {
-      if (settled) return;
-      settled = true;
-      chrome.tabs.onRemoved.removeListener(onRemoved);
-      clearTimeout(to);
-      resolve();
-    };
-    const onRemoved = (id) => { if (id === tabId) settle(); };
-    chrome.tabs.onRemoved.addListener(onRemoved);
-    const to = setTimeout(() => {
-      chrome.tabs.remove(tabId).catch(() => {});
-      settle();
-    }, timeoutMs);
-  });
 }
 
 async function markEpDownloaded(animeId, ep, title, poster) {
@@ -210,25 +210,45 @@ chrome.tabs.onRemoved.addListener((tabId) => {
 });
 
 // ══════════════════════════════════════════════════════════════════════════
-// Auto-close download tabs when their download actually finishes.
-// Background-level safety net: kwik.js has its own 15s countdown that also
-// sends closeTab, but that can fail silently on Cloudflare challenges, ad
-// script interference, or network hiccups. Listening to real download state
-// at the browser level is much more reliable.
+// Download lifecycle listeners
+//
+// Two modes:
+//   1. Non-batch (single download, manual right-click flow) — same as before:
+//      close the originating tab once the browser owns the download, since
+//      kwik.js's safety timer can fail under Cloudflare challenges.
+//   2. Batch / auto-pilot — strict serial. Capture the first download created
+//      after each episode tab opens, then resolve the per-episode promise only
+//      when that download enters a terminal state (complete / interrupted).
+//      Keeps in-flight count at 1 so animepahe doesn't trip CF 1015.
 // ══════════════════════════════════════════════════════════════════════════
-// Fire as soon as the browser kicks off a download — tabs can close safely
-// once the download is owned by the download manager (Chrome keeps pulling
-// the file even after the originating tab goes away). This cuts the per-tab
-// wait from ~15s down to ~1s in the happy path.
-chrome.downloads.onCreated.addListener(() => {
+chrome.downloads.onCreated.addListener((dl) => {
+  if (batch.active && batch.currentDownloadId === null) {
+    // Bind the first new download to the current episode. With concurrency=1
+    // there should only ever be one in flight per episode, so the first
+    // onCreated after the tab opens is ours.
+    batch.currentDownloadId = dl.id;
+    if (typeof batch._onDownloadStart === "function") batch._onDownloadStart();
+  }
+  // Tab can close now — download manager owns the bytes from here on.
   setTimeout(closeOldestFinishedTab, 400);
 });
 
-// Fallback: still close on completion in case onCreated was missed (e.g.,
-// service-worker was asleep when the event fired).
 chrome.downloads.onChanged.addListener((delta) => {
-  if (!delta.state || delta.state.current !== "complete") return;
-  setTimeout(closeOldestFinishedTab, 800);
+  if (batch.active && batch.currentDownloadId === delta.id && delta.state) {
+    const s = delta.state.current;
+    if (s === "complete") {
+      if (batch.pendingSettle) batch.pendingSettle("complete");
+      return;
+    }
+    if (s === "interrupted") {
+      if (batch.pendingSettle) batch.pendingSettle("interrupted");
+      return;
+    }
+  }
+  // Fallback close in case onCreated was missed (service worker asleep).
+  if (delta.state && delta.state.current === "complete") {
+    setTimeout(closeOldestFinishedTab, 800);
+  }
 });
 
 async function closeOldestFinishedTab() {
