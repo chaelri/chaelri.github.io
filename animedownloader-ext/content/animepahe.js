@@ -1844,9 +1844,26 @@
   // pagination after we mutate the grid. State object `_infinite` is
   // hoisted to the top of the IIFE to dodge TDZ on early dispatch.
 
+  const FL_LOG = (...a) => console.log("[FL-INF]", ...a);
+
   function _initInfiniteScroll() {
     _infinite.nextUrl = _readNextPageUrl();
+    FL_LOG("init", { nextUrl: _infinite.nextUrl });
     _bindInfiniteObserver();
+    // Retry binding a few times — animepahe sometimes injects pagination
+    // late, after the initial DOM ready snapshot.
+    let tries = 0;
+    const retryTimer = setInterval(() => {
+      tries++;
+      if (_infinite.observer || tries > 10) {
+        clearInterval(retryTimer);
+        FL_LOG("retry-loop end", { bound: !!_infinite.observer, tries });
+        return;
+      }
+      _infinite.nextUrl = _readNextPageUrl();
+      FL_LOG("retry", tries, { nextUrl: _infinite.nextUrl });
+      _bindInfiniteObserver();
+    }, 500);
   }
 
   function _readNextPageUrl() {
@@ -1860,15 +1877,27 @@
       document.querySelector(".pagination") ||
       document.querySelector(".page-link.next-page")?.closest("ul, nav, div");
     _infinite.triggerEl = pagination || null;
-    if (!_infinite.nextUrl || !_infinite.triggerEl) return;
+    FL_LOG("bind", {
+      nextUrl: _infinite.nextUrl,
+      triggerEl: _infinite.triggerEl,
+      paginationFound: !!document.querySelector(".pagination"),
+      nextLinkFound: !!document.querySelector(".page-link.next-page"),
+    });
+    if (!_infinite.nextUrl || !_infinite.triggerEl) {
+      FL_LOG("bind aborted — missing nextUrl or triggerEl");
+      return;
+    }
 
     _infinite.observer = new IntersectionObserver(
       (entries) => {
-        if (entries.some((e) => e.isIntersecting)) _loadNextPage();
+        const intersecting = entries.some((e) => e.isIntersecting);
+        FL_LOG("observer fired", { intersecting, entries: entries.map((e) => ({ isIntersecting: e.isIntersecting, ratio: e.intersectionRatio })) });
+        if (intersecting) _loadNextPage();
       },
       { rootMargin: "400px 0px 400px 0px" }
     );
     _infinite.observer.observe(_infinite.triggerEl);
+    FL_LOG("observer attached to", _infinite.triggerEl);
   }
 
   function _setInfiniteIndicator(text, opts = {}) {
@@ -1889,21 +1918,26 @@
   }
 
   async function _loadNextPage() {
-    if (_infinite.inflight) return;
+    FL_LOG("loadNext called", { inflight: _infinite.inflight, nextUrl: _infinite.nextUrl, cooldownLeft: _infinite.cooldownUntil - Date.now() });
+    if (_infinite.inflight) { FL_LOG("…skip: inflight"); return; }
     if (_animepaheRateLimited) {
+      FL_LOG("…skip: rate-limited");
       _setInfiniteIndicator("Cloudflare rate-limited — try later", { error: true });
       return;
     }
     if (!_infinite.nextUrl) {
+      FL_LOG("…skip: no nextUrl");
       _setInfiniteIndicator("No more pages");
       return;
     }
-    if (Date.now() < _infinite.cooldownUntil) return;
+    if (Date.now() < _infinite.cooldownUntil) { FL_LOG("…skip: cooldown"); return; }
 
     _infinite.inflight = true;
     _setInfiniteIndicator("Loading more…");
     try {
+      FL_LOG("fetching", _infinite.nextUrl);
       const res = await fetch(_infinite.nextUrl, { credentials: "same-origin" });
+      FL_LOG("fetch resolved", { status: res.status, ok: res.ok });
       if (res.status === 429 || res.status === 403) {
         _animepaheRateLimited = true;
         _setInfiniteIndicator("Rate-limited — try later", { error: true });
@@ -1914,19 +1948,24 @@
         return;
       }
       const html = await res.text();
+      FL_LOG("html length", html.length);
       if (/Error\s*1015|You are being rate limited|Just a moment\.\.\./i.test(html)) {
         _animepaheRateLimited = true;
+        FL_LOG("CF block detected in body");
         _setInfiniteIndicator("Cloudflare blocked — try later", { error: true });
         return;
       }
       const doc = new DOMParser().parseFromString(html, "text/html");
       const newCards = Array.from(doc.querySelectorAll(".episode-wrap"));
+      const newNextLink = doc.querySelector(".page-link.next-page")?.getAttribute("href") || null;
+      FL_LOG("parsed", { newCards: newCards.length, newNextLink });
       if (!newCards.length) {
         _infinite.nextUrl = null;
         _setInfiniteIndicator("No more pages");
         return;
       }
       const grid = document.querySelector(".episode-wrap")?.parentElement;
+      FL_LOG("grid container", grid);
       if (!grid) return;
       // Append cards. The MutationObserver in animePaheHomeInjector picks
       // them up and runs injectFirstButtons() over the new ones, which in
@@ -1934,19 +1973,18 @@
       // Keep the indicator pinned to the bottom by reattaching it last.
       newCards.forEach((c) => grid.appendChild(c));
       if (_infinite.indicator) grid.appendChild(_infinite.indicator);
+      FL_LOG("appended", newCards.length, "cards");
 
-      _infinite.nextUrl = doc.querySelector(".page-link.next-page")?.getAttribute("href") || null;
+      _infinite.nextUrl = newNextLink;
       if (!_infinite.nextUrl) {
         _setInfiniteIndicator("No more pages");
-        // Stop observing — we're at the end.
         _infinite.observer?.disconnect();
       } else {
         _setInfiniteIndicator("", { hide: true });
       }
-      // Cooldown so an in-view pagination doesn't immediately re-trigger
-      // before the user scrolls.
       _infinite.cooldownUntil = Date.now() + 600;
     } catch (e) {
+      FL_LOG("fetch error", e);
       _setInfiniteIndicator("Couldn't load — scroll to retry", { error: true });
     } finally {
       _infinite.inflight = false;
