@@ -1227,6 +1227,19 @@
         opacity: 1;
         transform: translateY(0);
       }
+      /* Heading row — pulls the "Latest Releases" h-tag and a clone of
+         the bottom pagination into a single flex row so the page chevrons
+         live next to the title instead of only at the bottom. */
+      .fl-heading-row {
+        display: flex;
+        align-items: center;
+        justify-content: space-between;
+        gap: 16px;
+        flex-wrap: wrap;
+      }
+      .fl-pagination-top {
+        margin: 0 !important;
+      }
       .fl-genre-chip {
         font-size: 0.55rem !important;
         font-weight: 700;
@@ -1855,6 +1868,7 @@
     };
 
     injectFirstButtons();
+    _syncTopPagination();
 
     // Observe the whole home container so pagination that swaps out
     // .episode-list-wrapper still triggers our hook.
@@ -1863,9 +1877,55 @@
       document.querySelector(".episode-list-wrapper") ||
       document.body;
     if (target) {
-      new MutationObserver(injectFirstButtons).observe(target, {
+      const onMutation = () => {
+        injectFirstButtons();
+        _syncTopPagination();
+      };
+      new MutationObserver(onMutation).observe(target, {
         childList: true,
         subtree: true,
+      });
+    }
+  }
+
+  // Mirror the bottom pagination strip next to the "Latest Releases" heading.
+  // Deep-clones the <ul.pagination> and wraps both into a flex row so the
+  // chevrons sit on the right of the title. Click forwarding maps each cloned
+  // .page-link to its original counterpart by index, so animepahe's own
+  // click handlers (which may be JS-bound, not href-based) still drive the
+  // navigation. Re-runs whenever the MutationObserver fires so the clone
+  // stays in sync after AJAX page changes.
+  function _syncTopPagination() {
+    const heading = _findLatestHeading();
+    const pagination = document.querySelector(".pagination");
+    if (!heading || !pagination) return;
+
+    let row = document.getElementById("fl-heading-row");
+    if (!row) {
+      row = document.createElement("div");
+      row.id = "fl-heading-row";
+      row.className = "fl-heading-row";
+      heading.parentNode.insertBefore(row, heading);
+      row.appendChild(heading);
+    }
+
+    let clone = row.querySelector(".fl-pagination-top");
+    const needsRebuild = !clone || clone.innerHTML !== pagination.innerHTML;
+    if (!clone) {
+      clone = pagination.cloneNode(true);
+      clone.classList.add("fl-pagination-top");
+      row.appendChild(clone);
+    } else if (needsRebuild) {
+      clone.innerHTML = pagination.innerHTML;
+    }
+
+    if (needsRebuild) {
+      const origLinks = pagination.querySelectorAll(".page-link");
+      clone.querySelectorAll(".page-link").forEach((cBtn, i) => {
+        cBtn.addEventListener("click", (e) => {
+          e.preventDefault();
+          origLinks[i]?.click();
+        });
       });
     }
   }
