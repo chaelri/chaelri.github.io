@@ -1878,6 +1878,55 @@
     return `${window.location.pathname}?${params.toString()}`;
   }
 
+  function _buildApiUrl(pageNum) {
+    return `/api?m=airing&page=${pageNum}`;
+  }
+
+  // Build a fresh .episode-wrap from a JSON item by cloning the first card
+  // already on the page (the template) and mutating its fields. Strips any
+  // extension-injected children (.fl-first-btn / .fl-ep-kicker / .fl-genre-row /
+  // .fl-ep-total) and clears the data-fl-* flags so animePaheHomeInjector
+  // picks it up as fresh on the next mutation tick.
+  function _buildCardFromTemplate(template, item) {
+    const clone = template.cloneNode(true);
+    delete clone.dataset.flDone;
+    delete clone.dataset.flHydrated;
+    clone.querySelectorAll(".fl-first-btn, .fl-ep-kicker, .fl-genre-row, .fl-ep-total")
+      .forEach((el) => el.remove());
+
+    // Title link → /anime/{anime_session}
+    const titleLink = clone.querySelector(".episode-title a");
+    if (titleLink) {
+      titleLink.href = `/anime/${item.anime_session || ""}`;
+      titleLink.textContent = item.anime_title || "(untitled)";
+    }
+
+    // Episode number (raw text — the home injector will re-add its kicker).
+    const epCell = clone.querySelector(".episode-number");
+    if (epCell) {
+      const epText = String(item.episode ?? "?");
+      // Clear existing text nodes, keep child elements untouched.
+      Array.from(epCell.childNodes).forEach((n) => {
+        if (n.nodeType === Node.TEXT_NODE) n.remove();
+      });
+      epCell.insertBefore(document.createTextNode(epText), epCell.firstChild);
+    }
+
+    // Snapshot image. `snapshot` field may be either a full URL or just a
+    // filename — handle both.
+    const img = clone.querySelector(".episode-snapshot img");
+    if (img && item.snapshot) {
+      const src = /^https?:\/\//.test(item.snapshot)
+        ? item.snapshot
+        : `https://i.animepahe.pw/snapshots/${item.snapshot}`;
+      img.src = src;
+      img.removeAttribute("srcset");
+      img.removeAttribute("data-src");
+    }
+
+    return clone;
+  }
+
   function _bindInfiniteObserver() {
     if (_infinite.observer) _infinite.observer.disconnect();
     const pagination =
@@ -1936,12 +1985,18 @@
     if (Date.now() < _infinite.cooldownUntil) { FL_LOG("…skip: cooldown"); return; }
 
     const targetPage = _infinite.currentPage + 1;
-    const url = _buildPageUrl(targetPage);
+    const apiUrl = _buildApiUrl(targetPage);
     _infinite.inflight = true;
     _setInfiniteIndicator("Loading more…");
     try {
-      FL_LOG("fetching", url);
-      const res = await fetch(url, { credentials: "same-origin" });
+      FL_LOG("fetching", apiUrl);
+      const res = await fetch(apiUrl, {
+        credentials: "same-origin",
+        headers: {
+          "Accept": "application/json, text/javascript, */*; q=0.01",
+          "X-Requested-With": "XMLHttpRequest",
+        },
+      });
       FL_LOG("fetch resolved", { status: res.status, ok: res.ok });
       if (res.status === 429 || res.status === 403) {
         _animepaheRateLimited = true;
@@ -1952,49 +2007,41 @@
         _setInfiniteIndicator("Couldn't load — scroll to retry", { error: true });
         return;
       }
-      const html = await res.text();
-      FL_LOG("html length", html.length);
-      FL_LOG("html head 600:", html.slice(0, 600));
-      FL_LOG("html tail 600:", html.slice(-600));
-      if (/Error\s*1015|You are being rate limited|Just a moment\.\.\./i.test(html)) {
-        _animepaheRateLimited = true;
-        FL_LOG("CF block detected in body");
-        _setInfiniteIndicator("Cloudflare blocked — try later", { error: true });
-        return;
-      }
-      const doc = new DOMParser().parseFromString(html, "text/html");
-      const newCards = Array.from(doc.querySelectorAll(".episode-wrap"));
-      FL_LOG("parsed", { newCards: newCards.length });
-      // What ELSE is in the doc? Maybe the cards live under a different class
-      // on paginated pages (e.g., AJAX shell with an inline JSON blob), or
-      // there's a <script> tag we need to harvest data from.
-      FL_LOG("doc classes containing 'episode' or 'release':",
-        Array.from(new Set(
-          Array.from(doc.querySelectorAll("[class*='episode'], [class*='release']"))
-            .flatMap((el) => Array.from(el.classList))
-            .filter((c) => /episode|release/i.test(c))
-        ))
-      );
-      FL_LOG("doc inline <script> count:", doc.querySelectorAll("script").length);
-      if (!newCards.length) {
+      const json = await res.json();
+      FL_LOG("api response", {
+        current_page: json.current_page,
+        last_page: json.last_page,
+        items: json.data?.length,
+        firstItem: json.data?.[0],
+      });
+      const items = json.data || [];
+      if (!items.length) {
         _infinite.hasMore = false;
         _setInfiniteIndicator("No more pages");
         _infinite.observer?.disconnect();
         return;
       }
-      const grid = document.querySelector(".episode-wrap")?.parentElement;
-      FL_LOG("grid container", grid);
+      const template = document.querySelector(".episode-wrap");
+      if (!template) {
+        FL_LOG("no template card on page — bailing");
+        _setInfiniteIndicator("Couldn't load — no template", { error: true });
+        return;
+      }
+      const grid = template.parentElement;
       if (!grid) return;
-      // Append cards. The MutationObserver in animePaheHomeInjector picks
-      // them up and runs injectFirstButtons() over the new ones, which in
-      // turn hydrates genres via the cache-first / queue-on-miss path.
-      // Keep the indicator pinned to the bottom by reattaching it last.
+      const newCards = items.map((it) => _buildCardFromTemplate(template, it));
       newCards.forEach((c) => grid.appendChild(c));
       if (_infinite.indicator) grid.appendChild(_infinite.indicator);
       FL_LOG("appended", newCards.length, "cards — now on page", targetPage);
 
-      _infinite.currentPage = targetPage;
-      _setInfiniteIndicator("", { hide: true });
+      _infinite.currentPage = json.current_page || targetPage;
+      _infinite.hasMore = (json.last_page || Infinity) > _infinite.currentPage;
+      if (!_infinite.hasMore) {
+        _setInfiniteIndicator("No more pages");
+        _infinite.observer?.disconnect();
+      } else {
+        _setInfiniteIndicator("", { hide: true });
+      }
       _infinite.cooldownUntil = Date.now() + 600;
     } catch (e) {
       FL_LOG("fetch error", e);
