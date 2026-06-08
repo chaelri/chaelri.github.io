@@ -24,6 +24,11 @@
   // section, and a TDZ access on `const _genreFilter` would throw.
   const _genreFilter = { tokens: [], raw: "" };
 
+  // Cached ref to the "Latest Releases" heading. Same TDZ-hoist reason —
+  // _setGenreFilter → _applyGenreFilter → _updateFilterEmptyState → _findLatestHeading
+  // touches this `let` during the synchronous router dispatch.
+  let _flLatestHeading = null;
+
   if (HREF.includes("?searchFilter=")) animePaheSearchAutoClick();
   else if (HREF.includes("/play/")) animePaheClicker();
   else if (HREF.includes("/anime/")) animePaheEpisodeList();
@@ -1590,10 +1595,6 @@
     }
     _updateFilterEmptyState(visible, hydrated, tokens.length > 0);
   }
-  // Cached ref to the "Latest Releases" heading so we don't re-walk the
-  // DOM on every filter keystroke. Re-resolves if the cached element drops
-  // out of the document (e.g., animepahe AJAX swap).
-  let _flLatestHeading = null;
   function _findLatestHeading() {
     if (_flLatestHeading && document.contains(_flLatestHeading)) return _flLatestHeading;
     const candidates = document.querySelectorAll("h1, h2, h3");
