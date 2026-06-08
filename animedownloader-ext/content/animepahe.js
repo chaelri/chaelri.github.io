@@ -1954,6 +1954,8 @@
       }
       const html = await res.text();
       FL_LOG("html length", html.length);
+      FL_LOG("html head 600:", html.slice(0, 600));
+      FL_LOG("html tail 600:", html.slice(-600));
       if (/Error\s*1015|You are being rate limited|Just a moment\.\.\./i.test(html)) {
         _animepaheRateLimited = true;
         FL_LOG("CF block detected in body");
@@ -1963,6 +1965,17 @@
       const doc = new DOMParser().parseFromString(html, "text/html");
       const newCards = Array.from(doc.querySelectorAll(".episode-wrap"));
       FL_LOG("parsed", { newCards: newCards.length });
+      // What ELSE is in the doc? Maybe the cards live under a different class
+      // on paginated pages (e.g., AJAX shell with an inline JSON blob), or
+      // there's a <script> tag we need to harvest data from.
+      FL_LOG("doc classes containing 'episode' or 'release':",
+        Array.from(new Set(
+          Array.from(doc.querySelectorAll("[class*='episode'], [class*='release']"))
+            .flatMap((el) => Array.from(el.classList))
+            .filter((c) => /episode|release/i.test(c))
+        ))
+      );
+      FL_LOG("doc inline <script> count:", doc.querySelectorAll("script").length);
       if (!newCards.length) {
         _infinite.hasMore = false;
         _setInfiniteIndicator("No more pages");
