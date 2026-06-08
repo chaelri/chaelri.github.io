@@ -1502,7 +1502,7 @@
   const _genreQueue = [];
   let _genreActive = 0;
   const GENRE_CONCURRENCY = 1;
-  const GENRE_INTER_REQ_MS = 900;
+  const GENRE_INTER_REQ_MS = 300;
   function _pumpGenreQueue() {
     while (_genreActive < GENRE_CONCURRENCY && _genreQueue.length) {
       const task = _genreQueue.shift();
