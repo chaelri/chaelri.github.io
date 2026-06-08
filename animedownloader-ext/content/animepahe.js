@@ -1324,6 +1324,7 @@
       .fl-filter-count:empty {
         display: none;
       }
+      .fl-hidden-by-filter { display: none !important; }
       .fl-filter-empty {
         max-width: 720px;
         margin: 24px auto;
@@ -1589,6 +1590,22 @@
     }
     _updateFilterEmptyState(visible, hydrated, tokens.length > 0);
   }
+  // Cached ref to the "Latest Releases" heading so we don't re-walk the
+  // DOM on every filter keystroke. Re-resolves if the cached element drops
+  // out of the document (e.g., animepahe AJAX swap).
+  let _flLatestHeading = null;
+  function _findLatestHeading() {
+    if (_flLatestHeading && document.contains(_flLatestHeading)) return _flLatestHeading;
+    const candidates = document.querySelectorAll("h1, h2, h3");
+    for (const el of candidates) {
+      if (/latest\s*release/i.test(el.textContent || "")) {
+        _flLatestHeading = el;
+        return el;
+      }
+    }
+    return null;
+  }
+
   function _updateFilterEmptyState(visible, hydrated, hasFilter) {
     const host =
       document.querySelector(".latest-release") ||
@@ -1612,6 +1629,10 @@
     } else if (empty) {
       empty.remove();
     }
+    // Hide the "Latest Releases" heading too when zero matches — it's
+    // pure noise next to an empty-state card.
+    const heading = _findLatestHeading();
+    if (heading) heading.classList.toggle("fl-hidden-by-filter", shouldShow);
   }
 
   function _injectGenreFilterBar() {
