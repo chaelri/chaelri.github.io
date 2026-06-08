@@ -30,7 +30,8 @@
   // before the helper section below.
   const _infinite = {
     inflight: false,
-    nextUrl: null,
+    currentPage: 1,
+    hasMore: true,
     triggerEl: null,
     observer: null,
     indicator: null,
@@ -1849,11 +1850,15 @@
   function FL_LOG(...a) { console.log("[FL-INF]", ...a); }
 
   function _initInfiniteScroll() {
-    _infinite.nextUrl = _readNextPageUrl();
-    FL_LOG("init", { nextUrl: _infinite.nextUrl });
+    // Read current page from the URL; default to 1 for the home root.
+    // The .page-link.next-page element on animepahe doesn't expose a
+    // usable href (it's JS-bound), so we synthesize `?page=N+1` ourselves
+    // from the current page number and increment after each successful load.
+    const params = new URLSearchParams(window.location.search);
+    _infinite.currentPage = parseInt(params.get("page") || "1", 10) || 1;
+    _infinite.hasMore = true;
+    FL_LOG("init", { currentPage: _infinite.currentPage });
     _bindInfiniteObserver();
-    // Retry binding a few times — animepahe sometimes injects pagination
-    // late, after the initial DOM ready snapshot.
     let tries = 0;
     const retryTimer = setInterval(() => {
       tries++;
@@ -1862,15 +1867,15 @@
         FL_LOG("retry-loop end", { bound: !!_infinite.observer, tries });
         return;
       }
-      _infinite.nextUrl = _readNextPageUrl();
-      FL_LOG("retry", tries, { nextUrl: _infinite.nextUrl });
+      FL_LOG("retry", tries);
       _bindInfiniteObserver();
     }, 500);
   }
 
-  function _readNextPageUrl() {
-    const link = document.querySelector(".page-link.next-page");
-    return link?.getAttribute("href") || null;
+  function _buildPageUrl(pageNum) {
+    const params = new URLSearchParams(window.location.search);
+    params.set("page", String(pageNum));
+    return `${window.location.pathname}?${params.toString()}`;
   }
 
   function _bindInfiniteObserver() {
@@ -1880,20 +1885,20 @@
       document.querySelector(".page-link.next-page")?.closest("ul, nav, div");
     _infinite.triggerEl = pagination || null;
     FL_LOG("bind", {
-      nextUrl: _infinite.nextUrl,
+      currentPage: _infinite.currentPage,
       triggerEl: _infinite.triggerEl,
       paginationFound: !!document.querySelector(".pagination"),
       nextLinkFound: !!document.querySelector(".page-link.next-page"),
     });
-    if (!_infinite.nextUrl || !_infinite.triggerEl) {
-      FL_LOG("bind aborted — missing nextUrl or triggerEl");
+    if (!_infinite.triggerEl) {
+      FL_LOG("bind aborted — no pagination element");
       return;
     }
 
     _infinite.observer = new IntersectionObserver(
       (entries) => {
         const intersecting = entries.some((e) => e.isIntersecting);
-        FL_LOG("observer fired", { intersecting, entries: entries.map((e) => ({ isIntersecting: e.isIntersecting, ratio: e.intersectionRatio })) });
+        FL_LOG("observer fired", { intersecting });
         if (intersecting) _loadNextPage();
       },
       { rootMargin: "400px 0px 400px 0px" }
@@ -1920,25 +1925,23 @@
   }
 
   async function _loadNextPage() {
-    FL_LOG("loadNext called", { inflight: _infinite.inflight, nextUrl: _infinite.nextUrl, cooldownLeft: _infinite.cooldownUntil - Date.now() });
+    FL_LOG("loadNext called", { inflight: _infinite.inflight, currentPage: _infinite.currentPage, hasMore: _infinite.hasMore });
     if (_infinite.inflight) { FL_LOG("…skip: inflight"); return; }
+    if (!_infinite.hasMore) { FL_LOG("…skip: no more pages"); return; }
     if (_animepaheRateLimited) {
       FL_LOG("…skip: rate-limited");
       _setInfiniteIndicator("Cloudflare rate-limited — try later", { error: true });
       return;
     }
-    if (!_infinite.nextUrl) {
-      FL_LOG("…skip: no nextUrl");
-      _setInfiniteIndicator("No more pages");
-      return;
-    }
     if (Date.now() < _infinite.cooldownUntil) { FL_LOG("…skip: cooldown"); return; }
 
+    const targetPage = _infinite.currentPage + 1;
+    const url = _buildPageUrl(targetPage);
     _infinite.inflight = true;
     _setInfiniteIndicator("Loading more…");
     try {
-      FL_LOG("fetching", _infinite.nextUrl);
-      const res = await fetch(_infinite.nextUrl, { credentials: "same-origin" });
+      FL_LOG("fetching", url);
+      const res = await fetch(url, { credentials: "same-origin" });
       FL_LOG("fetch resolved", { status: res.status, ok: res.ok });
       if (res.status === 429 || res.status === 403) {
         _animepaheRateLimited = true;
@@ -1959,11 +1962,11 @@
       }
       const doc = new DOMParser().parseFromString(html, "text/html");
       const newCards = Array.from(doc.querySelectorAll(".episode-wrap"));
-      const newNextLink = doc.querySelector(".page-link.next-page")?.getAttribute("href") || null;
-      FL_LOG("parsed", { newCards: newCards.length, newNextLink });
+      FL_LOG("parsed", { newCards: newCards.length });
       if (!newCards.length) {
-        _infinite.nextUrl = null;
+        _infinite.hasMore = false;
         _setInfiniteIndicator("No more pages");
+        _infinite.observer?.disconnect();
         return;
       }
       const grid = document.querySelector(".episode-wrap")?.parentElement;
@@ -1975,15 +1978,10 @@
       // Keep the indicator pinned to the bottom by reattaching it last.
       newCards.forEach((c) => grid.appendChild(c));
       if (_infinite.indicator) grid.appendChild(_infinite.indicator);
-      FL_LOG("appended", newCards.length, "cards");
+      FL_LOG("appended", newCards.length, "cards — now on page", targetPage);
 
-      _infinite.nextUrl = newNextLink;
-      if (!_infinite.nextUrl) {
-        _setInfiniteIndicator("No more pages");
-        _infinite.observer?.disconnect();
-      } else {
-        _setInfiniteIndicator("", { hide: true });
-      }
+      _infinite.currentPage = targetPage;
+      _setInfiniteIndicator("", { hide: true });
       _infinite.cooldownUntil = Date.now() + 600;
     } catch (e) {
       FL_LOG("fetch error", e);
