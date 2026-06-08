@@ -1200,6 +1200,11 @@
         gap: 4px;
         margin-top: 6px;
         min-height: 16px;
+        opacity: 0;
+        transition: opacity 0.3s cubic-bezier(0.22, 1, 0.36, 1);
+      }
+      .fl-genre-row.is-loaded {
+        opacity: 1;
       }
       .fl-genre-chip {
         font-size: 0.55rem !important;
@@ -1318,16 +1323,8 @@
       .episode-wrap.fl-filtered-out {
         display: none !important;
       }
-      /* Grid gating — fully invisible during hydration so no top-to-bottom
-         genre stamping bleeds through. visibility:hidden preserves
-         layout; opacity drives the fade-in once hydration drains. */
-      body.fl-home-loading .latest-release .episode-wrap {
-        visibility: hidden !important;
-        opacity: 0 !important;
-      }
-      .latest-release .episode-wrap {
-        transition: opacity 0.5s cubic-bezier(0.22, 1, 0.36, 1);
-      }
+      /* No global gate — cards render immediately, genre row pops in
+         per-card as each fetch lands (see .fl-genre-row opacity transition). */
       /* Small loader pill — centered over the (invisible) grid. Sparkle
          stars pop in sequence, Inter label underneath. Styled after the
          devo "Digging deeper…" indicator. */
@@ -1647,6 +1644,62 @@
     });
   }
 
+  // Apply details (genres + status + episode count) to a card. Returns true
+  // if the card was kept (visible), false if it was yanked (NSFW). Empty/
+  // missing genres just leave the row collapsed.
+  function _applyCardDetails(wrap, row, details) {
+    const statusRow = (details?.info || []).find((r) =>
+      /status/i.test(r.label || "")
+    );
+    const statusVal = (statusRow?.value || "").toLowerCase().trim();
+    const isFinished =
+      !!statusVal && /finish|complete|ended|concluded/.test(statusVal);
+    if (isFinished) {
+      const kicker = wrap.querySelector(".fl-ep-kicker");
+      if (kicker && !kicker.classList.contains("fl-ep-kicker-completed")) {
+        kicker.innerHTML = '<span class="fl-ep-kicker-line">Completed</span>';
+        kicker.classList.add("fl-ep-kicker-completed");
+      }
+    }
+
+    const epRow = (details?.info || []).find((r) =>
+      /^episodes?$/i.test((r.label || "").trim())
+    );
+    const epTotal = parseInt((epRow?.value || "").trim(), 10);
+    if (Number.isFinite(epTotal) && epTotal > 0) {
+      const epNumberCell = wrap.querySelector(".episode-number");
+      if (epNumberCell && !epNumberCell.querySelector(".fl-ep-total")) {
+        const totalEl = document.createElement("span");
+        totalEl.className = "fl-ep-total";
+        totalEl.textContent = `/ ${epTotal}`;
+        epNumberCell.appendChild(totalEl);
+      }
+    }
+
+    const genresAll = details?.genres || [];
+    const isNsfw = genresAll.some((g) =>
+      /\b(ecchi|erotica|hentai)\b/i.test(g.name || "")
+    );
+    if (isNsfw) {
+      wrap.remove();
+      return false;
+    }
+
+    const genres = genresAll.slice(0, 3);
+    if (!genres.length) { row.remove(); return true; }
+    row.innerHTML = genres
+      .map((g) => {
+        const href = g.url || "#";
+        const name = (g.name || "").replace(/</g, "&lt;");
+        return `<a class="fl-genre-chip" href="${href}" title="${name}">${name}</a>`;
+      })
+      .join("");
+    // Defer the class flip a tick so the browser registers the opacity
+    // transition from 0 → 1 (set the start state, then the end state).
+    requestAnimationFrame(() => row.classList.add("is-loaded"));
+    return true;
+  }
+
   function _hydrateGenres(wrap, animeId) {
     const titleWrap = wrap.querySelector(".episode-title-wrap");
     if (!titleWrap || titleWrap.querySelector(".fl-genre-row")) return;
@@ -1654,81 +1707,32 @@
     row.className = "fl-genre-row";
     titleWrap.appendChild(row);
 
-    _homeLoading.pending++;
-    _genreQueue.push(() =>
-      getAnimeDetails(animeId, { fetchIfMissing: true })
-        .then(({ details }) => {
-          // Relabel the episode-count kicker when the show is no longer
-          // airing. AnimePahe's value for finished shows is "Finished Airing",
-          // which contains BOTH "finish" and "airing" — so test the "finish"
-          // marker first so we don't accidentally class it as ongoing.
-          const statusRow = (details?.info || []).find((r) =>
-            /status/i.test(r.label || "")
-          );
-          const statusVal = (statusRow?.value || "").toLowerCase().trim();
-          const isFinished =
-            !!statusVal && /finish|complete|ended|concluded/.test(statusVal);
-          if (isFinished) {
-            const kicker = wrap.querySelector(".fl-ep-kicker");
-            if (kicker) {
-              kicker.innerHTML = '<span class="fl-ep-kicker-line">Completed</span>';
-              kicker.classList.add("fl-ep-kicker-completed");
-            }
-          }
+    // Fast path: if this anime is already cached, render synchronously
+    // without queueing — skips the serial throttle entirely. Only cache
+    // misses pay the rate-limit-safe queue cost.
+    chrome.storage.local.get(["animeHistory"], (result) => {
+      const cached = result.animeHistory?.[animeId];
+      if (cached?.details) {
+        _applyCardDetails(wrap, row, cached.details);
+        if (wrap.isConnected) wrap.dataset.flHydrated = "1";
+        _applyGenreFilter();
+        return;
+      }
 
-          // Episode total: append "/ N" under the big latest-episode number
-          // so the user can tell at a glance whether the show has more eps
-          // coming. AnimePahe's `.anime-info` exposes an "Episodes" row.
-          const epRow = (details?.info || []).find((r) =>
-            /^episodes?$/i.test((r.label || "").trim())
-          );
-          const epTotal = parseInt((epRow?.value || "").trim(), 10);
-          if (Number.isFinite(epTotal) && epTotal > 0) {
-            const epNumberCell = wrap.querySelector(".episode-number");
-            if (epNumberCell && !epNumberCell.querySelector(".fl-ep-total")) {
-              const totalEl = document.createElement("span");
-              totalEl.className = "fl-ep-total";
-              totalEl.textContent = `/ ${epTotal}`;
-              epNumberCell.appendChild(totalEl);
-            }
-          }
-
-          const genresAll = details?.genres || [];
-          // Hard-hide NSFW entries: rip the card out of the DOM entirely so
-          // the grid just closes up around it. No blur, no toggle, no escape
-          // hatch. Since the grid stays hidden until hydration drains, the
-          // user never sees the card flash in before it gets removed.
-          const isNsfw = genresAll.some((g) =>
-            /\b(ecchi|erotica|hentai)\b/i.test(g.name || "")
-          );
-          if (isNsfw) {
-            wrap.remove();
-            return;
-          }
-
-          const genres = genresAll.slice(0, 3);
-          if (!genres.length) { row.remove(); return; }
-          row.innerHTML = genres
-            .map((g) => {
-              const href = g.url || "#";
-              const name = (g.name || "").replace(/</g, "&lt;");
-              return `<a class="fl-genre-chip" href="${href}" title="${name}">${name}</a>`;
-            })
-            .join("");
-          row.classList.add("is-loaded");
-        })
-        .catch(() => row.remove())
-        .finally(() => {
-          // Mark the card as hydrated so the genre filter can decide whether
-          // to hide it (NSFW path already removed the wrap from DOM, so this
-          // is a harmless no-op there).
-          if (wrap.isConnected) wrap.dataset.flHydrated = "1";
-          _homeLoading.pending--;
-          _checkHomeLoadingDrain();
-          _applyGenreFilter();
-        })
-    );
-    _pumpGenreQueue();
+      _homeLoading.pending++;
+      _genreQueue.push(() =>
+        getAnimeDetails(animeId, { fetchIfMissing: true })
+          .then(({ details }) => { _applyCardDetails(wrap, row, details); })
+          .catch(() => row.remove())
+          .finally(() => {
+            if (wrap.isConnected) wrap.dataset.flHydrated = "1";
+            _homeLoading.pending--;
+            _checkHomeLoadingDrain();
+            _applyGenreFilter();
+          })
+      );
+      _pumpGenreQueue();
+    });
   }
 
   function animePaheHomeInjector() {
@@ -1742,8 +1746,7 @@
       const fresh = document.querySelectorAll(".episode-wrap:not([data-fl-done])");
       if (!fresh.length) return;
       // New wave of cards — either initial load or pagination/AJAX.
-      // Re-gate the grid + re-show the loader until these drain.
-      _showHomeLoading();
+      // No global gate: each card pops in card-by-card via per-row fades.
       _homeLoading.firstRunDone = false;
 
       fresh.forEach((wrap) => {
@@ -1785,12 +1788,6 @@
       });
 
       _homeLoading.firstRunDone = true;
-      _checkHomeLoadingDrain();
-      // Safety net: don't trap the user behind the loader if a fetch stalls.
-      clearTimeout(_homeLoading.safetyTimer);
-      _homeLoading.safetyTimer = setTimeout(() => {
-        if (_homeLoading.overlayEl) _hideHomeLoading();
-      }, 20000);
     };
 
     injectFirstButtons();
