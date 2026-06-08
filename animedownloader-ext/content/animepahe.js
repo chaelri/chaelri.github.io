@@ -1897,7 +1897,13 @@
   // stays in sync after AJAX page changes.
   function _syncTopPagination() {
     const heading = _findLatestHeading();
-    const pagination = document.querySelector(".pagination");
+    // CRITICAL: exclude our own clone — it carries the .pagination class
+    // from deep-cloning, and since it sits higher in the DOM, the plain
+    // ".pagination" selector would return the clone itself. The diff
+    // check `clone.innerHTML !== pagination.innerHTML` would then compare
+    // the clone to itself and never rebuild, stranding the top strip on
+    // the prior page number after AJAX swaps.
+    const pagination = document.querySelector(".pagination:not(.fl-pagination-top)");
     if (!heading || !pagination) return;
 
     let row = document.getElementById("fl-heading-row");
