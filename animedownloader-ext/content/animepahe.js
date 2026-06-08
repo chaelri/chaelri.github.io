@@ -1156,8 +1156,9 @@
         display: flex;
         align-items: center;
         gap: 8px;
-        max-width: 720px;
-        margin: 0 auto;
+        max-width: 540px !important;
+        width: auto !important;
+        margin: 0 auto !important;
         padding: 6px 12px;
         background: rgba(255,255,255,0.06);
         border: 1px solid rgba(255,255,255,0.12);
@@ -1216,9 +1217,12 @@
         letter-spacing: 0.6px;
         color: rgba(255,255,255,0.55);
         text-transform: uppercase;
-        min-width: 56px;
-        text-align: right;
         font-variant-numeric: tabular-nums;
+        flex: 0 0 auto;
+        padding: 0 2px;
+      }
+      .fl-filter-count:empty {
+        display: none;
       }
       .fl-filter-empty {
         max-width: 720px;
@@ -1528,8 +1532,8 @@
         '</svg>' +
         '<input type="text" id="fl-filter-input" class="fl-filter-input"' +
         ' placeholder="Filter by genre — e.g. romance, comedy" autocomplete="off" spellcheck="false" />' +
-        '<button type="button" id="fl-filter-clear" class="fl-filter-clear" aria-label="Clear filter">\u00D7</button>' +
         '<span id="fl-filter-count" class="fl-filter-count"></span>' +
+        '<button type="button" id="fl-filter-clear" class="fl-filter-clear" aria-label="Clear filter">\u00D7</button>' +
       '</div>';
     host.insertBefore(bar, host.firstChild);
 
