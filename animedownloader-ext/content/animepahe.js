@@ -2,7 +2,6 @@
   "use strict";
 
   const HREF = window.location.href;
-  console.log("[FL-INF] content script loaded @", HREF);
 
   // Home-feed hydration overlay state. Declared up-front so the router
   // dispatch below can call animePaheHomeInjector() → _showHomeLoading()
@@ -24,19 +23,6 @@
   // → _setGenreFilter() before the body of this IIFE reaches the helper
   // section, and a TDZ access on `const _genreFilter` would throw.
   const _genreFilter = { tokens: [], raw: "" };
-
-  // Infinite-scroll state. Same TDZ-hoist rationale as _homeLoading /
-  // _genreFilter — animePaheHomeInjector() → _initInfiniteScroll() runs
-  // before the helper section below.
-  const _infinite = {
-    inflight: false,
-    currentPage: 1,
-    hasMore: true,
-    triggerEl: null,
-    observer: null,
-    indicator: null,
-    cooldownUntil: 0,
-  };
 
   if (HREF.includes("?searchFilter=")) animePaheSearchAutoClick();
   else if (HREF.includes("/play/")) animePaheClicker();
@@ -1339,19 +1325,6 @@
       }
       /* No global gate — cards render immediately, genre row pops in
          per-card as each fetch lands (see .fl-genre-row opacity transition). */
-      .fl-infinite-indicator {
-        grid-column: 1 / -1;
-        text-align: center;
-        padding: 18px 12px 28px;
-        color: rgba(255, 255, 255, 0.65);
-        font-size: 0.82rem;
-        letter-spacing: 0.3px;
-        opacity: 0;
-        pointer-events: none;
-        transition: opacity 0.25s ease;
-      }
-      .fl-infinite-indicator.is-visible { opacity: 1; }
-      .fl-infinite-indicator.is-error { color: #f5a3a3; }
       /* Small loader pill — centered over the (invisible) grid. Sparkle
          stars pop in sequence, Inter label underneath. Styled after the
          devo "Digging deeper…" indicator. */
@@ -1763,7 +1736,6 @@
   }
 
   function animePaheHomeInjector() {
-    console.log("[FL-INF] animePaheHomeInjector entered");
     injectFLStyles();
     _injectGenreFilterBar();
 
@@ -1831,223 +1803,6 @@
         childList: true,
         subtree: true,
       });
-    }
-
-    _initInfiniteScroll();
-  }
-
-  // ── INFINITE SCROLL ─────────────────────────────────────────────────
-  // Watch the bottom pagination row. When it scrolls into view, fetch the
-  // next page in the background, parse out its `.episode-wrap` cards, and
-  // append them to the existing grid. The mutation observer in
-  // animePaheHomeInjector then hydrates each new card (first-ep button,
-  // kicker, genre row — instant for cached anime, queued fetch for misses).
-  // Chains forward by re-reading `.page-link.next-page` from the fetched
-  // HTML, so we don't depend on animepahe re-rendering the on-page
-  // pagination after we mutate the grid. State object `_infinite` is
-  // hoisted to the top of the IIFE to dodge TDZ on early dispatch.
-
-  function FL_LOG(...a) { console.log("[FL-INF]", ...a); }
-
-  function _initInfiniteScroll() {
-    // Read current page from the URL; default to 1 for the home root.
-    // The .page-link.next-page element on animepahe doesn't expose a
-    // usable href (it's JS-bound), so we synthesize `?page=N+1` ourselves
-    // from the current page number and increment after each successful load.
-    const params = new URLSearchParams(window.location.search);
-    _infinite.currentPage = parseInt(params.get("page") || "1", 10) || 1;
-    _infinite.hasMore = true;
-    FL_LOG("init", { currentPage: _infinite.currentPage });
-    _bindInfiniteObserver();
-    let tries = 0;
-    const retryTimer = setInterval(() => {
-      tries++;
-      if (_infinite.observer || tries > 10) {
-        clearInterval(retryTimer);
-        FL_LOG("retry-loop end", { bound: !!_infinite.observer, tries });
-        return;
-      }
-      FL_LOG("retry", tries);
-      _bindInfiniteObserver();
-    }, 500);
-  }
-
-  function _buildPageUrl(pageNum) {
-    const params = new URLSearchParams(window.location.search);
-    params.set("page", String(pageNum));
-    return `${window.location.pathname}?${params.toString()}`;
-  }
-
-  function _buildApiUrl(pageNum) {
-    return `/api?m=airing&page=${pageNum}`;
-  }
-
-  // Build a fresh .episode-wrap from a JSON item by cloning the first card
-  // already on the page (the template) and mutating its fields. Strips any
-  // extension-injected children (.fl-first-btn / .fl-ep-kicker / .fl-genre-row /
-  // .fl-ep-total) and clears the data-fl-* flags so animePaheHomeInjector
-  // picks it up as fresh on the next mutation tick.
-  function _buildCardFromTemplate(template, item) {
-    const clone = template.cloneNode(true);
-    delete clone.dataset.flDone;
-    delete clone.dataset.flHydrated;
-    clone.querySelectorAll(".fl-first-btn, .fl-ep-kicker, .fl-genre-row, .fl-ep-total")
-      .forEach((el) => el.remove());
-
-    // Title link → /anime/{anime_session}
-    const titleLink = clone.querySelector(".episode-title a");
-    if (titleLink) {
-      titleLink.href = `/anime/${item.anime_session || ""}`;
-      titleLink.textContent = item.anime_title || "(untitled)";
-    }
-
-    // Episode number (raw text — the home injector will re-add its kicker).
-    const epCell = clone.querySelector(".episode-number");
-    if (epCell) {
-      const epText = String(item.episode ?? "?");
-      // Clear existing text nodes, keep child elements untouched.
-      Array.from(epCell.childNodes).forEach((n) => {
-        if (n.nodeType === Node.TEXT_NODE) n.remove();
-      });
-      epCell.insertBefore(document.createTextNode(epText), epCell.firstChild);
-    }
-
-    // Snapshot image. `snapshot` field may be either a full URL or just a
-    // filename — handle both.
-    const img = clone.querySelector(".episode-snapshot img");
-    if (img && item.snapshot) {
-      const src = /^https?:\/\//.test(item.snapshot)
-        ? item.snapshot
-        : `https://i.animepahe.pw/snapshots/${item.snapshot}`;
-      img.src = src;
-      img.removeAttribute("srcset");
-      img.removeAttribute("data-src");
-    }
-
-    return clone;
-  }
-
-  function _bindInfiniteObserver() {
-    if (_infinite.observer) _infinite.observer.disconnect();
-    const pagination =
-      document.querySelector(".pagination") ||
-      document.querySelector(".page-link.next-page")?.closest("ul, nav, div");
-    _infinite.triggerEl = pagination || null;
-    FL_LOG("bind", {
-      currentPage: _infinite.currentPage,
-      triggerEl: _infinite.triggerEl,
-      paginationFound: !!document.querySelector(".pagination"),
-      nextLinkFound: !!document.querySelector(".page-link.next-page"),
-    });
-    if (!_infinite.triggerEl) {
-      FL_LOG("bind aborted — no pagination element");
-      return;
-    }
-
-    _infinite.observer = new IntersectionObserver(
-      (entries) => {
-        const intersecting = entries.some((e) => e.isIntersecting);
-        FL_LOG("observer fired", { intersecting });
-        if (intersecting) _loadNextPage();
-      },
-      { rootMargin: "400px 0px 400px 0px" }
-    );
-    _infinite.observer.observe(_infinite.triggerEl);
-    FL_LOG("observer attached to", _infinite.triggerEl);
-  }
-
-  function _setInfiniteIndicator(text, opts = {}) {
-    if (!_infinite.indicator) {
-      const el = document.createElement("div");
-      el.className = "fl-infinite-indicator";
-      const grid =
-        document.querySelector(".episode-wrap")?.parentElement ||
-        document.querySelector(".latest-release") ||
-        document.body;
-      grid.appendChild(el);
-      _infinite.indicator = el;
-    }
-    _infinite.indicator.textContent = text;
-    _infinite.indicator.classList.toggle("is-error", !!opts.error);
-    if (opts.hide) _infinite.indicator.classList.remove("is-visible");
-    else _infinite.indicator.classList.add("is-visible");
-  }
-
-  async function _loadNextPage() {
-    FL_LOG("loadNext called", { inflight: _infinite.inflight, currentPage: _infinite.currentPage, hasMore: _infinite.hasMore });
-    if (_infinite.inflight) { FL_LOG("…skip: inflight"); return; }
-    if (!_infinite.hasMore) { FL_LOG("…skip: no more pages"); return; }
-    if (_animepaheRateLimited) {
-      FL_LOG("…skip: rate-limited");
-      _setInfiniteIndicator("Cloudflare rate-limited — try later", { error: true });
-      return;
-    }
-    if (Date.now() < _infinite.cooldownUntil) { FL_LOG("…skip: cooldown"); return; }
-
-    const targetPage = _infinite.currentPage + 1;
-    const apiUrl = _buildApiUrl(targetPage);
-    _infinite.inflight = true;
-    _setInfiniteIndicator("Loading more…");
-    try {
-      FL_LOG("fetching", apiUrl);
-      const res = await fetch(apiUrl, {
-        credentials: "same-origin",
-        headers: {
-          "Accept": "application/json, text/javascript, */*; q=0.01",
-          "X-Requested-With": "XMLHttpRequest",
-        },
-      });
-      FL_LOG("fetch resolved", { status: res.status, ok: res.ok });
-      if (res.status === 429 || res.status === 403) {
-        _animepaheRateLimited = true;
-        _setInfiniteIndicator("Rate-limited — try later", { error: true });
-        return;
-      }
-      if (!res.ok) {
-        _setInfiniteIndicator("Couldn't load — scroll to retry", { error: true });
-        return;
-      }
-      const json = await res.json();
-      FL_LOG("api response", {
-        current_page: json.current_page,
-        last_page: json.last_page,
-        items: json.data?.length,
-        firstItem: json.data?.[0],
-      });
-      const items = json.data || [];
-      if (!items.length) {
-        _infinite.hasMore = false;
-        _setInfiniteIndicator("No more pages");
-        _infinite.observer?.disconnect();
-        return;
-      }
-      const template = document.querySelector(".episode-wrap");
-      if (!template) {
-        FL_LOG("no template card on page — bailing");
-        _setInfiniteIndicator("Couldn't load — no template", { error: true });
-        return;
-      }
-      const grid = template.parentElement;
-      if (!grid) return;
-      const newCards = items.map((it) => _buildCardFromTemplate(template, it));
-      newCards.forEach((c) => grid.appendChild(c));
-      if (_infinite.indicator) grid.appendChild(_infinite.indicator);
-      FL_LOG("appended", newCards.length, "cards — now on page", targetPage);
-
-      _infinite.currentPage = json.current_page || targetPage;
-      _infinite.hasMore = (json.last_page || Infinity) > _infinite.currentPage;
-      if (!_infinite.hasMore) {
-        _setInfiniteIndicator("No more pages");
-        _infinite.observer?.disconnect();
-      } else {
-        _setInfiniteIndicator("", { hide: true });
-      }
-      _infinite.cooldownUntil = Date.now() + 600;
-    } catch (e) {
-      FL_LOG("fetch error", e);
-      _setInfiniteIndicator("Couldn't load — scroll to retry", { error: true });
-    } finally {
-      _infinite.inflight = false;
     }
   }
 
