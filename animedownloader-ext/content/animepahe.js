@@ -2,6 +2,7 @@
   "use strict";
 
   const HREF = window.location.href;
+  console.log("[FL-INF] content script loaded @", HREF);
 
   // Home-feed hydration overlay state. Declared up-front so the router
   // dispatch below can call animePaheHomeInjector() → _showHomeLoading()
@@ -1761,6 +1762,7 @@
   }
 
   function animePaheHomeInjector() {
+    console.log("[FL-INF] animePaheHomeInjector entered");
     injectFLStyles();
     _injectGenreFilterBar();
 
