@@ -1925,6 +1925,14 @@
         cBtn.addEventListener("click", (e) => {
           e.preventDefault();
           origLinks[i]?.click();
+          // animepahe's AJAX page swap may land outside the observed
+          // .latest-release subtree, so the MutationObserver isn't a
+          // reliable trigger for resyncing the top clone. Poll for a
+          // couple of seconds after every forwarded click to catch the
+          // new pagination state regardless.
+          [80, 200, 400, 800, 1500].forEach((t) =>
+            setTimeout(_syncTopPagination, t)
+          );
         });
       });
     }
