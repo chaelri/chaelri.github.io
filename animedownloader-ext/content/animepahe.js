@@ -1206,6 +1206,22 @@
       .fl-genre-row.is-loaded {
         opacity: 1;
       }
+      /* Per-card reveal gate — hide each .episode-wrap until its genre
+         verdict is in (cached, fetched, or unverifiable), so NSFW cards
+         get yanked before they ever flash on screen. Matches the vm-
+         management "Select Segment" pill fade pattern: opacity 0→1 +
+         translateY(8px)→0, 0.35s ease. The data-fl-prepped attribute is
+         set by injectFirstButtons so cards animepahe paints before our
+         script runs aren't blanked retroactively. */
+      .episode-wrap[data-fl-prepped] {
+        opacity: 0;
+        transform: translateY(8px);
+        transition: opacity 0.35s ease, transform 0.35s ease;
+      }
+      .episode-wrap[data-fl-prepped].fl-revealed {
+        opacity: 1;
+        transform: translateY(0);
+      }
       .fl-genre-chip {
         font-size: 0.55rem !important;
         font-weight: 700;
@@ -1700,6 +1716,19 @@
     return true;
   }
 
+  // Subtle reveal — opacity 0→1 + translateY(8px)→0 over 0.35s. Deferred
+  // by one frame so the browser commits the data-fl-prepped initial state
+  // BEFORE we flip .fl-revealed; otherwise sync cache hits snap-paint
+  // without animating. Style matches vm-management's "Select Segment"
+  // pill fade so the whole repo feels consistent.
+  function _revealCard(wrap) {
+    if (!wrap || !wrap.isConnected) return;
+    if (wrap.classList.contains("fl-revealed")) return;
+    requestAnimationFrame(() => {
+      if (wrap.isConnected) wrap.classList.add("fl-revealed");
+    });
+  }
+
   function _hydrateGenres(wrap, animeId) {
     const titleWrap = wrap.querySelector(".episode-title-wrap");
     if (!titleWrap || titleWrap.querySelector(".fl-genre-row")) return;
@@ -1713,7 +1742,8 @@
     chrome.storage.local.get(["animeHistory"], (result) => {
       const cached = result.animeHistory?.[animeId];
       if (cached?.details) {
-        _applyCardDetails(wrap, row, cached.details);
+        const kept = _applyCardDetails(wrap, row, cached.details);
+        if (kept) _revealCard(wrap);
         if (wrap.isConnected) wrap.dataset.flHydrated = "1";
         _applyGenreFilter();
         return;
@@ -1725,7 +1755,13 @@
           .then(({ details }) => { _applyCardDetails(wrap, row, details); })
           .catch(() => row.remove())
           .finally(() => {
-            if (wrap.isConnected) wrap.dataset.flHydrated = "1";
+            // Reveal on both success and failure (fail-open) — if we can't
+            // verify a card we can't keep it hidden forever, especially when
+            // CF throttles the queue.
+            if (wrap.isConnected) {
+              wrap.dataset.flHydrated = "1";
+              _revealCard(wrap);
+            }
             _homeLoading.pending--;
             _checkHomeLoadingDrain();
             _applyGenreFilter();
@@ -1751,10 +1787,15 @@
 
       fresh.forEach((wrap) => {
         wrap.dataset.flDone = "1";
+        // Gate visibility: hidden until genre verdict lands (or until we
+        // confirm there's no animeId to verify). The CSS keys off
+        // [data-fl-prepped] so already-painted animepahe cards aren't
+        // blanked retroactively.
+        wrap.dataset.flPrepped = "1";
         const snapshot = wrap.querySelector(".episode-snapshot");
         const titleLink = wrap.querySelector(".episode-title a");
         const href = titleLink?.getAttribute("href");
-        if (!snapshot || !href) return;
+        if (!snapshot || !href) { _revealCard(wrap); return; }
 
         const firstBtn = document.createElement("a");
         firstBtn.className = "fl-first-btn";
@@ -1785,6 +1826,7 @@
         // Async-fetch + render genres under the title (cache-backed).
         const animeId = (href.match(/\/anime\/([^/?#]+)/) || [])[1];
         if (animeId) _hydrateGenres(wrap, animeId);
+        else _revealCard(wrap);
       });
 
       _homeLoading.firstRunDone = true;
