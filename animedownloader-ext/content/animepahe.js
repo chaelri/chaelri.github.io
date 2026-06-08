@@ -24,6 +24,18 @@
   // section, and a TDZ access on `const _genreFilter` would throw.
   const _genreFilter = { tokens: [], raw: "" };
 
+  // Infinite-scroll state. Same TDZ-hoist rationale as _homeLoading /
+  // _genreFilter — animePaheHomeInjector() → _initInfiniteScroll() runs
+  // before the helper section below.
+  const _infinite = {
+    inflight: false,
+    nextUrl: null,
+    triggerEl: null,
+    observer: null,
+    indicator: null,
+    cooldownUntil: 0,
+  };
+
   if (HREF.includes("?searchFilter=")) animePaheSearchAutoClick();
   else if (HREF.includes("/play/")) animePaheClicker();
   else if (HREF.includes("/anime/")) animePaheEpisodeList();
@@ -1829,15 +1841,8 @@
   // kicker, genre row — instant for cached anime, queued fetch for misses).
   // Chains forward by re-reading `.page-link.next-page` from the fetched
   // HTML, so we don't depend on animepahe re-rendering the on-page
-  // pagination after we mutate the grid.
-  const _infinite = {
-    inflight: false,
-    nextUrl: null,
-    triggerEl: null,
-    observer: null,
-    indicator: null,
-    cooldownUntil: 0,
-  };
+  // pagination after we mutate the grid. State object `_infinite` is
+  // hoisted to the top of the IIFE to dodge TDZ on early dispatch.
 
   function _initInfiniteScroll() {
     _infinite.nextUrl = _readNextPageUrl();
