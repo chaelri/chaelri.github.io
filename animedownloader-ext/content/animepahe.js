@@ -1777,26 +1777,23 @@
     chrome.storage.local.get(["animeHistory"], (result) => {
       const cached = result.animeHistory?.[animeId];
       if (cached?.details) {
-        const kept = _applyCardDetails(wrap, row, cached.details);
-        if (kept) _revealCard(wrap);
+        _applyCardDetails(wrap, row, cached.details);
         if (wrap.isConnected) wrap.dataset.flHydrated = "1";
         _applyGenreFilter();
         return;
       }
 
+      // Cache miss: queue the fetch but DON'T block the reveal on it. The
+      // staggered reveal in injectFirstButtons already handed the user a
+      // visible card; the genre row will fade in here when the fetch lands,
+      // and NSFW cards will yank themselves (brief flash trade-off).
       _homeLoading.pending++;
       _genreQueue.push(() =>
         getAnimeDetails(animeId, { fetchIfMissing: true })
           .then(({ details }) => { _applyCardDetails(wrap, row, details); })
           .catch(() => row.remove())
           .finally(() => {
-            // Reveal on both success and failure (fail-open) — if we can't
-            // verify a card we can't keep it hidden forever, especially when
-            // CF throttles the queue.
-            if (wrap.isConnected) {
-              wrap.dataset.flHydrated = "1";
-              _revealCard(wrap);
-            }
+            if (wrap.isConnected) wrap.dataset.flHydrated = "1";
             _homeLoading.pending--;
             _checkHomeLoadingDrain();
             _applyGenreFilter();
@@ -1820,17 +1817,21 @@
       // No global gate: each card pops in card-by-card via per-row fades.
       _homeLoading.firstRunDone = false;
 
-      fresh.forEach((wrap) => {
+      fresh.forEach((wrap, idx) => {
         wrap.dataset.flDone = "1";
-        // Gate visibility: hidden until genre verdict lands (or until we
-        // confirm there's no animeId to verify). The CSS keys off
-        // [data-fl-prepped] so already-painted animepahe cards aren't
-        // blanked retroactively.
+        // Visibility gate (opacity 0 + translateY) is applied immediately so
+        // animepahe's freshly-painted cards don't flash in raw. The reveal
+        // is then staggered ~40ms per card so they cascade in instead of
+        // popping all at once on AJAX page change. We no longer wait for
+        // genre verification — the throttled fetch queue (300ms gap × 12
+        // cards = ~4s) was the stutter on next/prev. NSFW removal still
+        // happens when the fetch lands, but the card may briefly flash.
         wrap.dataset.flPrepped = "1";
+        setTimeout(() => _revealCard(wrap), idx * 40);
         const snapshot = wrap.querySelector(".episode-snapshot");
         const titleLink = wrap.querySelector(".episode-title a");
         const href = titleLink?.getAttribute("href");
-        if (!snapshot || !href) { _revealCard(wrap); return; }
+        if (!snapshot || !href) return;
 
         const firstBtn = document.createElement("a");
         firstBtn.className = "fl-first-btn";
@@ -1861,7 +1862,6 @@
         // Async-fetch + render genres under the title (cache-backed).
         const animeId = (href.match(/\/anime\/([^/?#]+)/) || [])[1];
         if (animeId) _hydrateGenres(wrap, animeId);
-        else _revealCard(wrap);
       });
 
       _homeLoading.firstRunDone = true;
