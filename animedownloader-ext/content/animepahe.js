@@ -1325,6 +1325,19 @@
       }
       /* No global gate — cards render immediately, genre row pops in
          per-card as each fetch lands (see .fl-genre-row opacity transition). */
+      .fl-infinite-indicator {
+        grid-column: 1 / -1;
+        text-align: center;
+        padding: 18px 12px 28px;
+        color: rgba(255, 255, 255, 0.65);
+        font-size: 0.82rem;
+        letter-spacing: 0.3px;
+        opacity: 0;
+        pointer-events: none;
+        transition: opacity 0.25s ease;
+      }
+      .fl-infinite-indicator.is-visible { opacity: 1; }
+      .fl-infinite-indicator.is-error { color: #f5a3a3; }
       /* Small loader pill — centered over the (invisible) grid. Sparkle
          stars pop in sequence, Inter label underneath. Styled after the
          devo "Digging deeper…" indicator. */
@@ -1803,6 +1816,135 @@
         childList: true,
         subtree: true,
       });
+    }
+
+    _initInfiniteScroll();
+  }
+
+  // ── INFINITE SCROLL ─────────────────────────────────────────────────
+  // Watch the bottom pagination row. When it scrolls into view, fetch the
+  // next page in the background, parse out its `.episode-wrap` cards, and
+  // append them to the existing grid. The mutation observer in
+  // animePaheHomeInjector then hydrates each new card (first-ep button,
+  // kicker, genre row — instant for cached anime, queued fetch for misses).
+  // Chains forward by re-reading `.page-link.next-page` from the fetched
+  // HTML, so we don't depend on animepahe re-rendering the on-page
+  // pagination after we mutate the grid.
+  const _infinite = {
+    inflight: false,
+    nextUrl: null,
+    triggerEl: null,
+    observer: null,
+    indicator: null,
+    cooldownUntil: 0,
+  };
+
+  function _initInfiniteScroll() {
+    _infinite.nextUrl = _readNextPageUrl();
+    _bindInfiniteObserver();
+  }
+
+  function _readNextPageUrl() {
+    const link = document.querySelector(".page-link.next-page");
+    return link?.getAttribute("href") || null;
+  }
+
+  function _bindInfiniteObserver() {
+    if (_infinite.observer) _infinite.observer.disconnect();
+    const pagination =
+      document.querySelector(".pagination") ||
+      document.querySelector(".page-link.next-page")?.closest("ul, nav, div");
+    _infinite.triggerEl = pagination || null;
+    if (!_infinite.nextUrl || !_infinite.triggerEl) return;
+
+    _infinite.observer = new IntersectionObserver(
+      (entries) => {
+        if (entries.some((e) => e.isIntersecting)) _loadNextPage();
+      },
+      { rootMargin: "400px 0px 400px 0px" }
+    );
+    _infinite.observer.observe(_infinite.triggerEl);
+  }
+
+  function _setInfiniteIndicator(text, opts = {}) {
+    if (!_infinite.indicator) {
+      const el = document.createElement("div");
+      el.className = "fl-infinite-indicator";
+      const grid =
+        document.querySelector(".episode-wrap")?.parentElement ||
+        document.querySelector(".latest-release") ||
+        document.body;
+      grid.appendChild(el);
+      _infinite.indicator = el;
+    }
+    _infinite.indicator.textContent = text;
+    _infinite.indicator.classList.toggle("is-error", !!opts.error);
+    if (opts.hide) _infinite.indicator.classList.remove("is-visible");
+    else _infinite.indicator.classList.add("is-visible");
+  }
+
+  async function _loadNextPage() {
+    if (_infinite.inflight) return;
+    if (_animepaheRateLimited) {
+      _setInfiniteIndicator("Cloudflare rate-limited — try later", { error: true });
+      return;
+    }
+    if (!_infinite.nextUrl) {
+      _setInfiniteIndicator("No more pages");
+      return;
+    }
+    if (Date.now() < _infinite.cooldownUntil) return;
+
+    _infinite.inflight = true;
+    _setInfiniteIndicator("Loading more…");
+    try {
+      const res = await fetch(_infinite.nextUrl, { credentials: "same-origin" });
+      if (res.status === 429 || res.status === 403) {
+        _animepaheRateLimited = true;
+        _setInfiniteIndicator("Rate-limited — try later", { error: true });
+        return;
+      }
+      if (!res.ok) {
+        _setInfiniteIndicator("Couldn't load — scroll to retry", { error: true });
+        return;
+      }
+      const html = await res.text();
+      if (/Error\s*1015|You are being rate limited|Just a moment\.\.\./i.test(html)) {
+        _animepaheRateLimited = true;
+        _setInfiniteIndicator("Cloudflare blocked — try later", { error: true });
+        return;
+      }
+      const doc = new DOMParser().parseFromString(html, "text/html");
+      const newCards = Array.from(doc.querySelectorAll(".episode-wrap"));
+      if (!newCards.length) {
+        _infinite.nextUrl = null;
+        _setInfiniteIndicator("No more pages");
+        return;
+      }
+      const grid = document.querySelector(".episode-wrap")?.parentElement;
+      if (!grid) return;
+      // Append cards. The MutationObserver in animePaheHomeInjector picks
+      // them up and runs injectFirstButtons() over the new ones, which in
+      // turn hydrates genres via the cache-first / queue-on-miss path.
+      // Keep the indicator pinned to the bottom by reattaching it last.
+      newCards.forEach((c) => grid.appendChild(c));
+      if (_infinite.indicator) grid.appendChild(_infinite.indicator);
+
+      _infinite.nextUrl = doc.querySelector(".page-link.next-page")?.getAttribute("href") || null;
+      if (!_infinite.nextUrl) {
+        _setInfiniteIndicator("No more pages");
+        // Stop observing — we're at the end.
+        _infinite.observer?.disconnect();
+      } else {
+        _setInfiniteIndicator("", { hide: true });
+      }
+      // Cooldown so an in-view pagination doesn't immediately re-trigger
+      // before the user scrolls.
+      _infinite.cooldownUntil = Date.now() + 600;
+    } catch (e) {
+      _setInfiniteIndicator("Couldn't load — scroll to retry", { error: true });
+    } finally {
+      _infinite.inflight = false;
     }
   }
 
