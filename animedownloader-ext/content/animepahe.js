@@ -1844,7 +1844,7 @@
   // pagination after we mutate the grid. State object `_infinite` is
   // hoisted to the top of the IIFE to dodge TDZ on early dispatch.
 
-  const FL_LOG = (...a) => console.log("[FL-INF]", ...a);
+  function FL_LOG(...a) { console.log("[FL-INF]", ...a); }
 
   function _initInfiniteScroll() {
     _infinite.nextUrl = _readNextPageUrl();
