@@ -18,6 +18,12 @@
   const HOME_MIN_OVERLAY_MS = 600;
   const HOME_OVERLAY_FADE_MS = 600;
 
+  // Genre filter state. Declared up-front for the same reason as _homeLoading:
+  // the router dispatch below calls animePaheHomeInjector() → _injectGenreFilterBar()
+  // → _setGenreFilter() before the body of this IIFE reaches the helper
+  // section, and a TDZ access on `const _genreFilter` would throw.
+  const _genreFilter = { tokens: [], raw: "" };
+
   if (HREF.includes("?searchFilter=")) animePaheSearchAutoClick();
   else if (HREF.includes("/play/")) animePaheClicker();
   else if (HREF.includes("/anime/")) animePaheEpisodeList();
@@ -1431,12 +1437,12 @@
       });
     }
   }
-  // ── Genre filter state + helpers ─────────────────────────────────
+  // ── Genre filter helpers ─────────────────────────────────────────
   // User types one or more words (whitespace/comma separated). All tokens
   // must match at least one chip on a card for it to stay visible. Empty
   // input → show everything. Cards still hydrating stay visible until
-  // their genres land, then get re-evaluated.
-  const _genreFilter = { tokens: [], raw: "" };
+  // their genres land, then get re-evaluated. State object `_genreFilter`
+  // is hoisted to the top of the IIFE to dodge a TDZ on early dispatch.
 
   function _readStoredFilter() {
     try { return sessionStorage.getItem("fl_genre_filter") || ""; }
@@ -1446,7 +1452,8 @@
     try { sessionStorage.setItem("fl_genre_filter", v || ""); } catch {}
   }
   function _setGenreFilter(raw) {
-    _genreFilter.raw = (raw || "").trim();
+    const str = typeof raw === "string" ? raw : raw == null ? "" : String(raw);
+    _genreFilter.raw = str.trim();
     _genreFilter.tokens = _genreFilter.raw
       .toLowerCase()
       .split(/[\s,]+/)
