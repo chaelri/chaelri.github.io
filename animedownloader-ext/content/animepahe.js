@@ -1141,6 +1141,100 @@
         border-color: #d5015b;
         color: #fff !important;
       }
+      /* Genre filter bar — sticky above the home grid */
+      .fl-filter-bar {
+        position: sticky;
+        top: 0;
+        z-index: 30;
+        margin: 0 0 16px 0;
+        padding: 10px 0;
+        background: linear-gradient(to bottom, rgba(0,0,0,0.92) 0%, rgba(0,0,0,0.75) 100%);
+        backdrop-filter: blur(4px);
+        -webkit-backdrop-filter: blur(4px);
+      }
+      .fl-filter-inner {
+        display: flex;
+        align-items: center;
+        gap: 8px;
+        max-width: 720px;
+        margin: 0 auto;
+        padding: 6px 12px;
+        background: rgba(255,255,255,0.06);
+        border: 1px solid rgba(255,255,255,0.12);
+        border-radius: 8px;
+        transition: border-color 0.18s ease, background 0.18s ease;
+      }
+      .fl-filter-inner:focus-within {
+        border-color: #d5015b;
+        background: rgba(213,1,91,0.10);
+      }
+      .fl-filter-icon {
+        width: 18px;
+        height: 18px;
+        flex-shrink: 0;
+        color: rgba(255,255,255,0.55);
+        transition: color 0.18s ease;
+      }
+      .fl-filter-inner:focus-within .fl-filter-icon {
+        color: #d5015b;
+      }
+      .fl-filter-input {
+        flex: 1 !important;
+        min-width: 0;
+        background: transparent !important;
+        border: 0 !important;
+        outline: 0 !important;
+        box-shadow: none !important;
+        color: #fff !important;
+        font-size: 0.95rem !important;
+        font-family: inherit !important;
+        padding: 6px 0 !important;
+        letter-spacing: 0.3px;
+      }
+      .fl-filter-input::placeholder {
+        color: rgba(255,255,255,0.4);
+      }
+      .fl-filter-clear {
+        background: transparent !important;
+        border: 0 !important;
+        color: rgba(255,255,255,0.55) !important;
+        font-size: 1.3rem !important;
+        line-height: 1 !important;
+        padding: 2px 8px !important;
+        cursor: pointer !important;
+        border-radius: 4px !important;
+        flex: 0 !important;
+        transition: color 0.15s ease, background 0.15s ease;
+      }
+      .fl-filter-clear:hover {
+        color: #fff !important;
+        background: rgba(255,255,255,0.08) !important;
+      }
+      .fl-filter-count {
+        font-size: 0.7rem;
+        font-weight: 700;
+        letter-spacing: 0.6px;
+        color: rgba(255,255,255,0.55);
+        text-transform: uppercase;
+        min-width: 56px;
+        text-align: right;
+        font-variant-numeric: tabular-nums;
+      }
+      .fl-filter-empty {
+        max-width: 720px;
+        margin: 24px auto;
+        padding: 18px 16px;
+        text-align: center;
+        font-size: 0.85rem;
+        color: rgba(255,255,255,0.55);
+        background: rgba(255,255,255,0.04);
+        border: 1px dashed rgba(255,255,255,0.12);
+        border-radius: 8px;
+      }
+      /* Filtered cards collapse out of the flex/grid layout */
+      .episode-wrap.fl-filtered-out {
+        display: none !important;
+      }
       /* Grid gating — fully invisible during hydration so no top-to-bottom
          genre stamping bleeds through. visibility:hidden preserves
          layout; opacity drives the fade-in once hydration drains. */
@@ -1333,6 +1427,137 @@
       });
     }
   }
+  // ── Genre filter state + helpers ─────────────────────────────────
+  // User types one or more words (whitespace/comma separated). All tokens
+  // must match at least one chip on a card for it to stay visible. Empty
+  // input → show everything. Cards still hydrating stay visible until
+  // their genres land, then get re-evaluated.
+  const _genreFilter = { tokens: [], raw: "" };
+
+  function _readStoredFilter() {
+    try { return sessionStorage.getItem("fl_genre_filter") || ""; }
+    catch { return ""; }
+  }
+  function _writeStoredFilter(v) {
+    try { sessionStorage.setItem("fl_genre_filter", v || ""); } catch {}
+  }
+  function _setGenreFilter(raw) {
+    _genreFilter.raw = (raw || "").trim();
+    _genreFilter.tokens = _genreFilter.raw
+      .toLowerCase()
+      .split(/[\s,]+/)
+      .filter(Boolean);
+    _writeStoredFilter(_genreFilter.raw);
+    _applyGenreFilter();
+  }
+  function _applyGenreFilter() {
+    const tokens = _genreFilter.tokens;
+    const wraps = document.querySelectorAll(
+      ".latest-release .episode-wrap, .episode-list-wrapper .episode-wrap"
+    );
+    let visible = 0;
+    let hydrated = 0;
+    wraps.forEach((wrap) => {
+      if (!tokens.length) {
+        wrap.classList.remove("fl-filtered-out");
+        visible++;
+        return;
+      }
+      if (!wrap.dataset.flHydrated) {
+        // Genres not loaded yet — keep visible to avoid flicker, will
+        // re-evaluate once _hydrateGenres finishes for this wrap.
+        wrap.classList.remove("fl-filtered-out");
+        visible++;
+        return;
+      }
+      hydrated++;
+      const chips = wrap.querySelectorAll(".fl-genre-chip");
+      const haystack = Array.from(chips)
+        .map((c) => (c.textContent || "").toLowerCase())
+        .join(" | ");
+      const match = tokens.every((tok) => haystack.includes(tok));
+      wrap.classList.toggle("fl-filtered-out", !match);
+      if (match) visible++;
+    });
+    const countEl = document.getElementById("fl-filter-count");
+    if (countEl) {
+      countEl.textContent = tokens.length
+        ? `${visible}/${wraps.length}`
+        : "";
+    }
+    _updateFilterEmptyState(visible, hydrated, tokens.length > 0);
+  }
+  function _updateFilterEmptyState(visible, hydrated, hasFilter) {
+    const host =
+      document.querySelector(".latest-release") ||
+      document.querySelector(".episode-list-wrapper");
+    if (!host) return;
+    let empty = document.getElementById("fl-filter-empty");
+    const shouldShow = hasFilter && hydrated > 0 && visible === 0;
+    if (shouldShow) {
+      if (!empty) {
+        empty = document.createElement("div");
+        empty.id = "fl-filter-empty";
+        empty.className = "fl-filter-empty";
+        empty.textContent = "No anime match this genre filter on this page.";
+        const bar = document.getElementById("fl-filter-bar");
+        if (bar && bar.parentElement === host) {
+          host.insertBefore(empty, bar.nextSibling);
+        } else {
+          host.insertBefore(empty, host.firstChild);
+        }
+      }
+    } else if (empty) {
+      empty.remove();
+    }
+  }
+
+  function _injectGenreFilterBar() {
+    if (document.getElementById("fl-filter-bar")) return;
+    const host =
+      document.querySelector(".latest-release") ||
+      document.querySelector(".episode-list-wrapper");
+    if (!host) return;
+    const bar = document.createElement("div");
+    bar.id = "fl-filter-bar";
+    bar.className = "fl-filter-bar";
+    bar.innerHTML =
+      '<div class="fl-filter-inner">' +
+        '<svg class="fl-filter-icon" viewBox="0 0 24 24" fill="currentColor" aria-hidden="true">' +
+          '<path d="M10 18h4v-2h-4v2zM3 6v2h18V6H3zm3 7h12v-2H6v2z"/>' +
+        '</svg>' +
+        '<input type="text" id="fl-filter-input" class="fl-filter-input"' +
+        ' placeholder="Filter by genre — e.g. romance, comedy" autocomplete="off" spellcheck="false" />' +
+        '<button type="button" id="fl-filter-clear" class="fl-filter-clear" aria-label="Clear filter">\u00D7</button>' +
+        '<span id="fl-filter-count" class="fl-filter-count"></span>' +
+      '</div>';
+    host.insertBefore(bar, host.firstChild);
+
+    const input = bar.querySelector("#fl-filter-input");
+    const clearBtn = bar.querySelector("#fl-filter-clear");
+    const initial = _readStoredFilter();
+    if (initial) input.value = initial;
+    _setGenreFilter(initial);
+
+    let deb;
+    input.addEventListener("input", () => {
+      clearTimeout(deb);
+      deb = setTimeout(() => _setGenreFilter(input.value), 100);
+    });
+    input.addEventListener("keydown", (e) => {
+      if (e.key === "Escape") {
+        e.preventDefault();
+        input.value = "";
+        _setGenreFilter("");
+      }
+    });
+    clearBtn.addEventListener("click", () => {
+      input.value = "";
+      _setGenreFilter("");
+      input.focus();
+    });
+  }
+
   function _hydrateGenres(wrap, animeId) {
     const titleWrap = wrap.querySelector(".episode-title-wrap");
     if (!titleWrap || titleWrap.querySelector(".fl-genre-row")) return;
@@ -1405,8 +1630,13 @@
         })
         .catch(() => row.remove())
         .finally(() => {
+          // Mark the card as hydrated so the genre filter can decide whether
+          // to hide it (NSFW path already removed the wrap from DOM, so this
+          // is a harmless no-op there).
+          if (wrap.isConnected) wrap.dataset.flHydrated = "1";
           _homeLoading.pending--;
           _checkHomeLoadingDrain();
+          _applyGenreFilter();
         })
     );
     _pumpGenreQueue();
@@ -1414,8 +1644,12 @@
 
   function animePaheHomeInjector() {
     injectFLStyles();
+    _injectGenreFilterBar();
 
     const injectFirstButtons = () => {
+      // Re-attempt filter-bar injection in case the home host wasn't in the
+      // DOM during the first call (or AJAX pagination swapped it out).
+      _injectGenreFilterBar();
       const fresh = document.querySelectorAll(".episode-wrap:not([data-fl-done])");
       if (!fresh.length) return;
       // New wave of cards — either initial load or pagination/AJAX.
