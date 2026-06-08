@@ -58,13 +58,16 @@
     });
   }
 
-  // Anime details (synopsis + cover + info panel) — CACHE-ONLY.
-  // Previously this fetched `/anime/{id}` on demand and hammered animepahe,
-  // contributing to Cloudflare Error 1015 (rate-limit IP ban). We've removed
-  // the network fetch entirely: if we already have cached data from a prior
-  // session, we surface it; otherwise the caller just gets {} and the UI
-  // gracefully hides the synopsis/cover/info blocks.
-  function getAnimeDetails(animeId) {
+  // Anime details (synopsis + cover + info panel). Cache-first; opt-in fetch.
+  // Background: an earlier audit (commit 69c8363) stripped fetches entirely
+  // after `/play/` pages were 404'ing `/anime/{session}` on every next-ep
+  // click and contributing to Cloudflare Error 1015 bans. The home grid
+  // genre row legitimately needs fresh fetches for never-visited anime, so
+  // callers explicitly opt in via `{ fetchIfMissing: true }`. The `/play/`
+  // page call site stays cache-only (the session-vs-anime-id bug there is
+  // unfixed; opting in would re-introduce the 404 spam).
+  let _animepaheRateLimited = false;
+  function getAnimeDetails(animeId, opts = {}) {
     return new Promise((resolve) => {
       if (!animeId) return resolve({});
       chrome.storage.local.get(["animeHistory"], (result) => {
@@ -76,7 +79,77 @@
             details: cached.details,
           });
         }
-        resolve({});
+        if (!opts.fetchIfMissing || _animepaheRateLimited) return resolve({});
+
+        fetch(`/anime/${animeId}`, { credentials: "same-origin" })
+          .then((r) => {
+            if (r.status === 429 || r.status === 403) {
+              _animepaheRateLimited = true;
+              return Promise.reject();
+            }
+            return r.ok ? r.text() : Promise.reject();
+          })
+          .then((html) => {
+            if (/Error\s*1015|You are being rate limited|Just a moment\.\.\./i.test(html)) {
+              _animepaheRateLimited = true;
+              return resolve({});
+            }
+            const doc = new DOMParser().parseFromString(html, "text/html");
+
+            let synopsis = null;
+            for (const sel of [".anime-synopsis", ".anime-summary", ".anime-description"]) {
+              const el = doc.querySelector(sel);
+              const text = (el?.textContent || "").trim();
+              if (text && text.length > 20) { synopsis = text; break; }
+            }
+
+            let cover = null;
+            const coverSrc = doc.querySelector(".anime-cover[data-src]")?.getAttribute("data-src");
+            if (coverSrc) cover = coverSrc.startsWith("//") ? "https:" + coverSrc : coverSrc;
+
+            const info = [];
+            doc.querySelectorAll(".anime-info > p").forEach((p) => {
+              if (p.classList.contains("external-links")) return;
+              const strong = p.querySelector("strong");
+              if (!strong) return;
+              const label = strong.textContent.trim().replace(/:\s*$/, "").trim();
+              const innerLink = strong.querySelector("a");
+              const clone = p.cloneNode(true);
+              clone.querySelector("strong")?.remove();
+              const trailing = clone.textContent.replace(/\s+/g, " ").trim();
+              let value = innerLink ? innerLink.textContent.trim() : "";
+              value = [value, trailing].filter(Boolean).join(" ").trim();
+              if (label && value) info.push({ label, value });
+            });
+
+            const genres = Array.from(doc.querySelectorAll(".anime-genre li a"))
+              .map((a) => ({ name: a.textContent.trim(), url: a.getAttribute("href") }))
+              .filter((g) => g.name);
+
+            const externals = Array.from(doc.querySelectorAll(".external-links a"))
+              .map((a) => {
+                const href = a.getAttribute("href") || "";
+                return {
+                  name: a.textContent.trim(),
+                  url: href.startsWith("//") ? "https:" + href : href,
+                };
+              })
+              .filter((e) => e.name && e.url);
+
+            const details = { info, genres, externals };
+
+            chrome.storage.local.get(["animeHistory"], (r2) => {
+              const h = r2.animeHistory || {};
+              const a = h[animeId] || { downloaded: [] };
+              a.synopsis = synopsis || null;
+              a.cover = cover || null;
+              a.details = details;
+              h[animeId] = a;
+              chrome.storage.local.set({ animeHistory: h });
+            });
+            resolve({ synopsis, cover, details });
+          })
+          .catch(() => resolve({}));
       });
     });
   }
@@ -1423,17 +1496,22 @@
     _hideHomeLoading();
   }
 
-  // Throttle genre hydration: /anime/{id} fetches are heavy, so cap parallelism.
+  // Throttle genre hydration: /anime/{id} fetches are heavy AND Cloudflare
+  // tightens fast on animepahe (Error 1015). Strict serial — one at a time,
+  // with a small gap between requests — to keep the IP out of the penalty box.
   const _genreQueue = [];
   let _genreActive = 0;
-  const GENRE_CONCURRENCY = 3;
+  const GENRE_CONCURRENCY = 1;
+  const GENRE_INTER_REQ_MS = 900;
   function _pumpGenreQueue() {
     while (_genreActive < GENRE_CONCURRENCY && _genreQueue.length) {
       const task = _genreQueue.shift();
       _genreActive++;
       Promise.resolve(task()).finally(() => {
-        _genreActive--;
-        _pumpGenreQueue();
+        setTimeout(() => {
+          _genreActive--;
+          _pumpGenreQueue();
+        }, GENRE_INTER_REQ_MS);
       });
     }
   }
@@ -1578,7 +1656,7 @@
 
     _homeLoading.pending++;
     _genreQueue.push(() =>
-      getAnimeDetails(animeId)
+      getAnimeDetails(animeId, { fetchIfMissing: true })
         .then(({ details }) => {
           // Relabel the episode-count kicker when the show is no longer
           // airing. AnimePahe's value for finished shows is "Finished Airing",
