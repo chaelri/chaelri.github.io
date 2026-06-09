@@ -53,12 +53,12 @@ const ZONES_DEFAULT = {
     kind: "couple", capsSize: 58, scriptSize: 68, letterSpacing: 10, color: INK,
   },
   "left.dateVenue": {
-    x: 125, y: 1280, w: 650, h: 56,
-    kind: "spacedCaps", naturalSize: 32, weight: 400,
+    x: 125, y: 1280, w: 650, h: 130,
+    kind: "multiCaps", naturalSize: 32, weight: 400,
     letterSpacing: 6, textRef: "dateVenue", color: INK_SOFT,
   },
   "left.rule": {
-    x: 340, y: 1360, w: 220, h: 4,
+    x: 340, y: 1440, w: 220, h: 4,
     kind: "rule", color: INK, weight: 2,
   },
 
@@ -119,7 +119,7 @@ const ZONES_DEFAULT = {
 const DEFAULTS = {
   numbers: "1\n2\n3\n4\n5\n6\n7\n8\n9\n10\n11",
   qrUrl: "",
-  dateVenue: `${COUPLE.dateShort} | CCF EAST ORTIGAS`,
+  dateVenue: `07.02.2026\nCCF EAST ORTIGAS`,
   welcome: "WE'RE SO GLAD\nYOU'RE HERE!",
   thankBody:
     "We would like to express our many thanks for sharing our wedding day with us. Thank you for celebrating in our joy, love, and happiness. You have helped to make us who we are today, and for that we are forever grateful. So please enjoy tonight and let it be but a small gift for all you have done for us. You are our favorite people in the world and we love you beyond words can express!",
@@ -627,6 +627,17 @@ async function mount() {
     }
   } catch (e) { console.warn("fb hydrate failed", e); }
 
+  // One-time migration: old single-line "07.02.26 | CCF EAST ORTIGAS" → new
+  // two-line format. Any other " | "-separated value Charlie may have typed
+  // also gets split into multiple lines.
+  if (_state.dateVenue === "07.02.26 | CCF EAST ORTIGAS") {
+    _state.dateVenue = DEFAULTS.dateVenue;
+    persist();
+  } else if (_state.dateVenue && _state.dateVenue.includes(" | ")) {
+    _state.dateVenue = _state.dateVenue.replace(/\s*\|\s*/g, "\n");
+    persist();
+  }
+
   let previewIdx = 0;
   let printMode = false;
   let editMode = false;
@@ -664,8 +675,8 @@ async function mount() {
           <p class="field-hint">Lives across every card. Edit once.</p>
           <label>QR URL <span style="color:var(--ink-faint);font-weight:400">(scan-to-upload photo album)</span></label>
           <input id="ed-qr" type="url" placeholder="https://photos.app.goo.gl/…"/>
-          <label>Date · Venue</label>
-          <input id="ed-datevenue" type="text"/>
+          <label>Date · Venue <span style="color:var(--ink-faint);font-weight:400">(one per line)</span></label>
+          <textarea id="ed-datevenue" rows="2"></textarea>
           <label>Welcome heading</label>
           <textarea id="ed-welcome" rows="2"></textarea>
           <label>Share-the-love body</label>
