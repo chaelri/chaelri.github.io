@@ -38,83 +38,94 @@ const INK_SOFT = "#3a3530";
 // dispatches to a renderer; remaining fields are renderer-specific knobs.
 
 const ZONES_DEFAULT = {
-  "left.tableScript": {
+  "left_tableScript": {
     x: 125, y: 90, w: 650, h: 200,
     kind: "script", text: "table", family: "Sacramento, cursive",
     naturalSize: 180, color: INK,
   },
-  "left.numeral": {
+  "left_numeral": {
     x: 220, y: 280, w: 460, h: 540,
     kind: "numeral", family: "Playfair Display, serif",
     naturalSize: 560, weight: 400, color: INK,
   },
-  "left.couple": {
+  "left_couple": {
     x: 125, y: 1020, w: 650, h: 240,
     kind: "couple", capsSize: 58, scriptSize: 68, letterSpacing: 10, color: INK,
   },
-  "left.dateVenue": {
+  "left_dateVenue": {
     x: 125, y: 1280, w: 650, h: 130,
     kind: "multiCaps", naturalSize: 32, weight: 400,
     letterSpacing: 6, textRef: "dateVenue", color: INK_SOFT,
   },
-  "left.rule": {
+  "left_rule": {
     x: 340, y: 1440, w: 220, h: 4,
     kind: "rule", color: INK, weight: 2,
   },
 
-  "middle.shareScript": {
+  "middle_shareScript": {
     x: 875, y: 70, w: 650, h: 160,
     kind: "script", text: "share the love",
     family: "Sacramento, cursive", naturalSize: 130, color: INK,
   },
-  "middle.camera": {
+  "middle_camera": {
     x: 1100, y: 240, w: 200, h: 130,
     kind: "camera", color: INK,
   },
-  "middle.shareBody": {
+  "middle_shareBody": {
     x: 875, y: 410, w: 650, h: 190,
     kind: "wrappedCaps", naturalSize: 30, weight: 500,
     letterSpacing: 2.4, textRef: "shareBody", color: INK,
   },
-  "middle.qr": {
+  "middle_qr": {
     x: 1040, y: 620, w: 320, h: 320,
     kind: "qr",
   },
-  "middle.captureScript": {
+  "middle_captureScript": {
     x: 875, y: 980, w: 650, h: 150,
     kind: "script", text: "capture the moment",
     family: "Sacramento, cursive", naturalSize: 120, color: INK,
   },
-  "middle.prompts": {
+  "middle_prompts": {
     x: 875, y: 1180, w: 650, h: 580,
     kind: "prompts", naturalSize: 28, weight: 500,
     letterSpacing: 2, textRef: "prompts", color: INK,
   },
 
-  "right.welcome": {
+  "right_welcome": {
     x: 1625, y: 90, w: 650, h: 170,
     kind: "multiCaps", naturalSize: 46, weight: 500,
     letterSpacing: 6, textRef: "welcome", color: INK,
   },
-  "right.thankYou": {
+  "right_thankYou": {
     x: 1625, y: 280, w: 650, h: 280,
     kind: "thankStack", naturalSize: 130, weight: 500,
     letterSpacing: 14, color: INK,
   },
-  "right.thankRule": {
+  "right_thankRule": {
     x: 1860, y: 580, w: 180, h: 4,
     kind: "rule", color: INK, weight: 2,
   },
-  "right.thankBody": {
+  "right_thankBody": {
     x: 1625, y: 610, w: 650, h: 940,
     kind: "wrappedCaps", naturalSize: 28, weight: 500,
     letterSpacing: 2, textRef: "thankBody", color: INK,
   },
-  "right.signoff": {
+  "right_signoff": {
     x: 1625, y: 1580, w: 650, h: 220,
     kind: "couple", capsSize: 40, scriptSize: 52, letterSpacing: 8, color: INK,
   },
+
+  // Decorative C&K monogram, top-right of panel 1 — same gold accent as on
+  // name-cards. Draggable; resize the corner handle to scale.
+  "decor_ckLogo": {
+    x: 600, y: 30, w: 160, h: 135,
+    kind: "ckLogo",
+  },
 };
+
+// Card body colors — match the cream/ink tone used in name-cards instead of
+// pure white. PALETTE.paper is the canonical token.
+const PAPER = "#faf9f6";
 
 const DEFAULTS = {
   numbers: "1\n2\n3\n4\n5\n6\n7\n8\n9\n10\n11",
@@ -128,13 +139,13 @@ const DEFAULTS = {
   prompts: [
     "Selfie photo of your table",
     "The bride and groom",
-    "The hora chair dance",
-    "Dance floor dance party",
-    "Sunset photo",
+    "The exchange of vows",
+    "The processional",
+    "Cocktails & photo time",
+    "Toasts and speeches",
     "Selfie with someone you just met",
-    "The bride and groom's first dance",
-    "The father daughter dance",
-    "The mother son dance",
+    "The grand send-off",
+    "Family + entourage photos",
     "Selfie with the bride and groom",
   ].join("\n"),
   zones: {},
@@ -183,6 +194,36 @@ function wrapText(text, family, size, weight, maxWidth, letterSpacing = 0) {
     if (cur) out.push(cur);
   }
   return out;
+}
+
+// === Image assets =========================================================
+// Inlined as base64 data URIs so the SVG → canvas rasterizer can paint them
+// (external image refs don't resolve when the SVG is loaded via a blob URL).
+
+let _ckLogoDataUrl = null;
+async function ckLogoDataUrl() {
+  if (_ckLogoDataUrl) return _ckLogoDataUrl;
+  try {
+    const resp = await fetch("../../assets/ck-logo.png");
+    const blob = await resp.blob();
+    _ckLogoDataUrl = await new Promise((res, rej) => {
+      const r = new FileReader();
+      r.onload = () => res(String(r.result));
+      r.onerror = rej;
+      r.readAsDataURL(blob);
+    });
+  } catch (e) {
+    console.warn("ck-logo load failed", e);
+    _ckLogoDataUrl = "";
+  }
+  return _ckLogoDataUrl;
+}
+
+async function renderCkLogo(z) {
+  const href = await ckLogoDataUrl();
+  if (!href) return "";
+  return `<image href="${href}" x="${z.x}" y="${z.y}" width="${z.w}" height="${z.h}"
+          preserveAspectRatio="xMidYMid meet"/>`;
 }
 
 // === QR code (lazy CDN import) ============================================
@@ -399,6 +440,7 @@ async function renderZone(id, z, number, state) {
     case "rule":        return renderRule(z);
     case "camera":      return cameraIconSVG(z);
     case "qr":          return await qrSvgGroup(state.qrUrl, z.x, z.y, Math.min(z.w, z.h));
+    case "ckLogo":      return await renderCkLogo(z);
     default:            return "";
   }
 }
@@ -474,10 +516,11 @@ async function renderCardSVG(number, state, opts = {}) {
   }
   const overlay = editMode ? editOverlay(zonePairs) : "";
   return `
-    <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 ${CARD.w} ${CARD.h}"
+    <svg xmlns="http://www.w3.org/2000/svg" xmlns:xlink="http://www.w3.org/1999/xlink"
+         viewBox="0 0 ${CARD.w} ${CARD.h}"
          width="${CARD.w}" height="${CARD.h}"
          style="max-width:100%;height:auto;display:block">
-      <rect x="0" y="0" width="${CARD.w}" height="${CARD.h}" fill="#ffffff"/>
+      <rect x="0" y="0" width="${CARD.w}" height="${CARD.h}" fill="${PAPER}"/>
       ${layers.join("\n")}
       ${glueTab()}
       ${foldGuides()}
@@ -491,7 +534,8 @@ async function renderSheetSVG(number, state, opts = {}) {
   const mx = Math.round((A4.w - CARD.w) / 2);
   const my = Math.round((A4.h - CARD.h) / 2);
   return `
-    <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 ${A4.w} ${A4.h}"
+    <svg xmlns="http://www.w3.org/2000/svg" xmlns:xlink="http://www.w3.org/1999/xlink"
+         viewBox="0 0 ${A4.w} ${A4.h}"
          width="${A4.w}" height="${A4.h}"
          style="max-width:100%;height:auto;display:block">
       <rect x="0" y="0" width="${A4.w}" height="${A4.h}" fill="#ffffff"/>
@@ -635,6 +679,20 @@ async function mount() {
     persist();
   } else if (_state.dateVenue && _state.dateVenue.includes(" | ")) {
     _state.dateVenue = _state.dateVenue.replace(/\s*\|\s*/g, "\n");
+    persist();
+  }
+
+  // One-time migration: dot-keyed zone IDs ("left.tableScript") rewritten to
+  // underscore-keyed ("left_tableScript"). Firebase RTDB rejects "." in child
+  // names, which silently blocked every layout edit from syncing across
+  // devices. Walk _state.zones once; if any dot-keyed entries exist, rebuild
+  // the map with underscored keys + persist.
+  if (_state.zones && Object.keys(_state.zones).some((k) => k.includes("."))) {
+    const fixed = {};
+    for (const [k, v] of Object.entries(_state.zones)) {
+      fixed[k.replace(/\./g, "_")] = v;
+    }
+    _state.zones = fixed;
     persist();
   }
 
