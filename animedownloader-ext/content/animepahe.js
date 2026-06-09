@@ -1227,17 +1227,19 @@
         opacity: 1;
         transform: translateY(0);
       }
-      /* Poof — quick blur+scale-down+fade for cards leaving the grid
-         (currently: NSFW yank). Card pulses faintly outward at the start
-         so the disappearance reads as a "puff" rather than a sudden cut. */
+      /* Poof — used for BOTH the NSFW yank and genre-filter hide. Switched
+         from @keyframes to !important + transition because the keyframe
+         path was losing the cascade fight with [data-fl-prepped].fl-revealed
+         (specificity 0,3,1 beats 0,2,1) so opacity/transform stayed pinned
+         to the revealed state and the animation never visibly played.
+         Forced overrides + an explicit transition declaration sidestep the
+         specificity battle entirely. */
       .episode-wrap.fl-poofing {
         pointer-events: none;
-        animation: fl-poof 0.35s cubic-bezier(0.4, 0, 0.6, 1) forwards;
-      }
-      @keyframes fl-poof {
-        0%   { opacity: 1; transform: scale(1);    filter: blur(0); }
-        40%  { opacity: 0.6; transform: scale(1.05); filter: blur(2px); }
-        100% { opacity: 0; transform: scale(0.75); filter: blur(8px); }
+        opacity: 0 !important;
+        transform: scale(0.78) !important;
+        filter: blur(6px);
+        transition: opacity 0.28s ease, transform 0.28s ease, filter 0.28s ease !important;
       }
       /* Heading row — pulls the "Latest Releases" h-tag and a clone of
          the bottom pagination into a single flex row so the page chevrons
@@ -1366,7 +1368,9 @@
         border: 1px dashed rgba(255,255,255,0.12);
         border-radius: 8px;
       }
-      /* Filtered cards collapse out of the flex/grid layout */
+      /* Filtered cards collapse out of the flex/grid layout AFTER the poof
+         transition completes — that's why the JS waits ~280ms before
+         flipping this class. */
       .episode-wrap.fl-filtered-out {
         display: none !important;
       }
@@ -1592,14 +1596,14 @@
     let hydrated = 0;
     wraps.forEach((wrap) => {
       if (!tokens.length) {
-        wrap.classList.remove("fl-filtered-out");
+        _poofFilterShow(wrap);
         visible++;
         return;
       }
       if (!wrap.dataset.flHydrated) {
         // Genres not loaded yet — keep visible to avoid flicker, will
         // re-evaluate once _hydrateGenres finishes for this wrap.
-        wrap.classList.remove("fl-filtered-out");
+        _poofFilterShow(wrap);
         visible++;
         return;
       }
@@ -1609,8 +1613,12 @@
         .map((c) => (c.textContent || "").toLowerCase())
         .join(" | ");
       const match = tokens.every((tok) => haystack.includes(tok));
-      wrap.classList.toggle("fl-filtered-out", !match);
-      if (match) visible++;
+      if (match) {
+        _poofFilterShow(wrap);
+        visible++;
+      } else {
+        _poofFilterHide(wrap);
+      }
     });
     const countEl = document.getElementById("fl-filter-count");
     if (countEl) {
@@ -1763,23 +1771,45 @@
     return true;
   }
 
-  // Poof out a card (animate then drop from DOM). Currently fired only on
-  // NSFW yank inside _applyCardDetails — keeps grid layout from snapping
-  // closed instantly when a card vanishes.
+  const POOF_DURATION_MS = 280;
+
+  // Poof out a card (animate then drop from DOM). Fired on NSFW yank from
+  // _applyCardDetails. transitionend is unreliable here (multiple props
+  // animate at once, dropped events on display toggles), so a single
+  // setTimeout drives the DOM removal.
   function _poofRemoveCard(wrap) {
     if (!wrap || !wrap.isConnected) return;
-    if (wrap.classList.contains("fl-poofing")) return;
+    if (wrap.dataset.flPoofing === "remove") return;
+    wrap.dataset.flPoofing = "remove";
     wrap.classList.add("fl-poofing");
-    let done = false;
-    const finish = () => {
-      if (done) return;
-      done = true;
-      wrap.remove();
-    };
-    wrap.addEventListener("animationend", finish, { once: true });
-    // Safety net in case the animation event never fires (e.g., display
-    // toggled mid-animation, browser inconsistency).
-    setTimeout(finish, 500);
+    setTimeout(() => {
+      if (wrap.isConnected) wrap.remove();
+    }, POOF_DURATION_MS + 20);
+  }
+
+  // Animate-out a card for the genre filter, then collapse it out of layout.
+  // Idempotent: rapid filter typing doesn't restart the animation.
+  function _poofFilterHide(wrap) {
+    if (!wrap || !wrap.isConnected) return;
+    if (wrap.dataset.flPoofing === "filter") return;
+    wrap.dataset.flPoofing = "filter";
+    wrap.classList.add("fl-poofing");
+    setTimeout(() => {
+      if (wrap.dataset.flPoofing === "filter") {
+        wrap.classList.add("fl-filtered-out");
+      }
+    }, POOF_DURATION_MS + 20);
+  }
+
+  // Reverse poof — reveal a previously filter-hidden card. Drops the
+  // display:none gate first so the transition has something to animate
+  // back from, then on next frame removes .fl-poofing so opacity/scale
+  // un-wind to the visible state.
+  function _poofFilterShow(wrap) {
+    if (!wrap) return;
+    delete wrap.dataset.flPoofing;
+    wrap.classList.remove("fl-filtered-out");
+    requestAnimationFrame(() => wrap.classList.remove("fl-poofing"));
   }
 
   // Subtle reveal — opacity 0→1 + translateY(8px)→0 over 0.35s. Deferred
