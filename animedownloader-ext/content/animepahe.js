@@ -1799,10 +1799,30 @@
   // _applyCardDetails. transitionend is unreliable here (multiple props
   // animate at once, dropped events on display toggles), so a single
   // setTimeout drives the DOM removal.
+  //
+  // Critical detail: cached NSFW lookups land within ~5ms of the page
+  // painting, but the staggered reveal might be scheduled for hundreds of
+  // ms later. If we just add .fl-poofing while the card is still at the
+  // prepped opacity:0 state, the transition runs 0 → 0 and the user sees
+  // a silent removal instead of the poof. So we first snap the card to a
+  // visible state via inline styles + a reflow flush; the browser
+  // registers that "from" state, then .fl-poofing kicks in with its
+  // !important "to" state and the transition has an opacity gradient to
+  // actually animate.
   function _poofRemoveCard(wrap) {
     if (!wrap || !wrap.isConnected) return;
     if (wrap.dataset.flPoofing === "remove") return;
     wrap.dataset.flPoofing = "remove";
+
+    if (!wrap.classList.contains("fl-revealed")) {
+      wrap.style.transition = "none";
+      wrap.style.opacity = "1";
+      wrap.style.transform = "translateY(0) scale(1)";
+      wrap.style.filter = "blur(0)";
+      void wrap.offsetHeight; // force reflow so the "from" state paints
+      wrap.style.transition = "";
+    }
+
     wrap.classList.add("fl-poofing");
     setTimeout(() => {
       if (wrap.isConnected) wrap.remove();
