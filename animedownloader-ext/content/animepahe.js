@@ -1227,6 +1227,18 @@
         opacity: 1;
         transform: translateY(0);
       }
+      /* Poof — quick blur+scale-down+fade for cards leaving the grid
+         (currently: NSFW yank). Card pulses faintly outward at the start
+         so the disappearance reads as a "puff" rather than a sudden cut. */
+      .episode-wrap.fl-poofing {
+        pointer-events: none;
+        animation: fl-poof 0.35s cubic-bezier(0.4, 0, 0.6, 1) forwards;
+      }
+      @keyframes fl-poof {
+        0%   { opacity: 1; transform: scale(1);    filter: blur(0); }
+        40%  { opacity: 0.6; transform: scale(1.05); filter: blur(2px); }
+        100% { opacity: 0; transform: scale(0.75); filter: blur(8px); }
+      }
       /* Heading row — pulls the "Latest Releases" h-tag and a clone of
          the bottom pagination into a single flex row so the page chevrons
          live next to the title instead of only at the bottom. */
@@ -1732,7 +1744,7 @@
       /\b(ecchi|erotica|hentai)\b/i.test(g.name || "")
     );
     if (isNsfw) {
-      wrap.remove();
+      _poofRemoveCard(wrap);
       return false;
     }
 
@@ -1749,6 +1761,25 @@
     // transition from 0 → 1 (set the start state, then the end state).
     requestAnimationFrame(() => row.classList.add("is-loaded"));
     return true;
+  }
+
+  // Poof out a card (animate then drop from DOM). Currently fired only on
+  // NSFW yank inside _applyCardDetails — keeps grid layout from snapping
+  // closed instantly when a card vanishes.
+  function _poofRemoveCard(wrap) {
+    if (!wrap || !wrap.isConnected) return;
+    if (wrap.classList.contains("fl-poofing")) return;
+    wrap.classList.add("fl-poofing");
+    let done = false;
+    const finish = () => {
+      if (done) return;
+      done = true;
+      wrap.remove();
+    };
+    wrap.addEventListener("animationend", finish, { once: true });
+    // Safety net in case the animation event never fires (e.g., display
+    // toggled mid-animation, browser inconsistency).
+    setTimeout(finish, 500);
   }
 
   // Subtle reveal — opacity 0→1 + translateY(8px)→0 over 0.35s. Deferred
