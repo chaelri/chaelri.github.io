@@ -1263,11 +1263,11 @@
         will-change: transform;
       }
       .episode-wrap[data-fl-prepped].fl-hover-ready:hover {
-        transform: translateY(-4px) scale(1);
+        transform: translateY(-10px) scale(1.015);
         box-shadow:
-          0 14px 32px rgba(0, 0, 0, 0.45),
-          0 4px 10px rgba(0, 0, 0, 0.35),
-          0 0 0 1px rgba(255, 255, 255, 0.05);
+          0 24px 48px rgba(0, 0, 0, 0.55),
+          0 8px 18px rgba(0, 0, 0, 0.4),
+          0 0 0 1px rgba(255, 255, 255, 0.06);
         z-index: 2;
       }
       /* Page transition — fades the whole grid out when the user clicks
