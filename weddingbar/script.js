@@ -155,26 +155,14 @@ function render(items = [], sortType = "none") {
     fill.appendChild(text);
     thumb.appendChild(fill);
 
-    // Mobile animation
-    if (window.innerWidth < 720) {
-      fill.style.width = "0%";
+    fill.style.width = "0%";
+    requestAnimationFrame(() => {
       requestAnimationFrame(() => {
-        requestAnimationFrame(() => {
-          fill.style.width = pct + "%";
-          setTimeout(() => fill.classList.add("bounce"), 900);
-          setTimeout(() => fill.classList.remove("bounce"), 1200);
-        });
+        fill.style.width = pct + "%";
+        setTimeout(() => fill.classList.add("bounce"), 900);
+        setTimeout(() => fill.classList.remove("bounce"), 1200);
       });
-    } else {
-      fill.style.height = "0%";
-      requestAnimationFrame(() => {
-        requestAnimationFrame(() => {
-          fill.style.height = pct + "%";
-          setTimeout(() => fill.classList.add("bounce"), 900);
-          setTimeout(() => fill.classList.remove("bounce"), 1200);
-        });
-      });
-    }
+    });
 
     const info = document.createElement("div");
     info.className = "bar-info";
