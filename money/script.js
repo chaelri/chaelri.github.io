@@ -1101,21 +1101,7 @@ window.openModal = (type, id, name, amount, monthIdx) => {
   }
 
   if (type === "cc" && id) {
-    bodyHtml += `<div class="space-y-2 mt-6 pt-4 border-t border-white/5 mx-1"><label class="text-[10px] font-bold uppercase text-emerald-400 ml-1">Quick Add Spent (₱)</label><input type="number" id="cc-quick-add" placeholder="e.g. 213" class="w-full bg-slate-900 border-none rounded-2xl py-5 px-6 text-xl font-bold text-emerald-400 focus:ring-2 focus:ring-emerald-500"></div><div class="space-y-3 mt-4 mx-1"><label class="text-[10px] font-bold uppercase text-slate-500 ml-1">History Log</label><div class="max-h-40 overflow-y-auto space-y-2 pr-2 custom-scrollbar" id="cc-history-log">${
-      (item.logs || []).length > 0
-        ? item.logs
-            .map(
-              (log) =>
-                `<div class="flex justify-between items-center bg-slate-900/40 p-3 rounded-xl border border-white/5"><span class="text-[10px] font-bold text-slate-500 uppercase">${new Date(
-                  log.timestamp,
-                ).toLocaleDateString()}</span><span class="text-sm font-black text-emerald-400">+₱${formatMoney(
-                  log.amount,
-                )}</span></div>`,
-            )
-            .reverse()
-            .join("")
-        : '<div class="text-[10px] text-slate-600 italic text-center py-4">No recent history</div>'
-    }</div></div>`;
+    bodyHtml += `<div class="space-y-2 mt-6 pt-4 border-t border-white/5 mx-1"><label class="text-[10px] font-bold uppercase text-emerald-400 ml-1">Quick Add Spent (₱)</label><div class="flex gap-2"><input type="number" id="cc-quick-add" placeholder="e.g. 213" class="flex-1 min-w-0 bg-slate-900 border-none rounded-2xl py-5 px-6 text-xl font-bold text-emerald-400 focus:ring-2 focus:ring-emerald-500"><button type="button" id="cc-quick-add-btn" aria-label="Add spent" class="shrink-0 px-5 rounded-2xl bg-emerald-500 hover:bg-emerald-400 active:scale-95 transition-all duration-150 text-white font-black flex items-center justify-center"><span class="material-icons">add</span></button></div></div><div class="space-y-3 mt-4 mx-1"><label class="text-[10px] font-bold uppercase text-slate-500 ml-1">History Log</label><div class="max-h-40 overflow-y-auto space-y-2 pr-2 custom-scrollbar" id="cc-history-log"></div></div>`;
   }
 
   bodyHtml += `<div id="recurring-wrapper" class="flex items-center gap-3 px-4 py-5 bg-slate-900/50 rounded-2xl mx-1 mt-6 ${
@@ -1133,17 +1119,83 @@ window.openModal = (type, id, name, amount, monthIdx) => {
   const nameInput = document.getElementById("edit-name");
   const amountInput = document.getElementById("edit-amount");
   const quickAddInput = document.getElementById("cc-quick-add");
+  const quickAddBtn = document.getElementById("cc-quick-add-btn");
+  const historyLogEl = document.getElementById("cc-history-log");
 
   if (nameInput) nameInput.addEventListener("keydown", handleEnterKey);
   if (amountInput) amountInput.addEventListener("keydown", handleEnterKey);
-  if (quickAddInput) quickAddInput.addEventListener("keydown", handleEnterKey);
   // ---------------------------------------------
 
   if (type === "cc" && id) {
+    let currentAmount = amount || 0;
+
+    const renderHistoryLog = (logs) => {
+      if (!historyLogEl) return;
+      historyLogEl.innerHTML =
+        (logs || []).length > 0
+          ? logs
+              .map(
+                (log) =>
+                  `<div class="flex justify-between items-center bg-slate-900/40 p-3 rounded-xl border border-white/5"><span class="text-[10px] font-bold text-slate-500 uppercase">${new Date(
+                    log.timestamp,
+                  ).toLocaleDateString()}</span><span class="text-sm font-black text-emerald-400">+₱${formatMoney(
+                    log.amount,
+                  )}</span></div>`,
+              )
+              .reverse()
+              .join("")
+          : '<div class="text-[10px] text-slate-600 italic text-center py-4">No recent history</div>';
+    };
+
+    renderHistoryLog(item.logs || []);
+
     quickAddInput.addEventListener("input", (e) => {
       const extra = parseFloat(e.target.value) || 0;
-      amountInput.value = (amount || 0) + extra;
+      amountInput.value = currentAmount + extra;
     });
+
+    const commitQuickAdd = async () => {
+      const extra = parseFloat(quickAddInput.value) || 0;
+      if (extra <= 0) {
+        quickAddInput.focus();
+        return;
+      }
+      const monthData = appData.monthlyData[monthIdx];
+      if (!monthData || !monthData[type]) return;
+      const target = monthData[type].find((it) => it.id === id);
+      if (!target) return;
+      if (!target.logs) target.logs = [];
+      target.logs.push({
+        id: generateId(),
+        amount: extra,
+        timestamp: Date.now(),
+      });
+      currentAmount += extra;
+      target.amount = currentAmount;
+      activeEdit.initialAmount = currentAmount;
+      amountInput.value = currentAmount;
+      renderHistoryLog(target.logs);
+      quickAddInput.value = "";
+      quickAddInput.focus();
+      quickAddBtn.classList.add("paid-burst");
+      setTimeout(() => quickAddBtn.classList.remove("paid-burst"), 400);
+      if (window.navigator.vibrate) window.navigator.vibrate(8);
+      try {
+        await syncSet(dbRef, appData);
+      } catch (err) {
+        console.error("Quick-add sync failed:", err);
+      }
+    };
+
+    quickAddBtn.addEventListener("click", commitQuickAdd);
+    quickAddInput.addEventListener("keydown", (e) => {
+      if (e.key === "Enter") {
+        e.preventDefault();
+        commitQuickAdd();
+      }
+    });
+  } else if (quickAddInput) {
+    quickAddInput.addEventListener("keydown", handleEnterKey);
   }
   deleteBtn.style.display = id ? "block" : "none";
   deleteBtn.onclick = () => deleteItem();
