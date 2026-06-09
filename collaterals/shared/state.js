@@ -31,6 +31,53 @@ function save(s) {
   localStorage.setItem(STATE_KEY, JSON.stringify(s));
 }
 
+// One-shot migration (2026-06-09): the seating-chart code lived under id
+// "table-numbers" but actually belongs to Mirror Seating. Move local state to
+// "mirror-chart" the first time this module loads, then mirror the move to
+// Firebase best-effort. The "table-numbers" slot is now a fresh placeholder.
+const MIGRATIONS_KEY = "collaterals:migrations";
+function runOneShotMigrations() {
+  let done;
+  try { done = JSON.parse(localStorage.getItem(MIGRATIONS_KEY) || "[]") || []; }
+  catch { done = []; }
+  const flag = "swap-table-numbers-mirror-chart";
+  if (done.includes(flag)) return;
+
+  const s = load();
+  s.data = s.data || {};
+  s.status = s.status || {};
+  const tnData = s.data["table-numbers"];
+  const tnStatus = s.status["table-numbers"];
+  const mcDataEmpty = !s.data["mirror-chart"]
+    || (typeof s.data["mirror-chart"] === "object" && Object.keys(s.data["mirror-chart"]).length === 0);
+
+  if (tnData && mcDataEmpty) {
+    s.data["mirror-chart"] = tnData;
+    if (tnStatus) s.status["mirror-chart"] = tnStatus;
+    delete s.data["table-numbers"];
+    delete s.status["table-numbers"];
+    save(s);
+  }
+
+  done.push(flag);
+  localStorage.setItem(MIGRATIONS_KEY, JSON.stringify(done));
+
+  // Best-effort Firebase mirror — don't block module load on it.
+  (async () => {
+    try {
+      const remoteTN = await fbGet("table-numbers");
+      if (!remoteTN) return;
+      const remoteMC = await fbGet("mirror-chart");
+      const mcRemoteEmpty = !remoteMC
+        || (typeof remoteMC === "object" && Object.keys(remoteMC).length === 0);
+      if (!mcRemoteEmpty) return;
+      await fbSet("mirror-chart", remoteTN);
+      await fbSet("table-numbers", null);
+    } catch (e) { console.warn("swap migration (firebase) failed", e); }
+  })();
+}
+runOneShotMigrations();
+
 // Pull the latest snapshot for a template from Firebase and merge into the
 // local cache. Templates call this once on boot before reading state.
 // Returns whatever's now in localStorage for the template (post-merge).
