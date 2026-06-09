@@ -3,6 +3,15 @@
 
   const HREF = window.location.href;
 
+  // Detect when this content script is orphaned (extension was reloaded
+  // while the page stayed open). Any chrome.* call after that throws
+  // "Extension context invalidated." Short-circuit every call site instead
+  // of crashing the MutationObserver / fetch finally chains.
+  function _extAlive() {
+    try { return !!chrome.runtime && !!chrome.runtime.id; }
+    catch (_) { return false; }
+  }
+
   // Home-feed hydration overlay state. Declared up-front so the router
   // dispatch below can call animePaheHomeInjector() → _showHomeLoading()
   // without tripping the temporal dead zone on this const.
@@ -75,7 +84,9 @@
   function getAnimeDetails(animeId, opts = {}) {
     return new Promise((resolve) => {
       if (!animeId) return resolve({});
+      if (!_extAlive()) return resolve({});
       chrome.storage.local.get(["animeHistory"], (result) => {
+        if (chrome.runtime?.lastError) return resolve({});
         const cached = result.animeHistory?.[animeId];
         if (cached?.details) {
           return resolve({
@@ -143,15 +154,18 @@
 
             const details = { info, genres, externals };
 
-            chrome.storage.local.get(["animeHistory"], (r2) => {
-              const h = r2.animeHistory || {};
-              const a = h[animeId] || { downloaded: [] };
-              a.synopsis = synopsis || null;
-              a.cover = cover || null;
-              a.details = details;
-              h[animeId] = a;
-              chrome.storage.local.set({ animeHistory: h });
-            });
+            if (_extAlive()) {
+              chrome.storage.local.get(["animeHistory"], (r2) => {
+                if (chrome.runtime?.lastError || !_extAlive()) return;
+                const h = r2.animeHistory || {};
+                const a = h[animeId] || { downloaded: [] };
+                a.synopsis = synopsis || null;
+                a.cover = cover || null;
+                a.details = details;
+                h[animeId] = a;
+                chrome.storage.local.set({ animeHistory: h });
+              });
+            }
             resolve({ synopsis, cover, details });
           })
           .catch(() => resolve({}));
@@ -1835,7 +1849,9 @@
     // Fast path: if this anime is already cached, render synchronously
     // without queueing — skips the serial throttle entirely. Only cache
     // misses pay the rate-limit-safe queue cost.
+    if (!_extAlive()) return;
     chrome.storage.local.get(["animeHistory"], (result) => {
+      if (chrome.runtime?.lastError) return; // context died mid-flight
       const cached = result.animeHistory?.[animeId];
       if (cached?.details) {
         _applyCardDetails(wrap, row, cached.details);
@@ -1939,6 +1955,7 @@
       document.body;
     if (target) {
       const onMutation = () => {
+        if (!_extAlive()) return; // extension reloaded — stop touching chrome.*
         injectFirstButtons();
         _syncTopPagination();
       };
