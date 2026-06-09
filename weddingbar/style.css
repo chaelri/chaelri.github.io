@@ -176,6 +176,13 @@ body {
     display: grid;
     grid-template-columns: 1fr 1fr;
     gap: 12px 24px;
+    background-image: linear-gradient(
+      to right,
+      transparent calc(50% - 0.5px),
+      rgba(255, 255, 255, 0.08) calc(50% - 0.5px),
+      rgba(255, 255, 255, 0.08) calc(50% + 0.5px),
+      transparent calc(50% + 0.5px)
+    );
   }
 }
 
