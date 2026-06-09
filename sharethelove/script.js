@@ -16,10 +16,10 @@ import {
   getAuth, signInAnonymously, onAuthStateChanged,
 } from "https://www.gstatic.com/firebasejs/10.13.2/firebase-auth.js";
 import {
-  getStorage, ref, uploadBytesResumable, getDownloadURL,
+  getStorage, ref, uploadBytesResumable, getDownloadURL, deleteObject,
 } from "https://www.gstatic.com/firebasejs/10.13.2/firebase-storage.js";
 import {
-  getDatabase, ref as dbRef, push, set as dbSet,
+  getDatabase, ref as dbRef, push, set as dbSet, remove as dbRemove,
   onValue, query as dbQuery, limitToLast,
 } from "https://www.gstatic.com/firebasejs/10.13.2/firebase-database.js";
 
@@ -80,6 +80,10 @@ const lbCaption   = $("lb-caption");
 const lbClose     = $("lb-close");
 const lbPrev      = $("lb-prev");
 const lbNext      = $("lb-next");
+const lbDelete    = $("lb-delete");
+const confirmModal = $("confirm-modal");
+const modalCancel  = $("modal-cancel");
+const modalConfirm = $("modal-confirm");
 
 // Reveal florals on a stagger so the page eases in rather than slamming.
 florals.forEach((el, i) => setTimeout(() => el.classList.add("in"), 120 + i * 90));
@@ -322,6 +326,10 @@ async function uploadOne(id, it, guestName) {
       ts: Date.now(),
       isVideo: it.isVideo,
       path,
+      // uid stamps ownership so the uploader (anonymous-auth uid is sticky
+      // across reloads via Firebase's local persistence) can later delete
+      // their own tiles. No one else's uid matches.
+      uid: auth.currentUser?.uid || "",
     });
   } catch (e) {
     console.warn("feed write failed (file still uploaded)", e);
@@ -433,8 +441,23 @@ function renderGallery() {
     const tag = entry.guest
       ? `<div class="guest-tag">${escHtml(entry.guest)}</div>`
       : "";
-    tile.innerHTML = mediaHtml + tag;
-    tile.addEventListener("click", () => openLightbox(entry.id));
+    const isOwn = entry.uid && entry.uid === auth.currentUser?.uid;
+    const deleteBtn = isOwn
+      ? `<button class="tile-delete" data-delete-id="${entry.id}" aria-label="Remove your upload" title="Remove">
+           <span class="material-symbols-outlined" style="font-size:16px">delete</span>
+         </button>`
+      : "";
+    tile.innerHTML = mediaHtml + tag + deleteBtn;
+    tile.addEventListener("click", (e) => {
+      // Don't open lightbox if the user clicked the delete chip.
+      if (e.target.closest("[data-delete-id]")) return;
+      openLightbox(entry.id);
+    });
+    const delEl = tile.querySelector("[data-delete-id]");
+    if (delEl) delEl.addEventListener("click", (e) => {
+      e.stopPropagation();
+      askDelete(entry.id);
+    });
     galleryGrid.appendChild(tile);
     _renderedIds.add(entry.id);
   }
@@ -493,6 +516,11 @@ function paintLightbox() {
   if (entry.guest) parts.push(escHtml(entry.guest));
   parts.push(`${_lightboxIdx + 1} / ${_feed.length}`);
   lbCaption.innerHTML = parts.join(" · ");
+  // Show the lightbox-level delete button only on the uploader's own media.
+  const isOwn = entry.uid && entry.uid === auth.currentUser?.uid;
+  lbDelete.dataset.feedId = entry.id;
+  if (isOwn) lbDelete.classList.remove("hidden-init");
+  else       lbDelete.classList.add("hidden-init");
 }
 
 function nav(delta) {
@@ -522,6 +550,89 @@ lbStage.addEventListener("touchend", (e) => {
   const dx = e.changedTouches[0].clientX - _touchX;
   if (Math.abs(dx) > 48) nav(dx < 0 ? 1 : -1);
 }, { passive: true });
+
+// === Delete (owner-only) =================================================
+// Two entry points (tile chip + lightbox button) both call askDelete(id),
+// which opens the confirm modal. The modal's confirm runs deleteEntry, which
+// removes the Storage object first (so we never end up with a tombstoned
+// RTDB entry pointing at a 404) then the RTDB record.
+
+let _pendingDeleteId = null;
+
+function askDelete(id) {
+  const entry = _feed.find((e) => e.id === id);
+  if (!entry) return;
+  if (entry.uid !== auth.currentUser?.uid) {
+    showToast("You can only remove your own uploads", "err");
+    return;
+  }
+  _pendingDeleteId = id;
+  confirmModal.classList.add("open");
+  confirmModal.setAttribute("aria-hidden", "false");
+  document.body.style.overflow = "hidden";
+}
+
+function closeConfirm() {
+  confirmModal.classList.remove("open");
+  confirmModal.setAttribute("aria-hidden", "true");
+  _pendingDeleteId = null;
+  modalConfirm.disabled = false;
+  modalConfirm.innerHTML = "Yes, remove";
+  // Restore scroll lock only if the lightbox isn't also open.
+  if (!lightbox.classList.contains("open")) document.body.style.overflow = "";
+}
+
+async function deleteEntry(id) {
+  const entry = _feed.find((e) => e.id === id);
+  if (!entry) return;
+  // Storage first. If the object is already gone (e.g. previously deleted via
+  // console), swallow the not-found and proceed to clear the RTDB record.
+  if (entry.path) {
+    try {
+      await deleteObject(ref(storage, entry.path));
+    } catch (e) {
+      if (e?.code !== "storage/object-not-found") {
+        console.error("storage delete failed", e);
+        throw e;
+      }
+    }
+  }
+  await dbRemove(dbRef(db, `${FEED_PATH}/${id}`));
+}
+
+modalCancel.addEventListener("click", closeConfirm);
+confirmModal.addEventListener("click", (e) => {
+  if (e.target === confirmModal) closeConfirm();
+});
+modalConfirm.addEventListener("click", async () => {
+  if (!_pendingDeleteId) return;
+  modalConfirm.disabled = true;
+  modalConfirm.innerHTML = `<span class="material-symbols-outlined align-middle" style="font-size:18px">hourglass_top</span> Removing…`;
+  const id = _pendingDeleteId;
+  try {
+    await deleteEntry(id);
+    showToast("Removed");
+    // If the lightbox was showing this entry, close it — the feed update
+    // about to arrive will reorder tiles around it anyway.
+    if (lightbox.classList.contains("open")) {
+      const stillThere = _feed.find((e) => e.id === id);
+      if (!stillThere) closeLightbox();
+    }
+  } catch (e) {
+    console.error(e);
+    showToast(e?.message || "Couldn't remove the photo", "err", 4000);
+  } finally {
+    closeConfirm();
+  }
+});
+
+document.addEventListener("keydown", (e) => {
+  if (confirmModal.classList.contains("open") && e.key === "Escape") closeConfirm();
+});
+
+lbDelete.addEventListener("click", () => {
+  if (lbDelete.dataset.feedId) askDelete(lbDelete.dataset.feedId);
+});
 
 // Kick off the gallery once auth is settled — Storage download URLs include a
 // token so they're readable without further auth, but RTDB rules may require

@@ -126,18 +126,17 @@
         position: absolute;
         top: 6px;
         right: 6px;
-        background: rgba(0, 0, 0, 0.45);
+        background: rgba(0, 0, 0, 0.55);
         color: white;
-        width: 26px;
-        height: 26px;
+        width: 28px;
+        height: 28px;
         border-radius: 999px;
         display: grid;
         place-items: center;
         cursor: pointer;
-        opacity: 0;
-        transition: opacity 0.25s ease;
+        transition: background 0.22s ease, transform 0.22s cubic-bezier(0.22, 1, 0.36, 1);
       }
-      .thumb:hover .remove { opacity: 1; }
+      .thumb .remove:hover { background: rgba(0, 0, 0, 0.78); transform: scale(1.08); }
       .thumb.uploading .remove { display: none; }
 
       /* Primary button */
@@ -251,6 +250,122 @@
         text-align: center;
       }
       .gallery-item:hover .guest-tag { opacity: 1; }
+      .gallery-item .tile-delete {
+        position: absolute;
+        top: 6px;
+        right: 6px;
+        background: rgba(0, 0, 0, 0.55);
+        color: white;
+        width: 28px;
+        height: 28px;
+        border-radius: 999px;
+        display: grid;
+        place-items: center;
+        cursor: pointer;
+        z-index: 2;
+        transition: background 0.22s ease, transform 0.22s cubic-bezier(0.22, 1, 0.36, 1);
+      }
+      .gallery-item .tile-delete:hover {
+        background: rgba(160, 50, 50, 0.92);
+        transform: scale(1.08);
+      }
+
+      /* Lightbox delete button (only rendered on owned media) */
+      .lb-delete {
+        position: absolute;
+        bottom: 18px;
+        left: 18px;
+        background: rgba(255, 255, 255, 0.12);
+        color: white;
+        border-radius: 999px;
+        height: 44px;
+        padding: 0 18px;
+        display: flex;
+        align-items: center;
+        gap: 6px;
+        cursor: pointer;
+        backdrop-filter: blur(4px);
+        font-size: 0.8rem;
+        letter-spacing: 0.04em;
+        transition: background 0.22s ease, transform 0.22s cubic-bezier(0.22, 1, 0.36, 1);
+      }
+      .lb-delete:hover {
+        background: rgba(160, 50, 50, 0.85);
+        transform: scale(1.04);
+      }
+
+      /* Confirm modal */
+      .modal {
+        position: fixed;
+        inset: 0;
+        background: rgba(20, 18, 16, 0.55);
+        backdrop-filter: blur(8px);
+        z-index: 110;
+        display: none;
+        align-items: center;
+        justify-content: center;
+        padding: 24px;
+        opacity: 0;
+        transition: opacity 0.32s ease;
+      }
+      .modal.open {
+        display: flex;
+        opacity: 1;
+      }
+      .modal-card {
+        max-width: 380px;
+        width: 100%;
+        background: var(--paper);
+        border-radius: 22px;
+        padding: 28px 26px 22px;
+        text-align: center;
+        box-shadow: 0 24px 60px rgba(0, 0, 0, 0.28);
+        transform: translateY(14px) scale(0.96);
+        opacity: 0;
+        animation: modalIn 0.42s cubic-bezier(0.22, 1, 0.36, 1) forwards;
+      }
+      @keyframes modalIn {
+        to { transform: translateY(0) scale(1); opacity: 1; }
+      }
+      .modal-card h3 {
+        font-family: "Playfair Display", serif;
+        font-size: 1.5rem;
+        color: var(--ink);
+      }
+      .modal-card p {
+        margin-top: 10px;
+        font-size: 0.92rem;
+        color: var(--ink-soft);
+      }
+      .modal-actions {
+        margin-top: 22px;
+        display: flex;
+        gap: 10px;
+      }
+      .modal-actions button {
+        flex: 1;
+        padding: 12px 16px;
+        border-radius: 14px;
+        font-size: 0.86rem;
+        letter-spacing: 0.04em;
+        transition: transform 0.22s cubic-bezier(0.22, 1, 0.36, 1), background 0.22s ease, color 0.22s ease, box-shadow 0.22s ease;
+      }
+      .modal-actions .btn-ghost {
+        border: 1.5px solid var(--ink);
+        color: var(--ink);
+        background: transparent;
+      }
+      .modal-actions .btn-ghost:hover { background: var(--ink); color: var(--paper); transform: translateY(-1px); }
+      .modal-actions .btn-danger {
+        background: #a83838;
+        color: white;
+      }
+      .modal-actions .btn-danger:hover {
+        background: #8b2c2c;
+        transform: translateY(-1px);
+        box-shadow: 0 8px 20px rgba(168, 56, 56, 0.32);
+      }
+      .modal-actions .btn-danger:disabled { opacity: 0.55; cursor: not-allowed; transform: none; box-shadow: none; }
 
       /* Lightbox */
       .lightbox {
@@ -467,7 +582,24 @@
         <span class="material-symbols-outlined">chevron_right</span>
       </button>
       <div class="lb-stage" id="lb-stage"></div>
+      <button class="lb-delete hidden-init" id="lb-delete" aria-label="Remove your upload">
+        <span class="material-symbols-outlined" style="font-size:18px">delete</span>
+        Remove
+      </button>
       <div class="lb-caption" id="lb-caption"></div>
+    </div>
+
+    <!-- Confirm-delete modal -->
+    <div id="confirm-modal" class="modal" aria-hidden="true">
+      <div class="modal-card">
+        <span class="material-symbols-outlined" style="font-size:36px;color:#a83838">delete</span>
+        <h3>Remove this photo?</h3>
+        <p>It will be deleted from the shared album and from our storage — this can't be undone.</p>
+        <div class="modal-actions">
+          <button class="btn-ghost" id="modal-cancel">Cancel</button>
+          <button class="btn-danger" id="modal-confirm">Yes, remove</button>
+        </div>
+      </div>
     </div>
 
     <div id="toast" class="toast"><span id="toast-msg"></span></div>
