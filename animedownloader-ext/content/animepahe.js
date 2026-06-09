@@ -1227,19 +1227,27 @@
       }
       /* Per-card reveal gate — hide each .episode-wrap until its genre
          verdict is in (cached, fetched, or unverifiable), so NSFW cards
-         get yanked before they ever flash on screen. Matches the vm-
-         management "Select Segment" pill fade pattern: opacity 0→1 +
-         translateY(8px)→0, 0.35s ease. The data-fl-prepped attribute is
-         set by injectFirstButtons so cards animepahe paints before our
-         script runs aren't blanked retroactively. */
+         get yanked before they ever flash on screen.
+
+         Polished reveal: opacity + lift + scale + blur unwind, all on a
+         cubic-bezier(0.16, 1, 0.3, 1) "smooth-out" curve over 0.7s. Cards
+         feel like they're focusing in from a slight depth rather than
+         just flicking on. data-fl-prepped is set by injectFirstButtons
+         so cards animepahe paints before our script runs aren't blanked
+         retroactively. */
       .episode-wrap[data-fl-prepped] {
         opacity: 0;
-        transform: translateY(8px);
-        transition: opacity 0.35s ease, transform 0.35s ease;
+        transform: translateY(16px) scale(0.96);
+        filter: blur(4px);
+        transition:
+          opacity 0.7s cubic-bezier(0.16, 1, 0.3, 1),
+          transform 0.7s cubic-bezier(0.16, 1, 0.3, 1),
+          filter 0.5s cubic-bezier(0.16, 1, 0.3, 1);
       }
       .episode-wrap[data-fl-prepped].fl-revealed {
         opacity: 1;
-        transform: translateY(0);
+        transform: translateY(0) scale(1);
+        filter: blur(0);
       }
       /* Poof — used for BOTH the NSFW yank and genre-filter hide. Switched
          from @keyframes to !important + transition because the keyframe
@@ -1904,7 +1912,9 @@
         // cards = ~4s) was the stutter on next/prev. NSFW removal still
         // happens when the fetch lands, but the card may briefly flash.
         wrap.dataset.flPrepped = "1";
-        setTimeout(() => _revealCard(wrap), idx * 40);
+        // 85ms per-card stagger pairs with the 0.7s transition for a
+        // slow, cascading focus-in across the grid.
+        setTimeout(() => _revealCard(wrap), idx * 85);
         const snapshot = wrap.querySelector(".episode-snapshot");
         const titleLink = wrap.querySelector(".episode-title a");
         const href = titleLink?.getAttribute("href");
