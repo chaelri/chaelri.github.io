@@ -196,6 +196,140 @@
         color: var(--sage-deep);
       }
 
+      /* Gallery */
+      .gallery-item {
+        position: relative;
+        aspect-ratio: 1 / 1;
+        border-radius: 12px;
+        overflow: hidden;
+        background: rgba(255, 255, 255, 0.5);
+        box-shadow: 0 2px 10px rgba(26, 24, 22, 0.05);
+        cursor: zoom-in;
+        opacity: 0;
+        transform: scale(0.92);
+        animation: tileIn 0.55s cubic-bezier(0.22, 1, 0.36, 1) forwards;
+        transition: transform 0.32s cubic-bezier(0.22, 1, 0.36, 1), box-shadow 0.32s ease;
+      }
+      .gallery-item:hover {
+        transform: translateY(-3px) scale(1.02);
+        box-shadow: 0 10px 24px rgba(26, 24, 22, 0.14);
+      }
+      .gallery-item img, .gallery-item video {
+        width: 100%;
+        height: 100%;
+        object-fit: cover;
+        display: block;
+      }
+      @keyframes tileIn {
+        to { opacity: 1; transform: scale(1); }
+      }
+      .gallery-item .video-badge {
+        position: absolute;
+        top: 6px;
+        right: 6px;
+        background: rgba(0, 0, 0, 0.55);
+        color: white;
+        border-radius: 999px;
+        width: 26px;
+        height: 26px;
+        display: grid;
+        place-items: center;
+        backdrop-filter: blur(4px);
+      }
+      .gallery-item .guest-tag {
+        position: absolute;
+        left: 0;
+        right: 0;
+        bottom: 0;
+        padding: 16px 8px 6px;
+        font-size: 0.66rem;
+        color: white;
+        letter-spacing: 0.06em;
+        background: linear-gradient(to top, rgba(0, 0, 0, 0.55), rgba(0, 0, 0, 0));
+        opacity: 0;
+        transition: opacity 0.25s ease;
+        text-align: center;
+      }
+      .gallery-item:hover .guest-tag { opacity: 1; }
+
+      /* Lightbox */
+      .lightbox {
+        position: fixed;
+        inset: 0;
+        background: rgba(20, 18, 16, 0.92);
+        backdrop-filter: blur(12px);
+        z-index: 100;
+        display: none;
+        align-items: center;
+        justify-content: center;
+        padding: 36px 16px;
+        opacity: 0;
+        transition: opacity 0.32s ease;
+      }
+      .lightbox.open {
+        display: flex;
+        opacity: 1;
+      }
+      .lb-stage {
+        max-width: min(96vw, 1400px);
+        max-height: 80vh;
+        display: flex;
+        align-items: center;
+        justify-content: center;
+      }
+      .lb-stage img, .lb-stage video {
+        max-width: 100%;
+        max-height: 80vh;
+        border-radius: 12px;
+        box-shadow: 0 24px 60px rgba(0, 0, 0, 0.45);
+        animation: lbZoomIn 0.4s cubic-bezier(0.22, 1, 0.36, 1);
+        background: var(--paper);
+      }
+      @keyframes lbZoomIn {
+        from { opacity: 0; transform: scale(0.95); }
+        to   { opacity: 1; transform: scale(1); }
+      }
+      .lb-close, .lb-nav {
+        position: absolute;
+        background: rgba(255, 255, 255, 0.12);
+        color: white;
+        border-radius: 999px;
+        width: 48px;
+        height: 48px;
+        display: grid;
+        place-items: center;
+        cursor: pointer;
+        backdrop-filter: blur(4px);
+        transition: background 0.22s ease, transform 0.22s cubic-bezier(0.22, 1, 0.36, 1);
+      }
+      .lb-close:hover, .lb-nav:hover {
+        background: rgba(255, 255, 255, 0.22);
+        transform: scale(1.06);
+      }
+      .lb-close { top: 18px; right: 18px; }
+      .lb-prev { left: 16px; top: 50%; transform: translateY(-50%); }
+      .lb-next { right: 16px; top: 50%; transform: translateY(-50%); }
+      .lb-prev:hover { transform: translateY(-50%) scale(1.06); }
+      .lb-next:hover { transform: translateY(-50%) scale(1.06); }
+      .lb-caption {
+        position: absolute;
+        bottom: 24px;
+        left: 0;
+        right: 0;
+        text-align: center;
+        color: rgba(255, 255, 255, 0.86);
+        font-size: 0.82rem;
+        letter-spacing: 0.04em;
+        pointer-events: none;
+      }
+      @media (max-width: 640px) {
+        .lb-prev, .lb-next { top: auto; bottom: 56px; transform: none; }
+        .lb-prev:hover, .lb-next:hover { transform: scale(1.06); }
+        .lb-prev { left: 16px; }
+        .lb-next { right: 16px; }
+        .lb-caption { bottom: 12px; }
+      }
+
       /* Toast */
       .toast {
         position: fixed;
@@ -292,11 +426,49 @@
         </button>
       </section>
 
+      <!-- Gallery divider -->
+      <div class="mt-20 mb-8 flex items-center gap-4 anim-in" style="animation-delay: 0.4s">
+        <div class="flex-1 h-px" style="background: rgba(26,24,22,0.12)"></div>
+        <div class="text-[0.7rem] tracking-[0.32em] uppercase" style="color: var(--ink-faint)">From our guests</div>
+        <div class="flex-1 h-px" style="background: rgba(26,24,22,0.12)"></div>
+      </div>
+
+      <!-- Gallery -->
+      <section id="gallery-section">
+        <div class="text-center mb-6">
+          <h2 class="font-script text-4xl sm:text-5xl leading-none" style="color: var(--ink)">our shared album</h2>
+          <p class="mt-3 text-sm sm:text-base" style="color: var(--ink-soft)">
+            Every moment our guests captured, all in one place.
+          </p>
+          <p id="gallery-count" class="mt-2 text-xs tracking-[0.2em] uppercase" style="color: var(--ink-faint)"></p>
+        </div>
+        <div id="gallery-empty" class="text-center py-12 hidden-init">
+          <span class="material-symbols-outlined" style="font-size:48px;color:var(--ink-faint)">photo_library</span>
+          <p class="mt-3 text-sm" style="color:var(--ink-soft)">No photos yet — be the first to share a moment ♡</p>
+        </div>
+        <div id="gallery-grid" class="grid grid-cols-3 sm:grid-cols-4 md:grid-cols-5 gap-2 sm:gap-3"></div>
+      </section>
+
       <!-- Footer -->
-      <footer class="mt-16 text-center text-xs tracking-[0.2em] uppercase" style="color: var(--ink-faint)">
+      <footer class="mt-20 text-center text-xs tracking-[0.2em] uppercase" style="color: var(--ink-faint)">
         Made with love · #CharliesGoldenKarla
       </footer>
     </main>
+
+    <!-- Lightbox -->
+    <div id="lightbox" class="lightbox" aria-hidden="true">
+      <button class="lb-close" id="lb-close" aria-label="Close">
+        <span class="material-symbols-outlined">close</span>
+      </button>
+      <button class="lb-nav lb-prev" id="lb-prev" aria-label="Previous">
+        <span class="material-symbols-outlined">chevron_left</span>
+      </button>
+      <button class="lb-nav lb-next" id="lb-next" aria-label="Next">
+        <span class="material-symbols-outlined">chevron_right</span>
+      </button>
+      <div class="lb-stage" id="lb-stage"></div>
+      <div class="lb-caption" id="lb-caption"></div>
+    </div>
 
     <div id="toast" class="toast"><span id="toast-msg"></span></div>
 
