@@ -94,6 +94,15 @@ florals.forEach((el, i) => setTimeout(() => el.classList.add("in"), 120 + i * 90
 const items = new Map();                                    // id → { file, blob, url, status, pct }
 let isUploading = false;
 
+// Admin mode — Charlie's escape hatch when he needs to delete an orphan or a
+// guest's tile from his own device. Set by visiting ?admin=1 once; sticky in
+// localStorage after that. In admin mode every tile shows the delete chip
+// and the uid-ownership guard is bypassed.
+const params = new URLSearchParams(location.search);
+if (params.get("admin") === "1") localStorage.setItem("stl:admin", "1");
+if (params.get("admin") === "0") localStorage.removeItem("stl:admin");
+const IS_ADMIN = localStorage.getItem("stl:admin") === "1";
+
 function rand() { return Math.random().toString(36).slice(2, 10); }
 
 function showToast(msg, kind = "ok", ms = 2400) {
@@ -445,12 +454,22 @@ function renderGallery() {
       ? `<div class="guest-tag">${escHtml(entry.guest)}</div>`
       : "";
     const isOwn = entry.uid && entry.uid === auth.currentUser?.uid;
-    const deleteBtn = isOwn
-      ? `<button class="tile-delete" data-delete-id="${entry.id}" aria-label="Remove your upload" title="Remove">
+    const canDelete = isOwn || IS_ADMIN;
+    const deleteBtn = canDelete
+      ? `<button class="tile-delete" data-delete-id="${entry.id}" aria-label="Remove this upload" title="Remove">
            <span class="material-symbols-outlined" style="font-size:16px">delete</span>
          </button>`
       : "";
     tile.innerHTML = mediaHtml + tag + deleteBtn;
+    // Self-heal: if the storage object behind this tile is already gone (e.g.
+    // someone deleted it via the Firebase console), the browser fires the
+    // media error event. Clean the dangling RTDB entry so every other guest's
+    // gallery wipes the broken tile too. Only fires once per tile to avoid
+    // loops on transient network errors.
+    const mediaEl = tile.querySelector("img, video");
+    if (mediaEl) {
+      mediaEl.addEventListener("error", () => pruneDeadEntry(entry.id, entry.url), { once: true });
+    }
     tile.addEventListener("click", (e) => {
       // Don't open lightbox if the user clicked the delete chip.
       if (e.target.closest("[data-delete-id]")) return;
@@ -575,11 +594,13 @@ function paintLightbox() {
   if (entry.guest) parts.push(escHtml(entry.guest));
   parts.push(`${_lightboxIdx + 1} / ${_feed.length}`);
   lbCaption.innerHTML = parts.join(" · ");
-  // Show the lightbox-level delete button only on the uploader's own media.
+  // Show the lightbox-level delete button on the uploader's own media — or
+  // on every tile when admin mode is on.
   const isOwn = entry.uid && entry.uid === auth.currentUser?.uid;
+  const canDelete = isOwn || IS_ADMIN;
   lbDelete.dataset.feedId = entry.id;
-  if (isOwn) lbDelete.classList.remove("hidden-init");
-  else       lbDelete.classList.add("hidden-init");
+  if (canDelete) lbDelete.classList.remove("hidden-init");
+  else           lbDelete.classList.add("hidden-init");
 }
 
 function nav(delta) {
@@ -621,7 +642,8 @@ let _pendingDeleteId = null;
 function askDelete(id) {
   const entry = _feed.find((e) => e.id === id);
   if (!entry) return;
-  if (entry.uid !== auth.currentUser?.uid) {
+  // Admin mode bypasses the owner check.
+  if (!IS_ADMIN && entry.uid !== auth.currentUser?.uid) {
     showToast("You can only remove your own uploads", "err");
     return;
   }
@@ -692,6 +714,45 @@ document.addEventListener("keydown", (e) => {
 lbDelete.addEventListener("click", () => {
   if (lbDelete.dataset.feedId) askDelete(lbDelete.dataset.feedId);
 });
+
+// Remove a feed entry whose underlying storage object no longer exists.
+// Guarded by a per-page session set so a flapping image (loading then
+// erroring) doesn't trigger repeated delete attempts.
+const _pruned = new Set();
+async function pruneDeadEntry(id, url) {
+  if (_pruned.has(id)) return;
+  _pruned.add(id);
+  // Confirm the dead URL really 404s rather than tearing down the entry on a
+  // transient network blip. HEAD is cheap and Firebase Storage signed URLs
+  // return 404 explicitly when the object is gone.
+  try {
+    const resp = await fetch(url, { method: "HEAD" });
+    if (resp.ok) return;                                    // false alarm
+  } catch {
+    // Network error — don't prune; we'll get another shot on next load.
+    return;
+  }
+  try {
+    await dbRemove(dbRef(db, `${FEED_PATH}/${id}`));
+    console.log("pruned dead feed entry", id);
+  } catch (e) {
+    console.warn("prune failed", id, e);
+  }
+}
+
+// Admin badge — purely visual so Charlie knows he's in admin mode and can
+// delete any tile. Tap the badge to drop back to normal mode.
+if (IS_ADMIN) {
+  const badge = document.createElement("button");
+  badge.textContent = "ADMIN · TAP TO EXIT";
+  badge.style.cssText = "position:fixed;top:14px;right:14px;z-index:60;background:#a83838;color:white;font-size:0.66rem;letter-spacing:0.18em;padding:6px 10px;border-radius:999px;box-shadow:0 6px 16px rgba(168,56,56,0.32);cursor:pointer";
+  badge.addEventListener("click", () => {
+    localStorage.removeItem("stl:admin");
+    location.search = location.search.replace(/[?&]admin=1/g, "");
+    location.reload();
+  });
+  document.body.appendChild(badge);
+}
 
 // Kick off the gallery once auth is settled — Storage download URLs include a
 // token so they're readable without further auth, but RTDB rules may require
