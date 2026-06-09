@@ -1249,6 +1249,36 @@
         transform: translateY(0) scale(1);
         filter: blur(0);
       }
+      /* Hover lift — only enabled AFTER the reveal cascade finishes
+         (.fl-hover-ready is set ~700ms post-reveal). If we'd put the
+         hover rule on .fl-revealed directly, the snappy 0.22s hover
+         transition would overwrite the 0.7s reveal transition and the
+         initial focus-in would feel rushed. */
+      .episode-wrap[data-fl-prepped].fl-hover-ready {
+        transition:
+          opacity 0.7s cubic-bezier(0.16, 1, 0.3, 1),
+          transform 0.22s cubic-bezier(0.22, 1, 0.36, 1),
+          filter 0.5s cubic-bezier(0.16, 1, 0.3, 1),
+          box-shadow 0.22s cubic-bezier(0.22, 1, 0.36, 1);
+        will-change: transform;
+      }
+      .episode-wrap[data-fl-prepped].fl-hover-ready:hover {
+        transform: translateY(-4px) scale(1);
+        box-shadow:
+          0 14px 32px rgba(0, 0, 0, 0.45),
+          0 4px 10px rgba(0, 0, 0, 0.35),
+          0 0 0 1px rgba(255, 255, 255, 0.05);
+        z-index: 2;
+      }
+      /* Page transition — fades the whole grid out when the user clicks
+         any pagination chevron, so animepahe's snap-swap of the cards
+         doesn't read as a hard cut. MutationObserver clears the class
+         when the new cards land, and the staggered reveal then cascades
+         them back in. */
+      .fl-page-transitioning {
+        opacity: 0;
+        transition: opacity 0.18s cubic-bezier(0.4, 0, 0.6, 1);
+      }
       /* Poof — used for BOTH the NSFW yank and genre-filter hide. Switched
          from @keyframes to !important + transition because the keyframe
          path was losing the cascade fight with [data-fl-prepped].fl-revealed
@@ -1867,7 +1897,15 @@
     if (!wrap || !wrap.isConnected) return;
     if (wrap.classList.contains("fl-revealed")) return;
     requestAnimationFrame(() => {
-      if (wrap.isConnected) wrap.classList.add("fl-revealed");
+      if (!wrap.isConnected) return;
+      wrap.classList.add("fl-revealed");
+      // Enable the snappy 0.22s hover transition only after the slow
+      // reveal cascade finishes (~700ms). Otherwise the hover rule
+      // overrides the reveal rule's transition and the focus-in feels
+      // rushed.
+      setTimeout(() => {
+        if (wrap.isConnected) wrap.classList.add("fl-hover-ready");
+      }, 720);
     });
   }
 
@@ -1980,6 +2018,7 @@
 
     injectFirstButtons();
     _syncTopPagination();
+    _wirePageTransition();
 
     // Observe the whole home container so pagination that swaps out
     // .episode-list-wrapper still triggers our hook.
@@ -1992,12 +2031,48 @@
         if (!_extAlive()) return; // extension reloaded — stop touching chrome.*
         injectFirstButtons();
         _syncTopPagination();
+        // New cards landed — clear the page-transition fade so the
+        // grid is opaque again. The cards themselves are still at
+        // opacity:0 from data-fl-prepped, so the staggered reveal
+        // takes over for the actual cascade in.
+        const grid = document.querySelector(".episode-wrap")?.parentElement;
+        if (grid && grid.classList.contains("fl-page-transitioning")) {
+          grid.classList.remove("fl-page-transitioning");
+        }
       };
       new MutationObserver(onMutation).observe(target, {
         childList: true,
         subtree: true,
       });
     }
+  }
+
+  // Capture-phase click listener that fades the grid out the instant any
+  // .page-link is clicked (top clone or animepahe's own bottom strip).
+  // animepahe's AJAX swap fires right after, and MutationObserver clears
+  // the fade when the new cards land.
+  let _pageTransitionSafetyTimer = null;
+  function _wirePageTransition() {
+    if (document.body.dataset.flPageTransitionWired === "1") return;
+    document.body.dataset.flPageTransitionWired = "1";
+    document.addEventListener(
+      "click",
+      (e) => {
+        const link = e.target.closest(".page-link");
+        if (!link) return;
+        const grid = document.querySelector(".episode-wrap")?.parentElement;
+        if (!grid) return;
+        grid.classList.add("fl-page-transitioning");
+        // Safety net: if MutationObserver never fires (e.g., the click
+        // didn't actually navigate), strip the fade after 1.5s so the
+        // grid doesn't get stuck invisible.
+        clearTimeout(_pageTransitionSafetyTimer);
+        _pageTransitionSafetyTimer = setTimeout(() => {
+          grid.classList.remove("fl-page-transitioning");
+        }, 1500);
+      },
+      true
+    );
   }
 
   // Mirror the bottom pagination strip next to the "Latest Releases" heading.
