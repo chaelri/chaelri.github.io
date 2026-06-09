@@ -171,6 +171,14 @@ body {
   padding: 6px;
 }
 
+@media (min-width: 720px) {
+  .bars {
+    display: grid;
+    grid-template-columns: 1fr 1fr;
+    gap: 12px 24px;
+  }
+}
+
 .bar-card {
   color: white;
   border: 0;
