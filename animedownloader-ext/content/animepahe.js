@@ -1533,7 +1533,7 @@
   // with a small gap between requests — to keep the IP out of the penalty box.
   const _genreQueue = [];
   let _genreActive = 0;
-  const GENRE_CONCURRENCY = 3;
+  const GENRE_CONCURRENCY = 9;
   const GENRE_INTER_REQ_MS = 40;
   function _pumpGenreQueue() {
     while (_genreActive < GENRE_CONCURRENCY && _genreQueue.length) {
