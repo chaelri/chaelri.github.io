@@ -17,6 +17,7 @@ import {
 } from "https://www.gstatic.com/firebasejs/10.13.2/firebase-auth.js";
 import {
   getStorage, ref, uploadBytesResumable, getDownloadURL, deleteObject,
+  listAll, getMetadata,
 } from "https://www.gstatic.com/firebasejs/10.13.2/firebase-storage.js";
 import {
   getDatabase, ref as dbRef, push, set as dbSet, remove as dbRemove,
@@ -315,11 +316,13 @@ async function uploadOne(id, it, guestName) {
   // Write a feed entry once the bytes land — gallery subscription picks it up
   // and the tile appears in the shared album for every other guest in
   // real time. URL is captured here so the gallery doesn't have to query
-  // getDownloadURL on every render.
+  // getDownloadURL on every render. Feed key is derived from the storage
+  // filename (RTDB-safe — dots → underscores) so the reconcile job can't
+  // race-double-write the same entry.
   try {
     const url = await getDownloadURL(fileRef);
-    const feedRef = push(dbRef(db, FEED_PATH));
-    await dbSet(feedRef, {
+    const feedKey = filename.replace(/[.#$/\[\]]/g, "_");
+    await dbSet(dbRef(db, `${FEED_PATH}/${feedKey}`), {
       url,
       name: it.file.name.slice(0, 120),
       guest: (guestName || "").slice(0, 80),
@@ -475,6 +478,7 @@ function renderGallery() {
   }
 }
 
+let _firstSnapshotReceived = false;
 function subscribeFeed() {
   const q = dbQuery(dbRef(db, FEED_PATH), limitToLast(FEED_LIMIT));
   onValue(q, (snap) => {
@@ -483,9 +487,64 @@ function subscribeFeed() {
     list.sort((a, b) => (b.ts || 0) - (a.ts || 0));
     _feed = list;
     renderGallery();
+    if (!_firstSnapshotReceived) {
+      _firstSnapshotReceived = true;
+      // Self-heal Storage / feed drift on first load. Anything in the bucket
+      // that the feed doesn't know about (e.g. files uploaded before this
+      // page started writing feed entries) gets backfilled.
+      reconcileOrphans().catch((e) => console.warn("reconcile failed", e));
+    }
   }, (err) => {
     console.warn("gallery subscribe failed", err);
   });
+}
+
+// Walk every month folder under wedding-uploads/ and write a feed entry for
+// any storage object the RTDB feed is missing. Deterministic feed keys
+// (filename with dots → underscores) make concurrent reconciles idempotent.
+// Orphan entries land with uid="" so they can't be deleted through the
+// owner-only UI (Charlie can still remove them from the Firebase console).
+async function reconcileOrphans() {
+  const FLAG_KEY = "stl:storage-reconciled-v1";
+  if (localStorage.getItem(FLAG_KEY)) return;
+  const known = new Set(_feed.map((e) => e.path).filter(Boolean));
+  let root;
+  try {
+    root = await listAll(ref(storage, STORAGE_ROOT));
+  } catch (e) {
+    console.warn("listAll root failed", e);
+    return;
+  }
+  let addedCount = 0;
+  for (const monthRef of root.prefixes) {
+    let month;
+    try { month = await listAll(monthRef); }
+    catch (e) { console.warn("listAll month failed", monthRef.fullPath, e); continue; }
+    for (const item of month.items) {
+      if (known.has(item.fullPath)) continue;
+      try {
+        const [url, meta] = await Promise.all([
+          getDownloadURL(item),
+          getMetadata(item),
+        ]);
+        const feedKey = item.name.replace(/[.#$/\[\]]/g, "_");
+        await dbSet(dbRef(db, `${FEED_PATH}/${feedKey}`), {
+          url,
+          name: meta.customMetadata?.originalName || item.name,
+          guest: meta.customMetadata?.guestName || "",
+          ts: new Date(meta.timeCreated).getTime() || Date.now(),
+          isVideo: !(meta.contentType?.startsWith("image/")),
+          path: item.fullPath,
+          uid: "",                                          // orphan — admin-only delete
+        });
+        addedCount++;
+      } catch (e) {
+        console.warn("reconcile item failed", item.fullPath, e);
+      }
+    }
+  }
+  localStorage.setItem(FLAG_KEY, "1");
+  if (addedCount) console.log(`reconcile: backfilled ${addedCount} storage orphans into feed`);
 }
 
 function openLightbox(id) {
