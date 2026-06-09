@@ -310,6 +310,28 @@ function rightColumn() {
   return parts.join("");
 }
 
+// Fold guides — two vertical dashed lines marking where to fold the card into
+// a tri-fold table tent. Sit in the inter-column gaps, light grey so they
+// print subtly. "FOLD" labels float at top + bottom of each crease.
+function foldGuides() {
+  const foldX = [
+    COL_X[0] + COL.w + COL.gap / 2,                         // 825 — between col 1 & 2
+    COL_X[1] + COL.w + COL.gap / 2,                         // 1575 — between col 2 & 3
+  ];
+  const parts = [];
+  for (const fx of foldX) {
+    parts.push(`<line x1="${fx}" y1="60" x2="${fx}" y2="${CARD.h - 60}"
+                stroke="#9a958c" stroke-width="2.4" stroke-dasharray="14 10" opacity="0.7"/>`);
+    parts.push(`<text x="${fx}" y="36" text-anchor="middle"
+                font-family="Inter, sans-serif" font-size="20" font-weight="500"
+                letter-spacing="4" fill="#9a958c">FOLD</text>`);
+    parts.push(`<text x="${fx}" y="${CARD.h - 18}" text-anchor="middle"
+                font-family="Inter, sans-serif" font-size="20" font-weight="500"
+                letter-spacing="4" fill="#9a958c">FOLD</text>`);
+  }
+  return parts.join("");
+}
+
 async function renderCardSVG(number) {
   const left = leftColumn(number);
   const mid = await middleColumn();
@@ -322,6 +344,7 @@ async function renderCardSVG(number) {
       ${left}
       ${mid}
       ${right}
+      ${foldGuides()}
     </svg>`;
 }
 
