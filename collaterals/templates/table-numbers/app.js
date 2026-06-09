@@ -15,11 +15,15 @@ import { fbGet, fbSet, fbSubscribe } from "../../shared/firebase-sync.js";
 import { COUPLE } from "../../shared/design.js";
 
 const TEMPLATE_ID = "table-numbers";
-const CARD = { w: 2400, h: 1800 };                          // 8″ × 6″ @ 300 DPI landscape
-const A4 = { w: 2480, h: 3508 };                            // A4 portrait @ 300 DPI
+// Card body is 8″ × 6″ landscape; a 200-px glue tab extends to the right of
+// panel 3 so the tri-folded tent can be pasted into a triangular tube
+// (tab wraps behind panel 1 after folding).
+const CARD = { w: 2600, h: 1800 };                          // 8.67″ × 6″ @ 300 DPI
+const A4 = { w: 3508, h: 2480 };                            // A4 landscape @ 300 DPI
 
-// Column geometry — three equal columns with outer margins + inter-column gaps.
-// 125 + 650 + 100 + 650 + 100 + 650 + 125 = 2400 ✓
+// Column geometry — three equal columns with outer margins + inter-column gaps,
+// plus the glue tab on the right.
+// 125 + 650 + 100 + 650 + 100 + 650 + 125 + 200 = 2600 ✓
 const COL = { w: 650, gap: 100, mLeft: 125 };
 const COL_X = [
   COL.mLeft,                                                // 125
@@ -27,6 +31,7 @@ const COL_X = [
   COL.mLeft + 2 * (COL.w + COL.gap),                        // 1625
 ];
 const COL_CX = COL_X.map((x) => x + COL.w / 2);             // [450, 1200, 1950]
+const TAB = { x: 2400, w: 200 };                            // glue tab — 200 × 1800
 
 // Defaults — couple/date pulled from shared/design.js. Charlie can override
 // any of these in the editor; values persist to localStorage + Firebase.
@@ -310,26 +315,38 @@ function rightColumn() {
   return parts.join("");
 }
 
-// Fold guides — two vertical dashed lines marking where to fold the card into
-// a tri-fold table tent. Sit in the inter-column gaps, light grey so they
-// print subtly. "FOLD" labels float at top + bottom of each crease.
+// Three vertical dashed creases — two between the columns + one between
+// panel 3 and the glue tab. Light grey so they print subtly.
 function foldGuides() {
   const foldX = [
     COL_X[0] + COL.w + COL.gap / 2,                         // 825 — between col 1 & 2
     COL_X[1] + COL.w + COL.gap / 2,                         // 1575 — between col 2 & 3
+    TAB.x,                                                  // 2400 — between col 3 & glue tab
   ];
-  const parts = [];
-  for (const fx of foldX) {
-    parts.push(`<line x1="${fx}" y1="60" x2="${fx}" y2="${CARD.h - 60}"
-                stroke="#9a958c" stroke-width="2.4" stroke-dasharray="14 10" opacity="0.7"/>`);
-    parts.push(`<text x="${fx}" y="36" text-anchor="middle"
-                font-family="Inter, sans-serif" font-size="20" font-weight="500"
-                letter-spacing="4" fill="#9a958c">FOLD</text>`);
-    parts.push(`<text x="${fx}" y="${CARD.h - 18}" text-anchor="middle"
-                font-family="Inter, sans-serif" font-size="20" font-weight="500"
-                letter-spacing="4" fill="#9a958c">FOLD</text>`);
-  }
-  return parts.join("");
+  return foldX.map((fx) => `<line x1="${fx}" y1="60" x2="${fx}" y2="${CARD.h - 60}"
+    stroke="#9a958c" stroke-width="2.4" stroke-dasharray="14 10" opacity="0.7"/>`).join("");
+}
+
+// Glue tab — diagonal-hatched strip right of panel 3 with a vertical "PASTE
+// HERE" label. After folding panel 2 behind panel 1 and panel 3 behind panel
+// 2, this tab wraps around and is pasted to the back of panel 1, closing the
+// triangular tube.
+function glueTab() {
+  const cx = TAB.x + TAB.w / 2;
+  const cy = CARD.h / 2;
+  return `
+    <defs>
+      <pattern id="tn-hatch" patternUnits="userSpaceOnUse" width="14" height="14" patternTransform="rotate(45)">
+        <line x1="0" y1="0" x2="0" y2="14" stroke="#cfc7bc" stroke-width="1.8"/>
+      </pattern>
+    </defs>
+    <rect x="${TAB.x}" y="60" width="${TAB.w}" height="${CARD.h - 120}"
+          fill="url(#tn-hatch)" opacity="0.65"/>
+    <text x="${cx}" y="${cy}" text-anchor="middle"
+          transform="rotate(-90 ${cx} ${cy})"
+          font-family="Inter, sans-serif" font-size="32" font-weight="500"
+          letter-spacing="8" fill="#7a746c">PASTE BEHIND PANEL 1</text>
+  `;
 }
 
 async function renderCardSVG(number) {
@@ -344,6 +361,7 @@ async function renderCardSVG(number) {
       ${left}
       ${mid}
       ${right}
+      ${glueTab()}
       ${foldGuides()}
     </svg>`;
 }
@@ -651,7 +669,7 @@ async function mount() {
     try {
       showToast("Loading PDF library…");
       const { jsPDF } = await import("https://esm.sh/jspdf@2.5.2");
-      const pdf = new jsPDF({ unit: "mm", format: "a4", orientation: "portrait", compress: true });
+      const pdf = new jsPDF({ unit: "mm", format: "a4", orientation: "landscape", compress: true });
       for (let i = 0; i < arr.length; i++) {
         showToast(`Rendering ${i + 1}/${arr.length}…`);
         const svg = await renderSheetSVG(arr[i]);
@@ -663,7 +681,7 @@ async function mount() {
           r.readAsDataURL(blob);
         });
         if (i > 0) pdf.addPage();
-        pdf.addImage(dataUrl, "PNG", 0, 0, 210, 297, undefined, "FAST");
+        pdf.addImage(dataUrl, "PNG", 0, 0, 297, 210, undefined, "FAST");
       }
       pdf.save(`Table Numbers — A4 print sheets.pdf`);
       showToast(`PDF saved · ${arr.length} ${arr.length === 1 ? "page" : "pages"}`);
