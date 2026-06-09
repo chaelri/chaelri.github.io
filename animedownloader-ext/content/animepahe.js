@@ -1685,10 +1685,14 @@
     } else if (empty) {
       empty.remove();
     }
-    // Hide the "Latest Releases" heading too when zero matches — it's
-    // pure noise next to an empty-state card.
+    // Hide the entire heading row (title + cloned top pagination) on zero
+    // matches — both are noise next to the empty-state card. Falls back to
+    // toggling just the heading if the row wasn't built yet (no pagination
+    // on the page, edge case).
+    const row = document.getElementById("fl-heading-row");
     const heading = _findLatestHeading();
-    if (heading) heading.classList.toggle("fl-hidden-by-filter", shouldShow);
+    const target = row || heading;
+    if (target) target.classList.toggle("fl-hidden-by-filter", shouldShow);
   }
 
   function _injectGenreFilterBar() {
