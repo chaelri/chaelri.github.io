@@ -1,0 +1,305 @@
+<!doctype html>
+<html lang="en">
+  <head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover" />
+    <title>Share the Love · Charlie & Karla</title>
+    <meta name="theme-color" content="#faf9f6" />
+    <link rel="icon" href="../collaterals/assets/ck-logo.png" />
+    <link rel="preconnect" href="https://fonts.googleapis.com" />
+    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
+    <link
+      rel="stylesheet"
+      href="https://fonts.googleapis.com/css2?family=Playfair+Display:ital,wght@0,400;0,700;1,400&family=Inter:wght@300;400;500;600;700&family=Dancing+Script:wght@500;700&family=Great+Vibes&family=Sacramento&display=swap"
+    />
+    <link rel="stylesheet" href="https://fonts.googleapis.com/icon?family=Material+Symbols+Outlined" />
+    <script src="https://cdn.tailwindcss.com"></script>
+    <style>
+      :root {
+        --paper: #faf9f6;
+        --paper-warm: #f3eedf;
+        --ink: #1a1816;
+        --ink-soft: #5b5550;
+        --ink-faint: #9a958c;
+        --sage: #7b8a5b;
+        --sage-deep: #5e6b44;
+        --gold: #b29554;
+        --blush: #d8a7a0;
+      }
+      html, body {
+        background: var(--paper);
+        color: var(--ink);
+        font-family: "Inter", system-ui, sans-serif;
+        -webkit-font-smoothing: antialiased;
+        -moz-osx-font-smoothing: grayscale;
+      }
+      .font-script { font-family: "Sacramento", cursive; }
+      .font-serif { font-family: "Playfair Display", serif; }
+
+      /* Floral accents — same PNGs we ship in weddingtest/collaterals. */
+      .floral {
+        position: absolute;
+        pointer-events: none;
+        user-select: none;
+        z-index: 0;
+        opacity: 0;
+      }
+      .floral.in {
+        animation: floralIn 1.6s cubic-bezier(0.22, 1, 0.36, 1) forwards;
+      }
+      @keyframes floralIn {
+        0%   { opacity: 0; transform: scale(0.86) rotate(var(--r, 0deg)); }
+        100% { opacity: 0.92; transform: scale(1) rotate(var(--r, 0deg)); }
+      }
+
+      /* Smooth content entrance */
+      .anim-in {
+        opacity: 0;
+        transform: translateY(18px);
+        animation: floatIn 0.9s cubic-bezier(0.22, 1, 0.36, 1) forwards;
+      }
+      @keyframes floatIn {
+        to { opacity: 1; transform: translateY(0); }
+      }
+
+      /* Drop zone */
+      .dropzone {
+        background: rgba(255, 255, 255, 0.5);
+        backdrop-filter: blur(6px);
+        border: 2px dashed var(--sage);
+        transition: background 0.32s ease, border-color 0.32s ease, transform 0.32s cubic-bezier(0.22, 1, 0.36, 1);
+      }
+      .dropzone:hover, .dropzone.dragover {
+        background: rgba(255, 255, 255, 0.78);
+        border-color: var(--sage-deep);
+        transform: translateY(-2px);
+      }
+      .dropzone.dragover { transform: scale(1.012); }
+
+      /* Thumbnail card */
+      .thumb {
+        position: relative;
+        aspect-ratio: 1 / 1;
+        border-radius: 14px;
+        overflow: hidden;
+        background: rgba(255, 255, 255, 0.6);
+        box-shadow: 0 4px 16px rgba(26, 24, 22, 0.06);
+        opacity: 0;
+        transform: scale(0.9);
+        animation: thumbIn 0.55s cubic-bezier(0.22, 1, 0.36, 1) forwards;
+      }
+      @keyframes thumbIn {
+        to { opacity: 1; transform: scale(1); }
+      }
+      .thumb img, .thumb video {
+        width: 100%;
+        height: 100%;
+        object-fit: cover;
+        display: block;
+      }
+      .thumb .progress {
+        position: absolute;
+        left: 0;
+        right: 0;
+        bottom: 0;
+        height: 4px;
+        background: rgba(255, 255, 255, 0.45);
+      }
+      .thumb .progress-fill {
+        height: 100%;
+        width: 0%;
+        background: var(--sage);
+        transition: width 0.35s cubic-bezier(0.22, 1, 0.36, 1);
+      }
+      .thumb .check {
+        position: absolute;
+        inset: 0;
+        display: grid;
+        place-items: center;
+        background: rgba(123, 138, 91, 0.85);
+        color: white;
+        opacity: 0;
+        transition: opacity 0.45s ease;
+      }
+      .thumb.done .check { opacity: 1; }
+      .thumb .remove {
+        position: absolute;
+        top: 6px;
+        right: 6px;
+        background: rgba(0, 0, 0, 0.45);
+        color: white;
+        width: 26px;
+        height: 26px;
+        border-radius: 999px;
+        display: grid;
+        place-items: center;
+        cursor: pointer;
+        opacity: 0;
+        transition: opacity 0.25s ease;
+      }
+      .thumb:hover .remove { opacity: 1; }
+      .thumb.uploading .remove { display: none; }
+
+      /* Primary button */
+      .btn-primary {
+        background: var(--ink);
+        color: var(--paper);
+        transition: transform 0.32s cubic-bezier(0.22, 1, 0.36, 1), box-shadow 0.32s ease, opacity 0.25s ease;
+      }
+      .btn-primary:hover:not(:disabled) {
+        transform: translateY(-2px);
+        box-shadow: 0 12px 28px rgba(26, 24, 22, 0.18);
+      }
+      .btn-primary:active:not(:disabled) {
+        transform: translateY(0);
+        box-shadow: 0 4px 12px rgba(26, 24, 22, 0.12);
+      }
+      .btn-primary:disabled {
+        opacity: 0.5;
+        cursor: not-allowed;
+      }
+
+      /* Ghost button */
+      .btn-ghost {
+        border: 1.5px solid var(--ink);
+        color: var(--ink);
+        transition: background 0.25s ease, color 0.25s ease, transform 0.32s ease;
+      }
+      .btn-ghost:hover {
+        background: var(--ink);
+        color: var(--paper);
+        transform: translateY(-1px);
+      }
+
+      /* Success heart pulse */
+      .heart-burst {
+        animation: heartBurst 1.4s cubic-bezier(0.34, 1.56, 0.64, 1) forwards;
+      }
+      @keyframes heartBurst {
+        0%   { transform: scale(0.4); opacity: 0; }
+        45%  { transform: scale(1.18); opacity: 1; }
+        70%  { transform: scale(0.96); }
+        100% { transform: scale(1); }
+      }
+
+      /* Hidden until JS toggles */
+      .hidden-init { display: none !important; }
+
+      /* Small status pill */
+      .pill {
+        font-size: 0.7rem;
+        letter-spacing: 0.12em;
+        text-transform: uppercase;
+        padding: 4px 10px;
+        border-radius: 999px;
+        background: rgba(123, 138, 91, 0.12);
+        color: var(--sage-deep);
+      }
+
+      /* Toast */
+      .toast {
+        position: fixed;
+        left: 50%;
+        bottom: 28px;
+        transform: translate(-50%, 30px);
+        background: var(--ink);
+        color: var(--paper);
+        padding: 12px 20px;
+        border-radius: 999px;
+        font-size: 0.85rem;
+        opacity: 0;
+        pointer-events: none;
+        transition: opacity 0.35s ease, transform 0.5s cubic-bezier(0.22, 1, 0.36, 1);
+        z-index: 50;
+      }
+      .toast.show {
+        opacity: 1;
+        transform: translate(-50%, 0);
+      }
+      .toast.err { background: #8b3b3b; }
+    </style>
+  </head>
+  <body class="min-h-screen relative overflow-x-hidden">
+    <!-- Floral decorations -->
+    <img class="floral" src="../weddingtest/assets/5.png"  style="--r: -8deg;  top: -40px;  left: -60px;  width: 280px" />
+    <img class="floral" src="../weddingtest/assets/8.png"  style="--r:  10deg; top: -20px;  right: -60px; width: 240px" />
+    <img class="floral" src="../weddingtest/assets/6.png"  style="--r:  -6deg; bottom: -40px; left: -50px; width: 260px" />
+    <img class="floral" src="../weddingtest/assets/10.png" style="--r:   8deg; bottom: -30px; right: -60px; width: 280px" />
+
+    <main class="relative max-w-2xl mx-auto px-6 py-12 sm:py-16 z-10">
+      <!-- Hero -->
+      <header class="text-center anim-in" style="animation-delay: 0.05s">
+        <img src="../collaterals/assets/ck-logo.png" alt="C&amp;K" class="mx-auto h-16 opacity-90" />
+        <h1 class="font-script mt-6 text-6xl sm:text-7xl leading-none" style="color: var(--ink)">share the love</h1>
+        <div class="mt-5 text-[0.72rem] sm:text-xs tracking-[0.32em] uppercase" style="color: var(--ink-soft)">
+          Charlie · 07.02.2026 · Karla
+        </div>
+        <p class="mt-7 text-base sm:text-lg leading-relaxed max-w-md mx-auto" style="color: var(--ink-soft)">
+          Thank you for celebrating our wedding day with us. Drop the photos and videos you captured here — we'd love to see our day through your eyes.
+        </p>
+      </header>
+
+      <!-- Optional name -->
+      <section class="mt-10 anim-in" style="animation-delay: 0.15s">
+        <label for="guest-name" class="block text-[0.72rem] uppercase tracking-[0.18em] mb-2" style="color: var(--ink-faint)">
+          Your name (optional)
+        </label>
+        <input
+          id="guest-name"
+          type="text"
+          autocomplete="name"
+          placeholder="So we know who to thank ♡"
+          class="w-full px-4 py-3 rounded-2xl text-base focus:outline-none focus:ring-2"
+          style="background: rgba(255,255,255,0.6); border: 1px solid #e7e2da; color: var(--ink);"
+        />
+      </section>
+
+      <!-- Drop zone -->
+      <section class="mt-6 anim-in" style="animation-delay: 0.22s">
+        <label id="dropzone" for="file-input" class="dropzone relative block rounded-3xl p-10 sm:p-12 text-center cursor-pointer">
+          <span class="material-symbols-outlined" style="font-size: 56px; color: var(--sage); font-variation-settings: 'wght' 300;">cloud_upload</span>
+          <p class="mt-3 text-base font-medium">Drop your photos & videos here</p>
+          <p class="mt-1 text-sm" style="color: var(--ink-faint)">or tap to choose from your device</p>
+          <p class="mt-3 text-xs" style="color: var(--ink-faint)">Up to ~50 MB per video · photos auto-compressed</p>
+          <input id="file-input" type="file" accept="image/*,video/*" multiple class="sr-only" />
+        </label>
+      </section>
+
+      <!-- Thumbnail grid -->
+      <section id="preview-list" class="mt-6 grid grid-cols-3 sm:grid-cols-4 gap-3"></section>
+
+      <!-- Upload action -->
+      <section id="upload-controls" class="mt-6 hidden-init">
+        <button id="upload-btn" class="btn-primary w-full py-4 rounded-2xl text-base font-medium flex items-center justify-center gap-2">
+          <span class="material-symbols-outlined">favorite</span>
+          <span id="upload-label">Send to our album</span>
+        </button>
+        <div id="upload-status" class="mt-3 text-center text-sm" style="color: var(--ink-soft)"></div>
+      </section>
+
+      <!-- Success state -->
+      <section id="success" class="hidden-init mt-12 text-center">
+        <div class="inline-block heart-burst" style="color: var(--sage-deep)">
+          <span class="material-symbols-outlined" style="font-size: 80px; font-variation-settings: 'FILL' 1;">favorite</span>
+        </div>
+        <h2 class="font-serif text-3xl sm:text-4xl mt-2" style="color: var(--ink)">Salamat, mahal namin kayo</h2>
+        <p class="mt-3 max-w-sm mx-auto" style="color: var(--ink-soft)">
+          Your photos are on their way to our album. Every shot you share makes the memory complete.
+        </p>
+        <button id="upload-more" class="btn-ghost mt-7 px-7 py-3 rounded-full text-sm tracking-[0.18em] uppercase">
+          <span class="material-symbols-outlined align-middle mr-1" style="font-size: 18px">add_photo_alternate</span>
+          Share more
+        </button>
+      </section>
+
+      <!-- Footer -->
+      <footer class="mt-16 text-center text-xs tracking-[0.2em] uppercase" style="color: var(--ink-faint)">
+        Made with love · #CharliesGoldenKarla
+      </footer>
+    </main>
+
+    <div id="toast" class="toast"><span id="toast-msg"></span></div>
+
+    <script type="module" src="script.js"></script>
+  </body>
+</html>

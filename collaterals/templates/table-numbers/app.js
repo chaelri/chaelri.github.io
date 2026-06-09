@@ -129,7 +129,7 @@ const PAPER = "#faf9f6";
 
 const DEFAULTS = {
   numbers: "1\n2\n3\n4\n5\n6\n7\n8\n9\n10\n11",
-  qrUrl: "",
+  qrUrl: "https://chaelri.github.io/sharethelove/",
   dateVenue: `07.02.2026\nCCF EAST ORTIGAS`,
   welcome: "WE'RE SO GLAD\nYOU'RE HERE!",
   thankBody:
@@ -693,6 +693,14 @@ async function mount() {
       fixed[k.replace(/\./g, "_")] = v;
     }
     _state.zones = fixed;
+    persist();
+  }
+
+  // Backfill the QR URL once — the empty-string default we shipped earlier
+  // sticks around in saved state and won't fall back to the new default. If
+  // it's still blank, point it at the photo-upload page.
+  if (!_state.qrUrl) {
+    _state.qrUrl = DEFAULTS.qrUrl;
     persist();
   }
 
