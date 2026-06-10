@@ -616,6 +616,29 @@ app.post("/edge-tts", async (req, res) => {
   }
 });
 
+// Bible passthrough — fetches a per-chapter file from chaelri.github.io and
+// streams it back. Existed because the ESP32-S3 SuperMini in the bible-reader
+// build can't reliably negotiate TLS with GitHub Pages, but Cloud Run's cert
+// chain works fine.
+const BIBLE_BOOK_RE = /^[A-Za-z0-9]+$/;
+app.get("/bible/:book/:chapter", async (req, res) => {
+  const { book, chapter } = req.params;
+  if (!BIBLE_BOOK_RE.test(book) || !/^\d{1,3}$/.test(chapter)) {
+    return res.status(400).send("bad request");
+  }
+  const upstream = `https://chaelri.github.io/bible-reader/sd-card/Bible/ch/${book}/${chapter}.txt`;
+  try {
+    const r = await fetch(upstream);
+    if (!r.ok) return res.status(r.status).send(`upstream ${r.status}`);
+    res.set("Content-Type", "text/plain; charset=utf-8");
+    res.set("Cache-Control", "public, max-age=86400");
+    const body = await r.text();
+    res.send(body);
+  } catch (e) {
+    res.status(502).send(String(e?.message || e));
+  }
+});
+
 // Health check — also acts as the warm-up target hit from the devo app on
 // page load to keep the Cloud Run container alive and skip cold starts.
 app.get("/", (_req, res) => res.json({ status: "ok" }));

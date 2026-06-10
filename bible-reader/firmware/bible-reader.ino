@@ -538,7 +538,7 @@ bool initSourceStream() {
         depth--;
       }
     }
-    if (absPos - lastProgress > 300UL * 1024UL) {
+    if (absPos - lastProgress > 1024UL * 1024UL) {
       lastProgress = absPos;
       char l3[32];
       snprintf(l3, sizeof(l3), "%lu KB", (unsigned long)(absPos / 1024));
