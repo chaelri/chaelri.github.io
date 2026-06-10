@@ -121,6 +121,13 @@ const ZONES_DEFAULT = {
     x: 600, y: 30, w: 160, h: 135,
     kind: "ckLogo",
   },
+
+  // Free-position 7.png decoration. Drag to move, corner handle to resize.
+  // Bounds persist via _state.zones → Firebase like every other zone.
+  "decor_seven": {
+    x: 1100, y: 60, w: 320, h: 320,
+    kind: "seven",
+  },
 };
 
 // Card body colors — match the cream/ink tone used in name-cards instead of
@@ -136,18 +143,7 @@ const DEFAULTS = {
     "We would like to express our many thanks for sharing our wedding day with us. Thank you for celebrating in our joy, love, and happiness. You have helped to make us who we are today, and for that we are forever grateful. So please enjoy tonight and let it be but a small gift for all you have done for us. You are our favorite people in the world and we love you beyond words can express!",
   shareBody:
     "Please share all your photos and videos with us! Scan the QR code below to upload to our digital photo / video album!",
-  prompts: [
-    "Selfie photo of your table",
-    "The bride and groom",
-    "The exchange of vows",
-    "The processional",
-    "Cocktails & photo time",
-    "Toasts and speeches",
-    "Selfie with someone you just met",
-    "The grand send-off",
-    "Family + entourage photos",
-    "Selfie with the bride and groom",
-  ].join("\n"),
+  prompts: "Scan to upload your favorite moments with us!",
   zones: {},
 };
 
@@ -221,6 +217,32 @@ async function ckLogoDataUrl() {
 
 async function renderCkLogo(z) {
   const href = await ckLogoDataUrl();
+  if (!href) return "";
+  return `<image href="${href}" x="${z.x}" y="${z.y}" width="${z.w}" height="${z.h}"
+          preserveAspectRatio="xMidYMid meet"/>`;
+}
+
+let _sevenDataUrl = null;
+async function sevenDataUrl() {
+  if (_sevenDataUrl) return _sevenDataUrl;
+  try {
+    const resp = await fetch("../../assets/7.png");
+    const blob = await resp.blob();
+    _sevenDataUrl = await new Promise((res, rej) => {
+      const r = new FileReader();
+      r.onload = () => res(String(r.result));
+      r.onerror = rej;
+      r.readAsDataURL(blob);
+    });
+  } catch (e) {
+    console.warn("7.png load failed", e);
+    _sevenDataUrl = "";
+  }
+  return _sevenDataUrl;
+}
+
+async function renderSeven(z) {
+  const href = await sevenDataUrl();
   if (!href) return "";
   return `<image href="${href}" x="${z.x}" y="${z.y}" width="${z.w}" height="${z.h}"
           preserveAspectRatio="xMidYMid meet"/>`;
@@ -418,7 +440,7 @@ function renderPrompts(z, text) {
   return lines.map((l, i) => `<text x="${cx}" y="${startY + i * rowH}" text-anchor="middle"
           font-family="Inter, sans-serif" font-size="${size.toFixed(2)}"
           font-weight="${z.weight}" letter-spacing="${z.letterSpacing}"
-          fill="${z.color}">- ${escapeXML(l)}</text>`).join("");
+          fill="${z.color}">${escapeXML(l)}</text>`).join("");
 }
 
 function renderRule(z) {
@@ -441,6 +463,7 @@ async function renderZone(id, z, number, state) {
     case "camera":      return cameraIconSVG(z);
     case "qr":          return await qrSvgGroup(state.qrUrl, z.x, z.y, Math.min(z.w, z.h));
     case "ckLogo":      return await renderCkLogo(z);
+    case "seven":       return await renderSeven(z);
     default:            return "";
   }
 }
@@ -749,8 +772,8 @@ async function mount() {
           <textarea id="ed-share" rows="3"></textarea>
           <label>Thank-you body</label>
           <textarea id="ed-thank" rows="8"></textarea>
-          <label>Photo prompts <span style="color:var(--ink-faint);font-weight:400">(one per line)</span></label>
-          <textarea id="ed-prompts" rows="8"></textarea>
+          <label>QR instruction <span style="color:var(--ink-faint);font-weight:400">(one per line)</span></label>
+          <textarea id="ed-prompts" rows="3"></textarea>
         </div>
         <div class="field-block">
           <h3>Layout</h3>
