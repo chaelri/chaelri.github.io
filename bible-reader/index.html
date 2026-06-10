@@ -1,0 +1,1305 @@
+<!doctype html>
+<html lang="en" class="dark">
+<head>
+  <meta charset="utf-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1" />
+  <title>Bible E-Reader — Build Reference</title>
+
+  <link rel="preconnect" href="https://fonts.googleapis.com" />
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
+  <link href="https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700;800&family=JetBrains+Mono:wght@400;500&family=Spectral:ital,wght@0,400;0,600;1,400&display=swap" rel="stylesheet" />
+  <link href="https://fonts.googleapis.com/css2?family=Material+Symbols+Outlined:opsz,wght,FILL,GRAD@24,400,0,0" rel="stylesheet" />
+
+  <script src="https://cdn.jsdelivr.net/npm/@tailwindcss/browser@4"></script>
+
+  <style>
+    :root { color-scheme: dark; }
+    html, body { background: #0a0a0a; }
+    body {
+      font-family: 'Inter', system-ui, -apple-system, sans-serif;
+      background-image:
+        radial-gradient(ellipse 60% 50% at 20% -10%, rgba(251,191,36,0.10), transparent 60%),
+        radial-gradient(ellipse 50% 40% at 90% 10%, rgba(217,119,6,0.08), transparent 60%);
+      background-attachment: fixed;
+    }
+    code, pre, .mono { font-family: 'JetBrains Mono', ui-monospace, monospace; }
+    .serif { font-family: 'Spectral', Georgia, serif; }
+    .material-symbols-outlined { font-variation-settings: 'FILL' 0, 'wght' 400, 'GRAD' 0, 'opsz' 24; vertical-align: middle; }
+
+    .card {
+      background: linear-gradient(180deg, rgba(255,255,255,0.025), rgba(255,255,255,0.012));
+      border: 1px solid rgba(255,255,255,0.06);
+      border-radius: 16px;
+    }
+    .glow-amber { box-shadow: 0 0 24px -4px rgba(251,191,36,0.45); }
+    .text-glow  { text-shadow: 0 0 18px rgba(251,191,36,0.55); }
+
+    @keyframes flowDash { to { stroke-dashoffset: -36; } }
+    .flow { stroke-dasharray: 6 12; animation: flowDash 1.6s linear infinite; }
+    .wire { fill: none; stroke-linecap: round; stroke-linejoin: round; }
+    .wire-active { filter: drop-shadow(0 0 6px currentColor); }
+
+    /* Sticky nav active state */
+    .section { scroll-margin-top: 80px; }
+    .nav-link.active { color: #fff; background: rgba(255,255,255,0.06); }
+
+    /* Code block */
+    pre.code {
+      background: #0a0c12;
+      border: 1px solid rgba(255,255,255,0.06);
+      border-radius: 12px;
+      padding: 16px 18px;
+      overflow-x: auto;
+      font-size: 12.5px;
+      line-height: 1.6;
+      color: #c9d1d9;
+      tab-size: 2;
+    }
+    .tok-kw { color: #ff7b72; }
+    .tok-str { color: #a5d6ff; }
+    .tok-num { color: #79c0ff; }
+    .tok-com { color: #6e7681; font-style: italic; }
+    .tok-fn  { color: #d2a8ff; }
+    .tok-typ { color: #ffa657; }
+
+    /* Checklist */
+    .check-item .check-box {
+      width: 20px; height: 20px; border-radius: 6px;
+      border: 1.5px solid rgba(255,255,255,0.18);
+      flex-shrink: 0; display: grid; place-items: center;
+    }
+    .check-item.checked .check-box { background: #fbbf24; border-color: #fbbf24; }
+    .check-item.checked .check-box::after {
+      content: ''; width: 11px; height: 6px;
+      border: 2px solid #0a0a0a; border-top: 0; border-right: 0;
+      transform: rotate(-45deg); margin-top: -3px;
+    }
+    .check-item.checked .label { color: #94a3b8; text-decoration: line-through; }
+
+    /* Demo e-ink panel */
+    .epd-frame {
+      background: #f5f1e4;
+      color: #111;
+      box-shadow:
+        0 0 0 2px #2b2620 inset,
+        0 0 0 6px #f5f1e4 inset,
+        0 0 0 8px #2b2620 inset,
+        0 12px 30px -10px rgba(0,0,0,0.6);
+      font-family: 'Spectral', Georgia, serif;
+      position: relative;
+      overflow: hidden;
+    }
+    .epd-flash {
+      position: absolute; inset: 8px;
+      background: #111;
+      opacity: 0; pointer-events: none;
+      transition: opacity 90ms linear;
+    }
+    .epd-flash.flashing { opacity: 1; }
+
+    /* Section anchor offset */
+    details > summary { list-style: none; cursor: pointer; }
+    details > summary::-webkit-details-marker { display: none; }
+    details[open] .chev { transform: rotate(180deg); }
+    .chev { transition: transform 200ms ease; }
+
+    /* Grid bg for the hardware card */
+    .grid-bg {
+      background-image:
+        linear-gradient(to right, rgba(255,255,255,0.025) 1px, transparent 1px),
+        linear-gradient(to bottom, rgba(255,255,255,0.025) 1px, transparent 1px);
+      background-size: 24px 24px;
+    }
+    .no-scrollbar::-webkit-scrollbar { display: none; }
+  </style>
+</head>
+<body class="text-slate-300 antialiased">
+
+<!-- ============== NAV ============== -->
+<nav class="sticky top-0 z-40 backdrop-blur-xl bg-[#0a0a0a]/75 border-b border-white/[0.06]">
+  <div class="max-w-6xl mx-auto px-4 sm:px-6 h-14 flex items-center justify-between">
+    <a href="#top" class="flex items-center gap-2.5 group">
+      <div class="w-8 h-8 rounded-lg bg-gradient-to-br from-amber-400 to-amber-600 grid place-items-center glow-amber">
+        <span class="material-symbols-outlined text-stone-900" style="font-size:18px">menu_book</span>
+      </div>
+      <span class="font-semibold text-white tracking-tight">Bible E-Reader</span>
+      <span class="text-xs text-slate-500 hidden sm:inline">· build reference</span>
+    </a>
+
+    <div class="hidden md:flex items-center gap-1 text-sm">
+      <a href="#overview"  data-nav class="nav-link px-3 py-1.5 rounded-md text-slate-400 hover:text-white transition-colors">Overview</a>
+      <a href="#hardware"  data-nav class="nav-link px-3 py-1.5 rounded-md text-slate-400 hover:text-white transition-colors">Hardware</a>
+      <a href="#wiring"    data-nav class="nav-link px-3 py-1.5 rounded-md text-slate-400 hover:text-white transition-colors">Wiring</a>
+      <a href="#demo"      data-nav class="nav-link px-3 py-1.5 rounded-md text-slate-400 hover:text-white transition-colors">Demo</a>
+      <a href="#code"      data-nav class="nav-link px-3 py-1.5 rounded-md text-slate-400 hover:text-white transition-colors">Code</a>
+      <a href="#checklist" data-nav class="nav-link px-3 py-1.5 rounded-md text-slate-400 hover:text-white transition-colors">Checklist</a>
+    </div>
+
+    <button id="navOpen" aria-label="menu" class="md:hidden text-slate-300 hover:text-white p-2">
+      <span class="material-symbols-outlined">menu</span>
+    </button>
+  </div>
+  <div id="navMobile" class="hidden md:hidden px-4 pb-3 space-y-1 text-sm border-t border-white/5">
+    <a href="#overview"  class="block px-3 py-2 rounded-md text-slate-300 hover:bg-white/5">Overview</a>
+    <a href="#hardware"  class="block px-3 py-2 rounded-md text-slate-300 hover:bg-white/5">Hardware</a>
+    <a href="#wiring"    class="block px-3 py-2 rounded-md text-slate-300 hover:bg-white/5">Wiring</a>
+    <a href="#demo"      class="block px-3 py-2 rounded-md text-slate-300 hover:bg-white/5">Demo</a>
+    <a href="#code"      class="block px-3 py-2 rounded-md text-slate-300 hover:bg-white/5">Code</a>
+    <a href="#checklist" class="block px-3 py-2 rounded-md text-slate-300 hover:bg-white/5">Checklist</a>
+  </div>
+</nav>
+
+<!-- ============== HERO ============== -->
+<header id="top" class="max-w-6xl mx-auto px-4 sm:px-6 pt-16 pb-12 text-center">
+  <div class="inline-flex items-center gap-2 px-3 py-1 rounded-full bg-white/[0.04] border border-white/[0.06] text-xs text-slate-400 mb-6">
+    <span class="w-1.5 h-1.5 bg-amber-400 rounded-full"></span>
+    Streaming today · SD card lands tomorrow · zero code changes
+  </div>
+  <h1 class="text-4xl sm:text-6xl font-bold tracking-tight text-white mb-4">
+    <span class="bg-gradient-to-r from-amber-200 via-yellow-300 to-amber-400 bg-clip-text text-transparent">Bible</span>
+    E-Reader
+  </h1>
+  <p class="text-base sm:text-lg text-slate-400 max-w-2xl mx-auto mb-10">
+    A pocket Bible on a 2.13&quot; e-ink panel — buttons turn pages, NVS remembers where you left off,
+    deep-sleep coasts on a single LiPo for days. Source auto-detects: SD card if present, WiFi stream otherwise.
+  </p>
+  <div class="grid grid-cols-2 sm:grid-cols-4 gap-3 max-w-3xl mx-auto">
+    <div class="card p-4 text-left">
+      <div class="text-2xl font-semibold text-white">66 <span class="text-sm text-slate-500 font-normal">books</span></div>
+      <div class="text-xs text-slate-500 mt-1">NASB 2020 · 4.06 MB plaintext</div>
+    </div>
+    <div class="card p-4 text-left">
+      <div class="text-2xl font-semibold text-white">10 <span class="text-sm text-slate-500 font-normal">wires</span></div>
+      <div class="text-xs text-slate-500 mt-1">e-ink 7 · SD 5 (3 shared) · 2 buttons</div>
+    </div>
+    <div class="card p-4 text-left">
+      <div class="text-2xl font-semibold text-white">250 <span class="text-sm text-slate-500 font-normal">× 122</span></div>
+      <div class="text-xs text-slate-500 mt-1">2.13&quot; SSD1680 monochrome</div>
+    </div>
+    <div class="card p-4 text-left">
+      <div class="text-2xl font-semibold text-white">5 <span class="text-sm text-slate-500 font-normal">min</span></div>
+      <div class="text-xs text-slate-500 mt-1">idle → deep sleep · ext1 wake</div>
+    </div>
+  </div>
+</header>
+
+<!-- ============== OVERVIEW ============== -->
+<section id="overview" class="section max-w-6xl mx-auto px-4 sm:px-6 py-16">
+  <div class="mb-10">
+    <div class="text-xs uppercase tracking-[0.2em] text-amber-400 mb-2">01 · Overview</div>
+    <h2 class="text-3xl font-bold text-white">How a page turn happens</h2>
+    <p class="text-slate-400 mt-2 max-w-xl">
+      Press NEXT → ESP32 advances the page index → reads verses from SD (or HTTPS Range-fetches them from
+      <span class="mono text-amber-300">chaelri.github.io/devo/nasb2020.json</span>) → repaints the e-ink panel.
+    </p>
+  </div>
+
+  <div class="card p-6 sm:p-8 overflow-x-auto no-scrollbar">
+    <div class="min-w-[820px]">
+      <svg viewBox="0 0 880 240" class="w-full h-auto" role="img" aria-label="Data flow diagram">
+        <defs>
+          <linearGradient id="flowGrad" x1="0" x2="1" y1="0" y2="0">
+            <stop offset="0%"  stop-color="#fbbf24"/>
+            <stop offset="50%" stop-color="#f59e0b"/>
+            <stop offset="100%" stop-color="#d97706"/>
+          </linearGradient>
+        </defs>
+
+        <!-- Connection lines (5 nodes spaced 200 px apart, x = 80, 280, 480, 680, 880-shift) -->
+        <g stroke="url(#flowGrad)" stroke-width="2" fill="none" opacity="0.4">
+          <path d="M 114 120 L 246 120"/>
+          <path d="M 314 120 L 446 120"/>
+          <path d="M 514 80  L 646 80"/>
+          <path d="M 514 160 L 646 160"/>
+          <path d="M 680 80  L 680 120"/>
+          <path d="M 680 160 L 680 120"/>
+          <path d="M 714 120 L 846 120"/>
+        </g>
+        <g stroke="url(#flowGrad)" stroke-width="2" fill="none" stroke-dasharray="6 8" opacity="0.7" class="flow">
+          <path d="M 114 120 L 246 120"/>
+          <path d="M 314 120 L 446 120"/>
+          <path d="M 514 80  L 646 80"/>
+          <path d="M 514 160 L 646 160"/>
+          <path d="M 714 120 L 846 120"/>
+        </g>
+
+        <!-- 1 BUTTON -->
+        <g transform="translate(80 120)">
+          <circle r="34" fill="#0d1018" stroke="rgba(251,191,36,0.5)" stroke-width="1.5"/>
+          <circle r="34" fill="rgba(251,191,36,0.08)"/>
+          <text text-anchor="middle" dominant-baseline="central" fill="#fde68a" font-family="Material Symbols Outlined" font-size="26">touch_app</text>
+          <text y="60" text-anchor="middle" fill="#fff" font-size="13" font-weight="600">Button</text>
+          <text y="76" text-anchor="middle" fill="#64748b" font-size="11">tap NEXT / PREV</text>
+        </g>
+
+        <!-- 2 ESP32 -->
+        <g transform="translate(280 120)">
+          <circle r="34" fill="#0d1018" stroke="rgba(251,191,36,0.5)" stroke-width="1.5"/>
+          <circle r="34" fill="rgba(251,191,36,0.08)"/>
+          <text text-anchor="middle" dominant-baseline="central" fill="#fde68a" font-family="Material Symbols Outlined" font-size="26">memory</text>
+          <text y="60" text-anchor="middle" fill="#fff" font-size="13" font-weight="600">ESP32-S3</text>
+          <text y="76" text-anchor="middle" fill="#64748b" font-size="11">pageIdx++ · NVS save</text>
+        </g>
+
+        <!-- 3 SOURCE SELECTOR -->
+        <g transform="translate(480 120)">
+          <rect x="-44" y="-30" width="88" height="60" rx="12" fill="#0d1018" stroke="rgba(251,191,36,0.4)" stroke-width="1.5" stroke-dasharray="4 4"/>
+          <text text-anchor="middle" y="-6" fill="#fde68a" font-size="11" font-weight="700">auto-detect</text>
+          <text text-anchor="middle" y="10" fill="#94a3b8" font-size="10" font-family="JetBrains Mono">SD ? : net</text>
+        </g>
+
+        <!-- 4a SD CARD -->
+        <g transform="translate(680 80)">
+          <circle r="30" fill="#0d1018" stroke="rgba(52,211,153,0.5)" stroke-width="1.5"/>
+          <circle r="30" fill="rgba(52,211,153,0.08)"/>
+          <text text-anchor="middle" dominant-baseline="central" fill="#86efac" font-family="Material Symbols Outlined" font-size="22">sd_card</text>
+          <text y="50" text-anchor="middle" fill="#fff" font-size="12" font-weight="600">SD card</text>
+          <text y="65" text-anchor="middle" fill="#64748b" font-size="10">/Bible/Genesis.txt</text>
+        </g>
+
+        <!-- 4b WIFI -->
+        <g transform="translate(680 160)">
+          <circle r="30" fill="#0d1018" stroke="rgba(99,102,241,0.5)" stroke-width="1.5"/>
+          <circle r="30" fill="rgba(99,102,241,0.08)"/>
+          <text text-anchor="middle" dominant-baseline="central" fill="#c7d2fe" font-family="Material Symbols Outlined" font-size="22">cloud_download</text>
+          <text y="50" text-anchor="middle" fill="#fff" font-size="12" font-weight="600">HTTPS · Range</text>
+          <text y="65" text-anchor="middle" fill="#64748b" font-size="10">nasb2020.json</text>
+        </g>
+
+        <!-- 5 E-INK -->
+        <g transform="translate(880 120)">
+          <circle r="34" fill="#0d1018" stroke="rgba(245,158,11,0.5)" stroke-width="1.5"/>
+          <circle r="34" fill="rgba(245,158,11,0.08)"/>
+          <text text-anchor="middle" dominant-baseline="central" fill="#fcd34d" font-family="Material Symbols Outlined" font-size="26">tablet</text>
+          <text y="60" text-anchor="middle" fill="#fff" font-size="13" font-weight="600">2.13&quot; e-ink</text>
+          <text y="76" text-anchor="middle" fill="#64748b" font-size="11">SSD1680 · full refresh</text>
+        </g>
+
+        <!-- protocol labels -->
+        <g fill="#64748b" font-size="10" text-anchor="middle" font-family="JetBrains Mono">
+          <text x="180" y="108">INPUT_PULLUP</text>
+          <text x="380" y="108">paginate()</text>
+          <text x="580" y="68">FILE_READ</text>
+          <text x="580" y="178">bytes=A-B</text>
+          <text x="780" y="108">SPI · GxEPD2</text>
+        </g>
+      </svg>
+    </div>
+
+    <div class="grid grid-cols-1 md:grid-cols-3 gap-3 mt-8">
+      <div class="bg-white/[0.02] border border-white/5 rounded-xl p-4">
+        <div class="flex items-center gap-2 text-amber-300 mb-1">
+          <span class="material-symbols-outlined" style="font-size:18px">touch_app</span>
+          <span class="text-xs font-medium uppercase tracking-wider">Input</span>
+        </div>
+        <div class="text-sm text-slate-300">
+          Two tactile buttons. <strong>Tap</strong> NEXT / PREV → one page. <strong>Hold 800 ms</strong> → jump one chapter. Wrapping is automatic: end of chapter falls into the next, end of book → next book.
+        </div>
+      </div>
+      <div class="bg-white/[0.02] border border-white/5 rounded-xl p-4">
+        <div class="flex items-center gap-2 text-amber-300 mb-1">
+          <span class="material-symbols-outlined" style="font-size:18px">swap_horiz</span>
+          <span class="text-xs font-medium uppercase tracking-wider">Source</span>
+        </div>
+        <div class="text-sm text-slate-300">
+          <code class="text-amber-300">SD.begin(SD_CS)</code> at boot. If the card mounts and <code class="text-amber-300">/Bible/INDEX.txt</code> exists → SD mode. Otherwise → WiFi stream. The day the SD card lands, no code changes.
+        </div>
+      </div>
+      <div class="bg-white/[0.02] border border-white/5 rounded-xl p-4">
+        <div class="flex items-center gap-2 text-amber-300 mb-1">
+          <span class="material-symbols-outlined" style="font-size:18px">tablet</span>
+          <span class="text-xs font-medium uppercase tracking-wider">Render</span>
+        </div>
+        <div class="text-sm text-slate-300">
+          GxEPD2 drives the SSD1680. Header bar shows <em class="serif">Book Chapter</em>; body wraps verses; footer shows page x/y + chapter z/Z. Full refresh per page (3–5 s) keeps ghosting at zero.
+        </div>
+      </div>
+    </div>
+  </div>
+</section>
+
+<!-- ============== HARDWARE ============== -->
+<section id="hardware" class="section max-w-6xl mx-auto px-4 sm:px-6 py-16">
+  <div class="mb-10">
+    <div class="text-xs uppercase tracking-[0.2em] text-amber-400 mb-2">02 · Hardware</div>
+    <h2 class="text-3xl font-bold text-white">Top-down view</h2>
+    <p class="text-slate-400 mt-2 max-w-xl">
+      Four modules: the ESP32-S3 SuperMini in the center, the 2.13&quot; e-paper panel above it, the SD module to the right, and two tactile buttons at the bottom. TP4056 + 1000 mAh LiPo power the whole thing off USB-C.
+    </p>
+  </div>
+
+  <div class="card p-3 sm:p-6 grid-bg overflow-hidden">
+    <div class="relative w-full" style="aspect-ratio: 1100/720;">
+      <svg viewBox="0 0 1100 720" class="absolute inset-0 w-full h-full" font-family="Inter, system-ui, sans-serif">
+        <defs>
+          <linearGradient id="pcbGrad" x1="0" y1="0" x2="0" y2="1">
+            <stop offset="0%"  stop-color="#1c1917"/>
+            <stop offset="100%" stop-color="#0c0a09"/>
+          </linearGradient>
+          <linearGradient id="epdGlass" x1="0" y1="0" x2="0" y2="1">
+            <stop offset="0%"  stop-color="#f8efd4"/>
+            <stop offset="100%" stop-color="#e7d8a8"/>
+          </linearGradient>
+          <linearGradient id="sdBoard" x1="0" y1="0" x2="0" y2="1">
+            <stop offset="0%"  stop-color="#1e3a8a"/>
+            <stop offset="100%" stop-color="#0b1d4d"/>
+          </linearGradient>
+          <linearGradient id="tp4056" x1="0" y1="0" x2="0" y2="1">
+            <stop offset="0%"  stop-color="#7f1d1d"/>
+            <stop offset="100%" stop-color="#3a0d0d"/>
+          </linearGradient>
+          <radialGradient id="ledRed" cx="0.4" cy="0.4">
+            <stop offset="0%"  stop-color="#fecaca"/>
+            <stop offset="60%" stop-color="#dc2626"/>
+            <stop offset="100%" stop-color="#7f1d1d"/>
+          </radialGradient>
+        </defs>
+
+        <!-- ===== Title labels ===== -->
+        <text x="270" y="26" text-anchor="middle" fill="#fff" font-size="16" font-weight="700">ESP32-S3 SuperMini</text>
+        <text x="270" y="44" text-anchor="middle" fill="#94a3b8" font-size="11" font-family="JetBrains Mono">22.5 × 18 mm · GPIO 1-13 broken out</text>
+
+        <text x="730" y="26" text-anchor="middle" fill="#fff" font-size="16" font-weight="700">2.13&quot; e-paper · SSD1680</text>
+        <text x="730" y="44" text-anchor="middle" fill="#94a3b8" font-size="11" font-family="JetBrains Mono">250 × 122 px · 3.3 V only</text>
+
+        <text x="940" y="380" text-anchor="middle" fill="#fff" font-size="14" font-weight="700">microSD module</text>
+        <text x="940" y="396" text-anchor="middle" fill="#94a3b8" font-size="10" font-family="JetBrains Mono">SPI · TF slot · 32 GB</text>
+
+        <text x="120" y="568" text-anchor="middle" fill="#fff" font-size="14" font-weight="700">TP4056 + LiPo</text>
+        <text x="120" y="584" text-anchor="middle" fill="#94a3b8" font-size="10" font-family="JetBrains Mono">1000 mAh · USB-C in</text>
+
+        <!-- ============================================================
+             E-PAPER 2.13" — top of canvas, landscape
+             ============================================================ -->
+        <g transform="translate(540 60)">
+          <!-- glass / black frame -->
+          <rect x="0" y="0" width="380" height="200" rx="6" fill="#1c1917" stroke="#0c0a09" stroke-width="1.5"/>
+          <!-- active area (cream) -->
+          <rect x="14" y="14" width="352" height="160" rx="2" fill="url(#epdGlass)"/>
+          <!-- sample rendering preview -->
+          <g font-family="Spectral, Georgia, serif" fill="#1c1917">
+            <!-- header bar -->
+            <rect x="14" y="14" width="352" height="22" fill="#1c1917"/>
+            <text x="22" y="30" fill="#f5f1e4" font-size="13" font-weight="600">Genesis 1</text>
+            <text x="344" y="30" fill="#f5f1e4" font-size="11" text-anchor="end" font-family="Inter">page 1 / 3</text>
+            <!-- body -->
+            <text x="22" y="58"  font-size="11">1 In the beginning God created the</text>
+            <text x="22" y="74"  font-size="11">heavens and the earth.</text>
+            <text x="22" y="92"  font-size="11">2 And the earth was a formless and</text>
+            <text x="22" y="108" font-size="11">desolate emptiness, and darkness was</text>
+            <text x="22" y="124" font-size="11">over the surface of the deep, and the</text>
+            <!-- footer -->
+            <line x1="14" y1="148" x2="366" y2="148" stroke="#1c1917" stroke-width="0.6"/>
+            <text x="22" y="166" font-size="9" fill="#1c1917" font-family="Inter">page 1 / 3</text>
+            <text x="344" y="166" font-size="9" text-anchor="end" fill="#1c1917" font-family="Inter">ch 1 / 50</text>
+          </g>
+          <!-- FPC flex cable (24-pin) hanging off the bottom -->
+          <path d="M 130 200 L 130 232 L 250 232 L 250 200" fill="#d97706" stroke="#92400e" stroke-width="0.8"/>
+          <g fill="#92400e" opacity="0.6">
+            <rect x="135" y="232" width="2" height="14"/><rect x="143" y="232" width="2" height="14"/>
+            <rect x="151" y="232" width="2" height="14"/><rect x="159" y="232" width="2" height="14"/>
+            <rect x="167" y="232" width="2" height="14"/><rect x="175" y="232" width="2" height="14"/>
+            <rect x="183" y="232" width="2" height="14"/><rect x="191" y="232" width="2" height="14"/>
+          </g>
+          <text x="190" y="258" text-anchor="middle" fill="#fcd34d" font-size="10" font-family="JetBrains Mono">FPC → driver PCB</text>
+
+          <!-- 8-pin breakout PCB below the flex -->
+          <g transform="translate(80 268)">
+            <rect x="0" y="0" width="220" height="48" rx="4" fill="url(#pcbGrad)" stroke="#15803d" stroke-width="0.8"/>
+            <!-- 8 pin pads along the bottom -->
+            <g fill="#fbbf24" opacity="0.85">
+              <rect x="14"  y="42" width="8" height="10" rx="1"/>
+              <rect x="40"  y="42" width="8" height="10" rx="1"/>
+              <rect x="66"  y="42" width="8" height="10" rx="1"/>
+              <rect x="92"  y="42" width="8" height="10" rx="1"/>
+              <rect x="118" y="42" width="8" height="10" rx="1"/>
+              <rect x="144" y="42" width="8" height="10" rx="1"/>
+              <rect x="170" y="42" width="8" height="10" rx="1"/>
+              <rect x="196" y="42" width="8" height="10" rx="1"/>
+            </g>
+            <g font-family="JetBrains Mono" font-size="8" fill="#fde68a" text-anchor="middle" font-weight="600">
+              <text x="18"  y="64">BUSY</text>
+              <text x="44"  y="64">RST</text>
+              <text x="70"  y="64">D/C</text>
+              <text x="96"  y="64">CS</text>
+              <text x="122" y="64">SCLK</text>
+              <text x="148" y="64">SDI</text>
+              <text x="174" y="64">GND</text>
+              <text x="200" y="64">VCC</text>
+            </g>
+          </g>
+        </g>
+
+        <!-- ============================================================
+             ESP32-S3 SuperMini — left/center
+             ============================================================ -->
+        <g transform="translate(120 80)">
+          <!-- USB-C protrusion (top) -->
+          <rect x="120" y="-22" width="60" height="22" rx="3" fill="#9ca3af" stroke="#475569" stroke-width="0.8"/>
+          <rect x="128" y="-18" width="44" height="14" rx="2" fill="#1e293b"/>
+          <text x="150" y="-26" text-anchor="middle" fill="#94a3b8" font-size="9" font-family="JetBrains Mono">USB-C</text>
+
+          <!-- PCB body (~22.5 × 18 mm → 300 × 240 px) -->
+          <rect x="0" y="0" width="300" height="240" rx="6" fill="url(#pcbGrad)" stroke="#78350f" stroke-width="1.2"/>
+          <rect x="6" y="6" width="288" height="228" rx="4" fill="none" stroke="rgba(255,255,255,0.05)" stroke-dasharray="2 3"/>
+
+          <!-- ESP32-S3 chip (QFN) -->
+          <rect x="110" y="80" width="80" height="80" rx="3" fill="#0a0a0a" stroke="#475569" stroke-width="0.8"/>
+          <text x="150" y="112" text-anchor="middle" fill="#94a3b8" font-size="11" font-weight="700">ESP32-S3</text>
+          <text x="150" y="128" text-anchor="middle" fill="#64748b" font-size="8" font-family="JetBrains Mono">FN8</text>
+          <text x="150" y="144" text-anchor="middle" fill="#64748b" font-size="8" font-family="JetBrains Mono">N8/N16</text>
+          <circle cx="116" cy="86" r="1.5" fill="#fbbf24"/>
+
+          <!-- Crystal -->
+          <rect x="200" y="100" width="26" height="14" rx="2" fill="#9ca3af" stroke="#475569" stroke-width="0.6"/>
+          <text x="213" y="111" text-anchor="middle" fill="#1e293b" font-size="6" font-family="JetBrains Mono">40MHz</text>
+
+          <!-- Boot/RST buttons -->
+          <rect x="40" y="100" width="14" height="14" rx="1" fill="#1f2937" stroke="#475569" stroke-width="0.6"/>
+          <text x="47" y="124" text-anchor="middle" fill="#64748b" font-size="6" font-family="JetBrains Mono">B</text>
+          <rect x="60" y="100" width="14" height="14" rx="1" fill="#1f2937" stroke="#475569" stroke-width="0.6"/>
+          <text x="67" y="124" text-anchor="middle" fill="#64748b" font-size="6" font-family="JetBrains Mono">R</text>
+
+          <!-- Onboard RGB LED -->
+          <circle cx="220" cy="60" r="4" fill="#3b82f6"/>
+          <circle cx="220" cy="60" r="7" fill="rgba(59,130,246,0.18)"/>
+          <text x="220" y="80" text-anchor="middle" fill="#94a3b8" font-size="7" font-family="JetBrains Mono">RGB</text>
+
+          <!-- PCB antenna -->
+          <path d="M 14 14 L 14 26 L 30 26 L 30 38 L 14 38 L 14 50 L 30 50 L 30 62 L 14 62 L 14 74 L 30 74 L 30 86 L 14 86 L 14 98 L 30 98 L 30 110"
+                fill="none" stroke="#fbbf24" stroke-width="1.6" stroke-linecap="square"/>
+          <text x="22" y="124" text-anchor="middle" fill="#a16207" font-size="7" font-family="JetBrains Mono">ANT</text>
+
+          <!-- LEFT-edge pin column (top→bottom): 5V, GND, 3V3, IO1, IO2, IO3, IO4, IO5, IO6, IO7 -->
+          <!-- Pads at x = -3..3, evenly spaced 22 px starting at y=14 -->
+          <g>
+            <!-- 5V (red) -->
+            <rect x="-3" y="14"  width="6" height="8" rx="1.5" fill="#ef4444"/>
+            <circle cx="0" cy="18" r="9" fill="none" stroke="#ef4444" stroke-width="1.2" opacity="0.55"/>
+            <!-- GND (dark) -->
+            <rect x="-3" y="36"  width="6" height="8" rx="1.5" fill="#78350f"/>
+            <!-- 3V3 (yellow accent) -->
+            <rect x="-3" y="58"  width="6" height="8" rx="1.5" fill="#fbbf24"/>
+            <circle cx="0" cy="62" r="9" fill="none" stroke="#fbbf24" stroke-width="1.2" opacity="0.55"/>
+            <!-- IO1, IO2 — unused (subdued) -->
+            <rect x="-3" y="80"  width="6" height="8" rx="1.5" fill="#fbbf24" opacity="0.35"/>
+            <rect x="-3" y="102" width="6" height="8" rx="1.5" fill="#fbbf24" opacity="0.35"/>
+            <!-- IO3 — unused -->
+            <rect x="-3" y="124" width="6" height="8" rx="1.5" fill="#fbbf24" opacity="0.35"/>
+            <!-- IO4 — BTN_NEXT (cyan) -->
+            <rect x="-3" y="146" width="6" height="8" rx="1.5" fill="#22d3ee"/>
+            <circle cx="0" cy="150" r="9" fill="none" stroke="#22d3ee" stroke-width="1.2" opacity="0.55"/>
+            <!-- IO5 — BTN_PREV (cyan-deep) -->
+            <rect x="-3" y="168" width="6" height="8" rx="1.5" fill="#0ea5e9"/>
+            <circle cx="0" cy="172" r="9" fill="none" stroke="#0ea5e9" stroke-width="1.2" opacity="0.55"/>
+            <!-- IO6 — SD CS (rose) -->
+            <rect x="-3" y="190" width="6" height="8" rx="1.5" fill="#fb7185"/>
+            <circle cx="0" cy="194" r="9" fill="none" stroke="#fb7185" stroke-width="1.2" opacity="0.55"/>
+            <!-- IO7 — EPD BUSY (violet) -->
+            <rect x="-3" y="212" width="6" height="8" rx="1.5" fill="#a78bfa"/>
+            <circle cx="0" cy="216" r="9" fill="none" stroke="#a78bfa" stroke-width="1.2" opacity="0.55"/>
+          </g>
+          <g font-family="JetBrains Mono" font-size="7.5" text-anchor="end">
+            <text x="-9" y="20"  fill="#fca5a5" font-weight="700">5V</text>
+            <text x="-9" y="42"  fill="#fcd34d" font-weight="600">GND</text>
+            <text x="-9" y="64"  fill="#fde68a" font-weight="700">3V3</text>
+            <text x="-9" y="86"  fill="#475569">IO1</text>
+            <text x="-9" y="108" fill="#475569">IO2</text>
+            <text x="-9" y="130" fill="#475569">IO3</text>
+            <text x="-9" y="152" fill="#67e8f9" font-weight="700">IO4</text>
+            <text x="-9" y="174" fill="#7dd3fc" font-weight="700">IO5</text>
+            <text x="-9" y="196" fill="#fda4af" font-weight="700">IO6</text>
+            <text x="-9" y="218" fill="#c4b5fd" font-weight="700">IO7</text>
+          </g>
+
+          <!-- RIGHT-edge pin column (top→bottom): GND, TX(43), RX(44), IO13, IO12, IO11, IO10, IO9, IO8 -->
+          <g>
+            <!-- GND -->
+            <rect x="297" y="14"  width="6" height="8" rx="1.5" fill="#78350f"/>
+            <!-- TX(43), RX(44) — unused -->
+            <rect x="297" y="40"  width="6" height="8" rx="1.5" fill="#fbbf24" opacity="0.35"/>
+            <rect x="297" y="66"  width="6" height="8" rx="1.5" fill="#fbbf24" opacity="0.35"/>
+            <!-- IO13 — SPI MISO (teal) -->
+            <rect x="297" y="92"  width="6" height="8" rx="1.5" fill="#2dd4bf"/>
+            <circle cx="300" cy="96" r="9" fill="none" stroke="#2dd4bf" stroke-width="1.2" opacity="0.55"/>
+            <!-- IO12 — SPI SCK (orange) -->
+            <rect x="297" y="118" width="6" height="8" rx="1.5" fill="#f97316"/>
+            <circle cx="300" cy="122" r="9" fill="none" stroke="#f97316" stroke-width="1.2" opacity="0.55"/>
+            <!-- IO11 — SPI MOSI (amber) -->
+            <rect x="297" y="144" width="6" height="8" rx="1.5" fill="#fbbf24"/>
+            <circle cx="300" cy="148" r="9" fill="none" stroke="#fbbf24" stroke-width="1.2" opacity="0.55"/>
+            <!-- IO10 — EPD CS (lime) -->
+            <rect x="297" y="170" width="6" height="8" rx="1.5" fill="#a3e635"/>
+            <circle cx="300" cy="174" r="9" fill="none" stroke="#a3e635" stroke-width="1.2" opacity="0.55"/>
+            <!-- IO9 — EPD D/C (pink) -->
+            <rect x="297" y="196" width="6" height="8" rx="1.5" fill="#f472b6"/>
+            <circle cx="300" cy="200" r="9" fill="none" stroke="#f472b6" stroke-width="1.2" opacity="0.55"/>
+            <!-- IO8 — EPD RST (sky) -->
+            <rect x="297" y="222" width="6" height="8" rx="1.5" fill="#38bdf8"/>
+            <circle cx="300" cy="226" r="9" fill="none" stroke="#38bdf8" stroke-width="1.2" opacity="0.55"/>
+          </g>
+          <g font-family="JetBrains Mono" font-size="7.5" text-anchor="start">
+            <text x="309" y="20"  fill="#fcd34d" font-weight="600">GND</text>
+            <text x="309" y="46"  fill="#475569">TX</text>
+            <text x="309" y="72"  fill="#475569">RX</text>
+            <text x="309" y="98"  fill="#5eead4" font-weight="700">IO13</text>
+            <text x="309" y="124" fill="#fdba74" font-weight="700">IO12</text>
+            <text x="309" y="150" fill="#fcd34d" font-weight="700">IO11</text>
+            <text x="309" y="176" fill="#bef264" font-weight="700">IO10</text>
+            <text x="309" y="202" fill="#f9a8d4" font-weight="700">IO9</text>
+            <text x="309" y="228" fill="#7dd3fc" font-weight="700">IO8</text>
+          </g>
+        </g>
+
+        <!-- ============================================================
+             SD module — right
+             ============================================================ -->
+        <g transform="translate(840 410)">
+          <!-- PCB body -->
+          <rect x="0" y="0" width="200" height="120" rx="4" fill="url(#sdBoard)" stroke="#0c1d4d" stroke-width="1"/>
+          <!-- TF slot (metal cage) -->
+          <rect x="14" y="14" width="172" height="60" rx="2" fill="#94a3b8" stroke="#475569" stroke-width="0.8"/>
+          <rect x="20" y="20" width="160" height="48" rx="1" fill="#1e293b"/>
+          <text x="100" y="48" text-anchor="middle" fill="#94a3b8" font-size="11" font-family="JetBrains Mono">TF (microSD)</text>
+          <!-- 6-pin header (bottom edge) -->
+          <g>
+            <rect x="14"  y="100" width="8" height="12" rx="1" fill="#fbbf24" opacity="0.55"/>
+            <rect x="44"  y="100" width="8" height="12" rx="1" fill="#a3e635"/>
+            <rect x="74"  y="100" width="8" height="12" rx="1" fill="#2dd4bf"/>
+            <rect x="104" y="100" width="8" height="12" rx="1" fill="#f97316"/>
+            <rect x="134" y="100" width="8" height="12" rx="1" fill="#fbbf24"/>
+            <rect x="164" y="100" width="8" height="12" rx="1" fill="#78350f"/>
+          </g>
+          <g font-family="JetBrains Mono" font-size="8" text-anchor="middle">
+            <text x="18"  y="125" fill="#fde68a">3V3</text>
+            <text x="48"  y="125" fill="#bef264" font-weight="700">CS</text>
+            <text x="78"  y="125" fill="#5eead4" font-weight="700">MISO</text>
+            <text x="108" y="125" fill="#fdba74" font-weight="700">SCK</text>
+            <text x="138" y="125" fill="#fde68a" font-weight="700">MOSI</text>
+            <text x="168" y="125" fill="#fcd34d">GND</text>
+          </g>
+        </g>
+
+        <!-- ============================================================
+             Two tactile buttons — bottom center
+             ============================================================ -->
+        <g transform="translate(440 580)">
+          <text x="60" y="-8" text-anchor="middle" fill="#67e8f9" font-size="10" font-weight="700" font-family="JetBrains Mono">NEXT (IO4)</text>
+          <!-- metal frame -->
+          <rect x="0" y="0" width="120" height="60" rx="6" fill="#475569" stroke="#1e293b" stroke-width="1"/>
+          <!-- plastic body -->
+          <rect x="14" y="10" width="92" height="40" rx="3" fill="#1f2937"/>
+          <!-- cap -->
+          <circle cx="60" cy="30" r="14" fill="#0a0a0a" stroke="#475569" stroke-width="1"/>
+          <circle cx="60" cy="30" r="9" fill="#1c1917"/>
+          <!-- leads -->
+          <line x1="22" y1="60" x2="22" y2="76" stroke="#67e8f9" stroke-width="2"/>
+          <line x1="98" y1="60" x2="98" y2="76" stroke="#fcd34d" stroke-width="2"/>
+          <text x="22" y="92" text-anchor="middle" font-size="9" fill="#67e8f9" font-family="JetBrains Mono">to IO4</text>
+          <text x="98" y="92" text-anchor="middle" font-size="9" fill="#fcd34d" font-family="JetBrains Mono">to GND</text>
+        </g>
+
+        <g transform="translate(620 580)">
+          <text x="60" y="-8" text-anchor="middle" fill="#7dd3fc" font-size="10" font-weight="700" font-family="JetBrains Mono">PREV (IO5)</text>
+          <rect x="0" y="0" width="120" height="60" rx="6" fill="#475569" stroke="#1e293b" stroke-width="1"/>
+          <rect x="14" y="10" width="92" height="40" rx="3" fill="#1f2937"/>
+          <circle cx="60" cy="30" r="14" fill="#0a0a0a" stroke="#475569" stroke-width="1"/>
+          <circle cx="60" cy="30" r="9" fill="#1c1917"/>
+          <line x1="22" y1="60" x2="22" y2="76" stroke="#7dd3fc" stroke-width="2"/>
+          <line x1="98" y1="60" x2="98" y2="76" stroke="#fcd34d" stroke-width="2"/>
+          <text x="22" y="92" text-anchor="middle" font-size="9" fill="#7dd3fc" font-family="JetBrains Mono">to IO5</text>
+          <text x="98" y="92" text-anchor="middle" font-size="9" fill="#fcd34d" font-family="JetBrains Mono">to GND</text>
+        </g>
+
+        <!-- ============================================================
+             TP4056 + LiPo — bottom left
+             ============================================================ -->
+        <g transform="translate(40 600)">
+          <rect x="0" y="0" width="160" height="80" rx="4" fill="url(#tp4056)" stroke="#7f1d1d" stroke-width="1"/>
+          <!-- USB-C input -->
+          <rect x="-12" y="30" width="14" height="20" rx="2" fill="#9ca3af" stroke="#475569" stroke-width="0.6"/>
+          <text x="-5" y="62" text-anchor="middle" fill="#94a3b8" font-size="8" font-family="JetBrains Mono">USB-C</text>
+          <!-- chip -->
+          <rect x="60" y="20" width="40" height="40" rx="2" fill="#0a0a0a" stroke="#475569" stroke-width="0.6"/>
+          <text x="80" y="44" text-anchor="middle" fill="#fca5a5" font-size="9" font-weight="700" font-family="JetBrains Mono">TP4056</text>
+          <!-- charge LED + done LED -->
+          <circle cx="120" cy="22" r="3" fill="#dc2626"/>
+          <circle cx="120" cy="32" r="3" fill="#22c55e" opacity="0.3"/>
+          <!-- B+/B- pads -->
+          <rect x="140" y="14" width="14" height="6" rx="1" fill="#ef4444"/>
+          <rect x="140" y="28" width="14" height="6" rx="1" fill="#78350f"/>
+          <!-- OUT+/OUT- pads -->
+          <rect x="140" y="50" width="14" height="6" rx="1" fill="#ef4444" opacity="0.7"/>
+          <rect x="140" y="64" width="14" height="6" rx="1" fill="#78350f" opacity="0.7"/>
+          <g font-family="JetBrains Mono" font-size="7" text-anchor="start">
+            <text x="158" y="20" fill="#fca5a5">B+</text>
+            <text x="158" y="34" fill="#fcd34d">B-</text>
+            <text x="158" y="56" fill="#fca5a5">OUT+</text>
+            <text x="158" y="70" fill="#fcd34d">OUT-</text>
+          </g>
+          <!-- LiPo battery body to the left -->
+          <g transform="translate(-160 -20)">
+            <rect x="0" y="0" width="120" height="60" rx="6" fill="#fb923c" stroke="#78350f" stroke-width="1"/>
+            <rect x="6" y="6" width="108" height="48" rx="4" fill="none" stroke="rgba(255,255,255,0.18)" stroke-dasharray="2 3"/>
+            <text x="60" y="34" text-anchor="middle" fill="#7c2d12" font-size="13" font-weight="800" font-family="JetBrains Mono">1000 mAh</text>
+            <text x="60" y="50" text-anchor="middle" fill="#7c2d12" font-size="9" font-family="JetBrains Mono">3.7 V · 4.2 V max</text>
+            <!-- + / - pigtails -->
+            <line x1="120" y1="20" x2="170" y2="20" stroke="#ef4444" stroke-width="2"/>
+            <line x1="120" y1="40" x2="170" y2="40" stroke="#78350f" stroke-width="2"/>
+          </g>
+        </g>
+
+        <!-- ============================================================
+             Wires — color-coded, routed from ESP32 to peripherals
+             ============================================================ -->
+        <!-- ESP32 IO11 (right side, y=224) → SD MOSI (840+138, y=510) and EPD SDI (540+148, y=336) -->
+        <g class="wire wire-active" stroke-width="2.2">
+          <!-- IO11 MOSI → EPD SDI -->
+          <path d="M 423 224 C 470 224, 480 320, 688 336" stroke="#fbbf24"/>
+          <!-- IO11 MOSI → SD MOSI -->
+          <path d="M 423 224 C 600 224, 700 510, 978 510" stroke="#fbbf24" opacity="0.85"/>
+
+          <!-- IO12 SCK → EPD SCLK and SD SCK -->
+          <path d="M 423 198 C 480 198, 500 320, 662 336" stroke="#f97316"/>
+          <path d="M 423 198 C 580 198, 700 510, 948 510" stroke="#f97316" opacity="0.85"/>
+
+          <!-- IO13 MISO → SD MISO -->
+          <path d="M 423 172 C 540 172, 720 510, 918 510" stroke="#2dd4bf"/>
+
+          <!-- IO10 EPD CS → EPD CS pad -->
+          <path d="M 423 250 C 500 250, 540 320, 636 336" stroke="#a3e635"/>
+          <!-- IO9  EPD D/C -->
+          <path d="M 423 276 C 480 276, 530 320, 610 336" stroke="#f472b6"/>
+          <!-- IO8  EPD RST -->
+          <path d="M 423 302 C 500 302, 520 320, 584 336" stroke="#38bdf8"/>
+          <!-- IO7  EPD BUSY (left side) -->
+          <path d="M 117 292 C 90 292, 80 320, 558 336" stroke="#a78bfa"/>
+
+          <!-- IO6  SD CS -->
+          <path d="M 117 270 C 80 270, 80 510, 888 510" stroke="#fb7185"/>
+
+          <!-- IO4  BTN_NEXT -->
+          <path d="M 117 226 C 90 226, 80 580, 462 656" stroke="#22d3ee"/>
+          <!-- IO5  BTN_PREV -->
+          <path d="M 117 248 C 100 248, 100 580, 642 656" stroke="#0ea5e9"/>
+
+          <!-- 3V3 → EPD VCC, SD VCC -->
+          <path d="M 117 138 C 90 138, 60 320, 740 336" stroke="#fde68a" opacity="0.85"/>
+          <path d="M 117 138 C 60 138, 40 510, 858 510" stroke="#fde68a" opacity="0.6"/>
+          <!-- GND fan-out -->
+          <path d="M 117 116 C 90 116, 70 320, 714 336" stroke="#78350f" opacity="0.85"/>
+          <path d="M 117 116 C 70 116, 60 510, 1008 510" stroke="#78350f" opacity="0.55"/>
+          <path d="M 117 116 C 70 116, 60 660, 538 656" stroke="#78350f" opacity="0.45"/>
+          <path d="M 117 116 C 70 116, 60 660, 718 656" stroke="#78350f" opacity="0.45"/>
+
+          <!-- TP4056 OUT+ → ESP32 5V -->
+          <path d="M 194 614 C 240 614, 80 320, 117 94"  stroke="#ef4444" opacity="0.9"/>
+          <!-- TP4056 OUT- → ESP32 GND -->
+          <path d="M 194 664 C 280 664, 100 320, 117 116" stroke="#78350f" opacity="0.6"/>
+        </g>
+
+        <!-- ===== Legend ===== -->
+        <g transform="translate(10 10)">
+          <rect x="0" y="0" width="160" height="142" rx="6" fill="rgba(0,0,0,0.4)" stroke="rgba(255,255,255,0.06)" stroke-width="1"/>
+          <text x="10" y="18" fill="#fde68a" font-size="10" font-weight="700" font-family="JetBrains Mono">WIRE LEGEND</text>
+          <g font-family="JetBrains Mono" font-size="9" fill="#cbd5e1">
+            <line x1="10" y1="30" x2="26" y2="30" stroke="#fbbf24" stroke-width="2.2"/><text x="32" y="33">MOSI · IO11</text>
+            <line x1="10" y1="44" x2="26" y2="44" stroke="#f97316" stroke-width="2.2"/><text x="32" y="47">SCK · IO12</text>
+            <line x1="10" y1="58" x2="26" y2="58" stroke="#2dd4bf" stroke-width="2.2"/><text x="32" y="61">MISO · IO13</text>
+            <line x1="10" y1="72" x2="26" y2="72" stroke="#a3e635" stroke-width="2.2"/><text x="32" y="75">EPD CS · IO10</text>
+            <line x1="10" y1="86" x2="26" y2="86" stroke="#fb7185" stroke-width="2.2"/><text x="32" y="89">SD CS · IO6</text>
+            <line x1="10" y1="100" x2="26" y2="100" stroke="#22d3ee" stroke-width="2.2"/><text x="32" y="103">BTN · IO4/IO5</text>
+            <line x1="10" y1="114" x2="26" y2="114" stroke="#ef4444" stroke-width="2.2"/><text x="32" y="117">5V</text>
+            <line x1="10" y1="128" x2="26" y2="128" stroke="#78350f" stroke-width="2.2"/><text x="32" y="131">GND</text>
+          </g>
+        </g>
+      </svg>
+    </div>
+  </div>
+
+  <!-- Caveats -->
+  <div class="mt-4 grid grid-cols-1 md:grid-cols-2 gap-3">
+    <div class="card p-5 flex gap-4">
+      <span class="material-symbols-outlined text-amber-300 mt-0.5">bolt</span>
+      <div class="text-sm">
+        <div class="text-white font-medium mb-1">E-paper is 3.3 V <em>only</em></div>
+        <div class="text-slate-400">VCC goes to the ESP32&apos;s <code class="text-amber-300">3V3</code> pad. Hooking it to <code class="text-amber-300">5V</code> destroys the panel — that&apos;s the most expensive single mistake on this build.</div>
+      </div>
+    </div>
+    <div class="card p-5 flex gap-4">
+      <span class="material-symbols-outlined text-amber-300 mt-0.5">share</span>
+      <div class="text-sm">
+        <div class="text-white font-medium mb-1">E-paper + SD share the SPI bus</div>
+        <div class="text-slate-400">MOSI (IO11) and SCK (IO12) are wired to <em>both</em> modules. Each has its own CS — IO10 for the panel, IO6 for the card — so the bus is never contended. MISO (IO13) only matters for the SD card.</div>
+      </div>
+    </div>
+  </div>
+</section>
+
+<!-- ============== WIRING ============== -->
+<section id="wiring" class="section max-w-6xl mx-auto px-4 sm:px-6 py-16">
+  <div class="mb-10">
+    <div class="text-xs uppercase tracking-[0.2em] text-amber-400 mb-2">03 · Wiring</div>
+    <h2 class="text-3xl font-bold text-white">Every connection</h2>
+    <p class="text-slate-400 mt-2 max-w-xl">Pre-wire the SD module too. The card lands tomorrow; the firmware notices the moment you slot it in and switches from streaming to local files.</p>
+  </div>
+
+  <div class="card overflow-hidden">
+    <div class="overflow-x-auto no-scrollbar">
+      <table class="w-full text-sm">
+        <thead>
+          <tr class="text-slate-400 text-xs uppercase tracking-wider border-b border-white/[0.06]">
+            <th class="text-left px-5 py-3 font-medium">Module</th>
+            <th class="text-left px-5 py-3 font-medium">Pin</th>
+            <th class="text-left px-5 py-3 font-medium">ESP32-S3 GPIO</th>
+            <th class="text-left px-5 py-3 font-medium">Wire colour</th>
+            <th class="text-left px-5 py-3 font-medium">Purpose</th>
+          </tr>
+        </thead>
+        <tbody id="wireRows" class="divide-y divide-white/[0.05]"></tbody>
+      </table>
+    </div>
+  </div>
+</section>
+
+<!-- ============== DEMO ============== -->
+<section id="demo" class="section max-w-6xl mx-auto px-4 sm:px-6 py-16">
+  <div class="mb-10">
+    <div class="text-xs uppercase tracking-[0.2em] text-amber-400 mb-2">04 · Demo</div>
+    <h2 class="text-3xl font-bold text-white">Page flip</h2>
+    <p class="text-slate-400 mt-2 max-w-xl">Simulated rendering of what the panel shows. Tap <strong>Next page</strong> or <strong>Prev page</strong> to flip; chapter advances automatically at the end. Animation only — does not talk to the device.</p>
+  </div>
+
+  <div class="card p-6 sm:p-10">
+    <div class="grid grid-cols-1 lg:grid-cols-[1fr_auto] gap-8 items-center">
+      <!-- e-ink simulation -->
+      <div class="flex justify-center">
+        <div id="epd" class="epd-frame rounded-md" style="width: 500px; height: 244px; max-width: 100%; padding: 18px 16px;">
+          <div class="epd-flash" id="epdFlash"></div>
+
+          <div id="epdHeader" class="flex items-center justify-between" style="background: #1c1917; color: #f5f1e4; margin: -18px -16px 6px -16px; padding: 4px 16px 6px 16px;">
+            <span class="serif text-base font-semibold" id="epdTitle">Genesis 1</span>
+            <span class="text-xs" style="font-family: 'Inter', sans-serif" id="epdPager">page 1 / 3</span>
+          </div>
+
+          <div id="epdBody" class="text-[15px] leading-[1.45]" style="height: 160px; overflow: hidden;">
+            <!-- filled by JS -->
+          </div>
+
+          <div class="border-t border-stone-700/70" style="margin: 0 -16px;"></div>
+          <div class="flex items-center justify-between text-[10px] text-stone-700" style="margin: 4px -10px 0;">
+            <span id="epdFooterL" style="font-family: 'Inter', sans-serif">page 1 / 3</span>
+            <span id="epdFooterR" style="font-family: 'Inter', sans-serif">ch 1 / 50</span>
+          </div>
+        </div>
+      </div>
+
+      <!-- controls -->
+      <div class="space-y-3">
+        <button id="btnPrev" class="w-full px-5 py-3 rounded-xl bg-white/5 border border-white/10 text-slate-200 hover:bg-white/10 transition-colors flex items-center gap-3">
+          <span class="material-symbols-outlined">chevron_left</span>
+          <span>
+            <div class="text-sm font-medium">Prev page</div>
+            <div class="text-xs text-slate-500">tap IO5 · wraps to prev chapter</div>
+          </span>
+        </button>
+        <button id="btnNext" class="w-full px-5 py-3 rounded-xl bg-gradient-to-br from-amber-400 to-amber-600 text-stone-900 font-semibold hover:opacity-90 transition-opacity flex items-center gap-3">
+          <span class="material-symbols-outlined">chevron_right</span>
+          <span class="text-left">
+            <div class="text-sm">Next page</div>
+            <div class="text-xs text-stone-800/80">tap IO4 · wraps to next chapter</div>
+          </span>
+        </button>
+        <button id="btnJump" class="w-full px-5 py-3 rounded-xl bg-white/5 border border-white/10 text-slate-200 hover:bg-white/10 transition-colors flex items-center gap-3">
+          <span class="material-symbols-outlined">double_arrow</span>
+          <span>
+            <div class="text-sm font-medium">Hold ≥800 ms</div>
+            <div class="text-xs text-slate-500">jump to next chapter</div>
+          </span>
+        </button>
+        <div class="text-xs text-slate-500 mt-4 pt-4 border-t border-white/5">
+          Simulated full refresh ≈ 90 ms here · 3–5 s on the real panel.
+        </div>
+      </div>
+    </div>
+  </div>
+</section>
+
+<!-- ============== CODE ============== -->
+<section id="code" class="section max-w-6xl mx-auto px-4 sm:px-6 py-16">
+  <div class="mb-10">
+    <div class="text-xs uppercase tracking-[0.2em] text-amber-400 mb-2">05 · Code</div>
+    <h2 class="text-3xl font-bold text-white">Firmware &amp; tools</h2>
+    <p class="text-slate-400 mt-2 max-w-xl">The Arduino sketch and the Node script that prepares the SD-card files. Two artifacts, one repo, zero build steps for the firmware.</p>
+  </div>
+
+  <div class="space-y-4">
+    <details class="card p-5 group" open>
+      <summary class="flex items-center justify-between">
+        <div>
+          <div class="text-xs uppercase tracking-wider text-amber-300">firmware/bible-reader.ino</div>
+          <div class="text-white font-medium mt-1">Arduino sketch · auto-detect SD or stream</div>
+        </div>
+        <span class="material-symbols-outlined chev text-slate-400">expand_more</span>
+      </summary>
+      <div class="mt-4 space-y-3">
+        <p class="text-sm text-slate-400">
+          Required libraries: <code class="text-amber-300">GxEPD2</code>, <code class="text-amber-300">ArduinoJson ≥ 7</code>, plus the bundled <code>SD</code>, <code>SPI</code>, <code>WiFi</code>, <code>HTTPClient</code>, <code>WiFiClientSecure</code>, <code>Preferences</code>. Board: <code class="text-amber-300">ESP32S3 Dev Module</code>, PSRAM <em>off</em>.
+        </p>
+        <pre class="code"><code id="codeArduino"></code></pre>
+        <a href="firmware/bible-reader.ino" download class="inline-flex items-center gap-2 px-4 py-2 rounded-lg bg-white/5 border border-white/10 text-slate-200 hover:bg-white/10 transition-colors text-sm">
+          <span class="material-symbols-outlined" style="font-size:18px">download</span>
+          Download bible-reader.ino
+        </a>
+      </div>
+    </details>
+
+    <details class="card p-5 group">
+      <summary class="flex items-center justify-between">
+        <div>
+          <div class="text-xs uppercase tracking-wider text-amber-300">tools/build-sd-card.mjs</div>
+          <div class="text-white font-medium mt-1">Node script · convert NASB JSON → /Bible/*.txt</div>
+        </div>
+        <span class="material-symbols-outlined chev text-slate-400">expand_more</span>
+      </summary>
+      <div class="mt-4 space-y-3">
+        <p class="text-sm text-slate-400">
+          Run <code class="text-amber-300">node tools/build-sd-card.mjs</code> from the repo root. Reads <code>devo/nasb2020.json</code>, emits <code>sd-card/Bible/&lt;Book&gt;.txt</code> (66 files) plus <code>INDEX.txt</code>. Drag the whole <code>Bible/</code> folder onto the SD card root when it arrives.
+        </p>
+        <pre class="code"><code id="codeNode"></code></pre>
+      </div>
+    </details>
+  </div>
+</section>
+
+<!-- ============== CHECKLIST ============== -->
+<section id="checklist" class="section max-w-6xl mx-auto px-4 sm:px-6 py-16">
+  <div class="mb-10">
+    <div class="text-xs uppercase tracking-[0.2em] text-amber-400 mb-2">06 · Checklist</div>
+    <h2 class="text-3xl font-bold text-white">Build steps</h2>
+    <p class="text-slate-400 mt-2 max-w-xl">Tick as you go. Progress saves to <code class="text-amber-300">localStorage</code> in this browser only.</p>
+  </div>
+
+  <div class="card p-6 sm:p-8">
+    <div class="flex items-center justify-between mb-6">
+      <div class="text-sm text-slate-400">
+        <span id="progressNum" class="text-2xl font-semibold text-white">0</span>
+        <span class="text-slate-500"> / <span id="progressTotal">0</span> done</span>
+      </div>
+      <div class="w-1/2 sm:w-2/3">
+        <div class="h-1.5 bg-white/[0.06] rounded-full overflow-hidden">
+          <div id="progressBar" class="h-full bg-gradient-to-r from-amber-400 to-amber-600 transition-all duration-500" style="width: 0%"></div>
+        </div>
+      </div>
+    </div>
+    <div id="checklist" class="space-y-6"></div>
+  </div>
+</section>
+
+<!-- ============== FOOTER ============== -->
+<footer class="border-t border-white/[0.04] mt-8">
+  <div class="max-w-6xl mx-auto px-4 sm:px-6 py-6 flex flex-col sm:flex-row items-center justify-between gap-3 text-xs text-slate-500">
+    <div>Bible E-Reader · build reference · NASB 2020 plaintext on SD or HTTPS stream</div>
+    <div class="mono">esp32-s3 · ssd1680 · gxepd2 · arduinojson 7</div>
+  </div>
+</footer>
+
+<!-- ============== SCRIPTS ============== -->
+<script>
+  // ============== WIRING TABLE DATA ==============
+  const wires = [
+    { mod: '2.13" e-paper', pin: 'VCC',  gpio: '3V3',  color: 'cream',  purpose: 'panel + driver power (3.3 V only)' },
+    { mod: '2.13" e-paper', pin: 'GND',  gpio: 'GND',  color: 'brown',  purpose: 'panel ground (star with all other GNDs)' },
+    { mod: '2.13" e-paper', pin: 'SDI',  gpio: 'IO11', color: 'amber',  purpose: 'SPI MOSI · shared with SD' },
+    { mod: '2.13" e-paper', pin: 'SCLK', gpio: 'IO12', color: 'orange', purpose: 'SPI SCK · shared with SD' },
+    { mod: '2.13" e-paper', pin: 'CS',   gpio: 'IO10', color: 'lime',   purpose: 'chip-select (active LOW)' },
+    { mod: '2.13" e-paper', pin: 'D/C',  gpio: 'IO9',  color: 'pink',   purpose: 'data / command toggle' },
+    { mod: '2.13" e-paper', pin: 'RST',  gpio: 'IO8',  color: 'sky',    purpose: 'panel reset (active LOW pulse on init)' },
+    { mod: '2.13" e-paper', pin: 'BUSY', gpio: 'IO7',  color: 'violet', purpose: 'panel busy line (driver waits on this)' },
+    { mod: 'microSD',       pin: 'VCC',  gpio: '3V3',  color: 'cream',  purpose: 'card + level-shifter power' },
+    { mod: 'microSD',       pin: 'GND',  gpio: 'GND',  color: 'brown',  purpose: 'card ground' },
+    { mod: 'microSD',       pin: 'MOSI', gpio: 'IO11', color: 'amber',  purpose: 'SPI MOSI · shared with e-paper' },
+    { mod: 'microSD',       pin: 'MISO', gpio: 'IO13', color: 'teal',   purpose: 'SPI MISO (SD only)' },
+    { mod: 'microSD',       pin: 'SCK',  gpio: 'IO12', color: 'orange', purpose: 'SPI SCK · shared with e-paper' },
+    { mod: 'microSD',       pin: 'CS',   gpio: 'IO6',  color: 'rose',   purpose: 'chip-select (separate from e-paper)' },
+    { mod: 'Button NEXT',   pin: 'leg A', gpio: 'IO4', color: 'cyan',   purpose: 'INPUT_PULLUP · advance one page' },
+    { mod: 'Button NEXT',   pin: 'leg B', gpio: 'GND', color: 'brown',  purpose: 'pull to ground on press' },
+    { mod: 'Button PREV',   pin: 'leg A', gpio: 'IO5', color: 'sky-deep', purpose: 'INPUT_PULLUP · reverse one page' },
+    { mod: 'Button PREV',   pin: 'leg B', gpio: 'GND', color: 'brown',  purpose: 'pull to ground on press' },
+    { mod: 'TP4056',        pin: 'OUT+', gpio: '5V',   color: 'red',    purpose: 'main 4.2 V rail into ESP32 5V pin' },
+    { mod: 'TP4056',        pin: 'OUT-', gpio: 'GND',  color: 'brown',  purpose: 'shared ground' },
+    { mod: 'TP4056',        pin: 'B+',   gpio: 'LiPo +', color: 'red',  purpose: '1000 mAh LiPo positive' },
+    { mod: 'TP4056',        pin: 'B-',   gpio: 'LiPo -', color: 'brown',purpose: '1000 mAh LiPo negative' },
+  ];
+
+  const colorClass = {
+    cream:     'text-amber-200',
+    brown:     'text-amber-900',
+    amber:     'text-amber-300',
+    orange:    'text-orange-300',
+    lime:      'text-lime-300',
+    pink:      'text-pink-300',
+    sky:       'text-sky-300',
+    'sky-deep':'text-sky-400',
+    violet:    'text-violet-300',
+    teal:      'text-teal-300',
+    rose:      'text-rose-300',
+    cyan:      'text-cyan-300',
+    red:       'text-red-400',
+  };
+
+  const tbody = document.getElementById('wireRows');
+  tbody.innerHTML = wires.map(w => `
+    <tr class="hover:bg-white/[0.02]">
+      <td class="px-5 py-2.5 text-slate-200">${w.mod}</td>
+      <td class="px-5 py-2.5 mono text-slate-300">${w.pin}</td>
+      <td class="px-5 py-2.5 mono ${colorClass[w.color] || 'text-slate-300'}">${w.gpio}</td>
+      <td class="px-5 py-2.5 ${colorClass[w.color] || 'text-slate-400'}">${w.color}</td>
+      <td class="px-5 py-2.5 text-slate-400">${w.purpose}</td>
+    </tr>
+  `).join('');
+
+  // ============== CHECKLIST ==============
+  const steps = [
+    { group: 'Parts', label: 'ESP32-S3 SuperMini ordered (with USB-C)' },
+    { group: 'Parts', label: '2.13" e-paper module (SSD1680) ordered' },
+    { group: 'Parts', label: 'microSD module + 32 GB FAT32 card (lands tomorrow)' },
+    { group: 'Parts', label: '2 × 6 × 6 × 5 mm tactile pushbuttons' },
+    { group: 'Parts', label: 'TP4056 USB-C charger + 1000 mAh LiPo' },
+    { group: 'Firmware', label: 'Install GxEPD2 + ArduinoJson ≥ 7 in Arduino IDE' },
+    { group: 'Firmware', label: 'Board: ESP32S3 Dev Module · USB CDC On Boot enabled' },
+    { group: 'Firmware', label: 'Flash bible-reader.ino — Serial Monitor 115200' },
+    { group: 'Firmware', label: 'Verify splash + "[bible-reader] ready"' },
+    { group: 'Wiring', label: 'Solder e-paper 8-pin breakout to ESP32 per table' },
+    { group: 'Wiring', label: 'Solder SD module to ESP32 (MOSI/SCK shared, CS = IO6)' },
+    { group: 'Wiring', label: 'Solder both buttons (NEXT = IO4, PREV = IO5)' },
+    { group: 'Wiring', label: 'TP4056 OUT+ → ESP32 5V pin · OUT- → GND' },
+    { group: 'Wiring', label: 'Star-tie all GNDs (e-paper, SD, buttons, TP4056) at one pad' },
+    { group: 'Test (stream)', label: 'Power on without SD card → connects to WiFi' },
+    { group: 'Test (stream)', label: 'NEXT advances pages, PREV reverses' },
+    { group: 'Test (stream)', label: 'Hold NEXT ≥800 ms → chapter jumps forward' },
+    { group: 'Test (stream)', label: 'Disconnect power, repower → resumes at same page' },
+    { group: 'Test (SD)', label: 'Run node tools/build-sd-card.mjs (regenerates /Bible/)' },
+    { group: 'Test (SD)', label: 'Copy sd-card/Bible/ onto SD card root' },
+    { group: 'Test (SD)', label: 'Insert SD into module, repower → no WiFi connect attempted' },
+    { group: 'Test (SD)', label: 'Page turns are sub-second (no Range round-trip)' },
+    { group: 'Polish', label: 'Idle 5 min → device enters deep sleep' },
+    { group: 'Polish', label: 'Press either button while sleeping → wakes and resumes' },
+  ];
+
+  const checklistEl = document.getElementById('checklist');
+  const STORAGE_KEY = 'bible-reader-checklist-v1';
+  const saved = JSON.parse(localStorage.getItem(STORAGE_KEY) || '{}');
+  const grouped = {};
+  steps.forEach((s, i) => { (grouped[s.group] ??= []).push({ ...s, i }); });
+
+  checklistEl.innerHTML = Object.entries(grouped).map(([g, items]) => `
+    <div>
+      <div class="text-xs uppercase tracking-wider text-amber-300 mb-2">${g}</div>
+      <div class="space-y-1.5">
+        ${items.map(it => `
+          <div class="check-item ${saved[it.i] ? 'checked' : ''} flex items-center gap-3 p-2 rounded-md hover:bg-white/[0.03] cursor-pointer" data-i="${it.i}">
+            <div class="check-box"></div>
+            <div class="label text-sm text-slate-300">${it.label}</div>
+          </div>
+        `).join('')}
+      </div>
+    </div>
+  `).join('');
+
+  document.getElementById('progressTotal').textContent = steps.length;
+  function updateProgress() {
+    const done = Object.values(saved).filter(Boolean).length;
+    document.getElementById('progressNum').textContent = done;
+    document.getElementById('progressBar').style.width = `${(done / steps.length) * 100}%`;
+  }
+  updateProgress();
+  checklistEl.addEventListener('click', e => {
+    const item = e.target.closest('.check-item');
+    if (!item) return;
+    const i = item.dataset.i;
+    saved[i] = !saved[i];
+    item.classList.toggle('checked', saved[i]);
+    localStorage.setItem(STORAGE_KEY, JSON.stringify(saved));
+    updateProgress();
+  });
+
+  // ============== DEMO E-INK ==============
+  // Minimal in-page Bible (just Genesis 1) so the demo has something real to render.
+  const sample = {
+    book: 'Genesis',
+    chapter: 1,
+    chapterCount: 50,
+    verses: [
+      [1, 'In the beginning God created the heavens and the earth.'],
+      [2, 'And the earth was a formless and desolate emptiness, and darkness was over the surface of the deep, and the Spirit of God was hovering over the surface of the waters.'],
+      [3, 'Then God said, "Let there be light"; and there was light.'],
+      [4, 'God saw that the light was good; and God separated the light from the darkness.'],
+      [5, 'God called the light "day," and the darkness He called "night." And there was evening and there was morning, one day.'],
+      [6, 'Then God said, "Let there be an expanse in the midst of the waters, and let it separate the waters from the waters."'],
+      [7, 'God made the expanse, and separated the waters that were below the expanse from the waters that were above the expanse; and it was so.'],
+      [8, 'God called the expanse "heaven." And there was evening and there was morning, a second day.'],
+      [9, 'Then God said, "Let the waters below the heavens be gathered into one place, and let the dry land appear"; and it was so.'],
+      [10, 'And God called the dry land "earth," and the gathering of the waters He called "seas"; and God saw that it was good.'],
+    ],
+  };
+
+  // Wrap verses to ~6 lines per page (matches the firmware's ~5 lines @ 9 pt)
+  const LINES_PER_PAGE = 6;
+  function paginate() {
+    const measure = document.createElement('div');
+    measure.style.cssText = 'position:absolute;visibility:hidden;width:468px;font-family:Spectral,Georgia,serif;font-size:15px;line-height:1.45';
+    document.body.appendChild(measure);
+    const lines = [];
+    sample.verses.forEach(([n, txt]) => {
+      // Build paragraph
+      const para = document.createElement('div');
+      para.textContent = `${n} ${txt}`;
+      measure.innerHTML = '';
+      measure.appendChild(para);
+      // Use a hack: take each word, append, measure line breaks
+      const words = `${n} ${txt}`.split(/\s+/);
+      let current = '';
+      const probe = document.createElement('span');
+      measure.innerHTML = '';
+      measure.appendChild(probe);
+      for (const w of words) {
+        const trial = current ? current + ' ' + w : w;
+        probe.textContent = trial;
+        if (probe.getBoundingClientRect().width > 460 && current) {
+          lines.push(current);
+          current = w;
+        } else {
+          current = trial;
+        }
+      }
+      if (current) lines.push(current);
+    });
+    document.body.removeChild(measure);
+
+    const pages = [];
+    for (let i = 0; i < lines.length; i += LINES_PER_PAGE) {
+      pages.push(lines.slice(i, i + LINES_PER_PAGE));
+    }
+    return pages;
+  }
+
+  let pages = [];
+  let pageIdx = 0;
+  let chapterIdx = 1;
+
+  function render() {
+    document.getElementById('epdTitle').textContent = `${sample.book} ${chapterIdx}`;
+    document.getElementById('epdPager').textContent = `page ${pageIdx + 1} / ${pages.length}`;
+    document.getElementById('epdFooterL').textContent = `page ${pageIdx + 1} / ${pages.length}`;
+    document.getElementById('epdFooterR').textContent = `ch ${chapterIdx} / ${sample.chapterCount}`;
+    const body = document.getElementById('epdBody');
+    body.innerHTML = (pages[pageIdx] || []).map(l => `<div>${l}</div>`).join('');
+  }
+
+  function flash(then) {
+    const fl = document.getElementById('epdFlash');
+    fl.classList.add('flashing');
+    setTimeout(() => { then(); fl.classList.remove('flashing'); }, 90);
+  }
+
+  function nextPage() {
+    flash(() => {
+      pageIdx++;
+      if (pageIdx >= pages.length) {
+        pageIdx = 0;
+        chapterIdx = (chapterIdx % sample.chapterCount) + 1;
+      }
+      render();
+    });
+  }
+  function prevPage() {
+    flash(() => {
+      pageIdx--;
+      if (pageIdx < 0) {
+        pageIdx = pages.length - 1;
+        chapterIdx = chapterIdx === 1 ? sample.chapterCount : chapterIdx - 1;
+      }
+      render();
+    });
+  }
+  function jumpChapter() {
+    flash(() => {
+      pageIdx = 0;
+      chapterIdx = (chapterIdx % sample.chapterCount) + 1;
+      render();
+    });
+  }
+
+  // Defer pagination until fonts and DOM widths are settled
+  window.addEventListener('load', () => {
+    pages = paginate();
+    render();
+  });
+  document.getElementById('btnNext').addEventListener('click', nextPage);
+  document.getElementById('btnPrev').addEventListener('click', prevPage);
+  document.getElementById('btnJump').addEventListener('click', jumpChapter);
+
+  // ============== MOBILE NAV + SCROLL SPY ==============
+  document.getElementById('navOpen').addEventListener('click', () => {
+    document.getElementById('navMobile').classList.toggle('hidden');
+  });
+  document.querySelectorAll('#navMobile a').forEach(a => {
+    a.addEventListener('click', () => document.getElementById('navMobile').classList.add('hidden'));
+  });
+  function syncNav() {
+    const sections = ['overview','hardware','wiring','demo','code','checklist'];
+    const y = window.scrollY + 100;
+    let active = sections[0];
+    for (const id of sections) {
+      const el = document.getElementById(id);
+      if (el && el.offsetTop <= y) active = id;
+    }
+    document.querySelectorAll('[data-nav]').forEach(a => {
+      a.classList.toggle('active', a.getAttribute('href') === '#' + active);
+    });
+  }
+  window.addEventListener('scroll', syncNav, { passive: true });
+  syncNav();
+
+  // ============== CODE PREVIEWS (truncated, syntax-highlighted) ==============
+  const arduinoPreview = String.raw`// firmware/bible-reader.ino — excerpt (~ first 100 lines · full file in the repo)
+#include <SPI.h>
+#include <SD.h>
+#include <Preferences.h>
+#include <WiFi.h>
+#include <WiFiMulti.h>
+#include <WiFiClientSecure.h>
+#include <HTTPClient.h>
+#include <ArduinoJson.h>
+#include <GxEPD2_BW.h>
+#include <Fonts/FreeSerif9pt7b.h>
+#include <Fonts/FreeSerifBold9pt7b.h>
+#include "esp_sleep.h"
+
+// ===== PINS (SuperMini variant exposes only GPIO 1-13) =====
+static const int SPI_MOSI = 11;  // shared between e-paper SDI and SD MOSI
+static const int SPI_MISO = 13;  // SD only
+static const int SPI_SCK  = 12;  // shared between e-paper SCLK and SD SCK
+static const int EPD_CS   = 10;
+static const int EPD_DC   = 9;
+static const int EPD_RST  = 8;
+static const int EPD_BUSY = 7;
+static const int SD_CS    = 6;
+static const int BTN_NEXT = 4;
+static const int BTN_PREV = 5;
+
+// 2.13" SSD1680 250 × 122 — GxEPD2_213_BN covers WaveShare V2/V3 + GooDisplay
+GxEPD2_BW<GxEPD2_213_BN, GxEPD2_213_BN::HEIGHT> display(
+  GxEPD2_213_BN(EPD_CS, EPD_DC, EPD_RST, EPD_BUSY)
+);
+
+void setup() {
+  Serial.begin(115200);
+  pinMode(BTN_NEXT, INPUT_PULLUP);
+  pinMode(BTN_PREV, INPUT_PULLUP);
+  SPI.begin(SPI_SCK, SPI_MISO, SPI_MOSI);
+  display.init(115200, true, 50, false);
+  display.setRotation(1);
+  display.setTextWrap(false);
+
+  // Source auto-detect — SD card if mounted + /Bible/INDEX.txt exists, else WiFi stream
+  if (initSourceSD()) {
+    source = SOURCE_SD;
+  } else {
+    rawChapterBuf = (char*) malloc(RAW_CHAP_CAP);
+    if (!initSourceStream()) { /* deep-sleep — no source available */ }
+    source = SOURCE_STREAM;
+  }
+
+  restoreState();
+  loadChapter(bookIdx, chapterIdx);
+  paginateChapter();
+  renderPage();
+}
+
+void loop() {
+  Gesture g = readButtons();
+  if (g != G_NONE) {
+    lastInteractionMs = millis();
+    switch (g) {
+      case G_TAP_NEXT:  advancePage();    break;
+      case G_TAP_PREV:  reversePage();    break;
+      case G_HOLD_NEXT: advanceChapter(); break;
+      case G_HOLD_PREV: reverseChapter(); break;
+      default: break;
+    }
+  }
+  maybeSleep();   // 5-min idle → esp_deep_sleep_start() with ext1 wake on IO4|IO5
+  delay(8);
+}`;
+
+  const nodePreview = String.raw`#!/usr/bin/env node
+// tools/build-sd-card.mjs — excerpt
+import { readFileSync, writeFileSync, mkdirSync, rmSync, existsSync } from "node:fs";
+import { dirname, join, resolve } from "node:path";
+import { fileURLToPath } from "node:url";
+
+const __filename = fileURLToPath(import.meta.url);
+const __dirname  = dirname(__filename);
+const JSON_PATH  = resolve(__dirname, "..", "..", "devo", "nasb2020.json");
+const OUT_DIR    = resolve(__dirname, "..", "sd-card", "Bible");
+
+const DISPLAY = {
+  "GENESIS": "Genesis", "EXODUS": "Exodus", /* ... 66 entries ... */
+  "REVELATION": "Revelation",
+};
+
+const bible = JSON.parse(readFileSync(JSON_PATH, "utf8"));
+if (existsSync(OUT_DIR)) rmSync(OUT_DIR, { recursive: true, force: true });
+mkdirSync(OUT_DIR, { recursive: true });
+
+const indexRows = [];
+Object.keys(bible).forEach((bookKey, i) => {
+  const displayName = DISPLAY[bookKey];
+  const chapters = bible[bookKey];
+  const lines = [\`=== BOOK \${displayName} ===\`];
+  for (const ch of Object.keys(chapters).map(Number).sort((a,b) => a-b)) {
+    lines.push(\`=== CHAPTER \${ch} ===\`);
+    for (const v of Object.keys(chapters[ch]).map(Number).sort((a,b) => a-b)) {
+      lines.push(\`\${v} \${chapters[ch][v].replace(/\\s+/g, " ").trim()}\`);
+    }
+  }
+  writeFileSync(join(OUT_DIR, \`\${displayName}.txt\`), lines.join("\\n") + "\\n");
+  indexRows.push(\`\${String(i + 1).padStart(2, "0")} \${displayName} \${Object.keys(chapters).length} \${bookKey}\`);
+});
+writeFileSync(join(OUT_DIR, "INDEX.txt"), indexRows.join("\\n") + "\\n");`;
+
+  // Tiny inline syntax highlighter — same trick as autoclicker (placeholder tokens)
+  function escapeHtml(s) {
+    return s.replace(/&/g, '&amp;').replace(/</g, '&lt;').replace(/>/g, '&gt;');
+  }
+  function highlight(src, lang) {
+    let s = escapeHtml(src);
+    const wrap = (re, cls) => {
+      s = s.replace(re, m => `\u0001${cls}\u0001${m}\u0002`);
+    };
+    // strings (double-quoted, single-quoted, backtick — be permissive)
+    wrap(/(&quot;[^&]*?&quot;|&#39;[^&]*?&#39;|`[^`]*`)/g, 'tok-str');
+    // comments — line comments
+    wrap(/\/\/[^\n]*/g, 'tok-com');
+    // numbers
+    wrap(/\b\d+(?:\.\d+)?\b/g, 'tok-num');
+    if (lang === 'cpp') {
+      wrap(/\b(static|const|void|int|bool|char|uint8_t|uint16_t|uint32_t|size_t|return|if|else|while|for|switch|case|break|default|true|false|nullptr|enum|struct|class|namespace|template|typename)\b/g, 'tok-kw');
+      wrap(/\b([A-Z][A-Za-z0-9_]*)\b/g, 'tok-typ');
+      wrap(/#\w+/g, 'tok-fn');
+    } else {
+      wrap(/\b(const|let|var|function|return|if|else|for|while|of|in|new|import|from|export|async|await|class)\b/g, 'tok-kw');
+      wrap(/\b([A-Z][A-Za-z0-9_]*)\b/g, 'tok-typ');
+    }
+    // realize placeholders
+    s = s.replace(/\u0001([\w-]+)\u0001([\s\S]*?)\u0002/g, (_, cls, body) => `<span class="${cls}">${body}</span>`);
+    return s;
+  }
+  document.getElementById('codeArduino').innerHTML = highlight(arduinoPreview, 'cpp');
+  document.getElementById('codeNode').innerHTML    = highlight(nodePreview, 'js');
+</script>
+
+</body>
+</html>
