@@ -32,6 +32,7 @@
         font-family: "Inter", system-ui, sans-serif;
         -webkit-font-smoothing: antialiased;
         -moz-osx-font-smoothing: grayscale;
+        overflow-x: clip;            /* prevent horizontal scroll from off-canvas florals */
       }
       .font-script { font-family: "Sacramento", cursive; }
       .font-serif { font-family: "Playfair Display", serif; }
@@ -43,7 +44,15 @@
         user-select: none;
         z-index: 0;
         opacity: 0;
+        /* Dynamic size: ~30vw on phones, capped at 280px on desktop, never wider than ~38% of viewport. */
+        width: clamp(120px, 30vw, 280px);
+        max-width: 38vw;
+        height: auto;
       }
+      .floral-tl { top:    clamp(-30px, -4vw, -16px); left:  clamp(-50px, -6vw, -24px); --r:  -8deg; }
+      .floral-tr { top:    clamp(-20px, -3vw, -10px); right: clamp(-50px, -6vw, -24px); --r:  10deg; }
+      .floral-bl { bottom: clamp(-30px, -4vw, -16px); left:  clamp(-50px, -6vw, -24px); --r:  -6deg; }
+      .floral-br { bottom: clamp(-20px, -3vw, -10px); right: clamp(-50px, -6vw, -24px); --r:   8deg; }
       .floral.in {
         animation: floralIn 1.6s cubic-bezier(0.22, 1, 0.36, 1) forwards;
       }
@@ -470,10 +479,10 @@
   </head>
   <body class="min-h-screen relative overflow-x-hidden">
     <!-- Floral decorations -->
-    <img class="floral" src="../weddingtest/assets/5.png"  style="--r: -8deg;  top: -40px;  left: -60px;  width: 280px" />
-    <img class="floral" src="../weddingtest/assets/8.png"  style="--r:  10deg; top: -20px;  right: -60px; width: 240px" />
-    <img class="floral" src="../weddingtest/assets/6.png"  style="--r:  -6deg; bottom: -40px; left: -50px; width: 260px" />
-    <img class="floral" src="../weddingtest/assets/10.png" style="--r:   8deg; bottom: -30px; right: -60px; width: 280px" />
+    <img class="floral floral-tl" src="../weddingtest/assets/5.png"  alt="" />
+    <img class="floral floral-tr" src="../weddingtest/assets/8.png"  alt="" />
+    <img class="floral floral-bl" src="../weddingtest/assets/6.png"  alt="" />
+    <img class="floral floral-br" src="../weddingtest/assets/10.png" alt="" />
 
     <main class="relative max-w-2xl mx-auto px-6 py-12 sm:py-16 z-10">
       <!-- Hero -->
