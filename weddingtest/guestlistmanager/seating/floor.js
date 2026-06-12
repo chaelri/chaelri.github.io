@@ -425,6 +425,7 @@ function roleGroupFor(role) {
     case "Secondary Sponsor":
     case "Secondary Sponsor (Veil)":
     case "Secondary Sponsor (Coin)":
+    case "Secondary Sponsor (Strands)":
     case "Secondary Sponsor (Candle)":
       return "secondary";
     case "Bible Bearer":
