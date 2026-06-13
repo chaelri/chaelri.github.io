@@ -748,14 +748,20 @@ Output ONLY the cleaned Markdown — no preamble, no "Here is the cleaned versio
     openModal();
     modalBody.innerHTML = '<div class="modal-loading"><div class="spinner"></div><div>Cleaning transcript… (Gemini)</div></div>';
 
-    let acc = '';
+    const SAFETY = [
+      { category: 'HARM_CATEGORY_HARASSMENT',        threshold: 'BLOCK_ONLY_HIGH' },
+      { category: 'HARM_CATEGORY_HATE_SPEECH',       threshold: 'BLOCK_ONLY_HIGH' },
+      { category: 'HARM_CATEGORY_SEXUALLY_EXPLICIT', threshold: 'BLOCK_ONLY_HIGH' },
+      { category: 'HARM_CATEGORY_DANGEROUS_CONTENT', threshold: 'BLOCK_ONLY_HIGH' },
+    ];
+
     try {
       const res = await fetch(PROXY_URL, {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({
-          stream: true,
           contents: [{ role: 'user', parts: [{ text: prompt }] }],
+          safetySettings: SAFETY,
           generationConfig: {
             temperature: 0.4,
             maxOutputTokens: 16384,
@@ -763,46 +769,52 @@ Output ONLY the cleaned Markdown — no preamble, no "Here is the cleaned versio
           },
         }),
       });
-      if (!res.ok || !res.body) throw new Error(`HTTP ${res.status}`);
-      const reader = res.body.getReader();
-      const dec = new TextDecoder();
-      let buf = '';
-      modalBody.innerHTML = '<div id="streamHost"></div>';
-      const host = $('streamHost');
-      while (true) {
-        const { value, done } = await reader.read();
-        if (done) break;
-        buf += dec.decode(value, { stream: true });
-        // SSE parse: lines starting with "data:" possibly multi-line per event
-        let nl;
-        while ((nl = buf.indexOf('\n')) !== -1) {
-          const line = buf.slice(0, nl).trim();
-          buf = buf.slice(nl + 1);
-          if (!line.startsWith('data:')) continue;
-          const payload = line.slice(5).trim();
-          if (!payload || payload === '[DONE]') continue;
-          try {
-            const j = JSON.parse(payload);
-            const chunk = j?.candidates?.[0]?.content?.parts?.[0]?.text || '';
-            if (chunk) {
-              acc += chunk;
-              host.innerHTML = md2html(acc) + '<span class="stream-cursor"></span>';
-              host.parentElement.scrollTop = host.parentElement.scrollHeight;
-            }
-          } catch {}
-        }
+      const data = await res.json();
+      console.log('[sermon] gemini response:', data);
+
+      if (!res.ok) {
+        modalBody.innerHTML = `<div style="color:var(--accent);padding:14px">
+          HTTP ${res.status}<br><br>
+          <pre style="white-space:pre-wrap;font-size:12px;color:var(--muted)">${escapeHtml(JSON.stringify(data, null, 2))}</pre></div>`;
+        return;
       }
-      // Final render without cursor
-      modalBody.innerHTML = md2html(acc);
-      lastCleaned = acc;
-      try { localStorage.setItem(CLEAN_KEY, acc); } catch {}
+
+      const cand = data?.candidates?.[0];
+      const text = cand?.content?.parts?.map(p => p.text).filter(Boolean).join('') || '';
+      const finishReason = cand?.finishReason;
+      const blockReason = data?.promptFeedback?.blockReason;
+
+      if (!text) {
+        // Show what came back so we can diagnose
+        const diag = {
+          finishReason,
+          blockReason,
+          promptFeedback: data?.promptFeedback,
+          safetyRatings: cand?.safetyRatings,
+        };
+        modalBody.innerHTML = `<div style="padding:14px">
+          <div style="color:var(--accent);font-weight:600;margin-bottom:8px">Gemini returned no text.</div>
+          <div style="font-size:13px;color:var(--muted);margin-bottom:10px">finishReason: <b style="color:var(--text)">${finishReason || 'unknown'}</b>${blockReason ? ' · blockReason: <b style="color:var(--text)">' + blockReason + '</b>' : ''}</div>
+          <pre style="white-space:pre-wrap;font-size:11px;color:var(--muted);background:var(--panel-2);padding:10px;border-radius:8px">${escapeHtml(JSON.stringify(diag, null, 2))}</pre>
+          <div style="font-size:13px;margin-top:10px;color:var(--muted)">Tap <b style="color:var(--text)">Re-run</b> para subukan ulit.</div>
+        </div>`;
+        return;
+      }
+
+      modalBody.innerHTML = md2html(text);
+      lastCleaned = text;
+      try { localStorage.setItem(CLEAN_KEY, text); } catch {}
     } catch (err) {
       console.error('[sermon] clean failed:', err);
-      modalBody.innerHTML = `<div style="color:var(--accent);padding:14px">Clean failed: ${err.message || err}<br><br>Pakiretry sa <b>Re-run</b>.</div>`;
+      modalBody.innerHTML = `<div style="color:var(--accent);padding:14px">Clean failed: ${escapeHtml(err.message || String(err))}<br><br>Pakiretry sa <b>Re-run</b>.</div>`;
     } finally {
       cleanBtn.disabled = false;
       cleanBtn.innerHTML = '<span class="material-symbols-outlined">auto_awesome</span>Clean &amp; Document';
     }
+  }
+
+  function escapeHtml(s) {
+    return String(s).replace(/&/g, '&amp;').replace(/</g, '&lt;').replace(/>/g, '&gt;');
   }
 
   cleanBtn.addEventListener('click', () => {
