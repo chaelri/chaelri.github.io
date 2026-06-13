@@ -318,14 +318,40 @@
     };
 
     r.onerror = (ev) => {
-      // 'no-speech', 'audio-capture', 'not-allowed', 'aborted', 'network'
+      // 'no-speech', 'audio-capture', 'not-allowed', 'aborted', 'network', 'language-not-supported'
+      console.warn('[sermon] recognition error:', ev.error, ev);
       if (ev.error === 'not-allowed' || ev.error === 'service-not-allowed') {
-        toast('Mic permission denied');
+        toast('Mic permission denied — check site settings');
+        statusText.textContent = 'Mic blocked';
         userStopped = true;
         setIdle();
         return;
       }
-      // For 'no-speech', 'network', 'aborted' — let onend handle auto-restart
+      if (ev.error === 'language-not-supported') {
+        // Fallback chain: fil-PH → en-PH → en-US
+        const fallback = currentLang === 'fil-PH' ? 'en-PH' : (currentLang === 'en-PH' ? 'en-US' : null);
+        if (fallback) {
+          toast(`Lang not supported — switching to ${fallback}`);
+          setLang(fallback);
+        } else {
+          statusText.textContent = 'No supported language';
+          stop();
+        }
+        return;
+      }
+      if (ev.error === 'audio-capture') {
+        toast('No microphone detected');
+        statusText.textContent = 'No mic';
+        stop();
+        return;
+      }
+      if (ev.error === 'no-speech') {
+        // Common during pauses — onend will restart
+        statusText.textContent = 'Waiting…';
+        return;
+      }
+      // network / aborted / unknown — show but keep going
+      statusText.textContent = `Err: ${ev.error}`;
     };
 
     r.onend = () => {
@@ -346,13 +372,19 @@
   }
 
   function start() {
-    if (!SR) return;
+    if (!SR) { toast('Browser does not support speech recognition'); return; }
     userStopped = false;
     recognition = buildRecognition();
     try {
       recognition.start();
     } catch (err) {
-      // already started — ignore
+      console.warn('[sermon] recognition.start() threw:', err);
+      // If already started, treat as already-running. Otherwise surface it.
+      if (String(err && err.name) !== 'InvalidStateError') {
+        toast('Start failed: ' + (err && err.message || err));
+        statusText.textContent = 'Start failed';
+        return;
+      }
     }
     isRecording = true;
     recordBtn.classList.add('rec');
@@ -386,7 +418,7 @@
   // ---- UI bindings
   recordBtn.addEventListener('click', () => {
     if (isRecording) stop(); else start();
-  });
+  }, { passive: true });
 
   $('scrollBtn').addEventListener('click', scrollToBottom);
 
@@ -454,13 +486,11 @@
     if (document.visibilityState === 'visible' && isRecording && !wakeLock) acquireWakeLock();
   });
 
-  const origStart = start;
-  start = function() { origStart(); acquireWakeLock(); };
-  const origStop = stop;
-  stop = function() { origStop(); releaseWakeLock(); };
-
-  // Re-bind because we replaced the closures used by the click handler
-  recordBtn.onclick = () => { if (isRecording) stop(); else start(); };
+  // Hook wake-lock onto the existing start/stop without rebinding click handlers
+  const _origStart = start;
+  const _origStop = stop;
+  start = function() { _origStart(); acquireWakeLock(); };
+  stop  = function() { _origStop();  releaseWakeLock(); };
 
   // ---- init
   if (!SR) {
