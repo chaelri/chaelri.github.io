@@ -1,0 +1,475 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
+<meta name="theme-color" content="#0a0a0f">
+<title>Sermon Listener — Taglish</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&family=Material+Symbols+Outlined&display=swap" rel="stylesheet">
+<style>
+  :root {
+    --bg: #0a0a0f;
+    --panel: #14141c;
+    --panel-2: #1c1c28;
+    --border: #2a2a3a;
+    --text: #ececf2;
+    --muted: #8a8aa0;
+    --accent: #ff6b6b;
+    --accent-2: #ffb86b;
+    --ok: #6bff9e;
+    --live: #ff4d6d;
+  }
+  * { box-sizing: border-box; -webkit-tap-highlight-color: transparent; }
+  html, body { margin: 0; padding: 0; background: var(--bg); color: var(--text); font-family: 'Inter', system-ui, sans-serif; }
+  body { min-height: 100dvh; padding: env(safe-area-inset-top) env(safe-area-inset-right) env(safe-area-inset-bottom) env(safe-area-inset-left); }
+  .app { max-width: 760px; margin: 0 auto; padding: 16px 14px 220px; }
+
+  header { display: flex; align-items: center; justify-content: space-between; gap: 10px; padding: 6px 4px 14px; }
+  .title { display: flex; align-items: center; gap: 10px; }
+  .title h1 { font-size: 17px; font-weight: 700; margin: 0; letter-spacing: -0.01em; }
+  .title .sub { font-size: 11px; color: var(--muted); margin-top: 2px; }
+  .lang-pill {
+    font-size: 11px; color: var(--muted); background: var(--panel); border: 1px solid var(--border);
+    padding: 4px 9px; border-radius: 999px; font-weight: 500;
+  }
+
+  .stat-row {
+    display: grid; grid-template-columns: 1fr 1fr 1fr; gap: 8px; margin-bottom: 14px;
+  }
+  .stat {
+    background: var(--panel); border: 1px solid var(--border); border-radius: 12px;
+    padding: 10px 12px; text-align: center;
+  }
+  .stat .v { font-size: 18px; font-weight: 700; font-variant-numeric: tabular-nums; }
+  .stat .l { font-size: 10px; color: var(--muted); text-transform: uppercase; letter-spacing: 0.08em; margin-top: 2px; }
+
+  .transcript {
+    background: var(--panel); border: 1px solid var(--border); border-radius: 14px;
+    padding: 14px; min-height: 50vh; max-height: 65vh; overflow-y: auto;
+    font-size: 16px; line-height: 1.65; -webkit-overflow-scrolling: touch;
+  }
+  .transcript:empty::before {
+    content: 'Tap Start. Magsalita ka na — lahat ng sasabihin mo lalabas dito verbatim.';
+    color: var(--muted); font-style: italic; font-size: 14px;
+  }
+  .seg { margin-bottom: 12px; }
+  .seg .ts { color: var(--muted); font-size: 11px; font-variant-numeric: tabular-nums; margin-right: 8px; }
+  .seg .txt { color: var(--text); }
+  .interim {
+    color: var(--accent-2); font-style: italic; opacity: 0.85; min-height: 1.65em;
+    padding: 8px 2px 0; font-size: 15px;
+  }
+  .interim:empty { display: none; }
+
+  .controls {
+    position: fixed; bottom: 0; left: 0; right: 0;
+    background: linear-gradient(180deg, transparent 0%, var(--bg) 30%);
+    padding: 30px 14px calc(env(safe-area-inset-bottom) + 14px); z-index: 10;
+  }
+  .controls-inner { max-width: 760px; margin: 0 auto; display: flex; gap: 10px; align-items: stretch; }
+  .btn {
+    flex: 1; background: var(--panel-2); color: var(--text); border: 1px solid var(--border);
+    border-radius: 14px; padding: 16px; font: inherit; font-weight: 600; font-size: 15px;
+    cursor: pointer; display: inline-flex; align-items: center; justify-content: center; gap: 8px;
+    transition: transform 0.06s ease, background 0.15s, border-color 0.15s;
+  }
+  .btn:active { transform: scale(0.97); }
+  .btn .material-symbols-outlined { font-size: 22px; }
+  .btn-primary {
+    background: var(--accent); color: #1a0606; border-color: var(--accent);
+    flex: 2; font-size: 17px; padding: 20px;
+  }
+  .btn-primary.rec {
+    background: var(--live); border-color: var(--live); color: #fff;
+    animation: pulse 1.6s ease-in-out infinite;
+  }
+  @keyframes pulse {
+    0%, 100% { box-shadow: 0 0 0 0 rgba(255, 77, 109, 0.55); }
+    50% { box-shadow: 0 0 0 18px rgba(255, 77, 109, 0); }
+  }
+  .btn-icon { flex: 0 0 56px; padding: 16px; }
+
+  .toolbar {
+    display: flex; gap: 8px; margin-bottom: 12px; flex-wrap: wrap;
+  }
+  .tool {
+    background: var(--panel); color: var(--text); border: 1px solid var(--border);
+    border-radius: 10px; padding: 8px 12px; font: inherit; font-size: 13px; font-weight: 500;
+    cursor: pointer; display: inline-flex; align-items: center; gap: 6px;
+  }
+  .tool .material-symbols-outlined { font-size: 17px; }
+  .tool:active { background: var(--panel-2); }
+  .tool.danger { color: var(--accent); border-color: rgba(255,107,107,0.3); }
+
+  .toast {
+    position: fixed; top: calc(env(safe-area-inset-top) + 12px); left: 50%; transform: translateX(-50%) translateY(-20px);
+    background: var(--panel-2); border: 1px solid var(--border); color: var(--text);
+    padding: 10px 16px; border-radius: 999px; font-size: 13px; font-weight: 500;
+    opacity: 0; pointer-events: none; transition: opacity 0.2s, transform 0.2s; z-index: 20;
+  }
+  .toast.show { opacity: 1; transform: translateX(-50%) translateY(0); }
+
+  .unsupported {
+    background: rgba(255,107,107,0.1); border: 1px solid rgba(255,107,107,0.3);
+    border-radius: 12px; padding: 14px; color: var(--accent); font-size: 13px; margin-bottom: 14px;
+  }
+
+  .dot { display: inline-block; width: 8px; height: 8px; border-radius: 50%; background: var(--muted); margin-right: 6px; vertical-align: middle; }
+  .dot.live { background: var(--live); animation: blink 1s infinite; }
+  @keyframes blink { 50% { opacity: 0.3; } }
+</style>
+</head>
+<body>
+<div class="app">
+  <header>
+    <div class="title">
+      <span class="material-symbols-outlined" style="font-size:28px; color:var(--accent);">graphic_eq</span>
+      <div>
+        <h1>Sermon Listener</h1>
+        <div class="sub"><span id="statusDot" class="dot"></span><span id="statusText">Idle</span></div>
+      </div>
+    </div>
+    <span class="lang-pill" id="langPill">fil-PH · Taglish</span>
+  </header>
+
+  <div id="unsupported" class="unsupported" style="display:none;">
+    Hindi suportado ng browser mo ang Web Speech API. Gamitin ang Chrome (Android/Desktop) or Safari (iOS).
+  </div>
+
+  <div class="stat-row">
+    <div class="stat"><div class="v" id="statTime">00:00</div><div class="l">Elapsed</div></div>
+    <div class="stat"><div class="v" id="statWords">0</div><div class="l">Words</div></div>
+    <div class="stat"><div class="v" id="statSegs">0</div><div class="l">Segments</div></div>
+  </div>
+
+  <div class="toolbar">
+    <button class="tool" id="copyBtn"><span class="material-symbols-outlined">content_copy</span>Copy all</button>
+    <button class="tool" id="downloadBtn"><span class="material-symbols-outlined">download</span>Download .txt</button>
+    <button class="tool" id="langBtn"><span class="material-symbols-outlined">language</span>Language</button>
+    <button class="tool danger" id="clearBtn"><span class="material-symbols-outlined">delete</span>Clear</button>
+  </div>
+
+  <div class="transcript" id="transcript"></div>
+  <div class="interim" id="interim"></div>
+</div>
+
+<div class="controls">
+  <div class="controls-inner">
+    <button class="btn btn-primary" id="recordBtn">
+      <span class="material-symbols-outlined">mic</span>
+      <span id="recordLabel">Start</span>
+    </button>
+    <button class="btn btn-icon" id="scrollBtn" title="Scroll to bottom">
+      <span class="material-symbols-outlined">vertical_align_bottom</span>
+    </button>
+  </div>
+</div>
+
+<div class="toast" id="toast">Copied</div>
+
+<script>
+(() => {
+  const SR = window.SpeechRecognition || window.webkitSpeechRecognition;
+  const LS_KEY = 'sermon_listener_v1';
+  const LANG_KEY = 'sermon_listener_lang';
+  const LANGS = [
+    { code: 'fil-PH', label: 'fil-PH · Taglish' },
+    { code: 'en-PH',  label: 'en-PH · Philippine English' },
+    { code: 'en-US',  label: 'en-US · English' },
+    { code: 'tl-PH',  label: 'tl-PH · Tagalog' },
+  ];
+
+  const $ = id => document.getElementById(id);
+  const transcriptEl = $('transcript');
+  const interimEl    = $('interim');
+  const recordBtn    = $('recordBtn');
+  const recordLabel  = $('recordLabel');
+  const langPill     = $('langPill');
+  const statusDot    = $('statusDot');
+  const statusText   = $('statusText');
+  const statTime     = $('statTime');
+  const statWords    = $('statWords');
+  const statSegs     = $('statSegs');
+  const toastEl      = $('toast');
+
+  // ---- state
+  let recognition = null;
+  let isRecording = false;
+  let userStopped = false;
+  let segments = JSON.parse(localStorage.getItem(LS_KEY) || '[]'); // [{ ts, text }]
+  let startedAt = null;
+  let elapsedMs = 0;
+  let timerId = null;
+  let currentLang = localStorage.getItem(LANG_KEY) || 'fil-PH';
+
+  function setLang(code) {
+    currentLang = code;
+    localStorage.setItem(LANG_KEY, code);
+    const m = LANGS.find(l => l.code === code) || LANGS[0];
+    langPill.textContent = m.label;
+    if (recognition && isRecording) {
+      // Restart with new lang
+      userStopped = true;
+      try { recognition.stop(); } catch {}
+      setTimeout(() => start(), 250);
+    } else if (recognition) {
+      recognition.lang = code;
+    }
+  }
+
+  function toast(msg) {
+    toastEl.textContent = msg;
+    toastEl.classList.add('show');
+    clearTimeout(toast._t);
+    toast._t = setTimeout(() => toastEl.classList.remove('show'), 1600);
+  }
+
+  function fmtTime(ms) {
+    const s = Math.floor(ms / 1000);
+    const h = Math.floor(s / 3600), m = Math.floor((s % 3600) / 60), ss = s % 60;
+    return h > 0
+      ? `${h}:${String(m).padStart(2,'0')}:${String(ss).padStart(2,'0')}`
+      : `${String(m).padStart(2,'0')}:${String(ss).padStart(2,'0')}`;
+  }
+
+  function fmtClock(d) {
+    return d.toLocaleTimeString('en-US', { hour12: false });
+  }
+
+  function countWords(txt) {
+    return (txt.trim().match(/\S+/g) || []).length;
+  }
+
+  function renderAll() {
+    transcriptEl.innerHTML = '';
+    let totalWords = 0;
+    for (const seg of segments) {
+      const div = document.createElement('div');
+      div.className = 'seg';
+      div.innerHTML = `<span class="ts">${fmtClock(new Date(seg.ts))}</span><span class="txt"></span>`;
+      div.querySelector('.txt').textContent = seg.text;
+      transcriptEl.appendChild(div);
+      totalWords += countWords(seg.text);
+    }
+    statWords.textContent = totalWords;
+    statSegs.textContent = segments.length;
+    scrollToBottom();
+  }
+
+  function appendSegment(text) {
+    const seg = { ts: Date.now(), text: text.trim() };
+    if (!seg.text) return;
+    segments.push(seg);
+    persist();
+
+    const div = document.createElement('div');
+    div.className = 'seg';
+    div.innerHTML = `<span class="ts">${fmtClock(new Date(seg.ts))}</span><span class="txt"></span>`;
+    div.querySelector('.txt').textContent = seg.text;
+    transcriptEl.appendChild(div);
+
+    statWords.textContent = parseInt(statWords.textContent, 10) + countWords(seg.text);
+    statSegs.textContent  = segments.length;
+    scrollToBottom();
+  }
+
+  function persist() {
+    try { localStorage.setItem(LS_KEY, JSON.stringify(segments)); } catch {}
+  }
+
+  function scrollToBottom() {
+    transcriptEl.scrollTop = transcriptEl.scrollHeight;
+  }
+
+  // ---- timer
+  function startTimer() {
+    startedAt = Date.now() - elapsedMs;
+    timerId = setInterval(() => {
+      elapsedMs = Date.now() - startedAt;
+      statTime.textContent = fmtTime(elapsedMs);
+    }, 500);
+  }
+  function stopTimer() {
+    clearInterval(timerId);
+    timerId = null;
+  }
+
+  // ---- recognition
+  function buildRecognition() {
+    const r = new SR();
+    r.continuous = true;
+    r.interimResults = true;
+    r.lang = currentLang;
+    r.maxAlternatives = 1;
+
+    r.onresult = (e) => {
+      let interim = '';
+      for (let i = e.resultIndex; i < e.results.length; i++) {
+        const res = e.results[i];
+        if (res.isFinal) {
+          appendSegment(res[0].transcript);
+        } else {
+          interim += res[0].transcript;
+        }
+      }
+      interimEl.textContent = interim;
+    };
+
+    r.onerror = (ev) => {
+      // 'no-speech', 'audio-capture', 'not-allowed', 'aborted', 'network'
+      if (ev.error === 'not-allowed' || ev.error === 'service-not-allowed') {
+        toast('Mic permission denied');
+        userStopped = true;
+        setIdle();
+        return;
+      }
+      // For 'no-speech', 'network', 'aborted' — let onend handle auto-restart
+    };
+
+    r.onend = () => {
+      if (!userStopped && isRecording) {
+        // Web Speech auto-stops after silence — restart silently
+        try { r.start(); } catch (err) {
+          // start() can throw if called too soon; retry shortly
+          setTimeout(() => {
+            if (!userStopped && isRecording) {
+              try { r.start(); } catch {}
+            }
+          }, 300);
+        }
+      }
+    };
+
+    return r;
+  }
+
+  function start() {
+    if (!SR) return;
+    userStopped = false;
+    recognition = buildRecognition();
+    try {
+      recognition.start();
+    } catch (err) {
+      // already started — ignore
+    }
+    isRecording = true;
+    recordBtn.classList.add('rec');
+    recordLabel.textContent = 'Stop';
+    recordBtn.querySelector('.material-symbols-outlined').textContent = 'stop_circle';
+    statusDot.classList.add('live');
+    statusText.textContent = 'Listening';
+    startTimer();
+  }
+
+  function stop() {
+    userStopped = true;
+    isRecording = false;
+    if (recognition) {
+      try { recognition.stop(); } catch {}
+      recognition = null;
+    }
+    interimEl.textContent = '';
+    setIdle();
+  }
+
+  function setIdle() {
+    recordBtn.classList.remove('rec');
+    recordLabel.textContent = 'Start';
+    recordBtn.querySelector('.material-symbols-outlined').textContent = 'mic';
+    statusDot.classList.remove('live');
+    statusText.textContent = 'Idle';
+    stopTimer();
+  }
+
+  // ---- UI bindings
+  recordBtn.addEventListener('click', () => {
+    if (isRecording) stop(); else start();
+  });
+
+  $('scrollBtn').addEventListener('click', scrollToBottom);
+
+  $('copyBtn').addEventListener('click', async () => {
+    const txt = segments.map(s => `[${fmtClock(new Date(s.ts))}] ${s.text}`).join('\n\n');
+    if (!txt) { toast('Walang laman pa'); return; }
+    try {
+      await navigator.clipboard.writeText(txt);
+      toast('Copied to clipboard');
+    } catch {
+      // fallback
+      const ta = document.createElement('textarea');
+      ta.value = txt; document.body.appendChild(ta); ta.select();
+      document.execCommand('copy'); document.body.removeChild(ta);
+      toast('Copied');
+    }
+  });
+
+  $('downloadBtn').addEventListener('click', () => {
+    if (!segments.length) { toast('Walang laman pa'); return; }
+    const date = new Date();
+    const pad = n => String(n).padStart(2,'0');
+    const fname = `sermon-${date.getFullYear()}${pad(date.getMonth()+1)}${pad(date.getDate())}-${pad(date.getHours())}${pad(date.getMinutes())}.txt`;
+    const body = segments.map(s => `[${fmtClock(new Date(s.ts))}] ${s.text}`).join('\n\n');
+    const header = `Sermon Listener Transcript\nDate: ${date.toLocaleString()}\nLanguage: ${currentLang}\nSegments: ${segments.length}\n\n`;
+    const blob = new Blob([header + body], { type: 'text/plain;charset=utf-8' });
+    const url = URL.createObjectURL(blob);
+    const a = document.createElement('a');
+    a.href = url; a.download = fname; document.body.appendChild(a); a.click();
+    setTimeout(() => { URL.revokeObjectURL(url); a.remove(); }, 100);
+    toast('Downloaded');
+  });
+
+  $('langBtn').addEventListener('click', () => {
+    const idx = LANGS.findIndex(l => l.code === currentLang);
+    const next = LANGS[(idx + 1) % LANGS.length];
+    setLang(next.code);
+    toast(`Lang: ${next.label}`);
+  });
+
+  $('clearBtn').addEventListener('click', () => {
+    if (!segments.length) return;
+    if (!confirm('Burahin lahat ng transcript? Hindi na maibabalik.')) return;
+    segments = [];
+    persist();
+    elapsedMs = 0;
+    statTime.textContent = '00:00';
+    renderAll();
+    toast('Cleared');
+  });
+
+  // Wake lock (best-effort — keeps screen on while recording)
+  let wakeLock = null;
+  async function acquireWakeLock() {
+    try {
+      if ('wakeLock' in navigator) {
+        wakeLock = await navigator.wakeLock.request('screen');
+      }
+    } catch {}
+  }
+  function releaseWakeLock() {
+    if (wakeLock) { wakeLock.release().catch(()=>{}); wakeLock = null; }
+  }
+  document.addEventListener('visibilitychange', () => {
+    if (document.visibilityState === 'visible' && isRecording && !wakeLock) acquireWakeLock();
+  });
+
+  const origStart = start;
+  start = function() { origStart(); acquireWakeLock(); };
+  const origStop = stop;
+  stop = function() { origStop(); releaseWakeLock(); };
+
+  // Re-bind because we replaced the closures used by the click handler
+  recordBtn.onclick = () => { if (isRecording) stop(); else start(); };
+
+  // ---- init
+  if (!SR) {
+    $('unsupported').style.display = 'block';
+    recordBtn.disabled = true;
+  }
+  setLang(currentLang);
+  renderAll();
+})();
+</script>
+</body>
+</html>
