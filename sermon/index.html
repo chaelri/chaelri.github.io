@@ -233,6 +233,45 @@
     cursor: pointer; border: 1px solid var(--border); background: var(--panel-2); color: var(--text);
   }
   .ann-card .ann-actions .save { background: var(--accent-2); color: #2a1a06; border-color: var(--accent-2); }
+
+  /* Generic themed dialog (replaces native confirm/prompt) */
+  .dlg-overlay {
+    position: fixed; inset: 0; background: rgba(0,0,0,0.7); backdrop-filter: blur(4px);
+    display: none; z-index: 80; padding: env(safe-area-inset-top) 14px env(safe-area-inset-bottom);
+    align-items: center; justify-content: center;
+  }
+  .dlg-overlay.open { display: flex; }
+  .dlg-card {
+    background: var(--panel); border: 1px solid var(--border); border-radius: 16px;
+    width: 100%; max-width: 460px; padding: 18px 20px;
+    box-shadow: 0 12px 48px rgba(0,0,0,0.5);
+  }
+  .dlg-card h3 {
+    margin: 0 0 8px; font-size: 16px; font-weight: 700; color: var(--text);
+    display: flex; align-items: center; gap: 8px;
+  }
+  .dlg-card h3 .material-symbols-outlined { font-size: 22px; color: var(--accent-2); }
+  .dlg-card .msg { color: var(--muted); font-size: 14px; line-height: 1.55; white-space: pre-wrap; }
+  .dlg-card .msg .tip { display: block; margin-top: 10px; padding: 8px 10px;
+    background: rgba(255, 184, 107, 0.08); border-left: 3px solid var(--accent-2); border-radius: 4px;
+    color: var(--text); font-size: 13px;
+  }
+  .dlg-card input[type=text] {
+    width: 100%; margin-top: 12px; background: var(--panel-2); color: var(--text);
+    border: 1px solid var(--border); border-radius: 8px; padding: 10px 12px; font: inherit; font-size: 14px;
+  }
+  .dlg-card input[type=text]:focus { outline: none; border-color: var(--accent-2); }
+  .dlg-actions {
+    display: flex; gap: 8px; margin-top: 16px; justify-content: flex-end;
+  }
+  .dlg-actions button {
+    padding: 10px 18px; border-radius: 10px; font: inherit; font-weight: 600; font-size: 14px;
+    cursor: pointer; border: 1px solid var(--border); background: var(--panel-2); color: var(--text);
+    transition: transform 0.05s ease, filter 0.15s;
+  }
+  .dlg-actions button:active { transform: scale(0.97); }
+  .dlg-actions .primary { background: var(--accent-2); color: #2a1a06; border-color: var(--accent-2); }
+  .dlg-actions .danger { background: var(--accent); color: #fff; border-color: var(--accent); }
   .spinner {
     width: 32px; height: 32px; border: 3px solid var(--border); border-top-color: var(--accent-2);
     border-radius: 50%; animation: spin 0.8s linear infinite;
@@ -326,6 +365,18 @@
       <button class="tool" id="cleanRerunBtn"><span class="material-symbols-outlined">refresh</span>Re-run</button>
       <button class="tool" id="chooseThisBtn" style="background:var(--ok);color:#0a1f0d;border-color:var(--ok);font-weight:700"><span class="material-symbols-outlined">check_circle</span>Choose this</button>
       <button class="tool" id="savedListBtn"><span class="material-symbols-outlined">cloud_done</span>Saved</button>
+    </div>
+  </div>
+</div>
+
+<div class="dlg-overlay" id="dlgOverlay">
+  <div class="dlg-card">
+    <h3 id="dlgTitle"><span class="material-symbols-outlined" id="dlgIcon">help</span><span id="dlgTitleText">Confirm</span></h3>
+    <div class="msg" id="dlgMsg"></div>
+    <input type="text" id="dlgInput" style="display:none" autocomplete="off" />
+    <div class="dlg-actions">
+      <button id="dlgCancel">Cancel</button>
+      <button id="dlgOk" class="primary">OK</button>
     </div>
   </div>
 </div>
@@ -1103,9 +1154,16 @@ Output ONLY the cleaned Markdown — no preamble, no "Here is the cleaned versio
   });
 
   // ---- Render with Pro (Gemini 3.1 Pro Preview, thinking on)
-  $('renderProBtn').addEventListener('click', () => {
+  $('renderProBtn').addEventListener('click', async () => {
     if (!segments.length) { toast('Walang transcript pa'); return; }
-    if (!confirm('Render this with Gemini 3.1 Pro (deeper thinking, slower, may overwrite the current cleaned version)?\n\nTip: If gusto mong i-keep yung kasalukuyan, tap "Choose this" muna para mai-save sa Firebase.')) return;
+    const ok = await dlgConfirm({
+      title: 'Render with Gemini 3.1 Pro',
+      icon: 'diamond',
+      message: 'Deeper thinking, slower (30-90s). This will replace the current cleaned version.',
+      tip: 'If gusto mong i-keep yung kasalukuyan, tap "Choose this" muna para mai-save sa Firebase.',
+      okLabel: 'Render with Pro',
+    });
+    if (!ok) return;
     runClean({ model: 'gemini-3.1-pro-preview', notes: notes.length ? notes : undefined, previousCleaned: lastCleaned });
   });
 
@@ -1115,7 +1173,13 @@ Output ONLY the cleaned Markdown — no preamble, no "Here is the cleaned versio
   async function saveChosenToFirebase() {
     if (!lastCleaned || !lastCleaned.trim()) { toast('Walang cleaned text na isasave'); return; }
     const defaultLabel = `Sermon ${new Date().toLocaleString('en-US',{month:'short',day:'numeric',hour:'numeric',minute:'2-digit'})}`;
-    const label = prompt('Label for this saved version:', defaultLabel);
+    const label = await dlgPrompt({
+      title: 'Save this version',
+      icon: 'check_circle',
+      message: 'Label for this saved version:',
+      defaultValue: defaultLabel,
+      okLabel: 'Save',
+    });
     if (label === null) return;
     const payload = {
       label: label.trim() || defaultLabel,
@@ -1188,7 +1252,14 @@ Output ONLY the cleaned Markdown — no preamble, no "Here is the cleaned versio
   }
 
   async function deleteSaved(key) {
-    if (!confirm('Delete this saved version? Hindi na maibabalik.')) return;
+    const ok = await dlgConfirm({
+      title: 'Delete saved version?',
+      icon: 'delete',
+      message: 'Hindi na maibabalik.',
+      okLabel: 'Delete',
+      danger: true,
+    });
+    if (!ok) return;
     try {
       await remove(ref(fbDb, `sermon/saved/${key}`));
       openSavedList();
@@ -1215,6 +1286,75 @@ Output ONLY the cleaned Markdown — no preamble, no "Here is the cleaned versio
   function escapeHtml(s) {
     return String(s).replace(/&/g, '&amp;').replace(/</g, '&lt;').replace(/>/g, '&gt;');
   }
+
+  // ---- Themed confirm/prompt (replaces native dialogs)
+  const dlg = {
+    overlay: document.getElementById('dlgOverlay'),
+    title:   document.getElementById('dlgTitleText'),
+    icon:    document.getElementById('dlgIcon'),
+    msg:     document.getElementById('dlgMsg'),
+    input:   document.getElementById('dlgInput'),
+    ok:      document.getElementById('dlgOk'),
+    cancel:  document.getElementById('dlgCancel'),
+    resolve: null,
+    onKey:   null,
+  };
+
+  function showDialog({ title = 'Confirm', icon = 'help', message = '', tip = '', input = null, okLabel = 'OK', cancelLabel = 'Cancel', danger = false }) {
+    return new Promise((resolve) => {
+      dlg.resolve = resolve;
+      dlg.title.textContent = title;
+      dlg.icon.textContent = icon;
+      // Compose message + optional tip block
+      dlg.msg.innerHTML = '';
+      if (message) {
+        const m = document.createElement('span'); m.textContent = message; dlg.msg.appendChild(m);
+      }
+      if (tip) {
+        const t = document.createElement('span'); t.className = 'tip'; t.textContent = tip; dlg.msg.appendChild(t);
+      }
+      if (input !== null) {
+        dlg.input.style.display = '';
+        dlg.input.value = input;
+        setTimeout(() => { dlg.input.focus(); dlg.input.select(); }, 50);
+      } else {
+        dlg.input.style.display = 'none';
+      }
+      dlg.ok.textContent = okLabel;
+      dlg.cancel.textContent = cancelLabel;
+      dlg.ok.classList.toggle('danger', !!danger);
+      dlg.ok.classList.toggle('primary', !danger);
+      dlg.overlay.classList.add('open');
+
+      dlg.onKey = (e) => {
+        if (e.key === 'Escape') { closeDialog(false); }
+        else if (e.key === 'Enter' && input !== null) { closeDialog(true); }
+      };
+      document.addEventListener('keydown', dlg.onKey);
+    });
+  }
+
+  function closeDialog(result) {
+    if (dlg.onKey) { document.removeEventListener('keydown', dlg.onKey); dlg.onKey = null; }
+    dlg.overlay.classList.remove('open');
+    const r = dlg.resolve;
+    dlg.resolve = null;
+    if (r) {
+      if (dlg.input.style.display !== 'none') {
+        r(result ? dlg.input.value : null);
+      } else {
+        r(!!result);
+      }
+    }
+  }
+
+  dlg.ok.addEventListener('click', () => closeDialog(true));
+  dlg.cancel.addEventListener('click', () => closeDialog(false));
+  dlg.overlay.addEventListener('click', (e) => { if (e.target === dlg.overlay) closeDialog(false); });
+
+  // Convenience wrappers
+  function dlgConfirm(opts) { return showDialog({ ...opts, input: null }); }
+  function dlgPrompt(opts)  { return showDialog({ ...opts, input: opts.defaultValue ?? '' }); }
 
   cleanBtn.addEventListener('click', () => {
     if (lastCleaned && segments.length) {
@@ -1248,9 +1388,16 @@ Output ONLY the cleaned Markdown — no preamble, no "Here is the cleaned versio
     toast('Downloaded');
   });
 
-  $('clearBtn').addEventListener('click', () => {
+  $('clearBtn').addEventListener('click', async () => {
     if (!segments.length) return;
-    if (!confirm('Burahin lahat ng transcript? Hindi na maibabalik.')) return;
+    const ok = await dlgConfirm({
+      title: 'Clear transcript?',
+      icon: 'delete',
+      message: 'Burahin lahat ng transcript? Hindi na maibabalik.',
+      okLabel: 'Clear all',
+      danger: true,
+    });
+    if (!ok) return;
     segments = [];
     persist();
     elapsedMs = 0;
