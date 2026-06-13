@@ -272,6 +272,28 @@
   .dlg-actions button:active { transform: scale(0.97); }
   .dlg-actions .primary { background: var(--accent-2); color: #2a1a06; border-color: var(--accent-2); }
   .dlg-actions .danger { background: var(--accent); color: #fff; border-color: var(--accent); }
+
+  /* Photo cards gallery */
+  .gallery-grid {
+    display: grid; grid-template-columns: repeat(auto-fill, minmax(160px, 1fr));
+    gap: 10px; padding: 14px;
+  }
+  .gallery-grid .thumb {
+    background: var(--panel-2); border: 1px solid var(--border); border-radius: 8px;
+    overflow: hidden; cursor: pointer; transition: transform 0.1s ease, border-color 0.15s;
+    position: relative;
+  }
+  .gallery-grid .thumb:hover { transform: translateY(-2px); border-color: var(--accent-2); }
+  .gallery-grid .thumb img { display: block; width: 100%; height: auto; }
+  .gallery-grid .thumb .label {
+    position: absolute; bottom: 0; left: 0; right: 0;
+    background: linear-gradient(180deg, transparent, rgba(0,0,0,0.8));
+    color: #fff; padding: 16px 8px 6px; font-size: 11px; font-weight: 600; text-align: center;
+  }
+  .gallery-loading {
+    display: flex; flex-direction: column; align-items: center; justify-content: center;
+    padding: 60px 20px; gap: 12px; color: var(--muted);
+  }
   .spinner {
     width: 32px; height: 32px; border: 3px solid var(--border); border-top-color: var(--accent-2);
     border-radius: 50%; animation: spin 0.8s linear infinite;
@@ -366,11 +388,26 @@
     <div class="modal-footer">
       <button class="tool" id="cleanCopyBtn"><span class="material-symbols-outlined">content_copy</span>Copy</button>
       <button class="tool" id="cleanDownloadBtn"><span class="material-symbols-outlined">download</span>Download .md</button>
+      <button class="tool" id="cleanPhotosBtn"><span class="material-symbols-outlined">photo_library</span>Photos</button>
       <button class="tool" id="renderProBtn" title="Deep re-render using Gemini 3.1 Pro with thinking enabled"><span class="material-symbols-outlined">diamond</span>Render w/ Pro</button>
       <button class="tool primary" id="regenBtn" style="display:none"><span class="material-symbols-outlined">auto_fix_high</span>Regenerate w/ notes</button>
       <button class="tool" id="cleanRerunBtn"><span class="material-symbols-outlined">refresh</span>Re-run</button>
       <button class="tool" id="chooseThisBtn" style="background:var(--ok);color:#0a1f0d;border-color:var(--ok);font-weight:700"><span class="material-symbols-outlined">check_circle</span>Choose this</button>
       <button class="tool" id="savedListBtn"><span class="material-symbols-outlined">cloud_done</span>Saved</button>
+    </div>
+  </div>
+</div>
+
+<div class="modal-overlay" id="photosModal">
+  <div class="modal">
+    <div class="modal-header">
+      <h2><span class="material-symbols-outlined" style="color:var(--accent-2)">photo_library</span>Sermon Photo Cards</h2>
+      <button class="close" id="photosClose" aria-label="Close"><span class="material-symbols-outlined">close</span></button>
+    </div>
+    <div class="modal-body" id="photosBody" style="padding:0"></div>
+    <div class="modal-footer">
+      <button class="tool primary" id="photosDownloadAll"><span class="material-symbols-outlined">download</span>Download all</button>
+      <span id="photosCount" style="font-size:12px;color:var(--muted);padding:0 8px;align-self:center"></span>
     </div>
   </div>
 </div>
@@ -1361,10 +1398,12 @@ Output ONLY the cleaned Markdown — no preamble, no "Here is the cleaned versio
         <div style="font-size:13px;color:var(--muted);line-height:1.5;margin-bottom:10px;max-height:60px;overflow:hidden">${escapeHtml(preview)}${(v.text||'').length > 140 ? '…' : ''}</div>
         <div style="display:flex;gap:6px">
           <button class="open-btn tool primary" style="flex:1;justify-content:center"><span class="material-symbols-outlined">open_in_new</span>Open</button>
-          <button class="dl-btn tool"><span class="material-symbols-outlined">download</span></button>
-          <button class="del-btn tool danger"><span class="material-symbols-outlined">delete</span></button>
+          <button class="photos-btn tool" title="Photo cards"><span class="material-symbols-outlined">photo_library</span></button>
+          <button class="dl-btn tool" title="Download .md"><span class="material-symbols-outlined">download</span></button>
+          <button class="del-btn tool danger" title="Delete"><span class="material-symbols-outlined">delete</span></button>
         </div>`;
       card.querySelector('.open-btn').addEventListener('click', () => loadSavedFromLib(v));
+      card.querySelector('.photos-btn').addEventListener('click', () => openPhotoGallery(v.text || '', v.label || 'Sermon'));
       card.querySelector('.dl-btn').addEventListener('click', () => downloadSavedMd(v));
       card.querySelector('.del-btn').addEventListener('click', () => deleteSavedFromLib(key));
       sermonsListBody.appendChild(card);
@@ -1423,6 +1462,349 @@ Output ONLY the cleaned Markdown — no preamble, no "Here is the cleaned versio
 
   // Update count on load
   refreshSermonsCount();
+
+  // ============================================================
+  // Photo cards renderer — markdown → 1080×1920 story-format PNGs
+  // ============================================================
+  const CARD_W = 1080;
+  const CARD_H = 1920;
+  const PADX = 96;
+  const PADY_TOP = 140;
+  const PADY_BOT = 140;
+  const COLOR_BG = '#fdf6e9';        // warm cream
+  const COLOR_ACCENT = '#b85a00';    // burnt amber
+  const COLOR_TITLE = '#5a2c00';     // deep burnt
+  const COLOR_TEXT = '#2a2118';      // dark warm gray
+  const COLOR_MUTED = '#7a5d3b';     // dusty amber
+  const SERIF = 'Georgia, "Playfair Display", "Times New Roman", serif';
+  const SANS = '-apple-system, "Inter", "Helvetica Neue", sans-serif';
+
+  function parseMdBlocks(md) {
+    const blocks = [];
+    const lines = (md || '').split('\n');
+    let para = '';
+    const flushP = () => { if (para.trim()) { blocks.push({ type: 'p', text: para.trim() }); para = ''; } };
+    for (const raw of lines) {
+      const line = raw.trim();
+      if (!line) { flushP(); continue; }
+      let m;
+      if ((m = line.match(/^(#{1,3})\s+(.*)$/))) { flushP(); blocks.push({ type: 'h' + m[1].length, text: m[2] }); }
+      else if ((m = line.match(/^[-*]\s+(.*)$/)))  { flushP(); blocks.push({ type: 'li', text: m[1] }); }
+      else if ((m = line.match(/^>\s?(.*)$/)))     { flushP(); blocks.push({ type: 'bq', text: m[1] }); }
+      else { para = para ? para + ' ' + line : line; }
+    }
+    flushP();
+    return blocks;
+  }
+
+  // Inline markdown → runs of { text, bold, italic }
+  function parseInline(text) {
+    const runs = [];
+    const re = /\*\*([^*]+)\*\*|\*([^*]+)\*|`([^`]+)`|([^*`]+)/g;
+    let m;
+    while ((m = re.exec(text))) {
+      if (m[1]) runs.push({ text: m[1], bold: true });
+      else if (m[2]) runs.push({ text: m[2], italic: true });
+      else if (m[3]) runs.push({ text: m[3], bold: true });
+      else if (m[4]) runs.push({ text: m[4] });
+    }
+    return runs.length ? runs : [{ text }];
+  }
+
+  function fontFor(run, size, family) {
+    const parts = [];
+    if (run.italic) parts.push('italic');
+    if (run.bold) parts.push('bold');
+    parts.push(size + 'px');
+    parts.push(family);
+    return parts.join(' ');
+  }
+
+  // Lay out + optionally draw wrapped, multi-run text. Returns y after last line.
+  function layoutRuns(ctx, runs, x, y, maxW, size, family, color, lineH, opts = {}) {
+    const draw = !opts.dryRun;
+    if (draw) {
+      ctx.fillStyle = color;
+      ctx.textBaseline = 'top';
+      ctx.textAlign = opts.align || 'left';
+    }
+    // Tokenize into words (preserving inline style per token)
+    const tokens = [];
+    for (const r of runs) {
+      const parts = r.text.split(/(\s+)/);
+      for (const p of parts) if (p) tokens.push({ text: p, bold: r.bold, italic: r.italic });
+    }
+    let cy = y;
+    let line = [];
+    let lineWidth = 0;
+    const pushLine = () => {
+      if (!line.length) return;
+      if (draw) {
+        const lineText = line.map(t => t.text).join('');
+        if (opts.align === 'center') {
+          let drawX = x + (maxW - lineWidth) / 2;
+          for (const t of line) {
+            ctx.font = fontFor(t, size, family);
+            ctx.fillText(t.text, drawX, cy);
+            drawX += ctx.measureText(t.text).width;
+          }
+        } else {
+          let drawX = x;
+          for (const t of line) {
+            ctx.font = fontFor(t, size, family);
+            ctx.fillText(t.text, drawX, cy);
+            drawX += ctx.measureText(t.text).width;
+          }
+        }
+      }
+      cy += lineH;
+      line = []; lineWidth = 0;
+    };
+    for (const t of tokens) {
+      ctx.font = fontFor(t, size, family);
+      const w = ctx.measureText(t.text).width;
+      // Skip leading whitespace tokens at the start of a line
+      if (!line.length && /^\s+$/.test(t.text)) continue;
+      if (lineWidth + w > maxW && line.length) {
+        pushLine();
+        if (/^\s+$/.test(t.text)) continue;
+      }
+      line.push(t); lineWidth += w;
+    }
+    pushLine();
+    return cy;
+  }
+
+  function dryHeight(ctx, runs, maxW, size, family, lineH) {
+    return layoutRuns(ctx, runs, 0, 0, maxW, size, family, '#000', lineH, { dryRun: true });
+  }
+
+  function newCardCanvas(pageNum, totalGuess, sermonLabel) {
+    const c = document.createElement('canvas');
+    c.width = CARD_W; c.height = CARD_H;
+    const ctx = c.getContext('2d');
+    // Background
+    ctx.fillStyle = COLOR_BG;
+    ctx.fillRect(0, 0, CARD_W, CARD_H);
+    // Top decorative bar
+    ctx.fillStyle = COLOR_ACCENT;
+    ctx.fillRect(0, 0, CARD_W, 6);
+    // Bottom decorative
+    ctx.globalAlpha = 0.5;
+    ctx.fillRect(PADX, CARD_H - 78, 64, 3);
+    ctx.globalAlpha = 1;
+    // Footer
+    ctx.fillStyle = COLOR_MUTED;
+    ctx.font = 'italic 22px ' + SERIF;
+    ctx.textBaseline = 'top';
+    ctx.textAlign = 'left';
+    ctx.fillText(`— ${pageNum} —`, PADX, CARD_H - 50);
+    if (sermonLabel) {
+      ctx.textAlign = 'right';
+      // Truncate label if too wide
+      let lab = sermonLabel;
+      while (ctx.measureText(lab).width > CARD_W - 2 * PADX - 100 && lab.length > 10) lab = lab.slice(0, -1);
+      if (lab !== sermonLabel) lab = lab.replace(/\.+$/, '') + '…';
+      ctx.fillText(lab, CARD_W - PADX, CARD_H - 50);
+      ctx.textAlign = 'left';
+    }
+    return { canvas: c, ctx };
+  }
+
+  function renderSermonCards(md, sermonLabel) {
+    const blocks = parseMdBlocks(md);
+    const cards = [];
+    let page = newCardCanvas(1, 1, sermonLabel);
+    let y = PADY_TOP;
+    let pageNum = 1;
+    const maxW = CARD_W - 2 * PADX;
+    const bottomY = CARD_H - PADY_BOT;
+
+    const flushPage = () => {
+      cards.push(page);
+      pageNum++;
+      page = newCardCanvas(pageNum, 1, sermonLabel);
+      y = PADY_TOP;
+    };
+
+    let coverDone = false;
+
+    for (let i = 0; i < blocks.length; i++) {
+      const b = blocks[i];
+      const ctx = page.ctx;
+
+      // === Cover (first h1) ===
+      if (b.type === 'h1' && !coverDone) {
+        coverDone = true;
+        const theme = b.text.replace(/^Theme\s*[:\-—]\s*/i, '');
+        // Center vertically-ish
+        let cy = 420;
+        ctx.fillStyle = COLOR_ACCENT;
+        ctx.font = '28px ' + SERIF;
+        ctx.textAlign = 'center'; ctx.textBaseline = 'top';
+        ctx.fillText('· SERMON NOTES ·', CARD_W / 2, cy);
+        cy += 60;
+        // Ornament line
+        ctx.fillStyle = COLOR_ACCENT;
+        ctx.fillRect(CARD_W / 2 - 50, cy, 100, 2);
+        cy += 80;
+        // Theme title — wrap if needed
+        cy = layoutRuns(ctx, parseInline(theme), PADX, cy, maxW, 64, SERIF, COLOR_TITLE, 82, { align: 'center' });
+        cy += 80;
+        // "Theme" sub
+        ctx.fillStyle = COLOR_MUTED;
+        ctx.font = 'italic 26px ' + SERIF;
+        ctx.textAlign = 'center';
+        ctx.fillText('A reflection', CARD_W / 2, cy);
+        cy += 50;
+        if (sermonLabel) {
+          ctx.fillStyle = COLOR_MUTED;
+          ctx.font = '22px ' + SANS;
+          ctx.fillText(sermonLabel, CARD_W / 2, cy);
+        }
+        ctx.textAlign = 'left';
+        flushPage();
+        continue;
+      }
+
+      if (b.type === 'h1') {
+        // Subsequent h1s (rare) — treat as section header
+        if (y > PADY_TOP + 50) flushPage();
+        y += 30;
+        y = layoutRuns(page.ctx, parseInline(b.text), PADX, y, maxW, 56, SERIF, COLOR_TITLE, 70);
+        y += 30;
+        continue;
+      }
+
+      if (b.type === 'h2') {
+        // Major section — always start new page (unless we're at top)
+        if (y > PADY_TOP + 30) flushPage();
+        const ctx2 = page.ctx;
+        // Section ornament
+        ctx2.fillStyle = COLOR_ACCENT;
+        ctx2.fillRect(PADX, y + 12, 50, 3);
+        y += 50;
+        // Title
+        y = layoutRuns(ctx2, parseInline(b.text), PADX, y, maxW, 56, SERIF, COLOR_TITLE, 70);
+        y += 50;
+        continue;
+      }
+
+      if (b.type === 'h3') {
+        const h = dryHeight(page.ctx, parseInline(b.text), maxW, 38, SERIF, 50);
+        if (y + h + 40 > bottomY) flushPage();
+        y += 16;
+        y = layoutRuns(page.ctx, parseInline(b.text), PADX, y, maxW, 38, SERIF, COLOR_ACCENT, 50);
+        y += 20;
+        continue;
+      }
+
+      if (b.type === 'p') {
+        const runs = parseInline(b.text);
+        const h = dryHeight(page.ctx, runs, maxW, 32, SANS, 50);
+        if (y + h > bottomY) flushPage();
+        y = layoutRuns(page.ctx, runs, PADX, y, maxW, 32, SANS, COLOR_TEXT, 50);
+        y += 24;
+        continue;
+      }
+
+      if (b.type === 'li') {
+        const runs = parseInline(b.text);
+        const indent = 50;
+        const h = dryHeight(page.ctx, runs, maxW - indent, 32, SANS, 50);
+        if (y + h > bottomY) flushPage();
+        const ctx2 = page.ctx;
+        ctx2.fillStyle = COLOR_ACCENT;
+        ctx2.beginPath(); ctx2.arc(PADX + 12, y + 22, 5, 0, Math.PI * 2); ctx2.fill();
+        y = layoutRuns(ctx2, runs, PADX + indent, y, maxW - indent, 32, SANS, COLOR_TEXT, 50);
+        y += 14;
+        continue;
+      }
+
+      if (b.type === 'bq') {
+        const runs = parseInline(b.text);
+        const indent = 36;
+        const h = dryHeight(page.ctx, runs, maxW - indent, 32, SERIF, 50);
+        if (y + h + 20 > bottomY) flushPage();
+        const ctx2 = page.ctx;
+        ctx2.fillStyle = COLOR_ACCENT;
+        ctx2.fillRect(PADX, y + 8, 4, h - 8);
+        // Force italic for blockquotes
+        const italicRuns = runs.map(r => ({ ...r, italic: true }));
+        y = layoutRuns(ctx2, italicRuns, PADX + indent, y, maxW - indent, 32, SERIF, COLOR_MUTED, 50);
+        y += 30;
+        continue;
+      }
+    }
+
+    cards.push(page);
+    return cards.map(c => c.canvas);
+  }
+
+  // ---- Photo gallery modal
+  const photosModal     = $('photosModal');
+  const photosBody      = $('photosBody');
+  const photosCountEl   = $('photosCount');
+  let currentCards = [];
+  let currentLabel = '';
+
+  async function openPhotoGallery(markdown, label) {
+    currentLabel = label || 'Sermon';
+    photosBody.innerHTML = '<div class="gallery-loading"><div class="spinner"></div><div>Rendering photo cards…</div></div>';
+    photosCountEl.textContent = '';
+    photosModal.classList.add('open');
+    // Defer render so the loading state paints first
+    await new Promise(r => requestAnimationFrame(r));
+    try {
+      currentCards = renderSermonCards(markdown, currentLabel);
+      photosBody.innerHTML = '<div class="gallery-grid" id="galleryGrid"></div>';
+      const grid = $('galleryGrid');
+      currentCards.forEach((canvas, idx) => {
+        const thumb = document.createElement('div');
+        thumb.className = 'thumb';
+        const img = document.createElement('img');
+        img.src = canvas.toDataURL('image/png');
+        const lab = document.createElement('div'); lab.className = 'label';
+        lab.textContent = `Page ${idx + 1} of ${currentCards.length}`;
+        thumb.appendChild(img); thumb.appendChild(lab);
+        thumb.addEventListener('click', () => downloadCard(canvas, idx + 1));
+        grid.appendChild(thumb);
+      });
+      photosCountEl.textContent = `${currentCards.length} card${currentCards.length === 1 ? '' : 's'} · tap to download`;
+    } catch (err) {
+      console.error('[sermon] render cards failed:', err);
+      photosBody.innerHTML = `<div style="color:var(--accent);padding:20px">Render failed: ${escapeHtml(err.message || String(err))}</div>`;
+    }
+  }
+
+  function downloadCard(canvas, pageNum) {
+    const slug = (currentLabel || 'sermon').toLowerCase().replace(/[^a-z0-9]+/g, '-').replace(/^-|-$/g, '').slice(0, 40);
+    const fname = `${slug || 'sermon'}-page-${String(pageNum).padStart(2, '0')}.png`;
+    canvas.toBlob((blob) => {
+      const url = URL.createObjectURL(blob);
+      const a = document.createElement('a');
+      a.href = url; a.download = fname; document.body.appendChild(a); a.click();
+      setTimeout(() => { URL.revokeObjectURL(url); a.remove(); }, 100);
+    }, 'image/png');
+  }
+
+  $('photosClose').addEventListener('click', () => photosModal.classList.remove('open'));
+  photosModal.addEventListener('click', (e) => { if (e.target === photosModal) photosModal.classList.remove('open'); });
+  $('cleanPhotosBtn').addEventListener('click', () => {
+    if (!lastCleaned) { toast('Walang cleaned text pa'); return; }
+    const label = `Sermon ${new Date().toLocaleDateString('en-US',{month:'short',day:'numeric',year:'numeric'})}`;
+    openPhotoGallery(lastCleaned, label);
+  });
+
+  $('photosDownloadAll').addEventListener('click', async () => {
+    if (!currentCards.length) return;
+    for (let i = 0; i < currentCards.length; i++) {
+      downloadCard(currentCards[i], i + 1);
+      // Small delay so the browser doesn't collapse into one prompt
+      await new Promise(r => setTimeout(r, 250));
+    }
+    toast(`Downloaded ${currentCards.length} card${currentCards.length === 1 ? '' : 's'}`);
+  });
   // Reset ann overlay on close so the normal annotation flow still works
   const _annCancelOrig = $('annCancel').onclick;
   $('annCancel').addEventListener('click', closeSavedList);
