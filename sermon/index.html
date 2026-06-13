@@ -152,6 +152,87 @@
     display: flex; flex-direction: column; align-items: center; justify-content: center;
     gap: 12px; padding: 40px 16px; color: var(--muted);
   }
+
+  /* Selection-based annotation UI */
+  mark.note-highlight {
+    background: rgba(255, 184, 107, 0.18);
+    color: inherit;
+    border-bottom: 2px solid var(--accent-2);
+    padding: 0 1px; border-radius: 2px;
+  }
+  mark.note-highlight .note-num {
+    font-size: 0.7em; color: var(--accent-2); font-weight: 700;
+    margin-left: 3px; vertical-align: super;
+  }
+  .annotate-bar {
+    position: sticky; bottom: 0; background: var(--panel);
+    padding: 10px 0; border-top: 1px solid var(--border); margin-top: 16px;
+    display: flex; gap: 8px; align-items: center;
+  }
+  .annotate-bar button {
+    flex: 1; background: var(--panel-2); color: var(--text); border: 1px dashed var(--border);
+    border-radius: 10px; padding: 10px; font: inherit; font-size: 13px; font-weight: 500;
+    cursor: pointer; display: inline-flex; align-items: center; justify-content: center; gap: 6px;
+  }
+  .annotate-bar button:active { background: var(--border); }
+  .annotate-bar .material-symbols-outlined { font-size: 17px; color: var(--accent-2); }
+
+  .notes-list {
+    margin-top: 14px; padding-top: 14px; border-top: 2px solid var(--border);
+    user-select: none;
+  }
+  .notes-list h3 {
+    font-size: 13px; text-transform: uppercase; letter-spacing: 0.06em;
+    color: var(--accent-2); margin: 0 0 10px;
+  }
+  .notes-list ol { padding-left: 0; list-style: none; counter-reset: nlist; margin: 0; }
+  .notes-list li {
+    counter-increment: nlist; background: var(--panel-2); border: 1px solid var(--border);
+    border-radius: 10px; padding: 10px 12px 10px 34px; margin-bottom: 8px; position: relative;
+    font-size: 13px;
+  }
+  .notes-list li::before {
+    content: counter(nlist); position: absolute; left: 10px; top: 10px;
+    width: 18px; height: 18px; border-radius: 50%; background: var(--accent-2); color: #1a0606;
+    font-size: 11px; font-weight: 700; display: flex; align-items: center; justify-content: center;
+  }
+  .notes-list .note-sel { color: var(--muted); font-style: italic; margin-bottom: 4px; font-size: 12px; }
+  .notes-list .note-sel::before { content: '"'; } .notes-list .note-sel::after { content: '"'; }
+  .notes-list .note-txt { color: var(--text); white-space: pre-wrap; }
+  .notes-list .note-del {
+    position: absolute; top: 6px; right: 6px; background: transparent; border: none;
+    color: var(--muted); cursor: pointer; padding: 4px; font-size: 14px;
+  }
+  .notes-list .note-del:hover { color: var(--accent); }
+
+  /* Annotation sub-overlay */
+  .ann-overlay {
+    position: fixed; inset: 0; background: rgba(0,0,0,0.6); backdrop-filter: blur(3px);
+    display: none; z-index: 60; padding: env(safe-area-inset-top) 14px env(safe-area-inset-bottom);
+    align-items: center; justify-content: center;
+  }
+  .ann-overlay.open { display: flex; }
+  .ann-card {
+    background: var(--panel); border: 1px solid var(--border); border-radius: 14px;
+    width: 100%; max-width: 520px; padding: 16px;
+  }
+  .ann-card h3 { margin: 0 0 6px; font-size: 15px; }
+  .ann-card .selpreview {
+    background: var(--panel-2); border: 1px solid var(--border); border-radius: 8px;
+    padding: 10px 12px; font-size: 13px; color: var(--accent-2); font-style: italic;
+    margin: 8px 0 12px; max-height: 100px; overflow-y: auto;
+  }
+  .ann-card textarea {
+    width: 100%; background: var(--panel-2); color: var(--text); border: 1px solid var(--border);
+    border-radius: 8px; padding: 10px 12px; font: inherit; font-size: 14px; min-height: 80px;
+    resize: vertical;
+  }
+  .ann-card .ann-actions { display: flex; gap: 8px; margin-top: 12px; }
+  .ann-card .ann-actions button {
+    flex: 1; padding: 10px; border-radius: 8px; font: inherit; font-weight: 600; font-size: 14px;
+    cursor: pointer; border: 1px solid var(--border); background: var(--panel-2); color: var(--text);
+  }
+  .ann-card .ann-actions .save { background: var(--accent-2); color: #2a1a06; border-color: var(--accent-2); }
   .spinner {
     width: 32px; height: 32px; border: 3px solid var(--border); border-top-color: var(--accent-2);
     border-radius: 50%; animation: spin 0.8s linear infinite;
@@ -240,7 +321,22 @@
     <div class="modal-footer">
       <button class="tool" id="cleanCopyBtn"><span class="material-symbols-outlined">content_copy</span>Copy</button>
       <button class="tool" id="cleanDownloadBtn"><span class="material-symbols-outlined">download</span>Download .md</button>
+      <button class="tool primary" id="regenBtn" style="display:none"><span class="material-symbols-outlined">auto_fix_high</span>Regenerate w/ notes</button>
       <button class="tool" id="cleanRerunBtn"><span class="material-symbols-outlined">refresh</span>Re-run</button>
+    </div>
+  </div>
+</div>
+
+<div class="ann-overlay" id="annOverlay">
+  <div class="ann-card">
+    <h3>Add a correction</h3>
+    <div style="font-size:12px;color:var(--muted)">Selected text from the cleaned notes:</div>
+    <div class="selpreview" id="annSel"></div>
+    <div style="font-size:12px;color:var(--muted);margin-bottom:6px">What should it actually say or mean?</div>
+    <textarea id="annNote" placeholder="e.g. — speaker said 'evangelize and evangelism in training', not 'Evans and evangelis'. Refers to CCF Gigabytes student ministry."></textarea>
+    <div class="ann-actions">
+      <button id="annCancel">Cancel</button>
+      <button class="save" id="annSave">Save note</button>
     </div>
   </div>
 </div>
@@ -648,12 +744,27 @@
   // ---- Clean & Document (Gemini)
   const PROXY_URL = 'https://gemini-proxy-668755364170.asia-southeast1.run.app/';
   const CLEAN_KEY = 'sermon_listener_cleaned_v1';
+  const NOTES_KEY = 'sermon_listener_notes_v1';
   const cleanModal     = $('cleanModal');
   const modalBody      = $('modalBody');
   const cleanBtn       = $('cleanBtn');
+  const regenBtn       = $('regenBtn');
+  const annOverlay     = $('annOverlay');
+  const annSel         = $('annSel');
+  const annNote        = $('annNote');
   let lastCleaned = localStorage.getItem(CLEAN_KEY) || '';
+  let notes = (() => { try { return JSON.parse(localStorage.getItem(NOTES_KEY) || '[]'); } catch { return []; } })();
 
-  function buildCleanPrompt(rawJoined) {
+  function buildCleanPrompt(rawJoined, opts = {}) {
+    const notesBlock = (opts.notes && opts.notes.length)
+      ? `\n\nUSER CORRECTIONS — the user reviewed your previous attempt and pointed out errors. Apply EACH of these:\n${opts.notes.map((n, i) =>
+          `\nCorrection ${i + 1}:\n  - You previously wrote (or implied): "${n.selected}"\n  - The user clarifies / corrects: ${n.note}`
+        ).join('\n')}\n`
+      : '';
+    const prevBlock = opts.previousCleaned
+      ? `\n\nYOUR PREVIOUS CLEANED VERSION (improve on this — keep what's good, fix what the user flagged):\n<<<\n${opts.previousCleaned}\n>>>\n`
+      : '';
+
     return `You are cleaning a live speech-to-text transcript of a Taglish (Filipino + English) sermon or Christian teaching. The speech recognizer made systematic errors:
 - English words substituted for similar-sounding Filipino words (and vice versa)
 - Proper nouns mangled (church names, ministry names, Bible names — e.g., "DNA", "Gigabytes", "CCF", "Christ's Commission Fellowship", book names, "evangelize")
@@ -674,10 +785,10 @@ YOUR TASK (very important — read carefully):
    - Use \`> blockquote\` for quoted Bible verses or strong exhortations
 8. **End with a \`## Key Takeaways\`** section — 3 to 7 bullets of the speaker's main points (this section is the only place you may condense, and only as a recap; the main body must remain full).
 
-RAW TRANSCRIPT (timestamped segments from the speech recognizer):
+RAW TRANSCRIPT (timestamped segments from the speech recognizer — this is the source of truth):
 <<<
 ${rawJoined}
->>>
+>>>${prevBlock}${notesBlock}
 
 Output ONLY the cleaned Markdown — no preamble, no "Here is the cleaned version", just the document starting with \`# Theme: ...\`.`;
   }
@@ -738,15 +849,18 @@ Output ONLY the cleaned Markdown — no preamble, no "Here is the cleaned versio
   function openModal() { cleanModal.classList.add('open'); }
   function closeModal() { cleanModal.classList.remove('open'); }
 
-  async function runClean() {
+  async function runClean(opts = {}) {
     if (!segments.length) { toast('Walang transcript pa'); return; }
     const rawJoined = segments.map(s => `[${fmtClock(new Date(s.ts))}] ${s.text}`).join('\n');
-    const prompt = buildCleanPrompt(rawJoined);
+    const prompt = buildCleanPrompt(rawJoined, opts);
 
-    cleanBtn.disabled = true;
-    cleanBtn.innerHTML = '<span class="material-symbols-outlined">hourglass_top</span>Cleaning…';
+    const triggerBtn = opts.notes ? regenBtn : cleanBtn;
+    triggerBtn.disabled = true;
+    const origLabel = triggerBtn.innerHTML;
+    triggerBtn.innerHTML = '<span class="material-symbols-outlined">hourglass_top</span>Working…';
     openModal();
-    modalBody.innerHTML = '<div class="modal-loading"><div class="spinner"></div><div>Cleaning transcript… (Gemini)</div></div>';
+    const loadingMsg = opts.notes ? `Regenerating with your ${opts.notes.length} note${opts.notes.length === 1 ? '' : 's'}…` : 'Cleaning transcript… (Gemini)';
+    modalBody.innerHTML = `<div class="modal-loading"><div class="spinner"></div><div>${loadingMsg}</div></div>`;
 
     const SAFETY = [
       { category: 'HARM_CATEGORY_HARASSMENT',        threshold: 'BLOCK_ONLY_HIGH' },
@@ -801,17 +915,164 @@ Output ONLY the cleaned Markdown — no preamble, no "Here is the cleaned versio
         return;
       }
 
-      modalBody.innerHTML = md2html(text);
       lastCleaned = text;
       try { localStorage.setItem(CLEAN_KEY, text); } catch {}
+      // On a successful regen, clear notes (they've been applied)
+      if (opts.notes && opts.notes.length) {
+        notes = [];
+        persistNotes();
+        toast('Notes applied — list cleared');
+      }
+      renderCleanedDisplay();
     } catch (err) {
       console.error('[sermon] clean failed:', err);
       modalBody.innerHTML = `<div style="color:var(--accent);padding:14px">Clean failed: ${escapeHtml(err.message || String(err))}<br><br>Pakiretry sa <b>Re-run</b>.</div>`;
     } finally {
-      cleanBtn.disabled = false;
-      cleanBtn.innerHTML = '<span class="material-symbols-outlined">auto_awesome</span>Clean &amp; Document';
+      triggerBtn.disabled = false;
+      triggerBtn.innerHTML = origLabel;
+      updateRegenBtn();
     }
   }
+
+  // ---- Notes & annotation
+  function persistNotes() {
+    try { localStorage.setItem(NOTES_KEY, JSON.stringify(notes)); } catch {}
+    updateRegenBtn();
+  }
+
+  function updateRegenBtn() {
+    regenBtn.style.display = notes.length ? '' : 'none';
+    if (notes.length) {
+      regenBtn.innerHTML = `<span class="material-symbols-outlined">auto_fix_high</span>Regenerate w/ ${notes.length} note${notes.length === 1 ? '' : 's'}`;
+    }
+  }
+
+  // Render cleaned text + annotate bar + notes list inside modal body
+  function renderCleanedDisplay() {
+    if (!lastCleaned) {
+      modalBody.innerHTML = '';
+      return;
+    }
+    modalBody.innerHTML = `
+      <div id="cleanedContent"></div>
+      <div class="annotate-bar">
+        <button id="annotateBtn"><span class="material-symbols-outlined">edit_note</span>Select text above → add a correction</button>
+      </div>
+      <div id="notesList" class="notes-list" style="display:none"></div>
+    `;
+    document.getElementById('cleanedContent').innerHTML = md2html(lastCleaned);
+    document.getElementById('annotateBtn').addEventListener('click', openAnnotationFromSelection);
+    applyNoteHighlights();
+    renderNotesList();
+    updateRegenBtn();
+  }
+
+  function applyNoteHighlights() {
+    const root = document.getElementById('cleanedContent');
+    if (!root) return;
+    notes.forEach((n, i) => highlightFirstMatch(root, n.selected, i + 1));
+  }
+
+  function highlightFirstMatch(root, needle, num) {
+    if (!needle) return false;
+    const walker = document.createTreeWalker(root, NodeFilter.SHOW_TEXT, {
+      acceptNode: (node) => {
+        // Skip text already inside a highlight
+        let p = node.parentNode;
+        while (p && p !== root) {
+          if (p.tagName === 'MARK' && p.classList.contains('note-highlight')) return NodeFilter.FILTER_REJECT;
+          p = p.parentNode;
+        }
+        return NodeFilter.FILTER_ACCEPT;
+      }
+    });
+    let node;
+    while ((node = walker.nextNode())) {
+      const idx = node.nodeValue.indexOf(needle);
+      if (idx === -1) continue;
+      try {
+        const range = document.createRange();
+        range.setStart(node, idx);
+        range.setEnd(node, idx + needle.length);
+        const mark = document.createElement('mark');
+        mark.className = 'note-highlight';
+        range.surroundContents(mark);
+        const sup = document.createElement('span');
+        sup.className = 'note-num';
+        sup.textContent = num;
+        mark.appendChild(sup);
+        return true;
+      } catch (e) {
+        // Range spans multiple nodes — skip highlight, note still saved
+        return false;
+      }
+    }
+    return false;
+  }
+
+  function renderNotesList() {
+    const wrap = document.getElementById('notesList');
+    if (!wrap) return;
+    if (!notes.length) { wrap.style.display = 'none'; wrap.innerHTML = ''; return; }
+    wrap.style.display = '';
+    wrap.innerHTML = `<h3>Your corrections (${notes.length})</h3><ol id="notesOl"></ol>`;
+    const ol = wrap.querySelector('ol');
+    notes.forEach((n) => {
+      const li = document.createElement('li');
+      const sel = document.createElement('div'); sel.className = 'note-sel'; sel.textContent = n.selected;
+      const txt = document.createElement('div'); txt.className = 'note-txt'; txt.textContent = n.note;
+      const del = document.createElement('button'); del.className = 'note-del';
+      del.innerHTML = '<span class="material-symbols-outlined" style="font-size:16px">close</span>';
+      del.title = 'Delete';
+      del.addEventListener('click', () => deleteNote(n.id));
+      li.appendChild(sel); li.appendChild(txt); li.appendChild(del);
+      ol.appendChild(li);
+    });
+  }
+
+  function deleteNote(id) {
+    notes = notes.filter(n => n.id !== id);
+    persistNotes();
+    renderCleanedDisplay();
+  }
+
+  let pendingSelection = '';
+
+  function openAnnotationFromSelection() {
+    const sel = window.getSelection();
+    const txt = sel ? sel.toString().trim() : '';
+    if (!txt) { toast('Select some text in the notes above first'); return; }
+    // Ensure selection is inside #cleanedContent
+    const content = document.getElementById('cleanedContent');
+    if (!content || !sel.rangeCount || !content.contains(sel.getRangeAt(0).commonAncestorContainer)) {
+      toast('Select inside the cleaned notes');
+      return;
+    }
+    pendingSelection = txt;
+    annSel.textContent = txt;
+    annNote.value = '';
+    annOverlay.classList.add('open');
+    setTimeout(() => annNote.focus(), 50);
+  }
+
+  $('annCancel').addEventListener('click', () => { annOverlay.classList.remove('open'); pendingSelection = ''; });
+  annOverlay.addEventListener('click', (e) => { if (e.target === annOverlay) annOverlay.classList.remove('open'); });
+  $('annSave').addEventListener('click', () => {
+    const note = annNote.value.trim();
+    if (!note) { toast('Add the correction text'); return; }
+    if (!pendingSelection) { annOverlay.classList.remove('open'); return; }
+    notes.push({ id: Date.now() + Math.random(), selected: pendingSelection, note, ts: Date.now() });
+    persistNotes();
+    annOverlay.classList.remove('open');
+    pendingSelection = '';
+    renderCleanedDisplay();
+    toast(`Note saved (${notes.length} total)`);
+  });
+
+  regenBtn.addEventListener('click', () => {
+    if (!notes.length) return;
+    runClean({ notes, previousCleaned: lastCleaned });
+  });
 
   function escapeHtml(s) {
     return String(s).replace(/&/g, '&amp;').replace(/</g, '&lt;').replace(/>/g, '&gt;');
@@ -820,13 +1081,13 @@ Output ONLY the cleaned Markdown — no preamble, no "Here is the cleaned versio
   cleanBtn.addEventListener('click', () => {
     if (lastCleaned && segments.length) {
       // If we already have a cleaned version, show it first; user can Re-run
-      modalBody.innerHTML = md2html(lastCleaned);
       openModal();
+      renderCleanedDisplay();
     } else {
       runClean();
     }
   });
-  $('cleanRerunBtn').addEventListener('click', runClean);
+  $('cleanRerunBtn').addEventListener('click', () => runClean());
   $('modalClose').addEventListener('click', closeModal);
   cleanModal.addEventListener('click', (e) => { if (e.target === cleanModal) closeModal(); });
 
