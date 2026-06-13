@@ -57,6 +57,8 @@
   .seg { margin-bottom: 12px; }
   .seg .ts { color: var(--muted); font-size: 11px; font-variant-numeric: tabular-nums; margin-right: 8px; }
   .seg .txt { color: var(--text); }
+  .seg.tentative .txt { color: var(--accent-2); opacity: 0.92; }
+  .seg .tmark { color: var(--accent-2); font-weight: 700; margin-right: 6px; cursor: help; }
   .interim {
     color: var(--accent-2); font-style: italic; opacity: 0.85; min-height: 1.65em;
     padding: 8px 2px 0; font-size: 15px;
@@ -102,6 +104,63 @@
   .tool .material-symbols-outlined { font-size: 17px; }
   .tool:active { background: var(--panel-2); }
   .tool.danger { color: var(--accent); border-color: rgba(255,107,107,0.3); }
+  .tool.primary {
+    background: linear-gradient(135deg, #6b8aff, #a06bff);
+    color: #fff; border-color: transparent; font-weight: 600;
+  }
+  .tool.primary:active { filter: brightness(0.9); }
+  .tool:disabled { opacity: 0.5; cursor: not-allowed; }
+
+  .modal-overlay {
+    position: fixed; inset: 0; background: rgba(0,0,0,0.75); backdrop-filter: blur(4px);
+    display: none; z-index: 50; padding: env(safe-area-inset-top) 12px env(safe-area-inset-bottom);
+    align-items: center; justify-content: center;
+  }
+  .modal-overlay.open { display: flex; }
+  .modal {
+    background: var(--panel); border: 1px solid var(--border); border-radius: 16px;
+    width: 100%; max-width: 760px; max-height: 90dvh; display: flex; flex-direction: column;
+    overflow: hidden;
+  }
+  .modal-header {
+    display: flex; align-items: center; justify-content: space-between;
+    padding: 14px 16px; border-bottom: 1px solid var(--border);
+  }
+  .modal-header h2 { margin: 0; font-size: 16px; font-weight: 700; display: flex; align-items: center; gap: 8px; }
+  .modal-header .close {
+    background: transparent; border: none; color: var(--muted); cursor: pointer;
+    padding: 4px; display: flex; align-items: center; justify-content: center;
+  }
+  .modal-body {
+    flex: 1; overflow-y: auto; padding: 16px; -webkit-overflow-scrolling: touch;
+    font-size: 15px; line-height: 1.7;
+  }
+  .modal-body h1, .modal-body h2, .modal-body h3 { color: var(--accent-2); margin: 18px 0 8px; }
+  .modal-body h1 { font-size: 18px; }
+  .modal-body h2 { font-size: 16px; }
+  .modal-body h3 { font-size: 15px; }
+  .modal-body p { margin: 8px 0; }
+  .modal-body ul, .modal-body ol { padding-left: 22px; }
+  .modal-body strong { color: #fff; }
+  .modal-body em { color: var(--muted); }
+  .modal-body blockquote { border-left: 3px solid var(--accent-2); margin: 10px 0; padding: 4px 12px; color: var(--muted); }
+  .modal-footer {
+    display: flex; gap: 8px; padding: 12px 16px; border-top: 1px solid var(--border);
+    flex-wrap: wrap;
+  }
+  .modal-loading {
+    display: flex; flex-direction: column; align-items: center; justify-content: center;
+    gap: 12px; padding: 40px 16px; color: var(--muted);
+  }
+  .spinner {
+    width: 32px; height: 32px; border: 3px solid var(--border); border-top-color: var(--accent-2);
+    border-radius: 50%; animation: spin 0.8s linear infinite;
+  }
+  @keyframes spin { to { transform: rotate(360deg); } }
+  .stream-cursor {
+    display: inline-block; width: 8px; height: 1em; background: var(--accent-2);
+    vertical-align: text-bottom; animation: blink 0.8s infinite;
+  }
 
   .toast {
     position: fixed; top: calc(env(safe-area-inset-top) + 12px); left: 50%; transform: translateX(-50%) translateY(-20px);
@@ -145,8 +204,10 @@
   </div>
 
   <div class="toolbar">
+    <button class="tool primary" id="cleanBtn"><span class="material-symbols-outlined">auto_awesome</span>Clean &amp; Document</button>
     <button class="tool" id="copyBtn"><span class="material-symbols-outlined">content_copy</span>Copy all</button>
     <button class="tool" id="downloadBtn"><span class="material-symbols-outlined">download</span>Download .txt</button>
+    <button class="tool" id="audioBtn" style="display:none"><span class="material-symbols-outlined">audio_file</span>Audio backup</button>
     <button class="tool" id="langBtn"><span class="material-symbols-outlined">language</span>Language</button>
     <button class="tool danger" id="clearBtn"><span class="material-symbols-outlined">delete</span>Clear</button>
   </div>
@@ -168,6 +229,21 @@
 </div>
 
 <div class="toast" id="toast">Copied</div>
+
+<div class="modal-overlay" id="cleanModal">
+  <div class="modal">
+    <div class="modal-header">
+      <h2><span class="material-symbols-outlined" style="color:var(--accent-2)">auto_awesome</span>Cleaned Sermon Notes</h2>
+      <button class="close" id="modalClose" aria-label="Close"><span class="material-symbols-outlined">close</span></button>
+    </div>
+    <div class="modal-body" id="modalBody"></div>
+    <div class="modal-footer">
+      <button class="tool" id="cleanCopyBtn"><span class="material-symbols-outlined">content_copy</span>Copy</button>
+      <button class="tool" id="cleanDownloadBtn"><span class="material-symbols-outlined">download</span>Download .md</button>
+      <button class="tool" id="cleanRerunBtn"><span class="material-symbols-outlined">refresh</span>Re-run</button>
+    </div>
+  </div>
+</div>
 
 <script>
 (() => {
@@ -198,11 +274,16 @@
   let recognition = null;
   let isRecording = false;
   let userStopped = false;
-  let segments = JSON.parse(localStorage.getItem(LS_KEY) || '[]'); // [{ ts, text }]
+  let segments = JSON.parse(localStorage.getItem(LS_KEY) || '[]'); // [{ ts, text, tentative? }]
   let startedAt = null;
   let elapsedMs = 0;
   let timerId = null;
   let currentLang = localStorage.getItem(LANG_KEY) || 'fil-PH';
+  let lastInterim = '';        // accumulating interim text since last final
+  let lastInterimTs = 0;       // when that interim first appeared
+  let mediaRecorder = null;
+  let audioChunks = [];
+  let audioMime = '';
 
   function setLang(code) {
     currentLang = code;
@@ -242,15 +323,20 @@
     return (txt.trim().match(/\S+/g) || []).length;
   }
 
+  function renderSegmentEl(seg) {
+    const div = document.createElement('div');
+    div.className = 'seg' + (seg.tentative ? ' tentative' : '');
+    const marker = seg.tentative ? '<span class="tmark" title="Rescued from interim (engine restarted before finalizing)">~</span>' : '';
+    div.innerHTML = `<span class="ts">${fmtClock(new Date(seg.ts))}</span>${marker}<span class="txt"></span>`;
+    div.querySelector('.txt').textContent = seg.text;
+    return div;
+  }
+
   function renderAll() {
     transcriptEl.innerHTML = '';
     let totalWords = 0;
     for (const seg of segments) {
-      const div = document.createElement('div');
-      div.className = 'seg';
-      div.innerHTML = `<span class="ts">${fmtClock(new Date(seg.ts))}</span><span class="txt"></span>`;
-      div.querySelector('.txt').textContent = seg.text;
-      transcriptEl.appendChild(div);
+      transcriptEl.appendChild(renderSegmentEl(seg));
       totalWords += countWords(seg.text);
     }
     statWords.textContent = totalWords;
@@ -258,18 +344,19 @@
     scrollToBottom();
   }
 
-  function appendSegment(text) {
+  function appendSegment(text, opts = {}) {
     const seg = { ts: Date.now(), text: text.trim() };
+    if (opts.tentative) seg.tentative = true;
     if (!seg.text) return;
+    // De-dupe: if the previous segment has the same text within last 5s, skip
+    // (avoids interim-rescue duplicating a final result that just arrived).
+    const prev = segments[segments.length - 1];
+    if (prev && prev.text === seg.text && (seg.ts - prev.ts) < 5000) return;
+    // Also skip tentative if the previous final already contains this text
+    if (opts.tentative && prev && prev.text.toLowerCase().includes(seg.text.toLowerCase())) return;
     segments.push(seg);
     persist();
-
-    const div = document.createElement('div');
-    div.className = 'seg';
-    div.innerHTML = `<span class="ts">${fmtClock(new Date(seg.ts))}</span><span class="txt"></span>`;
-    div.querySelector('.txt').textContent = seg.text;
-    transcriptEl.appendChild(div);
-
+    transcriptEl.appendChild(renderSegmentEl(seg));
     statWords.textContent = parseInt(statWords.textContent, 10) + countWords(seg.text);
     statSegs.textContent  = segments.length;
     scrollToBottom();
@@ -306,15 +393,26 @@
 
     r.onresult = (e) => {
       let interim = '';
+      let gotFinal = false;
       for (let i = e.resultIndex; i < e.results.length; i++) {
         const res = e.results[i];
         if (res.isFinal) {
           appendSegment(res[0].transcript);
+          gotFinal = true;
         } else {
           interim += res[0].transcript;
         }
       }
       interimEl.textContent = interim;
+      // Track interim so we can rescue it if recognition ends before finalizing.
+      if (gotFinal) {
+        // Final cleared whatever interim came before
+        lastInterim = interim;
+        lastInterimTs = interim ? Date.now() : 0;
+      } else if (interim) {
+        if (!lastInterim) lastInterimTs = Date.now();
+        lastInterim = interim;
+      }
     };
 
     r.onerror = (ev) => {
@@ -355,6 +453,15 @@
     };
 
     r.onend = () => {
+      // Rescue: if there's lingering interim text that never got finalized,
+      // save it as a tentative segment so it isn't lost on restart.
+      if (lastInterim && lastInterim.trim().length >= 3) {
+        appendSegment(lastInterim, { tentative: true });
+      }
+      lastInterim = '';
+      lastInterimTs = 0;
+      interimEl.textContent = '';
+
       if (!userStopped && isRecording) {
         // Web Speech auto-stops after silence — restart silently
         try { r.start(); } catch (err) {
@@ -393,6 +500,8 @@
     statusDot.classList.add('live');
     statusText.textContent = 'Listening';
     startTimer();
+    // Best-effort audio backup — runs alongside STT so missed words are recoverable
+    startAudioBackup();
   }
 
   function stop() {
@@ -402,9 +511,86 @@
       try { recognition.stop(); } catch {}
       recognition = null;
     }
+    // Rescue any lingering interim before stopping
+    if (lastInterim && lastInterim.trim().length >= 3) {
+      appendSegment(lastInterim, { tentative: true });
+    }
+    lastInterim = '';
     interimEl.textContent = '';
+    stopAudioBackup();
     setIdle();
   }
+
+  // ---- Audio backup (MediaRecorder)
+  function pickMime() {
+    const candidates = [
+      'audio/webm;codecs=opus',
+      'audio/webm',
+      'audio/mp4',
+      'audio/ogg;codecs=opus',
+      '',
+    ];
+    for (const m of candidates) {
+      if (!m) return '';
+      try { if (window.MediaRecorder && MediaRecorder.isTypeSupported(m)) return m; } catch {}
+    }
+    return '';
+  }
+
+  async function startAudioBackup() {
+    if (!window.MediaRecorder || !navigator.mediaDevices?.getUserMedia) return;
+    if (mediaRecorder && mediaRecorder.state !== 'inactive') return;
+    try {
+      const stream = await navigator.mediaDevices.getUserMedia({ audio: true });
+      audioMime = pickMime();
+      mediaRecorder = audioMime ? new MediaRecorder(stream, { mimeType: audioMime })
+                                : new MediaRecorder(stream);
+      audioChunks = [];
+      mediaRecorder.ondataavailable = (e) => {
+        if (e.data && e.data.size) { audioChunks.push(e.data); updateAudioBtn(); }
+      };
+      mediaRecorder.onstop = () => {
+        // Detach mic
+        stream.getTracks().forEach(t => t.stop());
+        updateAudioBtn();
+      };
+      mediaRecorder.start(5000); // 5s chunks — survives crashes better than one big blob
+      updateAudioBtn();
+    } catch (err) {
+      console.warn('[sermon] audio backup not started:', err);
+    }
+  }
+
+  function stopAudioBackup() {
+    if (mediaRecorder && mediaRecorder.state !== 'inactive') {
+      try { mediaRecorder.stop(); } catch {}
+    }
+  }
+
+  function updateAudioBtn() {
+    const btn = $('audioBtn');
+    if (audioChunks.length) {
+      btn.style.display = '';
+      const mb = (audioChunks.reduce((a, c) => a + c.size, 0) / (1024 * 1024)).toFixed(1);
+      btn.innerHTML = `<span class="material-symbols-outlined">audio_file</span>Audio backup (${mb} MB)`;
+    } else {
+      btn.style.display = 'none';
+    }
+  }
+
+  document.getElementById('audioBtn').addEventListener('click', () => {
+    if (!audioChunks.length) { toast('Walang audio backup'); return; }
+    const blob = new Blob(audioChunks, { type: audioMime || 'audio/webm' });
+    const ext = (audioMime && audioMime.includes('mp4')) ? 'm4a' : 'webm';
+    const date = new Date();
+    const pad = n => String(n).padStart(2,'0');
+    const fname = `sermon-audio-${date.getFullYear()}${pad(date.getMonth()+1)}${pad(date.getDate())}-${pad(date.getHours())}${pad(date.getMinutes())}.${ext}`;
+    const url = URL.createObjectURL(blob);
+    const a = document.createElement('a');
+    a.href = url; a.download = fname; document.body.appendChild(a); a.click();
+    setTimeout(() => { URL.revokeObjectURL(url); a.remove(); }, 100);
+    toast(`Saved ${fname}`);
+  });
 
   function setIdle() {
     recordBtn.classList.remove('rec');
@@ -457,6 +643,198 @@
     const next = LANGS[(idx + 1) % LANGS.length];
     setLang(next.code);
     toast(`Lang: ${next.label}`);
+  });
+
+  // ---- Clean & Document (Gemini)
+  const PROXY_URL = 'https://gemini-proxy-668755364170.asia-southeast1.run.app/';
+  const CLEAN_KEY = 'sermon_listener_cleaned_v1';
+  const cleanModal     = $('cleanModal');
+  const modalBody      = $('modalBody');
+  const cleanBtn       = $('cleanBtn');
+  let lastCleaned = localStorage.getItem(CLEAN_KEY) || '';
+
+  function buildCleanPrompt(rawJoined) {
+    return `You are cleaning a live speech-to-text transcript of a Taglish (Filipino + English) sermon or Christian teaching. The speech recognizer made systematic errors:
+- English words substituted for similar-sounding Filipino words (and vice versa)
+- Proper nouns mangled (church names, ministry names, Bible names — e.g., "DNA", "Gigabytes", "CCF", "Christ's Commission Fellowship", book names, "evangelize")
+- Run-on phrases with no punctuation
+- Code-switched Taglish kept as the speaker said it
+
+YOUR TASK (very important — read carefully):
+1. **DO NOT SUMMARIZE.** Preserve every idea, illustration, exhortation, and example. The output should be at least as long as the input.
+2. **Reconstruct the speaker's intended words** using context. Fix obvious mishears (e.g., "Evans and evangelis in training" → "evangelize and evangelism in training"; "ding loftus assembly" → likely "Gigabytes assembly" if context is CCF student ministry).
+3. **Preserve Taglish naturally** — do not translate Filipino to English or vice versa. Keep the speaker's voice.
+4. **Add proper punctuation, paragraph breaks, and section headings** so it reads like well-edited sermon notes.
+5. **Bible references**: if you can confidently identify a verse the speaker cited, format as **Book Chapter:Verse**. If unclear, leave the speaker's words as-is.
+6. **Truly unrecoverable phrases**: mark inline as \`[unclear: "original mishear"]\` — do not invent meaning.
+7. **Structure the output** as Markdown:
+   - Start with \`# Theme\` line (your best guess of the one-line theme)
+   - Use \`## Section\` headings to group related points where natural breaks occur
+   - Use bullet lists for enumerations
+   - Use \`> blockquote\` for quoted Bible verses or strong exhortations
+8. **End with a \`## Key Takeaways\`** section — 3 to 7 bullets of the speaker's main points (this section is the only place you may condense, and only as a recap; the main body must remain full).
+
+RAW TRANSCRIPT (timestamped segments from the speech recognizer):
+<<<
+${rawJoined}
+>>>
+
+Output ONLY the cleaned Markdown — no preamble, no "Here is the cleaned version", just the document starting with \`# Theme: ...\`.`;
+  }
+
+  // Tiny markdown → HTML (good enough for headings, paragraphs, lists, bold, italic, blockquote, code)
+  function md2html(md) {
+    const esc = (s) => s.replace(/&/g, '&amp;').replace(/</g, '&lt;').replace(/>/g, '&gt;');
+    const lines = md.split('\n');
+    let html = '';
+    let inUl = false, inOl = false, inBq = false, paraBuf = [];
+    const flushPara = () => {
+      if (paraBuf.length) {
+        html += '<p>' + inlineFmt(paraBuf.join(' ')) + '</p>';
+        paraBuf = [];
+      }
+    };
+    const closeLists = () => {
+      if (inUl) { html += '</ul>'; inUl = false; }
+      if (inOl) { html += '</ol>'; inOl = false; }
+    };
+    const closeBq = () => { if (inBq) { html += '</blockquote>'; inBq = false; } };
+    const inlineFmt = (s) => esc(s)
+      .replace(/\*\*([^*]+)\*\*/g, '<strong>$1</strong>')
+      .replace(/(^|\W)\*([^*]+)\*(?=\W|$)/g, '$1<em>$2</em>')
+      .replace(/`([^`]+)`/g, '<code style="background:rgba(255,255,255,0.08);padding:1px 5px;border-radius:4px;font-size:0.92em">$1</code>');
+
+    for (let raw of lines) {
+      const line = raw.trimEnd();
+      if (!line.trim()) { flushPara(); closeLists(); closeBq(); continue; }
+      let m;
+      if ((m = line.match(/^(#{1,4})\s+(.*)$/))) {
+        flushPara(); closeLists(); closeBq();
+        const lvl = Math.min(m[1].length, 3);
+        html += `<h${lvl}>${inlineFmt(m[2])}</h${lvl}>`;
+      } else if ((m = line.match(/^\s*[-*]\s+(.*)$/))) {
+        flushPara(); closeBq();
+        if (inOl) { html += '</ol>'; inOl = false; }
+        if (!inUl) { html += '<ul>'; inUl = true; }
+        html += `<li>${inlineFmt(m[1])}</li>`;
+      } else if ((m = line.match(/^\s*\d+\.\s+(.*)$/))) {
+        flushPara(); closeBq();
+        if (inUl) { html += '</ul>'; inUl = false; }
+        if (!inOl) { html += '<ol>'; inOl = true; }
+        html += `<li>${inlineFmt(m[1])}</li>`;
+      } else if ((m = line.match(/^>\s?(.*)$/))) {
+        flushPara(); closeLists();
+        if (!inBq) { html += '<blockquote>'; inBq = true; }
+        html += inlineFmt(m[1]) + '<br>';
+      } else {
+        closeLists(); closeBq();
+        paraBuf.push(line);
+      }
+    }
+    flushPara(); closeLists(); closeBq();
+    return html;
+  }
+
+  function openModal() { cleanModal.classList.add('open'); }
+  function closeModal() { cleanModal.classList.remove('open'); }
+
+  async function runClean() {
+    if (!segments.length) { toast('Walang transcript pa'); return; }
+    const rawJoined = segments.map(s => `[${fmtClock(new Date(s.ts))}] ${s.text}`).join('\n');
+    const prompt = buildCleanPrompt(rawJoined);
+
+    cleanBtn.disabled = true;
+    cleanBtn.innerHTML = '<span class="material-symbols-outlined">hourglass_top</span>Cleaning…';
+    openModal();
+    modalBody.innerHTML = '<div class="modal-loading"><div class="spinner"></div><div>Cleaning transcript… (Gemini)</div></div>';
+
+    let acc = '';
+    try {
+      const res = await fetch(PROXY_URL, {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({
+          stream: true,
+          contents: [{ role: 'user', parts: [{ text: prompt }] }],
+          generationConfig: {
+            temperature: 0.4,
+            maxOutputTokens: 16384,
+            thinkingConfig: { thinkingBudget: 0 },
+          },
+        }),
+      });
+      if (!res.ok || !res.body) throw new Error(`HTTP ${res.status}`);
+      const reader = res.body.getReader();
+      const dec = new TextDecoder();
+      let buf = '';
+      modalBody.innerHTML = '<div id="streamHost"></div>';
+      const host = $('streamHost');
+      while (true) {
+        const { value, done } = await reader.read();
+        if (done) break;
+        buf += dec.decode(value, { stream: true });
+        // SSE parse: lines starting with "data:" possibly multi-line per event
+        let nl;
+        while ((nl = buf.indexOf('\n')) !== -1) {
+          const line = buf.slice(0, nl).trim();
+          buf = buf.slice(nl + 1);
+          if (!line.startsWith('data:')) continue;
+          const payload = line.slice(5).trim();
+          if (!payload || payload === '[DONE]') continue;
+          try {
+            const j = JSON.parse(payload);
+            const chunk = j?.candidates?.[0]?.content?.parts?.[0]?.text || '';
+            if (chunk) {
+              acc += chunk;
+              host.innerHTML = md2html(acc) + '<span class="stream-cursor"></span>';
+              host.parentElement.scrollTop = host.parentElement.scrollHeight;
+            }
+          } catch {}
+        }
+      }
+      // Final render without cursor
+      modalBody.innerHTML = md2html(acc);
+      lastCleaned = acc;
+      try { localStorage.setItem(CLEAN_KEY, acc); } catch {}
+    } catch (err) {
+      console.error('[sermon] clean failed:', err);
+      modalBody.innerHTML = `<div style="color:var(--accent);padding:14px">Clean failed: ${err.message || err}<br><br>Pakiretry sa <b>Re-run</b>.</div>`;
+    } finally {
+      cleanBtn.disabled = false;
+      cleanBtn.innerHTML = '<span class="material-symbols-outlined">auto_awesome</span>Clean &amp; Document';
+    }
+  }
+
+  cleanBtn.addEventListener('click', () => {
+    if (lastCleaned && segments.length) {
+      // If we already have a cleaned version, show it first; user can Re-run
+      modalBody.innerHTML = md2html(lastCleaned);
+      openModal();
+    } else {
+      runClean();
+    }
+  });
+  $('cleanRerunBtn').addEventListener('click', runClean);
+  $('modalClose').addEventListener('click', closeModal);
+  cleanModal.addEventListener('click', (e) => { if (e.target === cleanModal) closeModal(); });
+
+  $('cleanCopyBtn').addEventListener('click', async () => {
+    if (!lastCleaned) { toast('Wala pang cleaned version'); return; }
+    try { await navigator.clipboard.writeText(lastCleaned); toast('Cleaned text copied'); }
+    catch { toast('Copy failed'); }
+  });
+
+  $('cleanDownloadBtn').addEventListener('click', () => {
+    if (!lastCleaned) { toast('Wala pang cleaned version'); return; }
+    const date = new Date();
+    const pad = n => String(n).padStart(2,'0');
+    const fname = `sermon-cleaned-${date.getFullYear()}${pad(date.getMonth()+1)}${pad(date.getDate())}-${pad(date.getHours())}${pad(date.getMinutes())}.md`;
+    const blob = new Blob([lastCleaned], { type: 'text/markdown;charset=utf-8' });
+    const url = URL.createObjectURL(blob);
+    const a = document.createElement('a');
+    a.href = url; a.download = fname; document.body.appendChild(a); a.click();
+    setTimeout(() => { URL.revokeObjectURL(url); a.remove(); }, 100);
+    toast('Downloaded');
   });
 
   $('clearBtn').addEventListener('click', () => {
