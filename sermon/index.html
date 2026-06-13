@@ -321,8 +321,11 @@
     <div class="modal-footer">
       <button class="tool" id="cleanCopyBtn"><span class="material-symbols-outlined">content_copy</span>Copy</button>
       <button class="tool" id="cleanDownloadBtn"><span class="material-symbols-outlined">download</span>Download .md</button>
+      <button class="tool" id="renderProBtn" title="Deep re-render using Gemini 3.1 Pro with thinking enabled"><span class="material-symbols-outlined">diamond</span>Render w/ Pro</button>
       <button class="tool primary" id="regenBtn" style="display:none"><span class="material-symbols-outlined">auto_fix_high</span>Regenerate w/ notes</button>
       <button class="tool" id="cleanRerunBtn"><span class="material-symbols-outlined">refresh</span>Re-run</button>
+      <button class="tool" id="chooseThisBtn" style="background:var(--ok);color:#0a1f0d;border-color:var(--ok);font-weight:700"><span class="material-symbols-outlined">check_circle</span>Choose this</button>
+      <button class="tool" id="savedListBtn"><span class="material-symbols-outlined">cloud_done</span>Saved</button>
     </div>
   </div>
 </div>
@@ -341,7 +344,22 @@
   </div>
 </div>
 
-<script>
+<script type="module">
+import { initializeApp } from "https://www.gstatic.com/firebasejs/10.13.2/firebase-app.js";
+import { getDatabase, ref, push, set, get, child, remove, query, orderByChild } from "https://www.gstatic.com/firebasejs/10.13.2/firebase-database.js";
+
+const firebaseConfig = {
+  apiKey: "AIzaSyB8ahT56WbEUaGAymsRNNA-DrfZnUnWIwk",
+  authDomain: "test-database-55379.firebaseapp.com",
+  databaseURL: "https://test-database-55379-default-rtdb.asia-southeast1.firebasedatabase.app",
+  projectId: "test-database-55379",
+  storageBucket: "test-database-55379.firebasestorage.app",
+  messagingSenderId: "933688602756",
+  appId: "1:933688602756:web:392a3a4ce040cb9d4452d1",
+};
+const fbApp = initializeApp(firebaseConfig);
+const fbDb = getDatabase(fbApp);
+
 (() => {
   const SR = window.SpeechRecognition || window.webkitSpeechRecognition;
   const LS_KEY = 'sermon_listener_v1';
@@ -854,12 +872,15 @@ Output ONLY the cleaned Markdown — no preamble, no "Here is the cleaned versio
     const rawJoined = segments.map(s => `[${fmtClock(new Date(s.ts))}] ${s.text}`).join('\n');
     const prompt = buildCleanPrompt(rawJoined, opts);
 
-    const triggerBtn = opts.notes ? regenBtn : cleanBtn;
+    const triggerBtn = opts.model ? $('renderProBtn') : (opts.notes ? regenBtn : cleanBtn);
     triggerBtn.disabled = true;
     const origLabel = triggerBtn.innerHTML;
     triggerBtn.innerHTML = '<span class="material-symbols-outlined">hourglass_top</span>Working…';
     openModal();
-    const loadingMsg = opts.notes ? `Regenerating with your ${opts.notes.length} note${opts.notes.length === 1 ? '' : 's'}…` : 'Cleaning transcript… (Gemini)';
+    const proLabel = opts.model ? ` with ${opts.model.replace('gemini-','').replace('-preview','')}` : '';
+    const loadingMsg = opts.notes
+      ? `Regenerating with your ${opts.notes.length} note${opts.notes.length === 1 ? '' : 's'}${proLabel}…`
+      : (opts.model ? `Deep re-render${proLabel} (thinking enabled, may take 30-90s)…` : 'Cleaning transcript… (Gemini)');
     modalBody.innerHTML = `<div class="modal-loading"><div class="spinner"></div><div>${loadingMsg}</div></div>`;
 
     const SAFETY = [
@@ -869,19 +890,26 @@ Output ONLY the cleaned Markdown — no preamble, no "Here is the cleaned versio
       { category: 'HARM_CATEGORY_DANGEROUS_CONTENT', threshold: 'BLOCK_ONLY_HIGH' },
     ];
 
+    const usedModel = opts.model || 'gemini-2.5-flash-lite';
+    const isProModel = /pro/.test(usedModel);
+    const reqBody = {
+      contents: [{ role: 'user', parts: [{ text: prompt }] }],
+      safetySettings: SAFETY,
+      generationConfig: {
+        temperature: 0.4,
+        maxOutputTokens: isProModel ? 32768 : 16384,
+        // Pro: let thinking run dynamically (-1) for depth.
+        // Default: no thinking, fastest possible.
+        ...(isProModel ? {} : { thinkingConfig: { thinkingBudget: 0 } }),
+      },
+    };
+    if (opts.model) reqBody.model = opts.model;
+
     try {
       const res = await fetch(PROXY_URL, {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({
-          contents: [{ role: 'user', parts: [{ text: prompt }] }],
-          safetySettings: SAFETY,
-          generationConfig: {
-            temperature: 0.4,
-            maxOutputTokens: 16384,
-            thinkingConfig: { thinkingBudget: 0 },
-          },
-        }),
+        body: JSON.stringify(reqBody),
       });
       const data = await res.json();
       console.log('[sermon] gemini response:', data);
@@ -916,7 +944,7 @@ Output ONLY the cleaned Markdown — no preamble, no "Here is the cleaned versio
       }
 
       lastCleaned = text;
-      try { localStorage.setItem(CLEAN_KEY, text); } catch {}
+      try { localStorage.setItem(CLEAN_KEY, text); localStorage.setItem('sermon_last_model', usedModel); } catch {}
       // On a successful regen, clear notes (they've been applied)
       if (opts.notes && opts.notes.length) {
         notes = [];
@@ -1073,6 +1101,116 @@ Output ONLY the cleaned Markdown — no preamble, no "Here is the cleaned versio
     if (!notes.length) return;
     runClean({ notes, previousCleaned: lastCleaned });
   });
+
+  // ---- Render with Pro (Gemini 3.1 Pro Preview, thinking on)
+  $('renderProBtn').addEventListener('click', () => {
+    if (!segments.length) { toast('Walang transcript pa'); return; }
+    if (!confirm('Render this with Gemini 3.1 Pro (deeper thinking, slower, may overwrite the current cleaned version)?\n\nTip: If gusto mong i-keep yung kasalukuyan, tap "Choose this" muna para mai-save sa Firebase.')) return;
+    runClean({ model: 'gemini-3.1-pro-preview', notes: notes.length ? notes : undefined, previousCleaned: lastCleaned });
+  });
+
+  // ---- Firebase save: "Choose this" + Saved versions
+  let savedListOpen = false;
+
+  async function saveChosenToFirebase() {
+    if (!lastCleaned || !lastCleaned.trim()) { toast('Walang cleaned text na isasave'); return; }
+    const defaultLabel = `Sermon ${new Date().toLocaleString('en-US',{month:'short',day:'numeric',hour:'numeric',minute:'2-digit'})}`;
+    const label = prompt('Label for this saved version:', defaultLabel);
+    if (label === null) return;
+    const payload = {
+      label: label.trim() || defaultLabel,
+      text: lastCleaned,
+      model: localStorage.getItem('sermon_last_model') || 'gemini-2.5-flash-lite',
+      segmentCount: segments.length,
+      rawTranscript: segments.map(s => `[${fmtClock(new Date(s.ts))}] ${s.text}`).join('\n'),
+      notes: notes.slice(),
+      ts: Date.now(),
+    };
+    try {
+      const newRef = push(ref(fbDb, 'sermon/saved'));
+      await set(newRef, payload);
+      toast('Saved to Firebase ✓');
+    } catch (err) {
+      console.error('[sermon] firebase save failed:', err);
+      toast('Save failed: ' + (err.message || err));
+    }
+  }
+
+  $('chooseThisBtn').addEventListener('click', saveChosenToFirebase);
+
+  async function openSavedList() {
+    // Reuse the annotation overlay as a generic list overlay
+    annSel.textContent = 'Loading saved versions…';
+    annNote.style.display = 'none';
+    annOverlay.classList.add('open');
+    document.querySelector('.ann-card h3').textContent = 'Saved sermon versions';
+    document.querySelector('.ann-card .ann-actions').style.display = 'none';
+
+    try {
+      const snap = await get(child(ref(fbDb), 'sermon/saved'));
+      const data = snap.exists() ? snap.val() : {};
+      const entries = Object.entries(data).sort((a, b) => (b[1].ts || 0) - (a[1].ts || 0));
+      if (!entries.length) {
+        annSel.innerHTML = '<div style="color:var(--muted)">Wala pang saved versions. Tap "Choose this" para mag-save.</div>';
+        return;
+      }
+      annSel.innerHTML = '';
+      annSel.style.maxHeight = '60vh';
+      annSel.style.overflowY = 'auto';
+      entries.forEach(([key, v]) => {
+        const row = document.createElement('div');
+        row.style.cssText = 'padding:10px;border:1px solid var(--border);border-radius:8px;margin-bottom:8px;background:var(--panel)';
+        const dt = new Date(v.ts || 0);
+        const meta = `${dt.toLocaleString()} · ${v.model || '?'} · ${v.segmentCount || 0} segs${v.notes?.length ? ' · '+v.notes.length+' notes' : ''}`;
+        row.innerHTML = `
+          <div style="font-weight:600;color:var(--text);font-style:normal">${escapeHtml(v.label || '(no label)')}</div>
+          <div style="font-size:11px;color:var(--muted);font-style:normal;margin:4px 0 8px">${escapeHtml(meta)}</div>
+          <div style="display:flex;gap:6px;font-style:normal">
+            <button class="load-btn" style="flex:1;padding:6px 10px;border-radius:6px;background:var(--accent-2);color:#2a1a06;border:none;font-weight:600;cursor:pointer">Load</button>
+            <button class="del-btn" style="padding:6px 10px;border-radius:6px;background:transparent;color:var(--accent);border:1px solid var(--accent);cursor:pointer">Delete</button>
+          </div>`;
+        row.querySelector('.load-btn').addEventListener('click', () => loadSaved(v));
+        row.querySelector('.del-btn').addEventListener('click', () => deleteSaved(key));
+        annSel.appendChild(row);
+      });
+    } catch (err) {
+      annSel.innerHTML = `<div style="color:var(--accent)">Load failed: ${escapeHtml(err.message || String(err))}</div>`;
+    }
+  }
+
+  function loadSaved(v) {
+    lastCleaned = v.text || '';
+    try { localStorage.setItem(CLEAN_KEY, lastCleaned); } catch {}
+    closeSavedList();
+    openModal();
+    renderCleanedDisplay();
+    toast('Loaded saved version');
+  }
+
+  async function deleteSaved(key) {
+    if (!confirm('Delete this saved version? Hindi na maibabalik.')) return;
+    try {
+      await remove(ref(fbDb, `sermon/saved/${key}`));
+      openSavedList();
+    } catch (err) {
+      toast('Delete failed: ' + (err.message || err));
+    }
+  }
+
+  function closeSavedList() {
+    annOverlay.classList.remove('open');
+    annNote.style.display = '';
+    annSel.style.maxHeight = '100px';
+    annSel.style.overflowY = 'auto';
+    document.querySelector('.ann-card h3').textContent = 'Add a correction';
+    document.querySelector('.ann-card .ann-actions').style.display = '';
+  }
+
+  $('savedListBtn').addEventListener('click', openSavedList);
+  // Reset ann overlay on close so the normal annotation flow still works
+  const _annCancelOrig = $('annCancel').onclick;
+  $('annCancel').addEventListener('click', closeSavedList);
+  annOverlay.addEventListener('click', (e) => { if (e.target === annOverlay) closeSavedList(); });
 
   function escapeHtml(s) {
     return String(s).replace(/&/g, '&amp;').replace(/</g, '&lt;').replace(/>/g, '&gt;');

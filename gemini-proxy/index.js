@@ -25,28 +25,54 @@ app.use((req, res, next) => {
   next();
 });
 
-// Gemini text proxy — forwards to flash-lite with latency-optimized config.
+// Gemini text proxy — defaults to flash-lite for latency-optimized callers.
+// Optional `model` field in the request body picks a different whitelisted
+// model (e.g. flash, pro). Existing callers that don't pass `model` keep the
+// original flash-lite + thinkingBudget:0 behavior unchanged.
+//
 // If the caller passes { stream: true } in the body, we pipe Server-Sent
-// Events from Gemini back to the client as they arrive (typically first
-// token in ~200-400ms instead of waiting ~2s for the whole response).
+// Events from Gemini back to the client as they arrive.
+const MODEL_WHITELIST = new Set([
+  "gemini-2.5-flash-lite",
+  "gemini-2.5-flash",
+  "gemini-2.5-pro",
+  // Latest preview lines (verified callable in this project):
+  "gemini-3.1-pro-preview",
+  "gemini-3.5-flash",
+  "gemini-pro-latest",
+  "gemini-flash-latest",
+]);
+const DEFAULT_MODEL = "gemini-2.5-flash-lite";
+
 app.post("/", async (req, res) => {
   try {
-    const { task, stream, ...geminiBody } = req.body || {};
+    const { task, stream, model: rawModel, ...geminiBody } = req.body || {};
+    const model = (rawModel && MODEL_WHITELIST.has(rawModel)) ? rawModel : DEFAULT_MODEL;
 
-    // Merge in performance-tuned defaults unless caller already set them.
-    geminiBody.generationConfig = {
-      temperature: 0.4,
-      maxOutputTokens: 2048,
-      ...(geminiBody.generationConfig || {}),
-      thinkingConfig: {
-        thinkingBudget: 0,
-        ...((geminiBody.generationConfig || {}).thinkingConfig || {}),
-      },
-    };
+    // For non-default models (i.e. callers explicitly opting into pro/flash),
+    // don't force thinkingBudget=0 — let the caller decide. For the default
+    // (flash-lite) keep the original behavior so existing apps aren't affected.
+    const isDefaultModel = model === DEFAULT_MODEL;
+    const baseGenConfig = isDefaultModel
+      ? {
+          temperature: 0.4,
+          maxOutputTokens: 2048,
+          ...(geminiBody.generationConfig || {}),
+          thinkingConfig: {
+            thinkingBudget: 0,
+            ...((geminiBody.generationConfig || {}).thinkingConfig || {}),
+          },
+        }
+      : {
+          temperature: 0.4,
+          maxOutputTokens: 8192,
+          ...(geminiBody.generationConfig || {}),
+        };
+    geminiBody.generationConfig = baseGenConfig;
 
     const endpoint = stream ? "streamGenerateContent?alt=sse&" : "generateContent?";
     const url =
-      `https://generativelanguage.googleapis.com/v1beta/models/gemini-2.5-flash-lite:${endpoint}key=${process.env.GEMINI_API_KEY}`;
+      `https://generativelanguage.googleapis.com/v1beta/models/${model}:${endpoint}key=${process.env.GEMINI_API_KEY}`;
 
     const r = await fetch(url, {
       method: "POST",
