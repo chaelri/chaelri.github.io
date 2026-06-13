@@ -310,7 +310,13 @@
         <div class="sub"><span id="statusDot" class="dot"></span><span id="statusText">Idle</span></div>
       </div>
     </div>
-    <span class="lang-pill" id="langPill">fil-PH · Taglish</span>
+    <div style="display:flex;align-items:center;gap:8px">
+      <button id="sermonsLibBtn" title="Saved sermons" style="background:var(--panel);border:1px solid var(--border);color:var(--text);border-radius:999px;padding:6px 12px;font:inherit;font-size:11px;font-weight:600;cursor:pointer;display:inline-flex;align-items:center;gap:5px">
+        <span class="material-symbols-outlined" style="font-size:15px;color:var(--accent-2)">library_books</span>
+        <span id="sermonsLibCount">Sermons</span>
+      </button>
+      <span class="lang-pill" id="langPill">fil-PH · Taglish</span>
+    </div>
   </header>
 
   <div id="unsupported" class="unsupported" style="display:none;">
@@ -365,6 +371,19 @@
       <button class="tool" id="cleanRerunBtn"><span class="material-symbols-outlined">refresh</span>Re-run</button>
       <button class="tool" id="chooseThisBtn" style="background:var(--ok);color:#0a1f0d;border-color:var(--ok);font-weight:700"><span class="material-symbols-outlined">check_circle</span>Choose this</button>
       <button class="tool" id="savedListBtn"><span class="material-symbols-outlined">cloud_done</span>Saved</button>
+    </div>
+  </div>
+</div>
+
+<div class="modal-overlay" id="sermonsListModal">
+  <div class="modal">
+    <div class="modal-header">
+      <h2><span class="material-symbols-outlined" style="color:var(--accent-2)">library_books</span>Saved Sermons</h2>
+      <button class="close" id="sermonsListClose" aria-label="Close"><span class="material-symbols-outlined">close</span></button>
+    </div>
+    <div class="modal-body" id="sermonsListBody" style="padding:14px"></div>
+    <div class="modal-footer">
+      <button class="tool" id="sermonsRefreshBtn"><span class="material-symbols-outlined">refresh</span>Refresh</button>
     </div>
   </div>
 </div>
@@ -1194,6 +1213,7 @@ Output ONLY the cleaned Markdown — no preamble, no "Here is the cleaned versio
       const newRef = push(ref(fbDb, 'sermon/saved'));
       await set(newRef, payload);
       toast('Saved to Firebase ✓');
+      refreshSermonsCount?.();
     } catch (err) {
       console.error('[sermon] firebase save failed:', err);
       toast('Save failed: ' + (err.message || err));
@@ -1278,6 +1298,131 @@ Output ONLY the cleaned Markdown — no preamble, no "Here is the cleaned versio
   }
 
   $('savedListBtn').addEventListener('click', openSavedList);
+
+  // ---- Top-level Sermons library
+  const sermonsListModal = $('sermonsListModal');
+  const sermonsListBody  = $('sermonsListBody');
+  const sermonsLibBtn    = $('sermonsLibBtn');
+  const sermonsLibCount  = $('sermonsLibCount');
+
+  async function refreshSermonsCount() {
+    try {
+      const snap = await get(child(ref(fbDb), 'sermon/saved'));
+      const data = snap.exists() ? snap.val() : {};
+      const n = Object.keys(data).length;
+      sermonsLibCount.textContent = n ? `Sermons · ${n}` : 'Sermons';
+    } catch {}
+  }
+
+  async function openSermonsLibrary() {
+    sermonsListModal.classList.add('open');
+    sermonsListBody.innerHTML = '<div class="modal-loading"><div class="spinner"></div><div>Loading saved sermons…</div></div>';
+    try {
+      const snap = await get(child(ref(fbDb), 'sermon/saved'));
+      const data = snap.exists() ? snap.val() : {};
+      const entries = Object.entries(data).sort((a, b) => (b[1].ts || 0) - (a[1].ts || 0));
+      renderSermonsLibrary(entries);
+      sermonsLibCount.textContent = entries.length ? `Sermons · ${entries.length}` : 'Sermons';
+    } catch (err) {
+      sermonsListBody.innerHTML = `<div style="color:var(--accent);padding:14px">Load failed: ${escapeHtml(err.message || String(err))}</div>`;
+    }
+  }
+
+  function renderSermonsLibrary(entries) {
+    if (!entries.length) {
+      sermonsListBody.innerHTML = `
+        <div style="text-align:center;padding:40px 20px;color:var(--muted)">
+          <div style="font-size:48px;margin-bottom:8px"><span class="material-symbols-outlined" style="font-size:48px;color:var(--accent-2);opacity:0.5">menu_book</span></div>
+          <div style="font-size:15px;color:var(--text);margin-bottom:6px">Wala pang saved sermons</div>
+          <div style="font-size:13px">After cleaning a transcript, tap <b style="color:var(--ok)">Choose this</b> sa modal footer para mai-save dito.</div>
+        </div>`;
+      return;
+    }
+    sermonsListBody.innerHTML = '';
+    entries.forEach(([key, v]) => {
+      const dt = new Date(v.ts || 0);
+      const card = document.createElement('div');
+      card.style.cssText = 'background:var(--panel-2);border:1px solid var(--border);border-radius:12px;padding:14px;margin-bottom:10px';
+      const modelShort = (v.model || '').replace('gemini-', '').replace('-preview', '');
+      const preview = (v.text || '').replace(/[#*>`]/g, '').replace(/\s+/g, ' ').slice(0, 140);
+      const notesBadge = v.notes?.length ? `<span style="background:rgba(255,184,107,0.15);color:var(--accent-2);padding:2px 8px;border-radius:999px;font-size:11px;font-weight:600">${v.notes.length} note${v.notes.length===1?'':'s'}</span>` : '';
+      card.innerHTML = `
+        <div style="display:flex;align-items:flex-start;justify-content:space-between;gap:10px;margin-bottom:8px">
+          <div style="flex:1;min-width:0">
+            <div style="font-size:15px;font-weight:700;color:var(--text);margin-bottom:3px">${escapeHtml(v.label || '(no label)')}</div>
+            <div style="font-size:11px;color:var(--muted);display:flex;flex-wrap:wrap;gap:8px;align-items:center">
+              <span><span class="material-symbols-outlined" style="font-size:13px;vertical-align:-2px">schedule</span> ${dt.toLocaleString()}</span>
+              <span><span class="material-symbols-outlined" style="font-size:13px;vertical-align:-2px">smart_toy</span> ${escapeHtml(modelShort || '?')}</span>
+              <span><span class="material-symbols-outlined" style="font-size:13px;vertical-align:-2px">format_list_numbered</span> ${v.segmentCount || 0} segs</span>
+              ${notesBadge}
+            </div>
+          </div>
+        </div>
+        <div style="font-size:13px;color:var(--muted);line-height:1.5;margin-bottom:10px;max-height:60px;overflow:hidden">${escapeHtml(preview)}${(v.text||'').length > 140 ? '…' : ''}</div>
+        <div style="display:flex;gap:6px">
+          <button class="open-btn tool primary" style="flex:1;justify-content:center"><span class="material-symbols-outlined">open_in_new</span>Open</button>
+          <button class="dl-btn tool"><span class="material-symbols-outlined">download</span></button>
+          <button class="del-btn tool danger"><span class="material-symbols-outlined">delete</span></button>
+        </div>`;
+      card.querySelector('.open-btn').addEventListener('click', () => loadSavedFromLib(v));
+      card.querySelector('.dl-btn').addEventListener('click', () => downloadSavedMd(v));
+      card.querySelector('.del-btn').addEventListener('click', () => deleteSavedFromLib(key));
+      sermonsListBody.appendChild(card);
+    });
+  }
+
+  function loadSavedFromLib(v) {
+    lastCleaned = v.text || '';
+    try { localStorage.setItem(CLEAN_KEY, lastCleaned); } catch {}
+    if (Array.isArray(v.notes)) {
+      // Restore associated notes too
+      notes = v.notes.slice();
+      persistNotes();
+    }
+    sermonsListModal.classList.remove('open');
+    openModal();
+    renderCleanedDisplay();
+    toast('Loaded');
+  }
+
+  function downloadSavedMd(v) {
+    const date = new Date(v.ts || Date.now());
+    const pad = n => String(n).padStart(2,'0');
+    const slug = (v.label || 'sermon').toLowerCase().replace(/[^a-z0-9]+/g, '-').replace(/^-|-$/g, '').slice(0, 50);
+    const fname = `${slug || 'sermon'}-${date.getFullYear()}${pad(date.getMonth()+1)}${pad(date.getDate())}.md`;
+    const header = `<!-- ${v.label || ''} · ${date.toLocaleString()} · ${v.model || ''} -->\n\n`;
+    const blob = new Blob([header + (v.text || '')], { type: 'text/markdown;charset=utf-8' });
+    const url = URL.createObjectURL(blob);
+    const a = document.createElement('a');
+    a.href = url; a.download = fname; document.body.appendChild(a); a.click();
+    setTimeout(() => { URL.revokeObjectURL(url); a.remove(); }, 100);
+    toast(`Downloaded ${fname}`);
+  }
+
+  async function deleteSavedFromLib(key) {
+    const ok = await dlgConfirm({
+      title: 'Delete saved sermon?',
+      icon: 'delete',
+      message: 'Hindi na maibabalik.',
+      okLabel: 'Delete',
+      danger: true,
+    });
+    if (!ok) return;
+    try {
+      await remove(ref(fbDb, `sermon/saved/${key}`));
+      openSermonsLibrary();
+    } catch (err) {
+      toast('Delete failed: ' + (err.message || err));
+    }
+  }
+
+  sermonsLibBtn.addEventListener('click', openSermonsLibrary);
+  $('sermonsListClose').addEventListener('click', () => sermonsListModal.classList.remove('open'));
+  $('sermonsRefreshBtn').addEventListener('click', openSermonsLibrary);
+  sermonsListModal.addEventListener('click', (e) => { if (e.target === sermonsListModal) sermonsListModal.classList.remove('open'); });
+
+  // Update count on load
+  refreshSermonsCount();
   // Reset ann overlay on close so the normal annotation flow still works
   const _annCancelOrig = $('annCancel').onclick;
   $('annCancel').addEventListener('click', closeSavedList);
