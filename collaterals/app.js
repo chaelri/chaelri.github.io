@@ -39,13 +39,14 @@ const DETAILS_FIELDS = [
 ];
 
 const SUBS = {
-  "name-cards":      "Place cards with each guest's name · wildflower border",
-  "menu":            "Starter · Main · Dessert printable menu cards",
-  "table-numbers":   "Card per table — family headline + numbered guest list, A4 cut-out sheet for the mirror",
-  "money-envelopes": "Ready-to-cut wedding-day envelopes with guest fields",
-  "mirror-chart":    "2 × 5 ft seating chart for the mirror display",
-  "monogram":        "C & K monogram still — for the LED visual / signage",
-  "invitation":      "Printable wedding invitation card",
+  "name-cards":        "Place cards with each guest's name · wildflower border",
+  "menu":              "Starter · Main · Dessert printable menu cards",
+  "table-numbers":     "Card per table — family headline + numbered guest list, A4 cut-out sheet for the mirror",
+  "money-envelopes":   "Ready-to-cut wedding-day envelopes with guest fields",
+  "mirror-chart":      "2 × 5 ft seating chart for the mirror display",
+  "monogram":          "C & K monogram still — for the LED visual / signage",
+  "invitation":        "Printable wedding invitation card",
+  "sponsors-thankyou": "11 pre-edited Canva cards · laid out 2 × 3 per A4 portrait sheet, ready for the printer",
 };
 
 const STATUS_LABEL = {
