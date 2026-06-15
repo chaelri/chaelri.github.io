@@ -1,0 +1,592 @@
+// ─────────────── soft lock (localStorage-backed) ───────────────
+// Not a real security measure — just stops Karla from accidentally opening
+// the page on a shared device. Password lives in source, that's intentional.
+(function gate() {
+  const KEY = "vows-unlocked";
+  const PIN = "1234";
+  const lock = document.getElementById("lock");
+  if (!lock) return;
+
+  if (localStorage.getItem(KEY) === "1") {
+    lock.classList.add("unlocked");
+    setTimeout(() => lock.remove(), 600);
+    return;
+  }
+
+  const form = document.getElementById("lockForm");
+  const input = document.getElementById("lockInput");
+  const errEl = document.getElementById("lockError");
+  setTimeout(() => input.focus(), 120);
+
+  form.addEventListener("submit", e => {
+    e.preventDefault();
+    if (input.value === PIN) {
+      localStorage.setItem(KEY, "1");
+      lock.classList.add("unlocked");
+      setTimeout(() => lock.remove(), 600);
+    } else {
+      errEl.classList.add("show");
+      input.classList.add("shake");
+      setTimeout(() => input.classList.remove("shake"), 500);
+      input.value = "";
+      input.focus();
+    }
+  });
+  input.addEventListener("input", () => errEl.classList.remove("show"));
+})();
+
+import { initializeApp } from "https://www.gstatic.com/firebasejs/10.7.0/firebase-app.js";
+import {
+  getDatabase, ref, onValue, set, update, remove, push, get
+} from "https://www.gstatic.com/firebasejs/10.7.0/firebase-database.js";
+import { getAuth, signInAnonymously, onAuthStateChanged } from "https://www.gstatic.com/firebasejs/10.7.0/firebase-auth.js";
+
+// ─────────────── firebase init (shared client config) ───────────────
+const app = initializeApp({
+  apiKey: "AIzaSyB8ahT56WbEUaGAymsRNNA-DrfZnUnWIwk",
+  authDomain: "test-database-55379.firebaseapp.com",
+  databaseURL: "https://test-database-55379-default-rtdb.asia-southeast1.firebasedatabase.app",
+  projectId: "test-database-55379"
+});
+const db = getDatabase(app);
+const auth = getAuth(app);
+
+const ROOT = "vows-karla";
+const sectionsRef = ref(db, `${ROOT}/sections`);
+const itemsRef = ref(db, `${ROOT}/items`);
+
+const authReady = new Promise(resolve => {
+  const unsub = onAuthStateChanged(auth, user => {
+    if (user) { unsub(); resolve(user); }
+  });
+});
+signInAnonymously(auth).catch(e => console.warn("anon signin failed:", e));
+
+// ─────────────── default sections (seeded once) ───────────────
+const DEFAULT_SECTIONS = [
+  { name: "Commit & Vow", icon: "favorite", hue: "sage", order: 0 },
+  { name: "Funny Lines", icon: "theater_comedy", hue: "peach", order: 1 },
+  { name: "To Include", icon: "playlist_add_check", hue: "rose", order: 2 },
+  { name: "Quotes", icon: "format_quote", hue: "lilac", order: 3 }
+];
+
+const HUE_VALUES = {
+  sage:    "#7b8a5b",
+  rose:    "#d4889a",
+  peach:   "#e6a37a",
+  amber:   "#c89b4d",
+  lilac:   "#b893c8",
+  sky:     "#7aaecc",
+  emerald: "#6fa885",
+  violet:  "#b893c8"   // alias for legacy entries
+};
+
+// ─────────────── DOM refs ───────────────
+const $ = id => document.getElementById(id);
+const mapEl = $("map");
+const centerEl = $("center");
+const connectorsEl = $("connectors");
+const syncDot = $("syncDot");
+
+const panelEl = $("panel");
+const panelScrim = $("panelScrim");
+const panelIcon = $("panelIcon");
+const panelTitle = $("panelTitle");
+const panelCount = $("panelCount");
+const itemListEl = $("itemList");
+const itemInput = $("itemInput");
+const addItemForm = $("addItemForm");
+const closePanelBtn = $("closePanelBtn");
+const renameSectionBtn = $("renameSectionBtn");
+const deleteSectionBtn = $("deleteSectionBtn");
+
+const modalEl = $("modal");
+const modalForm = $("modalForm");
+const modalTitle = $("modalTitle");
+const modalClose = $("modalClose");
+const modalCancel = $("modalCancel");
+const sectionNameInput = $("sectionName");
+const hueRow = $("hueRow");
+const iconRow = $("iconRow");
+const addSectionBtn = $("addSectionBtn");
+
+// ─────────────── state ───────────────
+let sections = {};   // { id: { name, icon, hue, order, createdAt } }
+let items = {};      // { sectionId: { itemId: { text, createdAt } } }
+let activeSectionId = null;
+let modalMode = "create";   // "create" | "edit"
+let modalEditingId = null;
+let modalSelected = { hue: "sage", icon: "favorite" };
+
+// ─────────────── sync indicator ───────────────
+onValue(ref(db, ".info/connected"), snap => {
+  const ok = snap.val() === true;
+  syncDot.classList.toggle("on", ok);
+  syncDot.title = ok ? "synced" : "offline";
+});
+
+// ─────────────── seed defaults if empty ───────────────
+async function seedIfEmpty() {
+  await authReady;
+  const snap = await get(sectionsRef);
+  if (snap.exists()) return;
+  const updates = {};
+  DEFAULT_SECTIONS.forEach((s, i) => {
+    const id = push(sectionsRef).key;
+    updates[id] = { ...s, createdAt: Date.now() };
+  });
+  await update(sectionsRef, updates);
+}
+
+// ─────────────── live listeners ───────────────
+onValue(sectionsRef, snap => {
+  sections = snap.val() || {};
+  renderMap();
+  if (activeSectionId && sections[activeSectionId]) refreshPanelHeader();
+});
+
+onValue(itemsRef, snap => {
+  items = snap.val() || {};
+  renderMap();
+  if (activeSectionId) renderItems(activeSectionId);
+});
+
+// ─────────────── render: mind map ───────────────
+function getSortedSections() {
+  return Object.entries(sections)
+    .map(([id, s]) => ({ id, ...s }))
+    .sort((a, b) => (a.order ?? 0) - (b.order ?? 0) || (a.createdAt ?? 0) - (b.createdAt ?? 0));
+}
+
+function nodeRadius() {
+  const w = window.innerWidth, h = window.innerHeight;
+  const min = Math.min(w, h);
+  const count = Object.keys(sections).length || 4;
+
+  // base radius derived from viewport
+  let R;
+  if (min < 360)      R = min * 0.40;
+  else if (min < 480) R = min * 0.40;
+  else if (min < 720) R = min * 0.34;
+  else                R = Math.min(320, min * 0.32);
+
+  // bump radius slightly when there are many sections so they don't crowd
+  if (count > 6) R += 12;
+
+  return R;
+}
+
+function renderMap() {
+  // remove existing section nodes (keep #center)
+  mapEl.querySelectorAll(".section-node, .section-orbit").forEach(n => n.remove());
+  // clear connectors
+  while (connectorsEl.firstChild) connectorsEl.removeChild(connectorsEl.firstChild);
+
+  const list = getSortedSections();
+  if (list.length === 0) return;
+
+  const R = nodeRadius();
+  const cx = window.innerWidth / 2;
+  const cy = window.innerHeight / 2;
+
+  list.forEach((sec, i) => {
+    const angle = (-Math.PI / 2) + (i * 2 * Math.PI / list.length);
+    const x = Math.cos(angle) * R;
+    const y = Math.sin(angle) * R;
+
+    // connector line (curved gradient)
+    const hueColor = HUE_VALUES[sec.hue] || HUE_VALUES.rose;
+    const path = document.createElementNS("http://www.w3.org/2000/svg", "path");
+    const cxAbs = cx, cyAbs = cy;
+    const xAbs = cx + x, yAbs = cy + y;
+    const mx = cxAbs + (xAbs - cxAbs) * 0.5;
+    const my = cyAbs + (yAbs - cyAbs) * 0.5;
+    // gentle s-curve via quadratic with perpendicular offset
+    const perpX = -(yAbs - cyAbs) * 0.12;
+    const perpY = (xAbs - cxAbs) * 0.12;
+    const d = `M ${cxAbs} ${cyAbs} Q ${mx + perpX} ${my + perpY} ${xAbs} ${yAbs}`;
+    path.setAttribute("d", d);
+    path.setAttribute("fill", "none");
+    path.setAttribute("stroke", hueColor);
+    path.setAttribute("stroke-width", "1.6");
+    path.setAttribute("stroke-opacity", "0.55");
+    path.setAttribute("stroke-linecap", "round");
+    path.setAttribute("stroke-dasharray", "3 5");
+    path.style.filter = `drop-shadow(0 1px 3px ${hueColor}33)`;
+    connectorsEl.appendChild(path);
+
+    // section node
+    const node = document.createElement("button");
+    node.type = "button";
+    node.className = "section-node";
+    node.style.left = `calc(50% + ${x}px)`;
+    node.style.top = `calc(50% + ${y}px)`;
+    node.style.setProperty("--hue", hueColor);
+    node.dataset.id = sec.id;
+
+    const count = countItems(sec.id);
+    node.innerHTML = `
+      <span class="material-symbols-rounded section-icon">${escapeHtml(sec.icon || "favorite")}</span>
+      <div class="section-name">${escapeHtml(sec.name)}</div>
+      <div class="section-count">${count} ${count === 1 ? "entry" : "entries"}</div>
+    `;
+    node.addEventListener("click", () => openPanel(sec.id));
+    mapEl.appendChild(node);
+
+    // floating tags around section node (peek at recent items)
+    // skipped entirely on phones via CSS `display: none`; on bigger screens
+    // we still skip any tag that would land off-canvas so nothing gets clipped.
+    if (window.innerWidth > 640) {
+      const recent = recentItemsFor(sec.id, 2);
+      const tagR = R + Math.min(96, window.innerWidth * 0.10);
+      const margin = 92;   // approx tag half-width + safety
+      recent.forEach((it, idx) => {
+        const tagAngle = angle + (idx === 0 ? -0.32 : 0.32);
+        const tx = Math.cos(tagAngle) * tagR;
+        const ty = Math.sin(tagAngle) * tagR;
+        const absX = cx + tx, absY = cy + ty;
+        if (absX < margin || absX > window.innerWidth - margin) return;
+        if (absY < 70 || absY > window.innerHeight - 70) return;
+
+        const tag = document.createElement("div");
+        tag.className = "section-orbit";
+        tag.textContent = truncate(it.text, 28);
+        tag.style.left = `calc(50% + ${tx}px)`;
+        tag.style.top = `calc(50% + ${ty}px)`;
+        tag.style.transform = `translate(-50%, -50%)`;
+        tag.style.animationDelay = `${0.1 + idx * 0.08}s`;
+        mapEl.appendChild(tag);
+      });
+    }
+  });
+}
+
+function countItems(secId) {
+  return Object.keys(items[secId] || {}).length;
+}
+
+function recentItemsFor(secId, n) {
+  const bag = items[secId] || {};
+  return Object.values(bag)
+    .sort((a, b) => (b.createdAt ?? 0) - (a.createdAt ?? 0))
+    .slice(0, n);
+}
+
+function truncate(s, n) {
+  s = (s || "").replace(/\s+/g, " ").trim();
+  return s.length > n ? s.slice(0, n - 1) + "…" : s;
+}
+
+function escapeHtml(s) {
+  return String(s ?? "").replace(/[&<>"']/g, c => ({
+    "&": "&amp;", "<": "&lt;", ">": "&gt;", '"': "&quot;", "'": "&#39;"
+  }[c]));
+}
+
+// reflow on resize / orientation change
+let resizeTimer;
+function scheduleReflow() {
+  clearTimeout(resizeTimer);
+  resizeTimer = setTimeout(renderMap, 120);
+}
+window.addEventListener("resize", scheduleReflow);
+window.addEventListener("orientationchange", scheduleReflow);
+
+// ─────────────── panel ───────────────
+function openPanel(secId) {
+  activeSectionId = secId;
+  refreshPanelHeader();
+  renderItems(secId);
+  panelEl.classList.add("show");
+  panelScrim.classList.add("show");
+  panelEl.setAttribute("aria-hidden", "false");
+  setTimeout(() => itemInput.focus(), 350);
+}
+
+function closePanel() {
+  panelEl.classList.remove("show");
+  panelScrim.classList.remove("show");
+  panelEl.setAttribute("aria-hidden", "true");
+  activeSectionId = null;
+  panelTitle.setAttribute("contenteditable", "false");
+}
+
+function refreshPanelHeader() {
+  const sec = sections[activeSectionId];
+  if (!sec) return;
+  const hueColor = HUE_VALUES[sec.hue] || HUE_VALUES.rose;
+  panelEl.style.setProperty("--hue", hueColor);
+  panelIcon.textContent = sec.icon || "favorite";
+  panelTitle.textContent = sec.name;
+  const n = countItems(activeSectionId);
+  panelCount.textContent = `${n} ${n === 1 ? "entry" : "entries"}`;
+}
+
+function renderItems(secId) {
+  const bag = items[secId] || {};
+  const list = Object.entries(bag)
+    .map(([id, it]) => ({ id, ...it }))
+    .sort((a, b) => (a.createdAt ?? 0) - (b.createdAt ?? 0));
+
+  if (list.length === 0) {
+    itemListEl.innerHTML = `<div class="empty">nothing here yet · add your first thought below</div>`;
+    return;
+  }
+
+  itemListEl.innerHTML = list.map(it => `
+    <div class="item" data-id="${escapeHtml(it.id)}">
+      ${escapeHtml(it.text)}
+      <button class="item-del" type="button" title="Delete">
+        <span class="material-symbols-rounded">close</span>
+      </button>
+    </div>
+  `).join("");
+
+  // wire up delete + click-to-edit
+  itemListEl.querySelectorAll(".item").forEach(el => {
+    const id = el.dataset.id;
+    el.querySelector(".item-del").addEventListener("click", e => {
+      e.stopPropagation();
+      deleteItem(secId, id);
+    });
+    el.addEventListener("dblclick", () => editItemInline(el, secId, id));
+  });
+}
+
+function editItemInline(el, secId, itemId) {
+  const orig = items[secId]?.[itemId]?.text || "";
+  el.querySelector(".item-del")?.remove();
+  el.textContent = orig;
+  el.setAttribute("contenteditable", "true");
+  el.focus();
+  // place caret at end
+  const r = document.createRange();
+  r.selectNodeContents(el); r.collapse(false);
+  const s = window.getSelection(); s.removeAllRanges(); s.addRange(r);
+
+  const finish = async () => {
+    el.removeAttribute("contenteditable");
+    const next = el.innerText.trim();
+    if (next && next !== orig) {
+      await update(ref(db, `${ROOT}/items/${secId}/${itemId}`), { text: next });
+    } else {
+      // re-render to restore delete button
+      renderItems(secId);
+    }
+  };
+  el.addEventListener("blur", finish, { once: true });
+  el.addEventListener("keydown", e => {
+    if (e.key === "Enter" && !e.shiftKey) { e.preventDefault(); el.blur(); }
+    if (e.key === "Escape") { el.innerText = orig; el.blur(); }
+  });
+}
+
+// ─────────────── add item ───────────────
+addItemForm.addEventListener("submit", async e => {
+  e.preventDefault();
+  if (!activeSectionId) return;
+  const text = itemInput.value.trim();
+  if (!text) return;
+  itemInput.value = "";
+  fitInput();
+  await authReady;
+  const targetRef = ref(db, `${ROOT}/items/${activeSectionId}`);
+  const newRef = push(targetRef);
+  await set(newRef, { text, createdAt: Date.now() });
+});
+
+// Enter to submit, Shift+Enter for newline
+itemInput.addEventListener("keydown", e => {
+  if (e.key === "Enter" && !e.shiftKey) {
+    e.preventDefault();
+    addItemForm.requestSubmit();
+  }
+});
+const MIN_INPUT_H = 82;   // ≈ 3 lines of 14px Inter @ 1.45
+const MAX_INPUT_H = 220;
+function fitInput() {
+  itemInput.style.height = "auto";
+  const h = Math.max(MIN_INPUT_H, Math.min(itemInput.scrollHeight, MAX_INPUT_H));
+  itemInput.style.height = h + "px";
+}
+itemInput.addEventListener("input", fitInput);
+fitInput();
+
+async function deleteItem(secId, itemId) {
+  await remove(ref(db, `${ROOT}/items/${secId}/${itemId}`));
+}
+
+// ─────────────── close / rename / delete section ───────────────
+closePanelBtn.addEventListener("click", closePanel);
+panelScrim.addEventListener("click", closePanel);
+document.addEventListener("keydown", e => {
+  if (e.key === "Escape") {
+    if (modalEl.classList.contains("show")) closeModal();
+    else if (panelEl.classList.contains("show")) closePanel();
+  }
+});
+
+renameSectionBtn.addEventListener("click", () => {
+  if (!activeSectionId) return;
+  openModal("edit", sections[activeSectionId], activeSectionId);
+});
+
+deleteSectionBtn.addEventListener("click", async () => {
+  if (!activeSectionId) return;
+  const name = sections[activeSectionId]?.name || "this section";
+  const n = countItems(activeSectionId);
+  const msg = n > 0
+    ? `Delete "${name}" and its ${n} entr${n === 1 ? "y" : "ies"}? This can't be undone.`
+    : `Delete "${name}"?`;
+  if (!confirm(msg)) return;
+  const id = activeSectionId;
+  closePanel();
+  await Promise.all([
+    remove(ref(db, `${ROOT}/sections/${id}`)),
+    remove(ref(db, `${ROOT}/items/${id}`))
+  ]);
+});
+
+// ─────────────── modal: new / edit section ───────────────
+function openModal(mode, existing, existingId) {
+  modalMode = mode;
+  modalEditingId = existingId || null;
+  modalTitle.textContent = mode === "edit" ? "Rename section" : "New section";
+  sectionNameInput.value = existing?.name || "";
+  modalSelected.hue = existing?.hue || "rose";
+  modalSelected.icon = existing?.icon || "favorite";
+  hueRow.querySelectorAll(".hue-chip").forEach(c => c.classList.toggle("active", c.dataset.hue === modalSelected.hue));
+  iconRow.querySelectorAll(".icon-chip").forEach(c => c.classList.toggle("active", c.dataset.icon === modalSelected.icon));
+  modalEl.classList.add("show");
+  modalEl.setAttribute("aria-hidden", "false");
+  setTimeout(() => sectionNameInput.focus(), 150);
+}
+
+function closeModal() {
+  modalEl.classList.remove("show");
+  modalEl.setAttribute("aria-hidden", "true");
+  modalEditingId = null;
+}
+
+addSectionBtn.addEventListener("click", () => openModal("create"));
+modalClose.addEventListener("click", closeModal);
+modalCancel.addEventListener("click", closeModal);
+modalEl.addEventListener("click", e => { if (e.target === modalEl) closeModal(); });
+
+hueRow.querySelectorAll(".hue-chip").forEach(chip => {
+  chip.addEventListener("click", () => {
+    modalSelected.hue = chip.dataset.hue;
+    hueRow.querySelectorAll(".hue-chip").forEach(c => c.classList.toggle("active", c === chip));
+  });
+});
+iconRow.querySelectorAll(".icon-chip").forEach(chip => {
+  chip.addEventListener("click", () => {
+    modalSelected.icon = chip.dataset.icon;
+    iconRow.querySelectorAll(".icon-chip").forEach(c => c.classList.toggle("active", c === chip));
+  });
+});
+
+modalForm.addEventListener("submit", async e => {
+  e.preventDefault();
+  const name = sectionNameInput.value.trim();
+  if (!name) return;
+  await authReady;
+
+  if (modalMode === "edit" && modalEditingId) {
+    await update(ref(db, `${ROOT}/sections/${modalEditingId}`), {
+      name, hue: modalSelected.hue, icon: modalSelected.icon
+    });
+  } else {
+    const list = getSortedSections();
+    const nextOrder = list.length ? Math.max(...list.map(s => s.order ?? 0)) + 1 : 0;
+    const newRef = push(sectionsRef);
+    await set(newRef, {
+      name, hue: modalSelected.hue, icon: modalSelected.icon,
+      order: nextOrder, createdAt: Date.now()
+    });
+  }
+  closeModal();
+});
+
+// inline title rename via panel-title (double-click)
+panelTitle.addEventListener("dblclick", () => {
+  if (!activeSectionId) return;
+  panelTitle.setAttribute("contenteditable", "true");
+  panelTitle.focus();
+  const r = document.createRange();
+  r.selectNodeContents(panelTitle); r.collapse(false);
+  const s = window.getSelection(); s.removeAllRanges(); s.addRange(r);
+});
+panelTitle.addEventListener("blur", async () => {
+  if (panelTitle.getAttribute("contenteditable") !== "true") return;
+  panelTitle.setAttribute("contenteditable", "false");
+  const next = panelTitle.innerText.trim();
+  if (!activeSectionId) return;
+  const orig = sections[activeSectionId]?.name || "";
+  if (next && next !== orig) {
+    await update(ref(db, `${ROOT}/sections/${activeSectionId}`), { name: next });
+  } else {
+    panelTitle.textContent = orig;
+  }
+});
+panelTitle.addEventListener("keydown", e => {
+  if (e.key === "Enter") { e.preventDefault(); panelTitle.blur(); }
+  if (e.key === "Escape") { panelTitle.textContent = sections[activeSectionId]?.name || ""; panelTitle.blur(); }
+});
+
+// ─────────────── ambient petals canvas ───────────────
+(function startPetals() {
+  const c = document.getElementById("petals");
+  const ctx = c.getContext("2d");
+  let W, H, petals = [];
+
+  function resize() {
+    W = c.width = window.innerWidth * devicePixelRatio;
+    H = c.height = window.innerHeight * devicePixelRatio;
+  }
+  resize();
+  window.addEventListener("resize", resize);
+
+  const COLORS = ["#ffb7c5", "#7b8a5b", "#d4889a", "#e2e8d8", "#f4cfbb"];
+  function spawn() {
+    return {
+      x: Math.random() * W,
+      y: -20 - Math.random() * H * 0.2,
+      r: (2 + Math.random() * 3.5) * devicePixelRatio,
+      vy: (0.15 + Math.random() * 0.45) * devicePixelRatio,
+      vx: ((Math.random() - 0.5) * 0.2) * devicePixelRatio,
+      drift: Math.random() * Math.PI * 2,
+      driftSpeed: 0.005 + Math.random() * 0.01,
+      color: COLORS[(Math.random() * COLORS.length) | 0],
+      alpha: 0.25 + Math.random() * 0.40
+    };
+  }
+  for (let i = 0; i < 36; i++) {
+    const p = spawn();
+    p.y = Math.random() * H;
+    petals.push(p);
+  }
+
+  function tick() {
+    ctx.clearRect(0, 0, W, H);
+    for (const p of petals) {
+      p.drift += p.driftSpeed;
+      p.x += p.vx + Math.sin(p.drift) * 0.3 * devicePixelRatio;
+      p.y += p.vy;
+      if (p.y > H + 30 || p.x < -30 || p.x > W + 30) {
+        Object.assign(p, spawn());
+      }
+      ctx.globalAlpha = p.alpha;
+      ctx.fillStyle = p.color;
+      ctx.beginPath();
+      ctx.arc(p.x, p.y, p.r, 0, Math.PI * 2);
+      ctx.fill();
+    }
+    ctx.globalAlpha = 1;
+    requestAnimationFrame(tick);
+  }
+  tick();
+})();
+
+// ─────────────── kickoff ───────────────
+seedIfEmpty().catch(e => console.warn("seed failed:", e));
