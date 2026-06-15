@@ -1838,10 +1838,14 @@ window.closeWeddingBar = () => {
 // Gov deductions (employee share, all hit caps at this salary level):
 //   SSS ₱1,750 (5% of max MSC ₱35K) + PhilHealth ₱2,500 (2.5% of max basic ₱100K) + Pag-IBIG ₱200 = ₱4,450/mo
 // 125K Azur: taxable ₱120,550 → 25% bracket → tax ₱22,013 → net ₱98,537
-// New job ₱195K package: taxable ₱190,550 → 30% bracket → tax ₱40,707 → net ₱149,843
+// New job ₱200,587 package (signed 2026-06): Basic ₱195,000 + HRNPI ₱3,262.50 (taxable)
+//   + De Minimis ₱2,325 (tax-exempt — ₱27,900/yr is under BIR ceiling).
+//   Taxable: ₱198,262.50 − ₱4,450 = ₱193,812.50/mo → ₱2,325,750/yr → 30% bracket
+//   Annual tax: ₱402,500 + 30%×(₱2,325,750 − ₱2M) = ₱500,225/yr → ₱41,685/mo
+//   Net: ₱200,587.50 − ₱4,450 − ₱41,685 = ₱154,452/mo
 const TRAJ_NET_125K = 98_537;
-const TRAJ_NET_NEW = 149_843;
-const TRAJ_BUMP_NEW = TRAJ_NET_NEW - TRAJ_NET_125K; // +₱51,306/mo
+const TRAJ_NET_NEW = 154_452;
+const TRAJ_BUMP_NEW = TRAJ_NET_NEW - TRAJ_NET_125K; // +₱55,915/mo
 
 // Editable living expenses — persisted to Firebase under appData.trajectorySettings
 const TRAJ_DEFAULTS = {
