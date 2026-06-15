@@ -2056,8 +2056,8 @@ function renderTrajectory() {
     const { income: baseIncome, expenses } = calculateMonthlyTotals(mData);
     const isProjected = !hasData || (year > startYear);
 
-    // Apply salary toggle
-    const income = trajSalary === "new" ? baseIncome + TRAJ_BUMP_NEW : baseIncome;
+    // Apply salary toggle: "new" replaces baseline with flat ₱200,587 net so projection matches offer-letter math
+    const income = trajSalary === "new" ? TRAJ_NET_NEW : baseIncome;
 
     // Rent starts May (index 4) — moving in before wedding
     // Living expenses start July (index 6) — after wedding
