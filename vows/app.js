@@ -322,6 +322,22 @@ function refreshPanelHeader() {
   panelCount.textContent = `${n} ${n === 1 ? "entry" : "entries"}`;
 }
 
+function relTime(ms) {
+  if (!ms) return "";
+  const diff = Date.now() - ms;
+  const m = 60_000, h = 60 * m, d = 24 * h;
+  if (diff < m)        return "just now";
+  if (diff < h)        return Math.floor(diff / m) + "m ago";
+  if (diff < d)        return Math.floor(diff / h) + "h ago";
+  if (diff < 7 * d)    return Math.floor(diff / d) + "d ago";
+  const dt = new Date(ms);
+  const sameYear = dt.getFullYear() === new Date().getFullYear();
+  const opts = sameYear
+    ? { month: "short", day: "numeric" }
+    : { month: "short", day: "numeric", year: "numeric" };
+  return dt.toLocaleDateString(undefined, opts);
+}
+
 function renderItems(secId) {
   const bag = items[secId] || {};
   const list = Object.entries(bag)
@@ -333,51 +349,65 @@ function renderItems(secId) {
     return;
   }
 
-  itemListEl.innerHTML = list.map(it => `
-    <div class="item" data-id="${escapeHtml(it.id)}">
-      ${escapeHtml(it.text)}
-      <button class="item-del" type="button" title="Delete">
-        <span class="material-symbols-rounded">close</span>
-      </button>
-    </div>
-  `).join("");
+  const total = list.length;
+  const pad = String(total).length;          // 2 → "01"…"10"
+  itemListEl.innerHTML = list.map((it, i) => {
+    const n = String(i + 1).padStart(pad, "0");
+    const time = relTime(it.createdAt);
+    return `
+      <div class="item" data-id="${escapeHtml(it.id)}">
+        <div class="item-meta">
+          <span class="item-no">#${n}</span>
+          <span class="item-meta-dot"></span>
+          <span class="item-time">${escapeHtml(time)}</span>
+        </div>
+        <div class="item-body">${escapeHtml(it.text)}</div>
+        <button class="item-del" type="button" title="Delete">
+          <span class="material-symbols-rounded">close</span>
+        </button>
+      </div>
+    `;
+  }).join("");
 
-  // wire up delete + click-to-edit
+  // wire up delete + double-click-to-edit on the body
   itemListEl.querySelectorAll(".item").forEach(el => {
     const id = el.dataset.id;
     el.querySelector(".item-del").addEventListener("click", e => {
       e.stopPropagation();
       deleteItem(secId, id);
     });
-    el.addEventListener("dblclick", () => editItemInline(el, secId, id));
+    const body = el.querySelector(".item-body");
+    body.addEventListener("dblclick", () => editItemBody(body, secId, id));
+  });
+
+  // newest entry sits at the bottom — scroll there so it's visible
+  requestAnimationFrame(() => {
+    itemListEl.scrollTop = itemListEl.scrollHeight;
   });
 }
 
-function editItemInline(el, secId, itemId) {
+function editItemBody(bodyEl, secId, itemId) {
   const orig = items[secId]?.[itemId]?.text || "";
-  el.querySelector(".item-del")?.remove();
-  el.textContent = orig;
-  el.setAttribute("contenteditable", "true");
-  el.focus();
-  // place caret at end
+  bodyEl.textContent = orig;
+  bodyEl.setAttribute("contenteditable", "true");
+  bodyEl.focus();
   const r = document.createRange();
-  r.selectNodeContents(el); r.collapse(false);
+  r.selectNodeContents(bodyEl); r.collapse(false);
   const s = window.getSelection(); s.removeAllRanges(); s.addRange(r);
 
   const finish = async () => {
-    el.removeAttribute("contenteditable");
-    const next = el.innerText.trim();
+    bodyEl.removeAttribute("contenteditable");
+    const next = bodyEl.innerText.trim();
     if (next && next !== orig) {
       await update(ref(db, `${ROOT}/items/${secId}/${itemId}`), { text: next });
     } else {
-      // re-render to restore delete button
       renderItems(secId);
     }
   };
-  el.addEventListener("blur", finish, { once: true });
-  el.addEventListener("keydown", e => {
-    if (e.key === "Enter" && !e.shiftKey) { e.preventDefault(); el.blur(); }
-    if (e.key === "Escape") { el.innerText = orig; el.blur(); }
+  bodyEl.addEventListener("blur", finish, { once: true });
+  bodyEl.addEventListener("keydown", e => {
+    if (e.key === "Enter" && !e.shiftKey) { e.preventDefault(); bodyEl.blur(); }
+    if (e.key === "Escape") { bodyEl.innerText = orig; bodyEl.blur(); }
   });
 }
 

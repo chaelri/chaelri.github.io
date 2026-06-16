@@ -393,21 +393,51 @@ button { font-family: inherit; }
 
 .item {
   position: relative;
-  background: rgba(255, 255, 255, 0.85);
+  background: rgba(255, 255, 255, 0.92);
   border: 1px solid var(--line);
   border-left: 3px solid var(--hue, var(--rose));
-  border-radius: 14px;
-  padding: 14px 44px 14px 16px;
+  border-radius: 12px;
+  padding: 11px 40px 12px 14px;
+  font-family: "Inter", system-ui, sans-serif;
+  box-shadow: 0 5px 14px rgba(123, 138, 91, 0.07);
+  animation: itemIn 0.35s cubic-bezier(.2,.7,.2,1.05) both;
+}
+.item-meta {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  font-size: 10px;
+  letter-spacing: 0.18em;
+  text-transform: uppercase;
+  color: var(--ink-dim);
+  margin-bottom: 7px;
+  line-height: 1;
+}
+.item-no {
+  color: var(--hue, var(--rose));
+  font-weight: 600;
+  letter-spacing: 0.10em;
+}
+.item-meta-dot {
+  width: 3px; height: 3px; border-radius: 50%;
+  background: var(--ink-dim);
+  opacity: 0.6;
+}
+.item-time { color: var(--ink-dim); font-weight: 400; }
+.item-body {
+  font-size: 14px;
   line-height: 1.55;
   color: var(--ink);
   white-space: pre-wrap;
   word-wrap: break-word;
-  font-family: "Inter", system-ui, sans-serif;
-  font-size: 15px;
-  font-weight: 400;
-  letter-spacing: 0.005em;
-  box-shadow: 0 6px 16px rgba(123, 138, 91, 0.08);
-  animation: itemIn 0.35s cubic-bezier(.2,.7,.2,1.05) both;
+  outline: none;
+}
+.item-body[contenteditable="true"] {
+  background: rgba(255,255,255,0.6);
+  border-radius: 6px;
+  padding: 2px 4px;
+  margin: -2px -4px;
+  box-shadow: inset 0 0 0 1px var(--hue, var(--rose));
 }
 @keyframes itemIn {
   0% { opacity: 0; transform: translateY(6px); }
@@ -433,11 +463,6 @@ button { font-family: inherit; }
 .item:hover .item-del { opacity: 1; }
 .item .item-del:hover { color: var(--rose); background: rgba(212, 84, 158, 0.10); }
 .item .item-del .material-symbols-rounded { font-size: 16px; }
-.item[contenteditable="true"] {
-  background: #ffffff;
-  outline: none;
-  box-shadow: inset 2px 0 0 var(--hue, var(--rose)), 0 6px 16px rgba(123, 138, 91, 0.12);
-}
 
 .empty {
   text-align: center;
@@ -788,7 +813,9 @@ button { font-family: inherit; }
   .ghost-btn { width: 34px; height: 34px; }
 
   .item-list { padding: 14px 16px 12px; gap: 10px; }
-  .item { font-size: 15px; padding: 13px 40px 13px 14px; }
+  .item { padding: 11px 38px 12px 14px; }
+  .item-body { font-size: 14px; line-height: 1.55; }
+  .item-meta { font-size: 9.5px; margin-bottom: 6px; }
   .item .item-del { opacity: 0.55; }   /* always visible on touch */
   .add-item { padding: 12px 14px calc(16px + env(safe-area-inset-bottom, 0px)); }
 
