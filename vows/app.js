@@ -117,6 +117,7 @@ let activeSectionId = null;
 let modalMode = "create";   // "create" | "edit"
 let modalEditingId = null;
 let modalSelected = { hue: "sage", icon: "favorite" };
+let pendingScrollBottom = false;  // set when we want renderItems to jump to bottom
 
 // ─────────────── sync indicator ───────────────
 onValue(ref(db, ".info/connected"), snap => {
@@ -295,6 +296,7 @@ window.addEventListener("orientationchange", scheduleReflow);
 // ─────────────── panel ───────────────
 function openPanel(secId) {
   activeSectionId = secId;
+  pendingScrollBottom = true;   // jump to newest on open
   refreshPanelHeader();
   renderItems(secId);
   panelEl.classList.add("show");
@@ -339,6 +341,9 @@ function relTime(ms) {
 }
 
 function renderItems(secId) {
+  // capture scroll before innerHTML replacement wipes it
+  const prevScroll = itemListEl.scrollTop;
+
   const bag = items[secId] || {};
   const list = Object.entries(bag)
     .map(([id, it]) => ({ id, ...it }))
@@ -346,6 +351,7 @@ function renderItems(secId) {
 
   if (list.length === 0) {
     itemListEl.innerHTML = `<div class="empty">nothing here yet · add your first thought below</div>`;
+    pendingScrollBottom = false;
     return;
   }
 
@@ -382,9 +388,16 @@ function renderItems(secId) {
     el.querySelector(".act-cancel").addEventListener("click", e => { e.stopPropagation(); cancelEdit(el, body, secId, id); });
   });
 
-  // newest entry sits at the bottom — scroll there so it's visible
+  // scroll behavior:
+  //   - flag set (panel just opened / new item just added) → jump to bottom
+  //   - otherwise (edits, deletes, sync echoes) → preserve where the user was
   requestAnimationFrame(() => {
-    itemListEl.scrollTop = itemListEl.scrollHeight;
+    if (pendingScrollBottom) {
+      itemListEl.scrollTop = itemListEl.scrollHeight;
+      pendingScrollBottom = false;
+    } else {
+      itemListEl.scrollTop = prevScroll;
+    }
   });
 }
 
@@ -462,6 +475,7 @@ addItemForm.addEventListener("submit", async e => {
   if (!text) return;
   itemInput.value = "";
   fitInput();
+  pendingScrollBottom = true;   // jump to the bottom once Firebase echoes
   await authReady;
   const targetRef = ref(db, `${ROOT}/items/${activeSectionId}`);
   const newRef = push(targetRef);
