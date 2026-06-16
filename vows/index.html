@@ -84,6 +84,20 @@
 
 </div>
 
+<!-- confirm modal (delete, etc.) -->
+<div id="confirmModal" class="modal" aria-hidden="true" role="dialog" aria-modal="true">
+  <div class="modal-card">
+    <div class="modal-icon"><span class="material-symbols-rounded">delete</span></div>
+    <div id="confirmTitle" class="modal-title">Delete this vow?</div>
+    <div id="confirmMsg" class="modal-msg">This can't be undone.</div>
+    <div id="confirmPreview" class="modal-preview" hidden></div>
+    <div class="modal-actions">
+      <button id="confirmCancel" type="button" class="modal-btn modal-btn--ghost">cancel</button>
+      <button id="confirmOk"     type="button" class="modal-btn modal-btn--danger">delete</button>
+    </div>
+  </div>
+</div>
+
 <script type="module" src="app.js"></script>
 </body>
 </html>

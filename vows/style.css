@@ -406,6 +406,126 @@ button { font-family: inherit; }
 .composer-btn:active { transform: scale(0.92); }
 .composer-btn .material-symbols-rounded { font-size: 22px; font-weight: 500; }
 
+/* ─────────── confirm modal ─────────── */
+.modal {
+  position: fixed; inset: 0; z-index: 60;
+  display: grid; place-items: center;
+  padding: 24px;
+  background: rgba(58, 58, 58, 0.32);
+  backdrop-filter: blur(8px);
+  opacity: 0;
+  pointer-events: none;
+  transition: opacity 0.25s;
+}
+.modal.show { opacity: 1; pointer-events: auto; }
+
+.modal-card {
+  width: min(420px, 100%);
+  background: linear-gradient(160deg, #ffffff 0%, #fdfbf7 60%, #f7f3ea 100%);
+  background-image:
+    linear-gradient(160deg, #ffffff 0%, #fdfbf7 60%, #f7f3ea 100%),
+    url("https://www.transparenttextures.com/patterns/paper-fibers.png");
+  background-blend-mode: normal, multiply;
+  border: 1px solid rgba(123, 138, 91, 0.22);
+  border-radius: 22px;
+  padding: 28px 28px 22px;
+  text-align: center;
+  box-shadow:
+    inset 0 1px 0 rgba(255, 255, 255, 0.9),
+    0 30px 70px rgba(58, 58, 58, 0.22),
+    0 8px 22px rgba(212, 84, 158, 0.10);
+  transform: scale(0.96);
+  transition: transform 0.25s cubic-bezier(.2,.7,.2,1.05);
+}
+.modal.show .modal-card { transform: scale(1); }
+
+.modal-icon {
+  width: 56px; height: 56px;
+  margin: 0 auto 14px;
+  background: rgba(212, 84, 158, 0.10);
+  border-radius: 50%;
+  display: grid; place-items: center;
+  color: var(--rose);
+}
+.modal-icon .material-symbols-rounded { font-size: 28px; }
+
+.modal-title {
+  font-family: "Playfair Display", serif;
+  font-size: 24px;
+  font-style: italic;
+  color: var(--sage-deep);
+  line-height: 1.15;
+}
+.modal-msg {
+  margin-top: 8px;
+  font-size: 13px;
+  color: var(--ink-soft);
+  line-height: 1.55;
+}
+.modal-preview {
+  margin-top: 16px;
+  padding: 12px 14px;
+  background: rgba(255, 255, 255, 0.75);
+  border: 1px solid var(--line);
+  border-left: 3px solid var(--sage-soft);
+  border-radius: 10px;
+  font-family: "Inter", sans-serif;
+  font-size: 13px;
+  line-height: 1.5;
+  color: var(--ink);
+  text-align: left;
+  max-height: 150px;
+  overflow-y: auto;
+  white-space: pre-wrap;
+  word-wrap: break-word;
+  box-shadow: inset 0 1px 0 rgba(255,255,255,0.8);
+}
+.modal-preview::-webkit-scrollbar { width: 6px; }
+.modal-preview::-webkit-scrollbar-thumb { background: rgba(123, 138, 91, 0.22); border-radius: 3px; }
+
+.modal-actions {
+  margin-top: 22px;
+  display: flex;
+  justify-content: flex-end;
+  gap: 8px;
+}
+.modal-btn {
+  height: 40px;
+  padding: 0 18px;
+  font-family: "Inter", sans-serif;
+  font-size: 12px;
+  letter-spacing: 0.16em;
+  text-transform: uppercase;
+  border-radius: 12px;
+  border: none;
+  cursor: pointer;
+  transition: filter 0.15s, transform 0.15s, background 0.15s, color 0.15s, border-color 0.15s;
+}
+.modal-btn:active { transform: scale(0.97); }
+.modal-btn--ghost {
+  background: transparent;
+  color: var(--ink-soft);
+  border: 1px solid var(--line);
+}
+.modal-btn--ghost:hover {
+  background: rgba(123, 138, 91, 0.06);
+  border-color: var(--sage-soft);
+  color: var(--ink);
+}
+.modal-btn--danger {
+  background: linear-gradient(150deg, var(--rose), #a23b78);
+  color: white;
+  box-shadow: 0 10px 22px rgba(212, 84, 158, 0.30);
+}
+.modal-btn--danger:hover { filter: brightness(1.08); }
+
+@media (max-width: 480px) {
+  .modal { padding: 16px; }
+  .modal-card { padding: 22px 20px 18px; border-radius: 18px; }
+  .modal-title { font-size: 21px; }
+  .modal-btn { padding: 0 16px; }
+}
+
 /* ─────────── lock screen ─────────── */
 .lock-overlay {
   position: fixed; inset: 0; z-index: 100;

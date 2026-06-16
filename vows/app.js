@@ -391,10 +391,71 @@ function cancelEdit(itemEl, bodyEl) {
   bodyEl.textContent = orig;
 }
 
+// ─────────────── confirm modal (promise-based) ───────────────
+const confirmModal   = $("confirmModal");
+const confirmTitleEl = $("confirmTitle");
+const confirmMsgEl   = $("confirmMsg");
+const confirmPreview = $("confirmPreview");
+const confirmOkBtn   = $("confirmOk");
+const confirmCancelBtn = $("confirmCancel");
+
+function showConfirm({ title, message, preview, confirmLabel = "delete", cancelLabel = "cancel", danger = true }) {
+  return new Promise(resolve => {
+    confirmTitleEl.textContent = title;
+    confirmMsgEl.textContent = message || "";
+    if (preview) {
+      const trimmed = preview.length > 280 ? preview.slice(0, 277) + "…" : preview;
+      confirmPreview.textContent = trimmed;
+      confirmPreview.hidden = false;
+    } else {
+      confirmPreview.hidden = true;
+      confirmPreview.textContent = "";
+    }
+    confirmOkBtn.textContent = confirmLabel;
+    confirmCancelBtn.textContent = cancelLabel;
+    confirmOkBtn.classList.toggle("modal-btn--danger", danger);
+
+    confirmModal.classList.add("show");
+    confirmModal.setAttribute("aria-hidden", "false");
+    setTimeout(() => confirmCancelBtn.focus(), 80);
+
+    const close = val => {
+      confirmModal.classList.remove("show");
+      confirmModal.setAttribute("aria-hidden", "true");
+      confirmOkBtn.removeEventListener("click", onOk);
+      confirmCancelBtn.removeEventListener("click", onCancel);
+      confirmModal.removeEventListener("click", onBg);
+      document.removeEventListener("keydown", onKey);
+      resolve(val);
+    };
+    const onOk     = () => close(true);
+    const onCancel = () => close(false);
+    const onBg     = e => { if (e.target === confirmModal) close(false); };
+    const onKey    = e => {
+      if (e.key === "Escape") { e.preventDefault(); close(false); }
+      else if (e.key === "Enter") { e.preventDefault(); close(true); }
+    };
+
+    confirmOkBtn.addEventListener("click", onOk);
+    confirmCancelBtn.addEventListener("click", onCancel);
+    confirmModal.addEventListener("click", onBg);
+    document.addEventListener("keydown", onKey);
+  });
+}
+
 async function deleteVow(itemEl) {
   const path = itemEl.dataset.path;
   if (!path) return;
-  if (!confirm("Delete this vow? This can't be undone.")) return;
+  const bodyEl = itemEl.querySelector(".item-body");
+  const preview = bodyEl ? bodyEl.textContent.trim() : "";
+  const ok = await showConfirm({
+    title: "Delete this vow?",
+    message: "This can't be undone.",
+    preview,
+    confirmLabel: "delete",
+    danger: true
+  });
+  if (!ok) return;
   await remove(ref(db, path));
 }
 
