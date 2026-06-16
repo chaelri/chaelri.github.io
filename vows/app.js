@@ -178,88 +178,133 @@ function nodeRadius() {
 }
 
 function renderMap() {
-  // remove existing section nodes (keep #center)
-  mapEl.querySelectorAll(".section-node, .section-orbit").forEach(n => n.remove());
-  // clear connectors
-  while (connectorsEl.firstChild) connectorsEl.removeChild(connectorsEl.firstChild);
-
   const list = getSortedSections();
-  if (list.length === 0) return;
-
-  const R = nodeRadius();
   const cx = window.innerWidth / 2;
   const cy = window.innerHeight / 2;
+
+  // index whatever's already in the DOM so we can reuse instead of rebuilding
+  const existingNodes  = new Map();   // secId → button.section-node
+  const existingPaths  = new Map();   // secId → SVGPathElement
+  const existingOrbits = new Map();   // "secId|slot" → div.section-orbit
+  mapEl.querySelectorAll(".section-node").forEach(n => existingNodes.set(n.dataset.id, n));
+  connectorsEl.querySelectorAll("path").forEach(p => existingPaths.set(p.dataset.id, p));
+  mapEl.querySelectorAll(".section-orbit").forEach(o => existingOrbits.set(o.dataset.key, o));
+
+  if (list.length === 0) {
+    existingNodes.forEach(n => n.remove());
+    existingPaths.forEach(p => p.remove());
+    existingOrbits.forEach(o => o.remove());
+    return;
+  }
+
+  const R = nodeRadius();
+  const keepNodes  = new Set();
+  const keepPaths  = new Set();
+  const keepOrbits = new Set();
 
   list.forEach((sec, i) => {
     const angle = (-Math.PI / 2) + (i * 2 * Math.PI / list.length);
     const x = Math.cos(angle) * R;
     const y = Math.sin(angle) * R;
-
-    // connector line (curved gradient)
     const hueColor = HUE_VALUES[sec.hue] || HUE_VALUES.rose;
-    const path = document.createElementNS("http://www.w3.org/2000/svg", "path");
-    const cxAbs = cx, cyAbs = cy;
     const xAbs = cx + x, yAbs = cy + y;
-    const mx = cxAbs + (xAbs - cxAbs) * 0.5;
-    const my = cyAbs + (yAbs - cyAbs) * 0.5;
-    // gentle s-curve via quadratic with perpendicular offset
-    const perpX = -(yAbs - cyAbs) * 0.12;
-    const perpY = (xAbs - cxAbs) * 0.12;
-    const d = `M ${cxAbs} ${cyAbs} Q ${mx + perpX} ${my + perpY} ${xAbs} ${yAbs}`;
-    path.setAttribute("d", d);
-    path.setAttribute("fill", "none");
-    path.setAttribute("stroke", hueColor);
-    path.setAttribute("stroke-width", "1.6");
-    path.setAttribute("stroke-opacity", "0.55");
-    path.setAttribute("stroke-linecap", "round");
-    path.setAttribute("stroke-dasharray", "3 5");
-    path.style.filter = `drop-shadow(0 1px 3px ${hueColor}33)`;
-    connectorsEl.appendChild(path);
 
-    // section node
-    const node = document.createElement("button");
-    node.type = "button";
-    node.className = "section-node";
-    node.style.left = `calc(50% + ${x}px)`;
-    node.style.top = `calc(50% + ${y}px)`;
-    node.style.setProperty("--hue", hueColor);
-    node.dataset.id = sec.id;
+    // ── connector ──
+    const mx = cx + (xAbs - cx) * 0.5;
+    const my = cy + (yAbs - cy) * 0.5;
+    const perpX = -(yAbs - cy) * 0.12;
+    const perpY =  (xAbs - cx) * 0.12;
+    const d = `M ${cx} ${cy} Q ${mx + perpX} ${my + perpY} ${xAbs} ${yAbs}`;
 
+    let path = existingPaths.get(sec.id);
+    if (!path) {
+      path = document.createElementNS("http://www.w3.org/2000/svg", "path");
+      path.dataset.id = sec.id;
+      path.setAttribute("fill", "none");
+      path.setAttribute("stroke-width", "1.6");
+      path.setAttribute("stroke-opacity", "0.55");
+      path.setAttribute("stroke-linecap", "round");
+      path.setAttribute("stroke-dasharray", "3 5");
+      connectorsEl.appendChild(path);
+    }
+    if (path.getAttribute("d") !== d) path.setAttribute("d", d);
+    if (path.getAttribute("stroke") !== hueColor) {
+      path.setAttribute("stroke", hueColor);
+      path.style.filter = `drop-shadow(0 1px 3px ${hueColor}33)`;
+    }
+    keepPaths.add(sec.id);
+
+    // ── section node ──
     const count = countItems(sec.id);
-    node.innerHTML = `
-      <span class="material-symbols-rounded section-icon">${escapeHtml(sec.icon || "favorite")}</span>
-      <div class="section-name">${escapeHtml(sec.name)}</div>
-      <div class="section-count">${count} ${count === 1 ? "entry" : "entries"}</div>
-    `;
-    node.addEventListener("click", () => openPanel(sec.id));
-    mapEl.appendChild(node);
+    const countLabel = `${count} ${count === 1 ? "entry" : "entries"}`;
+    const leftStr = `calc(50% + ${x}px)`;
+    const topStr  = `calc(50% + ${y}px)`;
+    const iconName = sec.icon || "favorite";
 
-    // floating tags around section node (peek at recent items)
-    // skipped entirely on phones via CSS `display: none`; on bigger screens
-    // we still skip any tag that would land off-canvas so nothing gets clipped.
+    let node = existingNodes.get(sec.id);
+    if (!node) {
+      node = document.createElement("button");
+      node.type = "button";
+      node.className = "section-node";
+      node.dataset.id = sec.id;
+      node.innerHTML = `
+        <span class="material-symbols-rounded section-icon"></span>
+        <div class="section-name"></div>
+        <div class="section-count"></div>
+      `;
+      node.addEventListener("click", () => openPanel(node.dataset.id));
+      mapEl.appendChild(node);
+    }
+    if (node.style.left !== leftStr) node.style.left = leftStr;
+    if (node.style.top  !== topStr)  node.style.top  = topStr;
+    if (node.style.getPropertyValue("--hue") !== hueColor) node.style.setProperty("--hue", hueColor);
+    const iconEl = node.querySelector(".section-icon");
+    if (iconEl.textContent !== iconName) iconEl.textContent = iconName;
+    const nameEl = node.querySelector(".section-name");
+    if (nameEl.textContent !== sec.name) nameEl.textContent = sec.name;
+    const countEl = node.querySelector(".section-count");
+    if (countEl.textContent !== countLabel) countEl.textContent = countLabel;
+    keepNodes.add(sec.id);
+
+    // ── orbit tags (hidden on phones via CSS) ──
     if (window.innerWidth > 640) {
       const recent = recentItemsFor(sec.id, 2);
       const tagR = R + Math.min(96, window.innerWidth * 0.10);
-      const margin = 92;   // approx tag half-width + safety
+      const margin = 92;
       recent.forEach((it, idx) => {
         const tagAngle = angle + (idx === 0 ? -0.32 : 0.32);
         const tx = Math.cos(tagAngle) * tagR;
         const ty = Math.sin(tagAngle) * tagR;
         const absX = cx + tx, absY = cy + ty;
         if (absX < margin || absX > window.innerWidth - margin) return;
-        if (absY < 70 || absY > window.innerHeight - 70) return;
+        if (absY < 70     || absY > window.innerHeight - 70)    return;
 
-        const tag = document.createElement("div");
-        tag.className = "section-orbit";
-        tag.textContent = truncate(it.text, 28);
-        tag.style.left = `calc(50% + ${tx}px)`;
-        tag.style.top = `calc(50% + ${ty}px)`;
-        tag.style.transform = `translate(-50%, -50%)`;
-        tag.style.animationDelay = `${0.1 + idx * 0.08}s`;
-        mapEl.appendChild(tag);
+        const slotKey = `${sec.id}|${idx}`;
+        const tagText = truncate(it.text, 28);
+        const tagLeft = `calc(50% + ${tx}px)`;
+        const tagTop  = `calc(50% + ${ty}px)`;
+
+        let tag = existingOrbits.get(slotKey);
+        if (!tag) {
+          tag = document.createElement("div");
+          tag.className = "section-orbit";
+          tag.dataset.key = slotKey;
+          tag.style.transform = "translate(-50%, -50%)";
+          tag.style.animationDelay = `${0.1 + idx * 0.08}s`;
+          mapEl.appendChild(tag);
+        }
+        if (tag.textContent !== tagText) tag.textContent = tagText;
+        if (tag.style.left !== tagLeft) tag.style.left = tagLeft;
+        if (tag.style.top  !== tagTop)  tag.style.top  = tagTop;
+        keepOrbits.add(slotKey);
       });
     }
   });
+
+  // sweep orphans
+  existingNodes.forEach((n, id)  => { if (!keepNodes.has(id))   n.remove(); });
+  existingPaths.forEach((p, id)  => { if (!keepPaths.has(id))   p.remove(); });
+  existingOrbits.forEach((o, k)  => { if (!keepOrbits.has(k))   o.remove(); });
 }
 
 function countItems(secId) {
