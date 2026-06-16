@@ -86,9 +86,10 @@ feedEl.appendChild(feedInner);
 // ─────────────── state ───────────────
 // Each vow: { id, path, text, createdAt } — `path` is the Firebase ref string
 // so edits/deletes go back to wherever the item lives (new flat path or legacy)
-let vowsNew    = {};   // { vowId: { text, createdAt } }
-let vowsLegacy = {};   // { "secId/itemId": { text, createdAt } }
+let vowsNew    = {};   // { vowId: { text, createdAt, order? } }
+let vowsLegacy = {};   // { "secId/itemId": { text, createdAt, order? } }
 let pendingScrollBottom = false;
+let dragInProgress      = false;   // pauses renderFeed while a card is mid-drag
 
 // ─────────────── sync indicator ───────────────
 onValue(ref(db, ".info/connected"), snap => {
@@ -120,17 +121,48 @@ onValue(ref(db, ITEMS_PATH), snap => {
 // ─────────────── helpers ───────────────
 function mergedVows() {
   // Returns the merged, sorted list of all vows from new + legacy sources.
+  // Sort key is `order` if set (drag-to-reorder writes this), else createdAt.
   const list = [];
   for (const id of Object.keys(vowsNew)) {
     const v = vowsNew[id];
-    list.push({ id: `new:${id}`, path: `${VOWS_PATH}/${id}`, text: v.text || "", createdAt: v.createdAt ?? 0 });
+    const created = v.createdAt ?? 0;
+    list.push({
+      id: `new:${id}`,
+      path: `${VOWS_PATH}/${id}`,
+      text: v.text || "",
+      createdAt: created,
+      order: v.order ?? created
+    });
   }
   for (const key of Object.keys(vowsLegacy)) {
     const v = vowsLegacy[key];
-    list.push({ id: `old:${key.replace(/\//g, ":")}`, path: `${ITEMS_PATH}/${key}`, text: v.text || "", createdAt: v.createdAt ?? 0 });
+    const created = v.createdAt ?? 0;
+    list.push({
+      id: `old:${key.replace(/\//g, ":")}`,
+      path: `${ITEMS_PATH}/${key}`,
+      text: v.text || "",
+      createdAt: created,
+      order: v.order ?? created
+    });
   }
-  list.sort((a, b) => (a.createdAt ?? 0) - (b.createdAt ?? 0));
+  list.sort((a, b) => a.order - b.order);
   return list;
+}
+
+// Look up a vow's effective order by its DOM dataset.id ("new:xxx" or "old:sec:itm")
+function vowOrderFromDomId(domId) {
+  if (!domId) return null;
+  if (domId.startsWith("new:")) {
+    const id = domId.slice(4);
+    const v = vowsNew[id];
+    return v ? (v.order ?? v.createdAt ?? 0) : null;
+  }
+  if (domId.startsWith("old:")) {
+    const key = domId.slice(4).replace(/:/g, "/");
+    const v = vowsLegacy[key];
+    return v ? (v.order ?? v.createdAt ?? 0) : null;
+  }
+  return null;
 }
 
 function wordCount(text) {
@@ -197,6 +229,9 @@ function buildItemNode(v, noStr) {
   div.dataset.id = v.id;
   div.dataset.path = v.path;
   div.innerHTML = `
+    <button class="drag-handle" type="button" title="Drag to reorder" aria-label="Drag to reorder">
+      <span class="material-symbols-rounded">drag_indicator</span>
+    </button>
     <div class="item-meta">
       <span class="item-no">#${noStr}</span>
       <span class="item-meta-dot"></span>
@@ -219,10 +254,12 @@ function buildItemNode(v, noStr) {
   div.querySelector(".act-del"   ).addEventListener("click", e => { e.stopPropagation(); deleteVow(div); });
   div.querySelector(".act-save"  ).addEventListener("click", e => { e.stopPropagation(); commitEdit(div, body); });
   div.querySelector(".act-cancel").addEventListener("click", e => { e.stopPropagation(); cancelEdit(div, body); });
+  attachDrag(div, div.querySelector(".drag-handle"));
   return div;
 }
 
 function renderFeed(list) {
+  if (dragInProgress) return;   // don't disturb the user's in-flight drag
   const prevScroll = feedEl.scrollTop;
 
   if (list.length === 0) {
@@ -359,6 +396,142 @@ async function deleteVow(itemEl) {
   if (!path) return;
   if (!confirm("Delete this vow? This can't be undone.")) return;
   await remove(ref(db, path));
+}
+
+// ─────────────── drag-to-reorder ───────────────
+const DRAG_THRESHOLD = 6;          // px before drag actually starts
+const REORDER_GAP    = 10_000;     // sparse spacing for fresh order values
+
+function attachDrag(card, handle) {
+  handle.addEventListener("pointerdown", ev => {
+    // ignore right/middle mouse buttons
+    if (ev.pointerType === "mouse" && ev.button !== 0) return;
+    ev.preventDefault();
+    try { handle.setPointerCapture(ev.pointerId); } catch {}
+
+    const startY = ev.clientY;
+    const startX = ev.clientX;
+    const originalPrev = card.previousElementSibling;
+    const originalNext = card.nextElementSibling;
+    let active = false;
+    let placeholder = null;
+    let cardRect = null;
+
+    const onMove = e => {
+      if (!active) {
+        const dx = Math.abs(e.clientX - startX);
+        const dy = Math.abs(e.clientY - startY);
+        if (Math.max(dx, dy) < DRAG_THRESHOLD) return;
+        beginDrag();
+      }
+      if (!active) return;
+      e.preventDefault();
+
+      // visually follow the pointer (rotation gives a little "lifted" feel)
+      card.style.transform = `translate(${e.clientX - startX}px, ${e.clientY - startY}px) rotate(-1deg)`;
+
+      // figure out where the placeholder should sit
+      const pointerY = e.clientY;
+      const candidates = Array.from(feedInner.children)
+        .filter(c => c !== card && c !== placeholder);
+      let inserted = false;
+      for (const sib of candidates) {
+        const r = sib.getBoundingClientRect();
+        if (pointerY < r.top + r.height / 2) {
+          if (placeholder.nextSibling !== sib) feedInner.insertBefore(placeholder, sib);
+          inserted = true;
+          break;
+        }
+      }
+      if (!inserted && placeholder !== feedInner.lastElementChild) {
+        feedInner.appendChild(placeholder);
+      }
+
+      autoScrollFeed(pointerY);
+    };
+
+    const onUp = async () => {
+      window.removeEventListener("pointermove", onMove);
+      window.removeEventListener("pointerup", onUp);
+      window.removeEventListener("pointercancel", onUp);
+      try { handle.releasePointerCapture(ev.pointerId); } catch {}
+
+      if (!active) return;   // never crossed threshold → no-op (handle still clickable)
+
+      // drop the card into the placeholder's slot, restore styles
+      placeholder.parentNode.insertBefore(card, placeholder);
+      placeholder.remove();
+      placeholder = null;
+
+      card.classList.remove("dragging");
+      card.style.position = "";
+      card.style.left = "";
+      card.style.top = "";
+      card.style.width = "";
+      card.style.transform = "";
+      card.style.zIndex = "";
+      dragInProgress = false;
+
+      // skip Firebase write if the card landed in the same slot
+      if (card.previousElementSibling === originalPrev &&
+          card.nextElementSibling     === originalNext) {
+        return;
+      }
+      await commitOrder(card);
+    };
+
+    function beginDrag() {
+      active = true;
+      dragInProgress = true;
+      cardRect = card.getBoundingClientRect();
+
+      placeholder = document.createElement("div");
+      placeholder.className = "drag-placeholder";
+      placeholder.style.height = cardRect.height + "px";
+      card.parentNode.insertBefore(placeholder, card);
+
+      // lift card out of flow so it can follow the pointer freely
+      card.style.position = "fixed";
+      card.style.left  = cardRect.left + "px";
+      card.style.top   = cardRect.top  + "px";
+      card.style.width = cardRect.width + "px";
+      card.classList.add("dragging");
+    }
+
+    window.addEventListener("pointermove", onMove, { passive: false });
+    window.addEventListener("pointerup", onUp);
+    window.addEventListener("pointercancel", onUp);
+  });
+}
+
+function autoScrollFeed(pointerY) {
+  const r = feedEl.getBoundingClientRect();
+  const edge = 70;
+  if (pointerY < r.top + edge)       feedEl.scrollTop -= 10;
+  else if (pointerY > r.bottom - edge) feedEl.scrollTop += 10;
+}
+
+async function commitOrder(card) {
+  const path = card.dataset.path;
+  if (!path) return;
+
+  const prev = card.previousElementSibling;
+  const next = card.nextElementSibling;
+  const prevOrder = prev ? vowOrderFromDomId(prev.dataset.id) : null;
+  const nextOrder = next ? vowOrderFromDomId(next.dataset.id) : null;
+
+  let newOrder;
+  if (prevOrder != null && nextOrder != null) {
+    newOrder = (prevOrder + nextOrder) / 2;
+  } else if (prevOrder != null) {
+    newOrder = prevOrder + REORDER_GAP;
+  } else if (nextOrder != null) {
+    newOrder = nextOrder - REORDER_GAP;
+  } else {
+    newOrder = Date.now();
+  }
+
+  await update(ref(db, path), { order: newOrder });
 }
 
 // ─────────────── add new vow ───────────────

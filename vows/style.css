@@ -206,11 +206,53 @@ button { font-family: inherit; }
   border: 1px solid var(--line);
   border-left: 3px solid var(--sage-soft);
   border-radius: 12px;
-  padding: 12px 60px 14px 16px;
+  padding: 12px 60px 14px 38px;
   font-family: "Inter", system-ui, sans-serif;
   box-shadow: 0 5px 14px rgba(123, 138, 91, 0.07);
   animation: itemIn 0.35s cubic-bezier(.2,.7,.2,1.05) both;
   transition: box-shadow 0.2s, border-color 0.2s;
+}
+
+/* ─────────── drag handle ─────────── */
+.drag-handle {
+  position: absolute;
+  left: 3px; top: 0; bottom: 0;
+  width: 28px;
+  display: grid; place-items: center;
+  background: transparent;
+  border: none;
+  color: var(--ink-dim);
+  cursor: grab;
+  touch-action: none;
+  opacity: 0.5;
+  transition: opacity 0.15s, color 0.15s, background 0.15s;
+}
+.drag-handle .material-symbols-rounded { font-size: 18px; }
+.item:hover .drag-handle { opacity: 1; }
+.drag-handle:hover { color: var(--sage-deep); background: rgba(123, 138, 91, 0.06); }
+.drag-handle:active { cursor: grabbing; }
+@media (hover: none) {
+  .drag-handle { opacity: 0.7; }
+}
+
+.item.dragging {
+  opacity: 0.94;
+  box-shadow: 0 22px 50px rgba(123, 138, 91, 0.28),
+              0 6px 14px rgba(212, 84, 158, 0.10);
+  border-color: var(--sage);
+  cursor: grabbing;
+  z-index: 50;
+  pointer-events: none;        /* let elementFromPoint see siblings */
+  user-select: none;
+}
+.item.dragging .drag-handle { opacity: 1; }
+.item.dragging,
+.item.dragging * { user-select: none; }
+
+.drag-placeholder {
+  border: 1.5px dashed rgba(123, 138, 91, 0.45);
+  border-radius: 12px;
+  background: rgba(123, 138, 91, 0.04);
 }
 @keyframes itemIn {
   0% { opacity: 0; transform: translateY(6px); }
@@ -516,7 +558,8 @@ button { font-family: inherit; }
 
   .feed { padding: 16px 12px 20px; }
   .feed-inner { gap: 10px; }
-  .item { padding: 11px 56px 12px 14px; border-radius: 11px; }
+  .item { padding: 11px 56px 12px 34px; border-radius: 11px; }
+  .drag-handle { width: 24px; }
   .item-body { font-size: 14px; line-height: 1.55; }
   .item-meta { font-size: 9.5px; margin-bottom: 6px; }
 
