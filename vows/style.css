@@ -454,11 +454,8 @@ button { font-family: inherit; }
   top: 6px; right: 6px;
   display: flex;
   gap: 2px;
-  opacity: 0;
-  transition: opacity 0.18s;
+  /* always visible — no hover gating */
 }
-.item:hover .item-actions { opacity: 1; }
-.item.editing .item-actions { opacity: 1; }
 .item-act {
   width: 26px; height: 26px;
   display: grid; place-items: center;
@@ -792,10 +789,6 @@ button { font-family: inherit; }
   40%, 60% { transform: translateX(7px); }
 }
 
-/* ─────────── touch devices (no hover) ─────────── */
-@media (hover: none) {
-  .item .item-actions { opacity: 0.7; }
-}
 
 /* ─────────── tablet & small laptop ─────────── */
 @media (max-width: 900px) {
@@ -837,7 +830,6 @@ button { font-family: inherit; }
   .item { padding: 11px 58px 12px 14px; }
   .item-body { font-size: 14px; line-height: 1.55; }
   .item-meta { font-size: 9.5px; margin-bottom: 6px; }
-  .item .item-actions { opacity: 0.7; }   /* always visible on touch */
   .add-item { padding: 12px 14px calc(16px + env(safe-area-inset-bottom, 0px)); }
 
   .modal { padding: 16px; }

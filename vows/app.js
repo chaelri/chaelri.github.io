@@ -340,8 +340,34 @@ function relTime(ms) {
   return dt.toLocaleDateString(undefined, opts);
 }
 
+function buildItemNode(it, n, time, secId) {
+  const div = document.createElement("div");
+  div.className = "item";
+  div.dataset.id = it.id;
+  div.innerHTML = `
+    <div class="item-meta">
+      <span class="item-no">#${n}</span>
+      <span class="item-meta-dot"></span>
+      <span class="item-time">${escapeHtml(time)}</span>
+    </div>
+    <div class="item-body">${escapeHtml(it.text)}</div>
+    <div class="item-actions">
+      <button class="item-act act-edit" type="button" title="Edit"><span class="material-symbols-rounded">edit</span></button>
+      <button class="item-act act-del" type="button" title="Delete"><span class="material-symbols-rounded">close</span></button>
+      <button class="item-act act-save" type="button" title="Save"><span class="material-symbols-rounded">check</span></button>
+      <button class="item-act act-cancel" type="button" title="Cancel"><span class="material-symbols-rounded">close</span></button>
+    </div>
+  `;
+  const body = div.querySelector(".item-body");
+  div.querySelector(".act-edit").addEventListener("click", e => { e.stopPropagation(); startEdit(div, body, secId, it.id); });
+  div.querySelector(".act-del").addEventListener("click", e => { e.stopPropagation(); deleteItem(secId, it.id); });
+  div.querySelector(".act-save").addEventListener("click", e => { e.stopPropagation(); commitEdit(div, body, secId, it.id); });
+  div.querySelector(".act-cancel").addEventListener("click", e => { e.stopPropagation(); cancelEdit(div, body, secId, it.id); });
+  return div;
+}
+
 function renderItems(secId) {
-  // capture scroll before innerHTML replacement wipes it
+  // capture scroll before mutating
   const prevScroll = itemListEl.scrollTop;
 
   const bag = items[secId] || {};
@@ -355,47 +381,53 @@ function renderItems(secId) {
     return;
   }
 
-  const total = list.length;
-  const pad = String(total).length;          // 2 → "01"…"10"
-  itemListEl.innerHTML = list.map((it, i) => {
-    const n = String(i + 1).padStart(pad, "0");
-    const time = relTime(it.createdAt);
-    return `
-      <div class="item" data-id="${escapeHtml(it.id)}">
-        <div class="item-meta">
-          <span class="item-no">#${n}</span>
-          <span class="item-meta-dot"></span>
-          <span class="item-time">${escapeHtml(time)}</span>
-        </div>
-        <div class="item-body">${escapeHtml(it.text)}</div>
-        <div class="item-actions">
-          <button class="item-act act-edit" type="button" title="Edit"><span class="material-symbols-rounded">edit</span></button>
-          <button class="item-act act-del" type="button" title="Delete"><span class="material-symbols-rounded">close</span></button>
-          <button class="item-act act-save" type="button" title="Save"><span class="material-symbols-rounded">check</span></button>
-          <button class="item-act act-cancel" type="button" title="Cancel"><span class="material-symbols-rounded">close</span></button>
-        </div>
-      </div>
-    `;
-  }).join("");
+  // drop empty placeholder if present
+  itemListEl.querySelector(".empty")?.remove();
 
-  // wire up actions
-  itemListEl.querySelectorAll(".item").forEach(el => {
-    const id = el.dataset.id;
-    const body = el.querySelector(".item-body");
-    el.querySelector(".act-edit").addEventListener("click", e => { e.stopPropagation(); startEdit(el, body, secId, id); });
-    el.querySelector(".act-del").addEventListener("click", e => { e.stopPropagation(); deleteItem(secId, id); });
-    el.querySelector(".act-save").addEventListener("click", e => { e.stopPropagation(); commitEdit(el, body, secId, id); });
-    el.querySelector(".act-cancel").addEventListener("click", e => { e.stopPropagation(); cancelEdit(el, body, secId, id); });
+  // map existing nodes by id so we can reuse them instead of rebuilding
+  const existing = new Map();
+  itemListEl.querySelectorAll(".item").forEach(n => existing.set(n.dataset.id, n));
+
+  const total = list.length;
+  const pad = String(total).length;
+  const keep = new Set();
+
+  list.forEach((it, i) => {
+    const noStr = `#${String(i + 1).padStart(pad, "0")}`;
+    const time = relTime(it.createdAt);
+    let node = existing.get(it.id);
+
+    if (!node) {
+      node = buildItemNode(it, noStr.slice(1), time, secId);
+    } else {
+      // update text only if user isn't mid-edit on this card
+      if (!node.classList.contains("editing")) {
+        const body = node.querySelector(".item-body");
+        if (body.textContent !== it.text) body.textContent = it.text;
+      }
+      const noEl = node.querySelector(".item-no");
+      if (noEl.textContent !== noStr) noEl.textContent = noStr;
+      const timeEl = node.querySelector(".item-time");
+      if (timeEl.textContent !== time) timeEl.textContent = time;
+    }
+    keep.add(it.id);
+
+    // ensure correct order (only moves if needed — no flicker for stable order)
+    const slot = itemListEl.children[i] || null;
+    if (slot !== node) itemListEl.insertBefore(node, slot);
   });
 
-  // scroll behavior:
-  //   - flag set (panel just opened / new item just added) → jump to bottom
-  //   - otherwise (edits, deletes, sync echoes) → preserve where the user was
+  // remove nodes that are no longer in the list
+  existing.forEach((node, id) => {
+    if (!keep.has(id)) node.remove();
+  });
+
+  // scroll: jump to bottom only when explicitly requested; otherwise leave it
   requestAnimationFrame(() => {
     if (pendingScrollBottom) {
       itemListEl.scrollTop = itemListEl.scrollHeight;
       pendingScrollBottom = false;
-    } else {
+    } else if (itemListEl.scrollTop !== prevScroll) {
       itemListEl.scrollTop = prevScroll;
     }
   });
