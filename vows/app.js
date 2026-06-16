@@ -362,22 +362,24 @@ function renderItems(secId) {
           <span class="item-time">${escapeHtml(time)}</span>
         </div>
         <div class="item-body">${escapeHtml(it.text)}</div>
-        <button class="item-del" type="button" title="Delete">
-          <span class="material-symbols-rounded">close</span>
-        </button>
+        <div class="item-actions">
+          <button class="item-act act-edit" type="button" title="Edit"><span class="material-symbols-rounded">edit</span></button>
+          <button class="item-act act-del" type="button" title="Delete"><span class="material-symbols-rounded">close</span></button>
+          <button class="item-act act-save" type="button" title="Save"><span class="material-symbols-rounded">check</span></button>
+          <button class="item-act act-cancel" type="button" title="Cancel"><span class="material-symbols-rounded">close</span></button>
+        </div>
       </div>
     `;
   }).join("");
 
-  // wire up delete + double-click-to-edit on the body
+  // wire up actions
   itemListEl.querySelectorAll(".item").forEach(el => {
     const id = el.dataset.id;
-    el.querySelector(".item-del").addEventListener("click", e => {
-      e.stopPropagation();
-      deleteItem(secId, id);
-    });
     const body = el.querySelector(".item-body");
-    body.addEventListener("dblclick", () => editItemBody(body, secId, id));
+    el.querySelector(".act-edit").addEventListener("click", e => { e.stopPropagation(); startEdit(el, body, secId, id); });
+    el.querySelector(".act-del").addEventListener("click", e => { e.stopPropagation(); deleteItem(secId, id); });
+    el.querySelector(".act-save").addEventListener("click", e => { e.stopPropagation(); commitEdit(el, body, secId, id); });
+    el.querySelector(".act-cancel").addEventListener("click", e => { e.stopPropagation(); cancelEdit(el, body, secId, id); });
   });
 
   // newest entry sits at the bottom — scroll there so it's visible
@@ -386,29 +388,70 @@ function renderItems(secId) {
   });
 }
 
-function editItemBody(bodyEl, secId, itemId) {
-  const orig = items[secId]?.[itemId]?.text || "";
+// edit-mode state per item lives in dataset.original so cancel can revert
+function startEdit(itemEl, bodyEl, secId, itemId) {
+  // close any other open editor first
+  itemListEl.querySelectorAll(".item.editing").forEach(other => {
+    if (other !== itemEl) {
+      const ob = other.querySelector(".item-body");
+      ob.textContent = other.dataset.original || ob.textContent;
+      ob.removeAttribute("contenteditable");
+      other.classList.remove("editing");
+      delete other.dataset.original;
+    }
+  });
+
+  const orig = items[secId]?.[itemId]?.text || bodyEl.textContent;
+  itemEl.dataset.original = orig;
   bodyEl.textContent = orig;
+  itemEl.classList.add("editing");
   bodyEl.setAttribute("contenteditable", "true");
   bodyEl.focus();
+
+  // place caret at end
   const r = document.createRange();
   r.selectNodeContents(bodyEl); r.collapse(false);
   const s = window.getSelection(); s.removeAllRanges(); s.addRange(r);
 
-  const finish = async () => {
-    bodyEl.removeAttribute("contenteditable");
-    const next = bodyEl.innerText.trim();
-    if (next && next !== orig) {
-      await update(ref(db, `${ROOT}/items/${secId}/${itemId}`), { text: next });
-    } else {
-      renderItems(secId);
+  // keyboard shortcuts: Esc → cancel, Cmd/Ctrl+Enter → save
+  bodyEl._editKeyHandler = e => {
+    if (e.key === "Escape") { e.preventDefault(); cancelEdit(itemEl, bodyEl, secId, itemId); }
+    else if (e.key === "Enter" && (e.metaKey || e.ctrlKey)) {
+      e.preventDefault();
+      commitEdit(itemEl, bodyEl, secId, itemId);
     }
   };
-  bodyEl.addEventListener("blur", finish, { once: true });
-  bodyEl.addEventListener("keydown", e => {
-    if (e.key === "Enter" && !e.shiftKey) { e.preventDefault(); bodyEl.blur(); }
-    if (e.key === "Escape") { bodyEl.innerText = orig; bodyEl.blur(); }
-  });
+  bodyEl.addEventListener("keydown", bodyEl._editKeyHandler);
+}
+
+async function commitEdit(itemEl, bodyEl, secId, itemId) {
+  const orig = itemEl.dataset.original ?? "";
+  const next = bodyEl.innerText.trim();
+  bodyEl.removeAttribute("contenteditable");
+  itemEl.classList.remove("editing");
+  if (bodyEl._editKeyHandler) {
+    bodyEl.removeEventListener("keydown", bodyEl._editKeyHandler);
+    delete bodyEl._editKeyHandler;
+  }
+  delete itemEl.dataset.original;
+  if (next && next !== orig) {
+    await update(ref(db, `${ROOT}/items/${secId}/${itemId}`), { text: next });
+  } else {
+    // re-render to restore canonical text + ordering
+    renderItems(secId);
+  }
+}
+
+function cancelEdit(itemEl, bodyEl, secId, itemId) {
+  const orig = itemEl.dataset.original ?? items[secId]?.[itemId]?.text ?? "";
+  bodyEl.removeAttribute("contenteditable");
+  itemEl.classList.remove("editing");
+  if (bodyEl._editKeyHandler) {
+    bodyEl.removeEventListener("keydown", bodyEl._editKeyHandler);
+    delete bodyEl._editKeyHandler;
+  }
+  delete itemEl.dataset.original;
+  bodyEl.textContent = orig;
 }
 
 // ─────────────── add item ───────────────
