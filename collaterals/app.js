@@ -42,7 +42,7 @@ const SUBS = {
   "name-cards":        "Place cards with each guest's name · wildflower border",
   "menu":              "Pre-edited Canva menu · 2-up on A4 landscape, ready for the printer",
   "table-numbers":     "Card per table — family headline + numbered guest list, A4 cut-out sheet for the mirror",
-  "money-envelopes":   "Ready-to-cut wedding-day envelopes with guest fields",
+  "money-envelopes":   "Single-panel envelope dieline · top flap + 3 glue tabs · A4 portrait + decorative front insert, sized for PHP banknotes",
   "mirror-chart":      "2 × 5 ft seating chart for the mirror display",
   "monogram":          "C & K monogram still — for the LED visual / signage",
   "invitation":        "Printable wedding invitation card",
