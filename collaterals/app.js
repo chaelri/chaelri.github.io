@@ -40,7 +40,7 @@ const DETAILS_FIELDS = [
 
 const SUBS = {
   "name-cards":        "Place cards with each guest's name · wildflower border",
-  "menu":              "Starter · Main · Dessert printable menu cards",
+  "menu":              "Pre-edited Canva menu · 2-up on A4 landscape, ready for the printer",
   "table-numbers":     "Card per table — family headline + numbered guest list, A4 cut-out sheet for the mirror",
   "money-envelopes":   "Ready-to-cut wedding-day envelopes with guest fields",
   "mirror-chart":      "2 × 5 ft seating chart for the mirror display",
