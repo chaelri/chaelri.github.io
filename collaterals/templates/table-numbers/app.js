@@ -135,7 +135,7 @@ const ZONES_DEFAULT = {
 const PAPER = "#faf9f6";
 
 const DEFAULTS = {
-  numbers: "1\n2\n3\n4\n5\n6\n7\n8\n9\n10\n11",
+  numbers: "1\n2\n3\n4\n5\n6\n7\n8\n9\n10\n11\nVIP 1\nVIP 2\nKIDS",
   qrUrl: "https://chaelri.github.io/sharethelove/",
   dateVenue: `07.02.2026\nCCF EAST ORTIGAS`,
   welcome: "WE'RE SO GLAD\nYOU'RE HERE!",
@@ -693,6 +693,13 @@ async function mount() {
       setTemplateData(TEMPLATE_ID, _state);
     }
   } catch (e) { console.warn("fb hydrate failed", e); }
+
+  // One-time migration: numbers list shipped before VIP/KIDS were defaults.
+  // If state still matches the pre-VIP default exactly, swap to the new list.
+  if (_state.numbers === "1\n2\n3\n4\n5\n6\n7\n8\n9\n10\n11") {
+    _state.numbers = DEFAULTS.numbers;
+    persist();
+  }
 
   // One-time migration: old single-line "07.02.26 | CCF EAST ORTIGAS" → new
   // two-line format. Any other " | "-separated value Charlie may have typed
