@@ -32,11 +32,14 @@
 //      right edge of the envelope is the center fold itself.
 //   7. Insert cash + cards. Fold the TOP FLAP forward to close.
 //
-// Face size = 1400 × 2200 px (118.5 × 186.2 mm @ 300 DPI) — comfortably fits
-// unfolded PHP banknotes (160 × 66 mm) with ~26 mm vertical and ~52 mm
-// horizontal buffer.
+// Face size = 805 × 1950 px (68 × 165 mm @ 300 DPI) — bill-ratio (2.42:1)
+// sleeve sized snug around a PHP banknote (160 × 66 mm). Bill goes in
+// vertically (rotated 90° relative to its reading orientation): the bill's
+// 160 mm long axis runs along the envelope's 165 mm height, and the bill's
+// 66 mm short axis sits across the 68 mm width — ~2.5 mm headroom top/bottom,
+// ~1 mm side margin. Tight but the bill slides in and out cleanly.
 //
-// Two PNGs in this folder:
+// Two PNGs in this folder (exported from Canva at 805 × 1950 px):
 //   front.png — LEFT face (visible side when sealed, decorative)
 //   back.png  — RIGHT face (form / message side, ends up inside the pocket
 //               after the center fold — accessible while filling before the
@@ -48,8 +51,8 @@ import { blobToBase64 } from "../../shared/export.js";
 
 const TEMPLATE_ID = "money-envelopes";
 
-const FACE       = { w: 1400, h: 2200 };
-const TOP_FLAP   = { h: 360,  cornerR: 140 };
+const FACE       = { w: 805, h: 1950 };
+const TOP_FLAP   = { h: 210, cornerR: 80 };       // ~17.8 mm flap depth, ~6.8 mm rounded corners — proportional to old design
 const SIDE_TAB   = { w: 120 };                    // ~10.2 mm right-side glue strip (only one tab — left side has none)
 const BOTTOM_TAB = { h: 200 };                    // ~17 mm bottom glue strip
 const TAB_TAPER  = 60;                            // ~5 mm trapezoidal inset on every tab edge
@@ -270,7 +273,7 @@ async function mount() {
     <div class="editor-header">
       <div class="title-block">
         <h1>Money Envelopes</h1>
-        <p>Two-panel envelope dieline · FRONT + BACK faces (${FACE.w} × ${FACE.h} px each, 118 × 186 mm sized for PHP banknotes) · rounded top flap above BACK + 2 trapezoidal glue tabs (right + bottom) to seal the pocket</p>
+        <p>Two-panel envelope dieline · FRONT + BACK faces (${FACE.w} × ${FACE.h} px each, 68 × 165 mm — bill-ratio sleeve for PHP banknotes inserted vertically) · rounded top flap above BACK + 2 trapezoidal glue tabs (right + bottom) to seal the pocket</p>
       </div>
       <div style="display:flex;gap:8px;align-items:center;flex-wrap:wrap">
         <label style="font-size:0.74rem;color:var(--ink-faint);text-transform:uppercase;letter-spacing:0.06em">Status</label>
