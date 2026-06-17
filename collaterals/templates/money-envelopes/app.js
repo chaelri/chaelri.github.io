@@ -5,33 +5,32 @@
 //
 // Dieline layout (printed face up on paper):
 //
-//                              _____________
-//                             /  TOP FLAP   \      ← rounded seal flap above BACK only
-//        +---+______________+_____________+---+
-//        |   |              |              |   |
-//        |LT |   FRONT      |    BACK      |RT |   ← LT, RT = narrow glue tabs (sides)
-//        |   |   FACE       |    FACE      |   |
-//        |   |  (front.png) |  (back.png)  |   |
-//        |   |              |              |   |
-//        +---+______________+______________+---+
-//                           |              |
-//                           |  BOTTOM TAB  |       ← bottom glue tab (below BACK only)
-//                           +______________+
+//                          _____________
+//                         /  TOP FLAP   \      ← rounded seal flap above BACK only
+//        +______________+_____________+---+
+//        |              |              |   |
+//        |   FRONT      |    BACK      |RT |   ← only ONE side tab (right side)
+//        |   FACE       |    FACE      |   |
+//        |  (front.png) |  (back.png)  |   |
+//        |              |              |   |
+//        +______________+______________+---+
+//                       |              |
+//                       |  BOTTOM TAB  |       ← bottom glue tab (below BACK only)
+//                       +______________+
 //
 // Assembly:
 //   1. Cut along the red dashed outer perimeter.
 //   2. Pre-crease every sage dashed fold line. The CENTER fold (between
 //      FRONT and BACK faces) is the main fold.
-//   3. Fold LT inward over the FRONT face (180° around its right edge).
-//   4. Fold RT inward over the BACK face (180° around its left edge).
-//   5. Fold the BOTTOM TAB upward 180° behind the BACK face.
-//   6. Apply adhesive to the now-exposed (inner) side of LT, RT, and BOTTOM
-//      TAB.
-//   7. Fold along the CENTER vertical — BACK face goes BEHIND FRONT face.
-//      Press to bond: the tabs are sandwiched between the two layers,
-//      sealing the left, right, and bottom edges of the pocket. (The right
-//      edge of the envelope is the center fold itself.)
-//   8. Insert cash + cards. Fold the TOP FLAP forward to close.
+//   3. Fold RT inward over the BACK face (180° around its left edge).
+//   4. Fold the BOTTOM TAB upward 180° behind the BACK face.
+//   5. Apply adhesive to the now-exposed (inner) side of RT and BOTTOM TAB.
+//   6. Fold along the CENTER vertical — BACK face goes BEHIND FRONT face.
+//      Press to bond: the tabs are sandwiched between the two layers. RT
+//      seals the left edge of the folded envelope (because RT mirrors to
+//      the left after the center fold); BOTTOM TAB seals the bottom. The
+//      right edge of the envelope is the center fold itself.
+//   7. Insert cash + cards. Fold the TOP FLAP forward to close.
 //
 // Face size = 1400 × 2200 px (118.5 × 186.2 mm @ 300 DPI) — comfortably fits
 // unfolded PHP banknotes (160 × 66 mm) with ~26 mm vertical and ~52 mm
@@ -51,12 +50,12 @@ const TEMPLATE_ID = "money-envelopes";
 
 const FACE       = { w: 1400, h: 2200 };
 const TOP_FLAP   = { h: 360,  cornerR: 140 };
-const SIDE_TAB   = { w: 120 };                    // ~10.2 mm side glue strips
+const SIDE_TAB   = { w: 120 };                    // ~10.2 mm right-side glue strip (only one tab — left side has none)
 const BOTTOM_TAB = { h: 200 };                    // ~17 mm bottom glue strip
 const TAB_TAPER  = 60;                            // ~5 mm trapezoidal inset on every tab edge
 
 const DIELINE = {
-  w: SIDE_TAB.w + FACE.w + FACE.w + SIDE_TAB.w,   // 3040 px (257 mm)
+  w: FACE.w + FACE.w + SIDE_TAB.w,                // 2920 px (247 mm)
   h: TOP_FLAP.h + FACE.h + BOTTOM_TAB.h,          // 2760 px (234 mm)
 };
 
@@ -98,38 +97,35 @@ function loadImage(filename) {
 // === Dieline path =========================================================
 
 function traceCutPerimeter(ctx, mapX, mapY, scale) {
-  const stw = SIDE_TAB.w, fw = FACE.w, fh = FACE.h;
+  const fw = FACE.w, fh = FACE.h;
   const flh = TOP_FLAP.h, flr = TOP_FLAP.cornerR;
   const tt  = TAB_TAPER;
   const W = DIELINE.w, H = DIELINE.h;
   const arcFlap = flr * scale;
 
   ctx.beginPath();
-  // Clockwise from LT outer-top corner. Tabs are trapezoidal — the top + bottom
-  // edges of side tabs taper inward, and the left + right edges of the bottom
-  // tab taper inward. The narrower outer edge keeps neighboring tabs from
-  // overlapping when they fold inward.
-  ctx.moveTo(mapX(0), mapY(flh + tt));                                              // LT outer-top
-  ctx.lineTo(mapX(stw), mapY(flh));                                                 // ↗ LT top angled
-  ctx.lineTo(mapX(stw + fw), mapY(flh));                                            // → top of FRONT face (straight, shared edge with LT top angle ends here)
-  ctx.lineTo(mapX(stw + fw), mapY(flr));                                            // ↑ flap left edge to round-start
-  ctx.arcTo(mapX(stw + fw), mapY(0), mapX(stw + fw + flr), mapY(0), arcFlap);       // ⌒ flap TL rounded
-  ctx.lineTo(mapX(stw + 2*fw - flr), mapY(0));                                      // → flap top
-  ctx.arcTo(mapX(stw + 2*fw), mapY(0), mapX(stw + 2*fw), mapY(flr), arcFlap);       // ⌒ flap TR rounded
-  ctx.lineTo(mapX(stw + 2*fw), mapY(flh));                                          // ↓ flap right edge to inside corner
+  // Clockwise from FRONT face top-left. No left tab — the FRONT face's left
+  // edge is the outer cut. Trapezoidal RT (right side) + BOTTOM TAB taper
+  // inward so they fold cleanly without overlapping the FRONT face.
+  ctx.moveTo(mapX(0), mapY(flh));                                                   // FRONT face TL = dieline TL
+  ctx.lineTo(mapX(fw), mapY(flh));                                                  // → top of FRONT face
+  ctx.lineTo(mapX(fw), mapY(flr));                                                  // ↑ flap left edge to round-start
+  ctx.arcTo(mapX(fw), mapY(0), mapX(fw + flr), mapY(0), arcFlap);                   // ⌒ flap TL rounded
+  ctx.lineTo(mapX(2*fw - flr), mapY(0));                                            // → flap top
+  ctx.arcTo(mapX(2*fw), mapY(0), mapX(2*fw), mapY(flr), arcFlap);                   // ⌒ flap TR rounded
+  ctx.lineTo(mapX(2*fw), mapY(flh));                                                // ↓ flap right edge to inside corner
   ctx.lineTo(mapX(W), mapY(flh + tt));                                              // ↘ RT top angled
   ctx.lineTo(mapX(W), mapY(flh + fh - tt));                                         // ↓ RT outer-right (straight vertical)
-  ctx.lineTo(mapX(stw + 2*fw), mapY(flh + fh));                                     // ↙ RT bottom angled to inside corner
-  ctx.lineTo(mapX(stw + 2*fw - tt), mapY(H));                                       // ↘ bottom tab right angled
-  ctx.lineTo(mapX(stw + fw + tt), mapY(H));                                         // ← bottom tab bottom (straight)
-  ctx.lineTo(mapX(stw + fw), mapY(flh + fh));                                       // ↖ bottom tab left angled to inside corner
-  ctx.lineTo(mapX(stw), mapY(flh + fh));                                            // ← bottom of FRONT face (straight)
-  ctx.lineTo(mapX(0), mapY(flh + fh - tt));                                         // ↙ LT bottom angled
-  ctx.closePath();                                                                   // ↑ LT outer-left back to start
+  ctx.lineTo(mapX(2*fw), mapY(flh + fh));                                           // ↙ RT bottom angled to inside corner
+  ctx.lineTo(mapX(2*fw - tt), mapY(H));                                             // ↘ bottom tab right angled
+  ctx.lineTo(mapX(fw + tt), mapY(H));                                               // ← bottom tab bottom (straight)
+  ctx.lineTo(mapX(fw), mapY(flh + fh));                                             // ↖ bottom tab left angled to inside corner
+  ctx.lineTo(mapX(0), mapY(flh + fh));                                              // ← bottom of FRONT face
+  ctx.closePath();                                                                   // ↑ FRONT face left edge back to start
 }
 
 function drawDielineMarks(ctx, mapX, mapY, scale) {
-  const stw = SIDE_TAB.w, fw = FACE.w, fh = FACE.h, flh = TOP_FLAP.h;
+  const fw = FACE.w, fh = FACE.h, flh = TOP_FLAP.h;
 
   // Cut perimeter (red dashed)
   ctx.save();
@@ -152,13 +148,12 @@ function drawDielineMarks(ctx, mapX, mapY, scale) {
   ctx.setLineDash([14 * scale, 10 * scale]);
   ctx.globalAlpha = 0.8;
   ctx.beginPath();
-  ctx.moveTo(mapX(stw + fw), mapY(flh + inset));
-  ctx.lineTo(mapX(stw + fw), mapY(flh + fh - inset));
+  ctx.moveTo(mapX(fw), mapY(flh + inset));
+  ctx.lineTo(mapX(fw), mapY(flh + fh - inset));
   ctx.stroke();
   ctx.restore();
 
-  // Secondary folds (4): around the BACK face (flap base, bottom tab, L tab,
-  // R tab) — the tab boundaries — plus the L tab seam (FRONT/L-tab).
+  // Secondary folds: top flap base, bottom tab seam, right tab seam.
   ctx.save();
   ctx.strokeStyle = FOLD_COLOR;
   ctx.lineWidth = Math.max(1.5, 2.5 * scale);
@@ -167,26 +162,20 @@ function drawDielineMarks(ctx, mapX, mapY, scale) {
 
   // Top fold: flap base
   ctx.beginPath();
-  ctx.moveTo(mapX(stw + fw + inset), mapY(flh));
-  ctx.lineTo(mapX(stw + 2*fw - inset), mapY(flh));
+  ctx.moveTo(mapX(fw + inset), mapY(flh));
+  ctx.lineTo(mapX(2*fw - inset), mapY(flh));
   ctx.stroke();
 
   // Bottom fold: BACK / BOTTOM TAB seam
   ctx.beginPath();
-  ctx.moveTo(mapX(stw + fw + inset), mapY(flh + fh));
-  ctx.lineTo(mapX(stw + 2*fw - inset), mapY(flh + fh));
+  ctx.moveTo(mapX(fw + inset), mapY(flh + fh));
+  ctx.lineTo(mapX(2*fw - inset), mapY(flh + fh));
   ctx.stroke();
 
   // R tab fold: BACK / RT seam
   ctx.beginPath();
-  ctx.moveTo(mapX(stw + 2*fw), mapY(flh + inset));
-  ctx.lineTo(mapX(stw + 2*fw), mapY(flh + fh - inset));
-  ctx.stroke();
-
-  // L tab fold: LT / FRONT seam
-  ctx.beginPath();
-  ctx.moveTo(mapX(stw), mapY(flh + inset));
-  ctx.lineTo(mapX(stw), mapY(flh + fh - inset));
+  ctx.moveTo(mapX(2*fw), mapY(flh + inset));
+  ctx.lineTo(mapX(2*fw), mapY(flh + fh - inset));
   ctx.stroke();
   ctx.restore();
 }
@@ -233,19 +222,19 @@ async function renderSheetCanvas({ scale = 1 } = {}) {
   traceCutPerimeter(ctx, mapX, mapY, drawScale);
   ctx.clip();
 
-  // FRONT face — left panel
+  // FRONT face — left panel (starts at x=0, the dieline's left edge)
   if (frontImg) {
-    ctx.drawImage(frontImg.img, mapX(SIDE_TAB.w), mapY(TOP_FLAP.h), fw, fh);
+    ctx.drawImage(frontImg.img, mapX(0), mapY(TOP_FLAP.h), fw, fh);
   } else {
     ctx.fillStyle = "#f5f1ea";
-    ctx.fillRect(mapX(SIDE_TAB.w), mapY(TOP_FLAP.h), fw, fh);
+    ctx.fillRect(mapX(0), mapY(TOP_FLAP.h), fw, fh);
   }
   // BACK face — right panel
   if (backImg) {
-    ctx.drawImage(backImg.img, mapX(SIDE_TAB.w + FACE.w), mapY(TOP_FLAP.h), fw, fh);
+    ctx.drawImage(backImg.img, mapX(FACE.w), mapY(TOP_FLAP.h), fw, fh);
   } else {
     ctx.fillStyle = "#eef0e8";
-    ctx.fillRect(mapX(SIDE_TAB.w + FACE.w), mapY(TOP_FLAP.h), fw, fh);
+    ctx.fillRect(mapX(FACE.w), mapY(TOP_FLAP.h), fw, fh);
   }
   ctx.restore();
 
@@ -281,7 +270,7 @@ async function mount() {
     <div class="editor-header">
       <div class="title-block">
         <h1>Money Envelopes</h1>
-        <p>Two-panel envelope dieline · FRONT + BACK faces (${FACE.w} × ${FACE.h} px each, 118 × 186 mm sized for PHP banknotes) · rounded top flap above BACK + 3 glue tabs (L, R, bottom) to seal the pocket</p>
+        <p>Two-panel envelope dieline · FRONT + BACK faces (${FACE.w} × ${FACE.h} px each, 118 × 186 mm sized for PHP banknotes) · rounded top flap above BACK + 2 trapezoidal glue tabs (right + bottom) to seal the pocket</p>
       </div>
       <div style="display:flex;gap:8px;align-items:center;flex-wrap:wrap">
         <label style="font-size:0.74rem;color:var(--ink-faint);text-transform:uppercase;letter-spacing:0.06em">Status</label>
@@ -308,10 +297,10 @@ async function mount() {
           <ol style="margin:0 0 0 18px;color:var(--ink-soft);font-size:0.78rem;line-height:1.6">
             <li>Cut along the <strong style="color:${CUT_COLOR}">red dashed</strong> outline.</li>
             <li>Pre-crease every <strong style="color:${FOLD_COLOR}">sage dashed</strong> line. The <strong style="color:${FOLD_MAIN_COLOR}">darker sage</strong> center vertical is the main fold.</li>
-            <li>Fold the L &amp; R tabs INWARD over their adjacent face.</li>
+            <li>Fold the right tab INWARD over the BACK face.</li>
             <li>Fold the bottom tab UP behind the BACK face.</li>
-            <li>Apply adhesive to the L, R, and bottom tabs (the side that will face the FRONT face after the main fold).</li>
-            <li>Fold along the main center vertical — BACK face goes BEHIND FRONT face. Press to bond the tabs.</li>
+            <li>Apply adhesive to the right and bottom tabs (the side that will face the FRONT face after the main fold).</li>
+            <li>Fold along the main center vertical — BACK face goes BEHIND FRONT face. Press to bond the tabs. The right tab now seals the left edge of the folded envelope; the bottom tab seals the bottom.</li>
             <li>Insert cash. Fold the top flap forward to close.</li>
           </ol>
         </div>
