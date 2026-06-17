@@ -32,14 +32,15 @@
 //      right edge of the envelope is the center fold itself.
 //   7. Insert cash + cards. Fold the TOP FLAP forward to close.
 //
-// Face size = 1160 × 2840 px (98.3 × 240.5 mm @ 300 DPI) — bill aspect (2.448:1)
-// scaled up to fill A4 portrait near the edge. PHP banknote (160 × 66 mm) goes
-// in vertically: bill's 160 mm long axis runs along the 240 mm envelope height,
-// bill's 66 mm short axis sits across the 98 mm width. Generous buffer (~40 mm
-// vertical, ~32 mm horizontal) but the envelope fills A4 — printable area is
-// maximized so the printer's edge margin doesn't crop the design.
+// Face size = 950 × 2325 px (80.5 × 196.9 mm @ 300 DPI) — bill aspect (2.447:1)
+// at a comfortable mid-size. PHP banknote (160 × 66 mm) goes in vertically:
+// bill's 160 mm long axis runs along the 197 mm envelope height (~37 mm
+// headroom for top flap), bill's 66 mm short axis sits across the 80 mm width
+// (~14 mm side breathing room). Renderer caps at 1.0× scale so the printed
+// size equals FACE px / 300 DPI — A4 portrait shows the dieline centered with
+// ~20 mm side / ~30 mm top-bottom whitespace.
 //
-// Two PNGs in this folder (exported from Canva at 1160 × 2840 px):
+// Two PNGs in this folder (target Canva size: 950 × 2325 px):
 //   front.png — LEFT face (visible side when sealed, decorative)
 //   back.png  — RIGHT face (form / message side, ends up inside the pocket
 //               after the center fold — accessible while filling before the
@@ -51,20 +52,21 @@ import { blobToBase64 } from "../../shared/export.js";
 
 const TEMPLATE_ID = "money-envelopes";
 
-const FACE       = { w: 1160, h: 2840 };          // 98.3 × 240.5 mm @ 300 DPI — sized to fill A4 portrait near the edge while keeping bill aspect (2.448:1)
-const TOP_FLAP   = { h: 303, cornerR: 116 };      // ~25.7 mm flap depth, ~9.8 mm rounded corners — proportional to face width
+const FACE       = { w: 950, h: 2325 };           // 80.5 × 196.9 mm @ 300 DPI — bill aspect (2.447:1) at a comfortable size, prints with margin around it on A4 portrait
+const TOP_FLAP   = { h: 248, cornerR: 95 };       // ~21 mm flap depth, ~8 mm rounded corners — proportional to face width
 const SIDE_TAB   = { w: 120 };                    // ~10.2 mm right-side glue strip (only one tab — left side has none)
 const BOTTOM_TAB = { h: 200 };                    // ~17 mm bottom glue strip
 const TAB_TAPER  = 60;                            // ~5 mm trapezoidal inset on every tab edge
 
 const DIELINE = {
-  w: FACE.w + FACE.w + SIDE_TAB.w,                // 2440 px (206.7 mm)
-  h: TOP_FLAP.h + FACE.h + BOTTOM_TAB.h,          // 3343 px (283.2 mm)
+  w: FACE.w + FACE.w + SIDE_TAB.w,                // 2020 px (171 mm)
+  h: TOP_FLAP.h + FACE.h + BOTTOM_TAB.h,          // 2773 px (234.8 mm)
 };
 
-// A4 portrait — dieline fills nearly edge-to-edge with a tiny safe margin.
+// A4 portrait — render dieline at native 1.0× (no upscaling) when it fits,
+// scale down only if oversized. Comfortable margins around the print.
 const A4 = { w: 2480, h: 3508 };
-const MARGIN = 20;
+const MARGIN = 60;
 
 const CUT_COLOR       = "#c03a2e";
 const FOLD_COLOR      = "#6b8552";
@@ -202,7 +204,9 @@ async function renderSheetCanvas({ scale = 1 } = {}) {
   // Fit dieline within A4 landscape with margin
   const availW = A4.w - MARGIN * 2;
   const availH = A4.h - MARGIN * 2;
-  const fit = Math.min(availW / DIELINE.w, availH / DIELINE.h);
+  // Cap at 1.0 so FACE px → physical mm is direct (300 DPI). Prevents the
+  // renderer from upscaling face PNGs beyond native resolution.
+  const fit = Math.min(availW / DIELINE.w, availH / DIELINE.h, 1.0);
   const dlW = DIELINE.w * fit;
   const dlH = DIELINE.h * fit;
   const dlX = (A4.w - dlW) / 2;
@@ -273,7 +277,7 @@ async function mount() {
     <div class="editor-header">
       <div class="title-block">
         <h1>Money Envelopes</h1>
-        <p>Two-panel envelope dieline · FRONT + BACK faces (${FACE.w} × ${FACE.h} px each, ~98 × 240 mm — fills A4 portrait near edge, bill-aspect sleeve for PHP banknotes inserted vertically) · rounded top flap above BACK + 2 trapezoidal glue tabs (right + bottom) to seal the pocket</p>
+        <p>Two-panel envelope dieline · FRONT + BACK faces (${FACE.w} × ${FACE.h} px each, ~80 × 197 mm — bill-aspect sleeve for PHP banknotes inserted vertically) · rounded top flap above BACK + 2 trapezoidal glue tabs (right + bottom) to seal the pocket · prints on A4 portrait with comfortable margins</p>
       </div>
       <div style="display:flex;gap:8px;align-items:center;flex-wrap:wrap">
         <label style="font-size:0.74rem;color:var(--ink-faint);text-transform:uppercase;letter-spacing:0.06em">Status</label>
