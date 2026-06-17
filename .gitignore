@@ -79,6 +79,7 @@ functions/service-account.json
 # Drive OAuth — local refresh token + client secret, never commit
 gemini-proxy/.drive-creds.json
 gemini-proxy/.drive-client.json
+gemini-proxy/.gmail-creds.json
 
 # Claude Code runtime artifacts
 .claude/knowledge-stale.md
