@@ -32,14 +32,14 @@
 //      right edge of the envelope is the center fold itself.
 //   7. Insert cash + cards. Fold the TOP FLAP forward to close.
 //
-// Face size = 825 × 2020 px (69.9 × 171.1 mm @ 300 DPI) — bill-ratio sleeve
-// (~2.45:1) sized just-snug around a PHP banknote (160 × 66 mm). Bill goes in
-// vertically (rotated 90° relative to its reading orientation): the bill's
-// 160 mm long axis runs along the envelope's 171 mm height, and the bill's
-// 66 mm short axis sits across the 69.9 mm width — ~5.5 mm headroom top +
-// bottom (room for the top flap to fold cleanly), ~2 mm side margin.
+// Face size = 1160 × 2840 px (98.3 × 240.5 mm @ 300 DPI) — bill aspect (2.448:1)
+// scaled up to fill A4 portrait near the edge. PHP banknote (160 × 66 mm) goes
+// in vertically: bill's 160 mm long axis runs along the 240 mm envelope height,
+// bill's 66 mm short axis sits across the 98 mm width. Generous buffer (~40 mm
+// vertical, ~32 mm horizontal) but the envelope fills A4 — printable area is
+// maximized so the printer's edge margin doesn't crop the design.
 //
-// Two PNGs in this folder (exported from Canva at 825 × 2020 px):
+// Two PNGs in this folder (exported from Canva at 1160 × 2840 px):
 //   front.png — LEFT face (visible side when sealed, decorative)
 //   back.png  — RIGHT face (form / message side, ends up inside the pocket
 //               after the center fold — accessible while filling before the
@@ -51,20 +51,20 @@ import { blobToBase64 } from "../../shared/export.js";
 
 const TEMPLATE_ID = "money-envelopes";
 
-const FACE       = { w: 825, h: 2020 };
-const TOP_FLAP   = { h: 215, cornerR: 82 };       // ~18.2 mm flap depth, ~7 mm rounded corners — proportional to face width
+const FACE       = { w: 1160, h: 2840 };          // 98.3 × 240.5 mm @ 300 DPI — sized to fill A4 portrait near the edge while keeping bill aspect (2.448:1)
+const TOP_FLAP   = { h: 303, cornerR: 116 };      // ~25.7 mm flap depth, ~9.8 mm rounded corners — proportional to face width
 const SIDE_TAB   = { w: 120 };                    // ~10.2 mm right-side glue strip (only one tab — left side has none)
 const BOTTOM_TAB = { h: 200 };                    // ~17 mm bottom glue strip
 const TAB_TAPER  = 60;                            // ~5 mm trapezoidal inset on every tab edge
 
 const DIELINE = {
-  w: FACE.w + FACE.w + SIDE_TAB.w,                // 2920 px (247 mm)
-  h: TOP_FLAP.h + FACE.h + BOTTOM_TAB.h,          // 2760 px (234 mm)
+  w: FACE.w + FACE.w + SIDE_TAB.w,                // 2440 px (206.7 mm)
+  h: TOP_FLAP.h + FACE.h + BOTTOM_TAB.h,          // 3343 px (283.2 mm)
 };
 
-// A4 landscape — dieline scales to ~86% to fit comfortably with margins.
-const A4 = { w: 3508, h: 2480 };
-const MARGIN = 80;
+// A4 portrait — dieline fills nearly edge-to-edge with a tiny safe margin.
+const A4 = { w: 2480, h: 3508 };
+const MARGIN = 20;
 
 const CUT_COLOR       = "#c03a2e";
 const FOLD_COLOR      = "#6b8552";
@@ -273,7 +273,7 @@ async function mount() {
     <div class="editor-header">
       <div class="title-block">
         <h1>Money Envelopes</h1>
-        <p>Two-panel envelope dieline · FRONT + BACK faces (${FACE.w} × ${FACE.h} px each, ~70 × 171 mm — bill-ratio sleeve for PHP banknotes inserted vertically) · rounded top flap above BACK + 2 trapezoidal glue tabs (right + bottom) to seal the pocket</p>
+        <p>Two-panel envelope dieline · FRONT + BACK faces (${FACE.w} × ${FACE.h} px each, ~98 × 240 mm — fills A4 portrait near edge, bill-aspect sleeve for PHP banknotes inserted vertically) · rounded top flap above BACK + 2 trapezoidal glue tabs (right + bottom) to seal the pocket</p>
       </div>
       <div style="display:flex;gap:8px;align-items:center;flex-wrap:wrap">
         <label style="font-size:0.74rem;color:var(--ink-faint);text-transform:uppercase;letter-spacing:0.06em">Status</label>
@@ -400,11 +400,11 @@ async function mount() {
     try {
       showToast("Loading PDF library…");
       const { jsPDF } = await import("https://esm.sh/jspdf@2.5.2");
-      const pdf = new jsPDF({ unit: "mm", format: "a4", orientation: "landscape", compress: true });
+      const pdf = new jsPDF({ unit: "mm", format: "a4", orientation: "portrait", compress: true });
       showToast("Rendering A4 sheet…");
       const blob = await renderSheetBlob({ scale: 1 });
       const dataUrl = "data:image/png;base64," + (await blobToBase64(blob));
-      pdf.addImage(dataUrl, "PNG", 0, 0, 297, 210, undefined, "FAST");
+      pdf.addImage(dataUrl, "PNG", 0, 0, 210, 297, undefined, "FAST");
       pdf.save("Money Envelope — A4 dieline.pdf");
       showToast("PDF saved · 1 page");
     } catch (e) { console.error(e); showToast(e.message || "PDF generation failed", "err", 4000); }
