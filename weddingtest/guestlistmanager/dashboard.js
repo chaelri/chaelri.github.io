@@ -40,6 +40,7 @@ let filterStatus = "all";
 let filterInvited = "all";
 let hidePending = false;
 let hideNo = false;
+let hideNonEntourage = false;
 let currentPage = 1;
 
 function escapeAttr(s) {
@@ -169,13 +170,17 @@ function render() {
       filterInvited === "all" || item.invited === filterInvited;
     const passesHidePending = !hidePending || item.status !== "pending";
     const passesHideNo = !hideNo || item.status !== "no";
+    const role = (item.role || "").toLowerCase();
+    const isEntourage = role && role !== "guest" && role !== "none";
+    const passesHideNonEntourage = !hideNonEntourage || isEntourage;
     return (
       matchesSearch &&
       matchesSide &&
       matchesStatus &&
       matchesInvited &&
       passesHidePending &&
-      passesHideNo
+      passesHideNo &&
+      passesHideNonEntourage
     );
   });
 
@@ -904,6 +909,12 @@ document.getElementById("hidePending").onchange = (e) => {
 
 document.getElementById("hideNo").onchange = (e) => {
   hideNo = e.target.checked;
+  currentPage = 1;
+  render();
+};
+
+document.getElementById("hideNonEntourage").onchange = (e) => {
+  hideNonEntourage = e.target.checked;
   currentPage = 1;
   render();
 };
