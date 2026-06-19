@@ -76,12 +76,18 @@
     <!-- Scanner: live camera preview -->
     <div id="state-scanner" class="mt-6 hidden">
       <div class="surface p-4 sm:p-5">
-        <div class="flex items-center justify-between mb-3">
+        <div class="flex items-center justify-between mb-3 gap-2">
           <div class="font-extrabold-ui">Scan your ticket QR</div>
-          <button id="btn-close-scanner" class="btn-ghost text-xs" style="padding:0.4rem 0.7rem;">
-            <span class="material-symbols-outlined" style="font-size:16px">close</span>
-            Cancel
-          </button>
+          <div class="flex items-center gap-2">
+            <button id="btn-flip-cam" class="btn-ghost text-xs" style="padding:0.4rem 0.7rem;" title="Switch camera">
+              <span class="material-symbols-outlined" style="font-size:16px">cameraswitch</span>
+              <span id="flip-cam-label">Front</span>
+            </button>
+            <button id="btn-close-scanner" class="btn-ghost text-xs" style="padding:0.4rem 0.7rem;">
+              <span class="material-symbols-outlined" style="font-size:16px">close</span>
+              Cancel
+            </button>
+          </div>
         </div>
         <div class="qr-stage">
           <video id="qr-video" playsinline muted autoplay></video>
@@ -217,6 +223,7 @@
 
     // Scanner state — declared up front so `show()` can call stopScanner before init.
     let _jsQR   = null;
+    let _facingMode = "environment"; // back camera by default; flipped via #btn-flip-cam
     let _stream = null;
     let _scanRaf = 0;
 
@@ -277,16 +284,47 @@
       // Drop the bad ?id= so the chooser shows on next nav
       window.location.assign("register.html");
     });
+    document.getElementById("btn-flip-cam").addEventListener("click", async () => {
+      _facingMode = _facingMode === "environment" ? "user" : "environment";
+      updateFlipLabel();
+      // Restart the stream with the new facing mode; the scanFrame loop keeps reading the same <video>.
+      if (_stream) {
+        _stream.getTracks().forEach(t => t.stop());
+        _stream = null;
+        const $video  = document.getElementById("qr-video");
+        const $status = document.getElementById("qr-status");
+        try {
+          _stream = await navigator.mediaDevices.getUserMedia({
+            video: { facingMode: { ideal: _facingMode } },
+            audio: false,
+          });
+          $video.srcObject = _stream;
+          await $video.play();
+          if ($status) $status.textContent = "Point your camera at the QR code on your ticket…";
+        } catch (err) {
+          console.error(err);
+          if ($status) $status.textContent = "Couldn't switch camera. " + (err && err.message ? err.message : "");
+        }
+      }
+    });
+
+    function updateFlipLabel() {
+      // Button label always shows the camera you'd flip TO, not the current one.
+      const $lbl = document.getElementById("flip-cam-label");
+      if ($lbl) $lbl.textContent = _facingMode === "environment" ? "Front" : "Back";
+    }
 
     async function openScanner() {
       show($scanner);
+      _facingMode = "environment";
+      updateFlipLabel();
       const $status = document.getElementById("qr-status");
       const $video  = document.getElementById("qr-video");
       try {
         $status.textContent = "Loading camera…";
         const jsQR = await loadJsQR();
         _stream = await navigator.mediaDevices.getUserMedia({
-          video: { facingMode: { ideal: "environment" } },
+          video: { facingMode: { ideal: _facingMode } },
           audio: false,
         });
         $video.srcObject = _stream;
