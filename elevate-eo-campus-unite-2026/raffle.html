@@ -58,14 +58,16 @@
 
     <!-- Big display -->
     <div class="surface p-6 sm:p-12 text-center">
-      <div class="text-mute text-xs font-extrabold-ui uppercase tracking-widest">Winning ticket</div>
-      <div id="raffle-display" class="raffle-display mt-3">ECU-----</div>
+      <!-- Winner name slot — empty during roll, revealed AFTER number stops -->
+      <div id="winner-name" class="winner-name min-h-[3rem] sm:min-h-[5rem]"></div>
 
-      <div id="winner-meta" class="mt-5 min-h-[6rem]"></div>
+      <div class="text-mute text-xs font-extrabold-ui uppercase tracking-widest mt-2">Winning ticket</div>
+      <div id="raffle-display" class="raffle-display mt-2">ECU-----</div>
+
+      <div id="winner-extra" class="winner-extra mt-4 min-h-[2rem]"></div>
 
       <div class="mt-8 flex items-center justify-center">
         <button id="btn-draw" class="btn-primary text-lg" style="padding:1rem 2rem;">
-          <span class="material-symbols-outlined" style="font-size:22px">casino</span>
           Draw winner
         </button>
       </div>
@@ -106,12 +108,14 @@
       get, set, push, onValue,
       registrationsRef, raffleDrawsRef, raffleLastDrawRef, ref, db, SCHEMA_ROOT,
     } from "./js/firebase.js";
+    import { confirmModal } from "./js/modal.js";
 
     const $gate    = document.getElementById("gate");
     const $main    = document.getElementById("raffle");
     const $auth    = document.getElementById("auth-control");
     const $display = document.getElementById("raffle-display");
-    const $meta    = document.getElementById("winner-meta");
+    const $name    = document.getElementById("winner-name");
+    const $extra   = document.getElementById("winner-extra");
     const $draw    = document.getElementById("btn-draw");
 
     function renderAuth(user, isAdmin) {
@@ -206,8 +210,15 @@
 
     async function deleteDraw(key, ticket, name) {
       if (!key) return;
-      const label = name ? `${ticket} (${name})` : ticket;
-      if (!confirm(`Remove ${label} from the draw history?\n\nThe ticket will be eligible to win again if "Exclude previous winners" stays checked.`)) return;
+      const ok = await confirmModal({
+        title: "Remove from draw history?",
+        message: `<em>${esc(ticket)}</em>${name ? ` (${esc(name)})` : ""} will be removed from the history and put back into the eligible pool.`,
+        confirmText: "Remove",
+        cancelText: "Cancel",
+        danger: true,
+        icon: "delete",
+      });
+      if (!ok) return;
       try {
         // Drop this single draw, then re-derive lastDraw from whatever remains.
         await set(ref(db, `${SCHEMA_ROOT}/raffle/draws/${key}`), null);
@@ -240,9 +251,14 @@
       const pool = allRegs.filter(r => !drawnIds.has(r.ticketId));
 
       if (!pool.length) {
-        $meta.innerHTML = `<div class="text-red text-sm font-extrabold-ui uppercase tracking-widest">Pool is empty.</div>`;
+        $extra.innerHTML = `<div class="text-red text-sm font-extrabold-ui uppercase tracking-widest">Pool is empty.</div>`;
         return;
       }
+
+      // Reset: hide previous reveal so the new roll feels fresh
+      $name.innerHTML = "";
+      $name.classList.remove("is-revealed");
+      $extra.innerHTML = "";
 
       $draw.disabled = true;
       $display.classList.add("raffle-rolling");
@@ -270,18 +286,25 @@
     async function finalize(winner) {
       $display.classList.remove("raffle-rolling");
       $display.textContent = winner.ticketId;
-      $meta.innerHTML = `
-        <div class="font-extrabold-ui text-ink leading-tight" style="font-size:clamp(2rem, 5.5vw, 3.5rem);">
-          ${esc(winner.name)}
-        </div>
-        <div class="mt-3 flex flex-wrap items-center justify-center gap-2.5 text-base sm:text-lg">
-          <span class="font-extrabold-ui uppercase tracking-wider text-tape" style="font-size:0.85em;">
-            ${esc(winner.school || "—")}
-          </span>
-          <span class="inline-block rounded-full" style="width:6px;height:6px;background:var(--ink-mute);"></span>
-          <span class="text-soft">${esc(winner.fbName || "")}</span>
-        </div>
-      `;
+
+      // Brief pause so the number landing reads first, THEN the name reveals big.
+      setTimeout(() => {
+        const letters = String(winner.name || "")
+          .split("")
+          .map((ch, i) => `<span class="wn-ch" style="animation-delay:${i * 35}ms;">${ch === " " ? "&nbsp;" : esc(ch)}</span>`)
+          .join("");
+        $name.innerHTML = letters;
+        $name.classList.add("is-revealed");
+        $extra.innerHTML = `
+          <div class="flex flex-wrap items-center justify-center gap-2.5 text-base sm:text-lg winner-extra-inner">
+            <span class="font-extrabold-ui uppercase tracking-wider text-tape" style="font-size:0.85em;">
+              ${esc(winner.school || "—")}
+            </span>
+            <span class="inline-block rounded-full" style="width:6px;height:6px;background:var(--ink-mute);"></span>
+            <span class="text-soft">${esc(winner.fbName || "")}</span>
+          </div>
+        `;
+      }, 550);
 
       try {
         const now = Date.now();

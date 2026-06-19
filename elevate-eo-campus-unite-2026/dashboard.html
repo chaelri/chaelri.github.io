@@ -97,10 +97,11 @@
             <th class="hidden sm:table-cell">Age</th>
             <th class="hidden lg:table-cell">Facebook</th>
             <th class="whitespace-nowrap">Registered</th>
+            <th class="whitespace-nowrap text-right">Actions</th>
           </tr>
         </thead>
         <tbody id="recent-tbody">
-          <tr><td colspan="7" class="text-center text-mute py-10">Loading…</td></tr>
+          <tr><td colspan="8" class="text-center text-mute py-10">Loading…</td></tr>
         </tbody>
       </table>
     </section>
@@ -110,9 +111,11 @@
   <script type="module">
     import {
       watchAuth, signInWithGoogle, signOutNow,
-      get, set, onValue,
-      ticketsRef, registrationsRef, ticketId, TICKET_COUNT,
+      get, set, update, onValue,
+      ticketsRef, registrationsRef, ticketRef, registrationRef,
+      ticketId, TICKET_COUNT,
     } from "./js/firebase.js";
+    import { confirmModal } from "./js/modal.js";
 
     const $gate = document.getElementById("gate");
     const $dash = document.getElementById("dashboard");
@@ -209,7 +212,7 @@
 
       const $tbody = document.getElementById("recent-tbody");
       if (!list.length) {
-        $tbody.innerHTML = `<tr><td colspan="7" class="text-center text-mute py-10">${q ? "No matches." : "No registrations yet."}</td></tr>`;
+        $tbody.innerHTML = `<tr><td colspan="8" class="text-center text-mute py-10">${q ? "No matches." : "No registrations yet."}</td></tr>`;
         return;
       }
       $tbody.innerHTML = list.map(r => `
@@ -221,9 +224,40 @@
           <td class="hidden sm:table-cell">${esc(r.age || "—")}</td>
           <td class="hidden lg:table-cell">${esc(r.fbName || "—")}</td>
           <td class="whitespace-nowrap text-mute">${fmtDate(r.registeredAt)}</td>
+          <td class="text-right whitespace-nowrap">
+            <button class="btn-row-del text-mute hover:text-red transition" data-ticket="${esc(r.ticketId || "")}" data-name="${esc(r.name || "")}" title="Delete registration" style="padding:4px;line-height:0;">
+              <span class="material-symbols-outlined" style="font-size:18px">delete</span>
+            </button>
+          </td>
         </tr>
       `).join("");
     }
+
+    // ===== Delete a registration (frees the ticket for re-registration) =====
+    document.getElementById("recent-tbody").addEventListener("click", async (e) => {
+      const btn = e.target.closest(".btn-row-del");
+      if (!btn) return;
+      const id = btn.dataset.ticket;
+      const name = btn.dataset.name || "";
+      if (!id) return;
+      const ok = await confirmModal({
+        title: "Delete this registration?",
+        message: `<em>${esc(id)}</em>${name ? ` (${esc(name)})` : ""} will be removed and the ticket freed for re-registration.`,
+        confirmText: "Delete",
+        cancelText: "Cancel",
+        danger: true,
+        icon: "delete",
+      });
+      if (!ok) return;
+      btn.disabled = true;
+      try {
+        await set(registrationRef(id), null);
+        await update(ticketRef(id), { registered: false, registeredAt: null, name: null });
+      } catch (err) {
+        alert("Delete failed: " + (err && err.message || err));
+        btn.disabled = false;
+      }
+    });
 
     // ===== CSV export =====
     document.getElementById("btn-csv").addEventListener("click", () => {

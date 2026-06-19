@@ -492,3 +492,121 @@ html, body {
   border-radius: 999px;
   opacity: 0.85;
 }
+
+/* =================================================================
+   Raffle — winner name reveal (BIG, on top of the number)
+   ================================================================= */
+.winner-name {
+  font-family: "Blauer Nue", "Inter", sans-serif;
+  font-weight: 800;
+  font-size: clamp(2.6rem, 7.5vw, 5.25rem);
+  line-height: 1.05;
+  letter-spacing: -0.015em;
+  color: var(--ink);
+  word-break: break-word;
+  text-shadow: 0 6px 24px rgba(0,0,0,0.35);
+}
+.winner-name .wn-ch {
+  display: inline-block;
+  opacity: 0;
+  transform: translateY(14px) scale(0.94);
+  filter: blur(6px);
+}
+.winner-name.is-revealed .wn-ch {
+  animation: wn-pop 600ms cubic-bezier(0.22, 1, 0.36, 1) forwards;
+}
+@keyframes wn-pop {
+  0%   { opacity: 0; transform: translateY(14px) scale(0.94); filter: blur(6px); }
+  60%  { opacity: 1; transform: translateY(-2px) scale(1.02); filter: blur(0); }
+  100% { opacity: 1; transform: translateY(0)   scale(1);    filter: blur(0); }
+}
+.winner-extra-inner {
+  opacity: 0;
+  animation: wn-extra-in 450ms ease-out 350ms forwards;
+}
+@keyframes wn-extra-in {
+  from { opacity: 0; transform: translateY(6px); }
+  to   { opacity: 1; transform: translateY(0); }
+}
+
+/* =================================================================
+   Confirm modal (drives js/modal.js)
+   ================================================================= */
+.cu-modal-backdrop {
+  position: fixed; inset: 0; z-index: 1000;
+  display: grid; place-items: center;
+  padding: 1rem;
+  background: rgba(3, 5, 16, 0.72);
+  backdrop-filter: blur(6px);
+  -webkit-backdrop-filter: blur(6px);
+  opacity: 0;
+  transition: opacity 160ms ease;
+}
+.cu-modal-backdrop.is-open { opacity: 1; }
+.cu-modal-panel {
+  width: 100%; max-width: 460px;
+  background: linear-gradient(180deg, var(--bg-elev) 0%, var(--bg-base) 100%);
+  border: 1px solid var(--line);
+  border-radius: 1rem;
+  box-shadow: 0 30px 60px -10px rgba(0,0,0,0.65), 0 0 0 1px rgba(255,255,255,0.04) inset;
+  padding: 1.25rem 1.25rem 1rem;
+  transform: translateY(8px) scale(0.98);
+  transition: transform 200ms cubic-bezier(0.22, 1, 0.36, 1);
+}
+.cu-modal-backdrop.is-open .cu-modal-panel {
+  transform: translateY(0) scale(1);
+}
+.cu-modal-head {
+  display: flex; align-items: center; gap: 0.65rem;
+  margin-bottom: 0.5rem;
+}
+.cu-modal-title {
+  font-family: "Blauer Nue", "Inter", sans-serif;
+  font-weight: 800;
+  font-size: 1.15rem;
+  color: var(--ink);
+  letter-spacing: -0.005em;
+}
+.cu-modal-body {
+  color: var(--ink-soft);
+  font-size: 0.92rem;
+  line-height: 1.5;
+  margin: 0.25rem 0 1.1rem;
+}
+.cu-modal-body em {
+  color: var(--ink);
+  font-style: normal;
+  font-weight: 700;
+}
+.cu-modal-actions {
+  display: flex; justify-content: flex-end; gap: 0.5rem;
+  margin-top: 0.5rem;
+}
+.cu-modal-btn {
+  font-family: "Blauer Nue", "Inter", sans-serif;
+  font-weight: 700;
+  font-size: 0.85rem;
+  padding: 0.6rem 1.05rem;
+  border-radius: 0.6rem;
+  border: 1px solid transparent;
+  text-transform: uppercase;
+  letter-spacing: 0.06em;
+  cursor: pointer;
+  transition: filter 120ms, transform 120ms;
+}
+.cu-modal-btn:hover { filter: brightness(1.08); }
+.cu-modal-btn:active { transform: translateY(1px); }
+.cu-modal-cancel {
+  background: transparent;
+  color: var(--ink-soft);
+  border-color: var(--line);
+}
+.cu-modal-cancel:hover { color: var(--ink); border-color: var(--ink-mute); }
+.cu-modal-confirm {
+  /* bg + color set inline by modal.js per danger flag */
+  border-color: transparent;
+}
+.cu-modal-confirm:focus-visible {
+  outline: 2px solid var(--ink);
+  outline-offset: 2px;
+}
