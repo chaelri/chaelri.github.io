@@ -299,13 +299,18 @@ html, body {
 .ticket-body {
   padding: 0.18in 0.22in 0.22in;
   background:
-    radial-gradient(280px 200px at 0% 0%, rgba(225, 29, 44, 0.25) 0%, transparent 60%),
-    linear-gradient(180deg, var(--bg-base) 0%, var(--bg-deep) 100%);
+    radial-gradient(280px 200px at 0% 0%, rgba(225, 29, 44, 0.22) 0%, transparent 60%),
+    linear-gradient(180deg, rgba(12,17,48,0.85) 0%, rgba(7,9,26,0.92) 100%),
+    url("assets/ticket-bg.jpg") center / cover no-repeat;
+  background-color: var(--bg-deep);
   position: relative;
   display: flex;
   flex-direction: column;
   gap: 0.06in;
   overflow: hidden;
+  /* Make print include the photo bg (browsers strip bg images by default in print) */
+  -webkit-print-color-adjust: exact;
+  print-color-adjust: exact;
 }
 .ticket-stub {
   border-left: 2px dashed rgba(245, 213, 24, 0.4);
