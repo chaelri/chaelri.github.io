@@ -315,20 +315,20 @@
       if ($lbl) $lbl.textContent = _facingMode === "environment" ? "Front" : "Back";
     }
 
-    // Mirror the PREVIEW only when the active camera is user-facing so left/right motion feels natural
-    // (laptops, phone selfie cam). Reads the actual track settings — on laptops, "environment" requests
-    // typically fall back to "user", and we want to mirror that too. The canvas read in scanFrame uses
-    // drawImage on the raw video stream and is NOT affected by CSS transforms, so jsQR still decodes
-    // the un-mirrored frame.
+    // Mirror the PREVIEW so left/right motion feels natural (raise left hand → it stays on the left).
+    // Rule: mirror UNLESS the track explicitly reports facingMode === "environment". Laptop webcams
+    // leave facingMode undefined and are de-facto user-facing, so the default is to mirror. Phone
+    // back cams reliably report "environment" and stay un-mirrored.
+    // drawImage in scanFrame reads the raw stream and is NOT affected by CSS transforms, so jsQR
+    // still decodes the un-mirrored QR correctly.
     function applyPreviewMirror($video, stream) {
+      let reported = "";
       try {
         const track = stream && stream.getVideoTracks && stream.getVideoTracks()[0];
         const settings = track && track.getSettings ? track.getSettings() : null;
-        const actual = (settings && settings.facingMode) || _facingMode;
-        $video.style.transform = actual === "user" ? "scaleX(-1)" : "";
-      } catch {
-        $video.style.transform = _facingMode === "user" ? "scaleX(-1)" : "";
-      }
+        reported = (settings && settings.facingMode) || "";
+      } catch { /* settings unsupported */ }
+      $video.style.transform = reported === "environment" ? "" : "scaleX(-1)";
     }
 
     async function openScanner() {
