@@ -227,8 +227,9 @@
 
     // ===== Auth =====
     // Public-facing: no visible sign-in button. Admins reach it via:
-    //   (a) triple-clicking the EO logo in the header (discreet on-page trigger), OR
+    //   (a) triple-clicking the EO logo in the header (only while signed-OUT), OR
     //   (b) bookmarking dashboard.html / print.html / raffle.html — each of those has its own gate.
+    let _signedIn = false;
     function triggerSignIn() {
       signInWithGoogle().catch(err => {
         if (err && err.code !== "auth/popup-closed-by-user") alert(err.message || "Sign-in failed.");
@@ -238,8 +239,8 @@
       const logo = document.querySelector("header img[alt='Elevate East Ortigas']");
       if (!logo) return;
       let taps = 0, timer = null;
-      logo.style.cursor = "pointer";
       logo.addEventListener("click", (e) => {
+        if (_signedIn) return; // Already signed in — let the normal logo click do nothing
         e.preventDefault();
         taps++;
         clearTimeout(timer);
@@ -273,6 +274,7 @@
     }
 
     watchAuth(({ user, isAdmin }) => {
+      _signedIn = !!user;
       renderAuth(user, isAdmin);
       $tools.classList.toggle("hidden", !isAdmin);
     });
