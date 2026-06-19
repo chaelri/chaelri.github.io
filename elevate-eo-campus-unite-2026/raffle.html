@@ -4,8 +4,19 @@
   <meta charset="UTF-8" />
   <meta name="viewport" content="width=device-width, initial-scale=1.0" />
   <title>Raffle — Campus UNITE 2026</title>
-  <link rel="icon" href="assets/elevate-logo-red.png" />
+  <link rel="icon" type="image/svg+xml" href="assets/favicon.svg" />
+  <link rel="alternate icon" href="assets/elevate-logo-red.png" />
+  <link rel="apple-touch-icon" href="assets/favicon.svg" />
+  <link rel="manifest" href="manifest.json" />
+  <meta name="theme-color" content="#07091a" />
+  <meta name="apple-mobile-web-app-capable" content="yes" />
+  <meta name="apple-mobile-web-app-status-bar-style" content="black-translucent" />
+  <meta name="apple-mobile-web-app-title" content="CU 2026" />
+  <meta http-equiv="Cache-Control" content="no-cache, no-store, must-revalidate" />
+  <meta http-equiv="Pragma" content="no-cache" />
+  <meta http-equiv="Expires" content="0" />
   <script src="https://cdn.tailwindcss.com"></script>
+  <script src="https://cdn.jsdelivr.net/npm/canvas-confetti@1.9.3/dist/confetti.browser.min.js"></script>
   <link rel="preconnect" href="https://fonts.googleapis.com" />
   <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
   <link href="https://fonts.googleapis.com/css2?family=Bebas+Neue&family=JetBrains+Mono:wght@400;600&display=swap" rel="stylesheet" />
@@ -315,6 +326,7 @@
         // Force a frame so the transition takes effect cleanly
         requestAnimationFrame(() => {
           document.querySelector(".winner-name-wrap").classList.add("is-revealed");
+          fireWinnerConfetti();
         });
       }, 550);
 
@@ -334,6 +346,20 @@
       } finally {
         $draw.disabled = false;
       }
+    }
+
+    // ===== Confetti — brand yellow + red only =====
+    function fireWinnerConfetti() {
+      if (typeof confetti !== "function") return;
+      const colors = ["#f5d518", "#e11d2c"];
+      const base = { colors, ticks: 220, gravity: 0.95, scalar: 1.1, disableForReducedMotion: true };
+      // Two side cannons firing inward.
+      confetti({ ...base, particleCount: 90, angle: 60,  spread: 70, origin: { x: 0,   y: 0.7 } });
+      confetti({ ...base, particleCount: 90, angle: 120, spread: 70, origin: { x: 1,   y: 0.7 } });
+      // Center burst slightly delayed for a layered finish.
+      setTimeout(() => {
+        confetti({ ...base, particleCount: 140, spread: 100, startVelocity: 48, origin: { x: 0.5, y: 0.55 } });
+      }, 220);
     }
   </script>
 

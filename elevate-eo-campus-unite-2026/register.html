@@ -4,7 +4,17 @@
   <meta charset="UTF-8" />
   <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0" />
   <title>Register — Campus UNITE 2026</title>
-  <link rel="icon" href="assets/elevate-logo-red.png" />
+  <link rel="icon" type="image/svg+xml" href="assets/favicon.svg" />
+  <link rel="alternate icon" href="assets/elevate-logo-red.png" />
+  <link rel="apple-touch-icon" href="assets/favicon.svg" />
+  <link rel="manifest" href="manifest.json" />
+  <meta name="theme-color" content="#07091a" />
+  <meta name="apple-mobile-web-app-capable" content="yes" />
+  <meta name="apple-mobile-web-app-status-bar-style" content="black-translucent" />
+  <meta name="apple-mobile-web-app-title" content="CU 2026" />
+  <meta http-equiv="Cache-Control" content="no-cache, no-store, must-revalidate" />
+  <meta http-equiv="Pragma" content="no-cache" />
+  <meta http-equiv="Expires" content="0" />
   <script src="https://cdn.tailwindcss.com"></script>
   <link rel="preconnect" href="https://fonts.googleapis.com" />
   <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
@@ -180,6 +190,16 @@
           <div class="flex items-center justify-center gap-2"><span class="material-symbols-outlined text-tape" style="font-size:18px">location_on</span> 3F Parking Level, SM East Ortigas</div>
         </div>
         <div class="mt-6 text-xs font-mono text-mute">#ElevateCampusUNITE2026 · #ElevateEastOrtigas</div>
+
+        <div class="mt-8 flex flex-col items-center gap-2">
+          <a href="index.html" class="btn-primary">
+            <span class="material-symbols-outlined" style="font-size:18px">arrow_forward</span>
+            See you there
+          </a>
+          <div class="text-[10px] uppercase tracking-widest font-extrabold-ui text-mute">
+            Auto-redirecting in <span id="success-redirect-num" class="text-tape">10</span>s
+          </div>
+        </div>
       </div>
     </div>
 
@@ -388,6 +408,7 @@
         document.getElementById("success-ticket").textContent = id;
         document.getElementById("success-name").textContent = data.name;
         show($success);
+        startSuccessRedirect();
       } catch (err) {
         console.error(err);
         $err.textContent = `Something went wrong. ${err && err.message || ""}`;
@@ -395,6 +416,24 @@
         $btn.disabled = false;
         $btn.innerHTML = `<span class="material-symbols-outlined" style="font-size:20px">check_circle</span> Complete registration`;
       }
+    }
+
+    // 10s auto-redirect to index.html after a successful registration. The "See you there" button
+    // lets impatient users skip the wait.
+    function startSuccessRedirect() {
+      const $num = document.getElementById("success-redirect-num");
+      if (!$num) return;
+      let n = 10;
+      $num.textContent = String(n);
+      const tick = setInterval(() => {
+        n -= 1;
+        if (n <= 0) {
+          clearInterval(tick);
+          window.location.href = "index.html";
+          return;
+        }
+        $num.textContent = String(n);
+      }, 1000);
     }
   </script>
 

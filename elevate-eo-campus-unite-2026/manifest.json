@@ -1,0 +1,25 @@
+{
+  "name": "Campus UNITE 2026 — Elevate East Ortigas",
+  "short_name": "CU 2026",
+  "description": "Campus UNITE — Elevate's 13th Anniversary. July 17, 2026 · SM East Ortigas.",
+  "start_url": "./",
+  "scope": "./",
+  "display": "standalone",
+  "orientation": "portrait",
+  "theme_color": "#07091a",
+  "background_color": "#07091a",
+  "icons": [
+    {
+      "src": "assets/favicon.svg",
+      "type": "image/svg+xml",
+      "sizes": "any",
+      "purpose": "any"
+    },
+    {
+      "src": "assets/favicon.svg",
+      "type": "image/svg+xml",
+      "sizes": "any",
+      "purpose": "maskable"
+    }
+  ]
+}

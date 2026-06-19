@@ -4,7 +4,17 @@
   <meta charset="UTF-8" />
   <meta name="viewport" content="width=device-width, initial-scale=1.0" />
   <title>Dashboard — Campus UNITE 2026</title>
-  <link rel="icon" href="assets/elevate-logo-red.png" />
+  <link rel="icon" type="image/svg+xml" href="assets/favicon.svg" />
+  <link rel="alternate icon" href="assets/elevate-logo-red.png" />
+  <link rel="apple-touch-icon" href="assets/favicon.svg" />
+  <link rel="manifest" href="manifest.json" />
+  <meta name="theme-color" content="#07091a" />
+  <meta name="apple-mobile-web-app-capable" content="yes" />
+  <meta name="apple-mobile-web-app-status-bar-style" content="black-translucent" />
+  <meta name="apple-mobile-web-app-title" content="CU 2026" />
+  <meta http-equiv="Cache-Control" content="no-cache, no-store, must-revalidate" />
+  <meta http-equiv="Pragma" content="no-cache" />
+  <meta http-equiv="Expires" content="0" />
   <script src="https://cdn.tailwindcss.com"></script>
   <link rel="preconnect" href="https://fonts.googleapis.com" />
   <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
@@ -56,20 +66,6 @@
       <span class="kpi-pill"><b id="kpi-available">0</b> available</span>
     </div>
 
-    <!-- Seed banner (only when no tickets exist) -->
-    <section id="seed-banner" class="mb-6 hidden">
-      <div class="surface p-5 flex flex-col sm:flex-row gap-4 sm:items-center justify-between" style="border-color: var(--red);">
-        <div>
-          <div class="font-extrabold-ui text-ink">No tickets in the database yet.</div>
-          <p class="text-soft text-sm mt-1">Seed 1,000 entries (ECU-0001 → ECU-1000). One-time setup. Safe to re-run — it'll skip any existing IDs.</p>
-        </div>
-        <button id="btn-seed" class="btn-primary whitespace-nowrap text-sm">
-          <span class="material-symbols-outlined" style="font-size:18px">add_circle</span>
-          Seed 1,000 tickets
-        </button>
-      </div>
-    </section>
-
     <!-- Toolbar -->
     <div class="flex items-center justify-between gap-3 flex-wrap mb-3">
       <input id="search" type="search" placeholder="Search name, school, ticket, FB…" class="input text-sm" style="padding:0.55rem 0.85rem; max-width:360px; flex:1;" />
@@ -77,10 +73,6 @@
         <button id="btn-csv" class="btn-ghost text-sm">
           <span class="material-symbols-outlined" style="font-size:18px">download</span>
           Export CSV
-        </button>
-        <button id="btn-seed-small" class="btn-ghost text-sm" title="Seed missing ticket IDs">
-          <span class="material-symbols-outlined" style="font-size:18px">add_circle</span>
-          <span class="hidden sm:inline">Seed missing</span>
         </button>
       </div>
     </div>
@@ -90,13 +82,13 @@
       <table class="t-table">
         <thead>
           <tr>
-            <th>Ticket</th>
-            <th>Name</th>
-            <th class="hidden md:table-cell">School / University</th>
-            <th class="hidden sm:table-cell">Gender</th>
-            <th class="hidden sm:table-cell">Age</th>
-            <th class="hidden lg:table-cell">Facebook</th>
-            <th class="whitespace-nowrap">Registered</th>
+            <th class="t-sortable" data-sort="ticketId">Ticket<span class="t-sort-ind"></span></th>
+            <th class="t-sortable" data-sort="name">Name<span class="t-sort-ind"></span></th>
+            <th class="t-sortable hidden md:table-cell" data-sort="school">School / University<span class="t-sort-ind"></span></th>
+            <th class="t-sortable hidden sm:table-cell" data-sort="gender">Gender<span class="t-sort-ind"></span></th>
+            <th class="t-sortable hidden sm:table-cell" data-sort="age">Age<span class="t-sort-ind"></span></th>
+            <th class="t-sortable hidden lg:table-cell" data-sort="fbName">Facebook<span class="t-sort-ind"></span></th>
+            <th class="t-sortable whitespace-nowrap" data-sort="registeredAt">Registered<span class="t-sort-ind"></span></th>
             <th class="whitespace-nowrap text-right">Actions</th>
           </tr>
         </thead>
@@ -111,9 +103,8 @@
   <script type="module">
     import {
       watchAuth, signInWithGoogle, signOutNow,
-      get, set, update, onValue,
+      set, update, onValue,
       ticketsRef, registrationsRef, ticketRef, registrationRef,
-      ticketId, TICKET_COUNT,
     } from "./js/firebase.js";
     import { confirmModal } from "./js/modal.js";
 
@@ -181,7 +172,6 @@
       document.getElementById("kpi-registered").textContent = regs.length.toLocaleString();
       document.getElementById("kpi-total").textContent = total.toLocaleString();
       document.getElementById("kpi-available").textContent = Math.max(0, total - regs.length).toLocaleString();
-      document.getElementById("seed-banner").classList.toggle("hidden", total > 0);
       renderTable(regs);
     }
 
@@ -198,11 +188,74 @@
       return ({female:"Female", male:"Male", prefer_not:"—"})[g] || "—";
     }
 
+    // ===== Sort state =====
+    // Each column has a natural default direction. Clicking a different column resets to its default;
+    // clicking the active column toggles asc ↔ desc.
+    const SORT_DEFAULT_DIR = {
+      ticketId: "asc",
+      name: "asc",
+      school: "asc",
+      gender: "asc",
+      age: "asc",
+      fbName: "asc",
+      registeredAt: "desc",
+    };
+    let sortState = { key: "registeredAt", dir: "desc" };
+
+    function cmpVal(a, b, key) {
+      let va = a[key];
+      let vb = b[key];
+      if (key === "age") { va = Number(va) || 0; vb = Number(vb) || 0; }
+      else if (key === "registeredAt") { va = va || 0; vb = vb || 0; }
+      else if (key === "ticketId") {
+        // ECU-#### → compare on the numeric tail so ECU-0010 sorts after ECU-0002.
+        const na = parseInt(String(va || "").replace(/^\D+/, ""), 10) || 0;
+        const nb = parseInt(String(vb || "").replace(/^\D+/, ""), 10) || 0;
+        va = na; vb = nb;
+      }
+      else { va = String(va == null ? "" : va).toLowerCase(); vb = String(vb == null ? "" : vb).toLowerCase(); }
+      if (va < vb) return -1;
+      if (va > vb) return 1;
+      return 0;
+    }
+
+    function updateSortIndicators() {
+      document.querySelectorAll(".t-sortable").forEach(th => {
+        const key = th.dataset.sort;
+        const ind = th.querySelector(".t-sort-ind");
+        if (!ind) return;
+        if (key === sortState.key) {
+          ind.textContent = sortState.dir === "asc" ? " ▲" : " ▼";
+          th.classList.add("t-sorted");
+        } else {
+          ind.textContent = "";
+          th.classList.remove("t-sorted");
+        }
+      });
+    }
+
+    document.querySelectorAll(".t-sortable").forEach(th => {
+      th.addEventListener("click", () => {
+        const key = th.dataset.sort;
+        if (!key) return;
+        if (sortState.key === key) {
+          sortState.dir = sortState.dir === "asc" ? "desc" : "asc";
+        } else {
+          sortState.key = key;
+          sortState.dir = SORT_DEFAULT_DIR[key] || "asc";
+        }
+        updateSortIndicators();
+        renderTable(Object.values(regsCache));
+      });
+    });
+    updateSortIndicators();
+
     function renderTable(regs) {
       const q = ($search.value || "").trim().toLowerCase();
+      const mult = sortState.dir === "asc" ? 1 : -1;
       const list = regs
         .slice()
-        .sort((a, b) => (b.registeredAt || 0) - (a.registeredAt || 0))
+        .sort((a, b) => mult * cmpVal(a, b, sortState.key))
         .filter(r => !q || (
           (r.name || "").toLowerCase().includes(q) ||
           (r.school || "").toLowerCase().includes(q) ||
@@ -282,34 +335,6 @@
       setTimeout(() => URL.revokeObjectURL(url), 1000);
     });
 
-    // ===== Seed (banner + small) =====
-    async function seedTickets() {
-      const btns = [document.getElementById("btn-seed"), document.getElementById("btn-seed-small")].filter(Boolean);
-      btns.forEach(b => { b.disabled = true; });
-      try {
-        const snap = await get(ticketsRef());
-        const existing = snap.val() || {};
-        const batch = {};
-        const now = Date.now();
-        for (let i = 1; i <= TICKET_COUNT; i++) {
-          const id = ticketId(i);
-          if (existing[id]) continue;
-          batch[id] = { number: i, registered: false, createdAt: now };
-        }
-        if (Object.keys(batch).length === 0) {
-          alert("All tickets already exist — nothing to seed.");
-        } else {
-          await set(ticketsRef(), { ...existing, ...batch });
-          alert(`Seeded ${Object.keys(batch).length} ticket${Object.keys(batch).length === 1 ? "" : "s"}.`);
-        }
-      } catch (err) {
-        alert("Seed failed: " + (err && err.message || err));
-      } finally {
-        btns.forEach(b => { b.disabled = false; });
-      }
-    }
-    document.getElementById("btn-seed").addEventListener("click", seedTickets);
-    document.getElementById("btn-seed-small").addEventListener("click", seedTickets);
   </script>
 
 </body>

@@ -5,7 +5,17 @@
   <meta name="viewport" content="width=device-width, initial-scale=1.0" />
   <title>Campus UNITE 2026 — Elevate East Ortigas</title>
 
-  <link rel="icon" href="assets/elevate-logo-red.png" />
+  <link rel="icon" type="image/svg+xml" href="assets/favicon.svg" />
+  <link rel="alternate icon" href="assets/elevate-logo-red.png" />
+  <link rel="apple-touch-icon" href="assets/favicon.svg" />
+  <link rel="manifest" href="manifest.json" />
+  <meta name="theme-color" content="#07091a" />
+  <meta name="apple-mobile-web-app-capable" content="yes" />
+  <meta name="apple-mobile-web-app-status-bar-style" content="black-translucent" />
+  <meta name="apple-mobile-web-app-title" content="CU 2026" />
+  <meta http-equiv="Cache-Control" content="no-cache, no-store, must-revalidate" />
+  <meta http-equiv="Pragma" content="no-cache" />
+  <meta http-equiv="Expires" content="0" />
 
   <!-- Social meta -->
   <meta property="og:title" content="Campus UNITE 2026 — Elevate's 13th Anniversary" />
@@ -95,21 +105,21 @@
 
       <!-- Event detail rail -->
       <div class="mt-7 grid grid-cols-1 sm:grid-cols-3 gap-3">
-        <div class="surface-soft p-4 flex items-center gap-3">
+        <div class="glass-tile p-4 flex items-center gap-3">
           <span class="material-symbols-outlined text-tape" style="font-size:28px">event</span>
           <div>
             <div class="text-[10px] uppercase tracking-widest text-mute font-extrabold-ui">When</div>
             <div class="font-extrabold-ui text-base">Friday, July 17, 2026</div>
           </div>
         </div>
-        <div class="surface-soft p-4 flex items-center gap-3">
+        <div class="glass-tile p-4 flex items-center gap-3">
           <span class="material-symbols-outlined text-tape" style="font-size:28px">schedule</span>
           <div>
             <div class="text-[10px] uppercase tracking-widest text-mute font-extrabold-ui">Time</div>
             <div class="font-extrabold-ui text-base">3:00 PM</div>
           </div>
         </div>
-        <div class="surface-soft p-4 flex items-center gap-3">
+        <div class="glass-tile p-4 flex items-center gap-3">
           <span class="material-symbols-outlined text-tape" style="font-size:28px">location_on</span>
           <div>
             <div class="text-[10px] uppercase tracking-widest text-mute font-extrabold-ui">Where</div>
@@ -186,23 +196,39 @@
       <span class="text-mute text-xs font-extrabold-ui uppercase tracking-widest">restricted tools</span>
     </div>
     <div class="grid grid-cols-1 sm:grid-cols-3 gap-3 sm:gap-4">
-      <a href="dashboard.html" class="surface p-5 hover:border-red-500 transition group">
-        <div class="w-11 h-11 rounded-lg bg-red text-on-red grid place-items-center mb-3">
-          <span class="material-symbols-outlined">groups</span>
+      <a href="dashboard.html" class="glass-tile p-5 group">
+        <div class="tool-preview mb-3" aria-label="Live registration count">
+          <div class="dash-preview">
+            <div class="dash-preview-row">
+              <span class="dash-preview-tag">Registered</span>
+              <span class="dash-preview-live">Live</span>
+            </div>
+            <div class="dash-preview-big">
+              <span class="dash-preview-num" id="admin-dash-num">—</span>
+              <span class="dash-preview-den">/ 1,000</span>
+            </div>
+            <div class="dash-preview-bar">
+              <div class="dash-preview-bar-fill" id="admin-dash-bar"></div>
+            </div>
+          </div>
         </div>
         <div class="font-extrabold-ui text-lg text-ink">Dashboard</div>
         <div class="text-soft text-sm mt-1">View registered attendees + counts.</div>
       </a>
-      <a href="print.html" class="surface p-5 hover:border-red-500 transition group">
-        <div class="w-11 h-11 rounded-lg bg-tape text-on-tape grid place-items-center mb-3">
-          <span class="material-symbols-outlined">print</span>
+      <a href="print.html" class="glass-tile p-5 group">
+        <div class="tool-preview mb-3" id="admin-ticket-preview" aria-label="Sample ticket ECU-0001">
+          <div class="ticket-preview-inner"></div>
         </div>
         <div class="font-extrabold-ui text-lg text-ink">Print Tickets</div>
         <div class="text-soft text-sm mt-1">1,000 ECU-#### tickets, landscape A4.</div>
       </a>
-      <a href="raffle.html" class="surface p-5 hover:border-red-500 transition group">
-        <div class="w-11 h-11 rounded-lg bg-red text-on-red grid place-items-center mb-3">
-          <span class="material-symbols-outlined">casino</span>
+      <a href="raffle.html" class="glass-tile p-5 group">
+        <div class="tool-preview mb-3" aria-label="Raffle preview">
+          <div class="raffle-preview">
+            <div class="raffle-preview-label">Winner</div>
+            <div class="raffle-preview-num">ECU-????</div>
+            <div class="raffle-preview-sub">Ready to draw</div>
+          </div>
         </div>
         <div class="font-extrabold-ui text-lg text-ink">Raffle</div>
         <div class="text-soft text-sm mt-1">Randomize a winning ticket number.</div>
@@ -212,15 +238,25 @@
 
   <!-- ===== Footer ===== -->
   <footer class="border-t border-[color:var(--line)] py-10 px-4">
-    <div class="max-w-5xl mx-auto flex flex-col sm:flex-row items-center justify-center gap-8 sm:gap-16">
-      <img src="assets/elevate-east-ortigas.png" alt="Elevate East Ortigas" class="h-10 sm:h-14" />
-      <img src="assets/campus-unite-logo.png" alt="Campus UNITE — Elevate's 13th Anniversary" class="h-14 sm:h-20" />
+    <div class="max-w-5xl mx-auto flex flex-col items-center gap-7">
+      <div class="flex flex-col sm:flex-row items-center justify-center gap-8 sm:gap-16">
+        <img src="assets/elevate-east-ortigas.png" alt="Elevate East Ortigas" class="h-10 sm:h-14" />
+        <img src="assets/campus-unite-logo.png" alt="Campus UNITE — Elevate's 13th Anniversary" class="h-14 sm:h-20" />
+      </div>
+      <a href="https://www.facebook.com/ElevateEastOrtigas" target="_blank" rel="noopener noreferrer" class="fb-follow">
+        <svg viewBox="0 0 24 24" fill="currentColor" aria-hidden="true" style="width:18px;height:18px;">
+          <path d="M24 12.073C24 5.405 18.627 0 12 0S0 5.405 0 12.073C0 18.1 4.388 23.094 10.125 24v-8.437H7.078v-3.49h3.047V9.413c0-3.012 1.792-4.677 4.533-4.677 1.312 0 2.686.235 2.686.235v2.97h-1.514c-1.491 0-1.956.93-1.956 1.886v2.264h3.328l-.532 3.49h-2.796V24C19.612 23.094 24 18.1 24 12.073z"/>
+        </svg>
+        Follow Elevate East Ortigas
+      </a>
     </div>
   </footer>
 
   <!-- ===== Module logic ===== -->
   <script type="module">
-    import { watchAuth, signInWithGoogle, signOutNow, ALLOWED_ADMINS } from "./js/firebase.js";
+    import { watchAuth, signInWithGoogle, signOutNow, ALLOWED_ADMINS, registrationUrl,
+             onValue, registrationsRef, TICKET_COUNT } from "./js/firebase.js";
+    import { ticketHtml, makeQrSvg } from "./js/ticket.js";
 
     const $auth  = document.getElementById("auth-control");
     const $tools = document.getElementById("admin-tools");
@@ -277,6 +313,58 @@
       _signedIn = !!user;
       renderAuth(user, isAdmin);
       $tools.classList.toggle("hidden", !isAdmin);
+      if (isAdmin) {
+        renderPrintCardPreview();
+        subscribeAdminDash();
+      } else {
+        unsubscribeAdminDash();
+      }
+    });
+
+    // ===== Dashboard card — live registered count from Firebase =====
+    let _dashUnsub = null;
+    function subscribeAdminDash() {
+      if (_dashUnsub) return;
+      const $num = document.getElementById("admin-dash-num");
+      const $bar = document.getElementById("admin-dash-bar");
+      if (!$num || !$bar) return;
+      _dashUnsub = onValue(registrationsRef(), (snap) => {
+        const count = snap.exists() ? snap.numChildren() : 0;
+        $num.textContent = String(count);
+        const pct = Math.max(0, Math.min(100, (count / TICKET_COUNT) * 100));
+        $bar.style.width = pct.toFixed(1) + "%";
+      });
+    }
+    function unsubscribeAdminDash() {
+      if (_dashUnsub) { _dashUnsub(); _dashUnsub = null; }
+    }
+
+    // ===== Print Tickets card — sample ticket preview (ECU-0001) =====
+    // The card is hidden until an admin signs in, so we only render once #admin-tools is visible.
+    // Auto-fit: scale the 4.5in × 2in source so it fills the card's available width.
+    let _previewRendered = false;
+    async function renderPrintCardPreview() {
+      const wrap = document.getElementById("admin-ticket-preview");
+      if (!wrap || _previewRendered) {
+        if (wrap) fitTicketPreview(wrap);
+        return;
+      }
+      _previewRendered = true;
+      const inner = wrap.querySelector(".ticket-preview-inner");
+      const id = "ECU-0001";
+      const qr = await makeQrSvg(registrationUrl(id));
+      inner.innerHTML = ticketHtml(id, qr);
+      fitTicketPreview(wrap);
+    }
+    function fitTicketPreview(wrap) {
+      const inner = wrap.querySelector(".ticket-preview-inner");
+      if (!inner) return;
+      const w = wrap.clientWidth;
+      if (w > 0) inner.style.transform = `scale(${w / (4.5 * 96)})`;
+    }
+    window.addEventListener("resize", () => {
+      const wrap = document.getElementById("admin-ticket-preview");
+      if (wrap && wrap.offsetParent !== null) fitTicketPreview(wrap);
     });
 
     // ===== Countdown =====

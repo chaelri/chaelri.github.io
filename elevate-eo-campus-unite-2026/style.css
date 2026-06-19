@@ -102,6 +102,24 @@ html, body {
   border-radius: 1rem;
 }
 
+/* Frosted glass tile — sits over the trailer hero bg so it picks up the photo through the blur. */
+.glass-tile {
+  background: linear-gradient(135deg, rgba(255,255,255,0.07) 0%, rgba(255,255,255,0.03) 100%);
+  border: 1px solid rgba(255,255,255,0.12);
+  border-radius: 1rem;
+  backdrop-filter: blur(14px) saturate(140%);
+  -webkit-backdrop-filter: blur(14px) saturate(140%);
+  box-shadow:
+    inset 0 1px 0 rgba(255,255,255,0.10),
+    inset 0 -1px 0 rgba(0,0,0,0.20),
+    0 8px 24px rgba(0,0,0,0.25);
+  transition: border-color .2s ease, transform .2s ease, background .2s ease;
+}
+.glass-tile:hover {
+  border-color: rgba(245,213,24,0.32);
+  background: linear-gradient(135deg, rgba(255,255,255,0.09) 0%, rgba(255,255,255,0.04) 100%);
+}
+
 /* ---- Material Symbols sizing ---- */
 .material-symbols-outlined {
   font-variation-settings: "FILL" 0, "wght" 400, "GRAD" 0, "opsz" 24;
@@ -331,6 +349,139 @@ html, body {
 .ticket-perf-dot-top { top: -6px; }
 .ticket-perf-dot-bot { bottom: -6px; }
 
+/* Shared preview frame for the admin tool cards on index.html.
+   Same 4.5/2 aspect as the actual ticket so the three cards align as a row. */
+.tool-preview,
+.ticket-preview {
+  position: relative;
+  width: 100%;
+  aspect-ratio: 4.5 / 2;
+  overflow: hidden;
+  border-radius: 8px;
+  background: rgba(7, 9, 26, 0.4);
+}
+.ticket-preview-inner {
+  position: absolute;
+  top: 0;
+  left: 0;
+  width: 4.5in;
+  height: 2in;
+  transform-origin: top left;
+  pointer-events: none;
+}
+
+/* Dashboard card — live "X / 1,000 registered" with tape progress bar. */
+.dash-preview {
+  position: absolute;
+  inset: 0;
+  display: flex;
+  flex-direction: column;
+  justify-content: center;
+  gap: 0.55rem;
+  padding: 1rem 1.2rem;
+}
+.dash-preview-row {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+}
+.dash-preview-tag {
+  font-size: 9px;
+  font-weight: 800;
+  letter-spacing: 0.14em;
+  text-transform: uppercase;
+  color: #8b91b8;
+}
+.dash-preview-live {
+  font-size: 8px;
+  font-weight: 800;
+  letter-spacing: 0.14em;
+  text-transform: uppercase;
+  color: var(--tape);
+  display: inline-flex;
+  align-items: center;
+  gap: 5px;
+}
+.dash-preview-live::before {
+  content: "";
+  width: 6px;
+  height: 6px;
+  border-radius: 50%;
+  background: var(--tape);
+  box-shadow: 0 0 6px var(--tape);
+  animation: dashPulse 1.6s ease-in-out infinite;
+}
+@keyframes dashPulse {
+  0%, 100% { opacity: 1; }
+  50% { opacity: 0.35; }
+}
+.dash-preview-big {
+  display: flex;
+  align-items: baseline;
+  gap: 0.4rem;
+  line-height: 1;
+}
+.dash-preview-num {
+  font-family: "Bebas Neue", sans-serif;
+  font-size: clamp(2.6rem, 6vw, 3.6rem);
+  color: var(--tape);
+  letter-spacing: 0.02em;
+  text-shadow: 0 0 24px rgba(245, 213, 24, 0.2);
+}
+.dash-preview-den {
+  font-family: "Bebas Neue", sans-serif;
+  font-size: 1.4rem;
+  color: #8b91b8;
+}
+.dash-preview-bar {
+  height: 6px;
+  border-radius: 999px;
+  background: rgba(255, 255, 255, 0.08);
+  overflow: hidden;
+}
+.dash-preview-bar-fill {
+  height: 100%;
+  width: 0%;
+  background: var(--tape);
+  border-radius: 999px;
+  transition: width 600ms cubic-bezier(0.22, 1, 0.36, 1);
+}
+
+/* Raffle card — winner-card teaser with placeholder ECU-????. */
+.raffle-preview {
+  position: absolute;
+  inset: 0;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  gap: 0.2rem;
+  padding: 1rem;
+  text-align: center;
+}
+.raffle-preview-label {
+  font-size: 9px;
+  font-weight: 800;
+  letter-spacing: 0.22em;
+  text-transform: uppercase;
+  color: var(--tape);
+}
+.raffle-preview-num {
+  font-family: "Bebas Neue", sans-serif;
+  font-size: clamp(3rem, 8vw, 4.4rem);
+  color: var(--tape);
+  line-height: 1;
+  letter-spacing: 0.04em;
+  text-shadow: 0 0 24px rgba(245, 213, 24, 0.28);
+}
+.raffle-preview-sub {
+  font-size: 9px;
+  font-weight: 800;
+  letter-spacing: 0.18em;
+  text-transform: uppercase;
+  color: #8b91b8;
+}
+
 /* =================================================================
    DASHBOARD bits (slimmed)
    ================================================================= */
@@ -471,13 +622,38 @@ html, body {
   font-weight: 700;
   color: var(--tape);
 }
+.t-table .t-sortable {
+  cursor: pointer;
+  user-select: none;
+  transition: color 0.15s ease;
+}
+.t-table .t-sortable:hover {
+  color: var(--ink);
+}
+.t-table .t-sortable.t-sorted {
+  color: var(--tape);
+}
+.t-sort-ind {
+  display: inline-block;
+  font-size: 0.65rem;
+  margin-left: 2px;
+  vertical-align: middle;
+}
 
 /* =================================================================
    PRINT
    ================================================================= */
 @media print {
   @page { size: A4 landscape; margin: 0.35in; }
-  body { background: #fff !important; color: #000 !important; }
+  /* Force both <html> and <body> to white so the dark site bg never paints into the printed sheet
+     (esp. on the last page where the body content is shorter than the page). */
+  html, body {
+    background: #fff !important;
+    color: #000 !important;
+    min-height: 0 !important;
+    margin: 0 !important;
+    padding: 0 !important;
+  }
   .print\:hidden { display: none !important; }
   .print-sheet {
     display: grid;
@@ -507,6 +683,31 @@ html, body {
   );
   border-radius: 999px;
   opacity: 0.85;
+}
+
+/* Facebook follow pill in the footer. Uses official FB brand blue. */
+.fb-follow {
+  display: inline-flex;
+  align-items: center;
+  gap: 0.55rem;
+  padding: 0.6rem 1.15rem;
+  border-radius: 999px;
+  background: #1877F2;
+  color: #fff;
+  font-weight: 800;
+  font-size: 0.85rem;
+  letter-spacing: 0.01em;
+  text-decoration: none;
+  transition: transform 0.15s ease, box-shadow 0.15s ease, background 0.15s ease;
+  box-shadow: 0 4px 14px rgba(24, 119, 242, 0.30);
+}
+.fb-follow:hover {
+  transform: translateY(-1px);
+  background: #1769d6;
+  box-shadow: 0 6px 18px rgba(24, 119, 242, 0.42);
+}
+.fb-follow:active {
+  transform: translateY(0);
 }
 
 /* =================================================================

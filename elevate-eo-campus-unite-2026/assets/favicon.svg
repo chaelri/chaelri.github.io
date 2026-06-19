@@ -1,0 +1,15 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 64 64">
+  <!-- Yellow caution-tape face -->
+  <rect width="64" height="64" rx="10" fill="#f5d518"/>
+
+  <!-- CU monogram, big + bold so it reads at 16px -->
+  <text x="32" y="46" text-anchor="middle"
+        font-family="Impact, 'Arial Black', 'Helvetica Neue', sans-serif"
+        font-size="44" font-weight="900" fill="#07091a" letter-spacing="-2">CU</text>
+
+  <!-- Red corner ribbon with 26 (anniversary year shorthand) -->
+  <path d="M64 30 L64 64 L30 64 Z" fill="#e11d2c"/>
+  <text x="52" y="60" text-anchor="middle"
+        font-family="Impact, 'Arial Black', sans-serif"
+        font-size="13" font-weight="900" fill="#ffffff">26</text>
+</svg>
