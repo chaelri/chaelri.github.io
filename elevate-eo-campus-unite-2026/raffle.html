@@ -16,9 +16,8 @@
 <body class="bg-deep min-h-screen">
 
   <header class="px-4 sm:px-8 py-4 flex items-center justify-between border-b border-[color:var(--line)]">
-    <a href="index.html" class="flex items-center gap-3">
-      <img src="assets/elevate-logo.png" alt="Elevate" class="h-6 sm:h-7 brightness-0 invert" />
-      <span class="hidden sm:inline-flex items-center text-[10px] tracking-[0.2em] uppercase font-extrabold text-tape">East Ortigas</span>
+    <a href="index.html" class="flex items-center">
+      <img src="assets/elevate-east-ortigas.png" alt="Elevate East Ortigas" class="h-10 sm:h-12" />
     </a>
     <nav class="flex items-center gap-1 sm:gap-2 text-sm">
       <a href="index.html" class="btn-ghost"><span class="material-symbols-outlined" style="font-size:18px">home</span><span class="hidden sm:inline">Home</span></a>
@@ -117,8 +116,8 @@
     function renderAuth(user, isAdmin) {
       if (!user) { $auth.innerHTML = ""; return; }
       const photo = user.photoURL
-        ? `<img src="${user.photoURL}" referrerpolicy="no-referrer" class="w-7 h-7 rounded-full" />`
-        : `<div class="w-7 h-7 rounded-full bg-red text-on-red grid place-items-center text-xs font-extrabold">${(user.displayName||user.email||"?")[0].toUpperCase()}</div>`;
+        ? `<img src="${user.photoURL}" referrerpolicy="no-referrer" class="w-7 h-7 rounded-full object-cover shrink-0" />`
+        : `<div class="w-7 h-7 rounded-full bg-red text-on-red grid place-items-center text-xs font-extrabold shrink-0">${(user.displayName||user.email||"?")[0].toUpperCase()}</div>`;
       $auth.innerHTML = `<button id="btn-signout" class="btn-ghost text-sm">${photo}<span class="hidden sm:inline ml-1">Sign out</span></button>`;
       document.getElementById("btn-signout").addEventListener("click", () => signOutNow());
     }
