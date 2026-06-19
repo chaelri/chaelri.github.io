@@ -55,20 +55,20 @@
   <!-- Main -->
   <main id="raffle" class="px-4 sm:px-8 max-w-5xl mx-auto py-8 sm:py-12 hidden">
 
-    <div class="flex items-center gap-3 mb-4">
+    <div id="raffle-topbar" class="flex items-center gap-3 mb-4">
       <span class="tape-badge">Raffle</span>
       <span class="text-mute text-xs font-extrabold-ui uppercase tracking-widest">Registered tickets only</span>
     </div>
 
     <!-- Counter row -->
-    <div class="flex flex-wrap gap-2 mb-6">
+    <div id="raffle-counters" class="flex flex-wrap gap-2 mb-6">
       <span class="kpi-pill tape"><b id="kpi-eligible">0</b> eligible</span>
       <span class="kpi-pill"><b id="kpi-drawn">0</b> already drawn</span>
       <span class="kpi-pill red"><b id="kpi-remaining">0</b> remaining</span>
     </div>
 
     <!-- Big display -->
-    <div class="surface p-6 sm:p-12 text-center">
+    <div class="surface relative p-6 sm:p-12 text-center">
       <!-- Winner block (name + school/fb) reveals ABOVE the number, peeking up from behind it AS ONE UNIT -->
       <div class="winner-name-wrap">
         <div class="winner-name-inner">
@@ -85,10 +85,15 @@
           Draw winner
         </button>
       </div>
+
+      <!-- Focus-mode toggle — sits inside the raffle card's bottom-right corner -->
+      <button id="btn-fullscreen" class="raffle-fs-btn hidden" title="Toggle focus mode (Esc to exit)" aria-label="Toggle focus mode">
+        <span class="material-symbols-outlined" id="fs-icon" style="font-size:20px">fullscreen</span>
+      </button>
     </div>
 
     <!-- History -->
-    <section class="mt-10">
+    <section id="raffle-history" class="mt-10">
       <div class="flex items-center justify-between mb-3">
         <h2 class="font-display text-3xl text-ink">Draw history</h2>
         <span class="text-mute text-xs font-extrabold-ui uppercase tracking-widest">most recent first</span>
@@ -138,7 +143,7 @@
         ? `<img src="${user.photoURL}" referrerpolicy="no-referrer" class="rounded-full ring-1 ring-[color:var(--tape)] object-cover shrink-0" style="width:22px;height:22px;" />`
         : `<div class="rounded-full bg-red text-on-red grid place-items-center shrink-0" style="width:22px;height:22px;font-size:10px;font-weight:800;">${(user.displayName||user.email||"?")[0].toUpperCase()}</div>`;
       $auth.innerHTML = `
-        <div class="flex items-center bg-elev rounded-full border border-[color:var(--line)]" style="gap:6px;padding:3px 8px 3px 3px;">
+        <div class="auth-pill flex items-center" style="gap:6px;padding:3px 8px 3px 3px;">
           ${photo}
           <span class="hidden md:inline truncate" style="font-size:11px;font-weight:700;max-width:8rem;">${user.displayName || user.email}</span>
           <span style="font-size:9px;padding:2px 6px;border-radius:4px;background:var(--tape);color:var(--on-tape);font-weight:800;letter-spacing:0.1em;text-transform:uppercase;">Admin</span>
@@ -155,16 +160,40 @@
 
     watchAuth(({ user, isAdmin }) => {
       renderAuth(user, isAdmin);
+      const $fs = document.getElementById("btn-fullscreen");
       if (!isAdmin) {
         $main.classList.add("hidden");
         $gate.classList.remove("hidden");
+        $fs.classList.add("hidden");
+        if (document.fullscreenElement) document.exitFullscreen().catch(() => {});
         if (unwatchRegs)  { unwatchRegs();  unwatchRegs  = null; }
         if (unwatchDraws) { unwatchDraws(); unwatchDraws = null; }
         return;
       }
       $gate.classList.add("hidden");
       $main.classList.remove("hidden");
+      $fs.classList.remove("hidden");
       startListeners();
+    });
+
+    // ===== Focus mode — full-screen the raffle card, hide page chrome =====
+    const $fsBtn = document.getElementById("btn-fullscreen");
+    const $fsIcon = document.getElementById("fs-icon");
+    $fsBtn.addEventListener("click", async () => {
+      const isFull = !!document.fullscreenElement;
+      try {
+        if (isFull) await document.exitFullscreen();
+        else await document.documentElement.requestFullscreen();
+      } catch (e) {
+        // Fullscreen API might be blocked — still toggle the body class so chrome hides.
+        document.body.classList.toggle("raffle-focused");
+        $fsIcon.textContent = document.body.classList.contains("raffle-focused") ? "fullscreen_exit" : "fullscreen";
+      }
+    });
+    document.addEventListener("fullscreenchange", () => {
+      const isFull = !!document.fullscreenElement;
+      document.body.classList.toggle("raffle-focused", isFull);
+      $fsIcon.textContent = isFull ? "fullscreen_exit" : "fullscreen";
     });
 
     document.getElementById("btn-signin").addEventListener("click", () => {
