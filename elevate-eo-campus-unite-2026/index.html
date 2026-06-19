@@ -226,17 +226,32 @@
     const $tools = document.getElementById("admin-tools");
 
     // ===== Auth =====
+    // Public-facing: no visible sign-in button. Admins reach it via:
+    //   (a) triple-clicking the EO logo in the header (discreet on-page trigger), OR
+    //   (b) bookmarking dashboard.html / print.html / raffle.html — each of those has its own gate.
+    function triggerSignIn() {
+      signInWithGoogle().catch(err => {
+        if (err && err.code !== "auth/popup-closed-by-user") alert(err.message || "Sign-in failed.");
+      });
+    }
+    (function wireHiddenAdminTrigger() {
+      const logo = document.querySelector("header img[alt='Elevate East Ortigas']");
+      if (!logo) return;
+      let taps = 0, timer = null;
+      logo.style.cursor = "pointer";
+      logo.addEventListener("click", (e) => {
+        e.preventDefault();
+        taps++;
+        clearTimeout(timer);
+        timer = setTimeout(() => { taps = 0; }, 600);
+        if (taps >= 3) { taps = 0; triggerSignIn(); }
+      });
+    })();
+
     function renderAuth(user, isAdmin) {
       if (!user) {
-        $auth.innerHTML = `<button id="btn-signin" class="btn-ghost">
-          <span class="material-symbols-outlined" style="font-size:18px">login</span>
-          <span class="hidden sm:inline">Admin sign-in</span>
-        </button>`;
-        document.getElementById("btn-signin").addEventListener("click", () => {
-          signInWithGoogle().catch(err => {
-            if (err && err.code !== "auth/popup-closed-by-user") alert(err.message || "Sign-in failed.");
-          });
-        });
+        // Hidden from students/viewers. Admin uses triple-click on the EO logo to sign in.
+        $auth.innerHTML = "";
         return;
       }
       const photo = user.photoURL
