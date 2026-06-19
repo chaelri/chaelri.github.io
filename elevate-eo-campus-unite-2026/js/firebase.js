@@ -53,6 +53,8 @@ export function raffleLastDrawRef() { return ref(db, `${SCHEMA_ROOT}/raffle/last
 // Add emails here to grant dashboard / print / raffle access.
 export const ALLOWED_ADMINS = [
   "charliecayno@gmail.com",
+  "maui.victorio@ccf.org.ph",
+  "christian.ilao@ccf.org.ph",
 ];
 
 export function isAdminEmail(email) {
