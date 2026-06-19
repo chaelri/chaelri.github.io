@@ -300,6 +300,7 @@
           });
           $video.srcObject = _stream;
           await $video.play();
+          applyPreviewMirror($video, _stream);
           if ($status) $status.textContent = "Point your camera at the QR code on your ticket…";
         } catch (err) {
           console.error(err);
@@ -312,6 +313,22 @@
       // Button label always shows the camera you'd flip TO, not the current one.
       const $lbl = document.getElementById("flip-cam-label");
       if ($lbl) $lbl.textContent = _facingMode === "environment" ? "Front" : "Back";
+    }
+
+    // Mirror the PREVIEW only when the active camera is user-facing so left/right motion feels natural
+    // (laptops, phone selfie cam). Reads the actual track settings — on laptops, "environment" requests
+    // typically fall back to "user", and we want to mirror that too. The canvas read in scanFrame uses
+    // drawImage on the raw video stream and is NOT affected by CSS transforms, so jsQR still decodes
+    // the un-mirrored frame.
+    function applyPreviewMirror($video, stream) {
+      try {
+        const track = stream && stream.getVideoTracks && stream.getVideoTracks()[0];
+        const settings = track && track.getSettings ? track.getSettings() : null;
+        const actual = (settings && settings.facingMode) || _facingMode;
+        $video.style.transform = actual === "user" ? "scaleX(-1)" : "";
+      } catch {
+        $video.style.transform = _facingMode === "user" ? "scaleX(-1)" : "";
+      }
     }
 
     async function openScanner() {
@@ -329,6 +346,7 @@
         });
         $video.srcObject = _stream;
         await $video.play();
+        applyPreviewMirror($video, _stream);
         $status.textContent = "Point your camera at the QR code on your ticket…";
 
         const canvas = document.createElement("canvas");
