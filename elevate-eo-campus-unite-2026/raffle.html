@@ -61,23 +61,13 @@
       <div class="text-mute text-xs font-extrabold-ui uppercase tracking-widest">Winning ticket</div>
       <div id="raffle-display" class="raffle-display mt-3">ECU-----</div>
 
-      <div id="winner-meta" class="mt-5 min-h-[6rem]">
-        <div class="text-soft text-sm">Click <em>Draw</em> to pick a winner.</div>
-      </div>
+      <div id="winner-meta" class="mt-5 min-h-[6rem]"></div>
 
-      <div class="mt-8 flex flex-wrap items-center justify-center gap-3">
+      <div class="mt-8 flex items-center justify-center">
         <button id="btn-draw" class="btn-primary text-lg" style="padding:1rem 2rem;">
           <span class="material-symbols-outlined" style="font-size:22px">casino</span>
           Draw winner
         </button>
-        <button id="btn-undo" class="btn-ghost" disabled>
-          <span class="material-symbols-outlined" style="font-size:18px">undo</span>
-          Undo last
-        </button>
-        <label class="inline-flex items-center gap-2 text-soft text-sm ml-2">
-          <input id="exclude-prev" type="checkbox" checked class="accent-[color:var(--red)] w-4 h-4" />
-          Exclude previous winners
-        </label>
       </div>
     </div>
 
@@ -123,7 +113,6 @@
     const $display = document.getElementById("raffle-display");
     const $meta    = document.getElementById("winner-meta");
     const $draw    = document.getElementById("btn-draw");
-    const $undo    = document.getElementById("btn-undo");
 
     function renderAuth(user, isAdmin) {
       if (!user) { $auth.innerHTML = ""; return; }
@@ -234,15 +223,13 @@
 
     // ===== Draw =====
     $draw.addEventListener("click", drawWinner);
-    $undo.addEventListener("click", undoLast);
 
     async function drawWinner() {
-      const excludePrev = document.getElementById("exclude-prev").checked;
+      // Previous winners are always excluded — same person can't win twice. Use the
+      // per-row delete in history if you ever need to put someone back in the pool.
       const allRegs = Object.values(regsCache);
       const drawnIds = new Set(Object.values(drawsCache).map(d => d.ticketId));
-
-      let pool = allRegs;
-      if (excludePrev) pool = allRegs.filter(r => !drawnIds.has(r.ticketId));
+      const pool = allRegs.filter(r => !drawnIds.has(r.ticketId));
 
       if (!pool.length) {
         $meta.innerHTML = `<div class="text-red text-sm font-extrabold-ui uppercase tracking-widest">Pool is empty.</div>`;
@@ -303,27 +290,6 @@
         alert("Saved the result locally but couldn't write to Firebase. " + (err && err.message || ""));
       } finally {
         $draw.disabled = false;
-        $undo.disabled = false;
-      }
-    }
-
-    async function undoLast() {
-      const list = Object.entries(drawsCache)
-        .sort((a, b) => (b[1].drawnAt || 0) - (a[1].drawnAt || 0));
-      if (!list.length) return;
-      if (!confirm("Remove the most recent draw from history?")) return;
-      const [lastKey] = list[0];
-      const drawsAfter = { ...drawsCache };
-      delete drawsAfter[lastKey];
-      try {
-        await set(raffleDrawsRef(), Object.keys(drawsAfter).length ? drawsAfter : null);
-        const remaining = Object.values(drawsAfter).sort((a, b) => (b.drawnAt || 0) - (a.drawnAt || 0));
-        await set(raffleLastDrawRef(), remaining[0] || null);
-        $display.textContent = "ECU-----";
-        $meta.innerHTML = `<div class="text-soft text-sm">Last draw undone.</div>`;
-        $undo.disabled = !remaining.length;
-      } catch (err) {
-        alert("Undo failed: " + (err && err.message || ""));
       }
     }
   </script>
