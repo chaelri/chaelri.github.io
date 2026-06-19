@@ -58,15 +58,16 @@
 
     <!-- Big display -->
     <div class="surface p-6 sm:p-12 text-center">
-      <!-- Winner name reveals ABOVE the number, peeking up from behind it -->
+      <!-- Winner block (name + school/fb) reveals ABOVE the number, peeking up from behind it AS ONE UNIT -->
       <div class="winner-name-wrap">
-        <div id="winner-name" class="winner-name"></div>
+        <div class="winner-name-inner">
+          <div id="winner-name" class="winner-name"></div>
+          <div id="winner-extra" class="winner-extra"></div>
+        </div>
       </div>
 
-      <div class="text-mute text-xs font-extrabold-ui uppercase tracking-widest mt-2">Winning ticket</div>
+      <div class="text-mute text-xs font-extrabold-ui uppercase tracking-widest mt-1">Winning ticket</div>
       <div id="raffle-display" class="raffle-display mt-2">ECU-----</div>
-
-      <div id="winner-extra" class="winner-extra"></div>
 
       <div class="mt-8 flex items-center justify-center">
         <button id="btn-draw" class="btn-primary text-lg" style="padding:1rem 2rem;">
@@ -272,7 +273,6 @@
       // Reset: hide previous reveal so the new roll feels fresh
       $name.textContent = "";
       $extra.innerHTML = "";
-      $extra.classList.remove("is-revealed");
       document.querySelector(".winner-name-wrap").classList.remove("is-revealed");
 
       $draw.disabled = true;
@@ -315,7 +315,6 @@
         // Force a frame so the transition takes effect cleanly
         requestAnimationFrame(() => {
           document.querySelector(".winner-name-wrap").classList.add("is-revealed");
-          $extra.classList.add("is-revealed");
         });
       }, 550);
 

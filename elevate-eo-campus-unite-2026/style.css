@@ -539,16 +539,28 @@ html, body {
 
 /* =================================================================
    Raffle — winner reveal:
-   - name sits ABOVE the ECU number (final position)
-   - reveal: name starts hidden INSIDE the wrap (translateY 100%) so it looks
-     like it's emerging from BEHIND the number, then rises into view above
-   - school/fb sits BELOW the number, slides up into place
+   - Final position: name + school/fb block sits ABOVE the ECU number.
+   - Reveal: the whole block starts hidden inside the wrap (translateY 100%),
+     so it looks like it's emerging from BEHIND the number, then rises into
+     view above. Name and school/fb move TOGETHER — single transform on the
+     inner element, no staggered reveal.
    ================================================================= */
 .winner-name-wrap {
   position: relative;
   overflow: hidden;
   margin-bottom: 0.5rem;
-  min-height: clamp(2.6rem, 7vw, 4.6rem);
+  min-height: clamp(3.6rem, 9.5vw, 6.4rem);
+}
+.winner-name-inner {
+  transform: translateY(100%);
+  opacity: 0;
+  transition:
+    transform 720ms cubic-bezier(0.22, 1, 0.36, 1),
+    opacity  420ms ease-out;
+}
+.winner-name-wrap.is-revealed .winner-name-inner {
+  transform: translateY(0);
+  opacity: 1;
 }
 .winner-name {
   font-family: "Blauer Nue", "Inter", sans-serif;
@@ -559,31 +571,13 @@ html, body {
   color: var(--ink);
   word-break: break-word;
   text-shadow: 0 6px 24px rgba(0,0,0,0.35);
-  transform: translateY(100%);
-  opacity: 0;
-  transition:
-    transform 720ms cubic-bezier(0.22, 1, 0.36, 1),
-    opacity  420ms ease-out;
-}
-.winner-name-wrap.is-revealed .winner-name {
-  transform: translateY(0);
-  opacity: 1;
 }
 .winner-extra {
   display: flex; flex-wrap: wrap; align-items: center; justify-content: center;
   gap: 0.65rem;
   font-size: 1rem;
-  margin-top: 1rem;
+  margin-top: 0.4rem;
   min-height: 1.25rem;
-  transform: translateY(40%);
-  opacity: 0;
-  transition:
-    transform 600ms cubic-bezier(0.22, 1, 0.36, 1) 120ms,
-    opacity  400ms ease-out 160ms;
-}
-.winner-extra.is-revealed {
-  transform: translateY(0);
-  opacity: 1;
 }
 
 /* =================================================================
