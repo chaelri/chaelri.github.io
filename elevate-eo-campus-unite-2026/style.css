@@ -297,21 +297,25 @@ html, body {
   border: 1px solid rgba(245, 213, 24, 0.25);
 }
 .ticket-body {
-  padding: 0.3in 0.35in;
+  padding: 0.18in 0.22in 0.16in;
   background:
     radial-gradient(280px 200px at 0% 0%, rgba(225, 29, 44, 0.25) 0%, transparent 60%),
     linear-gradient(180deg, var(--bg-base) 0%, var(--bg-deep) 100%);
   position: relative;
+  display: flex;
+  flex-direction: column;
+  gap: 0.05in;
+  overflow: hidden;
 }
 .ticket-stub {
   border-left: 2px dashed rgba(245, 213, 24, 0.4);
   background: #fff;
   color: #0a0a0a;
-  display: grid;
-  grid-template-rows: 1fr auto;
+  display: flex;
+  flex-direction: column;
   align-items: center;
-  justify-items: center;
-  padding: 0.15in 0.1in;
+  justify-content: space-between;
+  padding: 0.12in 0.08in;
   text-align: center;
 }
 .ticket-perf-dot-top, .ticket-perf-dot-bot {
