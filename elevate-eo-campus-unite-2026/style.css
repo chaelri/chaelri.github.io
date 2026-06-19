@@ -297,14 +297,14 @@ html, body {
   border: 1px solid rgba(245, 213, 24, 0.25);
 }
 .ticket-body {
-  padding: 0.18in 0.22in 0.16in;
+  padding: 0.18in 0.22in 0.22in;
   background:
     radial-gradient(280px 200px at 0% 0%, rgba(225, 29, 44, 0.25) 0%, transparent 60%),
     linear-gradient(180deg, var(--bg-base) 0%, var(--bg-deep) 100%);
   position: relative;
   display: flex;
   flex-direction: column;
-  gap: 0.05in;
+  gap: 0.06in;
   overflow: hidden;
 }
 .ticket-stub {
@@ -538,13 +538,17 @@ html, body {
 }
 
 /* =================================================================
-   Raffle — winner reveal: name + school/fb peek UP from behind the ECU number
+   Raffle — winner reveal:
+   - name sits ABOVE the ECU number (final position)
+   - reveal: name starts hidden INSIDE the wrap (translateY 100%) so it looks
+     like it's emerging from BEHIND the number, then rises into view above
+   - school/fb sits BELOW the number, slides up into place
    ================================================================= */
 .winner-name-wrap {
   position: relative;
   overflow: hidden;
-  margin-top: 0.25rem;
-  padding: 0 0.25rem 0.25rem;
+  margin-bottom: 0.5rem;
+  min-height: clamp(2.6rem, 7vw, 4.6rem);
 }
 .winner-name {
   font-family: "Blauer Nue", "Inter", sans-serif;
@@ -555,25 +559,29 @@ html, body {
   color: var(--ink);
   word-break: break-word;
   text-shadow: 0 6px 24px rgba(0,0,0,0.35);
-  transform: translateY(110%);
+  transform: translateY(100%);
   opacity: 0;
   transition:
     transform 720ms cubic-bezier(0.22, 1, 0.36, 1),
     opacity  420ms ease-out;
 }
+.winner-name-wrap.is-revealed .winner-name {
+  transform: translateY(0);
+  opacity: 1;
+}
 .winner-extra {
   display: flex; flex-wrap: wrap; align-items: center; justify-content: center;
   gap: 0.65rem;
   font-size: 1rem;
-  margin-top: 0.65rem;
-  transform: translateY(60%);
+  margin-top: 1rem;
+  min-height: 1.25rem;
+  transform: translateY(40%);
   opacity: 0;
   transition:
-    transform 600ms cubic-bezier(0.22, 1, 0.36, 1) 180ms,
-    opacity  400ms ease-out 220ms;
+    transform 600ms cubic-bezier(0.22, 1, 0.36, 1) 120ms,
+    opacity  400ms ease-out 160ms;
 }
-.winner-name-wrap.is-revealed .winner-name,
-.winner-name-wrap.is-revealed .winner-extra {
+.winner-extra.is-revealed {
   transform: translateY(0);
   opacity: 1;
 }

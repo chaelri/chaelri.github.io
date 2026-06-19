@@ -18,6 +18,7 @@ export function confirmModal({
   cancelText = "Cancel",
   danger = false,
   icon = null, // material symbol name, e.g. "delete"
+  singleAction = false, // hide the cancel button — for info/alerts
 } = {}) {
   return new Promise((resolve) => {
     const h = ensureHost();
@@ -37,7 +38,7 @@ export function confirmModal({
           </div>
           ${message ? `<div class="cu-modal-body">${message}</div>` : ""}
           <div class="cu-modal-actions">
-            <button type="button" class="cu-modal-btn cu-modal-cancel">${escapeHtml(cancelText)}</button>
+            ${singleAction ? "" : `<button type="button" class="cu-modal-btn cu-modal-cancel">${escapeHtml(cancelText)}</button>`}
             <button type="button" class="cu-modal-btn cu-modal-confirm" style="background:${confirmBg};color:${confirmFg};">
               ${escapeHtml(confirmText)}
             </button>
@@ -62,7 +63,7 @@ export function confirmModal({
       else if (e.key === "Enter") close(true);
     }
     backdrop.addEventListener("click", (e) => { if (e.target === backdrop) close(false); });
-    $cancel.addEventListener("click", () => close(false));
+    if ($cancel) $cancel.addEventListener("click", () => close(false));
     $confirm.addEventListener("click", () => close(true));
     document.addEventListener("keydown", onKey);
 
