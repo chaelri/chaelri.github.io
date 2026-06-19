@@ -25,17 +25,72 @@
   <main class="px-4 sm:px-8 max-w-xl mx-auto pb-16">
 
     <!-- Loading -->
-    <div id="state-loading" class="mt-16 text-center text-mute">
+    <div id="state-loading" class="mt-16 text-center text-mute hidden">
       <div class="inline-block w-8 h-8 border-4 border-[color:var(--bg-elev)] border-t-[color:var(--tape)] rounded-full animate-spin"></div>
       <div class="mt-3 text-sm font-extrabold-ui uppercase tracking-widest">Loading ticket…</div>
     </div>
 
-    <!-- Invalid -->
+    <!-- Chooser: no ?id= in URL — let them scan or type -->
+    <div id="state-chooser" class="mt-8 hidden">
+      <div class="text-center">
+        <div class="font-display text-3xl sm:text-4xl text-ink">Got a ticket?</div>
+        <p class="text-soft mt-2 text-sm">Scan the QR on your printed ticket — or type your ticket number below.</p>
+      </div>
+
+      <div class="surface p-6 sm:p-8 mt-5 grid gap-5">
+        <button id="btn-open-scanner" class="btn-primary justify-center text-base" style="padding:0.85rem 1rem;">
+          <span class="material-symbols-outlined" style="font-size:22px">qr_code_scanner</span>
+          Scan ticket QR
+        </button>
+
+        <div class="flex items-center gap-3 text-mute text-[10px] font-extrabold-ui uppercase tracking-widest">
+          <div class="flex-1 h-px bg-[color:var(--line)]"></div><span>or</span><div class="flex-1 h-px bg-[color:var(--line)]"></div>
+        </div>
+
+        <form id="manual-form" class="grid gap-2" novalidate>
+          <label class="field-label" for="manual-id">Ticket number <span class="text-mute font-normal normal-case tracking-normal">(1–1,000)</span></label>
+          <div class="flex items-stretch gap-2">
+            <input id="manual-id" type="text" inputmode="numeric" pattern="[0-9]{1,4}"
+                   placeholder="e.g. 21" maxlength="4"
+                   class="input font-mono tracking-widest text-center" style="max-width:140px;" />
+            <button type="submit" class="btn-tape whitespace-nowrap flex-1 justify-center">
+              <span class="material-symbols-outlined" style="font-size:18px">arrow_forward</span>
+              Continue
+            </button>
+          </div>
+          <div id="manual-err" class="hidden text-xs text-red font-extrabold-ui uppercase tracking-wider mt-1"></div>
+        </form>
+      </div>
+    </div>
+
+    <!-- Scanner: live camera preview -->
+    <div id="state-scanner" class="mt-6 hidden">
+      <div class="surface p-4 sm:p-5">
+        <div class="flex items-center justify-between mb-3">
+          <div class="font-extrabold-ui">Scan your ticket QR</div>
+          <button id="btn-close-scanner" class="btn-ghost text-xs" style="padding:0.4rem 0.7rem;">
+            <span class="material-symbols-outlined" style="font-size:16px">close</span>
+            Cancel
+          </button>
+        </div>
+        <div class="qr-stage">
+          <video id="qr-video" playsinline muted autoplay></video>
+          <div class="qr-frame"></div>
+        </div>
+        <div id="qr-status" class="mt-3 text-xs text-mute font-extrabold-ui uppercase tracking-widest text-center">Point your camera at the QR code on your ticket…</div>
+      </div>
+    </div>
+
+    <!-- Invalid (only after a real lookup miss) -->
     <div id="state-invalid" class="mt-10 hidden">
       <div class="surface p-6 sm:p-8 text-center">
         <span class="material-symbols-outlined text-red" style="font-size:48px">error</span>
         <div class="font-extrabold-ui text-xl mt-2">Ticket not found</div>
-        <p class="text-soft mt-2 text-sm">We couldn't find a ticket matching this QR code. Please ask the Elevate East Ortigas team to check it for you.</p>
+        <p class="text-soft mt-2 text-sm">We couldn't find a ticket matching that number. Please ask the Elevate East Ortigas team to check it for you.</p>
+        <button id="btn-back-chooser" class="btn-ghost mt-5 text-sm justify-center mx-auto">
+          <span class="material-symbols-outlined" style="font-size:18px">arrow_back</span>
+          Try another ticket
+        </button>
       </div>
     </div>
 
@@ -133,23 +188,135 @@
   <script type="module">
     import { get, set, update, ticketRef, registrationRef } from "./js/firebase.js";
 
-    const $loading = document.getElementById("state-loading");
-    const $invalid = document.getElementById("state-invalid");
-    const $already = document.getElementById("state-already");
-    const $form    = document.getElementById("state-form");
-    const $success = document.getElementById("state-success");
+    const $loading  = document.getElementById("state-loading");
+    const $chooser  = document.getElementById("state-chooser");
+    const $scanner  = document.getElementById("state-scanner");
+    const $invalid  = document.getElementById("state-invalid");
+    const $already  = document.getElementById("state-already");
+    const $form     = document.getElementById("state-form");
+    const $success  = document.getElementById("state-success");
 
     function show(el) {
-      [$loading, $invalid, $already, $form, $success].forEach(n => n.classList.add("hidden"));
+      [$loading, $chooser, $scanner, $invalid, $already, $form, $success].forEach(n => n.classList.add("hidden"));
       el.classList.remove("hidden");
+      if (el !== $scanner) stopScanner();
     }
 
+    const idPattern = /^ECU-\d{4}$/;
     const params = new URLSearchParams(window.location.search);
     const rawId = (params.get("id") || "").trim().toUpperCase();
-    const idPattern = /^ECU-\d{4}$/;
 
-    if (!idPattern.test(rawId)) show($invalid);
-    else loadTicket(rawId);
+    if (!rawId) show($chooser);
+    else if (!idPattern.test(rawId)) show($invalid);
+    else { show($loading); loadTicket(rawId); }
+
+    // ===== Manual ticket entry =====
+    document.getElementById("manual-form").addEventListener("submit", (e) => {
+      e.preventDefault();
+      const $err = document.getElementById("manual-err");
+      $err.classList.add("hidden");
+      const raw = document.getElementById("manual-id").value.trim().replace(/\D/g, "");
+      const n = parseInt(raw, 10);
+      if (!raw || isNaN(n) || n < 1 || n > 1000) {
+        $err.textContent = "Enter a number between 1 and 1,000.";
+        $err.classList.remove("hidden");
+        return;
+      }
+      const id = "ECU-" + String(n).padStart(4, "0");
+      window.location.search = "?id=" + encodeURIComponent(id);
+    });
+    document.getElementById("manual-id").addEventListener("input", (e) => {
+      e.target.value = e.target.value.replace(/\D/g, "").slice(0, 4);
+    });
+
+    // ===== QR scanner =====
+    let _jsQR = null;
+    let _stream = null;
+    let _scanRaf = 0;
+
+    async function loadJsQR() {
+      if (_jsQR) return _jsQR;
+      const m = await import("https://esm.sh/jsqr@1.4.0");
+      _jsQR = m.default || m.jsQR || m;
+      return _jsQR;
+    }
+
+    function stopScanner() {
+      if (_scanRaf) { cancelAnimationFrame(_scanRaf); _scanRaf = 0; }
+      if (_stream) {
+        _stream.getTracks().forEach(t => t.stop());
+        _stream = null;
+      }
+      const v = document.getElementById("qr-video");
+      if (v) { v.srcObject = null; }
+    }
+
+    document.getElementById("btn-open-scanner").addEventListener("click", openScanner);
+    document.getElementById("btn-close-scanner").addEventListener("click", () => show($chooser));
+    document.getElementById("btn-back-chooser").addEventListener("click", () => {
+      // Drop the bad ?id= so the chooser shows on next nav
+      window.location.assign("register.html");
+    });
+
+    async function openScanner() {
+      show($scanner);
+      const $status = document.getElementById("qr-status");
+      const $video  = document.getElementById("qr-video");
+      try {
+        $status.textContent = "Loading camera…";
+        const jsQR = await loadJsQR();
+        _stream = await navigator.mediaDevices.getUserMedia({
+          video: { facingMode: { ideal: "environment" } },
+          audio: false,
+        });
+        $video.srcObject = _stream;
+        await $video.play();
+        $status.textContent = "Point your camera at the QR code on your ticket…";
+
+        const canvas = document.createElement("canvas");
+        const ctx = canvas.getContext("2d", { willReadFrequently: true });
+
+        function scanFrame() {
+          if (!_stream) return;
+          const w = $video.videoWidth, h = $video.videoHeight;
+          if (w && h) {
+            canvas.width = w; canvas.height = h;
+            ctx.drawImage($video, 0, 0, w, h);
+            const img = ctx.getImageData(0, 0, w, h);
+            const code = jsQR(img.data, w, h, { inversionAttempts: "dontInvert" });
+            if (code && code.data) {
+              const id = extractTicketId(code.data);
+              if (id) {
+                $status.textContent = "Got it — opening your ticket…";
+                stopScanner();
+                window.location.search = "?id=" + encodeURIComponent(id);
+                return;
+              }
+              // Not a ticket QR — keep scanning, but hint to user
+              $status.textContent = "QR detected but it's not a Campus UNITE ticket. Try again…";
+            }
+          }
+          _scanRaf = requestAnimationFrame(scanFrame);
+        }
+        _scanRaf = requestAnimationFrame(scanFrame);
+      } catch (err) {
+        console.error(err);
+        $status.innerHTML = `Couldn't open the camera. ${err && err.message ? `<br/><span class="text-mute">${err.message}</span>` : ""}<br/>Use the manual number entry instead.`;
+      }
+    }
+
+    function extractTicketId(text) {
+      if (!text) return null;
+      // Either the URL we generated, OR raw "ECU-####"
+      const direct = text.trim().toUpperCase();
+      if (idPattern.test(direct)) return direct;
+      try {
+        const u = new URL(text);
+        const id = (u.searchParams.get("id") || "").trim().toUpperCase();
+        if (idPattern.test(id)) return id;
+      } catch { /* not a URL */ }
+      return null;
+    }
 
     async function loadTicket(id) {
       try {
