@@ -1,0 +1,270 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>Campus UNITE 2026 — Elevate East Ortigas</title>
+
+  <link rel="icon" href="assets/elevate-logo-red.png" />
+
+  <!-- Social meta -->
+  <meta property="og:title" content="Campus UNITE 2026 — Elevate's 13th Anniversary" />
+  <meta property="og:description" content="July 17, 2026 · 3PM · 3F Parking Level, SM East Ortigas. Hosted by Elevate East Ortigas." />
+  <meta property="og:type" content="website" />
+
+  <!-- Tailwind v4 (browser CDN) -->
+  <script src="https://cdn.tailwindcss.com"></script>
+
+  <!-- Fonts: Bebas Neue (display, Google) + Blauer Nue (UI, self-hosted in assets/fonts/) -->
+  <link rel="preconnect" href="https://fonts.googleapis.com" />
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
+  <link href="https://fonts.googleapis.com/css2?family=Bebas+Neue&family=JetBrains+Mono:wght@400;600&display=swap" rel="stylesheet" />
+  <link href="https://fonts.googleapis.com/css2?family=Material+Symbols+Outlined:opsz,wght,FILL,GRAD@24,400,0,0" rel="stylesheet" />
+
+  <link rel="stylesheet" href="style.css" />
+
+  <style>
+    /* Subtle backdrop noise on the hero — pure CSS, no asset needed. */
+    .hero-bg {
+      position: relative;
+      background:
+        radial-gradient(900px 500px at 80% -10%, rgba(225, 29, 44, 0.18) 0%, transparent 65%),
+        radial-gradient(700px 400px at -10% 110%, rgba(245, 213, 24, 0.10) 0%, transparent 60%),
+        linear-gradient(180deg, #07091a 0%, #0c1130 100%);
+    }
+    .hero-bg::after {
+      content: ""; position: absolute; inset: 0; pointer-events: none;
+      background-image: radial-gradient(rgba(255,255,255,0.04) 1px, transparent 1px);
+      background-size: 3px 3px;
+      mix-blend-mode: overlay;
+      opacity: 0.6;
+    }
+    /* The big tape rotates ever-so-slightly for that pasted-on poster feel */
+    .cu-mark.cu-hero { transform: rotate(-1.2deg); transform-origin: left top; }
+  </style>
+</head>
+
+<body class="bg-deep min-h-screen">
+
+  <!-- ===== Top bar ===== -->
+  <header class="px-4 sm:px-8 py-4 flex items-center justify-between border-b border-[color:var(--line)] bg-deep relative z-20">
+    <div class="flex items-center gap-3">
+      <img src="assets/elevate-logo.png" alt="Elevate" class="h-6 sm:h-7 brightness-0 invert" />
+      <span class="hidden sm:inline-flex items-center text-[10px] tracking-[0.2em] uppercase font-extrabold text-tape">
+        East Ortigas
+      </span>
+    </div>
+    <div id="auth-control" class="flex items-center gap-2 text-sm"></div>
+  </header>
+
+  <!-- ===== Hero ===== -->
+  <section class="hero-bg relative">
+    <div class="relative z-10 max-w-6xl mx-auto px-4 sm:px-8 pt-10 sm:pt-16 pb-12">
+      <div class="flex items-center gap-3">
+        <span class="tape-badge">Elevate East Ortigas</span>
+        <span class="text-mute text-xs sm:text-sm font-extrabold-ui uppercase tracking-widest">presents</span>
+      </div>
+
+      <!-- CAMPUS UNITE keyart -->
+      <div class="cu-mark cu-hero mt-5 sm:mt-7">
+        <span class="cu-tape">CAMPUS UNITE</span>
+        <span class="cu-banner">Elevate's 13th Anniversary</span>
+      </div>
+
+      <p class="mt-8 sm:mt-10 text-lg sm:text-2xl text-soft max-w-3xl leading-relaxed">
+        We won't stop until we see a campus and a nation revival.<br/>
+        Because just as our campuses need Jesus more and more, so does our nation.
+      </p>
+
+      <!-- Event detail rail -->
+      <div class="mt-7 grid grid-cols-1 sm:grid-cols-3 gap-3">
+        <div class="surface-soft p-4 flex items-center gap-3">
+          <span class="material-symbols-outlined text-tape" style="font-size:28px">event</span>
+          <div>
+            <div class="text-[10px] uppercase tracking-widest text-mute font-extrabold-ui">When</div>
+            <div class="font-extrabold-ui text-base">July 17, 2026 · Friday</div>
+          </div>
+        </div>
+        <div class="surface-soft p-4 flex items-center gap-3">
+          <span class="material-symbols-outlined text-tape" style="font-size:28px">schedule</span>
+          <div>
+            <div class="text-[10px] uppercase tracking-widest text-mute font-extrabold-ui">Time</div>
+            <div class="font-extrabold-ui text-base">3:00 PM</div>
+          </div>
+        </div>
+        <div class="surface-soft p-4 flex items-center gap-3">
+          <span class="material-symbols-outlined text-tape" style="font-size:28px">location_on</span>
+          <div>
+            <div class="text-[10px] uppercase tracking-widest text-mute font-extrabold-ui">Where</div>
+            <div class="font-extrabold-ui text-base">3F Parking Level, SM East Ortigas</div>
+          </div>
+        </div>
+      </div>
+
+      <!-- Countdown -->
+      <div class="mt-8">
+        <div class="text-[10px] uppercase tracking-widest text-mute font-extrabold-ui mb-2">Countdown</div>
+        <div id="countdown" class="grid grid-cols-4 gap-2 sm:gap-3 max-w-md">
+          <div class="count-tile"><div id="cd-days" class="count-num">--</div><div class="count-label">Days</div></div>
+          <div class="count-tile"><div id="cd-hrs"  class="count-num">--</div><div class="count-label">Hrs</div></div>
+          <div class="count-tile"><div id="cd-min"  class="count-num">--</div><div class="count-label">Min</div></div>
+          <div class="count-tile"><div id="cd-sec"  class="count-num">--</div><div class="count-label">Sec</div></div>
+        </div>
+      </div>
+    </div>
+  </section>
+
+  <!-- ===== Trailer ===== -->
+  <section class="px-4 sm:px-8 max-w-5xl mx-auto py-12 sm:py-16">
+    <div class="flex items-end justify-between mb-4">
+      <h2 class="font-display text-4xl sm:text-5xl text-ink">Watch the trailer</h2>
+      <span class="text-mute text-xs font-extrabold-ui uppercase tracking-widest hidden sm:inline">East Ortigas · 13th Anniv</span>
+    </div>
+    <div class="hr-tape max-w-[180px] mb-6"></div>
+
+    <div class="video-frame">
+      <video src="assets/trailer.mp4" controls playsinline preload="metadata" poster="" muted></video>
+    </div>
+
+    <p class="text-soft text-sm sm:text-base mt-5 max-w-3xl">
+      Blessed is the campus and the nation whose God is the LORD. Invite your friends, classmates and teachers. See you there!
+    </p>
+    <div class="mt-3 font-mono text-xs text-mute">#ElevateCampusUNITE2026 · #ElevateEastOrtigas</div>
+  </section>
+
+  <!-- ===== Already have a ticket? ===== -->
+  <section class="px-4 sm:px-8 max-w-5xl mx-auto pb-12 sm:pb-16">
+    <div class="surface p-6 sm:p-8 grid sm:grid-cols-[1fr_auto] gap-4 sm:items-center">
+      <div>
+        <div class="font-display text-3xl sm:text-4xl text-tape">Got a printed ticket?</div>
+        <p class="text-soft text-sm sm:text-base mt-1.5">
+          Scan the QR on your ticket to register your name to it. No QR scanner? Type your ticket number below.
+        </p>
+      </div>
+      <form id="manual-register" class="flex items-stretch gap-2">
+        <input id="manual-id" type="text" inputmode="text" placeholder="ECU-0001" maxlength="8"
+               class="input font-mono uppercase tracking-widest" style="max-width:160px;" />
+        <button type="submit" class="btn-tape whitespace-nowrap">
+          <span class="material-symbols-outlined" style="font-size:18px">arrow_forward</span>
+          Register
+        </button>
+      </form>
+    </div>
+  </section>
+
+  <!-- ===== Admin tools (only visible to allowlisted Google sign-ins) ===== -->
+  <section id="admin-tools" class="px-4 sm:px-8 max-w-6xl mx-auto pb-16 hidden">
+    <div class="flex items-center gap-3 mb-3">
+      <span class="tape-badge">Admin</span>
+      <span class="text-mute text-xs font-extrabold-ui uppercase tracking-widest">restricted tools</span>
+    </div>
+    <div class="grid grid-cols-1 sm:grid-cols-3 gap-3 sm:gap-4">
+      <a href="dashboard.html" class="surface p-5 hover:border-red-500 transition group">
+        <div class="w-11 h-11 rounded-lg bg-red text-on-red grid place-items-center mb-3">
+          <span class="material-symbols-outlined">groups</span>
+        </div>
+        <div class="font-extrabold-ui text-lg text-ink">Dashboard</div>
+        <div class="text-soft text-sm mt-1">View registered attendees + counts.</div>
+      </a>
+      <a href="print.html" class="surface p-5 hover:border-red-500 transition group">
+        <div class="w-11 h-11 rounded-lg bg-tape text-on-tape grid place-items-center mb-3">
+          <span class="material-symbols-outlined">print</span>
+        </div>
+        <div class="font-extrabold-ui text-lg text-ink">Print Tickets</div>
+        <div class="text-soft text-sm mt-1">1,000 ECU-#### tickets · landscape A4.</div>
+      </a>
+      <a href="raffle.html" class="surface p-5 hover:border-red-500 transition group">
+        <div class="w-11 h-11 rounded-lg bg-red text-on-red grid place-items-center mb-3">
+          <span class="material-symbols-outlined">casino</span>
+        </div>
+        <div class="font-extrabold-ui text-lg text-ink">Raffle</div>
+        <div class="text-soft text-sm mt-1">Randomize a winning ticket number.</div>
+      </a>
+    </div>
+  </section>
+
+  <!-- ===== Footer ===== -->
+  <footer class="border-t border-[color:var(--line)] py-8 px-4 text-center text-xs text-mute">
+    <div class="font-extrabold-ui uppercase tracking-widest text-tape">Elevate East Ortigas</div>
+    <div class="mt-1">Campus UNITE 2026 · Elevate's 13th Anniversary</div>
+    <div class="mt-2 font-mono opacity-60">Schema: <code>elevate-eo-campus-unite-2026</code> · <code>test-database-55379</code></div>
+  </footer>
+
+  <!-- ===== Module logic ===== -->
+  <script type="module">
+    import { watchAuth, signInWithGoogle, signOutNow, ALLOWED_ADMINS } from "./js/firebase.js";
+
+    const $auth  = document.getElementById("auth-control");
+    const $tools = document.getElementById("admin-tools");
+
+    // ===== Auth =====
+    function renderAuth(user, isAdmin) {
+      if (!user) {
+        $auth.innerHTML = `<button id="btn-signin" class="btn-ghost">
+          <span class="material-symbols-outlined" style="font-size:18px">login</span>
+          <span class="hidden sm:inline">Admin sign-in</span>
+        </button>`;
+        document.getElementById("btn-signin").addEventListener("click", () => {
+          signInWithGoogle().catch(err => {
+            if (err && err.code !== "auth/popup-closed-by-user") alert(err.message || "Sign-in failed.");
+          });
+        });
+        return;
+      }
+      const photo = user.photoURL
+        ? `<img src="${user.photoURL}" referrerpolicy="no-referrer" class="w-7 h-7 rounded-full ring-2 ring-[color:var(--tape)]" />`
+        : `<div class="w-7 h-7 rounded-full bg-red text-on-red grid place-items-center text-xs font-extrabold">${(user.displayName||user.email||"?")[0].toUpperCase()}</div>`;
+      const badge = isAdmin
+        ? `<span class="tape-badge" style="font-size:0.6rem; padding:0.2rem 0.5rem; transform:none; clip-path:none; border-radius:0.3rem;">Admin</span>`
+        : `<span class="text-[10px] font-extrabold uppercase tracking-widest text-mute">view only</span>`;
+      $auth.innerHTML = `
+        <div class="flex items-center gap-2.5 bg-elev px-2.5 py-1 rounded-full border border-[color:var(--line)]">
+          ${photo}
+          <span class="hidden md:inline text-sm font-extrabold-ui truncate max-w-[10rem]">${user.displayName || user.email}</span>
+          ${badge}
+          <button id="btn-signout" class="text-mute hover:text-red ml-1" title="Sign out">
+            <span class="material-symbols-outlined" style="font-size:18px">logout</span>
+          </button>
+        </div>`;
+      document.getElementById("btn-signout").addEventListener("click", () => signOutNow());
+    }
+
+    watchAuth(({ user, isAdmin }) => {
+      renderAuth(user, isAdmin);
+      $tools.classList.toggle("hidden", !isAdmin);
+    });
+
+    // ===== Countdown =====
+    const target = new Date("2026-07-17T15:00:00+08:00").getTime();
+    function tickCountdown() {
+      const ms = target - Date.now();
+      const negative = ms < 0;
+      const t = Math.abs(ms);
+      const days = Math.floor(t / 86400000);
+      const hrs  = Math.floor(t / 3600000) % 24;
+      const min  = Math.floor(t / 60000) % 60;
+      const sec  = Math.floor(t / 1000) % 60;
+      document.getElementById("cd-days").textContent = negative ? "—" : String(days).padStart(2, "0");
+      document.getElementById("cd-hrs").textContent  = negative ? "—" : String(hrs).padStart(2, "0");
+      document.getElementById("cd-min").textContent  = negative ? "—" : String(min).padStart(2, "0");
+      document.getElementById("cd-sec").textContent  = negative ? "—" : String(sec).padStart(2, "0");
+    }
+    tickCountdown();
+    setInterval(tickCountdown, 1000);
+
+    // ===== Manual register (no QR scanner) =====
+    document.getElementById("manual-register").addEventListener("submit", (e) => {
+      e.preventDefault();
+      let raw = (document.getElementById("manual-id").value || "").trim().toUpperCase();
+      // Forgive missing prefix or padding: "1" -> "ECU-0001", "ecu1" -> "ECU-0001"
+      const digits = raw.replace(/[^0-9]/g, "");
+      if (!digits) { alert("Enter a ticket number like ECU-0001."); return; }
+      const n = parseInt(digits, 10);
+      if (!n || n < 1 || n > 1000) { alert("Ticket number must be between 1 and 1000."); return; }
+      const id = `ECU-${String(n).padStart(4, "0")}`;
+      window.location.href = `register.html?id=${id}`;
+    });
+  </script>
+
+</body>
+</html>

@@ -88,6 +88,29 @@ Print-ready wedding collaterals studio for Charlie & Karla (July 2, 2026) — se
   - **Templates do NOT depend on each other** — each `templates/<name>/app.js` is self-contained other than its imports from `shared/`. Adding an 8th template = `mkdir templates/<name>/`, write its two files, and add an entry to `TEMPLATES` in `shared/state.js`.
 - **Full docs:** See `knowledge/collaterals/SUMMARY.md`.
 
+### elevate-eo-campus-unite-2026/  🟢
+
+Event app for **Campus UNITE — Elevate's 13th Anniversary** (July 17, 2026 · 3:00 PM · 3F Parking Level, SM East Ortigas), hosted by Elevate East Ortigas (CCF Elevate satellite). 1,000 numbered tickets (ECU-0001 → ECU-1000), QR-driven self-registration, admin dashboard, A4 print sheet, and a raffle.
+
+- **Tech:** vanilla JS (ES modules, no build), Tailwind v4 (browser CDN), Firebase v9 modular SDK (Auth + RTDB), Material Symbols Outlined, qrcode-generator via esm.sh. Fonts: Bebas Neue (Google) for big display + **Blauer Nue self-hosted** in `assets/fonts/` (5 weights, replaced the initial Manrope substitute after Charlie supplied the OTFs — paid Latinotype font, iFonts personal-use license bundled).
+- **Entry:**
+  - `index.html` — public landing for students. Hero with Bebas Neue "CAMPUS UNITE" yellow-tape headline + red diagonal "Elevate's 13th Anniversary" banner, embedded `assets/trailer.mp4` (9.3 MB, 32 s), countdown to event, manual-ticket-number form. Admin tool cards (Dashboard/Print/Raffle) appear only after Google sign-in for allowlisted emails.
+  - `register.html` — public via `?id=ECU-####` from a scanned QR. Form: name, age, gender, FB name, school. Race-protected — re-checks ticket state at submit time.
+  - `dashboard.html` — admin. Simple registered-attendees table + search + CSV export + one-time "Seed 1,000 tickets" button (idempotent).
+  - `print.html` — admin. Renders N concert-ticket-style cards (dark navy body + yellow tape headline + white perforated stub with QR + Bebas Neue ECU-#### number). A4 landscape, 2 per page, browser-print-to-PDF.
+  - `raffle.html` — admin. Big yellow Bebas Neue rolling number, draws from registered pool, persists history, optional exclude-previous-winners, undo last.
+  - `js/firebase.js` — shared init (`test-database-55379`), `ALLOWED_ADMINS = ['charliecayno@gmail.com']`, ticket/registration/raffle path helpers, `registrationUrl(id)` for QR encoding.
+- **Deploy:** GitHub Pages at `/elevate-eo-campus-unite-2026/`.
+- **Schema:** `elevate-eo-campus-unite-2026/{tickets, registrations, raffle}` under shared `test-database-55379` (asia-southeast1). The `eo` infix anticipates sibling Elevate satellites reusing this app with their own SCHEMA_ROOT.
+- **Quirks:**
+  - **Custom "Campus UNITE" mark in pure HTML/CSS** — `.cu-mark` (with `cu-hero`/`cu-md`/`cu-sm` sizes) builds the yellow-tape + red-banner keyart with `clip-path` polygons for torn edges + a `rotate(-2.5deg)` red banner. No image asset needed — scales crisply at every viewport.
+  - **Palette is dark navy + yellow + red, not red+white.** Pulled from the trailer's tone (frame_001 shows yellow "IT'S TIME" headline on motion-blurred dark photo) and the keyart Charlie supplied. The earlier white+red iteration was abandoned mid-build.
+  - **Trailer was supplied as a 9.3 MB MP4** in Charlie's Downloads (Facebook-shared filename). Copied to `assets/trailer.mp4`; ffmpeg was used to extract reference frames during theme exploration, then deleted.
+  - **Blauer Nue's family has Bold-Italic but no plain Bold .otf** — the `@font-face` declaration maps weight 700 onto the ExtraBold file using `font-weight: 700 800` range so CSS requests for either weight resolve.
+  - Race-protected registration: `register.html` re-checks `tickets/ECU-####/registered` at submit-time, not just on load, so two simultaneous QR scans of the same ticket don't both succeed.
+  - **No Firebase Security Rules yet** — same posture as `weddingbar/` etc. Lock down with rules before going public if needed.
+- **Full docs:** See `knowledge/elevate-eo-campus-unite-2026/SUMMARY.md`.
+
 ### devo/  🟢
 
 Bible devotional progressive web app (PWA) — daily passages, AI explanations, drawing canvas, TTS, Firebase sync.

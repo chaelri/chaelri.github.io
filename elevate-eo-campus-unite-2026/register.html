@@ -1,0 +1,238 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0" />
+  <title>Register — Campus UNITE 2026</title>
+  <link rel="icon" href="assets/elevate-logo-red.png" />
+  <script src="https://cdn.tailwindcss.com"></script>
+  <link rel="preconnect" href="https://fonts.googleapis.com" />
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
+  <link href="https://fonts.googleapis.com/css2?family=Bebas+Neue&family=JetBrains+Mono:wght@400;600&display=swap" rel="stylesheet" />
+  <link href="https://fonts.googleapis.com/css2?family=Material+Symbols+Outlined:opsz,wght,FILL,GRAD@24,400,0,0" rel="stylesheet" />
+  <link rel="stylesheet" href="style.css" />
+</head>
+
+<body class="bg-deep min-h-screen">
+
+  <header class="px-4 sm:px-8 py-4 flex items-center justify-between border-b border-[color:var(--line)]">
+    <a href="index.html" class="flex items-center gap-3">
+      <img src="assets/elevate-logo.png" alt="Elevate" class="h-6 sm:h-7 brightness-0 invert" />
+      <span class="hidden sm:inline-flex items-center text-[10px] tracking-[0.2em] uppercase font-extrabold text-tape">East Ortigas</span>
+    </a>
+    <div class="cu-mark cu-sm">
+      <span class="cu-tape">CAMPUS UNITE</span>
+      <span class="cu-banner">13th Anniv</span>
+    </div>
+  </header>
+
+  <main class="px-4 sm:px-8 max-w-xl mx-auto pb-16">
+
+    <!-- Loading -->
+    <div id="state-loading" class="mt-16 text-center text-mute">
+      <div class="inline-block w-8 h-8 border-4 border-[color:var(--bg-elev)] border-t-[color:var(--tape)] rounded-full animate-spin"></div>
+      <div class="mt-3 text-sm font-extrabold-ui uppercase tracking-widest">Loading ticket…</div>
+    </div>
+
+    <!-- Invalid -->
+    <div id="state-invalid" class="mt-10 hidden">
+      <div class="surface p-6 sm:p-8 text-center">
+        <span class="material-symbols-outlined text-red" style="font-size:48px">error</span>
+        <div class="font-extrabold-ui text-xl mt-2">Ticket not found</div>
+        <p class="text-soft mt-2 text-sm">We couldn't find a ticket matching this QR code. Please ask the Elevate East Ortigas team to check it for you.</p>
+      </div>
+    </div>
+
+    <!-- Already registered -->
+    <div id="state-already" class="mt-10 hidden">
+      <div class="surface p-6 sm:p-8 text-center" style="border-color: var(--tape);">
+        <span class="material-symbols-outlined text-tape" style="font-size:48px">verified</span>
+        <div class="font-extrabold-ui text-xl mt-2">Already registered.</div>
+        <div class="mt-3 text-xs uppercase tracking-widest font-extrabold-ui text-mute">Ticket</div>
+        <div id="already-ticket" class="raffle-display" style="font-size:clamp(3rem,12vw,5rem); text-shadow:0 0 18px rgba(245,213,24,0.4);"></div>
+        <div id="already-name" class="text-soft mt-2"></div>
+        <div class="text-xs text-mute mt-4">Not your ticket? Contact the registration desk.</div>
+      </div>
+    </div>
+
+    <!-- Form -->
+    <div id="state-form" class="mt-6 hidden">
+      <div class="text-center mt-6">
+        <div class="text-xs uppercase tracking-widest font-extrabold-ui text-mute">Your ticket</div>
+        <div id="form-ticket" class="raffle-display" style="font-size:clamp(3rem,14vw,6rem); text-shadow:0 0 24px rgba(245,213,24,0.4);"></div>
+      </div>
+
+      <div class="surface p-6 sm:p-8 mt-4">
+        <div class="font-extrabold-ui text-xl">Register for Campus UNITE</div>
+        <p class="text-soft mt-1 text-sm">
+          Fill this out once. Your ticket number is your entry pass <em>and</em> your raffle entry.
+        </p>
+
+        <form id="reg-form" class="mt-6 grid gap-4" novalidate>
+          <div>
+            <label class="field-label" for="f-name">Full name</label>
+            <input id="f-name" name="name" type="text" required autocomplete="name" class="input" placeholder="Juan Dela Cruz" />
+          </div>
+          <div class="grid grid-cols-2 gap-3">
+            <div>
+              <label class="field-label" for="f-age">Age</label>
+              <input id="f-age" name="age" type="number" required min="5" max="120" inputmode="numeric" class="input" placeholder="18" />
+            </div>
+            <div>
+              <label class="field-label" for="f-gender">Gender</label>
+              <select id="f-gender" name="gender" required class="select">
+                <option value="" disabled selected>Select…</option>
+                <option value="female">Female</option>
+                <option value="male">Male</option>
+                <option value="prefer_not">Prefer not to say</option>
+              </select>
+            </div>
+          </div>
+          <div>
+            <label class="field-label" for="f-fb">Facebook name</label>
+            <input id="f-fb" name="fbName" type="text" required class="input" placeholder="As it appears on Facebook" />
+          </div>
+          <div>
+            <label class="field-label" for="f-school">School / University</label>
+            <input id="f-school" name="school" type="text" required class="input" placeholder="e.g. UA&P, FEU East Asia College, Ateneo" />
+          </div>
+
+          <div id="form-error" class="hidden text-sm px-3 py-2 rounded-lg" style="background:rgba(225,29,44,0.12); border:1px solid var(--red); color:#ffd1d6;"></div>
+
+          <button id="btn-submit" type="submit" class="btn-primary justify-center mt-2 text-base">
+            <span class="material-symbols-outlined" style="font-size:20px">check_circle</span>
+            Complete registration
+          </button>
+
+          <div class="text-[11px] text-mute text-center mt-1">
+            By registering, you consent to Elevate East Ortigas storing the info above for event coordination and raffle purposes.
+          </div>
+        </form>
+      </div>
+    </div>
+
+    <!-- Success -->
+    <div id="state-success" class="mt-10 hidden">
+      <div class="surface p-6 sm:p-10 text-center" style="border-color: var(--tape);">
+        <span class="material-symbols-outlined msi-fill text-tape" style="font-size:64px">celebration</span>
+        <div class="font-display text-4xl sm:text-5xl text-ink mt-2">You're in!</div>
+        <p class="text-soft mt-2">Keep this ticket safe — you'll need it at the door <em>and</em> for the raffle.</p>
+        <div class="mt-6 text-xs uppercase tracking-widest font-extrabold-ui text-mute">Ticket</div>
+        <div id="success-ticket" class="raffle-display" style="font-size:clamp(3.5rem,16vw,7rem);"></div>
+        <div id="success-name" class="text-ink font-extrabold-ui mt-3 text-lg"></div>
+
+        <div class="hr-tape my-6 max-w-[120px] mx-auto"></div>
+
+        <div class="grid gap-2 text-sm text-soft">
+          <div class="flex items-center justify-center gap-2"><span class="material-symbols-outlined text-tape" style="font-size:18px">event</span> July 17, 2026 (Friday)</div>
+          <div class="flex items-center justify-center gap-2"><span class="material-symbols-outlined text-tape" style="font-size:18px">schedule</span> 3:00 PM</div>
+          <div class="flex items-center justify-center gap-2"><span class="material-symbols-outlined text-tape" style="font-size:18px">location_on</span> 3F Parking Level, SM East Ortigas</div>
+        </div>
+        <div class="mt-6 text-xs font-mono text-mute">#ElevateCampusUNITE2026 · #ElevateEastOrtigas</div>
+      </div>
+    </div>
+
+  </main>
+
+  <script type="module">
+    import { get, set, update, ticketRef, registrationRef } from "./js/firebase.js";
+
+    const $loading = document.getElementById("state-loading");
+    const $invalid = document.getElementById("state-invalid");
+    const $already = document.getElementById("state-already");
+    const $form    = document.getElementById("state-form");
+    const $success = document.getElementById("state-success");
+
+    function show(el) {
+      [$loading, $invalid, $already, $form, $success].forEach(n => n.classList.add("hidden"));
+      el.classList.remove("hidden");
+    }
+
+    const params = new URLSearchParams(window.location.search);
+    const rawId = (params.get("id") || "").trim().toUpperCase();
+    const idPattern = /^ECU-\d{4}$/;
+
+    if (!idPattern.test(rawId)) show($invalid);
+    else loadTicket(rawId);
+
+    async function loadTicket(id) {
+      try {
+        const snap = await get(ticketRef(id));
+        if (!snap.exists()) { show($invalid); return; }
+        const t = snap.val();
+        if (t.registered) {
+          const rsnap = await get(registrationRef(id));
+          const reg = rsnap.val() || {};
+          document.getElementById("already-ticket").textContent = id;
+          document.getElementById("already-name").textContent = reg.name ? `Registered to: ${reg.name}` : "";
+          show($already);
+          return;
+        }
+        document.getElementById("form-ticket").textContent = id;
+        show($form);
+        document.getElementById("reg-form").addEventListener("submit", (e) => onSubmit(e, id));
+      } catch (err) {
+        console.error(err);
+        document.querySelector("#state-invalid p").textContent =
+          "Connection problem loading your ticket. Check your internet and try refreshing.";
+        show($invalid);
+      }
+    }
+
+    async function onSubmit(e, id) {
+      e.preventDefault();
+      const $err = document.getElementById("form-error");
+      const $btn = document.getElementById("btn-submit");
+      $err.classList.add("hidden");
+
+      const data = {
+        name:   document.getElementById("f-name").value.trim(),
+        age:    parseInt(document.getElementById("f-age").value, 10),
+        gender: document.getElementById("f-gender").value,
+        fbName: document.getElementById("f-fb").value.trim(),
+        school: document.getElementById("f-school").value.trim(),
+      };
+
+      if (!data.name || !data.fbName || !data.school || !data.gender || !data.age || data.age < 5 || data.age > 120) {
+        $err.textContent = "Please fill all fields. Age must be between 5 and 120.";
+        $err.classList.remove("hidden");
+        return;
+      }
+
+      $btn.disabled = true;
+      $btn.innerHTML = `<span class="material-symbols-outlined animate-spin" style="font-size:20px">progress_activity</span> Saving…`;
+
+      try {
+        // Re-check at submit time to dodge double-registration races.
+        const snap = await get(ticketRef(id));
+        if (!snap.exists()) { show($invalid); return; }
+        if (snap.val().registered) {
+          const rsnap = await get(registrationRef(id));
+          const reg = rsnap.val() || {};
+          document.getElementById("already-ticket").textContent = id;
+          document.getElementById("already-name").textContent = reg.name ? `Registered to: ${reg.name}` : "";
+          show($already);
+          return;
+        }
+
+        const now = Date.now();
+        const reg = { ...data, ticketId: id, registeredAt: now };
+
+        await set(registrationRef(id), reg);
+        await update(ticketRef(id), { registered: true, registeredAt: now, name: data.name });
+
+        document.getElementById("success-ticket").textContent = id;
+        document.getElementById("success-name").textContent = data.name;
+        show($success);
+      } catch (err) {
+        console.error(err);
+        $err.textContent = `Something went wrong. ${err && err.message || ""}`;
+        $err.classList.remove("hidden");
+        $btn.disabled = false;
+        $btn.innerHTML = `<span class="material-symbols-outlined" style="font-size:20px">check_circle</span> Complete registration`;
+      }
+    }
+  </script>
+
+</body>
+</html>

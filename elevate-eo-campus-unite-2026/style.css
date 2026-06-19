@@ -1,0 +1,482 @@
+/* Elevate East Ortigas — Campus UNITE 2026
+   Theme pulled from the trailer + the Campus UNITE keyart:
+     - Dark navy / near-black surfaces
+     - Yellow caution-tape headlines (grungy)
+     - Red diagonal banner sub-text
+     - Bebas Neue (display) + Blauer Nue (body/UI, self-hosted from assets/fonts/)
+*/
+
+/* ===== Self-hosted Blauer Nue (5 weights) ===== */
+@font-face {
+  font-family: "Blauer Nue";
+  src: url("assets/fonts/BlauerNue-Regular.otf") format("opentype");
+  font-weight: 400; font-style: normal; font-display: swap;
+}
+@font-face {
+  font-family: "Blauer Nue";
+  src: url("assets/fonts/BlauerNue-Medium.otf") format("opentype");
+  font-weight: 500; font-style: normal; font-display: swap;
+}
+@font-face {
+  font-family: "Blauer Nue";
+  src: url("assets/fonts/BlauerNue-Semibold.otf") format("opentype");
+  font-weight: 600; font-style: normal; font-display: swap;
+}
+@font-face {
+  /* Mapped to 700 too — the family has no plain Bold, so requests for 700 land here. */
+  font-family: "Blauer Nue";
+  src: url("assets/fonts/BlauerNue-ExtraBold.otf") format("opentype");
+  font-weight: 700 800; font-style: normal; font-display: swap;
+}
+@font-face {
+  font-family: "Blauer Nue";
+  src: url("assets/fonts/BlauerNue-Heavy.otf") format("opentype");
+  font-weight: 900; font-style: normal; font-display: swap;
+}
+
+:root {
+  /* Backdrop */
+  --bg-deep:    #07091a;          /* near-black navy (matches trailer letterboxing) */
+  --bg-base:    #0c1130;          /* primary dark surface */
+  --bg-elev:    #161b3d;          /* card / elevated panel */
+  --bg-soft:    #1f2554;          /* hover */
+  --line:       #2a3168;          /* subtle border on dark */
+  --line-soft:  rgba(255,255,255,0.08);
+
+  /* Brand */
+  --tape:       #f5d518;          /* caution-tape yellow */
+  --tape-edge:  #e1c000;          /* darker yellow for shadow */
+  --red:        #e11d2c;          /* event banner red */
+  --red-deep:   #b91423;
+  --red-soft:   rgba(225, 29, 44, 0.15);
+
+  /* Text */
+  --ink:        #ffffff;
+  --ink-soft:   #cbd0ec;
+  --ink-mute:   #8b91b8;
+  --on-tape:    #0a0a0a;          /* text on yellow */
+  --on-red:     #ffffff;
+}
+
+* { box-sizing: border-box; }
+
+html, body {
+  margin: 0;
+  font-family: "Blauer Nue", system-ui, -apple-system, "Segoe UI", Roboto, sans-serif;
+  font-weight: 500;
+  color: var(--ink);
+  background: var(--bg-deep);
+  -webkit-font-smoothing: antialiased;
+  text-rendering: optimizeLegibility;
+}
+
+::selection { background: var(--tape); color: var(--on-tape); }
+
+/* ---- Display + UI fonts ---- */
+.font-display {
+  font-family: "Bebas Neue", "Blauer Nue", system-ui, sans-serif;
+  letter-spacing: 0.015em;
+  font-weight: 400;
+}
+.font-mono { font-family: "JetBrains Mono", ui-monospace, "SF Mono", Menlo, monospace; }
+
+/* Heavy UI headlines — Blauer Nue ExtraBold */
+.font-extrabold-ui {
+  font-family: "Blauer Nue", system-ui, sans-serif;
+  font-weight: 800;
+  letter-spacing: -0.005em;
+}
+
+/* ---- Backdrop variants ---- */
+.bg-deep      { background: var(--bg-deep); }
+.bg-base      { background: var(--bg-base); }
+.bg-elev      { background: var(--bg-elev); }
+.surface {
+  background: var(--bg-base);
+  border: 1px solid var(--line);
+  border-radius: 1rem;
+}
+.surface-soft {
+  background: var(--bg-elev);
+  border: 1px solid var(--line);
+  border-radius: 1rem;
+}
+
+/* ---- Material Symbols sizing ---- */
+.material-symbols-outlined {
+  font-variation-settings: "FILL" 0, "wght" 400, "GRAD" 0, "opsz" 24;
+  vertical-align: middle;
+}
+.msi-fill { font-variation-settings: "FILL" 1, "wght" 500, "GRAD" 0, "opsz" 24; }
+
+/* =================================================================
+   THE CAMPUS UNITE MARK
+   Yellow tape headline + red diagonal banner subtitle.
+   Built in pure HTML/CSS so it scales crisply at every viewport.
+   ================================================================= */
+.cu-mark {
+  display: inline-grid;
+  justify-items: start;
+  gap: 0;
+  line-height: 1;
+}
+.cu-mark .cu-tape {
+  display: inline-block;
+  padding: 0.55em 0.7em 0.45em;
+  background: var(--tape);
+  color: var(--on-tape);
+  font-family: "Bebas Neue", sans-serif;
+  font-weight: 400;
+  letter-spacing: 0.02em;
+  white-space: nowrap;
+  position: relative;
+  clip-path: polygon(
+    0.5% 6%, 4% 0%, 28% 4%, 55% 1%, 78% 5%, 100% 2%,
+    99% 96%, 73% 99%, 48% 95%, 22% 100%, 6% 96%, 1% 99%
+  );
+  box-shadow:
+    inset 0 -8px 18px rgba(0,0,0,0.08),
+    0 12px 32px rgba(0,0,0,0.45);
+}
+.cu-mark .cu-tape::before {
+  content: "";
+  position: absolute; inset: 0;
+  background: repeating-linear-gradient(
+    90deg,
+    rgba(0,0,0,0.0) 0 6px,
+    rgba(0,0,0,0.05) 6px 7px
+  );
+  pointer-events: none;
+  mix-blend-mode: multiply;
+}
+.cu-mark .cu-banner {
+  margin-top: -0.18em;
+  margin-left: 1.2em;
+  display: inline-block;
+  background: var(--red);
+  color: var(--on-red);
+  font-family: "Blauer Nue", sans-serif;
+  font-weight: 800;
+  letter-spacing: 0.06em;
+  text-transform: uppercase;
+  padding: 0.35em 0.7em;
+  transform: rotate(-2.5deg);
+  clip-path: polygon(0% 12%, 100% 0%, 99% 88%, 1% 100%);
+  box-shadow: 0 6px 16px rgba(225, 29, 44, 0.35);
+}
+
+.cu-mark.cu-hero .cu-tape { font-size: clamp(3.5rem, 11vw, 9rem); }
+.cu-mark.cu-hero .cu-banner { font-size: clamp(0.95rem, 2.5vw, 1.85rem); }
+.cu-mark.cu-md .cu-tape { font-size: clamp(2rem, 5vw, 3rem); }
+.cu-mark.cu-md .cu-banner { font-size: clamp(0.7rem, 1.4vw, 0.9rem); }
+.cu-mark.cu-sm .cu-tape { font-size: 1.25rem; padding: 0.4em 0.55em 0.35em; }
+.cu-mark.cu-sm .cu-banner { font-size: 0.55rem; padding: 0.25em 0.55em; margin-left: 0.7em; }
+
+/* =================================================================
+   YELLOW TAPE — standalone badge
+   ================================================================= */
+.tape-badge {
+  display: inline-block;
+  background: var(--tape);
+  color: var(--on-tape);
+  font-family: "Blauer Nue", sans-serif;
+  font-weight: 800;
+  text-transform: uppercase;
+  letter-spacing: 0.08em;
+  padding: 0.35rem 0.7rem;
+  font-size: 0.75rem;
+  transform: rotate(-1.5deg);
+  box-shadow: 0 4px 10px rgba(0,0,0,0.25);
+  clip-path: polygon(2% 8%, 98% 0%, 100% 92%, 0% 100%);
+}
+
+/* =================================================================
+   BUTTONS
+   ================================================================= */
+.btn-primary {
+  background: var(--red);
+  color: var(--on-red);
+  font-weight: 800;
+  font-family: "Blauer Nue", sans-serif;
+  text-transform: uppercase;
+  letter-spacing: 0.04em;
+  border-radius: 0.6rem;
+  padding: 0.8rem 1.25rem;
+  display: inline-flex;
+  align-items: center;
+  gap: 0.5rem;
+  border: none;
+  cursor: pointer;
+  transition: background 0.15s ease, transform 0.05s ease, box-shadow 0.15s ease;
+  box-shadow: 0 8px 20px rgba(225, 29, 44, 0.35);
+}
+.btn-primary:hover { background: var(--red-deep); }
+.btn-primary:active { transform: translateY(1px); }
+.btn-primary:disabled { background: #3d4170; cursor: not-allowed; box-shadow: none; color: #8d92b6; }
+
+.btn-tape {
+  background: var(--tape);
+  color: var(--on-tape);
+  font-weight: 800;
+  font-family: "Blauer Nue", sans-serif;
+  text-transform: uppercase;
+  letter-spacing: 0.04em;
+  border-radius: 0.6rem;
+  padding: 0.8rem 1.25rem;
+  display: inline-flex;
+  align-items: center;
+  gap: 0.5rem;
+  border: none;
+  cursor: pointer;
+  box-shadow: 0 8px 20px rgba(245, 213, 24, 0.25);
+  transition: filter 0.15s ease, transform 0.05s ease;
+}
+.btn-tape:hover { filter: brightness(0.95); }
+.btn-tape:active { transform: translateY(1px); }
+
+.btn-ghost {
+  background: transparent;
+  color: var(--ink);
+  font-weight: 600;
+  border-radius: 0.6rem;
+  padding: 0.6rem 0.9rem;
+  border: 1px solid var(--line);
+  display: inline-flex;
+  align-items: center;
+  gap: 0.5rem;
+  cursor: pointer;
+  transition: background 0.15s ease, border-color 0.15s ease;
+}
+.btn-ghost:hover { background: var(--bg-soft); border-color: var(--red); }
+
+/* =================================================================
+   FORM INPUTS
+   ================================================================= */
+.input, .select {
+  width: 100%;
+  padding: 0.75rem 0.95rem;
+  border: 1px solid var(--line);
+  border-radius: 0.6rem;
+  background: var(--bg-deep);
+  color: var(--ink);
+  font-size: 1rem;
+  font-family: inherit;
+  transition: border-color 0.12s ease, box-shadow 0.12s ease;
+}
+.input::placeholder { color: var(--ink-mute); }
+.input:focus, .select:focus {
+  outline: none;
+  border-color: var(--tape);
+  box-shadow: 0 0 0 3px rgba(245, 213, 24, 0.2);
+}
+.select { background: var(--bg-deep) url("data:image/svg+xml;utf8,<svg xmlns='http://www.w3.org/2000/svg' width='14' height='14' viewBox='0 0 24 24' fill='none' stroke='%238b91b8' stroke-width='2.5' stroke-linecap='round' stroke-linejoin='round'><polyline points='6 9 12 15 18 9'/></svg>") no-repeat right 0.9rem center / 14px 14px; appearance: none; padding-right: 2.2rem; }
+.field-label {
+  font-size: 0.7rem;
+  font-weight: 800;
+  color: var(--ink-mute);
+  text-transform: uppercase;
+  letter-spacing: 0.1em;
+  margin-bottom: 0.4rem;
+  display: block;
+}
+
+/* =================================================================
+   TICKET (print sheet)
+   ================================================================= */
+.ticket {
+  width: 4.5in;
+  height: 2in;
+  display: grid;
+  grid-template-columns: 1fr 1.4in;
+  background: var(--bg-deep);
+  color: var(--ink);
+  border-radius: 10px;
+  overflow: hidden;
+  box-shadow: 0 8px 24px rgba(0,0,0,0.35);
+  position: relative;
+  border: 1px solid rgba(245, 213, 24, 0.25);
+}
+.ticket-body {
+  padding: 0.3in 0.35in;
+  background:
+    radial-gradient(280px 200px at 0% 0%, rgba(225, 29, 44, 0.25) 0%, transparent 60%),
+    linear-gradient(180deg, var(--bg-base) 0%, var(--bg-deep) 100%);
+  position: relative;
+}
+.ticket-stub {
+  border-left: 2px dashed rgba(245, 213, 24, 0.4);
+  background: #fff;
+  color: #0a0a0a;
+  display: grid;
+  grid-template-rows: 1fr auto;
+  align-items: center;
+  justify-items: center;
+  padding: 0.15in 0.1in;
+  text-align: center;
+}
+.ticket-perf-dot-top, .ticket-perf-dot-bot {
+  position: absolute; right: 1.4in; width: 12px; height: 12px;
+  background: var(--bg-deep); border-radius: 50%;
+  transform: translateX(50%);
+}
+.ticket-perf-dot-top { top: -6px; }
+.ticket-perf-dot-bot { bottom: -6px; }
+
+/* =================================================================
+   DASHBOARD bits (slimmed)
+   ================================================================= */
+.kpi-pill {
+  display: inline-flex;
+  align-items: baseline;
+  gap: 0.4rem;
+  background: var(--bg-elev);
+  border: 1px solid var(--line);
+  border-radius: 999px;
+  padding: 0.45rem 0.95rem;
+  font-size: 0.85rem;
+  color: var(--ink-soft);
+}
+.kpi-pill b { color: var(--ink); font-weight: 800; }
+.kpi-pill.red b { color: var(--red); }
+.kpi-pill.tape b { color: var(--tape); }
+
+/* =================================================================
+   RAFFLE
+   ================================================================= */
+.raffle-display {
+  font-family: "Bebas Neue", sans-serif;
+  font-size: clamp(5rem, 22vw, 16rem);
+  letter-spacing: 0.04em;
+  color: var(--tape);
+  text-shadow:
+    0 0 24px rgba(245, 213, 24, 0.5),
+    0 4px 0 var(--red);
+  line-height: 1;
+  font-variant-numeric: tabular-nums;
+}
+.raffle-rolling { animation: raffleShake 0.07s linear infinite; }
+@keyframes raffleShake {
+  0%   { transform: translate(-2px, 0); }
+  33%  { transform: translate(2px, -1px); }
+  66%  { transform: translate(-1px, 1px); }
+  100% { transform: translate(0, 0); }
+}
+
+/* =================================================================
+   VIDEO frame
+   ================================================================= */
+.video-frame {
+  position: relative;
+  border-radius: 1rem;
+  overflow: hidden;
+  border: 1px solid var(--line);
+  background: #000;
+  box-shadow: 0 30px 60px rgba(0,0,0,0.5);
+}
+.video-frame video { display: block; width: 100%; height: auto; }
+.video-frame::before {
+  content: "TRAILER";
+  position: absolute;
+  top: 14px;
+  left: -22px;
+  z-index: 5;
+  padding: 0.32rem 2rem;
+  background: var(--tape);
+  color: var(--on-tape);
+  font-family: "Blauer Nue", sans-serif;
+  font-weight: 800;
+  font-size: 0.75rem;
+  letter-spacing: 0.18em;
+  transform: rotate(-8deg);
+  box-shadow: 0 6px 14px rgba(0,0,0,0.4);
+  pointer-events: none;
+}
+
+/* =================================================================
+   COUNTDOWN tiles
+   ================================================================= */
+.count-tile {
+  background: var(--bg-elev);
+  border: 1px solid var(--line);
+  border-radius: 0.85rem;
+  padding: 0.85rem 0.5rem;
+  text-align: center;
+}
+.count-tile .count-num {
+  font-family: "Bebas Neue", sans-serif;
+  font-size: clamp(2rem, 5vw, 3.25rem);
+  line-height: 1;
+  color: var(--tape);
+}
+.count-tile .count-label {
+  font-size: 0.65rem;
+  text-transform: uppercase;
+  letter-spacing: 0.18em;
+  color: var(--ink-mute);
+  margin-top: 0.35rem;
+  font-weight: 700;
+}
+
+/* =================================================================
+   TABLE
+   ================================================================= */
+.t-table { width: 100%; border-collapse: collapse; }
+.t-table thead th {
+  text-align: left;
+  font-size: 0.7rem;
+  font-weight: 800;
+  letter-spacing: 0.1em;
+  text-transform: uppercase;
+  color: var(--ink-mute);
+  padding: 0.75rem 0.6rem;
+  border-bottom: 1px solid var(--line);
+}
+.t-table tbody td {
+  padding: 0.7rem 0.6rem;
+  border-bottom: 1px solid var(--line-soft);
+  color: var(--ink-soft);
+  font-size: 0.9rem;
+}
+.t-table tbody tr:hover { background: var(--bg-soft); }
+.t-table .t-ticket {
+  font-family: "JetBrains Mono", monospace;
+  font-weight: 700;
+  color: var(--tape);
+}
+
+/* =================================================================
+   PRINT
+   ================================================================= */
+@media print {
+  @page { size: A4 landscape; margin: 0.35in; }
+  body { background: #fff !important; color: #000 !important; }
+  .print\:hidden { display: none !important; }
+  .print-sheet {
+    display: grid;
+    grid-template-columns: repeat(2, 1fr);
+    gap: 0.25in;
+    page-break-inside: avoid;
+  }
+  .ticket { box-shadow: none; break-inside: avoid; page-break-inside: avoid; }
+}
+
+/* =================================================================
+   UTILITIES
+   ================================================================= */
+.text-tape { color: var(--tape); }
+.text-red  { color: var(--red); }
+.text-soft { color: var(--ink-soft); }
+.text-mute { color: var(--ink-mute); }
+.bg-tape   { background: var(--tape); color: var(--on-tape); }
+.bg-red    { background: var(--red); color: var(--on-red); }
+
+.hr-tape {
+  height: 4px;
+  background: repeating-linear-gradient(
+    -45deg,
+    var(--tape) 0 16px,
+    #0a0a0a 16px 28px
+  );
+  border-radius: 999px;
+  opacity: 0.85;
+}

@@ -1,0 +1,295 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>Raffle — Campus UNITE 2026</title>
+  <link rel="icon" href="assets/elevate-logo-red.png" />
+  <script src="https://cdn.tailwindcss.com"></script>
+  <link rel="preconnect" href="https://fonts.googleapis.com" />
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
+  <link href="https://fonts.googleapis.com/css2?family=Bebas+Neue&family=JetBrains+Mono:wght@400;600&display=swap" rel="stylesheet" />
+  <link href="https://fonts.googleapis.com/css2?family=Material+Symbols+Outlined:opsz,wght,FILL,GRAD@24,400,0,0" rel="stylesheet" />
+  <link rel="stylesheet" href="style.css" />
+</head>
+
+<body class="bg-deep min-h-screen">
+
+  <header class="px-4 sm:px-8 py-4 flex items-center justify-between border-b border-[color:var(--line)]">
+    <a href="index.html" class="flex items-center gap-3">
+      <img src="assets/elevate-logo.png" alt="Elevate" class="h-6 sm:h-7 brightness-0 invert" />
+      <span class="hidden sm:inline-flex items-center text-[10px] tracking-[0.2em] uppercase font-extrabold text-tape">East Ortigas</span>
+    </a>
+    <nav class="flex items-center gap-1 sm:gap-2 text-sm">
+      <a href="index.html" class="btn-ghost"><span class="material-symbols-outlined" style="font-size:18px">home</span><span class="hidden sm:inline">Home</span></a>
+      <a href="dashboard.html" class="btn-ghost"><span class="material-symbols-outlined" style="font-size:18px">groups</span><span class="hidden sm:inline">Dashboard</span></a>
+      <a href="print.html" class="btn-ghost"><span class="material-symbols-outlined" style="font-size:18px">print</span><span class="hidden sm:inline">Print</span></a>
+      <div id="auth-control" class="ml-1"></div>
+    </nav>
+  </header>
+
+  <!-- Gate -->
+  <div id="gate" class="px-4 sm:px-8 max-w-3xl mx-auto py-20 hidden">
+    <div class="surface p-8 text-center">
+      <span class="material-symbols-outlined text-tape" style="font-size:48px">lock</span>
+      <div class="font-extrabold-ui text-xl mt-2">Admin sign-in required</div>
+      <p class="text-soft mt-2 text-sm">Sign in with an allowlisted Google account to run the raffle.</p>
+      <button id="btn-signin" class="btn-primary mt-6">
+        <span class="material-symbols-outlined" style="font-size:18px">login</span>
+        Sign in with Google
+      </button>
+    </div>
+  </div>
+
+  <!-- Main -->
+  <main id="raffle" class="px-4 sm:px-8 max-w-5xl mx-auto py-8 sm:py-12 hidden">
+
+    <div class="flex items-center gap-3 mb-4">
+      <span class="tape-badge">Raffle</span>
+      <span class="text-mute text-xs font-extrabold-ui uppercase tracking-widest">Registered tickets only</span>
+    </div>
+
+    <!-- Counter row -->
+    <div class="flex flex-wrap gap-2 mb-6">
+      <span class="kpi-pill tape"><b id="kpi-eligible">0</b> eligible</span>
+      <span class="kpi-pill"><b id="kpi-drawn">0</b> already drawn</span>
+      <span class="kpi-pill red"><b id="kpi-remaining">0</b> remaining</span>
+    </div>
+
+    <!-- Big display -->
+    <div class="surface p-6 sm:p-12 text-center">
+      <div class="text-mute text-xs font-extrabold-ui uppercase tracking-widest">Winning ticket</div>
+      <div id="raffle-display" class="raffle-display mt-3">ECU-----</div>
+
+      <div id="winner-meta" class="mt-4 min-h-[3.5rem]">
+        <div class="text-soft text-sm">Click <em>Draw</em> to pick a winner.</div>
+      </div>
+
+      <div class="mt-8 flex flex-wrap items-center justify-center gap-3">
+        <button id="btn-draw" class="btn-primary text-lg" style="padding:1rem 2rem;">
+          <span class="material-symbols-outlined" style="font-size:22px">casino</span>
+          Draw winner
+        </button>
+        <button id="btn-undo" class="btn-ghost" disabled>
+          <span class="material-symbols-outlined" style="font-size:18px">undo</span>
+          Undo last
+        </button>
+        <label class="inline-flex items-center gap-2 text-soft text-sm ml-2">
+          <input id="exclude-prev" type="checkbox" checked class="accent-[color:var(--red)] w-4 h-4" />
+          Exclude previous winners
+        </label>
+      </div>
+    </div>
+
+    <!-- History -->
+    <section class="mt-10">
+      <div class="flex items-center justify-between mb-3">
+        <h2 class="font-display text-3xl text-ink">Draw history</h2>
+        <span class="text-mute text-xs font-extrabold-ui uppercase tracking-widest">most recent first</span>
+      </div>
+      <div class="hr-tape max-w-[120px] mb-4"></div>
+
+      <div class="surface overflow-x-auto">
+        <table class="t-table">
+          <thead>
+            <tr>
+              <th>#</th>
+              <th>Ticket</th>
+              <th>Name</th>
+              <th class="hidden sm:table-cell">School</th>
+              <th class="hidden sm:table-cell">Drawn at</th>
+            </tr>
+          </thead>
+          <tbody id="history-tbody">
+            <tr><td colspan="5" class="text-center text-mute py-8">No draws yet.</td></tr>
+          </tbody>
+        </table>
+      </div>
+    </section>
+
+  </main>
+
+  <script type="module">
+    import {
+      watchAuth, signInWithGoogle, signOutNow,
+      get, set, push, onValue,
+      registrationsRef, raffleDrawsRef, raffleLastDrawRef, ref, db, SCHEMA_ROOT,
+    } from "./js/firebase.js";
+
+    const $gate    = document.getElementById("gate");
+    const $main    = document.getElementById("raffle");
+    const $auth    = document.getElementById("auth-control");
+    const $display = document.getElementById("raffle-display");
+    const $meta    = document.getElementById("winner-meta");
+    const $draw    = document.getElementById("btn-draw");
+    const $undo    = document.getElementById("btn-undo");
+
+    function renderAuth(user, isAdmin) {
+      if (!user) { $auth.innerHTML = ""; return; }
+      const photo = user.photoURL
+        ? `<img src="${user.photoURL}" referrerpolicy="no-referrer" class="w-7 h-7 rounded-full" />`
+        : `<div class="w-7 h-7 rounded-full bg-red text-on-red grid place-items-center text-xs font-extrabold">${(user.displayName||user.email||"?")[0].toUpperCase()}</div>`;
+      $auth.innerHTML = `<button id="btn-signout" class="btn-ghost text-sm">${photo}<span class="hidden sm:inline ml-1">Sign out</span></button>`;
+      document.getElementById("btn-signout").addEventListener("click", () => signOutNow());
+    }
+
+    let regsCache = {};
+    let drawsCache = {};
+    let unwatchRegs = null, unwatchDraws = null;
+
+    watchAuth(({ user, isAdmin }) => {
+      renderAuth(user, isAdmin);
+      if (!isAdmin) {
+        $main.classList.add("hidden");
+        $gate.classList.remove("hidden");
+        if (unwatchRegs)  { unwatchRegs();  unwatchRegs  = null; }
+        if (unwatchDraws) { unwatchDraws(); unwatchDraws = null; }
+        return;
+      }
+      $gate.classList.add("hidden");
+      $main.classList.remove("hidden");
+      startListeners();
+    });
+
+    document.getElementById("btn-signin").addEventListener("click", () => {
+      signInWithGoogle().catch(err => { if (err && err.code !== "auth/popup-closed-by-user") alert(err.message); });
+    });
+
+    function startListeners() {
+      unwatchRegs = onValue(registrationsRef(), (snap) => {
+        regsCache = snap.val() || {};
+        refreshCounters();
+      });
+      unwatchDraws = onValue(raffleDrawsRef(), (snap) => {
+        drawsCache = snap.val() || {};
+        refreshCounters();
+        renderHistory();
+      });
+    }
+
+    function refreshCounters() {
+      const total = Object.keys(regsCache).length;
+      const drawn = Object.keys(drawsCache).length;
+      const remaining = Math.max(0, total - drawn);
+      document.getElementById("kpi-eligible").textContent  = total.toLocaleString();
+      document.getElementById("kpi-drawn").textContent     = drawn.toLocaleString();
+      document.getElementById("kpi-remaining").textContent = remaining.toLocaleString();
+    }
+
+    function renderHistory() {
+      const list = Object.entries(drawsCache).map(([k, v]) => ({ k, ...v }))
+        .sort((a, b) => (b.drawnAt || 0) - (a.drawnAt || 0));
+      const $tbody = document.getElementById("history-tbody");
+      if (!list.length) {
+        $tbody.innerHTML = `<tr><td colspan="5" class="text-center text-mute py-8">No draws yet.</td></tr>`;
+        return;
+      }
+      $tbody.innerHTML = list.map((d, i) => `
+        <tr>
+          <td class="font-mono text-mute">${list.length - i}</td>
+          <td class="t-ticket">${esc(d.ticketId)}</td>
+          <td>${esc(d.name || "—")}</td>
+          <td class="hidden sm:table-cell text-soft">${esc(d.school || "—")}</td>
+          <td class="hidden sm:table-cell text-mute">${fmtDate(d.drawnAt)}</td>
+        </tr>
+      `).join("");
+    }
+
+    function esc(s) {
+      return String(s == null ? "" : s).replace(/[&<>"']/g, m => ({"&":"&amp;","<":"&lt;",">":"&gt;","\"":"&quot;","'":"&#39;"}[m]));
+    }
+    function fmtDate(ms) {
+      if (!ms) return "—";
+      try { return new Date(ms).toLocaleString("en-PH", { month:"short", day:"numeric", hour:"numeric", minute:"2-digit", hour12: true }); } catch { return "—"; }
+    }
+
+    // ===== Draw =====
+    $draw.addEventListener("click", drawWinner);
+    $undo.addEventListener("click", undoLast);
+
+    async function drawWinner() {
+      const excludePrev = document.getElementById("exclude-prev").checked;
+      const allRegs = Object.values(regsCache);
+      const drawnIds = new Set(Object.values(drawsCache).map(d => d.ticketId));
+
+      let pool = allRegs;
+      if (excludePrev) pool = allRegs.filter(r => !drawnIds.has(r.ticketId));
+
+      if (!pool.length) {
+        $meta.innerHTML = `<div class="text-red text-sm font-extrabold-ui uppercase tracking-widest">Pool is empty.</div>`;
+        return;
+      }
+
+      $draw.disabled = true;
+      $display.classList.add("raffle-rolling");
+
+      // Visual roll: ~2.4s, accelerating sample density.
+      const start = performance.now();
+      const duration = 2400;
+      const winner = pool[Math.floor(Math.random() * pool.length)];
+
+      function frame(now) {
+        const t = Math.min(1, (now - start) / duration);
+        const sample = pool[Math.floor(Math.random() * pool.length)];
+        $display.textContent = sample.ticketId;
+        if (t < 1) {
+          // Slow down at the end: progressively longer delays
+          const delay = 30 + t * t * 220;
+          setTimeout(() => requestAnimationFrame(frame), delay);
+        } else {
+          finalize(winner);
+        }
+      }
+      requestAnimationFrame(frame);
+    }
+
+    async function finalize(winner) {
+      $display.classList.remove("raffle-rolling");
+      $display.textContent = winner.ticketId;
+      $meta.innerHTML = `
+        <div class="font-extrabold-ui text-2xl text-ink">${esc(winner.name)}</div>
+        <div class="text-soft text-sm mt-0.5">${esc(winner.school || "—")} · ${esc(winner.fbName || "")}</div>
+      `;
+
+      try {
+        const now = Date.now();
+        const drawData = {
+          ticketId: winner.ticketId,
+          name: winner.name,
+          school: winner.school || "",
+          drawnAt: now,
+        };
+        await push(raffleDrawsRef(), drawData);
+        await set(raffleLastDrawRef(), drawData);
+      } catch (err) {
+        console.warn("Failed to persist draw:", err);
+        alert("Saved the result locally but couldn't write to Firebase. " + (err && err.message || ""));
+      } finally {
+        $draw.disabled = false;
+        $undo.disabled = false;
+      }
+    }
+
+    async function undoLast() {
+      const list = Object.entries(drawsCache)
+        .sort((a, b) => (b[1].drawnAt || 0) - (a[1].drawnAt || 0));
+      if (!list.length) return;
+      if (!confirm("Remove the most recent draw from history?")) return;
+      const [lastKey] = list[0];
+      const drawsAfter = { ...drawsCache };
+      delete drawsAfter[lastKey];
+      try {
+        await set(raffleDrawsRef(), Object.keys(drawsAfter).length ? drawsAfter : null);
+        const remaining = Object.values(drawsAfter).sort((a, b) => (b.drawnAt || 0) - (a.drawnAt || 0));
+        await set(raffleLastDrawRef(), remaining[0] || null);
+        $display.textContent = "ECU-----";
+        $meta.innerHTML = `<div class="text-soft text-sm">Last draw undone.</div>`;
+        $undo.disabled = !remaining.length;
+      } catch (err) {
+        alert("Undo failed: " + (err && err.message || ""));
+      }
+    }
+  </script>
+
+</body>
+</html>

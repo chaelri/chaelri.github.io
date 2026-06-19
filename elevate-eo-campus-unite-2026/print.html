@@ -1,0 +1,261 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>Print Tickets — Campus UNITE 2026</title>
+  <link rel="icon" href="assets/elevate-logo-red.png" />
+  <script src="https://cdn.tailwindcss.com"></script>
+  <link rel="preconnect" href="https://fonts.googleapis.com" />
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
+  <link href="https://fonts.googleapis.com/css2?family=Bebas+Neue&family=JetBrains+Mono:wght@400;600&display=swap" rel="stylesheet" />
+  <link href="https://fonts.googleapis.com/css2?family=Material+Symbols+Outlined:opsz,wght,FILL,GRAD@24,400,0,0" rel="stylesheet" />
+  <link rel="stylesheet" href="style.css" />
+</head>
+
+<body class="bg-deep min-h-screen">
+
+  <header class="print:hidden px-4 sm:px-8 py-4 flex items-center justify-between border-b border-[color:var(--line)] bg-deep sticky top-0 z-30">
+    <a href="index.html" class="flex items-center gap-3">
+      <img src="assets/elevate-logo.png" alt="Elevate" class="h-6 sm:h-7 brightness-0 invert" />
+      <span class="hidden sm:inline-flex items-center text-[10px] tracking-[0.2em] uppercase font-extrabold text-tape">East Ortigas</span>
+    </a>
+    <nav class="flex items-center gap-1 sm:gap-2 text-sm">
+      <a href="index.html" class="btn-ghost"><span class="material-symbols-outlined" style="font-size:18px">home</span><span class="hidden sm:inline">Home</span></a>
+      <a href="dashboard.html" class="btn-ghost"><span class="material-symbols-outlined" style="font-size:18px">groups</span><span class="hidden sm:inline">Dashboard</span></a>
+      <a href="raffle.html" class="btn-ghost"><span class="material-symbols-outlined" style="font-size:18px">casino</span><span class="hidden sm:inline">Raffle</span></a>
+      <div id="auth-control" class="ml-1"></div>
+    </nav>
+  </header>
+
+  <!-- Gate -->
+  <div id="gate" class="print:hidden px-4 sm:px-8 max-w-3xl mx-auto py-20 hidden">
+    <div class="surface p-8 text-center">
+      <span class="material-symbols-outlined text-tape" style="font-size:48px">lock</span>
+      <div class="font-extrabold-ui text-xl mt-2">Admin sign-in required</div>
+      <p class="text-soft mt-2 text-sm">Sign in with an allowlisted Google account to access the print sheet.</p>
+      <button id="btn-signin" class="btn-primary mt-6">
+        <span class="material-symbols-outlined" style="font-size:18px">login</span>
+        Sign in with Google
+      </button>
+    </div>
+  </div>
+
+  <!-- Controls -->
+  <section id="controls" class="print:hidden px-4 sm:px-8 max-w-5xl mx-auto py-6 hidden">
+    <div class="flex items-center gap-3 mb-4">
+      <span class="tape-badge">Print</span>
+      <span class="text-mute text-xs font-extrabold-ui uppercase tracking-widest">A4 landscape · 2 per page</span>
+    </div>
+
+    <div class="surface p-5 sm:p-6">
+      <p class="text-soft text-sm">Render a range, then use your browser's <em>Print</em> dialog → "Save as PDF" or send to printer.</p>
+
+      <div class="mt-4 grid grid-cols-2 sm:grid-cols-4 gap-3">
+        <div>
+          <label class="field-label">From #</label>
+          <input id="from" type="number" min="1" max="1000" value="1" class="input" />
+        </div>
+        <div>
+          <label class="field-label">To #</label>
+          <input id="to" type="number" min="1" max="1000" value="20" class="input" />
+        </div>
+        <div class="col-span-2 sm:col-span-1 flex items-end">
+          <button id="btn-render" class="btn-ghost w-full justify-center">
+            <span class="material-symbols-outlined" style="font-size:18px">refresh</span>
+            Render
+          </button>
+        </div>
+        <div class="col-span-2 sm:col-span-1 flex items-end">
+          <button id="btn-print" class="btn-primary w-full justify-center">
+            <span class="material-symbols-outlined" style="font-size:18px">print</span>
+            Print
+          </button>
+        </div>
+      </div>
+
+      <div class="mt-4 flex flex-wrap gap-2">
+        <button data-range="1,20"     class="rng-btn btn-ghost text-xs">1 → 20</button>
+        <button data-range="1,100"    class="rng-btn btn-ghost text-xs">1 → 100</button>
+        <button data-range="1,250"    class="rng-btn btn-ghost text-xs">1 → 250</button>
+        <button data-range="251,500"  class="rng-btn btn-ghost text-xs">251 → 500</button>
+        <button data-range="501,750"  class="rng-btn btn-ghost text-xs">501 → 750</button>
+        <button data-range="751,1000" class="rng-btn btn-ghost text-xs">751 → 1,000</button>
+        <button data-range="1,1000"   class="rng-btn btn-tape text-xs" style="padding:0.45rem 0.9rem;">All 1,000</button>
+      </div>
+    </div>
+
+    <div id="status" class="mt-4 text-sm text-mute font-extrabold-ui uppercase tracking-widest"></div>
+  </section>
+
+  <!-- Sheet -->
+  <main id="sheet-wrap" class="hidden">
+    <div id="sheet" class="px-4 sm:px-8 max-w-7xl mx-auto pb-12"></div>
+  </main>
+
+  <script type="module">
+    import { watchAuth, signInWithGoogle, signOutNow, ticketId, registrationUrl } from "./js/firebase.js";
+
+    const $gate     = document.getElementById("gate");
+    const $controls = document.getElementById("controls");
+    const $sheetWrap= document.getElementById("sheet-wrap");
+    const $sheet    = document.getElementById("sheet");
+    const $auth     = document.getElementById("auth-control");
+    const $status   = document.getElementById("status");
+
+    function renderAuth(user) {
+      if (!user) { $auth.innerHTML = ""; return; }
+      const photo = user.photoURL
+        ? `<img src="${user.photoURL}" referrerpolicy="no-referrer" class="w-7 h-7 rounded-full" />`
+        : `<div class="w-7 h-7 rounded-full bg-red text-on-red grid place-items-center text-xs font-extrabold">${(user.displayName||user.email||"?")[0].toUpperCase()}</div>`;
+      $auth.innerHTML = `<button id="btn-signout" class="btn-ghost text-sm">${photo}<span class="hidden sm:inline ml-1">Sign out</span></button>`;
+      document.getElementById("btn-signout").addEventListener("click", () => signOutNow());
+    }
+
+    watchAuth(({ user, isAdmin }) => {
+      renderAuth(user, isAdmin);
+      if (!isAdmin) {
+        $controls.classList.add("hidden");
+        $sheetWrap.classList.add("hidden");
+        $gate.classList.remove("hidden");
+        return;
+      }
+      $gate.classList.add("hidden");
+      $controls.classList.remove("hidden");
+      $sheetWrap.classList.remove("hidden");
+      if (!$sheet.dataset.rendered) renderRange(1, 20);
+    });
+
+    document.getElementById("btn-signin").addEventListener("click", () => {
+      signInWithGoogle().catch(err => { if (err && err.code !== "auth/popup-closed-by-user") alert(err.message); });
+    });
+
+    // ===== QR rendering =====
+    let _qrcodeMod = null;
+    async function qrcodeLib() {
+      if (_qrcodeMod) return _qrcodeMod;
+      const m = await import("https://esm.sh/qrcode-generator@1.4.4");
+      _qrcodeMod = m.default;
+      return _qrcodeMod;
+    }
+
+    async function makeQrSvg(text) {
+      const QR = await qrcodeLib();
+      const q = QR(0, "M");
+      q.addData(text);
+      q.make();
+      return q.createSvgTag({ cellSize: 4, margin: 1, scalable: true });
+    }
+
+    // ===== Ticket markup ===== (dark navy body + yellow tape headline + white stub)
+    function ticketHtml(id, qrSvg) {
+      return `
+        <div class="ticket">
+          <span class="ticket-perf-dot-top"></span>
+          <span class="ticket-perf-dot-bot"></span>
+
+          <div class="ticket-body relative">
+            <div class="flex items-start justify-between">
+              <img src="assets/elevate-logo.png" alt="Elevate" style="height:0.26in; filter: brightness(0) invert(1);" />
+              <div style="font-size:7pt; color:#f5d518; letter-spacing:0.18em; text-transform:uppercase; font-weight:800; text-align:right; line-height:1.2;">
+                East Ortigas<br/><span style="color:#cbd0ec; font-weight:600">13th Anniversary</span>
+              </div>
+            </div>
+
+            <!-- Pseudo CAMPUS UNITE keyart, scaled into the ticket -->
+            <div style="margin-top:0.08in;">
+              <span style="display:inline-block; background:#f5d518; color:#0a0a0a; font-family:'Bebas Neue', sans-serif; font-size:0.36in; line-height:0.95; padding:0.02in 0.1in; transform:rotate(-1.2deg); transform-origin:left center; box-shadow:0 4px 8px rgba(0,0,0,0.4);">
+                CAMPUS UNITE
+              </span>
+              <div style="display:inline-block; margin-left:0.4in; margin-top:-0.05in; background:#e11d2c; color:#fff; font-family:'Blauer Nue', system-ui, sans-serif; font-weight:800; font-size:7pt; padding:0.025in 0.1in; transform:rotate(-3deg); letter-spacing:0.08em; text-transform:uppercase;">
+                Elevate's 13th Anniversary
+              </div>
+            </div>
+
+            <div class="grid grid-cols-3 gap-1 mt-2" style="font-size:7pt; color:#cbd0ec;">
+              <div>
+                <div style="color:#f5d518; font-weight:800; text-transform:uppercase; letter-spacing:0.1em; font-size:6pt;">When</div>
+                <div style="color:#fff; font-weight:600;">Jul 17, 2026</div>
+                <div style="color:#8b91b8;">Friday</div>
+              </div>
+              <div>
+                <div style="color:#f5d518; font-weight:800; text-transform:uppercase; letter-spacing:0.1em; font-size:6pt;">Time</div>
+                <div style="color:#fff; font-weight:600;">3:00 PM</div>
+                <div style="color:#8b91b8;">Doors 2:30</div>
+              </div>
+              <div>
+                <div style="color:#f5d518; font-weight:800; text-transform:uppercase; letter-spacing:0.1em; font-size:6pt;">Where</div>
+                <div style="color:#fff; font-weight:600;">SM East Ortigas</div>
+                <div style="color:#8b91b8;">3F Parking Lvl</div>
+              </div>
+            </div>
+
+            <div style="position:absolute; bottom:0.15in; left:0.35in; font-family:'JetBrains Mono', monospace; font-size:6pt; color:#8b91b8;">
+              #ElevateCampusUNITE2026
+            </div>
+          </div>
+
+          <div class="ticket-stub">
+            <div class="qr-host" style="width:1.05in; height:1.05in;">${qrSvg}</div>
+            <div class="mt-1">
+              <div style="font-size:6pt; text-transform:uppercase; letter-spacing:0.18em; font-weight:800; color:#666;">Ticket No.</div>
+              <div style="font-family:'Bebas Neue', sans-serif; color:#e11d2c; font-size:0.22in; line-height:1;">${id}</div>
+              <div style="font-size:6pt; color:#666; margin-top:0.02in;">Scan to register</div>
+            </div>
+          </div>
+        </div>`;
+    }
+
+    async function renderRange(from, to) {
+      from = Math.max(1, Math.min(1000, from | 0));
+      to   = Math.max(from, Math.min(1000, to | 0));
+
+      $status.textContent = `Rendering ${to - from + 1} tickets…`;
+      $sheet.innerHTML = "";
+
+      let page = document.createElement("div");
+      page.className = "print-sheet grid grid-cols-2 gap-4 sm:gap-6 justify-items-center my-6";
+      $sheet.appendChild(page);
+
+      for (let n = from; n <= to; n++) {
+        const id = ticketId(n);
+        const url = registrationUrl(id);
+        const qr = await makeQrSvg(url);
+        const cell = document.createElement("div");
+        cell.innerHTML = ticketHtml(id, qr);
+        page.appendChild(cell.firstElementChild);
+
+        if (page.children.length >= 2 && n < to) {
+          page = document.createElement("div");
+          page.className = "print-sheet grid grid-cols-2 gap-4 sm:gap-6 justify-items-center my-6";
+          $sheet.appendChild(page);
+        }
+
+        // Yield to keep UI responsive during big renders.
+        if ((n - from) % 20 === 19) await new Promise(r => requestAnimationFrame(r));
+      }
+
+      $sheet.dataset.rendered = `${from}-${to}`;
+      $status.textContent = `Rendered ${to - from + 1} tickets (${ticketId(from)} → ${ticketId(to)}). Print when ready.`;
+    }
+
+    document.getElementById("btn-render").addEventListener("click", () => {
+      const from = parseInt(document.getElementById("from").value, 10) || 1;
+      const to   = parseInt(document.getElementById("to").value, 10) || from;
+      renderRange(from, to);
+    });
+
+    document.getElementById("btn-print").addEventListener("click", () => window.print());
+
+    document.querySelectorAll(".rng-btn").forEach(btn => {
+      btn.addEventListener("click", () => {
+        const [from, to] = btn.dataset.range.split(",").map(Number);
+        document.getElementById("from").value = from;
+        document.getElementById("to").value = to;
+        renderRange(from, to);
+      });
+    });
+  </script>
+
+</body>
+</html>
