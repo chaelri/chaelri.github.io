@@ -211,10 +211,7 @@
   <footer class="border-t border-[color:var(--line)] py-10 px-4">
     <div class="max-w-5xl mx-auto flex flex-col sm:flex-row items-center justify-center gap-8 sm:gap-16">
       <img src="assets/elevate-east-ortigas.png" alt="Elevate East Ortigas" class="h-10 sm:h-14" />
-      <div class="cu-mark cu-md">
-        <span class="cu-tape">CAMPUS UNITE</span>
-        <span class="cu-banner">Elevate's 13th Anniversary</span>
-      </div>
+      <img src="assets/campus-unite-logo.png" alt="Campus UNITE — Elevate's 13th Anniversary" class="h-14 sm:h-20" />
     </div>
   </footer>
 
@@ -240,18 +237,18 @@
         return;
       }
       const photo = user.photoURL
-        ? `<img src="${user.photoURL}" referrerpolicy="no-referrer" class="w-8 h-8 rounded-full ring-2 ring-[color:var(--tape)] object-cover shrink-0" />`
-        : `<div class="w-8 h-8 rounded-full bg-red text-on-red grid place-items-center text-xs font-extrabold shrink-0">${(user.displayName||user.email||"?")[0].toUpperCase()}</div>`;
+        ? `<img src="${user.photoURL}" referrerpolicy="no-referrer" class="rounded-full ring-1 ring-[color:var(--tape)] object-cover shrink-0" style="width:22px;height:22px;" />`
+        : `<div class="rounded-full bg-red text-on-red grid place-items-center shrink-0" style="width:22px;height:22px;font-size:10px;font-weight:800;">${(user.displayName||user.email||"?")[0].toUpperCase()}</div>`;
       const badge = isAdmin
-        ? `<span class="tape-badge" style="font-size:0.6rem; padding:0.2rem 0.5rem; transform:none; clip-path:none; border-radius:0.3rem;">Admin</span>`
-        : `<span class="text-[10px] font-extrabold uppercase tracking-widest text-mute">view only</span>`;
+        ? `<span style="font-size:9px;padding:2px 6px;border-radius:4px;background:var(--tape);color:var(--on-tape);font-weight:800;letter-spacing:0.1em;text-transform:uppercase;">Admin</span>`
+        : `<span style="font-size:9px;font-weight:800;letter-spacing:0.12em;text-transform:uppercase;color:var(--ink-mute);">view</span>`;
       $auth.innerHTML = `
-        <div class="flex items-center gap-2.5 bg-elev px-2.5 py-1 rounded-full border border-[color:var(--line)]">
+        <div class="flex items-center bg-elev rounded-full border border-[color:var(--line)]" style="gap:6px;padding:3px 8px 3px 3px;">
           ${photo}
-          <span class="hidden md:inline text-sm font-extrabold-ui truncate max-w-[10rem]">${user.displayName || user.email}</span>
+          <span class="hidden md:inline truncate" style="font-size:11px;font-weight:700;max-width:8rem;">${user.displayName || user.email}</span>
           ${badge}
-          <button id="btn-signout" class="text-mute hover:text-red ml-1" title="Sign out">
-            <span class="material-symbols-outlined" style="font-size:18px">logout</span>
+          <button id="btn-signout" class="text-mute hover:text-red" title="Sign out" style="line-height:0;">
+            <span class="material-symbols-outlined" style="font-size:14px">logout</span>
           </button>
         </div>`;
       document.getElementById("btn-signout").addEventListener("click", () => signOutNow());
