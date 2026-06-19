@@ -410,11 +410,12 @@ html, body {
   font-weight: 800;
   font-size: clamp(2.6rem, 7vw, 4.5rem);
   line-height: 1;
-  color: #ffffff;
+  color: var(--tape);
   letter-spacing: -0.02em;
   font-variant-numeric: tabular-nums;
   display: inline-block;
   transform-origin: center;
+  text-shadow: 0 0 24px rgba(245, 213, 24, 0.25);
 }
 .count-tile .count-num.tick {
   animation: count-pulse 700ms cubic-bezier(0.22, 1, 0.36, 1);
@@ -531,39 +532,44 @@ html, body {
 }
 
 /* =================================================================
-   Raffle — winner name reveal (BIG, on top of the number)
+   Raffle — winner reveal: name + school/fb peek UP from behind the ECU number
    ================================================================= */
+.winner-name-wrap {
+  position: relative;
+  overflow: hidden;
+  margin-top: 0.25rem;
+  padding: 0 0.25rem 0.25rem;
+}
 .winner-name {
   font-family: "Blauer Nue", "Inter", sans-serif;
   font-weight: 800;
-  font-size: clamp(2.6rem, 7.5vw, 5.25rem);
+  font-size: clamp(2.2rem, 6.5vw, 4.5rem);
   line-height: 1.05;
   letter-spacing: -0.015em;
   color: var(--ink);
   word-break: break-word;
   text-shadow: 0 6px 24px rgba(0,0,0,0.35);
-}
-.winner-name .wn-ch {
-  display: inline-block;
+  transform: translateY(110%);
   opacity: 0;
-  transform: translateY(14px) scale(0.94);
-  filter: blur(6px);
+  transition:
+    transform 720ms cubic-bezier(0.22, 1, 0.36, 1),
+    opacity  420ms ease-out;
 }
-.winner-name.is-revealed .wn-ch {
-  animation: wn-pop 600ms cubic-bezier(0.22, 1, 0.36, 1) forwards;
-}
-@keyframes wn-pop {
-  0%   { opacity: 0; transform: translateY(14px) scale(0.94); filter: blur(6px); }
-  60%  { opacity: 1; transform: translateY(-2px) scale(1.02); filter: blur(0); }
-  100% { opacity: 1; transform: translateY(0)   scale(1);    filter: blur(0); }
-}
-.winner-extra-inner {
+.winner-extra {
+  display: flex; flex-wrap: wrap; align-items: center; justify-content: center;
+  gap: 0.65rem;
+  font-size: 1rem;
+  margin-top: 0.65rem;
+  transform: translateY(60%);
   opacity: 0;
-  animation: wn-extra-in 450ms ease-out 350ms forwards;
+  transition:
+    transform 600ms cubic-bezier(0.22, 1, 0.36, 1) 180ms,
+    opacity  400ms ease-out 220ms;
 }
-@keyframes wn-extra-in {
-  from { opacity: 0; transform: translateY(6px); }
-  to   { opacity: 1; transform: translateY(0); }
+.winner-name-wrap.is-revealed .winner-name,
+.winner-name-wrap.is-revealed .winner-extra {
+  transform: translateY(0);
+  opacity: 1;
 }
 
 /* =================================================================

@@ -58,13 +58,14 @@
 
     <!-- Big display -->
     <div class="surface p-6 sm:p-12 text-center">
-      <!-- Winner name slot — empty during roll, revealed AFTER number stops -->
-      <div id="winner-name" class="winner-name min-h-[3rem] sm:min-h-[5rem]"></div>
-
-      <div class="text-mute text-xs font-extrabold-ui uppercase tracking-widest mt-2">Winning ticket</div>
+      <div class="text-mute text-xs font-extrabold-ui uppercase tracking-widest">Winning ticket</div>
       <div id="raffle-display" class="raffle-display mt-2">ECU-----</div>
 
-      <div id="winner-extra" class="winner-extra mt-4 min-h-[2rem]"></div>
+      <!-- Winner name peeks up from behind the number after the roll lands -->
+      <div class="winner-name-wrap">
+        <div id="winner-name" class="winner-name"></div>
+        <div id="winner-extra" class="winner-extra"></div>
+      </div>
 
       <div class="mt-8 flex items-center justify-center">
         <button id="btn-draw" class="btn-primary text-lg" style="padding:1rem 2rem;">
@@ -256,9 +257,9 @@
       }
 
       // Reset: hide previous reveal so the new roll feels fresh
-      $name.innerHTML = "";
-      $name.classList.remove("is-revealed");
+      $name.textContent = "";
       $extra.innerHTML = "";
+      document.querySelector(".winner-name-wrap").classList.remove("is-revealed");
 
       $draw.disabled = true;
       $display.classList.add("raffle-rolling");
@@ -287,23 +288,20 @@
       $display.classList.remove("raffle-rolling");
       $display.textContent = winner.ticketId;
 
-      // Brief pause so the number landing reads first, THEN the name reveals big.
+      // Brief pause so the number landing reads first, THEN the name peeks up from behind it.
       setTimeout(() => {
-        const letters = String(winner.name || "")
-          .split("")
-          .map((ch, i) => `<span class="wn-ch" style="animation-delay:${i * 35}ms;">${ch === " " ? "&nbsp;" : esc(ch)}</span>`)
-          .join("");
-        $name.innerHTML = letters;
-        $name.classList.add("is-revealed");
+        $name.textContent = winner.name || "";
         $extra.innerHTML = `
-          <div class="flex flex-wrap items-center justify-center gap-2.5 text-base sm:text-lg winner-extra-inner">
-            <span class="font-extrabold-ui uppercase tracking-wider text-tape" style="font-size:0.85em;">
-              ${esc(winner.school || "—")}
-            </span>
-            <span class="inline-block rounded-full" style="width:6px;height:6px;background:var(--ink-mute);"></span>
-            <span class="text-soft">${esc(winner.fbName || "")}</span>
-          </div>
+          <span class="font-extrabold-ui uppercase tracking-wider text-tape" style="font-size:0.85em;">
+            ${esc(winner.school || "—")}
+          </span>
+          <span class="inline-block rounded-full" style="width:6px;height:6px;background:var(--ink-mute);"></span>
+          <span class="text-soft">${esc(winner.fbName || "")}</span>
         `;
+        // Force a frame so the transition takes effect cleanly
+        requestAnimationFrame(() => {
+          document.querySelector(".winner-name-wrap").classList.add("is-revealed");
+        });
       }, 550);
 
       try {
