@@ -34,23 +34,15 @@
       position: absolute; inset: 0;
       width: 100%; height: 100%;
       object-fit: cover;
-      opacity: 0.30;
-      filter: blur(2px) saturate(1.15);
-      transform: scale(1.05); /* hides blur edge */
+      opacity: 1;
+      filter: saturate(1.15);
     }
     .bg-video-tint {
       position: absolute; inset: 0;
       background:
-        radial-gradient(1100px 600px at 80% -10%, rgba(225, 29, 44, 0.22) 0%, transparent 60%),
-        radial-gradient(800px 500px at -10% 110%, rgba(245, 213, 24, 0.10) 0%, transparent 55%),
-        linear-gradient(180deg, rgba(7,9,26,0.45) 0%, rgba(7,9,26,0.85) 100%);
-    }
-    .bg-video::after {
-      content: ""; position: absolute; inset: 0; pointer-events: none;
-      background-image: radial-gradient(rgba(255,255,255,0.05) 1px, transparent 1px);
-      background-size: 3px 3px;
-      mix-blend-mode: overlay;
-      opacity: 0.5;
+        radial-gradient(1100px 600px at 80% -10%, rgba(225, 29, 44, 0.18) 0%, transparent 60%),
+        radial-gradient(800px 500px at -10% 110%, rgba(245, 213, 24, 0.08) 0%, transparent 55%),
+        linear-gradient(180deg, rgba(7,9,26,0.25) 0%, rgba(7,9,26,0.55) 100%);
     }
     /* The hero section sits transparent on top of the ambient bg */
     .hero-bg { position: relative; background: transparent; }
