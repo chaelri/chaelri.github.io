@@ -746,29 +746,25 @@ body.raffle-focused .raffle-display {
   box-shadow: 0 4px 14px rgba(0, 0, 0, 0.25);
 }
 
-/* Facebook follow pill — brand-blue gradient with a subtle gloss highlight on top. */
+/* Facebook follow pill — flat brand blue, no gradient, no glass. */
 .fb-follow {
   display: inline-flex;
   align-items: center;
   gap: 0.6rem;
   padding: 0.7rem 1.25rem;
   border-radius: 999px;
-  background:
-    linear-gradient(180deg, rgba(255, 255, 255, 0.18) 0%, rgba(255, 255, 255, 0) 55%),
-    linear-gradient(180deg, #2484F8 0%, #1769d6 100%);
-  border: 1px solid rgba(255, 255, 255, 0.18);
+  background: #1877F2;
+  border: none;
   color: #fff;
   font-weight: 800;
   font-size: 0.9rem;
   letter-spacing: 0.01em;
   text-decoration: none;
-  transition: transform 0.15s ease, box-shadow 0.15s ease, filter 0.15s ease;
-  box-shadow: 0 6px 18px rgba(24, 119, 242, 0.30);
+  transition: background 0.15s ease, transform 0.15s ease;
 }
 .fb-follow:hover {
+  background: #166FE5;
   transform: translateY(-1px);
-  filter: brightness(1.06);
-  box-shadow: 0 8px 22px rgba(24, 119, 242, 0.40);
 }
 .fb-follow:active {
   transform: translateY(0);
