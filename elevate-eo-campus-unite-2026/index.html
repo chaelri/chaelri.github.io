@@ -31,8 +31,11 @@
     /* Ambient trailer background — fixed behind the whole page, muted + looped */
     .bg-video {
       position: fixed; inset: 0; z-index: -2;
-      overflow: hidden; background: var(--bg-deep);
+      overflow: hidden;
       pointer-events: none;
+      /* Fade the video into the navy as it moves toward the bottom + edges */
+      -webkit-mask-image: radial-gradient(ellipse 90% 70% at 50% 25%, #000 0%, #000 40%, transparent 85%);
+              mask-image: radial-gradient(ellipse 90% 70% at 50% 25%, #000 0%, #000 40%, transparent 85%);
     }
     .bg-video video {
       position: absolute; inset: 0;
@@ -46,7 +49,7 @@
       background:
         radial-gradient(1100px 600px at 80% -10%, rgba(225, 29, 44, 0.18) 0%, transparent 60%),
         radial-gradient(800px 500px at -10% 110%, rgba(245, 213, 24, 0.08) 0%, transparent 55%),
-        linear-gradient(180deg, rgba(7,9,26,0.25) 0%, rgba(7,9,26,0.55) 100%);
+        linear-gradient(180deg, rgba(7,9,26,0.20) 0%, rgba(7,9,26,0.55) 70%, rgba(7,9,26,0.95) 100%);
     }
     /* The hero section sits transparent on top of the ambient bg */
     .hero-bg { position: relative; background: transparent; }
