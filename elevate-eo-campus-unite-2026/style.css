@@ -315,7 +315,7 @@ html, body {
   flex-direction: column;
   align-items: center;
   justify-content: space-between;
-  padding: 0.12in 0.08in;
+  padding: 0.2in 0.18in 0.14in;
   text-align: center;
 }
 .ticket-perf-dot-top, .ticket-perf-dot-bot {
