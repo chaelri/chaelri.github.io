@@ -196,6 +196,11 @@
     const $form     = document.getElementById("state-form");
     const $success  = document.getElementById("state-success");
 
+    // Scanner state — declared up front so `show()` can call stopScanner before init.
+    let _jsQR   = null;
+    let _stream = null;
+    let _scanRaf = 0;
+
     function show(el) {
       [$loading, $chooser, $scanner, $invalid, $already, $form, $success].forEach(n => n.classList.add("hidden"));
       el.classList.remove("hidden");
@@ -230,10 +235,6 @@
     });
 
     // ===== QR scanner =====
-    let _jsQR = null;
-    let _stream = null;
-    let _scanRaf = 0;
-
     async function loadJsQR() {
       if (_jsQR) return _jsQR;
       const m = await import("https://esm.sh/jsqr@1.4.0");
