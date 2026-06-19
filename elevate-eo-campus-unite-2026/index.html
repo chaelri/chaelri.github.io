@@ -24,6 +24,10 @@
   <link rel="stylesheet" href="style.css" />
 
   <style>
+    /* Let the fixed bg-video show through the body (which has bg-deep utility) */
+    html { background: var(--bg-deep); }
+    body { background: transparent !important; }
+
     /* Ambient trailer background — fixed behind the whole page, muted + looped */
     .bg-video {
       position: fixed; inset: 0; z-index: -2;
