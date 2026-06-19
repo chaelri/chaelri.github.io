@@ -98,10 +98,11 @@
               <th>Name</th>
               <th class="hidden sm:table-cell">School</th>
               <th class="hidden sm:table-cell">Drawn at</th>
+              <th class="w-10"></th>
             </tr>
           </thead>
           <tbody id="history-tbody">
-            <tr><td colspan="5" class="text-center text-mute py-8">No draws yet.</td></tr>
+            <tr><td colspan="6" class="text-center text-mute py-8">No draws yet.</td></tr>
           </tbody>
         </table>
       </div>
@@ -181,7 +182,7 @@
         .sort((a, b) => (b.drawnAt || 0) - (a.drawnAt || 0));
       const $tbody = document.getElementById("history-tbody");
       if (!list.length) {
-        $tbody.innerHTML = `<tr><td colspan="5" class="text-center text-mute py-8">No draws yet.</td></tr>`;
+        $tbody.innerHTML = `<tr><td colspan="6" class="text-center text-mute py-8">No draws yet.</td></tr>`;
         return;
       }
       $tbody.innerHTML = list.map((d, i) => `
@@ -191,8 +192,36 @@
           <td>${esc(d.name || "—")}</td>
           <td class="hidden sm:table-cell text-soft">${esc(d.school || "—")}</td>
           <td class="hidden sm:table-cell text-mute">${fmtDate(d.drawnAt)}</td>
+          <td class="text-right pr-2">
+            <button class="btn-row-del text-mute hover:text-[color:var(--red)] transition"
+                    data-key="${esc(d.k)}" data-ticket="${esc(d.ticketId)}" data-name="${esc(d.name || "")}"
+                    title="Remove this draw">
+              <span class="material-symbols-outlined" style="font-size:18px">delete</span>
+            </button>
+          </td>
         </tr>
       `).join("");
+
+      $tbody.querySelectorAll(".btn-row-del").forEach(btn => {
+        btn.addEventListener("click", () => deleteDraw(btn.dataset.key, btn.dataset.ticket, btn.dataset.name));
+      });
+    }
+
+    async function deleteDraw(key, ticket, name) {
+      if (!key) return;
+      const label = name ? `${ticket} (${name})` : ticket;
+      if (!confirm(`Remove ${label} from the draw history?\n\nThe ticket will be eligible to win again if "Exclude previous winners" stays checked.`)) return;
+      try {
+        // Drop this single draw, then re-derive lastDraw from whatever remains.
+        await set(ref(db, `${SCHEMA_ROOT}/raffle/draws/${key}`), null);
+        const remaining = Object.entries(drawsCache)
+          .filter(([k]) => k !== key)
+          .map(([, v]) => v)
+          .sort((a, b) => (b.drawnAt || 0) - (a.drawnAt || 0));
+        await set(raffleLastDrawRef(), remaining[0] || null);
+      } catch (err) {
+        alert("Delete failed: " + (err && err.message || ""));
+      }
     }
 
     function esc(s) {
