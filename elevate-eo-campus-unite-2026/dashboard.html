@@ -70,6 +70,10 @@
     <div class="flex items-center justify-between gap-3 flex-wrap mb-3">
       <input id="search" type="search" placeholder="Search name, school, ticket, FB…" class="input text-sm" style="padding:0.55rem 0.85rem; max-width:360px; flex:1;" />
       <div class="flex items-center gap-2">
+        <a href="register.html" target="_blank" rel="noopener" class="btn-ghost text-sm">
+          <span class="material-symbols-outlined" style="font-size:18px">person_add</span>
+          Register
+        </a>
         <button id="btn-csv" class="btn-ghost text-sm">
           <span class="material-symbols-outlined" style="font-size:18px">download</span>
           Export CSV
@@ -185,7 +189,7 @@
       try { return new Date(ms).toLocaleString("en-PH", { month:"short", day:"numeric", hour:"numeric", minute:"2-digit", hour12: true }); } catch { return "—"; }
     }
     function genderLabel(g) {
-      return ({female:"Female", male:"Male", prefer_not:"—"})[g] || "—";
+      return ({female:"Female", male:"Male"})[g] || "—";
     }
 
     // ===== Sort state =====

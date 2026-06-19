@@ -55,6 +55,7 @@ export const ALLOWED_ADMINS = [
   "charliecayno@gmail.com",
   "maui.victorio@ccf.org.ph",
   "christian.ilao@ccf.org.ph",
+  "kobe.serrano@cm.ccf.org.ph",
 ];
 
 export function isAdminEmail(email) {

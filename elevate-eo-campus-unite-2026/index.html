@@ -145,18 +145,18 @@
   <section class="px-4 sm:px-8 max-w-5xl mx-auto py-12 sm:py-16">
     <div class="flex items-end justify-between mb-4">
       <h2 class="font-display text-4xl sm:text-5xl text-ink">Watch the trailer</h2>
-      <span class="text-mute text-xs font-extrabold-ui uppercase tracking-widest hidden sm:inline">East Ortigas · 13th Anniv</span>
+      <span class="text-mute text-xs font-extrabold-ui uppercase tracking-widest hidden sm:inline">East Ortigas, 13th Anniv</span>
     </div>
     <div class="hr-tape max-w-[180px] mb-6"></div>
 
-    <!-- Trailer hosted on Drive (charliecayno@gmail.com) — same pattern as anohana / towa-no-yuugure -->
+    <!-- Trailer served directly from the deploy as a static MP4 — no third-party cookies needed
+         (Drive iframe was hitting Google's consent gate in incognito). -->
     <div class="video-frame" style="aspect-ratio: 16 / 9;">
-      <iframe src="https://drive.google.com/file/d/1937i2PDWogU1ypm-mp9mP8qMMTgMJXmA/preview"
-              allow="autoplay; fullscreen"
-              allowfullscreen
-              referrerpolicy="strict-origin-when-cross-origin"
-              loading="lazy"
-              title="Campus UNITE 2026 Trailer"></iframe>
+      <video src="assets/trailer.mp4"
+             controls
+             playsinline
+             preload="metadata"
+             title="Campus UNITE 2026 Trailer"></video>
     </div>
 
     <p class="text-soft text-sm sm:text-base mt-5 max-w-3xl">
