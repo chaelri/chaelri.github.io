@@ -258,6 +258,19 @@
 
     // ===== Countdown =====
     const target = new Date("2026-07-17T15:00:00+08:00").getTime();
+    const cdEls = {
+      days: document.getElementById("cd-days"),
+      hrs:  document.getElementById("cd-hrs"),
+      min:  document.getElementById("cd-min"),
+      sec:  document.getElementById("cd-sec"),
+    };
+    function setCell(el, next) {
+      if (el.textContent === next) return;
+      el.textContent = next;
+      el.classList.remove("tick");
+      void el.offsetWidth; // restart animation
+      el.classList.add("tick");
+    }
     function tickCountdown() {
       const ms = target - Date.now();
       const negative = ms < 0;
@@ -266,10 +279,10 @@
       const hrs  = Math.floor(t / 3600000) % 24;
       const min  = Math.floor(t / 60000) % 60;
       const sec  = Math.floor(t / 1000) % 60;
-      document.getElementById("cd-days").textContent = negative ? "—" : String(days).padStart(2, "0");
-      document.getElementById("cd-hrs").textContent  = negative ? "—" : String(hrs).padStart(2, "0");
-      document.getElementById("cd-min").textContent  = negative ? "—" : String(min).padStart(2, "0");
-      document.getElementById("cd-sec").textContent  = negative ? "—" : String(sec).padStart(2, "0");
+      setCell(cdEls.days, negative ? "—" : String(days).padStart(2, "0"));
+      setCell(cdEls.hrs,  negative ? "—" : String(hrs).padStart(2, "0"));
+      setCell(cdEls.min,  negative ? "—" : String(min).padStart(2, "0"));
+      setCell(cdEls.sec,  negative ? "—" : String(sec).padStart(2, "0"));
     }
     tickCountdown();
     setInterval(tickCountdown, 1000);
