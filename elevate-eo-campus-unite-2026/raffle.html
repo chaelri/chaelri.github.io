@@ -253,15 +253,6 @@
 
     async function deleteDraw(key, ticket, name) {
       if (!key) return;
-      const ok = await confirmModal({
-        title: "Remove from draw history?",
-        message: `<em>${esc(ticket)}</em>${name ? ` (${esc(name)})` : ""} will be removed from the history and put back into the eligible pool.`,
-        confirmText: "Remove",
-        cancelText: "Cancel",
-        danger: true,
-        icon: "delete",
-      });
-      if (!ok) return;
       try {
         // Drop this single draw, then re-derive lastDraw from whatever remains.
         await set(ref(db, `${SCHEMA_ROOT}/raffle/draws/${key}`), null);
