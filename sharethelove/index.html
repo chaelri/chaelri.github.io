@@ -33,6 +33,10 @@
         -webkit-font-smoothing: antialiased;
         -moz-osx-font-smoothing: grayscale;
         overflow-x: clip;
+        /* Kill the mobile double-tap-to-zoom gesture site-wide. Pinch zoom +
+           pan still work, but rapid taps (e.g. 5-tap C&K logo to enter admin)
+           are no longer swallowed by the browser's zoom heuristic. */
+        touch-action: manipulation;
       }
       .font-script { font-family: "Sacramento", cursive; }
       .font-serif  { font-family: "Playfair Display", serif; }
@@ -1097,6 +1101,6 @@
 
     <div id="toast" class="toast"><span id="toast-msg"></span></div>
 
-    <script type="module" src="script.js?v=20260620k"></script>
+    <script type="module" src="script.js?v=20260620l"></script>
   </body>
 </html>
