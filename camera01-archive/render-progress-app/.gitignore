@@ -1,0 +1,10 @@
+# Swift Package Manager build output
+.build/
+.swiftpm/
+Package.resolved
+
+# Generated bundle (rebuild via ./build.sh)
+*.app
+
+# Iconset intermediate (icon.icns is the committed output)
+RenderProgress.iconset/

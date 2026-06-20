@@ -23,7 +23,12 @@ A typical day = ~10–20 clips, ~30–60 min total duration, ~30 GB on disk.
 
 ### 1. `camera01-archive/render.sh` — merge & encode
 
-Optional companion: `camera01-archive/progress.sh <source_dir>` in a second Terminal window shows a live TUI (progress bar, per-clip status strip, ETA, log tail). No browser, no .app — pure ANSI. Earlier Chrome `--app` UI was abandoned because `--user-data-dir` spawns a separate Chrome instance at the end of the Dock, which felt off.
+Two optional companions for watching the render live:
+
+- **Native SwiftUI app** at `camera01-archive/render-progress-app/` — build with `./build.sh` (SPM, no Xcode required), produces `Render Progress.app`. Auto-detects the most-recent date folder under `~/Desktop/Camera01/` on launch; toolbar **Open folder…** for manual selection. Polls every 250 ms via direct file reads (no server). **Recommended.**
+- **Terminal TUI** at `camera01-archive/progress.sh <source_dir>` — run in a second Terminal window. Pure ANSI, identical signals as the Swift app but text-only. Useful over SSH.
+
+The Chrome `--app` mode UI from the first run was abandoned — `--user-data-dir` spawns a separate Chrome instance at the end of the Dock, which felt off.
 
 
 
