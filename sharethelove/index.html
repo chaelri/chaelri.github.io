@@ -2,7 +2,7 @@
 <html lang="en">
   <head>
     <meta charset="UTF-8" />
-    <meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover" />
+    <meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover, maximum-scale=1" />
     <title>Share the Love · Charlie & Karla</title>
     <meta name="theme-color" content="#faf9f6" />
     <link rel="icon" href="../collaterals/assets/ck-logo.png" />
@@ -32,21 +32,22 @@
         font-family: "Inter", system-ui, sans-serif;
         -webkit-font-smoothing: antialiased;
         -moz-osx-font-smoothing: grayscale;
-        overflow-x: clip;            /* prevent horizontal scroll from off-canvas florals */
+        overflow-x: clip;
       }
       .font-script { font-family: "Sacramento", cursive; }
-      .font-serif { font-family: "Playfair Display", serif; }
+      .font-serif  { font-family: "Playfair Display", serif; }
 
-      /* Floral accents — same PNGs we ship in weddingtest/collaterals. */
+      /* === Floral accents ============================================== */
+      /* position: fixed pins them to viewport corners so their negative
+         offsets can never extend the document and create extra scroll. */
       .floral {
-        position: absolute;
+        position: fixed;
         pointer-events: none;
         user-select: none;
         z-index: 0;
         opacity: 0;
-        /* Dynamic size: ~30vw on phones, capped at 280px on desktop, never wider than ~38% of viewport. */
-        width: clamp(120px, 30vw, 280px);
-        max-width: 38vw;
+        width: clamp(110px, 22vw, 240px);
+        max-width: 30vw;
         height: auto;
       }
       .floral-tl { top:    clamp(-30px, -4vw, -16px); left:  clamp(-50px, -6vw, -24px); --r:  -8deg; }
@@ -54,135 +55,416 @@
       .floral-bl { bottom: clamp(-30px, -4vw, -16px); left:  clamp(-50px, -6vw, -24px); --r:  -6deg; }
       .floral-br { bottom: clamp(-20px, -3vw, -10px); right: clamp(-50px, -6vw, -24px); --r:   8deg; }
       .floral.in {
-        animation: floralIn 1.6s cubic-bezier(0.22, 1, 0.36, 1) forwards;
+        animation-name: floralIn, floralIdle;
+        animation-duration: 1.6s, 7s;
+        animation-timing-function: cubic-bezier(0.22, 1, 0.36, 1), ease-in-out;
+        animation-delay: 0s, 1.8s;
+        animation-iteration-count: 1, infinite;
+        animation-fill-mode: forwards, none;
       }
+      /* Stagger the idle sway so the four corners breathe independently */
+      .floral-tr.in { animation-delay: 0s, 2.3s; animation-duration: 1.6s, 6s; }
+      .floral-bl.in { animation-delay: 0s, 2.0s; animation-duration: 1.6s, 7.5s; }
+      .floral-br.in { animation-delay: 0s, 2.5s; animation-duration: 1.6s, 6.5s; }
       @keyframes floralIn {
         0%   { opacity: 0; transform: scale(0.86) rotate(var(--r, 0deg)); }
-        100% { opacity: 0.92; transform: scale(1) rotate(var(--r, 0deg)); }
+        100% { opacity: 0.88; transform: scale(1) rotate(var(--r, 0deg)); }
+      }
+      @keyframes floralIdle {
+        0%, 100% { transform: scale(1)    rotate(var(--r, 0deg))             translateY(0); }
+        50%      { transform: scale(1.03) rotate(calc(var(--r, 0deg) + 1.5deg)) translateY(-3px); }
       }
 
-      /* Smooth content entrance */
+      /* Soften florals on smaller screens so the gallery breathes */
+      @media (max-width: 640px) {
+        .floral { opacity: 0; }
+        .floral.in {
+          animation-name: floralInSm, floralIdle;
+          animation-duration: 1.6s, 7s;
+          animation-timing-function: cubic-bezier(0.22, 1, 0.36, 1), ease-in-out;
+          animation-delay: 0s, 1.8s;
+          animation-iteration-count: 1, infinite;
+          animation-fill-mode: forwards, none;
+        }
+        @keyframes floralInSm { to { opacity: 0.55; transform: scale(1) rotate(var(--r,0deg)); } }
+      }
+
+      /* === Entrance animations ========================================= */
       .anim-in {
         opacity: 0;
-        transform: translateY(18px);
-        animation: floatIn 0.9s cubic-bezier(0.22, 1, 0.36, 1) forwards;
+        transform: translateY(14px);
+        animation: floatIn 0.85s cubic-bezier(0.22, 1, 0.36, 1) forwards;
       }
-      @keyframes floatIn {
-        to { opacity: 1; transform: translateY(0); }
+      @keyframes floatIn { to { opacity: 1; transform: translateY(0); } }
+
+      /* === Compact hero ================================================ */
+      .hero {
+        text-align: center;
+        padding-top: clamp(28px, 5vw, 56px);
+        padding-bottom: clamp(20px, 3vw, 40px);
+      }
+      .hero h1 {
+        font-family: "Sacramento", cursive;
+        line-height: 0.95;
+        font-size: clamp(3rem, 8vw, 5rem);
+        color: var(--ink);
+      }
+      .hero .stamp {
+        font-size: clamp(0.62rem, 1.4vw, 0.78rem);
+        letter-spacing: 0.32em;
+        text-transform: uppercase;
+        color: var(--ink-soft);
+        margin-top: 10px;
       }
 
-      /* Drop zone */
-      .dropzone {
-        background: rgba(255, 255, 255, 0.5);
-        backdrop-filter: blur(6px);
-        border: 2px dashed var(--sage);
-        transition: background 0.32s ease, border-color 0.32s ease, transform 0.32s cubic-bezier(0.22, 1, 0.36, 1);
+      /* === Notification banner (for users whose photos admin removed) === */
+      .notify-banner {
+        max-width: 720px;
+        margin: 0 auto 18px;
+        background: linear-gradient(135deg, #fff5e6, #fde4d2);
+        border: 1px solid rgba(178, 149, 84, 0.32);
+        border-radius: 18px;
+        padding: 14px 18px;
+        display: none;
+        align-items: center;
+        gap: 14px;
       }
-      .dropzone:hover, .dropzone.dragover {
-        background: rgba(255, 255, 255, 0.78);
-        border-color: var(--sage-deep);
+      .notify-banner.show { display: flex; }
+      .notify-banner .nb-icon {
+        background: var(--gold);
+        color: white;
+        border-radius: 999px;
+        width: 36px;
+        height: 36px;
+        display: grid;
+        place-items: center;
+        flex-shrink: 0;
+      }
+      .notify-banner p { font-size: 0.86rem; color: var(--ink-soft); margin: 0; line-height: 1.45; }
+      .notify-banner p strong { color: var(--ink); font-weight: 600; }
+      .notify-banner .nb-dismiss {
+        margin-left: auto;
+        background: transparent;
+        border: none;
+        color: var(--ink-soft);
+        cursor: pointer;
+        padding: 6px;
+        border-radius: 999px;
+        display: grid;
+        place-items: center;
+        transition: background 0.22s ease;
+        flex-shrink: 0;
+      }
+      .notify-banner .nb-dismiss:hover { background: rgba(0,0,0,0.06); }
+
+      /* === Gallery (now primary) ======================================= */
+      .gallery-head {
+        text-align: center;
+        margin-bottom: clamp(18px, 3vw, 28px);
+      }
+      .gallery-head h2 {
+        font-family: "Sacramento", cursive;
+        font-size: clamp(2.2rem, 5vw, 3.2rem);
+        line-height: 1;
+        color: var(--ink);
+      }
+      .gallery-head .count {
+        margin-top: 10px;
+        font-size: 0.72rem;
+        letter-spacing: 0.22em;
+        text-transform: uppercase;
+        color: var(--ink-faint);
+      }
+      /* Instagram-style: 3 columns at every breakpoint, capped width so tiles
+         stay roughly the same size from phone to desktop. */
+      #gallery-section { max-width: 935px; margin-left: auto; margin-right: auto; }
+      .gallery-grid {
+        display: grid;
+        gap: 4px;
+        grid-template-columns: repeat(3, 1fr);
+      }
+      @media (min-width: 480px) { .gallery-grid { gap: 8px; } }
+      @media (min-width: 768px) { .gallery-grid { gap: 12px; } }
+
+      .gallery-item {
+        position: relative;
+        aspect-ratio: 1 / 1;
+        border-radius: 6px;
+        overflow: hidden;
+        background: rgba(255,255,255,0.5);
+        box-shadow: 0 2px 10px rgba(26,24,22,0.05);
+        cursor: zoom-in;
+        opacity: 0;
+        transform: scale(0.94);
+        animation: tileIn 0.55s cubic-bezier(0.22, 1, 0.36, 1) forwards;
+        transition: transform 0.32s cubic-bezier(0.22, 1, 0.36, 1), box-shadow 0.32s ease;
+      }
+      @media (min-width: 768px) { .gallery-item { border-radius: 10px; } }
+      .gallery-item:hover {
+        transform: translateY(-3px) scale(1.02);
+        box-shadow: 0 10px 24px rgba(26,24,22,0.14);
+      }
+      .gallery-item img, .gallery-item video {
+        width: 100%; height: 100%; object-fit: cover; display: block;
+      }
+      @keyframes tileIn { to { opacity: 1; transform: scale(1); } }
+      .gallery-item .video-badge {
+        position: absolute;
+        top: 8px; right: 8px;
+        background: rgba(0,0,0,0.55);
+        color: white;
+        border-radius: 999px;
+        width: 26px; height: 26px;
+        display: grid; place-items: center;
+        backdrop-filter: blur(4px);
+      }
+      .gallery-item .guest-tag {
+        position: absolute;
+        left: 0; right: 0; bottom: 0;
+        padding: 18px 8px 8px;
+        font-size: 0.68rem;
+        color: white;
+        letter-spacing: 0.06em;
+        background: linear-gradient(to top, rgba(0,0,0,0.62), rgba(0,0,0,0));
+        opacity: 0;
+        transition: opacity 0.25s ease;
+        text-align: center;
+      }
+      .gallery-item:hover .guest-tag { opacity: 1; }
+      @media (hover: none) { .gallery-item .guest-tag { opacity: 1; } }
+      .gallery-item .tile-delete {
+        position: absolute;
+        top: 8px; right: 8px;
+        background: rgba(0,0,0,0.55);
+        color: white;
+        width: 32px; height: 32px;
+        border-radius: 999px;
+        display: grid; place-items: center;
+        cursor: pointer;
+        z-index: 2;
+        backdrop-filter: blur(4px);
+        transition: background 0.22s ease, transform 0.22s cubic-bezier(0.22,1,0.36,1);
+      }
+      .gallery-item .tile-delete:hover {
+        background: rgba(160,50,50,0.92);
+        transform: scale(1.08);
+      }
+      .gallery-empty {
+        text-align: center;
+        padding: clamp(48px, 8vw, 96px) 24px;
+        background: rgba(255,255,255,0.5);
+        border-radius: 24px;
+        border: 1.5px dashed rgba(123,138,91,0.4);
+      }
+
+      /* === Floating share FAB ========================================== */
+      .fab-wrap {
+        position: fixed;
+        bottom: clamp(18px, 4vw, 32px);
+        left: 50%;
+        transform: translateX(-50%);
+        z-index: 70;
+        display: flex;
+        gap: 10px;
+        background: rgba(26,24,22,0.96);
+        backdrop-filter: blur(14px);
+        padding: 8px;
+        border-radius: 999px;
+        box-shadow: 0 16px 40px rgba(0,0,0,0.32), 0 0 0 1px rgba(255,255,255,0.06) inset;
+        transition: transform 0.45s cubic-bezier(0.22,1,0.36,1), opacity 0.32s ease;
+      }
+      .fab-wrap.hidden-init { opacity: 0; transform: translateX(-50%) translateY(40px); pointer-events: none; }
+      .fab-btn {
+        display: flex;
+        align-items: center;
+        gap: 8px;
+        padding: 12px 18px;
+        border-radius: 999px;
+        background: transparent;
+        color: var(--paper);
+        font-size: 0.86rem;
+        font-weight: 500;
+        letter-spacing: 0.02em;
+        cursor: pointer;
+        transition: background 0.22s ease, transform 0.22s cubic-bezier(0.22,1,0.36,1);
+        white-space: nowrap;
+      }
+      .fab-btn:hover { background: rgba(255,255,255,0.10); }
+      .fab-btn:active { transform: scale(0.96); }
+      .fab-btn.primary {
+        background: var(--paper);
+        color: var(--ink);
+      }
+      .fab-btn.primary:hover { background: rgba(255,255,255,0.92); transform: translateY(-1px); }
+      .fab-btn .material-symbols-outlined { font-size: 20px; }
+
+      /* === Share modal (slide-up sheet on mobile, dialog on desktop) === */
+      .share-modal {
+        position: fixed;
+        inset: 0;
+        background: rgba(20,18,16,0.6);
+        backdrop-filter: blur(10px);
+        z-index: 95;
+        display: none;
+        align-items: flex-end;
+        justify-content: center;
+        opacity: 0;
+        transition: opacity 0.32s ease;
+      }
+      .share-modal.open { display: flex; opacity: 1; }
+      .share-card {
+        width: 100%;
+        max-width: 620px;
+        background: var(--paper);
+        border-radius: 26px 26px 0 0;
+        padding: 24px 22px 32px;
+        transform: translateY(100%);
+        transition: transform 0.46s cubic-bezier(0.22, 1, 0.36, 1);
+        max-height: 92vh;
+        overflow-y: auto;
+        position: relative;
+      }
+      .share-modal.open .share-card { transform: translateY(0); }
+      .share-card .grabber {
+        width: 44px; height: 4px;
+        background: rgba(26,24,22,0.18);
+        border-radius: 999px;
+        margin: 0 auto 18px;
+      }
+      .share-card .share-head {
+        display: flex;
+        align-items: flex-start;
+        justify-content: space-between;
+        gap: 12px;
+        margin-bottom: 16px;
+      }
+      .share-card .share-head h3 {
+        font-family: "Playfair Display", serif;
+        font-size: clamp(1.4rem, 3vw, 1.7rem);
+        color: var(--ink);
+      }
+      .share-card .share-head p { font-size: 0.86rem; color: var(--ink-soft); margin-top: 4px; }
+      .share-close {
+        background: rgba(26,24,22,0.06);
+        color: var(--ink);
+        border: none;
+        width: 36px; height: 36px;
+        border-radius: 999px;
+        display: grid; place-items: center;
+        cursor: pointer;
+        flex-shrink: 0;
+        transition: background 0.22s ease;
+      }
+      .share-close:hover { background: rgba(26,24,22,0.12); }
+
+      .share-actions { display: grid; grid-template-columns: 1fr 1fr; gap: 10px; margin-bottom: 16px; }
+      .share-action {
+        background: rgba(123,138,91,0.10);
+        border: 1.5px solid rgba(123,138,91,0.35);
+        color: var(--sage-deep);
+        padding: 18px 14px;
+        border-radius: 16px;
+        display: flex;
+        flex-direction: column;
+        align-items: center;
+        gap: 6px;
+        cursor: pointer;
+        transition: background 0.22s ease, transform 0.22s cubic-bezier(0.22,1,0.36,1), border-color 0.22s ease;
+        text-align: center;
+      }
+      .share-action:hover {
+        background: rgba(123,138,91,0.18);
+        border-color: var(--sage);
         transform: translateY(-2px);
       }
-      .dropzone.dragover { transform: scale(1.012); }
+      .share-action .material-symbols-outlined { font-size: 30px; font-variation-settings: 'wght' 300; }
+      .share-action .lbl { font-size: 0.86rem; font-weight: 600; }
+      .share-action .sub { font-size: 0.7rem; opacity: 0.78; letter-spacing: 0.04em; }
 
-      /* Thumbnail card */
+      .share-name {
+        width: 100%;
+        padding: 12px 14px;
+        border-radius: 14px;
+        background: rgba(255,255,255,0.6);
+        border: 1px solid #e7e2da;
+        font-size: 0.95rem;
+        color: var(--ink);
+        margin-bottom: 14px;
+      }
+      .share-name:focus { outline: none; border-color: var(--sage); }
+
+      /* Thumbnail preview list inside share modal */
+      .preview-grid {
+        display: grid;
+        grid-template-columns: repeat(3, 1fr);
+        gap: 8px;
+      }
+      @media (min-width: 480px) { .preview-grid { grid-template-columns: repeat(4, 1fr); } }
       .thumb {
         position: relative;
         aspect-ratio: 1 / 1;
-        border-radius: 14px;
+        border-radius: 12px;
         overflow: hidden;
-        background: rgba(255, 255, 255, 0.6);
-        box-shadow: 0 4px 16px rgba(26, 24, 22, 0.06);
+        background: rgba(255,255,255,0.6);
+        box-shadow: 0 4px 16px rgba(26,24,22,0.06);
         opacity: 0;
         transform: scale(0.9);
-        animation: thumbIn 0.55s cubic-bezier(0.22, 1, 0.36, 1) forwards;
+        animation: thumbIn 0.5s cubic-bezier(0.22, 1, 0.36, 1) forwards;
       }
-      @keyframes thumbIn {
-        to { opacity: 1; transform: scale(1); }
-      }
+      @keyframes thumbIn { to { opacity: 1; transform: scale(1); } }
       .thumb img, .thumb video {
-        width: 100%;
-        height: 100%;
-        object-fit: cover;
-        display: block;
+        width: 100%; height: 100%; object-fit: cover; display: block;
       }
       .thumb .progress {
-        position: absolute;
-        left: 0;
-        right: 0;
-        bottom: 0;
+        position: absolute; left: 0; right: 0; bottom: 0;
         height: 4px;
-        background: rgba(255, 255, 255, 0.45);
+        background: rgba(255,255,255,0.45);
       }
       .thumb .progress-fill {
-        height: 100%;
-        width: 0%;
+        height: 100%; width: 0%;
         background: var(--sage);
         transition: width 0.35s cubic-bezier(0.22, 1, 0.36, 1);
       }
       .thumb .check {
-        position: absolute;
-        inset: 0;
-        display: grid;
-        place-items: center;
-        background: rgba(123, 138, 91, 0.85);
+        position: absolute; inset: 0;
+        display: grid; place-items: center;
+        background: rgba(123,138,91,0.85);
         color: white;
         opacity: 0;
         transition: opacity 0.45s ease;
       }
       .thumb.done .check { opacity: 1; }
       .thumb .remove {
-        position: absolute;
-        top: 6px;
-        right: 6px;
-        background: rgba(0, 0, 0, 0.55);
+        position: absolute; top: 6px; right: 6px;
+        background: rgba(0,0,0,0.55);
         color: white;
-        width: 28px;
-        height: 28px;
+        width: 26px; height: 26px;
         border-radius: 999px;
-        display: grid;
-        place-items: center;
+        display: grid; place-items: center;
         cursor: pointer;
-        transition: background 0.22s ease, transform 0.22s cubic-bezier(0.22, 1, 0.36, 1);
+        transition: background 0.22s ease, transform 0.22s cubic-bezier(0.22,1,0.36,1);
       }
-      .thumb .remove:hover { background: rgba(0, 0, 0, 0.78); transform: scale(1.08); }
+      .thumb .remove:hover { background: rgba(0,0,0,0.78); transform: scale(1.08); }
       .thumb.uploading .remove { display: none; }
 
-      /* Primary button */
+      /* Send button */
       .btn-primary {
         background: var(--ink);
         color: var(--paper);
         transition: transform 0.32s cubic-bezier(0.22, 1, 0.36, 1), box-shadow 0.32s ease, opacity 0.25s ease;
       }
-      .btn-primary:hover:not(:disabled) {
-        transform: translateY(-2px);
-        box-shadow: 0 12px 28px rgba(26, 24, 22, 0.18);
-      }
-      .btn-primary:active:not(:disabled) {
-        transform: translateY(0);
-        box-shadow: 0 4px 12px rgba(26, 24, 22, 0.12);
-      }
-      .btn-primary:disabled {
-        opacity: 0.5;
-        cursor: not-allowed;
-      }
-
-      /* Ghost button */
+      .btn-primary:hover:not(:disabled) { transform: translateY(-2px); box-shadow: 0 12px 28px rgba(26,24,22,0.18); }
+      .btn-primary:active:not(:disabled) { transform: translateY(0); box-shadow: 0 4px 12px rgba(26,24,22,0.12); }
+      .btn-primary:disabled { opacity: 0.5; cursor: not-allowed; }
       .btn-ghost {
         border: 1.5px solid var(--ink);
         color: var(--ink);
+        background: transparent;
         transition: background 0.25s ease, color 0.25s ease, transform 0.32s ease;
       }
-      .btn-ghost:hover {
-        background: var(--ink);
-        color: var(--paper);
-        transform: translateY(-1px);
-      }
+      .btn-ghost:hover { background: var(--ink); color: var(--paper); transform: translateY(-1px); }
 
-      /* Success heart pulse */
-      .heart-burst {
-        animation: heartBurst 1.4s cubic-bezier(0.34, 1.56, 0.64, 1) forwards;
-      }
+      .heart-burst { animation: heartBurst 1.4s cubic-bezier(0.34, 1.56, 0.64, 1) forwards; }
       @keyframes heartBurst {
         0%   { transform: scale(0.4); opacity: 0; }
         45%  { transform: scale(1.18); opacity: 1; }
@@ -190,101 +472,71 @@
         100% { transform: scale(1); }
       }
 
-      /* Hidden until JS toggles */
       .hidden-init { display: none !important; }
-
-      /* Small status pill */
       .pill {
         font-size: 0.7rem;
         letter-spacing: 0.12em;
         text-transform: uppercase;
         padding: 4px 10px;
         border-radius: 999px;
-        background: rgba(123, 138, 91, 0.12);
+        background: rgba(123,138,91,0.12);
         color: var(--sage-deep);
       }
 
-      /* Gallery */
-      .gallery-item {
-        position: relative;
-        aspect-ratio: 1 / 1;
+      /* === Lightbox ==================================================== */
+      .lightbox {
+        position: fixed; inset: 0;
+        background: rgba(20,18,16,0.94);
+        backdrop-filter: blur(12px);
+        z-index: 100;
+        display: none;
+        align-items: center;
+        justify-content: center;
+        padding: 36px 16px;
+        opacity: 0;
+        transition: opacity 0.32s ease;
+      }
+      .lightbox.open { display: flex; opacity: 1; }
+      .lb-stage {
+        max-width: min(96vw, 1500px);
+        max-height: 72vh;
+        display: flex;
+        align-items: center;
+        justify-content: center;
+        margin-bottom: 90px;
+      }
+      .lb-stage img, .lb-stage video {
+        max-width: 100%;
+        max-height: 72vh;
         border-radius: 12px;
-        overflow: hidden;
-        background: rgba(255, 255, 255, 0.5);
-        box-shadow: 0 2px 10px rgba(26, 24, 22, 0.05);
-        cursor: zoom-in;
-        opacity: 0;
-        transform: scale(0.92);
-        animation: tileIn 0.55s cubic-bezier(0.22, 1, 0.36, 1) forwards;
-        transition: transform 0.32s cubic-bezier(0.22, 1, 0.36, 1), box-shadow 0.32s ease;
+        box-shadow: 0 24px 60px rgba(0,0,0,0.45);
+        animation: lbZoomIn 0.4s cubic-bezier(0.22, 1, 0.36, 1);
+        background: var(--paper);
       }
-      .gallery-item:hover {
-        transform: translateY(-3px) scale(1.02);
-        box-shadow: 0 10px 24px rgba(26, 24, 22, 0.14);
+      @keyframes lbZoomIn {
+        from { opacity: 0; transform: scale(0.95); }
+        to   { opacity: 1; transform: scale(1); }
       }
-      .gallery-item img, .gallery-item video {
-        width: 100%;
-        height: 100%;
-        object-fit: cover;
-        display: block;
-      }
-      @keyframes tileIn {
-        to { opacity: 1; transform: scale(1); }
-      }
-      .gallery-item .video-badge {
+      .lb-close, .lb-nav {
         position: absolute;
-        top: 6px;
-        right: 6px;
-        background: rgba(0, 0, 0, 0.55);
+        background: rgba(255,255,255,0.12);
         color: white;
         border-radius: 999px;
-        width: 26px;
-        height: 26px;
-        display: grid;
-        place-items: center;
-        backdrop-filter: blur(4px);
-      }
-      .gallery-item .guest-tag {
-        position: absolute;
-        left: 0;
-        right: 0;
-        bottom: 0;
-        padding: 16px 8px 6px;
-        font-size: 0.66rem;
-        color: white;
-        letter-spacing: 0.06em;
-        background: linear-gradient(to top, rgba(0, 0, 0, 0.55), rgba(0, 0, 0, 0));
-        opacity: 0;
-        transition: opacity 0.25s ease;
-        text-align: center;
-      }
-      .gallery-item:hover .guest-tag { opacity: 1; }
-      .gallery-item .tile-delete {
-        position: absolute;
-        top: 6px;
-        right: 6px;
-        background: rgba(0, 0, 0, 0.55);
-        color: white;
-        width: 28px;
-        height: 28px;
-        border-radius: 999px;
-        display: grid;
-        place-items: center;
+        width: 48px; height: 48px;
+        display: grid; place-items: center;
         cursor: pointer;
-        z-index: 2;
-        transition: background 0.22s ease, transform 0.22s cubic-bezier(0.22, 1, 0.36, 1);
+        backdrop-filter: blur(4px);
+        transition: background 0.22s ease, transform 0.22s cubic-bezier(0.22,1,0.36,1);
       }
-      .gallery-item .tile-delete:hover {
-        background: rgba(160, 50, 50, 0.92);
-        transform: scale(1.08);
-      }
-
-      /* Lightbox delete button (only rendered on owned media) */
-      .lb-delete {
+      .lb-close:hover, .lb-nav:hover { background: rgba(255,255,255,0.22); transform: scale(1.06); }
+      .lb-close { top: 18px; right: 18px; }
+      .lb-prev { left: 16px; top: 50%; transform: translateY(-50%); }
+      .lb-next { right: 16px; top: 50%; transform: translateY(-50%); }
+      .lb-prev:hover { transform: translateY(-50%) scale(1.06); }
+      .lb-next:hover { transform: translateY(-50%) scale(1.06); }
+      .lb-delete, .lb-download {
         position: absolute;
-        bottom: 18px;
-        left: 18px;
-        background: rgba(255, 255, 255, 0.12);
+        background: rgba(255,255,255,0.12);
         color: white;
         border-radius: 999px;
         height: 44px;
@@ -296,20 +548,76 @@
         backdrop-filter: blur(4px);
         font-size: 0.8rem;
         letter-spacing: 0.04em;
-        transition: background 0.22s ease, transform 0.22s cubic-bezier(0.22, 1, 0.36, 1);
+        border: none;
+        transition: background 0.22s ease, transform 0.22s cubic-bezier(0.22,1,0.36,1);
       }
-      .lb-delete:hover {
-        background: rgba(160, 50, 50, 0.85);
-        transform: scale(1.04);
+      .lb-delete { bottom: 100px; left: 18px; }
+      .lb-download { top: 18px; right: 76px; }
+      .lb-delete:hover { background: rgba(160,50,50,0.85); transform: scale(1.04); }
+      .lb-download:hover { background: rgba(255,255,255,0.22); transform: scale(1.04); }
+      .lb-download:disabled { opacity: 0.5; cursor: progress; transform: none; }
+
+      /* Lightbox thumbnail strip (Facebook-style) */
+      .lb-strip {
+        position: absolute;
+        left: 0; right: 0;
+        bottom: 0;
+        padding: 10px 14px max(14px, env(safe-area-inset-bottom));
+        display: flex;
+        gap: 4px;
+        overflow-x: auto;
+        overflow-y: hidden;
+        scrollbar-width: none;
+        background: linear-gradient(to top, rgba(0,0,0,0.6), rgba(0,0,0,0));
+        scroll-behavior: smooth;
+      }
+      .lb-strip::-webkit-scrollbar { display: none; }
+      .lb-strip-thumb {
+        flex-shrink: 0;
+        width: 56px; height: 56px;
+        border-radius: 6px;
+        overflow: hidden;
+        cursor: pointer;
+        background: rgba(255,255,255,0.06);
+        border: 2px solid transparent;
+        opacity: 0.55;
+        transition: opacity 0.22s ease, border-color 0.22s ease, transform 0.22s cubic-bezier(0.22,1,0.36,1);
+      }
+      .lb-strip-thumb:hover { opacity: 0.85; }
+      .lb-strip-thumb.active {
+        opacity: 1;
+        border-color: white;
+        transform: scale(1.05);
+      }
+      .lb-strip-thumb img, .lb-strip-thumb video {
+        width: 100%; height: 100%; object-fit: cover; display: block;
+      }
+      @media (max-width: 640px) {
+        .lb-strip-thumb { width: 44px; height: 44px; }
+      }
+      .lb-caption {
+        position: absolute;
+        bottom: 102px;
+        left: 0; right: 0;
+        text-align: center;
+        color: rgba(255,255,255,0.86);
+        font-size: 0.82rem;
+        letter-spacing: 0.04em;
+        pointer-events: none;
+      }
+      @media (max-width: 640px) {
+        .lb-prev { left: 8px; }
+        .lb-next { right: 8px; }
+        .lb-caption { bottom: 84px; font-size: 0.74rem; }
+        .lb-delete { bottom: 82px; }
       }
 
-      /* Confirm modal */
+      /* === Confirm modal =============================================== */
       .modal {
-        position: fixed;
-        inset: 0;
-        background: rgba(20, 18, 16, 0.55);
+        position: fixed; inset: 0;
+        background: rgba(20,18,16,0.55);
         backdrop-filter: blur(8px);
-        z-index: 110;
+        z-index: 120;
         display: none;
         align-items: center;
         justify-content: center;
@@ -317,148 +625,211 @@
         opacity: 0;
         transition: opacity 0.32s ease;
       }
-      .modal.open {
-        display: flex;
-        opacity: 1;
-      }
+      .modal.open { display: flex; opacity: 1; }
       .modal-card {
-        max-width: 380px;
-        width: 100%;
+        max-width: 380px; width: 100%;
         background: var(--paper);
         border-radius: 22px;
         padding: 28px 26px 22px;
         text-align: center;
-        box-shadow: 0 24px 60px rgba(0, 0, 0, 0.28);
+        box-shadow: 0 24px 60px rgba(0,0,0,0.28);
         transform: translateY(14px) scale(0.96);
         opacity: 0;
         animation: modalIn 0.42s cubic-bezier(0.22, 1, 0.36, 1) forwards;
       }
-      @keyframes modalIn {
-        to { transform: translateY(0) scale(1); opacity: 1; }
-      }
-      .modal-card h3 {
-        font-family: "Playfair Display", serif;
-        font-size: 1.5rem;
-        color: var(--ink);
-      }
-      .modal-card p {
-        margin-top: 10px;
-        font-size: 0.92rem;
-        color: var(--ink-soft);
-      }
-      .modal-actions {
-        margin-top: 22px;
-        display: flex;
-        gap: 10px;
-      }
+      @keyframes modalIn { to { transform: translateY(0) scale(1); opacity: 1; } }
+      .modal-card h3 { font-family: "Playfair Display", serif; font-size: 1.5rem; color: var(--ink); }
+      .modal-card p { margin-top: 10px; font-size: 0.92rem; color: var(--ink-soft); }
+      .modal-actions { margin-top: 22px; display: flex; gap: 10px; }
       .modal-actions button {
-        flex: 1;
-        padding: 12px 16px;
+        flex: 1; padding: 12px 16px;
         border-radius: 14px;
         font-size: 0.86rem;
         letter-spacing: 0.04em;
-        transition: transform 0.22s cubic-bezier(0.22, 1, 0.36, 1), background 0.22s ease, color 0.22s ease, box-shadow 0.22s ease;
+        transition: transform 0.22s cubic-bezier(0.22,1,0.36,1), background 0.22s ease, color 0.22s ease, box-shadow 0.22s ease;
       }
-      .modal-actions .btn-ghost {
-        border: 1.5px solid var(--ink);
-        color: var(--ink);
-        background: transparent;
-      }
+      .modal-actions .btn-ghost { border: 1.5px solid var(--ink); color: var(--ink); background: transparent; }
       .modal-actions .btn-ghost:hover { background: var(--ink); color: var(--paper); transform: translateY(-1px); }
-      .modal-actions .btn-danger {
-        background: #a83838;
-        color: white;
-      }
-      .modal-actions .btn-danger:hover {
-        background: #8b2c2c;
-        transform: translateY(-1px);
-        box-shadow: 0 8px 20px rgba(168, 56, 56, 0.32);
-      }
+      .modal-actions .btn-danger { background: #a83838; color: white; }
+      .modal-actions .btn-danger:hover { background: #8b2c2c; transform: translateY(-1px); box-shadow: 0 8px 20px rgba(168,56,56,0.32); }
       .modal-actions .btn-danger:disabled { opacity: 0.55; cursor: not-allowed; transform: none; box-shadow: none; }
 
-      /* Lightbox */
-      .lightbox {
-        position: fixed;
-        inset: 0;
-        background: rgba(20, 18, 16, 0.92);
-        backdrop-filter: blur(12px);
-        z-index: 100;
+      /* === Camera view (fullscreen) ==================================== */
+      .camera-view {
+        position: fixed; inset: 0;
+        background: #000;
+        z-index: 130;
         display: none;
-        align-items: center;
-        justify-content: center;
-        padding: 36px 16px;
+        flex-direction: column;
         opacity: 0;
         transition: opacity 0.32s ease;
       }
-      .lightbox.open {
-        display: flex;
-        opacity: 1;
-      }
-      .lb-stage {
-        max-width: min(96vw, 1400px);
-        max-height: 80vh;
+      .camera-view.open { display: flex; opacity: 1; }
+      .camera-stage {
+        flex: 1;
+        position: relative;
+        overflow: hidden;
+        background: #000;
         display: flex;
         align-items: center;
         justify-content: center;
       }
-      .lb-stage img, .lb-stage video {
-        max-width: 100%;
-        max-height: 80vh;
-        border-radius: 12px;
-        box-shadow: 0 24px 60px rgba(0, 0, 0, 0.45);
-        animation: lbZoomIn 0.4s cubic-bezier(0.22, 1, 0.36, 1);
-        background: var(--paper);
+      .camera-stage video {
+        width: 100%; height: 100%;
+        object-fit: cover;
       }
-      @keyframes lbZoomIn {
-        from { opacity: 0; transform: scale(0.95); }
-        to   { opacity: 1; transform: scale(1); }
+      .camera-stage video.mirror { transform: scaleX(-1); }
+      .camera-flash {
+        position: absolute; inset: 0;
+        background: white;
+        opacity: 0;
+        pointer-events: none;
+        transition: opacity 0.18s ease;
       }
-      .lb-close, .lb-nav {
+      .camera-flash.fire { opacity: 0.92; transition: opacity 0.06s ease; }
+      .camera-topbar {
         position: absolute;
-        background: rgba(255, 255, 255, 0.12);
+        top: 0; left: 0; right: 0;
+        padding: max(16px, env(safe-area-inset-top)) 18px 12px;
+        display: flex;
+        justify-content: space-between;
+        align-items: center;
+        gap: 12px;
+        background: linear-gradient(to bottom, rgba(0,0,0,0.5), rgba(0,0,0,0));
+        z-index: 2;
+      }
+      .camera-btn-icon {
+        background: rgba(0,0,0,0.4);
+        backdrop-filter: blur(8px);
         color: white;
+        width: 44px; height: 44px;
         border-radius: 999px;
-        width: 48px;
-        height: 48px;
-        display: grid;
-        place-items: center;
+        border: none;
+        display: grid; place-items: center;
         cursor: pointer;
-        backdrop-filter: blur(4px);
-        transition: background 0.22s ease, transform 0.22s cubic-bezier(0.22, 1, 0.36, 1);
+        transition: background 0.22s ease, transform 0.22s cubic-bezier(0.22,1,0.36,1);
       }
-      .lb-close:hover, .lb-nav:hover {
-        background: rgba(255, 255, 255, 0.22);
-        transform: scale(1.06);
+      .camera-btn-icon:hover { background: rgba(0,0,0,0.6); transform: scale(1.06); }
+      .camera-btn-icon:disabled { opacity: 0.35; cursor: not-allowed; }
+      .camera-controls {
+        background: #000;
+        padding: 18px 18px max(20px, env(safe-area-inset-bottom));
+        display: grid;
+        grid-template-columns: 1fr auto 1fr;
+        align-items: center;
+        gap: 14px;
       }
-      .lb-close { top: 18px; right: 18px; }
-      .lb-prev { left: 16px; top: 50%; transform: translateY(-50%); }
-      .lb-next { right: 16px; top: 50%; transform: translateY(-50%); }
-      .lb-prev:hover { transform: translateY(-50%) scale(1.06); }
-      .lb-next:hover { transform: translateY(-50%) scale(1.06); }
-      .lb-caption {
-        position: absolute;
-        bottom: 24px;
-        left: 0;
-        right: 0;
+      .camera-strip {
+        display: flex;
+        gap: 6px;
+        overflow-x: auto;
+        scrollbar-width: none;
+        min-height: 56px;
+        align-items: center;
+      }
+      .camera-strip::-webkit-scrollbar { display: none; }
+      .camera-strip .cs-thumb {
+        width: 52px; height: 52px;
+        border-radius: 10px;
+        overflow: hidden;
+        flex-shrink: 0;
+        background: #222;
+        border: 1.5px solid rgba(255,255,255,0.2);
+        opacity: 0;
+        transform: scale(0.6);
+        animation: csThumbIn 0.42s cubic-bezier(0.34,1.56,0.64,1) forwards;
+      }
+      @keyframes csThumbIn { to { opacity: 1; transform: scale(1); } }
+      .camera-strip .cs-thumb img {
+        width: 100%; height: 100%; object-fit: cover; display: block;
+      }
+      .camera-strip-placeholder {
+        color: rgba(255,255,255,0.4);
+        font-size: 0.74rem;
+        letter-spacing: 0.08em;
+      }
+      .camera-shutter {
+        width: 76px; height: 76px;
+        border-radius: 999px;
+        background: transparent;
+        border: 4px solid white;
+        display: grid; place-items: center;
+        cursor: pointer;
+        padding: 0;
+        position: relative;
+        transition: transform 0.18s cubic-bezier(0.22,1,0.36,1);
+      }
+      .camera-shutter::after {
+        content: '';
+        width: 60px; height: 60px;
+        border-radius: 999px;
+        background: white;
+        transition: transform 0.15s cubic-bezier(0.22,1,0.36,1);
+      }
+      .camera-shutter:active::after { transform: scale(0.82); }
+      .camera-shutter:disabled { opacity: 0.5; cursor: not-allowed; }
+      .camera-shutter.busy::after { transform: scale(0.6); background: #c97070; }
+      .camera-done {
+        justify-self: end;
+        background: white;
+        color: var(--ink);
+        border: none;
+        padding: 10px 18px;
+        border-radius: 999px;
+        font-weight: 600;
+        font-size: 0.86rem;
+        cursor: pointer;
+        opacity: 0.65;
+        transition: opacity 0.22s ease, transform 0.22s cubic-bezier(0.22,1,0.36,1);
+      }
+      .camera-done.active { opacity: 1; }
+      .camera-done:hover.active { transform: translateY(-1px); }
+      .camera-done:disabled { opacity: 0.35; cursor: not-allowed; }
+      .camera-error {
+        position: absolute; inset: 0;
+        background: rgba(0,0,0,0.85);
+        color: white;
+        display: none;
+        align-items: center;
+        justify-content: center;
+        padding: 32px;
         text-align: center;
-        color: rgba(255, 255, 255, 0.86);
-        font-size: 0.82rem;
-        letter-spacing: 0.04em;
+        flex-direction: column;
+        gap: 12px;
+        z-index: 3;
+      }
+      .camera-error.show { display: flex; }
+      .camera-error .material-symbols-outlined { font-size: 56px; color: var(--blush); }
+      .camera-error p { font-size: 0.92rem; opacity: 0.88; max-width: 380px; }
+
+      /* === Drop-over overlay (drag from desktop) ======================= */
+      .dropover {
+        position: fixed; inset: 0;
+        background: rgba(123,138,91,0.18);
+        backdrop-filter: blur(6px);
+        border: 4px dashed var(--sage);
+        z-index: 80;
+        display: none;
+        align-items: center;
+        justify-content: center;
         pointer-events: none;
       }
-      @media (max-width: 640px) {
-        .lb-prev, .lb-next { top: auto; bottom: 56px; transform: none; }
-        .lb-prev:hover, .lb-next:hover { transform: scale(1.06); }
-        .lb-prev { left: 16px; }
-        .lb-next { right: 16px; }
-        .lb-caption { bottom: 12px; }
+      .dropover.show { display: flex; }
+      .dropover-card {
+        background: var(--paper);
+        padding: 28px 36px;
+        border-radius: 20px;
+        text-align: center;
+        box-shadow: 0 24px 60px rgba(0,0,0,0.18);
       }
+      .dropover-card .material-symbols-outlined { font-size: 48px; color: var(--sage); }
+      .dropover-card p { margin-top: 8px; font-size: 1rem; font-weight: 500; color: var(--ink); }
 
-      /* Toast */
+      /* === Toast ======================================================= */
       .toast {
         position: fixed;
         left: 50%;
-        bottom: 28px;
+        bottom: calc(110px + env(safe-area-inset-bottom));
         transform: translate(-50%, 30px);
         background: var(--ink);
         color: var(--paper);
@@ -468,121 +839,206 @@
         opacity: 0;
         pointer-events: none;
         transition: opacity 0.35s ease, transform 0.5s cubic-bezier(0.22, 1, 0.36, 1);
-        z-index: 50;
+        z-index: 150;
+        max-width: 90vw;
       }
-      .toast.show {
-        opacity: 1;
-        transform: translate(-50%, 0);
-      }
+      .toast.show { opacity: 1; transform: translate(-50%, 0); }
       .toast.err { background: #8b3b3b; }
+
+      /* === Inline upload status / success ============================== */
+      .upload-status { margin-top: 10px; text-align: center; font-size: 0.86rem; color: var(--ink-soft); }
+      .success-card {
+        text-align: center;
+        padding: 18px 16px 8px;
+      }
+      .success-card .heart-burst { color: var(--sage-deep); }
+
+      /* === Body padding for FAB ======================================== */
+      main { padding-bottom: clamp(110px, 14vw, 140px); }
+
+      /* === Admin badge ================================================= */
+      .admin-badge {
+        position: fixed;
+        top: max(12px, env(safe-area-inset-top));
+        right: 14px;
+        z-index: 60;
+        background: #a83838;
+        color: white;
+        font-size: 0.64rem;
+        letter-spacing: 0.18em;
+        padding: 6px 12px;
+        border-radius: 999px;
+        box-shadow: 0 6px 16px rgba(168,56,56,0.32);
+        cursor: pointer;
+        border: none;
+        text-transform: uppercase;
+      }
     </style>
   </head>
-  <body class="min-h-screen relative overflow-x-hidden">
+  <body class="min-h-screen relative">
     <!-- Floral decorations -->
     <img class="floral floral-tl" src="../weddingtest/assets/5.png"  alt="" />
     <img class="floral floral-tr" src="../weddingtest/assets/8.png"  alt="" />
     <img class="floral floral-bl" src="../weddingtest/assets/6.png"  alt="" />
     <img class="floral floral-br" src="../weddingtest/assets/10.png" alt="" />
 
-    <main class="relative max-w-2xl mx-auto px-6 py-12 sm:py-16 z-10">
-      <!-- Hero -->
-      <header class="text-center anim-in" style="animation-delay: 0.05s">
-        <img src="../collaterals/assets/ck-logo.png" alt="C&amp;K" class="mx-auto h-16 opacity-90" />
-        <h1 class="font-script mt-6 text-6xl sm:text-7xl leading-none" style="color: var(--ink)">share the love</h1>
-        <div class="mt-5 text-[0.72rem] sm:text-xs tracking-[0.32em] uppercase" style="color: var(--ink-soft)">
-          Charlie · 07.02.2026 · Karla
-        </div>
-        <p class="mt-7 text-base sm:text-lg leading-relaxed max-w-md mx-auto" style="color: var(--ink-soft)">
-          Thank you for celebrating our wedding day with us. Drop the photos and videos you captured here — we'd love to see our day through your eyes.
-        </p>
+    <main class="relative max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 z-10">
+      <!-- Compact hero -->
+      <header class="hero anim-in" style="animation-delay: 0.05s">
+        <img src="../collaterals/assets/ck-logo.png" alt="C&amp;K" class="mx-auto h-12 sm:h-14 opacity-90" />
+        <h1 class="mt-3">share the love</h1>
+        <div class="stamp">Charlie · 07.02.2026 · Karla</div>
       </header>
 
-      <!-- Optional name -->
-      <section class="mt-10 anim-in" style="animation-delay: 0.15s">
-        <label for="guest-name" class="block text-[0.72rem] uppercase tracking-[0.18em] mb-2" style="color: var(--ink-faint)">
-          Your name (optional)
-        </label>
-        <input
-          id="guest-name"
-          type="text"
-          autocomplete="name"
-          placeholder="So we know who to thank ♡"
-          class="w-full px-4 py-3 rounded-2xl text-base focus:outline-none focus:ring-2"
-          style="background: rgba(255,255,255,0.6); border: 1px solid #e7e2da; color: var(--ink);"
-        />
-      </section>
-
-      <!-- Drop zone -->
-      <section class="mt-6 anim-in" style="animation-delay: 0.22s">
-        <label id="dropzone" for="file-input" class="dropzone relative block rounded-3xl p-10 sm:p-12 text-center cursor-pointer">
-          <span class="material-symbols-outlined" style="font-size: 56px; color: var(--sage); font-variation-settings: 'wght' 300;">cloud_upload</span>
-          <p class="mt-3 text-base font-medium">Drop your photos & videos here</p>
-          <p class="mt-1 text-sm" style="color: var(--ink-faint)">or tap to choose from your device</p>
-          <p class="mt-3 text-xs" style="color: var(--ink-faint)">Up to ~50 MB per video · photos auto-compressed</p>
-          <input id="file-input" type="file" accept="image/*,video/*" multiple class="sr-only" />
-        </label>
-      </section>
-
-      <!-- Thumbnail grid -->
-      <section id="preview-list" class="mt-6 grid grid-cols-3 sm:grid-cols-4 gap-3"></section>
-
-      <!-- Upload action -->
-      <section id="upload-controls" class="mt-6 hidden-init">
-        <button id="upload-btn" class="btn-primary w-full py-4 rounded-2xl text-base font-medium flex items-center justify-center gap-2">
-          <span class="material-symbols-outlined">favorite</span>
-          <span id="upload-label">Send to our album</span>
-        </button>
-        <div id="upload-status" class="mt-3 text-center text-sm" style="color: var(--ink-soft)"></div>
-      </section>
-
-      <!-- Success state -->
-      <section id="success" class="hidden-init mt-12 text-center">
-        <div class="inline-block heart-burst" style="color: var(--sage-deep)">
-          <span class="material-symbols-outlined" style="font-size: 80px; font-variation-settings: 'FILL' 1;">favorite</span>
+      <!-- Notification banner: surfaces admin deletions to the original uploader -->
+      <div id="notify-banner" class="notify-banner anim-in" style="animation-delay: 0.1s" role="status" aria-live="polite">
+        <div class="nb-icon">
+          <span class="material-symbols-outlined" style="font-size:20px">info</span>
         </div>
-        <h2 class="font-serif text-3xl sm:text-4xl mt-2" style="color: var(--ink)">Salamat, mahal namin kayo</h2>
-        <p class="mt-3 max-w-sm mx-auto" style="color: var(--ink-soft)">
-          Your photos are on their way to our album. Every shot you share makes the memory complete.
-        </p>
-        <button id="upload-more" class="btn-ghost mt-7 px-7 py-3 rounded-full text-sm tracking-[0.18em] uppercase">
-          <span class="material-symbols-outlined align-middle mr-1" style="font-size: 18px">add_photo_alternate</span>
-          Share more
+        <p id="notify-text"></p>
+        <button id="notify-dismiss" class="nb-dismiss" aria-label="Dismiss">
+          <span class="material-symbols-outlined" style="font-size:20px">close</span>
         </button>
-      </section>
-
-      <!-- Gallery divider -->
-      <div class="mt-20 mb-8 flex items-center gap-4 anim-in" style="animation-delay: 0.4s">
-        <div class="flex-1 h-px" style="background: rgba(26,24,22,0.12)"></div>
-        <div class="text-[0.7rem] tracking-[0.32em] uppercase" style="color: var(--ink-faint)">From our guests</div>
-        <div class="flex-1 h-px" style="background: rgba(26,24,22,0.12)"></div>
       </div>
 
-      <!-- Gallery -->
-      <section id="gallery-section">
-        <div class="text-center mb-6">
-          <h2 class="font-script text-4xl sm:text-5xl leading-none" style="color: var(--ink)">our shared album</h2>
-          <p class="mt-3 text-sm sm:text-base" style="color: var(--ink-soft)">
-            Every moment our guests captured, all in one place.
-          </p>
-          <p id="gallery-count" class="mt-2 text-xs tracking-[0.2em] uppercase" style="color: var(--ink-faint)"></p>
+      <!-- Gallery — primary section, what guests see first -->
+      <section id="gallery-section" class="anim-in" style="animation-delay: 0.18s">
+        <div class="gallery-head">
+          <p id="gallery-count" class="count"></p>
         </div>
-        <div id="gallery-empty" class="text-center py-12 hidden-init">
-          <span class="material-symbols-outlined" style="font-size:48px;color:var(--ink-faint)">photo_library</span>
-          <p class="mt-3 text-sm" style="color:var(--ink-soft)">No photos yet — be the first to share a moment ♡</p>
+        <div id="gallery-empty" class="gallery-empty hidden-init">
+          <span class="material-symbols-outlined" style="font-size:56px;color:var(--ink-faint);font-variation-settings:'wght' 300">photo_library</span>
+          <p class="mt-3 text-base" style="color:var(--ink-soft)">No photos yet — be the first to share a moment ♡</p>
+          <p class="mt-1 text-sm" style="color:var(--ink-faint)">Tap the button below to take a photo or upload.</p>
         </div>
-        <div id="gallery-grid" class="grid grid-cols-3 sm:grid-cols-4 md:grid-cols-5 gap-2 sm:gap-3"></div>
+        <div id="gallery-grid" class="gallery-grid"></div>
       </section>
 
-      <!-- Footer -->
-      <footer class="mt-20 text-center text-xs tracking-[0.2em] uppercase" style="color: var(--ink-faint)">
-        Made with love · #CharliesGoldenKarla
-      </footer>
     </main>
+
+    <!-- Floating share FAB -->
+    <div id="fab-wrap" class="fab-wrap">
+      <button id="fab-camera" class="fab-btn" aria-label="Take a photo">
+        <span class="material-symbols-outlined">photo_camera</span>
+        <span class="hidden sm:inline">Take photo</span>
+      </button>
+      <button id="fab-upload" class="fab-btn primary" aria-label="Share your photos">
+        <span class="material-symbols-outlined">favorite</span>
+        <span>Share</span>
+      </button>
+    </div>
+
+    <!-- Share modal: holds name input, file pick, preview, send -->
+    <div id="share-modal" class="share-modal" aria-hidden="true">
+      <div class="share-card" id="share-card">
+        <div class="grabber" aria-hidden="true"></div>
+        <div class="share-head">
+          <div>
+            <h3>Share your moments</h3>
+            <p>Photos and videos from our wedding day ♡</p>
+          </div>
+          <button id="share-close" class="share-close" aria-label="Close">
+            <span class="material-symbols-outlined">close</span>
+          </button>
+        </div>
+
+        <div id="share-main">
+          <input
+            id="guest-name"
+            type="text"
+            autocomplete="name"
+            placeholder="Your name (optional) — so we know who to thank ♡"
+            class="share-name"
+          />
+
+          <div class="share-actions">
+            <button id="open-camera-btn" class="share-action" type="button">
+              <span class="material-symbols-outlined">photo_camera</span>
+              <span class="lbl">Take a photo</span>
+              <span class="sub">use your camera</span>
+            </button>
+            <label for="file-input" id="dropzone" class="share-action" role="button">
+              <span class="material-symbols-outlined">add_photo_alternate</span>
+              <span class="lbl">Upload from device</span>
+              <span class="sub">photos or videos</span>
+              <input id="file-input" type="file" accept="image/*,video/*" multiple class="sr-only" />
+            </label>
+          </div>
+
+          <!-- Thumbnail grid -->
+          <div id="preview-list" class="preview-grid"></div>
+
+          <!-- Upload action -->
+          <div id="upload-controls" class="hidden-init mt-4">
+            <button id="upload-btn" class="btn-primary w-full py-3 rounded-2xl text-base font-medium flex items-center justify-center gap-2">
+              <span class="material-symbols-outlined">favorite</span>
+              <span id="upload-label">Send to our album</span>
+            </button>
+            <div id="upload-status" class="upload-status"></div>
+          </div>
+
+          <p class="mt-4 text-center text-xs" style="color: var(--ink-faint)">Up to ~50 MB per video · photos auto-compressed</p>
+        </div>
+
+        <!-- Success state -->
+        <div id="success" class="hidden-init success-card">
+          <div class="inline-block heart-burst" style="color: var(--sage-deep)">
+            <span class="material-symbols-outlined" style="font-size: 64px; font-variation-settings: 'FILL' 1;">favorite</span>
+          </div>
+          <h2 class="font-serif text-2xl sm:text-3xl mt-2" style="color: var(--ink)">Salamat, mahal namin kayo</h2>
+          <p class="mt-2 text-sm" style="color: var(--ink-soft)">Your photos are on their way to our album.</p>
+          <div class="mt-5 flex gap-2 justify-center">
+            <button id="upload-more" class="btn-ghost px-5 py-2.5 rounded-full text-sm tracking-[0.12em] uppercase">
+              <span class="material-symbols-outlined align-middle mr-1" style="font-size: 16px">add</span>
+              Share more
+            </button>
+            <button id="share-done" class="btn-primary px-5 py-2.5 rounded-full text-sm tracking-[0.12em] uppercase">
+              Done
+            </button>
+          </div>
+          <p id="success-countdown" class="mt-4 text-xs" style="color: var(--ink-faint); letter-spacing: 0.06em">
+            Returning to album in <span id="success-counter">5</span>s…
+          </p>
+        </div>
+      </div>
+    </div>
+
+    <!-- Camera view (custom UI over getUserMedia) -->
+    <div id="camera-view" class="camera-view" aria-hidden="true">
+      <div class="camera-stage" id="camera-stage">
+        <video id="camera-video" playsinline autoplay muted></video>
+        <div id="camera-flash" class="camera-flash"></div>
+        <div class="camera-topbar">
+          <button id="camera-close" class="camera-btn-icon" aria-label="Close camera">
+            <span class="material-symbols-outlined">close</span>
+          </button>
+          <button id="camera-flip" class="camera-btn-icon" aria-label="Flip camera">
+            <span class="material-symbols-outlined">cameraswitch</span>
+          </button>
+        </div>
+        <div id="camera-error" class="camera-error">
+          <span class="material-symbols-outlined">videocam_off</span>
+          <p id="camera-error-msg">We couldn't open the camera on this device.</p>
+          <button id="camera-error-close" class="btn-ghost px-5 py-2.5 rounded-full text-sm" style="border-color:white;color:white">Use upload instead</button>
+        </div>
+      </div>
+      <div class="camera-controls">
+        <div id="camera-strip" class="camera-strip">
+          <span class="camera-strip-placeholder">Captured photos appear here</span>
+        </div>
+        <button id="camera-shutter" class="camera-shutter" aria-label="Capture photo"></button>
+        <button id="camera-done" class="camera-done" disabled>Done</button>
+      </div>
+    </div>
 
     <!-- Lightbox -->
     <div id="lightbox" class="lightbox" aria-hidden="true">
       <button class="lb-close" id="lb-close" aria-label="Close">
         <span class="material-symbols-outlined">close</span>
+      </button>
+      <button class="lb-download" id="lb-download" aria-label="Download">
+        <span class="material-symbols-outlined" style="font-size:18px">download</span>
+        Download
       </button>
       <button class="lb-nav lb-prev" id="lb-prev" aria-label="Previous">
         <span class="material-symbols-outlined">chevron_left</span>
@@ -591,11 +1047,29 @@
         <span class="material-symbols-outlined">chevron_right</span>
       </button>
       <div class="lb-stage" id="lb-stage"></div>
-      <button class="lb-delete hidden-init" id="lb-delete" aria-label="Remove your upload">
+      <button class="lb-delete hidden-init" id="lb-delete" aria-label="Remove this upload">
         <span class="material-symbols-outlined" style="font-size:18px">delete</span>
         Remove
       </button>
       <div class="lb-caption" id="lb-caption"></div>
+      <div id="lb-strip" class="lb-strip" aria-label="Photo strip"></div>
+    </div>
+
+    <!-- Name onboarding modal (first-time visitors) -->
+    <div id="name-modal" class="modal" aria-hidden="true">
+      <div class="modal-card">
+        <span class="material-symbols-outlined" style="font-size:36px;color:var(--sage-deep);font-variation-settings:'FILL' 1">favorite</span>
+        <h3>Hello, friend ♡</h3>
+        <p>Charlie &amp; Karla would love to know who's sharing memories. What's your name?</p>
+        <input id="name-modal-input" type="text" autocomplete="name" placeholder="Your name" maxlength="80"
+               style="margin-top:18px;width:100%;padding:12px 14px;border-radius:14px;background:rgba(255,255,255,0.6);border:1.5px solid #e7e2da;font-size:0.95rem;color:var(--ink);text-align:center;outline:none;transition:border-color 0.2s ease, box-shadow 0.2s ease"
+               onfocus="this.style.borderColor='var(--sage-deep)';this.style.boxShadow='0 0 0 4px rgba(94,107,68,0.18)'"
+               onblur="this.style.borderColor='#e7e2da';this.style.boxShadow='none'" />
+        <div class="modal-actions">
+          <button class="btn-ghost" id="name-modal-skip">Skip</button>
+          <button class="btn-primary" id="name-modal-save" style="background:var(--sage-deep);color:white">Continue</button>
+        </div>
+      </div>
     </div>
 
     <!-- Confirm-delete modal -->
@@ -603,7 +1077,7 @@
       <div class="modal-card">
         <span class="material-symbols-outlined" style="font-size:36px;color:#a83838">delete</span>
         <h3>Remove this photo?</h3>
-        <p>It will be deleted from the shared album and from our storage — this can't be undone.</p>
+        <p id="confirm-msg">It will be deleted from the shared album and from our storage — this can't be undone.</p>
         <div class="modal-actions">
           <button class="btn-ghost" id="modal-cancel">Cancel</button>
           <button class="btn-danger" id="modal-confirm">Yes, remove</button>
@@ -611,8 +1085,16 @@
       </div>
     </div>
 
+    <!-- Drag-anywhere drop overlay -->
+    <div id="dropover" class="dropover" aria-hidden="true">
+      <div class="dropover-card">
+        <span class="material-symbols-outlined">cloud_upload</span>
+        <p>Drop to share your photos</p>
+      </div>
+    </div>
+
     <div id="toast" class="toast"><span id="toast-msg"></span></div>
 
-    <script type="module" src="script.js"></script>
+    <script type="module" src="script.js?v=20260620j"></script>
   </body>
 </html>
