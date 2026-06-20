@@ -12,7 +12,7 @@ struct ContentView: View {
             StatsRow()
             CurrentClipCard()
             if monitor.state.finished { DoneCard() }
-            LogTail()
+            UploadCard()
             Spacer(minLength: 0)
         }
         .padding(22)
@@ -119,7 +119,7 @@ private struct HeroProgress: View {
             Text(String(format: "%.1f%%", pct))
                 .font(.system(size: 13, weight: .bold))
                 .foregroundColor(.white)
-                .blendMode(.difference)
+                .shadow(color: .black.opacity(0.5), radius: 1.5)
         }
         .frame(height: 26)
     }
@@ -329,13 +329,26 @@ private struct CurrentClipCard: View {
 private struct DoneCard: View {
     @EnvironmentObject var monitor: RenderMonitor
     var body: some View {
-        VStack(alignment: .leading, spacing: 4) {
-            Text("✓ Render complete").font(.system(size: 14, weight: .semibold))
-                .foregroundColor(Color(red: 0.53, green: 0.94, blue: 0.68))
-            Text(monitor.state.finalPath?.path ?? "")
-                .font(.system(size: 11, design: .monospaced))
-                .foregroundColor(Color(red: 0.74, green: 0.97, blue: 0.82))
-                .textSelection(.enabled)
+        HStack(alignment: .top, spacing: 14) {
+            ThumbnailView(path: monitor.state.thumbnailPath)
+                .frame(width: 192, height: 108)
+                .cornerRadius(8)
+                .overlay(RoundedRectangle(cornerRadius: 8)
+                         .stroke(Color(red: 0.10, green: 0.33, blue: 0.21), lineWidth: 1))
+            VStack(alignment: .leading, spacing: 6) {
+                Text("✓ Render complete").font(.system(size: 14, weight: .semibold))
+                    .foregroundColor(Color(red: 0.53, green: 0.94, blue: 0.68))
+                Text(monitor.state.finalPath?.lastPathComponent ?? "")
+                    .font(.system(size: 12, weight: .semibold, design: .monospaced))
+                    .foregroundColor(Color(red: 0.74, green: 0.97, blue: 0.82))
+                Text(monitor.state.finalPath?.path ?? "")
+                    .font(.system(size: 10, design: .monospaced))
+                    .foregroundColor(Color(red: 0.55, green: 0.78, blue: 0.65))
+                    .textSelection(.enabled)
+                    .lineLimit(2).truncationMode(.middle)
+                Spacer(minLength: 0)
+            }
+            Spacer(minLength: 0)
         }
         .padding(14)
         .background(LinearGradient(
@@ -347,37 +360,147 @@ private struct DoneCard: View {
     }
 }
 
-private struct LogTail: View {
-    @EnvironmentObject var monitor: RenderMonitor
+private struct ThumbnailView: View {
+    let path: URL?
     var body: some View {
-        VStack(alignment: .leading, spacing: 6) {
-            Text("log tail")
-                .font(.system(size: 10, weight: .semibold))
-                .textCase(.uppercase).tracking(0.5)
-                .foregroundColor(Color(white: 0.5))
-            ScrollViewReader { proxy in
-                ScrollView {
-                    VStack(alignment: .leading, spacing: 1) {
-                        ForEach(Array(monitor.state.logTail.enumerated()), id: \.offset) { _, line in
-                            Text(line)
-                                .font(.system(size: 10.5, design: .monospaced))
-                                .foregroundColor(Color(white: 0.48))
-                                .textSelection(.enabled)
-                        }
-                        .id("end")
-                    }
-                    .frame(maxWidth: .infinity, alignment: .leading)
-                    .padding(12)
-                }
-                .frame(height: 110)
-                .background(Color(red: 0.03, green: 0.04, blue: 0.07))
-                .cornerRadius(10)
-                .overlay(RoundedRectangle(cornerRadius: 10)
-                         .stroke(Color(red: 0.10, green: 0.14, blue: 0.22), lineWidth: 1))
-                .onChange(of: monitor.state.logTail) { _, _ in
-                    withAnimation(.easeOut(duration: 0.2)) { proxy.scrollTo("end", anchor: .bottom) }
+        Group {
+            if let p = path, let img = NSImage(contentsOf: p) {
+                Image(nsImage: img)
+                    .resizable()
+                    .aspectRatio(contentMode: .fill)
+                    .clipped()
+            } else {
+                ZStack {
+                    Color(red: 0.03, green: 0.08, blue: 0.06)
+                    ProgressView().controlSize(.small).tint(.white)
                 }
             }
         }
+    }
+}
+
+private struct UploadCard: View {
+    @EnvironmentObject var monitor: RenderMonitor
+    var body: some View {
+        VStack(alignment: .leading, spacing: 10) {
+            HStack {
+                Text("youtube upload")
+                    .font(.system(size: 10, weight: .semibold))
+                    .textCase(.uppercase).tracking(0.5)
+                    .foregroundColor(Color(white: 0.5))
+                Spacer()
+                if let u = monitor.state.upload {
+                    Text(u.status.rawValue)
+                        .font(.system(size: 10, weight: .semibold))
+                        .textCase(.uppercase).tracking(0.5)
+                        .padding(.horizontal, 7).padding(.vertical, 2)
+                        .background(badgeColor(u.status).opacity(0.18))
+                        .foregroundColor(badgeColor(u.status))
+                        .cornerRadius(4)
+                }
+            }
+
+            if let u = monitor.state.upload {
+                if !u.title.isEmpty {
+                    Text(u.title)
+                        .font(.system(size: 13, weight: .semibold))
+                        .lineLimit(1).truncationMode(.middle)
+                }
+
+                let pct = u.percent
+                ZStack(alignment: .leading) {
+                    RoundedRectangle(cornerRadius: 8)
+                        .fill(Color(red: 0.03, green: 0.04, blue: 0.07))
+                        .frame(height: 14)
+                        .overlay(RoundedRectangle(cornerRadius: 8)
+                                 .stroke(Color(red: 0.10, green: 0.14, blue: 0.22), lineWidth: 1))
+                    GeometryReader { geo in
+                        RoundedRectangle(cornerRadius: 8)
+                            .fill(LinearGradient(
+                                colors: u.status == .done
+                                    ? [Color.green, Color(red: 0.06, green: 0.72, blue: 0.5)]
+                                    : [Color(red: 0.94, green: 0.27, blue: 0.27),
+                                       Color(red: 0.99, green: 0.44, blue: 0.18)],
+                                startPoint: .leading, endPoint: .trailing))
+                            .frame(width: geo.size.width * pct / 100, height: 14)
+                            .shadow(color: u.status == .done ? .green : .red, radius: 6)
+                            .animation(.easeOut(duration: 0.2), value: pct)
+                    }
+                    .frame(height: 14)
+                }
+
+                HStack {
+                    Text(String(format: "%.1f%%", pct))
+                        .font(.system(size: 12, weight: .semibold)).monospacedDigit()
+                    Spacer()
+                    Text(bytesLine(u))
+                        .font(.system(size: 11)).monospacedDigit()
+                        .foregroundColor(Color(white: 0.55))
+                }
+
+                if u.status == .uploading {
+                    HStack {
+                        Label(String(format: "%.1f MB/s", u.mbps),
+                              systemImage: "arrow.up.circle")
+                            .font(.system(size: 11)).monospacedDigit()
+                            .foregroundColor(Color(white: 0.55))
+                        Spacer()
+                        if let eta = u.etaSec {
+                            Label("eta \(fmt(eta))", systemImage: "clock")
+                                .font(.system(size: 11)).monospacedDigit()
+                                .foregroundColor(Color(white: 0.55))
+                        }
+                    }
+                } else if u.status == .done, let url = u.url {
+                    HStack(spacing: 12) {
+                        Link(destination: URL(string: url)!) {
+                            Label(url, systemImage: "play.rectangle.fill")
+                                .font(.system(size: 11, design: .monospaced))
+                                .foregroundColor(Color(red: 0.53, green: 0.94, blue: 0.68))
+                        }
+                        Spacer()
+                        if let su = u.studioUrl {
+                            Link("studio →", destination: URL(string: su)!)
+                                .font(.system(size: 11))
+                                .foregroundColor(Color(white: 0.6))
+                        }
+                    }
+                } else if u.status == .error, let err = u.error {
+                    Text(err)
+                        .font(.system(size: 11, design: .monospaced))
+                        .foregroundColor(Color(red: 0.99, green: 0.5, blue: 0.5))
+                        .lineLimit(3).truncationMode(.tail)
+                }
+            } else {
+                Text(monitor.state.finished
+                     ? "waiting to upload — run yt-helper.mjs upload …"
+                     : "will appear once upload begins")
+                    .font(.system(size: 11))
+                    .foregroundColor(Color(white: 0.4))
+            }
+        }
+        .padding(14)
+        .background(Color(red: 0.05, green: 0.09, blue: 0.16))
+        .cornerRadius(11)
+        .overlay(RoundedRectangle(cornerRadius: 11)
+                 .stroke(Color(red: 0.10, green: 0.14, blue: 0.22), lineWidth: 1))
+    }
+
+    private func badgeColor(_ s: UploadState.Status) -> Color {
+        switch s {
+        case .starting:  return Color(white: 0.6)
+        case .uploading: return Color(red: 0.99, green: 0.44, blue: 0.18)
+        case .done:      return Color(red: 0.34, green: 0.85, blue: 0.55)
+        case .error:     return Color(red: 0.99, green: 0.5, blue: 0.5)
+        }
+    }
+    private func bytesLine(_ u: UploadState) -> String {
+        let gbUp = Double(u.uploadedBytes) / 1e9
+        let gbTotal = Double(u.totalBytes) / 1e9
+        return String(format: "%.2f / %.2f GB", gbUp, gbTotal)
+    }
+    private func fmt(_ s: Int) -> String {
+        let m = s / 60, ss = s % 60
+        return m > 0 ? "\(m)m \(String(format: "%02d", ss))s" : "\(ss)s"
     }
 }

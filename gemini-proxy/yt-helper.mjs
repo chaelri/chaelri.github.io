@@ -164,6 +164,18 @@ async function cmdUpload(videoPath, opts) {
   const privacy = opts.privacy || "unlisted";
   const category = opts.category || "22";
 
+  // upload.json sits next to the video file; the Render Progress.app polls it.
+  const progressPath = abs.replace(/[^/]+$/, "upload.json");
+  const writeProgress = async (state) => {
+    const tmp = progressPath + ".tmp";
+    await writeFile(tmp, JSON.stringify({
+      title, totalBytes: total, ...state,
+    }));
+    // atomic rename so readers never see a partial file
+    await import("node:fs/promises").then((m) => m.rename(tmp, progressPath));
+  };
+  await writeProgress({ status: "starting", uploadedBytes: 0, percent: 0, mbps: 0 });
+
   const metadata = {
     snippet: { title, description, tags, categoryId: category },
     status: {
@@ -221,9 +233,13 @@ async function cmdUpload(videoPath, opts) {
         const range = r.headers.get("range");
         const last = range ? parseInt(range.split("-")[1], 10) : end;
         offset = last + 1;
-        const pct = ((offset / total) * 100).toFixed(1);
-        const mbps = (offset / 1e6 / ((Date.now() - t0) / 1000)).toFixed(1);
-        process.stdout.write(`\r  ${pct}%  (${(offset/1e9).toFixed(2)}/${(total/1e9).toFixed(2)} GB · ${mbps} MB/s)`);
+        const pct = (offset / total) * 100;
+        const mbps = offset / 1e6 / ((Date.now() - t0) / 1000);
+        process.stdout.write(`\r  ${pct.toFixed(1)}%  (${(offset/1e9).toFixed(2)}/${(total/1e9).toFixed(2)} GB · ${mbps.toFixed(1)} MB/s)`);
+        await writeProgress({
+          status: "uploading",
+          uploadedBytes: offset, percent: pct, mbps,
+        });
       } else if (r.status === 200 || r.status === 201) {
         process.stdout.write("\n");
         const j = await r.json();
@@ -231,9 +247,21 @@ async function cmdUpload(videoPath, opts) {
         console.log(`\nDone. videoId = ${id}`);
         console.log(`  https://youtu.be/${id}`);
         console.log(`  studio: https://studio.youtube.com/video/${id}/edit`);
+        await writeProgress({
+          status: "done",
+          uploadedBytes: total, percent: 100, mbps: 0,
+          videoId: id,
+          url: `https://youtu.be/${id}`,
+          studioUrl: `https://studio.youtube.com/video/${id}/edit`,
+        });
         return;
       } else {
         const txt = await r.text();
+        await writeProgress({
+          status: "error",
+          uploadedBytes: offset, percent: (offset / total) * 100, mbps: 0,
+          error: `chunk PUT ${r.status}: ${txt.slice(0, 200)}`,
+        });
         throw new Error(`chunk PUT failed: ${r.status} ${txt}`);
       }
     }

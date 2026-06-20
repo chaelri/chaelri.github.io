@@ -30,10 +30,35 @@ struct RenderState {
     var logTail: [String] = []
     var finished: Bool = false
     var finalPath: URL? = nil
+    var thumbnailPath: URL? = nil
+    var upload: UploadState? = nil
 
     var percent: Double {
         guard totalSec > 0 else { return 0 }
         return min(100, encodedSec / totalSec * 100)
+    }
+}
+
+struct UploadState: Equatable {
+    var status: Status = .starting
+    var title: String = ""
+    var totalBytes: Int64 = 0
+    var uploadedBytes: Int64 = 0
+    var percent: Double = 0
+    var mbps: Double = 0
+    var videoId: String? = nil
+    var url: String? = nil
+    var studioUrl: String? = nil
+    var error: String? = nil
+
+    enum Status: String, Equatable {
+        case starting, uploading, done, error
+    }
+
+    var etaSec: Int? {
+        guard status == .uploading, mbps > 0, totalBytes > 0 else { return nil }
+        let remaining = Double(totalBytes - uploadedBytes)
+        return Int(remaining / (mbps * 1e6))
     }
 }
 
@@ -84,6 +109,22 @@ final class RenderMonitor: ObservableObject {
 
         // Recover start epoch from log first line if it exists.
         startEpoch = recoverStartEpoch()
+    }
+
+    private func generateThumbnail(from src: URL, to dst: URL, durationSec: Double) {
+        let mid = max(1.0, durationSec / 2)
+        let task = Process()
+        task.executableURL = URL(fileURLWithPath: "/usr/bin/env")
+        task.arguments = ["ffmpeg", "-hide_banner", "-loglevel", "error",
+                          "-ss", String(format: "%.2f", mid),
+                          "-i", src.path,
+                          "-frames:v", "1",
+                          "-vf", "scale=640:-1",
+                          "-q:v", "3", "-y", dst.path]
+        task.standardOutput = Pipe()
+        task.standardError = Pipe()
+        do { try task.run() } catch { return }
+        task.waitUntilExit()
     }
 
     private func ffprobeDuration(url: URL) -> Double? {
@@ -209,13 +250,20 @@ final class RenderMonitor: ObservableObject {
             outBytes = max(outBytes, sz)
         }
 
-        // Elapsed + ETA.
+        // Elapsed + ETA. Once finished, freeze elapsed at (final.mp4 mtime - start)
+        // so the counter stops the moment the render actually completed.
         var elapsed = 0
+        var endTime: Date? = nil
+        if finished, let f = final,
+           let attrs = try? fm.attributesOfItem(atPath: f.path),
+           let mtime = attrs[.modificationDate] as? Date {
+            endTime = mtime
+        }
         if let start = startEpoch {
-            elapsed = Int(Date().timeIntervalSince(start))
+            elapsed = Int((endTime ?? Date()).timeIntervalSince(start))
         } else if let log = try? FileManager.default.attributesOfItem(atPath: log.path),
                   let mtime = log[.modificationDate] as? Date {
-            elapsed = Int(Date().timeIntervalSince(mtime))
+            elapsed = Int((endTime ?? Date()).timeIntervalSince(mtime))
         }
         var eta: Int? = nil
         var totalEst: Int? = nil
@@ -240,5 +288,38 @@ final class RenderMonitor: ObservableObject {
         state.logTail = tail
         state.finished = finished
         state.finalPath = finished ? final : nil
+
+        // Thumbnail (midpoint frame of the final mp4). Lazily generated once.
+        if finished, let f = final {
+            let thumb = root.appendingPathComponent("thumbnail.jpg")
+            if !fm.fileExists(atPath: thumb.path) {
+                generateThumbnail(from: f, to: thumb, durationSec: state.totalSec)
+            }
+            if fm.fileExists(atPath: thumb.path) {
+                state.thumbnailPath = thumb
+            }
+        }
+
+        // Upload progress (written by yt-helper.mjs to _render/upload.json)
+        let upPath = root.appendingPathComponent("upload.json")
+        if let data = try? Data(contentsOf: upPath),
+           let json = try? JSONSerialization.jsonObject(with: data) as? [String: Any] {
+            var u = UploadState()
+            if let s = json["status"] as? String, let st = UploadState.Status(rawValue: s) {
+                u.status = st
+            }
+            u.title = json["title"] as? String ?? ""
+            u.totalBytes = (json["totalBytes"] as? NSNumber)?.int64Value ?? 0
+            u.uploadedBytes = (json["uploadedBytes"] as? NSNumber)?.int64Value ?? 0
+            u.percent = (json["percent"] as? NSNumber)?.doubleValue ?? 0
+            u.mbps = (json["mbps"] as? NSNumber)?.doubleValue ?? 0
+            u.videoId = json["videoId"] as? String
+            u.url = json["url"] as? String
+            u.studioUrl = json["studioUrl"] as? String
+            u.error = json["error"] as? String
+            state.upload = u
+        } else {
+            state.upload = nil
+        }
     }
 }
