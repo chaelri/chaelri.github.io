@@ -1,6 +1,6 @@
 # Hub Project Index for chaelri.github.io
 
-**Last updated:** 2026-05-27
+**Last updated:** 2026-06-21
 **Scope:** Complete mapping of top-level directories + root files, with tech stack, deployment, status, and key entry points.
 
 ## Status Legend
@@ -12,6 +12,22 @@
 ---
 
 ## Active Projects
+
+### camera01-archive/  🟢
+
+Local workflow that takes a day-folder of mixed-orientation Insta360 / phone clips (`~/Desktop/Camera01/<YYYY-MM-DD>/*.mp4`) and produces a single 1080p60 H.264 mp4, then uploads it to YouTube as unlisted, not-for-kids. First production run: Feb 17, 2026 → `https://youtu.be/_P5TxK1uLTE`.
+
+- **Tech:** bash + ffmpeg 8.1 with Apple VideoToolbox (HW HEVC decode + H.264 encode, 2-way parallel), Node.js + Google OAuth Desktop client for YouTube Data API v3 resumable upload.
+- **Entry:** `camera01-archive/render.sh <source_dir>` → produces `_render/<MonDD_YYYY>.mp4`. `gemini-proxy/yt-helper.mjs upload <video> --title "..." --privacy unlisted` does the YouTube upload.
+- **Deploy:** Local-only. The MP4 lands on YouTube; local source is nuked after upload confirmation.
+- **Quirks:**
+  - **No public YouTube CLI exists.** Uploads go through `yt-helper.mjs` using Charlie's own OAuth Desktop client (project `gen-lang-client-0614956024`, Testing mode with Charlie as test user). This is required because `youtube.upload` is a Google-restricted scope and gcloud's built-in OAuth client is NOT verified for it ("This app is blocked" if you try ADC).
+  - **One-time scope add to the OAuth consent screen is UI-only** — no API/gcloud command exists to add scopes. Persists across machines once set on the project.
+  - **Apple M3 base has one HW encoder unit** — 2-way parallel ffmpeg is the local maximum. Don't try 3+. On M3 Pro/Max (2+ encoders), increase `MAX_JOBS` in `render.sh`.
+  - **Title-picking is content-derived:** sample frames from across the day, identify specific anchors (e.g., "Mang Inasal," "leaf-wallpaper café," "phone unboxing"), combine into a lowercase Taglish/EN title. Generic "Day with K" feels hollow.
+  - **Portrait + 4:3 clips get a blurred-fill background** (content-aware soft "gradient" feel) rather than black bars. Implemented via `boxblur=40:1` on a scaled+cropped copy of the same frame.
+  - **Folder hygiene:** each `~/Desktop/Camera01/YYYY-MM-DD/` is ~30 GB. Delete after the YouTube URL returns `playabilityStatus: OK`. YouTube is the archive.
+- **Full docs:** See `knowledge/camera01-archive/SUMMARY.md` (run book, OAuth setup, things tried and rejected).
 
 ### autoclicker/  🟢
 
@@ -371,6 +387,7 @@ Simple side-scrolling platformer (Bubu & Dudu) — canvas-based game.
 | functions | Firebase Cloud Functions | `firebase deploy` |
 | gemini-proxy | Google Cloud Run (asia-southeast1, project 668755364170) | Manual / CI |
 | cockpit | Local only (`uvicorn`) | Manual |
+| camera01-archive | Local render → YouTube unlisted upload | Manual |
 | devo-mobile | Expo Dev / EAS | Manual |
 | animedownloader-ext | Chrome (manual install) | Manual |
 | index.html (root) | GitHub Pages `/` | ✅ |
