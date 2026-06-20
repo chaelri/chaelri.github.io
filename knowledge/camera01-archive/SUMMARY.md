@@ -117,6 +117,8 @@ Process to find anchors:
 
 The Feb 17 video landed on **"kape, inasal, unboxing · Feb 17, 2026"** from: leaf-wallpaper café (kape) + Mang Inasal menu boards (inasal) + phone-on-rug late-night unboxing. Date in a readable form, not ISO. Lowercased Taglish reads informal & on-brand for the user + Karla.
 
+**Workflow rule (Charlie established 2026-06-21):** default to your own anchor-based pick and fire the upload without asking. Don't pause for confirmation — Charlie has explicitly said he likes the anchoring approach and the wait is unnecessary friction. If you're genuinely torn between two strong picks, mention the alt in the post-upload message so he can rename in Studio if he prefers.
+
 ## Folder hygiene after each upload
 
 Once the YouTube URL is confirmed playable (`curl https://www.youtube.com/watch?v=<id>` returns `"playabilityStatus":{"status":"OK"}`):
