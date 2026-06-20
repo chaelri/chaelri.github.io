@@ -23,6 +23,10 @@ A typical day = ~10–20 clips, ~30–60 min total duration, ~30 GB on disk.
 
 ### 1. `camera01-archive/render.sh` — merge & encode
 
+Optional companion: `camera01-archive/progress.sh <source_dir>` in a second Terminal window shows a live TUI (progress bar, per-clip status strip, ETA, log tail). No browser, no .app — pure ANSI. Earlier Chrome `--app` UI was abandoned because `--user-data-dir` spawns a separate Chrome instance at the end of the Dock, which felt off.
+
+
+
 ```sh
 ./camera01-archive/render.sh ~/Desktop/Camera01/2026-02-18
 ```
@@ -126,8 +130,11 @@ The IMG_*.jpg photos at the Camera01 root level (not inside date folders) surviv
 # 1. probe to verify the folder
 ls ~/Desktop/Camera01/2026-02-18/*.mp4 | wc -l
 
-# 2. render (~15 min for a typical day)
+# 2. render (terminal A)
 ./camera01-archive/render.sh ~/Desktop/Camera01/2026-02-18
+
+# 2b. (optional) live progress TUI in terminal B
+./camera01-archive/progress.sh ~/Desktop/Camera01/2026-02-18
 
 # 3. find a content-specific title
 #    (sample frames, look at them, pick 2–3 anchors)
@@ -139,10 +146,16 @@ node yt-helper.mjs upload \
   --title "<anchors> · Feb 18, 2026" \
   --privacy unlisted
 
-# 5. verify, then nuke source
+# 5. verify, then nuke source (YouTube takes 1-5 min to finish processing)
 curl -fsS "https://www.youtube.com/watch?v=<id>" | grep -oE '"playabilityStatus":[^,]*' | head -1
+# wait until status is "OK", not "UNPLAYABLE"
 rm -rf ~/Desktop/Camera01/2026-02-18/
 ```
+
+**Production runs:**
+- Feb 17, 2026 → https://youtu.be/_P5TxK1uLTE (50:28, 4.5 GB, ~17 min render)
+- Feb 18, 2026 → https://youtu.be/7RARdm_QjFs (5:56, 531 MB, ~2 min render)
+
 
 ## Things tried and explicitly rejected
 
