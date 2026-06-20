@@ -308,7 +308,7 @@ html, body {
   grid-template-columns: 1fr 1.4in;
   background: var(--bg-deep);
   color: var(--ink);
-  border-radius: 10px;
+  border-radius: 0;
   overflow: hidden;
   box-shadow: 0 8px 24px rgba(0,0,0,0.35);
   position: relative;
@@ -489,12 +489,18 @@ html, body {
   display: inline-flex;
   align-items: baseline;
   gap: 0.4rem;
-  background: var(--bg-elev);
-  border: 1px solid var(--line);
+  background: linear-gradient(135deg, rgba(255,255,255,0.07) 0%, rgba(255,255,255,0.03) 100%);
+  border: 1px solid rgba(255,255,255,0.12);
   border-radius: 999px;
   padding: 0.45rem 0.95rem;
   font-size: 0.85rem;
   color: var(--ink-soft);
+  backdrop-filter: blur(14px) saturate(140%);
+  -webkit-backdrop-filter: blur(14px) saturate(140%);
+  box-shadow:
+    inset 0 1px 0 rgba(255,255,255,0.10),
+    inset 0 -1px 0 rgba(0,0,0,0.20),
+    0 6px 18px rgba(0,0,0,0.25);
 }
 .kpi-pill b { color: var(--ink); font-weight: 800; }
 .kpi-pill.red b { color: var(--red); }
@@ -556,6 +562,144 @@ html, body {
   transform: rotate(-8deg);
   box-shadow: 0 6px 14px rgba(0,0,0,0.4);
   pointer-events: none;
+}
+
+/* =================================================================
+   POSTER frame — corkboard print, slight tilt + lift on hover
+   ================================================================= */
+.poster-frame {
+  position: relative;
+  display: inline-block;
+  padding: 0;
+  border-radius: 0.75rem;
+  overflow: visible; /* let the zoom badge poke past the corner */
+  border: 1px solid var(--line);
+  background: #000 !important;
+  box-shadow: 0 24px 50px rgba(0,0,0,0.55);
+  transform: rotate(-1.2deg);
+  transition: transform 220ms ease, box-shadow 220ms ease;
+  cursor: zoom-in;
+}
+.poster-frame:hover {
+  transform: rotate(0deg) translateY(-2px);
+  box-shadow: 0 32px 60px rgba(0,0,0,0.6);
+}
+.poster-frame img {
+  display: block;
+  border-radius: 0.75rem;
+}
+
+/* Always-visible "tap to zoom" ribbon — bottom-right corner of the poster. */
+.poster-zoom-badge {
+  position: absolute;
+  right: -10px;
+  bottom: 12px;
+  z-index: 2;
+  display: inline-flex;
+  align-items: center;
+  gap: 0.35rem;
+  padding: 0.4rem 0.8rem;
+  background: var(--tape);
+  color: var(--on-tape);
+  font-family: "Blauer Nue", sans-serif;
+  font-weight: 800;
+  font-size: 0.72rem;
+  letter-spacing: 0.18em;
+  text-transform: uppercase;
+  border-radius: 3px;
+  box-shadow: 0 8px 20px rgba(0,0,0,0.45);
+  transform: rotate(3deg);
+  transition: transform 200ms ease, filter 200ms ease;
+  pointer-events: none;
+  animation: poster-zoom-badge-pulse 2.4s ease-in-out infinite;
+}
+.poster-frame:hover .poster-zoom-badge {
+  transform: rotate(0deg) scale(1.06);
+  filter: brightness(1.05);
+}
+@keyframes poster-zoom-badge-pulse {
+  0%, 100% { transform: rotate(3deg) translateY(0); }
+  50%      { transform: rotate(3deg) translateY(-3px); }
+}
+.poster-frame:hover .poster-zoom-badge { animation-play-state: paused; }
+
+/* =================================================================
+   POSTER lightbox — in-page full-size viewer with download + close
+   ================================================================= */
+.poster-lightbox {
+  position: fixed;
+  inset: 0;
+  z-index: 100;
+  display: grid;
+  place-items: center;
+  padding: 1rem;
+}
+.poster-lightbox.hidden { display: none; }
+.poster-lightbox-backdrop {
+  position: absolute;
+  inset: 0;
+  background: rgba(7, 9, 26, 0.92);
+  backdrop-filter: blur(8px);
+  -webkit-backdrop-filter: blur(8px);
+  cursor: zoom-out;
+}
+.poster-lightbox-toolbar {
+  position: absolute;
+  top: max(1rem, env(safe-area-inset-top));
+  right: max(1rem, env(safe-area-inset-right));
+  z-index: 2;
+  display: flex;
+  gap: 0.5rem;
+}
+.poster-lightbox img {
+  position: relative;
+  z-index: 1;
+  max-width: min(100%, 90vw);
+  max-height: 90vh;
+  width: auto;
+  height: auto;
+  border-radius: 0.5rem;
+  box-shadow: 0 30px 80px rgba(0, 0, 0, 0.7);
+  animation: poster-zoom-in 220ms ease-out;
+}
+@keyframes poster-zoom-in {
+  from { opacity: 0; transform: scale(0.96); }
+  to   { opacity: 1; transform: scale(1); }
+}
+/* Stop the page from scrolling underneath while the lightbox is open */
+body.poster-open { overflow: hidden; }
+
+/* =================================================================
+   POSTER pitch — dynamic "it's coming" headline next to the poster
+   ================================================================= */
+.poster-pitch { display: flex; flex-direction: column; gap: 0.5rem; }
+.poster-pitch-tag {
+  align-self: flex-start;
+  display: inline-block;
+  background: var(--tape);
+  color: var(--on-tape);
+  font-family: "Blauer Nue", sans-serif;
+  font-weight: 800;
+  font-size: 0.7rem;
+  letter-spacing: 0.22em;
+  text-transform: uppercase;
+  padding: 0.3rem 0.7rem;
+  border-radius: 2px;
+  transform: rotate(-1.5deg);
+  box-shadow: 0 4px 10px rgba(0,0,0,0.3);
+}
+.poster-pitch-head {
+  font-family: "Bebas Neue", "Inter", sans-serif;
+  font-weight: 400;
+  font-size: clamp(2rem, 4.5vw, 3rem);
+  line-height: 1;
+  color: var(--ink);
+  letter-spacing: 0.01em;
+  margin: 0;
+}
+.poster-pitch-head .num {
+  color: var(--tape);
+  font-variant-numeric: tabular-nums;
 }
 
 /* =================================================================
@@ -726,11 +870,179 @@ body.raffle-focused #raffle {
   align-items: center;
   justify-content: center;
 }
-body.raffle-focused #raffle > .surface {
+body.raffle-focused #raffle > .surface,
+body.raffle-focused #raffle > .glass-tile {
   width: 100%;
   max-width: 1400px;
   margin: 0 1rem;
   border: none;
+}
+
+/* =================================================================
+   RAFFLE REVEAL — caution-tape "CAMPUS → UNITE!" overlay
+   Plays after the roll lands, BEFORE the number + name reveal.
+   ================================================================= */
+.raffle-reveal {
+  position: absolute;
+  inset: 0;
+  z-index: 20;
+  display: grid;
+  place-items: center;
+  pointer-events: none;
+  overflow: hidden;
+  border-radius: inherit;
+  opacity: 0;
+  visibility: hidden;
+  transition: opacity 240ms ease, visibility 0s linear 240ms;
+}
+.raffle-reveal.is-active {
+  opacity: 1;
+  visibility: visible;
+  transition: opacity 240ms ease;
+}
+/* Dim backdrop so the tapes pop */
+.raffle-reveal::before {
+  content: "";
+  position: absolute;
+  inset: 0;
+  background: radial-gradient(ellipse at center, rgba(7,9,26,0.35) 0%, rgba(7,9,26,0.85) 80%);
+}
+
+.raffle-reveal-tape {
+  position: absolute;
+  display: inline-block;
+  padding: 0.18em 0.32em 0.12em;
+  background: var(--tape);
+  color: var(--on-tape);
+  font-family: "Bebas Neue", sans-serif;
+  font-weight: 400;
+  letter-spacing: 0.01em;
+  font-size: clamp(5rem, 17vw, 13rem);
+  line-height: 0.92;
+  white-space: nowrap;
+  clip-path: polygon(
+    0.5% 6%, 4% 0%, 28% 4%, 55% 1%, 78% 5%, 100% 2%,
+    99% 96%, 73% 99%, 48% 95%, 22% 100%, 6% 96%, 1% 99%
+  );
+  box-shadow:
+    inset 0 -8px 18px rgba(0,0,0,0.10),
+    0 18px 40px rgba(0,0,0,0.55);
+  opacity: 0;
+  will-change: transform, opacity;
+}
+.raffle-reveal-tape::before {
+  content: "";
+  position: absolute; inset: 0;
+  background: repeating-linear-gradient(
+    90deg,
+    rgba(0,0,0,0) 0 6px,
+    rgba(0,0,0,0.05) 6px 7px
+  );
+  pointer-events: none;
+  mix-blend-mode: multiply;
+}
+
+.raffle-reveal.is-active .raffle-reveal-tape[data-word="campus"] {
+  animation: tape-slam-left 850ms cubic-bezier(0.18, 1.0, 0.32, 1.0) forwards;
+}
+.raffle-reveal.is-active .raffle-reveal-tape[data-word="unite"] {
+  animation: tape-slam-right 850ms 650ms cubic-bezier(0.18, 1.0, 0.32, 1.0) forwards;
+}
+
+@keyframes tape-slam-left {
+  0%   { opacity: 0; transform: translateX(-110vw) scale(0.5) rotate(-18deg); }
+  35%  { opacity: 1; transform: translateX(0) scale(1.08) rotate(-4deg); }
+  45%  { transform: translateX(-1.5%) scale(1.05) rotate(-4deg); }
+  55%  { transform: translateX(0) scale(1.02) rotate(-4deg); }
+  75%  { opacity: 1; transform: translateX(0) scale(1.02) rotate(-4deg); }
+  100% { opacity: 0; transform: translateX(0) scale(1.18) rotate(-4deg); }
+}
+@keyframes tape-slam-right {
+  0%   { opacity: 0; transform: translateX(110vw) scale(0.5) rotate(18deg); }
+  35%  { opacity: 1; transform: translateX(0) scale(1.08) rotate(3.5deg); }
+  45%  { transform: translateX(1.5%) scale(1.05) rotate(3.5deg); }
+  55%  { transform: translateX(0) scale(1.02) rotate(3.5deg); }
+  75%  { opacity: 1; transform: translateX(0) scale(1.02) rotate(3.5deg); }
+  100% { opacity: 0; transform: translateX(0) scale(1.18) rotate(3.5deg); }
+}
+
+/* In focus mode, the card stretches — scale tapes up to match */
+body.raffle-focused .raffle-reveal-tape {
+  font-size: clamp(9rem, 22vw, 18rem);
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .raffle-reveal.is-active .raffle-reveal-tape {
+    animation-duration: 1ms;
+  }
+}
+
+/* =================================================================
+   RAFFLE PUNCH — slam-in, shockwave ring, yellow flash
+   Layered on the ECU-#### the moment it lands after the tapes clear.
+   ================================================================= */
+.raffle-display.is-landing {
+  animation: raffle-number-slam 720ms cubic-bezier(0.18, 1.25, 0.32, 1) forwards;
+  transform-origin: center;
+}
+@keyframes raffle-number-slam {
+  0%   {
+    transform: scale(1.85);
+    color: #fff;
+    text-shadow:
+      0 0 40px rgba(255,255,255,0.9),
+      0 0 90px rgba(245,213,24,0.95),
+      0 0 180px rgba(245,213,24,0.55),
+      0 4px 0 var(--red);
+  }
+  28%  {
+    transform: scale(0.93);
+    color: #fff7c2;
+    text-shadow:
+      0 0 36px rgba(245,213,24,0.9),
+      0 0 80px rgba(245,213,24,0.55),
+      0 4px 0 var(--red);
+  }
+  55%  {
+    transform: scale(1.06);
+    color: var(--tape);
+  }
+  78%  {
+    transform: scale(0.98);
+  }
+  100% {
+    transform: scale(1);
+    color: var(--tape);
+    text-shadow:
+      0 0 24px rgba(245,213,24,0.5),
+      0 4px 0 var(--red);
+  }
+}
+
+/* Brief yellow radial flash over the whole card */
+.raffle-flash {
+  position: absolute;
+  inset: 0;
+  background: radial-gradient(circle at center, rgba(245,213,24,0.65) 0%, rgba(245,213,24,0.15) 35%, rgba(245,213,24,0) 65%);
+  opacity: 0;
+  pointer-events: none;
+  z-index: 15;
+  border-radius: inherit;
+}
+.raffle-flash.is-firing {
+  animation: raffle-flash 420ms ease-out forwards;
+}
+@keyframes raffle-flash {
+  0%   { opacity: 0; }
+  18%  { opacity: 1; }
+  100% { opacity: 0; }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .raffle-display.is-landing,
+  .raffle-flash.is-firing {
+    animation-duration: 1ms;
+  }
 }
 body.raffle-focused .raffle-display {
   font-size: clamp(8rem, 28vw, 22rem);

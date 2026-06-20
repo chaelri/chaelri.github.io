@@ -41,7 +41,7 @@
 
   <!-- Gate -->
   <div id="gate" class="px-4 sm:px-8 max-w-3xl mx-auto py-20 hidden">
-    <div class="surface p-8 text-center">
+    <div class="glass-tile p-8 text-center">
       <span class="material-symbols-outlined text-tape" style="font-size:48px">lock</span>
       <div class="font-extrabold-ui text-xl mt-2">Admin sign-in required</div>
       <p class="text-soft mt-2 text-sm">Sign in with an allowlisted Google account to run the raffle.</p>
@@ -68,7 +68,16 @@
     </div>
 
     <!-- Big display -->
-    <div class="surface relative p-6 sm:p-12 text-center">
+    <div class="glass-tile relative p-6 sm:p-12 text-center">
+      <!-- CAMPUS / UNITE caution-tape reveal — covers the card during finalize() -->
+      <div id="raffle-reveal" class="raffle-reveal" aria-hidden="true">
+        <div class="raffle-reveal-tape" data-word="campus">CAMPUS</div>
+        <div class="raffle-reveal-tape" data-word="unite">UNITE!</div>
+      </div>
+
+      <!-- Punch effect that fires when the winning ECU-#### lands -->
+      <div id="raffle-flash" class="raffle-flash" aria-hidden="true"></div>
+
       <!-- Winner block (name + school/fb) reveals ABOVE the number, peeking up from behind it AS ONE UNIT -->
       <div class="winner-name-wrap">
         <div class="winner-name-inner">
@@ -86,6 +95,11 @@
         </button>
       </div>
 
+      <!-- Mute toggle — paired with the fullscreen button in the bottom-right corner -->
+      <button id="btn-mute" class="raffle-fs-btn hidden" title="Mute / unmute raffle sounds" aria-label="Toggle raffle sounds" style="right: 56px;">
+        <span class="material-symbols-outlined" id="mute-icon" style="font-size:20px">volume_up</span>
+      </button>
+
       <!-- Focus-mode toggle — sits inside the raffle card's bottom-right corner -->
       <button id="btn-fullscreen" class="raffle-fs-btn hidden" title="Toggle focus mode (Esc to exit)" aria-label="Toggle focus mode">
         <span class="material-symbols-outlined" id="fs-icon" style="font-size:20px">fullscreen</span>
@@ -100,7 +114,7 @@
       </div>
       <div class="hr-tape max-w-[120px] mb-4"></div>
 
-      <div class="surface overflow-x-auto">
+      <div class="glass-tile overflow-x-auto">
         <table class="t-table">
           <thead>
             <tr>
@@ -139,13 +153,18 @@
 
     function renderAuth(user, isAdmin) {
       if (!user) { $auth.innerHTML = ""; return; }
+      const name    = (user.displayName || user.email || "").trim();
+      const initial = (name || "?").charAt(0).toUpperCase();
       const photo = user.photoURL
         ? `<img src="${user.photoURL}" referrerpolicy="no-referrer" class="rounded-full ring-1 ring-[color:var(--tape)] object-cover shrink-0" style="width:22px;height:22px;" />`
-        : `<div class="rounded-full bg-red text-on-red grid place-items-center shrink-0" style="width:22px;height:22px;font-size:10px;font-weight:800;">${(user.displayName||user.email||"?")[0].toUpperCase()}</div>`;
+        : `<div class="rounded-full bg-red text-on-red grid place-items-center shrink-0" style="width:22px;height:22px;font-size:10px;font-weight:800;">${initial}</div>`;
+      const nameSpan = name
+        ? `<span class="hidden md:inline truncate" style="font-size:11px;font-weight:700;max-width:8rem;">${name}</span>`
+        : "";
       $auth.innerHTML = `
         <div class="auth-pill flex items-center" style="gap:6px;padding:3px 8px 3px 3px;">
           ${photo}
-          <span class="hidden md:inline truncate" style="font-size:11px;font-weight:700;max-width:8rem;">${user.displayName || user.email}</span>
+          ${nameSpan}
           <span style="font-size:9px;padding:2px 6px;border-radius:4px;background:var(--tape);color:var(--on-tape);font-weight:800;letter-spacing:0.1em;text-transform:uppercase;">Admin</span>
           <button id="btn-signout" class="text-mute hover:text-red" title="Sign out" style="line-height:0;">
             <span class="material-symbols-outlined" style="font-size:14px">logout</span>
@@ -161,10 +180,12 @@
     watchAuth(({ user, isAdmin }) => {
       renderAuth(user, isAdmin);
       const $fs = document.getElementById("btn-fullscreen");
+      const $mute = document.getElementById("btn-mute");
       if (!isAdmin) {
         $main.classList.add("hidden");
         $gate.classList.remove("hidden");
         $fs.classList.add("hidden");
+        $mute.classList.add("hidden");
         if (document.fullscreenElement) document.exitFullscreen().catch(() => {});
         if (unwatchRegs)  { unwatchRegs();  unwatchRegs  = null; }
         if (unwatchDraws) { unwatchDraws(); unwatchDraws = null; }
@@ -173,6 +194,7 @@
       $gate.classList.add("hidden");
       $main.classList.remove("hidden");
       $fs.classList.remove("hidden");
+      $mute.classList.remove("hidden");
       startListeners();
     });
 
@@ -195,6 +217,93 @@
       document.body.classList.toggle("raffle-focused", isFull);
       $fsIcon.textContent = isFull ? "fullscreen_exit" : "fullscreen";
     });
+
+    // ===== Raffle audio — preload + mute toggle (persisted in localStorage) =====
+    // Five sounds keyed to specific beats of the draw choreography. All five are
+    // constructed up-front so the first draw doesn't hit a cold network cache.
+    // The `?v=N` query is a cache-buster — bump this whenever any sfx file changes
+    // so admins don't get stuck on a stale cached copy.
+    const SFX_VER = "4";
+    const SOUNDS = {
+      roll:   new Audio(`assets/sounds/roll.mp3?v=${SFX_VER}`),
+      campus: new Audio(`assets/sounds/slam-campus.mp3?v=${SFX_VER}`),
+      unite:  new Audio(`assets/sounds/slam-unite.mp3?v=${SFX_VER}`),
+      reveal: new Audio(`assets/sounds/reveal.mp3?v=${SFX_VER}`),
+      cheer:  new Audio(`assets/sounds/cheer.mp3?v=${SFX_VER}`),
+    };
+    // The trimmed drum-roll is 2.5s and the spin runs 2.4s, so no loop needed —
+    // looping was producing an audible seam at the join point.
+    SOUNDS.roll.loop = false;
+    // Per-sound baseline volume. The roll is bumped close to ceiling so the snare buzz
+    // sits clearly in the mix during the spin; the cheer's baseline is also its peak
+    // before fadeCheer() ramps it down to zero.
+    SOUNDS.roll.volume   = 1.0;
+    SOUNDS.campus.volume = 0.85;
+    SOUNDS.unite.volume  = 0.85;
+    SOUNDS.reveal.volume = 0.9;
+    SOUNDS.cheer.volume  = 0.85;
+    const CHEER_PEAK_VOLUME = SOUNDS.cheer.volume;
+    Object.values(SOUNDS).forEach(a => { a.preload = "auto"; });
+
+    let _muted = localStorage.getItem("eo-cu-raffle-muted") === "1";
+    const $muteBtn  = document.getElementById("btn-mute");
+    const $muteIcon = document.getElementById("mute-icon");
+    function applyMuteState() {
+      Object.values(SOUNDS).forEach(a => { a.muted = _muted; });
+      $muteIcon.textContent = _muted ? "volume_off" : "volume_up";
+      $muteBtn.title = _muted ? "Sounds muted — click to unmute" : "Mute / unmute raffle sounds";
+    }
+    applyMuteState();
+    $muteBtn.addEventListener("click", () => {
+      _muted = !_muted;
+      localStorage.setItem("eo-cu-raffle-muted", _muted ? "1" : "0");
+      applyMuteState();
+      if (_muted) {
+        // Cut any currently-playing audio rather than just muting in place.
+        Object.values(SOUNDS).forEach(a => { try { a.pause(); a.currentTime = 0; } catch {} });
+      }
+    });
+
+    function playSfx(name) {
+      if (_muted) return;
+      const a = SOUNDS[name];
+      if (!a) return;
+      try {
+        a.currentTime = 0;
+        const p = a.play();
+        if (p && p.catch) p.catch(() => { /* autoplay blocked — first draw click satisfies it */ });
+      } catch {}
+    }
+    function stopSfx(name) {
+      const a = SOUNDS[name];
+      if (!a) return;
+      try { a.pause(); a.currentTime = 0; } catch {}
+    }
+    // Gentle volume ramp-out for the cheer so it tails off naturally instead of
+    // chopping. Holds at peak for `holdMs`, then linearly drops to 0 over `fadeMs`.
+    let _cheerFadeTimer = null;
+    function fadeOutCheer({ holdMs = 1400, fadeMs = 900 } = {}) {
+      if (_cheerFadeTimer) { clearInterval(_cheerFadeTimer); _cheerFadeTimer = null; }
+      setTimeout(() => {
+        const a = SOUNDS.cheer;
+        if (!a) return;
+        const steps = 18;
+        const stepMs = fadeMs / steps;
+        const startVol = a.volume;
+        let i = 0;
+        _cheerFadeTimer = setInterval(() => {
+          i += 1;
+          const next = Math.max(0, startVol * (1 - i / steps));
+          try { a.volume = next; } catch {}
+          if (i >= steps) {
+            clearInterval(_cheerFadeTimer);
+            _cheerFadeTimer = null;
+            stopSfx("cheer");
+            try { a.volume = CHEER_PEAK_VOLUME; } catch {}
+          }
+        }, stepMs);
+      }, holdMs);
+    }
 
     document.getElementById("btn-signin").addEventListener("click", () => {
       signInWithGoogle().catch(err => { if (err && err.code !== "auth/popup-closed-by-user") alert(err.message); });
@@ -305,9 +414,21 @@
       $name.textContent = "";
       $extra.innerHTML = "";
       document.querySelector(".winner-name-wrap").classList.remove("is-revealed");
+      document.getElementById("raffle-reveal").classList.remove("is-active");
+      document.getElementById("raffle-flash").classList.remove("is-firing");
+      $display.classList.remove("is-landing");
+      $display.style.visibility = "";
+      // Cut any sounds that may have been mid-play from a previous draw.
+      // Also cancel any in-flight cheer fade and restore its peak volume so the
+      // next draw doesn't hear a silent cheer.
+      if (_cheerFadeTimer) { clearInterval(_cheerFadeTimer); _cheerFadeTimer = null; }
+      try { SOUNDS.cheer.volume = CHEER_PEAK_VOLUME; } catch {}
+      Object.keys(SOUNDS).forEach(stopSfx);
 
       $draw.disabled = true;
       $display.classList.add("raffle-rolling");
+      // Roll sound starts immediately and loops until finalize() cuts it.
+      playSfx("roll");
 
       // Visual roll: ~2.4s, accelerating sample density.
       const start = performance.now();
@@ -331,9 +452,43 @@
 
     async function finalize(winner) {
       $display.classList.remove("raffle-rolling");
+
+      // Hide the rolling readout while the CAMPUS / UNITE! tapes take over.
+      // Keep layout reserved with visibility:hidden so the card doesn't jump.
+      $display.style.visibility = "hidden";
       $display.textContent = winner.ticketId;
 
-      // Brief pause so the number landing reads first, THEN the name peeks up from behind it.
+      // Stop the rolling tick — the slams take over the soundstage.
+      stopSfx("roll");
+
+      // Play the caution-tape reveal: CAMPUS slams in (~850ms), then UNITE! at +650ms.
+      // Both fade out by ~1500ms total. Then we reveal the number, then the name.
+      const $reveal = document.getElementById("raffle-reveal");
+      $reveal.classList.remove("is-active");
+      void $reveal.offsetWidth; // restart any in-flight animation
+      $reveal.classList.add("is-active");
+
+      // Audio cues line up with the CSS keyframe timings (campus 0ms, unite +650ms).
+      playSfx("campus");
+      setTimeout(() => playSfx("unite"), 650);
+
+      // Number drops in after both tapes have finished landing + started fading.
+      // Punch it: scale slam on the digits + shockwave ring + yellow flash overlay.
+      setTimeout(() => {
+        $reveal.classList.remove("is-active");
+        $display.style.visibility = "";
+
+        const $flash = document.getElementById("raffle-flash");
+        // Restart any in-flight animation so back-to-back draws still punch.
+        $display.classList.remove("is-landing");
+        $flash.classList.remove("is-firing");
+        void $display.offsetWidth;
+        $display.classList.add("is-landing");
+        $flash.classList.add("is-firing");
+        playSfx("reveal");
+      }, 1500);
+
+      // Name + school + FB peek up shortly after the number lands.
       setTimeout(() => {
         $name.textContent = winner.name || "";
         $extra.innerHTML = `
@@ -343,12 +498,16 @@
           <span class="inline-block rounded-full" style="width:6px;height:6px;background:var(--ink-mute);"></span>
           <span class="text-soft">${esc(winner.fbName || "")}</span>
         `;
-        // Force a frame so the transition takes effect cleanly
         requestAnimationFrame(() => {
           document.querySelector(".winner-name-wrap").classList.add("is-revealed");
           fireWinnerConfetti();
+          playSfx("cheer");
+          // Hold the cheer at full energy briefly, then ramp the volume down so it tails
+          // off naturally instead of being cut. Total = hold + fade ≈ 2.3s of cheer.
+          fadeOutCheer({ holdMs: 1400, fadeMs: 900 });
         });
-      }, 550);
+        $draw.disabled = false;
+      }, 2050);
 
       try {
         const now = Date.now();
@@ -363,23 +522,43 @@
       } catch (err) {
         console.warn("Failed to persist draw:", err);
         alert("Saved the result locally but couldn't write to Firebase. " + (err && err.message || ""));
-      } finally {
+        // Re-enable immediately on error so user can retry without waiting out the animation.
         $draw.disabled = false;
       }
+      // On success, the button re-enables inside the 2050ms reveal-complete setTimeout above.
     }
 
-    // ===== Confetti — brand yellow + red only =====
+    // ===== Confetti — brand yellow + red only, layered bursts =====
     function fireWinnerConfetti() {
       if (typeof confetti !== "function") return;
       const colors = ["#f5d518", "#e11d2c"];
-      const base = { colors, ticks: 220, gravity: 0.95, scalar: 1.1, disableForReducedMotion: true };
-      // Two side cannons firing inward.
-      confetti({ ...base, particleCount: 90, angle: 60,  spread: 70, origin: { x: 0,   y: 0.7 } });
-      confetti({ ...base, particleCount: 90, angle: 120, spread: 70, origin: { x: 1,   y: 0.7 } });
-      // Center burst slightly delayed for a layered finish.
+      const base = { colors, ticks: 260, gravity: 0.9, scalar: 1.15, disableForReducedMotion: true };
+
+      // Opening volley: two big side cannons firing inward.
+      confetti({ ...base, particleCount: 180, angle: 60,  spread: 85, startVelocity: 55, origin: { x: 0,   y: 0.72 } });
+      confetti({ ...base, particleCount: 180, angle: 120, spread: 85, startVelocity: 55, origin: { x: 1,   y: 0.72 } });
+
+      // Center mortar — big spread, slightly delayed.
       setTimeout(() => {
-        confetti({ ...base, particleCount: 140, spread: 100, startVelocity: 48, origin: { x: 0.5, y: 0.55 } });
-      }, 220);
+        confetti({ ...base, particleCount: 240, spread: 130, startVelocity: 55, origin: { x: 0.5, y: 0.5 } });
+      }, 180);
+
+      // Second wave from the sides — keeps the screen busy.
+      setTimeout(() => {
+        confetti({ ...base, particleCount: 140, angle: 75,  spread: 70, startVelocity: 50, origin: { x: 0.15, y: 0.85 } });
+        confetti({ ...base, particleCount: 140, angle: 105, spread: 70, startVelocity: 50, origin: { x: 0.85, y: 0.85 } });
+      }, 480);
+
+      // Rain finale — high arc, slow fall, drifts down across the whole width.
+      setTimeout(() => {
+        confetti({ ...base, particleCount: 180, spread: 160, startVelocity: 35, gravity: 0.7, ticks: 320, origin: { x: 0.5, y: 0 } });
+      }, 850);
+
+      // Tiny encore from the corners ~1.2s in.
+      setTimeout(() => {
+        confetti({ ...base, particleCount: 90, angle: 55,  spread: 60, startVelocity: 60, origin: { x: 0,   y: 1 } });
+        confetti({ ...base, particleCount: 90, angle: 125, spread: 60, startVelocity: 60, origin: { x: 1,   y: 1 } });
+      }, 1200);
     }
   </script>
 

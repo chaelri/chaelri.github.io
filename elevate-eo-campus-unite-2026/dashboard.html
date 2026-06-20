@@ -40,7 +40,7 @@
 
   <!-- Gate -->
   <div id="gate" class="px-4 sm:px-8 max-w-3xl mx-auto py-20 hidden">
-    <div class="surface p-8 text-center">
+    <div class="glass-tile p-8 text-center">
       <span class="material-symbols-outlined text-tape" style="font-size:48px">lock</span>
       <div class="font-extrabold-ui text-xl mt-2">Admin sign-in required</div>
       <p class="text-soft mt-2 text-sm">Sign in with an allowlisted Google account to view registered attendees.</p>
@@ -82,7 +82,7 @@
     </div>
 
     <!-- Registered list -->
-    <section class="surface overflow-x-auto">
+    <section class="glass-tile overflow-x-auto">
       <table class="t-table">
         <thead>
           <tr>
@@ -119,13 +119,18 @@
 
     function renderAuth(user) {
       if (!user) { $auth.innerHTML = ""; return; }
+      const name    = (user.displayName || user.email || "").trim();
+      const initial = (name || "?").charAt(0).toUpperCase();
       const photo = user.photoURL
         ? `<img src="${user.photoURL}" referrerpolicy="no-referrer" class="rounded-full ring-1 ring-[color:var(--tape)] object-cover shrink-0" style="width:22px;height:22px;" />`
-        : `<div class="rounded-full bg-red text-on-red grid place-items-center shrink-0" style="width:22px;height:22px;font-size:10px;font-weight:800;">${(user.displayName||user.email||"?")[0].toUpperCase()}</div>`;
+        : `<div class="rounded-full bg-red text-on-red grid place-items-center shrink-0" style="width:22px;height:22px;font-size:10px;font-weight:800;">${initial}</div>`;
+      const nameSpan = name
+        ? `<span class="hidden md:inline truncate" style="font-size:11px;font-weight:700;max-width:8rem;">${name}</span>`
+        : "";
       $auth.innerHTML = `
         <div class="auth-pill flex items-center" style="gap:6px;padding:3px 8px 3px 3px;">
           ${photo}
-          <span class="hidden md:inline truncate" style="font-size:11px;font-weight:700;max-width:8rem;">${user.displayName || user.email}</span>
+          ${nameSpan}
           <span style="font-size:9px;padding:2px 6px;border-radius:4px;background:var(--tape);color:var(--on-tape);font-weight:800;letter-spacing:0.1em;text-transform:uppercase;">Admin</span>
           <button id="btn-signout" class="text-mute hover:text-red" title="Sign out" style="line-height:0;">
             <span class="material-symbols-outlined" style="font-size:14px">logout</span>
@@ -282,6 +287,9 @@
           <td class="hidden lg:table-cell">${esc(r.fbName || "—")}</td>
           <td class="whitespace-nowrap text-mute">${fmtDate(r.registeredAt)}</td>
           <td class="text-right whitespace-nowrap">
+            <button class="btn-row-edit text-mute hover:text-tape transition" data-ticket="${esc(r.ticketId || "")}" title="Edit registration" style="padding:4px;line-height:0;margin-right:2px;">
+              <span class="material-symbols-outlined" style="font-size:18px">edit</span>
+            </button>
             <button class="btn-row-del text-mute hover:text-red transition" data-ticket="${esc(r.ticketId || "")}" data-name="${esc(r.name || "")}" title="Delete registration" style="padding:4px;line-height:0;">
               <span class="material-symbols-outlined" style="font-size:18px">delete</span>
             </button>
@@ -290,12 +298,20 @@
       `).join("");
     }
 
-    // ===== Delete a registration (frees the ticket for re-registration) =====
+    // ===== Row actions (delegated): edit + delete =====
     document.getElementById("recent-tbody").addEventListener("click", async (e) => {
-      const btn = e.target.closest(".btn-row-del");
-      if (!btn) return;
-      const id = btn.dataset.ticket;
-      const name = btn.dataset.name || "";
+      const editBtn = e.target.closest(".btn-row-edit");
+      if (editBtn) {
+        const id = editBtn.dataset.ticket;
+        const reg = id ? regsCache[id] : null;
+        if (reg) openEditModal(id, reg);
+        return;
+      }
+
+      const delBtn = e.target.closest(".btn-row-del");
+      if (!delBtn) return;
+      const id = delBtn.dataset.ticket;
+      const name = delBtn.dataset.name || "";
       if (!id) return;
       const ok = await confirmModal({
         title: "Delete this registration?",
@@ -306,15 +322,124 @@
         icon: "delete",
       });
       if (!ok) return;
-      btn.disabled = true;
+      delBtn.disabled = true;
       try {
         await set(registrationRef(id), null);
         await update(ticketRef(id), { registered: false, registeredAt: null, name: null });
       } catch (err) {
         alert("Delete failed: " + (err && err.message || err));
-        btn.disabled = false;
+        delBtn.disabled = false;
       }
     });
+
+    // ===== Edit modal — tweak registration fields in place =====
+    function openEditModal(id, reg) {
+      const host = document.createElement("div");
+      document.body.appendChild(host);
+
+      host.innerHTML = `
+        <div class="cu-modal-backdrop" role="dialog" aria-modal="true" aria-labelledby="edit-modal-title">
+          <div class="cu-modal-panel" style="max-width: 540px;">
+            <div class="cu-modal-head">
+              <span class="material-symbols-outlined" style="font-size:28px;color:var(--tape);">edit</span>
+              <div id="edit-modal-title" class="cu-modal-title">Edit <span class="t-ticket" style="font-family:'JetBrains Mono',monospace;">${esc(id)}</span> details</div>
+            </div>
+            <form id="edit-form" class="grid gap-3 mt-1" novalidate>
+              <div>
+                <label class="field-label" for="edit-name">Full name</label>
+                <input id="edit-name" name="name" type="text" required class="input" value="${esc(reg.name || "")}" />
+              </div>
+              <div class="grid grid-cols-2 gap-3">
+                <div>
+                  <label class="field-label" for="edit-age">Age</label>
+                  <input id="edit-age" name="age" type="number" required min="5" max="120" inputmode="numeric" class="input" value="${esc(reg.age || "")}" />
+                </div>
+                <div>
+                  <label class="field-label" for="edit-gender">Gender</label>
+                  <select id="edit-gender" name="gender" required class="select">
+                    <option value="" ${!reg.gender ? "selected" : ""} disabled>Select…</option>
+                    <option value="female" ${reg.gender === "female" ? "selected" : ""}>Female</option>
+                    <option value="male" ${reg.gender === "male" ? "selected" : ""}>Male</option>
+                  </select>
+                </div>
+              </div>
+              <div>
+                <label class="field-label" for="edit-fb">Facebook name</label>
+                <input id="edit-fb" name="fbName" type="text" required class="input" value="${esc(reg.fbName || "")}" />
+              </div>
+              <div>
+                <label class="field-label" for="edit-school">School / University</label>
+                <input id="edit-school" name="school" type="text" required class="input" value="${esc(reg.school || "")}" />
+              </div>
+              <div id="edit-error" class="hidden text-sm px-3 py-2 rounded-lg" style="background:rgba(225,29,44,0.12); border:1px solid var(--red); color:#ffd1d6;"></div>
+              <div class="cu-modal-actions">
+                <button type="button" class="cu-modal-btn cu-modal-cancel" data-edit-cancel>Cancel</button>
+                <button type="submit" class="cu-modal-btn cu-modal-confirm" style="background:var(--tape);color:var(--on-tape, #07091a);">Save changes</button>
+              </div>
+            </form>
+          </div>
+        </div>
+      `;
+
+      const backdrop = host.querySelector(".cu-modal-backdrop");
+      const form     = host.querySelector("#edit-form");
+      const $err     = host.querySelector("#edit-error");
+      const $submit  = form.querySelector('button[type="submit"]');
+
+      requestAnimationFrame(() => backdrop.classList.add("is-open"));
+
+      function close() {
+        backdrop.classList.remove("is-open");
+        document.removeEventListener("keydown", onKey);
+        setTimeout(() => host.remove(), 160);
+      }
+      function onKey(e) { if (e.key === "Escape") close(); }
+      backdrop.addEventListener("click", (e) => { if (e.target === backdrop) close(); });
+      host.querySelector("[data-edit-cancel]").addEventListener("click", close);
+      document.addEventListener("keydown", onKey);
+      setTimeout(() => host.querySelector("#edit-name").focus(), 0);
+
+      form.addEventListener("submit", async (e) => {
+        e.preventDefault();
+        $err.classList.add("hidden");
+
+        const name   = form.elements.name.value.trim();
+        const ageRaw = form.elements.age.value.trim();
+        const gender = form.elements.gender.value;
+        const fbName = form.elements.fbName.value.trim();
+        const school = form.elements.school.value.trim();
+        const age    = parseInt(ageRaw, 10);
+
+        if (!name || !ageRaw || !gender || !fbName || !school) {
+          $err.textContent = "All fields are required.";
+          $err.classList.remove("hidden");
+          return;
+        }
+        if (!Number.isFinite(age) || age < 5 || age > 120) {
+          $err.textContent = "Age must be between 5 and 120.";
+          $err.classList.remove("hidden");
+          return;
+        }
+        if (gender !== "male" && gender !== "female") {
+          $err.textContent = "Pick a gender.";
+          $err.classList.remove("hidden");
+          return;
+        }
+
+        $submit.disabled = true;
+        try {
+          // Only patch the editable fields — keep ticketId + registeredAt as-is.
+          await update(registrationRef(id), { name, age, gender, fbName, school });
+          // Mirror the name onto the ticket row so the ticket cache stays consistent.
+          await update(ticketRef(id), { name });
+          close();
+        } catch (err) {
+          $err.textContent = "Save failed: " + (err && err.message || err);
+          $err.classList.remove("hidden");
+          $submit.disabled = false;
+        }
+      });
+    }
 
     // ===== CSV export =====
     document.getElementById("btn-csv").addEventListener("click", () => {

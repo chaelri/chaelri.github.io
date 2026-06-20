@@ -47,7 +47,7 @@
         <p class="text-soft mt-2 text-sm">Scan the QR on your printed ticket — or type your ticket number below.</p>
       </div>
 
-      <div class="surface p-6 sm:p-8 mt-5 grid gap-5">
+      <div class="glass-tile p-6 sm:p-8 mt-5 grid gap-5">
         <button id="btn-open-scanner" class="btn-primary justify-center text-base" style="padding:0.85rem 1rem;">
           <span class="material-symbols-outlined" style="font-size:22px">qr_code_scanner</span>
           Scan ticket QR
@@ -75,7 +75,7 @@
 
     <!-- Scanner: live camera preview -->
     <div id="state-scanner" class="mt-6 hidden">
-      <div class="surface p-4 sm:p-5">
+      <div class="glass-tile p-4 sm:p-5">
         <div class="flex items-center justify-between mb-3 gap-2">
           <div class="font-extrabold-ui">Scan your ticket QR</div>
           <div class="flex items-center gap-2">
@@ -99,7 +99,7 @@
 
     <!-- Invalid (only after a real lookup miss) -->
     <div id="state-invalid" class="mt-10 hidden">
-      <div class="surface p-6 sm:p-8 text-center">
+      <div class="glass-tile p-6 sm:p-8 text-center">
         <span class="material-symbols-outlined text-red" style="font-size:48px">error</span>
         <div class="font-extrabold-ui text-xl mt-2">Ticket not found</div>
         <p class="text-soft mt-2 text-sm">We couldn't find a ticket matching that number. Please ask the Elevate East Ortigas team to check it for you.</p>
@@ -112,7 +112,7 @@
 
     <!-- Already registered -->
     <div id="state-already" class="mt-10 hidden">
-      <div class="surface p-6 sm:p-8 text-center" style="border-color: var(--tape);">
+      <div class="glass-tile p-6 sm:p-8 text-center" style="border-color: var(--tape);">
         <span class="material-symbols-outlined text-tape" style="font-size:48px">verified</span>
         <div class="font-extrabold-ui text-xl mt-2">Already registered.</div>
         <div class="mt-3 text-xs uppercase tracking-widest font-extrabold-ui text-mute">Ticket</div>
@@ -129,7 +129,7 @@
         <div id="form-ticket" class="raffle-display" style="font-size:clamp(3rem,14vw,6rem); text-shadow:0 0 24px rgba(245,213,24,0.4);"></div>
       </div>
 
-      <div class="surface p-6 sm:p-8 mt-4">
+      <div class="glass-tile p-6 sm:p-8 mt-4">
         <div class="font-extrabold-ui text-xl">Register for Campus UNITE</div>
         <p class="text-soft mt-1 text-sm">
           Fill this out once. Your ticket number is your entry pass <em>and</em> your raffle entry.
@@ -179,7 +179,7 @@
 
     <!-- Success -->
     <div id="state-success" class="mt-10 hidden">
-      <div class="surface p-6 sm:p-10 text-center" style="border-color: var(--tape);">
+      <div class="glass-tile p-6 sm:p-10 text-center" style="border-color: var(--tape);">
         <span class="material-symbols-outlined msi-fill text-tape" style="font-size:64px">celebration</span>
         <div class="font-display text-4xl sm:text-5xl text-ink mt-2">You're in!</div>
         <p class="text-soft mt-2">Keep this ticket safe — you'll need it at the door <em>and</em> for the raffle.</p>

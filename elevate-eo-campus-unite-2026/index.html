@@ -141,6 +141,55 @@
     </div>
   </section>
 
+  <!-- ===== Official poster ===== -->
+  <section class="px-4 sm:px-8 max-w-5xl mx-auto pt-12 sm:pt-16">
+    <div class="flex items-end justify-between mb-4">
+      <h2 class="font-display text-4xl sm:text-5xl text-ink">Spread the word</h2>
+      <span class="text-mute text-xs font-extrabold-ui uppercase tracking-widest hidden sm:inline">Campus + Nation</span>
+    </div>
+    <div class="hr-tape max-w-[180px] mb-6"></div>
+
+    <div class="grid sm:grid-cols-[auto_1fr] gap-6 sm:gap-10 items-center">
+      <button type="button" id="poster-open"
+              class="block mx-auto sm:mx-0 poster-frame"
+              aria-label="View the Campus UNITE 2026 poster full size">
+        <img src="assets/poster.png"
+             alt="Campus UNITE 2026 — Elevate's 13th Anniversary poster"
+             class="block w-full max-w-xs sm:max-w-sm h-auto"
+             loading="lazy" />
+        <span class="poster-zoom-badge" aria-hidden="true">
+          <span class="material-symbols-outlined" style="font-size:16px">zoom_in</span>
+          Tap to zoom
+        </span>
+      </button>
+      <div>
+        <div class="poster-pitch">
+          <span id="poster-pitch-tag" class="poster-pitch-tag">Almost here</span>
+          <h3 id="poster-pitch-head" class="poster-pitch-head">It's coming.</h3>
+        </div>
+        <p class="text-soft text-base sm:text-lg leading-relaxed mt-4">
+          Save it, post it, send it to your group chats. Tap the poster to view it full size and download.
+        </p>
+      </div>
+    </div>
+  </section>
+
+  <!-- ===== Poster lightbox ===== -->
+  <div id="poster-lightbox" class="poster-lightbox hidden" role="dialog" aria-modal="true" aria-label="Poster full view">
+    <div class="poster-lightbox-backdrop" data-close></div>
+    <div class="poster-lightbox-toolbar">
+      <a id="poster-download" href="assets/poster.png" download="CampusUNITE-2026.png" class="btn-tape">
+        <span class="material-symbols-outlined" style="font-size:18px">download</span>
+        Download
+      </a>
+      <button type="button" class="btn-ghost" data-close aria-label="Close">
+        <span class="material-symbols-outlined" style="font-size:18px">close</span>
+        Close
+      </button>
+    </div>
+    <img id="poster-lightbox-img" alt="Campus UNITE 2026 poster — full size" />
+  </div>
+
   <!-- ===== Trailer ===== -->
   <section class="px-4 sm:px-8 max-w-5xl mx-auto py-12 sm:py-16">
     <div class="flex items-end justify-between mb-4">
@@ -167,7 +216,7 @@
 
   <!-- ===== Already have a ticket? ===== -->
   <section class="px-4 sm:px-8 max-w-5xl mx-auto pb-12 sm:pb-16">
-    <div class="surface p-6 sm:p-8 grid sm:grid-cols-[1fr_auto] gap-4 sm:items-start">
+    <div class="glass-tile p-6 sm:p-8 grid sm:grid-cols-[1fr_auto] gap-4 sm:items-start">
       <div>
         <div class="font-display text-3xl sm:text-4xl text-tape">Got a printed ticket?</div>
         <p class="text-soft text-sm sm:text-base mt-1.5">
@@ -291,16 +340,21 @@
         $auth.innerHTML = "";
         return;
       }
+      const name    = (user.displayName || user.email || "").trim();
+      const initial = (name || "?").charAt(0).toUpperCase();
       const photo = user.photoURL
         ? `<img src="${user.photoURL}" referrerpolicy="no-referrer" class="rounded-full ring-1 ring-[color:var(--tape)] object-cover shrink-0" style="width:22px;height:22px;" />`
-        : `<div class="rounded-full bg-red text-on-red grid place-items-center shrink-0" style="width:22px;height:22px;font-size:10px;font-weight:800;">${(user.displayName||user.email||"?")[0].toUpperCase()}</div>`;
+        : `<div class="rounded-full bg-red text-on-red grid place-items-center shrink-0" style="width:22px;height:22px;font-size:10px;font-weight:800;">${initial}</div>`;
+      const nameSpan = name
+        ? `<span class="hidden md:inline truncate" style="font-size:11px;font-weight:700;max-width:8rem;">${name}</span>`
+        : "";
       const badge = isAdmin
         ? `<span style="font-size:9px;padding:2px 6px;border-radius:4px;background:var(--tape);color:var(--on-tape);font-weight:800;letter-spacing:0.1em;text-transform:uppercase;">Admin</span>`
         : `<span style="font-size:9px;font-weight:800;letter-spacing:0.12em;text-transform:uppercase;color:var(--ink-mute);">view</span>`;
       $auth.innerHTML = `
         <div class="auth-pill flex items-center" style="gap:6px;padding:3px 8px 3px 3px;">
           ${photo}
-          <span class="hidden md:inline truncate" style="font-size:11px;font-weight:700;max-width:8rem;">${user.displayName || user.email}</span>
+          ${nameSpan}
           ${badge}
           <button id="btn-signout" class="text-mute hover:text-red" title="Sign out" style="line-height:0;">
             <span class="material-symbols-outlined" style="font-size:14px">logout</span>
@@ -394,9 +448,49 @@
       setCell(cdEls.hrs,  negative ? "—" : String(hrs).padStart(2, "0"));
       setCell(cdEls.min,  negative ? "—" : String(min).padStart(2, "0"));
       setCell(cdEls.sec,  negative ? "—" : String(sec).padStart(2, "0"));
+      updatePosterPitch(negative ? -1 : days);
+    }
+    function updatePosterPitch(days) {
+      const $tag  = document.getElementById("poster-pitch-tag");
+      const $head = document.getElementById("poster-pitch-head");
+      if (!$tag || !$head) return;
+      let tag, head;
+      if (days < 0)        { tag = "It happened"; head = "Salamat, Campus."; }
+      else if (days === 0) { tag = "Today";        head = `Today. <span class="num">UNITE.</span>`; }
+      else if (days === 1) { tag = "Tomorrow";     head = "One more sleep."; }
+      else if (days <= 7)  { tag = "This week";    head = `<span class="num">${days}</span> days to go.`; }
+      else if (days <= 14) { tag = "Almost here";  head = "One week out."; }
+      else if (days <= 30) { tag = "Almost here";  head = `<span class="num">${days}</span> days till we UNITE.`; }
+      else if (days <= 90) { tag = "It's coming";  head = `<span class="num">${days}</span> days till we UNITE.`; }
+      else                 { tag = "Mark the date"; head = "Campus + Nation, UNITE."; }
+      if ($tag.textContent !== tag) $tag.textContent = tag;
+      if ($head.innerHTML !== head) $head.innerHTML = head;
     }
     tickCountdown();
     setInterval(tickCountdown, 1000);
+
+    // ===== Poster lightbox =====
+    (function wirePosterLightbox() {
+      const $open  = document.getElementById("poster-open");
+      const $box   = document.getElementById("poster-lightbox");
+      const $img   = document.getElementById("poster-lightbox-img");
+      if (!$open || !$box || !$img) return;
+
+      function open() {
+        if (!$img.getAttribute("src")) $img.src = "assets/poster.png";
+        $box.classList.remove("hidden");
+        document.body.classList.add("poster-open");
+      }
+      function close() {
+        $box.classList.add("hidden");
+        document.body.classList.remove("poster-open");
+      }
+      $open.addEventListener("click", open);
+      $box.querySelectorAll("[data-close]").forEach(el => el.addEventListener("click", close));
+      document.addEventListener("keydown", (e) => {
+        if (e.key === "Escape" && !$box.classList.contains("hidden")) close();
+      });
+    })();
 
     // ===== Manual register (no QR scanner) =====
     const $mid = document.getElementById("manual-id");

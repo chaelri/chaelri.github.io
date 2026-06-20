@@ -40,7 +40,7 @@
 
   <!-- Gate -->
   <div id="gate" class="print:hidden px-4 sm:px-8 max-w-3xl mx-auto py-20 hidden">
-    <div class="surface p-8 text-center">
+    <div class="glass-tile p-8 text-center">
       <span class="material-symbols-outlined text-tape" style="font-size:48px">lock</span>
       <div class="font-extrabold-ui text-xl mt-2">Admin sign-in required</div>
       <p class="text-soft mt-2 text-sm">Sign in with an allowlisted Google account to access the print sheet.</p>
@@ -55,11 +55,25 @@
   <section id="controls" class="print:hidden px-4 sm:px-8 max-w-5xl mx-auto py-6 hidden">
     <div class="flex items-center gap-3 mb-4">
       <span class="tape-badge">Print</span>
-      <span class="text-mute text-xs font-extrabold-ui uppercase tracking-widest">A4 landscape, 2 per page</span>
+      <span class="text-mute text-xs font-extrabold-ui uppercase tracking-widest">A4 landscape, 6 per page</span>
     </div>
 
-    <div class="surface p-5 sm:p-6">
-      <p class="text-soft text-sm">Render a range, then use your browser's <em>Print</em> dialog → "Save as PDF" or send to printer.</p>
+    <!-- Pre-rendered PDF — skip the render+print dance for the common case (all 1,000 tickets) -->
+    <div class="glass-tile p-5 sm:p-6 mb-4" style="border-color: var(--tape); border-width: 1px;">
+      <div class="flex items-center gap-3 flex-wrap">
+        <div class="flex-1 min-w-0">
+          <div class="font-extrabold-ui text-base text-ink">All 1,000 tickets — print-ready PDF</div>
+          <p class="text-soft text-xs mt-1">Hand this straight to the printer. Square corners, A4 landscape, 6 tickets per page.</p>
+        </div>
+        <a href="assets/print-tickets.pdf" download="Campus-UNITE-2026-Tickets.pdf" class="btn-primary whitespace-nowrap">
+          <span class="material-symbols-outlined" style="font-size:18px">picture_as_pdf</span>
+          Download PDF
+        </a>
+      </div>
+    </div>
+
+    <div class="glass-tile p-5 sm:p-6">
+      <p class="text-soft text-sm">Need a custom range? Render below, then use your browser's <em>Print</em> dialog → "Save as PDF" or send to printer.</p>
 
       <div class="mt-4 grid grid-cols-2 sm:grid-cols-4 gap-3">
         <div>
@@ -116,13 +130,18 @@
 
     function renderAuth(user) {
       if (!user) { $auth.innerHTML = ""; return; }
+      const name    = (user.displayName || user.email || "").trim();
+      const initial = (name || "?").charAt(0).toUpperCase();
       const photo = user.photoURL
         ? `<img src="${user.photoURL}" referrerpolicy="no-referrer" class="rounded-full ring-1 ring-[color:var(--tape)] object-cover shrink-0" style="width:22px;height:22px;" />`
-        : `<div class="rounded-full bg-red text-on-red grid place-items-center shrink-0" style="width:22px;height:22px;font-size:10px;font-weight:800;">${(user.displayName||user.email||"?")[0].toUpperCase()}</div>`;
+        : `<div class="rounded-full bg-red text-on-red grid place-items-center shrink-0" style="width:22px;height:22px;font-size:10px;font-weight:800;">${initial}</div>`;
+      const nameSpan = name
+        ? `<span class="hidden md:inline truncate" style="font-size:11px;font-weight:700;max-width:8rem;">${name}</span>`
+        : "";
       $auth.innerHTML = `
         <div class="auth-pill flex items-center" style="gap:6px;padding:3px 8px 3px 3px;">
           ${photo}
-          <span class="hidden md:inline truncate" style="font-size:11px;font-weight:700;max-width:8rem;">${user.displayName || user.email}</span>
+          ${nameSpan}
           <span style="font-size:9px;padding:2px 6px;border-radius:4px;background:var(--tape);color:var(--on-tape);font-weight:800;letter-spacing:0.1em;text-transform:uppercase;">Admin</span>
           <button id="btn-signout" class="text-mute hover:text-red" title="Sign out" style="line-height:0;">
             <span class="material-symbols-outlined" style="font-size:14px">logout</span>

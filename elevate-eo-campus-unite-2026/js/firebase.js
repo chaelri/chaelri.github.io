@@ -21,7 +21,12 @@ const firebaseConfig = {
   appId: "1:933688602756:web:392a3a4ce040cb9d4452d1",
 };
 
-export const app = initializeApp(firebaseConfig);
+// Named Firebase app so this site has its own isolated auth persistence slot.
+// Sibling apps on chaelri.github.io (autoclicker, weddingbar, aircon, tayo, echoes)
+// share the same Firebase project + origin. If we used the default app name,
+// their anonymous sign-ins would overwrite our Google admin session and we'd
+// keep getting bumped back to a "?" anonymous pill on reload.
+export const app = initializeApp(firebaseConfig, "elevate-eo-campus-unite-2026");
 export const db = getDatabase(app);
 export const auth = getAuth(app);
 
@@ -77,11 +82,15 @@ export function signOutNow() {
 }
 
 // Subscribe to auth state. Callback gets { user, isAdmin }.
+// Anonymous users (signed in by sibling apps sharing this Firebase project —
+// autoclicker, weddingbar, etc.) are reported as null so they never render in
+// the admin auth pill. This app only cares about Google sign-ins.
 export function watchAuth(cb) {
   return onAuthStateChanged(auth, (user) => {
+    const realUser = user && !user.isAnonymous ? user : null;
     cb({
-      user: user || null,
-      isAdmin: !!user && isAdminEmail((user.email || "").toLowerCase()),
+      user: realUser,
+      isAdmin: !!realUser && isAdminEmail((realUser.email || "").toLowerCase()),
     });
   });
 }
