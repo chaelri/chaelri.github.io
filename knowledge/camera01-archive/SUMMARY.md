@@ -42,7 +42,7 @@ Outputs `~/Desktop/Camera01/2026-02-18/_render/Feb18_2026.mp4` plus 19-ish `clip
 - HW HEVC decode via VideoToolbox (`-hwaccel videotoolbox`)
 - `area` downscaler (best quality/speed for 4K→1080p)
 - Landscape 16:9 → `scale=1920:1080`
-- Portrait or 4:3 → blurred-fill bg (`boxblur=40:1` on an upscaled+cropped copy of itself) + centered foreground. **Content-aware "gradient" feel — no black bars.** This is the look the user asked for; portrait clips are kept un-cropped.
+- Portrait or 4:3 → scale-to-fit inside 1920×1080, **rest of the canvas is empty** (renders as black in mp4 but conceptually it's "the empty area around the source," not a deliberate black fill — `pad` with no explicit color, default). Switched from blur-fill on 2026-06-21 after Apr 2 (34 GB, 12 portrait-heavy clips) took 3h 46m — the per-frame boxblur on the bg branch was CPU-bound and starved the HW encoder. Empty canvas cuts portrait-day wall time to roughly landscape throughput. Charlie's framing: don't think of it as painted black, just empty space.
 - HW H.264 encode `h264_videotoolbox -realtime 1` at 14M target / 18M cap
 - AAC 192k stereo, `+faststart` for streaming
 

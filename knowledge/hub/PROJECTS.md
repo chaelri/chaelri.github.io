@@ -25,7 +25,7 @@ Local workflow that takes a day-folder of mixed-orientation Insta360 / phone cli
   - **One-time scope add to the OAuth consent screen is UI-only** — no API/gcloud command exists to add scopes. Persists across machines once set on the project.
   - **Apple M3 base has one HW encoder unit** — 2-way parallel ffmpeg is the local maximum. Don't try 3+. On M3 Pro/Max (2+ encoders), increase `MAX_JOBS` in `render.sh`.
   - **Title-picking is content-derived:** sample frames from across the day, identify specific anchors (e.g., "Mang Inasal," "leaf-wallpaper café," "phone unboxing"), combine into a lowercase Taglish/EN title. Generic "Day with K" feels hollow.
-  - **Portrait + 4:3 clips get a blurred-fill background** (content-aware soft "gradient" feel) rather than black bars. Implemented via `boxblur=40:1` on a scaled+cropped copy of the same frame.
+  - **Portrait + 4:3 clips use an empty pad, no blur.** Originally used a content-aware blurred-fill via `boxblur=40:1`; switched 2026-06-21 to empty pad (renders as black in mp4 but framed as "just the empty canvas, not painted black") after Apr 2 (34 GB, 12 portrait-heavy clips) took 3h 46m — the per-frame boxblur was CPU-bound and starved the HW encoder.
   - **Folder hygiene:** each `~/Desktop/Camera01/YYYY-MM-DD/` is ~30 GB. Delete after the YouTube URL returns `playabilityStatus: OK`. YouTube is the archive.
 - **Full docs:** See `knowledge/camera01-archive/SUMMARY.md` (run book, OAuth setup, things tried and rejected).
 

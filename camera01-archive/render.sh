@@ -15,7 +15,11 @@
 #   • HW HEVC decode via VideoToolbox
 #   • "area" downscale (best quality/speed for 4K→1080p)
 #   • If 16:9 landscape: simple scale to 1920×1080
-#   • If portrait or 4:3:   blurred-fill background + centered foreground
+#   • If portrait or 4:3:   scale-to-fit + empty pad (the surrounding canvas
+#     just stays empty, which renders as black in mp4). No blur background —
+#     the per-frame boxblur on the bg branch was CPU-bound and dominated
+#     runtime on portrait-heavy days (Apr 2 took ~3h 46m for 34 GB source).
+#     Empty pad cuts that to landscape-mode throughput.
 #     (rotation metadata auto-handled by ffmpeg's autorotate)
 #   • HW H.264 encode (h264_videotoolbox -realtime 1) at 14M target / 18M cap
 #   • AAC 192k stereo, +faststart
@@ -75,10 +79,11 @@ MAX_JOBS=2
 
 F_LAND='scale=1920:1080:flags=area,setsar=1,fps=60,format=yuv420p'
 
-F_BLUR='[0:v]split[bg][fg];
-[bg]scale=1920:1080:force_original_aspect_ratio=increase:flags=area,crop=1920:1080,boxblur=40:1,eq=brightness=-0.04:saturation=1.05[bgb];
-[fg]scale=1920:1080:force_original_aspect_ratio=decrease:flags=area[fgs];
-[bgb][fgs]overlay=(W-w)/2:(H-h)/2:format=auto,setsar=1,fps=60,format=yuv420p'
+# Portrait / 4:3 → scale to fit inside 1920×1080, leave the remainder empty.
+# The empty pad renders as black in mp4 but it's not painted black per se —
+# it's just the canvas where the source doesn't reach. Replaces the older
+# blur-fill which was CPU-bound on the boxblur branch.
+F_PAD='scale=1920:1080:force_original_aspect_ratio=decrease:flags=area,pad=1920:1080:(ow-iw)/2:(oh-ih)/2,setsar=1,fps=60,format=yuv420p'
 
 encode_clip() {
   local in="$1" out="$2" mode="$3"
@@ -96,7 +101,7 @@ encode_clip() {
   else
     ffmpeg -hide_banner -loglevel warning -y \
       $HW_DECODE -i "$in" \
-      -filter_complex "$F_BLUR" \
+      -vf "$F_PAD" \
       -c:v h264_videotoolbox -realtime 1 \
       -b:v "$VBR_TARGET" -maxrate "$VBR_MAX" -bufsize "$VBR_BUF" \
       -profile:v high -level 4.2 -pix_fmt yuv420p -tag:v avc1 \
@@ -133,7 +138,7 @@ for f in "${CLIPS[@]}"; do
   if [ "$rot" = "90" ] || [ "$rot" = "-90" ] || [ "$rot" = "270" ] || [ "$rot" = "-270" ]; then
     tmp=$w; w=$h; h=$tmp
   fi
-  if [ "$((w*9))" = "$((h*16))" ]; then mode="landscape"; else mode="blur"; fi
+  if [ "$((w*9))" = "$((h*16))" ]; then mode="landscape"; else mode="pad"; fi
 
   while [ $(jobs -rp | wc -l) -ge $MAX_JOBS ]; do sleep 0.3; done
   encode_clip "$SRC/$f" "$out_file" "$mode" &
