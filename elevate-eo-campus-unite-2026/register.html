@@ -524,6 +524,34 @@
             <div id="f-school-err" class="field-err hidden"></div>
           </div>
 
+          <div class="grid grid-cols-1 sm:grid-cols-2 gap-3">
+            <div>
+              <label class="field-label" for="f-first">First timer sa Elevate?</label>
+              <select id="f-first" name="firstTimer" required class="select">
+                <option value="" disabled selected>Select…</option>
+                <option value="yes">Oo, first time</option>
+                <option value="no">Hindi, nakapag-attend na</option>
+              </select>
+              <div id="f-first-err" class="field-err hidden"></div>
+            </div>
+            <div>
+              <label class="field-label" for="f-dgroup">May Dgroup leader?</label>
+              <select id="f-dgroup" name="hasDgroup" required class="select">
+                <option value="" disabled selected>Select…</option>
+                <option value="yes">Meron na</option>
+                <option value="no">Wala pa</option>
+              </select>
+              <div id="f-dgroup-err" class="field-err hidden"></div>
+            </div>
+          </div>
+
+          <!-- Revealed only when "May Dgroup leader? = Meron na". Required in that branch. -->
+          <div id="f-dgroup-leader-wrap" class="hidden">
+            <label class="field-label" for="f-dgroup-leader">Dgroup leader name</label>
+            <input id="f-dgroup-leader" name="dgroupLeader" type="text" class="input" placeholder="e.g. Kuya Chan / Ate Maui" />
+            <div id="f-dgroup-leader-err" class="field-err hidden"></div>
+          </div>
+
           <div id="form-error" class="hidden text-sm px-3 py-2 rounded-lg" style="background:rgba(225,29,44,0.12); border:1px solid var(--red); color:#ffd1d6;"></div>
 
           <button id="btn-submit" type="submit" class="btn-primary justify-center mt-2 text-base">
@@ -704,11 +732,30 @@
       else     { $err.textContent = "";  $err.classList.add("hidden");    $g.classList.remove("reach-error"); }
     }
     function clearAllFieldErrors() {
-      ["f-name","f-age","f-gender","f-fb","f-contact","f-school"].forEach(id => setFieldError(id, null));
+      ["f-name","f-age","f-gender","f-fb","f-contact","f-school","f-first","f-dgroup","f-dgroup-leader"].forEach(id => setFieldError(id, null));
       setReachGroupError(null);
       const $banner = document.getElementById("form-error");
       if ($banner) $banner.classList.add("hidden");
     }
+
+    // Toggle the Dgroup-leader-name field's visibility + required-ness based on
+    // the yes/no Dgroup select. "Meron na" → reveal + require; "Wala pa" → hide.
+    function syncDgroupLeaderField() {
+      const $sel  = document.getElementById("f-dgroup");
+      const $wrap = document.getElementById("f-dgroup-leader-wrap");
+      const $inp  = document.getElementById("f-dgroup-leader");
+      if (!$sel || !$wrap || !$inp) return;
+      const show = $sel.value === "yes";
+      $wrap.classList.toggle("hidden", !show);
+      if (show) $inp.setAttribute("required", "required");
+      else {
+        $inp.removeAttribute("required");
+        $inp.value = "";
+        setFieldError("f-dgroup-leader", null);
+      }
+    }
+    document.addEventListener("DOMContentLoaded", syncDgroupLeaderField);
+    document.getElementById("f-dgroup")?.addEventListener("change", syncDgroupLeaderField);
 
     const idPattern = /^ECU-\d{4}$/;
     const params = new URLSearchParams(window.location.search);
@@ -720,7 +767,7 @@
 
     // Live validation: clear a field's red state the moment the user touches it.
     (() => {
-      const ids = ["f-name", "f-age", "f-gender", "f-fb", "f-contact", "f-school"];
+      const ids = ["f-name", "f-age", "f-gender", "f-fb", "f-contact", "f-school", "f-first", "f-dgroup", "f-dgroup-leader"];
       ids.forEach(id => {
         const $el = document.getElementById(id);
         if (!$el) return;
@@ -1047,12 +1094,15 @@
       clearAllFieldErrors();
 
       const data = {
-        name:    document.getElementById("f-name").value.trim(),
-        age:     parseInt(document.getElementById("f-age").value, 10),
-        gender:  document.getElementById("f-gender").value,
-        fbLink:  document.getElementById("f-fb").value.trim(),
-        contact: document.getElementById("f-contact").value.trim(),
-        school:  document.getElementById("f-school").value.trim(),
+        name:         document.getElementById("f-name").value.trim(),
+        age:          parseInt(document.getElementById("f-age").value, 10),
+        gender:       document.getElementById("f-gender").value,
+        fbLink:       document.getElementById("f-fb").value.trim(),
+        contact:      document.getElementById("f-contact").value.trim(),
+        school:       document.getElementById("f-school").value.trim(),
+        firstTimer:   document.getElementById("f-first").value,
+        hasDgroup:    document.getElementById("f-dgroup").value,
+        dgroupLeader: document.getElementById("f-dgroup-leader").value.trim(),
       };
 
       // Collect every problem, paint them all at once. Lets the user see what's
@@ -1065,6 +1115,14 @@
       else if (data.age < 5 || data.age > 120){ setFieldError("f-age", "Age must be between 5 and 120.");  bad.push("f-age"); }
       if (!data.gender) { setFieldError("f-gender", "Pick one.");                    bad.push("f-gender"); }
       if (!data.school) { setFieldError("f-school", "Your school is required.");    bad.push("f-school"); }
+      if (!data.firstTimer) { setFieldError("f-first",  "Pick one.");               bad.push("f-first"); }
+      if (!data.hasDgroup)  { setFieldError("f-dgroup", "Pick one.");               bad.push("f-dgroup"); }
+      else if (data.hasDgroup === "yes" && !data.dgroupLeader) {
+        setFieldError("f-dgroup-leader", "Sino ang Dgroup leader mo?");
+        bad.push("f-dgroup-leader");
+      }
+      // Drop the leader name if the user said "Wala pa" — keeps the record clean.
+      if (data.hasDgroup !== "yes") data.dgroupLeader = "";
 
       // Reach-you pair: BOTH FB link and contact are required now (per Kuya Chan).
       // Contact field accepts the student's own number OR a parent's.

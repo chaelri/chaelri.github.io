@@ -93,12 +93,14 @@
             <th class="t-sortable hidden sm:table-cell" data-sort="age">Age<span class="t-sort-ind"></span></th>
             <th class="t-sortable hidden lg:table-cell" data-sort="fbLink">Facebook<span class="t-sort-ind"></span></th>
             <th class="t-sortable hidden lg:table-cell whitespace-nowrap" data-sort="contact">Contact<span class="t-sort-ind"></span></th>
+            <th class="t-sortable hidden xl:table-cell whitespace-nowrap" data-sort="firstTimer">1st time?<span class="t-sort-ind"></span></th>
+            <th class="t-sortable hidden xl:table-cell whitespace-nowrap" data-sort="hasDgroup">Dgroup?<span class="t-sort-ind"></span></th>
             <th class="t-sortable whitespace-nowrap" data-sort="registeredAt">Registered<span class="t-sort-ind"></span></th>
             <th class="whitespace-nowrap text-right">Actions</th>
           </tr>
         </thead>
         <tbody id="recent-tbody">
-          <tr><td colspan="9" class="text-center text-mute py-10">Loading…</td></tr>
+          <tr><td colspan="11" class="text-center text-mute py-10">Loading…</td></tr>
         </tbody>
       </table>
     </section>
@@ -197,6 +199,9 @@
     function genderLabel(g) {
       return ({female:"Female", male:"Male"})[g] || "—";
     }
+    function yesNoLabel(v) {
+      return ({yes:"Yes", no:"No"})[v] || "—";
+    }
 
     // ===== Sort state =====
     // Each column has a natural default direction. Clicking a different column resets to its default;
@@ -209,6 +214,8 @@
       age: "asc",
       fbLink: "asc",
       contact: "asc",
+      firstTimer: "asc",
+      hasDgroup: "asc",
       registeredAt: "desc",
     };
     let sortState = { key: "registeredAt", dir: "desc" };
@@ -273,12 +280,13 @@
           (r.school || "").toLowerCase().includes(q) ||
           (r.ticketId || "").toLowerCase().includes(q) ||
           (r.fbLink || r.fbName || "").toLowerCase().includes(q) ||
-          (r.contact || "").toLowerCase().includes(q)
+          (r.contact || "").toLowerCase().includes(q) ||
+          (r.dgroupLeader || "").toLowerCase().includes(q)
         ));
 
       const $tbody = document.getElementById("recent-tbody");
       if (!list.length) {
-        $tbody.innerHTML = `<tr><td colspan="9" class="text-center text-mute py-10">${q ? "No matches." : "No registrations yet."}</td></tr>`;
+        $tbody.innerHTML = `<tr><td colspan="11" class="text-center text-mute py-10">${q ? "No matches." : "No registrations yet."}</td></tr>`;
         return;
       }
       $tbody.innerHTML = list.map(r => {
@@ -297,6 +305,12 @@
           <td class="hidden sm:table-cell">${esc(r.age || "—")}</td>
           <td class="hidden lg:table-cell">${fbCell}</td>
           <td class="hidden lg:table-cell whitespace-nowrap">${esc(r.contact || "—")}</td>
+          <td class="hidden xl:table-cell whitespace-nowrap">${esc(yesNoLabel(r.firstTimer))}</td>
+          <td class="hidden xl:table-cell whitespace-nowrap">${
+            r.hasDgroup === "yes" && r.dgroupLeader
+              ? `Yes · <span class="text-mute">${esc(r.dgroupLeader)}</span>`
+              : esc(yesNoLabel(r.hasDgroup))
+          }</td>
           <td class="whitespace-nowrap text-mute">${fmtDate(r.registeredAt)}</td>
           <td class="text-right whitespace-nowrap">
             <button class="btn-row-edit text-mute hover:text-tape transition" data-ticket="${esc(r.ticketId || "")}" title="Edit registration" style="padding:4px;line-height:0;margin-right:2px;">
@@ -388,6 +402,28 @@
                 <label class="field-label" for="edit-school">School / University</label>
                 <input id="edit-school" name="school" type="text" required class="input" value="${esc(reg.school || "")}" />
               </div>
+              <div class="grid grid-cols-2 gap-3">
+                <div>
+                  <label class="field-label" for="edit-first">First timer sa Elevate?</label>
+                  <select id="edit-first" name="firstTimer" required class="select">
+                    <option value="" ${!reg.firstTimer ? "selected" : ""} disabled>Select…</option>
+                    <option value="yes" ${reg.firstTimer === "yes" ? "selected" : ""}>Oo, first time</option>
+                    <option value="no"  ${reg.firstTimer === "no"  ? "selected" : ""}>Hindi, nakapag-attend na</option>
+                  </select>
+                </div>
+                <div>
+                  <label class="field-label" for="edit-dgroup">May Dgroup leader?</label>
+                  <select id="edit-dgroup" name="hasDgroup" required class="select">
+                    <option value="" ${!reg.hasDgroup ? "selected" : ""} disabled>Select…</option>
+                    <option value="yes" ${reg.hasDgroup === "yes" ? "selected" : ""}>Meron na</option>
+                    <option value="no"  ${reg.hasDgroup === "no"  ? "selected" : ""}>Wala pa</option>
+                  </select>
+                </div>
+              </div>
+              <div id="edit-dgroup-leader-wrap" class="${reg.hasDgroup === "yes" ? "" : "hidden"}">
+                <label class="field-label" for="edit-dgroup-leader">Dgroup leader name</label>
+                <input id="edit-dgroup-leader" name="dgroupLeader" type="text" class="input" placeholder="e.g. Kuya Chan / Ate Maui" value="${esc(reg.dgroupLeader || "")}" />
+              </div>
               <div id="edit-error" class="hidden text-sm px-3 py-2 rounded-lg" style="background:rgba(225,29,44,0.12); border:1px solid var(--red); color:#ffd1d6;"></div>
               <div class="cu-modal-actions">
                 <button type="button" class="cu-modal-btn cu-modal-cancel" data-edit-cancel>Cancel</button>
@@ -416,20 +452,38 @@
       document.addEventListener("keydown", onKey);
       setTimeout(() => host.querySelector("#edit-name").focus(), 0);
 
+      // Conditional reveal: leader name only when "Meron na".
+      const $dgroup       = host.querySelector("#edit-dgroup");
+      const $leaderWrap   = host.querySelector("#edit-dgroup-leader-wrap");
+      const $leaderInput  = host.querySelector("#edit-dgroup-leader");
+      $dgroup.addEventListener("change", () => {
+        const show = $dgroup.value === "yes";
+        $leaderWrap.classList.toggle("hidden", !show);
+        if (!show) $leaderInput.value = "";
+      });
+
       form.addEventListener("submit", async (e) => {
         e.preventDefault();
         $err.classList.add("hidden");
 
-        const name    = form.elements.name.value.trim();
-        const ageRaw  = form.elements.age.value.trim();
-        const gender  = form.elements.gender.value;
-        const fbLink  = form.elements.fbLink.value.trim();
-        const contact = form.elements.contact.value.trim();
-        const school  = form.elements.school.value.trim();
-        const age     = parseInt(ageRaw, 10);
+        const name       = form.elements.name.value.trim();
+        const ageRaw     = form.elements.age.value.trim();
+        const gender     = form.elements.gender.value;
+        const fbLink     = form.elements.fbLink.value.trim();
+        const contact    = form.elements.contact.value.trim();
+        const school     = form.elements.school.value.trim();
+        const firstTimer   = form.elements.firstTimer.value;
+        const hasDgroup    = form.elements.hasDgroup.value;
+        const dgroupLeader = form.elements.dgroupLeader.value.trim();
+        const age          = parseInt(ageRaw, 10);
 
-        if (!name || !ageRaw || !gender || !school || !fbLink || !contact) {
-          $err.textContent = "All fields are required (Facebook link and contact number both).";
+        if (!name || !ageRaw || !gender || !school || !fbLink || !contact || !firstTimer || !hasDgroup) {
+          $err.textContent = "All fields are required.";
+          $err.classList.remove("hidden");
+          return;
+        }
+        if (hasDgroup === "yes" && !dgroupLeader) {
+          $err.textContent = "Dgroup leader name is required when Dgroup = Meron na.";
           $err.classList.remove("hidden");
           return;
         }
@@ -453,7 +507,7 @@
         try {
           // Only patch the editable fields — keep ticketId + registeredAt as-is.
           // Wipe the legacy fbName once we've captured a fbLink so old + new don't co-exist.
-          await update(registrationRef(id), { name, age, gender, fbLink, contact, school, fbName: null });
+          await update(registrationRef(id), { name, age, gender, fbLink, contact, school, firstTimer, hasDgroup, dgroupLeader: hasDgroup === "yes" ? dgroupLeader : null, fbName: null });
           // Mirror the name onto the ticket row so the ticket cache stays consistent.
           await update(ticketRef(id), { name });
           close();
@@ -470,7 +524,7 @@
       const regs = Object.values(regsCache)
         .sort((a, b) => (b.registeredAt || 0) - (a.registeredAt || 0));
       if (!regs.length) { alert("No registrations to export."); return; }
-      const header = ["ticketId", "name", "age", "gender", "school", "fbLink", "contact", "registeredAt"];
+      const header = ["ticketId", "name", "age", "gender", "school", "fbLink", "contact", "firstTimer", "hasDgroup", "dgroupLeader", "registeredAt"];
       const csv = [header.join(",")].concat(
         regs.map(r => header.map(k => {
           let v = r[k] == null ? "" : r[k];
