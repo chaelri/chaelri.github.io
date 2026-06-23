@@ -392,6 +392,13 @@ html, body {
 .fb-help-steps li { padding-left: 0.15rem; margin-bottom: 0.2rem; }
 .fb-help-steps li:last-child { margin-bottom: 0; }
 .fb-help-steps b { color: var(--tape); font-weight: 700; }
+/* Wrapper that JS animates between height:0 ⇄ scrollHeight for a smooth
+   open/close instead of <details>'s native display:none snap. */
+.fb-help-anim {
+  width: 100%;
+  overflow: hidden;
+  transition: height 0.28s cubic-bezier(0.4, 0, 0.2, 1), opacity 0.2s ease;
+}
 
 /* "How can we reach you" either/or group — visually bundles FB + contact and
    makes the OR rule scannable in one glance instead of repeating it per label. */
