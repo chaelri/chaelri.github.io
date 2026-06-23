@@ -330,6 +330,69 @@ html, body {
   background: rgba(225, 29, 44, 0.05);
 }
 
+/* Inline "How do I find this?" hint for the Facebook link field.
+   Default: a tiny muted text+icon control that sits next to the label.
+   Open: expands into a soft numbered-step card directly above the input. */
+.fb-label-row {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 0.5rem;
+  margin-bottom: 0.4rem;
+  flex-wrap: wrap;
+}
+.fb-help { font-size: 0.65rem; line-height: 1; }
+.fb-help > summary {
+  list-style: none;
+  cursor: pointer;
+  display: inline-flex;
+  align-items: center;
+  gap: 0.25rem;
+  color: var(--ink-mute);
+  font-weight: 700;
+  letter-spacing: 0.06em;
+  text-transform: uppercase;
+  padding: 3px 7px;
+  border: 1px dashed var(--line);
+  border-radius: 999px;
+  transition: color 0.12s ease, border-color 0.12s ease, background 0.12s ease;
+  user-select: none;
+}
+.fb-help > summary::-webkit-details-marker { display: none; }
+.fb-help > summary:hover,
+.fb-help > summary:focus-visible {
+  color: var(--tape);
+  border-color: var(--tape);
+  background: rgba(245, 213, 24, 0.06);
+  outline: none;
+}
+.fb-help[open] > summary {
+  color: var(--tape);
+  border-color: var(--tape);
+  background: rgba(245, 213, 24, 0.08);
+}
+.fb-help-steps {
+  list-style: decimal;
+  list-style-position: inside;
+  margin: 0.5rem 0 0;
+  padding: 0.7rem 0.85rem;
+  background: rgba(245, 213, 24, 0.05);
+  border: 1px solid rgba(245, 213, 24, 0.18);
+  border-radius: 0.55rem;
+  font-size: 0.78rem;
+  font-weight: 500;
+  letter-spacing: 0;
+  text-transform: none;
+  color: var(--ink);
+  line-height: 1.55;
+  /* Force the card to span the row even though the parent is inline. */
+  width: 100%;
+  display: block;
+}
+.fb-help-steps li { padding-left: 0.15rem; margin-bottom: 0.2rem; }
+.fb-help-steps li:last-child { margin-bottom: 0; }
+.fb-help-steps b { color: var(--tape); font-weight: 700; }
+
 /* "How can we reach you" either/or group — visually bundles FB + contact and
    makes the OR rule scannable in one glance instead of repeating it per label. */
 .reach-group {
@@ -391,6 +454,7 @@ html, body {
   line-height: 1.35;
 }
 .reach-hint strong { color: var(--tape); font-weight: 800; }
+.reach-hint-soft { color: var(--ink-mute); font-size: 0.9em; }
 .select { background: var(--bg-deep) url("data:image/svg+xml;utf8,<svg xmlns='http://www.w3.org/2000/svg' width='14' height='14' viewBox='0 0 24 24' fill='none' stroke='%238b91b8' stroke-width='2.5' stroke-linecap='round' stroke-linejoin='round'><polyline points='6 9 12 15 18 9'/></svg>") no-repeat right 0.9rem center / 14px 14px; appearance: none; padding-right: 2.2rem; }
 .field-label {
   font-size: 0.7rem;

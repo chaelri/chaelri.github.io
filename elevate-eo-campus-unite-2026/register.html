@@ -167,7 +167,21 @@
             <div id="reach-err" class="field-err hidden" style="margin-top:0;"></div>
 
             <div>
-              <label class="field-label" for="f-fb">Facebook link</label>
+              <div class="fb-label-row">
+                <label class="field-label" for="f-fb" style="margin-bottom:0;">Facebook link</label>
+                <details class="fb-help">
+                  <summary>
+                    <span class="material-symbols-outlined" style="font-size:14px">help</span>
+                    How do I find this?
+                  </summary>
+                  <ol class="fb-help-steps">
+                    <li>Open the <b>Facebook app</b> and go to your <b>Profile</b>.</li>
+                    <li>Tap the <b>three dots</b> on the upper right.</li>
+                    <li>Tap <b>"Copy profile link"</b>.</li>
+                    <li>Paste it into this field.</li>
+                  </ol>
+                </details>
+              </div>
               <input id="f-fb" name="fbLink" type="url" class="input" placeholder="https://facebook.com/your.profile" />
               <div id="f-fb-err" class="field-err hidden"></div>
             </div>
@@ -182,7 +196,7 @@
 
             <div class="reach-hint">
               <span class="material-symbols-outlined" style="font-size:13px;vertical-align:-2px;">tips_and_updates</span>
-              Giving <strong>both</strong> makes raffle prize claims smoother.
+              Two ways to reach you = no missed updates. <span class="reach-hint-soft">We'll only message about Campus UNITE — no spam, promise.</span>
             </div>
           </fieldset>
           <div>
