@@ -68,14 +68,33 @@
       gap: 0.85rem;
     }
     .reg-event-meta { text-align: left; }
+    /* Vertical divider sits between countdown + event details on ≥sm only. */
+    .reg-countdown-divider {
+      display: none;
+      width: 1px;
+      align-self: stretch;
+      min-height: 56px;
+      background: linear-gradient(180deg, transparent 0%, var(--line) 25%, var(--line) 75%, transparent 100%);
+      flex-shrink: 0;
+    }
+    /* Each tile is a fixed width box so the right-hand event meta never shifts
+       as digits change. font-variant-numeric: tabular-nums + this width = locked. */
+    .reg-countdown .count-tile {
+      min-width: 2.4rem;
+      flex-shrink: 0;
+    }
     @media (min-width: 640px) {
+      .reg-countdown .count-tile { min-width: 3rem; }
       .reg-countdown-row {
         flex-direction: row;
         justify-content: center;
         align-items: center;
-        gap: 1.5rem;
+        gap: 1.25rem;
       }
-      .reg-countdown-left { flex-shrink: 0; }
+      /* Lock the entire countdown column to a fixed width so the right column
+         (event meta) is anchored — independent of digit-render rounding. */
+      .reg-countdown-left { flex-shrink: 0; width: 280px; }
+      .reg-countdown-divider { display: block; }
     }
     /* Bigger ticket pill on the form card top-right. */
     #form-ticket {
@@ -199,6 +218,7 @@
               <div class="count-tile"><div id="cd-sec"  class="count-num">--</div><div class="count-label">Sec</div></div>
             </div>
           </div>
+          <div class="reg-countdown-divider" aria-hidden="true"></div>
           <div class="reg-event-meta text-ink text-sm sm:text-base leading-relaxed font-extrabold-ui">
             <div><span class="text-tape">3:00 PM</span>, Friday, July 17, 2026</div>
             <div>3F Parking Level, SM East Ortigas</div>
@@ -226,7 +246,7 @@
 
           <!-- Step 1: First timer? -->
           <div class="wiz-step" data-wiz-step="first">
-            <h3 class="wiz-title">Is this your first time joining us at Elevate?</h3>
+            <h3 class="wiz-title">First time at Elevate?</h3>
             <p class="wiz-sub">So we know how to welcome you.</p>
             <div class="wiz-choice-grid">
               <button type="button" class="wiz-choice" data-wiz-choose-field="firstTimer" data-wiz-choose-value="yes" data-wiz-advance="profile">
