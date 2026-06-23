@@ -371,11 +371,10 @@ html, body {
   border-color: var(--tape);
   background: rgba(245, 213, 24, 0.08);
 }
-.fb-help-steps {
-  list-style: decimal;
-  list-style-position: inside;
+/* The soft yellow card that holds the help tabs + step list. */
+.fb-help-card {
   margin: 0.5rem 0 0;
-  padding: 0.7rem 0.85rem;
+  padding: 0.75rem 0.85rem 0.85rem;
   background: rgba(245, 213, 24, 0.05);
   border: 1px solid rgba(245, 213, 24, 0.18);
   border-radius: 0.55rem;
@@ -385,12 +384,75 @@ html, body {
   text-transform: none;
   color: var(--ink);
   line-height: 1.55;
-  /* Force the card to span the row even though the parent is inline. */
   width: 100%;
-  display: block;
 }
-.fb-help-steps li { padding-left: 0.15rem; margin-bottom: 0.2rem; }
-.fb-help-steps li:last-child { margin-bottom: 0; }
+
+/* Mobile / Desktop tab switcher. */
+.fb-help-tabs {
+  display: inline-flex;
+  background: rgba(7, 9, 26, 0.5);
+  border: 1px solid rgba(245, 213, 24, 0.22);
+  border-radius: 999px;
+  padding: 3px;
+  margin-bottom: 0.7rem;
+  gap: 2px;
+}
+.fb-help-tab {
+  display: inline-flex;
+  align-items: center;
+  gap: 0.3rem;
+  padding: 4px 11px;
+  background: transparent;
+  border: none;
+  border-radius: 999px;
+  font-size: 0.66rem;
+  font-weight: 800;
+  color: var(--ink-mute);
+  cursor: pointer;
+  text-transform: uppercase;
+  letter-spacing: 0.06em;
+  transition: background 0.12s ease, color 0.12s ease;
+  font-family: inherit;
+}
+.fb-help-tab:hover { color: var(--ink); }
+.fb-help-tab.is-active {
+  background: var(--tape);
+  color: var(--on-tape, #0a0a0a);
+}
+
+/* Step list — numbered circle + Material icon + label per row. */
+.fb-help-steps {
+  list-style: none;
+  padding: 0;
+  margin: 0;
+  display: grid;
+  gap: 0.5rem;
+  counter-reset: fb-step;
+}
+.fb-help-steps li {
+  counter-increment: fb-step;
+  display: grid;
+  grid-template-columns: 22px 22px 1fr;
+  align-items: center;
+  gap: 0.6rem;
+}
+.fb-help-steps li::before {
+  content: counter(fb-step);
+  display: grid;
+  place-items: center;
+  width: 22px; height: 22px;
+  background: rgba(245, 213, 24, 0.16);
+  border: 1px solid rgba(245, 213, 24, 0.45);
+  border-radius: 50%;
+  color: var(--tape);
+  font-weight: 800;
+  font-size: 0.68rem;
+}
+.fb-help-step-icon {
+  font-size: 18px !important;
+  color: var(--tape);
+  justify-self: center;
+}
 .fb-help-steps b { color: var(--tape); font-weight: 700; }
 /* Wrapper that JS animates between height:0 ⇄ scrollHeight for a smooth
    open/close instead of <details>'s native display:none snap. */
@@ -470,7 +532,7 @@ html, body {
   background: #11142a;
   border: 1px solid rgba(245, 213, 24, 0.35);
   border-radius: 0.55rem;
-  padding: 0.7rem 0.85rem;
+  padding: 0.7rem 2rem 0.7rem 0.85rem;
   font-family: inherit;
   font-size: 0.78rem;
   font-weight: 500;
@@ -483,6 +545,25 @@ html, body {
   animation: reach-pop-in 0.16s ease both;
 }
 .reach-tag-popover b { color: var(--tape); font-weight: 700; }
+.reach-tag-popover-close {
+  position: absolute;
+  top: 4px; right: 4px;
+  width: 24px; height: 24px;
+  display: grid; place-items: center;
+  background: transparent;
+  border: none;
+  border-radius: 50%;
+  color: var(--ink-mute);
+  cursor: pointer;
+  transition: background 0.12s ease, color 0.12s ease;
+  padding: 0;
+}
+.reach-tag-popover-close:hover,
+.reach-tag-popover-close:focus-visible {
+  background: rgba(255,255,255,0.08);
+  color: var(--ink);
+  outline: none;
+}
 .reach-tag-popover::before,
 .reach-tag-popover::after {
   content: "";

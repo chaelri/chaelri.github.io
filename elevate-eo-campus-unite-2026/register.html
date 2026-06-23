@@ -223,6 +223,9 @@
               <details class="reach-tag-details" id="reach-tag-details">
                 <summary class="reach-tag" aria-label="Why is this required?">at least one</summary>
                 <div class="reach-tag-popover" role="tooltip">
+                  <button type="button" class="reach-tag-popover-close" aria-label="Close" data-reach-close>
+                    <span class="material-symbols-outlined" style="font-size:16px">close</span>
+                  </button>
                   We need at least one way to reach you — either your <b>Facebook link</b>
                   or your <b>contact number</b>.
                 </div>
@@ -240,12 +243,50 @@
                     How do I find this?
                   </summary>
                   <div class="fb-help-anim">
-                    <ol class="fb-help-steps">
-                      <li>Open the <b>Facebook app</b> and go to your <b>Profile</b>.</li>
-                      <li>Tap the <b>three dots</b> on the upper right.</li>
-                      <li>Tap <b>"Copy profile link"</b>.</li>
-                      <li>Paste it into this field.</li>
-                    </ol>
+                    <div class="fb-help-card">
+                      <div class="fb-help-tabs" role="tablist">
+                        <button type="button" class="fb-help-tab is-active" data-fb-tab="mobile" role="tab" aria-selected="true">
+                          <span class="material-symbols-outlined" style="font-size:14px">smartphone</span>
+                          Mobile
+                        </button>
+                        <button type="button" class="fb-help-tab" data-fb-tab="desktop" role="tab" aria-selected="false">
+                          <span class="material-symbols-outlined" style="font-size:14px">desktop_windows</span>
+                          Desktop
+                        </button>
+                      </div>
+                      <ol class="fb-help-steps" data-fb-panel="mobile">
+                        <li>
+                          <span class="material-symbols-outlined fb-help-step-icon">account_circle</span>
+                          <span>Open the <b>Facebook app</b> and tap your <b>Profile</b> (avatar at the bottom-right).</span>
+                        </li>
+                        <li>
+                          <span class="material-symbols-outlined fb-help-step-icon">more_vert</span>
+                          <span>On your profile, tap the <b>three dots</b> at the upper right.</span>
+                        </li>
+                        <li>
+                          <span class="material-symbols-outlined fb-help-step-icon">content_copy</span>
+                          <span>Scroll down and tap <b>"Copy profile link"</b> — it copies automatically.</span>
+                        </li>
+                        <li>
+                          <span class="material-symbols-outlined fb-help-step-icon">content_paste</span>
+                          <span>Paste it into this field.</span>
+                        </li>
+                      </ol>
+                      <ol class="fb-help-steps" data-fb-panel="desktop" hidden>
+                        <li>
+                          <span class="material-symbols-outlined fb-help-step-icon">public</span>
+                          <span>Open <b>facebook.com</b>, then go to your <b>Profile</b>.</span>
+                        </li>
+                        <li>
+                          <span class="material-symbols-outlined fb-help-step-icon">content_copy</span>
+                          <span>Copy the URL from the <b>address bar</b>.</span>
+                        </li>
+                        <li>
+                          <span class="material-symbols-outlined fb-help-step-icon">content_paste</span>
+                          <span>Paste it into this field.</span>
+                        </li>
+                      </ol>
+                    </div>
                   </div>
                 </details>
               </div>
@@ -462,12 +503,35 @@
       if ($reachTag) {
         document.addEventListener("click", (e) => {
           if (!$reachTag.open) return;
+          // Explicit close button wins over the outside-click check.
+          if (e.target.closest("[data-reach-close]")) { $reachTag.open = false; return; }
           if (!$reachTag.contains(e.target)) $reachTag.open = false;
         });
         document.addEventListener("keydown", (e) => {
           if (e.key === "Escape" && $reachTag.open) $reachTag.open = false;
         });
       }
+
+      // Mobile / Desktop tab switching inside the FB-help card. Re-measures
+      // the parent .fb-help-anim's idle height isn't needed — the wrapper has
+      // no inline height when idle, so swapping panels just relayouts.
+      document.querySelectorAll(".fb-help-tab").forEach(($tab) => {
+        $tab.addEventListener("click", (e) => {
+          e.preventDefault();
+          const target = $tab.dataset.fbTab;
+          if (!target) return;
+          const $card = $tab.closest(".fb-help-card");
+          if (!$card) return;
+          $card.querySelectorAll(".fb-help-tab").forEach(($t) => {
+            const on = $t === $tab;
+            $t.classList.toggle("is-active", on);
+            $t.setAttribute("aria-selected", on ? "true" : "false");
+          });
+          $card.querySelectorAll(".fb-help-steps").forEach(($panel) => {
+            $panel.hidden = $panel.dataset.fbPanel !== target;
+          });
+        });
+      });
 
       // Smooth open/close for the "How do I find this?" disclosure. Native
       // <details> snaps via display:none — we intercept the summary click and
