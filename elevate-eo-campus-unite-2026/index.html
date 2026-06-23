@@ -436,6 +436,18 @@
       void el.offsetWidth; // restart animation
       el.classList.add("tick");
     }
+    // Calendar-day diff in PHT (event July 17 minus today's PHT calendar date).
+    // Used by the poster pitch so "N days till we UNITE" matches a student's intuition
+    // ("June 23 to July 17 = 24 days") regardless of what time of day it is.
+    function calendarDaysUntilEvent() {
+      const phtToday = new Intl.DateTimeFormat("en-CA", {
+        timeZone: "Asia/Manila", year: "numeric", month: "2-digit", day: "2-digit",
+      }).format(new Date());
+      const [y, m, d] = phtToday.split("-").map(Number);
+      const todayUtc = Date.UTC(y, m - 1, d);
+      const eventUtc = Date.UTC(2026, 6, 17);
+      return Math.round((eventUtc - todayUtc) / 86400000);
+    }
     function tickCountdown() {
       const ms = target - Date.now();
       const negative = ms < 0;
@@ -448,7 +460,7 @@
       setCell(cdEls.hrs,  negative ? "—" : String(hrs).padStart(2, "0"));
       setCell(cdEls.min,  negative ? "—" : String(min).padStart(2, "0"));
       setCell(cdEls.sec,  negative ? "—" : String(sec).padStart(2, "0"));
-      updatePosterPitch(negative ? -1 : days);
+      updatePosterPitch(negative ? -1 : calendarDaysUntilEvent());
     }
     function updatePosterPitch(days) {
       const $tag  = document.getElementById("poster-pitch-tag");

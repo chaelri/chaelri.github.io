@@ -44,8 +44,8 @@
         inset 0 1px 0 rgba(255,255,255,0.06),
         0 18px 48px rgba(0,0,0,0.45);
     }
-    /* Scoped countdown sizing — kept tighter than the original bump so the
-       hype line below it (#countdown-pitch) can breathe. */
+    /* Scoped countdown sizing — kept tighter so the event-detail tiles below
+       can sit comfortably under the day/hr/min/sec rail. */
     .reg-countdown .count-num {
       font-size: clamp(2.2rem, 8vw, 3.75rem) !important;
       line-height: 1;
@@ -54,21 +54,6 @@
       font-size: 0.7rem !important;
       letter-spacing: 0.22em;
       margin-top: 0.3rem;
-    }
-    /* Pitch line under the countdown — "N days left before Campus UNITE!" */
-    .countdown-pitch {
-      margin-top: 1rem;
-      font-size: clamp(0.95rem, 2.8vw, 1.15rem);
-      color: var(--ink);
-      font-weight: 600;
-    }
-    .countdown-pitch .num {
-      color: var(--tape);
-      font-weight: 800;
-      font-family: "Bebas Neue", sans-serif;
-      font-size: 1.4em;
-      letter-spacing: 0.02em;
-      margin: 0 0.1em;
     }
     /* Bigger ticket pill on the form card top-right. */
     #form-ticket {
@@ -188,8 +173,29 @@
           <div class="count-tile"><div id="cd-min"  class="count-num">--</div><div class="count-label">Min</div></div>
           <div class="count-tile"><div id="cd-sec"  class="count-num">--</div><div class="count-label">Sec</div></div>
         </div>
-        <div class="countdown-pitch">
-          <span class="num" id="cd-days-pitch">--</span> days left before Campus UNITE!
+        <!-- Event detail tiles — show students the When / Time / Where before they finish registering. -->
+        <div class="mt-6 grid grid-cols-1 sm:grid-cols-3 gap-3 text-left">
+          <div class="glass-tile p-4 flex items-center gap-3">
+            <span class="material-symbols-outlined text-tape" style="font-size:26px">event</span>
+            <div>
+              <div class="text-[10px] uppercase tracking-widest text-mute font-extrabold-ui">When</div>
+              <div class="font-extrabold-ui text-sm">Friday, July 17, 2026</div>
+            </div>
+          </div>
+          <div class="glass-tile p-4 flex items-center gap-3">
+            <span class="material-symbols-outlined text-tape" style="font-size:26px">schedule</span>
+            <div>
+              <div class="text-[10px] uppercase tracking-widest text-mute font-extrabold-ui">Time</div>
+              <div class="font-extrabold-ui text-sm">3:00 PM</div>
+            </div>
+          </div>
+          <div class="glass-tile p-4 flex items-center gap-3">
+            <span class="material-symbols-outlined text-tape" style="font-size:26px">location_on</span>
+            <div>
+              <div class="text-[10px] uppercase tracking-widest text-mute font-extrabold-ui">Where</div>
+              <div class="font-extrabold-ui text-sm">3F Parking Level, SM East Ortigas</div>
+            </div>
+          </div>
         </div>
       </div>
 
@@ -507,7 +513,7 @@
               <label class="field-label" for="f-contact">Contact number</label>
               <input id="f-contact" name="contact" type="tel" required inputmode="tel" autocomplete="tel" class="input" placeholder="09XX XXX XXXX" />
               <div class="text-[11px] text-mute mt-1.5 leading-snug">
-                Walang sariling cellphone? Pwede yung sa parents mo.
+                Walang sariling cellphone number? Pwede yung cellphone number ng parents mo.
               </div>
               <div id="f-contact-err" class="field-err hidden"></div>
             </div>
@@ -607,8 +613,6 @@
         void el.offsetWidth;
         el.classList.add("tick");
       }
-      const $pitch = document.getElementById("cd-days-pitch");
-      const $pitchWrap = $pitch ? $pitch.closest(".countdown-pitch") : null;
       function tick() {
         const ms = target - Date.now();
         const negative = ms < 0;
@@ -621,19 +625,6 @@
         setCell(cdEls.hrs,  negative ? "—" : String(hrs).padStart(2, "0"));
         setCell(cdEls.min,  negative ? "—" : String(min).padStart(2, "0"));
         setCell(cdEls.sec,  negative ? "—" : String(sec).padStart(2, "0"));
-        // Rounded-up "N days left" — 23d 23h = 24 days. Updates the hype line.
-        if ($pitch && $pitchWrap) {
-          const roundedDays = Math.ceil(t / 86400000);
-          if (negative) {
-            $pitchWrap.innerHTML = `Campus UNITE is <span class="num">happening</span> right now!`;
-          } else if (roundedDays === 1) {
-            $pitchWrap.innerHTML = `<span class="num">1</span> day left before Campus UNITE!`;
-          } else if (roundedDays === 0) {
-            $pitchWrap.innerHTML = `Campus UNITE is <span class="num">today</span>!`;
-          } else {
-            $pitchWrap.innerHTML = `<span class="num">${roundedDays}</span> days left before Campus UNITE!`;
-          }
-        }
       }
       tick();
       setInterval(tick, 1000);
