@@ -202,6 +202,21 @@
     function yesNoLabel(v) {
       return ({yes:"Yes", no:"No"})[v] || "—";
     }
+    // Squashes a Facebook URL down to "@username" so the column doesn't wrap
+    // mid-URL. Falls back to the raw value for things we can't parse.
+    function fbDisplay(fb) {
+      if (!fb) return "—";
+      let url;
+      try { url = new URL(/^https?:\/\//i.test(fb) ? fb : "https://" + fb); }
+      catch { return fb; }
+      const path = url.pathname.replace(/^\/+/, "").replace(/\/+$/, "");
+      if (!path) return url.hostname.replace(/^www\./, "");
+      if (path.startsWith("profile.php")) {
+        const id = url.searchParams.get("id");
+        return id ? `id=${id}` : "profile.php";
+      }
+      return `@${path.split("/")[0]}`;
+    }
 
     // ===== Sort state =====
     // Each column has a natural default direction. Clicking a different column resets to its default;
@@ -293,24 +308,23 @@
         const fb = r.fbLink || r.fbName || "";
         const fbCell = fb
           ? (/^https?:\/\//i.test(fb)
-              ? `<a href="${esc(fb)}" target="_blank" rel="noopener" class="text-tape hover:underline break-all">${esc(fb)}</a>`
+              ? `<a href="${esc(fb)}" target="_blank" rel="noopener" class="text-tape hover:underline whitespace-nowrap" title="${esc(fb)}">${esc(fbDisplay(fb))}</a>`
               : esc(fb))
           : "—";
+        const dgroupCell = r.hasDgroup === "yes" && r.dgroupLeader
+          ? `<div>Yes</div><div class="text-mute" style="font-size:0.78rem;">${esc(r.dgroupLeader)}</div>`
+          : esc(yesNoLabel(r.hasDgroup));
         return `
         <tr>
           <td class="t-ticket">${esc(r.ticketId || "")}</td>
-          <td><div class="font-extrabold-ui text-ink">${esc(r.name || "—")}</div></td>
+          <td><div class="font-extrabold-ui text-ink" style="min-width:11ch;">${esc(r.name || "—")}</div></td>
           <td class="hidden md:table-cell">${esc(r.school || "—")}</td>
           <td class="hidden sm:table-cell">${esc(genderLabel(r.gender))}</td>
           <td class="hidden sm:table-cell">${esc(r.age || "—")}</td>
           <td class="hidden lg:table-cell">${fbCell}</td>
           <td class="hidden lg:table-cell whitespace-nowrap">${esc(r.contact || "—")}</td>
           <td class="hidden xl:table-cell whitespace-nowrap">${esc(yesNoLabel(r.firstTimer))}</td>
-          <td class="hidden xl:table-cell whitespace-nowrap">${
-            r.hasDgroup === "yes" && r.dgroupLeader
-              ? `Yes · <span class="text-mute">${esc(r.dgroupLeader)}</span>`
-              : esc(yesNoLabel(r.hasDgroup))
-          }</td>
+          <td class="hidden xl:table-cell">${dgroupCell}</td>
           <td class="whitespace-nowrap text-mute">${fmtDate(r.registeredAt)}</td>
           <td class="text-right whitespace-nowrap">
             <button class="btn-row-edit text-mute hover:text-tape transition" data-ticket="${esc(r.ticketId || "")}" title="Edit registration" style="padding:4px;line-height:0;margin-right:2px;">
