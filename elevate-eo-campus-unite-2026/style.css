@@ -554,7 +554,8 @@ html, body {
   padding: 0.3rem 0 0.65rem;
 }
 .fb-phone { width: 78px; height: auto; display: block; }
-.fb-browser { width: 175px; height: auto; display: block; }
+/* Browser fills the card width so its address bar + content are legible. */
+.fb-browser { width: 100%; max-width: 320px; height: auto; display: block; }
 
 /* Default state: scenes hidden, only animated ones become visible. */
 .fb-phone .fb-scene,

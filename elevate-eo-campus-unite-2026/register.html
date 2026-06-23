@@ -23,50 +23,23 @@
   <link rel="stylesheet" href="style.css" />
 
   <style>
-    /* Same ambient trailer background as index.html, but pinned (fixed) so it
-       stays put as the form scrolls, with a heavier tint so the form remains
-       the visual focus instead of competing with motion. */
+    /* Static UNITE-tinted backdrop — the trailer.mp4 ambient background was
+       removed from this page because the looped <video> + the FB-help SVG
+       animation together caused the demo to intermittently freeze. The
+       gradients below reproduce the same color story (red glow upper-right,
+       faint yellow lower-left, deep navy core) without any motion. */
     html { background: var(--bg-deep); }
-    body { background: transparent !important; }
-    .bg-video {
-      position: fixed; inset: 0;
-      z-index: -2;
-      overflow: hidden;
-      pointer-events: none;
-    }
-    .bg-video video {
-      position: absolute; inset: 0;
-      width: 100%; height: 100%;
-      object-fit: cover;
-      opacity: 0.55;
-      filter: saturate(1.1) blur(2px);
-    }
-    .bg-video-tint {
-      position: absolute; inset: 0;
+    body {
       background:
         radial-gradient(1100px 600px at 80% -10%, rgba(225, 29, 44, 0.16) 0%, transparent 60%),
         radial-gradient(800px 500px at -10% 110%, rgba(245, 213, 24, 0.06) 0%, transparent 55%),
-        /* Central vignette: keeps the visible portion behind the form notably darker
-           than the corners so the registration card has contrast no matter where
-           the user has scrolled to. */
-        radial-gradient(80% 65% at 50% 45%, rgba(7,9,26,0.85) 0%, rgba(7,9,26,0.78) 60%, rgba(7,9,26,0.72) 100%),
-        linear-gradient(180deg, rgba(7,9,26,0.55) 0%, rgba(7,9,26,0.75) 60%, rgba(7,9,26,0.92) 100%);
+        linear-gradient(180deg, #0a0d22 0%, #07091a 80%, #050715 100%) !important;
+      background-attachment: fixed;
     }
-    /* Header sits above the bg with a frosted strip for readability. */
-    .reg-header {
-      position: relative; z-index: 10;
-      backdrop-filter: blur(8px);
-      -webkit-backdrop-filter: blur(8px);
-      background: rgba(7,9,26,0.55);
-    }
-    /* The registration card needs much higher contrast than a generic glass-tile
-       because it sits over a colorful, moving video. Switch from white-translucent
-       to a deep navy wash + heavier blur so labels and inputs read cleanly. */
+    /* Form card stays high-contrast on the static bg. */
     #state-form > .glass-tile {
       background: linear-gradient(180deg, rgba(7,9,26,0.92) 0%, rgba(7,9,26,0.88) 100%);
       border-color: rgba(255,255,255,0.10);
-      backdrop-filter: blur(22px) saturate(140%);
-      -webkit-backdrop-filter: blur(22px) saturate(140%);
       box-shadow:
         inset 0 1px 0 rgba(255,255,255,0.06),
         0 18px 48px rgba(0,0,0,0.45);
@@ -76,15 +49,7 @@
 
 <body class="bg-deep min-h-screen">
 
-  <!-- ===== Ambient trailer background (fixed behind everything) ===== -->
-  <div class="bg-video" aria-hidden="true">
-    <video autoplay muted loop playsinline preload="metadata" poster="">
-      <source src="assets/trailer.mp4" type="video/mp4" />
-    </video>
-    <div class="bg-video-tint"></div>
-  </div>
-
-  <header class="reg-header px-4 sm:px-8 py-4 flex items-center justify-between border-b border-[color:var(--line)]">
+  <header class="px-4 sm:px-8 py-4 flex items-center justify-between border-b border-[color:var(--line)]">
     <a href="index.html" class="flex items-center gap-3">
       <img src="assets/elevate-east-ortigas.png" alt="Elevate East Ortigas" class="h-10 sm:h-12" />
     </a>
