@@ -554,8 +554,10 @@ html, body {
   padding: 0.3rem 0 0.65rem;
 }
 .fb-phone { width: 78px; height: auto; display: block; }
-/* Browser fills the card width so its address bar + content are legible. */
-.fb-browser { width: 100%; max-width: 320px; height: auto; display: block; }
+/* Browser fills the full card width — address bar + content read clearer big. */
+.fb-browser { width: 100%; height: auto; display: block; }
+/* Demo wrapper needs to span the row for the 100%-width browser to expand. */
+.fb-help-demo { width: 100%; }
 
 /* Default state: scenes hidden, only animated ones become visible. */
 .fb-phone .fb-scene,
@@ -635,30 +637,15 @@ html, body {
 }
 .fb-tap-desktop { animation: fb-tap-desktop 3.75s infinite ease-in-out; }
 
-/* Pause everything when hovering / focused — so users can read calmly. */
-.fb-help-card:hover .fb-phone *,
-.fb-help-card:hover .fb-browser *,
-.fb-help-card:focus-within .fb-phone *,
-.fb-help-card:focus-within .fb-browser * {
-  animation-play-state: paused;
-}
+/* No animation-play-state pause rules. The hidden / closed states already
+   stop the SVGs from painting via display:none on the parent, and the
+   :focus-within rule was trapping the animation in paused state after a
+   tab click because the active tab button kept focus. JS restarts the
+   animation on open / on tab-switch so we always land on scene 1. */
 
-/* Pause expensive SVG animations when not actually visible.
-   Without this, both Mobile + Desktop scene loops run forever — even with
-   the disclosure closed — competing for paint cycles with the ambient
-   trailer video in the background and intermittently freezing the whole
-   loop on weaker GPUs. */
-.fb-help:not([open]) .fb-phone *,
-.fb-help:not([open]) .fb-browser *,
-.fb-help-panel[hidden] .fb-phone *,
-.fb-help-panel[hidden] .fb-browser * {
-  animation-play-state: paused !important;
-}
-
-/* Promote each phone/browser to its own compositor layer so paint work for
-   the SVG doesn't keep invalidating the bg-video region. */
+/* Promote each phone/browser to its own compositor layer so paint work
+   stays scoped to the SVG region. */
 .fb-phone, .fb-browser {
-  will-change: contents;
   contain: paint;
 }
 
