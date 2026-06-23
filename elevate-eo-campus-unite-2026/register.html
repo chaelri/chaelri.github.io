@@ -892,6 +892,39 @@
         $progress.innerHTML = html;
       }
 
+      // Lightweight per-step "ready to proceed?" check. Mirrors validateCurrent
+      // but does NOT paint errors — just answers true/false so renderNav can
+      // toggle the Next button's disabled state as the user types.
+      function isStepReady(step) {
+        if (step === "first") {
+          return !!document.getElementById("f-first").value;
+        }
+        if (step === "dgroup") {
+          const hd = document.getElementById("f-dgroup").value;
+          if (hd === "no") return true;
+          if (hd === "yes") return !!(document.getElementById("f-dgroup-leader").value || "").trim();
+          return false;
+        }
+        if (step === "profile") {
+          const name   = document.getElementById("f-name").value.trim();
+          const ageRaw = document.getElementById("f-age").value.trim();
+          const age    = parseInt(ageRaw, 10);
+          const gender = document.getElementById("f-gender").value;
+          const school = document.getElementById("f-school").value.trim();
+          if (!name || !ageRaw || !gender || !school) return false;
+          if (!Number.isFinite(age) || age < 5 || age > 120) return false;
+          return true;
+        }
+        if (step === "contact") {
+          const fb      = document.getElementById("f-fb").value.trim();
+          const contact = document.getElementById("f-contact").value.trim();
+          if (!fb || !contact) return false;
+          if (!isFacebookUrl(fb)) return false;
+          return true;
+        }
+        return true;
+      }
+
       function renderNav() {
         const steps = visibleSteps();
         const idx = steps.indexOf(state.current);
@@ -905,11 +938,19 @@
         if (state.current === "first") {
           $next.hidden = true;
         }
-        // Step 2 (dgroup): "Not yet" auto-advances; "Yes, I have one" reveals a
-        // leader-name input and the user needs an explicit Next to proceed.
+        // Step 2 (dgroup): if "Not yet" was picked OR nothing was picked yet,
+        // hide Next entirely ("Not yet" auto-advances; nothing-picked = no Next).
+        // If "Yes, I have one" was picked, show Next but disable until the
+        // leader name field has content.
         if (state.current === "dgroup") {
           const hd = document.getElementById("f-dgroup").value;
           $next.hidden = hd !== "yes";
+        }
+        // Toggle disabled state across the visible step. Reflects isStepReady.
+        if (!$next.hidden) {
+          const ready = isStepReady(state.current);
+          $next.disabled = !ready;
+          $next.setAttribute("aria-disabled", ready ? "false" : "true");
         }
       }
 
@@ -1098,6 +1139,16 @@
       });
       $next.addEventListener("click", next);
       $back.addEventListener("click", back);
+      // Re-check the nav state on every keystroke / select change so the Next
+      // button enables the moment all required fields are valid, and disables
+      // again if the user wipes a field.
+      ["f-dgroup-leader", "f-name", "f-age", "f-gender", "f-fb", "f-contact", "f-school"]
+        .forEach(id => {
+          const $el = document.getElementById(id);
+          if (!$el) return;
+          const ev = $el.tagName === "SELECT" ? "change" : "input";
+          $el.addEventListener(ev, renderNav);
+        });
 
       // Public reset: called whenever the form first appears (loadTicket success).
       function reset() {

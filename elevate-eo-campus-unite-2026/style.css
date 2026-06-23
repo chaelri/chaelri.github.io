@@ -251,6 +251,14 @@ html, body {
 }
 .btn-tape:hover { filter: brightness(0.95); }
 .btn-tape:active { transform: translateY(1px); }
+.btn-tape:disabled,
+.btn-tape[aria-disabled="true"] {
+  background: #3d4170;
+  color: #8d92b6;
+  cursor: not-allowed;
+  box-shadow: none;
+  filter: none;
+}
 
 .btn-ghost {
   background: transparent;
