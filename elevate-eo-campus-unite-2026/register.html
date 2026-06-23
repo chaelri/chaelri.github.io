@@ -139,11 +139,13 @@
           <div>
             <label class="field-label" for="f-name">Full name</label>
             <input id="f-name" name="name" type="text" required autocomplete="name" class="input" placeholder="Juan Dela Cruz" />
+            <div id="f-name-err" class="field-err hidden"></div>
           </div>
           <div class="grid grid-cols-2 gap-3">
             <div>
               <label class="field-label" for="f-age">Age</label>
               <input id="f-age" name="age" type="number" required min="5" max="120" inputmode="numeric" class="input" placeholder="18" />
+              <div id="f-age-err" class="field-err hidden"></div>
             </div>
             <div>
               <label class="field-label" for="f-gender">Gender</label>
@@ -152,19 +154,22 @@
                 <option value="female">Female</option>
                 <option value="male">Male</option>
               </select>
+              <div id="f-gender-err" class="field-err hidden"></div>
             </div>
           </div>
-          <fieldset class="reach-group">
+          <fieldset id="reach-group" class="reach-group">
             <legend class="reach-legend">
               <span class="material-symbols-outlined" style="font-size:14px;vertical-align:-2px;">forum</span>
               How can we reach you?
               <span class="reach-tag" title="Pick whichever's easier. Both is best — it helps us confirm winners.">at least one</span>
             </legend>
 
+            <div id="reach-err" class="field-err hidden" style="margin-top:0;"></div>
+
             <div>
               <label class="field-label" for="f-fb">Facebook link</label>
               <input id="f-fb" name="fbLink" type="url" class="input" placeholder="https://facebook.com/your.profile" />
-              <div id="f-fb-err" class="hidden text-xs text-red font-extrabold-ui uppercase tracking-wider mt-1"></div>
+              <div id="f-fb-err" class="field-err hidden"></div>
             </div>
 
             <div class="or-divider"><span>or</span></div>
@@ -172,6 +177,7 @@
             <div>
               <label class="field-label" for="f-contact">Contact number</label>
               <input id="f-contact" name="contact" type="tel" inputmode="tel" autocomplete="tel" class="input" placeholder="09XX XXX XXXX" />
+              <div id="f-contact-err" class="field-err hidden"></div>
             </div>
 
             <div class="reach-hint">
@@ -182,6 +188,7 @@
           <div>
             <label class="field-label" for="f-school">School / University</label>
             <input id="f-school" name="school" type="text" required class="input" placeholder="e.g. SLHS, MHS, NU East Ortigas" />
+            <div id="f-school-err" class="field-err hidden"></div>
           </div>
 
           <div id="form-error" class="hidden text-sm px-3 py-2 rounded-lg" style="background:rgba(225,29,44,0.12); border:1px solid var(--red); color:#ffd1d6;"></div>
@@ -269,12 +276,50 @@
         return FB_HOSTS.some(d => host === d || host.endsWith("." + d));
       } catch { return false; }
     }
-    function setFbError(msg) {
-      const $err = document.getElementById("f-fb-err");
-      const $inp = document.getElementById("f-fb");
-      if (!$err || !$inp) return;
-      if (msg) { $err.textContent = msg; $err.classList.remove("hidden"); $inp.classList.add("input-error"); }
-      else     { $err.textContent = "";  $err.classList.add("hidden");    $inp.classList.remove("input-error"); }
+    // ===== Per-field validation helpers =====
+    // setFieldError(inputId, message?) — toggle red border + inline message + shake;
+    // pass null/empty message to clear. clearAllFieldErrors() wipes the whole form
+    // before re-validating on submit. shake() runs once via animationend cleanup.
+    function shake($el) {
+      if (!$el) return;
+      $el.classList.remove("input-shake");
+      void $el.offsetWidth; // reflow → restart animation
+      $el.classList.add("input-shake");
+    }
+    document.addEventListener("animationend", (e) => {
+      if (e.animationName === "input-shake") e.target.classList.remove("input-shake");
+    });
+    // msg semantics:
+    //   null/undefined → clear border + inline text
+    //   "" (empty)     → red border, no inline text (used when error is shown on the group)
+    //   non-empty      → red border + inline text
+    function setFieldError(inputId, msg) {
+      const $inp = document.getElementById(inputId);
+      const $err = document.getElementById(inputId + "-err");
+      if (!$inp) return;
+      if (msg === null || msg === undefined) {
+        if ($err) { $err.textContent = ""; $err.classList.add("hidden"); }
+        $inp.classList.remove("input-error");
+      } else {
+        if ($err) {
+          if (msg) { $err.textContent = msg; $err.classList.remove("hidden"); }
+          else     { $err.textContent = "";  $err.classList.add("hidden"); }
+        }
+        $inp.classList.add("input-error");
+      }
+    }
+    function setReachGroupError(msg) {
+      const $g   = document.getElementById("reach-group");
+      const $err = document.getElementById("reach-err");
+      if (!$g || !$err) return;
+      if (msg) { $err.textContent = msg; $err.classList.remove("hidden"); $g.classList.add("reach-error"); }
+      else     { $err.textContent = "";  $err.classList.add("hidden");    $g.classList.remove("reach-error"); }
+    }
+    function clearAllFieldErrors() {
+      ["f-name","f-age","f-gender","f-fb","f-contact","f-school"].forEach(id => setFieldError(id, null));
+      setReachGroupError(null);
+      const $banner = document.getElementById("form-error");
+      if ($banner) $banner.classList.add("hidden");
     }
 
     const idPattern = /^ECU-\d{4}$/;
@@ -285,17 +330,28 @@
     else if (!idPattern.test(rawId)) show($invalid);
     else { show($loading); loadTicket(rawId); }
 
-    // Live FB-link validation: clear the error as the user types, re-validate on blur.
+    // Live validation: clear a field's red state the moment the user touches it.
     (() => {
-      const $fb = document.getElementById("f-fb");
-      if (!$fb) return;
-      $fb.addEventListener("input", () => setFbError(""));
-      $fb.addEventListener("blur", () => {
-        const v = $fb.value.trim();
-        if (!v) { setFbError(""); return; }
-        if (!isFacebookUrl(v)) setFbError("Doesn't look like a Facebook link. Try facebook.com/your.profile.");
-        else setFbError("");
+      const ids = ["f-name", "f-age", "f-gender", "f-fb", "f-contact", "f-school"];
+      ids.forEach(id => {
+        const $el = document.getElementById(id);
+        if (!$el) return;
+        const ev = $el.tagName === "SELECT" ? "change" : "input";
+        $el.addEventListener(ev, () => {
+          setFieldError(id, null);
+          // Typing into either reach field clears the group-level "at least one" error.
+          if (id === "f-fb" || id === "f-contact") setReachGroupError(null);
+        });
       });
+      // FB link: a richer blur-time check that catches non-FB URLs.
+      const $fb = document.getElementById("f-fb");
+      if ($fb) {
+        $fb.addEventListener("blur", () => {
+          const v = $fb.value.trim();
+          if (!v) return;
+          if (!isFacebookUrl(v)) setFieldError("f-fb", "Doesn't look like a Facebook link. Try facebook.com/your.profile.");
+        });
+      }
     })();
 
     // ===== Manual ticket entry =====
@@ -479,7 +535,7 @@
       e.preventDefault();
       const $err = document.getElementById("form-error");
       const $btn = document.getElementById("btn-submit");
-      $err.classList.add("hidden");
+      clearAllFieldErrors();
 
       const data = {
         name:    document.getElementById("f-name").value.trim(),
@@ -490,26 +546,43 @@
         school:  document.getElementById("f-school").value.trim(),
       };
 
-      if (!data.name || !data.school || !data.gender || !data.age || data.age < 5 || data.age > 120) {
-        $err.textContent = "Please fill all fields. Age must be between 5 and 120.";
-        $err.classList.remove("hidden");
-        return;
-      }
+      // Collect every problem, paint them all at once. Lets the user see what's
+      // missing across the whole form in one shot instead of one-bug-at-a-time.
+      const bad = []; // ["f-name", "f-age", …] — input ids to shake + focus
+      if (!data.name)   { setFieldError("f-name",   "Your full name is required.");  bad.push("f-name"); }
+      const ageRaw = document.getElementById("f-age").value.trim();
+      if (!ageRaw)                            { setFieldError("f-age", "Age is required.");                bad.push("f-age"); }
+      else if (!Number.isFinite(data.age))    { setFieldError("f-age", "Age must be a number.");           bad.push("f-age"); }
+      else if (data.age < 5 || data.age > 120){ setFieldError("f-age", "Age must be between 5 and 120.");  bad.push("f-age"); }
+      if (!data.gender) { setFieldError("f-gender", "Pick one.");                    bad.push("f-gender"); }
+      if (!data.school) { setFieldError("f-school", "Your school is required.");    bad.push("f-school"); }
+
+      // Reach-you pair: at least one of FB link or contact must be present.
       if (!data.fbLink && !data.contact) {
-        $err.textContent = "Give us at least one — Facebook link or contact number.";
+        setReachGroupError("Give us at least one — Facebook link or contact number.");
+        setFieldError("f-fb",      "");       // red border only — message lives on the group
+        setFieldError("f-contact", "");
+        bad.push("f-fb", "f-contact");
+      } else if (data.fbLink && !isFacebookUrl(data.fbLink)) {
+        setFieldError("f-fb", "Doesn't look like a Facebook link. Try facebook.com/your.profile.");
+        bad.push("f-fb");
+      }
+
+      if (bad.length) {
+        bad.forEach(id => shake(document.getElementById(id)));
+        const $first = document.getElementById(bad[0]);
+        if ($first) $first.focus({ preventScroll: false });
+        $err.textContent = bad.length === 1
+          ? "Please fix the highlighted field."
+          : `Please fix the ${bad.length} highlighted fields.`;
         $err.classList.remove("hidden");
         return;
       }
-      if (data.fbLink && !isFacebookUrl(data.fbLink)) {
-        setFbError("Doesn't look like a Facebook link. Try facebook.com/your.profile.");
-        document.getElementById("f-fb").focus();
-        return;
-      }
+
       // Normalize a scheme-less FB link before saving so the dashboard link click works.
       if (data.fbLink && !/^https?:\/\//i.test(data.fbLink)) {
         data.fbLink = "https://" + data.fbLink;
       }
-      setFbError("");
 
       $btn.disabled = true;
       $btn.innerHTML = `<span class="material-symbols-outlined animate-spin" style="font-size:20px">progress_activity</span> Saving…`;

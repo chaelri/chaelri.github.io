@@ -296,6 +296,40 @@ html, body {
   box-shadow: 0 0 0 3px rgba(225, 29, 44, 0.3);
 }
 
+/* Per-field inline error message — sits directly below its input. */
+.field-err {
+  font-size: 0.72rem;
+  font-weight: 800;
+  color: #ffb4bb;
+  text-transform: uppercase;
+  letter-spacing: 0.08em;
+  margin-top: 0.35rem;
+  line-height: 1.3;
+}
+.field-err.hidden { display: none; }
+
+/* Shake animation for invalid fields on submit. The .input-shake class is added
+   on the offending <input>/<select>, then removed in JS on animationend. */
+@keyframes input-shake {
+  10%, 90% { transform: translateX(-1px); }
+  20%, 80% { transform: translateX(2px); }
+  30%, 50%, 70% { transform: translateX(-4px); }
+  40%, 60% { transform: translateX(4px); }
+}
+.input-shake {
+  animation: input-shake 0.45s cubic-bezier(.36, .07, .19, .97) both;
+}
+@media (prefers-reduced-motion: reduce) {
+  .input-shake { animation: none; }
+}
+
+/* Reach-you fieldset goes red when neither FB nor contact is given. */
+.reach-group.reach-error {
+  border-color: var(--red);
+  border-style: solid;
+  background: rgba(225, 29, 44, 0.05);
+}
+
 /* "How can we reach you" either/or group — visually bundles FB + contact and
    makes the OR rule scannable in one glance instead of repeating it per label. */
 .reach-group {
