@@ -220,7 +220,13 @@
             <legend class="reach-legend">
               <span class="material-symbols-outlined" style="font-size:14px;vertical-align:-2px;">forum</span>
               How can we reach you?
-              <span class="reach-tag" title="Pick whichever's easier. Both is best — it helps us confirm winners.">at least one</span>
+              <details class="reach-tag-details" id="reach-tag-details">
+                <summary class="reach-tag" aria-label="Why is this required?">at least one</summary>
+                <div class="reach-tag-popover" role="tooltip">
+                  We need at least one way to reach you — either your <b>Facebook link</b>
+                  or your <b>contact number</b>.
+                </div>
+              </details>
             </legend>
 
             <div id="reach-err" class="field-err hidden" style="margin-top:0;"></div>
@@ -444,6 +450,22 @@
           const v = $fb.value.trim();
           if (!v) return;
           if (!isFacebookUrl(v)) setFieldError("f-fb", "Doesn't look like a Facebook link. Try facebook.com/your.profile.");
+        });
+      }
+
+      // "at least one" popover: click the yellow tape badge to reveal the
+      // explanation; clicking outside or pressing ESC closes it. Native
+      // <details> handles toggling on the summary click; we just add the
+      // light-dismiss + ESC affordances so it feels like a popover, not an
+      // inline accordion.
+      const $reachTag = document.getElementById("reach-tag-details");
+      if ($reachTag) {
+        document.addEventListener("click", (e) => {
+          if (!$reachTag.open) return;
+          if (!$reachTag.contains(e.target)) $reachTag.open = false;
+        });
+        document.addEventListener("keydown", (e) => {
+          if (e.key === "Escape" && $reachTag.open) $reachTag.open = false;
         });
       }
 

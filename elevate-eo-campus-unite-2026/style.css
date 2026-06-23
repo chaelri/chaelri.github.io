@@ -424,7 +424,15 @@ html, body {
 }
 /* Yellow-tape badge that matches the UNITE keyart treatment elsewhere
    (.tape-badge in the hero, .cu-tape in the headline). Rectangular torn-tape
-   silhouette + slight rotation, not a rounded pill. */
+   silhouette + slight rotation, not a rounded pill. Used as the <summary>
+   trigger for the reach-tag popover. */
+.reach-tag-details {
+  position: relative;
+  display: inline-block;
+  vertical-align: middle;
+}
+.reach-tag-details > summary { list-style: none; }
+.reach-tag-details > summary::-webkit-details-marker { display: none; }
 .reach-tag {
   display: inline-block;
   font-family: "Blauer Nue", "Bebas Neue", sans-serif;
@@ -435,10 +443,71 @@ html, body {
   background: var(--tape);
   color: var(--on-tape, #0a0a0a);
   text-transform: uppercase;
-  cursor: help;
+  cursor: pointer;
   transform: rotate(-1.5deg);
   clip-path: polygon(2% 8%, 98% 0%, 100% 92%, 0% 100%);
   box-shadow: 0 4px 10px rgba(0,0,0,0.25);
+  user-select: none;
+  transition: transform 0.12s ease, box-shadow 0.12s ease;
+}
+.reach-tag-details > summary:focus-visible .reach-tag,
+.reach-tag-details[open] > summary .reach-tag {
+  transform: rotate(-1.5deg) translateY(-1px);
+  box-shadow: 0 6px 14px rgba(245, 213, 24, 0.35);
+  outline: none;
+}
+
+/* Popover that floats below the tape badge with a small caret pointing up.
+   Absolute-positioned so it overlays the form instead of pushing the legend
+   wider. JS handles outside-click and ESC dismissal. */
+.reach-tag-popover {
+  position: absolute;
+  top: calc(100% + 10px);
+  left: 50%;
+  transform: translateX(-50%);
+  width: 240px;
+  max-width: min(280px, calc(100vw - 32px));
+  background: #11142a;
+  border: 1px solid rgba(245, 213, 24, 0.35);
+  border-radius: 0.55rem;
+  padding: 0.7rem 0.85rem;
+  font-family: inherit;
+  font-size: 0.78rem;
+  font-weight: 500;
+  letter-spacing: 0;
+  text-transform: none;
+  color: var(--ink);
+  line-height: 1.5;
+  z-index: 50;
+  box-shadow: 0 14px 32px rgba(0,0,0,0.55);
+  animation: reach-pop-in 0.16s ease both;
+}
+.reach-tag-popover b { color: var(--tape); font-weight: 700; }
+.reach-tag-popover::before,
+.reach-tag-popover::after {
+  content: "";
+  position: absolute;
+  left: 50%;
+  width: 0; height: 0;
+  border-left: 7px solid transparent;
+  border-right: 7px solid transparent;
+}
+.reach-tag-popover::before {
+  bottom: 100%;
+  transform: translateX(-50%);
+  border-bottom: 7px solid rgba(245, 213, 24, 0.35);
+}
+.reach-tag-popover::after {
+  bottom: calc(100% - 1px);
+  transform: translateX(-50%);
+  border-bottom: 7px solid #11142a;
+}
+@keyframes reach-pop-in {
+  from { opacity: 0; transform: translateX(-50%) translateY(-4px); }
+  to   { opacity: 1; transform: translateX(-50%) translateY(0); }
+}
+@media (prefers-reduced-motion: reduce) {
+  .reach-tag-popover { animation: none; }
 }
 .or-divider {
   display: flex;
