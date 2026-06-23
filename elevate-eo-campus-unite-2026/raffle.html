@@ -488,15 +488,13 @@
         playSfx("reveal");
       }, 1500);
 
-      // Name + school + FB peek up shortly after the number lands.
+      // Name + school peek up shortly after the number lands.
       setTimeout(() => {
         $name.textContent = winner.name || "";
         $extra.innerHTML = `
           <span class="font-extrabold-ui uppercase tracking-wider text-tape" style="font-size:0.85em;">
             ${esc(winner.school || "—")}
           </span>
-          <span class="inline-block rounded-full" style="width:6px;height:6px;background:var(--ink-mute);"></span>
-          <span class="text-soft">${esc(winner.fbLink || winner.fbName || "")}</span>
         `;
         requestAnimationFrame(() => {
           document.querySelector(".winner-name-wrap").classList.add("is-revealed");

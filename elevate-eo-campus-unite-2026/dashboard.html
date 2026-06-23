@@ -377,12 +377,12 @@
                 </div>
               </div>
               <div>
-                <label class="field-label" for="edit-fb">Facebook link</label>
-                <input id="edit-fb" name="fbLink" type="url" required class="input" placeholder="https://facebook.com/your.profile" value="${esc(reg.fbLink || reg.fbName || "")}" />
+                <label class="field-label" for="edit-fb">Facebook link <span class="text-mute font-normal normal-case tracking-normal">(optional if contact number is set)</span></label>
+                <input id="edit-fb" name="fbLink" type="url" class="input" placeholder="https://facebook.com/your.profile" value="${esc(reg.fbLink || reg.fbName || "")}" />
               </div>
               <div>
-                <label class="field-label" for="edit-contact">Contact number</label>
-                <input id="edit-contact" name="contact" type="tel" required inputmode="tel" class="input" placeholder="09XX XXX XXXX" value="${esc(reg.contact || "")}" />
+                <label class="field-label" for="edit-contact">Contact number <span class="text-mute font-normal normal-case tracking-normal">(optional if Facebook link is set)</span></label>
+                <input id="edit-contact" name="contact" type="tel" inputmode="tel" class="input" placeholder="09XX XXX XXXX" value="${esc(reg.contact || "")}" />
               </div>
               <div>
                 <label class="field-label" for="edit-school">School / University</label>
@@ -428,8 +428,13 @@
         const school  = form.elements.school.value.trim();
         const age     = parseInt(ageRaw, 10);
 
-        if (!name || !ageRaw || !gender || !fbLink || !contact || !school) {
-          $err.textContent = "All fields are required.";
+        if (!name || !ageRaw || !gender || !school) {
+          $err.textContent = "Name, age, gender and school are required.";
+          $err.classList.remove("hidden");
+          return;
+        }
+        if (!fbLink && !contact) {
+          $err.textContent = "At least one of Facebook link or contact number is required.";
           $err.classList.remove("hidden");
           return;
         }
@@ -443,7 +448,7 @@
           $err.classList.remove("hidden");
           return;
         }
-        if (!/^https?:\/\//i.test(fbLink)) {
+        if (fbLink && !/^https?:\/\//i.test(fbLink)) {
           $err.textContent = "Facebook link should start with http:// or https://";
           $err.classList.remove("hidden");
           return;
