@@ -1,12 +1,9 @@
 {
-  "_comment_top": "Realtime DB security rules — locks down /elevate-eo-campus-unite-2026/* so only allowlisted admin Google accounts can read all registrations + tickets + raffle. Public users can claim an empty ticket slot but cannot enumerate other registrations.",
-  "_comment_deploy": "Apply via: firebase deploy --only database --project test-database-55379 (after pointing firebase.json's 'database.rules' at this file). Test sibling apps (autoclicker, aircon, weddingbar, tayo, monthsary, echoes, devo-sync*, etc.) afterwards — they currently rely on default-open rules.",
   "rules": {
     ".read": true,
     ".write": true,
 
     "elevate-eo-campus-unite-2026": {
-      "_comment": "Overrides the open default. Children below grant only the access each role needs.",
       ".read": false,
       ".write": false,
 
@@ -15,9 +12,8 @@
         ".write": "auth != null && auth.token.email_verified == true && (auth.token.email == 'charliecayno@gmail.com' || auth.token.email == 'maui.victorio@ccf.org.ph' || auth.token.email == 'christian.ilao@ccf.org.ph' || auth.token.email == 'kobe.serrano@cm.ccf.org.ph' || auth.token.email == 'jharmaine4@gmail.com' || auth.token.email == 'angelica.macalalad@ccf.org.ph' || auth.token.email == 'anggemacalalad@gmail.com' || auth.token.email == 'serranokobe1@gmail.com')",
 
         "$ticketId": {
-          "_comment": "Public flow: single ticket read (any signed-in user, incl. anonymous) so register.html can check ticket existence + registered status; write to mark a previously-empty ticket as registered.",
           ".read": "auth != null",
-          ".write": "auth != null && (data.exists() && data.child('registered').val() != true && newData.child('registered').val() == true)"
+          ".write": "auth != null && data.exists() && data.child('registered').val() != true && newData.child('registered').val() == true"
         }
       },
 
@@ -26,9 +22,8 @@
         ".write": "auth != null && auth.token.email_verified == true && (auth.token.email == 'charliecayno@gmail.com' || auth.token.email == 'maui.victorio@ccf.org.ph' || auth.token.email == 'christian.ilao@ccf.org.ph' || auth.token.email == 'kobe.serrano@cm.ccf.org.ph' || auth.token.email == 'jharmaine4@gmail.com' || auth.token.email == 'angelica.macalalad@ccf.org.ph' || auth.token.email == 'anggemacalalad@gmail.com' || auth.token.email == 'serranokobe1@gmail.com')",
 
         "$ticketId": {
-          "_comment": "Public flow: a registrant can read their own registration (e.g. the 'already registered' state) and write a new one when the slot is empty + the ticket exists.",
           ".read": "auth != null",
-          ".write": "auth != null && (!data.exists() && newData.child('ticketId').val() == $ticketId && root.child('elevate-eo-campus-unite-2026/tickets').child($ticketId).exists())",
+          ".write": "auth != null && !data.exists() && newData.child('ticketId').val() == $ticketId && root.child('elevate-eo-campus-unite-2026/tickets').child($ticketId).exists()",
           ".validate": "newData.hasChildren(['name', 'ticketId', 'registeredAt'])"
         }
       },
