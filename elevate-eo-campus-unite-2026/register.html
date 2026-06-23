@@ -154,22 +154,34 @@
               </select>
             </div>
           </div>
-          <div class="grid gap-1">
-            <div class="text-[11px] text-mute font-extrabold-ui uppercase tracking-widest">
-              How can we reach you? <span class="text-soft normal-case font-normal tracking-normal">Fill in at least one — both is even better.</span>
-            </div>
+          <fieldset class="reach-group">
+            <legend class="reach-legend">
+              <span class="material-symbols-outlined" style="font-size:14px;vertical-align:-2px;">forum</span>
+              How can we reach you?
+              <span class="reach-tag" title="Pick whichever's easier. Both is best — it helps us confirm winners.">at least one</span>
+            </legend>
+
             <div>
-              <label class="field-label" for="f-fb">Facebook link <span class="text-mute font-normal normal-case tracking-normal">(optional if you give a contact number)</span></label>
+              <label class="field-label" for="f-fb">Facebook link</label>
               <input id="f-fb" name="fbLink" type="url" class="input" placeholder="https://facebook.com/your.profile" />
+              <div id="f-fb-err" class="hidden text-xs text-red font-extrabold-ui uppercase tracking-wider mt-1"></div>
             </div>
-            <div class="mt-2">
-              <label class="field-label" for="f-contact">Contact number <span class="text-mute font-normal normal-case tracking-normal">(optional if you give a Facebook link)</span></label>
+
+            <div class="or-divider"><span>or</span></div>
+
+            <div>
+              <label class="field-label" for="f-contact">Contact number</label>
               <input id="f-contact" name="contact" type="tel" inputmode="tel" autocomplete="tel" class="input" placeholder="09XX XXX XXXX" />
             </div>
-          </div>
+
+            <div class="reach-hint">
+              <span class="material-symbols-outlined" style="font-size:13px;vertical-align:-2px;">tips_and_updates</span>
+              Giving <strong>both</strong> makes raffle prize claims smoother.
+            </div>
+          </fieldset>
           <div>
             <label class="field-label" for="f-school">School / University</label>
-            <input id="f-school" name="school" type="text" required class="input" placeholder="e.g. UA&P, FEU East Asia College, Ateneo" />
+            <input id="f-school" name="school" type="text" required class="input" placeholder="e.g. SLHS, MHS, NU East Ortigas" />
           </div>
 
           <div id="form-error" class="hidden text-sm px-3 py-2 rounded-lg" style="background:rgba(225,29,44,0.12); border:1px solid var(--red); color:#ffd1d6;"></div>
@@ -242,6 +254,29 @@
       if (el !== $scanner) stopScanner();
     }
 
+    // Accept any URL whose host is (or ends with) one of these. Covers facebook.com,
+    // m.facebook.com, web.facebook.com, mbasic.facebook.com, fb.com, fb.me + www. prefixes.
+    const FB_HOSTS = ["facebook.com", "fb.com", "fb.me"];
+    function isFacebookUrl(raw) {
+      if (!raw) return false;
+      let str = String(raw).trim();
+      // Tolerate "facebook.com/foo" without a scheme — promote to https:// for URL parsing.
+      if (!/^https?:\/\//i.test(str)) str = "https://" + str;
+      try {
+        const u = new URL(str);
+        if (!/^https?:$/i.test(u.protocol)) return false;
+        const host = u.hostname.toLowerCase().replace(/^www\./, "");
+        return FB_HOSTS.some(d => host === d || host.endsWith("." + d));
+      } catch { return false; }
+    }
+    function setFbError(msg) {
+      const $err = document.getElementById("f-fb-err");
+      const $inp = document.getElementById("f-fb");
+      if (!$err || !$inp) return;
+      if (msg) { $err.textContent = msg; $err.classList.remove("hidden"); $inp.classList.add("input-error"); }
+      else     { $err.textContent = "";  $err.classList.add("hidden");    $inp.classList.remove("input-error"); }
+    }
+
     const idPattern = /^ECU-\d{4}$/;
     const params = new URLSearchParams(window.location.search);
     const rawId = (params.get("id") || "").trim().toUpperCase();
@@ -249,6 +284,19 @@
     if (!rawId) show($chooser);
     else if (!idPattern.test(rawId)) show($invalid);
     else { show($loading); loadTicket(rawId); }
+
+    // Live FB-link validation: clear the error as the user types, re-validate on blur.
+    (() => {
+      const $fb = document.getElementById("f-fb");
+      if (!$fb) return;
+      $fb.addEventListener("input", () => setFbError(""));
+      $fb.addEventListener("blur", () => {
+        const v = $fb.value.trim();
+        if (!v) { setFbError(""); return; }
+        if (!isFacebookUrl(v)) setFbError("Doesn't look like a Facebook link. Try facebook.com/your.profile.");
+        else setFbError("");
+      });
+    })();
 
     // ===== Manual ticket entry =====
     document.getElementById("manual-form").addEventListener("submit", (e) => {
@@ -452,11 +500,16 @@
         $err.classList.remove("hidden");
         return;
       }
-      if (data.fbLink && !/^https?:\/\//i.test(data.fbLink)) {
-        $err.textContent = "Facebook link should start with http:// or https://";
-        $err.classList.remove("hidden");
+      if (data.fbLink && !isFacebookUrl(data.fbLink)) {
+        setFbError("Doesn't look like a Facebook link. Try facebook.com/your.profile.");
+        document.getElementById("f-fb").focus();
         return;
       }
+      // Normalize a scheme-less FB link before saving so the dashboard link click works.
+      if (data.fbLink && !/^https?:\/\//i.test(data.fbLink)) {
+        data.fbLink = "https://" + data.fbLink;
+      }
+      setFbError("");
 
       $btn.disabled = true;
       $btn.innerHTML = `<span class="material-symbols-outlined animate-spin" style="font-size:20px">progress_activity</span> Saving…`;
