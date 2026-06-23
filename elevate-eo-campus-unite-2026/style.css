@@ -495,13 +495,14 @@ html, body {
     box-shadow: 0 0 0 5px rgba(245, 213, 24, 0.22);
   }
 }
+/* Transform-only — drop-shadow was the most expensive part of this loop. */
 @keyframes fb-walk-icon-4 {
-  0%, 25%, 100% { transform: scale(1); filter: none; }
-  6%, 19% { transform: scale(1.25); filter: drop-shadow(0 0 6px rgba(245, 213, 24, 0.55)); }
+  0%, 25%, 100% { transform: scale(1); }
+  6%, 19% { transform: scale(1.3); }
 }
 @keyframes fb-walk-icon-3 {
-  0%, 33%, 100% { transform: scale(1); filter: none; }
-  8%, 26% { transform: scale(1.25); filter: drop-shadow(0 0 6px rgba(245, 213, 24, 0.55)); }
+  0%, 33%, 100% { transform: scale(1); }
+  8%, 26% { transform: scale(1.3); }
 }
 
 /* Mobile panel — 4 steps × 1.25s = 5s loop. */
@@ -561,10 +562,12 @@ html, body {
 .fb-browser .fb-url-select,
 .fb-browser .fb-kbd { opacity: 0; }
 
-/* Glow pulse for highlighted targets inside each scene. */
+/* Glow pulse for highlighted targets inside each scene.
+   Uses opacity only — filter: drop-shadow is expensive to animate at 60fps
+   on weaker devices and was the main cause of intermittent lag. */
 @keyframes fb-glow-pulse {
-  0%, 100% { filter: drop-shadow(0 0 2px rgba(245,213,24,0.5)); }
-  50%      { filter: drop-shadow(0 0 7px rgba(245,213,24,0.95)); }
+  0%, 100% { opacity: 0.7; }
+  50%      { opacity: 1; }
 }
 .fb-glow-pulse { animation: fb-glow-pulse 1.1s ease-in-out infinite; }
 
@@ -637,6 +640,25 @@ html, body {
 .fb-help-card:focus-within .fb-phone *,
 .fb-help-card:focus-within .fb-browser * {
   animation-play-state: paused;
+}
+
+/* Pause expensive SVG animations when not actually visible.
+   Without this, both Mobile + Desktop scene loops run forever — even with
+   the disclosure closed — competing for paint cycles with the ambient
+   trailer video in the background and intermittently freezing the whole
+   loop on weaker GPUs. */
+.fb-help:not([open]) .fb-phone *,
+.fb-help:not([open]) .fb-browser *,
+.fb-help-panel[hidden] .fb-phone *,
+.fb-help-panel[hidden] .fb-browser * {
+  animation-play-state: paused !important;
+}
+
+/* Promote each phone/browser to its own compositor layer so paint work for
+   the SVG doesn't keep invalidating the bg-video region. */
+.fb-phone, .fb-browser {
+  will-change: contents;
+  contain: paint;
 }
 
 @media (prefers-reduced-motion: reduce) {
