@@ -2098,6 +2098,38 @@ body.raffle-focused .raffle-display {
 .wiz-nav .wiz-back { padding: 0.55rem 0.9rem; font-size: 0.85rem; }
 .wiz-nav .wiz-next,
 .wiz-nav .wiz-submit { padding: 0.7rem 1.2rem; font-size: 0.9rem; }
+/* Quick bounce on click for the wizard nav buttons + summary Edit pills.
+   Press scales down fast; release uses an overshoot curve so the button
+   bounces back through 1.0. Shorter, snappier version of the choice-card
+   feedback — gives a tactile cue without delaying the navigation. */
+.wiz-nav .wiz-back,
+.wiz-nav .wiz-next,
+.wiz-nav .wiz-submit,
+.wiz-summary-card .wiz-summary-edit {
+  transition:
+    background 0.15s ease,
+    border-color 0.15s ease,
+    color 0.15s ease,
+    filter 0.15s ease,
+    box-shadow 0.15s ease,
+    transform 0.28s cubic-bezier(0.34, 1.56, 0.64, 1);
+  transform-origin: center;
+}
+.wiz-nav .wiz-back:active:not(:disabled),
+.wiz-nav .wiz-next:active:not(:disabled),
+.wiz-nav .wiz-submit:active:not(:disabled),
+.wiz-summary-card .wiz-summary-edit:active {
+  transform: scale(0.94);
+  transition-duration: 0.08s;
+}
+@media (prefers-reduced-motion: reduce) {
+  .wiz-nav .wiz-back:active,
+  .wiz-nav .wiz-next:active,
+  .wiz-nav .wiz-submit:active,
+  .wiz-summary-card .wiz-summary-edit:active {
+    transform: none;
+  }
+}
 .wiz-nav .wiz-back[hidden],
 .wiz-nav .wiz-next[hidden],
 .wiz-nav .wiz-submit[hidden] { display: none !important; }
