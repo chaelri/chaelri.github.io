@@ -209,6 +209,9 @@
                   </summary>
                   <div class="fb-help-anim">
                     <div class="fb-help-card">
+                      <button type="button" class="fb-help-close" aria-label="Close" data-fb-close>
+                        <span class="material-symbols-outlined" style="font-size:18px">close</span>
+                      </button>
                       <div class="fb-help-tabs" role="tablist">
                         <button type="button" class="fb-help-tab is-active" data-fb-tab="mobile" role="tab" aria-selected="true">
                           <span class="material-symbols-outlined" style="font-size:14px">smartphone</span>
@@ -721,6 +724,14 @@
         const $anim = $fbHelp.querySelector(".fb-help-anim");
         const reduce = matchMedia("(prefers-reduced-motion: reduce)");
         let busy = false;
+        // Top-right × button inside the help card: close the disclosure by
+        // simulating a summary click so the same smooth-collapse animation runs.
+        $fbHelp.querySelectorAll("[data-fb-close]").forEach(($btn) => {
+          $btn.addEventListener("click", (e) => {
+            e.preventDefault();
+            if ($fbHelp.open) $sum.click();
+          });
+        });
         $sum.addEventListener("click", (e) => {
           if (reduce.matches) return; // let the browser do it
           if (busy) { e.preventDefault(); return; }

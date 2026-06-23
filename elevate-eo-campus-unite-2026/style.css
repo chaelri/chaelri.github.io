@@ -342,6 +342,22 @@ html, body {
   flex-wrap: wrap;
 }
 .fb-help { font-size: 0.65rem; line-height: 1; }
+
+/* Pull the help card out of the .fb-label-row flex flow so the card spans
+   the full width of the parent .fb-link-block. <details> uses display:
+   contents so its <summary> and <.fb-help-anim> become direct children of
+   the flex parent — the summary stays inline with the label (default order)
+   and the content gets order:3 + flex-basis:100% to wrap to a new line at
+   full container width. The open/close attribute still works because it's
+   DOM-level, unaffected by display:contents. */
+.fb-label-row > .fb-help { display: contents; }
+.fb-label-row > .fb-help > .fb-help-anim {
+  flex-basis: 100%;
+  flex-shrink: 0;
+  width: 100%;
+  order: 3;
+}
+
 .fb-help > summary {
   list-style: none;
   cursor: pointer;
@@ -373,6 +389,7 @@ html, body {
 }
 /* The soft yellow card that holds the help tabs + step list. */
 .fb-help-card {
+  position: relative;
   margin: 0.5rem 0 0;
   padding: 0.75rem 0.85rem 0.85rem;
   background: rgba(245, 213, 24, 0.05);
@@ -385,6 +402,33 @@ html, body {
   color: var(--ink);
   line-height: 1.55;
   width: 100%;
+}
+
+/* Top-right close button — gives the user an explicit dismissal path
+   alongside re-clicking the summary or pressing ESC elsewhere. */
+.fb-help-close {
+  position: absolute;
+  top: 6px;
+  right: 6px;
+  width: 28px;
+  height: 28px;
+  display: grid;
+  place-items: center;
+  background: rgba(255,255,255,0.04);
+  border: 1px solid rgba(255,255,255,0.12);
+  border-radius: 50%;
+  color: var(--ink-mute);
+  cursor: pointer;
+  padding: 0;
+  transition: background 0.12s ease, color 0.12s ease, border-color 0.12s ease;
+  z-index: 5;
+}
+.fb-help-close:hover,
+.fb-help-close:focus-visible {
+  background: rgba(225,29,44,0.18);
+  border-color: var(--red);
+  color: #fff;
+  outline: none;
 }
 
 /* Mobile / Desktop tab switcher. */
