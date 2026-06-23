@@ -901,12 +901,15 @@
         const onReview = state.current === "review";
         $next.hidden   = onReview;
         $submit.hidden = !onReview;
-        // Step 1 + 2 (first / dgroup) advance via choice buttons. Hide Next so
-        // users don't see a dead button. They still need Back if they came back.
-        if (state.current === "first" || state.current === "dgroup") {
-          // Only hide Next if the user hasn't picked yet — once a choice is
-          // selected the engine auto-advances anyway, so Next never matters.
+        // Step 1 (first timer): both choices auto-advance, so Next is never needed.
+        if (state.current === "first") {
           $next.hidden = true;
+        }
+        // Step 2 (dgroup): "Not yet" auto-advances; "Yes, I have one" reveals a
+        // leader-name input and the user needs an explicit Next to proceed.
+        if (state.current === "dgroup") {
+          const hd = document.getElementById("f-dgroup").value;
+          $next.hidden = hd !== "yes";
         }
       }
 
@@ -1020,6 +1023,9 @@
           $form.querySelectorAll(`.wiz-choice[data-wiz-choose-field="hasDgroup"]`)
             .forEach($btn => $btn.classList.remove("is-selected"));
         }
+        // Re-render the nav so Next appears once "Yes, I have one" is picked
+        // (the auto-advance branch handles its own renderNav via go()).
+        renderNav();
         if (advanceTo) {
           // Brief delay so the user sees the "selected" state pop before transitioning.
           setTimeout(() => go(advanceTo), 180);
