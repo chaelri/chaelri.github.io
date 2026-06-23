@@ -556,16 +556,25 @@ html, body {
    keyframes so the visual reads as a mini walkthrough of the
    actual interaction. Tap pulse moves between hot-spots in sync.
    ============================================================ */
+/* Demo row is a plain block — using flex + justify-content earlier was
+   sizing the SVG children by their intrinsic dimensions instead of the
+   container width, leaving big gutters on both Mobile and Desktop. */
 .fb-help-demo {
-  display: flex;
-  justify-content: center;
+  width: 100%;
   padding: 0.3rem 0 0.65rem;
 }
-.fb-phone { width: 78px; height: auto; display: block; }
-/* Browser fills the full card width — address bar + content read clearer big. */
-.fb-browser { width: 100%; height: auto; display: block; }
-/* Demo wrapper needs to span the row for the 100%-width browser to expand. */
-.fb-help-demo { width: 100%; }
+.fb-phone {
+  width: 100%;
+  max-width: 200px;   /* keep it phone-like, but ~2.5× the old fixed 78px */
+  height: auto;
+  display: block;
+  margin: 0 auto;
+}
+.fb-browser {
+  width: 100%;
+  height: auto;
+  display: block;
+}
 
 /* Default state: scenes hidden, only animated ones become visible. */
 .fb-phone .fb-scene,
