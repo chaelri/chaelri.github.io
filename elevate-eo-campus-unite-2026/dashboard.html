@@ -428,13 +428,8 @@
         const school  = form.elements.school.value.trim();
         const age     = parseInt(ageRaw, 10);
 
-        if (!name || !ageRaw || !gender || !school) {
-          $err.textContent = "Name, age, gender and school are required.";
-          $err.classList.remove("hidden");
-          return;
-        }
-        if (!fbLink && !contact) {
-          $err.textContent = "At least one of Facebook link or contact number is required.";
+        if (!name || !ageRaw || !gender || !school || !fbLink || !contact) {
+          $err.textContent = "All fields are required (Facebook link and contact number both).";
           $err.classList.remove("hidden");
           return;
         }
