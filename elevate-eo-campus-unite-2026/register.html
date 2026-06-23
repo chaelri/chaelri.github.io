@@ -108,6 +108,55 @@
     #form-ticket {
       font-size: clamp(1.6rem, 6vw, 2.5rem) !important;
     }
+
+    /* Data Privacy Notice — collapsible disclosure tile. */
+    .privacy-notice {
+      background: rgba(245, 213, 24, 0.06);
+      border: 1px solid rgba(245, 213, 24, 0.22);
+      border-radius: 0.6rem;
+      padding: 0.65rem 0.85rem;
+    }
+    .privacy-notice summary {
+      list-style: none;
+      cursor: pointer;
+      display: flex;
+      align-items: center;
+      gap: 0.65rem;
+      font-size: 0.78rem;
+      color: var(--ink-soft);
+      line-height: 1.35;
+    }
+    .privacy-notice summary::-webkit-details-marker { display: none; }
+    .privacy-notice-icon {
+      color: var(--tape);
+      font-size: 18px !important;
+      flex-shrink: 0;
+    }
+    .privacy-notice-summary { flex: 1; min-width: 0; }
+    .privacy-notice-summary b { color: var(--ink); font-weight: 800; }
+    .privacy-notice-toggle {
+      color: var(--ink-mute);
+      flex-shrink: 0;
+      transition: transform 0.2s ease;
+    }
+    .privacy-notice-toggle .material-symbols-outlined { font-size: 18px !important; }
+    .privacy-notice[open] .privacy-notice-toggle { transform: rotate(180deg); }
+    .privacy-notice-body {
+      margin-top: 0.65rem;
+      padding-top: 0.65rem;
+      border-top: 1px solid rgba(245, 213, 24, 0.18);
+      font-size: 0.78rem;
+      color: var(--ink-soft);
+      line-height: 1.5;
+    }
+    .privacy-notice-body p { margin: 0 0 0.5rem; }
+    .privacy-notice-body p:last-child { margin-bottom: 0; }
+    .privacy-notice-body ul {
+      margin: 0 0 0.5rem;
+      padding-left: 1.1rem;
+      list-style: disc;
+    }
+    .privacy-notice-body ul li { margin-bottom: 0.15rem; }
   </style>
 </head>
 
@@ -247,6 +296,40 @@
             <div id="form-ticket" class="font-display text-tape" style="font-size:clamp(1.15rem,4.5vw,1.65rem); line-height:1.1; letter-spacing:0.02em; text-shadow:0 0 12px rgba(245,213,24,0.45); white-space:nowrap;"></div>
           </div>
         </div>
+
+        <!-- Data Privacy Notice — visible above every wizard step so registrants
+             know upfront how their info is used. Compact summary by default;
+             tap "Learn more" to expand the full notice. -->
+        <details class="privacy-notice mt-5">
+          <summary>
+            <span class="material-symbols-outlined privacy-notice-icon">privacy_tip</span>
+            <span class="privacy-notice-summary">
+              <b>Data Privacy Notice.</b> Your info is collected only for Campus UNITE 2026 event coordination + raffle.
+            </span>
+            <span class="privacy-notice-toggle">
+              <span class="material-symbols-outlined">expand_more</span>
+            </span>
+          </summary>
+          <div class="privacy-notice-body">
+            <p>
+              Elevate East Ortigas (the local satellite of CCF Elevate) collects the information
+              on this form solely to:
+            </p>
+            <ul>
+              <li>Coordinate your attendance at Campus UNITE — Elevate's 13th Anniversary (July 17, 2026).</li>
+              <li>Verify your ticket entry on the event day.</li>
+              <li>Contact you about the raffle if your ticket wins.</li>
+              <li>Help us follow up with first-timers + students without a Dgroup leader.</li>
+            </ul>
+            <p>
+              We do not sell or share your data with third parties. Information is stored on Firebase
+              (Google Cloud) and is accessible only to Elevate East Ortigas admins.
+              By submitting this form, you consent to this collection in line with the
+              Data Privacy Act of 2012 (RA 10173). To request deletion of your data, contact
+              your Elevate East Ortigas team lead.
+            </p>
+          </div>
+        </details>
 
         <form id="reg-form" class="mt-6 grid gap-4" novalidate>
           <!-- Progress dots — rendered dynamically by the wizard engine. -->
