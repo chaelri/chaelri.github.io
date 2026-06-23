@@ -89,12 +89,20 @@
         flex-direction: row;
         justify-content: center;
         align-items: center;
-        gap: 1.25rem;
+        gap: 1rem;
       }
-      /* Lock the entire countdown column to a fixed width so the right column
-         (event meta) is anchored — independent of digit-render rounding. */
-      .reg-countdown-left { flex-shrink: 0; width: 280px; }
+      /* Left column is sized by its tile contents (tabular-nums + min-width
+         on each tile keeps it anchored). Right column flexes to fill, but
+         its first line never wraps so the layout stays on one row. */
+      .reg-countdown-left { flex-shrink: 0; }
+      .reg-event-meta { flex-shrink: 0; }
+      .reg-event-meta > div:first-child { white-space: nowrap; }
       .reg-countdown-divider { display: block; }
+    }
+    /* Right-column font shrinks a touch on tablet widths so the date line
+       fits beside the countdown without forcing a wrap. */
+    @media (min-width: 640px) and (max-width: 767px) {
+      .reg-event-meta { font-size: 0.78rem; }
     }
     /* Bigger ticket pill on the form card top-right. */
     #form-ticket {
