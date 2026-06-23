@@ -540,6 +540,111 @@ html, body {
   .fb-help-steps li::before,
   .fb-help-step-icon { animation: none !important; }
 }
+
+/* ============================================================
+   Animated phone / browser tutorial illustrations
+   Pure SVG + CSS. Each scene is a <g> whose opacity cycles via
+   keyframes so the visual reads as a mini walkthrough of the
+   actual interaction. Tap pulse moves between hot-spots in sync.
+   ============================================================ */
+.fb-help-demo {
+  display: flex;
+  justify-content: center;
+  padding: 0.3rem 0 0.65rem;
+}
+.fb-phone { width: 78px; height: auto; display: block; }
+.fb-browser { width: 175px; height: auto; display: block; }
+
+/* Default state: scenes hidden, only animated ones become visible. */
+.fb-phone .fb-scene,
+.fb-browser .fb-scene { opacity: 0; }
+.fb-browser .fb-url-select,
+.fb-browser .fb-kbd { opacity: 0; }
+
+/* Glow pulse for highlighted targets inside each scene. */
+@keyframes fb-glow-pulse {
+  0%, 100% { filter: drop-shadow(0 0 2px rgba(245,213,24,0.5)); }
+  50%      { filter: drop-shadow(0 0 7px rgba(245,213,24,0.95)); }
+}
+.fb-glow-pulse { animation: fb-glow-pulse 1.1s ease-in-out infinite; }
+
+/* === MOBILE PHONE: 5s cycle, 4 scenes synced to the 4 steps === */
+@keyframes fb-s1 { 0%, 22% { opacity: 1; } 26%, 100% { opacity: 0; } }
+@keyframes fb-s2 { 0%, 22% { opacity: 0; } 26%, 47% { opacity: 1; } 51%, 100% { opacity: 0; } }
+@keyframes fb-s3 { 0%, 47% { opacity: 0; } 51%, 72% { opacity: 1; } 76%, 100% { opacity: 0; } }
+@keyframes fb-s4 { 0%, 72% { opacity: 0; } 76%, 96% { opacity: 1; } 100% { opacity: 0; } }
+.fb-phone .fb-scene-1 { animation: fb-s1 5s infinite ease-in-out; }
+.fb-phone .fb-scene-2 { animation: fb-s2 5s infinite ease-in-out; }
+.fb-phone .fb-scene-3 { animation: fb-s3 5s infinite ease-in-out; }
+.fb-phone .fb-scene-4 { animation: fb-s4 5s infinite ease-in-out; }
+
+/* Tap finger: moves between hot-spots; visible only during a scene. */
+@keyframes fb-tap-mobile {
+  0%, 2%   { transform: translate(83px, 155px); opacity: 0; }
+  8%, 22%  { transform: translate(83px, 155px); opacity: 1; }
+  24%, 25% { transform: translate(83px, 155px); opacity: 0; }
+  28%, 30% { transform: translate(85px, 18.5px); opacity: 0; }
+  34%, 47% { transform: translate(85px, 18.5px); opacity: 1; }
+  49%, 50% { transform: translate(85px, 18.5px); opacity: 0; }
+  53%, 55% { transform: translate(50px, 78.5px); opacity: 0; }
+  59%, 72% { transform: translate(50px, 78.5px); opacity: 1; }
+  74%, 100% { transform: translate(50px, 78.5px); opacity: 0; }
+}
+.fb-tap-mobile { animation: fb-tap-mobile 5s infinite ease-in-out; }
+
+@keyframes fb-tap-ring {
+  0%   { transform: scale(0.6); opacity: 0.9; }
+  100% { transform: scale(2.4); opacity: 0; }
+}
+.fb-tap-ring {
+  transform-origin: center;
+  transform-box: fill-box;
+  animation: fb-tap-ring 1.2s ease-out infinite;
+}
+
+/* Paste-arrow on scene 4 bobs to draw the eye toward the input below. */
+@keyframes fb-arrow-bob {
+  0%, 100% { transform: translateY(0); opacity: 0.9; }
+  50%      { transform: translateY(3px); opacity: 1; }
+}
+.fb-paste-arrow { animation: fb-arrow-bob 0.9s ease-in-out infinite; transform-box: fill-box; transform-origin: center; }
+
+/* === DESKTOP BROWSER: 3.75s cycle, 3 scenes === */
+@keyframes fb-d1 { 0%, 28% { opacity: 1; } 33%, 100% { opacity: 0; } }
+@keyframes fb-d2 { 0%, 28% { opacity: 0; } 33%, 62% { opacity: 1; } 67%, 100% { opacity: 0; } }
+@keyframes fb-d3 { 0%, 62% { opacity: 0; } 67%, 96% { opacity: 1; } 100% { opacity: 0; } }
+.fb-browser .fb-scene-d1 { animation: fb-d1 3.75s infinite ease-in-out; }
+.fb-browser .fb-scene-d2 { animation: fb-d2 3.75s infinite ease-in-out; }
+.fb-browser .fb-scene-d3 { animation: fb-d3 3.75s infinite ease-in-out; }
+/* URL highlight + keyboard hint appear during scene 2 only. */
+@keyframes fb-url-select { 0%, 28% { opacity: 0; } 33%, 62% { opacity: 1; } 67%, 100% { opacity: 0; } }
+@keyframes fb-kbd-show   { 0%, 32% { opacity: 0; transform: translateY(-2px); } 37%, 60% { opacity: 1; transform: translateY(0); } 65%, 100% { opacity: 0; transform: translateY(-2px); } }
+.fb-browser .fb-url-select { animation: fb-url-select 3.75s infinite ease-in-out; }
+.fb-browser .fb-kbd { animation: fb-kbd-show 3.75s infinite ease-in-out; transform-box: fill-box; transform-origin: top center; }
+
+/* Desktop tap cursor: scene 1 → click profile name in content, scene 2 → click address bar. */
+@keyframes fb-tap-desktop {
+  0%, 2%   { transform: translate(40px, 50px); opacity: 0; }
+  8%, 28%  { transform: translate(40px, 50px); opacity: 1; }
+  31%, 33% { transform: translate(40px, 50px); opacity: 0; }
+  37%, 40% { transform: translate(58px, 9.5px); opacity: 0; }
+  44%, 62% { transform: translate(58px, 9.5px); opacity: 1; }
+  65%, 100% { transform: translate(58px, 9.5px); opacity: 0; }
+}
+.fb-tap-desktop { animation: fb-tap-desktop 3.75s infinite ease-in-out; }
+
+/* Pause everything when hovering / focused — so users can read calmly. */
+.fb-help-card:hover .fb-phone *,
+.fb-help-card:hover .fb-browser *,
+.fb-help-card:focus-within .fb-phone *,
+.fb-help-card:focus-within .fb-browser * {
+  animation-play-state: paused;
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .fb-phone *, .fb-browser * { animation: none !important; }
+  .fb-phone .fb-scene-1, .fb-browser .fb-scene-d1 { opacity: 1 !important; }
+}
 /* Wrapper that JS animates between height:0 ⇄ scrollHeight for a smooth
    open/close instead of <details>'s native display:none snap. */
 .fb-help-anim {

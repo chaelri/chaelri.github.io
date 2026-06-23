@@ -254,38 +254,243 @@
                           Desktop
                         </button>
                       </div>
-                      <ol class="fb-help-steps" data-fb-panel="mobile">
-                        <li>
-                          <span class="material-symbols-outlined fb-help-step-icon">account_circle</span>
-                          <span>Open the <b>Facebook app</b> and tap your <b>Profile</b> (avatar at the bottom-right).</span>
-                        </li>
-                        <li>
-                          <span class="material-symbols-outlined fb-help-step-icon">more_vert</span>
-                          <span>On your profile, tap the <b>three dots</b> at the upper right.</span>
-                        </li>
-                        <li>
-                          <span class="material-symbols-outlined fb-help-step-icon">content_copy</span>
-                          <span>Scroll down and tap <b>"Copy profile link"</b> — it copies automatically.</span>
-                        </li>
-                        <li>
-                          <span class="material-symbols-outlined fb-help-step-icon">content_paste</span>
-                          <span>Paste it into this field.</span>
-                        </li>
-                      </ol>
-                      <ol class="fb-help-steps" data-fb-panel="desktop" hidden>
-                        <li>
-                          <span class="material-symbols-outlined fb-help-step-icon">public</span>
-                          <span>Open <b>facebook.com</b>, then go to your <b>Profile</b>.</span>
-                        </li>
-                        <li>
-                          <span class="material-symbols-outlined fb-help-step-icon">content_copy</span>
-                          <span>Copy the URL from the <b>address bar</b>.</span>
-                        </li>
-                        <li>
-                          <span class="material-symbols-outlined fb-help-step-icon">content_paste</span>
-                          <span>Paste it into this field.</span>
-                        </li>
-                      </ol>
+                      <!-- ===== MOBILE panel: phone demo + 4 steps ===== -->
+                      <div class="fb-help-panel" data-fb-panel="mobile">
+                        <div class="fb-help-demo">
+                          <svg viewBox="0 0 100 175" class="fb-phone" aria-hidden="true">
+                            <!-- Phone shell -->
+                            <rect x="2" y="2" width="96" height="171" rx="13" fill="#0a0d22" stroke="#2a3055" stroke-width="1"/>
+                            <rect x="42" y="3.5" width="16" height="3" rx="1.5" fill="#000"/>
+                            <!-- Screen -->
+                            <rect x="7" y="11" width="86" height="153" rx="3" fill="#161a35"/>
+
+                            <!-- Scene 1: Feed + Profile button (bottom-right) highlighted -->
+                            <g class="fb-scene fb-scene-1">
+                              <!-- Top header bar -->
+                              <text x="11" y="20" fill="#f5d518" font-size="6" font-weight="800" font-family="Bebas Neue, sans-serif">f</text>
+                              <rect x="80" y="15.5" width="3.5" height="3.5" rx="1.5" fill="#3a4275"/>
+                              <rect x="87" y="15.5" width="3.5" height="3.5" rx="1.5" fill="#3a4275"/>
+                              <!-- Post 1 -->
+                              <rect x="10" y="24" width="80" height="32" rx="2" fill="#1f2440"/>
+                              <circle cx="17" cy="31" r="3.5" fill="#3a4275"/>
+                              <rect x="23" y="29" width="18" height="2" rx="1" fill="#3a4275"/>
+                              <rect x="23" y="33" width="12" height="1.5" rx="0.75" fill="#2a3055"/>
+                              <rect x="13" y="40" width="72" height="2" rx="1" fill="#2a3055"/>
+                              <rect x="13" y="44" width="60" height="2" rx="1" fill="#2a3055"/>
+                              <rect x="13" y="48" width="64" height="2" rx="1" fill="#2a3055"/>
+                              <!-- Post 2 -->
+                              <rect x="10" y="60" width="80" height="32" rx="2" fill="#1f2440"/>
+                              <circle cx="17" cy="67" r="3.5" fill="#3a4275"/>
+                              <rect x="23" y="65" width="20" height="2" rx="1" fill="#3a4275"/>
+                              <rect x="23" y="69" width="14" height="1.5" rx="0.75" fill="#2a3055"/>
+                              <rect x="13" y="76" width="72" height="2" rx="1" fill="#2a3055"/>
+                              <rect x="13" y="80" width="64" height="2" rx="1" fill="#2a3055"/>
+                              <!-- Bottom nav -->
+                              <rect x="7" y="148" width="86" height="14" fill="#1f2440"/>
+                              <circle cx="18" cy="155" r="2" fill="#3a4275"/>
+                              <circle cx="35" cy="155" r="2" fill="#3a4275"/>
+                              <circle cx="52" cy="155" r="2" fill="#3a4275"/>
+                              <circle cx="69" cy="155" r="2" fill="#3a4275"/>
+                              <!-- Profile button (avatar) — glows yellow as the target -->
+                              <circle cx="83" cy="155" r="3.8" fill="#f5d518" class="fb-glow-pulse"/>
+                            </g>
+
+                            <!-- Scene 2: Profile page + three dots (top-right) highlighted -->
+                            <g class="fb-scene fb-scene-2">
+                              <!-- Top bar -->
+                              <path d="M 13 18.5 L 16 16 L 16 21 Z" fill="#3a4275"/>
+                              <rect x="20" y="17" width="22" height="3" rx="1" fill="#3a4275"/>
+                              <!-- Three dots -->
+                              <g class="fb-glow-pulse">
+                                <circle cx="80" cy="18.5" r="1.4" fill="#f5d518"/>
+                                <circle cx="85" cy="18.5" r="1.4" fill="#f5d518"/>
+                                <circle cx="90" cy="18.5" r="1.4" fill="#f5d518"/>
+                              </g>
+                              <!-- Profile avatar -->
+                              <circle cx="50" cy="48" r="15" fill="#3a4275" stroke="#2a3055" stroke-width="1.5"/>
+                              <!-- Name + bio -->
+                              <rect x="30" y="69" width="40" height="3" rx="1" fill="#3a4275"/>
+                              <rect x="38" y="75" width="24" height="2" rx="1" fill="#2a3055"/>
+                              <!-- CTA buttons -->
+                              <rect x="11" y="84" width="38" height="8" rx="2" fill="#f5d518"/>
+                              <rect x="51" y="84" width="38" height="8" rx="2" fill="#1f2440"/>
+                              <!-- Tab strip -->
+                              <rect x="11" y="98" width="78" height="2.5" rx="0.5" fill="#1f2440"/>
+                              <!-- Content cards -->
+                              <rect x="11" y="105" width="78" height="14" rx="2" fill="#1f2440"/>
+                              <rect x="11" y="122" width="78" height="14" rx="2" fill="#1f2440"/>
+                              <rect x="11" y="139" width="78" height="14" rx="2" fill="#1f2440"/>
+                            </g>
+
+                            <!-- Scene 3: Menu list with "Copy profile link" highlighted -->
+                            <g class="fb-scene fb-scene-3">
+                              <!-- Header -->
+                              <path d="M 13 18.5 L 16 16 L 16 21 Z" fill="#3a4275"/>
+                              <rect x="20" y="17" width="28" height="3" rx="1" fill="#3a4275"/>
+                              <!-- Menu items -->
+                              <g fill="#1f2440">
+                                <rect x="10" y="26" width="80" height="9" rx="1.5"/>
+                                <rect x="10" y="38" width="80" height="9" rx="1.5"/>
+                                <rect x="10" y="50" width="80" height="9" rx="1.5"/>
+                                <rect x="10" y="62" width="80" height="9" rx="1.5"/>
+                              </g>
+                              <g fill="#3a4275">
+                                <rect x="14" y="29.5" width="3" height="3" rx="0.5"/>
+                                <rect x="20" y="30" width="30" height="2.5" rx="1"/>
+                                <rect x="14" y="41.5" width="3" height="3" rx="0.5"/>
+                                <rect x="20" y="42" width="34" height="2.5" rx="1"/>
+                                <rect x="14" y="53.5" width="3" height="3" rx="0.5"/>
+                                <rect x="20" y="54" width="26" height="2.5" rx="1"/>
+                                <rect x="14" y="65.5" width="3" height="3" rx="0.5"/>
+                                <rect x="20" y="66" width="32" height="2.5" rx="1"/>
+                              </g>
+                              <!-- Copy profile link (highlighted target) -->
+                              <rect x="10" y="74" width="80" height="9" rx="1.5" fill="#f5d518" class="fb-glow-pulse"/>
+                              <rect x="14" y="77.5" width="3" height="3" rx="0.5" fill="#0a0a0a"/>
+                              <rect x="20" y="78" width="44" height="2.5" rx="1" fill="#0a0a0a"/>
+                              <!-- More menu items -->
+                              <rect x="10" y="86" width="80" height="9" rx="1.5" fill="#1f2440"/>
+                              <rect x="14" y="89.5" width="3" height="3" rx="0.5" fill="#3a4275"/>
+                              <rect x="20" y="90" width="28" height="2.5" rx="1" fill="#3a4275"/>
+                            </g>
+
+                            <!-- Scene 4: "Copied" toast + arrow → field -->
+                            <g class="fb-scene fb-scene-4">
+                              <!-- Dim overlay -->
+                              <rect x="7" y="11" width="86" height="153" rx="3" fill="rgba(7,9,26,0.7)"/>
+                              <!-- Toast -->
+                              <rect x="20" y="68" width="60" height="22" rx="6" fill="#11142a" stroke="#f5d518" stroke-width="0.8"/>
+                              <circle cx="32" cy="79" r="5" fill="#f5d518"/>
+                              <path d="M 29.5 79 L 31.5 81 L 34.5 77" stroke="#0a0a0a" stroke-width="1.5" fill="none" stroke-linecap="round" stroke-linejoin="round"/>
+                              <rect x="40" y="74.5" width="28" height="3" rx="1" fill="#ffffff"/>
+                              <rect x="40" y="80.5" width="20" height="2" rx="1" fill="#8b91b8"/>
+                              <!-- Arrow indicating paste below -->
+                              <path d="M 50 102 L 50 134 M 44 128 L 50 136 L 56 128" stroke="#f5d518" stroke-width="1.6" fill="none" stroke-linecap="round" stroke-linejoin="round" class="fb-paste-arrow"/>
+                            </g>
+
+                            <!-- Tap finger indicator: a single g that translates between scenes -->
+                            <g class="fb-tap fb-tap-mobile" aria-hidden="true">
+                              <circle r="6" fill="rgba(245,213,24,0.28)" class="fb-tap-ring"/>
+                              <circle r="2.6" fill="rgba(245,213,24,0.95)"/>
+                            </g>
+                          </svg>
+                        </div>
+                        <ol class="fb-help-steps" data-fb-panel="mobile">
+                          <li>
+                            <span class="material-symbols-outlined fb-help-step-icon">account_circle</span>
+                            <span>Open the <b>Facebook app</b> and tap your <b>Profile</b> (avatar at the bottom-right).</span>
+                          </li>
+                          <li>
+                            <span class="material-symbols-outlined fb-help-step-icon">more_vert</span>
+                            <span>On your profile, tap the <b>three dots</b> at the upper right.</span>
+                          </li>
+                          <li>
+                            <span class="material-symbols-outlined fb-help-step-icon">content_copy</span>
+                            <span>Scroll down and tap <b>"Copy profile link"</b> — it copies automatically.</span>
+                          </li>
+                          <li>
+                            <span class="material-symbols-outlined fb-help-step-icon">content_paste</span>
+                            <span>Paste it into this field.</span>
+                          </li>
+                        </ol>
+                      </div>
+
+                      <!-- ===== DESKTOP panel: browser demo + 3 steps ===== -->
+                      <div class="fb-help-panel" data-fb-panel="desktop" hidden>
+                        <div class="fb-help-demo">
+                          <svg viewBox="0 0 160 100" class="fb-browser" aria-hidden="true">
+                            <!-- Monitor body -->
+                            <rect x="2" y="2" width="156" height="86" rx="4" fill="#0a0d22" stroke="#2a3055" stroke-width="1"/>
+                            <!-- Stand -->
+                            <rect x="68" y="88" width="24" height="5" fill="#1f2440"/>
+                            <rect x="56" y="92" width="48" height="3" rx="1" fill="#2a3055"/>
+                            <!-- Window chrome dots -->
+                            <circle cx="8" cy="9" r="1.4" fill="#e1142c"/>
+                            <circle cx="13" cy="9" r="1.4" fill="#f5d518"/>
+                            <circle cx="18" cy="9" r="1.4" fill="#3a4275"/>
+
+                            <!-- Address bar -->
+                            <rect x="24" y="6" width="130" height="7" rx="2" fill="#1f2440"/>
+                            <!-- URL text (rendered as small rects so it scales cleanly) -->
+                            <g class="fb-url">
+                              <rect x="28" y="8" width="3" height="3" rx="0.5" fill="#3a4275"/> <!-- lock icon -->
+                              <rect x="34" y="8.5" width="12" height="2" rx="0.5" fill="#3a4275"/> <!-- facebook -->
+                              <rect x="47" y="8.5" width="2" height="2" rx="0.5" fill="#2a3055"/>
+                              <rect x="50" y="8.5" width="6" height="2" rx="0.5" fill="#3a4275"/> <!-- com -->
+                              <rect x="57" y="8.5" width="1.5" height="2" rx="0.5" fill="#2a3055"/>
+                              <rect x="60" y="8.5" width="20" height="2" rx="0.5" fill="#3a4275"/> <!-- /your.profile -->
+                            </g>
+                            <!-- URL selection rect (animates in for scene 2) -->
+                            <rect x="33" y="7.5" width="48" height="4" rx="0.5" fill="rgba(245,213,24,0.45)" class="fb-url-select"/>
+
+                            <!-- Scene 1: facebook.com loaded, profile header -->
+                            <g class="fb-scene fb-scene-d1">
+                              <!-- Page header strip -->
+                              <rect x="6" y="17" width="148" height="6" fill="#1f2440"/>
+                              <text x="9" y="22" fill="#f5d518" font-size="4.5" font-weight="800" font-family="Bebas Neue, sans-serif">f</text>
+                              <!-- Cover banner -->
+                              <rect x="6" y="25" width="148" height="22" rx="1" fill="#2a3055"/>
+                              <!-- Avatar -->
+                              <circle cx="22" cy="46" r="7" fill="#3a4275" stroke="#161a35" stroke-width="1.5"/>
+                              <!-- Name -->
+                              <rect x="33" y="49" width="32" height="3" rx="1" fill="#fff" fill-opacity="0.85"/>
+                              <rect x="33" y="54" width="22" height="2" rx="1" fill="#3a4275"/>
+                              <!-- Feed -->
+                              <rect x="6" y="64" width="100" height="20" rx="1.5" fill="#1f2440"/>
+                              <rect x="110" y="64" width="44" height="20" rx="1.5" fill="#1f2440"/>
+                            </g>
+
+                            <!-- Scene 2: URL selected, "Copy" cue -->
+                            <g class="fb-scene fb-scene-d2">
+                              <rect x="6" y="17" width="148" height="6" fill="#1f2440"/>
+                              <rect x="6" y="25" width="148" height="22" rx="1" fill="#2a3055"/>
+                              <circle cx="22" cy="46" r="7" fill="#3a4275" stroke="#161a35" stroke-width="1.5"/>
+                              <rect x="33" y="49" width="32" height="3" rx="1" fill="#fff" fill-opacity="0.85"/>
+                              <rect x="33" y="54" width="22" height="2" rx="1" fill="#3a4275"/>
+                              <rect x="6" y="64" width="100" height="20" rx="1.5" fill="#1f2440"/>
+                              <rect x="110" y="64" width="44" height="20" rx="1.5" fill="#1f2440"/>
+                              <!-- Keyboard combo hint -->
+                              <g class="fb-kbd">
+                                <rect x="98" y="20" width="22" height="8" rx="1.5" fill="#11142a" stroke="#f5d518" stroke-width="0.6"/>
+                                <text x="109" y="25.5" font-size="4" font-family="JetBrains Mono, monospace" font-weight="700" fill="#f5d518" text-anchor="middle">⌘ C</text>
+                                <rect x="122" y="20" width="32" height="8" rx="1.5" fill="#11142a" stroke="#f5d518" stroke-width="0.6"/>
+                                <text x="138" y="25.5" font-size="3.8" font-family="JetBrains Mono, monospace" font-weight="700" fill="#f5d518" text-anchor="middle">Ctrl + C</text>
+                              </g>
+                            </g>
+
+                            <!-- Scene 3: Copied toast + arrow down -->
+                            <g class="fb-scene fb-scene-d3">
+                              <rect x="6" y="17" width="148" height="67" fill="rgba(7,9,26,0.7)"/>
+                              <rect x="48" y="38" width="64" height="22" rx="6" fill="#11142a" stroke="#f5d518" stroke-width="0.8"/>
+                              <circle cx="60" cy="49" r="5" fill="#f5d518"/>
+                              <path d="M 57.5 49 L 59.5 51 L 62.5 47" stroke="#0a0a0a" stroke-width="1.5" fill="none" stroke-linecap="round" stroke-linejoin="round"/>
+                              <rect x="68" y="44.5" width="32" height="3" rx="1" fill="#ffffff"/>
+                              <rect x="68" y="50.5" width="22" height="2" rx="1" fill="#8b91b8"/>
+                              <path d="M 80 70 L 80 84 M 76 80 L 80 86 L 84 80" stroke="#f5d518" stroke-width="1.6" fill="none" stroke-linecap="round" stroke-linejoin="round" class="fb-paste-arrow"/>
+                            </g>
+
+                            <!-- Cursor + click pulse -->
+                            <g class="fb-tap fb-tap-desktop" aria-hidden="true">
+                              <circle r="6" fill="rgba(245,213,24,0.28)" class="fb-tap-ring"/>
+                              <circle r="2.6" fill="rgba(245,213,24,0.95)"/>
+                            </g>
+                          </svg>
+                        </div>
+                        <ol class="fb-help-steps" data-fb-panel="desktop">
+                          <li>
+                            <span class="material-symbols-outlined fb-help-step-icon">public</span>
+                            <span>Open <b>facebook.com</b>, then go to your <b>Profile</b>.</span>
+                          </li>
+                          <li>
+                            <span class="material-symbols-outlined fb-help-step-icon">content_copy</span>
+                            <span>Copy the URL from the <b>address bar</b>.</span>
+                          </li>
+                          <li>
+                            <span class="material-symbols-outlined fb-help-step-icon">content_paste</span>
+                            <span>Paste it into this field.</span>
+                          </li>
+                        </ol>
+                      </div>
                     </div>
                   </div>
                 </details>
@@ -527,7 +732,7 @@
             $t.classList.toggle("is-active", on);
             $t.setAttribute("aria-selected", on ? "true" : "false");
           });
-          $card.querySelectorAll(".fb-help-steps").forEach(($panel) => {
+          $card.querySelectorAll(".fb-help-panel").forEach(($panel) => {
             $panel.hidden = $panel.dataset.fbPanel !== target;
           });
         });
