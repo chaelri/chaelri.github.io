@@ -44,16 +44,38 @@
         inset 0 1px 0 rgba(255,255,255,0.06),
         0 18px 48px rgba(0,0,0,0.45);
     }
-    /* Scoped countdown sizing — kept tighter so the event-detail tiles below
-       can sit comfortably under the day/hr/min/sec rail. */
+    /* Scoped countdown sizing — small/compact since the wizard below it is the
+       main attraction. Numbers were eating half the viewport before. */
     .reg-countdown .count-num {
-      font-size: clamp(2.2rem, 8vw, 3.75rem) !important;
+      font-size: clamp(1.5rem, 5vw, 2.25rem) !important;
       line-height: 1;
     }
     .reg-countdown .count-label {
-      font-size: 0.7rem !important;
-      letter-spacing: 0.22em;
-      margin-top: 0.3rem;
+      font-size: 0.58rem !important;
+      letter-spacing: 0.2em;
+      margin-top: 0.2rem;
+    }
+    .reg-countdown #countdown { gap: 1rem !important; }
+    @media (min-width: 640px) {
+      .reg-countdown #countdown { gap: 1.25rem !important; }
+    }
+    /* Side-by-side: countdown on left, event details on right (≥sm). Stacks on phones. */
+    .reg-countdown-row {
+      margin-top: 0.75rem;
+      display: flex;
+      flex-direction: column;
+      align-items: center;
+      gap: 0.85rem;
+    }
+    .reg-event-meta { text-align: left; }
+    @media (min-width: 640px) {
+      .reg-countdown-row {
+        flex-direction: row;
+        justify-content: center;
+        align-items: center;
+        gap: 1.5rem;
+      }
+      .reg-countdown-left { flex-shrink: 0; }
     }
     /* Bigger ticket pill on the form card top-right. */
     #form-ticket {
@@ -163,20 +185,24 @@
 
     <!-- Form -->
     <div id="state-form" class="mt-6 hidden">
-      <!-- Countdown header: UNITE keyart + live DAYS/HRS/MIN/SEC tiles. -->
-      <div class="text-center mt-4 mb-6 reg-countdown">
-        <img src="assets/campus-unite-logo.png" alt="Campus UNITE — Elevate's 13th Anniversary" class="mx-auto h-24 sm:h-36 w-auto" />
-        <div class="text-[11px] uppercase tracking-[0.32em] text-mute font-extrabold-ui mt-6 mb-4">Countdown</div>
-        <div id="countdown" class="flex items-end justify-center gap-5 sm:gap-8">
-          <div class="count-tile"><div id="cd-days" class="count-num">--</div><div class="count-label">Days</div></div>
-          <div class="count-tile"><div id="cd-hrs"  class="count-num">--</div><div class="count-label">Hrs</div></div>
-          <div class="count-tile"><div id="cd-min"  class="count-num">--</div><div class="count-label">Min</div></div>
-          <div class="count-tile"><div id="cd-sec"  class="count-num">--</div><div class="count-label">Sec</div></div>
-        </div>
-        <!-- Compact event details — single text block under the countdown. -->
-        <div class="mt-5 text-soft text-sm sm:text-base leading-relaxed">
-          <div><span class="text-tape font-extrabold-ui">3:00 PM</span>, Friday, July 17, 2026</div>
-          <div>3F Parking Level, SM East Ortigas</div>
+      <!-- Countdown header: UNITE keyart on top, then countdown tiles next to
+           the event details (date/time/location) on wider viewports. -->
+      <div class="mt-3 mb-4 reg-countdown text-center">
+        <img src="assets/campus-unite-logo.png" alt="Campus UNITE — Elevate's 13th Anniversary" class="mx-auto h-14 sm:h-20 w-auto" />
+        <div class="reg-countdown-row">
+          <div class="reg-countdown-left">
+            <div class="text-[9px] uppercase tracking-[0.28em] text-mute font-extrabold-ui mb-2">Countdown</div>
+            <div id="countdown" class="flex items-end justify-center gap-4 sm:gap-5">
+              <div class="count-tile"><div id="cd-days" class="count-num">--</div><div class="count-label">Days</div></div>
+              <div class="count-tile"><div id="cd-hrs"  class="count-num">--</div><div class="count-label">Hrs</div></div>
+              <div class="count-tile"><div id="cd-min"  class="count-num">--</div><div class="count-label">Min</div></div>
+              <div class="count-tile"><div id="cd-sec"  class="count-num">--</div><div class="count-label">Sec</div></div>
+            </div>
+          </div>
+          <div class="reg-event-meta text-ink text-sm sm:text-base leading-relaxed font-extrabold-ui">
+            <div><span class="text-tape">3:00 PM</span>, Friday, July 17, 2026</div>
+            <div>3F Parking Level, SM East Ortigas</div>
+          </div>
         </div>
       </div>
 
@@ -195,32 +221,97 @@
         </div>
 
         <form id="reg-form" class="mt-6 grid gap-4" novalidate>
-          <div>
-            <label class="field-label" for="f-name">Full name</label>
-            <input id="f-name" name="name" type="text" required autocomplete="name" class="input" placeholder="Juan Dela Cruz" />
-            <div id="f-name-err" class="field-err hidden"></div>
+          <!-- Progress dots — rendered dynamically by the wizard engine. -->
+          <div id="wiz-progress" class="wiz-progress" aria-label="Registration progress"></div>
+
+          <!-- Step 1: First timer? -->
+          <div class="wiz-step" data-wiz-step="first">
+            <h3 class="wiz-title">Is this your first time joining us at Elevate?</h3>
+            <p class="wiz-sub">So we know how to welcome you.</p>
+            <div class="wiz-choice-grid">
+              <button type="button" class="wiz-choice" data-wiz-choose-field="firstTimer" data-wiz-choose-value="yes" data-wiz-advance="profile">
+                <span class="material-symbols-outlined wiz-choice-icon">celebration</span>
+                <div class="wiz-choice-label">Yes, first time!</div>
+                <div class="wiz-choice-sub">This is my first Elevate.</div>
+              </button>
+              <button type="button" class="wiz-choice" data-wiz-choose-field="firstTimer" data-wiz-choose-value="no" data-wiz-advance="dgroup">
+                <span class="material-symbols-outlined wiz-choice-icon">how_to_reg</span>
+                <div class="wiz-choice-label">No, I've been before</div>
+                <div class="wiz-choice-sub">I've attended Elevate before.</div>
+              </button>
+            </div>
+            <input type="hidden" id="f-first" name="firstTimer" value="" />
+            <div id="f-first-err" class="field-err hidden"></div>
           </div>
-          <div class="grid grid-cols-2 gap-3">
+
+          <!-- Step 2: Dgroup? (only when not a first timer) -->
+          <div class="wiz-step" data-wiz-step="dgroup" hidden>
+            <h3 class="wiz-title">Do you have a Dgroup leader?</h3>
+            <p class="wiz-sub">So we know if you're already connected to a community.</p>
+            <div class="wiz-choice-grid">
+              <button type="button" class="wiz-choice" data-wiz-choose-field="hasDgroup" data-wiz-choose-value="yes">
+                <span class="material-symbols-outlined wiz-choice-icon">groups</span>
+                <div class="wiz-choice-label">Yes, I have one</div>
+                <div class="wiz-choice-sub">I have a Dgroup leader.</div>
+              </button>
+              <button type="button" class="wiz-choice" data-wiz-choose-field="hasDgroup" data-wiz-choose-value="no" data-wiz-advance="profile">
+                <span class="material-symbols-outlined wiz-choice-icon">person_search</span>
+                <div class="wiz-choice-label">Not yet</div>
+                <div class="wiz-choice-sub">I don't have one yet.</div>
+              </button>
+            </div>
+            <input type="hidden" id="f-dgroup" name="hasDgroup" value="" />
+            <div id="f-dgroup-err" class="field-err hidden"></div>
+
+            <!-- Conditional leader-name field; revealed when hasDgroup = yes. -->
+            <div id="f-dgroup-leader-wrap" class="hidden">
+              <label class="field-label" for="f-dgroup-leader">Who's your Dgroup leader?</label>
+              <input id="f-dgroup-leader" name="dgroupLeader" type="text" class="input" placeholder="Their full name" />
+              <div id="f-dgroup-leader-err" class="field-err hidden"></div>
+            </div>
+          </div>
+
+          <!-- Step 3: Profile -->
+          <div class="wiz-step" data-wiz-step="profile" hidden>
+            <h3 class="wiz-title">Tell us about you.</h3>
+            <p class="wiz-sub">Basic details for your ticket.</p>
             <div>
-              <label class="field-label" for="f-age">Age</label>
-              <input id="f-age" name="age" type="number" required min="5" max="120" inputmode="numeric" class="input" placeholder="18" />
-              <div id="f-age-err" class="field-err hidden"></div>
+              <label class="field-label" for="f-name">Full name</label>
+              <input id="f-name" name="name" type="text" required autocomplete="name" class="input" placeholder="Juan Dela Cruz" />
+              <div id="f-name-err" class="field-err hidden"></div>
+            </div>
+            <div class="grid grid-cols-2 gap-3">
+              <div>
+                <label class="field-label" for="f-age">Age</label>
+                <input id="f-age" name="age" type="number" required min="5" max="120" inputmode="numeric" class="input" placeholder="18" />
+                <div id="f-age-err" class="field-err hidden"></div>
+              </div>
+              <div>
+                <label class="field-label" for="f-gender">Gender</label>
+                <select id="f-gender" name="gender" required class="select">
+                  <option value="" disabled selected>Select…</option>
+                  <option value="female">Female</option>
+                  <option value="male">Male</option>
+                </select>
+                <div id="f-gender-err" class="field-err hidden"></div>
+              </div>
             </div>
             <div>
-              <label class="field-label" for="f-gender">Gender</label>
-              <select id="f-gender" name="gender" required class="select">
-                <option value="" disabled selected>Select…</option>
-                <option value="female">Female</option>
-                <option value="male">Male</option>
-              </select>
-              <div id="f-gender-err" class="field-err hidden"></div>
+              <label class="field-label" for="f-school">School / University</label>
+              <input id="f-school" name="school" type="text" required class="input" placeholder="e.g. SLHS, MHS, NU East Ortigas" />
+              <div id="f-school-err" class="field-err hidden"></div>
             </div>
           </div>
-          <fieldset id="reach-group" class="reach-group">
-            <legend class="reach-legend">
-              <span class="material-symbols-outlined" style="font-size:14px;vertical-align:-2px;">forum</span>
-              How can we reach you?
-            </legend>
+
+          <!-- Step 4: Contact -->
+          <div class="wiz-step" data-wiz-step="contact" hidden>
+            <h3 class="wiz-title">How can we reach you?</h3>
+            <p class="wiz-sub">Both your Facebook link and contact number are required.</p>
+            <fieldset id="reach-group" class="reach-group">
+              <legend class="reach-legend">
+                <span class="material-symbols-outlined" style="font-size:14px;vertical-align:-2px;">forum</span>
+                How can we reach you?
+              </legend>
 
             <div>
               <div class="fb-label-row">
@@ -494,54 +585,39 @@
               <label class="field-label" for="f-contact">Contact number</label>
               <input id="f-contact" name="contact" type="tel" required inputmode="tel" autocomplete="tel" class="input" placeholder="09XX XXX XXXX" />
               <div class="text-[11px] text-mute mt-1.5 leading-snug">
-                Walang sariling cellphone number? Pwede yung cellphone number ng parents mo.
+                Don't have your own cellphone? Your parent's number is okay too.
               </div>
               <div id="f-contact-err" class="field-err hidden"></div>
             </div>
-          </fieldset>
-          <div>
-            <label class="field-label" for="f-school">School / University</label>
-            <input id="f-school" name="school" type="text" required class="input" placeholder="e.g. SLHS, MHS, NU East Ortigas" />
-            <div id="f-school-err" class="field-err hidden"></div>
+            </fieldset>
           </div>
 
-          <div class="grid grid-cols-1 sm:grid-cols-2 gap-3">
-            <div>
-              <label class="field-label" for="f-first">First timer sa Elevate?</label>
-              <select id="f-first" name="firstTimer" required class="select">
-                <option value="" disabled selected>Select…</option>
-                <option value="yes">Oo, first time</option>
-                <option value="no">Hindi, nakapag-attend na</option>
-              </select>
-              <div id="f-first-err" class="field-err hidden"></div>
-            </div>
-            <div>
-              <label class="field-label" for="f-dgroup">May Dgroup leader?</label>
-              <select id="f-dgroup" name="hasDgroup" required class="select">
-                <option value="" disabled selected>Select…</option>
-                <option value="yes">Meron na</option>
-                <option value="no">Wala pa</option>
-              </select>
-              <div id="f-dgroup-err" class="field-err hidden"></div>
+          <!-- Step 5: Review -->
+          <div class="wiz-step" data-wiz-step="review" hidden>
+            <h3 class="wiz-title">Review your details.</h3>
+            <p class="wiz-sub">Looking good? Tap any <em>Edit</em> to fix something.</p>
+            <div id="wiz-summary" class="grid gap-2.5"></div>
+            <div id="form-error" class="hidden text-sm px-3 py-2 rounded-lg" style="background:rgba(225,29,44,0.12); border:1px solid var(--red); color:#ffd1d6;"></div>
+            <div class="text-[11px] text-mute mt-1">
+              By tapping <b>Complete registration</b>, you consent to Elevate East Ortigas storing the info above for event coordination and raffle purposes.
             </div>
           </div>
 
-          <!-- Revealed only when "May Dgroup leader? = Meron na". Required in that branch. -->
-          <div id="f-dgroup-leader-wrap" class="hidden">
-            <label class="field-label" for="f-dgroup-leader">Dgroup leader name</label>
-            <input id="f-dgroup-leader" name="dgroupLeader" type="text" class="input" placeholder="e.g. Kuya Chan / Ate Maui" />
-            <div id="f-dgroup-leader-err" class="field-err hidden"></div>
-          </div>
-
-          <div id="form-error" class="hidden text-sm px-3 py-2 rounded-lg" style="background:rgba(225,29,44,0.12); border:1px solid var(--red); color:#ffd1d6;"></div>
-
-          <button id="btn-submit" type="submit" class="btn-primary justify-center mt-2 text-base">
-            <span class="material-symbols-outlined" style="font-size:20px">check_circle</span>
-            Complete registration
-          </button>
-
-          <div class="text-[11px] text-mute text-center mt-1">
-            By registering, you consent to Elevate East Ortigas storing the info above for event coordination and raffle purposes.
+          <!-- Wizard nav -->
+          <div class="wiz-nav">
+            <button type="button" id="wiz-back" class="btn-ghost wiz-back" hidden>
+              <span class="material-symbols-outlined" style="font-size:18px">arrow_back</span>
+              Back
+            </button>
+            <div class="wiz-back-spacer"></div>
+            <button type="button" id="wiz-next" class="btn-tape wiz-next" hidden>
+              Next
+              <span class="material-symbols-outlined" style="font-size:18px">arrow_forward</span>
+            </button>
+            <button type="submit" id="btn-submit" class="btn-primary wiz-submit" hidden>
+              <span class="material-symbols-outlined" style="font-size:20px">check_circle</span>
+              Complete registration
+            </button>
           </div>
         </form>
       </div>
@@ -720,13 +796,13 @@
     }
 
     // Toggle the Dgroup-leader-name field's visibility + required-ness based on
-    // the yes/no Dgroup select. "Meron na" → reveal + require; "Wala pa" → hide.
+    // the current hidden f-dgroup value. "yes" → reveal + require; "no" → hide.
     function syncDgroupLeaderField() {
-      const $sel  = document.getElementById("f-dgroup");
-      const $wrap = document.getElementById("f-dgroup-leader-wrap");
-      const $inp  = document.getElementById("f-dgroup-leader");
-      if (!$sel || !$wrap || !$inp) return;
-      const show = $sel.value === "yes";
+      const $inpFlag = document.getElementById("f-dgroup");
+      const $wrap    = document.getElementById("f-dgroup-leader-wrap");
+      const $inp     = document.getElementById("f-dgroup-leader");
+      if (!$inpFlag || !$wrap || !$inp) return;
+      const show = $inpFlag.value === "yes";
       $wrap.classList.toggle("hidden", !show);
       if (show) $inp.setAttribute("required", "required");
       else {
@@ -735,8 +811,271 @@
         setFieldError("f-dgroup-leader", null);
       }
     }
-    document.addEventListener("DOMContentLoaded", syncDgroupLeaderField);
-    document.getElementById("f-dgroup")?.addEventListener("change", syncDgroupLeaderField);
+
+    // =====================================================================
+    // Wizard engine — drives the multi-step register flow inside #reg-form.
+    // Visible steps depend on the firstTimer answer:
+    //   yes → [first, profile, contact, review]   (4 dots)
+    //   no  → [first, dgroup, profile, contact, review]   (5 dots)
+    // Binary picks auto-advance. Profile/Contact use Next. Review submits.
+    // =====================================================================
+    const Wiz = (() => {
+      const STEP_ORDER_FIRST = ["first", "dgroup", "profile", "contact", "review"];
+      const $form     = document.getElementById("reg-form");
+      const $progress = document.getElementById("wiz-progress");
+      const $back     = document.getElementById("wiz-back");
+      const $next     = document.getElementById("wiz-next");
+      const $submit   = document.getElementById("btn-submit");
+
+      const state = { current: "first" };
+
+      // Build the visible step list off the current firstTimer hidden value.
+      function visibleSteps() {
+        const ft = document.getElementById("f-first")?.value;
+        return ft === "yes"
+          ? STEP_ORDER_FIRST.filter(s => s !== "dgroup")
+          : STEP_ORDER_FIRST;
+      }
+
+      function $step(name) {
+        return $form.querySelector(`.wiz-step[data-wiz-step="${name}"]`);
+      }
+
+      function renderProgress() {
+        const steps = visibleSteps();
+        const idx = Math.max(0, steps.indexOf(state.current));
+        const dots = steps.map((s, i) => {
+          let cls = "wiz-dot";
+          if (i < idx)      cls += " is-done";
+          else if (i === idx) cls += " is-active";
+          const inside = i < idx
+            ? `<span class="material-symbols-outlined">check</span>`
+            : `${i + 1}`;
+          const tabIndex = i < idx ? "0" : "-1";
+          const aria = i < idx ? `aria-label="Go back to step ${i + 1}"` : "";
+          return `<button type="button" class="${cls}" data-wiz-jump="${s}" tabindex="${tabIndex}" ${aria}>${inside}</button>`;
+        });
+        // Inject connectors between dots.
+        const html = dots.map((d, i) => {
+          if (i === 0) return d;
+          const done = i <= idx;
+          return `<span class="wiz-connector${done ? " is-done" : ""}"></span>${d}`;
+        }).join("");
+        $progress.innerHTML = html;
+      }
+
+      function renderNav() {
+        const steps = visibleSteps();
+        const idx = steps.indexOf(state.current);
+        // Back is hidden on step 1.
+        $back.hidden = idx <= 0;
+        // Next vs Submit — submit only on the review step.
+        const onReview = state.current === "review";
+        $next.hidden   = onReview;
+        $submit.hidden = !onReview;
+        // Step 1 + 2 (first / dgroup) advance via choice buttons. Hide Next so
+        // users don't see a dead button. They still need Back if they came back.
+        if (state.current === "first" || state.current === "dgroup") {
+          // Only hide Next if the user hasn't picked yet — once a choice is
+          // selected the engine auto-advances anyway, so Next never matters.
+          $next.hidden = true;
+        }
+      }
+
+      // Returns true if the current step's fields validate; paints errors otherwise.
+      function validateCurrent() {
+        const step = state.current;
+        const bad = [];
+        if (step === "first") {
+          const v = document.getElementById("f-first").value;
+          if (!v) { setFieldError("f-first", "Please pick one."); bad.push("f-first"); }
+        } else if (step === "dgroup") {
+          const v = document.getElementById("f-dgroup").value;
+          if (!v) { setFieldError("f-dgroup", "Please pick one."); bad.push("f-dgroup"); }
+          else if (v === "yes") {
+            const leader = document.getElementById("f-dgroup-leader").value.trim();
+            if (!leader) {
+              setFieldError("f-dgroup-leader", "Please type your Dgroup leader's name.");
+              bad.push("f-dgroup-leader");
+            }
+          }
+        } else if (step === "profile") {
+          const name = document.getElementById("f-name").value.trim();
+          const ageRaw = document.getElementById("f-age").value.trim();
+          const age    = parseInt(ageRaw, 10);
+          const gender = document.getElementById("f-gender").value;
+          const school = document.getElementById("f-school").value.trim();
+          if (!name)   { setFieldError("f-name",   "Your full name is required."); bad.push("f-name"); }
+          if (!ageRaw) { setFieldError("f-age",    "Age is required.");           bad.push("f-age"); }
+          else if (!Number.isFinite(age))      { setFieldError("f-age", "Age must be a number.");          bad.push("f-age"); }
+          else if (age < 5 || age > 120)       { setFieldError("f-age", "Age must be between 5 and 120."); bad.push("f-age"); }
+          if (!gender) { setFieldError("f-gender", "Pick one.");                   bad.push("f-gender"); }
+          if (!school) { setFieldError("f-school", "Your school is required.");    bad.push("f-school"); }
+        } else if (step === "contact") {
+          const fb      = document.getElementById("f-fb").value.trim();
+          const contact = document.getElementById("f-contact").value.trim();
+          if (!fb) { setFieldError("f-fb", "Facebook link is required."); bad.push("f-fb"); }
+          else if (!isFacebookUrl(fb)) {
+            setFieldError("f-fb", "Doesn't look like a Facebook link. Try facebook.com/your.profile.");
+            bad.push("f-fb");
+          }
+          if (!contact) { setFieldError("f-contact", "Contact number is required."); bad.push("f-contact"); }
+        }
+        if (bad.length) {
+          bad.forEach(id => shake(document.getElementById(id)));
+          const $first = document.getElementById(bad[0]);
+          if ($first && !$first.matches("[type=hidden]")) $first.focus({ preventScroll: false });
+          return false;
+        }
+        return true;
+      }
+
+      function go(name, { skipValidation = false } = {}) {
+        if (!skipValidation && !validateCurrent()) return;
+        const $cur = $step(state.current);
+        if ($cur) $cur.hidden = true;
+        state.current = name;
+        const $nxt = $step(name);
+        if ($nxt) {
+          $nxt.hidden = false;
+          $nxt.classList.remove("is-entering");
+          void $nxt.offsetWidth;
+          $nxt.classList.add("is-entering");
+        }
+        renderProgress();
+        renderNav();
+        if (name === "review") renderSummary();
+        // Scroll the wizard area into view so the user always lands at the top
+        // of the new step instead of mid-page from the previous content.
+        try { $form.scrollIntoView({ behavior: "smooth", block: "start" }); } catch {}
+      }
+
+      function next() {
+        const steps = visibleSteps();
+        const idx = steps.indexOf(state.current);
+        const target = steps[idx + 1];
+        if (target) go(target);
+      }
+
+      function back() {
+        const steps = visibleSteps();
+        const idx = steps.indexOf(state.current);
+        const target = steps[idx - 1];
+        if (target) go(target, { skipValidation: true });
+      }
+
+      function jump(name) {
+        const steps = visibleSteps();
+        const targetIdx = steps.indexOf(name);
+        const curIdx    = steps.indexOf(state.current);
+        // Only allow backward jumps (no skipping ahead past unvalidated steps).
+        if (targetIdx >= 0 && targetIdx < curIdx) go(name, { skipValidation: true });
+      }
+
+      function chooseValue(field, value, advanceTo) {
+        const $inp = document.getElementById(field === "firstTimer" ? "f-first" : "f-dgroup");
+        if (!$inp) return;
+        $inp.value = value;
+        // Reflect selection visually.
+        $form.querySelectorAll(`.wiz-choice[data-wiz-choose-field="${field}"]`).forEach($btn => {
+          $btn.classList.toggle("is-selected", $btn.dataset.wizChooseValue === value);
+        });
+        setFieldError($inp.id, null);
+        if (field === "hasDgroup") syncDgroupLeaderField();
+        // If user said "first timer = yes", make sure stale dgroup answers don't linger.
+        if (field === "firstTimer" && value === "yes") {
+          const $d = document.getElementById("f-dgroup");
+          const $dl = document.getElementById("f-dgroup-leader");
+          if ($d) $d.value = "";
+          if ($dl) $dl.value = "";
+          syncDgroupLeaderField();
+          $form.querySelectorAll(`.wiz-choice[data-wiz-choose-field="hasDgroup"]`)
+            .forEach($btn => $btn.classList.remove("is-selected"));
+        }
+        if (advanceTo) {
+          // Brief delay so the user sees the "selected" state pop before transitioning.
+          setTimeout(() => go(advanceTo), 180);
+        }
+      }
+
+      // Build the read-only summary cards on the review step.
+      function renderSummary() {
+        const get = (id) => (document.getElementById(id)?.value || "").trim();
+        const ft       = document.getElementById("f-first").value;
+        const hd       = document.getElementById("f-dgroup").value;
+        const leader   = get("f-dgroup-leader");
+        const name     = get("f-name");
+        const age      = get("f-age");
+        const gender   = get("f-gender");
+        const school   = get("f-school");
+        const fbLink   = get("f-fb");
+        const contact  = get("f-contact");
+        const fmtFt    = ft === "yes" ? "Yes — first time" : ft === "no" ? "No — been before" : "—";
+        const fmtHd    = ft === "yes"
+          ? "Not asked (first timer)"
+          : hd === "yes" ? `Yes — ${esc(leader || "(no name yet)")}` : hd === "no" ? "Not yet" : "—";
+        const fmtGen   = gender === "female" ? "Female" : gender === "male" ? "Male" : "—";
+
+        const card = (icon, label, valueHtml, jumpTo) => `
+          <div class="wiz-summary-card">
+            <span class="material-symbols-outlined wiz-summary-icon">${icon}</span>
+            <div class="wiz-summary-body">
+              <div class="wiz-summary-label">${label}</div>
+              <div class="wiz-summary-value">${valueHtml}</div>
+            </div>
+            <button type="button" class="wiz-summary-edit" data-wiz-jump="${jumpTo}">
+              <span class="material-symbols-outlined">edit</span> Edit
+            </button>
+          </div>`;
+
+        const cards = [];
+        cards.push(card("celebration", "Elevate first timer?", esc(fmtFt), "first"));
+        if (ft === "no") {
+          cards.push(card("groups", "Dgroup leader", fmtHd, "dgroup"));
+        }
+        cards.push(card("badge", "Profile",
+          `<div class="row"><span><b>${esc(name) || "—"}</b></span></div>
+           <div class="row text-mute" style="color:var(--ink-mute);font-size:0.83rem;">
+             <span>Age ${esc(age) || "—"}</span><span>${esc(fmtGen)}</span><span>${esc(school) || "—"}</span>
+           </div>`, "profile"));
+        cards.push(card("forum", "Contact",
+          `<div class="row"><span>${esc(fbLink) ? `<a href="${esc(fbLink)}" target="_blank" rel="noopener" style="color:var(--tape);">${esc(fbLink)}</a>` : "—"}</span></div>
+           <div class="row text-mute" style="color:var(--ink-mute);font-size:0.83rem;">
+             <span>${esc(contact) || "—"}</span>
+           </div>`, "contact"));
+        document.getElementById("wiz-summary").innerHTML = cards.join("");
+      }
+      function esc(s) {
+        return String(s == null ? "" : s).replace(/[&<>"']/g, m => ({"&":"&amp;","<":"&lt;",">":"&gt;","\"":"&quot;","'":"&#39;"}[m]));
+      }
+
+      // Wire choice buttons + nav buttons + progress dots (delegated).
+      $form.addEventListener("click", (e) => {
+        const choice = e.target.closest(".wiz-choice");
+        if (choice) {
+          const field   = choice.dataset.wizChooseField;
+          const value   = choice.dataset.wizChooseValue;
+          const advance = choice.dataset.wizAdvance || "";
+          chooseValue(field, value, advance);
+          return;
+        }
+        const jumpBtn = e.target.closest("[data-wiz-jump]");
+        if (jumpBtn) { jump(jumpBtn.dataset.wizJump); return; }
+      });
+      $next.addEventListener("click", next);
+      $back.addEventListener("click", back);
+
+      // Public reset: called whenever the form first appears (loadTicket success).
+      function reset() {
+        state.current = "first";
+        // Hide every step then show step 1.
+        $form.querySelectorAll(".wiz-step").forEach($s => { $s.hidden = $s.dataset.wizStep !== "first"; });
+        renderProgress();
+        renderNav();
+      }
+
+      return { reset, next, back, jump, go, validateCurrent };
+    })();
 
     const idPattern = /^ECU-\d{4}$/;
     const params = new URLSearchParams(window.location.search);
@@ -1059,6 +1398,7 @@
         }
         document.getElementById("form-ticket").textContent = id;
         show($form);
+        Wiz.reset();
         document.getElementById("reg-form").addEventListener("submit", (e) => onSubmit(e, id));
       } catch (err) {
         console.error(err);
@@ -1096,13 +1436,19 @@
       else if (data.age < 5 || data.age > 120){ setFieldError("f-age", "Age must be between 5 and 120.");  bad.push("f-age"); }
       if (!data.gender) { setFieldError("f-gender", "Pick one.");                    bad.push("f-gender"); }
       if (!data.school) { setFieldError("f-school", "Your school is required.");    bad.push("f-school"); }
-      if (!data.firstTimer) { setFieldError("f-first",  "Pick one.");               bad.push("f-first"); }
-      if (!data.hasDgroup)  { setFieldError("f-dgroup", "Pick one.");               bad.push("f-dgroup"); }
-      else if (data.hasDgroup === "yes" && !data.dgroupLeader) {
-        setFieldError("f-dgroup-leader", "Sino ang Dgroup leader mo?");
+      if (!data.firstTimer) { setFieldError("f-first",  "Pick one."); bad.push("f-first"); }
+      // First timers skip the Dgroup step entirely; persist hasDgroup="no" for them.
+      if (data.firstTimer === "yes") {
+        data.hasDgroup = "no";
+        data.dgroupLeader = "";
+      } else if (!data.hasDgroup) {
+        setFieldError("f-dgroup", "Pick one.");
+        bad.push("f-dgroup");
+      } else if (data.hasDgroup === "yes" && !data.dgroupLeader) {
+        setFieldError("f-dgroup-leader", "Please type your Dgroup leader's name.");
         bad.push("f-dgroup-leader");
       }
-      // Drop the leader name if the user said "Wala pa" — keeps the record clean.
+      // Drop the leader name if the user said "Not yet" — keeps the record clean.
       if (data.hasDgroup !== "yes") data.dgroupLeader = "";
 
       // Reach-you pair: BOTH FB link and contact are required now (per Kuya Chan).
@@ -1121,8 +1467,19 @@
 
       if (bad.length) {
         bad.forEach(id => shake(document.getElementById(id)));
-        const $first = document.getElementById(bad[0]);
-        if ($first) $first.focus({ preventScroll: false });
+        // Jump back to the first wizard step that owns a broken field — the user
+        // can't see inline errors on the review screen, so route them to the
+        // step where the field actually lives.
+        const FIELD_TO_STEP = {
+          "f-first": "first",
+          "f-dgroup": "dgroup", "f-dgroup-leader": "dgroup",
+          "f-name": "profile", "f-age": "profile", "f-gender": "profile", "f-school": "profile",
+          "f-fb": "contact", "f-contact": "contact",
+        };
+        const stepName = FIELD_TO_STEP[bad[0]] || null;
+        if (stepName && typeof Wiz !== "undefined") Wiz.go(stepName, { skipValidation: true });
+        const $firstBad = document.getElementById(bad[0]);
+        if ($firstBad && !$firstBad.matches("[type=hidden]")) $firstBad.focus({ preventScroll: false });
         $err.textContent = bad.length === 1
           ? "Please fix the highlighted field."
           : `Please fix the ${bad.length} highlighted fields.`;

@@ -1834,3 +1834,212 @@ body.raffle-focused .raffle-display {
   outline: 2px solid var(--ink);
   outline-offset: 2px;
 }
+
+/* =================================================================
+   REGISTER WIZARD — multi-step register.html form
+   Big yellow choice buttons, dot progress, slide step transitions.
+   ================================================================= */
+.wiz-progress {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  gap: 0;
+  margin: 0 auto 1.5rem;
+  max-width: 320px;
+}
+.wiz-dot {
+  width: 30px;
+  height: 30px;
+  border-radius: 50%;
+  border: 2px solid var(--line);
+  background: var(--bg-elev);
+  color: var(--ink-mute);
+  font-family: "Blauer Nue", "Inter", sans-serif;
+  font-weight: 800;
+  font-size: 0.78rem;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  cursor: not-allowed;
+  flex-shrink: 0;
+  transition: background .25s ease, border-color .25s ease, color .25s ease, transform .25s ease;
+}
+.wiz-dot.is-done {
+  background: var(--tape);
+  border-color: var(--tape);
+  color: var(--on-tape);
+  cursor: pointer;
+}
+.wiz-dot.is-done:hover { transform: scale(1.08); }
+.wiz-dot.is-active {
+  background: var(--tape);
+  border-color: var(--tape);
+  color: var(--on-tape);
+  box-shadow: 0 0 0 4px rgba(245,213,24,0.18);
+}
+.wiz-dot .material-symbols-outlined { font-size: 16px; }
+.wiz-connector {
+  flex: 1;
+  height: 2px;
+  background: var(--line);
+  min-width: 14px;
+  max-width: 36px;
+  transition: background .25s ease;
+}
+.wiz-connector.is-done { background: var(--tape); }
+
+/* Each wizard step container. Hidden by default; engine toggles [hidden]. */
+.wiz-step { display: grid; gap: 1rem; }
+.wiz-step[hidden] { display: none !important; }
+
+.wiz-title {
+  font-family: "Bebas Neue", sans-serif;
+  font-size: clamp(1.7rem, 5.5vw, 2.2rem);
+  line-height: 1.05;
+  letter-spacing: 0.01em;
+  color: var(--ink);
+  margin: 0;
+}
+.wiz-sub {
+  color: var(--ink-soft);
+  font-size: 0.92rem;
+  margin: -0.3rem 0 0;
+}
+
+/* Big yes/no choice cards. Two side-by-side on sm+, stacked on phones. */
+.wiz-choice-grid {
+  display: grid;
+  gap: 0.7rem;
+  grid-template-columns: 1fr;
+}
+@media (min-width: 480px) {
+  .wiz-choice-grid { grid-template-columns: 1fr 1fr; }
+}
+.wiz-choice {
+  background: var(--bg-elev);
+  border: 1px solid var(--line);
+  border-radius: 0.85rem;
+  padding: 1.1rem 1rem;
+  display: grid;
+  justify-items: center;
+  gap: 0.35rem;
+  cursor: pointer;
+  color: var(--ink);
+  transition: border-color .18s ease, background .18s ease, transform .12s ease, box-shadow .18s ease;
+  text-align: center;
+}
+.wiz-choice:hover {
+  border-color: var(--tape);
+  background: rgba(245,213,24,0.06);
+  transform: translateY(-1px);
+}
+.wiz-choice:active { transform: translateY(0); }
+.wiz-choice.is-selected {
+  border-color: var(--tape);
+  background: rgba(245,213,24,0.12);
+  box-shadow: inset 0 0 0 1px var(--tape), 0 0 0 4px rgba(245,213,24,0.15);
+}
+.wiz-choice-icon {
+  font-size: 36px !important;
+  color: var(--tape);
+}
+.wiz-choice.is-selected .wiz-choice-icon { color: var(--tape); }
+.wiz-choice-label {
+  font-family: "Blauer Nue", sans-serif;
+  font-weight: 800;
+  font-size: 0.95rem;
+  text-transform: uppercase;
+  letter-spacing: 0.04em;
+  color: var(--ink);
+}
+.wiz-choice-sub {
+  font-size: 0.78rem;
+  color: var(--ink-mute);
+  line-height: 1.3;
+}
+
+/* Bottom nav bar inside the card. */
+.wiz-nav {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 0.6rem;
+  margin-top: 0.4rem;
+  padding-top: 1rem;
+  border-top: 1px solid var(--line-soft);
+}
+.wiz-nav .wiz-back { padding: 0.55rem 0.9rem; font-size: 0.85rem; }
+.wiz-nav .wiz-next,
+.wiz-nav .wiz-submit { padding: 0.7rem 1.2rem; font-size: 0.9rem; }
+.wiz-nav .wiz-back[hidden],
+.wiz-nav .wiz-next[hidden],
+.wiz-nav .wiz-submit[hidden] { display: none !important; }
+/* When Back is hidden, push Next to the right. */
+.wiz-nav .wiz-back-spacer { flex: 1; }
+
+/* Summary cards on the review step. */
+.wiz-summary-card {
+  display: flex;
+  align-items: flex-start;
+  gap: 0.85rem;
+  background: var(--bg-elev);
+  border: 1px solid var(--line);
+  border-radius: 0.7rem;
+  padding: 0.85rem 0.95rem;
+}
+.wiz-summary-card .wiz-summary-icon {
+  font-size: 22px !important;
+  color: var(--tape);
+  flex-shrink: 0;
+  margin-top: 2px;
+}
+.wiz-summary-card .wiz-summary-body { flex: 1; min-width: 0; }
+.wiz-summary-card .wiz-summary-label {
+  font-size: 0.65rem;
+  text-transform: uppercase;
+  letter-spacing: 0.14em;
+  color: var(--ink-mute);
+  font-family: "Blauer Nue", sans-serif;
+  font-weight: 800;
+  margin-bottom: 0.2rem;
+}
+.wiz-summary-card .wiz-summary-value {
+  color: var(--ink);
+  font-size: 0.95rem;
+  line-height: 1.35;
+  word-break: break-word;
+}
+.wiz-summary-card .wiz-summary-value .row {
+  display: flex; gap: 0.4rem 0.7rem; flex-wrap: wrap;
+}
+.wiz-summary-card .wiz-summary-value .row span { display: inline-block; }
+.wiz-summary-card .wiz-summary-edit {
+  border: 1px solid var(--line);
+  background: transparent;
+  color: var(--ink-mute);
+  border-radius: 0.5rem;
+  padding: 0.3rem 0.55rem;
+  font-size: 0.7rem;
+  text-transform: uppercase;
+  letter-spacing: 0.08em;
+  font-weight: 800;
+  font-family: "Blauer Nue", sans-serif;
+  cursor: pointer;
+  display: inline-flex;
+  align-items: center;
+  gap: 0.25rem;
+  flex-shrink: 0;
+  transition: color .15s ease, border-color .15s ease;
+}
+.wiz-summary-card .wiz-summary-edit:hover { color: var(--tape); border-color: var(--tape); }
+.wiz-summary-card .wiz-summary-edit .material-symbols-outlined { font-size: 14px !important; }
+
+/* Slide-in animation when a step becomes active. */
+@keyframes wiz-step-in {
+  from { opacity: 0; transform: translateY(8px); }
+  to   { opacity: 1; transform: translateY(0);  }
+}
+.wiz-step.is-entering { animation: wiz-step-in .25s ease-out; }
+@media (prefers-reduced-motion: reduce) {
+  .wiz-step.is-entering { animation: none; }
+}
