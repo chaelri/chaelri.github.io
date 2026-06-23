@@ -287,13 +287,32 @@ html, body {
   color: var(--ink);
   font-size: 1rem;
   font-family: inherit;
-  transition: border-color 0.12s ease, box-shadow 0.12s ease;
+  transition:
+    border-color 0.18s ease,
+    box-shadow 0.18s ease,
+    transform 0.25s cubic-bezier(0.22, 1, 0.36, 1);
+  transform-origin: center;
 }
 .input::placeholder { color: var(--ink-mute); }
+.input:hover:not(:focus):not(:disabled),
+.select:hover:not(:focus):not(:disabled) {
+  border-color: rgba(245, 213, 24, 0.45);
+  transform: translateY(-1px);
+}
 .input:focus, .select:focus {
   outline: none;
   border-color: var(--tape);
-  box-shadow: 0 0 0 3px rgba(245, 213, 24, 0.2);
+  box-shadow: 0 0 0 4px rgba(245, 213, 24, 0.25);
+  animation: input-pop 0.4s cubic-bezier(0.22, 1, 0.36, 1);
+}
+@keyframes input-pop {
+  0%   { transform: scale(1); }
+  45%  { transform: scale(1.012); }
+  100% { transform: scale(1); }
+}
+@media (prefers-reduced-motion: reduce) {
+  .input:focus, .select:focus { animation: none; }
+  .input:hover, .select:hover { transform: none; }
 }
 .input.input-error, .select.input-error {
   border-color: var(--red);
