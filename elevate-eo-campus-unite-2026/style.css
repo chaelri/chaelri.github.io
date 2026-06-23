@@ -452,8 +452,94 @@ html, body {
   font-size: 18px !important;
   color: var(--tape);
   justify-self: center;
+  transform-origin: center;
 }
 .fb-help-steps b { color: var(--tape); font-weight: 700; }
+
+/* ============================================================
+   Auto-walkthrough animation
+   Each step's number circle + icon lights up in sequence on a
+   continuous loop, so the help card feels like a guided tutorial
+   rather than a static list. Pauses on hover so users can read
+   at their own pace; reduced-motion users see nothing animate.
+   ============================================================ */
+@keyframes fb-walk-circle-4 {
+  0%, 25%, 100% {
+    transform: scale(1);
+    background: rgba(245, 213, 24, 0.16);
+    border-color: rgba(245, 213, 24, 0.45);
+    color: var(--tape);
+    box-shadow: none;
+  }
+  6%, 19% {
+    transform: scale(1.18);
+    background: var(--tape);
+    border-color: var(--tape);
+    color: var(--on-tape, #0a0a0a);
+    box-shadow: 0 0 0 5px rgba(245, 213, 24, 0.22);
+  }
+}
+@keyframes fb-walk-circle-3 {
+  0%, 33%, 100% {
+    transform: scale(1);
+    background: rgba(245, 213, 24, 0.16);
+    border-color: rgba(245, 213, 24, 0.45);
+    color: var(--tape);
+    box-shadow: none;
+  }
+  8%, 26% {
+    transform: scale(1.18);
+    background: var(--tape);
+    border-color: var(--tape);
+    color: var(--on-tape, #0a0a0a);
+    box-shadow: 0 0 0 5px rgba(245, 213, 24, 0.22);
+  }
+}
+@keyframes fb-walk-icon-4 {
+  0%, 25%, 100% { transform: scale(1); filter: none; }
+  6%, 19% { transform: scale(1.25); filter: drop-shadow(0 0 6px rgba(245, 213, 24, 0.55)); }
+}
+@keyframes fb-walk-icon-3 {
+  0%, 33%, 100% { transform: scale(1); filter: none; }
+  8%, 26% { transform: scale(1.25); filter: drop-shadow(0 0 6px rgba(245, 213, 24, 0.55)); }
+}
+
+/* Mobile panel — 4 steps × 1.25s = 5s loop. */
+.fb-help-steps[data-fb-panel="mobile"] li::before { animation: fb-walk-circle-4 5s infinite ease-in-out; }
+.fb-help-steps[data-fb-panel="mobile"] li:nth-child(1)::before { animation-delay: 0s; }
+.fb-help-steps[data-fb-panel="mobile"] li:nth-child(2)::before { animation-delay: 1.25s; }
+.fb-help-steps[data-fb-panel="mobile"] li:nth-child(3)::before { animation-delay: 2.5s; }
+.fb-help-steps[data-fb-panel="mobile"] li:nth-child(4)::before { animation-delay: 3.75s; }
+
+.fb-help-steps[data-fb-panel="mobile"] .fb-help-step-icon { animation: fb-walk-icon-4 5s infinite ease-in-out; }
+.fb-help-steps[data-fb-panel="mobile"] li:nth-child(1) .fb-help-step-icon { animation-delay: 0s; }
+.fb-help-steps[data-fb-panel="mobile"] li:nth-child(2) .fb-help-step-icon { animation-delay: 1.25s; }
+.fb-help-steps[data-fb-panel="mobile"] li:nth-child(3) .fb-help-step-icon { animation-delay: 2.5s; }
+.fb-help-steps[data-fb-panel="mobile"] li:nth-child(4) .fb-help-step-icon { animation-delay: 3.75s; }
+
+/* Desktop panel — 3 steps × 1.25s = 3.75s loop. */
+.fb-help-steps[data-fb-panel="desktop"] li::before { animation: fb-walk-circle-3 3.75s infinite ease-in-out; }
+.fb-help-steps[data-fb-panel="desktop"] li:nth-child(1)::before { animation-delay: 0s; }
+.fb-help-steps[data-fb-panel="desktop"] li:nth-child(2)::before { animation-delay: 1.25s; }
+.fb-help-steps[data-fb-panel="desktop"] li:nth-child(3)::before { animation-delay: 2.5s; }
+
+.fb-help-steps[data-fb-panel="desktop"] .fb-help-step-icon { animation: fb-walk-icon-3 3.75s infinite ease-in-out; }
+.fb-help-steps[data-fb-panel="desktop"] li:nth-child(1) .fb-help-step-icon { animation-delay: 0s; }
+.fb-help-steps[data-fb-panel="desktop"] li:nth-child(2) .fb-help-step-icon { animation-delay: 1.25s; }
+.fb-help-steps[data-fb-panel="desktop"] li:nth-child(3) .fb-help-step-icon { animation-delay: 2.5s; }
+
+/* Pause while the user is hovering / focused on the card. */
+.fb-help-card:hover .fb-help-steps li::before,
+.fb-help-card:hover .fb-help-step-icon,
+.fb-help-card:focus-within .fb-help-steps li::before,
+.fb-help-card:focus-within .fb-help-step-icon {
+  animation-play-state: paused;
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .fb-help-steps li::before,
+  .fb-help-step-icon { animation: none !important; }
+}
 /* Wrapper that JS animates between height:0 ⇄ scrollHeight for a smooth
    open/close instead of <details>'s native display:none snap. */
 .fb-help-anim {
