@@ -1,4 +1,7 @@
 {
+  "database": {
+    "rules": "elevate-eo-campus-unite-2026/database.rules.json"
+  },
   "hosting": {
     "public": "weddingbar",
     "ignore": [

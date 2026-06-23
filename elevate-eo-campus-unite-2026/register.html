@@ -142,21 +142,37 @@
     .privacy-notice-toggle .material-symbols-outlined { font-size: 18px !important; }
     .privacy-notice[open] .privacy-notice-toggle { transform: rotate(180deg); }
     .privacy-notice-body {
-      margin-top: 0.65rem;
-      padding-top: 0.65rem;
+      margin-top: 0.7rem;
+      padding-top: 0.7rem;
       border-top: 1px solid rgba(245, 213, 24, 0.18);
+      display: grid;
+      gap: 0.75rem;
+    }
+    .privacy-row {
+      display: flex;
+      align-items: flex-start;
+      gap: 0.65rem;
+    }
+    .privacy-row-ic {
+      color: var(--tape);
+      font-size: 18px !important;
+      flex-shrink: 0;
+      margin-top: 1px;
+    }
+    .privacy-row-label {
+      font-family: "Blauer Nue", sans-serif;
+      font-weight: 800;
+      font-size: 0.7rem;
+      text-transform: uppercase;
+      letter-spacing: 0.1em;
+      color: var(--ink);
+      margin-bottom: 0.15rem;
+    }
+    .privacy-row-text {
       font-size: 0.78rem;
       color: var(--ink-soft);
-      line-height: 1.5;
+      line-height: 1.45;
     }
-    .privacy-notice-body p { margin: 0 0 0.5rem; }
-    .privacy-notice-body p:last-child { margin-bottom: 0; }
-    .privacy-notice-body ul {
-      margin: 0 0 0.5rem;
-      padding-left: 1.1rem;
-      list-style: disc;
-    }
-    .privacy-notice-body ul li { margin-bottom: 0.15rem; }
   </style>
 </head>
 
@@ -297,37 +313,38 @@
           </div>
         </div>
 
-        <!-- Data Privacy Notice — visible above every wizard step so registrants
-             know upfront how their info is used. Compact summary by default;
-             tap "Learn more" to expand the full notice. -->
+        <!-- Data Privacy Notice — compact tile above the wizard. Expand for
+             a 3-row breakdown: usage, access, RA 10173 + deletion path. -->
         <details class="privacy-notice mt-5">
           <summary>
             <span class="material-symbols-outlined privacy-notice-icon">privacy_tip</span>
             <span class="privacy-notice-summary">
-              <b>Data Privacy Notice.</b> Your info is collected only for Campus UNITE 2026 event coordination + raffle.
+              <b>Data Privacy.</b> Used only for Campus UNITE 2026 — admin access only.
             </span>
-            <span class="privacy-notice-toggle">
-              <span class="material-symbols-outlined">expand_more</span>
-            </span>
+            <span class="privacy-notice-toggle"><span class="material-symbols-outlined">expand_more</span></span>
           </summary>
           <div class="privacy-notice-body">
-            <p>
-              Elevate East Ortigas (the local satellite of CCF Elevate) collects the information
-              on this form solely to:
-            </p>
-            <ul>
-              <li>Coordinate your attendance at Campus UNITE — Elevate's 13th Anniversary (July 17, 2026).</li>
-              <li>Verify your ticket entry on the event day.</li>
-              <li>Contact you about the raffle if your ticket wins.</li>
-              <li>Help us follow up with first-timers + students without a Dgroup leader.</li>
-            </ul>
-            <p>
-              We do not sell or share your data with third parties. Information is stored on Firebase
-              (Google Cloud) and is accessible only to Elevate East Ortigas admins.
-              By submitting this form, you consent to this collection in line with the
-              Data Privacy Act of 2012 (RA 10173). To request deletion of your data, contact
-              your Elevate East Ortigas team lead.
-            </p>
+            <div class="privacy-row">
+              <span class="material-symbols-outlined privacy-row-ic">task_alt</span>
+              <div>
+                <div class="privacy-row-label">What we use it for</div>
+                <div class="privacy-row-text">Ticket entry on event day, raffle contact, and follow-up for first-timers or students without a Dgroup leader.</div>
+              </div>
+            </div>
+            <div class="privacy-row">
+              <span class="material-symbols-outlined privacy-row-ic">lock</span>
+              <div>
+                <div class="privacy-row-label">Who can access it</div>
+                <div class="privacy-row-text">Only Elevate East Ortigas admins. Stored on Firebase (Google Cloud) — never shared or sold to third parties.</div>
+              </div>
+            </div>
+            <div class="privacy-row">
+              <span class="material-symbols-outlined privacy-row-ic">gavel</span>
+              <div>
+                <div class="privacy-row-label">Your rights (RA 10173)</div>
+                <div class="privacy-row-text">By submitting, you consent under the Data Privacy Act of 2012. To request deletion, message your Elevate East Ortigas team lead.</div>
+              </div>
+            </div>
           </div>
         </details>
 
@@ -784,7 +801,12 @@
   </main>
 
   <script type="module">
-    import { get, set, update, ticketRef, registrationRef } from "./js/firebase.js";
+    import { get, set, update, ticketRef, registrationRef, ensureAnonAuth } from "./js/firebase.js";
+
+    // Lock-step with the new RTDB security rules: every ticket/registration
+    // op requires `auth != null`. Sign students in anonymously up front so
+    // the rules are satisfied without forcing a Google sign-in.
+    ensureAnonAuth().catch((err) => console.warn("Anonymous auth failed:", err));
 
     const $loading  = document.getElementById("state-loading");
     const $chooser  = document.getElementById("state-chooser");
@@ -1570,6 +1592,9 @@
 
     async function loadTicket(id) {
       try {
+        // Block until anonymous auth resolves so the RTDB read is allowed by
+        // the new security rules (which require auth != null on each ticket).
+        await ensureAnonAuth().catch(() => null);
         const snap = await get(ticketRef(id));
         if (!snap.exists()) { show($invalid); return; }
         const t = snap.val();

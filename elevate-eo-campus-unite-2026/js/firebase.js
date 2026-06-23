@@ -7,7 +7,7 @@ import {
   getDatabase, ref, onValue, get, set, update, push, child, off,
 } from "https://www.gstatic.com/firebasejs/9.6.1/firebase-database.js";
 import {
-  getAuth, GoogleAuthProvider, signInWithPopup, signOut, onAuthStateChanged,
+  getAuth, GoogleAuthProvider, signInWithPopup, signOut, signInAnonymously, onAuthStateChanged,
 } from "https://www.gstatic.com/firebasejs/9.6.1/firebase-auth.js";
 
 const firebaseConfig = {
@@ -32,7 +32,7 @@ export const auth = getAuth(app);
 
 // Re-export the bits each page needs so callers don't import from gstatic.
 export { ref, onValue, get, set, update, push, child, off };
-export { GoogleAuthProvider, signInWithPopup, signOut, onAuthStateChanged };
+export { GoogleAuthProvider, signInWithPopup, signOut, signInAnonymously, onAuthStateChanged };
 
 // =============================
 // Project-scoped paths
@@ -81,6 +81,20 @@ export function signInWithGoogle() {
 
 export function signOutNow() {
   return signOut(auth);
+}
+
+// Ensure the page has *some* auth identity before doing RTDB reads/writes.
+// register.html (public) uses this so locked-down security rules can require
+// `auth != null` without forcing students through a Google sign-in flow.
+// Resolves once an auth user (anonymous OR existing Google) is present.
+export function ensureAnonAuth() {
+  if (auth.currentUser) return Promise.resolve(auth.currentUser);
+  return new Promise((resolve, reject) => {
+    const unsub = onAuthStateChanged(auth, (user) => {
+      if (user) { unsub(); resolve(user); }
+    });
+    signInAnonymously(auth).catch((err) => { unsub(); reject(err); });
+  });
 }
 
 // Subscribe to auth state. Callback gets { user, isAdmin }.
