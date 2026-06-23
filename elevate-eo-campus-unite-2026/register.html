@@ -44,6 +44,21 @@
         inset 0 1px 0 rgba(255,255,255,0.06),
         0 18px 48px rgba(0,0,0,0.45);
     }
+    /* Scoped, beefier countdown for the register page — the global
+       .count-num used on index.html is fine there but reads small here. */
+    .reg-countdown .count-num {
+      font-size: clamp(3.5rem, 13vw, 6.5rem) !important;
+      line-height: 1;
+    }
+    .reg-countdown .count-label {
+      font-size: 0.85rem !important;
+      letter-spacing: 0.22em;
+      margin-top: 0.4rem;
+    }
+    /* Bigger ticket pill on the form card top-right. */
+    #form-ticket {
+      font-size: clamp(1.6rem, 6vw, 2.5rem) !important;
+    }
   </style>
 </head>
 
@@ -149,10 +164,10 @@
     <!-- Form -->
     <div id="state-form" class="mt-6 hidden">
       <!-- Countdown header: UNITE keyart + live DAYS/HRS/MIN/SEC tiles. -->
-      <div class="text-center mt-4 mb-6">
-        <img src="assets/campus-unite-logo.png" alt="Campus UNITE — Elevate's 13th Anniversary" class="mx-auto h-14 sm:h-20 w-auto" />
-        <div class="text-[10px] uppercase tracking-[0.32em] text-mute font-extrabold-ui mt-5 mb-3">Countdown</div>
-        <div id="countdown" class="flex items-end justify-center gap-4 sm:gap-8">
+      <div class="text-center mt-4 mb-6 reg-countdown">
+        <img src="assets/campus-unite-logo.png" alt="Campus UNITE — Elevate's 13th Anniversary" class="mx-auto h-24 sm:h-36 w-auto" />
+        <div class="text-[11px] uppercase tracking-[0.32em] text-mute font-extrabold-ui mt-6 mb-4">Countdown</div>
+        <div id="countdown" class="flex items-end justify-center gap-6 sm:gap-10">
           <div class="count-tile"><div id="cd-days" class="count-num">--</div><div class="count-label">Days</div></div>
           <div class="count-tile"><div id="cd-hrs"  class="count-num">--</div><div class="count-label">Hrs</div></div>
           <div class="count-tile"><div id="cd-min"  class="count-num">--</div><div class="count-label">Min</div></div>
