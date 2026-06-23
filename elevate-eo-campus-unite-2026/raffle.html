@@ -496,7 +496,7 @@
             ${esc(winner.school || "—")}
           </span>
           <span class="inline-block rounded-full" style="width:6px;height:6px;background:var(--ink-mute);"></span>
-          <span class="text-soft">${esc(winner.fbName || "")}</span>
+          <span class="text-soft">${esc(winner.fbLink || winner.fbName || "")}</span>
         `;
         requestAnimationFrame(() => {
           document.querySelector(".winner-name-wrap").classList.add("is-revealed");

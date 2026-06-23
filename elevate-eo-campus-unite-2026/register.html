@@ -155,8 +155,12 @@
             </div>
           </div>
           <div>
-            <label class="field-label" for="f-fb">Facebook name</label>
-            <input id="f-fb" name="fbName" type="text" required class="input" placeholder="As it appears on Facebook" />
+            <label class="field-label" for="f-fb">Facebook link</label>
+            <input id="f-fb" name="fbLink" type="url" required class="input" placeholder="https://facebook.com/your.profile" />
+          </div>
+          <div>
+            <label class="field-label" for="f-contact">Contact number</label>
+            <input id="f-contact" name="contact" type="tel" required inputmode="tel" autocomplete="tel" class="input" placeholder="09XX XXX XXXX" />
           </div>
           <div>
             <label class="field-label" for="f-school">School / University</label>
@@ -425,15 +429,21 @@
       $err.classList.add("hidden");
 
       const data = {
-        name:   document.getElementById("f-name").value.trim(),
-        age:    parseInt(document.getElementById("f-age").value, 10),
-        gender: document.getElementById("f-gender").value,
-        fbName: document.getElementById("f-fb").value.trim(),
-        school: document.getElementById("f-school").value.trim(),
+        name:    document.getElementById("f-name").value.trim(),
+        age:     parseInt(document.getElementById("f-age").value, 10),
+        gender:  document.getElementById("f-gender").value,
+        fbLink:  document.getElementById("f-fb").value.trim(),
+        contact: document.getElementById("f-contact").value.trim(),
+        school:  document.getElementById("f-school").value.trim(),
       };
 
-      if (!data.name || !data.fbName || !data.school || !data.gender || !data.age || data.age < 5 || data.age > 120) {
+      if (!data.name || !data.fbLink || !data.contact || !data.school || !data.gender || !data.age || data.age < 5 || data.age > 120) {
         $err.textContent = "Please fill all fields. Age must be between 5 and 120.";
+        $err.classList.remove("hidden");
+        return;
+      }
+      if (!/^https?:\/\//i.test(data.fbLink)) {
+        $err.textContent = "Facebook link should start with http:// or https://";
         $err.classList.remove("hidden");
         return;
       }
