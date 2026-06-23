@@ -735,6 +735,14 @@
           $card.querySelectorAll(".fb-help-panel").forEach(($panel) => {
             $panel.hidden = $panel.dataset.fbPanel !== target;
           });
+          // Restart the now-visible panel's SVG animations so the user always
+          // lands on scene 1 when they flip tabs.
+          $card.querySelectorAll(`.fb-help-panel[data-fb-panel="${target}"] .fb-phone *, .fb-help-panel[data-fb-panel="${target}"] .fb-browser *`).forEach((el) => {
+            const prev = el.style.animation;
+            el.style.animation = "none";
+            void el.offsetWidth;
+            el.style.animation = prev || "";
+          });
         });
       });
 
@@ -774,6 +782,17 @@
           } else {
             // Opening: open first (so scrollHeight measures), then 0 → target
             $fbHelp.open = true;
+            // Restart all SVG demo animations from frame 0 so the user always
+            // sees scene 1 first when the disclosure opens — otherwise we'd be
+            // mid-cycle (the keyframes have been running since page-load) and
+            // the first visible frame can land on a between-scenes transition,
+            // looking like a stutter.
+            $fbHelp.querySelectorAll(".fb-phone *, .fb-browser *").forEach((el) => {
+              const prev = el.style.animation;
+              el.style.animation = "none";
+              void el.offsetWidth; // force reflow → consumes the "none" frame
+              el.style.animation = prev || "";
+            });
             const target = $anim.scrollHeight;
             $anim.style.height = "0px";
             $anim.style.opacity = "0";

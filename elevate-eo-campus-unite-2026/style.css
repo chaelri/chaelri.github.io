@@ -580,14 +580,13 @@ html, body {
 
 /* Tap finger: moves between hot-spots; visible only during a scene. */
 @keyframes fb-tap-mobile {
-  0%, 2%   { transform: translate(83px, 155px); opacity: 0; }
-  8%, 22%  { transform: translate(83px, 155px); opacity: 1; }
-  24%, 25% { transform: translate(83px, 155px); opacity: 0; }
-  28%, 30% { transform: translate(85px, 18.5px); opacity: 0; }
-  34%, 47% { transform: translate(85px, 18.5px); opacity: 1; }
-  49%, 50% { transform: translate(85px, 18.5px); opacity: 0; }
-  53%, 55% { transform: translate(50px, 78.5px); opacity: 0; }
-  59%, 72% { transform: translate(50px, 78.5px); opacity: 1; }
+  0%, 22%  { transform: translate(83px, 155px); opacity: 1; }
+  24%, 27% { transform: translate(83px, 155px); opacity: 0; }
+  30%, 33% { transform: translate(85px, 18.5px); opacity: 0; }
+  36%, 47% { transform: translate(85px, 18.5px); opacity: 1; }
+  49%, 52% { transform: translate(85px, 18.5px); opacity: 0; }
+  55%, 58% { transform: translate(50px, 78.5px); opacity: 0; }
+  61%, 72% { transform: translate(50px, 78.5px); opacity: 1; }
   74%, 100% { transform: translate(50px, 78.5px); opacity: 0; }
 }
 .fb-tap-mobile { animation: fb-tap-mobile 5s infinite ease-in-out; }
@@ -624,11 +623,10 @@ html, body {
 
 /* Desktop tap cursor: scene 1 → click profile name in content, scene 2 → click address bar. */
 @keyframes fb-tap-desktop {
-  0%, 2%   { transform: translate(40px, 50px); opacity: 0; }
-  8%, 28%  { transform: translate(40px, 50px); opacity: 1; }
-  31%, 33% { transform: translate(40px, 50px); opacity: 0; }
-  37%, 40% { transform: translate(58px, 9.5px); opacity: 0; }
-  44%, 62% { transform: translate(58px, 9.5px); opacity: 1; }
+  0%, 28%  { transform: translate(40px, 50px); opacity: 1; }
+  31%, 34% { transform: translate(40px, 50px); opacity: 0; }
+  37%, 41% { transform: translate(58px, 9.5px); opacity: 0; }
+  45%, 62% { transform: translate(58px, 9.5px); opacity: 1; }
   65%, 100% { transform: translate(58px, 9.5px); opacity: 0; }
 }
 .fb-tap-desktop { animation: fb-tap-desktop 3.75s infinite ease-in-out; }
