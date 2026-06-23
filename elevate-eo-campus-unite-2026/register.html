@@ -44,9 +44,13 @@
     .bg-video-tint {
       position: absolute; inset: 0;
       background:
-        radial-gradient(1100px 600px at 80% -10%, rgba(225, 29, 44, 0.20) 0%, transparent 60%),
-        radial-gradient(800px 500px at -10% 110%, rgba(245, 213, 24, 0.08) 0%, transparent 55%),
-        linear-gradient(180deg, rgba(7,9,26,0.65) 0%, rgba(7,9,26,0.82) 60%, rgba(7,9,26,0.92) 100%);
+        radial-gradient(1100px 600px at 80% -10%, rgba(225, 29, 44, 0.16) 0%, transparent 60%),
+        radial-gradient(800px 500px at -10% 110%, rgba(245, 213, 24, 0.06) 0%, transparent 55%),
+        /* Central vignette: keeps the visible portion behind the form notably darker
+           than the corners so the registration card has contrast no matter where
+           the user has scrolled to. */
+        radial-gradient(80% 65% at 50% 45%, rgba(7,9,26,0.85) 0%, rgba(7,9,26,0.78) 60%, rgba(7,9,26,0.72) 100%),
+        linear-gradient(180deg, rgba(7,9,26,0.55) 0%, rgba(7,9,26,0.75) 60%, rgba(7,9,26,0.92) 100%);
     }
     /* Header sits above the bg with a frosted strip for readability. */
     .reg-header {
@@ -54,6 +58,18 @@
       backdrop-filter: blur(8px);
       -webkit-backdrop-filter: blur(8px);
       background: rgba(7,9,26,0.55);
+    }
+    /* The registration card needs much higher contrast than a generic glass-tile
+       because it sits over a colorful, moving video. Switch from white-translucent
+       to a deep navy wash + heavier blur so labels and inputs read cleanly. */
+    #state-form > .glass-tile {
+      background: linear-gradient(180deg, rgba(7,9,26,0.92) 0%, rgba(7,9,26,0.88) 100%);
+      border-color: rgba(255,255,255,0.10);
+      backdrop-filter: blur(22px) saturate(140%);
+      -webkit-backdrop-filter: blur(22px) saturate(140%);
+      box-shadow:
+        inset 0 1px 0 rgba(255,255,255,0.06),
+        0 18px 48px rgba(0,0,0,0.45);
     }
   </style>
 </head>
