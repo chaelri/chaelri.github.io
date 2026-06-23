@@ -1924,6 +1924,7 @@ body.raffle-focused .raffle-display {
   .wiz-choice-grid { grid-template-columns: 1fr 1fr; }
 }
 .wiz-choice {
+  position: relative;
   background: var(--bg-elev);
   border: 1px solid var(--line);
   border-radius: 0.85rem;
@@ -1933,8 +1934,9 @@ body.raffle-focused .raffle-display {
   gap: 0.35rem;
   cursor: pointer;
   color: var(--ink);
-  transition: border-color .18s ease, background .18s ease, transform .12s ease, box-shadow .18s ease;
+  transition: border-color .18s ease, background .18s ease, transform .15s cubic-bezier(0.22, 1, 0.36, 1), box-shadow .18s ease;
   text-align: center;
+  overflow: hidden;
 }
 .wiz-choice:hover {
   border-color: var(--tape);
@@ -1944,14 +1946,52 @@ body.raffle-focused .raffle-display {
 .wiz-choice:active { transform: translateY(0); }
 .wiz-choice.is-selected {
   border-color: var(--tape);
-  background: rgba(245,213,24,0.12);
-  box-shadow: inset 0 0 0 1px var(--tape), 0 0 0 4px rgba(245,213,24,0.15);
+  background: rgba(245,213,24,0.18);
+  box-shadow: inset 0 0 0 1px var(--tape), 0 0 0 4px rgba(245,213,24,0.2);
+  transform: scale(1.02);
+  animation: wiz-choice-pop .4s cubic-bezier(0.22, 1, 0.36, 1);
+}
+.wiz-choice.is-selected .wiz-choice-icon {
+  color: var(--on-tape);
+  background: var(--tape);
+  border-radius: 50%;
+  width: 56px;
+  height: 56px;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  box-shadow: 0 0 0 6px rgba(245,213,24,0.15);
+  animation: wiz-choice-icon-pop .45s cubic-bezier(0.22, 1, 0.36, 1);
+}
+.wiz-choice.is-selected .wiz-choice-label { color: var(--tape); }
+/* Floating "selected" check badge appears in the top-right corner. */
+.wiz-choice::after {
+  content: "";
+  position: absolute;
+  top: 8px; right: 8px;
+  width: 22px; height: 22px;
+  border-radius: 50%;
+  background: var(--tape);
+  background-image:
+    linear-gradient(45deg, transparent 50%, var(--on-tape) 50%),
+    linear-gradient(-45deg, var(--on-tape) 50%, transparent 50%);
+  background-size: 8px 2px, 12px 2px;
+  background-position: 5px 12px, 9px 11px;
+  background-repeat: no-repeat;
+  opacity: 0;
+  transform: scale(0.5);
+  transition: opacity .15s ease, transform .25s cubic-bezier(0.22, 1, 0.36, 1);
+  pointer-events: none;
+}
+.wiz-choice.is-selected::after {
+  opacity: 1;
+  transform: scale(1);
 }
 .wiz-choice-icon {
   font-size: 36px !important;
   color: var(--tape);
+  transition: color .2s ease, background .2s ease, box-shadow .2s ease;
 }
-.wiz-choice.is-selected .wiz-choice-icon { color: var(--tape); }
 .wiz-choice-label {
   font-family: "Blauer Nue", sans-serif;
   font-weight: 800;
@@ -1959,11 +1999,28 @@ body.raffle-focused .raffle-display {
   text-transform: uppercase;
   letter-spacing: 0.04em;
   color: var(--ink);
+  transition: color .2s ease;
 }
 .wiz-choice-sub {
   font-size: 0.78rem;
   color: var(--ink-mute);
   line-height: 1.3;
+}
+@keyframes wiz-choice-pop {
+  0%   { transform: scale(1); }
+  40%  { transform: scale(1.05); }
+  100% { transform: scale(1.02); }
+}
+@keyframes wiz-choice-icon-pop {
+  0%   { transform: scale(0.7); }
+  60%  { transform: scale(1.15); }
+  100% { transform: scale(1); }
+}
+@media (prefers-reduced-motion: reduce) {
+  .wiz-choice.is-selected,
+  .wiz-choice.is-selected .wiz-choice-icon {
+    animation: none;
+  }
 }
 
 /* Bottom nav bar inside the card. */

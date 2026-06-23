@@ -1068,8 +1068,9 @@
         // (the auto-advance branch handles its own renderNav via go()).
         renderNav();
         if (advanceTo) {
-          // Brief delay so the user sees the "selected" state pop before transitioning.
-          setTimeout(() => go(advanceTo), 180);
+          // Hold on the "selected" state long enough to register visually
+          // (icon pop + check badge + scale) before sliding to the next step.
+          setTimeout(() => go(advanceTo), 650);
         }
       }
 
