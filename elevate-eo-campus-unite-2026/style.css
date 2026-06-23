@@ -558,9 +558,13 @@ html, body {
    ============================================================ */
 /* Demo row is a plain block — using flex + justify-content earlier was
    sizing the SVG children by their intrinsic dimensions instead of the
-   container width, leaving big gutters on both Mobile and Desktop. */
+   container width, leaving big gutters on both Mobile and Desktop.
+   Negative horizontal margins pull the demo past the .fb-help-card's
+   own 0.85rem horizontal padding so the SVG bleeds edge-to-edge inside
+   the yellow-bordered card — the steps list below it keeps the normal
+   card padding. */
 .fb-help-demo {
-  width: 100%;
+  margin: 0 -0.85rem;
   padding: 0.3rem 0 0.65rem;
 }
 .fb-phone {
