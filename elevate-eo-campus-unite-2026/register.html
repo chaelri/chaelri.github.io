@@ -323,6 +323,13 @@
     // Accept any URL whose host is (or ends with) one of these. Covers facebook.com,
     // m.facebook.com, web.facebook.com, mbasic.facebook.com, fb.com, fb.me + www. prefixes.
     const FB_HOSTS = ["facebook.com", "fb.com", "fb.me"];
+    // Paths that are legal under facebook.com but aren't a profile (so a profile
+    // URL with one of these as its first segment should still fail validation).
+    const FB_NON_PROFILE_PATHS = new Set([
+      "home", "login", "signup", "watch", "marketplace", "groups", "gaming",
+      "events", "pages", "help", "settings", "privacy", "policies", "terms",
+      "messages", "notifications", "search", "stories", "reel", "share",
+    ]);
     function isFacebookUrl(raw) {
       if (!raw) return false;
       let str = String(raw).trim();
@@ -332,7 +339,19 @@
         const u = new URL(str);
         if (!/^https?:$/i.test(u.protocol)) return false;
         const host = u.hostname.toLowerCase().replace(/^www\./, "");
-        return FB_HOSTS.some(d => host === d || host.endsWith("." + d));
+        const onFb = FB_HOSTS.some(d => host === d || host.endsWith("." + d));
+        if (!onFb) return false;
+
+        // Must point to a profile: either /<username>... or /profile.php?id=…
+        const segs = u.pathname.split("/").filter(Boolean);
+        if (!segs.length) return false; // bare host (facebook.com, fb.com)
+        const first = segs[0].toLowerCase();
+        if (first === "profile.php") {
+          return !!u.searchParams.get("id");
+        }
+        if (FB_NON_PROFILE_PATHS.has(first)) return false;
+        // First segment must contain at least one letter/digit (rules out "/-" etc).
+        return /[a-z0-9._-]/i.test(segs[0]);
       } catch { return false; }
     }
     // ===== Per-field validation helpers =====
