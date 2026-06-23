@@ -459,40 +459,37 @@ html, body {
 /* ============================================================
    Auto-walkthrough animation
    Each step's number circle + icon lights up in sequence on a
-   continuous loop, so the help card feels like a guided tutorial
-   rather than a static list. Pauses on hover so users can read
-   at their own pace; reduced-motion users see nothing animate.
+   continuous loop. Scoped via .fb-help[open] .fb-help-panel:not([hidden])
+   so the keyframes only attach (and therefore only start) the moment
+   the disclosure opens or the user switches tabs — restarting at
+   frame 0 = step 1 each time, no JS needed.
+
+   Keyframes drop box-shadow and border-color animation (both paint-
+   heavy) and stick to transform + background-color + color, which
+   are compositor-cheap and won't stutter the step list.
    ============================================================ */
 @keyframes fb-walk-circle-4 {
   0%, 25%, 100% {
     transform: scale(1);
     background: rgba(245, 213, 24, 0.16);
-    border-color: rgba(245, 213, 24, 0.45);
     color: var(--tape);
-    box-shadow: none;
   }
-  6%, 19% {
-    transform: scale(1.18);
+  10%, 16% {
+    transform: scale(1.22);
     background: var(--tape);
-    border-color: var(--tape);
     color: var(--on-tape, #0a0a0a);
-    box-shadow: 0 0 0 5px rgba(245, 213, 24, 0.22);
   }
 }
 @keyframes fb-walk-circle-3 {
   0%, 33%, 100% {
     transform: scale(1);
     background: rgba(245, 213, 24, 0.16);
-    border-color: rgba(245, 213, 24, 0.45);
     color: var(--tape);
-    box-shadow: none;
   }
-  8%, 26% {
-    transform: scale(1.18);
+  13%, 22% {
+    transform: scale(1.22);
     background: var(--tape);
-    border-color: var(--tape);
     color: var(--on-tape, #0a0a0a);
-    box-shadow: 0 0 0 5px rgba(245, 213, 24, 0.22);
   }
 }
 /* Transform-only — drop-shadow was the most expensive part of this loop. */
@@ -505,29 +502,40 @@ html, body {
   8%, 26% { transform: scale(1.3); }
 }
 
-/* Mobile panel — 4 steps × 1.25s = 5s loop. */
-.fb-help-steps[data-fb-panel="mobile"] li::before { animation: fb-walk-circle-4 5s infinite ease-in-out; }
-.fb-help-steps[data-fb-panel="mobile"] li:nth-child(1)::before { animation-delay: 0s; }
-.fb-help-steps[data-fb-panel="mobile"] li:nth-child(2)::before { animation-delay: 1.25s; }
-.fb-help-steps[data-fb-panel="mobile"] li:nth-child(3)::before { animation-delay: 2.5s; }
-.fb-help-steps[data-fb-panel="mobile"] li:nth-child(4)::before { animation-delay: 3.75s; }
+/* Mobile panel — 4 steps × 1.25s = 5s loop.
+   Scoped under .fb-help[open] .fb-help-panel:not([hidden]) so the
+   animation property only attaches when the panel is actually visible,
+   meaning every open / tab-switch starts the loop fresh at step 1. */
+.fb-help[open] .fb-help-panel:not([hidden]) .fb-help-steps[data-fb-panel="mobile"] li::before {
+  animation: fb-walk-circle-4 5s infinite ease-in-out;
+}
+.fb-help[open] .fb-help-panel:not([hidden]) .fb-help-steps[data-fb-panel="mobile"] li:nth-child(1)::before { animation-delay: 0s; }
+.fb-help[open] .fb-help-panel:not([hidden]) .fb-help-steps[data-fb-panel="mobile"] li:nth-child(2)::before { animation-delay: 1.25s; }
+.fb-help[open] .fb-help-panel:not([hidden]) .fb-help-steps[data-fb-panel="mobile"] li:nth-child(3)::before { animation-delay: 2.5s; }
+.fb-help[open] .fb-help-panel:not([hidden]) .fb-help-steps[data-fb-panel="mobile"] li:nth-child(4)::before { animation-delay: 3.75s; }
 
-.fb-help-steps[data-fb-panel="mobile"] .fb-help-step-icon { animation: fb-walk-icon-4 5s infinite ease-in-out; }
-.fb-help-steps[data-fb-panel="mobile"] li:nth-child(1) .fb-help-step-icon { animation-delay: 0s; }
-.fb-help-steps[data-fb-panel="mobile"] li:nth-child(2) .fb-help-step-icon { animation-delay: 1.25s; }
-.fb-help-steps[data-fb-panel="mobile"] li:nth-child(3) .fb-help-step-icon { animation-delay: 2.5s; }
-.fb-help-steps[data-fb-panel="mobile"] li:nth-child(4) .fb-help-step-icon { animation-delay: 3.75s; }
+.fb-help[open] .fb-help-panel:not([hidden]) .fb-help-steps[data-fb-panel="mobile"] .fb-help-step-icon {
+  animation: fb-walk-icon-4 5s infinite ease-in-out;
+}
+.fb-help[open] .fb-help-panel:not([hidden]) .fb-help-steps[data-fb-panel="mobile"] li:nth-child(1) .fb-help-step-icon { animation-delay: 0s; }
+.fb-help[open] .fb-help-panel:not([hidden]) .fb-help-steps[data-fb-panel="mobile"] li:nth-child(2) .fb-help-step-icon { animation-delay: 1.25s; }
+.fb-help[open] .fb-help-panel:not([hidden]) .fb-help-steps[data-fb-panel="mobile"] li:nth-child(3) .fb-help-step-icon { animation-delay: 2.5s; }
+.fb-help[open] .fb-help-panel:not([hidden]) .fb-help-steps[data-fb-panel="mobile"] li:nth-child(4) .fb-help-step-icon { animation-delay: 3.75s; }
 
 /* Desktop panel — 3 steps × 1.25s = 3.75s loop. */
-.fb-help-steps[data-fb-panel="desktop"] li::before { animation: fb-walk-circle-3 3.75s infinite ease-in-out; }
-.fb-help-steps[data-fb-panel="desktop"] li:nth-child(1)::before { animation-delay: 0s; }
-.fb-help-steps[data-fb-panel="desktop"] li:nth-child(2)::before { animation-delay: 1.25s; }
-.fb-help-steps[data-fb-panel="desktop"] li:nth-child(3)::before { animation-delay: 2.5s; }
+.fb-help[open] .fb-help-panel:not([hidden]) .fb-help-steps[data-fb-panel="desktop"] li::before {
+  animation: fb-walk-circle-3 3.75s infinite ease-in-out;
+}
+.fb-help[open] .fb-help-panel:not([hidden]) .fb-help-steps[data-fb-panel="desktop"] li:nth-child(1)::before { animation-delay: 0s; }
+.fb-help[open] .fb-help-panel:not([hidden]) .fb-help-steps[data-fb-panel="desktop"] li:nth-child(2)::before { animation-delay: 1.25s; }
+.fb-help[open] .fb-help-panel:not([hidden]) .fb-help-steps[data-fb-panel="desktop"] li:nth-child(3)::before { animation-delay: 2.5s; }
 
-.fb-help-steps[data-fb-panel="desktop"] .fb-help-step-icon { animation: fb-walk-icon-3 3.75s infinite ease-in-out; }
-.fb-help-steps[data-fb-panel="desktop"] li:nth-child(1) .fb-help-step-icon { animation-delay: 0s; }
-.fb-help-steps[data-fb-panel="desktop"] li:nth-child(2) .fb-help-step-icon { animation-delay: 1.25s; }
-.fb-help-steps[data-fb-panel="desktop"] li:nth-child(3) .fb-help-step-icon { animation-delay: 2.5s; }
+.fb-help[open] .fb-help-panel:not([hidden]) .fb-help-steps[data-fb-panel="desktop"] .fb-help-step-icon {
+  animation: fb-walk-icon-3 3.75s infinite ease-in-out;
+}
+.fb-help[open] .fb-help-panel:not([hidden]) .fb-help-steps[data-fb-panel="desktop"] li:nth-child(1) .fb-help-step-icon { animation-delay: 0s; }
+.fb-help[open] .fb-help-panel:not([hidden]) .fb-help-steps[data-fb-panel="desktop"] li:nth-child(2) .fb-help-step-icon { animation-delay: 1.25s; }
+.fb-help[open] .fb-help-panel:not([hidden]) .fb-help-steps[data-fb-panel="desktop"] li:nth-child(3) .fb-help-step-icon { animation-delay: 2.5s; }
 
 /* Pause while the user is hovering / focused on the card. */
 .fb-help-card:hover .fb-help-steps li::before,
