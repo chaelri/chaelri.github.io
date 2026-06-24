@@ -1724,3 +1724,135 @@ function escapeHtml(s) {
     }[c])
   );
 }
+
+// ---------- Export to A4 PNG pages ----------
+const exportBtn = document.getElementById("exportPngBtn");
+if (exportBtn) {
+  exportBtn.addEventListener("click", exportFloorPng);
+}
+
+async function exportFloorPng() {
+  if (typeof window.html2canvas === "undefined") {
+    toast("Loading exporter…");
+    try {
+      await new Promise((resolve, reject) => {
+        const s = document.createElement("script");
+        s.src = "https://cdnjs.cloudflare.com/ajax/libs/html2canvas/1.4.1/html2canvas.min.js";
+        s.onload = resolve;
+        s.onerror = () => reject(new Error("Failed to load html2canvas"));
+        document.head.appendChild(s);
+      });
+    } catch (err) {
+      console.error("[export]", err);
+      toast("⚠ Couldn't load exporter");
+      return;
+    }
+  }
+
+  const exportButton = document.getElementById("exportPngBtn");
+  if (exportButton) {
+    exportButton.disabled = true;
+    exportButton.innerHTML = '<span class="material-icons-outlined">hourglass_top</span>';
+  }
+
+  const savedZoom = zoom;
+  const overlays = [
+    document.querySelector(".floor-toolbar"),
+    document.getElementById("pool"),
+    document.getElementById("rolesLegend"),
+    document.getElementById("pickBanner"),
+    document.getElementById("toast"),
+  ].filter(Boolean);
+  const prevVis = overlays.map((el) => el.style.visibility);
+
+  try {
+    zoom = 1;
+    applyZoom();
+    overlays.forEach((el) => (el.style.visibility = "hidden"));
+    await new Promise((r) => requestAnimationFrame(r));
+    await new Promise((r) => setTimeout(r, 80));
+
+    const source = await window.html2canvas(innerEl, {
+      backgroundColor: "#fffaf0",
+      scale: 2,
+      useCORS: true,
+      width: CANVAS_W,
+      height: CANVAS_H,
+      windowWidth: CANVAS_W,
+      windowHeight: CANVAS_H,
+      logging: false,
+    });
+
+    const isLandscape = source.width >= source.height;
+    const pageWmm = isLandscape ? 297 : 210;
+    const pageHmm = isLandscape ? 210 : 297;
+    const dpi = 200;
+    const pageWpx = Math.round((pageWmm * dpi) / 25.4);
+    const pageHpx = Math.round((pageHmm * dpi) / 25.4);
+
+    const scale = isLandscape
+      ? pageHpx / source.height
+      : pageWpx / source.width;
+    const scaledW = Math.round(source.width * scale);
+    const scaledH = Math.round(source.height * scale);
+
+    const work = document.createElement("canvas");
+    work.width = scaledW;
+    work.height = scaledH;
+    const wctx = work.getContext("2d");
+    wctx.fillStyle = "#fffaf0";
+    wctx.fillRect(0, 0, scaledW, scaledH);
+    wctx.imageSmoothingQuality = "high";
+    wctx.drawImage(source, 0, 0, scaledW, scaledH);
+
+    const cols = isLandscape ? Math.max(1, Math.ceil(scaledW / pageWpx)) : 1;
+    const rows = isLandscape ? 1 : Math.max(1, Math.ceil(scaledH / pageHpx));
+    const totalPages = cols * rows;
+
+    for (let i = 0; i < totalPages; i++) {
+      const col = isLandscape ? i : 0;
+      const row = isLandscape ? 0 : i;
+      const page = document.createElement("canvas");
+      page.width = pageWpx;
+      page.height = pageHpx;
+      const pctx = page.getContext("2d");
+      pctx.fillStyle = "#fffaf0";
+      pctx.fillRect(0, 0, pageWpx, pageHpx);
+
+      const sx = col * pageWpx;
+      const sy = row * pageHpx;
+      const sw = Math.min(pageWpx, scaledW - sx);
+      const sh = Math.min(pageHpx, scaledH - sy);
+      pctx.drawImage(work, sx, sy, sw, sh, 0, 0, sw, sh);
+
+      await new Promise((resolve) => {
+        page.toBlob((blob) => {
+          const url = URL.createObjectURL(blob);
+          const a = document.createElement("a");
+          a.href = url;
+          a.download = `floor-plan-a4-page-${i + 1}-of-${totalPages}.png`;
+          document.body.appendChild(a);
+          a.click();
+          a.remove();
+          URL.revokeObjectURL(url);
+          resolve();
+        }, "image/png");
+      });
+
+      await new Promise((r) => setTimeout(r, 250));
+    }
+
+    toast(`Exported ${totalPages} A4 page${totalPages > 1 ? "s" : ""}`);
+  } catch (err) {
+    console.error("[export] failed", err);
+    toast("⚠ Export failed");
+  } finally {
+    zoom = savedZoom;
+    applyZoom();
+    overlays.forEach((el, i) => (el.style.visibility = prevVis[i]));
+    if (exportButton) {
+      exportButton.disabled = false;
+      exportButton.innerHTML = '<span class="material-icons-outlined">print</span>';
+    }
+  }
+}
