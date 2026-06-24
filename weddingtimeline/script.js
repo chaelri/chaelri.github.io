@@ -7,6 +7,7 @@ import {
   update,
   remove,
   push,
+  get,
 } from "https://www.gstatic.com/firebasejs/10.7.1/firebase-database.js";
 import {
   getStorage,
@@ -1175,6 +1176,460 @@ window.resetView = () => {
   const body = document.getElementById("modal-body");
   body.innerHTML = "";
   renderPlanner(body);
+};
+
+window.importSeating = async () => {
+  const layout = weddingData.chapters[13].layout || {};
+  const cleanupUpdates = {};
+  Object.keys(layout).forEach((id) => {
+    if (id.startsWith("imported_")) {
+      cleanupUpdates[`wedding_data/chapters/13/layout/${id}`] = null;
+    }
+  });
+  const hadBadImports = Object.keys(cleanupUpdates).length > 0;
+  if (hadBadImports) {
+    try {
+      await update(ref(db), cleanupUpdates);
+    } catch (err) {
+      console.error("[import] cleanup failed", err);
+      alert("Couldn't clean up old imports. Try again.");
+      return;
+    }
+  }
+
+  let snap;
+  try {
+    snap = await get(ref(db, "seatingGroups"));
+  } catch (err) {
+    console.error("[import] failed to read seatingGroups", err);
+    alert("Couldn't read seating data. Try again.");
+    return;
+  }
+  const data = snap.val() || {};
+  const groups = Array.isArray(data.groups) ? data.groups : [];
+  if (!groups.length) {
+    alert(
+      hadBadImports
+        ? "Cleaned up the imported tables. No seating groups found in the Guest List Manager."
+        : "No seating groups found in the Guest List Manager yet."
+    );
+    return;
+  }
+
+  const updates = {};
+
+  const normalize = (s) =>
+    String(s || "")
+      .toLowerCase()
+      .replace(/[^a-z0-9]/g, "");
+
+  const tablesByName = {};
+  Object.entries(layout).forEach(([id, obj]) => {
+    if (id.startsWith("imported_")) return;
+    if (["corner", "h-line", "v-line", "text"].includes(obj.type)) return;
+    const key = normalize(obj.label);
+    if (!key) return;
+    if (!tablesByName[key]) tablesByName[key] = { id, obj };
+  });
+
+  const totalSeated = groups.reduce(
+    (s, g) => s + ((g.memberIds || []).filter(Boolean).length),
+    0
+  );
+
+  const matched = [];
+  const unmatched = [];
+
+  groups.forEach((group) => {
+    const ids = (group.memberIds || []).filter(Boolean);
+    if (!ids.length) return;
+    const key = normalize(group.name);
+    const target = tablesByName[key];
+    if (!target) {
+      unmatched.push(group.name || "(unnamed)");
+      return;
+    }
+    matched.push({ group, target, ids });
+  });
+
+  const ok = await confirmModal({
+    title: "Import seated guests?",
+    message: `Pull {{name}} into your existing tables. The Guest List Manager itself won't change.${
+      unmatched.length
+        ? `\n\nCouldn't find a table with these names: ${unmatched.join(", ")}. Rename them in the planner first if you want them included.`
+        : ""
+    }`,
+    strong: `${matched.length} of ${groups.length} groups · ${totalSeated} guests total`,
+    okLabel: "Import",
+    variant: "safe",
+  });
+  if (!ok) return;
+
+  matched.forEach(({ target, ids }) => {
+    const { id, obj } = target;
+    const type = obj.type;
+    const count = ids.length;
+    const assigned = {};
+    ids.forEach((memberId, i) => {
+      let bx, by;
+      if (type === "couple") {
+        bx = count === 1 ? 50 : i === 0 ? 28 : 72;
+        by = 50;
+      } else if (type === "vip" || type === "rect" || type === "thin-rect") {
+        const rightCount = Math.ceil(count / 2);
+        const leftCount = count - rightCount;
+        if (i < rightCount) {
+          bx = 85;
+          by = ((i + 1) / (rightCount + 1)) * 100;
+        } else {
+          const j = i - rightCount;
+          bx = 15;
+          by = ((leftCount - j) / (leftCount + 1)) * 100;
+        }
+      } else {
+        const angle = -Math.PI / 2 + (2 * Math.PI * i) / Math.max(count, 1);
+        const r = 38;
+        bx = 50 + r * Math.cos(angle);
+        by = 50 + r * Math.sin(angle);
+      }
+      assigned[memberId] = {
+        x: Math.round(Math.max(5, Math.min(95, bx))),
+        y: Math.round(Math.max(5, Math.min(95, by))),
+      };
+    });
+    updates[`wedding_data/chapters/13/layout/${id}/assigned`] = assigned;
+  });
+
+  try {
+    await update(ref(db), updates);
+  } catch (err) {
+    console.error("[import] write failed", err);
+    alert("Failed to save imported seating. Try again.");
+    return;
+  }
+
+  if (unmatched.length) {
+    alert(
+      `Imported ${matched.length} table(s).\n\nCouldn't find a matching table for:\n• ${unmatched.join("\n• ")}\n\nRename those tables in the planner so the names match, then re-import.`
+    );
+  }
+};
+
+window.exportLayout = () => {
+  const layout = weddingData.chapters[13].layout || {};
+
+  const defaultSizes = {
+    circle: { w: 100, h: 100 },
+    square: { w: 90, h: 90 },
+    rect: { w: 200, h: 100 },
+    "thin-rect": { w: 200, h: 40 },
+    "thin-square": { w: 40, h: 40 },
+    corner: { w: 50, h: 50 },
+    "h-line": { w: 200, h: 2 },
+    "v-line": { w: 2, h: 200 },
+    text: { w: 250, h: 60 },
+    vip: { w: 100, h: 220 },
+    couple: { w: 180, h: 80 },
+    special: { w: 120, h: 40 },
+  };
+
+  const items = Object.entries(layout).map(([id, obj]) => {
+    const def = defaultSizes[obj.type] || { w: 100, h: 100 };
+    return {
+      id,
+      type: obj.type,
+      label: obj.label || "",
+      x: obj.x,
+      y: obj.y,
+      w: obj.w || def.w,
+      h: obj.h || def.h,
+      assignedCount: Object.keys(obj.assigned || {}).length,
+    };
+  });
+
+  if (!items.length) {
+    alert("Add some pieces to the layout first.");
+    return;
+  }
+
+  let minX = Infinity, minY = Infinity, maxX = -Infinity, maxY = -Infinity;
+  items.forEach((it) => {
+    minX = Math.min(minX, it.x);
+    minY = Math.min(minY, it.y);
+    maxX = Math.max(maxX, it.x + it.w);
+    maxY = Math.max(maxY, it.y + it.h);
+  });
+
+  const padding = 240;
+  const titleHeight = 220;
+  const footerHeight = 140;
+  const offX = -minX + padding;
+  const offY = -minY + padding + titleHeight;
+  const svgW = (maxX - minX) + padding * 2;
+  const svgH = (maxY - minY) + padding * 2 + titleHeight + footerHeight;
+
+  const c = {
+    ink: "#0f1729",
+    line: "#1e293b",
+    soft: "#cbd5e1",
+    amber: "#b45309",
+    amberFill: "#fef3c7",
+    paper: "#fafaf6",
+  };
+
+  const escapeXml = (s) =>
+    String(s).replace(/[&<>'"]/g, (ch) =>
+      ({ "&": "&amp;", "<": "&lt;", ">": "&gt;", "'": "&apos;", '"': "&quot;" })[ch]
+    );
+
+  function fitLabel(text, boxW, boxH) {
+    const txt = String(text || "");
+    if (!txt) return null;
+    const padding = Math.min(boxW, boxH) * 0.15;
+    const maxW = Math.max(20, boxW - padding * 2);
+    const maxH = Math.max(12, boxH - padding * 2);
+    const charWFactor = 0.62;
+    const maxStart = Math.min(18, Math.max(8, Math.floor(Math.min(boxW, boxH) * 0.42)));
+    for (let size = maxStart; size >= 7; size -= 1) {
+      const charW = size * charWFactor;
+      const maxChars = Math.max(1, Math.floor(maxW / charW));
+      const words = txt.split(/\s+/).filter(Boolean);
+      let cur = "";
+      const lines = [];
+      let fits = true;
+      for (const word of words) {
+        if (word.length > maxChars) { fits = false; break; }
+        const test = cur ? cur + " " + word : word;
+        if (test.length <= maxChars) cur = test;
+        else { lines.push(cur); cur = word; }
+      }
+      if (!fits) continue;
+      if (cur) lines.push(cur);
+      const lineHeight = size * 1.2;
+      if (lineHeight * lines.length <= maxH) {
+        return { lines, size, lineHeight };
+      }
+    }
+    return { lines: [txt], size: 7, lineHeight: 8 };
+  }
+
+  function renderLabel(text, cxC, cyC, boxW, boxH, color, opts = {}) {
+    const aspect = boxW / boxH;
+    const rotated = opts.rotate !== false && aspect < 0.6;
+    const layoutW = rotated ? boxH : boxW;
+    const layoutH = rotated ? boxW : boxH;
+    const fit = fitLabel(text, layoutW, layoutH);
+    if (!fit) return "";
+    const startY = -((fit.lines.length - 1) / 2) * fit.lineHeight;
+    const tspans = fit.lines
+      .map(
+        (line, i) =>
+          `<text x="0" y="${(startY + i * fit.lineHeight).toFixed(2)}" text-anchor="middle" dominant-baseline="central" font-family="${opts.family || "'Inter', sans-serif"}" font-style="${opts.style || "normal"}" font-weight="${opts.weight || 700}" font-size="${fit.size}" fill="${color}" letter-spacing="${opts.letterSpacing || "0.6"}">${escapeXml(line)}</text>`
+      )
+      .join("");
+    const transform = rotated
+      ? `translate(${cxC} ${cyC}) rotate(-90)`
+      : `translate(${cxC} ${cyC})`;
+    return `<g transform="${transform}">${tspans}</g>`;
+  }
+
+  function renderItem(it) {
+    const cx = it.x + offX;
+    const cy = it.y + offY;
+    const cw = it.w;
+    const ch = it.h;
+    const cxC = cx + cw / 2;
+    const cyC = cy + ch / 2;
+
+    if (it.type === "corner") {
+      return `<rect x="${cx}" y="${cy}" width="${cw}" height="${ch}" fill="none" stroke="${c.line}" stroke-width="1.5" stroke-dasharray="6 6" rx="6"/>`;
+    }
+    if (it.type === "h-line") {
+      return `<line x1="${cx}" y1="${cy + ch / 2}" x2="${cx + cw}" y2="${cy + ch / 2}" stroke="${c.line}" stroke-width="2"/>`;
+    }
+    if (it.type === "v-line") {
+      return `<line x1="${cx + cw / 2}" y1="${cy}" x2="${cx + cw / 2}" y2="${cy + ch}" stroke="${c.line}" stroke-width="2"/>`;
+    }
+    if (it.type === "text") {
+      return renderLabel(it.label, cxC, cyC, cw, ch, c.ink, {
+        family: "Georgia, 'Playfair Display', serif",
+        style: "italic",
+        weight: 400,
+        letterSpacing: "0",
+        rotate: false,
+      });
+    }
+
+    let fill = "#ffffff";
+    let stroke = c.line;
+    let strokeWidth = 2.5;
+    let textColor = c.ink;
+
+    if (it.type === "couple") {
+      fill = c.amberFill;
+      stroke = c.amber;
+      strokeWidth = 3;
+    } else if (it.type === "special") {
+      fill = "#fde68a";
+      stroke = c.amber;
+      strokeWidth = 3;
+      textColor = c.amber;
+    }
+
+    let shape;
+    if (it.type === "circle") {
+      const r = Math.min(cw, ch) / 2;
+      shape = `<circle cx="${cxC}" cy="${cyC}" r="${r}" fill="${fill}" stroke="${stroke}" stroke-width="${strokeWidth}"/>`;
+    } else {
+      const rx = it.type === "square" ? 12 : 10;
+      shape = `<rect x="${cx}" y="${cy}" width="${cw}" height="${ch}" rx="${rx}" fill="${fill}" stroke="${stroke}" stroke-width="${strokeWidth}"/>`;
+    }
+
+    const labelText = (it.label || "").toUpperCase();
+    const label = renderLabel(labelText, cxC, cyC, cw, ch, textColor);
+
+    let seatBadge = "";
+    if (it.assignedCount > 0 && !["couple", "special"].includes(it.type)) {
+      const bx = cx + cw - 6;
+      const by = cy + 6;
+      seatBadge = `<g><circle cx="${bx}" cy="${by}" r="14" fill="${c.amber}" stroke="white" stroke-width="2"/><text x="${bx}" y="${by}" text-anchor="middle" dominant-baseline="central" font-family="'Inter', sans-serif" font-weight="700" font-size="13" fill="white">${it.assignedCount}</text></g>`;
+    }
+
+    return shape + label + seatBadge;
+  }
+
+  const titleX = svgW / 2;
+  const totalSeated = items.reduce((s, it) => s + it.assignedCount, 0);
+  const tableCount = items.filter(
+    (it) => !["corner", "h-line", "v-line", "text", "couple", "special"].includes(it.type)
+  ).length;
+  const today = new Date().toLocaleDateString("en-US", {
+    year: "numeric", month: "long", day: "numeric",
+  });
+
+  const innerX = padding / 2;
+  const innerY = titleHeight + padding / 2;
+  const innerW = svgW - padding;
+  const innerH = svgH - titleHeight - footerHeight - padding;
+
+  const svg = `<svg xmlns="http://www.w3.org/2000/svg" width="${svgW}" height="${svgH}" viewBox="0 0 ${svgW} ${svgH}">
+  <defs>
+    <pattern id="grid" x="0" y="0" width="40" height="40" patternUnits="userSpaceOnUse">
+      <circle cx="20" cy="20" r="1" fill="${c.soft}" opacity="0.55"/>
+    </pattern>
+  </defs>
+  <rect width="${svgW}" height="${svgH}" fill="${c.paper}"/>
+  <rect x="${innerX}" y="${innerY}" width="${innerW}" height="${innerH}" fill="url(#grid)"/>
+  <rect x="${innerX}" y="${innerY}" width="${innerW}" height="${innerH}" fill="none" stroke="${c.line}" stroke-width="1.5"/>
+
+  <text x="${titleX}" y="90" text-anchor="middle" font-family="Georgia, 'Playfair Display', serif" font-style="italic" font-size="54" fill="${c.ink}" letter-spacing="2">Reception Floor Plan</text>
+  <text x="${titleX}" y="132" text-anchor="middle" font-family="'Inter', sans-serif" font-size="16" fill="${c.line}" letter-spacing="8">CHARLIE &amp; KARLA · JULY 2, 2026</text>
+  <line x1="${titleX - 70}" y1="158" x2="${titleX + 70}" y2="158" stroke="${c.amber}" stroke-width="1.5"/>
+  <text x="${titleX}" y="186" text-anchor="middle" font-family="'Inter', sans-serif" font-size="12" fill="${c.line}" letter-spacing="4">SEATING ARRANGEMENT &amp; STAGE LAYOUT</text>
+
+  ${items.map(renderItem).join("\n  ")}
+
+  <g transform="translate(${innerX + 8}, ${svgH - footerHeight + 24})">
+    <text x="0" y="0" font-family="'Inter', sans-serif" font-size="12" font-weight="700" fill="${c.ink}" letter-spacing="3">LEGEND</text>
+    <g transform="translate(0, 22)">
+      <rect width="28" height="20" rx="4" fill="${c.amberFill}" stroke="${c.amber}" stroke-width="2"/>
+      <text x="40" y="14" font-family="'Inter', sans-serif" font-size="13" fill="${c.ink}">Couple seat &amp; stage</text>
+    </g>
+    <g transform="translate(0, 52)">
+      <rect width="28" height="20" rx="4" fill="white" stroke="${c.line}" stroke-width="2"/>
+      <text x="40" y="14" font-family="'Inter', sans-serif" font-size="13" fill="${c.ink}">Guest table</text>
+    </g>
+    <g transform="translate(240, 22)">
+      <circle cx="14" cy="10" r="12" fill="${c.amber}"/>
+      <text x="14" y="11" text-anchor="middle" dominant-baseline="central" font-family="'Inter', sans-serif" font-size="11" font-weight="700" fill="white">#</text>
+      <text x="34" y="14" font-family="'Inter', sans-serif" font-size="13" fill="${c.ink}">Guests seated at table</text>
+    </g>
+    <g transform="translate(240, 52)">
+      <rect width="28" height="18" rx="4" fill="none" stroke="${c.line}" stroke-width="1.5" stroke-dasharray="5 5"/>
+      <text x="40" y="14" font-family="'Inter', sans-serif" font-size="13" fill="${c.ink}">Reference marker / corner</text>
+    </g>
+  </g>
+  <text x="${svgW - innerX - 8}" y="${svgH - footerHeight + 46}" text-anchor="end" font-family="'Inter', sans-serif" font-size="12" font-weight="700" fill="${c.ink}" letter-spacing="2">${tableCount} TABLES · ${totalSeated} GUESTS ASSIGNED</text>
+  <text x="${svgW - innerX - 8}" y="${svgH - footerHeight + 68}" text-anchor="end" font-family="'Inter', sans-serif" font-size="11" fill="${c.line}" letter-spacing="2">Generated ${today.toUpperCase()}</text>
+</svg>`;
+
+  const html = `<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width,initial-scale=1">
+<title>Reception Floor Plan — Charlie &amp; Karla</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;600;700&family=Playfair+Display:ital@1&display=swap" rel="stylesheet">
+<style>
+  *,*::before,*::after{box-sizing:border-box;margin:0;padding:0}
+  body{background:#e8e6df;font-family:'Inter',sans-serif;min-height:100vh;display:flex;flex-direction:column;align-items:center;padding:24px 16px 80px;color:#0f1729}
+  .toolbar{position:fixed;top:16px;right:16px;display:flex;gap:8px;z-index:100;flex-wrap:wrap;max-width:calc(100vw - 32px);justify-content:flex-end}
+  .toolbar button{display:inline-flex;align-items:center;gap:8px;padding:10px 16px;border:none;border-radius:12px;background:#0f1729;color:#fff;font-family:'Inter',sans-serif;font-weight:600;font-size:13px;cursor:pointer;box-shadow:0 4px 16px rgba(0,0,0,.18);transition:transform .15s,background .15s}
+  .toolbar button:hover{background:#1e293b;transform:translateY(-1px)}
+  .toolbar button.primary{background:#b45309}
+  .toolbar button.primary:hover{background:#92400e}
+  .hint{font-size:12px;color:#475569;margin-bottom:16px;letter-spacing:2px;text-transform:uppercase}
+  .sheet{background:#fafaf6;box-shadow:0 24px 60px rgba(0,0,0,.18),0 4px 12px rgba(0,0,0,.08);max-width:100%;overflow:auto}
+  .sheet svg{display:block;max-width:100%;height:auto}
+  @media print{body{background:#fff;padding:0}.toolbar,.hint{display:none!important}.sheet{box-shadow:none}@page{margin:0;size:auto}}
+</style>
+</head>
+<body>
+  <div class="toolbar">
+    <button class="primary" onclick="window.print()">Print / Save as PDF</button>
+    <button onclick="downloadPng()">Download PNG</button>
+    <button onclick="downloadSvg()">Download SVG</button>
+  </div>
+  <div class="hint">Reception Floor Plan · Print or download for suppliers</div>
+  <div class="sheet" id="sheet">${svg}</div>
+  <script>
+    const svgEl = document.querySelector('#sheet svg');
+    const svgSource = new XMLSerializer().serializeToString(svgEl);
+    function downloadSvg(){
+      const blob = new Blob([svgSource], {type:'image/svg+xml'});
+      const url = URL.createObjectURL(blob);
+      const a = document.createElement('a');
+      a.href = url; a.download = 'reception-floor-plan.svg';
+      document.body.appendChild(a); a.click(); a.remove();
+      URL.revokeObjectURL(url);
+    }
+    function downloadPng(){
+      const w = svgEl.viewBox.baseVal.width;
+      const h = svgEl.viewBox.baseVal.height;
+      const scale = 2;
+      const canvas = document.createElement('canvas');
+      canvas.width = w * scale; canvas.height = h * scale;
+      const ctx = canvas.getContext('2d');
+      ctx.fillStyle = '#fafaf6';
+      ctx.fillRect(0, 0, canvas.width, canvas.height);
+      const img = new Image();
+      img.onload = () => {
+        ctx.drawImage(img, 0, 0, canvas.width, canvas.height);
+        canvas.toBlob((blob) => {
+          const url = URL.createObjectURL(blob);
+          const a = document.createElement('a');
+          a.href = url; a.download = 'reception-floor-plan.png';
+          document.body.appendChild(a); a.click(); a.remove();
+          URL.revokeObjectURL(url);
+        }, 'image/png');
+      };
+      const blob = new Blob([svgSource], {type:'image/svg+xml;charset=utf-8'});
+      img.src = URL.createObjectURL(blob);
+    }
+  <\/script>
+</body>
+</html>`;
+
+  const win = window.open("", "_blank");
+  if (!win) {
+    alert("Please allow popups to export the layout.");
+    return;
+  }
+  win.document.open();
+  win.document.write(html);
+  win.document.close();
 };
 
 let hiddenToggle = false;
