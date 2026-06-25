@@ -82,6 +82,7 @@ gemini-proxy/.drive-client.json
 gemini-proxy/.gmail-creds.json
 gemini-proxy/.yt-creds.json
 gemini-proxy/.yt-client.json
+gemini-proxy/.sheets-creds.json
 
 # Claude Code runtime artifacts
 .claude/knowledge-stale.md
