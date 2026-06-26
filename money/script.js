@@ -230,7 +230,6 @@ window.selectUser = async (name) => {
     if (snapshot.exists() && snapshot.val()) {
       appData = snapshot.val();
       if (!appData.monthlyData) appData.monthlyData = {};
-      loadTrajSettings();
       document.getElementById("setup-balance").value =
         appData.startingBalance || 0;
     } else {
@@ -278,12 +277,11 @@ window.selectUser = async (name) => {
         if (snapshot.exists() && val) {
           appData = val;
           if (!appData.monthlyData) appData.monthlyData = {};
-          loadTrajSettings();
           updateAllCalculations();
           updateCompleteMonthButtons();
           updateMonthVisibility();
           if (activeView === "stats") renderStats();
-          if (activeView === "trajectory") renderTrajectory();
+          if (activeView === "pending") renderPending();
         }
       });
 
@@ -915,7 +913,7 @@ window.toggleSetup = () => {
 
 window.switchView = (view) => {
   activeView = view;
-  const views = ["budget", "stats", "commitments", "trajectory", "setup"];
+  const views = ["budget", "stats", "commitments", "pending", "setup"];
   views.forEach((v) => {
     const viewEl = document.getElementById(`${v}-view`);
     const nav = document.getElementById(`nav-${v}`);
@@ -940,7 +938,7 @@ window.switchView = (view) => {
   });
   if (view === "stats") renderStats();
   if (view === "commitments") renderCommitments();
-  if (view === "trajectory") renderTrajectory();
+  if (view === "pending") renderPending();
 
   // Header: always visible, adapt content per view
   const monthDisplay = document.getElementById("current-month-display");
@@ -952,7 +950,7 @@ window.switchView = (view) => {
       monthDisplay.textContent = months[currentMonthIdx];
       monthDisplay.className = "text-3xl font-black tracking-tight text-white uppercase italic";
     } else {
-      const label = view === "commitments" ? "Goals" : view === "setup" ? "Settings" : view.charAt(0).toUpperCase() + view.slice(1);
+      const label = view === "commitments" ? "Goals" : view === "setup" ? "Settings" : view === "pending" ? "Pending" : view.charAt(0).toUpperCase() + view.slice(1);
       monthDisplay.textContent = label;
       monthDisplay.className = "text-xl font-black tracking-tight text-white";
     }
@@ -1831,347 +1829,200 @@ window.closeWeddingBar = () => {
   overlay.classList.remove("opacity-100");
 };
 
-// =============================================
-// TRAJECTORY VIEW — Horizon-style month cards
-// =============================================
-// PH TRAIN Law 2023+ tax computation (still current for 2026 — no rate changes)
-// Gov deductions (employee share, all hit caps at this salary level):
-//   SSS ₱1,750 (5% of max MSC ₱35K) + PhilHealth ₱2,500 (2.5% of max basic ₱100K) + Pag-IBIG ₱200 = ₱4,450/mo
-// 125K Azur: taxable ₱120,550 → 25% bracket → tax ₱22,013 → net ₱98,537
-// New job ₱200,587 package (signed 2026-06): Basic ₱195,000 + HRNPI ₱3,262.50 (taxable)
-//   + De Minimis ₱2,325 (tax-exempt — ₱27,900/yr is under BIR ceiling).
-//   Taxable: ₱198,262.50 − ₱4,450 = ₱193,812.50/mo → ₱2,325,750/yr → 30% bracket
-//   Annual tax: ₱402,500 + 30%×(₱2,325,750 − ₱2M) = ₱500,225/yr → ₱41,685/mo
-//   Net: ₱200,587.50 − ₱4,450 − ₱41,685 = ₱154,452/mo
-const TRAJ_NET_125K = 98_537;
-const TRAJ_NET_NEW = 154_452;
-const TRAJ_BUMP_NEW = TRAJ_NET_NEW - TRAJ_NET_125K; // +₱55,915/mo
 
-// Editable living expenses — persisted to Firebase under appData.trajectorySettings
-const TRAJ_DEFAULTS = {
-  rent: 13000,
-  living: [
-    { name: "Electricity", amount: 4000 },
-    { name: "Water", amount: 400 },
-    { name: "Drinkable Water", amount: 600 },
-    { name: "Motor Gas", amount: 2500 },
-    { name: "Cooking Gas (LPG)", amount: 600 },
-    { name: "Grocery", amount: 10000 },
-    { name: "Parking", amount: 0 },
-    { name: "WiFi", amount: 1699 },
-  ],
+// =============================================
+// PENDING PAYMENTS — installments with "until <Month> <Year>" in name
+// =============================================
+const MONTH_NAME_MAP = {
+  jan: 0, january: 0,
+  feb: 1, february: 1,
+  mar: 2, march: 2,
+  apr: 3, april: 3,
+  may: 4,
+  jun: 5, june: 5,
+  jul: 6, july: 6,
+  aug: 7, august: 7,
+  sep: 8, sept: 8, september: 8,
+  oct: 9, october: 9,
+  nov: 10, november: 10,
+  dec: 11, december: 11,
 };
-let trajLiving = TRAJ_DEFAULTS.living.map(x => ({ ...x }));
-let trajRent = TRAJ_DEFAULTS.rent;
-function getTrajLivingTotal() { return trajLiving.reduce((s, x) => s + x.amount, 0); }
 
-function loadTrajSettings() {
-  if (!appData?.trajectorySettings) return;
-  const s = appData.trajectorySettings;
-  if (s.rent !== undefined) trajRent = s.rent;
-  if (Array.isArray(s.living)) trajLiving = s.living.map(x => ({ ...x }));
+function parseUntilFromName(name) {
+  if (!name) return null;
+  const m = name.match(/until\s+([A-Za-z]+)\s+(\d{4})/i);
+  if (!m) return null;
+  const mIdx = MONTH_NAME_MAP[m[1].toLowerCase()];
+  if (mIdx === undefined) return null;
+  return { endMonth: mIdx, endYear: parseInt(m[2], 10) };
 }
 
-async function saveTrajSettings() {
-  if (!appData || !dbRef) return;
-  appData.trajectorySettings = { rent: trajRent, living: trajLiving };
-  await syncSet(dbRef, appData);
+function cleanInstallmentName(name) {
+  return (name || "").replace(/\s*until\s+[A-Za-z]+\s+\d{4}\s*/i, "").trim();
 }
 
-let trajSalary = "azur"; // "azur" | "new"
+const fmtPending = (v) => "₱" + Math.round(v || 0).toLocaleString("en-PH");
 
-// Family support reduction (same logic as Horizon)
-// Expenses with "bahay" or "contribution" in name = family household contributions
-const TRAJ_FAMILY_KEYWORDS = ["bahay", "contribution"];
-let trajFamilyMode = "full"; // "full" | "prorated" | "none"
+function collectInstallments() {
+  if (!appData?.monthlyData) return [];
+  const tracked = {};
+  const toArr = (v) => Array.isArray(v) ? v : (v ? Object.values(v) : []);
 
-function getTrajFamilyReduction(monthData) {
-  const allItems = [
-    ...(monthData.fixedExpenses || []),
-    ...(monthData.cc || []),
-    ...(monthData.others || []),
-  ].filter(x => !x.isPaid);
-  const familyItems = allItems.filter(x =>
-    TRAJ_FAMILY_KEYWORDS.some(kw => (x.name || "").toLowerCase().includes(kw))
-  );
-  const familyTotal = familyItems.reduce((s, x) => s + (Number(x.amount) || 0), 0);
-  if (trajFamilyMode === "none") return familyTotal;
-  if (trajFamilyMode === "prorated") return familyTotal * 0.5;
-  return 0;
-}
-
-window.setTrajFamilyMode = (mode) => {
-  trajFamilyMode = mode;
-  document.querySelectorAll(".traj-fam-btn").forEach((btn) => {
-    btn.classList.toggle("active", btn.dataset.fam === mode);
-  });
-  const note = document.getElementById("traj-fam-note");
-  if (note) {
-    if (mode === "full") note.textContent = "Keeping full family contributions.";
-    else if (mode === "prorated") note.textContent = "Paying half — kuya covers the rest.";
-    else note.textContent = "No more family contributions after wedding.";
+  for (let idx = 0; idx < 12; idx++) {
+    const m = appData.monthlyData[idx];
+    if (!m) continue;
+    ["fixedExpenses", "cc"].forEach((key) => {
+      toArr(m[key]).forEach((item) => {
+        if (!item || !item.name || !item.id) return;
+        const until = parseUntilFromName(item.name);
+        if (!until) return;
+        if (!tracked[item.id]) {
+          tracked[item.id] = {
+            id: item.id,
+            displayName: cleanInstallmentName(item.name),
+            category: key,
+            endMonth: until.endMonth,
+            endYear: until.endYear,
+            monthlyAmount: 0,
+            firstIdxInYear: idx,
+            months: {},
+          };
+        }
+        const amt = parseFloat(item.amount || 0);
+        tracked[item.id].months[idx] = { amount: amt, isPaid: !!item.isPaid };
+        if (amt > 0) tracked[item.id].monthlyAmount = amt;
+        if (idx < tracked[item.id].firstIdxInYear) tracked[item.id].firstIdxInYear = idx;
+      });
+    });
   }
-  renderTrajectory();
-};
-
-const fmtT = (v) => "₱" + Math.round(v || 0).toLocaleString("en-PH");
-
-window.setTrajSalary = (val) => {
-  trajSalary = val;
-  const toggle = document.getElementById("traj-salary-toggle");
-  toggle.classList.remove("pos-1");
-  if (val === "new") toggle.classList.add("pos-1");
-  document.querySelectorAll(".traj-sal-chip").forEach((btn) => {
-    btn.classList.toggle("active", btn.dataset.sal === val);
-  });
-  renderTrajectory();
-};
-
-// Reuse the app modal for trajectory edits
-function openTrajModal(title, currentVal, onSave) {
-  const overlay = document.getElementById("modal-overlay");
-  const body = document.getElementById("modal-body");
-  const saveBtn = document.getElementById("save-btn");
-  const deleteBtn = document.getElementById("delete-btn");
-  document.getElementById("modal-title").innerText = title;
-  deleteBtn.style.display = "none";
-  saveBtn.disabled = false;
-  saveBtn.innerText = "Save";
-
-  body.innerHTML = `
-    <div class="space-y-2 px-1">
-      <label class="text-[10px] font-black uppercase text-slate-500 ml-1">Amount (₱)</label>
-      <input type="number" id="traj-modal-input" value="${currentVal}" class="w-full bg-slate-900 border-none rounded-2xl py-5 px-6 text-2xl font-black text-white focus:ring-2 focus:ring-blue-500" inputmode="numeric">
-    </div>
-  `;
-
-  activeEdit = null;
-  saveBtn.onclick = () => {
-    const val = Math.max(0, Math.round(Number(document.getElementById("traj-modal-input").value) || 0));
-    onSave(val);
-    closeModal();
-    renderTrajectory();
-    saveBtn.onclick = () => window.saveModal();
-  };
-
-  overlay.classList.add("open");
-  setTimeout(() => document.getElementById("traj-modal-input")?.focus(), 300);
+  return Object.values(tracked);
 }
 
-window.promptTrajRent = () => {
-  openTrajModal("EDIT RENT", trajRent, (val) => { trajRent = val; saveTrajSettings(); });
-};
-
-window.toggleLivingList = () => {
-  const list = document.getElementById("traj-living-list");
-  const chevron = document.getElementById("living-chevron");
-  if (!list) return;
-  const isHidden = list.classList.contains("hidden");
-  list.classList.toggle("hidden", !isHidden);
-  if (chevron) chevron.style.transform = isHidden ? "rotate(180deg)" : "";
-};
-
-window.editLivingItem = (idx) => {
-  const item = trajLiving[idx];
-  if (!item) return;
-  openTrajModal(item.name.toUpperCase(), item.amount, (val) => { trajLiving[idx].amount = val; saveTrajSettings(); });
-};
-
-function renderLivingList() {
-  const list = document.getElementById("traj-living-list");
-  const totalEl = document.getElementById("traj-living-total");
-  if (!list) return;
-  totalEl.textContent = fmtT(getTrajLivingTotal());
-  list.innerHTML = trajLiving.map((item, i) => `
-    <div class="flex items-center justify-between bg-slate-900/50 rounded-lg px-3 py-2 border border-white/[0.03] cursor-pointer active:scale-[0.98] transition-transform" onclick="editLivingItem(${i})">
-      <span class="text-[10px] text-slate-400">${item.name}</span>
-      <div class="flex items-center gap-1">
-        <span class="text-[10px] font-bold text-pink-400">${fmtT(item.amount)}</span>
-        <span class="material-icons text-[10px] text-pink-400/40">edit</span>
-      </div>
-    </div>
-  `).join("");
-}
-
-function renderTrajectory() {
+function renderPending() {
   if (!appData || !appData.monthlyData) return;
-
-  const container = document.getElementById("traj-month-cards");
-  const rentDisplay = document.getElementById("traj-rent-display");
+  const container = document.getElementById("pending-items");
   if (!container) return;
-  if (rentDisplay) rentDisplay.textContent = fmtT(trajRent);
-
-  // Render editable living expenses list
-  renderLivingList();
 
   const now = new Date();
-  const startMonth = now.getMonth();
-  const startYear = now.getFullYear();
-  const livingTotal = getTrajLivingTotal();
+  const realMonth = now.getMonth();
+  const realYear = now.getFullYear();
 
-  // Find reference month (latest with income data) for baseline expenses
-  let refData = null;
-  for (let i = startMonth; i >= 0; i--) {
-    const m = appData.monthlyData[i];
-    if (m) {
-      const inc = (m.incomeSources || []).reduce((s, x) => s + (Number(x.amount) || 0), 0);
-      if (inc > 0) { refData = m; break; }
-    }
-  }
-  if (!refData) refData = { incomeSources: [], fixedExpenses: [], cc: [], others: [] };
+  const items = collectInstallments().sort((a, b) => {
+    return (a.endYear * 12 + a.endMonth) - (b.endYear * 12 + b.endMonth);
+  });
 
-  // Running balance: start from Firebase startingBalance, accumulate through past months
-  let runningBalance = parseFloat(appData.startingBalance || 0);
-  for (let m = 0; m < startMonth; m++) {
-    const md = appData.monthlyData[m] || { incomeSources: [], fixedExpenses: [], cc: [], others: [] };
-    const { income, expenses } = calculateMonthlyTotals(md);
-    runningBalance += income - expenses;
-  }
-
-  const maxMonths = 12 - startMonth;
+  let grandTotal = 0;
+  let grandPaid = 0;
   const cards = [];
-  let lastYear = startYear;
 
-  for (let i = 0; i < maxMonths; i++) {
-    const mIdx = (startMonth + i) % 12;
-    const year = startYear + Math.floor((startMonth + i) / 12);
-    const monthLabel = `${months[mIdx]} ${year}`;
+  items.forEach((it, i) => {
+    // Anchor: if today is before the item's first billing month in this year,
+    // count from its first billing month instead. Avoids overcounting items
+    // that haven't started yet (e.g. Aircon billed Jul onward, viewed in Jun).
+    const effectiveStart = (realYear < it.endYear)
+      ? Math.max(realMonth, it.firstIdxInYear ?? realMonth)
+      : realMonth;
+    const monthsRemaining = (realYear === it.endYear)
+      ? Math.max(0, it.endMonth - effectiveStart + 1)
+      : (12 - effectiveStart) + Math.max(0, (it.endYear - realYear - 1)) * 12 + it.endMonth + 1;
+    const isDone = monthsRemaining <= 0;
+    const totalCommitment = isDone ? 0 : it.monthlyAmount * monthsRemaining;
 
-    // Year divider
-    if (year !== lastYear) {
-      cards.push(`
-        <div class="flex items-center gap-3 py-2">
-          <div class="flex-1 h-px bg-gradient-to-r from-transparent via-amber-500/30 to-transparent"></div>
-          <span class="text-[9px] font-black tracking-[0.25em] uppercase text-amber-400">Projected ${year}</span>
-          <div class="flex-1 h-px bg-gradient-to-r from-transparent via-amber-500/30 to-transparent"></div>
-        </div>
-      `);
-      lastYear = year;
+    // Sum amounts marked paid in current real year, from effectiveStart through min(endMonth, Dec)
+    let paidPesos = 0;
+    let paidMonths = 0;
+    const yearEnd = (realYear === it.endYear) ? Math.min(11, it.endMonth) : 11;
+    for (let idx = effectiveStart; idx <= yearEnd; idx++) {
+      const slot = it.months[idx];
+      if (slot && slot.isPaid) {
+        paidPesos += slot.amount || 0;
+        paidMonths++;
+      }
     }
 
-    // Use actual Firebase data if available, otherwise reference
-    const rawM = appData.monthlyData[mIdx];
-    const hasData = rawM && (rawM.incomeSources || []).reduce((s, x) => s + (Number(x.amount) || 0), 0) > 0;
-    const mData = hasData ? rawM : refData;
-    const { income: baseIncome, expenses } = calculateMonthlyTotals(mData);
-    const isProjected = !hasData || (year > startYear);
+    grandTotal += totalCommitment;
+    grandPaid += paidPesos;
 
-    // Apply salary toggle: "new" replaces baseline with flat ₱200,587 net so projection matches offer-letter math
-    const income = trajSalary === "new" ? TRAJ_NET_NEW : baseIncome;
-
-    // Rent starts May (index 4) — moving in before wedding
-    // Living expenses start July (index 6) — after wedding
-    // Family reduction starts July (index 6) — when Charlie leaves family house
-    const rentActive = (year > 2026) || (year === 2026 && mIdx >= 4);
-    const livingActive = (year > 2026) || (year === 2026 && mIdx >= 6);
-    const familyLeft = (year > 2026) || (year === 2026 && mIdx >= 6);
-    const thisRent = rentActive ? trajRent : 0;
-    const thisLiving = livingActive ? livingTotal : 0;
-    const familyReduction = familyLeft ? getTrajFamilyReduction(mData) : 0;
-    const adjustedExpenses = expenses - familyReduction;
-
-    const carryOver = runningBalance;
-    const monthNet = income - adjustedExpenses - thisRent - thisLiving;
-    runningBalance += monthNet;
-    const endBalance = runningBalance;
-
-    const isCurrent = (i === 0);
-    const isWedding = (mIdx === 6 && year === 2026);
-
-    // Status
-    let statusColor, statusBg, statusText;
-    if (endBalance < 0) {
-      statusColor = "text-rose-400"; statusBg = "border-rose-500/20"; statusText = "NEGATIVE";
-    } else if (monthNet < 0 && endBalance >= 0) {
-      statusColor = "text-amber-400"; statusBg = "border-amber-500/20"; statusText = "DIPPING INTO SAVINGS";
-    } else if (monthNet < 10000) {
-      statusColor = "text-amber-300"; statusBg = "border-amber-500/10"; statusText = "TIGHT";
-    } else if (monthNet < 20000) {
-      statusColor = "text-blue-400"; statusBg = "border-blue-500/10"; statusText = "COMFORTABLE";
-    } else {
-      statusColor = "text-emerald-400"; statusBg = "border-emerald-500/20"; statusText = "COMFORTABLE";
-    }
-
-    // Badge
-    let badge = "";
-    if (isCurrent) badge = '<span class="px-2 py-0.5 rounded-md text-[9px] font-black bg-blue-500/20 text-blue-300 uppercase">Now</span>';
-    else if (isWedding) badge = '<span class="px-2 py-0.5 rounded-md text-[9px] font-black bg-pink-500/20 text-pink-300 uppercase">Wedding</span>';
-    else if (isProjected) badge = '<span class="px-2 py-0.5 rounded-md text-[9px] font-black bg-amber-500/10 text-amber-400/70 uppercase">Projected</span>';
-
-    // Usage bar percentages
-    const totalIn = Math.max(1, carryOver + income);
-    const totalSpend = adjustedExpenses + thisRent + thisLiving;
-    const usedPct = Math.min((totalSpend / totalIn) * 100, 100);
-    const expPct = (expenses / totalIn * 100);
-    const rentPct = (thisRent / totalIn * 100);
-    const livingPct = (thisLiving / totalIn * 100);
+    const pct = totalCommitment > 0 ? Math.min(100, (paidPesos / totalCommitment) * 100) : 100;
+    const remaining = Math.max(0, totalCommitment - paidPesos);
+    const monthLabel = months[it.endMonth].slice(0, 3) + " " + it.endYear;
+    const barColor = monthsRemaining <= 6 ? "from-rose-500 to-orange-500"
+                   : monthsRemaining <= 12 ? "from-amber-500 to-yellow-500"
+                   : "from-indigo-500 to-violet-500";
+    const chipText = isDone ? "Done" : `${monthsRemaining} mo left`;
+    const chipClass = isDone ? "bg-emerald-500/15 text-emerald-300"
+                   : monthsRemaining <= 6 ? "bg-rose-500/15 text-rose-300"
+                   : "bg-slate-900/60 text-slate-300";
 
     cards.push(`
-      <div class="glass-card rounded-2xl p-4 border ${statusBg} space-y-3" style="animation: slideIn 0.4s ease both; animation-delay: ${i * 40}ms">
-        <!-- Header -->
-        <div class="flex items-center justify-between">
-          <div class="flex items-center gap-2">
-            <span class="text-sm font-black text-white">${monthLabel}</span>
-            ${badge}
+      <div class="glass-card rounded-2xl p-5 space-y-3" style="animation: slideIn 0.4s ease both; animation-delay: ${i * 40}ms">
+        <div class="flex items-start justify-between gap-3">
+          <div class="flex-1 min-w-0">
+            <h4 class="text-sm font-black text-white truncate">${it.displayName || "Untitled"}</h4>
+            <p class="text-[10px] text-slate-400 mt-0.5">${it.category === "cc" ? "Credit Card" : "Fixed Expense"} · until ${monthLabel}</p>
           </div>
-          <span class="px-2 py-0.5 rounded-md text-[9px] font-black ${statusColor} bg-slate-900/50">${statusText}</span>
+          <span class="px-2 py-1 rounded-md text-[9px] font-black uppercase whitespace-nowrap ${chipClass}">${chipText}</span>
         </div>
-
-        <!-- Budget lines -->
-        <div class="space-y-1.5">
-          ${carryOver !== 0 ? `
-          <div class="flex items-center justify-between text-[11px]">
-            <span class="text-slate-500">Carry-over</span>
-            <span class="font-semibold ${carryOver >= 0 ? 'text-slate-300' : 'text-rose-400'}">${fmtT(carryOver)}</span>
-          </div>` : ""}
-          <div class="flex items-center justify-between text-[11px]">
-            <span class="text-slate-400">Income</span>
-            <span class="font-bold text-emerald-400">${fmtT(income)}</span>
+        <div class="grid grid-cols-3 gap-2">
+          <div class="bg-slate-900/50 rounded-xl p-2.5 text-center">
+            <p class="text-[9px] font-bold uppercase text-slate-500">Monthly</p>
+            <p class="text-xs font-black text-slate-200 mt-0.5">${fmtPending(it.monthlyAmount)}</p>
           </div>
-          <div class="flex items-center justify-between text-[11px]">
-            <span class="text-slate-400">Expenses${familyReduction > 0 ? ` <span class="text-[8px] text-emerald-400/70">(−${fmtT(familyReduction)} fam)</span>` : ''}</span>
-            <span class="font-semibold text-slate-300">− ${fmtT(adjustedExpenses)}</span>
+          <div class="bg-slate-900/50 rounded-xl p-2.5 text-center">
+            <p class="text-[9px] font-bold uppercase text-slate-500">Pending</p>
+            <p class="text-xs font-black text-rose-400 mt-0.5">${fmtPending(remaining)}</p>
           </div>
-          ${rentActive ? `
-          <div class="flex items-center justify-between text-[11px]">
-            <span class="text-slate-400">Rent</span>
-            <span class="font-semibold text-slate-300">− ${fmtT(thisRent)}</span>
-          </div>` : ""}
-          ${livingActive ? `
-          <div class="flex items-center justify-between text-[11px]">
-            <span class="text-slate-400">Living</span>
-            <span class="font-semibold text-slate-300">− ${fmtT(thisLiving)}</span>
-          </div>` : ""}
-          <div class="border-t border-white/[0.06] pt-1.5 space-y-1">
-            <div class="flex items-center justify-between text-[10px]">
-              <span class="text-slate-500">This month's net</span>
-              <span class="font-semibold ${monthNet >= 0 ? 'text-emerald-400' : 'text-rose-400'}">${monthNet >= 0 ? '+' : ''}${fmtT(monthNet)}</span>
-            </div>
-            <div class="flex items-center justify-between">
-              <span class="font-black text-white uppercase text-[10px]">End of Month</span>
-              <span class="font-black text-base ${statusColor}">${fmtT(endBalance)}</span>
-            </div>
+          <div class="bg-slate-900/50 rounded-xl p-2.5 text-center">
+            <p class="text-[9px] font-bold uppercase text-slate-500">Paid</p>
+            <p class="text-xs font-black text-emerald-400 mt-0.5">${fmtPending(paidPesos)}</p>
           </div>
         </div>
-
-        <!-- Usage bar -->
-        <div class="h-1.5 bg-slate-900/60 rounded-full overflow-hidden flex">
-          <div class="h-full bg-slate-500/50 rounded-l-full traj-bar" style="width:0%" data-w="${usedPct.toFixed(1)}%"></div>
-          <div class="h-full flex-1 ${monthNet >= 0 ? 'bg-emerald-500/30' : 'bg-rose-500/30'} rounded-r-full"></div>
+        <div>
+          <div class="flex justify-between text-[10px] font-bold text-slate-500 mb-1">
+            <span>${paidMonths} mo paid this year</span>
+            <span>${pct.toFixed(1)}%</span>
+          </div>
+          <div class="h-2.5 bg-slate-900/60 rounded-full overflow-hidden">
+            <div class="pending-bar h-full bg-gradient-to-r ${barColor} rounded-full" data-w="${pct.toFixed(2)}%" style="width:0%"></div>
+          </div>
         </div>
       </div>
     `);
+  });
+
+  if (items.length === 0) {
+    container.innerHTML = `
+      <div class="glass-card rounded-2xl p-8 text-center space-y-2">
+        <span class="material-icons text-3xl text-slate-500">inbox</span>
+        <p class="text-sm font-bold text-slate-400">No installments tracked yet</p>
+        <p class="text-[11px] text-slate-500 leading-relaxed">Add <code class="text-indigo-300">until &lt;Month&gt; &lt;Year&gt;</code> to a fixed expense or credit card name (e.g. <em>"Aircon until July 2027"</em>) to track it here.</p>
+      </div>`;
+  } else {
+    container.innerHTML = cards.join("");
   }
 
-  container.innerHTML = cards.join("");
+  const grandPct = grandTotal > 0 ? Math.min(100, (grandPaid / grandTotal) * 100) : 0;
+  const remainEl = document.getElementById("pending-total-remaining");
+  const paidEl = document.getElementById("pending-total-paid");
+  const pctEl = document.getElementById("pending-grand-pct");
+  const subEl = document.getElementById("pending-grand-sub");
+  if (remainEl) remainEl.textContent = fmtPending(Math.max(0, grandTotal - grandPaid));
+  if (paidEl) paidEl.textContent = fmtPending(grandPaid);
+  if (pctEl) pctEl.textContent = grandPct.toFixed(1) + "%";
+  if (subEl) {
+    subEl.textContent = items.length === 0
+      ? `Tag installments with "until <Month> <Year>" to start tracking.`
+      : `${items.length} active installment${items.length === 1 ? "" : "s"} · pay early to clear faster`;
+  }
 
-  // Animate bars
   requestAnimationFrame(() => {
     setTimeout(() => {
-      container.querySelectorAll(".traj-bar").forEach((bar) => {
+      document.querySelectorAll(".pending-bar").forEach((bar) => {
         bar.style.transition = "width 0.8s cubic-bezier(0.16, 1, 0.3, 1)";
         bar.style.width = bar.dataset.w;
       });
+      const grandBar = document.getElementById("pending-grand-bar");
+      if (grandBar) grandBar.style.width = grandPct.toFixed(2) + "%";
     }, 50);
   });
 }

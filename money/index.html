@@ -353,70 +353,46 @@
           </div>
         </div>
 
-        <!-- TRAJECTORY VIEW -->
+        <!-- PENDING PAYMENTS VIEW -->
         <div
-          id="trajectory-view"
+          id="pending-view"
           class="absolute inset-0 overflow-y-auto px-6 md:px-8 pt-4 pb-32 space-y-4 opacity-0 pointer-events-none transition-opacity duration-300 bg-slate-900"
         >
-          <!-- Controls -->
-          <div class="glass-card p-5 rounded-2xl space-y-4">
-            <div class="flex items-center gap-3 mb-3">
-              <div class="w-10 h-10 rounded-2xl bg-gradient-to-br from-blue-500 to-indigo-600 flex items-center justify-center flex-shrink-0">
-                <span class="material-icons text-white text-lg">trending_up</span>
+          <!-- Summary Card -->
+          <div class="glass-card p-6 rounded-2xl space-y-4 border border-indigo-500/15">
+            <div class="flex items-center gap-3">
+              <div class="w-10 h-10 rounded-2xl bg-gradient-to-br from-indigo-500 to-violet-600 flex items-center justify-center flex-shrink-0">
+                <span class="material-icons text-white text-lg">hourglass_top</span>
               </div>
-              <h4 class="text-sm font-black text-white flex-1">Trajectory</h4>
-            </div>
-            <div id="traj-salary-toggle" class="traj-salary-toggle" style="width:100%">
-              <button onclick="setTrajSalary('azur')" class="traj-sal-chip active" data-sal="azur">Azur</button>
-              <button onclick="setTrajSalary('new')" class="traj-sal-chip" data-sal="new">₱200K</button>
-            </div>
-
-            <!-- Rent + Living: same style rows -->
-            <div class="space-y-2">
-              <div class="flex items-center justify-between bg-slate-900/50 rounded-xl p-3.5 border border-white/[0.04] cursor-pointer active:scale-[0.98] transition-transform" onclick="promptTrajRent()">
-                <span class="text-[10px] font-bold uppercase text-slate-500">Rent / mo</span>
-                <div class="flex items-center gap-1.5">
-                  <span id="traj-rent-display" class="text-sm font-black text-indigo-400">₱15,000</span>
-                  <span class="material-icons text-[12px] text-blue-400/50">edit</span>
-                </div>
-              </div>
-              <div class="bg-slate-900/50 rounded-xl border border-white/[0.04] overflow-hidden">
-                <div class="flex items-center justify-between p-3.5 cursor-pointer active:scale-[0.98] transition-transform" onclick="toggleLivingList()">
-                  <span class="text-[10px] font-bold uppercase text-slate-500">Living Expenses / mo</span>
-                  <div class="flex items-center gap-1.5">
-                    <span id="traj-living-total" class="text-sm font-black text-pink-400">--</span>
-                    <span id="living-chevron" class="material-icons text-[14px] text-slate-500 transition-transform duration-300">expand_more</span>
-                  </div>
-                </div>
-                <div id="traj-living-list" class="space-y-1 px-3.5 pb-3 hidden">
-                  <!-- Rendered by JS -->
-                </div>
+              <div class="flex-1">
+                <h4 class="text-sm font-black text-white">Pending Installments</h4>
+                <p class="text-[10px] text-slate-400">All "until" items in one view</p>
               </div>
             </div>
-
-            <!-- Family Support Toggle -->
-            <div class="bg-slate-900/50 rounded-xl border border-white/[0.04] p-3.5 space-y-2">
-              <p class="text-[10px] font-bold uppercase text-slate-500">Family Support (after wedding)</p>
-              <div class="grid grid-cols-3 gap-2">
-                <button onclick="setTrajFamilyMode('full')" class="traj-fam-btn active" data-fam="full">
-                  <span class="block text-[10px] font-bold">Full</span>
-                  <span class="block text-[8px] text-slate-400">Keep paying</span>
-                </button>
-                <button onclick="setTrajFamilyMode('prorated')" class="traj-fam-btn" data-fam="prorated">
-                  <span class="block text-[10px] font-bold">Pro-rated</span>
-                  <span class="block text-[8px] text-slate-400">Half</span>
-                </button>
-                <button onclick="setTrajFamilyMode('none')" class="traj-fam-btn" data-fam="none">
-                  <span class="block text-[10px] font-bold">None</span>
-                  <span class="block text-[8px] text-slate-400">Stop all</span>
-                </button>
+            <div class="grid grid-cols-2 gap-3">
+              <div class="bg-slate-900/50 rounded-xl p-3 text-center">
+                <p class="text-[10px] font-bold uppercase text-slate-500">Total Remaining</p>
+                <p id="pending-total-remaining" class="text-base font-black text-rose-400 mt-1">--</p>
               </div>
-              <p id="traj-fam-note" class="text-[10px] text-slate-500 text-center">Keeping full family contributions.</p>
+              <div class="bg-slate-900/50 rounded-xl p-3 text-center">
+                <p class="text-[10px] font-bold uppercase text-slate-500">Paid So Far</p>
+                <p id="pending-total-paid" class="text-base font-black text-emerald-400 mt-1">--</p>
+              </div>
             </div>
+            <div>
+              <div class="flex justify-between text-[10px] font-bold text-slate-500 mb-1">
+                <span>Overall progress</span>
+                <span id="pending-grand-pct">--%</span>
+              </div>
+              <div class="h-3 bg-slate-900/50 rounded-full overflow-hidden">
+                <div id="pending-grand-bar" class="h-full bg-gradient-to-r from-indigo-500 via-violet-500 to-fuchsia-500 rounded-full transition-all duration-700 bar-shimmer" style="width:0%"></div>
+              </div>
+            </div>
+            <p id="pending-grand-sub" class="text-[10px] text-slate-500 text-center">Pay early to clear faster</p>
           </div>
 
-          <!-- Month cards (Horizon-style) -->
-          <div id="traj-month-cards" class="space-y-3">
+          <!-- Item Cards -->
+          <div id="pending-items" class="space-y-3">
             <!-- Rendered by JS -->
           </div>
         </div>
@@ -483,9 +459,9 @@
             <span class="material-icons">diamond</span>
             <span class="nav-label">Goals</span>
           </button>
-          <button onclick="switchView('trajectory')" id="nav-trajectory" class="nav-tab text-slate-500">
-            <span class="material-icons">trending_up</span>
-            <span class="nav-label">Traj</span>
+          <button onclick="switchView('pending')" id="nav-pending" class="nav-tab text-slate-500">
+            <span class="material-icons">hourglass_top</span>
+            <span class="nav-label">Pending</span>
           </button>
         </div>
       </nav>
