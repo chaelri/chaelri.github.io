@@ -1863,6 +1863,81 @@ function cleanInstallmentName(name) {
 
 const fmtPending = (v) => "₱" + Math.round(v || 0).toLocaleString("en-PH");
 
+// ---- Home Expense breakdown (utilities/living) ----
+const HOME_EXPENSE_DEFAULTS = [
+  { name: "Electricity", amount: 4000 },
+  { name: "Water", amount: 400 },
+  { name: "Drinkable Water", amount: 600 },
+  { name: "Motor Gas", amount: 2500 },
+  { name: "Cooking Gas (LPG)", amount: 600 },
+  { name: "Grocery", amount: 10000 },
+  { name: "Parking", amount: 6887 },
+  { name: "WiFi", amount: 1699 },
+];
+
+function getHomeExpenses() {
+  // Live under appData.trajectorySettings.living for back-compat with existing Firebase data
+  const stored = appData?.trajectorySettings?.living;
+  if (Array.isArray(stored) && stored.length) return stored.map((x) => ({ ...x }));
+  return HOME_EXPENSE_DEFAULTS.map((x) => ({ ...x }));
+}
+
+async function saveHomeExpenses(list) {
+  if (!appData || !dbRef) return;
+  if (!appData.trajectorySettings) appData.trajectorySettings = {};
+  appData.trajectorySettings.living = list;
+  await syncSet(dbRef, appData);
+}
+
+function renderHomeExpenses() {
+  const listEl = document.getElementById("home-expense-list");
+  const totalEl = document.getElementById("home-expense-total");
+  if (!listEl || !totalEl) return;
+  const items = getHomeExpenses();
+  const total = items.reduce((s, x) => s + (Number(x.amount) || 0), 0);
+  totalEl.textContent = fmtPending(total);
+  listEl.innerHTML = items.map((item, i) => `
+    <div class="flex items-center justify-between bg-slate-900/50 rounded-xl px-3.5 py-2.5 border border-white/[0.03] cursor-pointer active:scale-[0.98] transition-transform" onclick="editHomeExpense(${i})">
+      <span class="text-[11px] font-bold text-slate-300">${item.name}</span>
+      <div class="flex items-center gap-1.5">
+        <span class="text-[11px] font-black text-emerald-400">${fmtPending(item.amount)}</span>
+        <span class="material-icons text-[12px] text-emerald-400/40">edit</span>
+      </div>
+    </div>
+  `).join("");
+}
+
+window.editHomeExpense = (idx) => {
+  const items = getHomeExpenses();
+  const item = items[idx];
+  if (!item) return;
+  const overlay = document.getElementById("modal-overlay");
+  const body = document.getElementById("modal-body");
+  const saveBtn = document.getElementById("save-btn");
+  const deleteBtn = document.getElementById("delete-btn");
+  document.getElementById("modal-title").innerText = item.name.toUpperCase();
+  deleteBtn.style.display = "none";
+  saveBtn.disabled = false;
+  saveBtn.innerText = "Save";
+  body.innerHTML = `
+    <div class="space-y-2 px-1">
+      <label class="text-[10px] font-black uppercase text-slate-500 ml-1">Amount (₱)</label>
+      <input type="number" id="home-expense-input" value="${item.amount}" class="w-full bg-slate-900 border-none rounded-2xl py-5 px-6 text-2xl font-black text-white focus:ring-2 focus:ring-emerald-500" inputmode="numeric">
+    </div>
+  `;
+  activeEdit = null;
+  saveBtn.onclick = async () => {
+    const val = Math.max(0, Math.round(Number(document.getElementById("home-expense-input").value) || 0));
+    items[idx] = { name: item.name, amount: val };
+    await saveHomeExpenses(items);
+    closeModal();
+    renderHomeExpenses();
+    saveBtn.onclick = () => window.saveModal();
+  };
+  overlay.classList.add("open");
+  setTimeout(() => document.getElementById("home-expense-input")?.focus(), 300);
+};
+
 function collectInstallments() {
   if (!appData?.monthlyData) return [];
   const tracked = {};
@@ -1902,6 +1977,8 @@ function renderPending() {
   if (!appData || !appData.monthlyData) return;
   const container = document.getElementById("pending-items");
   if (!container) return;
+
+  renderHomeExpenses();
 
   const now = new Date();
   const realMonth = now.getMonth();
