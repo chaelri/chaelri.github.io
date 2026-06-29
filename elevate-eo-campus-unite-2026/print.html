@@ -63,36 +63,20 @@
       <div class="flex items-center gap-3 flex-wrap mb-4">
         <div class="flex-1 min-w-0">
           <div class="font-extrabold-ui text-base text-ink">PNG export — actual ticket size</div>
-          <p class="text-soft text-xs mt-1">One file per ticket at 4.5 × 2 in (1,350 × 600 px / 300 DPI). Hand the ZIP to the printer.</p>
+          <p class="text-soft text-xs mt-1">One file per ticket at 4.5 × 2 in (1,350 × 600 px / 300 DPI). Pre-rendered — bulk download is split into four ZIPs of 250 tickets each (~32 MB / each) so every file stays under GitHub's 100 MB limit.</p>
         </div>
       </div>
 
-      <!-- Auto-render banner: first visit renders all 1,000 tickets and caches
-           them in IndexedDB. Every subsequent visit pulls instantly from cache. -->
-      <div id="png-progress" class="mt-2 hidden">
-        <div class="flex items-center justify-between mb-1">
-          <span id="png-progress-label" class="text-xs text-mute font-extrabold-ui uppercase tracking-widest">Preparing…</span>
-          <span id="png-progress-source" class="text-[10px] text-mute font-extrabold-ui uppercase tracking-widest">—</span>
-        </div>
-        <div class="w-full bg-[color:var(--line)] rounded-full overflow-hidden" style="height: 6px;">
-          <div id="png-progress-bar" class="h-full transition-all" style="width: 0%; background: var(--tape);"></div>
-        </div>
-      </div>
-
-      <div id="png-results" class="hidden mt-4">
+      <div id="png-results" class="mt-2">
         <div class="flex items-center justify-between gap-2 mb-3 flex-wrap">
           <span class="text-soft text-xs">
-            <span id="png-count">0</span> tickets ready ·
+            <span id="png-count">1,000</span> tickets ready ·
             <span id="png-visible-count" class="text-tape font-extrabold-ui">0</span> shown
           </span>
           <div class="flex gap-2 flex-wrap">
-            <button id="btn-png-regen" class="btn-ghost text-xs" title="Re-render all tickets from scratch (clears cache)">
-              <span class="material-symbols-outlined" style="font-size:16px">refresh</span>
-              Re-render
-            </button>
-            <button id="btn-png-zip" class="btn-tape">
+            <button id="btn-png-zip" class="btn-tape" title="Triggers four sequential ZIP downloads (250 tickets each, ~32 MB each)">
               <span class="material-symbols-outlined" style="font-size:18px">folder_zip</span>
-              Download all (.zip)
+              Download all (4 zips)
             </button>
           </div>
         </div>
@@ -122,10 +106,6 @@
         </div>
       </div>
     </div>
-
-    <!-- Off-screen render host. Each ticket renders here, gets converted
-         to PNG, then the node is cleared before the next one. -->
-    <div id="png-stage" aria-hidden="true" style="position:fixed; left:-99999px; top:0; pointer-events:none; visibility:visible;"></div>
   </section>
 
   <!-- Full-view modal — opens when a thumbnail is clicked. Shows the PNG at
@@ -158,10 +138,7 @@
   </div>
 
   <script type="module">
-    import { watchAuth, signInWithGoogle, signOutNow, ticketId, registrationUrl } from "./js/firebase.js";
-    import { ticketHtml, makeQrSvg } from "./js/ticket.js";
-    import { toBlob, getFontEmbedCSS } from "https://esm.sh/html-to-image@1.11.13";
-    import JSZip from "https://esm.sh/jszip@3.10.1";
+    import { watchAuth, signInWithGoogle, signOutNow, ticketId } from "./js/firebase.js";
 
     const $gate     = document.getElementById("gate");
     const $controls = document.getElementById("controls");
@@ -198,25 +175,25 @@
       }
       $gate.classList.add("hidden");
       $controls.classList.remove("hidden");
-      maybeAutoStart();
+      populateTickets();
     });
 
     document.getElementById("btn-signin").addEventListener("click", () => {
       signInWithGoogle().catch(err => { if (err && err.code !== "auth/popup-closed-by-user") alert(err.message); });
     });
 
-    // ===== PNG export — per-ticket files at actual size ===================
-    // Renders each ticket off-screen, converts to PNG via html-to-image at
-    // 300 DPI (4.5×2 in → 1,350×600 px), then exposes a per-ticket download
-    // link plus a "Download all" ZIP. State (the generated blobs) lives in
-    // memory; "Clear" releases the blob URLs.
-    const $pngStage    = document.getElementById("png-stage");
+    // ===== Static-PNG ticket grid =========================================
+    // All 1,000 tickets were pre-rendered to assets/tickets/ECU-XXXX.png by
+    // scripts/render-tickets.mjs. This page just lists them — no in-browser
+    // rendering, no IndexedDB cache. Search + view-range filter the grid;
+    // click a thumb to open the full-size PNG in a lightbox with a download
+    // button. The bulk "Download all (.zip)" is a direct link to
+    // assets/tickets-all.zip.
+    const TOTAL_TICKETS = 1000;
+    const TICKET_URL = (id) => `assets/tickets/${id}.png`;
+
     const $pngGrid     = document.getElementById("png-grid");
     const $pngEmpty    = document.getElementById("png-empty");
-    const $pngProgress = document.getElementById("png-progress");
-    const $pngProgBar  = document.getElementById("png-progress-bar");
-    const $pngProgLbl  = document.getElementById("png-progress-label");
-    const $pngProgSrc  = document.getElementById("png-progress-source");
     const $pngResults  = document.getElementById("png-results");
     const $pngCount    = document.getElementById("png-count");
     const $pngVisible  = document.getElementById("png-visible-count");
@@ -224,77 +201,16 @@
     const $pngViewFrom = document.getElementById("png-view-from");
     const $pngViewTo   = document.getElementById("png-view-to");
 
-    // ===== IndexedDB cache — survives reloads ============================
-    // Bump CACHE_VER if the ticket design changes; the loader will then
-    // ignore stale entries and re-render from scratch.
-    const DB_NAME    = "campus-unite-print";
-    const DB_STORE   = "png-cache";
-    const CACHE_VER  = "v1";
-    const TOTAL_TICKETS = 1000;
+    const pngTickets = [];   // { id, url }
 
-    function openCacheDb() {
-      return new Promise((resolve, reject) => {
-        const req = indexedDB.open(DB_NAME, 1);
-        req.onupgradeneeded = () => req.result.createObjectStore(DB_STORE);
-        req.onsuccess = () => resolve(req.result);
-        req.onerror   = () => reject(req.error);
-      });
-    }
-    function cacheKey(id) { return `${CACHE_VER}:${id}`; }
-    function cacheGet(db, id) {
-      return new Promise((resolve) => {
-        const req = db.transaction(DB_STORE, "readonly").objectStore(DB_STORE).get(cacheKey(id));
-        req.onsuccess = () => resolve(req.result || null);
-        req.onerror   = () => resolve(null);
-      });
-    }
-    function cachePut(db, id, blob) {
-      return new Promise((resolve) => {
-        const tx = db.transaction(DB_STORE, "readwrite");
-        tx.objectStore(DB_STORE).put(blob, cacheKey(id));
-        tx.oncomplete = () => resolve();
-        tx.onerror    = () => resolve();
-      });
-    }
-    function cacheClear(db) {
-      return new Promise((resolve) => {
-        const tx = db.transaction(DB_STORE, "readwrite");
-        tx.objectStore(DB_STORE).clear();
-        tx.oncomplete = () => resolve();
-        tx.onerror    = () => resolve();
-      });
-    }
-
-    const TICKET_CSS_W = 4.5 * 96;  // 432px — .ticket width at default DPI
-    const TICKET_CSS_H = 2.0 * 96;  // 192px
-    const TARGET_DPI   = 300;
-    const PIXEL_RATIO  = (4.5 * TARGET_DPI) / TICKET_CSS_W;  // 3.125
-
-    const pngTickets = [];   // { id, blob, blobUrl }
-    let pngBusy = false;
-    let cachedFontCss = null;
-
-    function releaseBlobs() {
-      for (const t of pngTickets) URL.revokeObjectURL(t.blobUrl);
-      pngTickets.length = 0;
-    }
-
-    function setBusy(busy) {
-      pngBusy = busy;
-      const regen = document.getElementById("btn-png-regen");
-      if (regen) regen.disabled = busy;
-    }
-
-    async function ensureFontCss() {
-      // Fetch the embedded font CSS once — html-to-image will otherwise
-      // refetch fonts for every render, blowing up generation time.
-      if (cachedFontCss !== null) return cachedFontCss;
-      try {
-        cachedFontCss = await getFontEmbedCSS(document.body);
-      } catch {
-        cachedFontCss = "";
+    function populateTickets() {
+      if (pngTickets.length) return;  // already populated
+      for (let n = 1; n <= TOTAL_TICKETS; n++) {
+        const id = ticketId(n);
+        pngTickets.push({ id, url: TICKET_URL(id) });
       }
-      return cachedFontCss;
+      $pngCount.textContent = pngTickets.length.toLocaleString();
+      rerenderGrid();
     }
 
     function makeThumbCard(t) {
@@ -303,10 +219,10 @@
       card.className = "png-ticket-card";
       card.dataset.ticketId = t.id;
       card.innerHTML = `
-        <img src="${t.blobUrl}" alt="${t.id}" class="png-ticket-thumb" loading="lazy" />
+        <img src="${t.url}" alt="${t.id}" class="png-ticket-thumb" loading="lazy" decoding="async" />
         <div class="png-ticket-meta">
           <span class="png-ticket-id">${t.id}</span>
-          <a href="${t.blobUrl}" download="${t.id}.png" class="png-ticket-dl" title="Download ${t.id}.png" onclick="event.stopPropagation();">
+          <a href="${t.url}" download="${t.id}.png" class="png-ticket-dl" title="Download ${t.id}.png" onclick="event.stopPropagation();">
             <span class="material-symbols-outlined" style="font-size:18px">download</span>
           </a>
         </div>`;
@@ -318,7 +234,6 @@
     }
 
     // Re-renders the grid from `pngTickets` honouring search + view range.
-    // Called on generation, on filter change, and on clear.
     function rerenderGrid() {
       const q = ($pngSearch.value || "").trim().toLowerCase();
       // Normalize a raw query into a numeric needle if possible (e.g. "0123"
@@ -329,6 +244,7 @@
 
       $pngGrid.innerHTML = "";
       let shown = 0;
+      const frag = document.createDocumentFragment();
       for (const t of pngTickets) {
         const n = parseInt(t.id.replace(/[^0-9]/g, ""), 10);
         if (!Number.isNaN(vFrom) && n < vFrom) continue;
@@ -338,111 +254,20 @@
           const idNum = String(n).padStart(4, "0");
           if (!idLow.includes(q) && !(numQ && idNum.includes(numQ))) continue;
         }
-        $pngGrid.appendChild(makeThumbCard(t));
+        frag.appendChild(makeThumbCard(t));
         shown++;
       }
-      $pngVisible.textContent = shown;
+      $pngGrid.appendChild(frag);
+      $pngVisible.textContent = shown.toLocaleString();
       $pngEmpty.classList.toggle("hidden", shown !== 0 || pngTickets.length === 0);
     }
 
-    // Renders a single ticket off-screen and returns its PNG blob.
-    async function renderTicketPng(id, fontEmbedCSS) {
-      const url = registrationUrl(id);
-      const qr  = await makeQrSvg(url);
-
-      $pngStage.innerHTML = ticketHtml(id, qr);
-      const node = $pngStage.firstElementChild;
-      // Lock the node to the exact CSS dimensions so html-to-image
-      // doesn't pick up a different layout on first paint.
-      node.style.width  = TICKET_CSS_W + "px";
-      node.style.height = TICKET_CSS_H + "px";
-
-      await new Promise(r => requestAnimationFrame(r));
-
-      try {
-        return await toBlob(node, {
-          pixelRatio: PIXEL_RATIO,
-          width: TICKET_CSS_W,
-          height: TICKET_CSS_H,
-          cacheBust: false,
-          fontEmbedCSS,
-          backgroundColor: "#07091a",
-        });
-      } catch (err) {
-        console.warn("PNG render failed for", id, err);
-        return null;
-      } finally {
-        $pngStage.innerHTML = "";
-      }
-    }
-
-    // Auto-loader — pulls from IndexedDB cache when present, falls back to
-    // rendering. Called once on admin sign-in. Subsequent loads are instant
-    // because every ticket is cached the first time.
-    async function loadAllTickets({ forceRegenerate = false } = {}) {
-      if (pngBusy) return;
-      setBusy(true);
-      releaseBlobs();
-      $pngGrid.innerHTML = "";
-      $pngResults.classList.remove("hidden");
-      $pngProgress.classList.remove("hidden");
-      $pngProgBar.style.width = "0%";
-      $pngProgLbl.textContent = `0 / ${TOTAL_TICKETS}`;
-      $pngProgSrc.textContent = forceRegenerate ? "Re-rendering all…" : "Checking cache…";
-
-      const db = await openCacheDb();
-      if (forceRegenerate) await cacheClear(db);
-      const fontEmbedCSS = await ensureFontCss();
-
-      let cachedHits = 0;
-      let rendered   = 0;
-
-      for (let n = 1; n <= TOTAL_TICKETS; n++) {
-        const id = ticketId(n);
-        let blob = forceRegenerate ? null : await cacheGet(db, id);
-
-        if (!blob) {
-          blob = await renderTicketPng(id, fontEmbedCSS);
-          if (blob) await cachePut(db, id, blob);
-          rendered++;
-        } else {
-          cachedHits++;
-        }
-
-        if (blob) {
-          const blobUrl = URL.createObjectURL(blob);
-          pngTickets.push({ id, blob, blobUrl });
-        }
-
-        const pct = (n / TOTAL_TICKETS) * 100;
-        $pngProgBar.style.width = pct.toFixed(1) + "%";
-        $pngProgLbl.textContent = `${n} / ${TOTAL_TICKETS}`;
-        $pngProgSrc.textContent = rendered === 0
-          ? `${cachedHits} from cache`
-          : `${cachedHits} cached · ${rendered} rendered`;
-        $pngCount.textContent = pngTickets.length;
-
-        // Re-paint the grid periodically — also yields so the UI stays
-        // responsive. Cached entries fly through; rendered entries hit a
-        // requestAnimationFrame inside renderTicketPng anyway.
-        if (n % 25 === 0) {
-          rerenderGrid();
-          await new Promise(r => setTimeout(r, 0));
-        }
-      }
-
-      $pngStage.innerHTML = "";
-      $pngProgress.classList.add("hidden");
-      rerenderGrid();
-      setBusy(false);
-    }
-
     // ===== Lightbox — click a thumb to open the full-size PNG ============
-    const $lightbox    = document.getElementById("png-lightbox");
-    const $lbImg       = document.getElementById("png-lightbox-img");
-    const $lbId        = document.getElementById("png-lightbox-id");
-    const $lbDl        = document.getElementById("btn-png-lightbox-dl");
-    let   lbIndex      = -1;
+    const $lightbox = document.getElementById("png-lightbox");
+    const $lbImg    = document.getElementById("png-lightbox-img");
+    const $lbId     = document.getElementById("png-lightbox-id");
+    const $lbDl     = document.getElementById("btn-png-lightbox-dl");
+    let   lbIndex   = -1;
 
     function visibleTicketIds() {
       return Array.from($pngGrid.querySelectorAll(".png-ticket-card"))
@@ -457,10 +282,10 @@
     function showLightbox(id) {
       const t = pngTickets.find(x => x.id === id);
       if (!t) return;
-      $lbImg.src = t.blobUrl;
+      $lbImg.src = t.url;
       $lbImg.alt = t.id;
       $lbId.textContent = t.id;
-      $lbDl.href = t.blobUrl;
+      $lbDl.href = t.url;
       $lbDl.setAttribute("download", `${t.id}.png`);
       $lightbox.classList.remove("hidden");
       $lightbox.setAttribute("aria-hidden", "false");
@@ -484,65 +309,45 @@
     $lightbox.addEventListener("click", (e) => { if (e.target === $lightbox) closeLightbox(); });
     document.addEventListener("keydown", (e) => {
       if ($lightbox.classList.contains("hidden")) return;
-      if (e.key === "Escape")     closeLightbox();
+      if (e.key === "Escape")          closeLightbox();
       else if (e.key === "ArrowLeft")  stepLightbox(-1);
       else if (e.key === "ArrowRight") stepLightbox(1);
     });
 
-    async function downloadZip() {
-      if (!pngTickets.length) return;
-      const zipBtn = document.getElementById("btn-png-zip");
-      const originalHtml = zipBtn.innerHTML;
-      zipBtn.disabled = true;
-      zipBtn.innerHTML = `<span class="material-symbols-outlined" style="font-size:18px">hourglass_top</span>Zipping…`;
-
-      try {
-        const zip = new JSZip();
-        for (const t of pngTickets) zip.file(`${t.id}.png`, t.blob);
-        const zipBlob = await zip.generateAsync(
-          { type: "blob", compression: "STORE" },  // PNGs are already compressed
-          (meta) => {
-            zipBtn.innerHTML = `<span class="material-symbols-outlined" style="font-size:18px">hourglass_top</span>Zipping ${meta.percent.toFixed(0)}%`;
-          }
-        );
-        const a = document.createElement("a");
-        const url = URL.createObjectURL(zipBlob);
-        const first = pngTickets[0].id;
-        const last  = pngTickets[pngTickets.length - 1].id;
-        a.href = url;
-        a.download = `Campus-UNITE-2026-Tickets-${first}-to-${last}.zip`;
-        document.body.appendChild(a);
-        a.click();
-        a.remove();
-        // Slight delay before revoke so Safari has time to start the download.
-        setTimeout(() => URL.revokeObjectURL(url), 4000);
-      } finally {
-        zipBtn.disabled = false;
-        zipBtn.innerHTML = originalHtml;
-      }
-    }
-
-    document.getElementById("btn-png-zip").addEventListener("click", downloadZip);
-    document.getElementById("btn-png-regen").addEventListener("click", () => {
-      if (pngBusy) return;
-      if (!confirm("Re-render all 1,000 tickets from scratch? This takes a few minutes and only matters if the ticket design changed.")) return;
-      loadAllTickets({ forceRegenerate: true });
-    });
     // Re-filter whenever search / view-range changes.
     [$pngSearch, $pngViewFrom, $pngViewTo].forEach(el => {
       el.addEventListener("input", rerenderGrid);
     });
 
-    window.addEventListener("beforeunload", releaseBlobs);
-
-    // Auto-start on admin sign-in. Guard against double-fire if watchAuth
-    // re-emits (e.g., on token refresh).
-    let autoStarted = false;
-    function maybeAutoStart() {
-      if (autoStarted) return;
-      autoStarted = true;
-      loadAllTickets();
+    // ===== Bulk download — four chunked ZIPs ============================
+    // GitHub's 100 MB per-file limit blocks a single 127 MB bulk ZIP, so the
+    // tickets are pre-bundled into four 250-ticket / ~32 MB chunks. Clicking
+    // "Download all" triggers the four downloads sequentially. Most browsers
+    // honour up to ~10 sequential downloads but will prompt the user to
+    // allow multiple files the first time.
+    const BULK_ZIPS = [
+      "assets/tickets-ECU-0001-to-ECU-0250.zip",
+      "assets/tickets-ECU-0251-to-ECU-0500.zip",
+      "assets/tickets-ECU-0501-to-ECU-0750.zip",
+      "assets/tickets-ECU-0751-to-ECU-1000.zip",
+    ];
+    function triggerSequentialDownloads(urls) {
+      // 500 ms spacing keeps Safari + Firefox from collapsing the queue into
+      // a single download or blocking the run as a popup-like burst.
+      urls.forEach((url, i) => {
+        setTimeout(() => {
+          const a = document.createElement("a");
+          a.href = url;
+          a.download = url.split("/").pop();
+          document.body.appendChild(a);
+          a.click();
+          a.remove();
+        }, i * 500);
+      });
     }
+    document.getElementById("btn-png-zip").addEventListener("click", () => {
+      triggerSequentialDownloads(BULK_ZIPS);
+    });
   </script>
 
 </body>

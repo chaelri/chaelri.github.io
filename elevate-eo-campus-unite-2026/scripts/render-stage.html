@@ -1,0 +1,55 @@
+<!doctype html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8" />
+  <title>Render stage</title>
+  <link rel="preconnect" href="https://fonts.googleapis.com" />
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
+  <link href="https://fonts.googleapis.com/css2?family=Bebas+Neue&family=JetBrains+Mono:wght@400;600&display=swap" rel="stylesheet" />
+  <link rel="stylesheet" href="/elevate-eo-campus-unite-2026/style.css" />
+  <!-- All relative URLs in ticketHtml() (e.g. "assets/ticket-bg.jpg") resolve
+       against this base, so the local server hits the elevate folder. -->
+  <base href="/elevate-eo-campus-unite-2026/" />
+  <style>
+    html, body { margin: 0; padding: 0; background: #fff; }
+    /* Only the handful of Tailwind utility classes the ticket markup uses.
+       The full Tailwind CDN was crashing Chrome's headless target before the
+       render loop could start; this avoids it. */
+    .grid { display: grid; }
+    .grid-cols-3 { grid-template-columns: repeat(3, minmax(0, 1fr)); }
+  </style>
+</head>
+<body>
+  <div id="stage"></div>
+
+  <script type="module">
+    // Absolute path so the module imports are unaffected by <base href>.
+    import { ticketHtml, makeQrSvg } from "/elevate-eo-campus-unite-2026/js/ticket.js";
+
+    const TICKET_PREFIX = "ECU";
+    function tid(n) { return `${TICKET_PREFIX}-${String(n).padStart(4, "0")}`; }
+
+    window.__fontsReady = document.fonts.ready;
+
+    window.__renderTicket = async (n, baseUrl) => {
+      const id = tid(n);
+      const u = new URL("register.html", baseUrl);
+      u.searchParams.set("id", id);
+      const qr = await makeQrSvg(u.toString());
+
+      const stage = document.getElementById("stage");
+      stage.innerHTML = ticketHtml(id, qr);
+      const node = stage.firstElementChild;
+      node.style.width  = "4.5in";
+      node.style.height = "2in";
+
+      // Two frames is enough for background-image + QR svg to paint.
+      await new Promise(r => requestAnimationFrame(r));
+      await new Promise(r => requestAnimationFrame(r));
+      return id;
+    };
+
+    window.__ready = true;
+  </script>
+</body>
+</html>

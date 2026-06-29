@@ -1,0 +1,12 @@
+{
+  "name": "elevate-cu-prerender",
+  "private": true,
+  "type": "module",
+  "scripts": {
+    "render": "node render-tickets.mjs"
+  },
+  "dependencies": {
+    "puppeteer": "^25.2.1",
+    "puppeteer-core": "^23.0.0"
+  }
+}
