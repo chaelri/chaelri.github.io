@@ -73,6 +73,7 @@ const openCameraBtn = $("open-camera-btn");
 
 // Camera view
 const cameraView   = $("camera-view");
+const cameraStage  = $("camera-stage");
 const cameraVideo  = $("camera-video");
 const cameraFlash  = $("camera-flash");
 const cameraTopFlip   = $("camera-flip");
@@ -87,6 +88,18 @@ const cameraModeWrap = $("camera-mode");
 const cameraModeBtns = cameraModeWrap ? Array.from(cameraModeWrap.querySelectorAll(".cm-btn")) : [];
 const cameraRecEl    = $("camera-rec");
 const cameraRecTime  = $("camera-rec-time");
+const cameraZoomChip = $("camera-zoom");
+
+// Queue previewer (fullscreen review of locally-captured items before send)
+const queuePrev      = $("queue-prev");
+const qpStage        = $("qp-stage");
+const qpCaption      = $("qp-caption");
+const qpClose        = $("qp-close");
+const qpRemove       = $("qp-remove");
+const qpPrev         = $("qp-prev");
+const qpNext         = $("qp-next");
+const qpSend         = $("qp-send");
+const qpSendLabel    = $("qp-send-label");
 
 // Toast
 const toastEl  = $("toast");
@@ -277,7 +290,16 @@ function addThumb(file) {
     </div>
   `;
   previewEl.appendChild(node);
-  node.querySelector(".remove").addEventListener("click", () => removeItem(id));
+  node.querySelector(".remove").addEventListener("click", (e) => {
+    e.stopPropagation();
+    removeItem(id);
+  });
+  // Tap the thumb anywhere except the remove X = open fullscreen preview.
+  node.style.cursor = "zoom-in";
+  node.addEventListener("click", (e) => {
+    if (e.target.closest(".remove")) return;
+    openQueuePrev(id);
+  });
   items.set(id, { file, blob: file, url, status: "queued", pct: 0, node, isVideo });
   refreshControls();
   return id;
@@ -785,6 +807,7 @@ async function startCameraStream(facing, { withAudio = false } = {}) {
     if (actual === "environment") cameraVideo.classList.remove("mirror");
     else                          cameraVideo.classList.add("mirror");
     await cameraVideo.play().catch(() => {});
+    setupZoomFromStream();
   } catch (e) {
     console.warn("camera error", e);
     let msg = "We couldn't open the camera on this device.";
@@ -816,6 +839,7 @@ function closeCamera() {
   cameraTopFlip.disabled = false;
   if (cameraRecEl) cameraRecEl.classList.add("hidden-init");
   if (cameraModeWrap) cameraModeWrap.style.display = "";
+  resetZoom();
   stopCameraStream();
   cameraView.classList.remove("open");
   cameraView.setAttribute("aria-hidden", "true");
@@ -1047,9 +1071,17 @@ async function startRecording() {
     return;
   }
   if (!_stream.getAudioTracks().length) {
-    await startCameraStream(_facing, { withAudio: true });
-    if (!_stream || !_stream.getAudioTracks().length) {
-      showToast("Microphone unavailable — recording silent video", "err", 3000);
+    // Splice an audio track onto the existing stream rather than restarting,
+    // so the hold-to-record path doesn't flash the camera permission
+    // indicator or drop frames mid-press.
+    try {
+      const audioStream = await navigator.mediaDevices.getUserMedia({
+        audio: { echoCancellation: true, noiseSuppression: true },
+      });
+      audioStream.getAudioTracks().forEach((t) => _stream.addTrack(t));
+    } catch (e) {
+      console.warn("mic permission denied — recording silent video", e);
+      showToast("Recording without sound", "err", 2200);
     }
   }
   const mime = pickRecMime();
@@ -1105,19 +1137,296 @@ function onRecordStop() {
   bumpStripDone();
 }
 
-cameraShutter.addEventListener("click", async () => {
-  if (_captureMode === "photo") {
-    await capturePhoto();
+// Shutter: tap = photo (in photo mode) or start/stop recording (in video mode).
+// In photo mode, holding the shutter past SHUTTER_HOLD_MS instead starts an
+// ad-hoc video "snip" — release to stop. Pointer events so this works on
+// both touch and mouse without double-firing via synthetic click.
+const SHUTTER_HOLD_MS = 350;
+let _shutterHoldTimer = null;
+let _shutterHoldFired = false;
+
+function onShutterDown(e) {
+  if (e.cancelable) e.preventDefault();
+  if (_recorder && _recorder.state === "recording") return;
+  if (_captureMode === "video") return;                  // explicit video mode handles on up
+  _shutterHoldFired = false;
+  _shutterHoldTimer = setTimeout(async () => {
+    _shutterHoldTimer = null;
+    _shutterHoldFired = true;
+    cameraShutter.classList.add("video");
+    await startRecording();
+  }, SHUTTER_HOLD_MS);
+}
+
+async function onShutterUp() {
+  if (_shutterHoldTimer) {
+    clearTimeout(_shutterHoldTimer);
+    _shutterHoldTimer = null;
+  }
+  if (_captureMode === "video") {
+    if (_recorder && _recorder.state === "recording") stopRecording();
+    else await startRecording();
     return;
   }
-  if (_recorder && _recorder.state === "recording") stopRecording();
-  else await startRecording();
+  if (_shutterHoldFired) {
+    // Was holding — stop the ad-hoc recording and revert the red shutter tint.
+    if (_recorder && _recorder.state === "recording") stopRecording();
+    cameraShutter.classList.remove("video");
+    _shutterHoldFired = false;
+    return;
+  }
+  // Quick tap in photo mode — take a photo.
+  await capturePhoto();
+}
+
+cameraShutter.addEventListener("pointerdown", onShutterDown);
+cameraShutter.addEventListener("pointerup", onShutterUp);
+cameraShutter.addEventListener("pointercancel", onShutterUp);
+cameraShutter.addEventListener("pointerleave", (e) => {
+  // Treat dragging off-button as release so a hold doesn't get stuck.
+  if (_shutterHoldTimer || _shutterHoldFired) onShutterUp(e);
 });
+
+// === Camera stage gestures: double-tap to flip + pinch to zoom ===========
+// Pinch zoom uses MediaStreamTrack capabilities when the device supports
+// hardware zoom (most modern phones do via ImageCapture + getCapabilities);
+// otherwise falls back to a CSS transform on the <video> for soft digital
+// zoom. Double-tap-anywhere-on-the-preview is a familiar phone-camera idiom
+// for "flip cameras".
+let _zoomMode = "none";                                   // "track" | "css" | "none"
+let _zoomMin = 1, _zoomMax = 1, _zoomCurrent = 1, _zoomStep = 0.1;
+let _zoomChipTimer = null;
+let _pinchStartDist = 0;
+let _pinchStartZoom = 1;
+let _pinchActive = false;
+let _stageLastTapAt = 0;
+
+function setupZoomFromStream() {
+  _zoomMode = "none"; _zoomMin = 1; _zoomMax = 1; _zoomCurrent = 1;
+  cameraVideo.style.transform = cameraVideo.classList.contains("mirror") ? "scaleX(-1)" : "";
+  hideZoomChip();
+  const track = _stream?.getVideoTracks?.()[0];
+  if (!track) return;
+  try {
+    const caps = typeof track.getCapabilities === "function" ? track.getCapabilities() : null;
+    if (caps && typeof caps.zoom === "object" && caps.zoom !== null) {
+      _zoomMode = "track";
+      _zoomMin = typeof caps.zoom.min === "number" ? caps.zoom.min : 1;
+      _zoomMax = typeof caps.zoom.max === "number" ? caps.zoom.max : _zoomMin;
+      _zoomStep = typeof caps.zoom.step === "number" ? caps.zoom.step : 0.1;
+      const settings = track.getSettings?.();
+      _zoomCurrent = (settings && typeof settings.zoom === "number") ? settings.zoom : _zoomMin;
+      if (_zoomMax <= _zoomMin) _zoomMode = "css";        // device reports zoom but no range
+    }
+  } catch { /* fall through */ }
+  if (_zoomMode === "none") {
+    _zoomMode = "css";                                    // soft fallback
+    _zoomMin = 1; _zoomMax = 4; _zoomCurrent = 1; _zoomStep = 0.05;
+  }
+}
+
+function showZoomChip() {
+  if (!cameraZoomChip) return;
+  cameraZoomChip.textContent = `${_zoomCurrent.toFixed(1)}x`;
+  cameraZoomChip.classList.add("show");
+  if (_zoomChipTimer) clearTimeout(_zoomChipTimer);
+  _zoomChipTimer = setTimeout(hideZoomChip, 1200);
+}
+function hideZoomChip() {
+  if (!cameraZoomChip) return;
+  cameraZoomChip.classList.remove("show");
+  if (_zoomChipTimer) { clearTimeout(_zoomChipTimer); _zoomChipTimer = null; }
+}
+
+async function applyZoom(z) {
+  const clamped = Math.max(_zoomMin, Math.min(_zoomMax, z));
+  _zoomCurrent = clamped;
+  if (_zoomMode === "track") {
+    const track = _stream?.getVideoTracks?.()[0];
+    if (!track) return;
+    try {
+      await track.applyConstraints({ advanced: [{ zoom: clamped }] });
+    } catch (e) {
+      console.warn("hardware zoom failed, falling back to css", e);
+      _zoomMode = "css";
+      cameraVideo.style.transform = `${cameraVideo.classList.contains("mirror") ? "scaleX(-1) " : ""}scale(${clamped})`;
+    }
+  } else {
+    cameraVideo.style.transform = `${cameraVideo.classList.contains("mirror") ? "scaleX(-1) " : ""}scale(${clamped})`;
+  }
+  if (clamped > _zoomMin + 0.01) showZoomChip();
+  else hideZoomChip();
+}
+
+function resetZoom() {
+  if (_zoomMode === "css") {
+    cameraVideo.style.transform = cameraVideo.classList.contains("mirror") ? "scaleX(-1)" : "";
+  }
+  _zoomCurrent = _zoomMin;
+  hideZoomChip();
+}
+
+function pinchDistance(touches) {
+  const dx = touches[0].clientX - touches[1].clientX;
+  const dy = touches[0].clientY - touches[1].clientY;
+  return Math.hypot(dx, dy);
+}
+
+if (cameraStage) {
+  cameraStage.addEventListener("touchstart", (e) => {
+    if (e.touches.length === 2) {
+      _pinchActive = true;
+      _stageLastTapAt = 0;                                // pinch cancels any pending double-tap
+      _pinchStartDist = pinchDistance(e.touches);
+      _pinchStartZoom = _zoomCurrent;
+    }
+  }, { passive: true });
+  cameraStage.addEventListener("touchmove", (e) => {
+    if (!_pinchActive || e.touches.length < 2) return;
+    if (e.cancelable) e.preventDefault();
+    const dist = pinchDistance(e.touches);
+    if (!_pinchStartDist) return;
+    const ratio = dist / _pinchStartDist;
+    applyZoom(_pinchStartZoom * ratio);
+  }, { passive: false });
+  cameraStage.addEventListener("touchend", (e) => {
+    if (_pinchActive && e.touches.length < 2) {
+      _pinchActive = false;
+      _pinchStartDist = 0;
+    }
+  }, { passive: true });
+  // Double-tap = flip cameras. Uses click rather than touch to honor mouse
+  // double-clicks on desktop too. Skips while pinching, recording, or if
+  // there's only one camera on the device.
+  cameraStage.addEventListener("click", (e) => {
+    if (e.target.closest("button")) return;
+    if (_pinchActive) return;
+    if (_recorder && _recorder.state === "recording") return;
+    if (!_hasMultipleCams) return;
+    const now = Date.now();
+    if (now - _stageLastTapAt < 320) {
+      _stageLastTapAt = 0;
+      cameraTopFlip.click();
+    } else {
+      _stageLastTapAt = now;
+    }
+  });
+}
 
 cameraDone.addEventListener("click", () => {
   closeCamera();
-  // Share modal is already open underneath — bring focus to it.
   shareCard.scrollTo({ top: shareCard.scrollHeight, behavior: "smooth" });
+  // Auto-open the fullscreen previewer on the first queued item so guests
+  // can review what they captured before sending.
+  const first = items.keys().next().value;
+  if (first) openQueuePrev(first);
+});
+
+// === Queue previewer =====================================================
+// Fullscreen review of the local items map. Swipe / arrow nav, remove
+// button per item, Send button that triggers the existing upload flow.
+let _qpIds = [];
+let _qpIdx = -1;
+let _qpTouchX = 0;
+
+function refreshQpSendLabel() {
+  if (!qpSendLabel) return;
+  const counts = countByKind();
+  qpSendLabel.textContent = counts.total === 0
+    ? "Send"
+    : `Send ${counts.total} ${kindNounPhrase(counts)}`;
+}
+
+function openQueuePrev(startId) {
+  _qpIds = Array.from(items.keys());
+  if (!_qpIds.length) return;
+  const i = startId ? _qpIds.indexOf(startId) : 0;
+  _qpIdx = i < 0 ? 0 : i;
+  paintQueuePrev();
+  refreshQpSendLabel();
+  queuePrev.classList.add("open");
+  queuePrev.setAttribute("aria-hidden", "false");
+  lockPageScroll();
+}
+
+function closeQueuePrev() {
+  queuePrev.classList.remove("open");
+  queuePrev.setAttribute("aria-hidden", "true");
+  qpStage.innerHTML = "";
+  _qpIdx = -1;
+  _qpIds = [];
+  // Don't fully unlock if the share modal is keeping the lock — share modal
+  // owns body overflow via its own open class.
+  if (!shareModal.classList.contains("open") && !cameraView.classList.contains("open")) {
+    unlockPageScroll();
+  } else {
+    _lbScrollY = -1;
+    document.body.style.position = "";
+    document.body.style.top = "";
+    document.body.style.left = "";
+    document.body.style.right = "";
+    document.body.style.width = "";
+  }
+}
+
+function paintQueuePrev() {
+  if (_qpIdx < 0 || _qpIdx >= _qpIds.length) { closeQueuePrev(); return; }
+  const id = _qpIds[_qpIdx];
+  const it = items.get(id);
+  if (!it) {
+    _qpIds.splice(_qpIdx, 1);
+    if (!_qpIds.length) { closeQueuePrev(); return; }
+    if (_qpIdx >= _qpIds.length) _qpIdx = _qpIds.length - 1;
+    paintQueuePrev();
+    return;
+  }
+  qpStage.innerHTML = it.isVideo
+    ? `<video src="${escHtml(it.url)}" controls autoplay playsinline></video>`
+    : `<img src="${escHtml(it.url)}" alt="">`;
+  qpCaption.textContent = `${_qpIdx + 1} / ${_qpIds.length}`;
+}
+
+function qpNav(delta) {
+  if (!_qpIds.length) return;
+  _qpIdx = (_qpIdx + delta + _qpIds.length) % _qpIds.length;
+  paintQueuePrev();
+}
+
+function qpRemoveCurrent() {
+  if (_qpIdx < 0) return;
+  const id = _qpIds[_qpIdx];
+  removeItem(id);                                          // also revokes URL, deletes thumb
+  _qpIds.splice(_qpIdx, 1);
+  refreshQpSendLabel();
+  if (!_qpIds.length) { closeQueuePrev(); return; }
+  if (_qpIdx >= _qpIds.length) _qpIdx = _qpIds.length - 1;
+  paintQueuePrev();
+}
+
+qpClose.addEventListener("click", closeQueuePrev);
+qpPrev.addEventListener("click", () => qpNav(-1));
+qpNext.addEventListener("click", () => qpNav(1));
+qpRemove.addEventListener("click", qpRemoveCurrent);
+qpSend.addEventListener("click", () => {
+  if (!items.size) { closeQueuePrev(); return; }
+  closeQueuePrev();
+  // Fire the existing upload path so the rest of the flow (success card,
+  // countdown, gallery refresh) stays intact.
+  uploadBtn.click();
+});
+
+// Swipe left/right on stage to nav (mirrors lightbox behavior).
+qpStage.addEventListener("touchstart", (e) => { _qpTouchX = e.touches[0].clientX; }, { passive: true });
+qpStage.addEventListener("touchend", (e) => {
+  const dx = e.changedTouches[0].clientX - _qpTouchX;
+  if (Math.abs(dx) > 48) qpNav(dx < 0 ? 1 : -1);
+}, { passive: true });
+
+document.addEventListener("keydown", (e) => {
+  if (!queuePrev.classList.contains("open")) return;
+  if (e.key === "Escape") closeQueuePrev();
+  else if (e.key === "ArrowLeft") qpNav(-1);
+  else if (e.key === "ArrowRight") qpNav(1);
 });
 
 // === Gallery + lightbox ===================================================

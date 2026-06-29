@@ -790,6 +790,110 @@
         .lb-caption .lb-dot { width: 2px; height: 2px; }
       }
 
+      /* === Queue previewer ============================================ */
+      /* Fullscreen review of locally-captured items before they're sent.
+         Shares the lightbox aesthetic but reads from the in-memory `items`
+         map and supports per-item remove + a Send CTA at the bottom. */
+      .queue-prev {
+        position: fixed; inset: 0;
+        background: rgba(20,18,16,0.96);
+        backdrop-filter: blur(14px);
+        z-index: 110;
+        display: none;
+        align-items: center;
+        justify-content: center;
+        padding: 36px 16px 120px;
+        opacity: 0;
+        transition: opacity 0.32s ease;
+        touch-action: none;
+        overscroll-behavior: contain;
+      }
+      .queue-prev.open { display: flex; opacity: 1; }
+      .qp-stage {
+        max-width: min(96vw, 1300px);
+        max-height: 70vh;
+        display: flex;
+        align-items: center;
+        justify-content: center;
+      }
+      .qp-stage img, .qp-stage video {
+        max-width: 100%;
+        max-height: 70vh;
+        border-radius: 12px;
+        box-shadow: 0 24px 60px rgba(0,0,0,0.45);
+        background: var(--paper);
+        animation: qpZoomIn 0.4s cubic-bezier(0.22, 1, 0.36, 1);
+      }
+      @keyframes qpZoomIn {
+        from { opacity: 0; transform: scale(0.96); }
+        to   { opacity: 1; transform: scale(1); }
+      }
+      .qp-close, .qp-remove, .qp-nav {
+        position: absolute;
+        background: rgba(255,255,255,0.14);
+        color: white;
+        border-radius: 999px;
+        width: 44px; height: 44px;
+        display: grid; place-items: center;
+        cursor: pointer;
+        backdrop-filter: blur(6px);
+        border: none;
+        transition: background 0.22s ease, transform 0.22s cubic-bezier(0.22,1,0.36,1);
+      }
+      .qp-close { top: 18px; right: 18px; }
+      .qp-close:hover { background: rgba(255,255,255,0.24); transform: scale(1.06); }
+      .qp-remove { top: 18px; right: 76px; }
+      .qp-remove:hover { background: rgba(160,50,50,0.85); transform: scale(1.06); }
+      .qp-prev { left: 16px; top: 50%; transform: translateY(-50%); }
+      .qp-next { right: 16px; top: 50%; transform: translateY(-50%); }
+      .qp-prev:hover, .qp-next:hover { background: rgba(255,255,255,0.22); transform: translateY(-50%) scale(1.06); }
+      .qp-caption {
+        position: absolute;
+        bottom: 96px;
+        left: 50%;
+        transform: translateX(-50%);
+        color: rgba(255,255,255,0.85);
+        font-size: 0.82rem;
+        letter-spacing: 0.03em;
+        font-variant-numeric: tabular-nums;
+        padding: 5px 14px;
+        background: rgba(0,0,0,0.4);
+        backdrop-filter: blur(8px);
+        border-radius: 999px;
+        pointer-events: none;
+      }
+      .qp-send {
+        position: absolute;
+        bottom: max(20px, env(safe-area-inset-bottom));
+        left: 50%;
+        transform: translateX(-50%);
+        background: var(--paper);
+        color: var(--ink);
+        border: none;
+        padding: 14px 28px;
+        border-radius: 999px;
+        display: inline-flex;
+        align-items: center;
+        gap: 10px;
+        font-size: 0.92rem;
+        font-weight: 600;
+        letter-spacing: 0.01em;
+        cursor: pointer;
+        box-shadow: 0 16px 32px rgba(0,0,0,0.4);
+        transition: transform 0.22s cubic-bezier(0.22,1,0.36,1), box-shadow 0.22s ease;
+      }
+      .qp-send:hover { transform: translateX(-50%) translateY(-2px); box-shadow: 0 20px 40px rgba(0,0,0,0.5); }
+      .qp-send:active { transform: translateX(-50%) translateY(0); }
+      @media (max-width: 640px) {
+        .queue-prev { padding: 24px 12px 110px; }
+        .qp-prev { left: 8px; }
+        .qp-next { right: 8px; }
+        .qp-caption { bottom: 84px; font-size: 0.74rem; }
+        .qp-close { top: 12px; right: 12px; width: 40px; height: 40px; }
+        .qp-remove { top: 12px; right: 60px; width: 40px; height: 40px; }
+        .qp-send { padding: 12px 22px; font-size: 0.86rem; }
+      }
+
       /* === Confirm modal =============================================== */
       .modal {
         position: fixed; inset: 0;
@@ -851,7 +955,32 @@
         display: flex;
         align-items: center;
         justify-content: center;
+        /* Disable browser pinch-zoom + double-tap-zoom on the preview so
+           our pinch handler owns the gesture and double-tap flips cameras. */
+        touch-action: none;
+        user-select: none;
+        -webkit-user-select: none;
       }
+      /* Floating zoom level indicator (top-center, only visible while zoomed) */
+      .camera-zoom-chip {
+        position: absolute;
+        top: max(72px, calc(env(safe-area-inset-top) + 60px));
+        left: 50%;
+        transform: translateX(-50%);
+        padding: 5px 12px;
+        background: rgba(0,0,0,0.55);
+        backdrop-filter: blur(8px);
+        border-radius: 999px;
+        color: white;
+        font-size: 0.78rem;
+        font-variant-numeric: tabular-nums;
+        letter-spacing: 0.03em;
+        pointer-events: none;
+        opacity: 0;
+        transition: opacity 0.25s ease;
+        z-index: 4;
+      }
+      .camera-zoom-chip.show { opacity: 1; }
       .camera-stage video {
         width: 100%; height: 100%;
         object-fit: cover;
@@ -1277,6 +1406,7 @@
       <div class="camera-stage" id="camera-stage">
         <video id="camera-video" playsinline autoplay muted></video>
         <div id="camera-flash" class="camera-flash"></div>
+        <div id="camera-zoom" class="camera-zoom-chip" aria-hidden="true">1.0x</div>
         <div class="camera-topbar">
           <button id="camera-close" class="camera-btn-icon" aria-label="Close camera">
             <span class="material-symbols-outlined">close</span>
@@ -1335,6 +1465,30 @@
       <div id="lb-strip" class="lb-strip" aria-label="Photo strip"></div>
     </div>
 
+    <!-- Queue previewer: fullscreen swipe-through of locally captured / picked
+         items before they're uploaded, so guests can preview each photo or
+         video and remove anything they don't want to send. -->
+    <div id="queue-prev" class="queue-prev" aria-hidden="true">
+      <button id="qp-close" class="qp-close" aria-label="Close preview" title="Close">
+        <span class="material-symbols-outlined">close</span>
+      </button>
+      <button id="qp-remove" class="qp-remove" aria-label="Remove this item" title="Remove">
+        <span class="material-symbols-outlined" style="font-size:20px">delete</span>
+      </button>
+      <button class="qp-nav qp-prev" id="qp-prev" aria-label="Previous">
+        <span class="material-symbols-outlined">chevron_left</span>
+      </button>
+      <button class="qp-nav qp-next" id="qp-next" aria-label="Next">
+        <span class="material-symbols-outlined">chevron_right</span>
+      </button>
+      <div id="qp-stage" class="qp-stage"></div>
+      <div id="qp-caption" class="qp-caption"></div>
+      <button id="qp-send" class="qp-send" type="button">
+        <span class="material-symbols-outlined" style="font-size:20px">favorite</span>
+        <span id="qp-send-label">Send to our album</span>
+      </button>
+    </div>
+
     <!-- Name onboarding modal (first-time visitors) -->
     <div id="name-modal" class="modal" aria-hidden="true">
       <div class="modal-card">
@@ -1375,6 +1529,6 @@
 
     <div id="toast" class="toast"><span id="toast-msg"></span></div>
 
-    <script type="module" src="script.js?v=20260630b"></script>
+    <script type="module" src="script.js?v=20260630c"></script>
   </body>
 </html>
