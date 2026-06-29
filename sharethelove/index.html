@@ -528,6 +528,46 @@
         display: grid; place-items: center;
         cursor: pointer;
         transition: background 0.22s ease, transform 0.22s cubic-bezier(0.22,1,0.36,1);
+        z-index: 3;
+      }
+      /* Video markers on queue thumbs: small camcorder tag in the top-left
+         corner + a centered play button overlay. Mirrors the gallery's
+         "this is a video" affordances so the queue looks consistent with
+         the album it's about to join. */
+      .thumb .thumb-video-tag {
+        position: absolute;
+        top: 6px; left: 6px;
+        background: rgba(20,18,16,0.6);
+        backdrop-filter: blur(4px);
+        color: white;
+        width: 22px; height: 22px;
+        border-radius: 999px;
+        display: grid; place-items: center;
+        z-index: 2;
+        pointer-events: none;
+      }
+      .thumb .thumb-video-tag .material-symbols-outlined {
+        font-size: 13px;
+        font-variation-settings: 'FILL' 1;
+      }
+      .thumb .thumb-play {
+        position: absolute;
+        top: 50%; left: 50%;
+        transform: translate(-50%, -50%);
+        width: 34px; height: 34px;
+        background: rgba(20,18,16,0.55);
+        color: white;
+        border-radius: 999px;
+        display: grid; place-items: center;
+        backdrop-filter: blur(6px);
+        box-shadow: 0 4px 12px rgba(0,0,0,0.32), 0 0 0 1px rgba(255,255,255,0.14) inset;
+        z-index: 2;
+        pointer-events: none;
+      }
+      .thumb .thumb-play .material-symbols-outlined {
+        font-size: 20px;
+        font-variation-settings: 'FILL' 1;
+        margin-left: 1px;
       }
       .thumb .remove:hover { background: rgba(0,0,0,0.78); transform: scale(1.08); }
       .thumb.uploading .remove { display: none; }
@@ -1375,7 +1415,7 @@
             <div id="upload-status" class="upload-status"></div>
           </div>
 
-          <p class="mt-4 text-center text-xs" style="color: var(--ink-faint)">Up to ~50 MB per video · photos auto-compressed</p>
+          <p class="mt-4 text-center text-xs" style="color: var(--ink-faint)">Each video stops at ~50 MB · take as many clips as you want · photos auto-compressed</p>
         </div>
 
         <!-- Success state -->
@@ -1529,6 +1569,6 @@
 
     <div id="toast" class="toast"><span id="toast-msg"></span></div>
 
-    <script type="module" src="script.js?v=20260630e"></script>
+    <script type="module" src="script.js?v=20260630f"></script>
   </body>
 </html>

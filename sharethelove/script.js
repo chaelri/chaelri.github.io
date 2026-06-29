@@ -279,7 +279,9 @@ function addThumb(file) {
   node.dataset.id = id;
   node.innerHTML = `
     ${isVideo
-      ? `<video src="${url}" muted playsinline preload="metadata"></video>`
+      ? `<video src="${url}" muted playsinline preload="auto"></video>
+         <div class="thumb-video-tag" aria-hidden="true"><span class="material-symbols-outlined">videocam</span></div>
+         <div class="thumb-play" aria-hidden="true"><span class="material-symbols-outlined">play_arrow</span></div>`
       : `<img src="${url}" alt="${escAttr(file.name)}">`}
     <div class="remove" title="Remove">
       <span class="material-symbols-outlined" style="font-size:16px">close</span>
