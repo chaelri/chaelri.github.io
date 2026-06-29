@@ -373,6 +373,12 @@
         color: var(--ink);
       }
       .fab-btn.primary:hover { background: rgba(255,255,255,0.92); transform: translateY(-1px); }
+      .fab-btn.fab-btn--icon {
+        padding: 12px;
+        width: 44px;
+        height: 44px;
+        justify-content: center;
+      }
       .fab-btn .material-symbols-outlined { font-size: 20px; }
 
       /* === Share modal (slide-up sheet on mobile, dialog on desktop) === */
@@ -638,7 +644,6 @@
         border: none;
         transition: background 0.22s ease, transform 0.22s cubic-bezier(0.22,1,0.36,1);
       }
-      .lb-delete { position: absolute; bottom: 100px; left: 18px; }
       .lb-actions {
         position: absolute;
         top: 18px;
@@ -651,12 +656,18 @@
       .lb-download:hover, .lb-share:hover { background: rgba(255,255,255,0.22); transform: scale(1.04); }
       .lb-download:disabled, .lb-share:disabled { opacity: 0.5; cursor: progress; transform: none; }
       .lb-share { background: rgba(255,255,255,0.16); }
-      @media (max-width: 480px) {
-        /* Phones: collapse to icon-only to leave room for the title-strip dots */
-        .lb-actions { right: 64px; gap: 6px; }
-        .lb-share, .lb-download { padding: 0 12px; height: 40px; }
-        .lb-share span:not(.material-symbols-outlined),
-        .lb-download span:not(.material-symbols-outlined) { display: none; }
+      @media (max-width: 640px) {
+        /* Phones: icon-only buttons so the action group fits next to the X
+           and doesn't overlap the caption pill at the bottom. */
+        .lb-close { width: 40px; height: 40px; top: 12px; right: 12px; }
+        .lb-actions { top: 12px; right: 60px; gap: 6px; }
+        .lb-delete, .lb-share, .lb-download {
+          padding: 0;
+          width: 40px;
+          height: 40px;
+          justify-content: center;
+        }
+        .lb-action-label { display: none; }
       }
 
       /* Lightbox thumbnail strip (Facebook-style) */
@@ -780,7 +791,6 @@
         .lb-caption .lb-time-block .material-symbols-outlined { font-size: 12px; }
         .lb-caption .lb-counter { font-size: 0.66rem; padding-left: 8px; margin-left: 2px; }
         .lb-caption .lb-dot { width: 2px; height: 2px; }
-        .lb-delete { bottom: 82px; }
       }
 
       /* === Confirm modal =============================================== */
@@ -1000,16 +1010,37 @@
         0%   { box-shadow: 0 0 0 0 rgba(255,59,59,0.7); }
         100% { box-shadow: 0 0 0 8px rgba(255,59,59,0); }
       }
-      .camera-strip .cs-thumb { position: relative; }
-      .camera-strip .cs-thumb video {
-        width: 100%; height: 100%; object-fit: cover; display: block;
-      }
-      .camera-strip .cs-vid-badge {
-        position: absolute; inset: 0;
-        display: grid; place-items: center;
-        background: rgba(0,0,0,0.28);
+      /* Counter chips: shown in the camera strip instead of clickable thumbs
+         because there's no fullscreen preview to navigate to anyway. */
+      .camera-strip .cs-count {
+        display: inline-flex;
+        align-items: center;
+        gap: 7px;
+        padding: 7px 14px;
+        border-radius: 999px;
+        background: rgba(255,255,255,0.10);
         color: white;
-        pointer-events: none;
+        border: 1px solid rgba(255,255,255,0.16);
+        font-size: 0.84rem;
+        font-weight: 500;
+        letter-spacing: 0.02em;
+        white-space: nowrap;
+      }
+      .camera-strip .cs-count .material-symbols-outlined {
+        font-size: 18px;
+        font-variation-settings: 'wght' 400;
+      }
+      .camera-strip .cs-count .cs-n {
+        font-variant-numeric: tabular-nums;
+        font-weight: 600;
+        font-size: 0.92rem;
+        letter-spacing: 0.03em;
+      }
+      .camera-strip .cs-count.bump { animation: csBump 0.42s cubic-bezier(0.34, 1.56, 0.64, 1); }
+      @keyframes csBump {
+        0%   { transform: scale(1); }
+        40%  { transform: scale(1.18); }
+        100% { transform: scale(1); }
       }
       .camera-done {
         justify-self: end;
@@ -1160,11 +1191,10 @@
 
     <!-- Floating share FAB -->
     <div id="fab-wrap" class="fab-wrap">
-      <button id="fab-camera" class="fab-btn" aria-label="Take a photo">
+      <button id="fab-camera" class="fab-btn fab-btn--icon" aria-label="Open camera" title="Open camera">
         <span class="material-symbols-outlined">photo_camera</span>
-        <span class="hidden sm:inline">Take photo</span>
       </button>
-      <button id="fab-upload" class="fab-btn primary" aria-label="Share your photos">
+      <button id="fab-upload" class="fab-btn primary" aria-label="Share your photos and videos">
         <span class="material-symbols-outlined">favorite</span>
         <span>Share</span>
       </button>
@@ -1228,7 +1258,7 @@
             <span class="material-symbols-outlined" style="font-size: 64px; font-variation-settings: 'FILL' 1;">favorite</span>
           </div>
           <h2 class="font-serif text-2xl sm:text-3xl mt-2" style="color: var(--ink)">Salamat, mahal namin kayo</h2>
-          <p class="mt-2 text-sm" style="color: var(--ink-soft)">Your photos are on their way to our album.</p>
+          <p id="success-text" class="mt-2 text-sm" style="color: var(--ink-soft)">Your photos are on their way to our album.</p>
           <div class="mt-5 flex gap-2 justify-center">
             <button id="upload-more" class="btn-ghost px-5 py-2.5 rounded-full text-sm tracking-[0.12em] uppercase">
               <span class="material-symbols-outlined align-middle mr-1" style="font-size: 16px">add</span>
@@ -1273,8 +1303,8 @@
         </div>
       </div>
       <div class="camera-controls">
-        <div id="camera-strip" class="camera-strip">
-          <span class="camera-strip-placeholder">Captured photos appear here</span>
+        <div id="camera-strip" class="camera-strip" aria-live="polite">
+          <span class="camera-strip-placeholder">Tap to capture</span>
         </div>
         <button id="camera-shutter" class="camera-shutter" aria-label="Capture photo"></button>
         <button id="camera-done" class="camera-done" disabled>Done</button>
@@ -1287,13 +1317,17 @@
         <span class="material-symbols-outlined">close</span>
       </button>
       <div class="lb-actions">
+        <button class="lb-delete hidden-init" id="lb-delete" aria-label="Remove this upload">
+          <span class="material-symbols-outlined" style="font-size:18px">delete</span>
+          <span class="lb-action-label">Remove</span>
+        </button>
         <button class="lb-share" id="lb-share" aria-label="Share">
           <span class="material-symbols-outlined" style="font-size:18px">ios_share</span>
-          Share
+          <span class="lb-action-label">Share</span>
         </button>
         <button class="lb-download" id="lb-download" aria-label="Download">
           <span class="material-symbols-outlined" style="font-size:18px">download</span>
-          Download
+          <span class="lb-action-label">Download</span>
         </button>
       </div>
       <button class="lb-nav lb-prev" id="lb-prev" aria-label="Previous">
@@ -1303,10 +1337,6 @@
         <span class="material-symbols-outlined">chevron_right</span>
       </button>
       <div class="lb-stage" id="lb-stage"></div>
-      <button class="lb-delete hidden-init" id="lb-delete" aria-label="Remove this upload">
-        <span class="material-symbols-outlined" style="font-size:18px">delete</span>
-        Remove
-      </button>
       <div class="lb-caption" id="lb-caption"></div>
       <div id="lb-strip" class="lb-strip" aria-label="Photo strip"></div>
     </div>
@@ -1332,7 +1362,7 @@
     <div id="confirm-modal" class="modal" aria-hidden="true">
       <div class="modal-card">
         <span class="material-symbols-outlined" style="font-size:36px;color:#a83838">delete</span>
-        <h3>Remove this photo?</h3>
+        <h3 id="confirm-title">Remove this photo?</h3>
         <p id="confirm-msg">It will be deleted from the shared album and from our storage — this can't be undone.</p>
         <div class="modal-actions">
           <button class="btn-ghost" id="modal-cancel">Cancel</button>
@@ -1351,6 +1381,6 @@
 
     <div id="toast" class="toast"><span id="toast-msg"></span></div>
 
-    <script type="module" src="script.js?v=20260629e"></script>
+    <script type="module" src="script.js?v=20260630a"></script>
   </body>
 </html>

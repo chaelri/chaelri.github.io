@@ -62,6 +62,7 @@ const moreBtn      = $("upload-more");
 const doneBtn      = $("share-done");
 const successCountdown = $("success-countdown");
 const successCounter   = $("success-counter");
+const successText      = $("success-text");
 const guestNameEl  = $("guest-name");
 
 // FAB
@@ -113,6 +114,7 @@ const lbStrip    = $("lb-strip");
 
 // Confirm modal
 const confirmModal = $("confirm-modal");
+const confirmTitle = $("confirm-title");
 const confirmMsg   = $("confirm-msg");
 const modalCancel  = $("modal-cancel");
 const modalConfirm = $("modal-confirm");
@@ -290,6 +292,20 @@ function removeItem(id) {
   refreshControls();
 }
 
+// Kind-aware counting + labels — so the share modal, upload button, and
+// success text say "video" / "videos" / "photo" / "photos" / "moments"
+// instead of always defaulting to "photo".
+function countByKind() {
+  let p = 0, v = 0;
+  for (const it of items.values()) { if (it.isVideo) v++; else p++; }
+  return { p, v, total: p + v };
+}
+function kindNounPhrase({ p, v, total }) {
+  if (v === 0) return total === 1 ? "photo"  : "photos";
+  if (p === 0) return total === 1 ? "video"  : "videos";
+  return "moments";
+}
+
 function refreshControls() {
   const n = items.size;
   if (n === 0) {
@@ -297,9 +313,10 @@ function refreshControls() {
     return;
   }
   controlsEl.classList.remove("hidden-init");
+  const counts = countByKind();
   uploadLbl.textContent = isUploading
     ? `Sending… ${countDone()}/${n}`
-    : n === 1 ? `Send 1 photo to our album` : `Send ${n} photos to our album`;
+    : `Send ${n} ${kindNounPhrase(counts)} to our album`;
 }
 
 function countDone() {
@@ -674,6 +691,15 @@ uploadBtn.addEventListener("click", async () => {
     showToast(`${failed} file${failed === 1 ? "" : "s"} couldn't fully sync — reconcile will retry`, "err", 4500);
   } else {
     uploadStat.textContent = "";
+    // Tailor the success copy to what was actually sent.
+    if (successText) {
+      let pv = 0, vv = 0;
+      for (const [, it] of queue) { if (it.isVideo) vv++; else pv++; }
+      const total = pv + vv;
+      const noun  = kindNounPhrase({ p: pv, v: vv, total });
+      const verb  = total === 1 ? "is" : "are";
+      successText.textContent = `Your ${noun} ${verb} on their way to our album.`;
+    }
     shareMain.classList.add("hidden-init");
     successEl.classList.remove("hidden-init");
     startSuccessCountdown();
@@ -793,11 +819,14 @@ function closeCamera() {
   stopCameraStream();
   cameraView.classList.remove("open");
   cameraView.setAttribute("aria-hidden", "true");
-  // Reset bottom strip UI for next session
+  // Reset capture counters + done-button state for next session
   _cameraStripCount = 0;
+  _photoCount = 0;
+  _videoCount = 0;
   cameraDone.disabled = true;
   cameraDone.classList.remove("active");
-  cameraStrip.innerHTML = `<span class="camera-strip-placeholder">Captured photos appear here</span>`;
+  cameraDone.textContent = "Done";
+  renderCameraCounter();
   if (!shareModal.classList.contains("open") && !lightbox.classList.contains("open")) {
     document.body.style.overflow = "";
   }
@@ -813,10 +842,12 @@ cameraErrorClose.addEventListener("click", () => {
 cameraTopFlip.addEventListener("click", async () => {
   if (_recorder && _recorder.state === "recording") return;  // don't flip mid-record
   const newFacing = _facing === "environment" ? "user" : "environment";
-  // Smooth path: applyConstraints on the existing video track keeps the
-  // MediaStream alive, so Chrome mobile doesn't re-show its "camera access
-  // allowed" indicator each time the user toggles front/rear. Falls back to
-  // a full stream restart if the browser can't satisfy the constraint live.
+  // Try the smooth path (applyConstraints keeps the stream alive so Chrome
+  // doesn't re-flash its "camera access allowed" indicator), but VERIFY the
+  // physical camera actually switched. Many Android Chromes accept the
+  // constraint silently while keeping the same camera bound — which is what
+  // broke "flip back to rear cam" after the first flip. If verification
+  // fails, fall through to a full restart.
   const track = _stream?.getVideoTracks?.()[0];
   if (track && typeof track.applyConstraints === "function") {
     try {
@@ -825,11 +856,15 @@ cameraTopFlip.addEventListener("click", async () => {
         width:  { ideal: 1920 },
         height: { ideal: 1080 },
       });
-      _facing = newFacing;
-      const actual = track.getSettings?.().facingMode || newFacing;
-      if (actual === "environment") cameraVideo.classList.remove("mirror");
-      else                          cameraVideo.classList.add("mirror");
-      return;
+      const actual = track.getSettings?.().facingMode;
+      if (actual === newFacing) {
+        _facing = newFacing;
+        if (actual === "environment") cameraVideo.classList.remove("mirror");
+        else                          cameraVideo.classList.add("mirror");
+        return;
+      }
+      // No-op flip — applyConstraints didn't actually switch cameras.
+      // Fall through to the reliable restart path below.
     } catch (e) {
       console.warn("applyConstraints flip failed, restarting stream", e);
     }
@@ -839,11 +874,46 @@ cameraTopFlip.addEventListener("click", async () => {
 });
 
 let _cameraStripCount = 0;
+let _photoCount = 0;
+let _videoCount = 0;
 
 function bumpStripDone() {
+  const total = _photoCount + _videoCount;
+  _cameraStripCount = total;
   cameraDone.disabled = false;
   cameraDone.classList.add("active");
-  cameraDone.textContent = `Done · ${_cameraStripCount}`;
+  cameraDone.textContent = `Done · ${total}`;
+}
+
+// The camera-strip used to render clickable thumbnails, but they implied
+// a tap-to-preview that didn't exist. Replaced with simple count chips —
+// camera icon + N for stills, videocam icon + N for clips. Just shows the
+// user the session tally so they can decide whether to keep capturing or
+// press Done.
+function renderCameraCounter(justCaptured) {
+  const total = _photoCount + _videoCount;
+  if (total === 0) {
+    cameraStrip.innerHTML = `<span class="camera-strip-placeholder">Tap to capture</span>`;
+    return;
+  }
+  const chips = [];
+  if (_photoCount > 0) {
+    chips.push(
+      `<div class="cs-count${justCaptured === "photo" ? " bump" : ""}" data-kind="photo" aria-label="${_photoCount} photo${_photoCount === 1 ? "" : "s"} captured">`
+      + `<span class="material-symbols-outlined">photo_camera</span>`
+      + `<span class="cs-n">${_photoCount}</span>`
+      + `</div>`
+    );
+  }
+  if (_videoCount > 0) {
+    chips.push(
+      `<div class="cs-count${justCaptured === "video" ? " bump" : ""}" data-kind="video" aria-label="${_videoCount} video${_videoCount === 1 ? "" : "s"} captured">`
+      + `<span class="material-symbols-outlined">videocam</span>`
+      + `<span class="cs-n">${_videoCount}</span>`
+      + `</div>`
+    );
+  }
+  cameraStrip.innerHTML = chips.join("");
 }
 
 // Rapid-tap friendly: every shutter click fires its own async pipeline. The
@@ -877,14 +947,8 @@ async function capturePhoto() {
       lastModified: Date.now(),
     });
     addThumb(file);
-    if (_cameraStripCount === 0) cameraStrip.innerHTML = "";
-    _cameraStripCount++;
-    const stripUrl = URL.createObjectURL(blob);
-    const stripNode = document.createElement("div");
-    stripNode.className = "cs-thumb";
-    stripNode.innerHTML = `<img src="${stripUrl}" alt="">`;
-    cameraStrip.appendChild(stripNode);
-    cameraStrip.scrollTo({ left: cameraStrip.scrollWidth, behavior: "smooth" });
+    _photoCount++;
+    renderCameraCounter("photo");
     bumpStripDone();
   } catch (e) {
     console.error(e);
@@ -1036,15 +1100,8 @@ function onRecordStop() {
     return;
   }
   addThumb(file);
-  if (_cameraStripCount === 0) cameraStrip.innerHTML = "";
-  _cameraStripCount++;
-  const stripUrl = URL.createObjectURL(blob);
-  const stripNode = document.createElement("div");
-  stripNode.className = "cs-thumb";
-  stripNode.innerHTML = `<video src="${stripUrl}" muted playsinline preload="metadata"></video>`
-    + `<div class="cs-vid-badge"><span class="material-symbols-outlined" style="font-size:14px;font-variation-settings:'FILL' 1">play_arrow</span></div>`;
-  cameraStrip.appendChild(stripNode);
-  cameraStrip.scrollTo({ left: cameraStrip.scrollWidth, behavior: "smooth" });
+  _videoCount++;
+  renderCameraCounter("video");
   bumpStripDone();
 }
 
@@ -1538,10 +1595,12 @@ function askDelete(id) {
     return;
   }
   _pendingDeleteId = id;
+  const noun = entry.isVideo ? "video" : "photo";
+  if (confirmTitle) confirmTitle.textContent = `Remove this ${noun}?`;
   if (IS_ADMIN && entry.uid && entry.uid !== auth.currentUser?.uid) {
-    confirmMsg.textContent = "This will be removed from the album and the guest who uploaded it will see a note that an admin removed their photo.";
+    confirmMsg.textContent = `This will be removed from the album and the guest who uploaded it will see a note that an admin removed their ${noun}.`;
   } else {
-    confirmMsg.textContent = "It will be deleted from the shared album and from our storage — this can't be undone.";
+    confirmMsg.textContent = `It will be deleted from the shared album and from our storage — this can't be undone.`;
   }
   confirmModal.classList.add("open");
   confirmModal.setAttribute("aria-hidden", "false");
