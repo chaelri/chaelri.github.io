@@ -67,37 +67,12 @@
         </div>
       </div>
 
-      <div class="grid grid-cols-2 sm:grid-cols-4 gap-3">
-        <div>
-          <label class="field-label">From #</label>
-          <input id="png-from" type="number" min="1" max="1000" value="1" class="input" />
-        </div>
-        <div>
-          <label class="field-label">To #</label>
-          <input id="png-to" type="number" min="1" max="1000" value="1000" class="input" />
-        </div>
-        <div class="col-span-2 sm:col-span-2 flex items-end">
-          <button id="btn-png-generate" class="btn-primary w-full justify-center">
-            <span class="material-symbols-outlined" style="font-size:18px">image</span>
-            Generate PNGs
-          </button>
-        </div>
-      </div>
-
-      <div class="mt-3 flex flex-wrap gap-2">
-        <button data-png-range="1,20"     class="png-rng-btn btn-ghost text-xs">1 → 20</button>
-        <button data-png-range="1,100"    class="png-rng-btn btn-ghost text-xs">1 → 100</button>
-        <button data-png-range="1,250"    class="png-rng-btn btn-ghost text-xs">1 → 250</button>
-        <button data-png-range="251,500"  class="png-rng-btn btn-ghost text-xs">251 → 500</button>
-        <button data-png-range="501,750"  class="png-rng-btn btn-ghost text-xs">501 → 750</button>
-        <button data-png-range="751,1000" class="png-rng-btn btn-ghost text-xs">751 → 1,000</button>
-        <button data-png-range="1,1000"   class="png-rng-btn btn-tape text-xs" style="padding:0.45rem 0.9rem;">All 1,000</button>
-      </div>
-
-      <div id="png-progress" class="mt-4 hidden">
+      <!-- Auto-render banner: first visit renders all 1,000 tickets and caches
+           them in IndexedDB. Every subsequent visit pulls instantly from cache. -->
+      <div id="png-progress" class="mt-2 hidden">
         <div class="flex items-center justify-between mb-1">
-          <span id="png-progress-label" class="text-xs text-mute font-extrabold-ui uppercase tracking-widest">0 / 0</span>
-          <button id="btn-png-cancel" class="text-xs text-mute hover:text-red font-extrabold-ui uppercase tracking-widest">Cancel</button>
+          <span id="png-progress-label" class="text-xs text-mute font-extrabold-ui uppercase tracking-widest">Preparing…</span>
+          <span id="png-progress-source" class="text-[10px] text-mute font-extrabold-ui uppercase tracking-widest">—</span>
         </div>
         <div class="w-full bg-[color:var(--line)] rounded-full overflow-hidden" style="height: 6px;">
           <div id="png-progress-bar" class="h-full transition-all" style="width: 0%; background: var(--tape);"></div>
@@ -111,9 +86,9 @@
             <span id="png-visible-count" class="text-tape font-extrabold-ui">0</span> shown
           </span>
           <div class="flex gap-2 flex-wrap">
-            <button id="btn-png-clear" class="btn-ghost text-xs">
-              <span class="material-symbols-outlined" style="font-size:16px">delete_sweep</span>
-              Clear
+            <button id="btn-png-regen" class="btn-ghost text-xs" title="Re-render all tickets from scratch (clears cache)">
+              <span class="material-symbols-outlined" style="font-size:16px">refresh</span>
+              Re-render
             </button>
             <button id="btn-png-zip" class="btn-tape">
               <span class="material-symbols-outlined" style="font-size:18px">folder_zip</span>
@@ -223,6 +198,7 @@
       }
       $gate.classList.add("hidden");
       $controls.classList.remove("hidden");
+      maybeAutoStart();
     });
 
     document.getElementById("btn-signin").addEventListener("click", () => {
@@ -240,14 +216,54 @@
     const $pngProgress = document.getElementById("png-progress");
     const $pngProgBar  = document.getElementById("png-progress-bar");
     const $pngProgLbl  = document.getElementById("png-progress-label");
+    const $pngProgSrc  = document.getElementById("png-progress-source");
     const $pngResults  = document.getElementById("png-results");
     const $pngCount    = document.getElementById("png-count");
     const $pngVisible  = document.getElementById("png-visible-count");
-    const $pngFrom     = document.getElementById("png-from");
-    const $pngTo       = document.getElementById("png-to");
     const $pngSearch   = document.getElementById("png-search");
     const $pngViewFrom = document.getElementById("png-view-from");
     const $pngViewTo   = document.getElementById("png-view-to");
+
+    // ===== IndexedDB cache — survives reloads ============================
+    // Bump CACHE_VER if the ticket design changes; the loader will then
+    // ignore stale entries and re-render from scratch.
+    const DB_NAME    = "campus-unite-print";
+    const DB_STORE   = "png-cache";
+    const CACHE_VER  = "v1";
+    const TOTAL_TICKETS = 1000;
+
+    function openCacheDb() {
+      return new Promise((resolve, reject) => {
+        const req = indexedDB.open(DB_NAME, 1);
+        req.onupgradeneeded = () => req.result.createObjectStore(DB_STORE);
+        req.onsuccess = () => resolve(req.result);
+        req.onerror   = () => reject(req.error);
+      });
+    }
+    function cacheKey(id) { return `${CACHE_VER}:${id}`; }
+    function cacheGet(db, id) {
+      return new Promise((resolve) => {
+        const req = db.transaction(DB_STORE, "readonly").objectStore(DB_STORE).get(cacheKey(id));
+        req.onsuccess = () => resolve(req.result || null);
+        req.onerror   = () => resolve(null);
+      });
+    }
+    function cachePut(db, id, blob) {
+      return new Promise((resolve) => {
+        const tx = db.transaction(DB_STORE, "readwrite");
+        tx.objectStore(DB_STORE).put(blob, cacheKey(id));
+        tx.oncomplete = () => resolve();
+        tx.onerror    = () => resolve();
+      });
+    }
+    function cacheClear(db) {
+      return new Promise((resolve) => {
+        const tx = db.transaction(DB_STORE, "readwrite");
+        tx.objectStore(DB_STORE).clear();
+        tx.oncomplete = () => resolve();
+        tx.onerror    = () => resolve();
+      });
+    }
 
     const TICKET_CSS_W = 4.5 * 96;  // 432px — .ticket width at default DPI
     const TICKET_CSS_H = 2.0 * 96;  // 192px
@@ -256,7 +272,6 @@
 
     const pngTickets = [];   // { id, blob, blobUrl }
     let pngBusy = false;
-    let pngCancel = false;
     let cachedFontCss = null;
 
     function releaseBlobs() {
@@ -266,8 +281,8 @@
 
     function setBusy(busy) {
       pngBusy = busy;
-      document.getElementById("btn-png-generate").disabled = busy;
-      document.querySelectorAll(".png-rng-btn").forEach(b => (b.disabled = busy));
+      const regen = document.getElementById("btn-png-regen");
+      if (regen) regen.disabled = busy;
     }
 
     async function ensureFontCss() {
@@ -330,49 +345,68 @@
       $pngEmpty.classList.toggle("hidden", shown !== 0 || pngTickets.length === 0);
     }
 
-    async function generatePngs(from, to) {
-      if (pngBusy) return;
-      from = Math.max(1, Math.min(1000, from | 0));
-      to   = Math.max(from, Math.min(1000, to | 0));
+    // Renders a single ticket off-screen and returns its PNG blob.
+    async function renderTicketPng(id, fontEmbedCSS) {
+      const url = registrationUrl(id);
+      const qr  = await makeQrSvg(url);
 
+      $pngStage.innerHTML = ticketHtml(id, qr);
+      const node = $pngStage.firstElementChild;
+      // Lock the node to the exact CSS dimensions so html-to-image
+      // doesn't pick up a different layout on first paint.
+      node.style.width  = TICKET_CSS_W + "px";
+      node.style.height = TICKET_CSS_H + "px";
+
+      await new Promise(r => requestAnimationFrame(r));
+
+      try {
+        return await toBlob(node, {
+          pixelRatio: PIXEL_RATIO,
+          width: TICKET_CSS_W,
+          height: TICKET_CSS_H,
+          cacheBust: false,
+          fontEmbedCSS,
+          backgroundColor: "#07091a",
+        });
+      } catch (err) {
+        console.warn("PNG render failed for", id, err);
+        return null;
+      } finally {
+        $pngStage.innerHTML = "";
+      }
+    }
+
+    // Auto-loader — pulls from IndexedDB cache when present, falls back to
+    // rendering. Called once on admin sign-in. Subsequent loads are instant
+    // because every ticket is cached the first time.
+    async function loadAllTickets({ forceRegenerate = false } = {}) {
+      if (pngBusy) return;
+      setBusy(true);
       releaseBlobs();
       $pngGrid.innerHTML = "";
-      $pngResults.classList.add("hidden");
+      $pngResults.classList.remove("hidden");
       $pngProgress.classList.remove("hidden");
-      pngCancel = false;
-      setBusy(true);
+      $pngProgBar.style.width = "0%";
+      $pngProgLbl.textContent = `0 / ${TOTAL_TICKETS}`;
+      $pngProgSrc.textContent = forceRegenerate ? "Re-rendering all…" : "Checking cache…";
 
+      const db = await openCacheDb();
+      if (forceRegenerate) await cacheClear(db);
       const fontEmbedCSS = await ensureFontCss();
-      const total = to - from + 1;
 
-      for (let n = from, i = 0; n <= to; n++, i++) {
-        if (pngCancel) break;
-        const id  = ticketId(n);
-        const url = registrationUrl(id);
-        const qr  = await makeQrSvg(url);
+      let cachedHits = 0;
+      let rendered   = 0;
 
-        $pngStage.innerHTML = ticketHtml(id, qr);
-        const node = $pngStage.firstElementChild;
-        // Lock the node to the exact CSS dimensions so html-to-image
-        // doesn't pick up a different layout on first paint.
-        node.style.width  = TICKET_CSS_W + "px";
-        node.style.height = TICKET_CSS_H + "px";
+      for (let n = 1; n <= TOTAL_TICKETS; n++) {
+        const id = ticketId(n);
+        let blob = forceRegenerate ? null : await cacheGet(db, id);
 
-        // Wait one frame so background images + fonts are painted.
-        await new Promise(r => requestAnimationFrame(r));
-
-        let blob = null;
-        try {
-          blob = await toBlob(node, {
-            pixelRatio: PIXEL_RATIO,
-            width: TICKET_CSS_W,
-            height: TICKET_CSS_H,
-            cacheBust: false,
-            fontEmbedCSS,
-            backgroundColor: "#07091a",
-          });
-        } catch (err) {
-          console.warn("PNG render failed for", id, err);
+        if (!blob) {
+          blob = await renderTicketPng(id, fontEmbedCSS);
+          if (blob) await cachePut(db, id, blob);
+          rendered++;
+        } else {
+          cachedHits++;
         }
 
         if (blob) {
@@ -380,12 +414,18 @@
           pngTickets.push({ id, blob, blobUrl });
         }
 
-        const pct = ((i + 1) / total) * 100;
+        const pct = (n / TOTAL_TICKETS) * 100;
         $pngProgBar.style.width = pct.toFixed(1) + "%";
-        $pngProgLbl.textContent = `${i + 1} / ${total}`;
+        $pngProgLbl.textContent = `${n} / ${TOTAL_TICKETS}`;
+        $pngProgSrc.textContent = rendered === 0
+          ? `${cachedHits} from cache`
+          : `${cachedHits} cached · ${rendered} rendered`;
         $pngCount.textContent = pngTickets.length;
 
-        if (i % 4 === 3) {
+        // Re-paint the grid periodically — also yields so the UI stays
+        // responsive. Cached entries fly through; rendered entries hit a
+        // requestAnimationFrame inside renderTicketPng anyway.
+        if (n % 25 === 0) {
           rerenderGrid();
           await new Promise(r => setTimeout(r, 0));
         }
@@ -393,7 +433,6 @@
 
       $pngStage.innerHTML = "";
       $pngProgress.classList.add("hidden");
-      if (pngTickets.length > 0) $pngResults.classList.remove("hidden");
       rerenderGrid();
       setBusy(false);
     }
@@ -483,34 +522,27 @@
       }
     }
 
-    document.getElementById("btn-png-generate").addEventListener("click", () => {
-      const from = parseInt($pngFrom.value, 10) || 1;
-      const to   = parseInt($pngTo.value, 10) || from;
-      generatePngs(from, to);
-    });
-    document.getElementById("btn-png-cancel").addEventListener("click", () => { pngCancel = true; });
     document.getElementById("btn-png-zip").addEventListener("click", downloadZip);
-    document.getElementById("btn-png-clear").addEventListener("click", () => {
-      releaseBlobs();
-      $pngGrid.innerHTML = "";
-      $pngResults.classList.add("hidden");
-      $pngCount.textContent = "0";
-      $pngVisible.textContent = "0";
+    document.getElementById("btn-png-regen").addEventListener("click", () => {
+      if (pngBusy) return;
+      if (!confirm("Re-render all 1,000 tickets from scratch? This takes a few minutes and only matters if the ticket design changed.")) return;
+      loadAllTickets({ forceRegenerate: true });
     });
     // Re-filter whenever search / view-range changes.
     [$pngSearch, $pngViewFrom, $pngViewTo].forEach(el => {
       el.addEventListener("input", rerenderGrid);
     });
-    document.querySelectorAll(".png-rng-btn").forEach(btn => {
-      btn.addEventListener("click", () => {
-        const [from, to] = btn.dataset.pngRange.split(",").map(Number);
-        $pngFrom.value = from;
-        $pngTo.value = to;
-        generatePngs(from, to);
-      });
-    });
 
     window.addEventListener("beforeunload", releaseBlobs);
+
+    // Auto-start on admin sign-in. Guard against double-fire if watchAuth
+    // re-emits (e.g., on token refresh).
+    let autoStarted = false;
+    function maybeAutoStart() {
+      if (autoStarted) return;
+      autoStarted = true;
+      loadAllTickets();
+    }
   </script>
 
 </body>
