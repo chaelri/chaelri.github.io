@@ -6,6 +6,13 @@
     <title>Share the Love · Charlie & Karla</title>
     <meta name="theme-color" content="#faf9f6" />
     <link rel="icon" href="../collaterals/assets/ck-logo.png" />
+    <link rel="manifest" href="manifest.json" />
+    <link rel="apple-touch-icon" href="icon.svg" />
+    <link rel="apple-touch-icon" sizes="180x180" href="icon.svg" />
+    <meta name="apple-mobile-web-app-capable" content="yes" />
+    <meta name="apple-mobile-web-app-status-bar-style" content="default" />
+    <meta name="apple-mobile-web-app-title" content="Share the Love" />
+    <meta name="mobile-web-app-capable" content="yes" />
     <link rel="preconnect" href="https://fonts.googleapis.com" />
     <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
     <link
@@ -120,6 +127,128 @@
         color: var(--ink-soft);
         margin-top: 10px;
       }
+
+      /* === Install banner ============================================= */
+      .install-banner {
+        max-width: 720px;
+        margin: 0 auto 14px;
+        background: linear-gradient(135deg, rgba(123,138,91,0.14), rgba(178,149,84,0.10));
+        border: 1px solid rgba(123,138,91,0.30);
+        border-radius: 18px;
+        padding: 12px 14px 12px 12px;
+        display: flex;
+        align-items: center;
+        gap: 12px;
+      }
+      .install-banner.hidden-init { display: none !important; }
+      .install-banner .install-icon {
+        width: 38px; height: 38px;
+        border-radius: 999px;
+        background: var(--sage-deep);
+        color: white;
+        display: grid; place-items: center;
+        flex-shrink: 0;
+      }
+      .install-banner .install-body { flex: 1; min-width: 0; }
+      .install-banner .install-title {
+        font-size: 0.9rem;
+        font-weight: 600;
+        color: var(--ink);
+        letter-spacing: 0.01em;
+      }
+      .install-banner .install-text {
+        font-size: 0.76rem;
+        color: var(--ink-soft);
+        margin-top: 2px;
+        line-height: 1.4;
+      }
+      .install-banner .install-action {
+        background: var(--ink);
+        color: var(--paper);
+        border: none;
+        border-radius: 999px;
+        padding: 9px 18px;
+        font-size: 0.82rem;
+        font-weight: 600;
+        letter-spacing: 0.02em;
+        cursor: pointer;
+        white-space: nowrap;
+        flex-shrink: 0;
+        transition: transform 0.22s cubic-bezier(0.22,1,0.36,1), box-shadow 0.22s ease;
+      }
+      .install-banner .install-action:hover { transform: translateY(-1px); box-shadow: 0 8px 18px rgba(26,24,22,0.18); }
+      .install-banner .install-dismiss {
+        background: transparent;
+        border: none;
+        color: var(--ink-soft);
+        width: 32px; height: 32px;
+        border-radius: 999px;
+        display: grid; place-items: center;
+        cursor: pointer;
+        flex-shrink: 0;
+        transition: background 0.22s ease;
+      }
+      .install-banner .install-dismiss:hover { background: rgba(0,0,0,0.06); }
+      @media (max-width: 480px) {
+        .install-banner { padding: 10px 12px 10px 10px; gap: 10px; }
+        .install-banner .install-icon { width: 34px; height: 34px; }
+        .install-banner .install-icon .material-symbols-outlined { font-size: 18px !important; }
+        .install-banner .install-title { font-size: 0.82rem; }
+        .install-banner .install-text { font-size: 0.7rem; }
+        .install-banner .install-action { padding: 8px 14px; font-size: 0.76rem; }
+      }
+
+      /* Install help modal: step-by-step instructions for iOS / others */
+      .install-help-card { max-width: 440px !important; }
+      .install-help-body {
+        text-align: left;
+        margin-top: 14px;
+        font-size: 0.88rem;
+        color: var(--ink-soft);
+        line-height: 1.5;
+      }
+      .install-help-body p { margin-bottom: 12px; }
+      .install-help-body ol {
+        margin: 12px 0 4px;
+        padding: 0;
+        counter-reset: step;
+        list-style: none;
+      }
+      .install-help-body ol li {
+        padding-left: 42px;
+        position: relative;
+        margin-bottom: 12px;
+        font-size: 0.86rem;
+        color: var(--ink);
+      }
+      .install-help-body ol li::before {
+        counter-increment: step;
+        content: counter(step);
+        position: absolute;
+        left: 0;
+        top: -1px;
+        width: 28px; height: 28px;
+        background: var(--sage-deep);
+        color: white;
+        border-radius: 999px;
+        display: grid;
+        place-items: center;
+        font-size: 0.82rem;
+        font-weight: 700;
+      }
+      .install-help-body .ih-icon {
+        display: inline-flex;
+        align-items: center;
+        justify-content: center;
+        width: 22px;
+        height: 22px;
+        vertical-align: -6px;
+        margin: 0 2px;
+        background: rgba(94,107,68,0.12);
+        border-radius: 6px;
+        color: var(--sage-deep);
+      }
+      .install-help-body .ih-icon .material-symbols-outlined { font-size: 15px; font-variation-settings: 'FILL' 1; }
 
       /* === Notification banner (for users whose photos admin removed) === */
       .notify-banner {
@@ -1329,6 +1458,23 @@
         <div class="stamp">Charlie · 07.02.2026 · Karla</div>
       </header>
 
+      <!-- Install banner: prompts the user to add the page as a PWA so
+           camera permission persists across visits. Always visible until
+           dismissed or the page is launched in standalone mode. -->
+      <div id="install-banner" class="install-banner hidden-init anim-in" style="animation-delay: 0.08s">
+        <div class="install-icon">
+          <span class="material-symbols-outlined" style="font-size:22px;font-variation-settings:'FILL' 1">favorite</span>
+        </div>
+        <div class="install-body">
+          <div class="install-title">Save to your Home Screen</div>
+          <div class="install-text">Install once · camera permission stays granted ♡</div>
+        </div>
+        <button id="install-action" class="install-action" type="button">Install</button>
+        <button id="install-dismiss" class="install-dismiss" aria-label="Dismiss" type="button">
+          <span class="material-symbols-outlined" style="font-size:20px">close</span>
+        </button>
+      </div>
+
       <!-- Notification banner: surfaces admin deletions to the original uploader -->
       <div id="notify-banner" class="notify-banner anim-in" style="animation-delay: 0.1s" role="status" aria-live="polite">
         <div class="nb-icon">
@@ -1559,6 +1705,19 @@
       </div>
     </div>
 
+    <!-- Install help modal: shown when navigator.share or beforeinstallprompt
+         isn't available (e.g. iOS Safari). Shows platform-specific steps. -->
+    <div id="install-help" class="modal" aria-hidden="true">
+      <div class="modal-card install-help-card">
+        <span class="material-symbols-outlined" style="font-size:36px;color:var(--sage-deep);font-variation-settings:'FILL' 1">install_mobile</span>
+        <h3 id="install-help-title">Add to Home Screen</h3>
+        <div id="install-help-body" class="install-help-body"></div>
+        <div class="modal-actions">
+          <button class="btn-primary" id="install-help-close" style="background:var(--sage-deep);color:white">Got it</button>
+        </div>
+      </div>
+    </div>
+
     <!-- Drag-anywhere drop overlay -->
     <div id="dropover" class="dropover" aria-hidden="true">
       <div class="dropover-card">
@@ -1569,6 +1728,6 @@
 
     <div id="toast" class="toast"><span id="toast-msg"></span></div>
 
-    <script type="module" src="script.js?v=20260630f"></script>
+    <script type="module" src="script.js?v=20260630g"></script>
   </body>
 </html>

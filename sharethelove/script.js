@@ -143,6 +143,15 @@ const notifyBanner   = $("notify-banner");
 const notifyText     = $("notify-text");
 const notifyDismiss  = $("notify-dismiss");
 
+// PWA install banner + help modal
+const installBanner   = $("install-banner");
+const installAction   = $("install-action");
+const installDismiss  = $("install-dismiss");
+const installHelp     = $("install-help");
+const installHelpTitle= $("install-help-title");
+const installHelpBody = $("install-help-body");
+const installHelpClose= $("install-help-close");
+
 // Drag-over overlay
 const dropover = $("dropover");
 
@@ -2146,6 +2155,125 @@ if (IS_ADMIN) {
     }
   });
 })();
+
+// === PWA install =========================================================
+// We deliberately don't ship a service worker (Charlie doesn't want the
+// cache-bust hassle), so the programmatic Chrome install prompt won't fire
+// in most cases. The Install button instead opens platform-specific
+// instructions (iOS via the Share sheet, Android via the Chrome menu) —
+// once installed, both treat the site as a real app and persist camera
+// permission across launches.
+let _deferredInstallPrompt = null;
+const INSTALL_DISMISSED_KEY = "stl:install-dismissed";
+
+function isStandalone() {
+  return window.matchMedia("(display-mode: standalone)").matches
+      || window.navigator.standalone === true;
+}
+function isIOS() {
+  return /iPad|iPhone|iPod/.test(navigator.userAgent)
+      || (navigator.platform === "MacIntel" && navigator.maxTouchPoints > 1);
+}
+function isAndroid() { return /Android/.test(navigator.userAgent); }
+
+function maybeShowInstallBanner() {
+  if (!installBanner) return;
+  if (isStandalone()) return;
+  if (localStorage.getItem(INSTALL_DISMISSED_KEY) === "1") return;
+  installBanner.classList.remove("hidden-init");
+}
+
+function openInstallHelp() {
+  const ios = isIOS();
+  const android = isAndroid();
+  installHelpTitle.textContent = "Add to Home Screen";
+  let html = "";
+  if (ios) {
+    html = `
+      <p>Save this album to your Home Screen — once installed, your camera permission stays granted across visits.</p>
+      <ol>
+        <li>Tap the Share icon <span class="ih-icon"><span class="material-symbols-outlined">ios_share</span></span> in the Safari toolbar</li>
+        <li>Scroll down and tap <strong>Add to Home Screen</strong></li>
+        <li>Tap <strong>Add</strong> in the top-right</li>
+      </ol>
+    `;
+  } else if (android) {
+    html = `
+      <p>Save this album to your Home Screen — once installed, your camera permission stays granted across visits.</p>
+      <ol>
+        <li>Tap the menu <span class="ih-icon"><span class="material-symbols-outlined">more_vert</span></span> in the top-right of Chrome</li>
+        <li>Tap <strong>Install app</strong> or <strong>Add to Home screen</strong></li>
+        <li>Tap <strong>Install</strong> to confirm</li>
+      </ol>
+    `;
+  } else {
+    html = `
+      <p>Install this album so your camera permission persists between visits.</p>
+      <ol>
+        <li>Open your browser's menu</li>
+        <li>Look for <strong>Install</strong>, <strong>Install app</strong>, or <strong>Add to Home screen</strong></li>
+        <li>Confirm when prompted</li>
+      </ol>
+    `;
+  }
+  installHelpBody.innerHTML = html;
+  installHelp.classList.add("open");
+  installHelp.setAttribute("aria-hidden", "false");
+  document.body.style.overflow = "hidden";
+}
+function closeInstallHelp() {
+  installHelp.classList.remove("open");
+  installHelp.setAttribute("aria-hidden", "true");
+  // Only release scroll if nothing else is keeping it locked.
+  if (!shareModal.classList.contains("open")
+      && !lightbox.classList.contains("open")
+      && !cameraView.classList.contains("open")
+      && !confirmModal.classList.contains("open")
+      && !nameModal.classList.contains("open")
+      && !queuePrev.classList.contains("open")) {
+    document.body.style.overflow = "";
+  }
+}
+
+window.addEventListener("beforeinstallprompt", (e) => {
+  e.preventDefault();
+  _deferredInstallPrompt = e;
+});
+
+window.addEventListener("appinstalled", () => {
+  installBanner?.classList.add("hidden-init");
+  localStorage.setItem(INSTALL_DISMISSED_KEY, "1");
+  showToast("Installed ♡");
+});
+
+if (installAction) {
+  installAction.addEventListener("click", async () => {
+    if (_deferredInstallPrompt) {
+      try {
+        _deferredInstallPrompt.prompt();
+        const choice = await _deferredInstallPrompt.userChoice;
+        _deferredInstallPrompt = null;
+        if (choice?.outcome === "accepted") {
+          installBanner.classList.add("hidden-init");
+        }
+        return;
+      } catch (e) {
+        console.warn("install prompt failed, falling back to help", e);
+      }
+    }
+    openInstallHelp();
+  });
+}
+if (installDismiss) {
+  installDismiss.addEventListener("click", () => {
+    localStorage.setItem(INSTALL_DISMISSED_KEY, "1");
+    installBanner.classList.add("hidden-init");
+  });
+}
+if (installHelpClose) installHelpClose.addEventListener("click", closeInstallHelp);
+if (installHelp) installHelp.addEventListener("click", (e) => { if (e.target === installHelp) closeInstallHelp(); });
+
+maybeShowInstallBanner();
 
 // === Boot =================================================================
 ensureAuth().then((user) => {
