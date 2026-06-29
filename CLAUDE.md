@@ -6,6 +6,8 @@ This file is auto-loaded by Claude Code in every session opened anywhere in this
 
 If hooks aren't firing or `jq` isn't installed, see [`SETUP.md`](SETUP.md). When Charlie says **"do the claude rules in this repo"** or **"set up the claude system"**, follow `SETUP.md` steps 1–4.
 
+When Charlie says **"restore my setup"** / **"set up this laptop"** / **"i got a new laptop"** — that's a transition from the previous (returned company) laptop. Read [`LAPTOP_HANDOFF.md`](LAPTOP_HANDOFF.md) and walk through the restore checklist with him, confirming before each destructive step. That doc has the full inventory of credentials, OAuth tokens, Claude memory, and external services that needed manual handoff.
+
 ## Hub Map (every project at a glance)
 
 @knowledge/hub/PROJECTS.md
@@ -19,6 +21,15 @@ If hooks aren't firing or `jq` isn't installed, see [`SETUP.md`](SETUP.md). When
 ## Project-specific knowledge
 
 When working inside a specific project subdirectory, that project's `CLAUDE.md` will auto-load its deep MDs (architecture, key files, patterns, decisions). The hub map above is the broad orientation — the per-project MDs are loaded on demand.
+
+## Optional per-project files: `LOG.md` + `QUESTIONS.md`
+
+Two opt-in file types live alongside the existing `SUMMARY.md` / `ARCHITECTURE.md` / etc. — borrowed from the `brain-template` system but kept inside this repo's `knowledge/` tree (no `~/brain`, no install scripts).
+
+- **`knowledge/<project>/LOG.md`** — append-only chronological notes (newest first). For things a future reader needs but can't get from the diff: a decision's *why*, a dead end, a vendor email, an outside constraint. Skip "added a button" — git log already has that.
+- **`knowledge/<project>/QUESTIONS.md`** — open questions for that project. Close with `[CLOSED YYYY-MM-DD: answer]` markers; never delete. The trail is the value.
+
+Templates: `knowledge/_templates/LOG.md`, `knowledge/_templates/QUESTIONS.md`. Both files are optional — create them only when a project actually has chronology or open questions worth tracking. When you create one, also add an `@../knowledge/<project>/LOG.md` (or `QUESTIONS.md`) line to that project's `CLAUDE.md` so it auto-loads on session start.
 
 ## Repo-wide conventions
 
@@ -40,6 +51,7 @@ chaelri.github.io/
 ├── CLAUDE.md               ← this file
 ├── COCKPIT_PLAN.md         ← cockpit design doc (active build)
 ├── knowledge/              ← MD knowledge base for Claude (this is what you're reading from)
+│   ├── _templates/             ← templates for opt-in LOG.md + QUESTIONS.md
 │   ├── hub/PROJECTS.md         ← hub map (every project)
 │   ├── cockpit/AGENTS.md       ← agent patterns
 │   ├── cockpit/HOOKS.md        ← hook patterns
@@ -78,6 +90,8 @@ When Charlie says...
 - **"make a cockpit mode for X"** → write `cockpit/modes/<name>.json`, follow existing modes in `cockpit/modes/` for shape.
 - **"sync knowledge"** or `/sync-knowledge` → read `.claude/knowledge-stale.md`, propose patches to listed MDs based on git diffs.
 - **"add knowledge for X"** → spawn an Explore agent following the pattern in `knowledge/cockpit/AGENTS.md` (Knowledge-MD Generation).
+- **"log this for `<project>`"** or **"add a LOG entry"** → if `knowledge/<project>/LOG.md` doesn't exist yet, copy `knowledge/_templates/LOG.md` to that path and add `@../knowledge/<project>/LOG.md` to the project's `CLAUDE.md`. Then prepend a new `## YYYY-MM-DD — <title>` entry (today's date) above the marker comment.
+- **"open question for `<project>`"** or **"add a question"** → same flow with `QUESTIONS.md`. Add the item under `## Open`. Close items in place with `[CLOSED YYYY-MM-DD: answer]` — never delete.
 
 ## Memory layer (auto-loaded separately)
 
