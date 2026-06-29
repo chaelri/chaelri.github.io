@@ -1011,7 +1011,7 @@ function renderGallery() {
     tile.dataset.feedId = entry.id;
     const mediaHtml = entry.isVideo
       ? `<video src="${escHtml(entry.url)}" preload="metadata" muted playsinline></video>
-         <div class="video-badge"><span class="material-symbols-outlined" style="font-size:16px;font-variation-settings:'FILL' 1">play_arrow</span></div>`
+         <div class="video-badge" aria-hidden="true"><span class="material-symbols-outlined" style="font-variation-settings:'FILL' 1">play_arrow</span></div>`
       : `<img src="${escHtml(entry.url)}" alt="${escHtml(entry.name || "wedding photo")}">`;
     const tag = entry.guest ? renderGuestChip(entry.guest) : "";
     const isOwn = entry.uid && entry.uid === auth.currentUser?.uid;
