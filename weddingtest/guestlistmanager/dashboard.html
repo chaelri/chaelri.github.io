@@ -44,6 +44,10 @@
     </nav>
 
     <main class="max-w-6xl mx-auto p-4 md:p-6">
+      <!-- Anchor: when pinned, the Poster Send Tracker is moved into here so
+           it sits above everything else. Toggled via the pin button in the
+           tracker header; preference is saved to localStorage. -->
+      <div id="poster-anchor-top"></div>
       <!-- STATS OVERVIEW — compact two-row strip, see styles below. -->
       <div class="stat-strip mb-4 md:mb-5">
         <div class="grid grid-cols-3 md:grid-cols-5 gap-2 mb-2">
@@ -237,22 +241,33 @@
         </div>
       </div>
 
+      <!-- Default anchor: where the Poster Send Tracker sits when not pinned. -->
+      <div id="poster-anchor-default"></div>
+
       <!-- POSTER SEND TRACKER — mirrors the Final Yes ✓ bucket and lets
            Charlie / Karla check off who's already been sent the
            "X days left" countdown poster. Same filter pattern as the
            RSVP Tracker (status chips + side chips + search). -->
-      <div class="mt-2 mb-12">
+      <div id="posterTrackerSection" class="mt-2 mb-12">
         <div class="bg-[#c98a00] p-6 rounded-t-2xl shadow-sm border border-[#a87400]">
-          <div class="flex justify-between items-center text-white">
+          <div class="flex justify-between items-center text-white flex-wrap gap-2">
             <div>
               <h2 class="serif text-xl italic">Poster Send Tracker</h2>
               <p class="text-[10px] uppercase tracking-widest opacity-80 mt-1">
                 Final Yes ✓ guests — check off once they've been sent the poster
               </p>
             </div>
-            <div id="poster-count-badge"
-                 class="bg-white/20 px-4 py-2 rounded-full text-xs font-bold uppercase tracking-tighter">
-              0 / 0 sent
+            <div class="flex items-center gap-2">
+              <button id="poster-pin-toggle"
+                      class="bg-white/20 hover:bg-white/30 px-3 py-2 rounded-full text-[10px] font-bold uppercase tracking-tighter flex items-center gap-1 transition"
+                      title="Pin this section to the top of the page">
+                <span class="material-icons" style="font-size:14px">push_pin</span>
+                <span id="poster-pin-label">Pin to top</span>
+              </button>
+              <div id="poster-count-badge"
+                   class="bg-white/20 px-4 py-2 rounded-full text-xs font-bold uppercase tracking-tighter">
+                0 / 0 sent
+              </div>
             </div>
           </div>
         </div>

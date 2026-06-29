@@ -481,6 +481,15 @@ th {
 .rsvp-row.poster-sent { background: #fbf6ea; }
 .rsvp-row.poster-sent:hover { background: #f8efd9; }
 
+/* Pin-to-top toggle — pressed state when the tracker is pinned. */
+#poster-pin-toggle.is-pinned {
+  background: white;
+  color: #c98a00;
+}
+#poster-pin-toggle.is-pinned .material-icons {
+  transform: rotate(45deg);
+}
+
 /* Pagination buttons. */
 .rsvp-page-btn {
   min-width: 28px;

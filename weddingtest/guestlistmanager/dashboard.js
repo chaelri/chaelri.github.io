@@ -1148,6 +1148,48 @@ function renderFinalList() {
   );
 }
 
+// ----- Poster Send Tracker — pin-to-top toggle ---------------------------
+// Lets Charlie move the whole tracker section to the very top of the page
+// (above the RSVP Tracker, even above the stats strip) when he's actively
+// working through the send list. State persists in localStorage so it
+// survives reloads.
+const POSTER_PIN_KEY = "glm.posterPinTop";
+
+function isPosterPinned() {
+  try { return localStorage.getItem(POSTER_PIN_KEY) === "1"; }
+  catch { return false; }
+}
+
+function applyPosterPin(pinned) {
+  const section = document.getElementById("posterTrackerSection");
+  const top = document.getElementById("poster-anchor-top");
+  const def = document.getElementById("poster-anchor-default");
+  if (!section || !top || !def) return;
+  const target = pinned ? top : def;
+  // Move only if needed — avoids layout thrash.
+  if (section.previousElementSibling !== target) {
+    target.after(section);
+  }
+  const btn = document.getElementById("poster-pin-toggle");
+  const label = document.getElementById("poster-pin-label");
+  if (btn) btn.classList.toggle("is-pinned", pinned);
+  if (label) label.textContent = pinned ? "Unpin from top" : "Pin to top";
+}
+
+function initPosterPinToggle() {
+  applyPosterPin(isPosterPinned());
+  const btn = document.getElementById("poster-pin-toggle");
+  if (!btn || btn._wired) return;
+  btn.addEventListener("click", () => {
+    const next = !isPosterPinned();
+    try { localStorage.setItem(POSTER_PIN_KEY, next ? "1" : "0"); } catch {}
+    applyPosterPin(next);
+  });
+  btn._wired = true;
+}
+
+document.addEventListener("DOMContentLoaded", initPosterPinToggle);
+
 // ----- Poster Send Tracker ------------------------------------------------
 // Lets Charlie + Karla track who's been sent the "X days left" countdown
 // poster. Pool = Final Yes ✓ guests (status=yes + finalChecked). Same chip
