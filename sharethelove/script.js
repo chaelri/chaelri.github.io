@@ -108,6 +108,7 @@ const lbPrev     = $("lb-prev");
 const lbNext     = $("lb-next");
 const lbDelete   = $("lb-delete");
 const lbDownload = $("lb-download");
+const lbShare    = $("lb-share");
 const lbStrip    = $("lb-strip");
 
 // Confirm modal
@@ -1139,10 +1140,33 @@ function renderGuestChip(name, ts) {
     + `</div>`;
 }
 
+function renderLightboxCaption(entry) {
+  const out = [];
+  if (entry.guest) {
+    out.push(`<div class="lb-avatar" style="background:${avatarColor(entry.guest)}">${escHtml(avatarInitial(entry.guest))}</div>`);
+    out.push(`<span class="lb-name">${escHtml(entry.guest)}</span>`);
+  }
+  if (entry.ts) {
+    if (entry.guest) out.push(`<span class="lb-dot"></span>`);
+    out.push(
+      `<span class="lb-time-block">`
+      + `<span class="material-symbols-outlined">schedule</span>`
+      + `<span data-ts="${entry.ts}">${escHtml(formatRelativeTime(entry.ts))}</span>`
+      + `</span>`
+    );
+    out.push(`<span class="lb-dot"></span>`);
+    out.push(`<span class="lb-time-block">${escHtml(formatAbsoluteTime(entry.ts))}</span>`);
+  }
+  out.push(`<span class="lb-counter">${_lightboxIdx + 1} / ${_feed.length}</span>`);
+  return out.join("");
+}
+
 // Keep relative timestamps fresh without re-rendering the whole gallery.
 // 20s tick covers the "10s/20s ago" buckets without flickering on minutes+.
+// Selector catches both the gallery chip (.guest-time-label) and the
+// lightbox caption span — anything with data-ts.
 setInterval(() => {
-  document.querySelectorAll(".guest-time-label[data-ts]").forEach((el) => {
+  document.querySelectorAll("[data-ts]").forEach((el) => {
     const ts = Number(el.dataset.ts);
     if (Number.isFinite(ts) && ts > 0) el.textContent = formatRelativeTime(ts);
   });
@@ -1303,14 +1327,7 @@ function paintLightbox() {
   lbStage.innerHTML = entry.isVideo
     ? `<video src="${escHtml(entry.url)}"${entry.posterUrl ? ` poster="${escHtml(entry.posterUrl)}"` : ""} controls autoplay playsinline></video>`
     : `<img src="${escHtml(entry.url)}" alt="${escHtml(entry.name || "")}">`;
-  const parts = [];
-  if (entry.guest) parts.push(escHtml(entry.guest));
-  if (entry.ts) {
-    parts.push(escHtml(formatRelativeTime(entry.ts)));
-    parts.push(escHtml(formatAbsoluteTime(entry.ts)));
-  }
-  parts.push(`${_lightboxIdx + 1} / ${_feed.length}`);
-  lbCaption.innerHTML = parts.join(" · ");
+  lbCaption.innerHTML = renderLightboxCaption(entry);
   const isOwn = entry.uid && entry.uid === auth.currentUser?.uid;
   const canDelete = isOwn || IS_ADMIN;
   lbDelete.dataset.feedId = entry.id;
@@ -1374,6 +1391,65 @@ async function downloadCurrent() {
 }
 
 lbDownload.addEventListener("click", downloadCurrent);
+
+// === Native share =========================================================
+// Pipes the current item through navigator.share with the file attached so
+// iOS/Android open their native share sheet (Messages, WhatsApp, AirDrop,
+// Photos, etc). Falls through to URL-only share, then to clipboard.
+async function shareCurrent() {
+  const entry = _feed[_lightboxIdx];
+  if (!entry || !lbShare) return;
+  lbShare.disabled = true;
+  const label = lbShare.innerHTML;
+  lbShare.innerHTML = `<span class="material-symbols-outlined" style="font-size:18px">hourglass_top</span> Sharing…`;
+  const filename = entry.name || (entry.isVideo ? "wedding-video.mp4" : "wedding-photo.jpg");
+  const text = entry.guest
+    ? `From Charlie & Karla's wedding album · shared by ${entry.guest}`
+    : `From Charlie & Karla's wedding album ♡`;
+  try {
+    // Best path: share the actual file so the recipient gets the media,
+    // not just a Firebase Storage URL that may expire or strip metadata.
+    if (navigator.canShare && navigator.share) {
+      try {
+        const resp = await fetch(entry.url);
+        if (resp.ok) {
+          const blob = await resp.blob();
+          const file = new File([blob], filename, { type: blob.type || (entry.isVideo ? "video/mp4" : "image/jpeg") });
+          const data = { files: [file], title: "Wedding moment", text };
+          if (navigator.canShare(data)) {
+            await navigator.share(data);
+            return;
+          }
+        }
+      } catch (e) {
+        if (e?.name === "AbortError") return;                  // user cancelled
+        console.warn("file share failed, falling back to URL share", e);
+      }
+    }
+    // Fallback 1: URL share (no file attachment).
+    if (navigator.share) {
+      try {
+        await navigator.share({ title: "Wedding moment", text, url: entry.url });
+        return;
+      } catch (e) {
+        if (e?.name === "AbortError") return;
+        console.warn("url share failed", e);
+      }
+    }
+    // Fallback 2: copy URL to clipboard.
+    try {
+      await navigator.clipboard.writeText(entry.url);
+      showToast("Link copied — paste it anywhere");
+    } catch {
+      showToast("Sharing isn't supported on this browser", "err");
+    }
+  } finally {
+    lbShare.disabled = false;
+    lbShare.innerHTML = label;
+  }
+}
+
+if (lbShare) lbShare.addEventListener("click", shareCurrent);
 
 function nav(delta) {
   if (_lightboxIdx < 0 || !_feed.length) return;

@@ -613,8 +613,7 @@
       .lb-next { right: 16px; top: 50%; transform: translateY(-50%); }
       .lb-prev:hover { transform: translateY(-50%) scale(1.06); }
       .lb-next:hover { transform: translateY(-50%) scale(1.06); }
-      .lb-delete, .lb-download {
-        position: absolute;
+      .lb-delete, .lb-download, .lb-share {
         background: rgba(255,255,255,0.12);
         color: white;
         border-radius: 999px;
@@ -630,11 +629,26 @@
         border: none;
         transition: background 0.22s ease, transform 0.22s cubic-bezier(0.22,1,0.36,1);
       }
-      .lb-delete { bottom: 100px; left: 18px; }
-      .lb-download { top: 18px; right: 76px; }
+      .lb-delete { position: absolute; bottom: 100px; left: 18px; }
+      .lb-actions {
+        position: absolute;
+        top: 18px;
+        right: 76px;
+        display: flex;
+        gap: 8px;
+        align-items: center;
+      }
       .lb-delete:hover { background: rgba(160,50,50,0.85); transform: scale(1.04); }
-      .lb-download:hover { background: rgba(255,255,255,0.22); transform: scale(1.04); }
-      .lb-download:disabled { opacity: 0.5; cursor: progress; transform: none; }
+      .lb-download:hover, .lb-share:hover { background: rgba(255,255,255,0.22); transform: scale(1.04); }
+      .lb-download:disabled, .lb-share:disabled { opacity: 0.5; cursor: progress; transform: none; }
+      .lb-share { background: rgba(255,255,255,0.16); }
+      @media (max-width: 480px) {
+        /* Phones: collapse to icon-only to leave room for the title-strip dots */
+        .lb-actions { right: 64px; gap: 6px; }
+        .lb-share, .lb-download { padding: 0 12px; height: 40px; }
+        .lb-share span:not(.material-symbols-outlined),
+        .lb-download span:not(.material-symbols-outlined) { display: none; }
+      }
 
       /* Lightbox thumbnail strip (Facebook-style) */
       .lb-strip {
@@ -674,20 +688,89 @@
       @media (max-width: 640px) {
         .lb-strip-thumb { width: 44px; height: 44px; }
       }
+      /* Lightbox caption: frosted-glass pill with avatar, name, relative
+         time + clock icon, absolute time, and a counter chip on the right. */
       .lb-caption {
         position: absolute;
         bottom: 102px;
-        left: 0; right: 0;
-        text-align: center;
-        color: rgba(255,255,255,0.86);
+        left: 50%;
+        transform: translateX(-50%);
+        display: inline-flex;
+        align-items: center;
+        gap: 10px;
+        max-width: calc(100vw - 24px);
+        padding: 6px 16px 6px 6px;
+        background: rgba(20,18,16,0.55);
+        backdrop-filter: blur(14px);
+        border-radius: 999px;
+        box-shadow: 0 10px 28px rgba(0,0,0,0.4), inset 0 0 0 1px rgba(255,255,255,0.08);
+        color: white;
         font-size: 0.82rem;
-        letter-spacing: 0.04em;
+        letter-spacing: 0.01em;
         pointer-events: none;
+        white-space: nowrap;
+        overflow: hidden;
+      }
+      .lb-caption:empty { display: none; }
+      .lb-caption .lb-avatar {
+        width: 30px; height: 30px;
+        border-radius: 999px;
+        display: grid;
+        place-items: center;
+        color: white;
+        font-size: 0.82rem;
+        font-weight: 600;
+        font-family: "Inter", system-ui, sans-serif;
+        text-transform: uppercase;
+        flex-shrink: 0;
+      }
+      .lb-caption .lb-name {
+        font-size: 0.86rem;
+        font-weight: 600;
+        letter-spacing: 0.01em;
+      }
+      .lb-caption .lb-dot {
+        width: 3px; height: 3px;
+        border-radius: 999px;
+        background: rgba(255,255,255,0.42);
+        flex-shrink: 0;
+      }
+      .lb-caption .lb-time-block {
+        display: inline-flex;
+        align-items: center;
+        gap: 5px;
+        color: rgba(255,255,255,0.78);
+        font-size: 0.78rem;
+      }
+      .lb-caption .lb-time-block .material-symbols-outlined {
+        font-size: 14px;
+        opacity: 0.82;
+      }
+      .lb-caption .lb-counter {
+        display: inline-flex;
+        align-items: center;
+        margin-left: 4px;
+        padding-left: 12px;
+        font-size: 0.76rem;
+        font-variant-numeric: tabular-nums;
+        letter-spacing: 0.04em;
+        color: rgba(255,255,255,0.88);
+        border-left: 1px solid rgba(255,255,255,0.16);
       }
       @media (max-width: 640px) {
         .lb-prev { left: 8px; }
         .lb-next { right: 8px; }
-        .lb-caption { bottom: 84px; font-size: 0.74rem; }
+        .lb-caption {
+          bottom: 84px;
+          padding: 4px 12px 4px 4px;
+          gap: 7px;
+        }
+        .lb-caption .lb-avatar { width: 24px; height: 24px; font-size: 0.7rem; }
+        .lb-caption .lb-name { font-size: 0.76rem; }
+        .lb-caption .lb-time-block { font-size: 0.68rem; gap: 4px; }
+        .lb-caption .lb-time-block .material-symbols-outlined { font-size: 12px; }
+        .lb-caption .lb-counter { font-size: 0.66rem; padding-left: 8px; margin-left: 2px; }
+        .lb-caption .lb-dot { width: 2px; height: 2px; }
         .lb-delete { bottom: 82px; }
       }
 
@@ -1194,10 +1277,16 @@
       <button class="lb-close" id="lb-close" aria-label="Close">
         <span class="material-symbols-outlined">close</span>
       </button>
-      <button class="lb-download" id="lb-download" aria-label="Download">
-        <span class="material-symbols-outlined" style="font-size:18px">download</span>
-        Download
-      </button>
+      <div class="lb-actions">
+        <button class="lb-share" id="lb-share" aria-label="Share">
+          <span class="material-symbols-outlined" style="font-size:18px">ios_share</span>
+          Share
+        </button>
+        <button class="lb-download" id="lb-download" aria-label="Download">
+          <span class="material-symbols-outlined" style="font-size:18px">download</span>
+          Download
+        </button>
+      </div>
       <button class="lb-nav lb-prev" id="lb-prev" aria-label="Previous">
         <span class="material-symbols-outlined">chevron_left</span>
       </button>
@@ -1253,6 +1342,6 @@
 
     <div id="toast" class="toast"><span id="toast-msg"></span></div>
 
-    <script type="module" src="script.js?v=20260629c"></script>
+    <script type="module" src="script.js?v=20260629d"></script>
   </body>
 </html>
