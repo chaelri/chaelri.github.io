@@ -1301,6 +1301,42 @@ function subscribeFeed() {
   setInterval(refreshFeedNow, 8000);
 }
 
+// Lightbox enforces full lock-in: the page behind cannot scroll, swipes
+// up/down don't bleed through (touch-action:none on .lightbox.open), and
+// the only way out is the X button or Escape. Background tap-to-dismiss
+// is intentionally NOT wired so a stray finger on the gutter doesn't
+// kick the user out mid-album-browse.
+let _lbScrollY = -1;
+
+function lockPageScroll() {
+  if (_lbScrollY >= 0) return;
+  _lbScrollY = window.scrollY || window.pageYOffset || 0;
+  // position:fixed beats overflow:hidden on iOS, which still rubber-bands
+  // with the latter. Restore the exact scroll Y on unlock.
+  document.body.style.position = "fixed";
+  document.body.style.top = `-${_lbScrollY}px`;
+  document.body.style.left = "0";
+  document.body.style.right = "0";
+  document.body.style.width = "100%";
+  document.body.style.overflow = "hidden";
+}
+function unlockPageScroll() {
+  if (_lbScrollY < 0) return;
+  const y = _lbScrollY;
+  _lbScrollY = -1;
+  document.body.style.position = "";
+  document.body.style.top = "";
+  document.body.style.left = "";
+  document.body.style.right = "";
+  document.body.style.width = "";
+  document.body.style.overflow = "";
+  // Skip smooth scroll so it snaps back instantly
+  const prev = document.documentElement.style.scrollBehavior;
+  document.documentElement.style.scrollBehavior = "auto";
+  window.scrollTo(0, y);
+  document.documentElement.style.scrollBehavior = prev;
+}
+
 function openLightbox(id) {
   const idx = _feed.findIndex((e) => e.id === id);
   if (idx < 0) return;
@@ -1308,14 +1344,24 @@ function openLightbox(id) {
   paintLightbox();
   lightbox.classList.add("open");
   lightbox.setAttribute("aria-hidden", "false");
-  document.body.style.overflow = "hidden";
+  lockPageScroll();
 }
 
 function closeLightbox() {
   lightbox.classList.remove("open");
   lightbox.setAttribute("aria-hidden", "true");
+  // Only unlock if no other modal is keeping the page locked.
   if (!shareModal.classList.contains("open") && !cameraView.classList.contains("open")) {
-    document.body.style.overflow = "";
+    unlockPageScroll();
+  } else {
+    // Reset any inline body styles set by the lock so the share/camera
+    // modal's own overflow:hidden behavior takes over cleanly.
+    _lbScrollY = -1;
+    document.body.style.position = "";
+    document.body.style.top = "";
+    document.body.style.left = "";
+    document.body.style.right = "";
+    document.body.style.width = "";
   }
   lbStage.innerHTML = "";
   _lightboxIdx = -1;
@@ -1460,7 +1506,8 @@ function nav(delta) {
 lbClose.addEventListener("click", closeLightbox);
 lbPrev.addEventListener("click", () => nav(-1));
 lbNext.addEventListener("click", () => nav(1));
-lightbox.addEventListener("click", (e) => { if (e.target === lightbox) closeLightbox(); });
+// NOTE: background tap-to-close is intentionally omitted — lock-in mode
+// requires a deliberate X press (or Escape on desktop) to exit.
 document.addEventListener("keydown", (e) => {
   if (!lightbox.classList.contains("open")) return;
   if (e.key === "Escape") closeLightbox();

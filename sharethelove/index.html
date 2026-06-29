@@ -575,7 +575,16 @@
         opacity: 0;
         transition: opacity 0.32s ease;
       }
-      .lightbox.open { display: flex; opacity: 1; }
+      .lightbox.open {
+        display: flex;
+        opacity: 1;
+        /* Hard lock-in: no browser-initiated scrolling/zooming bleeds
+           through to the page behind. Only the horizontal pan on the
+           thumbnail strip is exempted. */
+        touch-action: none;
+        overscroll-behavior: contain;
+      }
+      .lightbox.open .lb-strip { touch-action: pan-x; }
       .lb-stage {
         max-width: min(96vw, 1500px);
         max-height: 72vh;
@@ -1342,6 +1351,6 @@
 
     <div id="toast" class="toast"><span id="toast-msg"></span></div>
 
-    <script type="module" src="script.js?v=20260629d"></script>
+    <script type="module" src="script.js?v=20260629e"></script>
   </body>
 </html>
