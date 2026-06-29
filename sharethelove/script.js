@@ -645,95 +645,99 @@ uploadBtn.addEventListener("click", async () => {
   isUploading = true;
   uploadBtn.disabled = true;
   refreshControls();
+  let queue = [];
+  let errored = 0;
+  let feedSyncOK = true;
+  const successResults = [];
   try {
-    await ensureAuth();
-  } catch (e) {
-    console.error("auth failed", e);
-    showToast("Couldn't sign in — try again?", "err", 4200);
+    try {
+      await ensureAuth();
+    } catch (e) {
+      console.error("auth failed", e);
+      showToast("Couldn't sign in — try again?", "err", 4200);
+      return;                                              // finally still runs
+    }
+    const guestName = guestNameEl.value.trim();
+    if (guestName) persistGuestName(guestName);
+    queue = Array.from(items.entries()).filter(([, it]) => it.status === "queued");
+    const concurrency = 3;
+    let cursor = 0;
+    async function runOne() {
+      while (cursor < queue.length) {
+        const i = cursor++;
+        const [id, it] = queue[i];
+        try {
+          const result = await uploadOne(id, it, guestName);
+          successResults.push(result);
+        } catch (e) {
+          console.error("upload failed", id, e);
+          markError(id);
+          errored++;
+        }
+        uploadStat.textContent = `Uploaded ${countDone()} of ${queue.length}…`;
+        refreshControls();
+      }
+    }
+    const workers = Array.from({ length: Math.min(concurrency, queue.length) }, runOne);
+    await Promise.all(workers);
+
+    // RTDB feed entries are supplementary — storage customMetadata is the
+    // source of truth (see refreshFeedNow). Each dbUpdate attempt is timeout-
+    // raced at 3s so a flaky RTDB connection can never hang the UI. Even if
+    // every attempt fails, the gallery still picks the new tiles up from
+    // storage on the next poll, so we still surface success to the user.
+    if (successResults.length) {
+      const updates = {};
+      for (const { feedKey, entry } of successResults) {
+        updates[`${FEED_PATH}/${feedKey}`] = entry;
+      }
+      feedSyncOK = false;
+      for (let attempt = 0; attempt < 3 && !feedSyncOK; attempt++) {
+        try {
+          await Promise.race([
+            dbUpdate(dbRef(db), updates),
+            new Promise((_, rej) => setTimeout(() => rej(new Error("rtdb timeout")), 3000)),
+          ]);
+          feedSyncOK = true;
+        } catch (e) {
+          console.warn(`feed batch update attempt ${attempt + 1} failed`, e);
+          if (attempt < 2) await new Promise((r) => setTimeout(r, 300 * (attempt + 1)));
+        }
+      }
+      if (!feedSyncOK) console.warn("rtdb feed sync gave up — gallery will sync from storage");
+    }
+  } finally {
+    // Guaranteed UI reset, even if any await above hangs or throws.
     isUploading = false;
     uploadBtn.disabled = false;
-    refreshControls();
-    return;
-  }
-  const guestName = guestNameEl.value.trim();
-  if (guestName) persistGuestName(guestName);
-  const queue = Array.from(items.entries()).filter(([, it]) => it.status === "queued");
-  const concurrency = 3;
-  let cursor = 0;
-  let errored = 0;
-  const successResults = [];
-  async function runOne() {
-    while (cursor < queue.length) {
-      const i = cursor++;
-      const [id, it] = queue[i];
-      try {
-        const result = await uploadOne(id, it, guestName);
-        successResults.push(result);
-      } catch (e) {
-        console.error("upload failed", id, e);
-        markError(id);
-        errored++;
+    if (errored && errored === (queue.length || 0)) {
+      // Everything failed — keep the user in the form so they can retry.
+      uploadStat.textContent = `0 sent · ${errored} failed`;
+      showToast(`Upload failed — check your connection and try again`, "err", 4500);
+      refreshControls();
+    } else if (successResults.length) {
+      // At least one storage upload succeeded — show the success card.
+      uploadStat.textContent = errored
+        ? `${countDone()} sent · ${errored} failed`
+        : "";
+      if (successText) {
+        let pv = 0, vv = 0;
+        for (const [, it] of queue) { if (it.isVideo) vv++; else pv++; }
+        const total = pv + vv;
+        const noun  = kindNounPhrase({ p: pv, v: vv, total });
+        const verb  = total === 1 ? "is" : "are";
+        successText.textContent = `Your ${noun} ${verb} on their way to our album.`;
       }
-      uploadStat.textContent = `Uploaded ${countDone()} of ${queue.length}…`;
+      shareMain.classList.add("hidden-init");
+      successEl.classList.remove("hidden-init");
+      startSuccessCountdown();
+    } else {
       refreshControls();
     }
+    // Storage is source of truth — pull the bucket again so the new tiles
+    // render immediately even if the RTDB sync was skipped or timed out.
+    refreshFeedNow();
   }
-  const workers = Array.from({ length: Math.min(concurrency, queue.length) }, runOne);
-  await Promise.all(workers);
-
-  // Atomic single-shot RTDB update — every successful storage upload writes
-  // its feed entry in one request. Eliminates the parallel-write race that
-  // was leaving the gallery with only one tile after multi-file sends.
-  let feedSyncOK = true;
-  if (successResults.length) {
-    const updates = {};
-    for (const { feedKey, entry } of successResults) {
-      updates[`${FEED_PATH}/${feedKey}`] = entry;
-    }
-    feedSyncOK = false;
-    let lastErr = null;
-    for (let attempt = 0; attempt < 4 && !feedSyncOK; attempt++) {
-      try {
-        await dbUpdate(dbRef(db), updates);
-        feedSyncOK = true;
-      } catch (e) {
-        lastErr = e;
-        console.warn(`feed batch update attempt ${attempt + 1} failed`, e);
-        await new Promise((r) => setTimeout(r, 300 * (attempt + 1)));
-      }
-    }
-    if (!feedSyncOK) console.error("feed batch update failed after retries", lastErr);
-  }
-
-  isUploading = false;
-  uploadBtn.disabled = false;
-  if (errored || !feedSyncOK) {
-    const failed = errored + (feedSyncOK ? 0 : successResults.length);
-    uploadStat.textContent = `${countDone()} sent · ${failed} failed`;
-    showToast(`${failed} file${failed === 1 ? "" : "s"} couldn't fully sync — reconcile will retry`, "err", 4500);
-  } else {
-    uploadStat.textContent = "";
-    // Tailor the success copy to what was actually sent.
-    if (successText) {
-      let pv = 0, vv = 0;
-      for (const [, it] of queue) { if (it.isVideo) vv++; else pv++; }
-      const total = pv + vv;
-      const noun  = kindNounPhrase({ p: pv, v: vv, total });
-      const verb  = total === 1 ? "is" : "are";
-      successText.textContent = `Your ${noun} ${verb} on their way to our album.`;
-    }
-    shareMain.classList.add("hidden-init");
-    successEl.classList.remove("hidden-init");
-    startSuccessCountdown();
-  }
-  // Force a fresh read so the new tiles render immediately (the onValue
-  // listener has been unreliable for live updates).
-  refreshFeedNow();
-  // Safety net: backfill anything still missing a feed entry (e.g. batch
-  // update gave up). reconcile reads storage custom metadata so the original
-  // uploader still owns the entry.
-  // (no-op: storage is now the source of truth — refreshFeedNow above already
-  // re-rendered the gallery from the bucket)
 });
 
 // "Share more" — return to form view, keep modal open
@@ -1903,14 +1907,31 @@ function askDelete(id) {
     showToast("You can only remove your own uploads", "err");
     return;
   }
+  // Admin shortcut: skip the confirm modal entirely. Charlie's curating
+  // the live album in real time at the wedding — every extra tap is
+  // friction. The deletion log still writes if the target wasn't his own
+  // upload, so the original guest still sees the notice on next visit.
+  if (IS_ADMIN) {
+    const noun = entry.isVideo ? "Video" : "Photo";
+    deleteEntry(id)
+      .then(async () => {
+        showToast(`${noun} removed`);
+        await refreshFeedNow();
+        if (lightbox.classList.contains("open")) {
+          const stillThere = _feed.find((e) => e.id === id);
+          if (!stillThere) closeLightbox();
+        }
+      })
+      .catch((e) => {
+        console.error(e);
+        showToast(e?.message || "Couldn't remove", "err", 4000);
+      });
+    return;
+  }
   _pendingDeleteId = id;
   const noun = entry.isVideo ? "video" : "photo";
   if (confirmTitle) confirmTitle.textContent = `Remove this ${noun}?`;
-  if (IS_ADMIN && entry.uid && entry.uid !== auth.currentUser?.uid) {
-    confirmMsg.textContent = `This will be removed from the album and the guest who uploaded it will see a note that an admin removed their ${noun}.`;
-  } else {
-    confirmMsg.textContent = `It will be deleted from the shared album and from our storage — this can't be undone.`;
-  }
+  confirmMsg.textContent = `It will be deleted from the shared album and from our storage — this can't be undone.`;
   confirmModal.classList.add("open");
   confirmModal.setAttribute("aria-hidden", "false");
   document.body.style.overflow = "hidden";
