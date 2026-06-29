@@ -757,10 +757,15 @@ let _hasMultipleCams = false;
 let _captureMode = "photo";                                 // "photo" | "video"
 let _recorder = null;
 let _recordChunks = [];
+let _recordedBytes = 0;                                     // running sum across chunks
 let _recordStartTs = 0;
 let _recordTickTimer = null;
 let _recordAutoStopTimer = null;
 const MAX_RECORD_MS = 60_000;                               // 60s cap → ~25-40 MB
+// Soft size cap: stop the recorder just before the 50 MB upload limit so
+// we never discard a clip the guest actually shot. ~2 MB headroom covers
+// the in-flight timeslice chunk that lands after we call stop().
+const VIDEO_AUTOSTOP_BYTES = 48 * 1024 * 1024;
 
 async function openCamera() {
   cameraError.classList.remove("show");
@@ -868,14 +873,12 @@ cameraErrorClose.addEventListener("click", () => {
 });
 
 cameraTopFlip.addEventListener("click", async () => {
-  if (_recorder && _recorder.state === "recording") return;  // don't flip mid-record
   const newFacing = _facing === "environment" ? "user" : "environment";
-  // Try the smooth path (applyConstraints keeps the stream alive so Chrome
-  // doesn't re-flash its "camera access allowed" indicator), but VERIFY the
-  // physical camera actually switched. Many Android Chromes accept the
-  // constraint silently while keeping the same camera bound — which is what
-  // broke "flip back to rear cam" after the first flip. If verification
-  // fails, fall through to a full restart.
+  const wasRecording = !!(_recorder && _recorder.state === "recording");
+  // Smooth path: applyConstraints swaps cameras on the live track without
+  // killing the MediaRecorder, so recording continues seamlessly across
+  // the flip. Verify the physical camera actually changed (many Android
+  // Chromes accept the constraint silently while keeping the same camera).
   const track = _stream?.getVideoTracks?.()[0];
   if (track && typeof track.applyConstraints === "function") {
     try {
@@ -891,11 +894,15 @@ cameraTopFlip.addEventListener("click", async () => {
         else                          cameraVideo.classList.add("mirror");
         return;
       }
-      // No-op flip — applyConstraints didn't actually switch cameras.
-      // Fall through to the reliable restart path below.
     } catch (e) {
       console.warn("applyConstraints flip failed, restarting stream", e);
     }
+  }
+  // Fallback: full stream restart. If we were mid-recording, save the
+  // current clip cleanly first so the user doesn't lose their take.
+  if (wasRecording) {
+    showToast("Saved your clip — flipping camera", "ok", 1800);
+    await stopRecording();
   }
   _facing = newFacing;
   await startCameraStream(_facing, { withAudio: _captureMode === "video" });
@@ -1097,7 +1104,18 @@ async function startRecording() {
     showToast("Recording not supported here", "err");
     return;
   }
-  _recorder.ondataavailable = (e) => { if (e.data && e.data.size) _recordChunks.push(e.data); };
+  _recordedBytes = 0;
+  _recorder.ondataavailable = (e) => {
+    if (!e.data || !e.data.size) return;
+    _recordChunks.push(e.data);
+    _recordedBytes += e.data.size;
+    // Soft-stop the recorder right before the 50 MB upload cap so the
+    // clip the user actually shot is preserved — never discard their take.
+    if (_recordedBytes >= VIDEO_AUTOSTOP_BYTES && _recorder && _recorder.state === "recording") {
+      showToast("50 MB reached — saved your clip", "ok", 2400);
+      try { _recorder.stop(); } catch {}
+    }
+  };
   _recorder.onstop = onRecordStop;
   _recorder.onerror = (e) => { console.error("recorder error", e); showToast("Recording failed", "err"); };
   // 250ms chunks: iOS Safari hands back data more reliably with timeslice.
@@ -1112,8 +1130,16 @@ async function startRecording() {
 }
 
 function stopRecording() {
-  if (!_recorder || _recorder.state !== "recording") return;
-  try { _recorder.stop(); } catch (e) { console.warn("stop failed", e); }
+  return new Promise((resolve) => {
+    if (!_recorder || _recorder.state !== "recording") return resolve();
+    const r = _recorder;
+    const prevOnStop = r.onstop;
+    r.onstop = (e) => {
+      if (prevOnStop) prevOnStop.call(r, e);
+      resolve();
+    };
+    try { r.stop(); } catch (e) { console.warn("stop failed", e); resolve(); }
+  });
 }
 
 function onRecordStop() {
@@ -1131,10 +1157,8 @@ function onRecordStop() {
   _recordChunks = [];
   const ext = mime.includes("mp4") ? ".mp4" : ".webm";
   const file = new File([blob], `camera-${uid()}${ext}`, { type: mime, lastModified: Date.now() });
-  if (file.size > MAX_VIDEO_BYTES) {
-    showToast(`Recording is ${(file.size / 1024 / 1024).toFixed(1)} MB — keep videos under 50 MB`, "err", 4500);
-    return;
-  }
+  // No hard reject — the recorder auto-stops at ~48 MB so this file is
+  // already within the storage budget. Keep what the guest shot.
   addThumb(file);
   _videoCount++;
   renderCameraCounter("video");
@@ -1299,13 +1323,13 @@ if (cameraStage) {
       _pinchStartDist = 0;
     }
   }, { passive: true });
-  // Double-tap = flip cameras. Uses click rather than touch to honor mouse
-  // double-clicks on desktop too. Skips while pinching, recording, or if
-  // there's only one camera on the device.
+  // Double-tap = flip cameras. Allowed even mid-recording — the flip
+  // handler tries applyConstraints first so a recording can survive the
+  // flip on devices that support it. Skipped while pinching or if the
+  // device has only one camera.
   cameraStage.addEventListener("click", (e) => {
     if (e.target.closest("button")) return;
     if (_pinchActive) return;
-    if (_recorder && _recorder.state === "recording") return;
     if (!_hasMultipleCams) return;
     const now = Date.now();
     if (now - _stageLastTapAt < 320) {
