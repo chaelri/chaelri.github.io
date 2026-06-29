@@ -416,6 +416,71 @@ th {
 .rsvp-row.final-checked { background: #f3f6ec; }
 .rsvp-row.final-checked:hover { background: #ecf0e0; }
 
+/* ---------- Poster Send Tracker ----------
+   Amber palette (same hue as the RSVP "followed-up" chip family) so it
+   feels related to the existing tracker without colliding with sage
+   (final-yes) or dark (side filters). */
+.poster-stat-card {
+  background: white;
+  border: 1px solid #e7e5e4;
+  border-radius: 10px;
+  padding: 10px 12px;
+  display: flex;
+  flex-direction: column;
+  gap: 2px;
+  cursor: pointer;
+  transition: border-color 0.15s ease, transform 0.12s ease;
+}
+.poster-stat-card:hover { border-color: #c98a00; transform: translateY(-1px); }
+.poster-stat-card .stat-label {
+  font-size: 0.62rem;
+  text-transform: uppercase;
+  letter-spacing: 0.1em;
+  color: #a8a29e;
+  font-weight: 700;
+}
+.poster-stat-card .stat-value {
+  font-family: inherit;
+  font-size: 1.875rem;
+  font-weight: 700;
+  color: #2a2723;
+  line-height: 1.1;
+  letter-spacing: -0.01em;
+}
+.poster-stat-card.active { border-color: #c98a00; background: #fbf3e1; }
+
+.poster-chip {
+  font-size: 0.72rem;
+  font-weight: 600;
+  padding: 5px 11px;
+  border-radius: 999px;
+  border: 1px solid #e7e5e4;
+  background: white;
+  color: #57534e;
+  cursor: pointer;
+  transition: all 0.15s ease;
+}
+.poster-chip:hover { border-color: #c98a00; color: #2a2723; }
+.poster-chip.active { background: #c98a00; color: white; border-color: #c98a00; }
+
+.poster-side-chip {
+  font-size: 0.7rem;
+  font-weight: 600;
+  padding: 4px 10px;
+  border-radius: 999px;
+  border: 1px solid #e7e5e4;
+  background: white;
+  color: #57534e;
+  cursor: pointer;
+  transition: all 0.15s ease;
+}
+.poster-side-chip:hover { border-color: #a8a29e; color: #2a2723; }
+.poster-side-chip.active { background: #2a2723; color: white; border-color: #2a2723; }
+
+/* Sent row — soft amber tint so completed rows recede. */
+.rsvp-row.poster-sent { background: #fbf6ea; }
+.rsvp-row.poster-sent:hover { background: #f8efd9; }
+
 /* Pagination buttons. */
 .rsvp-page-btn {
   min-width: 28px;

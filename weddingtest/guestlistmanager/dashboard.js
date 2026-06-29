@@ -145,6 +145,7 @@ function init() {
           // automatically when a website RSVP comes in (yes → true,
           // no → false). Default to false so unchecked rows render correctly.
           finalChecked: guest.finalChecked === true,
+          posterSent: guest.posterSent === true,
         };
       });
       render();
@@ -412,6 +413,7 @@ function render() {
 
   renderPagination(totalPages);
   renderFinalList();
+  renderPosterTracker();
   renderEntourage();
   renderRsvpTracker();
 }
@@ -1146,6 +1148,170 @@ function renderFinalList() {
   );
 }
 
+// ----- Poster Send Tracker ------------------------------------------------
+// Lets Charlie + Karla track who's been sent the "X days left" countdown
+// poster. Pool = Final Yes ✓ guests (status=yes + finalChecked). Same chip
+// pattern as the RSVP Tracker so the controls feel native.
+let posterFilter   = "all";   // status chip (all / sent / not-sent)
+let posterSide     = "all";   // side chip
+let posterSearch   = "";
+let posterPage     = 1;
+let posterPageSize = 50;      // 0 = show all
+
+function renderPosterTracker() {
+  const body = document.getElementById("posterTrackerBody");
+  const cards = document.getElementById("poster-stat-cards");
+  const empty = document.getElementById("poster-empty");
+  if (!body || !cards) return;
+
+  // Pool = Final Yes ✓ — the people who'll actually get a poster.
+  const pool = allData.filter(
+    (g) => g.invited === "yes" && g.status === "yes" && g.finalChecked === true
+  );
+
+  // ----- Stat cards
+  const sentCount = pool.filter((g) => g.posterSent === true).length;
+  const notSentCount = pool.length - sentCount;
+  document.getElementById(
+    "poster-count-badge"
+  ).innerText = `${sentCount} / ${pool.length} sent`;
+
+  const STAT_CARDS = [
+    { key: "all",      label: "All Final Yes", value: pool.length,   hint: "Everyone who'll receive it" },
+    { key: "sent",     label: "Sent ✓",         value: sentCount,    hint: "Already received the poster" },
+    { key: "not-sent", label: "Not sent yet",   value: notSentCount, hint: "Still need to send" },
+  ];
+  cards.innerHTML = STAT_CARDS.map((s) => `
+    <div class="poster-stat-card ${posterFilter === s.key ? "active" : ""}" data-card="${s.key}">
+      <div class="stat-label">${s.label}</div>
+      <div class="stat-value">${s.value}</div>
+      <div class="text-[10px] text-stone-400 mt-0.5">${s.hint}</div>
+    </div>
+  `).join("");
+  cards.querySelectorAll(".poster-stat-card").forEach((el) => {
+    el.addEventListener("click", () => {
+      posterFilter = el.dataset.card;
+      posterPage = 1;
+      renderPosterTracker();
+    });
+  });
+
+  // ----- Status filter chips
+  document.querySelectorAll(".poster-chip").forEach((el) => {
+    el.classList.toggle("active", el.dataset.filter === posterFilter);
+    el.onclick = () => {
+      posterFilter = el.dataset.filter;
+      posterPage = 1;
+      renderPosterTracker();
+    };
+  });
+
+  // ----- Side filter chips
+  document.querySelectorAll(".poster-side-chip").forEach((el) => {
+    el.classList.toggle("active", el.dataset.side === posterSide);
+    el.onclick = () => {
+      posterSide = el.dataset.side;
+      posterPage = 1;
+      renderPosterTracker();
+    };
+  });
+
+  // ----- Search input
+  const searchEl = document.getElementById("poster-search");
+  if (searchEl && !searchEl._posterWired) {
+    searchEl.value = posterSearch;
+    searchEl.addEventListener("input", () => {
+      posterSearch = searchEl.value.trim().toLowerCase();
+      posterPage = 1;
+      renderPosterTracker();
+    });
+    searchEl._posterWired = true;
+  }
+
+  // ----- Page-size selector
+  const sizeEl = document.getElementById("poster-page-size");
+  if (sizeEl && !sizeEl._posterWired) {
+    sizeEl.value = String(posterPageSize);
+    sizeEl.addEventListener("change", () => {
+      posterPageSize = parseInt(sizeEl.value, 10) || 0;
+      posterPage = 1;
+      renderPosterTracker();
+    });
+    sizeEl._posterWired = true;
+  }
+
+  // ----- Filter + sort
+  const filtered = pool
+    .filter((g) => {
+      if (posterFilter === "sent" && g.posterSent !== true) return false;
+      if (posterFilter === "not-sent" && g.posterSent === true) return false;
+      if (posterSide !== "all" && g.side !== posterSide) return false;
+      if (posterSearch) {
+        const hay = `${g.name} ${g.nickname || ""}`.toLowerCase();
+        if (!hay.includes(posterSearch)) return false;
+      }
+      return true;
+    })
+    .sort((a, b) => {
+      // Not-sent first (action queue), then alpha by name.
+      if ((a.posterSent === true) !== (b.posterSent === true)) {
+        return a.posterSent ? 1 : -1;
+      }
+      return (a.name || "").localeCompare(b.name || "");
+    });
+
+  // ----- Pagination
+  const pageSize = posterPageSize > 0 ? posterPageSize : filtered.length || 1;
+  const totalPages = Math.max(1, Math.ceil(filtered.length / pageSize));
+  if (posterPage > totalPages) posterPage = totalPages;
+  if (posterPage < 1) posterPage = 1;
+  const startIdx = (posterPage - 1) * pageSize;
+  const pageRows = filtered.slice(startIdx, startIdx + pageSize);
+
+  // ----- Body
+  body.innerHTML = pageRows.map(posterRowHtml).join("");
+  if (empty) empty.classList.toggle("hidden", filtered.length !== 0);
+
+  // ----- Pagination footer
+  buildMiniPagination(
+    "poster-pagination",
+    "poster-page-indicator",
+    totalPages,
+    posterPage,
+    (p) => {
+      posterPage = p;
+      renderPosterTracker();
+    }
+  );
+}
+
+function posterRowHtml(g) {
+  const sideClr = g.side === "karla" ? "text-rose-500"
+                : g.side === "charlie" ? "text-sky-600" : "text-stone-500";
+  const when = g.submittedAt
+    ? new Date(g.submittedAt).toLocaleString("en-US", {
+        month: "short", day: "numeric", hour: "2-digit", minute: "2-digit",
+      })
+    : "—";
+  const checkbox = `
+    <label class="rsvp-followup" title="Poster sent to this guest">
+      <input type="checkbox" data-postersent-id="${g.id}" ${g.posterSent ? "checked" : ""} />
+      <span class="rsvp-followup-box"></span>
+    </label>`;
+  const rowClass = g.posterSent ? "rsvp-row poster-sent" : "rsvp-row";
+  return `
+    <tr class="${rowClass}">
+      <td class="p-3">
+        <div class="font-semibold text-stone-800">${g.name}</div>
+        ${g.nickname ? `<div class="text-[10px] text-stone-400">"${g.nickname}"</div>` : ""}
+      </td>
+      <td class="p-3 text-[10px] uppercase tracking-widest font-bold ${sideClr}">${g.side}</td>
+      <td class="p-3 text-xs text-stone-500">${when}</td>
+      <td class="p-3 text-center">${checkbox}</td>
+    </tr>
+  `;
+}
+
 // ----- RSVP Tracker -------------------------------------------------------
 // Lets Charlie + Karla finalize the list before the June 1 deadline. Shows
 // who responded via the website, who they marked manually, and who still
@@ -1512,6 +1678,12 @@ document.addEventListener("change", (e) => {
   if (finalCheck) {
     const id = finalCheck.dataset.finalcheckId;
     if (id) set(ref(db, `guestList/${id}/finalChecked`), finalCheck.checked);
+    return;
+  }
+  const posterSent = e.target.closest("[data-postersent-id]");
+  if (posterSent) {
+    const id = posterSent.dataset.postersentId;
+    if (id) set(ref(db, `guestList/${id}/posterSent`), posterSent.checked);
   }
 });
 
