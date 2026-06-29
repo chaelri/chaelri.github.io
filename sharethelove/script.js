@@ -1470,7 +1470,7 @@ async function downloadCurrent() {
   if (!entry) return;
   lbDownload.disabled = true;
   const label = lbDownload.innerHTML;
-  lbDownload.innerHTML = `<span class="material-symbols-outlined" style="font-size:18px">hourglass_top</span> Saving…`;
+  lbDownload.innerHTML = `<span class="material-symbols-outlined" style="font-size:20px">hourglass_top</span>`;
   try {
     // fetch → blob so the browser uses our chosen filename instead of opening
     // the Firebase Storage URL inline. Storage signed URLs allow GET CORS.
@@ -1504,7 +1504,7 @@ async function shareCurrent() {
   if (!entry || !lbShare) return;
   lbShare.disabled = true;
   const label = lbShare.innerHTML;
-  lbShare.innerHTML = `<span class="material-symbols-outlined" style="font-size:18px">hourglass_top</span> Sharing…`;
+  lbShare.innerHTML = `<span class="material-symbols-outlined" style="font-size:20px">hourglass_top</span>`;
   const filename = entry.name || (entry.isVideo ? "wedding-video.mp4" : "wedding-photo.jpg");
   const text = entry.guest
     ? `From Charlie & Karla's wedding album · shared by ${entry.guest}`

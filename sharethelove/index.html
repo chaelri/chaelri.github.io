@@ -632,18 +632,21 @@
         background: rgba(255,255,255,0.12);
         color: white;
         border-radius: 999px;
+        width: 44px;
         height: 44px;
-        padding: 0 18px;
+        padding: 0;
         display: flex;
         align-items: center;
-        gap: 6px;
+        justify-content: center;
         cursor: pointer;
         backdrop-filter: blur(4px);
-        font-size: 0.8rem;
-        letter-spacing: 0.04em;
         border: none;
         transition: background 0.22s ease, transform 0.22s cubic-bezier(0.22,1,0.36,1);
       }
+      /* Action labels are decorative — buttons are icon-only at every
+         breakpoint. Native title + aria-label still carry the meaning for
+         hover tooltips and assistive tech. */
+      .lb-action-label { display: none; }
       .lb-actions {
         position: absolute;
         top: 18px;
@@ -657,17 +660,11 @@
       .lb-download:disabled, .lb-share:disabled { opacity: 0.5; cursor: progress; transform: none; }
       .lb-share { background: rgba(255,255,255,0.16); }
       @media (max-width: 640px) {
-        /* Phones: icon-only buttons so the action group fits next to the X
-           and doesn't overlap the caption pill at the bottom. */
+        /* Phones: tighter spacing and slightly smaller pills so the row
+           fits comfortably next to the close X. */
         .lb-close { width: 40px; height: 40px; top: 12px; right: 12px; }
         .lb-actions { top: 12px; right: 60px; gap: 6px; }
-        .lb-delete, .lb-share, .lb-download {
-          padding: 0;
-          width: 40px;
-          height: 40px;
-          justify-content: center;
-        }
-        .lb-action-label { display: none; }
+        .lb-delete, .lb-share, .lb-download { width: 40px; height: 40px; }
       }
 
       /* Lightbox thumbnail strip (Facebook-style) */
@@ -1317,17 +1314,14 @@
         <span class="material-symbols-outlined">close</span>
       </button>
       <div class="lb-actions">
-        <button class="lb-delete hidden-init" id="lb-delete" aria-label="Remove this upload">
-          <span class="material-symbols-outlined" style="font-size:18px">delete</span>
-          <span class="lb-action-label">Remove</span>
+        <button class="lb-delete hidden-init" id="lb-delete" aria-label="Remove this upload" title="Remove">
+          <span class="material-symbols-outlined" style="font-size:20px">delete</span>
         </button>
-        <button class="lb-share" id="lb-share" aria-label="Share">
-          <span class="material-symbols-outlined" style="font-size:18px">ios_share</span>
-          <span class="lb-action-label">Share</span>
+        <button class="lb-share" id="lb-share" aria-label="Share" title="Share">
+          <span class="material-symbols-outlined" style="font-size:20px">ios_share</span>
         </button>
-        <button class="lb-download" id="lb-download" aria-label="Download">
-          <span class="material-symbols-outlined" style="font-size:18px">download</span>
-          <span class="lb-action-label">Download</span>
+        <button class="lb-download" id="lb-download" aria-label="Download" title="Download">
+          <span class="material-symbols-outlined" style="font-size:20px">download</span>
         </button>
       </div>
       <button class="lb-nav lb-prev" id="lb-prev" aria-label="Previous">
@@ -1381,6 +1375,6 @@
 
     <div id="toast" class="toast"><span id="toast-msg"></span></div>
 
-    <script type="module" src="script.js?v=20260630a"></script>
+    <script type="module" src="script.js?v=20260630b"></script>
   </body>
 </html>
