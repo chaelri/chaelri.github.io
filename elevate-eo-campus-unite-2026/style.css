@@ -1431,6 +1431,123 @@ body.poster-open { overflow: hidden; }
 }
 
 /* =================================================================
+   PNG EXPORT — thumbnail grid + lightbox
+   ================================================================= */
+.png-ticket-card {
+  display: block;
+  width: 100%;
+  text-align: left;
+  background: rgba(7, 9, 26, 0.5);
+  border: 1px solid var(--line);
+  border-radius: 8px;
+  overflow: hidden;
+  cursor: pointer;
+  transition: border-color 0.15s ease, transform 0.12s ease, box-shadow 0.15s ease;
+  padding: 0;
+}
+.png-ticket-card:hover {
+  border-color: var(--tape);
+  transform: translateY(-1px);
+  box-shadow: 0 6px 16px rgba(0, 0, 0, 0.35);
+}
+.png-ticket-thumb {
+  display: block;
+  width: 100%;
+  aspect-ratio: 4.5 / 2;
+  object-fit: contain;
+  background: var(--bg-deep);
+}
+.png-ticket-meta {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  padding: 6px 10px;
+  gap: 8px;
+}
+.png-ticket-id {
+  font-family: "Bebas Neue", sans-serif;
+  font-size: 14px;
+  color: var(--tape);
+  letter-spacing: 0.05em;
+}
+.png-ticket-dl {
+  color: var(--ink-soft);
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  width: 28px;
+  height: 28px;
+  border-radius: 6px;
+  transition: background 0.15s ease, color 0.15s ease;
+}
+.png-ticket-dl:hover {
+  background: var(--tape);
+  color: var(--on-tape);
+}
+
+/* Lightbox */
+.png-lightbox {
+  position: fixed;
+  inset: 0;
+  z-index: 100;
+  background: rgba(7, 9, 26, 0.94);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  padding: 24px;
+  backdrop-filter: blur(6px);
+}
+.png-lightbox.hidden { display: none; }
+.png-lightbox-inner {
+  background: var(--bg-deep);
+  border: 1px solid var(--tape);
+  border-radius: 12px;
+  max-width: min(95vw, 1450px);
+  max-height: 90vh;
+  display: flex;
+  flex-direction: column;
+  overflow: hidden;
+  box-shadow: 0 20px 60px rgba(0, 0, 0, 0.5);
+}
+.png-lightbox-img {
+  display: block;
+  max-width: 100%;
+  max-height: calc(90vh - 70px);
+  object-fit: contain;
+  background: #fff;
+}
+.png-lightbox-bar {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 12px;
+  padding: 10px 14px;
+  background: rgba(0, 0, 0, 0.4);
+  border-top: 1px solid var(--line);
+  flex-wrap: wrap;
+}
+.png-lightbox-close {
+  position: absolute;
+  top: 14px;
+  right: 14px;
+  background: rgba(0, 0, 0, 0.55);
+  border: 1px solid var(--line);
+  color: var(--ink);
+  border-radius: 999px;
+  width: 40px;
+  height: 40px;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  cursor: pointer;
+  transition: background 0.15s ease, color 0.15s ease;
+}
+.png-lightbox-close:hover {
+  background: var(--red);
+  color: var(--on-red);
+}
+
+/* =================================================================
    UTILITIES
    ================================================================= */
 .text-tape { color: var(--tape); }

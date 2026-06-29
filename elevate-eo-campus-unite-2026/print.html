@@ -55,78 +55,142 @@
   <section id="controls" class="print:hidden px-4 sm:px-8 max-w-5xl mx-auto py-6 hidden">
     <div class="flex items-center gap-3 mb-4">
       <span class="tape-badge">Print</span>
-      <span class="text-mute text-xs font-extrabold-ui uppercase tracking-widest">A4 landscape, 6 per page</span>
+      <span class="text-mute text-xs font-extrabold-ui uppercase tracking-widest">1 PNG per ticket · 4.5 × 2 in · 300 DPI</span>
     </div>
 
-    <!-- Pre-rendered PDF — skip the render+print dance for the common case (all 1,000 tickets) -->
+    <!-- PNG export — printer-ready, one file per ticket at actual size. -->
     <div class="glass-tile p-5 sm:p-6 mb-4" style="border-color: var(--tape); border-width: 1px;">
-      <div class="flex items-center gap-3 flex-wrap">
+      <div class="flex items-center gap-3 flex-wrap mb-4">
         <div class="flex-1 min-w-0">
-          <div class="font-extrabold-ui text-base text-ink">All 1,000 tickets — print-ready PDF</div>
-          <p class="text-soft text-xs mt-1">Hand this straight to the printer. Square corners, A4 landscape, 6 tickets per page.</p>
+          <div class="font-extrabold-ui text-base text-ink">PNG export — actual ticket size</div>
+          <p class="text-soft text-xs mt-1">One file per ticket at 4.5 × 2 in (1,350 × 600 px / 300 DPI). Hand the ZIP to the printer.</p>
         </div>
-        <a href="assets/print-tickets.pdf" download="Campus-UNITE-2026-Tickets.pdf" class="btn-primary whitespace-nowrap">
-          <span class="material-symbols-outlined" style="font-size:18px">picture_as_pdf</span>
-          Download PDF
-        </a>
       </div>
-    </div>
 
-    <div class="glass-tile p-5 sm:p-6">
-      <p class="text-soft text-sm">Need a custom range? Render below, then use your browser's <em>Print</em> dialog → "Save as PDF" or send to printer.</p>
-
-      <div class="mt-4 grid grid-cols-2 sm:grid-cols-4 gap-3">
+      <div class="grid grid-cols-2 sm:grid-cols-4 gap-3">
         <div>
           <label class="field-label">From #</label>
-          <input id="from" type="number" min="1" max="1000" value="1" class="input" />
+          <input id="png-from" type="number" min="1" max="1000" value="1" class="input" />
         </div>
         <div>
           <label class="field-label">To #</label>
-          <input id="to" type="number" min="1" max="1000" value="20" class="input" />
+          <input id="png-to" type="number" min="1" max="1000" value="1000" class="input" />
         </div>
-        <div class="col-span-2 sm:col-span-1 flex items-end">
-          <button id="btn-render" class="btn-ghost w-full justify-center">
-            <span class="material-symbols-outlined" style="font-size:18px">refresh</span>
-            Render
-          </button>
-        </div>
-        <div class="col-span-2 sm:col-span-1 flex items-end">
-          <button id="btn-print" class="btn-primary w-full justify-center">
-            <span class="material-symbols-outlined" style="font-size:18px">print</span>
-            Print
+        <div class="col-span-2 sm:col-span-2 flex items-end">
+          <button id="btn-png-generate" class="btn-primary w-full justify-center">
+            <span class="material-symbols-outlined" style="font-size:18px">image</span>
+            Generate PNGs
           </button>
         </div>
       </div>
 
-      <div class="mt-4 flex flex-wrap gap-2">
-        <button data-range="1,20"     class="rng-btn btn-ghost text-xs">1 → 20</button>
-        <button data-range="1,100"    class="rng-btn btn-ghost text-xs">1 → 100</button>
-        <button data-range="1,250"    class="rng-btn btn-ghost text-xs">1 → 250</button>
-        <button data-range="251,500"  class="rng-btn btn-ghost text-xs">251 → 500</button>
-        <button data-range="501,750"  class="rng-btn btn-ghost text-xs">501 → 750</button>
-        <button data-range="751,1000" class="rng-btn btn-ghost text-xs">751 → 1,000</button>
-        <button data-range="1,1000"   class="rng-btn btn-tape text-xs" style="padding:0.45rem 0.9rem;">All 1,000</button>
+      <div class="mt-3 flex flex-wrap gap-2">
+        <button data-png-range="1,20"     class="png-rng-btn btn-ghost text-xs">1 → 20</button>
+        <button data-png-range="1,100"    class="png-rng-btn btn-ghost text-xs">1 → 100</button>
+        <button data-png-range="1,250"    class="png-rng-btn btn-ghost text-xs">1 → 250</button>
+        <button data-png-range="251,500"  class="png-rng-btn btn-ghost text-xs">251 → 500</button>
+        <button data-png-range="501,750"  class="png-rng-btn btn-ghost text-xs">501 → 750</button>
+        <button data-png-range="751,1000" class="png-rng-btn btn-ghost text-xs">751 → 1,000</button>
+        <button data-png-range="1,1000"   class="png-rng-btn btn-tape text-xs" style="padding:0.45rem 0.9rem;">All 1,000</button>
+      </div>
+
+      <div id="png-progress" class="mt-4 hidden">
+        <div class="flex items-center justify-between mb-1">
+          <span id="png-progress-label" class="text-xs text-mute font-extrabold-ui uppercase tracking-widest">0 / 0</span>
+          <button id="btn-png-cancel" class="text-xs text-mute hover:text-red font-extrabold-ui uppercase tracking-widest">Cancel</button>
+        </div>
+        <div class="w-full bg-[color:var(--line)] rounded-full overflow-hidden" style="height: 6px;">
+          <div id="png-progress-bar" class="h-full transition-all" style="width: 0%; background: var(--tape);"></div>
+        </div>
+      </div>
+
+      <div id="png-results" class="hidden mt-4">
+        <div class="flex items-center justify-between gap-2 mb-3 flex-wrap">
+          <span class="text-soft text-xs">
+            <span id="png-count">0</span> tickets ready ·
+            <span id="png-visible-count" class="text-tape font-extrabold-ui">0</span> shown
+          </span>
+          <div class="flex gap-2 flex-wrap">
+            <button id="btn-png-clear" class="btn-ghost text-xs">
+              <span class="material-symbols-outlined" style="font-size:16px">delete_sweep</span>
+              Clear
+            </button>
+            <button id="btn-png-zip" class="btn-tape">
+              <span class="material-symbols-outlined" style="font-size:18px">folder_zip</span>
+              Download all (.zip)
+            </button>
+          </div>
+        </div>
+
+        <!-- View filters: search by ticket number + range to narrow what's shown. -->
+        <div class="grid grid-cols-1 sm:grid-cols-4 gap-3 mb-4 bg-[color:var(--bg-soft)] p-3 rounded-lg" style="border:1px solid var(--line);">
+          <div class="sm:col-span-2">
+            <label class="field-label">Search</label>
+            <div class="relative">
+              <span class="material-symbols-outlined absolute left-2 top-1/2 -translate-y-1/2 text-mute" style="font-size:18px">search</span>
+              <input id="png-search" type="search" placeholder="e.g. 0123 or ECU-0420" class="input pl-8" />
+            </div>
+          </div>
+          <div>
+            <label class="field-label">View from</label>
+            <input id="png-view-from" type="number" min="1" max="1000" placeholder="1" class="input" />
+          </div>
+          <div>
+            <label class="field-label">View to</label>
+            <input id="png-view-to" type="number" min="1" max="1000" placeholder="1000" class="input" />
+          </div>
+        </div>
+
+        <div id="png-grid" class="grid grid-cols-2 sm:grid-cols-3 md:grid-cols-4 gap-3"></div>
+        <div id="png-empty" class="hidden text-center text-mute text-xs font-extrabold-ui uppercase tracking-widest py-6">
+          No tickets match this filter.
+        </div>
       </div>
     </div>
 
-    <div id="status" class="mt-4 text-sm text-mute font-extrabold-ui uppercase tracking-widest"></div>
+    <!-- Off-screen render host. Each ticket renders here, gets converted
+         to PNG, then the node is cleared before the next one. -->
+    <div id="png-stage" aria-hidden="true" style="position:fixed; left:-99999px; top:0; pointer-events:none; visibility:visible;"></div>
   </section>
 
-  <!-- Sheet -->
-  <main id="sheet-wrap" class="hidden">
-    <div id="sheet" class="px-4 sm:px-8 max-w-7xl mx-auto pb-12"></div>
-  </main>
+  <!-- Full-view modal — opens when a thumbnail is clicked. Shows the PNG at
+       (or close to) its actual size with a prominent Download button. -->
+  <div id="png-lightbox" class="png-lightbox hidden" role="dialog" aria-modal="true" aria-hidden="true">
+    <button class="png-lightbox-close" id="btn-png-lightbox-close" title="Close">
+      <span class="material-symbols-outlined" style="font-size:24px">close</span>
+    </button>
+    <div class="png-lightbox-inner">
+      <img id="png-lightbox-img" src="" alt="" class="png-lightbox-img" />
+      <div class="png-lightbox-bar">
+        <div>
+          <div id="png-lightbox-id" class="font-extrabold-ui text-base text-ink"></div>
+          <div class="text-soft text-xs" id="png-lightbox-dims">4.5 × 2 in · 1,350 × 600 px</div>
+        </div>
+        <div class="flex items-center gap-2">
+          <button id="btn-png-lightbox-prev" class="btn-ghost" title="Previous">
+            <span class="material-symbols-outlined" style="font-size:18px">chevron_left</span>
+          </button>
+          <button id="btn-png-lightbox-next" class="btn-ghost" title="Next">
+            <span class="material-symbols-outlined" style="font-size:18px">chevron_right</span>
+          </button>
+          <a id="btn-png-lightbox-dl" href="#" download class="btn-primary">
+            <span class="material-symbols-outlined" style="font-size:18px">download</span>
+            Download PNG
+          </a>
+        </div>
+      </div>
+    </div>
+  </div>
 
   <script type="module">
     import { watchAuth, signInWithGoogle, signOutNow, ticketId, registrationUrl } from "./js/firebase.js";
     import { ticketHtml, makeQrSvg } from "./js/ticket.js";
+    import { toBlob, getFontEmbedCSS } from "https://esm.sh/html-to-image@1.11.13";
+    import JSZip from "https://esm.sh/jszip@3.10.1";
 
     const $gate     = document.getElementById("gate");
     const $controls = document.getElementById("controls");
-    const $sheetWrap= document.getElementById("sheet-wrap");
-    const $sheet    = document.getElementById("sheet");
     const $auth     = document.getElementById("auth-control");
-    const $status   = document.getElementById("status");
 
     function renderAuth(user) {
       if (!user) { $auth.innerHTML = ""; return; }
@@ -154,69 +218,299 @@
       renderAuth(user, isAdmin);
       if (!isAdmin) {
         $controls.classList.add("hidden");
-        $sheetWrap.classList.add("hidden");
         $gate.classList.remove("hidden");
         return;
       }
       $gate.classList.add("hidden");
       $controls.classList.remove("hidden");
-      $sheetWrap.classList.remove("hidden");
-      if (!$sheet.dataset.rendered) renderRange(1, 20);
     });
 
     document.getElementById("btn-signin").addEventListener("click", () => {
       signInWithGoogle().catch(err => { if (err && err.code !== "auth/popup-closed-by-user") alert(err.message); });
     });
 
-    async function renderRange(from, to) {
+    // ===== PNG export — per-ticket files at actual size ===================
+    // Renders each ticket off-screen, converts to PNG via html-to-image at
+    // 300 DPI (4.5×2 in → 1,350×600 px), then exposes a per-ticket download
+    // link plus a "Download all" ZIP. State (the generated blobs) lives in
+    // memory; "Clear" releases the blob URLs.
+    const $pngStage    = document.getElementById("png-stage");
+    const $pngGrid     = document.getElementById("png-grid");
+    const $pngEmpty    = document.getElementById("png-empty");
+    const $pngProgress = document.getElementById("png-progress");
+    const $pngProgBar  = document.getElementById("png-progress-bar");
+    const $pngProgLbl  = document.getElementById("png-progress-label");
+    const $pngResults  = document.getElementById("png-results");
+    const $pngCount    = document.getElementById("png-count");
+    const $pngVisible  = document.getElementById("png-visible-count");
+    const $pngFrom     = document.getElementById("png-from");
+    const $pngTo       = document.getElementById("png-to");
+    const $pngSearch   = document.getElementById("png-search");
+    const $pngViewFrom = document.getElementById("png-view-from");
+    const $pngViewTo   = document.getElementById("png-view-to");
+
+    const TICKET_CSS_W = 4.5 * 96;  // 432px — .ticket width at default DPI
+    const TICKET_CSS_H = 2.0 * 96;  // 192px
+    const TARGET_DPI   = 300;
+    const PIXEL_RATIO  = (4.5 * TARGET_DPI) / TICKET_CSS_W;  // 3.125
+
+    const pngTickets = [];   // { id, blob, blobUrl }
+    let pngBusy = false;
+    let pngCancel = false;
+    let cachedFontCss = null;
+
+    function releaseBlobs() {
+      for (const t of pngTickets) URL.revokeObjectURL(t.blobUrl);
+      pngTickets.length = 0;
+    }
+
+    function setBusy(busy) {
+      pngBusy = busy;
+      document.getElementById("btn-png-generate").disabled = busy;
+      document.querySelectorAll(".png-rng-btn").forEach(b => (b.disabled = busy));
+    }
+
+    async function ensureFontCss() {
+      // Fetch the embedded font CSS once — html-to-image will otherwise
+      // refetch fonts for every render, blowing up generation time.
+      if (cachedFontCss !== null) return cachedFontCss;
+      try {
+        cachedFontCss = await getFontEmbedCSS(document.body);
+      } catch {
+        cachedFontCss = "";
+      }
+      return cachedFontCss;
+    }
+
+    function makeThumbCard(t) {
+      const card = document.createElement("button");
+      card.type = "button";
+      card.className = "png-ticket-card";
+      card.dataset.ticketId = t.id;
+      card.innerHTML = `
+        <img src="${t.blobUrl}" alt="${t.id}" class="png-ticket-thumb" loading="lazy" />
+        <div class="png-ticket-meta">
+          <span class="png-ticket-id">${t.id}</span>
+          <a href="${t.blobUrl}" download="${t.id}.png" class="png-ticket-dl" title="Download ${t.id}.png" onclick="event.stopPropagation();">
+            <span class="material-symbols-outlined" style="font-size:18px">download</span>
+          </a>
+        </div>`;
+      card.addEventListener("click", (e) => {
+        if (e.target.closest(".png-ticket-dl")) return;
+        openLightbox(t.id);
+      });
+      return card;
+    }
+
+    // Re-renders the grid from `pngTickets` honouring search + view range.
+    // Called on generation, on filter change, and on clear.
+    function rerenderGrid() {
+      const q = ($pngSearch.value || "").trim().toLowerCase();
+      // Normalize a raw query into a numeric needle if possible (e.g. "0123"
+      // or "ECU-0123" → "0123"). Falls back to substring match on the id.
+      const numQ = q.replace(/[^0-9]/g, "");
+      const vFrom = parseInt($pngViewFrom.value, 10);
+      const vTo   = parseInt($pngViewTo.value, 10);
+
+      $pngGrid.innerHTML = "";
+      let shown = 0;
+      for (const t of pngTickets) {
+        const n = parseInt(t.id.replace(/[^0-9]/g, ""), 10);
+        if (!Number.isNaN(vFrom) && n < vFrom) continue;
+        if (!Number.isNaN(vTo)   && n > vTo)   continue;
+        if (q) {
+          const idLow = t.id.toLowerCase();
+          const idNum = String(n).padStart(4, "0");
+          if (!idLow.includes(q) && !(numQ && idNum.includes(numQ))) continue;
+        }
+        $pngGrid.appendChild(makeThumbCard(t));
+        shown++;
+      }
+      $pngVisible.textContent = shown;
+      $pngEmpty.classList.toggle("hidden", shown !== 0 || pngTickets.length === 0);
+    }
+
+    async function generatePngs(from, to) {
+      if (pngBusy) return;
       from = Math.max(1, Math.min(1000, from | 0));
       to   = Math.max(from, Math.min(1000, to | 0));
 
-      $status.textContent = `Rendering ${to - from + 1} tickets…`;
-      $sheet.innerHTML = "";
+      releaseBlobs();
+      $pngGrid.innerHTML = "";
+      $pngResults.classList.add("hidden");
+      $pngProgress.classList.remove("hidden");
+      pngCancel = false;
+      setBusy(true);
 
-      let page = document.createElement("div");
-      page.className = "print-sheet grid grid-cols-2 gap-4 sm:gap-6 justify-items-center my-6";
-      $sheet.appendChild(page);
+      const fontEmbedCSS = await ensureFontCss();
+      const total = to - from + 1;
 
-      for (let n = from; n <= to; n++) {
-        const id = ticketId(n);
+      for (let n = from, i = 0; n <= to; n++, i++) {
+        if (pngCancel) break;
+        const id  = ticketId(n);
         const url = registrationUrl(id);
-        const qr = await makeQrSvg(url);
-        const cell = document.createElement("div");
-        cell.innerHTML = ticketHtml(id, qr);
-        page.appendChild(cell.firstElementChild);
+        const qr  = await makeQrSvg(url);
 
-        if (page.children.length >= 2 && n < to) {
-          page = document.createElement("div");
-          page.className = "print-sheet grid grid-cols-2 gap-4 sm:gap-6 justify-items-center my-6";
-          $sheet.appendChild(page);
+        $pngStage.innerHTML = ticketHtml(id, qr);
+        const node = $pngStage.firstElementChild;
+        // Lock the node to the exact CSS dimensions so html-to-image
+        // doesn't pick up a different layout on first paint.
+        node.style.width  = TICKET_CSS_W + "px";
+        node.style.height = TICKET_CSS_H + "px";
+
+        // Wait one frame so background images + fonts are painted.
+        await new Promise(r => requestAnimationFrame(r));
+
+        let blob = null;
+        try {
+          blob = await toBlob(node, {
+            pixelRatio: PIXEL_RATIO,
+            width: TICKET_CSS_W,
+            height: TICKET_CSS_H,
+            cacheBust: false,
+            fontEmbedCSS,
+            backgroundColor: "#07091a",
+          });
+        } catch (err) {
+          console.warn("PNG render failed for", id, err);
         }
 
-        // Yield to keep UI responsive during big renders.
-        if ((n - from) % 20 === 19) await new Promise(r => requestAnimationFrame(r));
+        if (blob) {
+          const blobUrl = URL.createObjectURL(blob);
+          pngTickets.push({ id, blob, blobUrl });
+        }
+
+        const pct = ((i + 1) / total) * 100;
+        $pngProgBar.style.width = pct.toFixed(1) + "%";
+        $pngProgLbl.textContent = `${i + 1} / ${total}`;
+        $pngCount.textContent = pngTickets.length;
+
+        if (i % 4 === 3) {
+          rerenderGrid();
+          await new Promise(r => setTimeout(r, 0));
+        }
       }
 
-      $sheet.dataset.rendered = `${from}-${to}`;
-      $status.textContent = `Rendered ${to - from + 1} tickets (${ticketId(from)} → ${ticketId(to)}). Print when ready.`;
+      $pngStage.innerHTML = "";
+      $pngProgress.classList.add("hidden");
+      if (pngTickets.length > 0) $pngResults.classList.remove("hidden");
+      rerenderGrid();
+      setBusy(false);
     }
 
-    document.getElementById("btn-render").addEventListener("click", () => {
-      const from = parseInt(document.getElementById("from").value, 10) || 1;
-      const to   = parseInt(document.getElementById("to").value, 10) || from;
-      renderRange(from, to);
+    // ===== Lightbox — click a thumb to open the full-size PNG ============
+    const $lightbox    = document.getElementById("png-lightbox");
+    const $lbImg       = document.getElementById("png-lightbox-img");
+    const $lbId        = document.getElementById("png-lightbox-id");
+    const $lbDl        = document.getElementById("btn-png-lightbox-dl");
+    let   lbIndex      = -1;
+
+    function visibleTicketIds() {
+      return Array.from($pngGrid.querySelectorAll(".png-ticket-card"))
+        .map(el => el.dataset.ticketId);
+    }
+    function openLightbox(id) {
+      const ids = visibleTicketIds();
+      lbIndex = ids.indexOf(id);
+      if (lbIndex < 0) return;
+      showLightbox(id);
+    }
+    function showLightbox(id) {
+      const t = pngTickets.find(x => x.id === id);
+      if (!t) return;
+      $lbImg.src = t.blobUrl;
+      $lbImg.alt = t.id;
+      $lbId.textContent = t.id;
+      $lbDl.href = t.blobUrl;
+      $lbDl.setAttribute("download", `${t.id}.png`);
+      $lightbox.classList.remove("hidden");
+      $lightbox.setAttribute("aria-hidden", "false");
+      document.body.style.overflow = "hidden";
+    }
+    function closeLightbox() {
+      $lightbox.classList.add("hidden");
+      $lightbox.setAttribute("aria-hidden", "true");
+      document.body.style.overflow = "";
+      lbIndex = -1;
+    }
+    function stepLightbox(delta) {
+      const ids = visibleTicketIds();
+      if (!ids.length) return;
+      lbIndex = (lbIndex + delta + ids.length) % ids.length;
+      showLightbox(ids[lbIndex]);
+    }
+    document.getElementById("btn-png-lightbox-close").addEventListener("click", closeLightbox);
+    document.getElementById("btn-png-lightbox-prev").addEventListener("click", () => stepLightbox(-1));
+    document.getElementById("btn-png-lightbox-next").addEventListener("click", () => stepLightbox(1));
+    $lightbox.addEventListener("click", (e) => { if (e.target === $lightbox) closeLightbox(); });
+    document.addEventListener("keydown", (e) => {
+      if ($lightbox.classList.contains("hidden")) return;
+      if (e.key === "Escape")     closeLightbox();
+      else if (e.key === "ArrowLeft")  stepLightbox(-1);
+      else if (e.key === "ArrowRight") stepLightbox(1);
     });
 
-    document.getElementById("btn-print").addEventListener("click", () => window.print());
+    async function downloadZip() {
+      if (!pngTickets.length) return;
+      const zipBtn = document.getElementById("btn-png-zip");
+      const originalHtml = zipBtn.innerHTML;
+      zipBtn.disabled = true;
+      zipBtn.innerHTML = `<span class="material-symbols-outlined" style="font-size:18px">hourglass_top</span>Zipping…`;
 
-    document.querySelectorAll(".rng-btn").forEach(btn => {
+      try {
+        const zip = new JSZip();
+        for (const t of pngTickets) zip.file(`${t.id}.png`, t.blob);
+        const zipBlob = await zip.generateAsync(
+          { type: "blob", compression: "STORE" },  // PNGs are already compressed
+          (meta) => {
+            zipBtn.innerHTML = `<span class="material-symbols-outlined" style="font-size:18px">hourglass_top</span>Zipping ${meta.percent.toFixed(0)}%`;
+          }
+        );
+        const a = document.createElement("a");
+        const url = URL.createObjectURL(zipBlob);
+        const first = pngTickets[0].id;
+        const last  = pngTickets[pngTickets.length - 1].id;
+        a.href = url;
+        a.download = `Campus-UNITE-2026-Tickets-${first}-to-${last}.zip`;
+        document.body.appendChild(a);
+        a.click();
+        a.remove();
+        // Slight delay before revoke so Safari has time to start the download.
+        setTimeout(() => URL.revokeObjectURL(url), 4000);
+      } finally {
+        zipBtn.disabled = false;
+        zipBtn.innerHTML = originalHtml;
+      }
+    }
+
+    document.getElementById("btn-png-generate").addEventListener("click", () => {
+      const from = parseInt($pngFrom.value, 10) || 1;
+      const to   = parseInt($pngTo.value, 10) || from;
+      generatePngs(from, to);
+    });
+    document.getElementById("btn-png-cancel").addEventListener("click", () => { pngCancel = true; });
+    document.getElementById("btn-png-zip").addEventListener("click", downloadZip);
+    document.getElementById("btn-png-clear").addEventListener("click", () => {
+      releaseBlobs();
+      $pngGrid.innerHTML = "";
+      $pngResults.classList.add("hidden");
+      $pngCount.textContent = "0";
+      $pngVisible.textContent = "0";
+    });
+    // Re-filter whenever search / view-range changes.
+    [$pngSearch, $pngViewFrom, $pngViewTo].forEach(el => {
+      el.addEventListener("input", rerenderGrid);
+    });
+    document.querySelectorAll(".png-rng-btn").forEach(btn => {
       btn.addEventListener("click", () => {
-        const [from, to] = btn.dataset.range.split(",").map(Number);
-        document.getElementById("from").value = from;
-        document.getElementById("to").value = to;
-        renderRange(from, to);
+        const [from, to] = btn.dataset.pngRange.split(",").map(Number);
+        $pngFrom.value = from;
+        $pngTo.value = to;
+        generatePngs(from, to);
       });
     });
+
+    window.addEventListener("beforeunload", releaseBlobs);
   </script>
 
 </body>
