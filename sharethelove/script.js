@@ -478,6 +478,47 @@ function monthFolder() {
   return `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, "0")}`;
 }
 
+// Extract a poster frame from a video File so the gallery can show a real
+// preview before the <video> element has fetched metadata. Seeks to ~0.25s
+// to skip any all-black opening frame. Returns null on any failure — caller
+// just falls back to the bare <video> tile.
+async function extractVideoPoster(file) {
+  try {
+    const url = URL.createObjectURL(file);
+    const video = document.createElement("video");
+    video.preload = "auto";
+    video.muted = true;
+    video.playsInline = true;
+    video.crossOrigin = "anonymous";
+    video.src = url;
+    await new Promise((res, rej) => {
+      video.onloadedmetadata = res;
+      video.onerror = rej;
+      setTimeout(rej, 8000);
+    });
+    const target = Math.min(0.25, (video.duration || 1) * 0.05);
+    await new Promise((res, rej) => {
+      video.onseeked = res;
+      video.onerror = rej;
+      try { video.currentTime = target; } catch (e) { rej(e); }
+      setTimeout(rej, 6000);
+    });
+    const w = video.videoWidth, h = video.videoHeight;
+    if (!w || !h) { URL.revokeObjectURL(url); return null; }
+    const scale = Math.min(1, 800 / Math.max(w, h));
+    const cw = Math.round(w * scale), ch = Math.round(h * scale);
+    const canvas = document.createElement("canvas");
+    canvas.width = cw; canvas.height = ch;
+    const ctx = canvas.getContext("2d");
+    ctx.drawImage(video, 0, 0, cw, ch);
+    URL.revokeObjectURL(url);
+    return await new Promise((res) => canvas.toBlob(res, "image/jpeg", 0.82));
+  } catch (e) {
+    console.warn("poster extraction failed", e);
+    return null;
+  }
+}
+
 // Uploads bytes to storage and returns the prepared feed entry. The caller
 // (uploadBtn handler) collects every entry then writes them all in a SINGLE
 // atomic dbUpdate() — previously each uploadOne wrote its own feed entry in
@@ -496,6 +537,33 @@ async function uploadOne(id, it, guestName) {
   const filename = `${Date.now()}-${uid()}${ext}`;
   const path = `${STORAGE_ROOT}/${monthFolder()}/${filename}`;
   const fileRef = ref(storage, path);
+
+  // For videos, extract a poster frame first and upload it as a sibling
+  // .jpg under the same basename so gallery tiles render instantly. Poster
+  // URL gets stamped onto the video's customMetadata.posterUrl so the
+  // gallery refresh picks it up without an extra fetch.
+  let posterUrl = "";
+  if (it.isVideo) {
+    try {
+      const posterBlob = await extractVideoPoster(it.file);
+      if (posterBlob) {
+        const posterFilename = filename.replace(/\.[^.]+$/, "") + ".poster.jpg";
+        const posterPath = `${STORAGE_ROOT}/${monthFolder()}/${posterFilename}`;
+        const posterRef = ref(storage, posterPath);
+        await new Promise((res, rej) => {
+          const t = uploadBytesResumable(posterRef, posterBlob, {
+            contentType: "image/jpeg",
+            customMetadata: { kind: "poster", uid: auth.currentUser?.uid || "" },
+          });
+          t.on("state_changed", null, rej, res);
+        });
+        posterUrl = await getDownloadURL(posterRef);
+      }
+    } catch (e) {
+      console.warn("poster upload failed (continuing without)", e);
+    }
+  }
+
   const metadata = {
     contentType: it.isVideo ? it.file.type : "image/jpeg",
     customMetadata: {
@@ -503,6 +571,7 @@ async function uploadOne(id, it, guestName) {
       guestName: (guestName || "").slice(0, 80),
       originalSize: String(it.file.size),
       uid: auth.currentUser?.uid || "",
+      ...(posterUrl ? { posterUrl } : {}),
     },
   };
   await new Promise((res, rej) => {
@@ -525,6 +594,7 @@ async function uploadOne(id, it, guestName) {
     isVideo: it.isVideo,
     path,
     uid: auth.currentUser?.uid || "",
+    ...(posterUrl ? { posterUrl } : {}),
   };
   markDone(id);
   return { feedKey, entry };
@@ -741,7 +811,29 @@ cameraErrorClose.addEventListener("click", () => {
 
 cameraTopFlip.addEventListener("click", async () => {
   if (_recorder && _recorder.state === "recording") return;  // don't flip mid-record
-  _facing = _facing === "environment" ? "user" : "environment";
+  const newFacing = _facing === "environment" ? "user" : "environment";
+  // Smooth path: applyConstraints on the existing video track keeps the
+  // MediaStream alive, so Chrome mobile doesn't re-show its "camera access
+  // allowed" indicator each time the user toggles front/rear. Falls back to
+  // a full stream restart if the browser can't satisfy the constraint live.
+  const track = _stream?.getVideoTracks?.()[0];
+  if (track && typeof track.applyConstraints === "function") {
+    try {
+      await track.applyConstraints({
+        facingMode: { ideal: newFacing },
+        width:  { ideal: 1920 },
+        height: { ideal: 1080 },
+      });
+      _facing = newFacing;
+      const actual = track.getSettings?.().facingMode || newFacing;
+      if (actual === "environment") cameraVideo.classList.remove("mirror");
+      else                          cameraVideo.classList.add("mirror");
+      return;
+    } catch (e) {
+      console.warn("applyConstraints flip failed, restarting stream", e);
+    }
+  }
+  _facing = newFacing;
   await startCameraStream(_facing, { withAudio: _captureMode === "video" });
 });
 
@@ -822,12 +914,23 @@ cameraModeBtns.forEach((btn) => {
     const next = btn.dataset.mode;
     if (next === _captureMode) return;
     setCaptureMode(next);
-    // Re-acquire stream when entering video mode so we have an audio track
-    // available for MediaRecorder. Photo mode releases the mic.
+    // Splice audio in/out of the existing stream instead of restarting the
+    // whole pipeline — avoids Chrome mobile flashing its "camera access
+    // allowed" indicator every mode switch.
     const needAudio = next === "video";
     const haveAudio = !!_stream?.getAudioTracks?.().length;
-    if (needAudio !== haveAudio) {
-      await startCameraStream(_facing, { withAudio: needAudio });
+    if (needAudio && !haveAudio) {
+      try {
+        const audioStream = await navigator.mediaDevices.getUserMedia({
+          audio: { echoCancellation: true, noiseSuppression: true },
+        });
+        audioStream.getAudioTracks().forEach((t) => _stream.addTrack(t));
+      } catch (e) {
+        console.warn("audio track add failed", e);
+        showToast("Microphone unavailable — recording silent video", "err", 3000);
+      }
+    } else if (!needAudio && haveAudio) {
+      _stream.getAudioTracks().forEach((t) => { t.stop(); _stream.removeTrack(t); });
     }
   });
 });
@@ -984,12 +1087,66 @@ function avatarInitial(name) {
   const s = String(name || "").trim();
   return s ? s.charAt(0).toUpperCase() : "·";
 }
-function renderGuestChip(name) {
+function formatAbsoluteTime(ts) {
+  if (!ts) return "";
+  const d = new Date(Number(ts));
+  if (Number.isNaN(d.getTime())) return "";
+  const now = new Date();
+  const sameDay = d.toDateString() === now.toDateString();
+  const y = new Date(now); y.setDate(now.getDate() - 1);
+  const isYesterday = d.toDateString() === y.toDateString();
+  const time = d.toLocaleTimeString([], { hour: "numeric", minute: "2-digit" });
+  if (sameDay)     return time;
+  if (isYesterday) return `Yesterday ${time}`;
+  const sameYear = d.getFullYear() === now.getFullYear();
+  const dateStr = d.toLocaleDateString(undefined,
+    sameYear ? { month: "short", day: "numeric" }
+             : { month: "short", day: "numeric", year: "numeric" });
+  return `${dateStr} ${time}`;
+}
+
+function formatRelativeTime(ts) {
+  if (!ts) return "";
+  const diff = Date.now() - Number(ts);
+  if (!Number.isFinite(diff) || diff < 0) return "just now";
+  const sec = Math.floor(diff / 1000);
+  if (sec < 5) return "just now";
+  if (sec < 60) {
+    // Round to nearest 10s so the label doesn't flicker every render
+    const bucket = Math.max(10, Math.floor(sec / 10) * 10);
+    return `${bucket}s ago`;
+  }
+  const min = Math.floor(sec / 60);
+  if (min < 60) return `${min} min ago`;
+  const hr = Math.floor(min / 60);
+  if (hr < 24) return `${hr} hr ago`;
+  const day = Math.floor(hr / 24);
+  if (day < 7) return `${day} day${day === 1 ? "" : "s"} ago`;
+  const wk = Math.floor(day / 7);
+  if (wk < 4) return `${wk} wk ago`;
+  const d = new Date(Number(ts));
+  return d.toLocaleDateString(undefined, { month: "short", day: "numeric" });
+}
+
+function renderGuestChip(name, ts) {
+  const time = formatRelativeTime(ts);
   return `<div class="guest-chip">`
     + `<div class="guest-avatar" style="background:${avatarColor(name)}">${escHtml(avatarInitial(name))}</div>`
+    + `<div class="guest-meta">`
     + `<span class="guest-name-label">${escHtml(name)}</span>`
+    + (time ? `<span class="guest-time-label" data-ts="${ts || ""}">${escHtml(time)}</span>` : "")
+    + `</div>`
     + `</div>`;
 }
+
+// Keep relative timestamps fresh without re-rendering the whole gallery.
+// 20s tick covers the "10s/20s ago" buckets without flickering on minutes+.
+setInterval(() => {
+  document.querySelectorAll(".guest-time-label[data-ts]").forEach((el) => {
+    const ts = Number(el.dataset.ts);
+    if (Number.isFinite(ts) && ts > 0) el.textContent = formatRelativeTime(ts);
+  });
+}, 20_000);
 
 function renderGallery() {
   if (!_feed.length) {
@@ -1010,10 +1167,12 @@ function renderGallery() {
     tile.className = "gallery-item";
     tile.dataset.feedId = entry.id;
     const mediaHtml = entry.isVideo
-      ? `<video src="${escHtml(entry.url)}" preload="metadata" muted playsinline></video>
-         <div class="video-badge" aria-hidden="true"><span class="material-symbols-outlined" style="font-variation-settings:'FILL' 1">play_arrow</span></div>`
-      : `<img src="${escHtml(entry.url)}" alt="${escHtml(entry.name || "wedding photo")}">`;
-    const tag = entry.guest ? renderGuestChip(entry.guest) : "";
+      ? (entry.posterUrl
+          ? `<img src="${escHtml(entry.posterUrl)}" alt="${escHtml(entry.name || "wedding video")}" loading="lazy">`
+          : `<video src="${escHtml(entry.url)}" preload="metadata" muted playsinline></video>`)
+        + `<div class="video-badge" aria-hidden="true"><span class="material-symbols-outlined" style="font-variation-settings:'FILL' 1">play_arrow</span></div>`
+      : `<img src="${escHtml(entry.url)}" alt="${escHtml(entry.name || "wedding photo")}" loading="lazy">`;
+    const tag = entry.guest ? renderGuestChip(entry.guest, entry.ts) : "";
     const isOwn = entry.uid && entry.uid === auth.currentUser?.uid;
     const canDelete = isOwn || IS_ADMIN;
     const deleteBtn = canDelete
@@ -1083,6 +1242,9 @@ async function refreshFeedNow() {
           _storageCache.set(item.fullPath, { url, meta });
         }
         const { url, meta } = _storageCache.get(item.fullPath);
+        // Poster sidecars (<basename>.poster.jpg) aren't their own tiles —
+        // they're attached to the parent video via customMetadata.posterUrl.
+        if (meta.customMetadata?.kind === "poster" || /\.poster\.jpg$/i.test(item.name)) return;
         const id = item.name.replace(/[.#$/\[\]]/g, "_");
         entries.push({
           id,
@@ -1093,6 +1255,7 @@ async function refreshFeedNow() {
           ts: new Date(meta.timeCreated).getTime() || 0,
           isVideo: !(meta.contentType?.startsWith("image/")),
           uid: meta.customMetadata?.uid || "",
+          posterUrl: meta.customMetadata?.posterUrl || "",
         });
       } catch (e) {
         console.warn("failed to load entry", item.fullPath, e);
@@ -1138,10 +1301,14 @@ function paintLightbox() {
   const entry = _feed[_lightboxIdx];
   if (!entry) { closeLightbox(); return; }
   lbStage.innerHTML = entry.isVideo
-    ? `<video src="${escHtml(entry.url)}" controls autoplay playsinline></video>`
+    ? `<video src="${escHtml(entry.url)}"${entry.posterUrl ? ` poster="${escHtml(entry.posterUrl)}"` : ""} controls autoplay playsinline></video>`
     : `<img src="${escHtml(entry.url)}" alt="${escHtml(entry.name || "")}">`;
   const parts = [];
   if (entry.guest) parts.push(escHtml(entry.guest));
+  if (entry.ts) {
+    parts.push(escHtml(formatRelativeTime(entry.ts)));
+    parts.push(escHtml(formatAbsoluteTime(entry.ts)));
+  }
   parts.push(`${_lightboxIdx + 1} / ${_feed.length}`);
   lbCaption.innerHTML = parts.join(" · ");
   const isOwn = entry.uid && entry.uid === auth.currentUser?.uid;
@@ -1166,8 +1333,10 @@ function buildLbStrip() {
     t.className = "lb-strip-thumb";
     t.dataset.idx = String(idx);
     t.innerHTML = entry.isVideo
-      ? `<video src="${escHtml(entry.url)}" muted playsinline preload="metadata"></video>`
-      : `<img src="${escHtml(entry.url)}" alt="">`;
+      ? (entry.posterUrl
+          ? `<img src="${escHtml(entry.posterUrl)}" alt="" loading="lazy">`
+          : `<video src="${escHtml(entry.url)}" muted playsinline preload="metadata"></video>`)
+      : `<img src="${escHtml(entry.url)}" alt="" loading="lazy">`;
     t.addEventListener("click", () => {
       _lightboxIdx = idx;
       paintLightbox();
@@ -1281,6 +1450,12 @@ async function deleteEntry(id) {
         console.error("storage delete failed", e);
         throw e;
       }
+    }
+    // Sibling poster .jpg — best-effort cleanup, fine if it doesn't exist.
+    if (entry.isVideo) {
+      const posterPath = entry.path.replace(/\.[^.]+$/, "") + ".poster.jpg";
+      try { await deleteObject(ref(storage, posterPath)); }
+      catch (e) { if (e?.code !== "storage/object-not-found") console.warn("poster cleanup failed", e); }
     }
   }
   await dbRemove(dbRef(db, `${FEED_PATH}/${id}`));

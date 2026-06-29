@@ -277,6 +277,12 @@
         text-transform: uppercase;
         letter-spacing: 0;
       }
+      .gallery-item .guest-meta {
+        display: flex;
+        flex-direction: column;
+        min-width: 0;
+        line-height: 1.1;
+      }
       .gallery-item .guest-name-label {
         color: white;
         font-size: 0.72rem;
@@ -287,9 +293,21 @@
         text-overflow: ellipsis;
         max-width: 140px;
       }
+      .gallery-item .guest-time-label {
+        color: rgba(255,255,255,0.72);
+        font-size: 0.6rem;
+        letter-spacing: 0.02em;
+        white-space: nowrap;
+        overflow: hidden;
+        text-overflow: ellipsis;
+        max-width: 140px;
+        margin-top: 1px;
+      }
       @media (max-width: 480px) {
-        .gallery-item .guest-name-label { font-size: 0.66rem; max-width: 90px; }
-        .gallery-item .guest-avatar { width: 20px; height: 20px; font-size: 0.64rem; }
+        .gallery-item .guest-name-label { font-size: 0.66rem; max-width: 92px; }
+        .gallery-item .guest-time-label { font-size: 0.56rem; max-width: 92px; }
+        .gallery-item .guest-avatar    { width: 22px; height: 22px; font-size: 0.66rem; }
+        .gallery-item .guest-chip      { padding: 2px 8px 2px 2px; }
       }
       .gallery-item .tile-delete {
         position: absolute;
@@ -1235,6 +1253,6 @@
 
     <div id="toast" class="toast"><span id="toast-msg"></span></div>
 
-    <script type="module" src="script.js?v=20260629b"></script>
+    <script type="module" src="script.js?v=20260629c"></script>
   </body>
 </html>
