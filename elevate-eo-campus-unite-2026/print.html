@@ -328,7 +328,9 @@
     // button label so the user can see it's working.
     const $btnZip      = document.getElementById("btn-png-zip");
     const $btnZipLabel = document.getElementById("btn-png-zip-label");
-    const ZIP_CONCURRENCY = 12;
+    // 6 keeps VS Code Live Server (single-threaded) from choking on the tail
+    // while still ~6× faster than serial; GitHub Pages handles much more.
+    const ZIP_CONCURRENCY = 6;
     const ZIP_NAME = "campus-unite-tickets.zip";
 
     async function downloadAllAsZip() {
@@ -350,13 +352,21 @@
         let lastErr;
         for (let attempt = 0; attempt <= delays.length; attempt++) {
           try {
-            const res = await fetch(url, { cache: "force-cache" });
+            // `reload` bypasses any cached 404 responses from prior failed
+            // attempts — `force-cache` happily returns those, which is what
+            // pinned the same handful of tickets to 404 across retries.
+            const res = await fetch(url, { cache: "reload" });
             if (res.ok) return await res.blob();
             lastErr = new Error(`${id}.png HTTP ${res.status}`);
           } catch (e) {
             lastErr = e;
           }
-          if (attempt < delays.length) await new Promise(r => setTimeout(r, delays[attempt]));
+          if (attempt < delays.length) {
+            // Jitter so 6 workers don't all retry the same tick and re-choke
+            // the dev server.
+            const wait = delays[attempt] + Math.random() * 400;
+            await new Promise(r => setTimeout(r, wait));
+          }
         }
         throw lastErr;
       }
