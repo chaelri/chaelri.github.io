@@ -82,6 +82,10 @@ const cameraStrip  = $("camera-strip");
 const cameraError  = $("camera-error");
 const cameraErrorMsg = $("camera-error-msg");
 const cameraErrorClose = $("camera-error-close");
+const cameraModeWrap = $("camera-mode");
+const cameraModeBtns = cameraModeWrap ? Array.from(cameraModeWrap.querySelectorAll(".cm-btn")) : [];
+const cameraRecEl    = $("camera-rec");
+const cameraRecTime  = $("camera-rec-time");
 
 // Toast
 const toastEl  = $("toast");
@@ -620,16 +624,28 @@ moreBtn.addEventListener("click", () => {
 });
 
 // === Camera (custom-UI capture) ==========================================
+// Photo mode: tap shutter → canvas snapshot → JPEG file.
+// Video mode: tap shutter → MediaRecorder start, tap again → stop. Audio
+// track is requested only when the user switches into video mode so photo-
+// only sessions don't trigger a mic permission prompt.
 let _stream = null;
 let _facing = "environment";
 let _hasMultipleCams = false;
+let _captureMode = "photo";                                 // "photo" | "video"
+let _recorder = null;
+let _recordChunks = [];
+let _recordStartTs = 0;
+let _recordTickTimer = null;
+let _recordAutoStopTimer = null;
+const MAX_RECORD_MS = 60_000;                               // 60s cap → ~25-40 MB
 
 async function openCamera() {
   cameraError.classList.remove("show");
   cameraView.classList.add("open");
   cameraView.setAttribute("aria-hidden", "false");
   document.body.style.overflow = "hidden";
-  await startCameraStream(_facing);
+  setCaptureMode("photo");
+  await startCameraStream(_facing, { withAudio: false });
   // Detect multiple cameras once permission has been granted.
   try {
     const devices = await navigator.mediaDevices.enumerateDevices();
@@ -646,7 +662,7 @@ function showCameraError(msg) {
   cameraError.classList.add("show");
 }
 
-async function startCameraStream(facing) {
+async function startCameraStream(facing, { withAudio = false } = {}) {
   stopCameraStream();
   if (!navigator.mediaDevices?.getUserMedia) {
     showCameraError("Your browser doesn't support the camera here. Try uploading instead.");
@@ -654,7 +670,7 @@ async function startCameraStream(facing) {
   }
   try {
     const constraints = {
-      audio: false,
+      audio: withAudio ? { echoCancellation: true, noiseSuppression: true } : false,
       video: {
         facingMode: { ideal: facing },
         width:  { ideal: 1920 },
@@ -691,6 +707,18 @@ function stopCameraStream() {
 }
 
 function closeCamera() {
+  // If a recording is in flight, abort cleanly (drop the result — closing
+  // the camera implies cancel, not save).
+  if (_recorder && _recorder.state === "recording") {
+    try { _recorder.onstop = null; _recorder.stop(); } catch {}
+  }
+  stopRecordTimer();
+  _recorder = null;
+  _recordChunks = [];
+  cameraShutter.classList.remove("recording", "video");
+  cameraTopFlip.disabled = false;
+  if (cameraRecEl) cameraRecEl.classList.add("hidden-init");
+  if (cameraModeWrap) cameraModeWrap.style.display = "";
   stopCameraStream();
   cameraView.classList.remove("open");
   cameraView.setAttribute("aria-hidden", "true");
@@ -712,11 +740,18 @@ cameraErrorClose.addEventListener("click", () => {
 });
 
 cameraTopFlip.addEventListener("click", async () => {
+  if (_recorder && _recorder.state === "recording") return;  // don't flip mid-record
   _facing = _facing === "environment" ? "user" : "environment";
-  await startCameraStream(_facing);
+  await startCameraStream(_facing, { withAudio: _captureMode === "video" });
 });
 
 let _cameraStripCount = 0;
+
+function bumpStripDone() {
+  cameraDone.disabled = false;
+  cameraDone.classList.add("active");
+  cameraDone.textContent = `Done · ${_cameraStripCount}`;
+}
 
 // Rapid-tap friendly: every shutter click fires its own async pipeline. The
 // previous design used a _shutterBusy gate that silently swallowed any tap
@@ -724,10 +759,8 @@ let _cameraStripCount = 0;
 // is what made multi-tap sessions only register 1 photo. drawImage is
 // synchronous so we capture the frame at the moment of click, then encode
 // in the background.
-cameraShutter.addEventListener("click", async () => {
+async function capturePhoto() {
   if (!cameraVideo.videoWidth || !cameraVideo.videoHeight) return;
-  // Capture the frame synchronously so simultaneous taps don't all encode
-  // the same delayed frame.
   const canvas = document.createElement("canvas");
   canvas.width = cameraVideo.videoWidth;
   canvas.height = cameraVideo.videoHeight;
@@ -739,7 +772,6 @@ cameraShutter.addEventListener("click", async () => {
     ctx.scale(-1, 1);
   }
   ctx.drawImage(cameraVideo, 0, 0, canvas.width, canvas.height);
-  // Visual feedback (non-blocking)
   cameraShutter.classList.add("busy");
   setTimeout(() => cameraShutter.classList.remove("busy"), 140);
   cameraFlash.classList.add("fire");
@@ -752,7 +784,6 @@ cameraShutter.addEventListener("click", async () => {
       lastModified: Date.now(),
     });
     addThumb(file);
-    // Add a thumbnail strip entry inside the camera UI
     if (_cameraStripCount === 0) cameraStrip.innerHTML = "";
     _cameraStripCount++;
     const stripUrl = URL.createObjectURL(blob);
@@ -761,13 +792,165 @@ cameraShutter.addEventListener("click", async () => {
     stripNode.innerHTML = `<img src="${stripUrl}" alt="">`;
     cameraStrip.appendChild(stripNode);
     cameraStrip.scrollTo({ left: cameraStrip.scrollWidth, behavior: "smooth" });
-    cameraDone.disabled = false;
-    cameraDone.classList.add("active");
-    cameraDone.textContent = `Done · ${_cameraStripCount}`;
+    bumpStripDone();
   } catch (e) {
     console.error(e);
     showToast("Capture failed — try again", "err");
   }
+}
+
+// === Video recording ======================================================
+// Mode toggle (Photo | Video) + MediaRecorder. Tap shutter in video mode to
+// start, tap again to stop; auto-stops at MAX_RECORD_MS to keep the resulting
+// file under the 50 MB upload cap.
+
+function setCaptureMode(mode) {
+  if (mode !== "photo" && mode !== "video") return;
+  if (_recorder && _recorder.state === "recording") return;
+  _captureMode = mode;
+  cameraModeBtns.forEach((b) => {
+    const on = b.dataset.mode === mode;
+    b.classList.toggle("active", on);
+    b.setAttribute("aria-selected", on ? "true" : "false");
+  });
+  cameraShutter.classList.toggle("video", mode === "video");
+  cameraShutter.setAttribute("aria-label", mode === "video" ? "Record video" : "Capture photo");
+}
+
+cameraModeBtns.forEach((btn) => {
+  btn.addEventListener("click", async () => {
+    const next = btn.dataset.mode;
+    if (next === _captureMode) return;
+    setCaptureMode(next);
+    // Re-acquire stream when entering video mode so we have an audio track
+    // available for MediaRecorder. Photo mode releases the mic.
+    const needAudio = next === "video";
+    const haveAudio = !!_stream?.getAudioTracks?.().length;
+    if (needAudio !== haveAudio) {
+      await startCameraStream(_facing, { withAudio: needAudio });
+    }
+  });
+});
+
+function pickRecMime() {
+  if (typeof MediaRecorder === "undefined" || !MediaRecorder.isTypeSupported) return "";
+  const candidates = [
+    "video/mp4;codecs=h264,aac",
+    "video/mp4",
+    "video/webm;codecs=vp9,opus",
+    "video/webm;codecs=vp8,opus",
+    "video/webm",
+  ];
+  for (const m of candidates) if (MediaRecorder.isTypeSupported(m)) return m;
+  return "";
+}
+
+function formatRecTime(ms) {
+  const total = Math.max(0, Math.floor(ms / 1000));
+  const m = Math.floor(total / 60);
+  const s = total % 60;
+  return `${m}:${String(s).padStart(2, "0")}`;
+}
+
+function startRecordTimer() {
+  if (cameraRecEl) cameraRecEl.classList.remove("hidden-init");
+  if (cameraModeWrap) cameraModeWrap.style.display = "none";
+  if (cameraRecTime) cameraRecTime.textContent = "0:00";
+  _recordTickTimer = setInterval(() => {
+    if (cameraRecTime) cameraRecTime.textContent = formatRecTime(Date.now() - _recordStartTs);
+  }, 250);
+}
+function stopRecordTimer() {
+  if (_recordTickTimer) clearInterval(_recordTickTimer);
+  _recordTickTimer = null;
+  if (_recordAutoStopTimer) clearTimeout(_recordAutoStopTimer);
+  _recordAutoStopTimer = null;
+  if (cameraRecEl) cameraRecEl.classList.add("hidden-init");
+  if (cameraModeWrap) cameraModeWrap.style.display = "";
+}
+
+async function startRecording() {
+  if (typeof MediaRecorder === "undefined") {
+    showToast("Video recording isn't supported on this browser", "err", 4200);
+    return;
+  }
+  if (!_stream || !_stream.getVideoTracks().length) {
+    showToast("Camera not ready — try again", "err");
+    return;
+  }
+  if (!_stream.getAudioTracks().length) {
+    await startCameraStream(_facing, { withAudio: true });
+    if (!_stream || !_stream.getAudioTracks().length) {
+      showToast("Microphone unavailable — recording silent video", "err", 3000);
+    }
+  }
+  const mime = pickRecMime();
+  _recordChunks = [];
+  try {
+    _recorder = new MediaRecorder(_stream, mime ? { mimeType: mime } : {});
+  } catch (e) {
+    console.error("MediaRecorder init failed", e);
+    showToast("Recording not supported here", "err");
+    return;
+  }
+  _recorder.ondataavailable = (e) => { if (e.data && e.data.size) _recordChunks.push(e.data); };
+  _recorder.onstop = onRecordStop;
+  _recorder.onerror = (e) => { console.error("recorder error", e); showToast("Recording failed", "err"); };
+  // 250ms chunks: iOS Safari hands back data more reliably with timeslice.
+  try { _recorder.start(250); } catch { _recorder.start(); }
+  _recordStartTs = Date.now();
+  cameraShutter.classList.add("recording");
+  cameraTopFlip.disabled = true;
+  startRecordTimer();
+  _recordAutoStopTimer = setTimeout(() => {
+    if (_recorder && _recorder.state === "recording") stopRecording();
+  }, MAX_RECORD_MS);
+}
+
+function stopRecording() {
+  if (!_recorder || _recorder.state !== "recording") return;
+  try { _recorder.stop(); } catch (e) { console.warn("stop failed", e); }
+}
+
+function onRecordStop() {
+  const rec = _recorder;
+  _recorder = null;
+  cameraShutter.classList.remove("recording");
+  cameraTopFlip.disabled = false;
+  stopRecordTimer();
+  if (!_recordChunks.length) {
+    showToast("No video captured — try again", "err");
+    return;
+  }
+  const mime = rec?.mimeType || "video/webm";
+  const blob = new Blob(_recordChunks, { type: mime });
+  _recordChunks = [];
+  const ext = mime.includes("mp4") ? ".mp4" : ".webm";
+  const file = new File([blob], `camera-${uid()}${ext}`, { type: mime, lastModified: Date.now() });
+  if (file.size > MAX_VIDEO_BYTES) {
+    showToast(`Recording is ${(file.size / 1024 / 1024).toFixed(1)} MB — keep videos under 50 MB`, "err", 4500);
+    return;
+  }
+  addThumb(file);
+  if (_cameraStripCount === 0) cameraStrip.innerHTML = "";
+  _cameraStripCount++;
+  const stripUrl = URL.createObjectURL(blob);
+  const stripNode = document.createElement("div");
+  stripNode.className = "cs-thumb";
+  stripNode.innerHTML = `<video src="${stripUrl}" muted playsinline preload="metadata"></video>`
+    + `<div class="cs-vid-badge"><span class="material-symbols-outlined" style="font-size:14px;font-variation-settings:'FILL' 1">play_arrow</span></div>`;
+  cameraStrip.appendChild(stripNode);
+  cameraStrip.scrollTo({ left: cameraStrip.scrollWidth, behavior: "smooth" });
+  bumpStripDone();
+}
+
+cameraShutter.addEventListener("click", async () => {
+  if (_captureMode === "photo") {
+    await capturePhoto();
+    return;
+  }
+  if (_recorder && _recorder.state === "recording") stopRecording();
+  else await startRecording();
 });
 
 cameraDone.addEventListener("click", () => {
@@ -787,6 +970,26 @@ function escHtml(s) {
   );
 }
 function escAttr(s) { return escHtml(s); }
+
+// Deterministic avatar color per guest name so the same person always gets
+// the same chip color across tiles. Brand-friendly palette.
+const AVATAR_COLORS = ["#7b8a5b", "#b29554", "#d8a7a0", "#5e6b44", "#a36d5a", "#7896a8"];
+function avatarColor(name) {
+  let h = 0;
+  const s = String(name || "");
+  for (let i = 0; i < s.length; i++) h = (h * 31 + s.charCodeAt(i)) | 0;
+  return AVATAR_COLORS[Math.abs(h) % AVATAR_COLORS.length];
+}
+function avatarInitial(name) {
+  const s = String(name || "").trim();
+  return s ? s.charAt(0).toUpperCase() : "·";
+}
+function renderGuestChip(name) {
+  return `<div class="guest-chip">`
+    + `<div class="guest-avatar" style="background:${avatarColor(name)}">${escHtml(avatarInitial(name))}</div>`
+    + `<span class="guest-name-label">${escHtml(name)}</span>`
+    + `</div>`;
+}
 
 function renderGallery() {
   if (!_feed.length) {
@@ -810,9 +1013,7 @@ function renderGallery() {
       ? `<video src="${escHtml(entry.url)}" preload="metadata" muted playsinline></video>
          <div class="video-badge"><span class="material-symbols-outlined" style="font-size:16px;font-variation-settings:'FILL' 1">play_arrow</span></div>`
       : `<img src="${escHtml(entry.url)}" alt="${escHtml(entry.name || "wedding photo")}">`;
-    const tag = entry.guest
-      ? `<div class="guest-tag">${escHtml(entry.guest)}</div>`
-      : "";
+    const tag = entry.guest ? renderGuestChip(entry.guest) : "";
     const isOwn = entry.uid && entry.uid === auth.currentUser?.uid;
     const canDelete = isOwn || IS_ADMIN;
     const deleteBtn = canDelete
