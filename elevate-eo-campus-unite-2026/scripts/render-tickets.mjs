@@ -213,44 +213,10 @@ function fmt(ms) {
   console.log(`Total payload: ${totalKB} KB (${totalMB} MB)`);
   console.log(`Output dir   : ${OUT_DIR}`);
 
-  // Build four chunked ZIPs (250 tickets each, ~32 MB each) so each file
-  // stays well under GitHub's 50 MB warning / 100 MB hard limit. "Download
-  // all" in print.html triggers all four sequentially. Only build when the
-  // full set is present.
-  if (FROM === 1 && TO === 1000) {
-    const assetsDir = path.resolve(__dirname, "..", "assets");
-    const CHUNK = 250;
-    // Remove any older bulk ZIP from previous runs.
-    await fs.rm(path.join(assetsDir, "tickets-all.zip"), { force: true }).catch(() => {});
-
-    console.log("");
-    for (let i = 0; i < 4; i++) {
-      const fromN = i * CHUNK + 1;
-      const toN   = (i + 1) * CHUNK;
-      const fromId = `ECU-${String(fromN).padStart(4, "0")}`;
-      const toId   = `ECU-${String(toN  ).padStart(4, "0")}`;
-      const zipPath = path.join(assetsDir, `tickets-${fromId}-to-${toId}.zip`);
-      await fs.rm(zipPath, { force: true }).catch(() => {});
-
-      const fileList = [];
-      for (let n = fromN; n <= toN; n++) {
-        fileList.push(`tickets/ECU-${String(n).padStart(4,"0")}.png`);
-      }
-      await new Promise((resolve, reject) => {
-        // STORE (-0): PNGs are already compressed; deflate just adds bytes.
-        // -X strips extra file attributes. -@ reads the file list from stdin.
-        const proc = spawn("zip", ["-0", "-X", "-q", "-@", zipPath], {
-          cwd: assetsDir,
-          stdio: ["pipe", "inherit", "inherit"],
-        });
-        proc.on("close", (code) => (code === 0 ? resolve() : reject(new Error(`zip exited ${code}`))));
-        proc.on("error", reject);
-        proc.stdin.end(fileList.join("\n") + "\n");
-      });
-      const st = await fs.stat(zipPath);
-      console.log(`Built ${path.basename(zipPath)} — ${(st.size / 1024 / 1024).toFixed(1)} MB`);
-    }
-  }
+  // No bulk ZIP is built here: a single ~127 MB ZIP would exceed GitHub's
+  // 100 MB per-file limit, and chunking adds friction for the printer.
+  // print.html assembles the archive client-side from the static PNGs
+  // using the `client-zip` library on demand.
 })().catch((err) => {
   console.error(err);
   process.exit(1);

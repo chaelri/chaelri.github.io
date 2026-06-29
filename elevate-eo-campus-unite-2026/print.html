@@ -63,7 +63,7 @@
       <div class="flex items-center gap-3 flex-wrap mb-4">
         <div class="flex-1 min-w-0">
           <div class="font-extrabold-ui text-base text-ink">PNG export — actual ticket size</div>
-          <p class="text-soft text-xs mt-1">One file per ticket at 4.5 × 2 in (1,350 × 600 px / 300 DPI). Pre-rendered — bulk download is split into four ZIPs of 250 tickets each (~32 MB / each) so every file stays under GitHub's 100 MB limit.</p>
+          <p class="text-soft text-xs mt-1">One file per ticket at 4.5 × 2 in (1,350 × 600 px / 300 DPI). Pre-rendered — bulk download streams all 1,000 PNGs into a single ~127 MB ZIP built in your browser.</p>
         </div>
       </div>
 
@@ -74,9 +74,9 @@
             <span id="png-visible-count" class="text-tape font-extrabold-ui">0</span> shown
           </span>
           <div class="flex gap-2 flex-wrap">
-            <button id="btn-png-zip" class="btn-tape" title="Triggers four sequential ZIP downloads (250 tickets each, ~32 MB each)">
+            <button id="btn-png-zip" class="btn-tape" title="Streams all 1,000 PNGs into one ~127 MB ZIP built in your browser">
               <span class="material-symbols-outlined" style="font-size:18px">folder_zip</span>
-              Download all (4 zips)
+              <span id="btn-png-zip-label">Download all (.zip)</span>
             </button>
           </div>
         </div>
@@ -139,6 +139,7 @@
 
   <script type="module">
     import { watchAuth, signInWithGoogle, signOutNow, ticketId } from "./js/firebase.js";
+    import { downloadZip } from "https://cdn.jsdelivr.net/npm/client-zip@2.4.5/index.js";
 
     const $gate     = document.getElementById("gate");
     const $controls = document.getElementById("controls");
@@ -319,35 +320,79 @@
       el.addEventListener("input", rerenderGrid);
     });
 
-    // ===== Bulk download — four chunked ZIPs ============================
-    // GitHub's 100 MB per-file limit blocks a single 127 MB bulk ZIP, so the
-    // tickets are pre-bundled into four 250-ticket / ~32 MB chunks. Clicking
-    // "Download all" triggers the four downloads sequentially. Most browsers
-    // honour up to ~10 sequential downloads but will prompt the user to
-    // allow multiple files the first time.
-    const BULK_ZIPS = [
-      "assets/tickets-ECU-0001-to-ECU-0250.zip",
-      "assets/tickets-ECU-0251-to-ECU-0500.zip",
-      "assets/tickets-ECU-0501-to-ECU-0750.zip",
-      "assets/tickets-ECU-0751-to-ECU-1000.zip",
-    ];
-    function triggerSequentialDownloads(urls) {
-      // 500 ms spacing keeps Safari + Firefox from collapsing the queue into
-      // a single download or blocking the run as a popup-like burst.
-      urls.forEach((url, i) => {
-        setTimeout(() => {
-          const a = document.createElement("a");
-          a.href = url;
-          a.download = url.split("/").pop();
-          document.body.appendChild(a);
-          a.click();
-          a.remove();
-        }, i * 500);
-      });
+    // ===== Bulk download — one streamed ZIP built in the browser ========
+    // GitHub Pages' 100 MB per-file limit blocks a static 127 MB bulk ZIP,
+    // so we stream all 1,000 PNGs through `client-zip` and assemble the
+    // archive client-side. Concurrency is capped to keep the HTTP/2 stream
+    // count + memory pressure reasonable; progress is reported in the
+    // button label so the user can see it's working.
+    const $btnZip      = document.getElementById("btn-png-zip");
+    const $btnZipLabel = document.getElementById("btn-png-zip-label");
+    const ZIP_CONCURRENCY = 12;
+    const ZIP_NAME = "campus-unite-tickets.zip";
+
+    async function downloadAllAsZip() {
+      if ($btnZip.disabled) return;
+      $btnZip.disabled = true;
+      const restore = () => { $btnZip.disabled = false; $btnZipLabel.textContent = "Download all (.zip)"; };
+
+      const total = TOTAL_TICKETS;
+      let done = 0;
+      $btnZipLabel.textContent = `Fetching… 0 / ${total.toLocaleString()}`;
+
+      const files = new Array(total);
+      let nextIdx = 0;
+      // GitHub Pages occasionally returns a spurious 404 / 5xx under burst —
+      // retry with backoff so one blip doesn't tank the whole zip.
+      async function fetchTicket(id) {
+        const url = TICKET_URL(id);
+        const delays = [400, 1000, 2500, 5000];
+        let lastErr;
+        for (let attempt = 0; attempt <= delays.length; attempt++) {
+          try {
+            const res = await fetch(url, { cache: "force-cache" });
+            if (res.ok) return await res.blob();
+            lastErr = new Error(`${id}.png HTTP ${res.status}`);
+          } catch (e) {
+            lastErr = e;
+          }
+          if (attempt < delays.length) await new Promise(r => setTimeout(r, delays[attempt]));
+        }
+        throw lastErr;
+      }
+      async function worker() {
+        while (true) {
+          const i = nextIdx++;
+          if (i >= total) return;
+          const id = ticketId(i + 1);
+          const blob = await fetchTicket(id);
+          files[i] = { name: `${id}.png`, input: blob, lastModified: new Date("2026-07-17T00:00:00") };
+          done++;
+          if (done % 10 === 0 || done === total) {
+            $btnZipLabel.textContent = `Fetching… ${done.toLocaleString()} / ${total.toLocaleString()}`;
+          }
+        }
+      }
+
+      try {
+        await Promise.all(Array.from({ length: ZIP_CONCURRENCY }, worker));
+        $btnZipLabel.textContent = "Building zip…";
+        const blob = await downloadZip(files).blob();
+        const url = URL.createObjectURL(blob);
+        const a = document.createElement("a");
+        a.href = url;
+        a.download = ZIP_NAME;
+        document.body.appendChild(a);
+        a.click();
+        a.remove();
+        URL.revokeObjectURL(url);
+      } catch (err) {
+        alert(`Download failed: ${err.message}`);
+      } finally {
+        restore();
+      }
     }
-    document.getElementById("btn-png-zip").addEventListener("click", () => {
-      triggerSequentialDownloads(BULK_ZIPS);
-    });
+    $btnZip.addEventListener("click", downloadAllAsZip);
   </script>
 
 </body>
