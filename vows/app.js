@@ -686,6 +686,87 @@ setInterval(() => {
   tick();
 })();
 
+// ─────────────── PDF export ───────────────
+// Renders every vow entry (in current order) onto the right half of an A4
+// landscape page. Page breaks happen automatically when the column is full;
+// each new page gets its own dashed center-fold guide so the printer always
+// sees the cut line. Same booklet half geometry as karla-vow/.
+const exportPdfBtn = $("exportPdfBtn");
+if (exportPdfBtn) {
+  exportPdfBtn.addEventListener("click", async () => {
+    try {
+      const { default: jsPDF } = await import("https://esm.sh/jspdf@2.5.2");
+      const list = mergedVows();
+      if (!list.length) {
+        exportPdfBtn.classList.add("shake");
+        setTimeout(() => exportPdfBtn.classList.remove("shake"), 500);
+        return;
+      }
+      const pdf = new jsPDF({ unit: "mm", format: "a4", orientation: "landscape", compress: true });
+      pdf.setFont("times", "normal");
+      const FONT_SIZE = 14;
+      pdf.setFontSize(FONT_SIZE);
+      pdf.setTextColor(42, 39, 35);
+
+      const PAGE_W = 297, PAGE_H = 210;
+      const HALF_W = PAGE_W / 2;
+      const padX = 18, padY = 22;
+      const colXs = [padX, HALF_W + padX];   // left, right
+      const colW = HALF_W - 2 * padX;
+      const colH = PAGE_H - 2 * padY;
+      const lineH = FONT_SIZE * 0.42;        // mm per line at 14pt
+      const yStart = padY + FONT_SIZE * 0.35;
+      const yMax = padY + colH;
+
+      function drawFoldGuide() {
+        pdf.setDrawColor(140, 140, 140);
+        pdf.setLineWidth(0.3);
+        pdf.setLineDashPattern([1.8, 1.4], 0);
+        pdf.line(HALF_W, 8, HALF_W, PAGE_H - 8);
+        pdf.setLineDashPattern([], 0);
+      }
+
+      drawFoldGuide();
+      let colIdx = 0;                         // 0 = left, 1 = right
+      let y = yStart;
+
+      function nextColumn() {
+        if (colIdx === 0) { colIdx = 1; y = yStart; return; }
+        pdf.addPage();
+        drawFoldGuide();
+        colIdx = 0;
+        y = yStart;
+      }
+
+      for (let i = 0; i < list.length; i++) {
+        const text = (list[i].text || "").trim();
+        if (!text) continue;
+        const paragraphs = text.split(/\n/);
+        for (const para of paragraphs) {
+          if (!para.trim()) {
+            y += lineH * 0.6;
+            if (y > yMax) nextColumn();
+            continue;
+          }
+          const lines = pdf.splitTextToSize(para, colW);
+          for (const line of lines) {
+            if (y > yMax) nextColumn();
+            pdf.text(line, colXs[colIdx], y);
+            y += lineH;
+          }
+          y += lineH * 0.2;
+        }
+        // Gap between entries.
+        y += lineH * 0.6;
+        if (y > yMax) nextColumn();
+      }
+      pdf.save("Charlie — Vows (A4 booklet half).pdf");
+    } catch (e) {
+      console.error("vow PDF export failed", e);
+    }
+  });
+}
+
 // ─────────────── kickoff ───────────────
 // On first render, jump to the bottom so the newest entry is in view.
 pendingScrollBottom = true;

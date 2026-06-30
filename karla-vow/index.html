@@ -1,0 +1,419 @@
+<!doctype html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover" />
+  <title>Karla's Vow Pad · private</title>
+  <meta name="robots" content="noindex, nofollow" />
+  <meta name="theme-color" content="#faf7f2" />
+  <link rel="preconnect" href="https://fonts.googleapis.com" />
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
+  <link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Cormorant+Garamond:ital,wght@0,400;0,500;0,600;1,400&family=Inter:wght@400;500;600&family=Dancing+Script:wght@400;500&display=swap" />
+  <link rel="stylesheet" href="https://fonts.googleapis.com/icon?family=Material+Symbols+Outlined" />
+  <style>
+    :root {
+      --paper:   #faf7f2;
+      --ink:     #2a2520;
+      --soft:    #6b6258;
+      --faint:   #9d958b;
+      --accent:  #b08568;
+      --border:  #e9e0d4;
+      --shadow:  0 8px 32px rgba(80, 60, 40, 0.08);
+      --radius:  10px;
+    }
+    * { box-sizing: border-box; }
+    html, body { margin: 0; padding: 0; background: var(--paper); color: var(--ink); font-family: "Inter", system-ui, sans-serif; }
+    body { min-height: 100vh; padding: 28px 18px 80px; }
+
+    .wrap { max-width: 980px; margin: 0 auto; }
+    header { text-align: center; margin-bottom: 16px; }
+    h1 { font-family: "Cormorant Garamond", serif; font-weight: 500; font-size: clamp(28px, 5vw, 42px); margin: 0; letter-spacing: 0.5px; }
+    .sub { color: var(--soft); margin-top: 4px; font-size: 0.92rem; }
+    .privacy { background: #fff8ee; border: 1px solid #f0e2c8; border-radius: var(--radius); padding: 14px 16px; margin: 18px 0 24px; font-size: 0.86rem; color: #5d4a2e; }
+    .privacy strong { color: #3d2f15; }
+
+    .card { background: white; border-radius: var(--radius); border: 1px solid var(--border); padding: 18px; box-shadow: var(--shadow); margin-bottom: 18px; }
+    .card h2 { font-family: "Cormorant Garamond", serif; font-weight: 500; font-size: 1.2rem; margin: 0 0 10px; color: var(--ink); }
+
+    textarea { width: 100%; min-height: 280px; resize: vertical; padding: 14px; border: 1px solid var(--border); border-radius: 8px; font-family: "Cormorant Garamond", serif; font-size: 1.05rem; line-height: 1.55; color: var(--ink); background: #fffdfa; }
+    textarea:focus { outline: 2px solid var(--accent); outline-offset: -1px; }
+
+    .row { display: flex; gap: 12px; flex-wrap: wrap; align-items: flex-end; margin-top: 12px; }
+    .field { display: flex; flex-direction: column; gap: 4px; min-width: 130px; flex: 1; }
+    label { font-size: 0.74rem; color: var(--faint); text-transform: uppercase; letter-spacing: 0.06em; }
+    select, input[type="number"], input[type="range"] {
+      padding: 8px 10px; border: 1px solid var(--border); border-radius: 6px; background: white; font-size: 0.9rem; color: var(--ink); font-family: inherit;
+    }
+    input[type="range"] { padding: 0; }
+    .toggle-row { display: flex; gap: 14px; flex-wrap: wrap; }
+    .toggle { display: flex; align-items: center; gap: 6px; font-size: 0.86rem; color: var(--soft); }
+
+    .preview-wrap { display: flex; flex-direction: column; align-items: center; gap: 10px; margin-top: 8px; padding: 12px; background: #f1ebe2; border-radius: 8px; overflow: auto; }
+    .a4 {
+      width: 800px; aspect-ratio: 297 / 210; background: white; box-shadow: 0 4px 12px rgba(0,0,0,0.1); position: relative; flex-shrink: 0;
+    }
+    .a4 .fold { position: absolute; top: 0; bottom: 0; left: 50%; width: 0; border-left: 1px dashed #c8bca8; z-index: 2; pointer-events: none; }
+    .a4 .content {
+      position: absolute; inset: 24px 26px;
+      column-count: 2; column-gap: 56px; column-fill: auto;
+      font-family: "Cormorant Garamond", serif; color: #2a2520;
+      white-space: pre-wrap; word-wrap: break-word; line-height: 1.5; overflow: hidden;
+    }
+    .page-info { font-size: 0.78rem; color: var(--faint); }
+
+    .btn { display: inline-flex; align-items: center; gap: 6px; padding: 10px 16px; border: 1px solid var(--border); border-radius: 8px; background: white; color: var(--ink); cursor: pointer; font-size: 0.92rem; font-family: inherit; transition: all 0.15s; }
+    .btn:hover { background: #faf7f2; }
+    .btn.primary { background: var(--accent); color: white; border-color: var(--accent); }
+    .btn.primary:hover { background: #95704f; }
+    .btn.ghost { background: transparent; }
+    .actions { display: flex; gap: 10px; flex-wrap: wrap; margin-top: 14px; }
+
+    .status { font-size: 0.82rem; color: var(--faint); margin-top: 8px; display: flex; align-items: center; gap: 6px; }
+    .status .dot { width: 8px; height: 8px; border-radius: 50%; background: var(--faint); }
+    .status.synced .dot { background: #5fa371; }
+    .status.saving .dot { background: #d4a437; animation: pulse 1s infinite; }
+    @keyframes pulse { 50% { opacity: 0.4; } }
+
+    .toast { position: fixed; bottom: 24px; left: 50%; transform: translateX(-50%); background: #2a2520; color: white; padding: 10px 18px; border-radius: 999px; font-size: 0.86rem; opacity: 0; pointer-events: none; transition: opacity 0.2s; z-index: 100; }
+    .toast.show { opacity: 1; }
+  </style>
+</head>
+<body>
+  <div class="wrap">
+    <header>
+      <h1>Karla's Vow Pad</h1>
+      <div class="sub">A quiet place for your vows · saves automatically · K only</div>
+    </header>
+
+    <div class="privacy">
+      <strong>Karla, this page is yours.</strong> Paste your vow here. It autosaves to a private spot only this URL knows about, so you can keep editing on your phone or laptop later. Charlie won't look — that's the deal. When you're ready, hit <strong>Download PDF</strong> to get a print-ready A4 booklet sheet.
+    </div>
+
+    <div class="card">
+      <h2>Your vow</h2>
+      <textarea id="vow" placeholder="Paste or write your vow here…"></textarea>
+      <div class="row">
+        <div class="field">
+          <label for="font">Font</label>
+          <select id="font">
+            <option value="Cormorant Garamond">Cormorant (serif)</option>
+            <option value="Inter">Inter (sans)</option>
+            <option value="Dancing Script">Dancing Script (cursive)</option>
+          </select>
+        </div>
+        <div class="field">
+          <label for="size">Size <span id="size-val">14</span> pt</label>
+          <input id="size" type="range" min="10" max="22" step="0.5" value="14" />
+        </div>
+        <div class="field">
+          <label for="align">Align</label>
+          <select id="align">
+            <option value="left">Left</option>
+            <option value="justify" selected>Justify</option>
+            <option value="center">Center</option>
+          </select>
+        </div>
+      </div>
+      <div class="status" id="status"><span class="dot"></span><span id="status-text">Loading…</span></div>
+    </div>
+
+    <div class="card">
+      <h2>Preview · A4 landscape (folded in half)</h2>
+      <div class="preview-wrap">
+        <div class="a4">
+          <div class="fold"></div>
+          <div class="content" id="preview"></div>
+        </div>
+        <div class="page-info" id="pageInfo">1 page</div>
+      </div>
+      <div class="actions">
+        <button class="btn primary" id="dl-pdf">
+          <span class="material-symbols-outlined" style="font-size:18px">picture_as_pdf</span>
+          Download PDF
+        </button>
+        <button class="btn ghost" id="dl-print">
+          <span class="material-symbols-outlined" style="font-size:18px">print</span>
+          Print
+        </button>
+      </div>
+    </div>
+
+  </div>
+  <div class="toast" id="toast"></div>
+
+  <script type="module">
+    import { initializeApp } from "https://www.gstatic.com/firebasejs/9.6.1/firebase-app.js";
+    import { getDatabase, ref, onValue, set } from "https://www.gstatic.com/firebasejs/9.6.1/firebase-database.js";
+    import { getAuth, signInAnonymously } from "https://www.gstatic.com/firebasejs/9.6.1/firebase-auth.js";
+    import jsPDF from "https://esm.sh/jspdf@2.5.2";
+
+    const firebaseConfig = {
+      apiKey: "AIzaSyB8ahT56WbEUaGAymsRNNA-DrfZnUnWIwk",
+      authDomain: "test-database-55379.firebaseapp.com",
+      databaseURL: "https://test-database-55379-default-rtdb.asia-southeast1.firebasedatabase.app",
+      projectId: "test-database-55379",
+      storageBucket: "test-database-55379.firebasestorage.app",
+      messagingSenderId: "933688602756",
+      appId: "1:933688602756:web:392a3a4ce040cb9d4452d1",
+    };
+    const FB_PATH = "karla-vow";
+    const LOCAL_KEY = "karla-vow:v1";
+
+    const app = initializeApp(firebaseConfig);
+    const db = getDatabase(app);
+    const auth = getAuth(app);
+    const dataRef = ref(db, FB_PATH);
+
+    const $ = (id) => document.getElementById(id);
+    const vowEl    = $("vow");
+    const fontEl   = $("font");
+    const sizeEl   = $("size");
+    const sizeVal  = $("size-val");
+    const alignEl  = $("align");
+    const preview  = $("preview");
+    const pageInfo = $("pageInfo");
+    const status   = $("status");
+    const statusTx = $("status-text");
+    const toast    = $("toast");
+
+    function showToast(msg, ms = 1600) {
+      toast.textContent = msg;
+      toast.classList.add("show");
+      clearTimeout(showToast._t);
+      showToast._t = setTimeout(() => toast.classList.remove("show"), ms);
+    }
+    function setStatus(kind, text) {
+      status.className = `status ${kind}`;
+      statusTx.textContent = text;
+    }
+
+    // --- restore from localStorage immediately (works offline) -----------
+    let state = { text: "", font: "Cormorant Garamond", size: 14, align: "justify" };
+    try {
+      const cached = JSON.parse(localStorage.getItem(LOCAL_KEY) || "null");
+      if (cached && typeof cached === "object") state = { ...state, ...cached };
+    } catch {}
+    vowEl.value   = state.text;
+    fontEl.value  = state.font;
+    sizeEl.value  = String(state.size);
+    sizeVal.textContent = String(state.size);
+    alignEl.value = state.align;
+    paintPreview();
+
+    // --- Firebase: anonymous auth, then subscribe + write ------------------
+    let firstSnapshot = true;
+    let suppressRemote = false;
+    (async () => {
+      try {
+        await signInAnonymously(auth);
+        setStatus("synced", "Synced");
+        onValue(dataRef, (snap) => {
+          const remote = snap.val();
+          if (firstSnapshot) {
+            firstSnapshot = false;
+            // Prefer remote if it exists (latest across devices).
+            if (remote && typeof remote === "object") {
+              state = { ...state, ...remote };
+              suppressRemote = true;
+              vowEl.value   = state.text || "";
+              fontEl.value  = state.font || "Cormorant Garamond";
+              sizeEl.value  = String(state.size || 14);
+              sizeVal.textContent = String(state.size || 14);
+              alignEl.value = state.align || "justify";
+              suppressRemote = false;
+              paintPreview();
+            }
+            return;
+          }
+          // Subsequent updates from other devices.
+          if (!remote || typeof remote !== "object") return;
+          if (suppressRemote) return;
+          if (JSON.stringify(remote) === JSON.stringify(state)) return;
+          state = { ...state, ...remote };
+          suppressRemote = true;
+          if (document.activeElement !== vowEl) vowEl.value = state.text || "";
+          fontEl.value  = state.font || "Cormorant Garamond";
+          sizeEl.value  = String(state.size || 14);
+          sizeVal.textContent = String(state.size || 14);
+          alignEl.value = state.align || "justify";
+          suppressRemote = false;
+          paintPreview();
+        });
+      } catch (e) {
+        console.warn("auth/sync failed", e);
+        setStatus("", "Offline (local only)");
+      }
+    })();
+
+    // --- persist (local + remote) -----------------------------------------
+    let saveTimer = null;
+    function persist() {
+      try { localStorage.setItem(LOCAL_KEY, JSON.stringify(state)); } catch {}
+      setStatus("saving", "Saving…");
+      clearTimeout(saveTimer);
+      saveTimer = setTimeout(async () => {
+        try {
+          await set(dataRef, state);
+          setStatus("synced", "Synced");
+        } catch (e) {
+          console.warn("save failed", e);
+          setStatus("", "Saved locally only");
+        }
+      }, 400);
+    }
+
+    // --- preview rendering -------------------------------------------------
+    function paintPreview() {
+      preview.style.fontFamily = `"${state.font}", "Cormorant Garamond", serif`;
+      preview.style.fontSize = (state.size * 1.4) + "px";
+      preview.style.textAlign = state.align;
+      preview.textContent = state.text;
+      // Page count is computed by the PDF pass (cheap — same wrap/measure).
+      try {
+        const pages = countPdfPages();
+        pageInfo.textContent = pages === 1 ? "1 page" : `${pages} pages`;
+      } catch { pageInfo.textContent = ""; }
+    }
+
+    // --- wire controls -----------------------------------------------------
+    vowEl.addEventListener("input", () => { state.text = vowEl.value; paintPreview(); persist(); });
+    fontEl.addEventListener("change", () => { state.font = fontEl.value; paintPreview(); persist(); });
+    sizeEl.addEventListener("input", () => {
+      state.size = Number(sizeEl.value);
+      sizeVal.textContent = String(state.size);
+      paintPreview();
+      persist();
+    });
+    alignEl.addEventListener("change", () => { state.align = alignEl.value; paintPreview(); persist(); });
+
+    // --- PDF export (A4 landscape, text flows left half → right half → next page) -
+    // Layout: every A4 landscape page is two columns (the two halves of the
+    // folded booklet). Text fills left column top-to-bottom, then the right
+    // column, then a new page is added. A dashed center divider is drawn on
+    // EVERY page as a fold/cut guide.
+    const PDF_GEOM = {
+      pageW: 297, pageH: 210,
+      padX: 18, padY: 22,
+      get halfW() { return this.pageW / 2; },
+      get colW()  { return this.halfW - 2 * this.padX; },
+      get colH()  { return this.pageH - 2 * this.padY; },
+      get colXs() { return [this.padX, this.halfW + this.padX]; },     // left, right
+    };
+
+    function pdfFontFor(state) {
+      const fontMap = {
+        "Cormorant Garamond": "times",
+        "Inter": "helvetica",
+        "Dancing Script": "times",
+      };
+      return {
+        font: fontMap[state.font] || "times",
+        style: state.font === "Dancing Script" ? "italic" : "normal",
+      };
+    }
+
+    function drawFoldGuide(pdf) {
+      const g = PDF_GEOM;
+      pdf.setDrawColor(140, 140, 140);
+      pdf.setLineWidth(0.3);
+      pdf.setLineDashPattern([1.8, 1.4], 0);
+      pdf.line(g.halfW, 8, g.halfW, g.pageH - 8);
+      pdf.setLineDashPattern([], 0);
+    }
+
+    // Renders the current state to the supplied jsPDF doc. Returns total page
+    // count. The same loop is used for counting (with a dummy doc) and exporting.
+    function renderToPdf(pdf) {
+      const g = PDF_GEOM;
+      const { font, style } = pdfFontFor(state);
+      pdf.setFont(font, style);
+      pdf.setFontSize(state.size);
+      pdf.setTextColor(42, 37, 32);
+
+      const lineH = state.size * 0.42;
+      const yTop  = g.padY + state.size * 0.35;
+      const yMax  = g.padY + g.colH;
+      const paragraphs = String(state.text || "").split(/\n/);
+
+      let pageCount = 1;
+      let colIdx = 0;                          // 0 = left, 1 = right
+      let y = yTop;
+      drawFoldGuide(pdf);
+
+      function nextColumn() {
+        if (colIdx === 0) { colIdx = 1; y = yTop; return; }
+        // Both columns full — new page.
+        pdf.addPage();
+        pageCount++;
+        drawFoldGuide(pdf);
+        colIdx = 0;
+        y = yTop;
+      }
+
+      for (const para of paragraphs) {
+        if (!para.trim()) {
+          y += lineH * 0.6;
+          if (y > yMax) nextColumn();
+          continue;
+        }
+        const lines = pdf.splitTextToSize(para, g.colW);
+        for (let i = 0; i < lines.length; i++) {
+          if (y > yMax) nextColumn();
+          const colX = g.colXs[colIdx];
+          const isLastLine = (i === lines.length - 1);
+          if (state.align === "center") {
+            pdf.text(lines[i], colX + g.colW / 2, y, { align: "center" });
+          } else if (state.align === "justify") {
+            justifiedText(pdf, lines[i], colX, y, g.colW, isLastLine);
+          } else {
+            pdf.text(lines[i], colX, y);
+          }
+          y += lineH;
+        }
+        y += lineH * 0.2;
+      }
+      return pageCount;
+    }
+
+    function makePdf() {
+      const pdf = new jsPDF({ unit: "mm", format: "a4", orientation: "landscape", compress: true });
+      renderToPdf(pdf);
+      return pdf;
+    }
+
+    // Cheap page-count probe used by the preview — same flow as makePdf but
+    // we discard the doc afterwards. jsPDF construction is sub-millisecond.
+    function countPdfPages() {
+      const probe = new jsPDF({ unit: "mm", format: "a4", orientation: "landscape" });
+      return renderToPdf(probe);
+    }
+
+    function justifiedText(pdf, line, x, y, w, isLast) {
+      const words = line.split(/\s+/).filter(Boolean);
+      if (isLast || words.length < 2) { pdf.text(line, x, y); return; }
+      const noSpace = pdf.getTextWidth(words.join(""));
+      const gap = (w - noSpace) / (words.length - 1);
+      let cx = x;
+      for (let i = 0; i < words.length; i++) {
+        pdf.text(words[i], cx, y);
+        cx += pdf.getTextWidth(words[i]) + gap;
+      }
+    }
+
+    $("dl-pdf").addEventListener("click", () => {
+      try {
+        const pdf = makePdf();
+        pdf.save("Karla — Vow (A4 booklet half).pdf");
+        showToast("Downloaded");
+      } catch (e) { console.error(e); showToast("Download failed"); }
+    });
+    $("dl-print").addEventListener("click", () => {
+      try {
+        const pdf = makePdf();
+        const url = pdf.output("bloburl");
+        window.open(url, "_blank");
+      } catch (e) { console.error(e); showToast("Print failed"); }
+    });
+  </script>
+</body>
+</html>
