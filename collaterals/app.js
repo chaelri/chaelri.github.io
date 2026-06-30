@@ -47,7 +47,7 @@ const SUBS = {
   "monogram":          "C & K monogram still — for the LED visual / signage",
   "invitation":        "Printable wedding invitation card",
   "sponsors-thankyou": "11 pre-edited Canva cards · laid out 2 × 3 per A4 portrait sheet, ready for the printer",
-  "vow-cards":         "Pre-edited Canva vow cards · 2 × 2 on A4 portrait at true A6 size, with dashed cut marks",
+  "vow-cards":         "Pre-edited Canva vow cards · split into 2 A4 landscape pages (wife + husband spreads), each card ≈ A5",
 };
 
 const STATUS_LABEL = {
