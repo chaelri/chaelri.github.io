@@ -16,7 +16,6 @@ export const TEMPLATES = [
   { id: "monogram",          label: "Monogram (LED)",      icon: "favorite",         path: "templates/monogram/" },
   { id: "invitation",        label: "Invitation",          icon: "draft",            path: "templates/invitation/" },
   { id: "sponsors-thankyou", label: "Sponsors Thank-You",  icon: "diversity_3",      path: "templates/sponsors-thankyou/" },
-  { id: "vow-cards",         label: "Vow Cards",           icon: "auto_stories",     path: "templates/vow-cards/" },
 ];
 
 export const STATUSES = ["pending", "in_progress", "ready", "printed"];
