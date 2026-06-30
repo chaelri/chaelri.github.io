@@ -21,7 +21,7 @@
 // invitation Firebase via shared/seating-source.js — edits stay in
 // weddingtest/guestlistmanager/seating/.
 
-import { fetchSeatingTablesText } from "../../shared/seating-source.js";
+import { fetchSeatingTablesText, fetchSeatingTablesDiffText } from "../../shared/seating-source.js";
 import { svgToPngBlob, downloadPng } from "../../shared/export.js";
 import { uploadPngBlob, sanitizeFilename, COLLATERALS_FOLDER_URL } from "../../shared/drive.js";
 import { getTemplateData, setTemplateData, setStatus, getAllStatus } from "../../shared/state.js";
@@ -585,10 +585,16 @@ async function mount() {
         <div class="field-block">
           <h3>Tables</h3>
           <p class="field-hint">One block per table — blank line between blocks. First line is <code>TITLE | SUBTITLE | CAPACITY</code>. Following lines: one per seat in order — use <code>-</code> for empty seats (renders as dashed grey circle + em-dash, matching the seating arranger's floor view).</p>
-          <button type="button" id="ed-import" class="btn btn-ghost" style="font-size:0.72rem;padding:5px 9px;align-self:flex-start;margin-bottom:8px">
-            <span class="material-symbols-outlined" style="font-size:14px">group</span>
-            Pull from seating arranger
-          </button>
+          <div style="display:flex;flex-wrap:wrap;gap:6px;margin-bottom:8px">
+            <button type="button" id="ed-import" class="btn btn-ghost" style="font-size:0.72rem;padding:5px 9px">
+              <span class="material-symbols-outlined" style="font-size:14px">group</span>
+              Pull from seating arranger
+            </button>
+            <button type="button" id="ed-import-diff" class="btn btn-ghost" style="font-size:0.72rem;padding:5px 9px">
+              <span class="material-symbols-outlined" style="font-size:14px">difference</span>
+              Pull only new / reseated
+            </button>
+          </div>
           <textarea id="ed-batch" rows="14" placeholder="${escapeXML(EXAMPLE)}"></textarea>
           <div class="batch-nav">
             <button type="button" id="ed-prev" class="btn btn-ghost">‹</button>
@@ -642,6 +648,7 @@ async function mount() {
   const pdfAllBtn  = $("ed-pdf-all");
   const upAllBtn   = $("ed-up-all");
   const importBtn  = $("ed-import");
+  const importDiffBtn = $("ed-import-diff");
   const printCk    = $("ed-print-mode");
   const previewLbl = $("ed-preview-label");
   const stage      = $("ed-stage");
@@ -746,29 +753,41 @@ async function mount() {
     render();
   });
 
-  importBtn.addEventListener("click", async () => {
-    importBtn.disabled = true;
-    const prev = importBtn.innerHTML;
-    importBtn.innerHTML = `<span class="material-symbols-outlined" style="font-size:14px">hourglass_top</span> Loading…`;
+  // Shared pull handler — used by both "full pull" and "diff pull" buttons.
+  // Handlers may return either a plain string (the new textarea content) or
+  // an object `{ text, message }`. When text is null/undefined, the textarea
+  // is left alone and the message is surfaced via toast (used by the diff
+  // pull when nothing changed since the last sync).
+  async function runPull(btn, handler) {
+    btn.disabled = true;
+    const prev = btn.innerHTML;
+    btn.innerHTML = `<span class="material-symbols-outlined" style="font-size:14px">hourglass_top</span> Loading…`;
     try {
-      const text = await fetchSeatingTablesText();
-      if (text != null) {
+      const result = await handler(stateBatch);
+      const text = typeof result === "string" ? result : result?.text;
+      const message = (result && typeof result === "object") ? result.message : null;
+      if (message && text == null) {
+        showToast(message);
+      } else if (text != null) {
         stateBatch = text;
         batchTA.value = text;
         previewIdx = 0;
         persist();
         render();
         const n = tables().length;
-        showToast(`Imported ${n} ${n === 1 ? "table" : "tables"}`);
+        showToast(message || `Imported ${n} ${n === 1 ? "table" : "tables"}`);
       }
     } catch (e) {
       console.error(e);
       showToast(e?.message || "Import failed", "err", 4000);
     } finally {
-      importBtn.disabled = false;
-      importBtn.innerHTML = prev;
+      btn.disabled = false;
+      btn.innerHTML = prev;
     }
-  });
+  }
+
+  importBtn.addEventListener("click", () => runPull(importBtn, fetchSeatingTablesText));
+  importDiffBtn.addEventListener("click", () => runPull(importDiffBtn, fetchSeatingTablesDiffText));
 
   // Export helpers — re-render into a detached SVG element so we don't ship
   // the preview's inline style attribute (which would scale the export).

@@ -470,11 +470,16 @@ function editorHTML(cfg, zonesArr) {
     const sepNote = zonesArr.length > 1
       ? ` Separator <code>${BATCH_SEP}</code> · order: <strong>${zonesArr.map((z) => escapeXML(z.label || z.id)).join(` ${BATCH_SEP} `)}</strong>.`
       : "";
-    const importBtn = cfg.batchImport
-      ? `<button type="button" id="ed-batch-import" class="btn btn-ghost" style="font-size:0.72rem;padding:5px 9px;align-self:flex-start;margin-bottom:6px">
-           <span class="material-symbols-outlined" style="font-size:14px">${escapeXML(cfg.batchImport.icon || "download")}</span>
-           ${escapeXML(cfg.batchImport.label)}
-         </button>`
+    const importsArr = Array.isArray(cfg.batchImport)
+      ? cfg.batchImport
+      : (cfg.batchImport ? [cfg.batchImport] : []);
+    const importBtn = importsArr.length
+      ? `<div style="display:flex;flex-wrap:wrap;gap:6px;margin-bottom:6px">${importsArr.map((imp, idx) => `
+          <button type="button" id="ed-batch-import-${idx}" class="btn btn-ghost" style="font-size:0.72rem;padding:5px 9px">
+            <span class="material-symbols-outlined" style="font-size:14px">${escapeXML(imp.icon || "download")}</span>
+            ${escapeXML(imp.label)}
+          </button>`).join("")}
+        </div>`
       : "";
     contentBlock = `
     <div class="field-block">
@@ -888,28 +893,35 @@ export async function mountEditor(cfg) {
       persist(); render(); updateCounter();
     });
     if (cfg.batchImport) {
-      const importBtnEl = $("ed-batch-import");
-      importBtnEl?.addEventListener("click", async () => {
-        importBtnEl.disabled = true;
-        const prevHtml = importBtnEl.innerHTML;
-        importBtnEl.innerHTML = `<span class="material-symbols-outlined" style="font-size:14px">hourglass_top</span> Loading…`;
-        try {
-          const text = await cfg.batchImport.handler();
-          if (text != null) {
-            state.batch = text;
-            batchTA.value = text;
-            state.previewIdx = 0;
-            persist(); render(); updateCounter();
-            const count = text.split(/\n/).filter((l) => l.trim()).length;
-            showToast(`Imported ${count} guests`);
+      const importsArr = Array.isArray(cfg.batchImport) ? cfg.batchImport : [cfg.batchImport];
+      importsArr.forEach((imp, idx) => {
+        const importBtnEl = $(`ed-batch-import-${idx}`);
+        importBtnEl?.addEventListener("click", async () => {
+          importBtnEl.disabled = true;
+          const prevHtml = importBtnEl.innerHTML;
+          importBtnEl.innerHTML = `<span class="material-symbols-outlined" style="font-size:14px">hourglass_top</span> Loading…`;
+          try {
+            const result = await imp.handler(state.batch || "");
+            const text = typeof result === "string" ? result : result?.text;
+            const message = (result && typeof result === "object") ? result.message : null;
+            if (message && text == null) {
+              showToast(message);
+            } else if (text != null) {
+              state.batch = text;
+              batchTA.value = text;
+              state.previewIdx = 0;
+              persist(); render(); updateCounter();
+              const count = text.split(/\n/).filter((l) => l.trim()).length;
+              showToast(message || `Imported ${count} guests`);
+            }
+          } catch (e) {
+            console.error(e);
+            showToast(e?.message || "Import failed", "err", 4000);
+          } finally {
+            importBtnEl.disabled = false;
+            importBtnEl.innerHTML = prevHtml;
           }
-        } catch (e) {
-          console.error(e);
-          showToast(e?.message || "Import failed", "err", 4000);
-        } finally {
-          importBtnEl.disabled = false;
-          importBtnEl.innerHTML = prevHtml;
-        }
+        });
       });
     }
     prevBtn.addEventListener("click", () => {

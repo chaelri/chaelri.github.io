@@ -96,6 +96,59 @@ export async function fetchSeatingBatchText() {
   return rows.join("\n");
 }
 
+// Diff helper: pull live seating, compare against whatever's already pasted
+// in the batch textarea, return ONLY guests who are new OR whose table
+// assignment changed. Used to print follow-up name cards without redoing the
+// whole stack.
+//
+// Line shape: "Full Name | TABLE LABEL" (subtitle optional). Name compare is
+// case-insensitive with collapsed whitespace; subtitle compare is uppercase
+// trimmed (matches how `parseTableLabel` normalizes Firebase group names).
+//
+// Returns either a non-empty diff string, or `{ message }` when nothing has
+// changed so the editor can surface that to the user without clobbering the
+// current textarea.
+function normNameKey(s) {
+  return String(s || "").trim().replace(/\s+/g, " ").toLowerCase();
+}
+function normSubtitleKey(s) {
+  return String(s || "").trim().toUpperCase();
+}
+function parseBatchLine(line) {
+  const i = line.indexOf("|");
+  if (i < 0) return { name: line.trim(), subtitle: "" };
+  return { name: line.slice(0, i).trim(), subtitle: line.slice(i + 1).trim() };
+}
+
+export async function fetchSeatingDiffBatchText(currentText) {
+  const liveRows = await fetchSeating();
+
+  const currentByName = new Map();
+  for (const raw of String(currentText || "").split(/\n/)) {
+    const line = raw.trim();
+    if (!line) continue;
+    const { name, subtitle } = parseBatchLine(line);
+    const key = normNameKey(name);
+    if (key) currentByName.set(key, normSubtitleKey(subtitle));
+  }
+
+  const diff = [];
+  for (const row of liveRows) {
+    const { name, subtitle } = parseBatchLine(row);
+    const key = normNameKey(name);
+    if (!key) continue;
+    const prev = currentByName.get(key);
+    const isNew = prev === undefined;
+    const isReassigned = !isNew && prev !== normSubtitleKey(subtitle);
+    if (isNew || isReassigned) diff.push(row);
+  }
+
+  if (!diff.length) {
+    return { message: "No new or reassigned guests since your last pull." };
+  }
+  return diff.join("\n");
+}
+
 // Group-per-card format used by the table-numbers template (positional —
 // one line per seat, "-" for empty seats so the printed card can render the
 // same dashed-circle diagram the seating arranger's floor view shows):
@@ -167,4 +220,59 @@ export async function fetchSeatingTablesText() {
     blocks.push([header, ...seatLines].join("\n"));
   }
   return blocks.join("\n\n");
+}
+
+// Block-aware diff for the mirror-chart template. Pulls live tables, parses
+// both the textarea and the live data into per-table {title → seat array},
+// and returns ONLY the full blocks for tables whose seat layout changed or
+// who didn't exist in the textarea yet. Used to print follow-up mirror cards
+// without redoing the whole stack of cards.
+//
+// "Changed" = any seat slot now holds a different normalized name (case-
+// insensitive, collapsed whitespace; "-" / "—" / empty all treated as null).
+// Order matters — moving a guest to a different seat at the same table still
+// counts as a change, since the card shows positional seat numbers.
+function parseBlocks(text) {
+  return String(text || "")
+    .split(/\n\s*\n+/)
+    .map((b) => b.trim())
+    .filter(Boolean)
+    .map((block) => {
+      const lines = block.split(/\n/).map((l) => l.trim()).filter((l) => l.length > 0);
+      const [headerLine = "", ...seatLines] = lines;
+      const parts = headerLine.split("|").map((s) => (s || "").trim());
+      const title = parts[0] || "";
+      const seats = seatLines.map((raw) => {
+        if (!raw || /^[-—]+$/.test(raw)) return null;
+        return normNameKey(raw);
+      });
+      return { titleKey: normSubtitleKey(title), block, seats };
+    });
+}
+function seatsEqual(a, b) {
+  const n = Math.max(a.length, b.length);
+  for (let i = 0; i < n; i++) {
+    if ((a[i] ?? null) !== (b[i] ?? null)) return false;
+  }
+  return true;
+}
+
+export async function fetchSeatingTablesDiffText(currentText) {
+  const liveText = await fetchSeatingTablesText();
+  const liveBlocks = parseBlocks(liveText);
+  const currentByTitle = new Map();
+  for (const b of parseBlocks(currentText)) {
+    currentByTitle.set(b.titleKey, b);
+  }
+  const diff = [];
+  for (const b of liveBlocks) {
+    const prev = currentByTitle.get(b.titleKey);
+    const isNew = !prev;
+    const isChanged = prev && !seatsEqual(prev.seats, b.seats);
+    if (isNew || isChanged) diff.push(b.block);
+  }
+  if (!diff.length) {
+    return { message: "No new or reseated tables since your last pull." };
+  }
+  return diff.join("\n\n");
 }

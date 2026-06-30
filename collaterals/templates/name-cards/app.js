@@ -1,5 +1,5 @@
 import { mountEditor } from "../../shared/template-editor.js";
-import { fetchSeatingBatchText } from "../../shared/seating-source.js";
+import { fetchSeatingBatchText, fetchSeatingDiffBatchText } from "../../shared/seating-source.js";
 
 mountEditor({
   templateId: "name-cards",
@@ -28,11 +28,20 @@ mountEditor({
   batchPlaceholder: "Karla | TABLE 1\nCharlie | TABLE 1\nNinong Pedro | TABLE 5\nNinang Maria\n…",
   // Pulls live seating from the wedding invitation's Firebase (charlie-karla-wedding).
   // Edits stay in weddingtest/guestlistmanager/seating/ — this is read-only.
-  batchImport: {
-    label: "Pull from seating arranger",
-    icon: "group",
-    handler: fetchSeatingBatchText,
-  },
+  // Second button diffs against the textarea so follow-up print runs only
+  // include new or reassigned guests.
+  batchImport: [
+    {
+      label: "Pull from seating arranger",
+      icon: "group",
+      handler: fetchSeatingBatchText,
+    },
+    {
+      label: "Pull only new / reassigned",
+      icon: "difference",
+      handler: fetchSeatingDiffBatchText,
+    },
+  ],
   // Print version: A4 portrait at 300 DPI (2480×3508), 2×2 grid of tent-fold
   // cards with subtle cut indicators down the middle and across the centre.
   printLayout: {
