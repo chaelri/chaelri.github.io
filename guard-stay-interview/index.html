@@ -1,0 +1,337 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
+  <title>Stay-In Interview — Guard Concerns</title>
+  <link rel="icon" type="image/svg+xml" href="favicon.svg">
+  <script src="https://cdn.tailwindcss.com"></script>
+  <link href="https://fonts.googleapis.com/icon?family=Material+Icons" rel="stylesheet">
+  <link href="https://fonts.googleapis.com/icon?family=Material+Icons+Round" rel="stylesheet">
+  <script src="https://www.gstatic.com/firebasejs/8.10.1/firebase-app.js"></script>
+  <script src="https://www.gstatic.com/firebasejs/8.10.1/firebase-database.js"></script>
+  <script src="https://www.gstatic.com/firebasejs/8.10.1/firebase-auth.js"></script>
+  <script src="https://cdn.sheetjs.com/xlsx-js-style/xlsx-js-style-1.15.0/package/dist/xlsx.bundle.js"></script>
+  <link rel="stylesheet" href="style.css">
+</head>
+<body>
+
+  <!-- ─── SPLASH ──────────────────────────────────────────────────── -->
+  <div id="splash-screen">
+    <div class="splash-inner">
+      <span class="material-icons-round splash-icon">volunteer_activism</span>
+      <div class="splash-title">Stay-In Interview</div>
+      <div class="splash-sub">Hear us out — bago pa magresign</div>
+    </div>
+  </div>
+
+  <!-- ─── HEADER ──────────────────────────────────────────────────── -->
+  <header id="app-header">
+    <div class="header-inner">
+      <div class="header-left">
+        <div class="header-title-block">
+          <div class="header-title">
+            <span class="material-icons-round">volunteer_activism</span>
+            Stay-In Interview
+          </div>
+          <div class="header-sub-en">Tell us what's on your mind — before things get worse.</div>
+          <div class="header-sub-tl">Sabihin mo — bago pa lumala.</div>
+        </div>
+        <div class="company-tabs" id="company-tabs">
+          <button class="header-tab" data-company="manela">New Manela</button>
+          <button class="header-tab" data-company="moriah">New Moriah</button>
+        </div>
+      </div>
+      <div class="header-right">
+        <button id="btn-view-form" class="view-btn" title="Submit form">
+          <span class="material-icons">edit_note</span><span class="btn-lbl">Form</span>
+        </button>
+        <button id="btn-view-dashboard" class="view-btn admin-only" title="Admin dashboard">
+          <span class="material-icons">dashboard</span><span class="btn-lbl">Dashboard</span>
+        </button>
+        <button id="btn-view-table" class="view-btn admin-only" title="All submissions">
+          <span class="material-icons">table_rows</span><span class="btn-lbl">Table</span>
+        </button>
+        <button id="btn-export" class="view-btn admin-only" title="Export to Excel">
+          <span class="material-icons">download</span><span class="btn-lbl">Export</span>
+        </button>
+        <div id="auth-control"></div>
+      </div>
+    </div>
+
+    <!-- Admin banner -->
+    <div id="admin-banner" class="admin-banner" hidden>
+      <span class="material-icons">verified_user</span>
+      <span>Admin view — you can see all identities and dashboards.
+        <span class="tl-sub">Nakikita mo lahat ng pangalan at data.</span>
+      </span>
+    </div>
+  </header>
+
+  <!-- ─── MAIN ─────────────────────────────────────────────────────── -->
+  <main id="main-content">
+
+    <!-- ─── FORM VIEW (public) ─── -->
+    <section id="form-view" class="view">
+      <div class="form-shell">
+
+        <div class="intro-card">
+          <div class="intro-icon"><span class="material-icons-round">favorite</span></div>
+          <div class="intro-body">
+            <div class="intro-title">Before you decide to leave, hear us out.</div>
+            <div class="intro-title-tl">Bago ka magdesisyong umalis, pakinggan sana namin.</div>
+            <div class="intro-text">
+              This form is <b>only visible to admins</b>. Your identity, answers, and concerns
+              are private — we want to help address the issue before it becomes a resignation.
+            </div>
+            <div class="intro-text-tl">
+              Ang form na ito ay <b>nakikita lang ng admin</b>. Hindi ito makikita ng ka-guard o
+              ka-detachment mo. Layunin naming ma-address ang issue bago ka mapilitang magresign.
+            </div>
+          </div>
+        </div>
+
+        <!-- Q1: Who are you (required) -->
+        <div class="q-card" id="q1">
+          <div class="q-header">
+            <span class="q-num">1</span>
+            <div class="q-title-block">
+              <div class="q-title">Who are you?</div>
+              <div class="q-title-tl">Sino ka?</div>
+              <div class="q-hint">Required. Admin-only visibility. <span class="tl-sub">Kailangan. Admin lang ang makakakita.</span></div>
+            </div>
+          </div>
+          <div class="q-body">
+            <div class="field-row">
+              <label class="field-label">Full name <span class="req">*</span>
+                <span class="field-label-tl">Buong pangalan</span>
+              </label>
+              <input type="text" id="f-fullName" class="field-input" placeholder="Juan Dela Cruz" autocomplete="name" required>
+            </div>
+            <div class="field-row">
+              <label class="field-label">Detachment / Branch <span class="req">*</span>
+                <span class="field-label-tl">Detachment / Sangay</span>
+              </label>
+              <input type="text" id="f-detachment" class="field-input" placeholder="Type or pick" list="detachment-options" autocomplete="off" required>
+              <datalist id="detachment-options"></datalist>
+            </div>
+            <div class="field-row-inline">
+              <label class="field-label field-label-inline">Rank / Position
+                <span class="field-label-tl">Posisyon</span>
+              </label>
+              <input type="text" id="f-rank" class="field-input field-input-half" placeholder="e.g. Guard, Sergeant" autocomplete="off">
+            </div>
+            <div class="field-row-inline">
+              <label class="field-label field-label-inline">Length of service
+                <span class="field-label-tl">Tagal sa serbisyo</span>
+              </label>
+              <select id="f-tenure" class="field-input field-input-half">
+                <option value="">—</option>
+                <option>Less than 6 months</option>
+                <option>6 months – 1 year</option>
+                <option>1 – 2 years</option>
+                <option>2 – 5 years</option>
+                <option>More than 5 years</option>
+              </select>
+            </div>
+          </div>
+        </div>
+
+        <!-- Q2: Concerns (checklist) -->
+        <div class="q-card" id="q2">
+          <div class="q-header">
+            <span class="q-num">2</span>
+            <div class="q-title-block">
+              <div class="q-title">What concerns do you have right now?</div>
+              <div class="q-title-tl">Ano ang concerns mo ngayon?</div>
+              <div class="q-hint">Tick all that apply. <span class="tl-sub">I-tick lahat ng naaangkop.</span></div>
+            </div>
+          </div>
+          <div class="q-body">
+            <div id="concerns-grid" class="concerns-grid"><!-- populated by JS --></div>
+            <div class="field-row" id="concern-other-row" hidden>
+              <label class="field-label">Please describe "Other"
+                <span class="field-label-tl">Ipaliwanag ang "Iba pa"</span>
+              </label>
+              <textarea id="f-concern-other" class="field-input" rows="2" placeholder="Isulat mo dito…"></textarea>
+            </div>
+          </div>
+        </div>
+
+        <!-- Q3: How long -->
+        <div class="q-card" id="q3">
+          <div class="q-header">
+            <span class="q-num">3</span>
+            <div class="q-title-block">
+              <div class="q-title">How long have you been dealing with this?</div>
+              <div class="q-title-tl">Gaano na katagal itong problema mo?</div>
+              <div class="q-hint">Pick one. <span class="tl-sub">Pumili ng isa.</span></div>
+            </div>
+          </div>
+          <div class="q-body">
+            <div class="radio-grid" id="duration-grid">
+              <label class="radio-chip"><input type="radio" name="f-duration" value="lt1"><span>Less than 1 month<span class="tl-sub">Wala pang 1 buwan</span></span></label>
+              <label class="radio-chip"><input type="radio" name="f-duration" value="1to3"><span>1 – 3 months<span class="tl-sub">1 – 3 buwan</span></span></label>
+              <label class="radio-chip"><input type="radio" name="f-duration" value="3to6"><span>3 – 6 months<span class="tl-sub">3 – 6 buwan</span></span></label>
+              <label class="radio-chip"><input type="radio" name="f-duration" value="gt6"><span>More than 6 months<span class="tl-sub">Higit 6 buwan</span></span></label>
+            </div>
+          </div>
+        </div>
+
+        <!-- Q4: Considering resigning -->
+        <div class="q-card" id="q4">
+          <div class="q-header">
+            <span class="q-num">4</span>
+            <div class="q-title-block">
+              <div class="q-title">Are you considering resigning because of this?</div>
+              <div class="q-title-tl">Naiisip mo na bang magresign dahil dito?</div>
+              <div class="q-hint">Pick one, and tell us what would help. <span class="tl-sub">Pumili at sabihin mo kung ano makakatulong.</span></div>
+            </div>
+          </div>
+          <div class="q-body">
+            <div class="radio-grid" id="resign-grid">
+              <label class="radio-chip radio-chip-danger"><input type="radio" name="f-resign" value="yes"><span>Yes<span class="tl-sub">Oo, seryoso na</span></span></label>
+              <label class="radio-chip radio-chip-warn"><input type="radio" name="f-resign" value="thinking"><span>Thinking about it<span class="tl-sub">Naiisip pa</span></span></label>
+              <label class="radio-chip radio-chip-ok"><input type="radio" name="f-resign" value="no"><span>Not yet<span class="tl-sub">Hindi pa naman</span></span></label>
+            </div>
+            <div class="field-row">
+              <label class="field-label">What would help you stay?
+                <span class="field-label-tl">Ano ang makakatulong para hindi ka magresign?</span>
+              </label>
+              <textarea id="f-help" class="field-input" rows="3" placeholder="Optional. Puwedeng blangko."></textarea>
+            </div>
+          </div>
+        </div>
+
+        <div class="submit-block">
+          <div class="submit-error" id="submit-error" hidden></div>
+          <button id="btn-submit" class="btn-submit">
+            <span class="material-icons">send</span>
+            <span>Submit — <span class="tl-sub">Ipasa</span></span>
+          </button>
+          <div class="submit-privacy">
+            Only admins can see this. <span class="tl-sub">Admin lang makakakita.</span>
+          </div>
+        </div>
+
+        <!-- Thank you overlay -->
+        <div id="thankyou-overlay" class="thankyou-overlay" hidden>
+          <div class="thankyou-card">
+            <div class="thankyou-icon"><span class="material-icons-round">check_circle</span></div>
+            <div class="thankyou-title">Salamat sa pagsabi.</div>
+            <div class="thankyou-title-en">Thank you for speaking up.</div>
+            <div class="thankyou-body">
+              Naipasa na sa admin ang concerns mo. Susubukan naming ma-address bago pa lumala.
+              <br><span class="tl-sub-block">Your concerns have been sent to the admin. We'll try to address them before things get worse.</span>
+            </div>
+            <button id="btn-thankyou-new" class="btn-thankyou">Submit another <span class="tl-sub">Magpasa uli</span></button>
+          </div>
+        </div>
+
+      </div>
+    </section>
+
+    <!-- ─── DASHBOARD (admin) ─── -->
+    <section id="dashboard-view" class="view" hidden>
+      <div class="dash-shell">
+        <!-- Filters -->
+        <div class="dash-filters">
+          <div class="filter-group">
+            <label class="filter-label">Period</label>
+            <select id="dash-period" class="filter-input">
+              <option value="all">All time</option>
+              <option value="30">Last 30 days</option>
+              <option value="90">Last 90 days</option>
+              <option value="ytd">Year to date</option>
+            </select>
+          </div>
+          <div class="filter-group">
+            <label class="filter-label">Detachment</label>
+            <select id="dash-detachment" class="filter-input">
+              <option value="">All detachments</option>
+            </select>
+          </div>
+        </div>
+
+        <!-- KPIs -->
+        <div class="kpi-grid" id="kpi-grid"><!-- populated by JS --></div>
+
+        <!-- Charts -->
+        <div class="chart-grid">
+          <div class="chart-card">
+            <div class="chart-title">Top concerns</div>
+            <div class="chart-sub">Anong mga issue ang paulit-ulit?</div>
+            <div id="chart-concerns" class="chart-body"></div>
+          </div>
+          <div class="chart-card">
+            <div class="chart-title">Resign risk breakdown</div>
+            <div class="chart-sub">Sinong may planong magresign?</div>
+            <div id="chart-resign" class="chart-body"></div>
+          </div>
+          <div class="chart-card chart-card-wide">
+            <div class="chart-title">Submissions per detachment</div>
+            <div class="chart-sub">Alin ang detachment na may pinakamaraming hinaing?</div>
+            <div id="chart-detachment" class="chart-body"></div>
+          </div>
+          <div class="chart-card">
+            <div class="chart-title">How long these issues have festered</div>
+            <div class="chart-sub">Gaano na katagal ang mga problema?</div>
+            <div id="chart-duration" class="chart-body"></div>
+          </div>
+          <div class="chart-card">
+            <div class="chart-title">Submissions over time</div>
+            <div class="chart-sub">Timeline ng mga sinabi ng guards.</div>
+            <div id="chart-timeline" class="chart-body"></div>
+          </div>
+        </div>
+      </div>
+    </section>
+
+    <!-- ─── TABLE (admin) ─── -->
+    <section id="table-view" class="view" hidden>
+      <div class="table-shell">
+        <div class="table-controls">
+          <input type="text" id="table-search" class="filter-input" placeholder="Search name, detachment, concern…">
+          <select id="table-detachment" class="filter-input">
+            <option value="">All detachments</option>
+          </select>
+        </div>
+        <div class="table-scroll" id="table-scroll">
+          <table class="stay-table" id="stay-table">
+            <thead>
+              <tr>
+                <th>Submitted</th>
+                <th>Name</th>
+                <th>Detachment</th>
+                <th>Rank</th>
+                <th>Tenure</th>
+                <th>Concerns</th>
+                <th>Duration</th>
+                <th>Resign risk</th>
+                <th>What would help</th>
+                <th class="th-actions">Actions</th>
+              </tr>
+            </thead>
+            <tbody id="stay-tbody"></tbody>
+          </table>
+        </div>
+      </div>
+    </section>
+
+  </main>
+
+  <!-- Confirm delete modal -->
+  <div id="confirm-overlay" class="confirm-overlay" hidden>
+    <div class="confirm-card">
+      <div class="confirm-title">Delete this submission?</div>
+      <div class="confirm-body" id="confirm-body">This can't be undone.</div>
+      <div class="confirm-actions">
+        <button id="confirm-cancel" class="btn-ghost">Cancel</button>
+        <button id="confirm-ok" class="btn-danger">Delete</button>
+      </div>
+    </div>
+  </div>
+
+  <script src="app.js"></script>
+</body>
+</html>

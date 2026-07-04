@@ -22,6 +22,7 @@ Do these in order. Total time ≈ 10 minutes.
    cp /Users/ccayno/Documents/chaelri.github.io/devo-mobile/.env   ~/Desktop/laptop-handoff-backup/devo-mobile.env
    cp /Users/ccayno/Documents/chaelri.github.io/functions/service-account.json ~/Desktop/laptop-handoff-backup/
    cp /Users/ccayno/Documents/chaelri.github.io/gemini-proxy/.{drive,yt,sheets,gmail}-*.json ~/Desktop/laptop-handoff-backup/
+   cp /Users/ccayno/Documents/chaelri.github.io/gemini-proxy/.credentials.md ~/Desktop/laptop-handoff-backup/
    cp -R "/Users/ccayno/.claude/projects/-Users-ccayno-Documents-chaelri-github-io/memory" ~/Desktop/laptop-handoff-backup/claude-memory
    cp ~/.claude/hooks/block-destructive.sh                         ~/Desktop/laptop-handoff-backup/ 2>/dev/null || true
    cp ~/Documents/Perifix/.env.local                               ~/Desktop/laptop-handoff-backup/perifix.env.local 2>/dev/null || true
@@ -53,6 +54,7 @@ Patterns from `.gitignore` that match real files on disk:
 | `gemini-proxy/.yt-creds.json` (128 B) | YouTube refresh token | BACK UP or regenerate | `cd gemini-proxy && node yt-helper.mjs auth`. |
 | `gemini-proxy/.sheets-creds.json` (277 B) | Google Sheets API refresh token (for `sheets-helper.mjs`) | BACK UP or regenerate | Re-run the helper's auth subcommand (`node sheets-helper.mjs` will print instructions if not authed). |
 | `gemini-proxy/.gmail-creds.json` (128 B) | Gmail API refresh token | BACK UP or regenerate | Same pattern. Check `gemini-proxy/` for `gmail-helper.mjs` or similar — if no helper script exists in the repo, this token may be vestigial / unused. |
+| `gemini-proxy/.credentials.md` | Firebase Auth admin passwords for `guard-exit-interview` + `guard-stay-interview` (Wilfredo, kasromantico, Charlie). Plaintext markdown, gitignored. | **BACK UP** | If lost, rotate via Firebase Admin SDK: `getAuth().updateUser(uid, { password: 'NewPw' })` using `functions/service-account.json`. Full script pattern is inside the file itself. Memory pointer at `~/.claude/projects/-Users-ccayno-Documents-chaelri-github-io/memory/reference_admin_credentials.md`. |
 | `.claude/knowledge-stale.md` | Hook-generated list of files edited that are referenced in `knowledge/*.md`. Cleared by `/sync-knowledge`. | SKIP | Regenerates automatically as you edit. |
 | `.claude/settings.local.json` (69 B) | Just allows `Bash(open:*)` | SKIP | Re-add the one permission if needed, or skip. |
 | `.DS_Store`, `node_modules/`, `*.log`, `.firebase/` | macOS/runtime junk | SKIP | n/a |

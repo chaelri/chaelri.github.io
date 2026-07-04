@@ -84,6 +84,9 @@ gemini-proxy/.yt-creds.json
 gemini-proxy/.yt-client.json
 gemini-proxy/.sheets-creds.json
 
+# Admin credentials reference — never commit
+gemini-proxy/.credentials.md
+
 # Claude Code runtime artifacts
 .claude/knowledge-stale.md
 .claude/settings.local.json
