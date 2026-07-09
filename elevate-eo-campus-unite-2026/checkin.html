@@ -32,6 +32,23 @@
       background-attachment: fixed;
     }
 
+    /* Kill the frosted-glass shine on this page's tiles. The default .glass-tile
+       uses a diagonal white gradient + saturate(140%) backdrop-filter, which
+       samples the body's fixed radial red glow and produces a visible curved
+       highlight band across each tile as its top edge crosses the glow's
+       falloff. Solid dark bg + no backdrop-filter looks calm and consistent —
+       same fix register.html applies to its form card. */
+    #checkin > .glass-tile,
+    #checkin section.glass-tile {
+      background: linear-gradient(180deg, rgba(7,9,26,0.92) 0%, rgba(7,9,26,0.88) 100%);
+      border-color: rgba(255,255,255,0.10);
+      backdrop-filter: none;
+      -webkit-backdrop-filter: none;
+      box-shadow:
+        inset 0 1px 0 rgba(255,255,255,0.06),
+        0 18px 48px rgba(0,0,0,0.35);
+    }
+
     /* Big result banner shown after each scan; slides in from top, auto-hides. */
     .scan-banner {
       display: grid;
