@@ -49,6 +49,16 @@
         0 18px 48px rgba(0,0,0,0.35);
     }
 
+    /* Single scan-target square — the outer .qr-stage is styled as the target
+       frame itself. The redundant inner .qr-frame reticle is dropped from the
+       markup for this page (register.html keeps its nested version). */
+    #checkin .qr-stage {
+      border: 2px solid var(--tape);
+      box-shadow:
+        0 0 0 1px rgba(245, 213, 24, 0.15),
+        0 12px 32px rgba(0, 0, 0, 0.35);
+    }
+
     /* ========================================================================
        Full-viewport scan splash — punchy reveal after each scan.
        Kicker (Bebas Neue tape yellow) on top, big Blauer Nue name below,
@@ -263,7 +273,6 @@
       </div>
       <div class="qr-stage">
         <video id="qr-video" playsinline muted autoplay></video>
-        <div class="qr-frame"></div>
       </div>
       <div id="qr-status" class="mt-3 text-xs text-mute font-extrabold-ui uppercase tracking-widest text-center">Point your camera at a ticket QR…</div>
     </div>
@@ -439,7 +448,8 @@
     }
 
     async function openScanner() {
-      _paused = false;
+      // Idempotent: tear down any prior stream so re-opening doesn't leak tracks.
+      stopScanner();
       updatePauseLabel();
       updateFlipLabel();
       try {
@@ -697,10 +707,28 @@
       try { return new Date(ms).toLocaleTimeString("en-PH", { hour: "numeric", minute: "2-digit", hour12: true }); } catch { return ""; }
     }
 
-    // Stop the camera when the tab is hidden so the LED goes dark on iOS.
+    // Stop the camera when the tab is hidden so the LED goes dark on iOS,
+    // then bring it right back when the tab is visible again. Charlie wants
+    // the scanner to always be running unless a splash is on-screen (which is
+    // handled separately by _splashActive).
     document.addEventListener("visibilitychange", () => {
-      if (document.hidden) stopScanner();
+      if (document.hidden) {
+        stopScanner();
+      } else if (_adminEmail && !_paused) {
+        openScanner();
+      }
     });
+
+    // Watchdog: every 3s check that the stream is still alive when it should
+    // be. Covers browser quirks where a stream drops silently (backgrounded
+    // tab, camera lost, OS interruption) without firing visibilitychange.
+    setInterval(() => {
+      if (!_adminEmail) return;      // not signed in
+      if (document.hidden) return;   // page not visible
+      if (_paused) return;           // user hit Pause
+      if (_stream) return;           // stream is alive
+      openScanner();
+    }, 3000);
   </script>
 
 </body>
