@@ -21,6 +21,62 @@
   <link href="https://fonts.googleapis.com/css2?family=Bebas+Neue&family=JetBrains+Mono:wght@400;600&display=swap" rel="stylesheet" />
   <link href="https://fonts.googleapis.com/css2?family=Material+Symbols+Outlined:opsz,wght,FILL,GRAD@24,400,0,0" rel="stylesheet" />
   <link rel="stylesheet" href="style.css" />
+
+  <style>
+    /* Green KPI variant for the "checked in" count — reuses .kpi-pill from style.css. */
+    .kpi-pill.green b { color: #4ade80; }
+
+    /* Attendance filter chip group — sits next to the search input. */
+    .filter-chip-group {
+      display: inline-flex;
+      background: var(--bg-elev);
+      border: 1px solid var(--line);
+      border-radius: 999px;
+      padding: 3px;
+      gap: 2px;
+    }
+    .filter-chip {
+      appearance: none;
+      background: transparent;
+      border: 0;
+      color: var(--ink-mute);
+      font-family: "Blauer Nue", "Inter", sans-serif;
+      font-weight: 700;
+      font-size: 0.75rem;
+      text-transform: uppercase;
+      letter-spacing: 0.08em;
+      padding: 0.4rem 0.8rem;
+      border-radius: 999px;
+      cursor: pointer;
+      transition: background 140ms ease, color 140ms ease;
+      white-space: nowrap;
+    }
+    .filter-chip:hover { color: var(--ink); }
+    .filter-chip.is-active {
+      background: var(--tape);
+      color: var(--on-tape, #07091a);
+    }
+    .filter-chip .chip-count {
+      opacity: 0.7;
+      font-variant-numeric: tabular-nums;
+      margin-left: 0.35rem;
+    }
+    .filter-chip.is-active .chip-count { opacity: 0.85; }
+
+    /* Attendance cell — presents checked-in time or a subtle "not yet" hint. */
+    .att-time {
+      color: #4ade80;
+      font-family: "JetBrains Mono", monospace;
+      font-size: 0.78rem;
+      font-weight: 600;
+    }
+    .att-not { color: var(--ink-mute); font-size: 0.78rem; }
+
+    .btn-row-check { color: var(--ink-mute); transition: color 140ms ease; }
+    .btn-row-check:hover { color: #4ade80; }
+    .btn-row-check.is-checked { color: #4ade80; }
+    .btn-row-check.is-checked:hover { color: var(--tape); }
+  </style>
 </head>
 
 <body class="bg-deep min-h-screen">
@@ -32,6 +88,7 @@
     </a>
     <nav class="flex items-center gap-1 sm:gap-2 text-sm">
       <a href="index.html" class="btn-ghost"><span class="material-symbols-outlined" style="font-size:18px">home</span><span class="hidden sm:inline">Home</span></a>
+      <a href="checkin.html" class="btn-ghost"><span class="material-symbols-outlined" style="font-size:18px">qr_code_scanner</span><span class="hidden sm:inline">Check-in</span></a>
       <a href="print.html" class="btn-ghost"><span class="material-symbols-outlined" style="font-size:18px">print</span><span class="hidden sm:inline">Print</span></a>
       <a href="raffle.html" class="btn-ghost"><span class="material-symbols-outlined" style="font-size:18px">casino</span><span class="hidden sm:inline">Raffle</span></a>
       <div id="auth-control" class="ml-1"></div>
@@ -61,6 +118,7 @@
 
     <!-- Compact counter row -->
     <div class="flex flex-wrap gap-2 mb-6">
+      <span class="kpi-pill green"><b id="kpi-checkedin">0</b> checked in</span>
       <span class="kpi-pill tape"><b id="kpi-registered">0</b> registered</span>
       <span class="kpi-pill"><b id="kpi-total">0</b> tickets total</span>
       <span class="kpi-pill"><b id="kpi-available">0</b> available</span>
@@ -69,7 +127,12 @@
     <!-- Toolbar -->
     <div class="flex items-center justify-between gap-3 flex-wrap mb-3">
       <input id="search" type="search" placeholder="Search name, school, ticket, FB, contact…" class="input text-sm" style="padding:0.55rem 0.85rem; max-width:360px; flex:1;" />
-      <div class="flex items-center gap-2">
+      <div class="flex items-center gap-2 flex-wrap">
+        <div class="filter-chip-group" role="tablist" aria-label="Attendance filter">
+          <button type="button" class="filter-chip is-active" data-attn-filter="all" role="tab" aria-selected="true">All <span class="chip-count" data-count="all">0</span></button>
+          <button type="button" class="filter-chip" data-attn-filter="in" role="tab" aria-selected="false">Attended <span class="chip-count" data-count="in">0</span></button>
+          <button type="button" class="filter-chip" data-attn-filter="out" role="tab" aria-selected="false">Not yet <span class="chip-count" data-count="out">0</span></button>
+        </div>
         <a href="register.html" target="_blank" rel="noopener" class="btn-ghost text-sm">
           <span class="material-symbols-outlined" style="font-size:18px">person_add</span>
           Register
@@ -96,11 +159,12 @@
             <th class="t-sortable hidden xl:table-cell whitespace-nowrap" data-sort="firstTimer">1st time?<span class="t-sort-ind"></span></th>
             <th class="t-sortable hidden xl:table-cell whitespace-nowrap" data-sort="hasDgroup">Dgroup?<span class="t-sort-ind"></span></th>
             <th class="t-sortable whitespace-nowrap" data-sort="registeredAt">Registered<span class="t-sort-ind"></span></th>
+            <th class="t-sortable whitespace-nowrap" data-sort="checkedInAt">Checked in<span class="t-sort-ind"></span></th>
             <th class="whitespace-nowrap text-right">Actions</th>
           </tr>
         </thead>
         <tbody id="recent-tbody">
-          <tr><td colspan="11" class="text-center text-mute py-10">Loading…</td></tr>
+          <tr><td colspan="12" class="text-center text-mute py-10">Loading…</td></tr>
         </tbody>
       </table>
     </section>
@@ -181,13 +245,31 @@
     function renderAll() {
       const total = Object.keys(ticketsCache).length;
       const regs = Object.values(regsCache);
+      const checkedInCount = regs.filter(r => !!r.checkedIn).length;
       document.getElementById("kpi-registered").textContent = regs.length.toLocaleString();
+      document.getElementById("kpi-checkedin").textContent  = checkedInCount.toLocaleString();
       document.getElementById("kpi-total").textContent = total.toLocaleString();
       document.getElementById("kpi-available").textContent = Math.max(0, total - regs.length).toLocaleString();
       renderTable(regs);
     }
 
     $search.addEventListener("input", () => renderTable(Object.values(regsCache)));
+
+    // ===== Attendance filter =====
+    // 'all' | 'in' (checked in) | 'out' (not yet). Applied inside renderTable
+    // alongside the search term. Chip counts always reflect the full dataset.
+    let attnFilter = "all";
+    document.querySelectorAll("[data-attn-filter]").forEach(btn => {
+      btn.addEventListener("click", () => {
+        attnFilter = btn.dataset.attnFilter;
+        document.querySelectorAll("[data-attn-filter]").forEach(b => {
+          const active = b === btn;
+          b.classList.toggle("is-active", active);
+          b.setAttribute("aria-selected", active ? "true" : "false");
+        });
+        renderTable(Object.values(regsCache));
+      });
+    });
 
     function esc(s) {
       return String(s == null ? "" : s).replace(/[&<>"']/g, m => ({"&":"&amp;","<":"&lt;",">":"&gt;","\"":"&quot;","'":"&#39;"}[m]));
@@ -232,6 +314,7 @@
       firstTimer: "asc",
       hasDgroup: "asc",
       registeredAt: "desc",
+      checkedInAt: "desc",
     };
     let sortState = { key: "registeredAt", dir: "desc" };
 
@@ -240,7 +323,7 @@
       let vb = b[key];
       if (key === "fbLink") { va = a.fbLink || a.fbName || ""; vb = b.fbLink || b.fbName || ""; }
       if (key === "age") { va = Number(va) || 0; vb = Number(vb) || 0; }
-      else if (key === "registeredAt") { va = va || 0; vb = vb || 0; }
+      else if (key === "registeredAt" || key === "checkedInAt") { va = va || 0; vb = vb || 0; }
       else if (key === "ticketId") {
         // ECU-#### → compare on the numeric tail so ECU-0010 sorts after ECU-0002.
         const na = parseInt(String(va || "").replace(/^\D+/, ""), 10) || 0;
@@ -285,11 +368,27 @@
     updateSortIndicators();
 
     function renderTable(regs) {
+      // Live chip counts are always over the full dataset — filtering the
+      // list itself would make the counts self-referential.
+      const totalIn  = regs.filter(r => !!r.checkedIn).length;
+      const totalOut = regs.length - totalIn;
+      const $cAll = document.querySelector('[data-count="all"]');
+      const $cIn  = document.querySelector('[data-count="in"]');
+      const $cOut = document.querySelector('[data-count="out"]');
+      if ($cAll) $cAll.textContent = regs.length;
+      if ($cIn)  $cIn.textContent  = totalIn;
+      if ($cOut) $cOut.textContent = totalOut;
+
       const q = ($search.value || "").trim().toLowerCase();
       const mult = sortState.dir === "asc" ? 1 : -1;
       const list = regs
         .slice()
         .sort((a, b) => mult * cmpVal(a, b, sortState.key))
+        .filter(r => {
+          if (attnFilter === "in"  && !r.checkedIn) return false;
+          if (attnFilter === "out" &&  r.checkedIn) return false;
+          return true;
+        })
         .filter(r => !q || (
           (r.name || "").toLowerCase().includes(q) ||
           (r.school || "").toLowerCase().includes(q) ||
@@ -301,7 +400,11 @@
 
       const $tbody = document.getElementById("recent-tbody");
       if (!list.length) {
-        $tbody.innerHTML = `<tr><td colspan="11" class="text-center text-mute py-10">${q ? "No matches." : "No registrations yet."}</td></tr>`;
+        const emptyMsg = q ? "No matches."
+                          : attnFilter === "in"  ? "Nobody's checked in yet."
+                          : attnFilter === "out" ? "Everyone registered has checked in."
+                          : "No registrations yet.";
+        $tbody.innerHTML = `<tr><td colspan="12" class="text-center text-mute py-10">${emptyMsg}</td></tr>`;
         return;
       }
       $tbody.innerHTML = list.map(r => {
@@ -314,6 +417,12 @@
         const dgroupCell = r.hasDgroup === "yes" && r.dgroupLeader
           ? `<div>Yes</div><div class="text-mute" style="font-size:0.78rem;">${esc(r.dgroupLeader)}</div>`
           : esc(yesNoLabel(r.hasDgroup));
+        const inCell = r.checkedIn
+          ? `<span class="att-time">${esc(fmtDate(r.checkedInAt) || "In")}</span>`
+          : `<span class="att-not">—</span>`;
+        const checkBtn = r.checkedIn
+          ? `<button class="btn-row-check is-checked transition" data-ticket="${esc(r.ticketId || "")}" data-action="out" title="Undo check-in" style="padding:4px;line-height:0;margin-right:2px;"><span class="material-symbols-outlined" style="font-size:18px">how_to_reg</span></button>`
+          : `<button class="btn-row-check transition" data-ticket="${esc(r.ticketId || "")}" data-action="in" title="Mark checked in" style="padding:4px;line-height:0;margin-right:2px;"><span class="material-symbols-outlined" style="font-size:18px">check_circle</span></button>`;
         return `
         <tr>
           <td class="t-ticket">${esc(r.ticketId || "")}</td>
@@ -326,7 +435,9 @@
           <td class="hidden xl:table-cell whitespace-nowrap">${esc(yesNoLabel(r.firstTimer))}</td>
           <td class="hidden xl:table-cell">${dgroupCell}</td>
           <td class="whitespace-nowrap text-mute">${fmtDate(r.registeredAt)}</td>
+          <td class="whitespace-nowrap">${inCell}</td>
           <td class="text-right whitespace-nowrap">
+            ${checkBtn}
             <button class="btn-row-edit text-mute hover:text-tape transition" data-ticket="${esc(r.ticketId || "")}" title="Edit registration" style="padding:4px;line-height:0;margin-right:2px;">
               <span class="material-symbols-outlined" style="font-size:18px">edit</span>
             </button>
@@ -339,8 +450,28 @@
       }).join("");
     }
 
-    // ===== Row actions (delegated): edit + delete =====
+    // ===== Row actions (delegated): check-in toggle + edit + delete =====
     document.getElementById("recent-tbody").addEventListener("click", async (e) => {
+      const checkBtn = e.target.closest(".btn-row-check");
+      if (checkBtn) {
+        const id = checkBtn.dataset.ticket;
+        const action = checkBtn.dataset.action;
+        if (!id) return;
+        checkBtn.disabled = true;
+        try {
+          if (action === "in") {
+            await update(registrationRef(id), { checkedIn: true, checkedInAt: Date.now() });
+          } else {
+            // Undo: clear both fields so the row falls back to "not yet" cleanly.
+            await update(registrationRef(id), { checkedIn: null, checkedInAt: null });
+          }
+        } catch (err) {
+          alert("Update failed: " + (err && err.message || err));
+          checkBtn.disabled = false;
+        }
+        return;
+      }
+
       const editBtn = e.target.closest(".btn-row-edit");
       if (editBtn) {
         const id = editBtn.dataset.ticket;
@@ -538,13 +669,14 @@
       const regs = Object.values(regsCache)
         .sort((a, b) => (b.registeredAt || 0) - (a.registeredAt || 0));
       if (!regs.length) { alert("No registrations to export."); return; }
-      const header = ["ticketId", "name", "age", "gender", "school", "fbLink", "contact", "firstTimer", "hasDgroup", "dgroupLeader", "registeredAt"];
+      const header = ["ticketId", "name", "age", "gender", "school", "fbLink", "contact", "firstTimer", "hasDgroup", "dgroupLeader", "registeredAt", "checkedIn", "checkedInAt"];
       const csv = [header.join(",")].concat(
         regs.map(r => header.map(k => {
           let v = r[k] == null ? "" : r[k];
           // Legacy rows used `fbName`; fall back so old entries still export under fbLink.
           if (k === "fbLink" && !v && r.fbName) v = r.fbName;
-          if (k === "registeredAt" && v) v = new Date(v).toISOString();
+          if ((k === "registeredAt" || k === "checkedInAt") && v) v = new Date(v).toISOString();
+          if (k === "checkedIn") v = v ? "yes" : "no";
           v = String(v).replace(/"/g, '""');
           return /[",\n]/.test(v) ? `"${v}"` : v;
         }).join(","))

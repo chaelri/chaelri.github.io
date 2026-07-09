@@ -1,0 +1,556 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0" />
+  <title>Check-in — Campus UNITE 2026</title>
+  <link rel="icon" type="image/svg+xml" href="assets/favicon.svg" />
+  <link rel="alternate icon" href="assets/elevate-logo-red.png" />
+  <link rel="apple-touch-icon" href="assets/favicon.svg" />
+  <link rel="manifest" href="manifest.json" />
+  <meta name="theme-color" content="#07091a" />
+  <meta name="apple-mobile-web-app-capable" content="yes" />
+  <meta name="apple-mobile-web-app-status-bar-style" content="black-translucent" />
+  <meta name="apple-mobile-web-app-title" content="CU 2026" />
+  <meta http-equiv="Cache-Control" content="no-cache, no-store, must-revalidate" />
+  <meta http-equiv="Pragma" content="no-cache" />
+  <meta http-equiv="Expires" content="0" />
+  <script src="https://cdn.tailwindcss.com"></script>
+  <link rel="preconnect" href="https://fonts.googleapis.com" />
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
+  <link href="https://fonts.googleapis.com/css2?family=Bebas+Neue&family=JetBrains+Mono:wght@400;600&display=swap" rel="stylesheet" />
+  <link href="https://fonts.googleapis.com/css2?family=Material+Symbols+Outlined:opsz,wght,FILL,GRAD@24,400,0,0" rel="stylesheet" />
+  <link rel="stylesheet" href="style.css" />
+
+  <style>
+    html { background: var(--bg-deep); }
+    body {
+      background:
+        radial-gradient(1100px 600px at 80% -10%, rgba(225, 29, 44, 0.14) 0%, transparent 60%),
+        radial-gradient(800px 500px at -10% 110%, rgba(245, 213, 24, 0.06) 0%, transparent 55%),
+        linear-gradient(180deg, #0a0d22 0%, #07091a 80%, #050715 100%) !important;
+      background-attachment: fixed;
+    }
+
+    /* Big result banner shown after each scan; slides in from top, auto-hides. */
+    .scan-banner {
+      display: grid;
+      grid-template-columns: auto 1fr auto;
+      gap: 0.85rem;
+      align-items: center;
+      padding: 0.95rem 1.05rem;
+      border-radius: 0.85rem;
+      border: 1px solid var(--line);
+      background: var(--bg-elev);
+      box-shadow: 0 18px 48px rgba(0,0,0,0.4);
+      transform: translateY(-8px);
+      opacity: 0;
+      transition: transform 220ms ease, opacity 220ms ease;
+      margin-bottom: 0.85rem;
+    }
+    .scan-banner.is-shown { transform: translateY(0); opacity: 1; }
+    .scan-banner .banner-ic { font-size: 32px !important; }
+    .scan-banner-success { border-color: #4ade80; background: linear-gradient(180deg, rgba(74,222,128,0.12) 0%, rgba(74,222,128,0.03) 100%); }
+    .scan-banner-success .banner-ic { color: #4ade80; }
+    .scan-banner-warn { border-color: var(--tape); background: linear-gradient(180deg, rgba(245,213,24,0.14) 0%, rgba(245,213,24,0.03) 100%); }
+    .scan-banner-warn .banner-ic { color: var(--tape); }
+    .scan-banner-err { border-color: var(--red); background: linear-gradient(180deg, rgba(225,29,44,0.14) 0%, rgba(225,29,44,0.03) 100%); }
+    .scan-banner-err .banner-ic { color: var(--red); }
+    .scan-banner-info { border-color: #60a5fa; background: linear-gradient(180deg, rgba(96,165,250,0.12) 0%, rgba(96,165,250,0.03) 100%); }
+    .scan-banner-info .banner-ic { color: #60a5fa; }
+    .scan-banner-title {
+      font-family: "Blauer Nue", "Inter", sans-serif;
+      font-weight: 800;
+      letter-spacing: 0.02em;
+      color: var(--ink);
+      line-height: 1.15;
+    }
+    .scan-banner-sub {
+      font-size: 0.82rem;
+      color: var(--ink-soft);
+      margin-top: 0.15rem;
+      line-height: 1.35;
+      word-break: break-word;
+    }
+    .scan-banner-ticket {
+      font-family: "JetBrains Mono", monospace;
+      font-weight: 700;
+      color: var(--tape);
+      letter-spacing: 0.03em;
+    }
+
+    /* Recent scans list — most recent on top. */
+    .recent-row {
+      display: grid;
+      grid-template-columns: auto 1fr auto;
+      gap: 0.75rem;
+      align-items: center;
+      padding: 0.65rem 0.85rem;
+      border-top: 1px solid var(--line);
+    }
+    .recent-row:first-child { border-top: none; }
+    .recent-row .recent-ic { font-size: 20px !important; }
+    .recent-ok .recent-ic { color: #4ade80; }
+    .recent-dupe .recent-ic { color: #60a5fa; }
+    .recent-unreg .recent-ic { color: var(--tape); }
+    .recent-badticket .recent-ic { color: var(--red); }
+    .recent-name { color: var(--ink); font-weight: 700; }
+    .recent-meta { color: var(--ink-mute); font-size: 0.75rem; margin-top: 1px; }
+    .recent-time { color: var(--ink-mute); font-size: 0.72rem; font-family: "JetBrains Mono", monospace; white-space: nowrap; }
+
+    /* KPI pills adapted for check-in totals. */
+    .checkin-kpi { display: flex; flex-wrap: wrap; gap: 0.4rem; margin-bottom: 0.85rem; }
+  </style>
+</head>
+
+<body class="bg-deep min-h-screen">
+
+  <header class="px-4 sm:px-8 py-4 flex items-center justify-between border-b border-[color:var(--line)]">
+    <a href="index.html" class="flex items-center gap-3">
+      <img src="assets/elevate-east-ortigas.png" alt="Elevate East Ortigas" class="h-10 sm:h-12" />
+      <img src="assets/campus-unite-logo.png" alt="Campus UNITE" class="h-10 sm:h-12 hidden sm:inline" />
+    </a>
+    <nav class="flex items-center gap-1 sm:gap-2 text-sm">
+      <a href="index.html" class="btn-ghost"><span class="material-symbols-outlined" style="font-size:18px">home</span><span class="hidden sm:inline">Home</span></a>
+      <a href="dashboard.html" class="btn-ghost"><span class="material-symbols-outlined" style="font-size:18px">dashboard</span><span class="hidden sm:inline">Dashboard</span></a>
+      <a href="raffle.html" class="btn-ghost"><span class="material-symbols-outlined" style="font-size:18px">casino</span><span class="hidden sm:inline">Raffle</span></a>
+      <div id="auth-control" class="ml-1"></div>
+    </nav>
+  </header>
+
+  <!-- Gate -->
+  <div id="gate" class="px-4 sm:px-8 max-w-3xl mx-auto py-20 hidden">
+    <div class="glass-tile p-8 text-center">
+      <span class="material-symbols-outlined text-tape" style="font-size:48px">lock</span>
+      <div class="font-extrabold-ui text-xl mt-2">Admin sign-in required</div>
+      <p class="text-soft mt-2 text-sm">Sign in with an allowlisted Google account to run event check-in.</p>
+      <button id="btn-signin" class="btn-primary mt-6">
+        <span class="material-symbols-outlined" style="font-size:18px">login</span>
+        Sign in with Google
+      </button>
+    </div>
+  </div>
+
+  <main id="checkin" class="px-4 sm:px-8 max-w-3xl mx-auto py-6 sm:py-8 hidden">
+
+    <div class="flex items-center gap-3 mb-4">
+      <span class="tape-badge">Check-in</span>
+      <span class="text-mute text-xs font-extrabold-ui uppercase tracking-widest">Scan QR to mark attendance</span>
+    </div>
+
+    <div class="checkin-kpi">
+      <span class="kpi-pill tape"><b id="kpi-checkedin">0</b> checked in</span>
+      <span class="kpi-pill"><b id="kpi-registered">0</b> registered</span>
+      <span class="kpi-pill"><b id="kpi-remaining">0</b> not yet</span>
+    </div>
+
+    <!-- Last-scan banner (rendered dynamically into #banner-slot) -->
+    <div id="banner-slot"></div>
+
+    <!-- Scanner tile -->
+    <div class="glass-tile p-4 sm:p-5">
+      <div class="flex items-center justify-between mb-3 gap-2 flex-wrap">
+        <div class="font-extrabold-ui">Scanner</div>
+        <div class="flex items-center gap-2">
+          <button id="btn-flip-cam" class="btn-ghost text-xs" style="padding:0.4rem 0.7rem;" title="Switch camera">
+            <span class="material-symbols-outlined" style="font-size:16px">cameraswitch</span>
+            <span id="flip-cam-label">Front</span>
+          </button>
+          <button id="btn-toggle-cam" class="btn-ghost text-xs" style="padding:0.4rem 0.7rem;">
+            <span class="material-symbols-outlined" style="font-size:16px" id="toggle-cam-ic">videocam_off</span>
+            <span id="toggle-cam-label">Pause</span>
+          </button>
+        </div>
+      </div>
+      <div class="qr-stage">
+        <video id="qr-video" playsinline muted autoplay></video>
+        <div class="qr-frame"></div>
+      </div>
+      <div id="qr-status" class="mt-3 text-xs text-mute font-extrabold-ui uppercase tracking-widest text-center">Point your camera at a ticket QR…</div>
+    </div>
+
+    <!-- Manual entry -->
+    <div class="glass-tile p-4 sm:p-5 mt-4">
+      <div class="font-extrabold-ui mb-2">Manual entry</div>
+      <p class="text-soft text-xs mb-3">No QR? Type the ticket number to check them in.</p>
+      <form id="manual-form" class="flex items-stretch gap-2" novalidate>
+        <input id="manual-id" type="text" inputmode="numeric" pattern="[0-9]{1,4}"
+               placeholder="e.g. 21" maxlength="4"
+               class="input font-mono tracking-widest text-center" style="max-width:140px;" />
+        <button type="submit" class="btn-tape whitespace-nowrap">
+          <span class="material-symbols-outlined" style="font-size:18px">how_to_reg</span>
+          Check in
+        </button>
+      </form>
+      <div id="manual-err" class="hidden text-xs text-red font-extrabold-ui uppercase tracking-wider mt-2"></div>
+    </div>
+
+    <!-- Recent scans -->
+    <div class="mt-5">
+      <div class="flex items-center justify-between mb-2">
+        <div class="font-extrabold-ui text-sm">Recent scans</div>
+        <button id="btn-clear-recent" class="text-mute hover:text-red text-xs font-extrabold-ui uppercase tracking-widest">Clear</button>
+      </div>
+      <section class="glass-tile" style="padding:0;">
+        <div id="recent-list">
+          <div class="p-6 text-center text-mute text-xs font-extrabold-ui uppercase tracking-widest">No scans yet.</div>
+        </div>
+      </section>
+    </div>
+
+  </main>
+
+  <script type="module">
+    import {
+      watchAuth, signInWithGoogle, signOutNow,
+      get, update, onValue,
+      registrationsRef, ticketRef, registrationRef,
+      TICKET_PREFIX,
+    } from "./js/firebase.js";
+
+    const $gate     = document.getElementById("gate");
+    const $checkin  = document.getElementById("checkin");
+    const $auth     = document.getElementById("auth-control");
+    const $bannerSlot = document.getElementById("banner-slot");
+    const $recentList = document.getElementById("recent-list");
+    const $video    = document.getElementById("qr-video");
+    const $status   = document.getElementById("qr-status");
+
+    // ===== Auth pill (mirrors dashboard.html) =====
+    function renderAuth(user) {
+      if (!user) { $auth.innerHTML = ""; return; }
+      const name    = (user.displayName || user.email || "").trim();
+      const initial = (name || "?").charAt(0).toUpperCase();
+      const photo = user.photoURL
+        ? `<img src="${user.photoURL}" referrerpolicy="no-referrer" class="rounded-full ring-1 ring-[color:var(--tape)] object-cover shrink-0" style="width:22px;height:22px;" />`
+        : `<div class="rounded-full bg-red text-on-red grid place-items-center shrink-0" style="width:22px;height:22px;font-size:10px;font-weight:800;">${initial}</div>`;
+      const nameSpan = name
+        ? `<span class="hidden md:inline truncate" style="font-size:11px;font-weight:700;max-width:8rem;">${name}</span>`
+        : "";
+      $auth.innerHTML = `
+        <div class="auth-pill flex items-center" style="gap:6px;padding:3px 8px 3px 3px;">
+          ${photo}
+          ${nameSpan}
+          <span style="font-size:9px;padding:2px 6px;border-radius:4px;background:var(--tape);color:var(--on-tape);font-weight:800;letter-spacing:0.1em;text-transform:uppercase;">Admin</span>
+          <button id="btn-signout" class="text-mute hover:text-red" title="Sign out" style="line-height:0;">
+            <span class="material-symbols-outlined" style="font-size:14px">logout</span>
+          </button>
+        </div>`;
+      document.getElementById("btn-signout").addEventListener("click", () => signOutNow());
+    }
+
+    let unwatchRegs = null;
+    let regsCache = {};
+
+    watchAuth(({ user, isAdmin }) => {
+      renderAuth(user);
+      if (!isAdmin) {
+        $checkin.classList.add("hidden");
+        $gate.classList.remove("hidden");
+        stopScanner();
+        if (unwatchRegs) { unwatchRegs(); unwatchRegs = null; }
+        return;
+      }
+      $gate.classList.add("hidden");
+      $checkin.classList.remove("hidden");
+      startListeners();
+      openScanner();
+    });
+
+    document.getElementById("btn-signin").addEventListener("click", () => {
+      signInWithGoogle().catch(err => { if (err && err.code !== "auth/popup-closed-by-user") alert(err.message); });
+    });
+
+    function startListeners() {
+      if (unwatchRegs) unwatchRegs();
+      unwatchRegs = onValue(registrationsRef(), (snap) => {
+        regsCache = snap.val() || {};
+        renderKpis();
+      });
+    }
+
+    function renderKpis() {
+      const regs = Object.values(regsCache);
+      const registered = regs.length;
+      const checkedIn  = regs.filter(r => !!r.checkedIn).length;
+      document.getElementById("kpi-registered").textContent = registered.toLocaleString();
+      document.getElementById("kpi-checkedin").textContent  = checkedIn.toLocaleString();
+      document.getElementById("kpi-remaining").textContent  = Math.max(0, registered - checkedIn).toLocaleString();
+    }
+
+    // ===== QR scanner (adapted from register.html) =====
+    let _jsQR   = null;
+    let _facingMode = "environment";
+    let _stream = null;
+    let _scanRaf = 0;
+    let _paused = false;
+    // Dedup: after a successful scan, ignore the SAME id for cooldownMs. Different ids scan freely.
+    let _lastId = null;
+    let _lastIdAt = 0;
+    const COOLDOWN_MS = 2500;
+
+    const idPattern = new RegExp(`^${TICKET_PREFIX}-\\d{4}$`);
+
+    async function loadJsQR() {
+      if (_jsQR) return _jsQR;
+      const m = await import("https://esm.sh/jsqr@1.4.0");
+      _jsQR = m.default || m.jsQR || m;
+      return _jsQR;
+    }
+
+    function stopScanner() {
+      if (_scanRaf) { cancelAnimationFrame(_scanRaf); _scanRaf = 0; }
+      if (_stream) {
+        _stream.getTracks().forEach(t => t.stop());
+        _stream = null;
+      }
+      if ($video) $video.srcObject = null;
+    }
+
+    function updateFlipLabel() {
+      const $lbl = document.getElementById("flip-cam-label");
+      if ($lbl) $lbl.textContent = _facingMode === "environment" ? "Front" : "Back";
+    }
+    function updatePauseLabel() {
+      const $lbl = document.getElementById("toggle-cam-label");
+      const $ic  = document.getElementById("toggle-cam-ic");
+      if ($lbl) $lbl.textContent = _paused ? "Resume" : "Pause";
+      if ($ic)  $ic.textContent  = _paused ? "videocam" : "videocam_off";
+    }
+
+    function applyPreviewMirror(video, stream) {
+      let reported = "";
+      try {
+        const track = stream && stream.getVideoTracks && stream.getVideoTracks()[0];
+        const settings = track && track.getSettings ? track.getSettings() : null;
+        reported = (settings && settings.facingMode) || "";
+      } catch { /* settings unsupported */ }
+      video.style.transform = reported === "environment" ? "" : "scaleX(-1)";
+    }
+
+    async function openScanner() {
+      _paused = false;
+      updatePauseLabel();
+      updateFlipLabel();
+      try {
+        $status.textContent = "Loading camera…";
+        const jsQR = await loadJsQR();
+        _stream = await navigator.mediaDevices.getUserMedia({
+          video: { facingMode: { ideal: _facingMode } },
+          audio: false,
+        });
+        $video.srcObject = _stream;
+        await $video.play();
+        applyPreviewMirror($video, _stream);
+        $status.textContent = "Point your camera at a ticket QR…";
+
+        const canvas = document.createElement("canvas");
+        const ctx = canvas.getContext("2d", { willReadFrequently: true });
+
+        function scanFrame() {
+          if (!_stream) return;
+          if (!_paused) {
+            const w = $video.videoWidth, h = $video.videoHeight;
+            if (w && h) {
+              canvas.width = w; canvas.height = h;
+              ctx.drawImage($video, 0, 0, w, h);
+              const img = ctx.getImageData(0, 0, w, h);
+              const code = jsQR(img.data, w, h, { inversionAttempts: "dontInvert" });
+              if (code && code.data) {
+                const id = extractTicketId(code.data);
+                if (id) {
+                  const now = Date.now();
+                  // Dedup: ignore same id if we JUST processed it.
+                  if (!(_lastId === id && (now - _lastIdAt) < COOLDOWN_MS)) {
+                    _lastId = id;
+                    _lastIdAt = now;
+                    processCheckin(id);
+                  }
+                }
+              }
+            }
+          }
+          _scanRaf = requestAnimationFrame(scanFrame);
+        }
+        _scanRaf = requestAnimationFrame(scanFrame);
+      } catch (err) {
+        console.error(err);
+        $status.innerHTML = `Couldn't open the camera. ${err && err.message ? `<br/><span class="text-mute">${err.message}</span>` : ""}<br/>Use manual entry below.`;
+      }
+    }
+
+    document.getElementById("btn-flip-cam").addEventListener("click", async () => {
+      _facingMode = _facingMode === "environment" ? "user" : "environment";
+      updateFlipLabel();
+      if (_stream) {
+        _stream.getTracks().forEach(t => t.stop());
+        _stream = null;
+        try {
+          _stream = await navigator.mediaDevices.getUserMedia({
+            video: { facingMode: { ideal: _facingMode } },
+            audio: false,
+          });
+          $video.srcObject = _stream;
+          await $video.play();
+          applyPreviewMirror($video, _stream);
+          $status.textContent = "Point your camera at a ticket QR…";
+        } catch (err) {
+          console.error(err);
+          $status.textContent = "Couldn't switch camera. " + (err && err.message ? err.message : "");
+        }
+      }
+    });
+
+    document.getElementById("btn-toggle-cam").addEventListener("click", () => {
+      _paused = !_paused;
+      updatePauseLabel();
+      $status.textContent = _paused ? "Scanner paused." : "Point your camera at a ticket QR…";
+    });
+
+    function extractTicketId(text) {
+      if (!text) return null;
+      const direct = text.trim().toUpperCase();
+      if (idPattern.test(direct)) return direct;
+      try {
+        const u = new URL(text);
+        const id = (u.searchParams.get("id") || "").trim().toUpperCase();
+        if (idPattern.test(id)) return id;
+      } catch { /* not a URL */ }
+      return null;
+    }
+
+    // ===== Check-in logic =====
+    async function processCheckin(id) {
+      try {
+        // Read ticket + registration together.
+        const [tSnap, rSnap] = await Promise.all([get(ticketRef(id)), get(registrationRef(id))]);
+        if (!tSnap.exists()) {
+          showBanner("err", "cancel", `Ticket ${id} not found`, "This ticket number isn't in the database.");
+          logRecent({ id, kind: "badticket", title: "Not in database" });
+          return;
+        }
+        const reg = rSnap.val();
+        if (!reg) {
+          showBanner("warn", "person_off", `${id} isn't registered yet`, "Ask them to scan the QR on their ticket and complete the form first.");
+          logRecent({ id, kind: "unreg", title: "Not registered yet" });
+          return;
+        }
+        if (reg.checkedIn) {
+          const when = reg.checkedInAt ? fmtTime(reg.checkedInAt) : "";
+          showBanner("info", "how_to_reg", `${reg.name || id} — already checked in`, when ? `Checked in at ${when}. Ticket ${id}.` : `Ticket ${id}.`);
+          logRecent({ id, kind: "dupe", title: reg.name || id, sub: when ? `Already in at ${when}` : "Already checked in" });
+          buzz([40]);
+          return;
+        }
+        // Mark as checked in — server timestamp isn't needed here, ms is fine and matches the rest of the app.
+        const now = Date.now();
+        await update(registrationRef(id), { checkedIn: true, checkedInAt: now });
+        showBanner("success", "check_circle", `Checked in — ${reg.name || id}`, `Ticket ${id}${reg.school ? ` · ${reg.school}` : ""}`);
+        logRecent({ id, kind: "ok", title: reg.name || id, sub: reg.school || "" });
+        buzz([80, 40, 80]);
+      } catch (err) {
+        console.error(err);
+        showBanner("err", "error", "Check-in failed", (err && err.message) || "Try again.");
+      }
+    }
+
+    function buzz(pattern) {
+      try { if (navigator.vibrate) navigator.vibrate(pattern); } catch {}
+    }
+
+    // ===== Banner (transient result) =====
+    let _bannerTimer = 0;
+    function showBanner(variant, icon, title, sub) {
+      const cls = ({success:"scan-banner-success", warn:"scan-banner-warn", err:"scan-banner-err", info:"scan-banner-info"})[variant] || "scan-banner-info";
+      $bannerSlot.innerHTML = `
+        <div class="scan-banner ${cls}">
+          <span class="material-symbols-outlined banner-ic">${icon}</span>
+          <div>
+            <div class="scan-banner-title">${esc(title)}</div>
+            ${sub ? `<div class="scan-banner-sub">${esc(sub)}</div>` : ""}
+          </div>
+          <button type="button" class="text-mute hover:text-red" style="line-height:0;padding:2px;" aria-label="Dismiss" onclick="this.closest('.scan-banner').remove()">
+            <span class="material-symbols-outlined" style="font-size:18px">close</span>
+          </button>
+        </div>`;
+      const el = $bannerSlot.querySelector(".scan-banner");
+      requestAnimationFrame(() => el.classList.add("is-shown"));
+      if (_bannerTimer) clearTimeout(_bannerTimer);
+      _bannerTimer = setTimeout(() => {
+        if (!el.isConnected) return;
+        el.classList.remove("is-shown");
+        setTimeout(() => el.remove(), 250);
+      }, 4200);
+    }
+
+    // ===== Recent scans (in-memory ring, up to 30) =====
+    const RECENT_MAX = 30;
+    let _recent = [];
+    function logRecent({ id, kind, title, sub }) {
+      _recent.unshift({ id, kind, title, sub, at: Date.now() });
+      if (_recent.length > RECENT_MAX) _recent.length = RECENT_MAX;
+      renderRecent();
+    }
+    function renderRecent() {
+      if (!_recent.length) {
+        $recentList.innerHTML = `<div class="p-6 text-center text-mute text-xs font-extrabold-ui uppercase tracking-widest">No scans yet.</div>`;
+        return;
+      }
+      const rowCls = { ok: "recent-ok", dupe: "recent-dupe", unreg: "recent-unreg", badticket: "recent-badticket" };
+      const iconFor = { ok: "check_circle", dupe: "how_to_reg", unreg: "person_off", badticket: "cancel" };
+      $recentList.innerHTML = _recent.map(r => `
+        <div class="recent-row ${rowCls[r.kind] || ""}">
+          <span class="material-symbols-outlined recent-ic">${iconFor[r.kind] || "help"}</span>
+          <div>
+            <div class="recent-name">${esc(r.title || r.id)}</div>
+            <div class="recent-meta"><span class="scan-banner-ticket">${esc(r.id)}</span>${r.sub ? " · " + esc(r.sub) : ""}</div>
+          </div>
+          <div class="recent-time">${fmtTime(r.at)}</div>
+        </div>
+      `).join("");
+    }
+    document.getElementById("btn-clear-recent").addEventListener("click", () => {
+      _recent = [];
+      renderRecent();
+    });
+
+    // ===== Manual entry =====
+    const $mid = document.getElementById("manual-id");
+    const $merr = document.getElementById("manual-err");
+    $mid.addEventListener("input", () => {
+      const cleaned = $mid.value.replace(/[^0-9]/g, "").slice(0, 4);
+      if (cleaned !== $mid.value) $mid.value = cleaned;
+      $merr.classList.add("hidden");
+    });
+    document.getElementById("manual-form").addEventListener("submit", (e) => {
+      e.preventDefault();
+      const digits = ($mid.value || "").replace(/[^0-9]/g, "");
+      if (!digits) {
+        $merr.textContent = "Enter a ticket number (1–1,000)."; $merr.classList.remove("hidden"); $mid.focus(); return;
+      }
+      const n = parseInt(digits, 10);
+      if (!n || n < 1 || n > 1000) {
+        $merr.textContent = `${n} is out of range (1–1,000).`; $merr.classList.remove("hidden"); $mid.focus(); return;
+      }
+      const id = `${TICKET_PREFIX}-${String(n).padStart(4, "0")}`;
+      processCheckin(id);
+      $mid.value = "";
+    });
+
+    // ===== helpers =====
+    function esc(s) {
+      return String(s == null ? "" : s).replace(/[&<>"']/g, m => ({"&":"&amp;","<":"&lt;",">":"&gt;","\"":"&quot;","'":"&#39;"}[m]));
+    }
+    function fmtTime(ms) {
+      if (!ms) return "";
+      try { return new Date(ms).toLocaleTimeString("en-PH", { hour: "numeric", minute: "2-digit", hour12: true }); } catch { return ""; }
+    }
+
+    // Stop the camera when the tab is hidden so the LED goes dark on iOS.
+    document.addEventListener("visibilitychange", () => {
+      if (document.hidden) stopScanner();
+    });
+  </script>
+
+</body>
+</html>

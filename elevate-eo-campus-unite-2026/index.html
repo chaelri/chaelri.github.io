@@ -65,6 +65,71 @@
     }
     /* The hero section sits transparent on top of the ambient bg */
     .hero-bg { position: relative; background: transparent; }
+
+    /* Check-in tool card preview — a stylized scanner viewport with QR corner
+       marks + a "Live" pulse. Reuses .tool-preview's aspect-ratio + rounding. */
+    .checkin-preview {
+      position: absolute;
+      inset: 0;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      padding: 0.9rem;
+      background:
+        radial-gradient(600px 300px at 50% 60%, rgba(74, 222, 128, 0.10) 0%, transparent 60%),
+        rgba(7, 9, 26, 0.55);
+    }
+    .checkin-preview-frame {
+      position: relative;
+      width: 60%;
+      max-width: 220px;
+      aspect-ratio: 1 / 1;
+      border-radius: 10px;
+      border: 1px dashed rgba(255, 255, 255, 0.10);
+    }
+    .checkin-preview-frame::before,
+    .checkin-preview-frame::after,
+    .checkin-preview-frame > i::before,
+    .checkin-preview-frame > i::after {
+      content: "";
+      position: absolute;
+      width: 22%;
+      height: 22%;
+      border: 2px solid #4ade80;
+      box-shadow: 0 0 8px rgba(74, 222, 128, 0.55);
+    }
+    .checkin-preview-frame::before { top: 0;    left: 0;    border-right: 0; border-bottom: 0; border-top-left-radius: 8px; }
+    .checkin-preview-frame::after  { top: 0;    right: 0;   border-left: 0;  border-bottom: 0; border-top-right-radius: 8px; }
+    .checkin-preview-frame > i     { position: absolute; inset: 0; display: block; }
+    .checkin-preview-frame > i::before { bottom: 0; left: 0;  top: auto; border-right: 0; border-top: 0;   border-bottom-left-radius: 8px; }
+    .checkin-preview-frame > i::after  { bottom: 0; right: 0; top: auto; border-left: 0;  border-top: 0;   border-bottom-right-radius: 8px; }
+    .checkin-preview-ic {
+      color: #4ade80;
+      font-size: 44px !important;
+      text-shadow: 0 0 24px rgba(74, 222, 128, 0.45);
+    }
+    .checkin-preview-live {
+      position: absolute;
+      top: 0.55rem;
+      right: 0.55rem;
+      font-size: 8px;
+      font-weight: 800;
+      letter-spacing: 0.16em;
+      text-transform: uppercase;
+      color: #4ade80;
+      display: inline-flex;
+      align-items: center;
+      gap: 5px;
+    }
+    .checkin-preview-live::before {
+      content: "";
+      width: 6px;
+      height: 6px;
+      border-radius: 50%;
+      background: #4ade80;
+      box-shadow: 0 0 6px #4ade80;
+      animation: dashPulse 1.6s ease-in-out infinite;
+    }
   </style>
 </head>
 
@@ -244,7 +309,7 @@
       <span class="tape-badge">Admin</span>
       <span class="text-mute text-xs font-extrabold-ui uppercase tracking-widest">restricted tools</span>
     </div>
-    <div class="grid grid-cols-1 sm:grid-cols-3 gap-3 sm:gap-4">
+    <div class="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-3 sm:gap-4">
       <a href="dashboard.html" class="glass-tile p-5 group">
         <div class="tool-preview mb-3" aria-label="Live registration count">
           <div class="dash-preview">
@@ -263,6 +328,18 @@
         </div>
         <div class="font-extrabold-ui text-lg text-ink">Dashboard</div>
         <div class="text-soft text-sm mt-1">View registered attendees + counts.</div>
+      </a>
+      <a href="checkin.html" class="glass-tile p-5 group">
+        <div class="tool-preview mb-3" aria-label="Event-day check-in scanner">
+          <div class="checkin-preview">
+            <span class="checkin-preview-live">Live scan</span>
+            <div class="checkin-preview-frame"><i></i>
+              <span class="material-symbols-outlined checkin-preview-ic" style="position:absolute; inset:0; display:grid; place-items:center;">qr_code_scanner</span>
+            </div>
+          </div>
+        </div>
+        <div class="font-extrabold-ui text-lg text-ink">Check-in</div>
+        <div class="text-soft text-sm mt-1">Scan tickets to mark attendance.</div>
       </a>
       <a href="print.html" class="glass-tile p-5 group">
         <div class="tool-preview mb-3" id="admin-ticket-preview" aria-label="Sample ticket ECU-0001">
