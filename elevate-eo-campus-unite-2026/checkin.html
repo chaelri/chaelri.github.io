@@ -91,11 +91,11 @@
     .scan-splash.is-shown .scan-splash-inner { transform: none; opacity: 1; }
 
     /* Top pill also serves as the countdown timer — depletes from right
-       toward left over --splash-hold-ms. `transform-origin: left` anchors
-       the LEFT edge so the RIGHT side is what visually shrinks inward.
-       transition sits on the default state so it's already primed when
-       .is-shown flips the transform, otherwise some browsers skip the
-       first animation. */
+       toward left over --splash-hold-ms via a CSS @keyframes animation.
+       Using an animation (not a transition + class swap) sidesteps the
+       first-paint quirk where some browsers skip the very first transition
+       on a freshly-inserted element with will-change hints. The keyframes
+       fire as soon as the element is in the DOM. */
     .scan-splash-accent {
       height: 6px;
       width: clamp(160px, 32vw, 280px);
@@ -104,12 +104,12 @@
       background: var(--tape);
       box-shadow: 0 0 22px currentColor;
       transform-origin: left center;
-      transform: scaleX(1);
-      transition: transform var(--splash-hold-ms, 10000ms) linear;
+      animation: splash-countdown var(--splash-hold-ms, 10000ms) linear forwards;
       will-change: transform;
     }
-    .scan-splash.is-shown .scan-splash-accent {
-      transform: scaleX(0);
+    @keyframes splash-countdown {
+      from { transform: scaleX(1); }
+      to   { transform: scaleX(0); }
     }
     .scan-splash-kicker {
       font-family: "Bebas Neue", sans-serif;
