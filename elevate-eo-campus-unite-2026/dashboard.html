@@ -76,6 +76,35 @@
     .btn-row-check:hover { color: #4ade80; }
     .btn-row-check.is-checked { color: #4ade80; }
     .btn-row-check.is-checked:hover { color: var(--tape); }
+
+    /* Name cell is the primary way to open the edit modal — full row width
+       hover state so it feels tappable. Pencil icon removed from Actions. */
+    .name-link {
+      display: inline-block;
+      color: var(--ink);
+      font-weight: 800;
+      cursor: pointer;
+      border-bottom: 1px solid transparent;
+      transition: color 140ms ease, border-color 140ms ease;
+    }
+    .name-link:hover {
+      color: var(--tape);
+      border-bottom-color: rgba(245, 213, 24, 0.55);
+    }
+
+    /* Compact, on-brand scrollbar for the (mostly-desktop-fitting) table.
+       WebKit only — Firefox falls back to `scrollbar-width: thin` below. */
+    .t-scroll {
+      scrollbar-width: thin;
+      scrollbar-color: rgba(245, 213, 24, 0.45) transparent;
+    }
+    .t-scroll::-webkit-scrollbar { height: 8px; width: 8px; }
+    .t-scroll::-webkit-scrollbar-track { background: transparent; }
+    .t-scroll::-webkit-scrollbar-thumb {
+      background: rgba(245, 213, 24, 0.35);
+      border-radius: 999px;
+    }
+    .t-scroll::-webkit-scrollbar-thumb:hover { background: rgba(245, 213, 24, 0.6); }
   </style>
 </head>
 
@@ -150,26 +179,20 @@
     </div>
 
     <!-- Registered list -->
-    <section class="glass-tile overflow-x-auto">
+    <section class="glass-tile t-scroll overflow-x-auto">
       <table class="t-table">
         <thead>
           <tr>
             <th class="t-sortable" data-sort="ticketId">Ticket<span class="t-sort-ind"></span></th>
             <th class="t-sortable" data-sort="name">Name<span class="t-sort-ind"></span></th>
-            <th class="t-sortable hidden md:table-cell" data-sort="school">School / University<span class="t-sort-ind"></span></th>
-            <th class="t-sortable hidden sm:table-cell" data-sort="gender">Gender<span class="t-sort-ind"></span></th>
-            <th class="t-sortable hidden sm:table-cell" data-sort="age">Age<span class="t-sort-ind"></span></th>
-            <th class="t-sortable hidden lg:table-cell" data-sort="fbLink">Facebook<span class="t-sort-ind"></span></th>
-            <th class="t-sortable hidden lg:table-cell whitespace-nowrap" data-sort="contact">Contact<span class="t-sort-ind"></span></th>
-            <th class="t-sortable hidden xl:table-cell whitespace-nowrap" data-sort="firstTimer">1st time?<span class="t-sort-ind"></span></th>
-            <th class="t-sortable hidden xl:table-cell whitespace-nowrap" data-sort="hasDgroup">Dgroup?<span class="t-sort-ind"></span></th>
-            <th class="t-sortable whitespace-nowrap" data-sort="registeredAt">Registered<span class="t-sort-ind"></span></th>
+            <th class="t-sortable" data-sort="age">Age<span class="t-sort-ind"></span></th>
+            <th class="t-sortable" data-sort="school">Campus<span class="t-sort-ind"></span></th>
             <th class="t-sortable whitespace-nowrap" data-sort="checkedInAt">Checked in<span class="t-sort-ind"></span></th>
             <th class="whitespace-nowrap text-right">Actions</th>
           </tr>
         </thead>
         <tbody id="recent-tbody">
-          <tr><td colspan="12" class="text-center text-mute py-10">Loading…</td></tr>
+          <tr><td colspan="6" class="text-center text-mute py-10">Loading…</td></tr>
         </tbody>
       </table>
     </section>
@@ -457,19 +480,10 @@
                           : attnFilter === "in"  ? "Nobody's checked in yet."
                           : attnFilter === "out" ? "Everyone registered has checked in."
                           : "No registrations yet.";
-        $tbody.innerHTML = `<tr><td colspan="12" class="text-center text-mute py-10">${emptyMsg}</td></tr>`;
+        $tbody.innerHTML = `<tr><td colspan="6" class="text-center text-mute py-10">${emptyMsg}</td></tr>`;
         return;
       }
       $tbody.innerHTML = list.map(r => {
-        const fb = r.fbLink || r.fbName || "";
-        const fbCell = fb
-          ? (/^https?:\/\//i.test(fb)
-              ? `<a href="${esc(fb)}" target="_blank" rel="noopener" class="text-tape hover:underline whitespace-nowrap" title="${esc(fb)}">${esc(fbDisplay(fb))}</a>`
-              : esc(fb))
-          : "—";
-        const dgroupCell = r.hasDgroup === "yes" && r.dgroupLeader
-          ? `<div>Yes</div><div class="text-mute" style="font-size:0.78rem;">${esc(r.dgroupLeader)}</div>`
-          : esc(yesNoLabel(r.hasDgroup));
         const inCell = r.checkedIn
           ? `<span class="att-time">${esc(fmtDate(r.checkedInAt) || "In")}</span>`
           : `<span class="att-not">—</span>`;
@@ -479,21 +493,14 @@
         return `
         <tr>
           <td class="t-ticket">${esc(r.ticketId || "")}</td>
-          <td><div class="font-extrabold-ui text-ink" style="min-width:11ch;">${esc(r.name || "—")}</div></td>
-          <td class="hidden md:table-cell">${esc(r.school || "—")}</td>
-          <td class="hidden sm:table-cell">${esc(genderLabel(r.gender))}</td>
-          <td class="hidden sm:table-cell">${esc(r.age || "—")}</td>
-          <td class="hidden lg:table-cell">${fbCell}</td>
-          <td class="hidden lg:table-cell whitespace-nowrap">${esc(r.contact || "—")}</td>
-          <td class="hidden xl:table-cell whitespace-nowrap">${esc(yesNoLabel(r.firstTimer))}</td>
-          <td class="hidden xl:table-cell">${dgroupCell}</td>
-          <td class="whitespace-nowrap text-mute">${fmtDate(r.registeredAt)}</td>
+          <td>
+            <button type="button" class="name-link" data-ticket="${esc(r.ticketId || "")}" title="View all details">${esc(r.name || "—")}</button>
+          </td>
+          <td>${esc(r.age || "—")}</td>
+          <td>${esc(r.school || "—")}</td>
           <td class="whitespace-nowrap">${inCell}</td>
           <td class="text-right whitespace-nowrap">
             ${checkBtn}
-            <button class="btn-row-edit text-mute hover:text-tape transition" data-ticket="${esc(r.ticketId || "")}" title="Edit registration" style="padding:4px;line-height:0;margin-right:2px;">
-              <span class="material-symbols-outlined" style="font-size:18px">edit</span>
-            </button>
             <button class="btn-row-del text-mute hover:text-red transition" data-ticket="${esc(r.ticketId || "")}" data-name="${esc(r.name || "")}" title="Delete registration" style="padding:4px;line-height:0;">
               <span class="material-symbols-outlined" style="font-size:18px">delete</span>
             </button>
@@ -525,9 +532,9 @@
         return;
       }
 
-      const editBtn = e.target.closest(".btn-row-edit");
-      if (editBtn) {
-        const id = editBtn.dataset.ticket;
+      const nameLink = e.target.closest(".name-link");
+      if (nameLink) {
+        const id = nameLink.dataset.ticket;
         const reg = id ? regsCache[id] : null;
         if (reg) openEditModal(id, reg);
         return;
@@ -557,17 +564,31 @@
       }
     });
 
-    // ===== Edit modal — tweak registration fields in place =====
+    // ===== Details modal — full read-only header + editable form =====
     function openEditModal(id, reg) {
       const host = document.createElement("div");
       document.body.appendChild(host);
+
+      // Read-only metadata strip shown at the top of the modal so the admin
+      // sees ticket ID, when they registered, and current attendance state
+      // without having to hunt for it in the row.
+      const attnBadge = reg.checkedIn
+        ? `<span style="background:rgba(74,222,128,0.14); color:#4ade80; border:1px solid rgba(74,222,128,0.35); padding:2px 8px; border-radius:999px; font-size:10px; font-weight:800; letter-spacing:0.08em; text-transform:uppercase;">Checked in${reg.checkedInAt ? ` · ${esc(fmtDate(reg.checkedInAt))}` : ""}</span>`
+        : `<span style="background:rgba(139,145,184,0.10); color:var(--ink-mute); border:1px solid var(--line); padding:2px 8px; border-radius:999px; font-size:10px; font-weight:800; letter-spacing:0.08em; text-transform:uppercase;">Not yet checked in</span>`;
 
       host.innerHTML = `
         <div class="cu-modal-backdrop" role="dialog" aria-modal="true" aria-labelledby="edit-modal-title">
           <div class="cu-modal-panel" style="max-width: 540px;">
             <div class="cu-modal-head">
-              <span class="material-symbols-outlined" style="font-size:28px;color:var(--tape);">edit</span>
-              <div id="edit-modal-title" class="cu-modal-title">Edit <span class="t-ticket" style="font-family:'JetBrains Mono',monospace;">${esc(id)}</span> details</div>
+              <span class="material-symbols-outlined" style="font-size:28px;color:var(--tape);">badge</span>
+              <div id="edit-modal-title" class="cu-modal-title">
+                <span class="t-ticket" style="font-family:'JetBrains Mono',monospace;">${esc(id)}</span>
+                <span style="color:var(--ink-mute); font-weight:600;"> · ${esc(reg.name || "Ticket details")}</span>
+              </div>
+            </div>
+            <div style="display:flex; flex-wrap:wrap; gap:0.5rem 0.85rem; align-items:center; font-size:0.78rem; color:var(--ink-soft); margin:0.5rem 0 1rem;">
+              ${attnBadge}
+              <span style="color:var(--ink-mute);">Registered ${esc(fmtDate(reg.registeredAt))}</span>
             </div>
             <form id="edit-form" class="grid gap-3 mt-1" novalidate>
               <div>
