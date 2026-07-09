@@ -394,6 +394,14 @@
     let _lastId = null;
     let _lastIdAt = 0;
     const COOLDOWN_MS = 2500;
+    // Confirmation gate — a QR must be detected in CONFIRM_HITS distinct frames
+    // within CONFIRM_WINDOW_MS before check-in fires. Filters out "just passing
+    // by" flashes where a ticket briefly crosses the frame without being
+    // deliberately presented. At ~15-30 detected frames/sec this means the QR
+    // must be stably in view for ~150-200ms — deliberate but not sluggish.
+    const CONFIRM_HITS = 3;
+    const CONFIRM_WINDOW_MS = 700;
+    let _pendingHits = []; // { id, at }
 
     const idPattern = new RegExp(`^${TICKET_PREFIX}-\\d{4}$`);
 
@@ -442,8 +450,16 @@
       try {
         $status.textContent = "Loading camera…";
         const jsQR = await loadJsQR();
+        // Ask for the highest resolution the browser will give us — jsQR
+        // detects smaller/farther QRs when there are more pixels to work
+        // with. Browsers clamp to what the device supports; on phones this
+        // typically lands at 1920x1080 (or 1280x720 on weaker hardware).
         _stream = await navigator.mediaDevices.getUserMedia({
-          video: { facingMode: { ideal: _facingMode } },
+          video: {
+            facingMode: { ideal: _facingMode },
+            width:  { ideal: 1920 },
+            height: { ideal: 1080 },
+          },
           audio: false,
         });
         $video.srcObject = _stream;
@@ -467,10 +483,17 @@
                 const id = extractTicketId(code.data);
                 if (id) {
                   const now = Date.now();
-                  // Dedup: ignore same id if we JUST processed it.
-                  if (!(_lastId === id && (now - _lastIdAt) < COOLDOWN_MS)) {
+                  // Confirmation gate — only fire when the SAME id has been
+                  // seen in CONFIRM_HITS frames within the last CONFIRM_WINDOW_MS.
+                  // A ticket flashing through the frame won't reach the threshold.
+                  _pendingHits.push({ id, at: now });
+                  _pendingHits = _pendingHits.filter(h => (now - h.at) <= CONFIRM_WINDOW_MS);
+                  const sameIdHits = _pendingHits.reduce((n, h) => n + (h.id === id ? 1 : 0), 0);
+                  if (sameIdHits >= CONFIRM_HITS
+                      && !(_lastId === id && (now - _lastIdAt) < COOLDOWN_MS)) {
                     _lastId = id;
                     _lastIdAt = now;
+                    _pendingHits = [];
                     processCheckin(id);
                   }
                 }
