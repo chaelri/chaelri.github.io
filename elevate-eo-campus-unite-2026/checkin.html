@@ -590,8 +590,9 @@
         if (!reg) {
           showSplash("warn", {
             kicker: "Register first",
-            name: "You still haven't registered your ticket",
-            sub: "Scan the QR on your printed ticket to register before check-in.",
+            logo: true,
+            hype: "NOT YET!",
+            sub: "You still haven't registered this ticket. Scan the QR on your printed ticket to register before check-in.",
             ticket: id,
           });
           writeLog({ ticketId: id, kind: "unreg" });
@@ -600,9 +601,11 @@
         }
         if (reg.checkedIn) {
           const when = reg.checkedInAt ? fmtTime(reg.checkedInAt) : "";
+          const firstName = ((reg.name || "").split(" ")[0] || "friend").toUpperCase();
           showSplash("dupe", {
             kicker: "You're already signed in!",
-            name: reg.name || id,
+            logo: true,
+            hype: `${firstName}!`,
             sub: when ? `First checked in at ${when}.` : "Already checked in.",
             ticket: id,
           });
