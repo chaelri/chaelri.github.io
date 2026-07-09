@@ -144,6 +144,11 @@
       </div>
     </div>
 
+    <!-- Registered list header -->
+    <div class="mb-3 flex items-center gap-3">
+      <span class="text-mute text-xs font-extrabold-ui uppercase tracking-widest">Registered attendees</span>
+    </div>
+
     <!-- Registered list -->
     <section class="glass-tile overflow-x-auto">
       <table class="t-table">
@@ -169,13 +174,53 @@
       </table>
     </section>
 
+    <!-- ===== Check-in log ===== -->
+    <div id="checkin-log" class="mt-10">
+      <div class="flex items-center gap-3 mb-3">
+        <span class="tape-badge">Log</span>
+        <span class="text-mute text-xs font-extrabold-ui uppercase tracking-widest">Every scan, back-trackable</span>
+      </div>
+
+      <div class="flex items-center gap-2 flex-wrap mb-3">
+        <div class="filter-chip-group" role="tablist" aria-label="Check-in log filter">
+          <button type="button" class="filter-chip is-active" data-log-filter="all" role="tab" aria-selected="true">All <span class="chip-count" data-log-count="all">0</span></button>
+          <button type="button" class="filter-chip" data-log-filter="ok" role="tab" aria-selected="false">Success <span class="chip-count" data-log-count="ok">0</span></button>
+          <button type="button" class="filter-chip" data-log-filter="dupe" role="tab" aria-selected="false">Duplicate <span class="chip-count" data-log-count="dupe">0</span></button>
+          <button type="button" class="filter-chip" data-log-filter="unreg" role="tab" aria-selected="false">Unregistered <span class="chip-count" data-log-count="unreg">0</span></button>
+          <button type="button" class="filter-chip" data-log-filter="badticket" role="tab" aria-selected="false">Not found <span class="chip-count" data-log-count="badticket">0</span></button>
+        </div>
+        <input id="log-search" type="search" placeholder="Search ticket, name, admin…" class="input text-sm" style="padding:0.5rem 0.8rem; max-width:280px; flex:1;" />
+        <button id="btn-log-csv" class="btn-ghost text-sm">
+          <span class="material-symbols-outlined" style="font-size:18px">download</span>
+          Export
+        </button>
+      </div>
+
+      <section class="glass-tile overflow-x-auto">
+        <table class="t-table">
+          <thead>
+            <tr>
+              <th class="whitespace-nowrap">Time</th>
+              <th>Ticket</th>
+              <th>Name</th>
+              <th>Outcome</th>
+              <th class="hidden md:table-cell">By</th>
+            </tr>
+          </thead>
+          <tbody id="log-tbody">
+            <tr><td colspan="5" class="text-center text-mute py-10">Loading…</td></tr>
+          </tbody>
+        </table>
+      </section>
+    </div>
+
   </main>
 
   <script type="module">
     import {
       watchAuth, signInWithGoogle, signOutNow,
       set, update, onValue,
-      ticketsRef, registrationsRef, ticketRef, registrationRef,
+      ticketsRef, registrationsRef, ticketRef, registrationRef, checkinLogRef,
     } from "./js/firebase.js";
     import { confirmModal } from "./js/modal.js";
 
@@ -208,8 +253,10 @@
 
     let unwatchTickets = null;
     let unwatchRegs   = null;
+    let unwatchLog    = null;
     let ticketsCache = {};
     let regsCache = {};
+    let logCache = {};
 
     watchAuth(({ user, isAdmin }) => {
       renderAuth(user);
@@ -218,6 +265,7 @@
         $gate.classList.remove("hidden");
         if (unwatchTickets) { unwatchTickets(); unwatchTickets = null; }
         if (unwatchRegs)    { unwatchRegs();    unwatchRegs    = null; }
+        if (unwatchLog)     { unwatchLog();     unwatchLog     = null; }
         return;
       }
       $gate.classList.add("hidden");
@@ -232,6 +280,7 @@
     function startListeners() {
       if (unwatchTickets) unwatchTickets();
       if (unwatchRegs) unwatchRegs();
+      if (unwatchLog) unwatchLog();
       unwatchTickets = onValue(ticketsRef(), (snap) => {
         ticketsCache = snap.val() || {};
         renderAll();
@@ -239,6 +288,10 @@
       unwatchRegs = onValue(registrationsRef(), (snap) => {
         regsCache = snap.val() || {};
         renderAll();
+      });
+      unwatchLog = onValue(checkinLogRef(), (snap) => {
+        logCache = snap.val() || {};
+        renderLog();
       });
     }
 
@@ -686,6 +739,91 @@
       const a = document.createElement("a");
       a.href = url;
       a.download = `campus-unite-registrations-${new Date().toISOString().slice(0,10)}.csv`;
+      a.click();
+      setTimeout(() => URL.revokeObjectURL(url), 1000);
+    });
+
+    // ===== Check-in log =====
+    let logFilter = "all"; // 'all' | 'ok' | 'dupe' | 'unreg' | 'badticket'
+    const $logSearch = document.getElementById("log-search");
+    const $logTbody  = document.getElementById("log-tbody");
+
+    document.querySelectorAll("[data-log-filter]").forEach(btn => {
+      btn.addEventListener("click", () => {
+        logFilter = btn.dataset.logFilter;
+        document.querySelectorAll("[data-log-filter]").forEach(b => {
+          const active = b === btn;
+          b.classList.toggle("is-active", active);
+          b.setAttribute("aria-selected", active ? "true" : "false");
+        });
+        renderLog();
+      });
+    });
+    $logSearch.addEventListener("input", () => renderLog());
+
+    const LOG_LABEL = {
+      ok:        { text: "Checked in",       cls: "att-time" },
+      dupe:      { text: "Already signed in", cls: "att-not" },
+      unreg:     { text: "Not registered",   cls: "att-not" },
+      badticket: { text: "Ticket not found", cls: "att-not" },
+    };
+
+    function renderLog() {
+      const entries = Object.entries(logCache)
+        .map(([id, r]) => ({ id, ...r }))
+        .sort((a, b) => (b.at || 0) - (a.at || 0));
+
+      // Counts always reflect the full log (search + kind filter don't affect them).
+      const counts = { all: entries.length, ok: 0, dupe: 0, unreg: 0, badticket: 0 };
+      entries.forEach(r => { if (counts[r.kind] != null) counts[r.kind]++; });
+      Object.entries(counts).forEach(([k, v]) => {
+        const $c = document.querySelector(`[data-log-count="${k}"]`);
+        if ($c) $c.textContent = v.toLocaleString();
+      });
+
+      const q = ($logSearch.value || "").trim().toLowerCase();
+      const list = entries.filter(r => {
+        if (logFilter !== "all" && r.kind !== logFilter) return false;
+        if (!q) return true;
+        return (r.ticketId || "").toLowerCase().includes(q)
+          || (r.name || "").toLowerCase().includes(q)
+          || (r.by || "").toLowerCase().includes(q);
+      });
+
+      if (!list.length) {
+        $logTbody.innerHTML = `<tr><td colspan="5" class="text-center text-mute py-10">${q || logFilter !== "all" ? "No matches." : "No scans yet — the log fills up on event day."}</td></tr>`;
+        return;
+      }
+      $logTbody.innerHTML = list.map(r => {
+        const label = LOG_LABEL[r.kind] || { text: r.kind || "—", cls: "att-not" };
+        return `
+          <tr>
+            <td class="whitespace-nowrap text-mute">${esc(fmtDate(r.at))}</td>
+            <td class="t-ticket">${esc(r.ticketId || "")}</td>
+            <td><div class="font-extrabold-ui text-ink" style="min-width:11ch;">${esc(r.name || "—")}</div></td>
+            <td class="whitespace-nowrap"><span class="${label.cls}">${esc(label.text)}</span></td>
+            <td class="hidden md:table-cell text-mute" style="font-size:0.78rem;">${esc(r.by || "—")}</td>
+          </tr>`;
+      }).join("");
+    }
+
+    document.getElementById("btn-log-csv").addEventListener("click", () => {
+      const entries = Object.values(logCache).sort((a, b) => (b.at || 0) - (a.at || 0));
+      if (!entries.length) { alert("Nothing to export yet."); return; }
+      const header = ["at", "ticketId", "name", "kind", "by"];
+      const csv = [header.join(",")].concat(
+        entries.map(r => header.map(k => {
+          let v = r[k] == null ? "" : r[k];
+          if (k === "at" && v) v = new Date(v).toISOString();
+          v = String(v).replace(/"/g, '""');
+          return /[",\n]/.test(v) ? `"${v}"` : v;
+        }).join(","))
+      ).join("\n");
+      const blob = new Blob([csv], { type: "text/csv;charset=utf-8" });
+      const url = URL.createObjectURL(blob);
+      const a = document.createElement("a");
+      a.href = url;
+      a.download = `campus-unite-checkin-log-${new Date().toISOString().slice(0,10)}.csv`;
       a.click();
       setTimeout(() => URL.revokeObjectURL(url), 1000);
     });

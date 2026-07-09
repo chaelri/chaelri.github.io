@@ -51,6 +51,7 @@ export function registrationsRef() { return ref(db, `${SCHEMA_ROOT}/registration
 export function registrationRef(id) { return ref(db, `${SCHEMA_ROOT}/registrations/${id}`); }
 export function raffleDrawsRef() { return ref(db, `${SCHEMA_ROOT}/raffle/draws`); }
 export function raffleLastDrawRef() { return ref(db, `${SCHEMA_ROOT}/raffle/lastDraw`); }
+export function checkinLogRef() { return ref(db, `${SCHEMA_ROOT}/checkinLog`); }
 
 // =============================
 // Admin allowlist (Google sign-in)

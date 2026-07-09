@@ -49,51 +49,109 @@
         0 18px 48px rgba(0,0,0,0.35);
     }
 
-    /* Big result banner shown after each scan; slides in from top, auto-hides. */
-    .scan-banner {
+    /* ========================================================================
+       Full-viewport scan splash — punchy reveal after each scan.
+       Kicker (Bebas Neue tape yellow) on top, big Blauer Nue name below,
+       accent color bar + sub info. Tap-to-dismiss + auto-dismiss.
+       ======================================================================== */
+    .scan-splash {
+      position: fixed;
+      inset: 0;
+      z-index: 500;
       display: grid;
-      grid-template-columns: auto 1fr auto;
-      gap: 0.85rem;
-      align-items: center;
-      padding: 0.95rem 1.05rem;
-      border-radius: 0.85rem;
-      border: 1px solid var(--line);
-      background: var(--bg-elev);
-      box-shadow: 0 18px 48px rgba(0,0,0,0.4);
-      transform: translateY(-8px);
+      place-items: center;
+      padding: 2rem 1.25rem;
+      background: radial-gradient(1200px 700px at 50% 0%, rgba(7,9,26,0.55) 0%, rgba(7,9,26,0.96) 60%, rgba(3,5,16,0.98) 100%);
+      backdrop-filter: blur(6px);
+      -webkit-backdrop-filter: blur(6px);
       opacity: 0;
-      transition: transform 220ms ease, opacity 220ms ease;
+      transition: opacity 220ms ease;
+      cursor: pointer;
+    }
+    .scan-splash.is-shown { opacity: 1; }
+    .scan-splash-inner {
+      text-align: center;
+      transform: scale(0.9) translateY(6px);
+      opacity: 0;
+      transition:
+        transform 380ms cubic-bezier(0.22, 1, 0.36, 1),
+        opacity  260ms ease-out;
+      max-width: min(92vw, 900px);
+    }
+    .scan-splash.is-shown .scan-splash-inner { transform: none; opacity: 1; }
+
+    .scan-splash-accent {
+      height: 6px;
+      width: clamp(90px, 22vw, 160px);
+      border-radius: 999px;
+      margin: 0 auto 1.25rem;
+      background: var(--tape);
+      box-shadow: 0 0 22px currentColor;
+    }
+    .scan-splash-kicker {
+      font-family: "Bebas Neue", sans-serif;
+      font-size: clamp(1.15rem, 3.6vw, 1.85rem);
+      letter-spacing: 0.32em;
+      text-transform: uppercase;
+      color: var(--tape);
       margin-bottom: 0.85rem;
     }
-    .scan-banner.is-shown { transform: translateY(0); opacity: 1; }
-    .scan-banner .banner-ic { font-size: 32px !important; }
-    .scan-banner-success { border-color: #4ade80; background: linear-gradient(180deg, rgba(74,222,128,0.12) 0%, rgba(74,222,128,0.03) 100%); }
-    .scan-banner-success .banner-ic { color: #4ade80; }
-    .scan-banner-warn { border-color: var(--tape); background: linear-gradient(180deg, rgba(245,213,24,0.14) 0%, rgba(245,213,24,0.03) 100%); }
-    .scan-banner-warn .banner-ic { color: var(--tape); }
-    .scan-banner-err { border-color: var(--red); background: linear-gradient(180deg, rgba(225,29,44,0.14) 0%, rgba(225,29,44,0.03) 100%); }
-    .scan-banner-err .banner-ic { color: var(--red); }
-    .scan-banner-info { border-color: #60a5fa; background: linear-gradient(180deg, rgba(96,165,250,0.12) 0%, rgba(96,165,250,0.03) 100%); }
-    .scan-banner-info .banner-ic { color: #60a5fa; }
-    .scan-banner-title {
+    .scan-splash-name {
       font-family: "Blauer Nue", "Inter", sans-serif;
       font-weight: 800;
-      letter-spacing: 0.02em;
       color: var(--ink);
-      line-height: 1.15;
-    }
-    .scan-banner-sub {
-      font-size: 0.82rem;
-      color: var(--ink-soft);
-      margin-top: 0.15rem;
-      line-height: 1.35;
+      font-size: clamp(2.6rem, 9vw, 6.2rem);
+      line-height: 1.02;
+      letter-spacing: -0.015em;
       word-break: break-word;
+      text-shadow: 0 8px 32px rgba(0,0,0,0.55);
     }
-    .scan-banner-ticket {
+    .scan-splash-sub {
+      margin-top: 1.15rem;
+      color: var(--ink-soft);
+      font-size: clamp(0.95rem, 2.2vw, 1.15rem);
+      line-height: 1.4;
+    }
+    .scan-splash-ticket {
+      display: inline-block;
+      margin-top: 1rem;
       font-family: "JetBrains Mono", monospace;
       font-weight: 700;
       color: var(--tape);
-      letter-spacing: 0.03em;
+      letter-spacing: 0.06em;
+      font-size: clamp(1rem, 2.6vw, 1.35rem);
+      padding: 0.35rem 0.85rem;
+      border: 1px solid rgba(245,213,24,0.4);
+      border-radius: 999px;
+      background: rgba(245,213,24,0.08);
+    }
+    .scan-splash-tap {
+      margin-top: 1.65rem;
+      font-size: 0.7rem;
+      font-family: "Blauer Nue", sans-serif;
+      font-weight: 700;
+      letter-spacing: 0.28em;
+      text-transform: uppercase;
+      color: var(--ink-mute);
+    }
+
+    /* Variant color accents — kicker + accent bar + subtle body glow. */
+    .scan-splash-success { --accent: #4ade80; }
+    .scan-splash-dupe    { --accent: #60a5fa; }
+    .scan-splash-warn    { --accent: var(--tape); }
+    .scan-splash-err     { --accent: var(--red); }
+    .scan-splash-success .scan-splash-kicker,
+    .scan-splash-dupe .scan-splash-kicker,
+    .scan-splash-err .scan-splash-kicker { color: var(--accent); }
+    .scan-splash-success .scan-splash-accent,
+    .scan-splash-dupe .scan-splash-accent,
+    .scan-splash-warn .scan-splash-accent,
+    .scan-splash-err .scan-splash-accent { background: var(--accent); color: var(--accent); }
+    /* Success gets a soft green halo behind the name for extra impact. */
+    .scan-splash-success .scan-splash-name {
+      text-shadow:
+        0 0 40px rgba(74,222,128,0.35),
+        0 8px 32px rgba(0,0,0,0.55);
     }
 
     /* Recent scans list — most recent on top. */
@@ -161,9 +219,6 @@
       <span class="kpi-pill"><b id="kpi-remaining">0</b> not yet</span>
     </div>
 
-    <!-- Last-scan banner (rendered dynamically into #banner-slot) -->
-    <div id="banner-slot"></div>
-
     <!-- Scanner tile -->
     <div class="glass-tile p-4 sm:p-5">
       <div class="flex items-center justify-between mb-3 gap-2 flex-wrap">
@@ -202,11 +257,11 @@
       <div id="manual-err" class="hidden text-xs text-red font-extrabold-ui uppercase tracking-wider mt-2"></div>
     </div>
 
-    <!-- Recent scans -->
+    <!-- Recent scans (live from Firebase checkinLog — shared across admins) -->
     <div class="mt-5">
       <div class="flex items-center justify-between mb-2">
         <div class="font-extrabold-ui text-sm">Recent scans</div>
-        <button id="btn-clear-recent" class="text-mute hover:text-red text-xs font-extrabold-ui uppercase tracking-widest">Clear</button>
+        <a href="dashboard.html#checkin-log" class="text-mute hover:text-tape text-xs font-extrabold-ui uppercase tracking-widest">Full log →</a>
       </div>
       <section class="glass-tile" style="padding:0;">
         <div id="recent-list">
@@ -220,18 +275,20 @@
   <script type="module">
     import {
       watchAuth, signInWithGoogle, signOutNow,
-      get, update, onValue,
-      registrationsRef, ticketRef, registrationRef,
+      get, update, push, onValue,
+      registrationsRef, ticketRef, registrationRef, checkinLogRef,
       TICKET_PREFIX,
     } from "./js/firebase.js";
 
     const $gate     = document.getElementById("gate");
     const $checkin  = document.getElementById("checkin");
     const $auth     = document.getElementById("auth-control");
-    const $bannerSlot = document.getElementById("banner-slot");
     const $recentList = document.getElementById("recent-list");
     const $video    = document.getElementById("qr-video");
     const $status   = document.getElementById("qr-status");
+
+    // Admin identity — captured on sign-in, stamped onto every checkinLog entry.
+    let _adminEmail = null;
 
     // ===== Auth pill (mirrors dashboard.html) =====
     function renderAuth(user) {
@@ -257,15 +314,19 @@
     }
 
     let unwatchRegs = null;
+    let unwatchLog  = null;
     let regsCache = {};
+    let logCache = {}; // { pushId: { ticketId, name, kind, at, by } }
 
     watchAuth(({ user, isAdmin }) => {
       renderAuth(user);
+      _adminEmail = isAdmin && user ? (user.email || "").toLowerCase() : null;
       if (!isAdmin) {
         $checkin.classList.add("hidden");
         $gate.classList.remove("hidden");
         stopScanner();
         if (unwatchRegs) { unwatchRegs(); unwatchRegs = null; }
+        if (unwatchLog)  { unwatchLog();  unwatchLog  = null; }
         return;
       }
       $gate.classList.add("hidden");
@@ -280,9 +341,14 @@
 
     function startListeners() {
       if (unwatchRegs) unwatchRegs();
+      if (unwatchLog) unwatchLog();
       unwatchRegs = onValue(registrationsRef(), (snap) => {
         regsCache = snap.val() || {};
         renderKpis();
+      });
+      unwatchLog = onValue(checkinLogRef(), (snap) => {
+        logCache = snap.val() || {};
+        renderRecent();
       });
     }
 
@@ -437,37 +503,58 @@
     }
 
     // ===== Check-in logic =====
+    // Splash keeps a "just-in-flight" flag so the scanner doesn't fire again
+    // while the reveal is on-screen — otherwise a second QR in the same frame
+    // would blast through the splash mid-reveal.
+    let _splashActive = false;
+
     async function processCheckin(id) {
+      if (_splashActive) return; // another scan is currently splashing
       try {
-        // Read ticket + registration together.
         const [tSnap, rSnap] = await Promise.all([get(ticketRef(id)), get(registrationRef(id))]);
         if (!tSnap.exists()) {
-          showBanner("err", "cancel", `Ticket ${id} not found`, "This ticket number isn't in the database.");
-          logRecent({ id, kind: "badticket", title: "Not in database" });
+          showSplash("err", { kicker: "Ticket not found", name: id, sub: "This number isn't in our database. Double-check the ticket." });
+          writeLog({ ticketId: id, kind: "badticket" });
+          buzz([120]);
           return;
         }
         const reg = rSnap.val();
         if (!reg) {
-          showBanner("warn", "person_off", `${id} isn't registered yet`, "Ask them to scan the QR on their ticket and complete the form first.");
-          logRecent({ id, kind: "unreg", title: "Not registered yet" });
+          showSplash("warn", {
+            kicker: "Register first",
+            name: "You still haven't registered your ticket",
+            sub: "Scan the QR on your printed ticket to register before check-in.",
+            ticket: id,
+          });
+          writeLog({ ticketId: id, kind: "unreg" });
+          buzz([40, 60, 40]);
           return;
         }
         if (reg.checkedIn) {
           const when = reg.checkedInAt ? fmtTime(reg.checkedInAt) : "";
-          showBanner("info", "how_to_reg", `${reg.name || id} — already checked in`, when ? `Checked in at ${when}. Ticket ${id}.` : `Ticket ${id}.`);
-          logRecent({ id, kind: "dupe", title: reg.name || id, sub: when ? `Already in at ${when}` : "Already checked in" });
+          showSplash("dupe", {
+            kicker: "You're already signed in!",
+            name: reg.name || id,
+            sub: when ? `First checked in at ${when}.` : "Already checked in.",
+            ticket: id,
+          });
+          writeLog({ ticketId: id, kind: "dupe", name: reg.name || null });
           buzz([40]);
           return;
         }
-        // Mark as checked in — server timestamp isn't needed here, ms is fine and matches the rest of the app.
         const now = Date.now();
         await update(registrationRef(id), { checkedIn: true, checkedInAt: now });
-        showBanner("success", "check_circle", `Checked in — ${reg.name || id}`, `Ticket ${id}${reg.school ? ` · ${reg.school}` : ""}`);
-        logRecent({ id, kind: "ok", title: reg.name || id, sub: reg.school || "" });
+        showSplash("success", {
+          kicker: `Welcome, ${(reg.name || "").split(" ")[0] || "friend"}!`,
+          name: reg.name || id,
+          sub: reg.school ? `You're in — ${reg.school}` : "You're in!",
+          ticket: id,
+        });
+        writeLog({ ticketId: id, kind: "ok", name: reg.name || null });
         buzz([80, 40, 80]);
       } catch (err) {
         console.error(err);
-        showBanner("err", "error", "Check-in failed", (err && err.message) || "Try again.");
+        showSplash("err", { kicker: "Check-in failed", name: "Try again", sub: (err && err.message) || "Something went wrong." });
       }
     }
 
@@ -475,61 +562,80 @@
       try { if (navigator.vibrate) navigator.vibrate(pattern); } catch {}
     }
 
-    // ===== Banner (transient result) =====
-    let _bannerTimer = 0;
-    function showBanner(variant, icon, title, sub) {
-      const cls = ({success:"scan-banner-success", warn:"scan-banner-warn", err:"scan-banner-err", info:"scan-banner-info"})[variant] || "scan-banner-info";
-      $bannerSlot.innerHTML = `
-        <div class="scan-banner ${cls}">
-          <span class="material-symbols-outlined banner-ic">${icon}</span>
-          <div>
-            <div class="scan-banner-title">${esc(title)}</div>
-            ${sub ? `<div class="scan-banner-sub">${esc(sub)}</div>` : ""}
-          </div>
-          <button type="button" class="text-mute hover:text-red" style="line-height:0;padding:2px;" aria-label="Dismiss" onclick="this.closest('.scan-banner').remove()">
-            <span class="material-symbols-outlined" style="font-size:18px">close</span>
-          </button>
-        </div>`;
-      const el = $bannerSlot.querySelector(".scan-banner");
-      requestAnimationFrame(() => el.classList.add("is-shown"));
-      if (_bannerTimer) clearTimeout(_bannerTimer);
-      _bannerTimer = setTimeout(() => {
-        if (!el.isConnected) return;
-        el.classList.remove("is-shown");
-        setTimeout(() => el.remove(), 250);
-      }, 4200);
+    // Persist every scan outcome to Firebase so admins can back-track on the
+    // dashboard. Failures are swallowed so a network hiccup can't break the
+    // in-person check-in flow.
+    function writeLog(entry) {
+      try {
+        push(checkinLogRef(), { ...entry, at: Date.now(), by: _adminEmail || null });
+      } catch (err) {
+        console.warn("checkinLog write failed:", err);
+      }
     }
 
-    // ===== Recent scans (in-memory ring, up to 30) =====
-    const RECENT_MAX = 30;
-    let _recent = [];
-    function logRecent({ id, kind, title, sub }) {
-      _recent.unshift({ id, kind, title, sub, at: Date.now() });
-      if (_recent.length > RECENT_MAX) _recent.length = RECENT_MAX;
-      renderRecent();
+    // ===== Full-viewport splash =====
+    let _splashTimer = 0;
+    function showSplash(variant, { kicker, name, sub, ticket } = {}) {
+      // Tear down any prior splash before spawning a new one.
+      const prior = document.querySelector(".scan-splash");
+      if (prior) prior.remove();
+      if (_splashTimer) { clearTimeout(_splashTimer); _splashTimer = 0; }
+
+      const cls = ({success:"scan-splash-success", dupe:"scan-splash-dupe", warn:"scan-splash-warn", err:"scan-splash-err"})[variant] || "scan-splash-dupe";
+      const el = document.createElement("div");
+      el.className = `scan-splash ${cls}`;
+      el.setAttribute("role", "dialog");
+      el.setAttribute("aria-live", "assertive");
+      el.innerHTML = `
+        <div class="scan-splash-inner">
+          <div class="scan-splash-accent"></div>
+          ${kicker ? `<div class="scan-splash-kicker">${esc(kicker)}</div>` : ""}
+          ${name   ? `<div class="scan-splash-name">${esc(name)}</div>` : ""}
+          ${sub    ? `<div class="scan-splash-sub">${esc(sub)}</div>` : ""}
+          ${ticket ? `<div><span class="scan-splash-ticket">${esc(ticket)}</span></div>` : ""}
+          <div class="scan-splash-tap">Tap to keep scanning</div>
+        </div>`;
+      document.body.appendChild(el);
+      _splashActive = true;
+      requestAnimationFrame(() => el.classList.add("is-shown"));
+
+      const dismiss = () => {
+        if (!el.isConnected) return;
+        el.classList.remove("is-shown");
+        _splashActive = false;
+        if (_splashTimer) { clearTimeout(_splashTimer); _splashTimer = 0; }
+        setTimeout(() => el.remove(), 250);
+      };
+      // Success + dupe get a shorter, snappier hold; warn/err lingers a beat.
+      const hold = (variant === "success") ? 3500 : (variant === "dupe" ? 2800 : 4000);
+      _splashTimer = setTimeout(dismiss, hold);
+      el.addEventListener("click", dismiss);
     }
+
+    // ===== Recent scans (driven by the live checkinLog subscription) =====
+    const RECENT_MAX = 30;
     function renderRecent() {
-      if (!_recent.length) {
+      const entries = Object.values(logCache)
+        .sort((a, b) => (b.at || 0) - (a.at || 0))
+        .slice(0, RECENT_MAX);
+      if (!entries.length) {
         $recentList.innerHTML = `<div class="p-6 text-center text-mute text-xs font-extrabold-ui uppercase tracking-widest">No scans yet.</div>`;
         return;
       }
       const rowCls = { ok: "recent-ok", dupe: "recent-dupe", unreg: "recent-unreg", badticket: "recent-badticket" };
       const iconFor = { ok: "check_circle", dupe: "how_to_reg", unreg: "person_off", badticket: "cancel" };
-      $recentList.innerHTML = _recent.map(r => `
+      const subFor = { ok: "Checked in", dupe: "Already signed in", unreg: "Not registered", badticket: "Not in database" };
+      $recentList.innerHTML = entries.map(r => `
         <div class="recent-row ${rowCls[r.kind] || ""}">
           <span class="material-symbols-outlined recent-ic">${iconFor[r.kind] || "help"}</span>
           <div>
-            <div class="recent-name">${esc(r.title || r.id)}</div>
-            <div class="recent-meta"><span class="scan-banner-ticket">${esc(r.id)}</span>${r.sub ? " · " + esc(r.sub) : ""}</div>
+            <div class="recent-name">${esc(r.name || r.ticketId || "—")}</div>
+            <div class="recent-meta"><span style="font-family:'JetBrains Mono',monospace;font-weight:700;color:var(--tape);letter-spacing:0.03em;">${esc(r.ticketId || "")}</span> · ${esc(subFor[r.kind] || r.kind || "")}</div>
           </div>
           <div class="recent-time">${fmtTime(r.at)}</div>
         </div>
       `).join("");
     }
-    document.getElementById("btn-clear-recent").addEventListener("click", () => {
-      _recent = [];
-      renderRecent();
-    });
 
     // ===== Manual entry =====
     const $mid = document.getElementById("manual-id");
