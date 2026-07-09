@@ -582,7 +582,17 @@
       }
     }
 
+    // navigator.vibrate() is blocked until the page has received a real user
+    // gesture (pointerdown/click/keydown). The Google sign-in popup does NOT
+    // count as activation on the parent frame, so the first scan before any
+    // tap would trigger a Chrome intervention warning. Gate on a one-shot
+    // flag that flips true on the first interaction anywhere.
+    let _userHasInteracted = false;
+    ["pointerdown", "keydown"].forEach(ev =>
+      window.addEventListener(ev, () => { _userHasInteracted = true; }, { once: true, capture: true })
+    );
     function buzz(pattern) {
+      if (!_userHasInteracted) return;
       try { if (navigator.vibrate) navigator.vibrate(pattern); } catch {}
     }
 
