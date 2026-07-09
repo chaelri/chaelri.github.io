@@ -129,6 +129,27 @@
       word-break: break-word;
       text-shadow: 0 8px 32px rgba(0,0,0,0.55);
     }
+    /* Hype variant used for the SUCCESS splash — bold Bebas Neue tape-yellow
+       treatment ("WELCOME, CHARLIE!") that owns the screen. Only the success
+       path uses this; other variants stick with .scan-splash-name. */
+    .scan-splash-hype {
+      font-family: "Bebas Neue", sans-serif;
+      color: var(--tape);
+      font-size: clamp(3.4rem, 13vw, 8.2rem);
+      letter-spacing: 0.03em;
+      line-height: 0.98;
+      text-shadow:
+        0 0 44px rgba(245, 213, 24, 0.55),
+        0 8px 32px rgba(0, 0, 0, 0.55);
+    }
+    /* Campus UNITE logo slot — shown above the hype headline on success. */
+    .scan-splash-logo {
+      display: block;
+      margin: 0 auto 1.1rem;
+      max-height: clamp(68px, 11vh, 110px);
+      width: auto;
+      filter: drop-shadow(0 10px 28px rgba(0, 0, 0, 0.5));
+    }
     .scan-splash-sub {
       margin-top: 1.15rem;
       color: var(--ink-soft);
@@ -591,10 +612,15 @@
         }
         const now = Date.now();
         await update(registrationRef(id), { checkedIn: true, checkedInAt: now });
+        // Success gets the hype treatment — Campus UNITE keyart + a big Bebas
+        // Neue "WELCOME, <FIRSTNAME>!" instead of the full-name Blauer Nue
+        // slab. Charlie's call: full name is not that important on the reveal.
+        const firstName = ((reg.name || "").split(" ")[0] || "friend").toUpperCase();
         showSplash("success", {
-          kicker: `Welcome, ${(reg.name || "").split(" ")[0] || "friend"}!`,
-          name: reg.name || id,
-          sub: reg.school ? `You're in — ${reg.school}` : "You're in!",
+          kicker: "Welcome to Campus UNITE",
+          logo: true,
+          hype: `${firstName}!`,
+          sub: reg.school || "",
           ticket: id,
         });
         writeLog({ ticketId: id, kind: "ok", name: reg.name || null });
@@ -633,7 +659,7 @@
     // ===== Full-viewport splash =====
     const SPLASH_HOLD_MS = 10000;
     let _splashTimer = 0;
-    function showSplash(variant, { kicker, name, sub, ticket } = {}) {
+    function showSplash(variant, { kicker, name, hype, logo, sub, ticket } = {}) {
       // Tear down any prior splash before spawning a new one.
       const prior = document.querySelector(".scan-splash");
       if (prior) prior.remove();
@@ -645,11 +671,18 @@
       el.style.setProperty("--splash-hold-ms", `${SPLASH_HOLD_MS}ms`);
       el.setAttribute("role", "dialog");
       el.setAttribute("aria-live", "assertive");
+      // hype = big Bebas Neue tape-yellow headline; falls back to the softer
+      // .scan-splash-name treatment when not set. logo = Campus UNITE keyart
+      // above the headline. Both only get used by the success variant today.
+      const headlineHtml = hype
+        ? `<div class="scan-splash-hype">${esc(hype)}</div>`
+        : (name ? `<div class="scan-splash-name">${esc(name)}</div>` : "");
       el.innerHTML = `
         <div class="scan-splash-inner">
           <div class="scan-splash-accent"></div>
           ${kicker ? `<div class="scan-splash-kicker">${esc(kicker)}</div>` : ""}
-          ${name   ? `<div class="scan-splash-name">${esc(name)}</div>` : ""}
+          ${logo   ? `<img class="scan-splash-logo" src="assets/campus-unite-logo.png" alt="Campus UNITE" />` : ""}
+          ${headlineHtml}
           ${sub    ? `<div class="scan-splash-sub">${esc(sub)}</div>` : ""}
           ${ticket ? `<div><span class="scan-splash-ticket">${esc(ticket)}</span></div>` : ""}
           <div class="scan-splash-tap">Tap to keep scanning</div>
