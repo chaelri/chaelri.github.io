@@ -571,9 +571,12 @@
 
       // Read-only metadata strip shown at the top of the modal so the admin
       // sees ticket ID, when they registered, and current attendance state
-      // without having to hunt for it in the row.
+      // without having to hunt for it in the row. Middle-dot separators are
+      // styled circle spans instead of the "·" glyph so they sit centered
+      // regardless of the surrounding font's middle-dot position.
+      const dot = `<span aria-hidden="true" style="display:inline-block; width:4px; height:4px; border-radius:50%; background:currentColor; opacity:0.5; vertical-align:middle; margin:0 0.5rem;"></span>`;
       const attnBadge = reg.checkedIn
-        ? `<span style="background:rgba(74,222,128,0.14); color:#4ade80; border:1px solid rgba(74,222,128,0.35); padding:2px 8px; border-radius:999px; font-size:10px; font-weight:800; letter-spacing:0.08em; text-transform:uppercase;">Checked in${reg.checkedInAt ? ` · ${esc(fmtDate(reg.checkedInAt))}` : ""}</span>`
+        ? `<span style="display:inline-flex; align-items:center; background:rgba(74,222,128,0.14); color:#4ade80; border:1px solid rgba(74,222,128,0.35); padding:2px 8px; border-radius:999px; font-size:10px; font-weight:800; letter-spacing:0.08em; text-transform:uppercase;">Checked in${reg.checkedInAt ? `${dot}${esc(fmtDate(reg.checkedInAt))}` : ""}</span>`
         : `<span style="background:rgba(139,145,184,0.10); color:var(--ink-mute); border:1px solid var(--line); padding:2px 8px; border-radius:999px; font-size:10px; font-weight:800; letter-spacing:0.08em; text-transform:uppercase;">Not yet checked in</span>`;
 
       host.innerHTML = `
@@ -581,9 +584,10 @@
           <div class="cu-modal-panel" style="max-width: 540px;">
             <div class="cu-modal-head">
               <span class="material-symbols-outlined" style="font-size:28px;color:var(--tape);">badge</span>
-              <div id="edit-modal-title" class="cu-modal-title">
+              <div id="edit-modal-title" class="cu-modal-title" style="display:inline-flex; align-items:center; flex-wrap:wrap;">
                 <span class="t-ticket" style="font-family:'JetBrains Mono',monospace;">${esc(id)}</span>
-                <span style="color:var(--ink-mute); font-weight:600;"> · ${esc(reg.name || "Ticket details")}</span>
+                ${dot}
+                <span style="color:var(--ink-mute); font-weight:600;">${esc(reg.name || "Ticket details")}</span>
               </div>
             </div>
             <div style="display:flex; flex-wrap:wrap; gap:0.5rem 0.85rem; align-items:center; font-size:0.78rem; color:var(--ink-soft); margin:0.5rem 0 1rem;">

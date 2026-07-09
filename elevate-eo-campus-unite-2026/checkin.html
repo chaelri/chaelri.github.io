@@ -659,12 +659,15 @@
       const rowCls = { ok: "recent-ok", dupe: "recent-dupe", unreg: "recent-unreg", badticket: "recent-badticket" };
       const iconFor = { ok: "check_circle", dupe: "how_to_reg", unreg: "person_off", badticket: "cancel" };
       const subFor = { ok: "Checked in", dupe: "Already signed in", unreg: "Not registered", badticket: "Not in database" };
+      // Styled circle separator instead of the "·" glyph so the dot sits
+      // vertically centered with the surrounding text regardless of font.
+      const dot = `<span aria-hidden="true" style="display:inline-block; width:4px; height:4px; border-radius:50%; background:currentColor; opacity:0.5; vertical-align:middle; margin:0 0.5rem;"></span>`;
       $recentList.innerHTML = entries.map(r => `
         <div class="recent-row ${rowCls[r.kind] || ""}">
           <span class="material-symbols-outlined recent-ic">${iconFor[r.kind] || "help"}</span>
           <div>
             <div class="recent-name">${esc(r.name || r.ticketId || "—")}</div>
-            <div class="recent-meta"><span style="font-family:'JetBrains Mono',monospace;font-weight:700;color:var(--tape);letter-spacing:0.03em;">${esc(r.ticketId || "")}</span> · ${esc(subFor[r.kind] || r.kind || "")}</div>
+            <div class="recent-meta"><span style="font-family:'JetBrains Mono',monospace;font-weight:700;color:var(--tape);letter-spacing:0.03em;">${esc(r.ticketId || "")}</span>${dot}${esc(subFor[r.kind] || r.kind || "")}</div>
           </div>
           <div class="recent-time">${fmtTime(r.at)}</div>
         </div>
