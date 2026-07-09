@@ -135,6 +135,33 @@
       color: var(--ink-mute);
     }
 
+    /* Auto-dismiss countdown bar — spans the bottom of the splash and depletes
+       from the right toward the left over --splash-hold-ms. `transform-origin:
+       left` anchors the LEFT edge so the RIGHT side is what visually shrinks
+       inward. The transition kicks in the moment .is-shown is applied. */
+    .scan-splash-timer {
+      position: absolute;
+      left: 0;
+      right: 0;
+      bottom: 0;
+      height: 4px;
+      background: rgba(255, 255, 255, 0.06);
+      overflow: hidden;
+    }
+    .scan-splash-timer-fill {
+      position: absolute;
+      inset: 0;
+      background: var(--accent, var(--tape));
+      transform-origin: left center;
+      transform: scaleX(1);
+      box-shadow: 0 0 12px var(--accent, var(--tape));
+      will-change: transform;
+    }
+    .scan-splash.is-shown .scan-splash-timer-fill {
+      transform: scaleX(0);
+      transition: transform var(--splash-hold-ms, 10000ms) linear;
+    }
+
     /* Variant color accents — kicker + accent bar + subtle body glow. */
     .scan-splash-success { --accent: #4ade80; }
     .scan-splash-dupe    { --accent: #60a5fa; }
@@ -574,6 +601,7 @@
     }
 
     // ===== Full-viewport splash =====
+    const SPLASH_HOLD_MS = 10000;
     let _splashTimer = 0;
     function showSplash(variant, { kicker, name, sub, ticket } = {}) {
       // Tear down any prior splash before spawning a new one.
@@ -584,6 +612,7 @@
       const cls = ({success:"scan-splash-success", dupe:"scan-splash-dupe", warn:"scan-splash-warn", err:"scan-splash-err"})[variant] || "scan-splash-dupe";
       const el = document.createElement("div");
       el.className = `scan-splash ${cls}`;
+      el.style.setProperty("--splash-hold-ms", `${SPLASH_HOLD_MS}ms`);
       el.setAttribute("role", "dialog");
       el.setAttribute("aria-live", "assertive");
       el.innerHTML = `
@@ -594,7 +623,8 @@
           ${sub    ? `<div class="scan-splash-sub">${esc(sub)}</div>` : ""}
           ${ticket ? `<div><span class="scan-splash-ticket">${esc(ticket)}</span></div>` : ""}
           <div class="scan-splash-tap">Tap to keep scanning</div>
-        </div>`;
+        </div>
+        <div class="scan-splash-timer"><div class="scan-splash-timer-fill"></div></div>`;
       document.body.appendChild(el);
       _splashActive = true;
       requestAnimationFrame(() => el.classList.add("is-shown"));
@@ -606,9 +636,7 @@
         if (_splashTimer) { clearTimeout(_splashTimer); _splashTimer = 0; }
         setTimeout(() => el.remove(), 250);
       };
-      // Success + dupe get a shorter, snappier hold; warn/err lingers a beat.
-      const hold = (variant === "success") ? 3500 : (variant === "dupe" ? 2800 : 4000);
-      _splashTimer = setTimeout(dismiss, hold);
+      _splashTimer = setTimeout(dismiss, SPLASH_HOLD_MS);
       el.addEventListener("click", dismiss);
     }
 
