@@ -90,13 +90,26 @@
     }
     .scan-splash.is-shown .scan-splash-inner { transform: none; opacity: 1; }
 
+    /* Top pill also serves as the countdown timer — depletes from right
+       toward left over --splash-hold-ms. `transform-origin: left` anchors
+       the LEFT edge so the RIGHT side is what visually shrinks inward.
+       transition sits on the default state so it's already primed when
+       .is-shown flips the transform, otherwise some browsers skip the
+       first animation. */
     .scan-splash-accent {
       height: 6px;
-      width: clamp(90px, 22vw, 160px);
+      width: clamp(160px, 32vw, 280px);
       border-radius: 999px;
       margin: 0 auto 1.25rem;
       background: var(--tape);
       box-shadow: 0 0 22px currentColor;
+      transform-origin: left center;
+      transform: scaleX(1);
+      transition: transform var(--splash-hold-ms, 10000ms) linear;
+      will-change: transform;
+    }
+    .scan-splash.is-shown .scan-splash-accent {
+      transform: scaleX(0);
     }
     .scan-splash-kicker {
       font-family: "Bebas Neue", sans-serif;
@@ -145,32 +158,6 @@
       color: var(--ink-mute);
     }
 
-    /* Auto-dismiss countdown bar — spans the bottom of the splash and depletes
-       from the right toward the left over --splash-hold-ms. `transform-origin:
-       left` anchors the LEFT edge so the RIGHT side is what visually shrinks
-       inward. The transition kicks in the moment .is-shown is applied. */
-    .scan-splash-timer {
-      position: absolute;
-      left: 0;
-      right: 0;
-      bottom: 0;
-      height: 4px;
-      background: rgba(255, 255, 255, 0.06);
-      overflow: hidden;
-    }
-    .scan-splash-timer-fill {
-      position: absolute;
-      inset: 0;
-      background: var(--accent, var(--tape));
-      transform-origin: left center;
-      transform: scaleX(1);
-      box-shadow: 0 0 12px var(--accent, var(--tape));
-      will-change: transform;
-    }
-    .scan-splash.is-shown .scan-splash-timer-fill {
-      transform: scaleX(0);
-      transition: transform var(--splash-hold-ms, 10000ms) linear;
-    }
 
     /* Variant color accents — kicker + accent bar + subtle body glow. */
     .scan-splash-success { --accent: #4ade80; }
@@ -633,8 +620,7 @@
           ${sub    ? `<div class="scan-splash-sub">${esc(sub)}</div>` : ""}
           ${ticket ? `<div><span class="scan-splash-ticket">${esc(ticket)}</span></div>` : ""}
           <div class="scan-splash-tap">Tap to keep scanning</div>
-        </div>
-        <div class="scan-splash-timer"><div class="scan-splash-timer-fill"></div></div>`;
+        </div>`;
       document.body.appendChild(el);
       _splashActive = true;
       requestAnimationFrame(() => el.classList.add("is-shown"));
