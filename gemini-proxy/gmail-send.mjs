@@ -25,7 +25,29 @@
 import { readFile, writeFile, stat } from "node:fs/promises";
 import { createServer } from "node:http";
 import { exec } from "node:child_process";
-import { basename } from "node:path";
+import { basename, extname } from "node:path";
+
+function mimeFor(path) {
+  const ext = extname(path).toLowerCase();
+  return {
+    ".pdf": "application/pdf",
+    ".png": "image/png",
+    ".jpg": "image/jpeg",
+    ".jpeg": "image/jpeg",
+    ".gif": "image/gif",
+    ".webp": "image/webp",
+    ".heic": "image/heic",
+    ".txt": "text/plain",
+  }[ext] || "application/octet-stream";
+}
+
+// RFC 2047 encoded-word for header values containing non-ASCII bytes.
+function encodeHeader(value) {
+  // eslint-disable-next-line no-control-regex
+  if (/^[\x00-\x7F]*$/.test(value)) return value;
+  const b64 = Buffer.from(value, "utf8").toString("base64");
+  return `=?UTF-8?B?${b64}?=`;
+}
 
 const HERE = new URL(".", import.meta.url).pathname;
 const CLIENT_PATH = `${HERE}.drive-client.json`;
@@ -149,46 +171,45 @@ function parseArgs(argv) {
 
 async function buildMime({ from, to, subject, body, attach }) {
   const boundary = `b_${Date.now()}_${Math.random().toString(36).slice(2)}`;
-  const headers = [
+  const headerLines = [
     `From: ${from}`,
     `To: ${to}`,
-    `Subject: ${subject}`,
+    `Subject: ${encodeHeader(subject)}`,
     "MIME-Version: 1.0",
     `Content-Type: multipart/mixed; boundary="${boundary}"`,
-    "",
   ];
 
-  const parts = [];
-  // Body part (plaintext; empty allowed)
-  parts.push(
+  const bodyBytes = Buffer.from(body ?? "", "utf8");
+  const bodyB64 = bodyBytes.toString("base64").replace(/(.{76})/g, "$1\r\n");
+  const partBlocks = [
     [
       `--${boundary}`,
       "Content-Type: text/plain; charset=UTF-8",
-      "Content-Transfer-Encoding: 7bit",
+      "Content-Transfer-Encoding: base64",
       "",
-      body ?? "",
-      "",
+      bodyB64,
     ].join("\r\n"),
-  );
+  ];
 
   for (const path of attach) {
     const data = await readFile(path);
     const name = basename(path);
     const b64 = data.toString("base64").replace(/(.{76})/g, "$1\r\n");
-    parts.push(
+    partBlocks.push(
       [
         `--${boundary}`,
-        `Content-Type: application/pdf; name="${name}"`,
+        `Content-Type: ${mimeFor(path)}; name="${name}"`,
         "Content-Transfer-Encoding: base64",
         `Content-Disposition: attachment; filename="${name}"`,
         "",
         b64,
-        "",
       ].join("\r\n"),
     );
   }
-  parts.push(`--${boundary}--`);
-  return headers.join("\r\n") + parts.join("\r\n");
+  partBlocks.push(`--${boundary}--`);
+
+  // Blank line (CRLF CRLF) separates message headers from body per RFC 5322.
+  return headerLines.join("\r\n") + "\r\n\r\n" + partBlocks.join("\r\n") + "\r\n";
 }
 
 async function cmdSend(args) {
