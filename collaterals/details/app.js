@@ -508,8 +508,7 @@ const SUGGESTIONS = {
   // ----- Reception — Games & Prizes
   coupleTriviaPrizes: [
     "Luxury-paper-bag DIY (Chanel → tsinelas, Penshoppe → Pen, Dior → Rexona, Power Mac → Mac apple, EO → Efficascent, SM → Sinigang Mix, Champion → powder, Lego → Ligo sardines, Starbucks → Kopiko, Regatta → gata)",
-    "Tiered cash: ₱100 / ₱200 / ₱500 across all games",
-    "Mini gift bags + cash per correct answer",
+    "Mini gift bags per correct answer",
   ],
   bringMeToJerusalemPrizes: [
     "Same luxury-paper-bag DIY pool (2× of everything distributed across games)",
