@@ -727,7 +727,7 @@
                   </div>
                 </details>
               </div>
-              <input id="f-fb" name="fbLink" type="url" required class="input" placeholder="https://facebook.com/your.profile" />
+              <input id="f-fb" name="fbLink" type="text" required class="input" placeholder="https://facebook.com/your.profile" />
               <div id="f-fb-err" class="field-err hidden"></div>
             </div>
 
@@ -870,39 +870,11 @@
       setInterval(tick, 1000);
     })();
 
-    // Accept any URL whose host is (or ends with) one of these. Covers facebook.com,
-    // m.facebook.com, web.facebook.com, mbasic.facebook.com, fb.com, fb.me + www. prefixes.
-    const FB_HOSTS = ["facebook.com", "fb.com", "fb.me"];
-    // Paths that are legal under facebook.com but aren't a profile (so a profile
-    // URL with one of these as its first segment should still fail validation).
-    const FB_NON_PROFILE_PATHS = new Set([
-      "home", "login", "signup", "watch", "marketplace", "groups", "gaming",
-      "events", "pages", "help", "settings", "privacy", "policies", "terms",
-      "messages", "notifications", "search", "stories", "reel", "share",
-    ]);
+    // Loose check: any input that mentions "facebook" or "fb" is fine —
+    // we'll just find them by name if it's not a clean URL.
     function isFacebookUrl(raw) {
       if (!raw) return false;
-      let str = String(raw).trim();
-      // Tolerate "facebook.com/foo" without a scheme — promote to https:// for URL parsing.
-      if (!/^https?:\/\//i.test(str)) str = "https://" + str;
-      try {
-        const u = new URL(str);
-        if (!/^https?:$/i.test(u.protocol)) return false;
-        const host = u.hostname.toLowerCase().replace(/^www\./, "");
-        const onFb = FB_HOSTS.some(d => host === d || host.endsWith("." + d));
-        if (!onFb) return false;
-
-        // Must point to a profile: either /<username>... or /profile.php?id=…
-        const segs = u.pathname.split("/").filter(Boolean);
-        if (!segs.length) return false; // bare host (facebook.com, fb.com)
-        const first = segs[0].toLowerCase();
-        if (first === "profile.php") {
-          return !!u.searchParams.get("id");
-        }
-        if (FB_NON_PROFILE_PATHS.has(first)) return false;
-        // First segment must contain at least one letter/digit (rules out "/-" etc).
-        return /[a-z0-9._-]/i.test(segs[0]);
-      } catch { return false; }
+      return /(facebook|fb)/i.test(String(raw));
     }
     // ===== Per-field validation helpers =====
     // setFieldError(inputId, message?) — toggle red border + inline message + shake;
@@ -1115,7 +1087,7 @@
           const contact = document.getElementById("f-contact").value.trim();
           if (!fb) { setFieldError("f-fb", "Facebook link is required."); bad.push("f-fb"); }
           else if (!isFacebookUrl(fb)) {
-            setFieldError("f-fb", "Doesn't look like a Facebook link. Try facebook.com/your.profile.");
+            setFieldError("f-fb", "Include 'facebook' or 'fb' so we can find you.");
             bad.push("f-fb");
           }
           if (!contact) { setFieldError("f-contact", "Contact number is required."); bad.push("f-contact"); }
@@ -1317,7 +1289,7 @@
         $fb.addEventListener("blur", () => {
           const v = $fb.value.trim();
           if (!v) return;
-          if (!isFacebookUrl(v)) setFieldError("f-fb", "Doesn't look like a Facebook link. Try facebook.com/your.profile.");
+          if (!isFacebookUrl(v)) setFieldError("f-fb", "Include 'facebook' or 'fb' so we can find you.");
         });
       }
 
@@ -1673,7 +1645,7 @@
         setFieldError("f-fb", "Facebook link is required.");
         bad.push("f-fb");
       } else if (!isFacebookUrl(data.fbLink)) {
-        setFieldError("f-fb", "Doesn't look like a Facebook link. Try facebook.com/your.profile.");
+        setFieldError("f-fb", "Include 'facebook' or 'fb' so we can find you.");
         bad.push("f-fb");
       }
       if (!data.contact) {
@@ -1704,7 +1676,8 @@
       }
 
       // Normalize a scheme-less FB link before saving so the dashboard link click works.
-      if (data.fbLink && !/^https?:\/\//i.test(data.fbLink)) {
+      // Only prepend if it looks URL-shaped (dot, no spaces) — plain names/handles stay as-is.
+      if (data.fbLink && !/^https?:\/\//i.test(data.fbLink) && /\./.test(data.fbLink) && !/\s/.test(data.fbLink)) {
         data.fbLink = "https://" + data.fbLink;
       }
 
