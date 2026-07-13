@@ -133,7 +133,7 @@ input[type="checkbox"]:checked::before {
 .intro-avatars {
   position: relative;
   width: 180px;
-  height: 120px;
+  height: 92px;
 }
 .intro-av {
   position: absolute;
