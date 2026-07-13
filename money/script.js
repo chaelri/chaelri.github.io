@@ -142,7 +142,7 @@ function emptyData() {
 // =============================
 // Data accessors
 // =============================
-function getItems(who, kind) { return appData.items?.[who]?.[kind] || []; }
+function getItems(who, kind) { return (appData.items?.[who]?.[kind] || []).filter(Boolean); }
 function itemActiveIn(it, k) {
   if (!it.recurring) return it.start === k;
   if (cmpKey(k, it.start) < 0) return false;
@@ -157,12 +157,28 @@ function hasOverride(id, k) { return appData.overrides?.[k]?.[id] != null; }
 function isPaid(id, k) { return !!appData.paid?.[k]?.[id]; }
 function accountsTotal() { return (appData.accounts || []).reduce((s, a) => s + (Number(a.amount) || 0), 0); }
 
+// Sub-expenses: an item with children is a container; its amount = sum of children,
+// and each child is checked/paid individually.
+function getKids(it) { return Array.isArray(it.children) ? it.children.filter(Boolean) : []; }
+function itemTotal(it, k) {
+  const kids = getKids(it);
+  return kids.length ? kids.reduce((s, c) => s + (Number(c.amount) || 0), 0) : amountIn(it, k);
+}
+// {total, paid} for an expense/income item, expanding children.
+function itemAmts(it, k) {
+  const kids = getKids(it);
+  if (!kids.length) { const a = amountIn(it, k); return { total: a, paid: isPaid(it.id, k) ? a : 0 }; }
+  let total = 0, paid = 0;
+  for (const c of kids) { const a = Number(c.amount) || 0; total += a; if (isPaid(c.id, k)) paid += a; }
+  return { total, paid };
+}
+
 function monthTotals(k) {
   let cI = 0, kI = 0, cE = 0, kE = 0, incRecv = 0, expPaid = 0;
-  for (const it of getItems("charlie", "income")) if (itemActiveIn(it, k)) { const a = amountIn(it, k); cI += a; if (isPaid(it.id, k)) incRecv += a; }
-  for (const it of getItems("karla", "income")) if (itemActiveIn(it, k)) { const a = amountIn(it, k); kI += a; if (isPaid(it.id, k)) incRecv += a; }
-  for (const it of getItems("charlie", "expenses")) if (itemActiveIn(it, k)) { const a = amountIn(it, k); cE += a; if (isPaid(it.id, k)) expPaid += a; }
-  for (const it of getItems("karla", "expenses")) if (itemActiveIn(it, k)) { const a = amountIn(it, k); kE += a; if (isPaid(it.id, k)) expPaid += a; }
+  for (const it of getItems("charlie", "income")) if (itemActiveIn(it, k)) { const r = itemAmts(it, k); cI += r.total; incRecv += r.paid; }
+  for (const it of getItems("karla", "income")) if (itemActiveIn(it, k)) { const r = itemAmts(it, k); kI += r.total; incRecv += r.paid; }
+  for (const it of getItems("charlie", "expenses")) if (itemActiveIn(it, k)) { const r = itemAmts(it, k); cE += r.total; expPaid += r.paid; }
+  for (const it of getItems("karla", "expenses")) if (itemActiveIn(it, k)) { const r = itemAmts(it, k); kE += r.total; expPaid += r.paid; }
   const income = cI + kI, expenses = cE + kE, toPay = expenses - expPaid;
   // Projected math excludes already-paid expenses (only what you still OWE reduces funds).
   return {
@@ -278,11 +294,58 @@ function renderMonthBanner() {
   </div>`;
 }
 
+// A sub-expense row (checked/edited individually).
+function childRowHtml(parentId, c, k, who) {
+  const paid = isPaid(c.id, k);
+  return `<div onclick="openChildModal('${who}','${parentId}','${c.id}')" class="item-row flex items-center gap-2 py-1.5 pl-2 rounded-lg cursor-pointer ${paid ? "opacity-60" : ""}">
+    <button onclick="togglePaidQuick(event,'${c.id}','expenses')" title="Mark paid" class="paid-check ${paid ? "is-paid bg-emerald-500 border-emerald-500" : "border-slate-600"} w-5 h-5 rounded-md flex items-center justify-center flex-shrink-0 border">
+      <span class="material-icons check-icon text-white" style="font-size:13px">check</span>
+    </button>
+    ${rowIconHtml(c.name, 24)}
+    <span class="item-name text-[13px] font-bold text-slate-300 flex-1 min-w-0 truncate ${paid ? "line-through" : ""}">${escapeHtml(c.name)}</span>
+    <span class="text-[13px] font-black text-slate-100 flex-shrink-0">${peso(c.amount)}</span>
+  </div>`;
+}
+// An expandable parent (its amount = sum of sub-expenses).
+function parentRowHtml(it, k, kind, who, opts = {}) {
+  const kids = getKids(it);
+  const total = kids.reduce((s, c) => s + (Number(c.amount) || 0), 0);
+  const paidCount = kids.filter((c) => isPaid(c.id, k)).length;
+  const allPaid = kids.length > 0 && paidCount === kids.length;
+  const pct = kids.length ? Math.round((paidCount / kids.length) * 100) : 0;
+  const icon = opts.hideIcon ? null : iconFor(it.name);
+  const iconInner = icon
+    ? `<img src="assets/banks/${icon}.png" alt="" class="w-full h-full object-cover" />`
+    : `<span class="material-icons text-white" style="font-size:20px">home_work</span>`;
+  const iconBg = icon ? "" : "bg-gradient-to-br from-violet-500 to-fuchsia-600";
+  const childRows = kids.map((c) => childRowHtml(it.id, c, k, who)).join("");
+  return `<details open class="item-parent glass-card rounded-2xl border border-violet-500/25 overflow-hidden my-1.5" data-parent="${it.id}" data-who="${who}">
+    <summary class="parent-summary flex items-center gap-3 px-4 py-3.5 cursor-pointer list-none bg-gradient-to-r from-violet-500/[0.12] via-violet-500/[0.04] to-transparent ${allPaid ? "opacity-70" : ""}">
+      <div class="acct-icon ${iconBg} flex-shrink-0">${iconInner}</div>
+      <div class="flex-1 min-w-0">
+        <div class="flex items-center gap-1.5">
+          <p class="item-name text-base font-black text-white truncate ${allPaid ? "line-through" : ""}">${escapeHtml(it.name)}</p>
+          <span class="parent-caret material-icons text-violet-300/70 flex-shrink-0" style="font-size:18px">chevron_right</span>
+        </div>
+        <div class="flex items-center gap-2 mt-1.5">
+          <div class="flex-1 h-1.5 bg-slate-900/60 rounded-full overflow-hidden max-w-[150px]"><div class="parent-bar h-full bg-gradient-to-r from-violet-500 to-fuchsia-500 rounded-full transition-all duration-300" style="width:${pct}%"></div></div>
+          <span class="text-[10px] font-black text-violet-300 uppercase tracking-wide flex-shrink-0"><span class="parent-paid-count">${paidCount}</span>/${kids.length} paid</span>
+        </div>
+      </div>
+      <p class="text-base font-black text-white flex-shrink-0">${peso(total)}</p>
+    </summary>
+    <div class="px-4 pb-2 pt-1 space-y-0.5">
+      ${childRows}
+      <button onclick="openChildModal('${who}','${it.id}',null)" class="w-full py-2 text-[11px] font-bold text-violet-300/80 hover:text-violet-200 flex items-center justify-center gap-1 rounded-lg"><span class="material-icons" style="font-size:14px">add</span>Add sub-expense</button>
+    </div>
+  </details>`;
+}
+
 function itemRowHtml(it, k, kind, who, opts = {}) {
+  if (getKids(it).length) return parentRowHtml(it, k, kind, who, opts);
   const amt = amountIn(it, k);
   const settled = isPaid(it.id, k); // income => received, expense => paid
-  const icon = opts.hideIcon ? null : iconFor(it.name);
-  const iconHtml = icon ? `<div class="w-7 h-7 rounded-lg overflow-hidden flex-shrink-0"><img src="assets/banks/${icon}.png" alt="" class="w-full h-full object-cover" /></div>` : "";
+  const iconHtml = opts.hideIcon ? "" : rowIconHtml(it.name, 28);
   const installment = it.recurring && it.end;
   const dd = dueDayFor(it);
   const tags = [];
@@ -368,25 +431,22 @@ function bankGroupHtml(bank, list, k, kind, who) {
   </div>`;
 }
 
-// Bank groups first (banks with 2+ items), then category groups for the rest.
+// Parent cards (items with sub-expenses) pinned first, then bank groups, then category groups.
 function groupedRowsHtml(items, k, kind, who) {
   if (!items.length) return `<p class="text-[11px] text-slate-600 px-3 py-2">No ${kind === "income" ? "income" : "expenses"} this month</p>`;
-  const buckets = {}, order = [];
-  for (const it of items) {
-    const b = bankIconFor(it.name);
-    if (b) (buckets[b] = buckets[b] || []).push(it);
-  }
-  for (const it of items) {
-    const b = bankIconFor(it.name);
-    if (b && buckets[b].length > 1 && !order.includes(b)) order.push(b);
-  }
-  const grouped = new Set();
   let html = "";
-  for (const b of order) {
-    buckets[b].forEach((it) => grouped.add(it.id));
-    html += bankGroupHtml(b, buckets[b], k, kind, who);
-  }
-  html += categoryGroupedHtml(items.filter((it) => !grouped.has(it.id)), k, kind, who);
+  // 1. parent expenses (with sub-expenses) always on top
+  const parents = items.filter((it) => getKids(it).length);
+  for (const it of parents) html += itemRowHtml(it, k, kind, who);
+  const rest = items.filter((it) => !getKids(it).length);
+  // 2. bank groups (banks with 2+ items)
+  const buckets = {}, order = [];
+  for (const it of rest) { const b = bankIconFor(it.name); if (b) (buckets[b] = buckets[b] || []).push(it); }
+  for (const it of rest) { const b = bankIconFor(it.name); if (b && buckets[b].length > 1 && !order.includes(b)) order.push(b); }
+  const grouped = new Set();
+  for (const b of order) { buckets[b].forEach((it) => grouped.add(it.id)); html += bankGroupHtml(b, buckets[b], k, kind, who); }
+  // 3. category groups for everything else
+  html += categoryGroupedHtml(rest.filter((it) => !grouped.has(it.id)), k, kind, who);
   return html;
 }
 
@@ -457,6 +517,39 @@ function brandIconFor(name) {
   return null;
 }
 function iconFor(name) { return bankIconFor(name) || brandIconFor(name); }
+// Generic category -> Material icon (fallback when there's no brand/bank logo).
+function categoryIcon(name) {
+  const n = (name || "").toLowerCase();
+  if (/electric|kuryent|meralco|\bpower\b/.test(n)) return "bolt";
+  if (/wifi|internet|pldt|converge|\bfiber\b|broadband|gomo|globe|smart/.test(n)) return "wifi";
+  if (/drinking water|purified|mineral|distilled/.test(n)) return "local_drink";
+  if (/\bwater\b|tubig|maynilad|manila water/.test(n)) return "water_drop";
+  if (/gas station|gasoline|petrol|diesel|motor gas|fuel/.test(n)) return "local_gas_station";
+  if (/gasul|lpg|cooking gas/.test(n)) return "local_fire_department";
+  if (/parking/.test(n)) return "local_parking";
+  if (/grocer|palengke|market|supermarket|puregold|sm\b/.test(n)) return "shopping_cart";
+  if (/laundry|labada/.test(n)) return "local_laundry_service";
+  if (/\brent\b|renta/.test(n)) return "home";
+  if (/tuition|school|educ|braces/.test(n)) return "school";
+  if (/med|medicine|pharmacy|drug|health|doctor/.test(n)) return "medication";
+  if (/\bcar\b|auto|vehicle|change oil/.test(n)) return "directions_car";
+  if (/food|dining|resto|restaurant|\bmeal|kain/.test(n)) return "restaurant";
+  if (/insurance/.test(n)) return "verified_user";
+  if (/loan|utang|hulog/.test(n)) return "request_quote";
+  if (/birthday|gift|regalo/.test(n)) return "cake";
+  if (/tithe|church|missionary|ministry|offering/.test(n)) return "volunteer_activism";
+  if (/salary|income|pay\b|sahod/.test(n)) return "payments";
+  if (/pet|dog|cat|kobe|dudu/.test(n)) return "pets";
+  return null;
+}
+// Row icon: brand/bank logo, else a category material-icon tile, else nothing.
+function rowIconHtml(name, sz) {
+  const brand = iconFor(name);
+  if (brand) return `<div class="rounded-lg overflow-hidden flex-shrink-0" style="width:${sz}px;height:${sz}px"><img src="assets/banks/${brand}.png" alt="" class="w-full h-full object-cover" /></div>`;
+  const cat = categoryIcon(name);
+  if (cat) return `<div class="rounded-lg bg-slate-800 flex items-center justify-center flex-shrink-0" style="width:${sz}px;height:${sz}px"><span class="material-icons text-slate-300" style="font-size:${Math.round(sz * 0.62)}px">${cat}</span></div>`;
+  return "";
+}
 function acctIconHtml(a) {
   const bank = bankIconFor(a.name);
   const ownerKey = a.owner === "karla" ? "karla" : "charlie";
@@ -752,9 +845,15 @@ window.openItemModal = function (who, kind, id) {
   $("modal-title").textContent = title;
   $("modal-title").className = `text-2xl font-black uppercase tracking-tight ${o.text}`;
 
+  const kids = it ? getKids(it) : [];
   let body = "";
   body += inputBlock(kind === "income" ? "Source" : "Name", "f-name", name, "text", 'placeholder="e.g. Rent"');
-  body += inputBlock("Amount (₱)", "f-amount", amount, "number", 'inputmode="decimal" placeholder="0"');
+  if (kids.length) {
+    body += `<div class="space-y-1"><label class="text-[10px] font-bold uppercase text-slate-500 ml-1">Amount (₱)</label>
+      <div class="w-full bg-slate-900 rounded-2xl py-4 px-5 text-base font-black text-slate-300">${peso(itemTotal(it, selectedKey))} <span class="text-[11px] font-bold text-slate-500">· sum of ${kids.length} sub-expenses</span></div></div>`;
+  } else {
+    body += inputBlock("Amount (₱)", "f-amount", amount, "number", 'inputmode="decimal" placeholder="0"');
+  }
 
   // recurring toggle
   body += `<div class="flex items-center justify-between bg-slate-900 rounded-2xl px-5 py-4">
@@ -778,7 +877,7 @@ window.openItemModal = function (who, kind, id) {
     <input type="number" id="f-dueday" min="1" max="31" inputmode="numeric" value="${ddVal}" placeholder="e.g. 29" class="w-full bg-slate-900 rounded-2xl py-4 px-5 text-base font-bold text-white focus:outline-none" /></div>`;
 
   // scope for editing recurring amount
-  if (!isNew && recurring) {
+  if (!isNew && recurring && !kids.length) {
     body += `<div class="space-y-1"><label class="text-[10px] font-bold uppercase text-slate-500 ml-1">Apply amount to</label>
       <select id="f-scope" class="w-full bg-slate-900 rounded-2xl py-4 px-5 text-base font-bold text-white focus:outline-none">
         <option value="all">All months</option>
@@ -787,7 +886,7 @@ window.openItemModal = function (who, kind, id) {
   }
 
   // received / paid this month
-  if (!isNew) {
+  if (!isNew && !kids.length) {
     const verb = kind === "income" ? "Received" : "Paid";
     const hint = kind === "income" ? "Mark this month's income received" : "Mark this month settled";
     body += `<div class="flex items-center justify-between bg-slate-900 rounded-2xl px-5 py-4">
@@ -798,6 +897,10 @@ window.openItemModal = function (who, kind, id) {
     </div>`;
   }
 
+  if (!isNew && kind === "expenses") {
+    body += `<button type="button" onclick="openChildModal('${who}','${id}',null)" class="w-full py-4 bg-violet-500/10 border border-violet-500/20 rounded-2xl font-bold text-violet-300 text-sm flex items-center justify-center gap-2 active:scale-[0.98] transition-transform"><span class="material-icons" style="font-size:18px">account_tree</span>Add sub-expense</button>`;
+  }
+
   $("modal-body").innerHTML = body;
 
   const delBtn = $("delete-btn");
@@ -805,6 +908,53 @@ window.openItemModal = function (who, kind, id) {
   else { delBtn.classList.remove("hidden"); delBtn.onclick = () => confirmDelete(); }
 
   openModalShell();
+};
+
+// Sub-expense modal (add/edit a child under a parent expense).
+window.openChildModal = function (who, parentId, childId) {
+  const parent = getItems(who, "expenses").find((x) => x.id === parentId);
+  if (!parent) return;
+  const c = childId ? getKids(parent).find((x) => x.id === childId) : null;
+  const isNew = !c;
+  activeEdit = { kind: "child", who, parentId, id: childId };
+  $("modal-title").textContent = isNew ? "Add Sub-expense" : "Edit Sub-expense";
+  $("modal-title").className = "text-2xl font-black uppercase tracking-tight text-violet-300";
+  const settledNow = c ? isPaid(c.id, selectedKey) : false;
+  let body = `<p class="text-[11px] text-slate-500 mb-1">Under <span class="font-bold text-slate-300">${escapeHtml(parent.name)}</span></p>`;
+  body += inputBlock("Name", "f-name", c ? c.name : "", "text", 'placeholder="e.g. Electricity"');
+  body += inputBlock("Amount (₱)", "f-amount", c ? c.amount : "", "number", 'inputmode="decimal" placeholder="0"');
+  if (!isNew) {
+    body += `<div class="flex items-center justify-between bg-slate-900 rounded-2xl px-5 py-4">
+      <div><p class="text-sm font-bold text-white">Paid in ${monthShort(selectedKey)}</p><p class="text-[10px] text-slate-500">Mark this sub-expense settled</p></div>
+      <button type="button" id="f-paid" data-on="${settledNow}" onclick="toggleField(this)" class="w-14 h-8 rounded-full transition-colors ${settledNow ? "bg-emerald-600" : "bg-slate-700"} relative flex-shrink-0"><span class="absolute top-1 ${settledNow ? "left-7" : "left-1"} w-6 h-6 bg-white rounded-full transition-all"></span></button>
+    </div>`;
+  } else {
+    body += `<button type="button" onclick="saveChildAndAddAnother()" class="w-full py-4 bg-violet-500/10 border border-violet-500/20 rounded-2xl font-bold text-violet-300 text-sm flex items-center justify-center gap-2"><span class="material-icons" style="font-size:18px">playlist_add</span>Save &amp; add another</button>`;
+  }
+  $("modal-body").innerHTML = body;
+  const delBtn = $("delete-btn");
+  if (isNew) delBtn.classList.add("hidden");
+  else { delBtn.classList.remove("hidden"); delBtn.onclick = () => confirmDelete(); }
+  openModalShell();
+};
+
+// Save the current sub-expense and immediately reopen a fresh form (batch add).
+window.saveChildAndAddAnother = async function () {
+  if (!activeEdit || activeEdit.kind !== "child") return;
+  const name = ($("f-name")?.value || "").trim();
+  const amount = parseFloat($("f-amount")?.value) || 0;
+  if (!name) return toast("Name required", "error");
+  const { who, parentId } = activeEdit;
+  const parent = getItems(who, "expenses").find((x) => x.id === parentId);
+  if (parent) {
+    if (!Array.isArray(parent.children)) parent.children = [];
+    parent.children.push({ id: generateId(), name, amount });
+  }
+  await syncSet();
+  renderAll();
+  openChildModal(who, parentId, null); // fresh form, modal stays open
+  toast("Added");
+  setTimeout(() => $("f-name")?.focus(), 60);
 };
 
 window.toggleField = function (btn) {
@@ -884,6 +1034,26 @@ window.saveModal = async function () {
     return;
   }
 
+  if (activeEdit.kind === "child") {
+    if (!name) return toast("Name required", "error");
+    const { who, parentId, id } = activeEdit;
+    const parent = getItems(who, "expenses").find((x) => x.id === parentId);
+    if (parent) {
+      if (!Array.isArray(parent.children)) parent.children = [];
+      if (id) {
+        const c = parent.children.find((x) => x.id === id);
+        if (c) { c.name = name; c.amount = amount; }
+        const pf = $("f-paid");
+        if (pf) { appData.paid[selectedKey] = appData.paid[selectedKey] || {}; appData.paid[selectedKey][id] = pf.dataset.on === "true"; }
+      } else {
+        parent.children.push({ id: generateId(), name, amount });
+      }
+    }
+    await syncSet();
+    closeModal(); renderAll(); toast("Saved"); celebrate();
+    return;
+  }
+
   // item
   if (!name) return toast("Name required", "error");
   const { who, type, id } = activeEdit;
@@ -904,7 +1074,9 @@ window.saveModal = async function () {
       it.end = recurring ? end : null;
       it.dueDay = dueDay;
       const scope = $("f-scope") ? $("f-scope").value : "all";
-      if (recurring && scope === "month") {
+      if (getKids(it).length) {
+        // amount is derived from sub-expenses; leave it.amount untouched
+      } else if (recurring && scope === "month") {
         appData.overrides[selectedKey] = appData.overrides[selectedKey] || {};
         appData.overrides[selectedKey][id] = amount;
       } else {
@@ -934,6 +1106,7 @@ window.togglePaidQuick = async function (event, id, kind) {
   appData.paid[selectedKey][id] = nowSettled; // explicit true/false so auto-complete won't re-check a manual uncheck
   applyPaidVisual(btn, nowSettled); // surgical — no full re-render, no scroll jump
   updateInstallmentBar(btn, id);    // keep the mini progress bar in sync
+  updateParentBadge(id);            // if this is a sub-expense, refresh its parent's X/Y badge
   if (nowSettled) {
     const valEl = btn.closest(".item-row")?.lastElementChild; // the amount, right side
     flashLabel(valEl || btn, kind === "income" ? "Received!" : "Paid!");
@@ -941,6 +1114,31 @@ window.togglePaidQuick = async function (event, id, kind) {
   refreshRealized();
   await syncSet();
 };
+
+// When a sub-expense is toggled, update its parent's "X/Y paid" badge + all-paid styling.
+function updateParentBadge(childId) {
+  let parent = null;
+  for (const who of ["charlie", "karla"]) {
+    for (const it of getItems(who, "expenses")) {
+      if (getKids(it).some((c) => c.id === childId)) { parent = it; break; }
+    }
+    if (parent) break;
+  }
+  if (!parent) return;
+  const details = document.querySelector(`details.item-parent[data-parent="${parent.id}"]`);
+  if (!details) return;
+  const kids = getKids(parent);
+  const paidCount = kids.filter((c) => isPaid(c.id, selectedKey)).length;
+  const allPaid = kids.length > 0 && paidCount === kids.length;
+  const countEl = details.querySelector(".parent-paid-count");
+  if (countEl) countEl.textContent = paidCount;
+  const bar = details.querySelector(".parent-bar");
+  if (bar) bar.style.width = (kids.length ? Math.round((paidCount / kids.length) * 100) : 0) + "%";
+  const summary = details.querySelector("summary");
+  const name = summary?.querySelector(".item-name");
+  if (summary) summary.classList.toggle("opacity-70", allPaid);
+  if (name) name.classList.toggle("line-through", allPaid);
+}
 
 function findItemById(id) {
   for (const who of ["charlie", "karla"]) {
@@ -1022,6 +1220,11 @@ async function doDelete() {
   if (!activeEdit) return;
   if (activeEdit.kind === "account") {
     appData.accounts = appData.accounts.filter((a) => a.id !== activeEdit.id);
+  } else if (activeEdit.kind === "child") {
+    const { who, parentId, id } = activeEdit;
+    const parent = getItems(who, "expenses").find((x) => x.id === parentId);
+    if (parent && Array.isArray(parent.children)) parent.children = parent.children.filter((c) => c.id !== id);
+    for (const k of Object.keys(appData.paid)) delete appData.paid[k][id];
   } else {
     const { who, type, id } = activeEdit;
     appData.items[who][type] = appData.items[who][type].filter((x) => x.id !== id);

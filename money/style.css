@@ -755,6 +755,12 @@ input[type="checkbox"]:checked::before {
   animation: flashPop 0.9s cubic-bezier(0.22, 1, 0.36, 1) forwards;
 }
 
+/* --- Expandable parent expense (sub-expenses) --- */
+details.item-parent > summary::-webkit-details-marker { display: none; }
+details.item-parent > summary { list-style: none; }
+.parent-caret { transition: transform 0.2s ease; }
+details.item-parent[open] > summary .parent-caret { transform: rotate(90deg); }
+
 /* --- Account squircle icon + owner badge --- */
 .acct-icon-wrap {
   position: relative;
