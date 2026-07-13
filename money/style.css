@@ -40,7 +40,6 @@ body {
 }
 
 .glass-card:active {
-  transform: scale(0.98);
   background: rgba(30, 41, 59, 0.9);
 }
 
@@ -117,6 +116,69 @@ input[type="checkbox"]:checked::before {
   transform: scale(1);
 }
 
+/* Left edge keeps full padding (first chip + ring not clipped); right edge fades out
+   exactly at the card's right edge so the last chip doesn't hard-crop. */
+#month-strip {
+  -webkit-mask-image: linear-gradient(to right, #000 calc(100% - 52px), transparent calc(100% - 24px));
+  mask-image: linear-gradient(to right, #000 calc(100% - 52px), transparent calc(100% - 24px));
+}
+@media (min-width: 768px) {
+  #month-strip {
+    -webkit-mask-image: linear-gradient(to right, #000 calc(100% - 64px), transparent calc(100% - 32px));
+    mask-image: linear-gradient(to right, #000 calc(100% - 64px), transparent calc(100% - 32px));
+  }
+}
+
+/* Intro: Charlie & Karla avatars bump, then money pops */
+.intro-avatars {
+  position: relative;
+  width: 180px;
+  height: 120px;
+}
+.intro-av {
+  position: absolute;
+  top: 50%;
+  left: 50%;
+  width: 72px;
+  height: 72px;
+  margin: -36px 0 0 -36px;
+  border-radius: 9999px;
+  object-fit: cover;
+  border: 3px solid rgba(255, 255, 255, 0.18);
+  box-shadow: 0 10px 24px rgba(0, 0, 0, 0.45);
+}
+#intro-charlie { z-index: 2; animation: bumpLeft 0.9s cubic-bezier(0.34, 1.56, 0.64, 1) forwards; }
+#intro-karla { z-index: 1; animation: bumpRight 0.9s cubic-bezier(0.34, 1.56, 0.64, 1) forwards; }
+.intro-money {
+  position: absolute;
+  top: 50%;
+  left: 50%;
+  width: 56px;
+  height: 56px;
+  margin: -28px 0 0 -28px;
+  object-fit: contain;
+  opacity: 0;
+  z-index: 3;
+  animation: introMoneyPop 0.7s cubic-bezier(0.34, 1.56, 0.64, 1) 0.75s forwards;
+}
+@keyframes bumpLeft {
+  0% { transform: translateX(-150px) scale(0.7); opacity: 0; }
+  55% { transform: translateX(-8px) scale(1); opacity: 1; }
+  72% { transform: translateX(-28px); }
+  100% { transform: translateX(-22px); }
+}
+@keyframes bumpRight {
+  0% { transform: translateX(150px) scale(0.7); opacity: 0; }
+  55% { transform: translateX(8px) scale(1); opacity: 1; }
+  72% { transform: translateX(28px); }
+  100% { transform: translateX(22px); }
+}
+@keyframes introMoneyPop {
+  0% { transform: translateY(-8px) scale(0) rotate(-25deg); opacity: 0; }
+  60% { transform: translateY(-64px) scale(1.18) rotate(10deg); opacity: 1; }
+  100% { transform: translateY(-56px) scale(1) rotate(0deg); opacity: 1; }
+}
+
 /* Intro Particles using Emoji */
 .intro-emoji {
   position: absolute;
@@ -160,7 +222,10 @@ input[type="checkbox"]:checked::before {
 
 /* Modal Input Adjustments - Fixing Left Cropping Aggressively */
 #modal-body {
-  padding: 0 !important; /* Remove wrapper padding so inputs span full width of modal content */
+  /* Right gutter so the scrollbar sits near the modal edge (not floating mid-panel);
+     the matching negative margin keeps inputs full-width + symmetric. */
+  padding: 0 0.75rem 0 0 !important;
+  margin-right: -0.75rem;
 }
 
 #modal-body input[type="text"],
@@ -283,9 +348,6 @@ input[type="checkbox"]:checked::before {
     background: rgba(30, 41, 59, 0.8);
     color: #94a3b8;
   }
-  .sidebar-month-btn:active {
-    transform: scale(0.97);
-  }
   .sidebar-month-btn.active {
     background: rgba(59, 130, 246, 0.1);
     color: #60a5fa;
@@ -314,10 +376,8 @@ input[type="checkbox"]:checked::before {
 
 /* Constrain non-budget views on desktop/tablet */
 @media (min-width: 768px) {
-  #stats-view,
-  #commitments-view,
-  #pending-view,
-  #setup-view {
+  #projection-view,
+  #pending-view {
     max-width: 720px;
     margin-left: auto;
     margin-right: auto;
@@ -346,6 +406,16 @@ input[type="checkbox"]:checked::before {
 .drag-handle {
   cursor: grab;
   touch-action: none;
+}
+
+/* More sheet (installments + projection) */
+#more-overlay.open {
+  opacity: 1;
+  pointer-events: auto;
+}
+#more-overlay.open #more-sheet {
+  transform: translateY(0);
+  opacity: 1;
 }
 
 /* Confirm Modal */
@@ -379,7 +449,6 @@ input[type="checkbox"]:checked::before {
   text-transform: uppercase;
   letter-spacing: 0.02em;
 }
-.nav-tab:active { transform: scale(0.9); transition: transform 0.1s ease; }
 
 /* === IDLE ANIMATIONS === */
 
@@ -438,11 +507,7 @@ input[type="checkbox"]:checked::before {
 /* 5. Soft card hover lift on desktop */
 @media (hover: hover) {
   .glass-card:hover {
-    transform: translateY(-2px);
     box-shadow: 0 8px 30px rgba(0,0,0,0.2);
-  }
-  .glass-card:active {
-    transform: scale(0.98) translateY(0);
   }
 }
 
@@ -516,15 +581,9 @@ input[type="checkbox"]:checked::before {
   animation-delay: 0.1s;
 }
 
-/* 11. Card press physics — deeper press, spring release */
+/* 11. Card feedback — background/shadow only, no press scaling */
 .glass-card {
-  transition: transform 0.3s cubic-bezier(0.34, 1.56, 0.64, 1),
-              box-shadow 0.3s ease,
-              background 0.3s ease;
-}
-.glass-card:active {
-  transform: scale(0.97) !important;
-  transition-duration: 0.1s;
+  transition: box-shadow 0.3s ease, background 0.3s ease;
 }
 
 /* 12. Amount number pop on change */
@@ -579,17 +638,13 @@ input[type="checkbox"]:checked::before {
 }
 
 /* View transition */
-#stats-view,
-#commitments-view,
-#pending-view,
-#setup-view {
+#projection-view,
+#pending-view {
   transition: opacity 0.3s ease, transform 0.3s ease;
   transform: translateY(8px);
 }
-#stats-view.view-active,
-#commitments-view.view-active,
-#pending-view.view-active,
-#setup-view.view-active {
+#projection-view.view-active,
+#pending-view.view-active {
   transform: translateY(0);
 }
 
@@ -625,6 +680,141 @@ input[type="checkbox"]:checked::before {
   opacity: 1;
   transform: translateX(-50%) translateY(0) scale(1);
   pointer-events: auto;
+}
+
+/* --- Desktop budget layout: 2-column grid (hero/accounts/pending span full) --- */
+@media (min-width: 768px) {
+  #budget-body {
+    display: grid;
+    grid-template-columns: 1fr 1fr;
+    gap: 20px;
+    align-items: start;
+  }
+  #budget-body > * { margin-top: 0 !important; }
+  #budget-body > section,
+  #budget-body > details,
+  #budget-body > button { grid-column: 1 / -1; }
+}
+
+/* --- Current-month "NOW" banner tag on the month chip --- */
+.now-banner {
+  position: absolute;
+  top: -10px;
+  left: 3px;
+  transform: rotate(-8deg);
+  background: #34d399;
+  color: #052e16;
+  font-size: 8px;
+  font-weight: 900;
+  letter-spacing: 0.18em;
+  text-transform: uppercase;
+  padding: 2px 7px;
+  border-radius: 6px;
+  white-space: nowrap;
+  box-shadow: 0 2px 6px rgba(0, 0, 0, 0.35);
+  pointer-events: none;
+}
+
+/* --- Green sweep across a row when it's marked settled --- */
+@keyframes rowSweep {
+  0% { transform: translateX(-100%); }
+  100% { transform: translateX(120%); }
+}
+.row-sweep { position: relative; overflow: hidden; }
+.row-sweep::after {
+  content: "";
+  position: absolute;
+  inset: 0;
+  background: linear-gradient(90deg, transparent 0%, rgba(16, 185, 129, 0.45) 50%, transparent 100%);
+  transform: translateX(-100%);
+  animation: rowSweep 0.7s ease-out forwards;
+  pointer-events: none;
+}
+
+/* --- "Received!" / "Paid!" floating pop on check --- */
+@keyframes flashPop {
+  0%   { transform: translate(-50%, 2px) scale(0.6); opacity: 0; }
+  25%  { transform: translate(-50%, -10px) scale(1.12); opacity: 1; }
+  70%  { transform: translate(-50%, -16px) scale(1); opacity: 1; }
+  100% { transform: translate(-50%, -30px) scale(0.95); opacity: 0; }
+}
+.flash-label {
+  position: fixed;
+  z-index: 90;
+  pointer-events: none;
+  transform: translate(-50%, 0);
+  font-weight: 900;
+  font-size: 12px;
+  letter-spacing: 0.03em;
+  padding: 4px 10px;
+  border-radius: 10px;
+  white-space: nowrap;
+  background: #34d399;
+  color: #052e16;
+  box-shadow: 0 6px 16px rgba(16, 185, 129, 0.35);
+  animation: flashPop 0.9s cubic-bezier(0.22, 1, 0.36, 1) forwards;
+}
+
+/* --- Account squircle icon + owner badge --- */
+.acct-icon-wrap {
+  position: relative;
+  width: 40px;
+  height: 40px;
+  flex-shrink: 0;
+}
+.acct-icon {
+  width: 40px;
+  height: 40px;
+  border-radius: 11px;
+  overflow: hidden;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+}
+.acct-owner-badge {
+  position: absolute;
+  right: -3px;
+  bottom: -3px;
+  width: 18px;
+  height: 18px;
+  border-radius: 9999px;
+  object-fit: cover;
+  border: 2px solid #0f172a;
+}
+
+/* --- Clickable row hover/tap affordance (opens the edit modal) --- */
+.item-row { transition: background-color 0.15s ease; }
+@media (hover: hover) {
+  .item-row:hover { background-color: rgba(51, 65, 85, 0.5); }
+}
+.item-row:active { background-color: rgba(51, 65, 85, 0.6); }
+
+/* --- Paid checkbox hover affordance --- */
+.paid-check {
+  transition: transform 0.18s ease, border-color 0.18s ease, background-color 0.18s ease;
+}
+.paid-check .check-icon {
+  opacity: 0;
+  transform: scale(0.4);
+  transition: opacity 0.18s ease, transform 0.18s ease, color 0.18s ease;
+}
+.paid-check.is-paid .check-icon {
+  opacity: 1;
+  transform: scale(1);
+}
+@media (hover: hover) {
+  .paid-check:hover {
+    transform: scale(1.15);
+  }
+  .paid-check:not(.is-paid):hover {
+    border-color: #10b981;
+    background-color: rgba(16, 185, 129, 0.12);
+  }
+  .paid-check:not(.is-paid):hover .check-icon {
+    opacity: 0.45;
+    transform: scale(1);
+    color: #10b981;
+  }
 }
 
 /* --- Pending Payments view --- */

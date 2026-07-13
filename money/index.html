@@ -6,9 +6,15 @@
       name="viewport"
       content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no"
     />
-    <title>CHALEE | Personal Budget</title>
+    <title>CharLa | Money</title>
     <link rel="manifest" href="manifest.json" />
     <meta name="theme-color" content="#0f172a" />
+    <!-- 💸 money-with-wings favicon -->
+    <link
+      rel="icon"
+      href="data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 100 100'%3E%3Ctext y='.9em' font-size='90'%3E%F0%9F%92%B8%3C/text%3E%3C/svg%3E"
+    />
+    <link rel="apple-touch-icon" href="assets/money-icon.png" />
     <script src="https://cdn.tailwindcss.com"></script>
     <link
       href="https://fonts.googleapis.com/icon?family=Material+Icons"
@@ -19,66 +25,27 @@
   <body
     class="bg-slate-900 text-slate-100 overflow-hidden font-sans select-none"
   >
-    <!-- INTRO ANIMATION & USER SELECTION -->
+    <!-- INTRO SPLASH -->
     <div
       id="intro-screen"
       class="fixed inset-0 z-[100] bg-slate-900 flex flex-col items-center justify-center pointer-events-auto overflow-hidden transition-opacity duration-700"
     >
       <div id="intro-particles" class="absolute inset-0"></div>
-
       <div
         id="intro-content"
-        class="relative z-10 flex flex-col items-center gap-12 transition-all duration-700"
+        class="relative z-10 flex flex-col items-center gap-10 transition-all duration-700"
       >
-        <img
-          src="assets/money-icon.png"
-          id="intro-logo"
-          class="w-24 h-24 object-contain scale-0 transition-all duration-500 ease-out"
-          alt="Logo"
-        />
-
-        <!-- User Selection (Hidden initially) -->
-        <div
-          id="user-selection"
-          class="flex flex-col gap-4 opacity-0 translate-y-10 transition-all duration-500 pointer-events-none"
-        >
-          <p
-            class="text-slate-400 text-xs font-black uppercase tracking-[0.3em] text-center mb-2"
-          >
-            Who is tracking?
-          </p>
-          <div class="flex gap-4">
-            <button
-              onclick="selectUser('Charlie')"
-              class="px-8 py-5 bg-blue-600 rounded-[2rem] font-black text-lg active:scale-90 transition-transform shadow-xl shadow-blue-900/40"
-            >
-              Charlie
-            </button>
-            <button
-              onclick="selectUser('Karla')"
-              class="px-8 py-5 bg-rose-600 rounded-[2rem] font-black text-lg active:scale-90 transition-transform shadow-xl shadow-rose-900/40"
-            >
-              Karla
-            </button>
-          </div>
+        <div class="intro-avatars">
+          <img src="assets/avatar-charlie.jpg" id="intro-charlie" class="intro-av" alt="Charlie" />
+          <img src="assets/avatar-karla.jpg" id="intro-karla" class="intro-av" alt="Karla" />
+          <img src="assets/money-icon.png" id="intro-money" class="intro-money" alt="Money" />
         </div>
-
-        <!-- Login Status (Hidden initially) -->
-        <div
-          id="login-status"
-          class="hidden flex flex-col items-center gap-4 animate-pulse"
+        <p
+          class="text-slate-200 text-sm font-black uppercase tracking-[0.3em] text-center opacity-0 transition-opacity duration-500"
+          id="intro-tag"
         >
-          <div
-            class="w-12 h-1 bg-blue-500 rounded-full overflow-hidden relative"
-          >
-            <div class="absolute inset-0 bg-white/40 animate-loading-bar"></div>
-          </div>
-          <p
-            class="text-[10px] font-black uppercase tracking-[0.4em] text-blue-400"
-          >
-            Synchronizing...
-          </p>
-        </div>
+          Charlie &amp; Karla's Money
+        </p>
       </div>
     </div>
 
@@ -91,401 +58,96 @@
     <!-- APP SHELL -->
     <div
       id="app"
-      class="h-screen flex flex-col opacity-0 transition-opacity duration-500 max-w-2xl md:max-w-5xl mx-auto shadow-2xl bg-slate-900"
+      class="h-screen flex flex-col opacity-0 transition-opacity duration-500 max-w-2xl md:max-w-5xl mx-auto bg-slate-900"
     >
       <!-- SYNC INDICATOR -->
-      <div id="sync-bar" class="h-[2px] bg-slate-900 relative overflow-hidden flex-shrink-0" style="opacity:0; transition: opacity 0.3s ease">
-        <div class="absolute inset-0 bg-gradient-to-r from-blue-500 via-indigo-500 to-blue-500 animate-sync-slide"></div>
+      <div
+        id="sync-bar"
+        class="h-[2px] bg-slate-900 relative overflow-hidden flex-shrink-0"
+        style="opacity: 0; transition: opacity 0.3s ease"
+      >
+        <div
+          class="absolute inset-0 bg-gradient-to-r from-blue-500 via-indigo-500 to-blue-500 animate-sync-slide"
+        ></div>
       </div>
 
       <!-- HEADER -->
       <header
-        class="p-6 md:px-8 flex justify-between items-end bg-slate-900/80 backdrop-blur-md sticky top-0 z-40"
+        class="px-6 md:px-8 pt-6 pb-3 flex justify-between items-end bg-slate-900/80 backdrop-blur-md sticky top-0 z-40 flex-shrink-0"
       >
         <div>
           <h1
             id="current-month-display"
-            class="text-3xl font-black tracking-tight text-white uppercase italic"
+            class="text-3xl font-black tracking-tight text-white uppercase italic leading-none"
           >
-            JANUARY
+            JULY
           </h1>
           <p
-            id="current-user-tag"
-            class="text-blue-400 text-[10px] font-black tracking-[0.4em] uppercase"
+            class="text-indigo-400 text-[10px] font-black tracking-[0.4em] uppercase mt-1"
           >
-            CHARLIE<span class="live-dot"></span>
+            <span id="current-year-display">2026</span>
           </p>
         </div>
         <div class="flex items-center gap-3">
           <button
-            onclick="toggleMonthPicker()"
-            class="w-12 h-12 flex items-center justify-center bg-slate-800 rounded-2xl active:scale-90 transition-transform shadow-lg md:hidden"
+            onclick="openMore()"
+            class="w-12 h-12 flex items-center justify-center bg-slate-800 rounded-2xl transition-transform shadow-lg"
           >
-            <span class="material-icons text-blue-400">calendar_month</span>
+            <span class="material-icons text-indigo-400">insights</span>
           </button>
           <button
-            id="header-settings-btn"
-            onclick="toggleSetup()"
-            class="w-12 h-12 flex items-center justify-center bg-slate-800 rounded-2xl active:scale-90 transition-transform shadow-lg"
+            onclick="toggleMonthPicker()"
+            class="w-12 h-12 flex items-center justify-center bg-slate-800 rounded-2xl transition-transform shadow-lg md:hidden"
           >
-            <span class="material-icons text-slate-400">settings</span>
+            <span class="material-icons text-indigo-400">calendar_month</span>
           </button>
         </div>
       </header>
 
-      <!-- MONTH DOT INDICATOR (mobile only) -->
-      <div id="month-dots" class="flex items-center justify-center gap-1.5 py-2 bg-slate-900 md:hidden">
-        <!-- 12 dots rendered by JS -->
-      </div>
-
-      <!-- DESKTOP LAYOUT: sidebar + content -->
-      <div class="flex-1 flex overflow-hidden">
-        <!-- DESKTOP MONTH SIDEBAR (hidden on mobile) -->
-        <aside id="desktop-sidebar" class="hidden md:flex flex-col w-48 lg:w-56 flex-shrink-0 border-r border-white/[0.04] bg-slate-900/50 overflow-y-auto py-3 px-3 gap-1">
-          <!-- Rendered by JS -->
-        </aside>
-
-        <!-- VIEWS -->
-        <main id="view-container" class="flex-1 relative overflow-hidden">
-          <!-- BUDGET VIEW (SWIPER on mobile, single pane on desktop) -->
+      <!-- VIEWS -->
+      <main id="view-container" class="flex-1 relative overflow-hidden">
+        <!-- BUDGET VIEW -->
+        <div
+          id="budget-view"
+          class="absolute inset-0 overflow-y-auto pb-10"
+        >
+          <!-- Month strip -->
           <div
-            id="budget-view"
-            class="absolute inset-0 flex overflow-x-auto scroll-smooth snap-x snap-mandatory transition-opacity duration-300 md:block md:overflow-x-hidden md:overflow-y-auto"
+            id="month-strip"
+            class="flex items-center gap-2 overflow-x-auto px-6 md:px-8 pt-6 pb-3 no-scrollbar"
           >
-            <!-- Snap points for months -->
+            <!-- month chips injected -->
           </div>
 
-        <!-- STATS VIEW -->
-        <div
-          id="stats-view"
-          class="absolute inset-0 overflow-y-auto px-6 pt-4 pb-32 space-y-8 opacity-0 pointer-events-none transition-opacity duration-300 bg-slate-900"
-        >
-          <section class="space-y-4">
-            <h3
-              class="text-xs font-black uppercase tracking-[0.2em] text-slate-500"
-            >
-              Annual Summary
-            </h3>
-            <div id="annual-chart" class="space-y-4">
-              <!-- Bars generated here -->
-            </div>
-          </section>
+          <div id="month-banner" class="px-6 md:px-8 pb-2"></div>
 
-          <section class="space-y-4">
-            <h3
-              class="text-xs font-black uppercase tracking-[0.2em] text-slate-500"
-            >
-              Savings Trend
-            </h3>
-            <div
-              id="savings-chart"
-              class="flex items-end justify-between h-32 gap-1 px-2 border-b border-slate-800"
-            >
-              <!-- Trend lines -->
-            </div>
-          </section>
-        </div>
-
-        <!-- COMMITMENTS VIEW -->
-        <div
-          id="commitments-view"
-          class="absolute inset-0 overflow-y-auto px-6 md:px-8 pt-4 pb-32 space-y-6 opacity-0 pointer-events-none transition-opacity duration-300 bg-slate-900"
-        >
-          <h3 class="text-xs font-black uppercase tracking-[0.2em] text-slate-500">Goals</h3>
-
-          <!-- 1. June Balance -->
-          <div class="glass-card p-6 rounded-2xl space-y-3 border border-blue-500/10">
-            <div class="flex items-center gap-3">
-              <div class="w-10 h-10 rounded-2xl bg-gradient-to-br from-blue-500 to-indigo-600 flex items-center justify-center">
-                <span class="material-icons text-white text-lg">savings</span>
-              </div>
-              <div>
-                <h4 class="text-sm font-black text-white">June Balance</h4>
-                <p class="text-[10px] text-slate-400">What you'll have before the wedding</p>
-              </div>
-            </div>
-            <div class="bg-slate-900/50 rounded-2xl p-5 text-center border border-white/[0.04]">
-              <p id="after-wedding-balance" class="text-4xl font-black text-blue-400">--</p>
-              <p id="after-wedding-sub" class="text-[10px] text-slate-500 mt-1">Projected running balance end of June</p>
-            </div>
-          </div>
-
-          <!-- 2. Wedding Fund (pulls from weddingCosts Firebase) -->
-          <div class="glass-card p-6 rounded-2xl space-y-4">
-            <div class="flex items-center justify-between">
-              <div class="flex items-center gap-3">
-                <div class="w-10 h-10 rounded-2xl bg-gradient-to-br from-amber-500 to-orange-600 flex items-center justify-center">
-                  <span class="material-icons text-white text-lg">favorite</span>
-                </div>
-                <div>
-                  <h4 class="text-sm font-black text-white">Wedding Fund</h4>
-                  <p class="text-[10px] text-slate-400">Due before July 2, 2026</p>
-                </div>
-              </div>
-              <span id="wedding-status" class="text-[10px] font-black px-2 py-1 rounded-lg bg-amber-500/20 text-amber-400 uppercase">Active</span>
-            </div>
-            <div class="grid grid-cols-2 md:grid-cols-4 gap-3">
-              <div class="bg-slate-900/50 rounded-xl p-3 text-center">
-                <p class="text-[10px] font-bold uppercase text-slate-500">Grand Total</p>
-                <p id="wedding-grand-total" class="text-sm font-black text-white mt-1">--</p>
-              </div>
-              <div class="bg-slate-900/50 rounded-xl p-3 text-center">
-                <p class="text-[10px] font-bold uppercase text-slate-500">Total Paid</p>
-                <p id="wedding-total-paid" class="text-sm font-black text-emerald-400 mt-1">--</p>
-              </div>
-              <div class="bg-slate-900/50 rounded-xl p-3 text-center">
-                <p class="text-[10px] font-bold uppercase text-slate-500">Remaining</p>
-                <p id="wedding-remaining" class="text-sm font-black text-amber-400 mt-1">--</p>
-              </div>
-              <div class="bg-slate-900/50 rounded-xl p-3 text-center">
-                <p class="text-[10px] font-bold uppercase text-slate-500">Days Left</p>
-                <p id="wedding-days-left" class="text-sm font-black text-blue-400 mt-1">--</p>
-              </div>
-            </div>
-            <!-- Progress bar -->
-            <div>
-              <div class="flex justify-between text-[10px] font-bold text-slate-500 mb-1">
-                <span>Paid</span>
-                <span id="wedding-progress-pct">--%</span>
-              </div>
-              <div class="h-3 bg-slate-900/50 rounded-full overflow-hidden">
-                <div id="wedding-progress-bar" class="h-full bg-gradient-to-r from-amber-500 to-orange-500 rounded-full transition-all duration-700 bar-shimmer" style="width:0%"></div>
-              </div>
-            </div>
-            <!-- Contributors -->
-            <div class="grid grid-cols-2 gap-3">
-              <div class="bg-slate-900/50 rounded-xl p-3">
-                <p class="text-[10px] font-bold uppercase text-slate-500 mb-1">Charlie (Me)</p>
-                <p id="wedding-charlie" class="text-lg font-black text-blue-400">--</p>
-              </div>
-              <div class="bg-slate-900/50 rounded-xl p-3 cursor-pointer active:scale-[0.98] transition-transform" onclick="editCharlaJoint()">
-                <div class="flex items-center justify-between mb-1">
-                  <p class="text-[10px] font-bold uppercase text-slate-500">CharLa Joint</p>
-                  <span class="material-icons text-[12px] text-rose-400/50">edit</span>
-                </div>
-                <p id="wedding-karla" class="text-lg font-black text-rose-400">--</p>
-              </div>
-            </div>
-            <!-- Wedding Costs button -->
-            <button onclick="openWeddingBar()" class="w-full py-4 bg-emerald-500/10 border border-emerald-500/20 rounded-2xl font-black text-emerald-400 text-[11px] flex items-center justify-center gap-2 active:scale-95 transition-transform">
-              <span class="material-icons text-sm">receipt_long</span> View All Wedding Costs
-            </button>
-          </div>
-
-          <!-- 3. CharLa Wedding Commitments -->
-          <div class="glass-card p-6 rounded-2xl space-y-4">
-            <div class="flex items-center justify-between">
-              <div class="flex items-center gap-3">
-                <div class="w-10 h-10 rounded-2xl bg-gradient-to-br from-pink-500 to-rose-600 flex items-center justify-center">
-                  <span class="material-icons text-white text-lg">diamond</span>
-                </div>
-                <div>
-                  <h4 class="text-sm font-black text-white">CharLa Wedding Commitments</h4>
-                  <p class="text-[10px] text-slate-400">Jan 2025 — June 2026</p>
-                </div>
-              </div>
-              <span id="ring-status" class="text-[10px] font-black px-2 py-1 rounded-lg bg-amber-500/20 text-amber-400 uppercase">Active</span>
-            </div>
-            <div class="grid grid-cols-2 md:grid-cols-4 gap-3">
-              <div class="bg-slate-900/50 rounded-xl p-3 text-center">
-                <p class="text-[10px] font-bold uppercase text-slate-500">Target</p>
-                <p id="ring-target" class="text-sm font-black text-white mt-1">--</p>
-              </div>
-              <div class="bg-slate-900/50 rounded-xl p-3 text-center">
-                <p class="text-[10px] font-bold uppercase text-slate-500">Total Paid</p>
-                <p id="ring-total-paid" class="text-sm font-black text-emerald-400 mt-1">--</p>
-              </div>
-              <div class="bg-slate-900/50 rounded-xl p-3 text-center">
-                <p class="text-[10px] font-bold uppercase text-slate-500">Remaining</p>
-                <p id="ring-remaining" class="text-sm font-black text-amber-400 mt-1">--</p>
-              </div>
-              <div class="bg-slate-900/50 rounded-xl p-3 text-center">
-                <p class="text-[10px] font-bold uppercase text-slate-500">Months Left</p>
-                <p id="ring-months-left" class="text-sm font-black text-blue-400 mt-1">--</p>
-              </div>
-            </div>
-            <div>
-              <div class="flex justify-between text-[10px] font-bold text-slate-500 mb-1">
-                <span>Progress</span>
-                <span id="ring-progress-pct">--%</span>
-              </div>
-              <div class="h-3 bg-slate-900/50 rounded-full overflow-hidden">
-                <div id="ring-progress-bar" class="h-full bg-gradient-to-r from-pink-500 to-rose-500 rounded-full transition-all duration-700 bar-shimmer" style="width:0%"></div>
-              </div>
-            </div>
-            <div>
-              <p class="text-[10px] font-bold uppercase text-slate-500 mb-2">Payment Schedule</p>
-              <div id="ring-timeline" class="grid grid-cols-3 md:grid-cols-6 gap-1.5">
-                <!-- Rendered by JS -->
-              </div>
-            </div>
-          </div>
-
-          <!-- 4. After the Wedding -->
-          <div class="glass-card p-6 rounded-2xl space-y-3 border border-emerald-500/10">
-            <div class="flex items-center gap-3">
-              <div class="w-10 h-10 rounded-2xl bg-gradient-to-br from-emerald-500 to-teal-600 flex items-center justify-center">
-                <span class="material-icons text-white text-lg">account_balance</span>
-              </div>
-              <div>
-                <h4 class="text-sm font-black text-white">After the Wedding</h4>
-                <p class="text-[10px] text-slate-400">Starting balance for married life</p>
-              </div>
-            </div>
-            <div class="space-y-2">
-              <div class="flex justify-between text-[11px]">
-                <span class="text-slate-400">Your June balance</span>
-                <span id="aw-june-bal" class="font-bold text-blue-400">--</span>
-              </div>
-              <div class="flex justify-between text-[11px]">
-                <span class="text-slate-400">+ CharLa joint funds</span>
-                <span id="aw-charla" class="font-bold text-rose-400">--</span>
-              </div>
-              <div class="flex justify-between text-[11px]">
-                <span class="text-slate-400">− Wedding costs (your share)</span>
-                <span id="aw-vendor-remaining" class="font-bold text-amber-400">--</span>
-              </div>
-              <div class="border-t border-white/[0.06] pt-2 mt-1 flex justify-between items-center">
-                <span class="font-black text-white uppercase text-[10px]">What's Left</span>
-                <span id="aw-result" class="font-black text-2xl text-emerald-400">--</span>
-              </div>
-            </div>
+          <div class="px-6 md:px-8 space-y-5 md:space-y-0 md:grid md:grid-cols-2 md:gap-5 md:items-start stagger-in" id="budget-body">
+            <!-- month detail injected -->
           </div>
         </div>
 
-        <!-- PENDING PAYMENTS VIEW -->
-        <div
-          id="pending-view"
-          class="absolute inset-0 overflow-y-auto px-6 md:px-8 pt-4 pb-32 space-y-4 opacity-0 pointer-events-none transition-opacity duration-300 bg-slate-900"
-        >
-          <!-- Home Expense breakdown -->
-          <div class="glass-card p-6 rounded-2xl space-y-4 border border-emerald-500/10">
-            <div class="flex items-center gap-3">
-              <div class="w-10 h-10 rounded-2xl bg-gradient-to-br from-emerald-500 to-teal-600 flex items-center justify-center flex-shrink-0">
-                <span class="material-icons text-white text-lg">home</span>
-              </div>
-              <div class="flex-1">
-                <h4 class="text-sm font-black text-white">New Home Expense</h4>
-                <p class="text-[10px] text-slate-400">Monthly utilities &amp; living breakdown</p>
-              </div>
-              <div class="text-right">
-                <p class="text-[9px] font-bold uppercase text-slate-500">Total / mo</p>
-                <p id="home-expense-total" class="text-lg font-black text-emerald-400">--</p>
-              </div>
-            </div>
-            <div id="home-expense-list" class="space-y-1.5">
-              <!-- Rendered by JS -->
-            </div>
-            <p class="text-[10px] text-slate-500 text-center">Tap any row to edit · syncs across both phones</p>
-          </div>
-
-          <!-- Summary Card -->
-          <div class="glass-card p-6 rounded-2xl space-y-4 border border-indigo-500/15">
-            <div class="flex items-center gap-3">
-              <div class="w-10 h-10 rounded-2xl bg-gradient-to-br from-indigo-500 to-violet-600 flex items-center justify-center flex-shrink-0">
-                <span class="material-icons text-white text-lg">hourglass_top</span>
-              </div>
-              <div class="flex-1">
-                <h4 class="text-sm font-black text-white">Pending Installments</h4>
-                <p class="text-[10px] text-slate-400">All "until" items in one view</p>
-              </div>
-            </div>
-            <div class="grid grid-cols-2 gap-3">
-              <div class="bg-slate-900/50 rounded-xl p-3 text-center">
-                <p class="text-[10px] font-bold uppercase text-slate-500">Total Remaining</p>
-                <p id="pending-total-remaining" class="text-base font-black text-rose-400 mt-1">--</p>
-              </div>
-              <div class="bg-slate-900/50 rounded-xl p-3 text-center">
-                <p class="text-[10px] font-bold uppercase text-slate-500">Paid So Far</p>
-                <p id="pending-total-paid" class="text-base font-black text-emerald-400 mt-1">--</p>
-              </div>
-            </div>
-            <div>
-              <div class="flex justify-between text-[10px] font-bold text-slate-500 mb-1">
-                <span>Overall progress</span>
-                <span id="pending-grand-pct">--%</span>
-              </div>
-              <div class="h-3 bg-slate-900/50 rounded-full overflow-hidden">
-                <div id="pending-grand-bar" class="h-full bg-gradient-to-r from-indigo-500 via-violet-500 to-fuchsia-500 rounded-full transition-all duration-700 bar-shimmer" style="width:0%"></div>
-              </div>
-            </div>
-            <p id="pending-grand-sub" class="text-[10px] text-slate-500 text-center">Pay early to clear faster</p>
-          </div>
-
-          <!-- Item Cards -->
-          <div id="pending-items" class="space-y-3">
-            <!-- Rendered by JS -->
-          </div>
-        </div>
-
-        <!-- SETUP VIEW -->
-        <div
-          id="setup-view"
-          class="absolute inset-0 overflow-y-auto px-6 pt-4 pb-32 opacity-0 pointer-events-none transition-opacity duration-300 bg-slate-900"
-        >
-          <section class="space-y-6">
-            <h3
-              class="text-xs font-black uppercase tracking-[0.2em] text-slate-500"
-            >
-              Application Settings
-            </h3>
-            <div class="glass-card p-6 rounded-2xl space-y-4">
-              <div class="space-y-1">
-                <label
-                  class="text-[10px] font-bold uppercase text-slate-500 ml-2"
-                  >Initial Starting Balance (₱)</label
-                >
-                <input
-                  type="number"
-                  id="setup-balance"
-                  onchange="updateStartingBalance(this.value)"
-                  class="w-full bg-slate-900 border-none rounded-2xl py-5 px-8 text-xl font-black text-white focus:ring-2 focus:ring-blue-500"
-                />
-              </div>
-            </div>
-
-            <div class="glass-card p-6 rounded-2xl space-y-4">
-              <p class="text-[10px] font-bold uppercase text-slate-500 ml-2">
-                Session
-              </p>
-              <button
-                onclick="logout()"
-                class="w-full py-4 bg-slate-800 rounded-2xl font-bold text-rose-400 flex items-center justify-center gap-2 active:scale-95 transition-transform"
-              >
-                <span class="material-icons">logout</span> Switch Account
-              </button>
-            </div>
-          </section>
-        </div>
       </main>
-      </div><!-- close desktop flex wrapper -->
+    </div>
 
-      <!-- BOTTOM NAV BAR -->
-      <nav
-        class="fixed bottom-0 left-0 right-0 max-w-2xl md:max-w-5xl mx-auto bg-slate-900/90 backdrop-blur-xl border-t border-slate-800 z-40"
-        style="padding-bottom: max(env(safe-area-inset-bottom), 12px)"
+    <!-- MORE SHEET (installments + projection) -->
+    <div
+      id="more-overlay"
+      class="fixed inset-0 z-[55] bg-black/60 backdrop-blur-sm opacity-0 pointer-events-none transition-opacity duration-300 flex items-end sm:items-center justify-center p-0 sm:p-4"
+    >
+      <div
+        id="more-sheet"
+        class="bg-slate-900 w-full max-w-2xl rounded-t-3xl sm:rounded-3xl border border-white/5 shadow-2xl flex flex-col max-h-[85vh] translate-y-full sm:translate-y-6 sm:opacity-0 transition-all duration-400 ease-out"
       >
-        <div class="relative flex items-stretch h-14">
-          <!-- Sliding pill indicator -->
-          <div id="nav-pill" class="absolute top-0 h-[2px] bg-blue-400 rounded-b-full transition-all duration-300 ease-out" style="width: 40px; left: 0;"></div>
-          <button onclick="switchView('budget')" id="nav-budget" class="nav-tab text-blue-400">
-            <span class="material-icons">account_balance_wallet</span>
-            <span class="nav-label">Budget</span>
-          </button>
-          <button onclick="switchView('stats')" id="nav-stats" class="nav-tab text-slate-500">
-            <span class="material-icons">insights</span>
-            <span class="nav-label">Stats</span>
-          </button>
-          <button onclick="switchView('commitments')" id="nav-commitments" class="nav-tab text-slate-500">
-            <span class="material-icons">diamond</span>
-            <span class="nav-label">Goals</span>
-          </button>
-          <button onclick="switchView('pending')" id="nav-pending" class="nav-tab text-slate-500">
-            <span class="material-icons">hourglass_top</span>
-            <span class="nav-label">Pending</span>
+        <div class="flex items-center justify-between px-6 pt-5 pb-3 flex-shrink-0">
+          <h3 class="text-lg font-black uppercase tracking-wide text-white">Overview</h3>
+          <button onclick="closeMore()" class="w-10 h-10 flex items-center justify-center bg-slate-800 rounded-xl">
+            <span class="material-icons text-slate-400">close</span>
           </button>
         </div>
-      </nav>
+        <div id="more-body" class="px-6 pb-8 space-y-4 overflow-y-auto custom-scrollbar">
+          <!-- installments + projection injected -->
+        </div>
+      </div>
     </div>
 
     <!-- MODAL POPUP -->
@@ -509,7 +171,7 @@
           </h3>
           <button
             id="delete-btn"
-            class="text-rose-500 p-2 hidden active:scale-75 transition-transform"
+            class="text-rose-500 p-2 hidden transition-transform"
           >
             <span class="material-icons">delete_outline</span>
           </button>
@@ -517,24 +179,24 @@
 
         <div
           id="modal-body"
-          class="space-y-8 overflow-y-auto pr-2 custom-scrollbar flex-1"
+          class="space-y-6 overflow-y-auto pr-2 custom-scrollbar flex-1"
         >
-          <!-- Inputs injected dynamically by openModal -->
+          <!-- Inputs injected dynamically -->
         </div>
 
-        <div class="mt-10 flex gap-4 flex-shrink-0">
+        <div class="mt-8 flex gap-4 flex-shrink-0">
           <button
             onclick="closeModal()"
-            class="flex-1 py-5 font-bold text-slate-400 bg-slate-700/50 rounded-2xl active:scale-95 transition-transform"
+            class="flex-1 py-5 font-bold text-slate-400 bg-slate-700/50 rounded-2xl transition-transform"
           >
             Cancel
           </button>
           <button
             id="save-btn"
             onclick="saveModal()"
-            class="flex-1 py-5 font-bold text-white bg-blue-600 rounded-2xl active:scale-95 transition-transform shadow-lg shadow-blue-900/40 disabled:opacity-50 disabled:pointer-events-none"
+            class="flex-1 py-5 font-bold text-white bg-indigo-600 rounded-2xl transition-transform shadow-lg shadow-indigo-900/40 disabled:opacity-50 disabled:pointer-events-none"
           >
-            Update
+            Save
           </button>
         </div>
       </div>
@@ -543,40 +205,53 @@
     <!-- MONTH PICKER -->
     <div
       id="month-picker"
-      class="fixed inset-0 z-[55] bg-slate-950/90 backdrop-blur-lg opacity-0 pointer-events-none transition-opacity duration-300 overflow-y-auto"
+      class="fixed inset-0 z-[55] bg-slate-950/95 backdrop-blur-lg opacity-0 pointer-events-none transition-opacity duration-300 overflow-y-auto"
     >
-      <div class="p-10 grid grid-cols-2 gap-4">
-        <!-- Dynamic Month Buttons -->
+      <div id="month-picker-grid" class="p-8 pb-28 space-y-6">
+        <!-- Year groups injected -->
       </div>
       <button
         onclick="toggleMonthPicker()"
-        class="fixed bottom-10 left-1/2 -translate-x-1/2 w-14 h-14 flex items-center justify-center bg-slate-800 rounded-full shadow-2xl active:scale-90 transition-transform aspect-square"
+        class="fixed bottom-8 left-1/2 -translate-x-1/2 w-14 h-14 flex items-center justify-center bg-slate-800 rounded-full shadow-2xl transition-transform aspect-square"
       >
         <span class="material-icons">close</span>
       </button>
     </div>
 
     <!-- CONFIRM MODAL -->
-    <div id="confirm-overlay" class="fixed inset-0 z-[70] bg-black/70 backdrop-blur-md opacity-0 pointer-events-none transition-all duration-300 flex items-center justify-center p-6">
-      <div id="confirm-card" class="bg-slate-800 w-full max-w-sm rounded-2xl p-8 scale-90 opacity-0 transition-all duration-500 ease-out shadow-2xl border border-white/5 space-y-6">
-        <!-- Icon -->
+    <div
+      id="confirm-overlay"
+      class="fixed inset-0 z-[70] bg-black/70 backdrop-blur-md opacity-0 pointer-events-none transition-all duration-300 flex items-center justify-center p-6"
+    >
+      <div
+        id="confirm-card"
+        class="bg-slate-800 w-full max-w-sm rounded-2xl p-8 scale-90 opacity-0 transition-all duration-500 ease-out shadow-2xl border border-white/5 space-y-6"
+      >
         <div class="flex justify-center">
-          <div id="confirm-icon" class="w-16 h-16 rounded-[1.5rem] bg-gradient-to-br from-emerald-500 to-teal-600 flex items-center justify-center shadow-lg shadow-emerald-500/20">
-            <span class="material-icons text-white text-3xl">check_circle</span>
+          <div
+            id="confirm-icon"
+            class="w-16 h-16 rounded-[1.5rem] bg-gradient-to-br from-rose-500 to-red-600 flex items-center justify-center shadow-lg shadow-rose-500/20"
+          >
+            <span class="material-icons text-white text-3xl">delete_outline</span>
           </div>
         </div>
-        <!-- Title -->
-        <h3 id="confirm-title" class="text-xl font-black text-white text-center">Complete January?</h3>
-        <!-- Body -->
-        <div id="confirm-body" class="space-y-3">
-          <!-- Rendered by JS -->
-        </div>
-        <!-- Buttons -->
+        <h3 id="confirm-title" class="text-xl font-black text-white text-center">
+          Delete item?
+        </h3>
+        <p id="confirm-sub" class="text-sm text-slate-400 text-center">
+          This removes it from every month.
+        </p>
         <div class="space-y-2 pt-2">
-          <button id="confirm-action-btn" class="w-full py-4 font-black text-white bg-emerald-600 rounded-2xl active:scale-95 transition-transform shadow-lg shadow-emerald-900/30">
-            Complete
+          <button
+            id="confirm-action-btn"
+            class="w-full py-4 font-black text-white bg-rose-600 rounded-2xl transition-transform shadow-lg shadow-rose-900/30"
+          >
+            Delete
           </button>
-          <button onclick="closeConfirm()" class="w-full py-4 font-bold text-slate-400 bg-slate-700/50 rounded-2xl active:scale-95 transition-transform">
+          <button
+            onclick="closeConfirm()"
+            class="w-full py-4 font-bold text-slate-400 bg-slate-700/50 rounded-2xl transition-transform"
+          >
             Cancel
           </button>
         </div>
@@ -584,20 +259,14 @@
     </div>
 
     <!-- TOAST -->
-    <div id="toast" class="fixed top-6 left-1/2 -translate-x-1/2 z-[80] px-5 py-3 bg-slate-800 border border-white/10 rounded-2xl shadow-2xl flex items-center gap-3 opacity-0 -translate-y-4 pointer-events-none transition-all duration-500">
-      <span id="toast-icon" class="material-icons text-emerald-400 text-lg">check_circle</span>
+    <div
+      id="toast"
+      class="fixed top-6 left-1/2 -translate-x-1/2 z-[80] px-5 py-3 bg-slate-800 border border-white/10 rounded-2xl shadow-2xl flex items-center gap-3 opacity-0 -translate-y-4 pointer-events-none transition-all duration-500"
+    >
+      <span id="toast-icon" class="material-icons text-emerald-400 text-lg"
+        >check_circle</span
+      >
       <span id="toast-text" class="text-sm font-bold text-white">Done!</span>
-    </div>
-
-    <!-- WEDDING BAR IFRAME OVERLAY -->
-    <div id="weddingbar-overlay" class="fixed inset-0 z-[90] bg-slate-950 opacity-0 pointer-events-none transition-all duration-500 flex flex-col" style="transform: translateY(100%)">
-      <div class="flex items-center justify-between px-5 py-3 bg-slate-900 border-b border-white/[0.06]">
-        <span class="text-xs font-black uppercase tracking-widest text-emerald-400">Wedding Costs</span>
-        <button onclick="closeWeddingBar()" class="w-10 h-10 flex items-center justify-center bg-slate-800 rounded-xl active:scale-90 transition-transform">
-          <span class="material-icons text-slate-400">close</span>
-        </button>
-      </div>
-      <iframe id="weddingbar-frame" class="flex-1 w-full border-none bg-slate-950" loading="lazy"></iframe>
     </div>
 
     <script type="module" src="script.js"></script>

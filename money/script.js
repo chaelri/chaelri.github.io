@@ -4,14 +4,10 @@ import {
   ref,
   onValue,
   set,
-  get,
-  off,
 } from "https://www.gstatic.com/firebasejs/10.7.1/firebase-database.js";
 
-import Sortable from "https://cdn.jsdelivr.net/npm/sortablejs@1.15.0/modular/sortable.core.esm.js";
-
 // =============================
-// Firebase config
+// Firebase config (existing project, new joint path)
 // =============================
 const firebaseConfig = {
   apiKey: "AIzaSyB8ahT56WbEUaGAymsRNNA-DrfZnUnWIwk",
@@ -27,2079 +23,923 @@ const firebaseConfig = {
 
 const firebaseApp = initializeApp(firebaseConfig);
 const db = getDatabase(firebaseApp);
+const DB_PATH = "money_joint_v1"; // shared by both phones
+const dbRef = ref(db, DB_PATH);
 
-// --- APP STATE ---
-const months = [
-  "January",
-  "February",
-  "March",
-  "April",
-  "May",
-  "June",
-  "July",
-  "August",
-  "September",
-  "October",
-  "November",
-  "December",
+// =============================
+// Constants
+// =============================
+const HORIZON = 60; // months of timeline / projection
+const MONTHS = [
+  "January", "February", "March", "April", "May", "June",
+  "July", "August", "September", "October", "November", "December",
 ];
-const monthlyGradients = [
-  "from-indigo-600 to-blue-700",
-  "from-rose-600 to-pink-700",
-  "from-emerald-600 to-teal-700",
-  "from-amber-500 to-orange-700",
-  "from-fuchsia-600 to-purple-700",
-  "from-sky-500 to-blue-600",
-  "from-cyan-600 to-blue-700",
-  "from-lime-500 to-green-700",
-  "from-violet-600 to-purple-700",
-  "from-orange-500 to-red-700",
-  "from-slate-600 to-slate-800",
-  "from-blue-800 to-indigo-900",
+const MONTHS_SHORT = [
+  "Jan", "Feb", "Mar", "Apr", "May", "Jun",
+  "Jul", "Aug", "Sep", "Oct", "Nov", "Dec",
 ];
+// owner meta
+const OWNERS = {
+  charlie: { label: "Charlie's", who: "charlie", accent: "blue", text: "text-blue-400", ring: "border-blue-500/20", grad: "from-blue-500 to-indigo-600" },
+  karla: { label: "Karla's", who: "karla", accent: "rose", text: "text-rose-400", ring: "border-rose-500/20", grad: "from-rose-500 to-pink-600" },
+  joint: { label: "Joint", who: "joint", accent: "indigo", text: "text-indigo-400", ring: "border-indigo-500/20", grad: "from-indigo-500 to-violet-600" },
+};
 
-let currentUser = null;
-let currentMonthIdx = 0;
+// =============================
+// State
+// =============================
 let appData = null;
-let activeEdit = null;
 let activeView = "budget";
-let dbRef = null;
-let isEditMode = false;
-let sortableInstances = [];
+let selectedKey = null; // "YYYY-MM"
+let activeEdit = null; // { kind, ... }
 
-// --- HELPERS ---
-const generateId = () => Math.random().toString(36).substr(2, 9);
+// =============================
+// Helpers
+// =============================
+const generateId = () => Math.random().toString(36).slice(2, 11);
+const $ = (id) => document.getElementById(id);
 
-// Background floating particles
+function formatMoney(n) {
+  const v = Math.round(((Number(n) || 0) + Number.EPSILON) * 100) / 100;
+  const hasFrac = Math.abs(v % 1) > 1e-9; // show 2 decimals only when there IS a fraction (.7 -> .70, .00 -> none)
+  return v.toLocaleString("en-PH", { minimumFractionDigits: hasFrac ? 2 : 0, maximumFractionDigits: 2 });
+}
+function peso(n) { return `₱${formatMoney(n)}`; }
+function signedPeso(n) {
+  const s = n > 0.005 ? "+" : n < -0.005 ? "-" : "";
+  return `${s}₱${formatMoney(Math.abs(n))}`;
+}
+function escapeHtml(s) {
+  return String(s ?? "").replace(/[&<>"']/g, (c) => ({ "&": "&amp;", "<": "&lt;", ">": "&gt;", '"': "&quot;", "'": "&#39;" }[c]));
+}
+
+// --- month-key math (keys are "YYYY-MM", lexicographically ordered) ---
+function mkKey(y, m /* 0-11 */) { return `${y}-${String(m + 1).padStart(2, "0")}`; }
+function keyParts(k) { const [y, m] = k.split("-").map(Number); return { y, m: m - 1 }; }
+function addMonths(k, n) { const { y, m } = keyParts(k); const d = new Date(y, m + n, 1); return mkKey(d.getFullYear(), d.getMonth()); }
+function cmpKey(a, b) { return a < b ? -1 : a > b ? 1 : 0; }
+function monthName(k) { return MONTHS[keyParts(k).m]; }
+function monthShort(k) { const { y, m } = keyParts(k); return `${MONTHS_SHORT[m]} '${String(y).slice(2)}`; }
+function currentKey() { const d = new Date(); return mkKey(d.getFullYear(), d.getMonth()); }
+function monthsInclusive(a, b) { const A = keyParts(a), B = keyParts(b); return (B.y - A.y) * 12 + (B.m - A.m) + 1; }
+
+function timeline() {
+  const out = [];
+  let k = appData.startMonth;
+  for (let i = 0; i < HORIZON; i++) { out.push(k); k = addMonths(k, 1); }
+  return out;
+}
+
+// =============================
+// Firebase
+// =============================
+function showSync() { const b = $("sync-bar"); if (b) b.style.opacity = "1"; }
+function hideSync() { const b = $("sync-bar"); if (b) b.style.opacity = "0"; }
+let pendingEchoes = 0; // count of our own writes whose onValue echo should not re-render
+async function syncSet() {
+  pendingEchoes++;
+  showSync();
+  try { await set(dbRef, appData); }
+  catch (e) { pendingEchoes = Math.max(0, pendingEchoes - 1); console.error(e); toast("Sync failed", "error"); }
+  finally { setTimeout(hideSync, 400); }
+}
+
+function normalize(d) {
+  d = d || {};
+  d.accounts = Array.isArray(d.accounts) ? d.accounts : (d.accounts ? Object.values(d.accounts) : []);
+  d.startMonth = d.startMonth || currentKey();
+  d.items = d.items || {};
+  for (const who of ["charlie", "karla"]) {
+    d.items[who] = d.items[who] || {};
+    for (const kind of ["income", "expenses"]) {
+      const v = d.items[who][kind];
+      d.items[who][kind] = Array.isArray(v) ? v : (v ? Object.values(v) : []);
+    }
+  }
+  d.paid = d.paid || {};
+  d.overrides = d.overrides || {};
+  return d;
+}
+
+function emptyData() {
+  return normalize({ startMonth: currentKey() });
+}
+
+// =============================
+// Data accessors
+// =============================
+function getItems(who, kind) { return appData.items?.[who]?.[kind] || []; }
+function itemActiveIn(it, k) {
+  if (!it.recurring) return it.start === k;
+  if (cmpKey(k, it.start) < 0) return false;
+  if (it.end && cmpKey(k, it.end) > 0) return false;
+  return true;
+}
+function amountIn(it, k) {
+  const ov = appData.overrides?.[k]?.[it.id];
+  return ov != null ? Number(ov) : Number(it.amount) || 0;
+}
+function hasOverride(id, k) { return appData.overrides?.[k]?.[id] != null; }
+function isPaid(id, k) { return !!appData.paid?.[k]?.[id]; }
+function accountsTotal() { return (appData.accounts || []).reduce((s, a) => s + (Number(a.amount) || 0), 0); }
+
+function monthTotals(k) {
+  let cI = 0, kI = 0, cE = 0, kE = 0, incRecv = 0, expPaid = 0;
+  for (const it of getItems("charlie", "income")) if (itemActiveIn(it, k)) { const a = amountIn(it, k); cI += a; if (isPaid(it.id, k)) incRecv += a; }
+  for (const it of getItems("karla", "income")) if (itemActiveIn(it, k)) { const a = amountIn(it, k); kI += a; if (isPaid(it.id, k)) incRecv += a; }
+  for (const it of getItems("charlie", "expenses")) if (itemActiveIn(it, k)) { const a = amountIn(it, k); cE += a; if (isPaid(it.id, k)) expPaid += a; }
+  for (const it of getItems("karla", "expenses")) if (itemActiveIn(it, k)) { const a = amountIn(it, k); kE += a; if (isPaid(it.id, k)) expPaid += a; }
+  const income = cI + kI, expenses = cE + kE, toPay = expenses - expPaid;
+  // Projected math excludes already-paid expenses (only what you still OWE reduces funds).
+  return {
+    cI, kI, cE, kE, income, expenses, savings: income - toPay,
+    incomeReceived: incRecv, expensePaid: expPaid,
+    toReceive: income - incRecv, toPay,
+  };
+}
+
+function runningFundsAt(k) {
+  let bal = accountsTotal();
+  for (const mk of timeline()) { bal += monthTotals(mk).savings; if (mk === k) break; }
+  return bal;
+}
+
+// Current cash on hand right now = the account balances you maintain.
+function currentMoneyAt() { return accountsTotal(); }
+
+function allInstallments() {
+  const out = [];
+  for (const who of ["charlie", "karla"]) {
+    for (const it of getItems(who, "expenses")) {
+      if (it.recurring && it.end) out.push({ ...it, who });
+    }
+  }
+  return out;
+}
+
+// =============================
+// Rendering
+// =============================
+function clampSelected() {
+  const t = timeline();
+  if (!selectedKey || !t.includes(selectedKey)) {
+    selectedKey = t.includes(currentKey()) ? currentKey() : t[0];
+  }
+}
+
+function renderAll() {
+  if (!appData) return;
+  clampSelected();
+  updateHeader();
+  renderMonthStrip();
+  renderBudget();
+}
+
+function updateHeader() {
+  $("current-month-display").textContent = monthName(selectedKey).toUpperCase();
+  $("current-year-display").textContent = keyParts(selectedKey).y;
+}
+
+function renderMonthStrip() {
+  const strip = $("month-strip");
+  const nowK = currentKey();
+  strip.innerHTML = timeline().map((k) => {
+    const active = k === selectedKey;
+    const isNow = k === nowK;
+    const cls = active
+      ? "bg-indigo-600 text-white shadow-lg shadow-indigo-900/40 ring-2 ring-indigo-400/60"
+      : "bg-slate-800/60 text-slate-400";
+    return `<button onclick="selectMonth('${k}')" data-k="${k}"
+      class="month-chip ${isNow ? "is-now" : ""} flex-shrink-0 relative px-4 py-2 rounded-2xl text-xs font-black uppercase tracking-wide transition-colors ${cls}">
+      ${isNow ? '<span class="now-banner">Now</span>' : ""}${monthShort(k)}
+    </button>`;
+  }).join("");
+  renderMonthBanner();
+}
+
+// Scroll the selected chip into view only on an explicit pick (not on every render/load).
+function scrollChipIntoView() {
+  const btn = $("month-strip")?.querySelector(`[data-k="${selectedKey}"]`);
+  if (btn) btn.scrollIntoView({ inline: "nearest", block: "nearest", behavior: "smooth" });
+}
+
+function renderMonthBanner() {
+  const el = $("month-banner");
+  if (!el) return;
+  const nowK = currentKey();
+  if (selectedKey === nowK) { el.innerHTML = ""; el.classList.add("hidden"); return; }
+  el.classList.remove("hidden");
+  const label = `${monthName(selectedKey)} ${keyParts(selectedKey).y}`;
+  const jump = timeline().includes(nowK)
+    ? `<button onclick="selectMonth('${nowK}')" class="text-[11px] font-black uppercase tracking-wider text-white bg-indigo-500/80 hover:bg-indigo-500 rounded-lg px-3 py-1.5 flex items-center gap-1.5 shadow-lg shadow-indigo-900/30 transition-colors"><span class="material-icons" style="font-size:15px">undo</span>Back to ${monthShort(nowK)}</button>`
+    : "";
+  el.innerHTML = `<div class="flex items-center justify-between gap-2 py-2 pl-4 pr-2 rounded-xl bg-amber-500/10 border border-amber-500/20">
+    <span class="text-[11px] font-black uppercase tracking-wider text-amber-400">Viewing ${label}</span>
+    ${jump}
+  </div>`;
+}
+
+function itemRowHtml(it, k, kind, who) {
+  const amt = amountIn(it, k);
+  const settled = isPaid(it.id, k); // income => received, expense => paid
+  const installment = it.recurring && it.end;
+  const tags = [];
+  if (installment) tags.push(`<span class="text-[9px] font-bold text-amber-400/80">→ ${monthShort(it.end)}</span>`);
+  else if (it.recurring) tags.push(`<span class="text-[9px] font-bold text-indigo-300/90 uppercase tracking-wide flex items-center gap-0.5"><span class="material-icons" style="font-size:11px">autorenew</span>Recurring</span>`);
+  return `<div onclick="openItemModal('${who}','${kind}','${it.id}')"
+    class="item-row flex items-center gap-3 py-2.5 px-3 rounded-xl transition-colors cursor-pointer ${settled ? "opacity-60" : ""}">
+    <button onclick="togglePaidQuick(event,'${it.id}','${kind}')" title="${kind === "income" ? "Mark received" : "Mark paid"}" class="paid-check ${settled ? "is-paid bg-emerald-500 border-emerald-500" : "border-slate-600"} w-6 h-6 rounded-lg flex items-center justify-center flex-shrink-0 border">
+      <span class="material-icons check-icon text-white" style="font-size:16px">check</span>
+    </button>
+    <div class="flex-1 min-w-0">
+      <p class="item-name text-sm font-bold text-slate-200 truncate ${settled ? "line-through" : ""}">${escapeHtml(it.name)}</p>
+      ${tags.length ? `<div class="flex gap-2 mt-0.5">${tags.join("")}</div>` : ""}
+    </div>
+    <p class="text-sm font-black ${kind === "income" ? "text-emerald-400" : "text-slate-100"} flex-shrink-0">${peso(amt)}</p>
+  </div>`;
+}
+
+function personSectionHtml(who) {
+  const o = OWNERS[who];
+  const k = selectedKey;
+  const income = getItems(who, "income").filter((it) => itemActiveIn(it, k));
+  const expenses = getItems(who, "expenses").filter((it) => itemActiveIn(it, k));
+  const t = monthTotals(k);
+  const incTot = who === "charlie" ? t.cI : t.kI;
+  const expTot = who === "charlie" ? t.cE : t.kE;
+  const net = incTot - expTot;
+  const incHtml = income.length
+    ? income.map((it) => itemRowHtml(it, k, "income", who)).join("")
+    : `<p class="text-[11px] text-slate-600 px-3 py-2">No income this month</p>`;
+  const expHtml = expenses.length
+    ? expenses.map((it) => itemRowHtml(it, k, "expenses", who)).join("")
+    : `<p class="text-[11px] text-slate-600 px-3 py-2">No expenses this month</p>`;
+  return `<div class="glass-card rounded-2xl overflow-hidden border ${o.ring}">
+    <div class="flex items-center justify-between px-5 py-4 bg-gradient-to-r ${o.grad} bg-opacity-10">
+      <div class="flex items-center gap-3">
+        <img src="assets/avatar-${who}.jpg" alt="${o.label}" class="w-9 h-9 rounded-xl object-cover ring-2 ring-white/25 flex-shrink-0" />
+        <div>
+          <h3 class="text-sm font-black text-white uppercase tracking-wide">${o.label}</h3>
+          <p class="text-[10px] font-bold ${net >= 0 ? "text-emerald-300" : "text-rose-300"}">net ${net >= 0 ? "+" : ""}${peso(net)}</p>
+        </div>
+      </div>
+      <div class="text-right">
+        <p class="text-[9px] font-bold uppercase text-white/60">in / out</p>
+        <p class="text-[11px] font-black text-white">${peso(incTot)} <span class="text-white/40">·</span> ${peso(expTot)}</p>
+      </div>
+    </div>
+    <div class="p-3 space-y-3">
+      <div>
+        <div class="flex items-center justify-between px-3 mb-1">
+          <p class="text-[10px] font-black uppercase tracking-[0.2em] text-slate-500">Income</p>
+          <button onclick="openItemModal('${who}','income',null)" class="text-[11px] font-bold ${o.text} flex items-center gap-1 transition-transform"><span class="material-icons" style="font-size:14px">add</span>Add</button>
+        </div>
+        <div class="space-y-0.5">${incHtml}</div>
+      </div>
+      <div class="border-t border-white/[0.04] pt-3">
+        <div class="flex items-center justify-between px-3 mb-1">
+          <p class="text-[10px] font-black uppercase tracking-[0.2em] text-slate-500">Expenses</p>
+          <button onclick="openItemModal('${who}','expenses',null)" class="text-[11px] font-bold ${o.text} flex items-center gap-1 transition-transform"><span class="material-icons" style="font-size:14px">add</span>Add</button>
+        </div>
+        <div class="space-y-0.5">${expHtml}</div>
+      </div>
+    </div>
+  </div>`;
+}
+
+// Match an account name to a known bank icon (else null -> initial-letter squircle).
+function bankIconFor(name) {
+  const n = (name || "").toLowerCase();
+  if (n.includes("maribank") || n.includes("mari bank")) return "maribank";
+  if (n.includes("gcash")) return "gcash";
+  if (n.includes("bpi")) return "bpi";
+  if (n.includes("metrobank") || n.includes("metro bank")) return "metrobank";
+  if (n.includes("bdo")) return "bdo";
+  if (n.includes("unionbank") || n.includes("union bank") || n === "ub") return "unionbank";
+  return null;
+}
+function acctIconHtml(a) {
+  const bank = bankIconFor(a.name);
+  const ownerKey = a.owner === "karla" ? "karla" : "charlie";
+  const letter = escapeHtml((a.name || "?").trim().charAt(0).toUpperCase() || "?");
+  const inner = bank
+    ? `<img src="assets/banks/${bank}.png" alt="" class="w-full h-full object-cover" />`
+    : `<span class="text-lg font-black text-white">${letter}</span>`;
+  const bg = bank ? "" : "bg-gradient-to-br from-indigo-500 to-violet-600";
+  return `<div class="acct-icon-wrap">
+    <div class="acct-icon ${bg}">${inner}</div>
+    <img src="assets/avatar-${ownerKey}.jpg" alt="" class="acct-owner-badge" />
+  </div>`;
+}
+
+function accountsCardHtml() {
+  const accts = appData.accounts || [];
+  const rows = accts.length
+    ? accts.map((a) => {
+        const o = OWNERS[a.owner] || OWNERS.charlie;
+        return `<div onclick="openAccountModal('${a.id}')" class="item-row flex items-center gap-3 py-2.5 px-3 rounded-xl cursor-pointer">
+          ${acctIconHtml(a)}
+          <div class="flex-1 min-w-0">
+            <p class="text-sm font-bold text-slate-200 truncate">${escapeHtml(a.name)}</p>
+            <span class="text-[9px] font-bold uppercase ${o.text}">${o.label}</span>
+          </div>
+          <p class="text-sm font-black text-slate-100 flex-shrink-0">${peso(a.amount)}</p>
+        </div>`;
+      }).join("")
+    : `<p class="text-[11px] text-slate-600 px-3 py-2">No accounts yet — add your current balances.</p>`;
+  return `<details class="glass-card rounded-2xl overflow-hidden border border-emerald-500/10 md:col-span-2">
+    <summary class="flex items-center justify-between px-5 py-4 cursor-pointer list-none">
+      <div class="flex items-center gap-3">
+        <div class="w-9 h-9 rounded-xl bg-gradient-to-br from-emerald-500 to-teal-600 flex items-center justify-center">
+          <span class="material-icons text-white" style="font-size:18px">account_balance</span>
+        </div>
+        <div>
+          <h3 class="text-sm font-black text-white uppercase tracking-wide">Accounts</h3>
+          <p class="text-[10px] text-slate-400">Starting balances on hand</p>
+        </div>
+      </div>
+      <p class="text-base font-black text-emerald-400">${peso(accountsTotal())}</p>
+    </summary>
+    <div class="p-3 pt-0 space-y-0.5">
+      ${rows}
+      <button onclick="openAccountModal(null)" class="w-full mt-2 py-3 bg-emerald-500/10 border border-emerald-500/20 rounded-xl font-bold text-emerald-400 text-[11px] flex items-center justify-center gap-1 transition-transform"><span class="material-icons" style="font-size:16px">add</span>Add account</button>
+    </div>
+  </details>`;
+}
+
+// The 4 summary stat cells with the color/sign rules.
+function statsGridHtml(t) {
+  const current = currentMoneyAt();
+  const savColor = t.savings > 0.005 ? "text-emerald-300" : t.savings < -0.005 ? "text-rose-300" : "text-amber-300";
+  const cell = (icon, iconColor, label, valColor, val) =>
+    `<div class="bg-black/20 rounded-2xl px-4 py-3">
+      <div class="flex items-center gap-1.5">
+        <span class="material-icons ${iconColor}" style="font-size:13px">${icon}</span>
+        <p class="text-[9px] font-bold uppercase text-white/60">${label}</p>
+      </div>
+      <p class="text-base font-black ${valColor} mt-1">${val}</p>
+    </div>`;
+  return (
+    cell("account_balance_wallet", "text-white/70", "Current Money", "text-white", peso(current)) +
+    cell("savings", savColor, "Savings", savColor, signedPeso(t.savings)) +
+    cell("south_west", "text-emerald-300", "To receive", "text-emerald-300", signedPeso(t.toReceive)) +
+    cell("north_east", "text-rose-300", "To pay", "text-rose-300", signedPeso(-t.toPay))
+  );
+}
+
+function renderBudget() {
+  const k = selectedKey;
+  const t = monthTotals(k);
+  const projected = runningFundsAt(k);
+
+  const summary = `<section class="md:col-span-2 rounded-3xl overflow-hidden relative shadow-xl">
+    <div class="absolute inset-0 bg-gradient-to-br from-indigo-600 to-violet-700"></div>
+    <div class="ambient-glow" style="top:-30px;right:60px"></div>
+    <div class="relative p-6 md:p-7 space-y-5">
+      <div>
+        <p class="text-[10px] font-black uppercase tracking-[0.3em] text-white/60">Projected · end of ${monthName(k)}</p>
+        <p id="sum-projected" class="text-4xl md:text-5xl font-black text-white mt-1 leading-none">${peso(projected)}</p>
+      </div>
+      <div id="sum-stats" class="grid grid-cols-2 md:grid-cols-4 gap-3">${statsGridHtml(t)}</div>
+    </div>
+  </section>`;
+
+  $("budget-body").innerHTML =
+    summary +
+    accountsCardHtml() +
+    personSectionHtml("charlie") +
+    personSectionHtml("karla");
+}
+
+// Installments + projection live in the "More" sheet (header insights button), not the main page.
+window.openMore = function () {
+  const body = $("more-body");
+  const inst = installmentsCardHtml() || `<div class="glass-card rounded-2xl p-6 text-center text-[12px] text-slate-500">No installments yet — add an expense with a "runs until" month.</div>`;
+  body.innerHTML = inst + projectionCardHtml();
+  body.querySelectorAll("details").forEach((d) => (d.open = true));
+  const ov = $("more-overlay");
+  ov.classList.add("open");
+};
+window.closeMore = function () {
+  $("more-overlay").classList.remove("open");
+};
+
+// Installments as an inline expandable card (same pattern as Accounts).
+function installmentsCardHtml() {
+  const insts = allInstallments();
+  if (!insts.length) return "";
+  const nowK = currentKey();
+  let grandRemaining = 0, grandMonthly = 0;
+  const rows = insts.map((it) => {
+    const o = OWNERS[it.who];
+    const total = monthsInclusive(it.start, it.end);
+    const startCount = cmpKey(nowK, it.start) > 0 ? nowK : it.start;
+    let monthsLeft, monthsPaid;
+    if (cmpKey(nowK, it.end) > 0) { monthsLeft = 0; monthsPaid = total; }
+    else { monthsLeft = monthsInclusive(startCount, it.end); monthsPaid = total - monthsLeft; }
+    const monthly = Number(it.amount) || 0;
+    const remaining = monthly * monthsLeft;
+    const pct = total ? Math.round((monthsPaid / total) * 100) : 0;
+    grandRemaining += remaining; if (monthsLeft > 0) grandMonthly += monthly;
+    const urgency = monthsLeft === 0 ? "text-emerald-400 bg-emerald-500/15" : monthsLeft <= 6 ? "text-rose-400 bg-rose-500/15" : monthsLeft <= 12 ? "text-amber-400 bg-amber-500/15" : "text-slate-400 bg-slate-500/15";
+    return `<div class="px-3 py-2.5 rounded-xl space-y-2">
+      <div class="flex items-center justify-between gap-3">
+        <div class="min-w-0">
+          <div class="flex items-center gap-2"><p class="text-sm font-bold text-slate-200 truncate">${escapeHtml(it.name)}</p><span class="text-[9px] font-bold uppercase ${o.text}">${o.label}</span></div>
+          <p class="text-[10px] text-slate-500">${monthShort(it.start)} → ${monthShort(it.end)} · ${peso(monthly)}/mo · ${peso(remaining)} left</p>
+        </div>
+        <span class="text-[10px] font-black px-2.5 py-1 rounded-lg ${urgency} uppercase flex-shrink-0">${monthsLeft === 0 ? "Done" : monthsLeft + " mo left"}</span>
+      </div>
+      <div class="h-2 bg-slate-900/60 rounded-full overflow-hidden"><div class="h-full bg-gradient-to-r ${o.grad} rounded-full" style="width:${pct}%"></div></div>
+    </div>`;
+  }).join("");
+  return `<details class="glass-card rounded-2xl overflow-hidden border border-fuchsia-500/15 md:col-span-2">
+    <summary class="flex items-center justify-between px-5 py-4 cursor-pointer list-none">
+      <div class="flex items-center gap-3">
+        <div class="w-9 h-9 rounded-xl bg-gradient-to-br from-indigo-500 to-fuchsia-600 flex items-center justify-center"><span class="material-icons text-white" style="font-size:18px">hourglass_top</span></div>
+        <div><h3 class="text-sm font-black text-white uppercase tracking-wide">Installments</h3><p class="text-[10px] text-slate-400">${insts.length} running · ${peso(grandMonthly)}/mo</p></div>
+      </div>
+      <p class="text-base font-black text-fuchsia-300">${peso(grandRemaining)}</p>
+    </summary>
+    <div class="p-3 pt-0 space-y-1">${rows}</div>
+  </details>`;
+}
+
+// 5-year projection as an inline collapsed card (no separate tab).
+function projectionCardHtml() {
+  const endBal = runningFundsAt(timeline()[HORIZON - 1]);
+  return `<details class="glass-card rounded-2xl overflow-hidden border border-indigo-500/10 md:col-span-2">
+    <summary class="flex items-center justify-between px-5 py-4 cursor-pointer list-none">
+      <div class="flex items-center gap-3">
+        <div class="w-9 h-9 rounded-xl bg-gradient-to-br from-indigo-500 to-violet-600 flex items-center justify-center"><span class="material-icons text-white" style="font-size:18px">trending_up</span></div>
+        <div><h3 class="text-sm font-black text-white uppercase tracking-wide">5-Year Projection</h3><p class="text-[10px] text-slate-400">Running balance + yearly savings</p></div>
+      </div>
+      <p class="text-base font-black text-indigo-300">${peso(endBal)}</p>
+    </summary>
+    <div id="projection-inner" class="p-4 pt-0 space-y-4">${projectionInnerHtml()}</div>
+  </details>`;
+}
+
+function projectionInnerHtml() {
+  const keys = timeline();
+  let bal = accountsTotal();
+  const series = keys.map((k) => { const t = monthTotals(k); bal += t.savings; return { k, bal, savings: t.savings, income: t.income }; });
+  const years = {};
+  series.forEach((s) => { const y = keyParts(s.k).y; years[y] = years[y] || { income: 0, savings: 0, endBal: s.bal }; years[y].income += s.income; years[y].savings += s.savings; years[y].endBal = s.bal; });
+  const yearCards = Object.entries(years).map(([y, v]) => `
+    <div class="bg-slate-900/40 rounded-xl p-3 flex items-center justify-between">
+      <div><p class="text-sm font-black text-white">${y}</p><p class="text-[10px] text-slate-500">end ${peso(v.endBal)}</p></div>
+      <div class="text-right"><p class="text-[9px] uppercase text-slate-500 font-bold">Saved</p><p class="text-xs font-black ${v.savings >= 0 ? "text-emerald-400" : "text-amber-400"}">${v.savings >= 0 ? "+" : ""}${peso(v.savings)}</p></div>
+    </div>`).join("");
+  return `<div class="space-y-2">${yearCards}</div>`;
+}
+
+// =============================
+// Single-page (Budget only)
+// =============================
+window.selectMonth = function (k) {
+  selectedKey = k;
+  updateHeader();
+  renderMonthStrip();
+  renderBudget();
+  scrollChipIntoView();
+  if ($("month-picker").classList.contains("open")) toggleMonthPicker();
+};
+
+// =============================
+// Month picker
+// =============================
+window.toggleMonthPicker = function () {
+  const mp = $("month-picker");
+  const open = mp.classList.toggle("open");
+  mp.style.opacity = open ? "1" : "0";
+  mp.style.pointerEvents = open ? "auto" : "none";
+  if (open) {
+    const years = {};
+    timeline().forEach((k) => { const y = keyParts(k).y; (years[y] = years[y] || []).push(k); });
+    $("month-picker-grid").innerHTML = Object.entries(years).map(([y, keys]) => `
+      <div>
+        <p class="text-xs font-black uppercase tracking-[0.3em] text-slate-500 mb-3">${y}</p>
+        <div class="grid grid-cols-3 gap-3">
+          ${keys.map((k) => `<button onclick="selectMonth('${k}')" class="py-4 rounded-2xl font-black text-sm ${k === selectedKey ? "bg-indigo-600 text-white" : "bg-slate-800 text-slate-300"} transition-transform">${MONTHS_SHORT[keyParts(k).m]}</button>`).join("")}
+        </div>
+      </div>`).join("");
+  }
+};
+
+// =============================
+// Modal — items
+// =============================
+function inputBlock(label, id, value, type = "text", extra = "") {
+  return `<div class="space-y-1">
+    <label class="text-[10px] font-bold uppercase text-slate-500 ml-1">${label}</label>
+    <input type="${type}" id="${id}" value="${escapeHtml(value)}" ${extra}
+      class="w-full bg-slate-900 rounded-2xl py-4 px-5 text-lg font-black text-white focus:outline-none" />
+  </div>`;
+}
+
+function monthSelect(id, value, includeOngoing, minKey) {
+  const opts = [];
+  if (includeOngoing) opts.push(`<option value="">Ongoing (no end)</option>`);
+  timeline().forEach((k) => {
+    if (minKey && cmpKey(k, minKey) < 0) return;
+    const label = `${monthName(k)} ${keyParts(k).y}`;
+    opts.push(`<option value="${k}" ${k === value ? "selected" : ""}>${label}</option>`);
+  });
+  return opts.join("");
+}
+
+window.openItemModal = function (who, kind, id) {
+  const list = getItems(who, kind);
+  const it = id ? list.find((x) => x.id === id) : null;
+  const isNew = !it;
+  const o = OWNERS[who];
+  activeEdit = { kind: "item", who, type: kind, id };
+
+  const recurring = it ? it.recurring !== false : true;
+  const start = it ? it.start : selectedKey;
+  const end = it && it.end ? it.end : "";
+  const name = it ? it.name : "";
+  const amount = it ? amountIn(it, selectedKey) : "";
+  const settledNow = it ? isPaid(it.id, selectedKey) : false;
+
+  const title = isNew ? `Add ${kind === "income" ? "Income" : "Expense"}` : "Edit";
+  $("modal-title").textContent = title;
+  $("modal-title").className = `text-2xl font-black uppercase tracking-tight ${o.text}`;
+
+  let body = "";
+  body += inputBlock(kind === "income" ? "Source" : "Name", "f-name", name, "text", 'placeholder="e.g. Rent"');
+  body += inputBlock("Amount (₱)", "f-amount", amount, "number", 'inputmode="decimal" placeholder="0"');
+
+  // recurring toggle
+  body += `<div class="flex items-center justify-between bg-slate-900 rounded-2xl px-5 py-4">
+    <div><p class="text-sm font-bold text-white">Recurring</p><p class="text-[10px] text-slate-500">Repeats every month</p></div>
+    <button type="button" id="f-recurring" data-on="${recurring}" onclick="toggleField(this)" class="w-14 h-8 rounded-full transition-colors ${recurring ? "bg-indigo-600" : "bg-slate-700"} relative flex-shrink-0">
+      <span class="absolute top-1 ${recurring ? "left-7" : "left-1"} w-6 h-6 bg-white rounded-full transition-all"></span>
+    </button>
+  </div>`;
+
+  // start month
+  body += `<div class="space-y-1"><label class="text-[10px] font-bold uppercase text-slate-500 ml-1">Starts</label>
+    <select id="f-start" class="w-full bg-slate-900 rounded-2xl py-4 px-5 text-base font-bold text-white focus:outline-none">${monthSelect("f-start", start, false)}</select></div>`;
+
+  // end month (installment)
+  body += `<div class="space-y-1" id="f-end-wrap"><label class="text-[10px] font-bold uppercase text-slate-500 ml-1">Runs until <span class="text-amber-400">(installment)</span></label>
+    <select id="f-end" class="w-full bg-slate-900 rounded-2xl py-4 px-5 text-base font-bold text-white focus:outline-none">${monthSelect("f-end", end, true, start)}</select></div>`;
+
+  // scope for editing recurring amount
+  if (!isNew && recurring) {
+    body += `<div class="space-y-1"><label class="text-[10px] font-bold uppercase text-slate-500 ml-1">Apply amount to</label>
+      <select id="f-scope" class="w-full bg-slate-900 rounded-2xl py-4 px-5 text-base font-bold text-white focus:outline-none">
+        <option value="all">All months</option>
+        <option value="month" ${hasOverride(id, selectedKey) ? "selected" : ""}>${monthName(selectedKey)} ${keyParts(selectedKey).y} only</option>
+      </select></div>`;
+  }
+
+  // received / paid this month
+  if (!isNew) {
+    const verb = kind === "income" ? "Received" : "Paid";
+    const hint = kind === "income" ? "Mark this month's income received" : "Mark this month settled";
+    body += `<div class="flex items-center justify-between bg-slate-900 rounded-2xl px-5 py-4">
+      <div><p class="text-sm font-bold text-white">${verb} in ${monthShort(selectedKey)}</p><p class="text-[10px] text-slate-500">${hint}</p></div>
+      <button type="button" id="f-paid" data-on="${settledNow}" onclick="toggleField(this)" class="w-14 h-8 rounded-full transition-colors ${settledNow ? "bg-emerald-600" : "bg-slate-700"} relative flex-shrink-0">
+        <span class="absolute top-1 ${settledNow ? "left-7" : "left-1"} w-6 h-6 bg-white rounded-full transition-all"></span>
+      </button>
+    </div>`;
+  }
+
+  $("modal-body").innerHTML = body;
+
+  const delBtn = $("delete-btn");
+  if (isNew) { delBtn.classList.add("hidden"); }
+  else { delBtn.classList.remove("hidden"); delBtn.onclick = () => confirmDelete(); }
+
+  openModalShell();
+};
+
+window.toggleField = function (btn) {
+  const on = btn.dataset.on !== "true";
+  btn.dataset.on = on;
+  const knob = btn.querySelector("span");
+  const isPaidToggle = btn.id === "f-paid";
+  btn.className = `w-14 h-8 rounded-full transition-colors ${on ? (isPaidToggle ? "bg-emerald-600" : "bg-indigo-600") : "bg-slate-700"} relative flex-shrink-0`;
+  knob.className = `absolute top-1 ${on ? "left-7" : "left-1"} w-6 h-6 bg-white rounded-full transition-all`;
+};
+
+// =============================
+// Modal — accounts
+// =============================
+window.openAccountModal = function (id) {
+  const a = id ? (appData.accounts || []).find((x) => x.id === id) : null;
+  const isNew = !a;
+  activeEdit = { kind: "account", id };
+  $("modal-title").textContent = isNew ? "Add Account" : "Edit Account";
+  $("modal-title").className = "text-2xl font-black uppercase tracking-tight text-emerald-400";
+
+  const owner = a ? (a.owner === "joint" ? "charlie" : a.owner || "charlie") : "charlie";
+  let body = "";
+  body += inputBlock("Account name", "f-name", a ? a.name : "", "text", 'placeholder="e.g. BPI"');
+  body += inputBlock("Balance (₱)", "f-amount", a ? a.amount : "", "number", 'inputmode="decimal" placeholder="0"');
+  body += `<div class="space-y-1"><label class="text-[10px] font-bold uppercase text-slate-500 ml-1">Owner</label>
+    <div class="grid grid-cols-2 gap-2" id="f-owner" data-val="${owner}">
+      ${["charlie", "karla"].map((w) => `<button type="button" onclick="pickOwner(this,'${w}')" class="py-3 rounded-xl font-bold text-xs ${w === owner ? "bg-indigo-600 text-white" : "bg-slate-900 text-slate-400"}">${OWNERS[w].label}</button>`).join("")}
+    </div></div>`;
+  $("modal-body").innerHTML = body;
+
+  const delBtn = $("delete-btn");
+  if (isNew) delBtn.classList.add("hidden");
+  else { delBtn.classList.remove("hidden"); delBtn.onclick = () => confirmDelete(); }
+
+  openModalShell();
+};
+
+window.pickOwner = function (btn, w) {
+  const wrap = $("f-owner");
+  wrap.dataset.val = w;
+  [...wrap.children].forEach((c) => {
+    const on = c === btn;
+    c.className = `py-3 rounded-xl font-bold text-xs ${on ? "bg-indigo-600 text-white" : "bg-slate-900 text-slate-400"}`;
+  });
+};
+
+// =============================
+// Modal shell + save + delete
+// =============================
+function openModalShell() {
+  $("save-btn").onclick = saveModal;
+  const ov = $("modal-overlay");
+  ov.classList.add("open");
+}
+window.closeModal = function () {
+  $("modal-overlay").classList.remove("open");
+  activeEdit = null;
+};
+
+window.saveModal = async function () {
+  if (!activeEdit) return;
+  const name = ($("f-name")?.value || "").trim();
+  const amount = parseFloat($("f-amount")?.value) || 0;
+
+  if (activeEdit.kind === "account") {
+    if (!name) return toast("Name required", "error");
+    const owner = $("f-owner").dataset.val;
+    if (activeEdit.id) {
+      const a = appData.accounts.find((x) => x.id === activeEdit.id);
+      if (a) { a.name = name; a.amount = amount; a.owner = owner; }
+    } else {
+      appData.accounts.push({ id: generateId(), name, amount, owner });
+    }
+    await syncSet();
+    closeModal(); renderAll(); toast("Saved"); celebrate();
+    return;
+  }
+
+  // item
+  if (!name) return toast("Name required", "error");
+  const { who, type, id } = activeEdit;
+  const recurring = $("f-recurring").dataset.on === "true";
+  const start = $("f-start").value;
+  const end = $("f-end").value || null;
+  const list = appData.items[who][type];
+
+  if (id) {
+    const it = list.find((x) => x.id === id);
+    if (it) {
+      it.name = name;
+      it.recurring = recurring;
+      it.start = start;
+      it.end = recurring ? end : null;
+      const scope = $("f-scope") ? $("f-scope").value : "all";
+      if (recurring && scope === "month") {
+        appData.overrides[selectedKey] = appData.overrides[selectedKey] || {};
+        appData.overrides[selectedKey][id] = amount;
+      } else {
+        it.amount = amount;
+        if (appData.overrides[selectedKey]) delete appData.overrides[selectedKey][id];
+      }
+    }
+    // paid toggle
+    const pf = $("f-paid");
+    if (pf) {
+      const on = pf.dataset.on === "true";
+      appData.paid[selectedKey] = appData.paid[selectedKey] || {};
+      if (on) appData.paid[selectedKey][id] = true;
+      else delete appData.paid[selectedKey][id];
+    }
+  } else {
+    list.push({ id: generateId(), name, amount, start, end: recurring ? end : null, recurring });
+  }
+  await syncSet();
+  closeModal(); renderAll(); toast("Saved"); celebrate();
+};
+
+window.togglePaidQuick = async function (event, id, kind) {
+  event.stopPropagation();
+  const btn = event.currentTarget;
+  appData.paid[selectedKey] = appData.paid[selectedKey] || {};
+  const nowSettled = !appData.paid[selectedKey][id];
+  if (nowSettled) appData.paid[selectedKey][id] = true;
+  else delete appData.paid[selectedKey][id];
+  applyPaidVisual(btn, nowSettled); // surgical — no full re-render, no scroll jump
+  if (nowSettled) {
+    const valEl = btn.closest(".item-row")?.lastElementChild; // the amount, right side
+    flashLabel(valEl || btn, kind === "income" ? "Received!" : "Paid!");
+  }
+  refreshRealized();
+  await syncSet();
+};
+
+// Floating "Received!" / "Paid!" pop above the checkbox.
+function flashLabel(anchorEl, text) {
+  const r = anchorEl.getBoundingClientRect();
+  const el = document.createElement("div");
+  el.className = "flash-label";
+  el.textContent = text;
+  el.style.left = `${r.left + r.width / 2}px`;
+  el.style.top = `${r.top - 4}px`;
+  document.body.appendChild(el);
+  setTimeout(() => el.remove(), 950);
+}
+
+function applyPaidVisual(btn, settled) {
+  const row = btn.closest(".item-row");
+  const name = row ? row.querySelector(".item-name") : null;
+  if (settled) {
+    btn.classList.add("is-paid", "bg-emerald-500", "border-emerald-500");
+    btn.classList.remove("border-slate-600");
+    if (row) row.classList.add("opacity-60");
+    if (name) name.classList.add("line-through");
+    btn.classList.remove("paid-burst"); void btn.offsetWidth; btn.classList.add("paid-burst");
+    if (row) { row.classList.remove("row-sweep"); void row.offsetWidth; row.classList.add("row-sweep"); setTimeout(() => row.classList.remove("row-sweep"), 750); }
+  } else {
+    btn.classList.remove("is-paid", "bg-emerald-500", "border-emerald-500");
+    btn.classList.add("border-slate-600");
+    if (row) row.classList.remove("opacity-60");
+    if (name) name.classList.remove("line-through");
+  }
+}
+
+// Recompute only the numbers that shift when marking received/paid (no full re-render).
+function refreshRealized() {
+  const t = monthTotals(selectedKey);
+  const proj = $("sum-projected");
+  if (proj) proj.textContent = peso(runningFundsAt(selectedKey));
+  const stats = $("sum-stats");
+  if (stats) stats.innerHTML = statsGridHtml(t);
+  const pi = $("projection-inner"); // inline projection card — refresh in place
+  if (pi) pi.innerHTML = projectionInnerHtml();
+}
+
+// --- delete via confirm ---
+function confirmDelete() {
+  const c = $("confirm-overlay");
+  c.classList.add("open");
+  c.style.opacity = "1"; c.style.pointerEvents = "auto";
+  $("confirm-action-btn").onclick = doDelete;
+}
+window.closeConfirm = function () {
+  const c = $("confirm-overlay");
+  c.classList.remove("open");
+  c.style.opacity = "0"; c.style.pointerEvents = "none";
+};
+async function doDelete() {
+  if (!activeEdit) return;
+  if (activeEdit.kind === "account") {
+    appData.accounts = appData.accounts.filter((a) => a.id !== activeEdit.id);
+  } else {
+    const { who, type, id } = activeEdit;
+    appData.items[who][type] = appData.items[who][type].filter((x) => x.id !== id);
+    // clean orphaned per-month state
+    for (const k of Object.keys(appData.paid)) delete appData.paid[k][id];
+    for (const k of Object.keys(appData.overrides)) delete appData.overrides[k][id];
+  }
+  await syncSet();
+  closeConfirm(); closeModal(); renderAll(); toast("Deleted");
+}
+
+// =============================
+// Toast
+// =============================
+let toastTimer = null;
+function toast(msg, type = "ok") {
+  const t = $("toast");
+  $("toast-text").textContent = msg;
+  const icon = $("toast-icon");
+  icon.textContent = type === "error" ? "error" : "check_circle";
+  icon.className = `material-icons text-lg ${type === "error" ? "text-rose-400" : "text-emerald-400"}`;
+  t.classList.add("show");
+  clearTimeout(toastTimer);
+  toastTimer = setTimeout(() => t.classList.remove("show"), 2000);
+}
+
+// =============================
+// Money rain celebration
+// =============================
+function celebrate() {
+  const canvas = $("money-canvas");
+  if (!canvas) return;
+  const ctx = canvas.getContext("2d");
+  canvas.width = window.innerWidth;
+  canvas.height = window.innerHeight;
+  canvas.style.opacity = "1";
+  const emojis = ["💸", "💵", "🪙"];
+  const bills = Array.from({ length: 18 }, () => ({
+    x: Math.random() * canvas.width,
+    y: -40 - Math.random() * 200,
+    vy: 3 + Math.random() * 4,
+    vx: (Math.random() - 0.5) * 2,
+    rot: Math.random() * Math.PI,
+    vr: (Math.random() - 0.5) * 0.2,
+    e: emojis[Math.floor(Math.random() * emojis.length)],
+    size: 24 + Math.random() * 16,
+  }));
+  let frames = 0;
+  function draw() {
+    ctx.clearRect(0, 0, canvas.width, canvas.height);
+    bills.forEach((b) => {
+      b.y += b.vy; b.x += b.vx; b.rot += b.vr;
+      ctx.save();
+      ctx.translate(b.x, b.y);
+      ctx.rotate(b.rot);
+      ctx.font = `${b.size}px serif`;
+      ctx.textAlign = "center";
+      ctx.fillText(b.e, 0, 0);
+      ctx.restore();
+    });
+    frames++;
+    if (frames < 90) requestAnimationFrame(draw);
+    else { canvas.style.opacity = "0"; ctx.clearRect(0, 0, canvas.width, canvas.height); }
+  }
+  draw();
+}
+
+// =============================
+// Background particles
+// =============================
 function initParticles() {
-  const app = document.getElementById("app");
+  const app = $("app");
   if (!app) return;
-  const colors = ["#3b82f6", "#6366f1", "#8b5cf6", "#60a5fa"];
+  const colors = ["#6366f1", "#8b5cf6", "#3b82f6", "#f43f5e"];
   for (let i = 0; i < 8; i++) {
     const p = document.createElement("div");
     p.className = "bg-particle";
     const size = 3 + Math.random() * 4;
-    p.style.cssText = `
-      width: ${size}px; height: ${size}px;
-      left: ${5 + Math.random() * 90}%;
-      bottom: -10px;
-      background: ${colors[Math.floor(Math.random() * colors.length)]};
-      animation-duration: ${12 + Math.random() * 18}s;
-      animation-delay: ${Math.random() * 10}s;
-    `;
+    p.style.cssText = `width:${size}px;height:${size}px;left:${5 + Math.random() * 90}%;bottom:-10px;background:${colors[Math.floor(Math.random() * colors.length)]};animation-duration:${12 + Math.random() * 18}s;animation-delay:${Math.random() * 10}s;`;
     app.appendChild(p);
   }
 }
 
-// Sync indicator
-function showSync() {
-  const bar = document.getElementById("sync-bar");
-  if (bar) bar.style.opacity = "1";
-}
-function hideSync() {
-  const bar = document.getElementById("sync-bar");
-  if (bar) bar.style.opacity = "0";
-}
-async function syncSet(ref, data) {
-  showSync();
-  try { await set(ref, data); }
-  finally { setTimeout(hideSync, 400); }
+// =============================
+// Boot
+// =============================
+function revealApp() {
+  const intro = $("intro-screen");
+  const app = $("app");
+  intro.style.opacity = "0";
+  intro.style.pointerEvents = "none";
+  setTimeout(() => { intro.style.display = "none"; }, 700);
+  app.style.opacity = "1";
+  initParticles();
 }
 
-// Animate a number element from current value to target
-function animateNumber(el, target, prefix = "₱ ", duration = 500) {
-  if (!el) return;
-  const current = parseFloat(el.textContent.replace(/[^0-9.\-]/g, "")) || 0;
-  if (Math.abs(current - target) < 1) { el.innerText = `${prefix}${formatMoney(target)}`; return; }
-  const start = performance.now();
-  const diff = target - current;
-  function tick(now) {
-    const elapsed = now - start;
-    const progress = Math.min(elapsed / duration, 1);
-    const ease = 1 - Math.pow(1 - progress, 3);
-    const val = current + diff * ease;
-    el.innerText = `${prefix}${formatMoney(val)}`;
-    if (progress < 1) {
-      requestAnimationFrame(tick);
-    } else {
-      // Pop at the end
-      el.classList.add("num-pop");
-      setTimeout(() => el.classList.remove("num-pop"), 300);
-    }
-  }
-  requestAnimationFrame(tick);
-}
-const formatMoney = (val) =>
-  (val || 0).toLocaleString("en-PH", {
-    minimumFractionDigits: 2,
-    maximumFractionDigits: 2,
-  });
-
-const getSectionLabel = (type) => {
-  switch (type) {
-    case "incomeSources":
-      return "INCOME SOURCES";
-    case "fixedExpenses":
-      return "FIXED EXPENSES";
-    case "cc":
-      return "CREDIT CARDS";
-    case "others":
-      return "OTHERS";
-    default:
-      return type.toUpperCase();
-  }
-};
-
-function setupScrollSync() {
-  const monthViews = document.querySelectorAll(".snap-point");
-
-  monthViews.forEach((view) => {
-    view.addEventListener("scroll", function (e) {
-      if (isDesktop()) return; // No scroll sync needed on desktop (single pane)
-      const currentScrollTop = e.target.scrollTop;
-
-      monthViews.forEach((otherView) => {
-        if (
-          otherView !== e.target &&
-          otherView.scrollTop !== currentScrollTop
-        ) {
-          otherView.scrollTop = currentScrollTop;
-        }
-      });
-    });
-  });
+function runIntro() {
+  const tag = $("intro-tag");
+  setTimeout(() => { if (tag) tag.style.opacity = "1"; }, 1150);
 }
 
-// --- INIT ---
-window.addEventListener("DOMContentLoaded", async () => {
-  const logo = document.getElementById("intro-logo");
-  const introContainer = document.getElementById("intro-particles");
-  const userSelection = document.getElementById("user-selection");
-
-  // Money Cash Emoji Particles
-  const emojis = ["💵", "💸", "🤑", "💵"];
-  for (let i = 0; i < 12; i++) {
-    const span = document.createElement("span");
-    span.className = "intro-emoji";
-    span.innerText = emojis[Math.floor(Math.random() * emojis.length)];
-    span.style.left = Math.random() * 90 + 5 + "vw";
-    span.style.animationDuration = 0.6 + Math.random() * 0.7 + "s";
-    span.style.animationDelay = Math.random() * 0.3 + "s";
-    introContainer.appendChild(span);
-  }
-
-  setTimeout(() => {
-    logo.classList.add("scale-100");
-    setTimeout(() => {
-      userSelection.classList.remove(
-        "opacity-0",
-        "translate-y-10",
-        "pointer-events-none",
-      );
-    }, 500);
-  }, 50);
-});
-
-window.selectUser = async (name) => {
-  currentUser = name;
-
-  const userSelection = document.getElementById("user-selection");
-  const loginStatus = document.getElementById("login-status");
-  const introLogo = document.getElementById("intro-logo");
-
-  // UI Login Transition: Hide buttons, show synchronizing state
-  userSelection.classList.add("opacity-0", "pointer-events-none");
-  setTimeout(() => {
-    userSelection.classList.add("hidden");
-    loginStatus.classList.remove("hidden");
-    introLogo.classList.add("animate-bounce"); // Visual feedback of "active" login
-  }, 400);
-
-  // Path Mapping: Charlie gets legacy 'chalee_v1', Karla gets 'karla_v1'
-  const path = name === "Charlie" ? "chalee_v1" : "karla_v1";
-  dbRef = ref(db, path);
-
-  document.getElementById("current-user-tag").innerText = name;
-  document.getElementById("current-user-tag").className =
-    `text-[10px] font-black tracking-[0.4em] uppercase ${
-      name === "Charlie" ? "text-blue-400" : "text-rose-400"
-    }`;
-
-  try {
-    const snapshot = await get(dbRef);
-    if (snapshot.exists() && snapshot.val()) {
-      appData = snapshot.val();
-      if (!appData.monthlyData) appData.monthlyData = {};
-      document.getElementById("setup-balance").value =
-        appData.startingBalance || 0;
-    } else {
-      appData = { startingBalance: 0, monthlyData: {} };
-      for (let i = 0; i < 12; i++) {
-        appData.monthlyData[i] = {
-          incomeSources: [],
-          fixedExpenses: [],
-          cc: [],
-          others: [],
-        };
-      }
-      await syncSet(dbRef, appData);
-    }
-
-    // Hide intro and show app after minimal intentional delay for smoothness
-    setTimeout(() => {
-      const intro = document.getElementById("intro-screen");
-      intro.classList.add("opacity-0", "pointer-events-none");
-      document.getElementById("app").classList.add("opacity-100");
-
-      // Start at the first active (uncompleted) month
-      currentMonthIdx = getFirstActiveMonth();
-      document.getElementById("current-month-display").innerText = months[currentMonthIdx];
-
-      initMonthPicker();
-      initDesktopSidebar();
-      initMonthDots();
-      initParticles();
-      initWeddingCostsListener();
-      renderSwiper();
-      setupSwiperObserver();
-
-      // Desktop: show only active month on init
-      lastIsDesktop = isDesktop();
-      if (isDesktop()) {
-        showDesktopMonth(currentMonthIdx);
-      }
-
-      updateCompleteMonthButtons();
-      updateMonthVisibility();
-
-      onValue(dbRef, (snapshot) => {
-        const val = snapshot.val();
-        if (snapshot.exists() && val) {
-          appData = val;
-          if (!appData.monthlyData) appData.monthlyData = {};
-          updateAllCalculations();
-          updateCompleteMonthButtons();
-          updateMonthVisibility();
-          if (activeView === "stats") renderStats();
-          if (activeView === "pending") renderPending();
-        }
-      });
-
-      setTimeout(() => {
-        setupScrollSync();
-        intro.remove();
-      }, 700);
-    }, 800);
-  } catch (e) {
-    console.error("Login failed", e);
-    logout();
-  }
-};
-
-window.logout = () => {
-  location.reload();
-};
-
-// --- RENDER ---
-function renderSwiper() {
-  const swiper = document.getElementById("budget-view");
-  swiper.innerHTML = "";
-
-  months.forEach((name, idx) => {
-    const snap = document.createElement("div");
-    snap.className = "snap-point px-6 pt-4 space-y-8";
-    snap.id = `month-view-${idx}`;
-    snap.dataset.index = idx;
-
-    snap.innerHTML = `
-            <section id="dashboard-${idx}" class="relative overflow-hidden bg-gradient-to-br ${
-              monthlyGradients[idx]
-            } p-6 md:p-8 rounded-2xl shadow-2xl transition-all duration-500">
-                <div class="ambient-glow" style="top:-40px;right:-40px"></div>
-                <div class="relative z-10 space-y-4">
-                    <div>
-                        <p class="text-white/60 text-[10px] font-black uppercase tracking-widest">Total Current Funds</p>
-                        <h2 class="total-funds-display text-4xl md:text-5xl font-black tracking-tighter">₱ 0.00</h2>
-                    </div>
-                    <div class="grid grid-cols-1 md:grid-cols-3 gap-2 md:gap-4 border-t border-white/10 pt-4">
-                        <div class="flex justify-between md:flex-col md:gap-1 items-center md:items-start">
-                            <span class="text-white/60 text-[10px] font-black uppercase">Gross Income</span>
-                            <span class="total-income-display text-sm md:text-lg font-bold text-white">₱ 0.00</span>
-                        </div>
-                        <div class="flex justify-between md:flex-col md:gap-1 items-center md:items-start">
-                            <span class="text-white/60 text-[10px] font-black uppercase">Total Expenses</span>
-                            <span class="total-expenses-display text-sm md:text-lg font-bold text-white/90">₱ 0.00</span>
-                        </div>
-                        <div class="flex justify-between md:flex-col md:gap-1 items-center md:items-start bg-white/10 p-2 px-3 rounded-xl">
-                            <span class="text-white/60 text-[10px] font-black uppercase">Net Savings</span>
-                            <span class="monthly-savings-display text-sm md:text-lg font-black text-white">₱ 0.00</span>
-                        </div>
-                    </div>
-                    <div id="complete-month-btn-${idx}" class="complete-month-wrapper hidden">
-                        <button onclick="completeMonth(${idx})" class="w-full mt-3 py-3 bg-white/10 hover:bg-white/20 rounded-2xl font-black text-white text-[11px] uppercase tracking-widest flex items-center justify-center gap-2 active:scale-95 transition-all">
-                            <span class="material-icons text-sm">check_circle</span> Complete ${months[idx]}
-                        </button>
-                    </div>
-                </div>
-            </section>
-
-            ${createSectionHtml(
-              "INCOME SOURCES",
-              "incomeSources",
-              "text-emerald-400",
-              idx,
-            )}
-            ${createSectionHtml(
-              "FIXED EXPENSES",
-              "fixedExpenses",
-              "text-slate-300",
-              idx,
-            )}
-            ${createSectionHtml("CREDIT CARDS", "cc", "text-rose-400", idx)}
-            ${createSectionHtml("OTHERS", "others", "text-amber-300", idx)}
-        `;
-    swiper.appendChild(snap);
-  });
-  updateAllCalculations();
-
-  // Desktop: re-apply active month
-  if (isDesktop()) {
-    showDesktopMonth(currentMonthIdx);
-  }
-}
-
-function createSectionHtml(title, key, color, monthIdx) {
-  return `
-        <section class="space-y-4" data-section-key="${key}"> <!-- ADDED data-section-key -->
-            <div class="flex justify-between items-center">
-                <h3 class="text-xs font-black uppercase tracking-[0.2em] text-slate-500">${title}</h3>
-                <div class="flex gap-2">
-                    <!-- NEW: Edit/Sort Button -->
-                    <button onclick="toggleEditMode()" class="edit-mode-toggle active:scale-75 transition-transform text-slate-500">
-                        <span class="material-icons text-xl">sort</span>
-                    </button>
-                    <!-- Existing Add Button -->
-                    <button onclick="openModal('${key}', null, null, null, ${monthIdx})" class="add-item-btn active:scale-75 transition-transform text-blue-400">
-                        <span class="material-icons text-xl">add</span>
-                    </button>
-                </div>
-            </div>
-            <div id="${key}-list-${monthIdx}" class="space-y-3 item-list"></div> <!-- ADDED item-list class -->
-        </section>
-    `;
-}
-
-function updateAllCalculations() {
-  if (!appData || !appData.monthlyData) return;
-
-  let runningBalance = parseFloat(appData.startingBalance || 0);
-
-  // Preserve desktop active state after re-render
-  const preserveDesktop = isDesktop();
-
-  months.forEach((_, idx) => {
-    const m = appData.monthlyData[idx] || {
-      incomeSources: [],
-      fixedExpenses: [],
-      cc: [],
-      others: [],
-    };
-    const { income, expenses, savings } = calculateMonthlyTotals(m);
-    
-    const net = income - expenses;
-    runningBalance += net;
-
-    renderRows(idx, "incomeSources", m.incomeSources || [], "text-emerald-400");
-    renderRows(idx, "fixedExpenses", m.fixedExpenses || [], "text-slate-300");
-    renderRows(idx, "cc", m.cc || [], "text-rose-400");
-    renderRows(idx, "others", m.others || [], "text-amber-300");
-
-    const view = document.getElementById(`month-view-${idx}`);
-    if (!view) return;
-    animateNumber(view.querySelector(".total-funds-display"), runningBalance);
-    animateNumber(view.querySelector(".total-income-display"), income);
-    animateNumber(view.querySelector(".total-expenses-display"), expenses);
-    const savingsEl = view.querySelector(".monthly-savings-display");
-    const sign = net >= 0 ? "+" : "-";
-    animateNumber(savingsEl, Math.abs(net), `${sign} ₱ `);
-  });
-
-  // Re-apply desktop active state
-  if (preserveDesktop) {
-    showDesktopMonth(currentMonthIdx);
-  }
-  }
-
-  function calculateMonthlyTotals(monthData) {
-  const income = (monthData.incomeSources || []).reduce(
-  (s, i) => s + parseFloat(i.amount || 0),
-  0,
-  );
-  const filterPaid = (items) => (items || []).filter((item) => !item.isPaid);
-  const expenses = [
-  ...filterPaid(monthData.fixedExpenses),
-  ...filterPaid(monthData.cc),
-  ...filterPaid(monthData.others),
-  ].reduce((s, i) => s + parseFloat(i.amount || 0), 0);
-  const savings = income - expenses;
-  return { income, expenses, savings };
-  }
-
-// =============================================
-// COMPLETE MONTH
-// =============================================
-// Shows the button on months that are closable (last days of month, or past months not yet completed)
-function updateCompleteMonthButtons() {
-  if (!appData) return;
-  const now = new Date();
-  const realMonth = now.getMonth();
-  const dayOfMonth = now.getDate();
-  const completedMonths = appData.completedMonths || {};
-
-  months.forEach((_, idx) => {
-    const btn = document.getElementById(`complete-month-btn-${idx}`);
-    if (!btn) return;
-
-    const isCompleted = !!completedMonths[idx];
-    // Show button if: month is past OR it's the closing days (28+) of current month, AND not yet completed
-    const isPast = idx < realMonth;
-    const isClosing = idx === realMonth && dayOfMonth >= 28;
-    const shouldShow = !isCompleted && (isPast || isClosing);
-
-    btn.classList.toggle("hidden", !shouldShow);
-
-    // Mark completed months visually
-    const dashboard = document.getElementById(`dashboard-${idx}`);
-    if (dashboard && isCompleted) {
-      dashboard.classList.add("opacity-50");
-      // Add completed badge
-      if (!dashboard.querySelector(".completed-badge")) {
-        const badge = document.createElement("div");
-        badge.className = "completed-badge absolute top-4 right-4 z-20 px-3 py-1 bg-emerald-500/20 rounded-lg text-[9px] font-black text-emerald-400 uppercase";
-        badge.textContent = "Completed";
-        dashboard.style.position = "relative";
-        dashboard.appendChild(badge);
-      }
-    }
-  });
-}
-
-// --- Custom Confirm Modal ---
-let confirmResolve = null;
-
-function showConfirm({ title, items, actionText, icon, iconGradient }) {
-  const overlay = document.getElementById("confirm-overlay");
-  const iconEl = document.getElementById("confirm-icon");
-  const titleEl = document.getElementById("confirm-title");
-  const bodyEl = document.getElementById("confirm-body");
-  const actionBtn = document.getElementById("confirm-action-btn");
-
-  titleEl.textContent = title;
-  actionBtn.textContent = actionText || "Confirm";
-  iconEl.className = `w-16 h-16 rounded-[1.5rem] bg-gradient-to-br ${iconGradient || "from-emerald-500 to-teal-600"} flex items-center justify-center shadow-lg`;
-  iconEl.innerHTML = `<span class="material-icons text-white text-3xl">${icon || "check_circle"}</span>`;
-
-  bodyEl.innerHTML = items.map(item =>
-    `<div class="flex items-start gap-3 bg-slate-900/50 rounded-xl p-3 border border-white/[0.03]">
-      <span class="material-icons text-sm mt-0.5 ${item.color || 'text-slate-400'}">${item.icon}</span>
-      <div>
-        <p class="text-[11px] font-bold text-white">${item.title}</p>
-        ${item.sub ? `<p class="text-[9px] text-slate-500 mt-0.5">${item.sub}</p>` : ""}
-      </div>
-    </div>`
-  ).join("");
-
-  overlay.classList.add("open");
-
-  return new Promise((resolve) => {
-    confirmResolve = resolve;
-    actionBtn.onclick = () => {
-      // Close overlay without triggering the cancel resolve
-      document.getElementById("confirm-overlay").classList.remove("open");
-      confirmResolve = null;
-      resolve(true);
-    };
-  });
-}
-
-window.closeConfirm = () => {
-  document.getElementById("confirm-overlay").classList.remove("open");
-  if (confirmResolve) { confirmResolve(false); confirmResolve = null; }
-};
-
-// --- Toast ---
-function showToast(text, icon, duration) {
-  const toast = document.getElementById("toast");
-  document.getElementById("toast-text").textContent = text;
-  document.getElementById("toast-icon").textContent = icon || "check_circle";
-  toast.classList.add("show");
-  setTimeout(() => toast.classList.remove("show"), duration || 3000);
-}
-
-// --- Complete Month ---
-window.completeMonth = async (monthIdx) => {
-  if (!appData || !appData.monthlyData || !appData.monthlyData[monthIdx]) return;
-
-  const confirmed = await showConfirm({
-    title: `Complete ${months[monthIdx]}?`,
-    icon: "task_alt",
-    iconGradient: "from-emerald-500 to-teal-600 shadow-emerald-500/20",
-    actionText: `Complete ${months[monthIdx]}`,
-    items: [
-      { icon: "check_circle", color: "text-emerald-400", title: "Mark all expenses as paid", sub: "Fixed, credit cards, and others" },
-      { icon: "money_off", color: "text-blue-400", title: "Zero out all income sources", sub: "You'll set up next month manually" },
-      { icon: "visibility_off", color: "text-slate-400", title: "Hide from main view", sub: "Month will be dimmed and skipped" },
-    ],
-  });
-
-  if (!confirmed) return;
-
-  const m = appData.monthlyData[monthIdx];
-  const toArr = (v) => Array.isArray(v) ? v : (v ? Object.values(v) : []);
-
-  // 1. Mark all expenses as paid
-  ["fixedExpenses", "cc", "others"].forEach((key) => {
-    toArr(m[key]).forEach((item) => { item.isPaid = true; });
-  });
-
-  // 2. Zero out ALL income sources
-  toArr(m.incomeSources).forEach((item) => { item.amount = 0; });
-
-  // 3. Mark month as completed
-  if (!appData.completedMonths) appData.completedMonths = {};
-  appData.completedMonths[monthIdx] = { completedAt: Date.now() };
-
-  // Save
-  await syncSet(dbRef, appData);
-  updateAllCalculations();
-  updateCompleteMonthButtons();
-  updateMonthVisibility();
-
-  updateMonthPicker();
-  initDesktopSidebar();
-  showToast(`${months[monthIdx]} completed`, "task_alt", 3000);
-
-  // Auto-navigate to next uncompleted month
-  const nextMonth = getFirstActiveMonth();
-  if (nextMonth !== monthIdx) {
-    currentMonthIdx = nextMonth;
-    const display = document.getElementById("current-month-display");
-    if (display) display.innerText = months[nextMonth];
-    if (isDesktop()) {
-      showDesktopMonth(nextMonth);
-    } else {
-      const swiper = document.getElementById("budget-view");
-      if (swiper) swiper.scrollTo({ left: swiper.clientWidth * nextMonth, behavior: "smooth" });
-    }
-  }
-
-  if (window.navigator.vibrate) window.navigator.vibrate([10, 50, 10]);
-};
-
-// --- Sync Wedding Remaining to June Expenses ---
-const WEDDING_EXPENSE_ID = "wedding_vendor_remaining";
-
-window.syncWeddingToJune = async () => {
-  if (!appData) return;
-
-  const data = await loadWeddingData();
-  const vendorRemaining = data.grandTotal - (data.vendorPaid || 0);
-  const charlaCovers = data.charlaPaid || 0;
-  // Charlie only pays what CharLa joint doesn't cover
-  const charlieShare = Math.max(0, vendorRemaining - charlaCovers);
-
-  if (vendorRemaining <= 0) {
-    showToast("All vendors paid — nothing to sync", "check_circle", 3000);
-    return;
-  }
-
-  const confirmed = await showConfirm({
-    title: "Sync to June?",
-    icon: "sync",
-    iconGradient: "from-blue-500 to-indigo-600 shadow-blue-500/20",
-    actionText: `Add ₱${formatMoney(charlieShare)} to June`,
-    items: [
-      { icon: "receipt_long", color: "text-amber-400", title: `Total vendor remaining: ₱${formatMoney(vendorRemaining)}`, sub: "Full amount still owed to vendors" },
-      { icon: "diamond", color: "text-rose-400", title: `CharLa joint covers: ₱${formatMoney(charlaCovers)}`, sub: "This comes from your joint commitment fund" },
-      { icon: "person", color: "text-blue-400", title: `Your share: ₱${formatMoney(charlieShare)}`, sub: "Only this hits YOUR June balance" },
-    ],
-  });
-
-  if (!confirmed) return;
-
-  // Ensure June data exists
-  const juneIdx = 5;
-  if (!appData.monthlyData) appData.monthlyData = {};
-  if (!appData.monthlyData[juneIdx]) {
-    appData.monthlyData[juneIdx] = { incomeSources: [], fixedExpenses: [], cc: [], others: [] };
-  }
-  if (!appData.monthlyData[juneIdx].others) appData.monthlyData[juneIdx].others = [];
-
-  const others = appData.monthlyData[juneIdx].others;
-  const toArr = (v) => Array.isArray(v) ? v : (v ? Object.values(v) : []);
-  const list = toArr(others);
-
-  // Sync Charlie's share only (not CharLa's portion)
-  const existing = list.findIndex(item => item.id === WEDDING_EXPENSE_ID);
-  if (charlieShare > 0) {
-    if (existing >= 0) {
-      list[existing].amount = charlieShare;
-      list[existing].name = "Wedding (My Share)";
-    } else {
-      list.push({
-        id: WEDDING_EXPENSE_ID,
-        name: "Wedding (My Share)",
-        amount: charlieShare,
-        isPaid: false,
-        logs: [],
-      });
-    }
-  } else if (existing >= 0) {
-    // CharLa covers everything, remove the expense
-    list.splice(existing, 1);
-  }
-
-  appData.monthlyData[juneIdx].others = list;
-  await syncSet(dbRef, appData);
-  updateAllCalculations();
-
-  showToast(`₱${formatMoney(charlieShare)} synced to June`, "sync", 3000);
-};
-
-// Get first non-completed month (the one you should be looking at)
-function getFirstActiveMonth() {
-  const completed = appData?.completedMonths || {};
-  const now = new Date();
-  const realMonth = now.getMonth();
-  // Start from current real month, find first uncompleted
-  for (let i = realMonth; i < 12; i++) {
-    if (!completed[i]) return i;
-  }
-  // Fallback: find any uncompleted
-  for (let i = 0; i < 12; i++) {
-    if (!completed[i]) return i;
-  }
-  return 0;
-}
-
-// Hide completed months from sidebar + swiper
-function updateMonthVisibility() {
-  const completed = appData?.completedMonths || {};
-
-  // Desktop sidebar: dim completed months
-  document.querySelectorAll(".sidebar-month-btn").forEach((btn, idx) => {
-    if (completed[idx]) {
-      btn.classList.add("opacity-30");
-      if (!btn.querySelector(".done-dot")) {
-        const dot = document.createElement("span");
-        dot.className = "done-dot material-icons text-[10px] text-emerald-500";
-        dot.textContent = "check_circle";
-        btn.appendChild(dot);
-      }
-    } else {
-      btn.classList.remove("opacity-30");
-    }
-  });
-
-  // Mobile swiper: hide completed snap-points (they can still access via month picker)
-  if (!isDesktop()) {
-    document.querySelectorAll(".snap-point").forEach((sp, idx) => {
-      if (completed[idx]) {
-        sp.style.display = "none";
-      } else {
-        sp.style.display = "";
-      }
-    });
-  }
-}
-
-  function renderRows(monthIdx, key, items, colorClass) {
-  const container = document.getElementById(`${key}-list-${monthIdx}`);
-  if (!container) return;
-  container.innerHTML = "";
-
-  // Determine if the current month is the one in edit mode
-  const isCurrentMonthEditMode = isEditMode && monthIdx === currentMonthIdx;
-
-  items.forEach((item) => {
-    const div = document.createElement("div");
-    const isPaid = item.isPaid === true;
-    const cardStyle = isPaid
-      ? "bg-emerald-500/10 border-emerald-500/20 shadow-[0_0_15px_rgba(16,185,129,0.1)]"
-      : "glass-card";
-    const textColor = isPaid ? "text-emerald-400 opacity-60" : "text-slate-300";
-    const amountColor = isPaid ? "text-emerald-500" : colorClass;
-
-    // Set drag-specific attributes/styles
-    const dragClass = isCurrentMonthEditMode ? "cursor-grab" : "";
-
-    div.className = `${cardStyle} p-4 rounded-2xl flex justify-between items-center transition-all duration-300 ${dragClass} row-enter`;
-    div.dataset.id = item.id; // Crucial for reordering
-
-    // Only allow item editing if NOT in edit mode
-    if (!isCurrentMonthEditMode) {
-      div.onclick = () =>
-        openModal(key, item.id, item.name, item.amount, monthIdx);
-    } else {
-      // Stop the click event from propagating when in edit mode
-      div.onclick = (e) => e.stopPropagation();
-    }
-
-    div.innerHTML = `
-            <div class="flex items-center gap-3">
-                ${
-                  isCurrentMonthEditMode
-                    ? `<span class="material-icons text-slate-500 drag-handle text-xl cursor-grab mr-2">drag_indicator</span>` // NEW: Drag handle
-                    : isPaid
-                      ? '<span class="material-icons text-emerald-500 text-sm">check_circle</span>'
-                      : ""
-                }
-                <span class="font-bold ${textColor} text-sm tracking-tight ${
-                  isPaid ? "line-through" : ""
-                }">${item.name}</span>
-            </div>
-            <span class="font-black ${amountColor}">₱ ${formatMoney(
-              item.amount,
-            )}</span>
-        `;
-    container.appendChild(div);
-  });
-}
-
-window.toggleEditMode = () => {
-  const monthIdx = currentMonthIdx;
-  isEditMode = !isEditMode;
-
-  if (window.navigator.vibrate) window.navigator.vibrate(5); // Vibrate feedback
-
-  // 1. Destroy all sortable instances when toggling
-  sortableInstances.forEach((sortable) => sortable.destroy());
-  sortableInstances = [];
-
-  // Disable main swiper's horizontal scroll when in edit mode to allow vertical dragging
-  const swiper = document.getElementById("budget-view");
-  if (swiper) swiper.style.overflowX = isEditMode ? "hidden" : "auto";
-
-  // Update button icons and visibility
-  const toggleButtons = document.querySelectorAll(".edit-mode-toggle");
-  const addButtons = document.querySelectorAll(".add-item-btn");
-
-  toggleButtons.forEach((btn) => {
-    btn.classList.toggle("text-rose-400", isEditMode);
-    btn.classList.toggle("text-slate-500", !isEditMode);
-    btn.querySelector(".material-icons").innerText = isEditMode
-      ? "close"
-      : "sort";
-  });
-
-  addButtons.forEach((btn) => {
-    btn.style.display = isEditMode ? "none" : "block";
-  });
-
-  // 2. Re-render everything to apply drag handles/styles or remove them
-  updateAllCalculations();
-
-  // 3. If in edit mode, set up the sortable lists *after* they are rendered
-  if (isEditMode) {
-    setupSortableLists(monthIdx);
-  }
-};
-
-function setupSortableLists(monthIdx) {
-  // Only target lists within the current visible month view
-  const listContainers = document.querySelectorAll(
-    `#month-view-${monthIdx} .item-list`,
-  );
-
-  listContainers.forEach((container) => {
-    // Get the key (e.g., 'fixedExpenses') from the parent section
-    const key = container.parentElement.dataset.sectionKey;
-
-    if (!key) return;
-
-    const sortable = Sortable.create(container, {
-      animation: 150,
-      ghostClass: "sortable-ghost", // See CSS delta
-      handle: ".drag-handle", // Only the handle is draggable
-      scroll: true,
-      bubbleScroll: true,
-      forceFallback: true, // For better mobile support
-
-      onUpdate: function (evt) {
-        // Get the new order of IDs from the DOM elements
-        const newOrder = Array.from(evt.from.children)
-          .map((item) => item.dataset.id)
-          .filter((id) => id);
-
-        // Save the new order to Firebase
-        reorderItems(monthIdx, key, newOrder);
-      },
-    });
-    sortableInstances.push(sortable);
-  });
-}
-
-async function reorderItems(monthIdx, type, newOrder) {
-  if (
-    !appData ||
-    !appData.monthlyData ||
-    !appData.monthlyData[monthIdx] ||
-    !appData.monthlyData[monthIdx][type]
-  )
-    return;
-
-  const startIdx = monthIdx;
-  const endIdx = type === "fixedExpenses" ? 11 : monthIdx;
-
-  const currentList = appData.monthlyData[monthIdx][type];
-  const reorderedListStructure = [];
-
-  newOrder.forEach((id) => {
-    const item = currentList.find((i) => i.id === id);
-    if (item) {
-      reorderedListStructure.push(item);
-    }
-  });
-
-  try {
-    for (let i = startIdx; i <= endIdx; i++) {
-      if (appData.monthlyData[i] && appData.monthlyData[i][type]) {
-        const monthList = appData.monthlyData[i][type];
-        const newMonthOrder = [];
-
-        reorderedListStructure.forEach((reorderedItem) => {
-          const existingItem = monthList.find(
-            (item) => item.id === reorderedItem.id,
-          );
-          if (existingItem) {
-            newMonthOrder.push(existingItem);
-          }
-        });
-
-        appData.monthlyData[i][type] = newMonthOrder;
-      }
-    }
-
-    await syncSet(dbRef, appData);
-  } catch (e) {
-  console.error("Reorder failed:", e);
-  alert("Reordering items failed. Please try again.");
-  }
-  }
-
-function updateNavPill(view) {
-  const pill = document.getElementById("nav-pill");
-  const navId = view === "setup" ? null : `nav-${view}`;
-  const btn = navId ? document.getElementById(navId) : null;
-  if (!pill) return;
-  if (!btn) { pill.style.opacity = "0"; return; }
-  pill.style.opacity = "1";
-  const nav = pill.parentElement;
-  const navRect = nav.getBoundingClientRect();
-  const btnRect = btn.getBoundingClientRect();
-  pill.style.width = `${btnRect.width * 0.6}px`;
-  pill.style.left = `${btnRect.left - navRect.left + btnRect.width * 0.2}px`;
-}
-
-let viewBeforeSetup = "budget";
-window.toggleSetup = () => {
-  if (activeView === "setup") {
-    switchView(viewBeforeSetup);
-  } else {
-    viewBeforeSetup = activeView;
-    switchView("setup");
-  }
-};
-
-window.switchView = (view) => {
-  activeView = view;
-  const views = ["budget", "stats", "commitments", "pending", "setup"];
-  views.forEach((v) => {
-    const viewEl = document.getElementById(`${v}-view`);
-    const nav = document.getElementById(`nav-${v}`);
-    if (viewEl) {
-      if (v === view) {
-        viewEl.classList.add("opacity-100", "view-active");
-        viewEl.classList.remove("opacity-0", "pointer-events-none");
-      } else {
-        viewEl.classList.remove("opacity-100", "view-active");
-        viewEl.classList.add("opacity-0", "pointer-events-none");
-      }
-    }
-    if (nav) {
-      if (v === view) {
-        nav.classList.add("text-blue-400");
-        nav.classList.remove("text-slate-500");
-      } else {
-        nav.classList.remove("text-blue-400");
-        nav.classList.add("text-slate-500");
-      }
-    }
-  });
-  if (view === "stats") renderStats();
-  if (view === "commitments") renderCommitments();
-  if (view === "pending") renderPending();
-
-  // Header: always visible, adapt content per view
-  const monthDisplay = document.getElementById("current-month-display");
-  const calendarBtn = document.querySelector("header .md\\:hidden");
-  const settingsBtn = document.getElementById("header-settings-btn");
-
-  if (monthDisplay) {
-    if (view === "budget") {
-      monthDisplay.textContent = months[currentMonthIdx];
-      monthDisplay.className = "text-3xl font-black tracking-tight text-white uppercase italic";
-    } else {
-      const label = view === "commitments" ? "Goals" : view === "setup" ? "Settings" : view === "pending" ? "Pending" : view.charAt(0).toUpperCase() + view.slice(1);
-      monthDisplay.textContent = label;
-      monthDisplay.className = "text-xl font-black tracking-tight text-white";
-    }
-  }
-  if (calendarBtn) calendarBtn.style.display = view === "budget" ? "" : "none";
-
-  // Gear icon becomes back arrow in settings with rotation
-  if (settingsBtn) {
-    const icon = settingsBtn.querySelector(".material-icons");
-    if (view === "setup") {
-      settingsBtn.classList.add("in-settings");
-      icon.textContent = "arrow_back";
-      icon.classList.remove("text-slate-400");
-      icon.classList.add("text-blue-400");
-    } else {
-      settingsBtn.classList.remove("in-settings");
-      icon.textContent = "settings";
-      icon.classList.remove("text-blue-400");
-      icon.classList.add("text-slate-400");
-    }
-  }
-
-  const sidebar = document.getElementById("desktop-sidebar");
-  if (sidebar) sidebar.style.display = (view === "budget" && isDesktop()) ? "flex" : "none";
-
-  const dots = document.getElementById("month-dots");
-  if (dots) dots.style.display = (view === "budget" && !isDesktop()) ? "flex" : "none";
-
-  // Slide nav pill to active tab
-  updateNavPill(view);
-};
-
-function renderStats() {
-  if (!appData || !appData.monthlyData) return;
-  const annualChart = document.getElementById("annual-chart");
-  const savingsChart = document.getElementById("savings-chart");
-  if (!annualChart || !savingsChart) return;
-  annualChart.innerHTML = "";
-  savingsChart.innerHTML = "";
-  const monthlyTotals = months.map((_, idx) => {
-    const m = appData.monthlyData[idx] || {
-      incomeSources: [],
-      fixedExpenses: [],
-      cc: [],
-      others: [],
-    };
-    const { income, expenses, savings } = calculateMonthlyTotals(m);
-    return { income, expenses, savings };
-    });
-  const categories = [
-    { label: "Income", key: "income", color: "bg-emerald-500" },
-    { label: "Expenses", key: "expenses", color: "bg-rose-500" },
-  ];
-  categories.forEach((cat) => {
-    const total = monthlyTotals.reduce((s, m) => s + m[cat.key], 0);
-    const div = document.createElement("div");
-    div.className = "space-y-2";
-    div.innerHTML = `<div class="flex justify-between text-[10px] font-black uppercase text-slate-500"><span>Annual ${
-      cat.label
-    }</span><span>₱ ${formatMoney(
-      total,
-    )}</span></div><div class="stat-bar"><div class="stat-fill ${
-      cat.color
-    }" style="width: ${total > 0 ? "100%" : "0%"}"></div></div>`;
-    annualChart.appendChild(div);
-  });
-  let maxSavings = Math.max(
-    ...monthlyTotals.map((m) => Math.abs(m.savings)),
-    1,
-  );
-  monthlyTotals.forEach((m) => {
-    const col = document.createElement("div");
-    col.className = "trend-col";
-    const h = Math.max((Math.abs(m.savings) / maxSavings) * 100, 5);
-    col.style.height = `${h}%`;
-    col.style.background = m.savings >= 0 ? "#10b981" : "#f43f5e";
-    savingsChart.appendChild(col);
-  });
-}
-
-window.updateStartingBalance = async (val) => {
-  if (!appData) appData = { startingBalance: 0, monthlyData: {} };
-  appData.startingBalance = parseFloat(val) || 0;
-  await syncSet(dbRef, appData);
-};
-
-window.openModal = (type, id, name, amount, monthIdx) => {
-  if (!appData.monthlyData) appData.monthlyData = {};
-  if (!appData.monthlyData[monthIdx]) {
-    appData.monthlyData[monthIdx] = {
-      incomeSources: [],
-      fixedExpenses: [],
-      cc: [],
-      others: [],
-    };
-  }
-  const list = appData.monthlyData[monthIdx][type] || [];
-  const item = list.find((it) => it.id === id) || {};
-  activeEdit = {
-    type,
-    id,
-    monthIdx,
-    initialAmount: amount || 0,
-    isPaid: item.isPaid || false,
-  };
-  const overlay = document.getElementById("modal-overlay");
-  const body = document.getElementById("modal-body");
-  const deleteBtn = document.getElementById("delete-btn");
-  const saveBtn = document.getElementById("save-btn");
-  if (!overlay || !body || !deleteBtn || !saveBtn) return;
-  saveBtn.disabled = false;
-  saveBtn.innerText = id ? "Update" : "Add Item";
-  const labelType = getSectionLabel(type);
-  document.getElementById("modal-title").innerText = id
-    ? `EDIT ${name}`
-    : `ADD TO ${labelType}`;
-
-  // Explicit padding removal on modal-body to match header alignment
-  let bodyHtml = `
-        <div class="space-y-4 px-1">
-            <div class="space-y-1">
-                <label class="text-[10px] font-black uppercase text-slate-500 ml-1">Label ${
-                  item.isPaid ? "(PAID)" : ""
-                }</label>
-                <input type="text" id="edit-name" value="${
-                  name || ""
-                }" class="w-full bg-slate-900 border-none rounded-2xl text-lg font-bold text-white focus:ring-2 focus:ring-blue-500">
-            </div>
-            <div class="space-y-1">
-                <label class="text-[10px] font-black uppercase text-slate-500 ml-1">Total Amount (₱)</label>
-                <input type="number" id="edit-amount" value="${
-                  amount || ""
-                }" class="w-full bg-slate-900 border-none rounded-2xl text-2xl font-black text-white focus:ring-2 focus:ring-blue-500">
-            </div>
-        </div>
-    `;
-
-  if (type !== "incomeSources" && id) {
-    bodyHtml += `<div class="flex flex-col gap-4 mt-6 pt-4 border-t border-white/5 mx-1"><button onclick="togglePaidStatus()" id="paid-btn" class="w-full py-4 rounded-2xl font-black flex items-center justify-center gap-2 transition-all duration-300 ${
-      item.isPaid
-        ? "bg-emerald-500 text-white"
-        : "bg-slate-700/50 text-slate-400"
-    }"><span class="material-icons">${
-      item.isPaid ? "check_circle" : "radio_button_unchecked"
-    }</span>${item.isPaid ? "PAID" : "MARK AS PAID"}</button></div>`;
-  }
-
-  if (type === "cc" && id) {
-    bodyHtml += `<div class="space-y-2 mt-6 pt-4 border-t border-white/5 mx-1"><label class="text-[10px] font-bold uppercase text-emerald-400 ml-1">Quick Add Spent (₱)</label><div class="flex gap-2"><input type="number" id="cc-quick-add" placeholder="e.g. 213" class="flex-1 min-w-0 bg-slate-900 border-none rounded-2xl py-5 px-6 text-xl font-bold text-emerald-400 focus:ring-2 focus:ring-emerald-500"><button type="button" id="cc-quick-add-btn" aria-label="Add spent" class="shrink-0 px-5 rounded-2xl bg-emerald-500 hover:bg-emerald-400 active:scale-95 transition-all duration-150 text-white font-black flex items-center justify-center"><span class="material-icons">add</span></button></div></div><div class="space-y-3 mt-4 mx-1"><label class="text-[10px] font-bold uppercase text-slate-500 ml-1">History Log</label><div class="max-h-40 overflow-y-auto space-y-2 pr-2 custom-scrollbar" id="cc-history-log"></div></div>`;
-  }
-
-  bodyHtml += `<div id="recurring-wrapper" class="flex items-center gap-3 px-4 py-5 bg-slate-900/50 rounded-2xl mx-1 mt-6 ${
-    type === "fixedExpenses" ? "hidden" : "flex"
-  }"><input type="checkbox" id="edit-recurring" class="w-5 h-5 rounded border-none bg-slate-900 text-blue-500 focus:ring-0"><label for="edit-recurring" class="text-[10px] font-black uppercase text-slate-400">Apply to all future months</label></div>`;
-  body.innerHTML = bodyHtml;
-
-  const handleEnterKey = (e) => {
-    if (e.key === "Enter") {
-      e.preventDefault();
-      window.saveModal();
-    }
-  };
-
-  const nameInput = document.getElementById("edit-name");
-  const amountInput = document.getElementById("edit-amount");
-  const quickAddInput = document.getElementById("cc-quick-add");
-  const quickAddBtn = document.getElementById("cc-quick-add-btn");
-  const historyLogEl = document.getElementById("cc-history-log");
-
-  if (nameInput) nameInput.addEventListener("keydown", handleEnterKey);
-  if (amountInput) amountInput.addEventListener("keydown", handleEnterKey);
-  // ---------------------------------------------
-
-  if (type === "cc" && id) {
-    let currentAmount = amount || 0;
-
-    const renderHistoryLog = (logs) => {
-      if (!historyLogEl) return;
-      historyLogEl.innerHTML =
-        (logs || []).length > 0
-          ? logs
-              .map(
-                (log) =>
-                  `<div class="flex justify-between items-center bg-slate-900/40 p-3 rounded-xl border border-white/5"><span class="text-[10px] font-bold text-slate-500 uppercase">${new Date(
-                    log.timestamp,
-                  ).toLocaleDateString()}</span><span class="text-sm font-black text-emerald-400">+₱${formatMoney(
-                    log.amount,
-                  )}</span></div>`,
-              )
-              .reverse()
-              .join("")
-          : '<div class="text-[10px] text-slate-600 italic text-center py-4">No recent history</div>';
-    };
-
-    renderHistoryLog(item.logs || []);
-
-    quickAddInput.addEventListener("input", (e) => {
-      const extra = parseFloat(e.target.value) || 0;
-      amountInput.value = currentAmount + extra;
-    });
-
-    const commitQuickAdd = async () => {
-      const extra = parseFloat(quickAddInput.value) || 0;
-      if (extra <= 0) {
-        quickAddInput.focus();
-        return;
-      }
-      const monthData = appData.monthlyData[monthIdx];
-      if (!monthData || !monthData[type]) return;
-      const target = monthData[type].find((it) => it.id === id);
-      if (!target) return;
-      if (!target.logs) target.logs = [];
-      target.logs.push({
-        id: generateId(),
-        amount: extra,
-        timestamp: Date.now(),
-      });
-      currentAmount += extra;
-      target.amount = currentAmount;
-      activeEdit.initialAmount = currentAmount;
-      amountInput.value = currentAmount;
-      renderHistoryLog(target.logs);
-      quickAddInput.value = "";
-      quickAddInput.focus();
-      quickAddBtn.classList.add("paid-burst");
-      setTimeout(() => quickAddBtn.classList.remove("paid-burst"), 400);
-      if (window.navigator.vibrate) window.navigator.vibrate(8);
-      try {
-        await syncSet(dbRef, appData);
-      } catch (err) {
-        console.error("Quick-add sync failed:", err);
-      }
-    };
-
-    quickAddBtn.addEventListener("click", commitQuickAdd);
-    quickAddInput.addEventListener("keydown", (e) => {
-      if (e.key === "Enter") {
-        e.preventDefault();
-        commitQuickAdd();
-      }
-    });
-  } else if (quickAddInput) {
-    quickAddInput.addEventListener("keydown", handleEnterKey);
-  }
-  deleteBtn.style.display = id ? "block" : "none";
-  deleteBtn.onclick = () => deleteItem();
-  overlay.classList.add("open");
-  setTimeout(() => document.getElementById("edit-name").focus(), 300);
-};
-
-window.togglePaidStatus = () => {
-  activeEdit.isPaid = !activeEdit.isPaid;
-  const btn = document.getElementById("paid-btn");
-  if (btn) {
-    btn.className = `w-full py-4 rounded-2xl font-black flex items-center justify-center gap-2 transition-all duration-300 ${
-      activeEdit.isPaid
-        ? "bg-emerald-500 text-white"
-        : "bg-slate-700/50 text-slate-400"
-    }`;
-    btn.innerHTML = `<span class="material-icons">${
-      activeEdit.isPaid ? "check_circle" : "radio_button_unchecked"
-    }</span> ${activeEdit.isPaid ? "PAID" : "MARK AS PAID"}`;
-
-    // Satisfying burst on paid
-    if (activeEdit.isPaid) {
-      btn.classList.add("paid-burst");
-      if (window.navigator.vibrate) window.navigator.vibrate([10, 30, 10]);
-      setTimeout(() => btn.classList.remove("paid-burst"), 500);
-    }
-  }
-};
-
-window.closeModal = () => {
-  const overlay = document.getElementById("modal-overlay");
-  if (overlay) overlay.classList.remove("open");
-};
-
-window.saveModal = async () => {
-  const saveBtn = document.getElementById("save-btn");
-  if (!saveBtn || saveBtn.disabled) return;
-  const nameInput = document.getElementById("edit-name");
-  const amountInput = document.getElementById("edit-amount");
-  const quickAddInput = document.getElementById("cc-quick-add");
-  if (!nameInput || !amountInput) return;
-  const name = nameInput.value.trim() || "Untitled";
-  const amount = parseFloat(amountInput.value) || 0;
-  const quickAddAmount = quickAddInput
-    ? parseFloat(quickAddInput.value) || 0
-    : 0;
-  if (!activeEdit) return;
-  const { type, id, monthIdx, isPaid } = activeEdit;
-  if (!appData) appData = { startingBalance: 0, monthlyData: {} };
-  if (!appData.monthlyData) appData.monthlyData = {};
-  const isFixed = type === "fixedExpenses";
-  const recurringInput = document.getElementById("edit-recurring");
-  const isRecurring = isFixed || (recurringInput && recurringInput.checked);
-  const itemId = id || generateId();
-  const startIdx = monthIdx;
-  const endIdx = isRecurring ? 11 : monthIdx;
-
-  try {
-    saveBtn.disabled = true;
-    saveBtn.innerText = "Saving...";
-    for (let i = startIdx; i <= endIdx; i++) {
-      if (!appData.monthlyData[i])
-        appData.monthlyData[i] = {
-          incomeSources: [],
-          fixedExpenses: [],
-          cc: [],
-          others: [],
-        };
-      if (!appData.monthlyData[i][type]) appData.monthlyData[i][type] = [];
-      const list = appData.monthlyData[i][type];
-      const existingIndex = list.findIndex((item) => item.id === itemId);
-      if (existingIndex > -1) {
-        const item = list[existingIndex];
-        item.name = name;
-        item.amount = amount;
-        if (i === monthIdx) item.isPaid = isPaid;
-        if (i === monthIdx && quickAddAmount > 0) {
-          if (!item.logs) item.logs = [];
-          item.logs.push({
-            id: generateId(),
-            amount: quickAddAmount,
-            timestamp: Date.now(),
-          });
-        }
-      } else {
-        const newItem = {
-          id: itemId,
-          name,
-          amount,
-          isPaid: i === monthIdx ? isPaid : false,
-          logs: [],
-        };
-        if (i === monthIdx && quickAddAmount > 0)
-          newItem.logs.push({
-            id: generateId(),
-            amount: quickAddAmount,
-            timestamp: Date.now(),
-          });
-        list.push(newItem);
-      }
-    }
-    await syncSet(dbRef, appData);
-    closeModal();
-    // Satisfying vibration on successful save
-    if (window.navigator.vibrate) window.navigator.vibrate(5);
-  } catch (e) {
-    console.error("Save failed:", e);
-    saveBtn.disabled = false;
-    saveBtn.innerText = "Retry";
-    // Error vibration pattern
-    if (window.navigator.vibrate) window.navigator.vibrate([50, 30, 50]);
-  }
-};
-
-async function deleteItem() {
-  if (!activeEdit || !appData || !appData.monthlyData) return;
-  const { type, id, monthIdx } = activeEdit;
-  const isFixed = type === "fixedExpenses";
-  const startIdx = monthIdx;
-  const endIdx = isFixed ? 11 : monthIdx;
-  for (let i = startIdx; i <= endIdx; i++) {
-    if (appData.monthlyData[i] && appData.monthlyData[i][type]) {
-      appData.monthlyData[i][type] = appData.monthlyData[i][type].filter(
-        (item) => item.id !== id,
-      );
-    }
-  }
-  await syncSet(dbRef, appData);
-  closeModal();
-}
-
-function setupSwiperObserver() {
-  const swiper = document.getElementById("budget-view");
-  if (!swiper) return;
-
-  // Use IntersectionObserver — works correctly even with hidden months
-  const observer = new IntersectionObserver(
-    (entries) => {
-      if (isDesktop()) return;
-      entries.forEach((entry) => {
-        if (entry.isIntersecting) {
-          const idx = parseInt(entry.target.dataset.index);
-          if (idx >= 0 && idx < 12 && idx !== currentMonthIdx) {
-            updateHeader(idx);
-          }
-        }
-      });
-    },
-    { root: swiper, threshold: 0.6 },
-  );
-  document.querySelectorAll(".snap-point").forEach((p) => observer.observe(p));
-}
-
-function isDesktop() {
-  return window.innerWidth >= 768;
-}
-
-function updateHeader(idx) {
-  if (idx === currentMonthIdx) return;
-  currentMonthIdx = idx;
-  const display = document.getElementById("current-month-display");
-  if (display && activeView === "budget") display.innerText = months[idx];
-  if (window.navigator.vibrate) window.navigator.vibrate(5);
-  updateMonthDots();
-
-  // Desktop: show only active month pane + update sidebar
-  if (isDesktop()) {
-    showDesktopMonth(idx);
-  }
-}
-
-function initMonthDots() {
-  const container = document.getElementById("month-dots");
-  if (!container) return;
-  const mn = ["J","F","M","A","M","J","J","A","S","O","N","D"];
-  container.innerHTML = months.map((_, i) =>
-    `<button onclick="scrollToMonth(${i})" class="month-dot ${i === currentMonthIdx ? 'active' : ''}" title="${months[i]}">
-      <span class="dot-label">${mn[i]}</span>
-    </button>`
-  ).join("");
-}
-
-function updateMonthDots() {
-  document.querySelectorAll(".month-dot").forEach((dot, i) => {
-    dot.classList.toggle("active", i === currentMonthIdx);
-  });
-}
-
-window.scrollToMonth = (idx) => {
-  if (isDesktop()) {
-    currentMonthIdx = idx;
-    const display = document.getElementById("current-month-display");
-    if (display && activeView === "budget") display.innerText = months[idx];
-    showDesktopMonth(idx);
-    updateMonthDots();
-    return;
-  }
-  const target = document.getElementById(`month-view-${idx}`);
-  if (target) target.scrollIntoView({ behavior: "smooth", inline: "start" });
-};
-
-function showDesktopMonth(idx) {
-  // Show only the selected month's snap-point
-  document.querySelectorAll(".snap-point").forEach((sp, i) => {
-    const isActive = i === idx;
-    sp.classList.toggle("desktop-active", isActive);
-    // Re-trigger stagger animation
-    if (isActive) {
-      sp.classList.remove("stagger-in");
-      void sp.offsetWidth;
-      sp.classList.add("stagger-in");
-    }
-  });
-  // Update sidebar active state
-  document.querySelectorAll(".sidebar-month-btn").forEach((btn, i) => {
-    btn.classList.toggle("active", i === idx);
-  });
-}
-
-function initDesktopSidebar() {
-  const sidebar = document.getElementById("desktop-sidebar");
-  if (!sidebar) return;
-  sidebar.innerHTML = "";
-
-  months.forEach((m, idx) => {
-    const btn = document.createElement("button");
-    btn.className = `sidebar-month-btn ${idx === currentMonthIdx ? "active" : ""}`;
-    btn.innerHTML = `
-      <span>${m}</span>
-      <span class="text-[10px] font-bold opacity-50">${String(idx + 1).padStart(2, "0")}</span>
-    `;
-    btn.onclick = () => {
-      currentMonthIdx = idx;
-      const display = document.getElementById("current-month-display");
-      if (display) display.innerText = months[idx];
-      showDesktopMonth(idx);
-      if (window.navigator.vibrate) window.navigator.vibrate(5);
-    };
-    sidebar.appendChild(btn);
-  });
-}
-
-// Handle resize: switch between mobile swiper and desktop single-pane
-let lastIsDesktop = false;
-function handleResize() {
-  const desktop = isDesktop();
-  if (desktop !== lastIsDesktop) {
-    lastIsDesktop = desktop;
-    if (desktop) {
-      showDesktopMonth(currentMonthIdx);
-    } else {
-      // Back to mobile: show all snap-points, remove desktop-active
-      document.querySelectorAll(".snap-point").forEach((sp) => {
-        sp.classList.remove("desktop-active");
-        sp.style.display = "";
-      });
-      // Scroll swiper to current month
-      const target = document.getElementById(`month-view-${currentMonthIdx}`);
-      if (target) {
-        setTimeout(() => target.scrollIntoView({ inline: "start" }), 100);
-      }
-    }
-  }
-}
-window.addEventListener("resize", handleResize);
-
-window.toggleMonthPicker = () => {
-  const mp = document.getElementById("month-picker");
-  if (!mp) return;
-  const isOpen = mp.classList.contains("opacity-100");
-  mp.classList.toggle("opacity-0", isOpen);
-  mp.classList.toggle("opacity-100", !isOpen);
-  mp.classList.toggle("pointer-events-none", isOpen);
-};
-
-function initMonthPicker() {
-  const picker = document.getElementById("month-picker");
-  if (!picker) return;
-  const container = picker.querySelector("div");
-  if (!container) return;
-  container.innerHTML = "";
-  const completed = appData?.completedMonths || {};
-
-  months.forEach((m, idx) => {
-    const isDone = !!completed[idx];
-    const btn = document.createElement("button");
-    btn.className = `p-6 rounded-3xl text-lg font-black active:scale-90 transition-transform uppercase tracking-widest ${
-      isDone ? "bg-emerald-500/10 text-emerald-500/40 border border-emerald-500/10" : "bg-slate-800 text-slate-400"
-    }`;
-    btn.id = `mp-btn-${idx}`;
-    btn.innerHTML = isDone
-      ? `<div class="flex items-center justify-center gap-2"><span class="material-icons text-sm">check_circle</span>${m.substring(0, 3)}</div>`
-      : m.substring(0, 3);
-    btn.onclick = () => {
-      const target = document.getElementById(`month-view-${idx}`);
-      if (target) {
-        // Unhide temporarily if completed so user can view it
-        if (isDone) target.style.display = "";
-        target.scrollIntoView({ behavior: "smooth", inline: "start" });
-      }
-      updateHeader(idx);
-      window.toggleMonthPicker();
-    };
-    container.appendChild(btn);
-  });
-}
-
-// Re-init month picker when completed state changes
-function updateMonthPicker() {
-  initMonthPicker();
-}
-
-// =============================================
-// COMMITMENTS (CharLa Ring + Wedding Fund)
-// =============================================
-// Data stored in Firebase under `commitments` key in user's path
-// Structure:
-// {
-//   ring: { charliePerMonth: 14000, karlaPerMonth: 6000, totalTarget: 440000, startMonth: "2025-01", endMonth: "2026-11", payments: [...] },
-//   wedding: { grandTotal: 357527, charliePaid: 103477, karlaPaid: 189372, remaining: 25404 }
-// }
-
-// Actual CharLa payment schedule (from the spreadsheet)
-// Jan-Aug 2025: ₱14K(C) + ₱6K(K) = ₱20K/mo × 8 = ₱160,000
-// Sep 2025-Jan 2026: pause (₱0)
-// Feb 2026: ₱118,372 lump sum
-// Mar-Jun 2026: ₱14K(C) + ₱5K(K) = ₱19K/mo × 4 = ₱76,000
-// Total target: ₱160,000 + ₱118,372 + ₱76,000 = ₱354,372
-// But user says CharLa total = ₱189,372 — that's the CharLa joint portion
-const CHARLA_SCHEDULE = [
-  { label: "Jan 2025", y: 2025, m: 0, charlie: 14000, karla: 6000 },
-  { label: "Feb 2025", y: 2025, m: 1, charlie: 14000, karla: 6000 },
-  { label: "Mar 2025", y: 2025, m: 2, charlie: 14000, karla: 6000 },
-  { label: "Apr 2025", y: 2025, m: 3, charlie: 14000, karla: 6000 },
-  { label: "May 2025", y: 2025, m: 4, charlie: 14000, karla: 6000 },
-  { label: "Jun 2025", y: 2025, m: 5, charlie: 14000, karla: 6000 },
-  { label: "Jul 2025", y: 2025, m: 6, charlie: 14000, karla: 6000 },
-  { label: "Aug 2025", y: 2025, m: 7, charlie: 14000, karla: 6000 },
-  { label: "Sep 2025", y: 2025, m: 8, charlie: 0, karla: 0 },
-  { label: "Oct 2025", y: 2025, m: 9, charlie: 0, karla: 0 },
-  { label: "Nov 2025", y: 2025, m: 10, charlie: 0, karla: 0 },
-  { label: "Dec 2025", y: 2025, m: 11, charlie: 0, karla: 0 },
-  { label: "Jan 2026", y: 2026, m: 0, charlie: 0, karla: 0 },
-  { label: "Feb 2026", y: 2026, m: 1, charlie: 118372, karla: 0 },
-  { label: "Mar 2026", y: 2026, m: 2, charlie: 14000, karla: 5000 },
-  { label: "Apr 2026", y: 2026, m: 3, charlie: 14000, karla: 5000 },
-  { label: "May 2026", y: 2026, m: 4, charlie: 14000, karla: 5000 },
-  { label: "Jun 2026", y: 2026, m: 5, charlie: 14000, karla: 5000 },
-];
-const CHARLA_TARGET = CHARLA_SCHEDULE.reduce((s, x) => s + x.charlie + x.karla, 0);
-
-// Wedding fund defaults — will be overridden by Firebase if data exists
-const WEDDING_DEFAULTS = {
-  grandTotal: 357527,       // Total wedding cost
-  vendorPaid: 90082,        // Actual payments made to vendors so far
-  charlaPaid: 189372,       // CharLa joint commitment (funding source)
-  dueDate: "2026-07-02",
-};
-
-function renderCommitments() {
-  renderCharLaCommitment();
-  renderWeddingFund();
-}
-
-function renderCharLaCommitment() {
-  const now = new Date();
-  const currentYear = now.getFullYear();
-  const currentMonth = now.getMonth();
-
-  let totalPaid = 0;
-  let monthsWithPayment = 0;
-  let monthsLeft = 0;
-
-  CHARLA_SCHEDULE.forEach((s) => {
-    const isPast = (s.y < currentYear) || (s.y === currentYear && s.m < currentMonth);
-    const isCurrent = (s.y === currentYear && s.m === currentMonth);
-    if (isPast || isCurrent) totalPaid += s.charlie + s.karla;
-    if (!isPast && !isCurrent && (s.charlie + s.karla) > 0) monthsLeft++;
-    if (s.charlie + s.karla > 0) monthsWithPayment++;
-  });
-
-  const remaining = CHARLA_TARGET - totalPaid;
-  const progressPct = CHARLA_TARGET > 0 ? (totalPaid / CHARLA_TARGET * 100).toFixed(1) : "0";
-  const isDone = remaining <= 0;
-
-  const $ = (id) => document.getElementById(id);
-  $("ring-target").textContent = `₱${formatMoney(CHARLA_TARGET)}`;
-  $("ring-total-paid").textContent = `₱${formatMoney(totalPaid)}`;
-  $("ring-remaining").textContent = isDone ? "₱0" : `₱${formatMoney(remaining)}`;
-  $("ring-months-left").textContent = isDone ? "Done!" : `${monthsLeft}`;
-  $("ring-progress-pct").textContent = `${progressPct}%`;
-  $("ring-progress-bar").style.width = `${Math.min(100, parseFloat(progressPct))}%`;
-  $("ring-status").textContent = isDone ? "COMPLETE" : `${monthsLeft} mo left`;
-  $("ring-status").className = `text-[9px] font-black px-2 py-1 rounded-lg uppercase ${isDone ? "bg-emerald-500/20 text-emerald-400" : "bg-amber-500/20 text-amber-400"}`;
-
-  // Timeline: show each month with actual payment amounts
-  const timeline = $("ring-timeline");
-  timeline.innerHTML = "";
-  const mn = ["Jan", "Feb", "Mar", "Apr", "May", "Jun", "Jul", "Aug", "Sep", "Oct", "Nov", "Dec"];
-
-  CHARLA_SCHEDULE.forEach((s) => {
-    const isPast = (s.y < currentYear) || (s.y === currentYear && s.m < currentMonth);
-    const isCurrent = (s.y === currentYear && s.m === currentMonth);
-    const total = s.charlie + s.karla;
-    const hasAmount = total > 0;
-
-    // All past months = PAID (even ₱0 months were bulk-covered by Feb lump sum)
-    const cell = document.createElement("div");
-    cell.className = `rounded-lg p-1.5 text-center text-[9px] font-bold border transition-all ${
-      isPast ? "bg-emerald-500/15 border-emerald-500/20 text-emerald-400" :
-      isCurrent ? "bg-blue-500/15 border-blue-500/30 text-blue-400 ring-1 ring-blue-500/30" :
-      "bg-slate-800/50 border-white/[0.04] text-slate-500"
-    }`;
-    cell.innerHTML = `
-      <div>${mn[s.m]} '${String(s.y).slice(-2)}</div>
-      ${hasAmount ? `<div class="text-[7px] ${isPast ? 'text-emerald-500' : isCurrent ? 'text-blue-400' : 'text-slate-400'}">₱${total >= 100000 ? (total/1000).toFixed(0) + 'K' : (total/1000).toFixed(0) + 'K'}</div>` :
-        `<div class="text-[7px] ${isPast ? 'text-emerald-500/50' : 'opacity-40'}">bulk</div>`}
-      ${isPast ? '<span class="material-icons text-[9px]">check</span>' :
-        isCurrent ? '<span class="material-icons text-[9px]">radio_button_checked</span>' : ''}
-    `;
-    timeline.appendChild(cell);
-  });
-}
-
-// --- Wedding Fund ---
-// Grand Total + Total Paid come from weddingCosts (same as WeddingBar app)
-// Only charlaPaid is stored locally at {userPath}/wedding
-
-let weddingCostsData = { grandTotal: 0, vendorPaid: 0 }; // from weddingCosts Firebase
-
-function initWeddingCostsListener() {
-  const costsRef = ref(db, "weddingCosts");
-  onValue(costsRef, (snap) => {
+let firstLoad = true;
+function boot() {
+  runIntro();
+  onValue(dbRef, (snap) => {
+    // Skip re-render for the echo of our own writes (appData is already current locally).
+    if (!firstLoad && pendingEchoes > 0) { pendingEchoes--; return; }
     const val = snap.val();
-    if (!val) { weddingCostsData = { grandTotal: 0, vendorPaid: 0 }; return; }
-    const items = Object.values(val);
-    weddingCostsData.grandTotal = items.reduce((s, it) => s + Number(it.total || 0), 0);
-    weddingCostsData.vendorPaid = items.reduce((s, it) => s + Number(it.paid || 0), 0);
-    // Re-render if on goals view
-    if (activeView === "commitments") renderWeddingFund();
-  });
-}
-
-async function loadWeddingData() {
-  if (!currentUser) return WEDDING_DEFAULTS;
-  const path = currentUser === "Charlie" ? "chalee_v1" : "karla_v1";
-  const weddingRef = ref(db, `${path}/wedding`);
-  const snapshot = await get(weddingRef);
-  if (snapshot.exists() && snapshot.val()) {
-    return { ...WEDDING_DEFAULTS, ...snapshot.val() };
-  }
-  return WEDDING_DEFAULTS;
-}
-
-async function saveCharlaPaid(amount) {
-  if (!currentUser) return;
-  const path = currentUser === "Charlie" ? "chalee_v1" : "karla_v1";
-  const weddingRef = ref(db, `${path}/wedding`);
-  const data = await loadWeddingData();
-  data.charlaPaid = amount;
-  await syncSet(weddingRef, data);
-}
-
-// Calculate running balance at any month (inclusive)
-function getRunningBalanceAt(monthIdx) {
-  if (!appData || !appData.monthlyData) return 0;
-  let balance = parseFloat(appData.startingBalance || 0);
-  for (let i = 0; i <= monthIdx; i++) {
-    const m = appData.monthlyData[i] || { incomeSources: [], fixedExpenses: [], cc: [], others: [] };
-    const { income, expenses } = calculateMonthlyTotals(m);
-    balance += income - expenses;
-  }
-  return balance;
-}
-
-// Calculate Charlie's running balance at June (month index 5)
-function getJuneRunningBalance() {
-  if (!appData || !appData.monthlyData) return 0;
-  let balance = parseFloat(appData.startingBalance || 0);
-  for (let i = 0; i <= 5; i++) { // 0=Jan through 5=June
-    const m = appData.monthlyData[i] || { incomeSources: [], fixedExpenses: [], cc: [], others: [] };
-    const { income, expenses } = calculateMonthlyTotals(m);
-    balance += income - expenses;
-  }
-  return balance;
-}
-
-async function renderWeddingFund() {
-  const data = await loadWeddingData();
-
-  // Grand Total + Total Paid from weddingCosts (same source as WeddingBar)
-  const grandTotal = weddingCostsData.grandTotal || data.grandTotal;
-  const vendorPaid = weddingCostsData.vendorPaid || (data.vendorPaid || 0);
-  const vendorRemaining = grandTotal - vendorPaid;
-  const vendorPct = grandTotal > 0 ? (vendorPaid / grandTotal * 100).toFixed(1) : "0";
-
-  // Funding sources
-  const charlieAmount = getJuneRunningBalance();
-  const totalFunding = charlieAmount + (data.charlaPaid || 0);
-  const shortfall = vendorRemaining - totalFunding; // negative = surplus
-
-  // Match weddingbar exactly: local midnight of July 2 2026
-  const weddingDate = new Date("July 2, 2026 00:00:00").getTime();
-  const daysLeft = Math.max(0, Math.floor((weddingDate - Date.now()) / (1000 * 60 * 60 * 24)));
-  const isDone = vendorRemaining <= 0;
-
-  const $ = (id) => document.getElementById(id);
-  $("wedding-grand-total").textContent = `₱${formatMoney(grandTotal)}`;
-  $("wedding-total-paid").textContent = `₱${formatMoney(vendorPaid)}`;
-  $("wedding-remaining").textContent = isDone ? "₱0" : `₱${formatMoney(Math.max(0, vendorRemaining))}`;
-  $("wedding-days-left").textContent = isDone ? "Done!" : `${daysLeft}`;
-  $("wedding-progress-pct").textContent = `${vendorPct}%`;
-  $("wedding-progress-bar").style.width = `${Math.min(100, parseFloat(vendorPct))}%`;
-  $("wedding-charlie").textContent = `₱${formatMoney(charlieAmount)}`;
-  $("wedding-karla").textContent = `₱${formatMoney(data.charlaPaid || 0)}`;
-
-  // Status badge
-  if (isDone) {
-    $("wedding-status").textContent = "ALL PAID";
-    $("wedding-status").className = "text-[9px] font-black px-2 py-1 rounded-lg uppercase bg-emerald-500/20 text-emerald-400";
-  } else {
-    $("wedding-status").textContent = `₱${formatMoney(vendorRemaining)} to vendors`;
-    $("wedding-status").className = "text-[9px] font-black px-2 py-1 rounded-lg uppercase bg-amber-500/20 text-amber-400";
-  }
-
-  // === AFTER WEDDING: the whole point ===
-  // July balance = what you actually have after wedding expenses hit in June
-  // This uses the Money app's running balance at July (index 6)
-  const julyBalance = getRunningBalanceAt(6);
-  const charlieShare = Math.max(0, vendorRemaining - (data.charlaPaid || 0));
-
-  $("aw-june-bal").textContent = `₱${formatMoney(charlieAmount)}`;
-  $("aw-charla").textContent = `₱${formatMoney(data.charlaPaid || 0)}`;
-  $("aw-vendor-remaining").textContent = `₱${formatMoney(charlieShare)}`;
-  $("aw-result").textContent = `₱${formatMoney(julyBalance)}`;
-  $("aw-result").className = `font-black ${julyBalance >= 0 ? "text-emerald-400" : "text-rose-400"}`;
-
-  // Hero number = June projected balance (what you actually have before wedding costs)
-  $("after-wedding-balance").textContent = `₱${formatMoney(charlieAmount)}`;
-  $("after-wedding-balance").className = `text-4xl font-black ${charlieAmount >= 0 ? "text-blue-400" : "text-rose-400"}`;
-
-  if (charlieAmount >= 0) {
-    $("after-wedding-sub").textContent = "This is what you'll have going into the wedding";
-  } else {
-    $("after-wedding-sub").textContent = "You'll be negative by June — need to save more";
-    $("after-wedding-sub").className = "text-[10px] text-rose-400 mt-1";
-  }
-}
-
-// Edit CharLa Joint amount (only editable field in wedding fund)
-window.editCharlaJoint = async () => {
-  const data = await loadWeddingData();
-
-  const overlay = document.getElementById("modal-overlay");
-  const body = document.getElementById("modal-body");
-  const deleteBtn = document.getElementById("delete-btn");
-  const saveBtn = document.getElementById("save-btn");
-  if (!overlay || !body) return;
-
-  document.getElementById("modal-title").innerText = "CHARLA JOINT";
-  deleteBtn.style.display = "none";
-  saveBtn.disabled = false;
-  saveBtn.innerText = "Save";
-
-  body.innerHTML = `
-    <div class="space-y-4 px-1">
-      <p class="text-[10px] text-slate-400">Total committed funds from CharLa joint savings.</p>
-      <div class="space-y-1">
-        <label class="text-[10px] font-black uppercase text-slate-500 ml-1">Amount (₱)</label>
-        <input type="number" id="wed-charla-input" value="${data.charlaPaid || 0}" class="w-full bg-slate-900 border-none rounded-2xl py-5 px-6 text-2xl font-black text-rose-400 focus:ring-2 focus:ring-rose-500" inputmode="numeric">
-      </div>
-    </div>
-  `;
-
-  activeEdit = null;
-  saveBtn.onclick = async () => {
-    saveBtn.disabled = true;
-    saveBtn.innerText = "Saving...";
-    const charlaPaid = parseFloat(document.getElementById("wed-charla-input").value) || 0;
-    await saveCharlaPaid(charlaPaid);
-
-    // Auto-sync Charlie's share to June expenses
-    const grandTotal = weddingCostsData.grandTotal || WEDDING_DEFAULTS.grandTotal;
-    const vendorPaid = weddingCostsData.vendorPaid || WEDDING_DEFAULTS.vendorPaid;
-    const vendorRemaining = grandTotal - vendorPaid;
-    const charlieShare = Math.max(0, vendorRemaining - charlaPaid);
-
-    if (appData) {
-      const juneIdx = 5;
-      if (!appData.monthlyData) appData.monthlyData = {};
-      if (!appData.monthlyData[juneIdx]) appData.monthlyData[juneIdx] = { incomeSources: [], fixedExpenses: [], cc: [], others: [] };
-      if (!appData.monthlyData[juneIdx].others) appData.monthlyData[juneIdx].others = [];
-      const toArr = (v) => Array.isArray(v) ? v : (v ? Object.values(v) : []);
-      const list = toArr(appData.monthlyData[juneIdx].others);
-      const existing = list.findIndex(item => item.id === WEDDING_EXPENSE_ID);
-      if (charlieShare > 0) {
-        if (existing >= 0) { list[existing].amount = charlieShare; list[existing].name = "Wedding (My Share)"; }
-        else list.push({ id: WEDDING_EXPENSE_ID, name: "Wedding (My Share)", amount: charlieShare, isPaid: false, logs: [] });
-      } else if (existing >= 0) { list.splice(existing, 1); }
-      appData.monthlyData[juneIdx].others = list;
-      await syncSet(dbRef, appData);
-      updateAllCalculations();
+    appData = val ? normalize(val) : emptyData();
+    if (firstLoad) {
+      firstLoad = false;
+      clampSelected();
+      renderAll();
+      setTimeout(revealApp, 1900);
+    } else {
+      renderAll();
     }
-
-    closeModal();
-    renderWeddingFund();
-    if (window.navigator.vibrate) window.navigator.vibrate(5);
-    saveBtn.onclick = () => window.saveModal();
-  };
-
-  overlay.classList.add("open");
-  setTimeout(() => document.getElementById("wed-charla-input")?.focus(), 300);
-};
-
-// =============================================
-// WEDDING BAR IFRAME
-// =============================================
-window.openWeddingBar = () => {
-  const overlay = document.getElementById("weddingbar-overlay");
-  const frame = document.getElementById("weddingbar-frame");
-  if (!frame.src || frame.src === "about:blank") {
-    frame.src = "/weddingbar/";
-  }
-  overlay.style.transform = "translateY(0)";
-  overlay.classList.remove("opacity-0", "pointer-events-none");
-  overlay.classList.add("opacity-100");
-};
-
-window.closeWeddingBar = () => {
-  const overlay = document.getElementById("weddingbar-overlay");
-  overlay.style.transform = "translateY(100%)";
-  overlay.classList.add("opacity-0", "pointer-events-none");
-  overlay.classList.remove("opacity-100");
-};
-
-
-// =============================================
-// PENDING PAYMENTS — installments with "until <Month> <Year>" in name
-// =============================================
-const MONTH_NAME_MAP = {
-  jan: 0, january: 0,
-  feb: 1, february: 1,
-  mar: 2, march: 2,
-  apr: 3, april: 3,
-  may: 4,
-  jun: 5, june: 5,
-  jul: 6, july: 6,
-  aug: 7, august: 7,
-  sep: 8, sept: 8, september: 8,
-  oct: 9, october: 9,
-  nov: 10, november: 10,
-  dec: 11, december: 11,
-};
-
-function parseUntilFromName(name) {
-  if (!name) return null;
-  const m = name.match(/until\s+([A-Za-z]+)\s+(\d{4})/i);
-  if (!m) return null;
-  const mIdx = MONTH_NAME_MAP[m[1].toLowerCase()];
-  if (mIdx === undefined) return null;
-  return { endMonth: mIdx, endYear: parseInt(m[2], 10) };
-}
-
-function cleanInstallmentName(name) {
-  return (name || "").replace(/\s*until\s+[A-Za-z]+\s+\d{4}\s*/i, "").trim();
-}
-
-const fmtPending = (v) => "₱" + Math.round(v || 0).toLocaleString("en-PH");
-
-// ---- Home Expense breakdown (utilities/living) ----
-const HOME_EXPENSE_DEFAULTS = [
-  { name: "Electricity", amount: 4000 },
-  { name: "Water", amount: 400 },
-  { name: "Drinkable Water", amount: 600 },
-  { name: "Motor Gas", amount: 2500 },
-  { name: "Cooking Gas (LPG)", amount: 600 },
-  { name: "Grocery", amount: 10000 },
-  { name: "Parking", amount: 6887 },
-  { name: "WiFi", amount: 1699 },
-];
-
-function getHomeExpenses() {
-  // Live under appData.trajectorySettings.living for back-compat with existing Firebase data
-  const stored = appData?.trajectorySettings?.living;
-  if (Array.isArray(stored) && stored.length) return stored.map((x) => ({ ...x }));
-  return HOME_EXPENSE_DEFAULTS.map((x) => ({ ...x }));
-}
-
-async function saveHomeExpenses(list) {
-  if (!appData || !dbRef) return;
-  if (!appData.trajectorySettings) appData.trajectorySettings = {};
-  appData.trajectorySettings.living = list;
-  await syncSet(dbRef, appData);
-}
-
-function renderHomeExpenses() {
-  const listEl = document.getElementById("home-expense-list");
-  const totalEl = document.getElementById("home-expense-total");
-  if (!listEl || !totalEl) return;
-  const items = getHomeExpenses();
-  const total = items.reduce((s, x) => s + (Number(x.amount) || 0), 0);
-  totalEl.textContent = fmtPending(total);
-  listEl.innerHTML = items.map((item, i) => `
-    <div class="flex items-center justify-between bg-slate-900/50 rounded-xl px-3.5 py-2.5 border border-white/[0.03] cursor-pointer active:scale-[0.98] transition-transform" onclick="editHomeExpense(${i})">
-      <span class="text-[11px] font-bold text-slate-300">${item.name}</span>
-      <div class="flex items-center gap-1.5">
-        <span class="text-[11px] font-black text-emerald-400">${fmtPending(item.amount)}</span>
-        <span class="material-icons text-[12px] text-emerald-400/40">edit</span>
-      </div>
-    </div>
-  `).join("");
-}
-
-window.editHomeExpense = (idx) => {
-  const items = getHomeExpenses();
-  const item = items[idx];
-  if (!item) return;
-  const overlay = document.getElementById("modal-overlay");
-  const body = document.getElementById("modal-body");
-  const saveBtn = document.getElementById("save-btn");
-  const deleteBtn = document.getElementById("delete-btn");
-  document.getElementById("modal-title").innerText = item.name.toUpperCase();
-  deleteBtn.style.display = "none";
-  saveBtn.disabled = false;
-  saveBtn.innerText = "Save";
-  body.innerHTML = `
-    <div class="space-y-2 px-1">
-      <label class="text-[10px] font-black uppercase text-slate-500 ml-1">Amount (₱)</label>
-      <input type="number" id="home-expense-input" value="${item.amount}" class="w-full bg-slate-900 border-none rounded-2xl py-5 px-6 text-2xl font-black text-white focus:ring-2 focus:ring-emerald-500" inputmode="numeric">
-    </div>
-  `;
-  activeEdit = null;
-  saveBtn.onclick = async () => {
-    const val = Math.max(0, Math.round(Number(document.getElementById("home-expense-input").value) || 0));
-    items[idx] = { name: item.name, amount: val };
-    await saveHomeExpenses(items);
-    closeModal();
-    renderHomeExpenses();
-    saveBtn.onclick = () => window.saveModal();
-  };
-  overlay.classList.add("open");
-  setTimeout(() => document.getElementById("home-expense-input")?.focus(), 300);
-};
-
-function collectInstallments() {
-  if (!appData?.monthlyData) return [];
-  const tracked = {};
-  const toArr = (v) => Array.isArray(v) ? v : (v ? Object.values(v) : []);
-
-  for (let idx = 0; idx < 12; idx++) {
-    const m = appData.monthlyData[idx];
-    if (!m) continue;
-    ["fixedExpenses", "cc"].forEach((key) => {
-      toArr(m[key]).forEach((item) => {
-        if (!item || !item.name || !item.id) return;
-        const until = parseUntilFromName(item.name);
-        if (!until) return;
-        if (!tracked[item.id]) {
-          tracked[item.id] = {
-            id: item.id,
-            displayName: cleanInstallmentName(item.name),
-            category: key,
-            endMonth: until.endMonth,
-            endYear: until.endYear,
-            monthlyAmount: 0,
-            firstIdxInYear: idx,
-            months: {},
-          };
-        }
-        const amt = parseFloat(item.amount || 0);
-        tracked[item.id].months[idx] = { amount: amt, isPaid: !!item.isPaid };
-        if (amt > 0) tracked[item.id].monthlyAmount = amt;
-        if (idx < tracked[item.id].firstIdxInYear) tracked[item.id].firstIdxInYear = idx;
-      });
-    });
-  }
-  return Object.values(tracked);
-}
-
-function renderPending() {
-  if (!appData || !appData.monthlyData) return;
-  const container = document.getElementById("pending-items");
-  if (!container) return;
-
-  renderHomeExpenses();
-
-  const now = new Date();
-  const realMonth = now.getMonth();
-  const realYear = now.getFullYear();
-
-  const items = collectInstallments().sort((a, b) => {
-    return (a.endYear * 12 + a.endMonth) - (b.endYear * 12 + b.endMonth);
+  }, (err) => {
+    console.error(err);
+    appData = emptyData();
+    renderAll();
+    revealApp();
+    toast("Offline — check connection", "error");
   });
 
-  let grandTotal = 0;
-  let grandPaid = 0;
-  const cards = [];
-
-  items.forEach((it, i) => {
-    // Anchor: if today is before the item's first billing month in this year,
-    // count from its first billing month instead. Avoids overcounting items
-    // that haven't started yet (e.g. Aircon billed Jul onward, viewed in Jun).
-    const effectiveStart = (realYear < it.endYear)
-      ? Math.max(realMonth, it.firstIdxInYear ?? realMonth)
-      : realMonth;
-    const monthsRemaining = (realYear === it.endYear)
-      ? Math.max(0, it.endMonth - effectiveStart + 1)
-      : (12 - effectiveStart) + Math.max(0, (it.endYear - realYear - 1)) * 12 + it.endMonth + 1;
-    const isDone = monthsRemaining <= 0;
-    const totalCommitment = isDone ? 0 : it.monthlyAmount * monthsRemaining;
-
-    // Sum amounts marked paid in current real year, from effectiveStart through min(endMonth, Dec)
-    let paidPesos = 0;
-    let paidMonths = 0;
-    const yearEnd = (realYear === it.endYear) ? Math.min(11, it.endMonth) : 11;
-    for (let idx = effectiveStart; idx <= yearEnd; idx++) {
-      const slot = it.months[idx];
-      if (slot && slot.isPaid) {
-        paidPesos += slot.amount || 0;
-        paidMonths++;
-      }
+  // safety: reveal even if Firebase is slow
+  setTimeout(() => {
+    if (firstLoad) {
+      firstLoad = false;
+      appData = appData || emptyData();
+      renderAll();
+      revealApp();
     }
-
-    grandTotal += totalCommitment;
-    grandPaid += paidPesos;
-
-    const pct = totalCommitment > 0 ? Math.min(100, (paidPesos / totalCommitment) * 100) : 100;
-    const remaining = Math.max(0, totalCommitment - paidPesos);
-    const monthLabel = months[it.endMonth].slice(0, 3) + " " + it.endYear;
-    const barColor = monthsRemaining <= 6 ? "from-rose-500 to-orange-500"
-                   : monthsRemaining <= 12 ? "from-amber-500 to-yellow-500"
-                   : "from-indigo-500 to-violet-500";
-    const chipText = isDone ? "Done" : `${monthsRemaining} mo left`;
-    const chipClass = isDone ? "bg-emerald-500/15 text-emerald-300"
-                   : monthsRemaining <= 6 ? "bg-rose-500/15 text-rose-300"
-                   : "bg-slate-900/60 text-slate-300";
-
-    cards.push(`
-      <div class="glass-card rounded-2xl p-5 space-y-3" style="animation: slideIn 0.4s ease both; animation-delay: ${i * 40}ms">
-        <div class="flex items-start justify-between gap-3">
-          <div class="flex-1 min-w-0">
-            <h4 class="text-sm font-black text-white truncate">${it.displayName || "Untitled"}</h4>
-            <p class="text-[10px] text-slate-400 mt-0.5">${it.category === "cc" ? "Credit Card" : "Fixed Expense"} · until ${monthLabel}</p>
-          </div>
-          <span class="px-2 py-1 rounded-md text-[9px] font-black uppercase whitespace-nowrap ${chipClass}">${chipText}</span>
-        </div>
-        <div class="grid grid-cols-3 gap-2">
-          <div class="bg-slate-900/50 rounded-xl p-2.5 text-center">
-            <p class="text-[9px] font-bold uppercase text-slate-500">Monthly</p>
-            <p class="text-xs font-black text-slate-200 mt-0.5">${fmtPending(it.monthlyAmount)}</p>
-          </div>
-          <div class="bg-slate-900/50 rounded-xl p-2.5 text-center">
-            <p class="text-[9px] font-bold uppercase text-slate-500">Pending</p>
-            <p class="text-xs font-black text-rose-400 mt-0.5">${fmtPending(remaining)}</p>
-          </div>
-          <div class="bg-slate-900/50 rounded-xl p-2.5 text-center">
-            <p class="text-[9px] font-bold uppercase text-slate-500">Paid</p>
-            <p class="text-xs font-black text-emerald-400 mt-0.5">${fmtPending(paidPesos)}</p>
-          </div>
-        </div>
-        <div>
-          <div class="flex justify-between text-[10px] font-bold text-slate-500 mb-1">
-            <span>${paidMonths} mo paid this year</span>
-            <span>${pct.toFixed(1)}%</span>
-          </div>
-          <div class="h-2.5 bg-slate-900/60 rounded-full overflow-hidden">
-            <div class="pending-bar h-full bg-gradient-to-r ${barColor} rounded-full" data-w="${pct.toFixed(2)}%" style="width:0%"></div>
-          </div>
-        </div>
-      </div>
-    `);
-  });
-
-  if (items.length === 0) {
-    container.innerHTML = `
-      <div class="glass-card rounded-2xl p-8 text-center space-y-2">
-        <span class="material-icons text-3xl text-slate-500">inbox</span>
-        <p class="text-sm font-bold text-slate-400">No installments tracked yet</p>
-        <p class="text-[11px] text-slate-500 leading-relaxed">Add <code class="text-indigo-300">until &lt;Month&gt; &lt;Year&gt;</code> to a fixed expense or credit card name (e.g. <em>"Aircon until July 2027"</em>) to track it here.</p>
-      </div>`;
-  } else {
-    container.innerHTML = cards.join("");
-  }
-
-  const grandPct = grandTotal > 0 ? Math.min(100, (grandPaid / grandTotal) * 100) : 0;
-  const remainEl = document.getElementById("pending-total-remaining");
-  const paidEl = document.getElementById("pending-total-paid");
-  const pctEl = document.getElementById("pending-grand-pct");
-  const subEl = document.getElementById("pending-grand-sub");
-  if (remainEl) remainEl.textContent = fmtPending(Math.max(0, grandTotal - grandPaid));
-  if (paidEl) paidEl.textContent = fmtPending(grandPaid);
-  if (pctEl) pctEl.textContent = grandPct.toFixed(1) + "%";
-  if (subEl) {
-    subEl.textContent = items.length === 0
-      ? `Tag installments with "until <Month> <Year>" to start tracking.`
-      : `${items.length} active installment${items.length === 1 ? "" : "s"} · pay early to clear faster`;
-  }
-
-  requestAnimationFrame(() => {
-    setTimeout(() => {
-      document.querySelectorAll(".pending-bar").forEach((bar) => {
-        bar.style.transition = "width 0.8s cubic-bezier(0.16, 1, 0.3, 1)";
-        bar.style.width = bar.dataset.w;
-      });
-      const grandBar = document.getElementById("pending-grand-bar");
-      if (grandBar) grandBar.style.width = grandPct.toFixed(2) + "%";
-    }, 50);
-  });
+  }, 4000);
 }
+
+boot();
