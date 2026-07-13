@@ -69,6 +69,20 @@ function signedPeso(n) {
   const s = n > 0.005 ? "+" : n < -0.005 ? "-" : "";
   return `${s}₱${formatMoney(Math.abs(n))}`;
 }
+function ordinal(n) {
+  const s = ["th", "st", "nd", "rd"], v = n % 100;
+  return n + (s[(v - 20) % 10] || s[v] || s[0]);
+}
+// Parse an auto-complete day from a name like "Every 29", "15th", "Every 27".
+function parseDueDay(name) {
+  const m = (name || "").match(/every\s*(\d{1,2})\b/i) || (name || "").match(/\b(\d{1,2})(?:st|nd|rd|th)\b/i);
+  if (!m) return null;
+  const d = parseInt(m[1], 10);
+  return d >= 1 && d <= 31 ? d : null;
+}
+function dueDayFor(it) {
+  return it.dueDay != null ? it.dueDay : parseDueDay(it.name);
+}
 function escapeHtml(s) {
   return String(s ?? "").replace(/[&<>"']/g, (c) => ({ "&": "&amp;", "<": "&lt;", ">": "&gt;", '"': "&quot;", "'": "&#39;" }[c]));
 }
@@ -167,6 +181,31 @@ function runningFundsAt(k) {
 // Current cash on hand right now = the account balances you maintain.
 function currentMoneyAt() { return accountsTotal(); }
 
+// Auto-complete recurring expenses whose due-day has passed (current month),
+// and migrate a parsed due-day into the item so it survives name edits.
+function reconcileAutoPaid() {
+  let changed = false;
+  const curK = currentKey();
+  const inTimeline = timeline().includes(curK);
+  const today = new Date().getDate();
+  for (const who of ["charlie", "karla"]) {
+    for (const it of getItems(who, "expenses")) {
+      if (it.dueDay == null) {
+        const d = parseDueDay(it.name);
+        if (d != null) { it.dueDay = d; changed = true; }
+      }
+      if (inTimeline && it.recurring && itemActiveIn(it, curK)) {
+        const d = dueDayFor(it);
+        if (d != null && today >= d) {
+          appData.paid[curK] = appData.paid[curK] || {};
+          if (appData.paid[curK][it.id] === undefined) { appData.paid[curK][it.id] = true; changed = true; }
+        }
+      }
+    }
+  }
+  return changed;
+}
+
 function allInstallments() {
   const out = [];
   for (const who of ["charlie", "karla"]) {
@@ -239,24 +278,116 @@ function renderMonthBanner() {
   </div>`;
 }
 
-function itemRowHtml(it, k, kind, who) {
+function itemRowHtml(it, k, kind, who, opts = {}) {
   const amt = amountIn(it, k);
   const settled = isPaid(it.id, k); // income => received, expense => paid
+  const icon = opts.hideIcon ? null : iconFor(it.name);
+  const iconHtml = icon ? `<div class="w-7 h-7 rounded-lg overflow-hidden flex-shrink-0"><img src="assets/banks/${icon}.png" alt="" class="w-full h-full object-cover" /></div>` : "";
   const installment = it.recurring && it.end;
+  const dd = dueDayFor(it);
   const tags = [];
   if (installment) tags.push(`<span class="text-[9px] font-bold text-amber-400/80">→ ${monthShort(it.end)}</span>`);
+  else if (it.recurring && dd != null) tags.push(`<span class="text-[9px] font-bold text-sky-300 uppercase tracking-wide flex items-center gap-0.5"><span class="material-icons" style="font-size:11px">event_available</span>${ordinal(dd)}</span>`);
   else if (it.recurring) tags.push(`<span class="text-[9px] font-bold text-indigo-300/90 uppercase tracking-wide flex items-center gap-0.5"><span class="material-icons" style="font-size:11px">autorenew</span>Recurring</span>`);
+  let progress = "";
+  if (installment) {
+    const total = monthsInclusive(it.start, it.end);
+    const paidM = monthsPaidCount(it);
+    const pct = total ? Math.round((paidM / total) * 100) : 0;
+    progress = `<div class="flex items-center gap-2 mt-1.5 max-w-[220px]">
+      <div class="flex-1 h-1 bg-slate-800 rounded-full overflow-hidden"><div class="inst-bar-fill h-full bg-gradient-to-r ${OWNERS[who].grad} rounded-full" style="width:${pct}%"></div></div>
+      <span class="inst-bar-count text-[9px] font-bold text-slate-500 flex-shrink-0">${paidM}/${total}</span>
+    </div>`;
+  }
   return `<div onclick="openItemModal('${who}','${kind}','${it.id}')"
     class="item-row flex items-center gap-3 py-2.5 px-3 rounded-xl transition-colors cursor-pointer ${settled ? "opacity-60" : ""}">
     <button onclick="togglePaidQuick(event,'${it.id}','${kind}')" title="${kind === "income" ? "Mark received" : "Mark paid"}" class="paid-check ${settled ? "is-paid bg-emerald-500 border-emerald-500" : "border-slate-600"} w-6 h-6 rounded-lg flex items-center justify-center flex-shrink-0 border">
       <span class="material-icons check-icon text-white" style="font-size:16px">check</span>
     </button>
+    ${iconHtml}
     <div class="flex-1 min-w-0">
       <p class="item-name text-sm font-bold text-slate-200 truncate ${settled ? "line-through" : ""}">${escapeHtml(it.name)}</p>
       ${tags.length ? `<div class="flex gap-2 mt-0.5">${tags.join("")}</div>` : ""}
+      ${progress}
     </div>
     <p class="text-sm font-black ${kind === "income" ? "text-emerald-400" : "text-slate-100"} flex-shrink-0">${peso(amt)}</p>
   </div>`;
+}
+
+// 0 auto-pay · 1 recurring (no end) · 2 installment (has end) · 3 one-time
+function itemCategory(it) {
+  if (!it.recurring) return 3;
+  if (dueDayFor(it) != null) return 0;
+  if (it.end) return 2;
+  return 1;
+}
+const CATEGORY_LABELS = ["Auto-pay", "Recurring", "Installments", "One-time"];
+const BANK_LABELS = { maribank: "Maribank", gcash: "GCash", bpi: "BPI", metrobank: "Metrobank", bdo: "BDO", unionbank: "UnionBank" };
+
+function sortItems(items) {
+  return items
+    .map((it, i) => ({ it, i }))
+    .sort((a, b) => {
+      const ca = itemCategory(a.it), cb = itemCategory(b.it);
+      if (ca !== cb) return ca - cb;
+      if (ca === 0) return (dueDayFor(a.it) - dueDayFor(b.it)) || a.i - b.i; // auto-pay: earliest day first
+      if (ca === 2) return cmpKey(a.it.end, b.it.end) || a.i - b.i; // installments: closest to finish first
+      return a.i - b.i;
+    })
+    .map((x) => x.it);
+}
+
+// Category sub-groups (Auto-pay/Recurring/Installments/One-time), headers only when >1 group.
+function categoryGroupedHtml(items, k, kind, who) {
+  if (!items.length) return "";
+  const sorted = sortItems(items);
+  const showHeaders = new Set(sorted.map(itemCategory)).size > 1;
+  let html = "", lastCat = -1;
+  for (const it of sorted) {
+    const c = itemCategory(it);
+    if (showHeaders && c !== lastCat) {
+      html += `<p class="text-[9px] font-black uppercase tracking-[0.2em] text-slate-600 px-3 pt-2 pb-0.5">${CATEGORY_LABELS[c]}</p>`;
+      lastCat = c;
+    }
+    html += itemRowHtml(it, k, kind, who);
+  }
+  return html;
+}
+
+// A bank owned across items -> one icon + name + total, each item a sub-row (like accounts).
+function bankGroupHtml(bank, list, k, kind, who) {
+  const total = list.reduce((s, it) => s + amountIn(it, k), 0);
+  const subs = sortItems(list).map((it) => itemRowHtml(it, k, kind, who, { hideIcon: true })).join("");
+  return `<div class="py-1">
+    <div class="flex items-center gap-3 px-3 py-2">
+      <div class="acct-icon flex-shrink-0"><img src="assets/banks/${bank}.png" alt="" class="w-full h-full object-cover" /></div>
+      <p class="text-sm font-black text-white flex-1 min-w-0 truncate">${BANK_LABELS[bank] || bank}</p>
+      <p class="text-sm font-black text-slate-100 flex-shrink-0">${peso(total)}</p>
+    </div>
+    <div class="ml-4 pl-3 border-l border-slate-700/60 space-y-0.5">${subs}</div>
+  </div>`;
+}
+
+// Bank groups first (banks with 2+ items), then category groups for the rest.
+function groupedRowsHtml(items, k, kind, who) {
+  if (!items.length) return `<p class="text-[11px] text-slate-600 px-3 py-2">No ${kind === "income" ? "income" : "expenses"} this month</p>`;
+  const buckets = {}, order = [];
+  for (const it of items) {
+    const b = bankIconFor(it.name);
+    if (b) (buckets[b] = buckets[b] || []).push(it);
+  }
+  for (const it of items) {
+    const b = bankIconFor(it.name);
+    if (b && buckets[b].length > 1 && !order.includes(b)) order.push(b);
+  }
+  const grouped = new Set();
+  let html = "";
+  for (const b of order) {
+    buckets[b].forEach((it) => grouped.add(it.id));
+    html += bankGroupHtml(b, buckets[b], k, kind, who);
+  }
+  html += categoryGroupedHtml(items.filter((it) => !grouped.has(it.id)), k, kind, who);
+  return html;
 }
 
 function personSectionHtml(who) {
@@ -268,12 +399,8 @@ function personSectionHtml(who) {
   const incTot = who === "charlie" ? t.cI : t.kI;
   const expTot = who === "charlie" ? t.cE : t.kE;
   const net = incTot - expTot;
-  const incHtml = income.length
-    ? income.map((it) => itemRowHtml(it, k, "income", who)).join("")
-    : `<p class="text-[11px] text-slate-600 px-3 py-2">No income this month</p>`;
-  const expHtml = expenses.length
-    ? expenses.map((it) => itemRowHtml(it, k, "expenses", who)).join("")
-    : `<p class="text-[11px] text-slate-600 px-3 py-2">No expenses this month</p>`;
+  const incHtml = groupedRowsHtml(income, k, "income", who);
+  const expHtml = groupedRowsHtml(expenses, k, "expenses", who);
   return `<div class="glass-card rounded-2xl overflow-hidden border ${o.ring}">
     <div class="flex items-center justify-between px-5 py-4 bg-gradient-to-r ${o.grad} bg-opacity-10">
       <div class="flex items-center gap-3">
@@ -318,6 +445,18 @@ function bankIconFor(name) {
   if (n.includes("unionbank") || n.includes("union bank") || n === "ub") return "unionbank";
   return null;
 }
+// Non-bank brand icons (these don't group; they just show on the row).
+function brandIconFor(name) {
+  const n = (name || "").toLowerCase();
+  if (n.includes("netflix")) return "netflix";
+  if (n.includes("youtube")) return "youtube";
+  if (n.includes("prulife") || n.includes("prudential")) return "prulife";
+  if (n.includes("campus missionary")) return "cms";
+  if (n.includes("tithe")) return "ccf";
+  if (n.includes("claude")) return "claude";
+  return null;
+}
+function iconFor(name) { return bankIconFor(name) || brandIconFor(name); }
 function acctIconHtml(a) {
   const bank = bankIconFor(a.name);
   const ownerKey = a.owner === "karla" ? "karla" : "charlie";
@@ -332,22 +471,60 @@ function acctIconHtml(a) {
   </div>`;
 }
 
+// One standalone account row (icon + owner badge + name + owner + amount).
+function acctRowHtml(a) {
+  const o = OWNERS[a.owner] || OWNERS.charlie;
+  return `<div onclick="openAccountModal('${a.id}')" class="item-row flex items-center gap-3 py-2.5 px-3 rounded-xl cursor-pointer">
+    ${acctIconHtml(a)}
+    <div class="flex-1 min-w-0">
+      <p class="text-sm font-bold text-slate-200 truncate">${escapeHtml(a.name)}</p>
+      <span class="text-[9px] font-bold uppercase ${o.text}">${o.label}</span>
+    </div>
+    <p class="text-sm font-black text-slate-100 flex-shrink-0">${peso(a.amount)}</p>
+  </div>`;
+}
+// Same bank owned by both people -> one icon, group total, one sub-row per owner.
+function acctGroupHtml(g) {
+  const total = g.items.reduce((s, a) => s + (Number(a.amount) || 0), 0);
+  const bank = bankIconFor(g.name);
+  const letter = escapeHtml((g.name || "?").trim().charAt(0).toUpperCase() || "?");
+  const inner = bank
+    ? `<img src="assets/banks/${bank}.png" alt="" class="w-full h-full object-cover" />`
+    : `<span class="text-lg font-black text-white">${letter}</span>`;
+  const bg = bank ? "" : "bg-gradient-to-br from-indigo-500 to-violet-600";
+  const subs = g.items.map((a) => {
+    const o = OWNERS[a.owner] || OWNERS.charlie;
+    const ok = a.owner === "karla" ? "karla" : "charlie";
+    return `<div onclick="openAccountModal('${a.id}')" class="item-row flex items-center gap-2 py-1.5 pl-2 rounded-lg cursor-pointer">
+      <img src="assets/avatar-${ok}.jpg" alt="" class="w-5 h-5 rounded-full object-cover flex-shrink-0 ring-1 ring-white/20" />
+      <span class="text-[10px] font-bold uppercase ${o.text} flex-1">${o.label}</span>
+      <span class="text-sm font-black text-slate-100 flex-shrink-0">${peso(a.amount)}</span>
+    </div>`;
+  }).join("");
+  return `<div class="px-3 pt-2.5 pb-1.5 rounded-xl">
+    <div class="flex items-center gap-3">
+      <div class="acct-icon ${bg} flex-shrink-0">${inner}</div>
+      <p class="text-sm font-bold text-slate-200 flex-1 min-w-0 truncate">${escapeHtml(g.name)}</p>
+      <p class="text-sm font-black text-slate-100 flex-shrink-0">${peso(total)}</p>
+    </div>
+    <div class="mt-1 ml-4 pl-3 border-l border-slate-700/60 space-y-0.5">${subs}</div>
+  </div>`;
+}
+
 function accountsCardHtml() {
   const accts = appData.accounts || [];
+  // group accounts that share a bank (else by name) so a bank owned by both shows once
+  const groups = [];
+  const idx = {};
+  for (const a of accts) {
+    const key = bankIconFor(a.name) || (a.name || "").trim().toLowerCase();
+    if (idx[key] === undefined) { idx[key] = groups.length; groups.push({ key, name: a.name, items: [] }); }
+    groups[idx[key]].items.push(a);
+  }
   const rows = accts.length
-    ? accts.map((a) => {
-        const o = OWNERS[a.owner] || OWNERS.charlie;
-        return `<div onclick="openAccountModal('${a.id}')" class="item-row flex items-center gap-3 py-2.5 px-3 rounded-xl cursor-pointer">
-          ${acctIconHtml(a)}
-          <div class="flex-1 min-w-0">
-            <p class="text-sm font-bold text-slate-200 truncate">${escapeHtml(a.name)}</p>
-            <span class="text-[9px] font-bold uppercase ${o.text}">${o.label}</span>
-          </div>
-          <p class="text-sm font-black text-slate-100 flex-shrink-0">${peso(a.amount)}</p>
-        </div>`;
-      }).join("")
+    ? groups.map((g) => (g.items.length > 1 ? acctGroupHtml(g) : acctRowHtml(g.items[0]))).join("")
     : `<p class="text-[11px] text-slate-600 px-3 py-2">No accounts yet — add your current balances.</p>`;
-  return `<details class="glass-card rounded-2xl overflow-hidden border border-emerald-500/10 md:col-span-2">
+  return `<details open class="glass-card rounded-2xl overflow-hidden border border-emerald-500/10 md:col-span-2">
     <summary class="flex items-center justify-between px-5 py-4 cursor-pointer list-none">
       <div class="flex items-center gap-3">
         <div class="w-9 h-9 rounded-xl bg-gradient-to-br from-emerald-500 to-teal-600 flex items-center justify-center">
@@ -424,19 +601,27 @@ window.closeMore = function () {
   $("more-overlay").classList.remove("open");
 };
 
+// Count how many months of an installment have been checked as paid.
+function monthsPaidCount(it) {
+  let count = 0, k = it.start;
+  while (cmpKey(k, it.end) <= 0) {
+    if (isPaid(it.id, k)) count++;
+    k = addMonths(k, 1);
+  }
+  return count;
+}
+
 // Installments as an inline expandable card (same pattern as Accounts).
+// Progress is driven by ACTUAL checked payments so ticking a month updates it live.
 function installmentsCardHtml() {
   const insts = allInstallments();
   if (!insts.length) return "";
-  const nowK = currentKey();
   let grandRemaining = 0, grandMonthly = 0;
   const rows = insts.map((it) => {
     const o = OWNERS[it.who];
     const total = monthsInclusive(it.start, it.end);
-    const startCount = cmpKey(nowK, it.start) > 0 ? nowK : it.start;
-    let monthsLeft, monthsPaid;
-    if (cmpKey(nowK, it.end) > 0) { monthsLeft = 0; monthsPaid = total; }
-    else { monthsLeft = monthsInclusive(startCount, it.end); monthsPaid = total - monthsLeft; }
+    const monthsPaid = monthsPaidCount(it);
+    const monthsLeft = Math.max(0, total - monthsPaid);
     const monthly = Number(it.amount) || 0;
     const remaining = monthly * monthsLeft;
     const pct = total ? Math.round((monthsPaid / total) * 100) : 0;
@@ -587,6 +772,11 @@ window.openItemModal = function (who, kind, id) {
   body += `<div class="space-y-1" id="f-end-wrap"><label class="text-[10px] font-bold uppercase text-slate-500 ml-1">Runs until <span class="text-amber-400">(installment)</span></label>
     <select id="f-end" class="w-full bg-slate-900 rounded-2xl py-4 px-5 text-base font-bold text-white focus:outline-none">${monthSelect("f-end", end, true, start)}</select></div>`;
 
+  // auto-complete day of month
+  const ddVal = it ? (dueDayFor(it) ?? "") : "";
+  body += `<div class="space-y-1"><label class="text-[10px] font-bold uppercase text-slate-500 ml-1">Auto-completes on day <span class="text-slate-600">(1-31, optional)</span></label>
+    <input type="number" id="f-dueday" min="1" max="31" inputmode="numeric" value="${ddVal}" placeholder="e.g. 29" class="w-full bg-slate-900 rounded-2xl py-4 px-5 text-base font-bold text-white focus:outline-none" /></div>`;
+
   // scope for editing recurring amount
   if (!isNew && recurring) {
     body += `<div class="space-y-1"><label class="text-[10px] font-bold uppercase text-slate-500 ml-1">Apply amount to</label>
@@ -700,6 +890,9 @@ window.saveModal = async function () {
   const recurring = $("f-recurring").dataset.on === "true";
   const start = $("f-start").value;
   const end = $("f-end").value || null;
+  const ddInput = $("f-dueday");
+  let dueDay = null;
+  if (ddInput && ddInput.value !== "") { const d = parseInt(ddInput.value, 10); if (d >= 1 && d <= 31) dueDay = d; }
   const list = appData.items[who][type];
 
   if (id) {
@@ -709,6 +902,7 @@ window.saveModal = async function () {
       it.recurring = recurring;
       it.start = start;
       it.end = recurring ? end : null;
+      it.dueDay = dueDay;
       const scope = $("f-scope") ? $("f-scope").value : "all";
       if (recurring && scope === "month") {
         appData.overrides[selectedKey] = appData.overrides[selectedKey] || {};
@@ -723,11 +917,10 @@ window.saveModal = async function () {
     if (pf) {
       const on = pf.dataset.on === "true";
       appData.paid[selectedKey] = appData.paid[selectedKey] || {};
-      if (on) appData.paid[selectedKey][id] = true;
-      else delete appData.paid[selectedKey][id];
+      appData.paid[selectedKey][id] = on;
     }
   } else {
-    list.push({ id: generateId(), name, amount, start, end: recurring ? end : null, recurring });
+    list.push({ id: generateId(), name, amount, start, end: recurring ? end : null, recurring, dueDay });
   }
   await syncSet();
   closeModal(); renderAll(); toast("Saved"); celebrate();
@@ -737,10 +930,10 @@ window.togglePaidQuick = async function (event, id, kind) {
   event.stopPropagation();
   const btn = event.currentTarget;
   appData.paid[selectedKey] = appData.paid[selectedKey] || {};
-  const nowSettled = !appData.paid[selectedKey][id];
-  if (nowSettled) appData.paid[selectedKey][id] = true;
-  else delete appData.paid[selectedKey][id];
+  const nowSettled = appData.paid[selectedKey][id] !== true;
+  appData.paid[selectedKey][id] = nowSettled; // explicit true/false so auto-complete won't re-check a manual uncheck
   applyPaidVisual(btn, nowSettled); // surgical — no full re-render, no scroll jump
+  updateInstallmentBar(btn, id);    // keep the mini progress bar in sync
   if (nowSettled) {
     const valEl = btn.closest(".item-row")?.lastElementChild; // the amount, right side
     flashLabel(valEl || btn, kind === "income" ? "Received!" : "Paid!");
@@ -748,6 +941,29 @@ window.togglePaidQuick = async function (event, id, kind) {
   refreshRealized();
   await syncSet();
 };
+
+function findItemById(id) {
+  for (const who of ["charlie", "karla"]) {
+    for (const kind of ["income", "expenses"]) {
+      const it = getItems(who, kind).find((x) => x.id === id);
+      if (it) return it;
+    }
+  }
+  return null;
+}
+// Refresh an installment row's mini progress bar in place after a paid toggle.
+function updateInstallmentBar(btn, id) {
+  const it = findItemById(id);
+  if (!it || !it.recurring || !it.end) return;
+  const row = btn.closest(".item-row");
+  if (!row) return;
+  const total = monthsInclusive(it.start, it.end);
+  const paidM = monthsPaidCount(it);
+  const fill = row.querySelector(".inst-bar-fill");
+  const cnt = row.querySelector(".inst-bar-count");
+  if (fill) fill.style.width = (total ? Math.round((paidM / total) * 100) : 0) + "%";
+  if (cnt) cnt.textContent = `${paidM}/${total}`;
+}
 
 // Floating "Received!" / "Paid!" pop above the checkbox.
 function flashLabel(anchorEl, text) {
@@ -915,6 +1131,7 @@ function boot() {
     if (!firstLoad && pendingEchoes > 0) { pendingEchoes--; return; }
     const val = snap.val();
     appData = val ? normalize(val) : emptyData();
+    if (reconcileAutoPaid()) syncSet();
     if (firstLoad) {
       firstLoad = false;
       clampSelected();
