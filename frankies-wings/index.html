@@ -1,0 +1,174 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
+<meta name="theme-color" content="#f97316">
+<title>Frankie-Style Buffalo Wings</title>
+<script src="https://cdn.tailwindcss.com"></script>
+<link rel="stylesheet" href="https://fonts.googleapis.com/icon?family=Material+Icons+Round">
+<link rel="preconnect" href="https://fonts.gstatic.com">
+<link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700;800&display=swap" rel="stylesheet">
+<script>
+tailwind.config = {
+  theme: {
+    extend: {
+      fontFamily: { sans: ['Inter', 'system-ui', 'sans-serif'] },
+      colors: {
+        brand: {
+          50:'#fff7ed',100:'#ffedd5',200:'#fed7aa',300:'#fdba74',
+          400:'#fb923c',500:'#f97316',600:'#ea580c',700:'#c2410c'
+        }
+      }
+    }
+  }
+}
+</script>
+<style>
+  .material-icons-round { font-feature-settings: 'liga'; vertical-align: middle; }
+  html { scroll-behavior: smooth; -webkit-text-size-adjust: 100%; }
+  body { -webkit-tap-highlight-color: transparent; }
+  .step-done .step-num { background:#f97316; color:#fff; }
+  .step-done .step-title { text-decoration: line-through; opacity:.55; }
+  ::selection { background:#fed7aa; }
+  .step { touch-action: manipulation; -webkit-user-select: none; user-select: none; }
+</style>
+</head>
+<body class="bg-white text-neutral-800 font-sans antialiased">
+
+<!-- Progress bar -->
+<div class="fixed top-0 left-0 right-0 h-1 z-50 bg-neutral-100">
+  <div id="progressBar" class="h-full bg-brand-500 transition-all duration-300" style="width:0%"></div>
+</div>
+
+<!-- Header -->
+<header class="max-w-2xl mx-auto px-5 pt-10 sm:pt-14 pb-8 text-center" style="padding-top:max(2.5rem,env(safe-area-inset-top))">
+  <div class="inline-flex items-center gap-1.5 text-brand-600 bg-brand-50 rounded-full px-3 py-1 text-xs font-semibold tracking-wide uppercase mb-4">
+    <span class="material-icons-round text-sm">local_fire_department</span> Copycat Recipe
+  </div>
+  <h1 class="text-4xl sm:text-5xl font-extrabold tracking-tight text-neutral-900">
+    Frankie-Style <span class="text-brand-500">Buffalo Wings</span>
+  </h1>
+  <p class="mt-3 text-neutral-500 max-w-md mx-auto">
+    A ghetto-but-gourmet clone of the OG — homemade Frank's-style sauce, browned butter, and a garlic ranch dip. Makes about a dozen wings.
+  </p>
+  <div class="mt-6 flex flex-wrap justify-center gap-2 text-sm">
+    <span class="inline-flex items-center gap-1.5 bg-neutral-100 rounded-full px-3 py-1.5"><span class="material-icons-round text-base text-brand-500">restaurant</span> 12 wings</span>
+    <span class="inline-flex items-center gap-1.5 bg-neutral-100 rounded-full px-3 py-1.5"><span class="material-icons-round text-base text-brand-500">schedule</span> 2 hr marinate</span>
+    <span class="inline-flex items-center gap-1.5 bg-neutral-100 rounded-full px-3 py-1.5"><span class="material-icons-round text-base text-brand-500">whatshot</span> 300°F fry</span>
+  </div>
+</header>
+
+<main class="max-w-2xl mx-auto px-5 pb-24" style="padding-bottom:max(6rem,env(safe-area-inset-bottom))">
+
+  <!-- Ingredients -->
+  <section class="mb-12">
+    <h2 class="flex items-center gap-2 text-lg font-bold text-neutral-900 mb-4">
+      <span class="material-icons-round text-brand-500">shopping_basket</span> Ingredients
+    </h2>
+    <div id="ingredients" class="grid sm:grid-cols-2 gap-4"></div>
+  </section>
+
+  <!-- Steps -->
+  <section>
+    <div class="flex items-center justify-between mb-4">
+      <h2 class="flex items-center gap-2 text-lg font-bold text-neutral-900">
+        <span class="material-icons-round text-brand-500">format_list_numbered</span> Steps
+      </h2>
+      <button id="resetBtn" class="text-sm text-neutral-400 hover:text-brand-500 inline-flex items-center gap-1 transition-colors">
+        <span class="material-icons-round text-base">refresh</span> Reset
+      </button>
+    </div>
+    <div id="steps" class="space-y-3"></div>
+  </section>
+
+  <div id="doneBanner" class="hidden mt-8 rounded-2xl bg-brand-50 border border-brand-200 p-5 text-center">
+    <span class="material-icons-round text-brand-500 text-3xl">emoji_food_beverage</span>
+    <p class="mt-1 font-bold text-brand-700">Toss, plate, and enjoy.</p>
+    <p class="text-sm text-brand-600/80">"This could be the answer to world peace."</p>
+  </div>
+</main>
+
+<footer class="border-t border-neutral-100 py-6 text-center text-xs text-neutral-400">
+  Adapted from Maxie · Maximum Flavor
+</footer>
+
+<script>
+const ingredients = [
+  { title:'Marinate', icon:'egg', items:['A dozen chicken wings','Salt','Pepper','Paprika','Garlic powder','1 egg'] },
+  { title:'Buffalo Sauce', icon:'local_fire_department', items:['Butter (browned)','½ cup ketchup (base)','4 tbsp vinegar (cane or white)','Cayenne powder (to taste)','Pinch of salt'] },
+  { title:'Garlic Ranch Dip', icon:'opacity', items:['¾ cup cream','2 tbsp lemon juice','½ cup mayo','Salt & pepper','Parsley (dried or fresh)','Garlic powder'] },
+  { title:'Breading & Frying', icon:'grain', items:['Cornstarch','Flour (equal parts)','Pepper','Oil (for frying)'] },
+];
+
+const steps = [
+  { t:'Season the wings', d:'Add salt, pepper, paprika, garlic powder and one egg to the wings. Mix well so every wing is evenly coated.' },
+  { t:'Marinate 1–2 hours', d:'Cover and set in the fridge. Ideally rest 1 to 2 hours for the flavor to soak in.' },
+  { t:'Brown the butter', d:'Melt butter on a pan over low heat. Let it go past melted until brown, powdery milk solids form at the bottom — that\'s the depth of flavor you want.' },
+  { t:'Cool the butter', d:'Pour into a bowl (keep every bit of the milk solids) and let it come down to room temperature.' },
+  { t:'Mix the buffalo sauce', d:'Combine ½ cup ketchup, 4 tbsp vinegar, a pinch of salt, and cayenne to taste. Stir well, then mix in the browned butter.' },
+  { t:'Make quick sour cream', d:'In a bowl, stir 2 tbsp lemon juice into ¾ cup cream until it curdles slightly. You just made sour cream.' },
+  { t:'Finish the ranch dip', d:'Add ½ cup mayo, a touch of salt & pepper, parsley, and garlic powder. Mix — dip done.' },
+  { t:'Bread the wings', d:'Combine equal parts cornstarch and flour with pepper. Coat every wing generously in the mixture.' },
+  { t:'Heat the oil', d:'Heat oil in a pot to 300°F (150°C). Reused strained oil is fine.' },
+  { t:'Fry in batches', d:'Drop wings in without overcrowding (it drops the temp). Fry until golden brown, then rest on a strainer. Repeat until all are done.' },
+  { t:'Toss & serve', d:'Toss the fried wings in the buffalo sauce until coated. Serve with the garlic ranch dip.' },
+];
+
+const KEY = 'frankiesWings:done';
+let done = JSON.parse(localStorage.getItem(KEY) || '[]');
+
+// Render ingredients
+document.getElementById('ingredients').innerHTML = ingredients.map(g => `
+  <div class="rounded-2xl border border-neutral-100 bg-neutral-50/60 p-4">
+    <div class="flex items-center gap-2 mb-3">
+      <span class="material-icons-round text-brand-500 text-xl">${g.icon}</span>
+      <h3 class="font-semibold text-neutral-900">${g.title}</h3>
+    </div>
+    <ul class="space-y-1.5 text-sm text-neutral-600">
+      ${g.items.map(i => `<li class="flex items-start gap-2"><span class="material-icons-round text-brand-300 text-base leading-5">fiber_manual_record</span><span>${i}</span></li>`).join('')}
+    </ul>
+  </div>`).join('');
+
+// Render steps
+const stepsEl = document.getElementById('steps');
+function renderSteps(){
+  stepsEl.innerHTML = steps.map((s,idx) => {
+    const isDone = done.includes(idx);
+    return `
+    <button data-idx="${idx}" class="step w-full text-left flex gap-4 rounded-2xl border p-4 transition-all ${isDone ? 'step-done border-brand-100 bg-brand-50/40' : 'border-neutral-100 hover:border-brand-200 hover:bg-brand-50/30'}">
+      <span class="step-num shrink-0 w-8 h-8 rounded-full grid place-items-center text-sm font-bold ${isDone ? 'bg-brand-500 text-white' : 'bg-neutral-100 text-neutral-500'}">${isDone ? '<span class="material-icons-round text-lg">check</span>' : (idx+1)}</span>
+      <span class="min-w-0">
+        <span class="step-title block font-semibold text-neutral-900">${s.t}</span>
+        <span class="block text-sm text-neutral-500 mt-0.5">${s.d}</span>
+      </span>
+    </button>`;
+  }).join('');
+  updateProgress();
+}
+
+function updateProgress(){
+  const pct = Math.round(done.length / steps.length * 100);
+  document.getElementById('progressBar').style.width = pct + '%';
+  document.getElementById('doneBanner').classList.toggle('hidden', done.length !== steps.length);
+}
+
+stepsEl.addEventListener('click', e => {
+  const btn = e.target.closest('.step');
+  if(!btn) return;
+  const idx = +btn.dataset.idx;
+  done = done.includes(idx) ? done.filter(i => i !== idx) : [...done, idx];
+  localStorage.setItem(KEY, JSON.stringify(done));
+  renderSteps();
+});
+
+document.getElementById('resetBtn').addEventListener('click', () => {
+  done = [];
+  localStorage.removeItem(KEY);
+  renderSteps();
+});
+
+renderSteps();
+</script>
+</body>
+</html>
