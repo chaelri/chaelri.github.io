@@ -197,6 +197,50 @@
       </table>
     </section>
 
+    <!-- ===== Interests: volunteer (campus movement) + small group ===== -->
+    <div id="interests" class="mt-10">
+      <div class="flex items-center gap-3 mb-3">
+        <span class="tape-badge">Interests</span>
+        <span class="text-mute text-xs font-extrabold-ui uppercase tracking-widest">Campus movement &amp; small group sign-ups</span>
+      </div>
+
+      <div class="flex flex-wrap gap-2 mb-3">
+        <span class="kpi-pill"><b id="kpi-int-movement">0</b> campus movement</span>
+        <span class="kpi-pill"><b id="kpi-int-dgroup">0</b> small group</span>
+        <span class="kpi-pill"><b id="kpi-int-people">0</b> people</span>
+      </div>
+
+      <div class="flex items-center gap-2 flex-wrap mb-3">
+        <div class="filter-chip-group" role="tablist" aria-label="Interest filter">
+          <button type="button" class="filter-chip is-active" data-int-filter="all" role="tab" aria-selected="true">All <span class="chip-count" data-int-count="all">0</span></button>
+          <button type="button" class="filter-chip" data-int-filter="movement" role="tab" aria-selected="false">Campus movement <span class="chip-count" data-int-count="movement">0</span></button>
+          <button type="button" class="filter-chip" data-int-filter="dgroup" role="tab" aria-selected="false">Small group <span class="chip-count" data-int-count="dgroup">0</span></button>
+        </div>
+        <input id="int-search" type="search" placeholder="Search name, ticket…" class="input text-sm" style="padding:0.5rem 0.8rem; max-width:280px; flex:1;" />
+        <button id="btn-int-csv" class="btn-ghost text-sm">
+          <span class="material-symbols-outlined" style="font-size:18px">download</span>
+          Export
+        </button>
+      </div>
+
+      <section class="glass-tile overflow-x-auto">
+        <table class="t-table">
+          <thead>
+            <tr>
+              <th>Ticket</th>
+              <th>Name</th>
+              <th>Wants</th>
+              <th class="whitespace-nowrap">When</th>
+              <th class="text-right">Actions</th>
+            </tr>
+          </thead>
+          <tbody id="int-tbody">
+            <tr><td colspan="5" class="text-center text-mute py-10">Loading…</td></tr>
+          </tbody>
+        </table>
+      </section>
+    </div>
+
     <!-- ===== Check-in log ===== -->
     <div id="checkin-log" class="mt-10">
       <div class="flex items-center gap-3 mb-3">
@@ -243,7 +287,7 @@
     import {
       watchAuth, signInWithGoogle, signOutNow,
       set, update, onValue,
-      ticketsRef, registrationsRef, ticketRef, registrationRef, checkinLogRef,
+      ticketsRef, registrationsRef, ticketRef, registrationRef, checkinLogRef, interestsRef, interestRef,
     } from "./js/firebase.js";
     import { confirmModal } from "./js/modal.js";
 
@@ -277,9 +321,11 @@
     let unwatchTickets = null;
     let unwatchRegs   = null;
     let unwatchLog    = null;
+    let unwatchInterests = null;
     let ticketsCache = {};
     let regsCache = {};
     let logCache = {};
+    let interestsCache = {};
 
     watchAuth(({ user, isAdmin }) => {
       renderAuth(user);
@@ -289,6 +335,7 @@
         if (unwatchTickets) { unwatchTickets(); unwatchTickets = null; }
         if (unwatchRegs)    { unwatchRegs();    unwatchRegs    = null; }
         if (unwatchLog)     { unwatchLog();     unwatchLog     = null; }
+        if (unwatchInterests) { unwatchInterests(); unwatchInterests = null; }
         return;
       }
       $gate.classList.add("hidden");
@@ -304,6 +351,7 @@
       if (unwatchTickets) unwatchTickets();
       if (unwatchRegs) unwatchRegs();
       if (unwatchLog) unwatchLog();
+      if (unwatchInterests) unwatchInterests();
       unwatchTickets = onValue(ticketsRef(), (snap) => {
         ticketsCache = snap.val() || {};
         renderAll();
@@ -315,6 +363,10 @@
       unwatchLog = onValue(checkinLogRef(), (snap) => {
         logCache = snap.val() || {};
         renderLog();
+      });
+      unwatchInterests = onValue(interestsRef(), (snap) => {
+        interestsCache = snap.val() || {};
+        renderInterests();
       });
     }
 
@@ -330,6 +382,128 @@
     }
 
     $search.addEventListener("input", () => renderTable(Object.values(regsCache)));
+
+    // ===== Interests: campus movement (volunteer) + small group =====
+    const $intSearch = document.getElementById("int-search");
+    let intFilter = "all"; // 'all' | 'movement' | 'dgroup'
+
+    // Derive which options a person opted into. New records carry a `choices`
+    // map ({movement:true,...}); older single-choice records only have `choice`.
+    function interestWants(rec) {
+      if (rec && rec.choices) return Object.keys(rec.choices).filter(k => rec.choices[k]);
+      if (rec && rec.choice)  return [rec.choice];
+      return [];
+    }
+    const INT_LABEL = { movement: "Campus Movement", dgroup: "Small Group" };
+    function wantChip(kind) {
+      const isMove = kind === "movement";
+      const c = isMove
+        ? "background:rgba(8,102,255,0.16);color:#8fb8ff;border:1px solid rgba(8,102,255,0.55);"
+        : "background:rgba(225,29,44,0.16);color:#ff9aa2;border:1px solid rgba(225,29,44,0.55);";
+      return `<span style="display:inline-block;padding:2px 9px;border-radius:999px;font-size:10px;font-weight:800;text-transform:uppercase;letter-spacing:0.05em;white-space:nowrap;${c}">${INT_LABEL[kind]}</span>`;
+    }
+
+    function renderInterests() {
+      const recs = Object.values(interestsCache);
+      let movement = 0, dgroup = 0;
+      recs.forEach(r => { const w = interestWants(r); if (w.includes("movement")) movement++; if (w.includes("dgroup")) dgroup++; });
+
+      document.getElementById("kpi-int-movement").textContent = movement.toLocaleString();
+      document.getElementById("kpi-int-dgroup").textContent   = dgroup.toLocaleString();
+      document.getElementById("kpi-int-people").textContent   = recs.length.toLocaleString();
+      const cc = { all: recs.length, movement, dgroup };
+      document.querySelectorAll("[data-int-count]").forEach(el => {
+        const v = cc[el.dataset.intCount]; if (v != null) el.textContent = v.toLocaleString();
+      });
+
+      const term = ($intSearch.value || "").toLowerCase().trim();
+      const rows = recs.filter(r => {
+        const w = interestWants(r);
+        if (intFilter !== "all" && !w.includes(intFilter)) return false;
+        if (term && !`${r.name || ""} ${r.ticketId || ""}`.toLowerCase().includes(term)) return false;
+        return true;
+      }).sort((a, b) => (b.createdAt || 0) - (a.createdAt || 0));
+
+      const tbody = document.getElementById("int-tbody");
+      tbody.innerHTML = rows.length
+        ? rows.map(r => {
+            const w = interestWants(r);
+            const chips = ["movement", "dgroup"].filter(k => w.includes(k)).map(wantChip).join(" ");
+            return `<tr>
+              <td class="whitespace-nowrap font-extrabold-ui">${esc(r.ticketId || "—")}</td>
+              <td>${esc(r.name || "—")}</td>
+              <td>${chips || "—"}</td>
+              <td class="whitespace-nowrap text-mute">${r.createdAt ? esc(fmtDate(r.createdAt)) : "—"}</td>
+              <td class="text-right">
+                <button class="btn-int-del text-mute hover:text-red transition" data-ticket="${esc(r.ticketId || "")}" data-name="${esc(r.name || "")}" title="Delete this sign-up" style="padding:4px;line-height:0;">
+                  <span class="material-symbols-outlined" style="font-size:18px">delete</span>
+                </button>
+              </td>
+            </tr>`;
+          }).join("")
+        : `<tr><td colspan="5" class="text-center text-mute py-10">No sign-ups yet.</td></tr>`;
+    }
+
+    // Admin: delete an interest sign-up.
+    document.getElementById("int-tbody").addEventListener("click", async (e) => {
+      const delBtn = e.target.closest(".btn-int-del");
+      if (!delBtn) return;
+      const id = delBtn.dataset.ticket;
+      const name = delBtn.dataset.name || "";
+      if (!id) return;
+      const ok = await confirmModal({
+        title: "Delete this sign-up?",
+        message: `<em>${esc(id)}</em>${name ? ` (${esc(name)})` : ""} will be removed from the interest list.`,
+        confirmText: "Delete",
+        cancelText: "Cancel",
+        danger: true,
+        icon: "delete",
+      });
+      if (!ok) return;
+      delBtn.disabled = true;
+      try {
+        await set(interestRef(id), null);
+      } catch (err) {
+        alert("Delete failed: " + (err && err.message || err));
+        delBtn.disabled = false;
+      }
+    });
+
+    $intSearch.addEventListener("input", renderInterests);
+    document.querySelectorAll("[data-int-filter]").forEach(btn => {
+      btn.addEventListener("click", () => {
+        intFilter = btn.dataset.intFilter;
+        document.querySelectorAll("[data-int-filter]").forEach(b => {
+          const active = b === btn;
+          b.classList.toggle("is-active", active);
+          b.setAttribute("aria-selected", active ? "true" : "false");
+        });
+        renderInterests();
+      });
+    });
+
+    document.getElementById("btn-int-csv").addEventListener("click", () => {
+      const recs = Object.values(interestsCache);
+      if (!recs.length) { alert("No interest sign-ups to export."); return; }
+      const rows = recs
+        .sort((a, b) => (a.ticketId || "").localeCompare(b.ticketId || ""))
+        .map(r => {
+          const w = interestWants(r);
+          return [r.ticketId || "", r.name || "",
+                  w.includes("movement") ? "Yes" : "",
+                  w.includes("dgroup") ? "Yes" : "",
+                  r.createdAt ? fmtDate(r.createdAt) : ""];
+        });
+      const csvCell = (s) => `"${String(s).replace(/"/g, '""')}"`;
+      const csv = [["Ticket", "Name", "Campus Movement", "Small Group", "When"], ...rows]
+        .map(row => row.map(csvCell).join(",")).join("\r\n");
+      const blob = new Blob(["﻿" + csv], { type: "text/csv;charset=utf-8;" });
+      const a = document.createElement("a");
+      a.href = URL.createObjectURL(blob);
+      a.download = "campus-unite-interests.csv";
+      a.click();
+      URL.revokeObjectURL(a.href);
+    });
 
     // ===== Attendance filter =====
     // 'all' | 'in' (checked in) | 'out' (not yet). Applied inside renderTable

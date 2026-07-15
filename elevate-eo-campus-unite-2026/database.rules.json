@@ -28,6 +28,16 @@
         }
       },
 
+      "interests": {
+        ".read": "auth != null && auth.token.email_verified == true && (auth.token.email == 'charliecayno@gmail.com' || auth.token.email == 'maui.victorio@ccf.org.ph' || auth.token.email == 'christian.ilao@ccf.org.ph' || auth.token.email == 'kobe.serrano@cm.ccf.org.ph' || auth.token.email == 'jharmaine4@gmail.com' || auth.token.email == 'angelica.macalalad@ccf.org.ph' || auth.token.email == 'anggemacalalad@gmail.com' || auth.token.email == 'serranokobe1@gmail.com')",
+
+        "$ticketId": {
+          ".read": "auth != null",
+          ".write": "auth != null && root.child('elevate-eo-campus-unite-2026/tickets').child($ticketId).exists()",
+          ".validate": "newData.hasChildren(['choice', 'ticketId', 'createdAt'])"
+        }
+      },
+
       "raffle": {
         ".read": "auth != null && auth.token.email_verified == true && (auth.token.email == 'charliecayno@gmail.com' || auth.token.email == 'maui.victorio@ccf.org.ph' || auth.token.email == 'christian.ilao@ccf.org.ph' || auth.token.email == 'kobe.serrano@cm.ccf.org.ph' || auth.token.email == 'jharmaine4@gmail.com' || auth.token.email == 'angelica.macalalad@ccf.org.ph' || auth.token.email == 'anggemacalalad@gmail.com' || auth.token.email == 'serranokobe1@gmail.com')",
         ".write": "auth != null && auth.token.email_verified == true && (auth.token.email == 'charliecayno@gmail.com' || auth.token.email == 'maui.victorio@ccf.org.ph' || auth.token.email == 'christian.ilao@ccf.org.ph' || auth.token.email == 'kobe.serrano@cm.ccf.org.ph' || auth.token.email == 'jharmaine4@gmail.com' || auth.token.email == 'angelica.macalalad@ccf.org.ph' || auth.token.email == 'anggemacalalad@gmail.com' || auth.token.email == 'serranokobe1@gmail.com')"
