@@ -268,6 +268,44 @@
       </section>
     </div>
 
+    <!-- ===== First timers ===== -->
+    <div id="first-timers" class="mt-10">
+      <div class="flex items-center gap-3 mb-3">
+        <span class="tape-badge">First timers</span>
+        <span class="text-mute text-xs font-extrabold-ui uppercase tracking-widest">First time sa Elevate · checked in only</span>
+      </div>
+
+      <div class="flex flex-wrap gap-2 mb-3">
+        <span class="kpi-pill tape"><b id="kpi-ft-total">0</b> first timers here</span>
+        <span class="kpi-pill"><b id="kpi-ft-share">0%</b> of everyone checked in</span>
+      </div>
+
+      <div class="flex items-center gap-2 flex-wrap mb-3">
+        <input id="ft-search" type="search" placeholder="Search name, ticket, campus…" class="input text-sm" style="padding:0.5rem 0.8rem; max-width:280px; flex:1;" />
+        <button id="btn-ft-csv" class="btn-ghost text-sm">
+          <span class="material-symbols-outlined" style="font-size:18px">download</span>
+          Export
+        </button>
+      </div>
+
+      <section class="glass-tile overflow-x-auto">
+        <table class="t-table">
+          <thead>
+            <tr>
+              <th>Ticket</th>
+              <th>Name</th>
+              <th>Age</th>
+              <th>Campus</th>
+              <th class="whitespace-nowrap">Checked in</th>
+            </tr>
+          </thead>
+          <tbody id="ft-tbody">
+            <tr><td colspan="5" class="text-center text-mute py-10">Loading…</td></tr>
+          </tbody>
+        </table>
+      </section>
+    </div>
+
     <!-- ===== Check-in log ===== -->
     <div id="checkin-log" class="mt-10">
       <div class="flex items-center gap-3 mb-3">
@@ -406,9 +444,65 @@
       document.getElementById("kpi-total").textContent = total.toLocaleString();
       document.getElementById("kpi-available").textContent = Math.max(0, total - regs.length).toLocaleString();
       renderTable(regs);
+      renderFirstTimers(regs);
     }
 
     $search.addEventListener("input", () => { regPage = 1; renderTable(Object.values(regsCache)); });
+
+    // ===== First timers =====
+    // Registrations whose wizard step-1 answer was "yes" AND who actually
+    // showed up. Same rule as the raffle pool: registering isn't attending, so
+    // a no-show first timer isn't someone we can follow up with on the day.
+    // Reads the same regsCache as the main table — no extra Firebase watcher.
+    const $ftSearch = document.getElementById("ft-search");
+    const isFirstTimer = (r) => r && r.firstTimer === "yes" && !!r.checkedIn;
+
+    function renderFirstTimers(regs) {
+      const fts = regs.filter(isFirstTimer);
+      const attendees = regs.filter(r => !!r.checkedIn).length;
+      const share = attendees ? Math.round((fts.length / attendees) * 100) : 0;
+
+      document.getElementById("kpi-ft-total").textContent = fts.length.toLocaleString();
+      document.getElementById("kpi-ft-share").textContent = `${share}%`;
+
+      const term = ($ftSearch.value || "").toLowerCase().trim();
+      const rows = fts.filter(r => {
+        if (!term) return true;
+        return `${r.name || ""} ${r.ticketId || ""} ${r.school || ""}`.toLowerCase().includes(term);
+      }).sort((a, b) => (b.checkedInAt || 0) - (a.checkedInAt || 0));
+
+      const tbody = document.getElementById("ft-tbody");
+      tbody.innerHTML = rows.length
+        ? rows.map(r => `<tr>
+            <td class="whitespace-nowrap font-extrabold-ui">${esc(r.ticketId || "—")}</td>
+            <td>${esc(r.name || "—")}</td>
+            <td>${r.age != null ? esc(String(r.age)) : "—"}</td>
+            <td>${esc(r.school || "—")}</td>
+            <td class="whitespace-nowrap text-mute">${r.checkedInAt ? esc(fmtDate(r.checkedInAt)) : "—"}</td>
+          </tr>`).join("")
+        : `<tr><td colspan="5" class="text-center text-mute py-10">${fts.length ? "No first timers match that search." : "No first timers checked in yet."}</td></tr>`;
+    }
+
+    $ftSearch.addEventListener("input", () => renderFirstTimers(Object.values(regsCache)));
+
+    document.getElementById("btn-ft-csv").addEventListener("click", () => {
+      const fts = Object.values(regsCache).filter(isFirstTimer);
+      if (!fts.length) { alert("No first timers checked in yet."); return; }
+      const rows = fts
+        .sort((a, b) => (a.ticketId || "").localeCompare(b.ticketId || ""))
+        .map(r => [r.ticketId || "", r.name || "", r.age != null ? r.age : "",
+                   r.gender || "", r.school || "", r.contact || "", r.fbLink || "",
+                   r.checkedInAt ? fmtDate(r.checkedInAt) : ""]);
+      const csvCell = (s) => `"${String(s).replace(/"/g, '""')}"`;
+      const csv = [["Ticket", "Name", "Age", "Gender", "Campus", "Contact", "Facebook", "Checked in at"], ...rows]
+        .map(row => row.map(csvCell).join(",")).join("\r\n");
+      const blob = new Blob(["﻿" + csv], { type: "text/csv;charset=utf-8;" });
+      const a = document.createElement("a");
+      a.href = URL.createObjectURL(blob);
+      a.download = `campus-unite-first-timers-${new Date().toISOString().slice(0,10)}.csv`;
+      a.click();
+      URL.revokeObjectURL(a.href);
+    });
 
     // ===== Interests: campus movement (volunteer) + small group =====
     const $intSearch = document.getElementById("int-search");
