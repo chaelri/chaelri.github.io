@@ -304,6 +304,7 @@
           </tbody>
         </table>
       </section>
+      <div id="ft-pager" class="cu-pager"></div>
     </div>
 
     <!-- ===== Check-in log ===== -->
@@ -344,6 +345,7 @@
           </tbody>
         </table>
       </section>
+      <div id="log-pager" class="cu-pager"></div>
     </div>
 
   </main>
@@ -447,7 +449,7 @@
       renderFirstTimers(regs);
     }
 
-    $search.addEventListener("input", () => { regPage = 1; renderTable(Object.values(regsCache)); });
+    $search.addEventListener("input", () => { regPager.reset(); renderTable(Object.values(regsCache)); });
 
     // ===== First timers =====
     // Registrations whose wizard step-1 answer was "yes" AND who actually
@@ -456,6 +458,13 @@
     // Reads the same regsCache as the main table — no extra Firebase watcher.
     const $ftSearch = document.getElementById("ft-search");
     const isFirstTimer = (r) => r && r.firstTimer === "yes" && !!r.checkedIn;
+    const FT_PAGE_SIZE = 10; // matches the registered table — same kind of list
+    const ftPager = createPager({
+      pagerId: "ft-pager",
+      pageSize: FT_PAGE_SIZE,
+      rerender: () => renderFirstTimers(Object.values(regsCache)),
+      scrollSel: "#first-timers",
+    });
 
     function renderFirstTimers(regs) {
       const fts = regs.filter(isFirstTimer);
@@ -472,8 +481,9 @@
       }).sort((a, b) => (b.checkedInAt || 0) - (a.checkedInAt || 0));
 
       const tbody = document.getElementById("ft-tbody");
-      tbody.innerHTML = rows.length
-        ? rows.map(r => `<tr>
+      const pageRows = ftPager.paginate(rows);
+      tbody.innerHTML = pageRows.length
+        ? pageRows.map(r => `<tr>
             <td class="whitespace-nowrap font-extrabold-ui">${esc(r.ticketId || "—")}</td>
             <td>${esc(r.name || "—")}</td>
             <td>${r.age != null ? esc(String(r.age)) : "—"}</td>
@@ -483,7 +493,7 @@
         : `<tr><td colspan="5" class="text-center text-mute py-10">${fts.length ? "No first timers match that search." : "No first timers checked in yet."}</td></tr>`;
     }
 
-    $ftSearch.addEventListener("input", () => renderFirstTimers(Object.values(regsCache)));
+    $ftSearch.addEventListener("input", () => { ftPager.reset(); renderFirstTimers(Object.values(regsCache)); });
 
     document.getElementById("btn-ft-csv").addEventListener("click", () => {
       const fts = Object.values(regsCache).filter(isFirstTimer);
@@ -638,7 +648,7 @@
           b.classList.toggle("is-active", active);
           b.setAttribute("aria-selected", active ? "true" : "false");
         });
-        regPage = 1;
+        regPager.reset();
         renderTable(Object.values(regsCache));
       });
     });
@@ -734,7 +744,7 @@
           sortState.dir = SORT_DEFAULT_DIR[key] || "asc";
         }
         updateSortIndicators();
-        regPage = 1;
+        regPager.reset();
         renderTable(Object.values(regsCache));
       });
     });
@@ -742,7 +752,6 @@
 
     // ===== Pagination (registered attendees) =====
     const REG_PAGE_SIZE = 10;
-    let regPage = 1;
 
     // Compact page window: 1 … (cur-1) cur (cur+1) … last
     function pageWindow(cur, total) {
@@ -756,34 +765,62 @@
       return out;
     }
 
-    function renderRegPager(total, totalPages, start) {
-      const pager = document.getElementById("reg-pager");
-      if (!pager) return;
-      if (total <= REG_PAGE_SIZE) { pager.innerHTML = ""; return; }
-      const from = start + 1, to = Math.min(start + REG_PAGE_SIZE, total);
-      const btns = pageWindow(regPage, totalPages).map(p =>
-        p === "…"
-          ? `<span class="cu-page-gap">…</span>`
-          : `<button class="cu-page-btn ${p === regPage ? "is-active" : ""}" data-page="${p}">${p}</button>`
-      ).join("");
-      pager.innerHTML = `
-        <div class="cu-pager-info">Showing <b>${from}–${to}</b> of <b>${total}</b></div>
-        <div class="cu-pager-btns">
-          <button class="cu-page-btn" data-page="prev" ${regPage === 1 ? "disabled" : ""} aria-label="Previous page">‹</button>
-          ${btns}
-          <button class="cu-page-btn" data-page="next" ${regPage === totalPages ? "disabled" : ""} aria-label="Next page">›</button>
-        </div>`;
+    // Shared pagination for the registered / first-timer / log tables. Each
+    // table owns one instance. `paginate` clamps the page against the list it
+    // was handed (so a shrinking filter can't strand you on a dead page),
+    // paints the control, and returns just that page's rows. `reset()` on
+    // every search/filter/sort change — otherwise page 4 of the old list
+    // silently becomes page 4 of the new one.
+    function createPager({ pagerId, pageSize, rerender, scrollSel }) {
+      const el = document.getElementById(pagerId);
+      let page = 1;
+
+      function paint(total, totalPages, start) {
+        if (!el) return;
+        if (total <= pageSize) { el.innerHTML = ""; return; }
+        const from = start + 1, to = Math.min(start + pageSize, total);
+        const btns = pageWindow(page, totalPages).map(p =>
+          p === "…"
+            ? `<span class="cu-page-gap">…</span>`
+            : `<button class="cu-page-btn ${p === page ? "is-active" : ""}" data-page="${p}">${p}</button>`
+        ).join("");
+        el.innerHTML = `
+          <div class="cu-pager-info">Showing <b>${from}–${to}</b> of <b>${total}</b></div>
+          <div class="cu-pager-btns">
+            <button class="cu-page-btn" data-page="prev" ${page === 1 ? "disabled" : ""} aria-label="Previous page">‹</button>
+            ${btns}
+            <button class="cu-page-btn" data-page="next" ${page === totalPages ? "disabled" : ""} aria-label="Next page">›</button>
+          </div>`;
+      }
+
+      el?.addEventListener("click", (e) => {
+        const b = e.target.closest(".cu-page-btn");
+        if (!b || b.disabled) return;
+        const v = b.dataset.page;
+        if (v === "prev") page = Math.max(1, page - 1);
+        else if (v === "next") page = page + 1; // clamped on the next paginate()
+        else page = parseInt(v, 10) || 1;
+        rerender();
+        if (scrollSel) document.querySelector(scrollSel)?.scrollIntoView({ behavior: "smooth", block: "nearest" });
+      });
+
+      return {
+        reset() { page = 1; },
+        paginate(list) {
+          const totalPages = Math.max(1, Math.ceil(list.length / pageSize));
+          page = Math.min(Math.max(1, page), totalPages);
+          const start = (page - 1) * pageSize;
+          paint(list.length, totalPages, start);
+          return list.slice(start, start + pageSize);
+        },
+      };
     }
 
-    document.getElementById("reg-pager").addEventListener("click", (e) => {
-      const b = e.target.closest(".cu-page-btn");
-      if (!b || b.disabled) return;
-      const v = b.dataset.page;
-      if (v === "prev") regPage = Math.max(1, regPage - 1);
-      else if (v === "next") regPage = regPage + 1; // clamped inside renderTable
-      else regPage = parseInt(v, 10) || 1;
-      renderTable(Object.values(regsCache));
-      document.querySelector("#dashboard .t-scroll")?.scrollIntoView({ behavior: "smooth", block: "nearest" });
+    const regPager = createPager({
+      pagerId: "reg-pager",
+      pageSize: REG_PAGE_SIZE,
+      rerender: () => renderTable(Object.values(regsCache)),
+      scrollSel: "#dashboard .t-scroll",
     });
 
     function renderTable(regs) {
@@ -824,17 +861,11 @@
                           : attnFilter === "out" ? "Everyone registered has checked in."
                           : "No registrations yet.";
         $tbody.innerHTML = `<tr><td colspan="6" class="text-center text-mute py-10">${emptyMsg}</td></tr>`;
-        renderRegPager(0, 1, 0);
+        regPager.paginate([]);
         return;
       }
 
-      // ---- Pagination: 10 per page ----
-      const totalPages = Math.max(1, Math.ceil(list.length / REG_PAGE_SIZE));
-      if (regPage > totalPages) regPage = totalPages;
-      if (regPage < 1) regPage = 1;
-      const start = (regPage - 1) * REG_PAGE_SIZE;
-      const pageItems = list.slice(start, start + REG_PAGE_SIZE);
-      renderRegPager(list.length, totalPages, start);
+      const pageItems = regPager.paginate(list);
 
       $tbody.innerHTML = pageItems.map(r => {
         const inCell = r.checkedIn
@@ -1125,6 +1156,13 @@
     let logFilter = "all"; // 'all' | 'ok' | 'dupe' | 'unreg' | 'badticket'
     const $logSearch = document.getElementById("log-search");
     const $logTbody  = document.getElementById("log-tbody");
+    const LOG_PAGE_SIZE = 25; // append-only feed of compact rows — deeper page than the tables
+    const logPager = createPager({
+      pagerId: "log-pager",
+      pageSize: LOG_PAGE_SIZE,
+      rerender: () => renderLog(),
+      scrollSel: "#checkin-log",
+    });
 
     document.querySelectorAll("[data-log-filter]").forEach(btn => {
       btn.addEventListener("click", () => {
@@ -1134,10 +1172,11 @@
           b.classList.toggle("is-active", active);
           b.setAttribute("aria-selected", active ? "true" : "false");
         });
+        logPager.reset();
         renderLog();
       });
     });
-    $logSearch.addEventListener("input", () => renderLog());
+    $logSearch.addEventListener("input", () => { logPager.reset(); renderLog(); });
 
     const LOG_LABEL = {
       ok:        { text: "Checked in",       cls: "att-time" },
@@ -1170,9 +1209,10 @@
 
       if (!list.length) {
         $logTbody.innerHTML = `<tr><td colspan="5" class="text-center text-mute py-10">${q || logFilter !== "all" ? "No matches." : "No scans yet — the log fills up on event day."}</td></tr>`;
+        logPager.paginate([]);
         return;
       }
-      $logTbody.innerHTML = list.map(r => {
+      $logTbody.innerHTML = logPager.paginate(list).map(r => {
         const label = LOG_LABEL[r.kind] || { text: r.kind || "—", cls: "att-not" };
         return `
           <tr>
