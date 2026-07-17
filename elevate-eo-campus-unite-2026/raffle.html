@@ -57,7 +57,7 @@
 
     <div id="raffle-topbar" class="flex items-center gap-3 mb-4">
       <span class="tape-badge">Raffle</span>
-      <span class="text-mute text-xs font-extrabold-ui uppercase tracking-widest">Registered tickets only</span>
+      <span class="text-mute text-xs font-extrabold-ui uppercase tracking-widest">Checked-in attendees only</span>
     </div>
 
     <!-- Counter row -->
@@ -322,7 +322,7 @@
     }
 
     function refreshCounters() {
-      const total = Object.keys(regsCache).length;
+      const total = Object.values(regsCache).filter(r => !!r.checkedIn).length;
       const drawn = Object.keys(drawsCache).length;
       const remaining = Math.max(0, total - drawn);
       document.getElementById("kpi-eligible").textContent  = total.toLocaleString();
@@ -389,7 +389,7 @@
     async function drawWinner() {
       // Previous winners are always excluded — same person can't win twice. Use the
       // per-row delete in history if you ever need to put someone back in the pool.
-      const allRegs = Object.values(regsCache);
+      const allRegs = Object.values(regsCache).filter(r => !!r.checkedIn);
       const drawnIds = new Set(Object.values(drawsCache).map(d => d.ticketId));
       const pool = allRegs.filter(r => !drawnIds.has(r.ticketId));
 
@@ -398,10 +398,10 @@
         const totalRegs = allRegs.length;
         const noRegs = totalRegs === 0;
         confirmModal({
-          title: noRegs ? "No registered students yet" : "All registered students have already won",
+          title: noRegs ? "No checked-in attendees yet" : "All checked-in attendees have already won",
           message: noRegs
-            ? `There are no registered attendees to draw from. Once students sign up via QR or the manual ticket form, they'll appear in the eligible pool.`
-            : `All <em>${totalRegs}</em> registered student${totalRegs === 1 ? " has" : "s have"} already been drawn. Remove someone from the draw history below to put them back into the pool.`,
+            ? `There are no checked-in attendees to draw from. Once students are scanned in at the check-in booth, they'll appear in the eligible pool.`
+            : `All <em>${totalRegs}</em> checked-in attendee${totalRegs === 1 ? " has" : "s have"} already been drawn. Remove someone from the draw history below to put them back into the pool.`,
           confirmText: "Got it",
           singleAction: true,
           icon: noRegs ? "group_off" : "celebration",
