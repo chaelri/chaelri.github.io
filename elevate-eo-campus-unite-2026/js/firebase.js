@@ -71,6 +71,7 @@ export const ALLOWED_ADMINS = [
   "ilao.christian.gonzales@gmail.com",
   "ilaomauirochell@gmail.com",
   "marcoangelo@gmail.com",
+  "marcosabeniano@gmail.com",
 ];
 
 export function isAdminEmail(email) {
