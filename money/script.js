@@ -132,6 +132,7 @@ function normalize(d) {
   }
   d.paid = d.paid || {};
   d.overrides = d.overrides || {};
+  d.spend = d.spend || {}; // per-month actual spending logged against a sub-expense: spend[k][childId] = [{id,label,amount}]
   return d;
 }
 
@@ -160,16 +161,38 @@ function accountsTotal() { return (appData.accounts || []).reduce((s, a) => s + 
 // Sub-expenses: an item with children is a container; its amount = sum of children,
 // and each child is checked/paid individually.
 function getKids(it) { return Array.isArray(it.children) ? it.children.filter(Boolean) : []; }
+
+// Actual spending logged against a sub-expense in month k (Firebase may hand back an array as an object).
+function getSpendList(childId, k) {
+  const v = appData.spend?.[k]?.[childId];
+  if (!v) return [];
+  return (Array.isArray(v) ? v : Object.values(v)).filter(Boolean);
+}
+function spentIn(childId, k) { return getSpendList(childId, k).reduce((s, e) => s + (Number(e.amount) || 0), 0); }
+// The amount a sub-expense settles at for month k: the actual logged spend if any, else the estimate.
+// This is what gets "locked as the final" when the child is checked; unlogged months fall back to the estimate.
+function childFinal(c, k) {
+  const list = getSpendList(c.id, k);
+  return list.length ? spentIn(c.id, k) : (Number(c.amount) || 0);
+}
+
 function itemTotal(it, k) {
   const kids = getKids(it);
-  return kids.length ? kids.reduce((s, c) => s + (Number(c.amount) || 0), 0) : amountIn(it, k);
+  if (!kids.length) return amountIn(it, k);
+  // Budgeted estimate while unpaid; the locked final once checked.
+  return kids.reduce((s, c) => s + (isPaid(c.id, k) ? childFinal(c, k) : (Number(c.amount) || 0)), 0);
 }
 // {total, paid} for an expense/income item, expanding children.
 function itemAmts(it, k) {
   const kids = getKids(it);
   if (!kids.length) { const a = amountIn(it, k); return { total: a, paid: isPaid(it.id, k) ? a : 0 }; }
   let total = 0, paid = 0;
-  for (const c of kids) { const a = Number(c.amount) || 0; total += a; if (isPaid(c.id, k)) paid += a; }
+  for (const c of kids) {
+    const settled = isPaid(c.id, k);
+    const amt = settled ? childFinal(c, k) : (Number(c.amount) || 0);
+    total += amt;
+    if (settled) paid += amt;
+  }
   return { total, paid };
 }
 
@@ -297,19 +320,37 @@ function renderMonthBanner() {
 // A sub-expense row (checked/edited individually).
 function childRowHtml(parentId, c, k, who) {
   const paid = isPaid(c.id, k);
-  return `<div onclick="openChildModal('${who}','${parentId}','${c.id}')" class="item-row flex items-center gap-2 py-1.5 pl-2 rounded-lg cursor-pointer ${paid ? "opacity-60" : ""}">
+  const est = Number(c.amount) || 0;
+  const spent = spentIn(c.id, k);
+  const hasSpend = getSpendList(c.id, k).length > 0;
+  const over = spent > est;
+  const pct = est > 0 ? Math.min(100, Math.round((spent / est) * 100)) : (spent > 0 ? 100 : 0);
+  const remaining = est - spent;
+  // Right-side amount: the locked final once checked, otherwise the budgeted estimate.
+  const rightMain = paid ? childFinal(c, k) : est;
+  // Show a spend tracker line only while tracking is in progress (has entries, not yet locked).
+  const spendLine = (hasSpend && !paid)
+    ? `<div class="child-spendline flex items-center gap-1.5 mt-1">
+        <div class="flex-1 h-1 bg-slate-900/70 rounded-full overflow-hidden max-w-[130px]"><div class="h-full ${over ? "bg-rose-500" : "bg-gradient-to-r from-emerald-500 to-teal-400"} rounded-full" style="width:${pct}%"></div></div>
+        <span class="text-[10px] font-bold ${over ? "text-rose-400" : "text-emerald-400"}">${over ? `over ${peso(-remaining)}` : `${peso(remaining)} left`}</span>
+      </div>`
+    : "";
+  return `<div data-child="${c.id}" onclick="openChildModal('${who}','${parentId}','${c.id}')" class="item-row flex items-center gap-2 py-1.5 pl-2 rounded-lg cursor-pointer ${paid ? "opacity-60" : ""}">
     <button onclick="togglePaidQuick(event,'${c.id}','expenses')" title="Mark paid" class="paid-check ${paid ? "is-paid bg-emerald-500 border-emerald-500" : "border-slate-600"} w-5 h-5 rounded-md flex items-center justify-center flex-shrink-0 border">
       <span class="material-icons check-icon text-white" style="font-size:13px">check</span>
     </button>
     ${rowIconHtml(c.name, 24)}
-    <span class="item-name text-[13px] font-bold text-slate-300 flex-1 min-w-0 truncate ${paid ? "line-through" : ""}">${escapeHtml(c.name)}</span>
-    <span class="text-[13px] font-black text-slate-100 flex-shrink-0">${peso(c.amount)}</span>
+    <div class="flex-1 min-w-0">
+      <span class="item-name block text-[13px] font-bold text-slate-300 truncate ${paid ? "line-through" : ""}">${escapeHtml(c.name)}</span>
+      ${spendLine}
+    </div>
+    <span class="child-amt text-[13px] font-black text-slate-100 flex-shrink-0">${peso(rightMain)}</span>
   </div>`;
 }
 // An expandable parent (its amount = sum of sub-expenses).
 function parentRowHtml(it, k, kind, who, opts = {}) {
   const kids = getKids(it);
-  const total = kids.reduce((s, c) => s + (Number(c.amount) || 0), 0);
+  const total = itemTotal(it, k);
   const paidCount = kids.filter((c) => isPaid(c.id, k)).length;
   const allPaid = kids.length > 0 && paidCount === kids.length;
   const pct = kids.length ? Math.round((paidCount / kids.length) * 100) : 0;
@@ -922,10 +963,11 @@ window.openChildModal = function (who, parentId, childId) {
   const settledNow = c ? isPaid(c.id, selectedKey) : false;
   let body = `<p class="text-[11px] text-slate-500 mb-1">Under <span class="font-bold text-slate-300">${escapeHtml(parent.name)}</span></p>`;
   body += inputBlock("Name", "f-name", c ? c.name : "", "text", 'placeholder="e.g. Electricity"');
-  body += inputBlock("Amount (₱)", "f-amount", c ? c.amount : "", "number", 'inputmode="decimal" placeholder="0"');
+  body += inputBlock("Estimate (₱)", "f-amount", c ? c.amount : "", "number", 'inputmode="decimal" placeholder="0"');
   if (!isNew) {
+    body += `<div id="spend-section">${spendSectionHtml(who, parentId, c)}</div>`;
     body += `<div class="flex items-center justify-between bg-slate-900 rounded-2xl px-5 py-4">
-      <div><p class="text-sm font-bold text-white">Paid in ${monthShort(selectedKey)}</p><p class="text-[10px] text-slate-500">Mark this sub-expense settled</p></div>
+      <div><p class="text-sm font-bold text-white">Paid in ${monthShort(selectedKey)}</p><p class="text-[10px] text-slate-500">Locks the final for this month${getSpendList(c.id, selectedKey).length ? "" : " (at the estimate)"}</p></div>
       <button type="button" id="f-paid" data-on="${settledNow}" onclick="toggleField(this)" class="w-14 h-8 rounded-full transition-colors ${settledNow ? "bg-emerald-600" : "bg-slate-700"} relative flex-shrink-0"><span class="absolute top-1 ${settledNow ? "left-7" : "left-1"} w-6 h-6 bg-white rounded-full transition-all"></span></button>
     </div>`;
   } else {
@@ -955,6 +997,89 @@ window.saveChildAndAddAnother = async function () {
   openChildModal(who, parentId, null); // fresh form, modal stays open
   toast("Added");
   setTimeout(() => $("f-name")?.focus(), 60);
+};
+
+// Locate a sub-expense (child) by id, returning it with its parent + owner.
+function findChildById(id) {
+  for (const who of ["charlie", "karla"]) {
+    for (const it of getItems(who, "expenses")) {
+      const c = getKids(it).find((x) => x.id === id);
+      if (c) return { c, parent: it, who };
+    }
+  }
+  return null;
+}
+
+// The "Spending in <month>" tracker shown inside the sub-expense modal:
+// running spent vs estimate, remaining/over, the logged entries, and an add row.
+function spendSectionHtml(who, parentId, c) {
+  const k = selectedKey;
+  const list = getSpendList(c.id, k);
+  const spent = spentIn(c.id, k);
+  const est = Number(c.amount) || 0;
+  const remaining = est - spent;
+  const over = remaining < 0;
+  const pct = est > 0 ? Math.min(100, Math.round((spent / est) * 100)) : (spent > 0 ? 100 : 0);
+  const rows = list.map((e, i) => `
+    <div class="flex items-center gap-2 py-2 px-3 bg-slate-900/60 rounded-xl">
+      <span class="material-icons text-emerald-400" style="font-size:16px">payments</span>
+      <span class="flex-1 min-w-0 truncate text-[12px] font-bold text-slate-500">#${i + 1}</span>
+      <span class="text-[13px] font-black text-white">${peso(e.amount)}</span>
+      <button type="button" onclick="deleteSpend('${e.id}')" title="Remove" class="text-slate-500 hover:text-rose-400 flex-shrink-0"><span class="material-icons" style="font-size:16px">close</span></button>
+    </div>`).join("");
+  return `<div class="space-y-2">
+    <div class="flex items-center justify-between ml-1">
+      <label class="text-[10px] font-bold uppercase text-slate-500">Spending in ${monthShort(k)}</label>
+      <span class="text-[10px] font-black uppercase ${over ? "text-rose-400" : "text-emerald-400"}">${over ? `Over by ${peso(-remaining)}` : `${peso(remaining)} left`}</span>
+    </div>
+    <div class="flex items-center gap-2">
+      <div class="flex-1 h-1.5 bg-slate-900 rounded-full overflow-hidden"><div class="h-full ${over ? "bg-rose-500" : "bg-gradient-to-r from-emerald-500 to-teal-400"} rounded-full transition-all duration-300" style="width:${pct}%"></div></div>
+      <span class="text-[11px] font-bold text-slate-400 flex-shrink-0">${peso(spent)} / ${peso(est)}</span>
+    </div>
+    ${rows ? `<div class="space-y-1.5">${rows}</div>` : `<p class="text-[11px] text-slate-600 text-center py-1">No spending logged yet.</p>`}
+    <div class="spend-add flex items-center gap-2">
+      <input type="number" id="f-spend-amount" inputmode="decimal" placeholder="Add spending  ₱0" onkeydown="if(event.key==='Enter'){event.preventDefault();addSpend();}" class="spend-amt bg-slate-900 rounded-xl text-[13px] font-bold text-white focus:outline-none" />
+      <button type="button" onclick="addSpend()" title="Log spending" class="flex-shrink-0 w-12 h-12 rounded-xl bg-emerald-500/15 border border-emerald-500/25 text-emerald-300 flex items-center justify-center active:scale-95 transition-transform"><span class="material-icons" style="font-size:22px">add</span></button>
+    </div>
+  </div>`;
+}
+
+// Re-render just the spend section in the open modal (keeps name/estimate inputs untouched).
+function refreshSpendSection(childId) {
+  const info = findChildById(childId);
+  const host = $("spend-section");
+  if (info && host) host.innerHTML = spendSectionHtml(info.who, info.parent.id, info.c);
+}
+
+// Log an actual spend entry against the open sub-expense, for the selected month.
+window.addSpend = async function () {
+  if (!activeEdit || activeEdit.kind !== "child" || !activeEdit.id) return;
+  const amount = parseFloat($("f-spend-amount")?.value) || 0;
+  if (!amount) return toast("Amount required", "error");
+  const { id } = activeEdit, k = selectedKey;
+  const cur = getSpendList(id, k);
+  cur.push({ id: generateId(), amount });
+  appData.spend = appData.spend || {};
+  appData.spend[k] = appData.spend[k] || {};
+  appData.spend[k][id] = cur;
+  await syncSet();
+  refreshSpendSection(id);
+  renderAll();
+  toast("Logged");
+  setTimeout(() => $("f-spend-amount")?.focus(), 60);
+};
+
+// Remove a logged spend entry from the open sub-expense.
+window.deleteSpend = async function (entryId) {
+  if (!activeEdit || activeEdit.kind !== "child" || !activeEdit.id) return;
+  const { id } = activeEdit, k = selectedKey;
+  const cur = getSpendList(id, k).filter((e) => e.id !== entryId);
+  appData.spend = appData.spend || {};
+  appData.spend[k] = appData.spend[k] || {};
+  appData.spend[k][id] = cur;
+  await syncSet();
+  refreshSpendSection(id);
+  renderAll();
 };
 
 window.toggleField = function (btn) {
@@ -1107,6 +1232,15 @@ window.togglePaidQuick = async function (event, id, kind) {
   applyPaidVisual(btn, nowSettled); // surgical — no full re-render, no scroll jump
   updateInstallmentBar(btn, id);    // keep the mini progress bar in sync
   updateParentBadge(id);            // if this is a sub-expense, refresh its parent's X/Y badge
+  // A sub-expense with logged spending settles at its actual total, not the estimate — reflect that in place.
+  const childInfo = findChildById(id);
+  if (childInfo) {
+    const row = btn.closest(".item-row");
+    const amtEl = row?.querySelector(".child-amt");
+    if (amtEl) amtEl.textContent = peso(nowSettled ? childFinal(childInfo.c, selectedKey) : (Number(childInfo.c.amount) || 0));
+    const line = row?.querySelector(".child-spendline");
+    if (line) line.style.display = nowSettled ? "none" : "";
+  }
   if (nowSettled) {
     const valEl = btn.closest(".item-row")?.lastElementChild; // the amount, right side
     flashLabel(valEl || btn, kind === "income" ? "Received!" : "Paid!");
@@ -1225,6 +1359,7 @@ async function doDelete() {
     const parent = getItems(who, "expenses").find((x) => x.id === parentId);
     if (parent && Array.isArray(parent.children)) parent.children = parent.children.filter((c) => c.id !== id);
     for (const k of Object.keys(appData.paid)) delete appData.paid[k][id];
+    for (const k of Object.keys(appData.spend || {})) { if (appData.spend[k]) delete appData.spend[k][id]; }
   } else {
     const { who, type, id } = activeEdit;
     appData.items[who][type] = appData.items[who][type].filter((x) => x.id !== id);

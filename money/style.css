@@ -252,6 +252,17 @@ input[type="checkbox"]:checked::before {
   margin-right: 0;
 }
 
+/* "Log spending" row — amount input fills the row next to the + button,
+   opting out of the big-padding default the modal applies to every input. */
+#modal-body .spend-add input[type="number"] {
+  padding: 0.9rem 1rem !important;
+}
+#modal-body .spend-add .spend-amt {
+  flex: 1 1 auto;
+  min-width: 0;
+  width: auto !important;
+}
+
 /* Loading Bar Animation */
 @keyframes loading-bar {
   0% {
