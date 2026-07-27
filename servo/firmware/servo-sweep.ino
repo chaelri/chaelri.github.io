@@ -38,15 +38,15 @@ const char* STREAM_PATH = "/servo/enabled.json";
 
 // --- Servo / sweep -----------------------------------------------------------
 const int SERVO_PIN          = 3;      // GPIO3 -> yellow signal wire
-const int LEFT_ANGLE         = 0;      // full left
-const int RIGHT_ANGLE        = 180;    // full right
-const unsigned long SWEEP_INTERVAL_MS = 3000;  // move every 3 s
+const int REST_ANGLE         = 0;      // home / resting position
+const int TAP_ANGLE          = 90;     // poke 90 deg to the right
+const int TAP_HOLD_MS        = 350;    // brief hold at the poke before returning
+const unsigned long SWEEP_INTERVAL_MS = 3000;  // poke every 3 s
 
 Servo sweeper;
 bool enabled     = false;   // mirror of /servo/enabled
 bool attached    = false;   // is the servo signal currently driven?
-bool atLeft      = false;   // which side we last moved to
-unsigned long lastMove = 0; // millis of the last sweep step
+unsigned long lastMove = 0; // millis of the last poke
 
 // --- SSE command stream ------------------------------------------------------
 WiFiClientSecure streamClient;
@@ -76,26 +76,33 @@ void moveTo(int angle) {
 void startSweep() {
   if (enabled) return;
   enabled = true;
-  atLeft  = false;             // so the first step goes LEFT
-  lastMove = millis() - SWEEP_INTERVAL_MS;  // force an immediate first move
-  Serial.println(">>> enabled -> sweeping");
+  moveTo(REST_ANGLE);                       // sit at home first
+  lastMove = millis() - SWEEP_INTERVAL_MS;  // force an immediate first poke
+  Serial.println(">>> enabled -> poking");
 }
 
 void stopSweep() {
   if (!enabled && !attached) return;
   enabled = false;
-  if (attached) { sweeper.detach(); attached = false; }
+  if (attached) {
+    sweeper.write(REST_ANGLE);   // settle back home
+    delay(250);
+    sweeper.detach();
+    attached = false;
+  }
   publish("stopped");
   Serial.println(">>> disabled -> stopped");
 }
 
-// Toggle sides. Called from loop() on the 3 s cadence while enabled.
+// One poke: jab TAP_ANGLE to the right, hold briefly, return to REST_ANGLE.
+// Called from loop() on the 3 s cadence while enabled.
 void sweepStep() {
-  atLeft = !atLeft;
-  int angle = atLeft ? LEFT_ANGLE : RIGHT_ANGLE;
-  moveTo(angle);
-  publish(atLeft ? "LEFT" : "RIGHT");
-  Serial.printf("sweep -> %s (%d deg)\n", atLeft ? "LEFT" : "RIGHT", angle);
+  moveTo(TAP_ANGLE);
+  publish("RIGHT");
+  delay(TAP_HOLD_MS);
+  moveTo(REST_ANGLE);
+  publish("REST");
+  Serial.println("poke -> 90 deg right, back to rest");
 }
 
 // --- Firebase command stream -------------------------------------------------

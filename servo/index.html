@@ -138,7 +138,7 @@
 
   <header>
     <div class="title">Servo Buddy</div>
-    <div class="subtitle">tap to make me sway ♡</div>
+    <div class="subtitle">tap to make me poke ♡</div>
   </header>
 
   <div class="wrap">
@@ -220,7 +220,7 @@
     <span class="knob" id="knob">🌙</span>
   </button>
 
-  <div class="hint" id="hint">i sway left &amp; right every 3 seconds ~</div>
+  <div class="hint" id="hint">i poke 90° right every 3 seconds ~</div>
 
   <div class="foot"><span class="link-dot"></span>servo ⋅ chaelri<span class="link-dot"></span></div>
 
@@ -266,8 +266,8 @@
   function render() {
     body.classList.toggle("off", !enabled);
     knob.textContent = enabled ? "☀️" : "🌙";
-    statusText.textContent = enabled ? "swaying happily ♪" : "tucked in & sleepy";
-    hint.textContent = enabled ? "wheee~ left, right, left, right!" : "i sway left & right every 3 seconds ~";
+    statusText.textContent = enabled ? "poking happily ♪" : "tucked in & sleepy";
+    hint.textContent = enabled ? "poke! poke! poke! ♪" : "i poke 90° right every 3 seconds ~";
     if (!enabled) setLean("STOPPED");
   }
 
