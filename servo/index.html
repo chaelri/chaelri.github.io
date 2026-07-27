@@ -122,7 +122,7 @@
     <div class="status" id="status"><span class="dot"></span><span id="statusText">connecting…</span></div>
 
     <button class="auto-toggle" id="autoBtn" aria-label="toggle auto click">
-      <span>🔁 Auto-click every 30s</span>
+      <span>🔁 Auto-click every 4 min</span>
       <span class="lswitch" id="lsw"></span>
     </button>
   </div>
@@ -177,7 +177,7 @@
   onValue(autoRef, snap => {
     autoOn = snap.val() === true;
     lsw.classList.toggle("on", autoOn);
-    if (authed) hint.textContent = autoOn ? "auto on — clicking every 30s ~ ♪" : "tap the big button to make me click ~";
+    if (authed) hint.textContent = autoOn ? "auto on — clicking every 4 min ~ ♪" : "tap the big button to make me click ~";
   });
   autoBtn.addEventListener("click", async () => {
     if (navigator.vibrate) navigator.vibrate(12);

@@ -49,7 +49,7 @@ const char* AUTO_URL  = "https://test-database-55379-default-rtdb.asia-southeast
 // is asleep / the page is closed.
 bool autoOn = false;
 unsigned long lastAutoPoll = 0, lastAutoClick = 0;
-const unsigned long AUTO_INTERVAL_MS = 30000;  // click every 30 s
+const unsigned long AUTO_INTERVAL_MS = 240000; // click every 4 minutes
 const unsigned long AUTO_POLL_MS     = 2000;   // check the flag every 2 s
 
 // --- Pins / CR-servo timing (tune these) -------------------------------------
