@@ -41,6 +41,16 @@ const char* FB_HOST = "test-database-55379-default-rtdb.asia-southeast1.firebase
 const char* STREAM_PATH = "/servo/command.json";
 const char* CMD_URL   = "https://test-database-55379-default-rtdb.asia-southeast1.firebasedatabase.app/servo/command.json";
 const char* STATE_URL = "https://test-database-55379-default-rtdb.asia-southeast1.firebasedatabase.app/servo/state.json";
+const char* AUTO_URL  = "https://test-database-55379-default-rtdb.asia-southeast1.firebasedatabase.app/servo/auto.json";
+
+// --- Auto mode ---------------------------------------------------------------
+// While /servo/auto is true, the firmware fires a click every AUTO_INTERVAL_MS.
+// Polled (not streamed) every AUTO_POLL_MS so it keeps running even if the phone
+// is asleep / the page is closed.
+bool autoOn = false;
+unsigned long lastAutoPoll = 0, lastAutoClick = 0;
+const unsigned long AUTO_INTERVAL_MS = 5000;   // click every 5 s
+const unsigned long AUTO_POLL_MS     = 2000;   // check the flag every 2 s
 
 // --- Pins / CR-servo timing (tune these) -------------------------------------
 const int SERVO_PIN   = 3;      // GPIO3 -> yellow signal wire
@@ -155,6 +165,21 @@ void processStream() {
   }
 }
 
+// Poll the auto flag. On a false->true edge, arm the first click to fire soon.
+void pollAuto() {
+  if (WiFi.status() != WL_CONNECTED) return;
+  HTTPClient http;
+  http.begin(AUTO_URL);
+  if (http.GET() == 200) {
+    String b = http.getString();
+    b.trim();
+    bool now = (b == "true");
+    if (now && !autoOn) lastAutoClick = millis() - AUTO_INTERVAL_MS;  // click ~now
+    if (now != autoOn) { autoOn = now; Serial.println(now ? "AUTO on" : "AUTO off"); }
+  }
+  http.end();
+}
+
 // ----------------------------------------------------------------------------
 void setup() {
   Serial.begin(115200);
@@ -184,5 +209,13 @@ void loop() {
     lastStreamAttempt = millis();
     if (WiFi.status() == WL_CONNECTED) connectStream();
   }
+
+  // Auto mode: poll the flag, and while on, click every AUTO_INTERVAL_MS.
+  if (millis() - lastAutoPoll >= AUTO_POLL_MS) { lastAutoPoll = millis(); pollAuto(); }
+  if (autoOn && millis() - lastAutoClick >= AUTO_INTERVAL_MS) {
+    lastAutoClick = millis();
+    doClick();
+  }
+
   delay(1);
 }

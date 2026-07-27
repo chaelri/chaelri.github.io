@@ -68,6 +68,12 @@
   .status.go .dot{background:#f6a5c6;box-shadow:0 0 8px #ff8fc4;animation:beat .7s ease-in-out infinite}
   @keyframes beat{0%,100%{transform:scale(1)}50%{transform:scale(1.35)}}
   .hint{position:relative;z-index:1;font-family:"Gaegu",cursive;font-size:1rem;color:#b58bd0;text-align:center;min-height:1.2em}
+  .auto-toggle{position:relative;z-index:1;display:flex;align-items:center;gap:.8rem;padding:.55rem 1.1rem;border-radius:999px;border:none;cursor:pointer;font-family:inherit;font-weight:600;font-size:.9rem;color:#a06fb0;background:rgba(255,255,255,.66);box-shadow:0 6px 16px -6px rgba(255,120,180,.4),inset 0 0 0 1.5px rgba(255,255,255,.85);backdrop-filter:blur(6px)}
+  .auto-toggle:active{transform:scale(.97)}
+  .lswitch{width:3rem;height:1.7rem;border-radius:999px;background:#e0d3f0;position:relative;transition:background .3s;flex:0 0 auto}
+  .lswitch.on{background:linear-gradient(90deg,#ffb3d6,#ff8fc4)}
+  .lswitch::after{content:"";position:absolute;top:.18rem;left:.18rem;width:1.34rem;height:1.34rem;border-radius:50%;background:#fff;box-shadow:0 2px 5px rgba(0,0,0,.25);transition:left .3s cubic-bezier(.34,1.5,.5,1)}
+  .lswitch.on::after{left:calc(100% - .18rem - 1.34rem)}
 </style>
 </head>
 <body>
@@ -114,6 +120,11 @@
     </div>
 
     <div class="status" id="status"><span class="dot"></span><span id="statusText">connecting…</span></div>
+
+    <button class="auto-toggle" id="autoBtn" aria-label="toggle auto click">
+      <span>🔁 Auto-click every 5s</span>
+      <span class="lswitch" id="lsw"></span>
+    </button>
   </div>
 
   <div class="hint" id="hint">tap the big button to make me click ~</div>
@@ -130,7 +141,8 @@
     projectId: "test-database-55379"
   });
   const db = getDatabase(app), auth = getAuth(app);
-  const cmdRef = ref(db, "servo/command");   // firmware listens here for "click"
+  const cmdRef  = ref(db, "servo/command");   // firmware listens here for "click"
+  const autoRef = ref(db, "servo/auto");       // firmware auto-clicks while true
 
   const $ = id => document.getElementById(id);
   const buddy = $("buddy"), ring = $("ring"), status = $("status"), statusText = $("statusText"), hint = $("hint");
@@ -158,6 +170,20 @@
     }
   }
   $("clickBtn").addEventListener("click", click);
+
+  // ---- auto mode ----
+  const autoBtn = $("autoBtn"), lsw = $("lsw");
+  let autoOn = false;
+  onValue(autoRef, snap => {
+    autoOn = snap.val() === true;
+    lsw.classList.toggle("on", autoOn);
+    if (authed) hint.textContent = autoOn ? "auto on — clicking every 5s ~ ♪" : "tap the big button to make me click ~";
+  });
+  autoBtn.addEventListener("click", async () => {
+    if (navigator.vibrate) navigator.vibrate(12);
+    await authReady;
+    set(autoRef, !autoOn);   // onValue re-renders
+  });
 
   const hearts = $("hearts"), puff = ["💕","💖","✨","🌸"];
   function spawnHeart() {
