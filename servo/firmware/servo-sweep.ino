@@ -57,8 +57,8 @@ const int SERVO_PIN   = 3;      // GPIO3 -> yellow signal wire
 const int STOP_US     = 1500;   // neutral — motor off (try 1480..1520 if it creeps)
 const int PUSH_US     = 1000;   // press direction  (swap with RETURN_US if reversed)
 const int RETURN_US   = 2000;   // release direction
-const int PUSH_MS     = 400;    // burst duration -> how far it turns (bigger = more)
-const int RETURN_MS   = 400;    // MUST equal PUSH_MS so it lands back at rest
+const int PUSH_MS     = 200;    // burst duration -> how far it turns (bigger = more)
+const int RETURN_MS   = PUSH_MS; // return travels the SAME distance back to rest
 const int CLICK_HOLD_MS = 200;  // pause at the far end before returning
 
 Servo servo;
