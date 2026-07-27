@@ -1,25 +1,23 @@
 // ===========================================================================
-// servo-sweep.ino — ESP32-C3 SuperMini: Firebase-gated left/right servo sweep
+// servo-sweep.ino — ESP32-C3 SuperMini: servo follows /servo/angle from Firebase
 // ---------------------------------------------------------------------------
-// Behaviour:
-//   A single boolean in Firebase RTDB at /servo/enabled turns the sweep loop
-//   ON or OFF. While ON, the servo alternates LEFT_ANGLE <-> RIGHT_ANGLE once
-//   every SWEEP_INTERVAL_MS (3 s). While OFF, the servo stops and detaches so
-//   it doesn't buzz/hold.
-//
-//   /servo/enabled = true   -> start sweeping (moves immediately, then every 3 s)
-//   /servo/enabled = false  -> stop
-//
-// The firmware listens on a long-lived HTTPS Server-Sent-Events stream, so an
-// on/off flip from the phone/console lands in ~50-150 ms — no polling.
+// This firmware is a DUMB FOLLOWER. All the intelligence (manual left/right,
+// record, playback, loop) lives in the phone web app at /servo/. The app just
+// writes an integer angle (0..180) to RTDB path /servo/angle; this firmware
+// mirrors it onto the servo and echoes the value back to /servo/pos.
 //
 // Servo (3-pin module):
 //   brown  (GND)    -> ESP32 GND
 //   red    (VCC)    -> ESP32 5V
 //   yellow (signal) -> ESP32 GPIO3
 //
-// Library: ESP32Servo (Kevin Harrington — Library Manager). NOT the AVR Servo.h.
-// Board:  "ESP32C3 Dev Module", USB CDC On Boot: Enabled, Baud 115200.
+// POWER NOTE: a servo can dip the shared USB 5V rail enough to reboot the C3
+// ("Brownout detector was triggered"). If that happens, add a 470-1000 uF
+// electrolytic cap across the servo V+/GND (right at the servo), or power the
+// servo from a separate 5V supply sharing GND with the ESP32.
+//
+// Library: ESP32Servo (Kevin Harrington). Board: "ESP32C3 Dev Module",
+// USB CDC On Boot: Enabled, Baud 115200.
 // ===========================================================================
 
 #include <WiFi.h>
@@ -32,83 +30,48 @@
 WiFiMulti wifiMulti;
 
 // --- Firebase RTDB -----------------------------------------------------------
-// Shared project test-database-55379 (asia-southeast1). Single boolean flag.
 const char* FB_HOST = "test-database-55379-default-rtdb.asia-southeast1.firebasedatabase.app";
-const char* STREAM_PATH = "/servo/enabled.json";
+const char* STREAM_PATH = "/servo/angle.json";   // integer 0..180 the app writes
 
-// --- Servo / sweep -----------------------------------------------------------
-const int SERVO_PIN          = 3;      // GPIO3 -> yellow signal wire
-const int REST_ANGLE         = 0;      // home / resting position
-const int TAP_ANGLE          = 90;     // poke 90 deg to the right
-const int TAP_HOLD_MS        = 350;    // brief hold at the poke before returning
-const unsigned long SWEEP_INTERVAL_MS = 3000;  // poke every 3 s
-
-Servo sweeper;
-bool enabled     = false;   // mirror of /servo/enabled
-bool attached    = false;   // is the servo signal currently driven?
-unsigned long lastMove = 0; // millis of the last poke
+// --- Servo -------------------------------------------------------------------
+const int SERVO_PIN = 3;                 // GPIO3 -> yellow signal wire
+Servo servo;
+bool attached  = false;                  // is the servo signal currently driven?
+int  curAngle  = 90;                     // last angle written
+unsigned long lastCmd = 0;               // millis of the last angle command
+const unsigned long IDLE_DETACH_MS = 120000;  // release the servo after 2 min idle
 
 // --- SSE command stream ------------------------------------------------------
 WiFiClientSecure streamClient;
 unsigned long lastStreamAttempt = 0;
 const unsigned long STREAM_RECONNECT_MS = 1500;
 
-// Publish a short status string to /servo/pos so the device is observable from
-// the cloud (remote page + quick REST checks) without needing a serial cable.
-void publish(const char* what) {
+// Echo the current angle to /servo/pos so the app can confirm the device saw it.
+void publishPos(int a) {
   if (WiFi.status() != WL_CONNECTED) return;
   HTTPClient http;
   http.begin(String("https://") + FB_HOST + "/servo/pos.json");
   http.addHeader("Content-Type", "application/json");
-  http.PUT(String("\"") + what + "\"");
+  http.PUT(String(a));
   http.end();
 }
 
-// ----------------------------------------------------------------------------
-void moveTo(int angle) {
-  if (!attached) {
-    sweeper.attach(SERVO_PIN, 500, 2400);
-    attached = true;
-  }
-  sweeper.write(angle);
-}
-
-void startSweep() {
-  if (enabled) return;
-  enabled = true;
-  moveTo(REST_ANGLE);                       // sit at home first
-  lastMove = millis() - SWEEP_INTERVAL_MS;  // force an immediate first poke
-  Serial.println(">>> enabled -> poking");
-}
-
-void stopSweep() {
-  if (!enabled && !attached) return;
-  enabled = false;
-  if (attached) {
-    sweeper.write(REST_ANGLE);   // settle back home
-    delay(250);
-    sweeper.detach();
-    attached = false;
-  }
-  publish("stopped");
-  Serial.println(">>> disabled -> stopped");
-}
-
-// One poke: jab TAP_ANGLE to the right, hold briefly, return to REST_ANGLE.
-// Called from loop() on the 3 s cadence while enabled.
-void sweepStep() {
-  moveTo(TAP_ANGLE);
-  publish("RIGHT");
-  delay(TAP_HOLD_MS);
-  moveTo(REST_ANGLE);
-  publish("REST");
-  Serial.println("poke -> 90 deg right, back to rest");
+// Snap the servo to an angle (proven stable — no slow ramp). Attaches lazily so
+// the servo stays quiet until the first command arrives.
+void applyAngle(int a) {
+  a = constrain(a, 0, 180);
+  if (!attached) { servo.attach(SERVO_PIN, 500, 2400); attached = true; }
+  servo.write(a);
+  curAngle = a;
+  lastCmd = millis();
+  publishPos(a);
+  Serial.printf("angle -> %d\n", a);
 }
 
 // --- Firebase command stream -------------------------------------------------
 void connectStream() {
   streamClient.stop();
-  streamClient.setInsecure();          // flag holds no secret; skip cert check
+  streamClient.setInsecure();
   streamClient.setTimeout(15000);
   if (!streamClient.connect(FB_HOST, 443)) {
     Serial.println("Stream connect failed");
@@ -121,11 +84,10 @@ void connectStream() {
     "Cache-Control: no-cache\r\n" +
     "Connection: keep-alive\r\n\r\n";
   streamClient.print(req);
-  Serial.println("Stream connected — listening on /servo/enabled");
+  Serial.println("Stream connected — following /servo/angle");
 }
 
-// Firebase frames each change as:  data: {"path":"/","data":true}
-// We only care about the boolean after "data": inside that JSON.
+// Firebase frames each change as:  data: {"path":"/","data":90}
 void handleStreamData(const String& line) {
   int p = line.indexOf("\"data\":");
   if (p < 0) return;
@@ -136,9 +98,7 @@ void handleStreamData(const String& line) {
   val.replace("\"", "");
   val.trim();
   if (val.length() == 0 || val == "null") return;
-  Serial.println(">>> stream received: " + val);
-  if      (val == "true")  startSweep();
-  else if (val == "false") stopSweep();
+  applyAngle(val.toInt());
 }
 
 void processStream() {
@@ -152,9 +112,7 @@ void processStream() {
 // ----------------------------------------------------------------------------
 void setup() {
   Serial.begin(115200);
-
-  sweeper.setPeriodHertz(50);          // standard 50 Hz hobby-servo PWM
-  // (attach happens lazily in moveTo so a disabled servo stays quiet)
+  servo.setPeriodHertz(50);              // standard 50 Hz hobby-servo PWM
 
   wifiMulti.addAP("CharLa", "Kahitano1!");
   wifiMulti.addAP("CAYNO", "lokomoko");
@@ -164,14 +122,13 @@ void setup() {
   while (wifiMulti.run() != WL_CONNECTED) { delay(300); Serial.print("."); }
   Serial.println();
   Serial.println("WiFi: " + WiFi.SSID() + " · " + WiFi.localIP().toString());
-  WiFi.setSleep(false);                // wall-powered — keep radio awake
+  WiFi.setSleep(false);
 
-  publish("online");                   // cloud heartbeat: device booted + joined WiFi
+  publishPos(curAngle);                  // heartbeat: booted + online (no attach yet)
   connectStream();
 }
 
 void loop() {
-  // Keep the SSE stream alive so on/off flips land fast.
   if (streamClient.connected()) {
     processStream();
   } else if (millis() - lastStreamAttempt >= STREAM_RECONNECT_MS) {
@@ -179,10 +136,11 @@ void loop() {
     if (WiFi.status() == WL_CONNECTED) connectStream();
   }
 
-  // Non-blocking sweep so the stream stays responsive to an OFF mid-cycle.
-  if (enabled && millis() - lastMove >= SWEEP_INTERVAL_MS) {
-    lastMove = millis();
-    sweepStep();
+  // Release the servo after a long idle so it isn't held/buzzing forever.
+  if (attached && millis() - lastCmd > IDLE_DETACH_MS) {
+    servo.detach();
+    attached = false;
+    Serial.println("idle -> detached");
   }
 
   delay(1);
