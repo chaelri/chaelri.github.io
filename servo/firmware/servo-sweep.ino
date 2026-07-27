@@ -1,23 +1,30 @@
 // ===========================================================================
-// servo-sweep.ino — ESP32-C3 SuperMini: servo follows /servo/angle from Firebase
+// servo-sweep.ino — ESP32-C3 SuperMini: CONTINUOUS-ROTATION servo "click"
 // ---------------------------------------------------------------------------
-// This firmware is a DUMB FOLLOWER. All the intelligence (manual left/right,
-// record, playback, loop) lives in the phone web app at /servo/. The app just
-// writes an integer angle (0..180) to RTDB path /servo/angle; this firmware
-// mirrors it onto the servo and echoes the value back to /servo/pos.
+// Same functionality as autoclicker/aircon: on "click", the servo bursts
+// forward (PUSH_US) for PUSH_MS, briefly waits, then bursts the opposite
+// direction (RETURN_US) for the SAME duration (RETURN_MS) to land back at rest.
+// -> it goes, then comes right back. Triggered from the phone via Firebase.
+//
+// Continuous-rotation servos do NOT take angles. Pulse width = speed+direction:
+//   writeMicroseconds(1500) = STOP (motor off)
+//   writeMicroseconds(1000) = full speed one way
+//   writeMicroseconds(2000) = full speed the other way
+// Travel = HOW LONG a non-1500 pulse is held (PUSH_MS / RETURN_MS), not an angle.
+// To rotate FURTHER, increase PUSH_MS/RETURN_MS (keep them EQUAL so it returns
+// exactly to rest). If it spins the WRONG way on press, swap PUSH_US/RETURN_US.
 //
 // Servo (3-pin module):
 //   brown  (GND)    -> ESP32 GND
 //   red    (VCC)    -> ESP32 5V
 //   yellow (signal) -> ESP32 GPIO3
 //
-// POWER NOTE: a servo can dip the shared USB 5V rail enough to reboot the C3
-// ("Brownout detector was triggered"). If that happens, add a 470-1000 uF
-// electrolytic cap across the servo V+/GND (right at the servo), or power the
-// servo from a separate 5V supply sharing GND with the ESP32.
+// RTDB paths (shared project test-database-55379):
+//   /servo/command — phone writes "click" (or press/release/toggle); firmware
+//                    acts on it and clears it back to "".
+//   /servo/state   — firmware echoes latched state (true/false) after each act.
 //
-// Library: ESP32Servo (Kevin Harrington). Board: "ESP32C3 Dev Module",
-// USB CDC On Boot: Enabled, Baud 115200.
+// Library: ESP32Servo. Board: "ESP32C3 Dev Module", USB CDC On Boot: Enabled.
 // ===========================================================================
 
 #include <WiFi.h>
@@ -31,41 +38,80 @@ WiFiMulti wifiMulti;
 
 // --- Firebase RTDB -----------------------------------------------------------
 const char* FB_HOST = "test-database-55379-default-rtdb.asia-southeast1.firebasedatabase.app";
-const char* STREAM_PATH = "/servo/angle.json";   // integer 0..180 the app writes
+const char* STREAM_PATH = "/servo/command.json";
+const char* CMD_URL   = "https://test-database-55379-default-rtdb.asia-southeast1.firebasedatabase.app/servo/command.json";
+const char* STATE_URL = "https://test-database-55379-default-rtdb.asia-southeast1.firebasedatabase.app/servo/state.json";
 
-// --- Servo -------------------------------------------------------------------
-const int SERVO_PIN = 3;                 // GPIO3 -> yellow signal wire
+// --- Pins / CR-servo timing (tune these) -------------------------------------
+const int SERVO_PIN   = 3;      // GPIO3 -> yellow signal wire
+const int STOP_US     = 1500;   // neutral — motor off (try 1480..1520 if it creeps)
+const int PUSH_US     = 1000;   // press direction  (swap with RETURN_US if reversed)
+const int RETURN_US   = 2000;   // release direction
+const int PUSH_MS     = 400;    // burst duration -> how far it turns (bigger = more)
+const int RETURN_MS   = 400;    // MUST equal PUSH_MS so it lands back at rest
+const int CLICK_HOLD_MS = 200;  // pause at the far end before returning
+
 Servo servo;
-bool attached  = false;                  // is the servo signal currently driven?
-int  curAngle  = 90;                     // last angle written
-unsigned long lastCmd = 0;               // millis of the last angle command
-const unsigned long IDLE_DETACH_MS = 120000;  // release the servo after 2 min idle
+bool isPressed = false;         // latched state (for press/release/toggle)
 
 // --- SSE command stream ------------------------------------------------------
 WiFiClientSecure streamClient;
 unsigned long lastStreamAttempt = 0;
 const unsigned long STREAM_RECONNECT_MS = 1500;
 
-// Echo the current angle to /servo/pos so the app can confirm the device saw it.
-void publishPos(int a) {
+void publishState() {
   if (WiFi.status() != WL_CONNECTED) return;
   HTTPClient http;
-  http.begin(String("https://") + FB_HOST + "/servo/pos.json");
+  http.begin(STATE_URL);
   http.addHeader("Content-Type", "application/json");
-  http.PUT(String(a));
+  http.PUT(isPressed ? "true" : "false");
   http.end();
 }
 
-// Snap the servo to an angle (proven stable — no slow ramp). Attaches lazily so
-// the servo stays quiet until the first command arrives.
-void applyAngle(int a) {
-  a = constrain(a, 0, 180);
-  if (!attached) { servo.attach(SERVO_PIN, 500, 2400); attached = true; }
-  servo.write(a);
-  curAngle = a;
-  lastCmd = millis();
-  publishPos(a);
-  Serial.printf("angle -> %d\n", a);
+void clearCommand() {
+  HTTPClient http;
+  http.begin(CMD_URL);
+  http.addHeader("Content-Type", "application/json");
+  http.PUT("\"\"");
+  http.end();
+}
+
+// --- Press / release / toggle / click (CR-servo bursts) ----------------------
+void doPress() {
+  if (isPressed) return;
+  servo.writeMicroseconds(PUSH_US);     // burst forward
+  delay(PUSH_MS);
+  servo.writeMicroseconds(STOP_US);     // motor off — arm stays put
+  isPressed = true;
+  publishState();
+  Serial.println("press");
+}
+
+void doRelease() {
+  if (!isPressed) return;
+  servo.writeMicroseconds(RETURN_US);   // mirrored burst back to rest
+  delay(RETURN_MS);
+  servo.writeMicroseconds(STOP_US);
+  isPressed = false;
+  publishState();
+  Serial.println("release");
+}
+
+void doToggle() { isPressed ? doRelease() : doPress(); }
+
+// Momentary click: go, brief hold, come right back. Always ends at rest.
+void doClick() {
+  if (isPressed) doRelease();
+  servo.writeMicroseconds(PUSH_US);
+  delay(PUSH_MS);
+  servo.writeMicroseconds(STOP_US);
+  delay(CLICK_HOLD_MS);
+  servo.writeMicroseconds(RETURN_US);
+  delay(RETURN_MS);
+  servo.writeMicroseconds(STOP_US);
+  isPressed = false;
+  publishState();
+  Serial.println("click -> go & back");
 }
 
 // --- Firebase command stream -------------------------------------------------
@@ -73,10 +119,7 @@ void connectStream() {
   streamClient.stop();
   streamClient.setInsecure();
   streamClient.setTimeout(15000);
-  if (!streamClient.connect(FB_HOST, 443)) {
-    Serial.println("Stream connect failed");
-    return;
-  }
+  if (!streamClient.connect(FB_HOST, 443)) { Serial.println("Stream connect failed"); return; }
   String req =
     String("GET ") + STREAM_PATH + " HTTP/1.1\r\n" +
     "Host: " + FB_HOST + "\r\n" +
@@ -84,10 +127,9 @@ void connectStream() {
     "Cache-Control: no-cache\r\n" +
     "Connection: keep-alive\r\n\r\n";
   streamClient.print(req);
-  Serial.println("Stream connected — following /servo/angle");
+  Serial.println("Stream connected — listening on /servo/command");
 }
 
-// Firebase frames each change as:  data: {"path":"/","data":90}
 void handleStreamData(const String& line) {
   int p = line.indexOf("\"data\":");
   if (p < 0) return;
@@ -98,7 +140,11 @@ void handleStreamData(const String& line) {
   val.replace("\"", "");
   val.trim();
   if (val.length() == 0 || val == "null") return;
-  applyAngle(val.toInt());
+  Serial.println(">>> " + val);
+  if      (val == "click")   { doClick();   clearCommand(); }
+  else if (val == "press")   { doPress();   clearCommand(); }
+  else if (val == "release") { doRelease(); clearCommand(); }
+  else if (val == "toggle")  { doToggle();  clearCommand(); }
 }
 
 void processStream() {
@@ -112,7 +158,10 @@ void processStream() {
 // ----------------------------------------------------------------------------
 void setup() {
   Serial.begin(115200);
-  servo.setPeriodHertz(50);              // standard 50 Hz hobby-servo PWM
+
+  servo.setPeriodHertz(50);
+  servo.attach(SERVO_PIN, 500, 2400);
+  servo.writeMicroseconds(STOP_US);     // motor stopped at boot
 
   wifiMulti.addAP("CharLa", "Kahitano1!");
   wifiMulti.addAP("CAYNO", "lokomoko");
@@ -124,7 +173,7 @@ void setup() {
   Serial.println("WiFi: " + WiFi.SSID() + " · " + WiFi.localIP().toString());
   WiFi.setSleep(false);
 
-  publishPos(curAngle);                  // heartbeat: booted + online (no attach yet)
+  publishState();
   connectStream();
 }
 
@@ -135,13 +184,5 @@ void loop() {
     lastStreamAttempt = millis();
     if (WiFi.status() == WL_CONNECTED) connectStream();
   }
-
-  // Release the servo after a long idle so it isn't held/buzzing forever.
-  if (attached && millis() - lastCmd > IDLE_DETACH_MS) {
-    servo.detach();
-    attached = false;
-    Serial.println("idle -> detached");
-  }
-
   delay(1);
 }
