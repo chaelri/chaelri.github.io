@@ -203,17 +203,23 @@ function monthTotals(k) {
   for (const it of getItems("charlie", "expenses")) if (itemActiveIn(it, k)) { const r = itemAmts(it, k); cE += r.total; expPaid += r.paid; }
   for (const it of getItems("karla", "expenses")) if (itemActiveIn(it, k)) { const r = itemAmts(it, k); kE += r.total; expPaid += r.paid; }
   const income = cI + kI, expenses = cE + kE, toPay = expenses - expPaid;
+  const toReceive = income - incRecv;
   // Projected math excludes already-paid expenses (only what you still OWE reduces funds).
   return {
     cI, kI, cE, kE, income, expenses, savings: income - toPay,
     incomeReceived: incRecv, expensePaid: expPaid,
-    toReceive: income - incRecv, toPay,
+    toReceive, toPay,
+    // Net change to funds still pending this month. For the CURRENT month, income
+    // already received + expenses already paid are baked into accountsTotal(), so
+    // only what's still to receive/pay moves the balance — using `savings` here would
+    // double-count already-received income. For future months this equals `savings`.
+    netPending: toReceive - toPay,
   };
 }
 
 function runningFundsAt(k) {
   let bal = accountsTotal();
-  for (const mk of timeline()) { bal += monthTotals(mk).savings; if (mk === k) break; }
+  for (const mk of timeline()) { bal += monthTotals(mk).netPending; if (mk === k) break; }
   return bal;
 }
 
@@ -802,7 +808,7 @@ function projectionCardHtml() {
 function projectionInnerHtml() {
   const keys = timeline();
   let bal = accountsTotal();
-  const series = keys.map((k) => { const t = monthTotals(k); bal += t.savings; return { k, bal, savings: t.savings, income: t.income }; });
+  const series = keys.map((k) => { const t = monthTotals(k); bal += t.netPending; return { k, bal, savings: t.savings, income: t.income }; });
   const years = {};
   series.forEach((s) => { const y = keyParts(s.k).y; years[y] = years[y] || { income: 0, savings: 0, endBal: s.bal }; years[y].income += s.income; years[y].savings += s.savings; years[y].endBal = s.bal; });
   const yearCards = Object.entries(years).map(([y, v]) => `
