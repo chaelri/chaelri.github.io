@@ -99,7 +99,20 @@ async def handle_lookup(update: Update, context: ContextTypes.DEFAULT_TYPE):
         return
 
     # Send QR pass for matched volunteers (up to 3 matches if multiple names match)
+    user_chat_id = update.effective_chat.id
+    user_handle = update.effective_user.username or ""
+
     for v_id, v_name in matches[:3]:
+        # Save chat_id to Firebase for future automated DM broadcasts (Method B)
+        try:
+            requests.patch(
+                f"{FIREBASE_DB_URL}/volunteers/{v_id}.json",
+                json={"chat_id": user_chat_id, "telegram_username": user_handle},
+                timeout=5
+            )
+        except Exception as err:
+            logging.warning(f"Could not save chat_id for {v_id}: {err}")
+
         qr_pass_img = generate_qr_pass(v_id, v_name)
         caption = (
             f"✅ *Registration Verified\\!*\n\n"
