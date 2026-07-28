@@ -334,12 +334,54 @@ function renderTable() {
         const commsCode = btn.dataset.comms;
         const volunteerId = btn.dataset.volunteer;
         const timeIn = btn.dataset.time;
+        const segmentName = btn.dataset.segment || "";
         const segIdInput = btn.closest("div").querySelector(".pending-segid-input");
         const numberedId = segIdInput ? segIdInput.value.trim() : "";
 
         // Check if "No ID" toggle is active for this entry
         const noIdToggle = document.querySelector(`.pending-noid-toggle[data-key="${key}"]`);
         const noId = noIdToggle ? noIdToggle.dataset.checked === "true" : false;
+
+        // Validation for Seg ID
+        if (numberedId) {
+          const segNum = parseInt(numberedId, 10);
+          if (isNaN(segNum) || segNum < 1 || segNum > 50) {
+            showToast("Seg ID must be a number between 1 and 50", "warning", "text-amber-400");
+            if (segIdInput) {
+              segIdInput.classList.add("border-red-500");
+              segIdInput.focus();
+            }
+            return;
+          }
+
+          // Check for duplicate Seg ID within the same segment among active/confirmed volunteers
+          const duplicateEntry = Object.entries(allLogs).find(([lKey, log]) => {
+            if (lKey === key) return false; // skip self
+            if (log.timeOut) return false; // skip timed out volunteers
+            if (log.status === "pending") return false; // skip pending volunteers
+            if ((log.segment || "").trim().toLowerCase() !== segmentName.trim().toLowerCase()) return false; // must be same segment
+            return (log.numberedId || "").toString().trim() === numberedId;
+          });
+
+          if (duplicateEntry) {
+            const dupLog = duplicateEntry[1];
+            showToast(`Seg ID #${numberedId} is already in use by ${dupLog.name || 'another volunteer'} in ${segmentName}`, "error", "text-red-400");
+            if (segIdInput) {
+              segIdInput.classList.add("border-red-500");
+              segIdInput.focus();
+            }
+            return;
+          }
+        } else if (!noId) {
+          showToast("Please enter a Seg ID (1-50) or toggle 'No ID'", "warning", "text-amber-400");
+          if (segIdInput) {
+            segIdInput.classList.add("border-red-500");
+            segIdInput.focus();
+          }
+          return;
+        }
+
+        if (segIdInput) segIdInput.classList.remove("border-red-500");
 
         // Capture whether comms is already held by a different confirmed volunteer
         const commsAlreadyTaken = commsCode &&
@@ -389,6 +431,7 @@ function renderTable() {
     document.querySelectorAll(".pending-segid-input").forEach((input) => {
       const confirmBtn = input.closest("div").querySelector(".pending-confirm-btn");
       input.addEventListener("input", () => {
+        input.classList.remove("border-red-500");
         const hasValue = input.value.trim().length > 0;
         if (confirmBtn) {
           confirmBtn.disabled = !hasValue;
