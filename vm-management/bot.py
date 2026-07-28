@@ -79,6 +79,8 @@ async def handle_lookup(update: Update, context: ContextTypes.DEFAULT_TYPE):
     volunteers = fetch_all_volunteers()
     matches = []
 
+    query_tokens = query_lower.split()
+
     for v_id, v_data in volunteers.items():
         if not isinstance(v_data, dict):
             continue
@@ -86,8 +88,11 @@ async def handle_lookup(update: Update, context: ContextTypes.DEFAULT_TYPE):
         v_name_lower = v_name.lower()
         v_id_lower = str(v_id).lower()
 
-        # Check exact or partial match
-        if query_lower == v_id_lower or query_lower in v_name_lower or v_name_lower in query_lower:
+        # Token-based match (e.g. "Charles Cayno" matches "Charles Michael Cayno")
+        all_tokens_match = len(query_tokens) > 0 and all(token in v_name_lower for token in query_tokens)
+        id_match = query_lower in v_id_lower or v_id_lower in query_lower
+
+        if all_tokens_match or id_match:
             matches.append((v_id, v_name))
 
     if not matches:
