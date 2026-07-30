@@ -110,9 +110,14 @@ cd mac-toggle/menubar
 ./install-menubar.sh uninstall
 ```
 
-- **✓ filled circle** = Always On, **✗ circle** = sleeps when idle, **…** = sending,
-  **⚠️** = couldn't reach Firebase
+- **☀️ sun** = Always On, **🌙 moon** = sleeps when idle, **spinning arrows** = applying,
+  **⚠️** = couldn't reach Firebase. (Check/cross was the first cut and was wrong: an
+  ✗ reads as "something failed" when it only means sleep is permitted.)
 - **Left click** toggles · **right click** opens a menu (status, flip, open remote, quit)
+- While a toggle is in flight it polls `pmset` every 0.25 s and spins, stopping the
+  moment the value actually flips — the daemon applies the setting *before* it
+  speaks, so the icon now changes with the voice instead of trailing it by a
+  poll interval
 - Built with `swiftc -parse-as-library` (needed because the source uses `@main`);
   Xcode Command Line Tools are enough, no Homebrew, no SwiftBar
 
