@@ -87,6 +87,21 @@ Battery-powered hand-held WiFi remote for **both** `autoclicker/` and `aircon/`.
   - **Color palette is amber + emerald** (distinct from autoclicker's indigo/purple and aircon's sky/cyan).
 - **Full docs:** See `knowledge/pocket-remote/SUMMARY.md`, `ARCHITECTURE.md`, `KEY_FILES.md`.
 
+### claude-usage/  🟢
+
+Menu bar indicator showing Claude plan usage as a live percentage — built because the Claude desktop app's own menu item needs a right click before it shows anything. The number IS the title; clicking opens session / weekly / scoped rows with absolute reset times and a manual Refresh.
+
+- **Tech:** single Swift file + Cocoa `NSStatusItem`, built with `swiftc -O -parse-as-library` (the source uses `@main`). Xcode CLT only — no Homebrew, SwiftBar, or Xcode project. Per-user LaunchAgent `com.chaelri.claudeusage`, no sudo.
+- **Entry:** `claude-usage.swift`, `install.sh`.
+- **Data:** `GET https://api.anthropic.com/api/oauth/usage` with the OAuth token from `security find-generic-password -s "Claude Code-credentials"`. Returns a `limits[]` array (session / weekly_all / weekly_scoped) with `percent` + `resets_at`.
+- **Quirks:**
+  - **Undocumented internal endpoint**, found via `strings` on the Claude Code binary. Not published, can change without notice — so every failure is visible (dash + reason in the menu) rather than showing a stale number as current.
+  - **Costs no tokens** — account metadata, not inference, so polling doesn't consume the budget it reports.
+  - **Token re-read from the keychain every refresh**, never cached (Claude Code rotates it); 401 says "Login expired — run `claude` once".
+  - **First run needs a keychain "Always Allow"** — inherent to an unsigned local binary reading another app's keychain item. Never install with sudo (it needs Charlie's keychain, not root's).
+  - **No local cache to read instead** — the Claude app's leveldb stores hold no usage fields; a live call is the only route.
+- **Full docs:** See `knowledge/claude-usage/SUMMARY.md` and `claude-usage/README.md`.
+
 ### mac-toggle/  🟢
 
 Firebase remote for the MacBook Pro's display-sleep setting — the autoclicker pattern with macOS as the actuator instead of an ESP32. The page is **one minimalist toggle** (Never ↔ 5 minutes, battery + power adapter moved together); a root LaunchDaemon reconciles the machine and publishes observed truth back.
@@ -399,6 +414,8 @@ Simple side-scrolling platformer (Bubu & Dudu) — canvas-based game.
 |---|---|---|
 | devo, monthsary, tayo, sns-dq, weddingtest, towa-no-yuugure, autoclicker, aircon, pocket-remote, mac-toggle, collaterals, flux, pray, echoes, wedding100, weddingtimeline, horizon, money, anohana, bubududu | GitHub Pages subpath | ✅ |
 | mac-toggle (Mac agent) | root LaunchDaemon `com.chaelri.mactoggle` via `agent/install.sh` | Manual |
+| mac-toggle (menu bar) | per-user LaunchAgent `com.chaelri.mactoggle.menubar` via `menubar/install-menubar.sh` | Manual |
+| claude-usage | per-user LaunchAgent `com.chaelri.claudeusage` via `install.sh` | Manual |
 | guard-exit-interview | GitHub Pages — **DUAL-REPO** (also push to `guard-exit-tracker`) | ✅ |
 | vm-management | GitHub Pages `/vm-management/` | ✅ |
 | weddingbar | Firebase Hosting (root via `firebase.json`) — also GH Pages `/weddingbar/` | `firebase deploy` |
