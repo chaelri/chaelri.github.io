@@ -96,6 +96,8 @@
 
     .value { font-size: 42px; font-weight: 300; letter-spacing: -0.03em; line-height: 1; }
     .caption { font-size: 14px; color: var(--dim); font-weight: 400; max-width: 30ch; line-height: 1.5; }
+    .extra { font-size: 12px; color: #56565e; margin-top: 12px; min-height: 16px; line-height: 1.4; }
+    .extra.bad { color: #d9a441; }
 
     footer { padding: 0 2px 26px; text-align: center; font-size: 11px; color: #55555c; min-height: 30px; }
     .warn { color: #d9a441; }
@@ -129,6 +131,7 @@
     <div>
       <div class="value" id="value">—</div>
       <div class="caption" id="caption">waiting for the Mac…</div>
+      <div class="extra" id="extra"></div>
     </div>
   </main>
 
@@ -219,8 +222,24 @@
         foot("applied");
       }
       paint(v.displaySleepAC, v.displaySleepBatt);
+      jiggleNote(v.jiggling, v.jiggleOk);
       freshness();
     });
+
+    // The agent taps F15 every 5 min while the toggle is on Never, so the Mac
+    // reads as actively used and not merely awake. It needs Accessibility to
+    // send keys — say so plainly rather than pretend it's working.
+    function jiggleNote(on, ok) {
+      const ex = $("extra");
+      if (!on) { ex.textContent = ""; ex.className = "extra"; return; }
+      if (ok === false) {
+        ex.textContent = "keystroke blocked — grant Accessibility to /usr/bin/osascript";
+        ex.className = "extra bad";
+      } else {
+        ex.textContent = "Nudging every 5 minutes so the Mac stays active.";
+        ex.className = "extra";
+      }
+    }
 
     function freshness() {
       const dot = $("dot"), txt = $("linkText");
@@ -248,6 +267,7 @@
       if (navigator.vibrate) navigator.vibrate(12);
 
       paint(next, next);                          // optimistic
+      jiggleNote(next === NEVER, state ? state.jiggleOk : null);
       setBusy(true);
       foot("");
 

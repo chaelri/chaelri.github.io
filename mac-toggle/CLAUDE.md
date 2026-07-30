@@ -45,6 +45,14 @@ host, so the remote itself lives at `index.html`.
 - **Untrusted input.** Everything from Firebase is hostile: list-args only, no
   `shell=True`, ints clamped to choice lists, `lockMessage` stripped of control
   chars and capped at 200. The DB is world-writable today (see README).
+- **The jiggler rides the toggle, it is not its own switch.** While displaysleep
+  is Never on both sources, a daemon thread taps F15 every 300 s via
+  `sh_as_user(osascript …)` so `HIDIdleTime` keeps resetting — `pmset` alone keeps
+  the display lit but leaves the idle counter climbing. Enable/disable is derived
+  in `publish_state()` so `/state` can never disagree with the thread. Needs a
+  manual Accessibility grant on `/usr/bin/osascript` (TCC; a daemon can't answer a
+  prompt); `state.jiggleOk` carries whether the last tap landed, and the page says
+  "blocked" rather than faking success.
 - **`keepAwake` is deliberately not a saved setting** — it's a held `caffeinate -dimsu`
   child process, so a crashed agent can't leave the Mac awake forever. Don't
   "simplify" it into `pmset displaysleep 0`.

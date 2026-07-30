@@ -31,6 +31,7 @@ import signal
 import socket
 import subprocess
 import sys
+import threading
 import time
 import urllib.error
 import urllib.request
@@ -47,7 +48,11 @@ RECONNECT_DELAY = 3        # s — backoff floor after a stream drop
 RECONNECT_MAX = 60         # s — backoff ceiling
 HEARTBEAT_SECS = 45        # s — republish /state at least this often so the phone sees "online"
 
+JIGGLE_SECS = 300          # match the hand-rolled `while true; … sleep 300` loop
+JIGGLE_KEYCODE = 106       # F15 — a key nothing is bound to, so it's a no-op
+
 PMSET = "/usr/bin/pmset"
+OSASCRIPT = "/usr/bin/osascript"
 DEFAULTS = "/usr/bin/defaults"
 CAFFEINATE = "/usr/bin/caffeinate"
 SYSADMINCTL = "/usr/sbin/sysadminctl"
@@ -253,6 +258,70 @@ CAFFEINE = Caffeine()
 
 
 # --------------------------------------------------------------------------- #
+# Idle jiggler — active only while display sleep is set to Never
+# --------------------------------------------------------------------------- #
+
+class Jiggler(object):
+    """
+    Taps F15 every JIGGLE_SECS so the machine reads as actively used, not just
+    kept awake. This is the daemon-managed version of:
+
+        while true; do osascript -e '… key code 106'; sleep 300; done
+
+    Bound to the toggle: it runs while displaysleep is Never on BOTH power
+    sources and stops the moment the toggle goes back to 5 minutes.
+
+    Needs Accessibility permission — synthesizing key events is TCC-gated, and a
+    LaunchDaemon can't answer a permission prompt. `ok` records whether the last
+    tap actually landed so the remote can say so instead of silently doing nothing.
+    """
+
+    def __init__(self):
+        self.on = threading.Event()
+        self.ok = None                 # None = untested, True/False = last result
+        self.last = 0.0
+
+    def enabled(self):
+        return self.on.is_set()
+
+    def set(self, want):
+        if want and not self.on.is_set():
+            self.on.set()
+            log("jiggler: ON (F15 every %ds)" % JIGGLE_SECS)
+        elif not want and self.on.is_set():
+            self.on.clear()
+            log("jiggler: OFF")
+
+    def tap(self):
+        rc, _, err = sh_as_user(
+            [OSASCRIPT, "-e", 'tell application "System Events" to key code %d' % JIGGLE_KEYCODE])
+        self.last = time.time()
+        good = (rc == 0)
+        if good != self.ok:
+            if good:
+                log("jiggler: keystroke delivered")
+            else:
+                log("jiggler: keystroke BLOCKED — grant Accessibility to osascript "
+                    "(System Settings › Privacy & Security › Accessibility). %s" % err.strip())
+        self.ok = good
+        return good
+
+    def run(self):
+        while True:
+            self.on.wait()
+            self.tap()
+            # Sleep in slices so flipping the toggle off stops us promptly
+            # instead of up to 5 minutes later.
+            for _ in range(JIGGLE_SECS):
+                if not self.on.is_set():
+                    break
+                time.sleep(1)
+
+
+JIGGLER = Jiggler()
+
+
+# --------------------------------------------------------------------------- #
 # Setting registry — the ONLY keys that will ever be honored
 # --------------------------------------------------------------------------- #
 
@@ -289,6 +358,11 @@ def read_state():
     # guessing -1 — the remote leaves that control alone instead of showing a lie.
     st["screenLock"] = delay
     st["screenLockAvailable"] = (delay is not None) and (admin_password() is not None)
+
+    # Jiggler is a consequence of the display setting, not a setting of its own:
+    # Never on both sources = keep the machine looking active.
+    st["jiggling"] = JIGGLER.enabled()
+    st["jiggleOk"] = JIGGLER.ok
     return st
 
 
@@ -434,6 +508,11 @@ def host_name():
 def publish_state(state=None):
     global _last_publish
     st = dict(state or read_state())
+    # The jiggler follows the display setting rather than being its own switch:
+    # recompute here so /state can never disagree with what the thread is doing.
+    JIGGLER.set(st.get("displaySleepAC") == 0 and st.get("displaySleepBatt") == 0)
+    st["jiggling"] = JIGGLER.enabled()
+    st["jiggleOk"] = JIGGLER.ok
     st["host"] = host_name()
     st["user"] = console_user() or ""
     st["updatedAt"] = int(time.time() * 1000)
@@ -552,6 +631,7 @@ def main():
     if os.geteuid() != 0:
         log("WARNING: not running as root — pmset and loginwindow writes will fail")
     log("mac-toggle agent starting on %s" % host_name())
+    threading.Thread(target=JIGGLER.run, name="jiggler", daemon=True).start()
     stream_forever()
 
 

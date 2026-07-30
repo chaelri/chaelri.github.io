@@ -55,6 +55,36 @@ tail -f /var/log/mac-toggle.log  # what it's doing
 sudo launchctl kickstart -k system/com.chaelri.mactoggle   # restart it
 ```
 
+## Staying active — the jiggler
+
+While the toggle is on **Never**, the agent also taps **F15 every 300 s** in the
+console user's session. That's the daemon-managed version of:
+
+```bash
+while true; do osascript -e 'tell application "System Events" to key code 106'; sleep 300; done
+```
+
+It isn't a separate switch — it's a consequence of the display setting, so it
+starts and stops with the toggle (checked every reconcile, and the sleep is
+sliced into 1 s steps so switching to 5 minutes stops it right away rather than
+up to five minutes later). F15 is used because nothing is bound to it.
+
+Why bother when displaysleep is already Never: `pmset` keeps the *display* on,
+but it doesn't touch `HIDIdleTime` — the counter anything idle-aware reads. Only a
+real HID event resets that, which is what the keystroke does.
+
+**It needs a one-time Accessibility grant.** Synthesizing key events is TCC-gated
+and a LaunchDaemon can't answer a permission prompt, so without the grant you get
+`System Events got an error: osascript is not allowed to send keystrokes. (1002)`.
+Fix: System Settings › Privacy & Security › Accessibility › **+** › ⌘⇧G ›
+`/usr/bin/osascript`. Note the grant is on the binary, so *any* script running as
+you can synthesize input afterwards — the usual cost of this approach, and the
+same one a Terminal-hosted loop relies on.
+
+`state.jiggling` says whether the loop is running; `state.jiggleOk` records
+whether the last tap actually landed (`null` until the first attempt), and the
+page shows the blocked message instead of pretending it works.
+
 ## What the agent can drive (only the first row is on the page)
 
 | Setting | Command | Root? |

@@ -96,6 +96,7 @@ Firebase remote for the MacBook Pro's display-sleep setting — the autoclicker 
 - **Deploy:** GitHub Pages at `/mac-toggle/`. Mac side: `sudo ./install.sh` → `/usr/local/libexec/mac-toggle.py` + LaunchDaemon `com.chaelri.mactoggle`, logs to `/var/log/mac-toggle.log`.
 - **Quirks:**
   - **Two RTDB paths** `/mac-toggle/desired` (phone writes) and `/mac-toggle/state` (Mac mirrors truth + ~45 s heartbeat), plus transient `/mac-toggle/command` for `lock` / `displayoff` / `sleep` / `refresh`. Same split as `/autoclicker/{command,state}`.
+  - **Jiggler rides the toggle** — on Never, a daemon thread taps F15 every 300 s (`osascript … key code 106`) so `HIDIdleTime` keeps resetting; `pmset` alone keeps the display lit but leaves the idle counter climbing. Needs a one-time Accessibility grant on `/usr/bin/osascript` (TCC blocks synthetic keys; a daemon can't answer a prompt).
   - **First run seeds, never applies** — empty `/desired` gets populated from the machine's current settings, so installing can't change anything silently.
   - **`keepAwake` holds a `caffeinate -dimsu` child process**, not a saved setting, so a crashed agent can't leave the Mac awake forever. Preferred over setting displaysleep to Never.
   - **Root daemon + `launchctl asuser`** — `pmset` and `/Library/Preferences/com.apple.loginwindow` need root; window-server work runs as the console user. `CGSession` was removed in macOS 26, so lock = `open -a ScreenSaverEngine`.

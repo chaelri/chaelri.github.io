@@ -94,6 +94,18 @@ agent and duplicated as `<option>` values in `index.html` — keep them in sync.
   Mac — it may be asleep". If the two power sources ever disagree (changed in
   System Settings directly), the page shows "Mixed" with both values instead of
   picking one to display.
+- **Jiggler (added 2026-07-30):** while the toggle is on Never, a daemon thread
+  taps **F15 every 300 s** in the console user's session (`osascript … key code 106`),
+  replacing a hand-rolled `while true; … sleep 300` Terminal loop. It's derived
+  from the display setting in `publish_state()`, not a separate switch, and its
+  sleep is sliced into 1 s steps so flipping to 5 minutes stops it immediately.
+  Rationale: `pmset` keeps the display lit but never resets `HIDIdleTime` — only a
+  real HID event does, which is what anything idle-aware reads.
+  **Requires a manual Accessibility grant on `/usr/bin/osascript`** — TCC blocks
+  synthetic key events and a LaunchDaemon can't answer a prompt (observed:
+  `osascript is not allowed to send keystrokes. (1002)`; after granting, verified
+  `keystroke delivered` + `jiggleOk: true`). The grant is per-binary, so any script
+  running as Charlie can synthesize input afterwards.
 - **`pmset` does NOT clamp `sleep` to `displaysleep`** — verified 2026-07-30:
   displaysleep 5 alongside sleep 1 was accepted unchanged. This Mac has
   `sleep 1` on both sources, harmless while displaysleep is Never but potentially
