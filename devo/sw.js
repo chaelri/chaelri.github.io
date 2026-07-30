@@ -1,6 +1,6 @@
 // sw.js — AGGRESSIVE cache refresh on new deployments (GitHub-safe)
 
-const DEPLOYMENT_ID = "v1.19.0-" + Date.now(); // Date.now() ensures a new cache on every SW update
+const DEPLOYMENT_ID = "v1.20.0-" + Date.now(); // Date.now() ensures a new cache on every SW update
 const CACHE_NAME = "dudu-devotion-" + DEPLOYMENT_ID;
 
 // Core app shell files (always refreshed). script.js was split into ordered
@@ -33,8 +33,17 @@ self.addEventListener("install", (event) => {
 
   event.waitUntil(
     caches.open(CACHE_NAME).then(async (cache) => {
-      await cache.addAll(
-        CORE_ASSETS.map((url) => new Request(url, { cache: "no-store" }))
+      // Cache each asset independently instead of cache.addAll(). addAll is
+      // all-or-nothing: ONE 404 rejects the whole promise, install fails, and
+      // the new SW never activates. config.js is gitignored (it holds the API
+      // keys), so on any checkout without it — every local Live Server run —
+      // addAll always threw and the service worker could never install.
+      await Promise.allSettled(
+        CORE_ASSETS.map(async (url) => {
+          const res = await fetch(new Request(url, { cache: "no-store" }));
+          if (!res.ok) throw new Error(`${url} → ${res.status}`);
+          await cache.put(url, res);
+        })
       );
     })
   );

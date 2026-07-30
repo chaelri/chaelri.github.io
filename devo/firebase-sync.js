@@ -37,7 +37,7 @@ const SYNC_STATIC_KEYS = [
   "prayersJournal",
 ];
 
-const SYNC_DYNAMIC_PREFIXES = ["reflection-", "devo.canvas.", "chapterContext.", "passageRecap-", "ntEcho-"];
+const SYNC_DYNAMIC_PREFIXES = ["reflection-", "devo.canvas.", "chapterContext.", "passageRecap-"];
 // NOTE: `dashProverb*` keys are intentionally NOT synced. Syncing them would
 // echo every refresh back through the Firebase listener and trigger a full
 // renderDashboard() (= the whole-dashboard fade-in). The proverb's an 8-hour

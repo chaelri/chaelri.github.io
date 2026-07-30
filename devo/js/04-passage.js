@@ -13,11 +13,6 @@ function resetAISections() {
     reflection.innerHTML = "";
     reflection.style.display = "none";
   }
-  const ntEcho = document.getElementById("ntEchoCard");
-  if (ntEcho) {
-    ntEcho.innerHTML = "";
-    ntEcho.hidden = true;
-  }
 }
 
 async function fetchInlineQuickContext(
@@ -652,12 +647,6 @@ async function showDashboard() {
     reflection.innerHTML = "";
     reflection.style.display = "none";
   }
-  // Clean up the NT-echo card so the dashboard render starts from a clean
-  // state. Lives inside the hidden .summary aside; resetting keeps state
-  // sane for the next passage load.
-  const ntEcho = document.getElementById("ntEchoCard");
-  if (ntEcho) { ntEcho.innerHTML = ""; ntEcho.hidden = true; }
-
   summaryEl.innerHTML = "";
   copyNotesBtn.style.display = "none";
 
@@ -1470,11 +1459,6 @@ async function loadPassage() {
 async function runAIForCurrentPassage() {
   if (!window.__aiPayload) return;
 
-  // NT-echo card has its own per-chapter cache (independent of the IDB AI
-  // cache), so kick it off here regardless of whether the context/reflection
-  // pair is cached. Fire-and-forget — the card renders into its own slot.
-  loadNtEcho();
-
   // Set loading flags synchronously before any await so playChapter()/ttsImmContextOpen()
   // always sees them as true when TTS opens the context screen right after this call.
   _contextLoading = true;
@@ -1809,6 +1793,11 @@ function _ensureReflectionRetryUI(mount) {
     mount.insertBefore(btn, mount.firstChild);
   }
 
+  // Repair any malformed verse-chip hrefs after every innerHTML overwrite
+  // (fresh render, cache restore, partial retry) so the global anchor delegate
+  // can resolve them. Idempotent.
+  _normalizeReflectionLinks(mount);
+
   _refreshRetryButtonState(mount);
 }
 
@@ -1911,7 +1900,7 @@ async function _smartRetryReflections() {
     const li = ol.children[idx];
     const ta = li.querySelector("textarea");
     if (ta) _wireReflectionTextarea(ta);
-    li.querySelectorAll("a.reflection-link").forEach(_wireReflectionLink);
+    _normalizeReflectionLinks(li);
   }
 
   // Restore answers by id (preserved textareas stay populated; new ones
@@ -1973,175 +1962,51 @@ function _wireReflectionTextarea(area) {
   });
 }
 
-// Wires the verse-reference link click → smooth-scroll + glow.
-function _wireReflectionLink(link) {
-  if (!link || link.dataset.wired === "1") return;
-  link.dataset.wired = "1";
-  link.addEventListener("click", (e) => {
-    e.preventDefault();
-    const rawRef =
-      link.textContent.replace(/[^0-9,\-–\s]/g, "").trim() ||
-      (link.getAttribute("href")?.replace("#", "") || "");
-    const verseNum = rawRef.replace(/[^0-9]/g, " ").trim().split(/\s+/)[0];
-    if (!verseNum) return;
-    const allVerses = document.querySelectorAll("#output .verse");
-    const target = Array.from(allVerses).find(
-      (el) => el.querySelector(".verse-num")?.textContent?.trim() === verseNum,
-    );
-    const header = target?.querySelector(".verse-header") || target;
-    if (header) {
-      header.scrollIntoView({ behavior: "smooth", block: "center" });
-      header.classList.remove("verseGlow");
-      void header.offsetWidth;
-      header.classList.add("verseGlow");
-    }
+// Verse-chip clicks are NOT handled here. The global delegate in
+// js/05-render-init.js already catches any `a[href^="#"]`, resolves it with
+// getElementById, and runs smoothScrollTo + `.verse-highlight` (the push-right
+// blue-border sweep). Every `.verse-header` is rendered with `id="<verseNum>"`
+// in loadPassage, so that lookup is all the wiring the chips need.
+//
+// There used to be a per-link handler here that called preventDefault() and
+// then added a class named "verseGlow" — but `verseGlow` is the @keyframes
+// name, not a class, so it matched no CSS rule. It intercepted the click
+// before the working global delegate could see it, which is why freshly
+// generated questions never animated while cached ones (never wired) did.
+//
+// All this needs is a well-formed href. The AI sometimes emits `#v.7` or
+// `#vv. 41` instead of `#7` / `#41`, and getElementById then finds nothing, so
+// the delegate bails and the browser follows the dead hash. Rewriting the href
+// to the first verse number in the label fixes those without touching the
+// click path.
+function _normalizeReflectionLinks(scope) {
+  if (!scope) return;
+  scope.querySelectorAll('a[href^="#"]').forEach((a) => {
+    const fromText = (a.textContent.match(/\d+/) || [])[0];
+    const fromHref = (a.getAttribute("href").match(/\d+/) || [])[0];
+    const verseNum = fromText || fromHref;
+    if (verseNum) a.setAttribute("href", `#${verseNum}`);
   });
 }
 
-// Old Testament book IDs in BIBLE_META. Used to gate features that only make
-// sense on OT chapters (e.g. NT-echo card, which surfaces the NT passage that
-// fulfills or echoes the OT one).
-const _OT_BOOK_IDS = new Set([
-  "GEN","EXO","LEV","NUM","DEU",
-  "JOS","JDG","RUT","1SA","2SA","1KI","2KI","1CH","2CH","EZR","NEH","EST",
-  "JOB","PSA","PRO","ECC","SNG",
-  "ISA","JER","LAM","EZK","DAN",
-  "HOS","JOL","AMO","OBA","JON","MIC","NAM","HAB","ZEP","HAG","ZEC","MAL",
-]);
-
-// NT-echo card: looks up the single most relevant New Testament passage that
-// fulfills or comments on the current OT chapter (e.g. Lev → Hebrews 7-10,
-// Genesis covenants → Romans 4). Cached by chapter (not verse) since the echo
-// applies to the whole chapter; key prefix `ntEcho-` is in
-// SYNC_DYNAMIC_PREFIXES so for sync users it rides the existing
-// localStorage→RTDB mirror.
-async function loadNtEcho() {
-  const card = document.getElementById("ntEchoCard");
-  if (!card) return;
-
-  const payload = window.__aiPayload;
-  if (!payload || !payload.book || !payload.chapter) {
-    card.hidden = true;
-    return;
-  }
-
-  // payload.book is the all-caps book NAME (e.g. "LEVITICUS") set by
-  // loadPassage. _bookNameToId resolves it back to the BIBLE_META key.
-  const bookId = _bookNameToId(payload.book);
-  if (!bookId || !_OT_BOOK_IDS.has(bookId)) {
-    card.hidden = true;
-    return;
-  }
-
-  const cacheKey = `ntEcho-${bookId}-${payload.chapter}`;
-  const cached = localStorage.getItem(cacheKey);
-  if (cached) {
-    try {
-      const obj = JSON.parse(cached);
-      _renderNtEchoCard(card, obj);
-      return;
-    } catch {}
-  }
-
-  // Loading state — same dot-loader the dashboard recap uses.
-  card.hidden = false;
-  card.innerHTML = `
-    <div class="nt-echo-label"><span class="material-symbols-outlined">link</span> Looking for the NT echo…</div>
-    <div class="nt-echo-loader"><span class="rdot"></span><span class="rdot"></span><span class="rdot"></span></div>
-  `;
-
-  const bookName = (window.BIBLE_META?.[bookId]?.name) || payload.book;
-  const prompt = `For the Old Testament chapter ${bookName} ${payload.chapter}, identify the single most directly relevant New Testament passage that FULFILLS, COMMENTS ON, or ECHOES its content.
-
-Examples of strong matches:
-- Leviticus sacrifice/priesthood → Hebrews 7–10
-- Genesis covenant with Abraham → Romans 4 or Galatians 3
-- Israel's wilderness → 1 Corinthians 10
-- Day of Atonement → Hebrews 9
-- Passover → 1 Corinthians 5:7 or John 1:29
-- Tabernacle / temple → Hebrews 8–9 or John 2
-- Davidic kingship → Acts 2 / Hebrews 1
-- Suffering servant prophecies → 1 Peter 2 / Acts 8
-
-Reply with ONLY a JSON object on a single line. No markdown, no code fences, no explanation around it.
-
-JSON shape:
-{"book":"<full NT book name>","chapter":<integer>,"startVerse":<integer>,"endVerse":<integer>,"note":"<one short sentence — max 24 words — explaining in casual gospel-centered tone WHY this NT passage is the echo. No 'this passage' / 'this chapter'. No academic words. No emojis. Address the reader as 'you' if natural.>"}
-
-Now produce the JSON for ${bookName} ${payload.chapter}:`;
-
-  try {
-    const res = await fetch("https://gemini-proxy-668755364170.asia-southeast1.run.app", {
-      method: "POST",
-      headers: { "Content-Type": "application/json" },
-      body: JSON.stringify({ task: "summary", contents: [{ parts: [{ text: prompt }] }] }),
-    });
-    const data = await res.json();
-    let raw = (data.candidates?.[0]?.content?.parts?.[0]?.text || "").trim();
-    raw = raw.replace(/^```(?:json)?\s*/i, "").replace(/\s*```$/i, "").trim();
-
-    // Some responses prepend prose before the JSON — slice from first { to last }.
-    const firstBrace = raw.indexOf("{");
-    const lastBrace = raw.lastIndexOf("}");
-    if (firstBrace >= 0 && lastBrace > firstBrace) {
-      raw = raw.slice(firstBrace, lastBrace + 1);
-    }
-    const obj = JSON.parse(raw);
-    if (!obj.book || !obj.chapter || !obj.note) throw new Error("incomplete echo");
-
-    localStorage.setItem(cacheKey, JSON.stringify(obj));
-
-    // Only render if the user is still on the same chapter (they may have
-    // navigated away while the request was in flight).
-    if (window.__aiPayload?.book === payload.book && window.__aiPayload?.chapter === payload.chapter) {
-      _renderNtEchoCard(card, obj);
-    }
-  } catch (err) {
-    console.warn("[nt-echo] fetch failed:", err?.message || err);
-    card.hidden = true;
-  }
-}
-
-function _renderNtEchoCard(card, data) {
-  const { book, chapter, startVerse, endVerse, note } = data || {};
-  if (!book || !chapter || !note) { card.hidden = true; return; }
-
-  const sv = Number(startVerse) || 1;
-  const ev = Number(endVerse) || sv;
-  const refLabel = ev > sv ? `${book} ${chapter}:${sv}–${ev}` : `${book} ${chapter}:${sv}`;
-
-  card.hidden = false;
-  card.innerHTML = `
-    <div class="nt-echo-label"><span class="material-symbols-outlined">link</span> NT echo</div>
-    <div class="nt-echo-ref">${_escHtml(refLabel)}</div>
-    <div class="nt-echo-note">${_escHtml(note)}</div>
-    <button class="nt-echo-read-btn" type="button">
-      Read this <span class="material-symbols-outlined">arrow_forward</span>
-    </button>
-  `;
-  const btn = card.querySelector(".nt-echo-read-btn");
-  if (btn) {
-    btn.onclick = () => {
-      const targetBookId = _bookNameToId(book);
-      if (!targetBookId) return;
-      // loadPassageById takes "BOOK-CHAPTER-VERSE"; pass the start verse so the
-      // glow animation lands on the relevant verse when the chapter renders.
-      loadPassageById(`${targetBookId}-${chapter}-${sv}`);
-    };
-  }
-}
-
-// Five reflection angles the prompt rotates through so consecutive chapters
-// don't all hit the same shape. _pickAnglesForPassage picks 3 of these
+// Reflection angles the prompt rotates through so consecutive chapters don't
+// all hit the same shape. _pickAnglesForPassage picks 3 of these
 // deterministically per book+chapter so retries on the same chapter use the
 // same angle mix (the AI rephrases within them) but neighboring chapters get
 // distinctly different mixes.
+//
+// EVERY angle here is anchored to the chapter the reader is actually on. The
+// gospel lens (`christ`) is deliberately the ONLY one that reaches outside the
+// chapter, and _pickAnglesForPassage only lets it into the pool on ~1 in 3
+// chapters — see the note there for why.
 const _REFLECTION_ANGLES = [
-  { id: "character", label: "CHARACTER OF GOD",      desc: "What this passage reveals about who God is — His holiness, mercy, justice, attention, or love. The question should make the reader pause on God Himself, not their own behavior." },
-  { id: "heart",     label: "HEART PRINCIPLE",       desc: "The underlying heart-attitude the passage exposes or invites — pride, fear, trust, complacency, longing. Names a real internal posture, not a moral lesson." },
-  { id: "christ",    label: "CHRIST FULFILLMENT",    desc: "How Jesus completes, fulfills, or replaces what is pictured here (especially for OT shadows — sacrifice, priest, purity, rest, kingdom). Connects the chapter to the gospel without making the reader perform OT ritual." },
-  { id: "identity",  label: "IDENTITY IN CHRIST",    desc: "Who the reader is now in light of this passage and the gospel — beloved, forgiven, adopted, sealed, free. Reframes the OT command from 'must I' to 'who am I'." },
-  { id: "prayer",    label: "PRAYER-SHAPED",         desc: "A question the reader could pray honestly in one breath — surfaces a felt confession, a longing, a thanksgiving, or a cry. Language should be visceral, not polished." },
+  { id: "observe",   label: "WHAT ACTUALLY HAPPENS",  desc: "Make the reader look straight at something in the chapter — a specific person, action, number, object, place, or word choice — and say what they make of it. The question is unanswerable by anyone who didn't read THIS chapter." },
+  { id: "character", label: "CHARACTER OF GOD",       desc: "What God does or says IN THIS CHAPTER, and what that shows about who He is. Point at the actual verse where He acts — not a general truth about God that could be pulled from anywhere." },
+  { id: "heart",     label: "HEART PRINCIPLE",        desc: "The internal posture this chapter exposes or invites — pride, fear, trust, complacency, longing, resentment. Name a real attitude, not a moral lesson." },
+  { id: "tension",   label: "HONEST TENSION",         desc: "What is hard, strange, uncomfortable, or confusing about this chapter for a modern reader — and invite honesty about it instead of a tidy answer. Good for laws, judgment, lists, and violence. Never resolve the tension for the reader." },
+  { id: "action",    label: "THIS WEEK",              desc: "One concrete step this week that follows from what this chapter actually says. Tied to the chapter's own principle — not a generic 'serve God more' prompt." },
+  { id: "prayer",    label: "PRAYER-SHAPED",          desc: "A question the reader could pray honestly in one breath — surfaces a felt confession, a longing, a thanksgiving, or a cry, sparked by something specific in this chapter. Visceral, not polished." },
+  { id: "christ",    label: "GOSPEL LENS",            desc: "ONLY if this chapter itself pictures something Jesus completes (sacrifice, priest, temple, passover, rest, ransom, king). Must still name the concrete thing in THIS chapter that carries the picture. If the chapter has no such picture, use the CHARACTER OF GOD angle instead — do NOT force a Jesus connection." },
 ];
 
 function _hashStr(s) {
@@ -2152,7 +2017,15 @@ function _hashStr(s) {
 
 function _pickAnglesForPassage(book, chapter) {
   const seed = _hashStr(`${book || ""}-${chapter || ""}`);
-  const pool = [..._REFLECTION_ANGLES];
+  // The gospel lens only enters the pool on ~1 in 3 chapters. Every chapter
+  // getting a "how does Jesus fulfill this" question was the exact failure
+  // Charlie flagged — the questions drifted so far into NT language that they
+  // stopped being about the chapter he'd just read. The New-Covenant guard in
+  // the prompt is what stops OT law being asked as still-binding; it was never
+  // meant to make every question point at the New Testament.
+  const pool = _REFLECTION_ANGLES.filter(
+    (a) => a.id !== "christ" || seed % 3 === 0,
+  );
   const picked = [];
   for (let i = 0; i < 3 && pool.length; i++) {
     const idx = (Math.floor(seed / Math.pow(7, i))) % pool.length;
@@ -2230,64 +2103,38 @@ You must NOT give answers.
 You must NOT speak as God.
 
 
-COVENANT RULE (CRITICAL — NON-NEGOTIABLE — APPLIES TO ALL OLD TESTAMENT PASSAGES):
+RULE 1 — STAY IN THIS CHAPTER (THE MOST IMPORTANT RULE):
 
-The reader is a Christian living AFTER the resurrection of Jesus, under the NEW COVENANT (Hebrews 8–10, Acts 10:9–16, Mark 7:19, Galatians 3:23–25, Colossians 2:16–17, Romans 14:14, 1 Timothy 4:3–5).
+Every question must be about the chapter printed at the bottom of this prompt. The reader just finished reading it. If a question could have been asked of a completely different chapter, it is WRONG — rewrite it.
 
-This means the following OT laws are NO LONGER BINDING on the reader:
-- Dietary laws (clean/unclean animals, food restrictions) — Jesus declared all foods clean (Mark 7:19; Acts 10:15)
-- Ceremonial purity laws (washing rituals, touching dead things, bodily-discharge rules)
-- Sacrificial laws (animal offerings, priestly rituals)
-- Civil/theocratic laws (stoning, ancient Israel's national legal code)
-- Festival and Sabbath ceremonial observance (Colossians 2:16)
+Concretely:
+- Each question must name something that actually appears in THIS chapter — a person, a place, an object, an action, a number, a command, a phrase.
+- Do NOT open with a theological statement and then ask something generic. That is the single most common failure. Emit the question only — a short factual clause from the chapter is fine inside the question itself, a mini-sermon in front of it is not.
+- Do NOT drift to the New Testament, the cross, or "your identity in Christ" unless THIS chapter itself carries that picture AND you still name the concrete thing in this chapter that carries it. Most chapters do not. That is fine — a question about what God does in this chapter is a good question on its own.
 
-The reader is fully redeemed and FREE from these requirements. Therefore:
+❌ BAD (this is the failure mode — all three could be pasted onto any chapter):
+- "Jesus is the ultimate fulfillment of God's provision for His people. How does His finished work on the cross make you feel secure in God's promises for you today?"
+- "God's faithfulness to Israel in giving them land is a shadow of our inheritance in Christ. What are you praying for this week that God has already promised you in Him?"
+- "You are set apart for God's purposes, just as the Levites were. Who are you becoming in Christ now that you are free from the old system?"
 
-⛔ HARD FORBIDDEN — NEVER ASK THESE QUESTION TYPES (zero tolerance):
-- "What unclean food will you avoid this week?"
-- "What food choice will you make differently this week, reflecting God's call to be set apart?"
-- "How will you keep yourself ceremonially clean…?"
-- "Which sacrifice / offering will you bring…?"
-- "How will you observe this purity / dietary / ritual law in your life today?"
-- ANY question that asks the reader to literally obey, perform, or modify their behavior to match an OT ceremonial / dietary / sacrificial / civil command.
-- ANY question that implies the reader is still under those laws.
+✅ GOOD (same chapter — Joshua 21, the Levite towns and the closing summary):
+- "Why do you think God scattered the Levites across every tribe instead of giving them one territory?"
+- "Which promise are you still waiting on, when v. 45 says not one of God's promises failed?"
+- "What has God actually given you that you keep counting as less than what others got?"
 
-These questions are biblically WRONG for a NT believer. They contradict the gospel of grace and Christ's finished work. If you generate one, the question is rejected.
 
-✅ INSTEAD, redirect to one of these four NT-faithful angles:
+RULE 2 — NEW COVENANT GUARD (narrow, but non-negotiable):
 
-  1. CHARACTER OF GOD revealed by the law (His holiness, justice, care, distinction-making, attention to detail) → "What does this passage show you about who God is — and how does that shape your worship today?"
+The reader lives after the resurrection, under the new covenant (Mark 7:19, Acts 10:9–16, Colossians 2:16–17, Hebrews 8–10). So NEVER ask the reader to literally perform, keep, or avoid something under an OT ceremonial, dietary, sacrificial, or civil law:
 
-  2. HEART PRINCIPLE behind the ceremony, applied to NT life (set-apart living, the seriousness of sin, costly devotion, separation from worldliness — NOT the literal ritual) → "Where in your life is God calling you to be 'set apart' in a way that honors Him — not in food, but in attitudes, relationships, or habits?"
+❌ "What unclean food will you avoid this week?"
+❌ "How will you keep yourself ceremonially clean?"
+❌ "Which offering will you bring this week?"
+❌ Anything implying the reader is still bound by those laws.
 
-  3. CHRIST FULFILLMENT — how the OT shadow points to Jesus (the true sacrifice, the true priest, the true purity, the true Sabbath rest) → "Knowing Jesus fulfilled this law on your behalf, how does that change the way you carry guilt or strive for holiness this week?"
+This guard is ONLY about not putting the reader back under the law. It is NOT an instruction to point every question at the New Testament. When a law-heavy chapter comes up, ask about what the law shows regarding God, or the heart behind it, or what's genuinely hard about reading it today — all while staying inside the chapter per RULE 1.
 
-  4. NT-PARALLEL TRANSFER — the OT principle re-expressed in NT moral terms (e.g., bodily holiness → 1 Cor 6:19–20; food laws → Romans 14 / 1 Cor 8 freedom-and-love; Sabbath → Hebrews 4 rest in Christ) → "How might you live out the heart of this passage — set-apart devotion to God — through love, integrity, or self-control today?"
-
-CONCRETE REWRITE EXAMPLES (study these — match this style):
-
-  Passage: Leviticus 11 (clean/unclean food)
-  ❌ BAD:  "What specific food choice will you make differently this week, reflecting God's call to be set apart?"
-  ✅ GOOD: "Jesus declared all foods clean — so what NON-food area of your life does God still call you to set apart for Him?"
-
-  Passage: Leviticus 11
-  ❌ BAD:  "What unclean food will you avoid?"
-  ✅ GOOD: "What does God's careful attention to clean vs. unclean reveal about His character — and how does that shape your awe of Him today?"
-
-  Passage: Leviticus 16 (Day of Atonement)
-  ❌ BAD:  "How will you bring a sin offering this week?"
-  ✅ GOOD: "Jesus is the true and final sacrifice — what guilt are you still carrying that He has already paid for?"
-
-  Passage: Leviticus 19 (holiness code)
-  ❌ BAD:  "How will you keep yourself ceremonially pure?"
-  ✅ GOOD: "What's one way you've been blending in with the world that God is asking you to live differently in?"
-
-SELF-CHECK BEFORE EMITTING EACH QUESTION:
-1. Does this question ask the reader to literally perform / observe / avoid something the OT ritual law commanded? → If YES, REWRITE. The reader is not under that law.
-2. Does the question imply the reader still needs to "keep" or "fulfill" a ceremonial / dietary / sacrificial requirement? → If YES, REWRITE. Christ fulfilled it.
-3. Does the question point to God's character, the heart-principle, Christ's fulfillment, or a NT-shaped application? → If YES, KEEP IT.
-
-For NT passages, universal moral commands (love, honesty, sexual purity, prayer, generosity, justice, the fruit of the Spirit), and creation/wisdom literature (Proverbs, Psalms, etc.), apply normally — this covenant rule only restricts OT ceremonial / dietary / sacrificial / civil law from being treated as still-binding.
+Universal moral commands (love, honesty, purity, prayer, generosity, justice), wisdom literature, narrative, and all NT passages need no redirection at all — ask about them directly.
 
 
 TASK:
@@ -2303,6 +2150,8 @@ FRESHNESS RULE (STRICT — defeats user fatigue from reading similar OT chapters
 CRITICAL LINKING RULE (MUST FOLLOW):
 - EVERY verse reference MUST be written as an <a> link
 - Link format: <a href="#X" class="reflection-link">v. X</a> or <a href="#X" class="reflection-link">vv. X–Y</a>
+- Use "v." for ONE verse and "vv." ONLY for a range. "vv. 41" for a single verse is wrong — write "v. 41"
+- The verse you link must be the verse the question is actually about, and it MUST exist in the passage printed below
 - The href MUST always point to the FIRST verse in the reference
 - DO NOT include any verse numbers outside of <a> tags
 - STRICTOR RULE: DO NOT include parentheses around the link or the text inside the link (e.g., write "v. 5", NOT "(v. 5)" and NOT "<a>(v. 5)</a>")
@@ -2317,26 +2166,29 @@ QUESTION STYLE (STRICT — FOLLOW EXACTLY):
 - ONE single idea per question. If you're tempted to use "considering…", "in light of…", "given that…" — STOP and split into two questions or pick one angle
 - Use plain, everyday English. A 16-year-old should understand every word without a dictionary
 - Prefer CONCRETE over abstract. "What would you do if…" beats "What does this teach you about…"
-- At least ONE question must name a specific action for THIS WEEK
+- If the THIS WEEK angle is in the required set above, that question names a specific action for this week. At most ONE question does this — the rest stay reflective
 - VARY the opening — don't start every question with "What" or "How"
 
 BANNED WORDS / PHRASES (do not use any of these):
 - theological, implications, undeserving, unified, turning towards, in light of, considering, ultimate, collective response, encompassing, holistic, grapple, wrestle with, challenge your understanding, sovereign, providence, salvific, eschatological
 
 FORBIDDEN PATTERNS:
+- A theological statement followed by a generic question ("Jesus is X. How does that make you feel Y?") — emit the question ONLY, never a mini-sermon in front of it
+- Sliding to the cross / "in Christ" / "your inheritance" / "the old system" when this chapter never raised it — see RULE 1
 - "What does X teach you about Y?" — school-quiz phrasing, don't use
 - "How does X challenge your understanding of Y?" — academic, don't use
 - Compound questions with "and" connecting two different concepts
 - Questions that restate the verse before asking (just ask the question)
 
 GOOD EXAMPLES (write like these):
-- "Where in your life are you running from something God is asking you to do? (vv. 1–3)"
-- "What's one thing you're stubbornly holding onto that God is calling you to let go of? (v. 5)"
+- "Where in your life are you running from something God is asking you to do? vv. 1–3"
+- "What's one thing you're stubbornly holding onto that God is calling you to let go of? v. 5"
 - "How would your week look if you took v. 8 seriously starting tomorrow?"
-- "Who in your life needs the same mercy God gave Nineveh — and what's stopping you? (v. 10)"
+- "Who in your life needs the same mercy God gave Nineveh — and what's stopping you? v. 10"
 - "Name one habit you'd cut this week if you really believed v. 9 applied to you."
 
 BAD EXAMPLES (do NOT write like these):
+- "Jesus is the ultimate fulfillment of God's provision for His people. How does His finished work on the cross make you feel secure in God's promises for you today?" — sermon-then-generic-question, and nothing in it came from the chapter
 - "What does their collective response, from the common people to the king, teach you about the power of a unified turning towards God?" — too long, academic, multi-concept
 - "Considering God's ultimate compassion, how does this passage challenge your understanding of mercy, even to those who might seem undeserving?" — 3 concepts crammed in, jargon
 
@@ -2357,6 +2209,14 @@ STRUCTURE:
 - Inside each <li>:
   - A single <p> containing the full question text (including the verse link)
   - A <textarea> immediately after the <p>
+
+
+SELF-CHECK EACH QUESTION BEFORE EMITTING IT:
+1. Could this exact question be asked of a different chapter of the Bible? → If YES, REWRITE. Name something from THIS chapter.
+2. Does it start with a statement instead of the question itself? → If YES, delete the statement and keep only the question.
+3. Does it mention Jesus, the cross, or "in Christ" without this chapter carrying that picture? → If YES, REWRITE around what this chapter actually says.
+4. Does it ask the reader to keep an OT ceremonial / dietary / sacrificial / civil law? → If YES, REWRITE. They are not under it.
+5. Is it over 20 words? → If YES, cut it down.
 
 
 PASSAGE:
@@ -2434,7 +2294,7 @@ async function renderAIReflectionQuestions({ book, chapter, versesText }) {
       ta.id = `reflection-${devotionId()}-${i}`;
     });
 
-    mount.querySelectorAll("a.reflection-link").forEach(_wireReflectionLink);
+    _normalizeReflectionLinks(mount);
 
     initializeReflections();
     _refreshRetryButtonState(mount);

@@ -433,7 +433,6 @@ async function ttsSynthesize(text, retries = 5, meta) {
   catch (err) { console.warn("[devo-tts] cache read failed:", refLabel, err); }
   if (cached?.blob) {
     if (meta && meta.verseNum && !_metasInclude(cached.metas || [], meta)) {
-      console.log("[devo-tts] append meta", refLabel);
       _saveTtsAudio(cacheKey, cached.blob, cached.timings, meta);
     }
     _ttsLogPush("hit", meta, "already saved");
@@ -455,10 +454,8 @@ async function ttsSynthesize(text, retries = 5, meta) {
 
   // 3. We're the lead — start a fresh flight, register it, run synth, clean up.
   const flight = (async () => {
-    console.log("[devo-tts] queue", refLabel);
     _ttsLogPush("queued", meta, "waiting");
     await _synthAcquire();
-    console.log("[devo-tts] start", refLabel);
     _ttsLogPush("started", meta, "downloading…");
     try {
       for (let attempt = 0; attempt < retries; attempt++) {
@@ -474,7 +471,6 @@ async function ttsSynthesize(text, retries = 5, meta) {
           const bytes = Uint8Array.from(atob(audioBase64), c => c.charCodeAt(0));
           const blob = new Blob([bytes], { type: "audio/mpeg" });
           _saveTtsAudio(cacheKey, blob, timings, meta);
-          console.log("[devo-tts] saved", refLabel, attempt > 0 ? `(try ${attempt + 1})` : "");
           _ttsLogPush("success", meta, attempt > 0 ? `saved (try ${attempt + 1})` : "saved");
           return _edgeToClientShape(blob, timings);
         } catch (err) {
@@ -793,7 +789,6 @@ async function _renderAudioLibrary(expandBook) {
       _downloadingBooks.add(book);
 
       const fireAllChapters = () => {
-        console.log("[devo-tts] fireAllChapters", book, "chapters:", meta.chapters.length);
         for (let i = 1; i <= meta.chapters.length; i++) {
           _ttsPrefetchSpecific({ book, chapter: i });
         }
@@ -842,7 +837,6 @@ async function _renderAudioLibrary(expandBook) {
           // share one audio blob without losing each other's index slot.
           _ttsPrefetchSpecific({ book, chapter: i }, missing);
         }
-        console.log("[devo-tts] fireIncomplete", book, "incomplete:", incomplete.join(",") || "none");
       };
 
       fireAllChapters();
@@ -880,7 +874,6 @@ async function _renderAudioLibrary(expandBook) {
         const totalVerses = meta.chapters.reduce((a, b) => a + b, 0);
         const done = totalCachedVerses >= totalVerses;
         const timedOut = Date.now() - startTime > 10 * 60 * 1000;
-        console.log("[devo-tts] poll", book, `${totalCachedVerses}/${totalVerses}`, "sem:", _synthSem.active, "+", _synthSem.queue.length);
 
         if (!done) fireIncompleteChapters(grouped);
 
@@ -930,7 +923,6 @@ async function _renderAudioLibrary(expandBook) {
 async function _ttsPrefetchSpecific(ref, onlyVerseNums, opts) {
   if (!ref) { console.warn("[devo-tts] prefetch: no ref"); return; }
   if (!bibleData && typeof fetchBibleData === "function") {
-    console.log("[devo-tts] prefetch: loading bibleData…");
     try { await fetchBibleData(); }
     catch (err) { console.error("[devo-tts] prefetch: fetchBibleData failed", err); }
   }
@@ -946,11 +938,6 @@ async function _ttsPrefetchSpecific(ref, onlyVerseNums, opts) {
   const filtered = onlyVerseNums
     ? verseEntries.filter(([verseNum]) => onlyVerseNums.has(String(verseNum)))
     : verseEntries;
-  if (onlyVerseNums) {
-    console.log("[devo-tts] retry verses", ref.book, ref.chapter, [...onlyVerseNums].sort((a,b)=>+a-+b).join(","));
-  } else {
-    console.log("[devo-tts] prefetch chapter", ref.book, ref.chapter, "verses:", filtered.length);
-  }
   for (let i = 0; i < filtered.length; i++) {
     const [verseNum, raw] = filtered[i];
     // Normalize the same way loadPassage does so cache keys align between the
