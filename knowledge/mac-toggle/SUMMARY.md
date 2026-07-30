@@ -94,15 +94,22 @@ agent and duplicated as `<option>` values in `index.html` — keep them in sync.
   Mac — it may be asleep". If the two power sources ever disagree (changed in
   System Settings directly), the page shows "Mixed" with both values instead of
   picking one to display.
-- **Notifications (added 2026-07-30):** `notify()` → `osascript display notification`
-  via `sh_as_user`, fired from `publish_state()` only when `mode_of()` changes.
-  `_last_mode` starts as `None` and is seeded without announcing, so restarts and
-  the ~45 s heartbeat stay silent. Copy: ✅ Never / ❌ 5 minutes / ⚠️ Mixed /
-  ⚠️ Nudge blocked. **The glyph is text, not an icon** — `display notification`
-  cannot set one, macOS credits the posting app (Script Editor), and
-  `terminal-notifier -appIcon` isn't reliable on current macOS; per-state `.app`
-  bundles would be the only real fix and Charlie declined that as over-engineering.
-  Muted notifications still exit 0, so nothing may ever depend on these.
+- **Menu bar indicator (`menubar/`, added 2026-07-30):** ~180-line Swift
+  `NSStatusItem`. ✓/✗ SF Symbol for the mode, `…` while sending, ⚠️ on transport
+  failure. Left click toggles, right click opens a menu. Reads `pmset` **locally**
+  (real truth, instant, offline-proof) and writes only via Firebase so the root
+  daemon stays the sole writer of system settings. Per-user LaunchAgent —
+  `install-menubar.sh` needs **no sudo** and no Accessibility. Build requires
+  `swiftc -parse-as-library` because the source uses `@main`; Xcode CLT suffices,
+  no Homebrew/SwiftBar dependency.
+- **Speech instead of notifications.** `speak()` → `say` via `sh_as_user`, on its
+  own thread (`say` blocks until the phrase ends and this runs on the publish
+  path). Says "Always on activated" / "Always on deactivated", and
+  "Always on nudge blocked. Grant accessibility." on the blocked transition.
+  Notifications shipped first (✅/❌ in the subtitle, because `display notification`
+  cannot set a custom icon — macOS credits Script Editor) and were **removed the
+  same day** at Charlie's request: the menu bar icon covers "what is it now",
+  speech covers "it changed".
 - **Jiggler (added 2026-07-30):** while the toggle is on Never, a daemon thread
   taps **F15 every 300 s** in the console user's session (`osascript … key code 106`),
   replacing a hand-rolled `while true; … sleep 300` Terminal loop. It's derived

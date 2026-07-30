@@ -42,6 +42,16 @@ host, so the remote itself lives at `index.html`.
   specifically to avoid an infinite apply loop.
 - **First run seeds, never applies.** Empty `/desired` → agent copies current
   machine state into it. Preserve that on any refactor; it's what makes installing safe.
+- **Seed ONLY on a genuinely empty node.** `fb_get()` returns the `FETCH_FAILED`
+  sentinel on error precisely so a network hiccup isn't mistaken for "empty
+  database" — the original code seeded on any non-dict and re-seeded 17 times in
+  one evening, which would silently overwrite a setting made while the Mac was
+  offline. A bare string in `/desired` (a client aimed at the wrong path) is run
+  as a command if it names one, then the object shape is restored.
+- **Menu bar app is `menubar/`, a separate per-user LaunchAgent.** It reads
+  `pmset` directly and writes only to Firebase — never let it call `pmset -c/-b`,
+  it runs unprivileged and the daemon is the only writer. Build needs
+  `swiftc -parse-as-library` (the source uses `@main`).
 - **Untrusted input.** Everything from Firebase is hostile: list-args only, no
   `shell=True`, ints clamped to choice lists, `lockMessage` stripped of control
   chars and capped at 200. The DB is world-writable today (see README).

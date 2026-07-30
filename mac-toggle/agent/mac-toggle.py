@@ -128,21 +128,6 @@ def sh_as_user(args, timeout=20):
     return sh([LAUNCHCTL, "asuser", str(uid), "/usr/bin/sudo", "-u", user] + args, timeout)
 
 
-def notify(title, subtitle, message):
-    """
-    Post a macOS notification in the console user's session.
-
-    Shows up attributed to Script Editor (that's how osascript notifications are
-    credited). Fire-and-forget: if the user has those notifications muted this
-    exits 0 and shows nothing, which is fine — it's never load-bearing.
-    """
-    def esc(s):
-        return str(s).replace("\\", "\\\\").replace('"', '\\"')
-    sh_as_user([OSASCRIPT, "-e",
-                'display notification "%s" with title "%s" subtitle "%s"'
-                % (esc(message), esc(title), esc(subtitle))], timeout=10)
-
-
 def speak(text):
     """
     Say it out loud in the user's audio session. Threaded because `say` blocks
@@ -331,8 +316,10 @@ class Jiggler(object):
                 log("jiggler: keystroke BLOCKED — grant Accessibility to osascript "
                     "(System Settings › Privacy & Security › Accessibility). %s" % err.strip())
                 # Worth interrupting for: the toggle looks fine but silently
-                # isn't keeping the machine active.
-                notify("Display Sleep", "⚠️ Nudge blocked", "Grant Accessibility to osascript.")
+                # isn't keeping the machine active. Spoken rather than a
+                # notification, since that's the channel Charlie kept — and this
+                # has actually lapsed mid-session before, so it must not be quiet.
+                speak("Always on nudge blocked. Grant accessibility.")
         self.ok = good
         return good
 
@@ -515,6 +502,13 @@ def do_action(cmd):
 # Firebase REST
 # --------------------------------------------------------------------------- #
 
+# Sentinel for "the read itself failed", so callers can tell a network error
+# apart from a node that is genuinely empty. Conflating the two made the agent
+# re-seed /desired on every hiccup, which would silently discard a setting the
+# user made while the Mac was offline.
+FETCH_FAILED = object()
+
+
 def fb_get(path):
     url = "%s/%s/%s.json" % (DB_URL, ROOT, path)
     try:
@@ -522,7 +516,7 @@ def fb_get(path):
             return json.loads(r.read().decode("utf-8"))
     except Exception as e:                                     # noqa: BLE001
         log("GET %s failed: %s" % (path, e))
-        return None
+        return FETCH_FAILED
 
 
 def fb_put(path, value):
@@ -557,26 +551,14 @@ def mode_of(st):
 
 def announce_mode(mode, st):
     """Compact toast when the mode actually changes — not on every heartbeat."""
-    # The glyph is the status "logo". `display notification` can't set a custom
-    # icon — macOS always uses the posting app's (Script Editor here) — so the
-    # marker goes in the text where it's actually controllable.
+    # Voice only — notifications were removed 2026-07-30 at Charlie's request;
+    # the menu bar icon covers "what is it right now", speech covers "it changed".
     if mode == "never":
-        sub = "✅ Never"
-        msg = ("Staying awake · nudge blocked." if st.get("jiggleOk") is False
-               else "Staying awake and active.")
-        said = "Always on activated"
+        speak("Always on activated")
     elif mode == "rest":
-        mins = int(st.get("displaySleepAC") or 0)
-        sub = "❌ %d minutes" % mins
-        msg = "Sleeps after %d minutes idle." % mins
-        said = "Always on deactivated"
-    else:
-        sub = "⚠️ Mixed"
-        msg = "battery %s · adapter %s" % (st.get("displaySleepBatt"), st.get("displaySleepAC"))
-        said = None                      # no announcement for a half-applied state
-    notify("Display Sleep", sub, msg)
-    if said:
-        speak(said)
+        speak("Always on deactivated")
+    # Mixed stays silent: announcing "activated" for a half-applied state
+    # would be wrong, and the menu bar icon still shows the truth.
 
 
 def host_name():
@@ -617,9 +599,29 @@ def reconcile():
     current = read_state()
     desired = fb_get("desired")
 
-    if not isinstance(desired, dict):
-        # First run against an empty node — seed /desired from reality so the
-        # phone has something to render and nothing gets "applied" on boot.
+    if desired is FETCH_FAILED:
+        # Never seed on a failed read: that would overwrite a setting the user
+        # made while we were offline with whatever the machine happens to be.
+        warn_once("desired-unreadable", "/desired unreadable — leaving it alone this pass")
+        publish_state(current)
+        return
+
+    if desired is not None and not isinstance(desired, dict):
+        # Something wrote a bare value where the settings object belongs — most
+        # likely a client pointed at /desired instead of /command. Honour it if
+        # it names a real command (a misaimed iOS Shortcut still works), then
+        # restore the object shape.
+        stray = str(desired).strip().lower()
+        log("/desired holds a bare value %r — expected an object" % desired)
+        if stray in ("toggle", "lock", "displayoff", "sleep", "refresh"):
+            log("  …treating it as the '%s' command; aim the client at /command" % stray)
+            do_action(stray)
+            return
+        desired = None                       # fall through to a clean re-seed
+
+    if desired is None:
+        # Genuinely empty node — seed /desired from reality so the phone has
+        # something to render and nothing gets "applied" on boot.
         seed = dict((k, current[k]) for k in WRITABLE if k in current)
         fb_put("desired", seed)
         log("seeded /desired from current machine state")
@@ -650,7 +652,7 @@ def reconcile():
 
 def handle_command():
     cmd = fb_get("command")
-    if not cmd or not isinstance(cmd, str):
+    if cmd is FETCH_FAILED or not cmd or not isinstance(cmd, str):
         return
     do_action(cmd)
     fb_put("command", "")

@@ -99,32 +99,50 @@ which is why a hand-run `while true` loop works with no extra setup).
 whether the last tap actually landed (`null` until the first attempt), and the
 page shows the blocked message instead of pretending it works.
 
-## Notifications
+## Menu bar indicator
 
-The agent posts a compact toast in the console user's session when the mode
-actually changes:
+`menubar/` is a ~180-line Swift `NSStatusItem` that shows the current mode and
+toggles it with one click.
 
-| When | Toast |
+```bash
+cd mac-toggle/menubar
+./install-menubar.sh            # no sudo — per-user LaunchAgent
+./install-menubar.sh uninstall
+```
+
+- **✓ filled circle** = Always On, **✗ circle** = sleeps when idle, **…** = sending,
+  **⚠️** = couldn't reach Firebase
+- **Left click** toggles · **right click** opens a menu (status, flip, open remote, quit)
+- Built with `swiftc -parse-as-library` (needed because the source uses `@main`);
+  Xcode Command Line Tools are enough, no Homebrew, no SwiftBar
+
+It reads `pmset` **locally** rather than Firebase — that's the real source of
+truth, it's instant, and the icon stays correct with no network. Writes go
+through Firebase so the root daemon remains the only thing touching system
+settings; the menu bar app runs as you and needs no root and no Accessibility.
+
+## Spoken announcements
+
+On a real mode change the agent says, through the console user's audio session:
+
+| Mode | Says |
 |---|---|
-| Never | **Display Sleep** · ✅ Never · "Staying awake and active." |
-| 5 minutes | **Display Sleep** · ❌ 5 minutes · "Sleeps after 5 minutes idle." |
-| Sources disagree | **Display Sleep** · ⚠️ Mixed · "battery … · adapter …" |
-| Keystroke refused | **Display Sleep** · ⚠️ Nudge blocked · "Grant Accessibility to osascript." |
+| Never | "Always on activated" |
+| 5 minutes | "Always on deactivated" |
+| Keystroke refused | "Always on nudge blocked. Grant accessibility." |
 
-Only on a real transition — `_last_mode` is seeded without announcing on the
-first publish, so reboots and reinstalls stay quiet, and the ~45 s heartbeat never
-fires one.
+Only on a transition — `_last_mode` is seeded without announcing on the first
+publish, so reboots and reinstalls stay quiet and the ~45 s heartbeat never fires
+one. "Mixed" is deliberately silent: announcing "activated" for a half-applied
+state would be wrong, and the menu bar icon still shows the truth.
 
-**The ✅/❌ is text, not an icon, and that's deliberate.** `display notification`
-has no way to set a custom icon — macOS always credits the posting app, so these
-appear under **Script Editor**. The glyph goes in the subtitle because that's the
-part we can actually control. Changing the real icon would mean shipping per-state
-`.app` bundles; `terminal-notifier -appIcon` is not a reliable substitute on
-current macOS.
+Speech runs on its own thread — `say` blocks until the phrase finishes, and this
+fires from the publish path, so it must never stall the Firebase stream loop.
 
-Notifications are fire-and-forget: if Script Editor's notifications are muted,
-`osascript` still exits 0 and nothing appears. Nothing depends on them. To stop
-them auto-dismissing, System Settings → Notifications → Script Editor → **Alerts**.
+> Notifications were built first (`display notification`, ✅/❌ in the subtitle
+> because macOS won't let a script set a custom icon) and then **removed on
+> 2026-07-30** — the menu bar icon answers "what is it now" and speech answers
+> "it changed", so the toasts were redundant.
 
 ## What the agent can drive (only the first row is on the page)
 
@@ -217,10 +235,13 @@ network ever reaches a shell (every call is list-args, no `shell=True`).
 mac-toggle/
 ├── index.html                        ← the remote: one toggle (GitHub Pages /mac-toggle/)
 ├── README.md
-└── agent/
-    ├── mac-toggle.py                 ← the "firmware": SSE listener + reconciler
-    ├── com.chaelri.mactoggle.plist   ← root LaunchDaemon
-    └── install.sh                    ← install / uninstall / keychain setup
+├── agent/
+│   ├── mac-toggle.py                 ← the "firmware": SSE listener + reconciler
+│   ├── com.chaelri.mactoggle.plist   ← root LaunchDaemon
+│   └── install.sh                    ← install / uninstall / keychain setup
+└── menubar/
+    ├── mac-toggle-menubar.swift      ← NSStatusItem: ✓/✗ icon, click to toggle
+    └── install-menubar.sh            ← build + per-user LaunchAgent (no sudo)
 ```
 
 Adding a setting = one entry each in `read_state`, `apply_setting`, and `WRITABLE`
