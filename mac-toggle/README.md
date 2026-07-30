@@ -82,11 +82,13 @@ Grant it: System Settings › Privacy & Security › Accessibility › **+** ›
 (the path box — `/usr/bin` is hidden, you can't browse to it) › `/usr/bin/osascript`
 › Open, then make sure its toggle is on.
 
-**Re-do this after every reinstall.** Observed twice on 2026-07-30: the grant
-works, then replacing `/usr/local/libexec/mac-toggle.py` changes the identity of
-the chain macOS authorized and taps start failing with 1002 again. Display sleep
-keeps working regardless — only the keystroke is affected. After any reinstall,
-check `grep jiggl /var/log/mac-toggle.log` for `delivered` vs `BLOCKED`.
+**Check it after a reinstall.** On 2026-07-30 taps worked, then a reinstall
+brought back 1002 — but that was before `/usr/bin/osascript` was explicitly in the
+Accessibility list (the earlier approval came from somewhere else). Once the
+binary was listed by hand, a later reinstall preserved it and the first tap after
+the restart logged `delivered`. So: a reinstall *shouldn't* break it, but verify
+rather than assume — `grep jiggl /var/log/mac-toggle.log` and look for `delivered`
+vs `BLOCKED`. Display sleep keeps working either way; only the keystroke is affected.
 
 Note the grant is on the `osascript` binary, so *any* script running as you can
 synthesize input afterwards — the usual cost of this approach, and the same one a
@@ -141,9 +143,24 @@ unavailable and the agent refuses to touch the setting — that's the default.
 |---|---|---|
 | `/mac-toggle/desired` | phone | what you want. Partial writes are fine — one key at a time is normal. |
 | `/mac-toggle/state` | Mac | what's actually true, plus `host`, `user`, `updatedAt`. The phone renders from here; a heartbeat lands every ~45 s and the UI calls the Mac "stale" past 120 s. |
-| `/mac-toggle/command` | phone | transient one-shot: `lock`, `displayoff`, `sleep`, `refresh`. The agent clears it after running. |
+| `/mac-toggle/command` | phone | transient one-shot: `toggle`, `lock`, `displayoff`, `sleep`, `refresh`. The agent clears it after running. |
 
 Same two-path split as `/autoclicker/{command,state}`.
+
+### One-request toggle (iOS Shortcut)
+
+`"toggle"` exists so a dumb client needs no GET, no conditional, and no JSON body
+to assemble — the agent reads the current setting and writes the opposite into
+`/desired`, so it runs through the same state machine as the web page.
+
+```
+PUT  https://test-database-55379-default-rtdb.asia-southeast1.firebasedatabase.app/mac-toggle/command.json
+body "toggle"          ← quotes included; a bare word isn't valid JSON and 400s
+```
+
+In Shortcuts that's a single **Get Contents of URL**: Method **PUT**, Request Body
+**Text**, body `"toggle"`. Verified 2026-07-30 — two runs took the machine
+0 → 5 → 0 with `pmset` following and the jiggler switching with it.
 
 ## Lock the RTDB path down
 

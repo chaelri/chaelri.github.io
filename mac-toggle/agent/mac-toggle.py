@@ -447,8 +447,24 @@ WRITABLE = ("keepAwake", "displaySleepAC", "displaySleepBatt", "systemSleepAC",
 # One-shot actions (the "click" of this project)
 # --------------------------------------------------------------------------- #
 
+TOGGLE_MINUTES = 5      # the "other" mode the one-tap toggle flips to
+
+
 def do_action(cmd):
     cmd = str(cmd).strip().lower()
+    if cmd == "toggle":
+        # One-request flip for iOS Shortcuts / any dumb client: no GET, no
+        # conditional, no JSON body to build — just PUT "toggle" and the agent
+        # works out which way to go. Writes /desired (not the machine directly)
+        # so the phone page and this path stay on the same state machine.
+        cur = read_state()
+        never = (cur.get("displaySleepAC") == 0 and cur.get("displaySleepBatt") == 0)
+        nxt = TOGGLE_MINUTES if never else 0
+        fb_put("desired/displaySleepAC", nxt)
+        fb_put("desired/displaySleepBatt", nxt)
+        log("toggle → %s" % ("%d minutes" % nxt if nxt else "Never"))
+        reconcile()
+        return
     if cmd == "lock":
         # ScreenSaverEngine + a non-zero screenLock delay is the modern lock.
         # CGSession was removed in macOS 26.
