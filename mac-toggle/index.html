@@ -1,0 +1,286 @@
+<!doctype html>
+<html lang="en">
+<head>
+  <meta charset="utf-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover" />
+  <meta name="theme-color" content="#0d0d0f" />
+  <meta name="apple-mobile-web-app-capable" content="yes" />
+  <meta name="apple-mobile-web-app-status-bar-style" content="black-translucent" />
+  <title>Display Sleep</title>
+
+  <link rel="preconnect" href="https://fonts.googleapis.com" />
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
+  <link href="https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600&display=swap" rel="stylesheet" />
+
+  <!-- No Tailwind, no icon font: one control, plain CSS. (The old grid leaned on
+       Tailwind's .hidden for JS-created spans, and the Material Symbols
+       stylesheet's own `display:inline-block` won — every row spinner stuck on.) -->
+  <style>
+    :root {
+      color-scheme: dark;
+      --bg:    #0d0d0f;
+      --text:  #f4f4f5;
+      --dim:   #7a7a82;
+      --track: #303036;
+      --awake: #f5b544;   /* Never — display stays lit */
+      --rest:  #5b7fc7;   /* 5 minutes — display rests */
+    }
+    * { box-sizing: border-box; }
+    html, body { height: 100%; margin: 0; }
+    body {
+      background: var(--bg);
+      color: var(--text);
+      font-family: 'Inter', -apple-system, BlinkMacSystemFont, system-ui, sans-serif;
+      -webkit-font-smoothing: antialiased;
+      overscroll-behavior: none;
+      display: flex; flex-direction: column;
+      padding: env(safe-area-inset-top) 24px env(safe-area-inset-bottom);
+    }
+
+    /* ---- header ---- */
+    header {
+      display: flex; align-items: center; gap: 10px;
+      padding: 22px 2px 0; font-size: 13px;
+    }
+    .host { font-weight: 500; letter-spacing: -0.01em; }
+    .link { margin-left: auto; display: flex; align-items: center; gap: 7px; color: var(--dim); font-size: 11px; letter-spacing: 0.1em; text-transform: uppercase; }
+    .dot { width: 7px; height: 7px; border-radius: 999px; background: #4b4b52; transition: background 400ms ease; }
+    .dot.live { background: #34d399; box-shadow: 0 0 10px rgba(52,211,153,0.6); }
+    .dot.stale { background: #f59e0b; }
+
+    /* ---- centre stage ---- */
+    main {
+      flex: 1; display: flex; flex-direction: column;
+      align-items: center; justify-content: center; gap: 30px;
+      text-align: center; padding-bottom: 8vh;
+    }
+    .eyebrow {
+      font-size: 12px; letter-spacing: 0.22em; text-transform: uppercase;
+      color: var(--dim); font-weight: 500;
+    }
+
+    /* the one control */
+    .switch {
+      position: relative; width: 216px; height: 108px; padding: 0;
+      border: none; border-radius: 999px; background: var(--track);
+      cursor: pointer; -webkit-tap-highlight-color: transparent;
+      transition: background 460ms cubic-bezier(0.4,0,0.2,1), box-shadow 460ms ease;
+      box-shadow: inset 0 2px 10px rgba(0,0,0,0.55);
+    }
+    .switch::after {
+      content: ''; position: absolute; top: 9px; left: 9px;
+      width: 90px; height: 90px; border-radius: 999px; background: #fafafa;
+      box-shadow: 0 8px 22px rgba(0,0,0,0.45);
+      transition: transform 460ms cubic-bezier(0.34,1.28,0.5,1), width 160ms ease;
+    }
+    .switch.on { background: var(--awake); box-shadow: 0 0 46px -8px rgba(245,181,68,0.55), inset 0 2px 10px rgba(0,0,0,0.25); }
+    .switch.on::after { transform: translateX(108px); }
+    .switch:active::after { width: 102px; }
+    .switch.on:active::after { transform: translateX(96px); }
+    .switch:disabled { opacity: 0.45; cursor: not-allowed; }
+
+    /* soft halo behind the switch */
+    .stage { position: relative; display: grid; place-items: center; }
+    .halo {
+      position: absolute; width: 300px; height: 300px; border-radius: 999px;
+      filter: blur(60px); opacity: 0; pointer-events: none;
+      background: var(--awake); transition: opacity 620ms ease;
+    }
+    .halo.on { opacity: 0.24; }
+
+    /* working indicator — a hairline that sweeps under the switch */
+    .work { width: 216px; height: 2px; margin-top: 2px; overflow: hidden; opacity: 0; transition: opacity 200ms ease; }
+    .work.busy { opacity: 1; }
+    .work i { display: block; width: 40%; height: 100%; border-radius: 2px; background: var(--dim); animation: sweep 1.05s ease-in-out infinite; }
+    @keyframes sweep { 0% { transform: translateX(-110%); } 100% { transform: translateX(360%); } }
+
+    .value { font-size: 42px; font-weight: 300; letter-spacing: -0.03em; line-height: 1; }
+    .caption { font-size: 14px; color: var(--dim); font-weight: 400; max-width: 30ch; line-height: 1.5; }
+
+    footer { padding: 0 2px 26px; text-align: center; font-size: 11px; color: #55555c; min-height: 30px; }
+    .warn { color: #d9a441; }
+    .err  { color: #e07a7a; }
+
+    @media (max-height: 620px) {
+      main { gap: 22px; padding-bottom: 4vh; }
+      .value { font-size: 34px; }
+    }
+  </style>
+</head>
+<body>
+
+  <header>
+    <span class="host" id="host">Display Sleep</span>
+    <span class="link">
+      <span class="dot" id="dot"></span>
+      <span id="linkText">connecting</span>
+    </span>
+  </header>
+
+  <main>
+    <div class="eyebrow">Turn display off when inactive</div>
+
+    <div class="stage">
+      <div class="halo" id="halo"></div>
+      <button class="switch" id="sw" role="switch" aria-label="Keep the display on" aria-checked="false" disabled></button>
+    </div>
+    <div class="work" id="work"><i></i></div>
+
+    <div>
+      <div class="value" id="value">—</div>
+      <div class="caption" id="caption">waiting for the Mac…</div>
+    </div>
+  </main>
+
+  <footer id="foot"></footer>
+
+  <script type="module">
+    import { initializeApp } from "https://www.gstatic.com/firebasejs/10.7.0/firebase-app.js";
+    import { getDatabase, ref, update, onValue } from "https://www.gstatic.com/firebasejs/10.7.0/firebase-database.js";
+    import { getAuth, signInAnonymously, onAuthStateChanged } from "https://www.gstatic.com/firebasejs/10.7.0/firebase-auth.js";
+
+    const app = initializeApp({
+      apiKey: "AIzaSyB8ahT56WbEUaGAymsRNNA-DrfZnUnWIwk",
+      authDomain: "test-database-55379.firebaseapp.com",
+      databaseURL: "https://test-database-55379-default-rtdb.asia-southeast1.firebasedatabase.app",
+      projectId: "test-database-55379"
+    });
+    const db = getDatabase(app);
+    const auth = getAuth(app);
+
+    // Writes fired before anon auth settles get dropped silently — gate on this.
+    const authReady = new Promise(res => {
+      const unsub = onAuthStateChanged(auth, u => { if (u) { unsub(); res(u); } });
+    });
+    signInAnonymously(auth).catch(e => console.warn("anon signin failed:", e));
+
+    // ON  = Never (0 min)  — display stays lit
+    // OFF = 5 minutes      — display rests
+    // Both values must exist in SLEEP_CHOICES in agent/mac-toggle.py.
+    const NEVER = 0, REST = 5;
+
+    const $ = id => document.getElementById(id);
+    const sw = $("sw"), halo = $("halo"), work = $("work");
+
+    let state = null;      // last /mac-toggle/state
+    let pending = null;    // { value, timer }
+
+    const isOn = v => Number(v) === NEVER;
+
+    function paint(ac, batt) {
+      // The toggle drives both power sources together, so treat them as one.
+      // If they ever disagree (changed in System Settings), say so rather than lie.
+      const agree = Number(ac) === Number(batt);
+      const on = agree && isOn(ac);
+
+      sw.classList.toggle("on", on);
+      halo.classList.toggle("on", on);
+      sw.setAttribute("aria-checked", on ? "true" : "false");
+
+      if (!agree) {
+        $("value").textContent = "Mixed";
+        $("caption").textContent = `battery ${label(batt)} · power adapter ${label(ac)} — tap to set both`;
+        return;
+      }
+      $("value").textContent = on ? "Never" : label(ac);
+      $("caption").textContent = on
+        ? "Display stays on, on battery and power adapter."
+        : "Display turns off after 5 minutes, on battery and power adapter.";
+    }
+
+    const label = m => Number(m) === 0 ? "Never" : (Number(m) === 1 ? "1 minute" : Number(m) + " minutes");
+
+    function setBusy(on) { work.classList.toggle("busy", !!on); }
+
+    function foot(msg, cls) {
+      const f = $("foot");
+      f.textContent = msg || "";
+      f.className = cls || "";
+    }
+
+    // ---- state in ---------------------------------------------------------
+    onValue(ref(db, "mac-toggle/state"), snap => {
+      const v = snap.val();
+      if (!v || typeof v !== "object") {
+        foot("no state yet — is the agent running on the Mac?", "warn");
+        return;
+      }
+      state = v;
+      $("host").textContent = v.host || "Display Sleep";
+      sw.disabled = false;
+
+      if (pending) {
+        const done = Number(v.displaySleepAC) === pending.value
+                  && Number(v.displaySleepBatt) === pending.value;
+        if (!done) { freshness(); return; }      // keep showing the optimistic view
+        clearTimeout(pending.timer);
+        pending = null;
+        setBusy(false);
+        foot("applied");
+      }
+      paint(v.displaySleepAC, v.displaySleepBatt);
+      freshness();
+    });
+
+    function freshness() {
+      const dot = $("dot"), txt = $("linkText");
+      if (!state || !state.updatedAt) { dot.className = "dot"; txt.textContent = "offline"; return; }
+      const age = Date.now() - state.updatedAt;
+      const live = age < 120000;                 // agent heartbeats every ~45 s
+      dot.className = "dot " + (live ? "live" : "stale");
+      txt.textContent = live ? "online" : "asleep";
+      if (!live && !pending) foot("Mac last seen " + rel(age) + " — changes apply when it wakes", "warn");
+      else if (live && !pending && $("foot").className === "warn") foot("");
+    }
+    setInterval(freshness, 5000);
+
+    const rel = ms => {
+      const s = Math.round(ms / 1000);
+      if (s < 90) return s + "s ago";
+      const m = Math.round(s / 60);
+      return m < 90 ? m + "m ago" : Math.round(m / 60) + "h ago";
+    };
+
+    // ---- state out --------------------------------------------------------
+    sw.addEventListener("click", async () => {
+      if (sw.disabled) return;
+      const next = sw.classList.contains("on") ? REST : NEVER;
+      if (navigator.vibrate) navigator.vibrate(12);
+
+      paint(next, next);                          // optimistic
+      setBusy(true);
+      foot("");
+
+      if (pending) clearTimeout(pending.timer);
+      pending = {
+        value: next,
+        timer: setTimeout(() => {
+          pending = null;
+          setBusy(false);
+          foot("no response from the Mac — it may be asleep", "err");
+          if (state) paint(state.displaySleepAC, state.displaySleepBatt);
+        }, 12000),
+      };
+
+      try {
+        await authReady;
+        // One update so both power sources move together — never half-applied.
+        await update(ref(db, "mac-toggle/desired"), {
+          displaySleepAC: next,
+          displaySleepBatt: next,
+        });
+      } catch (err) {
+        clearTimeout(pending.timer);
+        pending = null;
+        setBusy(false);
+        foot("save failed: " + (err.message || err.code || err), "err");
+        if (state) paint(state.displaySleepAC, state.displaySleepBatt);
+      }
+    });
+
+    onValue(ref(db, ".info/connected"), s => {
+      if (s.val() !== true) foot("phone is offline", "err");
+    });
+  </script>
+</body>
+</html>

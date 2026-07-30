@@ -1,6 +1,6 @@
 # Hub Project Index for chaelri.github.io
 
-**Last updated:** 2026-06-21
+**Last updated:** 2026-07-30
 **Scope:** Complete mapping of top-level directories + root files, with tech stack, deployment, status, and key entry points.
 
 ## Status Legend
@@ -86,6 +86,22 @@ Battery-powered hand-held WiFi remote for **both** `autoclicker/` and `aircon/`.
   - **`Wire.setPins(5, 6)` must run BEFORE `oled.begin()`** — U8g2 starts I²C on default pins otherwise and the OLED stays blank.
   - **Color palette is amber + emerald** (distinct from autoclicker's indigo/purple and aircon's sky/cyan).
 - **Full docs:** See `knowledge/pocket-remote/SUMMARY.md`, `ARCHITECTURE.md`, `KEY_FILES.md`.
+
+### mac-toggle/  🟢
+
+Firebase remote for the MacBook Pro's display-sleep setting — the autoclicker pattern with macOS as the actuator instead of an ESP32. The page is **one minimalist toggle** (Never ↔ 5 minutes, battery + power adapter moved together); a root LaunchDaemon reconciles the machine and publishes observed truth back.
+
+- **Tech:** vanilla HTML + hand-written CSS (no Tailwind, no icon font — the first grid build had Tailwind's `.hidden` lose to the Material Symbols stylesheet, sticking every spinner on) + Firebase v10 SDK for the remote; agent is **stdlib-only `/usr/bin/python3`** (3.9.6, ships with macOS — no pip, no venv) using `urllib` for the RTDB SSE stream and `subprocess` for `pmset` / `defaults` / `sysadminctl` / `caffeinate`.
+- **Entry:** `index.html` (the live remote — there's no `phone/` subdir; unlike the hardware projects there's no build doc to host), `agent/mac-toggle.py`, `agent/install.sh`, `agent/com.chaelri.mactoggle.plist`.
+- **Deploy:** GitHub Pages at `/mac-toggle/`. Mac side: `sudo ./install.sh` → `/usr/local/libexec/mac-toggle.py` + LaunchDaemon `com.chaelri.mactoggle`, logs to `/var/log/mac-toggle.log`.
+- **Quirks:**
+  - **Two RTDB paths** `/mac-toggle/desired` (phone writes) and `/mac-toggle/state` (Mac mirrors truth + ~45 s heartbeat), plus transient `/mac-toggle/command` for `lock` / `displayoff` / `sleep` / `refresh`. Same split as `/autoclicker/{command,state}`.
+  - **First run seeds, never applies** — empty `/desired` gets populated from the machine's current settings, so installing can't change anything silently.
+  - **`keepAwake` holds a `caffeinate -dimsu` child process**, not a saved setting, so a crashed agent can't leave the Mac awake forever. Preferred over setting displaysleep to Never.
+  - **Root daemon + `launchctl asuser`** — `pmset` and `/Library/Preferences/com.apple.loginwindow` need root; window-server work runs as the console user. `CGSession` was removed in macOS 26, so lock = `open -a ScreenSaverEngine`.
+  - **"Require password after…" is read-only until opt-in** — `sysadminctl -screenLock` demands a password even as root; `sudo ./install.sh set-admin-password` stores it in the System keychain.
+  - **Deliberately NOT linked from the root hub page** — the RTDB path is unauthenticated, so it isn't advertised. Agent treats all Firebase input as hostile (whitelisted keys, clamped ints, list-args only, never `shell=True`).
+- **Full docs:** See `knowledge/mac-toggle/SUMMARY.md` and `mac-toggle/README.md`.
 
 ### collaterals/  🟢
 
@@ -380,7 +396,8 @@ Simple side-scrolling platformer (Bubu & Dudu) — canvas-based game.
 
 | Project | Hosting | Auto-deploy on push? |
 |---|---|---|
-| devo, monthsary, tayo, sns-dq, weddingtest, towa-no-yuugure, autoclicker, aircon, pocket-remote, collaterals, flux, pray, echoes, wedding100, weddingtimeline, horizon, money, anohana, bubududu | GitHub Pages subpath | ✅ |
+| devo, monthsary, tayo, sns-dq, weddingtest, towa-no-yuugure, autoclicker, aircon, pocket-remote, mac-toggle, collaterals, flux, pray, echoes, wedding100, weddingtimeline, horizon, money, anohana, bubududu | GitHub Pages subpath | ✅ |
+| mac-toggle (Mac agent) | root LaunchDaemon `com.chaelri.mactoggle` via `agent/install.sh` | Manual |
 | guard-exit-interview | GitHub Pages — **DUAL-REPO** (also push to `guard-exit-tracker`) | ✅ |
 | vm-management | GitHub Pages `/vm-management/` | ✅ |
 | weddingbar | Firebase Hosting (root via `firebase.json`) — also GH Pages `/weddingbar/` | `firebase deploy` |
