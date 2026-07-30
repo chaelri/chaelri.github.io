@@ -53,6 +53,7 @@ JIGGLE_KEYCODE = 106       # F15 — a key nothing is bound to, so it's a no-op
 
 PMSET = "/usr/bin/pmset"
 OSASCRIPT = "/usr/bin/osascript"
+SAY = "/usr/bin/say"
 DEFAULTS = "/usr/bin/defaults"
 CAFFEINATE = "/usr/bin/caffeinate"
 SYSADMINCTL = "/usr/sbin/sysadminctl"
@@ -140,6 +141,17 @@ def notify(title, subtitle, message):
     sh_as_user([OSASCRIPT, "-e",
                 'display notification "%s" with title "%s" subtitle "%s"'
                 % (esc(message), esc(title), esc(subtitle))], timeout=10)
+
+
+def speak(text):
+    """
+    Say it out loud in the user's audio session. Threaded because `say` blocks
+    until the phrase finishes, and this runs from the publish path — a couple of
+    seconds of speech should never hold up the Firebase stream loop.
+    """
+    def run():
+        sh_as_user([SAY, str(text)], timeout=30)
+    threading.Thread(target=run, daemon=True).start()
 
 
 # --------------------------------------------------------------------------- #
@@ -552,14 +564,19 @@ def announce_mode(mode, st):
         sub = "✅ Never"
         msg = ("Staying awake · nudge blocked." if st.get("jiggleOk") is False
                else "Staying awake and active.")
+        said = "Always on activated"
     elif mode == "rest":
         mins = int(st.get("displaySleepAC") or 0)
         sub = "❌ %d minutes" % mins
         msg = "Sleeps after %d minutes idle." % mins
+        said = "Always on deactivated"
     else:
         sub = "⚠️ Mixed"
         msg = "battery %s · adapter %s" % (st.get("displaySleepBatt"), st.get("displaySleepAC"))
+        said = None                      # no announcement for a half-applied state
     notify("Display Sleep", sub, msg)
+    if said:
+        speak(said)
 
 
 def host_name():
