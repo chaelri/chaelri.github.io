@@ -18,6 +18,13 @@
 import Cocoa
 
 let USAGE_URL = "https://api.anthropic.com/api/oauth/usage"
+let CLAUDE_ORANGE = NSColor(srgbRed: 0xD9 / 255.0, green: 0x77 / 255.0, blue: 0x57 / 255.0, alpha: 1)
+// Read the mark from the installed app rather than vendoring a copy: no
+// redistributing Anthropic's asset, and it tracks whatever version is installed.
+let CLAUDE_ICON_PATHS = [
+    "/Applications/Claude.app/Contents/Resources/TrayIconTemplate@2x.png",
+    "/Applications/Claude.app/Contents/Resources/TrayIconTemplate.png",
+]
 let KEYCHAIN_SERVICE = "Claude Code-credentials"
 let SETTINGS_URL = "https://claude.ai/settings/usage"
 let POLL_SECONDS = 300.0        // 5 min: these numbers move slowly, and the
@@ -176,8 +183,38 @@ final class Controller: NSObject, NSApplicationDelegate, NSMenuDelegate {
         limits.first(where: { $0.isSession }) ?? limits.first
     }
 
+    /// The Claude asterisk, tinted orange, sized for the menu bar.
+    /// Built once — it never changes — and shown to the left of the percentage.
+    private lazy var claudeIcon: NSImage? = {
+        let size = NSSize(width: 13, height: 13)
+        var source: NSImage?
+        for path in CLAUDE_ICON_PATHS {
+            if let image = NSImage(contentsOfFile: path) { source = image; break }
+        }
+        // Fall back to an SF Symbol if Claude.app isn't installed where we expect.
+        if source == nil {
+            source = NSImage(systemSymbolName: "asterisk", accessibilityDescription: "Claude")
+        }
+        guard let base = source else { return nil }
+
+        // The shipped asset is a black template; recolor it by filling the
+        // opaque pixels (.sourceAtop) rather than drawing a coloured rectangle.
+        let tinted = NSImage(size: size)
+        tinted.lockFocus()
+        let rect = NSRect(origin: .zero, size: size)
+        base.draw(in: rect, from: .zero, operation: .sourceOver, fraction: 1.0)
+        CLAUDE_ORANGE.set()
+        rect.fill(using: .sourceAtop)
+        tinted.unlockFocus()
+        tinted.isTemplate = false          // keep the orange; templates go monochrome
+        return tinted
+    }()
+
     private func render() {
         guard let button = item.button else { return }
+        button.image = claudeIcon
+        button.imagePosition = .imageLeading
+        button.imageHugsTitle = true
         let text: String
         var color = NSColor.labelColor
 
@@ -193,7 +230,9 @@ final class Controller: NSObject, NSApplicationDelegate, NSMenuDelegate {
 
         // Monospaced digits so the width doesn't jitter as the number changes.
         button.attributedTitle = NSAttributedString(string: text, attributes: [
-            .font: NSFont.monospacedDigitSystemFont(ofSize: 13, weight: .regular),
+            // 11.5pt matches the Control Center battery percentage; the menu bar
+            // default (13pt) reads noticeably larger than everything around it.
+            .font: NSFont.monospacedDigitSystemFont(ofSize: 11.5, weight: .regular),
             .foregroundColor: color,
         ])
         button.toolTip = errorText ?? limits.map { "\($0.label): \($0.percent)%" }
