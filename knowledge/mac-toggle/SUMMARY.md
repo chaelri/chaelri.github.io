@@ -106,6 +106,18 @@ agent and duplicated as `<option>` values in `index.html` — keep them in sync.
   `osascript is not allowed to send keystrokes. (1002)`; after granting, verified
   `keystroke delivered` + `jiggleOk: true`). The grant is per-binary, so any script
   running as Charlie can synthesize input afterwards.
+- **`sudo ./install.sh` INVALIDATES that grant** — happened twice on 2026-07-30:
+  working jiggler → reinstall → 1002 errors again, fixed by re-adding
+  `/usr/bin/osascript`. Replacing `/usr/local/libexec/mac-toggle.py` changes the
+  identity of the chain TCC authorized. Always re-check
+  `grep jiggl /var/log/mac-toggle.log` after a reinstall. Display sleep is
+  unaffected — only the keystroke path.
+- **The Accessibility "+" dialog can't browse to `/usr/bin`** (hidden folder) —
+  Charlie got stuck here; the move is **⌘⇧G** then type the full path. Terminal,
+  Claude, and git already hold Accessibility on this machine, which is why a
+  hand-run `while true; do osascript … ; sleep 300; done` in Terminal works with
+  no setup at all — it inherits Terminal's grant. The daemon isn't a child of
+  Terminal, so it needs its own.
 - **`pmset` does NOT clamp `sleep` to `displaysleep`** — verified 2026-07-30:
   displaysleep 5 alongside sleep 1 was accepted unchanged. This Mac has
   `sleep 1` on both sources, harmless while displaysleep is Never but potentially

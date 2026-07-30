@@ -73,13 +73,25 @@ Why bother when displaysleep is already Never: `pmset` keeps the *display* on,
 but it doesn't touch `HIDIdleTime` — the counter anything idle-aware reads. Only a
 real HID event resets that, which is what the keystroke does.
 
-**It needs a one-time Accessibility grant.** Synthesizing key events is TCC-gated
-and a LaunchDaemon can't answer a permission prompt, so without the grant you get
+**It needs an Accessibility grant, and `sudo ./install.sh` invalidates it.**
+Synthesizing key events is TCC-gated and a LaunchDaemon can't answer a permission
+prompt, so without the grant every tap fails with
 `System Events got an error: osascript is not allowed to send keystrokes. (1002)`.
-Fix: System Settings › Privacy & Security › Accessibility › **+** › ⌘⇧G ›
-`/usr/bin/osascript`. Note the grant is on the binary, so *any* script running as
-you can synthesize input afterwards — the usual cost of this approach, and the
-same one a Terminal-hosted loop relies on.
+
+Grant it: System Settings › Privacy & Security › Accessibility › **+** › **⌘⇧G**
+(the path box — `/usr/bin` is hidden, you can't browse to it) › `/usr/bin/osascript`
+› Open, then make sure its toggle is on.
+
+**Re-do this after every reinstall.** Observed twice on 2026-07-30: the grant
+works, then replacing `/usr/local/libexec/mac-toggle.py` changes the identity of
+the chain macOS authorized and taps start failing with 1002 again. Display sleep
+keeps working regardless — only the keystroke is affected. After any reinstall,
+check `grep jiggl /var/log/mac-toggle.log` for `delivered` vs `BLOCKED`.
+
+Note the grant is on the `osascript` binary, so *any* script running as you can
+synthesize input afterwards — the usual cost of this approach, and the same one a
+Terminal-hosted loop relies on (Terminal itself is typically already granted,
+which is why a hand-run `while true` loop works with no extra setup).
 
 `state.jiggling` says whether the loop is running; `state.jiggleOk` records
 whether the last tap actually landed (`null` until the first attempt), and the
