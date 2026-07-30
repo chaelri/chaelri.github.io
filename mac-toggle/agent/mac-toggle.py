@@ -310,12 +310,16 @@ class Jiggler(object):
         while True:
             self.on.wait()
             self.tap()
-            # Sleep in slices so flipping the toggle off stops us promptly
-            # instead of up to 5 minutes later.
-            for _ in range(JIGGLE_SECS):
-                if not self.on.is_set():
+            # Wait against a deadline, not by counting 1 s slices: sleep(1)
+            # overshoots slightly, and 300 of them compounded to ~317 s per cycle
+            # (measured 2026-07-30). Still wakes every second so flipping the
+            # toggle off stops us promptly instead of up to 5 minutes later.
+            deadline = time.time() + JIGGLE_SECS
+            while self.on.is_set():
+                remaining = deadline - time.time()
+                if remaining <= 0:
                     break
-                time.sleep(1)
+                time.sleep(min(1.0, remaining))
 
 
 JIGGLER = Jiggler()
