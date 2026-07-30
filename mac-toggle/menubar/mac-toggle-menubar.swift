@@ -26,6 +26,12 @@ final class Controller: NSObject, NSApplicationDelegate {
     private var busy = false
     private var failed = false
 
+    // While a toggle is in flight we poll fast and spin, so the icon lands with
+    // the spoken announcement instead of trailing it by up to a poll interval.
+    private var burstTimer: Timer?
+    private var spinTimer: Timer?
+    private var spinAngle: CGFloat = 0
+
     func applicationDidFinishLaunching(_ note: Notification) {
         if let button = item.button {
             button.target = self
@@ -71,31 +77,80 @@ final class Controller: NSObject, NSApplicationDelegate {
         render()
     }
 
-    /// After sending a toggle, sample a few times so the icon catches up fast
-    /// instead of waiting out the poll interval.
-    private func refreshSoon() {
-        for delay in [1.0, 2.0, 3.5, 5.0] {
-            DispatchQueue.main.asyncAfter(deadline: .now() + delay) { [weak self] in self?.refresh() }
+    /// After sending a toggle, watch `pmset` closely until it actually flips.
+    /// The daemon applies the setting and *then* speaks, so polling this tight
+    /// makes the icon change land with the voice rather than seconds later.
+    private func startBurst() {
+        burstTimer?.invalidate()
+        let was = alwaysOn
+        let deadline = Date().addingTimeInterval(15)
+        burstTimer = Timer.scheduledTimer(withTimeInterval: 0.25, repeats: true) { [weak self] t in
+            guard let self = self else { t.invalidate(); return }
+            if let now = self.readAlwaysOn() { self.alwaysOn = now }
+            if self.alwaysOn != was || Date() > deadline {
+                t.invalidate()
+                self.burstTimer = nil
+                self.setBusy(false)          // stops the spinner and repaints
+            }
         }
     }
 
     // MARK: - drawing
 
+    /// Spinner while a toggle is in flight: rotate one symbol rather than
+    /// embedding an NSProgressIndicator subview in the status button.
+    private func setBusy(_ on: Bool) {
+        busy = on
+        spinTimer?.invalidate()
+        spinTimer = nil
+        if on {
+            spinAngle = 0
+            spinTimer = Timer.scheduledTimer(withTimeInterval: 0.06, repeats: true) { [weak self] _ in
+                guard let self = self else { return }
+                self.spinAngle -= 24                 // clockwise
+                self.render()
+            }
+        }
+        render()
+    }
+
+    private func rotated(_ image: NSImage, _ degrees: CGFloat) -> NSImage {
+        let size = image.size
+        let out = NSImage(size: size)
+        out.lockFocus()
+        let t = NSAffineTransform()
+        t.translateX(by: size.width / 2, yBy: size.height / 2)
+        t.rotate(byDegrees: degrees)
+        t.translateX(by: -size.width / 2, yBy: -size.height / 2)
+        t.concat()
+        image.draw(at: .zero, from: NSRect(origin: .zero, size: size),
+                   operation: .sourceOver, fraction: 1)
+        out.unlockFocus()
+        out.isTemplate = true
+        return out
+    }
+
     private func render() {
         guard let button = item.button else { return }
+
+        // Sun / moon rather than check / cross: an ✗ reads as "something went
+        // wrong", when it only means the display is allowed to sleep.
         let symbol: String
         if failed        { symbol = "exclamationmark.triangle.fill" }
-        else if busy     { symbol = "ellipsis.circle" }
-        else if alwaysOn { symbol = "checkmark.circle.fill" }
-        else             { symbol = "xmark.circle" }
+        else if busy     { symbol = "arrow.triangle.2.circlepath" }
+        else if alwaysOn { symbol = "sun.max.fill" }
+        else             { symbol = "moon.zzz.fill" }
 
         let label = alwaysOn ? "Always On activated" : "Always On deactivated"
-        let image = NSImage(systemSymbolName: symbol, accessibilityDescription: label)
+        var image = NSImage(systemSymbolName: symbol, accessibilityDescription: label)
         image?.isTemplate = true
+        if busy, let base = image { image = rotated(base, spinAngle) }
         button.image = image
         button.toolTip = failed
             ? "mac-toggle: couldn't reach Firebase"
-            : (alwaysOn ? "Always On — display stays awake" : "Display sleeps when idle")
+            : (busy ? "Applying…"
+                    : (alwaysOn ? "Always On — display stays awake"
+                                : "Display sleeps when idle"))
     }
 
     // MARK: - actions
@@ -109,9 +164,8 @@ final class Controller: NSObject, NSApplicationDelegate {
 
     @objc private func toggle() {
         guard !busy else { return }
-        busy = true
         failed = false
-        render()
+        setBusy(true)
 
         var request = URLRequest(url: URL(string: DB + "/mac-toggle/command.json")!)
         request.httpMethod = "PUT"
@@ -122,13 +176,16 @@ final class Controller: NSObject, NSApplicationDelegate {
         URLSession.shared.dataTask(with: request) { [weak self] _, response, error in
             DispatchQueue.main.async {
                 guard let self = self else { return }
-                self.busy = false
                 let code = (response as? HTTPURLResponse)?.statusCode ?? 0
                 // The daemon may be asleep or offline; the write still lands in
                 // Firebase and applies on reconnect. Only flag transport failures.
                 self.failed = (error != nil) || !(200..<300).contains(code)
-                self.render()
-                if !self.failed { self.refreshSoon() }
+                if self.failed {
+                    self.setBusy(false)          // nothing to wait for
+                } else {
+                    // Keep spinning until pmset actually changes.
+                    self.startBurst()
+                }
             }
         }.resume()
     }
