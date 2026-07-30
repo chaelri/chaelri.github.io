@@ -127,6 +127,21 @@ def sh_as_user(args, timeout=20):
     return sh([LAUNCHCTL, "asuser", str(uid), "/usr/bin/sudo", "-u", user] + args, timeout)
 
 
+def notify(title, subtitle, message):
+    """
+    Post a macOS notification in the console user's session.
+
+    Shows up attributed to Script Editor (that's how osascript notifications are
+    credited). Fire-and-forget: if the user has those notifications muted this
+    exits 0 and shows nothing, which is fine — it's never load-bearing.
+    """
+    def esc(s):
+        return str(s).replace("\\", "\\\\").replace('"', '\\"')
+    sh_as_user([OSASCRIPT, "-e",
+                'display notification "%s" with title "%s" subtitle "%s"'
+                % (esc(message), esc(title), esc(subtitle))], timeout=10)
+
+
 # --------------------------------------------------------------------------- #
 # Reading the machine's actual state
 # --------------------------------------------------------------------------- #
@@ -303,6 +318,9 @@ class Jiggler(object):
             else:
                 log("jiggler: keystroke BLOCKED — grant Accessibility to osascript "
                     "(System Settings › Privacy & Security › Accessibility). %s" % err.strip())
+                # Worth interrupting for: the toggle looks fine but silently
+                # isn't keeping the machine active.
+                notify("Display Sleep", "⚠️ Nudge blocked", "Grant Accessibility to osascript.")
         self.ok = good
         return good
 
@@ -515,6 +533,33 @@ def fb_put(path, value):
 
 HOSTNAME = None
 _last_publish = 0.0
+_last_mode = None          # None until the first publish — see announce_mode()
+
+
+def mode_of(st):
+    ac, batt = st.get("displaySleepAC"), st.get("displaySleepBatt")
+    if ac != batt:
+        return "mixed"
+    return "never" if ac == 0 else "rest"
+
+
+def announce_mode(mode, st):
+    """Compact toast when the mode actually changes — not on every heartbeat."""
+    # The glyph is the status "logo". `display notification` can't set a custom
+    # icon — macOS always uses the posting app's (Script Editor here) — so the
+    # marker goes in the text where it's actually controllable.
+    if mode == "never":
+        sub = "✅ Never"
+        msg = ("Staying awake · nudge blocked." if st.get("jiggleOk") is False
+               else "Staying awake and active.")
+    elif mode == "rest":
+        mins = int(st.get("displaySleepAC") or 0)
+        sub = "❌ %d minutes" % mins
+        msg = "Sleeps after %d minutes idle." % mins
+    else:
+        sub = "⚠️ Mixed"
+        msg = "battery %s · adapter %s" % (st.get("displaySleepBatt"), st.get("displaySleepAC"))
+    notify("Display Sleep", sub, msg)
 
 
 def host_name():
@@ -536,6 +581,15 @@ def publish_state(state=None):
     st["host"] = host_name()
     st["user"] = console_user() or ""
     st["updatedAt"] = int(time.time() * 1000)
+
+    # Notify on real mode changes only. The first publish after startup seeds
+    # _last_mode without announcing, so a reboot or reinstall stays quiet.
+    global _last_mode
+    mode = mode_of(st)
+    if _last_mode is not None and mode != _last_mode:
+        announce_mode(mode, st)
+    _last_mode = mode
+
     fb_put("state", st)
     _last_publish = time.time()
     return st

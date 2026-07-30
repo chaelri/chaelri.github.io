@@ -94,6 +94,15 @@ agent and duplicated as `<option>` values in `index.html` — keep them in sync.
   Mac — it may be asleep". If the two power sources ever disagree (changed in
   System Settings directly), the page shows "Mixed" with both values instead of
   picking one to display.
+- **Notifications (added 2026-07-30):** `notify()` → `osascript display notification`
+  via `sh_as_user`, fired from `publish_state()` only when `mode_of()` changes.
+  `_last_mode` starts as `None` and is seeded without announcing, so restarts and
+  the ~45 s heartbeat stay silent. Copy: ✅ Never / ❌ 5 minutes / ⚠️ Mixed /
+  ⚠️ Nudge blocked. **The glyph is text, not an icon** — `display notification`
+  cannot set one, macOS credits the posting app (Script Editor), and
+  `terminal-notifier -appIcon` isn't reliable on current macOS; per-state `.app`
+  bundles would be the only real fix and Charlie declined that as over-engineering.
+  Muted notifications still exit 0, so nothing may ever depend on these.
 - **Jiggler (added 2026-07-30):** while the toggle is on Never, a daemon thread
   taps **F15 every 300 s** in the console user's session (`osascript … key code 106`),
   replacing a hand-rolled `while true; … sleep 300` Terminal loop. It's derived
