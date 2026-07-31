@@ -126,7 +126,7 @@
   /* Sub-point: a normal sentence carrying one shouted word — "He had a PLACE."
      Only that word is marked, in yellow, so it reads a tier below a main point. */
   .doc .sub { margin: 1.05rem 0 0.3rem; font-weight: 600; }
-  .doc .sub .cap {
+  .doc .cap {
     font-weight: 800; letter-spacing: 0.05em;
     background: linear-gradient(transparent 58%, var(--yellow) 58%, var(--yellow) 95%, transparent 95%);
     padding: 0 0.16rem;
@@ -202,11 +202,7 @@
   ::-webkit-scrollbar { width: 10px; height: 10px; }
   ::-webkit-scrollbar-thumb { background: #D6D5CF; border-radius: 999px; border: 3px solid var(--paper); }
 
-  /* The closing charge — the last line of a session. Display weight under a
-     lime rule so the notes end on a beat instead of trailing off. */
-  .doc .closer {
-    margin: 2.4rem 0 0.5rem; padding-top: 1.35rem;
-    border-top: 2px solid var(--lime);
-    font-size: 1.5rem; font-weight: 800; line-height: 1.28;
-    letter-spacing: -0.022em;
-  }
+  /* The closing charge — the last line of a session. Same weight and marking as
+     a sub-point; the display-size version with a rule above it was too loud for
+     one sentence. It stays out of the Points index either way. */
+  .doc .closer { margin: 1.15rem 0 0.3rem; font-weight: 600; }

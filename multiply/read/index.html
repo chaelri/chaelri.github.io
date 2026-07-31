@@ -144,7 +144,7 @@ async function select(id) {
   if (points.length) {
     el.list.innerHTML = pointsHTML(points);
     el.list.querySelectorAll(".ptBtn").forEach((b) => b.addEventListener("click", () => {
-      el.preview.querySelector(`#pt-${b.dataset.pt}`)
+      el.preview.querySelector(`#${b.dataset.pt}`)
         ?.scrollIntoView({ behavior: "smooth", block: "center" });
     }));
   }

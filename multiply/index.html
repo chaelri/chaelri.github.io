@@ -169,7 +169,7 @@ function paintPoints(points) {
   if (!points.length) return;
   list.innerHTML = pointsHTML(points);
   list.querySelectorAll(".ptBtn").forEach((b) => b.addEventListener("click", () => {
-    el.preview.querySelector(`#pt-${b.dataset.pt}`)
+    el.preview.querySelector(`#${b.dataset.pt}`)
       ?.scrollIntoView({ behavior: "smooth", block: "center" });
   }));
 }
