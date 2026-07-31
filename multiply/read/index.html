@@ -90,16 +90,27 @@
   <article id="preview" class="doc text-[15px] leading-[1.75]"></article>
   <p id="empty" class="hidden text-[14px] text-faint py-10">No notes for this session yet.</p>
 
-  <!-- The Leave List — the session activity, answerable by whoever opens the
-       link. Deliberately device-only: it never touches Firebase. -->
-  <section id="leaveList" class="hidden mt-12 space-y-6">
-    <div class="act-head">
-      <p class="tracked-sm text-[10px] font-semibold text-muted uppercase">Your response</p>
-      <p class="act-sub">Answer these on your own. They stay on this device.</p>
-    </div>
+</main>
 
-    <div class="ll-card">
-      <p class="tracked-sm text-[10px] font-semibold text-muted uppercase">Session activity</p>
+
+<!-- The activities are their own thing — not part of any session — so they live
+     in a modal rather than at the foot of the notes. Native <dialog> gives the
+     backdrop, Esc-to-close and focus trap for free. -->
+<dialog id="actModal" class="act-modal" aria-labelledby="actModalTitle">
+  <div class="act-modal-inner">
+    <header class="act-modal-head">
+      <div>
+        <p class="tracked-sm text-[10px] font-semibold text-muted uppercase">Your response</p>
+        <h2 id="actModalTitle" class="act-modal-title">Activities</h2>
+      </div>
+      <button id="actClose" type="button" title="Close"
+        class="grid place-items-center w-9 h-9 rounded-full border border-line hover:bg-panel active:scale-95 transition">
+        <span class="ms text-[19px]">close</span>
+      </button>
+    </header>
+    <div class="act-modal-body space-y-6">
+      <p class="act-sub">Answer these on your own. They stay on this device.</p>
+<div class="ll-card">
       <h3 class="ll-title">The Leave List</h3>
       <p class="ll-ref">Based on Genesis 12:1 — “Go from your country…”</p>
 
@@ -136,7 +147,6 @@
     </div>
 
     <div class="ll-card">
-      <p class="tracked-sm text-[10px] font-semibold text-muted uppercase">Session activity</p>
       <h3 class="ll-title">First Step Planning</h3>
       <p class="ll-ref">Your next faithful step, and what it will take.</p>
 
@@ -169,8 +179,9 @@
         <button id="fsClear" type="button" class="ll-clear">Clear</button>
       </div>
     </div>
-  </section>
-</main>
+    </div>
+  </div>
+</dialog>
 
 <footer class="mx-auto max-w-3xl px-5 sm:px-8 pb-12 pt-4 border-t border-line">
   <p class="text-[11px] text-faint">Scripture from NASB 2020 · Notes by Charlie Cayno</p>
@@ -301,14 +312,11 @@ ACTIVITIES.forEach((a) => a.fields.forEach((id) =>
   $("#" + id).addEventListener("input", refreshActDot)));
 refreshActDot();
 
-$("#btnActivities").addEventListener("click", () => {
-  const box = $("#leaveList");
-  const opening = box.classList.contains("hidden");
-  box.classList.toggle("hidden", !opening);
-  $("#btnActivities").classList.toggle("is-open", opening);
-  if (opening) requestAnimationFrame(() =>
-    box.scrollIntoView({ behavior: "smooth", block: "start" }));
-});
+$("#btnActivities").addEventListener("click", () => $("#actModal").showModal());
+$("#actClose").addEventListener("click", () => $("#actModal").close());
+// Clicking the backdrop closes it — the dialog itself is the click target only
+// when the press landed outside the panel.
+$("#actModal").addEventListener("click", (e) => { if (e.target === $("#actModal")) $("#actModal").close(); });
 
 $("#btnShare").addEventListener("click", async () => {
   const url = location.href;

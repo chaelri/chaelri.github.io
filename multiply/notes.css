@@ -328,3 +328,45 @@
   .act-btn.is-open .act-dot { border-color: var(--ink); }
   .act-head { margin-bottom: -0.25rem; }
   .act-sub { margin: 0.3rem 0 0; font-size: 0.82rem; color: var(--muted); }
+
+  /* ── Activities modal ───────────────────────────────────────────────────
+     The activities aren't part of any session, so they open over the notes
+     rather than living inside them. Native <dialog> carries the backdrop,
+     Esc-to-close and focus trap. */
+  .act-modal {
+    border: 0; padding: 0; background: transparent;
+    width: min(42rem, calc(100% - 2rem));
+    max-height: calc(100dvh - 3rem);
+    margin: auto;              /* centre it — resetting padding/border loses the UA centring */
+    color: var(--ink);
+  }
+  /* Keep focus visible but in-palette; the UA ring is a blue that belongs to
+     no part of this design. */
+  .act-modal :focus-visible {
+    outline: 2px solid var(--ink); outline-offset: 2px; border-radius: 999px;
+  }
+  .act-modal textarea:focus-visible, .act-modal input:focus-visible {
+    outline-offset: 1px; border-radius: 10px;
+  }
+  .act-modal::backdrop { background: rgba(18, 18, 18, 0.45); backdrop-filter: blur(2px); }
+  .act-modal-inner {
+    display: flex; flex-direction: column; max-height: calc(100dvh - 3rem);
+    background: var(--paper); border: 1px solid var(--line); border-radius: 20px;
+    overflow: hidden;
+  }
+  .act-modal-head {
+    display: flex; align-items: flex-start; justify-content: space-between; gap: 1rem;
+    padding: 1.25rem 1.35rem 1rem; border-bottom: 1px solid var(--line);
+    background: var(--paper); flex: none;
+  }
+  .act-modal-title {
+    margin: 0.35rem 0 0; font-size: 1.4rem; font-weight: 800; letter-spacing: -0.022em;
+  }
+  .act-modal-body { overflow-y: auto; padding: 1.35rem; -webkit-overflow-scrolling: touch; }
+  .act-modal-body > .act-sub { margin: 0 0 0.25rem; }
+
+  @media (max-width: 640px) {
+    /* Full-height sheet on a phone — a centred card wastes the screen. */
+    .act-modal { width: 100%; max-width: none; max-height: 100dvh; margin: 0; }
+    .act-modal-inner { max-height: 100dvh; border-radius: 0; border: 0; }
+  }
