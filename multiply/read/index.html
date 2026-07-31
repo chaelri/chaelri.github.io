@@ -11,7 +11,10 @@
 <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700;800;900&display=swap" rel="stylesheet">
 <link href="https://fonts.googleapis.com/css2?family=Material+Symbols+Outlined:opsz,wght,FILL,GRAD@20..48,100..700,0..1,-50..200&display=block" rel="stylesheet">
 <script src="https://cdn.jsdelivr.net/npm/@tailwindcss/browser@4"></script>
-<link rel="stylesheet" href="../notes.css">
+<!-- Absolute, not "../notes.css": on Vercel this page is rewritten to the site
+     root, where a relative "../" would climb above the root and 404. Both hosts
+     serve the repo from the domain root, so /multiply/… is correct on each. -->
+<link rel="stylesheet" href="/multiply/notes.css">
 
 <style type="text/tailwindcss">
   @theme {
@@ -84,7 +87,9 @@ import { getAuth, signInAnonymously, onAuthStateChanged }
   from "https://www.gstatic.com/firebasejs/11.0.2/firebase-auth.js";
 import { getDatabase, ref, onValue }
   from "https://www.gstatic.com/firebasejs/11.0.2/firebase-database.js";
-import { SESSIONS, FIREBASE, DBURL, ROOT, renderNotes, pointsHTML } from "../notes.js";
+// Absolute for the same reason as the stylesheet — the Vercel rewrite serves
+// this page at "/", where "../notes.js" would resolve above the site root.
+import { SESSIONS, FIREBASE, DBURL, ROOT, renderNotes, pointsHTML } from "/multiply/notes.js";
 
 // Read-only by construction: this page never writes. There is no editor, no
 // input bound to state, and no code path that calls set() — so a shared link
