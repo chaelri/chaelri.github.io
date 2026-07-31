@@ -65,7 +65,7 @@
 <!-- ── Session rail ───────────────────────────────────────────────────── -->
 <nav class="sticky top-0 z-20 bg-paper/92 backdrop-blur border-b border-line">
   <div class="mx-auto max-w-6xl px-5 sm:px-8">
-    <div id="rail" class="flex gap-1.5 overflow-x-auto py-2.5 -mx-1 px-1 scrollbar-none"></div>
+    <div id="rail" class="rail flex gap-1.5 overflow-x-auto py-2.5 -mx-1 px-1 scrollbar-none"></div>
   </div>
 </nav>
 
@@ -218,7 +218,7 @@ function paintRail() {
              ${s.id === current
                ? "bg-ink text-paper border-ink"
                : "bg-transparent text-muted border-line hover:border-ink/40"}">
-      ${s.short} · ${s.title}
+      ${s.chip}
     </button>`).join("");
   el.rail.querySelectorAll(".railBtn").forEach((b) =>
     b.addEventListener("click", () => select(b.dataset.id)));

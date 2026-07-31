@@ -232,3 +232,11 @@
     letter-spacing: 0.2em; text-transform: uppercase; color: var(--faint);
   }
   .doc .qa .ans { margin: 0.1rem 0; }
+
+  /* The rail scrolls when the chips outrun the container. Fading the trailing
+     edge shows there's more rather than letting a chip look chopped off; with
+     no overflow the content stops short of the edge and nothing is faded. */
+  .rail {
+    -webkit-mask-image: linear-gradient(to right, #000 calc(100% - 28px), transparent);
+    mask-image: linear-gradient(to right, #000 calc(100% - 28px), transparent);
+  }

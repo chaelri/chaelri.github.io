@@ -19,11 +19,11 @@
 // ============================================================================
 
 export const SESSIONS = [
-  { id: "s1", day: "Day 1 · Friday, July 31",    time: "9:40 AM",  title: "Courage to Pray",    short: "S1",  heading: "Session 1: Courage to Pray" },
-  { id: "s2", day: "Day 1 · Friday, July 31",    time: "12:35 PM", title: "Courage to Move",    short: "S2",  heading: "Session 2: Courage to Move" },
-  { id: "panel", day: "Day 1 · Friday, July 31", time: "2:00 PM",  title: "Panel Q&A",          short: "Q&A", heading: "Panel Q&A" },
-  { id: "s3", day: "Day 1 · Friday, July 31",    time: "3:30 PM",  title: "Courage to Worship", short: "S3",  heading: "Session 3: Courage to Worship" },
-  { id: "s4", day: "Day 2 · Saturday, August 1", time: "9:30 AM",  title: "Courage to Lead",    short: "S4",  heading: "Session 4: Courage to Lead" },
+  { id: "s1", day: "Day 1 · Friday, July 31",    time: "9:40 AM",  title: "Courage to Pray",    short: "S1",  chip: "S1 · Pray",    heading: "Session 1: Courage to Pray" },
+  { id: "s2", day: "Day 1 · Friday, July 31",    time: "12:35 PM", title: "Courage to Move",    short: "S2",  chip: "S2 · Move",    heading: "Session 2: Courage to Move" },
+  { id: "panel", day: "Day 1 · Friday, July 31", time: "2:00 PM",  title: "Panel Q&A",          short: "Q&A", chip: "Panel Q&A",    heading: "Panel Q&A" },
+  { id: "s3", day: "Day 1 · Friday, July 31",    time: "3:30 PM",  title: "Courage to Worship", short: "S3",  chip: "S3 · Worship", heading: "Session 3: Courage to Worship" },
+  { id: "s4", day: "Day 2 · Saturday, August 1", time: "9:30 AM",  title: "Courage to Lead",    short: "S4",  chip: "S4 · Lead",    heading: "Session 4: Courage to Lead" },
 ];
 
 export const FIREBASE = {
