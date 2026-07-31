@@ -91,3 +91,5 @@ gemini-proxy/.credentials.md
 # Claude Code runtime artifacts
 .claude/knowledge-stale.md
 .claude/settings.local.json
+.vercel
+.env*

@@ -1,0 +1,17 @@
+# This Vercel project serves ONE thing: the read-only MULTIPLY notes at
+# /multiply/read/, rewritten to the root. It deploys from the repo root rather
+# than from multiply/read/ because that page imports ../notes.js and reads
+# ../../devo/nasb-split/ — both outside its own folder.
+#
+# So: exclude everything, then re-admit only what that page actually needs.
+# Keeps the upload at ~6.5 MB instead of the whole site.
+
+/*
+
+!/vercel.json
+!/multiply
+
+# Scripture data — per-chapter JSON the notes page fetches on demand.
+!/devo
+/devo/*
+!/devo/nasb-split
