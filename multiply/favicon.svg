@@ -1,0 +1,10 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 64 64" role="img" aria-label="MULTIPLY">
+  <!-- Poster identity at tab size: the chartreuse is the most recognisable
+       thing about MULTIPLY, so it carries the whole icon and the M sits on it
+       in near-black. The M is a path, not text, so it can't depend on a font
+       being available. The offset ghosts from the wordmark are deliberately
+       left out — at 16px they turn to mush. -->
+  <rect width="64" height="64" rx="14" fill="#B7E43F"/>
+  <path fill="#121212"
+        d="M12 49V15h11l9 14.5L41 15h11v34h-9.5V30.5l-7.5 12h-6l-7.5-12V49z"/>
+</svg>
