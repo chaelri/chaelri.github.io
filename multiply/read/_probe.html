@@ -312,5 +312,22 @@ onAuthStateChanged(auth, (user) => {
 });
 signInAnonymously(auth).catch(() => {});
 </script>
+
+<script>setTimeout(()=>{
+  // Type into both cards, then read back what localStorage actually holds.
+  const set=(id,v)=>{const e=document.querySelector('#'+id);e.value=v;e.dispatchEvent(new Event('input'));};
+  set('ll1','My Saturday mornings'); set('ll4','Start a Dgroup with 3 officemates.');
+  set('fs1','Lead a Dgroup'); set('fs3','Invite 3 people this week');
+  setTimeout(()=>{
+    const d=document.createElement('pre'); d.id='res';
+    d.textContent =
+      'leavelist: '+localStorage.getItem('multiply2026:leavelist')+
+      '\nfirststep: '+localStorage.getItem('multiply2026:firststep')+
+      '\nllStatus: '+document.querySelector('#llStatus').textContent+
+      '\nfsStatus: '+document.querySelector('#fsStatus').textContent+
+      '\ncards visible: '+document.querySelectorAll('#leaveList .ll-card').length;
+    document.body.prepend(d);
+  },300);
+},6500);</script>
 </body>
 </html>

@@ -312,5 +312,13 @@ onAuthStateChanged(auth, (user) => {
 });
 signInAnonymously(auth).catch(() => {});
 </script>
+
+<script>setTimeout(()=>{
+  const v=id=>document.querySelector('#'+id).value;
+  const d=document.createElement('pre'); d.id='res';
+  d.textContent='after reload → ll1='+JSON.stringify(v('ll1'))+' ll4='+JSON.stringify(v('ll4'))+
+                '\n                fs1='+JSON.stringify(v('fs1'))+' fs3='+JSON.stringify(v('fs3'));
+  document.body.prepend(d);
+},6500);</script>
 </body>
 </html>
