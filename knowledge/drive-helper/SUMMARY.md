@@ -38,6 +38,23 @@ Folder ID is the chunk after `/folders/` in the Drive share URL. File IDs come f
 - **Google-native exports.** `get` detects `application/vnd.google-apps.*` MIME types and exports to PDF via `/export?mimeType=...` instead of `alt=media`. Output filename gets a `.pdf` suffix in that case.
 - **Scopes baked in:** `openid email https://www.googleapis.com/auth/drive`. Edit `SCOPES` at the top of the file to add anything else (e.g., `drive.readonly` to lock it down, or `gmail.readonly` for a future Gmail use-case).
 - **Refresh-token gotcha.** If `auth` returns no `refresh_token`, Google has cached a prior consent. Revoke at `https://myaccount.google.com/permissions` (under "Third-party apps with account access" → `chaelri-drive`) and re-run.
+- **Refresh tokens expire after ~7 days.** Unavoidable consequence of the Testing-mode consent screen — Google caps unpublished-app refresh tokens at 7 days. Every helper here (`drive`, `gmail`, `sheets`, `yt`, `docs`) will eventually fail with `invalid_grant` / `Token has been expired or revoked`. The fix is always the same: re-run that helper's `auth` and click through the browser consent. Don't debug it as a code problem.
+
+## Sibling helpers
+
+Same OAuth client (`.drive-client.json`), same loopback-auth code, separate refresh-token cache each:
+
+| Helper | Creds file | Scope | Notes |
+|---|---|---|---|
+| `drive-helper.mjs` | `.drive-creds.json` | `drive` | ls / get / put / mkdir |
+| `sheets-helper.mjs` | `.sheets-creds.json` | `spreadsheets` | |
+| `gmail-helper.mjs` | `.gmail-creds.json` | `drive`, `gmail.send`, `gmail.readonly` | |
+| `yt-helper.mjs` | `.yt-creds.json` | `youtube.upload` | separate `.yt-client.json` |
+| `docs-helper.mjs` | `.docs-creds.json` | `drive` | added 2026-07-31 |
+
+**`docs-helper.mjs`** — Google Docs read/write. `auth` / `get <docId>` (paragraph dump *with start/end indices*, which is what every batchUpdate needs) / `raw <docId> [out]` / `update <docId> <reqs.json>`. It reuses the `drive` scope because the Docs API accepts it, so no consent-screen change was needed; `docs.googleapis.com` was already enabled on the project. `get` passes `includeTabsContent=true` so multi-tab docs aren't silently truncated to Tab 1.
+
+**Writing a Docs `batchUpdate` by hand is a trap** — every index shifts as you insert. The working pattern (see the MULTIPLY 2026 build) is to declare the paragraphs as data, concatenate the text, and *derive* every `startIndex`/`endIndex` from that string in a loop. Two rules that bite: the doc's final newline can't be deleted (so `deleteContentRange` stops one short of `endIndex`, and your inserted text must not end with `\n`), and `updateTextStyle` rejects a zero-width range (so skip character styling on empty placeholder paragraphs).
 
 ## How it relates to the rest of the repo
 
