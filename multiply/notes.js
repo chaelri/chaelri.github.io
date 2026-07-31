@@ -81,6 +81,11 @@ export function isTaglish(t) {
   return new Set(w.filter((x) => TAGALOG.has(x))).size >= 2;
 }
 
+// *word* marks a word inline, in the same yellow used for a shouted word —
+// a way to stress something mid-sentence without SHOUTING it.
+const EMPH = /\*([^*\n]{1,60})\*/g;
+export const inline = (s) => esc(s).replace(EMPH, '<span class="cap">$1</span>');
+
 export const esc = (s) => s.replace(/[&<>"]/g, (c) => ({ "&":"&amp;","<":"&lt;",">":"&gt;",'"':"&quot;" }[c]));
 
 // An ALL-CAPS line ("PROTECT YOUR PRIORITY") is a sermon point. Two words
@@ -93,15 +98,38 @@ export function isPoint(t) {
   return letters.length >= 3 && s.length <= 70 && s === s.toUpperCase();
 }
 
-// A sub-point is an ordinary sentence carrying one shouted word — "He had a
-// PLACE." The lowercase requirement is what separates it from a main point.
-const CAPWORD = /\b[A-Z]{3,}\b/;
+// A sub-point is a short line whose shouted word LANDS it — "He had a PLACE."
+// Both conditions matter: shouting mid-sentence for emphasis ("it will allow us
+// to MOVE where God wants you to go") is ordinary prose, not a heading, and
+// treating it as one filled the index with fragments.
+const CAPWORD = /\b[A-Z]{2,}(?:[’']?[A-Z]+)*(?:\s+[A-Z]{2,}(?:[’']?[A-Z]+)*)*\b/;
 export function isSubPoint(t) {
-  const s = t.trim();
-  return s.length <= 90 && CAPWORD.test(s) && /[a-z]/.test(s);
+  const s = t.trim().replace(/[.!?]+$/, "");
+  if (s.length > 60 || !/[a-z]/.test(s)) return false;
+  const shouts = s.match(new RegExp(CAPWORD.source, "g"));
+  if (!shouts || !shouts.some((w) => w.replace(/\s/g, "").length >= 3)) return false;
+  return s.endsWith(shouts[shouts.length - 1]);
 }
 const isOrdinal = (t) => /^(first|second|third|fourth|fifth|sixth|1st|2nd|3rd|4th|5th)[.:]?$/i.test(t.trim());
 const isAttr = (t) => /^[—–]\s*\S/.test(t) && t.length <= 80;
+
+// "1. Sin", "2) Distractions" — an enumerated list. These must be recognised
+// before the deck and antithesis rules, or a list gets torn apart: the first
+// item reads as the heading's gloss, and any item containing "not" pairs with
+// the one after it as a couplet.
+const NUM_RE = /^(\d{1,2})[.)]\s+(.+)$/;
+const normal = (t) => t.trim().toLowerCase().replace(/[.:]+$/, "").replace(/\s+/g, " ");
+
+// "Main Theme: Joshua 1:9" — the verse the whole talk hangs on. Shown in full
+// rather than folded into an accordion: this is the one passage a reader should
+// not have to click to see.
+const THEME_RE = /^(main theme|theme|key verse|main passage|memory verse|main text)\s*:\s*(.+)$/i;
+function themeRef(t) {
+  const m = THEME_RE.exec(t.trim());
+  if (!m) return null;
+  const ref = parseRef(m[2]);
+  return ref ? { label: m[1], ref } : null;
+}
 
 /* ── Vertical rhythm ──────────────────────────────────────────────────── */
 const GAP = '<div class="gap"></div>';
@@ -147,9 +175,33 @@ export async function renderNotes(host, text, openRefs = new Set(), onOpenChange
   const token = ++renderToken;
   const lines = text.split("\n");
   const out = [], pending = [], points = [];
-  let deckFor = -1;
+  let deckFor = -1;      // index into points[] whose gloss is next, or -1
+  let deckNext = false;  // render the next plain line as a deck regardless
+  let anchor = 0;        // id counter — not every anchor is indexed
 
   const skip = new Set(), quoteOf = new Map();
+
+  // An outline item that comes back later as a standalone line is a section
+  // heading — "1. Courage to Let Go" in the outline, then "Courage to Let Go"
+  // heading its own section. That repeat is what marks the sermon's real points,
+  // and it's what separates them from ordinary lists like "1. Sin, 2. Idols".
+  const outlineAt = new Map();
+  for (let i = 0; i < lines.length; i++) {
+    const m = NUM_RE.exec(lines[i].trim());
+    if (m && !outlineAt.has(normal(m[2]))) outlineAt.set(normal(m[2]), i);
+  }
+  const sectionOf = new Set();
+  for (let i = 0; i < lines.length; i++) {
+    const t = lines[i].trim();
+    if (!t || NUM_RE.test(t)) continue;
+    const at = outlineAt.get(normal(t));
+    if (at !== undefined && at < i) sectionOf.add(i);
+  }
+  // When the talk states its own outline, those sections ARE the points. Other
+  // shouted lines ("WHAT SHOULD I LET GO?") head supporting lists — they keep
+  // their styling but stay out of the index, which otherwise buries the three
+  // points the message is actually built on.
+  const hasOutline = sectionOf.size > 0;
 
   // Merge references that run on from each other — "Daniel 6:5-7" followed by
   // "Daniel 6:8-16" is one passage, 6:5–16.
@@ -173,13 +225,26 @@ export async function renderNotes(host, text, openRefs = new Set(), onOpenChange
     i = last;
   }
 
+  // The last line is the charge the talk ends on — "Have the courage to GO."
+  // Given display weight and a lime rule above it, so the notes land rather
+  // than trailing off. Only plain prose qualifies; a verse or list keeps its own.
+  let closerIdx = -1;
+  for (let i = lines.length - 1; i >= 0; i--) {
+    const t = lines[i].trim();
+    if (!t) continue;
+    if (!(parseRef(t) || NUM_RE.test(t) || isAttr(t) || isOrdinal(t) ||
+          /^[-•*]\s+/.test(t) || themeRef(t) || t.endsWith(":") || t.length > 90)) closerIdx = i;
+    break;
+  }
+
   // The session's first line is its opening statement — but only if it's plain
   // prose. If the notes open on a point or a verse, that keeps its own styling.
   let ledeIdx = lines.findIndex((l) => l.trim());
   if (ledeIdx >= 0) {
     const t = lines[ledeIdx].trim();
     if (isPoint(t) || isSubPoint(t) || isOrdinal(t) || parseRef(t) ||
-        /^[-•*]\s+/.test(t) || /^["“”']/.test(t) || isAttr(t) || t.endsWith(":")) ledeIdx = -1;
+        /^[-•*]\s+/.test(t) || /^["“”']/.test(t) || isAttr(t) || NUM_RE.test(t) ||
+        themeRef(t) || t.endsWith(":")) ledeIdx = -1;
   }
 
   // Quotable quotes: a plain line whose next non-blank neighbour is an em-dash
@@ -192,7 +257,7 @@ export async function renderNotes(host, text, openRefs = new Set(), onOpenChange
     if (q < 0) continue;
     const qt = lines[q].trim();
     if (isPoint(qt) || isSubPoint(qt) || isOrdinal(qt) || parseRef(qt) ||
-        /^[-•*]\s+/.test(qt) || qt.endsWith(":") || isAttr(qt)) continue;
+        /^[-•*]\s+/.test(qt) || qt.endsWith(":") || isAttr(qt) || NUM_RE.test(qt)) continue;
     quoteOf.set(q, { text: qt, by: t.replace(/^[—–]\s*/, "") });
     for (let k = q + 1; k <= i; k++) skip.add(k);
   }
@@ -203,7 +268,7 @@ export async function renderNotes(host, text, openRefs = new Set(), onOpenChange
   const NEG = /\b(is\s?n[o']?t|does\s?n[o']?t|do\s?n[o']?t|was\s?n[o']?t|never|not)\b/i;
   const special = (t) =>
     isPoint(t) || isSubPoint(t) || isOrdinal(t) || parseRef(t) ||
-    /^[-•*]\s+/.test(t) || /^["“”']/.test(t) || isAttr(t) || t.endsWith(":");
+    /^[-•*]\s+/.test(t) || /^["“”']/.test(t) || isAttr(t) || NUM_RE.test(t) || t.endsWith(":");
   for (let i = 0; i < lines.length - 1; i++) {
     if (skip.has(i) || skip.has(i + 1) || quoteOf.has(i) || quoteOf.has(i + 1) || i === ledeIdx) continue;
     const a = lines[i].trim(), b = lines[i + 1].trim();
@@ -221,8 +286,8 @@ export async function renderNotes(host, text, openRefs = new Set(), onOpenChange
       const { a, b } = antiOf.get(idx);
       deckFor = -1;
       out.push(`<div class="anti">
-        <p class="a ${isTaglish(a) ? "taglish" : ""}">${esc(a)}</p>
-        <p class="b ${isTaglish(b) ? "taglish" : ""}">${esc(b)}</p></div>`);
+        <p class="a ${isTaglish(a) ? "taglish" : ""}">${inline(a)}</p>
+        <p class="b ${isTaglish(b) ? "taglish" : ""}">${inline(b)}</p></div>`);
       continue;
     }
     if (quoteOf.has(idx)) {
@@ -238,7 +303,7 @@ export async function renderNotes(host, text, openRefs = new Set(), onOpenChange
     if (!line.trim()) { out.push(GAP); continue; }
 
     if (idx === ledeIdx) {
-      out.push(`<p class="lede ${isTaglish(line.trim()) ? "taglish" : ""}">${esc(line.trim())}</p>`);
+      out.push(`<p class="lede ${isTaglish(line.trim()) ? "taglish" : ""}">${inline(line.trim())}</p>`);
       continue;
     }
 
@@ -251,37 +316,78 @@ export async function renderNotes(host, text, openRefs = new Set(), onOpenChange
     }
 
     const t = line.trim();
-    if (isOrdinal(t)) { deckFor = -1; out.push(`<p class="ord">${esc(t.replace(/[.:]$/, ""))}</p>`); continue; }
+
+    if (idx === closerIdx && idx !== ledeIdx) {
+      const marked = inline(t).replace(CAPWORD, (w) => `<span class="cap">${w}</span>`);
+      out.push(`<p class="closer ${isTaglish(t) ? "taglish" : ""}">${marked}</p>`);
+      continue;
+    }
+
+    const theme = themeRef(t);
+    if (theme) {
+      pending.push({ slot: out.length, ref: theme.ref, full: true });
+      out.push("");
+      deckFor = -1; deckNext = false;
+      continue;
+    }
+
+    // A repeated outline item — the section this point actually covers.
+    if (sectionOf.has(idx)) {
+      const id = `pt-${anchor++}`;
+      points.push({ text: t.replace(/[:.]+$/, "").trim(), level: 1, id });
+      out.push(`<p class="point" id="${id}"><span>${esc(t)}</span></p>`);
+      deckFor = points.length - 1; deckNext = true;
+      continue;
+    }
+
+    const num = NUM_RE.exec(t);
+    if (num) {
+      deckFor = -1; deckNext = false;
+      out.push(`<p class="num"><span class="n">${num[1]}.</span><span>${inline(num[2])}</span></p>`);
+      continue;
+    }
+
+    if (isOrdinal(t)) { deckFor = -1; deckNext = false; out.push(`<p class="ord">${esc(t.replace(/[.:]$/, ""))}</p>`); continue; }
     if (isPoint(t)) {
-      points.push({ text: t.replace(/[:.]+$/, "").trim(), level: 1 });
-      out.push(`<p class="point" id="pt-${points.length - 1}"><span>${esc(t)}</span></p>`);
-      deckFor = points.length - 1;
+      const id = `pt-${anchor++}`;
+      if (!hasOutline) { points.push({ text: t.replace(/[:.]+$/, "").trim(), level: 1, id }); deckFor = points.length - 1; }
+      else deckFor = -1;
+      out.push(`<p class="point" id="${id}"><span>${esc(t)}</span></p>`);
+      deckNext = true;
       continue;
     }
     if (isSubPoint(t)) {
-      points.push({ text: t.replace(/[.]+$/, "").trim(), level: 2 });
+      const id = `pt-${anchor++}`;
+      if (points.length) points.push({ text: t.replace(/[.]+$/, "").trim(), level: 2, id });
       const marked = esc(t).replace(CAPWORD, (w) => `<span class="cap">${w}</span>`);
-      out.push(`<p class="sub" id="pt-${points.length - 1}">${marked}</p>`);
-      deckFor = -1;
+      out.push(`<p class="sub" id="${id}">${marked}</p>`);
+      deckFor = -1; deckNext = false;
       continue;
     }
-    if (/^[-•*]\s+/.test(t)) { deckFor = -1; out.push(`<p class="item">${esc(t.replace(/^[-•*]\s+/, ""))}</p>`); continue; }
-    if (/^["“”']/.test(t))   { deckFor = -1; out.push(`<p class="dialogue">${esc(t)}</p>`); continue; }
-    if (t.endsWith(":"))     { deckFor = -1; out.push(`<p class="lead">${esc(t)}</p>`); continue; }
+    if (/^[-•*]\s+/.test(t)) { deckFor = -1; deckNext = false; out.push(`<p class="item">${inline(t.replace(/^[-•*]\s+/, ""))}</p>`); continue; }
+    if (/^["“”']/.test(t))   { deckFor = -1; deckNext = false; out.push(`<p class="dialogue">${esc(t)}</p>`); continue; }
+    if (t.endsWith(":"))     { deckFor = -1; deckNext = false; out.push(`<p class="lead">${esc(t)}</p>`); continue; }
 
-    if (deckFor >= 0) {
-      points[deckFor].deck = t;
-      deckFor = -1;
-      out.push(`<p class="deck ${isTaglish(t) ? "taglish" : ""}">${esc(t)}</p>`);
+    if (deckNext) {
+      if (deckFor >= 0) points[deckFor].deck = t;
+      deckFor = -1; deckNext = false;
+      out.push(`<p class="deck ${isTaglish(t) ? "taglish" : ""}">${inline(t)}</p>`);
       continue;
     }
-    out.push(`<p class="${isTaglish(t) ? "taglish" : ""}">${esc(t)}</p>`);
+    out.push(`<p class="${isTaglish(t) ? "taglish" : ""}">${inline(t)}</p>`);
   }
 
   // Collapsed by default — the reference is the note, the verse is on demand.
   // Which ones are open is remembered, because the preview is rebuilt on every
   // keystroke and an open passage would otherwise slam shut mid-sentence.
-  for (const { slot, ref } of pending) {
+  for (const { slot, ref, full } of pending) {
+    if (full) {
+      out[slot] = `<section class="theme">
+        <p class="tlabel">Main theme</p>
+        <p class="tverse" data-k="${slot}">loading…</p>
+        <p class="tref">${esc(ref.label)}</p></section>`;
+      continue;
+    }
     out[slot] = `<details ${openRefs.has(ref.label) ? "open" : ""} data-ref="${esc(ref.label)}">
       <summary><span class="ms chev">chevron_right</span>${esc(ref.label)}</summary>
       <div class="verse" data-k="${slot}">loading…</div></details>`;
@@ -322,13 +428,32 @@ export function pointsHTML(points) {
     const marker = top ? String(main).padStart(2, "0") : String.fromCharCode(96 + sub);
     return `
     <li class="${top ? (main > 1 ? "pt-1.5" : "") : "pl-6"}">
-      <button data-pt="${i}" class="ptBtn group w-full text-left flex items-baseline gap-2.5 py-0.5">
+      <button data-pt="${p.id}" class="ptBtn group w-full text-left flex items-baseline gap-2.5 py-0.5">
         <span class="text-[10px] font-bold ${top ? "text-faint" : "text-faint/70"} tabular-nums pt-0.5 w-4 shrink-0">${marker}</span>
         <span class="${top
-            ? "text-[13px] font-semibold tracking-[0.06em] decoration-lime"
+            ? "text-[13px] font-semibold tracking-[0.09em] uppercase decoration-lime"
             : "text-[12.5px] font-normal text-muted decoration-yellow"}
           group-hover:underline decoration-2 underline-offset-4">${esc(p.text)}</span>
       </button>
     </li>`;
   }).join("");
+}
+
+/* ── Poster wordmark ──────────────────────────────────────────────────── */
+// On the poster, "THE COURAGE TO" and "JOSHUA 1:9" are tracked out until they
+// span the exact width of MULTIPLY. A fixed letter-spacing can't do that — the
+// gap has to be derived from the wordmark's width — so each character becomes a
+// flex child and space-between distributes the slack.
+export function spreadMark(root = document) {
+  root.querySelectorAll(".spread").forEach((el) => {
+    if (el.dataset.spread) return;                  // already done
+    const text = (el.textContent || "").trim();
+    el.dataset.spread = "1";
+    el.textContent = "";
+    for (const ch of text) {
+      const s = document.createElement("span");
+      s.textContent = ch === " " ? " " : ch;   // thin space keeps words apart
+      el.appendChild(s);
+    }
+  });
 }

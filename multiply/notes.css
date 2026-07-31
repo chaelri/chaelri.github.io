@@ -40,6 +40,18 @@
   .tracked { letter-spacing: 0.42em; }
   .tracked-sm { letter-spacing: 0.22em; }
 
+  /* The poster tracks "THE COURAGE TO" and "JOSHUA 1:9" out until each spans the
+     exact width of MULTIPLY. A fixed letter-spacing can't do that, so each
+     character is a flex child and space-between absorbs the slack.
+     .mark shrinks to fit the wordmark; the percentage widths below are ignored
+     when that shrink-to-fit width is computed, so they follow the h1. */
+  .mark { display: inline-block; }
+  .spread {
+    display: flex; justify-content: space-between; width: 100%;
+    letter-spacing: 0; text-transform: uppercase;
+  }
+  .spread > span { display: inline-block; }
+
   /* No `field-sizing: content` here — it sizes the textarea to its widest line,
      which on a phone stretched the whole page past the viewport. */
   .note-input { tab-size: 2; }
@@ -68,10 +80,45 @@
     padding-left: 0.9rem; margin: 0.3rem 0;
     border-left: 2px solid var(--lime);
   }
+  /* Main theme — the anchor verse of the whole talk, shown in full rather than
+     folded away. Sits under a lime rule at the top of the session. */
+  .doc .theme {
+    margin: 0 0 1.9rem; padding: 0.95rem 0 0 1.1rem;
+    border-left: 3px solid var(--lime);
+  }
+  .doc .theme .tlabel {
+    margin: 0 0 0.5rem; font-size: 0.62rem; font-weight: 700;
+    letter-spacing: 0.22em; text-transform: uppercase; color: var(--faint);
+  }
+  .doc .theme .tverse {
+    margin: 0; font-size: 1.22rem; line-height: 1.46; font-weight: 500;
+    letter-spacing: -0.01em; color: var(--ink);
+  }
+  .doc .theme .tref {
+    margin: 0.6rem 0 0; font-size: 0.66rem; font-weight: 700;
+    letter-spacing: 0.2em; text-transform: uppercase; color: var(--muted);
+  }
+
+  /* Enumerated list — "1. Sin", "2. Distractions". The number is set back in
+     grey so the items themselves carry the line, and the whole run stays tight
+     so it reads as one list rather than a stack of loose paragraphs. */
+  .doc .num { display: flex; gap: 0.55rem; margin: 0.1rem 0; align-items: baseline; }
+  .doc .num .n {
+    color: var(--faint); font-weight: 700; font-variant-numeric: tabular-nums;
+    min-width: 1.15rem; flex: none;
+  }
+  /* Air before the first item and after the last, none in between. */
+  .doc .num + .num { margin-top: 0.1rem; }
+  .doc :not(.num) + .num { margin-top: 0.55rem; }
+  .doc .num:last-child { margin-bottom: 0.55rem; }
+
   /* An ALL-CAPS line is a sermon point — the loudest thing on the page, marked
      with the poster's lime as a highlighter stripe rather than a heavier font. */
   .doc .point { margin: 1.5rem 0 0.6rem; }
   .doc .point span {
+    /* Uppercased in the styling, not in the source — a point typed "Courage to
+       Let Go" reads the same as one typed "COURAGE TO GO". */
+    text-transform: uppercase;
     font-weight: 800; letter-spacing: 0.13em; font-size: 0.94rem;
     background: linear-gradient(transparent 56%, var(--lime) 56%, var(--lime) 94%, transparent 94%);
     padding: 0 0.2rem; box-decoration-break: clone; -webkit-box-decoration-break: clone;
@@ -154,3 +201,12 @@
 
   ::-webkit-scrollbar { width: 10px; height: 10px; }
   ::-webkit-scrollbar-thumb { background: #D6D5CF; border-radius: 999px; border: 3px solid var(--paper); }
+
+  /* The closing charge — the last line of a session. Display weight under a
+     lime rule so the notes end on a beat instead of trailing off. */
+  .doc .closer {
+    margin: 2.4rem 0 0.5rem; padding-top: 1.35rem;
+    border-top: 2px solid var(--lime);
+    font-size: 1.5rem; font-weight: 800; line-height: 1.28;
+    letter-spacing: -0.022em;
+  }

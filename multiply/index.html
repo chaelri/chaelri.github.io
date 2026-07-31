@@ -38,9 +38,11 @@
     <div class="flex items-start justify-between gap-4">
       <div class="min-w-0">
         <p class="tracked-sm text-[10px] sm:text-[11px] font-semibold text-muted uppercase">CCF East Ortigas</p>
-        <p class="tracked text-[9px] sm:text-[11px] font-semibold text-ink/70 uppercase mt-3">The Courage To</p>
-        <h1 class="wordmark text-[3.4rem] sm:text-[5.5rem] mt-1">MULTIPLY</h1>
-        <p class="tracked text-[9px] sm:text-[11px] font-semibold text-ink/70 uppercase mt-3">Joshua 1:9</p>
+        <div class="mark">
+          <p class="spread text-[9px] sm:text-[11px] font-semibold text-ink/70 mt-3">THE COURAGE TO</p>
+          <h1 class="wordmark text-[3.4rem] sm:text-[5.5rem] mt-1">MULTIPLY</h1>
+          <p class="spread text-[9px] sm:text-[11px] font-semibold text-ink/70 mt-3">JOSHUA 1:9</p>
+        </div>
       </div>
 
       <div class="flex items-center gap-2 shrink-0 pt-1">
@@ -128,7 +130,7 @@ import { getAuth, signInAnonymously, onAuthStateChanged }
   from "https://www.gstatic.com/firebasejs/11.0.2/firebase-auth.js";
 import { getDatabase, ref, onValue, set }
   from "https://www.gstatic.com/firebasejs/11.0.2/firebase-database.js";
-import { SESSIONS, FIREBASE, DBURL, ROOT, renderNotes, pointsHTML } from "./notes.js";
+import { SESSIONS, FIREBASE, DBURL, ROOT, renderNotes, pointsHTML, spreadMark } from "./notes.js";
 
 /* ── Shared note format ───────────────────────────────────────────────── */
 // SESSIONS, the line grammar, the renderer and the points index all live in
@@ -298,6 +300,7 @@ async function hydrate() {
   } catch { /* offline is fine — localStorage already painted the screen */ }
 }
 
+spreadMark();
 select(current);
 hydrate();
 

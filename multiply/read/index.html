@@ -44,9 +44,11 @@
     <div class="flex items-start justify-between gap-4">
       <div class="min-w-0">
         <p class="tracked-sm text-[10px] sm:text-[11px] font-semibold text-muted uppercase">CCF East Ortigas</p>
-        <p class="tracked text-[9px] sm:text-[11px] font-semibold text-ink/70 uppercase mt-3">The Courage To</p>
-        <h1 class="wordmark text-[3.4rem] sm:text-[5rem] mt-1">MULTIPLY</h1>
-        <p class="tracked text-[9px] sm:text-[11px] font-semibold text-ink/70 uppercase mt-3">Joshua 1:9</p>
+        <div class="mark">
+          <p class="spread text-[9px] sm:text-[11px] font-semibold text-ink/70 mt-3">THE COURAGE TO</p>
+          <h1 class="wordmark text-[3.4rem] sm:text-[5rem] mt-1">MULTIPLY</h1>
+          <p class="spread text-[9px] sm:text-[11px] font-semibold text-ink/70 mt-3">JOSHUA 1:9</p>
+        </div>
       </div>
       <button id="btnShare" title="Share"
         class="shrink-0 mt-1 grid place-items-center w-9 h-9 rounded-full border border-line hover:bg-panel active:scale-95 transition">
@@ -89,7 +91,7 @@ import { getDatabase, ref, onValue }
   from "https://www.gstatic.com/firebasejs/11.0.2/firebase-database.js";
 // Absolute for the same reason as the stylesheet — the Vercel rewrite serves
 // this page at "/", where "../notes.js" would resolve above the site root.
-import { SESSIONS, FIREBASE, DBURL, ROOT, renderNotes, pointsHTML } from "/multiply/notes.js";
+import { SESSIONS, FIREBASE, DBURL, ROOT, renderNotes, pointsHTML, spreadMark } from "/multiply/notes.js";
 
 // Read-only by construction: this page never writes. There is no editor, no
 // input bound to state, and no code path that calls set() — so a shared link
@@ -168,6 +170,7 @@ async function hydrate() {
   select(current);
 }
 
+spreadMark();
 paintRail();
 select(current);
 hydrate();
