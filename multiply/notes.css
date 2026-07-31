@@ -379,3 +379,8 @@
     font-size: 0.66rem; font-weight: 700; letter-spacing: 0.2em;
     text-transform: uppercase; color: var(--faint);
   }
+
+  /* "JOSHUA 1:9" spans the same width as "THE COURAGE TO" but with 10 glyphs
+     against 14, so its gaps are ~1.4x wider and it reads lighter at the same
+     size. A touch more size and weight evens the ink out. */
+  .spread-lg > span { font-weight: 700; }
