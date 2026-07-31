@@ -209,7 +209,27 @@ export async function renderNotes(host, text, openRefs = new Set(), onOpenChange
   // shouted lines ("WHAT SHOULD I LET GO?") head supporting lists — they keep
   // their styling but stay out of the index, which otherwise buries the three
   // points the message is actually built on.
-  const hasOutline = sectionOf.size > 0;
+  // A numbered run whose items are separated by real content is an outline of
+  // sections, not a list — "1. Seek God" then thirty lines, then "2. Faith in
+  // God". A run whose items sit back to back ("1. Sin / 2. Distractions") is a
+  // list. That spacing is the difference, and it's what tells session 3's three
+  // points apart from session 2's inventories.
+  const numAt = [];
+  for (let i = 0; i < lines.length; i++) {
+    const m = NUM_RE.exec(lines[i].trim());
+    if (m) numAt.push({ i, n: +m[1] });
+  }
+  const spacedNum = new Set();
+  for (let a = 0; a < numAt.length - 1; a++) {
+    const cur = numAt[a], next = numAt[a + 1];
+    if (next.n !== cur.n + 1) continue;                     // a different run
+    const between = lines.slice(cur.i + 1, next.i).filter((l) => l.trim());
+    if (!between.length) continue;                          // back to back: a list
+    spacedNum.add(cur.i);
+    spacedNum.add(next.i);
+  }
+
+  const hasOutline = sectionOf.size > 0 || spacedNum.size > 0;
 
   // Merge references that run on from each other — "Daniel 6:5-7" followed by
   // "Daniel 6:8-16" is one passage, 6:5–16.
@@ -365,6 +385,14 @@ export async function renderNotes(host, text, openRefs = new Set(), onOpenChange
     }
 
     const num = NUM_RE.exec(t);
+    if (num && spacedNum.has(idx)) {
+      // Heads its own section, so it reads and indexes as a point.
+      const id = `pt-${anchor++}`;
+      points.push({ text: num[2].replace(/[:.]+$/, "").trim(), level: 1, id });
+      out.push(`<p class="point" id="${id}"><span>${esc(num[2])}</span></p>`);
+      deckFor = points.length - 1; deckNext = true;
+      continue;
+    }
     if (num) {
       deckFor = -1; deckNext = false;
       out.push(`<p class="num"><span class="n">${num[1]}.</span><span>${inline(num[2])}</span></p>`);
