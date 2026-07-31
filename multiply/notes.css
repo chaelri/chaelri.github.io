@@ -370,3 +370,12 @@
     .act-modal { width: 100%; max-width: none; max-height: 100dvh; margin: 0; }
     .act-modal-inner { max-height: 100dvh; border-radius: 0; border: 0; }
   }
+
+  /* A parenthesised reference on its own line is the source of the quote above
+     it. Set as a quiet citation hugging that quote — aligned to the dialogue
+     indent — rather than as another accordion the reader has to open. */
+  .doc .cite {
+    margin: 0.3rem 0 0.95rem; padding-left: 1.15rem;
+    font-size: 0.66rem; font-weight: 700; letter-spacing: 0.2em;
+    text-transform: uppercase; color: var(--faint);
+  }

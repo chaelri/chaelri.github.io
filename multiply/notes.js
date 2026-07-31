@@ -134,6 +134,15 @@ const QA_RE = /^([QA])\s*(?:\(([^)]{0,40})\))?\s*[:.\-]\s*(.+)$/;
 // "Main Theme: Joshua 1:9" — the verse the whole talk hangs on. Shown in full
 // rather than folded into an accordion: this is the one passage a reader should
 // not have to click to see.
+// "(2 Chronicles 20:12)" on its own line is a citation for the quote above it,
+// not a passage to open — it renders as a quiet source line rather than another
+// accordion holding a verse the reader can already see.
+const CITE_RE = /^\(\s*([^)]+?)\s*\)$/;
+function citeRef(t) {
+  const m = CITE_RE.exec(t.trim());
+  return m && parseRef(m[1]) ? parseRef(m[1]) : null;
+}
+
 const THEME_RE = /^(main theme|theme|key verse|main passage|memory verse|main text)\s*:\s*(.+)$/i;
 function themeRef(t) {
   const m = THEME_RE.exec(t.trim());
@@ -264,7 +273,7 @@ export async function renderNotes(host, text, openRefs = new Set(), onOpenChange
     const t = lines[i].trim();
     if (!t) continue;
     if (!(parseRef(t) || NUM_RE.test(t) || isAttr(t) || isOrdinal(t) ||
-          /^[-•*]\s+/.test(t) || themeRef(t) || QA_RE.test(t) || t.endsWith(":") || t.length > 90)) closerIdx = i;
+          /^[-•*]\s+/.test(t) || themeRef(t) || QA_RE.test(t) || citeRef(t) || t.endsWith(":") || t.length > 90)) closerIdx = i;
     break;
   }
 
@@ -275,7 +284,7 @@ export async function renderNotes(host, text, openRefs = new Set(), onOpenChange
     const t = lines[ledeIdx].trim();
     if (isPoint(t) || isSubPoint(t) || isOrdinal(t) || parseRef(t) ||
         /^[-•*]\s+/.test(t) || /^["“”']/.test(t) || isAttr(t) || NUM_RE.test(t) ||
-        themeRef(t) || QA_RE.test(t) || t.endsWith(":")) ledeIdx = -1;
+        themeRef(t) || QA_RE.test(t) || citeRef(t) || t.endsWith(":")) ledeIdx = -1;
   }
 
   // Quotable quotes: a plain line whose next non-blank neighbour is an em-dash
@@ -288,7 +297,7 @@ export async function renderNotes(host, text, openRefs = new Set(), onOpenChange
     if (q < 0) continue;
     const qt = lines[q].trim();
     if (isPoint(qt) || isSubPoint(qt) || isOrdinal(qt) || parseRef(qt) ||
-        /^[-•*]\s+/.test(qt) || qt.endsWith(":") || isAttr(qt) || NUM_RE.test(qt) || QA_RE.test(qt)) continue;
+        /^[-•*]\s+/.test(qt) || qt.endsWith(":") || isAttr(qt) || NUM_RE.test(qt) || QA_RE.test(qt) || citeRef(qt)) continue;
     quoteOf.set(q, { text: qt, by: t.replace(/^[—–]\s*/, "") });
     for (let k = q + 1; k <= i; k++) skip.add(k);
   }
@@ -299,7 +308,7 @@ export async function renderNotes(host, text, openRefs = new Set(), onOpenChange
   const NEG = /\b(is\s?n[o']?t|does\s?n[o']?t|do\s?n[o']?t|was\s?n[o']?t|never|not)\b/i;
   const special = (t) =>
     isPoint(t) || isSubPoint(t) || isOrdinal(t) || parseRef(t) ||
-    /^[-•*]\s+/.test(t) || /^["“”']/.test(t) || isAttr(t) || NUM_RE.test(t) || QA_RE.test(t) || t.endsWith(":");
+    /^[-•*]\s+/.test(t) || /^["“”']/.test(t) || isAttr(t) || NUM_RE.test(t) || QA_RE.test(t) || citeRef(t) || t.endsWith(":");
   for (let i = 0; i < lines.length - 1; i++) {
     if (skip.has(i) || skip.has(i + 1) || quoteOf.has(i) || quoteOf.has(i + 1) || i === ledeIdx) continue;
     const a = lines[i].trim(), b = lines[i + 1].trim();
@@ -351,6 +360,13 @@ export async function renderNotes(host, text, openRefs = new Set(), onOpenChange
     if (idx === closerIdx && idx !== ledeIdx) {
       const marked = inline(t).replace(CAPWORD, (w) => `<span class="cap">${w}</span>`);
       out.push(`<p class="closer ${isTaglish(t) ? "taglish" : ""}">${marked}</p>`);
+      continue;
+    }
+
+    const cite = citeRef(t);
+    if (cite) {
+      deckFor = -1; deckNext = false;
+      out.push(`<p class="cite">${esc(cite.label)}</p>`);
       continue;
     }
 
