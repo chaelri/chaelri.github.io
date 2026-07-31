@@ -62,8 +62,10 @@
   .scrollbar-none { scrollbar-width: none; }
   .scrollbar-none::-webkit-scrollbar { display: none; }
 
-  /* Rendered note typography — mirrors the styling system in the Google Doc:
-     grey italic = scripture, black italic = dialogue or Taglish, lime rule = list. */
+  /* Rendered note typography. Nothing is italicised — including Taglish. Every
+     block is still distinguishable without it: dialogue keeps its yellow rule,
+     scripture its grey and its indent, list items their lime rule. The .taglish
+     class is still emitted, so restoring the italic is a one-line change. */
   /* Consecutive lines are ONE thought — Charlie presses Enter mid-idea and uses
      a blank line to end it. So body lines sit tight together, and the blank
      line carries the real break. Even spacing made a six-line thought read as
@@ -71,9 +73,8 @@
   .doc p { margin: 0.14rem 0; }
   .doc .gap { height: 1rem; }
   .doc .lead { font-weight: 600; margin-top: 1rem; }
-  .doc .taglish { font-style: italic; }
   .doc .dialogue {
-    font-style: italic; padding-left: 1.15rem; margin: 0.7rem 0;
+    padding-left: 1.15rem; margin: 0.7rem 0;
     border-left: 2px solid var(--yellow);
   }
   .doc .item {
@@ -189,7 +190,7 @@
   .doc details summary .chev { transition: transform 0.18s ease; font-size: 1rem; }
   .doc details[open] summary .chev { transform: rotate(90deg); }
   .doc details .verse {
-    color: var(--muted); font-style: italic; padding-left: 1.15rem;
+    color: var(--muted); padding-left: 1.15rem;
     margin-top: 0.55rem; line-height: 1.65;
   }
   .doc details .verse b { font-style: normal; font-weight: 700; color: var(--faint); font-size: 0.78em; }
