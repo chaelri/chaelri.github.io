@@ -206,3 +206,28 @@
      a sub-point; the display-size version with a rule above it was too loud for
      one sentence. It stays out of the Points index either way. */
   .doc .closer { margin: 1.15rem 0 0.3rem; font-weight: 600; }
+
+  /* Panel Q&A. The question carries the exchange, so it leads in bold behind a
+     lime Q; the answer sits under it against a hairline, with the panelist's
+     name as a small label when one is given. */
+  .doc .qq {
+    margin: 1.6rem 0 0.4rem; font-weight: 700; font-size: 1.02rem;
+    line-height: 1.4; letter-spacing: -0.008em;
+    display: flex; gap: 0.55rem; align-items: baseline;
+  }
+  .doc .qq::before {
+    content: "Q"; flex: none;
+    font-size: 0.62rem; font-weight: 800; letter-spacing: 0.06em;
+    background: var(--lime); color: var(--ink);
+    padding: 0.14rem 0.3rem; border-radius: 3px;
+    position: relative; top: -0.12em;
+  }
+  .doc .qa {
+    margin: 0.3rem 0 0.9rem; padding-left: 1.15rem;
+    border-left: 2px solid var(--line);
+  }
+  .doc .qa .who {
+    margin: 0 0 0.22rem; font-size: 0.62rem; font-weight: 700;
+    letter-spacing: 0.2em; text-transform: uppercase; color: var(--faint);
+  }
+  .doc .qa .ans { margin: 0.1rem 0; }

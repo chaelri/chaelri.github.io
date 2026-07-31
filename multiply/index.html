@@ -85,7 +85,7 @@
 
   <!-- Points index — every ALL-CAPS line in this session, at a glance -->
   <section id="pointsBox" class="hidden mb-5 rounded-2xl border border-line bg-panel/60 px-4 py-3.5">
-    <p class="tracked-sm text-[10px] font-semibold text-muted uppercase mb-2.5">Points</p>
+    <p id="pointsLabel" class="tracked-sm text-[10px] font-semibold text-muted uppercase mb-2.5">Points</p>
     <ol id="pointsList" class="space-y-1.5"></ol>
   </section>
 
@@ -133,7 +133,7 @@ import { getAuth, signInAnonymously, onAuthStateChanged }
   from "https://www.gstatic.com/firebasejs/11.0.2/firebase-auth.js";
 import { getDatabase, ref, onValue, set }
   from "https://www.gstatic.com/firebasejs/11.0.2/firebase-database.js";
-import { SESSIONS, FIREBASE, DBURL, ROOT, renderNotes, pointsHTML, spreadMark } from "./notes.js";
+import { SESSIONS, FIREBASE, DBURL, ROOT, renderNotes, pointsHTML, spreadMark, indexLabel } from "./notes.js";
 
 /* ── Shared note format ───────────────────────────────────────────────── */
 // SESSIONS, the line grammar, the renderer and the points index all live in
@@ -170,6 +170,7 @@ function paintPoints(points) {
   const box = $("#pointsBox"), list = $("#pointsList");
   box.classList.toggle("hidden", points.length === 0);
   if (!points.length) return;
+  document.querySelector("#pointsLabel").textContent = indexLabel(points);
   list.innerHTML = pointsHTML(points);
   list.querySelectorAll(".ptBtn").forEach((b) => b.addEventListener("click", () => {
     el.preview.querySelector(`#${b.dataset.pt}`)
@@ -229,7 +230,7 @@ function select(id) {
   const s = SESSIONS.find((x) => x.id === id);
   const d = data(id);
   el.day.textContent   = `${s.day} · ${s.time}`;
-  el.title.textContent = `Session ${s.short.slice(1)}: ${s.title}`;
+  el.title.textContent = s.heading;
   el.speaker.value     = d.speaker || "";
   el.editor.value      = d.notes || "";
   paintRail();

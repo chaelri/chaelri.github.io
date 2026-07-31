@@ -74,7 +74,7 @@
   <p id="speaker" class="mt-2 text-[13px] text-muted italic"></p>
 
   <section id="pointsBox" class="hidden mt-6 mb-7 rounded-2xl border border-line bg-panel/60 px-4 py-3.5">
-    <p class="tracked-sm text-[10px] font-semibold text-muted uppercase mb-2.5">Points</p>
+    <p id="pointsLabel" class="tracked-sm text-[10px] font-semibold text-muted uppercase mb-2.5">Points</p>
     <ol id="pointsList" class="space-y-1.5"></ol>
   </section>
 
@@ -94,7 +94,7 @@ import { getDatabase, ref, onValue }
   from "https://www.gstatic.com/firebasejs/11.0.2/firebase-database.js";
 // Absolute for the same reason as the stylesheet — the Vercel rewrite serves
 // this page at "/", where "../notes.js" would resolve above the site root.
-import { SESSIONS, FIREBASE, DBURL, ROOT, renderNotes, pointsHTML, spreadMark } from "/multiply/notes.js";
+import { SESSIONS, FIREBASE, DBURL, ROOT, renderNotes, pointsHTML, spreadMark, indexLabel } from "/multiply/notes.js";
 
 // Read-only by construction: this page never writes. There is no editor, no
 // input bound to state, and no code path that calls set() — so a shared link
@@ -130,7 +130,7 @@ async function select(id) {
   const s = SESSIONS.find((x) => x.id === id);
   const d = state[id] || {};
   el.day.textContent   = `${s.day} · ${s.time}`;
-  el.title.textContent = `Session ${s.short.slice(1)}: ${s.title}`;
+  el.title.textContent = s.heading;
   el.speaker.textContent = d.speaker || "";
   paintRail();
 
@@ -145,6 +145,7 @@ async function select(id) {
   const points = await renderNotes(el.preview, text, openRefs);
   el.box.classList.toggle("hidden", points.length === 0);
   if (points.length) {
+    document.querySelector("#pointsLabel").textContent = indexLabel(points);
     el.list.innerHTML = pointsHTML(points);
     el.list.querySelectorAll(".ptBtn").forEach((b) => b.addEventListener("click", () => {
       el.preview.querySelector(`#${b.dataset.pt}`)

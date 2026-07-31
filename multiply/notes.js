@@ -19,10 +19,11 @@
 // ============================================================================
 
 export const SESSIONS = [
-  { id: "s1", day: "Day 1 · Friday, July 31",    time: "9:40 AM",  title: "Courage to Pray",    short: "S1" },
-  { id: "s2", day: "Day 1 · Friday, July 31",    time: "12:35 PM", title: "Courage to Move",    short: "S2" },
-  { id: "s3", day: "Day 1 · Friday, July 31",    time: "3:30 PM",  title: "Courage to Worship", short: "S3" },
-  { id: "s4", day: "Day 2 · Saturday, August 1", time: "9:30 AM",  title: "Courage to Lead",    short: "S4" },
+  { id: "s1", day: "Day 1 · Friday, July 31",    time: "9:40 AM",  title: "Courage to Pray",    short: "S1",  heading: "Session 1: Courage to Pray" },
+  { id: "s2", day: "Day 1 · Friday, July 31",    time: "12:35 PM", title: "Courage to Move",    short: "S2",  heading: "Session 2: Courage to Move" },
+  { id: "panel", day: "Day 1 · Friday, July 31", time: "2:00 PM",  title: "Panel Q&A",          short: "Q&A", heading: "Panel Q&A" },
+  { id: "s3", day: "Day 1 · Friday, July 31",    time: "3:30 PM",  title: "Courage to Worship", short: "S3",  heading: "Session 3: Courage to Worship" },
+  { id: "s4", day: "Day 2 · Saturday, August 1", time: "9:30 AM",  title: "Courage to Lead",    short: "S4",  heading: "Session 4: Courage to Lead" },
 ];
 
 export const FIREBASE = {
@@ -119,6 +120,13 @@ const isAttr = (t) => /^[—–]\s*\S/.test(t) && t.length <= 80;
 // the one after it as a couplet.
 const NUM_RE = /^(\d{1,2})[.)]\s+(.+)$/;
 const normal = (t) => t.trim().toLowerCase().replace(/[.:]+$/, "").replace(/\s+/g, " ");
+
+// Panel Q&A — "Q: how do you…?" then "A: …", optionally "A (Ptr Marty): …".
+// Fast to type live, and the pair renders as one exchange.
+// Empty brackets are allowed — typing "A (): …" while the panelist's name
+// hasn't landed yet is normal mid-panel, and it shouldn't drop out of the
+// Q&A styling into raw text.
+const QA_RE = /^([QA])\s*(?:\(([^)]{0,40})\))?\s*[:.\-]\s*(.+)$/;
 
 // "Main Theme: Joshua 1:9" — the verse the whole talk hangs on. Shown in full
 // rather than folded into an accordion: this is the one passage a reader should
@@ -233,7 +241,7 @@ export async function renderNotes(host, text, openRefs = new Set(), onOpenChange
     const t = lines[i].trim();
     if (!t) continue;
     if (!(parseRef(t) || NUM_RE.test(t) || isAttr(t) || isOrdinal(t) ||
-          /^[-•*]\s+/.test(t) || themeRef(t) || t.endsWith(":") || t.length > 90)) closerIdx = i;
+          /^[-•*]\s+/.test(t) || themeRef(t) || QA_RE.test(t) || t.endsWith(":") || t.length > 90)) closerIdx = i;
     break;
   }
 
@@ -244,7 +252,7 @@ export async function renderNotes(host, text, openRefs = new Set(), onOpenChange
     const t = lines[ledeIdx].trim();
     if (isPoint(t) || isSubPoint(t) || isOrdinal(t) || parseRef(t) ||
         /^[-•*]\s+/.test(t) || /^["“”']/.test(t) || isAttr(t) || NUM_RE.test(t) ||
-        themeRef(t) || t.endsWith(":")) ledeIdx = -1;
+        themeRef(t) || QA_RE.test(t) || t.endsWith(":")) ledeIdx = -1;
   }
 
   // Quotable quotes: a plain line whose next non-blank neighbour is an em-dash
@@ -257,7 +265,7 @@ export async function renderNotes(host, text, openRefs = new Set(), onOpenChange
     if (q < 0) continue;
     const qt = lines[q].trim();
     if (isPoint(qt) || isSubPoint(qt) || isOrdinal(qt) || parseRef(qt) ||
-        /^[-•*]\s+/.test(qt) || qt.endsWith(":") || isAttr(qt) || NUM_RE.test(qt)) continue;
+        /^[-•*]\s+/.test(qt) || qt.endsWith(":") || isAttr(qt) || NUM_RE.test(qt) || QA_RE.test(qt)) continue;
     quoteOf.set(q, { text: qt, by: t.replace(/^[—–]\s*/, "") });
     for (let k = q + 1; k <= i; k++) skip.add(k);
   }
@@ -268,7 +276,7 @@ export async function renderNotes(host, text, openRefs = new Set(), onOpenChange
   const NEG = /\b(is\s?n[o']?t|does\s?n[o']?t|do\s?n[o']?t|was\s?n[o']?t|never|not)\b/i;
   const special = (t) =>
     isPoint(t) || isSubPoint(t) || isOrdinal(t) || parseRef(t) ||
-    /^[-•*]\s+/.test(t) || /^["“”']/.test(t) || isAttr(t) || NUM_RE.test(t) || t.endsWith(":");
+    /^[-•*]\s+/.test(t) || /^["“”']/.test(t) || isAttr(t) || NUM_RE.test(t) || QA_RE.test(t) || t.endsWith(":");
   for (let i = 0; i < lines.length - 1; i++) {
     if (skip.has(i) || skip.has(i + 1) || quoteOf.has(i) || quoteOf.has(i + 1) || i === ledeIdx) continue;
     const a = lines[i].trim(), b = lines[i + 1].trim();
@@ -320,6 +328,22 @@ export async function renderNotes(host, text, openRefs = new Set(), onOpenChange
     if (idx === closerIdx && idx !== ledeIdx) {
       const marked = inline(t).replace(CAPWORD, (w) => `<span class="cap">${w}</span>`);
       out.push(`<p class="closer ${isTaglish(t) ? "taglish" : ""}">${marked}</p>`);
+      continue;
+    }
+
+    const qa = QA_RE.exec(t);
+    if (qa) {
+      const [, kind, who, body] = qa;
+      deckFor = -1; deckNext = false;
+      if (kind.toUpperCase() === "Q") {
+        const id = `pt-${anchor++}`;
+        points.push({ text: body.replace(/\s+/g, " ").trim(), level: 1, id, question: true });
+        out.push(`<p class="qq" id="${id}">${inline(body)}</p>`);
+      } else {
+        const name = (who || "").trim();
+        out.push(`<div class="qa">${name ? `<p class="who">${esc(name)}</p>` : ""}` +
+                 `<p class="ans ${isTaglish(body) ? "taglish" : ""}">${inline(body)}</p></div>`);
+      }
       continue;
     }
 
@@ -420,6 +444,9 @@ export async function renderNotes(host, text, openRefs = new Set(), onOpenChange
 
 /* ── Points index ─────────────────────────────────────────────────────── */
 // Main points number 01, 02… ; sub-points letter a, b, c and reset under each.
+export const indexLabel = (points) =>
+  points.length && points.every((p) => p.question) ? "Questions" : "Points";
+
 export function pointsHTML(points) {
   let main = 0, sub = 0;
   return points.map((p, i) => {
