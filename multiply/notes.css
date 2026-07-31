@@ -40,8 +40,11 @@
   .tracked { letter-spacing: 0.42em; }
   .tracked-sm { letter-spacing: 0.22em; }
 
-  /* The poster tracks "THE COURAGE TO" and "JOSHUA 1:9" out until each spans the
-     exact width of MULTIPLY. A fixed letter-spacing can't do that, so each
+  /* The poster justifies only "THE COURAGE TO" across the full width of
+     MULTIPLY. "JOSHUA 1:9" sits under it smaller and narrower on ordinary
+     tracking, centred beneath it — it is not stretched to the wordmark.
+     The trailing letter-space of `.tracked-sm` would push the centring left,
+     so it's compensated with a matching indent. A fixed letter-spacing can't do that, so each
      character is a flex child and space-between absorbs the slack.
      .mark shrinks to fit the wordmark; the percentage widths below are ignored
      when that shrink-to-fit width is computed, so they follow the h1. */
@@ -380,7 +383,6 @@
     text-transform: uppercase; color: var(--faint);
   }
 
-  /* "JOSHUA 1:9" spans the same width as "THE COURAGE TO" but with 10 glyphs
-     against 14, so its gaps are ~1.4x wider and it reads lighter at the same
-     size. A touch more size and weight evens the ink out. */
-  .spread-lg > span { font-weight: 700; }
+  /* letter-spacing adds a trailing space after the last glyph, which throws
+     centred tracked text off by that amount. */
+  .tracked-sm.text-center { text-indent: 0.22em; }
