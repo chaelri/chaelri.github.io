@@ -94,9 +94,12 @@ export const esc = (s) => s.replace(/[&<>"]/g, (c) => ({ "&":"&amp;","<":"&lt;",
 export function isPoint(t) {
   const s = t.replace(/[:.]+$/, "").trim();
   if (!/^[A-Z]/.test(s)) return false;
-  if (s.split(/\s+/).filter((w) => /[A-Za-z]/.test(w)).length < 2) return false;
-  const letters = s.match(/[A-Za-z]/g) || [];
-  return letters.length >= 3 && s.length <= 70 && s === s.toUpperCase();
+  if (s !== s.toUpperCase() || s.length > 70) return false;
+  const words = s.split(/\s+/).filter((w) => /[A-Za-z]/.test(w));
+  // A single shouted word is a heading too ("PERSPECTIVE"), but it needs some
+  // length — a two-letter fragment on its own line usually isn't one.
+  if (words.length < 2) return words.length === 1 && /^[A-Z]{4,}$/.test(words[0]);
+  return (s.match(/[A-Za-z]/g) || []).length >= 3;
 }
 
 // A sub-point is a short line whose shouted word LANDS it — "He had a PLACE."
