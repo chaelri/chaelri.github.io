@@ -53,10 +53,19 @@
           <p class="spread text-[9px] sm:text-[11px] font-semibold text-ink/70 mt-3">JOSHUA 1:9</p>
         </div>
       </div>
-      <button id="btnShare" title="Share"
-        class="shrink-0 mt-1 grid place-items-center w-9 h-9 rounded-full border border-line hover:bg-panel active:scale-95 transition">
-        <span class="ms text-[19px]">ios_share</span>
-      </button>
+      <div class="shrink-0 mt-1 flex items-center gap-2">
+        <!-- The activities live behind this, rather than sitting under every
+             session. The dot marks answers already saved on this device. -->
+        <button id="btnActivities" title="Activities"
+          class="act-btn relative grid place-items-center w-9 h-9 rounded-full border border-line hover:bg-panel active:scale-95 transition">
+          <span class="ms text-[19px]">checklist</span>
+          <span id="actDot" class="act-dot hidden"></span>
+        </button>
+        <button id="btnShare" title="Share"
+          class="grid place-items-center w-9 h-9 rounded-full border border-line hover:bg-panel active:scale-95 transition">
+          <span class="ms text-[19px]">ios_share</span>
+        </button>
+      </div>
     </div>
     <p class="mt-5 text-[13px] text-muted">July 31 – August 1, 2026 · 3F Parking Level, SM East Ortigas</p>
   </div>
@@ -83,7 +92,12 @@
 
   <!-- The Leave List — the session activity, answerable by whoever opens the
        link. Deliberately device-only: it never touches Firebase. -->
-  <section id="leaveList" class="mt-12 space-y-6">
+  <section id="leaveList" class="hidden mt-12 space-y-6">
+    <div class="act-head">
+      <p class="tracked-sm text-[10px] font-semibold text-muted uppercase">Your response</p>
+      <p class="act-sub">Answer these on your own. They stay on this device.</p>
+    </div>
+
     <div class="ll-card">
       <p class="tracked-sm text-[10px] font-semibold text-muted uppercase">Session activity</p>
       <h3 class="ll-title">The Leave List</h3>
@@ -273,6 +287,28 @@ function wireActivity(a) {
 }
 
 ACTIVITIES.forEach(wireActivity);
+
+// Any saved answer lights the dot, so someone coming back knows there's
+// something of theirs behind the button.
+function refreshActDot() {
+  const has = ACTIVITIES.some((a) => {
+    try { return Object.values(JSON.parse(localStorage.getItem(a.key) || "{}")).some((v) => v.trim()); }
+    catch { return false; }
+  });
+  $("#actDot").classList.toggle("hidden", !has);
+}
+ACTIVITIES.forEach((a) => a.fields.forEach((id) =>
+  $("#" + id).addEventListener("input", refreshActDot)));
+refreshActDot();
+
+$("#btnActivities").addEventListener("click", () => {
+  const box = $("#leaveList");
+  const opening = box.classList.contains("hidden");
+  box.classList.toggle("hidden", !opening);
+  $("#btnActivities").classList.toggle("is-open", opening);
+  if (opening) requestAnimationFrame(() =>
+    box.scrollIntoView({ behavior: "smooth", block: "start" }));
+});
 
 $("#btnShare").addEventListener("click", async () => {
   const url = location.href;
