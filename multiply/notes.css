@@ -386,3 +386,8 @@
   /* letter-spacing adds a trailing space after the last glyph, which throws
      centred tracked text off by that amount. */
   .tracked-sm.text-center { text-indent: 0.22em; }
+
+  /* Tighter chips on a phone so all five fit without scrolling at all. */
+  @media (max-width: 639px) {
+    .rail .railBtn { padding-left: 0.7rem; padding-right: 0.7rem; }
+  }

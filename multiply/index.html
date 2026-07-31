@@ -218,10 +218,12 @@ function paintRail() {
              ${s.id === current
                ? "bg-ink text-paper border-ink"
                : "bg-transparent text-muted border-line hover:border-ink/40"}">
-      ${s.chip}
+      <span class="sm:hidden">${s.short}</span><span class="hidden sm:inline">${s.chip}</span>
     </button>`).join("");
   el.rail.querySelectorAll(".railBtn").forEach((b) =>
     b.addEventListener("click", () => select(b.dataset.id)));
+  el.rail.querySelector(`[data-id="${current}"]`)
+    ?.scrollIntoView({ block: "nearest", inline: "nearest" });
 }
 
 function select(id) {
