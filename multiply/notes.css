@@ -391,3 +391,10 @@
   @media (max-width: 639px) {
     .rail .railBtn { padding-left: 0.7rem; padding-right: 0.7rem; }
   }
+
+  /* Lettered sub-point under a roman heading — "A. Leadership requires
+     obedience". The letter is set back like a list number. */
+  .doc .sub .alpha {
+    display: inline-block; min-width: 1.2rem;
+    color: var(--faint); font-weight: 700;
+  }

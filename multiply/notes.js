@@ -121,7 +121,16 @@ const isAttr = (t) => /^[—–]\s*\S/.test(t) && t.length <= 80;
 // before the deck and antithesis rules, or a list gets torn apart: the first
 // item reads as the heading's gloss, and any item containing "not" pairs with
 // the one after it as a couplet.
-const NUM_RE = /^(\d{1,2})[.)]\s+(.+)$/;
+const NUM_RE = /^((?:\d{1,2}|[IVX]{1,4}))[.)]\s+(.+)$/;
+// "A. Leadership requires obedience" — a lettered sub-point under a roman or
+// numbered heading. Always a sub-point: the letter itself is the outline mark.
+const ALPHA_RE = /^([A-H])[.)]\s+(.+)$/;
+// Outline lines often read "Heading: elaboration". The index wants the heading
+// only — the elaboration belongs in the body, not in a nine-row list.
+const shortLabel = (t) => {
+  const cut = t.split(/:\s+/);
+  return cut.length > 1 && cut[0].trim().length >= 10 ? cut[0].trim() : t.trim();
+};
 const normal = (t) => t.trim().toLowerCase().replace(/[.:]+$/, "").replace(/\s+/g, " ");
 
 // Panel Q&A — "Q: how do you…?" then "A: …", optionally "A (Ptr Marty): …".
@@ -129,7 +138,7 @@ const normal = (t) => t.trim().toLowerCase().replace(/[.:]+$/, "").replace(/\s+/
 // Empty brackets are allowed — typing "A (): …" while the panelist's name
 // hasn't landed yet is normal mid-panel, and it shouldn't drop out of the
 // Q&A styling into raw text.
-const QA_RE = /^([QA])\s*(?:\(([^)]{0,40})\))?\s*[:.\-]\s*(.+)$/;
+const QA_RE = /^([QA])\s*(?:\(([^)]{0,40})\))?\s*[:\-]\s*(.+)$/;
 
 // "Main Theme: Joshua 1:9" — the verse the whole talk hangs on. Shown in full
 // rather than folded into an accordion: this is the one passage a reader should
@@ -226,10 +235,13 @@ export async function renderNotes(host, text, openRefs = new Set(), onOpenChange
   // God". A run whose items sit back to back ("1. Sin / 2. Distractions") is a
   // list. That spacing is the difference, and it's what tells session 3's three
   // points apart from session 2's inventories.
+  const ROMAN = { I: 1, II: 2, III: 3, IV: 4, V: 5, VI: 6, VII: 7, VIII: 8 };
   const numAt = [];
   for (let i = 0; i < lines.length; i++) {
     const m = NUM_RE.exec(lines[i].trim());
-    if (m) numAt.push({ i, n: +m[1] });
+    if (!m) continue;
+    const n = /^\d+$/.test(m[1]) ? +m[1] : ROMAN[m[1].toUpperCase()];
+    if (n) numAt.push({ i, n });
   }
   const spacedNum = new Set();
   for (let a = 0; a < numAt.length - 1; a++) {
@@ -242,6 +254,7 @@ export async function renderNotes(host, text, openRefs = new Set(), onOpenChange
   }
 
   const hasOutline = sectionOf.size > 0 || spacedNum.size > 0;
+  const hasAlpha = lines.some((l) => ALPHA_RE.test(l.trim()));
 
   // Merge references that run on from each other — "Daniel 6:5-7" followed by
   // "Daniel 6:8-16" is one passage, 6:5–16.
@@ -284,7 +297,7 @@ export async function renderNotes(host, text, openRefs = new Set(), onOpenChange
     const t = lines[ledeIdx].trim();
     if (isPoint(t) || isSubPoint(t) || isOrdinal(t) || parseRef(t) ||
         /^[-•*]\s+/.test(t) || /^["“”']/.test(t) || isAttr(t) || NUM_RE.test(t) ||
-        themeRef(t) || QA_RE.test(t) || citeRef(t) || t.endsWith(":")) ledeIdx = -1;
+        themeRef(t) || QA_RE.test(t) || citeRef(t) || ALPHA_RE.test(t) || t.endsWith(":")) ledeIdx = -1;
   }
 
   // Quotable quotes: a plain line whose next non-blank neighbour is an em-dash
@@ -297,7 +310,7 @@ export async function renderNotes(host, text, openRefs = new Set(), onOpenChange
     if (q < 0) continue;
     const qt = lines[q].trim();
     if (isPoint(qt) || isSubPoint(qt) || isOrdinal(qt) || parseRef(qt) ||
-        /^[-•*]\s+/.test(qt) || qt.endsWith(":") || isAttr(qt) || NUM_RE.test(qt) || QA_RE.test(qt) || citeRef(qt)) continue;
+        /^[-•*]\s+/.test(qt) || qt.endsWith(":") || isAttr(qt) || NUM_RE.test(qt) || QA_RE.test(qt) || citeRef(qt) || ALPHA_RE.test(qt)) continue;
     quoteOf.set(q, { text: qt, by: t.replace(/^[—–]\s*/, "") });
     for (let k = q + 1; k <= i; k++) skip.add(k);
   }
@@ -308,7 +321,7 @@ export async function renderNotes(host, text, openRefs = new Set(), onOpenChange
   const NEG = /\b(is\s?n[o']?t|does\s?n[o']?t|do\s?n[o']?t|was\s?n[o']?t|never|not)\b/i;
   const special = (t) =>
     isPoint(t) || isSubPoint(t) || isOrdinal(t) || parseRef(t) ||
-    /^[-•*]\s+/.test(t) || /^["“”']/.test(t) || isAttr(t) || NUM_RE.test(t) || QA_RE.test(t) || citeRef(t) || t.endsWith(":");
+    /^[-•*]\s+/.test(t) || /^["“”']/.test(t) || isAttr(t) || NUM_RE.test(t) || QA_RE.test(t) || citeRef(t) || ALPHA_RE.test(t) || t.endsWith(":");
   for (let i = 0; i < lines.length - 1; i++) {
     if (skip.has(i) || skip.has(i + 1) || quoteOf.has(i) || quoteOf.has(i + 1) || i === ledeIdx) continue;
     const a = lines[i].trim(), b = lines[i + 1].trim();
@@ -403,11 +416,20 @@ export async function renderNotes(host, text, openRefs = new Set(), onOpenChange
       continue;
     }
 
+    const alpha = ALPHA_RE.exec(t);
+    if (alpha) {
+      const id = `pt-${anchor++}`;
+      if (points.length) points.push({ text: shortLabel(alpha[2]).replace(/[.]+$/, ""), level: 2, id });
+      out.push(`<p class="sub" id="${id}"><span class="alpha">${alpha[1]}</span>${inline(alpha[2])}</p>`);
+      deckFor = -1; deckNext = false;
+      continue;
+    }
+
     const num = NUM_RE.exec(t);
     if (num && spacedNum.has(idx)) {
       // Heads its own section, so it reads and indexes as a point.
       const id = `pt-${anchor++}`;
-      points.push({ text: num[2].replace(/[:.]+$/, "").trim(), level: 1, id });
+      points.push({ text: shortLabel(num[2]).replace(/[.]+$/, ""), level: 1, id });
       out.push(`<p class="point" id="${id}"><span>${esc(num[2])}</span></p>`);
       deckFor = points.length - 1; deckNext = true;
       continue;
@@ -429,7 +451,7 @@ export async function renderNotes(host, text, openRefs = new Set(), onOpenChange
     }
     if (isSubPoint(t)) {
       const id = `pt-${anchor++}`;
-      if (points.length) points.push({ text: t.replace(/[.]+$/, "").trim(), level: 2, id });
+      if (points.length && !hasAlpha) points.push({ text: t.replace(/[.]+$/, "").trim(), level: 2, id });
       const marked = esc(t).replace(CAPWORD, (w) => `<span class="cap">${w}</span>`);
       out.push(`<p class="sub" id="${id}">${marked}</p>`);
       deckFor = -1; deckNext = false;
