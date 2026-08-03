@@ -6,7 +6,7 @@
       name="viewport"
       content="width=device-width, initial-scale=1.0, viewport-fit=cover"
     />
-    <title>Charlie & Karla · Wedding Binder</title>
+    <title>Peter &amp; Angelica · Wedding Binder</title>
     <link rel="manifest" href="manifest.json" />
     <meta name="theme-color" content="#0a0b14" />
     <meta name="apple-mobile-web-app-capable" content="yes" />
@@ -53,6 +53,13 @@
       rel="stylesheet"
     />
     <link rel="stylesheet" href="style.css" />
+    <script>
+      // When this binder is embedded in the wedding-costs page it must not
+      // paint its own background — the parent's fireflies show through.
+      if (window.self !== window.top) {
+        document.documentElement.classList.add("embedded");
+      }
+    </script>
   </head>
 
   <body class="font-sans text-stone-300 antialiased">
@@ -73,7 +80,7 @@
             The Main Story
           </span>
           <h1 class="header-title">
-            Charlie <span class="amp">&amp;</span> Karla
+            Peter <span class="amp">&amp;</span> Angelica
           </h1>
         </div>
         <div class="header-meta">
@@ -154,8 +161,8 @@
       </section>
 
       <footer class="page-footer">
-        <span class="footer-mark">Charlie <span class="heart">♡</span> Karla</span>
-        <span class="footer-date">07 · 02 · 2026</span>
+        <span class="footer-mark">Peter <span class="heart">♡</span> Angelica</span>
+        <span class="footer-date">February 2027</span>
       </footer>
     </main>
 

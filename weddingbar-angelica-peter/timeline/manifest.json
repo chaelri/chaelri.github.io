@@ -1,0 +1,16 @@
+{
+  "name": "Peter & Angelica \u00b7 Wedding Binder",
+  "short_name": "P&A Binder",
+  "start_url": "./index.html",
+  "display": "standalone",
+  "background_color": "#0d0817",
+  "theme_color": "#0d0817",
+  "description": "Peter & Angelica's wedding binder \u2014 timeline, entourage, floor plan and day-of checklists in one cinematic dashboard.",
+  "icons": [
+    {
+      "src": "https://cdn-icons-png.flaticon.com/512/3656/3656830.png",
+      "sizes": "512x512",
+      "type": "image/png"
+    }
+  ]
+}

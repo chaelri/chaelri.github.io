@@ -19,11 +19,11 @@ import {
 
 const firebaseConfig = {
   apiKey: "AIzaSyBNPdSYJXuzvmdEHIeHGkbPmFnZxUq1lAg",
-  authDomain: "charlie-karla-wedding.firebaseapp.com",
+  authDomain: "test-database-55379.firebaseapp.com",
   databaseURL:
-    "https://charlie-karla-wedding-default-rtdb.asia-southeast1.firebasedatabase.app",
-  projectId: "charlie-karla-wedding",
-  storageBucket: "charlie-karla-wedding.firebasestorage.app",
+    "https://test-database-55379-default-rtdb.asia-southeast1.firebasedatabase.app",
+  projectId: "test-database-55379",
+  storageBucket: "test-database-55379.firebasestorage.app",
   messagingSenderId: "954582649260",
   appId: "1:954582649260:web:393fcc0fddafeb571f5209",
 };
@@ -32,7 +32,13 @@ const app = initializeApp(firebaseConfig);
 const db = getDatabase(app);
 const storage = getStorage(app);
 
-const WEDDING_DATE = new Date("2026-07-02T00:00:00");
+// All of this couple's data lives under one root, so it can never touch
+// another couple's copy of this template in the same Firebase project.
+const DB_ROOT = "angelicaPeter";
+const DB_WEDDING = `${DB_ROOT}/wedding_data`;
+const DB_GUESTS = `${DB_ROOT}/guestList`;
+
+const WEDDING_DATE = new Date("2027-02-01T00:00:00");
 
 const ROLE_HIERARCHY = [
   "bride",
@@ -99,8 +105,7 @@ let weddingData = {
       id: 0,
       title: "The Foundation",
       subtitle: "6 Months Out",
-      period: "Jan 02 - Feb 01, 2026",
-      image: "assets/1.JPG",
+      period: "Aug 01 - Sep 01, 2026",
       color: "#1e3a8a",
       type: "list",
       content: [
@@ -114,8 +119,7 @@ let weddingData = {
       id: 1,
       title: "The Basics",
       subtitle: "5 Months Out",
-      period: "Feb 02 - Mar 01, 2026",
-      image: "assets/2.JPG",
+      period: "Sep 02 - Oct 01, 2026",
       color: "#1e40af",
       type: "list",
       content: [
@@ -129,8 +133,7 @@ let weddingData = {
       id: 2,
       title: "Document Request",
       subtitle: "4 Months Out",
-      period: "Mar 02 - Apr 01, 2026",
-      image: "assets/3.JPG",
+      period: "Oct 02 - Nov 01, 2026",
       color: "#1d4ed8",
       type: "list",
       content: [
@@ -142,8 +145,7 @@ let weddingData = {
       id: 3,
       title: "The Seminars",
       subtitle: "3 Months Out",
-      period: "Apr 02 - May 01, 2026",
-      image: "assets/4.JPG",
+      period: "Nov 02 - Dec 01, 2026",
       color: "#2563eb",
       type: "list",
       content: [
@@ -157,8 +159,7 @@ let weddingData = {
       id: 4,
       title: "The License",
       subtitle: "2 Months Out",
-      period: "May 02 - Jun 22, 2026",
-      image: "assets/5.JPG",
+      period: "Dec 02, 2026 - Jan 22, 2027",
       color: "#3b82f6",
       type: "list",
       content: [
@@ -172,7 +173,6 @@ let weddingData = {
       title: "The Vendor Guild",
       subtitle: "Guild Roster",
       period: "Contacts",
-      image: "assets/6.JPG",
       color: "#b45309",
       type: "table",
       headers: ["Service", "Vendor", "Contact Person"],
@@ -186,7 +186,6 @@ let weddingData = {
       title: "The Entourage",
       subtitle: "Party Roles",
       period: "Responsibilities",
-      image: "assets/7.JPG",
       color: "#d97706",
       type: "table",
       headers: ["Name", "Role", "Responsibilities"],
@@ -197,7 +196,6 @@ let weddingData = {
       title: "Ceremony Inventory",
       subtitle: "Day-Of Checklist",
       period: "Church Items",
-      image: "assets/8.JPG",
       color: "#881337",
       type: "list",
       content: [
@@ -213,7 +211,6 @@ let weddingData = {
       title: "Reception Inventory",
       subtitle: "Day-Of Checklist",
       period: "Party Items",
-      image: "assets/9.JPG",
       color: "#9f1239",
       type: "list",
       content: [
@@ -227,7 +224,6 @@ let weddingData = {
       title: "Emergency Kit",
       subtitle: "Survival Gear",
       period: "Day-Of Essentials",
-      image: "assets/10.JPG",
       color: "#be123c",
       type: "list",
       content: [
@@ -242,7 +238,6 @@ let weddingData = {
       title: "Snapshot List",
       subtitle: "Photography",
       period: "Shot List",
-      image: "assets/11.JPG",
       color: "#e11d48",
       type: "list",
       content: [
@@ -256,7 +251,6 @@ let weddingData = {
       title: "The Music Box",
       subtitle: "Audio",
       period: "Playlists",
-      image: "assets/12.JPG",
       color: "#9d174d",
       type: "list",
       content: [
@@ -270,7 +264,6 @@ let weddingData = {
       title: "Side Quests",
       subtitle: "Entertainment",
       period: "Games & Prizes",
-      image: "assets/13.JPG",
       color: "#a21caf",
       type: "list",
       content: [
@@ -284,7 +277,6 @@ let weddingData = {
       title: "Boss Room Layout",
       subtitle: "Setup",
       period: "Floor Plan",
-      image: "assets/14.JPG",
       color: "#115e59",
       type: "planner",
       layout: {
@@ -301,7 +293,6 @@ let weddingData = {
       title: "TikTok Trends",
       subtitle: "Social Media",
       period: "Reel Pegs",
-      image: "assets/15.JPG",
       color: "#be185d",
       type: "list",
       content: [
@@ -387,13 +378,18 @@ window.onConfirmBackdrop = (e) => {
 function parsePeriod(periodStr) {
   if (!periodStr || typeof periodStr !== "string") return null;
   // Expect "Jan 02 - Feb 01, 2026"
+  // The start may carry its own year ("Dec 02, 2026 - Jan 22, 2027"); when it
+  // doesn't, both ends share the trailing year.
   const m = periodStr.match(
-    /([A-Za-z]{3,})\s+(\d{1,2})\s*-\s*([A-Za-z]{3,})\s+(\d{1,2}),\s*(\d{4})/
+    /([A-Za-z]{3,})\s+(\d{1,2})(?:,\s*(\d{4}))?\s*-\s*([A-Za-z]{3,})\s+(\d{1,2}),\s*(\d{4})/
   );
   if (!m) return null;
-  const [, m1, d1, m2, d2, y] = m;
-  const start = new Date(`${m1} ${d1} ${y}`);
-  const end = new Date(`${m2} ${d2} ${y} 23:59:59`);
+  const [, m1, d1, y1, m2, d2, y2] = m;
+  const start = new Date(`${m1} ${d1} ${y1 || y2}`);
+  const end = new Date(`${m2} ${d2} ${y2} 23:59:59`);
+  // A range with no explicit start year that appears to run backwards really
+  // began the previous year.
+  if (!y1 && start > end) start.setFullYear(start.getFullYear() - 1);
   if (isNaN(start) || isNaN(end)) return null;
   return { start, end };
 }
@@ -549,7 +545,7 @@ window.openFromNow = function () {
 /* ───────────────────────── Firebase sync ───────────────────────── */
 
 function initSync() {
-  onValue(ref(db, "wedding_data"), (snapshot) => {
+  onValue(ref(db, DB_WEDDING), (snapshot) => {
     if (isDraggingBubble || isDraggingTable || isResizing) return;
     const data = snapshot.val();
     if (data) {
@@ -578,9 +574,9 @@ function initSync() {
         return ch;
       });
       weddingData = data;
-      if (migrated) set(ref(db, "wedding_data"), weddingData);
+      if (migrated) set(ref(db, DB_WEDDING), weddingData);
     } else {
-      set(ref(db, "wedding_data"), weddingData);
+      set(ref(db, DB_WEDDING), weddingData);
     }
     setSyncOk();
     renderDashboard();
@@ -588,7 +584,7 @@ function initSync() {
     if (activeIndex !== null) refreshModal();
   });
 
-  onValue(ref(db, "guestList"), (snapshot) => {
+  onValue(ref(db, DB_GUESTS), (snapshot) => {
     const list = snapshot.val() || {};
     guestDataMap = list;
 
@@ -880,7 +876,7 @@ window.saveTable = (r, c, val, rowId) => {
   if (activeIndex === 6) {
     const fields = ["name", "role", "notes"];
     const updates = {};
-    updates[`guestList/${rowId}/${fields[c]}`] = val;
+    updates[`${DB_GUESTS}/${rowId}/${fields[c]}`] = val;
     update(ref(db), updates);
   } else {
     weddingData.chapters[activeIndex].content[r][c] = val;
@@ -1011,7 +1007,7 @@ function renderPlanner(container) {
     lockBtn.onclick = (e) => {
       e.stopPropagation();
       update(ref(db), {
-        [`wedding_data/chapters/13/layout/${id}/locked`]: !isLocked,
+        [`${DB_WEDDING}/chapters/13/layout/${id}/locked`]: !isLocked,
       });
     };
     lockBtn.addEventListener("touchstart", (e) => e.stopPropagation());
@@ -1026,7 +1022,7 @@ function renderPlanner(container) {
         okLabel: "Remove",
       });
       if (ok) {
-        update(ref(db), { [`wedding_data/chapters/13/layout/${id}`]: null });
+        update(ref(db), { [`${DB_WEDDING}/chapters/13/layout/${id}`]: null });
       }
     };
     deleteBtn.addEventListener("touchstart", (e) => e.stopPropagation());
@@ -1064,8 +1060,8 @@ function renderPlanner(container) {
       const handleResizeEnd = () => {
         isResizing = false;
         update(ref(db), {
-          [`wedding_data/chapters/13/layout/${id}/w`]: obj.w,
-          [`wedding_data/chapters/13/layout/${id}/h`]: obj.h,
+          [`${DB_WEDDING}/chapters/13/layout/${id}/w`]: obj.w,
+          [`${DB_WEDDING}/chapters/13/layout/${id}/h`]: obj.h,
         });
         document.removeEventListener("mousemove", handleResizeMove);
         document.removeEventListener("mouseup", handleResizeEnd);
@@ -1120,8 +1116,8 @@ function renderPlanner(container) {
         isDraggingTable = false;
         if (isDragging) {
           update(ref(db), {
-            [`wedding_data/chapters/13/layout/${id}/x`]: obj.x,
-            [`wedding_data/chapters/13/layout/${id}/y`]: obj.y,
+            [`${DB_WEDDING}/chapters/13/layout/${id}/x`]: obj.x,
+            [`${DB_WEDDING}/chapters/13/layout/${id}/y`]: obj.y,
           });
         }
         document.removeEventListener("mousemove", handleDragMove);
@@ -1164,7 +1160,7 @@ window.addTable = (type) => {
     y: 2500 - panY / scale,
     type, label, assigned: {}, w, h, locked: false,
   };
-  update(ref(db), { [`wedding_data/chapters/13/layout/${id}`]: newTable });
+  update(ref(db), { [`${DB_WEDDING}/chapters/13/layout/${id}`]: newTable });
 };
 
 window.resetView = () => {
@@ -1183,7 +1179,7 @@ window.importSeating = async () => {
   const cleanupUpdates = {};
   Object.keys(layout).forEach((id) => {
     if (id.startsWith("imported_")) {
-      cleanupUpdates[`wedding_data/chapters/13/layout/${id}`] = null;
+      cleanupUpdates[`${DB_WEDDING}/chapters/13/layout/${id}`] = null;
     }
   });
   const hadBadImports = Object.keys(cleanupUpdates).length > 0;
@@ -1297,7 +1293,7 @@ window.importSeating = async () => {
         y: Math.round(Math.max(5, Math.min(95, by))),
       };
     });
-    updates[`wedding_data/chapters/13/layout/${id}/assigned`] = assigned;
+    updates[`${DB_WEDDING}/chapters/13/layout/${id}/assigned`] = assigned;
   });
 
   try {
@@ -1523,7 +1519,7 @@ window.exportLayout = () => {
   <rect x="${innerX}" y="${innerY}" width="${innerW}" height="${innerH}" fill="none" stroke="${c.line}" stroke-width="1.5"/>
 
   <text x="${titleX}" y="90" text-anchor="middle" font-family="Georgia, 'Playfair Display', serif" font-style="italic" font-size="54" fill="${c.ink}" letter-spacing="2">Reception Floor Plan</text>
-  <text x="${titleX}" y="132" text-anchor="middle" font-family="'Inter', sans-serif" font-size="16" fill="${c.line}" letter-spacing="8">CHARLIE &amp; KARLA · JULY 2, 2026</text>
+  <text x="${titleX}" y="132" text-anchor="middle" font-family="'Inter', sans-serif" font-size="16" fill="${c.line}" letter-spacing="8">PETER &amp; ANGELICA · FEBRUARY 2027</text>
   <line x1="${titleX - 70}" y1="158" x2="${titleX + 70}" y2="158" stroke="${c.amber}" stroke-width="1.5"/>
   <text x="${titleX}" y="186" text-anchor="middle" font-family="'Inter', sans-serif" font-size="12" fill="${c.line}" letter-spacing="4">SEATING ARRANGEMENT &amp; STAGE LAYOUT</text>
 
@@ -1558,7 +1554,7 @@ window.exportLayout = () => {
 <head>
 <meta charset="UTF-8">
 <meta name="viewport" content="width=device-width,initial-scale=1">
-<title>Reception Floor Plan — Charlie &amp; Karla</title>
+<title>Reception Floor Plan — Peter &amp; Angelica</title>
 <link rel="preconnect" href="https://fonts.googleapis.com">
 <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
 <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;600;700&family=Playfair+Display:ital@1&display=swap" rel="stylesheet">
@@ -1707,7 +1703,7 @@ function renderTableContext() {
       const stop = () => {
         isDraggingBubble = false;
         update(ref(db), {
-          [`wedding_data/chapters/13/layout/${currentTableId}/assigned/${guestId}`]:
+          [`${DB_WEDDING}/chapters/13/layout/${currentTableId}/assigned/${guestId}`]:
             table.assigned[guestId],
         });
         document.removeEventListener("mousemove", move);
@@ -1729,7 +1725,7 @@ function renderTableContext() {
 window.renameTable = (newLabel) => {
   if (!currentTableId) return;
   update(ref(db), {
-    [`wedding_data/chapters/13/layout/${currentTableId}/label`]: newLabel,
+    [`${DB_WEDDING}/chapters/13/layout/${currentTableId}/label`]: newLabel,
   });
 };
 
@@ -1814,7 +1810,7 @@ window.toggleSeat = (id) => {
   if (table.assigned[id]) delete table.assigned[id];
   else table.assigned[id] = { x: 50, y: 50 };
   update(ref(db), {
-    [`wedding_data/chapters/13/layout/${currentTableId}/assigned`]:
+    [`${DB_WEDDING}/chapters/13/layout/${currentTableId}/assigned`]:
       table.assigned,
   });
   renderTableContext();
@@ -1866,7 +1862,7 @@ window.closeModal = () => {
 
 function pushToFirebase() {
   setSyncSaving();
-  set(ref(db, "wedding_data"), weddingData);
+  set(ref(db, DB_WEDDING), weddingData);
 }
 
 /* ───────────────────────── Boot ───────────────────────── */
