@@ -13,7 +13,43 @@ the stock Claude menu item needs a right click before it shows anything.
                  Weekly · Fable        0%
                  Refresh  (Updated just now)
                  Usage settings…
+                 Alert me on spikes    ✓
+                 Spike is…             ▸
 ```
+
+## Spike alerts
+
+A long session eats the 5-hour window quietly — you stop watching, then look up
+and it's at 75%. So the app keeps the last 15 minutes of session readings and
+speaks up when the climb is steep:
+
+```
+   ▲ 75%         ← caret appears in the menu bar
+   └ click →     ⚠︎  Usage jumped 12% in 15 min — now 75%
+                 Consider /compact or starting a new session.
+                                       (click above to dismiss)
+```
+
+Plus a system notification, so it reaches you even when you aren't looking at
+the menu bar.
+
+- **Default threshold: +10 points inside 15 minutes.** Change it under
+  *Spike is…* (5 / 10 / 15 / 20), or turn the whole thing off with *Alert me on
+  spikes*. Both persist in `UserDefaults`.
+- **It won't nag.** One alert per 20 minutes, and the next one needs another
+  full threshold's worth of ground gained — a plateau at 80% stays quiet.
+- **The 5-hour rollover is not a spike.** When `resets_at` moves (or the
+  percentage falls), the sample history is wiped, so the fresh window starts
+  clean.
+- The caret changes the *shape* of the menu bar item, not just its colour —
+  that's what makes it register peripherally.
+
+> The system notification goes out through `osascript display notification`,
+> which is why it's attributed to **Script Editor**. A bare `swiftc` binary has
+> no bundle identifier and `UNUserNotificationCenter` refuses to run without
+> one — the alternative is an Xcode app project, which this deliberately isn't.
+> If Script Editor's notifications are muted in System Settings the banner is
+> silently dropped; the caret and the in-menu warning still work.
 
 ## Install
 
@@ -64,7 +100,7 @@ Sun 8:00 PM". A bare "resets in 3 hr" makes you do the arithmetic yourself.
 
 ```
 claude-usage/
-├── claude-usage.swift   ← NSStatusItem, ~260 lines, no dependencies
+├── claude-usage.swift   ← NSStatusItem, ~510 lines, no dependencies
 ├── install.sh           ← swiftc build + per-user LaunchAgent
 └── README.md
 ```

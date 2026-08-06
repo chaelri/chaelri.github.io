@@ -1,7 +1,7 @@
 # claude-usage/ — Summary
 
-**Last updated:** 2026-07-30
-**Status:** 🟢 Active (built 2026-07-30)
+**Last updated:** 2026-08-06
+**Status:** 🟢 Active (built 2026-07-30; spike alerts added 2026-08-06)
 
 Menu bar indicator showing Claude plan usage as a live percentage. Built because
 the Claude desktop app's own menu item requires a right click before it reveals
@@ -12,7 +12,7 @@ times and a manual refresh.
 
 ```
 claude-usage/
-├── claude-usage.swift   (~260 lines — NSStatusItem, no dependencies)
+├── claude-usage.swift   (~510 lines — NSStatusItem, no dependencies)
 ├── install.sh           (swiftc build + per-user LaunchAgent, no sudo)
 └── README.md
 ```
@@ -70,6 +70,44 @@ uses for limit state.
 - **No local cache exists to read instead.** Checked: the Claude app's
   `Local Storage`/`Session Storage` leveldb hold no `utilization` / `resets_at`
   fields, and `~/.claude/` has no usage cache. A live call is the only route.
+
+## Spike alerts (added 2026-08-06)
+
+Built because a long session burns the 5-hour window quietly — Charlie stops
+watching, then gets startled by a 75%. The app keeps a rolling 15-minute history
+of session readings (`samples: [(date, percent)]`) and fires when the climb is
+steep.
+
+- **Threshold:** default +10 points inside 15 min. User-changeable via the
+  *Spike is…* submenu (5/10/15/20), stored in `UserDefaults` under
+  `spikeThreshold`; the *Alert me on spikes* toggle is `spikeAlerts` (defaults
+  on when unset — note `object(forKey:) as? Bool ?? true`, not `bool(forKey:)`).
+- **Three surfaces:** a `▲` caret prepended to the menu bar title (shape change,
+  not just colour — that's what registers peripherally), an orange warning
+  banner at the top of the menu (click to dismiss), and a system notification.
+- **`osascript display notification`, not `UNUserNotificationCenter`.** A bare
+  `swiftc` binary has no bundle identifier and UNUC refuses to run without one.
+  Cost: the banner is attributed to Script Editor, and it's silently dropped if
+  Script Editor's notifications are muted. The caret + in-menu banner are the
+  always-works fallback. Fixing this properly means an Xcode app project, which
+  this project deliberately isn't.
+- **Anti-nag:** 20-min cooldown *and* a `spikeFloor` requiring another full
+  threshold of ground gained. A plateau at 80% stays quiet.
+- **Rollover is not a spike:** when `resets_at` shifts >60s or the percentage
+  drops, `samples` / `spike` / `lastSpikeAt` / `spikeFloor` are all wiped so the
+  fresh 5-hour window starts clean.
+- **`menu.autoenablesItems = false`** was set in `rebuild()` so the explicit
+  `isEnabled` on the *Spike is…* row actually sticks.
+
+## install.sh quirk
+
+`launchctl bootout` returns *before* the service is fully gone; bootstrapping
+into that gap fails with `Bootstrap failed: 5: Input/output error` and leaves
+nothing running (hit on the 2026-08-06 reinstall). `install.sh` now polls
+`launchctl print` for up to 4s between bootout and bootstrap.
+
+Reinstalling replaces the unsigned binary, so macOS re-prompts for keychain
+access — **Always Allow** again or the title sits at a dash.
 
 ## Related
 

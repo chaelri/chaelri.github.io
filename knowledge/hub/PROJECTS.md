@@ -89,7 +89,7 @@ Battery-powered hand-held WiFi remote for **both** `autoclicker/` and `aircon/`.
 
 ### claude-usage/  🟢
 
-Menu bar indicator showing Claude plan usage as a live percentage — built because the Claude desktop app's own menu item needs a right click before it shows anything. The number IS the title; clicking opens session / weekly / scoped rows with absolute reset times and a manual Refresh.
+Menu bar indicator showing Claude plan usage as a live percentage — built because the Claude desktop app's own menu item needs a right click before it shows anything. The number IS the title; clicking opens session / weekly / scoped rows with absolute reset times and a manual Refresh. **Spike alerts (2026-08-06)** warn when the session percentage climbs fast.
 
 - **Tech:** single Swift file + Cocoa `NSStatusItem`, built with `swiftc -O -parse-as-library` (the source uses `@main`). Xcode CLT only — no Homebrew, SwiftBar, or Xcode project. Per-user LaunchAgent `com.chaelri.claudeusage`, no sudo.
 - **Entry:** `claude-usage.swift`, `install.sh`.
@@ -100,6 +100,9 @@ Menu bar indicator showing Claude plan usage as a live percentage — built beca
   - **Token re-read from the keychain every refresh**, never cached (Claude Code rotates it); 401 says "Login expired — run `claude` once".
   - **First run needs a keychain "Always Allow"** — inherent to an unsigned local binary reading another app's keychain item. Never install with sudo (it needs Charlie's keychain, not root's).
   - **No local cache to read instead** — the Claude app's leveldb stores hold no usage fields; a live call is the only route.
+  - **Spike alerts** keep a rolling 15-min history of the session percentage and fire on a ≥10-point climb (threshold configurable 5/10/15/20, toggle-able). Three surfaces: a `▲` caret in the menu bar title, an orange banner atop the menu, and a system notification. 20-min cooldown + a `spikeFloor` so a plateau doesn't nag. A 5-hour rollover wipes the history so it never reads as a spike.
+  - **Notifications go through `osascript display notification`** — a bare `swiftc` binary has no bundle ID, so `UNUserNotificationCenter` refuses to run. They're attributed to Script Editor and are dropped silently if its notifications are muted; the caret + menu banner are the always-works fallback.
+  - **`launchctl bootout` is async** — bootstrapping immediately after fails with `Input/output error 5`. `install.sh` polls `launchctl print` in between.
 - **Full docs:** See `knowledge/claude-usage/SUMMARY.md` and `claude-usage/README.md`.
 
 ### mac-toggle/  🟢

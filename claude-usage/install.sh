@@ -53,6 +53,12 @@ case "${1:-install}" in
 PLISTEOF
 
     launchctl bootout "gui/$(id -u)/${LABEL}" 2>/dev/null || true
+    # bootout returns before the service is fully gone; bootstrapping into the
+    # gap fails with "Input/output error 5" and leaves nothing running.
+    for _ in $(seq 20); do
+      launchctl print "gui/$(id -u)/${LABEL}" >/dev/null 2>&1 || break
+      sleep 0.2
+    done
     launchctl bootstrap "gui/$(id -u)" "$PLIST"
     echo "→ running. Look for a percentage in your menu bar."
     echo
