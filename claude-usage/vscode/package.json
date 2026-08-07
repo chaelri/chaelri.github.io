@@ -1,0 +1,124 @@
+{
+  "name": "claude-usage",
+  "displayName": "Claude plan usage",
+  "description": "Claude plan usage as a VS Code activity bar icon and status bar percentage.",
+  "version": "1.4.0",
+  "publisher": "chaelri",
+  "private": true,
+  "license": "MIT",
+  "engines": {
+    "vscode": "^1.80.0"
+  },
+  "categories": [
+    "Other"
+  ],
+  "activationEvents": [
+    "onStartupFinished"
+  ],
+  "main": "./extension.js",
+  "contributes": {
+    "viewsContainers": {
+      "activitybar": [
+        {
+          "id": "claudeUsage",
+          "title": "Claude usage",
+          "icon": "media/claude.svg"
+        }
+      ]
+    },
+    "views": {
+      "claudeUsage": [
+        {
+          "id": "claudeUsage.limits",
+          "name": "Plan usage",
+          "type": "webview"
+        }
+      ]
+    },
+    "commands": [
+      {
+        "command": "claudeUsage.launch",
+        "title": "Claude Usage: New Claude Session",
+        "icon": "$(terminal)"
+      },
+      {
+        "command": "claudeUsage.refresh",
+        "title": "Claude Usage: Refresh",
+        "icon": "$(refresh)"
+      },
+      {
+        "command": "claudeUsage.openSettings",
+        "title": "Claude Usage: Open Usage Settings",
+        "icon": "$(link-external)"
+      }
+    ],
+    "menus": {
+      "view/title": [
+        {
+          "command": "claudeUsage.launch",
+          "when": "view == claudeUsage.limits",
+          "group": "navigation@0"
+        },
+        {
+          "command": "claudeUsage.refresh",
+          "when": "view == claudeUsage.limits",
+          "group": "navigation@1"
+        },
+        {
+          "command": "claudeUsage.openSettings",
+          "when": "view == claudeUsage.limits",
+          "group": "navigation@2"
+        }
+      ]
+    },
+    "configuration": {
+      "title": "Claude plan usage",
+      "properties": {
+        "claudeUsage.pollSeconds": {
+          "type": "number",
+          "default": 300,
+          "minimum": 60,
+          "description": "How often to re-read the usage endpoint. These numbers move slowly; 5 minutes is plenty."
+        },
+        "claudeUsage.launchCommand": {
+          "type": "string",
+          "default": "claude --dangerously-skip-permissions",
+          "description": "What the New Claude Session button runs. Spelled out in full rather than hidden behind a flag, because --dangerously-skip-permissions means tool calls execute without asking \u2014 it leans on the PreToolUse guard hook in ~/.claude/settings.json to block destructive commands. Drop the flag here to get the normal prompting session."
+        },
+        "claudeUsage.launchTerminalName": {
+          "type": "string",
+          "default": "claude",
+          "description": "Name given to the terminal the session opens in."
+        },
+        "claudeUsage.showStatusBar": {
+          "type": "boolean",
+          "default": false,
+          "description": "Also show the percentage as text in the status bar. Off by default \u2014 the activity bar icon badge is the indicator."
+        },
+        "claudeUsage.showWeekly": {
+          "type": "boolean",
+          "default": false,
+          "description": "When the status bar item is on, show the weekly percentage next to the session one."
+        },
+        "claudeUsage.position": {
+          "type": "string",
+          "enum": [
+            "left",
+            "right"
+          ],
+          "default": "left",
+          "enumDescriptions": [
+            "Bottom-left, next to the branch name.",
+            "Bottom-right, near the line/column and encoding items."
+          ],
+          "description": "Which end of the status bar the optional text indicator sits on."
+        },
+        "claudeUsage.priority": {
+          "type": "number",
+          "default": 100,
+          "description": "Ordering within that end of the status bar. Higher numbers sit further LEFT, on both ends."
+        }
+      }
+    }
+  }
+}

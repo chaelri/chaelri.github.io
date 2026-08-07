@@ -1,0 +1,25 @@
+<!-- Activity bar icon: the Claude asterisk, redrawn.
+     Traced by eye from Claude.app's TrayIconTemplate rather than copied — the
+     shipped asset is a black template PNG (macOS inverts those; VS Code does
+     not, so it would vanish on a dark theme), and this repo is public, so
+     Anthropic's file shouldn't live in it.
+     Each spoke is a slim leaf: pointed at the centre, widest around a third of
+     the way out, tapering to a rounded tip. Eleven of them at uneven angles and
+     lengths — that unevenness is what stops it reading as a generic starburst.
+     currentColor so VS Code can theme it for active/inactive states. -->
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" fill="currentColor">
+  <g transform="translate(12,12)">
+    <g transform="rotate(0)   scale(1,1.00)"><path d="M0 0 Q0.82 -3.4 0.40 -8.7 Q0 -9.5 -0.40 -8.7 Q-0.82 -3.4 0 0 Z"/></g>
+    <g transform="rotate(31)  scale(1,0.87)"><path d="M0 0 Q0.82 -3.4 0.40 -8.7 Q0 -9.5 -0.40 -8.7 Q-0.82 -3.4 0 0 Z"/></g>
+    <g transform="rotate(64)  scale(1,0.97)"><path d="M0 0 Q0.82 -3.4 0.40 -8.7 Q0 -9.5 -0.40 -8.7 Q-0.82 -3.4 0 0 Z"/></g>
+    <g transform="rotate(95)  scale(1,0.82)"><path d="M0 0 Q0.82 -3.4 0.40 -8.7 Q0 -9.5 -0.40 -8.7 Q-0.82 -3.4 0 0 Z"/></g>
+    <g transform="rotate(128) scale(1,1.00)"><path d="M0 0 Q0.82 -3.4 0.40 -8.7 Q0 -9.5 -0.40 -8.7 Q-0.82 -3.4 0 0 Z"/></g>
+    <g transform="rotate(160) scale(1,0.90)"><path d="M0 0 Q0.82 -3.4 0.40 -8.7 Q0 -9.5 -0.40 -8.7 Q-0.82 -3.4 0 0 Z"/></g>
+    <g transform="rotate(193) scale(1,0.96)"><path d="M0 0 Q0.82 -3.4 0.40 -8.7 Q0 -9.5 -0.40 -8.7 Q-0.82 -3.4 0 0 Z"/></g>
+    <g transform="rotate(224) scale(1,0.84)"><path d="M0 0 Q0.82 -3.4 0.40 -8.7 Q0 -9.5 -0.40 -8.7 Q-0.82 -3.4 0 0 Z"/></g>
+    <g transform="rotate(257) scale(1,1.00)"><path d="M0 0 Q0.82 -3.4 0.40 -8.7 Q0 -9.5 -0.40 -8.7 Q-0.82 -3.4 0 0 Z"/></g>
+    <g transform="rotate(289) scale(1,0.88)"><path d="M0 0 Q0.82 -3.4 0.40 -8.7 Q0 -9.5 -0.40 -8.7 Q-0.82 -3.4 0 0 Z"/></g>
+    <g transform="rotate(322) scale(1,0.94)"><path d="M0 0 Q0.82 -3.4 0.40 -8.7 Q0 -9.5 -0.40 -8.7 Q-0.82 -3.4 0 0 Z"/></g>
+    <circle cx="0" cy="0" r="1.15"/>
+  </g>
+</svg>

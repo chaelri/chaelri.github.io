@@ -1,0 +1,18 @@
+{
+  // Adds "Claude YOLO" to the terminal + dropdown: opens a terminal in this repo
+  // already running `claude --dangerously-skip-permissions`.
+  // zsh -lic so ~/.zshrc runs and ~/.local/bin (where claude lives) is on PATH.
+  "terminal.integrated.profiles.osx": {
+    "zsh": {
+      "path": "zsh",
+      "args": ["-l"]
+    },
+    "Claude YOLO": {
+      "path": "zsh",
+      "args": ["-lic", "claude --dangerously-skip-permissions"],
+      "icon": "zap",
+      "color": "terminal.ansiMagenta"
+    }
+  },
+  "terminal.integrated.defaultProfile.osx": "zsh"
+}

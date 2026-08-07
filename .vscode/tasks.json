@@ -1,0 +1,23 @@
+{
+  "version": "2.0.0",
+  "tasks": [
+    {
+      "label": "Claude YOLO",
+      "type": "shell",
+      "command": "claude --dangerously-skip-permissions",
+      "options": {
+        "cwd": "${workspaceFolder}",
+        "shell": { "executable": "zsh", "args": ["-lic"] }
+      },
+      "presentation": {
+        "reveal": "always",
+        "panel": "dedicated",
+        "focus": true,
+        "clear": true
+      },
+      "problemMatcher": []
+      // To auto-start Claude every time this folder opens, add:
+      // "runOptions": { "runOn": "folderOpen" }
+    }
+  ]
+}
