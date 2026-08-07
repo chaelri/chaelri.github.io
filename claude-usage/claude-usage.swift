@@ -39,6 +39,12 @@ let SPIKE_DEFAULT = 10          // points gained in the window = "a lot"
 let SPIKE_CHOICES = [5, 10, 15, 20]
 let KEY_SPIKE_ON = "spikeAlerts"
 let KEY_SPIKE_THRESHOLD = "spikeThreshold"
+let KEY_COMPACT = "compactTitle"
+
+// Under the notch there isn't room for every status item, and macOS drops them
+// from the left — the slot nearest the app menus goes first. Two defences:
+// remember where the item was dragged to (below), and let the item shrink.
+let STATUS_ITEM_AUTOSAVE = "claude-usage"
 
 struct Limit {
     let label: String
@@ -56,7 +62,15 @@ struct Spike {
 
 final class Controller: NSObject, NSApplicationDelegate, NSMenuDelegate {
 
-    private let item = NSStatusBar.system.statusItem(withLength: NSStatusItem.variableLength)
+    // The autosave name is what makes a drag stick. Without one the item has no
+    // saved slot, so every launch puts it back at the far left — the first
+    // position macOS culls when the menu bar runs out of room. Set at creation:
+    // AppKit restores the position as the item comes up, not later.
+    private let item: NSStatusItem = {
+        let created = NSStatusBar.system.statusItem(withLength: NSStatusItem.variableLength)
+        created.autosaveName = STATUS_ITEM_AUTOSAVE
+        return created
+    }()
     private var timer: Timer?
     private var limits: [Limit] = []
     private var lastUpdate: Date?
@@ -77,6 +91,11 @@ final class Controller: NSObject, NSApplicationDelegate, NSMenuDelegate {
     private var spikeThreshold: Int {
         let stored = UserDefaults.standard.integer(forKey: KEY_SPIKE_THRESHOLD)
         return stored > 0 ? stored : SPIKE_DEFAULT
+    }
+    /// Drops the asterisk and keeps the number — about 20 pt narrower, which is
+    /// the difference between fitting and being hidden on a crowded menu bar.
+    private var compactTitle: Bool {
+        UserDefaults.standard.bool(forKey: KEY_COMPACT)
     }
 
     func applicationDidFinishLaunching(_ note: Notification) {
@@ -300,6 +319,11 @@ final class Controller: NSObject, NSApplicationDelegate, NSMenuDelegate {
         render()
     }
 
+    @objc private func toggleCompact() {
+        UserDefaults.standard.set(!compactTitle, forKey: KEY_COMPACT)
+        render()
+    }
+
     @objc private func setSpikeThreshold(_ sender: NSMenuItem) {
         UserDefaults.standard.set(sender.tag, forKey: KEY_SPIKE_THRESHOLD)
         spikeFloor = nil                  // new bar; re-arm against the current reading
@@ -336,8 +360,8 @@ final class Controller: NSObject, NSApplicationDelegate, NSMenuDelegate {
 
     private func render() {
         guard let button = item.button else { return }
-        button.image = claudeIcon
-        button.imagePosition = .imageLeading
+        button.image = compactTitle ? nil : claudeIcon
+        button.imagePosition = compactTitle ? .noImage : .imageLeading
         button.imageHugsTitle = true
         let text: String
         var color = NSColor.labelColor
@@ -486,6 +510,14 @@ final class Controller: NSObject, NSApplicationDelegate, NSMenuDelegate {
         sensitivity.submenu = choices
         sensitivity.isEnabled = spikeAlertsOn
         menu.addItem(sensitivity)
+
+        let compact = NSMenuItem(title: "Compact (number only)",
+                                 action: #selector(toggleCompact), keyEquivalent: "")
+        compact.target = self
+        compact.state = compactTitle ? .on : .off
+        compact.toolTip = "Narrower, so it survives a crowded menu bar. "
+            + "Hold ⌘ and drag the item to move it away from the notch."
+        menu.addItem(compact)
 
         menu.addItem(.separator())
         let quit = NSMenuItem(title: "Quit", action: #selector(quit), keyEquivalent: "q")
