@@ -93,3 +93,6 @@ gemini-proxy/.credentials.md
 .claude/settings.local.json
 .vercel
 .env*
+
+# Local RTDB snapshots — private devotional data, never publish
+.backups/
