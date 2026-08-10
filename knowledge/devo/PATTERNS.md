@@ -40,9 +40,9 @@ localStorage.setItem(`devo.canvas.${stateKey}`, JSON.stringify(state));  // line
 
 **Free-form journals** (replaces the deleted SOAP system as of 2026-05-05):
 ```javascript
-// Three parallel journals: obedience (with status/notes), gratitude (free text),
-// prayers (free text). All live in 04-passage.js. Mirror the same shape:
-const _OBED_JOURNAL_KEY = "obedienceJournal";   // [{id, ts, text, status, notes?}]
+// Two parallel journals, both free text, both in 04-passage.js. Same shape.
+// (A third — obedience, with status + note threads — was removed 2026-08-10
+// along with the daily-Proverb card that fed it. See DECISIONS #27.)
 const _GRAT_JOURNAL_KEY = "gratitudeJournal";   // [{id, ts, text}]
 const _PRAY_JOURNAL_KEY = "prayersJournal";     // [{id, ts, text}]
 

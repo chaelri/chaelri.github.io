@@ -197,14 +197,13 @@ function closeMyModal() {
 
 ---
 
-## 5. Add a New Free-Form Journal (mirrors Obedience / Gratitude / Prayers)
+## 5. Add a New Free-Form Journal (mirrors Gratitude / Prayers)
 
 **Files:** `js/04-passage.js`, `firebase-sync.js`
 
-**Replaces the old SOAP guide** — SOAP was deleted 2026-05-05. The current pattern is three parallel journals, each living in `04-passage.js`, with a pink dashboard pill in `dash-journal-row` and a modal that opens via `#modalOverlay` / `#modalContent`. The Prayers journal added 2026-05-05 is the cleanest reference because it's the simplest of the three (free text, no status/notes).
+**Replaces the old SOAP guide** — SOAP was deleted 2026-05-05. The current pattern is two parallel journals, each living in `04-passage.js`, with a pink dashboard pill in `dash-journal-row` and a modal that opens via `#modalOverlay` / `#modalContent`. The Prayers journal added 2026-05-05 is the cleanest reference — free text, no status or notes.
 
 **Current structure (all in `04-passage.js`):**
-- `_OBED_JOURNAL_KEY = "obedienceJournal"` — entries: `{id, ts, text, status: "todo"|"done", notes?: [...]}`
 - `_GRAT_JOURNAL_KEY = "gratitudeJournal"` — entries: `{id, ts, text}`
 - `_PRAY_JOURNAL_KEY = "prayersJournal"` — entries: `{id, ts, text}`
 
@@ -248,7 +247,7 @@ const SYNC_STATIC_KEYS = [
   "myjJournal",  // ADD THIS
 ];
 // And in the noteJournalKey handler in _listenForRemoteChanges:
-if (k === "obedienceJournal" || k === "gratitudeJournal" || k === "prayersJournal" || k === "myjJournal")
+if (k === "gratitudeJournal" || k === "prayersJournal" || k === "myjJournal")
   changedJournalKeys.push(k);
 ```
 
@@ -413,7 +412,7 @@ git push
 | localStorage | script.js (1–50), firebase-sync.js | getItem/setItem | kebab-case keys |
 | AI Prompt | script.js | callGemini / callGeminiStream | `window.__aiPayload` |
 | Modal | HTML, script.js, CSS | openXxx / closeXxx | `#modalOverlay` or dedicated |
-| Free-form journal | js/04-passage.js, firebase-sync.js | _getPrayersEntries / _getGratitudeEntries / _getObedienceJournal | dashJournalRow, SYNC_STATIC_KEYS |
+| Free-form journal | js/04-passage.js, firebase-sync.js | _getPrayersEntries / _getGratitudeEntries | dashJournalRow, SYNC_STATIC_KEYS |
 | Verse Action | script.js (2712–2790) | Button handler | `.verse-action-btn` data-action |
 | Immersive | HTML (376), script.js (5327–5432) | ttsImmersiveOpen/Close | `#ttsImm*` IDs |
 | Deploy | sw.js (3) | DEPLOYMENT_ID | Date.now() suffix |

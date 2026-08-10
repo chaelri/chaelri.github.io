@@ -505,3 +505,47 @@ The global `.modal-close` (`top: 16px; right: 16px` of `#modalContent`) visually
 **Files touched**:
 - `devo/style.css` — `.dash-prov-topic` rule rewritten with the gradient + clamp + italic serif; the existing `@keyframes dashRefShimmer` block was extended to apply to both selectors (`.dash-continue-ref, .dash-prov-topic`).
 
+
+---
+
+## 26. Splash gates on dashboard readiness + curtain-lift reveal (2026-08-10)
+
+**Decision**: Stop hiding the splash on a fixed 2-second timer. Hold it until the dashboard has actually finished building itself in the background, then reveal by sliding the whole splash straight up off the top edge — no fade.
+
+**Why**: The old flow revealed the dashboard at a hardcoded `setTimeout(..., 2000)` regardless of what was ready. The user landed on a half-built page: greeting dots still pulsing, Continue-Reading recap still a loader, fonts mid-swap. The splash is already an idle-looping animation (shimmer + glow are `infinite`), so it costs nothing to let it keep looping — it's the natural place to park the user while the work finishes. Charlie's framing: *"on start, I want na naload na lahat dito sa dashboard in the background bago sha ishow… this intro animation will continue to load until matapos yung mga nagloload sa dashboard"*.
+
+**Readiness contract**:
+- `renderDashboard()` (`js/04-passage.js`) collects every async cell it kicks off into `window.__dashboardReady` — the AI greeting, the Continue-Reading recap, and `document.fonts.ready`. Each job is `.catch()`-wrapped so one failure can't reject the group.
+- It **publishes** the promise rather than returning it. `showDashboard()` awaits `renderDashboard()`, and the home button must not sit on a blank frame waiting for AI calls — only the boot splash cares about the promise.
+- `js/11-boot.js` owns the sequence: `await showDashboard()` → `await window.__dashboardReady` → `_hideSplash()`.
+
+**Two bounds, both load-bearing**:
+- `SPLASH_MIN_MS = 1200` — on a warm cache everything resolves in ~200ms and the brand moment becomes a subliminal flash. The floor keeps it a moment.
+- `SPLASH_MAX_MS = 7000` — a hard ceiling raced against both awaits so a dead network can't strand the user on the splash forever. Past it we reveal and let the dashboard's own in-card loaders finish.
+
+**Curtain lift, not a fade**: `.splash-screen` transitions `transform` (0.9s `cubic-bezier(0.76, 0, 0.24, 1)`) and `.splash-hidden` sets `translateY(-100%)`. The dashboard was underneath the whole time, so the splash simply lifts off it — Charlie sketched it as the whole screen moving up. `visibility: hidden` is transitioned with `0s linear 0.9s` (zero duration, full delay) so it flips only AFTER the slide finishes instead of blinking the panel out mid-travel. A `prefers-reduced-motion` block falls back to a short opacity fade.
+
+**`_hideSplash()` is idempotent** (`js/05-render-init.js`) — a `_splashHidden` guard, because both the boot chain and the name-prompt path can reach it. `_onAppLoad` no longer touches the splash at all; it just calls `initNotesApp()`.
+
+**Files touched**:
+- `devo/js/11-boot.js` — `showDashboard()` captured as `_dashboardBoot`; splash-gating IIFE with min/max bounds.
+- `devo/js/04-passage.js` — `renderDashboard` publishes `window.__dashboardReady`.
+- `devo/js/05-render-init.js` — `_hideSplash()` extracted from `_onAppLoad`, timer removed.
+- `devo/style.css` — `.splash-screen` transform transition, `.splash-hidden` translateY, reduced-motion fallback.
+
+---
+
+## 27. Daily-Proverb card + Obedience journal deleted (2026-08-10)
+
+**Decision**: Remove the AI daily-Proverb card and the Obedience journal from the dashboard entirely. The journal row drops from three pills to two: **Gratitude** and **Prayers**.
+
+**Why**: Charlie's read on his own usage: *"I find that Gratitude Journal and Prayers are the only things that works. so let's remove the proverbs and obedience journal"*. The two features were one unit — the Proverb card's "I did this" / "I'll do this" CTAs were the **only** way to create an obedience entry, so the journal couldn't outlive the card that fed it. This also retires decisions #24 (the 6-attempt Proverb retry loop) and #25 (the `.dash-prov-topic` shimmer restyle), both of which were polish on a card that's now gone.
+
+**Side benefit for the splash gate** (#26): `loadDashProverb` was the slowest dashboard cell by a wide margin — its retry loop could run ~21s. With it gone the remaining async work is two short Gemini calls, so `SPLASH_MAX_MS` could sit at 7s and the ceiling is rarely reached.
+
+**What was removed**:
+- `js/04-passage.js` — one contiguous ~648-line block: the DASH PROVERB NUGGET section (`_DASH_PROV_KEY`, `_DASH_PROV_TTL_MS`, `_RECENT_PROV_REFS_KEY`, `loadDashProverb`, `_resolveProverbForRender`, `_renderDashProverb`, `_showProvCommitForm`, `_showProvSavedState`) and the OBEDIENCE JOURNAL section (`_OBED_JOURNAL_KEY`, `_getObedienceJournal`, `_normalizeObedEntry`, `_addObedienceEntry`, `_deleteObedienceEntry`, `_setObedienceStatus`, `_appendObedienceNote`, `_refreshObedienceJournalLink`, `openObedienceJournal`, `_handleObedAction`, `_showObedAddNoteForm`, `_renderObedienceEntry`). Plus the `#dashProvCard` div, the `#dashObedLink` pill, and the `obedienceJournal` branch of the `devo:journal-sync` listener.
+- `firebase-sync.js` — `obedienceJournal` dropped from `SYNC_STATIC_KEYS` and from the `changedJournalKeys` filter. The stale note about `dashProverb*` keys being deliberately unsynced went with it.
+- `style.css` — the whole orphan block was pruned this time (~820 lines of `.dash-prov-*` / `.obed-*`), unlike the SOAP removal which left its CSS in place. `.dash-prov-topic` was also dropped from the shared `dashRefShimmer` selector, leaving `.dash-continue-ref` alone on it.
+
+**Leftover state**: existing `obedienceJournal` / `dashProverbCache` / `dashProverbRecentRefs` / `dashProverbLastTopic` values stay in localStorage and RTDB but are never read or written again — the same quiet-decay treatment the SOAP keys got in #23. Not migrated into another journal: obedience entries carried a status + note thread + verse tie-in that free-form Gratitude/Prayers entries have no slot for.

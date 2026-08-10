@@ -954,14 +954,18 @@ function _confirmDialog(message, onConfirm) {
 //
 // The readyState/addEventListener trigger was moved to js/11-boot.js so that
 // initNotesApp (defined in 06) is already in scope by the time we fire.
+// Splash teardown. Idempotent — js/11-boot.js calls it once the dashboard's
+// async cells have settled (or once the hard deadline expires), and the
+// window-load path calls it as a safety net if boot ever throws before that.
+let _splashHidden = false;
+function _hideSplash() {
+  if (_splashHidden) return;
+  _splashHidden = true;
+  document.getElementById("app-splash")?.classList.add("splash-hidden");
+  if (!getUserName()) _showNamePrompt(() => renderDashboard());
+}
+
 const _onAppLoad = () => {
-  const splash = document.getElementById("app-splash");
-
-  setTimeout(() => {
-    splash.classList.add("splash-hidden");
-    if (!getUserName()) _showNamePrompt(() => renderDashboard());
-  }, 2000);
-
   initNotesApp();
 };
 

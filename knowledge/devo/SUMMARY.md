@@ -8,14 +8,14 @@ devo/
 │   ├── 01-core.js          (~699 lines: globals, AI/Gemini, image cache, markdown, cross-ref, Strong's modal)
 │   ├── 02-data.js          (~304 lines: bible data load, IDB, scroll lock, theme, favorites/comments globals)
 │   ├── 03-tts.js           (~1556 lines: full TTS system — synthesis, queue, playback, word highlight)
-│   ├── 04-passage.js       (~3431 lines: passage load, AI reflection/chat, summary, controls, smart reflection retry, dashboard, obedience/gratitude/prayers journals, retrying daily proverb card)
+│   ├── 04-passage.js       (~2635 lines: passage load, AI reflection/chat, summary, controls, smart reflection retry, dashboard, gratitude/prayers journals)
 │   ├── 05-render-init.js   (~1007 lines: comments rendering, summary, init/event wiring, push)
 │   ├── 06-notes.js         (~1298 lines: notes app — sessions, detail view, standalone editor)
 │   ├── 07-immersive.js     (~508 lines: immersive TTS overlay)
 │   ├── 08-story.js         (~1306 lines: story modal, reflect modal w/ retry button wiring, verse peek)
 │   ├── 10-creator-canvas.js (~2199 lines: image creator, canvas mode, main toolbar, book/chapter picker, study-intro)
-│   └── 11-boot.js          (~31 lines: final kickoff — fetchBibleData/loadBooks/showDashboard/updateControlStates/_onAppLoad trigger; runs LAST so cross-file calls resolve)
-├── style.css               (~13,346 lines: styling)
+│   └── 11-boot.js          (~62 lines: final kickoff — fetchBibleData/loadBooks/showDashboard/updateControlStates/_onAppLoad trigger, plus the splash gate that holds the intro until window.__dashboardReady settles; runs LAST so cross-file calls resolve)
+├── style.css               (~12,447 lines: styling)
 ├── config.js               (270B: API keys)
 ├── firebase-sync.js        (~380 lines: Firebase sync for Charlie + ordered injector for js/*.js)
 ├── bible-meta.js           (book/chapter metadata)
@@ -55,7 +55,7 @@ bibleVersion, bibleComments, bibleFavorites, devotionStandaloneNotes
 recentPassageId, recentPassage, userName
 isLightMode, reflectionVisible
 storySeenHistory
-obedienceJournal, gratitudeJournal, prayersJournal
+gratitudeJournal, prayersJournal
 reflection-[passageId], devo.canvas.[passageId]
 ```
 

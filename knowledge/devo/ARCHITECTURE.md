@@ -2,7 +2,7 @@
 
 > **Note (2026-04-27 split):** Line numbers throughout this doc reference the original monolithic `devo/script.js` (now deleted). The same code lives in 11 ordered chunks under `devo/js/` (`01-core.js` … `11-boot.js`). See [`KEY_FILES.md`](KEY_FILES.md) for the line-range → file map. All chunks load as classic `<script>` tags via `firebase-sync.js` and share one script-global scope, so the architecture below is unchanged.
 
-**Devotion** is a progressive web app (PWA) for Bible study with AI-powered reflection, text-to-speech, canvas notes, and free-form journals (obedience / gratitude / prayers). The core app uses localStorage (or Firebase RTDB for Charlie + Karla) and IndexedDB, lazy-loads Bible data from JSON, and communicates with Gemini via a Google Cloud proxy for AI features. (The legacy SOAP "Application & Prayer" feature was removed 2026-05-05; the dashboard now exposes a 3-pill journal row instead.)
+**Devotion** is a progressive web app (PWA) for Bible study with AI-powered reflection, text-to-speech, canvas notes, and free-form journals (gratitude / prayers). The core app uses localStorage (or Firebase RTDB for Charlie + Karla) and IndexedDB, lazy-loads Bible data from JSON, and communicates with Gemini via a Google Cloud proxy for AI features. (The legacy SOAP "Application & Prayer" feature was removed 2026-05-05; the dashboard exposed a 3-pill journal row after that, trimmed to 2 pills on 2026-08-10 when the daily-Proverb card + Obedience journal were removed — see DECISIONS #27.)
 
 ### PWA Model & Service Worker Strategy
 
@@ -39,7 +39,7 @@ The app registers a **service worker** (`sw.js`) with an aggressive cache-refres
 - User name, theme, version preference (localStorage)
 - Favorites, comments, notes (localStorage + IndexedDB)
 - Canvas sketches (localStorage keys: `devo.canvas.*`)
-- Free-form journal entries (localStorage: `obedienceJournal`, `gratitudeJournal`, `prayersJournal`)
+- Free-form journal entries (localStorage: `gratitudeJournal`, `prayersJournal`)
 - Reflection responses (localStorage: `reflection-*`, IndexedDB)
 
 **Proxy-Bound (Cloud)**:
@@ -75,7 +75,7 @@ The app registers a **service worker** (`sw.js`) with an aggressive cache-refres
 - Enabled when `userName.toLowerCase() in SYNC_USERS` (firebase-sync.js bootstrap).
 - localStorage is **shadowed** by an in-memory mirror backed by Firebase RTDB.
 - Mirror syncs these static keys (firebase-sync.js `SYNC_STATIC_KEYS`):
-  - `bibleFavorites`, `bibleComments`, `devotionStandaloneNotes`, `storySeenHistory`, `userName`, `bibleVersion`, `recentPassageId`, `recentPassage`, `dashGreetingCacheV2`, `obedienceJournal`, `gratitudeJournal`, `prayersJournal`.
+  - `bibleFavorites`, `bibleComments`, `devotionStandaloneNotes`, `storySeenHistory`, `userName`, `bibleVersion`, `recentPassageId`, `recentPassage`, `dashGreetingCacheV2`, `gratitudeJournal`, `prayersJournal`.
 - Dynamic prefixes synced (`SYNC_DYNAMIC_PREFIXES`):
   - `reflection-*` (reflection responses)
   - `devo.canvas.*` (canvas sketches)
@@ -135,7 +135,6 @@ The app registers a **service worker** (`sw.js`) with an aggressive cache-refres
 | `devotionStandaloneNotes` | JSON array | Standalone notes | `[{ id, type, text, createdAt, ... }, ...]` |
 | `storySeenHistory` | JSON obj | Story tracking | `{ "JHN-3": 1, ... }` (boolean-like) |
 | `devo.canvas.[KEY]` | JSON obj | Canvas sketches | `{ drawMode, zoom, ... }` |
-| `obedienceJournal` | JSON array | Obedience-journal entries | `[{ id, ts, text, status, ... }, ...]` |
 | `gratitudeJournal` | JSON array | Gratitude entries | `[{ id, ts, text }, ...]` |
 | `prayersJournal` | JSON array | Prayer entries | `[{ id, ts, text }, ...]` (added 2026-05-05) |
 | `userName` | String | User ID | `"charlie"` or `"alice"` |

@@ -32,16 +32,14 @@ const SYNC_STATIC_KEYS = [
   "recentPassageId",
   "recentPassage",
   "dashGreetingCacheV2",
-  "obedienceJournal",
   "gratitudeJournal",
   "prayersJournal",
 ];
+// NOTE: `obedienceJournal` was dropped 2026-08-10 with the obedience journal
+// itself (see DECISIONS #26). Existing entries stay in RTDB but are never read
+// or written again — same quiet-decay treatment the SOAP keys got.
 
 const SYNC_DYNAMIC_PREFIXES = ["reflection-", "devo.canvas.", "chapterContext.", "passageRecap-"];
-// NOTE: `dashProverb*` keys are intentionally NOT synced. Syncing them would
-// echo every refresh back through the Firebase listener and trigger a full
-// renderDashboard() (= the whole-dashboard fade-in). The proverb's an 8-hour
-// rotating snippet — per-device cache is fine.
 
 // Per-user RTDB path map. Charlie's path is the legacy "devo-sync" so his
 // existing data stays at the root we've always used (no migration needed).
@@ -311,7 +309,7 @@ function _listenForRemoteChanges() {
     let nonJournalChanged = false;
 
     const noteJournalKey = (k) => {
-      if (k === "obedienceJournal" || k === "gratitudeJournal" || k === "prayersJournal") changedJournalKeys.push(k);
+      if (k === "gratitudeJournal" || k === "prayersJournal") changedJournalKeys.push(k);
       else nonJournalChanged = true;
     };
 
@@ -352,7 +350,7 @@ function _listenForRemoteChanges() {
       window.dispatchEvent(new CustomEvent("devo:canvas-sync", { detail: { keys: changedCanvasKeys } }));
     }
     // Real-time journal updates: dispatch a targeted event so any open
-    // obedience/gratitude modal can re-render in place WITHOUT triggering the
+    // gratitude/prayers modal can re-render in place WITHOUT triggering the
     // whole dashboard fade. The dashboard pill counts get refreshed by the
     // listener too. This is the path that lets Charlie's edits show up live
     // on Karla's device (and vice versa).

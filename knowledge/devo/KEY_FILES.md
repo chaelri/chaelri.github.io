@@ -44,7 +44,7 @@
 | `js/06-notes.js` | 4233–5325 | 1093 | Notes app — `showBackToNotesBubble`, `_getAllNotes`, `openNotesApp` / `closeNotesApp`, `_getSessions`, `_renderNotesList`, `_openSessionDetail`, `_shareSession`, note detail view, `_renderStandaloneEditor`, `_createNewNote` / `_updateStandaloneNote` / `_deleteStandaloneNote`, `initNotesApp` |
 | `js/07-immersive.js` | 5326–5822 | 497 | Immersive TTS overlay — `ttsImmersiveOpen` / `Close`, `_loadTtsImmersiveBg`, `_ttsImmStartPlayback`, scrubber, `ttsImmersiveUpdate`, `ttsImmReflectionOpen` / `Show`, `_immParseVerseRefs`, `_immShowVersePopup` |
 | `js/08-story.js` | 5823–7049 | 1227 | Story modal — `markStorySeen`, `openStoryModal` / `closeStoryModal`, `renderStorySlide`, navigation, `buildSlideHTML` / `buildGlanceHTML` / `buildMapHTML` / `buildSegmentHTML` / `buildScrapbookHTML` / `buildConversationHTML` / `buildTeachingHTML` / `buildContrastHTML` / `buildRecapHTML` / `buildReflectHTML`, story Gemini fetches (glance/timeline/closing/digDeeper), reflect modal (`openReflectModal` / `closeReflectModal`), verse peek (`openVersePeek`) |
-| `js/09-soap.js` | _deleted_ | _deleted_ | **REMOVED 2026-05-05** along with the SOAP "Application & Prayer" feature. Dig-Deeper Respond button + dashboard SOAP section are gone. Replaced by free-form `prayersJournal` (in `04-passage.js`) reachable from a 3rd dashboard pill next to Obedience + Gratitude. |
+| `js/09-soap.js` | _deleted_ | _deleted_ | **REMOVED 2026-05-05** along with the SOAP "Application & Prayer" feature. Dig-Deeper Respond button + dashboard SOAP section are gone. Replaced by free-form `prayersJournal` (in `04-passage.js`) reachable from a dashboard pill next to Gratitude. |
 | `js/10-creator-canvas.js` | 8020–9881 | 1862 | Image creator (`openImageCreator`, mode switcher, generate, download, share), canvas mode IIFE (drawing/highlight/notes overlay), main-toolbar IIFE (proxy buttons over legacy controls), book/chapter picker IIFE (mobile bottom-sheet selectors) |
 
 #### Section anchor: original line ranges (for grep-by-line)
@@ -156,7 +156,7 @@ The SOAP "Application & Prayer" system was removed entirely:
 - `js/09-soap.js` deleted; `#soapListPanel` + `#soapScreen` markup pulled from `index.html`; `js/09-soap.js` removed from `sw.js` CORE_ASSETS and `firebase-sync.js` injector; `soap_application` / `soap_prayer` removed from `SYNC_STATIC_KEYS` and the `_mergeSoapEntries` merger deleted.
 - Dig-Deeper Respond button + `openSoapScreen` binding removed from both `04-passage.js` (verse-level) and `08-story.js` (passage-level).
 - `_renderSoapDashCombined()` + `_bindSoapDashboard()` calls removed from `renderDashboard`.
-- The free-form **Prayers journal** (in `04-passage.js`, key `prayersJournal`, helpers `openPrayersJournal` / `_addPrayerEntry` / `_deletePrayerEntry` / `_refreshPrayersJournalLink` / `_renderPrayerEntry`) is the spiritual successor — a third pill in `dash-journal-row` next to Obedience + Gratitude that opens a free-form list modal mirroring the gratitude pattern (no categories, no SOAP toggle). Reuses `.grat-modal` styles via a `.pray-modal` modifier.
+- The free-form **Prayers journal** (in `04-passage.js`, key `prayersJournal`, helpers `openPrayersJournal` / `_addPrayerEntry` / `_deletePrayerEntry` / `_refreshPrayersJournalLink` / `_renderPrayerEntry`) is the spiritual successor — a pill in `dash-journal-row` next to Gratitude that opens a free-form list modal mirroring the gratitude pattern (no categories, no SOAP toggle). Reuses `.grat-modal` styles via a `.pray-modal` modifier.
 - Old localStorage data in `soap_application` / `soap_prayer` is no longer read or written and can be ignored. The legacy keys are still present in some users' RTDB until manually cleared.
 
 **P. Image Creator (lines 8028–8200)**
@@ -214,7 +214,7 @@ window.PUSH_SERVER_URL = "https://gemini-proxy-668755364170.asia-southeast1.run.
 6. **Mid-session swap**: If a different sync user is currently active, `_activateSyncFor` calls `_deactivateSync()` first to tear down the old mirror/listener/timers before activating the new path. No page reload needed for charlie ↔ karla swaps.
 
 **Key Constants**:
-- `SYNC_STATIC_KEYS`: `bibleFavorites`, `bibleComments`, `devotionStandaloneNotes`, `storySeenHistory`, `userName`, `bibleVersion`, `recentPassageId`, `recentPassage`, `dashGreetingCacheV2`, `obedienceJournal`, `gratitudeJournal`, `prayersJournal`. (Legacy `soap_application` / `soap_prayer` were removed when the SOAP feature was deleted on 2026-05-05.)
+- `SYNC_STATIC_KEYS`: `bibleFavorites`, `bibleComments`, `devotionStandaloneNotes`, `storySeenHistory`, `userName`, `bibleVersion`, `recentPassageId`, `recentPassage`, `dashGreetingCacheV2`, `gratitudeJournal`, `prayersJournal`. (Legacy `soap_application` / `soap_prayer` were removed with the SOAP feature on 2026-05-05; `obedienceJournal` with the Obedience journal on 2026-08-10.)
 - `SYNC_DYNAMIC_PREFIXES`: `"reflection-"`, `"devo.canvas."`, `"chapterContext."`, `"passageRecap-"`.
 - `SYNC_USERS`: `{ charlie: "devo-sync", karla: "devo-sync-karla" }` — extend here to add more users.
 - `FB_WRITE_DEBOUNCE_MS`: 400.
@@ -230,7 +230,7 @@ window.PUSH_SERVER_URL = "https://gemini-proxy-668755364170.asia-southeast1.run.
 - Comments: Merge by verse key, keep all entries.
 - Canvas: Latest wins.
 - Standalone notes: Merge by ID, latest `updatedAt` wins.
-- (SOAP entries had a Merge-by-ID strategy via `_mergeSoapEntries` — both the function and the conditional were removed 2026-05-05 when the SOAP feature was deleted. Journal arrays — `obedienceJournal` / `gratitudeJournal` / `prayersJournal` — fall through to the `lVal` default branch in `_mergeKeys`, i.e. "local wins" on conflict; conflicts in practice are rare because each device debounce-flushes its own writes back to RTDB.)
+- (SOAP entries had a Merge-by-ID strategy via `_mergeSoapEntries` — both the function and the conditional were removed 2026-05-05 when the SOAP feature was deleted. Journal arrays — `gratitudeJournal` / `prayersJournal` — fall through to the `lVal` default branch in `_mergeKeys`, i.e. "local wins" on conflict; conflicts in practice are rare because each device debounce-flushes its own writes back to RTDB.)
 
 ---
 
