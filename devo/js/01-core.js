@@ -50,11 +50,16 @@ const AI_TONE = `Be direct — no greetings, no filler, no "Hey there!", no "Gre
 })();
 
 /* ---------- SHARED: Call Gemini Proxy ---------- */
-async function callGemini(prompt) {
+async function callGemini(prompt, generationConfig) {
+  const body = { task: 'summary', contents: [{ parts: [{ text: prompt }] }] };
+  // Optional per-call overrides. The proxy spreads this over its defaults, so
+  // passing { maxOutputTokens: 8192 } lifts the 2048-token default that was
+  // truncating long teaching answers mid-sentence.
+  if (generationConfig) body.generationConfig = generationConfig;
   const res = await fetch(GEMINI_PROXY, {
     method: 'POST',
     headers: { 'Content-Type': 'application/json' },
-    body: JSON.stringify({ task: 'summary', contents: [{ parts: [{ text: prompt }] }] }),
+    body: JSON.stringify(body),
   });
   if (!res.ok) throw new Error(`Gemini proxy error: ${res.status}`);
   const data = await res.json();
@@ -70,14 +75,14 @@ async function callGemini(prompt) {
  *   full  = the full accumulated text so far
  * Resolves with the full text when the stream ends.
  */
-async function callGeminiStream(prompt, onChunk) {
+async function callGeminiStream(prompt, onChunk, generationConfig) {
   // Dead-simple: fetch the full response non-streaming, then reveal it to
   // the UI character-by-character via setTimeout. We tried server-side
   // streaming but Cloud Run + HTTP/2 intermediaries buffer chunks until
   // the response ends, which makes real SSE streaming unreliable. This
   // approach guarantees a visible typing effect regardless of network
   // behavior — user always sees text appearing progressively.
-  const text = await callGemini(prompt);
+  const text = await callGemini(prompt, generationConfig);
   if (!text) {
     try { onChunk?.('', ''); } catch {}
     return '';

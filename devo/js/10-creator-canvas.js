@@ -644,11 +644,11 @@ async function _imgcrShare() {
       `Output EXACTLY four lines, each starting with the bolded label as shown. No extras, no markdown bullets, no preamble.`,
       `**Characters:** comma-separated key figures in this chapter (max ~6).`,
       `**Setting:** time + place in 1 short clause.`,
-      `**Background:** 1–2 sentences on what's going on at this point in the book.`,
+      `**Background:** 2–3 sentences on what's going on at this point in the book.`,
       isChapterOne
         ? `**What's just before:** Write "Opening of ${info.bookName}." and nothing else.`
         : `**What's just before:** ONE sentence recapping the immediately prior chapter(s).`,
-      `Use plain English. Bold the labels with **double asterisks**. Total ≤90 words.`,
+      `Use plain English. Bold the labels with **double asterisks**. Keep it scannable, but always finish every line — never cut a sentence short to save space.`,
     ].join(" ");
   }
 
@@ -672,9 +672,9 @@ async function _imgcrShare() {
       `4. If the question is ambiguous, pick the most likely meaning given the chapter content and answer; only ask back if truly impossible.`,
       `5. Use the conversation so far for pronouns and follow-ups ("what about him?" / "and then?") — resolve them silently from history.`,
       `6. Detect CONFUSION SIGNALS like "di ko gets", "hindi ko gets", "i don't understand", "explain", "what is X", "ano ba yun", "paano", "why", "how", "huh", "wtf", or any phrasing that says the user wants more clarity. When you detect any of these, default to the LONGER teaching format below.`,
-      `Answer formats — choose ONE based on the question:`,
-      `• SHORT (2–3 sentences): when the user asks a plain factual question and clearly already knows the territory ("how many verses?", "who said X?").`,
-      `• TEACHING (4–7 sentences in 1–2 short paragraphs): when ANY confusion signal fires, when the user asks "what is X?" about a non-obvious term, or when the answer needs anchoring. Structure: (a) plain-language definition or correction, (b) a concrete real-world example or analogy when useful, (c) how it ties to ${info.bookName} ${info.chapterNum} ONLY if it actually does, (d) a brief "so what" if natural.`,
+      `Answer length — there is NO word or sentence limit. Answer as fully as the question actually needs, and NEVER stop mid-thought or trail off. Always finish the explanation you started. Choose ONE shape:`,
+      `• SHORT: when the user asks a plain factual question and clearly already knows the territory ("how many verses?", "who said X?"). A couple of sentences is plenty — don't pad it.`,
+      `• TEACHING: when ANY confusion signal fires, when the user asks "what is X?" about a non-obvious term, or when the answer needs anchoring. Take as many paragraphs as the topic genuinely needs — a long, thorough answer is welcome here. Structure: (a) plain-language definition or correction, (b) a concrete real-world example or analogy when useful, (c) how it ties to ${info.bookName} ${info.chapterNum} ONLY if it actually does, (d) a brief "so what" if natural.`,
       `Voice: warm, patient, like a friend explaining over coffee. No filler ("Great question!", "That's a fascinating…"). No hedging ("It is interesting to note that…"). Bold key terms with **double asterisks**. Plain English; if the user wrote Taglish you can mirror a casual Taglish tone in your reply.`,
       `User question: "${question}"`,
       AI_TONE,
@@ -814,7 +814,9 @@ async function _imgcrShare() {
         <span class="material-symbols-outlined cm-ctx-q-chev">expand_more</span>
       </button>
       <div class="cm-ctx-a">
-        <span class="cm-ctx-loader"><span class="gdot"></span><span class="gdot"></span><span class="gdot"></span></span>
+        <div class="cm-ctx-a-inner">
+          <span class="cm-ctx-loader"><span class="gdot"></span><span class="gdot"></span><span class="gdot"></span></span>
+        </div>
       </div>
     `;
     qaWrap.querySelector(".cm-ctx-q-text").textContent = question;
@@ -828,7 +830,7 @@ async function _imgcrShare() {
     thread.appendChild(qaWrap);
     qaWrap.scrollIntoView({ behavior: "smooth", block: "nearest" });
 
-    const ansEl = qaWrap.querySelector(".cm-ctx-a");
+    const ansEl = qaWrap.querySelector(".cm-ctx-a-inner");
     const summaryText = summary.textContent || "";
     try {
       let full = "";
@@ -837,7 +839,10 @@ async function _imgcrShare() {
         (_d, accum) => {
           full = accum;
           ansEl.innerHTML = (typeof mdToHTML === "function" ? mdToHTML(full) : full);
-        }
+        },
+        // Lift the proxy's 2048-token flash-lite default — long teaching
+        // answers were getting truncated mid-sentence by the token cap.
+        { maxOutputTokens: 8192 }
       );
       _ctxThread.push({ role: "assistant", text: full });
     } catch (err) {
