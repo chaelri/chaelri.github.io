@@ -105,6 +105,25 @@ Menu bar indicator showing Claude plan usage as a live percentage — built beca
   - **`launchctl bootout` is async** — bootstrapping immediately after fails with `Input/output error 5`. `install.sh` polls `launchctl print` in between.
 - **Full docs:** See `knowledge/claude-usage/SUMMARY.md` and `claude-usage/README.md`.
 
+### diskscope/  🟢
+
+Disk-usage browser for the whole Mac — the System Settings › Storage panel, except you can walk into the folders, sort by size, and jump straight to any file in Finder. Built because Apple's Files/Finder makes "what is eating 800 GB and where" genuinely hard to answer.
+
+- **Tech:** stdlib-only `/usr/bin/python3` (3.9) HTTP server + vanilla JS/CSS front end (Tailwind browser CDN, Material Symbols Rounded, `-apple-system` for real SF Pro). No pip, no venv, no build step.
+- **Entry:** `serve.py` (scanner + API), `index.html` / `style.css` / `app.js` (the viewer).
+- **Deploy:** Local only — `python3 serve.py` scans `/`, prints a tokenised localhost URL and opens it. Deliberately NOT on GitHub Pages: useless without the Python half.
+- **Views:** Folder (recursive folder sizes, sort by size/name/date/kind, 10 MB+/100 MB+/1 GB+ filters), Big files (flat list of the largest files anywhere under a path, each with its folder), Kinds (bytes per file type with top extensions).
+- **Built-in player:** `GET /media/<token>/<base64url-path>` streams with full `Range` support; small inline player in the details sheet, `P` or the row play button opens a full-window theater. Video/audio/image/PDF/text. **The media route must have no query string** — `<video src>` with `?token=…&path=…` is dropped by Chrome's network service before it reaches the socket, with no error to catch (the element just sits on `stalled`). **Theater sizing uses `position: absolute; inset: 0`, not `height: 100%`** — the percentage resolved against the wrong box and pushed the video controls below the window edge.
+- **Quirks:**
+  - **Directories are indexed, files are not.** `dirs{path: [size, files, subdirs, mtime]}` + a capped 40 k-entry biggest-files heap + an extension histogram. Per-folder listings come from one on-demand `scandir`. Full-index-of-every-file would cost hundreds of MB of RAM for nothing. **789 GB / 795 k files in ~17 s** on the M5.
+  - **The walk never crosses `st_dev`** — that's what stops `/System/Volumes/Data` firmlinks and mounted volumes being double-counted on modern macOS.
+  - **`showHidden` defaults ON**, and units are decimal (1 GB = 1000 MB) to match System Settings. Sizes are logical `st_size`, not size-on-disk, so they can differ from Finder's Get Info on sparse/cloned files.
+  - **~183 folders are unreadable without Full Disk Access**; `serve.py` probes `~/Library/Application Support/com.apple.TCC` to detect this and the UI shows a notice. Those bytes land in the grey "macOS system & snapshots" segment.
+  - **`.lrv`/`.lrf` count as video and `.vpk`/`.bsp` got their own "game" kind** — 53 GB of DJI proxy clips and 88 GB of Steam data were otherwise invisible inside "Other".
+  - **Security:** 127.0.0.1 only, per-run random token on every `/api/*` call, localhost-only `Host`/`Origin` (blocks DNS rebinding), paths confined to the scan root, `subprocess` never `shell=True`. Trash goes through Finder (recoverable), never `rm`, and arms on first click.
+  - Cache at `~/Library/Caches/diskscope/scan-<sha1>.json`, keyed per root — bump `CACHE_VERSION` whenever the node shape changes.
+- **Full docs:** See `knowledge/diskscope/SUMMARY.md` and `diskscope/README.md`.
+
 ### mac-toggle/  🟢
 
 Firebase remote for the MacBook Pro's display-sleep setting — the autoclicker pattern with macOS as the actuator instead of an ESP32. The page is **one minimalist toggle** (Never ↔ 5 minutes, battery + power adapter moved together); a root LaunchDaemon reconciles the machine and publishes observed truth back.
@@ -419,6 +438,7 @@ Simple side-scrolling platformer (Bubu & Dudu) — canvas-based game.
 | mac-toggle (Mac agent) | root LaunchDaemon `com.chaelri.mactoggle` via `agent/install.sh` | Manual |
 | mac-toggle (menu bar) | per-user LaunchAgent `com.chaelri.mactoggle.menubar` via `menubar/install-menubar.sh` | Manual |
 | claude-usage | per-user LaunchAgent `com.chaelri.claudeusage` via `install.sh` | Manual |
+| diskscope | Local only (`python3 serve.py`) | Manual |
 | guard-exit-interview | GitHub Pages — **DUAL-REPO** (also push to `guard-exit-tracker`) | ✅ |
 | vm-management | GitHub Pages `/vm-management/` | ✅ |
 | weddingbar | Firebase Hosting (root via `firebase.json`) — also GH Pages `/weddingbar/` | `firebase deploy` |

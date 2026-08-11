@@ -1,0 +1,187 @@
+<!doctype html>
+<html lang="en" class="dark">
+<head>
+<meta charset="utf-8" />
+<meta name="viewport" content="width=device-width, initial-scale=1" />
+<meta name="color-scheme" content="dark light" />
+<title>diskscope</title>
+
+<link rel="preconnect" href="https://fonts.googleapis.com" />
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
+<link href="https://fonts.googleapis.com/css2?family=Material+Symbols+Rounded:opsz,wght,FILL,GRAD@20,400,0,0&display=swap" rel="stylesheet" />
+<script src="https://cdn.jsdelivr.net/npm/@tailwindcss/browser@4"></script>
+<link rel="stylesheet" href="style.css" />
+<script>window.DISKSCOPE_TOKEN = "__DISKSCOPE_TOKEN__";</script>
+</head>
+
+<body class="antialiased">
+
+<!-- ── toolbar ──────────────────────────────────────────────────────────── -->
+<header id="toolbar">
+  <div class="tb-inner">
+    <div class="nav-pair">
+      <button id="btn-back" class="nav-btn" title="Back  ⌘[" disabled>
+        <span class="ms">chevron_left</span>
+      </button>
+      <span class="nav-sep"></span>
+      <button id="btn-fwd" class="nav-btn" title="Forward  ⌘]" disabled>
+        <span class="ms">chevron_right</span>
+      </button>
+    </div>
+
+    <nav id="crumbs" class="crumbs"></nav>
+
+    <div class="tb-right">
+      <label class="search">
+        <span class="ms">search</span>
+        <input id="search" type="search" placeholder="Filter" spellcheck="false" />
+        <kbd>⌘F</kbd>
+      </label>
+      <button id="btn-rescan" class="icon-btn" title="Rescan  ⌘R">
+        <span class="ms">refresh</span>
+      </button>
+      <button id="btn-theme" class="icon-btn" title="Appearance">
+        <span class="ms">dark_mode</span>
+      </button>
+    </div>
+  </div>
+</header>
+
+<main id="main">
+
+  <!-- ── volume card ────────────────────────────────────────────────────── -->
+  <section class="card" id="volume-card">
+    <div class="vol-head">
+      <div>
+        <h1 id="vol-name">Macintosh HD</h1>
+        <p id="vol-sub" class="muted">Reading the disk…</p>
+      </div>
+      <div class="vol-used">
+        <span id="vol-used">—</span>
+        <span class="muted" id="vol-total"></span>
+      </div>
+    </div>
+
+    <div class="vol-bar" id="vol-bar"><div class="vol-shimmer"></div></div>
+    <div class="legend" id="vol-legend"></div>
+
+    <div class="jumps" id="jumps"></div>
+
+    <div id="scan-strip" class="scan-strip">
+      <div class="scan-dot"></div>
+      <span id="scan-text">Scanning…</span>
+      <span class="spacer"></span>
+      <span id="scan-path" class="scan-path mono"></span>
+    </div>
+  </section>
+
+  <!-- ── controls ───────────────────────────────────────────────────────── -->
+  <div class="controls">
+    <div class="seg" id="view-seg" role="tablist">
+      <div class="seg-pill"></div>
+      <button data-view="list" class="on"><span class="ms">list</span>Folder</button>
+      <button data-view="big"><span class="ms">data_usage</span>Big files</button>
+      <button data-view="kinds"><span class="ms">donut_small</span>Kinds</button>
+    </div>
+
+    <div class="ctl-right">
+      <div class="chips" id="min-chips">
+        <button data-min="0" class="on">All</button>
+        <button data-min="10485760">10&nbsp;MB+</button>
+        <button data-min="104857600">100&nbsp;MB+</button>
+        <button data-min="1073741824">1&nbsp;GB+</button>
+      </div>
+
+      <div class="menu-wrap">
+        <button id="sort-btn" class="pill-btn">
+          <span class="ms">swap_vert</span><span id="sort-label">Size</span>
+        </button>
+        <div id="sort-menu" class="menu">
+          <button data-sort="size">Size<span class="ms tick">check</span></button>
+          <button data-sort="name">Name<span class="ms tick">check</span></button>
+          <button data-sort="mtime">Date modified<span class="ms tick">check</span></button>
+          <button data-sort="kind">Kind<span class="ms tick">check</span></button>
+          <div class="menu-sep"></div>
+          <button data-toggle="dir">Descending<span class="ms tick">check</span></button>
+          <button data-toggle="folders">Folders first<span class="ms tick">check</span></button>
+          <button data-toggle="hidden">Show hidden<span class="ms tick">check</span></button>
+        </div>
+      </div>
+    </div>
+  </div>
+
+  <!-- ── rows ───────────────────────────────────────────────────────────── -->
+  <section class="card list-card">
+    <div id="list-head" class="list-head">
+      <span id="list-title">Contents</span>
+      <span id="list-meta" class="muted"></span>
+    </div>
+    <div id="rows" class="rows"></div>
+    <div id="empty" class="empty hidden">
+      <span class="ms">inbox</span>
+      <p id="empty-text">Nothing here</p>
+    </div>
+  </section>
+
+  <footer class="foot muted">
+    <span id="foot-left"></span>
+    <span id="foot-right"></span>
+  </footer>
+</main>
+
+<!-- ── detail sheet ───────────────────────────────────────────────────────-->
+<div id="scrim" class="scrim"></div>
+<aside id="sheet" class="sheet" role="dialog" aria-modal="true">
+  <div class="sheet-grip"></div>
+  <div class="sheet-head">
+    <div id="sheet-icon" class="tile lg"><span class="ms">draft</span></div>
+    <div class="sheet-title">
+      <h2 id="sheet-name">—</h2>
+      <p id="sheet-kind" class="muted"></p>
+    </div>
+    <button id="sheet-close" class="icon-btn"><span class="ms">close</span></button>
+  </div>
+
+  <div id="sheet-preview" class="preview hidden">
+    <div class="preview-stage" id="preview-stage"></div>
+    <button id="preview-expand" class="preview-expand" title="Expand  P">
+      <span class="ms">open_in_full</span>
+    </button>
+  </div>
+
+  <div class="sheet-size"><span id="sheet-size">—</span><span id="sheet-share" class="muted"></span></div>
+
+  <dl class="sheet-rows">
+    <div><dt>Where</dt><dd id="sheet-where" class="mono"></dd></div>
+    <div><dt>Modified</dt><dd id="sheet-mtime"></dd></div>
+    <div><dt>Created</dt><dd id="sheet-ctime"></dd></div>
+    <div><dt>Contains</dt><dd id="sheet-items"></dd></div>
+  </dl>
+
+  <div class="sheet-actions">
+    <button id="act-reveal" class="act primary"><span class="ms">folder_open</span>Reveal in Finder</button>
+    <button id="act-open" class="act"><span class="ms">open_in_new</span>Open</button>
+    <button id="act-copy" class="act"><span class="ms">content_copy</span>Copy path</button>
+    <button id="act-trash" class="act danger"><span class="ms">delete</span>Move to Trash</button>
+  </div>
+</aside>
+
+<!-- ── theater (full-size player) ─────────────────────────────────────────── -->
+<div id="theater" class="theater" role="dialog" aria-modal="true">
+  <div class="theater-bar">
+    <div class="theater-title">
+      <span id="theater-name">—</span>
+      <span id="theater-meta" class="muted"></span>
+    </div>
+    <button id="theater-reveal" class="act"><span class="ms">folder_open</span>Reveal</button>
+    <button id="theater-open" class="act"><span class="ms">open_in_new</span>Open</button>
+    <button id="theater-close" class="icon-btn"><span class="ms">close</span></button>
+  </div>
+  <div class="theater-stage" id="theater-stage"></div>
+</div>
+
+<div id="toast" class="toast"></div>
+
+<script src="app.js"></script>
+</body>
+</html>
