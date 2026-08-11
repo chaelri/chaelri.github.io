@@ -10526,6 +10526,25 @@ body.tts-canvas-active .cm-listen-bar {
     backdrop-filter: blur(6px);
   }
 }
+/* Nunito across the whole Context · Ask block — header pill, summary card,
+   ask input, and the Q&A thread. Scoped to .cm-ctx-* so the passage text and
+   the rest of canvas mode keep their own type. */
+.cm-ctx-head,
+.cm-ctx-panel,
+.cm-ctx-thread,
+.cm-ctx-head *,
+.cm-ctx-panel *,
+.cm-ctx-thread * {
+  font-family: "Nunito", system-ui, -apple-system, sans-serif;
+}
+/* Icon fonts must win — the wildcards above would otherwise turn the book /
+   refresh / chevron / help glyphs into literal ligature text. */
+.cm-ctx-head .material-symbols-outlined,
+.cm-ctx-panel .material-symbols-outlined,
+.cm-ctx-thread .material-symbols-outlined {
+  font-family: "Material Symbols Outlined" !important;
+}
+
 .cm-ctx-head {
   display: flex;
   align-items: center;
