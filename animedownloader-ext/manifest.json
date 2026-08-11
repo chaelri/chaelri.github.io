@@ -56,6 +56,12 @@
       "run_at": "document_idle"
     },
     {
+      "matches": ["*://kwik.cx/e/*"],
+      "js": ["content/kwik-embed.js"],
+      "run_at": "document_end",
+      "all_frames": true
+    },
+    {
       "matches": ["*://pahe.win/*"],
       "js": ["content/pahe.js"],
       "run_at": "document_idle"

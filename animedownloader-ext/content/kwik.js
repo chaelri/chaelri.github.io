@@ -1,6 +1,11 @@
 (function () {
   "use strict";
 
+  // /e/ is the player embed, not a download page. It has no .button.is-success,
+  // so the retry loop below would just reload it 5 times and kill playback.
+  // kwik-embed.js owns that page.
+  if (/^\/e\//.test(location.pathname)) return;
+
   const RETRY_KEY = "kwik_auto_retries";
   const MAX_RETRIES = 5;
   const BUTTON_TIMEOUT_MS = 15000; // wait up to 15s for the button before reloading
