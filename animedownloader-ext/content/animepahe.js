@@ -1095,21 +1095,28 @@
       .episode-number {
         text-shadow: none !important;
       }
+      /* "Watch EP 1" is a SECONDARY action — the card itself already goes to
+         the latest episode. As a full-bleed pink slab it was twelve competing
+         call-to-actions fighting the artwork on every page load. Now it's a
+         compact glass pill: always visible so the shortcut stays findable,
+         but it only turns brand pink once you're actually pointing at it. */
       .fl-first-btn {
         position: absolute;
-        top: 0;
-        right: 0;
+        top: 8px;
+        right: 8px;
         display: flex !important;
         flex-direction: row;
         align-items: center;
         justify-content: center;
-        gap: 7px;
-        padding: 9px 13px;
-        background: #d5015b !important;
+        gap: 5px;
+        padding: 5px 10px 5px 8px;
+        background: rgba(12, 12, 15, 0.62) !important;
+        -webkit-backdrop-filter: blur(10px) saturate(1.3);
+        backdrop-filter: blur(10px) saturate(1.3);
         color: #fff !important;
         z-index: 9 !important;
-        border: none !important;
-        border-radius: 0 !important;
+        border: 1px solid rgba(255, 255, 255, 0.16) !important;
+        border-radius: 999px !important;
         text-decoration: none !important;
         cursor: pointer !important;
         box-sizing: border-box;
@@ -1118,58 +1125,44 @@
         line-height: 1;
         transform-origin: top right;
         transform: scale(1);
-        outline: 0 solid rgba(255, 255, 255, 0);
-        box-shadow: 0 0 0 rgba(213, 1, 91, 0);
+        box-shadow: 0 4px 16px rgba(0, 0, 0, 0.42);
         transition:
-          background 0.3s ease,
-          transform 0.35s cubic-bezier(0.22, 1, 0.36, 1),
-          box-shadow 0.35s cubic-bezier(0.22, 1, 0.36, 1),
-          outline-color 0.3s ease,
-          outline-width 0.3s ease !important;
+          transform 0.28s cubic-bezier(0.22, 1, 0.36, 1),
+          background 0.22s ease,
+          border-color 0.22s ease,
+          box-shadow 0.28s cubic-bezier(0.22, 1, 0.36, 1) !important;
       }
-      .fl-first-btn:hover {
-        background: #ec1670 !important;
-        transform: scale(1.12) !important;
-        outline: 2px solid rgba(255, 255, 255, 0.95) !important;
-        outline-offset: -2px;
-        box-shadow: 0 10px 32px rgba(213, 1, 91, 0.65) !important;
-      }
-      .fl-first-btn:hover .fl-first-btn-top {
-        letter-spacing: 2.8px;
-        opacity: 1;
-      }
-      .fl-first-btn:hover .fl-first-btn-bot {
-        letter-spacing: 1px;
+      .fl-first-btn:hover,
+      .fl-first-btn:focus-visible {
+        background: #d5015b !important;
+        border-color: rgba(255, 255, 255, 0.4) !important;
+        transform: scale(1.07) !important;
+        box-shadow: 0 8px 22px rgba(213, 1, 91, 0.5) !important;
       }
       .fl-first-btn:active {
         background: #b01049 !important;
-        transform: scale(1.04) !important;
-        transition:
-          background 0.08s ease,
-          transform 0.08s ease,
-          box-shadow 0.08s ease !important;
+        transform: scale(1) !important;
+        transition: background 0.08s ease, transform 0.08s ease !important;
       }
       .fl-first-btn-icon {
-        width: 16px;
-        height: 16px;
+        width: 11px;
+        height: 11px;
         flex-shrink: 0;
-        transition: transform 0.35s cubic-bezier(0.22, 1, 0.36, 1);
       }
-      .fl-first-btn:hover .fl-first-btn-icon {
-        transform: translateX(-1px) scale(1.15);
-      }
+      /* The play glyph already says "watch", and that word was most of the
+         old slab's width. Kept in the DOM as the accessible name. */
       .fl-first-btn-top {
-        font-size: 0.8rem;
-        font-weight: 300;
-        letter-spacing: 2px;
-        opacity: 0.85;
-        transition: letter-spacing 0.35s cubic-bezier(0.22, 1, 0.36, 1), opacity 0.3s ease;
+        position: absolute !important;
+        width: 1px;
+        height: 1px;
+        overflow: hidden;
+        clip-path: inset(50%);
+        white-space: nowrap;
       }
       .fl-first-btn-bot {
-        font-size: 0.92rem;
-        font-weight: 800;
-        letter-spacing: 0.6px;
-        transition: letter-spacing 0.35s cubic-bezier(0.22, 1, 0.36, 1);
+        font-size: 0.66rem;
+        font-weight: 700;
+        letter-spacing: 0.9px;
       }
       /* Episode-number cell: stacked "LATEST / EPISODE / <n>" all centered */
       .episode-number-wrap { text-align: center !important; }
