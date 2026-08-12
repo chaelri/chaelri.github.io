@@ -1,0 +1,443 @@
+<!DOCTYPE html>
+<html lang="en" class="scroll-smooth">
+<head>
+<meta charset="UTF-8" />
+<meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover" />
+<meta name="theme-color" content="#0a0a0b" />
+<title>Sherill Obillo — Nissan Quezon Avenue</title>
+<meta name="description" content="Sherill Obillo, Nissan Marketing Professional at Nissan Quezon Avenue. Free quotation, financing assistance and trade-in evaluation on the full Nissan line-up." />
+
+<meta property="og:title" content="Sherill Obillo — Nissan Quezon Avenue" />
+<meta property="og:description" content="Find your next Nissan. Free quotation • Financing assistance • Trade-in evaluation." />
+<meta property="og:type" content="website" />
+
+<link rel="icon" href="favicon.svg" type="image/svg+xml" />
+<link rel="icon" href="favicon-32.png" sizes="32x32" type="image/png" />
+<link rel="alternate icon" href="favicon.ico" sizes="16x16 32x32 48x48" />
+<link rel="apple-touch-icon" href="apple-touch-icon.png" />
+<link rel="manifest" href="site.webmanifest" />
+
+<link rel="preconnect" href="https://fonts.googleapis.com" />
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
+<link href="https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700;800&family=Material+Symbols+Outlined:opsz,wght,FILL,GRAD@20..48,100..700,0..1,-50..200&display=swap" rel="stylesheet" />
+<link rel="stylesheet" href="style.css" />
+</head>
+<body>
+
+<!-- ══════════════════════════════════════════════════════════ preloader -->
+<div class="preloader" id="preloader" aria-hidden="true">
+  <div class="preloader__mark"><span></span></div>
+</div>
+
+<!-- ═══════════════════════════════════════════════════════════════ nav -->
+<header class="nav" id="nav">
+  <div class="nav__inner">
+    <a href="#home" class="nav__brand" data-nav>
+      <span class="nav__mark" aria-hidden="true"></span>
+      <span class="nav__name">
+        <strong>Sherill Obillo</strong>
+        <em>Nissan Quezon Avenue</em>
+      </span>
+    </a>
+
+    <nav class="nav__links" aria-label="Sections">
+      <a href="#models" data-nav>Models</a>
+      <a href="#promos" data-nav>Promos</a>
+      <a href="#epower" data-nav>e-POWER</a>
+      <a href="#quote" data-nav>Quotation</a>
+      <a href="#contact" data-nav>Contact</a>
+    </nav>
+
+    <a href="#quote" class="btn btn--sm btn--primary nav__cta" data-nav>
+      <span class="ms">request_quote</span><span>Get a quote</span>
+    </a>
+
+    <button class="nav__burger" id="burger" aria-label="Open menu" aria-expanded="false" aria-controls="drawer">
+      <span></span><span></span>
+    </button>
+  </div>
+  <div class="nav__progress" id="navProgress"></div>
+</header>
+
+<!-- mobile drawer -->
+<div class="drawer" id="drawer" aria-hidden="true">
+  <nav class="drawer__links">
+    <a href="#home" data-nav><span class="ms">home</span>Home</a>
+    <a href="#models" data-nav><span class="ms">directions_car</span>Nissan models</a>
+    <a href="#promos" data-nav><span class="ms">local_offer</span>Promos</a>
+    <a href="#epower" data-nav><span class="ms">bolt</span>KICKS e-POWER</a>
+    <a href="#quote" data-nav><span class="ms">request_quote</span>Get a quotation</a>
+    <a href="#contact" data-nav><span class="ms">call</span>Contact me</a>
+  </nav>
+  <div class="drawer__foot">
+    <a class="btn btn--primary btn--block" id="drawerViber"><span class="ms">chat</span>Message on Viber</a>
+  </div>
+</div>
+
+<main>
+
+<!-- ══════════════════════════════════════════════════════════════ home -->
+<section class="hero" id="home">
+  <div class="hero__glow" aria-hidden="true"></div>
+  <div class="hero__grid">
+
+    <div class="hero__copy">
+      <p class="eyebrow reveal"><span class="dot"></span>Nissan Marketing Professional</p>
+      <h1 class="hero__title reveal" data-delay="1">
+        Find Your<br /><span class="grad">Next Nissan</span>
+      </h1>
+      <p class="hero__lead reveal" data-delay="2">
+        Hi, I'm <strong>Sherill Obillo</strong>. I help you choose the right Nissan,
+        get it approved, and drive it home — without the guesswork.
+      </p>
+
+      <ul class="hero__pills reveal" data-delay="3">
+        <li><span class="ms">request_quote</span>Free quotation</li>
+        <li><span class="ms">account_balance</span>Financing assistance</li>
+        <li><span class="ms">swap_horiz</span>Trade-in evaluation</li>
+      </ul>
+
+      <div class="hero__cta reveal" data-delay="4">
+        <a href="#quote" class="btn btn--primary btn--lg" data-nav>
+          <span class="ms">request_quote</span><span>Get a free quotation</span>
+        </a>
+        <a href="#models" class="btn btn--ghost btn--lg" data-nav>
+          <span class="ms">directions_car</span><span>Browse models</span>
+        </a>
+      </div>
+
+      <dl class="hero__stats reveal" data-delay="5">
+        <div><dt>Models</dt><dd data-count="8">0</dd></div>
+        <div><dt>Banks</dt><dd data-count="6">0</dd></div>
+        <div><dt>DP from</dt><dd data-count="20" data-suffix="%">0</dd></div>
+      </dl>
+    </div>
+
+    <div class="hero__visual">
+      <figure class="portrait reveal" data-delay="2">
+        <img src="assets/sherill.webp" alt="Sherill Obillo at Nissan Quezon Avenue" width="632" height="748" fetchpriority="high" />
+        <figcaption>
+          <strong>Sherill Obillo</strong>
+          <span>Nissan Quezon Avenue</span>
+        </figcaption>
+      </figure>
+
+      <div class="showcase reveal" data-delay="3" id="showcase">
+        <div class="showcase__plate">
+          <img class="showcase__img" id="showcaseImg" src="assets/models/kicks.webp" alt="" width="600" height="298" />
+        </div>
+        <div class="showcase__bar">
+          <div class="showcase__meta">
+            <strong id="showcaseName">KICKS e-POWER</strong>
+            <span id="showcasePrice">From ₱1,179,000</span>
+          </div>
+          <div class="showcase__dots" id="showcaseDots"></div>
+        </div>
+      </div>
+    </div>
+  </div>
+
+  <ul class="marquee" aria-hidden="true">
+    <li>Top sales</li><li>·</li><li>Trusted service</li><li>·</li>
+    <li>Driven by passion</li><li>·</li><li>Focused on you</li><li>·</li>
+    <li>Top sales</li><li>·</li><li>Trusted service</li><li>·</li>
+    <li>Driven by passion</li><li>·</li><li>Focused on you</li><li>·</li>
+  </ul>
+</section>
+
+<!-- ════════════════════════════════════════════════════════════ models -->
+<section class="section" id="models">
+  <header class="section__head">
+    <p class="eyebrow reveal"><span class="dot"></span>The line-up</p>
+    <h2 class="reveal" data-delay="1">Nissan models</h2>
+    <p class="section__lead reveal" data-delay="2">
+      Every current Nissan available at Quezon Avenue, with the complete variant
+      and price list. Tap a model for its full details, colors and specs.
+    </p>
+  </header>
+
+  <div class="chips reveal" data-delay="2" id="modelFilter" role="tablist" aria-label="Filter models"></div>
+  <div class="model-grid" id="modelGrid"></div>
+
+  <p class="fineprint reveal">
+    Prices are SRP, VAT-inclusive, as of <strong>August 2026</strong> and may change without prior notice.
+    Message Sherill to confirm the current price and stock of your chosen variant.
+  </p>
+</section>
+
+<!-- ════════════════════════════════════════════════════════════ promos -->
+<section class="section section--tint" id="promos">
+  <header class="section__head">
+    <p class="eyebrow reveal"><span class="dot"></span><span id="promoWindow">August – September 2026</span></p>
+    <h2 class="reveal" data-delay="1">This month's promos</h2>
+    <p class="section__lead reveal" data-delay="2">
+      Cash discounts, low down payment schemes and freebies running right now.
+      Offers vary per unit, per variant and per bank — I'll compute the exact
+      package for the car you want.
+    </p>
+  </header>
+
+  <div class="promo-grid" id="promoGrid"></div>
+
+  <div class="bank-strip reveal">
+    <span class="bank-strip__label">Financing partners</span>
+    <div class="bank-strip__list" id="bankList"></div>
+  </div>
+</section>
+
+<!-- ═══════════════════════════════════════════════════════════ e-POWER -->
+<section class="section" id="epower">
+  <header class="section__head">
+    <p class="eyebrow reveal"><span class="dot"></span>Spotlight</p>
+    <h2 class="reveal" data-delay="1">KICKS e-POWER</h2>
+    <p class="section__lead reveal" data-delay="2">
+      The electric drive everybody wants, without the one thing nobody wants —
+      charging. Here's exactly how it works.
+    </p>
+  </header>
+
+  <div class="epower-hero reveal" data-delay="2">
+    <div class="shot shot--wide">
+      <img src="assets/models/kicks.webp" alt="Nissan KICKS e-POWER" width="600" height="298" loading="lazy" />
+    </div>
+    <div class="epower-hero__copy">
+      <h3>100% electric drive.<br />Zero charging.</h3>
+      <p>
+        In the KICKS, the petrol engine <strong>never touches the wheels</strong>.
+        It only generates electricity. The wheels are always driven by an electric
+        motor — so you get instant torque, a quiet cabin and one-pedal driving,
+        while still just filling up at any gas station.
+      </p>
+      <div class="epower-hero__specs" id="kicksQuickSpecs"></div>
+      <a class="btn btn--primary" data-quote-model="kicks"><span class="ms">request_quote</span><span>Quote the KICKS</span></a>
+    </div>
+  </div>
+
+  <ol class="flow" id="epowerFlow"></ol>
+
+  <h3 class="sub-head reveal">What it feels like to own</h3>
+  <div class="benefit-grid" id="epowerBenefits"></div>
+
+  <h3 class="sub-head reveal">How it compares</h3>
+  <div class="table-wrap reveal">
+    <table class="cmp" id="epowerCompare"></table>
+  </div>
+  <p class="fineprint reveal">Comparison is a general guide to powertrain types, not a spec-for-spec match against any specific competitor model.</p>
+</section>
+
+<!-- ═════════════════════════════════════════════════════════════ quote -->
+<section class="section section--tint" id="quote">
+  <header class="section__head">
+    <p class="eyebrow reveal"><span class="dot"></span>No obligation</p>
+    <h2 class="reveal" data-delay="1">Get a quotation</h2>
+    <p class="section__lead reveal" data-delay="2">
+      Fill this in and it becomes a ready-to-send message. Nothing is stored on
+      this site — it opens straight in Viber, SMS or email so you keep control.
+    </p>
+  </header>
+
+  <div class="quote-wrap">
+    <form class="quote-form reveal" id="quoteForm" novalidate>
+      <div class="field">
+        <label for="qName">Your name</label>
+        <input id="qName" name="name" type="text" autocomplete="name" placeholder="Juan Dela Cruz" required />
+      </div>
+
+      <div class="field">
+        <label for="qPhone">Mobile number</label>
+        <input id="qPhone" name="phone" type="tel" inputmode="tel" autocomplete="tel" placeholder="09XX XXX XXXX" required />
+      </div>
+
+      <div class="field">
+        <label for="qModel">Preferred Nissan</label>
+        <div class="select"><select id="qModel" name="model" required></select><span class="ms">expand_more</span></div>
+      </div>
+
+      <div class="field">
+        <label for="qVariant">Preferred variant</label>
+        <div class="select"><select id="qVariant" name="variant"></select><span class="ms">expand_more</span></div>
+      </div>
+
+      <fieldset class="field field--full">
+        <legend>Payment</legend>
+        <div class="seg" id="qPayment" role="radiogroup">
+          <button type="button" class="seg__btn is-active" data-pay="financing" role="radio" aria-checked="true">
+            <span class="ms">account_balance</span>Bank financing
+          </button>
+          <button type="button" class="seg__btn" data-pay="cash" role="radio" aria-checked="false">
+            <span class="ms">payments</span>Cash
+          </button>
+        </div>
+      </fieldset>
+
+      <div class="finance-block" id="financeBlock">
+        <div class="field field--full">
+          <label for="qDp">Down payment <output id="qDpOut">20%</output></label>
+          <input id="qDp" type="range" min="10" max="60" step="5" value="20" />
+        </div>
+
+        <div class="field field--full">
+          <label>Term</label>
+          <div class="seg seg--wrap" id="qTerm" role="radiogroup">
+            <button type="button" class="seg__btn" data-term="12" role="radio" aria-checked="false">12 mo</button>
+            <button type="button" class="seg__btn" data-term="24" role="radio" aria-checked="false">24 mo</button>
+            <button type="button" class="seg__btn is-active" data-term="36" role="radio" aria-checked="true">36 mo</button>
+            <button type="button" class="seg__btn" data-term="48" role="radio" aria-checked="false">48 mo</button>
+            <button type="button" class="seg__btn" data-term="60" role="radio" aria-checked="false">60 mo</button>
+          </div>
+        </div>
+
+        <div class="field field--full">
+          <label for="qBank">Preferred bank</label>
+          <div class="select"><select id="qBank" name="bank"></select><span class="ms">expand_more</span></div>
+        </div>
+      </div>
+
+      <div class="field field--full">
+        <label class="check">
+          <input type="checkbox" id="qTrade" />
+          <span class="check__box"><span class="ms">check</span></span>
+          <span>I have a vehicle to trade in</span>
+        </label>
+      </div>
+
+      <div class="field field--full is-collapsed" id="qTradeField">
+        <label for="qTradeDetail">Trade-in unit</label>
+        <input id="qTradeDetail" type="text" placeholder="e.g. 2019 Toyota Vios 1.3 E AT, 68,000 km" />
+      </div>
+
+      <div class="field field--full">
+        <label for="qNotes">Anything else? <em>(optional)</em></label>
+        <textarea id="qNotes" rows="3" placeholder="Preferred color, target release date, questions…"></textarea>
+      </div>
+
+      <div class="quote-form__actions">
+        <button type="button" class="btn btn--primary btn--lg" id="sendViber">
+          <span class="ms">chat</span><span>Send via Viber</span>
+        </button>
+        <button type="button" class="btn btn--ghost" id="sendSms"><span class="ms">sms</span><span>SMS</span></button>
+        <button type="button" class="btn btn--ghost" id="sendEmail"><span class="ms">mail</span><span>Email</span></button>
+        <button type="button" class="btn btn--ghost" id="copyQuote"><span class="ms">content_copy</span><span>Copy</span></button>
+      </div>
+    </form>
+
+    <aside class="estimate reveal" data-delay="1" id="estimate">
+      <div class="estimate__card">
+        <p class="estimate__label">Your estimate</p>
+        <h3 class="estimate__model" id="estModel">—</h3>
+        <p class="estimate__variant" id="estVariant">Select a variant</p>
+
+        <div class="estimate__srp">
+          <span>SRP</span><strong id="estSrp">—</strong>
+        </div>
+
+        <div class="estimate__rows" id="estRows"></div>
+
+        <div class="estimate__hero" id="estHero">
+          <span id="estHeroLabel">Estimated monthly</span>
+          <strong id="estHeroValue">—</strong>
+        </div>
+
+        <p class="estimate__note">
+          Estimate only, using indicative bank factor rates. The bank's approved
+          rate, insurance, chattel and LTO charges determine the final figure —
+          I'll send you the exact computation.
+        </p>
+      </div>
+    </aside>
+  </div>
+</section>
+
+<!-- ═══════════════════════════════════════════════════════════ contact -->
+<section class="section" id="contact">
+  <header class="section__head">
+    <p class="eyebrow reveal"><span class="dot"></span>Let's talk</p>
+    <h2 class="reveal" data-delay="1">Contact me</h2>
+    <p class="section__lead reveal" data-delay="2">
+      Message me any time — I reply fast on Viber. Walk-ins welcome at the
+      Quezon Avenue showroom.
+    </p>
+  </header>
+
+  <div class="contact-grid">
+    <a class="contact-card reveal" id="cViber" data-delay="1">
+      <span class="contact-card__icon ms">chat</span>
+      <span class="contact-card__label">Viber</span>
+      <strong class="contact-card__value" id="cViberVal">0977 809 3768</strong>
+      <span class="contact-card__go ms">arrow_outward</span>
+    </a>
+    <a class="contact-card reveal" id="cCall" data-delay="2">
+      <span class="contact-card__icon ms">call</span>
+      <span class="contact-card__label">Mobile</span>
+      <strong class="contact-card__value" id="cCallVal">0977 809 3768</strong>
+      <span class="contact-card__go ms">arrow_outward</span>
+    </a>
+    <a class="contact-card reveal" id="cMail" data-delay="3">
+      <span class="contact-card__icon ms">mail</span>
+      <span class="contact-card__label">Email</span>
+      <strong class="contact-card__value" id="cMailVal">sherillf20@gmail.com</strong>
+      <span class="contact-card__go ms">arrow_outward</span>
+    </a>
+    <a class="contact-card reveal" id="cMap" data-delay="4" target="_blank" rel="noopener">
+      <span class="contact-card__icon ms">location_on</span>
+      <span class="contact-card__label">Showroom</span>
+      <strong class="contact-card__value">Nissan Quezon Avenue</strong>
+      <span class="contact-card__go ms">arrow_outward</span>
+    </a>
+  </div>
+
+  <div class="closing reveal">
+    <div class="closing__copy">
+      <p class="eyebrow"><span class="dot"></span>Let's drive your next adventure</p>
+      <h3>I'm here to help.</h3>
+      <p class="closing__lead">
+        Whether it's your first car or your seventh, you'll get the same thing
+        from me: honest numbers, real options, and follow-through after the sale.
+      </p>
+      <ul class="closing__points" id="closingPoints"></ul>
+      <a class="btn btn--primary btn--lg" id="closingViber"><span class="ms">chat</span><span>Message Sherill</span></a>
+    </div>
+    <div class="closing__photo">
+      <img src="assets/sherill.webp" alt="Sherill Obillo" width="632" height="748" loading="lazy" />
+    </div>
+  </div>
+</section>
+
+</main>
+
+<footer class="footer">
+  <div class="footer__inner">
+    <div>
+      <strong>Sherill Obillo</strong>
+      <span>Nissan Marketing Professional · Nissan Quezon Avenue</span>
+    </div>
+    <p class="footer__legal">
+      Independent personal site of a Nissan sales professional. Not an official
+      Nissan Philippines website. All model names, prices and trademarks belong
+      to Nissan. Prices are SRP and may change without prior notice.
+    </p>
+  </div>
+</footer>
+
+<!-- sticky mobile action bar -->
+<div class="dock" id="dock">
+  <a class="dock__btn" id="dockViber"><span class="ms">chat</span><span>Viber</span></a>
+  <a class="dock__btn" id="dockCall"><span class="ms">call</span><span>Call</span></a>
+  <a class="dock__btn dock__btn--primary" href="#quote" data-nav><span class="ms">request_quote</span><span>Get a quote</span></a>
+</div>
+
+<!-- ════════════════════════════════════════════════════ model detail -->
+<div class="sheet" id="sheet" aria-hidden="true" role="dialog" aria-modal="true" aria-labelledby="sheetTitle">
+  <div class="sheet__scrim" data-close></div>
+  <div class="sheet__panel" id="sheetPanel">
+    <button class="sheet__close" data-close aria-label="Close"><span class="ms">close</span></button>
+    <div class="sheet__scroll" id="sheetBody"></div>
+  </div>
+</div>
+
+<div class="toast" id="toast" aria-live="polite"></div>
+
+<script src="js/data.js"></script>
+<script src="js/app.js"></script>
+</body>
+</html>

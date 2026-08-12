@@ -29,6 +29,21 @@ Local workflow that takes a day-folder of mixed-orientation Insta360 / phone cli
   - **Folder hygiene:** each `~/Desktop/Camera01/YYYY-MM-DD/` is ~30 GB. Delete after the YouTube URL returns `playabilityStatus: OK`. YouTube is the archive.
 - **Full docs:** See `knowledge/camera01-archive/SUMMARY.md` (run book, OAuth setup, things tried and rejected).
 
+### sherill/  🟢
+
+Personal site for **Tita Sherill Obillo**, Nissan Marketing Professional at Nissan Quezon Avenue — the full PH line-up with variant prices, current promos, a KICKS e-POWER explainer, a financing/quotation calculator and contact links.
+
+- **Tech:** vanilla JS + hand-written CSS (no framework — Tailwind was dropped for mobile performance), Material Symbols Outlined, Inter. No build step.
+- **Entry:** `index.html`, `js/data.js` (all content — prices, variants, colors, promos), `js/app.js`, `style.css`.
+- **Deploy:** its **own Vercel project** `drive-with-sherill` → https://drive-with-sherill.vercel.app (separate from the repo-root deploy). Redeploy = `cd sherill && vercel --prod --yes` **then re-set the alias** — it does not follow automatically. Also on GitHub Pages at `/sherill/`.
+- **Quirks:**
+  - A three.js low-poly car viewer was built, then removed — real Nissan photography reads far better on a car sales page.
+  - Model images are pulled from nissan.ph's DAM; the price-guide thumbnails are only 300 px, the usable ones are the desktop KV JPGs on each model page (1920–2880 px). Needs a browser UA + `Referer: https://www.nissan.ph/`.
+  - Prices combine nissan.ph's price guide with Sherill's own flyers (premium-color rows, Patrol LTO column). **KICKS e-POWER prices are unconfirmed** — ask her.
+  - The quotation form has no backend: it composes a message for Viber / SMS / email / clipboard. The Viber button copies first because Viber links can't carry text.
+  - Footer states it is not an official Nissan Philippines website.
+- **Full docs:** See `knowledge/sherill/SUMMARY.md` and `sherill/README.md`.
+
 ### autoclicker/  🟢
 
 DIY WiFi auto-clicker build reference + live phone remote — ESP32-C3 + MG90S servo SwitchBot (migrated from relay+solenoid 2026-05-06). Single-page site documents hardware, wiring, firmware; phone subdir is the live remote.
@@ -434,7 +449,7 @@ Simple side-scrolling platformer (Bubu & Dudu) — canvas-based game.
 
 | Project | Hosting | Auto-deploy on push? |
 |---|---|---|
-| devo, monthsary, tayo, sns-dq, weddingtest, towa-no-yuugure, autoclicker, aircon, pocket-remote, mac-toggle, collaterals, flux, pray, echoes, wedding100, weddingtimeline, horizon, money, anohana, bubududu | GitHub Pages subpath | ✅ |
+| sherill (also on Vercel as `drive-with-sherill`), devo, monthsary, tayo, sns-dq, weddingtest, towa-no-yuugure, autoclicker, aircon, pocket-remote, mac-toggle, collaterals, flux, pray, echoes, wedding100, weddingtimeline, horizon, money, anohana, bubududu | GitHub Pages subpath | ✅ |
 | mac-toggle (Mac agent) | root LaunchDaemon `com.chaelri.mactoggle` via `agent/install.sh` | Manual |
 | mac-toggle (menu bar) | per-user LaunchAgent `com.chaelri.mactoggle.menubar` via `menubar/install-menubar.sh` | Manual |
 | claude-usage | per-user LaunchAgent `com.chaelri.claudeusage` via `install.sh` | Manual |
